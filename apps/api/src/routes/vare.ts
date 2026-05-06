@@ -124,7 +124,7 @@ export const vareRouter = router({
         ) {
           throw new TRPCError({
             code: "CONFLICT",
-            message: "En vare med dette varenummeret finnes allerede",
+            message: "En vare med samme navn og enhet finnes allerede",
           });
         }
         throw e;
@@ -193,7 +193,7 @@ export const vareRouter = router({
         ) {
           throw new TRPCError({
             code: "CONFLICT",
-            message: "En vare med dette varenummeret finnes allerede",
+            message: "En vare med samme navn og enhet finnes allerede",
           });
         }
         throw e;

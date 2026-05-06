@@ -36,6 +36,7 @@ import { eksternKostObjektRouter } from "../routes/eksternKostObjekt";
 import { vareKategoriRouter } from "../routes/vareKategori";
 import { vareRouter } from "../routes/vare";
 import { vareforbrukRouter } from "../routes/vareforbruk";
+import { vareImportRouter } from "../routes/vareImport";
 
 
 export const appRouter = router({
@@ -77,6 +78,7 @@ export const appRouter = router({
   vareKategori: vareKategoriRouter,
   vare: vareRouter,
   vareforbruk: vareforbrukRouter,
+  vareImport: vareImportRouter,
 });
 
 export type AppRouter = typeof appRouter;

@@ -59,7 +59,7 @@ model Vare {
   kategori    VareKategori? @relation(fields: [kategoriId], references: [id], onDelete: Restrict)
   vareforbruk Vareforbruk[]
 
-  @@unique([organizationId, varenummer])
+  @@unique([organizationId, navn, enhet])
   @@index([organizationId, aktiv])
   @@index([kategoriId])
   @@map("varer")

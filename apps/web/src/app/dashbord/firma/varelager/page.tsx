@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
-import { Plus, Pencil, Power, Trash2 } from "lucide-react";
+import { Plus, Pencil, Power, Trash2, Upload } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
 const ENHET_FORSLAG = ["m", "m2", "m3", "kg", "tonn", "stk", "sekk", "liter", "doegn", "timer"];
@@ -193,9 +194,12 @@ function VarerFane({ orgId }: { orgId: string }) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button variant="secondary" disabled title={t("firma.varelager.knapp.importKommer")}>
-            {t("firma.varelager.knapp.importerSmartDok")}
-          </Button>
+          <Link href="/dashbord/firma/varelager/import">
+            <Button variant="secondary">
+              <Upload className="mr-1.5 h-4 w-4" />
+              {t("firma.varelager.knapp.importerSmartDok")}
+            </Button>
+          </Link>
           <Button onClick={() => setVisOpprett(true)}>
             <Plus className="mr-1.5 h-4 w-4" />
             {t("firma.varelager.knapp.leggTilVare")}

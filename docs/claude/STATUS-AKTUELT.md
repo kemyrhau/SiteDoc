@@ -1,7 +1,7 @@
 ---
 name: STATUS-AKTUELT
 description: Løpende statusrapport for pågående arbeid, pauset arbeid og planlagte faser. Oppdateres ved hver vesentlig fremdrift.
-sist_verifisert_mot_kode: 2026-05-06
+sist_verifisert_mot_kode: 2026-05-07
 ---
 
 # SiteDoc — aktuell status
@@ -12,6 +12,51 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 [arkitektur-syntese.md](arkitektur-syntese.md).
 
 ## Pågående arbeid
+
+**Steg 4b Sesjon 3 (Fase 5 — import-flyt) IMPLEMENTERT på develop 2026-05-07.** Lukker Steg 4b fullt ut når deployet til prod. Bygger på Sesjon 2 (deployet prod 2026-05-06). Implementerer SmartDok-varekatalog-import for A.Markussen.
+
+**Endringer i Sesjon 3:**
+
+**Migrasjon — Vare unique-constraint:**
+- Ny migrasjon `20260507000001_vare_unique_navn_enhet`: dropper `(organizationId, varenummer)`-unique og legger til `(organizationId, navn, enhet)`-unique. Schema-rens i `packages/db-varelager/prisma/schema.prisma`. Bakgrunn: A.Markussens SmartDok-katalog har samme produkt med to enheter (eks. «Pukk 0-120» som både m³ og Tonn med varenummer 31) — den gamle constraint hindret det. Domenet er klart: navn+enhet identifiserer en katalog-vare unikt per firma; varenummer er valgfri ekstern referanse. Eksisterende vare-router CONFLICT-meldinger oppdatert.
+
+**Server — `vareImport`-router (ny):**
+- Ny utility `apps/api/src/utils/vareforbrukImport.ts`: `parseSmartDokVarerXml(filinnhold)` parser SpreadsheetML XML (filtype `Varedetaljer.xls.xls` er XML, ikke binær), `normaliserEnhet(verdi)` (Døgn→doegn, m³→m3, etc.), `beregnFilHash(filinnhold)` SHA-256. Filtreringer: navn=«.» → utelat (ugyldig), kategori=«Utleie Heatwork» → utelat (opprettes manuelt som Equipment per Beslutning 3 i steg-4b-plan.md), pris=0 → null (SmartDok 0=ikke satt), internkostnad tom → null. Bruker `fast-xml-parser` (allerede installert).
+- Ny router `apps/api/src/routes/vareImport.ts` montert på `appRouter.vareImport`:
+  - `importerForhandsvisning({ filInnhold, organizationId })` — parse + duplikat-rapport (DB-duplikater på navn+enhet + fil-interne) + kategori-fordeling (eksisterende vs ny). Ingen DB-skriving.
+  - `importerBekreft({ filInnhold, filhash, organizationId })` — fil-hash-sjekk mot forhåndsvisning, atomisk `$transaction`: (1) seed nye `VareKategori`-rader for kategorier som ikke eksisterer, (2) opprett `Vare`-rader med `kategoriId`-FK satt. Activity-log best-effort med samlet rad (`target_type=vare_import`, `action=vare.smartdok-importert`).
+- Begge gates med `verifiserFirmaAdminOgVarelager` (samme mønster som vare/vareKategori-routerne) — `autoriserAdminForFirma` + `krevVarelagerAktivert` med `PRECONDITION_FAILED` hvis modul ikke aktiv.
+
+**Klient — ny side `/dashbord/firma/varelager/import`:**
+- 4-stegs flyt: opplastning (drag-and-drop + klikk) → forhåndsvisning (sammendrag + kategori-oversikt + advarsler + tabell-preview) → bekreft → resultat. Samme stil som `/dashbord/maskin/import`.
+- Filinnhold lastes som tekst (`fil.text()`) siden SpreadsheetML er XML. Aksepterer `.xls` og `.xml`.
+- Forhåndsvisning skiller mellom Heatwork-utelatt (med peker til Equipment-internnr fra navnet), ugyldige rader (navn=«.»), DB-duplikater og fil-interne duplikater.
+- Resultat-side har egen advarsel-boks for Heatwork-rader med klar instruks om manuell Equipment-opprettelse.
+- «Importer fra SmartDok»-knapp på `/dashbord/firma/varelager` byttet fra `disabled` til `<Link>` til ny rute. Ubrukt i18n-nøkkel `firma.varelager.knapp.importKommer` fjernet.
+
+**A.Markussen prod-import — manuell oppfølging etter prod-deploy:**
+1. Aktiver Varelager-modul for A.Markussen via `/dashbord/firma/moduler` (sitedoc_admin → A.Markussen i FirmaVelger).
+2. Importer `Varedetaljer.xls.xls` via ny rute. Forventet resultat: 7 nye kategorier + 57 varer + 1 ugyldig utelatt + 6 Heatwork utelatt (totalt 64 rader i fila).
+3. Manuelt: opprett 6 nye Equipment-rader for Heatwork-enhetene (7626/7628/7630/7632/7634 + HW-vifte) med `kategori=smautstyr`, `erUtleieobjekt=true`, `utleieEnhet=doegn`. Listet i resultat-side med forventet internnummer.
+
+**i18n:** ~50 nye nøkler under `firma.varelager.import.*` i nb+en. Fjernet 1 ubrukt nøkkel.
+
+**Filer endret/nye:**
+- 1 ny migrasjon (`20260507000001_vare_unique_navn_enhet`)
+- 1 endret: `packages/db-varelager/prisma/schema.prisma` (unique-endring)
+- 1 endret: `apps/api/src/routes/vare.ts` (CONFLICT-meldinger oppdatert til navn+enhet)
+- 1 ny: `apps/api/src/utils/vareforbrukImport.ts` (parser)
+- 1 ny: `apps/api/src/routes/vareImport.ts` (router)
+- 1 endret: `apps/api/src/trpc/router.ts` (montering)
+- 1 ny: `apps/web/src/app/dashbord/firma/varelager/import/page.tsx` (klient-UI)
+- 1 endret: `apps/web/src/app/dashbord/firma/varelager/page.tsx` (knapp aktivert + Link)
+- 2 endret: `packages/shared/src/i18n/{nb,en}.json` (i18n-nøkler)
+
+`pnpm --filter @sitedoc/api typecheck` + `pnpm build --filter @sitedoc/web` (36.2s) grønt. Klar for test-deploy.
+
+**Stopp og rapporter etter test-deploy — Claude verifiserer import-flyten på Byggeleder før prod-deploy.**
+
+---
 
 **Steg 4b Sesjon 2 (Fase 3 + Fase 4) DEPLOYET TIL PROD 2026-05-06** (impl `da354766` + fix `7d95087f`). Bygger på Sesjon 1 (Fase 1 + 2) som blir deployet i samme prod-merge (commit `b7127475`). Sesjon 2 leverer tRPC-routere og full klient-UI for Varelager-modulen — verifisert på test som **Tore SiteDocAdmin → Byggeleder**: aktivering fungerer, full CRUD i Varelager + Vareforbruk verifisert, lås på attestert-rader fungerer, FK-Restrict på kategori-slett gir korrekt feilmelding.
 
