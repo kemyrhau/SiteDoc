@@ -13,6 +13,28 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Integrasjonsadmin med kryptering IMPLEMENTERT på develop 2026-05-07.** Per-firma integrasjons-administrasjon med AES-256-GCM-kryptering av API-nøkler at-rest. Forutsetning for Sentralregisteret-integrasjon (Brønnøysundregistrene). SmartDok holdes utenfor denne PR.
+
+**Komponenter:**
+- `packages/db/src/encryption.ts` — AES-256-GCM utility (`krypter`/`dekrypter`/`verifiserKrypteringsKonfig`). 12-byte IV, 16-byte authTag, base64-output. Master-key fra `SITEDOC_INTEGRATION_KEY` (32 byte hex).
+- `apps/api/src/routes/firma-integrasjon.ts` — ny tRPC-router (`list`/`lagre`/`slett`) gates med `autoriserAdminForFirma`. Type-whitelist `["sentralregisteret"]`.
+- `apps/api/src/routes/admin.ts` — utvidet: opprett/oppdater krypterer apiKey, ny type `"sentralregisteret"` tillatt, ny `hentPlatformIntegrasjoner` returnerer Vegvesen + krypterings-nøkkel-status.
+- `apps/web/src/app/dashbord/firma/innstillinger/integrasjoner/page.tsx` — firma-admin UI med kort-basert design, status-badge, password-felt, Lagre/Endre/Fjern.
+- `apps/web/src/app/dashbord/admin/integrasjoner/page.tsx` — sitedoc_admin platform-status (Vegvesen + krypteringsnøkkel read-only).
+- Sidebar-links lagt til både firma- og admin-layout.
+
+**Designvalg — eksplisitt vs Prisma `$extends`:** Vurderte `$extends` med `query`-component for transparent kryptering, men dette endret type-en på `prisma`-instansen og brakk type-systemet i hele monorepo (manglende `$on`-metode på utvidet klient bryter funksjoner som tar `PrismaClient`-parameter). Eksplisitt `krypter()`-kall i routerne (kun 2 filer rører `OrganizationIntegration`) er mer lesbar og unngår type-kaskade. Risiko for å glemme krypter-kall mitigeres av at scope er minimalt.
+
+**Test-rens:** `c9a86fa4-ec5b-4959-8631-b3f176f92d50` (proadm testdata på Byggeleder, klartekst) slettet via SQL før push. Prod hadde 0 rader → ingen migrering nødvendig.
+
+**Manuell env-oppdatering kreves før test-deploy:** Sett `SITEDOC_INTEGRATION_KEY` på test- og prod-server. Genereres med `openssl rand -hex 32`. Master-key må aldri rote i git.
+
+**Sentralregisteret-integrasjon konsumerer foreløpig ikke nøkkelen** — denne PR-en lager kun lager-flyten. Faktisk Sentralregister-API-kall (Brønnøysundregistrene) implementeres i egen PR. Vegvesen-policy uendret: env-variabel (`VEGVESEN_API_KEY`), platform-nivå.
+
+`pnpm --filter @sitedoc/api typecheck` + `pnpm build --filter @sitedoc/web` (35.7s) grønt. Klar for test-deploy etter env-oppdatering.
+
+---
+
 **UX-runde 2 (B1+B2) DEPLOYET TIL PROD 2026-05-06.** UX-agenda har nå alle 3 vedtatte beslutninger (B1+B2+B3) på prod. Gjenstår kun U5 (byggeplass selvstendig flyt) som åpen UX-oppgave.
 
 | Merge-hash | Innhold | Prod-deploy-tid (CEST) |

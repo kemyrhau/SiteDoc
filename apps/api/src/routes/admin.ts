@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
-import { Prisma } from "@sitedoc/db";
+import { Prisma, krypter } from "@sitedoc/db";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 
 /**
@@ -437,7 +437,7 @@ export const adminRouter = router({
   opprettIntegrasjon: protectedProcedure
     .input(z.object({
       organizationId: z.string(),
-      type: z.enum(["proadm", "hr", "gps", "smartdoc"]),
+      type: z.enum(["proadm", "hr", "gps", "smartdoc", "sentralregisteret"]),
       url: z.string().url().optional(),
       apiKey: z.string().optional(),
       config: z.record(z.unknown()).optional(),
@@ -451,7 +451,7 @@ export const adminRouter = router({
           organizationId: input.organizationId,
           type: input.type,
           url: input.url ?? null,
-          apiKey: input.apiKey ?? null,
+          apiKey: input.apiKey ? krypter(input.apiKey) : null,
           config: input.config ? (input.config as Prisma.InputJsonValue) : Prisma.JsonNull,
           aktiv: input.aktiv,
         },
@@ -487,12 +487,12 @@ export const adminRouter = router({
         throw new TRPCError({ code: "NOT_FOUND", message: "Integrasjon ikke funnet" });
       }
 
-      // apiKey-logikk: undefined = behold, "" = slett, ny verdi = erstatt
+      // apiKey-logikk: undefined = behold, "" = slett, ny verdi = erstatt (krypteres)
       const oppdatertApiKey = input.apiKey === undefined
         ? undefined // behold eksisterende
         : input.apiKey === ""
           ? null // slett nøkkelen
-          : input.apiKey; // ny verdi
+          : krypter(input.apiKey); // ny verdi (kryptert)
 
       const integrasjon = await ctx.prisma.organizationIntegration.update({
         where: { id: input.id },
@@ -533,5 +533,27 @@ export const adminRouter = router({
       });
 
       return { slettet: true };
+    }),
+
+  // --------------------------------------------------------------------------
+  // Platform-konfigurasjon (read-only status, sitedoc-nivå)
+  // --------------------------------------------------------------------------
+
+  hentPlatformIntegrasjoner: protectedProcedure
+    .query(async ({ ctx }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+      return {
+        vegvesen: {
+          konfigurert: !!process.env.VEGVESEN_API_KEY,
+          beskrivelse:
+            "Statens Vegvesen — kjøretøyoppslag på regnummer. Felles platform-nøkkel.",
+        },
+        krypteringsnoekkel: {
+          konfigurert: !!process.env.SITEDOC_INTEGRATION_KEY,
+          beskrivelse:
+            "Master-nøkkel for AES-256-GCM kryptering av OrganizationIntegration.apiKey.",
+        },
+      };
     }),
 });
