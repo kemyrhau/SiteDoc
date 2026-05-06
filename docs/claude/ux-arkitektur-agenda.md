@@ -56,9 +56,16 @@ per-prosjekt). Status-badges (kladd/sent/attestert) per ansatt. Sidebar-rad
 «Timer-rapport» i firma-layout. ~30 i18n-nøkler nb+en.
 IKKE deployet til prod ennå.
 
-**U2 — Eksport alle ansatte** [MANGLER]
-CSV/Excel-eksport av timer per ansatt, per prosjekt, per periode.
-Forutsetning for ProAdm-eksport og lønnskjøring.
+**U2 — Eksport alle ansatte** [LØST på develop 2026-05-07]
+Ny `apps/web/src/lib/timer-rapport-eksport.ts` med eksporterCsv +
+eksporterXlsx. Eksport-knapp i header på `/dashbord/firma/timer/rapport`
+med dropdown CSV/Excel. Lazy-import av exceljs (allerede i deps).
+- CSV: ett ark, semikolon-separert med UTF-8 BOM for Excel-kompatibilitet
+- Excel: 3 ark (Sammendrag + Per prosjekt + Per dag)
+- Filnavn-mønster: `SiteDoc-timer-{firma-slug}-{fra}-{til}.{csv|xlsx}`
+- Norsk tallformat (komma som desimal)
+- Respekterer alle valgte filtre (periode, prosjekt, ansatt)
+IKKE deployet til prod ennå.
 
 **U3 — Sidebar tekst-labels i prosjektkontekst** [UX-svakhet]
 Prosjekt-sidebar viser kun ikoner uten tekst. Uleselig for nye brukere.
