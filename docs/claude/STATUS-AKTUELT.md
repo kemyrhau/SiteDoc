@@ -13,6 +13,36 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Heatwork-seed + U6 maskin firma-kontekst-fix DEPLOYET TIL PROD 2026-05-06** (merge `3dd4371b`).
+
+**Prod-deploy fullført:**
+- Merge `3dd4371b`: Heatwork-seed-script + U6-fix
+- pnpm install + db-maskin generate (ingen migrasjon — kun kode-endringer)
+- Web-build 1m16s, sitedoc-api + sitedoc-web restartet
+- HTTP/2 200 mot sitedoc.no
+
+**Heatwork-seed mot A.Markussen prod (`4488fe17-...`):**
+```
+Heatwork-rader: 3 opprettet, 2 eksisterte
+```
+
+**DB-tilstand etter seed + manuell rens:**
+| internNummer | type | erUtleieobjekt | utleieEnhet | Kilde |
+|---|---|---|---|---|
+| 7626 | Heatwork 3600 | true | doegn | Seed-script 2026-05-06 |
+| 7628 | Heatwork 3600 | true | doegn | Seed-script 2026-05-06 |
+| 7630 | Heatwork 3600 | true | doegn | Seed-script 2026-05-06 |
+| 7632 | Heatwork 3600 | true | doegn | Manuelt rettet i UI 2026-05-06 |
+| 7634 | Heatwork MY35 | true | doegn | Manuelt rettet i UI 2026-05-06 |
+
+Alle 5 Heatwork-utleie-Equipment-rader for A.Markussen ferdig konfigurert.
+
+7632 og 7634 ble opprintet via SmartDok-maskin-import 2026-05-03 før Heatwork-Equipment-utvidelsen var planlagt. Idempotens-sjekken (på `internNummer`) hoppet over dem fordi de allerede fantes — scriptet overskriver ikke eksisterende rader. Brukeren rettet manuelt i UI etter prod-deploy av U6-fix.
+
+**U6-fix:** equipment-router migrert til Steg 1b/2d-mønster. Ny `hentMaskinOrgFraInput` + lokal `verifiserMaskinTilgang` med sitedoc_admin-bypass. Klient sender `useFirma().valgtFirma?.id` med enabled-flagg. Detaljside bruker utstyrets eget orgId for ansvarlig-velger. Tom-state på nytt-utstyr-side hvis ingen firma valgt.
+
+---
+
 **Steg 4b Sesjon 3 DEPLOYET TIL PROD 2026-05-06** (merge `37a1fe89`). Lukker Steg 4b fullt ut.
 
 **Prod-deploy fullført:**
