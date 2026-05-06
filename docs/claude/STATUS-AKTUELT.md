@@ -13,7 +13,38 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Steg 4b Sesjon 3 (Fase 5 — import-flyt) IMPLEMENTERT på develop 2026-05-07.** Lukker Steg 4b fullt ut når deployet til prod. Bygger på Sesjon 2 (deployet prod 2026-05-06). Implementerer SmartDok-varekatalog-import for A.Markussen.
+**Steg 4b Sesjon 3 — engangs seed-script for A.Markussen IMPLEMENTERT på develop 2026-05-07** (`5e7aa8d2`).
+
+**Strategi-endring:** A.Markussens varekatalog seedes via dedikert script i stedet for å kjøre import-UI mot prod. Import-UI'et fra `420c0464` beholdes for fremtidige kunder.
+
+**Endring:**
+- Ny fil `packages/db-varelager/prisma/seed-amarkussen.ts` (219 linjer)
+- 7 VareKategori-rader (Grus/pukk/jord, Diverse, Naturstein, Betongstein og elementer, Rør og rørdeler, Deponiavgift, Forbruk) — alle med `kontonummer=null` (fylles manuelt etter seed)
+- 57 Vare-rader fordelt: Grus/pukk/jord (36), Diverse (7, «.» utelatt), Naturstein (8), Betongstein og elementer (2), Rør og rørdeler (2), Deponiavgift (1), Forbruk (1)
+- 2 pris-rader: «Matjord fra lager Beisfjord» m3=100,00 og «Samfengt grus» m3=80,00
+- Idempotent: `findFirst` per rad → opprett hvis null. Re-kjøring oppretter 0 nye rader og overskriver IKKE eksisterende verdier (bevarer manuelle pris-justeringer i UI)
+- Default `ORG_ID=4488fe17-7490-409f-9c1c-2827f257c54d` (A.Markussen AS prod). Override via `SEED_ORG_ID`-env for test
+- Heatwork-utleie (6 rader) IKKE seedet — opprettes manuelt som Equipment per Beslutning 3 i steg-4b-plan.md
+
+**Kjøring (test-DB først):**
+```
+SEED_ORG_ID=f1000001-0000-0000-0000-000000000002 \
+  pnpm --filter @sitedoc/db-varelager exec tsx prisma/seed-amarkussen.ts
+```
+(Byggeleder-firma på test-DB.)
+
+**Kjøring (prod):**
+```
+pnpm --filter @sitedoc/db-varelager exec tsx prisma/seed-amarkussen.ts
+```
+
+**Forutsetning:** Varelager-modul må aktiveres for firmaet via UI eller `OrganizationModule(slug="varelager", status="aktiv")` for at radene skal vises. Scriptet sjekker ikke dette — kun datavisnings-forutsetning, ikke data-integritet. Logger påminnelse på slutten.
+
+**Stopp og rapporter etter test-kjøring — Claude verifiserer i UI før prod-kjøring.**
+
+---
+
+**Steg 4b Sesjon 3 (Fase 5 — import-flyt) IMPLEMENTERT på develop 2026-05-07** (`420c0464`). Lukker Steg 4b fullt ut når deployet til prod. Bygger på Sesjon 2 (deployet prod 2026-05-06). Implementerer SmartDok-varekatalog-import for A.Markussen.
 
 **Endringer i Sesjon 3:**
 
