@@ -982,6 +982,9 @@
   "firma.timer.rapport.detalj.perUke": "Per week",
   "firma.timer.rapport.detalj.perProsjekt": "Per project",
   "firma.timer.rapport.tom": "No registered hours in the selected period.",
+  "firma.timer.rapport.eksport.knapp": "Export",
+  "firma.timer.rapport.eksport.csv": "CSV (.csv)",
+  "firma.timer.rapport.eksport.excel": "Excel (.xlsx)",
 
   "faggrupper.nyDokumentflyt": "New document flow",
   "faggrupper.nyFaggruppe": "New trade group",
