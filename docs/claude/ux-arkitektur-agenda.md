@@ -25,6 +25,23 @@ Utvides med modul-spesifikke punkter når Timer/Maskin/Varelager er aktivt:
 - Maskin aktivt → legg til «Maskinregister» (importer utstyr)
 - Varelager aktivt → legg til «Varekatalog» (legg til varer)
 
+**B3 — Modul-fargedesign (Alternativ C)**
+Toppbar forblir mørkeblå (brand-identitet).
+Fargeaksentuering brukes kun i sidebar og indikatorer — ikke i toppbar.
+
+Fargepalett per kontekst:
+- Prosjekt = blå (#378ADD)
+- Timer = grønn (#3B6D11)
+- Maskin = amber (#854F0B)
+- Varelager = teal (#1D9E75)
+
+Implementasjon: sidebar-aksentlinje (border-left 3px) på aktiv modul,
+farget ikon i samme ramp. Ingen endring i toppbar.
+Gjelder både firma-sidebar og prosjekt-sidebar.
+
+Implementasjon av B3 planlegges som en dedikert frontend-sesjon etter at
+A.Markussen-onboarding er stabilisert. Erstatter U4 i åpne oppgaver.
+
 ## Åpne oppgaver (krever planlegging)
 
 **U1 — Leder-timer-rapport på firmanivå** [MANGLER]
@@ -40,10 +57,8 @@ Forutsetning for ProAdm-eksport og lønnskjøring.
 Prosjekt-sidebar viser kun ikoner uten tekst. Uleselig for nye brukere.
 Forslag: ekspanderbar sidebar med tekstlabels, eller tooltip alltid synlig.
 
-**U4 — Visuell distinksjon mellom kontekster/moduler** [UX-svakhet]
-All navigasjon er samme mørkeblå. Vurdér fargeaksentuering per modul
-(Timer = en farge, Maskin = annen) for å tydeliggjøre hvilken modul
-brukeren er i.
+**U4 — Visuell distinksjon mellom kontekster/moduler** [LØST i B3]
+Erstattet av B3-beslutning (sidebar-aksent per modul, toppbar uendret).
 
 **U5 — Byggeplass som selvstendig flyt** [MANGLER]
 Byggeplass kan bare opprettes inne i prosjektkontekst i dag.
