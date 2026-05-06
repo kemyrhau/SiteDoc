@@ -21,6 +21,7 @@ export type Seksjon =
   | "kontrollplan"
   | "timer"
   | "timer-attestering"
+  | "mine-timer"
   | "vareforbruk"
   | "maskin"
   | "oppsett";

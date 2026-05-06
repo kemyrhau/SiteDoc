@@ -43,6 +43,12 @@ export function useAktivSeksjon(): Seksjon {
       return;
     }
 
+    // Personlig snarvei: /dashbord/timer/mine
+    if (deler[1] === "timer" && deler[2] === "mine") {
+      setAktivSeksjon("mine-timer");
+      return;
+    }
+
     // Finn seksjon etter prosjektId (indeks 2 i pathen)
     const seksjonDel = deler[2];
     // Spesialfall: /timer/attestering er egen seksjon

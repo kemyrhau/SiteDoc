@@ -36,6 +36,7 @@ import { MODUL_FARGER, hentAktivModul, type ModulNavn } from "@/lib/modul-farger
 const MODUL_EIERSKAP: Partial<Record<Seksjon, ModulNavn>> = {
   timer: "timer",
   "timer-attestering": "timer",
+  "mine-timer": "timer",
   maskin: "maskin",
   vareforbruk: "varelager",
 };
@@ -135,6 +136,13 @@ const hovedelementer: SidebarElement[] = [
     ikon: <ShieldCheck className="h-5 w-5" />,
     kreverProsjekt: true,
     kreverModul: "psi",
+  },
+  {
+    id: "mine-timer",
+    labelKey: "nav.timerMine",
+    ikon: <BarChart3 className="h-5 w-5" />,
+    kreverProsjekt: false,
+    kreverFirmaModul: "timer",
   },
   {
     id: "timer",
@@ -260,6 +268,8 @@ export function HovedSidebar() {
       router.push("/dashbord/oppsett");
     } else if (element.id === "maskin") {
       router.push("/dashbord/maskin");
+    } else if (element.id === "mine-timer") {
+      router.push("/dashbord/timer/mine");
     } else if (element.id === "timer-attestering" && prosjektId) {
       router.push(`/dashbord/${prosjektId}/timer/attestering`);
     } else if (prosjektId) {
