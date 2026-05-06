@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3, Boxes, Package, Database } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3, Boxes, Package, Database, ArrowLeft } from "lucide-react";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
@@ -120,8 +120,15 @@ export default function FirmaLayout({
     <div className="flex flex-1 overflow-hidden">
       {/* Firma-sidebar */}
       <aside className="flex w-[280px] flex-col border-r border-gray-200 bg-white">
-        <div className="border-b border-gray-200 px-5 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">
+        <div className="border-b border-gray-200 px-3 py-3">
+          <Link
+            href="/dashbord"
+            className="mb-2 flex items-center gap-2 rounded-md px-2 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Tilbake til dashbord
+          </Link>
+          <h2 className="px-2 text-lg font-semibold text-gray-900">
             {valgtFirma.name}
           </h2>
         </div>
