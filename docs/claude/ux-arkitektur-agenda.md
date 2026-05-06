@@ -44,10 +44,17 @@ A.Markussen-onboarding er stabilisert. Erstatter U4 i åpne oppgaver.
 
 ## Åpne oppgaver (krever planlegging)
 
-**U1 — Leder-timer-rapport på firmanivå** [MANGLER]
-Firmaadmin trenger: alle ansattes timer per periode, sorterbar/filtrerbar,
-med eksport. Tilsvarer «Mine timer» men for alle brukere i firmaet.
-Plassering: /dashbord/firma/timer/rapport
+**U1 — Leder-timer-rapport på firmanivå** [LØST på develop 2026-05-07]
+Ny under-router `timer.rapport` med firmaPeriodeRapport + hentFirmaProsjekterMedTimer
++ hentFirmaAnsatteMedTimer. Aggregerer DailySheet + SheetTimer + SheetTillegg
++ SheetMachine på tvers av firmaets prosjekter. Gates med autoriserAdminForFirma.
+Klient: ny side `/dashbord/firma/timer/rapport` med periode-velger (hurtig-knapper
+denne uken/forrige uke/denne måned/forrige måned + egendefinert), prosjekt- og
+ansatt-dropdown, sammendrag-stripe (total timer/ansatte/sedler/sent/attestert),
+sortbar tabell per ansatt med ekspanderbar detaljvisning (per-dag toggle uke +
+per-prosjekt). Status-badges (kladd/sent/attestert) per ansatt. Sidebar-rad
+«Timer-rapport» i firma-layout. ~30 i18n-nøkler nb+en.
+IKKE deployet til prod ennå.
 
 **U2 — Eksport alle ansatte** [MANGLER]
 CSV/Excel-eksport av timer per ansatt, per prosjekt, per periode.

@@ -4,6 +4,7 @@ import { lonnsartRouter } from "./lonnsart";
 import { aktivitetRouter } from "./aktivitet";
 import { tilleggRouter } from "./tillegg";
 import { dagsseddelRouter } from "./dagsseddel";
+import { rapportRouter } from "./rapport";
 
 export const timerRouter = router({
   onboarding: onboardingRouter,
@@ -11,4 +12,5 @@ export const timerRouter = router({
   aktivitet: aktivitetRouter,
   tillegg: tilleggRouter,
   dagsseddel: dagsseddelRouter,
+  rapport: rapportRouter,
 });
