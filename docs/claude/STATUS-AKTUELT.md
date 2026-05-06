@@ -13,6 +13,18 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**HovedSidebar skjult i firma-kontekst + Tilbake-lenke DEPLOYET TIL PROD 2026-05-06** (`8a184fc8` merge). HTTP/2 200 mot sitedoc.no.
+
+**Endringer:**
+- `apps/web/src/app/dashbord/layout.tsx` — gjort til client-komponent med `usePathname()`. Betingelses-rendring: `{!erFirmaKontekst && <HovedSidebar />}` der `erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false`.
+- `apps/web/src/app/dashbord/firma/layout.tsx` — ny «← Tilbake til dashbord»-lenke (ArrowLeft-ikon) plassert øverst i sidebar-header-blokken (over firmanavnet). Peker til `/dashbord` og bringer HovedSidebar tilbake siden URL ikke lenger starter med `/dashbord/firma`. Bredden på firma-sidebar uendret (280px).
+
+**UX-effekt:** I firma-administrasjon hadde brukeren tidligere både HovedSidebar (60-200px) + firma-sidebar (280px) stablet ved siden av hverandre, som spiste 480px-skjermbredde uten ekstra verdi. Nå tar firma-sidebar full sidebar-rolle, og «Tilbake»-lenken gir en eksplisitt vei ut av firma-konteksten.
+
+**Build (1m1s) + pm2 reload --update-env** grønt på prod. HTTP/2 200 verifisert.
+
+---
+
 **Fakturering-gating + U5-forkasting DEPLOYET TIL PROD 2026-05-06** (`207a223c` merge). To små endringer bundlet i én deploy: (1) Fakturering-menyelement i firma-sidebar skjult for `company_admin`, (2) UX-agenda U5 lukket som forkastet. HTTP/2 200 mot sitedoc.no.
 
 **Endring 1 — Fakturering-gating** (`apps/web/src/app/dashbord/firma/layout.tsx`):
