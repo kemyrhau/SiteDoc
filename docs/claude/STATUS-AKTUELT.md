@@ -13,6 +13,39 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**UX-runde 2 (B1+B2) DEPLOYET TIL PROD 2026-05-06.** UX-agenda har nå alle 3 vedtatte beslutninger (B1+B2+B3) på prod. Gjenstår kun U5 (byggeplass selvstendig flyt) som åpen UX-oppgave.
+
+| Merge-hash | Innhold | Prod-deploy-tid (CEST) |
+|---|---|---|
+| `2f22c503` | B1 ProsjektVelger Alle/Mine prosjekter scope | ~16:48 |
+| `da00d55d` | B2 onboarding-checkpoint-bar modul-utvidelse | ~17:05 |
+
+**B1** (`2f22c503`): Server: `prosjekt.hentMine` endret til medlemskaps-filter uavhengig av rolle (sitedoc_admin og company_admin filtreres nå også på `members.some.userId`). `hentAlle` beholder admin-bypass for «Alle»-scope.
+
+Klient: ProsjektKontekst utvidet med `prosjektScope: "alle" | "mine" | "enkelt"`, `mineProsjekter`-liste og `velgScope(scope)`-funksjon. Scope persisteres i `localStorage` (`sitedoc-prosjekt-scope`, default `"mine"`). URL med prosjektId tvinger `scope="enkelt"`. ProsjektVelger viser to scope-rader øverst (LayoutGrid + Star-ikon, telling = N/M) — kun for sitedoc_admin og company_admin. Vanlig user (`role="user"`) får ren prosjektliste som før. Knapp-tekst speiler aktiv scope. `velgScope` nullstiller prosjekt-id og ruter til `/dashbord`. Dashbord-startsiden filtrerer visnings-listen på scope; auto-redirect-logikken bruker fortsatt full prosjektliste (førstegangs-onboarding). Ny tom-state-tekst for «Mine»-scope peker brukeren til «Alle prosjekter». 7 nye i18n-nøkler nb+en (`prosjektVelger.*` + `dashbord.ingenMineProsjekterBeskrivelse`).
+
+**B2** (`da00d55d`): Server: `prosjekt.hentOnboardingStatus` utvidet med 6 nye flagg — `timerAktiv/harTimerOppsett`, `maskinAktiv/harMaskinregister`, `varelagerAktiv/harVarekatalog`. Modul-aktivering avledes fra `ProjectModule.status="aktiv"` på prosjektet. Ferdig-kriterier: Timer = `prismaTimer.lonnsart.count > 0 && prismaTimer.aktivitet.count > 0`; Maskin = `prismaMaskin.equipment.count > 0`; Varelager = `prismaVarelager.vare.count > 0`. Tellinger kjøres mot prosjektets `primaryOrganizationId`. Standalone prosjekt (ingen primary org) har alltid modul-flagg = false.
+
+Klient: `apps/web/src/app/dashbord/[prosjektId]/page.tsx` bygger steg-array dynamisk — modul-piller spread-es inn kun når aktivert. `alleFerdige`-sjekken bruker bare synlige piller (skjuler hele banneret når alt er gjort). Lenker peker til firma-sidene (`/dashbord/firma/timer/onboarding`, `/dashbord/maskin`, `/dashbord/firma/varelager`) siden modul-oppsett er firma-nivå-arbeid. Banneret skjules fortsatt for ikke-admin (eksisterende `erAdmin`-sjekk uendret). 3 nye i18n-nøkler nb+en (`onboarding.timerOppsett`, `onboarding.maskinregister`, `onboarding.varekatalog`).
+
+Test-verifisering 2026-05-06 mot prosjekt 998 Instinniforbotn (`f6dcb81f-...` på sitedoc_test): timer + varelager aktivert, alle modul-tellinger > 0 (lonnsart=41, aktivitet=3, vare=57) — banneret skjult som forventet siden alle synlige steg er ferdige. Funksjonell verifisering for ikke-ferdig-tilstand utsatt (kunstig DB-tilbakerulling unødvendig — koden følger samme mønster som eksisterende 4 grunnsteg).
+
+**UX-agenda-status etter UX-runde 2:**
+- ✅ B1 toppbar prosjektvelger Alle/Mine — DEPLOYET (`2f22c503`)
+- ✅ B2 onboarding-checkpoint-bar utvidelse — DEPLOYET (`da00d55d`)
+- ✅ B3 modul-fargedesign — DEPLOYET (`c2da3135`)
+- ✅ U1 leder-timer-rapport — DEPLOYET (`c551063f`)
+- ✅ U2 CSV/Excel-eksport — DEPLOYET (`31cff7da`)
+- ✅ U3 sidebar tekst-labels — DEPLOYET (`c2da3135`)
+- (U4 erstattet av B3)
+- ⬜ U5 byggeplass selvstendig flyt — gjenstår, krever planleggingsrunde
+- ✅ U6 maskin sitedoc_admin firma-kontekst — DEPLOYET (`3dd4371b`)
+- ✅ U7 fritekst utstyrstype — DEPLOYET (`1781a17a`)
+
+HTTP/2 200 mot sitedoc.no etter begge deploys.
+
+---
+
 **UX-runde 1 (B3+U1+U2+U3+U6+U7) DEPLOYET TIL PROD 2026-05-06.**
 
 Sammenfatning av 6 UX-vedtatte endringer fra ux-arkitektur-gjennomgang 2026-05-06, deployet i 5 prod-merger samme dag:
@@ -58,8 +91,8 @@ Klient: ny side `/dashbord/firma/timer/rapport` med periode-velger (4 hurtig-kna
 Eksport-knapp med dropdown (CSV/Excel) i header på rapport-siden. Disabled hvis 0 ansatte. Spinner mens xlsx genereres.
 
 **UX-agenda-status etter denne runden:**
-- ✅ B1 toppbar prosjektvelger Alle/Mine — VEDTATT (ikke implementert ennå)
-- ✅ B2 onboarding-checkpoint-bar utvidelse — VEDTATT (ikke implementert ennå)
+- ✅ B1 toppbar prosjektvelger Alle/Mine — DEPLOYET i UX-runde 2 (`2f22c503`)
+- ✅ B2 onboarding-checkpoint-bar utvidelse — DEPLOYET i UX-runde 2 (`da00d55d`)
 - ✅ B3 modul-fargedesign — IMPLEMENTERT
 - ✅ U1 leder-timer-rapport — IMPLEMENTERT
 - ✅ U2 CSV/Excel-eksport — IMPLEMENTERT
