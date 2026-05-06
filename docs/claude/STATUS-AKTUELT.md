@@ -13,6 +13,23 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Brreg-autofyll IMPLEMENTERT på develop 2026-05-07.** Firma-oppslag på orgnr mot Brønnøysund Enhetsregisteret (`data.brreg.no`). Autofyll-knapp på `/dashbord/firma/innstillinger` og `/dashbord/admin/firmaer`-opprett-modal. Type-whitelist `sentralregisteret` renamet til `reginn` (clean slate — feilaktig kategorisering av forrige PR rettet opp). UI-tile for `sentralregisteret` fjernet fra `/dashbord/firma/innstillinger/integrasjoner`.
+
+**Komponenter:**
+- `apps/api/src/services/brreg.ts` — ny service med `hentFirmaFraBrreg` + `erGyldigOrgnr` (Modulus-11). 8s-timeout, kodede feiltyper.
+- `apps/api/src/routes/organisasjon.ts` — ny `hentFraBrreg`-procedure (protectedProcedure).
+- `apps/api/src/routes/admin.ts` — type-whitelist `sentralregisteret` → `reginn`.
+- `apps/api/src/routes/firma-integrasjon.ts` — `FIRMA_TYPER` blir tom liste; routerstruktur beholdes for senere Reginn-PR.
+- `apps/web/src/app/dashbord/firma/innstillinger/page.tsx` — Brreg-knapp ved orgnr-felt, autofyller navn + fakturaadresse.
+- `apps/web/src/app/dashbord/admin/firmaer/page.tsx` — Brreg-knapp i opprett-firma-modal, autofyller navn. INTEGRASJON_TYPER utvidet med `reginn`.
+- `apps/web/src/app/dashbord/firma/innstillinger/integrasjoner/page.tsx` — Sentralregisteret-tile fjernet, erstattet med "ingen aktive integrasjoner ennå"-tekst.
+
+**Begrunnelse for rename:** Brønnøysund (`data.brreg.no` — firma-grunndata, åpent) og Reginn MREG (`api.sentralregisteret.no` — MEF-utstyrsregister, krever nøkkel) er to ulike tjenester. Forrige PR brukte navnet «Sentralregisteret» med Brønnøysund-beskrivelse — det var feilaktig. Korrigert: Brreg = firmaprofil-autofyll (denne PR), Reginn = maskindata (senere PR, ref. N2.2.3 i oppryddings-plan).
+
+3 nye i18n-nøkler nb+en (`brreg.hent`, `brreg.henter`, `firma.integrasjoner.ingenAktive`). 2 fjernede (`firma.integrasjoner.sentralregisteret.*`). `pnpm --filter @sitedoc/api typecheck` + `pnpm build --filter @sitedoc/web` (39.2s) grønt. Klar for test-deploy.
+
+---
+
 **Integrasjonsadmin med kryptering IMPLEMENTERT på develop 2026-05-07.** Per-firma integrasjons-administrasjon med AES-256-GCM-kryptering av API-nøkler at-rest. Forutsetning for Sentralregisteret-integrasjon (Brønnøysundregistrene). SmartDok holdes utenfor denne PR.
 
 **Komponenter:**

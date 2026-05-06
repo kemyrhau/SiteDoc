@@ -437,7 +437,7 @@ export const adminRouter = router({
   opprettIntegrasjon: protectedProcedure
     .input(z.object({
       organizationId: z.string(),
-      type: z.enum(["proadm", "hr", "gps", "smartdoc", "sentralregisteret"]),
+      type: z.enum(["proadm", "hr", "gps", "smartdoc", "reginn"]),
       url: z.string().url().optional(),
       apiKey: z.string().optional(),
       config: z.record(z.unknown()).optional(),

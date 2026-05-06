@@ -10,6 +10,7 @@ import {
   skrivOrganizationModuleDeaktiver,
   hentAktiveFirmamoduler,
 } from "../services/firmamodul";
+import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -482,5 +483,29 @@ export const organisasjonRouter = router({
 
         return { ok: true };
       });
+    }),
+
+  /**
+   * Slå opp firma i Brønnøysund Enhetsregisteret på organisasjonsnummer.
+   * Åpent API — ingen autentisering kreves mot Brreg, men vi krever
+   * innlogget bruker for å forhindre at endepunktet brukes som anonym proxy.
+   */
+  hentFraBrreg: protectedProcedure
+    .input(z.object({ orgnr: z.string().min(1) }))
+    .query(async ({ input }) => {
+      try {
+        return await hentFirmaFraBrreg(input.orgnr);
+      } catch (e) {
+        if (e instanceof BrregError) {
+          const code =
+            e.kode === "UGYLDIG_ORGNR"
+              ? "BAD_REQUEST"
+              : e.kode === "IKKE_FUNNET"
+                ? "NOT_FOUND"
+                : "INTERNAL_SERVER_ERROR";
+          throw new TRPCError({ code, message: e.message });
+        }
+        throw e;
+      }
     }),
 });

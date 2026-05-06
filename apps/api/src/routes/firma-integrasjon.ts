@@ -3,8 +3,18 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
 import { Prisma, krypter } from "@sitedoc/db";
 
-const FIRMA_TYPER = ["sentralregisteret"] as const;
-const firmaTypeSchema = z.enum(FIRMA_TYPER);
+// Per-firma-integrasjon-typer som firma-admin kan administrere.
+// Tom liste betyr at endepunktene foreløpig avviser alle typer — kun
+// infrastrukturen (kryptering, ruter, UI-skall) er på plass. Reginn MREG
+// (api.sentralregisteret.no — maskindata for entreprenører) legges til
+// her når funksjonelle Reginn-endepunkter er dokumentert (ref. N2.2.3 i
+// docs/claude/oppryddings-plan-2026-04-28.md).
+const FIRMA_TYPER = [] as const;
+type FirmaType = (typeof FIRMA_TYPER)[number];
+const firmaTypeSchema = z.string().refine(
+  (s): s is FirmaType => (FIRMA_TYPER as readonly string[]).includes(s),
+  { message: "Ukjent integrasjonstype for firma-nivå" },
+);
 
 export const firmaIntegrasjonRouter = router({
   list: protectedProcedure

@@ -1998,8 +1998,9 @@
   "firma.integrasjoner.bekreftFjern": "Vil du fjerne den lagrede nøkkelen? Integrasjonen vil slutte å fungere.",
   "firma.integrasjoner.placeholderNy": "Lim inn API-nøkkel",
   "firma.integrasjoner.placeholderEksisterende": "Lim inn ny nøkkel for å erstatte den eksisterende",
-  "firma.integrasjoner.sentralregisteret.tittel": "Sentralregisteret",
-  "firma.integrasjoner.sentralregisteret.beskrivelse": "Brønnøysundregistrene — oppslag på organisasjonsnummer for å hente firma-data.",
+  "firma.integrasjoner.ingenAktive": "Ingen firma-nivå-integrasjoner er konfigurert ennå. Reginn MREG (maskindata) blir tilgjengelig her når API-endepunktene er klare.",
+  "brreg.hent": "Hent fra Brønnøysund",
+  "brreg.henter": "Henter…",
 
   "admin.integrasjoner.tittel": "Integrasjoner",
   "admin.integrasjoner.beskrivelse": "Oversikt over platform-integrasjoner og krypteringskonfigurasjon.",

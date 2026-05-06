@@ -54,6 +54,16 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+**Brreg-autofyll på orgnr IMPLEMENTERT på develop 2026-05-07.** Firma-oppslag på organisasjonsnummer mot Brønnøysund Enhetsregisteret (`data.brreg.no`, åpent API uten auth). «Hent fra Brønnøysund»-knapp ved orgnr-felt på `/dashbord/firma/innstillinger` (firma-admin) og `/dashbord/admin/firmaer`-opprett-modal (sitedoc_admin). Autofyller firmanavn (alltid) + fakturaadresse (kun firma-innstillinger der adressefeltet finnes).
+
+**Server:** Ny `apps/api/src/services/brreg.ts` med `hentFirmaFraBrreg(orgnr)` og `erGyldigOrgnr(input)` (Modulus-11-validering: vekter 3,2,7,6,5,4,3,2 — kontroll-rest=0 → kontroll=0, rest≠0 → kontroll=11-rest, kontroll=10 → ugyldig). 8s-timeout via AbortController. Returnerer `{ orgnr, navn, orgform, adresse, postnummer, poststed, aktiv }`. `BrregError`-klasse med kodede feiltyper (`UGYLDIG_ORGNR` → tRPC `BAD_REQUEST`, `IKKE_FUNNET` → `NOT_FOUND`, ellers `INTERNAL_SERVER_ERROR`). Ny tRPC-procedure `organisasjon.hentFraBrreg` (protectedProcedure — ingen firma-binding siden Brreg er offentlig, men auth kreves for å ikke være anonym proxy).
+
+**Type-rename `sentralregisteret` → `reginn`:** Avklart med Kenneth at Sentralregisteret-navnet egentlig hører til **Reginn MREG** (`api.sentralregisteret.no` — MEF-utstyrsregister med sakkyndig kontroll), IKKE Brønnøysund. Forrige PR sin Sentralregisteret-tile var feilaktig kategorisert. Type-whitelist i `admin.ts` byttet fra `"sentralregisteret"` til `"reginn"` (clean slate — 0 rader på prod). UI-tile fjernet fra `/dashbord/firma/innstillinger/integrasjoner`. `INTEGRASJON_TYPER` i admin/firmaer-side utvidet med `reginn` (label «Reginn MREG»). Selve Reginn-integrasjonen (worker, oppslag) bygges senere når funksjonelle endepunkter er dokumentert (ref. N2.2.3 i [oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md)).
+
+**Klient:** Brreg-knapp (Search-ikon) ved siden av orgnr-input. Disabled hvis orgnr ikke er 9 siffer (UI-validering); server validerer Mod-11 før HTTP-kall. Feilmelding rendres rødt under feltet ved BrregError. `useQuery({ enabled: false })` + manuell `refetch()` slik at oppslag kun skjer ved klikk. 3 nye i18n-nøkler nb+en (`brreg.hent`, `brreg.henter`, `firma.integrasjoner.ingenAktive` — erstatter de 2 fjernede `firma.integrasjoner.sentralregisteret.*`-nøklene).
+
+3 nye filer (brreg.ts service), 5 modifiserte filer. `pnpm --filter @sitedoc/api typecheck` + `pnpm build --filter @sitedoc/web` (39.2s) grønt. Klar for test-deploy.
+
 **Integrasjonsadmin (kryptering + firma-UI + admin-status) VERIFISERT PÅ TEST 2026-05-07.** Klart for prod-deploy. Test-verifisering: Sentralregisteret-kort viser «Koblet» etter lagring + reload, password-feltet er tomt, «Endre nøkkel»/«Fjern» fungerer, kryptering at-rest verifisert i sitedoc_test-DB.
 
 **Lærdom — env må i begge prosesser:** `SITEDOC_INTEGRATION_KEY` må stå i **både** `sitedoc-web`- og `sitedoc-api`-blokkene i `ecosystem.config.js`, fordi tRPC-mutations som kaller `krypter()` kjører i Next.js-web-prosessen (ikke Fastify-api). Kun api-blokken er ikke nok — feilen «SITEDOC_INTEGRATION_KEY mangler» kastes fra web-prosessen. Lærdom dokumentert i [docs/claude/deploy-detaljer.md § tRPC-mutations env-konsekvens](docs/claude/deploy-detaljer.md). **Prod-deploy-prosedyre:**
