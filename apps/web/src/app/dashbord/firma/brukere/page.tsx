@@ -32,8 +32,8 @@ export default function FirmaBrukere() {
         setÅpenMeny(null);
       }
     }
-    document.addEventListener("mousedown", handleKlikk);
-    return () => document.removeEventListener("mousedown", handleKlikk);
+    document.addEventListener("click", handleKlikk);
+    return () => document.removeEventListener("click", handleKlikk);
   }, []);
 
   if (isLoading) {

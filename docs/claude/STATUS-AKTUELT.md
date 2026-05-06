@@ -13,6 +13,29 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**«Velg fra firma»-flyt DEPLOYET TIL PROD 2026-05-07** (`f27a63dc` merge). HTTP/2 200 mot sitedoc.no. Lukker arkitekturhull i prosjektmedlems-tilføyelse: tidligere ingen UI-vei for å legge til en eksisterende firma-bruker uten å skrive e-posten manuelt.
+
+**Komponenter:**
+- `packages/shared/src/validation/index.ts` — nytt `addExistingMemberSchema` (projectId, userId, role, faggruppeIder)
+- `apps/api/src/routes/medlem.ts` — 2 nye prosedyrer:
+  - `hentLedigeFirmaBrukere({ projectId })` — User-liste filtrert på `primaryOrganizationId === project.primaryOrganizationId` + `canLogin=true` + `id NOT IN existing ProjectMember`
+  - `leggTilEksisterende({ projectId, userId, role, faggruppeIder })` — verifiserer same-firma + canLogin, oppretter ProjectMember direkte (ingen e-post). Idempotent: CONFLICT hvis allerede medlem.
+- `apps/web/src/app/dashbord/oppsett/brukere/page.tsx` — fane-toggle på «Legg til bruker»-skjemaet:
+  - **«Velg fra firma»** (default): dropdown av ledige firma-brukere → klikk «Legg til» kaller `leggTilEksisterende`
+  - **«Inviter ny e-post»**: eksisterende invitasjons-skjema uendret
+  - Tom-state: «Alle firma-brukere er allerede medlem» når listen er tom
+- 6 nye i18n-nøkler nb+en (`brukere.fane.fraFirma`, `brukere.fane.nyEpost`, `brukere.velgFirmaBruker`, `brukere.ingenLedigeFirmaBrukere`, `brukere.leggTil` + endring av `brukere.inviterNy` til «Legg til bruker»)
+
+**Sikkerhet:**
+- `leggTilEksisterende` håndhever `user.organizationId === project.primaryOrganizationId` — kan ikke legge til brukere fra andre firmaer
+- Avviser deaktiverte brukere (canLogin=false)
+- Idempotent: avviser hvis allerede medlem (CONFLICT)
+- Gates med `verifiserAdminEllerFirmaansvarlig` (samme som eksisterende `medlem.leggTil`)
+
+`pnpm --filter @sitedoc/api typecheck` + `pnpm build --filter @sitedoc/web` (1m18s) grønt på prod-deploy.
+
+---
+
 **Modul-piller i admin/firmaer + Varelager-bug DEPLOYET TIL PROD 2026-05-07** (`620a85c7` merge). HTTP/2 200 mot sitedoc.no.
 
 **Endringer i `apps/web/src/app/dashbord/admin/firmaer/page.tsx`:**
