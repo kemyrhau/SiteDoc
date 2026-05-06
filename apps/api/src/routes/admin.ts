@@ -556,4 +556,121 @@ export const adminRouter = router({
         },
       };
     }),
+
+  // --------------------------------------------------------------------------
+  // Impersonering — sitedoc_admin "view as user". Augmented session-mønster:
+  // Session.impersonatedUserId/originalUserId/impersonationExpiresAt settes
+  // på admin-sin egen session-rad. Context bruker impersonatedUserId som
+  // effektiv userId, men beholder actualUserId = admin for audit.
+  // --------------------------------------------------------------------------
+
+  hentImpersoneringStatus: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.imperseringAktiv) return { aktiv: false } as const;
+
+    const target = await ctx.prisma.user.findUnique({
+      where: { id: ctx.userId },
+      select: { id: true, name: true, email: true, role: true, organizationId: true, organization: { select: { name: true } } },
+    });
+    return {
+      aktiv: true as const,
+      target,
+      utloperVed: null as null | string, // klient leser session direkte ikke nødvendig
+    };
+  }),
+
+  startImpersonering: protectedProcedure
+    .input(z.object({ targetUserId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      // Verifisér at brukeren som starter er sitedoc_admin (basert på actualUserId
+      // — hvis allerede impersonering aktiv, gates på admin-id, ikke imperserte).
+      const adminUserId = ctx.actualUserId ?? ctx.userId;
+      if (!adminUserId) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+      await verifiserSiteDocAdmin(ctx.prisma, adminUserId);
+
+      if (input.targetUserId === adminUserId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Kan ikke impersonere seg selv",
+        });
+      }
+
+      const target = await ctx.prisma.user.findUnique({
+        where: { id: input.targetUserId },
+        select: { id: true, role: true, name: true, email: true, canLogin: true },
+      });
+      if (!target) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Bruker ikke funnet" });
+      }
+      if (target.role === "sitedoc_admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kan ikke impersonere andre sitedoc-administratorer",
+        });
+      }
+      if (!target.canLogin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Bruker er deaktivert (canLogin = false)",
+        });
+      }
+
+      // sessionToken hentes fra ctx (parsed i context.ts / route.ts) for å
+      // unngå Fastify- vs fetch-Request-skille.
+      if (!ctx.sessionToken) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "Ingen aktiv sesjon funnet",
+        });
+      }
+
+      const utloperVed = new Date(Date.now() + 60 * 60 * 1000); // 1 time
+
+      await ctx.prisma.session.update({
+        where: { sessionToken: ctx.sessionToken },
+        data: {
+          impersonatedUserId: input.targetUserId,
+          originalUserId: adminUserId,
+          impersonationExpiresAt: utloperVed,
+        },
+      });
+
+      // Audit-log: best-effort. Activity-tabellen krever projectId, så vi
+      // bruker target sin organizationId og null projectId via raw query
+      // — eller logger til console for nå.
+      // eslint-disable-next-line no-console
+      console.log(`[impersonering] start admin=${adminUserId} target=${input.targetUserId} utloper=${utloperVed.toISOString()}`);
+
+      return {
+        ok: true as const,
+        target: { id: target.id, name: target.name, email: target.email },
+        utloperVed: utloperVed.toISOString(),
+      };
+    }),
+
+  stoppImpersonering: protectedProcedure.mutation(async ({ ctx }) => {
+    const adminUserId = ctx.actualUserId ?? ctx.userId;
+    if (!adminUserId) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+
+    if (!ctx.sessionToken) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+
+    await ctx.prisma.session.update({
+      where: { sessionToken: ctx.sessionToken },
+      data: {
+        impersonatedUserId: null,
+        originalUserId: null,
+        impersonationExpiresAt: null,
+      },
+    });
+
+    // eslint-disable-next-line no-console
+    console.log(`[impersonering] stopp admin=${adminUserId}`);
+
+    return { ok: true as const };
+  }),
 });

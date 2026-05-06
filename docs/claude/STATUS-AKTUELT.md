@@ -13,6 +13,41 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Impersonering («view as user») IMPLEMENTERT på develop 2026-05-07.** SaaS-admin-funksjon: sitedoc_admin kan logge inn som hvilken som helst ikke-admin-bruker. Augmented-session-mønster — `Session.impersonatedUserId/originalUserId/impersonationExpiresAt` settes på admin sin egen session-rad. tRPC-context bruker `impersonatedUserId` som effektiv `userId` for autorisering; `actualUserId` bevarer admin for audit.
+
+**Komponenter:**
+- Migrasjon `20260507000001_session_impersonering` — 3 nullable-kolonner + indeks
+- `apps/api/src/trpc/context.ts` — `actualUserId` + `imperseringAktiv`-flagg
+- `apps/web/src/app/api/trpc/[...trpc]/route.ts` — samme logikk i Next.js-route
+- `apps/api/src/routes/admin.ts` — 3 nye prosedyrer (`hentImpersoneringStatus`, `startImpersonering`, `stoppImpersonering`)
+- `apps/web/src/components/layout/ImpersoneringBanner.tsx` — global gul banner
+- `apps/web/src/app/dashbord/layout.tsx` — banner mountet rett under Toppbar
+- `apps/web/src/app/dashbord/admin/firmaer/page.tsx` — `ImperserKnapp` per bruker-rad i slide-over
+
+**Sikkerhetsregler:**
+- Kun `sitedoc_admin` kan starte (verifisert via `actualUserId`)
+- Forbudt: impersonere annen `sitedoc_admin`, seg selv, eller deaktivert bruker
+- Auto-utløp 1t — `impersonationExpiresAt > now`-sjekk i context
+- Banner alltid synlig på alle dashbord-sider
+
+**Audit-logging (MVP):** `console.log` med actor + target ved start og stopp. Detaljert per-mutation logging utsatt til senere PR.
+
+4 nye i18n-nøkler nb+en (`impersonering.banner.*`). 1 ny migrasjon, 2 nye komponenter, 5 modifiserte filer. `pnpm --filter @sitedoc/api typecheck` + `pnpm build --filter @sitedoc/web` (31.0s) grønt. Klar for test-deploy.
+
+---
+
+**HovedSidebar skjult i firma-kontekst + Tilbake-lenke DEPLOYET TIL PROD 2026-05-06** (`8a184fc8` merge). HTTP/2 200 mot sitedoc.no.
+
+**Endringer:**
+- `apps/web/src/app/dashbord/layout.tsx` — gjort til client-komponent med `usePathname()`. Betingelses-rendring: `{!erFirmaKontekst && <HovedSidebar />}` der `erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false`.
+- `apps/web/src/app/dashbord/firma/layout.tsx` — ny «← Tilbake til dashbord»-lenke (ArrowLeft-ikon) plassert øverst i sidebar-header-blokken (over firmanavnet). Peker til `/dashbord` og bringer HovedSidebar tilbake siden URL ikke lenger starter med `/dashbord/firma`. Bredden på firma-sidebar uendret (280px).
+
+**UX-effekt:** I firma-administrasjon hadde brukeren tidligere både HovedSidebar (60-200px) + firma-sidebar (280px) stablet ved siden av hverandre, som spiste 480px-skjermbredde uten ekstra verdi. Nå tar firma-sidebar full sidebar-rolle, og «Tilbake»-lenken gir en eksplisitt vei ut av firma-konteksten.
+
+**Build (1m1s) + pm2 reload --update-env** grønt på prod. HTTP/2 200 verifisert.
+
+---
+
 **Fakturering-gating + U5-forkasting DEPLOYET TIL PROD 2026-05-06** (`207a223c` merge). To små endringer bundlet i én deploy: (1) Fakturering-menyelement i firma-sidebar skjult for `company_admin`, (2) UX-agenda U5 lukket som forkastet. HTTP/2 200 mot sitedoc.no.
 
 **Endring 1 — Fakturering-gating** (`apps/web/src/app/dashbord/firma/layout.tsx`):

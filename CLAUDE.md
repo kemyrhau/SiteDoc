@@ -54,6 +54,31 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+**Impersonering («view as user») IMPLEMENTERT på develop 2026-05-07.** Klassisk SaaS-admin-funksjon: sitedoc_admin kan logge inn som hvilken som helst ikke-admin-bruker for å se appen som dem (kundestøtte, debugging, onboarding-verifisering). Augmented-session-mønster: `Session.impersonatedUserId` + `originalUserId` + `impersonationExpiresAt` settes på admin sin egen session-rad. tRPC-context bruker `impersonatedUserId` som effektiv userId for autorisering, men bevarer `actualUserId` (admin) for audit-logger.
+
+**Server:**
+- Migrasjon `20260507000001_session_impersonering` — 3 nye nullable-kolonner på `sessions` + indeks på `impersonated_user_id`
+- `apps/api/src/trpc/context.ts` — utvidet med `actualUserId` + `imperseringAktiv`. `userId` returnerer fortsatt effektiv id (impersonert hvis gyldig, ellers admin).
+- `apps/web/src/app/api/trpc/[...trpc]/route.ts` — samme logikk replikert i Next.js-route-context (slår opp session-rad direkte via cookie). Begge gates trygt på `impersonationExpiresAt > new Date()`.
+- 3 nye admin-prosedyrer: `hentImpersoneringStatus` (status-query med target-info), `startImpersonering({ targetUserId })` (verifiserer admin via `actualUserId`, blokkerer self-impersonering, blokkerer impersonering av andre `sitedoc_admin`, blokkerer deaktivert bruker, oppdaterer egen session-rad med 1t-utløp), `stoppImpersonering` (nullstiller felter — fungerer selv når impersonering aktiv siden den gates på `actualUserId`). Audit-log: `console.log` med actor + target i MVP.
+
+**Klient:**
+- Ny komponent `apps/web/src/components/layout/ImpersoneringBanner.tsx` — global gul banner med ShieldAlert-ikon, viser «Du imperserer Navn (Firma)» + «Stopp»-knapp. Polling hvert 60s + refetchOnWindowFocus. Stopp trigger hard reload til `/dashbord` for å resette tRPC-cache og bringe admin-UI tilbake.
+- Banner mountet i `apps/web/src/app/dashbord/layout.tsx` rett under Toppbar — alltid synlig over hele dashbord-treet, inkl. firma- og admin-sider.
+- Ny `ImperserKnapp`-komponent i `apps/web/src/app/dashbord/admin/firmaer/page.tsx` — liten knapp ved hver bruker-rad i firma-detalj-slide-over. Skjult for sitedoc_admin-rader (kan ikke impersonere andre admins). Hard reload til `/dashbord` ved suksess.
+
+**Sikkerhetsregler implementert:**
+- Kun `sitedoc_admin` kan starte (verifisert via `actualUserId`, ikke effektiv `userId`)
+- Kan IKKE impersonere andre `sitedoc_admin` (forhindrer eskalering)
+- Kan IKKE impersonere seg selv
+- Kan IKKE impersonere deaktivert bruker (canLogin=false)
+- Auto-utløp etter 1t — context dropper impersonering når `impersonationExpiresAt < now`
+- Banner alltid synlig (mountet i dashbord/layout) — admin kan ikke «glemme» imperseringen
+
+4 nye i18n-nøkler nb+en (`impersonering.banner.*`). 1 ny migrasjon, 2 nye komponenter, 5 modifiserte filer. `pnpm --filter @sitedoc/api typecheck` + `pnpm build --filter @sitedoc/web` (31.0s) grønt. Klar for test-deploy. **Krever migrasjon på test-DB før test-bruk:** `prisma migrate deploy` kjøres automatisk av deploy-pipelinen, men hvis test-deploy ikke gjør det, må migrasjonen kjøres manuelt før første impersonerings-mutation. **Stopp og rapporter etter test-verifisering — prod-deploy avventer eksplisitt grønt lys.**
+
+**HovedSidebar skjult i firma-kontekst + Tilbake-lenke DEPLOYET TIL PROD 2026-05-06** (`8a184fc8` merge). HTTP/2 200 mot sitedoc.no. Når brukeren er på `/dashbord/firma/*` skjules HovedSidebar via `usePathname()`-sjekk i `dashbord/layout.tsx`; firma-sub-sidebar (280px) er da eneste sidebar. Ny «← Tilbake til dashbord»-lenke (ArrowLeft-ikon) øverst i firma-sidebar-headeren over firmanavnet — peker til `/dashbord` og bringer HovedSidebar tilbake. UX-forenkling: rydder opp i to-sidebar-stablingen som var i firma-administrasjon.
+
 **Fakturering-gating + U5-forkasting DEPLOYET TIL PROD 2026-05-06** (`207a223c` merge). HTTP/2 200 mot sitedoc.no. Fakturering-menyelement i firma-sidebar er nå skjult for `company_admin` — kun `sitedoc_admin` ser det. `NavElement`-typen utvidet med `kreverSitedocAdmin?: boolean`-flagg, render-filter hopper over når flagget er satt og bruker ikke er sitedoc_admin. **Merknad om første forsøk:** Fix-en feilet med «Application error» ved første test-deploy (commit `77939c63`) — krasj viste seg å være deploy-race-condition (HTML/JS-bundle-mismatch under PM2 reload), ikke kode-feil. Cherry-picket samme commit (`eabd34d7`) til develop og verifisert med hard reload uten problem. UX-agenda U5 (byggeplass selvstendig flyt) lukket som **forkastet** — byggeplass-data (geofence, GPS, §15-liste) er prosjekt-bundne, og selvstendig firma-byggeplass ville bli orphan-rad. UX-agenda er nå komplett lukket: B1+B2+B3 deployet, U1-U7 enten implementert eller forkastet.
 
 **Integrasjonsadmin (kryptering) + Brreg-autofyll DEPLOYET TIL PROD 2026-05-06** (`878e90ec` merge). To PR-er sammenslått i én prod-deploy. HTTP/2 200 mot sitedoc.no. SITEDOC_INTEGRATION_KEY satt i begge prod-prosesser (sitedoc-web + sitedoc-api), 64 tegn verifisert. Brreg-autofyll-knappen «Hent fra Brønnøysund» fungerer på `/dashbord/firma/innstillinger` (firma-admin) og `/dashbord/admin/firmaer`-opprett-modal (sitedoc_admin) — autofyller firmanavn fra `data.brreg.no` (åpent API). Type-rename `sentralregisteret` → `reginn` ferdig på prod. UI-tile for Sentralregisteret fjernet fra firma-integrasjons-side; erstattet med «ingen aktive integrasjoner ennå»-melding. AES-256-GCM-kryptering aktiv på `OrganizationIntegration.apiKey` ved opprett/oppdater (admin-CRUD). Reginn-integrasjonen (worker, oppslag) bygges senere når MEF-endepunkter er dokumentert (ref. N2.2.3 i [oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md)).
