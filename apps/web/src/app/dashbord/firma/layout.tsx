@@ -57,12 +57,6 @@ const navigasjon: NavElement[] = [
     kreverFirmaModul: "timer",
   },
   {
-    label: "Mine timer",
-    href: "/dashbord/timer/mine",
-    ikon: <BarChart3 className="h-4 w-4" />,
-    kreverFirmaModul: "timer",
-  },
-  {
     label: "Varelager",
     href: "/dashbord/firma/varelager",
     ikon: <Package className="h-4 w-4" />,
