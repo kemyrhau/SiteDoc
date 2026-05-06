@@ -23,7 +23,7 @@ export default function DashbordLayout({
                 <Toppbar />
                 <div className="flex flex-1 overflow-hidden">
                   <HovedSidebar />
-                  {children}
+                  <main className="flex-1 overflow-y-auto">{children}</main>
                 </div>
               </div>
             </PresenceProvider>
