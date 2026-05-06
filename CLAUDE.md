@@ -54,6 +54,10 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+**Admin-impersonering DEPLOYET TIL PROD 2026-05-07** (`a3765a97` merge). HTTP/2 200 mot sitedoc.no. Migrasjon `20260507000001_session_impersonering` applied til prod-DB (3 nullable-kolonner + indeks). Sitedoc_admin kan nå klikke «Imperser» per bruker-rad i admin/firmaer slide-over og se appen som denne brukeren — gul banner øverst med «Stopp»-knapp, 1t-utløp, audit-log via console.log. Sikkerhetsregler: forbudt å impersonere andre sitedoc_admins, seg selv, eller deaktivert bruker. Augmented-session-mønster bevarer admin-id i `originalUserId` for fremtidig per-mutation audit-log.
+
+**Lærdom underveis:** UNAUTHORIZED-feil ved første test-runde fordi cookie-lesing brukte Fastify-style `req.headers.cookie`, men tRPC-mutations kjører i Next.js-web-prosessen der `req` er fetch-Request (Web API Headers krever `headers.get("cookie")`). Fix (`910437e3`): eksponer pre-parsed `sessionToken` direkte i tRPC-context — admin.ts bruker `ctx.sessionToken` istedenfor å re-parse cookie. 14 linjer cookie-parsing fjernet fra hver mutation. Lærdom: tRPC-handlers som leser cookies må aldri anta Fastify-spesifikt format.
+
 **Impersonering («view as user») IMPLEMENTERT på develop 2026-05-07.** Klassisk SaaS-admin-funksjon: sitedoc_admin kan logge inn som hvilken som helst ikke-admin-bruker for å se appen som dem (kundestøtte, debugging, onboarding-verifisering). Augmented-session-mønster: `Session.impersonatedUserId` + `originalUserId` + `impersonationExpiresAt` settes på admin sin egen session-rad. tRPC-context bruker `impersonatedUserId` som effektiv userId for autorisering, men bevarer `actualUserId` (admin) for audit-logger.
 
 **Server:**

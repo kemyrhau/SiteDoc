@@ -13,6 +13,22 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Admin-impersonering DEPLOYET TIL PROD 2026-05-07** (`a3765a97` merge). HTTP/2 200 mot sitedoc.no. Migrasjon `20260507000001_session_impersonering` applied til prod-DB (verifisert via `\d sessions` — `impersonated_user_id`, `original_user_id`, `impersonation_expires_at` på plass). Test-verifisert: Kenneth (sitedoc_admin) klikket «Imperser» på Kari Firmaadmin → gul banner «Du imperserer Kari (Byggeleder)» + admin-meny forsvant + firma-velger viste kun Byggeleder. Stopp-knapp brakte admin-UI tilbake.
+
+**Deploy-prosedyre:**
+- Merge `a3765a97` (develop → main)
+- `pnpm install --frozen-lockfile` på prod-server (sikrer node_modules)
+- `prisma generate` (regenererer klient med nye Session-felter)
+- `prisma migrate deploy` (applied `20260507000001_session_impersonering`)
+- `pnpm build --filter @sitedoc/web` (1m12s)
+- `pm2 reload ecosystem.config.js --update-env`
+
+**Lærdom (dokumenteres i deploy-detaljer.md ved behov):** Første test-runde feilet med UNAUTHORIZED — cookie-lesing brukte Fastify-style `req.headers.cookie`, men tRPC-mutations kjører i Next.js-web-prosessen der `req` er fetch-Request (Web API Headers krever `headers.get("cookie")`). Fix (`910437e3`): eksponer pre-parsed `sessionToken` direkte i tRPC-context. tRPC-handlers som leser cookies må aldri anta Fastify-spesifikt format — bruk ctx-eksponerte verdier istedenfor å re-parse.
+
+**Audit-log MVP:** `console.log` start/stopp i admin-router. Per-mutation logging utsatt til senere PR (krever Activity-tabell-utvidelse med `actorId` + `subjectId`).
+
+---
+
 **Impersonering («view as user») IMPLEMENTERT på develop 2026-05-07.** SaaS-admin-funksjon: sitedoc_admin kan logge inn som hvilken som helst ikke-admin-bruker. Augmented-session-mønster — `Session.impersonatedUserId/originalUserId/impersonationExpiresAt` settes på admin sin egen session-rad. tRPC-context bruker `impersonatedUserId` som effektiv `userId` for autorisering; `actualUserId` bevarer admin for audit.
 
 **Komponenter:**
