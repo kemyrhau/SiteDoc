@@ -13,6 +13,66 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**UX-runde 1 (B3+U1+U2+U3+U6+U7) DEPLOYET TIL PROD 2026-05-06.**
+
+Sammenfatning av 6 UX-vedtatte endringer fra ux-arkitektur-gjennomgang 2026-05-06, deployet i 5 prod-merger samme dag:
+
+| Merge-hash | Innhold | Prod-deploy-tid (CEST) |
+|---|---|---|
+| `3dd4371b` | U6 maskin sitedoc_admin firma-kontekst-fix + 5 Heatwork-Equipment-rader for A.Markussen | ~13:30 |
+| `c2da3135` | U3 sidebar tekst-labels (60→200px) + B3 modul-fargedesign (Alternativ C) | ~14:22 |
+| `1781a17a` | U7 fritekst utstyrstype med datalist-forslag | ~14:40 |
+| `c551063f` | U1 leder-timer-rapport på firmanivå + React#310-fix | ~14:55 |
+| `e4f594fa` | Mine timer flyttet til HovedSidebar + global scrollbar-fix | ~15:30 |
+| `31cff7da` | U2 CSV/Excel-eksport på timer-rapport | ~16:03 |
+
+**Detaljer per endring:**
+
+**U3 + B3** (`c2da3135`): HovedSidebar utvidet fra `w-[60px]` (kun ikoner) til `min-w-[200px]` med ikon+tekst-labels. Tooltip-wrapping fjernet. Modul-fargedesign Alternativ C: toppbar uendret (mørkeblå brand), sidebar-aktivt element får 3px border-left + farget ikon KUN når elementet hører til aktiv modul. Ny `apps/web/src/lib/modul-farger.ts` med palett (prosjekt #378ADD, timer #3B6D11, maskin #854F0B, varelager #1D9E75) + `hentAktivModul(pathname)` med UUID-{36}-regex for prosjekt-rute-detect.
+
+**U7** (`1781a17a`): `<select>` for utstyrstype byttet til `<input type="text">` + `<datalist>`-forslag på både nytt-utstyr-side og detalj-side. Server tok allerede fritekst (kun klient-endring). Vegvesen-auto-foreslag oppdatert til labelKey-form (`Personbil`/`Varebil`/etc.) for å matche datalist-verdiene.
+
+**U1** (`c551063f`): Ny tRPC under-router `timer.rapport` med 3 endepunkter:
+- `firmaPeriodeRapport({orgId, fra, til, prosjektId?, ansattId?})` — aggregerer DailySheet+SheetTimer+SheetTillegg+SheetMachine på tvers av firmaets prosjekter, returnerer per-ansatt-aggregat med totalTimer, antallSedler, sistRegistrert, statusFordeling, perProsjekt-array, perDag-array
+- `hentFirmaProsjekterMedTimer` + `hentFirmaAnsatteMedTimer` for filter-dropdowns
+- Alle gates med `autoriserAdminForFirma`
+
+Klient: ny side `/dashbord/firma/timer/rapport` med periode-velger (4 hurtig-knapper «Denne uken / Forrige uke / Denne måned / Forrige måned» + egendefinert), prosjekt+ansatt-filter, 5-kort sammendrag-stripe (Total timer / Ansatte / Sedler / Sent / Attestert), sortbar tabell på 5 kolonner med klikkbar ekspanderbar detaljvisning (per-dag standard + uke-toggle + per-prosjekt sidekol). Status-badges (Kladd/Sent/Attestert) per ansatt. Sidebar-rad «Timer-rapport» i firma-layout under «Timer».
+
+**React #310-fix:** `useMemo` for `sorterteAnsatte` flyttet FØR `if (!orgId)` / `if (!harTimer)` early returns. Samme bug-mønster som tidligere økonomi-React310 (dokumentert i memory). Hooks må kalles i samme rekkefølge hver render.
+
+**Mine timer + scrollbar** (`e4f594fa`):
+- «Mine timer»-lenken fjernet fra firma-sub-sidebar — det er en personlig funksjon, ikke admin. Ny Seksjon-verdi `"mine-timer"` i `navigasjon-kontekst.tsx`. Nytt hovedelement i HovedSidebar (BarChart3-ikon, `kreverProsjekt: false`, `kreverFirmaModul: "timer"`, plassert mellom PSI/Søk og Timer for å gruppere timer-flowen). Modul-aksent grønn (B3). `useAktivSeksjon`-hook detekterer `/dashbord/timer/mine` → `"mine-timer"`. Gjenbruker eksisterende i18n-nøkkel `nav.timerMine`.
+- Global scrollbar-fix: `<main className="flex-1 overflow-y-auto">` rundt `{children}` i `dashbord/layout.tsx` — fjerner kuttet innhold på sider uten egen scroll-wrapper. `<main>` semantisk riktig (a11y-fordel).
+
+**U2** (`31cff7da`): Ny `apps/web/src/lib/timer-rapport-eksport.ts` med `eksporterCsv` + `eksporterXlsx`. Lazy-import av exceljs (allerede i deps) — unngår bundle-økning. Klient-side bygging fra rapportData (ingen server-roundtrip).
+
+- **CSV:** ett ark, semikolon-separert med UTF-8 BOM for Excel-Windows-kompatibilitet, RFC 4180-quoting
+- **Excel (.xlsx):** 3 ark
+  1. Sammendrag — én rad per ansatt (Ansatt | Ansattnr | Total timer | Sedler | Sist reg. | Kladd | Sent | Attestert | Per prosjekt)
+  2. Per prosjekt — én rad per ansatt × prosjekt
+  3. Per dag — én rad per ansatt × dag
+- **Filnavn:** `SiteDoc-timer-{firma-slug}-{fra}-{til}.{csv|xlsx}`
+- **Norsk tallformat** (komma som desimal). **Respekterer alle filtre** (periode/prosjekt/ansatt) siden eksport bygges fra rapportData som allerede er filtrert.
+
+Eksport-knapp med dropdown (CSV/Excel) i header på rapport-siden. Disabled hvis 0 ansatte. Spinner mens xlsx genereres.
+
+**UX-agenda-status etter denne runden:**
+- ✅ B1 toppbar prosjektvelger Alle/Mine — VEDTATT (ikke implementert ennå)
+- ✅ B2 onboarding-checkpoint-bar utvidelse — VEDTATT (ikke implementert ennå)
+- ✅ B3 modul-fargedesign — IMPLEMENTERT
+- ✅ U1 leder-timer-rapport — IMPLEMENTERT
+- ✅ U2 CSV/Excel-eksport — IMPLEMENTERT
+- ✅ U3 sidebar tekst-labels — IMPLEMENTERT
+- (U4 erstattet av B3)
+- ⬜ U5 byggeplass selvstendig flyt — gjenstår, krever planleggingsrunde
+- ✅ U6 maskin sitedoc_admin firma-kontekst — IMPLEMENTERT
+- ✅ U7 fritekst utstyrstype — IMPLEMENTERT
+
+HTTP/2 200 mot sitedoc.no etter alle deploys.
+
+---
+
 **Heatwork-seed + U6 maskin firma-kontekst-fix DEPLOYET TIL PROD 2026-05-06** (merge `3dd4371b`).
 
 **Prod-deploy fullført:**
