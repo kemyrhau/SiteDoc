@@ -13,6 +13,41 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Steg 4b Sesjon 3 — DEPLOYET TIL TEST, IKKE TIL PROD ENNÅ (2026-05-07).**
+
+**Status:**
+- Sesjon 3-koden ligger på `develop`: `420c0464` (import-flyt) + `5e7aa8d2` (seed-script) + `7241180f` (dok)
+- **Prod er fortsatt på `09b4d1ae`** (Sesjon 2 — deployet 2026-05-06)
+- Test-DB har migrasjon `20260507000001_vare_unique_navn_enhet` applied; prod-DB har den IKKE
+
+**Test-verifisering (Byggeleder, org-id `f1000001-0000-0000-0000-000000000002`):**
+
+Første seed-kjøring:
+```
+Kategorier: 7 opprettet, 0 eksisterte
+Varer: 57 opprettet, 0 eksisterte
+```
+
+DB-verifisering: kategorifordeling Grus/pukk/jord (36) + Naturstein (8) + Diverse (7) + Rør og rørdeler (2) + Betongstein og elementer (2) + Forbruk (1) + Deponiavgift (1) = 57 varer. Same-name-multi-enhet fungerer (Betong, Bærelag 0-22, Jernbanepukk, Kabelsand 0-8, Kult 0-250 har 2 rader hver — bekrefter ny `(orgId, navn, enhet)`-constraint).
+
+Idempotens (re-kjøring):
+```
+Kategorier: 0 opprettet, 7 eksisterte
+Varer: 0 opprettet, 57 eksisterte
+```
+
+**Strategi-endring:** A.Markussens varekatalog seedes via dedikert script (`packages/db-varelager/prisma/seed-amarkussen.ts`) i stedet for å kjøre import-UI mot prod. Import-UI'et fra `420c0464` beholdes for fremtidige kunder.
+
+**Sesjon 3 venter på følgende før prod-deploy:**
+
+1. **UX/arkitektur-gjennomgang** — egen strukturert sesjon. Brukeren har samlet 7 agenda-punkter (toppbar firma-valg vs sidebar, strukturert prosjektoversikt per firma, ny byggeplass-flyt, modul-aktivering for timer/maskin/kompetanse, prosjektkontekst vs firma-kontekst, navigasjon til timer fra prosjekt, fargedesign per modul). Notert i `MEMORY.md` → `project_ux_arkitektur_agenda.md`.
+2. **A.Markussen firmaprofil** med moduler + testprosjekt **998 Instinniforbotn**. Settes opp før prod-seed slik at varekatalogen kan brukes umiddelbart i kontekst av et virkelig prosjekt.
+3. **Deretter:** prod-deploy av Sesjon 3 (merge `develop` → `main`) → seed-kjøring mot A.Markussen (`pnpm --filter @sitedoc/db-varelager exec tsx prisma/seed-amarkussen.ts`) → manuell aktivering av Varelager-modul via `/dashbord/firma/moduler` → manuell opprettelse av 6 Heatwork-utleie-Equipment-rader.
+
+**Forsøk på prod-seed 2026-05-07 ble stoppet** fordi prod-repo er på Sesjon 2 (filen finnes ikke + migrasjonen er ikke applied — varenr-kollisjoner ville rullet transaksjonen på den gamle constraint).
+
+---
+
 **Steg 4b Sesjon 3 — engangs seed-script for A.Markussen IMPLEMENTERT på develop 2026-05-07** (`5e7aa8d2`).
 
 **Strategi-endring:** A.Markussens varekatalog seedes via dedikert script i stedet for å kjøre import-UI mot prod. Import-UI'et fra `420c0464` beholdes for fremtidige kunder.
