@@ -13,6 +13,39 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Heatwork-seed + U6 maskin firma-kontekst-fix DEPLOYET TIL PROD 2026-05-06** (merge `3dd4371b`).
+
+**Prod-deploy fullført:**
+- Merge `3dd4371b`: Heatwork-seed-script + U6-fix
+- pnpm install + db-maskin generate (ingen migrasjon — kun kode-endringer)
+- Web-build 1m16s, sitedoc-api + sitedoc-web restartet
+- HTTP/2 200 mot sitedoc.no
+
+**Heatwork-seed mot A.Markussen prod (`4488fe17-...`):**
+```
+Heatwork-rader: 3 opprettet, 2 eksisterte
+```
+
+**DB-funn etter seed:**
+| internNummer | type | intern_navn | erUtleieobjekt | utleieEnhet | created_at |
+|---|---|---|---|---|---|
+| 7626 | Heatwork 3600 | Heatwork 7626 | true | doegn | 2026-05-06 (NY) |
+| 7628 | Heatwork 3600 | Heatwork 7628 | true | doegn | 2026-05-06 (NY) |
+| 7630 | Heatwork 3600 | Heatwork 7630 | true | doegn | 2026-05-06 (NY) |
+| 7632 | Anleggsmaskin | 7632 Heatwork 3600 (Tromsø) | **false** | **null** | 2026-05-03 |
+| 7634 | Anleggsmaskin | 7634 Heatwork MY35 (Tromsø) | **false** | **null** | 2026-05-03 |
+
+**Manuelt etterarbeid for Kenneth (i UI på sitedoc.no):**
+- Rediger 7632: sett type=`Heatwork 3600`, erUtleieobjekt=true, utleieEnhet=doegn
+- Rediger 7634: sett type=`Heatwork MY35`, erUtleieobjekt=true, utleieEnhet=doegn
+- Eventuelt: rens intern_navn («(Tromsø)»-suffiks) for konsistens
+
+7632 og 7634 ble opprettet via SmartDok-maskin-import 2026-05-03 før Heatwork-Equipment-utvidelsen var planlagt. Idempotens-sjekken (på `internNummer`) hoppet over dem fordi de allerede fantes — scriptet overskriver ikke eksisterende rader.
+
+**U6-fix:** equipment-router migrert til Steg 1b/2d-mønster. Ny `hentMaskinOrgFraInput` + lokal `verifiserMaskinTilgang` med sitedoc_admin-bypass. Klient sender `useFirma().valgtFirma?.id` med enabled-flagg. Detaljside bruker utstyrets eget orgId for ansvarlig-velger. Tom-state på nytt-utstyr-side hvis ingen firma valgt.
+
+---
+
 **Steg 4b Sesjon 3 DEPLOYET TIL PROD 2026-05-06** (merge `37a1fe89`). Lukker Steg 4b fullt ut.
 
 **Prod-deploy fullført:**
