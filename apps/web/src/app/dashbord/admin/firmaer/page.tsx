@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState, Button, Input, Modal } from "@sitedoc/ui";
-import { Building2, Plus, X, Pencil, Plug, Trash2, Truck, Clock, Search } from "lucide-react";
+import { Building2, Plus, X, Pencil, Plug, Trash2, Truck, Clock, Search, Package } from "lucide-react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useTranslation } from "react-i18next";
 
@@ -223,8 +223,7 @@ export default function AdminFirmaer() {
                 <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">Brukere</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-600 w-24">Prosjekter</th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">Integrasjoner</th>
-                <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">Timer</th>
-                <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">Maskin</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">Moduler</th>
                 <th className="px-4 py-3 text-center font-medium text-gray-600 w-12"></th>
               </tr>
             </thead>
@@ -414,6 +413,52 @@ export default function AdminFirmaer() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  ModulPiller — kompakt visning av firmamoduler (timer/maskin/varelager) */
+/* ------------------------------------------------------------------ */
+
+const FIRMAMODULER = [
+  { slug: "timer", label: "Timer", ikon: Clock },
+  { slug: "maskin", label: "Maskin", ikon: Truck },
+  { slug: "varelager", label: "Varelager", ikon: Package },
+] as const;
+
+function ModulPiller({
+  aktiveFirmamoduler,
+  storrelse = "sm",
+}: {
+  aktiveFirmamoduler: string[];
+  storrelse?: "xs" | "sm";
+}) {
+  const klasseAktiv =
+    storrelse === "xs"
+      ? "inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-0.5 text-[10px] font-medium text-green-700 ring-1 ring-inset ring-green-200"
+      : "inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-200";
+  const klasseInaktiv =
+    storrelse === "xs"
+      ? "inline-flex items-center gap-1 rounded-full bg-gray-50 px-2 py-0.5 text-[10px] font-medium text-gray-400 ring-1 ring-inset ring-gray-200"
+      : "inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-400 ring-1 ring-inset ring-gray-200";
+  const ikonStr = storrelse === "xs" ? "h-3 w-3" : "h-3.5 w-3.5";
+
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {FIRMAMODULER.map(({ slug, label, ikon: Ikon }) => {
+        const aktiv = aktiveFirmamoduler.includes(slug);
+        return (
+          <span
+            key={slug}
+            className={aktiv ? klasseAktiv : klasseInaktiv}
+            title={aktiv ? `${label}-modul aktivert` : `${label}-modul ikke aktivert`}
+          >
+            <Ikon className={ikonStr} />
+            {label}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  FirmaRad — én rad i kompakt tabell                                 */
 /* ------------------------------------------------------------------ */
 
@@ -467,25 +512,8 @@ function FirmaRad({
           </div>
         )}
       </td>
-      <td className="px-4 py-3 text-center">
-        {org.aktiveFirmamoduler.includes("timer") ? (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
-            <Clock className="h-3.5 w-3.5" />
-            Ja
-          </span>
-        ) : (
-          <span className="text-xs text-gray-400">Nei</span>
-        )}
-      </td>
-      <td className="px-4 py-3 text-center">
-        {org.aktiveFirmamoduler.includes("maskin") ? (
-          <span className="inline-flex items-center gap-1 text-xs font-medium text-green-700">
-            <Truck className="h-3.5 w-3.5" />
-            Ja
-          </span>
-        ) : (
-          <span className="text-xs text-gray-400">Nei</span>
-        )}
+      <td className="px-4 py-3">
+        <ModulPiller aktiveFirmamoduler={org.aktiveFirmamoduler} storrelse="xs" />
       </td>
       <td className="px-4 py-3 text-center">
         <button
@@ -556,40 +584,13 @@ function FirmaDetaljSlideOver({
         </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          {/* Timer-modul-status */}
+          {/* Firmamoduler */}
           <section className="mb-5">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Timer-modul</h3>
-            <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
-              {org.aktiveFirmamoduler.includes("timer") ? (
-                <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
-                  <Clock className="h-4 w-4" />
-                  Aktivert
-                </span>
-              ) : (
-                <span className="text-gray-500">Ikke aktivert</span>
-              )}
-              <p className="mt-1 text-[11px] text-gray-400">
-                Velg firmaet i FirmaVelger og gå til <code className="text-gray-500">/dashbord/firma/moduler</code> for å aktivere/deaktivere.
-              </p>
-            </div>
-          </section>
-
-          {/* Maskin-modul-status */}
-          <section className="mb-5">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Maskin-modul</h3>
-            <div className="rounded-lg border border-gray-200 px-3 py-2 text-sm">
-              {org.aktiveFirmamoduler.includes("maskin") ? (
-                <span className="inline-flex items-center gap-1.5 font-medium text-green-700">
-                  <Truck className="h-4 w-4" />
-                  Aktivert
-                </span>
-              ) : (
-                <span className="text-gray-500">Ikke aktivert</span>
-              )}
-              <p className="mt-1 text-[11px] text-gray-400">
-                Velg firmaet i FirmaVelger og gå til <code className="text-gray-500">/dashbord/firma/moduler</code> for å aktivere/deaktivere.
-              </p>
-            </div>
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">Firmamoduler</h3>
+            <ModulPiller aktiveFirmamoduler={org.aktiveFirmamoduler} />
+            <p className="mt-2 text-[11px] text-gray-400">
+              Velg firmaet i FirmaVelger og gå til <code className="text-gray-500">/dashbord/firma/moduler</code> for å aktivere/deaktivere.
+            </p>
           </section>
 
           {/* Brukere */}
