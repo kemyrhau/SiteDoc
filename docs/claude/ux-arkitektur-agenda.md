@@ -35,7 +35,7 @@ for «Mine»-scope (peker brukeren til «Alle prosjekter»). 7 nye i18n-
 nøkler nb+en (`prosjektVelger.*` + `dashbord.ingenMineProsjekterBeskrivelse`).
 Deployet til prod som merge `2f22c503` etter test-verifisering.
 
-**B2 — Onboarding-checkpoint-bar** [LØST på develop 2026-05-07]
+**B2 — Onboarding-checkpoint-bar** [DEPLOYET TIL PROD 2026-05-06]
 Den eksisterende «Oppsett som gjenstår»-baren på prosjekt er god og beholdes.
 Utvides med modul-spesifikke punkter når Timer/Maskin/Varelager er aktivt:
 - Timer aktivt → legg til «Timer-oppsett» (lønnsarter, aktiviteter)
@@ -59,7 +59,9 @@ gjort, inkludert modul-oppsett). Lenker peker til firma-sidene
 `/dashbord/firma/varelager`) — modul-oppsett er firma-nivå-arbeid.
 3 nye i18n-nøkler nb+en (`onboarding.timerOppsett`,
 `onboarding.maskinregister`, `onboarding.varekatalog`).
-IKKE deployet til prod ennå — venter på test-verifisering.
+Deployet til prod som merge `da00d55d` etter test-verifisering
+(banneret skjules korrekt når alle synlige steg er ferdige —
+verifisert mot prosjekt 998 Instinniforbotn på test).
 
 **B3 — Modul-fargedesign (Alternativ C)**
 Toppbar forblir mørkeblå (brand-identitet).

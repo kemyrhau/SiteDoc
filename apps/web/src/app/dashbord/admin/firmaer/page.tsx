@@ -3,11 +3,11 @@
 import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState, Button, Input, Modal } from "@sitedoc/ui";
-import { Building2, Plus, X, Pencil, Plug, Trash2, Truck, Clock } from "lucide-react";
+import { Building2, Plus, X, Pencil, Plug, Trash2, Truck, Clock, Search } from "lucide-react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useTranslation } from "react-i18next";
 
-const INTEGRASJON_TYPER = ["proadm", "hr", "gps", "smartdoc"] as const;
+const INTEGRASJON_TYPER = ["proadm", "hr", "gps", "smartdoc", "reginn"] as const;
 type IntegrasjonsType = (typeof INTEGRASJON_TYPER)[number];
 
 const TYPE_LABEL: Record<IntegrasjonsType, string> = {
@@ -15,6 +15,7 @@ const TYPE_LABEL: Record<IntegrasjonsType, string> = {
   hr: "HR-system",
   gps: "GPS",
   smartdoc: "SmartDoc",
+  reginn: "Reginn MREG",
 };
 
 // Smal lokal type bryter generic-kjeden — kun feltene som faktisk brukes
@@ -83,6 +84,26 @@ export default function AdminFirmaer() {
   const invalidateIntegrasjon = (orgId: string) => {
     utils.admin.hentIntegrasjonerForOrg.invalidate({ organizationId: orgId });
   };
+
+  const [brregFeil, setBrregFeil] = useState<string | null>(null);
+  const nyttOrgNrRenset = nyttOrgNr.replace(/\s/g, "");
+  const nyttOrgNrErNiSiffer = /^\d{9}$/.test(nyttOrgNrRenset);
+  const brregOppslag = trpc.organisasjon.hentFraBrreg.useQuery(
+    { orgnr: nyttOrgNrRenset },
+    { enabled: false, retry: false },
+  );
+
+  async function hentFraBrreg() {
+    setBrregFeil(null);
+    const resultat = await brregOppslag.refetch();
+    if (resultat.error) {
+      setBrregFeil(resultat.error.message);
+      return;
+    }
+    if (resultat.data) {
+      setNyttNavn(resultat.data.navn);
+    }
+  }
 
   const opprettMutasjon = trpc.admin.opprettOrganisasjon.useMutation({
     onSuccess: () => {
@@ -269,8 +290,32 @@ export default function AdminFirmaer() {
           }}
           className="space-y-4"
         >
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Org.nr (valgfritt)</label>
+            <div className="mt-1 flex gap-2">
+              <input
+                type="text"
+                value={nyttOrgNr}
+                onChange={(e) => {
+                  setNyttOrgNr(e.target.value);
+                  setBrregFeil(null);
+                }}
+                placeholder="123 456 789"
+                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={hentFraBrreg}
+                disabled={!nyttOrgNrErNiSiffer || brregOppslag.isFetching}
+                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Search className="h-4 w-4" />
+                {brregOppslag.isFetching ? t("brreg.henter") : t("brreg.hent")}
+              </button>
+            </div>
+            {brregFeil && <p className="mt-1 text-xs text-red-500">{brregFeil}</p>}
+          </div>
           <Input label="Firmanavn" value={nyttNavn} onChange={(e) => setNyttNavn(e.target.value)} required />
-          <Input label="Org.nr (valgfritt)" value={nyttOrgNr} onChange={(e) => setNyttOrgNr(e.target.value)} />
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setVisOpprett(false)}>Avbryt</Button>
             <Button type="submit" disabled={!nyttNavn || opprettMutasjon.isPending}>Opprett</Button>

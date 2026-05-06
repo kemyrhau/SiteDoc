@@ -4,10 +4,11 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
-import { Save, HelpCircle, X } from "lucide-react";
+import { Save, HelpCircle, X, Search } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
 export default function FirmaInnstillinger() {
+  const { t } = useTranslation();
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
 
@@ -42,6 +43,33 @@ export default function FirmaInnstillinger() {
       utils.organisasjon.hentTilgjengelige.invalidate();
     },
   });
+
+  const [brregFeil, setBrregFeil] = useState<string | null>(null);
+  const orgNrRenset = orgNr.replace(/\s/g, "");
+  const orgNrErNiSiffer = /^\d{9}$/.test(orgNrRenset);
+  const brregOppslag = trpc.organisasjon.hentFraBrreg.useQuery(
+    { orgnr: orgNrRenset },
+    { enabled: false, retry: false },
+  );
+
+  async function hentFraBrreg() {
+    setBrregFeil(null);
+    const resultat = await brregOppslag.refetch();
+    if (resultat.error) {
+      setBrregFeil(resultat.error.message);
+      return;
+    }
+    if (resultat.data) {
+      setNavn(resultat.data.navn);
+      const adresseDeler = [
+        resultat.data.adresse,
+        [resultat.data.postnummer, resultat.data.poststed].filter(Boolean).join(" "),
+      ].filter(Boolean);
+      if (adresseDeler.length > 0) {
+        setFakturaAdresse(adresseDeler.join("\n"));
+      }
+    }
+  }
 
   const harEndringer =
     org != null &&
@@ -119,13 +147,30 @@ export default function FirmaInnstillinger() {
             <label className="block text-sm font-medium text-gray-700">
               Organisasjonsnummer
             </label>
-            <input
-              type="text"
-              value={orgNr}
-              onChange={(e) => setOrgNr(e.target.value)}
-              placeholder="123 456 789"
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-            />
+            <div className="mt-1 flex gap-2">
+              <input
+                type="text"
+                value={orgNr}
+                onChange={(e) => {
+                  setOrgNr(e.target.value);
+                  setBrregFeil(null);
+                }}
+                placeholder="123 456 789"
+                className="block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <button
+                type="button"
+                onClick={hentFraBrreg}
+                disabled={!orgNrErNiSiffer || brregOppslag.isFetching}
+                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Search className="h-4 w-4" />
+                {brregOppslag.isFetching ? t("brreg.henter") : t("brreg.hent")}
+              </button>
+            </div>
+            {brregFeil && (
+              <p className="mt-1 text-xs text-red-500">{brregFeil}</p>
+            )}
           </div>
 
           {/* Fakturaadresse */}

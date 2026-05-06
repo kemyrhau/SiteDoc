@@ -1,5 +1,12 @@
 import { PrismaClient } from "@prisma/client";
 
+export {
+  krypter,
+  dekrypter,
+  verifiserKrypteringsKonfig,
+  IntegrationEncryptionError,
+} from "./encryption";
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };

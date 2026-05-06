@@ -13,6 +13,78 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Brreg-autofyll IMPLEMENTERT på develop 2026-05-07.** Firma-oppslag på orgnr mot Brønnøysund Enhetsregisteret (`data.brreg.no`). Autofyll-knapp på `/dashbord/firma/innstillinger` og `/dashbord/admin/firmaer`-opprett-modal. Type-whitelist `sentralregisteret` renamet til `reginn` (clean slate — feilaktig kategorisering av forrige PR rettet opp). UI-tile for `sentralregisteret` fjernet fra `/dashbord/firma/innstillinger/integrasjoner`.
+
+**Komponenter:**
+- `apps/api/src/services/brreg.ts` — ny service med `hentFirmaFraBrreg` + `erGyldigOrgnr` (Modulus-11). 8s-timeout, kodede feiltyper.
+- `apps/api/src/routes/organisasjon.ts` — ny `hentFraBrreg`-procedure (protectedProcedure).
+- `apps/api/src/routes/admin.ts` — type-whitelist `sentralregisteret` → `reginn`.
+- `apps/api/src/routes/firma-integrasjon.ts` — `FIRMA_TYPER` blir tom liste; routerstruktur beholdes for senere Reginn-PR.
+- `apps/web/src/app/dashbord/firma/innstillinger/page.tsx` — Brreg-knapp ved orgnr-felt, autofyller navn + fakturaadresse.
+- `apps/web/src/app/dashbord/admin/firmaer/page.tsx` — Brreg-knapp i opprett-firma-modal, autofyller navn. INTEGRASJON_TYPER utvidet med `reginn`.
+- `apps/web/src/app/dashbord/firma/innstillinger/integrasjoner/page.tsx` — Sentralregisteret-tile fjernet, erstattet med "ingen aktive integrasjoner ennå"-tekst.
+
+**Begrunnelse for rename:** Brønnøysund (`data.brreg.no` — firma-grunndata, åpent) og Reginn MREG (`api.sentralregisteret.no` — MEF-utstyrsregister, krever nøkkel) er to ulike tjenester. Forrige PR brukte navnet «Sentralregisteret» med Brønnøysund-beskrivelse — det var feilaktig. Korrigert: Brreg = firmaprofil-autofyll (denne PR), Reginn = maskindata (senere PR, ref. N2.2.3 i oppryddings-plan).
+
+3 nye i18n-nøkler nb+en (`brreg.hent`, `brreg.henter`, `firma.integrasjoner.ingenAktive`). 2 fjernede (`firma.integrasjoner.sentralregisteret.*`). `pnpm --filter @sitedoc/api typecheck` + `pnpm build --filter @sitedoc/web` (39.2s) grønt. Klar for test-deploy.
+
+---
+
+**Integrasjonsadmin med kryptering IMPLEMENTERT på develop 2026-05-07.** Per-firma integrasjons-administrasjon med AES-256-GCM-kryptering av API-nøkler at-rest. Forutsetning for Sentralregisteret-integrasjon (Brønnøysundregistrene). SmartDok holdes utenfor denne PR.
+
+**Komponenter:**
+- `packages/db/src/encryption.ts` — AES-256-GCM utility (`krypter`/`dekrypter`/`verifiserKrypteringsKonfig`). 12-byte IV, 16-byte authTag, base64-output. Master-key fra `SITEDOC_INTEGRATION_KEY` (32 byte hex).
+- `apps/api/src/routes/firma-integrasjon.ts` — ny tRPC-router (`list`/`lagre`/`slett`) gates med `autoriserAdminForFirma`. Type-whitelist `["sentralregisteret"]`.
+- `apps/api/src/routes/admin.ts` — utvidet: opprett/oppdater krypterer apiKey, ny type `"sentralregisteret"` tillatt, ny `hentPlatformIntegrasjoner` returnerer Vegvesen + krypterings-nøkkel-status.
+- `apps/web/src/app/dashbord/firma/innstillinger/integrasjoner/page.tsx` — firma-admin UI med kort-basert design, status-badge, password-felt, Lagre/Endre/Fjern.
+- `apps/web/src/app/dashbord/admin/integrasjoner/page.tsx` — sitedoc_admin platform-status (Vegvesen + krypteringsnøkkel read-only).
+- Sidebar-links lagt til både firma- og admin-layout.
+
+**Designvalg — eksplisitt vs Prisma `$extends`:** Vurderte `$extends` med `query`-component for transparent kryptering, men dette endret type-en på `prisma`-instansen og brakk type-systemet i hele monorepo (manglende `$on`-metode på utvidet klient bryter funksjoner som tar `PrismaClient`-parameter). Eksplisitt `krypter()`-kall i routerne (kun 2 filer rører `OrganizationIntegration`) er mer lesbar og unngår type-kaskade. Risiko for å glemme krypter-kall mitigeres av at scope er minimalt.
+
+**Test-rens:** `c9a86fa4-ec5b-4959-8631-b3f176f92d50` (proadm testdata på Byggeleder, klartekst) slettet via SQL før push. Prod hadde 0 rader → ingen migrering nødvendig.
+
+**Manuell env-oppdatering kreves før test-deploy:** Sett `SITEDOC_INTEGRATION_KEY` på test- og prod-server. Genereres med `openssl rand -hex 32`. Master-key må aldri rote i git.
+
+**Sentralregisteret-integrasjon konsumerer foreløpig ikke nøkkelen** — denne PR-en lager kun lager-flyten. Faktisk Sentralregister-API-kall (Brønnøysundregistrene) implementeres i egen PR. Vegvesen-policy uendret: env-variabel (`VEGVESEN_API_KEY`), platform-nivå.
+
+`pnpm --filter @sitedoc/api typecheck` + `pnpm build --filter @sitedoc/web` (35.7s) grønt. Klar for test-deploy etter env-oppdatering.
+
+---
+
+**UX-runde 2 (B1+B2) DEPLOYET TIL PROD 2026-05-06.** UX-agenda har nå alle 3 vedtatte beslutninger (B1+B2+B3) på prod. Gjenstår kun U5 (byggeplass selvstendig flyt) som åpen UX-oppgave.
+
+| Merge-hash | Innhold | Prod-deploy-tid (CEST) |
+|---|---|---|
+| `2f22c503` | B1 ProsjektVelger Alle/Mine prosjekter scope | ~16:48 |
+| `da00d55d` | B2 onboarding-checkpoint-bar modul-utvidelse | ~17:05 |
+
+**B1** (`2f22c503`): Server: `prosjekt.hentMine` endret til medlemskaps-filter uavhengig av rolle (sitedoc_admin og company_admin filtreres nå også på `members.some.userId`). `hentAlle` beholder admin-bypass for «Alle»-scope.
+
+Klient: ProsjektKontekst utvidet med `prosjektScope: "alle" | "mine" | "enkelt"`, `mineProsjekter`-liste og `velgScope(scope)`-funksjon. Scope persisteres i `localStorage` (`sitedoc-prosjekt-scope`, default `"mine"`). URL med prosjektId tvinger `scope="enkelt"`. ProsjektVelger viser to scope-rader øverst (LayoutGrid + Star-ikon, telling = N/M) — kun for sitedoc_admin og company_admin. Vanlig user (`role="user"`) får ren prosjektliste som før. Knapp-tekst speiler aktiv scope. `velgScope` nullstiller prosjekt-id og ruter til `/dashbord`. Dashbord-startsiden filtrerer visnings-listen på scope; auto-redirect-logikken bruker fortsatt full prosjektliste (førstegangs-onboarding). Ny tom-state-tekst for «Mine»-scope peker brukeren til «Alle prosjekter». 7 nye i18n-nøkler nb+en (`prosjektVelger.*` + `dashbord.ingenMineProsjekterBeskrivelse`).
+
+**B2** (`da00d55d`): Server: `prosjekt.hentOnboardingStatus` utvidet med 6 nye flagg — `timerAktiv/harTimerOppsett`, `maskinAktiv/harMaskinregister`, `varelagerAktiv/harVarekatalog`. Modul-aktivering avledes fra `ProjectModule.status="aktiv"` på prosjektet. Ferdig-kriterier: Timer = `prismaTimer.lonnsart.count > 0 && prismaTimer.aktivitet.count > 0`; Maskin = `prismaMaskin.equipment.count > 0`; Varelager = `prismaVarelager.vare.count > 0`. Tellinger kjøres mot prosjektets `primaryOrganizationId`. Standalone prosjekt (ingen primary org) har alltid modul-flagg = false.
+
+Klient: `apps/web/src/app/dashbord/[prosjektId]/page.tsx` bygger steg-array dynamisk — modul-piller spread-es inn kun når aktivert. `alleFerdige`-sjekken bruker bare synlige piller (skjuler hele banneret når alt er gjort). Lenker peker til firma-sidene (`/dashbord/firma/timer/onboarding`, `/dashbord/maskin`, `/dashbord/firma/varelager`) siden modul-oppsett er firma-nivå-arbeid. Banneret skjules fortsatt for ikke-admin (eksisterende `erAdmin`-sjekk uendret). 3 nye i18n-nøkler nb+en (`onboarding.timerOppsett`, `onboarding.maskinregister`, `onboarding.varekatalog`).
+
+Test-verifisering 2026-05-06 mot prosjekt 998 Instinniforbotn (`f6dcb81f-...` på sitedoc_test): timer + varelager aktivert, alle modul-tellinger > 0 (lonnsart=41, aktivitet=3, vare=57) — banneret skjult som forventet siden alle synlige steg er ferdige. Funksjonell verifisering for ikke-ferdig-tilstand utsatt (kunstig DB-tilbakerulling unødvendig — koden følger samme mønster som eksisterende 4 grunnsteg).
+
+**UX-agenda-status etter UX-runde 2:**
+- ✅ B1 toppbar prosjektvelger Alle/Mine — DEPLOYET (`2f22c503`)
+- ✅ B2 onboarding-checkpoint-bar utvidelse — DEPLOYET (`da00d55d`)
+- ✅ B3 modul-fargedesign — DEPLOYET (`c2da3135`)
+- ✅ U1 leder-timer-rapport — DEPLOYET (`c551063f`)
+- ✅ U2 CSV/Excel-eksport — DEPLOYET (`31cff7da`)
+- ✅ U3 sidebar tekst-labels — DEPLOYET (`c2da3135`)
+- (U4 erstattet av B3)
+- ⬜ U5 byggeplass selvstendig flyt — gjenstår, krever planleggingsrunde
+- ✅ U6 maskin sitedoc_admin firma-kontekst — DEPLOYET (`3dd4371b`)
+- ✅ U7 fritekst utstyrstype — DEPLOYET (`1781a17a`)
+
+HTTP/2 200 mot sitedoc.no etter begge deploys.
+
+---
+
 **UX-runde 1 (B3+U1+U2+U3+U6+U7) DEPLOYET TIL PROD 2026-05-06.**
 
 Sammenfatning av 6 UX-vedtatte endringer fra ux-arkitektur-gjennomgang 2026-05-06, deployet i 5 prod-merger samme dag:
@@ -58,8 +130,8 @@ Klient: ny side `/dashbord/firma/timer/rapport` med periode-velger (4 hurtig-kna
 Eksport-knapp med dropdown (CSV/Excel) i header på rapport-siden. Disabled hvis 0 ansatte. Spinner mens xlsx genereres.
 
 **UX-agenda-status etter denne runden:**
-- ✅ B1 toppbar prosjektvelger Alle/Mine — VEDTATT (ikke implementert ennå)
-- ✅ B2 onboarding-checkpoint-bar utvidelse — VEDTATT (ikke implementert ennå)
+- ✅ B1 toppbar prosjektvelger Alle/Mine — DEPLOYET i UX-runde 2 (`2f22c503`)
+- ✅ B2 onboarding-checkpoint-bar utvidelse — DEPLOYET i UX-runde 2 (`da00d55d`)
 - ✅ B3 modul-fargedesign — IMPLEMENTERT
 - ✅ U1 leder-timer-rapport — IMPLEMENTERT
 - ✅ U2 CSV/Excel-eksport — IMPLEMENTERT
