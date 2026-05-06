@@ -8,7 +8,7 @@ sist_verifisert_mot_kode: 2026-05-06
 
 ## Beslutninger tatt
 
-**B1 — Toppbar prosjektvelger**
+**B1 — Toppbar prosjektvelger** [LØST på develop 2026-05-07]
 ProsjektVelger-dropdown skal ha tre valg øverst:
 - «Alle prosjekter (N)» — viser timer/data på tvers av alle firmaets prosjekter
 - «Mine prosjekter (N)» — filtrert til brukerens egne prosjekter
@@ -17,6 +17,23 @@ ProsjektVelger-dropdown skal ha tre valg øverst:
 Kontekst-hierarki vises tydelig i toppbar:
 Firma → Prosjekt → Byggeplass
 «Alle prosjekter» som aktivt valg gjør rapport-scope umiddelbart klart.
+
+**Implementasjon:** Server: `prosjekt.hentMine` endret til medlemskaps-filter
+uavhengig av rolle (sitedoc_admin og company_admin filtreres nå også på
+`members.some.userId`). `hentAlle` beholder admin-bypass. Klient:
+ProsjektKontekst utvidet med `prosjektScope: "alle" | "mine" | "enkelt"`,
+`mineProsjekter`-liste og `velgScope(scope)`-funksjon. Scope persisteres i
+`localStorage` (`sitedoc-prosjekt-scope`, default `"mine"`). URL med
+prosjektId tvinger scope = `"enkelt"`. ProsjektVelger viser to scope-rader
+øverst (LayoutGrid + Star-ikon, telling i N) — kun for sitedoc_admin og
+company_admin. Vanlig user (`role="user"`) får ren prosjektliste som før.
+Knapp-tekst speiler aktiv scope. `velgScope` nullstiller prosjekt-id og
+ruter til `/dashbord`. Dashbord-startsiden (`/dashbord/page.tsx`)
+filtrerer visnings-listen på scope; auto-redirect-logikken bruker
+fortsatt full prosjektliste (førstegangs-onboarding). Ny tom-state-tekst
+for «Mine»-scope (peker brukeren til «Alle prosjekter»). 7 nye i18n-
+nøkler nb+en (`prosjektVelger.*` + `dashbord.ingenMineProsjekterBeskrivelse`).
+IKKE deployet til prod ennå — venter på test-verifisering.
 
 **B2 — Onboarding-checkpoint-bar**
 Den eksisterende «Oppsett som gjenstår»-baren på prosjekt er god og beholdes.

@@ -10,6 +10,7 @@ import { Card, Spinner, StatusBadge, Button, EmptyState } from "@sitedoc/ui";
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
 import { DashbordPanel } from "@/components/paneler/DashbordPanel";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Plus } from "lucide-react";
 
 // Smal lokal type bryter generic-kjeden — kun feltene som faktisk brukes på siden
@@ -26,11 +27,18 @@ export default function DashbordSide() {
   const { data: session } = useSession();
   const router = useRouter();
   const { valgtFirma } = useFirma();
+  const { prosjekter: alleFraKontekst, mineProsjekter, prosjektScope, isLoading: lasterKontekst } = useProsjekt();
   const prosjekterQuery = trpc.prosjekt.hentAlle.useQuery({
     organizationId: valgtFirma?.id,
   });
   const prosjekter = prosjekterQuery.data as ProsjektListeRad[] | undefined;
-  const isLoading = prosjekterQuery.isLoading;
+  const isLoading = prosjekterQuery.isLoading || lasterKontekst;
+  // B1 (2026-05-07): «Mine»-scope filtrerer visnings-listen, men auto-redirect-
+  // logikken bruker fortsatt full prosjektliste (førstegangs-onboarding).
+  const visListe: ProsjektListeRad[] =
+    prosjektScope === "mine"
+      ? (mineProsjekter as ProsjektListeRad[])
+      : ((prosjekter ?? alleFraKontekst) as ProsjektListeRad[]);
 
   // Brukerens rolle styrer hva tom-state viser (admin = «opprett prosjekt»,
   // vanlig bruker = «venter på tilgang»).
@@ -88,21 +96,25 @@ export default function DashbordSide() {
           <div className="flex justify-center py-12">
             <Spinner size="lg" />
           </div>
-        ) : !prosjekter?.length ? (
+        ) : !visListe.length ? (
           erAdmin ? (
             <EmptyState
               title={t("dashbord.ingenProsjekter")}
               description={
-                valgtFirma
-                  ? t("dashbord.ingenProsjekterForFirmaBeskrivelse", {
-                      firma: valgtFirma.name,
-                    })
-                  : t("dashbord.ingenProsjekterBeskrivelse")
+                prosjektScope === "mine"
+                  ? t("dashbord.ingenMineProsjekterBeskrivelse")
+                  : valgtFirma
+                    ? t("dashbord.ingenProsjekterForFirmaBeskrivelse", {
+                        firma: valgtFirma.name,
+                      })
+                    : t("dashbord.ingenProsjekterBeskrivelse")
               }
               action={
-                <Link href="/dashbord/nytt-prosjekt">
-                  <Button>{t("dashbord.opprettProsjekt")}</Button>
-                </Link>
+                prosjektScope === "mine" ? undefined : (
+                  <Link href="/dashbord/nytt-prosjekt">
+                    <Button>{t("dashbord.opprettProsjekt")}</Button>
+                  </Link>
+                )
               }
             />
           ) : (
@@ -116,7 +128,7 @@ export default function DashbordSide() {
             <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Card className="text-center">
                 <p className="text-3xl font-bold text-sitedoc-primary">
-                  {prosjekter.length}
+                  {visListe.length}
                 </p>
                 <p className="mt-1 text-sm text-gray-500">{t("dashbord.prosjekter")}</p>
               </Card>
@@ -132,7 +144,7 @@ export default function DashbordSide() {
 
             <h3 className="mb-3 text-lg font-semibold">{t("dashbord.sisteProsjekter")}</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {prosjekter.slice(0, 6).map((prosjekt) => (
+              {visListe.slice(0, 6).map((prosjekt) => (
                 <Link key={prosjekt.id} href={`/dashbord/${prosjekt.id}`}>
                   <Card className="transition-shadow hover:shadow-md">
                     <div className="mb-2 flex items-start justify-between">
