@@ -12,6 +12,7 @@ import { trpc } from "@/lib/trpc";
 import { useFirma } from "./firma-kontekst";
 
 const STORAGE_KEY = "sitedoc-valgt-prosjekt";
+const SCOPE_STORAGE_KEY = "sitedoc-prosjekt-scope";
 
 interface Prosjekt {
   id: string;
@@ -23,15 +24,26 @@ interface Prosjekt {
   primaryOrganizationId: string | null;
 }
 
+export type ProsjektScope = "alle" | "mine" | "enkelt";
+
 interface ProsjektKontekstType {
   valgtProsjekt: Prosjekt | null;
   prosjekter: Prosjekt[];
+  mineProsjekter: Prosjekt[];
   isLoading: boolean;
   velgProsjekt: (id: string) => void;
   prosjektId: string | null;
+  prosjektScope: ProsjektScope;
+  velgScope: (scope: "alle" | "mine") => void;
 }
 
 const ProsjektKontekst = createContext<ProsjektKontekstType | null>(null);
+
+function lesLagretScope(): "alle" | "mine" {
+  if (typeof window === "undefined") return "mine";
+  const lagret = localStorage.getItem(SCOPE_STORAGE_KEY);
+  return lagret === "alle" ? "alle" : "mine";
+}
 
 export function ProsjektProvider({ children }: { children: ReactNode }) {
   const params = useParams<{ prosjektId?: string }>();
@@ -41,13 +53,19 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
 
   // Initialiser som null for å unngå hydration-mismatch (localStorage kun på klient)
   const [lagretProsjektId, setLagretProsjektId] = useState<string | null>(null);
+  const [lagretScope, setLagretScope] = useState<"alle" | "mine">("mine");
 
   const prosjektId = urlProsjektId ?? lagretProsjektId;
+
+  // Avledet scope: når URL har prosjektId er scope alltid "enkelt".
+  // Ellers leses scope fra localStorage (default "mine").
+  const prosjektScope: ProsjektScope = urlProsjektId ? "enkelt" : lagretScope;
 
   // Les fra localStorage etter mount
   useEffect(() => {
     const lagret = localStorage.getItem(STORAGE_KEY);
     if (lagret) setLagretProsjektId(lagret);
+    setLagretScope(lesLagretScope());
   }, []);
 
   // Synkroniser: når URL har prosjektId → lagre det
@@ -63,6 +81,11 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
   });
   const prosjekter = prosjekterQuery.data as Prosjekt[] | undefined;
   const lasterProsjekter = prosjekterQuery.isLoading;
+
+  const mineProsjekterQuery = trpc.prosjekt.hentMine.useQuery({
+    organizationId: valgtFirma?.id,
+  });
+  const mineProsjekter = mineProsjekterQuery.data as Prosjekt[] | undefined;
 
   const valgtProsjektQuery = trpc.prosjekt.hentMedId.useQuery(
     { id: prosjektId! },
@@ -96,14 +119,25 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
     router.push(`/dashbord/${id}`);
   }
 
+  function velgScope(scope: "alle" | "mine") {
+    setLagretScope(scope);
+    localStorage.setItem(SCOPE_STORAGE_KEY, scope);
+    setLagretProsjektId(null);
+    localStorage.removeItem(STORAGE_KEY);
+    router.push("/dashbord");
+  }
+
   return (
     <ProsjektKontekst.Provider
       value={{
         valgtProsjekt: valgtProsjekt ?? null,
         prosjekter: prosjekter ?? [],
+        mineProsjekter: mineProsjekter ?? [],
         isLoading: lasterProsjekter || lasterValgt,
         velgProsjekt,
         prosjektId,
+        prosjektScope,
+        velgScope,
       }}
     >
       {children}

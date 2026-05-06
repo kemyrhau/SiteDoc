@@ -1,14 +1,27 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ChevronDown, Search, Building2 } from "lucide-react";
+import { ChevronDown, Search, Building2, LayoutGrid, Star } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 export function ProsjektVelger() {
-  const { valgtProsjekt, prosjekter, velgProsjekt } = useProsjekt();
+  const {
+    valgtProsjekt,
+    prosjekter,
+    mineProsjekter,
+    velgProsjekt,
+    prosjektScope,
+    velgScope,
+  } = useProsjekt();
+  const { erSitedocAdmin, erCompanyAdmin } = useFirma();
+  const { t } = useTranslation();
   const [apen, setApen] = useState(false);
   const [sok, setSok] = useState("");
   const ref = useRef<HTMLDivElement>(null);
+
+  const visScopeRader = erSitedocAdmin || erCompanyAdmin;
 
   useEffect(() => {
     function handleKlikk(e: MouseEvent) {
@@ -25,6 +38,13 @@ export function ProsjektVelger() {
     p.projectNumber.toLowerCase().includes(sok.toLowerCase()),
   );
 
+  const knappTekst =
+    prosjektScope === "enkelt"
+      ? valgtProsjekt?.name ?? t("prosjektVelger.velgProsjekt")
+      : prosjektScope === "alle"
+        ? t("prosjektVelger.alleProsjekter")
+        : t("prosjektVelger.mineProsjekter");
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -32,9 +52,7 @@ export function ProsjektVelger() {
         className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/20"
       >
         <Building2 className="h-4 w-4" />
-        <span className="max-w-[200px] truncate">
-          {valgtProsjekt?.name ?? "Velg prosjekt"}
-        </span>
+        <span className="max-w-[200px] truncate">{knappTekst}</span>
         <ChevronDown className={`h-4 w-4 transition-transform ${apen ? "rotate-180" : ""}`} />
       </button>
 
@@ -47,16 +65,56 @@ export function ProsjektVelger() {
                 type="text"
                 value={sok}
                 onChange={(e) => setSok(e.target.value)}
-                placeholder="Søk prosjekter..."
+                placeholder={t("prosjektVelger.sok")}
                 className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-sm text-gray-700 placeholder-gray-400 focus:border-blue-500 focus:outline-none"
                 autoFocus
               />
             </div>
           </div>
+          {visScopeRader && (
+            <div className="border-b border-gray-100 py-1">
+              <button
+                onClick={() => {
+                  velgScope("alle");
+                  setApen(false);
+                  setSok("");
+                }}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-blue-50 ${
+                  prosjektScope === "alle" ? "bg-blue-50" : ""
+                }`}
+              >
+                <LayoutGrid className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-900">
+                  {t("prosjektVelger.alleProsjekter")}
+                </span>
+                <span className="ml-auto text-xs text-gray-500">
+                  {prosjekter.length}
+                </span>
+              </button>
+              <button
+                onClick={() => {
+                  velgScope("mine");
+                  setApen(false);
+                  setSok("");
+                }}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-blue-50 ${
+                  prosjektScope === "mine" ? "bg-blue-50" : ""
+                }`}
+              >
+                <Star className="h-4 w-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-900">
+                  {t("prosjektVelger.mineProsjekter")}
+                </span>
+                <span className="ml-auto text-xs text-gray-500">
+                  {mineProsjekter.length}
+                </span>
+              </button>
+            </div>
+          )}
           <div className="max-h-64 overflow-auto py-1">
             {filtrerte.length === 0 ? (
               <p className="px-3 py-2 text-sm text-gray-400">
-                Ingen prosjekter funnet
+                {t("prosjektVelger.ingen")}
               </p>
             ) : (
               filtrerte.map((p) => (
@@ -68,7 +126,9 @@ export function ProsjektVelger() {
                     setSok("");
                   }}
                   className={`flex w-full flex-col px-3 py-2 text-left transition-colors hover:bg-blue-50 ${
-                    valgtProsjekt?.id === p.id ? "bg-blue-50" : ""
+                    valgtProsjekt?.id === p.id && prosjektScope === "enkelt"
+                      ? "bg-blue-50"
+                      : ""
                   }`}
                 >
                   <span className="text-sm font-medium text-gray-900">

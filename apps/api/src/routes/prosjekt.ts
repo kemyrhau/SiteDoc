@@ -11,20 +11,21 @@ import {
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 
 export const prosjektRouter = router({
-  // Hent prosjekter der innlogget bruker er medlem (sitedoc_admin ser alle).
-  // P1 Fase 1 (2026-05-04): valgfri organizationId filtrerer for sitedoc_admin
-  // når et firma er valgt i FirmaVelger. Vanlig bruker / company_admin er
-  // uberørt — eksisterende members-filter beholder isolasjon.
+  // Hent prosjekter der innlogget bruker er medlem — uavhengig av rolle.
+  // B1 (2026-05-07): «Mine prosjekter»-scope skal alltid være medlemskaps-
+  // basert, også for sitedoc_admin og company_admin. hentAlle beholder
+  // admin-bypass for «Alle prosjekter»-scope.
+  // organizationId-input snevrer videre til prosjekter med matchende
+  // primaryOrganizationId (brukes når sitedoc_admin har firma valgt).
   hentMine: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
-      const bruker = await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.userId }, select: { role: true } });
-      const erSitedocAdmin = bruker.role === "sitedoc_admin";
-      const where: Prisma.ProjectWhereInput = erSitedocAdmin
-        ? input?.organizationId
+      const where: Prisma.ProjectWhereInput = {
+        members: { some: { userId: ctx.userId } },
+        ...(input?.organizationId
           ? { primaryOrganizationId: input.organizationId }
-          : {}
-        : { members: { some: { userId: ctx.userId } } };
+          : {}),
+      };
       return ctx.prisma.project.findMany({
         where,
         orderBy: { updatedAt: "desc" },
