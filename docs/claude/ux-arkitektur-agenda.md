@@ -8,7 +8,7 @@ sist_verifisert_mot_kode: 2026-05-06
 
 ## Beslutninger tatt
 
-**B1 — Toppbar prosjektvelger** [LØST på develop 2026-05-07]
+**B1 — Toppbar prosjektvelger** [DEPLOYET TIL PROD 2026-05-06]
 ProsjektVelger-dropdown skal ha tre valg øverst:
 - «Alle prosjekter (N)» — viser timer/data på tvers av alle firmaets prosjekter
 - «Mine prosjekter (N)» — filtrert til brukerens egne prosjekter
@@ -33,7 +33,7 @@ filtrerer visnings-listen på scope; auto-redirect-logikken bruker
 fortsatt full prosjektliste (førstegangs-onboarding). Ny tom-state-tekst
 for «Mine»-scope (peker brukeren til «Alle prosjekter»). 7 nye i18n-
 nøkler nb+en (`prosjektVelger.*` + `dashbord.ingenMineProsjekterBeskrivelse`).
-IKKE deployet til prod ennå — venter på test-verifisering.
+Deployet til prod som merge `2f22c503` etter test-verifisering.
 
 **B2 — Onboarding-checkpoint-bar**
 Den eksisterende «Oppsett som gjenstår»-baren på prosjekt er god og beholdes.
