@@ -8,7 +8,7 @@ sist_verifisert_mot_kode: 2026-05-06
 
 ## Beslutninger tatt
 
-**B1 — Toppbar prosjektvelger** [LØST på develop 2026-05-07]
+**B1 — Toppbar prosjektvelger** [DEPLOYET TIL PROD 2026-05-06]
 ProsjektVelger-dropdown skal ha tre valg øverst:
 - «Alle prosjekter (N)» — viser timer/data på tvers av alle firmaets prosjekter
 - «Mine prosjekter (N)» — filtrert til brukerens egne prosjekter
@@ -33,14 +33,33 @@ filtrerer visnings-listen på scope; auto-redirect-logikken bruker
 fortsatt full prosjektliste (førstegangs-onboarding). Ny tom-state-tekst
 for «Mine»-scope (peker brukeren til «Alle prosjekter»). 7 nye i18n-
 nøkler nb+en (`prosjektVelger.*` + `dashbord.ingenMineProsjekterBeskrivelse`).
-IKKE deployet til prod ennå — venter på test-verifisering.
+Deployet til prod som merge `2f22c503` etter test-verifisering.
 
-**B2 — Onboarding-checkpoint-bar**
+**B2 — Onboarding-checkpoint-bar** [LØST på develop 2026-05-07]
 Den eksisterende «Oppsett som gjenstår»-baren på prosjekt er god og beholdes.
 Utvides med modul-spesifikke punkter når Timer/Maskin/Varelager er aktivt:
 - Timer aktivt → legg til «Timer-oppsett» (lønnsarter, aktiviteter)
 - Maskin aktivt → legg til «Maskinregister» (importer utstyr)
 - Varelager aktivt → legg til «Varekatalog» (legg til varer)
+
+**Implementasjon:** Server: `prosjekt.hentOnboardingStatus` utvidet med
+`timerAktiv/harTimerOppsett`, `maskinAktiv/harMaskinregister`,
+`varelagerAktiv/harVarekatalog`. Modul-aktivering avledes fra
+`ProjectModule.status="aktiv"` på prosjektet. Ferdig-kriterier:
+Timer = lønnsart-count > 0 OG aktivitet-count > 0; Maskin = equipment-
+count > 0; Varelager = vare-count > 0. Tellinger brukes mot prosjektets
+`primaryOrganizationId`. Standalone prosjekt (ingen primary org) har
+alltid alle modul-flagg = false.
+
+Klient: `apps/web/src/app/dashbord/[prosjektId]/page.tsx` bygger steg-
+array dynamisk — modul-piller tas med kun når aktivert. `alleFerdige`-
+sjekken bruker bare synlige piller (skjuler hele banneret når alt er
+gjort, inkludert modul-oppsett). Lenker peker til firma-sidene
+(`/dashbord/firma/timer/onboarding`, `/dashbord/maskin`,
+`/dashbord/firma/varelager`) — modul-oppsett er firma-nivå-arbeid.
+3 nye i18n-nøkler nb+en (`onboarding.timerOppsett`,
+`onboarding.maskinregister`, `onboarding.varekatalog`).
+IKKE deployet til prod ennå — venter på test-verifisering.
 
 **B3 — Modul-fargedesign (Alternativ C)**
 Toppbar forblir mørkeblå (brand-identitet).
