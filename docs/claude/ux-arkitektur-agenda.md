@@ -60,17 +60,19 @@ Forslag: ekspanderbar sidebar med tekstlabels, eller tooltip alltid synlig.
 **U4 — Visuell distinksjon mellom kontekster/moduler** [LØST i B3]
 Erstattet av B3-beslutning (sidebar-aksent per modul, toppbar uendret).
 
-**U6 — Maskin-modul mangler sitedoc_admin firma-kontekst** [BUG]
-Server: equipment.opprett bruker ctx.session.user.organizationId (hentBrukerOrg)
-— ikke input.organizationId. sitedoc_admin får FORBIDDEN eller oppretter på
-feil firma.
-Fix: samme migrasjon som Steg 1b/2d — legg til valgfri organizationId i
-input-schema + verifiserMaskinAdminForFirma(userId, inputOrgId).
-Klient: send useFirma().valgtFirma?.id.
-Gjelder: opprett, oppdater, slett, vegvesenOppslag — alle mutations i
-equipment.ts.
-Estimat: ~2t. Blokkerer: sitedoc_admin kan ikke administrere maskinregisteret
-for kunder via UI.
+**U6 — Maskin-modul mangler sitedoc_admin firma-kontekst** [LØST på develop 2026-05-07]
+Server: ny `hentMaskinOrgFraInput(userId, inputOrgId?)` delegerer til
+`autoriserAdminForFirma` ved input-orgId, fallback til `hentBrukerOrg`. Ny
+lokal `verifiserMaskinTilgang(userId, orgId)` med sitedoc_admin-bypass
+erstatter `verifiserOrganisasjonTilgang` for utstyr-baserte sjekker.
+Migrert: list, antallPerKategori, hentMuligeAnsvarlige, opprett, oppdater,
+hentMedId, settStatus, hentFraVegvesenForhandsvisning, opprettMedVegvesen.
+oppdaterFraVegvesen hadde sitedoc_admin-bypass fra før.
+Klient: maskin/{page,nytt,[id]}.tsx sender `useFirma().valgtFirma?.id`.
+Detaljside bruker utstyrets eget orgId for ansvarlig-velger (gir riktig
+brukerliste også når sitedoc_admin er på et annet firma enn valgtFirma).
+Tom-state på nytt-utstyr-side hvis ingen firma valgt.
+IKKE deployet til prod ennå — venter på test-verifisering.
 
 **U7 — Utstyr-type er hardkodet enum, ikke firma-definert** [MANGLER]
 Småutstyr og anleggsmaskin har predefinerte type-lister uten mulighet for å

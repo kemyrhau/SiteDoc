@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { TYPER_PER_KATEGORI, type MaskinKategori } from "@/lib/maskin-typer";
 import { normaliserRegnummer, erGyldigRegnummer } from "@sitedoc/shared";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 const KATEGORI_KNAPP: Array<{
   verdi: MaskinKategori;
@@ -65,6 +66,8 @@ type ForhandsvisningFelter = {
 export default function NyttUtstyrPage() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [kategori, setKategori] = useState<MaskinKategori | null>(null);
   const [type, setType] = useState("");
@@ -131,7 +134,7 @@ export default function NyttUtstyrPage() {
       setVegvesenData(null);
       setVegvesenFeil(e.message);
     },
-  }) as unknown as MutationVennlig<{ registreringsnummer: string }, { felter: ForhandsvisningFelter; vegvesenData?: unknown }>;
+  }) as unknown as MutationVennlig<{ registreringsnummer: string; organizationId?: string }, { felter: ForhandsvisningFelter; vegvesenData?: unknown }>;
 
   function hentFraVegvesen() {
     setVegvesenFeil(null);
@@ -140,7 +143,7 @@ export default function NyttUtstyrPage() {
       setVegvesenFeil(t("maskin.vegvesen.ugyldigRegnr"));
       return;
     }
-    forhandsvis.mutate({ registreringsnummer: normalisert });
+    forhandsvis.mutate({ registreringsnummer: normalisert, organizationId: orgId });
   }
 
   function tilbakestillVegvesen() {
@@ -161,6 +164,7 @@ export default function NyttUtstyrPage() {
       // Vegvesen-flyt: send bekreftet data
       if (!type) return;
       opprettMedVegvesen.mutate({
+        organizationId: orgId,
         registreringsnummer: forhandsvisning.registreringsnummer,
         vegvesenData,
         type,
@@ -178,6 +182,7 @@ export default function NyttUtstyrPage() {
 
     if (!kategori || !type) return;
     opprett.mutate({
+      organizationId: orgId,
       kategori,
       type,
       merke: merke || undefined,
@@ -193,6 +198,25 @@ export default function NyttUtstyrPage() {
       registreringsnummer: registreringsnummer || undefined,
       serienummer: serienummer || undefined,
     });
+  }
+
+  if (!orgId) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-4">
+          <Link
+            href="/dashbord/maskin"
+            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {t("maskin.tittel")}
+          </Link>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-sm text-gray-600">
+          {t("firma.maskin.import.velgFirma")}
+        </div>
+      </div>
+    );
   }
 
   const typer = kategori ? TYPER_PER_KATEGORI[kategori] : [];
