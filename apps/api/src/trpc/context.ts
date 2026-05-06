@@ -71,6 +71,7 @@ export async function createContext({ req, res }: CreateContextOptions) {
     userId,
     actualUserId,
     imperseringAktiv,
+    sessionToken,
   };
 }
 

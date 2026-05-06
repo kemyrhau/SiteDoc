@@ -616,16 +616,9 @@ export const adminRouter = router({
         });
       }
 
-      // Finn admin sin nåværende session-rad via cookie.
-      const cookieHeader = ctx.req.headers.cookie ?? "";
-      const sessionTokenMatch = cookieHeader.match(
-        /(?:__Secure-)?authjs\.session-token=([^;]+)/,
-      );
-      const sessionToken =
-        sessionTokenMatch?.[1] ??
-        ctx.req.headers.authorization?.replace("Bearer ", "") ??
-        null;
-      if (!sessionToken) {
+      // sessionToken hentes fra ctx (parsed i context.ts / route.ts) for å
+      // unngå Fastify- vs fetch-Request-skille.
+      if (!ctx.sessionToken) {
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "Ingen aktiv sesjon funnet",
@@ -635,7 +628,7 @@ export const adminRouter = router({
       const utloperVed = new Date(Date.now() + 60 * 60 * 1000); // 1 time
 
       await ctx.prisma.session.update({
-        where: { sessionToken },
+        where: { sessionToken: ctx.sessionToken },
         data: {
           impersonatedUserId: input.targetUserId,
           originalUserId: adminUserId,
@@ -662,20 +655,12 @@ export const adminRouter = router({
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
 
-    const cookieHeader = ctx.req.headers.cookie ?? "";
-    const sessionTokenMatch = cookieHeader.match(
-      /(?:__Secure-)?authjs\.session-token=([^;]+)/,
-    );
-    const sessionToken =
-      sessionTokenMatch?.[1] ??
-      ctx.req.headers.authorization?.replace("Bearer ", "") ??
-      null;
-    if (!sessionToken) {
+    if (!ctx.sessionToken) {
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
 
     await ctx.prisma.session.update({
-      where: { sessionToken },
+      where: { sessionToken: ctx.sessionToken },
       data: {
         impersonatedUserId: null,
         originalUserId: null,

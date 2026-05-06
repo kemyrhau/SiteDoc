@@ -21,31 +21,36 @@ async function handler(req: Request) {
   let userId: string | null = sessionUserId;
   let actualUserId: string | null = sessionUserId;
   let imperseringAktiv = false;
+  let sessionToken: string | null = null;
 
-  // Slå opp impersonering-felter direkte fra session-raden via session-token-cookien.
-  if (sessionUserId) {
-    const cookieHeader = req.headers.get("cookie") ?? "";
-    const sessionTokenMatch = cookieHeader.match(
-      /(?:__Secure-)?authjs\.session-token=([^;]+)/,
-    );
-    const sessionToken = sessionTokenMatch?.[1];
-    if (sessionToken) {
-      try {
-        const rad = await prisma.session.findUnique({
-          where: { sessionToken: decodeURIComponent(sessionToken) },
-          select: { impersonatedUserId: true, impersonationExpiresAt: true },
-        });
-        const harGyldig =
-          !!rad?.impersonatedUserId &&
-          !!rad.impersonationExpiresAt &&
-          rad.impersonationExpiresAt > new Date();
-        if (harGyldig) {
-          userId = rad!.impersonatedUserId!;
-          imperseringAktiv = true;
-        }
-      } catch {
-        // Stille fallback — bruker forblir ikke-impersonert
+  // Hent session-token fra cookie så impersonerings-mutasjoner kan oppdatere
+  // riktig session-rad. Headers er fetch-Request (Web API), så vi må bruke
+  // .get("cookie") — IKKE .cookie-property.
+  const cookieHeader = req.headers.get("cookie") ?? "";
+  const sessionTokenMatch = cookieHeader.match(
+    /(?:__Secure-)?authjs\.session-token=([^;]+)/,
+  );
+  if (sessionTokenMatch?.[1]) {
+    sessionToken = decodeURIComponent(sessionTokenMatch[1]);
+  }
+
+  // Slå opp impersonering-felter direkte fra session-raden.
+  if (sessionUserId && sessionToken) {
+    try {
+      const rad = await prisma.session.findUnique({
+        where: { sessionToken },
+        select: { impersonatedUserId: true, impersonationExpiresAt: true },
+      });
+      const harGyldig =
+        !!rad?.impersonatedUserId &&
+        !!rad.impersonationExpiresAt &&
+        rad.impersonationExpiresAt > new Date();
+      if (harGyldig) {
+        userId = rad!.impersonatedUserId!;
+        imperseringAktiv = true;
       }
+    } catch {
+      // Stille fallback — bruker forblir ikke-impersonert
     }
   }
 
@@ -63,6 +68,7 @@ async function handler(req: Request) {
       userId,
       actualUserId,
       imperseringAktiv,
+      sessionToken,
     }),
   });
 }
