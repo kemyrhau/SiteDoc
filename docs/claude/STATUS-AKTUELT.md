@@ -13,6 +13,36 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Fakturering-gating + U5-forkasting DEPLOYET TIL PROD 2026-05-06** (`207a223c` merge). To små endringer bundlet i én deploy: (1) Fakturering-menyelement i firma-sidebar skjult for `company_admin`, (2) UX-agenda U5 lukket som forkastet. HTTP/2 200 mot sitedoc.no.
+
+**Endring 1 — Fakturering-gating** (`apps/web/src/app/dashbord/firma/layout.tsx`):
+- `NavElement`-typen utvidet med `kreverSitedocAdmin?: boolean`
+- `Fakturering`-elementet får `kreverSitedocAdmin: true`
+- Render-filter: `if (element.kreverSitedocAdmin && !erSitedocAdmin) return false;`
+- `erSitedocAdmin` allerede destructured fra `useFirma()` på linje 88
+
+**Endring 2 — U5 forkastet** (`docs/claude/ux-arkitektur-agenda.md`):
+- Status `[MANGLER]` → `[FORKASTET 2026-05-06]`
+- Begrunnelse: byggeplass-data (geofence, GPS, mannskaps-innsjekk, §15-liste) er prosjekt-bundne. Selvstendig firma-byggeplass ville blitt orphan-rad uten formål. Dagens prosjekt-bundne flyt er korrekt design.
+
+**Lærdom om første forsøk:** Cherry-picket samme commit (`77939c63` → `eabd34d7`) etter en mislykket første test-deploy som ga «Application error» i nettleser. Krasjen viste seg å være deploy-race-condition (HTML/JS-bundle-mismatch under PM2 reload mens browser hadde cached stale assets), ikke logikk-feil i koden. Verifisert ved at hard reload etter deploy var ferdig fungerte uten problem. Diff-en var minimalt invasiv (3 linjer, semantisk trygge), så root-cause-analysen pekte på deploy-overgang som mest sannsynlig årsak. Ingen kode-endring var nødvendig ved andre forsøk — bare ventet til build var bekreftet ferdig før test.
+
+**UX-agenda — endelig status etter denne deployen:**
+- ✅ B1 toppbar prosjektvelger Alle/Mine — DEPLOYET (`2f22c503`)
+- ✅ B2 onboarding-checkpoint-bar utvidelse — DEPLOYET (`da00d55d`)
+- ✅ B3 modul-fargedesign — DEPLOYET (`c2da3135`)
+- ✅ U1 leder-timer-rapport — DEPLOYET (`c551063f`)
+- ✅ U2 CSV/Excel-eksport — DEPLOYET (`31cff7da`)
+- ✅ U3 sidebar tekst-labels — DEPLOYET (`c2da3135`)
+- (U4 erstattet av B3)
+- ✅ U5 byggeplass selvstendig flyt — FORKASTET (`207a223c`)
+- ✅ U6 maskin sitedoc_admin firma-kontekst — DEPLOYET (`3dd4371b`)
+- ✅ U7 fritekst utstyrstype — DEPLOYET (`1781a17a`)
+
+UX-agenda er nå komplett lukket. Ingen åpne UX-tråder igjen.
+
+---
+
 **Integrasjonsadmin (AES-256-GCM-kryptering) + Brreg-autofyll DEPLOYET TIL PROD 2026-05-06** (`878e90ec` merge — bringer kryptering-PR `63b50816` + Brreg-PR `e3b8fd5c` + dok-oppdateringer). To uavhengige PR-er bundlet i én prod-deploy etter test-verifisering av begge.
 
 **Pre-deploy:** `SITEDOC_INTEGRATION_KEY` (64 hex-tegn, generert med `openssl rand -hex 32` direkte på prod-server uten å eksponere verdi i chat) lagt til i begge prod-blokker (`sitedoc-web` + `sitedoc-api`) i `~/programmering/sitedoc/ecosystem.config.js`. Idempotent sed-kommando matchet `VEGVESEN_API_KEY`-linja og satte inn etter — fungerte på første forsøk siden lærdom fra test-deploy var dokumentert i [deploy-detaljer.md](deploy-detaljer.md).

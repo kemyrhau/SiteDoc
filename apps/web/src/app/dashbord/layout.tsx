@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { NavigasjonProvider } from "@/kontekst/navigasjon-kontekst";
 import { FirmaProvider } from "@/kontekst/firma-kontekst";
 import { ProsjektProvider } from "@/kontekst/prosjekt-kontekst";
@@ -13,6 +14,9 @@ export default function DashbordLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const pathname = usePathname();
+  const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
+
   return (
     <NavigasjonProvider>
       <FirmaProvider>
@@ -22,7 +26,7 @@ export default function DashbordLayout({
               <div className="flex h-screen flex-col overflow-hidden">
                 <Toppbar />
                 <div className="flex flex-1 overflow-hidden">
-                  <HovedSidebar />
+                  {!erFirmaKontekst && <HovedSidebar />}
                   <main className="flex-1 overflow-y-auto">{children}</main>
                 </div>
               </div>
