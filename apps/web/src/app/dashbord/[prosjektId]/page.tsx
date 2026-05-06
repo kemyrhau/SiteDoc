@@ -135,6 +135,33 @@ export default function ProsjektOversikt() {
               ferdig: onboardingStatus.harLokasjon,
               href: "/dashbord/oppsett/lokasjoner",
             },
+            ...(onboardingStatus.timerAktiv
+              ? [
+                  {
+                    label: t("onboarding.timerOppsett"),
+                    ferdig: onboardingStatus.harTimerOppsett,
+                    href: "/dashbord/firma/timer/onboarding",
+                  },
+                ]
+              : []),
+            ...(onboardingStatus.maskinAktiv
+              ? [
+                  {
+                    label: t("onboarding.maskinregister"),
+                    ferdig: onboardingStatus.harMaskinregister,
+                    href: "/dashbord/maskin",
+                  },
+                ]
+              : []),
+            ...(onboardingStatus.varelagerAktiv
+              ? [
+                  {
+                    label: t("onboarding.varekatalog"),
+                    ferdig: onboardingStatus.harVarekatalog,
+                    href: "/dashbord/firma/varelager",
+                  },
+                ]
+              : []),
           ];
           const alleFerdige = steg.every((s) => s.ferdig);
           if (alleFerdige) return null;

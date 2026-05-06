@@ -81,23 +81,64 @@ export const prosjektRouter = router({
       });
     }),
 
-  // Onboarding-fremdrift: 4 booleans for progress-banner på prosjekt-dashbord.
-  // Banneret skjules klient-side når alle 4 er true.
+  // Onboarding-fremdrift: booleans for progress-banner på prosjekt-dashbord.
+  // Banneret skjules klient-side når alle synlige steg er true.
+  // B2 (2026-05-07): utvidet med modul-oppsett-status for Timer/Maskin/Varelager.
+  // Modul-pillene vises kun når aktivert (ProjectModule.status="aktiv") og er
+  // ferdig når firma-nivå-grunnoppsett er på plass (lønnsart+aktivitet,
+  // equipment, vare). Standalone prosjekt (ingen primaryOrganizationId) kan
+  // ikke ha firma-moduler aktivert — flaggene er da alltid false.
   hentOnboardingStatus: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
 
-      const [dokumentflytAntall, brukergruppeAntall, malKobletAntall, lokasjonAntall] =
+      const [
+        dokumentflytAntall,
+        brukergruppeAntall,
+        malKobletAntall,
+        lokasjonAntall,
+        prosjekt,
+        prosjektmoduler,
+      ] = await Promise.all([
+        ctx.prisma.dokumentflyt.count({ where: { projectId: input.projectId } }),
+        ctx.prisma.projectGroup.count({
+          where: { projectId: input.projectId, category: "brukergrupper" },
+        }),
+        ctx.prisma.dokumentflytMal.count({
+          where: { dokumentflyt: { projectId: input.projectId } },
+        }),
+        ctx.prisma.byggeplass.count({ where: { projectId: input.projectId } }),
+        ctx.prisma.project.findUnique({
+          where: { id: input.projectId },
+          select: { primaryOrganizationId: true },
+        }),
+        ctx.prisma.projectModule.findMany({
+          where: { projectId: input.projectId, status: "aktiv" },
+          select: { moduleSlug: true },
+        }),
+      ]);
+
+      const aktiveSlugs = new Set(prosjektmoduler.map((m) => m.moduleSlug));
+      const timerAktiv = aktiveSlugs.has("timer");
+      const maskinAktiv = aktiveSlugs.has("maskin");
+      const varelagerAktiv = aktiveSlugs.has("varelager");
+      const orgId = prosjekt?.primaryOrganizationId ?? null;
+
+      const [lonnsartAntall, aktivitetAntall, equipmentAntall, vareAntall] =
         await Promise.all([
-          ctx.prisma.dokumentflyt.count({ where: { projectId: input.projectId } }),
-          ctx.prisma.projectGroup.count({
-            where: { projectId: input.projectId, category: "brukergrupper" },
-          }),
-          ctx.prisma.dokumentflytMal.count({
-            where: { dokumentflyt: { projectId: input.projectId } },
-          }),
-          ctx.prisma.byggeplass.count({ where: { projectId: input.projectId } }),
+          timerAktiv && orgId
+            ? ctx.prismaTimer.lonnsart.count({ where: { organizationId: orgId } })
+            : Promise.resolve(0),
+          timerAktiv && orgId
+            ? ctx.prismaTimer.aktivitet.count({ where: { organizationId: orgId } })
+            : Promise.resolve(0),
+          maskinAktiv && orgId
+            ? ctx.prismaMaskin.equipment.count({ where: { organizationId: orgId } })
+            : Promise.resolve(0),
+          varelagerAktiv && orgId
+            ? ctx.prismaVarelager.vare.count({ where: { organizationId: orgId } })
+            : Promise.resolve(0),
         ]);
 
       return {
@@ -105,6 +146,12 @@ export const prosjektRouter = router({
         harBrukergruppe: brukergruppeAntall > 0,
         harMalKobletTilFlyt: malKobletAntall > 0,
         harLokasjon: lokasjonAntall > 0,
+        timerAktiv,
+        harTimerOppsett: timerAktiv && lonnsartAntall > 0 && aktivitetAntall > 0,
+        maskinAktiv,
+        harMaskinregister: maskinAktiv && equipmentAntall > 0,
+        varelagerAktiv,
+        harVarekatalog: varelagerAktiv && vareAntall > 0,
       };
     }),
 
