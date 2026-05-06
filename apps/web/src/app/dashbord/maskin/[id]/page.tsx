@@ -124,7 +124,14 @@ export default function MaskinDetaljSide() {
     { id },
     { enabled: !!id },
   );
-  const { data: brukereData } = trpc.maskin.equipment.hentMuligeAnsvarlige.useQuery();
+  // Bruker utstyrets eget organizationId for ansvarlig-velgeren — slik at
+  // sitedoc_admin på et kunde-firmas utstyr ser firmaets egne brukere,
+  // ikke sin egen orgs brukere.
+  const utstyrOrgId = (data as { organizationId?: string } | undefined)?.organizationId;
+  const { data: brukereData } = trpc.maskin.equipment.hentMuligeAnsvarlige.useQuery(
+    { organizationId: utstyrOrgId },
+    { enabled: !!utstyrOrgId },
+  );
   const { data: meg } = trpc.bruker.hentMin.useQuery();
 
   const [statusModalApen, setStatusModalApen] = useState(false);

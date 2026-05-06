@@ -25,6 +25,23 @@ Utvides med modul-spesifikke punkter når Timer/Maskin/Varelager er aktivt:
 - Maskin aktivt → legg til «Maskinregister» (importer utstyr)
 - Varelager aktivt → legg til «Varekatalog» (legg til varer)
 
+**B3 — Modul-fargedesign (Alternativ C)**
+Toppbar forblir mørkeblå (brand-identitet).
+Fargeaksentuering brukes kun i sidebar og indikatorer — ikke i toppbar.
+
+Fargepalett per kontekst:
+- Prosjekt = blå (#378ADD)
+- Timer = grønn (#3B6D11)
+- Maskin = amber (#854F0B)
+- Varelager = teal (#1D9E75)
+
+Implementasjon: sidebar-aksentlinje (border-left 3px) på aktiv modul,
+farget ikon i samme ramp. Ingen endring i toppbar.
+Gjelder både firma-sidebar og prosjekt-sidebar.
+
+Implementasjon av B3 planlegges som en dedikert frontend-sesjon etter at
+A.Markussen-onboarding er stabilisert. Erstatter U4 i åpne oppgaver.
+
 ## Åpne oppgaver (krever planlegging)
 
 **U1 — Leder-timer-rapport på firmanivå** [MANGLER]
@@ -40,10 +57,30 @@ Forutsetning for ProAdm-eksport og lønnskjøring.
 Prosjekt-sidebar viser kun ikoner uten tekst. Uleselig for nye brukere.
 Forslag: ekspanderbar sidebar med tekstlabels, eller tooltip alltid synlig.
 
-**U4 — Visuell distinksjon mellom kontekster/moduler** [UX-svakhet]
-All navigasjon er samme mørkeblå. Vurdér fargeaksentuering per modul
-(Timer = en farge, Maskin = annen) for å tydeliggjøre hvilken modul
-brukeren er i.
+**U4 — Visuell distinksjon mellom kontekster/moduler** [LØST i B3]
+Erstattet av B3-beslutning (sidebar-aksent per modul, toppbar uendret).
+
+**U6 — Maskin-modul mangler sitedoc_admin firma-kontekst** [LØST på develop 2026-05-07]
+Server: ny `hentMaskinOrgFraInput(userId, inputOrgId?)` delegerer til
+`autoriserAdminForFirma` ved input-orgId, fallback til `hentBrukerOrg`. Ny
+lokal `verifiserMaskinTilgang(userId, orgId)` med sitedoc_admin-bypass
+erstatter `verifiserOrganisasjonTilgang` for utstyr-baserte sjekker.
+Migrert: list, antallPerKategori, hentMuligeAnsvarlige, opprett, oppdater,
+hentMedId, settStatus, hentFraVegvesenForhandsvisning, opprettMedVegvesen.
+oppdaterFraVegvesen hadde sitedoc_admin-bypass fra før.
+Klient: maskin/{page,nytt,[id]}.tsx sender `useFirma().valgtFirma?.id`.
+Detaljside bruker utstyrets eget orgId for ansvarlig-velger (gir riktig
+brukerliste også når sitedoc_admin er på et annet firma enn valgtFirma).
+Tom-state på nytt-utstyr-side hvis ingen firma valgt.
+IKKE deployet til prod ennå — venter på test-verifisering.
+
+**U7 — Utstyr-type er hardkodet enum, ikke firma-definert** [MANGLER]
+Småutstyr og anleggsmaskin har predefinerte type-lister uten mulighet for å
+legge til egne typer. Kunder som Heatwork-henger, steinsag, aggregat passer
+ikke i eksisterende typer.
+Fix: legg til «Egendefinert type»-felt (fritekst) som supplement til
+dropdown, eller la firmaadmin definere egne typer i firma-innstillinger.
+Estimat: ~1t (fritekst-felt) eller ~3t (firma-definerte typer).
 
 **U5 — Byggeplass som selvstendig flyt** [MANGLER]
 Byggeplass kan bare opprettes inne i prosjektkontekst i dag.

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../../trpc/trpc";
-import { verifiserOrganisasjonTilgang } from "../../trpc/tilgangskontroll";
+import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 import { prisma } from "@sitedoc/db";
 import {
   forhandsvisningSynkron,
@@ -28,6 +28,7 @@ const EIERSKAP = ["eid", "leid", "leasing", "lant"] as const;
 const UTGAATT_GRUNN = ["solgt", "destruert", "tapt", "stjaalet", "slitt"] as const;
 
 const opprettSchema = z.object({
+  organizationId: z.string().uuid().optional(),
   kategori: z.enum(KATEGORIER),
   type: z.string().min(1).max(100),
   merke: z.string().max(100).optional(),
@@ -67,6 +68,43 @@ async function hentBrukerOrg(userId: string): Promise<string> {
   return bruker.organizationId;
 }
 
+/**
+ * U6-fix: hent orgId for maskin-operasjon med sitedoc_admin-støtte.
+ * Hvis input gir organizationId → verifiser admin-tilgang og bruk den.
+ * Ellers → fallback til session-brukerens egen org (bakoverkompatibel).
+ */
+async function hentMaskinOrgFraInput(
+  userId: string,
+  inputOrgId: string | undefined,
+): Promise<string> {
+  if (inputOrgId) {
+    await autoriserAdminForFirma(userId, inputOrgId);
+    return inputOrgId;
+  }
+  return hentBrukerOrg(userId);
+}
+
+/**
+ * U6-fix: verifiser at brukeren har tilgang til utstyr i en gitt org.
+ * Erstatter verifiserOrganisasjonTilgang lokalt for å gi sitedoc_admin
+ * lese-/skrive-tilgang på enhver org. Vanlige brukere må fortsatt ha
+ * matchende organizationId.
+ */
+async function verifiserMaskinTilgang(
+  userId: string,
+  organizationId: string,
+): Promise<void> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, organizationId: true },
+  });
+  if (!bruker) throw new TRPCError({ code: "FORBIDDEN" });
+  if (bruker.role === "sitedoc_admin") return;
+  if (bruker.organizationId !== organizationId) {
+    throw new TRPCError({ code: "FORBIDDEN" });
+  }
+}
+
 function mapVegvesenFeil(err: unknown): TRPCError {
   if (err instanceof VegvesenIkkeFunnetError) {
     return new TRPCError({
@@ -103,6 +141,7 @@ export const equipmentRouter = router({
   list: protectedProcedure
     .input(
       z.object({
+        organizationId: z.string().uuid().optional(),
         kategori: z.enum(KATEGORIER).optional(),
         status: z.enum(STATUS_VERDIER).optional(),
         ansvarligUserId: z.string().uuid().optional(),
@@ -112,7 +151,10 @@ export const equipmentRouter = router({
     )
     .query(async ({ ctx, input }) => {
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
-      const organizationId = await hentBrukerOrg(ctx.userId);
+      const organizationId = await hentMaskinOrgFraInput(
+        ctx.userId,
+        input?.organizationId,
+      );
 
       const inkluderUtgaatt = input?.inkluderUtgaatt ?? false;
       const sokTrimmet = input?.sok?.trim();
@@ -142,32 +184,42 @@ export const equipmentRouter = router({
     }),
 
   // Aggregert antall per kategori (for filter-bar count-tags)
-  antallPerKategori: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
-    const organizationId = await hentBrukerOrg(ctx.userId);
+  antallPerKategori: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const organizationId = await hentMaskinOrgFraInput(
+        ctx.userId,
+        input?.organizationId,
+      );
 
-    const grupper = await ctx.prismaMaskin.equipment.groupBy({
-      by: ["kategori"],
-      where: { organizationId, status: { not: "utgaatt" } },
-      _count: { _all: true },
-    });
-    return grupper.map((g) => ({
-      kategori: g.kategori,
-      antall: g._count._all,
-    }));
-  }),
+      const grupper = await ctx.prismaMaskin.equipment.groupBy({
+        by: ["kategori"],
+        where: { organizationId, status: { not: "utgaatt" } },
+        _count: { _all: true },
+      });
+      return grupper.map((g) => ({
+        kategori: g.kategori,
+        antall: g._count._all,
+      }));
+    }),
 
   // Firma-medlemmer som kan velges som ansvarlig (filter-bar + ansvarlig-velger)
-  hentMuligeAnsvarlige: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
-    const organizationId = await hentBrukerOrg(ctx.userId);
+  hentMuligeAnsvarlige: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
+      const organizationId = await hentMaskinOrgFraInput(
+        ctx.userId,
+        input?.organizationId,
+      );
 
-    return prisma.user.findMany({
-      where: { organizationId },
-      select: { id: true, name: true, email: true },
-      orderBy: { name: "asc" },
-    });
-  }),
+      return prisma.user.findMany({
+        where: { organizationId },
+        select: { id: true, name: true, email: true },
+        orderBy: { name: "asc" },
+      });
+    }),
 
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -179,7 +231,7 @@ export const equipmentRouter = router({
       });
       if (!utstyr) throw new TRPCError({ code: "NOT_FOUND" });
 
-      await verifiserOrganisasjonTilgang(ctx.userId, utstyr.organizationId);
+      await verifiserMaskinTilgang(ctx.userId, utstyr.organizationId);
       return utstyr;
     }),
 
@@ -187,7 +239,10 @@ export const equipmentRouter = router({
     .input(opprettSchema)
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
-      const organizationId = await hentBrukerOrg(ctx.userId);
+      const organizationId = await hentMaskinOrgFraInput(
+        ctx.userId,
+        input.organizationId,
+      );
       await krevMaskinAktivert(organizationId);
 
       return ctx.prismaMaskin.equipment.create({
@@ -270,7 +325,7 @@ export const equipmentRouter = router({
         select: { organizationId: true },
       });
       if (!utstyr) throw new TRPCError({ code: "NOT_FOUND" });
-      await verifiserOrganisasjonTilgang(ctx.userId, utstyr.organizationId);
+      await verifiserMaskinTilgang(ctx.userId, utstyr.organizationId);
 
       // Ekstra streng tilgangs-sjekk for ansvarligUserId-endringer (per A.6 hybrid)
       if (input.ansvarligUserId !== undefined) {
@@ -343,7 +398,7 @@ export const equipmentRouter = router({
         select: { organizationId: true },
       });
       if (!utstyr) throw new TRPCError({ code: "NOT_FOUND" });
-      await verifiserOrganisasjonTilgang(ctx.userId, utstyr.organizationId);
+      await verifiserMaskinTilgang(ctx.userId, utstyr.organizationId);
 
       if (input.status === "utgaatt" && !input.utgaattGrunn) {
         throw new TRPCError({
@@ -371,10 +426,18 @@ export const equipmentRouter = router({
   // ==========================================================================
 
   hentFraVegvesenForhandsvisning: protectedProcedure
-    .input(z.object({ registreringsnummer: regnummerSchema }))
+    .input(
+      z.object({
+        registreringsnummer: regnummerSchema,
+        organizationId: z.string().uuid().optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
-      const organizationId = await hentBrukerOrg(ctx.userId);
+      const organizationId = await hentMaskinOrgFraInput(
+        ctx.userId,
+        input.organizationId,
+      );
       await krevMaskinAktivert(organizationId);
 
       // Sjekk dupletter før vi kontakter Vegvesen
@@ -407,6 +470,7 @@ export const equipmentRouter = router({
   opprettMedVegvesen: protectedProcedure
     .input(
       z.object({
+        organizationId: z.string().uuid().optional(),
         registreringsnummer: regnummerSchema,
         vegvesenData: z.unknown(),
         type: z.string().min(1).max(100),
@@ -423,7 +487,10 @@ export const equipmentRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) throw new TRPCError({ code: "UNAUTHORIZED" });
-      const organizationId = await hentBrukerOrg(ctx.userId);
+      const organizationId = await hentMaskinOrgFraInput(
+        ctx.userId,
+        input.organizationId,
+      );
       await krevMaskinAktivert(organizationId);
 
       // Sikkerhets-sjekk: regnummeret i bekreftet data MÅ matche input

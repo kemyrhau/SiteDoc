@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import type { MaskinKategori } from "@/lib/maskin-typer";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 const KATEGORIER: ReadonlyArray<MaskinKategori> = ["kjoretoy", "anleggsmaskin", "smautstyr"];
 const STATUS_FILTER: ReadonlyArray<string> = ["tilgjengelig", "utlaant", "paa_service"];
@@ -40,6 +41,8 @@ interface Bruker {
 export default function MaskinPage() {
   const { t } = useTranslation();
   const router = useRouter();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
 
   const [valgtKategori, setValgtKategori] = useState<MaskinKategori | null>(null);
   const [valgtStatus, setValgtStatus] = useState<string | null>(null);
@@ -47,16 +50,26 @@ export default function MaskinPage() {
   const [sok, setSok] = useState("");
   const [visUtgaatte, setVisUtgaatte] = useState(false);
 
-  const { data, isLoading } = trpc.maskin.equipment.list.useQuery({
-    kategori: valgtKategori ?? undefined,
-    status: (valgtStatus as "tilgjengelig" | "utlaant" | "paa_service" | undefined) ?? undefined,
-    ansvarligUserId: valgtAnsvarlig || undefined,
-    sok: sok.trim() || undefined,
-    inkluderUtgaatt: visUtgaatte,
-  });
+  const { data, isLoading } = trpc.maskin.equipment.list.useQuery(
+    {
+      organizationId: orgId,
+      kategori: valgtKategori ?? undefined,
+      status: (valgtStatus as "tilgjengelig" | "utlaant" | "paa_service" | undefined) ?? undefined,
+      ansvarligUserId: valgtAnsvarlig || undefined,
+      sok: sok.trim() || undefined,
+      inkluderUtgaatt: visUtgaatte,
+    },
+    { enabled: !!orgId },
+  );
 
-  const { data: brukereData } = trpc.maskin.equipment.hentMuligeAnsvarlige.useQuery();
-  const { data: antallPerKat } = trpc.maskin.equipment.antallPerKategori.useQuery();
+  const { data: brukereData } = trpc.maskin.equipment.hentMuligeAnsvarlige.useQuery(
+    { organizationId: orgId },
+    { enabled: !!orgId },
+  );
+  const { data: antallPerKat } = trpc.maskin.equipment.antallPerKategori.useQuery(
+    { organizationId: orgId },
+    { enabled: !!orgId },
+  );
 
   const utstyr = (data ?? []) as UtstyrRad[];
   const brukere = (brukereData ?? []) as Bruker[];
