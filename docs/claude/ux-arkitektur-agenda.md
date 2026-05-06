@@ -74,13 +74,14 @@ brukerliste også når sitedoc_admin er på et annet firma enn valgtFirma).
 Tom-state på nytt-utstyr-side hvis ingen firma valgt.
 IKKE deployet til prod ennå — venter på test-verifisering.
 
-**U7 — Utstyr-type er hardkodet enum, ikke firma-definert** [MANGLER]
-Småutstyr og anleggsmaskin har predefinerte type-lister uten mulighet for å
-legge til egne typer. Kunder som Heatwork-henger, steinsag, aggregat passer
-ikke i eksisterende typer.
-Fix: legg til «Egendefinert type»-felt (fritekst) som supplement til
-dropdown, eller la firmaadmin definere egne typer i firma-innstillinger.
-Estimat: ~1t (fritekst-felt) eller ~3t (firma-definerte typer).
+**U7 — Utstyr-type er hardkodet enum, ikke firma-definert** [LØST på develop 2026-05-07]
+Nytt-utstyr-side: `<select>` byttet til `<input type="text">` med `list`-attributt
++ `<datalist>` som forhåndspopulerer eksisterende typer som forslag. Detalj-
+side: eksisterende fritekst-input fikk samme datalist-supplement.
+Vegvesen-auto-foreslag oppdatert til labelKey-form (Personbil/Varebil/etc.)
+for å matche datalist-oppføringene.
+Server tok allerede fritekst — kun klient-endring.
+IKKE deployet til prod ennå.
 
 **U5 — Byggeplass som selvstendig flyt** [MANGLER]
 Byggeplass kan bare opprettes inne i prosjektkontekst i dag.

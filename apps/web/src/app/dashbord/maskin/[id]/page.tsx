@@ -20,7 +20,7 @@ import {
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Modal } from "@sitedoc/ui";
-import type { MaskinKategori } from "@/lib/maskin-typer";
+import { TYPER_PER_KATEGORI, type MaskinKategori } from "@/lib/maskin-typer";
 
 const STATUS_ALLE = [
   "bestilt",
@@ -1115,8 +1115,18 @@ function RedigerModal({
                 type="text"
                 value={inn.type ?? ""}
                 onChange={(e) => setInn({ ...inn, type: e.target.value })}
+                list="maskin-type-forslag-detalj"
                 className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
               />
+              <datalist id="maskin-type-forslag-detalj">
+                {TYPER_PER_KATEGORI[
+                  (inn.kategori ?? equipment.kategori) as MaskinKategori
+                ]?.map((tt) => (
+                  <option key={tt.verdi} value={tt.labelKey}>
+                    {tt.eksempel}
+                  </option>
+                ))}
+              </datalist>
             </Felt>
             <Felt label={t("maskin.merke")}>
               <Input v={inn.merke} onChange={(v) => setInn({ ...inn, merke: v })} />

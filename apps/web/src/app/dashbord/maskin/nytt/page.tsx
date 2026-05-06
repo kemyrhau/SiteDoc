@@ -119,11 +119,13 @@ export default function NyttUtstyrPage() {
       setForhandsvisning(data.felter);
       setVegvesenData(data.vegvesenData ?? null);
       setVegvesenFeil(null);
-      // Auto-foreslå type og årsmodell fra Vegvesen
-      if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("personbil")) setType("personbil");
-      else if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("varebil")) setType("varebil");
-      else if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("lastebil")) setType("lastebil");
-      else if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("tilhenger")) setType("tilhenger");
+      // Auto-foreslå type og årsmodell fra Vegvesen.
+      // Bruker labelKey-form (capitalized) siden type-feltet nå er fritekst-input
+      // med datalist-forslag — verdiene matcher datalist-oppføringene.
+      if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("personbil")) setType("Personbil");
+      else if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("varebil")) setType("Varebil");
+      else if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("lastebil")) setType("Lastebil");
+      else if (data.felter.kjoretoygruppeNavn?.toLowerCase().includes("tilhenger")) setType("Tilhenger");
       if (data.felter.forsteRegistrering) {
         const aar = new Date(data.felter.forsteRegistrering).getFullYear();
         setAarsmodell(String(aar));
@@ -403,19 +405,22 @@ export default function NyttUtstyrPage() {
           {/* Hovedskjema */}
           <div className="grid grid-cols-1 gap-4 rounded-lg border border-gray-200 bg-white p-4 sm:grid-cols-2">
             <Felt labelKey="maskin.type" required>
-              <select
+              <input
+                type="text"
                 value={type}
                 onChange={(e) => setType(e.target.value)}
                 required
+                list="maskin-type-forslag"
+                placeholder={t("maskin.velgType")}
                 className="w-full rounded-md border border-gray-300 px-3 py-1.5 text-sm"
-              >
-                <option value="">{t("maskin.velgType")}</option>
+              />
+              <datalist id="maskin-type-forslag">
                 {typer.map((tt) => (
-                  <option key={tt.verdi} value={tt.verdi}>
-                    {tt.labelKey} — {tt.eksempel}
+                  <option key={tt.verdi} value={tt.labelKey}>
+                    {tt.eksempel}
                   </option>
                 ))}
-              </select>
+              </datalist>
             </Felt>
 
             <Felt labelKey="maskin.internNummer">
