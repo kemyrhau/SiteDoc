@@ -13,12 +13,41 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
-**Steg 4b Sesjon 3 — DEPLOYET TIL TEST, IKKE TIL PROD ENNÅ (2026-05-07).**
+**Steg 4b Sesjon 3 DEPLOYET TIL PROD 2026-05-06** (merge `37a1fe89`). Lukker Steg 4b fullt ut.
 
-**Status:**
-- Sesjon 3-koden ligger på `develop`: `420c0464` (import-flyt) + `5e7aa8d2` (seed-script) + `7241180f` (dok)
-- **Prod er fortsatt på `09b4d1ae`** (Sesjon 2 — deployet 2026-05-06)
-- Test-DB har migrasjon `20260507000001_vare_unique_navn_enhet` applied; prod-DB har den IKKE
+**Prod-deploy fullført:**
+- Merge develop→main: `37a1fe89` (`feat: Steg 4b Sesjon 3 + UX-dokumentasjon`, no-ff)
+- Migrasjon `20260507000001_vare_unique_navn_enhet` applied til prod-DB (Vare unique fra `(orgId, varenummer)` til `(orgId, navn, enhet)`)
+- Web-build 1m18s, `sitedoc-api` + `sitedoc-web` restartet
+- HTTP/2 200 mot sitedoc.no
+
+**Seed-kjøring mot A.Markussen (`4488fe17-7490-409f-9c1c-2827f257c54d`):**
+```
+Kategorier: 7 opprettet, 0 eksisterte
+Varer: 57 opprettet, 0 eksisterte
+```
+
+**DB-verifisering (prod):**
+- 7 kategorier: Grus/pukk/jord (36), Naturstein (8), Diverse (7), Rør og rørdeler (2), Betongstein og elementer (2), Forbruk (1), Deponiavgift (1) = 57 varer
+- 2 pris-rader: Matjord fra lager Beisfjord (m3) = 100,00 og Samfengt grus (m3) = 80,00
+
+**Gjenstår manuelt på Kenneths side:**
+- Opprett 6 Heatwork-utleie-Equipment-rader (7626/7628/7630/7632/7634 + HW-vifte) i `/dashbord/maskin` med `erUtleieobjekt=true`, `utleieEnhet=doegn`. Varelager-modul allerede aktivert for A.Markussen per UX-agenda 2026-05-06.
+
+**UX/arkitektur-status:**
+- 3 vedtatte beslutninger (B1 toppbar prosjektvelger med Alle/Mine, B2 onboarding-checkpoint-bar utvidelse, B3 modul-fargedesign Alternativ C — sidebar-aksent + ikonfarge, toppbar uendret)
+- 4 åpne oppgaver: U1 leder-timer-rapport, U2 eksport alle ansatte (forutsetning for ProAdm), U3 sidebar tekst-labels, U5 byggeplass selvstendig flyt
+- U4 erstattet av B3
+- B3-implementasjon planlagt som egen frontend-sesjon etter A.Markussen-onboarding er stabilisert
+- Detaljer i [ux-arkitektur-agenda.md](ux-arkitektur-agenda.md)
+
+---
+
+**Steg 4b Sesjon 3 — DEPLOYET TIL TEST 2026-05-07** (historikk).
+
+**Status før prod-deploy:**
+- Sesjon 3-koden lå på `develop`: `420c0464` (import-flyt) + `5e7aa8d2` (seed-script) + `7241180f` (dok)
+- Test-DB hadde migrasjon `20260507000001_vare_unique_navn_enhet` applied; prod-DB hadde den IKKE
 
 **Test-verifisering (Byggeleder, org-id `f1000001-0000-0000-0000-000000000002`):**
 
