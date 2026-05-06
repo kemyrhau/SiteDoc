@@ -143,6 +143,15 @@ export const addMemberSchema = z.object({
   melding: z.string().max(500).optional(),
 });
 
+// Legg til en eksisterende firma-bruker som prosjektmedlem (ingen e-post sendes).
+// Krever at userId tilhører samme firma som prosjektet (håndheves server-side).
+export const addExistingMemberSchema = z.object({
+  projectId: z.string().uuid(),
+  userId: z.string().uuid(),
+  role: z.enum(["member", "admin"]).default("member"),
+  faggruppeIder: z.array(z.string().uuid()).default([]),
+});
+
 // Tegningsvalidering
 export const DRAWING_DISCIPLINES = [
   "ARK", "LARK", "RIB", "RIV", "RIE", "RIG", "RIBr", "RIAku",
