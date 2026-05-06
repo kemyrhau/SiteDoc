@@ -13,6 +13,28 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Integrasjonsadmin (AES-256-GCM-kryptering) + Brreg-autofyll DEPLOYET TIL PROD 2026-05-06** (`878e90ec` merge — bringer kryptering-PR `63b50816` + Brreg-PR `e3b8fd5c` + dok-oppdateringer). To uavhengige PR-er bundlet i én prod-deploy etter test-verifisering av begge.
+
+**Pre-deploy:** `SITEDOC_INTEGRATION_KEY` (64 hex-tegn, generert med `openssl rand -hex 32` direkte på prod-server uten å eksponere verdi i chat) lagt til i begge prod-blokker (`sitedoc-web` + `sitedoc-api`) i `~/programmering/sitedoc/ecosystem.config.js`. Idempotent sed-kommando matchet `VEGVESEN_API_KEY`-linja og satte inn etter — fungerte på første forsøk siden lærdom fra test-deploy var dokumentert i [deploy-detaljer.md](deploy-detaljer.md).
+
+**Deploy-trinn:** `git checkout main && git merge --no-ff develop && git push origin main` → `ssh sitedoc git fetch && git reset --hard origin/main && pnpm build --filter @sitedoc/web` (1m15s) → `pm2 reload ecosystem.config.js --update-env` (reload, ikke restart — bevarer ecosystem-binding og leser oppdatert env). Verifisering: HTTP/2 200 mot sitedoc.no + `/proc/PID/environ` på begge prosesser bekrefter SITEDOC_INTEGRATION_KEY satt med 64 tegn.
+
+**Funksjonell status på prod:**
+- AES-256-GCM-kryptering aktiv på `OrganizationIntegration.apiKey` (eksisterende admin-CRUD krypterer ved opprett/oppdater, returnerer aldri klartekst, dekrypterer ikke automatisk i admin-vy — `harNøkkel: boolean` er den eksponerte tilstanden).
+- `/dashbord/admin/integrasjoner` — sitedoc_admin platform-status: Vegvesen + krypteringsnøkkel-status (read-only via `process.env`-sjekk).
+- `/dashbord/firma/innstillinger/integrasjoner` — firma-admin-side. Type-whitelist tom i firma-integrasjons-router; «ingen aktive integrasjoner»-melding vises. Klar for Reginn-PR senere.
+- `/dashbord/firma/innstillinger` — Brreg-knapp ved orgnr-felt autofyller navn + fakturaadresse fra `data.brreg.no`. Modulus-11-validering server-side (vekter 3,2,7,6,5,4,3,2 + kontroll). 8s-timeout via AbortController. Kodede feiltyper (UGYLDIG_ORGNR/IKKE_FUNNET/TIMEOUT/NETTVERK/UKJENT) mappet til tRPC-koder.
+- `/dashbord/admin/firmaer` opprett-modal — Brreg-knapp autofyller navn (modal har ikke adressefelt).
+- `INTEGRASJON_TYPER` i admin/firmaer-side utvidet med `reginn` (label «Reginn MREG»). Forberedelse for når Reginn-API er klart.
+
+**Test-verifisering før prod-deploy 2026-05-07:** Brreg-oppslag mot orgnr `974760673` (Brønnøysundregistrene selv) returnerte «REGISTERENHETEN I BRØNNØYSUND», adresse «Havnegata 48, 8900 BRØNNØYSUND» — autofyll fungerte korrekt.
+
+**Test-rens utført 2026-05-07:** Gammel klartekst-rad `c9a86fa4-...` (proadm testdata på Byggeleder) slettet via SQL før kryptering ble aktivert. Prod hadde 0 rader så ingen migrering der. Test-nøkkelen `1dcd...4fe4` (eksponert i chat-logg under feilsøking) **bør roteres** — Kenneth-oppgave.
+
+**Lærdom dokumentert i [deploy-detaljer.md](deploy-detaljer.md):** SITEDOC_INTEGRATION_KEY må stå i BÅDE web- og api-ecosystem-blokker fordi tRPC-mutations kjører i Next.js-web-prosessen (ikke Fastify-api). Test-deploy 2026-05-07 feilet 1+ time fordi nøkkelen kun lå i api-blokken; ble løst ved å duplisere i web-blokken. Prod-deploy fulgte ny prosedyre på første forsøk uten feil.
+
+---
+
 **Brreg-autofyll IMPLEMENTERT på develop 2026-05-07.** Firma-oppslag på orgnr mot Brønnøysund Enhetsregisteret (`data.brreg.no`). Autofyll-knapp på `/dashbord/firma/innstillinger` og `/dashbord/admin/firmaer`-opprett-modal. Type-whitelist `sentralregisteret` renamet til `reginn` (clean slate — feilaktig kategorisering av forrige PR rettet opp). UI-tile for `sentralregisteret` fjernet fra `/dashbord/firma/innstillinger/integrasjoner`.
 
 **Komponenter:**
