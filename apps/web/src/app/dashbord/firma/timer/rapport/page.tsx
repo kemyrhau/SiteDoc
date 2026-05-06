@@ -107,27 +107,9 @@ export default function TimerRapportSide() {
     { enabled: !!orgId && harTimer },
   );
 
-  if (!orgId) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Spinner />
-      </div>
-    );
-  }
-
-  if (!harTimer) {
-    return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
-        <h2 className="text-base font-semibold text-amber-900">
-          {t("firma.timer.rapport.modulIkkeAktivert.tittel")}
-        </h2>
-        <p className="mt-2 text-sm text-amber-800">
-          {t("firma.timer.rapport.modulIkkeAktivert.beskrivelse")}
-        </p>
-      </div>
-    );
-  }
-
+  // Viktig: useMemo MÅ kalles før alle conditional returns under,
+  // ellers brytes Rules of Hooks (React error #310 — flagget i memory
+  // som tidligere ftd-økonomi-bug 2026-04).
   const rapportData = (rapport ?? null) as RapportResultat | null;
   const sorterteAnsatte = useMemo(() => {
     if (!rapportData) return [];
@@ -154,6 +136,27 @@ export default function TimerRapportSide() {
     });
     return arr;
   }, [rapportData, sortKolonne, sortRetning]);
+
+  if (!orgId) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Spinner />
+      </div>
+    );
+  }
+
+  if (!harTimer) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-6">
+        <h2 className="text-base font-semibold text-amber-900">
+          {t("firma.timer.rapport.modulIkkeAktivert.tittel")}
+        </h2>
+        <p className="mt-2 text-sm text-amber-800">
+          {t("firma.timer.rapport.modulIkkeAktivert.beskrivelse")}
+        </p>
+      </div>
+    );
+  }
 
   function settHurtigPeriode(type: "denne-uken" | "forrige-uken" | "denne-maaneden" | "forrige-maaneden") {
     const nå = new Date();
