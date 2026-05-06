@@ -15,6 +15,8 @@ export interface CreateContextOptions {
  */
 export async function createContext({ req, res }: CreateContextOptions) {
   let userId: string | null = null;
+  let actualUserId: string | null = null;
+  let imperseringAktiv = false;
 
   // Hent sesjonstoken fra cookie eller Authorization-header
   const cookieHeader = req.headers.cookie ?? "";
@@ -31,11 +33,28 @@ export async function createContext({ req, res }: CreateContextOptions) {
       // Slå opp sesjonen direkte i databasen (Auth.js database-strategi)
       const session = await prisma.session.findUnique({
         where: { sessionToken },
-        select: { userId: true, expires: true },
+        select: {
+          userId: true,
+          expires: true,
+          impersonatedUserId: true,
+          impersonationExpiresAt: true,
+        },
       });
 
       if (session && session.expires > new Date()) {
-        userId = session.userId;
+        // Impersonering: hvis admin har aktiv impersonering, bruk
+        // impersonatedUserId som effektiv userId for autorisering. Holder
+        // actualUserId = admin for audit-logging.
+        const harGyldigImpersonering =
+          !!session.impersonatedUserId &&
+          !!session.impersonationExpiresAt &&
+          session.impersonationExpiresAt > new Date();
+
+        actualUserId = session.userId;
+        userId = harGyldigImpersonering
+          ? session.impersonatedUserId!
+          : session.userId;
+        imperseringAktiv = harGyldigImpersonering;
       }
     } catch {
       // Ugyldig token — bruker forblir uautentisert
@@ -50,6 +69,8 @@ export async function createContext({ req, res }: CreateContextOptions) {
     req,
     res,
     userId,
+    actualUserId,
+    imperseringAktiv,
   };
 }
 

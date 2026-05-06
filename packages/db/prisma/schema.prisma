@@ -284,9 +284,20 @@ model Session {
   userId       String   @map("user_id")
   expires      DateTime
 
+  // Impersonering (sitedoc_admin "view as user"). Når impersonatedUserId er
+  // satt og impersonationExpiresAt > now, opptrer admin som annen bruker.
+  // originalUserId peker tilbake til admin for audit-logger.
+  // Cross-bruker-FK håndteres som svake String-felt (ingen Prisma @relation)
+  // for å unngå sirkulær avhengighet — vi sletter ikke User uten å rydde
+  // sessions først.
+  impersonatedUserId     String?   @map("impersonated_user_id")
+  originalUserId         String?   @map("original_user_id")
+  impersonationExpiresAt DateTime? @map("impersonation_expires_at")
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([impersonatedUserId])
   @@map("sessions")
 }
 

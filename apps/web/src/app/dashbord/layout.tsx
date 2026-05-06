@@ -8,6 +8,7 @@ import { ByggeplassProvider } from "@/kontekst/byggeplass-kontekst";
 import { PresenceProvider } from "@/kontekst/presence-kontekst";
 import { Toppbar } from "@/components/layout/Toppbar";
 import { HovedSidebar } from "@/components/layout/HovedSidebar";
+import { ImpersoneringBanner } from "@/components/layout/ImpersoneringBanner";
 
 export default function DashbordLayout({
   children,
@@ -25,6 +26,7 @@ export default function DashbordLayout({
             <PresenceProvider>
               <div className="flex h-screen flex-col overflow-hidden">
                 <Toppbar />
+                <ImpersoneringBanner />
                 <div className="flex flex-1 overflow-hidden">
                   {!erFirmaKontekst && <HovedSidebar />}
                   <main className="flex-1 overflow-y-auto">{children}</main>

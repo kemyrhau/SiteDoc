@@ -13,6 +13,29 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Impersonering («view as user») IMPLEMENTERT på develop 2026-05-07.** SaaS-admin-funksjon: sitedoc_admin kan logge inn som hvilken som helst ikke-admin-bruker. Augmented-session-mønster — `Session.impersonatedUserId/originalUserId/impersonationExpiresAt` settes på admin sin egen session-rad. tRPC-context bruker `impersonatedUserId` som effektiv `userId` for autorisering; `actualUserId` bevarer admin for audit.
+
+**Komponenter:**
+- Migrasjon `20260507000001_session_impersonering` — 3 nullable-kolonner + indeks
+- `apps/api/src/trpc/context.ts` — `actualUserId` + `imperseringAktiv`-flagg
+- `apps/web/src/app/api/trpc/[...trpc]/route.ts` — samme logikk i Next.js-route
+- `apps/api/src/routes/admin.ts` — 3 nye prosedyrer (`hentImpersoneringStatus`, `startImpersonering`, `stoppImpersonering`)
+- `apps/web/src/components/layout/ImpersoneringBanner.tsx` — global gul banner
+- `apps/web/src/app/dashbord/layout.tsx` — banner mountet rett under Toppbar
+- `apps/web/src/app/dashbord/admin/firmaer/page.tsx` — `ImperserKnapp` per bruker-rad i slide-over
+
+**Sikkerhetsregler:**
+- Kun `sitedoc_admin` kan starte (verifisert via `actualUserId`)
+- Forbudt: impersonere annen `sitedoc_admin`, seg selv, eller deaktivert bruker
+- Auto-utløp 1t — `impersonationExpiresAt > now`-sjekk i context
+- Banner alltid synlig på alle dashbord-sider
+
+**Audit-logging (MVP):** `console.log` med actor + target ved start og stopp. Detaljert per-mutation logging utsatt til senere PR.
+
+4 nye i18n-nøkler nb+en (`impersonering.banner.*`). 1 ny migrasjon, 2 nye komponenter, 5 modifiserte filer. `pnpm --filter @sitedoc/api typecheck` + `pnpm build --filter @sitedoc/web` (31.0s) grønt. Klar for test-deploy.
+
+---
+
 **HovedSidebar skjult i firma-kontekst + Tilbake-lenke DEPLOYET TIL PROD 2026-05-06** (`8a184fc8` merge). HTTP/2 200 mot sitedoc.no.
 
 **Endringer:**
