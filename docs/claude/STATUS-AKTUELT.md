@@ -13,6 +13,25 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Modul-piller i admin/firmaer + Varelager-bug DEPLOYET TIL PROD 2026-05-07** (`620a85c7` merge). HTTP/2 200 mot sitedoc.no.
+
+**Endringer i `apps/web/src/app/dashbord/admin/firmaer/page.tsx`:**
+- Ny delt `ModulPiller`-komponent rendrer alle 3 firmamoduler som piller med ikon (Clock/Truck/Package). Aktiv = grønn (bg-green-50, ring), inaktiv = grå (bg-gray-50). To størrelser: `xs` (tabell) og `sm` (slide-over).
+- Tabell: Timer + Maskin-kolonner kombinert til én «Moduler»-kolonne. Skalerbar når flere moduler kommer.
+- Slide-over: én «Firmamoduler»-seksjon erstatter de to separate Timer-modul + Maskin-modul-kortene. Hint-tekst om `/dashbord/firma/moduler` beholdt nederst.
+- **Bug-fix:** Varelager-modul vises nå korrekt — manglet helt i admin-vyen før.
+
+**Skalerbarhet:** Neste modul (kompetanse, fremdrift, planlegger) er én linje i `FIRMAMODULER`-arrayet:
+```ts
+const FIRMAMODULER = [
+  { slug: "timer", label: "Timer", ikon: Clock },
+  { slug: "maskin", label: "Maskin", ikon: Truck },
+  { slug: "varelager", label: "Varelager", ikon: Package },
+] as const;
+```
+
+---
+
 **Admin-impersonering DEPLOYET TIL PROD 2026-05-07** (`a3765a97` merge). HTTP/2 200 mot sitedoc.no. Migrasjon `20260507000001_session_impersonering` applied til prod-DB (verifisert via `\d sessions` — `impersonated_user_id`, `original_user_id`, `impersonation_expires_at` på plass). Test-verifisert: Kenneth (sitedoc_admin) klikket «Imperser» på Kari Firmaadmin → gul banner «Du imperserer Kari (Byggeleder)» + admin-meny forsvant + firma-velger viste kun Byggeleder. Stopp-knapp brakte admin-UI tilbake.
 
 **Deploy-prosedyre:**

@@ -1,7 +1,7 @@
 import { z } from "zod";
 import crypto from "crypto";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { addMemberSchema } from "@sitedoc/shared";
+import { addMemberSchema, addExistingMemberSchema } from "@sitedoc/shared";
 import { TRPCError } from "@trpc/server";
 import { sendInvitasjonsEpost } from "../services/epost";
 import {
@@ -474,5 +474,104 @@ export const medlemRouter = router({
         data: { kanAttestere: input.kanAttestere },
         select: { id: true, kanAttestere: true },
       });
+    }),
+
+  // Hent firma-brukere som ikke er prosjektmedlem ennå.
+  // Brukes av «Velg fra firma»-flyt — admin slipper å skrive e-post.
+  hentLedigeFirmaBrukere: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
+
+      const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+        where: { id: input.projectId },
+        select: { primaryOrganizationId: true },
+      });
+
+      if (!prosjekt.primaryOrganizationId) return [];
+
+      const eksisterende = await ctx.prisma.projectMember.findMany({
+        where: { projectId: input.projectId, userId: { not: null } },
+        select: { userId: true },
+      });
+      const eksisterendeIder = eksisterende
+        .map((m) => m.userId)
+        .filter((id): id is string => id !== null);
+
+      const brukere = await ctx.prisma.user.findMany({
+        where: {
+          organizationId: prosjekt.primaryOrganizationId,
+          canLogin: true,
+          id: { notIn: eksisterendeIder },
+        },
+        select: { id: true, name: true, email: true, role: true },
+        orderBy: [{ name: "asc" }, { email: "asc" }],
+      });
+
+      return brukere;
+    }),
+
+  // Legg til en eksisterende firma-bruker som prosjektmedlem (ingen e-post sendt).
+  // Krever at userId tilhører samme firma som prosjektet.
+  leggTilEksisterende: protectedProcedure
+    .input(addExistingMemberSchema)
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdminEllerFirmaansvarlig(ctx.userId, input.projectId);
+
+      const prosjekt = await ctx.prisma.project.findUniqueOrThrow({
+        where: { id: input.projectId },
+        select: { primaryOrganizationId: true },
+      });
+
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { id: true, organizationId: true, canLogin: true, name: true, email: true },
+      });
+      if (!bruker) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Bruker ikke funnet" });
+      }
+      if (!bruker.canLogin) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Bruker er deaktivert (canLogin = false)",
+        });
+      }
+      if (bruker.organizationId !== prosjekt.primaryOrganizationId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Bruker tilhører ikke samme firma som prosjektet",
+        });
+      }
+
+      // Idempotent: avvis hvis allerede medlem.
+      const eksisterende = await ctx.prisma.projectMember.findUnique({
+        where: {
+          userId_projectId: { userId: input.userId, projectId: input.projectId },
+        },
+        select: { id: true },
+      });
+      if (eksisterende) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "Bruker er allerede medlem av prosjektet",
+        });
+      }
+
+      const nyMedlem = await ctx.prisma.projectMember.create({
+        data: {
+          userId: input.userId,
+          projectId: input.projectId,
+          role: input.role,
+          faggruppeKoblinger: {
+            create: input.faggruppeIder.map((fid) => ({ faggruppeId: fid })),
+          },
+        },
+        include: {
+          user: true,
+          faggruppeKoblinger: { include: { faggruppe: true } },
+        },
+      });
+
+      return nyMedlem;
     }),
 });

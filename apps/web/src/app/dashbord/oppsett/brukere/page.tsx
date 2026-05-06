@@ -125,6 +125,8 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [nyGruppeInput, setNyGruppeInput] = useState(false);
   const [nyGruppeNavn, setNyGruppeNavn] = useState("");
   const [inviterOpen, setInviterOpen] = useState(false);
+  const [inviterFane, setInviterFane] = useState<"fra-firma" | "ny-epost">("fra-firma");
+  const [valgtFirmaBrukerId, setValgtFirmaBrukerId] = useState("");
   const [inviterData, setInviterData] = useState({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" });
   const [visNyttFirmaInput, setVisNyttFirmaInput] = useState(false);
   const [nyttFirmaNavn, setNyttFirmaNavn] = useState("");
@@ -155,6 +157,26 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
       setInviterOpen(false);
       setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" });
+    },
+  });
+
+  const ledigeFirmaBrukereQuery = trpc.medlem.hentLedigeFirmaBrukere.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId && inviterOpen && inviterFane === "fra-firma" },
+  );
+  const ledigeFirmaBrukere = (ledigeFirmaBrukereQuery.data ?? []) as Array<{
+    id: string;
+    name: string | null;
+    email: string;
+    role: string;
+  }>;
+
+  const leggTilEksisterendeMutation = trpc.medlem.leggTilEksisterende.useMutation({
+    onSuccess: () => {
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentLedigeFirmaBrukere.invalidate({ projectId: prosjektId });
+      setInviterOpen(false);
+      setValgtFirmaBrukerId("");
     },
   });
 
@@ -532,9 +554,84 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
             </HjelpKnapp>
           </div>
         </div>
-        {/* Inviter ny bruker — inline form */}
+        {/* Inviter ny / Velg fra firma — fane-toggle */}
         {inviterOpen && (
-          <div className="flex items-end gap-2 px-6 pt-2 pb-1">
+          <div className="border-b border-gray-200 bg-gray-50 px-6 pt-2 pb-1">
+            <div className="mb-2 flex gap-1 text-xs">
+              <button
+                onClick={() => setInviterFane("fra-firma")}
+                className={`rounded-t-md px-3 py-1.5 font-medium transition-colors ${
+                  inviterFane === "fra-firma"
+                    ? "bg-white text-blue-700 ring-1 ring-gray-200 ring-b-0"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {t("brukere.fane.fraFirma")}
+              </button>
+              <button
+                onClick={() => setInviterFane("ny-epost")}
+                className={`rounded-t-md px-3 py-1.5 font-medium transition-colors ${
+                  inviterFane === "ny-epost"
+                    ? "bg-white text-blue-700 ring-1 ring-gray-200 ring-b-0"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {t("brukere.fane.nyEpost")}
+              </button>
+            </div>
+
+            {inviterFane === "fra-firma" ? (
+              <div className="flex items-end gap-2 pt-2 pb-1">
+                <div className="flex-1">
+                  <label className="block text-[10px] font-medium text-gray-500 mb-0.5">
+                    {t("brukere.velgFirmaBruker")}
+                  </label>
+                  <select
+                    value={valgtFirmaBrukerId}
+                    onChange={(e) => setValgtFirmaBrukerId(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
+                    disabled={ledigeFirmaBrukereQuery.isLoading || ledigeFirmaBrukere.length === 0}
+                  >
+                    <option value="">
+                      {ledigeFirmaBrukereQuery.isLoading
+                        ? t("handling.laster")
+                        : ledigeFirmaBrukere.length === 0
+                          ? t("brukere.ingenLedigeFirmaBrukere")
+                          : t("handling.velg") + "..."}
+                    </option>
+                    {ledigeFirmaBrukere.map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name ? `${b.name} — ${b.email}` : b.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={() => {
+                    if (valgtFirmaBrukerId) {
+                      leggTilEksisterendeMutation.mutate({
+                        projectId: prosjektId,
+                        userId: valgtFirmaBrukerId,
+                      });
+                    }
+                  }}
+                  disabled={!valgtFirmaBrukerId || leggTilEksisterendeMutation.isPending}
+                  className="rounded-lg bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                >
+                  {leggTilEksisterendeMutation.isPending ? t("handling.lagrer") : t("brukere.leggTil")}
+                </button>
+                <button
+                  onClick={() => {
+                    setInviterOpen(false);
+                    setValgtFirmaBrukerId("");
+                  }}
+                  className="rounded p-1 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap items-end gap-2 pt-2 pb-1">
             <div>
               <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.fornavn")}</label>
               <input
@@ -662,6 +759,8 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
             >
               <X className="h-4 w-4" />
             </button>
+              </div>
+            )}
           </div>
         )}
       </div>
