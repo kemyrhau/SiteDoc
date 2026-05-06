@@ -40,9 +40,9 @@ Varer: 0 opprettet, 57 eksisterte
 
 **Sesjon 3 venter på følgende før prod-deploy:**
 
-1. **UX/arkitektur-gjennomgang** — egen strukturert sesjon. Brukeren har samlet 7 agenda-punkter (toppbar firma-valg vs sidebar, strukturert prosjektoversikt per firma, ny byggeplass-flyt, modul-aktivering for timer/maskin/kompetanse, prosjektkontekst vs firma-kontekst, navigasjon til timer fra prosjekt, fargedesign per modul). Notert i `MEMORY.md` → `project_ux_arkitektur_agenda.md`.
-2. **A.Markussen firmaprofil** med moduler + testprosjekt **998 Instinniforbotn**. Settes opp før prod-seed slik at varekatalogen kan brukes umiddelbart i kontekst av et virkelig prosjekt.
-3. **Deretter:** prod-deploy av Sesjon 3 (merge `develop` → `main`) → seed-kjøring mot A.Markussen (`pnpm --filter @sitedoc/db-varelager exec tsx prisma/seed-amarkussen.ts`) → manuell aktivering av Varelager-modul via `/dashbord/firma/moduler` → manuell opprettelse av 6 Heatwork-utleie-Equipment-rader.
+1. ✅ **UX/arkitektur-gjennomgang KOMPLETT 2026-05-06** — beslutninger (B1 toppbar prosjektvelger med Alle/Mine-valg, B2 onboarding-checkpoint-bar utvides med modul-punkter) og 5 åpne oppgaver (U1 leder-timer-rapport, U2 eksport alle ansatte, U3 sidebar tekst-labels, U4 farge-aksent per modul, U5 byggeplass selvstendig flyt) dokumentert i [ux-arkitektur-agenda.md](ux-arkitektur-agenda.md). U1+U2 må prioriteres — forutsetning for ProAdm-eksport.
+2. ✅ **A.Markussen firmaprofil KOMPLETT 2026-05-06** — Timer/Maskin/Varelager aktivert i prod, prosjekt «998 Instinniforbotn» opprettet (SD-20260506-0008).
+3. **Gjenstår:** prod-deploy av Sesjon 3 (merge `develop` → `main`) → seed-kjøring mot A.Markussen (`pnpm --filter @sitedoc/db-varelager exec tsx prisma/seed-amarkussen.ts`) → manuell opprettelse av 6 Heatwork-utleie-Equipment-rader (Varelager-modul allerede aktivert).
 
 **Forsøk på prod-seed 2026-05-07 ble stoppet** fordi prod-repo er på Sesjon 2 (filen finnes ikke + migrasjonen er ikke applied — varenr-kollisjoner ville rullet transaksjonen på den gamle constraint).
 
