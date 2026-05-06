@@ -54,6 +54,16 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+**Integrasjonsadmin (kryptering + firma-UI + admin-status) VERIFISERT PÅ TEST 2026-05-07.** Klart for prod-deploy. Test-verifisering: Sentralregisteret-kort viser «Koblet» etter lagring + reload, password-feltet er tomt, «Endre nøkkel»/«Fjern» fungerer, kryptering at-rest verifisert i sitedoc_test-DB.
+
+**Lærdom — env må i begge prosesser:** `SITEDOC_INTEGRATION_KEY` må stå i **både** `sitedoc-web`- og `sitedoc-api`-blokkene i `ecosystem.config.js`, fordi tRPC-mutations som kaller `krypter()` kjører i Next.js-web-prosessen (ikke Fastify-api). Kun api-blokken er ikke nok — feilen «SITEDOC_INTEGRATION_KEY mangler» kastes fra web-prosessen. Lærdom dokumentert i [docs/claude/deploy-detaljer.md § tRPC-mutations env-konsekvens](docs/claude/deploy-detaljer.md). **Prod-deploy-prosedyre:**
+1. Generer ny prod-nøkkel: `openssl rand -hex 32` (på prod-server)
+2. Legg i begge env-blokker i prod `ecosystem.config.js` (sitedoc-web + sitedoc-api)
+3. `pm2 reload ecosystem.config.js --update-env`
+4. Merge develop til main + auto-deploy
+
+**Test-nøkkel-rotering:** Test-nøkkelen `1dcd...4fe4` ble eksponert i chat-loggen under feilsøking. Roter på test etter sesjon (lag ny + oppdater begge ecosystem-blokker).
+
 **Integrasjonsadmin (kryptering + firma-UI + admin-status) IMPLEMENTERT på develop 2026-05-07.** Per-firma integrasjons-administrasjon med AES-256-GCM-kryptering av API-nøkler at-rest. Lukker sikkerhetsproblemet at `OrganizationIntegration.apiKey` ble lagret i klartekst. Forutsetning for Sentralregisteret-integrasjon (Brønnøysundregistrene) — første firma-nivå-integrasjon i ny UI-flyt. SmartDok holdes utenfor denne PR per instruks. Vegvesen-strategi: behold env-variabel (12-factor, byttes sjelden), men nytt admin-kort viser konfig-status read-only.
 
 **Krypteringslag:** Ny `packages/db/src/encryption.ts` med AES-256-GCM. 12-byte tilfeldig IV per kryptering, 16-byte authTag, base64-output `iv|authTag|ciphertext`. Master-nøkkel fra `SITEDOC_INTEGRATION_KEY` (64 hex-chars / 32 byte). `verifiserKrypteringsKonfig()` for early-fail ved oppstart. Eksplisitte `krypter()`/`dekrypter()`-kall i routerne (ikke Prisma `$extends` — ville brutt type-systemet i hele monorepo siden extended client mangler `$on`/`$connect` osv. og bryter alle `PrismaClient`-typer). Eksplisitt kall er mer lesbar og unngår type-kaskade.
