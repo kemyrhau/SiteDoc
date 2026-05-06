@@ -135,9 +135,13 @@ for å matche datalist-oppføringene.
 Server tok allerede fritekst — kun klient-endring.
 IKKE deployet til prod ennå.
 
-**U5 — Byggeplass som selvstendig flyt** [MANGLER]
-Byggeplass kan bare opprettes inne i prosjektkontekst i dag.
-Vurdér om byggeplass bør kunne opprettes på firmanivå uavhengig.
+**U5 — Byggeplass som selvstendig flyt** [FORKASTET 2026-05-06]
+Byggeplass-data (geofence, GPS, mannskaps-innsjekk, §15-liste) er
+prosjekt-bundne — en byggeplass uten prosjekt ville blitt en orphan-rad
+uten formål. Dagens prosjekt-bundne flyt er korrekt design og beholdes.
+Server-router `byggeplass.ts` håndhever `projectId`-kravet via
+`verifiserProsjektmedlem`; `/dashbord/oppsett/lokasjoner`-siden kjører
+all CRUD i prosjekt-kontekst.
 
 ## A.Markussen prod-status (2026-05-06)
 - Timer ✅ Aktivert
