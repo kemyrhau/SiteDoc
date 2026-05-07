@@ -967,5 +967,8 @@
   "produksjon.kommerSnart": "Скоро буде",
   "produksjon.typer": "Типи",
   "oppsett.produksjon": "Польові роботи",
-  "brukere.produksjon": "Польові роботи"
+  "brukere.produksjon": "Польові роботи",
+  "tabell.venterPaa": "Очікує",
+  "dashbord.venterPaaTilgangTittel": "Очікування доступу до проєкту",
+  "dashbord.venterPaaTilgangBeskrivelse": "Ви ще не маєте доступу до жодного проєкту. Зв'яжіться зі своїм керівником проєкту."
 }

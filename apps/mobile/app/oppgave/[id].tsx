@@ -414,6 +414,18 @@ export default function OppgaveDetalj() {
               </>
             )}
             <StatusMerkelapp status={oppgave.status} />
+            {(() => {
+              const recipientGroup = (oppgaveDetalj as { recipientGroup?: { id: string; name: string | null } | null } | undefined)?.recipientGroup;
+              if (!["sent", "received", "in_progress"].includes(oppgave.status)) return null;
+              if (!recipientGroup?.name) return null;
+              return (
+                <View className="rounded bg-amber-50 px-1.5 py-0.5">
+                  <Text className="text-xs font-medium text-amber-700">
+                    {t("tabell.venterPaa")}: {recipientGroup.name}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
         </View>
         {/* FlytIndikator */}

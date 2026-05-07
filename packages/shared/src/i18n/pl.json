@@ -967,5 +967,8 @@
   "produksjon.kommerSnart": "Już wkrótce",
   "produksjon.typer": "Typy",
   "oppsett.produksjon": "Praca w terenie",
-  "brukere.produksjon": "Praca w terenie"
+  "brukere.produksjon": "Praca w terenie",
+  "tabell.venterPaa": "Oczekuje na",
+  "dashbord.venterPaaTilgangTittel": "Oczekuje na dostęp do projektu",
+  "dashbord.venterPaaTilgangBeskrivelse": "Nie masz jeszcze dostępu do żadnego projektu. Skontaktuj się z kierownikiem projektu."
 }

@@ -967,5 +967,8 @@
   "produksjon.kommerSnart": "À venir",
   "produksjon.typer": "Espèces",
   "oppsett.produksjon": "Travail sur le terrain",
-  "brukere.produksjon": "Travail sur le terrain"
+  "brukere.produksjon": "Travail sur le terrain",
+  "tabell.venterPaa": "En attente de",
+  "dashbord.venterPaaTilgangTittel": "En attente d'accès au projet",
+  "dashbord.venterPaaTilgangBeskrivelse": "Vous n'avez encore accès à aucun projet. Contactez votre chef de projet."
 }

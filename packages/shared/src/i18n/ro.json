@@ -967,5 +967,8 @@
   "produksjon.kommerSnart": "În curând",
   "produksjon.typer": "Tipuri",
   "oppsett.produksjon": "Munca pe teren",
-  "brukere.produksjon": "Munca pe teren"
+  "brukere.produksjon": "Munca pe teren",
+  "tabell.venterPaa": "Așteaptă",
+  "dashbord.venterPaaTilgangTittel": "Se așteaptă accesul la proiect",
+  "dashbord.venterPaaTilgangBeskrivelse": "Nu aveți încă acces la niciun proiect. Contactați managerul de proiect."
 }

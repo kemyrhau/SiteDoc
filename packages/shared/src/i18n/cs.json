@@ -967,5 +967,8 @@
   "produksjon.kommerSnart": "Již brzy",
   "produksjon.typer": "Typy",
   "oppsett.produksjon": "Práce v terénu",
-  "brukere.produksjon": "Práce v terénu"
+  "brukere.produksjon": "Práce v terénu",
+  "tabell.venterPaa": "Čeká na",
+  "dashbord.venterPaaTilgangTittel": "Čeká se na přístup k projektu",
+  "dashbord.venterPaaTilgangBeskrivelse": "Zatím nemáte přístup k žádným projektům. Kontaktujte svého vedoucího projektu."
 }

@@ -967,5 +967,8 @@
   "produksjon.kommerSnart": "Netrukus",
   "produksjon.typer": "Tipai",
   "oppsett.produksjon": "Lauko darbai",
-  "brukere.produksjon": "Lauko darbai"
+  "brukere.produksjon": "Lauko darbai",
+  "tabell.venterPaa": "Laukia",
+  "dashbord.venterPaaTilgangTittel": "Laukiama projekto prieigos",
+  "dashbord.venterPaaTilgangBeskrivelse": "Dar neturite prieigos prie jokio projekto. Susisiekite su savo projekto vadovu."
 }
