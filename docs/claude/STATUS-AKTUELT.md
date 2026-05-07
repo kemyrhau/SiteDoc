@@ -40,6 +40,11 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 **Verifisering på fysisk enhet (Kenneth-oppgave):** Installer build via TestFlight, åpne sjekkliste/oppgave-detalj med innsendt status, verifiser at amber-badge «Venter på: [gruppenavn]» vises korrekt under StatusMerkelapp.
 
+**Gjenstår:**
+- 🔄 Mobil typecheck klynge B — `erstattVedlegg`-interface (utsatt til etter TestFlight-verifisering)
+- 🔄 i18n: cs, de, et, fi, fr, ro gjenstår (gjøres ved behov)
+- 🔄 HW-vifte Equipment — manuelt i `/dashbord/maskin` på A.Markussen
+
 ---
 
 **Fullstendig i18n-oversettelse uk/ru/pl/lt/lv/sv DEPLOYET TIL PROD 2026-05-08** (`720a23dc` merge). HTTP/2 200 mot sitedoc.no.
