@@ -338,6 +338,143 @@ export const organisasjonRouter = router({
       });
     }),
 
+  // Inviter ny bruker til firmaet (firma-admin)
+  // Oppretter User direkte med organizationId + rolle. Bruker logger inn via OAuth
+  // (Google/Microsoft) med matchende e-post første gang.
+  inviterBruker: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        navn: z.string().min(1).max(200),
+        email: z.string().email(),
+        telefon: z.string().max(50).optional(),
+        rolle: z.enum(["user", "company_admin"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+
+      const eksisterende = await ctx.prisma.user.findFirst({
+        where: { email: input.email, canLogin: true },
+        select: { id: true, organizationId: true },
+        orderBy: { createdAt: "asc" },
+      });
+
+      if (eksisterende) {
+        if (eksisterende.organizationId === orgId) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Brukeren er allerede medlem av firmaet",
+          });
+        }
+        if (eksisterende.organizationId && eksisterende.organizationId !== orgId) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "Brukeren tilhører et annet firma",
+          });
+        }
+        // Orphan-bruker (uten organizationId) — adopter inn i firmaet
+        return ctx.prisma.user.update({
+          where: { id: eksisterende.id },
+          data: {
+            organizationId: orgId,
+            role: input.rolle,
+            ...(input.telefon ? { phone: input.telefon } : {}),
+          },
+          select: { id: true, name: true, email: true, role: true },
+        });
+      }
+
+      return ctx.prisma.user.create({
+        data: {
+          email: input.email,
+          name: input.navn,
+          phone: input.telefon,
+          organizationId: orgId,
+          role: input.rolle,
+          canLogin: true,
+        },
+        select: { id: true, name: true, email: true, role: true },
+      });
+    }),
+
+  // Oppdater eksisterende firma-bruker (firma-admin)
+  // Kan endre navn, e-post, telefon og rolle. Sitedoc_admin er beskyttet.
+  oppdaterBruker: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string().uuid(),
+        organizationId: z.string().uuid(),
+        navn: z.string().min(1).max(200).optional(),
+        email: z.string().email().optional(),
+        telefon: z.string().max(50).nullable().optional(),
+        rolle: z.enum(["user", "company_admin"]).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+
+      const målbruker = await ctx.prisma.user.findUnique({
+        where: { id: input.userId },
+        select: { organizationId: true, role: true, email: true },
+      });
+
+      if (!målbruker || målbruker.organizationId !== orgId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Brukeren tilhører ikke din organisasjon",
+        });
+      }
+
+      if (målbruker.role === "sitedoc_admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kan ikke endre systemadministrator",
+        });
+      }
+
+      if (input.userId === ctx.userId && input.rolle && input.rolle !== "company_admin") {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Du kan ikke fjerne din egen admin-rolle",
+        });
+      }
+
+      if (input.email && input.email !== målbruker.email) {
+        const epostKonflikt = await ctx.prisma.user.findFirst({
+          where: {
+            email: input.email,
+            canLogin: true,
+            id: { not: input.userId },
+          },
+          select: { id: true },
+        });
+        if (epostKonflikt) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "E-postadressen er allerede i bruk",
+          });
+        }
+      }
+
+      const data: {
+        name?: string;
+        email?: string;
+        phone?: string | null;
+        role?: string;
+      } = {};
+      if (input.navn !== undefined) data.name = input.navn;
+      if (input.email !== undefined) data.email = input.email;
+      if (input.telefon !== undefined) data.phone = input.telefon;
+      if (input.rolle !== undefined) data.role = input.rolle;
+
+      return ctx.prisma.user.update({
+        where: { id: input.userId },
+        data,
+        select: { id: true, name: true, email: true, phone: true, role: true },
+      });
+    }),
+
   // Tildel granulær firma-rolle (per A.25 — f.eks. "hms_ansvarlig")
   // Gated med verifiserFirmaAdmin: kun firma-admin tildeler innen sitt eget firma
   tildelOrgRolle: protectedProcedure
