@@ -967,5 +967,8 @@
   "produksjon.kommerSnart": "Вскоре",
   "produksjon.typer": "Типы",
   "oppsett.produksjon": "Полевые работы",
-  "brukere.produksjon": "Полевые работы"
+  "brukere.produksjon": "Полевые работы",
+  "tabell.venterPaa": "Ожидает",
+  "dashbord.venterPaaTilgangTittel": "Ожидание доступа к проекту",
+  "dashbord.venterPaaTilgangBeskrivelse": "У вас пока нет доступа ни к одному проекту. Свяжитесь с менеджером проекта."
 }

@@ -967,5 +967,8 @@
   "produksjon.kommerSnart": "Drīzumā",
   "produksjon.typer": "Veidi",
   "oppsett.produksjon": "Lauka darbi",
-  "brukere.produksjon": "Lauka darbi"
+  "brukere.produksjon": "Lauka darbi",
+  "tabell.venterPaa": "Gaida",
+  "dashbord.venterPaaTilgangTittel": "Gaida projekta piekļuvi",
+  "dashbord.venterPaaTilgangBeskrivelse": "Jums vēl nav piekļuves nevienam projektam. Sazinieties ar savu projekta vadītāju."
 }

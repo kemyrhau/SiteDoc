@@ -967,5 +967,8 @@
   "produksjon.kommerSnart": "Kommer snart",
   "produksjon.typer": "Typer",
   "oppsett.produksjon": "Fältarbete",
-  "brukere.produksjon": "Fältarbete"
+  "brukere.produksjon": "Fältarbete",
+  "tabell.venterPaa": "Väntar på",
+  "dashbord.venterPaaTilgangTittel": "Väntar på projektåtkomst",
+  "dashbord.venterPaaTilgangBeskrivelse": "Du har inte åtkomst till några projekt ännu. Kontakta din projektledare."
 }

@@ -13,6 +13,22 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Rolle-dropdown outside-click-fix DEPLOYET TIL PROD 2026-05-07** (`9e264bfa` merge, `6ee229a3` impl). HTTP/2 200 mot sitedoc.no.
+
+**Bug:** Rolle-dropdown på `/dashbord/firma/brukere` lukket seg umiddelbart når brukeren klikket pillen. Outside-click-handler på document brukte `mousedown` som fires FØR React's onClick — i sekvensen [mousedown → click] kjørte handler-en før setState rakk å åpne menyen, og påfølgende klikk på dropdown-elementene fungerte ikke konsistent.
+
+**Fix:** Bytt document-listener fra `mousedown` til `click` (linje 35-36 i `apps/web/src/app/dashbord/firma/brukere/page.tsx`). Click fires ETTER React's onClick, så React-state oppdateres først og dropdown rendres før outside-click-evaluering kjører. 2 linjer endret (`addEventListener` + `removeEventListener`).
+
+**Server-tilgang allerede korrekt:** `organisasjon.endreRolle` bruker `verifiserFirmaAdmin` som godtar både `sitedoc_admin` (alle firmaer) og `company_admin` (eget firma). Ingen server-endring nødvendig — fix-en var ren UI-bug.
+
+**Sideprodukt — Florians rolle satt via SQL:** Før fixen ble deployet ble Florian Aschwanden (`8e3c7f17-9880-425d-8e6f-41ba437c9047` på A.Markussen `4488fe17-...`) satt til `company_admin` direkte i prod-DB via SQL UPDATE siden UI var blokkert. Verifisert via RETURNING-clause.
+
+**Test-verifisering før prod-deploy:** Kenneth bekreftet på test.sitedoc.no at dropdown åpner seg og forblir åpen, og at company_admin (Florian) kan endre roller for andre brukere i eget firma.
+
+**Build:** `pnpm build --filter @sitedoc/web` 28.2s lokalt + 1m1s på prod-server. `pm2 reload ecosystem.config.js --update-env` reloadet sitedoc-web (47) + sitedoc-api (39).
+
+---
+
 **«Velg fra firma»-flyt DEPLOYET TIL PROD 2026-05-07** (`f27a63dc` merge). HTTP/2 200 mot sitedoc.no. Lukker arkitekturhull i prosjektmedlems-tilføyelse: tidligere ingen UI-vei for å legge til en eksisterende firma-bruker uten å skrive e-posten manuelt.
 
 **Komponenter:**

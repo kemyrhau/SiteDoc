@@ -967,5 +967,8 @@
   "produksjon.kommerSnart": "Varsti tulemas",
   "produksjon.typer": "Tüübid",
   "oppsett.produksjon": "Välitööd",
-  "brukere.produksjon": "Välitööd"
+  "brukere.produksjon": "Välitööd",
+  "tabell.venterPaa": "Ootab",
+  "dashbord.venterPaaTilgangTittel": "Ootab projekti juurdepääsu",
+  "dashbord.venterPaaTilgangBeskrivelse": "Teil pole veel ühelegi projektile juurdepääsu. Võtke ühendust oma projektijuhiga."
 }

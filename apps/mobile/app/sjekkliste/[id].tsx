@@ -609,6 +609,18 @@ export default function SjekklisteUtfylling() {
               {pdfLaster ? <ActivityIndicator size="small" color="#ffffff" /> : <Share2 size={18} color="#ffffff" />}
             </Pressable>
             <StatusMerkelapp status={sjekkliste.status} />
+            {(() => {
+              const recipientGroup = (sjekklisteDetalj as { recipientGroup?: { id: string; name: string | null } | null } | undefined)?.recipientGroup;
+              if (!["sent", "received", "in_progress"].includes(sjekkliste.status)) return null;
+              if (!recipientGroup?.name) return null;
+              return (
+                <View className="rounded bg-amber-50 px-1.5 py-0.5">
+                  <Text className="text-xs font-medium text-amber-700">
+                    {t("tabell.venterPaa")}: {recipientGroup.name}
+                  </Text>
+                </View>
+              );
+            })()}
           </View>
         </View>
         {flytMedlemmer.length > 0 && (

@@ -2,7 +2,7 @@
 
 > **Vedlikeholdsregel:** STATUS.md oppdateres av Opus i samme commit som endrer fil-status. Aldri separat commit.
 >
-> **Status oppdateres ved:** (1) ny verifikasjon/screening fullført, (2) drift rettet, (3) fil opprettet/slettet/arkivert.
+> **Status oppdateres ved:** (1) ny verifikasjon/screening fullført, (2) drift rettet, (3) fil opprettet/slettet/arkivert, (4) ny prod-deploy som rammer fil-status.
 >
 > **Konsolidering ≠ verifikasjon:** Når en fil får tilført en ny seksjon med besluttede regler/policy (markert med `K{n}.x YYYY-MM-DD`), endrer det IKKE filens verifikasjons-status. Eksisterende innhold er ikke re-verifisert mot kode. Status forblir som var.
 >
@@ -11,18 +11,93 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-05-03
-**Antall filer dekket:** 44 (komplett oversikt — alle 41 filer i `docs/claude/` + 3 arkiverte i `docs/arkiv/`)
+**Sist oppdatert:** 2026-05-07
+**Antall filer dekket:** 51 (45 i `docs/claude/` + 6 i `docs/arkiv/`)
 
-> **Fase 0.5 KOMPLETT (deployet til prod 2026-05-01):** § 1 Avdeling (`a90daabd`), § 2 Kompetanse (`a5ba99ce`), § 3 ProjectGroupByggeplass + drop building_ids (`3836b322`), § 5 Slette-policy (`f13dc6c0`). Merge: develop `9fed74a5` → main `f0a515cd`. Etter-Fase-0.5: Avdeling-UI (`2799a4d1` prod). Kompetanse-UI Runde 1 (`0965ddf2` prod) — kompetansetyper-CRUD + matrise read-only + settings-toggle. Kompetanse-UI Runde 2 (`653028b4` prod) — AnsattKompetanse-CRUD via celle-klikk + RBAC. Kompetanse-UI Runde 2.5 (`30ec98a9` prod) — CSV/Excel-import med 4-stegs flyt + filHash-validering + atomisk transaksjon + 30 i18n-nøkler. csv-parse@6.2.1 installert i apps/api.
->
-> **Timer-modulen Fase 3 STARTET 2026-05-01 (Infrastruktur-commit):** ny `packages/db-timer/`-pakke med 7 Runde-1-tabeller i postgres-schema `timer` (lonnsarter, aktiviteter, tillegg, expense_categories, daily_sheets, sheet_timer, sheet_tillegg) — egen Prisma-klient (`.prisma/timer-client`), cross-package-FK som svake String-felt (samme mønster som db-maskin). Init-migrasjon `20260501200000_init`. Kjernen-migrasjon `20260501200000_add_timer_modul_og_settings`: `Organization.harTimerModul` (midlertidig modul-flagg) + `OrganizationSetting`-utvidelse (dagsnorm 7.5, overtidsmatTerskel 9.0, tillattSelvAttestering true, timerLockEtterDager Int? null). `apps/api/src/services/timer/moduleGate.ts` (erTimerAktivert + krevTimerAktivert) + `apps/api/src/services/seed/index.ts` (5 stub-funksjoner for Runde 1A). `db-timer` workspace-dependency lagt til i apps/api og apps/web. Migrasjon-SQL skrevet manuelt — Kenneth kjører `pnpm install` + `prisma migrate deploy` mot lokal/test før applye.
->
-> **Timer-modulen Fase 3 — Runde 1A (katalog-admin) DEPLOYET TIL PROD 2026-05-01:** ny `timer.*` tRPC-router (onboarding/lonnsart/aktivitet/tillegg) + `prismaTimer` i context. 5 seed-funksjoner med faktisk innhold (16+25 lønnsarter, 3 aktiviteter, 3 tillegg, 5 utleggskategorier). Web-sider under `/dashbord/firma/timer/`. Sidebar-element gates på `harTimerModul`. ~85 nye i18n-nøkler. Prod-deploy hadde issue: `db-timer/.env` manglet på prod-server, men `migrate | tail` svelget P1012-feilen → schema manglet i 5 minutter, fikset via separat .env-opprettelse + re-migrate. Pipe-fellen lagt til i CLAUDE.md.
->
-> **Timer-modulen Fase 3 — Runde 1B (dagsseddel-flyt) DEPLOYET TIL PROD 2026-05-01** (`c1122c2e`): Slettet prototype `apps/web/src/app/dashbord/[prosjektId]/timer/page.tsx` (914 linjer hardkodet demodata). Ny `timer.dagsseddel.*` tRPC-router med 12 endepunkter (list/hentMedId/opprett/oppdater + tilfoy/oppdater/fjern × timer-rader/tillegg-rader + send/slett). Idempotens via `clientUuid`, status-livssyklus enforcing (draft/returned redigerbar, sent/accepted låst), `timerLockEtterDager` sjekkes kun for draft. Web-sider: liste-side (ISO-uke-velger + status-filter + status-badge), ny-side (opprett-skjema med default-aktivitet og stabil clientUuid), detalj-side (4 seksjoner: header/timer-rader/tillegg-rader/send-handlinger med modal-dialoger). Sidebar Timer-element gates på `harTimerModul`. ~50 nye i18n-nøkler. Ingen nye DB-migrasjoner — kun kode.
->
-> **Timer-modulen Fase 3 — Runde 1C (leder-attestering) IMPLEMENTERT 2026-05-01 på `feature/timer-1c`:** 4 nye endepunkter i `dagsseddel.ts`: `hentTilGodkjenning` (innsendte sedler m/ansatt-info), `kanGodkjenne` (boolean for sidebar), `returner({id, kommentar})` (sent → returned, krever kommentar), `attester({id})` (sent → accepted med pris-snapshot per rad i `SheetTimer.attestertSnapshot`/`SheetTillegg.attestertSnapshot` JSON-felt + `DailySheet.attestertAvUserId/attestertVed`). Atomisk via `$transaction`. Lokal helper `erProsjektLeder` (admin/project_manager + sitedoc/company-admin). Web-side `/dashbord/[prosjektId]/timer/godkjenning` med tabell + attester/returner-actions + kommentar-modal. Detaljside utvidet med returned-banner (leder-kommentar) + accepted-banner (attestert-tidspunkt). Sidebar-element «timer-godkjenning» (CheckCircle2-ikon) gates på `harTimerModul && kanGodkjenne`. Ny seksjon `timer-godkjenning` i `Seksjon`-typen. ~17 nye i18n-nøkler. `pnpm build` grønt. Klar for test-deploy.
+---
+
+## Prod-deploys 2026-05-03 → 2026-05-07
+
+**2026-05-07 — 4 deploys:**
+- `9e264bfa` — Rolle-dropdown outside-click-fix (mousedown→click)
+- `f27a63dc` — «Velg fra firma»-flyt for prosjektmedlemmer
+- `620a85c7` — Modul-piller i admin/firmaer + Varelager-bug-fix
+- `a3765a97` — Admin-impersonering (1t-utløp, audit-banner)
+
+**2026-05-06 — 13 deploys (UX-runde 1+2 + Steg 4b + integrasjoner):**
+- `8a184fc8` — HovedSidebar skjult i firma-kontekst + Tilbake-lenke
+- `207a223c` — Fakturering-gating + U5 forkastet
+- `878e90ec` — Integrasjonsadmin AES-256-GCM + Brreg-autofyll + reginn-rename
+- `da00d55d` — B2 onboarding-checkpoint-bar modul-utvidelse
+- `2f22c503` — B1 ProsjektVelger Alle/Mine prosjekter scope
+- `31cff7da` — U2 CSV/Excel-eksport på timer-rapport
+- `e4f594fa` — Mine timer flyttet til HovedSidebar + global scrollbar-fix
+- `c551063f` — U1 Timer-rapport firmanivå + React#310-fix
+- `1781a17a` — U7 fritekst utstyrstype med datalist-forslag
+- `c2da3135` — U3+B3 sidebar tekst-labels + modul-fargedesign
+- `3dd4371b` — Heatwork-seed + U6 maskin firma-kontekst-fix
+- `37a1fe89` — Steg 4b Sesjon 3 (Vareforbruk-import-flyt + A.Markussen seed)
+- `09b4d1ae` — Steg 4b Sesjon 2 (Vareforbruk-routes + UI + Varelager-toggle)
+
+**2026-05-05 — 6 deploys:**
+- `0245b265` — admin/prosjekter respekterer FirmaVelger
+- `de044be4` — Steg 1e (OrganizationModule erstatter har_*_modul-flagg)
+- `66c2e982` — kom-i-gang redirect for sitedoc_admin + opprettTestprosjekt bug-fix
+- `d62ffa6c` — Faggruppe full CRUD (to sider konsolidert til én)
+- `2e32b867` — Hvem har ballen-badge på sjekkliste/oppgave-detalj
+- `5674df71` — P1 Fase 2 (auto-reset prosjekt ved firma-bytte)
+
+**2026-05-04 — 5 deploys:**
+- `e2729849` — Blokk C (admin/firmaer erKunde-filter + Timer-kolonne)
+- `12717426` — Blokk A (ProsjektVelger filtreres på valgt firma for sitedoc_admin)
+- `dbf78bca` — Blokk B (klikkbare prosjektrader på firma/prosjekter)
+- `82b2b4c7` / `e3717a8c` — Header-fix (FirmaVelger først, redirect til firma-admin)
+
+**2026-05-03 — 8 deploys:**
+- `da6b34a5` — Steg 4a (ECO-flytt på attestering + leder-detaljside)
+- `33a2b9b4` — Steg 3 (maskin-import med firma-kontekst og drag-drop UI)
+- `a1463561` — Steg 2 (firma-admin-sider komplett — moduler/innstillinger/nytt-prosjekt)
+- `73dcbd1a` — Steg 1d (drop ProjectModule.active)
+- `87fb7292` — Steg 1c (OrganizationModule auto-sync)
+- `045a49b7` — Steg 1b (firma-kontekst Lag 1+2+3)
+- `c91d953c` — Steg 1a (Organization.erKunde)
+- `1f2c0da2` — SmartDok maskin-import (test-deploy + dag-3-fix før prod-merge)
+
+---
+
+## A.Markussen AS — onboarding-status (prod, verifisert 2026-05-07)
+
+**Org-id:** `4488fe17-7490-409f-9c1c-2827f257c54d`
+
+**Brukere (1):** Florian Aschwanden (`8e3c7f17-...`) — `role=company_admin`, `email=florian@amarkussen.no`. Satt via SQL UPDATE 2026-05-07 (rolle-dropdown var blokkert av `mousedown`-bug — fikset i samme dags deploy `9e264bfa`).
+
+**Prosjekter (1):** «998 Instinniforbotn» (`SD-20260506-0008`)
+- Medlemmer: Florian (member) + Kenneth Myrhaug (admin)
+
+**Aktive firmamoduler (3):** `timer`, `maskin`, `varelager` — alle status=`aktiv`
+
+**Datatilstand:**
+- 7 vare-kategorier (Grus/pukk/jord 36 varer, Naturstein 8, Diverse 7, Rør 2, Betongstein 2, Forbruk 1, Deponiavgift 1) = 57 varer total
+- 2 pris-rader (Matjord m3=100,00, Samfengt grus m3=80,00)
+- 127 Equipment-rader (kjøretøy + anleggsmaskin + småutstyr fra SmartDok-import 2026-05-03)
+- 5 Heatwork-utleieobjekt (`erUtleieobjekt=true`, `utleieEnhet=doegn`): 7626/7628/7630/7632/7634
+
+**Klar for produksjon:** Florian kan logge inn, se prosjektet, registrere timer + dagsseddel, registrere vareforbruk, og opprette nye prosjekter for A.Markussen som company_admin.
+
+---
+
+## Åpne oppgaver
+
+| Oppgave | Eier | Notat |
+|---|---|---|
+| Roter eksponert test-nøkkel `1dcd...4fe4` | Kenneth | `SITEDOC_INTEGRATION_KEY` på sitedoc_test ble eksponert i chat-logg under feilsøking 2026-05-07. Generer ny: `openssl rand -hex 32`, oppdater i `~/programmering/sitedoc-test/ecosystem.config.js` (BÅDE web + api), `pm2 reload --update-env` |
+| Audit-log-utvidelse for impersonering | Backlog | MVP bruker `console.log` for start/stopp. Per-mutation logging utsatt — krever `Activity`-tabell-utvidelse med `actorId` + `subjectId` |
+| Ekstra Heatwork HW-vifte-Equipment | Kenneth | Per Steg 4b § 13: 6 Heatwork-rader skulle opprettes; 5 er ferdig (7626-7634), HW-vifte gjenstår |
+| Reginn MREG-integrasjon | Backlog | UI-tile fjernet, type-whitelist `reginn` reservert. API-dokumentasjon mangler — MEF-dialog. Ref. N2.2.3 i oppryddings-plan |
+| U5 byggeplass selvstendig flyt | Forkastet 2026-05-06 | Byggeplass-data (geofence, GPS, §15) er prosjekt-bundne. Selvstendig firma-byggeplass = orphan. UX-agenda fullt lukket |
+| 7632 + 7634 type-felt rettet manuelt | OK 2026-05-06 | SmartDok-importen ga `type="Anleggsmaskin"` for disse to. Kenneth rettet til `Heatwork 3600/MY35` i UI etter U6-fix-deploy. Beholdes som notat for fremtidig SmartDok-mapping |
+
+---
 
 ## Sammendrag
 
@@ -30,10 +105,11 @@
 |---|---:|
 | ✅ Verifisert mot kode | 6 |
 | ⚠️ Drift identifisert | 4 |
-| 🔄 Under arbeid | 9 |
-| ❌ Ikke screenet | 22 |
-| 📦 Arkivert | 3 |
-| **Totalt** | **44** |
+| 🔄 Under arbeid | 11 |
+| ❌ Ikke screenet | 21 |
+| ✔️ Ferdig brukt (lukket) | 3 |
+| 📦 Arkivert | 6 |
+| **Totalt** | **51** |
 
 ---
 
@@ -42,11 +118,11 @@
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
 | arkitektur.md | 2026-04-27 | **Sannhetskilde:** Fundament |
-| arkitektur-syntese.md | 2026-05-01 | **Sannhetskilde:** Anker for Fase 0-koding (sammen med fase-0-beslutninger.md). Bunke 3A.1-funn fullt lukket: P1.1, P1.2, P1.3, P1.4, P1.5, P1.6, P1.7. K3.1 ny § 1.5 tabs-UI. § 3.8 datadrevne kataloger + 3.9 snapshot-pattern + 3.10 eksport-kode-policy + 6.2 asynkron arbeid + 7.4 adapter-mønster tilføyd 2026-04-29/30 (3A komplett). § 5 Fase 0.5: A.30 byggeplassId-NULL = A1 vedtatt. P1.6 verifisert 2026-04-30: alle 11 § 11-lenker gyldige, ingen drift. **2026-05-01 (Blokk A docs):** § 6.1.1 Cross-modul-tilgang via service-lag — kanon for alle firmamoduler (forbidden direkte DB-import, soft-skjul-policy ved deaktivert modul, lese-only fra service, skriving via modul-egne ruter). Vedtatt før Maskin Fase 1-fortsettelse |
-| dokumentflyt.md | 2026-04-27 | **Sannhetskilde:** Fundament. **2026-04-29:** § 2.3 HMS-tabell utvidet med firma-HMS-ansvarlig-lese-tilgang (per A.27) |
-| fase-0-beslutninger.md | 2026-05-01 | **Sannhetskilde:** Anker for Fase 0/0.5-koding. Fase 0.5 § 2 implementert 2026-05-01: Kompetansetype + AnsattKompetanse-tabeller (per A.28) + OrganizationSetting.kompetanseRegistreringTilgang (RBAC: firma_admin | bruker_egen | alle, default firma_admin) + 7-kategori-seed i shared. K1 2026-04-28: C.13 + 2 § J-rader (QA-runde-2, tidl. § G). § E steg 8: B-2-note 2026-04-28. **2026-04-29:** A.25 OrganizationRole + A.26 Smart modulProcedure + A.27 Firma-HMS-lese-tilgang (Alt A) + A.28 Kompetansematrise (Kompetansetype + AnsattKompetanse, SmartDok-verifisert) tilføyd. § E utvidet med steg 14 (OrganizationRole). C.14 Fase 0.5-rad for kompetanse. A.29 Offline sync-konflikt-strategi (conflict-modal + 60s grace-periode) tilføyd, A.23 utvidet med peker til A.29. **2026-04-30:** A.30 byggeplassId-NULL-semantikk vedtatt (A1: NULL = «gjelder hele prosjektet», allerede implementert i kode). C.16 Vareforbruk-modul (forbruksregistrering per prosjekt, ikke lagerstyring — SmartDok-verifisert) — Fase 3-implementasjon. A.25 Tildelings-policy klargjort (company_admin tildeler OrganizationRole via verifiserFirmaAdmin) + A.27 peker + § E steg 14 utvidet med endepunkts-spec. B.7 Fase 0 minimum-implementasjon (velg første aktive User-rad, org-velger-UI utsettes). § F Fase 0.7 Data-rens registrert (prod-forberedelse — opprett A.Markussen, slett standalone-brukere før § E steg 13b). Eksisterende § F/G/H renames til § I/J/K. **2026-05-01: § E KOMPLETT på `feature/fase-0-fundament`.** Alle 13 § E-steg implementert (E.9 hoppet over per § E — PSI-utvidelse forkastet 2026-04-28). E.1 Activity (`13a746a7`), E.2 OrganizationSetting (`4a155c28`), E.3 ProjectOrganization-rename (`1bff8672`), E.4 primaryOrganizationId (`137eed6f`), E.5 ProjectModule (`d9bfafc4`), E.6 OrganizationPartner (`22a772b6`), E.7 OrganizationTemplate (`7709ea32`), E.8 BibliotekMal + C.17 (`29311756`), E.10 ProjectMember.periodeSlutt + 3 loan-tabeller (`5b8beef6`), E.11 ExternalCostObject + C.6/C.7 (`9c9dd682`), E.12 Godkjenning + DocumentTransfer (`0622fc35`), E.13 User-utvidelse + B.7 composite unique + NextAuth-override (`37d49872`), E.14 OrganizationRole — egen tabell per A.25 (Variant B, ikke User.role-enum) + harOrgRolle() i tilgangskontroll.ts + 2 endepunkter organisasjon.tildelOrgRolle/fjernOrgRolle gated med verifiserFirmaAdmin (idempotent upsert, validering at målbruker tilhører samme firma). A.27 dokumentflyt-utvidelse (firma-HMS-ansvarlig automatisk lese-tilgang) bygges inn senere når dokumentflyt-route faktisk gates på dette. Branch klar for merge til develop. **2026-05-01 (Blokk A docs):** A.6 reformulert til hybrid-modell (single primær via `Equipment.ansvarligUserId` + optional m:n via `EquipmentAnsvarlig` for tilleggsansvarlige, ingen `rolle`-kolonne). C.9 forblir innarbeidet. Migrering: tom tabell, ingen drop. Tilgangsregel: firma-admin OG primær-ansvarlig kan tilføye/fjerne tilleggsansvarlige. Timer/Maskin-revurdering utsatt til etter Fase 0-deploy |
+| arkitektur-syntese.md | 2026-05-01 | **Sannhetskilde:** Anker for Fase 0-koding (sammen med fase-0-beslutninger.md). 3A komplett. § 5 Fase 0.5: A.30 byggeplassId-NULL = A1 vedtatt. § 6.1.1 Cross-modul-tilgang via service-lag |
+| dokumentflyt.md | 2026-04-27 | **Sannhetskilde:** Fundament. § 2.3 HMS-tabell utvidet med firma-HMS-ansvarlig-lese-tilgang (per A.27) |
+| fase-0-beslutninger.md | 2026-05-01 | **Sannhetskilde:** Anker for Fase 0/0.5-koding. § E KOMPLETT på prod (alle 13 § E-steg). A.4-overstyring oppdatert 2026-05-05 (peker til Steg 1e) |
 | terminologi.md | 2026-04-27 | **Sannhetskilde:** Fundament |
-| SITEDOC-CLAUDE-VEILEDER.md | 2026-05-03 | **Meta-fil:** Sesjonsoppstart-veileder for Opus — gjenoppretter kontekst ved start av ny chat |
+| SITEDOC-CLAUDE-VEILEDER.md | 2026-05-03 | **Meta-fil:** Sesjonsoppstart-veileder for Opus |
 
 ## ⚠️ Drift identifisert (Bunke 3A.1, 2026-04-28)
 
@@ -55,63 +131,75 @@
 | forretningslogikk.md | 2026-04-28 | Byggeplan-rekkefølge motsigelse mot arkitektur-syntese, Godkjenning-status, lestAv-mekanikk for gruppe-mottaker |
 | mobil.md | 2026-04-28 | 5 faggruppe-forekomster + 3 ulike Provider-tre-rekkefølger |
 | okonomi.md | 2026-04-28 | 4 faggruppe-forekomster + FtdNotaComment mangler i tabell + ECO/Godkjenning-kobling mangler |
-| web.md | 2026-04-28 | 21 faggruppe-forekomster + feil ruter (`/entrepriser` → `/faggrupper`, `/produksjon/entrepriser` → `/kontakter`) + feil API-navn (`hentMineEntrepriser` → `hentMineFaggrupper`) |
+| web.md | 2026-04-28 | 21 faggruppe-forekomster + feil ruter (`/entrepriser` → `/faggrupper`) + feil API-navn (`hentMineEntrepriser` → `hentMineFaggrupper`). Drift økt etter UX-runde + Vareforbruk-modul: nye sider `/dashbord/firma/varelager`, `/dashbord/[prosjektId]/vareforbruk`, `/dashbord/firma/timer/rapport`, `/dashbord/firma/innstillinger/integrasjoner`, `/dashbord/admin/integrasjoner` mangler i web.md |
 
 ## 🔄 Under arbeid
 
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
 | onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
-| mannskap.md | 2026-04-28 | **Vy-beskrivelse i PSI-konteksten** etter 1D-presisering (N2.1-revidert). Datamodell forkastet (Mannskapsmedlem dupliserer User per memory). §15-felt-mapping bevart i tekstform. Endelig datamodell designes Fase 4 (PSI-utvidelse) |
-| oppryddings-plan-2026-04-28.md | 2026-04-30 | **Arbeidsanker:** Aktiv anker for oppryddings-arbeidet etter Bunke 3A.1. P-KRITISK-seksjon (3 prod-blokkere) tilføyd 2026-04-28. Dokument-samhandlings-lukking Nivå 1-4 etablert 2026-04-28. Mini-Nivå 1D 2026-04-28: anker korrigert. Bunke N2.1-revidert (strammet) 2026-04-28: 2A+2B+2C kvittert. Bunke N2.2 registrert som etter-funn + A.Markussen-research-infeksjons-prinsipp. **2026-04-29:** P1.7 + P4.3 + P4.4 lukket. Screening-funn 2026-04-29 registrert: C.15 (manglende indekser) + SCREENING-29-1 (sikkerhet — medlem.oppdater organizationId) + SCREENING-29-2 (type-cast oppgave-detaljside). **C.15 lukket:** 42 indekser implementert over tre commits (Klasse 1 ce7af97, Klasse 2+3+composite 5174842, Klasse 4 1467000). **SCREENING-29-1 lukket:** sikkerhetsfiks i 37137e4 (medlem.oppdater + brukere/page.tsx). P1.1 + P1.2 + P1.5 lukket (fd63600). P5.6 utvidet og lukket strategisk — sammenslått med concurrent editing per A.29. SCREENING-29-2 delvis lukket via felles harBallen i shared, SCREENING-29-3 ny rad (e23e67d). 3A-A 4 prinsipper lukket. **2026-04-30:** P1.3 + P1.4 + P1.6 lukket. § 6.2 + A.30 vedtatt (5b90ab6 + 681aec8). 3A komplett — alle 8 prinsipper enten implementert, slått inn i andre § eller dropp. **SCREENING-29-3 lukket:** 9 TS2589-forekomster i 7 filer fikset via smal lokal interface-strategi — tsc --noEmit passerer. N2.2.3 + N2.2.4 omformulert: ikke blokkerende for Fase 0-koding (avventer ekstern API-tilgang/dialog). **Maskin-modul-gating:** midlertidig `Organization.harMaskinModul`-flagg + sidebar-skjul implementert (erstatter behov for modulProcedure før Fase 0). Bonus: 8. TS2589 i dashbord/page.tsx fikset (samme strategi) |
+| mannskap.md | 2026-04-28 | **Vy-beskrivelse i PSI-konteksten** etter 1D-presisering. Datamodell forkastet (Mannskapsmedlem dupliserer User per memory). Endelig datamodell designes Fase 4 (PSI-utvidelse) |
+| oppryddings-plan-2026-04-28.md | 2026-04-30 | **Arbeidsanker:** Aktiv anker. P1.1+P1.2+P1.3+P1.4+P1.5+P1.6+P1.7+P4.3+P4.4+C.15+SCREENING-29-1+SCREENING-29-3 lukket. N2.2.3+N2.2.4 omformulert (avventer ekstern API-tilgang). 3A komplett |
 | timer-funn-fra-screening-2026-04-27.md | 2026-04-28 | **Arbeidsanker:** Midlertidig, slettes etter Timer/Maskin-revurdering |
-| dagsseddel-design.md | 2026-05-02 | **Arbeidsanker:** Identifisert under Runde 2 visuell verifisering 2026-05-02 — `DailySheet.aktivitetId` på sedel-nivå blokkerer Maskintimer + Anleggsarbeid samme dag/prosjekt. Tre alternativer (A: flytt til SheetTimer rad-nivå — anbefalt; B: sheet_machines-spor; C: ikke fix). Skiller mot `sheet_machines` (Runde 2.5/3) og `Vareforbruk` (C.16). Markerer `sheet_materials` som FORELDET. Krever Kenneth-beslutning før koding |
-| domene-arbeidsflyt.md | 2026-05-03 | **Arbeidsanker:** Styrende dokument for arkitektur-beslutninger — beskriver virkelig arbeidsflyt fra brukerens perspektiv (ansatt morgen/dag/slutt, leder attestering, byggherre godkjenning, UE-edge case, firma-admin onboarding, kontrollplan, PSI, ny ansatt). Q2/Q3/Q4 låst 2026-05-03 (Timer-admin egen side, Vareforbruk SheetMaterial i db-timer, HMS hybrid). Prioritert byggerekkefølge i 4 steg (Fundament → Firma-admin-sider → Maskin-import → Dagsseddel-utvidelser). **Steg 1a (Organization.erKunde) krysset av 2026-05-03** (implementert på develop). Tre åpne spørsmål gjenstår |
-| navigasjon-arkitektur-analyse-2026-05-03.md | 2026-05-03 | **Arbeidsanker:** Komplett kartlegging av alle innstillings-/navigasjonssider mot vedtatt tre-nivå-arkitektur. 5 toppnoder, tabeller A–E (firma-admin / alltid-på / prosjektmoduler / per-prosjekt-admin / sitedoc-admin), 7 åpne avklaringspunkter, prioritert tiltak-rekkefølge med status-checkboxer. Brukes som anker for all fremtidig navigasjons-rydding |
-| STATUS-AKTUELT.md | 2026-05-03 | **Arbeidsanker:** Aktiv statusrapport — pågående arbeid, pauset arbeid, planlagte faser. Oppdateres ved hver vesentlig fremdrift. Sentral referanse for sesjonsoppstart |
-| prosjektoppsett-veileder.md | 2026-05-02 | **Arbeidsanker:** Steg-for-steg-flyt for ny bruker etter prosjektopprettelse (faggrupper → brukere → maler → dokumentflyt-kobling). Lagt til 2026-05-02 etter UX-funn (4 × 404 ved intuitiv navigering). Blokkerer A.Markussen-selvstendig-onboarding |
+| dagsseddel-design.md | 2026-05-02 | **Arbeidsanker:** Aktivitet flyttet til `SheetTimer.aktivitetId` (NOT NULL) per rad — implementert i Runde 2.5/C9 deployet til prod 2026-05-02 |
+| domene-arbeidsflyt.md | 2026-05-03 | **Arbeidsanker:** Styrende dokument. Steg 1a-1e ✅ prod, Steg 2 ✅ prod, Steg 3 ✅ prod, Steg 4a ✅ prod, Steg 4b (Vareforbruk) ✅ prod 2026-05-06. Tre åpne spørsmål gjenstår |
+| navigasjon-arkitektur-analyse-2026-05-03.md | 2026-05-03 | **Arbeidsanker:** Tiltak #1-#7 i prioritert rekkefølge fullført. Header-fix + Blokk A/B/C deployet 2026-05-04. Faggruppe-konsolidering 2026-05-05. P1 Fase 1+2 lukket. P2 (admin/firmaer erKunde) lukket. Klikkbare prosjektrader lukket |
+| STATUS-AKTUELT.md | 2026-05-07 | **Arbeidsanker:** Aktiv statusrapport. Sist oppdatert med rolle-dropdown-fix + dagens deploys |
+| prosjektoppsett-veileder.md | 2026-05-02 | **Arbeidsanker:** UX-funn 2026-05-02 (4 × 404). Faggruppe-side-konsolidering deployet 2026-05-05 lukker første tiltak. Nye UX-fix i UX-runde 1+2 lukker resten. Skal re-verifiseres mot ny prod-tilstand |
+| admin-navigasjon-analyse-2026-05-03.md | 2026-05-03 | **Arbeidsanker:** Komplett kartlegging av admin-navigasjon. P1 Fase 1+2 lukket via Blokk A (`12717426`) + auto-reset (`5674df71`). P2 admin/firmaer erKunde-filter lukket via Blokk C (`e2729849`). Klikkbare prosjektrader lukket via Blokk B (`dbf78bca`). 4 åpne beslutninger gjenstår |
+| steg-4b-plan.md | 2026-05-05 | **Arbeidsanker:** 5-faset Vareforbruk-plan. Sesjon 1 (Fase 1+2) + Sesjon 2 (Fase 3+4) + Sesjon 3 (Fase 5 import) deployet til prod 2026-05-06. A.Markussen seedet (7 kategorier + 57 varer + 5 Heatwork-Equipment). HW-vifte gjenstår manuelt |
+
+## ✔️ Ferdig brukt (lukket — innhold dekt av prod)
+
+| Fil | Lukket | Kommentar |
+|---|---|---|
+| ux-arkitektur-agenda.md | 2026-05-06 | KOMPLETT LUKKET. 3 vedtatte beslutninger (B1+B2+B3) deployet. 6 åpne oppgaver løst (U1+U2+U3+U6+U7). U4 erstattet av B3, U5 forkastet 2026-05-06. Beholdes som historikk; ikke aktiv anker |
+| smartdok-undersokelse.md | 2026-05-03 | **Sannhetskilde:** SmartDok UI-research 2026-04-26 brukt som basis for SmartDok-import 2026-05-03 (`1f2c0da2`) + Heatwork-utleie-Equipment-utvidelse 2026-05-06. Beholdes som referanse for fremtidig SmartDok-cutover |
+| timer-input-katalog.md | 2026-05-02 | Timer-input-spec brukt for Runde 1A (lønnsarter/aktiviteter/tillegg) deployet til prod 2026-05-01. Beholdes som referanse |
 
 ## ❌ Ikke screenet
 
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
 | adaptiv-sok-plan.md | — | Skal drøftes (per CLAUDE.md) |
-| aktivitetsfeed.md | 2026-05-01 | **Planlagt fase** (etter Maskin Fase 1 + Timer Fase 3). Verifisering 2026-05-01: Activity-tabell finnes i prod (Fase 0 § E.1, `13a746a7`), ingen produsent-kode skrevet ennå. Spec dekker datamodell, polling-strategi, GDPR-retensjon, OrganizationSetting-utvidelser (`feedHendelsetyper` + `feedPeriodeDager` (default 10) + `activityRetentionAar` (default 5)). Ekstern partner-feed = egen designrunde |
+| aktivitetsfeed.md | 2026-05-01 | **Planlagt fase** (etter Maskin Fase 1 + Timer Fase 3). Activity-tabell finnes i prod (E.1 `13a746a7`), ingen produsent-kode skrevet ennå |
 | ai-integrasjon.md | — | — |
 | ai-sok.md | — | — |
-| api.md | — | — |
+| api.md | — | Drift mtp UX-runde + Vareforbruk-modul: nye routere `vareKategori`/`vare`/`vareforbruk`/`vareImport`/`firmaIntegrasjon`/`timer.rapport` ikke dokumentert |
 | bibliotek.md | — | Peker til kontrollplan.md (konsolidert) |
-| byggeplass-strategi.md | — | Planlagt fase (per CLAUDE.md). K2.3 2026-04-28: slette-policy. **2026-05-01 (Fase 0.5 §§ 1-3 + § 5 implementert):** § 1 Avdeling + § 2 Kompetanse + § 3 ProjectGroupByggeplass m2m (Prinsipp C C1 vedtatt — building_ids droppet, verifisert dødt felt) + § 5 Slette-policy (API hentSletteSammendrag/slett med navn-bekreftelse + verifiserAdmin + UI SletteLokasjonDialog + i18n). Cascade-valg utsatt til senere — kun SetNull-default i første versjon. Verifisering 2026-05-01 fant feilantakelse: «EquipmentAnsvarlig.avdelingId» i strategi-fil — tabellen finnes ikke i db-maskin. ByggeplassMedlemskap utsatt til Fase 4 (Mannskap). **Fase 0.5 KOMPLETT** — branch klar for merge til develop |
+| byggeplass-strategi.md | — | Planlagt fase. Fase 0.5 §§ 1-3 + § 5 implementert 2026-05-01. ByggeplassMedlemskap utsatt til Fase 4 (Mannskap) |
 | db-naming-audit-2026-04-25.md | — | Datert audit 2026-04-25 |
-| db-opprydning.md | — | **Arbeidsanker:** Markert AKTIV (per CLAUDE.md). K3.2 2026-04-28: åpne audit-spørsmål mot prod. U.2 D-6 2026-04-28 (utvidet verifikasjon) |
-| deploy-detaljer.md | — | Operasjonell deploy-info: branching-regler, full deploy-bash, .env-krav, mobil reload-typer, tRPC env-konsekvens, prod-lærdommer. Aldri screenet |
-| hjelpetekster.md | — | Konvensjon for ?-ikon + sidestatus-tabell. Aldri screenet |
+| db-opprydning.md | — | **Arbeidsanker:** Markert AKTIV |
+| deploy-detaljer.md | — | Operasjonell deploy-info. Lærdom om SITEDOC_INTEGRATION_KEY må stå i BÅDE web- og api-ecosystem-blokker tilføyd 2026-05-07 |
+| hjelpetekster.md | — | Konvensjon for ?-ikon + sidestatus-tabell |
 | infrastruktur.md | — | — |
 | kontrollplan.md | — | — |
-| maskin.md | 2026-05-01 | Blokk A+B docs + parser-verifikasjon mot ZH44186 (ekte Vegvesen-kall bekreftet alle felt korrekt parset: VOLVO V70, VIN, kjoretoygruppe, karosseritype, farge, drivstoff, seter, effektKw, euroKlasse, totalvekt, nyttelast, euKontrollFrist, co2, forbruk). Vegvesen wrapper-struktur dokumentert (kjoretoydataListe[0]). **Blokk A docs (`d621b243`):** to nye seksjoner — § Ansvarlig per utstyr (hybrid-modell A.6) + § Cross-modul-integrasjon (Domain Service-lag, forbidden direkte `prismaMaskin`-import). **Blokk A schema (`de3fb1d0`):** EquipmentAnsvarlig + 15 nye Equipment-felt + 4 nye indekser. **Blokk B (`bdc79422`):** service-lag (vegvesen-api/vegvesen/vegvesen-worker/moduleGate) + 3 tRPC-endepunkter (forhandsvisning synkron, opprettMedVegvesen Variant A, oppdaterFraVegvesen admin-only kø) + 60s polling-worker + UI-flyt + 36 i18n-nøkler. normaliserRegnummer() i shared brukes i 3 lag. **Parser-fix (`021f01ae`):** wrapper-struktur (`kjoretoydataListe[0]`) + korrigerte stier (`tekniskeData.generelt.tekniskKode` for M1, `tekniskeData.karosseriOgLasteplan.karosseritype` for karosseritype). Datamapping-tabell oppdatert med faktisk struktur. Test-deployet og verifisert. **Prod-deploy (`11a41047` merge, 2026-05-01):** init + Blokk A applied i prod-DB, web/api re-startet med VEGVESEN_API_KEY i ecosystem env. **Blokk C1 (read-only detaljside + filter-bar + statusendring):** ny `[id]/page.tsx` med 8 seksjoner + statusendring-modal med pensjonertGrunn + Vegvesen-oppdater-knapp (admin, polling 10s) + EU-kontroll trafikklys-banner. Listevisning utvidet med filter-bar (kategori-chips med count, status, ansvarlig, søk, vis-pensjonerte) + klikk-til-detalj + Reg.nr/Ansvarlig-kolonner. Nye API-endepunkter: equipment.list+sok, antallPerKategori, hentMuligeAnsvarlige, bruker.hentMin. ~50 nye i18n-nøkler. **Blokk C2 (modal-redigering + ansvarlig-CRUD):** rediger-modaler for 5 seksjoner (Generelt, Anskaffelse, Kjøretøy-info, Anleggsmaskin-info, Småutstyr-info) via generisk RedigerModal. Ansvarlig-seksjon med full CRUD (hovedansvarlig + tilleggsansvarlige med periode-start + soft-delete via periodeSlutt). Ny ansvarlig-router (list/tilfoy/fjern) + verifiserMaskinAnsvarligSkriveTilgang i tilgangskontroll.ts (per A.6 hybrid). equipment.oppdater utvidet med 30+ felt. ~18 i18n-nøkler. Lukker forutsetning for SmartDok-import. **Type-fix (`77d7bd67`):** RedigerModal type-felt — Input-komponenten returnerer string|null men `type`-feltet er string|undefined (påkrevd, ikke nullable). Erstattet med inline input. Lærdom: Next.js-build strengere enn lokal tsc — bygg lokalt før deploy ved Optional-type-kompleksitet. **SmartDok-import planlagt (Blokk C+):** Excel-eksport analysert 2026-05-01 (126 maskiner; korrigerte tall etter direktelesing av tabell (1).xlsx — 36 ekte regnr, 5 type-godkjenning filtreres, 39 UREG, 46 tomme, 13 har ansvarlig 2, 15 unike ansvarlige, 0XXX-prefiks (10) er placeholder, 1 testrad filtreres, status tom for alle, maskinkode = internnummer der fylt). Forutsetning: Blokk C (detaljside med full redigering) MÅ være i prod før import tilbys A.Markussen |
-| migrering-reporttemplate.md | — | Ikke implementert (per CLAUDE.md). K2.1+K2.2 2026-04-28: mal-versjonering + delt mal-bruk-regel |
-| planlegger.md | — | Planlagt fase (per CLAUDE.md) |
+| maskin.md | 2026-05-01 | Blokk A+B+C+C1+C2 + parser-verifikasjon. Prod-deploy 2026-05-01. **Steg 3 deployet 2026-05-03** (`33a2b9b4`) — sitedoc_admin med firma-kontekst kan importere SmartDok-Excel. **U6-fix 2026-05-06** (`3dd4371b`) — equipment-router gates trygt på sitedoc_admin firma-kontekst. **Equipment-utleie-utvidelse 2026-05-06** (`b7127475`) — `erUtleieobjekt`/`utleieprisPerDogn`/`utleieprisPerTime`/`utleieEnhet` |
+| migrering-reporttemplate.md | — | Ikke implementert |
+| planlegger.md | — | Planlagt fase |
 | shared-pakker.md | — | — |
-| smartdok-undersokelse-2026-04-25.md | — | Arkivert v1 (per CLAUDE.md) |
-| smartdok-undersokelse.md | — | **Sannhetskilde:** SmartDok UI-research 2026-04-26 (per CLAUDE.md) |
-| timer-input-katalog.md | — | — |
-| timer.md | 2026-05-01 | Beslutninger 2026-04-29: P1, P2 #3/#6/#7/#8/#13/#14. YAML-header tilføyd. Screening 2026-04-29 utført: 23 indekser tilføyd (Funn F.12), AnsattKompetanse-referanse tilføyd (F.7), YAML utvidet med A.28+C.14 (F.9). Verifikasjon 2026-05-01 mot kodebase: ny «Implementasjonsstatus per 2026-05-01»-seksjon øverst med komplett tabell (Forutsetninger fra Fase 0/0.5 ✅ \| Timer-spesifikk DB+UI ❌ skal opprettes Fase 3 \| Spec-status per tema ✅/🟡). Korrigert tidligere upresis blokker-merknad: eneste reelle blokker er **Proadm drømmescenario auto-avledning** (BACKLOG, ikke nødvendig for MVP) — godkjenningsflyt mot ansatt er fullt spec'd. **2026-05-01 (Infrastruktur-commit):** packages/db-timer/-pakken opprettet med 7 Runde-1-tabeller. Kjernen-migrasjon: `Organization.harTimerModul` + `OrganizationSetting` utvidet med dagsnorm/overtidsmatTerskel/tillattSelvAttestering/timerLockEtterDager. moduleGate-helper + seed-skjelett etablert. **2026-05-01 Runde 1A+1B+1C deployet til prod.** **2026-05-02 Runde 2 (mobil + offline-sync) C1–C8 KOMPLETT på develop** (merge `1cce62f3` 2026-05-02 sent kveld): C1 Drizzle-skjema (6 nye SQLite-tabeller). C2 server-side syncBatch + hentEndringerSiden. C3 sync-motor + TimerSyncProvider. C4 katalog-cache. C5 UI-liste (visuelt verifisert på iOS Simulator + fysisk mobil etter første test-deploy `0342b883`). C6 opprett-skjema + detaljside med 4 inline modaler. C7 ~50 nye i18n-nøkler (155 timer-nøkler totalt per språk). C8 Underprosjekt-velger (ny `eksternKostObjekt`-router + `external_cost_object_local`-tabell + UnderprosjektVelgerModal). **Test-deploy + prod-deploy av C6–C8 utsatt til neste sesjon** — server-side har C2 + dev-login (Fastify) + ECO-router som krever fersk deploy. Scope-utelatelser per Runde 2 MVP (utsatt til 2.5/3): utlegg + maskin på dagsseddel, leder-attestering på mobil, aktivitet-på-rad-nivå (sammen med maskintimer-design) |
+| smartdok-undersokelse-2026-04-25.md | — | Arkivert v1 |
+| timer.md | 2026-05-01 | Runde 1A+1B+1C (`c1122c2e`) + Runde 2 C1-C8 (`1cce62f3`) + Runde 2.5/C9 + 2.6 + 2.7 (`de33aefc`/`03d8c63a`/`05b3bddb`) + attestering-rename (`8aa792b2`) deployet til prod 2026-05-02. **Steg 4a** (ECO-flytt på attestering, `da6b34a5`) deployet 2026-05-03. **U1** (leder-timer-rapport, `c551063f`) + **U2** (CSV/Excel-eksport, `31cff7da`) deployet 2026-05-06 |
 | varsling.md | — | — |
 
 ## 📦 Arkivert
 
 | Fil | Arkivert | Kommentar |
 |---|---|---|
-| arkitektur-oppsummering-2026-04-25.md | 2026-04-28 | Datert arkitektur-snapshot 2026-04-25 → [docs/arkiv/](../arkiv/arkitektur-oppsummering-2026-04-25.md). Innhold dekt av arkitektur-syntese.md før arkivering |
-| arkitektur-qa-runde-2-2026-04-25.md | 2026-04-28 | Opus QA-runde 2 (2026-04-25) → [docs/arkiv/](../arkiv/arkitektur-qa-runde-2-2026-04-25.md). Beslutninger konsolidert til fase-0-beslutninger.md C.13 + § J-rader (K1, tidl. § G) før arkivering |
-| audit-data-2026-04-25.md | 2026-04-28 | Read-only audit av dev-DB (2026-04-25) → [docs/arkiv/](../arkiv/audit-data-2026-04-25.md). Åpne audit-spørsmål konsolidert til db-opprydning.md (K3.2) før arkivering |
+| arkitektur-oppsummering-2026-04-25.md | 2026-04-28 | Datert arkitektur-snapshot → [docs/arkiv/](../arkiv/). Innhold dekt av arkitektur-syntese.md |
+| arkitektur-qa-runde-2-2026-04-25.md | 2026-04-28 | Opus QA-runde 2 → [docs/arkiv/](../arkiv/). Beslutninger konsolidert til fase-0-beslutninger.md |
+| audit-data-2026-04-25.md | 2026-04-28 | Read-only audit av dev-DB → [docs/arkiv/](../arkiv/). Åpne audit-spørsmål til db-opprydning.md |
+| entreprise-faggruppe-rapport.md | (eldre) | Faggruppe-rename-rapport → [docs/arkiv/](../arkiv/). Faggruppe-rename ferdig på prod (kun alias-rydding gjenstår) |
+| faggruppe-rename-plan.md | (eldre) | Faggruppe-rename-plan → [docs/arkiv/](../arkiv/). Plan utført; faggruppe-CRUD-konsolidering deployet 2026-05-05 |
+| infrastruktur-moduler.md | (eldre) | Modul-infrastruktur-spec → [docs/arkiv/](../arkiv/). Innhold dekt av arkitektur-syntese.md § 6 + service-lag-mønster |
 
 ---
 
 ## Forklaring av status-koder
 
-- **✅ Verifisert mot kode** — Innhold sammenlignet mot Prisma-schema/API-routere/UI på datert kjøring. Drift rettet eller ikke funnet. **+ Kode-kvalitet vurdert. + Eventuelle svakheter dokumentert i screening-rapport eller oppryddings-plan.** Behandles som pålitelig.
-- **⚠️ Drift identifisert** — Innhold sammenlignet mot kode på datert kjøring. **Avvik funnet og dokumentert** (typisk i screening-rapport eller oppryddings-plan), men **ennå ikke rettet**. Behandles som upålitelig på drift-punktene; resten kan brukes med varsomhet.
-- **🔄 Under arbeid** — **Aktiv arbeidsfil** (oppryddings-plan, midlertidig screening-funn, idé-stadium-modul) hvor innholdet endres aktivt og status-spørsmålet ikke er meningsfylt før arbeidet er ferdig. Skal slettes eller flyttes til ✅/⚠️/📦 når arbeidet er ferdig.
-- **❌ Ikke screenet** — **Aldri verifisert mot kode i en planlagt screening-runde.** Innhold kan stemme — eller ikke. Behandles som upålitelig inntil det motsatte er bevist. **Filer berørt av K1/K2/K3-konsolidering 2026-04-28 forblir ❌** — konsolideringen tilførte beslutninger i ny seksjon, men eksisterende innhold er ikke re-verifisert mot kode.
+- **✅ Verifisert mot kode** — Innhold sammenlignet mot Prisma-schema/API-routere/UI på datert kjøring. Drift rettet eller ikke funnet. + Kode-kvalitet vurdert. Behandles som pålitelig.
+- **⚠️ Drift identifisert** — Innhold sammenlignet mot kode på datert kjøring. Avvik funnet og dokumentert, men ennå ikke rettet. Behandles som upålitelig på drift-punktene; resten kan brukes med varsomhet.
+- **🔄 Under arbeid** — Aktiv arbeidsfil hvor innholdet endres aktivt og status-spørsmålet ikke er meningsfylt før arbeidet er ferdig. Skal slettes eller flyttes til ✅/⚠️/✔️/📦 når arbeidet er ferdig.
+- **✔️ Ferdig brukt** — Plan/spec som er fullført og innhold dekt av prod-kode. Beholdes som referanse, ikke aktiv anker. Hvis filen ikke har historisk verdi → arkiver.
+- **❌ Ikke screenet** — Aldri verifisert mot kode i en planlagt screening-runde. Innhold kan stemme — eller ikke. Behandles som upålitelig inntil det motsatte er bevist.
 - **📦 Arkivert** — Filen er flyttet til `docs/arkiv/` etter at innholdet er overført til aktive sannhetskilder. Hjemløse beslutninger fanget før arkivering. Beholdes for historikk, ikke aktiv referanse.

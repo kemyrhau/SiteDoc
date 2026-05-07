@@ -54,6 +54,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+**Rolle-dropdown outside-click-fix DEPLOYET TIL PROD 2026-05-07** (`9e264bfa` merge, `6ee229a3` impl). HTTP/2 200 mot sitedoc.no. Lukker bug der rolle-dropdown på `/dashbord/firma/brukere` lukket seg umiddelbart uten at brukeren rakk å velge ny rolle. Document outside-click-handler brukte `mousedown` som fires FØR React's onClick — handler-en kalte `setÅpenMeny(null)` før `setÅpenMeny(b.id)` rakk å åpne menyen. Fix: bytt fra `mousedown` til `click` så React-state oppdateres først. 2 linjer endret i `apps/web/src/app/dashbord/firma/brukere/page.tsx`. Server-tilgangskontroll var allerede korrekt — `endreRolle` bruker `verifiserFirmaAdmin` som godtar både sitedoc_admin og company_admin for eget firma. Verifisert: company_admin kan nå endre roller for andre brukere i eget firma via UI. Sideprodukt: Florians rolle ble satt til `company_admin` direkte i prod-DB via SQL UPDATE før fixen ble deployet, siden dropdown var blokkert.
+
 **«Velg fra firma»-flyt for prosjektmedlemmer DEPLOYET TIL PROD 2026-05-07** (`f27a63dc` merge). HTTP/2 200 mot sitedoc.no. Lukker arkitekturhull: tidligere måtte admin skrive e-posten manuelt selv for brukere som allerede finnes på samme firma som prosjektet. Nå viser «Legg til bruker»-knappen på `/dashbord/oppsett/brukere` to faner — «Velg fra firma» (default, dropdown av eksisterende firma-brukere som ikke er medlemmer ennå) og «Inviter ny e-post» (eksisterende invitasjons-flyt for nye brukere). Ny `medlem.leggTilEksisterende`-prosedyre oppretter ProjectMember direkte uten e-post; ny `medlem.hentLedigeFirmaBrukere`-query filtrerer User-listen på `primaryOrganizationId + canLogin=true + ikke allerede medlem`. Server håndhever same-firma-validering (kan ikke legge til brukere fra andre firmaer). Idempotent: avviser hvis allerede medlem.
 
 **Modul-piller i admin/firmaer + Varelager-bug DEPLOYET TIL PROD 2026-05-07** (`620a85c7` merge). HTTP/2 200 mot sitedoc.no. Slide-over og tabell i `/dashbord/admin/firmaer` viser nå alle 3 firmamoduler (timer, maskin, varelager) som kompakte piller — grønn fyll når aktiv, grå når inaktiv. Tidligere to separate kolonner (Timer + Maskin) er kombinert til én «Moduler»-kolonne med samme pill-stil. Slide-over har én «Firmamoduler»-seksjon istedenfor to store kort. Bug-fix: Varelager-modul vises nå korrekt i admin-vyen — manglet helt før. Skalerbar når flere firmamoduler kommer (kompetanse/fremdrift/planlegger): én linje i `FIRMAMODULER`-arrayet i `apps/web/src/app/dashbord/admin/firmaer/page.tsx`.
@@ -457,6 +459,16 @@ Oppgavespesifikke avhengigheter dokumenteres i
 **Bakgrunn:** Aktivitet/maskinbruk/vareforbruk-konflikten 2026-05-02
 viste at modulgrenser er klare i isolerte spec-er men uklare når én
 entitet er felles knutepunkt.
+
+## SIKKERHET — NØKKELHÅNDTERING (UFRAVIKELIG)
+
+ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
+
+- Bruk alltid `${#VAR}` for å sjekke lengde, ikke `echo $VAR`
+- Bruk alltid `| grep -c "regex"` for format-validering, ikke `cat`
+- Bruk alltid `if grep -q "KEY=" file` for å bekrefte eksistens, ikke `grep KEY= file`
+- Nøkkeloperasjoner som krever Kenneth: beskriv kommandoen, si "kjør selv" — ikke kjør via SSH
+- Roterings-sekvenser: Kenneth kjører selv på server, Opus verifiserer kun at prosessen har nøkkelen (via /proc/PID/environ med lengde-sjekk)
 
 ## Viktige regler
 
