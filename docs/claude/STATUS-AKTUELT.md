@@ -13,6 +13,35 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**EAS Build iOS produksjon godkjent av Apple — TestFlight aktiv 2026-05-08.** Build 1.0.0 (19) er ferdig prosessert i App Store Connect og distribuert til intern testing-gruppe «Team (Expo)». Brukere i gruppen kan nå installere via TestFlight-appen på iPhone.
+
+**Funksjonalitet aktivert i build:**
+- **Hvem-har-ballen-badge** på `apps/mobile/app/oppgave/[id].tsx` + `apps/mobile/app/sjekkliste/[id].tsx` — speilet fra web (`2e32b867`). Amber `<View>` med `recipientGroup.name` ved status sent/received/in_progress.
+- **Runde 2.5/C9** — aktivitet flyttet fra `DailySheet`-nivå til `SheetTimer.aktivitetId` (per rad), `sheet_machines`-tabell, `ECO.proAdmType`-fritekst.
+- **Runde 2.6** — mobil-cache for maskinregister via `apps/mobile/src/services/maskinKatalog.ts` + `EquipmentVelger`-komponent.
+- **Runde 2.7** — Mine timer-rapport på mobil med `DagstotalBanner` + `UkeTotalBanner` + ukesoppsummering.
+- **Pensjonert→utgått-rename** — terminologi-konsistens mellom web og mobil.
+- **Hvem-har-ballen-badge i18n** — alle 14 språk har nå `tabell.venterPaa` (cs/de/et/fi/fr/lt/lv/pl/ro/ru/sv/uk lagt til 2026-05-07).
+
+**Forutsetninger som var live på server før build:**
+- `oppgave.hentMedId` + `sjekkliste.hentMedId` returnerer `recipientGroup` (deployet `2e32b867` 2026-05-05)
+- Timer Runde 2.5/2.6/2.7 server-side klar (deployet 2026-05-02)
+
+**Distribusjons-detaljer:**
+- Build-hash på develop ved EAS-tidspunkt: `7921f59b` (commit `feat: hvem-har-ballen-badge mobil + i18n-fix 12 språk`)
+- App Store Connect URL: https://appstoreconnect.apple.com/apps/6760205962/testflight/ios
+- Expo-projektet: `kemyrhau/sitedoc`
+- Submission ID: `126c444d-38bf-491e-bd8a-eb86d952c31a`
+
+**Ikke i build (utsatt til neste mobil-runde):**
+- 12 pre-eksisterende mobil typecheck-feil (klynge A: moduleSlug, klynge B: erstattVedlegg-interface, klynge C: null-handling, klynge D: Drizzle-typer) — TS-tids-feil, ikke runtime-feil. Metro/Hermes stripper typer.
+- Leder-attestering på mobil (utsatt fra Runde 2 MVP) — krever ECO-flytt-funksjon (Steg 4a er live på web)
+- Vareforbruk på mobil (Steg 4b.5) — krever offline-sync og dagsseddel-integrasjon
+
+**Verifisering på fysisk enhet (Kenneth-oppgave):** Installer build via TestFlight, åpne sjekkliste/oppgave-detalj med innsendt status, verifiser at amber-badge «Venter på: [gruppenavn]» vises korrekt under StatusMerkelapp.
+
+---
+
 **Fullstendig i18n-oversettelse uk/ru/pl/lt/lv/sv DEPLOYET TIL PROD 2026-05-08** (`720a23dc` merge). HTTP/2 200 mot sitedoc.no.
 
 **Bakgrunn — i18n-audit 2026-05-08:**
