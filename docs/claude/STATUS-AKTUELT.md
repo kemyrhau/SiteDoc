@@ -13,6 +13,44 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**i18n-fix 12 språk + hvem-har-ballen-badge mobil DEPLOYET TIL PROD 2026-05-07** (`4ff352a7` merge, `7921f59b` impl). HTTP/2 200 mot sitedoc.no.
+
+**To uavhengige fix bundlet i én commit:**
+
+**(1) i18n-drift på 12 språk:**
+Drift identifisert under mobil-analyse 2026-05-07: `tabell.venterPaa` (brukt av hvem-har-ballen-badge på sjekkliste/oppgave-detalj) + `dashbord.venterPaaTilgangTittel`/`Beskrivelse` (tilgangs-tom-state) fantes kun på `nb.json` + `en.json`. Web-versjon ble deployet 2026-05-05 (`2e32b867`) — siden da har ikke-norske/engelske brukere sett klartekst-nøkkelen «tabell.venterPaa» som badge-tekst, ikke oversatt streng.
+
+**Endring:** Python-script la til 3 nøkler i 12 språkfiler (cs, de, et, fi, fr, lt, lv, pl, ro, ru, sv, uk) med kontekstuelle LLM-oversettelser. Eksempel:
+- cs: «Čeká na»
+- de: «Wartet auf»
+- fr: «En attente de»
+- pl: «Oczekuje na»
+- ru: «Ожидает»
+- sv: «Väntar på»
+
+Native-speaker-bekreftelse ønskes ved senere språkrunde.
+
+**(2) Hvem-har-ballen-badge på mobil:**
+Speilet fra web `2e32b867` til mobil. Endret 2 filer (`apps/mobile/app/oppgave/[id].tsx` + `apps/mobile/app/sjekkliste/[id].tsx`) med IIFE-pattern som rendrer amber `<View>` med `recipientGroup.name` ved status sent/received/in_progress. Bruker eksisterende cast-mønster fra FlytIndikator (`(detalj as { recipientGroup?: ... } | undefined)?.recipientGroup`).
+
+**Server-respons uendret:** `oppgave.hentMedId` (linje 133) + `sjekkliste.hentMedId` (linje 84) returnerer allerede `recipientGroup: { id, name }` — feltet ble lagt til av `2e32b867` og brukes på web. Mobil utnytter samme respons.
+
+**Type-status:**
+- Web build grønt (29.2s lokalt + 1m9s prod)
+- Web typecheck: 1 pre-eksisterende feil (`vitest`-modul-mangling i test-fil) — ikke fra denne commit
+- Mobil typecheck: 12 pre-eksisterende feil klassifisert som kjent teknisk gjeld:
+  - Klynge A (4 feil) — `moduleSlug` type-mismatch i `hjem.tsx` (Steg 1e-rename)
+  - Klynge B (4 feil) — `erstattVedlegg` mangler i `UseOppgaveSkjemaResultat`/`UseSjekklisteSkjemaResultat`-interface
+  - Klynge C (2 feil) — null-handling i `mer.tsx` + `psi/[psiId].tsx`
+  - Klynge D (2 feil) — Drizzle-typer i `timerSync.ts`
+  - Mine endringer er ikke i feillisten. Alle 12 er TS-tidsfeil, ikke runtime-feil — Metro/Hermes stripper typer ved bygg. App fungerer på prod nå med disse feilene. Egen «mobil typecheck cleanup»-runde planlagt etter EAS Build.
+
+**Mobil ikke aktiv før EAS Build:** Server + web er deployet til prod. Mobil-koden venter på `eas build --platform ios --profile production` (Kenneth-oppgave parallellt med dokumentasjon). Build-tid ~15-30 min. Etter `eas submit` lander build-en i App Store Connect → TestFlight intern testing.
+
+**Endrede filer:** 14 (12 i18n-JSON + 2 mobil-tsx), `+72/-12`. Ingen DB-migrasjon.
+
+---
+
 **Rolle-dropdown outside-click-fix DEPLOYET TIL PROD 2026-05-07** (`9e264bfa` merge, `6ee229a3` impl). HTTP/2 200 mot sitedoc.no.
 
 **Bug:** Rolle-dropdown på `/dashbord/firma/brukere` lukket seg umiddelbart når brukeren klikket pillen. Outside-click-handler på document brukte `mousedown` som fires FØR React's onClick — i sekvensen [mousedown → click] kjørte handler-en før setState rakk å åpne menyen, og påfølgende klikk på dropdown-elementene fungerte ikke konsistent.
