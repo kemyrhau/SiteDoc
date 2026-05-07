@@ -13,6 +13,53 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Fullstendig i18n-oversettelse uk/ru/pl/lt/lv/sv DEPLOYET TIL PROD 2026-05-08** (`720a23dc` merge). HTTP/2 200 mot sitedoc.no.
+
+**Bakgrunn — i18n-audit 2026-05-08:**
+| Språk | Nøkler før | Nøkler etter |
+|---|---:|---:|
+| nb (kilde) | 2129 | 2129 |
+| en | 2132 | 2132 (uendret) |
+| **uk, ru, pl, lt, lv, sv** | 972 hver | **2129 hver** |
+| cs, de, et, fi, fr, ro | 972 | 972 (uendret) |
+
+Audit avdekket at alle 12 ikke-nb/en-språk var frosset på en historisk baseline med 972 nøkler, mens nb/en hadde vokst til 2129 (54 % drift). Web-siden viste klartekst-nøkkelen («firma.timer.tittel» osv.) som UI-tekst for alle ikke-norske/engelske brukere på post-baseline-funksjoner.
+
+**Prioritering — 6 språk valgt etter byggebransje-relevans i Norge:**
+1. **uk (ukrainsk)** — `c4b6f6aa`
+2. **ru (russisk)** — `b774b1de` (russisk-talende ukrainere + andre)
+3. **pl (polsk)** — `4ddff556` (størst østeuropeisk gruppe i norsk bygg)
+4. **lt (litauisk)** — `4c0b8be8`
+5. **lv (latvisk)** — `e952c166`
+6. **sv (svensk)** — `827e83ea` (naboland)
+
+**Metode:**
+- Eksisterende `packages/shared/src/i18n/generate.ts` brukt som mal
+- Patchet til ett språk per kjøring via `SPRAAK`-env-variabel (atomic commits)
+- Kilde: `en.json` (mer presis enn nb for fagtermer per CLAUDE.md i18n-policy)
+- `google-translate-api-x` (gratis, ingen API-nøkkel) i batcher à 50 med 1.5s pause for rate-limiting
+- Per kjøring: 1157 manglende nøkler oversatt → 2129 totalt
+
+**Resultat:**
+- 6 atomiske commits (én per språk) på develop
+- Merge-commit `720a23dc` til main
+- **6 942 nye oversettelser** (1157 × 6)
+- Alle 6 JSON-filer validert med `python3 -c "import json; json.load(...)"`
+- `+7000/-18` linjer i merge
+
+**Build:** `pnpm build --filter @sitedoc/web` 1m7s på prod-server. `pm2 reload --update-env` reloadet sitedoc-web (47) + sitedoc-api (39). Ingen DB-migrasjon, ingen schema-endring.
+
+**Kvalitetsforbehold:** Google Translate er LLM-kvalitet, ikke profesjonelle oversettelser. Fagtermer (Lønnsart, Faggruppe, Dokumentflyt, Attestering, ECO, etc.) bør verifiseres av native-speakers ved senere språkrunde. For UI-strenger uten fagtermer er Google Translate-kvaliteten generelt god nok for funksjonell forståelse.
+
+**Gjenstår ved behov:** cs, de, et, fi, fr, ro (alle på 972-baseline). Samme metode kan gjentas ved behov — én kommando per språk:
+```bash
+SPRAAK=cs pnpm exec tsx src/i18n/generate-ett-sprak.ts
+```
+
+**Vurdering for fremtid:** Avgjør om disse 6 språkene faktisk brukes av kunder. Hvis ingen — fjern fra build for å redusere bundle-størrelse. Hvis ja — kjør oversettelse på samme måte.
+
+---
+
 **i18n-fix 12 språk + hvem-har-ballen-badge mobil DEPLOYET TIL PROD 2026-05-07** (`4ff352a7` merge, `7921f59b` impl). HTTP/2 200 mot sitedoc.no.
 
 **To uavhengige fix bundlet i én commit:**
