@@ -460,6 +460,16 @@ Oppgavespesifikke avhengigheter dokumenteres i
 viste at modulgrenser er klare i isolerte spec-er men uklare når én
 entitet er felles knutepunkt.
 
+## SIKKERHET — NØKKELHÅNDTERING (UFRAVIKELIG)
+
+ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
+
+- Bruk alltid `${#VAR}` for å sjekke lengde, ikke `echo $VAR`
+- Bruk alltid `| grep -c "regex"` for format-validering, ikke `cat`
+- Bruk alltid `if grep -q "KEY=" file` for å bekrefte eksistens, ikke `grep KEY= file`
+- Nøkkeloperasjoner som krever Kenneth: beskriv kommandoen, si "kjør selv" — ikke kjør via SSH
+- Roterings-sekvenser: Kenneth kjører selv på server, Opus verifiserer kun at prosessen har nøkkelen (via /proc/PID/environ med lengde-sjekk)
+
 ## Viktige regler
 
 ### Dokumentasjons-disiplin (sannhetskilde-prinsippet)
