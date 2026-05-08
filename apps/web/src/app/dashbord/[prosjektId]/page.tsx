@@ -118,7 +118,7 @@ export default function ProsjektOversikt() {
             {
               label: t("onboarding.dokumentflyt"),
               ferdig: onboardingStatus.harDokumentflyt,
-              href: "/dashbord/oppsett/produksjon/kontakter",
+              href: "/dashbord/oppsett/produksjon/dokumentflyt",
             },
             {
               label: t("onboarding.brukergrupper"),
@@ -128,7 +128,7 @@ export default function ProsjektOversikt() {
             {
               label: t("onboarding.maler"),
               ferdig: onboardingStatus.harMalKobletTilFlyt,
-              href: "/dashbord/oppsett/produksjon/kontakter",
+              href: "/dashbord/oppsett/produksjon/dokumentflyt",
             },
             {
               label: t("onboarding.lokasjoner"),

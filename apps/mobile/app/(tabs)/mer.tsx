@@ -141,7 +141,7 @@ export default function MerSkjerm() {
               {t("mer.generelt")}
             </Text>
           </View>
-          <MenyRad ikon={Users} tekst={t("nav.kontakter")} />
+          <MenyRad ikon={Users} tekst={t("nav.dokumentflyt")} />
           <MenyRad ikon={Building2} tekst={t("nav.grupper")} />
           <MenyRad
             ikon={Clock}

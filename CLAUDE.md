@@ -54,6 +54,34 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+**Rename `kontakter` → `dokumentflyt` IMPLEMENTERT på develop 2026-05-08.** Lukker semantisk drift: ruta het `kontakter` mens UI allerede sa «Dokumentflyt». Alt nå konsistent.
+
+**Route:** `apps/web/src/app/dashbord/oppsett/produksjon/kontakter/` flyttet til `dokumentflyt/`. Gammel sti er bevart som server-side redirect-stub for bakoverkompatibilitet (eldre bokmerker, eksterne lenker, onboarding-veivisere).
+
+**Lenker (3 stk, ikke 2 som instruksen anslo):** `oppsett/layout.tsx` (sidebar `labelKey: oppsett.dokumentflyt`), `[prosjektId]/page.tsx` (2 hrefs i onboarding-checkpoint-bar). Verifisert via grep.
+
+**i18n (14 språkfiler):** 502 nøkler renamet/duplisert via Node-skript:
+- 402 nøkler `kontakter.X` → `dokumentflyt.X` (kun-dokumentflyt-bruk)
+- 70 nøkler `kontakter.X` → `brukere.X` (kun-brukere-bruk: epost/telefon/firma/rolle/medlem)
+- 28 dupliseringer (begge varianter): `faggrupper` + `grupper` (brukt i begge kontekster) opprettet både som `dokumentflyt.X` og `brukere.X` med samme verdi
+- 22 globale: `nav.kontakter` → `nav.dokumentflyt` + `oppsett.kontakter` → `oppsett.dokumentflyt` (× 14 språk)
+- `brukere.kontakter` (= "Kontakter"-overskrift på brukere-siden) **beholdt** — semantisk korrekt
+- `dokumentflyt.kontakter` (= kolonne-overskrift «Kontakter» på dokumentflyt-siden) opprettet — semantisk korrekt
+
+**Tre komponentfiler oppdatert:** `dokumentflyt/page.tsx` (28 t-kall via sed `"kontakter\.` → `"dokumentflyt.`), `dokumentflyt-komponenter.tsx` (3 t-kall), `brukere/page.tsx` (9 t-kall — 7 unike nøkler), `mobile/(tabs)/mer.tsx` (1 t-kall: `nav.kontakter` → `nav.dokumentflyt`).
+
+**Verifisering:**
+- Web grep `kontakter` etter rename: 15 treff (var 55) — alle er enten variabelnavn (`const kontakter`, `kontakterRå`, `KontaktMedlem`) eller semantisk korrekte i18n-nøkler (`brukere.kontakter` + `dokumentflyt.kontakter` for «Kontakter»-overskrifter)
+- i18n grep: 24 treff (var 536) — alle er enten verdier («Kontakter», «Contacts», etc.) eller de to bevarte nøklene
+- Mobil grep: 0 treff (var 1)
+- `pnpm --filter @sitedoc/web typecheck` grønt (kun pre-eksisterende vitest-feil)
+- `pnpm build --filter @sitedoc/web` grønt på 54.6s
+- Mobil typecheck: 12 = 12 (ingen nye feil)
+
+**Avvik fra instruks (flagget):** (1) Steg 2 sa `oppsett/produksjon/layout.tsx` men korrekt fil var `oppsett/layout.tsx`. (2) Steg 2 sa "2 stk lenker" men det var 3 (1 i layout + 2 i onboarding-checkpoint). (3) `nav.dokumentflyt`-verdiene er fortsatt «Kontakter» / «Contacts» / etc. — ren rename av nøkkel uten verdi-endring per instruks. Mobil-fanen i `(tabs)/mer.tsx` viser dermed fortsatt «Kontakter»-tekst, peker til en placeholder-menyrad uten onPress. Verdi-endring til «Dokumentflyt» er en separat designvurdering — utenfor scope.
+
+**Klar for test-deploy. Stopp og rapporter etter test-verifisering — prod-deploy avventer eksplisitt grønt lys.**
+
 **Sjekkliste opprett-modal + mobil rettighet IMPLEMENTERT på develop 2026-05-08.** To bugs i én PR.
 
 **Bug 1 — Web (`apps/web/src/app/dashbord/[prosjektId]/sjekklister/page.tsx`):** Klikk på mal i opprett-modal gjorde ingenting når innlogget bruker ikke var medlem av noen faggruppe i prosjektet (typisk sitedoc_admin / company_admin uten faggruppe-tilknytning). `handleOpprettFraMal` returnerte stille på `if (!oppretter) return`. Fix: fallback-kjede henter `bestillerFaggruppeId` fra dokumentflytens `oppretter`-medlem når `mineFaggrupper` er tom; synlig feilmelding rendres i Modal hvis hverken brukerens egen faggruppe eller dokumentflytens oppretter-faggruppe finnes. Ny `opprettFeil`-state, `onError`-handler i `opprettMutation`, nullstilles ved Modal-onClose. Server-grensen `verifiserFaggruppeTilhorighet` har admin-bypass for sitedoc_admin og ProjectMember.role="admin" — admin kan trygt sende en hvilken som helst faggruppe-id. Company_admin uten ProjectMember-rad får fortsatt FORBIDDEN (eksisterende svakhet, utenfor scope), men feilen vises nå i UI i stedet for stille død UI.

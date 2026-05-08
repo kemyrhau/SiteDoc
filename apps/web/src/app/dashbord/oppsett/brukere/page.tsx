@@ -770,12 +770,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
           <thead className="sticky top-[69px] z-20 border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500 shadow-sm">
             <tr>
               <th className="px-4 py-2.5">{t("tabell.navn")}</th>
-              <th className="px-4 py-2.5">{t("kontakter.epost")}</th>
-              <th className="px-4 py-2.5">{t("kontakter.telefon")}</th>
-              <th className="px-4 py-2.5">{t("kontakter.firma")}</th>
-              <th className="px-4 py-2.5">{t("kontakter.rolle")}</th>
-              <th className="px-4 py-2.5">{t("kontakter.faggrupper")}</th>
-              <th className="px-4 py-2.5">{t("kontakter.grupper")}</th>
+              <th className="px-4 py-2.5">{t("brukere.epost")}</th>
+              <th className="px-4 py-2.5">{t("brukere.telefon")}</th>
+              <th className="px-4 py-2.5">{t("brukere.firma")}</th>
+              <th className="px-4 py-2.5">{t("brukere.rolle")}</th>
+              <th className="px-4 py-2.5">{t("brukere.faggrupper")}</th>
+              <th className="px-4 py-2.5">{t("brukere.grupper")}</th>
             </tr>
             {/* Filterrad */}
             <tr className="border-b border-gray-200 bg-gray-50">
@@ -798,7 +798,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                   <option value="">{t("status.alle")}</option>
                   <option value="admin">Admin</option>
                   <option value="firmaansvarlig">{t("brukere.firmaansvarlig")}</option>
-                  <option value="member">{t("kontakter.medlem")}</option>
+                  <option value="member">{t("brukere.medlem")}</option>
                 </select>
               </th>
               <th className="px-4 py-1.5">
@@ -1169,7 +1169,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                           }}
                           className="rounded border border-blue-300 px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
                         >
-                          <option value="member">{t("kontakter.medlem")}</option>
+                          <option value="member">{t("brukere.medlem")}</option>
                           <option value="firmaansvarlig">{t("brukere.firmaansvarlig")}</option>
                           <option value="admin">Admin</option>
                         </select>
@@ -1181,7 +1181,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                               ? "bg-amber-50 text-amber-700"
                               : "bg-gray-100 text-gray-600"
                         }`}>
-                          {m.role === "admin" ? "Admin" : m.erFirmaansvarlig ? t("brukere.firmaansvarlig") : t("kontakter.medlem")}
+                          {m.role === "admin" ? "Admin" : m.erFirmaansvarlig ? t("brukere.firmaansvarlig") : t("brukere.medlem")}
                         </span>
                       )}
 

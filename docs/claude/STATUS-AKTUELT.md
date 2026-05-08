@@ -13,6 +13,10 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Rename `kontakter` → `dokumentflyt` IMPLEMENTERT på develop 2026-05-08.** Lukker semantisk drift: ruta het `kontakter` mens UI allerede sa «Dokumentflyt» (verdiene `oppsett.kontakter` og `kontakter.tittel` var begge «Dokumentflyt» i nb). Nå er alt konsistent. Route flyttet, gammel sti bevart som server-side redirect-stub. 502 i18n-nøkler restrukturert via Node-skript over 14 språkfiler. Web-grep `kontakter` redusert fra 55 → 15 (kun variabelnavn + semantisk korrekte nøkler igjen), i18n fra 536 → 24, mobil fra 1 → 0. `pnpm --filter @sitedoc/web typecheck` + `pnpm build --filter @sitedoc/web` grønt på 54.6s. Mobil typecheck 12 = 12 (ingen nye feil). Klar for test-deploy.
+
+---
+
 **Sjekkliste opprett-modal + mobil rettighet IMPLEMENTERT på develop 2026-05-08.** To bugs i én PR.
 
 **Bug 1 — Web sjekkliste opprett-modal:** Klikk på mal gjorde ingenting når brukeren ikke var medlem av noen faggruppe (sitedoc_admin / company_admin uten faggruppe-tilknytning). `handleOpprettFraMal` returnerte stille på `if (!oppretter) return`. Fix i `apps/web/src/app/dashbord/[prosjektId]/sjekklister/page.tsx`: fallback-kjede henter `bestillerFaggruppeId` fra dokumentflytens `oppretter`-medlem når `mineFaggrupper` er tom; synlig feilmelding i Modal hvis ingen kandidat finnes. Ny `opprettFeil`-state, `onError`-handler i `opprettMutation`. Server-side `verifiserFaggruppeTilhorighet` har admin-bypass for sitedoc_admin og ProjectMember.role="admin".

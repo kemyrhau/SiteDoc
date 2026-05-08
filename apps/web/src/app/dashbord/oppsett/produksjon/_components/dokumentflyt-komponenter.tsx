@@ -144,7 +144,7 @@ export function LeggTilMedlemDropdown({
           {tilgjengeligeFaggrupper.length > 0 && (
             <div className="border-b border-gray-100 px-3 py-1.5">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                {t("kontakter.faggrupper")}
+                {t("dokumentflyt.faggrupper")}
               </div>
             </div>
           )}
@@ -165,7 +165,7 @@ export function LeggTilMedlemDropdown({
           {tilgjengeligeGrupper.length > 0 && (
             <div className="border-b border-t border-gray-100 px-3 py-1.5">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                {t("kontakter.grupper")}
+                {t("dokumentflyt.grupper")}
               </div>
             </div>
           )}
@@ -186,7 +186,7 @@ export function LeggTilMedlemDropdown({
           {tilgjengeligeMedlemmer.length > 0 && (
             <div className="border-b border-t border-gray-100 px-3 py-1.5">
               <div className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                {t("kontakter.personer")}
+                {t("dokumentflyt.personer")}
               </div>
             </div>
           )}
