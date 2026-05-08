@@ -19,7 +19,7 @@
   "nav.liveView": "Live View",
   "nav.lokasjoner": "Asukohad",
   "nav.kontrollplan": "Kontrollplaanid",
-  "nav.dokumentflyt": "Kontaktid",
+  "nav.dokumentflyt": "Dokumendivoog",
   "nav.grupper": "Grupid",
   "nav.psi": "PSI",
   "toppbar.loggUt": "Logi välja",
@@ -971,5 +971,6 @@
   "brukere.produksjon": "Välitööd",
   "tabell.venterPaa": "Ootab",
   "dashbord.venterPaaTilgangTittel": "Ootab projekti juurdepääsu",
-  "dashbord.venterPaaTilgangBeskrivelse": "Teil pole veel ühelegi projektile juurdepääsu. Võtke ühendust oma projektijuhiga."
+  "dashbord.venterPaaTilgangBeskrivelse": "Teil pole veel ühelegi projektile juurdepääsu. Võtke ühendust oma projektijuhiga.",
+  "oppsett.dokumentflyt": "Dokumendivoog"
 }

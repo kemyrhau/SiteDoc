@@ -19,7 +19,7 @@
   "nav.liveView": "Live View",
   "nav.lokasjoner": "Lokality",
   "nav.kontrollplan": "Kontrolní plány",
-  "nav.dokumentflyt": "Kontakty",
+  "nav.dokumentflyt": "Oběh dokumentů",
   "nav.grupper": "Skupiny",
   "nav.psi": "PSI",
   "toppbar.loggUt": "Odhlaste se",
@@ -971,5 +971,6 @@
   "brukere.produksjon": "Práce v terénu",
   "tabell.venterPaa": "Čeká na",
   "dashbord.venterPaaTilgangTittel": "Čeká se na přístup k projektu",
-  "dashbord.venterPaaTilgangBeskrivelse": "Zatím nemáte přístup k žádným projektům. Kontaktujte svého vedoucího projektu."
+  "dashbord.venterPaaTilgangBeskrivelse": "Zatím nemáte přístup k žádným projektům. Kontaktujte svého vedoucího projektu.",
+  "oppsett.dokumentflyt": "Oběh dokumentů"
 }

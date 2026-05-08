@@ -19,7 +19,7 @@
   "nav.liveView": "Live View",
   "nav.lokasjoner": "Emplacements",
   "nav.kontrollplan": "Plans de contrôle",
-  "nav.dokumentflyt": "Contacts",
+  "nav.dokumentflyt": "Flux de documents",
   "nav.grupper": "Groupes",
   "nav.psi": "psi",
   "toppbar.loggUt": "Se déconnecter",
@@ -971,5 +971,6 @@
   "brukere.produksjon": "Travail sur le terrain",
   "tabell.venterPaa": "En attente de",
   "dashbord.venterPaaTilgangTittel": "En attente d'accès au projet",
-  "dashbord.venterPaaTilgangBeskrivelse": "Vous n'avez encore accès à aucun projet. Contactez votre chef de projet."
+  "dashbord.venterPaaTilgangBeskrivelse": "Vous n'avez encore accès à aucun projet. Contactez votre chef de projet.",
+  "oppsett.dokumentflyt": "Flux de documents"
 }

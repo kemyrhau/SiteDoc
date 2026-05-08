@@ -19,7 +19,7 @@
   "nav.liveView": "Live View",
   "nav.lokasjoner": "Sijainnit",
   "nav.kontrollplan": "Tarkastussuunnitelmat",
-  "nav.dokumentflyt": "Yhteystiedot",
+  "nav.dokumentflyt": "Asiakirjavirta",
   "nav.grupper": "Ryhmät",
   "nav.psi": "PSI",
   "toppbar.loggUt": "Kirjaudu ulos",
@@ -971,5 +971,6 @@
   "brukere.produksjon": "Kenttätyöt",
   "tabell.venterPaa": "Odottaa",
   "dashbord.venterPaaTilgangTittel": "Odotetaan projektin käyttöoikeutta",
-  "dashbord.venterPaaTilgangBeskrivelse": "Sinulla ei ole vielä pääsyä yhteenkään projektiin. Ota yhteyttä projektipäällikköösi."
+  "dashbord.venterPaaTilgangBeskrivelse": "Sinulla ei ole vielä pääsyä yhteenkään projektiin. Ota yhteyttä projektipäällikköösi.",
+  "oppsett.dokumentflyt": "Asiakirjavirta"
 }

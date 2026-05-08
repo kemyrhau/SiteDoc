@@ -19,7 +19,7 @@
   "nav.liveView": "Live View",
   "nav.lokasjoner": "Locații",
   "nav.kontrollplan": "Planuri de control",
-  "nav.dokumentflyt": "Contacte",
+  "nav.dokumentflyt": "Flux de documente",
   "nav.grupper": "Grupuri",
   "nav.psi": "PSI",
   "toppbar.loggUt": "Deconectați-vă",
@@ -971,5 +971,6 @@
   "brukere.produksjon": "Munca pe teren",
   "tabell.venterPaa": "Așteaptă",
   "dashbord.venterPaaTilgangTittel": "Se așteaptă accesul la proiect",
-  "dashbord.venterPaaTilgangBeskrivelse": "Nu aveți încă acces la niciun proiect. Contactați managerul de proiect."
+  "dashbord.venterPaaTilgangBeskrivelse": "Nu aveți încă acces la niciun proiect. Contactați managerul de proiect.",
+  "oppsett.dokumentflyt": "Flux de documente"
 }

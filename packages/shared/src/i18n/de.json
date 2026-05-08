@@ -19,7 +19,7 @@
   "nav.liveView": "Live View",
   "nav.lokasjoner": "Standorte",
   "nav.kontrollplan": "Kontrollpläne",
-  "nav.dokumentflyt": "Kontakte",
+  "nav.dokumentflyt": "Dokumentenfluss",
   "nav.grupper": "Gruppen",
   "nav.psi": "PSI",
   "toppbar.loggUt": "Abmelden",
@@ -971,5 +971,6 @@
   "brukere.produksjon": "Feldarbeit",
   "tabell.venterPaa": "Wartet auf",
   "dashbord.venterPaaTilgangTittel": "Wartet auf Projektzugriff",
-  "dashbord.venterPaaTilgangBeskrivelse": "Sie haben noch keinen Zugriff auf Projekte. Bitte wenden Sie sich an Ihren Projektleiter."
+  "dashbord.venterPaaTilgangBeskrivelse": "Sie haben noch keinen Zugriff auf Projekte. Bitte wenden Sie sich an Ihren Projektleiter.",
+  "oppsett.dokumentflyt": "Dokumentenfluss"
 }
