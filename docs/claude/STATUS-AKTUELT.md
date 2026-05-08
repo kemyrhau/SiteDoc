@@ -13,6 +13,10 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 
 ## Pågående arbeid
 
+**Albansk (sq) lagt til + alle 14 eksisterende språk fullført IMPLEMENTERT på develop 2026-05-08.** Sitedoc støtter nå 15 språk. `sq.json` opprettet med 2145 nøkler (visningsnavn «Shqip», flagg 🇦🇱). Som sidegevinst fylte `generate.ts` ut alle manglende nøkler i de 6 språkene på 974-baseline (cs/de/et/fi/fr/ro) og 8 språkene på 2130-baseline — alle 14 eksisterende språk er nå på 2145-nøkler-baseline. Ingen batch-feil for sq, men 4 språk (ro/et/cs/de) fikk én 50-nøkler-batch til engelsk fallback som må re-oversettes ved senere kjøring. 7138 nye/oppdaterte oversettelser totalt. Web typecheck + build grønt, mobil 12 = 12. Native-speaker-QA anbefalt for sq, cs, de, et, fi.
+
+---
+
 **Rename `kontakter` → `dokumentflyt` IMPLEMENTERT på develop 2026-05-08.** Lukker semantisk drift: ruta het `kontakter` mens UI allerede sa «Dokumentflyt» (verdiene `oppsett.kontakter` og `kontakter.tittel` var begge «Dokumentflyt» i nb). Nå er alt konsistent. Route flyttet, gammel sti bevart som server-side redirect-stub. 502 i18n-nøkler restrukturert via Node-skript over 14 språkfiler. Web-grep `kontakter` redusert fra 55 → 15 (kun variabelnavn + semantisk korrekte nøkler igjen), i18n fra 536 → 24, mobil fra 1 → 0. `pnpm --filter @sitedoc/web typecheck` + `pnpm build --filter @sitedoc/web` grønt på 54.6s. Mobil typecheck 12 = 12 (ingen nye feil). Klar for test-deploy.
 
 ---

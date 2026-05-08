@@ -17,6 +17,7 @@ export const STOETTEDE_SPRAAK = [
   { kode: "ru", navn: "Русский", flagg: "🇷🇺" },
   { kode: "lv", navn: "Latviešu", flagg: "🇱🇻" },
   { kode: "fr", navn: "Français", flagg: "🇫🇷" },
+  { kode: "sq", navn: "Shqip", flagg: "🇦🇱" },
 ] as const;
 
 export type SpraakKode = (typeof STOETTEDE_SPRAAK)[number]["kode"];

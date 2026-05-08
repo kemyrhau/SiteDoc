@@ -54,6 +54,27 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+**Albansk (sq) lagt til som nytt språk + alle 14 eksisterende språk fullført IMPLEMENTERT på develop 2026-05-08.** Sitedoc støtter nå 15 språk (var 14).
+
+**Albansk (`sq.json`):** 2145 nøkler oversatt fra `en.json` via `google-translate-api-x`. Visningsnavn «Shqip», flagg 🇦🇱. Ingen batch-feil for sq → ingen fallback til engelsk. 16 nøkler er identiske med engelsk verdi (legitime internasjonale ord: Admin, Email, Inbox, Logo, Video, SiteDoc, CSV/Excel-formatnavn).
+
+**Sidegevinst — alle 14 eksisterende språk fullført til 2145-baseline:**
+- 6 språk var på 974-baseline (cs, de, et, fi, fr, ro) → fylt ut med ~1171 manglende nøkler hver
+- 8 språk var på 2130-baseline (lt, lv, pl, ru, sv, uk + andre) → fylt ut med 15 manglende nøkler hver (drift fra ny dokumentflyt-rename + brukere-rename)
+- nb (2145) er sannhetskilden for nøkkel-rekkefølge; en (2148) er kilde for oversettelse
+- 4 språk fikk én batch-fallback på 50 nøkler (ro, et, cs, de) — disse 50 er nå på engelsk og må re-oversettes ved senere kjøring
+
+**Endringer:**
+- `packages/shared/src/i18n/sq.json` — ny fil
+- `packages/shared/src/i18n/index.ts` — sq tilføyd i `STOETTEDE_SPRAAK`
+- `packages/shared/src/i18n/generate.ts` — sq tilføyd i `SPRAAK`-array
+- `apps/web/src/lib/i18n.ts` + `apps/mobile/src/lib/i18n.ts` — sq importert + lagt til i `oversettelser`-objektet
+- 14 eksisterende språkfiler — 7138 nye/oppdaterte oversettelser (1171 × 6 språk + 15 × 8 språk)
+
+**Verifisering:** Web typecheck grønt (kun pre-eksisterende vitest-feil), web build 38.7s, mobil typecheck 12 = 12. Native-speaker-QA på fagtermer anbefalt for spesielt sq, cs, de, et, fi (LLM-kvalitet).
+
+**Klar for test-deploy. Stopp og rapporter etter test-verifisering — prod-deploy avventer eksplisitt grønt lys.**
+
 **Rename `kontakter` → `dokumentflyt` IMPLEMENTERT på develop 2026-05-08.** Lukker semantisk drift: ruta het `kontakter` mens UI allerede sa «Dokumentflyt». Alt nå konsistent.
 
 **Route:** `apps/web/src/app/dashbord/oppsett/produksjon/kontakter/` flyttet til `dokumentflyt/`. Gammel sti er bevart som server-side redirect-stub for bakoverkompatibilitet (eldre bokmerker, eksterne lenker, onboarding-veivisere).
