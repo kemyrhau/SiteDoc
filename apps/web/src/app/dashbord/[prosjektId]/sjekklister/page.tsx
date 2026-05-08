@@ -253,6 +253,7 @@ export default function SjekklisteSide() {
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettModal, setVisSlettModal] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
+  const [opprettFeil, setOpprettFeil] = useState<string | null>(null);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
   const {
     aktiveKolonner, kolonneBredder,
@@ -295,28 +296,40 @@ export default function SjekklisteSide() {
     onSuccess: (_data: unknown) => {
       const resultat = _data as { id: string };
       utils.sjekkliste.hentForProsjekt.invalidate({ projectId: params.prosjektId });
+      setOpprettFeil(null);
       setVisModal(false);
       router.push(`/dashbord/${params.prosjektId}/sjekklister/${resultat.id}`);
+    },
+    onError: (err: { message: string }) => {
+      setOpprettFeil(err.message);
     },
   });
 
   function handleOpprettFraMal(malId: string) {
-    const oppretter = mineFaggrupper?.[0];
-    if (!oppretter) return;
+    setOpprettFeil(null);
     const alleDf = (dokumentflyter ?? []) as Array<{
       id: string;
-      medlemmer: Array<{ faggruppe?: { id: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
+      medlemmer: Array<{ faggruppe?: { id: string; name?: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
       maler: Array<{ template: { id: string } }>;
     }>;
+    const oppretter = mineFaggrupper?.[0];
     const matchDf = alleDf.find((df) =>
       df.maler.some((m) => m.template.id === malId) &&
-      df.medlemmer.some((m) => m.rolle === "oppretter" && (m.faggruppe?.id === oppretter.id || m.group || m.projectMember)),
+      (oppretter
+        ? df.medlemmer.some((m) => m.rolle === "oppretter" && (m.faggruppe?.id === oppretter.id || m.group || m.projectMember))
+        : df.medlemmer.some((m) => m.rolle === "oppretter")),
     );
+    const dfOppretterFg = matchDf?.medlemmer.find((m) => m.rolle === "oppretter")?.faggruppe?.id;
+    const bestillerId = oppretter?.id ?? dfOppretterFg;
+    if (!bestillerId) {
+      setOpprettFeil(t("sjekklister.feil.ingenFaggruppe"));
+      return;
+    }
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
     opprettMutation.mutate({
       templateId: malId,
-      bestillerFaggruppeId: oppretter.id,
-      utforerFaggruppeId: svarer?.faggruppe?.id ?? oppretter.id,
+      bestillerFaggruppeId: bestillerId,
+      utforerFaggruppeId: svarer?.faggruppe?.id ?? bestillerId,
       dokumentflytId: matchDf?.id,
     });
   }
@@ -639,8 +652,9 @@ export default function SjekklisteSide() {
         </div>
       </Modal>
 
-      <Modal open={visModal} onClose={() => setVisModal(false)} title={t("sjekklister.velgMal")}>
+      <Modal open={visModal} onClose={() => { setOpprettFeil(null); setVisModal(false); }} title={t("sjekklister.velgMal")}>
         <div className="space-y-1">
+          {opprettFeil && <p className="text-sm text-red-600 bg-red-50 rounded p-3 mb-2">{opprettFeil}</p>}
           {sjekklisteMaler.length === 0 ? (
             <p className="py-4 text-center text-sm text-gray-400">{t("sjekklister.ingenMaler")}</p>
           ) : sjekklisteMaler.map((m: { id: string; name: string; prefix?: string }) => (

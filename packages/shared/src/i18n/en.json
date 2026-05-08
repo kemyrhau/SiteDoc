@@ -435,6 +435,7 @@
   "sjekklister.slettBekreftelse": "Are you sure you want to delete {{antall}} checklist(s)? This action cannot be undone.",
   "sjekklister.slettTittel": "Delete checklist(s)?",
   "sjekklister.sokPlaceholder": "Search checklists...",
+  "sjekklister.feil.ingenFaggruppe": "You are not a member of any trade group in this project, and the template has no creator trade group in the document flow. Ask a project admin to assign you to a trade group or create a document flow for the template.",
   "mapper.tittel": "Folders",
   "mapper.velgMappe": "Select a folder in the left panel to view its contents.",
   "mapper.ingenTilgang": "You do not have access to the contents of this folder.",

@@ -1,7 +1,7 @@
 ---
 name: STATUS-AKTUELT
 description: Løpende statusrapport for pågående arbeid, pauset arbeid og planlagte faser. Oppdateres ved hver vesentlig fremdrift.
-sist_verifisert_mot_kode: 2026-05-07
+sist_verifisert_mot_kode: 2026-05-08
 ---
 
 # SiteDoc — aktuell status
@@ -12,6 +12,18 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 [arkitektur-syntese.md](arkitektur-syntese.md).
 
 ## Pågående arbeid
+
+**Sjekkliste opprett-modal + mobil rettighet IMPLEMENTERT på develop 2026-05-08.** To bugs i én PR.
+
+**Bug 1 — Web sjekkliste opprett-modal:** Klikk på mal gjorde ingenting når brukeren ikke var medlem av noen faggruppe (sitedoc_admin / company_admin uten faggruppe-tilknytning). `handleOpprettFraMal` returnerte stille på `if (!oppretter) return`. Fix i `apps/web/src/app/dashbord/[prosjektId]/sjekklister/page.tsx`: fallback-kjede henter `bestillerFaggruppeId` fra dokumentflytens `oppretter`-medlem når `mineFaggrupper` er tom; synlig feilmelding i Modal hvis ingen kandidat finnes. Ny `opprettFeil`-state, `onError`-handler i `opprettMutation`. Server-side `verifiserFaggruppeTilhorighet` har admin-bypass for sitedoc_admin og ProjectMember.role="admin".
+
+**Bug 2 — Mobil sjekkliste read-only:** Sjekkliste i status `"sent"` ble read-only på mobil selv om mottakeren burde hatt redigeringsrett. `useSjekklisteSkjema(id!)` ble kalt uten `rettighetInput`, så hooken falt tilbake til forenklet status-sjekk. Fix i `apps/mobile/app/sjekkliste/[id].tsx`: speiler web-rettighetsberegningen — ny `trpc.gruppe.hentMineTillatelser`-query, useMemo-blokker for `harBallen`/`flytRettighet`/`rettighetInput` (`minRolle` fantes allerede), hook-kall endret til `useSjekklisteSkjema(id!, rettighetInput)`. Ingen endringer i hooken selv.
+
+**i18n:** 1 ny nøkkel `sjekklister.feil.ingenFaggruppe` i nb+en. **Filer:** 4 endret (1 web, 1 mobil, 2 i18n), 0 server, 0 migrasjon. `pnpm --filter @sitedoc/web typecheck` grønt (kun pre-eksisterende vitest-feil i unrelated test). `pnpm build --filter @sitedoc/web` grønt på 36.4s. Mobil typecheck: 12 = 12 (ingen nye feil). Klar for test-deploy. **Stopp og rapporter etter test-verifisering — prod-deploy avventer eksplisitt grønt lys.**
+
+**Oppfølger (egen runde):** `apps/mobile/app/oppgave/[id].tsx` har sannsynligvis identisk Bug 2 — `useOppgaveSkjema(id!)` kalles uten `rettighetInput`. Fikses etter at sjekkliste-fixen er verifisert på test.
+
+---
 
 **EAS Build iOS produksjon godkjent av Apple — TestFlight aktiv 2026-05-08.** Build 1.0.0 (19) er ferdig prosessert i App Store Connect og distribuert til intern testing-gruppe «Team (Expo)». Brukere i gruppen kan nå installere via TestFlight-appen på iPhone.
 

@@ -435,6 +435,7 @@
   "sjekklister.slettBekreftelse": "Er du sikker på at du vil slette {{antall}} sjekkliste(r)? Denne handlingen kan ikke angres.",
   "sjekklister.slettTittel": "Slett sjekkliste(r)?",
   "sjekklister.sokPlaceholder": "Søk sjekklister...",
+  "sjekklister.feil.ingenFaggruppe": "Du er ikke medlem av noen faggruppe i dette prosjektet, og malen mangler en oppretter-faggruppe i dokumentflyten. Be en prosjektadmin koble deg til en faggruppe eller opprette en dokumentflyt for malen.",
   "mapper.tittel": "Mapper",
   "mapper.velgMappe": "Velg en mappe i panelet til venstre for å se innholdet.",
   "mapper.ingenTilgang": "Du har ikke tilgang til innholdet i denne mappen.",
