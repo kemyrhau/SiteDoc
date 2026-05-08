@@ -75,7 +75,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 **Klar for test-deploy. Stopp og rapporter etter test-verifisering — prod-deploy avventer eksplisitt grønt lys.**
 
-**Rename `kontakter` → `dokumentflyt` IMPLEMENTERT på develop 2026-05-08.** Lukker semantisk drift: ruta het `kontakter` mens UI allerede sa «Dokumentflyt». Alt nå konsistent.
+**Rename `kontakter` → `dokumentflyt` DEPLOYET TIL PROD 2026-05-09** (`4919befc` refactor + `27232541` i18n-verdier + `01e51bcd` deploy.sh-fix). HTTP/2 200 mot sitedoc.no. Lukker semantisk drift: ruta het `kontakter` mens UI allerede sa «Dokumentflyt». Alt nå konsistent.
 
 **Route:** `apps/web/src/app/dashbord/oppsett/produksjon/kontakter/` flyttet til `dokumentflyt/`. Gammel sti er bevart som server-side redirect-stub for bakoverkompatibilitet (eldre bokmerker, eksterne lenker, onboarding-veivisere).
 
@@ -101,15 +101,13 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 **Avvik fra instruks (flagget):** (1) Steg 2 sa `oppsett/produksjon/layout.tsx` men korrekt fil var `oppsett/layout.tsx`. (2) Steg 2 sa "2 stk lenker" men det var 3 (1 i layout + 2 i onboarding-checkpoint). (3) `nav.dokumentflyt`-verdiene er fortsatt «Kontakter» / «Contacts» / etc. — ren rename av nøkkel uten verdi-endring per instruks. Mobil-fanen i `(tabs)/mer.tsx` viser dermed fortsatt «Kontakter»-tekst, peker til en placeholder-menyrad uten onPress. Verdi-endring til «Dokumentflyt» er en separat designvurdering — utenfor scope.
 
-**Klar for test-deploy. Stopp og rapporter etter test-verifisering — prod-deploy avventer eksplisitt grønt lys.**
-
-**Sjekkliste opprett-modal + mobil rettighet IMPLEMENTERT på develop 2026-05-08.** To bugs i én PR.
+**Sjekkliste opprett-modal + mobil rettighet DEPLOYET TIL PROD 2026-05-09** (`4e29c88a`). HTTP/2 200 mot sitedoc.no. To bugs i én PR.
 
 **Bug 1 — Web (`apps/web/src/app/dashbord/[prosjektId]/sjekklister/page.tsx`):** Klikk på mal i opprett-modal gjorde ingenting når innlogget bruker ikke var medlem av noen faggruppe i prosjektet (typisk sitedoc_admin / company_admin uten faggruppe-tilknytning). `handleOpprettFraMal` returnerte stille på `if (!oppretter) return`. Fix: fallback-kjede henter `bestillerFaggruppeId` fra dokumentflytens `oppretter`-medlem når `mineFaggrupper` er tom; synlig feilmelding rendres i Modal hvis hverken brukerens egen faggruppe eller dokumentflytens oppretter-faggruppe finnes. Ny `opprettFeil`-state, `onError`-handler i `opprettMutation`, nullstilles ved Modal-onClose. Server-grensen `verifiserFaggruppeTilhorighet` har admin-bypass for sitedoc_admin og ProjectMember.role="admin" — admin kan trygt sende en hvilken som helst faggruppe-id. Company_admin uten ProjectMember-rad får fortsatt FORBIDDEN (eksisterende svakhet, utenfor scope), men feilen vises nå i UI i stedet for stille død UI.
 
 **Bug 2 — Mobil (`apps/mobile/app/sjekkliste/[id].tsx`):** Sjekkliste i status `"sent"` ble read-only på mobil selv om mottakeren burde hatt redigeringsrett via `harBallen`/`flytRettighet`. `useSjekklisteSkjema(id!)` ble kalt uten `rettighetInput`, så hooken falt tilbake til forenklet status-sjekk (`REDIGERBARE_STATUSER = {"draft","received","in_progress"}`). Fix: speiler web-rettighetsberegningen — ny `trpc.gruppe.hentMineTillatelser`-query, fire useMemo-blokker (`harBallen`, `flytRettighet`, `rettighetInput`; `minRolle` fantes allerede), hook-kall endret til `useSjekklisteSkjema(id!, rettighetInput)`. Ingen endringer i hooken selv — den støtter `rettighetInput` allerede via `utledDokumentRettighet`. Importer utvidet med `beregnHarBallen` + `HarBallenDokument` fra `@sitedoc/shared`.
 
-**i18n:** 1 ny nøkkel `sjekklister.feil.ingenFaggruppe` i nb+en. **Filer:** 4 endret (1 web, 1 mobil, 2 i18n), 0 server, 0 migrasjon. `pnpm --filter @sitedoc/web typecheck` grønt (kun pre-eksisterende vitest-feil i unrelated test). `pnpm build --filter @sitedoc/web` grønt på 36.4s. Mobil typecheck: 12 = 12 (ingen nye feil; pre-eksisterende gjeld dokumentert). **Oppfølger:** `apps/mobile/app/oppgave/[id].tsx` har sannsynligvis identisk Bug 2 (samme mønster med `useOppgaveSkjema(id!)` uten `rettighetInput`) — fikses i neste runde etter at sjekkliste-fixen er verifisert. Klar for test-deploy. **Stopp og rapporter etter test-verifisering — prod-deploy avventer eksplisitt grønt lys.**
+**i18n:** 1 ny nøkkel `sjekklister.feil.ingenFaggruppe` i nb+en. **Filer:** 4 endret (1 web, 1 mobil, 2 i18n), 0 server, 0 migrasjon. `pnpm --filter @sitedoc/web typecheck` grønt (kun pre-eksisterende vitest-feil i unrelated test). `pnpm build --filter @sitedoc/web` grønt på 36.4s. Mobil typecheck: 12 = 12 (ingen nye feil; pre-eksisterende gjeld dokumentert). **Oppfølger:** `apps/mobile/app/oppgave/[id].tsx` har sannsynligvis identisk Bug 2 (samme mønster med `useOppgaveSkjema(id!)` uten `rettighetInput`) — fikses i neste runde etter at sjekkliste-fixen er verifisert.
 
 **Inviter + rediger firma-bruker IMPLEMENTERT på develop 2026-05-08.** Lukker arkitekturhull på `/dashbord/firma/brukere`: Florian (company_admin hos A.Markussen) kunne tidligere kun endre rolle på eksisterende brukere — kunne ikke invitere nye ansatte til firmaet eller redigere navn/e-post/telefon. Nå har siden «+ Inviter bruker»-knapp øverst og Pencil-ikon per rad (skjult for sitedoc_admin-rader).
 
