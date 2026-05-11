@@ -284,6 +284,13 @@ export async function syncTimer(
         sistSynkronisert: serverTidMs,
       };
 
+      // T.1 (2026-05-11): server returnerer projectId fra første rad.
+      // null kan oppstå hvis sedelen er helt tom (ingen timer/maskin/tillegg)
+      // — det er en forbigående tilstand som blir korrigert ved neste sync
+      // når rader er lagt til. Lokal lagring tolererer "" som plassholder
+      // (Drizzle-typen forventer string).
+      const sedelProjectId = serverSedel.projectId ?? "";
+
       if (!lokal) {
         // Ny seddel fra server (typisk en seddel registrert på en annen enhet)
         db.insert(dagsseddelLocal)
@@ -291,7 +298,7 @@ export async function syncTimer(
             id: serverSedel.id,
             userId: serverSedel.userId,
             organizationId: serverSedel.organizationId,
-            projectId: serverSedel.projectId,
+            projectId: sedelProjectId,
             aktivitetId: serverSedel.aktivitetId,
             avdelingId: serverSedel.avdelingId,
             byggeplassId: serverSedel.byggeplassId,
@@ -312,7 +319,7 @@ export async function syncTimer(
         // Eksisterende synced/conflict — overskriv med server-versjon
         db.update(dagsseddelLocal)
           .set({
-            projectId: serverSedel.projectId,
+            projectId: sedelProjectId,
             aktivitetId: serverSedel.aktivitetId,
             avdelingId: serverSedel.avdelingId,
             byggeplassId: serverSedel.byggeplassId,

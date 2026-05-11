@@ -294,6 +294,30 @@ I dag arver `SheetMachine` prosjekttilhørighet via `DailySheet.projectId` (Casc
 - **#2 overtid 8t/7t** — uavhengig (validering ved opprett/edit av rad, ikke knyttet til prosjekt-flytt)
 - **#7 rolle-matrise (Prosjektleder/Bas)** — `krevProsjektLeder` refaktoreres uansett — godt tidspunkt å avklare rollesystem først
 
+### Implementasjonsstatus PR 1A → PR 2C (2026-05-11/12)
+
+| PR | Innhold | Status |
+|---|---|---|
+| **PR 1A** (`862c70c3`) | Schema-additive + backfill (alle kolonner nullable, DailySheet.projectId beholdt) | 🟢 Deployet prod 2026-05-11 |
+| **PR 1B** (`bba971ba`) | NOT NULL på rad-tabeller + drop DailySheet.projectId + ny unique `(userId, dato)` | 🟢 Deployet test 2026-05-11. **Avventer prod** til klient-lag (PR 2A/B/C) verifisert på test |
+| **PR 2A** (`6431873c`) | API-refaktor — dagsseddel/rapport/vareforbruk-routes (45 → 0 TS-feil i `apps/api`) | 🟢 Deployet test 2026-05-12 |
+| **PR 2B** (`8478d4a7`) | Web-klient — 3 timer-modaler sender `projectId` fra `useParams` (46 → 0 TS-feil i `apps/web`) | 🟢 Deployet test 2026-05-12. PM2-restart bekreftet (uptime 7m, restart-teller +1) |
+| **PR 2C** (denne commit) | Mobil — defensiv `?? ""` på `serverSedel.projectId` i `timerSync.ts` mot ny server-respons (null for tomme sedler) | 🟢 Minimumsfix |
+
+### Åpen oppgave — full Drizzle-schema-omskriving (utsatt)
+
+Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.project_id` er NOT NULL på sedel-nivå. Etter T.1/T.2 burde mobil ideelt sett:
+
+1. Gjøre `dagsseddel_local.project_id` nullable (krever SQLite TABLE-recreate-mønster siden ALTER COLUMN DROP NOT NULL ikke støttes direkte)
+2. Legge til `project_id` (NOT NULL) + `byggeplass_id` + `fra_tid` + `til_tid` + `attestert_status`/`attestert_av_user_id`/`attestert_ved` på `sheet_timer_local`, `sheet_machine_local`, `sheet_tillegg_local` via idempotente ALTER TABLE
+3. Backfill rad-tabellene fra parent `dagsseddel_local.project_id` (samme mønster som C9-migrasjonen for `aktivitet_id`)
+4. Oppdatere `timerSync.ts` push-flyt til å sende `projectId` per rad (i tråd med ny API-protokoll fra PR 2A)
+5. Oppdatere `app/timer/[id].tsx`, `ny.tsx`, `mine.tsx` for å rendere/redigere projectId per rad
+
+**Hvorfor utsatt:** Mobil typecheck er uendret fra baseline (12 pre-eksisterende feil, alle pre-eksisterende per CLAUDE.md). Eksisterende sync-flyt fungerer fordi mobil sender `lokal.projectId` på sedel-nivå og PR 2A's server propagerer til rader. Full omskriving er en eget runde (1–2 dager) som påvirker offline-sync-strategien og krever mobil-team-koordinering.
+
+**Avhengigheter for å låse opp:** Ny krav fra Sonnet/Kenneth (f.eks. arbeider registrerer timer for flere prosjekter samme dag via mobil) trigger denne omskrivingen.
+
 ---
 
 ## Pågående arbeid
