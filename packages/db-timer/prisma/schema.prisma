@@ -126,7 +126,8 @@ model DailySheet {
   organizationId      String    @map("organization_id")
   userId              String    @map("user_id")
   registrertAvUserId  String    @map("registrert_av_user_id") // kan være ulik userId
-  projectId           String    @map("project_id")
+  // T.1 (PR 1B, 2026-05-11) — projectId droppet. Dagsseddel eies av arbeider/firma.
+  // Prosjekttilhørighet ligger nå på rad-nivå (SheetTimer.projectId).
   // Default-aktivitet for nye timer-rader. Selve kanon-eierskapet ligger på SheetTimer.aktivitetId per rad (vedtatt C9 2026-05-02).
   // Beholdes nullable for bakoverkompatibilitet og UX (kopieres til første rad ved opprettelse, kan overstyres per rad).
   aktivitetId         String?   @map("aktivitet_id")
@@ -151,9 +152,8 @@ model DailySheet {
   tillegg   SheetTillegg[]
   maskiner  SheetMachine[]
 
-  @@unique([userId, projectId, dato], name: "uq_dailysheet_user_project_dato")
+  @@unique([userId, dato])
   @@index([organizationId])
-  @@index([projectId, dato])
   @@index([organizationId, dato])
   @@index([organizationId, status])
   @@index([attestertAvUserId, attestertVed])
@@ -175,10 +175,10 @@ model SheetTimer {
   // Per-rad aktivitet (C9 2026-05-02). Backfill ved migrasjon: parent.aktivitetId.
   // NOT NULL — alle nye rader må ha aktivitet. Klient sender alltid (default fra sedel).
   aktivitetId           String   @map("aktivitet_id")
-  // T.2 (2026-05-11) — Per-rad prosjekttilhørighet. Nullable i PR 1A (backfill via UPDATE).
-  // Settes NOT NULL + drop DailySheet.projectId i PR 1B. Svak FK uten @relation (A.20-mønster).
-  projectId             String?  @map("project_id")
-  // T.2 — Per-rad byggeplass. Flyttes fra DailySheet til rad-nivå i PR 1B.
+  // T.2 (PR 1B, 2026-05-11) — Per-rad prosjekttilhørighet. NOT NULL etter backfill i PR 1A.
+  // Svak FK uten @relation (A.20-mønster).
+  projectId             String   @map("project_id")
+  // T.2 — Per-rad byggeplass. Forblir nullable (A.30: byggeplass-NULL er gyldig).
   byggeplassId          String?  @map("byggeplass_id")
   // T.4 — Per-rad tid HH:MM. Server validerer fraTid < tilTid i PR 2.
   fraTid                String?  @map("fra_tid")
@@ -216,8 +216,8 @@ model SheetTillegg {
   id                String   @id @default(uuid())
   sheetId           String   @map("sheet_id")
   tilleggId         String   @map("tillegg_id")
-  // T.2 (2026-05-11) — Per-rad prosjekttilhørighet. Nullable i PR 1A; NOT NULL i PR 1B.
-  projectId         String?  @map("project_id")
+  // T.2 (PR 1B, 2026-05-11) — Per-rad prosjekttilhørighet. NOT NULL etter backfill i PR 1A.
+  projectId         String   @map("project_id")
   antall            Decimal  @db.Decimal(6, 2)
   kommentar         String?  @db.Text
   attestertSnapshot Json?    @map("attestert_snapshot")
@@ -249,8 +249,8 @@ model SheetMachine {
   id                String   @id @default(uuid())
   sheetId           String   @map("sheet_id")
   vehicleId         String   @map("vehicle_id") // svak FK → maskin.equipment (db-maskin)
-  // T.2 (2026-05-11) — Per-rad prosjekttilhørighet. Nullable i PR 1A; NOT NULL i PR 1B.
-  projectId         String?  @map("project_id")
+  // T.2 (PR 1B, 2026-05-11) — Per-rad prosjekttilhørighet. NOT NULL etter backfill i PR 1A.
+  projectId         String   @map("project_id")
   byggeplassId      String?  @map("byggeplass_id")
   // T.4 — Per-rad tid HH:MM.
   fraTid            String?  @map("fra_tid")
