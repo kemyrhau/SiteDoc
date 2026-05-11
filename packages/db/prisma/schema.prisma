@@ -218,6 +218,9 @@ model OrganizationSetting {
   tillattSelvAttestering Boolean @default(true) @map("tillatt_selv_attestering")
   // Antall dager før dagsseddel låses for endring (NULL = ingen alders-grense, status styrer låsing)
   timerLockEtterDager    Int?    @map("timer_lock_etter_dager")
+  // T.5 (2026-05-11) — Tidsrunding i minutter ved timer-registrering.
+  // Støttede verdier: 15, 30, 60, null (ingen avrunding). Default 15.
+  tidsrundingMinutter    Int?    @default(15) @map("tidsrunding_minutter")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

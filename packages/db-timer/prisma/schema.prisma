@@ -175,9 +175,21 @@ model SheetTimer {
   // Per-rad aktivitet (C9 2026-05-02). Backfill ved migrasjon: parent.aktivitetId.
   // NOT NULL — alle nye rader må ha aktivitet. Klient sender alltid (default fra sedel).
   aktivitetId           String   @map("aktivitet_id")
+  // T.2 (2026-05-11) — Per-rad prosjekttilhørighet. Nullable i PR 1A (backfill via UPDATE).
+  // Settes NOT NULL + drop DailySheet.projectId i PR 1B. Svak FK uten @relation (A.20-mønster).
+  projectId             String?  @map("project_id")
+  // T.2 — Per-rad byggeplass. Flyttes fra DailySheet til rad-nivå i PR 1B.
+  byggeplassId          String?  @map("byggeplass_id")
+  // T.4 — Per-rad tid HH:MM. Server validerer fraTid < tilTid i PR 2.
+  fraTid                String?  @map("fra_tid")
+  tilTid                String?  @map("til_tid")
   externalCostObjectId  String?  @map("external_cost_object_id") // svak FK → external_cost_objects (kjernen)
   timer                 Decimal  @db.Decimal(6, 2)
   attestertSnapshot     Json?    @map("attestert_snapshot") // Pris-snapshot ved attestering (Fase 0 A.7) — inkluderer aktivitet-snapshot post-C9
+  // T.3 — Per-rad attestering. "pending" | "godkjent" | "returnert".
+  attestertStatus       String?  @default("pending") @map("attestert_status")
+  attestertAvUserId     String?  @map("attestert_av_user_id") // svak FK → users
+  attestertVed          DateTime? @map("attestert_ved") @db.Timestamptz()
   createdAt             DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt             DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
@@ -189,6 +201,9 @@ model SheetTimer {
   @@index([lonnsartId])
   @@index([aktivitetId])
   @@index([externalCostObjectId])
+  @@index([projectId])
+  @@index([byggeplassId])
+  @@index([attestertStatus])
   @@map("sheet_timer")
   @@schema("timer")
 }
@@ -201,9 +216,15 @@ model SheetTillegg {
   id                String   @id @default(uuid())
   sheetId           String   @map("sheet_id")
   tilleggId         String   @map("tillegg_id")
+  // T.2 (2026-05-11) — Per-rad prosjekttilhørighet. Nullable i PR 1A; NOT NULL i PR 1B.
+  projectId         String?  @map("project_id")
   antall            Decimal  @db.Decimal(6, 2)
   kommentar         String?  @db.Text
   attestertSnapshot Json?    @map("attestert_snapshot")
+  // T.3 — Per-rad attestering.
+  attestertStatus   String?  @default("pending") @map("attestert_status")
+  attestertAvUserId String?  @map("attestert_av_user_id") // svak FK → users
+  attestertVed      DateTime? @map("attestert_ved") @db.Timestamptz()
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
@@ -212,6 +233,8 @@ model SheetTillegg {
 
   @@index([sheetId])
   @@index([tilleggId])
+  @@index([projectId])
+  @@index([attestertStatus])
   @@map("sheet_tillegg")
   @@schema("timer")
 }
@@ -226,10 +249,20 @@ model SheetMachine {
   id                String   @id @default(uuid())
   sheetId           String   @map("sheet_id")
   vehicleId         String   @map("vehicle_id") // svak FK → maskin.equipment (db-maskin)
+  // T.2 (2026-05-11) — Per-rad prosjekttilhørighet. Nullable i PR 1A; NOT NULL i PR 1B.
+  projectId         String?  @map("project_id")
+  byggeplassId      String?  @map("byggeplass_id")
+  // T.4 — Per-rad tid HH:MM.
+  fraTid            String?  @map("fra_tid")
+  tilTid            String?  @map("til_tid")
   timer             Decimal  @db.Decimal(6, 2)
   mengde            Decimal? @db.Decimal(12, 2)
   enhet             String?  // m, m2, m3, kg, tonn, stk
   attestertSnapshot Json?    @map("attestert_snapshot") // Pris-snapshot ved attestering — null inntil Equipment-prising er spec'd (Fase 1+)
+  // T.3 — Per-rad attestering.
+  attestertStatus   String?  @default("pending") @map("attestert_status")
+  attestertAvUserId String?  @map("attestert_av_user_id") // svak FK → users
+  attestertVed      DateTime? @map("attestert_ved") @db.Timestamptz()
   createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
@@ -237,6 +270,9 @@ model SheetMachine {
 
   @@index([sheetId])
   @@index([vehicleId])
+  @@index([projectId])
+  @@index([byggeplassId])
+  @@index([attestertStatus])
   @@map("sheet_machines")
   @@schema("timer")
 }
