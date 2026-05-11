@@ -11,6 +11,291 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 [fase-0-beslutninger.md](fase-0-beslutninger.md) og
 [arkitektur-syntese.md](arkitektur-syntese.md).
 
+## Kundeønsker — A.Markussen (mottatt 2026-05-06)
+
+12 forbedringsønsker fra kunde. Status per 2026-05-11 etter sjekk mot kode og commits. Legenda: 🟢 fikset · 🟡 delvis · 🔴 ikke startet · ❓ trenger verifikasjon · ⏸️ parkert.
+
+### #1 — Sjekkliste for service koblet til timetall og status 🟡
+
+**Side:** Maskin-detaljer (f.eks. 7634 Heatwork MY35). **Prioritet:** Høy.
+
+Kunden ønsker sjekkliste der timetall kobles til servicestatus, og «neste service» oppdateres automatisk.
+
+**Status:** DB-feltet `nesteServiceTimer` finnes allerede i `packages/db-maskin/prisma/schema.prisma:188`. Mangler: UI-felt på maskin-detaljside, serviceintervall-konfigurasjon, visuell terskel-indikator, sjekkliste med avkrysningsbokser, automatisk oppdatering av neste service basert på driftstimer.
+
+### #2 — Validering av overtid basert på arbeidstid 🔴
+
+**Side:** Timeføring.
+
+Overtid skal ikke kunne registreres før min. 8t (sommer) / 7t (vinter) ordinær arbeidstid er ført. Ingen validering finnes i timer-routes. Ny `sommer/vinter`-overtid-grense-logikk + feilmelding/blokkering mangler.
+
+### #3 — Tidspunkt (fra/til) per linje i timeføringen 🔴
+
+**Side:** Timeføring.
+
+Hver `SheetTimer`-rad skal ha egne fra/til-felt. Schema har ikke `fraTid`/`tilTid` på rad-nivå. Krever schema-utvidelse + validering (fra < til) + UI-oppdatering.
+
+### #4 — Redigering og splitting av timer ved attestering 🟡
+
+**Side:** Attestering.
+
+Attesterende skal kunne redigere antall timer og splitte en rad i flere. **Steg 4a (ECO-flytt på attestering)** ble deployet til prod 2026-05-03 (`f98fa7a5`) — leder kan endre kostnadsbærer per rad. Mangler: redigering av timeantall + rad-splitting + audit-log på endringer.
+
+### #5 — Registrering av HMS-gruppe på brukere ⏸️ PARKERT
+
+**Side:** Oppsett – Brukere.
+
+**Opprinnelig ønske:** Felt for HMS-gruppe på bruker/kontakt-kortet, knyttet til eksisterende gruppe-struktur, filtrerbart i brukerlisten.
+
+**Status (oppdatert 2026-05-11 etter Sonnet-sesjon):** Parkert til prosjektoppsettet er mer modent og avhengighetene er synlige. Tidligere klassifisert som «lav kompleksitet» — feilvurdert.
+
+**Begrunnelse:**
+- To separate konsepter eksisterer i dag: `ProjectGroup` (RBAC/tilgang) og `Faggruppe` (dokumentflyt-deltaker). HMS-gruppe må plasseres i en av disse eller bli et tredje konsept — ikke avgjort.
+- Standard HMS-gruppen (`hms-ledere`, `category="field"`) har ingen UI for administrasjon i dag — kan ikke redigeres via noen side.
+- Brukergruppe-arkitekturen er uavklart: Kenneth vurderer firma-basert gruppering (ansatte/ledere per firma) som fremtidig modell, men ikke låst.
+
+**Beslutning:** Ikke estimer eller planlegg denne nå. Tas opp igjen når prosjektoppsett-design og brukergruppe-arkitektur er låst.
+
+---
+
+### #6 — Maskinmodul ikke synlig i prosjekt 998 Instinniforbotn ❓
+
+**Side:** Maskin (prosjekt 998 Instinniforbotn).
+
+Maskinregister aktivert på firmanivå, men maskinmodul-menypunkt mangler i prosjektets venstremeny og «Oppsett som gjenstår»-varselet flagger maskinmodul-oppsett.
+
+**Status:** Auto-sync-koden finnes (Steg 1c deployet 2026-05-03 — `87fb7292`). Når firmamodul aktiveres skal `ProjectModule(slug="maskin", status="aktiv")` synkroniseres til alle prosjekter. Hvis prosjekt 998 ble opprettet FØR maskin-firmamodulen ble aktivert på A.Markussen, kan synkroniseringen ha hoppet over. **DB-verifikasjon nødvendig:** sjekk om `project_modules`-rad finnes for prosjekt 998 + slug=maskin + status=aktiv. Hvis mangler, kjøres `organisasjon.settFirmamodul({ aktiver: true })` manuelt eller via reaktiverings-knappen i `/dashbord/firma/moduler`.
+
+### #7 — Rettighetsmatrise med rolle-styring (Prosjektleder + Bas) 🔴
+
+**Side:** Oppsett – Brukere/Roller.
+
+Ingen treff på `Prosjektleder`/`Bas` som DB-roller. Eksisterende roller: `User.role = sitedoc_admin | company_admin | user` og `ProjectMember.role = admin | member`. Krever ny rolle-modell + matrise-UI som viser tilganger per rolle.
+
+### #8 — Fagområde og oppgaver i sjekklistemaler-listevisning 🔴
+
+**Side:** Innstillinger – Produksjon – Sjekklistemaler.
+
+`apps/web/src/app/dashbord/oppsett/produksjon/_components/MalListe.tsx` har kun 3 kolonner: Navn (`tabell.navn`), Prefiks (`maler.prefiks`), Versjon (`maler.versjon`). Mangler kolonner for fagområde og oppgaver.
+
+### #9 — Justeringer på SJA (signatur/lesetilgang/deltaker) 🔴
+
+**Side:** Innstillinger – Produksjon – Sjekklistemaler – SJA.
+
+Ingen treff på `SJA`/`sja` i kode — SJA er sannsynligvis en konkret sjekklistemal-instans, ikke egen funksjonalitet. Krever utvidet sjekkliste-mekanikk: re-signaturforespørsel, auto-lesetilgang for alle prosjektmedlemmer, selv-påmelding som deltaker.
+
+### #10 — «Flere personer»-feltet på SJA — definere hvem som er valgbare 🔴
+
+**Side:** Innstillinger – Produksjon – Sjekklistemaler – SJA.
+
+Avklare om feltet henter alle firma-ansatte. Krever felt-konfigurasjon for å begrense/definere valgbare personer per SJA-mal.
+
+### #11 — Pushvarsel/SMS til ansattliste 🔴
+
+**Side:** Generelt.
+
+Ingen treff på `pushvarsel`/`sms` i kode. Krever ny varslingstjeneste (SMS-leverandør integrasjon), målgruppe-velger (alle ansatte eller utvalgte grupper), kostnadsavklaring med SiteDoc/leverandør.
+
+### #12 — Oppretting av ny sjekkliste fungerer ikke 🟢 SANNSYNLIGVIS FIKSET
+
+**Side:** Sjekklister (prosjekt 998 Instinniforbotn).
+
+**Status:** Commit `4e29c88a` («fix: sjekkliste opprett-modal stille død») deployet til prod 2026-05-09. Lukket bug der klikk på mal i opprett-modal gjorde ingenting når innlogget bruker ikke var medlem av noen faggruppe (typisk sitedoc_admin/company_admin uten faggruppe-tilknytning) — `handleOpprettFraMal` returnerte stille. Nå: fallback-kjede henter `bestillerFaggruppeId` fra dokumentflytens `oppretter`-medlem, synlig feilmelding i Modal hvis ingen kandidat finnes. Re-test ønskelig fra kunde for å bekrefte at både «Opprett ny sjekkliste» og «+ Ny sjekkliste» nå fungerer i prosjekt 998.
+
+---
+
+## Timer-modul revisjon — kartlegging 2026-05-11
+
+Forarbeid før planlegging av større timer-modul-revisjon. Ingen koding — kun faktagrunnlag fra schema, routes og UI-filer.
+
+**🟢 Alle arkitektur-beslutninger låst 2026-05-11** i [fase-0-beslutninger.md § T](fase-0-beslutninger.md) (T.1–T.6). Neste steg: PR 1 schema + migrasjon.
+
+### A — Fra/til per rad (#3) ✅ Avklart
+
+**SheetTimer-modellen** (`packages/db-timer/prisma/schema.prisma:171–195`) har følgende felter:
+`id`, `sheetId`, `lonnsartId`, `aktivitetId` (NOT NULL etter C9), `externalCostObjectId` (svak FK), `timer Decimal(6,2)`, `attestertSnapshot Json?`.
+
+**Ingen `fraTid`/`tilTid` på SheetTimer.** Kun antall timer som Decimal(6,2).
+
+**DailySheet-modellen** (`packages/db-timer/prisma/schema.prisma:123–166`) har `startAt DateTime?` og `endAt DateTime?` — dvs. start/slutt **på dag-nivå**, ikke rad-nivå. Også `pauseMin Int @default(0)`.
+
+**UI-filer som redigerer åpen dagsseddel:**
+- `apps/web/src/app/dashbord/[prosjektId]/timer/[id]/page.tsx` — DagsseddelDetaljSide (har `isoTidspunktTilHHMM`-helper)
+- `apps/web/src/app/dashbord/[prosjektId]/timer/ny/page.tsx` — opprett ny
+- `apps/web/src/app/dashbord/timer/mine/page.tsx` — Mine timer-rapport
+- `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/[id]/page.tsx` — leder-detalj (read-only + ECO-flytt)
+- Mobil: `apps/mobile/app/timer/*` (ikke kartlagt i denne runden)
+
+### B — Dagssum på tvers av prosjekter ✅ Avklart
+
+**JA — finnes.** `timer.dagsseddel.hentDagstotal` i `apps/api/src/routes/timer/dagsseddel.ts:1543`. Tar `userId?` (default = innlogget) + `dato` (ISO YYYY-MM-DD), returnerer sum timer på tvers av prosjekter for én bruker × én dato.
+
+Innebygd C9 2026-05-02 for mobil-bruk («Du har ført Xt i dag på N prosjekter» øverst i ny-dagsseddel-flyten). Multi-sedel per dag er gyldig per unique-constraint `(userId, projectId, dato)`.
+
+**Naturlige sider for visning:**
+- Mobil ny-dagsseddel-flyt (bruker den allerede via Runde 2.5/C9)
+- `/dashbord/timer/mine` (Mine timer — periode-rapport)
+- Mobil ukesoppsummering (Runde 2.7 implementert)
+- Leder-attestering-flyt — ville gi kontekst for hvor brukerens øvrige tid er ført
+
+### C — Overtid og lønnsarter (#2) ✅ Avklart
+
+**Lonnsart-typen** (`packages/db-timer/prisma/schema.prisma:22–44`) har `type String` med verdier: `"ordinaer" | "fravaer" | "feriepenger" | "diett"`.
+
+**Overtid finnes IKKE som egen type i Lonnsart.** Overtid er sannsynligvis modellert som **egen `Lonnsart`-rad** med `type="ordinaer"` (f.eks. «Overtid 50 %», «Overtid 100 %»). Verifisering mot seed-data anbefales.
+
+**Auto-fordeling normaltid/overtid** styres av `OrganizationSetting.dagsnorm Decimal @default(7.5)` (kommentar på linje 213: «Dagsnorm i timer per arbeidsdag — auto-fordeling til normaltid/overtid»). Hvordan denne auto-fordelingen kjøres er ikke kartlagt i denne runden — mest sannsynlig i klient-UI eller mutation-handler.
+
+**Ingen 8t/7t-validering** finnes i `apps/api/src/routes/timer/dagsseddel.ts` — `grep "overtid|8t|7t|sommer|vinter"` returnerer tomt fra routes-filer. Validering må bygges fra scratch.
+
+### D — Firminnstilling hele/halve timer ✅ Avklart
+
+**OrganizationSetting** (`packages/db/prisma/schema.prisma:194–229`) har følgende timer-relevante felter:
+
+| Felt | Type | Default | Bruk |
+|---|---|---|---|
+| `timezone` | String | `Europe/Oslo` | Tidssone for forretningsregler (A.14) |
+| `timerTilgangDefault` | String | `alle-ansatte` | Hvem kan registrere timer (default) |
+| `dagsnorm` | Decimal(4,2) | `7.5` | Dagsnorm for auto-fordeling overtid |
+| `overtidsmatTerskel` | Decimal(4,2) | `9.0` | Terskel for overtidsmat-tillegg |
+| `tillattSelvAttestering` | Boolean | `true` | Ansatt kan attestere egen sedel |
+| `timerLockEtterDager` | Int? | NULL | Antall dager før låsing (NULL = status styrer) |
+
+**Ingen `heleTimer`/`halveTimer`-felt.** SheetTimer.timer er `Decimal(6,2)` — tillater 0,01 timer presisjon (ned til 36 sekunder).
+
+**Ingen avrundingslogikk** i timer-routes — `grep "rundAv|heleTimer|halveTimer|round|Math.round|fraction"` returnerer tomt fra `apps/api/src/routes/timer/`. Hvis avrunding skal innføres, må det bygges fra scratch (kandidat for OrganizationSetting-felt `tidsrundingMinutter: Int? @default(null)` med 15/30/60-verdier).
+
+### E — Geolokasjon ✅ Avklart
+
+**Project** (`packages/db/prisma/schema.prisma`) har **`latitude Float?` + `longitude Float?`** — prosjekt-koordinater finnes.
+
+**Byggeplass** har **IKKE** koordinater. Kun `address String?`, `name`, `type` (`bygg`/`anlegg`), `status`. Ingen geofence-radius eller polygon.
+
+**Eksisterende GPS-bruk i mobilappen:** `apps/mobile/src/components/OpprettDokumentModal.tsx` bruker `expo-location` for GPS + `erInnenforBounds(latitude, longitude, geo)`-helper for å sjekke om GPS er innenfor en **tegnings georeferanse** (point1.gps + point2.gps). Brukstilfellet er foreslå korrekt tegning ved opprettelse av sjekkliste/oppgave fra felt.
+
+**Ingen geofence-logikk** for byggeplass eller arbeidstidsregistrering. Mannskaps-modulen (planlagt) har geofence-innsjekk i spec, men det er ikke implementert ennå.
+
+### Andre observasjoner
+
+**Dagsseddel-router (`apps/api/src/routes/timer/dagsseddel.ts`)** har følgende mutations/queries:
+- `list` (linje 133), `hentMedId` (205), `opprett` (233)
+- `hentTilAttestering` (619), `hentTilGodkjenning` (655, alias for backwards compat), `hentForAttestering` (707, leder-detalj-vy)
+- `returner` (850), `attester` (882)
+- `hentEndringerSiden` (998, mobil offline-sync)
+- `hentDagstotal` (1543, cross-prosjekt sum)
+
+**Mangler i dagens timer-modell mtp. revisjons-scope:**
+- Fra/til på rad-nivå (#3) — schema-endring
+- 8t/7t overtid-validering (#2) — server-logikk
+- Redigering av timer-antall under attestering (#4 utvidelse) — server + UI
+- Rad-splitting under attestering (#4) — server + UI
+- Avrunding/heleTimer-konfig — schema + logikk
+- Geofence-basert timer-validering — krever Byggeplass-koordinater
+
+### Konsekvensanalyse — flytt projectId fra DailySheet til SheetTimer (2026-05-11)
+
+**Arkitektur-beslutning (låst):** `DailySheet` skal ikke lenger ha `projectId`. Prosjekttilhørighet flyttes til rad-nivå (SheetTimer/SheetMachine/SheetTillegg/Vareforbruk). Dagsseddelen eies av arbeider/firma, ikke prosjekt.
+
+#### 1. Felter som må fjernes/flyttes på DailySheet
+
+| Felt | Handling | Begrunnelse |
+|---|---|---|
+| `projectId String` | **Fjernes** | Flyttes til rad-nivå |
+| `byggeplassId String?` | **Flyttes til rad** | Byggeplass hører til prosjekt — kan variere per rad |
+| `aktivitetId String?` | **Beholdes** som default | C9-vedtak: kanon-eierskap allerede på rad |
+| `avdelingId String?` | Drøftes — beholdes? | Avdeling er firma-intern inndeling, ikke prosjekt-knyttet |
+| Unique `(userId, projectId, dato)` | **Endres til** `(userId, dato)` | Én sedel per dag per bruker — uavhengig av prosjekt |
+
+#### 2. Nye/endrede felter på rad-tabellene
+
+**SheetTimer:**
+- **`projectId String` NOT NULL** (NY) — hver timer-rad knyttes til ett prosjekt
+- `byggeplassId String?` (NY) — fra DailySheet
+- `externalCostObjectId String?` — finnes allerede (svak FK til ECO i kjernen)
+- Vurder: `fraTid String?` + `tilTid String?` (HH:MM) hvis #3 implementeres samtidig
+
+**SheetMachine:**
+- **`projectId String` NOT NULL** (NY) — symmetri med SheetTimer
+- `byggeplassId String?` (NY)
+
+**SheetTillegg:**
+- **`projectId String` NOT NULL** (NY) — symmetri
+- Vurder: kanskje noen tillegg er per-sedel (overtidsmat) og noen per-prosjekt — drøftes
+
+**Ny radType-tabell? (drøftes ikke vedtatt):**
+- Alternativ A: behold tre separate tabeller (SheetTimer/SheetMachine/SheetTillegg) — alle får `projectId`
+- Alternativ B: konsolider til én `SheetLine`-tabell med `type` enum + nullable lonnsartId/vehicleId/tilleggId/vareId
+- **Anbefaling:** Alternativ A — minste blast-radius, eksisterende `attestertSnapshot Json` per tabell tillater type-spesifikk pris-snapshot
+
+#### 3. Omfang av projectId-bruk
+
+| Område | Antall forekomster |
+|---|---|
+| `apps/api/src/routes/timer/` | **45 linjer** (rapport.ts 7, dagsseddel.ts 38) |
+| `apps/mobile/app/timer/` + `apps/mobile/src/hooks/` | **47 linjer** |
+| **Sum (kartlagte filer)** | **92 linjer** |
+
+**Konklusjon: nærmere 100 enn 50.** Flere steder utenfor disse mappene er ikke kartlagt (web-sider, andre routes som leser timer-data, kontrollpanel-rapporter). Realistisk totaltall: 120–150 endringspunkter.
+
+Hot spots i `apps/api/src/routes/timer/dagsseddel.ts`:
+- `erProsjektLeder(userId, projectId)` (linje 43) — autorisasjons-helper
+- `krevProsjektLeder(userId, projectId)` (linje 65) — gate
+- `opprett` (linje 233) — input har `projectId: z.string().uuid()` påkrevd
+- `hentTilAttestering` (linje 619) — filter `projectId: input.projectId`
+- `returner` (linje 850) + `attester` (linje 882) — bruker `sheet.projectId` for gate
+- `ECO-flytt` (linje 804) — sjekker `eco.projectId !== sheet.projectId`
+- Mobil offline-sync (linje 1218, 1305) — bruker `lokal.projectId`
+
+#### 4. Kobling maskin-timer ↔ Equipment
+
+**Finnes.** `SheetMachine.vehicleId` (svak FK String) peker til `Equipment.id` i `db-maskin`-schema. Ingen Prisma `@relation` (cross-package-FK håndteres som svak String per A.3-mønster, etablert mønster i db-timer/db-maskin).
+
+I dag arver `SheetMachine` prosjekttilhørighet via `DailySheet.projectId` (Cascade). Etter endring må `SheetMachine.projectId` settes eksplisitt.
+
+#### 5. Vareforbruk-kobling
+
+**Finnes som egen modell** `Vareforbruk` i `packages/db-varelager/prisma/schema.prisma`:
+- `projectId String` (NOT NULL) — **prosjekt er allerede på rad-nivå**
+- `byggeplassId String?` — finnes
+- `externalCostObjectId String?` — finnes
+- `dagsseddelId String?` — svak FK til DailySheet (kan beholdes)
+- `attestertSnapshot Json?` — finnes
+
+**Konsekvens:** Vareforbruk passer arkitekturen som hånd i hanske. Ingen schema-endring nødvendig der. Vurder om `dagsseddelId` blir mindre meningsfullt når dagsseddel ikke har prosjekt — den fungerer da som «tilhører hvilken arbeidsdag», ikke «tilhører hvilken prosjekt-dag».
+
+#### 6. Attestering-flyt i dag
+
+**Per `DailySheet`, ikke per rad:**
+- `DailySheet.status` (`draft`/`sent`/`returned`/`accepted`) styrer hele sedelen
+- `DailySheet.attestertAvUserId` + `attestertVed` lagres på sedel-nivå
+- `attester`-mutation gate'er på `krevProsjektLeder(ctx.userId, sheet.projectId)` (linje 895) — leder for sedelens prosjekt attesterer alle rader
+
+**Pris-snapshot per rad finnes allerede** via `attestertSnapshot Json?` på SheetTimer/SheetTillegg/SheetMachine. Det er klart for å flyttes til per-rad-attestering.
+
+**Implikasjon for ny arkitektur:**
+- Sedel som spenner flere prosjekter må attesteres av **flere ledere** — én per prosjekt
+- Alternativer:
+  - **A** — Status flyttes fra DailySheet til per-rad eller per-prosjekt-gruppe. Sedelen er bare en container.
+  - **B** — Behold sedel-status, men gjør den til aggregert visning av rad-status (alle rader attestert → sedel = accepted).
+  - **C** — Splitt fysisk: én DailySheet per prosjekt. Da blir endringen mindre, men «én sedel for arbeider per dag» går tapt.
+- Anbefaling A eller B — ikke C, siden C reverserer hele arkitektur-beslutningen.
+
+#### 7. Migrasjonsplan (skisse, ikke vedtatt)
+
+1. **Schema-endring (bakoverkompatibel fase 1):** Legg til `projectId String?` (nullable) på SheetTimer/SheetMachine/SheetTillegg. Behold `DailySheet.projectId`. Migrasjon kopierer parent-prosjekt til alle rader.
+2. **Klient-migrering:** Oppdater alle 92+ callsites til å lese `projectId` fra rad i stedet for sedel. Mutations skriver til rad. Mobil offline-sync må reflektere.
+3. **Innstramning (fase 2):** Sett SheetTimer.projectId NOT NULL. Drop `DailySheet.projectId` + endre unique-constraint. Refaktorer `krevProsjektLeder`-gates til å håndtere flere prosjekter per sedel.
+4. **Attestering-modell-endring (egen runde):** Vedta A/B per § 6 før innstramning.
+
+#### 8. Avhengigheter mot andre modul-forslag
+
+- **#3 fra/til per rad** — naturlig å gjøre i samme schema-runde (SheetTimer-utvidelse uansett)
+- **#4 redigering/splitting ved attestering** — krever per-rad-tankegang; passer godt i § 7 fase 3
+- **#2 overtid 8t/7t** — uavhengig (validering ved opprett/edit av rad, ikke knyttet til prosjekt-flytt)
+- **#7 rolle-matrise (Prosjektleder/Bas)** — `krevProsjektLeder` refaktoreres uansett — godt tidspunkt å avklare rollesystem først
+
+---
+
 ## Pågående arbeid
 
 **Albansk (sq) lagt til + alle 14 eksisterende språk fullført IMPLEMENTERT på develop 2026-05-08.** Sitedoc støtter nå 15 språk. `sq.json` opprettet med 2145 nøkler (visningsnavn «Shqip», flagg 🇦🇱). Som sidegevinst fylte `generate.ts` ut alle manglende nøkler i de 6 språkene på 974-baseline (cs/de/et/fi/fr/ro) og 8 språkene på 2130-baseline — alle 14 eksisterende språk er nå på 2145-nøkler-baseline. Ingen batch-feil for sq, men 4 språk (ro/et/cs/de) fikk én 50-nøkler-batch til engelsk fallback som må re-oversettes ved senere kjøring. 7138 nye/oppdaterte oversettelser totalt. Web typecheck + build grønt, mobil 12 = 12. Native-speaker-QA anbefalt for sq, cs, de, et, fi.

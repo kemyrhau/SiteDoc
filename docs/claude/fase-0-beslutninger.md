@@ -783,6 +783,72 @@ Ved sync-konflikt vises modal til klient som taper:
 
 ---
 
+## T. Timer-modul arkitektur (låst 2026-05-11)
+
+Egen prefiks T (Timer) for å holde timer-spesifikke arkitektur-beslutninger samlet. Alle vedtatt 2026-05-11 etter kartlegging dokumentert i [STATUS-AKTUELT.md](STATUS-AKTUELT.md) § «Timer-modul revisjon — kartlegging 2026-05-11».
+
+### T.1 DailySheet eierskap — ✅ **VEDTATT 2026-05-11**
+
+DailySheet tilhører arbeider/firma, ikke prosjekt.
+
+- `projectId` fjernes fra `DailySheet`.
+- Unique constraint endres fra `(userId, projectId, dato)` til `(userId, dato)`.
+- Én sedel per arbeider per dag — uavhengig av antall prosjekter arbeideren jobber på den dagen.
+
+**Begrunnelse:** Arbeideren registrerer sin arbeidsdag som én enhet. Hvilke prosjekter timene fordeles på er en rad-egenskap, ikke en sedel-egenskap.
+
+### T.2 Prosjekttilhørighet på rad-nivå — ✅ **VEDTATT 2026-05-11**
+
+`projectId String NOT NULL` legges til `SheetTimer`, `SheetMachine` og `SheetTillegg`.
+`byggeplassId String?` legges til samme tabeller.
+
+Tre separate tabeller beholdes — ingen konsolidering til én `SheetLine`-tabell. Hver rad-type har egen `attestertSnapshot Json?` som er type-spesifikk (Lonnsart-snapshot vs Equipment-snapshot vs Tillegg-snapshot).
+
+**Vareforbruk** har allerede `projectId String` NOT NULL i `packages/db-varelager` — ingen schema-endring nødvendig der.
+
+### T.3 Attestering — Alternativ A — ✅ **VEDTATT 2026-05-11**
+
+Dagsseddelen er **container uten egen attesterings-status**. Attestering skjer per prosjektgruppe av rader på sedelen.
+
+**To attesterings-nivåer i UI:**
+- **Prosjektleder** — attesterer rader for sitt prosjekt
+- **Firma-admin** — attesterer på tvers av firma
+
+**SiteDoc superadmin** har teknisk tilgang ved behov for kundestøtte/feilsøking. Eksponeres **ikke** i UI og kommuniseres **ikke** til kunder.
+
+**Konsekvens for schema:** `DailySheet.status` + `attestertAvUserId` + `attestertVed` fjernes eller flyttes til rad-nivå/prosjekt-gruppering. Detaljert datamodell besluttes i PR 1-planlegging.
+
+### T.4 Fra/til per rad — ✅ **VEDTATT 2026-05-11**
+
+`fraTid String?` og `tilTid String?` (HH:MM-format) legges til `SheetTimer` og `SheetMachine`.
+
+`startAt` og `endAt` beholdes på `DailySheet`-nivå som **forenklet forslag** til arbeideren (default-rammen for arbeidsdagen). Den faktiske tidssettingen ligger på rad-nivå.
+
+**Validering:** `fraTid < tilTid` per rad. Server- og klient-side.
+
+**Lukker kundeønske #3.**
+
+### T.5 Avrunding — ✅ **VEDTATT 2026-05-11**
+
+`tidsrundingMinutter Int? @default(15)` legges til `OrganizationSetting`.
+
+**Støttede verdier:** 15, 30, 60, `null` (ingen avrunding).
+
+Avrunding anvendes ved registrering/lagring av rad-timer. Implementasjon (rund opp/ned/nærmeste) presiseres i PR 2-design.
+
+### T.6 Leveransestrategi — ✅ **VEDTATT 2026-05-11**
+
+To PR-er, sekvensielle:
+
+1. **PR 1** = schema + migrasjon. Inkluderer alle T.1–T.5 schema-endringer. Backfill av eksisterende DailySheet-rader (kopier `projectId` til alle SheetTimer/SheetMachine/SheetTillegg-rader, fjern `projectId` fra DailySheet til slutt).
+2. **PR 2** = API + UI + mobil. Refaktorerer ~120–150 callsites (kartlagt i STATUS-AKTUELT.md). Inkluderer attestering-flyt-endring per T.3.
+
+PR 2 **starter ikke** før PR 1 er deployet og verifisert på prod.
+
+**Begrunnelse:** Schema-endring av denne størrelsen krever isolert prod-verifikasjon før applikasjonslag-endringer påbygges. Reduserer rollback-overflate.
+
+---
+
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding
 
 Disse er identifisert i Opus-runde 3 (2026-04-26) og blokkerer Fase 0-koding.
