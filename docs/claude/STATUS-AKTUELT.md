@@ -299,10 +299,12 @@ I dag arver `SheetMachine` prosjekttilhørighet via `DailySheet.projectId` (Casc
 | PR | Innhold | Status |
 |---|---|---|
 | **PR 1A** (`862c70c3`) | Schema-additive + backfill (alle kolonner nullable, DailySheet.projectId beholdt) | 🟢 Deployet prod 2026-05-11 |
-| **PR 1B** (`bba971ba`) | NOT NULL på rad-tabeller + drop DailySheet.projectId + ny unique `(userId, dato)` | 🟢 Deployet test 2026-05-11. **Avventer prod** til klient-lag (PR 2A/B/C) verifisert på test |
-| **PR 2A** (`6431873c`) | API-refaktor — dagsseddel/rapport/vareforbruk-routes (45 → 0 TS-feil i `apps/api`) | 🟢 Deployet test 2026-05-12 |
-| **PR 2B** (`8478d4a7`) | Web-klient — 3 timer-modaler sender `projectId` fra `useParams` (46 → 0 TS-feil i `apps/web`) | 🟢 Deployet test 2026-05-12. PM2-restart bekreftet (uptime 7m, restart-teller +1) |
-| **PR 2C** (denne commit) | Mobil — defensiv `?? ""` på `serverSedel.projectId` i `timerSync.ts` mot ny server-respons (null for tomme sedler) | 🟢 Minimumsfix |
+| **PR 1B** (`bba971ba`) | NOT NULL på rad-tabeller + drop DailySheet.projectId + ny unique `(userId, dato)` | 🟢 Deployet prod 2026-05-12 (00:06:53) |
+| **PR 2A** (`6431873c`) | API-refaktor — dagsseddel/rapport/vareforbruk-routes (45 → 0 TS-feil i `apps/api`) | 🟢 Deployet prod 2026-05-12 |
+| **PR 2B** (`8478d4a7`) | Web-klient — 3 timer-modaler sender `projectId` fra `useParams` (46 → 0 TS-feil i `apps/web`) | 🟢 Deployet prod 2026-05-12 (PM2-restart bekreftet, restart-teller +1 = 46) |
+| **PR 2C min** (`0700b8ed`) | Mobil — defensiv `?? ""` på `serverSedel.projectId` i `timerSync.ts` mot ny server-respons (null for tomme sedler) | 🟢 Deployet prod 2026-05-12 |
+
+**Verifisering prod 2026-05-12:** HTTP/2 200 mot `sitedoc.no`, API health OK. DB-state: `daily_sheets.project_id` DROPPED, `sheet_timer/sheet_machines/sheet_tillegg.project_id` NOT NULL, ny unique `daily_sheets_user_id_dato_key`. PM2 sitedoc-web (id 47) + sitedoc-api (id 39) begge restartet 22:08, uptime 0-2s, restart-teller +1 = 46.
 
 ### Åpen oppgave — full Drizzle-schema-omskriving (utsatt)
 

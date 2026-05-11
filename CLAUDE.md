@@ -54,6 +54,26 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+### Timer-modul arkitektur-redesign (PR 1A–2C) — DEPLOYET TIL PROD 2026-05-12
+
+T.1–T.6-vedtakene fra 2026-05-11 (se [fase-0-beslutninger.md § T](docs/claude/fase-0-beslutninger.md)): `projectId` flyttet fra `DailySheet` til rad-nivå (`SheetTimer`/`SheetMachine`/`SheetTillegg`). Dagsseddelen eies av arbeider/firma, ikke prosjekt. Bunken levert i 5 PR-er for å overholde to-stegs migration-policy.
+
+- **PR 1A** (`862c70c3`) — Schema-additive + backfill. Nye kolonner nullable, DailySheet.projectId beholdt, backfill-SQL i samme migrasjon. Deployet prod 2026-05-11.
+- **PR 1B** (`bba971ba`) — NOT NULL på `sheet_timer.project_id` + `sheet_machines.project_id` + `sheet_tillegg.project_id`. Drop `daily_sheets.project_id`. Ny unique `(user_id, dato)` erstatter `(user_id, project_id, dato)`. Deployet prod 2026-05-12 00:06:53.
+- **PR 2A** (`6431873c`) — API-refaktor av `dagsseddel.ts` (33 feil), `rapport.ts` (10 feil), `vareforbruk.ts` (2 feil). Nye input-felter på `tilfoyTimerRad`/`tilfoyTilleggRad`/`maskin.tilfoy` (`projectId` påkrevd, `byggeplassId`/`fraTid`/`tilTid` valgfri). Auth via første rad-fallback i `attester`/`returner`/`hentForAttestering`. Rapport-aggregering per rad i stedet for per sedel. 45 → 0 TS-feil. Deployet prod 2026-05-12.
+- **PR 2B** (`8478d4a7`) — Web-klient. 3 modaler i `apps/web/src/app/dashbord/[prosjektId]/timer/[id]/page.tsx` (TimerRad/Tillegg/Maskin) sender nå `projectId: params.prosjektId` via `useParams`. 46 → 0 TS-feil i `apps/web` (eksklusiv pre-eksisterende vitest). Deployet prod 2026-05-12.
+- **PR 2C min** (`0700b8ed`) — Mobil. Defensiv `?? ""` på `serverSedel.projectId` i `timerSync.ts` mot at server nå kan returnere `null` (for sedler uten rader). Mobil typecheck uendret fra 12 pre-eksisterende baseline. Full Drizzle-omskriving (per-rad projectId i SQLite + sync-refaktor) utsatt — dokumentert som åpen oppgave i [STATUS-AKTUELT.md § Implementasjonsstatus](docs/claude/STATUS-AKTUELT.md). Deployet prod 2026-05-12.
+
+**Verifisering prod 2026-05-12:**
+- HTTP/2 200 mot `sitedoc.no`, `api.sitedoc.no/health` returnerer OK
+- `daily_sheets.project_id` DROPPED (0 rows i information_schema)
+- `sheet_timer/sheet_machines/sheet_tillegg.project_id` NOT NULL
+- Ny unique-index `daily_sheets_user_id_dato_key` finnes
+- Migrasjon `20260511220000_timer_schema_redesign_1b` applied 00:06:53
+- PM2 `sitedoc-web` (id 47) + `sitedoc-api` (id 39) restartet, uptime 0-2s, restart-teller +1 = 46
+
+**Påvirkning på fremtidig arbeid:** `krevProsjektLeder`-gate er fortsatt per-prosjekt — i `attester`/`returner`/`hentForAttestering` brukes første rad-fallback (`sheet.timer[0]?.projectId`). Full per-rad-attestering (T.3 Alternativ A — leder attesterer kun sine rader, sedel = container uten egen status) er ikke implementert i denne bunken og blir egen PR senere.
+
 **Albansk (sq) lagt til som nytt språk + alle 14 eksisterende språk fullført IMPLEMENTERT på develop 2026-05-08.** Sitedoc støtter nå 15 språk (var 14).
 
 **Albansk (`sq.json`):** 2145 nøkler oversatt fra `en.json` via `google-translate-api-x`. Visningsnavn «Shqip», flagg 🇦🇱. Ingen batch-feil for sq → ingen fallback til engelsk. 16 nøkler er identiske med engelsk verdi (legitime internasjonale ord: Admin, Email, Inbox, Logo, Video, SiteDoc, CSV/Excel-formatnavn).

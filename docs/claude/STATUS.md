@@ -11,12 +11,23 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-05-07
+**Sist oppdatert:** 2026-05-12
 **Antall filer dekket:** 51 (45 i `docs/claude/` + 6 i `docs/arkiv/`)
 
 ---
 
-## Prod-deploys 2026-05-03 → 2026-05-07
+## Prod-deploys 2026-05-03 → 2026-05-12
+
+**2026-05-12 — Timer-modul arkitektur-redesign (T.1–T.6) bunke:**
+- `bba971ba` — PR 1B: NOT NULL på rad-tabeller + drop `DailySheet.projectId` + ny unique `(userId, dato)`
+- `6431873c` — PR 2A: API timer-routes refaktor (dagsseddel/rapport/vareforbruk, 45 → 0 TS-feil)
+- `8478d4a7` — PR 2B: Web timer-modaler sender projectId via `useParams` (46 → 0 TS-feil)
+- `0700b8ed` — PR 2C min: Mobil defensiv null-guard mot `serverSedel.projectId` null
+
+**2026-05-11 — Timer-arkitektur-forarbeid:**
+- `862c70c3` — PR 1A: Schema-additive + backfill (alle kolonner nullable, T.1–T.6 første steg)
+- `c7dee528` — `deploy.sh` inkluderer alle 4 db-pakker (db + db-maskin + db-timer + db-varelager)
+- `1d819ff4` — fase-0-beslutninger.md § T (T.1–T.6) tilføyd
 
 **2026-05-07 — 4 deploys:**
 - `9e264bfa` — Rolle-dropdown outside-click-fix (mousedown→click)
@@ -120,7 +131,7 @@
 | arkitektur.md | 2026-04-27 | **Sannhetskilde:** Fundament |
 | arkitektur-syntese.md | 2026-05-01 | **Sannhetskilde:** Anker for Fase 0-koding (sammen med fase-0-beslutninger.md). 3A komplett. § 5 Fase 0.5: A.30 byggeplassId-NULL = A1 vedtatt. § 6.1.1 Cross-modul-tilgang via service-lag |
 | dokumentflyt.md | 2026-04-27 | **Sannhetskilde:** Fundament. § 2.3 HMS-tabell utvidet med firma-HMS-ansvarlig-lese-tilgang (per A.27) |
-| fase-0-beslutninger.md | 2026-05-01 | **Sannhetskilde:** Anker for Fase 0/0.5-koding. § E KOMPLETT på prod (alle 13 § E-steg). A.4-overstyring oppdatert 2026-05-05 (peker til Steg 1e) |
+| fase-0-beslutninger.md | 2026-05-12 | **Sannhetskilde:** Anker for Fase 0/0.5-koding. § E KOMPLETT på prod (alle 13 § E-steg). A.4-overstyring oppdatert 2026-05-05 (peker til Steg 1e). **§ T (T.1–T.6) tilføyd 2026-05-11 (`1d819ff4`)** — Timer-modul arkitektur-redesign, deployet prod 2026-05-12 (PR 1A–2C) |
 | terminologi.md | 2026-04-27 | **Sannhetskilde:** Fundament |
 | SITEDOC-CLAUDE-VEILEDER.md | 2026-05-03 | **Meta-fil:** Sesjonsoppstart-veileder for Opus |
 
@@ -144,7 +155,7 @@
 | dagsseddel-design.md | 2026-05-02 | **Arbeidsanker:** Aktivitet flyttet til `SheetTimer.aktivitetId` (NOT NULL) per rad — implementert i Runde 2.5/C9 deployet til prod 2026-05-02 |
 | domene-arbeidsflyt.md | 2026-05-03 | **Arbeidsanker:** Styrende dokument. Steg 1a-1e ✅ prod, Steg 2 ✅ prod, Steg 3 ✅ prod, Steg 4a ✅ prod, Steg 4b (Vareforbruk) ✅ prod 2026-05-06. Tre åpne spørsmål gjenstår |
 | navigasjon-arkitektur-analyse-2026-05-03.md | 2026-05-03 | **Arbeidsanker:** Tiltak #1-#7 i prioritert rekkefølge fullført. Header-fix + Blokk A/B/C deployet 2026-05-04. Faggruppe-konsolidering 2026-05-05. P1 Fase 1+2 lukket. P2 (admin/firmaer erKunde) lukket. Klikkbare prosjektrader lukket |
-| STATUS-AKTUELT.md | 2026-05-07 | **Arbeidsanker:** Aktiv statusrapport. Sist oppdatert med rolle-dropdown-fix + dagens deploys |
+| STATUS-AKTUELT.md | 2026-05-12 | **Arbeidsanker:** Aktiv statusrapport. § Timer-modul revisjon (kartlegging 2026-05-11) + § Implementasjonsstatus PR 1A→2C tilført. Hele PR 1A–2C-bunken merket DEPLOYET TIL PROD 2026-05-12 |
 | prosjektoppsett-veileder.md | 2026-05-02 | **Arbeidsanker:** UX-funn 2026-05-02 (4 × 404). Faggruppe-side-konsolidering deployet 2026-05-05 lukker første tiltak. Nye UX-fix i UX-runde 1+2 lukker resten. Skal re-verifiseres mot ny prod-tilstand |
 | admin-navigasjon-analyse-2026-05-03.md | 2026-05-03 | **Arbeidsanker:** Komplett kartlegging av admin-navigasjon. P1 Fase 1+2 lukket via Blokk A (`12717426`) + auto-reset (`5674df71`). P2 admin/firmaer erKunde-filter lukket via Blokk C (`e2729849`). Klikkbare prosjektrader lukket via Blokk B (`dbf78bca`). 4 åpne beslutninger gjenstår |
 | steg-4b-plan.md | 2026-05-05 | **Arbeidsanker:** 5-faset Vareforbruk-plan. Sesjon 1 (Fase 1+2) + Sesjon 2 (Fase 3+4) + Sesjon 3 (Fase 5 import) deployet til prod 2026-05-06. A.Markussen seedet (7 kategorier + 57 varer + 5 Heatwork-Equipment). HW-vifte gjenstår manuelt |
@@ -179,7 +190,7 @@
 | planlegger.md | — | Planlagt fase |
 | shared-pakker.md | — | — |
 | smartdok-undersokelse-2026-04-25.md | — | Arkivert v1 |
-| timer.md | 2026-05-01 | Runde 1A+1B+1C (`c1122c2e`) + Runde 2 C1-C8 (`1cce62f3`) + Runde 2.5/C9 + 2.6 + 2.7 (`de33aefc`/`03d8c63a`/`05b3bddb`) + attestering-rename (`8aa792b2`) deployet til prod 2026-05-02. **Steg 4a** (ECO-flytt på attestering, `da6b34a5`) deployet 2026-05-03. **U1** (leder-timer-rapport, `c551063f`) + **U2** (CSV/Excel-eksport, `31cff7da`) deployet 2026-05-06 |
+| timer.md | 2026-05-12 | Runde 1A+1B+1C (`c1122c2e`) + Runde 2 C1-C8 (`1cce62f3`) + Runde 2.5/C9 + 2.6 + 2.7 (`de33aefc`/`03d8c63a`/`05b3bddb`) + attestering-rename (`8aa792b2`) deployet til prod 2026-05-02. **Steg 4a** (ECO-flytt på attestering, `da6b34a5`) deployet 2026-05-03. **U1** (leder-timer-rapport, `c551063f`) + **U2** (CSV/Excel-eksport, `31cff7da`) deployet 2026-05-06. **T.1–T.6 arkitektur-redesign** (PR 1A `862c70c3` + PR 1B `bba971ba` + PR 2A `6431873c` + PR 2B `8478d4a7` + PR 2C min `0700b8ed`) deployet prod 2026-05-12: `DailySheet.projectId` droppet, projectId/byggeplassId/fraTid/tilTid/attestert*-felter på rad-nivå, `OrganizationSetting.tidsrundingMinutter` (T.5). Schema-tabeller og indekser oppdatert. Åpen oppgave: PR 2C full (mobil Drizzle-omskriving) |
 | varsling.md | — | — |
 
 ## 📦 Arkivert
