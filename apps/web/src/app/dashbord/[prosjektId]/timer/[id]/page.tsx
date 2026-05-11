@@ -476,6 +476,7 @@ function TimerRadDialog({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const params = useParams<{ prosjektId: string; id: string }>();
   const utils = trpc.useUtils();
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
@@ -514,7 +515,13 @@ function TimerRadDialog({
     if (rad) {
       oppdater.mutate({ id: rad.id, lonnsartId, aktivitetId, timer: t });
     } else {
-      tilfoy.mutate({ sheetId, lonnsartId, aktivitetId, timer: t });
+      tilfoy.mutate({
+        sheetId,
+        projectId: params.prosjektId,
+        lonnsartId,
+        aktivitetId,
+        timer: t,
+      });
     }
   }
 
@@ -682,6 +689,7 @@ function TilleggRadDialog({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const params = useParams<{ prosjektId: string; id: string }>();
   const utils = trpc.useUtils();
   const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery();
 
@@ -727,7 +735,7 @@ function TilleggRadDialog({
     if (rad) {
       oppdater.mutate({ id: rad.id, ...data });
     } else {
-      tilfoy.mutate({ sheetId, ...data });
+      tilfoy.mutate({ sheetId, projectId: params.prosjektId, ...data });
     }
   }
 
@@ -1088,6 +1096,7 @@ function MaskinRadDialog({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const params = useParams<{ prosjektId: string; id: string }>();
   const utils = trpc.useUtils();
   const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
   const equipment = equipmentRaw as unknown as Array<{
@@ -1144,7 +1153,7 @@ function MaskinRadDialog({
     if (rad) {
       oppdater.mutate({ id: rad.id, ...data });
     } else {
-      tilfoy.mutate({ sheetId, ...data });
+      tilfoy.mutate({ sheetId, projectId: params.prosjektId, ...data });
     }
   }
 
