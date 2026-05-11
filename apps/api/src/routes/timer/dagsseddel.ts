@@ -206,7 +206,7 @@ export const dagsseddelRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
-      const [aktivitet, timer, tillegg, maskiner, prosjekt] = await Promise.all([
+      const [aktivitet, timer, tillegg, maskiner] = await Promise.all([
         sheet.aktivitetId
           ? ctx.prismaTimer.aktivitet.findUnique({ where: { id: sheet.aktivitetId } })
           : Promise.resolve(null),
@@ -222,11 +222,16 @@ export const dagsseddelRouter = router({
           where: { sheetId: sheet.id },
           orderBy: { createdAt: "asc" },
         }),
-        ctx.prisma.project.findUnique({
-          where: { id: sheet.projectId },
-          select: { id: true, name: true, projectNumber: true },
-        }),
       ]);
+      // T.1 (2026-05-11): DailySheet har ikke projectId. Bruk første rad som proxy.
+      const projectId =
+        timer[0]?.projectId ?? maskiner[0]?.projectId ?? tillegg[0]?.projectId ?? null;
+      const prosjekt = projectId
+        ? await ctx.prisma.project.findUnique({
+            where: { id: projectId },
+            select: { id: true, name: true, projectNumber: true },
+          })
+        : null;
       return { ...sheet, aktivitet, timer, tillegg, maskiner, prosjekt };
     }),
 
@@ -267,6 +272,9 @@ export const dagsseddelRouter = router({
       const dato = new Date(input.dato);
 
       // Idempotent upsert via clientUuid
+      // T.1 (2026-05-11): projectId lagres ikke på DailySheet — kun på rad-nivå.
+      // input.projectId brukes til auth-sjekk (verifiserProsjektmedlem ovenfor).
+      // Klient sender projectId ved opprettelse av rader (leggTilTimerRad etc.).
       try {
         return await ctx.prismaTimer.dailySheet.upsert({
           where: { clientUuid: input.clientUuid },
@@ -275,7 +283,6 @@ export const dagsseddelRouter = router({
             organizationId: orgId,
             userId: ctx.userId,
             registrertAvUserId: ctx.userId,
-            projectId: input.projectId,
             aktivitetId: input.aktivitetId,
             avdelingId: input.avdelingId ?? null,
             byggeplassId: input.byggeplassId ?? null,
@@ -296,7 +303,7 @@ export const dagsseddelRouter = router({
         ) {
           throw new TRPCError({
             code: "CONFLICT",
-            message: "Du har allerede en dagsseddel for denne datoen og prosjektet",
+            message: "Du har allerede en dagsseddel for denne datoen",
           });
         }
         throw e;
@@ -357,9 +364,13 @@ export const dagsseddelRouter = router({
     .input(
       z.object({
         sheetId: z.string().uuid(),
+        projectId: z.string().uuid(),
+        byggeplassId: z.string().uuid().nullable().optional(),
         lonnsartId: z.string().uuid(),
         aktivitetId: z.string().uuid(),
         timer: z.number().min(0).max(24),
+        fraTid: z.string().nullable().optional(),
+        tilTid: z.string().nullable().optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
       }),
     )
@@ -398,9 +409,13 @@ export const dagsseddelRouter = router({
       return ctx.prismaTimer.sheetTimer.create({
         data: {
           sheetId: input.sheetId,
+          projectId: input.projectId,
+          byggeplassId: input.byggeplassId ?? null,
           lonnsartId: input.lonnsartId,
           aktivitetId: input.aktivitetId,
           timer: input.timer,
+          fraTid: input.fraTid ?? null,
+          tilTid: input.tilTid ?? null,
           externalCostObjectId: input.externalCostObjectId ?? null,
         },
       });
@@ -473,6 +488,7 @@ export const dagsseddelRouter = router({
     .input(
       z.object({
         sheetId: z.string().uuid(),
+        projectId: z.string().uuid(),
         tilleggId: z.string().uuid(),
         antall: z.number().min(0),
         kommentar: z.string().nullable().optional(),
@@ -501,6 +517,7 @@ export const dagsseddelRouter = router({
       return ctx.prismaTimer.sheetTillegg.create({
         data: {
           sheetId: input.sheetId,
+          projectId: input.projectId,
           tilleggId: input.tilleggId,
           antall: input.antall,
           kommentar: input.kommentar ?? null,
@@ -623,7 +640,8 @@ export const dagsseddelRouter = router({
 
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
-          projectId: input.projectId,
+          // T.1 (2026-05-11): projectId ligger på rad — filtrer via timer-relasjon.
+          timer: { some: { projectId: input.projectId } },
           status: "sent",
         },
         include: {
@@ -659,7 +677,8 @@ export const dagsseddelRouter = router({
 
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
-          projectId: input.projectId,
+          // T.1 (2026-05-11): projectId ligger på rad — filtrer via timer-relasjon.
+          timer: { some: { projectId: input.projectId } },
           status: "sent",
         },
         include: {
@@ -711,41 +730,54 @@ export const dagsseddelRouter = router({
         where: { id: input.id },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
-      await krevProsjektLeder(ctx.userId, sheet.projectId);
 
-      const [aktivitet, timer, tillegg, maskiner, prosjekt, ansatt] =
-        await Promise.all([
-          sheet.aktivitetId
-            ? ctx.prismaTimer.aktivitet.findUnique({
-                where: { id: sheet.aktivitetId },
-              })
-            : Promise.resolve(null),
-          ctx.prismaTimer.sheetTimer.findMany({
-            where: { sheetId: sheet.id },
-            orderBy: { createdAt: "asc" },
-          }),
-          ctx.prismaTimer.sheetTillegg.findMany({
-            where: { sheetId: sheet.id },
-            orderBy: { createdAt: "asc" },
-          }),
-          ctx.prismaTimer.sheetMachine.findMany({
-            where: { sheetId: sheet.id },
-            orderBy: { createdAt: "asc" },
-          }),
-          ctx.prisma.project.findUnique({
-            where: { id: sheet.projectId },
-            select: { id: true, name: true, projectNumber: true },
-          }),
-          prisma.user.findUnique({
-            where: { id: sheet.userId },
-            select: {
-              id: true,
-              name: true,
-              email: true,
-              ansattnummer: true,
-            },
-          }),
-        ]);
+      // T.1 (2026-05-11): Hent rader først for å få projectId (per rad-nivå).
+      // Bruker første rad som proxy for autorisering (PR 2A — full per-rad-auth
+      // kommer i senere PR per T.3).
+      const [timer, tillegg, maskiner] = await Promise.all([
+        ctx.prismaTimer.sheetTimer.findMany({
+          where: { sheetId: sheet.id },
+          orderBy: { createdAt: "asc" },
+        }),
+        ctx.prismaTimer.sheetTillegg.findMany({
+          where: { sheetId: sheet.id },
+          orderBy: { createdAt: "asc" },
+        }),
+        ctx.prismaTimer.sheetMachine.findMany({
+          where: { sheetId: sheet.id },
+          orderBy: { createdAt: "asc" },
+        }),
+      ]);
+      const projectId =
+        timer[0]?.projectId ?? maskiner[0]?.projectId ?? tillegg[0]?.projectId;
+      if (!projectId) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Dagsseddel har ingen rader — kan ikke autorisere",
+        });
+      }
+      await krevProsjektLeder(ctx.userId, projectId);
+
+      const [aktivitet, prosjekt, ansatt] = await Promise.all([
+        sheet.aktivitetId
+          ? ctx.prismaTimer.aktivitet.findUnique({
+              where: { id: sheet.aktivitetId },
+            })
+          : Promise.resolve(null),
+        ctx.prisma.project.findUnique({
+          where: { id: projectId },
+          select: { id: true, name: true, projectNumber: true },
+        }),
+        prisma.user.findUnique({
+          where: { id: sheet.userId },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            ansattnummer: true,
+          },
+        }),
+      ]);
       return { ...sheet, aktivitet, timer, tillegg, maskiner, prosjekt, ansatt };
     }),
 
@@ -772,7 +804,9 @@ export const dagsseddelRouter = router({
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
 
-      await krevProsjektLeder(ctx.userId, sheet.projectId);
+      // T.1 (2026-05-11): projectId ligger på rad — bruk rad.projectId
+      // for auth og ECO-validering.
+      await krevProsjektLeder(ctx.userId, rad.projectId);
 
       // Status-vakt: kun "sent" tillates. "returned" er hos ansatten,
       // "accepted" er låst av snapshot, "draft" har aldri vært innom leder.
@@ -801,7 +835,7 @@ export const dagsseddelRouter = router({
             message: "Underprosjektet tilhører ikke firmaet",
           });
         }
-        if (eco.projectId !== sheet.projectId) {
+        if (eco.projectId !== rad.projectId) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Underprosjektet tilhører ikke samme prosjekt",
@@ -827,7 +861,7 @@ export const dagsseddelRouter = router({
           data: {
             actorUserId: ctx.userId,
             organizationId: sheet.organizationId,
-            projectId: sheet.projectId,
+            projectId: rad.projectId,
             targetType: "sheet_timer",
             targetId: input.timerRadId,
             action: "timer.eco-flyttet",
@@ -857,6 +891,7 @@ export const dagsseddelRouter = router({
     .mutation(async ({ ctx, input }) => {
       const sheet = await ctx.prismaTimer.dailySheet.findUnique({
         where: { id: input.id },
+        include: { timer: { take: 1, select: { projectId: true } } },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
       if (sheet.status !== "sent") {
@@ -865,7 +900,15 @@ export const dagsseddelRouter = router({
           message: `Kun innsendte dagssedler kan returneres (status: ${sheet.status})`,
         });
       }
-      await krevProsjektLeder(ctx.userId, sheet.projectId);
+      // T.1 (2026-05-11): hent projectId fra første rad for auth.
+      const projectId = sheet.timer[0]?.projectId;
+      if (!projectId) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Dagsseddel har ingen rader — kan ikke autorisere",
+        });
+      }
+      await krevProsjektLeder(ctx.userId, projectId);
 
       return ctx.prismaTimer.dailySheet.update({
         where: { id: input.id },
@@ -884,6 +927,7 @@ export const dagsseddelRouter = router({
     .mutation(async ({ ctx, input }) => {
       const sheet = await ctx.prismaTimer.dailySheet.findUnique({
         where: { id: input.id },
+        include: { timer: { take: 1, select: { projectId: true } } },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
       if (sheet.status !== "sent") {
@@ -892,7 +936,15 @@ export const dagsseddelRouter = router({
           message: `Kun innsendte dagssedler kan attesteres (status: ${sheet.status})`,
         });
       }
-      await krevProsjektLeder(ctx.userId, sheet.projectId);
+      // T.1 (2026-05-11): hent projectId fra første rad for auth.
+      const projectId = sheet.timer[0]?.projectId;
+      if (!projectId) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Dagsseddel har ingen rader — kan ikke autorisere",
+        });
+      }
+      await krevProsjektLeder(ctx.userId, projectId);
 
       // Hent alle rader + tilhørende katalog-data for snapshot
       const [timerRader, tilleggRader, maskinRader] = await Promise.all([
@@ -1036,7 +1088,8 @@ export const dagsseddelRouter = router({
           clientUuid: s.clientUuid,
           userId: s.userId,
           organizationId: s.organizationId,
-          projectId: s.projectId,
+          // T.1 (2026-05-11): projectId på rad-nivå — proxy via første rad.
+          projectId: s.timer[0]?.projectId ?? s.maskiner[0]?.projectId ?? null,
           aktivitetId: s.aktivitetId,
           avdelingId: s.avdelingId,
           byggeplassId: s.byggeplassId,
@@ -1294,6 +1347,9 @@ export const dagsseddelRouter = router({
             lokal.status === "accepted" ? "sent" : lokal.status;
 
           // Per-seddel transaksjon: upsert sedel + erstatt rader atomisk
+          // T.1 (2026-05-11): projectId/byggeplassId lagres på rad-nivå.
+          // Mobil sender fortsatt lokal.projectId på sedel-nivå inntil mobil-PR
+          // er ute — vi propagerer den til alle rader her.
           const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
             const sedel = await tx.dailySheet.upsert({
               where: { clientUuid: lokal.clientUuid },
@@ -1302,7 +1358,6 @@ export const dagsseddelRouter = router({
                 organizationId: orgId,
                 userId: ctx.userId,
                 registrertAvUserId: ctx.userId,
-                projectId: lokal.projectId,
                 aktivitetId: lokal.aktivitetId,
                 avdelingId: lokal.avdelingId ?? null,
                 byggeplassId: lokal.byggeplassId ?? null,
@@ -1343,6 +1398,8 @@ export const dagsseddelRouter = router({
                 data: lokal.timer.map((t) => ({
                   id: t.id,
                   sheetId: sedel.id,
+                  projectId: lokal.projectId,
+                  byggeplassId: lokal.byggeplassId ?? null,
                   lonnsartId: t.lonnsartId,
                   aktivitetId: t.aktivitetId,
                   externalCostObjectId: t.externalCostObjectId ?? null,
@@ -1355,6 +1412,7 @@ export const dagsseddelRouter = router({
                 data: lokal.tillegg.map((tl) => ({
                   id: tl.id,
                   sheetId: sedel.id,
+                  projectId: lokal.projectId,
                   tilleggId: tl.tilleggId,
                   antall: tl.antall,
                   kommentar: tl.kommentar ?? null,
@@ -1366,6 +1424,8 @@ export const dagsseddelRouter = router({
                 data: lokal.maskiner.map((m) => ({
                   id: m.id,
                   sheetId: sedel.id,
+                  projectId: lokal.projectId,
+                  byggeplassId: lokal.byggeplassId ?? null,
                   vehicleId: m.vehicleId,
                   timer: m.timer,
                   mengde: m.mengde ?? null,
@@ -1437,10 +1497,14 @@ export const dagsseddelRouter = router({
       .input(
         z.object({
           sheetId: z.string().uuid(),
+          projectId: z.string().uuid(),
+          byggeplassId: z.string().uuid().nullable().optional(),
           vehicleId: z.string().uuid(),
           timer: z.number().min(0).max(24),
           mengde: z.number().min(0).nullable().optional(),
           enhet: z.string().max(20).nullable().optional(),
+          fraTid: z.string().nullable().optional(),
+          tilTid: z.string().nullable().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -1460,10 +1524,14 @@ export const dagsseddelRouter = router({
         return ctx.prismaTimer.sheetMachine.create({
           data: {
             sheetId: input.sheetId,
+            projectId: input.projectId,
+            byggeplassId: input.byggeplassId ?? null,
             vehicleId: input.vehicleId,
             timer: input.timer,
             mengde: input.mengde ?? null,
             enhet: input.enhet ?? null,
+            fraTid: input.fraTid ?? null,
+            tilTid: input.tilTid ?? null,
           },
         });
       }),
@@ -1579,7 +1647,34 @@ export const dagsseddelRouter = router({
         include: { timer: true },
       });
 
-      const projektIder = sedler.map((s) => s.projectId);
+      // T.1 (2026-05-11): projectId ligger på rad. Aggregér per (sheetId, projectId)
+      // for å beholde dagens UI-kontrakt («Du har ført Xt på N prosjekter»).
+      type SheetProsjektRad = {
+        sheetId: string;
+        projectId: string;
+        status: string;
+        timer: number;
+      };
+      const radPerProsjekt = new Map<string, SheetProsjektRad>();
+      for (const s of sedler) {
+        for (const t of s.timer) {
+          const noekkel = `${s.id}|${t.projectId}`;
+          const eksisterende = radPerProsjekt.get(noekkel);
+          if (eksisterende) {
+            eksisterende.timer += Number(t.timer);
+          } else {
+            radPerProsjekt.set(noekkel, {
+              sheetId: s.id,
+              projectId: t.projectId,
+              status: s.status,
+              timer: Number(t.timer),
+            });
+          }
+        }
+      }
+      const projektIder = Array.from(
+        new Set(Array.from(radPerProsjekt.values()).map((r) => r.projectId)),
+      );
       const prosjekter =
         projektIder.length === 0
           ? []
@@ -1589,13 +1684,13 @@ export const dagsseddelRouter = router({
             });
       const prosjektMap = new Map(prosjekter.map((p) => [p.id, p]));
 
-      const perProsjekt = sedler.map((s) => ({
-        sheetId: s.id,
-        projectId: s.projectId,
-        projectNavn: prosjektMap.get(s.projectId)?.name ?? null,
-        projectNummer: prosjektMap.get(s.projectId)?.projectNumber ?? null,
-        status: s.status,
-        timer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
+      const perProsjekt = Array.from(radPerProsjekt.values()).map((r) => ({
+        sheetId: r.sheetId,
+        projectId: r.projectId,
+        projectNavn: prosjektMap.get(r.projectId)?.name ?? null,
+        projectNummer: prosjektMap.get(r.projectId)?.projectNumber ?? null,
+        status: r.status,
+        timer: r.timer,
       }));
 
       const totalTimer = perProsjekt.reduce((acc, p) => acc + p.timer, 0);

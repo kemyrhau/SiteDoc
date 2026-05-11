@@ -75,10 +75,11 @@ export const rapportRouter = router({
         };
       }
 
-      // Hent dagseddel-rader i perioden for firmaets prosjekter
+      // Hent dagseddel-rader i perioden for firmaets prosjekter.
+      // T.1 (2026-05-11): DailySheet har ikke projectId — filtrer via SheetTimer-join.
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
-          projectId: { in: prosjektIder },
+          timer: { some: { projectId: { in: prosjektIder } } },
           dato: { gte: fraDato, lte: tilDato },
           ...(input.ansattId ? { userId: input.ansattId } : {}),
         },
@@ -134,17 +135,19 @@ export const rapportRouter = router({
         }
         const a = ansattMap.get(sedel.userId)!;
 
-        const sedelTimer = sedel.timer.reduce(
-          (sum, t) => sum + Number(t.timer),
-          0,
-        );
+        // T.1: Aggregér per timer-rad (rad har projectId, ikke sedelen).
+        // Hver SheetTimer-rad kan ha forskjellig projectId — splitt mellom dem.
+        let sedelTimer = 0;
+        for (const t of sedel.timer) {
+          const radTimer = Number(t.timer);
+          sedelTimer += radTimer;
+          a.perProsjekt.set(
+            t.projectId,
+            (a.perProsjekt.get(t.projectId) ?? 0) + radTimer,
+          );
+        }
         a.totalTimer += sedelTimer;
         totalTimer += sedelTimer;
-
-        a.perProsjekt.set(
-          sedel.projectId,
-          (a.perProsjekt.get(sedel.projectId) ?? 0) + sedelTimer,
-        );
 
         const datoNok = sedel.dato.toISOString().slice(0, 10);
         a.perDag.set(datoNok, (a.perDag.get(datoNok) ?? 0) + sedelTimer);
@@ -218,7 +221,8 @@ export const rapportRouter = router({
       if (prosjekter.length === 0) return [];
 
       const prosjektIder = prosjekter.map((p) => p.id);
-      const medTimer = await ctx.prismaTimer.dailySheet.groupBy({
+      // T.1 (2026-05-11): DailySheet har ikke projectId — bruk SheetTimer.
+      const medTimer = await ctx.prismaTimer.sheetTimer.groupBy({
         by: ["projectId"],
         where: { projectId: { in: prosjektIder } },
         _count: { _all: true },
@@ -251,9 +255,10 @@ export const rapportRouter = router({
       const prosjektIder = prosjekter.map((p) => p.id);
       if (prosjektIder.length === 0) return [];
 
+      // T.1 (2026-05-11): DailySheet har ikke projectId — filtrer via SheetTimer.
       const sedler = await ctx.prismaTimer.dailySheet.groupBy({
         by: ["userId"],
-        where: { projectId: { in: prosjektIder } },
+        where: { timer: { some: { projectId: { in: prosjektIder } } } },
         _count: { _all: true },
       });
       const userIder = sedler.map((s) => s.userId);

@@ -250,14 +250,27 @@ export const vareforbrukRouter = router({
       }
 
       if (input.dagsseddelId) {
+        // T.1 (2026-05-11): DailySheet har ikke lenger projectId. Sjekk i stedet
+        // at sedelen tilhører eier-bruker og at minst én rad på sedelen er for
+        // samme prosjekt (eller at sedel finnes — Vareforbruk har egen projectId
+        // som primær prosjekt-referanse).
         const sheet = await ctx.prismaTimer.dailySheet.findUnique({
           where: { id: input.dagsseddelId },
-          select: { userId: true, projectId: true },
+          select: {
+            userId: true,
+            timer: { where: { projectId: input.projectId }, select: { id: true }, take: 1 },
+          },
         });
-        if (!sheet || sheet.projectId !== input.projectId) {
+        if (!sheet) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Dagsseddelen tilhører ikke samme prosjekt",
+            message: "Dagsseddelen finnes ikke",
+          });
+        }
+        if (sheet.timer.length === 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Dagsseddelen har ingen timer-rader for dette prosjektet",
           });
         }
       }
