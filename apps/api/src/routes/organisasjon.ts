@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
-import { autoriserAdminForFirma } from "../trpc/tilgangskontroll";
+import { autoriserAdminForFirma, hentBrukersOrg } from "../trpc/tilgangskontroll";
 import {
   syncProjektModulerPaaAktiver,
   syncProjektModulerPaaDeaktiver,
@@ -47,7 +47,7 @@ export const organisasjonRouter = router({
     if (!ctx.userId) return [];
     const bruker = await ctx.prisma.user.findUniqueOrThrow({
       where: { id: ctx.userId },
-      select: { role: true, organizationId: true },
+      select: { role: true },
     });
 
     // Steg 1e Fase B: aktiveFirmamoduler avledes fra OrganizationModule-tabellen.
@@ -81,9 +81,11 @@ export const organisasjonRouter = router({
       return beriker(orgs);
     }
 
-    if (bruker.role === "company_admin" && bruker.organizationId) {
+    // O-3b: hent brukerens org via OrganizationMember (fallback User.organizationId)
+    const orgId = await hentBrukersOrg(ctx.userId);
+    if (bruker.role === "company_admin" && orgId) {
       const orgs = await ctx.prisma.organization.findMany({
-        where: { id: bruker.organizationId },
+        where: { id: orgId },
         select: { id: true, name: true, erKunde: true },
       });
       return beriker(orgs);
@@ -105,18 +107,15 @@ export const organisasjonRouter = router({
   // Hent innlogget brukers organisasjon (null hvis ingen).
   // Steg 1e Fase B: beriker med aktiveFirmamoduler fra OrganizationModule.
   hentMin: protectedProcedure.query(async ({ ctx }) => {
-    const bruker = await ctx.prisma.user.findUniqueOrThrow({
-      where: { id: ctx.userId },
-      select: { role: true, organizationId: true },
-    });
-
-    if (!bruker.organizationId) return null;
+    // O-3b: hent brukerens org via OrganizationMember (fallback User.organizationId)
+    const orgId = await hentBrukersOrg(ctx.userId);
+    if (!orgId) return null;
 
     const [org, aktiveFirmamoduler] = await Promise.all([
       ctx.prisma.organization.findUnique({
-        where: { id: bruker.organizationId },
+        where: { id: orgId },
       }),
-      hentAktiveFirmamoduler(bruker.organizationId),
+      hentAktiveFirmamoduler(orgId),
     ]);
     if (!org) return null;
     return { ...org, aktiveFirmamoduler };
@@ -304,12 +303,14 @@ export const organisasjonRouter = router({
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
       // Verifiser at målbrukeren tilhører samme organisasjon
+      // O-3b: hent målbrukerens org via OrganizationMember (fallback User.organizationId)
+      const målbrukerOrgId = await hentBrukersOrg(input.userId);
       const målbruker = await ctx.prisma.user.findUnique({
         where: { id: input.userId },
-        select: { organizationId: true, role: true },
+        select: { role: true },
       });
 
-      if (!målbruker || målbruker.organizationId !== orgId) {
+      if (!målbruker || målbrukerOrgId !== orgId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Brukeren tilhører ikke din organisasjon",
@@ -358,18 +359,20 @@ export const organisasjonRouter = router({
 
       const eksisterende = await ctx.prisma.user.findFirst({
         where: { email: input.email, canLogin: true },
-        select: { id: true, organizationId: true },
+        select: { id: true },
         orderBy: { createdAt: "asc" },
       });
 
       if (eksisterende) {
-        if (eksisterende.organizationId === orgId) {
+        // O-3b: hent eksisterende brukers org via OrganizationMember (fallback User.organizationId)
+        const eksisterendeOrgId = await hentBrukersOrg(eksisterende.id);
+        if (eksisterendeOrgId === orgId) {
           throw new TRPCError({
             code: "CONFLICT",
             message: "Brukeren er allerede medlem av firmaet",
           });
         }
-        if (eksisterende.organizationId && eksisterende.organizationId !== orgId) {
+        if (eksisterendeOrgId && eksisterendeOrgId !== orgId) {
           throw new TRPCError({
             code: "CONFLICT",
             message: "Brukeren tilhører et annet firma",
@@ -419,12 +422,14 @@ export const organisasjonRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
+      // O-3b: hent målbrukerens org via OrganizationMember (fallback User.organizationId)
+      const målbrukerOrgId = await hentBrukersOrg(input.userId);
       const målbruker = await ctx.prisma.user.findUnique({
         where: { id: input.userId },
-        select: { organizationId: true, role: true, email: true },
+        select: { role: true, email: true },
       });
 
-      if (!målbruker || målbruker.organizationId !== orgId) {
+      if (!målbruker || målbrukerOrgId !== orgId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Brukeren tilhører ikke din organisasjon",

@@ -94,6 +94,38 @@ export async function verifiserFaggruppeTilhorighet(
 }
 
 /**
+ * Hent brukerens primær-org-id for tilgangsbeslutninger.
+ *
+ * O-3b: leser fra OrganizationMember først, fallback til User.organizationId
+ * (fjernes i O-5). Forutsetter dagens 1:1-virkelighet (én bruker = én org).
+ * O-4 introduserer eksplisitt primær-flagg når multi-org støttes.
+ *
+ * @throws BAD_REQUEST hvis bruker har flere OrganizationMember-rader.
+ * @returns organizationId, eller null hvis bruker er org-løs.
+ */
+export async function hentBrukersOrg(userId: string): Promise<string | null> {
+  const members = await prisma.organizationMember.findMany({
+    where: { userId },
+    select: { organizationId: true },
+  });
+  const [first, ...rest] = members;
+  if (first && rest.length === 0) return first.organizationId;
+  if (rest.length > 0) {
+    // Multi-org ikke støttet ennå — O-4 vil introdusere primær-org
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Bruker tilhører flere firmaer — kontakt support",
+    });
+  }
+  // Fallback: les fra User.organizationId (fjernes i O-5)
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { organizationId: true },
+  });
+  return bruker?.organizationId ?? null;
+}
+
+/**
  * Intern hjelper for dual-read av firma-admin-rettighet.
  * Leser fra OrganizationMember.firmaRoller først, fallback til User.role==="company_admin"
  * + matching User.organizationId. Fallback fjernes i O-5.

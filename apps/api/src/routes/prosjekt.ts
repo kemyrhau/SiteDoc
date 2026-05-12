@@ -7,6 +7,7 @@ import { TRPCError } from "@trpc/server";
 import {
   verifiserProsjektmedlem,
   verifiserAdmin,
+  hentBrukersOrg,
 } from "../trpc/tilgangskontroll";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 
@@ -167,8 +168,11 @@ export const prosjektRouter = router({
 
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.userId },
-        select: { role: true, organizationId: true },
+        select: { role: true },
       });
+
+      // O-3b: hent brukerens org via OrganizationMember (fallback User.organizationId)
+      const brukersOrgId = await hentBrukersOrg(ctx.userId);
 
       // Velg organizationId: input → eksplisitt, fallback → brukerens egen.
       // Verifiser tilgang når input er gitt.
@@ -176,7 +180,7 @@ export const prosjektRouter = router({
       if (input.organizationId) {
         if (
           bruker.role === "sitedoc_admin" ||
-          bruker.organizationId === input.organizationId
+          brukersOrgId === input.organizationId
         ) {
           valgtOrgId = input.organizationId;
         } else {
@@ -185,8 +189,8 @@ export const prosjektRouter = router({
             message: "Ikke tilgang til å opprette prosjekt for dette firmaet",
           });
         }
-      } else if (bruker.organizationId) {
-        valgtOrgId = bruker.organizationId;
+      } else if (brukersOrgId) {
+        valgtOrgId = brukersOrgId;
       }
 
       // Steg 1e Fase B: les aktive firmamoduler fra OrganizationModule.
@@ -244,17 +248,20 @@ export const prosjektRouter = router({
     .mutation(async ({ ctx, input }) => {
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.userId },
-        select: { name: true, role: true, organizationId: true },
+        select: { name: true, role: true },
       });
+
+      // O-3b: hent brukerens org via OrganizationMember (fallback User.organizationId)
+      const brukersOrgId = await hentBrukersOrg(ctx.userId);
 
       // Speiler prosjekt.opprett-mønsteret: input.organizationId vinner hvis
       // gitt og bruker har tilgang. Sitedoc_admin → enhver org. Vanlig bruker
-      // → kun egen org. Ellers fallback til bruker.organizationId.
+      // → kun egen org. Ellers fallback til brukerens egen org.
       let valgtOrgId: string | null = null;
       if (input?.organizationId) {
         if (
           bruker.role === "sitedoc_admin" ||
-          bruker.organizationId === input.organizationId
+          brukersOrgId === input.organizationId
         ) {
           valgtOrgId = input.organizationId;
         } else {
@@ -263,8 +270,8 @@ export const prosjektRouter = router({
             message: "Ikke tilgang til å opprette prosjekt for dette firmaet",
           });
         }
-      } else if (bruker.organizationId) {
-        valgtOrgId = bruker.organizationId;
+      } else if (brukersOrgId) {
+        valgtOrgId = brukersOrgId;
       }
 
       // Steg 1e Fase B: les aktive firmamoduler fra OrganizationModule.
