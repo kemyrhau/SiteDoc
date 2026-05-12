@@ -196,7 +196,7 @@ export default function TimerListSide() {
                   </td>
                   <td className="px-3 py-2 text-right">
                     <Link
-                      href={`/dashbord/${prosjektId}/timer/${rad.id}`}
+                      href={`/dashbord/timer/${rad.id}`}
                       className="text-sm font-medium text-sitedoc-primary hover:underline"
                     >
                       {t("timer.aapne")}
