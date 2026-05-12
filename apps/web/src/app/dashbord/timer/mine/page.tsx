@@ -318,7 +318,7 @@ export default function MineTimerSide() {
                     </td>
                     <td className="px-2 py-1.5 text-right">
                       <Link
-                        href={`/dashbord/${rad.projectId}/timer/${rad.id}`}
+                        href={`/dashbord/timer/${rad.id}`}
                         className="text-sm font-medium text-sitedoc-primary hover:underline"
                       >
                         {t("timer.aapne")}

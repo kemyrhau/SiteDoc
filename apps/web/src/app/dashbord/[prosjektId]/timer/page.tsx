@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
-import { StatusBadge } from "./status-badge";
+import { StatusBadge } from "@/components/timer/StatusBadge";
 
 const STATUSER = ["draft", "sent", "returned", "accepted"] as const;
 type StatusFilter = (typeof STATUSER)[number] | "alle";
@@ -196,7 +196,7 @@ export default function TimerListSide() {
                   </td>
                   <td className="px-3 py-2 text-right">
                     <Link
-                      href={`/dashbord/${prosjektId}/timer/${rad.id}`}
+                      href={`/dashbord/timer/${rad.id}`}
                       className="text-sm font-medium text-sitedoc-primary hover:underline"
                     >
                       {t("timer.aapne")}
