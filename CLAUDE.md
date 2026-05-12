@@ -117,6 +117,22 @@ Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansat
 
 Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
+### PR O-3b routes dual-read organisasjon.ts + prosjekt.ts IMPLEMENTERT på feature/org-member-o3b 2026-05-12
+
+Fortsettelse av OrganizationMember-refaktoren. Erstatter direkte `User.organizationId`-oppslag i tilgangsbeslutninger med dual-read via ny eksportert hjelper.
+
+Ny eksportert hjelper `hentBrukersOrg(userId): Promise<string | null>` i `apps/api/src/trpc/tilgangskontroll.ts`:
+- Leser fra `OrganizationMember.findMany`. 1 medlem → returnerer orgId. 0 medlem → fallback til `User.organizationId` (fjernes i O-5). Flere medlem → kaster `BAD_REQUEST` («Bruker tilhører flere firmaer — kontakt support»).
+- O-4 introduserer primær-org-flagg når multi-org-modellen formaliseres.
+
+Refaktorerte callsites (alle bytter `bruker.organizationId`-lesing til `hentBrukersOrg`):
+- `organisasjon.ts`: `hentTilgjengelige` (firma-velger), `hentMin` (gating «mitt firma»), `endreRolle` (samme-firma-validering på målbruker), `inviterBruker` (adopsjon-flyt — eksisterende User-sjekk), `oppdaterBruker` (samme-firma-validering).
+- `prosjekt.ts`: `opprett` og `opprettTestprosjekt` (input-org-tilgangssjekk + default-org-fallback).
+
+Tilgangskontroll-semantikken er uendret — bare datakilden er flyttet. `OrganizationRole`-tabellen og `User.organizationId`-feltet røres ikke (begge droppes i O-5).
+
+Verifisert: `apps/api` typecheck 0 nye feil. Ingen DB-endring. Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-3a tilgangskontroll + tildelOrgRolle/fjernOrgRolle IMPLEMENTERT på feature/org-member-o3a 2026-05-12
 
 Tredje PR i OrganizationMember-refaktoren (sub-delt: O-3a tilgangskontroll-laget, O-3b modul-routes). Lukker gjenværende inline `company_admin`-sjekker i tilgangskontroll-laget og flytter firma-rolle-skriving fra `OrganizationRole`-tabellen til `OrganizationMember.firmaRoller`.

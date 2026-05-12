@@ -328,6 +328,33 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### PR O-3b routes dual-read organisasjon.ts + prosjekt.ts IMPLEMENTERT på feature/org-member-o3b 2026-05-12
+
+Fortsettelse av OrganizationMember-refaktoren. O-3a lukket inline `company_admin`-fallbacks i tilgangskontroll-laget; O-3b flytter de gjenstående direkte `User.organizationId`-oppslagene i routes til en ny eksportert hjelper.
+
+**Ny eksportert helper:**
+
+- `hentBrukersOrg(userId): Promise<string | null>` — `OrganizationMember.findMany` først (1 medlem → orgId, flere → `BAD_REQUEST` «kontakt support»), fallback `User.organizationId` (fjernes i O-5). Multi-org-håndtering låses i O-4.
+
+**Refaktorerte callsites:**
+
+`apps/api/src/routes/organisasjon.ts`:
+- `hentTilgjengelige` (firma-velger) — `company_admin`-grenen bruker `hentBrukersOrg(ctx.userId)`.
+- `hentMin` (gating «mitt firma»-query) — orgId hentes via `hentBrukersOrg`, ingen User.organizationId-oppslag.
+- `endreRolle` (samme-firma-validering på målbruker) — `hentBrukersOrg(input.userId)` erstatter `målbruker.organizationId`.
+- `inviterBruker` (adopsjon-flyt) — eksisterende User-rad sin org hentes via `hentBrukersOrg(eksisterende.id)`, ikke fra `findFirst select`.
+- `oppdaterBruker` (samme-firma-validering) — samme mønster som `endreRolle`.
+
+`apps/api/src/routes/prosjekt.ts`:
+- `opprett` — tilgangssjekk på `input.organizationId` + default-org-fallback bruker `hentBrukersOrg(ctx.userId)` i stedet for `bruker.organizationId`.
+- `opprettTestprosjekt` — samme mønster.
+
+**Ikke endret:** Kategori B-treff fra scope-kartleggingen (rene data-queries, input-filter, admin-routes som bare leser/skriver `organizationId`-feltet uten å bruke det til en tilgangsavgjørelse). Disse migreres når `User.organizationId` faktisk droppes i O-5. `maskin/equipment.ts`, `timer/dagsseddel.ts`, `vare.ts` ble ikke berørt — deres treff er i hovedsak Kategori B og kan tas i en egen sub-PR hvis tilgangskontroll-mønstre finnes der (krever egen kartlegging).
+
+**Tilgangskontroll-semantikken er uendret** — bare datakilden er flyttet. `OrganizationRole`-tabellen og `User.organizationId`-feltet røres ikke; begge droppes i O-5.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. Ingen DB-endring. Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-3a tilgangskontroll + tildelOrgRolle/fjernOrgRolle IMPLEMENTERT på feature/org-member-o3a 2026-05-12
 
 Tredje PR i OrganizationMember-refaktoren (sub-delt: O-3a tilgangskontroll-laget, O-3b modul-routes). Lukker alle gjenværende inline `company_admin`-sjekker i `apps/api/src/trpc/tilgangskontroll.ts` og flytter firma-rolle-skriving fra `OrganizationRole`-tabellen til `OrganizationMember.firmaRoller`.
