@@ -1845,3 +1845,26 @@ User-modellen skiller ikke mellom system-identitet og HR-relasjon. OrganizationM
 ### OrganizationRole-konsolidering (låst 2026-05-12)
 
 `OrganizationRole`-tabellen (opprettet 2026-05-01, per A.27) deprecated til fordel for `OrganizationMember.firmaRoller`. Begrunnelse: 0 rader i prod/test, ingen klient-UI, identisk semantikk. `harOrgRolle`-helper oppdateres i O-2 til å lese fra `OrganizationMember.firmaRoller`. `tildelOrgRolle`/`fjernOrgRolle` oppdateres i O-3. `OrganizationRole`-tabellen droppes i O-5.
+
+### Modul-tilgangssystem: OrganizationMemberPermission (låst 2026-05-12)
+
+Separat tabell for per-bruker, per-modul tilgangsstyring på firma-nivå. `firmaRoller`-arrayen beholder org-roller (`firma_admin`, `hms_ansvarlig`, `hr_ansvarlig`). Modul-tilgang er en egen dimensjon.
+
+Modell:
+
+```prisma
+model OrganizationMemberPermission {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  organizationId String   @map("organization_id")
+  modul          String   // "timer" | "prosjekt" | "maskin" | "varelager"
+  tilgang        String   // "les" | "les_skriv"
+                          // ingen rad = ingen tilgang
+  createdAt      DateTime @default(now())
+
+  @@unique([userId, organizationId, modul])
+  @@map("organization_member_permissions")
+}
+```
+
+Implementeres som dedikert PR etter O-3. `tilgangskontroll.ts` får ny hjelpefunksjon `harModulTilgang(userId, organizationId, modul, krevdTilgang)`.
