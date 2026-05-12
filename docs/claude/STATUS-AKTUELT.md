@@ -60,13 +60,15 @@ Attesterende skal kunne redigere antall timer og splitte en rad i flere. **Steg 
 
 ---
 
-### #6 — Maskinmodul ikke synlig i prosjekt 998 Instinniforbotn ❓
+### #6 — Maskinmodul ikke synlig i prosjekt 998 Instinniforbotn ✅ Lukket 2026-05-12
 
 **Side:** Maskin (prosjekt 998 Instinniforbotn).
 
-Maskinregister aktivert på firmanivå, men maskinmodul-menypunkt mangler i prosjektets venstremeny og «Oppsett som gjenstår»-varselet flagger maskinmodul-oppsett.
+✅ **Lukket 2026-05-12 — ikke en bug.** `ProjectModule maskin/aktiv` finnes på prod for prosjekt 998 (`5e8dd794-ab81-47b7-a146-d7384fac3a8a`), og `OrganizationModule maskin/aktiv` finnes for A.Markussen (`4488fe17-...`). Auto-sync fra Steg 1c (`87fb7292`) har gjort jobben sin.
 
-**Status:** Auto-sync-koden finnes (Steg 1c deployet 2026-05-03 — `87fb7292`). Når firmamodul aktiveres skal `ProjectModule(slug="maskin", status="aktiv")` synkroniseres til alle prosjekter. Hvis prosjekt 998 ble opprettet FØR maskin-firmamodulen ble aktivert på A.Markussen, kan synkroniseringen ha hoppet over. **DB-verifikasjon nødvendig:** sjekk om `project_modules`-rad finnes for prosjekt 998 + slug=maskin + status=aktiv. Hvis mangler, kjøres `organisasjon.settFirmamodul({ aktiver: true })` manuelt eller via reaktiverings-knappen i `/dashbord/firma/moduler`.
+A.Markussen-ansatte (Malin, Silje, Florian — alle `company_admin` med `organization_id = 4488fe17-...` og `can_login=true`) ser Maskin-lenken korrekt i bunnen av HovedSidebar. Kenneth ser den ikke fordi hans bruker har `organization_id = NULL` (superadmin uten firma-tilknytning) — `organisasjon.hentMin` returnerer da `null` og `aktiveFirmamoduler = []`, slik at maskin-bunnelementet filtreres bort i `HovedSidebar.tsx:331`.
+
+**Løsning:** Bytt til brukervisning (impersonering eller logg inn som A.Markussen-ansatt) for å se det kunden ser. Diagnose-verifikasjon utført 2026-05-12 mot prod-DB.
 
 ### #7 — Rettighetsmatrise med rolle-styring (Prosjektleder + Bas) 🔴
 
@@ -1600,6 +1602,10 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 **Timer/Maskin-revurdering** er utsatt til etter Fase 0-fundament er ferdig. timer.md og maskin.md har drift mot fase-0-beslutninger og må justeres før Fase 3 (Timer-modul) og Fase 1-fullføring (Maskin-modul-gateway) — men Fase 0-fundamentet bygges nå uavhengig av denne revurderingen.
 
 ## Planlagte oppgaver
+
+### Superadmin-oversikt over firma-moduler
+
+Superadmin trenger oversikt over hvilke moduler det enkelte firma har aktivert — delvis for fakturering. Ikke del av A.Markussen-kundelisten. Egen feature-sesjon.
 
 **HMS-tilgang for arbeidsgiver på andres prosjekter (juridisk gap, 2026-05-03):**
 A.27 gir firma-HMS-ansvarlig innsyn i «firmaets prosjekter» men IKKE i prosjekter
