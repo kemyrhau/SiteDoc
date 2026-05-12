@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { ArrowLeft, AlertCircle, Check, RotateCcw, X } from "lucide-react";
-import { StatusBadge } from "../../status-badge";
+import { StatusBadge } from "@/components/timer/StatusBadge";
 
 function tilTall(v: unknown): number {
   if (v === null || v === undefined) return 0;

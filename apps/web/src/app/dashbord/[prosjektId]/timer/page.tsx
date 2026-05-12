@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
-import { StatusBadge } from "./status-badge";
+import { StatusBadge } from "@/components/timer/StatusBadge";
 
 const STATUSER = ["draft", "sent", "returned", "accepted"] as const;
 type StatusFilter = (typeof STATUSER)[number] | "alle";
