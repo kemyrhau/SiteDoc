@@ -847,6 +847,20 @@ PR 2 **starter ikke** før PR 1 er deployet og verifisert på prod.
 
 **Begrunnelse:** Schema-endring av denne størrelsen krever isolert prod-verifikasjon før applikasjonslag-endringer påbygges. Reduserer rollback-overflate.
 
+### T.7 — Dagsseddel UI-redesign (låst 2026-05-12)
+
+Dagsseddelen redesignes med prosjekt-gruppert struktur:
+
+- Øverst: «Arbeidstid i dag» Fra kl. / Til kl. / Pause — gjelder hele dagen
+- Hoveddel: én seksjon per prosjekt, hver med timer-, maskin- og vare-rader
+- Hver timer-rad: lønnsart, aktivitet, fra/til, beregnet timer, underprosjekt (ECO)
+- Løpende summering nederst: «X.Xt av Y.Yt registrert» — grønn når komplett
+- Geo-forslag: GPS-avstand mot Project.lat/lng foreslår prosjekt automatisk
+- «+ Legg til prosjekt» for å legge til ny prosjektgruppe
+- Gjelder web og mobil
+- Forutsetter: T.1–T.6 (projectId per rad, fra/til-felt) ✅
+- Planlegges i egen sesjon etter kundeliste er ryddet
+
 ---
 
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding
