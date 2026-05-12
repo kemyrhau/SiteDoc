@@ -27,6 +27,7 @@ type MalRad = {
   description: string | null;
   prefix: string | null;
   category: string;
+  domain: string;
   version: number;
   subjects: unknown;
   enableChangeLog: boolean;
@@ -355,6 +356,12 @@ export function MalListe({
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-700">
                   {t("tabell.navn")}
                 </th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-700 w-[120px]">
+                  {t("tabell.fagomraade")}
+                </th>
+                <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-700 w-[100px]">
+                  {t("tabell.antallPunkter")}
+                </th>
                 <th className="px-4 py-3 text-xs font-bold uppercase tracking-wide text-gray-700 w-[140px]">
                   {t("maler.prefiks")}
                 </th>
@@ -394,6 +401,12 @@ export function MalListe({
                         {mal.name}
                       </span>
                     </div>
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {t(`maler.domain.${mal.domain}`)}
+                  </td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {mal._count?.objects ?? 0}
                   </td>
                   <td className="px-4 py-3 text-gray-600">
                     {mal.prefix ?? "—"}
