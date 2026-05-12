@@ -1,46 +1,35 @@
-# Neste oppgave: PR O-3 — Routes batch-migrering
+# Neste oppgave: PR O-4 — Flytt felt + firma/ansatte rename
 
 Dato: 2026-05-12
 Status: Klar til start
 
-## Kontekst
-OrganizationMember-refaktoren er i gang. O-1 og O-2 er deployet til prod.
+## O-3 fullført
+O-3a + O-3b deployet til prod (commits fc929051 + 89423097).
+tilgangskontroll.ts og organisasjon.ts + prosjekt.ts bruker nå OrganizationMember.
 
-O-1: OrganizationMember-tabell opprettet og backfylt (3 prod-brukere, 26 test-brukere)
-O-2: tilgangskontroll.ts oppdatert med dual-read for autoriserAdminForFirma,
-     verifiserOrganisasjonTilgang og harOrgRolle
+## O-4 scope
 
-## O-3 scope
-Batch-migrering av routes som fortsatt leser User.organizationId direkte.
+### 1. Flytt felt fra User → OrganizationMember (schema + migrasjon)
+- `ansattnummer` flyttes fra User → OrganizationMember (finnes allerede som nullable)
+- `avdelingId` flyttes fra User → OrganizationMember (FK til Avdeling, onDelete: SetNull)
+- Backfill: kopier verdier fra User til OrganizationMember for eksisterende rader
 
-Gjenstående i tilgangskontroll.ts (~17 prisma.user-kall utover de 3 som ble fikset i O-2):
-- verifiserAdmin (linje 100) — company_admin-fallback via User.role
-- verifiserProsjektmedlem (linje 132) — company_admin-fallback via User.role
-- verifiserAdminEllerFirmaansvarlig (linje 253) — company_admin-fallback via User.role
-- verifiserKompetanseSkriveTilgang (linje 684) — leser User.role + User.organizationId
-- øvrige funksjoner som leser User.organizationId
+### 2. Rename firma/brukere → firma/ansatte
+- URL: /dashbord/firma/brukere → /dashbord/firma/ansatte (Next.js route rename)
+- DB: ingen — URL-endring er kun routing
+- Sidebar-lenke oppdateres
+- i18n-nøkler oppdateres
 
-Topp-routes som bruker User.organizationId direkte (ikke via tilgangskontroll-helpers):
-- organisasjon.ts (69 treff) — viktigst
-- maskin/equipment.ts (44 treff)
-- timer/dagsseddel.ts (43 treff)
-- prosjekt.ts (35 treff)
-- admin.ts (27 treff)
-- vare.ts (25 treff)
+### 3. UI: oppdater firma-bruker-side
+- Siden leser ansattnummer + avdelingId fra OrganizationMember i stedet for User
+- inviterBruker + oppdaterBruker mutations skrives til OrganizationMember
 
-## Strategi
-Dual-read mønster: OrganizationMember først, fallback til User.organizationId (fjernes i O-5).
-Batch-vis: tilgangskontroll.ts resterende → organisasjon.ts → admin.ts → modul-routes.
+## Viktig å sjekke før O-4
+- avdelingId har FK-relasjon til Avdeling (onDelete: SetNull) — må håndteres i migrasjon
+- ansattnummer UI (commit 62f98b69) er på develop/main — må oppdateres til å lese/skrive OrganizationMember
+- To-stegs migrasjon: 1) legg til felt på OrganizationMember, 2) backfill, 3) fjern fra User (O-5)
 
-## Viktige beslutninger (lås i fase-0-beslutninger.md)
-- OrganizationRole-tabellen deprecated → OrganizationMember.firmaRoller (0 rader, trygt)
-- tildelOrgRolle/fjernOrgRolle oppdateres i O-3 til å skrive til OrganizationMember.firmaRoller
-- OrganizationMemberPermission (modul-tilgang) implementeres etter O-3
-
-## Les før du starter O-3
+## Les før O-4
 - docs/claude/fase-0-beslutninger.md § OrganizationMember-refaktor
-- apps/api/src/trpc/tilgangskontroll.ts (se O-2-endringene for mønster)
-- CLAUDE.md § Pågående arbeid
-
-## Branch
-feature/org-member-o3 fra develop
+- packages/db/prisma/schema.prisma (User-modellen, Avdeling-relasjonen)
+- apps/api/src/routes/organisasjon.ts (inviterBruker + oppdaterBruker)

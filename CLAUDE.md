@@ -117,6 +117,25 @@ Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansat
 
 Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
+### PR O-4a avdelingId på OrganizationMember IMPLEMENTERT på feature/org-member-o4a 2026-05-12
+
+Første del av O-4 — flytting av felt fra `User` til `OrganizationMember`. Additiv: feltet legges til på OrganizationMember (nullable), backfylles fra `User.avdelingId`. `User.avdelingId` beholdes for dual-read; droppes i O-5.
+
+Schema (`packages/db/prisma/schema.prisma`):
+- Nytt felt på `OrganizationMember`: `avdelingId String? @map("avdeling_id")` + relasjon `avdeling Avdeling? @relation(fields: [avdelingId], references: [id], onDelete: SetNull)` + `@@index([avdelingId])`.
+- Ny back-relasjon på `Avdeling`: `organizationMembers OrganizationMember[]`.
+
+Migrasjon `20260512200000_o4a_add_member_avdeling`:
+- `ALTER TABLE organization_members ADD COLUMN avdeling_id TEXT NULL`
+- FK til `avdelinger(id)` med `ON DELETE SET NULL ON UPDATE CASCADE`
+- Indeks `organization_members_avdeling_id_idx`
+
+Backfill-script `packages/db/scripts/backfill-org-member-avdeling.ts`: kopierer `User.avdelingId` → `OrganizationMember.avdelingId` for matchende `(userId, organizationId)`. Idempotent.
+
+Verifisert: Prisma generate ok, `apps/api` typecheck 0 nye feil. Migrasjon og backfill ikke kjørt mot test/prod ennå — venter på review.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-3b routes dual-read organisasjon.ts + prosjekt.ts IMPLEMENTERT på feature/org-member-o3b 2026-05-12
 
 Fortsettelse av OrganizationMember-refaktoren. Erstatter direkte `User.organizationId`-oppslag i tilgangsbeslutninger med dual-read via ny eksportert hjelper.

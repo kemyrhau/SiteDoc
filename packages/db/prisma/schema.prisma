@@ -136,15 +136,18 @@ model OrganizationMember {
   ansattRolle    String   @default("ansatt") @map("ansatt_rolle")
   firmaRoller    String[] @default([]) @map("firma_roller")
   ansattnummer   String?
+  avdelingId     String?  @map("avdeling_id")
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  avdeling     Avdeling?    @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
 
   @@unique([userId, organizationId])
   @@index([organizationId])
   @@index([userId])
+  @@index([avdelingId])
   @@map("organization_members")
 }
 
@@ -1870,8 +1873,9 @@ model Avdeling {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  brukere      User[]
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brukere             User[]
+  organizationMembers OrganizationMember[]
 
   @@unique([organizationId, navn])
   @@index([organizationId, aktiv])
