@@ -884,6 +884,22 @@ Dagens sti `/dashbord/[prosjektId]/timer/[id]` blir misvisende når sedel kan sp
 
 PR T7-2 starter etter PR T7-1 er deployet og verifisert på prod. PR T7-3 kan i prinsippet kjøre parallelt med PR T7-2, men anbefales sekvensielt for å redusere mobil-test-overflate.
 
+**PR T7-2 forutsetter T.3 Alt A (per-rad-attestering). Scope inkluderer:**
+
+1. **T.3 Alt A** — leder attesterer kun sine rader; sedel er container uten egen attesterings-status
+2. **Refaktor** av `[prosjektId]/timer/attestering/[id]/page.tsx` til projectId-løs felleskomponent
+3. **Ny `/dashbord/firma/timer/attestering/`-side** (liste + detalj) gated på firma-admin
+4. **Ny server-query:** `hentTilAttesteringFirma({ organizationId })` — aggregerer sedler på tvers av prosjekter i firmaet hvor minst én rad har `status="sent"`. Gates med `autoriserAdminForFirma`. Tilsvarende `kanAttestereFirma({ organizationId })` for sidebar-gating.
+
+**Splitting-regler (låst 2026-05-12):**
+
+- En rad kan splittes i to eller flere nye rader
+- Hver ny rad kan ha ulikt prosjekt, underprosjekt (ECO), lønnsart og fra/til
+- Sum av timer på nye rader må matche original-raden (validering server-side)
+- Splitting kan gjøres av: attesterende prosjektleder (egne prosjekt-rader) + firma-admin (alle rader)
+- Audit-log: original rad markeres som splittet, nye rader refererer til original via `parentRadId`
+- Eksempel: Prosjekt A | 07:00–16:00 | 9t → Prosjekt A | 07:00–12:00 | 5t + Prosjekt B | 12:00–16:00 | 4t
+
 ---
 
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding
