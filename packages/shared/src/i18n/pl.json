@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Tylko certyfikowane",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Rejestrować mogą się wyłącznie pracownicy posiadający odpowiedni certyfikat kompetencji (matryca kompetencji). Najbardziej restrykcyjne.",
   "firma.brukere.tittel": "Użytkownicy",
+  "firma.brukere.ansattnummer": "Numer pracownika",
+  "firma.brukere.ansattnummerHjelp": "Stosowany w raportach czasowych i imporcie kompetencji",
   "firma.brukere.inviter.knapp": "Zaproś użytkownika",
   "firma.brukere.inviter.tittel": "Zaproś nowego użytkownika",
   "firma.brukere.inviter.beskrivelse": "Użytkownik jest tworzony w firmie i może zalogować się przy użyciu odpowiedniego adresu e-mail za pośrednictwem Google lub Microsoft.",

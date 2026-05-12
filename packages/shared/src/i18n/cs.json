@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Certified only",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Only employees with relevant competence certificate (competence matrix) can register. Most restrictive.",
   "firma.brukere.tittel": "Users",
+  "firma.brukere.ansattnummer": "Číslo zaměstnance",
+  "firma.brukere.ansattnummerHjelp": "Používá se v časových zprávách a importech kompetencí",
   "firma.brukere.inviter.knapp": "Invite user",
   "firma.brukere.inviter.tittel": "Invite new user",
   "firma.brukere.inviter.beskrivelse": "The user is created in the company and can sign in with the matching email via Google or Microsoft.",

@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Только сертифицировано",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Зарегистрироваться могут только сотрудники, имеющие соответствующий сертификат компетентности (матрица компетенций). Самый ограничительный.",
   "firma.brukere.tittel": "Пользователи",
+  "firma.brukere.ansattnummer": "Номер сотрудника",
+  "firma.brukere.ansattnummerHjelp": "Используется в отчетах о времени и импорте компетенций.",
   "firma.brukere.inviter.knapp": "Пригласить пользователя",
   "firma.brukere.inviter.tittel": "Пригласить нового пользователя",
   "firma.brukere.inviter.beskrivelse": "Пользователь создается в компании и может войти в систему с соответствующим адресом электронной почты через Google или Microsoft.",

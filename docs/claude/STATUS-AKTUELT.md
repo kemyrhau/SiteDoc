@@ -328,6 +328,32 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### Ansattnummer i firma-admin bruker-UI IMPLEMENTERT på develop 2026-05-12
+
+Lukker arkitekturhull: `User.ansattnummer` har vært lest av flere komponenter (timer-rapport, attestering-lister, kompetanse-import) men kunne ikke settes fra UI. Eneste vei i dag var direkte SQL eller en fremtidig HR-import-modul.
+
+Server-endringer (`apps/api/src/routes/organisasjon.ts`):
+- `inviterBruker.input` utvidet med `ansattnummer: z.string().max(50).optional()`. `User.create` setter feltet ved ny bruker; `User.update` setter det ved adopsjon av orphan-bruker (eksisterende user med matchende e-post uten `organizationId`).
+- `oppdaterBruker.input` utvidet med samme felt. Mutation håndterer nullstilling via tom streng: `input.ansattnummer || null`. Respons-`select` utvidet med `ansattnummer`.
+- `hentBrukere.select` utvidet med `ansattnummer` for å støtte default-verdi i `RedigerModal`.
+
+Klient-endringer (`apps/web/src/app/dashbord/firma/brukere/page.tsx`):
+- `BrukerRad`-typen utvidet med `ansattnummer: string | null`.
+- `InviterModal`: ny lokal state `ansattnummer: ""`, input-felt med liten hjelpetekst plassert etter telefon. Sendes som `undefined` ved tom verdi for å trigge schema-default (null) på server.
+- `RedigerModal`: default `bruker.ansattnummer ?? ""`. Felt sendes alltid med — server nullstiller hvis tom.
+
+i18n: 2 nye nøkler nb+en (`firma.brukere.ansattnummer`, `firma.brukere.ansattnummerHjelp`). 13 språk auto-oversatt via `generate.ts`. Totalt 2163 nøkler per språk.
+
+**Bakgrunn:** Per CLAUDE.md vil A.Markussen bruke ansattnummer for å koble timer-rapporter (firma-rapport viser kolonnen, eksport inkluderer den) og kompetanse-import (matching-nøkkel). Manuell SQL-løsning er ikke skalerbar når kunden vil onboarde 50+ ansatte.
+
+**Ikke-scope** (per CLAUDE.md «no half-finished implementations»):
+- Prosjekt-medlem-flyt (`apps/api/src/routes/medlem.ts`) tar fortsatt ikke imot ansattnummer ved invitasjon. Brukere som først opprettes via firma-side vil arve feltet ned til prosjekt-medlemskap automatisk. Hvis det viser seg at prosjekt-medlem-invitasjon må kunne sette ansattnummer direkte, åpnes egen PR.
+- HR-import-modul forblir planlagt fremtidig arbeid for batch-import fra eksternt system.
+
+Verifisert: `apps/api` + `apps/web` typecheck 0 nye feil. Klar for test-deploy. **Stopp og rapporter etter test-verifisering — prod-deploy avventer eksplisitt grønt lys.**
+
+---
+
 ### T.7 dagsseddel UI-redesign + #8 sjekklistemaler-kolonner DEPLOYET TIL PROD 2026-05-12
 
 T.7-leveranseplanen (definert i [fase-0-beslutninger.md § T.7](fase-0-beslutninger.md)) startet samme dag som PR 1A–2C, med URL-struktur Alternativ C (tre kontekster: arbeider `/dashbord/timer/[id]`, prosjektleder `/dashbord/[prosjektId]/timer/attestering`, firma-admin `/dashbord/firma/timer/attestering`) og fire PR-er. Tre etapper deployet samme kveld.

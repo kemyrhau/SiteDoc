@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Ainult sertifitseeritud",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Registreerida saavad ainult vastava pädevustunnistusega töötajad (pädevusmaatriks). Kõige piiravam.",
   "firma.brukere.tittel": "Kasutajad",
+  "firma.brukere.ansattnummer": "Töötaja number",
+  "firma.brukere.ansattnummerHjelp": "Kasutatakse ajaaruannetes ja pädevuste importimisel",
   "firma.brukere.inviter.knapp": "Kutsu kasutaja",
   "firma.brukere.inviter.tittel": "Kutsu uus kasutaja",
   "firma.brukere.inviter.beskrivelse": "Kasutaja luuakse ettevõttes ja ta saab Google'i või Microsofti kaudu vastava e-postiga sisse logida.",
