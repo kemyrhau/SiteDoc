@@ -861,6 +861,29 @@ Dagsseddelen redesignes med prosjekt-gruppert struktur:
 - Forutsetter: T.1–T.6 (projectId per rad, fra/til-felt) ✅
 - Planlegges i egen sesjon etter kundeliste er ryddet
 
+**URL-struktur (låst 2026-05-12 — Alternativ C med tre kontekster):**
+
+| URL | Kontekst | Bruker |
+|---|---|---|
+| `/dashbord/timer/[id]` | Arbeider-registrering (firma-kontekst, ikke prosjekt-bundet) | Den ansatte selv |
+| `/dashbord/[prosjektId]/timer/attestering` | Prosjektleder-attestering | Prosjektleder for ett prosjekt |
+| `/dashbord/firma/timer/attestering` | Firma-admin-attestering på tvers | Firmaadmin/HMS-ansvarlig |
+
+Dagens sti `/dashbord/[prosjektId]/timer/[id]` blir misvisende når sedel kan spenne flere prosjekter. Beholdes som server-side redirect-stub for bakoverkompatibilitet (eldre bokmerker, eksterne lenker) — peker til ny `/dashbord/timer/[id]` uten prosjekt-prefix.
+
+**Plattform-prioritet (låst 2026-05-12):** Web først. Mobil får egen refaktor-PR FØR T.7-mobil-implementasjon, fordi `apps/mobile/app/timer/[id].tsx` (2084 linjer) må splittes til komponenter før prosjekt-gruppe-konseptet kan innføres uten regresjons-risiko.
+
+**Leveranserekkefølge (låst 2026-05-12):**
+
+| PR | Innhold | Avhenger av |
+|---|---|---|
+| **PR T7-0** | Mobil-refaktor — splitt `apps/mobile/app/timer/[id].tsx` til komponenter (TimerSeksjon, TilleggSeksjon, MaskinSeksjon, modaler). INGEN funksjonalitetsendring. | T.1–T.6 ✅ |
+| **PR T7-1** | Web ny dagsseddel — prosjekt-gruppert UI, multi-prosjekt, løpende summering, geo-forslag. Inkluderer ny URL `/dashbord/timer/[id]` + redirect-stub fra gammel sti. | T.1–T.6 ✅ |
+| **PR T7-2** | Web attestering — `/dashbord/[prosjektId]/timer/attestering` (prosjektleder) + `/dashbord/firma/timer/attestering` (firma-admin på tvers). Krever T.3-attestering-flyt-utvidelse (per-rad-attestering). | PR T7-1 |
+| **PR T7-3** | Mobil dagsseddel — speil av PR T7-1 strukturen på mobil. | PR T7-0 + PR T7-1 |
+
+PR T7-2 starter etter PR T7-1 er deployet og verifisert på prod. PR T7-3 kan i prinsippet kjøre parallelt med PR T7-2, men anbefales sekvensielt for å redusere mobil-test-overflate.
+
 ---
 
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding
