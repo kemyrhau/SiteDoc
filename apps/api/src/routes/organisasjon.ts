@@ -192,6 +192,7 @@ export const organisasjonRouter = router({
         email: true,
         phone: true,
         role: true,
+        ansattnummer: true,
         createdAt: true,
       },
       orderBy: { name: "asc" },
@@ -349,6 +350,7 @@ export const organisasjonRouter = router({
         email: z.string().email(),
         telefon: z.string().max(50).optional(),
         rolle: z.enum(["user", "company_admin"]),
+        ansattnummer: z.string().max(50).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -380,6 +382,7 @@ export const organisasjonRouter = router({
             organizationId: orgId,
             role: input.rolle,
             ...(input.telefon ? { phone: input.telefon } : {}),
+            ...(input.ansattnummer ? { ansattnummer: input.ansattnummer } : {}),
           },
           select: { id: true, name: true, email: true, role: true },
         });
@@ -393,6 +396,7 @@ export const organisasjonRouter = router({
           organizationId: orgId,
           role: input.rolle,
           canLogin: true,
+          ansattnummer: input.ansattnummer ?? null,
         },
         select: { id: true, name: true, email: true, role: true },
       });
@@ -409,6 +413,7 @@ export const organisasjonRouter = router({
         email: z.string().email().optional(),
         telefon: z.string().max(50).nullable().optional(),
         rolle: z.enum(["user", "company_admin"]).optional(),
+        ansattnummer: z.string().max(50).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -462,16 +467,21 @@ export const organisasjonRouter = router({
         email?: string;
         phone?: string | null;
         role?: string;
+        ansattnummer?: string | null;
       } = {};
       if (input.navn !== undefined) data.name = input.navn;
       if (input.email !== undefined) data.email = input.email;
       if (input.telefon !== undefined) data.phone = input.telefon;
       if (input.rolle !== undefined) data.role = input.rolle;
+      if (input.ansattnummer !== undefined) {
+        // Tom streng → null (nullstilling fra UI)
+        data.ansattnummer = input.ansattnummer || null;
+      }
 
       return ctx.prisma.user.update({
         where: { id: input.userId },
         data,
-        select: { id: true, name: true, email: true, phone: true, role: true },
+        select: { id: true, name: true, email: true, phone: true, role: true, ansattnummer: true },
       });
     }),
 

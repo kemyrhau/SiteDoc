@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Vetëm i certifikuar",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Mund të regjistrohen vetëm punonjësit me certifikatë përkatëse të kompetencës (matrica e kompetencës). Më kufizuese.",
   "firma.brukere.tittel": "Përdoruesit",
+  "firma.brukere.ansattnummer": "Numri i punonjësit",
+  "firma.brukere.ansattnummerHjelp": "Përdoret në raportet kohore dhe importet e kompetencave",
   "firma.brukere.inviter.knapp": "Fto përdorues",
   "firma.brukere.inviter.tittel": "Fto përdorues të ri",
   "firma.brukere.inviter.beskrivelse": "Përdoruesi është krijuar në kompani dhe mund të identifikohet me emailin që përputhet nëpërmjet Google ose Microsoft.",

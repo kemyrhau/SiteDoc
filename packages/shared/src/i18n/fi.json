@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Vain sertifioitu",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Vain työntekijät, joilla on asianmukainen pätevyystodistus (pätevyysmatriisi), voivat rekisteröityä. Kaikkein rajoittavin.",
   "firma.brukere.tittel": "Käyttäjät",
+  "firma.brukere.ansattnummer": "Työntekijän numero",
+  "firma.brukere.ansattnummerHjelp": "Käytetään aikaraporteissa ja osaamisen tuonnissa",
   "firma.brukere.inviter.knapp": "Kutsu käyttäjä",
   "firma.brukere.inviter.tittel": "Kutsu uusi käyttäjä",
   "firma.brukere.inviter.beskrivelse": "Käyttäjä luodaan yritykseen ja voi kirjautua sisään vastaavalla sähköpostiosoitteella Googlen tai Microsoftin kautta.",

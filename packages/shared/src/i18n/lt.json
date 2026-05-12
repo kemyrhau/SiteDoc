@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Tik sertifikuota",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Registruotis gali tik darbuotojai, turintys atitinkamą kompetencijos pažymėjimą (kompetencijos matricą). Labiausiai ribojantis.",
   "firma.brukere.tittel": "Vartotojai",
+  "firma.brukere.ansattnummer": "Darbuotojo numeris",
+  "firma.brukere.ansattnummerHjelp": "Naudojamas laiko ataskaitose ir kompetencijų importuose",
   "firma.brukere.inviter.knapp": "Pakviesti naudotoją",
   "firma.brukere.inviter.tittel": "Pakviesti naują vartotoją",
   "firma.brukere.inviter.beskrivelse": "Vartotojas yra sukurtas įmonėje ir gali prisijungti naudodamas atitinkamą el. pašto adresą per Google arba Microsoft.",

@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Endast certifierad",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Endast anställda med relevant kompetensbevis (kompetensmatris) kan anmäla sig. Mest restriktiva.",
   "firma.brukere.tittel": "Användare",
+  "firma.brukere.ansattnummer": "Anställds nummer",
+  "firma.brukere.ansattnummerHjelp": "Används i tidrapporter och kompetensimport",
   "firma.brukere.inviter.knapp": "Bjud in användare",
   "firma.brukere.inviter.tittel": "Bjud in ny användare",
   "firma.brukere.inviter.beskrivelse": "Användaren skapas i företaget och kan logga in med matchande e-post via Google eller Microsoft.",

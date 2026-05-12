@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Certifié uniquement",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Seuls les employés possédant un certificat de compétence pertinent (matrice de compétences) peuvent s'inscrire. Le plus restrictif.",
   "firma.brukere.tittel": "Utilisatrices",
+  "firma.brukere.ansattnummer": "Numéro d'employé",
+  "firma.brukere.ansattnummerHjelp": "Utilisé dans les rapports de temps et les importations de compétences",
   "firma.brukere.inviter.knapp": "Inviter un utilisateur",
   "firma.brukere.inviter.tittel": "Inviter un nouvel utilisateur",
   "firma.brukere.inviter.beskrivelse": "L'utilisateur est créé dans l'entreprise et peut se connecter avec l'e-mail correspondant via Google ou Microsoft.",

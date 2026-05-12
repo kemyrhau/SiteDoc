@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Tikai sertificēts",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Reģistrēties var tikai darbinieki ar atbilstošu kompetences sertifikātu (kompetenču matricu). Visvairāk ierobežojošs.",
   "firma.brukere.tittel": "Lietotāji",
+  "firma.brukere.ansattnummer": "Darbinieka numurs",
+  "firma.brukere.ansattnummerHjelp": "Izmanto laika atskaitēs un kompetenču importēšanā",
   "firma.brukere.inviter.knapp": "Uzaicināt lietotāju",
   "firma.brukere.inviter.tittel": "Uzaicināt jaunu lietotāju",
   "firma.brukere.inviter.beskrivelse": "Lietotājs ir izveidots uzņēmumā un var pierakstīties ar atbilstošo e-pastu, izmantojot Google vai Microsoft.",

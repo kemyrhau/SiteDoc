@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Doar certificat",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Numai angajații cu certificat de competență relevant (matricea de competențe) se pot înscrie. Cel mai restrictiv.",
   "firma.brukere.tittel": "Utilizatori",
+  "firma.brukere.ansattnummer": "Numărul de angajat",
+  "firma.brukere.ansattnummerHjelp": "Folosit în rapoarte de timp și importuri de competențe",
   "firma.brukere.inviter.knapp": "Invitați utilizator",
   "firma.brukere.inviter.tittel": "Invitați un utilizator nou",
   "firma.brukere.inviter.beskrivelse": "Utilizatorul este creat în companie și se poate conecta cu e-mailul potrivit prin Google sau Microsoft.",

@@ -13,6 +13,7 @@ type BrukerRad = {
   email: string;
   phone: string | null;
   role: string;
+  ansattnummer: string | null;
 };
 
 export default function FirmaBrukere() {
@@ -236,6 +237,7 @@ function InviterModal({
   const [navn, setNavn] = useState("");
   const [email, setEmail] = useState("");
   const [telefon, setTelefon] = useState("");
+  const [ansattnummer, setAnsattnummer] = useState("");
   const [rolle, setRolle] = useState<"user" | "company_admin">("user");
 
   const inviter = trpc.organisasjon.inviterBruker.useMutation({
@@ -252,6 +254,7 @@ function InviterModal({
       navn: navn.trim(),
       email: email.trim(),
       telefon: telefon.trim() || undefined,
+      ansattnummer: ansattnummer.trim() || undefined,
       rolle,
     });
   }
@@ -313,6 +316,21 @@ function InviterModal({
               onChange={(e) => setTelefon(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-secondary focus:outline-none focus:ring-1 focus:ring-sitedoc-secondary"
             />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("firma.brukere.ansattnummer")}
+            </label>
+            <input
+              type="text"
+              value={ansattnummer}
+              onChange={(e) => setAnsattnummer(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-secondary focus:outline-none focus:ring-1 focus:ring-sitedoc-secondary"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {t("firma.brukere.ansattnummerHjelp")}
+            </p>
           </div>
 
           <div>
@@ -386,6 +404,7 @@ function RedigerModal({
   const [navn, setNavn] = useState(bruker.name ?? "");
   const [email, setEmail] = useState(bruker.email);
   const [telefon, setTelefon] = useState(bruker.phone ?? "");
+  const [ansattnummer, setAnsattnummer] = useState(bruker.ansattnummer ?? "");
   const [rolle, setRolle] = useState<"user" | "company_admin">(
     bruker.role === "company_admin" ? "company_admin" : "user",
   );
@@ -407,6 +426,7 @@ function RedigerModal({
       navn: navn.trim(),
       email: email.trim(),
       telefon: trimmetTelefon === "" ? null : trimmetTelefon,
+      ansattnummer: ansattnummer.trim(),
       rolle,
     });
   }
@@ -464,6 +484,21 @@ function RedigerModal({
               onChange={(e) => setTelefon(e.target.value)}
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-secondary focus:outline-none focus:ring-1 focus:ring-sitedoc-secondary"
             />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("firma.brukere.ansattnummer")}
+            </label>
+            <input
+              type="text"
+              value={ansattnummer}
+              onChange={(e) => setAnsattnummer(e.target.value)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-secondary focus:outline-none focus:ring-1 focus:ring-sitedoc-secondary"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              {t("firma.brukere.ansattnummerHjelp")}
+            </p>
           </div>
 
           <div>
