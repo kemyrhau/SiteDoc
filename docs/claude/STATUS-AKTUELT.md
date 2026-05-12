@@ -29,11 +29,13 @@ Kunden ønsker sjekkliste der timetall kobles til servicestatus, og «neste serv
 
 Overtid skal ikke kunne registreres før min. 8t (sommer) / 7t (vinter) ordinær arbeidstid er ført. Ingen validering finnes i timer-routes. Ny `sommer/vinter`-overtid-grense-logikk + feilmelding/blokkering mangler.
 
-### #3 — Tidspunkt (fra/til) per linje i timeføringen 🔴
+### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟡
 
 **Side:** Timeføring.
 
-Hver `SheetTimer`-rad skal ha egne fra/til-felt. Schema har ikke `fraTid`/`tilTid` på rad-nivå. Krever schema-utvidelse + validering (fra < til) + UI-oppdatering.
+Schema + server-input på plass (T.4). UI-felt og fra<til-validering mangler.
+
+`SheetTimer.fraTid`/`tilTid` (`packages/db-timer/prisma/schema.prisma:183-184`) og `SheetMachine.fraTid`/`tilTid` (linje 256-257) er lagt til som `String? @map("fra_tid"/"til_tid")`. Server tar imot feltene i `timer.dagsseddel.tilfoyTimerRad` (`apps/api/src/routes/timer/dagsseddel.ts:372-373, 417-418`) og `redigerTimerRad` (1506-1507, 1533-1534). Mangler: server-side validering `fraTid < tilTid` (kommentar på schema-linje 183 lover dette i PR 2, ikke implementert ennå) + UI-felt for inntasting i web/mobil-skjemaene.
 
 ### #4 — Redigering og splitting av timer ved attestering 🟡
 
