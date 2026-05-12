@@ -166,18 +166,24 @@ export async function verifiserOrganisasjonTilgang(
   userId: string,
   organisationId: string,
 ): Promise<void> {
+  // O-2: sjekk OrganizationMember først
+  const member = await prisma.organizationMember.findUnique({
+    where: { userId_organizationId: { userId, organizationId: organisationId } },
+    select: { id: true },
+  });
+  if (member) return;
+
+  // O-2 fallback: behold gammel sjekk (fjernes i O-5)
   const bruker = await prisma.user.findUnique({
     where: { id: userId },
     select: { organizationId: true },
   });
-
   if (!bruker?.organizationId) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Bruker tilhører ingen organisasjon",
     });
   }
-
   if (bruker.organizationId !== organisationId) {
     throw new TRPCError({ code: "FORBIDDEN" });
   }
@@ -211,11 +217,18 @@ export async function autoriserAdminForFirma(
     throw new TRPCError({ code: "FORBIDDEN", message: "Ukjent bruker" });
   }
 
+  // sitedoc_admin har alltid tilgang (system-rolle, forblir på User)
   if (bruker.role === "sitedoc_admin") return;
 
-  if (bruker.role === "company_admin" && bruker.organizationId === organizationId) {
-    return;
-  }
+  // O-2: sjekk OrganizationMember.firmaRoller først
+  const member = await prisma.organizationMember.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { firmaRoller: true },
+  });
+  if (member?.firmaRoller.includes("firma_admin")) return;
+
+  // O-2 fallback: behold gammel sjekk (fjernes i O-5)
+  if (bruker.role === "company_admin" && bruker.organizationId === organizationId) return;
 
   throw new TRPCError({
     code: "FORBIDDEN",
@@ -660,11 +673,27 @@ export async function verifiserTillatelse(
  * Tildeles av firma-admin via organisasjon.tildelOrgRolle / fjernOrgRolle.
  */
 export async function harOrgRolle(userId: string, role: string): Promise<boolean> {
-  const rad = await prisma.organizationRole.findFirst({
-    where: { userId, role },
-    select: { id: true },
+  // O-2: les fra OrganizationMember.firmaRoller
+  // Trenger brukerens organizationId for oppslaget
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { organizationId: true },
   });
-  return !!rad;
+  if (!bruker?.organizationId) return false;
+
+  const member = await prisma.organizationMember.findUnique({
+    where: {
+      userId_organizationId: {
+        userId,
+        organizationId: bruker.organizationId,
+      },
+    },
+    select: { firmaRoller: true },
+  });
+  return member?.firmaRoller.includes(role) ?? false;
+
+  // O-2 fallback: organizationRole leses ikke lenger (0 rader i prod)
+  // Tabellen droppes i O-5
 }
 
 /**
