@@ -29,11 +29,13 @@ Kunden ønsker sjekkliste der timetall kobles til servicestatus, og «neste serv
 
 Overtid skal ikke kunne registreres før min. 8t (sommer) / 7t (vinter) ordinær arbeidstid er ført. Ingen validering finnes i timer-routes. Ny `sommer/vinter`-overtid-grense-logikk + feilmelding/blokkering mangler.
 
-### #3 — Tidspunkt (fra/til) per linje i timeføringen 🔴
+### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟡
 
 **Side:** Timeføring.
 
-Hver `SheetTimer`-rad skal ha egne fra/til-felt. Schema har ikke `fraTid`/`tilTid` på rad-nivå. Krever schema-utvidelse + validering (fra < til) + UI-oppdatering.
+Schema + server-input på plass (T.4). UI-felt og fra<til-validering mangler.
+
+`SheetTimer.fraTid`/`tilTid` (`packages/db-timer/prisma/schema.prisma:183-184`) og `SheetMachine.fraTid`/`tilTid` (linje 256-257) er lagt til som `String? @map("fra_tid"/"til_tid")`. Server tar imot feltene i `timer.dagsseddel.tilfoyTimerRad` (`apps/api/src/routes/timer/dagsseddel.ts:372-373, 417-418`) og `redigerTimerRad` (1506-1507, 1533-1534). Mangler: server-side validering `fraTid < tilTid` (kommentar på schema-linje 183 lover dette i PR 2, ikke implementert ennå) + UI-felt for inntasting i web/mobil-skjemaene.
 
 ### #4 — Redigering og splitting av timer ved attestering 🟡
 
@@ -58,13 +60,15 @@ Attesterende skal kunne redigere antall timer og splitte en rad i flere. **Steg 
 
 ---
 
-### #6 — Maskinmodul ikke synlig i prosjekt 998 Instinniforbotn ❓
+### #6 — Maskinmodul ikke synlig i prosjekt 998 Instinniforbotn ✅ Lukket 2026-05-12
 
 **Side:** Maskin (prosjekt 998 Instinniforbotn).
 
-Maskinregister aktivert på firmanivå, men maskinmodul-menypunkt mangler i prosjektets venstremeny og «Oppsett som gjenstår»-varselet flagger maskinmodul-oppsett.
+✅ **Lukket 2026-05-12 — ikke en bug.** `ProjectModule maskin/aktiv` finnes på prod for prosjekt 998 (`5e8dd794-ab81-47b7-a146-d7384fac3a8a`), og `OrganizationModule maskin/aktiv` finnes for A.Markussen (`4488fe17-...`). Auto-sync fra Steg 1c (`87fb7292`) har gjort jobben sin.
 
-**Status:** Auto-sync-koden finnes (Steg 1c deployet 2026-05-03 — `87fb7292`). Når firmamodul aktiveres skal `ProjectModule(slug="maskin", status="aktiv")` synkroniseres til alle prosjekter. Hvis prosjekt 998 ble opprettet FØR maskin-firmamodulen ble aktivert på A.Markussen, kan synkroniseringen ha hoppet over. **DB-verifikasjon nødvendig:** sjekk om `project_modules`-rad finnes for prosjekt 998 + slug=maskin + status=aktiv. Hvis mangler, kjøres `organisasjon.settFirmamodul({ aktiver: true })` manuelt eller via reaktiverings-knappen i `/dashbord/firma/moduler`.
+A.Markussen-ansatte (Malin, Silje, Florian — alle `company_admin` med `organization_id = 4488fe17-...` og `can_login=true`) ser Maskin-lenken korrekt i bunnen av HovedSidebar. Kenneth ser den ikke fordi hans bruker har `organization_id = NULL` (superadmin uten firma-tilknytning) — `organisasjon.hentMin` returnerer da `null` og `aktiveFirmamoduler = []`, slik at maskin-bunnelementet filtreres bort i `HovedSidebar.tsx:331`.
+
+**Løsning:** Bytt til brukervisning (impersonering eller logg inn som A.Markussen-ansatt) for å se det kunden ser. Diagnose-verifikasjon utført 2026-05-12 mot prod-DB.
 
 ### #7 — Rettighetsmatrise med rolle-styring (Prosjektleder + Bas) 🔴
 
@@ -299,10 +303,12 @@ I dag arver `SheetMachine` prosjekttilhørighet via `DailySheet.projectId` (Casc
 | PR | Innhold | Status |
 |---|---|---|
 | **PR 1A** (`862c70c3`) | Schema-additive + backfill (alle kolonner nullable, DailySheet.projectId beholdt) | 🟢 Deployet prod 2026-05-11 |
-| **PR 1B** (`bba971ba`) | NOT NULL på rad-tabeller + drop DailySheet.projectId + ny unique `(userId, dato)` | 🟢 Deployet test 2026-05-11. **Avventer prod** til klient-lag (PR 2A/B/C) verifisert på test |
-| **PR 2A** (`6431873c`) | API-refaktor — dagsseddel/rapport/vareforbruk-routes (45 → 0 TS-feil i `apps/api`) | 🟢 Deployet test 2026-05-12 |
-| **PR 2B** (`8478d4a7`) | Web-klient — 3 timer-modaler sender `projectId` fra `useParams` (46 → 0 TS-feil i `apps/web`) | 🟢 Deployet test 2026-05-12. PM2-restart bekreftet (uptime 7m, restart-teller +1) |
-| **PR 2C** (denne commit) | Mobil — defensiv `?? ""` på `serverSedel.projectId` i `timerSync.ts` mot ny server-respons (null for tomme sedler) | 🟢 Minimumsfix |
+| **PR 1B** (`bba971ba`) | NOT NULL på rad-tabeller + drop DailySheet.projectId + ny unique `(userId, dato)` | 🟢 Deployet prod 2026-05-12 (00:06:53) |
+| **PR 2A** (`6431873c`) | API-refaktor — dagsseddel/rapport/vareforbruk-routes (45 → 0 TS-feil i `apps/api`) | 🟢 Deployet prod 2026-05-12 |
+| **PR 2B** (`8478d4a7`) | Web-klient — 3 timer-modaler sender `projectId` fra `useParams` (46 → 0 TS-feil i `apps/web`) | 🟢 Deployet prod 2026-05-12 (PM2-restart bekreftet, restart-teller +1 = 46) |
+| **PR 2C min** (`0700b8ed`) | Mobil — defensiv `?? ""` på `serverSedel.projectId` i `timerSync.ts` mot ny server-respons (null for tomme sedler) | 🟢 Deployet prod 2026-05-12 |
+
+**Verifisering prod 2026-05-12:** HTTP/2 200 mot `sitedoc.no`, API health OK. DB-state: `daily_sheets.project_id` DROPPED, `sheet_timer/sheet_machines/sheet_tillegg.project_id` NOT NULL, ny unique `daily_sheets_user_id_dato_key`. PM2 sitedoc-web (id 47) + sitedoc-api (id 39) begge restartet 22:08, uptime 0-2s, restart-teller +1 = 46.
 
 ### Åpen oppgave — full Drizzle-schema-omskriving (utsatt)
 
@@ -1596,6 +1602,10 @@ Status og detaljer: [db-opprydning.md](db-opprydning.md).
 **Timer/Maskin-revurdering** er utsatt til etter Fase 0-fundament er ferdig. timer.md og maskin.md har drift mot fase-0-beslutninger og må justeres før Fase 3 (Timer-modul) og Fase 1-fullføring (Maskin-modul-gateway) — men Fase 0-fundamentet bygges nå uavhengig av denne revurderingen.
 
 ## Planlagte oppgaver
+
+### Superadmin-oversikt over firma-moduler
+
+Superadmin trenger oversikt over hvilke moduler det enkelte firma har aktivert — delvis for fakturering. Ikke del av A.Markussen-kundelisten. Egen feature-sesjon.
 
 **HMS-tilgang for arbeidsgiver på andres prosjekter (juridisk gap, 2026-05-03):**
 A.27 gir firma-HMS-ansvarlig innsyn i «firmaets prosjekter» men IKKE i prosjekter

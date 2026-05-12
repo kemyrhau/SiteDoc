@@ -64,6 +64,7 @@ Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet r
 | `OrganizationSetting.dagsnorm` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default 7.5) | Kreves av auto-fordeling |
 | `OrganizationSetting.tillattSelvAttestering` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default true) | Selv-attestering-policy |
 | `OrganizationSetting.timerLockEtterDager` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, Int? null = ingen alders-grense; status styrer låsing per Variant A) | Status-basert låsing |
+| `OrganizationSetting.tidsrundingMinutter` | ✅ Tilføyd 2026-05-12 (T.5, PR 1A commit `862c70c3`, Int? @default(15)) — støttede verdier: 15, 30, 60, null (ingen avrunding) | T.5: Tidsrunding ved timer-registrering |
 | `Organization.harTimerModul` | ✅ Tilføyd 2026-05-01 (Infrastruktur-commit, default false) — midlertidig modul-flagg, samme mønster som `harMaskinModul` |
 | `apps/api/src/services/timer/moduleGate.ts` | ✅ Opprettet 2026-05-01 — `erTimerAktivert` + `krevTimerAktivert` |
 | `modulProcedure('timer')` i tRPC | ❌ Ikke implementert | Forutsetter fullstendig modul-gateway (per A.4) |
@@ -119,6 +120,8 @@ Kun ett: **Drømmescenario for Proadm → SiteDoc Godkjenning auto-avledning** (
 | **Runde 2.6** — Mobil maskin-cache | 🟢 Implementert 2026-05-02 (`feature/timer-2.6`) | `equipment_local` Drizzle-tabell + `maskinKatalog.ts` (refresh ved login + nett-gjenkomst, parallelt med Timer-katalog) + MaskinSeksjon/MaskinRadModal/EquipmentVelgerModal/EnhetVelgerModal i mobil [id].tsx + soft-skjul (skjules når Equipment-cache er tom). Utgåtte ekskludert fra velger via filter (status≠'utgaatt'). Søk-felt i velger når > 7 elementer. ~7 nye i18n-nøkler nb+en. Sync-motor allerede på plass i C9 — sheet_machine_local sendes/mottas. |
 | **Runde 2.7** — Mine timer + dagstotal-banner + ukesoppsummering | 🟢 Implementert 2026-05-02 (`feature/timer-2.7`) | DagstotalBanner-komponent på mobil (lokal Drizzle-spørring, brukes i ny.tsx + [id].tsx) — viser sum timer på tvers av prosjekter for valgt dato. UkeTotalBanner mobil i `/timer/index.tsx`. Web uke-navigator utvidet med totalsum «Uke X — totalt Y.YYt». Ny `/dashbord/timer/mine` (web): periode-velger (5 valg inkl. egendefinert), 4 oppsummerings-kort, per aktivitet/status-aggregeringer, detaljliste. Sidebar-element «Mine timer» i firma-layout (gates på timer-modul). Ny `/timer/mine` (mobil): periode-toggle (3 valg), 2 pills, aktivitet-aggregering, detaljliste. Mer-tab Timer-rad fikk søsken-link «Mine timer». Bruker eksisterende `timer.dagsseddel.list` med klient-side aggregering. ~22 nye i18n-nøkler nb+en. Ingen DB-migrasjon, ingen server-endring. |
 | **Runde 3** — Eksport-adaptere | ❌ Ikke startet | Proadm/Tripletex/Visma/Poweroffice-adaptere |
+| **T.1–T.6 arkitektur-redesign** | 🟢 Deployet prod 2026-05-12 | 5 PR-er (`862c70c3`/`bba971ba`/`6431873c`/`8478d4a7`/`0700b8ed`). DailySheet.projectId droppet, projectId på rad-nivå (NOT NULL), fra/til per rad (T.4), per-rad attestering-felter (T.3), `OrganizationSetting.tidsrundingMinutter` (T.5). Detaljer i [fase-0-beslutninger.md § T](fase-0-beslutninger.md) + [STATUS-AKTUELT.md § Implementasjonsstatus](STATUS-AKTUELT.md). |
+| **PR 2C full (mobil Drizzle-omskriving)** | 🔴 Åpen oppgave (utsatt) | Mobil Drizzle-schema speiler fortsatt gammel server-modell der `dagsseddel_local.project_id` er NOT NULL på sedel-nivå. Full T.1/T.2-speiling krever: (1) gjøre `dagsseddel_local.project_id` nullable (SQLite TABLE-recreate), (2) legge til `project_id` NOT NULL + `byggeplass_id` + `fra_tid` + `til_tid` + attestert-felter på `sheet_timer_local`/`sheet_machine_local`/`sheet_tillegg_local`, (3) backfill rad-tabellene fra parent, (4) oppdatere `timerSync.ts` til å sende projectId per rad, (5) oppdatere `app/timer/[id].tsx`/`ny.tsx`/`mine.tsx`. PR 2C min (`0700b8ed`) leverer kun defensiv null-guard. Full PR 2C utsatt til ny krav (f.eks. mobil-flerprosjekt-dagsseddel) trigger den. |
 
 ---
 
@@ -608,6 +611,8 @@ Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` pek
 
 ## Database — `packages/db-timer`
 
+> **🟢 T.1–T.6 (vedtatt 2026-05-11, deployet prod 2026-05-12):** `projectId` er flyttet fra `DailySheet`-nivå til rad-nivå (`SheetTimer`/`SheetMachine`/`SheetTillegg`). Dagsseddelen eies av arbeider/firma, ikke prosjekt. Se [fase-0-beslutninger.md § T](fase-0-beslutninger.md) for vedtak. Levert i 5 PR-er (`862c70c3`/`bba971ba`/`6431873c`/`8478d4a7`/`0700b8ed`).
+
 ### Hovedtabell: `daily_sheets` (dagsseddel)
 
 | Felt | Type | Beskrivelse |
@@ -617,29 +622,29 @@ Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` pek
 | `organizationId` | `uuid` FK → `organizations` | Firma-eier (timer-data er firma-eid) |
 | `userId` | `uuid` FK → `users` | Hvem timer gjelder for |
 | `registrertAvUserId` | `uuid` FK → `users` | Hvem la inn registreringen (kan være ulik userId) |
-| `projectId` | `uuid` FK → `projects` | Prosjekt |
+| ~~`projectId`~~ | ~~`uuid` FK → `projects`~~ | **DROPPET T.1 (2026-05-12).** Prosjekttilhørighet ligger nå på rad-nivå (`SheetTimer.projectId`/`SheetMachine.projectId`/`SheetTillegg.projectId`). |
 | `aktivitetId` | `uuid?` FK → `aktiviteter` | Default-aktivitet for nye timer-rader (C9 2026-05-02 — nullable). Selve kanon-eierskapet ligger på `SheetTimer.aktivitetId` per rad. Kopieres til første rad ved opprettelse. |
 | `avdelingId` | `uuid?` FK → `avdelinger` | Avdeling (firma-intern, valgfri) |
-| `byggeplassId` | `uuid?` FK → `byggeplasser` | Byggeplass (per byggeplass-strategi, valgfri) |
+| `byggeplassId` | `uuid?` FK → `byggeplasser` | Byggeplass på sedel-nivå (default-forslag). Faktisk byggeplass per rad ligger på `SheetTimer.byggeplassId` / `SheetMachine.byggeplassId` (T.2). |
 | `dato` | `date` | Arbeidsdag |
-| `startAt` | `timestamptz?` | Klokkeslett start (valgfri, obligatorisk hvis nattskift-tillegg krysses) |
-| `endAt` | `timestamptz?` | Klokkeslett slutt (valgfri) |
+| `startAt` | `timestamptz?` | Klokkeslett start (forenklet forslag til arbeider; faktisk tid per rad ligger på `SheetTimer.fraTid`/`tilTid` per T.4) |
+| `endAt` | `timestamptz?` | Klokkeslett slutt (forenklet forslag) |
 | `pauseMin` | `int` default 0 | Pause i minutter |
-| `status` | `text` default `draft` | `draft` \| `sent` \| `returned` \| `accepted` |
+| `status` | `text` default `draft` | `draft` \| `sent` \| `returned` \| `accepted`. **Per T.3 Alternativ A** skal sedelen være container uten egen attesterings-status (attestering per rad). Foreløpig beholdt for bakoverkompatibilitet — full migrering til per-rad-attestering i senere PR. |
 | `beskrivelse` | `text?` | Fritekst fra ansatt |
 | `lederKommentar` | `text?` | Toveis-kommunikasjon: leder kan svare ansatt |
 | `syncStatus` | `text` | `pending` \| `synced` \| `conflict` |
 | `syncedAt` | `timestamptz?` | Siste vellykket synkronisering |
-| `attestertAvUserId` | `uuid?` FK → `users` | Leder som attesterte |
-| `attestertVed` | `timestamptz?` | Tidspunkt for attestering |
+| `attestertAvUserId` | `uuid?` FK → `users` | Leder som attesterte (per T.3 flyttes til rad i senere PR) |
+| `attestertVed` | `timestamptz?` | Tidspunkt for attestering (per T.3 flyttes til rad i senere PR) |
 | `createdAt` | `timestamptz` | |
 | `updatedAt` | `timestamptz` | |
 
 **Indekser:**
-- `(userId, projectId, dato)` UNIQUE
+- `(userId, dato)` UNIQUE — **endret T.1 2026-05-12** (fra `(userId, projectId, dato)` — projectId droppet)
 - `(organizationId)`
 - `(clientUuid)` UNIQUE
-- `(projectId, dato)` — prosjektrapport for periode
+- ~~`(projectId, dato)`~~ — **DROPPET T.1 2026-05-12** (projectId-kolonnen fjernet)
 - `(organizationId, dato)` — firma-rapport / lønnsrapport
 - `(organizationId, status)` — admin: «hva ligger til attestering»
 - `(attestertAvUserId, attestertVed)` — «hva har leder X attestert»
@@ -647,7 +652,9 @@ Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` pek
 - `(avdelingId, dato)` — eksport-filtrering per avdeling
 - `(userId, syncStatus)` — mobil pending-sync
 
-**Note om ECO-flytting (vedtatt 2026-04-29):** `externalCostObjectId` flyttet fra `daily_sheets`-nivå til `sheet_timer`-nivå (linje-nivå). Begrunnelse: multi-ECO er svært vanlig hos A.Markussen — ansatte jobber regelmessig på flere underprosjekter samme dag. Med ECO på linje kan én dagsseddel inneholde rader med ulike ECO-koblinger, og unique-constraint `(userId, projectId, dato)` beholdes som «én dagsseddel per arbeidsdag».
+**Note om ECO-flytting (vedtatt 2026-04-29):** `externalCostObjectId` flyttet fra `daily_sheets`-nivå til `sheet_timer`-nivå (linje-nivå). Begrunnelse: multi-ECO er svært vanlig hos A.Markussen — ansatte jobber regelmessig på flere underprosjekter samme dag. Med ECO på linje kan én dagsseddel inneholde rader med ulike ECO-koblinger.
+
+**Note om T.1 (vedtatt 2026-05-11, deployet 2026-05-12):** `projectId` flyttet fra `daily_sheets` til rad-nivå. Begrunnelse: arbeider kan jobbe på flere prosjekter samme dag, og dagsseddelen eies av arbeider (ikke prosjekt). Unique-constraint endret til `(userId, dato)` — én dagsseddel per arbeider per dag, uavhengig av prosjekter. Prosjekt-filtrering i spørringer går nå via `timer: { some: { projectId } }`-relasjon eller direkte mot `sheet_timer.project_id`.
 
 ### `sheet_timer` (timer-rader per dagsseddel)
 
@@ -659,15 +666,25 @@ Erstatter de tidligere faste kolonnene `normaltid/overtid50/overtid100`. Datadre
 | `sheetId` | `uuid` FK → `daily_sheets` | |
 | `lonnsartId` | `uuid` FK → `lonnsarter` | Datadrevet katalog |
 | `aktivitetId` | `uuid` FK → `aktiviteter` | Per-rad aktivitet (C9 2026-05-02). NOT NULL. Default fra sedlens `aktivitetId` ved opprettelse, kan overstyres per rad. Restrict-FK. |
+| `projectId` | `uuid` (svak FK → `projects`) | **NY T.2 (2026-05-12) — NOT NULL.** Per-rad prosjekttilhørighet. Svak FK uten Prisma `@relation` (A.20 cross-package-mønster). |
+| `byggeplassId` | `uuid?` (svak FK → `byggeplasser`) | **NY T.2 (2026-05-12).** Per-rad byggeplass. Nullable (A.30 — byggeplass-NULL er gyldig). |
+| `fraTid` | `text?` | **NY T.4 (2026-05-12).** HH:MM-format. Per-rad starttid. Server validerer `fraTid < tilTid`. |
+| `tilTid` | `text?` | **NY T.4 (2026-05-12).** HH:MM-format. Per-rad sluttid. |
 | `externalCostObjectId` | `uuid?` FK → `external_cost_objects` | Tilleggsarbeid (ECO) per linje — gjør multi-ECO mulig innenfor én dagsseddel |
 | `timer` | `decimal` | Timer på denne lønnsarten |
 | `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering (Fase 0 A.7) — inkluderer aktivitet-snapshot post-C9 |
+| `attestertStatus` | `text?` default `pending` | **NY T.3 (2026-05-12).** Per-rad attestering. `pending` \| `godkjent` \| `returnert`. Per Alternativ A: leder attesterer kun rader for sitt prosjekt — dagsseddel-status (`status` på `daily_sheets`) avledes fra rad-status i senere PR. |
+| `attestertAvUserId` | `uuid?` (svak FK → `users`) | **NY T.3 (2026-05-12).** Leder som attesterte denne raden. |
+| `attestertVed` | `timestamptz?` | **NY T.3 (2026-05-12).** Tidspunkt for rad-attestering. |
 
 **Indekser:**
 - `(sheetId)` — KRITISK FK-JOIN ved hver dagsseddel-fetch (Postgres lager ikke auto-index på FK)
 - `(lonnsartId)` — lønnsart-aggregering ved eksport/rapport
 - `(aktivitetId)` — aktivitet-aggregering ved ProAdm-eksport
 - `(externalCostObjectId)` — ECO-aggregering ved eksport
+- `(projectId)` — **NY T.2** — prosjekt-rapport via rad-join
+- `(byggeplassId)` — **NY T.2** — byggeplass-aggregering
+- `(attestertStatus)` — **NY T.3** — leder-vy «hva venter attestering»
 
 ### `sheet_tillegg` (tillegg-rader per dagsseddel)
 
@@ -678,13 +695,19 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 | `id` | `uuid` PK | |
 | `sheetId` | `uuid` FK → `daily_sheets` | |
 | `tilleggId` | `uuid` FK → `tillegg` | Datadrevet katalog |
+| `projectId` | `uuid` (svak FK → `projects`) | **NY T.2 (2026-05-12) — NOT NULL.** Per-rad prosjekttilhørighet. |
 | `antall` | `decimal` | Antall (1 for avhuking) |
 | `kommentar` | `text?` | Tvungen for noen tillegg (`Tillegg.tvungenKommentar=true`) |
 | `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering |
+| `attestertStatus` | `text?` default `pending` | **NY T.3 (2026-05-12).** `pending` \| `godkjent` \| `returnert`. |
+| `attestertAvUserId` | `uuid?` (svak FK → `users`) | **NY T.3 (2026-05-12).** Leder som attesterte. |
+| `attestertVed` | `timestamptz?` | **NY T.3 (2026-05-12).** Tidspunkt for rad-attestering. |
 
 **Indekser:**
 - `(sheetId)` — KRITISK FK-JOIN
 - `(tilleggId)` — tillegg-aggregering
+- `(projectId)` — **NY T.2**
+- `(attestertStatus)` — **NY T.3**
 
 ### `lonnsarter` (lønnsart-katalog per Organization)
 
@@ -753,14 +776,25 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 |------|------|-------------|
 | `id` | `uuid` PK | |
 | `sheetId` | `uuid` FK → `daily_sheets` | |
-| `vehicleId` | `uuid` FK → `vehicles` (maskin-modul) | |
+| `vehicleId` | `uuid` (svak FK → `equipment` i db-maskin) | A.20 cross-package-mønster |
+| `projectId` | `uuid` (svak FK → `projects`) | **NY T.2 (2026-05-12) — NOT NULL.** Per-rad prosjekttilhørighet. |
+| `byggeplassId` | `uuid?` (svak FK → `byggeplasser`) | **NY T.2 (2026-05-12).** Per-rad byggeplass. |
+| `fraTid` | `text?` | **NY T.4 (2026-05-12).** HH:MM-format. |
+| `tilTid` | `text?` | **NY T.4 (2026-05-12).** HH:MM-format. |
 | `timer` | `decimal` | Timer brukt |
 | `mengde` | `decimal?` | Valgfri mengde |
 | `enhet` | `text?` | m3, m2, tonn, kg, m |
+| `attestertSnapshot` | `jsonb?` | Pris-snapshot ved attestering — null inntil Equipment-prising er spec'd |
+| `attestertStatus` | `text?` default `pending` | **NY T.3 (2026-05-12).** `pending` \| `godkjent` \| `returnert`. |
+| `attestertAvUserId` | `uuid?` (svak FK → `users`) | **NY T.3 (2026-05-12).** |
+| `attestertVed` | `timestamptz?` | **NY T.3 (2026-05-12).** |
 
 **Indekser:**
 - `(sheetId)` — FK-JOIN
 - `(vehicleId)` — maskinrapport på tvers av ansatte/prosjekter
+- `(projectId)` — **NY T.2**
+- `(byggeplassId)` — **NY T.2**
+- `(attestertStatus)` — **NY T.3**
 
 ### ~~`sheet_materials`~~ (FORELDET — se C.16 Vareforbruk)
 
