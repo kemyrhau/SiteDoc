@@ -328,7 +328,29 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
-### PR O-1 OrganizationMember-tabell IMPLEMENTERT på feature/org-member-o1 2026-05-12
+### PR O-2 tilgangskontroll dual-read OrganizationMember IMPLEMENTERT på feature/org-member-o2 2026-05-12
+
+Andre PR i OrganizationMember-refaktoren. Refaktorerer `apps/api/src/trpc/tilgangskontroll.ts` til å lese fra `OrganizationMember` først, med fallback til `User.organizationId`/`User.role` (fallback fjernes i O-5).
+
+**Endrede funksjoner (3 stk):**
+
+- **`autoriserAdminForFirma`** (linje 201): `sitedoc_admin`-bypass først (uendret), så ny `prisma.organizationMember.findUnique({ where: { userId_organizationId } })`-sjekk på `firmaRoller.includes("firma_admin")`. Fallback til gammel `User.role === "company_admin" && User.organizationId === organizationId`-sjekk hvis ingen medlem-rad finnes (sikrer at brukere uten bakfylt OrganizationMember-rad ikke låses ute).
+- **`verifiserOrganisasjonTilgang`** (linje 165): sjekker eksistens av OrganizationMember-rad først. Fallback: gammel `User.organizationId === organisationId`-sjekk. Ingen rolle-krav — kun medlemskap.
+- **`harOrgRolle`** (linje 662): leser nå fra `OrganizationMember.firmaRoller` for brukerens primær-org. Krever `User.organizationId`-oppslag for å finne riktig medlem-rad. `OrganizationRole`-tabellen leses ikke lenger — kommentar dokumenterer at den droppes i O-5 (0 rader i prod/test).
+
+**Ikke endret:**
+
+- `verifiserAdmin`, `verifiserProsjektmedlem`, `verifiserAdminEllerFirmaansvarlig` — prosjekt-baserte (`ProjectMember`), ikke firma-baserte. Bruker `User.role + User.organizationId` for company_admin-fallback inn til prosjektkonteksten.
+- `verifiserKompetanseSkriveTilgang`, `verifiserMaskinAnsvarligSkriveTilgang` — modul-spesifikke; migreres i O-3 batch-vis.
+- `hentBrukerFaggruppeIder`, `verifiserFaggruppeTilhorighet`, `verifiserDokumentTilgang`, `verifiserFlytRolle`, `byggTilgangsFilter`, `hentBrukerTillatelser`, `verifiserTillatelse`, `krevErKundeFirma`: bruker `User.role` (sitedoc_admin-bypass) eller andre tabeller — ingen `organizationId`-lesing.
+
+**Konsekvens:** Etter O-2 vil firma-admin-ruter (alle som bruker `autoriserAdminForFirma`) støtte både OrganizationMember-medlemmer med `firmaRoller=["firma_admin"]` og legacy `User.role="company_admin"`-brukere. I O-3/O-5 fjernes fallback når alle callsites er migrert.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck: kun pre-eksisterende vitest-feil i `mengde/__tests__/import-hjelpere.test.ts`. Ingen DB-endring i denne PR-en.
+
+**Klar for review.** Ikke merge — Kenneth verifiserer kode før godkjenning.
+
+### PR O-1 OrganizationMember-tabell DEPLOYET TIL PROD 2026-05-12
 
 Første PR i OrganizationMember-refaktoren (5 PR-er, låst i [fase-0-beslutninger.md § OrganizationMember-refaktor](fase-0-beslutninger.md)). Skiller system-identitet (`User`) fra HR-relasjon (`OrganizationMember`). Additiv: ingen eksisterende kode røres. `User.organizationId` + `Organization.users` beholdes for dual-read i O-2.
 
@@ -349,9 +371,11 @@ Backfill-script (`packages/db/scripts/backfill-organization-members.ts`):
 
 **Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck: kun pre-eksisterende vitest-feil i `mengde/__tests__/import-hjelpere.test.ts` (CLAUDE.md-dokumentert som kjent gjeld).
 
-**Ikke kjørt:** Backfill kunne ikke kjøres lokalt (ingen data). Kjøres på test etter merge + migrate deploy. Forventet antall rader = `SELECT COUNT(*) FROM users WHERE organization_id IS NOT NULL` på respektivt miljø.
+**Backfill-resultat:**
+- Test (sitedoc_test): 26 rader opprettet — 1:1-match mot `users` med `organization_id IS NOT NULL` (26 = 26). 1 rad med `firma_admin` i `firmaRoller`. 0 med `ansattnummer`.
+- Prod (sitedoc): 3 rader opprettet — 1:1-match (3 = 3). Alle 3 med `firma_admin` i `firmaRoller` (A.Markussen-admin, HRP AS-admin, Kenneths testmiljø-admin). 0 med `ansattnummer` (UI for ansattnummer ble deployet i samme merge).
 
-**Klar for review.** Ikke merge — Kenneth verifiserer migrasjons-SQL og backfill-script før godkjenning.
+**Deploy-spor:** merge `68b930a5` (develop), merge `8da92633` (main), prod-deploy via manuell `deploy.sh` 2026-05-12 (auto-deploy gjelder kun test).
 
 ### Ansattnummer i firma-admin bruker-UI IMPLEMENTERT på develop 2026-05-12
 

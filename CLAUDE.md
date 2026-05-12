@@ -109,17 +109,25 @@ Klient (`apps/web/src/app/dashbord/firma/brukere/page.tsx`):
 
 i18n: 2 nye nøkler nb+en (`firma.brukere.ansattnummer`, `firma.brukere.ansattnummerHjelp`), 13 språk auto-oversatt via `generate.ts`. API+web typecheck 0 nye feil.
 
-### PR O-1 OrganizationMember-tabell IMPLEMENTERT på feature/org-member-o1 2026-05-12
+### PR O-1 OrganizationMember-tabell DEPLOYET TIL PROD 2026-05-12
 
 Første PR i OrganizationMember-refaktoren (5 PR-er, låst i [fase-0-beslutninger.md § OrganizationMember-refaktor](docs/claude/fase-0-beslutninger.md)). Additiv: ingen eksisterende kode røres. `User.organizationId` + `Organization.users` beholdes for dual-read i O-2.
 
 Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansattRolle String @default("ansatt")`, `firmaRoller String[] @default([])`, `ansattnummer String?`, audit-felter, `@@unique([userId, organizationId])`, Cascade-FK begge ender). Back-relasjoner `organizationMembers OrganizationMember[]` på User og `members OrganizationMember[]` på Organization.
 
-Migrasjon (`20260512170000_add_organization_member`): Manuell SQL siden lokal `migrate dev` brytes av pgvector-mangel på shadow-DB. SQL er gyldig — applyes via `migrate deploy` på test/prod.
+Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
-Backfill-script (`packages/db/scripts/backfill-organization-members.ts`): Idempotent upsert. `firmaRoller = ["firma_admin"]` hvis `User.role === "company_admin"`. Kjøres på test etter migrate deploy. **Ikke kjørt lokalt** — lokal-DB er tom (ingen `users`-tabell), bekrefter CLAUDE.md «lokal-DB er typisk bak».
+### PR O-2 tilgangskontroll dual-read OrganizationMember IMPLEMENTERT på feature/org-member-o2 2026-05-12
 
-Verifisert: API typecheck 0 nye feil; Web typecheck kun pre-eksisterende vitest-feil. Klar for review — ikke merge før Kenneth verifiserer SQL.
+Andre PR i OrganizationMember-refaktoren. Refaktorerer 3 funksjoner i `apps/api/src/trpc/tilgangskontroll.ts` til å lese fra `OrganizationMember` først, med fallback til `User.organizationId`/`User.role` (fjernes i O-5).
+
+- `autoriserAdminForFirma`: sjekker `OrganizationMember.firmaRoller.includes("firma_admin")` først. Fallback: `User.role === "company_admin" && User.organizationId === organizationId`. `sitedoc_admin`-bypass bevart.
+- `verifiserOrganisasjonTilgang`: sjekker eksistens av `OrganizationMember`-rad først. Fallback: `User.organizationId === organisationId`.
+- `harOrgRolle`: leses nå fra `OrganizationMember.firmaRoller` (krever `User.organizationId`-oppslag for å finne riktig medlem). `OrganizationRole`-tabellen leses ikke lenger (0 rader i prod/test, droppes i O-5).
+
+**Ikke endret i denne PR-en:** `verifiserAdmin`, `verifiserProsjektmedlem`, `verifiserAdminEllerFirmaansvarlig`, `verifiserKompetanseSkriveTilgang`, `verifiserMaskinAnsvarligSkriveTilgang` — disse fortsatt prosjekt-baserte og bruker `ProjectMember`. Migreres i O-3 batch-vis.
+
+Verifisert: API typecheck 0 nye feil; Web typecheck kun pre-eksisterende vitest-feil. Klar for review — ikke merge før Kenneth verifiserer.
 
 Eldre PR-er: se [docs/claude/historikk-2026-05.md](docs/claude/historikk-2026-05.md)
 
