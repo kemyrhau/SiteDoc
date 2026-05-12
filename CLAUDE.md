@@ -117,6 +117,20 @@ Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansat
 
 Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
+### PR O-3a tilgangskontroll + tildelOrgRolle/fjernOrgRolle IMPLEMENTERT på feature/org-member-o3a 2026-05-12
+
+Tredje PR i OrganizationMember-refaktoren (sub-delt: O-3a tilgangskontroll-laget, O-3b modul-routes). Lukker gjenværende inline `company_admin`-sjekker i tilgangskontroll-laget og flytter firma-rolle-skriving fra `OrganizationRole`-tabellen til `OrganizationMember.firmaRoller`.
+
+Ny intern (ikke-eksportert) helper `erFirmaAdmin(userId, organizationId)` i `apps/api/src/trpc/tilgangskontroll.ts`: leser fra `OrganizationMember.firmaRoller.includes("firma_admin")` først, fallback til legacy `User.role === "company_admin" && User.organizationId === organizationId` (fallback fjernes i O-5).
+
+5 funksjoner refaktorert til å bruke `erFirmaAdmin` i stedet for inline `User.role`/`organizationId`-sjekk:
+- `verifiserAdmin`, `verifiserProsjektmedlem`, `verifiserAdminEllerFirmaansvarlig` — løkker over `ProjectOrganization`-koblinger for prosjektet og kaller `erFirmaAdmin` per org.
+- `verifiserKompetanseSkriveTilgang` (Steg 4) + `verifiserMaskinAnsvarligSkriveTilgang` (Steg 3) — direkte kall mot brukerens / equipment-ets firma.
+
+`organisasjon.tildelOrgRolle`/`fjernOrgRolle` skriver nå til `OrganizationMember.firmaRoller` (fetch → Set-dedup → update). `OrganizationRole`-tabellen røres ikke (droppes i O-5).
+
+Verifisert: `apps/api` typecheck 0 nye feil. Ingen DB-endring. Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-2 tilgangskontroll dual-read OrganizationMember IMPLEMENTERT på feature/org-member-o2 2026-05-12
 
 Andre PR i OrganizationMember-refaktoren. Refaktorerer 3 funksjoner i `apps/api/src/trpc/tilgangskontroll.ts` til å lese fra `OrganizationMember` først, med fallback til `User.organizationId`/`User.role` (fjernes i O-5).

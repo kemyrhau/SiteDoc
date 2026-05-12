@@ -328,6 +328,31 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### PR O-3a tilgangskontroll + tildelOrgRolle/fjernOrgRolle IMPLEMENTERT på feature/org-member-o3a 2026-05-12
+
+Tredje PR i OrganizationMember-refaktoren (sub-delt: O-3a tilgangskontroll-laget, O-3b modul-routes). Lukker alle gjenværende inline `company_admin`-sjekker i `apps/api/src/trpc/tilgangskontroll.ts` og flytter firma-rolle-skriving fra `OrganizationRole`-tabellen til `OrganizationMember.firmaRoller`.
+
+**Ny intern helper (ikke eksportert):**
+
+- `erFirmaAdmin(userId, organizationId): Promise<boolean>` — leser fra `OrganizationMember.firmaRoller.includes("firma_admin")` først, fallback til `User.role === "company_admin" && User.organizationId === organizationId`. Fallback fjernes i O-5.
+
+**Refaktorerte funksjoner (5 stk):**
+
+- `verifiserAdmin` — bytter inline company_admin-fallback med løkke over `ProjectOrganization`-koblinger + `erFirmaAdmin`-kall per org. Henter ikke lenger `organizationId` på `User`.
+- `verifiserProsjektmedlem` — samme mønster.
+- `verifiserAdminEllerFirmaansvarlig` — samme mønster, returnerer `{ erAdmin: true }` ved firma-admin-treff i prosjektets org-koblinger.
+- `verifiserKompetanseSkriveTilgang` (Steg 4) — bytter `ctxBruker.role === "company_admin"`-sjekk med `erFirmaAdmin(ctxUserId, ctxBruker.organizationId)`. Cross-org-blokkering (Steg 3) bruker fortsatt `User.organizationId` (samme firma — flyttes i O-4/O-5).
+- `verifiserMaskinAnsvarligSkriveTilgang` (Steg 3) — bytter `ctxBruker.role === "company_admin"`-sjekk med `erFirmaAdmin(ctxUserId, equipment.organizationId)`.
+
+**Refaktorerte mutations (organisasjon.ts):**
+
+- `tildelOrgRolle` — skriver til `OrganizationMember.firmaRoller` i stedet for `OrganizationRole.upsert`. Mønster: fetch → `Array.from(new Set([...firmaRoller, role]))` → `update`. Validering: målbruker må ha eksisterende `OrganizationMember`-rad i samme firma (FORBIDDEN ellers). Idempotent.
+- `fjernOrgRolle` — skriver til `OrganizationMember.firmaRoller`. Fetch → filter ut rollen → update. Returnerer `{ fjernet: 0 | 1 }` (1 hvis rollen fantes og ble fjernet, 0 ellers). `OrganizationRole`-tabellen røres ikke (droppes i O-5).
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. Ingen DB-endring i denne PR-en. `OrganizationRole`-tabellen står urørt (0 rader i prod/test) til O-5.
+
+**Klar for review.** Ikke merge — Kenneth verifiserer kode før godkjenning. Etter merge: O-3b (modul-routes som leser `User.organizationId` direkte) som neste sub-PR.
+
 ### PR O-2 tilgangskontroll dual-read OrganizationMember IMPLEMENTERT på feature/org-member-o2 2026-05-12
 
 Andre PR i OrganizationMember-refaktoren. Refaktorerer `apps/api/src/trpc/tilgangskontroll.ts` til å lese fra `OrganizationMember` først, med fallback til `User.organizationId`/`User.role` (fallback fjernes i O-5).
