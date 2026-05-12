@@ -900,6 +900,31 @@ PR T7-2 starter etter PR T7-1 er deployet og verifisert på prod. PR T7-3 kan i 
 - Audit-log: original rad markeres som splittet, nye rader refererer til original via `parentRadId`
 - Eksempel: Prosjekt A | 07:00–16:00 | 9t → Prosjekt A | 07:00–12:00 | 5t + Prosjekt B | 12:00–16:00 | 4t
 
+### T.8 — Innsjekk-basert prosjektforslag i dagsseddel (låst 2026-05-12)
+
+Når arbeider åpner «Ny dagsseddel», foreslås prosjekt basert på innsjekk-historikk fra Mannskap-modulen (Fase 4). Arbeider bestemmer alltid selv — forslaget kan overstyres.
+
+**Forslags-prioritet:**
+
+1. Aktiv innsjekk i dag (arbeider er fortsatt på byggeplass) → foreslå det prosjektet
+2. Siste utsjekk i dag (arbeider har forlatt) → foreslå det prosjektet
+3. Ingen innsjekk i dag → fall tilbake til GPS-avstand (dagens T7-1b-implementasjon)
+4. Ingen GPS-koordinater → ingen forslag
+
+**Separasjons-prinsipp overholdes:**
+
+- Innsjekk trigger ALDRI automatisk dagsseddel eller timer-rader
+- Innsjekk-data brukes KUN som hint i prosjekt-velger
+- Arbeider må eksplisitt bekrefte prosjektvalg og opprette dagsseddel
+
+**Avhengigheter:**
+
+- Krever Fase 4 Mannskap-modul (innsjekk/utsjekk-tabeller i `db-mannskap`)
+- Krever koordinater på Byggeplass (ikke implementert — se [STATUS-AKTUELT.md](STATUS-AKTUELT.md))
+- Dagens T7-1b GPS-forslag er MVP inntil Fase 4 er klar
+
+Implementeres som del av Fase 4 — ikke T7.
+
 ---
 
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding
