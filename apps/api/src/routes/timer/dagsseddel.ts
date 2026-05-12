@@ -3,7 +3,10 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db-timer";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
-import { verifiserProsjektmedlem } from "../../trpc/tilgangskontroll";
+import {
+  autoriserAdminForFirma,
+  verifiserProsjektmedlem,
+} from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
@@ -717,6 +720,76 @@ export const dagsseddelRouter = router({
     .input(z.object({ projectId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       return erProsjektLeder(ctx.userId, input.projectId);
+    }),
+
+  // ============================================================================
+  //  Firma-attestering (T7-2a) — sedler på tvers av prosjekter
+  // ============================================================================
+  //
+  // Brukes av firma-admin-vy /dashbord/firma/timer/attestering.
+  // Gjelder sedler med minst én rad knyttet til et prosjekt eid av firmaet
+  // (primary- eller partner-rolle via ProjectOrganization).
+
+  hentTilAttesteringFirma: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+
+      const prosjekter = await ctx.prisma.project.findMany({
+        where: {
+          projectOrganizations: {
+            some: { organizationId: input.organizationId },
+          },
+        },
+        select: { id: true, name: true, projectNumber: true },
+      });
+      const prosjektIder = prosjekter.map((p) => p.id);
+      if (prosjektIder.length === 0) return [];
+
+      const sedler = await ctx.prismaTimer.dailySheet.findMany({
+        where: {
+          status: "sent",
+          timer: { some: { projectId: { in: prosjektIder } } },
+        },
+        include: {
+          aktivitet: { select: { id: true, navn: true, kode: true } },
+          timer: true,
+          tillegg: true,
+        },
+        orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
+      });
+
+      // Berik med ansatt-info (cross-package til kjernen-DB)
+      const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
+      const brukere = await prisma.user.findMany({
+        where: { id: { in: userIder } },
+        select: { id: true, name: true, email: true, ansattnummer: true },
+      });
+      const brukerMap = new Map(brukere.map((b) => [b.id, b]));
+      const prosjektMap = new Map(prosjekter.map((p) => [p.id, p]));
+
+      return sedler.map((s) => {
+        const projectId = s.timer[0]?.projectId ?? null;
+        return {
+          ...s,
+          ansatt: brukerMap.get(s.userId) ?? null,
+          prosjekt: projectId ? (prosjektMap.get(projectId) ?? null) : null,
+          totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
+          antallRader: s.timer.length + s.tillegg.length,
+        };
+      });
+    }),
+
+  // Sidebar-gating for firma-attesterings-fanen.
+  kanAttestereFirma: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        await autoriserAdminForFirma(ctx.userId, input.organizationId);
+        return { kanAttestere: true };
+      } catch {
+        return { kanAttestere: false };
+      }
     }),
 
   // Hent én dagsseddel som prosjektleder (for attestering-detaljside).

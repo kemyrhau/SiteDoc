@@ -26,6 +26,7 @@ export default function FirmaTimerLayout({
     { href: "/dashbord/firma/timer/lonnsarter", label: t("firma.timer.fane.lonnsarter") },
     { href: "/dashbord/firma/timer/aktiviteter", label: t("firma.timer.fane.aktiviteter") },
     { href: "/dashbord/firma/timer/tillegg", label: t("firma.timer.fane.tillegg") },
+    { href: "/dashbord/firma/timer/attestering", label: t("firma.timer.fane.attestering") },
   ];
 
   // Før aktivering: vis kun onboarding-fanen
