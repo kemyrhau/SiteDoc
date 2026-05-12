@@ -328,6 +328,44 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### PR O-4b hentBrukere via OrganizationMember + ansatte-rename IMPLEMENTERT på feature/org-member-o4b 2026-05-12
+
+Andre sub-PR av O-4. Etter at O-4a la til `avdelingId` på `OrganizationMember`-tabellen, flytter O-4b lese-/skrive-mønstre for `ansattnummer` over fra `User` til `OrganizationMember`, og renamer URL `/dashbord/firma/brukere` til `/dashbord/firma/ansatte`. Dual-write opprettholdes til O-5 dropper `User.ansattnummer` + `User.organizationId`.
+
+**API-endringer (`apps/api/src/routes/`):**
+
+- `organisasjon.hentBrukere` leser via `prisma.organizationMember.findMany` med nested `user`-relasjon. Ny respons-form: legger til `memberId`, `avdelingId`, `ansattRolle`, `firmaRoller`, `createdAt` ved siden av de gamle User-feltene. Sortering på `user.name`.
+- `organisasjon.inviterBruker` (create- og adopt-grener): etter `User.create`/`User.update` kjøres `prisma.organizationMember.upsert` med `ansattnummer` + `firmaRoller: input.rolle === "company_admin" ? ["firma_admin"] : []`. Garanterer at alle nye/adopterte brukere har OrganizationMember-rad.
+- `organisasjon.oppdaterBruker`: etter `User.update` speiler `ansattnummer`-endringer til `OrganizationMember.updateMany`. Andre felter (`name`, `email`, `phone`, `role`) ligger fortsatt kun på User.
+- `kompetanse.ts` (to blokker — `analyserImport` og `bekreftImport`): bytter `prisma.user.findMany` med `prisma.organizationMember.findMany` for matching av ansattnumre. `bruker`-variabel-form (`{ id, ansattnummer }`) bevares ved post-mapping fra members, slik at downstream-kode (`brukere.map((b) => b.id)`, `brukerMap`) er uendret. `name`-feltet (som var i select men ikke brukt downstream) fjernet.
+
+**Web-endringer (`apps/web/src/app/dashbord/firma/`):**
+
+- Mappe rename via `git mv brukere ansatte/`. Hele page-komponenten + helper-komponenter beholdt urørt; kun typen `BrukerRad` utvidet med `createdAt`, `memberId`, `avdelingId`, `ansattRolle`, `firmaRoller` for å matche ny respons fra `hentBrukere`.
+- `firma/layout.tsx` linje 30: `href: "/dashbord/firma/brukere"` → `"/dashbord/firma/ansatte"`.
+- `firma/page.tsx` linje 66: tilsvarende.
+- Ingen 308-redirect implementert. Anchored-lenker andre steder fra (e.g. e-postinvitasjoner) bør sjekkes ved gjenbruk — ingen treff funnet utenfor de tre web-filene.
+
+**i18n:**
+
+- `firma.brukere.tittel` → `firma.ansatte.tittel`
+- `firma.brukere.ansattnummer` → `firma.ansatte.ansattnummer`
+- `firma.brukere.ansattnummerHjelp` → `firma.ansatte.ansattnummerHjelp`
+- `firma.brukere.inviter.knapp` → `firma.ansatte.inviter.knapp`
+- `firma.brukere.inviter.tittel` → `firma.ansatte.inviter.tittel`
+- `firma.brukere.inviter.beskrivelse` → `firma.ansatte.inviter.beskrivelse`
+- `firma.brukere.inviter.navn|.epost|.telefon|.rolle|.rolle.user|.rolle.companyAdmin|.lagrer|.lagre` (8 nøkler)
+- `firma.brukere.rediger.tittel` → `firma.ansatte.rediger.tittel`
+- `firma.brukere.rediger.iconLabel` → `firma.ansatte.rediger.iconLabel`
+
+Totalt 16 nøkler × 15 språkfiler (nb, en, sv, no-bokmal, da, de, fr, pl, lt, lv, et, fi, cs, ru, sq, uk, ro). **Verdiene/oversettelsene er urørt** — kun nøkkel-rename. Bevisst valg: «Brukere» som synlig label vurderes separat (kan vurderes endret til «Ansatte» i UI-runde uten kode-endring).
+
+**Mobil:** Ikke berørt — ingen `firma/brukere`-eller `firma.brukere.*`-referanser i `apps/mobile/`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (etter rydding av stale `.next/types/app/dashbord/firma/brukere/`-cache som er etterlatt av tidligere Next.js-bygg på gammel sti — vil bli ryddet automatisk av neste prod-`next build`).
+
+**Klar for review.** Ikke merge — Kenneth verifiserer kode før godkjenning.
+
 ### PR O-4a avdelingId på OrganizationMember IMPLEMENTERT på feature/org-member-o4a 2026-05-12
 
 Første sub-PR av O-4 — flytting av felt fra `User` til `OrganizationMember`. Splittet av schema-størrelse: O-4a tar `avdelingId` (FK med SetNull-relasjon), O-4b vil ta `ansattnummer` (allerede på `OrganizationMember`, men User-feltet leses fortsatt i flere routes), O-4c tar `firma/brukere → firma/ansatte`-rename + UI-skifte mot `OrganizationMember`.

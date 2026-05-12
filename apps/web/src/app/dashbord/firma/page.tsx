@@ -63,7 +63,7 @@ export default function FirmaOversikt() {
         </Link>
 
         <Link
-          href="/dashbord/firma/brukere"
+          href="/dashbord/firma/ansatte"
           className="rounded-lg border border-gray-200 bg-white p-5 transition-colors hover:border-blue-200 hover:bg-blue-50/30"
         >
           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100">

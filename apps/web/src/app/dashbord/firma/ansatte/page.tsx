@@ -13,7 +13,12 @@ type BrukerRad = {
   email: string;
   phone: string | null;
   role: string;
+  createdAt: string | Date;
+  memberId: string;
   ansattnummer: string | null;
+  avdelingId: string | null;
+  ansattRolle: string;
+  firmaRoller: string[];
 };
 
 export default function FirmaBrukere() {
@@ -61,7 +66,7 @@ export default function FirmaBrukere() {
     <div>
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-lg font-semibold text-gray-900">
-          {t("firma.brukere.tittel")}
+          {t("firma.ansatte.tittel")}
         </h1>
         <button
           onClick={() => setInviterÅpen(true)}
@@ -69,13 +74,13 @@ export default function FirmaBrukere() {
           className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-4 w-4" />
-          {t("firma.brukere.inviter.knapp")}
+          {t("firma.ansatte.inviter.knapp")}
         </button>
       </div>
 
       {!brukere || brukere.length === 0 ? (
         <EmptyState
-          title={t("firma.brukere.tittel")}
+          title={t("firma.ansatte.tittel")}
           description="Organisasjonen har ingen brukere ennå."
         />
       ) : (
@@ -177,8 +182,8 @@ export default function FirmaBrukere() {
                     {b.role !== "sitedoc_admin" && (
                       <button
                         onClick={() => setRedigerBruker(b)}
-                        aria-label={t("firma.brukere.rediger.iconLabel")}
-                        title={t("firma.brukere.rediger.iconLabel")}
+                        aria-label={t("firma.ansatte.rediger.iconLabel")}
+                        title={t("firma.ansatte.rediger.iconLabel")}
                         className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
                       >
                         <Pencil className="h-3.5 w-3.5" />
@@ -264,7 +269,7 @@ function InviterModal({
       <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
           <h2 className="text-base font-semibold text-gray-900">
-            {t("firma.brukere.inviter.tittel")}
+            {t("firma.ansatte.inviter.tittel")}
           </h2>
           <button
             onClick={onLukk}
@@ -276,12 +281,12 @@ function InviterModal({
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
           <p className="text-sm text-gray-500">
-            {t("firma.brukere.inviter.beskrivelse")}
+            {t("firma.ansatte.inviter.beskrivelse")}
           </p>
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("firma.brukere.inviter.navn")}
+              {t("firma.ansatte.inviter.navn")}
             </label>
             <input
               type="text"
@@ -295,7 +300,7 @@ function InviterModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("firma.brukere.inviter.epost")}
+              {t("firma.ansatte.inviter.epost")}
             </label>
             <input
               type="email"
@@ -308,7 +313,7 @@ function InviterModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("firma.brukere.inviter.telefon")}
+              {t("firma.ansatte.inviter.telefon")}
             </label>
             <input
               type="tel"
@@ -320,7 +325,7 @@ function InviterModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("firma.brukere.ansattnummer")}
+              {t("firma.ansatte.ansattnummer")}
             </label>
             <input
               type="text"
@@ -329,13 +334,13 @@ function InviterModal({
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-secondary focus:outline-none focus:ring-1 focus:ring-sitedoc-secondary"
             />
             <p className="mt-1 text-xs text-gray-500">
-              {t("firma.brukere.ansattnummerHjelp")}
+              {t("firma.ansatte.ansattnummerHjelp")}
             </p>
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">
-              {t("firma.brukere.inviter.rolle")}
+              {t("firma.ansatte.inviter.rolle")}
             </label>
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -346,7 +351,7 @@ function InviterModal({
                   checked={rolle === "user"}
                   onChange={() => setRolle("user")}
                 />
-                {t("firma.brukere.inviter.rolle.user")}
+                {t("firma.ansatte.inviter.rolle.user")}
               </label>
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
@@ -356,7 +361,7 @@ function InviterModal({
                   checked={rolle === "company_admin"}
                   onChange={() => setRolle("company_admin")}
                 />
-                {t("firma.brukere.inviter.rolle.companyAdmin")}
+                {t("firma.ansatte.inviter.rolle.companyAdmin")}
               </label>
             </div>
           </div>
@@ -379,8 +384,8 @@ function InviterModal({
               className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:cursor-not-allowed disabled:opacity-50"
             >
               {inviter.isPending
-                ? t("firma.brukere.inviter.lagrer")
-                : t("firma.brukere.inviter.lagre")}
+                ? t("firma.ansatte.inviter.lagrer")
+                : t("firma.ansatte.inviter.lagre")}
             </button>
           </div>
         </form>
@@ -436,7 +441,7 @@ function RedigerModal({
       <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
           <h2 className="text-base font-semibold text-gray-900">
-            {t("firma.brukere.rediger.tittel")}
+            {t("firma.ansatte.rediger.tittel")}
           </h2>
           <button
             onClick={onLukk}
@@ -449,7 +454,7 @@ function RedigerModal({
         <form onSubmit={handleSubmit} className="space-y-4 px-5 py-4">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("firma.brukere.inviter.navn")}
+              {t("firma.ansatte.inviter.navn")}
             </label>
             <input
               type="text"
@@ -463,7 +468,7 @@ function RedigerModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("firma.brukere.inviter.epost")}
+              {t("firma.ansatte.inviter.epost")}
             </label>
             <input
               type="email"
@@ -476,7 +481,7 @@ function RedigerModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("firma.brukere.inviter.telefon")}
+              {t("firma.ansatte.inviter.telefon")}
             </label>
             <input
               type="tel"
@@ -488,7 +493,7 @@ function RedigerModal({
 
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("firma.brukere.ansattnummer")}
+              {t("firma.ansatte.ansattnummer")}
             </label>
             <input
               type="text"
@@ -497,13 +502,13 @@ function RedigerModal({
               className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-secondary focus:outline-none focus:ring-1 focus:ring-sitedoc-secondary"
             />
             <p className="mt-1 text-xs text-gray-500">
-              {t("firma.brukere.ansattnummerHjelp")}
+              {t("firma.ansatte.ansattnummerHjelp")}
             </p>
           </div>
 
           <div>
             <label className="mb-2 block text-sm font-medium text-gray-700">
-              {t("firma.brukere.inviter.rolle")}
+              {t("firma.ansatte.inviter.rolle")}
             </label>
             <div className="space-y-2">
               <label className="flex items-center gap-2 text-sm text-gray-700">
@@ -514,7 +519,7 @@ function RedigerModal({
                   checked={rolle === "user"}
                   onChange={() => setRolle("user")}
                 />
-                {t("firma.brukere.inviter.rolle.user")}
+                {t("firma.ansatte.inviter.rolle.user")}
               </label>
               <label className="flex items-center gap-2 text-sm text-gray-700">
                 <input
@@ -524,7 +529,7 @@ function RedigerModal({
                   checked={rolle === "company_admin"}
                   onChange={() => setRolle("company_admin")}
                 />
-                {t("firma.brukere.inviter.rolle.companyAdmin")}
+                {t("firma.ansatte.inviter.rolle.companyAdmin")}
               </label>
             </div>
           </div>

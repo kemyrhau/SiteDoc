@@ -27,7 +27,7 @@ const navigasjon: NavElement[] = [
   },
   {
     label: "Brukere",
-    href: "/dashbord/firma/brukere",
+    href: "/dashbord/firma/ansatte",
     ikon: <Users className="h-4 w-4" />,
   },
   {

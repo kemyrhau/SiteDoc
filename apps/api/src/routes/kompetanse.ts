@@ -268,20 +268,25 @@ export const kompetanseRouter = router({
       const parseresultat =
         input.filtype === "csv" ? parseCsvFil(buffer) : await parseXlsxFil(buffer);
 
-      // Match ansattnumre mot eksisterende User-rader i samme firma
+      // Match ansattnumre mot OrganizationMember-rader i samme firma
+      // O-4b: leses fra OrganizationMember (User.ansattnummer droppes i O-5)
       const ansattnumre = [
         ...new Set(parseresultat.rader.map((r) => r.ansattnummer)),
       ];
-      const brukere =
+      const brukerMedlemmer =
         ansattnumre.length === 0
           ? []
-          : await ctx.prisma.user.findMany({
+          : await ctx.prisma.organizationMember.findMany({
               where: {
                 organizationId: orgId,
                 ansattnummer: { in: ansattnumre },
               },
-              select: { id: true, ansattnummer: true, name: true },
+              select: { userId: true, ansattnummer: true },
             });
+      const brukere = brukerMedlemmer.map((m) => ({
+        id: m.userId,
+        ansattnummer: m.ansattnummer,
+      }));
       const brukerMap = new Map(
         brukere.map((b) => [b.ansattnummer ?? "", b.id]),
       );
@@ -394,13 +399,18 @@ export const kompetanseRouter = router({
       }
 
       // Match ansattnumre — atomisk: avvis hele importen ved ukjente
+      // O-4b: leses fra OrganizationMember
       const ansattnumre = [
         ...new Set(parseresultat.rader.map((r) => r.ansattnummer)),
       ];
-      const brukere = await ctx.prisma.user.findMany({
+      const brukerMedlemmer = await ctx.prisma.organizationMember.findMany({
         where: { organizationId: orgId, ansattnummer: { in: ansattnumre } },
-        select: { id: true, ansattnummer: true },
+        select: { userId: true, ansattnummer: true },
       });
+      const brukere = brukerMedlemmer.map((m) => ({
+        id: m.userId,
+        ansattnummer: m.ansattnummer,
+      }));
       const brukerMap = new Map(
         brukere.map((b) => [b.ansattnummer ?? "", b.id]),
       );

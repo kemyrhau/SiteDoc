@@ -177,25 +177,48 @@ export const organisasjonRouter = router({
     }));
   }),
 
-  // Hent organisasjonens brukere (kun firmaadmin)
+  // Hent organisasjonens ansatte (kun firmaadmin)
+  // O-4b: leses via OrganizationMember + user-relasjon
   hentBrukere: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
     const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
-    return ctx.prisma.user.findMany({
+    const members = await ctx.prisma.organizationMember.findMany({
       where: { organizationId: orgId },
       select: {
         id: true,
-        name: true,
-        email: true,
-        phone: true,
-        role: true,
         ansattnummer: true,
-        createdAt: true,
+        avdelingId: true,
+        ansattRolle: true,
+        firmaRoller: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            phone: true,
+            role: true,
+            createdAt: true,
+          },
+        },
       },
-      orderBy: { name: "asc" },
+      orderBy: { user: { name: "asc" } },
     });
+
+    return members.map((m) => ({
+      id: m.user.id,
+      name: m.user.name,
+      email: m.user.email,
+      phone: m.user.phone,
+      role: m.user.role,
+      createdAt: m.user.createdAt,
+      memberId: m.id,
+      ansattnummer: m.ansattnummer,
+      avdelingId: m.avdelingId,
+      ansattRolle: m.ansattRolle,
+      firmaRoller: m.firmaRoller,
+    }));
   }),
 
   // Oppdater organisasjon (firmaadmin for sin egen, sitedoc_admin for vilkårlig).
@@ -379,7 +402,7 @@ export const organisasjonRouter = router({
           });
         }
         // Orphan-bruker (uten organizationId) — adopter inn i firmaet
-        return ctx.prisma.user.update({
+        const adoptert = await ctx.prisma.user.update({
           where: { id: eksisterende.id },
           data: {
             organizationId: orgId,
@@ -389,9 +412,24 @@ export const organisasjonRouter = router({
           },
           select: { id: true, name: true, email: true, role: true },
         });
+
+        // O-4b: opprett/oppdater OrganizationMember-rad (firmaRoller speiler legacy role)
+        await ctx.prisma.organizationMember.upsert({
+          where: { userId_organizationId: { userId: adoptert.id, organizationId: orgId } },
+          create: {
+            userId: adoptert.id,
+            organizationId: orgId,
+            ansattnummer: input.ansattnummer ?? null,
+            ansattRolle: "ansatt",
+            firmaRoller: input.rolle === "company_admin" ? ["firma_admin"] : [],
+          },
+          update: { ansattnummer: input.ansattnummer ?? null },
+        });
+
+        return adoptert;
       }
 
-      return ctx.prisma.user.create({
+      const opprettet = await ctx.prisma.user.create({
         data: {
           email: input.email,
           name: input.navn,
@@ -403,6 +441,21 @@ export const organisasjonRouter = router({
         },
         select: { id: true, name: true, email: true, role: true },
       });
+
+      // O-4b: opprett OrganizationMember-rad for ny bruker
+      await ctx.prisma.organizationMember.upsert({
+        where: { userId_organizationId: { userId: opprettet.id, organizationId: orgId } },
+        create: {
+          userId: opprettet.id,
+          organizationId: orgId,
+          ansattnummer: input.ansattnummer ?? null,
+          ansattRolle: "ansatt",
+          firmaRoller: input.rolle === "company_admin" ? ["firma_admin"] : [],
+        },
+        update: { ansattnummer: input.ansattnummer ?? null },
+      });
+
+      return opprettet;
     }),
 
   // Oppdater eksisterende firma-bruker (firma-admin)
@@ -483,11 +536,21 @@ export const organisasjonRouter = router({
         data.ansattnummer = input.ansattnummer || null;
       }
 
-      return ctx.prisma.user.update({
+      const oppdatert = await ctx.prisma.user.update({
         where: { id: input.userId },
         data,
         select: { id: true, name: true, email: true, phone: true, role: true, ansattnummer: true },
       });
+
+      // O-4b: speil ansattnummer til OrganizationMember (dual-write)
+      if (input.ansattnummer !== undefined) {
+        await ctx.prisma.organizationMember.updateMany({
+          where: { userId: input.userId, organizationId: orgId },
+          data: { ansattnummer: input.ansattnummer || null },
+        });
+      }
+
+      return oppdatert;
     }),
 
   // Tildel granulær firma-rolle (per A.25 — f.eks. "hms_ansvarlig")
