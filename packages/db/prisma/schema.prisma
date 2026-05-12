@@ -44,6 +44,7 @@ model User {
 
   organization            Organization?           @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   avdeling                Avdeling?               @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
+  organizationMembers     OrganizationMember[]
   accounts                Account[]
   sessions                Session[]
   projects                ProjectMember[]
@@ -96,6 +97,7 @@ model Organization {
   updatedAt          DateTime @updatedAt @map("updated_at")
 
   users               User[]
+  members             OrganizationMember[]
   projects            ProjectOrganization[]
   primaryProjects     Project[]                 @relation("ProjectPrimaryOrg")
   projectModules      ProjectModule[]           @relation("OrgProjectModule")
@@ -110,6 +112,40 @@ model Organization {
   kompetansetyper     Kompetansetype[]
 
   @@map("organizations")
+}
+
+// ---------------------------------------------------------------------------
+// OrganizationMember — firma-medlemskap (HR-relasjon).
+// Per docs/claude/fase-0-beslutninger.md § OrganizationMember-refaktor (2026-05-12).
+//
+// O-1 (denne migrasjonen): tabell opprettet + bakfylt fra User.organizationId.
+// Eksisterende User.organizationId + Organization.users beholdes for dual-read
+// i O-2. ansattRolle og firmaRoller er String/String[] (ikke DB-enum) slik at
+// verdier kan utvides uten migrasjon.
+//
+// ansattRolle-startverdier: "ansatt" | "bas" | "prosjektleder" | "daglig_leder"
+// firmaRoller-startverdier: "firma_admin" | "hms_ansvarlig" | "hr_ansvarlig"
+//
+// Cascade på User og Organization: medlemskap er meningsløst uten begge ender.
+// ---------------------------------------------------------------------------
+
+model OrganizationMember {
+  id             String   @id @default(uuid())
+  userId         String   @map("user_id")
+  organizationId String   @map("organization_id")
+  ansattRolle    String   @default("ansatt") @map("ansatt_rolle")
+  firmaRoller    String[] @default([]) @map("firma_roller")
+  ansattnummer   String?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+  @@map("organization_members")
 }
 
 // ---------------------------------------------------------------------------

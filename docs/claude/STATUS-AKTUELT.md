@@ -328,6 +328,31 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### PR O-1 OrganizationMember-tabell IMPLEMENTERT på feature/org-member-o1 2026-05-12
+
+Første PR i OrganizationMember-refaktoren (5 PR-er, låst i [fase-0-beslutninger.md § OrganizationMember-refaktor](fase-0-beslutninger.md)). Skiller system-identitet (`User`) fra HR-relasjon (`OrganizationMember`). Additiv: ingen eksisterende kode røres. `User.organizationId` + `Organization.users` beholdes for dual-read i O-2.
+
+Schema (`packages/db/prisma/schema.prisma`):
+- Ny `OrganizationMember`-modell: `id`, `userId`, `organizationId`, `ansattRolle String @default("ansatt")`, `firmaRoller String[] @default([])`, `ansattnummer String?`, audit-felter, `@@unique([userId, organizationId])`, FK Cascade på begge ender.
+- Back-relasjon `organizationMembers OrganizationMember[]` på User.
+- Back-relasjon `members OrganizationMember[]` på Organization (eksisterende `users User[]` beholdes for dual-read).
+
+Migrasjon (`20260512170000_add_organization_member`):
+- Manuell SQL (lokal `migrate dev` brytes av pgvector-extension-mangel på shadow-DB — kjent svakhet i lokal-miljø). SQL er gyldig og applyes via `migrate deploy` på test/prod. Cascade på user_id og organization_id; etablert TEXT/`gen_random_uuid()::TEXT`-mønster.
+
+Backfill-script (`packages/db/scripts/backfill-organization-members.ts`):
+- Idempotent upsert per (userId, organizationId). `firmaRoller = ["firma_admin"]` hvis `User.role === "company_admin"`, ellers `[]`. `ansattnummer` kopieres fra User. Kjøres på test etter migrate deploy: `pnpm --filter @sitedoc/db exec tsx scripts/backfill-organization-members.ts`.
+
+**Avvik fra instruks:** `@map("_id")` på `id`-feltet droppet — MongoDB-konvensjon, alle andre modeller i schema bruker bare `id` uten map. Tabell-navnet beholdes som standard `id`.
+
+**Lokal verifisering:** SQL ble forsøkt applyet direkte via psql (omgår shadow-DB) — CREATE TABLE + 3 indekser fungerte; FK-er feilet fordi lokal-DB mangler `users`/`organizations`-tabellene (bevis på «lokal er bak»). Lokal-tabell droppet etterpå — ren tilstand.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck: kun pre-eksisterende vitest-feil i `mengde/__tests__/import-hjelpere.test.ts` (CLAUDE.md-dokumentert som kjent gjeld).
+
+**Ikke kjørt:** Backfill kunne ikke kjøres lokalt (ingen data). Kjøres på test etter merge + migrate deploy. Forventet antall rader = `SELECT COUNT(*) FROM users WHERE organization_id IS NOT NULL` på respektivt miljø.
+
+**Klar for review.** Ikke merge — Kenneth verifiserer migrasjons-SQL og backfill-script før godkjenning.
+
 ### Ansattnummer i firma-admin bruker-UI IMPLEMENTERT på develop 2026-05-12
 
 Lukker arkitekturhull: `User.ansattnummer` har vært lest av flere komponenter (timer-rapport, attestering-lister, kompetanse-import) men kunne ikke settes fra UI. Eneste vei i dag var direkte SQL eller en fremtidig HR-import-modul.
