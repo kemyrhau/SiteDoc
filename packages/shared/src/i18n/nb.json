@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Kun sertifiserte",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Kun ansatte med relevant kompetanse-sertifikat (kompetansematrise) kan registrere. Mest restriktivt.",
   "firma.brukere.tittel": "Brukere",
+  "firma.brukere.ansattnummer": "Ansattnummer",
+  "firma.brukere.ansattnummerHjelp": "Brukes i timer-rapporter og kompetanseimport",
   "firma.brukere.inviter.knapp": "Inviter bruker",
   "firma.brukere.inviter.tittel": "Inviter ny bruker",
   "firma.brukere.inviter.beskrivelse": "Brukeren opprettes i firmaet og kan logge inn med matchende e-post via Google eller Microsoft.",

@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Тільки сертифікований",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Зареєструватися можуть лише працівники, які мають відповідний сертифікат компетенції (матрицю компетенцій). Найбільш обмежувальний.",
   "firma.brukere.tittel": "Користувачі",
+  "firma.brukere.ansattnummer": "Номер працівника",
+  "firma.brukere.ansattnummerHjelp": "Використовується у звітах про час та імпорті компетентностей",
   "firma.brukere.inviter.knapp": "Запросити користувача",
   "firma.brukere.inviter.tittel": "Запросити нового користувача",
   "firma.brukere.inviter.beskrivelse": "Користувач створюється в компанії та може входити за допомогою відповідної електронної адреси через Google або Microsoft.",

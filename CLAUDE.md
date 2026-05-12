@@ -93,6 +93,22 @@ Samme dag som PR 1A–2C ble også T.7-leveranseplanen startet og første tre et
 
 **T.7-fremdrift:** T7-0 ✅, T7-1a ✅, T7-1b ✅, T7-2a ✅. Gjenstår T7-2b (web attestering — per-rad-attestering + projectId-løs felleskomponent + splitting per T.7-regler) og T7-3 (mobil dagsseddel-redesign etter T7-0-refaktor).
 
+### Ansattnummer i firma-admin bruker-UI IMPLEMENTERT på develop 2026-05-12
+
+`User.ansattnummer`-feltet har vært i schema siden Fase 0, brukt av timer-rapport (`firma/timer/rapport`), attestering-lister (`firma/timer/attestering`, `[prosjektId]/timer/attestering`) og kompetanse-import (matching-nøkkel). Men feltet kunne **ikke settes fra UI** — eneste vei var direkte SQL eller fremtidig HR-import-modul. Denne PR-en lukker hullet ved å legge til ansattnummer-felt i invite- og rediger-modaler for firma-admin.
+
+Server (`apps/api/src/routes/organisasjon.ts`):
+- `inviterBruker`: nytt input-felt `ansattnummer: z.string().max(50).optional()`. Settes på `User.create` (ny bruker) og `User.update` (adopsjon av orphan-bruker).
+- `oppdaterBruker`: samme input-felt + nullstilling via tom streng (`input.ansattnummer || null`). `select` på respons utvidet med `ansattnummer`.
+- `hentBrukere`: `select` utvidet med `ansattnummer` for å støtte default-verdi i rediger-modalen.
+
+Klient (`apps/web/src/app/dashbord/firma/brukere/page.tsx`):
+- `BrukerRad`-typen utvidet med `ansattnummer: string | null`.
+- `InviterModal`: ny `ansattnummer`-state, input-felt med hjelpetekst plassert etter telefon, sendes med i mutation-payload som `undefined` ved tom verdi.
+- `RedigerModal`: default-verdi `bruker.ansattnummer ?? ""`, samme input-felt, sendes alltid med (server håndterer nullstilling).
+
+i18n: 2 nye nøkler nb+en (`firma.brukere.ansattnummer`, `firma.brukere.ansattnummerHjelp`), 13 språk auto-oversatt via `generate.ts`. API+web typecheck 0 nye feil.
+
 **Albansk (sq) lagt til som nytt språk + alle 14 eksisterende språk fullført IMPLEMENTERT på develop 2026-05-08.** Sitedoc støtter nå 15 språk (var 14).
 
 **Albansk (`sq.json`):** 2145 nøkler oversatt fra `en.json` via `google-translate-api-x`. Visningsnavn «Shqip», flagg 🇦🇱. Ingen batch-feil for sq → ingen fallback til engelsk. 16 nøkler er identiske med engelsk verdi (legitime internasjonale ord: Admin, Email, Inbox, Logo, Video, SiteDoc, CSV/Excel-formatnavn).

@@ -822,6 +822,8 @@
   "firma.innstillinger.tilgangVerdi.sertifiserte.tittel": "Nur zertifiziert",
   "firma.innstillinger.tilgangVerdi.sertifiserte.beskrivelse": "Es können sich nur Mitarbeiter mit entsprechendem Kompetenznachweis (Kompetenzmatrix) anmelden. Am restriktivsten.",
   "firma.brukere.tittel": "Benutzer",
+  "firma.brukere.ansattnummer": "Mitarbeiternummer",
+  "firma.brukere.ansattnummerHjelp": "Wird in Zeitberichten und Kompetenzimporten verwendet",
   "firma.brukere.inviter.knapp": "Benutzer einladen",
   "firma.brukere.inviter.tittel": "Neuen Benutzer einladen",
   "firma.brukere.inviter.beskrivelse": "Der Benutzer wird im Unternehmen angelegt und kann sich mit der passenden E-Mail über Google oder Microsoft anmelden.",
