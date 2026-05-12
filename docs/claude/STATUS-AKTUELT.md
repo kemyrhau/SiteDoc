@@ -328,6 +328,34 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### PR O-4a avdelingId på OrganizationMember IMPLEMENTERT på feature/org-member-o4a 2026-05-12
+
+Første sub-PR av O-4 — flytting av felt fra `User` til `OrganizationMember`. Splittet av schema-størrelse: O-4a tar `avdelingId` (FK med SetNull-relasjon), O-4b vil ta `ansattnummer` (allerede på `OrganizationMember`, men User-feltet leses fortsatt i flere routes), O-4c tar `firma/brukere → firma/ansatte`-rename + UI-skifte mot `OrganizationMember`.
+
+**Schema (`packages/db/prisma/schema.prisma`):**
+
+- `OrganizationMember`: nytt felt `avdelingId String? @map("avdeling_id")` + relasjon `avdeling Avdeling? @relation(fields: [avdelingId], references: [id], onDelete: SetNull)` + `@@index([avdelingId])`.
+- `Avdeling`: ny back-relasjon `organizationMembers OrganizationMember[]`.
+
+**Migrasjon `20260512200000_o4a_add_member_avdeling`:**
+
+```sql
+ALTER TABLE organization_members ADD COLUMN avdeling_id TEXT NULL;
+ALTER TABLE organization_members ADD CONSTRAINT organization_members_avdeling_id_fkey
+  FOREIGN KEY (avdeling_id) REFERENCES avdelinger (id) ON DELETE SET NULL ON UPDATE CASCADE;
+CREATE INDEX organization_members_avdeling_id_idx ON organization_members (avdeling_id);
+```
+
+**Backfill-script `packages/db/scripts/backfill-org-member-avdeling.ts`:**
+
+Leser `User`-rader med `organizationId != null && avdelingId != null` og kjører `prisma.organizationMember.updateMany({ where: { userId, organizationId }, data: { avdelingId } })`. Idempotent. Kjør på test og prod etter `migrate deploy`.
+
+**Konsekvens:** Etter O-4a er `avdelingId` tilgjengelig på `OrganizationMember` i tillegg til `User`. Dual-read aktiveres når routes oppdateres (planlagt i O-4c sammen med `firma/brukere → firma/ansatte`-rename). `User.avdelingId` beholdes urørt og droppes i O-5.
+
+**Verifisert:** Prisma generate ok, `apps/api` typecheck 0 nye feil. Migrasjon og backfill ikke kjørt mot test/prod ennå — venter på review.
+
+**Klar for review.** Ikke merge — Kenneth verifiserer kode før godkjenning.
+
 ### PR O-3b routes dual-read organisasjon.ts + prosjekt.ts IMPLEMENTERT på feature/org-member-o3b 2026-05-12
 
 Fortsettelse av OrganizationMember-refaktoren. O-3a lukket inline `company_admin`-fallbacks i tilgangskontroll-laget; O-3b flytter de gjenstående direkte `User.organizationId`-oppslagene i routes til en ny eksportert hjelper.
