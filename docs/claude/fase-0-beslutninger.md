@@ -1782,3 +1782,62 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 - Denne filen + lenker øverst
 - [smartdok-undersokelse.md](smartdok-undersokelse.md) for empirisk grunnlag
 - [arkitektur-syntese.md](arkitektur-syntese.md) for helhetlig produktarkitektur
+
+## OrganizationMember-refaktor (låst 2026-05-12)
+
+### Beslutning
+
+User-modellen skiller ikke mellom system-identitet og HR-relasjon. OrganizationMember-tabell opprettes som korrekt arkitektur for firma-ansattskap.
+
+### Strukturelle valg (låst)
+
+- `User.email`: globalt unik — én person = én User-rad
+- `User.role`: kun `sitedoc_admin | user` etter refaktor
+- `company_admin` flyttes til `OrganizationMember.firmaRoller = ["firma_admin"]`
+- `ansattRolle: String` (ikke DB-enum) — verdier kan endres uten migrasjon
+- `firmaRoller: String[]` (ikke DB-enum) — samme grunn
+
+### OrganizationMember-modell
+
+**Felt som flyttes fra User → OrganizationMember:**
+- `organizationId` (selve relasjonen)
+- `ansattnummer`
+- `avdelingId`
+
+**Nye felt på OrganizationMember:**
+- `ansattRolle: String @default("ansatt")`
+  Startverdier: `ansatt | bas | prosjektleder | daglig_leder`
+- `firmaRoller: String[] @default([])`
+  Startverdier: `firma_admin | hms_ansvarlig | hr_ansvarlig`
+
+**Felt som BLIR på User (personlig data):**
+- `role` (`sitedoc_admin | user`)
+- `name`, `email`, `phone`, `language`
+- `fodselsdato`, `nasjonalitet`
+- `hmsKortNr`, `hmsKortUtloper`
+- `arbeidstillatelse`, `arbeidstillatelseUtloper`
+- `canLogin`, `tabelloppsett`
+
+### URL-rename
+
+`/dashbord/firma/brukere` → `/dashbord/firma/ansatte` (DB + UI)
+
+### Fasedelt implementering (5 PR-er)
+
+- **PR O-1:** Opprett OrganizationMember-tabell, backfill fra `User.organizationId` (additivt)
+- **PR O-2:** Refaktorer `tilgangskontroll.ts` — dual-read med fallback til User-felt
+- **PR O-3:** Migrer routes batch-vis (organisasjon → admin → prosjekt → modul-routes)
+- **PR O-4:** Flytt `ansattnummer` + `avdelingId` + nye felt, rename `firma/brukere` → `firma/ansatte`
+- **PR O-5:** Drop `User.organizationId`, `User.ansattnummer`, `User.avdelingId` + rydd `User.role`
+
+### Scope (fra kartlegging 2026-05-12)
+
+- 749 treff totalt (594 API, 117 web, 38 mobile)
+- 107 callsites til `verifiserFirmaAdmin`/`autoriserAdminForFirma`
+- Auth-laget (NextAuth/session) berøres IKKE
+- Risiko-konsentrasjon: `tilgangskontroll.ts` + `organisasjon.ts` + `timer/dagsseddel.ts`
+
+### Åpne beslutninger
+
+- `phone`: per-person (User) eller per-firma (OrganizationMember)? Uavklart.
+- `firmaRoller`-verdier: startsett låst, nye verdier legges til ved behov uten migrasjon
