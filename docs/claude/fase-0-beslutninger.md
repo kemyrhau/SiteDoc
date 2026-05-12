@@ -900,6 +900,15 @@ PR T7-2 starter etter PR T7-1 er deployet og verifisert på prod. PR T7-3 kan i 
 - Audit-log: original rad markeres som splittet, nye rader refererer til original via `parentRadId`
 - Eksempel: Prosjekt A | 07:00–16:00 | 9t → Prosjekt A | 07:00–12:00 | 5t + Prosjekt B | 12:00–16:00 | 4t
 
+**Firminnstilling direkteredigering ved attestering (låst 2026-05-12):**
+
+- Nytt felt på `OrganizationSetting`: `tillattRedigerVedAttestering Boolean @default(false)`
+- `true`: firma-admin kan redigere rader (timeantall, fra/til, ECO, lønnsart) direkte under attestering uten å returnere sedelen til arbeider
+- `false` (default): kun returner-flyt tillatt — leder må skrive kommentar og sende sedel tilbake til arbeider for korreksjon
+- Implementeres som del av PR T7-2b
+- Alle redigeringer loggføres i audit-log uavhengig av innstilling (Activity-tabell med `actorId` + `before`/`after`-payload)
+- Splitting-regler over (rad-splitting) er tillatt uavhengig av denne innstillingen — splitting er attestering-flyt-mekanikk, ikke verdi-endring
+
 ### T.8 — Innsjekk-basert prosjektforslag i dagsseddel (låst 2026-05-12)
 
 Når arbeider åpner «Ny dagsseddel», foreslås prosjekt basert på innsjekk-historikk fra Mannskap-modulen (Fase 4). Arbeider bestemmer alltid selv — forslaget kan overstyres.

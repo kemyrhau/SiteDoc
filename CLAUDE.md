@@ -74,6 +74,25 @@ T.1–T.6-vedtakene fra 2026-05-11 (se [fase-0-beslutninger.md § T](docs/claude
 
 **Påvirkning på fremtidig arbeid:** `krevProsjektLeder`-gate er fortsatt per-prosjekt — i `attester`/`returner`/`hentForAttestering` brukes første rad-fallback (`sheet.timer[0]?.projectId`). Full per-rad-attestering (T.3 Alternativ A — leder attesterer kun sine rader, sedel = container uten egen status) er ikke implementert i denne bunken og blir egen PR senere.
 
+### T.7 dagsseddel UI-redesign + #8 sjekklistemaler-kolonner — DEPLOYET TIL PROD 2026-05-12
+
+Samme dag som PR 1A–2C ble også T.7-leveranseplanen startet og første tre etapper deployet. T.7 er definert i [fase-0-beslutninger.md § T.7](docs/claude/fase-0-beslutninger.md) med URL-struktur Alternativ C (tre kontekster: arbeider / prosjektleder / firma-admin) og fire PR-er (T7-0 → T7-3).
+
+- **#8 sjekklistemaler-kolonner** (`3eb7398f` impl + merge `542461e2`) — Fagområde + Antall punkter-kolonner lagt til i `MalListe.tsx`. 4 nye i18n-nøkler i 15 språk. Kundeønske fra A.Markussen.
+- **PR T7-0 mobil-refaktor** (`44c03d98` impl + merge `b2a8e8ee`) — `apps/mobile/app/timer/[id].tsx` redusert fra 2084 → 367 linjer. Splittet til `TimerSeksjon`/`TilleggSeksjon`/`MaskinSeksjon` + `types/timer-detalj.ts` + `utils/dato.ts` + `lib/enheter.ts`. Ingen funksjonalitets­endring; mobil typecheck 12 = 12 baseline. Forberedelse for T7-3.
+- **PR T7-1a arbeidstid + summering** (`1b668cd9` impl + merge `b2a8e8ee`) — Re-label «Arbeidstid i dag» (lese-vy + rediger-modal) på `apps/web/src/app/dashbord/[prosjektId]/timer/[id]/page.tsx`. Ny utledet `arbeidstidTimer = (endAt − startAt) − pauseMin/60`. Løpende summerings-banner over Send-knappen med farge­koding (grønn/gul/grå) basert på registrerte timer vs. arbeidstid. 3 nye i18n-nøkler i 15 språk.
+- **PR T7-1b prosjekt-gruppert dagsseddel + geo-forslag** (`fcff04c1` impl + merge `908a57c1`) — Ny URL-struktur `/dashbord/timer/[id]` og `/dashbord/timer/ny` (firma-kontekst, ikke prosjekt-bundet). Multi-prosjekt-støtte på rad-nivå. Geo-forslag via `navigator.geolocation` + Haversine-avstand mot `Project.lat/lng` med 500m radius. Nye komponenter `ProsjektRadVelger` + `StatusBadge` (flyttet til `@/components/timer/`). Redirect-stubs fra eldre `/dashbord/[prosjektId]/timer/[id]` og `/timer/ny`. 5 nye i18n-nøkler i 15 språk. Bugfix `8ab2e826` på «Åpne»-lenker som ga `/dashbord/undefined/timer/...` (mine-timer + prosjekt-timer-liste).
+- **PR T7-2a firma-admin attestering-liste** (`b043d944` impl + merge `f3dbf08b`) — Ny side `/dashbord/firma/timer/attestering` viser sedler på tvers av prosjekter i firmaet. 2 nye server-queries: `timer.dagsseddel.hentTilAttesteringFirma({organizationId})` + `kanAttestereFirma({organizationId})` gates med `autoriserAdminForFirma`. Ny fane «Attestering» i `firma/timer/layout.tsx`. Attestering/retur fortsatt per-sedel (uendret mutation). Fix `55b6c398`: informativ amber-banner-tom-state istedenfor evig spinner når sitedoc_admin ikke har valgt firma. 4 nye i18n-nøkler i 15 språk.
+
+**Verifisering alle deploys:** HTTP/2 200 mot `sitedoc.no` etter hver deploy. PM2 sitedoc-web/api restartet og online. Visuell QA gjennomført av Kenneth på test før hver prod-deploy. Stale `.next`-cache-problem oppdaget to ganger under auto-deploy (PM2 reload trigget før build fullført); løst med manuell `rm -rf apps/web/.next + pnpm build + pm2 restart` på test. Roårsak er deploy-pipeline-svakhet (auto-hook ikke synkronisert med build), ikke kodefeil — separat oppfølgings-oppgave.
+
+**Forventede begrensninger i T7-2a (kommer i T7-2b):**
+- «Åpne»-detaljvisning fra firma-attestering-liste bruker eksisterende prosjekt-bundet detalj-side. Firma-admin uten prosjekt-medlemskap får «Prosjektet ble ikke funnet» fra `[prosjektId]/layout.tsx` (forventet — projectId-løs felleskomponent kommer i T7-2b).
+- Attestering er fortsatt per-sedel (ikke per-rad). T.3 Alt A (sedel = container uten egen attesterings-status) implementeres i T7-2b.
+- Sedler som spenner flere prosjekter viser kun første prosjekts navn i firma-listen.
+
+**T.7-fremdrift:** T7-0 ✅, T7-1a ✅, T7-1b ✅, T7-2a ✅. Gjenstår T7-2b (web attestering — per-rad-attestering + projectId-løs felleskomponent + splitting per T.7-regler) og T7-3 (mobil dagsseddel-redesign etter T7-0-refaktor).
+
 **Albansk (sq) lagt til som nytt språk + alle 14 eksisterende språk fullført IMPLEMENTERT på develop 2026-05-08.** Sitedoc støtter nå 15 språk (var 14).
 
 **Albansk (`sq.json`):** 2145 nøkler oversatt fra `en.json` via `google-translate-api-x`. Visningsnavn «Shqip», flagg 🇦🇱. Ingen batch-feil for sq → ingen fallback til engelsk. 16 nøkler er identiske med engelsk verdi (legitime internasjonale ord: Admin, Email, Inbox, Logo, Video, SiteDoc, CSV/Excel-formatnavn).

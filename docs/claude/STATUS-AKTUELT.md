@@ -328,6 +328,97 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### T.7 dagsseddel UI-redesign + #8 sjekklistemaler-kolonner DEPLOYET TIL PROD 2026-05-12
+
+T.7-leveranseplanen (definert i [fase-0-beslutninger.md § T.7](fase-0-beslutninger.md)) startet samme dag som PR 1A–2C, med URL-struktur Alternativ C (tre kontekster: arbeider `/dashbord/timer/[id]`, prosjektleder `/dashbord/[prosjektId]/timer/attestering`, firma-admin `/dashbord/firma/timer/attestering`) og fire PR-er. Tre etapper deployet samme kveld.
+
+**Kundeønske #8 — Fagområde/Antall punkter-kolonner** (`3eb7398f` impl, merge `542461e2`).
+
+`apps/web/src/app/dashbord/oppsett/produksjon/_components/MalListe.tsx`: to nye kolonner mellom Navn og Prefiks. Datafelter hentes fra eksisterende `mal.hentForProsjekt`-respons (`domain` + `_count.objects`). `MalRad`-typen utvidet med `domain: string`. 4 nye i18n-nøkler nb+en (`tabell.antallPunkter`, `maler.domain.bygg/hms/kvalitet`), 13 språk auto-oversatt via `generate.ts`. Russisk «HSE» ble feilaktig oversatt til «НИУ ВШЭ» (akronym-forveksling) — native-speaker-QA anbefalt. 16 filer endret, +73/-0.
+
+**PR T7-0 — Mobil-refaktor** (`44c03d98` impl, merge `b2a8e8ee`).
+
+`apps/mobile/app/timer/[id].tsx` redusert fra 2084 → 367 linjer. Logikk og UI flyttet ut til tre seksjonskomponenter:
+- `apps/mobile/src/components/timer-detalj/TimerSeksjon.tsx` (799 lin) — `TimerRadVis` + `UnderprosjektEtikett` + `TimerRadModal` + `LonnsartVelgerModal` + `AktivitetVelgerModal` + `UnderprosjektVelgerModal`
+- `apps/mobile/src/components/timer-detalj/TilleggSeksjon.tsx` (431 lin) — `TilleggRadVis` + `TilleggRadModal` + `TilleggVelgerModal`
+- `apps/mobile/src/components/timer-detalj/MaskinSeksjon.tsx` (595 lin) — `MaskinRadVis` + `MaskinRadModal` + `EquipmentVelgerModal` + `EnhetVelgerModal`
+- `apps/mobile/src/types/timer-detalj.ts` — 9 Drizzle-typer
+- `apps/mobile/src/utils/dato.ts` — `formatNorskDato` + `formatTidspunkt`
+- `apps/mobile/src/lib/enheter.ts` — `ENHETER`-konstant
+
+Ingen funksjonalitetsendring. Hovedkomponenten bevarer SQLite-lesing, status-banners, send-til-attestering og slett-flyt. Lokal state i hver seksjon (modal-toggles + rediger-IDer). Mobil typecheck 12 = 12 (samme baseline, alle feil pre-eksisterende i klynge A-D). Forberedelse for T7-3. 7 filer, +1900/-1753.
+
+**PR T7-1a — Arbeidstid + løpende summering** (`1b668cd9` impl, merge `b2a8e8ee`).
+
+`apps/web/src/app/dashbord/[prosjektId]/timer/[id]/page.tsx`:
+- Lese-vy: `<dl>`-grid splittet i to. Aktivitet/Beskrivelse i toppen (spann=2), ny seksjon med `<h3>` «Arbeidstid i dag» + underforklaring over startTid/sluttTid/pauseMin.
+- Rediger-modal: tilsvarende boks med `<h3>`+beskrivelse rundt de tre arbeidstid-feltene.
+- Ny utledet `arbeidstidTimer = (endAt − startAt) − pauseMin/60`. Null hvis start/slutt ikke er satt.
+- Ny banner over Send-knappen som viser «X.XXt av Y.YYt registrert» med fargekoding: grønn når registrert ≥ arbeidstid, gul ellers, grå når arbeidstid ikke er satt.
+
+3 nye i18n-nøkler nb+en (`timer.arbeidstidIDag`, `timer.arbeidstidIDagBeskrivelse`, `timer.summering` med `{{registrert}}`/`{{total}}`-placeholders), 13 språk auto-oversatt med placeholders bevart. Web typecheck 0 nye feil. 16 filer, +140/-43.
+
+**PR T7-1b — Prosjekt-gruppert dagsseddel + geo-forslag** (`fcff04c1` impl, merge `908a57c1`).
+
+URL-flytt fra prosjekt-bundet sti til firma-kontekst per T.7 URL-låsning. Sedler kan registreres fra flere prosjekter samme dag.
+
+Nye sider:
+- `apps/web/src/app/dashbord/timer/ny/page.tsx` — opprettelse med `ProsjektRadVelger` (lokal, ikke global toppbar-velger) + geo-forslag via `navigator.geolocation`. Haversine-avstand mot `Project.lat/lng`; prosjekt innen 500m forhåndsvelges og merkes «Foreslått basert på posisjon».
+- `apps/web/src/app/dashbord/timer/[id]/page.tsx` — detalj med prosjekt-gruppert struktur (1547 lin). Hver gruppe har Timer-/Tillegg-/Maskin-rader for ett prosjekt. Modaler tar `projectId` fra gruppen. ECO-velger via `trpc.eksternKostObjekt.list({ projectId })`. «+ Legg til prosjekt» åpner velger med ledige prosjekter.
+
+Nye komponenter:
+- `apps/web/src/components/timer/ProsjektRadVelger.tsx` — søkbar dropdown
+- `apps/web/src/components/timer/StatusBadge.tsx` — flyttet fra `[prosjektId]/timer/status-badge.tsx` for delt bruk; 3 import-stier oppdatert
+
+Eldre sider erstattet med redirect-stubs (`apps/web/src/app/dashbord/[prosjektId]/timer/[id]/page.tsx` + `/ny/page.tsx`). 5 nye i18n-nøkler nb+en (`timer.leggTilProsjekt`, `timer.geoForslag`, `timer.ingenGeoForslag`, `timer.feil.ugyldigInput`, `timer.detalj.ingenProsjektGrupper`). Web typecheck 0 nye feil — TS2589 i tRPC-map løst via type-cast til flat `ProsjektRef[]` før `.map()` per CLAUDE.md-mønster. 23 filer, +2111/-1521.
+
+**Bugfix T7-1b — «Åpne»-lenker peker til ny URL** (`8ab2e826`, merge `908a57c1`).
+
+T7-1b ga `/dashbord/undefined/timer/...` i to lister fordi `rad.projectId` på sedel-nivå ble undefined etter T.1. Fix på `apps/web/src/app/dashbord/timer/mine/page.tsx` + `apps/web/src/app/dashbord/[prosjektId]/timer/page.tsx`: begge lenker peker nå direkte til `/dashbord/timer/${rad.id}`. 2 linjer endret.
+
+**PR T7-2a — Firma-admin attestering-liste** (`b043d944` impl, merge `f3dbf08b`).
+
+Firma-admin (eller sitedoc_admin) kan nå se alle innsendte dagssedler i firmaet sitt fra én liste, uavhengig av hvilket prosjekt sedlene er knyttet til. Attestering/retur fortsatt per-sedel (samme atomisk batch som dagens flyt) — per-rad-attestering kommer i PR T7-2b.
+
+Server (`apps/api/src/routes/timer/dagsseddel.ts`):
+- Ny query `timer.dagsseddel.hentTilAttesteringFirma({organizationId})` gates med `autoriserAdminForFirma`. Henter sedler med `status="sent"` hvor minst én timer-rad har `projectId` i firmaets prosjekter (`ProjectOrganization`-join). Beriker med ansatt + prosjekt-info.
+- Ny query `kanAttestereFirma({organizationId})` for sidebar-gating.
+- Eksisterende `attester`/`returner`-mutations gjenbrukes uendret.
+
+Klient:
+- Ny side `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` — tabell med kolonner dato/ansatt/prosjekt/aktivitet/timer/rader/handlinger. «Åpne»-lenke peker fortsatt til prosjekt-bundet detalj-side (`/dashbord/[projectId]/timer/attestering/[id]`).
+- `apps/web/src/app/dashbord/firma/timer/layout.tsx` utvidet med ny fane «Attestering».
+- `ReturnerDialog` dupliseres fra prosjekt-versjon (samme mutation, ulik cache-invalidering).
+
+3 nye i18n-nøkler nb+en (`firma.timer.fane.attestering`, `firma.timer.attestering`, `firma.timer.attesteringBeskrivelse`). 13 språk auto-oversatt. API+web typecheck 0 nye feil. 18 filer, +394/-1.
+
+**Fix T7-2a — Informativ tom-state istedenfor evig spinner** (`55b6c398`, merge `f3dbf08b`).
+
+`apps/web/src/app/dashbord/firma/timer/attestering/page.tsx`: splittet `if (!orgId || tilgangLaster)` til to separate sjekker. `!orgId` viser amber-banner med peker til toppmeny istedenfor evig Spinner. Ny i18n-nøkkel `firma.timer.attesteringIngenFirma` (nb+en + 13 språk). 16 filer, +25/-1.
+
+**Verifisering alle deploys 2026-05-12:** HTTP/2 200 mot `sitedoc.no` etter hver deploy. PM2 `sitedoc-web` (id 47) + `sitedoc-api` (id 39) restartet etter hver merge — restart-tellere gikk fra 47 til 50 i løpet av dagen. Visuell QA gjennomført av Kenneth på test før hver prod-deploy.
+
+**Stale `.next`-cache-problem (deploy-pipeline-svakhet):** Auto-deploy-hooken trigger `pm2 reload` FØR `pnpm build` er ferdig, som gir gjentatte «Could not find a production build in the '.next' directory»-feil i PM2-error-loggen, og en stale cache som gir client-side exception. Oppdaget to ganger denne dagen (etter T7-1b og T7-2a deploys). Løst med manuell `rm -rf apps/web/.next + pnpm build + pm2 restart` på test. Roårsak er deploy-pipeline-svakhet (auto-hook ikke synkronisert med build), ikke kodefeil. Separat oppfølgings-oppgave.
+
+### Forventede begrensninger i T7-2a — kommer i T7-2b
+
+- «Åpne»-detaljvisning fra firma-attestering-liste bruker eksisterende prosjekt-bundet detalj-side. Firma-admin uten prosjekt-medlemskap på det aktuelle prosjektet får «Prosjektet ble ikke funnet» fra `[prosjektId]/layout.tsx`. ProjectId-løs felleskomponent kommer i T7-2b.
+- Attestering er fortsatt per-sedel (ikke per-rad). T.3 Alt A (sedel = container uten egen attesterings-status) implementeres i T7-2b.
+- Sedler som spenner flere prosjekter viser kun første prosjekts navn i firma-listen.
+
+### T.7-fremdrift
+
+| PR | Status |
+|---|---|
+| **PR T7-0** Mobil-refaktor | 🟢 Deployet prod 2026-05-12 (`44c03d98` / merge `b2a8e8ee`) |
+| **PR T7-1a** Arbeidstid + summering | 🟢 Deployet prod 2026-05-12 (`1b668cd9` / merge `b2a8e8ee`) |
+| **PR T7-1b** Prosjekt-gruppert + geo | 🟢 Deployet prod 2026-05-12 (`fcff04c1` + bugfix `8ab2e826` / merge `908a57c1`) |
+| **PR T7-2a** Firma-attestering-liste | 🟢 Deployet prod 2026-05-12 (`b043d944` + fix `55b6c398` / merge `f3dbf08b`) |
+| PR T7-2b | 🔴 Ikke startet — per-rad-attestering + projectId-løs felleskomponent + splitting + redigering ved attestering |
+| PR T7-3 | 🔴 Ikke startet — mobil dagsseddel-redesign (etter T7-0-refaktor er ferdig) |
+
+---
+
 **Albansk (sq) lagt til + alle 14 eksisterende språk fullført IMPLEMENTERT på develop 2026-05-08.** Sitedoc støtter nå 15 språk. `sq.json` opprettet med 2145 nøkler (visningsnavn «Shqip», flagg 🇦🇱). Som sidegevinst fylte `generate.ts` ut alle manglende nøkler i de 6 språkene på 974-baseline (cs/de/et/fi/fr/ro) og 8 språkene på 2130-baseline — alle 14 eksisterende språk er nå på 2145-nøkler-baseline. Ingen batch-feil for sq, men 4 språk (ro/et/cs/de) fikk én 50-nøkler-batch til engelsk fallback som må re-oversettes ved senere kjøring. 7138 nye/oppdaterte oversettelser totalt. Web typecheck + build grønt, mobil 12 = 12. Native-speaker-QA anbefalt for sq, cs, de, et, fi.
 
 ---
