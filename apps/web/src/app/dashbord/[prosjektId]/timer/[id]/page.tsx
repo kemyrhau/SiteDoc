@@ -107,6 +107,17 @@ export default function DagsseddelDetaljSide() {
   }>;
   const totaltimer = timerRader.reduce((acc, r) => acc + tilTall(r.timer), 0);
 
+  // T7-1a: arbeidstid utledes fra startAt/endAt/pauseMin og brukes til
+  // løpende summering nederst på siden. Null hvis start/slutt mangler.
+  const arbeidstidTimer = (() => {
+    const startIso = sheet.startAt as string | null;
+    const endIso = sheet.endAt as string | null;
+    if (!startIso || !endIso) return null;
+    const diff =
+      (new Date(endIso).getTime() - new Date(startIso).getTime()) / 3600000;
+    return Math.max(0, diff - (sheet.pauseMin ?? 0) / 60);
+  })();
+
   return (
     <div className="mx-auto max-w-3xl p-6">
       <Link
@@ -188,18 +199,7 @@ export default function DagsseddelDetaljSide() {
           <Definisjon
             term={t("timer.felt.aktivitet")}
             verdi={sheet.aktivitet?.navn ?? "—"}
-          />
-          <Definisjon
-            term={t("timer.felt.startTid")}
-            verdi={isoTidspunktTilHHMM(sheet.startAt as string | null) || "—"}
-          />
-          <Definisjon
-            term={t("timer.felt.sluttTid")}
-            verdi={isoTidspunktTilHHMM(sheet.endAt as string | null) || "—"}
-          />
-          <Definisjon
-            term={t("timer.felt.pauseMin")}
-            verdi={`${sheet.pauseMin} min`}
+            spann={2}
           />
           {sheet.beskrivelse && (
             <Definisjon
@@ -209,6 +209,28 @@ export default function DagsseddelDetaljSide() {
             />
           )}
         </dl>
+        <div className="mt-5 border-t border-gray-100 pt-4">
+          <h3 className="text-sm font-semibold text-gray-900">
+            {t("timer.arbeidstidIDag")}
+          </h3>
+          <p className="mb-3 text-xs text-gray-500">
+            {t("timer.arbeidstidIDagBeskrivelse")}
+          </p>
+          <dl className="grid grid-cols-3 gap-3 text-sm">
+            <Definisjon
+              term={t("timer.felt.startTid")}
+              verdi={isoTidspunktTilHHMM(sheet.startAt as string | null) || "—"}
+            />
+            <Definisjon
+              term={t("timer.felt.sluttTid")}
+              verdi={isoTidspunktTilHHMM(sheet.endAt as string | null) || "—"}
+            />
+            <Definisjon
+              term={t("timer.felt.pauseMin")}
+              verdi={`${sheet.pauseMin} min`}
+            />
+          </dl>
+        </div>
       </section>
 
       {/* Timer-rader */}
@@ -276,6 +298,28 @@ export default function DagsseddelDetaljSide() {
         onTilfoy={() => setVisTilfoyMaskin(true)}
         onRediger={(id) => setRedigerMaskinId(id)}
       />
+
+      {/* T7-1a: Løpende summering — sammenligner registrerte timer mot
+          utledet arbeidstid (startAt/endAt minus pauseMin). */}
+      {erRedigerbar && (
+        <div
+          className={`mb-4 rounded-lg border p-4 text-sm ${
+            arbeidstidTimer === null
+              ? "border-gray-200 bg-gray-50 text-gray-600"
+              : totaltimer >= arbeidstidTimer
+                ? "border-green-200 bg-green-50 text-green-700"
+                : "border-yellow-200 bg-yellow-50 text-yellow-800"
+          }`}
+        >
+          {t("timer.summering", {
+            registrert: totaltimer.toFixed(2),
+            total:
+              arbeidstidTimer === null
+                ? "?"
+                : arbeidstidTimer.toFixed(2),
+          })}
+        </div>
+      )}
 
       {/* Send + slett */}
       {erRedigerbar && (
@@ -919,37 +963,45 @@ function RedigerHeaderDialog({
             {t("timer.felt.aktivitetDefaultHjelp")}
           </p>
         </div>
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("timer.felt.startTid")}
-            </label>
-            <Input
-              type="time"
-              value={startAt}
-              onChange={(e) => setStartAt(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("timer.felt.sluttTid")}
-            </label>
-            <Input
-              type="time"
-              value={endAt}
-              onChange={(e) => setEndAt(e.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              {t("timer.felt.pauseMin")}
-            </label>
-            <Input
-              type="number"
-              min={0}
-              value={pauseMin}
-              onChange={(e) => setPauseMin(parseInt(e.target.value || "0"))}
-            />
+        <div className="rounded-md border border-gray-200 p-3">
+          <h3 className="text-sm font-semibold text-gray-900">
+            {t("timer.arbeidstidIDag")}
+          </h3>
+          <p className="mb-3 text-xs text-gray-500">
+            {t("timer.arbeidstidIDagBeskrivelse")}
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t("timer.felt.startTid")}
+              </label>
+              <Input
+                type="time"
+                value={startAt}
+                onChange={(e) => setStartAt(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t("timer.felt.sluttTid")}
+              </label>
+              <Input
+                type="time"
+                value={endAt}
+                onChange={(e) => setEndAt(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-sm font-medium text-gray-700">
+                {t("timer.felt.pauseMin")}
+              </label>
+              <Input
+                type="number"
+                min={0}
+                value={pauseMin}
+                onChange={(e) => setPauseMin(parseInt(e.target.value || "0"))}
+              />
+            </div>
           </div>
         </div>
         <div>
