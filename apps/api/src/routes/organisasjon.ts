@@ -486,7 +486,7 @@ export const organisasjonRouter = router({
     }),
 
   // Tildel granulær firma-rolle (per A.25 — f.eks. "hms_ansvarlig")
-  // Gated med verifiserFirmaAdmin: kun firma-admin tildeler innen sitt eget firma
+  // O-3a: skriver til OrganizationMember.firmaRoller. OrganizationRole-tabellen droppes i O-5.
   tildelOrgRolle: protectedProcedure
     .input(z.object({
       userId: z.string().uuid(),
@@ -496,37 +496,28 @@ export const organisasjonRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
-      // Validering: målbruker må tilhøre samme firma
-      const målbruker = await ctx.prisma.user.findUnique({
-        where: { id: input.userId },
-        select: { organizationId: true },
+      // Validering: målbruker må tilhøre samme firma (via OrganizationMember-rad)
+      const member = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId: input.userId, organizationId: orgId } },
+        select: { id: true, firmaRoller: true },
       });
-      if (!målbruker || målbruker.organizationId !== orgId) {
+      if (!member) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Bruker tilhører ikke samme firma",
         });
       }
 
-      // Idempotent — upsert sikrer at flere tildelings-kall ikke feiler
-      return ctx.prisma.organizationRole.upsert({
-        where: {
-          userId_organizationId_role: {
-            userId: input.userId,
-            organizationId: orgId,
-            role: input.role,
-          },
-        },
-        update: {},
-        create: {
-          userId: input.userId,
-          organizationId: orgId,
-          role: input.role,
-        },
+      // Idempotent — Set-deduplisering sikrer at flere tildelings-kall ikke feiler
+      const oppdaterteRoller = Array.from(new Set([...member.firmaRoller, input.role]));
+      return ctx.prisma.organizationMember.update({
+        where: { id: member.id },
+        data: { firmaRoller: oppdaterteRoller },
       });
     }),
 
   // Fjern granulær firma-rolle (per A.25)
+  // O-3a: skriver til OrganizationMember.firmaRoller. OrganizationRole-tabellen droppes i O-5.
   fjernOrgRolle: protectedProcedure
     .input(z.object({
       userId: z.string().uuid(),
@@ -536,15 +527,26 @@ export const organisasjonRouter = router({
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
-      const resultat = await ctx.prisma.organizationRole.deleteMany({
-        where: {
-          userId: input.userId,
-          organizationId: orgId,
-          role: input.role,
-        },
+      const member = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId: input.userId, organizationId: orgId } },
+        select: { id: true, firmaRoller: true },
+      });
+      if (!member) {
+        return { fjernet: 0 };
+      }
+
+      const eksisterte = member.firmaRoller.includes(input.role);
+      if (!eksisterte) {
+        return { fjernet: 0 };
+      }
+
+      const oppdaterteRoller = member.firmaRoller.filter((r) => r !== input.role);
+      await ctx.prisma.organizationMember.update({
+        where: { id: member.id },
+        data: { firmaRoller: oppdaterteRoller },
       });
 
-      return { fjernet: resultat.count };
+      return { fjernet: 1 };
     }),
 
   // Hent OrganizationSetting for innlogget brukers firma.

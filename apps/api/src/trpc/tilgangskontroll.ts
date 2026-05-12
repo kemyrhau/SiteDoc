@@ -94,6 +94,28 @@ export async function verifiserFaggruppeTilhorighet(
 }
 
 /**
+ * Intern hjelper for dual-read av firma-admin-rettighet.
+ * Leser fra OrganizationMember.firmaRoller først, fallback til User.role==="company_admin"
+ * + matching User.organizationId. Fallback fjernes i O-5.
+ */
+async function erFirmaAdmin(
+  userId: string,
+  organizationId: string,
+): Promise<boolean> {
+  const member = await prisma.organizationMember.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { firmaRoller: true },
+  });
+  if (member?.firmaRoller.includes("firma_admin")) return true;
+
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true, organizationId: true },
+  });
+  return bruker?.role === "company_admin" && bruker.organizationId === organizationId;
+}
+
+/**
  * Verifiser at bruker er admin i prosjektet.
  * company_admin med riktig org arver admin-rettigheter uten ProjectMember-rad.
  */
@@ -102,7 +124,7 @@ export async function verifiserAdmin(
   projectId: string,
 ): Promise<void> {
   // sitedoc_admin har alltid tilgang
-  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, organizationId: true } });
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
   const medlem = await prisma.projectMember.findUnique({
@@ -111,12 +133,13 @@ export async function verifiserAdmin(
 
   if (medlem?.role === "admin") return;
 
-  // company_admin-fallback: sjekk om prosjektet tilhører brukerens org
-  if (bruker?.role === "company_admin" && bruker.organizationId) {
-    const orgProsjekt = await prisma.projectOrganization.findFirst({
-      where: { organizationId: bruker.organizationId, projectId },
-    });
-    if (orgProsjekt) return;
+  // O-3a: firma-admin-fallback via OrganizationMember.firmaRoller (eller legacy User.role)
+  const orgKoblinger = await prisma.projectOrganization.findMany({
+    where: { projectId },
+    select: { organizationId: true },
+  });
+  for (const { organizationId } of orgKoblinger) {
+    if (await erFirmaAdmin(userId, organizationId)) return;
   }
 
   throw new TRPCError({
@@ -134,7 +157,7 @@ export async function verifiserProsjektmedlem(
   projectId: string,
 ): Promise<void> {
   // sitedoc_admin har alltid tilgang
-  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true, organizationId: true } });
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
   const medlem = await prisma.projectMember.findUnique({
@@ -143,12 +166,13 @@ export async function verifiserProsjektmedlem(
 
   if (medlem) return;
 
-  // company_admin-fallback: sjekk om prosjektet tilhører brukerens org
-  if (bruker?.role === "company_admin" && bruker.organizationId) {
-    const orgProsjekt = await prisma.projectOrganization.findFirst({
-      where: { organizationId: bruker.organizationId, projectId },
-    });
-    if (orgProsjekt) return;
+  // O-3a: firma-admin-fallback via OrganizationMember.firmaRoller (eller legacy User.role)
+  const orgKoblinger = await prisma.projectOrganization.findMany({
+    where: { projectId },
+    select: { organizationId: true },
+  });
+  for (const { organizationId } of orgKoblinger) {
+    if (await erFirmaAdmin(userId, organizationId)) return;
   }
 
   throw new TRPCError({
@@ -269,7 +293,7 @@ export async function verifiserAdminEllerFirmaansvarlig(
 ): Promise<{ erAdmin: boolean }> {
   const bruker = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, organizationId: true },
+    select: { role: true },
   });
 
   if (bruker?.role === "sitedoc_admin") return { erAdmin: true };
@@ -280,12 +304,13 @@ export async function verifiserAdminEllerFirmaansvarlig(
 
   if (medlem?.role === "admin") return { erAdmin: true };
 
-  // company_admin med riktig org → admin
-  if (bruker?.role === "company_admin" && bruker.organizationId) {
-    const orgProsjekt = await prisma.projectOrganization.findFirst({
-      where: { organizationId: bruker.organizationId, projectId },
-    });
-    if (orgProsjekt) return { erAdmin: true };
+  // O-3a: firma-admin via OrganizationMember.firmaRoller (eller legacy User.role) → admin
+  const orgKoblinger = await prisma.projectOrganization.findMany({
+    where: { projectId },
+    select: { organizationId: true },
+  });
+  for (const { organizationId } of orgKoblinger) {
+    if (await erFirmaAdmin(userId, organizationId)) return { erAdmin: true };
   }
 
   if (medlem?.erFirmaansvarlig) return { erAdmin: false };
@@ -748,8 +773,9 @@ export async function verifiserKompetanseSkriveTilgang(
     });
   }
 
-  // Steg 4: Company-admin kortslutning (etter cross-org sjekk)
-  if (ctxBruker.role === "company_admin") return;
+  // Steg 4: Firma-admin kortslutning (etter cross-org sjekk)
+  // O-3a: les fra OrganizationMember.firmaRoller (eller legacy User.role==="company_admin")
+  if (await erFirmaAdmin(ctxUserId, ctxBruker.organizationId)) return;
 
   // Steg 5: Hent firma-policy (default firma_admin hvis setting mangler)
   const setting = await prisma.organizationSetting.findUnique({
@@ -820,8 +846,9 @@ export async function verifiserMaskinAnsvarligSkriveTilgang(
     });
   }
 
-  // Steg 3: company_admin i samme firma
-  if (ctxBruker.role === "company_admin") return;
+  // Steg 3: firma-admin i samme firma
+  // O-3a: les fra OrganizationMember.firmaRoller (eller legacy User.role==="company_admin")
+  if (await erFirmaAdmin(ctxUserId, equipment.organizationId)) return;
 
   // Steg 4: primær-ansvarlig i samme firma
   if (equipment.ansvarligUserId === ctxUserId) return;
