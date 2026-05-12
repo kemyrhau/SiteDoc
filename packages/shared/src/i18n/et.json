@@ -931,6 +931,7 @@
   "firma.timer.fane.attestering": "Atesteerimine",
   "firma.timer.attestering": "Atesteerimine",
   "firma.timer.attesteringBeskrivelse": "Töötunnitabelid ootavad atesteerimist kõigi projektide lõikes",
+  "firma.timer.attesteringIngenFirma": "Atesteerimisnimekirja vaatamiseks valige ülemisest menüüst ettevõte.",
   "firma.timer.visInaktive": "Kuva passiivne",
   "firma.timer.status.aktiv": "Aktiivne",
   "firma.timer.status.inaktiv": "Mitteaktiivne",

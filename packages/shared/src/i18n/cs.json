@@ -931,6 +931,7 @@
   "firma.timer.fane.attestering": "Atestace",
   "firma.timer.attestering": "Atestace",
   "firma.timer.attesteringBeskrivelse": "Časové rozvrhy čekající na atestaci napříč projekty",
+  "firma.timer.attesteringIngenFirma": "Výběrem společnosti z horní nabídky zobrazíte seznam atestací.",
   "firma.timer.visInaktive": "Zobrazit neaktivní",
   "firma.timer.status.aktiv": "Aktivní",
   "firma.timer.status.inaktiv": "Neaktivní",

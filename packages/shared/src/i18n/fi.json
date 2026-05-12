@@ -931,6 +931,7 @@
   "firma.timer.fane.attestering": "Todistus",
   "firma.timer.attestering": "Todistus",
   "firma.timer.attesteringBeskrivelse": "Työaikalomakkeet odottavat todistusta projekteista",
+  "firma.timer.attesteringIngenFirma": "Valitse yritys ylävalikosta nähdäksesi todistusluettelon.",
   "firma.timer.visInaktive": "Näytä passiivinen",
   "firma.timer.status.aktiv": "Aktiivinen",
   "firma.timer.status.inaktiv": "Ei-aktiivinen",

@@ -65,10 +65,19 @@ export default function FirmaAttesteringSide() {
     onError: (e: { message: string }) => setFeil(e.message),
   });
 
-  if (!orgId || tilgangLaster) {
+  if (tilgangLaster) {
     return (
       <div className="flex items-center justify-center py-12">
         <Spinner />
+      </div>
+    );
+  }
+
+  if (!orgId) {
+    return (
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+        <AlertCircle className="mr-1 inline-block h-4 w-4" />
+        {t("firma.timer.attesteringIngenFirma")}
       </div>
     );
   }

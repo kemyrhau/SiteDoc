@@ -931,6 +931,7 @@
   "firma.timer.fane.attestering": "Atestare",
   "firma.timer.attestering": "Atestare",
   "firma.timer.attesteringBeskrivelse": "Foile de pontaj care așteaptă atestarea pentru toate proiectele",
+  "firma.timer.attesteringIngenFirma": "Selectați o companie din meniul de sus pentru a vizualiza lista de atestare.",
   "firma.timer.visInaktive": "Arată inactiv",
   "firma.timer.status.aktiv": "Activ",
   "firma.timer.status.inaktiv": "Inactiv",

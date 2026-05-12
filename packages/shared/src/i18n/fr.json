@@ -931,6 +931,7 @@
   "firma.timer.fane.attestering": "Attestation",
   "firma.timer.attestering": "Attestation",
   "firma.timer.attesteringBeskrivelse": "Feuilles de temps en attente d'attestation dans tous les projets",
+  "firma.timer.attesteringIngenFirma": "Sélectionnez une entreprise dans le menu supérieur pour afficher la liste des attestations.",
   "firma.timer.visInaktive": "Afficher inactif",
   "firma.timer.status.aktiv": "Active",
   "firma.timer.status.inaktiv": "Inactive",

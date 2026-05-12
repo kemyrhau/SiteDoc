@@ -931,6 +931,7 @@
   "firma.timer.fane.attestering": "Аттестация",
   "firma.timer.attestering": "Аттестация",
   "firma.timer.attesteringBeskrivelse": "Таблицы учета рабочего времени, ожидающие аттестации по проектам",
+  "firma.timer.attesteringIngenFirma": "Выберите компанию в верхнем меню, чтобы просмотреть список аттестатов.",
   "firma.timer.visInaktive": "Показать неактивное",
   "firma.timer.status.aktiv": "Активный",
   "firma.timer.status.inaktiv": "Неактивный",

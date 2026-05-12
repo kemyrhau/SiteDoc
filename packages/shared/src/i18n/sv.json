@@ -931,6 +931,7 @@
   "firma.timer.fane.attestering": "Intyg",
   "firma.timer.attestering": "Intyg",
   "firma.timer.attesteringBeskrivelse": "Tidrapporter som väntar på attestering över projekt",
+  "firma.timer.attesteringIngenFirma": "Välj ett företag från toppmenyn för att se attestlistan.",
   "firma.timer.visInaktive": "Visa inaktiv",
   "firma.timer.status.aktiv": "Aktiv",
   "firma.timer.status.inaktiv": "Inaktiv",
