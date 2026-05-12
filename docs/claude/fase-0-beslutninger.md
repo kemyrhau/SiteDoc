@@ -1841,3 +1841,7 @@ User-modellen skiller ikke mellom system-identitet og HR-relasjon. OrganizationM
 
 - `phone`: per-person (User) eller per-firma (OrganizationMember)? Uavklart.
 - `firmaRoller`-verdier: startsett låst, nye verdier legges til ved behov uten migrasjon
+
+### OrganizationRole-konsolidering (låst 2026-05-12)
+
+`OrganizationRole`-tabellen (opprettet 2026-05-01, per A.27) deprecated til fordel for `OrganizationMember.firmaRoller`. Begrunnelse: 0 rader i prod/test, ingen klient-UI, identisk semantikk. `harOrgRolle`-helper oppdateres i O-2 til å lese fra `OrganizationMember.firmaRoller`. `tildelOrgRolle`/`fjernOrgRolle` oppdateres i O-3. `OrganizationRole`-tabellen droppes i O-5.
