@@ -109,6 +109,18 @@ Klient (`apps/web/src/app/dashbord/firma/brukere/page.tsx`):
 
 i18n: 2 nye nøkler nb+en (`firma.brukere.ansattnummer`, `firma.brukere.ansattnummerHjelp`), 13 språk auto-oversatt via `generate.ts`. API+web typecheck 0 nye feil.
 
+### PR O-1 OrganizationMember-tabell IMPLEMENTERT på feature/org-member-o1 2026-05-12
+
+Første PR i OrganizationMember-refaktoren (5 PR-er, låst i [fase-0-beslutninger.md § OrganizationMember-refaktor](docs/claude/fase-0-beslutninger.md)). Additiv: ingen eksisterende kode røres. `User.organizationId` + `Organization.users` beholdes for dual-read i O-2.
+
+Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansattRolle String @default("ansatt")`, `firmaRoller String[] @default([])`, `ansattnummer String?`, audit-felter, `@@unique([userId, organizationId])`, Cascade-FK begge ender). Back-relasjoner `organizationMembers OrganizationMember[]` på User og `members OrganizationMember[]` på Organization.
+
+Migrasjon (`20260512170000_add_organization_member`): Manuell SQL siden lokal `migrate dev` brytes av pgvector-mangel på shadow-DB. SQL er gyldig — applyes via `migrate deploy` på test/prod.
+
+Backfill-script (`packages/db/scripts/backfill-organization-members.ts`): Idempotent upsert. `firmaRoller = ["firma_admin"]` hvis `User.role === "company_admin"`. Kjøres på test etter migrate deploy. **Ikke kjørt lokalt** — lokal-DB er tom (ingen `users`-tabell), bekrefter CLAUDE.md «lokal-DB er typisk bak».
+
+Verifisert: API typecheck 0 nye feil; Web typecheck kun pre-eksisterende vitest-feil. Klar for review — ikke merge før Kenneth verifiserer SQL.
+
 Eldre PR-er: se [docs/claude/historikk-2026-05.md](docs/claude/historikk-2026-05.md)
 
 Full statusrapport — pågående arbeid, pauset arbeid, planlagte faser (Fase 0–7) — i [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md).
