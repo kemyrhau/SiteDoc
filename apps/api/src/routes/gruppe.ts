@@ -15,6 +15,7 @@ import {
   verifiserAdmin,
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
+  hentBrukersOrg,
 } from "../trpc/tilgangskontroll";
 
 export const gruppeRouter = router({
@@ -27,7 +28,7 @@ export const gruppeRouter = router({
       // sitedoc_admin
       const bruker = await ctx.prisma.user.findUnique({
         where: { id: ctx.userId },
-        select: { role: true, organizationId: true },
+        select: { role: true },
       });
       if (bruker?.role === "sitedoc_admin") {
         return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
@@ -47,13 +48,20 @@ export const gruppeRouter = router({
       });
 
       if (!medlem) {
-        // company_admin uten ProjectMember-rad — se alt
-        if (bruker?.role === "company_admin" && bruker.organizationId) {
+        // firma-admin uten ProjectMember-rad — se alt
+        const brukerOrgId = await hentBrukersOrg(ctx.userId);
+        if (brukerOrgId) {
           const orgProsjekt = await ctx.prisma.projectOrganization.findFirst({
-            where: { organizationId: bruker.organizationId, projectId: input.projectId },
+            where: { organizationId: brukerOrgId, projectId: input.projectId },
           });
           if (orgProsjekt) {
-            return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
+            const member = await ctx.prisma.organizationMember.findUnique({
+              where: { userId_organizationId: { userId: ctx.userId, organizationId: brukerOrgId } },
+              select: { firmaRoller: true },
+            });
+            if (member?.firmaRoller.includes("firma_admin")) {
+              return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
+            }
           }
         }
         throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem" });

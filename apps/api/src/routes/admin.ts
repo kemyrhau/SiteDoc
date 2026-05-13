@@ -107,7 +107,11 @@ export const adminRouter = router({
     const orgs = await ctx.prisma.organization.findMany({
       where: { erKunde: true },
       include: {
-        users: { select: { id: true, name: true, email: true, role: true } },
+        members: {
+          select: {
+            user: { select: { id: true, name: true, email: true, role: true } },
+          },
+        },
         projects: {
           include: { project: { select: { id: true, name: true, projectNumber: true } } },
         },
@@ -129,10 +133,14 @@ export const adminRouter = router({
       liste.push(m.moduleSlug);
       perOrg.set(m.organizationId, liste);
     }
-    return orgs.map((o) => ({
-      ...o,
-      aktiveFirmamoduler: perOrg.get(o.id) ?? [],
-    }));
+    return orgs.map((o) => {
+      const { members, ...rest } = o;
+      return {
+        ...rest,
+        users: members.map((m) => m.user),
+        aktiveFirmamoduler: perOrg.get(o.id) ?? [],
+      };
+    });
   }),
 
   // Opprett organisasjon (kun sitedoc_admin)

@@ -117,6 +117,29 @@ Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansat
 
 Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
+### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes IMPLEMENTERT på feature/org-member-o5b 2026-05-13
+
+Andre sub-PR av O-5. Fjerner alle gjenværende direkte `User.organizationId`- og `User.ansattnummer`-lesinger fra routes (de som ikke fulgte O-5a-mønstret med lokal `hentBrukerOrgId`). Ingen schema-endring, ingen klient-endring. Klargjør for O-5c som dropper `User.organizationId` + `User.ansattnummer` + `OrganizationRole`-tabellen.
+
+Kategori B (4 routes — `User.organizationId`/`User.role` lest direkte for tilgangsbeslutninger):
+- `gruppe.ts` `hentMinFlytInfo` (rad 28-58): firma-admin-fallback uten `ProjectMember`-rad. Byttet fra `bruker.role === "company_admin" && bruker.organizationId` til `hentBrukersOrg` + `OrganizationMember.firmaRoller.includes("firma_admin")`-oppslag.
+- `medlem.ts` `inviterBruker` (rad 88-135): firmaansvarlig-grenen leste `User.organizationId` to ganger — én for inviterende, én for eksisterende bruker med samme e-post. Begge byttet til `hentBrukersOrg`. Den andre var spesielt subtil: tidligere lest `eksisterendeBruker.organizationId`, nå hentes orgId via `hentBrukersOrg(eksisterendeBruker.id)`.
+- `medlem.ts` `leggTilEksisterende` (rad 539): `bruker.organizationId !== prosjekt.primaryOrganizationId`-sjekk byttet til `await hentBrukersOrg(input.userId) !== prosjekt.primaryOrganizationId`. `select` på User-oppslaget rensket — fjernet `organizationId`.
+- `admin.ts` `hentAlleOrganisasjoner` (rad 107-136): `include: { users: ... }` (Organization.users back-relasjon) byttet til `include: { members: { select: { user: { select: ... } } } }`. Mapping i respons bygger `users`-feltet fra `members.map((m) => m.user)` — klient-API uberørt. Klient-bytte til `members` kan skje senere som egen kosmetisk PR.
+
+Kategori C (3 filer — `User.ansattnummer` lest direkte):
+- `timer/rapport.ts` (rad 95-103 + 272-281): to `User.findMany`-batch-oppslag for ansattnummer-berikelse. Begge nå supplert med `OrganizationMember.findMany({ where: { userId: { in: userIder } }, select: { userId, ansattnummer } })` og merge via `Map<userId, ansattnummer>`. Trygt forutsatt 1:1 (verifisert i prod-sjekk før O-5a).
+- `timer/dagsseddel.ts` (rad 673, 716, 791, 878): tre batch-oppslag + ett single-bruker-oppslag (`hentEnkelt`). Batch-stedene følger samme mønster som rapport.ts. Single-stedet bruker `sheet.organizationId` for å gjøre `OrganizationMember.findUnique({ userId_organizationId })`.
+- `organisasjon.ts` `oppdaterBruker` (rad 539-554) + `inviterBruker` (rad 411 + 440): fjernet `data.ansattnummer` fra `User.update`/`User.create`. Tidligere O-4b dual-write til User beholdt — nå skrives kun til `OrganizationMember`. Respons fra `oppdaterBruker` bygger `ansattnummer` fra `OrganizationMember.findUnique`-etter-oppdatering. Klient-API uberørt.
+
+Linjer endret: +107 / -51 (netto +56). De fleste filene har netto vekst pga. dual-oppslag-mønster (User-felter + OrganizationMember-felter slått sammen til respons). `timer/dagsseddel.ts` har størst vekst (+40/-12 = +28 linjer) pga. 4 forekomster av samme mønster.
+
+Verifisert: `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil i `import-hjelpere.test.ts`). Ingen DB-endring, ingen klient-endring, ingen schema-endring.
+
+**Etter O-5b:** Gjenstår kun O-5c (schema-drop). Etter O-5c er kolonnene `User.organizationId`, `User.avdelingId`, `User.ansattnummer` og tabellen `OrganizationRole` droppet. Krever to-stegs migration: én PR fjerner Prisma-relasjonen og legger til migration som setter NOT NULL/validering, neste PR (etter prod-deploy + verifisering) dropper kolonnene.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput IMPLEMENTERT på feature/org-member-o5a 2026-05-13
 
 Femte PR i OrganizationMember-refaktoren. Fjerner alle O-5-merkede dual-read-fallbacks i `tilgangskontroll.ts` og refaktorerer 8 routes som hadde lokal `hentBrukerOrgId`-duplikatkode til å bruke nye sentrale hjelpere. Ingen schema-endring, ingen klient-endring.

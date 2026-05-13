@@ -672,9 +672,16 @@ export const dagsseddelRouter = router({
       const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
       const brukere = await prisma.user.findMany({
         where: { id: { in: userIder } },
-        select: { id: true, name: true, email: true, ansattnummer: true },
+        select: { id: true, name: true, email: true },
       });
-      const brukerMap = new Map(brukere.map((b) => [b.id, b]));
+      const medlemmer = await prisma.organizationMember.findMany({
+        where: { userId: { in: userIder } },
+        select: { userId: true, ansattnummer: true },
+      });
+      const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
+      const brukerMap = new Map(
+        brukere.map((b) => [b.id, { ...b, ansattnummer: ansattnummerMap.get(b.id) ?? null }]),
+      );
 
       return sedler.map((s) => ({
         ...s,
@@ -708,9 +715,16 @@ export const dagsseddelRouter = router({
       const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
       const brukere = await prisma.user.findMany({
         where: { id: { in: userIder } },
-        select: { id: true, name: true, email: true, ansattnummer: true },
+        select: { id: true, name: true, email: true },
       });
-      const brukerMap = new Map(brukere.map((b) => [b.id, b]));
+      const medlemmer = await prisma.organizationMember.findMany({
+        where: { userId: { in: userIder } },
+        select: { userId: true, ansattnummer: true },
+      });
+      const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
+      const brukerMap = new Map(
+        brukere.map((b) => [b.id, { ...b, ansattnummer: ansattnummerMap.get(b.id) ?? null }]),
+      );
 
       return sedler.map((s) => ({
         ...s,
@@ -776,9 +790,16 @@ export const dagsseddelRouter = router({
       const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
       const brukere = await prisma.user.findMany({
         where: { id: { in: userIder } },
-        select: { id: true, name: true, email: true, ansattnummer: true },
+        select: { id: true, name: true, email: true },
       });
-      const brukerMap = new Map(brukere.map((b) => [b.id, b]));
+      const medlemmer = await prisma.organizationMember.findMany({
+        where: { userId: { in: userIder } },
+        select: { userId: true, ansattnummer: true },
+      });
+      const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
+      const brukerMap = new Map(
+        brukere.map((b) => [b.id, { ...b, ansattnummer: ansattnummerMap.get(b.id) ?? null }]),
+      );
       const prosjektMap = new Map(prosjekter.map((p) => [p.id, p]));
 
       return sedler.map((s) => {
@@ -844,7 +865,7 @@ export const dagsseddelRouter = router({
       }
       await krevProsjektLeder(ctx.userId, projectId);
 
-      const [aktivitet, prosjekt, ansatt] = await Promise.all([
+      const [aktivitet, prosjekt, brukerData, ansattMedlem] = await Promise.all([
         sheet.aktivitetId
           ? ctx.prismaTimer.aktivitet.findUnique({
               where: { id: sheet.aktivitetId },
@@ -856,14 +877,21 @@ export const dagsseddelRouter = router({
         }),
         prisma.user.findUnique({
           where: { id: sheet.userId },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            ansattnummer: true,
+          select: { id: true, name: true, email: true },
+        }),
+        prisma.organizationMember.findUnique({
+          where: {
+            userId_organizationId: {
+              userId: sheet.userId,
+              organizationId: sheet.organizationId,
+            },
           },
+          select: { ansattnummer: true },
         }),
       ]);
+      const ansatt = brukerData
+        ? { ...brukerData, ansattnummer: ansattMedlem?.ansattnummer ?? null }
+        : null;
       return { ...sheet, aktivitet, timer, tillegg, maskiner, prosjekt, ansatt };
     }),
 
