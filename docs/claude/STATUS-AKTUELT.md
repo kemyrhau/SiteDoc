@@ -328,7 +328,7 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
-### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole IMPLEMENTERT på feature/org-member-o5c 2026-05-13
+### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole DEPLOYET TIL PROD 2026-05-13 (prod-commit `fe1d703d`, migration applied 22:36:32)
 
 **Siste PR i O-5-bunken.** Dropper tre legacy User-felter fra Prisma-skjemaet + DB, og dropper hele `OrganizationRole`-tabellen. Etter merge + prod-deploy er OrganizationMember-refaktoren komplett.
 
@@ -403,7 +403,7 @@ DROP TABLE IF EXISTS "organization_roles";
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff IMPLEMENTERT på feature/org-member-o5b-fix 2026-05-13
+### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff DEPLOYET TIL PROD 2026-05-13 (prod-commit `fe1d703d`)
 
 Oppfølger til O-5b etter at full-codebase-grep avdekket 11 ytterligere User.organizationId/User.ansattnummer-lesinger eller -skrivinger som ikke ble fanget i O-5b (grep var begrenset til mønstre som `User.organizationId` direkte — treff som `where: { organizationId: orgId }` i `User.findMany`/`User.create`-data ble forbi). Etter denne PR-en er det 0 gjenstående direkte lesinger eller skrivinger av disse feltene i `apps/api/src/`. **O-5c (schema-drop) er nå trygt fra et kode-perspektiv.**
 
@@ -451,7 +451,7 @@ Netto vekst dominert av `medlem.ts:147-162` der `OrganizationMember.upsert` er e
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes IMPLEMENTERT på feature/org-member-o5b 2026-05-13
+### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes DEPLOYET TIL PROD 2026-05-13 (prod-commit `54d917d9`)
 
 Andre sub-PR av O-5. Fjerner gjenværende `User.organizationId`- og `User.ansattnummer`-lesinger fra routes som ikke fulgte O-5a-mønstret (lokal `hentBrukerOrgId`). Ingen schema-endring, ingen klient-endring. Forberedelse for O-5c (schema-drop).
 
@@ -505,7 +505,7 @@ Netto vekst kommer fra dual-oppslag-mønsteret (User-felter + OrganizationMember
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput IMPLEMENTERT på feature/org-member-o5a 2026-05-13
+### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput DEPLOYET TIL PROD 2026-05-13 (prod-commit `95500003`)
 
 Femte PR i OrganizationMember-refaktoren. Første sub-PR av O-5 — fjerner alle dual-read-fallbacks fra `tilgangskontroll.ts` og refaktorerer 8 routes som hadde duplikat `hentBrukerOrgId`-kode. Ingen schema-endring, ingen klient-endring. Forberedelse for O-5b (Kategori B+C) og O-5c (schema-drop av `User.organizationId` + `OrganizationRole`-tabellen).
 
