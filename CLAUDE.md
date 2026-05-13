@@ -117,6 +117,31 @@ Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansat
 
 Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
+### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte IMPLEMENTERT på feature/ansattrolle-ui 2026-05-13
+
+Oppfølger til O-5-bunken. Lukker konsistens-hullet hvor `endreRolle`-UI-en skrev til legacy `User.role` uten å speile til `OrganizationMember.firmaRoller` (25/26 OrganizationMember-rader i test hadde fortsatt `firmaRoller = []`). Synliggjør og redigerbar-gjør `ansattRolle` (stilling) + `firmaRoller` i firma/ansatte-siden.
+
+**Backfill (`packages/db/scripts/backfill-firma-admin-roller.ts`):** Setter `firmaRoller = ["firma_admin"]` for alle OrganizationMember-rader der `User.role === "company_admin"`. Idempotent. Kjøres mot test etter deploy.
+
+**Server (`apps/api/src/routes/organisasjon.ts`):**
+- Slettet `endreRolle` (skrev kun til legacy `User.role`).
+- Ny `settFirmaAdmin({ userId, organizationId, erAdmin: boolean })` — skriver til `OrganizationMember.firmaRoller`, idempotent, med selv-degraderingsbeskyttelse + sitedoc_admin-beskyttelse.
+- `oppdaterBruker`: fjernet `rolle`-feltet, lagt til `ansattRolle: enum("ansatt","bas","prosjektleder","daglig_leder")`. Skriver ansattRolle til OrganizationMember sammen med eksisterende ansattnummer. Respons utvidet med `ansattRolle` + `firmaRoller`.
+- `inviterBruker`: byttet `rolle: enum` til `erFirmaAdmin: boolean` + ny `ansattRolle: enum`. `User.role` settes alltid til `"user"` for nye brukere (sitedoc_admin opprettes ikke via UI). `OrganizationMember` opprettes med riktig `ansattRolle` + `firmaRoller`.
+- `hentTilgjengelige`: leser nå firma-admin-medlemskap via `OrganizationMember.firmaRoller.includes("firma_admin")` (ikke `User.role === "company_admin"`). Støtter implisitt flere firmaer per bruker.
+
+**Web (`apps/web/src/app/dashbord/firma/ansatte/page.tsx`):**
+- To nye tabell-kolonner: «Stilling» (ansattRolle som tekst) + «Tilgang» (Systemadmin/Firmaadmin/Bruker-badges basert på `User.role === "sitedoc_admin"` eller `firmaRoller.includes("firma_admin")`).
+- Legacy `endreRolle`-dropdown fjernet — alle endringer går nå via rediger-modalen.
+- `RedigerModal`: ny `ansattRolle`-dropdown (4 verdier) + `erFirmaAdmin`-checkbox. Lagre-knappen kaller `oppdaterBruker` først, deretter `settFirmaAdmin` hvis admin-status endres.
+- `InviterModal`: samme to nye felter, sendes til `inviterBruker`.
+
+**i18n:** 17 nye nøkler i `nb.json` + `en.json`, 3 utdaterte fjernet (`inviter.rolle*`). Auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil). Ingen schema-endring.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole DEPLOYET TIL PROD 2026-05-13 (prod-commit `fe1d703d`, migration applied 22:36:32)
 
 Siste PR i O-5-bunken. Dropper de tre legacy User-feltene fra Prisma-skjema og DB, og dropper `OrganizationRole`-tabellen helt. Etter merge + deploy er OrganizationMember-refaktoren komplett.
