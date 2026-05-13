@@ -55,6 +55,36 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+### PR T7-2b1 per-rad-attestering + felleskomponent AttesteringDetalj IMPLEMENTERT på feature/t7-2b1 2026-05-14
+
+Første av T7-2b-bunken. Bytter attestering fra per-sedel til per-rad og refaktorerer detalj-siden til projectId-løs felleskomponent. Forutsetning for T7-2b2 (rad-splitting) + T7-2b3 (`tillattRedigerVedAttestering`-flagg + audit-log).
+
+**Schema (`packages/db-timer/prisma/schema.prisma`):** Kun kommentar-oppdatering. `SheetTimer`/`SheetTillegg`/`SheetMachine.attestertStatus`-verdiene normalisert i kommentar fra `"godkjent"` → `"attestert"` (norsk-konvensjon, følger «attestering ≠ godkjenning»-regelen). Selve feltet har vært i schema siden PR 1B (2026-05-11) med default `"pending"` og indeks på alle tre tabeller. **Ingen migrasjon kreves** — null historiske rader er skrevet med `"godkjent"`.
+
+**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- Nye mutations: `attesterRader({ radIder })` og `returnerRader({ radIder, kommentar })`. Input: `{ timerIder, tilleggIder, maskinIder }` arrays. Auth: én `krevProsjektLeder`-sjekk per unike `projectId` (ikke per rad — perf). Validerer at alle rader har `attestertStatus === "pending"`. Snapshot per rad i transaksjon (Fase 0 A.7). Etter mutasjon: sedler markeres `"accepted"` kun hvis alle rader nå er `"attestert"`; én returnert rad → sedel-status → `"returned"`.
+- `hentForAttestering`: utvidet auth med firma-admin-fallback (`autoriserAdminForFirma`) hvis `krevProsjektLeder` feiler — slik at firma-detalj-side kan bruke samme query.
+- `hentTilAttesteringFirma`: utvidet `include` med `maskiner: true` så klient kan vise fremdrift på tvers av alle tre rad-tabeller.
+- `attester`/`returner`: beholdt som `@deprecated` thin wrappers (henter alle pending-rader på sedelen, gjør samme operasjon). Fjernes ~1 uke etter klient-migrering per CLAUDE.md API-regel.
+
+**Web:**
+- Ny felleskomponent `apps/web/src/components/timer/AttesteringDetalj.tsx` (~620 linjer). Props: `sheetId`, `prosjektKontekst?: string` (undefined = firma-kontekst), `tilbakeUrl`. Per-rad-checkboxer + rad-status-badges (`pending`/`attestert`/`returnert`) i hver av tre rad-tabeller. Pre-utvalg: alle pending-rader leder har tilgang til. Container-status-banner viser fremdrift («3 av 8 attestert»). Rader fra andre prosjekter vises disabled i prosjekt-kontekst.
+- `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/[id]/page.tsx`: tidligere 591 linjer, nå tynn wrapper (~50 linjer) som monterer felleskomponenten med `prosjektKontekst={params.prosjektId}`.
+- `apps/web/src/app/dashbord/firma/timer/attestering/[id]/page.tsx`: ny side (~60 linjer). Bruker `useFirma()` + `kanAttestereFirma`-query, monterer felleskomponenten projectId-løs.
+- `firma/timer/attestering/page.tsx`: «Åpne»-lenken peker nå til `/dashbord/firma/timer/attestering/${rad.id}` istedenfor prosjekt-bundet ruten (firma-admin uten prosjekt-medlemskap kan nå åpne detalj).
+
+**i18n:** 12 nye nøkler i nb/en (rad-status × 3, rad-valg-knapper/etiketter × 6, container-banner × 3). Auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil).
+
+**Forventede begrensninger (kommer i T7-2b2/b3):**
+- Ingen rad-splitting — én rad kan ikke deles i flere ved attestering.
+- Ingen direkte-redigering av timer/fra-til/ECO/lønnsart for firma-admin ved attestering — krever `OrganizationSetting.tillattRedigerVedAttestering` (T7-2b3).
+- Returnert rad-status nullstilles ikke ved gjenutsending (`sendTilAttestering`) — separat oppfølger.
+- Mobil får per-rad-attestering først i T7-3.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte DEPLOYET TIL PROD 2026-05-13 (prod-commit `3fa34c57`)
 
 Oppfølger til O-5-bunken. Lukker konsistens-hullet hvor `endreRolle`-UI-en skrev til legacy `User.role` uten å speile til `OrganizationMember.firmaRoller` (25/26 OrganizationMember-rader i test hadde fortsatt `firmaRoller = []`). Synliggjør og redigerbar-gjør `ansattRolle` (stilling) + `firmaRoller` i firma/ansatte-siden.
