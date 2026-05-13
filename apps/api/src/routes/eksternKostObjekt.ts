@@ -1,7 +1,6 @@
 import { z } from "zod";
-import { TRPCError } from "@trpc/server";
-import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
+import { krevBrukersOrg } from "../trpc/tilgangskontroll";
 
 /**
  * ExternalCostObject = "Underprosjekt" i UI (tilleggsarbeid, endring,
@@ -14,19 +13,6 @@ import { router, protectedProcedure } from "../trpc/trpc";
  * Denne router-en eksponerer kun lese-operasjoner mot mobil/web-velgere.
  * Opprettelse skjer via Proadm-import eller dedikert admin-flyt (ikke her).
  */
-async function hentBrukerOrgId(userId: string): Promise<string> {
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { organizationId: true },
-  });
-  if (!bruker.organizationId) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Ingen organisasjon tilknyttet",
-    });
-  }
-  return bruker.organizationId;
-}
 
 export const eksternKostObjektRouter = router({
   /**
@@ -46,7 +32,7 @@ export const eksternKostObjektRouter = router({
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await hentBrukerOrgId(ctx.userId);
+      const orgId = await krevBrukersOrg(ctx.userId);
 
       return ctx.prisma.externalCostObject.findMany({
         where: {

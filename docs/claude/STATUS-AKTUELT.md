@@ -328,6 +328,50 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput IMPLEMENTERT på feature/org-member-o5a 2026-05-13
+
+Femte PR i OrganizationMember-refaktoren. Første sub-PR av O-5 — fjerner alle dual-read-fallbacks fra `tilgangskontroll.ts` og refaktorerer 8 routes som hadde duplikat `hentBrukerOrgId`-kode. Ingen schema-endring, ingen klient-endring. Forberedelse for O-5b (Kategori B+C) og O-5c (schema-drop av `User.organizationId` + `OrganizationRole`-tabellen).
+
+**Prod-konsistens verifisert før implementasjon:**
+- 0 duplikate e-poster i `users` (prod + test).
+- 0 brukere med flere `OrganizationMember`-rader (prod + test).
+- 0 orphan-brukere (User.organizationId satt uten OrganizationMember-rad).
+- sitedoc_admin (Kenneth) har ingen OrganizationMember-rad og ingen `users.organization_id` — korrekt cross-tenant tilstand. `User.role`-kolonnen beholdes som system-rolle (droppes ikke i O-5).
+
+**Nye eksporterte hjelpere i `apps/api/src/trpc/tilgangskontroll.ts`:**
+- `krevBrukersOrg(userId): Promise<string>` — som `hentBrukersOrg`, men kaster FORBIDDEN hvis bruker er org-løs. Brukes på routes som krever firmatilhørighet uten inputOrgId-bypass.
+- `resolverOrgFraInput(userId, inputOrgId?): Promise<string>` — håndterer sitedoc_admin-bypass (returnerer `inputOrgId` direkte for sitedoc_admin) + OrganizationMember-validering for vanlige brukere. Erstatter 8 duplikate lokale `hentBrukerOrgId`-funksjoner i routes.
+
+**Kategori D — fallback-grener fjernet i `tilgangskontroll.ts`:**
+- `hentBrukersOrg`: `User.organizationId`-fallback fjernet (returnerer null direkte hvis ingen OrganizationMember).
+- `erFirmaAdmin`: `User.role==="company_admin"`-fallback fjernet (returnerer false hvis ingen member har `firma_admin`-rolle).
+- `verifiserOrganisasjonTilgang`: `User.organizationId`-fallback fjernet. Kun OrganizationMember-sjekk.
+- `autoriserAdminForFirma`: `User.role==="company_admin"`-fallback fjernet. Bruker `erFirmaAdmin` etter sitedoc_admin-bypass.
+- `harOrgRolle`: refaktorert til ett direkte `OrganizationMember.findFirst({ firmaRoller: { has: role } })`-kall. Ikke lenger avhengig av `User.organizationId` for å finne riktig member.
+
+**Kategori D-utvidelse — 3 funksjoner som leste `User.organizationId` direkte byttet til `hentBrukersOrg`:**
+- `verifiserDokumentTilgang`: firmabruker-sett henter nå via `OrganizationMember.findMany({ where: { organizationId }, select: { userId } })` i stedet for `User.findMany({ where: { organizationId } })`.
+- `verifiserKompetanseSkriveTilgang`: ctx- og mål-org-oppslag via `hentBrukersOrg`. sitedoc_admin-bypass via `User.role` beholdt.
+- `verifiserMaskinAnsvarligSkriveTilgang`: cross-org-blokkering via `hentBrukersOrg(ctxUserId)`. sitedoc_admin-bypass beholdt.
+
+**Kategori A — 8 routes refaktorert til sentrale hjelpere:**
+- Full inputOrgId-variant (`resolverOrgFraInput`): `kompetansetype.ts`, `timer/onboarding.ts`, `timer/lonnsart.ts`, `timer/tillegg.ts`, `timer/aktivitet.ts`.
+- Kort variant uten inputOrgId (`krevBrukersOrg`): `eksternKostObjekt.ts`, `timer/dagsseddel.ts`.
+- `maskin/equipment.ts`: lokal `hentBrukerOrg` slettet (bruker `krevBrukersOrg`), `verifiserMaskinTilgang` bruker `hentBrukersOrg` i stedet for å lese `User.organizationId` direkte. En inline Vegvesen-quota-sjekk (krevde `company_admin`) byttet til `autoriserAdminForFirma`-kall.
+- `timer/dagsseddel.ts`: i tillegg til org-resolution-bytte, `erProsjektLeder` + `hentEgenDagsseddel` + to inline admin-sjekker (linjene 165 + 1709) byttet fra `bruker.role === "company_admin" && bruker.organizationId === X` til `OrganizationMember.firmaRoller.includes("firma_admin")`-oppslag.
+
+**Test-fil slettet:** `apps/api/src/trpc/tilgangskontroll.test.ts` (16/22 tester broken siden O-2/O-3a). Testene mocket `projectOrganization.findFirst` der koden bruker `findMany`, og manglet `organizationMember`-mock helt. Ingen CI-kjøring siden `apps/api/package.json` mangler test-script. Erstattes med integrasjonstester mot test-DB med OrganizationMember-fikstur etter O-5c.
+
+**Linjer endret:** +153 lagt til, -637 slettet (netto -484 linjer). Største reduksjon: 8 × ~25 linjer duplikat `hentBrukerOrgId`-funksjoner erstattet av 2 sentrale hjelpere.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil i `import-hjelpere.test.ts`). Ingen DB-endring, ingen klient-endring, ingen schema-endring.
+
+**Gjenstående i O-5-bunken:**
+- O-5b (Kategori B+C): `gruppe.ts`, `medlem.ts`, `admin.ts`, `maskin/ansvarlig.ts` (gjenværende inline `bruker.organizationId`/`company_admin`-sjekker) + 8 steder som leser `User.ansattnummer` i `organisasjon.ts`, `kompetanse.ts`, `timer/rapport.ts`, `timer/dagsseddel.ts` (bytte til `OrganizationMember.ansattnummer`).
+- O-5c: schema-drop av `User.organizationId`, `User.avdelingId`, `User.ansattnummer` og `OrganizationRole`-tabellen. Krever to-stegs migration-policy: én PR setter NOT NULL/legger til validering, neste PR (etter prod-deploy) dropper kolonnene.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-4b hentBrukere via OrganizationMember + ansatte-rename IMPLEMENTERT på feature/org-member-o4b 2026-05-12
 
 Andre sub-PR av O-4. Etter at O-4a la til `avdelingId` på `OrganizationMember`-tabellen, flytter O-4b lese-/skrive-mønstre for `ansattnummer` over fra `User` til `OrganizationMember`, og renamer URL `/dashbord/firma/brukere` til `/dashbord/firma/ansatte`. Dual-write opprettholdes til O-5 dropper `User.ansattnummer` + `User.organizationId`.

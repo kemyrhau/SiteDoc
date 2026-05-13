@@ -96,12 +96,12 @@ export async function verifiserFaggruppeTilhorighet(
 /**
  * Hent brukerens primær-org-id for tilgangsbeslutninger.
  *
- * O-3b: leser fra OrganizationMember først, fallback til User.organizationId
- * (fjernes i O-5). Forutsetter dagens 1:1-virkelighet (én bruker = én org).
- * O-4 introduserer eksplisitt primær-flagg når multi-org støttes.
+ * Leser kun fra OrganizationMember. Forutsetter dagens 1:1-virkelighet
+ * (én bruker = én org). O-4 introduserer eksplisitt primær-flagg når
+ * multi-org støttes.
  *
  * @throws BAD_REQUEST hvis bruker har flere OrganizationMember-rader.
- * @returns organizationId, eller null hvis bruker er org-løs.
+ * @returns organizationId, eller null hvis bruker er org-løs (f.eks. sitedoc_admin).
  */
 export async function hentBrukersOrg(userId: string): Promise<string | null> {
   const members = await prisma.organizationMember.findMany({
@@ -109,7 +109,6 @@ export async function hentBrukersOrg(userId: string): Promise<string | null> {
     select: { organizationId: true },
   });
   const [first, ...rest] = members;
-  if (first && rest.length === 0) return first.organizationId;
   if (rest.length > 0) {
     // Multi-org ikke støttet ennå — O-4 vil introdusere primær-org
     throw new TRPCError({
@@ -117,18 +116,50 @@ export async function hentBrukersOrg(userId: string): Promise<string | null> {
       message: "Bruker tilhører flere firmaer — kontakt support",
     });
   }
-  // Fallback: les fra User.organizationId (fjernes i O-5)
-  const bruker = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { organizationId: true },
-  });
-  return bruker?.organizationId ?? null;
+  return first?.organizationId ?? null;
 }
 
 /**
- * Intern hjelper for dual-read av firma-admin-rettighet.
- * Leser fra OrganizationMember.firmaRoller først, fallback til User.role==="company_admin"
- * + matching User.organizationId. Fallback fjernes i O-5.
+ * Som hentBrukersOrg, men kaster FORBIDDEN hvis bruker er org-løs.
+ * Brukes på routes som krever firmatilhørighet (alle firma-skopede queries).
+ */
+export async function krevBrukersOrg(userId: string): Promise<string> {
+  const orgId = await hentBrukersOrg(userId);
+  if (!orgId) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Ingen organisasjon tilknyttet",
+    });
+  }
+  return orgId;
+}
+
+/**
+ * Løs orgId for en read-only route. Hvis inputOrgId er gitt:
+ *   - sitedoc_admin: returner inputOrgId (cross-tenant tilgang)
+ *   - andre: returner inputOrgId KUN hvis bruker tilhører den orgen
+ * Hvis inputOrgId mangler: returner brukerens egen org (FORBIDDEN hvis org-løs).
+ */
+export async function resolverOrgFraInput(
+  userId: string,
+  inputOrgId?: string,
+): Promise<string> {
+  if (inputOrgId) {
+    const bruker = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (bruker?.role === "sitedoc_admin") return inputOrgId;
+    const brukersOrg = await hentBrukersOrg(userId);
+    if (brukersOrg === inputOrgId) return inputOrgId;
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke ditt firma" });
+  }
+  return krevBrukersOrg(userId);
+}
+
+/**
+ * Intern hjelper for firma-admin-rettighet.
+ * Leser fra OrganizationMember.firmaRoller.
  */
 async function erFirmaAdmin(
   userId: string,
@@ -138,13 +169,7 @@ async function erFirmaAdmin(
     where: { userId_organizationId: { userId, organizationId } },
     select: { firmaRoller: true },
   });
-  if (member?.firmaRoller.includes("firma_admin")) return true;
-
-  const bruker = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { role: true, organizationId: true },
-  });
-  return bruker?.role === "company_admin" && bruker.organizationId === organizationId;
+  return member?.firmaRoller.includes("firma_admin") ?? false;
 }
 
 /**
@@ -216,32 +241,20 @@ export async function verifiserProsjektmedlem(
 /**
  * Verifiser at bruker tilhører den angitte organisasjonen.
  * Brukes for org-admin-sider (/org/innstillinger).
- * company_admin uten organizationId er en ugyldig tilstand.
  */
 export async function verifiserOrganisasjonTilgang(
   userId: string,
   organisationId: string,
 ): Promise<void> {
-  // O-2: sjekk OrganizationMember først
   const member = await prisma.organizationMember.findUnique({
     where: { userId_organizationId: { userId, organizationId: organisationId } },
     select: { id: true },
   });
-  if (member) return;
-
-  // O-2 fallback: behold gammel sjekk (fjernes i O-5)
-  const bruker = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { organizationId: true },
-  });
-  if (!bruker?.organizationId) {
+  if (!member) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "Bruker tilhører ingen organisasjon",
+      message: "Bruker tilhører ikke denne organisasjonen",
     });
-  }
-  if (bruker.organizationId !== organisationId) {
-    throw new TRPCError({ code: "FORBIDDEN" });
   }
 }
 
@@ -249,8 +262,8 @@ export async function verifiserOrganisasjonTilgang(
  * Autoriser at brukeren kan administrere det angitte firmaet.
  *
  * Tilgangsregler:
- *   - sitedoc_admin     → tilgang til ALLE firmaer (uavhengig av bruker.organizationId)
- *   - company_admin     → tilgang KUN til eget firma (bruker.organizationId === organizationId)
+ *   - sitedoc_admin     → tilgang til ALLE firmaer (system-rolle)
+ *   - firma_admin       → tilgang KUN til eget firma (via OrganizationMember.firmaRoller)
  *   - alle andre roller → FORBIDDEN
  *
  * Brukes på firma-admin-ruter der sitedoc_admin må kunne jobbe i kundens kontekst
@@ -266,7 +279,7 @@ export async function autoriserAdminForFirma(
 ): Promise<void> {
   const bruker = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, organizationId: true },
+    select: { role: true },
   });
 
   if (!bruker) {
@@ -276,15 +289,7 @@ export async function autoriserAdminForFirma(
   // sitedoc_admin har alltid tilgang (system-rolle, forblir på User)
   if (bruker.role === "sitedoc_admin") return;
 
-  // O-2: sjekk OrganizationMember.firmaRoller først
-  const member = await prisma.organizationMember.findUnique({
-    where: { userId_organizationId: { userId, organizationId } },
-    select: { firmaRoller: true },
-  });
-  if (member?.firmaRoller.includes("firma_admin")) return;
-
-  // O-2 fallback: behold gammel sjekk (fjernes i O-5)
-  if (bruker.role === "company_admin" && bruker.organizationId === organizationId) return;
+  if (await erFirmaAdmin(userId, organizationId)) return;
 
   throw new TRPCError({
     code: "FORBIDDEN",
@@ -399,15 +404,12 @@ export async function verifiserDokumentTilgang(
 
   // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
   if (medlem.erFirmaansvarlig && dokumentId && dokumentType) {
-    const brukerOrg = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { organizationId: true },
-    });
-    if (brukerOrg?.organizationId) {
-      const firmaUserIder = (await prisma.user.findMany({
-        where: { organizationId: brukerOrg.organizationId },
-        select: { id: true },
-      })).map((u) => u.id);
+    const brukerOrgId = await hentBrukersOrg(userId);
+    if (brukerOrgId) {
+      const firmaUserIder = (await prisma.organizationMember.findMany({
+        where: { organizationId: brukerOrgId },
+        select: { userId: true },
+      })).map((m) => m.userId);
 
       // Sjekk bestillerUserId og recipientUserId
       const dokument = dokumentType === "task"
@@ -730,27 +732,11 @@ export async function verifiserTillatelse(
  * Tildeles av firma-admin via organisasjon.tildelOrgRolle / fjernOrgRolle.
  */
 export async function harOrgRolle(userId: string, role: string): Promise<boolean> {
-  // O-2: les fra OrganizationMember.firmaRoller
-  // Trenger brukerens organizationId for oppslaget
-  const bruker = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { organizationId: true },
+  const member = await prisma.organizationMember.findFirst({
+    where: { userId, firmaRoller: { has: role } },
+    select: { id: true },
   });
-  if (!bruker?.organizationId) return false;
-
-  const member = await prisma.organizationMember.findUnique({
-    where: {
-      userId_organizationId: {
-        userId,
-        organizationId: bruker.organizationId,
-      },
-    },
-    select: { firmaRoller: true },
-  });
-  return member?.firmaRoller.includes(role) ?? false;
-
-  // O-2 fallback: organizationRole leses ikke lenger (0 rader i prod)
-  // Tabellen droppes i O-5
+  return member !== null;
 }
 
 /**
@@ -773,32 +759,34 @@ export async function verifiserKompetanseSkriveTilgang(
 ): Promise<void> {
   const ctxBruker = await prisma.user.findUniqueOrThrow({
     where: { id: ctxUserId },
-    select: { role: true, organizationId: true },
+    select: { role: true },
   });
 
   // Steg 1: SiteDoc-admin kortslutning (cross-tenant superuser)
   if (ctxBruker.role === "sitedoc_admin") return;
 
-  // Steg 2: Hent målbruker
-  const malBruker = await prisma.user.findUnique({
+  // Steg 2: Verifiser at målbruker finnes
+  const malBrukerEksisterer = await prisma.user.findUnique({
     where: { id: malUserId },
-    select: { organizationId: true },
+    select: { id: true },
   });
-  if (!malBruker) {
+  if (!malBrukerEksisterer) {
     throw new TRPCError({
       code: "NOT_FOUND",
       message: "Mål-bruker finnes ikke",
     });
   }
 
-  // Steg 3: Cross-org blokkering
-  if (!ctxBruker.organizationId) {
+  // Steg 3: Cross-org blokkering — begge må tilhøre samme firma
+  const ctxOrgId = await hentBrukersOrg(ctxUserId);
+  if (!ctxOrgId) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Krever firma-tilknytning",
     });
   }
-  if (malBruker.organizationId !== ctxBruker.organizationId) {
+  const malOrgId = await hentBrukersOrg(malUserId);
+  if (malOrgId !== ctxOrgId) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Mål-bruker tilhører annet firma",
@@ -806,12 +794,11 @@ export async function verifiserKompetanseSkriveTilgang(
   }
 
   // Steg 4: Firma-admin kortslutning (etter cross-org sjekk)
-  // O-3a: les fra OrganizationMember.firmaRoller (eller legacy User.role==="company_admin")
-  if (await erFirmaAdmin(ctxUserId, ctxBruker.organizationId)) return;
+  if (await erFirmaAdmin(ctxUserId, ctxOrgId)) return;
 
   // Steg 5: Hent firma-policy (default firma_admin hvis setting mangler)
   const setting = await prisma.organizationSetting.findUnique({
-    where: { organizationId: ctxBruker.organizationId },
+    where: { organizationId: ctxOrgId },
     select: { kompetanseRegistreringTilgang: true },
   });
   const policy = setting?.kompetanseRegistreringTilgang ?? "firma_admin";
@@ -839,7 +826,7 @@ export async function verifiserKompetanseSkriveTilgang(
  *
  * Tilgangsregler:
  *  - sitedoc_admin: alltid (cross-org)
- *  - company_admin: i samme firma som equipment
+ *  - firma_admin: i samme firma som equipment
  *  - nåværende primær (Equipment.ansvarligUserId === ctxUserId): i samme firma
  *  - andre: kun lese-tilgang (kaster FORBIDDEN her)
  *
@@ -861,7 +848,7 @@ export async function verifiserMaskinAnsvarligSkriveTilgang(
 
   const ctxBruker = await prisma.user.findUnique({
     where: { id: ctxUserId },
-    select: { role: true, organizationId: true },
+    select: { role: true },
   });
   if (!ctxBruker) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -871,7 +858,8 @@ export async function verifiserMaskinAnsvarligSkriveTilgang(
   if (ctxBruker.role === "sitedoc_admin") return;
 
   // Steg 2: cross-org-blokkering (alle ikke-superadmin må være i samme firma)
-  if (ctxBruker.organizationId !== equipment.organizationId) {
+  const ctxOrgId = await hentBrukersOrg(ctxUserId);
+  if (ctxOrgId !== equipment.organizationId) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Maskin tilhører annet firma",
@@ -879,7 +867,6 @@ export async function verifiserMaskinAnsvarligSkriveTilgang(
   }
 
   // Steg 3: firma-admin i samme firma
-  // O-3a: les fra OrganizationMember.firmaRoller (eller legacy User.role==="company_admin")
   if (await erFirmaAdmin(ctxUserId, equipment.organizationId)) return;
 
   // Steg 4: primær-ansvarlig i samme firma

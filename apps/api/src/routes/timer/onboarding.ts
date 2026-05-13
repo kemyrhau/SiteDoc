@@ -1,8 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
-import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
+import { autoriserAdminForFirma, resolverOrgFraInput } from "../../trpc/tilgangskontroll";
 import {
   seedTimerForOrganization,
   seedLonnsartNivaa2,
@@ -26,36 +25,12 @@ async function verifiserFirmaAdmin(
   return inputOrgId;
 }
 
-/**
- * Read-only orgId for ansatte. Sitedoc_admin med inputOrgId kan se vilkårlig firma.
- */
-async function hentBrukerOrgId(userId: string, inputOrgId?: string): Promise<string> {
-  if (inputOrgId) {
-    const bruker = await prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { role: true, organizationId: true },
-    });
-    if (bruker.role === "sitedoc_admin") return inputOrgId;
-    if (bruker.organizationId === inputOrgId) return inputOrgId;
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke ditt firma" });
-  }
-
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { organizationId: true },
-  });
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-  return bruker.organizationId;
-}
-
 export const onboardingRouter = router({
   // Hent status for Timer-modulen + katalog-størrelser (read-only for alle ansatte i firma)
   status: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
-    const orgId = await hentBrukerOrgId(ctx.userId, input?.organizationId);
+    const orgId = await resolverOrgFraInput(ctx.userId, input?.organizationId);
 
     // Steg 1e Fase B: harTimerModul leses fra OrganizationModule.
     const [harTimerModul, antallNivaa1, antallNivaa2, antallTotalt, antallAktiviteter, antallTillegg, antallExpense] =

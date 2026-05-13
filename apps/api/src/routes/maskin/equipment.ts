@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../../trpc/trpc";
-import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
+import {
+  autoriserAdminForFirma,
+  hentBrukersOrg,
+  krevBrukersOrg,
+} from "../../trpc/tilgangskontroll";
 import { prisma } from "@sitedoc/db";
 import {
   forhandsvisningSynkron,
@@ -54,20 +58,6 @@ const regnummerSchema = z
     message: "Ugyldig registreringsnummer (forventet 2 bokstaver + 4-5 sifre)",
   });
 
-async function hentBrukerOrg(userId: string): Promise<string> {
-  const bruker = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { organizationId: true },
-  });
-  if (!bruker?.organizationId) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Bruker tilhører ingen organisasjon — maskin-modulen krever firmatilknytning",
-    });
-  }
-  return bruker.organizationId;
-}
-
 /**
  * U6-fix: hent orgId for maskin-operasjon med sitedoc_admin-støtte.
  * Hvis input gir organizationId → verifiser admin-tilgang og bruk den.
@@ -81,7 +71,7 @@ async function hentMaskinOrgFraInput(
     await autoriserAdminForFirma(userId, inputOrgId);
     return inputOrgId;
   }
-  return hentBrukerOrg(userId);
+  return krevBrukersOrg(userId);
 }
 
 /**
@@ -96,11 +86,12 @@ async function verifiserMaskinTilgang(
 ): Promise<void> {
   const bruker = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, organizationId: true },
+    select: { role: true },
   });
   if (!bruker) throw new TRPCError({ code: "FORBIDDEN" });
   if (bruker.role === "sitedoc_admin") return;
-  if (bruker.organizationId !== organizationId) {
+  const brukersOrg = await hentBrukersOrg(userId);
+  if (brukersOrg !== organizationId) {
     throw new TRPCError({ code: "FORBIDDEN" });
   }
 }
@@ -602,19 +593,7 @@ export const equipmentRouter = router({
       }
 
       // Kun firma-admin kan trigge manuell Vegvesen-oppdatering (unngår quota-sløsing)
-      const bruker = await prisma.user.findUniqueOrThrow({
-        where: { id: ctx.userId },
-        select: { role: true, organizationId: true },
-      });
-      if (bruker.role !== "company_admin" && bruker.role !== "sitedoc_admin") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Krever firmaadmin-rettighet",
-        });
-      }
-      if (bruker.organizationId !== utstyr.organizationId && bruker.role !== "sitedoc_admin") {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Annet firma" });
-      }
+      await autoriserAdminForFirma(ctx.userId, utstyr.organizationId);
 
       const { koerOppdatering } = await import("../../services/maskin");
       const resultat = await koerOppdatering(
