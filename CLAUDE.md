@@ -117,6 +117,45 @@ Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansat
 
 Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
+### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput IMPLEMENTERT på feature/org-member-o5a 2026-05-13
+
+Femte PR i OrganizationMember-refaktoren. Fjerner alle O-5-merkede dual-read-fallbacks i `tilgangskontroll.ts` og refaktorerer 8 routes som hadde lokal `hentBrukerOrgId`-duplikatkode til å bruke nye sentrale hjelpere. Ingen schema-endring, ingen klient-endring.
+
+Prod-konsistens verifisert før implementasjon:
+- 0 duplikate e-poster i `users` (prod + test)
+- 0 brukere med multiple `OrganizationMember`-rader (prod + test)
+- 0 orphan-brukere (User.organizationId satt uten OrganizationMember-rad)
+
+Nye eksporterte hjelpere i `apps/api/src/trpc/tilgangskontroll.ts`:
+- `krevBrukersOrg(userId): Promise<string>` — som `hentBrukersOrg`, men kaster FORBIDDEN hvis bruker er org-løs.
+- `resolverOrgFraInput(userId, inputOrgId?): Promise<string>` — håndterer sitedoc_admin-bypass + OrganizationMember-validering. Erstatter 8 duplikate `hentBrukerOrgId`-funksjoner i routes.
+
+Kategori D — fallback-grener fjernet i `tilgangskontroll.ts`:
+- `hentBrukersOrg`: User.organizationId-fallback fjernet (returnerer null direkte).
+- `erFirmaAdmin`: User.role==="company_admin"-fallback fjernet (returnerer false hvis ingen member).
+- `verifiserOrganisasjonTilgang`: User.organizationId-fallback fjernet. Kun OrganizationMember-sjekk.
+- `autoriserAdminForFirma`: User.role==="company_admin"-fallback fjernet. Bruker `erFirmaAdmin` etter sitedoc_admin-bypass.
+- `harOrgRolle`: refaktorert til ett direkte `OrganizationMember.findFirst({ firmaRoller: { has: role } })`-kall (ikke lenger avhengig av User.organizationId).
+
+Kategori D-utvidelse — 3 funksjoner som leste `User.organizationId` direkte byttet til `hentBrukersOrg`:
+- `verifiserDokumentTilgang`: firmabruker-sett henter nå via `OrganizationMember.findMany` i stedet for `User.findMany({ organizationId })`.
+- `verifiserKompetanseSkriveTilgang`: ctx+mål-org-oppslag via `hentBrukersOrg`. sitedoc_admin-bypass via `User.role` beholdt.
+- `verifiserMaskinAnsvarligSkriveTilgang`: cross-org-blokkering via `hentBrukersOrg`. sitedoc_admin-bypass beholdt.
+
+Kategori A — 8 routes refaktorert til `resolverOrgFraInput`/`krevBrukersOrg`:
+- `kompetansetype.ts`, `timer/onboarding.ts`, `timer/lonnsart.ts`, `timer/tillegg.ts`, `timer/aktivitet.ts` — bruker `resolverOrgFraInput` (sitedoc_admin + inputOrgId-bypass).
+- `eksternKostObjekt.ts`, `timer/dagsseddel.ts` — bruker `krevBrukersOrg` (kort variant uten inputOrgId).
+- `maskin/equipment.ts` — refaktorert: `hentBrukerOrg` slettet (bruker `krevBrukersOrg`), `verifiserMaskinTilgang` bruker `hentBrukersOrg`, og en inline Vegvesen-quota-sjekk byttet til `autoriserAdminForFirma`.
+- `timer/dagsseddel.ts` `erProsjektLeder` + `hentEgenDagsseddel` + to inline admin-sjekker (rad 165 + rad 1709) byttet fra `User.role==="company_admin" && User.organizationId === X` til `OrganizationMember.firmaRoller.includes("firma_admin")`-oppslag.
+
+Test-fil slettet: `apps/api/src/trpc/tilgangskontroll.test.ts` (16/22 broken siden O-2/O-3a — mocket findFirst der koden bruker findMany, manglet `organizationMember`-mock helt). Integrasjonstester mot test-DB med OrganizationMember-fikstur planlagt etter O-5c.
+
+Linjer endret: +153 lagt til, -637 slettet (netto -484 linjer). Største enkeltreduksjon: 8 × ~25 linjer duplikat `hentBrukerOrgId`-funksjoner erstattet av 2 sentrale hjelpere.
+
+Verifisert: `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil i `import-hjelpere.test.ts`). Ingen DB-endring, ingen klient-endring, ingen schema-endring.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-4b hentBrukere via OrganizationMember + ansatte-rename IMPLEMENTERT på feature/org-member-o4b 2026-05-12
 
 Andre sub-PR av O-4. Bytter routes som leser/skriver `User.ansattnummer` til å gå via `OrganizationMember`, og renamer `firma/brukere` til `firma/ansatte`.

@@ -1,9 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db-timer";
-import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
-import { autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
+import { autoriserAdminForFirma, resolverOrgFraInput } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
 
 const TYPE_VERDIER = ["avhuking", "antall"] as const;
@@ -12,27 +11,6 @@ const TYPE_VERDIER = ["avhuking", "antall"] as const;
 async function verifiserFirmaAdmin(userId: string, inputOrgId: string): Promise<string> {
   await autoriserAdminForFirma(userId, inputOrgId);
   return inputOrgId;
-}
-
-async function hentBrukerOrgId(userId: string, inputOrgId?: string): Promise<string> {
-  if (inputOrgId) {
-    const bruker = await prisma.user.findUniqueOrThrow({
-      where: { id: userId },
-      select: { role: true, organizationId: true },
-    });
-    if (bruker.role === "sitedoc_admin") return inputOrgId;
-    if (bruker.organizationId === inputOrgId) return inputOrgId;
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke ditt firma" });
-  }
-
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { organizationId: true },
-  });
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-  return bruker.organizationId;
 }
 
 export const tilleggRouter = router({
@@ -46,7 +24,7 @@ export const tilleggRouter = router({
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await hentBrukerOrgId(ctx.userId, input?.organizationId);
+      const orgId = await resolverOrgFraInput(ctx.userId, input?.organizationId);
       const inkluderInaktiv = input?.inkluderInaktiv ?? false;
 
       return ctx.prismaTimer.tillegg.findMany({

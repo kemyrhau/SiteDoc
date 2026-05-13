@@ -6,6 +6,8 @@ import { router, protectedProcedure } from "../../trpc/trpc";
 import {
   autoriserAdminForFirma,
   verifiserProsjektmedlem,
+  hentBrukersOrg,
+  krevBrukersOrg,
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
 
@@ -26,36 +28,32 @@ function erRedigerbar(status: string): boolean {
   return status === "draft" || status === "returned";
 }
 
-async function hentBrukerOrgId(userId: string): Promise<string> {
-  const bruker = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    select: { organizationId: true },
-  });
-  if (!bruker.organizationId) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Ingen organisasjon tilknyttet" });
-  }
-  return bruker.organizationId;
-}
-
 /**
  * Sjekk om bruker kan godkjenne dagssedler for et prosjekt.
  * Leder = ProjectMember.role="admin" ELLER ProjectMember.kanAttestere=true,
- * eller sitedoc_admin / company_admin med matchende org.
+ * eller sitedoc_admin / firma-admin i prosjektets firma.
  * (Boolean-kapabilitet vedtatt 2026-05-02 — erstatter "project_manager"-rolle.)
  */
 async function erProsjektLeder(userId: string, projectId: string): Promise<boolean> {
   const bruker = await prisma.user.findUnique({
     where: { id: userId },
-    select: { role: true, organizationId: true },
+    select: { role: true },
   });
   if (!bruker) return false;
   if (bruker.role === "sitedoc_admin") return true;
 
-  if (bruker.role === "company_admin" && bruker.organizationId) {
+  const brukerOrgId = await hentBrukersOrg(userId);
+  if (brukerOrgId) {
     const orgProsjekt = await prisma.projectOrganization.findFirst({
-      where: { organizationId: bruker.organizationId, projectId },
+      where: { organizationId: brukerOrgId, projectId },
     });
-    if (orgProsjekt) return true;
+    if (orgProsjekt) {
+      const member = await prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId, organizationId: brukerOrgId } },
+        select: { firmaRoller: true },
+      });
+      if (member?.firmaRoller.includes("firma_admin")) return true;
+    }
   }
 
   const medlem = await prisma.projectMember.findUnique({
@@ -92,11 +90,21 @@ async function hentEgenDagsseddel(
   if (sheet.userId !== ctxUserId) {
     const bruker = await prisma.user.findUniqueOrThrow({
       where: { id: ctxUserId },
-      select: { role: true, organizationId: true },
+      select: { role: true },
     });
-    const erAdmin =
-      bruker.role === "sitedoc_admin" ||
-      (bruker.role === "company_admin" && bruker.organizationId === sheet.organizationId);
+    let erAdmin = bruker.role === "sitedoc_admin";
+    if (!erAdmin) {
+      const member = await prisma.organizationMember.findUnique({
+        where: {
+          userId_organizationId: {
+            userId: ctxUserId,
+            organizationId: sheet.organizationId,
+          },
+        },
+        select: { firmaRoller: true },
+      });
+      erAdmin = member?.firmaRoller.includes("firma_admin") ?? false;
+    }
     if (!erAdmin) {
       throw new TRPCError({
         code: "FORBIDDEN",
@@ -148,7 +156,7 @@ export const dagsseddelRouter = router({
         .optional(),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await hentBrukerOrgId(ctx.userId);
+      const orgId = await krevBrukersOrg(ctx.userId);
 
       // Default: kun egne dagssedler
       const userId = input?.userId ?? ctx.userId;
@@ -157,12 +165,17 @@ export const dagsseddelRouter = router({
       if (userId !== ctx.userId) {
         const bruker = await prisma.user.findUniqueOrThrow({
           where: { id: ctx.userId },
-          select: { role: true, organizationId: true },
+          select: { role: true },
         });
-        if (
-          bruker.role !== "sitedoc_admin" &&
-          !(bruker.role === "company_admin" && bruker.organizationId === orgId)
-        ) {
+        let tillatt = bruker.role === "sitedoc_admin";
+        if (!tillatt) {
+          const member = await prisma.organizationMember.findUnique({
+            where: { userId_organizationId: { userId: ctx.userId, organizationId: orgId } },
+            select: { firmaRoller: true },
+          });
+          tillatt = member?.firmaRoller.includes("firma_admin") ?? false;
+        }
+        if (!tillatt) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Krever admin for å se andres dagssedler",
@@ -255,7 +268,7 @@ export const dagsseddelRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await hentBrukerOrgId(ctx.userId);
+      const orgId = await krevBrukersOrg(ctx.userId);
       await krevTimerAktivert(orgId);
 
       // Verifiser prosjekt-tilgang (kaster FORBIDDEN ved feil)
@@ -1129,7 +1142,7 @@ export const dagsseddelRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await hentBrukerOrgId(ctx.userId);
+      const orgId = await krevBrukersOrg(ctx.userId);
       await krevTimerAktivert(orgId);
 
       const sistSynk = input.sistSynkronisert
@@ -1261,7 +1274,7 @@ export const dagsseddelRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const orgId = await hentBrukerOrgId(ctx.userId);
+      const orgId = await krevBrukersOrg(ctx.userId);
       await krevTimerAktivert(orgId);
 
       type ResultatRad = {
@@ -1689,19 +1702,24 @@ export const dagsseddelRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const orgId = await hentBrukerOrgId(ctx.userId);
+      const orgId = await krevBrukersOrg(ctx.userId);
       const userId = input.userId ?? ctx.userId;
 
       // Hvis bruker ber om noen andres dagstotal: krev admin
       if (userId !== ctx.userId) {
         const bruker = await prisma.user.findUniqueOrThrow({
           where: { id: ctx.userId },
-          select: { role: true, organizationId: true },
+          select: { role: true },
         });
-        if (
-          bruker.role !== "sitedoc_admin" &&
-          !(bruker.role === "company_admin" && bruker.organizationId === orgId)
-        ) {
+        let tillatt = bruker.role === "sitedoc_admin";
+        if (!tillatt) {
+          const member = await prisma.organizationMember.findUnique({
+            where: { userId_organizationId: { userId: ctx.userId, organizationId: orgId } },
+            select: { firmaRoller: true },
+          });
+          tillatt = member?.firmaRoller.includes("firma_admin") ?? false;
+        }
+        if (!tillatt) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Krever admin for å se andres dagstotal",
