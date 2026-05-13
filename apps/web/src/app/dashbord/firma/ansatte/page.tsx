@@ -2,10 +2,19 @@
 
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
-import { Shield, User, ChevronDown, Pencil, Plus, X } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import { Shield, User, Pencil, Plus, X } from "lucide-react";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
+
+const ANSATT_ROLLER = ["ansatt", "bas", "prosjektleder", "daglig_leder"] as const;
+type AnsattRolle = (typeof ANSATT_ROLLER)[number];
+
+function tilAnsattRolle(verdi: string): AnsattRolle {
+  return (ANSATT_ROLLER as readonly string[]).includes(verdi)
+    ? (verdi as AnsattRolle)
+    : "ansatt";
+}
 
 type BrukerRad = {
   id: string;
@@ -33,26 +42,8 @@ export default function FirmaBrukere() {
     );
   const utils = trpc.useUtils();
 
-  const endreRolle = trpc.organisasjon.endreRolle.useMutation({
-    onSuccess: () => {
-      utils.organisasjon.hentBrukere.invalidate();
-    },
-  });
-
-  const [åpenMeny, setÅpenMeny] = useState<string | null>(null);
   const [inviterÅpen, setInviterÅpen] = useState(false);
   const [redigerBruker, setRedigerBruker] = useState<BrukerRad | null>(null);
-  const menyRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    function handleKlikk(e: MouseEvent) {
-      if (menyRef.current && !menyRef.current.contains(e.target as Node)) {
-        setÅpenMeny(null);
-      }
-    }
-    document.addEventListener("click", handleKlikk);
-    return () => document.removeEventListener("click", handleKlikk);
-  }, []);
 
   if (isLoading) {
     return (
@@ -81,7 +72,7 @@ export default function FirmaBrukere() {
       {!brukere || brukere.length === 0 ? (
         <EmptyState
           title={t("firma.ansatte.tittel")}
-          description="Organisasjonen har ingen brukere ennå."
+          description={t("firma.ansatte.tomBeskrivelse")}
         />
       ) : (
         <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
@@ -89,118 +80,86 @@ export default function FirmaBrukere() {
             <thead>
               <tr className="border-b border-gray-200 bg-gray-50">
                 <th className="px-4 py-3 text-left font-medium text-gray-600">
-                  Navn
+                  {t("firma.ansatte.kolonne.navn")}
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">
-                  E-post
+                  {t("firma.ansatte.kolonne.epost")}
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">
-                  Telefon
+                  {t("firma.ansatte.kolonne.telefon")}
                 </th>
                 <th className="px-4 py-3 text-left font-medium text-gray-600">
-                  Rolle
+                  {t("firma.ansatte.kolonne.stilling")}
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  {t("firma.ansatte.kolonne.tilgang")}
                 </th>
                 <th className="w-10 px-4 py-3" />
               </tr>
             </thead>
             <tbody>
-              {brukere.map((b) => (
-                <tr
-                  key={b.id}
-                  className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
-                >
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100">
-                        <User className="h-3.5 w-3.5 text-gray-500" />
+              {brukere.map((b) => {
+                const erSystemadmin = b.role === "sitedoc_admin";
+                const erFirmaAdmin = b.firmaRoller.includes("firma_admin");
+                return (
+                  <tr
+                    key={b.id}
+                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gray-100">
+                          <User className="h-3.5 w-3.5 text-gray-500" />
+                        </div>
+                        <span className="font-medium text-gray-900">
+                          {b.name ?? t("firma.ansatte.utenNavn")}
+                        </span>
                       </div>
-                      <span className="font-medium text-gray-900">
-                        {b.name ?? "Uten navn"}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-gray-500">{b.email}</td>
-                  <td className="px-4 py-3 text-gray-500">
-                    {b.phone ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="relative" ref={åpenMeny === b.id ? menyRef : undefined}>
-                      <button
-                        onClick={() => setÅpenMeny(åpenMeny === b.id ? null : b.id)}
-                        disabled={b.role === "sitedoc_admin"}
-                        className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {b.role === "company_admin" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-purple-700">
+                    </td>
+                    <td className="px-4 py-3 text-gray-500">{b.email}</td>
+                    <td className="px-4 py-3 text-gray-500">
+                      {b.phone ?? "—"}
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">
+                      {t(`firma.ansatte.stilling.${tilAnsattRolle(b.ansattRolle)}`)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap items-center gap-1">
+                        {erSystemadmin ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
                             <Shield className="h-3 w-3" />
-                            Firmaadmin
+                            {t("firma.ansatte.tilgang.systemadmin")}
                           </span>
-                        ) : b.role === "sitedoc_admin" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-amber-700">
+                        ) : erFirmaAdmin ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-0.5 text-xs text-purple-700">
                             <Shield className="h-3 w-3" />
-                            Systemadmin
+                            {t("firma.ansatte.tilgang.firmaAdmin")}
                           </span>
                         ) : (
-                          <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-gray-600">
-                            Bruker
+                          <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                            {t("firma.ansatte.tilgang.bruker")}
                           </span>
                         )}
-                        {b.role !== "sitedoc_admin" && (
-                          <ChevronDown className="h-3 w-3 text-gray-400" />
-                        )}
-                      </button>
-
-                      {åpenMeny === b.id && b.role !== "sitedoc_admin" && (
-                        <div className="absolute right-0 top-full z-10 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                          <button
-                            onClick={() => {
-                              endreRolle.mutate({ userId: b.id, rolle: "company_admin", organizationId: orgId! });
-                              setÅpenMeny(null);
-                            }}
-                            disabled={b.role === "company_admin"}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40"
-                          >
-                            <Shield className="h-3.5 w-3.5 text-purple-500" />
-                            Firmaadmin
-                          </button>
-                          <button
-                            onClick={() => {
-                              endreRolle.mutate({ userId: b.id, rolle: "user", organizationId: orgId! });
-                              setÅpenMeny(null);
-                            }}
-                            disabled={b.role === "user"}
-                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-40"
-                          >
-                            <User className="h-3.5 w-3.5 text-gray-400" />
-                            Bruker
-                          </button>
-                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      {!erSystemadmin && (
+                        <button
+                          onClick={() => setRedigerBruker(b)}
+                          aria-label={t("firma.ansatte.rediger.iconLabel")}
+                          title={t("firma.ansatte.rediger.iconLabel")}
+                          className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
                       )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {b.role !== "sitedoc_admin" && (
-                      <button
-                        onClick={() => setRedigerBruker(b)}
-                        aria-label={t("firma.ansatte.rediger.iconLabel")}
-                        title={t("firma.ansatte.rediger.iconLabel")}
-                        className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-      )}
-
-      {endreRolle.isError && (
-        <p className="mt-3 text-sm text-red-500">
-          {endreRolle.error.message}
-        </p>
       )}
 
       {inviterÅpen && orgId && (
@@ -243,7 +202,8 @@ function InviterModal({
   const [email, setEmail] = useState("");
   const [telefon, setTelefon] = useState("");
   const [ansattnummer, setAnsattnummer] = useState("");
-  const [rolle, setRolle] = useState<"user" | "company_admin">("user");
+  const [ansattRolle, setAnsattRolle] = useState<AnsattRolle>("ansatt");
+  const [erFirmaAdmin, setErFirmaAdmin] = useState(false);
 
   const inviter = trpc.organisasjon.inviterBruker.useMutation({
     onSuccess: () => onSuksess(),
@@ -260,7 +220,8 @@ function InviterModal({
       email: email.trim(),
       telefon: telefon.trim() || undefined,
       ansattnummer: ansattnummer.trim() || undefined,
-      rolle,
+      ansattRolle,
+      erFirmaAdmin,
     });
   }
 
@@ -339,31 +300,35 @@ function InviterModal({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              {t("firma.ansatte.inviter.rolle")}
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("firma.ansatte.stillingLabel")}
             </label>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="rolle"
-                  value="user"
-                  checked={rolle === "user"}
-                  onChange={() => setRolle("user")}
-                />
-                {t("firma.ansatte.inviter.rolle.user")}
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="rolle"
-                  value="company_admin"
-                  checked={rolle === "company_admin"}
-                  onChange={() => setRolle("company_admin")}
-                />
-                {t("firma.ansatte.inviter.rolle.companyAdmin")}
-              </label>
-            </div>
+            <select
+              value={ansattRolle}
+              onChange={(e) => setAnsattRolle(e.target.value as AnsattRolle)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-secondary focus:outline-none focus:ring-1 focus:ring-sitedoc-secondary"
+            >
+              {ANSATT_ROLLER.map((r) => (
+                <option key={r} value={r}>
+                  {t(`firma.ansatte.stilling.${r}`)}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={erFirmaAdmin}
+                onChange={(e) => setErFirmaAdmin(e.target.checked)}
+              />
+              <Shield className="h-3.5 w-3.5 text-purple-500" />
+              {t("firma.ansatte.firmaAdminLabel")}
+            </label>
+            <p className="ml-6 mt-1 text-xs text-gray-500">
+              {t("firma.ansatte.firmaAdminHjelp")}
+            </p>
           </div>
 
           {inviter.isError && (
@@ -410,30 +375,52 @@ function RedigerModal({
   const [email, setEmail] = useState(bruker.email);
   const [telefon, setTelefon] = useState(bruker.phone ?? "");
   const [ansattnummer, setAnsattnummer] = useState(bruker.ansattnummer ?? "");
-  const [rolle, setRolle] = useState<"user" | "company_admin">(
-    bruker.role === "company_admin" ? "company_admin" : "user",
+  const [ansattRolle, setAnsattRolle] = useState<AnsattRolle>(
+    tilAnsattRolle(bruker.ansattRolle),
   );
+  const [erFirmaAdmin, setErFirmaAdmin] = useState(
+    bruker.firmaRoller.includes("firma_admin"),
+  );
+  const [feilmelding, setFeilmelding] = useState<string | null>(null);
+  const [lagrer, setLagrer] = useState(false);
 
-  const oppdater = trpc.organisasjon.oppdaterBruker.useMutation({
-    onSuccess: () => onSuksess(),
-  });
+  const opprinneligErFirmaAdmin = bruker.firmaRoller.includes("firma_admin");
+
+  const oppdater = trpc.organisasjon.oppdaterBruker.useMutation();
+  const settFirmaAdmin = trpc.organisasjon.settFirmaAdmin.useMutation();
 
   const kanLagre =
-    navn.trim().length > 0 && email.trim().length > 0 && !oppdater.isPending;
+    navn.trim().length > 0 && email.trim().length > 0 && !lagrer;
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!kanLagre) return;
-    const trimmetTelefon = telefon.trim();
-    oppdater.mutate({
-      userId: bruker.id,
-      organizationId,
-      navn: navn.trim(),
-      email: email.trim(),
-      telefon: trimmetTelefon === "" ? null : trimmetTelefon,
-      ansattnummer: ansattnummer.trim(),
-      rolle,
-    });
+    setFeilmelding(null);
+    setLagrer(true);
+    try {
+      const trimmetTelefon = telefon.trim();
+      await oppdater.mutateAsync({
+        userId: bruker.id,
+        organizationId,
+        navn: navn.trim(),
+        email: email.trim(),
+        telefon: trimmetTelefon === "" ? null : trimmetTelefon,
+        ansattnummer: ansattnummer.trim(),
+        ansattRolle,
+      });
+      if (erFirmaAdmin !== opprinneligErFirmaAdmin) {
+        await settFirmaAdmin.mutateAsync({
+          userId: bruker.id,
+          organizationId,
+          erAdmin: erFirmaAdmin,
+        });
+      }
+      onSuksess();
+    } catch (err) {
+      setFeilmelding(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLagrer(false);
+    }
   }
 
   return (
@@ -507,35 +494,39 @@ function RedigerModal({
           </div>
 
           <div>
-            <label className="mb-2 block text-sm font-medium text-gray-700">
-              {t("firma.ansatte.inviter.rolle")}
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("firma.ansatte.stillingLabel")}
             </label>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="rediger-rolle"
-                  value="user"
-                  checked={rolle === "user"}
-                  onChange={() => setRolle("user")}
-                />
-                {t("firma.ansatte.inviter.rolle.user")}
-              </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700">
-                <input
-                  type="radio"
-                  name="rediger-rolle"
-                  value="company_admin"
-                  checked={rolle === "company_admin"}
-                  onChange={() => setRolle("company_admin")}
-                />
-                {t("firma.ansatte.inviter.rolle.companyAdmin")}
-              </label>
-            </div>
+            <select
+              value={ansattRolle}
+              onChange={(e) => setAnsattRolle(e.target.value as AnsattRolle)}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-secondary focus:outline-none focus:ring-1 focus:ring-sitedoc-secondary"
+            >
+              {ANSATT_ROLLER.map((r) => (
+                <option key={r} value={r}>
+                  {t(`firma.ansatte.stilling.${r}`)}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {oppdater.isError && (
-            <p className="text-sm text-red-500">{oppdater.error.message}</p>
+          <div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={erFirmaAdmin}
+                onChange={(e) => setErFirmaAdmin(e.target.checked)}
+              />
+              <Shield className="h-3.5 w-3.5 text-purple-500" />
+              {t("firma.ansatte.firmaAdminLabel")}
+            </label>
+            <p className="ml-6 mt-1 text-xs text-gray-500">
+              {t("firma.ansatte.firmaAdminHjelp")}
+            </p>
+          </div>
+
+          {feilmelding && (
+            <p className="text-sm text-red-500">{feilmelding}</p>
           )}
 
           <div className="flex justify-end gap-2 border-t border-gray-200 pt-3">
@@ -551,7 +542,7 @@ function RedigerModal({
               disabled={!kanLagre}
               className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {oppdater.isPending
+              {lagrer
                 ? t("handling.lagrer")
                 : t("handling.lagre")}
             </button>
