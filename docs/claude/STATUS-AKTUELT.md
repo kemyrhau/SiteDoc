@@ -328,7 +328,13 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
-### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte IMPLEMENTERT på feature/ansattrolle-ui 2026-05-13
+### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte DEPLOYET TIL PROD 2026-05-13 (prod-commit `3fa34c57`)
+
+**Test-deploy** (develop merge-commit `211cd5de`): auto-deployet. Backfill kjørt mot `sitedoc_test` — 1 OrganizationMember-rad med `User.role = "company_admin"` allerede hadde `firmaRoller = {firma_admin}` (0 oppdatert, 1 hoppet over). Fordeling etter backfill: `{} = 25`, `{firma_admin} = 1`. HTTP 200 verifisert.
+
+**Prod-deploy** (main merge-commit `3fa34c57`): `./deploy.sh` kjørte 1m 41s build, PM2 `sitedoc-web` (id 6) + `sitedoc-api` (id 4) restartet. Backfill mot `sitedoc` — 3 OrganizationMember-rader med `User.role = "company_admin"` hadde alle `firmaRoller = {firma_admin}` fra før (0 oppdatert, 3 hoppet over). Fordeling: `{firma_admin} = 3` (alle medlemmene i prod er firma-admins). HTTP 200 på `sitedoc.no` + `api.sitedoc.no/health` OK. Browser-verifisert av Kenneth: Stilling-kolonne viser «Ansatt» for alle tre, Tilgang-kolonne viser Firmaadmin-badge for alle tre.
+
+**Bekreftet konsistens etter deploy:** Backfill var sikkerhetsventil — prod og test var allerede konsistente (alle eksisterende firma-admins hadde `firmaRoller` korrekt satt). Hullet var teoretisk: hadde noen brukt `endreRolle`-UI-en til å forfremme en bruker etter O-5c-deploy, ville `User.role`-skrivingen ha hatt null effekt på tilgangsbeslutninger siden `erFirmaAdmin` kun leser `firmaRoller`. Nå er `endreRolle`-mutationen slettet og dropdown-en fjernet — fremtidige promoteringer går via `settFirmaAdmin` som skriver direkte til `firmaRoller`.
 
 Oppfølger til O-5-bunken. Lukker konsistens-hullet hvor dagens UI skrev `User.role = "company_admin"` uten å speile til `OrganizationMember.firmaRoller`. Etter O-5c er `firmaRoller` eneste sannhetskilde, men 25/26 OrganizationMember-rader i test hadde fortsatt `firmaRoller = []` fordi `endreRolle`-UI-en bare skrev til legacy `User.role`. Denne PR-en sluker hullet og synliggjør `ansattRolle` + `firmaRoller` i UI-en.
 

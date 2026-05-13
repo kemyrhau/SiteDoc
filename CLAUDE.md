@@ -117,7 +117,7 @@ Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansat
 
 Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
-### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte IMPLEMENTERT på feature/ansattrolle-ui 2026-05-13
+### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte DEPLOYET TIL PROD 2026-05-13 (prod-commit `3fa34c57`)
 
 Oppfølger til O-5-bunken. Lukker konsistens-hullet hvor `endreRolle`-UI-en skrev til legacy `User.role` uten å speile til `OrganizationMember.firmaRoller` (25/26 OrganizationMember-rader i test hadde fortsatt `firmaRoller = []`). Synliggjør og redigerbar-gjør `ansattRolle` (stilling) + `firmaRoller` i firma/ansatte-siden.
 
