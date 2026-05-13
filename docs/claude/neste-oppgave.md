@@ -1,35 +1,43 @@
-# Neste oppgave: PR O-4 — Flytt felt + firma/ansatte rename
+# Neste oppgave: PR O-5 — Drop legacy User-felt
 
-Dato: 2026-05-12
-Status: Klar til start
+Dato: 2026-05-13
+Status: Klar til planlegging (ikke koding ennå)
 
-## O-3 fullført
-O-3a + O-3b deployet til prod (commits fc929051 + 89423097).
-tilgangskontroll.ts og organisasjon.ts + prosjekt.ts bruker nå OrganizationMember.
+## O-4 fullført
+O-4a + O-4b deployet til prod (commits 3852ed8c + 0932da51 + cf1669b7).
+firma/ansatte live. hentBrukere leser fra OrganizationMember.
 
-## O-4 scope
+## O-5 scope
 
-### 1. Flytt felt fra User → OrganizationMember (schema + migrasjon)
-- `ansattnummer` flyttes fra User → OrganizationMember (finnes allerede som nullable)
-- `avdelingId` flyttes fra User → OrganizationMember (FK til Avdeling, onDelete: SetNull)
-- Backfill: kopier verdier fra User til OrganizationMember for eksisterende rader
+### Forutsetning: dual-read-fallback kan fjernes
+Alle OrganizationMember-rader er backfylt (prod: 3, test: 26).
+Ingen kode legger til nye User-rader uten tilhørende OrganizationMember.
+Fallback-koden i erFirmaAdmin, autoriserAdminForFirma, hentBrukersOrg etc. er trygg å fjerne.
 
-### 2. Rename firma/brukere → firma/ansatte
-- URL: /dashbord/firma/brukere → /dashbord/firma/ansatte (Next.js route rename)
-- DB: ingen — URL-endring er kun routing
-- Sidebar-lenke oppdateres
-- i18n-nøkler oppdateres
+### Schema-endringer (migrasjon kreves)
+DROP fra User:
+- organizationId + organization-relasjon + tilhørende indekser + composite uniques
+- ansattnummer
+- avdelingId + avdeling-relasjon
 
-### 3. UI: oppdater firma-bruker-side
-- Siden leser ansattnummer + avdelingId fra OrganizationMember i stedet for User
-- inviterBruker + oppdaterBruker mutations skrives til OrganizationMember
+DROP tabell:
+- organization_roles (OrganizationRole — 0 rader, deprecated i O-3a)
 
-## Viktig å sjekke før O-4
-- avdelingId har FK-relasjon til Avdeling (onDelete: SetNull) — må håndteres i migrasjon
-- ansattnummer UI (commit 62f98b69) er på develop/main — må oppdateres til å lese/skrive OrganizationMember
-- To-stegs migrasjon: 1) legg til felt på OrganizationMember, 2) backfill, 3) fjern fra User (O-5)
+### Kode-endringer
+- Fjern fallback-grener i: erFirmaAdmin, autoriserAdminForFirma,
+  verifiserOrganisasjonTilgang, harOrgRolle, hentBrukersOrg (alle O-5-kommentarer)
+- Fjern User.role === "company_admin" (erstattes av OrganizationMember.firmaRoller)
+  → User.role reduseres til "sitedoc_admin" | "user"
+- Fjern Organization.users back-relasjon (erstattes av Organization.members)
 
-## Les før O-4
+### Viktig: global email-unique
+Dagens schema: @@unique([email, organizationId]) på User
+Etter O-5: @@unique([email]) globalt
+Krever: sjekk at ingen duplikate e-poster eksisterer på tvers av orger i prod-DB FØR migrasjon
+
+## Sjekk FØR O-5 starter
+ssh sitedoc "psql -d sitedoc -c \"SELECT email, COUNT(*) FROM users GROUP BY email HAVING COUNT(*) > 1;\""
+
+## Les før O-5
 - docs/claude/fase-0-beslutninger.md § OrganizationMember-refaktor
-- packages/db/prisma/schema.prisma (User-modellen, Avdeling-relasjonen)
-- apps/api/src/routes/organisasjon.ts (inviterBruker + oppdaterBruker)
+- Alle O-5-kommentarer i tilgangskontroll.ts og organisasjon.ts
