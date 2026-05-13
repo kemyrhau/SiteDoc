@@ -49,17 +49,17 @@ async function matchAnsvarlige(
 
   // Hent alle brukere i firmaet og match case-insensitive i JS (Postgres
   // `mode: insensitive` på `in` er ikke støttet — enklere å gjøre lokalt).
-  const brukere = await prisma.user.findMany({
-    where: { organizationId: orgId, name: { not: null } },
-    select: { id: true, name: true },
+  const medlemmer = await prisma.organizationMember.findMany({
+    where: { organizationId: orgId, user: { name: { not: null } } },
+    select: { user: { select: { id: true, name: true } } },
   });
 
   const map = new Map<string, string>();
-  for (const b of brukere) {
-    if (!b.name) continue;
-    const lc = b.name.toLowerCase();
+  for (const m of medlemmer) {
+    if (!m.user.name) continue;
+    const lc = m.user.name.toLowerCase();
     if (lowercased.includes(lc)) {
-      map.set(lc, b.id);
+      map.set(lc, m.user.id);
     }
   }
   return map;

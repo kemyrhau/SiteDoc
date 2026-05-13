@@ -6,6 +6,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import {
   autoriserAdminForFirma,
   verifiserKompetanseSkriveTilgang,
+  hentBrukersOrg,
 } from "../trpc/tilgangskontroll";
 import {
   beregnFilHash,
@@ -34,28 +35,37 @@ export const kompetanseRouter = router({
     .query(async ({ ctx, input }) => {
     const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
-    const [brukere, kompetansetyper, koblinger] = await Promise.all([
-      ctx.prisma.user.findMany({
-        where: { organizationId: orgId, canLogin: true },
-        select: {
-          id: true,
-          name: true,
-          email: true,
-          ansattnummer: true,
-          avdelingId: true,
-          avdeling: { select: { id: true, navn: true } },
-        },
-        orderBy: [{ name: "asc" }],
-      }),
+    const medlemmer = await ctx.prisma.organizationMember.findMany({
+      where: {
+        organizationId: orgId,
+        user: { canLogin: true },
+      },
+      select: {
+        ansattnummer: true,
+        avdelingId: true,
+        avdeling: { select: { id: true, navn: true } },
+        user: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: { user: { name: "asc" } },
+    });
+    const brukere = medlemmer.map((m) => ({
+      id: m.user.id,
+      name: m.user.name,
+      email: m.user.email,
+      ansattnummer: m.ansattnummer,
+      avdelingId: m.avdelingId,
+      avdeling: m.avdeling,
+    }));
+    const brukerIder = brukere.map((b) => b.id);
+
+    const [kompetansetyper, koblinger] = await Promise.all([
       ctx.prisma.kompetansetype.findMany({
         where: { organizationId: orgId, aktiv: true },
         select: { id: true, navn: true, kategori: true },
         orderBy: [{ kategori: "asc" }, { navn: "asc" }],
       }),
       ctx.prisma.ansattKompetanse.findMany({
-        where: {
-          user: { organizationId: orgId },
-        },
+        where: { userId: { in: brukerIder } },
         select: {
           id: true,
           userId: true,
@@ -81,11 +91,11 @@ export const kompetanseRouter = router({
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
 
       // Verifiser at målbruker tilhører samme firma
-      const malBruker = await ctx.prisma.user.findUnique({
-        where: { id: input.userId },
-        select: { organizationId: true },
+      const malMedlem = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId: input.userId, organizationId: orgId } },
+        select: { id: true },
       });
-      if (!malBruker || malBruker.organizationId !== orgId) {
+      if (!malMedlem) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Bruker finnes ikke eller tilhører ikke ditt firma",
@@ -124,14 +134,13 @@ export const kompetanseRouter = router({
       await verifiserKompetanseSkriveTilgang(ctx.userId, input.userId);
 
       // Verifiser at kompetansetype tilhører samme firma som målbrukeren
-      const malBruker = await ctx.prisma.user.findUniqueOrThrow({
-        where: { id: input.userId },
-        select: { organizationId: true },
-      });
-      const type = await ctx.prisma.kompetansetype.findFirst({
-        where: { id: input.kompetansetypeId, organizationId: malBruker.organizationId ?? undefined },
-        select: { id: true },
-      });
+      const malOrgId = await hentBrukersOrg(input.userId);
+      const type = malOrgId
+        ? await ctx.prisma.kompetansetype.findFirst({
+            where: { id: input.kompetansetypeId, organizationId: malOrgId },
+            select: { id: true },
+          })
+        : null;
       if (!type) {
         throw new TRPCError({
           code: "NOT_FOUND",
