@@ -95,9 +95,14 @@ export const rapportRouter = router({
       const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
       const brukere = await prisma.user.findMany({
         where: { id: { in: userIder } },
-        select: { id: true, name: true, email: true, ansattnummer: true },
+        select: { id: true, name: true, email: true },
       });
       const brukerMap = new Map(brukere.map((b) => [b.id, b]));
+      const medlemmer = await prisma.organizationMember.findMany({
+        where: { userId: { in: userIder } },
+        select: { userId: true, ansattnummer: true },
+      });
+      const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
 
       // Aggregér per ansatt
       type AnsattAggregat = {
@@ -124,7 +129,7 @@ export const rapportRouter = router({
             userId: sedel.userId,
             navn: bruker?.name ?? null,
             email: bruker?.email ?? "(ukjent)",
-            ansattnummer: bruker?.ansattnummer ?? null,
+            ansattnummer: ansattnummerMap.get(sedel.userId) ?? null,
             totalTimer: 0,
             perProsjekt: new Map(),
             perDag: new Map(),
@@ -266,9 +271,17 @@ export const rapportRouter = router({
 
       const brukere = await prisma.user.findMany({
         where: { id: { in: userIder } },
-        select: { id: true, name: true, email: true, ansattnummer: true },
+        select: { id: true, name: true, email: true },
         orderBy: { name: "asc" },
       });
-      return brukere;
+      const medlemmer = await prisma.organizationMember.findMany({
+        where: { userId: { in: userIder } },
+        select: { userId: true, ansattnummer: true },
+      });
+      const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
+      return brukere.map((b) => ({
+        ...b,
+        ansattnummer: ansattnummerMap.get(b.id) ?? null,
+      }));
     }),
 });

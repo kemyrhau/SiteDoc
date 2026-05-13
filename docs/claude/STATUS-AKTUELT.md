@@ -328,6 +328,60 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes IMPLEMENTERT på feature/org-member-o5b 2026-05-13
+
+Andre sub-PR av O-5. Fjerner gjenværende `User.organizationId`- og `User.ansattnummer`-lesinger fra routes som ikke fulgte O-5a-mønstret (lokal `hentBrukerOrgId`). Ingen schema-endring, ingen klient-endring. Forberedelse for O-5c (schema-drop).
+
+**Kategori B — User.organizationId/role lest direkte for tilgangsbeslutninger:**
+
+- **`gruppe.ts hentMinFlytInfo` (rad 28-58)**: Firma-admin-fallback for brukere uten `ProjectMember`-rad. Tidligere: `bruker.role === "company_admin" && bruker.organizationId` → `projectOrganization.findFirst`. Nå: `hentBrukersOrg(ctx.userId)` → `projectOrganization.findFirst` → `OrganizationMember.findUnique({ firmaRoller })` for å verifisere `firma_admin`-rolle. Tre DB-kall i fallback-stien (vs. to før), men logikken er mer korrekt — vi krever nå eksplisitt `firma_admin`-rolle i `firmaRoller`-array, ikke bare `User.role`-flagget.
+
+- **`medlem.ts inviterBruker` (rad 88-135)**: To User.organizationId-lesinger byttet:
+  - Inviterende bruker: `User.findUniqueOrThrow({ select: { organizationId } })` → `hentBrukersOrg(ctx.userId)`.
+  - Eksisterende bruker med samme e-post: tidligere lest `eksisterendeBruker.organizationId` via `User.findFirst`. Nå hentes orgId for den funne brukeren via `hentBrukersOrg(eksisterendeBruker.id)` — krever to oppslag (User.findFirst på id + OrganizationMember-lookup) i stedet for ett, men korrekt etter O-5c.
+
+- **`medlem.ts leggTilEksisterende` (rad 539)**: `bruker.organizationId !== prosjekt.primaryOrganizationId`-sjekk byttet til `await hentBrukersOrg(input.userId) !== prosjekt.primaryOrganizationId`. `User.findUnique`-select rensket — `organizationId` fjernet.
+
+- **`admin.ts hentAlleOrganisasjoner` (rad 107-136)**: `Organization.users` back-relasjon byttet til `members: { select: { user: { select: ... } } }`. Mapping i respons bygger `users`-feltet manuelt: `members.map((m) => m.user)`. Klient-API uberørt — `apps/web/src/app/dashbord/admin/firmaer/page.tsx` bruker `org.users.length` og `org.users.map` 4 steder og trenger ingen endring. Klient-bytte til direkte `members`-bruk kan skje senere som egen kosmetisk PR. Pattern-bekreftelse: Etter O-5c droppes `Organization.users`-back-relasjonen fra Prisma-skjemaet — denne mappingen isolerer klienten fra det.
+
+**Kategori C — User.ansattnummer lest direkte:**
+
+- **`timer/rapport.ts` (rad 95-103 + 272-281)**: To `User.findMany`-batch-oppslag for ansatt-berikelse i rapport-aggregeringen. Begge nå supplert med:
+  ```typescript
+  const medlemmer = await prisma.organizationMember.findMany({
+    where: { userId: { in: userIder } },
+    select: { userId: true, ansattnummer: true },
+  });
+  const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
+  ```
+  Trygt forutsatt 1:1 (verifisert i prod-sjekk før O-5a: 0 brukere med multiple OrganizationMember-rader). `User.findMany`-selectet rensket — `ansattnummer` fjernet, `name + email` beholdt.
+
+- **`timer/dagsseddel.ts` (rad 673, 716, 791, 878)**: Tre batch-oppslag (`hentTilAttestering`, `hentTilGodkjenning` deprecated alias, `hentTilAttesteringFirma`) + ett single-bruker-oppslag (`hentEnkelt`). Batch-stedene følger samme mønster som rapport.ts. Single-stedet bruker `sheet.organizationId` for å gjøre `OrganizationMember.findUnique({ userId_organizationId: { userId, organizationId } })` — mer presist enn batch-spørringen siden vi har eksakt org-kontekst.
+
+- **`organisasjon.ts` (rad 411 + 440 + 539-554)**: Skriving rensket — `inviterBruker` skriver ikke lenger `User.ansattnummer` (verken i `User.create` eller `User.update`-adopsjons-grenen). `OrganizationMember.upsert` med `ansattnummer` er nå eneste sannhetskilde. `oppdaterBruker` skriver heller ikke lenger til `User.ansattnummer`; responsen henter `ansattnummer` fra `OrganizationMember.findUnique`-etter-oppdatering. Tidligere O-4b dual-write fjernet til fordel for single-write til OrganizationMember.
+
+**Linjer endret per fil:**
+
+| Fil | + | - | Netto |
+|-----|---|---|-------|
+| `apps/api/src/routes/gruppe.ts` | 13 | 5 | +8 |
+| `apps/api/src/routes/medlem.ts` | 17 | 16 | +1 |
+| `apps/api/src/routes/admin.ts` | 13 | 5 | +8 |
+| `apps/api/src/routes/organisasjon.ts` | 7 | 9 | -2 |
+| `apps/api/src/routes/timer/rapport.ts` | 17 | 4 | +13 |
+| `apps/api/src/routes/timer/dagsseddel.ts` | 40 | 12 | +28 |
+| **Sum** | **107** | **51** | **+56** |
+
+Netto vekst kommer fra dual-oppslag-mønsteret (User-felter + OrganizationMember-felter merges til respons). Når O-5c dropper `User.ansattnummer` og Prisma-skjemaet ikke lenger har feltet, kan disse oppslagene fortsatt være paret slik — men da uten lenger sannhets-sjekk mot User.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil i `import-hjelpere.test.ts`). Ingen DB-endring, ingen klient-endring, ingen schema-endring.
+
+**Gjenstående i O-5-bunken:** Kun O-5c (schema-drop). Krever to-stegs migration-policy:
+1. PR O-5c-1: Fjern `User.organizationId`/`User.avdelingId`/`User.ansattnummer`/`Organization.users`/`Avdeling.users`-relasjonene fra Prisma-skjemaet. Generer migration som setter Drop kolonner. Deploy.
+2. (Ingen «steg 2» — siden ingen kode leser feltene lenger etter O-5b, kan dropet skje i én migration. Sletting av `OrganizationRole`-tabellen kan også gjøres samtidig.)
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput IMPLEMENTERT på feature/org-member-o5a 2026-05-13
 
 Femte PR i OrganizationMember-refaktoren. Første sub-PR av O-5 — fjerner alle dual-read-fallbacks fra `tilgangskontroll.ts` og refaktorerer 8 routes som hadde duplikat `hentBrukerOrgId`-kode. Ingen schema-endring, ingen klient-endring. Forberedelse for O-5b (Kategori B+C) og O-5c (schema-drop av `User.organizationId` + `OrganizationRole`-tabellen).

@@ -408,7 +408,6 @@ export const organisasjonRouter = router({
             organizationId: orgId,
             role: input.rolle,
             ...(input.telefon ? { phone: input.telefon } : {}),
-            ...(input.ansattnummer ? { ansattnummer: input.ansattnummer } : {}),
           },
           select: { id: true, name: true, email: true, role: true },
         });
@@ -437,7 +436,6 @@ export const organisasjonRouter = router({
           organizationId: orgId,
           role: input.rolle,
           canLogin: true,
-          ansattnummer: input.ansattnummer ?? null,
         },
         select: { id: true, name: true, email: true, role: true },
       });
@@ -531,18 +529,14 @@ export const organisasjonRouter = router({
       if (input.email !== undefined) data.email = input.email;
       if (input.telefon !== undefined) data.phone = input.telefon;
       if (input.rolle !== undefined) data.role = input.rolle;
-      if (input.ansattnummer !== undefined) {
-        // Tom streng → null (nullstilling fra UI)
-        data.ansattnummer = input.ansattnummer || null;
-      }
 
       const oppdatert = await ctx.prisma.user.update({
         where: { id: input.userId },
         data,
-        select: { id: true, name: true, email: true, phone: true, role: true, ansattnummer: true },
+        select: { id: true, name: true, email: true, phone: true, role: true },
       });
 
-      // O-4b: speil ansattnummer til OrganizationMember (dual-write)
+      // ansattnummer eies av OrganizationMember (O-5b)
       if (input.ansattnummer !== undefined) {
         await ctx.prisma.organizationMember.updateMany({
           where: { userId: input.userId, organizationId: orgId },
@@ -550,7 +544,11 @@ export const organisasjonRouter = router({
         });
       }
 
-      return oppdatert;
+      const medlem = await ctx.prisma.organizationMember.findUnique({
+        where: { userId_organizationId: { userId: input.userId, organizationId: orgId } },
+        select: { ansattnummer: true },
+      });
+      return { ...oppdatert, ansattnummer: medlem?.ansattnummer ?? null };
     }),
 
   // Tildel granulær firma-rolle (per A.25 — f.eks. "hms_ansvarlig")

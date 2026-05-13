@@ -9,6 +9,7 @@ import {
   verifiserAdminEllerFirmaansvarlig,
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
+  hentBrukersOrg,
 } from "../trpc/tilgangskontroll";
 
 export const medlemRouter = router({
@@ -87,12 +88,8 @@ export const medlemRouter = router({
 
       // Firmaansvarlig: kun invitere brukere med samme organizationId
       if (!erAdmin) {
-        const inviterende = await ctx.prisma.user.findUniqueOrThrow({
-          where: { id: ctx.userId },
-          select: { organizationId: true },
-        });
-
-        if (!inviterende.organizationId) {
+        const inviterendeOrgId = await hentBrukersOrg(ctx.userId);
+        if (!inviterendeOrgId) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Du tilhører ingen organisasjon",
@@ -100,7 +97,7 @@ export const medlemRouter = router({
         }
 
         // Sjekk at organizationId matcher
-        if (input.organizationId && input.organizationId !== inviterende.organizationId) {
+        if (input.organizationId && input.organizationId !== inviterendeOrgId) {
           throw new TRPCError({
             code: "FORBIDDEN",
             message: "Du kan kun invitere brukere til ditt eget firma",
@@ -108,7 +105,7 @@ export const medlemRouter = router({
         }
 
         // Tving organizationId til eget firma
-        input.organizationId = inviterende.organizationId;
+        input.organizationId = inviterendeOrgId;
 
         // Firmaansvarlig kan ikke opprette admins
         if (input.role === "admin") {
@@ -121,14 +118,17 @@ export const medlemRouter = router({
         // Sjekk at eksisterende bruker tilhører samme firma (per B.7: findFirst)
         const eksisterendeBruker = await ctx.prisma.user.findFirst({
           where: { email: input.email, canLogin: true },
-          select: { organizationId: true },
+          select: { id: true },
           orderBy: { createdAt: "asc" },
         });
-        if (eksisterendeBruker && eksisterendeBruker.organizationId && eksisterendeBruker.organizationId !== inviterende.organizationId) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Brukeren tilhører et annet firma",
-          });
+        if (eksisterendeBruker) {
+          const eksisterendeOrgId = await hentBrukersOrg(eksisterendeBruker.id);
+          if (eksisterendeOrgId && eksisterendeOrgId !== inviterendeOrgId) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Brukeren tilhører et annet firma",
+            });
+          }
         }
       }
 
@@ -525,7 +525,7 @@ export const medlemRouter = router({
 
       const bruker = await ctx.prisma.user.findUnique({
         where: { id: input.userId },
-        select: { id: true, organizationId: true, canLogin: true, name: true, email: true },
+        select: { id: true, canLogin: true, name: true, email: true },
       });
       if (!bruker) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Bruker ikke funnet" });
@@ -536,7 +536,8 @@ export const medlemRouter = router({
           message: "Bruker er deaktivert (canLogin = false)",
         });
       }
-      if (bruker.organizationId !== prosjekt.primaryOrganizationId) {
+      const brukerOrgId = await hentBrukersOrg(input.userId);
+      if (brukerOrgId !== prosjekt.primaryOrganizationId) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Bruker tilhører ikke samme firma som prosjektet",
