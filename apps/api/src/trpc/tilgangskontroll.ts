@@ -590,15 +590,12 @@ export async function byggTilgangsFilter(
 
   // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
   if (medlem.erFirmaansvarlig) {
-    const brukerOrg = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { organizationId: true },
-    });
-    if (brukerOrg?.organizationId) {
-      const firmaUserIder = (await prisma.user.findMany({
-        where: { organizationId: brukerOrg.organizationId },
-        select: { id: true },
-      })).map((u) => u.id);
+    const brukerOrgId = await hentBrukersOrg(userId);
+    if (brukerOrgId) {
+      const firmaUserIder = (await prisma.organizationMember.findMany({
+        where: { organizationId: brukerOrgId },
+        select: { userId: true },
+      })).map((m) => m.userId);
 
       if (firmaUserIder.length > 0) {
         // Dokumenter opprettet av firmamedlem

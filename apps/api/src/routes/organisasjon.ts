@@ -401,11 +401,10 @@ export const organisasjonRouter = router({
             message: "Brukeren tilhører et annet firma",
           });
         }
-        // Orphan-bruker (uten organizationId) — adopter inn i firmaet
+        // Orphan-bruker — adopter inn i firmaet via OrganizationMember (under)
         const adoptert = await ctx.prisma.user.update({
           where: { id: eksisterende.id },
           data: {
-            organizationId: orgId,
             role: input.rolle,
             ...(input.telefon ? { phone: input.telefon } : {}),
           },
@@ -433,7 +432,6 @@ export const organisasjonRouter = router({
           email: input.email,
           name: input.navn,
           phone: input.telefon,
-          organizationId: orgId,
           role: input.rolle,
           canLogin: true,
         },

@@ -144,21 +144,38 @@ export const medlemRouter = router({
             email: input.email,
             name: `${input.firstName} ${input.lastName}`,
             phone: input.phone,
-            organizationId: input.organizationId,
           },
         });
       } else {
-        // Oppdater manglende felter (navn, telefon, firma)
-        const oppdatering: { name?: string; phone?: string; organizationId?: string } = {};
+        // Oppdater manglende felter (navn, telefon)
+        const oppdatering: { name?: string; phone?: string } = {};
         if (!user.name) oppdatering.name = `${input.firstName} ${input.lastName}`;
         if (input.phone && !user.phone) oppdatering.phone = input.phone;
-        if (input.organizationId && !user.organizationId) oppdatering.organizationId = input.organizationId;
         if (Object.keys(oppdatering).length > 0) {
           user = await ctx.prisma.user.update({
             where: { id: user.id },
             data: oppdatering,
           });
         }
+      }
+
+      // Sikre OrganizationMember-rad hvis bruker skal tilhøre et firma
+      if (input.organizationId) {
+        await ctx.prisma.organizationMember.upsert({
+          where: {
+            userId_organizationId: {
+              userId: user.id,
+              organizationId: input.organizationId,
+            },
+          },
+          create: {
+            userId: user.id,
+            organizationId: input.organizationId,
+            ansattRolle: "ansatt",
+            firmaRoller: [],
+          },
+          update: {},
+        });
       }
 
       // Sjekk om medlemskap allerede finnes
@@ -338,9 +355,17 @@ export const medlemRouter = router({
       if (input.phone !== undefined) brukerOppdatering.phone = input.phone || null;
       if (input.email !== undefined && input.email !== medlem.user.email) {
         // Per B.7: composite (email, organizationId) — sjekk konflikt innen SAMME firma
-        const eksisterende = await ctx.prisma.user.findFirst({
-          where: { email: input.email, organizationId: medlem.user.organizationId },
-        });
+        const malOrgId = await hentBrukersOrg(medlem.userId);
+        const eksisterende = malOrgId
+          ? await ctx.prisma.user.findFirst({
+              where: {
+                email: input.email,
+                organizationMembers: { some: { organizationId: malOrgId } },
+              },
+            })
+          : await ctx.prisma.user.findFirst({
+              where: { email: input.email, organizationMembers: { none: {} } },
+            });
         if (eksisterende) {
           throw new TRPCError({
             code: "CONFLICT",
@@ -498,17 +523,19 @@ export const medlemRouter = router({
         .map((m) => m.userId)
         .filter((id): id is string => id !== null);
 
-      const brukere = await ctx.prisma.user.findMany({
+      const medlemmer = await ctx.prisma.organizationMember.findMany({
         where: {
           organizationId: prosjekt.primaryOrganizationId,
-          canLogin: true,
-          id: { notIn: eksisterendeIder },
+          userId: { notIn: eksisterendeIder },
+          user: { canLogin: true },
         },
-        select: { id: true, name: true, email: true, role: true },
-        orderBy: [{ name: "asc" }, { email: "asc" }],
+        select: {
+          user: { select: { id: true, name: true, email: true, role: true } },
+        },
+        orderBy: { user: { name: "asc" } },
       });
 
-      return brukere;
+      return medlemmer.map((m) => m.user);
     }),
 
   // Legg til en eksisterende firma-bruker som prosjektmedlem (ingen e-post sendt).

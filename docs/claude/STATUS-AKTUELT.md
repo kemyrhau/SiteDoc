@@ -328,6 +328,54 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff IMPLEMENTERT på feature/org-member-o5b-fix 2026-05-13
+
+Oppfølger til O-5b etter at full-codebase-grep avdekket 11 ytterligere User.organizationId/User.ansattnummer-lesinger eller -skrivinger som ikke ble fanget i O-5b (grep var begrenset til mønstre som `User.organizationId` direkte — treff som `where: { organizationId: orgId }` i `User.findMany`/`User.create`-data ble forbi). Etter denne PR-en er det 0 gjenstående direkte lesinger eller skrivinger av disse feltene i `apps/api/src/`. **O-5c (schema-drop) er nå trygt fra et kode-perspektiv.**
+
+**Fix-er (alle bruker `hentBrukersOrg`/`OrganizationMember`-oppslag):**
+
+| # | Fil:linje | Endring |
+|---|-----------|---------|
+| 1 | `tilgangskontroll.ts:593-606` | byggTilgangsFilter firmaansvarlig — `User.findMany` → `OrganizationMember.findMany` |
+| 2 | `kompetanse.ts:38-50` | hentMatrise brukerliste — User → OrganizationMember med nested user-select |
+| 3 | `kompetanse.ts:55-58` | ansattKompetanse-filter — `where: { user: { organizationId } }` → `userId: { in: brukerIder }` |
+| 4 | `kompetanse.ts:84-93` | hentForBruker mål-bruker → `OrganizationMember.findUnique({ userId_organizationId })` |
+| 5 | `medlem.ts:147-162` | inviterByEmail — fjernet User.organizationId-skriving, lagt til `OrganizationMember.upsert` |
+| 6 | `medlem.ts:356-369` | email-konflikt-sjekk innen firma — `User.findFirst({ organizationMembers: { some: { organizationId } } })` |
+| 7 | `medlem.ts:526-537` | hentLedigeFirmaBrukere — User → OrganizationMember med user-include |
+| 8 | `kompetanse.ts:135-149` | opprett kompetansetype-firma-validering — `hentBrukersOrg(input.userId)` |
+| 9 | `maskin/ansvarlig.ts:72-87` | tilfoy cross-org-sjekk — `hentBrukersOrg` + sammenlign med equipment.organizationId |
+| 10 | `maskin/import.ts:52-65` | SmartDok-navn-matching — `OrganizationMember.findMany` med user-nested |
+| 11 | `maskin/equipment.ts:208-213` | hentMuligeAnsvarlige — `OrganizationMember.findMany` med user-include |
+
+**Bonus-rydding (sluttverifikasjon avdekket to gjenstående SKRIVINGER fra O-5b):**
+
+- `organisasjon.ts:405-413` (`inviterBruker` orphan-adopsjon): fjernet `organizationId: orgId` fra `User.update`-data. `OrganizationMember.upsert` (rad 416) er nå eneste sannhetskilde for firma-medlemskap.
+- `organisasjon.ts:431-441` (`inviterBruker` ny-bruker-create): fjernet `organizationId: orgId` fra `User.create`-data. `OrganizationMember.upsert` (rad 444) er nå eneste sannhetskilde.
+
+**Linjer endret per fil:**
+
+| Fil | + | - | Netto |
+|-----|---|---|-------|
+| `tilgangskontroll.ts` | 6 | 9 | -3 |
+| `kompetanse.ts` | 37 | 28 | +9 |
+| `medlem.ts` | 40 | 13 | +27 |
+| `maskin/ansvarlig.ts` | 4 | 2 | +2 |
+| `maskin/equipment.ts` | 4 | 3 | +1 |
+| `maskin/import.ts` | 7 | 7 | 0 |
+| `organisasjon.ts` | 1 | 3 | -2 |
+| **Sum** | **99** | **65** | **+34** |
+
+Netto vekst dominert av `medlem.ts:147-162` der `OrganizationMember.upsert` er ekstra trinn etter `User.create`/`User.update` (separasjon av user-entitet og firma-medlemskap-entitet).
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil). Sluttverifikasjon: 0 gjenstående `User.organizationId`-/`User.ansattnummer`-lesinger eller -skrivinger i `apps/api/src/`. Ingen DB-endring, ingen klient-endring, ingen schema-endring.
+
+**Lærdom for prosess:** Min opprinnelige O-5a/O-5b-grep var begrenset til strenger som inkluderte `User.organizationId` direkte (eller `bruker.organizationId`). Grep med `-v "organizationId:"` filtrerte bort `where: { organizationId: ... }`-mønstre. Sluttverifikasjon med utvidet grep (uten `-v "organizationId:"` og kontekstuell sjekk av callsites) er en pålitelig metode før schema-drop — bør gjentas like før O-5c.
+
+**Gjenstår i O-5-bunken:** Kun O-5c (schema-drop av `User.organizationId`, `User.avdelingId`, `User.ansattnummer` + `OrganizationRole`-tabellen + Prisma-relasjoner). Krever én migration. Klient-API uberørt.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes IMPLEMENTERT på feature/org-member-o5b 2026-05-13
 
 Andre sub-PR av O-5. Fjerner gjenværende `User.organizationId`- og `User.ansattnummer`-lesinger fra routes som ikke fulgte O-5a-mønstret (lokal `hentBrukerOrgId`). Ingen schema-endring, ingen klient-endring. Forberedelse for O-5c (schema-drop).

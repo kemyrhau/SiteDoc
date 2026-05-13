@@ -4,6 +4,7 @@ import { router, protectedProcedure } from "../../trpc/trpc";
 import {
   verifiserOrganisasjonTilgang,
   verifiserMaskinAnsvarligSkriveTilgang,
+  hentBrukersOrg,
 } from "../../trpc/tilgangskontroll";
 import { prisma } from "@sitedoc/db";
 
@@ -71,7 +72,7 @@ export const ansvarligRouter = router({
 
       const malBruker = await prisma.user.findUnique({
         where: { id: input.userId },
-        select: { organizationId: true },
+        select: { id: true },
       });
       if (!malBruker) {
         throw new TRPCError({
@@ -79,7 +80,8 @@ export const ansvarligRouter = router({
           message: "Bruker finnes ikke",
         });
       }
-      if (malBruker.organizationId !== equipment.organizationId) {
+      const malOrgId = await hentBrukersOrg(input.userId);
+      if (malOrgId !== equipment.organizationId) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: "Bruker tilhører ikke samme firma som maskinen",

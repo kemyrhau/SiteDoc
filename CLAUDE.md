@@ -117,6 +117,38 @@ Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansat
 
 Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
+### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff IMPLEMENTERT på feature/org-member-o5b-fix 2026-05-13
+
+Oppfølger til O-5b etter at full-codebase-grep avdekket 11 ytterligere User.organizationId/User.ansattnummer-lesinger eller -skrivinger som ikke ble fanget i O-5b. O-5b-grep var begrenset til mønstre som inkluderte `User.organizationId`-strenger direkte; treff som `where: { organizationId: orgId }` i `User.findMany`/`User.create`-data ble forbi.
+
+Etter denne PR-en er det 0 gjenstående direkte lesinger eller skrivinger av `User.organizationId` eller `User.ansattnummer` i `apps/api/src/`. O-5c (schema-drop) er nå trygt fra et kode-perspektiv.
+
+Fix-er (alle samme refaktor-mønster — bruk `hentBrukersOrg`/`OrganizationMember.findMany`/`OrganizationMember.upsert`):
+
+1. `tilgangskontroll.ts:593-606` — `byggTilgangsFilter` firmaansvarlig-gren leste `User.findMany({ where: { organizationId } })` for å bygge firmabruker-sett. Byttet til `hentBrukersOrg` + `OrganizationMember.findMany({ where: { organizationId }, select: { userId } })`. Identisk pattern som `verifiserDokumentTilgang` (O-5a) — samme funksjon-fil, separat gren.
+2. `kompetanse.ts:38-50` — `hentMatrise` brukerliste. Byttet `User.findMany({ where: { organizationId, canLogin } })` til `OrganizationMember.findMany({ where: { organizationId, user: { canLogin: true } } })` med nested user-select. Returform uendret.
+3. `kompetanse.ts:55-58` — `ansattKompetanse.findMany({ where: { user: { organizationId } } })` byttet til `where: { userId: { in: brukerIder } }` der `brukerIder` kommer fra steg 2 (omstrukturert Promise.all til sequential).
+4. `kompetanse.ts:84-93` — `hentForBruker` mål-bruker-validering. Byttet `User.findUnique` + `malBruker.organizationId !== orgId`-sjekk til `OrganizationMember.findUnique({ userId_organizationId })` med same NOT_FOUND-feilmelding.
+5. `medlem.ts:147-162` — `inviterByEmail` user-create/update i firmaansvarlig-flyt. Fjernet `organizationId`-skriving fra `User.create`/`User.update`. Lagt til `OrganizationMember.upsert` etter user-opprettelse hvis `input.organizationId` er gitt — sikrer firma-medlemskap via OM, ikke User.
+6. `medlem.ts:356-369` — `oppdaterMedlem` email-konflikt-sjekk innen firma. Byttet `User.findFirst({ where: { email, organizationId: medlem.user.organizationId } })` til hentBrukersOrg(medlem.userId) + `User.findFirst({ where: { email, organizationMembers: { some: { organizationId: malOrgId } } } })`. Håndterer også null-org-fall (orphan): `organizationMembers: { none: {} }`.
+7. `medlem.ts:526-537` — `hentLedigeFirmaBrukere` tilgjengelige brukere å invitere til prosjekt. Byttet `User.findMany({ where: { organizationId, canLogin, id: { notIn } } })` til `OrganizationMember.findMany({ where: { organizationId, userId: { notIn }, user: { canLogin: true } } })` med nested user-select.
+8. `kompetanse.ts:135-149` — `opprett` kompetansetype-firma-validering. Byttet `User.findUniqueOrThrow({ select: { organizationId } })` til `hentBrukersOrg(input.userId)`. Bevarer null-fall: hvis bruker ikke har org, returner null (kompetansetype kan ikke matche).
+9. `maskin/ansvarlig.ts:72-87` — `tilfoy` cross-org-sjekk. Byttet `malBruker.organizationId !== equipment.organizationId` til `await hentBrukersOrg(input.userId) !== equipment.organizationId`. `User.findUnique`-select rensket — fjernet `organizationId`.
+10. `maskin/import.ts:52-65` — SmartDok-navn-matching i ansvarlig-mapping. Byttet `User.findMany({ where: { organizationId, name: { not: null } } })` til `OrganizationMember.findMany({ where: { organizationId, user: { name: { not: null } } } })` med nested user-select.
+11. `maskin/equipment.ts:208-213` — `hentMuligeAnsvarlige`. Byttet `User.findMany({ where: { organizationId } })` til `OrganizationMember.findMany({ where: { organizationId }, select: { user: { select: ... } } })` med map til user.
+
+Bonus-rydding (oppdaget under sluttverifikasjon — to gjenstående `User.organizationId`-skrivinger O-5b ikke fjernet):
+- `organisasjon.ts:405-413` — `inviterBruker` orphan-bruker-adopsjon. Fjernet `organizationId: orgId` fra `User.update`-data. `OrganizationMember.upsert` på rad 416-426 er nå eneste sannhetskilde for firma-medlemskap.
+- `organisasjon.ts:431-441` — `inviterBruker` ny-bruker-create. Fjernet `organizationId: orgId` fra `User.create`-data. `OrganizationMember.upsert` på rad 444-454 er nå eneste sannhetskilde.
+
+Linjer endret: +99 / -65 (netto +34). Vekst kommer fra `medlem.ts:147-162` der `OrganizationMember.upsert` er ekstra trinn etter `User.create`/`User.update`.
+
+Verifisert: `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil). Ingen DB-endring, ingen klient-endring, ingen schema-endring.
+
+**Etter O-5b-fix:** Sluttverifikasjon viser 0 direkte lesinger/skrivinger av `User.organizationId` eller `User.ansattnummer` i `apps/api/src/`. O-5c (schema-drop) er trygt å starte.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes IMPLEMENTERT på feature/org-member-o5b 2026-05-13
 
 Andre sub-PR av O-5. Fjerner alle gjenværende direkte `User.organizationId`- og `User.ansattnummer`-lesinger fra routes (de som ikke fulgte O-5a-mønstret med lokal `hentBrukerOrgId`). Ingen schema-endring, ingen klient-endring. Klargjør for O-5c som dropper `User.organizationId` + `User.ansattnummer` + `OrganizationRole`-tabellen.

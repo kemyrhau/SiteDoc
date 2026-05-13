@@ -205,11 +205,12 @@ export const equipmentRouter = router({
         input?.organizationId,
       );
 
-      return prisma.user.findMany({
+      const medlemmer = await prisma.organizationMember.findMany({
         where: { organizationId },
-        select: { id: true, name: true, email: true },
-        orderBy: { name: "asc" },
+        select: { user: { select: { id: true, name: true, email: true } } },
+        orderBy: { user: { name: "asc" } },
       });
+      return medlemmer.map((m) => m.user);
     }),
 
   hentMedId: protectedProcedure
