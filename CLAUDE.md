@@ -117,7 +117,32 @@ Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansat
 
 Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
-### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole IMPLEMENTERT på feature/org-member-o5c 2026-05-13
+### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte IMPLEMENTERT på feature/ansattrolle-ui 2026-05-13
+
+Oppfølger til O-5-bunken. Lukker konsistens-hullet hvor `endreRolle`-UI-en skrev til legacy `User.role` uten å speile til `OrganizationMember.firmaRoller` (25/26 OrganizationMember-rader i test hadde fortsatt `firmaRoller = []`). Synliggjør og redigerbar-gjør `ansattRolle` (stilling) + `firmaRoller` i firma/ansatte-siden.
+
+**Backfill (`packages/db/scripts/backfill-firma-admin-roller.ts`):** Setter `firmaRoller = ["firma_admin"]` for alle OrganizationMember-rader der `User.role === "company_admin"`. Idempotent. Kjøres mot test etter deploy.
+
+**Server (`apps/api/src/routes/organisasjon.ts`):**
+- Slettet `endreRolle` (skrev kun til legacy `User.role`).
+- Ny `settFirmaAdmin({ userId, organizationId, erAdmin: boolean })` — skriver til `OrganizationMember.firmaRoller`, idempotent, med selv-degraderingsbeskyttelse + sitedoc_admin-beskyttelse.
+- `oppdaterBruker`: fjernet `rolle`-feltet, lagt til `ansattRolle: enum("ansatt","bas","prosjektleder","daglig_leder")`. Skriver ansattRolle til OrganizationMember sammen med eksisterende ansattnummer. Respons utvidet med `ansattRolle` + `firmaRoller`.
+- `inviterBruker`: byttet `rolle: enum` til `erFirmaAdmin: boolean` + ny `ansattRolle: enum`. `User.role` settes alltid til `"user"` for nye brukere (sitedoc_admin opprettes ikke via UI). `OrganizationMember` opprettes med riktig `ansattRolle` + `firmaRoller`.
+- `hentTilgjengelige`: leser nå firma-admin-medlemskap via `OrganizationMember.firmaRoller.includes("firma_admin")` (ikke `User.role === "company_admin"`). Støtter implisitt flere firmaer per bruker.
+
+**Web (`apps/web/src/app/dashbord/firma/ansatte/page.tsx`):**
+- To nye tabell-kolonner: «Stilling» (ansattRolle som tekst) + «Tilgang» (Systemadmin/Firmaadmin/Bruker-badges basert på `User.role === "sitedoc_admin"` eller `firmaRoller.includes("firma_admin")`).
+- Legacy `endreRolle`-dropdown fjernet — alle endringer går nå via rediger-modalen.
+- `RedigerModal`: ny `ansattRolle`-dropdown (4 verdier) + `erFirmaAdmin`-checkbox. Lagre-knappen kaller `oppdaterBruker` først, deretter `settFirmaAdmin` hvis admin-status endres.
+- `InviterModal`: samme to nye felter, sendes til `inviterBruker`.
+
+**i18n:** 17 nye nøkler i `nb.json` + `en.json`, 3 utdaterte fjernet (`inviter.rolle*`). Auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil). Ingen schema-endring.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole DEPLOYET TIL PROD 2026-05-13 (prod-commit `fe1d703d`, migration applied 22:36:32)
 
 Siste PR i O-5-bunken. Dropper de tre legacy User-feltene fra Prisma-skjema og DB, og dropper `OrganizationRole`-tabellen helt. Etter merge + deploy er OrganizationMember-refaktoren komplett.
 
@@ -176,7 +201,7 @@ DROP TABLE IF EXISTS "organization_roles";
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff IMPLEMENTERT på feature/org-member-o5b-fix 2026-05-13
+### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff DEPLOYET TIL PROD 2026-05-13 (prod-commit `fe1d703d`)
 
 Oppfølger til O-5b etter at full-codebase-grep avdekket 11 ytterligere User.organizationId/User.ansattnummer-lesinger eller -skrivinger som ikke ble fanget i O-5b. O-5b-grep var begrenset til mønstre som inkluderte `User.organizationId`-strenger direkte; treff som `where: { organizationId: orgId }` i `User.findMany`/`User.create`-data ble forbi.
 
@@ -208,7 +233,7 @@ Verifisert: `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (ku
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes IMPLEMENTERT på feature/org-member-o5b 2026-05-13
+### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes DEPLOYET TIL PROD 2026-05-13 (prod-commit `54d917d9`)
 
 Andre sub-PR av O-5. Fjerner alle gjenværende direkte `User.organizationId`- og `User.ansattnummer`-lesinger fra routes (de som ikke fulgte O-5a-mønstret med lokal `hentBrukerOrgId`). Ingen schema-endring, ingen klient-endring. Klargjør for O-5c som dropper `User.organizationId` + `User.ansattnummer` + `OrganizationRole`-tabellen.
 
@@ -231,7 +256,7 @@ Verifisert: `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (ku
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput IMPLEMENTERT på feature/org-member-o5a 2026-05-13
+### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput DEPLOYET TIL PROD 2026-05-13 (prod-commit `95500003`)
 
 Femte PR i OrganizationMember-refaktoren. Fjerner alle O-5-merkede dual-read-fallbacks i `tilgangskontroll.ts` og refaktorerer 8 routes som hadde lokal `hentBrukerOrgId`-duplikatkode til å bruke nye sentrale hjelpere. Ingen schema-endring, ingen klient-endring.
 
@@ -459,6 +484,8 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - `eslint-config-next` MÅ matche Next.js-versjonen (v14)
 - Ikon-props: `JSX.Element` (ikke `React.ReactNode`) for å unngå `@types/react` v18/v19-kollisjon
 - tRPC mutation-callbacks: `_data: unknown` for å unngå TS2589
+- **tRPC-include TS2589-fallgruve:** `user: { include: { organization } }` eller `user: true` triggrer «Type instantiation excessively deep» i tRPC-klient. Bruk alltid eksplisitt `user: { select: { id, name, ... } }`. Lærdom fra O-5c 2026-05-13 (`MapperPanel.tsx:154`).
+- **Prisma-felt-cleanup-verifikasjon:** grep alene er ikke pålitelig — filtrerer ut `where: { felt: ... }` med `-v "felt:"`. Kjør alltid `npx tsc --noEmit` etter schema-endring og bruk typecheck som sannhetskilde for gjenstående bruks-steder. Lærdom fra O-5b → O-5b-fix → O-5c (grep ga to oversette runder).
 - Prisma-migreringer: `pnpm --filter @sitedoc/db exec prisma migrate dev`
 
 ## UI-designprinsipper

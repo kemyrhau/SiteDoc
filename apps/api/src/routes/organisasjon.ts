@@ -40,7 +40,7 @@ export const organisasjonRouter = router({
   /**
    * Hent firmaer brukeren kan administrere — for global firma-velger i Toppbar.
    * - sitedoc_admin: alle firmaer
-   * - company_admin: kun eget firma
+   * - firma-admin (OrganizationMember.firmaRoller har "firma_admin"): kun eget firma
    * - vanlig user: tom liste (firma-velger ikke relevant — admin-funksjon)
    */
   hentTilgjengelige: protectedProcedure.query(async ({ ctx }) => {
@@ -72,7 +72,6 @@ export const organisasjonRouter = router({
     };
 
     if (bruker.role === "sitedoc_admin") {
-      // Skall-firmaer (erKunde=false) skjules — kun reelle kundefirmaer i velgeren.
       const orgs = await ctx.prisma.organization.findMany({
         where: { erKunde: true },
         select: { id: true, name: true, erKunde: true },
@@ -81,17 +80,21 @@ export const organisasjonRouter = router({
       return beriker(orgs);
     }
 
-    // O-3b: hent brukerens org via OrganizationMember (fallback User.organizationId)
-    const orgId = await hentBrukersOrg(ctx.userId);
-    if (bruker.role === "company_admin" && orgId) {
-      const orgs = await ctx.prisma.organization.findMany({
-        where: { id: orgId },
-        select: { id: true, name: true, erKunde: true },
-      });
-      return beriker(orgs);
-    }
+    const adminMedlemskap = await ctx.prisma.organizationMember.findMany({
+      where: {
+        userId: ctx.userId,
+        firmaRoller: { has: "firma_admin" },
+      },
+      select: { organizationId: true },
+    });
+    if (adminMedlemskap.length === 0) return [];
 
-    return [];
+    const orgs = await ctx.prisma.organization.findMany({
+      where: { id: { in: adminMedlemskap.map((m) => m.organizationId) } },
+      select: { id: true, name: true, erKunde: true },
+      orderBy: { name: "asc" },
+    });
+    return beriker(orgs);
   }),
 
   // Opprett ny organisasjon
@@ -313,59 +316,71 @@ export const organisasjonRouter = router({
     }));
   }),
 
-  // Endre rolle for en bruker i organisasjonen (kun firmaadmin)
-  endreRolle: protectedProcedure
+  // Sett eller fjern firma_admin-rollen for en bruker (kun firmaadmin).
+  // Skriver til OrganizationMember.firmaRoller — eneste sannhetskilde etter O-5c.
+  // Erstatter den tidligere endreRolle som skrev til User.role.
+  settFirmaAdmin: protectedProcedure
     .input(
       z.object({
-        userId: z.string(),
-        rolle: z.enum(["user", "company_admin"]),
+        userId: z.string().uuid(),
         organizationId: z.string().uuid(),
+        erAdmin: z.boolean(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
-      // Verifiser at målbrukeren tilhører samme organisasjon
-      // O-3b: hent målbrukerens org via OrganizationMember (fallback User.organizationId)
-      const målbrukerOrgId = await hentBrukersOrg(input.userId);
-      const målbruker = await ctx.prisma.user.findUnique({
-        where: { id: input.userId },
-        select: { role: true },
-      });
-
-      if (!målbruker || målbrukerOrgId !== orgId) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Brukeren tilhører ikke din organisasjon",
-        });
-      }
-
-      // Kan ikke endre sitedoc_admin
-      if (målbruker.role === "sitedoc_admin") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Kan ikke endre rolle for systemadministrator",
-        });
-      }
-
-      // Kan ikke degradere seg selv
-      if (input.userId === ctx.userId && input.rolle !== "company_admin") {
+      if (input.userId === ctx.userId && !input.erAdmin) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Du kan ikke fjerne din egen admin-rolle",
+          message: "Du kan ikke fjerne din egen firma-admin-rolle",
         });
       }
 
-      return ctx.prisma.user.update({
-        where: { id: input.userId },
-        data: { role: input.rolle },
-        select: { id: true, role: true },
+      const member = await ctx.prisma.organizationMember.findUnique({
+        where: {
+          userId_organizationId: { userId: input.userId, organizationId: orgId },
+        },
+        select: {
+          id: true,
+          firmaRoller: true,
+          user: { select: { role: true } },
+        },
       });
+
+      if (!member) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Brukeren tilhører ikke firmaet",
+        });
+      }
+
+      if (member.user.role === "sitedoc_admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kan ikke endre systemadministrator",
+        });
+      }
+
+      const har = member.firmaRoller.includes("firma_admin");
+      if (input.erAdmin && !har) {
+        await ctx.prisma.organizationMember.update({
+          where: { id: member.id },
+          data: { firmaRoller: [...member.firmaRoller, "firma_admin"] },
+        });
+      } else if (!input.erAdmin && har) {
+        await ctx.prisma.organizationMember.update({
+          where: { id: member.id },
+          data: { firmaRoller: member.firmaRoller.filter((r) => r !== "firma_admin") },
+        });
+      }
+      return { ok: true };
     }),
 
   // Inviter ny bruker til firmaet (firma-admin)
-  // Oppretter User direkte med organizationId + rolle. Bruker logger inn via OAuth
-  // (Google/Microsoft) med matchende e-post første gang.
+  // Oppretter User med canLogin = true og en OrganizationMember-rad. Bruker logger
+  // inn via OAuth (Google/Microsoft) med matchende e-post første gang.
+  // Stilling (ansattRolle) og firma-admin-status eies av OrganizationMember.
   inviterBruker: protectedProcedure
     .input(
       z.object({
@@ -373,12 +388,17 @@ export const organisasjonRouter = router({
         navn: z.string().min(1).max(200),
         email: z.string().email(),
         telefon: z.string().max(50).optional(),
-        rolle: z.enum(["user", "company_admin"]),
         ansattnummer: z.string().max(50).optional(),
+        ansattRolle: z
+          .enum(["ansatt", "bas", "prosjektleder", "daglig_leder"])
+          .optional(),
+        erFirmaAdmin: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      const ansattRolle = input.ansattRolle ?? "ansatt";
+      const firmaRoller = input.erFirmaAdmin ? ["firma_admin"] : [];
 
       const eksisterende = await ctx.prisma.user.findFirst({
         where: { email: input.email, canLogin: true },
@@ -387,7 +407,6 @@ export const organisasjonRouter = router({
       });
 
       if (eksisterende) {
-        // O-3b: hent eksisterende brukers org via OrganizationMember (fallback User.organizationId)
         const eksisterendeOrgId = await hentBrukersOrg(eksisterende.id);
         if (eksisterendeOrgId === orgId) {
           throw new TRPCError({
@@ -401,27 +420,29 @@ export const organisasjonRouter = router({
             message: "Brukeren tilhører et annet firma",
           });
         }
-        // Orphan-bruker — adopter inn i firmaet via OrganizationMember (under)
+        // Orphan-bruker — adopter inn i firmaet via OrganizationMember
         const adoptert = await ctx.prisma.user.update({
           where: { id: eksisterende.id },
           data: {
-            role: input.rolle,
             ...(input.telefon ? { phone: input.telefon } : {}),
           },
           select: { id: true, name: true, email: true, role: true },
         });
 
-        // O-4b: opprett/oppdater OrganizationMember-rad (firmaRoller speiler legacy role)
         await ctx.prisma.organizationMember.upsert({
           where: { userId_organizationId: { userId: adoptert.id, organizationId: orgId } },
           create: {
             userId: adoptert.id,
             organizationId: orgId,
             ansattnummer: input.ansattnummer ?? null,
-            ansattRolle: "ansatt",
-            firmaRoller: input.rolle === "company_admin" ? ["firma_admin"] : [],
+            ansattRolle,
+            firmaRoller,
           },
-          update: { ansattnummer: input.ansattnummer ?? null },
+          update: {
+            ansattnummer: input.ansattnummer ?? null,
+            ansattRolle,
+            firmaRoller,
+          },
         });
 
         return adoptert;
@@ -432,30 +453,28 @@ export const organisasjonRouter = router({
           email: input.email,
           name: input.navn,
           phone: input.telefon,
-          role: input.rolle,
+          role: "user",
           canLogin: true,
         },
         select: { id: true, name: true, email: true, role: true },
       });
 
-      // O-4b: opprett OrganizationMember-rad for ny bruker
-      await ctx.prisma.organizationMember.upsert({
-        where: { userId_organizationId: { userId: opprettet.id, organizationId: orgId } },
-        create: {
+      await ctx.prisma.organizationMember.create({
+        data: {
           userId: opprettet.id,
           organizationId: orgId,
           ansattnummer: input.ansattnummer ?? null,
-          ansattRolle: "ansatt",
-          firmaRoller: input.rolle === "company_admin" ? ["firma_admin"] : [],
+          ansattRolle,
+          firmaRoller,
         },
-        update: { ansattnummer: input.ansattnummer ?? null },
       });
 
       return opprettet;
     }),
 
   // Oppdater eksisterende firma-bruker (firma-admin)
-  // Kan endre navn, e-post, telefon og rolle. Sitedoc_admin er beskyttet.
+  // Kan endre navn, e-post, telefon, ansattnummer og stilling (ansattRolle).
+  // Firma-admin-status endres via settFirmaAdmin. Sitedoc_admin er beskyttet.
   oppdaterBruker: protectedProcedure
     .input(
       z.object({
@@ -464,14 +483,15 @@ export const organisasjonRouter = router({
         navn: z.string().min(1).max(200).optional(),
         email: z.string().email().optional(),
         telefon: z.string().max(50).nullable().optional(),
-        rolle: z.enum(["user", "company_admin"]).optional(),
         ansattnummer: z.string().max(50).optional(),
+        ansattRolle: z
+          .enum(["ansatt", "bas", "prosjektleder", "daglig_leder"])
+          .optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
 
-      // O-3b: hent målbrukerens org via OrganizationMember (fallback User.organizationId)
       const målbrukerOrgId = await hentBrukersOrg(input.userId);
       const målbruker = await ctx.prisma.user.findUnique({
         where: { id: input.userId },
@@ -489,13 +509,6 @@ export const organisasjonRouter = router({
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "Kan ikke endre systemadministrator",
-        });
-      }
-
-      if (input.userId === ctx.userId && input.rolle && input.rolle !== "company_admin") {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Du kan ikke fjerne din egen admin-rolle",
         });
       }
 
@@ -520,13 +533,10 @@ export const organisasjonRouter = router({
         name?: string;
         email?: string;
         phone?: string | null;
-        role?: string;
-        ansattnummer?: string | null;
       } = {};
       if (input.navn !== undefined) data.name = input.navn;
       if (input.email !== undefined) data.email = input.email;
       if (input.telefon !== undefined) data.phone = input.telefon;
-      if (input.rolle !== undefined) data.role = input.rolle;
 
       const oppdatert = await ctx.prisma.user.update({
         where: { id: input.userId },
@@ -534,19 +544,27 @@ export const organisasjonRouter = router({
         select: { id: true, name: true, email: true, phone: true, role: true },
       });
 
-      // ansattnummer eies av OrganizationMember (O-5b)
-      if (input.ansattnummer !== undefined) {
+      // ansattnummer + ansattRolle eies av OrganizationMember
+      if (input.ansattnummer !== undefined || input.ansattRolle !== undefined) {
+        const memberData: { ansattnummer?: string | null; ansattRolle?: string } = {};
+        if (input.ansattnummer !== undefined) memberData.ansattnummer = input.ansattnummer || null;
+        if (input.ansattRolle !== undefined) memberData.ansattRolle = input.ansattRolle;
         await ctx.prisma.organizationMember.updateMany({
           where: { userId: input.userId, organizationId: orgId },
-          data: { ansattnummer: input.ansattnummer || null },
+          data: memberData,
         });
       }
 
       const medlem = await ctx.prisma.organizationMember.findUnique({
         where: { userId_organizationId: { userId: input.userId, organizationId: orgId } },
-        select: { ansattnummer: true },
+        select: { ansattnummer: true, ansattRolle: true, firmaRoller: true },
       });
-      return { ...oppdatert, ansattnummer: medlem?.ansattnummer ?? null };
+      return {
+        ...oppdatert,
+        ansattnummer: medlem?.ansattnummer ?? null,
+        ansattRolle: medlem?.ansattRolle ?? "ansatt",
+        firmaRoller: medlem?.firmaRoller ?? [],
+      };
     }),
 
   // Tildel granulær firma-rolle (per A.25 — f.eks. "hms_ansvarlig")

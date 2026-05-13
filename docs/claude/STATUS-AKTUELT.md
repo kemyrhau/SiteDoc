@@ -328,7 +328,42 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
-### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole IMPLEMENTERT på feature/org-member-o5c 2026-05-13
+### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte IMPLEMENTERT på feature/ansattrolle-ui 2026-05-13
+
+Oppfølger til O-5-bunken. Lukker konsistens-hullet hvor dagens UI skrev `User.role = "company_admin"` uten å speile til `OrganizationMember.firmaRoller`. Etter O-5c er `firmaRoller` eneste sannhetskilde, men 25/26 OrganizationMember-rader i test hadde fortsatt `firmaRoller = []` fordi `endreRolle`-UI-en bare skrev til legacy `User.role`. Denne PR-en sluker hullet og synliggjør `ansattRolle` + `firmaRoller` i UI-en.
+
+**Backfill-script (`packages/db/scripts/backfill-firma-admin-roller.ts`):**
+- Setter `firmaRoller = ["firma_admin"]` for alle OrganizationMember-rader der `User.role === "company_admin"` og rollen ikke allerede er satt
+- Idempotent — hopper over rader som allerede har `firma_admin`
+- Kjør på test etter deploy: `pnpm --filter @sitedoc/db exec tsx scripts/backfill-firma-admin-roller.ts`
+
+**Server-endringer (`apps/api/src/routes/organisasjon.ts`):**
+- **Slettet:** `endreRolle`-mutation (skrev kun til legacy `User.role`)
+- **Ny:** `settFirmaAdmin({ userId, organizationId, erAdmin })` — skriver til `OrganizationMember.firmaRoller` (tilfter/fjerner `"firma_admin"` idempotent). Selv-degraderingsbeskyttelse + sitedoc_admin-beskyttelse beholdt
+- **Utvidet:** `oppdaterBruker` — fjernet `rolle`-feltet (flyttet til `settFirmaAdmin`), lagt til `ansattRolle: enum("ansatt","bas","prosjektleder","daglig_leder")`. Skriver `ansattRolle` til `OrganizationMember`. Respons utvidet med `ansattRolle` + `firmaRoller`
+- **Utvidet:** `inviterBruker` — byttet `rolle: enum` til `erFirmaAdmin: boolean` + ny `ansattRolle: enum`. `User.role` hardcoded til `"user"` for nye brukere. `OrganizationMember` opprettes med `ansattRolle` + `firmaRoller` fra input
+- **Refaktorert:** `hentTilgjengelige` — leser nå firma-admin-medlemskap via `OrganizationMember.firmaRoller.includes("firma_admin")` (ikke `User.role === "company_admin"`). Støtter også flere firmaer per bruker (forberedelse for multi-org)
+
+**Web-endringer (`apps/web/src/app/dashbord/firma/ansatte/page.tsx`):**
+- Tabell har nå to nye kolonner: «Stilling» (ansattRolle som tekst) og «Tilgang» (Systemadmin / Firmaadmin / Bruker badges basert på `User.role === "sitedoc_admin"` eller `firmaRoller.includes("firma_admin")`)
+- Fjernet legacy `endreRolle`-dropdown i tabellen — alle endringer går nå gjennom rediger-modalen
+- `RedigerModal`: ny `ansattRolle`-dropdown (4 verdier) + `erFirmaAdmin`-checkbox. Lagre-knappen kaller `oppdaterBruker` først, deretter `settFirmaAdmin` hvis admin-status endres
+- `InviterModal`: samme to nye felter, sendes som del av `inviterBruker`-input
+- `BrukerRad`-typen uendret — `ansattRolle` + `firmaRoller` var allerede med fra O-4b
+
+**i18n:** 17 nye nøkler i nb/en (stilling-labels × 4, tilgang-badges × 3, kolonneheader × 5, firma-admin-checkbox × 2, tom/uten-navn × 2, stillingLabel × 1). Auto-oversatt til 13 språk via `packages/shared/src/i18n/generate.ts`. Fjernet 3 utdaterte nøkler (`inviter.rolle`, `inviter.rolle.user`, `inviter.rolle.companyAdmin`).
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil). Ingen schema-endring.
+
+**Migrasjons-rekkefølge ved deploy:**
+1. Push til develop → auto-deploy til test
+2. Kjør backfill-script mot test-DB
+3. Verifiser i nettleser som innlogget bruker (Kenneth) at firmaadmin-badge, stilling-kolonne, rediger-modal og invitér-modal fungerer
+4. Prod-deploy + backfill (når Kenneth godkjenner)
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole DEPLOYET TIL PROD 2026-05-13 (prod-commit `fe1d703d`, migration applied 22:36:32)
 
 **Siste PR i O-5-bunken.** Dropper tre legacy User-felter fra Prisma-skjemaet + DB, og dropper hele `OrganizationRole`-tabellen. Etter merge + prod-deploy er OrganizationMember-refaktoren komplett.
 
@@ -403,7 +438,7 @@ DROP TABLE IF EXISTS "organization_roles";
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff IMPLEMENTERT på feature/org-member-o5b-fix 2026-05-13
+### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff DEPLOYET TIL PROD 2026-05-13 (prod-commit `fe1d703d`)
 
 Oppfølger til O-5b etter at full-codebase-grep avdekket 11 ytterligere User.organizationId/User.ansattnummer-lesinger eller -skrivinger som ikke ble fanget i O-5b (grep var begrenset til mønstre som `User.organizationId` direkte — treff som `where: { organizationId: orgId }` i `User.findMany`/`User.create`-data ble forbi). Etter denne PR-en er det 0 gjenstående direkte lesinger eller skrivinger av disse feltene i `apps/api/src/`. **O-5c (schema-drop) er nå trygt fra et kode-perspektiv.**
 
@@ -451,7 +486,7 @@ Netto vekst dominert av `medlem.ts:147-162` der `OrganizationMember.upsert` er e
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes IMPLEMENTERT på feature/org-member-o5b 2026-05-13
+### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes DEPLOYET TIL PROD 2026-05-13 (prod-commit `54d917d9`)
 
 Andre sub-PR av O-5. Fjerner gjenværende `User.organizationId`- og `User.ansattnummer`-lesinger fra routes som ikke fulgte O-5a-mønstret (lokal `hentBrukerOrgId`). Ingen schema-endring, ingen klient-endring. Forberedelse for O-5c (schema-drop).
 
@@ -505,7 +540,7 @@ Netto vekst kommer fra dual-oppslag-mønsteret (User-felter + OrganizationMember
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput IMPLEMENTERT på feature/org-member-o5a 2026-05-13
+### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput DEPLOYET TIL PROD 2026-05-13 (prod-commit `95500003`)
 
 Femte PR i OrganizationMember-refaktoren. Første sub-PR av O-5 — fjerner alle dual-read-fallbacks fra `tilgangskontroll.ts` og refaktorerer 8 routes som hadde duplikat `hentBrukerOrgId`-kode. Ingen schema-endring, ingen klient-endring. Forberedelse for O-5b (Kategori B+C) og O-5c (schema-drop av `User.organizationId` + `OrganizationRole`-tabellen).
 

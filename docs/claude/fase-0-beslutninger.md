@@ -1783,7 +1783,11 @@ Kjøres etter hver merge til main. Rød test = arkitektur-feil, ikke kun kode-fe
 - [smartdok-undersokelse.md](smartdok-undersokelse.md) for empirisk grunnlag
 - [arkitektur-syntese.md](arkitektur-syntese.md) for helhetlig produktarkitektur
 
-## OrganizationMember-refaktor (låst 2026-05-12)
+## OrganizationMember-refaktor (låst 2026-05-12, **komplett 2026-05-13**)
+
+> **Komplett:** alle O-1 → O-5c deployet til prod 2026-05-13, prod-commit `fe1d703d`.
+> `User.organizationId`, `User.ansattnummer`, `User.avdelingId` og `OrganizationRole`-tabellen droppet fra DB. `OrganizationMember` er nå eneste sannhetskilde for firma-medlemskap, ansattnummer og avdelingsskap. `User.email` globalt unik.
+
 
 ### Beslutning
 
