@@ -26,7 +26,7 @@ const navigasjon: NavElement[] = [
     ikon: <FolderKanban className="h-4 w-4" />,
   },
   {
-    label: "Brukere",
+    label: "Ansatte",
     href: "/dashbord/firma/ansatte",
     ikon: <Users className="h-4 w-4" />,
   },
