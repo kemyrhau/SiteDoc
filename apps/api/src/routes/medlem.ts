@@ -23,8 +23,16 @@ export const medlemRouter = router({
         where: { projectId: input.projectId },
         include: {
           user: {
-            include: {
-              organization: { select: { id: true, name: true } },
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              phone: true,
+              role: true,
+              canLogin: true,
+              language: true,
+              hmsKortNr: true,
+              hmsKortUtloper: true,
             },
           },
           faggruppeKoblinger: {

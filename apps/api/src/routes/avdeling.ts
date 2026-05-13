@@ -43,13 +43,17 @@ export const avdelingRouter = router({
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
     const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
-    return ctx.prisma.avdeling.findMany({
+    const avdelinger = await ctx.prisma.avdeling.findMany({
       where: { organizationId: orgId },
       include: {
-        _count: { select: { brukere: true } },
+        _count: { select: { organizationMembers: true } },
       },
       orderBy: { navn: "asc" },
     });
+    return avdelinger.map((a) => ({
+      ...a,
+      _count: { brukere: a._count.organizationMembers },
+    }));
   }),
 
   // Opprett ny avdeling
@@ -134,7 +138,7 @@ export const avdelingRouter = router({
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       await hentAvdelingForFirma(input.id, orgId);
 
-      const antallBrukere = await ctx.prisma.user.count({
+      const antallBrukere = await ctx.prisma.organizationMember.count({
         where: { avdelingId: input.id },
       });
 

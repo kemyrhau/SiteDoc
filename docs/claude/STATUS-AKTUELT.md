@@ -328,6 +328,81 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole IMPLEMENTERT på feature/org-member-o5c 2026-05-13
+
+**Siste PR i O-5-bunken.** Dropper tre legacy User-felter fra Prisma-skjemaet + DB, og dropper hele `OrganizationRole`-tabellen. Etter merge + prod-deploy er OrganizationMember-refaktoren komplett.
+
+**Schema-endringer (`packages/db/prisma/schema.prisma`):**
+- `User`: fjernet `organizationId String?` + `organization Organization?`-relasjon + `ansattnummer String?` + `avdelingId String?` + `avdeling Avdeling?`-relasjon + `organizationRoles OrganizationRole[]`-relasjon. Composite uniques (`@@unique([email, organizationId])` + `@@unique([phone, organizationId])`) erstattet med `email @unique` direkte på feltet. Indekser `@@index([organizationId])` + `@@index([avdelingId])` fjernet.
+- `Organization`: fjernet `users User[]`-back-relasjon + `organizationRoles OrganizationRole[]`-back-relasjon.
+- `Avdeling`: fjernet `brukere User[]`-back-relasjon. `organizationMembers OrganizationMember[]` beholdes (lagt til i O-4a).
+- `OrganizationRole`-modellen: fjernet komplett.
+
+**Migration `20260513210000_o5c_drop_user_org_fields`:**
+
+```sql
+-- Fjern composite uniques
+ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_email_organization_id_key";
+ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_phone_organization_id_key";
+-- Global email-unique
+ALTER TABLE "users" ADD CONSTRAINT "users_email_key" UNIQUE ("email");
+-- Dropp tre kolonner + FK + indeks
+ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_organization_id_fkey";
+DROP INDEX IF EXISTS "users_organization_id_idx";
+ALTER TABLE "users" DROP COLUMN IF EXISTS "organization_id";
+ALTER TABLE "users" DROP COLUMN IF EXISTS "ansattnummer";
+ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_avdeling_id_fkey";
+DROP INDEX IF EXISTS "users_avdeling_id_idx";
+ALTER TABLE "users" DROP COLUMN IF EXISTS "avdeling_id";
+-- Dropp OrganizationRole-tabellen (0 rader prod-verifisert)
+DROP TABLE IF EXISTS "organization_roles";
+```
+
+**Routes-endringer (5 callsites Prisma typecheck avdekket — ikke fanget i grep i O-5a/b/b-fix fordi de brukte `organizationId: true` i select i stedet for å lese feltet eksplisitt):**
+
+| Fil | Funksjon | Endring |
+|-----|----------|---------|
+| `admin.ts:402-418` | `hentAlleBrukere` (sitedoc_admin) | To-trinns oppslag: User.findMany + OrganizationMember.findMany med organization-include. Klient-respons med `organizationId`/`organization`-felter bygget via map |
+| `admin.ts:577-600` | `hentImpersoneringStatus` | Samme to-trinns-pattern. `target.organizationId` + `target.organization.name` bevart |
+| `avdeling.ts:42-58` | `hentAlle` | `_count.brukere` → `_count.organizationMembers` med mapping for å bevare `_count.brukere` i klient-respons |
+| `avdeling.ts:135-148` | `slett` konflikt-sjekk | `User.count({ avdelingId })` → `OrganizationMember.count({ avdelingId })` |
+| `bruker.ts:15-28` | `hentMin` | To-trinns oppslag. Klient-respons med `organizationId` bevart |
+| `medlem.ts:17-36` | `hentForProsjekt` | `user`-include endret fra `{ include: { organization } }` til eksplisitt `select`. Organization-relasjon fjernet (0 klient-bruk verifisert). Måtte bruke `select` ikke `user: true` for å unngå TS2589 |
+
+**TS2589-lærdom:** Endring fra `user: { include: { organization } }` til `user: true` triggret TS2589 «Type instantiation is excessively deep» i `MapperPanel.tsx`. `user: true` velger ALLE User-felter inkludert komplette relasjoner i typedefinisjon, mens `user: { select: {...} }` er begrenset til de spesifikke feltene. Mønster å bruke fremover: eksplisitt `select` på `user`-include i tRPC-routes.
+
+**Linjer endret per fil:**
+
+| Fil | + | - | Notat |
+|-----|---|---|-------|
+| `schema.prisma` | 9 | 56 | -47 (faktisk slett av felt, relasjoner, indekser, modell) |
+| `admin.ts` | 25 | 14 | +11 (to-trinns-pattern, lengre kode) |
+| `avdeling.ts` | 7 | 3 | +4 |
+| `bruker.ts` | 8 | 8 | 0 |
+| `medlem.ts` | 10 | 2 | +8 (eksplisitt user-select-liste) |
+| `migration.sql` | 27 (ny fil) | — | — |
+| **Sum kode** | **59** | **83** | **-24 linjer kode** |
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil).
+
+**Verifikasjons-rekkefølge ved deploy:**
+1. Push til develop → auto-deploy til test → `prisma migrate deploy` kjører `20260513210000_o5c_drop_user_org_fields` mot `sitedoc_test`.
+2. **Manuell browser-verifisering på test som innlogget bruker** før prod-deploy. Spesielt:
+   - `/dashbord/firma/ansatte` — listing av ansatte (hentBrukere via OrganizationMember)
+   - `/dashbord/firma/kompetanse` — kompetansematrise + opprett kompetanse
+   - `/dashbord/firma/avdelinger` — avdeling-liste med `_count.brukere`
+   - `/dashbord/admin/firmaer` — sitedoc_admin firma-oversikt
+   - `/dashbord/admin/brukere` — sitedoc_admin bruker-oversikt
+   - sitedoc_admin-impersonering av kunde-bruker
+   - Invitere/oppdatere medlem (OrganizationMember.upsert)
+3. Prod-deploy: `prisma migrate deploy` mot `sitedoc`. **Etter migration er kolonnene fjernet permanent — ingen rollback mulig uten DB-backup.**
+
+**Etter prod-deploy: O-5-bunken er komplett.** OrganizationMember er nå eneste sannhetskilde for firma-medlemskap, ansattnummer og avdelingsskap. `User.role` beholdes som system-rolle (kun for `sitedoc_admin`). `User.email` er nå globalt unik (var composite med `organizationId`).
+
+**Konsekvens for fremtidig multi-org:** Composite-unique-pattern er borte. Hvis multi-org skal støttes senere (én User i flere firmaer samtidig), må User.email forbli unik globalt — men OrganizationMember kan ha flere rader per User. `hentBrukersOrg`-helper kaster `BAD_REQUEST` ved multiple OM-rader inntil O-4 introduserer primær-org-flagg. Dette designet er forberedt på multi-org uten datamodell-endring.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff IMPLEMENTERT på feature/org-member-o5b-fix 2026-05-13
 
 Oppfølger til O-5b etter at full-codebase-grep avdekket 11 ytterligere User.organizationId/User.ansattnummer-lesinger eller -skrivinger som ikke ble fanget i O-5b (grep var begrenset til mønstre som `User.organizationId` direkte — treff som `where: { organizationId: orgId }` i `User.findMany`/`User.create`-data ble forbi). Etter denne PR-en er det 0 gjenstående direkte lesinger eller skrivinger av disse feltene i `apps/api/src/`. **O-5c (schema-drop) er nå trygt fra et kode-perspektiv.**

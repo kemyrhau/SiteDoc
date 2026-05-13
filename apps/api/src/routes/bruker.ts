@@ -16,16 +16,16 @@ export const brukerRouter = router({
   // brukes til å skjule/vise admin-knapper på klient
   hentMin: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.userId) return null;
-    return ctx.prisma.user.findUnique({
+    const user = await ctx.prisma.user.findUnique({
       where: { id: ctx.userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        organizationId: true,
-      },
+      select: { id: true, name: true, email: true, role: true },
     });
+    if (!user) return null;
+    const medlem = await ctx.prisma.organizationMember.findFirst({
+      where: { userId: ctx.userId },
+      select: { organizationId: true },
+    });
+    return { ...user, organizationId: medlem?.organizationId ?? null };
   }),
 
   hentSpraak: protectedProcedure.query(async ({ ctx }) => {
