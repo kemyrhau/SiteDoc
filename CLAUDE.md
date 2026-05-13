@@ -117,6 +117,28 @@ Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansat
 
 Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
 
+### PR O-4b hentBrukere via OrganizationMember + ansatte-rename IMPLEMENTERT på feature/org-member-o4b 2026-05-12
+
+Andre sub-PR av O-4. Bytter routes som leser/skriver `User.ansattnummer` til å gå via `OrganizationMember`, og renamer `firma/brukere` til `firma/ansatte`.
+
+API (`apps/api/src/routes/`):
+- `organisasjon.hentBrukere` leser nå via `prisma.organizationMember.findMany` med nested `user`-relasjon. Returnerer ny form med `memberId`, `avdelingId`, `ansattRolle`, `firmaRoller`, `createdAt` i tillegg til gamle User-felter.
+- `organisasjon.inviterBruker` opprettholder dual-write: oppretter/oppdaterer både `User`-raden (for legacy `User.ansattnummer` + `User.organizationId`-fallback) og en `OrganizationMember.upsert` med riktig `ansattnummer` + `firmaRoller` (basert på `role === "company_admin"`).
+- `organisasjon.oppdaterBruker` speiler `ansattnummer`-endringer til `OrganizationMember` via `updateMany` etter `User.update`.
+- `kompetanse.ts` (to blokker): bytter `User.findMany` med `OrganizationMember.findMany` for ansattnummer-matching ved CSV/Excel-import. `name`-feltet ble ikke brukt downstream — fjernet fra select.
+
+Web (`apps/web/src/app/dashbord/firma/`):
+- Mappe `brukere/` → `ansatte/` (`git mv`).
+- `BrukerRad`-typen i page.tsx utvidet med `createdAt`, `memberId`, `avdelingId`, `ansattRolle`, `firmaRoller`.
+- Lenker i `firma/layout.tsx` og `firma/page.tsx` peker nå til `/dashbord/firma/ansatte`.
+
+i18n (15 språk × ~13 nøkler):
+- `firma.brukere.*` → `firma.ansatte.*` i alle 15 språkfiler (verdiene/oversettelsene er urørt — kun nøkkel-rename).
+
+Verifisert: `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (etter rydding av stale `.next/types`-cache fra gammel sti). Mobil ikke berørt.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR O-4a avdelingId på OrganizationMember IMPLEMENTERT på feature/org-member-o4a 2026-05-12
 
 Første del av O-4 — flytting av felt fra `User` til `OrganizationMember`. Additiv: feltet legges til på OrganizationMember (nullable), backfylles fra `User.avdelingId`. `User.avdelingId` beholdes for dual-read; droppes i O-5.
