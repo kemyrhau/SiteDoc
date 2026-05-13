@@ -403,18 +403,20 @@ export const adminRouter = router({
   hentAlleBrukere: protectedProcedure.query(async ({ ctx }) => {
     await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-    return ctx.prisma.user.findMany({
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        role: true,
-        organizationId: true,
-        organization: { select: { id: true, name: true } },
-        createdAt: true,
-      },
+    const users = await ctx.prisma.user.findMany({
+      select: { id: true, name: true, email: true, role: true, createdAt: true },
       orderBy: { createdAt: "desc" },
     });
+    const medlemmer = await ctx.prisma.organizationMember.findMany({
+      where: { userId: { in: users.map((u) => u.id) } },
+      select: { userId: true, organization: { select: { id: true, name: true } } },
+    });
+    const orgMap = new Map(medlemmer.map((m) => [m.userId, m.organization]));
+    return users.map((u) => ({
+      ...u,
+      organizationId: orgMap.get(u.id)?.id ?? null,
+      organization: orgMap.get(u.id) ?? null,
+    }));
   }),
 
   // --------------------------------------------------------------------------
@@ -575,14 +577,23 @@ export const adminRouter = router({
   hentImpersoneringStatus: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.imperseringAktiv) return { aktiv: false } as const;
 
-    const target = await ctx.prisma.user.findUnique({
+    const user = await ctx.prisma.user.findUnique({
       where: { id: ctx.userId },
-      select: { id: true, name: true, email: true, role: true, organizationId: true, organization: { select: { name: true } } },
+      select: { id: true, name: true, email: true, role: true },
+    });
+    if (!user) return { aktiv: false } as const;
+    const medlem = await ctx.prisma.organizationMember.findFirst({
+      where: { userId: ctx.userId },
+      select: { organization: { select: { id: true, name: true } } },
     });
     return {
       aktiv: true as const,
-      target,
-      utloperVed: null as null | string, // klient leser session direkte ikke nødvendig
+      target: {
+        ...user,
+        organizationId: medlem?.organization.id ?? null,
+        organization: medlem ? { name: medlem.organization.name } : null,
+      },
+      utloperVed: null as null | string,
     };
   }),
 

@@ -8,18 +8,15 @@ datasource db {
 }
 
 model User {
-  id             String    @id @default(uuid())
-  name           String?
-  // email forblir NOT NULL i Fase 0 (alle har e-post per kunde-bekreftelse).
-  // @unique er erstattet av composite @@unique([email, organizationId]) per B.7.
-  email          String
-  emailVerified  DateTime? @map("email_verified")
-  image          String?
-  phone          String?
-  role           String    @default("user") // "user" | "company_admin" | "sitedoc_admin"
-  language       String    @default("nb") // nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv
-  tabelloppsett  Json?     @map("tabelloppsett") // { [liste]: { kolonner, bredder, sortering } }
-  organizationId String?   @map("organization_id")
+  id            String    @id @default(uuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified")
+  image         String?
+  phone         String?
+  role          String    @default("user") // "user" | "company_admin" | "sitedoc_admin"
+  language      String    @default("nb") // nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv
+  tabelloppsett Json?     @map("tabelloppsett") // { [liste]: { kolonner, bredder, sortering } }
 
   // Per A.10 — to bruksområder: data-mottaker uten innloggings-tilgang OG arkivert User-rad ved org-bytte
   canLogin Boolean @default(true) @map("can_login")
@@ -32,18 +29,9 @@ model User {
   arbeidstillatelse        String? // "permanent" | "midlertidig" | null (ingen CHECK i Fase 0)
   arbeidstillatelseUtloper DateTime? @map("arbeidstillatelse_utloper")
 
-  // Per § E steg 13
-  ansattnummer String?
-
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  // Per Fase 0.5 § 1 + C.11 — firma-intern organisatorisk inndeling.
-  // SetNull: sletting av Avdeling skal ikke slette brukere.
-  avdelingId String? @map("avdeling_id")
-
-  organization            Organization?           @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  avdeling                Avdeling?               @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
   organizationMembers     OrganizationMember[]
   accounts                Account[]
   sessions                Session[]
@@ -55,7 +43,6 @@ model User {
   bestilteGodkjenninger   Godkjenning[]           @relation("GodkjenningCreator")
   eideGodkjenninger       Godkjenning[]           @relation("GodkjenningOwner")
   godkjenteGodkjenninger  Godkjenning[]           @relation("GodkjenningGodkjenner")
-  organizationRoles       OrganizationRole[]
   sentTransfers           DocumentTransfer[]      @relation("TransferSender")
   receivedTransfers       DocumentTransfer[]      @relation("TransferRecipient")
   recipientChecklists     Checklist[]             @relation("ChecklistRecipient")
@@ -71,13 +58,6 @@ model User {
   kontrollplanHistorikk   KontrollplanHistorikk[]
   kompetanser             AnsattKompetanse[]
 
-  // Per B.7 — én User per (person × firma). Composite unique tillater Joakim
-  // å ha én User-rad per firma han jobber i.
-  @@unique([email, organizationId])
-  // Per B.7-utvidelse — forberedende for multi-identifikator-auth (telefon-only-bruker)
-  @@unique([phone, organizationId])
-  @@index([organizationId])
-  @@index([avdelingId])
   @@map("users")
 }
 
@@ -96,7 +76,6 @@ model Organization {
   createdAt          DateTime @default(now()) @map("created_at")
   updatedAt          DateTime @updatedAt @map("updated_at")
 
-  users               User[]
   members             OrganizationMember[]
   projects            ProjectOrganization[]
   primaryProjects     Project[]                 @relation("ProjectPrimaryOrg")
@@ -105,7 +84,6 @@ model Organization {
   partners            OrganizationPartner[]
   templates           OrganizationTemplate[]
   externalCostObjects ExternalCostObject[]
-  organizationRoles   OrganizationRole[]
   integrations        OrganizationIntegration[]
   setting             OrganizationSetting?
   avdelinger          Avdeling[]
@@ -1830,30 +1808,6 @@ model ExternalCostObject {
 }
 
 // ---------------------------------------------------------------------------
-// OrganizationRole — granulære firma-roller (per A.25)
-// Per fase-0-beslutninger.md § E steg 14 + A.25.
-// Egen tabell (ikke utvidelse av User.role-enum) for skalerbarhet.
-// Første rolle: "hms_ansvarlig" (per A.27 — automatisk lese-tilgang til
-// HMS-rapporter på tvers av firmaets prosjekter).
-// Tildeles av firma-admin via organisasjon.tildelOrgRolle / fjernOrgRolle.
-// ---------------------------------------------------------------------------
-
-model OrganizationRole {
-  id             String   @id @default(uuid())
-  userId         String   @map("user_id")
-  organizationId String   @map("organization_id")
-  role           String // "hms_ansvarlig" — utvides etter behov
-  createdAt      DateTime @default(now()) @map("created_at")
-
-  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-
-  @@unique([userId, organizationId, role])
-  @@index([organizationId, role])
-  @@map("organization_roles")
-}
-
-// ---------------------------------------------------------------------------
 // Avdeling — firma-intern organisatorisk inndeling (Fase 0.5 § 1)
 // Per fase-0-beslutninger.md § C.11 + byggeplass-strategi.md § Avdeling.
 //
@@ -1874,7 +1828,6 @@ model Avdeling {
   updatedAt      DateTime @updatedAt @map("updated_at")
 
   organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  brukere             User[]
   organizationMembers OrganizationMember[]
 
   @@unique([organizationId, navn])
