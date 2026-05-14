@@ -110,7 +110,17 @@ Ingen treff på `pushvarsel`/`sms` i kode. Krever ny varslingstjeneste (SMS-leve
 
 ## Pågående arbeid
 
-### PR T7-2b3 settings-toggle for «Tillat redigering ved attestering» IMPLEMENTERT på feature/t7-2b3 2026-05-14
+### PR T7-2b3 settings-toggle for «Tillat redigering ved attestering» DEPLOYET TIL PROD 2026-05-14 (prod-commit `af4a7deb`)
+
+**T7-2b-bunken er nå komplett i prod:**
+
+| PR | Prod-commit | Innhold |
+|---|---|---|
+| T7-2b1 | `3234c057` | Per-rad-attestering + AttesteringDetalj-felleskomponent + firma-detalj-side |
+| T7-2b2 | `755c542a` | Edit-modus + `redigerSedelRader`-mutation + `parent_rad_id` + `tillatt_rediger_ved_attestering`-flagg (default false) |
+| T7-2b3 | `af4a7deb` | Settings-toggle for å skru flagget på |
+
+`tillatt_rediger_ved_attestering` er fortsatt false for alle firmaer i prod — Rediger-knappen er dormant overalt. Firma-admin kan skru på via `/dashbord/firma/innstillinger` ved behov.
 
 Siste sub-PR av T7-2b-bunken. Aktiverer firma-admin til å skru `OrganizationSetting.tillattRedigerVedAttestering` på/av via UI. Når flagget er true, viser Rediger-knappen seg i attestering-detalj-siden (T7-2b2). Default false — kunder må eksplisitt slå på.
 

@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} rows awaiting attestation",
   "timer.attestering.container.delvis": "{{attestert}} attested, {{returnert}} returned, {{pending}} pending of {{total}} rows",
   "timer.attestering.container.alleBehandlet": "All rows handled ({{attestert}} attested, {{returnert}} returned)",
+  "timer.attestering.redigerHint.tekst": "Want the company to correct hours directly during attestation?",
+  "timer.attestering.redigerHint.lenke": "Enable in Settings →",
   "timer.rediger.knapp": "Edit sheet",
   "timer.rediger.modus.tittel": "Edit mode",
   "timer.rediger.modus.beskrivelse": "You are editing all pending rows on the sheet directly. Originals are kept for reference. Changes are recorded in the audit log.",

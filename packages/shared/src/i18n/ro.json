@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} rânduri așteaptă atestarea",
   "timer.attestering.container.delvis": "{{attestert}} atestat, {{returnert}} returnat, {{pending}} în așteptare de {{total}} rânduri",
   "timer.attestering.container.alleBehandlet": "Toate rândurile gestionate ({{attestert}} atestat, {{returnert}} returnat)",
+  "timer.attestering.redigerHint.tekst": "Doriți ca compania să corecteze orele direct în timpul atestării?",
+  "timer.attestering.redigerHint.lenke": "Activați în Setări →",
   "timer.rediger.knapp": "Editați foaia",
   "timer.rediger.modus.tittel": "Modul de editare",
   "timer.rediger.modus.beskrivelse": "Editați direct toate rândurile în așteptare de pe foaie. Originalele sunt păstrate pentru referință. Modificările sunt înregistrate în jurnalul de audit.",

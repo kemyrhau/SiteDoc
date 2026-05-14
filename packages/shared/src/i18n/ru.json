@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} строк ожидают подтверждения",
   "timer.attestering.container.delvis": "{{attestert}} подтверждено, {{returnert}} возвращено, {{pending}} ожидается из {{total}} строк",
   "timer.attestering.container.alleBehandlet": "Все строки обработаны ({{attestert}} подтверждено, {{returnert}} возвращено)",
+  "timer.attestering.redigerHint.tekst": "Хотите, чтобы компания корректировала часы непосредственно во время аттестации?",
+  "timer.attestering.redigerHint.lenke": "Включить в настройках →",
   "timer.rediger.knapp": "Редактировать лист",
   "timer.rediger.modus.tittel": "Режим редактирования",
   "timer.rediger.modus.beskrivelse": "Вы редактируете все ожидающие строки непосредственно на листе. Оригиналы сохраняются для справки. Изменения фиксируются в журнале аудита.",

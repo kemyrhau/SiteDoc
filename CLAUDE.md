@@ -55,7 +55,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T7-2b3 settings-toggle for «Tillat redigering ved attestering» IMPLEMENTERT på feature/t7-2b3 2026-05-14
+### PR T7-2b3 settings-toggle for «Tillat redigering ved attestering» DEPLOYET TIL PROD 2026-05-14 (prod-commit `af4a7deb`)
 
 Siste sub-PR av T7-2b-bunken. Aktiverer firma-admin til å skru `OrganizationSetting.tillattRedigerVedAttestering` på/av via UI. Med flagget på vises Rediger-knappen fra T7-2b2 i attestering-detalj-siden. Default forblir false (mest restriktivt) — kunder må eksplisitt slå på.
 

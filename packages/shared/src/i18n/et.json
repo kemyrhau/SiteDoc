@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} rida ootavad kinnitust",
   "timer.attestering.container.delvis": "{{attestert}} kinnitatud, {{returnert}} tagastatud, {{pending}} ootel / {{total}} rida",
   "timer.attestering.container.alleBehandlet": "Kõik read käsitletud ({{attestert}} kinnitatud, {{returnert}} tagastatud)",
+  "timer.attestering.redigerHint.tekst": "Kas soovite, et ettevõte parandaks tööaegu otse atesteerimise ajal?",
+  "timer.attestering.redigerHint.lenke": "Luba menüüs Seaded →",
   "timer.rediger.knapp": "Redigeeri lehte",
   "timer.rediger.modus.tittel": "Redigeerimisrežiim",
   "timer.rediger.modus.beskrivelse": "Muudate otse lehel kõiki ootel ridu. Originaalid säilitatakse viitamiseks. Muudatused salvestatakse auditi logisse.",
