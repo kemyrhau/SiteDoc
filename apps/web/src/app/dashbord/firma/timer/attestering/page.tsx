@@ -165,15 +165,13 @@ export default function FirmaAttesteringSide() {
                   </td>
                   <td className="px-3 py-2">
                     <div className="flex items-center justify-end gap-1">
-                      {rad.prosjekt && (
-                        <Link
-                          href={`/dashbord/${rad.prosjekt.id}/timer/attestering/${rad.id}`}
-                          className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-                          title={t("timer.aapne")}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Link>
-                      )}
+                      <Link
+                        href={`/dashbord/firma/timer/attestering/${rad.id}`}
+                        className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                        title={t("timer.aapne")}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
                       <button
                         onClick={() => setReturnerId(rad.id)}
                         disabled={attester.isPending}

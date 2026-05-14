@@ -328,6 +328,45 @@ Mobil-Drizzle-schemaet speiler **gammel** server-modell der `dagsseddel_local.pr
 
 ## Pågående arbeid
 
+### PR T7-2b1 per-rad-attestering + felleskomponent AttesteringDetalj IMPLEMENTERT på feature/t7-2b1 2026-05-14
+
+Første sub-PR av T7-2b-bunken. Bytter attestering fra per-sedel til per-rad. Refaktorerer detalj-siden til projectId-løs felleskomponent som monteres fra både prosjekt- og firma-kontekst.
+
+**Bakgrunn:** T.3 Alt A låst i [fase-0-beslutninger.md § T.7](fase-0-beslutninger.md): «Leder attesterer kun sine rader; sedel er container uten egen attesterings-status.» PR 1B (2026-05-11) la `attestertStatus`/`attestertAvUserId`/`attestertVed` på rad-nivå i schema, men `attester`-mutationen var fortsatt per-sedel og brukte ikke feltene. Denne PR-en lukker gapet.
+
+**Schema-endring (`packages/db-timer/prisma/schema.prisma`):** Kun kommentar-rensk. Verdi-domenet i kommentar normalisert fra `"pending" | "godkjent" | "returnert"` til `"pending" | "attestert" | "returnert"` (norsk-konvensjon, følger «attestering ≠ godkjenning»-regelen). Ingen migrasjon kreves — null historiske rader er skrevet med `"godkjent"` (mutationen brukte ikke feltet).
+
+**Server-mutations (`apps/api/src/routes/timer/dagsseddel.ts`):**
+
+| Mutation | Type | Beskrivelse |
+|---|---|---|
+| `attesterRader` | Ny | Per-rad-attestering. Input: `{ radIder: { timerIder, tilleggIder, maskinIder } }`. Auth: én `krevProsjektLeder`-sjekk per unike `projectId` på tvers av valgte rader. Validerer at hver rad har `attestertStatus === "pending"`. Bygger pris-snapshot per rad i én transaksjon (Fase 0 A.7). Post-transaksjon: hvis alle rader på en sedel nå er `"attestert"`, settes `DailySheet.status = "accepted"`. Returnerer `{ antallAttestert, ferdigeSedler }`. |
+| `returnerRader` | Ny | Per-rad-retur. Input: samme `radIder` + `kommentar`. Setter rad-status til `"returnert"` + sedel-status til `"returned"` + lagrer kommentar på sedel-nivå. |
+| `hentForAttestering` | Utvidet auth | `krevProsjektLeder` som primær, `autoriserAdminForFirma` som fallback. Lar firma-admin-detalj-siden bruke samme query. |
+| `hentTilAttesteringFirma` | Utvidet | `include.maskiner: true` så klient kan vise fremdrift på tvers av alle tre rad-tabeller. |
+| `attester`/`returner` | `@deprecated` thin wrapper | Beholder bakoverkompatibilitet for mobil-app pre-T7-2b1 og T7-3. Kaller samme snapshot-logikk som tidligere. Fjernes ~1 uke etter klient-migrering. |
+
+**Klient-endringer (`apps/web`):**
+
+- **Ny felleskomponent** `src/components/timer/AttesteringDetalj.tsx` (~620 linjer). Tar `sheetId`, `prosjektKontekst?`, `tilbakeUrl`. Per-rad-checkbox-state via tre `Set<string>` (timer/tillegg/maskin). Pre-utvalg ved sideåpning: alle rader hvor `attestertStatus === "pending"` AND leder har tilgang. Per-rad-statusbadge (`pending`/`attestert`/`returnert`). Container-status-banner viser fremdrift («3 av 8 attestert»). Rader fra andre prosjekter i prosjekt-kontekst rendres disabled (kontekst, ikke valgbar).
+- **Wrapper-side prosjekt** `src/app/dashbord/[prosjektId]/timer/attestering/[id]/page.tsx`: 591 → ~50 linjer. Henter `kanAttestere` for prosjektet, monterer felleskomponenten med `prosjektKontekst={params.prosjektId}`.
+- **Wrapper-side firma** `src/app/dashbord/firma/timer/attestering/[id]/page.tsx`: ny (~60 linjer). Bruker `useFirma()` + `kanAttestereFirma`, monterer felleskomponenten projectId-løs.
+- **Firma-liste-lenke** `src/app/dashbord/firma/timer/attestering/page.tsx`: «Åpne»-knappen peker nå til `/dashbord/firma/timer/attestering/${rad.id}` istedenfor prosjekt-bundet ruten. Firma-admin uten prosjekt-medlemskap kan nå åpne detalj.
+
+**i18n:** 12 nye nøkler i `nb.json` + `en.json` (rad-status × 3, rad-valg-knapper/etiketter × 6, container-banner × 3). Auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil i `import-hjelpere.test.ts`). Ingen DB-migrasjon. Ingen klient-API-brudd (gamle mutations beholdt som thin wrappers).
+
+**Forventede begrensninger — kommer i etterfølgende PR-er:**
+- **T7-2b2:** Rad-splitting (én rad → flere med ulike prosjekt/ECO/lønnsart/fra-til). Krever ny `parentRadId`-kolonne + `splittRad`-mutation.
+- **T7-2b3:** `OrganizationSetting.tillattRedigerVedAttestering Boolean @default(false)` + direkte-rediger-mutations for firma-admin + Activity-tabell audit-log.
+- **Returnert→pending-reset:** Når arbeider sender returnert sedel på nytt (`sendTilAttestering`), tilbakestilles ikke `attestertStatus` på returnerte rader til `"pending"` automatisk. Egen oppfølger.
+- **Mobil:** T7-3 implementerer per-rad-attestering på mobil. Mobil bruker fortsatt thin-wrapper `attester`/`returner` inntil da.
+
+**Multi-prosjekt-sedler:** Hvis sedel har rader i prosjekt A (lederens) + B (ikke lederens), kan A-leder attestere sine 5 av 9 rader. Sedel-status forblir `"sent"` til alle 9 er attestert (eller én returneres → `"returned"`). Pending B-rader synes i firma-listen så firma-admin eller B-leder kan ta dem.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte DEPLOYET TIL PROD 2026-05-13 (prod-commit `3fa34c57`)
 
 **Test-deploy** (develop merge-commit `211cd5de`): auto-deployet. Backfill kjørt mot `sitedoc_test` — 1 OrganizationMember-rad med `User.role = "company_admin"` allerede hadde `firmaRoller = {firma_admin}` (0 oppdatert, 1 hoppet over). Fordeling etter backfill: `{} = 25`, `{firma_admin} = 1`. HTTP 200 verifisert.
