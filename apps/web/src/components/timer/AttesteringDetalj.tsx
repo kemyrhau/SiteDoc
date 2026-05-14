@@ -7,7 +7,7 @@
 // Per-rad-attestering: hver rad har egen status, leder velger hvilke som
 // attesteres/returneres via checkboxer.
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -115,7 +115,7 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
   };
 
   // Pre-utvalg: alle pending-rader leder har tilgang til
-  useMemo(() => {
+  useEffect(() => {
     if (!sheet) return;
     setValgteTimer(new Set(timerRader.filter(radTilgjengelig).map((r) => r.id)));
     setValgteTillegg(new Set(tilleggRader.filter(radTilgjengelig).map((r) => r.id)));
