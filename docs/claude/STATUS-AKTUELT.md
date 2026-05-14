@@ -122,9 +122,42 @@ Auto-deploy-skriptet `~/programmering/deploy-test-cron.sh` (cron hvert 2. min p�
 
 Skriptet er **ikke i repoet** — det ligger kun på test-serveren. Endringen er server-side og påvirker ikke prod (`./deploy.sh` gjør allerede full rebuild).
 
-### T7-3-bunken — MERGET TIL DEVELOP, venter på mobil-bygg (2026-05-14)
+### PR T7-3d per-rad-attestering for leder på mobil — Klar for review (branch `feature/t7-3d`)
 
-Tre sub-PR-er av T7-3 (mobil timer-redesign) merget til develop. Endringene er JS + lokal SQLite-skjema + server-route-utvidelse — alle ufarlige å rulle ut. Server-endringen (rad-nivå `projectId` i `syncBatch` + `hentEndringerSiden`) gikk til test ved auto-deploy ved merge av T7-3b1. Mobil-endringene venter på Expo Go-test (utvikler-enhet) eller EAS Build → TestFlight / Play Store (release).
+Fjerde sub-PR av T7-3-bunken. Bringer attestering-flyten (T7-2b) til mobil-app. Prosjektledere og firma-admin kan nå attestere/returnere innsendte sedler fra telefonen — speil av webs `AttesteringDetalj`, forenklet for mobil-flate.
+
+**Filer (alle nye, `apps/mobile`):**
+- `src/components/timer-attestering/AttesteringStatusBadge.tsx` (~40 linjer)
+- `src/components/timer-attestering/RadCheckbox.tsx` (~80 linjer)
+- `src/components/timer-attestering/ReturnerModal.tsx` (~115 linjer)
+- `src/components/timer-attestering/AttesteringDetaljMobil.tsx` (~360 linjer) — kjernekomponent. Tre rad-seksjoner med checkboxer, container-banner, bunn-action-bar. Pre-utvalg av pending-rader ved sideåpning. Cache-invalidering ved attester/returner.
+- `app/timer/attestering/index.tsx` (~150 linjer) — liste-side. Henter via `hentTilAttesteringFirma`. Kort-format med dato/ansatt/prosjekt/sum. Gating-bannere ved ingen tilgang.
+- `app/timer/attestering/[id].tsx` (~50 linjer) — tynn wrapper med tilbake-bar.
+
+**Endret:**
+- `app/(tabs)/mer.tsx` — ny menylenke «Attester timer» gated på `kanAttestereFirma`. Lenken er skjult for arbeidere uten leder-tilgang. Henter `orgId` via samme `prosjekt.hentMine`-proxy som liste-siden.
+
+**Server/skjema:** Null endring. Bruker eksisterende `hentTilAttesteringFirma`, `hentForAttestering`, `kanAttestereFirma`, `attesterRader`, `returnerRader` fra T7-2b1.
+
+**i18n:** Null nye nøkler. Alle gjenbrukt fra T7-2b.
+
+**Forenklinger ifht. web (bevisst scope-redusering):**
+- Ingen edit-modus (T7-2b2) — firma-admin redigerer på web
+- Ingen ECO-flytting per rad — utelates på mobil
+- Ingen rediger-header-modal
+- Kun firma-kontekst (ingen `prosjektKontekst`-prop) — mobil-tabs er firma-orienterte
+
+**Auth/datastrøm:** Online-only. Mutations krever nett (samme som web — snapshot-bygging via Fase 0 A.7). Ingen lokal queue.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil).
+
+**Reload-metode:** TypeScript-only. Full app-reload eller `r` i Metro. Ingen native rebuild.
+
+Klar for review — ikke merge før Kenneth verifiserer på enhet.
+
+### T7-3-bunken (a/b1/b2) — DEPLOYET TIL PROD (server-route) + venter på mobil-bygg (2026-05-14)
+
+Tre sub-PR-er av T7-3 (mobil timer-redesign) merget til develop og deretter til main (prod-commit `223afc17`). Server-endringene (rad-nivå `projectId` i `syncBatch` + `hentEndringerSiden` + auth per unike rad-projectId) er aktive i prod. Mobil-endringene venter på Expo Go-test (utvikler-enhet) eller EAS Build → TestFlight / Play Store (release).
 
 | Sub-PR | Merge-commit | Impl-commit | Innhold |
 |---|---|---|---|
