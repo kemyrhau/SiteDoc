@@ -18,8 +18,10 @@
 
 ## Prod-deploys 2026-05-03 → 2026-05-14
 
-**2026-05-14 — T7-2b1 per-rad-attestering:**
-- `3234c057` — Merge develop → main: AttesteringDetalj-felleskomponent, `attesterRader`/`returnerRader`-mutations (per-rad-validering + auth per unike projectId), per-rad-status-badge + checkboxer, firma-detalj-side (`/dashbord/firma/timer/attestering/[id]`). Schema-kommentar-rensk `godkjent → attestert` på SheetTimer/SheetTillegg/SheetMachine (ingen migration). Gamle `attester`/`returner` beholdt som `@deprecated` thin wrappers.
+**2026-05-14 — T7-2b-bunken komplett (per-rad-attestering + edit-modus + settings-toggle):**
+- `3234c057` — T7-2b1 per-rad-attestering: AttesteringDetalj-felleskomponent, `attesterRader`/`returnerRader`-mutations (per-rad-validering + auth per unike projectId), per-rad-status-badge + checkboxer, firma-detalj-side (`/dashbord/firma/timer/attestering/[id]`). Schema-kommentar-rensk `godkjent → attestert` (ingen migration). Gamle `attester`/`returner` beholdt som `@deprecated` thin wrappers.
+- `755c542a` — T7-2b2 edit-modus ved attestering: `redigerSedelRader`-mutation (firma-admin-auth + flagg-gate + transaksjon erstatt/opprett-nye), `OrganizationSetting.tillatt_rediger_ved_attestering` (default false), `parent_rad_id` på alle tre rad-tabeller, `attestertStatus = "erstattet"`. Ny `AttesteringDetalj_Edit.tsx` + 3 sub-komponenter (RedigerTimerRad/TilleggRad/MaskinRad). Activity-log per rediger.
+- `af4a7deb` — T7-2b3 settings-toggle: `RedigerVedAttesteringSeksjon` i `firma/innstillinger/page.tsx`, følger samme mønster som eksisterende TilgangPolicySeksjon. 5 nye i18n-nøkler. Ingen server/schema-endring (klargjort i b2).
 
 **2026-05-13 — OrganizationMember-refaktor bunke + ansattrolle-UI:**
 - `95500003` — PR O-5a: fjern `User.organizationId`-fallbacks i `tilgangskontroll.ts` + 8 routes via `resolverOrgFraInput`/`krevBrukersOrg`-hjelpere (netto −484 linjer)
