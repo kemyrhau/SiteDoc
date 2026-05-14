@@ -55,7 +55,45 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T7-2b1 per-rad-attestering + felleskomponent AttesteringDetalj IMPLEMENTERT på feature/t7-2b1 2026-05-14
+### PR T7-2b2 edit-modus ved attestering IMPLEMENTERT på feature/t7-2b2 2026-05-14
+
+Andre sub-PR av T7-2b-bunken. Firma-admin kan redigere alle pending-rader på en sedel direkte uten å returnere til arbeider. Gates på ny `OrganizationSetting.tillattRedigerVedAttestering` (default false — settings-UI for å skru på kommer i T7-2b3).
+
+**Schema:**
+- `OrganizationSetting.tillattRedigerVedAttestering Boolean @default(false)` — migration `20260514120000_t7_2b2_tillatt_rediger`.
+- `SheetTimer/SheetTillegg/SheetMachine.parentRadId String?` + indeks — migration `20260514120000_t7_2b2_parent_rad_id` (db-timer). Svak selvreferanse (A.20). Ingen FK.
+- `attestertStatus`-domene utvidet: ny verdi `"erstattet"` for originaler som overskrives ved rediger. Beholdes som audit-spor.
+
+**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- Ny `redigerSedelRader({ sheetId, nyeRader: { timer[], tillegg[], maskin[] } })`. Hver rad har `originalId: uuid | null` (null = helt ny). Auth: kun firma-admin (`autoriserAdminForFirma`). Gate: `tillattRedigerVedAttestering === true` → PRECONDITION_FAILED ellers. Cross-org-validering på alle `projectId`. Transaksjon: marker alle eksisterende pending-rader som `"erstattet"` + opprett nye rader med `parentRadId = originalId` og `status = "pending"`. Activity-log per rediger.
+- `hentForAttestering`: respons utvidet med `redigerTillatt: boolean` (utledet fra org-setting).
+- `oppdaterSetting` (`apps/api/src/routes/organisasjon.ts`): Zod-input utvidet med `tillattRedigerVedAttestering: boolean.optional()`.
+
+**Web:**
+- Ny `apps/web/src/components/timer/AttesteringDetalj_Edit.tsx` (~400 linjer). Eier edit-state: tre `useState<RedigerXxxRadData[]>` med startverdier fra pending-rader. Komprimert original-seksjon øverst (lukke-bar `<details>`). Tre seksjoner under: timer/tillegg/maskin med inline-rader + «+ Legg til»-knapper. Lagre kaller `redigerSedelRader`-mutation. Avbryt forkaster endringer.
+- Tre nye sub-komponenter: `RedigerTimerRad.tsx`, `RedigerTilleggRad.tsx`, `RedigerMaskinRad.tsx` (inline-form per rad-type med slett-knapp).
+- Felles types-fil: `rediger-types.ts`.
+- `AttesteringDetalj.tsx`: ny `redigerModus`-state + Rediger-knapp i action-bar (vises bare hvis `sheet.redigerTillatt === true`). Når redigerModus = true, vises Edit-komponent istedenfor standard attestering-rader. `TimerRad`-/`MaskinRad`-typer utvidet med `byggeplassId`/`fraTid`/`tilTid` slik at typene matcher Edit-komponentens forventninger.
+
+**i18n:** 22 nye nøkler i nb/en (`timer.rediger.*` for knapper, modus-banner, placeholders, validerings-feilmeldinger). Auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest).
+
+**Designvalg/lock per locked design:**
+- Edit-modus per sedel — ikke per rad.
+- Original-rader komprimert som referanse (read-only) over edit-listen.
+- Eksisterende rader redigerbare inline; «+»-knapp legger til ny rad pre-fylt med default unntatt mengde-felter.
+- Splitting (1 → N) er implisitt: slett original-raden i edit-listen og legg til to nye — opprinnelig parentRadId-peker bevares for de nye radene som beholder original-id, ellers settes til null.
+- Settings-UI for `tillattRedigerVedAttestering` = T7-2b3 (ikke i denne PR-en — flagget er default false i prod, Rediger-knappen er dermed dormant).
+
+**Forventede begrensninger (kommer senere):**
+- T7-2b3: settings-UI på `firma/innstillinger/page.tsx`-siden + audit-log-payload utvidet med før/etter-snapshots per rad.
+- Mobil: får ikke edit-modus i T7-3 (kun firma-admin web-flow).
+- ECO-listen i RedigerTimerRad henter på `rad.projectId` — bytter projectId → ECO-listen re-fetches automatisk.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR T7-2b1 per-rad-attestering + felleskomponent AttesteringDetalj DEPLOYET TIL PROD 2026-05-14 (prod-commit `3234c057`)
 
 Første av T7-2b-bunken. Bytter attestering fra per-sedel til per-rad og refaktorerer detalj-siden til projectId-løs felleskomponent. Forutsetning for T7-2b2 (rad-splitting) + T7-2b3 (`tillattRedigerVedAttestering`-flagg + audit-log).
 

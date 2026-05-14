@@ -110,6 +110,59 @@ Ingen treff på `pushvarsel`/`sms` i kode. Krever ny varslingstjeneste (SMS-leve
 
 ## Pågående arbeid
 
+### PR T7-2b2 edit-modus ved attestering IMPLEMENTERT på feature/t7-2b2 2026-05-14
+
+Andre sub-PR av T7-2b-bunken. Firma-admin kan redigere alle pending-rader på en sedel direkte uten å returnere til arbeider. Locked design fra Kenneth 2026-05-14:
+
+- Rediger-modus per sedel (timer + tillegg + maskin samtidig)
+- Original-rader komprimeres øverst som referanse (read-only)
+- Eksisterende rader redigerbare inline
+- «+»-knapp per type for nye rader, pre-fylt unntatt mengde-felter
+- `tillattRedigerVedAttestering`-flagg (default false) gater Rediger-knappens synlighet
+- Settings-UI for flagget = T7-2b3 (ikke i denne PR-en)
+
+**Schema-endringer:**
+
+| Tabell | Felt | Beskrivelse |
+|---|---|---|
+| `organization_settings` | `tillatt_rediger_ved_attestering BOOLEAN @default(false)` | Migration `20260514120000_t7_2b2_tillatt_rediger`. Default false (mest restriktivt). |
+| `timer.sheet_timer` | `parent_rad_id TEXT NULL` + indeks | Migration `20260514120000_t7_2b2_parent_rad_id` (db-timer). Svak selvreferanse (A.20). |
+| `timer.sheet_tillegg` | `parent_rad_id TEXT NULL` + indeks | Samme migration. |
+| `timer.sheet_machines` | `parent_rad_id TEXT NULL` + indeks | Samme migration. |
+| Alle tre rad-tabeller | `attestertStatus`-domene utvidet | Ny verdi `"erstattet"` — originaler som overskrives ved rediger beholdes som audit-spor. |
+
+**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+
+| Mutation/query | Type | Beskrivelse |
+|---|---|---|
+| `redigerSedelRader` | Ny | Input: `{ sheetId, nyeRader: { timer[], tillegg[], maskin[] } }` der hver rad har `originalId: uuid \| null`. Auth: kun firma-admin (`autoriserAdminForFirma`). Gate: `tillattRedigerVedAttestering === true` → PRECONDITION_FAILED ellers. Cross-org-validering på alle `projectId` (via `ProjectOrganization`). Transaksjon: marker alle eksisterende pending som `"erstattet"` + opprett nye rader med `parentRadId = originalId` og `status = "pending"`. Activity-log per rediger med `actorUserId`, `targetType="DailySheet"`, `payload = { antallErstattet, antallNyeTimer/Tillegg/Maskin, sedelEier }`. |
+| `hentForAttestering` | Utvidet | Respons utvidet med `redigerTillatt: boolean` (utledet fra `OrganizationSetting`). |
+| `oppdaterSetting` (`organisasjon.ts`) | Utvidet input | Zod-input får `tillattRedigerVedAttestering: z.boolean().optional()`. |
+
+**Web (`apps/web/src/components/timer/`):**
+
+- **Ny `AttesteringDetalj_Edit.tsx`** (~400 linjer): eier edit-state via tre `useState<RedigerXxxRadData[]>`. Komprimert original-seksjon øverst i `<details open>`. Tre seksjoner under (timer/tillegg/maskin) med inline-rader + «+ Legg til»-knapper. Validerer at alle rader har påkrevde felter > 0 før kall. Lagre kaller `redigerSedelRader`. Avbryt forkaster.
+- **Tre nye sub-komponenter** (`RedigerTimerRad.tsx`, `RedigerTilleggRad.tsx`, `RedigerMaskinRad.tsx`): inline-form per rad-type med slett-knapp. Grid-layout med dropdowns for prosjekt/lønnsart/aktivitet/ECO/tillegg/equipment/enhet, time-inputs for fra/til, number-inputs for timer/antall/mengde.
+- **`rediger-types.ts`** (ny): delte TypeScript-typer for edit-modus.
+- **`AttesteringDetalj.tsx`** integrert: ny `redigerModus`-state. Rediger-knapp i action-bar vises kun hvis `sheet.redigerTillatt === true` (default false → dormant i prod inntil T7-2b3 leverer settings-UI). Når redigerModus → erstatter standard rader+actions med Edit-komponenten. `TimerRad`/`MaskinRad`-typer utvidet med `byggeplassId`/`fraTid`/`tilTid` slik at de matcher Edit-komponentens forventninger.
+
+**i18n:** 22 nye nøkler i nb/en (`timer.rediger.*`): knapp-tekster, modus-banner, slett/lagre, placeholders for dropdowns/mengde/kommentar, valideringsfeil per rad-type. Auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-feil i `import-hjelpere.test.ts`).
+
+**Migrasjonsstrategi (to-stegs-policy):**
+
+Begge migrasjoner er fullt-additive: nullable kolonner + boolean med default false. Krever ingen backfill. Trygt å deploye til test + prod uten ned-tids-vindu. `attestertStatus`-domene-utvidelsen er kun en applikasjons-konvensjon (ingen DB-constraint) — eksisterende rader er upåvirket.
+
+**Forventede begrensninger (kommer i T7-2b3):**
+- Settings-UI på `firma/innstillinger/page.tsx` for å skru `tillattRedigerVedAttestering` på/av — uten dette er Rediger-knappen dormant i prod.
+- Activity-log-payload-utvidelse med før/etter-snapshots per rad (b2 logger kun antall + actor).
+- Mobil får aldri edit-modus (firma-admin web-flyt kun).
+
+**Splitting (1 → N rader)** er implisitt mulig i edit-modus: slett original-raden i edit-listen og legg til to nye. `parentRadId` settes til null på de nye (helt nye rader). Brukerens forrige spørsmål om dedikert splittRad-mutation ble forkastet til fordel for edit-modus-pattern.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR T7-2b1 per-rad-attestering + felleskomponent AttesteringDetalj DEPLOYET TIL PROD 2026-05-14 (prod-commit `3234c057`)
 
 Første sub-PR av T7-2b-bunken. Bytter attestering fra per-sedel til per-rad. Refaktorerer detalj-siden til projectId-løs felleskomponent som monteres fra både prosjekt- og firma-kontekst.

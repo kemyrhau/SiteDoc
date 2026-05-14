@@ -238,6 +238,10 @@ model OrganizationSetting {
   // T.5 (2026-05-11) — Tidsrunding i minutter ved timer-registrering.
   // Støttede verdier: 15, 30, 60, null (ingen avrunding). Default 15.
   tidsrundingMinutter    Int?    @default(15) @map("tidsrunding_minutter")
+  // T7-2b2 (2026-05-14) — Tillater firma-admin å redigere sedel-rader direkte
+  // under attestering, uten å returnere sedelen til arbeider. Default false
+  // (mest restriktivt — kunde må eksplisitt slå på). Settings-UI i T7-2b3.
+  tillattRedigerVedAttestering Boolean @default(false) @map("tillatt_rediger_ved_attestering")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
