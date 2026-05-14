@@ -55,7 +55,40 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### T7-3-bunken — MERGET TIL DEVELOP, venter på mobil-bygg
+### PR T7-3d per-rad-attestering for leder på mobil — Klar for review
+
+Fjerde sub-PR av T7-3-bunken. Bringer attestering-flyten (T7-2b) til mobil. Prosjektleder og firma-admin kan nå attestere/returnere innsendte sedler fra mobil-appen — speil av webs `AttesteringDetalj`-felleskomponent, forenklet for mobil-flate.
+
+**Nye filer (`apps/mobile`):**
+- `src/components/timer-attestering/AttesteringStatusBadge.tsx` (~40 linjer) — `pending`/`attestert`/`returnert`-badge.
+- `src/components/timer-attestering/RadCheckbox.tsx` (~80 linjer) — rad med checkbox + badge + info. Demper og deaktiverer ikke-tilgjengelige rader.
+- `src/components/timer-attestering/ReturnerModal.tsx` (~115 linjer) — modal med multiline-TextInput for kommentar (obligatorisk). Speil av webs `ReturnerDialog`. Kaller `returnerRader`.
+- `src/components/timer-attestering/AttesteringDetaljMobil.tsx` (~360 linjer) — kjernekomponent. Tre rad-seksjoner med per-rad-checkboxer, container-status-banner, bunn-action-bar (Attester/Returner). Pre-utvalg av pending-rader ved sideåpning. Cache-invalidering ved suksess.
+- `app/timer/attestering/index.tsx` (~150 linjer) — liste-side. Henter `hentTilAttesteringFirma` via `prosjekt.hentMine` → første `primaryOrganizationId` som proxy. Kort-format. Gating-bannere ved ingen tilgang.
+- `app/timer/attestering/[id].tsx` (~50 linjer) — tynn wrapper som monterer `AttesteringDetaljMobil`.
+
+**Endret:**
+- `app/(tabs)/mer.tsx` — ny menylenke «Attester timer» gated på `kanAttestereFirma`. Lenken er skjult for arbeidere uten leder-tilgang.
+
+**Server/skjema:** Null endring. Bruker eksisterende `hentTilAttesteringFirma`, `hentForAttestering`, `kanAttestereFirma`, `attesterRader`, `returnerRader` fra T7-2b1-deploy.
+
+**i18n:** Null nye nøkler. Alle gjenbrukt fra T7-2b (`timer.attestering.*`, `timer.detalj.*`, `handling.*`).
+
+**Forenklinger ifht. web (bevisst scope-redusering):**
+- Ingen edit-modus (T7-2b2) — firma-admin redigerer på web.
+- Ingen ECO-flytting per rad — utelates på mobil.
+- Ingen rediger-header-modal. Lederen attesterer, redigerer ikke.
+- Kun firma-kontekst (ingen `prosjektKontekst`-prop) — mobil-tabs er firma-orienterte.
+
+**Auth/datastrøm:** Online-only. Krever nett for mutations (samme som web — snapshot via A.7). Ingen lokal queue.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Pre-eksisterende `mer.tsx`-feil flyttet fra linje 81 til linje 101 pga. linjeforskyvning.
+
+**Reload-metode:** TypeScript-only. Full app-reload eller `r` i Metro. Ingen native rebuild.
+
+Klar for review — ikke merge før Kenneth verifiserer på enhet.
+
+### T7-3-bunken (a/b1/b2) — MERGET TIL DEVELOP, venter på mobil-bygg
 
 Tre sub-PR-er av T7-3 (mobil timer-redesign) er merget til develop og venter på mobil-bygg/EAS for rullering til testere/prod. Mobil deployes ikke via server-deploy — kun via Expo Go (utvikler-test) eller EAS Build → TestFlight / Play Store (release).
 
