@@ -11,12 +11,21 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-05-12
-**Antall filer dekket:** 51 (45 i `docs/claude/` + 6 i `docs/arkiv/`)
+**Sist oppdatert:** 2026-05-14
+**Antall filer dekket:** 50 (44 i `docs/claude/` + 6 i `docs/arkiv/`) — `neste-oppgave.md` slettet 2026-05-14, innholdet konsolidert til [STATUS-AKTUELT.md § Neste oppgaver](STATUS-AKTUELT.md)
 
 ---
 
-## Prod-deploys 2026-05-03 → 2026-05-12
+## Prod-deploys 2026-05-03 → 2026-05-14
+
+**2026-05-14 — T7-2b1 per-rad-attestering:**
+- `3234c057` — Merge develop → main: AttesteringDetalj-felleskomponent, `attesterRader`/`returnerRader`-mutations (per-rad-validering + auth per unike projectId), per-rad-status-badge + checkboxer, firma-detalj-side (`/dashbord/firma/timer/attestering/[id]`). Schema-kommentar-rensk `godkjent → attestert` på SheetTimer/SheetTillegg/SheetMachine (ingen migration). Gamle `attester`/`returner` beholdt som `@deprecated` thin wrappers.
+
+**2026-05-13 — OrganizationMember-refaktor bunke + ansattrolle-UI:**
+- `95500003` — PR O-5a: fjern `User.organizationId`-fallbacks i `tilgangskontroll.ts` + 8 routes via `resolverOrgFraInput`/`krevBrukersOrg`-hjelpere (netto −484 linjer)
+- `54d917d9` — PR O-5b: fjern `User.organizationId`/`ansattnummer`-lesinger i gruppe/medlem/admin/timer-routes (Kat. B + C)
+- `fe1d703d` — Bundle: PR O-5b-fix (11 resterende treff) + PR O-5c schema-drop (`User.organizationId`/`ansattnummer`/`avdelingId` + `OrganizationRole`-tabell). Migration `20260513210000_o5c_drop_user_org_fields` applied 22:36:32. `email @unique` globalt.
+- `3fa34c57` — ansattrolle-UI: settFirmaAdmin-mutation erstatter endreRolle, ansattRolle-dropdown + firma_admin-checkbox i invitér/rediger-modal, Stilling/Tilgang-kolonner i firma/ansatte-tabellen. Backfill-script `backfill-firma-admin-roller.ts`.
 
 **2026-05-12 — Timer-modul arkitektur-redesign (T.1–T.6) bunke:**
 - `bba971ba` — PR 1B: NOT NULL på rad-tabeller + drop `DailySheet.projectId` + ny unique `(userId, dato)`
