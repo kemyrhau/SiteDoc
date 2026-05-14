@@ -122,7 +122,28 @@ Auto-deploy-skriptet `~/programmering/deploy-test-cron.sh` (cron hvert 2. min p�
 
 Skriptet er **ikke i repoet** — det ligger kun på test-serveren. Endringen er server-side og påvirker ikke prod (`./deploy.sh` gjør allerede full rebuild).
 
-### PR T7-3b2 prosjekt-velger per rad + geo-forslag — Klar for review (branch `feature/t7-3b2`)
+### T7-3-bunken — MERGET TIL DEVELOP, venter på mobil-bygg (2026-05-14)
+
+Tre sub-PR-er av T7-3 (mobil timer-redesign) merget til develop. Endringene er JS + lokal SQLite-skjema + server-route-utvidelse — alle ufarlige å rulle ut. Server-endringen (rad-nivå `projectId` i `syncBatch` + `hentEndringerSiden`) gikk til test ved auto-deploy ved merge av T7-3b1. Mobil-endringene venter på Expo Go-test (utvikler-enhet) eller EAS Build → TestFlight / Play Store (release).
+
+| Sub-PR | Merge-commit | Impl-commit | Innhold |
+|---|---|---|---|
+| **T7-3a** | `22a97402` | `fc087b65` | Arbeidstid-seksjon + summerings-banner i mobil-detalj. Speil av T7-1a på mobil. |
+| **T7-3b1** | `cd64c51a` | `65bf48cb` | Per-rad `projectId` (skjema + lokal migrasjon + sync push/pull + prosjekt-katalog-cache). Ingen UI. |
+| **T7-3b2** | `3e34ec71` | `1717fd79` | UI for per-rad prosjekt-velger + ProsjektGruppe-visning i [id].tsx + geo-forslag i ny.tsx. |
+
+Lokal SQLite-migrasjon (T7-3b1) er fullt additiv og idempotent. Server-input/respons er additivt utvidet — pre-T7-3b-mobiler fortsetter å fungere uendret (kompat-shim). Server-shim på sedel-nivå `projectId` ryddes opp i T7-4+ etter alle telefoner kjører ny app.
+
+**Bygg-rute videre:**
+1. **Utvikler-test:** Kenneth tester på enhet via Expo Go eller tilkoblet utviklingsbygg.
+2. **EAS Build:** `eas build --platform ios --profile production` + `eas submit --platform ios --latest` for TestFlight når UI er bekreftet.
+3. **Release-windows:** Når TestFlight-build er trygt, distribusjon til alle brukere.
+
+**Gjenstår av T7-3-bunken:**
+- **T7-3c** (planlagt eller forkastet): Mye av geo-forslag-leveransen ble inkludert i T7-3b2. Egen sub-PR kan dekke historikk-baserte forslag (sist brukte prosjekt) eller forkastes.
+- **T7-3d** (planlagt eller forkastet): Per-rad-attestering på mobil for prosjektleder/firma-admin. Krever strategisk valg om mobil-attestering eller web-only.
+
+### PR T7-3b2 prosjekt-velger per rad + geo-forslag — MERGET TIL DEVELOP (branch `feature/t7-3b2`, merge `3e34ec71`, impl `1717fd79`)
 
 Tredje sub-PR av T7-3-bunken. Nå kan brukeren faktisk bruke per-rad-prosjekt: hver rad-modal har prosjekt-velger på toppen, dagsseddel-detaljsiden grupperer rader per prosjekt (én bolk med tre seksjoner per prosjekt), og «+ Legg til prosjekt»-knapp åpner velger for et nytt prosjekt på samme sedel. Ved opprettelse av ny dagsseddel foreslås nærmeste prosjekt basert på GPS.
 
@@ -188,7 +209,7 @@ Andre sub-PR av T7-3-bunken. Legger inn fundamentet for at hver rad på en mobil
 
 Klar for review — ikke merge før Kenneth verifiserer på test.
 
-### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — MERGET TIL DEVELOP (branch `feature/t7-3a`, merge `22a97402`, impl `fc087b65`)
+### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — MERGET TIL DEVELOP (branch `feature/t7-3a`, merge `22a97402`, impl `fc087b65`) — venter på mobil-bygg
 
 Første sub-PR av T7-3-bunken (mobil timer-redesign). Speil av T7-1a på mobil. Etter denne kan en arbeider sette start-/slutt-tid og pause på dagsseddel-detaljsiden i mobil-appen og se løpende summering av registrerte timer vs utledet arbeidstid før innsending. Ingen DB-migrasjon, ingen sync-endring, ingen server-endring.
 

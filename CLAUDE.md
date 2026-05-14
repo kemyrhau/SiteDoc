@@ -55,7 +55,21 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T7-3b2 prosjekt-velger per rad + geo-forslag — Klar for review
+### T7-3-bunken — MERGET TIL DEVELOP, venter på mobil-bygg
+
+Tre sub-PR-er av T7-3 (mobil timer-redesign) er merget til develop og venter på mobil-bygg/EAS for rullering til testere/prod. Mobil deployes ikke via server-deploy — kun via Expo Go (utvikler-test) eller EAS Build → TestFlight / Play Store (release).
+
+| Sub-PR | Merge-commit | Impl-commit | Innhold |
+|---|---|---|---|
+| **T7-3a** | `22a97402` | `fc087b65` | Arbeidstid-seksjon + summerings-banner i mobil-detalj. Speil av T7-1a. |
+| **T7-3b1** | `cd64c51a` | `65bf48cb` | Per-rad `projectId` (skjema + lokal migrasjon + sync push/pull + prosjekt-katalog-cache). Ingen UI. |
+| **T7-3b2** | `3e34ec71` | `1717fd79` | UI for per-rad prosjektvelger + ProsjektGruppe-visning i [id].tsx + geo-forslag i ny.tsx. |
+
+Gjenstår av T7-3-bunken:
+- **T7-3c (planlagt eller forkastet):** Geo-forslag-utvidelser. Mye av denne ble levert i T7-3b2 — egen sub-PR kan dekke historikk/justeringer eller forkastes.
+- **T7-3d (planlagt eller forkastet):** Per-rad-attestering på mobil for prosjektleder/firma-admin. Avhenger av strategisk valg om mobil-attestering eller web-only.
+
+### PR T7-3b2 prosjekt-velger per rad + geo-forslag — MERGET TIL DEVELOP (merge `3e34ec71`, impl `1717fd79`) — venter på mobil-bygg
 
 Tredje sub-PR av T7-3-bunken. Aktiverer den brukervendte siden av per-rad-prosjekt: brukeren kan velge prosjekt per rad i timer/tillegg/maskin-modaler, dagsseddelen grupperer rader per prosjekt, og GPS-posisjon foreslår nærmeste prosjekt ved opprettelse. Ingen DB-, sync- eller server-endringer (alt fundament fra T7-3b1).
 
@@ -85,7 +99,7 @@ Tredje sub-PR av T7-3-bunken. Aktiverer den brukervendte siden av per-rad-prosje
 
 Klar for review — ikke merge før Kenneth verifiserer på test.
 
-### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — MERGET TIL DEVELOP (merge `cd64c51a`, impl `65bf48cb`) — verifisering på enhet hos Kenneth
+### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — MERGET TIL DEVELOP (merge `cd64c51a`, impl `65bf48cb`) — venter på mobil-bygg
 
 Andre sub-PR av T7-3-bunken. Forberedelse for T7-3b2 (UI per-rad-velger). Etter denne har mobil per-rad `projectId`-felt i lokal SQLite + sync-protokollen sender/mottar per-rad projectId mot server. Server-shimmen fra T.1 (sedel-nivå `projectId` for pre-T7-3b1-klienter) beholdes for bakoverkompatibilitet — server støtter både gammelt og nytt format. INGEN UI-endringer i denne PR-en; lokal projectId backfilles fra `dagsseddelLocal.projectId` og rad-velger kommer i T7-3b2.
 
@@ -120,7 +134,7 @@ Andre sub-PR av T7-3-bunken. Forberedelse for T7-3b2 (UI per-rad-velger). Etter 
 
 Klar for review — ikke merge før Kenneth verifiserer på test.
 
-### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — MERGET TIL DEVELOP (merge `22a97402`, impl `fc087b65`) — verifisering på enhet hos Kenneth
+### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — MERGET TIL DEVELOP (merge `22a97402`, impl `fc087b65`) — venter på mobil-bygg
 
 Første sub-PR av T7-3-bunken (mobil timer-redesign). Speil av T7-1a på mobil. Bringer mobil opp på samme nivå som web for arbeidstid-registrering og løpende summering. Ingen DB-migrasjon, ingen sync-endring, ingen server-endring.
 
