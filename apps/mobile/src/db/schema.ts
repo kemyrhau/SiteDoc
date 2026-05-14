@@ -104,6 +104,10 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
 export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   id: text("id").primaryKey(),
   dagsseddelId: text("dagsseddel_id").notNull(), // FK → dagsseddel_local.id
+  // Per-rad prosjekt (T7-3b1 2026-05-14). Tilføyes idempotent via ALTER;
+  // backfill fra parent dagsseddel_local.project_id. Nullable for legacy-
+  // rader inntil to-stegs-policy fjerner dagsseddel_local.project_id.
+  projectId: text("project_id"),
   lonnsartId: text("lonnsart_id").notNull(),
   // Per-rad aktivitet (C9 2026-05-02). Kolonnen tilføyes idempotent via
   // ALTER i migreringer.ts; eksisterende rader backfilles fra parent.
@@ -122,6 +126,8 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
 export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
   id: text("id").primaryKey(),
   dagsseddelId: text("dagsseddel_id").notNull(),
+  // Per-rad prosjekt (T7-3b1). Se kommentar på sheetTimerLocal.projectId.
+  projectId: text("project_id"),
   vehicleId: text("vehicle_id").notNull(),
   timer: real("timer").notNull(),
   mengde: real("mengde"),
@@ -132,6 +138,8 @@ export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
 export const sheetTilleggLocal = sqliteTable("sheet_tillegg_local", {
   id: text("id").primaryKey(),
   dagsseddelId: text("dagsseddel_id").notNull(),
+  // Per-rad prosjekt (T7-3b1). Se kommentar på sheetTimerLocal.projectId.
+  projectId: text("project_id"),
   tilleggId: text("tillegg_id").notNull(),
   antall: real("antall").notNull(),
   kommentar: text("kommentar"),
@@ -218,5 +226,22 @@ export const externalCostObjectLocal = sqliteTable("external_cost_object_local",
   timerregistreringApen: integer("timerregistrering_apen", { mode: "boolean" })
     .notNull()
     .default(true),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
+ * prosjekt_local — offline-cache av brukerens prosjekter (T7-3b1).
+ * Brukes som velger for per-rad prosjekt-attribusjon på dagsseddel.
+ * lat/lng er valgfritt og brukes av T7-3c for geo-forslag.
+ * Refresh ved login + nett-gjenkomst via prosjektKatalog.refreshProsjektKatalog.
+ */
+export const prosjektLocal = sqliteTable("prosjekt_local", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  name: text("name").notNull(),
+  projectNumber: text("project_number"),
+  lat: real("lat"),
+  lng: real("lng"),
+  aktiv: integer("aktiv", { mode: "boolean" }).notNull().default(true),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });

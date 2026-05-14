@@ -19,6 +19,7 @@ import {
   AlertTriangle,
   CheckCircle,
   RotateCcw,
+  Plus,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
@@ -37,6 +38,10 @@ import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { TimerSeksjon } from "../../src/components/timer-detalj/TimerSeksjon";
 import { TilleggSeksjon } from "../../src/components/timer-detalj/TilleggSeksjon";
 import { MaskinSeksjon } from "../../src/components/timer-detalj/MaskinSeksjon";
+import { ArbeidstidSeksjon } from "../../src/components/timer-detalj/ArbeidstidSeksjon";
+import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBanner";
+import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektVelger";
+import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
 import { formatNorskDato, formatTidspunkt } from "../../src/utils/dato";
 import type {
   Sedel,
@@ -60,6 +65,10 @@ export default function DagsseddelDetalj() {
   const [aktivitet, setAktivitet] = useState<Aktivitet | null>(null);
   const [harEquipmentCache, setHarEquipmentCache] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
+  // Tomme prosjekt-grupper som brukeren har lagt til via «+ Legg til prosjekt».
+  // Gruppen blir varig så snart første rad er lagt til i den.
+  const [ekstraProsjektIder, setEkstraProsjektIder] = useState<string[]>([]);
+  const [visLeggTilProsjekt, setVisLeggTilProsjekt] = useState(false);
 
   const lesData = useCallback(() => {
     const db = hentDatabase();
@@ -126,6 +135,32 @@ export default function DagsseddelDetalj() {
     if (!sedel) return false;
     return sedel.status === "draft" || sedel.status === "returned";
   }, [sedel]);
+
+  const arbeidstidTimer = useMemo(() => {
+    if (!sedel?.startAt || !sedel?.endAt) return null;
+    const diff =
+      (new Date(sedel.endAt).getTime() - new Date(sedel.startAt).getTime()) /
+      3600000;
+    return Math.max(0, diff - (sedel.pauseMin ?? 0) / 60);
+  }, [sedel]);
+
+  const totaltimer = useMemo(
+    () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
+    [timerRader],
+  );
+
+  // T7-3b2: aktive prosjekt-grupper. Inkluder alltid sedel.projectId som
+  // standard-gruppe, samt alle distinkte projectId fra rader og bruker-
+  // tilføyde ekstra-grupper.
+  const aktiveProsjektIder = useMemo(() => {
+    if (!sedel) return [];
+    const ider = new Set<string>([sedel.projectId]);
+    for (const r of timerRader) if (r.projectId) ider.add(r.projectId);
+    for (const r of tilleggRader) if (r.projectId) ider.add(r.projectId);
+    for (const r of maskinRader) if (r.projectId) ider.add(r.projectId);
+    for (const id of ekstraProsjektIder) ider.add(id);
+    return Array.from(ider);
+  }, [sedel, timerRader, tilleggRader, maskinRader, ekstraProsjektIder]);
 
   const markerEndretOgLes = useCallback(() => {
     const db = hentDatabase();
@@ -307,30 +342,47 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
-        <TimerSeksjon
+        <ArbeidstidSeksjon
           sheetId={sheetId}
-          rader={timerRader}
-          projectId={sedel.projectId}
-          defaultAktivitetId={sedel.aktivitetId ?? null}
+          dato={sedel.dato}
+          startAt={sedel.startAt}
+          endAt={sedel.endAt}
+          pauseMin={sedel.pauseMin}
           redigerbar={erRedigerbar}
           onEndret={markerEndretOgLes}
         />
 
-        <TilleggSeksjon
-          sheetId={sheetId}
-          rader={tilleggRader}
-          redigerbar={erRedigerbar}
-          onEndret={markerEndretOgLes}
-        />
+        {/* T7-3b2: én bolk per prosjekt. Hver bolk har sin egen timer/
+            tillegg/maskin-seksjon med rader filtrert til dette prosjektet.
+            Prosjekt-header vises kun ved multi-prosjekt (mer enn én gruppe). */}
+        {aktiveProsjektIder.map((pid) => (
+          <ProsjektGruppe
+            key={pid}
+            projectId={pid}
+            visHeader={aktiveProsjektIder.length > 1}
+            sheetId={sheetId}
+            organizationId={sedel.organizationId}
+            defaultAktivitetId={sedel.aktivitetId ?? null}
+            harEquipmentCache={harEquipmentCache}
+            redigerbar={erRedigerbar}
+            timerRader={timerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
+            tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
+            maskinRader={maskinRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
+            onEndret={markerEndretOgLes}
+          />
+        ))}
 
-        <MaskinSeksjon
-          sheetId={sheetId}
-          rader={maskinRader}
-          organizationId={sedel.organizationId}
-          harEquipmentCache={harEquipmentCache}
-          redigerbar={erRedigerbar}
-          onEndret={markerEndretOgLes}
-        />
+        {erRedigerbar && (
+          <Pressable
+            onPress={() => setVisLeggTilProsjekt(true)}
+            className="mx-4 mt-4 flex-row items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-white py-3 active:bg-gray-50"
+          >
+            <Plus size={14} color="#1e40af" />
+            <Text className="text-sm font-medium text-sitedoc-primary">
+              {t("timer.leggTilProsjekt")}
+            </Text>
+          </Pressable>
+        )}
 
         {feil && (
           <Text className="mx-4 mt-4 text-sm text-red-600">{feil}</Text>
@@ -338,6 +390,12 @@ export default function DagsseddelDetalj() {
 
         {/* Handlinger */}
         <View className="mx-4 mt-6 gap-2">
+          {erRedigerbar && (
+            <SummeringsBanner
+              totaltimer={totaltimer}
+              arbeidstidTimer={arbeidstidTimer}
+            />
+          )}
           {erRedigerbar && (
             <Pressable
               onPress={sendTilAttestering}
@@ -362,6 +420,89 @@ export default function DagsseddelDetalj() {
           )}
         </View>
       </ScrollView>
+
+      {visLeggTilProsjekt && (
+        <ProsjektVelgerModal
+          organizationId={sedel.organizationId}
+          valgtId={null}
+          ekskluderIder={aktiveProsjektIder}
+          onVelg={(id) => {
+            setEkstraProsjektIder((forrige) =>
+              forrige.includes(id) ? forrige : [...forrige, id],
+            );
+            setVisLeggTilProsjekt(false);
+          }}
+          onLukk={() => setVisLeggTilProsjekt(false)}
+        />
+      )}
     </SafeAreaView>
+  );
+}
+
+function ProsjektGruppe({
+  projectId,
+  visHeader,
+  sheetId,
+  organizationId,
+  defaultAktivitetId,
+  harEquipmentCache,
+  redigerbar,
+  timerRader,
+  tilleggRader,
+  maskinRader,
+  onEndret,
+}: {
+  projectId: string;
+  visHeader: boolean;
+  sheetId: string;
+  organizationId: string;
+  defaultAktivitetId: string | null;
+  harEquipmentCache: boolean;
+  redigerbar: boolean;
+  timerRader: TimerRad[];
+  tilleggRader: TilleggRad[];
+  maskinRader: MaskinRad[];
+  onEndret: () => void;
+}) {
+  const prosjekt = useMemo(() => finnProsjektLokalt(projectId), [projectId]);
+
+  return (
+    <View className="mt-2">
+      {visHeader && (
+        <View className="mx-4 mt-4 rounded-t-lg border border-b-0 border-gray-200 bg-blue-50 px-4 py-2">
+          <Text className="text-sm font-semibold text-sitedoc-primary">
+            {prosjekt
+              ? `${prosjekt.projectNumber ? prosjekt.projectNumber + " — " : ""}${prosjekt.name}`
+              : projectId}
+          </Text>
+        </View>
+      )}
+      <TimerSeksjon
+        sheetId={sheetId}
+        organizationId={organizationId}
+        rader={timerRader}
+        projectId={projectId}
+        defaultAktivitetId={defaultAktivitetId}
+        redigerbar={redigerbar}
+        onEndret={onEndret}
+      />
+      <TilleggSeksjon
+        sheetId={sheetId}
+        organizationId={organizationId}
+        projectId={projectId}
+        rader={tilleggRader}
+        redigerbar={redigerbar}
+        onEndret={onEndret}
+      />
+      <MaskinSeksjon
+        sheetId={sheetId}
+        organizationId={organizationId}
+        projectId={projectId}
+        rader={maskinRader}
+        harEquipmentCache={harEquipmentCache}
+        redigerbar={redigerbar}
+        onEndret={onEndret}
+      />
+    </View>
   );
 }

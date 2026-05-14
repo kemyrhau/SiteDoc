@@ -11,7 +11,7 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-05-14
+**Sist oppdatert:** 2026-05-14 (T7-3-bunken merget til develop)
 **Antall filer dekket:** 50 (44 i `docs/claude/` + 6 i `docs/arkiv/`) — `neste-oppgave.md` slettet 2026-05-14, innholdet konsolidert til [STATUS-AKTUELT.md § Neste oppgaver](STATUS-AKTUELT.md)
 
 ---
@@ -22,6 +22,8 @@
 - `3234c057` — T7-2b1 per-rad-attestering: AttesteringDetalj-felleskomponent, `attesterRader`/`returnerRader`-mutations (per-rad-validering + auth per unike projectId), per-rad-status-badge + checkboxer, firma-detalj-side (`/dashbord/firma/timer/attestering/[id]`). Schema-kommentar-rensk `godkjent → attestert` (ingen migration). Gamle `attester`/`returner` beholdt som `@deprecated` thin wrappers.
 - `755c542a` — T7-2b2 edit-modus ved attestering: `redigerSedelRader`-mutation (firma-admin-auth + flagg-gate + transaksjon erstatt/opprett-nye), `OrganizationSetting.tillatt_rediger_ved_attestering` (default false), `parent_rad_id` på alle tre rad-tabeller, `attestertStatus = "erstattet"`. Ny `AttesteringDetalj_Edit.tsx` + 3 sub-komponenter (RedigerTimerRad/TilleggRad/MaskinRad). Activity-log per rediger.
 - `af4a7deb` — T7-2b3 settings-toggle: `RedigerVedAttesteringSeksjon` i `firma/innstillinger/page.tsx`, følger samme mønster som eksisterende TilgangPolicySeksjon. 5 nye i18n-nøkler. Ingen server/schema-endring (klargjort i b2).
+- `d194332c` — attestering-hint: diskret blå info-stripe i `AttesteringDetalj.tsx` synlig for firma-admin når `tillattRedigerVedAttestering = false`. Peker mot innstillinger-siden (Progressive Disclosure). 2 nye i18n-nøkler. Ingen server-endring (utnytter eksisterende `kanAttestereFirma`-query).
+- **Server-side (test-server)**: `deploy-test-cron.sh` fikset med `rm -rf apps/web/.next`-steg før build for å eliminere stale-cache-bug som trigget 3 ganger denne uken. Backup: `~/programmering/deploy-test-cron.sh.bak`. Skriptet er ikke i repo.
 
 **2026-05-13 — OrganizationMember-refaktor bunke + ansattrolle-UI:**
 - `95500003` — PR O-5a: fjern `User.organizationId`-fallbacks i `tilgangskontroll.ts` + 8 routes via `resolverOrgFraInput`/`krevBrukersOrg`-hjelpere (netto −484 linjer)
@@ -84,6 +86,16 @@
 - `045a49b7` — Steg 1b (firma-kontekst Lag 1+2+3)
 - `c91d953c` — Steg 1a (Organization.erKunde)
 - `1f2c0da2` — SmartDok maskin-import (test-deploy + dag-3-fix før prod-merge)
+
+---
+
+## Develop-only merges (mobil — venter på Expo Go / EAS Build)
+
+**2026-05-14 — T7-3-bunken (mobil timer-redesign — IKKE i prod ennå):**
+Server-route-utvidelser (rad-nivå projectId i `syncBatch` + `hentEndringerSiden`) deployes til test ved auto-deploy ved merge til develop. Mobil-endringer rulles ut via Expo Go (utvikler-enhet) eller EAS Build → TestFlight / Play Store (release) — ikke `./deploy.sh`.
+- `fc087b65` (merge `22a97402`) — **T7-3a** arbeidstid-seksjon + summerings-banner på mobil. Speil av T7-1a (web). JS-only-endring; ingen DB-migrasjon, ingen sync- eller server-endring. apps/mobile typecheck 12 = 12 baseline.
+- `65bf48cb` (merge `cd64c51a`) — **T7-3b1** prosjekt per rad: lokal SQLite-skjema (ALTER + backfill + nye `prosjekt_local`-tabell), sync push/pull med per-rad projectId, ny `prosjektKatalog.ts`-service. Server-`syncBatch`/`hentEndringerSiden` utvidet med per-rad-projectId + ny auth-sjekk per unike rad-projectId. Ingen UI-endringer. Lokal migrasjon fullt-additiv + idempotent; pre-T7-3b1-mobiler kjører videre via kompat-shim.
+- `1717fd79` (merge `3e34ec71`) — **T7-3b2** prosjekt-velger per rad i timer/tillegg/maskin-modaler + ProsjektGruppe-visning i [id].tsx + geo-forslag (`expo-location` + Haversine, 500m radius) i ny.tsx. Ny `ProsjektVelger.tsx`. 1 ny i18n-nøkkel (`handling.sok` — rettet pre-eksisterende manglende-nøkkel-bug). Ingen server/skjema-endring.
 
 ---
 

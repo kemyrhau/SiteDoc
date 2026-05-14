@@ -310,4 +310,61 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_equipment_local_org
       ON equipment_local(organization_id);
   `);
+
+  // T7-3b1 (2026-05-14) — per-rad project_id på alle tre rad-tabeller.
+  // Server-skjemaet flyttet projectId til rad-nivå 2026-05-11 (T.1/PR 1B);
+  // mobil-sync sendte fortsatt sedel-nivå med kompat-shim på server.
+  // Denne migrasjonen + tilhørende sync-endring fjerner shimmen fra klient-
+  // siden. Nullable i Steg 1 (to-stegs-policy); NOT NULL kommer i T7-4+.
+  for (const tabell of [
+    "sheet_timer_local",
+    "sheet_tillegg_local",
+    "sheet_machine_local",
+  ]) {
+    try {
+      const kolonner = db.getAllSync(
+        `PRAGMA table_info(${tabell})`,
+      ) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === "project_id")) {
+        console.log(`[MIG] Legger til project_id på ${tabell} (T7-3b1)`);
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN project_id TEXT`);
+        db.execSync(`
+          UPDATE ${tabell}
+          SET project_id = (
+            SELECT project_id FROM dagsseddel_local
+            WHERE dagsseddel_local.id = ${tabell}.dagsseddel_id
+          )
+          WHERE project_id IS NULL
+        `);
+      }
+    } catch (e) {
+      console.warn(`[MIG] Kunne ikke utvide ${tabell} med project_id:`, e);
+    }
+  }
+  db.execSync(`
+    CREATE INDEX IF NOT EXISTS idx_sheet_timer_local_project
+      ON sheet_timer_local(project_id);
+    CREATE INDEX IF NOT EXISTS idx_sheet_tillegg_local_project
+      ON sheet_tillegg_local(project_id);
+    CREATE INDEX IF NOT EXISTS idx_sheet_machine_local_project
+      ON sheet_machine_local(project_id);
+  `);
+
+  // T7-3b1 — offline-cache av brukerens prosjekter for rad-velger.
+  // Refresh ved login + nett-gjenkomst via prosjektKatalog.refreshProsjektKatalog.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS prosjekt_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      project_number TEXT,
+      lat REAL,
+      lng REAL,
+      aktiv INTEGER NOT NULL DEFAULT 1,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_prosjekt_local_org_aktiv
+      ON prosjekt_local(organization_id, aktiv);
+  `);
 }

@@ -110,6 +110,130 @@ Ingen treff på `pushvarsel`/`sms` i kode. Krever ny varslingstjeneste (SMS-leve
 
 ## Pågående arbeid
 
+### attestering-hint — kontekstuell hint om redigering DEPLOYET TIL PROD 2026-05-14 (prod-commit `d194332c`)
+
+Diskret blå info-stripe i `AttesteringDetalj.tsx` under container-banneret. Synlig kun for firma-admin (gated via `kanAttestereFirma`-query mot sheet.organizationId) når `sheet.redigerTillatt === false`. 💡-emoji + tekst «Vil firmaet korrigere timer direkte under attestering?» + lenke til `/dashbord/firma/innstillinger#rediger-ved-attestering`. 2 nye i18n-nøkler (`timer.attestering.redigerHint.tekst` + `.lenke`) i nb/en, auto-oversatt til 13 språk. Progressive Disclosure-mønsteret — kan gjenbrukes andre steder.
+
+### Server-side fix: `deploy-test-cron.sh` cache-bug DEPLOYET PÅ TEST-SERVER 2026-05-14
+
+Auto-deploy-skriptet `~/programmering/deploy-test-cron.sh` (cron hvert 2. min på test-serveren) hadde en stale `.next`-cache-bug som trigget «Cannot read properties of undefined (reading 'clientModules')»-feilen tre ganger denne uken (T7-2b1, T7-2b3, attestering-hint). Hver gang krevde manuell `rm -rf apps/web/.next + pnpm build + pm2 restart` på test for å løse.
+
+**Fiks:** Lagt til `STEG="clean_next" && rm -rf apps/web/.next` som eget steg i deploy-pipelinen mellom `prisma_migrate` og `build`. Trade-off: hver auto-deploy gjør nå full rebuild fra scratch (~30-60s lengre) i stedet for inkrementell, men eliminerer cache-divergens-bug. Backup-fil: `~/programmering/deploy-test-cron.sh.bak` på serveren.
+
+Skriptet er **ikke i repoet** — det ligger kun på test-serveren. Endringen er server-side og påvirker ikke prod (`./deploy.sh` gjør allerede full rebuild).
+
+### T7-3-bunken — MERGET TIL DEVELOP, venter på mobil-bygg (2026-05-14)
+
+Tre sub-PR-er av T7-3 (mobil timer-redesign) merget til develop. Endringene er JS + lokal SQLite-skjema + server-route-utvidelse — alle ufarlige å rulle ut. Server-endringen (rad-nivå `projectId` i `syncBatch` + `hentEndringerSiden`) gikk til test ved auto-deploy ved merge av T7-3b1. Mobil-endringene venter på Expo Go-test (utvikler-enhet) eller EAS Build → TestFlight / Play Store (release).
+
+| Sub-PR | Merge-commit | Impl-commit | Innhold |
+|---|---|---|---|
+| **T7-3a** | `22a97402` | `fc087b65` | Arbeidstid-seksjon + summerings-banner i mobil-detalj. Speil av T7-1a på mobil. |
+| **T7-3b1** | `cd64c51a` | `65bf48cb` | Per-rad `projectId` (skjema + lokal migrasjon + sync push/pull + prosjekt-katalog-cache). Ingen UI. |
+| **T7-3b2** | `3e34ec71` | `1717fd79` | UI for per-rad prosjekt-velger + ProsjektGruppe-visning i [id].tsx + geo-forslag i ny.tsx. |
+
+Lokal SQLite-migrasjon (T7-3b1) er fullt additiv og idempotent. Server-input/respons er additivt utvidet — pre-T7-3b-mobiler fortsetter å fungere uendret (kompat-shim). Server-shim på sedel-nivå `projectId` ryddes opp i T7-4+ etter alle telefoner kjører ny app.
+
+**Bygg-rute videre:**
+1. **Utvikler-test:** Kenneth tester på enhet via Expo Go eller tilkoblet utviklingsbygg.
+2. **EAS Build:** `eas build --platform ios --profile production` + `eas submit --platform ios --latest` for TestFlight når UI er bekreftet.
+3. **Release-windows:** Når TestFlight-build er trygt, distribusjon til alle brukere.
+
+**Gjenstår av T7-3-bunken:**
+- **T7-3c** (planlagt eller forkastet): Mye av geo-forslag-leveransen ble inkludert i T7-3b2. Egen sub-PR kan dekke historikk-baserte forslag (sist brukte prosjekt) eller forkastes.
+- **T7-3d** (planlagt eller forkastet): Per-rad-attestering på mobil for prosjektleder/firma-admin. Krever strategisk valg om mobil-attestering eller web-only.
+
+### PR T7-3b2 prosjekt-velger per rad + geo-forslag — MERGET TIL DEVELOP (branch `feature/t7-3b2`, merge `3e34ec71`, impl `1717fd79`)
+
+Tredje sub-PR av T7-3-bunken. Nå kan brukeren faktisk bruke per-rad-prosjekt: hver rad-modal har prosjekt-velger på toppen, dagsseddel-detaljsiden grupperer rader per prosjekt (én bolk med tre seksjoner per prosjekt), og «+ Legg til prosjekt»-knapp åpner velger for et nytt prosjekt på samme sedel. Ved opprettelse av ny dagsseddel foreslås nærmeste prosjekt basert på GPS.
+
+**Klient-filer:**
+- **Ny** `apps/mobile/src/components/timer-detalj/ProsjektVelger.tsx` (~130 linjer) — gjenbrukbar `ProsjektVelgerModal` (søk når > 7 prosjekter, `ekskluderIder`-prop) + trigger-knapp `ProsjektFelt`. Leser `prosjektLocal` via `hentProsjekterLokalt`.
+- `apps/mobile/src/components/timer-detalj/TimerSeksjon.tsx` — `organizationId`-prop tilført. `leggTil`/`oppdater` skriver `projectId` per rad. `TimerRadModal` har ProsjektFelt øverst. Bytte av prosjekt nullstiller ECO (`valgtEcoId`) siden Underprosjekt er prosjekt-spesifikk.
+- `apps/mobile/src/components/timer-detalj/TilleggSeksjon.tsx` — samme mønster: `organizationId` + `projectId` props, rad-modal med ProsjektFelt.
+- `apps/mobile/src/components/timer-detalj/MaskinSeksjon.tsx` — samme.
+- `apps/mobile/app/timer/[id].tsx` — beregner `aktiveProsjektIder` (union av sedel.projectId, alle rad.projectId, bruker-tilføyde ekstra-grupper). Rendre én `ProsjektGruppe` per id med tre seksjoner og filtrerte rader. Prosjekt-header (blå mini-bånd) vises kun ved multi-prosjekt. «+ Legg til prosjekt»-knapp åpner ProsjektVelgerModal med `ekskluderIder=aktiveProsjektIder`.
+- `apps/mobile/app/timer/ny.tsx` — geo-forslag-hook: `Location.requestForegroundPermissionsAsync` → `getCurrentPositionAsync(Balanced)` → Haversine mot `hentProsjekterLokalt(orgId)` med 500m radius. Stille fallback ved permission-avslag eller ingen treff. `MapPin`-ikon + «Foreslått basert på posisjon»-tekst når geo-forslag er aktivt.
+
+**Server/skjema:** Null endring. Alt fundament fra T7-3b1.
+
+**i18n:** 1 ny nøkkel (`handling.sok` = «Søk» / «Search»). Rettet pre-eksisterende bug der eksisterende velgere brukte en t-key som ikke fantes (fallback ga «handling.sok» som ren tekst i UI). `timer.leggTilProsjekt`, `timer.geoForslag`, `timer.felt.prosjekt`, `timer.velgProsjekt`, `timer.ingenTilgjengelige` allerede definert. Auto-oversatt til 13 språk via `generate.ts`.
+
+**`app.json`/permissions:** `expo-location` v19.0.8 allerede installert + config-plugin med norsk permission-tekst tidligere konfigurert for GPS-tagging av bilder. Null app.json-endring.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). ECO-bytte ved prosjekt-bytte: `valgtEcoId` nullstilles i `TimerRadModal` når ProsjektVelger setter ny `valgtProjectId`.
+
+**Reload-metode:** TypeScript- + i18n-endring. Full app-reload (close + open eller `r` i Metro). Ingen native rebuild (expo-location er allerede konfigurert).
+
+**Forventede begrensninger:**
+- Per-rad-attestering på mobil — kommer i T7-3d eller forkastes hvis attestering forblir web-only.
+- `dagsseddelLocal.projectId` beholdes som default. NOT NULL → drop kommer i T7-4+.
+- Geo-forslag krever permission ved første kjøring — brukeren får OS-dialog. Avslag = fall tilbake til manuell velger.
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
+### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — MERGET TIL DEVELOP (branch `feature/t7-3b1`, merge `cd64c51a`, impl `65bf48cb`)
+
+Andre sub-PR av T7-3-bunken. Legger inn fundamentet for at hver rad på en mobil-dagsseddel kan tilhøre sitt eget prosjekt — uten å endre brukervendt UI ennå. Etter denne kan sync-protokollen bære per-rad-projectId mellom mobil og server, lokal SQLite har feltet, og brukerens prosjekter cacheres lokalt klare for rad-velger i T7-3b2.
+
+**Klient-filer:**
+- `apps/mobile/src/db/schema.ts` — `projectId: text("project_id")` (nullable) på `sheetTimerLocal/sheetTilleggLocal/sheetMachineLocal`. Ny `prosjektLocal`-tabell (id, organizationId, name, projectNumber, lat, lng, aktiv, sistOppdatert).
+- `apps/mobile/src/db/migreringer.ts` — idempotent ALTER ADD COLUMN på de tre rad-tabellene + backfill fra parent `dagsseddel_local.project_id` (UPDATE WHERE NULL) + indekser. Ny CREATE TABLE for prosjekt_local + indeks (organization_id, aktiv).
+- **Ny** `apps/mobile/src/services/prosjektKatalog.ts` (~95 linjer): `refreshProsjektKatalog` henter `trpc.prosjekt.hentMine`, hopper over standalone-prosjekter (uten `primaryOrganizationId`), lagrer til prosjekt_local med full overskriving. Eksponerer `hentProsjekterLokalt(orgId)` og `finnProsjektLokalt(id)` for kommende UI.
+- `apps/mobile/src/providers/TimerSyncProvider.tsx` — `refreshProsjektKatalog` lagt til i `Promise.all` ved login + nett-gjenkomst (samme mønster som `refreshMaskinKatalog`).
+- `apps/mobile/src/services/timerSync.ts` — push (`syncBatch`): hver rad sender `projectId: rad.projectId ?? sedel.projectId` (rad-nivå hvis satt, ellers fallback). Pull (`hentEndringerSiden`): lagrer `t.projectId ?? sedelProjectId` til hver rad i lokal SQLite.
+
+**Server-filer (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- `syncBatch`-input: alle tre rad-array-objekter får `projectId: z.string().uuid().optional()`. CreateMany bruker `t.projectId ?? lokal.projectId` (rad overstyrer sedel; fallback for pre-T7-3b1-klienter).
+- `hentEndringerSiden`-respons: timer/tillegg/maskiner returnerer `projectId` per rad i tillegg til det aggregerte `projectId` på sedel-nivå (proxy via første rad — beholdes for bakoverkompatibilitet).
+- Ny auth-sjekk i syncBatch: `verifiserProsjektmedlem` kalles per unike rad-`projectId` som avviker fra `lokal.projectId`. Forhindrer at bruker fører timer på prosjekt de ikke er medlem av via per-rad-attributt.
+
+**Server-skjema:** Null endring. `db-timer.SheetTimer/Tillegg/Machine.projectId` ble lagt inn med T.1/PR 1B (2026-05-11). Bare server-route-koden var fortsatt sedel-nivå-orientert.
+
+**i18n:** Ingen endringer (ingen UI-strenger i denne PR-en).
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (samme pre-eksisterende feil i `hjem.tsx`/`mer.tsx`/`oppgave/[id].tsx`/`psi/[psiId].tsx`/`sjekkliste/[id].tsx`/`useOppgaveSkjema.ts`/`useSjekklisteSkjema.ts`/`timerSync.ts`).
+
+**Migrasjonsstrategi (to-stegs-policy):**
+- Lokal SQLite-migrasjon er fullt-additiv (nullable ALTER ADD COLUMN + idempotent CREATE TABLE IF NOT EXISTS). Trygt ved app-oppstart.
+- Server-input er additivt utvidet med optional-felt — pre-T7-3b1-mobiler fungerer uendret (sender ikke `projectId` per rad → server bruker shim).
+- Server-respons er additivt utvidet — pre-T7-3b1-mobiler ignorerer det nye feltet (TypeScript-strukturen kjenner bare gamle felter).
+- `dagsseddelLocal.projectId` beholdes som default-prosjekt + fallback. NOT NULL → drop kommer i T7-4+ etter alle telefoner har migrert.
+
+**Reload-metode:** TypeScript- + Drizzle-skjema-endring. Krever full app-reload (close + open eller `r` i Metro) ved første installasjon slik at `migreringer.ts` kjører ALTER-statementene. Ingen native rebuild — alle endringer er JS + SQL.
+
+**Forventede begrensninger (kommer i T7-3b2/c/d):**
+- Ingen UI for per-rad-prosjektvelger ennå. Alle nye rader får automatisk `sedel.projectId` via fallback. T7-3b2 leverer rad-nivå-velgeren.
+- Geo-forslag (lat/lng-feltene i prosjekt_local) brukes ikke ennå — kommer i T7-3c.
+- Per-rad-attestering på mobil — kommer i T7-3d (eller forkastes hvis attestering forblir web-only).
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
+### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — MERGET TIL DEVELOP (branch `feature/t7-3a`, merge `22a97402`, impl `fc087b65`) — venter på mobil-bygg
+
+Første sub-PR av T7-3-bunken (mobil timer-redesign). Speil av T7-1a på mobil. Etter denne kan en arbeider sette start-/slutt-tid og pause på dagsseddel-detaljsiden i mobil-appen og se løpende summering av registrerte timer vs utledet arbeidstid før innsending. Ingen DB-migrasjon, ingen sync-endring, ingen server-endring.
+
+**Filer:**
+- **Ny** `apps/mobile/src/components/timer-detalj/ArbeidstidSeksjon.tsx` (~270 linjer) — visning + edit-modal med `DateTimePicker` (time-mode, 24h) for startAt/endAt + number-input for pauseMin. Skriver direkte til `dagsseddelLocal` via drizzle, setter `syncStatus="pending"` så `TimerSyncProvider` propagerer endringen i neste sync-runde.
+- **Ny** `apps/mobile/src/components/timer-detalj/SummeringsBanner.tsx` (~45 linjer) — viser registrert vs total arbeidstid. Grønn ved `totaltimer >= arbeidstidTimer`, gul ellers, grå hvis arbeidstid mangler.
+- `apps/mobile/src/utils/dato.ts` — ny `isoTidspunktTilHHMM(iso)`-helper.
+- `apps/mobile/app/timer/[id].tsx` — monterer ArbeidstidSeksjon over TimerSeksjon, beregner `arbeidstidTimer = (endAt - startAt) - pauseMin/60` og `totaltimer` via `useMemo`. SummeringsBanner over Send-knappen (kun når `erRedigerbar`).
+
+**Server/skjema:** Null endring. `dagsseddel.upsert`/`syncBatch` aksepterte allerede `startAt/endAt/pauseMin` fra T7-1a-deploy 2026-05-12. `dagsseddelLocal`-skjemaet har feltene fra Runde 2.
+
+**i18n:** Gjenbruker T7-1a-nøkler (`timer.arbeidstidIDag*`, `timer.summering`, `timer.felt.startTid/sluttTid/pauseMin`). 2 nye feilmeldinger i nb/en (`timer.feil.ugyldigPause`, `timer.feil.sluttForStart`) auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Pre-eksisterende mobil-typecheck-feil i `hjem.tsx`, `mer.tsx`, `oppgave/[id].tsx`, `psi/[psiId].tsx`, `sjekkliste/[id].tsx`, `useOppgaveSkjema.ts`, `useSjekklisteSkjema.ts`, `timerSync.ts` uberørt.
+
+**Reload-metode:** Telefon-app er JS-only-endring — Expo Go: rist for å reloade, eller `r` i Metro-bundleren. Ingen native rebuild (ingen nye pods/permissions).
+
+**Forventede begrensninger (kommer i T7-3b/c/d):**
+- Sedel er fortsatt prosjekt-bundet (`sedel.projectId`) — multi-prosjekt på rad-nivå kommer i T7-3b
+- Ingen geo-forslag ved sedel-opprettelse — kommer i T7-3c
+- Per-rad-attestering på mobil — kommer i T7-3d eller forkastes hvis attestering forblir web-only
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
 ### PR T7-2b3 settings-toggle for «Tillat redigering ved attestering» DEPLOYET TIL PROD 2026-05-14 (prod-commit `af4a7deb`)
 
 **T7-2b-bunken er nå komplett i prod:**
