@@ -6,118 +6,86 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 | Fil | Innhold |
 |-----|---------|
-| [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** Pågående arbeid, pauset arbeid, planlagte faser. Oppdateres ved hver vesentlig fremdrift |
-| [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | **Deploy-detaljer:** Branching-regler, full deploy-bash, `.env`-krav, mobil reload-typer, tRPC env-konsekvens, prod-lærdommer |
+| [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** pågående/pauset arbeid, planlagte faser |
+| [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | Deploy-bash, `.env`-krav, branching, mobil reload, prod-lærdommer |
 | [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md) | Hjelpetekst-konvensjon (?-ikon) + sidestatus-tabell |
-| [docs/claude/arkitektur.md](docs/claude/arkitektur.md) | Database-skjema, relasjoner, tilgangskontroll, fagområder, rapportobjekter |
+| [docs/claude/arkitektur.md](docs/claude/arkitektur.md) | DB-skjema, relasjoner, tilgangskontroll, fagområder, rapportobjekter |
 | [docs/claude/api.md](docs/claude/api.md) | API-routere, prosedyrer, gratis-grenser, prøveperiode |
 | [docs/claude/web.md](docs/claude/web.md) | Web UI, ruter, kontekster, malbygger, print, tegningsvisning |
-| [docs/claude/mobil.md](docs/claude/mobil.md) | React Native, offline-first, kamera, bilde, statusendring |
-| [docs/claude/forretningslogikk.md](docs/claude/forretningslogikk.md) | Dokumentflyt, arbeidsforløp, grupper, moduler, admin, TODO |
-| [docs/claude/onboarding-veileder.md](docs/claude/onboarding-veileder.md) | **🟡 IDÉ-STADIUM:** Onboarding-veileder for firma. Sekvensiell logikk (tilgang → grupper → flyt → mal → byggeplass → tegninger), idempotens, pedagogisk lag. Planlagt ~1 måned frem (post-Fase 0) |
-| [docs/claude/prosjektoppsett-veileder.md](docs/claude/prosjektoppsett-veileder.md) | **🟡 PLAN (2026-05-02):** Steg-for-steg-flyt for ny bruker etter prosjektopprettelse (faggrupper → brukere → maler → dokumentflyt-kobling). UX-funn 2026-05-02: 4 × 404 ved intuitiv navigering. Blokkerer A.Markussen-selvstendig-onboarding |
-| [docs/claude/navigasjon-arkitektur-analyse-2026-05-03.md](docs/claude/navigasjon-arkitektur-analyse-2026-05-03.md) | **🟢 ANKER (2026-05-03):** Komplett kartlegging av alle innstillings-/navigasjonssider mot vedtatt tre-nivå-arkitektur (Firma → Firmaadministrasjon → Prosjekter). 5 toppnoder, tabeller A–E (firma-admin / alltid-på / prosjektmoduler / per-prosjekt-admin / sitedoc-admin), 7 åpne avklaringspunkter, prioritert tiltak-rekkefølge med status-checkboxer. Brukes som anker for all fremtidig navigasjons-rydding |
-| [docs/claude/ux-arkitektur-agenda.md](docs/claude/ux-arkitektur-agenda.md) | **🟢 BESLUTNINGER (2026-05-06):** UX/arkitektur-gjennomgang. 2 vedtatte beslutninger (B1 toppbar prosjektvelger med Alle/Mine, B2 onboarding-checkpoint-bar utvides med modul-punkter), 5 åpne oppgaver (U1 leder-timer-rapport, U2 eksport alle ansatte, U3 sidebar tekst-labels, U4 farge-aksent per modul, U5 byggeplass selvstendig flyt). A.Markussen prod-status: Timer/Maskin/Varelager aktivert, prosjekt 998 Instinniforbotn opprettet (SD-20260506-0008), varelager-seed venter |
-| [docs/claude/admin-navigasjon-analyse-2026-05-03.md](docs/claude/admin-navigasjon-analyse-2026-05-03.md) | **🟡 AKTIV (2026-05-03):** Funn fra dagens UX-observasjon: firma- og prosjekt-kontekst er frikoblet i UI (P1), admin/firmaer skiller ikke kunde-firmaer fra skall-firmaer (P2), test-firma «Byggeleder» kolliderer med faggruppe-betegnelse (P3), navigasjonen gjenspeiler ikke vedtatt tre-nivå-arkitektur (P4), abonnement+moduloversikt mangler (P5). Prioritert tiltak-rekkefølge med 6 punkter, 4 åpne beslutninger |
-| [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md) | **🟢 STYRENDE (2026-05-03):** Beskriver virkelig arbeidsflyt fra brukerens perspektiv (ansatt morgen/dag/slutt, leder attestering, dataflyt ut til Økonomi/ProAdm). Aktør-tabell, dagsseddel-modul-avhengigheter, åpne spørsmål, koblinger til tekniske dokumenter. **Alle arkitektur-beslutninger skal kunne forklares tilbake til en arbeidsflyt her** |
-| [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared typer + validering + utils, @sitedoc/ui komponenter |
-| [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Deploy, server, env-filer, EAS Build, TestFlight, OAuth |
-| [docs/claude/terminologi.md](docs/claude/terminologi.md) | **Hierarki + modulsystem + alle termer.** Tre nivåer-anker, begrep-tabell, definisjoner |
-| [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk plan: embedding, hybrid søk, RAG, settings UI, testing UI |
-| [docs/claude/dokumentflyt.md](docs/claude/dokumentflyt.md) | Dokumentflyt-spesifikasjon: eier, mottaker, dokumenttyper, flytregler, redigerbarhet |
-| [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, prosessering, dokumentsøk |
-| [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | **Peker** til [kontrollplan.md](docs/claude/kontrollplan.md). Sentralbibliotek-koden er implementert (BibliotekMal + seed-bibliotek.ts). Innhold konsolidert 2026-04-16, fil beholdes som referanse-peker |
+| [docs/claude/mobil.md](docs/claude/mobil.md) | React Native, offline-first, kamera, statusendring |
+| [docs/claude/forretningslogikk.md](docs/claude/forretningslogikk.md) | Dokumentflyt, arbeidsforløp, grupper, moduler, admin |
+| [docs/claude/onboarding-veileder.md](docs/claude/onboarding-veileder.md) | **🟡 IDÉ:** Onboarding-veileder for firma (post-Fase 0) |
+| [docs/claude/prosjektoppsett-veileder.md](docs/claude/prosjektoppsett-veileder.md) | **🟡 PLAN:** Steg-for-steg ny bruker etter prosjektopprettelse |
+| [docs/claude/navigasjon-arkitektur-analyse-2026-05-03.md](docs/claude/navigasjon-arkitektur-analyse-2026-05-03.md) | **🟢 ANKER:** Komplett navigasjons-kartlegging mot tre-nivå-arkitektur |
+| [docs/claude/ux-arkitektur-agenda.md](docs/claude/ux-arkitektur-agenda.md) | **🟢 BESLUTNINGER (2026-05-06):** UX/arkitektur-gjennomgang, 2 vedtak + 5 åpne |
+| [docs/claude/admin-navigasjon-analyse-2026-05-03.md](docs/claude/admin-navigasjon-analyse-2026-05-03.md) | **🟡 AKTIV:** UX-funn admin/firma-kontekst, 6 prioriterte tiltak |
+| [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md) | **🟢 STYRENDE:** Virkelig arbeidsflyt — alle arkitektur-beslutninger skal forklares herfra |
+| [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared + @sitedoc/ui — typer, validering, komponenter |
+| [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Server, env-filer, EAS Build, TestFlight, OAuth |
+| [docs/claude/terminologi.md](docs/claude/terminologi.md) | **Hierarki + modulsystem + alle termer.** Tre-nivå-anker |
+| [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk: embedding, hybrid søk, RAG, settings + testing UI |
+| [docs/claude/dokumentflyt.md](docs/claude/dokumentflyt.md) | Dokumentflyt-spesifikasjon: eier/mottaker, flytregler, redigerbarhet |
+| [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, dokumentsøk |
+| [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | Peker til [kontrollplan.md](docs/claude/kontrollplan.md). Konsolidert 2026-04-16 |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
-| [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟢 VEDTATT (2026-05-02):** Aktivitet flyttet til `SheetTimer.aktivitetId` (NOT NULL) per rad. `DailySheet.aktivitetId` blir nullable default. Ny `SheetMachine`-tabell. `ExternalCostObject.proAdmType String?` (fri tekst). Nye `timer.dagsseddel.maskin.*` mutations + `hentDagstotal`. Implementert i C9 / Runde 2.5. Se også [fase-0-beslutninger.md C.18](docs/claude/fase-0-beslutninger.md) |
-| [docs/claude/steg-4b-plan.md](docs/claude/steg-4b-plan.md) | **🟡 VEDTATT (2026-05-05):** Komplett implementasjonsplan for Vareforbruk-modul. Ny `db-varelager`-pakke. 7 beslutninger inkl. generelt prinsipp om utleie-utstyr i Maskinregister (ikke Vare) + ECO-kobling + fritekst-enhet. 5 faser, ~16t, 3 sesjoner. A.Markussen-import: 57 varer + 6 Equipment-rader for Heatwork-utleie. Komplett vareliste i § 13. Equipment-utleie-utvidelse i Fase 2; full utleie-transaksjons-flow utsatt til Steg 4d |
-| [docs/claude/maskin.md](docs/claude/maskin.md) | Utstyrsregister: 3 kategorier (kjøretøy/anleggsmaskin/småutstyr), Vegvesen API, EU-kontroll, vedlikeholdsplan, GPS, telematikk |
-| [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420-K/F, Område-modell, lovkrav, matrise, sluttrapport, AI-utkast |
-| [docs/claude/planlegger.md](docs/claude/planlegger.md) | Fremdriftsplanlegger: ressursplanlegging, kompetanse, bemanning, forslag-motor |
-| [docs/claude/mannskap.md](docs/claude/mannskap.md) | Mannskaps-vy i PSI-modulen (ikke separat modul). §15-liste, HMS-kort-validering, geofence-innsjekk, GDPR, 12t auto-utsjekk. Endelig datamodell designes Fase 4 |
-| [docs/claude/varsling.md](docs/claude/varsling.md) | Tverrgående varsling: firmanivå, kontrollplan-frister, EU-kontroll, service, sertifisering, in-app klokke |
-| [docs/claude/aktivitetsfeed.md](docs/claude/aktivitetsfeed.md) | **Planlagt fase (etter Timer + Maskin):** Twitter/Facebook-lignende feed på dashboard. Bruker eksisterende Activity-tabell (Fase 0 § E.1). Polling via tRPC, GDPR-anonymisering via cron, konfigurerbar periode (default 10 dager) + hendelsestyper i OrganizationSetting. Ekstern partner-feed = egen designrunde |
-| [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md) | **AKTIV:** Opprydningsplan for DB. Timer-modul på pause til prioritet 1+2 er gjort. Faggruppe-rename, CHECK constraints, design-beslutninger |
-| [docs/claude/migrering-reporttemplate.md](docs/claude/migrering-reporttemplate.md) | Plan: ReportTemplate → OrganizationTemplate (firma-mal-bibliotek). Ikke implementert |
-| [docs/claude/arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) | **ANKER:** Helhetlig produktarkitektur — prosjekthotell + tilleggsmoduler, to-nivå-modell, loan-pattern, mal-arkitektur, Fase 0–7 |
-| [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) | **🟢 § E KOMPLETT (2026-05-01):** 30 vedtatte beslutninger (§A) + 7 lukkede BLOKKERE (§B.1–B.7) + 14 anbefalte utvidelser (§C, inkl. C.17 åpen) + 14-stegs migrerings-rekkefølge (§E) + § F Fase 0.7 data-rens. § E-fremdrift: 13/13 implementert — se STATUS-AKTUELT.md |
-| [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md) | **PLANLAGT FASE:** byggeplass-relasjon på tvers av moduler. Modul-tabell (utkast, krever bekreftelse), tre åpne arkitektur-prinsipper, avhengigheter |
-| [docs/claude/db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md) | Audit lokal/test/prod: faggruppe-rename gjennomført på test og prod, lokal er bak. Metode-merknader om Prisma-skjemaer og CASE-rekkefølge |
-| [docs/claude/smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) | **AKTIV (2026-04-26):** SmartDok UI-research + arkitektur-implikasjoner: dagsseddel-felter, lønnsarter (26), enhetstillegg, equipment-bredde (3 kategorier), underprosjekt-konflikt med FtdChangeEvent, ProAdm-eksport-spor, A.Markussens timer-policy |
-| [docs/claude/smartdok-undersokelse-2026-04-25.md](docs/claude/smartdok-undersokelse-2026-04-25.md) | **ARKIV (v1):** SmartDok API-kartlegging (OpenAPI 128 endepunkter), mapping-tabeller (User/Project/Wage/Machine/WorkHour), funksjonsgap, migreringsstrategi |
-| [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent, risikoer, API-lag |
-| [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH. Tags-modell, delt FilterBar, useListFilter, useRecentlyUsed. Drøftes på tvers av db/ui/shared/dokumentflyt før koding |
-| [docs/claude/timer-funn-fra-screening-2026-04-27.md](docs/claude/timer-funn-fra-screening-2026-04-27.md) | **🟡 MIDLERTIDIG:** 6 timer-relevante drift-funn fra screening 2026-04-27/28. Slettes etter Timer/Maskin-revurdering |
-| [docs/claude/oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md) | **🟡 AKTIV:** Strukturert TODO-liste etter Bunke 3A.1-screening 2026-04-28. Fem prioritets-nivåer (P1 anker-rensing først → P5 svakhet-reparering) + Parkert + Utenfor-scope + 3 TIMER-FUNN-kandidater. Slettes når alle punkter er kvitterte |
+| [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟢 VEDTATT:** Aktivitet per `SheetTimer`-rad, ny `SheetMachine` — se også fase-0 C.18 |
+| [docs/claude/steg-4b-plan.md](docs/claude/steg-4b-plan.md) | **🟡 VEDTATT:** Vareforbruk-modul (`db-varelager`), 5 faser, A.Markussen-import |
+| [docs/claude/maskin.md](docs/claude/maskin.md) | Utstyrsregister: 3 kategorier, Vegvesen API, EU-kontroll, vedlikehold |
+| [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420, lovkrav, matrise, sluttrapport |
+| [docs/claude/planlegger.md](docs/claude/planlegger.md) | Fremdriftsplanlegger: ressurs, kompetanse, bemanning, forslag-motor |
+| [docs/claude/mannskap.md](docs/claude/mannskap.md) | Mannskaps-vy i PSI: §15, HMS-kort, geofence, 12t auto-utsjekk |
+| [docs/claude/varsling.md](docs/claude/varsling.md) | Tverrgående varsling: frister, EU-kontroll, service, sertifisering |
+| [docs/claude/aktivitetsfeed.md](docs/claude/aktivitetsfeed.md) | Planlagt fase: feed på dashboard via Activity-tabell, GDPR-anonymisering |
+| [docs/claude/db-opprydning.md](docs/claude/db-opprydning.md) | **AKTIV:** DB-opprydning, faggruppe-rename, CHECK constraints |
+| [docs/claude/migrering-reporttemplate.md](docs/claude/migrering-reporttemplate.md) | Plan: ReportTemplate → OrganizationTemplate. Ikke implementert |
+| [docs/claude/arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) | **ANKER:** Helhetlig produktarkitektur, to-nivå-modell, Fase 0–7 |
+| [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) | **🟢 § E KOMPLETT:** 30 beslutninger + 14 utvidelser + 14-stegs rekkefølge |
+| [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md) | **PLANLAGT FASE:** byggeplass på tvers av moduler, 3 åpne prinsipper |
+| [docs/claude/db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md) | Audit lokal/test/prod faggruppe-rename, lokal bak |
+| [docs/claude/smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) | **AKTIV:** SmartDok UI-research + arkitektur-implikasjoner |
+| [docs/claude/smartdok-undersokelse-2026-04-25.md](docs/claude/smartdok-undersokelse-2026-04-25.md) | **ARKIV v1:** SmartDok API-kartlegging (OpenAPI 128 endepunkter) |
+| [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent |
+| [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH |
+| [docs/claude/timer-funn-fra-screening-2026-04-27.md](docs/claude/timer-funn-fra-screening-2026-04-27.md) | **🟡 MIDLERTIDIG:** 6 timer-funn fra screening |
+| [docs/claude/oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md) | **🟡 AKTIV:** Strukturert TODO-liste, 5 prioritets-nivåer |
+| [docs/claude/historikk-2026-05.md](docs/claude/historikk-2026-05.md) | Arkiv av deployete PR-er fra mai 2026 |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
 
 ## Pågående arbeid (kort)
 
-### Timer-modul arkitektur-redesign (PR 1A–2C) — DEPLOYET TIL PROD 2026-05-12
+### PR T7-2b1 per-rad-attestering + felleskomponent AttesteringDetalj IMPLEMENTERT på feature/t7-2b1 2026-05-14
 
-T.1–T.6-vedtakene fra 2026-05-11 (se [fase-0-beslutninger.md § T](docs/claude/fase-0-beslutninger.md)): `projectId` flyttet fra `DailySheet` til rad-nivå (`SheetTimer`/`SheetMachine`/`SheetTillegg`). Dagsseddelen eies av arbeider/firma, ikke prosjekt. Bunken levert i 5 PR-er for å overholde to-stegs migration-policy.
+Første av T7-2b-bunken. Bytter attestering fra per-sedel til per-rad og refaktorerer detalj-siden til projectId-løs felleskomponent. Forutsetning for T7-2b2 (rad-splitting) + T7-2b3 (`tillattRedigerVedAttestering`-flagg + audit-log).
 
-- **PR 1A** (`862c70c3`) — Schema-additive + backfill. Nye kolonner nullable, DailySheet.projectId beholdt, backfill-SQL i samme migrasjon. Deployet prod 2026-05-11.
-- **PR 1B** (`bba971ba`) — NOT NULL på `sheet_timer.project_id` + `sheet_machines.project_id` + `sheet_tillegg.project_id`. Drop `daily_sheets.project_id`. Ny unique `(user_id, dato)` erstatter `(user_id, project_id, dato)`. Deployet prod 2026-05-12 00:06:53.
-- **PR 2A** (`6431873c`) — API-refaktor av `dagsseddel.ts` (33 feil), `rapport.ts` (10 feil), `vareforbruk.ts` (2 feil). Nye input-felter på `tilfoyTimerRad`/`tilfoyTilleggRad`/`maskin.tilfoy` (`projectId` påkrevd, `byggeplassId`/`fraTid`/`tilTid` valgfri). Auth via første rad-fallback i `attester`/`returner`/`hentForAttestering`. Rapport-aggregering per rad i stedet for per sedel. 45 → 0 TS-feil. Deployet prod 2026-05-12.
-- **PR 2B** (`8478d4a7`) — Web-klient. 3 modaler i `apps/web/src/app/dashbord/[prosjektId]/timer/[id]/page.tsx` (TimerRad/Tillegg/Maskin) sender nå `projectId: params.prosjektId` via `useParams`. 46 → 0 TS-feil i `apps/web` (eksklusiv pre-eksisterende vitest). Deployet prod 2026-05-12.
-- **PR 2C min** (`0700b8ed`) — Mobil. Defensiv `?? ""` på `serverSedel.projectId` i `timerSync.ts` mot at server nå kan returnere `null` (for sedler uten rader). Mobil typecheck uendret fra 12 pre-eksisterende baseline. Full Drizzle-omskriving (per-rad projectId i SQLite + sync-refaktor) utsatt — dokumentert som åpen oppgave i [STATUS-AKTUELT.md § Implementasjonsstatus](docs/claude/STATUS-AKTUELT.md). Deployet prod 2026-05-12.
+**Schema (`packages/db-timer/prisma/schema.prisma`):** Kun kommentar-oppdatering. `SheetTimer`/`SheetTillegg`/`SheetMachine.attestertStatus`-verdiene normalisert i kommentar fra `"godkjent"` → `"attestert"` (norsk-konvensjon, følger «attestering ≠ godkjenning»-regelen). Selve feltet har vært i schema siden PR 1B (2026-05-11) med default `"pending"` og indeks på alle tre tabeller. **Ingen migrasjon kreves** — null historiske rader er skrevet med `"godkjent"`.
 
-**Verifisering prod 2026-05-12:**
-- HTTP/2 200 mot `sitedoc.no`, `api.sitedoc.no/health` returnerer OK
-- `daily_sheets.project_id` DROPPED (0 rows i information_schema)
-- `sheet_timer/sheet_machines/sheet_tillegg.project_id` NOT NULL
-- Ny unique-index `daily_sheets_user_id_dato_key` finnes
-- Migrasjon `20260511220000_timer_schema_redesign_1b` applied 00:06:53
-- PM2 `sitedoc-web` (id 47) + `sitedoc-api` (id 39) restartet, uptime 0-2s, restart-teller +1 = 46
+**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- Nye mutations: `attesterRader({ radIder })` og `returnerRader({ radIder, kommentar })`. Input: `{ timerIder, tilleggIder, maskinIder }` arrays. Auth: én `krevProsjektLeder`-sjekk per unike `projectId` (ikke per rad — perf). Validerer at alle rader har `attestertStatus === "pending"`. Snapshot per rad i transaksjon (Fase 0 A.7). Etter mutasjon: sedler markeres `"accepted"` kun hvis alle rader nå er `"attestert"`; én returnert rad → sedel-status → `"returned"`.
+- `hentForAttestering`: utvidet auth med firma-admin-fallback (`autoriserAdminForFirma`) hvis `krevProsjektLeder` feiler — slik at firma-detalj-side kan bruke samme query.
+- `hentTilAttesteringFirma`: utvidet `include` med `maskiner: true` så klient kan vise fremdrift på tvers av alle tre rad-tabeller.
+- `attester`/`returner`: beholdt som `@deprecated` thin wrappers (henter alle pending-rader på sedelen, gjør samme operasjon). Fjernes ~1 uke etter klient-migrering per CLAUDE.md API-regel.
 
-**Påvirkning på fremtidig arbeid:** `krevProsjektLeder`-gate er fortsatt per-prosjekt — i `attester`/`returner`/`hentForAttestering` brukes første rad-fallback (`sheet.timer[0]?.projectId`). Full per-rad-attestering (T.3 Alternativ A — leder attesterer kun sine rader, sedel = container uten egen status) er ikke implementert i denne bunken og blir egen PR senere.
+**Web:**
+- Ny felleskomponent `apps/web/src/components/timer/AttesteringDetalj.tsx` (~620 linjer). Props: `sheetId`, `prosjektKontekst?: string` (undefined = firma-kontekst), `tilbakeUrl`. Per-rad-checkboxer + rad-status-badges (`pending`/`attestert`/`returnert`) i hver av tre rad-tabeller. Pre-utvalg: alle pending-rader leder har tilgang til. Container-status-banner viser fremdrift («3 av 8 attestert»). Rader fra andre prosjekter vises disabled i prosjekt-kontekst.
+- `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/[id]/page.tsx`: tidligere 591 linjer, nå tynn wrapper (~50 linjer) som monterer felleskomponenten med `prosjektKontekst={params.prosjektId}`.
+- `apps/web/src/app/dashbord/firma/timer/attestering/[id]/page.tsx`: ny side (~60 linjer). Bruker `useFirma()` + `kanAttestereFirma`-query, monterer felleskomponenten projectId-løs.
+- `firma/timer/attestering/page.tsx`: «Åpne»-lenken peker nå til `/dashbord/firma/timer/attestering/${rad.id}` istedenfor prosjekt-bundet ruten (firma-admin uten prosjekt-medlemskap kan nå åpne detalj).
 
-### T.7 dagsseddel UI-redesign + #8 sjekklistemaler-kolonner — DEPLOYET TIL PROD 2026-05-12
+**i18n:** 12 nye nøkler i nb/en (rad-status × 3, rad-valg-knapper/etiketter × 6, container-banner × 3). Auto-oversatt til 13 språk via `generate.ts`.
 
-Samme dag som PR 1A–2C ble også T.7-leveranseplanen startet og første tre etapper deployet. T.7 er definert i [fase-0-beslutninger.md § T.7](docs/claude/fase-0-beslutninger.md) med URL-struktur Alternativ C (tre kontekster: arbeider / prosjektleder / firma-admin) og fire PR-er (T7-0 → T7-3).
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil).
 
-- **#8 sjekklistemaler-kolonner** (`3eb7398f` impl + merge `542461e2`) — Fagområde + Antall punkter-kolonner lagt til i `MalListe.tsx`. 4 nye i18n-nøkler i 15 språk. Kundeønske fra A.Markussen.
-- **PR T7-0 mobil-refaktor** (`44c03d98` impl + merge `b2a8e8ee`) — `apps/mobile/app/timer/[id].tsx` redusert fra 2084 → 367 linjer. Splittet til `TimerSeksjon`/`TilleggSeksjon`/`MaskinSeksjon` + `types/timer-detalj.ts` + `utils/dato.ts` + `lib/enheter.ts`. Ingen funksjonalitets­endring; mobil typecheck 12 = 12 baseline. Forberedelse for T7-3.
-- **PR T7-1a arbeidstid + summering** (`1b668cd9` impl + merge `b2a8e8ee`) — Re-label «Arbeidstid i dag» (lese-vy + rediger-modal) på `apps/web/src/app/dashbord/[prosjektId]/timer/[id]/page.tsx`. Ny utledet `arbeidstidTimer = (endAt − startAt) − pauseMin/60`. Løpende summerings-banner over Send-knappen med farge­koding (grønn/gul/grå) basert på registrerte timer vs. arbeidstid. 3 nye i18n-nøkler i 15 språk.
-- **PR T7-1b prosjekt-gruppert dagsseddel + geo-forslag** (`fcff04c1` impl + merge `908a57c1`) — Ny URL-struktur `/dashbord/timer/[id]` og `/dashbord/timer/ny` (firma-kontekst, ikke prosjekt-bundet). Multi-prosjekt-støtte på rad-nivå. Geo-forslag via `navigator.geolocation` + Haversine-avstand mot `Project.lat/lng` med 500m radius. Nye komponenter `ProsjektRadVelger` + `StatusBadge` (flyttet til `@/components/timer/`). Redirect-stubs fra eldre `/dashbord/[prosjektId]/timer/[id]` og `/timer/ny`. 5 nye i18n-nøkler i 15 språk. Bugfix `8ab2e826` på «Åpne»-lenker som ga `/dashbord/undefined/timer/...` (mine-timer + prosjekt-timer-liste).
-- **PR T7-2a firma-admin attestering-liste** (`b043d944` impl + merge `f3dbf08b`) — Ny side `/dashbord/firma/timer/attestering` viser sedler på tvers av prosjekter i firmaet. 2 nye server-queries: `timer.dagsseddel.hentTilAttesteringFirma({organizationId})` + `kanAttestereFirma({organizationId})` gates med `autoriserAdminForFirma`. Ny fane «Attestering» i `firma/timer/layout.tsx`. Attestering/retur fortsatt per-sedel (uendret mutation). Fix `55b6c398`: informativ amber-banner-tom-state istedenfor evig spinner når sitedoc_admin ikke har valgt firma. 4 nye i18n-nøkler i 15 språk.
+**Forventede begrensninger (kommer i T7-2b2/b3):**
+- Ingen rad-splitting — én rad kan ikke deles i flere ved attestering.
+- Ingen direkte-redigering av timer/fra-til/ECO/lønnsart for firma-admin ved attestering — krever `OrganizationSetting.tillattRedigerVedAttestering` (T7-2b3).
+- Returnert rad-status nullstilles ikke ved gjenutsending (`sendTilAttestering`) — separat oppfølger.
+- Mobil får per-rad-attestering først i T7-3.
 
-**Verifisering alle deploys:** HTTP/2 200 mot `sitedoc.no` etter hver deploy. PM2 sitedoc-web/api restartet og online. Visuell QA gjennomført av Kenneth på test før hver prod-deploy. Stale `.next`-cache-problem oppdaget to ganger under auto-deploy (PM2 reload trigget før build fullført); løst med manuell `rm -rf apps/web/.next + pnpm build + pm2 restart` på test. Roårsak er deploy-pipeline-svakhet (auto-hook ikke synkronisert med build), ikke kodefeil — separat oppfølgings-oppgave.
+Klar for review — ikke merge før Kenneth verifiserer.
 
-**Forventede begrensninger i T7-2a (kommer i T7-2b):**
-- «Åpne»-detaljvisning fra firma-attestering-liste bruker eksisterende prosjekt-bundet detalj-side. Firma-admin uten prosjekt-medlemskap får «Prosjektet ble ikke funnet» fra `[prosjektId]/layout.tsx` (forventet — projectId-løs felleskomponent kommer i T7-2b).
-- Attestering er fortsatt per-sedel (ikke per-rad). T.3 Alt A (sedel = container uten egen attesterings-status) implementeres i T7-2b.
-- Sedler som spenner flere prosjekter viser kun første prosjekts navn i firma-listen.
-
-**T.7-fremdrift:** T7-0 ✅, T7-1a ✅, T7-1b ✅, T7-2a ✅. Gjenstår T7-2b (web attestering — per-rad-attestering + projectId-løs felleskomponent + splitting per T.7-regler) og T7-3 (mobil dagsseddel-redesign etter T7-0-refaktor).
-
-### Ansattnummer i firma-admin bruker-UI IMPLEMENTERT på develop 2026-05-12
-
-`User.ansattnummer`-feltet har vært i schema siden Fase 0, brukt av timer-rapport (`firma/timer/rapport`), attestering-lister (`firma/timer/attestering`, `[prosjektId]/timer/attestering`) og kompetanse-import (matching-nøkkel). Men feltet kunne **ikke settes fra UI** — eneste vei var direkte SQL eller fremtidig HR-import-modul. Denne PR-en lukker hullet ved å legge til ansattnummer-felt i invite- og rediger-modaler for firma-admin.
-
-Server (`apps/api/src/routes/organisasjon.ts`):
-- `inviterBruker`: nytt input-felt `ansattnummer: z.string().max(50).optional()`. Settes på `User.create` (ny bruker) og `User.update` (adopsjon av orphan-bruker).
-- `oppdaterBruker`: samme input-felt + nullstilling via tom streng (`input.ansattnummer || null`). `select` på respons utvidet med `ansattnummer`.
-- `hentBrukere`: `select` utvidet med `ansattnummer` for å støtte default-verdi i rediger-modalen.
-
-Klient (`apps/web/src/app/dashbord/firma/brukere/page.tsx`):
-- `BrukerRad`-typen utvidet med `ansattnummer: string | null`.
-- `InviterModal`: ny `ansattnummer`-state, input-felt med hjelpetekst plassert etter telefon, sendes med i mutation-payload som `undefined` ved tom verdi.
-- `RedigerModal`: default-verdi `bruker.ansattnummer ?? ""`, samme input-felt, sendes alltid med (server håndterer nullstilling).
-
-i18n: 2 nye nøkler nb+en (`firma.brukere.ansattnummer`, `firma.brukere.ansattnummerHjelp`), 13 språk auto-oversatt via `generate.ts`. API+web typecheck 0 nye feil.
-
-### PR O-1 OrganizationMember-tabell DEPLOYET TIL PROD 2026-05-12
-
-Første PR i OrganizationMember-refaktoren (5 PR-er, låst i [fase-0-beslutninger.md § OrganizationMember-refaktor](docs/claude/fase-0-beslutninger.md)). Additiv: ingen eksisterende kode røres. `User.organizationId` + `Organization.users` beholdes for dual-read i O-2.
-
-Schema: Ny `OrganizationMember`-modell (`id`, `userId`, `organizationId`, `ansattRolle String @default("ansatt")`, `firmaRoller String[] @default([])`, `ansattnummer String?`, audit-felter, `@@unique([userId, organizationId])`, Cascade-FK begge ender). Back-relasjoner `organizationMembers OrganizationMember[]` på User og `members OrganizationMember[]` på Organization.
-
-Migrasjon `20260512170000_add_organization_member` applied. Backfill kjørt på test (26 rader) og prod (3 rader). 1:1-match mot `users` med `organization_id`. Prod-deploy via merge `8da92633` + manuell `deploy.sh` (auto-deploy gjelder kun test).
-
-### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte IMPLEMENTERT på feature/ansattrolle-ui 2026-05-13
+### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte DEPLOYET TIL PROD 2026-05-13 (prod-commit `3fa34c57`)
 
 Oppfølger til O-5-bunken. Lukker konsistens-hullet hvor `endreRolle`-UI-en skrev til legacy `User.role` uten å speile til `OrganizationMember.firmaRoller` (25/26 OrganizationMember-rader i test hadde fortsatt `firmaRoller = []`). Synliggjør og redigerbar-gjør `ansattRolle` (stilling) + `firmaRoller` i firma/ansatte-siden.
 
@@ -142,241 +110,13 @@ Oppfølger til O-5-bunken. Lukker konsistens-hullet hvor `endreRolle`-UI-en skre
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole DEPLOYET TIL PROD 2026-05-13 (prod-commit `fe1d703d`, migration applied 22:36:32)
+### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole — prod `fe1d703d` (2026-05-13)
 
-Siste PR i O-5-bunken. Dropper de tre legacy User-feltene fra Prisma-skjema og DB, og dropper `OrganizationRole`-tabellen helt. Etter merge + deploy er OrganizationMember-refaktoren komplett.
+Sluttsteg i O-5-bunken. Fjernet `User.organizationId`/`User.ansattnummer`/`User.avdelingId` + tre Prisma-relasjoner fra `packages/db/prisma/schema.prisma`. Composite uniques erstattet av globalt `email @unique`. `OrganizationRole`-tabellen droppet (0 rader). Migration `20260513210000_o5c_drop_user_org_fields`. 5 routes-callsites omarbeidet (admin/avdeling/bruker/medlem) for å beholde klient-API uberørt. Apps typecheck 0 nye feil. OrganizationMember er nå eneste sannhetskilde for firma-medlemskap, ansattnummer og avdelingsskap.
 
-**Schema-endringer i `packages/db/prisma/schema.prisma`:**
-- `User`-modellen: fjernet `organizationId String?`, `ansattnummer String?`, `avdelingId String?`, `organization Organization?`-relasjon, `avdeling Avdeling?`-relasjon, `organizationRoles OrganizationRole[]`-relasjon, `@@unique([email, organizationId])`, `@@unique([phone, organizationId])`, `@@index([organizationId])`, `@@index([avdelingId])`. Lagt til `@unique` direkte på `email`-feltet (erstatter composite-unique).
-- `Organization`-modellen: fjernet `users User[]`-back-relasjon + `organizationRoles OrganizationRole[]`-back-relasjon.
-- `Avdeling`-modellen: fjernet `brukere User[]`-back-relasjon. `organizationMembers OrganizationMember[]` beholdt (introdusert i O-4a).
-- `OrganizationRole`-modellen: fjernet komplett.
+### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff — prod `fe1d703d` (2026-05-13)
 
-**Migration `20260513210000_o5c_drop_user_org_fields`:**
-```sql
--- Fjern composite uniques
-ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_email_organization_id_key";
-ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_phone_organization_id_key";
--- Global email-unique
-ALTER TABLE "users" ADD CONSTRAINT "users_email_key" UNIQUE ("email");
--- Dropp tre kolonner + FK + indeks
-ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_organization_id_fkey";
-DROP INDEX IF EXISTS "users_organization_id_idx";
-ALTER TABLE "users" DROP COLUMN IF EXISTS "organization_id";
-ALTER TABLE "users" DROP COLUMN IF EXISTS "ansattnummer";
-ALTER TABLE "users" DROP CONSTRAINT IF EXISTS "users_avdeling_id_fkey";
-DROP INDEX IF EXISTS "users_avdeling_id_idx";
-ALTER TABLE "users" DROP COLUMN IF EXISTS "avdeling_id";
--- Dropp OrganizationRole-tabellen (0 rader prod-verifisert)
-DROP TABLE IF EXISTS "organization_roles";
-```
-
-**Routes-endringer (5 callsites Prisma typecheck avdekket, ikke fanget i O-5a/b/b-fix-grep):**
-- `admin.ts:402-418` `hentAlleBrukere` (sitedoc_admin-rute): omstrukturert til to-trinns oppslag (User.findMany + OrganizationMember.findMany med organization-include), map til respons med `organizationId` + `organization`-felter. Klient-API uberørt.
-- `admin.ts:577-600` `hentImpersoneringStatus`: samme to-trinns-pattern. `target`-respons har fortsatt `organizationId` + `organization.name`-felter.
-- `avdeling.ts:42-58` `hentAlle`: `_count: { select: { brukere: true } }` → `_count: { select: { organizationMembers: true } }`, med mapping `{ ..._count: { brukere: <antall> } }` for klient-bakoverkompatibilitet.
-- `avdeling.ts:135-148` `slett`-konflikt-sjekk: `User.count({ where: { avdelingId } })` → `OrganizationMember.count({ where: { avdelingId } })`.
-- `bruker.ts:15-28` `hentMin`: to-trinns oppslag (User + OrganizationMember), respons-form uendret (`organizationId` utledet fra OM).
-- `medlem.ts:17-36` `hentForProsjekt`: `user`-include endret fra `{ include: { organization } }` til eksplisitt `select`. Organization-relasjon fjernet (ingen klient-bruk verifisert). Måtte bruke `select` i stedet for `user: true` for å unngå TS2589 ("Type instantiation is excessively deep").
-
-**Linjer endret per fil:**
-
-| Fil | + | - | Notat |
-|-----|---|---|-------|
-| `schema.prisma` | 9 | 56 | -47 (Faktisk slett av modeller, felter, indekser) |
-| `admin.ts` | 25 | 14 | +11 |
-| `avdeling.ts` | 7 | 3 | +4 |
-| `bruker.ts` | 8 | 8 | 0 |
-| `medlem.ts` | 10 | 2 | +8 |
-| `migration.sql` | (ny) 27 | — | — |
-
-**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil). Ingen klient-endring — `organizationId`-feltet i respons-typer er bevart via utledning i routes der det fortsatt brukes.
-
-**Verifikasjons-rekkefølge ved deploy:**
-1. Test-deploy via push til develop: Prisma migrasjon kjører automatisk i deploy-pipelinen (`prisma migrate deploy`).
-2. Verifiser browser-flyt på test (innlogget bruker) før prod-deploy. Spesielt: firma-admin-ruter, ansatt-listing, kompetanse-matrise, avdeling-administrasjon, sitedoc_admin-impersonering.
-3. Prod-deploy: samme migration kjøres mot prod-DB. Etter migration er kolonnene fjernet permanent — ingen rollback mulig uten DB-backup.
-
-**Etter prod-deploy: O-5-bunken er komplett.** OrganizationMember er nå eneste sannhetskilde for firma-medlemskap, ansattnummer og avdelingsskap. `User.role` beholdes som system-rolle (kun for `sitedoc_admin`).
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff DEPLOYET TIL PROD 2026-05-13 (prod-commit `fe1d703d`)
-
-Oppfølger til O-5b etter at full-codebase-grep avdekket 11 ytterligere User.organizationId/User.ansattnummer-lesinger eller -skrivinger som ikke ble fanget i O-5b. O-5b-grep var begrenset til mønstre som inkluderte `User.organizationId`-strenger direkte; treff som `where: { organizationId: orgId }` i `User.findMany`/`User.create`-data ble forbi.
-
-Etter denne PR-en er det 0 gjenstående direkte lesinger eller skrivinger av `User.organizationId` eller `User.ansattnummer` i `apps/api/src/`. O-5c (schema-drop) er nå trygt fra et kode-perspektiv.
-
-Fix-er (alle samme refaktor-mønster — bruk `hentBrukersOrg`/`OrganizationMember.findMany`/`OrganizationMember.upsert`):
-
-1. `tilgangskontroll.ts:593-606` — `byggTilgangsFilter` firmaansvarlig-gren leste `User.findMany({ where: { organizationId } })` for å bygge firmabruker-sett. Byttet til `hentBrukersOrg` + `OrganizationMember.findMany({ where: { organizationId }, select: { userId } })`. Identisk pattern som `verifiserDokumentTilgang` (O-5a) — samme funksjon-fil, separat gren.
-2. `kompetanse.ts:38-50` — `hentMatrise` brukerliste. Byttet `User.findMany({ where: { organizationId, canLogin } })` til `OrganizationMember.findMany({ where: { organizationId, user: { canLogin: true } } })` med nested user-select. Returform uendret.
-3. `kompetanse.ts:55-58` — `ansattKompetanse.findMany({ where: { user: { organizationId } } })` byttet til `where: { userId: { in: brukerIder } }` der `brukerIder` kommer fra steg 2 (omstrukturert Promise.all til sequential).
-4. `kompetanse.ts:84-93` — `hentForBruker` mål-bruker-validering. Byttet `User.findUnique` + `malBruker.organizationId !== orgId`-sjekk til `OrganizationMember.findUnique({ userId_organizationId })` med same NOT_FOUND-feilmelding.
-5. `medlem.ts:147-162` — `inviterByEmail` user-create/update i firmaansvarlig-flyt. Fjernet `organizationId`-skriving fra `User.create`/`User.update`. Lagt til `OrganizationMember.upsert` etter user-opprettelse hvis `input.organizationId` er gitt — sikrer firma-medlemskap via OM, ikke User.
-6. `medlem.ts:356-369` — `oppdaterMedlem` email-konflikt-sjekk innen firma. Byttet `User.findFirst({ where: { email, organizationId: medlem.user.organizationId } })` til hentBrukersOrg(medlem.userId) + `User.findFirst({ where: { email, organizationMembers: { some: { organizationId: malOrgId } } } })`. Håndterer også null-org-fall (orphan): `organizationMembers: { none: {} }`.
-7. `medlem.ts:526-537` — `hentLedigeFirmaBrukere` tilgjengelige brukere å invitere til prosjekt. Byttet `User.findMany({ where: { organizationId, canLogin, id: { notIn } } })` til `OrganizationMember.findMany({ where: { organizationId, userId: { notIn }, user: { canLogin: true } } })` med nested user-select.
-8. `kompetanse.ts:135-149` — `opprett` kompetansetype-firma-validering. Byttet `User.findUniqueOrThrow({ select: { organizationId } })` til `hentBrukersOrg(input.userId)`. Bevarer null-fall: hvis bruker ikke har org, returner null (kompetansetype kan ikke matche).
-9. `maskin/ansvarlig.ts:72-87` — `tilfoy` cross-org-sjekk. Byttet `malBruker.organizationId !== equipment.organizationId` til `await hentBrukersOrg(input.userId) !== equipment.organizationId`. `User.findUnique`-select rensket — fjernet `organizationId`.
-10. `maskin/import.ts:52-65` — SmartDok-navn-matching i ansvarlig-mapping. Byttet `User.findMany({ where: { organizationId, name: { not: null } } })` til `OrganizationMember.findMany({ where: { organizationId, user: { name: { not: null } } } })` med nested user-select.
-11. `maskin/equipment.ts:208-213` — `hentMuligeAnsvarlige`. Byttet `User.findMany({ where: { organizationId } })` til `OrganizationMember.findMany({ where: { organizationId }, select: { user: { select: ... } } })` med map til user.
-
-Bonus-rydding (oppdaget under sluttverifikasjon — to gjenstående `User.organizationId`-skrivinger O-5b ikke fjernet):
-- `organisasjon.ts:405-413` — `inviterBruker` orphan-bruker-adopsjon. Fjernet `organizationId: orgId` fra `User.update`-data. `OrganizationMember.upsert` på rad 416-426 er nå eneste sannhetskilde for firma-medlemskap.
-- `organisasjon.ts:431-441` — `inviterBruker` ny-bruker-create. Fjernet `organizationId: orgId` fra `User.create`-data. `OrganizationMember.upsert` på rad 444-454 er nå eneste sannhetskilde.
-
-Linjer endret: +99 / -65 (netto +34). Vekst kommer fra `medlem.ts:147-162` der `OrganizationMember.upsert` er ekstra trinn etter `User.create`/`User.update`.
-
-Verifisert: `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil). Ingen DB-endring, ingen klient-endring, ingen schema-endring.
-
-**Etter O-5b-fix:** Sluttverifikasjon viser 0 direkte lesinger/skrivinger av `User.organizationId` eller `User.ansattnummer` i `apps/api/src/`. O-5c (schema-drop) er trygt å starte.
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR O-5b fjern User.organizationId/ansattnummer i gruppe/medlem/admin/timer-routes DEPLOYET TIL PROD 2026-05-13 (prod-commit `54d917d9`)
-
-Andre sub-PR av O-5. Fjerner alle gjenværende direkte `User.organizationId`- og `User.ansattnummer`-lesinger fra routes (de som ikke fulgte O-5a-mønstret med lokal `hentBrukerOrgId`). Ingen schema-endring, ingen klient-endring. Klargjør for O-5c som dropper `User.organizationId` + `User.ansattnummer` + `OrganizationRole`-tabellen.
-
-Kategori B (4 routes — `User.organizationId`/`User.role` lest direkte for tilgangsbeslutninger):
-- `gruppe.ts` `hentMinFlytInfo` (rad 28-58): firma-admin-fallback uten `ProjectMember`-rad. Byttet fra `bruker.role === "company_admin" && bruker.organizationId` til `hentBrukersOrg` + `OrganizationMember.firmaRoller.includes("firma_admin")`-oppslag.
-- `medlem.ts` `inviterBruker` (rad 88-135): firmaansvarlig-grenen leste `User.organizationId` to ganger — én for inviterende, én for eksisterende bruker med samme e-post. Begge byttet til `hentBrukersOrg`. Den andre var spesielt subtil: tidligere lest `eksisterendeBruker.organizationId`, nå hentes orgId via `hentBrukersOrg(eksisterendeBruker.id)`.
-- `medlem.ts` `leggTilEksisterende` (rad 539): `bruker.organizationId !== prosjekt.primaryOrganizationId`-sjekk byttet til `await hentBrukersOrg(input.userId) !== prosjekt.primaryOrganizationId`. `select` på User-oppslaget rensket — fjernet `organizationId`.
-- `admin.ts` `hentAlleOrganisasjoner` (rad 107-136): `include: { users: ... }` (Organization.users back-relasjon) byttet til `include: { members: { select: { user: { select: ... } } } }`. Mapping i respons bygger `users`-feltet fra `members.map((m) => m.user)` — klient-API uberørt. Klient-bytte til `members` kan skje senere som egen kosmetisk PR.
-
-Kategori C (3 filer — `User.ansattnummer` lest direkte):
-- `timer/rapport.ts` (rad 95-103 + 272-281): to `User.findMany`-batch-oppslag for ansattnummer-berikelse. Begge nå supplert med `OrganizationMember.findMany({ where: { userId: { in: userIder } }, select: { userId, ansattnummer } })` og merge via `Map<userId, ansattnummer>`. Trygt forutsatt 1:1 (verifisert i prod-sjekk før O-5a).
-- `timer/dagsseddel.ts` (rad 673, 716, 791, 878): tre batch-oppslag + ett single-bruker-oppslag (`hentEnkelt`). Batch-stedene følger samme mønster som rapport.ts. Single-stedet bruker `sheet.organizationId` for å gjøre `OrganizationMember.findUnique({ userId_organizationId })`.
-- `organisasjon.ts` `oppdaterBruker` (rad 539-554) + `inviterBruker` (rad 411 + 440): fjernet `data.ansattnummer` fra `User.update`/`User.create`. Tidligere O-4b dual-write til User beholdt — nå skrives kun til `OrganizationMember`. Respons fra `oppdaterBruker` bygger `ansattnummer` fra `OrganizationMember.findUnique`-etter-oppdatering. Klient-API uberørt.
-
-Linjer endret: +107 / -51 (netto +56). De fleste filene har netto vekst pga. dual-oppslag-mønster (User-felter + OrganizationMember-felter slått sammen til respons). `timer/dagsseddel.ts` har størst vekst (+40/-12 = +28 linjer) pga. 4 forekomster av samme mønster.
-
-Verifisert: `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil i `import-hjelpere.test.ts`). Ingen DB-endring, ingen klient-endring, ingen schema-endring.
-
-**Etter O-5b:** Gjenstår kun O-5c (schema-drop). Etter O-5c er kolonnene `User.organizationId`, `User.avdelingId`, `User.ansattnummer` og tabellen `OrganizationRole` droppet. Krever to-stegs migration: én PR fjerner Prisma-relasjonen og legger til migration som setter NOT NULL/validering, neste PR (etter prod-deploy + verifisering) dropper kolonnene.
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR O-5a fjern User.organizationId-fallbacks + 8 routes via resolverOrgFraInput DEPLOYET TIL PROD 2026-05-13 (prod-commit `95500003`)
-
-Femte PR i OrganizationMember-refaktoren. Fjerner alle O-5-merkede dual-read-fallbacks i `tilgangskontroll.ts` og refaktorerer 8 routes som hadde lokal `hentBrukerOrgId`-duplikatkode til å bruke nye sentrale hjelpere. Ingen schema-endring, ingen klient-endring.
-
-Prod-konsistens verifisert før implementasjon:
-- 0 duplikate e-poster i `users` (prod + test)
-- 0 brukere med multiple `OrganizationMember`-rader (prod + test)
-- 0 orphan-brukere (User.organizationId satt uten OrganizationMember-rad)
-
-Nye eksporterte hjelpere i `apps/api/src/trpc/tilgangskontroll.ts`:
-- `krevBrukersOrg(userId): Promise<string>` — som `hentBrukersOrg`, men kaster FORBIDDEN hvis bruker er org-løs.
-- `resolverOrgFraInput(userId, inputOrgId?): Promise<string>` — håndterer sitedoc_admin-bypass + OrganizationMember-validering. Erstatter 8 duplikate `hentBrukerOrgId`-funksjoner i routes.
-
-Kategori D — fallback-grener fjernet i `tilgangskontroll.ts`:
-- `hentBrukersOrg`: User.organizationId-fallback fjernet (returnerer null direkte).
-- `erFirmaAdmin`: User.role==="company_admin"-fallback fjernet (returnerer false hvis ingen member).
-- `verifiserOrganisasjonTilgang`: User.organizationId-fallback fjernet. Kun OrganizationMember-sjekk.
-- `autoriserAdminForFirma`: User.role==="company_admin"-fallback fjernet. Bruker `erFirmaAdmin` etter sitedoc_admin-bypass.
-- `harOrgRolle`: refaktorert til ett direkte `OrganizationMember.findFirst({ firmaRoller: { has: role } })`-kall (ikke lenger avhengig av User.organizationId).
-
-Kategori D-utvidelse — 3 funksjoner som leste `User.organizationId` direkte byttet til `hentBrukersOrg`:
-- `verifiserDokumentTilgang`: firmabruker-sett henter nå via `OrganizationMember.findMany` i stedet for `User.findMany({ organizationId })`.
-- `verifiserKompetanseSkriveTilgang`: ctx+mål-org-oppslag via `hentBrukersOrg`. sitedoc_admin-bypass via `User.role` beholdt.
-- `verifiserMaskinAnsvarligSkriveTilgang`: cross-org-blokkering via `hentBrukersOrg`. sitedoc_admin-bypass beholdt.
-
-Kategori A — 8 routes refaktorert til `resolverOrgFraInput`/`krevBrukersOrg`:
-- `kompetansetype.ts`, `timer/onboarding.ts`, `timer/lonnsart.ts`, `timer/tillegg.ts`, `timer/aktivitet.ts` — bruker `resolverOrgFraInput` (sitedoc_admin + inputOrgId-bypass).
-- `eksternKostObjekt.ts`, `timer/dagsseddel.ts` — bruker `krevBrukersOrg` (kort variant uten inputOrgId).
-- `maskin/equipment.ts` — refaktorert: `hentBrukerOrg` slettet (bruker `krevBrukersOrg`), `verifiserMaskinTilgang` bruker `hentBrukersOrg`, og en inline Vegvesen-quota-sjekk byttet til `autoriserAdminForFirma`.
-- `timer/dagsseddel.ts` `erProsjektLeder` + `hentEgenDagsseddel` + to inline admin-sjekker (rad 165 + rad 1709) byttet fra `User.role==="company_admin" && User.organizationId === X` til `OrganizationMember.firmaRoller.includes("firma_admin")`-oppslag.
-
-Test-fil slettet: `apps/api/src/trpc/tilgangskontroll.test.ts` (16/22 broken siden O-2/O-3a — mocket findFirst der koden bruker findMany, manglet `organizationMember`-mock helt). Integrasjonstester mot test-DB med OrganizationMember-fikstur planlagt etter O-5c.
-
-Linjer endret: +153 lagt til, -637 slettet (netto -484 linjer). Største enkeltreduksjon: 8 × ~25 linjer duplikat `hentBrukerOrgId`-funksjoner erstattet av 2 sentrale hjelpere.
-
-Verifisert: `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil i `import-hjelpere.test.ts`). Ingen DB-endring, ingen klient-endring, ingen schema-endring.
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR O-4b hentBrukere via OrganizationMember + ansatte-rename IMPLEMENTERT på feature/org-member-o4b 2026-05-12
-
-Andre sub-PR av O-4. Bytter routes som leser/skriver `User.ansattnummer` til å gå via `OrganizationMember`, og renamer `firma/brukere` til `firma/ansatte`.
-
-API (`apps/api/src/routes/`):
-- `organisasjon.hentBrukere` leser nå via `prisma.organizationMember.findMany` med nested `user`-relasjon. Returnerer ny form med `memberId`, `avdelingId`, `ansattRolle`, `firmaRoller`, `createdAt` i tillegg til gamle User-felter.
-- `organisasjon.inviterBruker` opprettholder dual-write: oppretter/oppdaterer både `User`-raden (for legacy `User.ansattnummer` + `User.organizationId`-fallback) og en `OrganizationMember.upsert` med riktig `ansattnummer` + `firmaRoller` (basert på `role === "company_admin"`).
-- `organisasjon.oppdaterBruker` speiler `ansattnummer`-endringer til `OrganizationMember` via `updateMany` etter `User.update`.
-- `kompetanse.ts` (to blokker): bytter `User.findMany` med `OrganizationMember.findMany` for ansattnummer-matching ved CSV/Excel-import. `name`-feltet ble ikke brukt downstream — fjernet fra select.
-
-Web (`apps/web/src/app/dashbord/firma/`):
-- Mappe `brukere/` → `ansatte/` (`git mv`).
-- `BrukerRad`-typen i page.tsx utvidet med `createdAt`, `memberId`, `avdelingId`, `ansattRolle`, `firmaRoller`.
-- Lenker i `firma/layout.tsx` og `firma/page.tsx` peker nå til `/dashbord/firma/ansatte`.
-
-i18n (15 språk × ~13 nøkler):
-- `firma.brukere.*` → `firma.ansatte.*` i alle 15 språkfiler (verdiene/oversettelsene er urørt — kun nøkkel-rename).
-
-Verifisert: `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (etter rydding av stale `.next/types`-cache fra gammel sti). Mobil ikke berørt.
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR O-4a avdelingId på OrganizationMember IMPLEMENTERT på feature/org-member-o4a 2026-05-12
-
-Første del av O-4 — flytting av felt fra `User` til `OrganizationMember`. Additiv: feltet legges til på OrganizationMember (nullable), backfylles fra `User.avdelingId`. `User.avdelingId` beholdes for dual-read; droppes i O-5.
-
-Schema (`packages/db/prisma/schema.prisma`):
-- Nytt felt på `OrganizationMember`: `avdelingId String? @map("avdeling_id")` + relasjon `avdeling Avdeling? @relation(fields: [avdelingId], references: [id], onDelete: SetNull)` + `@@index([avdelingId])`.
-- Ny back-relasjon på `Avdeling`: `organizationMembers OrganizationMember[]`.
-
-Migrasjon `20260512200000_o4a_add_member_avdeling`:
-- `ALTER TABLE organization_members ADD COLUMN avdeling_id TEXT NULL`
-- FK til `avdelinger(id)` med `ON DELETE SET NULL ON UPDATE CASCADE`
-- Indeks `organization_members_avdeling_id_idx`
-
-Backfill-script `packages/db/scripts/backfill-org-member-avdeling.ts`: kopierer `User.avdelingId` → `OrganizationMember.avdelingId` for matchende `(userId, organizationId)`. Idempotent.
-
-Verifisert: Prisma generate ok, `apps/api` typecheck 0 nye feil. Migrasjon og backfill ikke kjørt mot test/prod ennå — venter på review.
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR O-3b routes dual-read organisasjon.ts + prosjekt.ts IMPLEMENTERT på feature/org-member-o3b 2026-05-12
-
-Fortsettelse av OrganizationMember-refaktoren. Erstatter direkte `User.organizationId`-oppslag i tilgangsbeslutninger med dual-read via ny eksportert hjelper.
-
-Ny eksportert hjelper `hentBrukersOrg(userId): Promise<string | null>` i `apps/api/src/trpc/tilgangskontroll.ts`:
-- Leser fra `OrganizationMember.findMany`. 1 medlem → returnerer orgId. 0 medlem → fallback til `User.organizationId` (fjernes i O-5). Flere medlem → kaster `BAD_REQUEST` («Bruker tilhører flere firmaer — kontakt support»).
-- O-4 introduserer primær-org-flagg når multi-org-modellen formaliseres.
-
-Refaktorerte callsites (alle bytter `bruker.organizationId`-lesing til `hentBrukersOrg`):
-- `organisasjon.ts`: `hentTilgjengelige` (firma-velger), `hentMin` (gating «mitt firma»), `endreRolle` (samme-firma-validering på målbruker), `inviterBruker` (adopsjon-flyt — eksisterende User-sjekk), `oppdaterBruker` (samme-firma-validering).
-- `prosjekt.ts`: `opprett` og `opprettTestprosjekt` (input-org-tilgangssjekk + default-org-fallback).
-
-Tilgangskontroll-semantikken er uendret — bare datakilden er flyttet. `OrganizationRole`-tabellen og `User.organizationId`-feltet røres ikke (begge droppes i O-5).
-
-Verifisert: `apps/api` typecheck 0 nye feil. Ingen DB-endring. Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR O-3a tilgangskontroll + tildelOrgRolle/fjernOrgRolle IMPLEMENTERT på feature/org-member-o3a 2026-05-12
-
-Tredje PR i OrganizationMember-refaktoren (sub-delt: O-3a tilgangskontroll-laget, O-3b modul-routes). Lukker gjenværende inline `company_admin`-sjekker i tilgangskontroll-laget og flytter firma-rolle-skriving fra `OrganizationRole`-tabellen til `OrganizationMember.firmaRoller`.
-
-Ny intern (ikke-eksportert) helper `erFirmaAdmin(userId, organizationId)` i `apps/api/src/trpc/tilgangskontroll.ts`: leser fra `OrganizationMember.firmaRoller.includes("firma_admin")` først, fallback til legacy `User.role === "company_admin" && User.organizationId === organizationId` (fallback fjernes i O-5).
-
-5 funksjoner refaktorert til å bruke `erFirmaAdmin` i stedet for inline `User.role`/`organizationId`-sjekk:
-- `verifiserAdmin`, `verifiserProsjektmedlem`, `verifiserAdminEllerFirmaansvarlig` — løkker over `ProjectOrganization`-koblinger for prosjektet og kaller `erFirmaAdmin` per org.
-- `verifiserKompetanseSkriveTilgang` (Steg 4) + `verifiserMaskinAnsvarligSkriveTilgang` (Steg 3) — direkte kall mot brukerens / equipment-ets firma.
-
-`organisasjon.tildelOrgRolle`/`fjernOrgRolle` skriver nå til `OrganizationMember.firmaRoller` (fetch → Set-dedup → update). `OrganizationRole`-tabellen røres ikke (droppes i O-5).
-
-Verifisert: `apps/api` typecheck 0 nye feil. Ingen DB-endring. Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR O-2 tilgangskontroll dual-read OrganizationMember IMPLEMENTERT på feature/org-member-o2 2026-05-12
-
-Andre PR i OrganizationMember-refaktoren. Refaktorerer 3 funksjoner i `apps/api/src/trpc/tilgangskontroll.ts` til å lese fra `OrganizationMember` først, med fallback til `User.organizationId`/`User.role` (fjernes i O-5).
-
-- `autoriserAdminForFirma`: sjekker `OrganizationMember.firmaRoller.includes("firma_admin")` først. Fallback: `User.role === "company_admin" && User.organizationId === organizationId`. `sitedoc_admin`-bypass bevart.
-- `verifiserOrganisasjonTilgang`: sjekker eksistens av `OrganizationMember`-rad først. Fallback: `User.organizationId === organisationId`.
-- `harOrgRolle`: leses nå fra `OrganizationMember.firmaRoller` (krever `User.organizationId`-oppslag for å finne riktig medlem). `OrganizationRole`-tabellen leses ikke lenger (0 rader i prod/test, droppes i O-5).
-
-**Ikke endret i denne PR-en:** `verifiserAdmin`, `verifiserProsjektmedlem`, `verifiserAdminEllerFirmaansvarlig`, `verifiserKompetanseSkriveTilgang`, `verifiserMaskinAnsvarligSkriveTilgang` — disse fortsatt prosjekt-baserte og bruker `ProjectMember`. Migreres i O-3 batch-vis.
-
-Verifisert: API typecheck 0 nye feil; Web typecheck kun pre-eksisterende vitest-feil. Klar for review — ikke merge før Kenneth verifiserer.
+Oppfølger til O-5b. Full-codebase-grep avdekket 11 ekstra lesinger/skrivinger av `User.organizationId`/`User.ansattnummer` som O-5b ikke fanget (mønster `where: { organizationId }` i User-spørringer). Refaktorert med `hentBrukersOrg`/`OrganizationMember.findMany`/`OrganizationMember.upsert` i `tilgangskontroll.ts`, `kompetanse.ts`, `medlem.ts`, `maskin/*`, `organisasjon.ts`. Sluttverifikasjon: 0 gjenstående direkte felt-lesinger eller -skrivinger i `apps/api/src/`. +99/-65 linjer, apps typecheck 0 nye feil.
 
 Eldre PR-er: se [docs/claude/historikk-2026-05.md](docs/claude/historikk-2026-05.md)
 

@@ -186,7 +186,8 @@ model SheetTimer {
   externalCostObjectId  String?  @map("external_cost_object_id") // svak FK → external_cost_objects (kjernen)
   timer                 Decimal  @db.Decimal(6, 2)
   attestertSnapshot     Json?    @map("attestert_snapshot") // Pris-snapshot ved attestering (Fase 0 A.7) — inkluderer aktivitet-snapshot post-C9
-  // T.3 — Per-rad attestering. "pending" | "godkjent" | "returnert".
+  // T.3 — Per-rad attestering. "pending" | "attestert" | "returnert".
+  // (Norsk-konvensjon: "attestert" — CLAUDE.md skiller attestering fra godkjenning.)
   attestertStatus       String?  @default("pending") @map("attestert_status")
   attestertAvUserId     String?  @map("attestert_av_user_id") // svak FK → users
   attestertVed          DateTime? @map("attestert_ved") @db.Timestamptz()
@@ -221,7 +222,7 @@ model SheetTillegg {
   antall            Decimal  @db.Decimal(6, 2)
   kommentar         String?  @db.Text
   attestertSnapshot Json?    @map("attestert_snapshot")
-  // T.3 — Per-rad attestering.
+  // T.3 — Per-rad attestering. "pending" | "attestert" | "returnert".
   attestertStatus   String?  @default("pending") @map("attestert_status")
   attestertAvUserId String?  @map("attestert_av_user_id") // svak FK → users
   attestertVed      DateTime? @map("attestert_ved") @db.Timestamptz()
@@ -259,7 +260,7 @@ model SheetMachine {
   mengde            Decimal? @db.Decimal(12, 2)
   enhet             String?  // m, m2, m3, kg, tonn, stk
   attestertSnapshot Json?    @map("attestert_snapshot") // Pris-snapshot ved attestering — null inntil Equipment-prising er spec'd (Fase 1+)
-  // T.3 — Per-rad attestering.
+  // T.3 — Per-rad attestering. "pending" | "attestert" | "returnert".
   attestertStatus   String?  @default("pending") @map("attestert_status")
   attestertAvUserId String?  @map("attestert_av_user_id") // svak FK → users
   attestertVed      DateTime? @map("attestert_ved") @db.Timestamptz()
