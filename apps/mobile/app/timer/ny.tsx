@@ -11,15 +11,17 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { ArrowLeft, Calendar, ChevronRight, Check, X } from "lucide-react-native";
+import { ArrowLeft, Calendar, ChevronRight, Check, X, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as Location from "expo-location";
 import { hentDatabase } from "../../src/db/database";
 import { dagsseddelLocal, aktivitetLocal } from "../../src/db/schema";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
+import { hentProsjekterLokalt } from "../../src/services/prosjektKatalog";
 import { trpc } from "../../src/lib/trpc";
 import { eq } from "drizzle-orm";
 
@@ -42,6 +44,23 @@ function formatNorskDato(iso: string): string {
   });
 }
 
+function haversineKm(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number,
+): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 export default function NyDagsseddelSide() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -57,6 +76,7 @@ export default function NyDagsseddelSide() {
   const [visAktivitetVelger, setVisAktivitetVelger] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
   const [lagrer, setLagrer] = useState(false);
+  const [geoForslagId, setGeoForslagId] = useState<string | null>(null);
 
   // Hent prosjekter (online — for offline-bruk må klargjøring kjøres først)
   const { data: prosjekterData } = trpc.prosjekt.hentMine.useQuery(undefined, {
@@ -89,6 +109,60 @@ export default function NyDagsseddelSide() {
       else if (aktiviteter.length === 1) setValgtAktivitet(aktiviteter[0]);
     }
   }, [aktiviteter, valgtAktivitet]);
+
+  // T7-3b2 geo-forslag: ved sideåpning, hent GPS-posisjon og finn nærmeste
+  // prosjekt fra prosjekt_local innenfor 500m radius (Haversine). Forhåndsvelg
+  // hvis bruker ikke allerede har valgt manuelt. Faller stille tilbake ved
+  // tillatelse-avslag eller ingen nærhet — manuell velger fungerer som før.
+  useEffect(() => {
+    if (valgtProsjekt) return; // bruker har allerede valgt
+    if (!bruker) return;
+    let avbrutt = false;
+    (async () => {
+      try {
+        const status = await Location.requestForegroundPermissionsAsync();
+        if (avbrutt || status.status !== "granted") return;
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (avbrutt) return;
+        // organizationId: hent fra første prosjekt-rad — bruker tilhører ett firma.
+        // Hvis brukeren ikke har firma (standalone), hopp over.
+        const lokale = prosjekter
+          .map((p) => p as unknown as { id: string; primaryOrganizationId: string | null })
+          .filter((p) => p.primaryOrganizationId);
+        const orgId = lokale[0]?.primaryOrganizationId;
+        if (!orgId) return;
+        const kandidater = hentProsjekterLokalt(orgId).filter(
+          (p): p is typeof p & { lat: number; lng: number } =>
+            p.lat !== null && p.lng !== null,
+        );
+        let beste: { id: string; avstand: number } | null = null;
+        for (const p of kandidater) {
+          const km = haversineKm(
+            pos.coords.latitude,
+            pos.coords.longitude,
+            p.lat,
+            p.lng,
+          );
+          if (km <= 0.5 && (!beste || km < beste.avstand)) {
+            beste = { id: p.id, avstand: km };
+          }
+        }
+        if (avbrutt || !beste) return;
+        const treff = prosjekter.find((p) => p.id === beste.id);
+        if (treff) {
+          setGeoForslagId(treff.id);
+          setValgtProsjekt(treff);
+        }
+      } catch {
+        // Stille avslag — manuell velger er fortsatt tilgjengelig
+      }
+    })();
+    return () => {
+      avbrutt = true;
+    };
+  }, [bruker, prosjekter, valgtProsjekt]);
 
   function lagre() {
     setFeil(null);
@@ -203,9 +277,19 @@ export default function NyDagsseddelSide() {
 
         {/* Prosjekt */}
         <View>
-          <Text className="mb-1 text-sm font-medium text-gray-700">
-            {t("timer.felt.prosjekt")} *
-          </Text>
+          <View className="mb-1 flex-row items-center justify-between">
+            <Text className="text-sm font-medium text-gray-700">
+              {t("timer.felt.prosjekt")} *
+            </Text>
+            {geoForslagId && valgtProsjekt?.id === geoForslagId && (
+              <View className="flex-row items-center gap-1">
+                <MapPin size={12} color="#1e40af" />
+                <Text className="text-xs text-sitedoc-primary">
+                  {t("timer.geoForslag")}
+                </Text>
+              </View>
+            )}
+          </View>
           <Pressable
             onPress={() => setVisProsjektVelger(true)}
             className="flex-row items-center justify-between rounded-lg border border-gray-300 bg-white px-3 py-3"

@@ -15,10 +15,14 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
 import { sheetTilleggLocal, tilleggLocal } from "../../db/schema";
+import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import type { TilleggRad, Tillegg } from "../../types/timer-detalj";
+import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 
 interface TilleggSeksjonProps {
   sheetId: string;
+  organizationId: string;
+  projectId: string;
   rader: TilleggRad[];
   redigerbar: boolean;
   onEndret: () => void;
@@ -26,6 +30,8 @@ interface TilleggSeksjonProps {
 
 export function TilleggSeksjon({
   sheetId,
+  organizationId,
+  projectId,
   rader,
   redigerbar,
   onEndret,
@@ -35,13 +41,19 @@ export function TilleggSeksjon({
   const [redigerRadId, setRedigerRadId] = useState<string | null>(null);
 
   const leggTil = useCallback(
-    (tilleggId: string, antall: number, kommentar: string | null) => {
+    (
+      radProjectId: string,
+      tilleggId: string,
+      antall: number,
+      kommentar: string | null,
+    ) => {
       const db = hentDatabase();
       if (!db) return;
       db.insert(sheetTilleggLocal)
         .values({
           id: randomUUID(),
           dagsseddelId: sheetId,
+          projectId: radProjectId,
           tilleggId,
           antall,
           kommentar,
@@ -56,6 +68,7 @@ export function TilleggSeksjon({
   const oppdater = useCallback(
     (
       radId: string,
+      radProjectId: string,
       tilleggId: string,
       antall: number,
       kommentar: string | null,
@@ -63,7 +76,13 @@ export function TilleggSeksjon({
       const db = hentDatabase();
       if (!db) return;
       db.update(sheetTilleggLocal)
-        .set({ tilleggId, antall, kommentar, sistEndretLokalt: Date.now() })
+        .set({
+          projectId: radProjectId,
+          tilleggId,
+          antall,
+          kommentar,
+          sistEndretLokalt: Date.now(),
+        })
         .where(eq(sheetTilleggLocal.id, radId))
         .run();
       onEndret();
@@ -130,11 +149,13 @@ export function TilleggSeksjon({
               ? rader.find((r) => r.id === redigerRadId) ?? null
               : null
           }
-          onLagre={(tilleggId, antall, kommentar) => {
+          organizationId={organizationId}
+          defaultProjectId={projectId}
+          onLagre={(radProjectId, tilleggId, antall, kommentar) => {
             if (redigerRadId) {
-              oppdater(redigerRadId, tilleggId, antall, kommentar);
+              oppdater(redigerRadId, radProjectId, tilleggId, antall, kommentar);
             } else {
-              leggTil(tilleggId, antall, kommentar);
+              leggTil(radProjectId, tilleggId, antall, kommentar);
             }
             setVisModal(false);
             setRedigerRadId(null);
@@ -206,14 +227,26 @@ function TilleggRadVis({
 
 function TilleggRadModal({
   eksisterendeRad,
+  organizationId,
+  defaultProjectId,
   onLagre,
   onLukk,
 }: {
   eksisterendeRad: TilleggRad | null;
-  onLagre: (tilleggId: string, antall: number, kommentar: string | null) => void;
+  organizationId: string;
+  defaultProjectId: string;
+  onLagre: (
+    projectId: string,
+    tilleggId: string,
+    antall: number,
+    kommentar: string | null,
+  ) => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const [valgtProjectId, setValgtProjectId] = useState<string>(
+    eksisterendeRad?.projectId ?? defaultProjectId,
+  );
   const [valgtTilleggId, setValgtTilleggId] = useState<string>(
     eksisterendeRad?.tilleggId ?? "",
   );
@@ -225,6 +258,11 @@ function TilleggRadModal({
   );
   const [feil, setFeil] = useState<string | null>(null);
   const [visVelger, setVisVelger] = useState(false);
+  const [visProsjektVelger, setVisProsjektVelger] = useState(false);
+
+  const valgtProsjekt = useMemo(() => {
+    return valgtProjectId ? finnProsjektLokalt(valgtProjectId) : null;
+  }, [valgtProjectId]);
 
   const valgtTillegg = useMemo(() => {
     if (!valgtTilleggId) return null;
@@ -241,6 +279,10 @@ function TilleggRadModal({
 
   function lagre() {
     setFeil(null);
+    if (!valgtProjectId) {
+      setFeil(t("timer.feil.prosjektPaakrevd"));
+      return;
+    }
     if (!valgtTilleggId) {
       setFeil(t("timer.feil.tilleggPaakrevd"));
       return;
@@ -250,7 +292,7 @@ function TilleggRadModal({
       setFeil(t("timer.feil.ugyldigAntall"));
       return;
     }
-    onLagre(valgtTilleggId, tall, kommentar.trim() || null);
+    onLagre(valgtProjectId, valgtTilleggId, tall, kommentar.trim() || null);
   }
 
   return (
@@ -271,6 +313,17 @@ function TilleggRadModal({
         </View>
 
         <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">
+              {t("timer.felt.prosjekt")} *
+            </Text>
+            <ProsjektFelt
+              prosjektNavn={valgtProsjekt?.name ?? null}
+              prosjektNummer={valgtProsjekt?.projectNumber ?? null}
+              onTrykk={() => setVisProsjektVelger(true)}
+            />
+          </View>
+
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.tillegg")} *
@@ -333,6 +386,18 @@ function TilleggRadModal({
               setVisVelger(false);
             }}
             onLukk={() => setVisVelger(false)}
+          />
+        )}
+
+        {visProsjektVelger && (
+          <ProsjektVelgerModal
+            organizationId={organizationId}
+            valgtId={valgtProjectId}
+            onVelg={(id) => {
+              setValgtProjectId(id);
+              setVisProsjektVelger(false);
+            }}
+            onLukk={() => setVisProsjektVelger(false)}
           />
         )}
       </SafeAreaView>

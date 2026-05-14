@@ -20,15 +20,18 @@ import {
   aktivitetLocal,
   externalCostObjectLocal,
 } from "../../db/schema";
+import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import type {
   TimerRad,
   Lonnsart,
   Aktivitet,
   Underprosjekt,
 } from "../../types/timer-detalj";
+import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 
 interface TimerSeksjonProps {
   sheetId: string;
+  organizationId: string;
   rader: TimerRad[];
   projectId: string;
   defaultAktivitetId: string | null;
@@ -38,6 +41,7 @@ interface TimerSeksjonProps {
 
 export function TimerSeksjon({
   sheetId,
+  organizationId,
   rader,
   projectId,
   defaultAktivitetId,
@@ -55,6 +59,7 @@ export function TimerSeksjon({
 
   const leggTil = useCallback(
     (
+      radProjectId: string,
       lonnsartId: string,
       aktivitetId: string,
       timer: number,
@@ -66,6 +71,7 @@ export function TimerSeksjon({
         .values({
           id: randomUUID(),
           dagsseddelId: sheetId,
+          projectId: radProjectId,
           lonnsartId,
           aktivitetId,
           externalCostObjectId,
@@ -81,6 +87,7 @@ export function TimerSeksjon({
   const oppdater = useCallback(
     (
       radId: string,
+      radProjectId: string,
       lonnsartId: string,
       aktivitetId: string,
       timer: number,
@@ -90,6 +97,7 @@ export function TimerSeksjon({
       if (!db) return;
       db.update(sheetTimerLocal)
         .set({
+          projectId: radProjectId,
           lonnsartId,
           aktivitetId,
           timer,
@@ -155,24 +163,26 @@ export function TimerSeksjon({
 
       {visModal && (
         <TimerRadModal
-          projectId={projectId}
+          organizationId={organizationId}
+          defaultProjectId={projectId}
           defaultAktivitetId={defaultAktivitetId}
           eksisterendeRad={
             redigerRadId
               ? rader.find((r) => r.id === redigerRadId) ?? null
               : null
           }
-          onLagre={(lonnsartId, aktivitetId, timer, externalCostObjectId) => {
+          onLagre={(radProjectId, lonnsartId, aktivitetId, timer, externalCostObjectId) => {
             if (redigerRadId) {
               oppdater(
                 redigerRadId,
+                radProjectId,
                 lonnsartId,
                 aktivitetId,
                 timer,
                 externalCostObjectId,
               );
             } else {
-              leggTil(lonnsartId, aktivitetId, timer, externalCostObjectId);
+              leggTil(radProjectId, lonnsartId, aktivitetId, timer, externalCostObjectId);
             }
             setVisModal(false);
             setRedigerRadId(null);
@@ -285,16 +295,19 @@ function UnderprosjektEtikett({ ecoId }: { ecoId: string }) {
 }
 
 function TimerRadModal({
-  projectId,
+  organizationId,
+  defaultProjectId,
   defaultAktivitetId,
   eksisterendeRad,
   onLagre,
   onLukk,
 }: {
-  projectId: string;
+  organizationId: string;
+  defaultProjectId: string;
   defaultAktivitetId: string | null;
   eksisterendeRad: TimerRad | null;
   onLagre: (
+    projectId: string,
     lonnsartId: string,
     aktivitetId: string,
     timer: number,
@@ -303,6 +316,9 @@ function TimerRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const [valgtProjectId, setValgtProjectId] = useState<string>(
+    eksisterendeRad?.projectId ?? defaultProjectId,
+  );
   const [valgtLonnsartId, setValgtLonnsartId] = useState<string>(
     eksisterendeRad?.lonnsartId ?? "",
   );
@@ -316,9 +332,14 @@ function TimerRadModal({
     eksisterendeRad?.externalCostObjectId ?? null,
   );
   const [feil, setFeil] = useState<string | null>(null);
+  const [visProsjektVelger, setVisProsjektVelger] = useState(false);
   const [visLonnsartVelger, setVisLonnsartVelger] = useState(false);
   const [visAktivitetVelger, setVisAktivitetVelger] = useState(false);
   const [visEcoVelger, setVisEcoVelger] = useState(false);
+
+  const valgtProsjekt = useMemo(() => {
+    return valgtProjectId ? finnProsjektLokalt(valgtProjectId) : null;
+  }, [valgtProjectId]);
 
   const valgtLonnsart = useMemo(() => {
     if (!valgtLonnsartId) return null;
@@ -361,6 +382,10 @@ function TimerRadModal({
 
   function lagre() {
     setFeil(null);
+    if (!valgtProjectId) {
+      setFeil(t("timer.feil.prosjektPaakrevd"));
+      return;
+    }
     if (!valgtLonnsartId) {
       setFeil(t("timer.feil.lonnsartPaakrevd"));
       return;
@@ -374,7 +399,7 @@ function TimerRadModal({
       setFeil(t("timer.feil.ugyldigTimer"));
       return;
     }
-    onLagre(valgtLonnsartId, valgtAktivitetId, tall, valgtEcoId);
+    onLagre(valgtProjectId, valgtLonnsartId, valgtAktivitetId, tall, valgtEcoId);
   }
 
   return (
@@ -395,6 +420,17 @@ function TimerRadModal({
         </View>
 
         <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">
+              {t("timer.felt.prosjekt")} *
+            </Text>
+            <ProsjektFelt
+              prosjektNavn={valgtProsjekt?.name ?? null}
+              prosjektNummer={valgtProsjekt?.projectNumber ?? null}
+              onTrykk={() => setVisProsjektVelger(true)}
+            />
+          </View>
+
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.lonnsart")} *
@@ -506,13 +542,27 @@ function TimerRadModal({
 
         {visEcoVelger && (
           <UnderprosjektVelgerModal
-            projectId={projectId}
+            projectId={valgtProjectId}
             valgtId={valgtEcoId}
             onVelg={(id) => {
               setValgtEcoId(id);
               setVisEcoVelger(false);
             }}
             onLukk={() => setVisEcoVelger(false)}
+          />
+        )}
+
+        {visProsjektVelger && (
+          <ProsjektVelgerModal
+            organizationId={organizationId}
+            valgtId={valgtProjectId}
+            onVelg={(id) => {
+              setValgtProjectId(id);
+              // Nullstill ECO ved prosjekt-bytte — ECO er prosjekt-spesifikk
+              setValgtEcoId(null);
+              setVisProsjektVelger(false);
+            }}
+            onLukk={() => setVisProsjektVelger(false)}
           />
         )}
       </SafeAreaView>

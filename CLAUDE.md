@@ -55,7 +55,37 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — Klar for review
+### PR T7-3b2 prosjekt-velger per rad + geo-forslag — Klar for review
+
+Tredje sub-PR av T7-3-bunken. Aktiverer den brukervendte siden av per-rad-prosjekt: brukeren kan velge prosjekt per rad i timer/tillegg/maskin-modaler, dagsseddelen grupperer rader per prosjekt, og GPS-posisjon foreslår nærmeste prosjekt ved opprettelse. Ingen DB-, sync- eller server-endringer (alt fundament fra T7-3b1).
+
+**Filer (`apps/mobile`):**
+- **Ny** `src/components/timer-detalj/ProsjektVelger.tsx` (~130 linjer) — gjenbrukbar `ProsjektVelgerModal` + `ProsjektFelt`-trigger-knapp. Leser fra `prosjektLocal` via `hentProsjekterLokalt(organizationId)`. Søk når > 7 prosjekter. `ekskluderIder`-prop for «+ Legg til prosjekt»-knapp som filtrerer bort prosjekter som allerede har rader.
+- `src/components/timer-detalj/TimerSeksjon.tsx` — `TimerSeksjonProps` utvidet med `organizationId`. `leggTil`/`oppdater` tar nå `projectId` per rad. `TimerRadModal` får ProsjektFelt + ProsjektVelgerModal. Default = sedel-prosjekt. Underprosjekt-velger (ECO) filtreres på rad-prosjekt — bytte av prosjekt nullstiller ECO siden Underprosjekt er prosjekt-spesifikk.
+- `src/components/timer-detalj/TilleggSeksjon.tsx` — samme mønster: `organizationId` + `projectId` props, rad-modal med ProsjektFelt.
+- `src/components/timer-detalj/MaskinSeksjon.tsx` — samme.
+- `app/timer/[id].tsx` — beregner `aktiveProsjektIder` (union av sedel.projectId + alle rad.projectId + bruker-tilføyde). Rendre én `ProsjektGruppe` per id med tre seksjoner og rader filtrert til prosjektet. Header med prosjekt-navn vises kun ved multi-prosjekt. «+ Legg til prosjekt»-knapp åpner ProsjektVelgerModal med `ekskluderIder=aktiveProsjektIder`.
+- `app/timer/ny.tsx` — `useEffect` ved sideåpning: `Location.requestForegroundPermissionsAsync` → `getCurrentPositionAsync` → Haversine mot `hentProsjekterLokalt(orgId)` med 500m radius. Foreslår nærmeste prosjekt som default hvis bruker ikke har valgt manuelt. Stille fallback ved permission-avslag eller ingen treff. Visuell `MapPin`-indikator + «Foreslått basert på posisjon»-tekst når geo-forslag er aktiv.
+- `src/utils/dato.ts` + `src/types/timer-detalj.ts` — ingen endring fra T7-3b1 (Prosjekt-type allerede eksportert).
+
+**Skjema/server:** Null endring. Alt fundament ble lagt i T7-3b1.
+
+**i18n:** 1 ny nøkkel (`handling.sok` = «Søk» / «Search») — pre-eksisterende bug der eksisterende velgere brukte t-key som ikke fantes (fallback til strengen «handling.sok» i UI). Lagt til i nb + en, auto-oversatt til 13 språk. `timer.leggTilProsjekt`, `timer.geoForslag`, `timer.felt.prosjekt`, `timer.velgProsjekt`, `timer.ingenTilgjengelige` finnes allerede.
+
+**`app.json`/permissions:** `expo-location` v19.0.8 allerede installert + config-plugin med norsk permission-tekst på plass siden tidligere fase (GPS-tagging av bilder). Null endring.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). ECO-bytte ved prosjekt-bytte testes via observasjon — `valgtEcoId` nullstilles i `TimerRadModal` når ProsjektVelger setter ny `valgtProjectId`.
+
+**Reload-metode:** TypeScript- + i18n-endring. Full app-reload (close + open eller `r` i Metro). Ingen native rebuild (expo-location er allerede konfigurert).
+
+**Forventede begrensninger:**
+- Per-rad-attestering på mobil — kommer i T7-3d eller forkastes hvis attestering forblir web-only.
+- `dagsseddelLocal.projectId` beholdes som default. NOT NULL → drop kommer i T7-4+.
+- Geo-forslag krever permission ved første gang — brukeren får OS-dialog. Avslag = fall tilbake til manuell velger.
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
+### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — MERGET TIL DEVELOP (merge `cd64c51a`, impl `65bf48cb`) — verifisering på enhet hos Kenneth
 
 Andre sub-PR av T7-3-bunken. Forberedelse for T7-3b2 (UI per-rad-velger). Etter denne har mobil per-rad `projectId`-felt i lokal SQLite + sync-protokollen sender/mottar per-rad projectId mot server. Server-shimmen fra T.1 (sedel-nivå `projectId` for pre-T7-3b1-klienter) beholdes for bakoverkompatibilitet — server støtter både gammelt og nytt format. INGEN UI-endringer i denne PR-en; lokal projectId backfilles fra `dagsseddelLocal.projectId` og rad-velger kommer i T7-3b2.
 

@@ -15,13 +15,16 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
 import { sheetMachineLocal, equipmentLocal } from "../../db/schema";
+import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
+import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 
 interface MaskinSeksjonProps {
   sheetId: string;
   rader: MaskinRad[];
   organizationId: string;
+  projectId: string;
   harEquipmentCache: boolean;
   redigerbar: boolean;
   onEndret: () => void;
@@ -31,6 +34,7 @@ export function MaskinSeksjon({
   sheetId,
   rader,
   organizationId,
+  projectId,
   harEquipmentCache,
   redigerbar,
   onEndret,
@@ -41,6 +45,7 @@ export function MaskinSeksjon({
 
   const leggTil = useCallback(
     (
+      radProjectId: string,
       vehicleId: string,
       timer: number,
       mengde: number | null,
@@ -52,6 +57,7 @@ export function MaskinSeksjon({
         .values({
           id: randomUUID(),
           dagsseddelId: sheetId,
+          projectId: radProjectId,
           vehicleId,
           timer,
           mengde,
@@ -67,6 +73,7 @@ export function MaskinSeksjon({
   const oppdater = useCallback(
     (
       radId: string,
+      radProjectId: string,
       vehicleId: string,
       timer: number,
       mengde: number | null,
@@ -76,6 +83,7 @@ export function MaskinSeksjon({
       if (!db) return;
       db.update(sheetMachineLocal)
         .set({
+          projectId: radProjectId,
           vehicleId,
           timer,
           mengde,
@@ -149,16 +157,17 @@ export function MaskinSeksjon({
       {visModal && (
         <MaskinRadModal
           organizationId={organizationId}
+          defaultProjectId={projectId}
           eksisterendeRad={
             redigerRadId
               ? rader.find((r) => r.id === redigerRadId) ?? null
               : null
           }
-          onLagre={(vehicleId, timer, mengde, enhet) => {
+          onLagre={(radProjectId, vehicleId, timer, mengde, enhet) => {
             if (redigerRadId) {
-              oppdater(redigerRadId, vehicleId, timer, mengde, enhet);
+              oppdater(redigerRadId, radProjectId, vehicleId, timer, mengde, enhet);
             } else {
-              leggTil(vehicleId, timer, mengde, enhet);
+              leggTil(radProjectId, vehicleId, timer, mengde, enhet);
             }
             setVisModal(false);
             setRedigerRadId(null);
@@ -247,13 +256,16 @@ function MaskinRadVis({
 
 function MaskinRadModal({
   organizationId,
+  defaultProjectId,
   eksisterendeRad,
   onLagre,
   onLukk,
 }: {
   organizationId: string;
+  defaultProjectId: string;
   eksisterendeRad: MaskinRad | null;
   onLagre: (
+    projectId: string,
     vehicleId: string,
     timer: number,
     mengde: number | null,
@@ -262,6 +274,9 @@ function MaskinRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const [valgtProjectId, setValgtProjectId] = useState<string>(
+    eksisterendeRad?.projectId ?? defaultProjectId,
+  );
   const [valgtVehicleId, setValgtVehicleId] = useState<string>(
     eksisterendeRad?.vehicleId ?? "",
   );
@@ -275,8 +290,13 @@ function MaskinRadModal({
   );
   const [enhet, setEnhet] = useState<string>(eksisterendeRad?.enhet ?? "");
   const [feil, setFeil] = useState<string | null>(null);
+  const [visProsjektVelger, setVisProsjektVelger] = useState(false);
   const [visEquipmentVelger, setVisEquipmentVelger] = useState(false);
   const [visEnhetVelger, setVisEnhetVelger] = useState(false);
+
+  const valgtProsjekt = useMemo(() => {
+    return valgtProjectId ? finnProsjektLokalt(valgtProjectId) : null;
+  }, [valgtProjectId]);
 
   const valgtEquipment = useMemo(() => {
     if (!valgtVehicleId) return null;
@@ -293,6 +313,10 @@ function MaskinRadModal({
 
   function lagre() {
     setFeil(null);
+    if (!valgtProjectId) {
+      setFeil(t("timer.feil.prosjektPaakrevd"));
+      return;
+    }
     if (!valgtVehicleId) {
       setFeil(t("timer.feil.utstyrPaakrevd"));
       return;
@@ -310,7 +334,7 @@ function MaskinRadModal({
         return;
       }
     }
-    onLagre(valgtVehicleId, tall, mengdeNum, enhet || null);
+    onLagre(valgtProjectId, valgtVehicleId, tall, mengdeNum, enhet || null);
   }
 
   return (
@@ -331,6 +355,17 @@ function MaskinRadModal({
         </View>
 
         <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">
+              {t("timer.felt.prosjekt")} *
+            </Text>
+            <ProsjektFelt
+              prosjektNavn={valgtProsjekt?.name ?? null}
+              prosjektNummer={valgtProsjekt?.projectNumber ?? null}
+              onTrykk={() => setVisProsjektVelger(true)}
+            />
+          </View>
+
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.utstyr")} *
@@ -424,6 +459,18 @@ function MaskinRadModal({
               setVisEnhetVelger(false);
             }}
             onLukk={() => setVisEnhetVelger(false)}
+          />
+        )}
+
+        {visProsjektVelger && (
+          <ProsjektVelgerModal
+            organizationId={organizationId}
+            valgtId={valgtProjectId}
+            onVelg={(id) => {
+              setValgtProjectId(id);
+              setVisProsjektVelger(false);
+            }}
+            onLukk={() => setVisProsjektVelger(false)}
           />
         )}
       </SafeAreaView>
