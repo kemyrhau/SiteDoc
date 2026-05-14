@@ -662,6 +662,8 @@ export const organisasjonRouter = router({
         kompetanseRegistreringTilgang: z
           .enum(["firma_admin", "bruker_egen", "alle"])
           .optional(),
+        // T7-2b2 (2026-05-14): default false. Settings-UI i T7-2b3.
+        tillattRedigerVedAttestering: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

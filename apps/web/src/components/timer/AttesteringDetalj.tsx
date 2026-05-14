@@ -13,8 +13,9 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
-import { ArrowLeft, Check, RotateCcw, X } from "lucide-react";
+import { ArrowLeft, Check, Pencil, RotateCcw, X } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
+import { AttesteringDetaljEdit } from "@/components/timer/AttesteringDetalj_Edit";
 
 function tilTall(v: unknown): number {
   if (v === null || v === undefined) return 0;
@@ -45,6 +46,9 @@ type TimerRad = {
   aktivitetId: string;
   externalCostObjectId: string | null;
   projectId: string;
+  byggeplassId: string | null;
+  fraTid: string | null;
+  tilTid: string | null;
   timer: unknown;
   attestertStatus: string | null;
 };
@@ -62,6 +66,9 @@ type MaskinRad = {
   id: string;
   vehicleId: string;
   projectId: string;
+  byggeplassId: string | null;
+  fraTid: string | null;
+  tilTid: string | null;
   timer: unknown;
   mengde: unknown;
   enhet: string | null;
@@ -83,6 +90,7 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
   const utils = trpc.useUtils();
 
   const [returnerVises, setReturnerVises] = useState(false);
+  const [redigerModus, setRedigerModus] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
   const [valgteTimer, setValgteTimer] = useState<Set<string>>(new Set());
   const [valgteTillegg, setValgteTillegg] = useState<Set<string>>(new Set());
@@ -213,6 +221,18 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
         <StatusBadge status={sheet.status} />
       </div>
 
+      {redigerModus ? (
+        <AttesteringDetaljEdit
+          sheetId={sheet.id}
+          organizationId={sheet.organizationId}
+          timerRader={timerRader}
+          tilleggRader={tilleggRader}
+          maskinRader={maskinRader}
+          onAvbryt={() => setRedigerModus(false)}
+          onLagret={() => setRedigerModus(false)}
+        />
+      ) : (
+      <>
       {/* Container-status-banner (T7-2b1): viser fremdrift på tvers av rader */}
       {totaltAntallRader > 0 && (
         <div
@@ -330,6 +350,16 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
             {t("timer.attestering.radValg.antallValgt", { antall: antallValgt })}
           </p>
           <div className="flex flex-wrap items-center gap-3">
+            {sheet.redigerTillatt && (
+              <Button
+                variant="secondary"
+                onClick={() => setRedigerModus(true)}
+                disabled={attesterRader.isPending}
+              >
+                <Pencil className="mr-1 h-4 w-4" />
+                {t("timer.rediger.knapp")}
+              </Button>
+            )}
             <Button
               variant="secondary"
               onClick={() => setReturnerVises(true)}
@@ -364,6 +394,8 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
           tilbakeUrl={tilbakeUrl}
           onLukk={() => setReturnerVises(false)}
         />
+      )}
+      </>
       )}
     </div>
   );
