@@ -216,6 +216,8 @@
   "timer.feil.ugyldigTimer": "Orari duhet të jetë ndërmjet 0.01 dhe 24.",
   "timer.feil.ugyldigAntall": "Numri duhet të jetë më i madh se 0.",
   "timer.feil.minstEnTimerRad": "Fleta e kohës duhet të ketë të paktën një rresht kohor përpara se të dërgohet.",
+  "timer.feil.ugyldigPause": "Pushimi duhet të jetë një numër pozitiv (minuta).",
+  "timer.feil.sluttForStart": "Koha e përfundimit duhet të jetë pas orës së fillimit.",
   "timer.attestering.tittel": "Miratoni orët",
   "timer.attestering.beskrivelse": "Fletët e dorëzuara ditore në pritje të miratimit tuaj. Kthehuni me një koment nëse nevojiten korrigjime, ose miratoni çmimet e kyçjes dhe fotografisë.",
   "timer.attestering.ingenSedler": "Nuk ka fletë ditore në pritje të miratimit për momentin.",

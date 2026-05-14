@@ -216,6 +216,8 @@
   "timer.feil.ugyldigTimer": "Hodiny musí být mezi 0,01 a 24.",
   "timer.feil.ugyldigAntall": "Počet musí být větší než 0.",
   "timer.feil.minstEnTimerRad": "Časový výkaz musí mít před odesláním alespoň jeden časový řádek.",
+  "timer.feil.ugyldigPause": "Přestávka musí být kladné číslo (minuty).",
+  "timer.feil.sluttForStart": "Čas ukončení musí následovat po čase zahájení.",
   "timer.attestering.tittel": "Schválit otevírací dobu",
   "timer.attestering.beskrivelse": "Odeslané denní listy čekající na vaše schválení. Vraťte se s komentářem, pokud jsou nutné opravy, nebo schvalte zamknutí a zachycení cen.",
   "timer.attestering.ingenSedler": "Momentálně žádné denní listy nečekají na schválení.",

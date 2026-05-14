@@ -37,6 +37,8 @@ import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { TimerSeksjon } from "../../src/components/timer-detalj/TimerSeksjon";
 import { TilleggSeksjon } from "../../src/components/timer-detalj/TilleggSeksjon";
 import { MaskinSeksjon } from "../../src/components/timer-detalj/MaskinSeksjon";
+import { ArbeidstidSeksjon } from "../../src/components/timer-detalj/ArbeidstidSeksjon";
+import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBanner";
 import { formatNorskDato, formatTidspunkt } from "../../src/utils/dato";
 import type {
   Sedel,
@@ -126,6 +128,19 @@ export default function DagsseddelDetalj() {
     if (!sedel) return false;
     return sedel.status === "draft" || sedel.status === "returned";
   }, [sedel]);
+
+  const arbeidstidTimer = useMemo(() => {
+    if (!sedel?.startAt || !sedel?.endAt) return null;
+    const diff =
+      (new Date(sedel.endAt).getTime() - new Date(sedel.startAt).getTime()) /
+      3600000;
+    return Math.max(0, diff - (sedel.pauseMin ?? 0) / 60);
+  }, [sedel]);
+
+  const totaltimer = useMemo(
+    () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
+    [timerRader],
+  );
 
   const markerEndretOgLes = useCallback(() => {
     const db = hentDatabase();
@@ -307,6 +322,16 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
+        <ArbeidstidSeksjon
+          sheetId={sheetId}
+          dato={sedel.dato}
+          startAt={sedel.startAt}
+          endAt={sedel.endAt}
+          pauseMin={sedel.pauseMin}
+          redigerbar={erRedigerbar}
+          onEndret={markerEndretOgLes}
+        />
+
         <TimerSeksjon
           sheetId={sheetId}
           rader={timerRader}
@@ -338,6 +363,12 @@ export default function DagsseddelDetalj() {
 
         {/* Handlinger */}
         <View className="mx-4 mt-6 gap-2">
+          {erRedigerbar && (
+            <SummeringsBanner
+              totaltimer={totaltimer}
+              arbeidstidTimer={arbeidstidTimer}
+            />
+          )}
           {erRedigerbar && (
             <Pressable
               onPress={sendTilAttestering}

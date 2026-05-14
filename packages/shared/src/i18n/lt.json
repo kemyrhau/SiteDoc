@@ -216,6 +216,8 @@
   "timer.feil.ugyldigTimer": "Valandos turi būti nuo 0,01 iki 24.",
   "timer.feil.ugyldigAntall": "Skaičius turi būti didesnis nei 0.",
   "timer.feil.minstEnTimerRad": "Kad būtų galima išsiųsti laiko apskaitos žiniaraštį, turi būti bent viena laiko eilutė.",
+  "timer.feil.ugyldigPause": "Pertrauka turi būti teigiamas skaičius (minutės).",
+  "timer.feil.sluttForStart": "Pabaigos laikas turi būti po pradžios laiko.",
   "timer.attestering.tittel": "Patvirtinti valandas",
   "timer.attestering.beskrivelse": "Pateikti dienos lapai laukia jūsų patvirtinimo. Grąžinkite su komentaru, jei reikia pataisyti, arba patvirtinkite užrakinti ir užfiksuoti kainas.",
   "timer.attestering.ingenSedler": "Šiuo metu nėra patvirtinimo laukiančių kasdienių lapų.",

@@ -216,6 +216,8 @@
   "timer.feil.ugyldigTimer": "Tunnid peavad jääma 0,01 ja 24 vahele.",
   "timer.feil.ugyldigAntall": "Arv peab olema suurem kui 0.",
   "timer.feil.minstEnTimerRad": "Ajalehes peab enne saatmist olema vähemalt üks ajarida.",
+  "timer.feil.ugyldigPause": "Vaheaeg peab olema positiivne arv (minutid).",
+  "timer.feil.sluttForStart": "Lõpuaeg peab olema pärast algusaega.",
   "timer.attestering.tittel": "Kinnitage tunnid",
   "timer.attestering.beskrivelse": "Esitatud päevalehed ootavad teie kinnitamist. Kui vajate parandusi, tagastage kommentaariga või nõustuge hindade lukustamisega ja hetkeseisuga.",
   "timer.attestering.ingenSedler": "Ükski päevaleht ei oota praegu kinnitamist.",
