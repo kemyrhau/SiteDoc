@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} rader väntar på attestering",
   "timer.attestering.container.delvis": "{{attestert}} intygade, {{returnert}} returnerade, {{väntande}} väntande av {{total}} rader",
   "timer.attestering.container.alleBehandlet": "Alla rader hanterade ({{attestert}} intygade, {{returnert}} returnerade)",
+  "timer.attestering.redigerHint.tekst": "Vill du att företaget ska korrigera timmar direkt under attesteringen?",
+  "timer.attestering.redigerHint.lenke": "Aktivera i Inställningar →",
   "timer.rediger.knapp": "Redigera ark",
   "timer.rediger.modus.tittel": "Redigera läge",
   "timer.rediger.modus.beskrivelse": "Du redigerar alla väntande rader på arket direkt. Originalen bevaras för referens. Ändringar registreras i granskningsloggen.",

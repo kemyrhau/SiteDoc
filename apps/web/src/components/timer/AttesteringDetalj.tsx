@@ -102,6 +102,13 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
       { retry: false },
     );
 
+  // Brukes til å vise diskret hint kun for firma-admins når flagget er av.
+  const { data: kanFirmaAttestere } =
+    trpc.timer.dagsseddel.kanAttestereFirma.useQuery(
+      { organizationId: sheet?.organizationId ?? "" },
+      { enabled: !!sheet?.organizationId },
+    );
+
   const attesterRader = trpc.timer.dagsseddel.attesterRader.useMutation({
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
@@ -259,6 +266,19 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
               : t("timer.attestering.container.pending", {
                   total: totaltAntallRader,
                 })}
+        </div>
+      )}
+
+      {/* Diskret hint til firma-admin når rediger-flagget er av */}
+      {sheet.redigerTillatt === false && kanFirmaAttestere?.kanAttestere && (
+        <div className="mb-4 rounded-md bg-blue-50 px-3 py-2 text-xs text-blue-800">
+          💡 {t("timer.attestering.redigerHint.tekst")}{" "}
+          <Link
+            href="/dashbord/firma/innstillinger#rediger-ved-attestering"
+            className="font-medium underline hover:text-blue-900"
+          >
+            {t("timer.attestering.redigerHint.lenke")}
+          </Link>
         </div>
       )}
 

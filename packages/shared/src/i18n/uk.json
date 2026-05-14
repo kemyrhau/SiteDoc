@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} рядків, які очікують атестації",
   "timer.attestering.container.delvis": "{{attestert}} засвідчено, {{returnert}} повернено, {{pending}} очікує на розгляд з {{total}} рядків",
   "timer.attestering.container.alleBehandlet": "Усі рядки оброблено ({{attestert}} засвідчено, {{returnert}} повернуто)",
+  "timer.attestering.redigerHint.tekst": "Хочете, щоб компанія виправляла години безпосередньо під час атестації?",
+  "timer.attestering.redigerHint.lenke": "Увімкнути в налаштуваннях →",
   "timer.rediger.knapp": "Редагувати аркуш",
   "timer.rediger.modus.tittel": "Режим редагування",
   "timer.rediger.modus.beskrivelse": "Ви безпосередньо редагуєте всі незавершені рядки на аркуші. Оригінали зберігаються для довідки. Зміни фіксуються в журналі ревізій.",
