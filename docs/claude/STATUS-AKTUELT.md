@@ -110,6 +110,18 @@ Ingen treff på `pushvarsel`/`sms` i kode. Krever ny varslingstjeneste (SMS-leve
 
 ## Pågående arbeid
 
+### attestering-hint — kontekstuell hint om redigering DEPLOYET TIL PROD 2026-05-14 (prod-commit `d194332c`)
+
+Diskret blå info-stripe i `AttesteringDetalj.tsx` under container-banneret. Synlig kun for firma-admin (gated via `kanAttestereFirma`-query mot sheet.organizationId) når `sheet.redigerTillatt === false`. 💡-emoji + tekst «Vil firmaet korrigere timer direkte under attestering?» + lenke til `/dashbord/firma/innstillinger#rediger-ved-attestering`. 2 nye i18n-nøkler (`timer.attestering.redigerHint.tekst` + `.lenke`) i nb/en, auto-oversatt til 13 språk. Progressive Disclosure-mønsteret — kan gjenbrukes andre steder.
+
+### Server-side fix: `deploy-test-cron.sh` cache-bug DEPLOYET PÅ TEST-SERVER 2026-05-14
+
+Auto-deploy-skriptet `~/programmering/deploy-test-cron.sh` (cron hvert 2. min på test-serveren) hadde en stale `.next`-cache-bug som trigget «Cannot read properties of undefined (reading 'clientModules')»-feilen tre ganger denne uken (T7-2b1, T7-2b3, attestering-hint). Hver gang krevde manuell `rm -rf apps/web/.next + pnpm build + pm2 restart` på test for å løse.
+
+**Fiks:** Lagt til `STEG="clean_next" && rm -rf apps/web/.next` som eget steg i deploy-pipelinen mellom `prisma_migrate` og `build`. Trade-off: hver auto-deploy gjør nå full rebuild fra scratch (~30-60s lengre) i stedet for inkrementell, men eliminerer cache-divergens-bug. Backup-fil: `~/programmering/deploy-test-cron.sh.bak` på serveren.
+
+Skriptet er **ikke i repoet** — det ligger kun på test-serveren. Endringen er server-side og påvirker ikke prod (`./deploy.sh` gjør allerede full rebuild).
+
 ### PR T7-2b3 settings-toggle for «Tillat redigering ved attestering» DEPLOYET TIL PROD 2026-05-14 (prod-commit `af4a7deb`)
 
 **T7-2b-bunken er nå komplett i prod:**
