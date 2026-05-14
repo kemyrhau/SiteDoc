@@ -110,7 +110,35 @@ Ingen treff på `pushvarsel`/`sms` i kode. Krever ny varslingstjeneste (SMS-leve
 
 ## Pågående arbeid
 
-### PR T7-2b2 edit-modus ved attestering IMPLEMENTERT på feature/t7-2b2 2026-05-14
+### PR T7-2b3 settings-toggle for «Tillat redigering ved attestering» IMPLEMENTERT på feature/t7-2b3 2026-05-14
+
+Siste sub-PR av T7-2b-bunken. Aktiverer firma-admin til å skru `OrganizationSetting.tillattRedigerVedAttestering` på/av via UI. Når flagget er true, viser Rediger-knappen seg i attestering-detalj-siden (T7-2b2). Default false — kunder må eksplisitt slå på.
+
+**Klient (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`):**
+- Ny `RedigerVedAttesteringSeksjon`-komponent (~70 linjer). Følger eksakt samme mønster som eksisterende `TilgangPolicySeksjon`: `useFirma()` → `hentSetting`-query → checkbox-toggle som kaller `oppdaterSetting({ tillattRedigerVedAttestering: boolean })` ved endring.
+- Layout: H2-tittel + beskrivelse + checkbox med inline-label og warning-tekst. Border + padding-stil matcher andre seksjoner.
+- Montert i hovedsiden etter `KompetansePolicySeksjon`, før hjelp-modal.
+
+**Server/schema:** Null endring. `oppdaterSetting`-input var allerede utvidet med `tillattRedigerVedAttestering: z.boolean().optional()` i T7-2b2. `hentSetting` returnerer hele OrganizationSetting-objektet → det nye feltet er allerede med i respons.
+
+**i18n:** 5 nye nøkler i nb+en under `firma.innstillinger.redigerVedAttestering.*`:
+- `.tittel` — «Rediger ved attestering» / «Edit during attestation»
+- `.beskrivelse` — full forklaring + audit-log-omtale
+- `.toggle` — checkbox-label
+- `.warning` — «Egnet for bransjer der ansatte trenger hjelp med timeregistrering»
+- `.feil` — feilmelding med `{{melding}}`-interpolering
+
+Auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil). Ingen API-typecheck-endring (ingen server-endring).
+
+**Etter prod-deploy er hele T7-2b-bunken komplett.** Gjenstår:
+- T7-3 (mobil timer-redesign — speil av T7-1 strukturen på mobil)
+- Audit-log-utvidelse (T7-2b2 logger antall + actor; før/etter-snapshots per rad utsettes til egen oppfølger)
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR T7-2b2 edit-modus ved attestering DEPLOYET TIL PROD 2026-05-14 (prod-commit `755c542a`)
 
 Andre sub-PR av T7-2b-bunken. Firma-admin kan redigere alle pending-rader på en sedel direkte uten å returnere til arbeider. Locked design fra Kenneth 2026-05-14:
 
