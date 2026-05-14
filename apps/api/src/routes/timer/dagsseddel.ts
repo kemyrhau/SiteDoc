@@ -875,7 +875,7 @@ export const dagsseddelRouter = router({
         await autoriserAdminForFirma(ctx.userId, sheet.organizationId);
       }
 
-      const [aktivitet, prosjekt, brukerData, ansattMedlem] = await Promise.all([
+      const [aktivitet, prosjekt, brukerData, ansattMedlem, orgSetting] = await Promise.all([
         sheet.aktivitetId
           ? ctx.prismaTimer.aktivitet.findUnique({
               where: { id: sheet.aktivitetId },
@@ -898,11 +898,17 @@ export const dagsseddelRouter = router({
           },
           select: { ansattnummer: true },
         }),
+        // T7-2b2: hent firmaets flagg for å gate Rediger-knapp i UI
+        prisma.organizationSetting.findUnique({
+          where: { organizationId: sheet.organizationId },
+          select: { tillattRedigerVedAttestering: true },
+        }),
       ]);
       const ansatt = brukerData
         ? { ...brukerData, ansattnummer: ansattMedlem?.ansattnummer ?? null }
         : null;
-      return { ...sheet, aktivitet, timer, tillegg, maskiner, prosjekt, ansatt };
+      const redigerTillatt = orgSetting?.tillattRedigerVedAttestering ?? false;
+      return { ...sheet, aktivitet, timer, tillegg, maskiner, prosjekt, ansatt, redigerTillatt };
     }),
 
   // Flytt ECO på en timer-rad (Steg 4a 2026-05-03). Lederen kan endre
@@ -1272,6 +1278,269 @@ export const dagsseddelRouter = router({
       ]);
 
       return { antallReturnert: alle.length, returnerSedler: uniqueSheetIds };
+    }),
+
+  // ============================================================================
+  //  T7-2b2 — Firma-admin rediger-modus (2026-05-14)
+  //
+  //  Erstatter alle pending-rader på en sedel med ny rad-sett. Originaler
+  //  markeres attestertStatus="erstattet" og beholdes for audit (parentRadId
+  //  peker fra ny rad til original). Gates på
+  //  OrganizationSetting.tillattRedigerVedAttestering (default false).
+  //  Skriver Activity-rad for hver rediger-operasjon.
+  // ============================================================================
+
+  redigerSedelRader: protectedProcedure
+    .input(
+      z.object({
+        sheetId: z.string().uuid(),
+        nyeRader: z.object({
+          timer: z.array(
+            z.object({
+              originalId: z.string().uuid().nullable(),
+              projectId: z.string().uuid(),
+              lonnsartId: z.string().uuid(),
+              aktivitetId: z.string().uuid(),
+              externalCostObjectId: z.string().uuid().nullable().optional(),
+              byggeplassId: z.string().uuid().nullable().optional(),
+              fraTid: z.string().nullable().optional(),
+              tilTid: z.string().nullable().optional(),
+              timer: z.number().positive(),
+            }),
+          ),
+          tillegg: z.array(
+            z.object({
+              originalId: z.string().uuid().nullable(),
+              projectId: z.string().uuid(),
+              tilleggId: z.string().uuid(),
+              antall: z.number().positive(),
+              kommentar: z.string().nullable().optional(),
+            }),
+          ),
+          maskin: z.array(
+            z.object({
+              originalId: z.string().uuid().nullable(),
+              projectId: z.string().uuid(),
+              vehicleId: z.string().uuid(),
+              byggeplassId: z.string().uuid().nullable().optional(),
+              fraTid: z.string().nullable().optional(),
+              tilTid: z.string().nullable().optional(),
+              timer: z.number().positive(),
+              mengde: z.number().nullable().optional(),
+              enhet: z.string().nullable().optional(),
+            }),
+          ),
+        }),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await ctx.prismaTimer.dailySheet.findUnique({
+        where: { id: input.sheetId },
+        select: { id: true, organizationId: true, status: true, userId: true },
+      });
+      if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+
+      // Auth: kun firma-admin kan redigere
+      await autoriserAdminForFirma(ctx.userId, sheet.organizationId);
+
+      // Gate: flagget må være på
+      const setting = await ctx.prisma.organizationSetting.findUnique({
+        where: { organizationId: sheet.organizationId },
+        select: { tillattRedigerVedAttestering: true },
+      });
+      if (!setting?.tillattRedigerVedAttestering) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Rediger ved attestering er ikke tillatt for dette firmaet. Slå på i innstillinger.",
+        });
+      }
+
+      if (sheet.status !== "sent") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Kun innsendte dagssedler kan redigeres (status: ${sheet.status})`,
+        });
+      }
+
+      // Cross-org-validering: alle nye-rad projectIds må tilhøre firmaet
+      const alleProjectIds = Array.from(
+        new Set([
+          ...input.nyeRader.timer.map((r) => r.projectId),
+          ...input.nyeRader.tillegg.map((r) => r.projectId),
+          ...input.nyeRader.maskin.map((r) => r.projectId),
+        ]),
+      );
+      if (alleProjectIds.length > 0) {
+        const gyldigeProsjekter = await ctx.prisma.projectOrganization.findMany({
+          where: {
+            projectId: { in: alleProjectIds },
+            organizationId: sheet.organizationId,
+          },
+          select: { projectId: true },
+        });
+        const gyldigeIder = new Set(gyldigeProsjekter.map((p) => p.projectId));
+        const ugyldig = alleProjectIds.filter((pid) => !gyldigeIder.has(pid));
+        if (ugyldig.length > 0) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: `Prosjekt(er) tilhører ikke firmaet: ${ugyldig.join(", ")}`,
+          });
+        }
+      }
+
+      // Valider originalId hvis gitt: må finnes på sedelen og være pending
+      const eksisterendeIder = {
+        timer: new Set<string>(),
+        tillegg: new Set<string>(),
+        maskin: new Set<string>(),
+      };
+      const [eksTimer, eksTillegg, eksMaskin] = await Promise.all([
+        ctx.prismaTimer.sheetTimer.findMany({
+          where: { sheetId: sheet.id, attestertStatus: "pending" },
+          select: { id: true },
+        }),
+        ctx.prismaTimer.sheetTillegg.findMany({
+          where: { sheetId: sheet.id, attestertStatus: "pending" },
+          select: { id: true },
+        }),
+        ctx.prismaTimer.sheetMachine.findMany({
+          where: { sheetId: sheet.id, attestertStatus: "pending" },
+          select: { id: true },
+        }),
+      ]);
+      eksTimer.forEach((r) => eksisterendeIder.timer.add(r.id));
+      eksTillegg.forEach((r) => eksisterendeIder.tillegg.add(r.id));
+      eksMaskin.forEach((r) => eksisterendeIder.maskin.add(r.id));
+
+      for (const rad of input.nyeRader.timer) {
+        if (rad.originalId && !eksisterendeIder.timer.has(rad.originalId)) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Timer-rad ${rad.originalId} finnes ikke som pending på sedelen`,
+          });
+        }
+      }
+      for (const rad of input.nyeRader.tillegg) {
+        if (rad.originalId && !eksisterendeIder.tillegg.has(rad.originalId)) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Tillegg-rad ${rad.originalId} finnes ikke som pending på sedelen`,
+          });
+        }
+      }
+      for (const rad of input.nyeRader.maskin) {
+        if (rad.originalId && !eksisterendeIder.maskin.has(rad.originalId)) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: `Maskin-rad ${rad.originalId} finnes ikke som pending på sedelen`,
+          });
+        }
+      }
+
+      const naa = new Date();
+      const antallErstattet =
+        eksTimer.length + eksTillegg.length + eksMaskin.length;
+
+      // Transaksjon: marker alle eksisterende pending som "erstattet" + opprett nye
+      await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.updateMany({
+          where: { sheetId: sheet.id, attestertStatus: "pending" },
+          data: {
+            attestertStatus: "erstattet",
+            attestertAvUserId: ctx.userId,
+            attestertVed: naa,
+          },
+        }),
+        ctx.prismaTimer.sheetTillegg.updateMany({
+          where: { sheetId: sheet.id, attestertStatus: "pending" },
+          data: {
+            attestertStatus: "erstattet",
+            attestertAvUserId: ctx.userId,
+            attestertVed: naa,
+          },
+        }),
+        ctx.prismaTimer.sheetMachine.updateMany({
+          where: { sheetId: sheet.id, attestertStatus: "pending" },
+          data: {
+            attestertStatus: "erstattet",
+            attestertAvUserId: ctx.userId,
+            attestertVed: naa,
+          },
+        }),
+        ...input.nyeRader.timer.map((rad) =>
+          ctx.prismaTimer.sheetTimer.create({
+            data: {
+              sheetId: sheet.id,
+              lonnsartId: rad.lonnsartId,
+              aktivitetId: rad.aktivitetId,
+              projectId: rad.projectId,
+              externalCostObjectId: rad.externalCostObjectId ?? null,
+              byggeplassId: rad.byggeplassId ?? null,
+              fraTid: rad.fraTid ?? null,
+              tilTid: rad.tilTid ?? null,
+              timer: rad.timer,
+              attestertStatus: "pending",
+              parentRadId: rad.originalId,
+            },
+          }),
+        ),
+        ...input.nyeRader.tillegg.map((rad) =>
+          ctx.prismaTimer.sheetTillegg.create({
+            data: {
+              sheetId: sheet.id,
+              tilleggId: rad.tilleggId,
+              projectId: rad.projectId,
+              antall: rad.antall,
+              kommentar: rad.kommentar ?? null,
+              attestertStatus: "pending",
+              parentRadId: rad.originalId,
+            },
+          }),
+        ),
+        ...input.nyeRader.maskin.map((rad) =>
+          ctx.prismaTimer.sheetMachine.create({
+            data: {
+              sheetId: sheet.id,
+              vehicleId: rad.vehicleId,
+              projectId: rad.projectId,
+              byggeplassId: rad.byggeplassId ?? null,
+              fraTid: rad.fraTid ?? null,
+              tilTid: rad.tilTid ?? null,
+              timer: rad.timer,
+              mengde: rad.mengde ?? null,
+              enhet: rad.enhet ?? null,
+              attestertStatus: "pending",
+              parentRadId: rad.originalId,
+            },
+          }),
+        ),
+      ]);
+
+      // Activity-log (etter transaksjonen — separat så feilet log ikke ruller back)
+      await prisma.activity.create({
+        data: {
+          actorUserId: ctx.userId,
+          organizationId: sheet.organizationId,
+          targetType: "DailySheet",
+          targetId: sheet.id,
+          action: "rediger_sedel_rader",
+          payload: {
+            antallErstattet,
+            antallNyeTimer: input.nyeRader.timer.length,
+            antallNyeTillegg: input.nyeRader.tillegg.length,
+            antallNyeMaskin: input.nyeRader.maskin.length,
+            sedelEier: sheet.userId,
+          },
+        },
+      });
+
+      return {
+        antallErstattet,
+        antallNyeTimer: input.nyeRader.timer.length,
+        antallNyeTillegg: input.nyeRader.tillegg.length,
+        antallNyeMaskin: input.nyeRader.maskin.length,
+      };
     }),
 
   // @deprecated Thin wrapper — kaller attesterRader for alle pending-rader på sedelen.
