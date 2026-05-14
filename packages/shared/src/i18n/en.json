@@ -349,6 +349,7 @@
   "handling.godkjenn": "Approve",
   "handling.avvis": "Reject",
   "handling.lukk": "Close",
+  "handling.sok": "Search",
   "handling.eksporter": "Export",
   "handling.importer": "Import",
   "handling.lastOpp": "Upload",
