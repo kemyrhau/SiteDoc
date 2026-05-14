@@ -166,8 +166,12 @@ export async function syncTimer(
           pauseMin: sedel.pauseMin,
           status: sedel.status,
           beskrivelse: sedel.beskrivelse ?? null,
+          // T7-3b1: send projectId per rad. Faller tilbake til sedel-nivå
+          // hvis rad-nivå ikke er satt (legacy-data + lokal backfill).
+          // Server bruker rad-nivå hvis satt, ellers sedel-nivå (kompat-shim).
           timer: timer.map((t) => ({
             id: t.id,
+            projectId: t.projectId ?? sedel.projectId,
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId ?? null,
@@ -175,12 +179,14 @@ export async function syncTimer(
           })),
           tillegg: tillegg.map((tl) => ({
             id: tl.id,
+            projectId: tl.projectId ?? sedel.projectId,
             tilleggId: tl.tilleggId,
             antall: tl.antall,
             kommentar: tl.kommentar ?? null,
           })),
           maskiner: maskiner.map((m) => ({
             id: m.id,
+            projectId: m.projectId ?? sedel.projectId,
             vehicleId: m.vehicleId,
             timer: m.timer,
             mengde: m.mengde,
@@ -350,11 +356,15 @@ export async function syncTimer(
         .where(eq(sheetMachineLocal.dagsseddelId, serverSedel.id))
         .run();
 
+      // T7-3b1: server returnerer projectId per rad. Vi lagrer dette på rad-
+      // nivå lokalt. Faller tilbake til sedel-nivå for legacy server-respons
+      // som mangler t.projectId (pre-T7-3b1 server).
       for (const t of serverSedel.timer) {
         db.insert(sheetTimerLocal)
           .values({
             id: t.id,
             dagsseddelId: serverSedel.id,
+            projectId: t.projectId ?? sedelProjectId,
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId,
@@ -368,6 +378,7 @@ export async function syncTimer(
           .values({
             id: tl.id,
             dagsseddelId: serverSedel.id,
+            projectId: tl.projectId ?? sedelProjectId,
             tilleggId: tl.tilleggId,
             antall: tl.antall,
             kommentar: tl.kommentar,
@@ -380,6 +391,7 @@ export async function syncTimer(
           .values({
             id: m.id,
             dagsseddelId: serverSedel.id,
+            projectId: m.projectId ?? sedelProjectId,
             vehicleId: m.vehicleId,
             timer: m.timer,
             mengde: m.mengde,

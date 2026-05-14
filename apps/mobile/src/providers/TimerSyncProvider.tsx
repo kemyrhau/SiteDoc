@@ -18,6 +18,7 @@ import {
 } from "../services/timerSync";
 import { refreshKatalog } from "../services/timerKatalog";
 import { refreshMaskinKatalog } from "../services/maskinKatalog";
+import { refreshProsjektKatalog } from "../services/prosjektKatalog";
 
 interface TimerSyncKontekst {
   pendingAntall: number;
@@ -89,6 +90,7 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
       await Promise.all([
         refreshKatalog(utils.client),
         refreshMaskinKatalog(utils.client),
+        refreshProsjektKatalog(utils.client),
       ]);
       setKatalogLastet(true);
     } catch (e) {
