@@ -1788,8 +1788,13 @@ export const dagsseddelRouter = router({
           lederKommentar: s.lederKommentar,
           attestertVed: s.attestertVed?.toISOString() ?? null,
           updatedAt: s.updatedAt.toISOString(),
+          // T7-3b1 (2026-05-14): expose projectId per rad så mobil kan lagre
+          // per-rad-attribusjon offline. Tidligere proxyet vi via første rad
+          // til sedel-nivå (sedelProjectId over) — den feltet beholdes for
+          // bakoverkompatibilitet med pre-T7-3b1-klienter.
           timer: s.timer.map((t) => ({
             id: t.id,
+            projectId: t.projectId,
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId,
@@ -1797,12 +1802,14 @@ export const dagsseddelRouter = router({
           })),
           tillegg: s.tillegg.map((tl) => ({
             id: tl.id,
+            projectId: tl.projectId,
             tilleggId: tl.tilleggId,
             antall: Number(tl.antall),
             kommentar: tl.kommentar,
           })),
           maskiner: s.maskiner.map((m) => ({
             id: m.id,
+            projectId: m.projectId,
             vehicleId: m.vehicleId,
             timer: Number(m.timer),
             mengde: m.mengde !== null ? Number(m.mengde) : null,
@@ -1841,9 +1848,13 @@ export const dagsseddelRouter = router({
             pauseMin: z.number().int().min(0).default(0),
             status: z.enum(STATUS_VERDIER),
             beskrivelse: z.string().nullable().optional(),
+            // T7-3b1: projectId per rad (optional). Bruk rad-nivå hvis satt,
+            // ellers fall tilbake til lokal.projectId (sedel-nivå, kompat-shim
+            // for pre-T7-3b1-klienter).
             timer: z.array(
               z.object({
                 id: z.string().uuid(),
+                projectId: z.string().uuid().optional(),
                 lonnsartId: z.string().uuid(),
                 aktivitetId: z.string().uuid(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
@@ -1853,6 +1864,7 @@ export const dagsseddelRouter = router({
             tillegg: z.array(
               z.object({
                 id: z.string().uuid(),
+                projectId: z.string().uuid().optional(),
                 tilleggId: z.string().uuid(),
                 antall: z.number().min(0),
                 kommentar: z.string().nullable().optional(),
@@ -1862,6 +1874,7 @@ export const dagsseddelRouter = router({
               .array(
                 z.object({
                   id: z.string().uuid(),
+                  projectId: z.string().uuid().optional(),
                   vehicleId: z.string().uuid(),
                   timer: z.number().min(0).max(24),
                   mengde: z.number().min(0).nullable().optional(),
@@ -2025,6 +2038,23 @@ export const dagsseddelRouter = router({
             continue;
           }
 
+          // T7-3b1: verifiser medlemskap på alle unike per-rad-projectId.
+          // Sedel-nivå er allerede sjekket (linje 1970); rad-nivå-IDer som
+          // avviker fra sedel-nivå må sjekkes separat. Hopper over rad-IDer
+          // identisk med sedel-nivå for å unngå dobbelt-DB-spørring.
+          const radProjectIder = Array.from(
+            new Set(
+              [
+                ...lokal.timer.map((t) => t.projectId),
+                ...lokal.tillegg.map((t) => t.projectId),
+                ...lokal.maskiner.map((m) => m.projectId),
+              ].filter((p): p is string => !!p && p !== lokal.projectId),
+            ),
+          );
+          for (const pid of radProjectIder) {
+            await verifiserProsjektmedlem(ctx.userId, pid);
+          }
+
           const dato = new Date(lokal.dato);
 
           // Klient kan ikke sette accepted — lederen attesterer på server
@@ -2079,12 +2109,15 @@ export const dagsseddelRouter = router({
             await tx.sheetTillegg.deleteMany({ where: { sheetId: sedel.id } });
             await tx.sheetMachine.deleteMany({ where: { sheetId: sedel.id } });
 
+            // T7-3b1: rad-nivå projectId overstyrer sedel-nivå hvis satt.
+            // Faller tilbake til lokal.projectId (sedel-nivå) for pre-T7-3b1
+            // klienter som ikke sender per-rad projectId.
             if (lokal.timer.length > 0) {
               await tx.sheetTimer.createMany({
                 data: lokal.timer.map((t) => ({
                   id: t.id,
                   sheetId: sedel.id,
-                  projectId: lokal.projectId,
+                  projectId: t.projectId ?? lokal.projectId,
                   byggeplassId: lokal.byggeplassId ?? null,
                   lonnsartId: t.lonnsartId,
                   aktivitetId: t.aktivitetId,
@@ -2098,7 +2131,7 @@ export const dagsseddelRouter = router({
                 data: lokal.tillegg.map((tl) => ({
                   id: tl.id,
                   sheetId: sedel.id,
-                  projectId: lokal.projectId,
+                  projectId: tl.projectId ?? lokal.projectId,
                   tilleggId: tl.tilleggId,
                   antall: tl.antall,
                   kommentar: tl.kommentar ?? null,
@@ -2110,7 +2143,7 @@ export const dagsseddelRouter = router({
                 data: lokal.maskiner.map((m) => ({
                   id: m.id,
                   sheetId: sedel.id,
-                  projectId: lokal.projectId,
+                  projectId: m.projectId ?? lokal.projectId,
                   byggeplassId: lokal.byggeplassId ?? null,
                   vehicleId: m.vehicleId,
                   timer: m.timer,

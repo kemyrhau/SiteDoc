@@ -55,7 +55,42 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — Klar for review
+### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — Klar for review
+
+Andre sub-PR av T7-3-bunken. Forberedelse for T7-3b2 (UI per-rad-velger). Etter denne har mobil per-rad `projectId`-felt i lokal SQLite + sync-protokollen sender/mottar per-rad projectId mot server. Server-shimmen fra T.1 (sedel-nivå `projectId` for pre-T7-3b1-klienter) beholdes for bakoverkompatibilitet — server støtter både gammelt og nytt format. INGEN UI-endringer i denne PR-en; lokal projectId backfilles fra `dagsseddelLocal.projectId` og rad-velger kommer i T7-3b2.
+
+**Lokal SQLite-migrasjon (idempotent ALTER, mønster fra `migreringer.ts:254-272`):**
+- ALTER ADD COLUMN `project_id TEXT` på `sheet_timer_local` / `sheet_tillegg_local` / `sheet_machine_local`.
+- Backfill fra parent `dagsseddel_local.project_id` (UPDATE WHERE NULL).
+- Indeks på `project_id` per tabell.
+- Ny `prosjekt_local`-tabell (id, organization_id, name, project_number, lat, lng, aktiv, sist_oppdatert) + indeks på (organization_id, aktiv).
+
+**Klient (`apps/mobile`):**
+- `src/db/schema.ts` — `projectId` (nullable) på alle tre rad-tabeller + ny `prosjektLocal`-tabell.
+- `src/db/migreringer.ts` — idempotent ALTER + backfill + indekser + CREATE TABLE for prosjekt_local.
+- `src/services/prosjektKatalog.ts` (ny, ~95 linjer) — `refreshProsjektKatalog` (henter `trpc.prosjekt.hentMine`, hopper over standalone uten `primaryOrganizationId`, lagrer til prosjekt_local), `hentProsjekterLokalt(orgId)`, `finnProsjektLokalt(id)`.
+- `src/providers/TimerSyncProvider.tsx` — `refreshProsjektKatalog` lagt til i `Promise.all` ved login + nett-gjenkomst (samme mønster som maskinKatalog).
+- `src/services/timerSync.ts` — sender `projectId` per rad i `syncBatch` (fallback til sedel-nivå). Skriver per-rad projectId ved pull (fallback til sedel-nivå for legacy-respons).
+
+**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- `syncBatch`-input utvidet med `projectId: z.string().uuid().optional()` per rad (timer/tillegg/maskiner). Rad-nivå overstyrer sedel-nivå hvis satt; ellers fall tilbake til `lokal.projectId` (kompat-shim).
+- `hentEndringerSiden`-respons utvidet med `projectId` per rad (timer/tillegg/maskiner) så klient kan lagre per-rad-attribusjon.
+- Ny auth-sjekk: `verifiserProsjektmedlem` kalles for hver unike per-rad-`projectId` som avviker fra sedel-nivå. Hindrer at bruker fører timer på prosjekt de ikke er medlem av via per-rad-attributt.
+
+**Skjema-status server:** `db-timer.SheetTimer/Tillegg/Machine.projectId` finnes fra T.1 (PR 1B 2026-05-11). Null Prisma-migrasjon i denne PR-en.
+
+**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). `apps/api` typecheck 0 = 0 feil.
+
+**Reload-metode:** Telefon-app — TypeScript + Drizzle-skjema-endring, krever full app-reload (eller close + open) slik at `migreringer.ts` kjører ved oppstart og ALTER-statementene legger til kolonnene. Ingen native rebuild.
+
+**Forventede begrensninger (kommer i T7-3b2/c/d):**
+- Ingen UI for per-rad-prosjektvelger ennå — alle nye rader får automatisk `sedel.projectId` via fallback. Etter UI er på plass (T7-3b2) kan brukeren velge avvikende prosjekt per rad.
+- `dagsseddelLocal.projectId` beholdes som «default-prosjekt for nye rader» og fallback-verdi for legacy data. NOT NULL → drop kommer i T7-4+ etter alle telefoner kjører ny app.
+- Geo-forslag (lat/lng-feltene i prosjekt_local) kommer i T7-3c.
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
+### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — MERGET TIL DEVELOP (merge `22a97402`, impl `fc087b65`) — verifisering på enhet hos Kenneth
 
 Første sub-PR av T7-3-bunken (mobil timer-redesign). Speil av T7-1a på mobil. Bringer mobil opp på samme nivå som web for arbeidstid-registrering og løpende summering. Ingen DB-migrasjon, ingen sync-endring, ingen server-endring.
 
