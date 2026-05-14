@@ -55,7 +55,25 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T7-2b2 edit-modus ved attestering IMPLEMENTERT på feature/t7-2b2 2026-05-14
+### PR T7-2b3 settings-toggle for «Tillat redigering ved attestering» IMPLEMENTERT på feature/t7-2b3 2026-05-14
+
+Siste sub-PR av T7-2b-bunken. Aktiverer firma-admin til å skru `OrganizationSetting.tillattRedigerVedAttestering` på/av via UI. Med flagget på vises Rediger-knappen fra T7-2b2 i attestering-detalj-siden. Default forblir false (mest restriktivt) — kunder må eksplisitt slå på.
+
+**Klient (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`):**
+- Ny `RedigerVedAttesteringSeksjon`-komponent (~70 linjer) etter `KompetansePolicySeksjon`. Følger eksakt samme mønster som `TilgangPolicySeksjon`: henter `OrganizationSetting` via `hentSetting`-query, viser tittel + beskrivelse + checkbox-toggle + warning-tekst, kaller `oppdaterSetting({ tillattRedigerVedAttestering: boolean })` ved endring.
+- Montert i hovedsiden mellom kompetansematrise-seksjon og hjelp-modal.
+
+**Server/schema:** Ingen endringer. Server-input ble klargjort i T7-2b2 (`oppdaterSetting` tar allerede `tillattRedigerVedAttestering: boolean.optional()`).
+
+**i18n:** 5 nye nøkler i nb/en under `firma.innstillinger.redigerVedAttestering.*` (tittel, beskrivelse, toggle-label, warning, feil). Auto-oversatt til 13 språk.
+
+**Verifisert:** `apps/web` typecheck 0 nye feil. Ingen `apps/api`-endring.
+
+**Etter denne PR-en er hele T7-2b-bunken (per-rad-attestering + edit-modus + settings-UI) komplett.** Gjenstår T7-3 (mobil timer-redesign) og audit-log-payload-utvidelse (separat oppfølger).
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR T7-2b2 edit-modus ved attestering DEPLOYET TIL PROD 2026-05-14 (prod-commit `755c542a`)
 
 Andre sub-PR av T7-2b-bunken. Firma-admin kan redigere alle pending-rader på en sedel direkte uten å returnere til arbeider. Gates på ny `OrganizationSetting.tillattRedigerVedAttestering` (default false — settings-UI for å skru på kommer i T7-2b3).
 
