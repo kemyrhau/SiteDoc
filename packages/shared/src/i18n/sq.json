@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} rreshta në pritje të vërtetimit",
   "timer.attestering.container.delvis": "{{attestert}} e vërtetuar, {{returnert}} e kthyer, {{në pritje}} në pritje prej {{gjithsej}} rreshtash",
   "timer.attestering.container.alleBehandlet": "Të gjitha rreshtat e trajtuara ({{attestert}} të vërtetuara, {{returnert}} të kthyera)",
+  "timer.attestering.redigerHint.tekst": "Dëshironi që kompania të korrigjojë orët direkt gjatë vërtetimit?",
+  "timer.attestering.redigerHint.lenke": "Aktivizojeni te Cilësimet →",
   "timer.rediger.knapp": "Redakto fletën",
   "timer.rediger.modus.tittel": "Modaliteti i modifikimit",
   "timer.rediger.modus.beskrivelse": "Ju po redaktoni drejtpërdrejt të gjitha rreshtat në pritje në fletë. Origjinalet ruhen për referencë. Ndryshimet regjistrohen në regjistrin e auditimit.",

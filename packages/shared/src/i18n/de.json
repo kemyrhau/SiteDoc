@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} Zeilen warten auf Attestierung",
   "timer.attestering.container.delvis": "{{attestert}} attestiert, {{returnert}} zurückgegeben, {{pending}} ausstehend von {{total}} Zeilen",
   "timer.attestering.container.alleBehandlet": "Alle Zeilen behandelt ({{attestert}} attestiert, {{returnert}} zurückgegeben)",
+  "timer.attestering.redigerHint.tekst": "Möchten Sie, dass das Unternehmen die Stunden direkt bei der Bescheinigung korrigiert?",
+  "timer.attestering.redigerHint.lenke": "Aktivieren Sie in den Einstellungen →",
   "timer.rediger.knapp": "Blatt bearbeiten",
   "timer.rediger.modus.tittel": "Bearbeitungsmodus",
   "timer.rediger.modus.beskrivelse": "Sie bearbeiten alle ausstehenden Zeilen im Blatt direkt. Die Originale werden als Referenz aufbewahrt. Änderungen werden im Audit-Protokoll aufgezeichnet.",

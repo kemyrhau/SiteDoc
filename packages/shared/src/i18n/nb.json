@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} rader venter på attestering",
   "timer.attestering.container.delvis": "{{attestert}} attestert, {{returnert}} returnert, {{pending}} venter av {{total}} rader",
   "timer.attestering.container.alleBehandlet": "Alle rader behandlet ({{attestert}} attestert, {{returnert}} returnert)",
+  "timer.attestering.redigerHint.tekst": "Vil firmaet korrigere timer direkte under attestering?",
+  "timer.attestering.redigerHint.lenke": "Aktiver i Innstillinger →",
   "timer.rediger.knapp": "Rediger sedel",
   "timer.rediger.modus.tittel": "Rediger-modus",
   "timer.rediger.modus.beskrivelse": "Du redigerer alle pending-rader på sedelen direkte. Originaler beholdes som referanse. Endringer logges i audit-loggen.",

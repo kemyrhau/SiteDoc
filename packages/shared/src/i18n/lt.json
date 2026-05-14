@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} eilučių laukia patvirtinimo",
   "timer.attestering.container.delvis": "{{attestert}} patvirtinta, {{returnert}} grąžinta, {{laukiama}} iš {{total}} eilučių",
   "timer.attestering.container.alleBehandlet": "Apdorotos visos eilutės (patvirtinta {{attestert}}, grąžinta {{returnert}})",
+  "timer.attestering.redigerHint.tekst": "Norite, kad įmonė ištaisytų darbo valandas tiesiogiai atestacijos metu?",
+  "timer.attestering.redigerHint.lenke": "Įgalinti nustatymuose →",
   "timer.rediger.knapp": "Redaguoti lapą",
   "timer.rediger.modus.tittel": "Redagavimo režimas",
   "timer.rediger.modus.beskrivelse": "Jūs tiesiogiai redaguojate visas laukiamas eilutes lape. Originalai saugomi nuorodai. Pakeitimai įrašomi į audito žurnalą.",

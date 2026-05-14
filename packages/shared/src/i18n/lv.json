@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} rindas gaida apstiprinājumu",
   "timer.attestering.container.delvis": "{{attestert}} apstiprināts, {{returnert}} atgriezts, {{pending}} gaida no {{total}} rindām",
   "timer.attestering.container.alleBehandlet": "Apstrādātas visas rindas (apstiprināta {{attestert}}, atgriezta {{returnert}})",
+  "timer.attestering.redigerHint.tekst": "Vai vēlaties, lai uzņēmums labo darba laiku tieši atestācijas laikā?",
+  "timer.attestering.redigerHint.lenke": "Iespējot sadaļā Iestatījumi →",
   "timer.rediger.knapp": "Rediģēt lapu",
   "timer.rediger.modus.tittel": "Rediģēšanas režīms",
   "timer.rediger.modus.beskrivelse": "Jūs rediģējat visas neapstiprinātās rindas lapā tieši. Oriģināli tiek glabāti uzziņai. Izmaiņas tiek ierakstītas audita žurnālā.",

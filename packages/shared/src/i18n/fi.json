@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} riviä odottaa vahvistusta",
   "timer.attestering.container.delvis": "{{attestert}} vahvistettu, {{returnert}} palautettu, {{pending}} vireillä / {{total}} riviä",
   "timer.attestering.container.alleBehandlet": "Kaikki rivit käsitelty ({{attestert}} varmennettu, {{returnert}} palautettu)",
+  "timer.attestering.redigerHint.tekst": "Haluatko yrityksen korjaavan aukioloaikoja suoraan sertifioinnin aikana?",
+  "timer.attestering.redigerHint.lenke": "Ota käyttöön kohdassa Asetukset →",
   "timer.rediger.knapp": "Muokkaa arkkia",
   "timer.rediger.modus.tittel": "Muokkaustila",
   "timer.rediger.modus.beskrivelse": "Muokkaat suoraan taulukon kaikkia odottavia rivejä. Alkuperäiset säilytetään viitettä varten. Muutokset kirjataan tarkastuslokiin.",

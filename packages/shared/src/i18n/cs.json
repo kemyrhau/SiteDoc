@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} řádků čekajících na atestaci",
   "timer.attestering.container.delvis": "{{attestert}} ověřeno, {{returnert}} vráceno, {{pending}} čeká na z {{total}} řádků",
   "timer.attestering.container.alleBehandlet": "Všechny zpracované řádky ({{attestert}} ověřeno, {{returnert}} vráceno)",
+  "timer.attestering.redigerHint.tekst": "Chcete, aby společnost opravovala hodiny přímo při atestaci?",
+  "timer.attestering.redigerHint.lenke": "Povolit v Nastavení →",
   "timer.rediger.knapp": "Upravit list",
   "timer.rediger.modus.tittel": "Režim úprav",
   "timer.rediger.modus.beskrivelse": "Přímo upravujete všechny čekající řádky na listu. Originály jsou uchovávány pro referenci. Změny se zaznamenávají do protokolu auditu.",

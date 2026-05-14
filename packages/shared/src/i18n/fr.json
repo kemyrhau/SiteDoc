@@ -246,6 +246,8 @@
   "timer.attestering.container.pending": "{{total}} lignes en attente d'attestation",
   "timer.attestering.container.delvis": "{{attestert}} attesté, {{returnert}} renvoyé, {{ending}} en attente sur {{total}} lignes",
   "timer.attestering.container.alleBehandlet": "Toutes les lignes traitées ({{attestert}} attestées, {{returnert}} renvoyées)",
+  "timer.attestering.redigerHint.tekst": "Vous souhaitez que l’entreprise corrige les horaires directement lors de l’attestation ?",
+  "timer.attestering.redigerHint.lenke": "Activer dans Paramètres →",
   "timer.rediger.knapp": "Modifier la feuille",
   "timer.rediger.modus.tittel": "Mode édition",
   "timer.rediger.modus.beskrivelse": "Vous modifiez directement toutes les lignes en attente sur la feuille. Les originaux sont conservés pour référence. Les modifications sont enregistrées dans le journal d'audit.",
