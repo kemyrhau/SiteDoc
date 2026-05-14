@@ -216,6 +216,8 @@
   "timer.feil.ugyldigTimer": "Timer må være mellom 0,01 og 24.",
   "timer.feil.ugyldigAntall": "Antall må være større enn 0.",
   "timer.feil.minstEnTimerRad": "Dagsseddelen må ha minst én timer-rad før den kan sendes.",
+  "timer.feil.ugyldigPause": "Pause må være et positivt tall (minutter).",
+  "timer.feil.sluttForStart": "Slutt-tid må være etter start-tid.",
   "timer.attestering.tittel": "Attester timer",
   "timer.attestering.beskrivelse": "Innsendte dagssedler venter på din attestering. Returner med kommentar hvis noe må rettes, eller attester for å låse og snapshote priser.",
   "timer.attestering.ingenSedler": "Ingen dagssedler venter på attestering akkurat nå.",

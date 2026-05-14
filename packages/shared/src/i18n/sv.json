@@ -216,6 +216,8 @@
   "timer.feil.ugyldigTimer": "Timmar måste vara mellan 0,01 och 24.",
   "timer.feil.ugyldigAntall": "Antalet måste vara större än 0.",
   "timer.feil.minstEnTimerRad": "Tidrapporten måste ha minst en tidsrad innan den kan skickas.",
+  "timer.feil.ugyldigPause": "Paus måste vara ett positivt tal (minuter).",
+  "timer.feil.sluttForStart": "Sluttiden måste vara efter starttiden.",
   "timer.attestering.tittel": "Godkänn timmar",
   "timer.attestering.beskrivelse": "Inskickade dagliga blad som väntar på ditt godkännande. Återkom med en kommentar om korrigeringar behövs, eller godkänn lås- och ögonblicksbildpriser.",
   "timer.attestering.ingenSedler": "Inga dagliga blad som väntar på godkännande just nu.",

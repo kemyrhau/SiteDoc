@@ -55,6 +55,29 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — Klar for review
+
+Første sub-PR av T7-3-bunken (mobil timer-redesign). Speil av T7-1a på mobil. Bringer mobil opp på samme nivå som web for arbeidstid-registrering og løpende summering. Ingen DB-migrasjon, ingen sync-endring, ingen server-endring.
+
+**Klient (`apps/mobile`):**
+- Ny `src/components/timer-detalj/ArbeidstidSeksjon.tsx` (~270 linjer) — visning av start/slutt/pause + edit-modal med `DateTimePicker` (time-mode, 24h) for startAt/endAt og number-input for pauseMin. Lagrer direkte til `dagsseddelLocal` via drizzle og markerer `syncStatus: "pending"` slik at `TimerSyncProvider` propagerer endringen til server ved neste sync.
+- Ny `src/components/timer-detalj/SummeringsBanner.tsx` (~45 linjer) — viser registrerte timer vs utledet arbeidstid med fargekoding (grønn `totaltimer >= arbeidstidTimer`, gul ellers, grå hvis arbeidstid mangler). Bruker eksisterende i18n-nøkkel `timer.summering`.
+- `src/utils/dato.ts` — ny `isoTidspunktTilHHMM(iso)`-helper (kopi av webs implementasjon).
+- `app/timer/[id].tsx` — monterer ArbeidstidSeksjon over TimerSeksjon, beregner `arbeidstidTimer = (endAt - startAt) - pauseMin/60` og `totaltimer = sum(timerRader.timer)` via `useMemo`, monterer SummeringsBanner over Send-knappen (kun når `erRedigerbar`).
+
+**Server/skjema:** Ingen endring. `dagsseddel.upsert`/`syncBatch` aksepterte allerede `startAt/endAt/pauseMin` fra T7-1a-deploy. `dagsseddelLocal`-skjemaet har feltene fra Runde 2.
+
+**i18n:** Gjenbruker eksisterende nøkler fra T7-1a (`timer.arbeidstidIDag`, `timer.arbeidstidIDagBeskrivelse`, `timer.summering`, `timer.felt.startTid`/`sluttTid`/`pauseMin`, `handling.rediger`/`lagre`/`avbryt`). 2 nye feilmelding-nøkler i nb/en (`timer.feil.ugyldigPause`, `timer.feil.sluttForStart`) — auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Mine filer har null typescript-feil. Pre-eksisterende mobil-typecheck-baselinje uberørt.
+
+**Forventede begrensninger (kommer i T7-3b/c/d):**
+- Sedel er fortsatt prosjekt-bundet (`sedel.projectId`). Multi-prosjekt på rad-nivå kommer i T7-3b.
+- Ingen geo-forslag ved opprettelse — kommer i T7-3c.
+- Per-rad-attestering på mobil — kommer i T7-3d (eller forkastes hvis attestering forblir web-only).
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
 ### attestering-hint — kontekstuell hint om redigering DEPLOYET TIL PROD 2026-05-14 (prod-commit `d194332c`)
 
 Diskret blå info-stripe i AttesteringDetalj.tsx. Synlig kun for firma-admin når

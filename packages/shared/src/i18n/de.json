@@ -216,6 +216,8 @@
   "timer.feil.ugyldigTimer": "Die Stunden müssen zwischen 0,01 und 24 liegen.",
   "timer.feil.ugyldigAntall": "Anzahl muss größer als 0 sein.",
   "timer.feil.minstEnTimerRad": "Das Arbeitszeitblatt muss mindestens eine Zeitzeile enthalten, bevor es gesendet werden kann.",
+  "timer.feil.ugyldigPause": "Pause muss eine positive Zahl (Minuten) sein.",
+  "timer.feil.sluttForStart": "Die Endzeit muss nach der Startzeit liegen.",
   "timer.attestering.tittel": "Stunden genehmigen",
   "timer.attestering.beskrivelse": "Eingereichte Tagesblätter warten auf Ihre Genehmigung. Kommentieren Sie, wenn Korrekturen erforderlich sind, oder genehmigen Sie die Sperrung und Snapshot-Preise.",
   "timer.attestering.ingenSedler": "Derzeit warten keine Tagesblätter auf die Genehmigung.",

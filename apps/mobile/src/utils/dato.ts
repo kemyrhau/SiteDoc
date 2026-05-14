@@ -15,3 +15,9 @@ export function formatTidspunkt(iso: string): string {
     minute: "2-digit",
   });
 }
+
+export function isoTidspunktTilHHMM(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+}

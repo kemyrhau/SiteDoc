@@ -216,6 +216,8 @@
   "timer.feil.ugyldigTimer": "Godziny muszą mieścić się w przedziale od 0,01 do 24.",
   "timer.feil.ugyldigAntall": "Liczba musi być większa niż 0.",
   "timer.feil.minstEnTimerRad": "Arkusz czasu pracy musi zawierać co najmniej jeden wiersz czasu, zanim będzie można go wysłać.",
+  "timer.feil.ugyldigPause": "Przerwa musi być liczbą dodatnią (minuty).",
+  "timer.feil.sluttForStart": "Godzina zakończenia musi być późniejsza niż godzina rozpoczęcia.",
   "timer.attestering.tittel": "Zatwierdź godziny",
   "timer.attestering.beskrivelse": "Przesłane arkusze dzienne oczekują na zatwierdzenie. Wróć z komentarzem, jeśli potrzebne są poprawki, lub zatwierdź blokadę i migawkę cen.",
   "timer.attestering.ingenSedler": "W tej chwili żadne arkusze dzienne nie oczekują na zatwierdzenie.",

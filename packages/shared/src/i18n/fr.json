@@ -216,6 +216,8 @@
   "timer.feil.ugyldigTimer": "Les heures doivent être comprises entre 0,01 et 24.",
   "timer.feil.ugyldigAntall": "Le nombre doit être supérieur à 0.",
   "timer.feil.minstEnTimerRad": "La feuille de temps doit comporter au moins une ligne de temps avant de pouvoir être envoyée.",
+  "timer.feil.ugyldigPause": "La pause doit être un nombre positif (minutes).",
+  "timer.feil.sluttForStart": "L'heure de fin doit être postérieure à l'heure de début.",
   "timer.attestering.tittel": "Approuver les heures",
   "timer.attestering.beskrivelse": "Feuilles quotidiennes soumises en attente de votre approbation. Revenez avec un commentaire si des corrections sont nécessaires, ou approuvez le verrouillage et l'instantané des prix.",
   "timer.attestering.ingenSedler": "Aucune feuille journalière en attente d'approbation pour le moment.",
