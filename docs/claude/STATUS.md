@@ -11,7 +11,7 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-05-14 (T7-3-bunken merget til develop)
+**Sist oppdatert:** 2026-05-14 (T7-3-bunken komplett på develop; a/b1/b2 i prod, d venter på review)
 **Antall filer dekket:** 50 (44 i `docs/claude/` + 6 i `docs/arkiv/`) — `neste-oppgave.md` slettet 2026-05-14, innholdet konsolidert til [STATUS-AKTUELT.md § Neste oppgaver](STATUS-AKTUELT.md)
 
 ---
@@ -91,11 +91,14 @@
 
 ## Develop-only merges (mobil — venter på Expo Go / EAS Build)
 
-**2026-05-14 — T7-3-bunken (mobil timer-redesign — IKKE i prod ennå):**
-Server-route-utvidelser (rad-nivå projectId i `syncBatch` + `hentEndringerSiden`) deployes til test ved auto-deploy ved merge til develop. Mobil-endringer rulles ut via Expo Go (utvikler-enhet) eller EAS Build → TestFlight / Play Store (release) — ikke `./deploy.sh`.
-- `fc087b65` (merge `22a97402`) — **T7-3a** arbeidstid-seksjon + summerings-banner på mobil. Speil av T7-1a (web). JS-only-endring; ingen DB-migrasjon, ingen sync- eller server-endring. apps/mobile typecheck 12 = 12 baseline.
-- `65bf48cb` (merge `cd64c51a`) — **T7-3b1** prosjekt per rad: lokal SQLite-skjema (ALTER + backfill + nye `prosjekt_local`-tabell), sync push/pull med per-rad projectId, ny `prosjektKatalog.ts`-service. Server-`syncBatch`/`hentEndringerSiden` utvidet med per-rad-projectId + ny auth-sjekk per unike rad-projectId. Ingen UI-endringer. Lokal migrasjon fullt-additiv + idempotent; pre-T7-3b1-mobiler kjører videre via kompat-shim.
-- `1717fd79` (merge `3e34ec71`) — **T7-3b2** prosjekt-velger per rad i timer/tillegg/maskin-modaler + ProsjektGruppe-visning i [id].tsx + geo-forslag (`expo-location` + Haversine, 500m radius) i ny.tsx. Ny `ProsjektVelger.tsx`. 1 ny i18n-nøkkel (`handling.sok` — rettet pre-eksisterende manglende-nøkkel-bug). Ingen server/skjema-endring.
+**2026-05-14 — T7-3-bunken (mobil timer-redesign — KOMPLETT på develop):**
+T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer aktive). T7-3d er på develop og venter på Kenneth-verifikasjon på enhet før prod-merge. Mobil-endringene rulles ut via Expo Go (utvikler-enhet) eller EAS Build → TestFlight / Play Store (release) — ikke `./deploy.sh`.
+- `fc087b65` (merge `22a97402`) — **T7-3a** ✅ prod. Arbeidstid-seksjon + summerings-banner på mobil. Speil av T7-1a (web). JS-only-endring; ingen DB-migrasjon, ingen sync- eller server-endring.
+- `65bf48cb` (merge `cd64c51a`) — **T7-3b1** ✅ prod. Prosjekt per rad: lokal SQLite-skjema (ALTER + backfill + nye `prosjekt_local`-tabell), sync push/pull med per-rad projectId, ny `prosjektKatalog.ts`-service. Server-`syncBatch`/`hentEndringerSiden` utvidet med per-rad-projectId + ny auth-sjekk per unike rad-projectId. Ingen UI-endringer. Lokal migrasjon fullt-additiv + idempotent; pre-T7-3b1-mobiler kjører videre via kompat-shim.
+- `1717fd79` (merge `3e34ec71`) — **T7-3b2** ✅ prod. Prosjekt-velger per rad i timer/tillegg/maskin-modaler + ProsjektGruppe-visning i [id].tsx + geo-forslag (`expo-location` + Haversine, 500m radius) i ny.tsx. Ny `ProsjektVelger.tsx`. 1 ny i18n-nøkkel (`handling.sok` — rettet pre-eksisterende manglende-nøkkel-bug). Ingen server/skjema-endring.
+- `ffebd082` (merge `ae6e5a2d`) — **T7-3d** 🟡 develop. Per-rad-attestering for leder på mobil. Speil av webs `AttesteringDetalj` (forenklet). Nye filer: `AttesteringStatusBadge.tsx`, `RadCheckbox.tsx`, `ReturnerModal.tsx`, `AttesteringDetaljMobil.tsx`, `app/timer/attestering/index.tsx` + `[id].tsx`. Menylenke i `mer.tsx` gated på `kanAttestereFirma`. Server/skjema null endring — gjenbruker T7-2b1-routes. Ingen nye i18n-nøkler. Forenklinger ifht. web: ingen edit-modus, ingen ECO-flytting per rad, ingen rediger-header-modal, kun firma-kontekst. Online-only flyt (mutations krever nett, samme som web).
+
+**T7-3-bunken komplett 2026-05-14.** Gjenstår: Kenneth-verifikasjon av T7-3d på enhet + prod-merge når godkjent + EAS Build for å rulle alle T7-3-endringene ut til alle telefoner.
 
 ---
 
