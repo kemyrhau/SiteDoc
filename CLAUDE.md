@@ -55,6 +55,45 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+### PR T4-a arbeidstid defaults — schema + migrasjon — KLAR FOR REVIEW PÅ `feature/t4-a` (2026-05-16)
+
+Første sub-PR av T.4-bunken (fra/til per rad — implementasjons-bunke). Legger grunnmuren: firma-default for normal arbeidsdag på `OrganizationSetting` og periode-overstyringer på `ArbeidstidsKalender`. Ingen API, ingen UI — kommer i T4-b/c/d/e.
+
+**Schema-delta (`packages/db/prisma/schema.prisma`):**
+
+| Modell | Felt | Type | Default | Map |
+|---|---|---|---|---|
+| `OrganizationSetting` | `standardStartTid` | `String` | `"07:00"` | `standard_start_tid` |
+| `OrganizationSetting` | `standardSluttTid` | `String` | `"15:00"` | `standard_slutt_tid` |
+| `OrganizationSetting` | `standardPauseMin` | `Int` | `30` | `standard_pause_min` |
+| `ArbeidstidsKalender` | `standardStartTid` | `String?` | — | `standard_start_tid` |
+| `ArbeidstidsKalender` | `standardSluttTid` | `String?` | — | `standard_slutt_tid` |
+| `ArbeidstidsKalender` | `pauseMin` | `Int?` | — | `pause_min` |
+
+**Migrasjon (`20260516000000_t4_arbeidstid_defaults/migration.sql`):**
+- 3 × `ALTER TABLE organization_settings ADD COLUMN ... NOT NULL DEFAULT ...` — eksisterende rader får defaultverdi automatisk.
+- 3 × `ALTER TABLE arbeidstids_kalender ADD COLUMN ... NULL` — nullable, ingen backfill, kun satt for sommertid_start/slutt/halvdag.
+- Fullt additiv, ingen breaking change.
+
+**Logikk (implementeres i T4-b):**
+1. Slå opp kalender-rad for dato → bruk overstyringene hvis satt.
+2. Slå opp aktiv `sommertid_start`-rad (siste før dato uten påfølgende `sommertid_slutt`) → bruk overstyringene.
+3. Ellers: bruk `OrganizationSetting`-defaults.
+
+**Validering (kommer i T4-b API-lag):** `standardStartTid`/`standardSluttTid`/`pauseMin` på `ArbeidstidsKalender` er kun gyldig for `sommertid_start | sommertid_slutt | halvdag`. Avvises for `helligdag/fellesferie/klemdager/firma_fri`.
+
+**Verifisert:** `@sitedoc/db` typecheck 0 feil. `@sitedoc/api` typecheck 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef).
+
+**Reload-metode:** N/A — kun schema + migrasjon. Migrasjonen kjøres mot test ved deploy. Etter merge til develop kjører `deploy-test-cron.sh` migrasjonen automatisk.
+
+**Gjenstår i T.4-bunken:**
+- **T4-b:** Server-API (oppdaterSetting + kalender opprett/oppdater Zod-utvidelse) + `hentEffektivArbeidstid(orgId, dato)`-helper.
+- **T4-c:** Web-UI — innstillinger-side («Standard arbeidstid»-seksjon) + kalender-modal (betinget visning for sommertid_start/slutt/halvdag).
+- **T4-d:** Mobil Drizzle — fraTid/tilTid på sheet_timer_local/sheet_machine_local + ny arbeidstidskalender_local-tabell + kalender-katalog-service + timerSync push/pull.
+- **T4-e:** Mobil UI — TimerRadModal + MaskinRadModal med DateTimePicker + forhåndsutfylling fra kalender-cache.
+
+Klar for review — ikke merge før Kenneth verifiserer migrasjonen på test.
+
 ### PR topbar firma-kontekst + favoritter — DEPLOYET TIL PROD 2026-05-15 (prod merge `0bd27466`)
 
 Inkluderer søkefelt og stjernemerking i ByggeplassVelger (fix-commit `d51c3690`). Topbar tilpasser seg pathname. På `/dashbord/firma/*`-ruter vises ny «Firma ▾»-velger istedenfor `ProsjektVelger` + `ByggeplassVelger`. Lar firma-admin og sitedoc-admin navigere direkte mellom firma- og prosjekt-kontekst. Favoritt-prosjekter persistert i localStorage med stjernemerking i alle tre velgere (`ProsjektVelger`, `FirmaKontekstVelger`, `ByggeplassVelger`). Søkefelt i alle velgere vises ved >7 elementer.

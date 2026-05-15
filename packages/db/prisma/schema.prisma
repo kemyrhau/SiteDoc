@@ -244,6 +244,14 @@ model OrganizationSetting {
   // (mest restriktivt — kunde må eksplisitt slå på). Settings-UI i T7-2b3.
   tillattRedigerVedAttestering Boolean @default(false) @map("tillatt_rediger_ved_attestering")
 
+  // T.4 (2026-05-16) — Firma-default for normal arbeidsdag. HH:MM-format.
+  // Brukes som forhåndsutfylling i TimerRadModal når ingen kalender-overstyring
+  // gjelder. ArbeidstidsKalender-rader for sommertid_start/slutt og halvdag
+  // kan overstyre per periode.
+  standardStartTid String @default("07:00") @map("standard_start_tid")
+  standardSluttTid String @default("15:00") @map("standard_slutt_tid")
+  standardPauseMin Int    @default(30)      @map("standard_pause_min")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -1976,6 +1984,16 @@ model ArbeidstidsKalender {
   type           String // helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri
   navn           String // F.eks. «1. mai», «Skjærtorsdag», «Fellesferie uke 28-30»
   timerOverstyr  Decimal? @map("timer_overstyr") @db.Decimal(4, 2) // kun satt for halvdag-type
+  // T.4 (2026-05-16) — Periode-overstyring av firma-default arbeidstid.
+  // Settes typisk for sommertid_start (sommer-regime: f.eks. 07:00-15:30,
+  // pause 30) og sommertid_slutt (tilbake til vinter: 07:00-14:30, pause 30).
+  // For halvdag kan disse settes hvis dagen starter senere eller slutter
+  // tidligere enn firma-default (timerOverstyr alene utleder kun lengde).
+  // Validering i API-laget: kun gyldig for sommertid_start | sommertid_slutt
+  // | halvdag — avvises for helligdag/fellesferie/klemdager/firma_fri.
+  standardStartTid String?  @map("standard_start_tid")
+  standardSluttTid String?  @map("standard_slutt_tid")
+  pauseMin         Int?     @map("pause_min")
   aktiv          Boolean  @default(true)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")

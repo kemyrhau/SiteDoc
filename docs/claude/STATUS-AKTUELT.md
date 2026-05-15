@@ -46,13 +46,23 @@ Søkefelt vises ved >7 elementer. 11 nye i18n-nøkler totalt
 
 **Tidligere § #2 «Validering av overtid basert på arbeidstid»** er konsolidert inn i T.9 — sommer/vinter-modell er nå Variant B (dynamiske perioder i `ArbeidstidsKalender`, ikke scalar-felter). 8t (sommer) / 7t (vinter) ordinær arbeidstid-validering bygges som del av T.9-implementasjon.
 
-### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟡
+### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟡 (T.4-bunken pågår)
 
 **Side:** Timeføring.
 
 Schema + server-input på plass (T.4). UI-felt og fra<til-validering mangler.
 
 `SheetTimer.fraTid`/`tilTid` (`packages/db-timer/prisma/schema.prisma:183-184`) og `SheetMachine.fraTid`/`tilTid` (linje 256-257) er lagt til som `String? @map("fra_tid"/"til_tid")`. Server tar imot feltene i `timer.dagsseddel.tilfoyTimerRad` (`apps/api/src/routes/timer/dagsseddel.ts:372-373, 417-418`) og `redigerTimerRad` (1506-1507, 1533-1534). Mangler: server-side validering `fraTid < tilTid` (kommentar på schema-linje 183 lover dette i PR 2, ikke implementert ennå) + UI-felt for inntasting i web/mobil-skjemaene.
+
+**T.4-implementasjons-bunke (planlagt 5 sub-PR-er):**
+
+| Sub-PR | Status | Innhold |
+|---|---|---|
+| **T4-a** | 🟡 Klar for review på `feature/t4-a` (2026-05-16) | Schema + migrasjon. `OrganizationSetting.standardStartTid/SluttTid/PauseMin` (defaults 07:00/15:00/30) + `ArbeidstidsKalender.standardStartTid?/SluttTid?/pauseMin?` (overstyring for sommertid_start/slutt/halvdag). Additiv migrasjon, ingen breaking. |
+| **T4-b** | ⏳ Venter på T4-a deploy | Server-API + `hentEffektivArbeidstid(orgId, dato)`-helper. Zod-utvidelse på `oppdaterSetting` + kalender `opprett`/`oppdater`. Validering `fraTid < tilTid` + at tidsfelter kun gyldig for sommertid_start/slutt/halvdag. |
+| **T4-c** | ⏳ Venter på T4-b | Web-UI — innstillinger-side («Standard arbeidstid»-seksjon) + kalender-modal (betinget visning av tidsfelter). |
+| **T4-d** | ⏳ Venter på T4-b | Mobil Drizzle — fraTid/tilTid på sheet_timer_local + sheet_machine_local + ny arbeidstidskalender_local-tabell (= T9d) + kalender-katalog-service + timerSync push/pull. |
+| **T4-e** | ⏳ Venter på T4-d | Mobil UI — TimerRadModal + MaskinRadModal med DateTimePicker + forhåndsutfylling fra kalender-cache. |
 
 ### #4 — Redigering og splitting av timer ved attestering 🟡
 
