@@ -2,9 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { ChevronDown, Search, Building2, LayoutGrid, Star } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { useFavoritter } from "@/hooks/useFavoritter";
 
 export function ProsjektVelger() {
   const {
@@ -16,6 +18,8 @@ export function ProsjektVelger() {
     velgScope,
   } = useProsjekt();
   const { erSitedocAdmin, erCompanyAdmin } = useFirma();
+  const { data: session } = useSession();
+  const { erFavoritt, toggleFavoritt } = useFavoritter(session?.user?.id);
   const { t } = useTranslation();
   const [apen, setApen] = useState(false);
   const [sok, setSok] = useState("");
@@ -117,32 +121,115 @@ export function ProsjektVelger() {
                 {t("prosjektVelger.ingen")}
               </p>
             ) : (
-              filtrerte.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => {
-                    velgProsjekt(p.id);
-                    setApen(false);
-                    setSok("");
-                  }}
-                  className={`flex w-full flex-col px-3 py-2 text-left transition-colors hover:bg-blue-50 ${
-                    valgtProsjekt?.id === p.id && prosjektScope === "enkelt"
-                      ? "bg-blue-50"
-                      : ""
-                  }`}
-                >
-                  <span className="text-sm font-medium text-gray-900">
-                    {p.name}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {p.projectNumber}
-                  </span>
-                </button>
-              ))
+              (() => {
+                const favoritter = filtrerte.filter((p) => erFavoritt(p.id));
+                const andre = filtrerte.filter((p) => !erFavoritt(p.id));
+                const visSeksjonsLabel = favoritter.length > 0;
+                return (
+                  <>
+                    {favoritter.length > 0 && (
+                      <>
+                        <p className="px-3 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                          {t("topbar.favoritter")}
+                        </p>
+                        {favoritter.map((p) => (
+                          <ProsjektRad
+                            key={p.id}
+                            navn={p.name}
+                            nummer={p.projectNumber}
+                            favoritt={true}
+                            valgt={
+                              valgtProsjekt?.id === p.id &&
+                              prosjektScope === "enkelt"
+                            }
+                            onVelg={() => {
+                              velgProsjekt(p.id);
+                              setApen(false);
+                              setSok("");
+                            }}
+                            onToggleFavoritt={() => toggleFavoritt(p.id)}
+                          />
+                        ))}
+                      </>
+                    )}
+                    {andre.length > 0 && (
+                      <>
+                        {visSeksjonsLabel && (
+                          <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                            {t("topbar.alleProsjekter")}
+                          </p>
+                        )}
+                        {andre.map((p) => (
+                          <ProsjektRad
+                            key={p.id}
+                            navn={p.name}
+                            nummer={p.projectNumber}
+                            favoritt={false}
+                            valgt={
+                              valgtProsjekt?.id === p.id &&
+                              prosjektScope === "enkelt"
+                            }
+                            onVelg={() => {
+                              velgProsjekt(p.id);
+                              setApen(false);
+                              setSok("");
+                            }}
+                            onToggleFavoritt={() => toggleFavoritt(p.id)}
+                          />
+                        ))}
+                      </>
+                    )}
+                  </>
+                );
+              })()
             )}
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ProsjektRad({
+  navn,
+  nummer,
+  favoritt,
+  valgt,
+  onVelg,
+  onToggleFavoritt,
+}: {
+  navn: string;
+  nummer: string;
+  favoritt: boolean;
+  valgt: boolean;
+  onVelg: () => void;
+  onToggleFavoritt: () => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={`flex items-center gap-2 px-2 hover:bg-blue-50 ${valgt ? "bg-blue-50" : ""}`}
+    >
+      <button
+        type="button"
+        onClick={onToggleFavoritt}
+        className="rounded p-1 text-gray-300 transition-colors hover:bg-gray-100 hover:text-amber-500"
+        aria-label={
+          favoritt ? t("topbar.fjernFavoritt") : t("topbar.leggTilFavoritt")
+        }
+      >
+        <Star
+          className={`h-3.5 w-3.5 ${favoritt ? "fill-amber-400 text-amber-400" : ""}`}
+        />
+      </button>
+      <button
+        type="button"
+        onClick={onVelg}
+        className="flex flex-1 flex-col py-1.5 text-left"
+      >
+        <span className="text-sm font-medium text-gray-900">{navn}</span>
+        <span className="text-xs text-gray-500">{nummer}</span>
+      </button>
     </div>
   );
 }
