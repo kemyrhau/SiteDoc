@@ -55,7 +55,48 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T9b firmakalender — tRPC-router + auth + importerNorskStandard — PÅ FEATURE-BRANCH `feature/t9-b` 2026-05-15
+### PR T9c firmakalender — web-admin-UI — PÅ FEATURE-BRANCH `feature/t9-c` 2026-05-15
+
+Tredje sub-PR av T9-bunken. Web-admin-UI for å administrere firmakalender, med år-velger, måneds-gruppert visning, type-badges, opprett/rediger-modal og sommertid-banner.
+
+**Sidebar-element (`apps/web/src/app/dashbord/firma/layout.tsx`):**
+- Ny «Kalender»-lenke under «Timer-rapport» med `Calendar`-ikon. Ingen `kreverFirmaModul`-gating — kalenderen er tverrgående firma-funksjon, gated via at hele firma-layouten kun er tilgjengelig for firma-admin og sitedoc-admin.
+
+**Side (`apps/web/src/app/dashbord/firma/kalender/page.tsx`, ~440 linjer):**
+
+| Seksjon | Innhold |
+|---|---|
+| Topp-rad | Tittel + beskrivelse, år-velger (←/→-knapper + årsnummer), «Importer norsk standard {{aar}}»-knapp |
+| Sommertid-banner | Vises kun når `sommertidStatus === "bare_start"` eller `"bare_slutt"`. Gul advarsel med `AlertTriangle`-ikon og forklarende tekst. |
+| Måneds-liste | 12 kort, ett per måned. Hver viser måned-navn (norsk lokalisering via `Intl.DateTimeFormat`) + «+ Legg til»-knapp + rader. Tomme måneder viser «Ingen oppføringer.» |
+| Rad | Ukedag + dato, type-badge (fargekodet per type), navn, halvdag-timer hvis aktuelt, rediger-pencil-ikon |
+
+**Modal (`RadModal`):** Felles komponent for opprett og rediger. Felter: dato (locked i rediger-modus), type-Select (7 verdier), navn, timerOverstyr (vises kun for `halvdag`-type), aktiv-checkbox (kun i rediger-modus). Bunn-action-bar: «Deaktiver» (kun i rediger), «Avbryt», «Lagre».
+
+**Type-badge-fargekoding:**
+- `helligdag` → rød
+- `fellesferie` → blå
+- `klemdager` → indigo
+- `sommertid_start/slutt` → amber
+- `halvdag` → oransje
+- `firma_fri` → grå
+
+**Cache-invalidering:** Alle mutations (opprett/oppdater/slett/importer) kaller `utils.firma.kalender.hentForAar.invalidate()`. Importerings-suksess viser kort `alert` med antall opprettet/oppdatert/hoppet over.
+
+**i18n:** 30 nye nøkler under `firma.kalender.*` i nb/en. Auto-oversatt til 13 språk via `generate.ts` (2251 totalt). Nøkler dekker tittel/beskrivelse, alle 7 type-navn (rendres via `t(\`firma.kalender.type.${rad.type}\`)`), modal-felter, sommertid-advarsel, feilmeldinger.
+
+**Verifisert:** `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). 0 nye feil i kalender-koden.
+
+**Reload-metode:** Server reload kreves ikke. TypeScript-only + i18n-endring. Test ved å åpne `/dashbord/firma/kalender` som firma-admin.
+
+**Forventede begrensninger:**
+- `confirm()` brukes for deaktiver-bekreftelse — pre-eksisterende mønster i denne mappen (jf. `firma/avdelinger/page.tsx`). Konvertering til Modal kan gjøres i felles oppfølger.
+- Ingen «Slett permanent»-knapp — kun deaktivering. Audit-spor bevares; idempotent import respekterer admin-deaktivering.
+- Mobil-cache (T9d) er separat sub-PR. SummeringsBanner (T7-3a) leser fortsatt fra `OrganizationSetting.dagsnorm` — oppdateres til å lese fra kalender-cache når T9d landes.
+
+Klar for review og test. Etter merge: Kenneth verifiserer i nettleser at år-velger, import-knapp, opprett/rediger og badges fungerer på `test.sitedoc.no/dashbord/firma/kalender`.
+
+### PR T9b firmakalender — tRPC-router + auth + importerNorskStandard — MERGET TIL DEVELOP 2026-05-15 (merge `0fdd625e`, impl `27123f13`)
 
 Andre sub-PR av T9-bunken. Bygger server-API-laget over T9a-grunnmuren. Plassert på firma-nivå (`apps/api/src/routes/firma/`) per T.9-spec som sier kalenderen angår mer enn timer-modulen. Ny `firmaRouter`-aggregator gir framtidig rom for andre firma-rette routere uten flere top-level-nøkler.
 
