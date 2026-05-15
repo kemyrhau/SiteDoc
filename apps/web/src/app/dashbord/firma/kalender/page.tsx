@@ -7,6 +7,7 @@ import { Button, Input, Modal, Select, Spinner } from "@sitedoc/ui";
 import {
   ChevronLeft,
   ChevronRight,
+  Clock,
   Download,
   Pencil,
   Plus,
@@ -32,6 +33,10 @@ type KalenderRad = {
   navn: string;
   timerOverstyr: number | string | null;
   aktiv: boolean;
+  // T.4 (2026-05-16) — periode-overstyring av firma-default arbeidstid.
+  standardStartTid: string | null;
+  standardSluttTid: string | null;
+  pauseMin: number | null;
 };
 
 const TYPER: KalenderType[] = [
@@ -256,6 +261,17 @@ export default function FirmakalenderSide() {
                             {t("firma.kalender.timerKort")}
                           </span>
                         )}
+                        {(rad.standardStartTid || rad.standardSluttTid) && (
+                          <span
+                            className="inline-flex items-center gap-1 rounded border border-gray-200 bg-gray-50 px-1.5 py-0.5 text-[10px] text-gray-600"
+                            title={t("firma.kalender.tidsperiodeOverstyrt")}
+                          >
+                            <Clock className="h-3 w-3" />
+                            {rad.standardStartTid ?? "–"}
+                            {"–"}
+                            {rad.standardSluttTid ?? "–"}
+                          </span>
+                        )}
                         <button
                           type="button"
                           onClick={() => setRedigerRad(rad)}
@@ -338,6 +354,18 @@ function RadModal({
       ? String(eksisterende.timerOverstyr)
       : "",
   );
+  // T.4 — periode-overstyringer. Tom streng = null (ikke satt).
+  const [standardStartTid, setStandardStartTid] = useState<string>(
+    eksisterende?.standardStartTid ?? "",
+  );
+  const [standardSluttTid, setStandardSluttTid] = useState<string>(
+    eksisterende?.standardSluttTid ?? "",
+  );
+  const [pauseMin, setPauseMin] = useState<string>(
+    eksisterende?.pauseMin !== null && eksisterende?.pauseMin !== undefined
+      ? String(eksisterende.pauseMin)
+      : "",
+  );
   const [aktiv, setAktiv] = useState(eksisterende?.aktiv ?? true);
   const [feil, setFeil] = useState<string | null>(null);
 
@@ -364,6 +392,12 @@ function RadModal({
   });
 
   const visTimerOverstyr = type === "halvdag";
+  // T.4 — tidsfelter er kun relevante for sommertid_start/slutt og halvdag.
+  // For andre typer skjules feltene (server avviser også verdier på dem).
+  const visTidsfelter =
+    type === "sommertid_start" ||
+    type === "sommertid_slutt" ||
+    type === "halvdag";
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -378,6 +412,23 @@ function RadModal({
       return;
     }
 
+    // T.4 — tidsfelter: tom streng → null. Verdier sendes kun hvis tidsfelter
+    // er relevant for valgt type; vri på type tilbake til ikke-tidsrelevant
+    // forkaster tidligere satte verdier ved å sende null.
+    const sst = visTidsfelter && standardStartTid ? standardStartTid : null;
+    const sslutt = visTidsfelter && standardSluttTid ? standardSluttTid : null;
+    const pm =
+      visTidsfelter && pauseMin.trim() ? Number(pauseMin) : null;
+
+    if (visTidsfelter && sst && sslutt && sst >= sslutt) {
+      setFeil(t("firma.kalender.feil.tidRekkefolge"));
+      return;
+    }
+    if (pm !== null && (Number.isNaN(pm) || pm < 0 || pm > 480)) {
+      setFeil(t("firma.kalender.feil.pauseMinUgyldig"));
+      return;
+    }
+
     if (modus === "opprett") {
       opprettMutation.mutate({
         organizationId: orgId,
@@ -385,6 +436,9 @@ function RadModal({
         type,
         navn,
         timerOverstyr: tov,
+        standardStartTid: sst,
+        standardSluttTid: sslutt,
+        pauseMin: pm,
       });
     } else if (eksisterende) {
       oppdaterMutation.mutate({
@@ -394,6 +448,9 @@ function RadModal({
         navn,
         timerOverstyr: tov,
         aktiv,
+        standardStartTid: sst,
+        standardSluttTid: sslutt,
+        pauseMin: pm,
       });
     }
   }
@@ -476,6 +533,52 @@ function RadModal({
               placeholder="3.5"
               required
             />
+          </div>
+        )}
+
+        {visTidsfelter && (
+          <div className="rounded-md border border-gray-200 bg-gray-50 p-3">
+            <p className="mb-2 text-xs font-medium text-gray-700">
+              {t("firma.kalender.felt.tidsperiodeTittel")}
+            </p>
+            <p className="mb-3 text-xs text-gray-500">
+              {t("firma.kalender.felt.tidsperiodeBeskrivelse")}
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  {t("firma.kalender.felt.standardStartTid")}
+                </label>
+                <Input
+                  type="time"
+                  value={standardStartTid}
+                  onChange={(e) => setStandardStartTid(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  {t("firma.kalender.felt.standardSluttTid")}
+                </label>
+                <Input
+                  type="time"
+                  value={standardSluttTid}
+                  onChange={(e) => setStandardSluttTid(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-gray-600">
+                  {t("firma.kalender.felt.pauseMin")}
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={480}
+                  value={pauseMin}
+                  onChange={(e) => setPauseMin(e.target.value)}
+                  placeholder="30"
+                />
+              </div>
+            </div>
           </div>
         )}
 
