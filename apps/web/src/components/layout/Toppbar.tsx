@@ -2,11 +2,12 @@
 
 import { useSession, signOut } from "next-auth/react";
 import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { ProsjektVelger } from "./ProsjektVelger";
 import { ByggeplassVelger } from "./ByggeplassVelger";
 import { FirmaVelger } from "./FirmaVelger";
+import { FirmaKontekstVelger } from "./FirmaKontekstVelger";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import Link from "next/link";
@@ -30,8 +31,10 @@ export function Toppbar() {
   const [mobilMeny, setMobilMeny] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
+  const pathname = usePathname();
   const aktivSeksjon = useAktivSeksjon();
   const { prosjektId } = useProsjekt();
+  const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
   const { erSitedocAdmin, erCompanyAdmin } = useFirma();
   const { t } = useTranslation();
 
@@ -93,11 +96,17 @@ export function Toppbar() {
             <div className="mx-1 h-5 w-px bg-white/20" />
           </>
         )}
-        <ProsjektVelger />
-        {prosjektId && (
+        {erFirmaKontekst ? (
+          <FirmaKontekstVelger />
+        ) : (
           <>
-            <div className="mx-1 h-5 w-px bg-white/20" />
-            <ByggeplassVelger />
+            <ProsjektVelger />
+            {prosjektId && (
+              <>
+                <div className="mx-1 h-5 w-px bg-white/20" />
+                <ByggeplassVelger />
+              </>
+            )}
           </>
         )}
         {erSitedocAdmin && (

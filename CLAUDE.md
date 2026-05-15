@@ -55,7 +55,49 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T9c firmakalender — web-admin-UI — PÅ FEATURE-BRANCH `feature/t9-c` 2026-05-15
+### PR topbar firma-kontekst + favoritter — PÅ FEATURE-BRANCH `feature/topbar-firma-kontekst` 2026-05-15
+
+Topbar tilpasser seg pathname. På `/dashbord/firma/*`-ruter vises ny «Firma ▾»-velger istedenfor `ProsjektVelger` + `ByggeplassVelger`. Lar firma-admin og sitedoc-admin navigere direkte mellom firma- og prosjekt-kontekst. Favoritt-prosjekter persistert i localStorage med stjernemerking i begge velgere.
+
+**Ny hook (`apps/web/src/hooks/useFavoritter.ts`, ~65 linjer):**
+- `useFavoritter(userId)` — `{ favoritter: string[], erFavoritt, toggleFavoritt }`
+- localStorage-nøkkel `sitedoc_favoritter_${userId}`. Per bruker, ikke per firma.
+- Stille fallback til tom liste ved parse-feil eller manglende userId.
+
+**Ny komponent (`apps/web/src/components/layout/FirmaKontekstVelger.tsx`, ~185 linjer):**
+- «Firma ▾»-knapp med `Building2`-ikon, åpner dropdown.
+- Søkefelt vises kun ved >7 prosjekter (matcher repo-mønster fra `feedback_sjekkliste_valgmuligheter`).
+- To seksjoner: «Favoritter» (kun hvis det finnes favoritter) og «Alle prosjekter».
+- Per rad: stjerneknapp (gold-fyllt ved favoritt) + navn + prosjektnummer. Klikk på rad → `router.push(/dashbord/{id})` og Toppbar bytter tilbake til vanlig oppsett automatisk via `usePathname`.
+- `ProsjektRad`-subkomponent har separat stjerne-button slik at toggle-favoritt ikke trigger row-onClick.
+
+**ProsjektVelger.tsx — utvidet (~50 nye linjer):**
+- Importerer `useFavoritter` og `useSession`.
+- Prosjektlisten deles i favoritter + andre — seksjons-label vises kun hvis favoritter finnes.
+- Ny `ProsjektRad`-subkomponent (samme mønster som `FirmaKontekstVelger`) med stjerneknapp og row-button.
+- Scope-rader («Alle prosjekter» / «Mine prosjekter») bevart for sitedoc-admin og firma-admin.
+
+**Toppbar.tsx — usePathname-betinget rendering (~10 endrede linjer):**
+- `erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false`.
+- I firma-kontekst: `<FirmaKontekstVelger />` erstatter `ProsjektVelger` + `ByggeplassVelger`.
+- Sitedoc-admin sin `FirmaVelger` beholdes til venstre i begge moduser (firma-bytte uavhengig av kontekst).
+- Company-admin sin firma-fast-link beholdes som nå.
+
+**i18n:** 7 nye nøkler under `topbar.*` i nb/en (`firma`, `sokProsjekt`, `ingenProsjekter`, `favoritter`, `alleProsjekter`, `fjernFavoritt`, `leggTilFavoritt`). Auto-oversatt til 13 språk via `generate.ts` (2258 totalt).
+
+**Berører kun firma-admin og sitedoc-admin** — vanlig prosjektmedlem ser aldri firma-kontekst-rutene (firma-layout returnerer «ingen tilgang» uten `valgtFirma`). Stjernemerking i `ProsjektVelger` er tilgjengelig for alle.
+
+**Verifisert:** `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). 0 nye feil.
+
+**Reload-metode:** TypeScript-only + i18n. Full reload + cache-cleaning. Etter merge: `deploy-test-cron.sh` deployer automatisk til test.
+
+**Kjente begrensninger:**
+- Favoritt-toggle synkes ikke på tvers av enheter (localStorage er per-device). Skal vurderes flyttet til server-side `UserPreference`-tabell senere hvis kunder ber om sync.
+- `topbar.firma`-labelen er fast «Firma» — sitedoc-admin med valgt firma ser samtidig `FirmaVelger` med firmanavn, så ingen kollisjon.
+
+Klar for review og test.
+
+### PR T9c firmakalender — web-admin-UI — MERGET TIL DEVELOP OG PROD 2026-05-15 (develop merge `d8bc42f8`, prod merge `ca71cf48`, impl `0997e81b`)
 
 Tredje sub-PR av T9-bunken. Web-admin-UI for å administrere firmakalender, med år-velger, måneds-gruppert visning, type-badges, opprett/rediger-modal og sommertid-banner.
 
