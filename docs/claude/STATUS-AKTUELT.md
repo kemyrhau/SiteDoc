@@ -34,14 +34,15 @@ T.4/T.5-implementasjon). SummeringsBanner.tsx (T7-3a) trenger oppdatering
 etter T9d for å lese dagsnorm fra kalender-cache i stedet for
 `OrganizationSetting.dagsnorm`.
 
-### Topbar firma-kontekst + favoritter — på feature-branch 🟡
+### Topbar firma-kontekst + favoritter — deployet til prod ✅
 
-`feature/topbar-firma-kontekst` 2026-05-15. Topbar tilpasser seg pathname:
-i firma-kontekst (`/dashbord/firma/*`) vises ny «Firma ▾»-velger
-istedenfor `ProsjektVelger` + `ByggeplassVelger`. Lar firma-admin og
-sitedoc-admin navigere direkte mellom firma- og prosjekt-kontekst.
-Favoritt-prosjekter persistert i localStorage med stjernemerking i begge
-velgere (`ProsjektVelger` og `FirmaKontekstVelger`). 7 nye i18n-nøkler.
+Deployet til prod 2026-05-15 (prod merge `0bd27466`). Topbar tilpasser seg
+pathname: i firma-kontekst (`/dashbord/firma/*`) vises ny «Firma ▾»-velger
+istedenfor `ProsjektVelger` + `ByggeplassVelger`. Favoritt-prosjekter og
+favoritt-byggeplasser persistert i localStorage med stjernemerking i alle
+tre velgere (`ProsjektVelger`, `FirmaKontekstVelger`, `ByggeplassVelger`).
+Søkefelt vises ved >7 elementer. 11 nye i18n-nøkler totalt
+(`topbar.*` + `byggeplassVelger.*`) auto-oversatt til 13 språk.
 
 **Tidligere § #2 «Validering av overtid basert på arbeidstid»** er konsolidert inn i T.9 — sommer/vinter-modell er nå Variant B (dynamiske perioder i `ArbeidstidsKalender`, ikke scalar-felter). 8t (sommer) / 7t (vinter) ordinær arbeidstid-validering bygges som del av T.9-implementasjon.
 
