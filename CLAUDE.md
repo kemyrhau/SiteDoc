@@ -55,7 +55,12 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T7-3d per-rad-attestering for leder på mobil — Klar for review
+### Neste sesjon — Firmakalender (T.9)
+
+Arkitektur låst. Starter med schema-migrasjon i packages/db + import norsk standard + web-admin-UI.
+Se docs/claude/fase-0-beslutninger.md § T.9 for fullstendig spec.
+
+### PR T7-3d per-rad-attestering for leder på mobil — MERGET TIL DEVELOP 2026-05-14 (merge `ae6e5a2d`, impl `ffebd082`)
 
 Fjerde sub-PR av T7-3-bunken. Bringer attestering-flyten (T7-2b) til mobil. Prosjektleder og firma-admin kan nå attestere/returnere innsendte sedler fra mobil-appen — speil av webs `AttesteringDetalj`-felleskomponent, forenklet for mobil-flate.
 
@@ -86,23 +91,21 @@ Fjerde sub-PR av T7-3-bunken. Bringer attestering-flyten (T7-2b) til mobil. Pros
 
 **Reload-metode:** TypeScript-only. Full app-reload eller `r` i Metro. Ingen native rebuild.
 
-Klar for review — ikke merge før Kenneth verifiserer på enhet.
+### T7-3-bunken (a/b1/b2/d) — DEPLOYET TIL PROD (server-route) + venter på mobil-bygg
 
-### T7-3-bunken (a/b1/b2) — MERGET TIL DEVELOP, venter på mobil-bygg
+Alle fire sub-PR-er av T7-3 (mobil timer-redesign) er merget til develop. T7-3a/b1/b2 er deployet til prod (`223afc17` på main 2026-05-14) — server-route-endringene er aktive. T7-3d er merget til develop og venter på Kenneth-verifikasjon på enhet før prod-merge. Mobil-endringene rulles ut via Expo Go (utvikler-test) eller EAS Build → TestFlight / Play Store (release) — ikke `./deploy.sh`.
 
-Tre sub-PR-er av T7-3 (mobil timer-redesign) er merget til develop og venter på mobil-bygg/EAS for rullering til testere/prod. Mobil deployes ikke via server-deploy — kun via Expo Go (utvikler-test) eller EAS Build → TestFlight / Play Store (release).
-
-| Sub-PR | Merge-commit | Impl-commit | Innhold |
-|---|---|---|---|
-| **T7-3a** | `22a97402` | `fc087b65` | Arbeidstid-seksjon + summerings-banner i mobil-detalj. Speil av T7-1a. |
-| **T7-3b1** | `cd64c51a` | `65bf48cb` | Per-rad `projectId` (skjema + lokal migrasjon + sync push/pull + prosjekt-katalog-cache). Ingen UI. |
-| **T7-3b2** | `3e34ec71` | `1717fd79` | UI for per-rad prosjektvelger + ProsjektGruppe-visning i [id].tsx + geo-forslag i ny.tsx. |
+| Sub-PR | Merge-commit | Impl-commit | Status | Innhold |
+|---|---|---|---|---|
+| **T7-3a** | `22a97402` | `fc087b65` | ✅ prod | Arbeidstid-seksjon + summerings-banner i mobil-detalj. Speil av T7-1a. |
+| **T7-3b1** | `cd64c51a` | `65bf48cb` | ✅ prod | Per-rad `projectId` (skjema + lokal migrasjon + sync push/pull + prosjekt-katalog-cache). Ingen UI. |
+| **T7-3b2** | `3e34ec71` | `1717fd79` | ✅ prod | UI for per-rad prosjektvelger + ProsjektGruppe-visning i [id].tsx + geo-forslag i ny.tsx. |
+| **T7-3d** | `ae6e5a2d` | `ffebd082` | 🟡 develop | Per-rad-attestering for leder på mobil. Speil av webs AttesteringDetalj (forenklet). |
 
 Gjenstår av T7-3-bunken:
 - **T7-3c (planlagt eller forkastet):** Geo-forslag-utvidelser. Mye av denne ble levert i T7-3b2 — egen sub-PR kan dekke historikk/justeringer eller forkastes.
-- **T7-3d (planlagt eller forkastet):** Per-rad-attestering på mobil for prosjektleder/firma-admin. Avhenger av strategisk valg om mobil-attestering eller web-only.
 
-### PR T7-3b2 prosjekt-velger per rad + geo-forslag — MERGET TIL DEVELOP (merge `3e34ec71`, impl `1717fd79`) — venter på mobil-bygg
+### PR T7-3b2 prosjekt-velger per rad + geo-forslag — DEPLOYET TIL PROD 2026-05-14 (server-route, prod-commit `223afc17`) + venter på mobil-bygg (merge `3e34ec71`, impl `1717fd79`)
 
 Tredje sub-PR av T7-3-bunken. Aktiverer den brukervendte siden av per-rad-prosjekt: brukeren kan velge prosjekt per rad i timer/tillegg/maskin-modaler, dagsseddelen grupperer rader per prosjekt, og GPS-posisjon foreslår nærmeste prosjekt ved opprettelse. Ingen DB-, sync- eller server-endringer (alt fundament fra T7-3b1).
 
@@ -132,7 +135,7 @@ Tredje sub-PR av T7-3-bunken. Aktiverer den brukervendte siden av per-rad-prosje
 
 Klar for review — ikke merge før Kenneth verifiserer på test.
 
-### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — MERGET TIL DEVELOP (merge `cd64c51a`, impl `65bf48cb`) — venter på mobil-bygg
+### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — DEPLOYET TIL PROD 2026-05-14 (server-route, prod-commit `223afc17`) + venter på mobil-bygg (merge `cd64c51a`, impl `65bf48cb`)
 
 Andre sub-PR av T7-3-bunken. Forberedelse for T7-3b2 (UI per-rad-velger). Etter denne har mobil per-rad `projectId`-felt i lokal SQLite + sync-protokollen sender/mottar per-rad projectId mot server. Server-shimmen fra T.1 (sedel-nivå `projectId` for pre-T7-3b1-klienter) beholdes for bakoverkompatibilitet — server støtter både gammelt og nytt format. INGEN UI-endringer i denne PR-en; lokal projectId backfilles fra `dagsseddelLocal.projectId` og rad-velger kommer i T7-3b2.
 
@@ -167,7 +170,7 @@ Andre sub-PR av T7-3-bunken. Forberedelse for T7-3b2 (UI per-rad-velger). Etter 
 
 Klar for review — ikke merge før Kenneth verifiserer på test.
 
-### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — MERGET TIL DEVELOP (merge `22a97402`, impl `fc087b65`) — venter på mobil-bygg
+### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — DEPLOYET TIL PROD 2026-05-14 (server-route, prod-commit `223afc17`) + venter på mobil-bygg (merge `22a97402`, impl `fc087b65`)
 
 Første sub-PR av T7-3-bunken (mobil timer-redesign). Speil av T7-1a på mobil. Bringer mobil opp på samme nivå som web for arbeidstid-registrering og løpende summering. Ingen DB-migrasjon, ingen sync-endring, ingen server-endring.
 
