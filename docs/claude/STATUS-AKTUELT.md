@@ -23,11 +23,13 @@ Kunden ønsker sjekkliste der timetall kobles til servicestatus, og «neste serv
 
 **Status:** DB-feltet `nesteServiceTimer` finnes allerede i `packages/db-maskin/prisma/schema.prisma:188`. Mangler: UI-felt på maskin-detaljside, serviceintervall-konfigurasjon, visuell terskel-indikator, sjekkliste med avkrysningsbokser, automatisk oppdatering av neste service basert på driftstimer.
 
-### #2 — Validering av overtid basert på arbeidstid 🔴
+### Firmakalender — planlagt, ikke implementert (blokkerer T.4/T.5/auto-fordeling) 🟡
 
-**Side:** Timeføring.
+Arkitektur låst i T.9 (fase-0-beslutninger.md). Neste steg: schema-migrasjon +
+import norsk standard + web-admin-UI + mobil-cache.
+SummeringsBanner.tsx (T7-3a) trenger oppdatering etter implementasjon.
 
-Overtid skal ikke kunne registreres før min. 8t (sommer) / 7t (vinter) ordinær arbeidstid er ført. Ingen validering finnes i timer-routes. Ny `sommer/vinter`-overtid-grense-logikk + feilmelding/blokkering mangler.
+**Tidligere § #2 «Validering av overtid basert på arbeidstid»** er konsolidert inn i T.9 — sommer/vinter-modell er nå Variant B (dynamiske perioder i `ArbeidstidsKalender`, ikke scalar-felter). 8t (sommer) / 7t (vinter) ordinær arbeidstid-validering bygges som del av T.9-implementasjon.
 
 ### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟡
 
