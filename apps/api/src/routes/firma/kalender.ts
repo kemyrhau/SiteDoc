@@ -81,6 +81,42 @@ async function sommertidStatusForAar(
 }
 
 /**
+ * T.4-validering — sommertid_start krever en aktiv sommertid_slutt-rad i
+ * samme år. Forhindrer at firma ender opp med åpent sommertids-regime
+ * uten definert avslutning (ville gjort `hentEffektivArbeidstid` til å
+ * falle tilbake til firma-default for hele resten av året).
+ *
+ * `ignorerId` brukes ved oppdater for å ekskludere raden vi selv endrer
+ * — relevant hvis brukeren bytter type FRA sommertid_slutt TIL
+ * sommertid_start på samme rad (raden er ikke lenger en slutt etter
+ * oppdateringen).
+ */
+async function krevSommertidParKomplett(
+  organizationId: string,
+  aar: number,
+  ignorerId?: string,
+): Promise<void> {
+  const sluttRad = await prisma.arbeidstidsKalender.findFirst({
+    where: {
+      organizationId,
+      aar,
+      type: "sommertid_slutt",
+      aktiv: true,
+      ...(ignorerId ? { id: { not: ignorerId } } : {}),
+    },
+    select: { id: true },
+  });
+
+  if (!sluttRad) {
+    throw new TRPCError({
+      code: "PRECONDITION_FAILED",
+      message:
+        "Sommertid krever en sluttdato samme år. Opprett sommertid_slutt-rad først.",
+    });
+  }
+}
+
+/**
  * Hent én rad og verifiser at den tilhører firmaet.
  */
 async function hentRadForFirma(id: string, organizationId: string) {
@@ -204,10 +240,14 @@ export const kalenderRouter = router({
   /**
    * Opprett en ny kalender-rad. Firma-admin-auth.
    *
-   * Sommertid-par-validering er myk: server kaster ikke feil ved opprettelse
-   * av sommertid_start uten matching sommertid_slutt. Status returneres via
-   * sommertidStatusForAar slik at UI kan varsle. Hard validering legges på
-   * forbruks-siden (auto-fordeling) når begge poster trengs.
+   * Sommertid-par-validering (T.4 — hard validering):
+   *   - Oppretting av `sommertid_start` krever at det finnes en aktiv
+   *     `sommertid_slutt` i samme år. Kaster PRECONDITION_FAILED ellers.
+   *   - `sommertid_slutt` kan opprettes uten matching start. Brukeren
+   *     oppretter slutt først, deretter start.
+   *
+   * Status returneres via sommertidStatusForAar slik at UI kan varsle om
+   * `bare_slutt`-tilstand mellom de to opprettelses-stegene.
    */
   opprett: protectedProcedure
     .input(
@@ -224,6 +264,10 @@ export const kalenderRouter = router({
       validerTimerOverstyr(input.type, input.timerOverstyr);
 
       const aar = input.dato.getUTCFullYear();
+
+      if (input.type === "sommertid_start") {
+        await krevSommertidParKomplett(input.organizationId, aar);
+      }
 
       try {
         const rad = await prisma.arbeidstidsKalender.create({
@@ -287,6 +331,17 @@ export const kalenderRouter = router({
             ? Number(eksisterende.timerOverstyr)
             : null;
       validerTimerOverstyr(nyType, nyTimerOverstyr);
+
+      // T.4 — bevarer invariant også på oppdater: hvis resulterende state er
+      // sommertid_start, må det finnes en aktiv sommertid_slutt samme år
+      // (eksklusive raden vi selv oppdaterer).
+      if (nyType === "sommertid_start") {
+        await krevSommertidParKomplett(
+          input.organizationId,
+          eksisterende.aar,
+          input.id,
+        );
+      }
 
       const data: Prisma.ArbeidstidsKalenderUpdateInput = {};
       if (input.type !== undefined) data.type = input.type;

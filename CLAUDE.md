@@ -55,7 +55,45 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T4-a arbeidstid defaults — schema + migrasjon — KLAR FOR REVIEW PÅ `feature/t4-a` (2026-05-16)
+### PR T4-b hentEffektivArbeidstid + sommertid-validering — KLAR FOR REVIEW PÅ `feature/t4-b` (2026-05-16)
+
+Andre sub-PR av T.4-bunken. Server-API for å beregne effektiv arbeidstid per dato + hard validering av sommertid-par. Ingen API-input-utvidelse for de nye T4-a-feltene ennå — det kommer i T4-c (web-UI) sammen med UI-feltene.
+
+**Ny helper (`apps/api/src/services/timer/arbeidstid.ts`, ~115 linjer):**
+
+`hentEffektivArbeidstid(organizationId, dato): Promise<{ startTid, sluttTid, pauseMin, dagsnorm }>`
+
+Logikk (T.4):
+1. Hent firma-default fra `OrganizationSetting` (standardStartTid/SluttTid/PauseMin).
+2. Hvis dato faller innenfor aktiv sommertid-periode (siste aktive `sommertid_start` ≤ dato + aktiv `sommertid_slutt` ≥ dato, samme år), overstyr feltene fra `sommertid_start`-raden der de er satt.
+3. Beregn `dagsnorm = (sluttTid - startTid) - pauseMin` i timer.
+
+Halvdag håndteres ikke i hjelperen — det er per-rad-overstyring via `timerOverstyr` ved selve registreringen.
+
+Eksportert via `apps/api/src/services/timer/index.ts` — eneste tillatte importpath (per service-lag-konvensjonen).
+
+**Validering i kalender-router (`apps/api/src/routes/firma/kalender.ts`):**
+
+Ny `krevSommertidParKomplett(organizationId, aar, ignorerId?)`-helper kalles fra `opprett` (når `input.type === "sommertid_start"`) og `oppdater` (når resulterende type er `sommertid_start`). Kaster `PRECONDITION_FAILED` hvis det ikke finnes en aktiv `sommertid_slutt`-rad i samme år.
+
+Feilmelding: `«Sommertid krever en sluttdato samme år. Opprett sommertid_slutt-rad først.»`
+
+UX-konsekvens: firma-admin må opprette `sommertid_slutt`-rad FØR `sommertid_start`. Forhindrer at firma ender opp med åpent sommertids-regime som varer ut året (uten validering ville mobil/web fortsatt vist sommer-tider gjennom hele vinteren). Sommertid-status-mellomtilstanden (`bare_slutt`) tolereres for å gi en levelig opprettelses-rekkefølge.
+
+`ignorerId` passes inn fra oppdater for å håndtere edge case hvor brukeren bytter type FRA `sommertid_slutt` TIL `sommertid_start` på samme rad — raden ekskluderes da fra slutt-søket.
+
+**Verifisert:** `@sitedoc/api` typecheck 0 nye feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef).
+
+**Reload-metode:** Server reload kreves ved deploy (krever `pm2 restart`). Ingen klient-endring.
+
+**Gjenstår i T.4-bunken:**
+- **T4-c:** Web-UI — innstillinger-side («Standard arbeidstid»-seksjon) + kalender-modal med betinget visning av tidsfelter for sommertid_start/slutt/halvdag.
+- **T4-d:** Mobil Drizzle — fraTid/tilTid på sheet_timer_local + sheet_machine_local + arbeidstidskalender_local-tabell + kalender-katalog-service + timerSync push/pull.
+- **T4-e:** Mobil UI — TimerRadModal + MaskinRadModal med DateTimePicker + forhåndsutfylling via `hentEffektivArbeidstid`-resultat (server-call ved sidelast eller forhåndsberegnet fra kalender-cache).
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR T4-a arbeidstid defaults — schema + migrasjon — MERGET TIL DEVELOP 2026-05-16 (merge `5acd2a5d`, impl `cfe51fc5`)
 
 Første sub-PR av T.4-bunken (fra/til per rad — implementasjons-bunke). Legger grunnmuren: firma-default for normal arbeidsdag på `OrganizationSetting` og periode-overstyringer på `ArbeidstidsKalender`. Ingen API, ingen UI — kommer i T4-b/c/d/e.
 
