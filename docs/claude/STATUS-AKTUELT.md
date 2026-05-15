@@ -23,15 +23,21 @@ Kunden ønsker sjekkliste der timetall kobles til servicestatus, og «neste serv
 
 **Status:** DB-feltet `nesteServiceTimer` finnes allerede i `packages/db-maskin/prisma/schema.prisma:188`. Mangler: UI-felt på maskin-detaljside, serviceintervall-konfigurasjon, visuell terskel-indikator, sjekkliste med avkrysningsbokser, automatisk oppdatering av neste service basert på driftstimer.
 
-### Firmakalender — T9a på feature-branch, T9b/T9c gjenstår 🟡
+### Firmakalender — T9a merget til develop, T9b på feature-branch, T9c gjenstår 🟡
 
-T9a (schema + migrasjon + helligdager-seed) er på `feature/t9-a` 2026-05-15.
-Ny modell `ArbeidstidsKalender` i `packages/db` med Variant B-felter. Migrasjon
-`20260515114710_t9_arbeidstidskalender`. `beregnNorskeHelligdager(aar)` i
-`packages/db/src/seed/helligdager.ts` (Gauss-påske, ingen ekstern avhengighet).
+T9a (schema + migrasjon + helligdager-seed) merget til develop 2026-05-15
+(merge `30340e6f`, impl `92ee4975`). Ny modell `ArbeidstidsKalender` i
+`packages/db`, migrasjon `20260515114710_t9_arbeidstidskalender`,
+`beregnNorskeHelligdager(aar)` i `packages/db/src/seed/helligdager.ts`.
 
-Gjenstår: **T9b** tRPC-router + auth + `importerNorskStandard`-mutation, **T9c**
-web-admin-UI, **T9d** mobil-cache når T.4/T.5 trenger det.
+T9b (tRPC-router + auth + importerNorskStandard) på `feature/t9-b` 2026-05-15.
+Router `apps/api/src/routes/firma/kalender.ts` med 6 prosedyrer (hentForAar,
+importerNorskStandard, opprett, oppdater, slett, hentForMobil). Zod-enum for
+type, firma-admin-auth for skriving, organisasjons-medlemskap for lesing,
+soft-delete via aktiv=false, sommertid-par-status som myk varsling.
+
+Gjenstår: **T9c** web-admin-UI (`apps/web/src/app/dashbord/firma/kalender/`),
+**T9d** mobil-cache `arbeidstidskalender_local` når T.4/T.5 trenger det.
 SummeringsBanner.tsx (T7-3a) trenger oppdatering etter T9c.
 
 **Tidligere § #2 «Validering av overtid basert på arbeidstid»** er konsolidert inn i T.9 — sommer/vinter-modell er nå Variant B (dynamiske perioder i `ArbeidstidsKalender`, ikke scalar-felter). 8t (sommer) / 7t (vinter) ordinær arbeidstid-validering bygges som del av T.9-implementasjon.

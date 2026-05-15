@@ -55,7 +55,40 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T9a firmakalender — schema + migrasjon + helligdager-seed — PÅ FEATURE-BRANCH `feature/t9-a` 2026-05-15
+### PR T9b firmakalender — tRPC-router + auth + importerNorskStandard — PÅ FEATURE-BRANCH `feature/t9-b` 2026-05-15
+
+Andre sub-PR av T9-bunken. Bygger server-API-laget over T9a-grunnmuren. Plassert på firma-nivå (`apps/api/src/routes/firma/`) per T.9-spec som sier kalenderen angår mer enn timer-modulen. Ny `firmaRouter`-aggregator gir framtidig rom for andre firma-rette routere uten flere top-level-nøkler.
+
+**Router (`apps/api/src/routes/firma/kalender.ts`, ~340 linjer):**
+
+| Prosedyre | Type | Auth | Innhold |
+|---|---|---|---|
+| `hentForAar({ organizationId, aar })` | query | `verifiserOrganisasjonTilgang` (medlemskap) | Aktive rader for år, sortert. Returnerer `{ rader, sommertidStatus }` der `sommertidStatus ∈ komplett \| bare_start \| bare_slutt \| ingen`. |
+| `importerNorskStandard({ organizationId, aar })` | mutation | `autoriserAdminForFirma` | Kaller `beregnNorskeHelligdager(aar)` fra T9a-seed. Idempotent: oppdaterer navn på eksisterende aktive, hopper over admin-deaktiverte. Returnerer `{ opprettet, oppdatert, hoppetOver }`. |
+| `opprett({ organizationId, dato, type, navn, timerOverstyr? })` | mutation | `autoriserAdminForFirma` | Zod-enum-validering av `type`. Validerer at `timerOverstyr` kun settes for `halvdag`-type. `aar` utledes fra `dato.getUTCFullYear()`. Returnerer `{ rad, sommertidStatus }`. |
+| `oppdater({ id, organizationId, type?, navn?, timerOverstyr?, aktiv? })` | mutation | `autoriserAdminForFirma` | Henter raden først for eierskaps-verifikasjon. Dato kan ikke endres (opprett ny + slett gammel hvis du må). |
+| `slett({ id, organizationId })` | mutation | `autoriserAdminForFirma` | Soft-delete via `aktiv=false` — ikke faktisk slett. Audit-spor + idempotent import respekterer admin-deaktivering. |
+| `hentForMobil({ organizationId, fraAar, tilAar })` | query | `verifiserOrganisasjonTilgang` (medlemskap) | Periode-spørring for T9d mobil-cache. Validerer `fraAar ≤ tilAar`. |
+
+**Zod-enum for type:** `helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri`. Definert lokalt i router-fila — utvides uten DB-migrasjon.
+
+**Sommertid-par-validering (myk):** Server kaster ikke feil ved opprettelse av enkelt-poster. `sommertidStatusForAar`-helperen returnerer paret-status sammen med rader/opprettelse-respons så UI (T9c) kan varsle. Hard validering legges på forbruks-siden (auto-fordeling) når begge poster trengs.
+
+**timerOverstyr-validering:** Kun gyldig for `halvdag`-type. Må være `> 0` og `< 24`. Andre typer må sende `null`/`undefined` — ellers `BAD_REQUEST`.
+
+**Router-aggregator (`apps/api/src/routes/firma/index.ts`):** Eksporterer `firmaRouter` med `kalender` som under-nøkkel. Registrert i `appRouter` som `firma: firmaRouter` — klient kaller `trpc.firma.kalender.hentForAar.useQuery(...)`.
+
+**Verifisert:** `@sitedoc/api` typecheck 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). Mobil: ingen impact ennå (T9d henter `hentForMobil` senere).
+
+**Reload-metode:** N/A — server-only. Migrasjonen fra T9a kjøres mot test ved deploy. Etter merge til develop kjører `deploy-test-cron.sh` migrasjonen automatisk.
+
+**Gjenstår i T9-bunken:**
+- **T9c:** Web-admin-UI på firma-nivå (`apps/web/src/app/dashbord/firma/kalender/`).
+- **T9d (senere):** Mobil-cache `arbeidstidskalender_local` + sync-strategi via `trpc.firma.kalender.hentForMobil`.
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
+### PR T9a firmakalender — schema + migrasjon + helligdager-seed — MERGET TIL DEVELOP 2026-05-15 (merge `30340e6f`, impl `92ee4975`)
 
 Første sub-PR av T9-bunken (Firmakalender). Legger til grunnmuren — DB-tabell + idempotent seed-funksjon for norske helligdager. Ingen API-router og ingen UI ennå (kommer i T9b/T9c).
 
