@@ -3,22 +3,28 @@
 import { useCallback, useEffect, useState } from "react";
 
 /**
- * Favoritt-prosjekter per bruker — persistert i localStorage.
+ * Favoritter per bruker — persistert i localStorage.
  *
- * Nøkkel: `sitedoc_favoritter_${userId}`. Verdi: JSON-serialisert string[].
+ * Default brukes for prosjekt-favoritter med nøkkel `sitedoc_favoritter_${userId}`.
+ * Andre kategorier (f.eks. byggeplass) sender egen `nokkelPrefix` slik at de
+ * lagres separat: `${nokkelPrefix}_${userId}`.
+ *
  * Per bruker, ikke per firma — en bruker har samme favoritter uavhengig av
- * aktivt firma.
+ * aktivt firma. Verdi: JSON-serialisert string[].
  *
  * Feilfallback: tom liste (favoritter er nice-to-have, ikke kritisk).
  */
-export function useFavoritter(userId: string | undefined): {
+export function useFavoritter(
+  userId: string | undefined,
+  nokkelPrefix: string = "sitedoc_favoritter",
+): {
   favoritter: string[];
-  erFavoritt: (projectId: string) => boolean;
-  toggleFavoritt: (projectId: string) => void;
+  erFavoritt: (id: string) => boolean;
+  toggleFavoritt: (id: string) => void;
 } {
   const [favoritter, setFavoritter] = useState<string[]>([]);
 
-  const nokkel = userId ? `sitedoc_favoritter_${userId}` : null;
+  const nokkel = userId ? `${nokkelPrefix}_${userId}` : null;
 
   useEffect(() => {
     if (!nokkel || typeof window === "undefined") return;
@@ -38,17 +44,17 @@ export function useFavoritter(userId: string | undefined): {
   }, [nokkel]);
 
   const erFavoritt = useCallback(
-    (projectId: string) => favoritter.includes(projectId),
+    (id: string) => favoritter.includes(id),
     [favoritter],
   );
 
   const toggleFavoritt = useCallback(
-    (projectId: string) => {
+    (id: string) => {
       if (!nokkel || typeof window === "undefined") return;
       setFavoritter((forrige) => {
-        const ny = forrige.includes(projectId)
-          ? forrige.filter((id) => id !== projectId)
-          : [...forrige, projectId];
+        const ny = forrige.includes(id)
+          ? forrige.filter((x) => x !== id)
+          : [...forrige, id];
         try {
           localStorage.setItem(nokkel, JSON.stringify(ny));
         } catch {
