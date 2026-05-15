@@ -88,6 +88,7 @@ model Organization {
   setting             OrganizationSetting?
   avdelinger          Avdeling[]
   kompetansetyper     Kompetansetype[]
+  arbeidstidsKalender ArbeidstidsKalender[]
 
   @@map("organizations")
 }
@@ -1936,4 +1937,53 @@ model ProjectGroupByggeplass {
   @@unique([groupId, byggeplassId])
   @@index([byggeplassId])
   @@map("project_group_byggeplasser")
+}
+
+// ---------------------------------------------------------------------------
+// ArbeidstidsKalender — firma-kalender for helligdager, fellesferie, halvdager
+// og sommer/vinter-perioder (Fase 0 T.9, vedtatt 2026-05-15).
+// Per docs/claude/fase-0-beslutninger.md § T.9.
+//
+// Datamodell Variant B (dynamisk): én rad per dato per firma. Helligdager
+// (5 faste + 7 bevegelige) seedes via beregnNorskeHelligdager(aar) — innebygd
+// Gauss-påskealgoritme. Firma legger til fellesferie, klemdager, halvdager
+// og sommer/vinter-perioder manuelt.
+//
+// type-verdier (validert via Zod-enum i API-laget):
+// - helligdag           Lovbestemt fridag (1. mai, 17. mai, juledag, etc.)
+// - fellesferie         Firma-definert sammenhengende ferie (uke 28-30)
+// - klemdager           Mellom helligdag og helg (f.eks. fredag etter Kristi himmelfart)
+// - sommertid_start     Markerer overgang til sommer-dagsnorm (8t + 30min pause)
+// - sommertid_slutt     Markerer overgang tilbake til vinter-dagsnorm (7t + 30min pause)
+// - halvdag             Redusert arbeidsdag — timerOverstyr-felt angir antall timer
+// - firma_fri           Firma-spesifikk fridag (f.eks. innehavers fødselsdag)
+//
+// Unique constraint: (organizationId, dato) — én rad per dato per firma.
+// Hvis admin setter halvdag på samme dato som helligdag, overstyres helligdagen.
+//
+// Plassering: kjernen (packages/db), ikke db-timer — kalenderen angår mer enn
+// timer-modulen (også Maskin, Mannskap, Planlegger senere).
+//
+// Cascade-policy:
+// - ArbeidstidsKalender → Organization: Cascade
+// ---------------------------------------------------------------------------
+
+model ArbeidstidsKalender {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  aar            Int // duplikat av year(dato) for raskt år-filtrering og import-idempotens
+  dato           DateTime @db.Date
+  type           String // helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri
+  navn           String // F.eks. «1. mai», «Skjærtorsdag», «Fellesferie uke 28-30»
+  timerOverstyr  Decimal? @map("timer_overstyr") @db.Decimal(4, 2) // kun satt for halvdag-type
+  aktiv          Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, dato])
+  @@index([organizationId, aar])
+  @@index([organizationId, type, aar])
+  @@map("arbeidstids_kalender")
 }

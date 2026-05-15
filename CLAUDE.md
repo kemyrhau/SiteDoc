@@ -55,10 +55,43 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### Neste sesjon — Firmakalender (T.9)
+### PR T9a firmakalender — schema + migrasjon + helligdager-seed — PÅ FEATURE-BRANCH `feature/t9-a` 2026-05-15
 
-Arkitektur låst. Starter med schema-migrasjon i packages/db + import norsk standard + web-admin-UI.
-Se docs/claude/fase-0-beslutninger.md § T.9 for fullstendig spec.
+Første sub-PR av T9-bunken (Firmakalender). Legger til grunnmuren — DB-tabell + idempotent seed-funksjon for norske helligdager. Ingen API-router og ingen UI ennå (kommer i T9b/T9c).
+
+**Schema (`packages/db/prisma/schema.prisma`):**
+- Ny modell `ArbeidstidsKalender` (linje 1942+). Variant B (dynamisk) per T.9-spec. Felter: `id, organizationId, aar, dato, type, navn, timerOverstyr, aktiv, createdAt, updatedAt`.
+- `type` som `String` (validert via Zod-enum i API-laget — ikke Prisma-enum) slik at type-listen kan utvides uten migrasjon. Verdier: `helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri`.
+- `timerOverstyr Decimal(4,2)?` — matcher `OrganizationSetting.dagsnorm`-presisjon. Nullable, settes kun for `halvdag`-type.
+- `aar Int` — duplikat av `year(dato)` for raskt år-filtrering og idempotent import.
+- Unique `(organizationId, dato)` — én rad per dato per firma. Halvdag overstyrer helligdag på samme dato.
+- Indekser: `(organizationId, aar)` for år-vy + `(organizationId, type, aar)` for type-spesifikke oppslag (f.eks. «finn sommertid-perioden i 2026»).
+- Cascade-relasjon til `Organization`. Plassert i kjernen (`packages/db`), ikke `db-timer` — kalenderen angår flere moduler.
+
+**Migrasjon (`20260515114710_t9_arbeidstidskalender/migration.sql`):**
+- `CREATE TABLE arbeidstids_kalender` med tre indekser og FK med `ON DELETE CASCADE`.
+- Idempotens ivaretas av server-laget ved import (`upsert` på `(organizationId, dato)`-nøkkelen).
+
+**Seed (`packages/db/src/seed/helligdager.ts`, 95 linjer):**
+- `beregnNorskeHelligdager(aar: number): Helligdag[]` returnerer 12 datoer per år.
+- Bevegelige helligdager beregnes via Meeus/Jones/Butcher Gauss-påskealgoritmen (~15 linjer). Skjærtorsdag/Langfredag/2. påskedag/Kristi himmelfartsdag/1. og 2. pinsedag avledes som offset fra 1. påskedag.
+- Faste: 1. nyttårsdag, Offentlig høytidsdag (1. mai), Grunnlovsdag (17. mai), 1. og 2. juledag.
+- Returneres sortert etter dato, Date i UTC ved midnatt. Ingen ekstern dato-bibliotek-avhengighet (verifiserte at `date-fns-tz` ikke er nødvendig siden vi lagrer `date` uten tid).
+
+**Eksport (`packages/db/src/index.ts`):** `beregnNorskeHelligdager` + `Helligdag`-type re-eksporteres fra `@sitedoc/db` for bruk i API-laget (T9b).
+
+**Endring i spec (`docs/claude/fase-0-beslutninger.md § T.9`):** Import-mekanismen oppdatert fra `date-fns-tz` til innebygd Gauss-algoritme. Begrunnelse skrevet inn som «Endring fra opprinnelig spec (2026-05-15)».
+
+**Verifisert:** `@sitedoc/db` typecheck 0 feil. `@sitedoc/api` typecheck 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef-feil). Mobil bruker ikke `@sitedoc/db` — null impact.
+
+**Reload-metode:** N/A — kun schema + ren TS-kode. Migrasjonen kjøres mot test ved deploy.
+
+**Gjenstår i T9-bunken:**
+- **T9b:** tRPC-router (`apps/api/src/routes/firma/kalender.ts`) med `hentForAar`, `importerNorskStandard`, `opprett`, `oppdater`, `slett`, `hentForMobil` + firma-admin-auth + Zod-enum-validering av `type`.
+- **T9c:** Web-admin-UI (plassering avklares — antakelig `apps/web/src/app/dashbord/firma/kalender/`).
+- **T9d (senere):** Mobil-cache `arbeidstidskalender_local` når T.4/T.5 trenger den.
+
+Klar for review — ikke merge før Kenneth verifiserer migrasjonen på test.
 
 ### PR T7-3d per-rad-attestering for leder på mobil — MERGET TIL DEVELOP 2026-05-14 (merge `ae6e5a2d`, impl `ffebd082`)
 
