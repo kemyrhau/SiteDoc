@@ -934,6 +934,47 @@ Når arbeider åpner «Ny dagsseddel», foreslås prosjekt basert på innsjekk-h
 
 Implementeres som del av Fase 4 — ikke T7.
 
+### T.9 — Firmakalender (arbeidstidskalender) — besluttet 2026-05-15
+
+**Datamodell:** Variant B (dynamisk) i `packages/db` (kjernen, ikke db-timer).
+Tabell: ArbeidstidsKalender med feltene id, organizationId, aar, dato, type, navn, timerOverstyr, aktiv.
+Type-enum: helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri
+Unique constraint: (organizationId, dato)
+
+**Sommer/vinter:** Valgfritt per firma. Flertall firmaer bruker flat dagsnorm (7.5t).
+Firma med sommer/vinter definerer sommertid_start og sommertid_slutt per år.
+Sommertid = 8t arbeid + 30min pause. Vintertid = 7t + 30min pause.
+Ingen sommer/vinter-poster = fall back til OrganizationSetting.dagsnorm.
+
+**Halvdager:** Firma-definerte per dato. timerOverstyr-feltet angir antall timer (f.eks. 3.5).
+Tariff-variabelt — kan endres fra år til år.
+
+**DB-plassering:** packages/db (kjernen) — kalenderen angår mer enn timer-modulen.
+
+**Tidsrunding (T.5 utdypet):** Visuelt ved input — pickeren avrunder til nærmeste tidsrundingMinutter.
+Det brukeren ser er det som lagres. Ingen server-side runding bak ryggen.
+
+**Offline-strategi mobil:** Lokal cache (arbeidstidskalender_local) — samme mønster som prosjektKatalog.
+Oppdateres ved login og nett-gjenkomst. Nødvendig for halvdag-visning uten nett.
+
+**Import:** `beregnNorskeHelligdager(aar: number)` via innebygd Gauss-påskealgoritme
+(~30 linjer). Ingen ekstern dato-bibliotek-avhengighet. Plasseres i
+`packages/db/src/seed/helligdager.ts`. Norske helligdager er nasjonale (ingen
+region-varianter), så de 12 årlige datoene (5 faste + 7 bevegelige relativt til
+1. påskedag) beregnes deterministisk uten tidssone-håndtering. Firma legger til
+klemdager, halvdager og sommertid manuelt.
+
+**Endring fra opprinnelig spec (2026-05-15):** Tidligere antok at `date-fns-tz`
+trengtes for å beregne bevegelige helligdager. Verifisert at vi lagrer `date`
+(uten tid), så tidssone er irrelevant. Gauss-algoritmen gir påskedato i ren
+heltall-aritmetikk — de seks øvrige bevegelige helligdagene avledes av offset.
+
+**Avhengigheter som venter på denne:**
+- T.4 (fra/til per rad) — trenger kalender for standard arbeidstid-forslag
+- T.5 (tidsrunding) — trenger kalender for korrekt dagsnorm
+- SummeringsBanner.tsx (T7-3a) — må oppdateres til å lese dagsnorm fra kalender-cache
+- Auto-fordeling normaltid/overtid — trenger kalender for terskelverdi
+
 ---
 
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding

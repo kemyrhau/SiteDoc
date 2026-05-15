@@ -19,3 +19,6 @@ if (process.env.NODE_ENV !== "production") {
 
 export { PrismaClient, Prisma } from "@prisma/client";
 export type * from "@prisma/client";
+
+export { beregnNorskeHelligdager } from "./seed/helligdager";
+export type { Helligdag } from "./seed/helligdager";

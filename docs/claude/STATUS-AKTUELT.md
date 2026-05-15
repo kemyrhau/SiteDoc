@@ -23,11 +23,23 @@ Kunden ønsker sjekkliste der timetall kobles til servicestatus, og «neste serv
 
 **Status:** DB-feltet `nesteServiceTimer` finnes allerede i `packages/db-maskin/prisma/schema.prisma:188`. Mangler: UI-felt på maskin-detaljside, serviceintervall-konfigurasjon, visuell terskel-indikator, sjekkliste med avkrysningsbokser, automatisk oppdatering av neste service basert på driftstimer.
 
-### #2 — Validering av overtid basert på arbeidstid 🔴
+### Firmakalender — T9a/T9b merget til develop, T9c på feature-branch, T9d gjenstår 🟡
 
-**Side:** Timeføring.
+T9a (schema + seed) merget til develop 2026-05-15 (merge `30340e6f`,
+impl `92ee4975`). T9b (tRPC-router) merget til develop 2026-05-15
+(merge `0fdd625e`, impl `27123f13`).
 
-Overtid skal ikke kunne registreres før min. 8t (sommer) / 7t (vinter) ordinær arbeidstid er ført. Ingen validering finnes i timer-routes. Ny `sommer/vinter`-overtid-grense-logikk + feilmelding/blokkering mangler.
+T9c (web-admin-UI) på `feature/t9-c` 2026-05-15. Ny side
+`/dashbord/firma/kalender` med år-velger, måneds-liste, type-badges,
+opprett/rediger-modal, sommertid-banner og «Importer norsk standard»-knapp.
+30 nye i18n-nøkler (`firma.kalender.*`) i nb/en, auto-oversatt til 13 språk.
+
+Gjenstår: **T9d** mobil-cache `arbeidstidskalender_local` (avhenger av
+T.4/T.5-implementasjon). SummeringsBanner.tsx (T7-3a) trenger oppdatering
+etter T9d for å lese dagsnorm fra kalender-cache i stedet for
+`OrganizationSetting.dagsnorm`.
+
+**Tidligere § #2 «Validering av overtid basert på arbeidstid»** er konsolidert inn i T.9 — sommer/vinter-modell er nå Variant B (dynamiske perioder i `ArbeidstidsKalender`, ikke scalar-felter). 8t (sommer) / 7t (vinter) ordinær arbeidstid-validering bygges som del av T.9-implementasjon.
 
 ### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟡
 
@@ -122,9 +134,42 @@ Auto-deploy-skriptet `~/programmering/deploy-test-cron.sh` (cron hvert 2. min p�
 
 Skriptet er **ikke i repoet** — det ligger kun på test-serveren. Endringen er server-side og påvirker ikke prod (`./deploy.sh` gjør allerede full rebuild).
 
-### T7-3-bunken — MERGET TIL DEVELOP, venter på mobil-bygg (2026-05-14)
+### PR T7-3d per-rad-attestering for leder på mobil — Klar for review (branch `feature/t7-3d`)
 
-Tre sub-PR-er av T7-3 (mobil timer-redesign) merget til develop. Endringene er JS + lokal SQLite-skjema + server-route-utvidelse — alle ufarlige å rulle ut. Server-endringen (rad-nivå `projectId` i `syncBatch` + `hentEndringerSiden`) gikk til test ved auto-deploy ved merge av T7-3b1. Mobil-endringene venter på Expo Go-test (utvikler-enhet) eller EAS Build → TestFlight / Play Store (release).
+Fjerde sub-PR av T7-3-bunken. Bringer attestering-flyten (T7-2b) til mobil-app. Prosjektledere og firma-admin kan nå attestere/returnere innsendte sedler fra telefonen — speil av webs `AttesteringDetalj`, forenklet for mobil-flate.
+
+**Filer (alle nye, `apps/mobile`):**
+- `src/components/timer-attestering/AttesteringStatusBadge.tsx` (~40 linjer)
+- `src/components/timer-attestering/RadCheckbox.tsx` (~80 linjer)
+- `src/components/timer-attestering/ReturnerModal.tsx` (~115 linjer)
+- `src/components/timer-attestering/AttesteringDetaljMobil.tsx` (~360 linjer) — kjernekomponent. Tre rad-seksjoner med checkboxer, container-banner, bunn-action-bar. Pre-utvalg av pending-rader ved sideåpning. Cache-invalidering ved attester/returner.
+- `app/timer/attestering/index.tsx` (~150 linjer) — liste-side. Henter via `hentTilAttesteringFirma`. Kort-format med dato/ansatt/prosjekt/sum. Gating-bannere ved ingen tilgang.
+- `app/timer/attestering/[id].tsx` (~50 linjer) — tynn wrapper med tilbake-bar.
+
+**Endret:**
+- `app/(tabs)/mer.tsx` — ny menylenke «Attester timer» gated på `kanAttestereFirma`. Lenken er skjult for arbeidere uten leder-tilgang. Henter `orgId` via samme `prosjekt.hentMine`-proxy som liste-siden.
+
+**Server/skjema:** Null endring. Bruker eksisterende `hentTilAttesteringFirma`, `hentForAttestering`, `kanAttestereFirma`, `attesterRader`, `returnerRader` fra T7-2b1.
+
+**i18n:** Null nye nøkler. Alle gjenbrukt fra T7-2b.
+
+**Forenklinger ifht. web (bevisst scope-redusering):**
+- Ingen edit-modus (T7-2b2) — firma-admin redigerer på web
+- Ingen ECO-flytting per rad — utelates på mobil
+- Ingen rediger-header-modal
+- Kun firma-kontekst (ingen `prosjektKontekst`-prop) — mobil-tabs er firma-orienterte
+
+**Auth/datastrøm:** Online-only. Mutations krever nett (samme som web — snapshot-bygging via Fase 0 A.7). Ingen lokal queue.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil).
+
+**Reload-metode:** TypeScript-only. Full app-reload eller `r` i Metro. Ingen native rebuild.
+
+Klar for review — ikke merge før Kenneth verifiserer på enhet.
+
+### T7-3-bunken (a/b1/b2) — DEPLOYET TIL PROD (server-route) + venter på mobil-bygg (2026-05-14)
+
+Tre sub-PR-er av T7-3 (mobil timer-redesign) merget til develop og deretter til main (prod-commit `223afc17`). Server-endringene (rad-nivå `projectId` i `syncBatch` + `hentEndringerSiden` + auth per unike rad-projectId) er aktive i prod. Mobil-endringene venter på Expo Go-test (utvikler-enhet) eller EAS Build → TestFlight / Play Store (release).
 
 | Sub-PR | Merge-commit | Impl-commit | Innhold |
 |---|---|---|---|

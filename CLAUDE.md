@@ -55,21 +55,164 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### T7-3-bunken — MERGET TIL DEVELOP, venter på mobil-bygg
+### PR T9c firmakalender — web-admin-UI — PÅ FEATURE-BRANCH `feature/t9-c` 2026-05-15
 
-Tre sub-PR-er av T7-3 (mobil timer-redesign) er merget til develop og venter på mobil-bygg/EAS for rullering til testere/prod. Mobil deployes ikke via server-deploy — kun via Expo Go (utvikler-test) eller EAS Build → TestFlight / Play Store (release).
+Tredje sub-PR av T9-bunken. Web-admin-UI for å administrere firmakalender, med år-velger, måneds-gruppert visning, type-badges, opprett/rediger-modal og sommertid-banner.
 
-| Sub-PR | Merge-commit | Impl-commit | Innhold |
+**Sidebar-element (`apps/web/src/app/dashbord/firma/layout.tsx`):**
+- Ny «Kalender»-lenke under «Timer-rapport» med `Calendar`-ikon. Ingen `kreverFirmaModul`-gating — kalenderen er tverrgående firma-funksjon, gated via at hele firma-layouten kun er tilgjengelig for firma-admin og sitedoc-admin.
+
+**Side (`apps/web/src/app/dashbord/firma/kalender/page.tsx`, ~440 linjer):**
+
+| Seksjon | Innhold |
+|---|---|
+| Topp-rad | Tittel + beskrivelse, år-velger (←/→-knapper + årsnummer), «Importer norsk standard {{aar}}»-knapp |
+| Sommertid-banner | Vises kun når `sommertidStatus === "bare_start"` eller `"bare_slutt"`. Gul advarsel med `AlertTriangle`-ikon og forklarende tekst. |
+| Måneds-liste | 12 kort, ett per måned. Hver viser måned-navn (norsk lokalisering via `Intl.DateTimeFormat`) + «+ Legg til»-knapp + rader. Tomme måneder viser «Ingen oppføringer.» |
+| Rad | Ukedag + dato, type-badge (fargekodet per type), navn, halvdag-timer hvis aktuelt, rediger-pencil-ikon |
+
+**Modal (`RadModal`):** Felles komponent for opprett og rediger. Felter: dato (locked i rediger-modus), type-Select (7 verdier), navn, timerOverstyr (vises kun for `halvdag`-type), aktiv-checkbox (kun i rediger-modus). Bunn-action-bar: «Deaktiver» (kun i rediger), «Avbryt», «Lagre».
+
+**Type-badge-fargekoding:**
+- `helligdag` → rød
+- `fellesferie` → blå
+- `klemdager` → indigo
+- `sommertid_start/slutt` → amber
+- `halvdag` → oransje
+- `firma_fri` → grå
+
+**Cache-invalidering:** Alle mutations (opprett/oppdater/slett/importer) kaller `utils.firma.kalender.hentForAar.invalidate()`. Importerings-suksess viser kort `alert` med antall opprettet/oppdatert/hoppet over.
+
+**i18n:** 30 nye nøkler under `firma.kalender.*` i nb/en. Auto-oversatt til 13 språk via `generate.ts` (2251 totalt). Nøkler dekker tittel/beskrivelse, alle 7 type-navn (rendres via `t(\`firma.kalender.type.${rad.type}\`)`), modal-felter, sommertid-advarsel, feilmeldinger.
+
+**Verifisert:** `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). 0 nye feil i kalender-koden.
+
+**Reload-metode:** Server reload kreves ikke. TypeScript-only + i18n-endring. Test ved å åpne `/dashbord/firma/kalender` som firma-admin.
+
+**Forventede begrensninger:**
+- `confirm()` brukes for deaktiver-bekreftelse — pre-eksisterende mønster i denne mappen (jf. `firma/avdelinger/page.tsx`). Konvertering til Modal kan gjøres i felles oppfølger.
+- Ingen «Slett permanent»-knapp — kun deaktivering. Audit-spor bevares; idempotent import respekterer admin-deaktivering.
+- Mobil-cache (T9d) er separat sub-PR. SummeringsBanner (T7-3a) leser fortsatt fra `OrganizationSetting.dagsnorm` — oppdateres til å lese fra kalender-cache når T9d landes.
+
+Klar for review og test. Etter merge: Kenneth verifiserer i nettleser at år-velger, import-knapp, opprett/rediger og badges fungerer på `test.sitedoc.no/dashbord/firma/kalender`.
+
+### PR T9b firmakalender — tRPC-router + auth + importerNorskStandard — MERGET TIL DEVELOP 2026-05-15 (merge `0fdd625e`, impl `27123f13`)
+
+Andre sub-PR av T9-bunken. Bygger server-API-laget over T9a-grunnmuren. Plassert på firma-nivå (`apps/api/src/routes/firma/`) per T.9-spec som sier kalenderen angår mer enn timer-modulen. Ny `firmaRouter`-aggregator gir framtidig rom for andre firma-rette routere uten flere top-level-nøkler.
+
+**Router (`apps/api/src/routes/firma/kalender.ts`, ~340 linjer):**
+
+| Prosedyre | Type | Auth | Innhold |
 |---|---|---|---|
-| **T7-3a** | `22a97402` | `fc087b65` | Arbeidstid-seksjon + summerings-banner i mobil-detalj. Speil av T7-1a. |
-| **T7-3b1** | `cd64c51a` | `65bf48cb` | Per-rad `projectId` (skjema + lokal migrasjon + sync push/pull + prosjekt-katalog-cache). Ingen UI. |
-| **T7-3b2** | `3e34ec71` | `1717fd79` | UI for per-rad prosjektvelger + ProsjektGruppe-visning i [id].tsx + geo-forslag i ny.tsx. |
+| `hentForAar({ organizationId, aar })` | query | `verifiserOrganisasjonTilgang` (medlemskap) | Aktive rader for år, sortert. Returnerer `{ rader, sommertidStatus }` der `sommertidStatus ∈ komplett \| bare_start \| bare_slutt \| ingen`. |
+| `importerNorskStandard({ organizationId, aar })` | mutation | `autoriserAdminForFirma` | Kaller `beregnNorskeHelligdager(aar)` fra T9a-seed. Idempotent: oppdaterer navn på eksisterende aktive, hopper over admin-deaktiverte. Returnerer `{ opprettet, oppdatert, hoppetOver }`. |
+| `opprett({ organizationId, dato, type, navn, timerOverstyr? })` | mutation | `autoriserAdminForFirma` | Zod-enum-validering av `type`. Validerer at `timerOverstyr` kun settes for `halvdag`-type. `aar` utledes fra `dato.getUTCFullYear()`. Returnerer `{ rad, sommertidStatus }`. |
+| `oppdater({ id, organizationId, type?, navn?, timerOverstyr?, aktiv? })` | mutation | `autoriserAdminForFirma` | Henter raden først for eierskaps-verifikasjon. Dato kan ikke endres (opprett ny + slett gammel hvis du må). |
+| `slett({ id, organizationId })` | mutation | `autoriserAdminForFirma` | Soft-delete via `aktiv=false` — ikke faktisk slett. Audit-spor + idempotent import respekterer admin-deaktivering. |
+| `hentForMobil({ organizationId, fraAar, tilAar })` | query | `verifiserOrganisasjonTilgang` (medlemskap) | Periode-spørring for T9d mobil-cache. Validerer `fraAar ≤ tilAar`. |
+
+**Zod-enum for type:** `helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri`. Definert lokalt i router-fila — utvides uten DB-migrasjon.
+
+**Sommertid-par-validering (myk):** Server kaster ikke feil ved opprettelse av enkelt-poster. `sommertidStatusForAar`-helperen returnerer paret-status sammen med rader/opprettelse-respons så UI (T9c) kan varsle. Hard validering legges på forbruks-siden (auto-fordeling) når begge poster trengs.
+
+**timerOverstyr-validering:** Kun gyldig for `halvdag`-type. Må være `> 0` og `< 24`. Andre typer må sende `null`/`undefined` — ellers `BAD_REQUEST`.
+
+**Router-aggregator (`apps/api/src/routes/firma/index.ts`):** Eksporterer `firmaRouter` med `kalender` som under-nøkkel. Registrert i `appRouter` som `firma: firmaRouter` — klient kaller `trpc.firma.kalender.hentForAar.useQuery(...)`.
+
+**Verifisert:** `@sitedoc/api` typecheck 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). Mobil: ingen impact ennå (T9d henter `hentForMobil` senere).
+
+**Reload-metode:** N/A — server-only. Migrasjonen fra T9a kjøres mot test ved deploy. Etter merge til develop kjører `deploy-test-cron.sh` migrasjonen automatisk.
+
+**Gjenstår i T9-bunken:**
+- **T9c:** Web-admin-UI på firma-nivå (`apps/web/src/app/dashbord/firma/kalender/`).
+- **T9d (senere):** Mobil-cache `arbeidstidskalender_local` + sync-strategi via `trpc.firma.kalender.hentForMobil`.
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
+### PR T9a firmakalender — schema + migrasjon + helligdager-seed — MERGET TIL DEVELOP 2026-05-15 (merge `30340e6f`, impl `92ee4975`)
+
+Første sub-PR av T9-bunken (Firmakalender). Legger til grunnmuren — DB-tabell + idempotent seed-funksjon for norske helligdager. Ingen API-router og ingen UI ennå (kommer i T9b/T9c).
+
+**Schema (`packages/db/prisma/schema.prisma`):**
+- Ny modell `ArbeidstidsKalender` (linje 1942+). Variant B (dynamisk) per T.9-spec. Felter: `id, organizationId, aar, dato, type, navn, timerOverstyr, aktiv, createdAt, updatedAt`.
+- `type` som `String` (validert via Zod-enum i API-laget — ikke Prisma-enum) slik at type-listen kan utvides uten migrasjon. Verdier: `helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri`.
+- `timerOverstyr Decimal(4,2)?` — matcher `OrganizationSetting.dagsnorm`-presisjon. Nullable, settes kun for `halvdag`-type.
+- `aar Int` — duplikat av `year(dato)` for raskt år-filtrering og idempotent import.
+- Unique `(organizationId, dato)` — én rad per dato per firma. Halvdag overstyrer helligdag på samme dato.
+- Indekser: `(organizationId, aar)` for år-vy + `(organizationId, type, aar)` for type-spesifikke oppslag (f.eks. «finn sommertid-perioden i 2026»).
+- Cascade-relasjon til `Organization`. Plassert i kjernen (`packages/db`), ikke `db-timer` — kalenderen angår flere moduler.
+
+**Migrasjon (`20260515114710_t9_arbeidstidskalender/migration.sql`):**
+- `CREATE TABLE arbeidstids_kalender` med tre indekser og FK med `ON DELETE CASCADE`.
+- Idempotens ivaretas av server-laget ved import (`upsert` på `(organizationId, dato)`-nøkkelen).
+
+**Seed (`packages/db/src/seed/helligdager.ts`, 95 linjer):**
+- `beregnNorskeHelligdager(aar: number): Helligdag[]` returnerer 12 datoer per år.
+- Bevegelige helligdager beregnes via Meeus/Jones/Butcher Gauss-påskealgoritmen (~15 linjer). Skjærtorsdag/Langfredag/2. påskedag/Kristi himmelfartsdag/1. og 2. pinsedag avledes som offset fra 1. påskedag.
+- Faste: 1. nyttårsdag, Offentlig høytidsdag (1. mai), Grunnlovsdag (17. mai), 1. og 2. juledag.
+- Returneres sortert etter dato, Date i UTC ved midnatt. Ingen ekstern dato-bibliotek-avhengighet (verifiserte at `date-fns-tz` ikke er nødvendig siden vi lagrer `date` uten tid).
+
+**Eksport (`packages/db/src/index.ts`):** `beregnNorskeHelligdager` + `Helligdag`-type re-eksporteres fra `@sitedoc/db` for bruk i API-laget (T9b).
+
+**Endring i spec (`docs/claude/fase-0-beslutninger.md § T.9`):** Import-mekanismen oppdatert fra `date-fns-tz` til innebygd Gauss-algoritme. Begrunnelse skrevet inn som «Endring fra opprinnelig spec (2026-05-15)».
+
+**Verifisert:** `@sitedoc/db` typecheck 0 feil. `@sitedoc/api` typecheck 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef-feil). Mobil bruker ikke `@sitedoc/db` — null impact.
+
+**Reload-metode:** N/A — kun schema + ren TS-kode. Migrasjonen kjøres mot test ved deploy.
+
+**Gjenstår i T9-bunken:**
+- **T9b:** tRPC-router (`apps/api/src/routes/firma/kalender.ts`) med `hentForAar`, `importerNorskStandard`, `opprett`, `oppdater`, `slett`, `hentForMobil` + firma-admin-auth + Zod-enum-validering av `type`.
+- **T9c:** Web-admin-UI (plassering avklares — antakelig `apps/web/src/app/dashbord/firma/kalender/`).
+- **T9d (senere):** Mobil-cache `arbeidstidskalender_local` når T.4/T.5 trenger den.
+
+Klar for review — ikke merge før Kenneth verifiserer migrasjonen på test.
+
+### PR T7-3d per-rad-attestering for leder på mobil — MERGET TIL DEVELOP 2026-05-14 (merge `ae6e5a2d`, impl `ffebd082`)
+
+Fjerde sub-PR av T7-3-bunken. Bringer attestering-flyten (T7-2b) til mobil. Prosjektleder og firma-admin kan nå attestere/returnere innsendte sedler fra mobil-appen — speil av webs `AttesteringDetalj`-felleskomponent, forenklet for mobil-flate.
+
+**Nye filer (`apps/mobile`):**
+- `src/components/timer-attestering/AttesteringStatusBadge.tsx` (~40 linjer) — `pending`/`attestert`/`returnert`-badge.
+- `src/components/timer-attestering/RadCheckbox.tsx` (~80 linjer) — rad med checkbox + badge + info. Demper og deaktiverer ikke-tilgjengelige rader.
+- `src/components/timer-attestering/ReturnerModal.tsx` (~115 linjer) — modal med multiline-TextInput for kommentar (obligatorisk). Speil av webs `ReturnerDialog`. Kaller `returnerRader`.
+- `src/components/timer-attestering/AttesteringDetaljMobil.tsx` (~360 linjer) — kjernekomponent. Tre rad-seksjoner med per-rad-checkboxer, container-status-banner, bunn-action-bar (Attester/Returner). Pre-utvalg av pending-rader ved sideåpning. Cache-invalidering ved suksess.
+- `app/timer/attestering/index.tsx` (~150 linjer) — liste-side. Henter `hentTilAttesteringFirma` via `prosjekt.hentMine` → første `primaryOrganizationId` som proxy. Kort-format. Gating-bannere ved ingen tilgang.
+- `app/timer/attestering/[id].tsx` (~50 linjer) — tynn wrapper som monterer `AttesteringDetaljMobil`.
+
+**Endret:**
+- `app/(tabs)/mer.tsx` — ny menylenke «Attester timer» gated på `kanAttestereFirma`. Lenken er skjult for arbeidere uten leder-tilgang.
+
+**Server/skjema:** Null endring. Bruker eksisterende `hentTilAttesteringFirma`, `hentForAttestering`, `kanAttestereFirma`, `attesterRader`, `returnerRader` fra T7-2b1-deploy.
+
+**i18n:** Null nye nøkler. Alle gjenbrukt fra T7-2b (`timer.attestering.*`, `timer.detalj.*`, `handling.*`).
+
+**Forenklinger ifht. web (bevisst scope-redusering):**
+- Ingen edit-modus (T7-2b2) — firma-admin redigerer på web.
+- Ingen ECO-flytting per rad — utelates på mobil.
+- Ingen rediger-header-modal. Lederen attesterer, redigerer ikke.
+- Kun firma-kontekst (ingen `prosjektKontekst`-prop) — mobil-tabs er firma-orienterte.
+
+**Auth/datastrøm:** Online-only. Krever nett for mutations (samme som web — snapshot via A.7). Ingen lokal queue.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Pre-eksisterende `mer.tsx`-feil flyttet fra linje 81 til linje 101 pga. linjeforskyvning.
+
+**Reload-metode:** TypeScript-only. Full app-reload eller `r` i Metro. Ingen native rebuild.
+
+### T7-3-bunken (a/b1/b2/d) — DEPLOYET TIL PROD (server-route) + venter på mobil-bygg
+
+Alle fire sub-PR-er av T7-3 (mobil timer-redesign) er merget til develop. T7-3a/b1/b2 er deployet til prod (`223afc17` på main 2026-05-14) — server-route-endringene er aktive. T7-3d er merget til develop og venter på Kenneth-verifikasjon på enhet før prod-merge. Mobil-endringene rulles ut via Expo Go (utvikler-test) eller EAS Build → TestFlight / Play Store (release) — ikke `./deploy.sh`.
+
+| Sub-PR | Merge-commit | Impl-commit | Status | Innhold |
+|---|---|---|---|---|
+| **T7-3a** | `22a97402` | `fc087b65` | ✅ prod | Arbeidstid-seksjon + summerings-banner i mobil-detalj. Speil av T7-1a. |
+| **T7-3b1** | `cd64c51a` | `65bf48cb` | ✅ prod | Per-rad `projectId` (skjema + lokal migrasjon + sync push/pull + prosjekt-katalog-cache). Ingen UI. |
+| **T7-3b2** | `3e34ec71` | `1717fd79` | ✅ prod | UI for per-rad prosjektvelger + ProsjektGruppe-visning i [id].tsx + geo-forslag i ny.tsx. |
+| **T7-3d** | `ae6e5a2d` | `ffebd082` | 🟡 develop | Per-rad-attestering for leder på mobil. Speil av webs AttesteringDetalj (forenklet). |
 
 Gjenstår av T7-3-bunken:
 - **T7-3c (planlagt eller forkastet):** Geo-forslag-utvidelser. Mye av denne ble levert i T7-3b2 — egen sub-PR kan dekke historikk/justeringer eller forkastes.
-- **T7-3d (planlagt eller forkastet):** Per-rad-attestering på mobil for prosjektleder/firma-admin. Avhenger av strategisk valg om mobil-attestering eller web-only.
 
-### PR T7-3b2 prosjekt-velger per rad + geo-forslag — MERGET TIL DEVELOP (merge `3e34ec71`, impl `1717fd79`) — venter på mobil-bygg
+### PR T7-3b2 prosjekt-velger per rad + geo-forslag — DEPLOYET TIL PROD 2026-05-14 (server-route, prod-commit `223afc17`) + venter på mobil-bygg (merge `3e34ec71`, impl `1717fd79`)
 
 Tredje sub-PR av T7-3-bunken. Aktiverer den brukervendte siden av per-rad-prosjekt: brukeren kan velge prosjekt per rad i timer/tillegg/maskin-modaler, dagsseddelen grupperer rader per prosjekt, og GPS-posisjon foreslår nærmeste prosjekt ved opprettelse. Ingen DB-, sync- eller server-endringer (alt fundament fra T7-3b1).
 
@@ -99,7 +242,7 @@ Tredje sub-PR av T7-3-bunken. Aktiverer den brukervendte siden av per-rad-prosje
 
 Klar for review — ikke merge før Kenneth verifiserer på test.
 
-### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — MERGET TIL DEVELOP (merge `cd64c51a`, impl `65bf48cb`) — venter på mobil-bygg
+### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — DEPLOYET TIL PROD 2026-05-14 (server-route, prod-commit `223afc17`) + venter på mobil-bygg (merge `cd64c51a`, impl `65bf48cb`)
 
 Andre sub-PR av T7-3-bunken. Forberedelse for T7-3b2 (UI per-rad-velger). Etter denne har mobil per-rad `projectId`-felt i lokal SQLite + sync-protokollen sender/mottar per-rad projectId mot server. Server-shimmen fra T.1 (sedel-nivå `projectId` for pre-T7-3b1-klienter) beholdes for bakoverkompatibilitet — server støtter både gammelt og nytt format. INGEN UI-endringer i denne PR-en; lokal projectId backfilles fra `dagsseddelLocal.projectId` og rad-velger kommer i T7-3b2.
 
@@ -134,7 +277,7 @@ Andre sub-PR av T7-3-bunken. Forberedelse for T7-3b2 (UI per-rad-velger). Etter 
 
 Klar for review — ikke merge før Kenneth verifiserer på test.
 
-### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — MERGET TIL DEVELOP (merge `22a97402`, impl `fc087b65`) — venter på mobil-bygg
+### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — DEPLOYET TIL PROD 2026-05-14 (server-route, prod-commit `223afc17`) + venter på mobil-bygg (merge `22a97402`, impl `fc087b65`)
 
 Første sub-PR av T7-3-bunken (mobil timer-redesign). Speil av T7-1a på mobil. Bringer mobil opp på samme nivå som web for arbeidstid-registrering og løpende summering. Ingen DB-migrasjon, ingen sync-endring, ingen server-endring.
 

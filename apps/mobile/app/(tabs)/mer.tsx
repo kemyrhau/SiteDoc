@@ -16,6 +16,7 @@ import {
   Check,
   Clock,
   BarChart3,
+  ClipboardCheck,
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
@@ -44,6 +45,25 @@ export default function MerSkjerm() {
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
+
+  // T7-3d: hent firma-id via brukerens prosjekter for attestering-tilgangs-gate.
+  // Lenken vises kun for prosjektledere + firma-admin.
+  const { data: prosjekterForOrgIdent } = trpc.prosjekt.hentMine.useQuery(
+    undefined,
+    { enabled: !!bruker?.id, staleTime: 60 * 1000 },
+  );
+  const orgIdForAttestering = (
+    prosjekterForOrgIdent as unknown as
+      | Array<{ primaryOrganizationId: string | null }>
+      | undefined
+  )
+    ?.map((p) => p.primaryOrganizationId)
+    .find((id): id is string => !!id);
+  const { data: kanAttestereFirma } =
+    trpc.timer.dagsseddel.kanAttestereFirma.useQuery(
+      { organizationId: orgIdForAttestering ?? "" },
+      { enabled: !!orgIdForAttestering },
+    );
 
   const tegningerQuery = trpc.tegning.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId!, ...(valgtBygningId ? { byggeplassId: valgtBygningId } : {}) },
@@ -160,6 +180,13 @@ export default function MerSkjerm() {
             tekst={t("nav.timerMine")}
             onPress={() => router.push("/timer/mine")}
           />
+          {kanAttestereFirma?.kanAttestere && (
+            <MenyRad
+              ikon={ClipboardCheck}
+              tekst={t("timer.attestering.tittel")}
+              onPress={() => router.push("/timer/attestering")}
+            />
+          )}
           <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} />
           <MenyRad ikon={QrCode} tekst={t("mer.skannQR")} />
         </View>

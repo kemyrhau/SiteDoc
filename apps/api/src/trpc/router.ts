@@ -38,6 +38,7 @@ import { vareRouter } from "../routes/vare";
 import { vareforbrukRouter } from "../routes/vareforbruk";
 import { vareImportRouter } from "../routes/vareImport";
 import { firmaIntegrasjonRouter } from "../routes/firma-integrasjon";
+import { firmaRouter } from "../routes/firma";
 
 
 export const appRouter = router({
@@ -81,6 +82,7 @@ export const appRouter = router({
   vareforbruk: vareforbrukRouter,
   vareImport: vareImportRouter,
   firmaIntegrasjon: firmaIntegrasjonRouter,
+  firma: firmaRouter,
 });
 
 export type AppRouter = typeof appRouter;
