@@ -957,8 +957,17 @@ Det brukeren ser er det som lagres. Ingen server-side runding bak ryggen.
 **Offline-strategi mobil:** Lokal cache (arbeidstidskalender_local) — samme mønster som prosjektKatalog.
 Oppdateres ved login og nett-gjenkomst. Nødvendig for halvdag-visning uten nett.
 
-**Import:** seedArbeidstidskalender(organizationId, year) via date-fns-tz for norske helligdager.
-Firma legger til klemdager, halvdager og sommertid manuelt.
+**Import:** `beregnNorskeHelligdager(aar: number)` via innebygd Gauss-påskealgoritme
+(~30 linjer). Ingen ekstern dato-bibliotek-avhengighet. Plasseres i
+`packages/db/src/seed/helligdager.ts`. Norske helligdager er nasjonale (ingen
+region-varianter), så de 12 årlige datoene (5 faste + 7 bevegelige relativt til
+1. påskedag) beregnes deterministisk uten tidssone-håndtering. Firma legger til
+klemdager, halvdager og sommertid manuelt.
+
+**Endring fra opprinnelig spec (2026-05-15):** Tidligere antok at `date-fns-tz`
+trengtes for å beregne bevegelige helligdager. Verifisert at vi lagrer `date`
+(uten tid), så tidssone er irrelevant. Gauss-algoritmen gir påskedato i ren
+heltall-aritmetikk — de seks øvrige bevegelige helligdagene avledes av offset.
 
 **Avhengigheter som venter på denne:**
 - T.4 (fra/til per rad) — trenger kalender for standard arbeidstid-forslag
