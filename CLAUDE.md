@@ -55,7 +55,47 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T4-b hentEffektivArbeidstid + sommertid-validering — KLAR FOR REVIEW PÅ `feature/t4-b` (2026-05-16)
+### PR T4-c web-UI innstillinger + kalender-modal — KLAR FOR REVIEW PÅ `feature/t4-c` (2026-05-16)
+
+Tredje sub-PR av T.4-bunken. Web-UI for de nye T4-a-feltene + server-Zod-utvidelse for å SETTE feltene. Etter denne kan firma-admin konfigurere standard arbeidsdag og legge inn periode-overstyringer for sommertid/halvdag direkte i webportalen. Mobil (T4-d/e) gjenstår.
+
+**Server-Zod-utvidelse:**
+- `apps/api/src/routes/organisasjon.ts` (`oppdaterSetting`): + `standardStartTid` (HH:MM-regex), `standardSluttTid` (HH:MM-regex), `standardPauseMin` (0–480) — alle optional.
+- `apps/api/src/routes/firma/kalender.ts` (`opprett` + `oppdater`): + samme tre felter, nullable+optional. Ny `validerTidsfelter`-helper: avviser felter for andre typer enn `sommertid_start/slutt/halvdag` (BAD_REQUEST), og krever `standardStartTid < standardSluttTid` hvis begge er satt. På `oppdater` valideres mot resulterende state — dvs. type-bytte FRA halvdag TIL helligdag fanges selv om brukeren ikke eksplisitt sender `standardStartTid: null`.
+
+**Innstillinger-side (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`):**
+
+Ny `StandardArbeidstidSeksjon`-komponent (~120 linjer) plassert etter `RedigerVedAttesteringSeksjon`. Tre input-felter:
+- `<input type="time">` for `standardStartTid`
+- `<input type="time">` for `standardSluttTid`
+- `<input type="number" min={0} max={480}>` for `standardPauseMin`
+
+Klient-side validering: start < slutt + pauseMin innenfor 0-480. Lagre-knapp aktiveres når state er gyldig OG endret. Kaller eksisterende `oppdaterSetting`-mutation.
+
+**Kalender-modal (`apps/web/src/app/dashbord/firma/kalender/page.tsx`):**
+
+- `KalenderRad`-type utvidet med `standardStartTid: string | null`, `standardSluttTid: string | null`, `pauseMin: number | null`.
+- `RadModal`: 3 nye `useState` for tids-felter. Ny `visTidsfelter`-flagg som er sant for `sommertid_start | sommertid_slutt | halvdag`. Når flagget er sant, vises en grå info-boks med tre inputs (start, slutt, pause-min). Når brukeren bytter type til ikke-tidsrelevant verdi, sendes `null` for alle tre — server forkaster verdiene. Klient-side validering speiler server (start < slutt + pauseMin 0-480) for å vise feilmelding før mutation kjøres.
+- Måneds-liste: ny klokke-badge ved siden av timer-badge når enten `standardStartTid` eller `standardSluttTid` er satt. Format: `🕐 07:00–15:30` med grå border + tooltip via `title`-attributt.
+
+**i18n:** 15 nye nøkler i nb/en — 7 under `firma.innstillinger.standardArbeidstid.*` + 8 under `firma.kalender.felt.*` / `feil.*` / `tidsperiodeOverstyrt`. Auto-oversatt til 13 språk via `generate.ts` (2262 → 2277 totalt).
+
+**Designvalg:**
+- **Klokke-badge for både start og slutt:** Viser `07:00–15:30` selv om bare én av dem er overstyrt — den andre faller tilbake til firma-default ved utleting (T4-b helper), men UI-en viser eksplisitt at perioden har overstyring. Forhindrer at brukeren misforstår dataen.
+- **Hard validering på server, speilet på klient:** Server avviser tidsfelter på `helligdag/fellesferie/klemdager/firma_fri` (BAD_REQUEST). Klient sender `null` for dem, så vanlig flyt trigger ikke feilen. Hvis bruker bytter type, nullstilles ikke state-feltene i komponenten — slik at bytte tilbake gjenoppretter verdiene. Verdiene sendes kun hvis `visTidsfelter === true`.
+- **`pauseMin` validering:** Server krever `min(0).max(480)` på Zod, klient speiler. 0 er gyldig for halvdag uten pause; 480 = 8 timer pause øvre grense.
+
+**Verifisert:** `@sitedoc/api` typecheck 0 nye feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). i18n-generate fullført uten feil.
+
+**Reload-metode:** TypeScript + i18n-endring. Full reload + cache-cleaning ved deploy. Server-reload kreves (Zod-skjema endret).
+
+**Gjenstår i T.4-bunken:**
+- **T4-d:** Mobil Drizzle — fraTid/tilTid på sheet_timer_local + sheet_machine_local + arbeidstidskalender_local-tabell + organizationSettingLocal-tabell + kalender-katalog-service + timerSync push/pull.
+- **T4-e:** Mobil UI — TimerRadModal + MaskinRadModal med DateTimePicker + forhåndsutfylling via `hentEffektivArbeidstid`-resultat (kalender-cache).
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR T4-b hentEffektivArbeidstid + sommertid-validering — MERGET TIL DEVELOP 2026-05-16 (merge `9bcfb5b1`, impl `088a1e37`)
 
 Andre sub-PR av T.4-bunken. Server-API for å beregne effektiv arbeidstid per dato + hard validering av sommertid-par. Ingen API-input-utvidelse for de nye T4-a-feltene ennå — det kommer i T4-c (web-UI) sammen med UI-feltene.
 

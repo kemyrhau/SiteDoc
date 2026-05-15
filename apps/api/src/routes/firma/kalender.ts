@@ -80,6 +80,52 @@ async function sommertidStatusForAar(
   return "ingen";
 }
 
+// HH:MM regex — 00:00 til 23:59. Brukes i Zod-input for de tre periode-feltene.
+const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/**
+ * T.4 — Tidsfelter (standardStartTid/standardSluttTid/pauseMin) på
+ * ArbeidstidsKalender er kun gyldig for sommertid_start, sommertid_slutt
+ * og halvdag. Avvises for helligdag/fellesferie/klemdager/firma_fri siden
+ * de dagene ikke har arbeidstid-relevant rolle.
+ */
+function validerTidsfelter(
+  type: KalenderType,
+  felter: {
+    standardStartTid?: string | null;
+    standardSluttTid?: string | null;
+    pauseMin?: number | null;
+  },
+): void {
+  const harTidsfelt =
+    (felter.standardStartTid !== null && felter.standardStartTid !== undefined) ||
+    (felter.standardSluttTid !== null && felter.standardSluttTid !== undefined) ||
+    (felter.pauseMin !== null && felter.pauseMin !== undefined);
+
+  const erTidsRelevant =
+    type === "sommertid_start" ||
+    type === "sommertid_slutt" ||
+    type === "halvdag";
+
+  if (harTidsfelt && !erTidsRelevant) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message:
+        "Tidsfelter (standardStartTid/standardSluttTid/pauseMin) kan kun settes for sommertid_start, sommertid_slutt og halvdag",
+    });
+  }
+
+  // Hvis begge tider er satt, krev start < slutt (samme dag, ingen midnatt-overgang).
+  if (felter.standardStartTid && felter.standardSluttTid) {
+    if (felter.standardStartTid >= felter.standardSluttTid) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "standardStartTid må være før standardSluttTid",
+      });
+    }
+  }
+}
+
 /**
  * T.4-validering — sommertid_start krever en aktiv sommertid_slutt-rad i
  * samme år. Forhindrer at firma ender opp med åpent sommertids-regime
@@ -257,11 +303,21 @@ export const kalenderRouter = router({
         type: KalenderType,
         navn: z.string().min(1).max(255),
         timerOverstyr: z.number().nullable().optional(),
+        // T.4 (2026-05-16) — periode-overstyring. Kun gyldig for
+        // sommertid_start/sommertid_slutt/halvdag (valideres i validerTidsfelter).
+        standardStartTid: z.string().regex(HHMM_REGEX).nullable().optional(),
+        standardSluttTid: z.string().regex(HHMM_REGEX).nullable().optional(),
+        pauseMin: z.number().int().min(0).max(480).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       await autoriserAdminForFirma(ctx.userId, input.organizationId);
       validerTimerOverstyr(input.type, input.timerOverstyr);
+      validerTidsfelter(input.type, {
+        standardStartTid: input.standardStartTid,
+        standardSluttTid: input.standardSluttTid,
+        pauseMin: input.pauseMin,
+      });
 
       const aar = input.dato.getUTCFullYear();
 
@@ -281,6 +337,9 @@ export const kalenderRouter = router({
               input.timerOverstyr !== null && input.timerOverstyr !== undefined
                 ? new Prisma.Decimal(input.timerOverstyr)
                 : null,
+            standardStartTid: input.standardStartTid ?? null,
+            standardSluttTid: input.standardSluttTid ?? null,
+            pauseMin: input.pauseMin ?? null,
           },
         });
 
@@ -317,6 +376,10 @@ export const kalenderRouter = router({
         navn: z.string().min(1).max(255).optional(),
         timerOverstyr: z.number().nullable().optional(),
         aktiv: z.boolean().optional(),
+        // T.4 (2026-05-16) — periode-overstyring.
+        standardStartTid: z.string().regex(HHMM_REGEX).nullable().optional(),
+        standardSluttTid: z.string().regex(HHMM_REGEX).nullable().optional(),
+        pauseMin: z.number().int().min(0).max(480).nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -331,6 +394,26 @@ export const kalenderRouter = router({
             ? Number(eksisterende.timerOverstyr)
             : null;
       validerTimerOverstyr(nyType, nyTimerOverstyr);
+
+      // T.4 — valider tidsfelter mot resulterende state. Bruker input-verdiene
+      // hvis satt, ellers eksisterende. Slik fanges type-bytte FRA halvdag TIL
+      // helligdag uten å eksplisitt sende standardStartTid: null som er
+      // gyldig i tidligere state men ulovlig kombinasjon i ny state.
+      const nyStandardStart =
+        input.standardStartTid !== undefined
+          ? input.standardStartTid
+          : eksisterende.standardStartTid;
+      const nyStandardSlutt =
+        input.standardSluttTid !== undefined
+          ? input.standardSluttTid
+          : eksisterende.standardSluttTid;
+      const nyPauseMin =
+        input.pauseMin !== undefined ? input.pauseMin : eksisterende.pauseMin;
+      validerTidsfelter(nyType, {
+        standardStartTid: nyStandardStart,
+        standardSluttTid: nyStandardSlutt,
+        pauseMin: nyPauseMin,
+      });
 
       // T.4 — bevarer invariant også på oppdater: hvis resulterende state er
       // sommertid_start, må det finnes en aktiv sommertid_slutt samme år
@@ -353,6 +436,11 @@ export const kalenderRouter = router({
             : new Prisma.Decimal(input.timerOverstyr);
       }
       if (input.aktiv !== undefined) data.aktiv = input.aktiv;
+      if (input.standardStartTid !== undefined)
+        data.standardStartTid = input.standardStartTid;
+      if (input.standardSluttTid !== undefined)
+        data.standardSluttTid = input.standardSluttTid;
+      if (input.pauseMin !== undefined) data.pauseMin = input.pauseMin;
 
       return prisma.arbeidstidsKalender.update({
         where: { id: input.id },
