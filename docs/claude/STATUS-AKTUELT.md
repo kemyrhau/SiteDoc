@@ -58,8 +58,8 @@ Schema + server-input på plass (T.4). UI-felt og fra<til-validering mangler.
 
 | Sub-PR | Status | Innhold |
 |---|---|---|
-| **T4-a** | 🟡 Klar for review på `feature/t4-a` (2026-05-16) | Schema + migrasjon. `OrganizationSetting.standardStartTid/SluttTid/PauseMin` (defaults 07:00/15:00/30) + `ArbeidstidsKalender.standardStartTid?/SluttTid?/pauseMin?` (overstyring for sommertid_start/slutt/halvdag). Additiv migrasjon, ingen breaking. |
-| **T4-b** | ⏳ Venter på T4-a deploy | Server-API + `hentEffektivArbeidstid(orgId, dato)`-helper. Zod-utvidelse på `oppdaterSetting` + kalender `opprett`/`oppdater`. Validering `fraTid < tilTid` + at tidsfelter kun gyldig for sommertid_start/slutt/halvdag. |
+| **T4-a** | ✅ Merget til develop 2026-05-16 (merge `5acd2a5d`, impl `cfe51fc5`) | Schema + migrasjon. `OrganizationSetting.standardStartTid/SluttTid/PauseMin` (defaults 07:00/15:00/30) + `ArbeidstidsKalender.standardStartTid?/SluttTid?/pauseMin?` (overstyring for sommertid_start/slutt/halvdag). Additiv migrasjon, ingen breaking. |
+| **T4-b** | 🟡 Klar for review på `feature/t4-b` (2026-05-16) | `hentEffektivArbeidstid(orgId, dato)`-helper i `apps/api/src/services/timer/arbeidstid.ts` (sommertid-overstyring → firma-default). Hard sommertid-par-validering i kalender opprett/oppdater (`sommertid_start` krever `sommertid_slutt` samme år). Zod-utvidelse for å SETTE de nye T4-a-feltene kommer i T4-c sammen med UI. |
 | **T4-c** | ⏳ Venter på T4-b | Web-UI — innstillinger-side («Standard arbeidstid»-seksjon) + kalender-modal (betinget visning av tidsfelter). |
 | **T4-d** | ⏳ Venter på T4-b | Mobil Drizzle — fraTid/tilTid på sheet_timer_local + sheet_machine_local + ny arbeidstidskalender_local-tabell (= T9d) + kalender-katalog-service + timerSync push/pull. |
 | **T4-e** | ⏳ Venter på T4-d | Mobil UI — TimerRadModal + MaskinRadModal med DateTimePicker + forhåndsutfylling fra kalender-cache. |
