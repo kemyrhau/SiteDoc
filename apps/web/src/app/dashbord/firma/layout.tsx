@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3, Boxes, Package, Database, ArrowLeft } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3, Boxes, Package, Database, ArrowLeft, Calendar } from "lucide-react";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
@@ -56,6 +56,11 @@ const navigasjon: NavElement[] = [
     href: "/dashbord/firma/timer/rapport",
     ikon: <BarChart3 className="h-4 w-4" />,
     kreverFirmaModul: "timer",
+  },
+  {
+    label: "Kalender",
+    href: "/dashbord/firma/kalender",
+    ikon: <Calendar className="h-4 w-4" />,
   },
   {
     label: "Varelager",
