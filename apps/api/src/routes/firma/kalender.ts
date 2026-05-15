@@ -1,0 +1,360 @@
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { Prisma, prisma, beregnNorskeHelligdager } from "@sitedoc/db";
+import { router, protectedProcedure } from "../../trpc/trpc";
+import {
+  autoriserAdminForFirma,
+  verifiserOrganisasjonTilgang,
+} from "../../trpc/tilgangskontroll";
+
+// T.9-spec — type-listen valideres her, ikke i Prisma-enum, slik at den
+// kan utvides uten DB-migrasjon.
+const KalenderType = z.enum([
+  "helligdag",
+  "fellesferie",
+  "klemdager",
+  "sommertid_start",
+  "sommertid_slutt",
+  "halvdag",
+  "firma_fri",
+]);
+
+type KalenderType = z.infer<typeof KalenderType>;
+
+/**
+ * Konverter Date → "YYYY-MM-DD" i UTC. Brukes som sammenligningsnøkkel
+ * ved import (helligdager kommer som UTC midnatt fra beregnNorskeHelligdager).
+ */
+function toIsoDato(dato: Date): string {
+  return dato.toISOString().slice(0, 10);
+}
+
+/**
+ * Valider at timerOverstyr kun settes for halvdag-type.
+ * Kastes som BAD_REQUEST hvis kombinasjonen er ugyldig.
+ */
+function validerTimerOverstyr(type: KalenderType, timerOverstyr: number | null | undefined): void {
+  if (type === "halvdag") {
+    if (timerOverstyr === null || timerOverstyr === undefined) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Halvdag krever timerOverstyr (antall timer)",
+      });
+    }
+    if (timerOverstyr <= 0 || timerOverstyr >= 24) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "timerOverstyr må være > 0 og < 24",
+      });
+    }
+  } else if (timerOverstyr !== null && timerOverstyr !== undefined) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "timerOverstyr kan kun settes for halvdag-type",
+    });
+  }
+}
+
+/**
+ * Returnerer status for sommertid-paret i et gitt år.
+ * Brukes av hentForAar-respons så UI kan varsle om ufullstendig konfigurasjon.
+ */
+async function sommertidStatusForAar(
+  organizationId: string,
+  aar: number,
+): Promise<"komplett" | "bare_start" | "bare_slutt" | "ingen"> {
+  const rader = await prisma.arbeidstidsKalender.findMany({
+    where: {
+      organizationId,
+      aar,
+      type: { in: ["sommertid_start", "sommertid_slutt"] },
+      aktiv: true,
+    },
+    select: { type: true },
+  });
+  const harStart = rader.some((r) => r.type === "sommertid_start");
+  const harSlutt = rader.some((r) => r.type === "sommertid_slutt");
+  if (harStart && harSlutt) return "komplett";
+  if (harStart) return "bare_start";
+  if (harSlutt) return "bare_slutt";
+  return "ingen";
+}
+
+/**
+ * Hent én rad og verifiser at den tilhører firmaet.
+ */
+async function hentRadForFirma(id: string, organizationId: string) {
+  const rad = await prisma.arbeidstidsKalender.findFirst({
+    where: { id, organizationId },
+  });
+  if (!rad) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Kalender-rad finnes ikke eller tilhører ikke ditt firma",
+    });
+  }
+  return rad;
+}
+
+export const kalenderRouter = router({
+  /**
+   * Hent alle aktive kalender-rader for et år. Tilgjengelig for alle
+   * firma-medlemmer (ikke bare admin) — kalenderen er ikke sensitive data.
+   */
+  hentForAar: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        aar: z.number().int().min(1900).max(2200),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+
+      const rader = await prisma.arbeidstidsKalender.findMany({
+        where: {
+          organizationId: input.organizationId,
+          aar: input.aar,
+          aktiv: true,
+        },
+        orderBy: { dato: "asc" },
+      });
+
+      const sommertidStatus = await sommertidStatusForAar(
+        input.organizationId,
+        input.aar,
+      );
+
+      return { rader, sommertidStatus };
+    }),
+
+  /**
+   * Importer norske helligdager for et år. Idempotent — kjøres på nytt
+   * uten å overskrive admin-deaktiverte rader.
+   *
+   * Strategi:
+   *   - For hver av de 12 helligdagene fra beregnNorskeHelligdager:
+   *     - Hvis dato eksisterer som aktiv=false → hopp over (admin har deaktivert)
+   *     - Hvis dato eksisterer som aktiv=true → oppdater navn
+   *     - Ellers → opprett ny rad
+   */
+  importerNorskStandard: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        aar: z.number().int().min(1900).max(2200),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+
+      const helligdager = beregnNorskeHelligdager(input.aar);
+
+      const eksisterende = await prisma.arbeidstidsKalender.findMany({
+        where: { organizationId: input.organizationId, aar: input.aar },
+        select: { dato: true, type: true, aktiv: true },
+      });
+      const deaktiverteDatoer = new Set(
+        eksisterende.filter((r) => !r.aktiv).map((r) => toIsoDato(r.dato)),
+      );
+      const eksisterendeDatoer = new Set(
+        eksisterende.map((r) => toIsoDato(r.dato)),
+      );
+
+      let opprettet = 0;
+      let oppdatert = 0;
+      let hoppetOver = 0;
+
+      for (const h of helligdager) {
+        const datoIso = toIsoDato(h.dato);
+
+        if (deaktiverteDatoer.has(datoIso)) {
+          hoppetOver++;
+          continue;
+        }
+
+        if (eksisterendeDatoer.has(datoIso)) {
+          await prisma.arbeidstidsKalender.update({
+            where: {
+              organizationId_dato: {
+                organizationId: input.organizationId,
+                dato: h.dato,
+              },
+            },
+            data: { navn: h.navn, type: "helligdag", aktiv: true },
+          });
+          oppdatert++;
+        } else {
+          await prisma.arbeidstidsKalender.create({
+            data: {
+              organizationId: input.organizationId,
+              aar: input.aar,
+              dato: h.dato,
+              type: "helligdag",
+              navn: h.navn,
+            },
+          });
+          opprettet++;
+        }
+      }
+
+      return { opprettet, oppdatert, hoppetOver };
+    }),
+
+  /**
+   * Opprett en ny kalender-rad. Firma-admin-auth.
+   *
+   * Sommertid-par-validering er myk: server kaster ikke feil ved opprettelse
+   * av sommertid_start uten matching sommertid_slutt. Status returneres via
+   * sommertidStatusForAar slik at UI kan varsle. Hard validering legges på
+   * forbruks-siden (auto-fordeling) når begge poster trengs.
+   */
+  opprett: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        dato: z.coerce.date(),
+        type: KalenderType,
+        navn: z.string().min(1).max(255),
+        timerOverstyr: z.number().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      validerTimerOverstyr(input.type, input.timerOverstyr);
+
+      const aar = input.dato.getUTCFullYear();
+
+      try {
+        const rad = await prisma.arbeidstidsKalender.create({
+          data: {
+            organizationId: input.organizationId,
+            aar,
+            dato: input.dato,
+            type: input.type,
+            navn: input.navn.trim(),
+            timerOverstyr:
+              input.timerOverstyr !== null && input.timerOverstyr !== undefined
+                ? new Prisma.Decimal(input.timerOverstyr)
+                : null,
+          },
+        });
+
+        const sommertidStatus = await sommertidStatusForAar(
+          input.organizationId,
+          aar,
+        );
+
+        return { rad, sommertidStatus };
+      } catch (e) {
+        if (
+          e instanceof Prisma.PrismaClientKnownRequestError &&
+          e.code === "P2002"
+        ) {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message: "En kalender-rad finnes allerede på denne datoen",
+          });
+        }
+        throw e;
+      }
+    }),
+
+  /**
+   * Oppdater en eksisterende kalender-rad. Firma-admin-auth.
+   * Datoen kan ikke endres — opprett ny rad og slett gammel hvis dato skal byttes.
+   */
+  oppdater: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        organizationId: z.string().uuid(),
+        type: KalenderType.optional(),
+        navn: z.string().min(1).max(255).optional(),
+        timerOverstyr: z.number().nullable().optional(),
+        aktiv: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      const eksisterende = await hentRadForFirma(input.id, input.organizationId);
+
+      const nyType = input.type ?? (eksisterende.type as KalenderType);
+      const nyTimerOverstyr =
+        input.timerOverstyr !== undefined
+          ? input.timerOverstyr
+          : eksisterende.timerOverstyr
+            ? Number(eksisterende.timerOverstyr)
+            : null;
+      validerTimerOverstyr(nyType, nyTimerOverstyr);
+
+      const data: Prisma.ArbeidstidsKalenderUpdateInput = {};
+      if (input.type !== undefined) data.type = input.type;
+      if (input.navn !== undefined) data.navn = input.navn.trim();
+      if (input.timerOverstyr !== undefined) {
+        data.timerOverstyr =
+          input.timerOverstyr === null
+            ? null
+            : new Prisma.Decimal(input.timerOverstyr);
+      }
+      if (input.aktiv !== undefined) data.aktiv = input.aktiv;
+
+      return prisma.arbeidstidsKalender.update({
+        where: { id: input.id },
+        data,
+      });
+    }),
+
+  /**
+   * Soft-delete: setter aktiv=false. Behold raden for audit-spor og slik at
+   * gjentatt importerNorskStandard ikke gjenoppretter admin-deaktiverte datoer.
+   */
+  slett: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        organizationId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      await hentRadForFirma(input.id, input.organizationId);
+
+      return prisma.arbeidstidsKalender.update({
+        where: { id: input.id },
+        data: { aktiv: false },
+      });
+    }),
+
+  /**
+   * Hent alle aktive kalender-rader for en periode. Brukes av mobil-cache
+   * (T9d) — typisk fraAar = inneværende år, tilAar = neste år for å dekke
+   * årsskifte. Tilgjengelig for alle firma-medlemmer.
+   */
+  hentForMobil: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        fraAar: z.number().int().min(1900).max(2200),
+        tilAar: z.number().int().min(1900).max(2200),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      if (input.fraAar > input.tilAar) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "fraAar må være ≤ tilAar",
+        });
+      }
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+
+      return prisma.arbeidstidsKalender.findMany({
+        where: {
+          organizationId: input.organizationId,
+          aar: { gte: input.fraAar, lte: input.tilAar },
+          aktiv: true,
+        },
+        orderBy: { dato: "asc" },
+      });
+    }),
+});
