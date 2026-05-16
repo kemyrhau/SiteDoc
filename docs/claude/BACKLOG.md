@@ -75,8 +75,11 @@ separat chat per `feedback_3d_annen_chat`.
 
 ### Timer-relatert
 
+- **Attestering edit-modus bugs (oppdaget 2026-05-16)** 🔴 — to bugs blokkerer prod-deploy av T7-2c-bunken + T7-2d:
+  1. Fra-tid viser «0:» i stedet for korrekt tid (f.eks. 07:00). Sannsynlig tidsformat-initialiseringsfeil.
+  2. Timer-endring fungerer ikke i edit-modus — input aksepterer ikke ny verdi eller verdien lagres ikke.
+  Rootcause ukjent for begge — krever kartlegging neste sesjon i `RedigerTimerRad`/`RedigerMaskinRad` + `AttesteringDetalj_Edit`.
 - **T7-3c geo-forslag-utvidelser** ❓ — historikk-baserte forslag (sist brukte prosjekt). Mye av geo-forslag-leveransen kom i T7-3b2. Egen sub-PR eller forkastes.
-- **T7-2b2 rad-splitting ved attestering** 🔴 — én rad → flere med ulike prosjekt/ECO/lønnsart/fra-til. Krever `parentRadId`-kolonne + `splittRad`-mutation. (`parentRadId` finnes allerede i schema fra T7-2b2 edit-modus.)
 - **`OrganizationMemberPermission` (modul-tilgang per ansatt)** 🔴 — låst i [fase-0-beslutninger.md](fase-0-beslutninger.md). Designet klart, ikke startet.
 
 ### Onboarding og brukerveileder

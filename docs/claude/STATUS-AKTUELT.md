@@ -6,6 +6,25 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### T7-2c-bunken (splittRad + SplittRadModal + integrasjon) — PÅ DEVELOP, IKKE PROD
+
+develop: T7-2c1 (`f6b92f70`) + T7-2c2 (`75aa0227`) + T7-2c3 (`4bfaacd7`)
+Venter på: maskin-timer arkitekturfix (se [BACKLOG.md § MASKIN-TIMER KOBLING](BACKLOG.md)) + edit-modus bugs (se nedenfor)
+
+### T7-2d prosjektnavn per attestering-rad — PÅ DEVELOP, IKKE PROD
+
+develop: `ad7fc773`
+Venter på: samme som T7-2c
+
+Test-DB-tilstand: `OrganizationSetting.tillattRedigerVedAttestering = true` aktivert for Byggeleder (`f1000001-0000-0000-0000-000000000002`) på `sitedoc_test` 2026-05-16. Ikke gjort på prod.
+
+### Åpne bugs i attestering edit-modus (ikke undersøkt — 2026-05-16)
+
+1. **Fra-tid viser «0:» i stedet for korrekt tid** (f.eks. 07:00). Sannsynlig årsak: tidsformat-initialisering i `RedigerTimerRad`/`RedigerMaskinRad` eller i `defaultTider`-utleding. Krever kartlegging.
+2. **Timer-endring fungerer ikke i edit-modus.** Bruker kan ikke skrive nytt timer-antall, eller verdien blir ikke lagret. Krever inspeksjon av `onChange`-håndtering i `RedigerTimerRad`/`RedigerMaskinRad` + state-flow i `AttesteringDetalj_Edit`.
+
+Rootcause ukjent for begge — krever kartlegging neste sesjon. Blokkerer prod-deploy av T7-2c-bunken + T7-2d.
+
 ### PR T7-2d prosjektnavn per attestering-rad + aktiverer redigering test — KLAR FOR REVIEW (branch `feature/t7-2d-attestering-fixes`)
 
 Liten bugfix-PR etter T7-2c-bunken. Lukker to attestering-mangler avdekket under E2E-verifikasjon:
