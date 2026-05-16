@@ -42,6 +42,7 @@ import { ArbeidstidSeksjon } from "../../src/components/timer-detalj/ArbeidstidS
 import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBanner";
 import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektVelger";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
+import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
 import { formatNorskDato, formatTidspunkt } from "../../src/utils/dato";
 import type {
   Sedel,
@@ -137,11 +138,21 @@ export default function DagsseddelDetalj() {
   }, [sedel]);
 
   const arbeidstidTimer = useMemo(() => {
-    if (!sedel?.startAt || !sedel?.endAt) return null;
-    const diff =
-      (new Date(sedel.endAt).getTime() - new Date(sedel.startAt).getTime()) /
-      3600000;
-    return Math.max(0, diff - (sedel.pauseMin ?? 0) / 60);
+    if (!sedel) return null;
+    // T4-e: Hvis brukeren har satt egen start/slutt på sedelen, bruk de.
+    // Ellers fall tilbake til effektiv dagsnorm fra firma-kalender (firma-
+    // default + sommertid-overstyring fra arbeidstidskalender_local).
+    if (sedel.startAt && sedel.endAt) {
+      const diff =
+        (new Date(sedel.endAt).getTime() - new Date(sedel.startAt).getTime()) /
+        3600000;
+      return Math.max(0, diff - (sedel.pauseMin ?? 0) / 60);
+    }
+    const effektiv = hentEffektivArbeidstidLokal(
+      sedel.organizationId,
+      new Date(`${sedel.dato}T00:00:00`),
+    );
+    return effektiv.dagsnorm;
   }, [sedel]);
 
   const totaltimer = useMemo(
@@ -362,6 +373,7 @@ export default function DagsseddelDetalj() {
             visHeader={aktiveProsjektIder.length > 1}
             sheetId={sheetId}
             organizationId={sedel.organizationId}
+            dato={sedel.dato}
             defaultAktivitetId={sedel.aktivitetId ?? null}
             harEquipmentCache={harEquipmentCache}
             redigerbar={erRedigerbar}
@@ -444,6 +456,7 @@ function ProsjektGruppe({
   visHeader,
   sheetId,
   organizationId,
+  dato,
   defaultAktivitetId,
   harEquipmentCache,
   redigerbar,
@@ -456,6 +469,7 @@ function ProsjektGruppe({
   visHeader: boolean;
   sheetId: string;
   organizationId: string;
+  dato: string;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
   redigerbar: boolean;
@@ -482,6 +496,7 @@ function ProsjektGruppe({
         organizationId={organizationId}
         rader={timerRader}
         projectId={projectId}
+        dato={dato}
         defaultAktivitetId={defaultAktivitetId}
         redigerbar={redigerbar}
         onEndret={onEndret}
@@ -498,6 +513,7 @@ function ProsjektGruppe({
         sheetId={sheetId}
         organizationId={organizationId}
         projectId={projectId}
+        dato={dato}
         rader={maskinRader}
         harEquipmentCache={harEquipmentCache}
         redigerbar={redigerbar}
