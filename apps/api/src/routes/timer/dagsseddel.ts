@@ -165,6 +165,7 @@ type TilleggSnapshot = {
 type MaskinSnapshot = {
   id: string;
   projectId: string;
+  externalCostObjectId: string | null;
   vehicleId: string;
   byggeplassId: string | null;
   fraTid: string | null;
@@ -198,6 +199,7 @@ type TilleggRow = {
 type MaskinRow = {
   id: string;
   projectId: string;
+  externalCostObjectId: string | null;
   vehicleId: string;
   byggeplassId: string | null;
   fraTid: string | null;
@@ -236,6 +238,7 @@ function snapshotMaskin(r: MaskinRow): MaskinSnapshot {
   return {
     id: r.id,
     projectId: r.projectId,
+    externalCostObjectId: r.externalCostObjectId,
     vehicleId: r.vehicleId,
     byggeplassId: r.byggeplassId,
     fraTid: r.fraTid,
@@ -245,6 +248,175 @@ function snapshotMaskin(r: MaskinRow): MaskinSnapshot {
     enhet: r.enhet,
     parentRadId: r.parentRadId,
   };
+}
+
+// ============================================================================
+//  T7-4b (2026-05-16) — validerMaskinUnderArbeid
+//
+//  Per T.7-vedtak (låst 2026-05-16): maskin er utstyrsbidrag av samme
+//  tidsperiode som arbeidstimer, ikke additivt. Invariant per sedel:
+//
+//      sum(SheetMachine.timer) ≤ sum(SheetTimer.timer)
+//
+//  beregnet per (projectId, externalCostObjectId)-gruppe.
+//
+//  Grandfather: kun nye/redigerte rader valideres. Eksisterende sedler
+//  med maskin > arbeid (registrert før T7-4b-deploy) berøres ikke før
+//  de aktivt redigeres. Validering kjøres på POST-state — alle aktive
+//  rader (alle attestertStatus unntatt "erstattet") + den foreslåtte
+//  endringen, og rejected ved overshoot.
+// ============================================================================
+
+type ValiderRad = {
+  projectId: string;
+  externalCostObjectId: string | null;
+  timer: number | Prisma.Decimal;
+};
+
+type ValiderBrytt = {
+  projectId: string;
+  externalCostObjectId: string | null;
+  maskinSum: number;
+  timerSum: number;
+};
+
+function validerMaskinUnderArbeid(
+  timer: ValiderRad[],
+  maskin: ValiderRad[],
+): ValiderBrytt[] {
+  const nokkel = (pid: string, eco: string | null) => `${pid}|${eco ?? ""}`;
+  const grupper = new Map<string, ValiderBrytt>();
+  const tilNum = (v: ValiderRad["timer"]): number =>
+    typeof v === "number" ? v : Number(v);
+
+  for (const t of timer) {
+    const k = nokkel(t.projectId, t.externalCostObjectId);
+    const g = grupper.get(k) ?? {
+      projectId: t.projectId,
+      externalCostObjectId: t.externalCostObjectId,
+      timerSum: 0,
+      maskinSum: 0,
+    };
+    g.timerSum += tilNum(t.timer);
+    grupper.set(k, g);
+  }
+  for (const m of maskin) {
+    const k = nokkel(m.projectId, m.externalCostObjectId);
+    const g = grupper.get(k) ?? {
+      projectId: m.projectId,
+      externalCostObjectId: m.externalCostObjectId,
+      timerSum: 0,
+      maskinSum: 0,
+    };
+    g.maskinSum += tilNum(m.timer);
+    grupper.set(k, g);
+  }
+
+  const brytt: ValiderBrytt[] = [];
+  for (const g of grupper.values()) {
+    // Epsilon for Decimal-runding (timer lagres med 2 desimaler).
+    if (g.maskinSum > g.timerSum + 0.001) brytt.push(g);
+  }
+  return brytt;
+}
+
+/**
+ * Henter alle aktive rader (alle attestertStatus unntatt "erstattet") for
+ * validerings-formål. Brukes som baseline for å bygge post-state ved
+ * insert/update/delete-mutasjoner.
+ */
+async function hentRaderForValidering(
+  prismaTimer:
+    | Prisma.TransactionClient
+    | typeof import("@sitedoc/db-timer").prismaTimer,
+  sheetId: string,
+): Promise<{
+  timer: Array<{
+    id: string;
+    projectId: string;
+    externalCostObjectId: string | null;
+    timer: Prisma.Decimal;
+  }>;
+  maskin: Array<{
+    id: string;
+    projectId: string;
+    externalCostObjectId: string | null;
+    timer: Prisma.Decimal;
+  }>;
+}> {
+  const tx = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
+  const [timer, maskin] = await Promise.all([
+    tx.sheetTimer.findMany({
+      where: { sheetId, attestertStatus: { not: "erstattet" } },
+      select: {
+        id: true,
+        projectId: true,
+        externalCostObjectId: true,
+        timer: true,
+      },
+    }),
+    tx.sheetMachine.findMany({
+      where: { sheetId, attestertStatus: { not: "erstattet" } },
+      select: {
+        id: true,
+        projectId: true,
+        externalCostObjectId: true,
+        timer: true,
+      },
+    }),
+  ]);
+  return { timer, maskin };
+}
+
+/**
+ * Berik brytt-resultat med prosjekt- og ECO-navn fra kjernen-databasen og
+ * formater til menneskelesbar feilmelding. Én linje per (projectId, ECO)-
+ * gruppe som bryter invariant.
+ */
+async function feilMeldingMaskinOverstiger(
+  brytt: ValiderBrytt[],
+): Promise<string> {
+  const projectIds = Array.from(new Set(brytt.map((b) => b.projectId)));
+  const ecoIds = Array.from(
+    new Set(
+      brytt
+        .map((b) => b.externalCostObjectId)
+        .filter((e): e is string => e !== null),
+    ),
+  );
+  const [prosjekter, ecoer] = await Promise.all([
+    projectIds.length > 0
+      ? prisma.project.findMany({
+          where: { id: { in: projectIds } },
+          select: { id: true, name: true, projectNumber: true },
+        })
+      : Promise.resolve([]),
+    ecoIds.length > 0
+      ? prisma.externalCostObject.findMany({
+          where: { id: { in: ecoIds } },
+          select: { id: true, kortNavn: true, proAdmId: true },
+        })
+      : Promise.resolve([]),
+  ]);
+  const pMap = new Map(prosjekter.map((p) => [p.id, p]));
+  const eMap = new Map(ecoer.map((e) => [e.id, e]));
+
+  return brytt
+    .map((b) => {
+      const p = pMap.get(b.projectId);
+      const pNavn = p
+        ? `${p.projectNumber ?? ""} ${p.name}`.trim() || b.projectId
+        : b.projectId;
+      let suffix = "";
+      if (b.externalCostObjectId) {
+        const e = eMap.get(b.externalCostObjectId);
+        suffix = e
+          ? ` / underprosjekt ${e.proAdmId} · ${e.kortNavn}`
+          : ` / underprosjekt ${b.externalCostObjectId}`;
+      }
+      return `Maskintimer (${b.maskinSum.toFixed(2)}t) overstiger arbeidstimer (${b.timerSum.toFixed(2)}t) for prosjekt ${pNavn}${suffix}`;
+    })
+    .join("\n");
 }
 
 export const dagsseddelRouter = router({
@@ -530,6 +702,26 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
+      // Defensiv — å legge til en timer-rad kan kun øke timer-summen i
+      // bucket. Beholdes for konsistens på tvers av mutasjoner.
+      const naa = await hentRaderForValidering(ctx.prismaTimer, input.sheetId);
+      const postTimer: ValiderRad[] = [
+        ...naa.timer,
+        {
+          projectId: input.projectId,
+          externalCostObjectId: input.externalCostObjectId ?? null,
+          timer: input.timer,
+        },
+      ];
+      const brytt = validerMaskinUnderArbeid(postTimer, naa.maskin);
+      if (brytt.length > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: await feilMeldingMaskinOverstiger(brytt),
+        });
+      }
+
       return ctx.prismaTimer.sheetTimer.create({
         data: {
           sheetId: input.sheetId,
@@ -580,6 +772,29 @@ export const dagsseddelRouter = router({
       if (input.timer !== undefined) data.timer = input.timer;
       if (input.externalCostObjectId !== undefined) {
         data.externalCostObjectId = input.externalCostObjectId;
+      }
+
+      // T7-4b: valider post-state. Reduksjon av timer eller flytting til
+      // annen ECO kan få maskin-totalen til å overstige.
+      const naa = await hentRaderForValidering(ctx.prismaTimer, rad.sheetId);
+      const postTimer: ValiderRad[] = naa.timer.map((r) =>
+        r.id === input.id
+          ? {
+              projectId: r.projectId, // projectId endres ikke i oppdaterTimerRad
+              externalCostObjectId:
+                input.externalCostObjectId !== undefined
+                  ? input.externalCostObjectId
+                  : r.externalCostObjectId,
+              timer: input.timer !== undefined ? input.timer : r.timer,
+            }
+          : r,
+      );
+      const brytt = validerMaskinUnderArbeid(postTimer, naa.maskin);
+      if (brytt.length > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: await feilMeldingMaskinOverstiger(brytt),
+        });
       }
 
       return ctx.prismaTimer.sheetTimer.update({
@@ -1474,6 +1689,7 @@ export const dagsseddelRouter = router({
             z.object({
               originalId: z.string().uuid().nullable(),
               projectId: z.string().uuid(),
+              externalCostObjectId: z.string().uuid().nullable().optional(),
               vehicleId: z.string().uuid(),
               byggeplassId: z.string().uuid().nullable().optional(),
               fraTid: z.string().nullable().optional(),
@@ -1593,6 +1809,36 @@ export const dagsseddelRouter = router({
       const antallErstattet =
         eksTimer.length + eksTillegg.length + eksMaskin.length;
 
+      // T7-4b: valider post-state FØR transaksjon. Post-state = ikke-erstattede
+      // rader EKSKLUSIV de pending vi nå skal erstatte, PLUSS nyeRader.
+      // (eksTimer/eksTillegg/eksMaskin hentes som pending; alle erstattes.)
+      const eksisterendePendingTimerIder = new Set(eksTimer.map((r) => r.id));
+      const eksisterendePendingMaskinIder = new Set(eksMaskin.map((r) => r.id));
+      const baseline = await hentRaderForValidering(ctx.prismaTimer, sheet.id);
+      const postTimer: ValiderRad[] = [
+        ...baseline.timer.filter((r) => !eksisterendePendingTimerIder.has(r.id)),
+        ...input.nyeRader.timer.map((r) => ({
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId ?? null,
+          timer: r.timer,
+        })),
+      ];
+      const postMaskin: ValiderRad[] = [
+        ...baseline.maskin.filter((r) => !eksisterendePendingMaskinIder.has(r.id)),
+        ...input.nyeRader.maskin.map((r) => ({
+          projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId ?? null,
+          timer: r.timer,
+        })),
+      ];
+      const brytt = validerMaskinUnderArbeid(postTimer, postMaskin);
+      if (brytt.length > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: await feilMeldingMaskinOverstiger(brytt),
+        });
+      }
+
       // Transaksjon: marker alle eksisterende pending som "erstattet" + opprett nye
       await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetTimer.updateMany({
@@ -1655,6 +1901,7 @@ export const dagsseddelRouter = router({
               sheetId: sheet.id,
               vehicleId: rad.vehicleId,
               projectId: rad.projectId,
+              externalCostObjectId: rad.externalCostObjectId ?? null,
               byggeplassId: rad.byggeplassId ?? null,
               fraTid: rad.fraTid ?? null,
               tilTid: rad.tilTid ?? null,
@@ -1758,6 +2005,7 @@ export const dagsseddelRouter = router({
             .array(
               z.object({
                 projectId: z.string().uuid(),
+                externalCostObjectId: z.string().uuid().nullable().optional(),
                 vehicleId: z.string().uuid(),
                 byggeplassId: z.string().uuid().nullable().optional(),
                 fraTid: z.string().nullable().optional(),
@@ -1917,6 +2165,29 @@ export const dagsseddelRouter = router({
           ),
         ]);
       } else {
+        // T7-4b: valider post-state for maskin-splitt. Original maskin-rad
+        // erstattes med N nye rader som kan ha annet ECO/prosjekt — kan
+        // forskyve buckets og bryte sum(maskin) ≤ sum(timer)-invariant.
+        const baseline = await hentRaderForValidering(
+          ctx.prismaTimer,
+          sheet.id,
+        );
+        const postMaskin: ValiderRad[] = [
+          ...baseline.maskin.filter((r) => r.id !== original.id),
+          ...input.nyeRader.map((rad) => ({
+            projectId: rad.projectId,
+            externalCostObjectId: rad.externalCostObjectId ?? null,
+            timer: rad.timer,
+          })),
+        ];
+        const brytt = validerMaskinUnderArbeid(baseline.timer, postMaskin);
+        if (brytt.length > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: await feilMeldingMaskinOverstiger(brytt),
+          });
+        }
+
         await ctx.prismaTimer.$transaction([
           ctx.prismaTimer.sheetMachine.update({
             where: { id: original.id },
@@ -1932,6 +2203,7 @@ export const dagsseddelRouter = router({
                 sheetId: sheet.id,
                 vehicleId: rad.vehicleId,
                 projectId: rad.projectId,
+                externalCostObjectId: rad.externalCostObjectId ?? null,
                 byggeplassId: rad.byggeplassId ?? null,
                 fraTid: rad.fraTid ?? null,
                 tilTid: rad.tilTid ?? null,
@@ -2246,6 +2518,7 @@ export const dagsseddelRouter = router({
           maskiner: s.maskiner.map((m) => ({
             id: m.id,
             projectId: m.projectId,
+            externalCostObjectId: m.externalCostObjectId,
             vehicleId: m.vehicleId,
             timer: Number(m.timer),
             mengde: m.mengde !== null ? Number(m.mengde) : null,
@@ -2313,6 +2586,7 @@ export const dagsseddelRouter = router({
                 z.object({
                   id: z.string().uuid(),
                   projectId: z.string().uuid().optional(),
+                  externalCostObjectId: z.string().uuid().nullable().optional(),
                   vehicleId: z.string().uuid(),
                   timer: z.number().min(0).max(24),
                   mengde: z.number().min(0).nullable().optional(),
@@ -2500,6 +2774,33 @@ export const dagsseddelRouter = router({
           const innkommendeStatus =
             lokal.status === "accepted" ? "sent" : lokal.status;
 
+          // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
+          // syncBatch erstatter alle rader på sedelen — post-state = exakt
+          // det som er i lokal.timer + lokal.maskiner. Feil per sedel
+          // resulterer i "feilet" for KUN den sedelen, ikke batchen.
+          const syncPostTimer: ValiderRad[] = lokal.timer.map((t) => ({
+            projectId: t.projectId ?? lokal.projectId,
+            externalCostObjectId: t.externalCostObjectId ?? null,
+            timer: t.timer,
+          }));
+          const syncPostMaskin: ValiderRad[] = lokal.maskiner.map((m) => ({
+            projectId: m.projectId ?? lokal.projectId,
+            externalCostObjectId: m.externalCostObjectId ?? null,
+            timer: m.timer,
+          }));
+          const syncBrytt = validerMaskinUnderArbeid(
+            syncPostTimer,
+            syncPostMaskin,
+          );
+          if (syncBrytt.length > 0) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: await feilMeldingMaskinOverstiger(syncBrytt),
+            });
+            continue;
+          }
+
           // Per-seddel transaksjon: upsert sedel + erstatt rader atomisk
           // T.1 (2026-05-11): projectId/byggeplassId lagres på rad-nivå.
           // Mobil sender fortsatt lokal.projectId på sedel-nivå inntil mobil-PR
@@ -2582,6 +2883,7 @@ export const dagsseddelRouter = router({
                   id: m.id,
                   sheetId: sedel.id,
                   projectId: m.projectId ?? lokal.projectId,
+                  externalCostObjectId: m.externalCostObjectId ?? null,
                   byggeplassId: lokal.byggeplassId ?? null,
                   vehicleId: m.vehicleId,
                   timer: m.timer,
@@ -2655,6 +2957,7 @@ export const dagsseddelRouter = router({
         z.object({
           sheetId: z.string().uuid(),
           projectId: z.string().uuid(),
+          externalCostObjectId: z.string().uuid().nullable().optional(),
           byggeplassId: z.string().uuid().nullable().optional(),
           vehicleId: z.string().uuid(),
           timer: z.number().min(0).max(24),
@@ -2678,10 +2981,32 @@ export const dagsseddelRouter = router({
         }
         await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
 
+        // T7-4b: valider post-state.
+        const naa = await hentRaderForValidering(
+          ctx.prismaTimer,
+          input.sheetId,
+        );
+        const postMaskin: ValiderRad[] = [
+          ...naa.maskin,
+          {
+            projectId: input.projectId,
+            externalCostObjectId: input.externalCostObjectId ?? null,
+            timer: input.timer,
+          },
+        ];
+        const brytt = validerMaskinUnderArbeid(naa.timer, postMaskin);
+        if (brytt.length > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: await feilMeldingMaskinOverstiger(brytt),
+          });
+        }
+
         return ctx.prismaTimer.sheetMachine.create({
           data: {
             sheetId: input.sheetId,
             projectId: input.projectId,
+            externalCostObjectId: input.externalCostObjectId ?? null,
             byggeplassId: input.byggeplassId ?? null,
             vehicleId: input.vehicleId,
             timer: input.timer,
@@ -2698,6 +3023,7 @@ export const dagsseddelRouter = router({
         z.object({
           id: z.string().uuid(),
           vehicleId: z.string().uuid().optional(),
+          externalCostObjectId: z.string().uuid().nullable().optional(),
           timer: z.number().min(0).max(24).optional(),
           mengde: z.number().min(0).nullable().optional(),
           enhet: z.string().max(20).nullable().optional(),
@@ -2727,6 +3053,32 @@ export const dagsseddelRouter = router({
         if (input.timer !== undefined) data.timer = input.timer;
         if (input.mengde !== undefined) data.mengde = input.mengde;
         if (input.enhet !== undefined) data.enhet = input.enhet;
+        if (input.externalCostObjectId !== undefined) {
+          data.externalCostObjectId = input.externalCostObjectId;
+        }
+
+        // T7-4b: valider post-state. Endring av timer eller ECO på maskin
+        // kan bryte sum(maskin) ≤ sum(timer)-invariant.
+        const naa = await hentRaderForValidering(ctx.prismaTimer, rad.sheetId);
+        const postMaskin: ValiderRad[] = naa.maskin.map((r) =>
+          r.id === input.id
+            ? {
+                projectId: r.projectId, // projectId endres ikke i maskin.oppdater
+                externalCostObjectId:
+                  input.externalCostObjectId !== undefined
+                    ? input.externalCostObjectId
+                    : r.externalCostObjectId,
+                timer: input.timer !== undefined ? input.timer : r.timer,
+              }
+            : r,
+        );
+        const brytt = validerMaskinUnderArbeid(naa.timer, postMaskin);
+        if (brytt.length > 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: await feilMeldingMaskinOverstiger(brytt),
+          });
+        }
 
         return ctx.prismaTimer.sheetMachine.update({
           where: { id: input.id },
