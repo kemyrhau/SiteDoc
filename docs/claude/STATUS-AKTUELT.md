@@ -6,24 +6,60 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### T7-4-bunken (dagsseddel prosjekt+ECO-gruppering) — KOMPLETT PÅ DEVELOP + DEPLOYET TIL TEST 2026-05-16
+
+Implementerer T.7-vedtak (låst 2026-05-16): maskin er utstyrsbidrag av
+samme tidsperiode som arbeidstimer, ikke additivt. Dagsseddel grupperes
+per (projectId, externalCostObjectId)-bucket med maskin som visuell
+underpost av arbeidstimer; server håndhever `sum(maskin) ≤ sum(timer)`
+per gruppe. Grandfather: kun nye/redigerte rader valideres.
+
+| Sub-PR | Innhold | Merge-commit |
+|---|---|---|
+| T7-4a | Schema: `SheetMachine.externalCostObjectId` + idempotent migrasjon (server + mobil Drizzle) | `ffde00e5` |
+| T7-4b | Server: `validerMaskinUnderArbeid`-helper + wire-in til 7 mutasjoner + ECO på maskin-input | `e3c99bc3` |
+| T7-4c | Web arbeider-detalj: prosjekt+ECO-gruppering, maskin som underpost, sum-indikator, indigo-badge | `38296dd5` |
+| T7-4d | Web attestering (read-only + edit-modus + SplittRadModal): samme bucket-mønster | `82509083` |
+| T7-4e | Mobil: ECO-bukets i `app/timer/[id].tsx` + EcoBucket-komponent + ECO-velger i MaskinSeksjon + sync-fix for maskin-ECO | `08a76535` |
+
+**Sync-fix oppdaget i T7-4e:** `timerSync.ts` refererte `externalCostObjectId`
+kun for timer-rader; maskin-mappingen i både push og pull manglet feltet.
+Hadde forblitt latent fordi ingen testdata har ECO på maskin enda. Fikset
+samme PR — server (T7-4b) og Drizzle (T7-4a) hadde feltet allerede.
+
+**Ikke deployet til prod ennå.** Krever innlogget verifisering på test først.
+
+**Mobil reload:** Expo `r`-reload tilstrekkelig (idempotent T7-4a-migrasjon
+kjøres ved app-oppstart). Ingen EAS-bygg.
+
+### T7-2e/2f attestering edit-modus bugfix + SplittRadModal bredde — DEPLOYET TIL TEST 2026-05-16
+
+T7-2e (`1383b8eb`): tidsfelt `min-w-[120px]` + `step` clampet til 1800 så
+minutt-selektor alltid vises + lokal string-state for timer-input (parses
+ved blur for å bevare desimaltegn). Løser «fra-tid viser 0:»- og «timer-
+endring fungerer ikke»-bugs i attestering edit-modus.
+
+T7-2f (`14740e56`): SplittRadModal bredde `max-w-4xl` → `max-w-6xl` +
+`overflow-x-auto` på rad-container.
+
+Verifisert på test 2026-05-16. Klar for prod sammen med T7-2c/2d-bunken
++ T7-4-bunken etter innlogget QA.
+
 ### T7-2c-bunken (splittRad + SplittRadModal + integrasjon) — PÅ DEVELOP, IKKE PROD
 
 develop: T7-2c1 (`f6b92f70`) + T7-2c2 (`75aa0227`) + T7-2c3 (`4bfaacd7`)
-Venter på: maskin-timer arkitekturfix (se [BACKLOG.md § MASKIN-TIMER KOBLING](BACKLOG.md)) + edit-modus bugs (se nedenfor)
+Tidligere blokkere oppløst:
+- Maskin-timer arkitekturfix → levert i T7-4-bunken
+- Edit-modus bugs → fixet i T7-2e
+
+Klar for prod sammen med T7-2d + T7-2e/2f + T7-4-bunken etter innlogget QA på test.
 
 ### T7-2d prosjektnavn per attestering-rad — PÅ DEVELOP, IKKE PROD
 
 develop: `ad7fc773`
-Venter på: samme som T7-2c
+Samme prod-status som T7-2c-bunken.
 
 Test-DB-tilstand: `OrganizationSetting.tillattRedigerVedAttestering = true` aktivert for Byggeleder (`f1000001-0000-0000-0000-000000000002`) på `sitedoc_test` 2026-05-16. Ikke gjort på prod.
-
-### Åpne bugs i attestering edit-modus (ikke undersøkt — 2026-05-16)
-
-1. **Fra-tid viser «0:» i stedet for korrekt tid** (f.eks. 07:00). Sannsynlig årsak: tidsformat-initialisering i `RedigerTimerRad`/`RedigerMaskinRad` eller i `defaultTider`-utleding. Krever kartlegging.
-2. **Timer-endring fungerer ikke i edit-modus.** Bruker kan ikke skrive nytt timer-antall, eller verdien blir ikke lagret. Krever inspeksjon av `onChange`-håndtering i `RedigerTimerRad`/`RedigerMaskinRad` + state-flow i `AttesteringDetalj_Edit`.
-
-Rootcause ukjent for begge — krever kartlegging neste sesjon. Blokkerer prod-deploy av T7-2c-bunken + T7-2d.
 
 ### PR T7-2d prosjektnavn per attestering-rad + aktiverer redigering test — MERGET TIL DEVELOP 2026-05-16 (merge `ad7fc773`, impl `762b89a0`)
 

@@ -84,6 +84,17 @@ separat chat per `feedback_3d_annen_chat`.
 - **T7-3c geo-forslag-utvidelser** ❓ — historikk-baserte forslag (sist brukte prosjekt). Mye av geo-forslag-leveransen kom i T7-3b2. Egen sub-PR eller forkastes.
 - **`OrganizationMemberPermission` (modul-tilgang per ansatt)** 🔴 — låst i [fase-0-beslutninger.md](fase-0-beslutninger.md). Designet klart, ikke startet.
 
+### Attestering-liste — expanded inline-visning (oppdaget 2026-05-16)
+
+Attestering-listen viser kun rad-antall, ikke innhold. Prosjektleder
+må åpne enkelt-sedel for å verifisere timeføring.
+
+Ønsket: alle registreringer synlige inline + redigering tilgjengelig
+direkte fra listen.
+
+- Alternativ A: expandable rader (default expanded).
+- Alternativ B: to-panel-visning (liste + detalj side om side).
+
 ### Onboarding og brukerveileder
 
 - **Onboarding-veileder (forutsetning for A.Markussen)** 🟡 — Runde 1 (a)+(b)+(c) deployet til prod 2026-05-02. Resterende: full guidet flyt for ny bruker. Se [onboarding-veileder.md](onboarding-veileder.md).
