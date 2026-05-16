@@ -2,7 +2,8 @@
 
 // T7-2b2 (2026-05-14): Inline-form for én timer-rad i edit-modus.
 
-import { Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Split, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
@@ -15,6 +16,8 @@ type Props = {
   tidsrundingMinutter: number | null;
   onChange: (felt: Partial<RedigerTimerRadData>) => void;
   onSlett: () => void;
+  /** T7-2c3: hvis satt, vis Splitt-knapp som kaller denne. */
+  onSplitt?: () => void;
 };
 
 export function RedigerTimerRad({
@@ -23,6 +26,7 @@ export function RedigerTimerRad({
   tidsrundingMinutter,
   onChange,
   onSlett,
+  onSplitt,
 }: Props) {
   const { t } = useTranslation();
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
@@ -31,6 +35,17 @@ export function RedigerTimerRad({
     { projectId: rad.projectId },
     { enabled: !!rad.projectId },
   );
+
+  // T7-2e: lokal string-state for timer-input slik at desimaler kan skrives uten
+  // at controlled input-loopen «spiser» punktum. Parent oppdateres først ved blur.
+  const [timerStr, setTimerStr] = useState(String(rad.timer));
+  useEffect(() => {
+    setTimerStr(String(rad.timer));
+  }, [rad.timer]);
+
+  // T7-2e: tving step ≤ 1800 (30 min) slik at minutt-selektor alltid vises selv
+  // om firmaet har tidsrunding på 60 min — Chrome skjuler minutter ved step=3600.
+  const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
 
   return (
     <div className="grid grid-cols-12 gap-2 rounded border border-gray-200 bg-gray-50 p-2 text-sm">
@@ -90,7 +105,7 @@ export function RedigerTimerRad({
       <input
         type="time"
         value={rad.fraTid ?? ""}
-        step={tidsrundingMinutter ? tidsrundingMinutter * 60 : undefined}
+        step={timeStep}
         onChange={(e) => onChange({ fraTid: e.target.value || null })}
         onBlur={(e) => {
           // T.5: fallback-runding for nettlesere som ignorerer step-attributtet.
@@ -99,13 +114,13 @@ export function RedigerTimerRad({
             if (rundet !== e.target.value) onChange({ fraTid: rundet });
           }
         }}
-        className="col-span-1 rounded border border-gray-300 px-1 py-1 text-xs"
+        className="col-span-1 min-w-[120px] rounded border border-gray-300 px-1 py-1 text-xs"
         placeholder="HH:MM"
       />
       <input
         type="time"
         value={rad.tilTid ?? ""}
-        step={tidsrundingMinutter ? tidsrundingMinutter * 60 : undefined}
+        step={timeStep}
         onChange={(e) => onChange({ tilTid: e.target.value || null })}
         onBlur={(e) => {
           if (tidsrundingMinutter && e.target.value) {
@@ -113,7 +128,7 @@ export function RedigerTimerRad({
             if (rundet !== e.target.value) onChange({ tilTid: rundet });
           }
         }}
-        className="col-span-1 rounded border border-gray-300 px-1 py-1 text-xs"
+        className="col-span-1 min-w-[120px] rounded border border-gray-300 px-1 py-1 text-xs"
         placeholder="HH:MM"
       />
 
@@ -121,20 +136,41 @@ export function RedigerTimerRad({
         type="number"
         step="0.25"
         min="0"
-        value={rad.timer}
-        onChange={(e) => onChange({ timer: Number(e.target.value) || 0 })}
+        value={timerStr}
+        onChange={(e) => setTimerStr(e.target.value)}
+        onBlur={() => {
+          const parsed = parseFloat(timerStr);
+          if (!isNaN(parsed) && parsed >= 0) {
+            if (parsed !== rad.timer) onChange({ timer: parsed });
+          } else {
+            setTimerStr(String(rad.timer));
+          }
+        }}
         className="col-span-1 rounded border border-gray-300 px-2 py-1 text-right text-xs font-mono"
       />
 
-      <button
-        type="button"
-        onClick={onSlett}
-        className="col-span-12 -mt-1 flex items-center justify-end gap-1 text-xs text-red-600 hover:text-red-800"
-        aria-label={t("timer.rediger.slettRad")}
-      >
-        <Trash2 className="h-3 w-3" />
-        {t("timer.rediger.slettRad")}
-      </button>
+      <div className="col-span-12 -mt-1 flex items-center justify-end gap-3">
+        {onSplitt && (
+          <button
+            type="button"
+            onClick={onSplitt}
+            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800"
+            aria-label={t("timer.rediger.splittRad")}
+          >
+            <Split className="h-3 w-3" />
+            {t("timer.rediger.splittRad")}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onSlett}
+          className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800"
+          aria-label={t("timer.rediger.slettRad")}
+        >
+          <Trash2 className="h-3 w-3" />
+          {t("timer.rediger.slettRad")}
+        </button>
+      </div>
     </div>
   );
 }

@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
-import { sheetMachineLocal, equipmentLocal } from "../../db/schema";
+import { sheetMachineLocal, equipmentLocal, externalCostObjectLocal } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
@@ -22,12 +22,20 @@ import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
+import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 
 interface MaskinSeksjonProps {
   sheetId: string;
   rader: MaskinRad[];
   organizationId: string;
   projectId: string;
+  /** T7-4e (2026-05-16): ECO-filter for å pre-selektere i Add-modal og holde
+   *  nye rader i samme (projectId, ECO)-bucket som parent EcoBucket. null =
+   *  hovedgruppe (ingen ECO). */
+  defaultEcoId?: string | null;
+  /** T7-4e: skjul intern header når MaskinSeksjon rendres inne i EcoBucket
+   *  (ECO-subheaderen står for kontekst der). */
+  visHeader?: boolean;
   /** ISO YYYY-MM-DD — dato på dagsseddelen. Brukes til kalender-utleting (T4-e). */
   dato: string;
   harEquipmentCache: boolean;
@@ -40,6 +48,8 @@ export function MaskinSeksjon({
   rader,
   organizationId,
   projectId,
+  defaultEcoId = null,
+  visHeader = true,
   dato,
   harEquipmentCache,
   redigerbar,
@@ -52,6 +62,7 @@ export function MaskinSeksjon({
   const leggTil = useCallback(
     (
       radProjectId: string,
+      ecoId: string | null,
       vehicleId: string,
       timer: number,
       mengde: number | null,
@@ -66,6 +77,7 @@ export function MaskinSeksjon({
           id: randomUUID(),
           dagsseddelId: sheetId,
           projectId: radProjectId,
+          externalCostObjectId: ecoId,
           vehicleId,
           timer,
           mengde,
@@ -84,6 +96,7 @@ export function MaskinSeksjon({
     (
       radId: string,
       radProjectId: string,
+      ecoId: string | null,
       vehicleId: string,
       timer: number,
       mengde: number | null,
@@ -96,6 +109,7 @@ export function MaskinSeksjon({
       db.update(sheetMachineLocal)
         .set({
           projectId: radProjectId,
+          externalCostObjectId: ecoId,
           vehicleId,
           timer,
           mengde,
@@ -129,24 +143,26 @@ export function MaskinSeksjon({
   if (!harEquipmentCache && rader.length === 0) return null;
 
   return (
-    <View className="mt-4">
-      <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
-        <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
-          {t("timer.kol.maskiner")}
-        </Text>
-        {redigerbar && harEquipmentCache && (
-          <Pressable
-            onPress={() => {
-              setRedigerRadId(null);
-              setVisModal(true);
-            }}
-            hitSlop={8}
-            className="rounded-full bg-blue-600 p-1.5"
-          >
-            <Plus size={14} color="#ffffff" />
-          </Pressable>
-        )}
-      </View>
+    <View className={visHeader ? "mt-4" : ""}>
+      {visHeader && (
+        <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
+          <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+            {t("timer.kol.maskiner")}
+          </Text>
+          {redigerbar && harEquipmentCache && (
+            <Pressable
+              onPress={() => {
+                setRedigerRadId(null);
+                setVisModal(true);
+              }}
+              hitSlop={8}
+              className="rounded-full bg-blue-600 p-1.5"
+            >
+              <Plus size={14} color="#ffffff" />
+            </Pressable>
+          )}
+        </View>
+      )}
       {rader.length === 0 ? (
         <View className="bg-white px-4 py-6">
           <Text className="text-center text-sm text-gray-400">
@@ -168,10 +184,28 @@ export function MaskinSeksjon({
         ))
       )}
 
+      {/* T7-4e: når header er skjult (rendret i EcoBucket), eksponer
+          "+Legg til maskin"-knapp her så bruker fortsatt kan tilføye. */}
+      {!visHeader && redigerbar && harEquipmentCache && (
+        <Pressable
+          onPress={() => {
+            setRedigerRadId(null);
+            setVisModal(true);
+          }}
+          className="mt-2 flex-row items-center justify-center gap-1 rounded border border-dashed border-gray-300 bg-white py-2 active:bg-gray-50"
+        >
+          <Plus size={12} color="#1e40af" />
+          <Text className="text-xs font-medium text-sitedoc-primary">
+            {t("timer.tilfoy.maskin")}
+          </Text>
+        </Pressable>
+      )}
+
       {visModal && (
         <MaskinRadModal
           organizationId={organizationId}
           defaultProjectId={projectId}
+          defaultEcoId={defaultEcoId}
           dato={dato}
           eksisterendeRader={rader}
           eksisterendeRad={
@@ -181,6 +215,7 @@ export function MaskinSeksjon({
           }
           onLagre={(
             radProjectId,
+            ecoId,
             vehicleId,
             timer,
             mengde,
@@ -192,6 +227,7 @@ export function MaskinSeksjon({
               oppdater(
                 redigerRadId,
                 radProjectId,
+                ecoId,
                 vehicleId,
                 timer,
                 mengde,
@@ -200,7 +236,16 @@ export function MaskinSeksjon({
                 tilTid,
               );
             } else {
-              leggTil(radProjectId, vehicleId, timer, mengde, enhet, fraTid, tilTid);
+              leggTil(
+                radProjectId,
+                ecoId,
+                vehicleId,
+                timer,
+                mengde,
+                enhet,
+                fraTid,
+                tilTid,
+              );
             }
             setVisModal(false);
             setRedigerRadId(null);
@@ -295,6 +340,7 @@ function MaskinRadVis({
 function MaskinRadModal({
   organizationId,
   defaultProjectId,
+  defaultEcoId,
   dato,
   eksisterendeRader,
   eksisterendeRad,
@@ -303,11 +349,13 @@ function MaskinRadModal({
 }: {
   organizationId: string;
   defaultProjectId: string;
+  defaultEcoId: string | null;
   dato: string;
   eksisterendeRader: MaskinRad[];
   eksisterendeRad: MaskinRad | null;
   onLagre: (
     projectId: string,
+    ecoId: string | null,
     vehicleId: string,
     timer: number,
     mengde: number | null,
@@ -357,10 +405,15 @@ function MaskinRadModal({
   const [enhet, setEnhet] = useState<string>(eksisterendeRad?.enhet ?? "");
   const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
   const [tilTid, setTilTid] = useState<string | null>(defaultTider.til);
+  // T7-4e: ECO på maskin — pre-selekteres fra eksisterende rad eller defaultEcoId.
+  const [valgtEcoId, setValgtEcoId] = useState<string | null>(
+    eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
+  );
   const [feil, setFeil] = useState<string | null>(null);
   const [visProsjektVelger, setVisProsjektVelger] = useState(false);
   const [visEquipmentVelger, setVisEquipmentVelger] = useState(false);
   const [visEnhetVelger, setVisEnhetVelger] = useState(false);
+  const [visEcoVelger, setVisEcoVelger] = useState(false);
 
   const valgtProsjekt = useMemo(() => {
     return valgtProjectId ? finnProsjektLokalt(valgtProjectId) : null;
@@ -378,6 +431,19 @@ function MaskinRadModal({
         .all()[0] ?? null
     );
   }, [valgtVehicleId]);
+
+  const valgtEco = useMemo(() => {
+    if (!valgtEcoId) return null;
+    const db = hentDatabase();
+    if (!db) return null;
+    return (
+      db
+        .select()
+        .from(externalCostObjectLocal)
+        .where(eq(externalCostObjectLocal.id, valgtEcoId))
+        .all()[0] ?? null
+    );
+  }, [valgtEcoId]);
 
   function lagre() {
     setFeil(null);
@@ -409,6 +475,7 @@ function MaskinRadModal({
     }
     onLagre(
       valgtProjectId,
+      valgtEcoId,
       valgtVehicleId,
       tall,
       mengdeNum,
@@ -518,6 +585,37 @@ function MaskinRadModal({
             onTilEndret={setTilTid}
           />
 
+          {/* T7-4e: ECO (underprosjekt) — speil av TimerRadModals ECO-velger.
+              Maskin følger samme prosjekt+ECO-gruppe som arbeidstimer (T.7). */}
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">
+              {t("timer.felt.underprosjekt")}
+            </Text>
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                onPress={() => setVisEcoVelger(true)}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-3"
+              >
+                <Text
+                  className={`text-base ${valgtEco ? "text-gray-900" : "text-gray-400"}`}
+                >
+                  {valgtEco
+                    ? `${valgtEco.proAdmId} — ${valgtEco.kortNavn}`
+                    : t("timer.velgUnderprosjekt")}
+                </Text>
+              </Pressable>
+              {valgtEcoId && (
+                <Pressable
+                  onPress={() => setValgtEcoId(null)}
+                  hitSlop={8}
+                  className="rounded p-2 active:bg-gray-100"
+                >
+                  <X size={18} color="#6b7280" />
+                </Pressable>
+              )}
+            </View>
+          </View>
+
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
           <Pressable
@@ -559,9 +657,23 @@ function MaskinRadModal({
             valgtId={valgtProjectId}
             onVelg={(id) => {
               setValgtProjectId(id);
+              // Nullstill ECO ved prosjekt-bytte — ECO er prosjekt-spesifikk.
+              setValgtEcoId(null);
               setVisProsjektVelger(false);
             }}
             onLukk={() => setVisProsjektVelger(false)}
+          />
+        )}
+
+        {visEcoVelger && (
+          <UnderprosjektVelgerModal
+            projectId={valgtProjectId}
+            valgtId={valgtEcoId}
+            onVelg={(id) => {
+              setValgtEcoId(id);
+              setVisEcoVelger(false);
+            }}
+            onLukk={() => setVisEcoVelger(false)}
           />
         )}
       </SafeAreaView>

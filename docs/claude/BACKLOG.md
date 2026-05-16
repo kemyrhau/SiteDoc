@@ -16,6 +16,24 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### MASKIN-TIMER KOBLING — arkitektursvikt (høy prioritet)
+
+Kenneth-avklaring 2026-05-16: Maskintimer er en del av arbeidsdagen,
+ikke additivt. `sum(SheetMachine.timer) ≤ sum(SheetTimer.timer)` per sedel.
+
+Nåværende feil: maskin og timer faktureres som to separate summer.
+Korrekt: maskin er utstyrsbidrag av samme tidsperiode.
+
+Krever:
+1. Server-validering: `maskin.timer ≤ total worker.timer` ved opprett/oppdater
+2. UI: vis maskin som underpost av timer-seksjonen, ikke separat
+3. Attestering: `splittRad` på maskin bør validere mot timer-totalsum
+4. Mobil: samme logikk
+
+Tas i planleggingssesjon — ingen videre koding i mellomtiden.
+
+Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 2026-05-16) — flytskille arbeidstaker/attestering/Byggherre-godkjenning + dagsseddel-struktur per prosjekt+ECO.
+
 ### Datamodell og migrasjon
 
 - **P-KRITISK-1 — Sentralbiblioteket ikke seedet i prod** 🔴 — se [oppryddings-plan-2026-04-28.md § P-KRITISK-1](oppryddings-plan-2026-04-28.md). Lovpålagt grunnpakke skal auto-seedes ved firma-opprettelse.
@@ -36,8 +54,6 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ### Mobil og sync
 
-- **T9d mobil-cache `arbeidstidskalender_local`** 🔴 — avhenger av T.4/T.5-implementasjon (begge nå deployet). Klar til å bygges.
-- **SummeringsBanner T7-3a oppdatering** 🔴 — leser fortsatt `OrganizationSetting.dagsnorm` i stedet for kalender-cache. Skal oppdateres når T9d landes.
 - **Pre-eksisterende timerSync.ts baseline-feil (linje 308, 334)** 🟡 — `string | null` mot lokal `.notNull()`. Akseptert som baseline, ikke prioritert.
 
 ## 2. Halvferdige features
@@ -61,9 +77,23 @@ separat chat per `feedback_3d_annen_chat`.
 
 ### Timer-relatert
 
+- **Attestering edit-modus bugs (oppdaget 2026-05-16)** 🔴 — to bugs blokkerer prod-deploy av T7-2c-bunken + T7-2d:
+  1. Fra-tid viser «0:» i stedet for korrekt tid (f.eks. 07:00). Sannsynlig tidsformat-initialiseringsfeil.
+  2. Timer-endring fungerer ikke i edit-modus — input aksepterer ikke ny verdi eller verdien lagres ikke.
+  Rootcause ukjent for begge — krever kartlegging neste sesjon i `RedigerTimerRad`/`RedigerMaskinRad` + `AttesteringDetalj_Edit`.
 - **T7-3c geo-forslag-utvidelser** ❓ — historikk-baserte forslag (sist brukte prosjekt). Mye av geo-forslag-leveransen kom i T7-3b2. Egen sub-PR eller forkastes.
-- **T7-2b2 rad-splitting ved attestering** 🔴 — én rad → flere med ulike prosjekt/ECO/lønnsart/fra-til. Krever `parentRadId`-kolonne + `splittRad`-mutation. (`parentRadId` finnes allerede i schema fra T7-2b2 edit-modus.)
 - **`OrganizationMemberPermission` (modul-tilgang per ansatt)** 🔴 — låst i [fase-0-beslutninger.md](fase-0-beslutninger.md). Designet klart, ikke startet.
+
+### Attestering-liste — expanded inline-visning (oppdaget 2026-05-16)
+
+Attestering-listen viser kun rad-antall, ikke innhold. Prosjektleder
+må åpne enkelt-sedel for å verifisere timeføring.
+
+Ønsket: alle registreringer synlige inline + redigering tilgjengelig
+direkte fra listen.
+
+- Alternativ A: expandable rader (default expanded).
+- Alternativ B: to-panel-visning (liste + detalj side om side).
 
 ### Onboarding og brukerveileder
 

@@ -265,6 +265,10 @@ model SheetMachine {
   // T.4 — Per-rad tid HH:MM.
   fraTid            String?  @map("fra_tid")
   tilTid            String?  @map("til_tid")
+  // T7-4a (2026-05-16) — ECO på maskin-rad. Maskin følger samme prosjekt+ECO-gruppe
+  // som arbeidstimer den hører til (per T.7 låst 2026-05-16). Svak FK uten @relation
+  // (A.20-mønster — kjernen-tabellen external_cost_objects ligger utenfor db-timer).
+  externalCostObjectId String? @map("external_cost_object_id")
   timer             Decimal  @db.Decimal(6, 2)
   mengde            Decimal? @db.Decimal(12, 2)
   enhet             String?  // m, m2, m3, kg, tonn, stk
@@ -284,6 +288,7 @@ model SheetMachine {
   @@index([vehicleId])
   @@index([projectId])
   @@index([byggeplassId])
+  @@index([externalCostObjectId])
   @@index([attestertStatus])
   @@index([parentRadId])
   @@map("sheet_machines")
