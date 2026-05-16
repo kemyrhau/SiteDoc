@@ -114,6 +114,10 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   aktivitetId: text("aktivitet_id").notNull(),
   externalCostObjectId: text("external_cost_object_id"),
   timer: real("timer").notNull(), // Decimal lagres som real — tap av presisjon < 0.01 OK for timer-felt
+  // T.4 (T4-d 2026-05-16) — per-rad fra/til-tid (HH:MM). Nullable inntil UI
+  // setter dem i T4-e. Server-skjemaet har feltene fra T.1 (2026-05-11).
+  fraTid: text("fra_tid"),
+  tilTid: text("til_tid"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -132,6 +136,10 @@ export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
   timer: real("timer").notNull(),
   mengde: real("mengde"),
   enhet: text("enhet"),
+  // T.4 (T4-d 2026-05-16) — per-rad fra/til-tid (HH:MM). Nullable inntil UI
+  // setter dem i T4-e.
+  fraTid: text("fra_tid"),
+  tilTid: text("til_tid"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -243,5 +251,58 @@ export const prosjektLocal = sqliteTable("prosjekt_local", {
   lat: real("lat"),
   lng: real("lng"),
   aktiv: integer("aktiv", { mode: "boolean" }).notNull().default(true),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
+ * arbeidstidskalender_local — offline-cache av firma-kalender (T4-d / T9d
+ * 2026-05-16). Brukes av hentEffektivArbeidstidLokal til å beregne start/
+ * slutt/pauseMin for en gitt dato uten nett. Refresh ved login + nett-
+ * gjenkomst via kalenderKatalog.refreshKalenderKatalog (periode = currentYear
+ * ± 1). Alle rader skrives (også aktiv=false) — `hentLokalt` filtrerer.
+ *
+ * type-verdier (Zod-validert på server, ikke Prisma-enum):
+ *   helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt
+ *   | halvdag | firma_fri
+ *
+ * timerOverstyr er kun satt for halvdag.
+ * standardStartTid/standardSluttTid/pauseMin er kun satt for
+ * sommertid_start/sommertid_slutt/halvdag.
+ */
+export const arbeidstidskalenderLocal = sqliteTable("arbeidstidskalender_local", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  aar: integer("aar").notNull(),
+  dato: text("dato").notNull(), // ISO YYYY-MM-DD
+  type: text("type").notNull(),
+  navn: text("navn").notNull(),
+  timerOverstyr: real("timer_overstyr"),
+  standardStartTid: text("standard_start_tid"),
+  standardSluttTid: text("standard_slutt_tid"),
+  pauseMin: integer("pause_min"),
+  aktiv: integer("aktiv", { mode: "boolean" }).notNull().default(true),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
+ * organization_setting_local — offline-cache av OrganizationSetting (T4-d
+ * 2026-05-16). Én rad per firma (organization_id som PK). Brukes som fall-
+ * back i hentEffektivArbeidstidLokal når kalenderen ikke har overstyringer
+ * for datoen. Refresh ved login + nett-gjenkomst via
+ * organizationSettingKatalog.refreshOrganizationSettingKatalog.
+ *
+ * Vi cacher kun de feltene mobil trenger i Timer-modulen — ikke hele rad-
+ * settet fra server (timezone, tilgang-policies osv. håndteres ved behov).
+ */
+export const organizationSettingLocal = sqliteTable("organization_setting_local", {
+  organizationId: text("organization_id").primaryKey(),
+  standardStartTid: text("standard_start_tid").notNull().default("07:00"),
+  standardSluttTid: text("standard_slutt_tid").notNull().default("15:00"),
+  standardPauseMin: integer("standard_pause_min").notNull().default(30),
+  tillattRedigerVedAttestering: integer("tillatt_rediger_ved_attestering", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });

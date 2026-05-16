@@ -169,6 +169,7 @@ export async function syncTimer(
           // T7-3b1: send projectId per rad. Faller tilbake til sedel-nivå
           // hvis rad-nivå ikke er satt (legacy-data + lokal backfill).
           // Server bruker rad-nivå hvis satt, ellers sedel-nivå (kompat-shim).
+          // T4-d (2026-05-16): send fraTid/tilTid per timer/maskin-rad.
           timer: timer.map((t) => ({
             id: t.id,
             projectId: t.projectId ?? sedel.projectId,
@@ -176,6 +177,8 @@ export async function syncTimer(
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId ?? null,
             timer: t.timer,
+            fraTid: t.fraTid ?? null,
+            tilTid: t.tilTid ?? null,
           })),
           tillegg: tillegg.map((tl) => ({
             id: tl.id,
@@ -191,6 +194,8 @@ export async function syncTimer(
             timer: m.timer,
             mengde: m.mengde,
             enhet: m.enhet,
+            fraTid: m.fraTid ?? null,
+            tilTid: m.tilTid ?? null,
           })),
         };
       });
@@ -359,6 +364,8 @@ export async function syncTimer(
       // T7-3b1: server returnerer projectId per rad. Vi lagrer dette på rad-
       // nivå lokalt. Faller tilbake til sedel-nivå for legacy server-respons
       // som mangler t.projectId (pre-T7-3b1 server).
+      // T4-d (2026-05-16): server returnerer også fraTid/tilTid på timer-
+      // og maskin-rader. Default null hvis ikke satt.
       for (const t of serverSedel.timer) {
         db.insert(sheetTimerLocal)
           .values({
@@ -369,6 +376,8 @@ export async function syncTimer(
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId,
             timer: t.timer,
+            fraTid: t.fraTid ?? null,
+            tilTid: t.tilTid ?? null,
             sistEndretLokalt: serverTidMs,
           })
           .run();
@@ -396,6 +405,8 @@ export async function syncTimer(
             timer: m.timer,
             mengde: m.mengde,
             enhet: m.enhet,
+            fraTid: m.fraTid ?? null,
+            tilTid: m.tilTid ?? null,
             sistEndretLokalt: serverTidMs,
           })
           .run();
