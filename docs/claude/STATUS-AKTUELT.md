@@ -20,6 +20,25 @@ Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på e
 
 Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
 
+### PR T7-4f-3 attestering-liste redesign per mockup v7 — IMPLEMENTERT PÅ feature/t7-4f-3 2026-05-16
+
+Tredje sub-PR i T7-4f-bunken. Fullstendig redesign av `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` (281 → ~600 linjer):
+
+- **Uke-navigasjon** (← Uke X →) med dato-range vist, «Denne uka»-snarvei når offset ≠ 0
+- **Filter-pills**: Prosjekt / Ansatte / Avdeling som rullegardin-pills (klient-side filter på rå-data + `trpc.avdeling.hentAlle` for avdelings-navn)
+- **Server-utvidelse:** `hentTilAttesteringFirma` tar nå valgfritt `fraOgMed`/`tilOgMed` (ISO YYYY-MM-DD) og berikker ansatt med `avdelingId` fra `OrganizationMember`
+- **Gruppering per prosjekt:** header med antall sedler · arbeidstimer · maskintimer · «Attester gruppe (N)»-knapp
+- **Sedel-kort:** header (dato · ansatt · ansattnummer · tilleggskrav-badge · totaltimer / dagsnorm · aktivitet) + ECO/Maskin/Tillegg via `ProsjektSectionAttest` med `kanFlytte={false}` (T7-4f Alt B)
+- **Oransje stilising** ved `tilleggHarKrav`: venstre-kant + badge + oransje attester-knapp
+- **⋯-meny:** Rediger sedel · Splitt rad · Returner (lenker til detalj-side for redigering/splitting)
+- **i18n:** 13 nye nøkler i `nb.json` + `en.json` (uke.*, filter.*, gruppe.sedler/attesterGruppe, sedel.tilleggskrav/dagsnorm, meny.*)
+
+Vareforbruk-rad og «Mertid uten tilleggskrav»-badge er ikke i scope (per T7-4f-spec åpne avklaringer). Bulk-attester-gruppe-knappen looper `attester.mutate` per sedel — partial fail rapporteres via felles `feil`-state.
+
+Typecheck (api+web): 0 nye feil (kun pre-eksisterende vitest-feil består).
+
+Neste: T7-4f-4 (avklart Alt B — ingen kode-endring, kun verifisering i T7-4f-3 at `kanFlytte={false}` sendes til ProsjektSectionAttest fra firma-listen — utført).
+
 ### PR T7-4f-2 attestering-buckets ekstrahert — IMPLEMENTERT PÅ feature/t7-4f-2 2026-05-16
 
 Andre sub-PR i T7-4f-bunken. Ekstraherer `ProsjektSectionAttest` + `EcoBucketAttest` (pluss intern `RadStatusBadge` + `TimerRaderLeder`/`TilleggRaderLeder`/`MaskinRaderLeder`) fra `AttesteringDetalj.tsx:892–1119` til ny fil `apps/web/src/components/attestering/attestering-buckets.tsx`.

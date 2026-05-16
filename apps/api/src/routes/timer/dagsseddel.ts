@@ -1081,7 +1081,15 @@ export const dagsseddelRouter = router({
   // (primary- eller partner-rolle via ProjectOrganization).
 
   hentTilAttesteringFirma: protectedProcedure
-    .input(z.object({ organizationId: z.string().uuid() }))
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        // T7-4f-3: dato-range-filter for uke-navigasjon (valgfritt).
+        // ISO-dato YYYY-MM-DD (start- og slutt-inklusive). Begge må gis sammen.
+        fraOgMed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        tilOgMed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       await autoriserAdminForFirma(ctx.userId, input.organizationId);
 
@@ -1096,6 +1104,16 @@ export const dagsseddelRouter = router({
       const prosjektIder = prosjekter.map((p) => p.id);
       if (prosjektIder.length === 0) return [];
 
+      // T7-4f-3: dato-range-filter for uke-navigasjon. Bruker DateTime-instanser
+      // med UTC for ren grense — DailySheet.dato lagres som timestamp.
+      const datoFilter =
+        input.fraOgMed && input.tilOgMed
+          ? {
+              gte: new Date(`${input.fraOgMed}T00:00:00.000Z`),
+              lte: new Date(`${input.tilOgMed}T23:59:59.999Z`),
+            }
+          : undefined;
+
       // T7-2b1: delvis-attesterte sedler beholder sheet.status="sent" inntil ALLE
       // rader er attestert — eksisterende filter dekker dem. Inkluderer maskiner
       // og rad-status så klient kan vise fremdrift (X av Y attestert).
@@ -1103,6 +1121,7 @@ export const dagsseddelRouter = router({
         where: {
           status: "sent",
           timer: { some: { projectId: { in: prosjektIder } } },
+          ...(datoFilter ? { dato: datoFilter } : {}),
         },
         include: {
           aktivitet: { select: { id: true, navn: true, kode: true } },
@@ -1132,8 +1151,9 @@ export const dagsseddelRouter = router({
           select: { id: true, name: true, email: true },
         }),
         prisma.organizationMember.findMany({
-          where: { userId: { in: userIder } },
-          select: { userId: true, ansattnummer: true },
+          where: { userId: { in: userIder }, organizationId: input.organizationId },
+          // T7-4f-3: avdelingId for avdeling-filter-pill på klient
+          select: { userId: true, ansattnummer: true, avdelingId: true },
         }),
         radProjectIder.size > 0
           ? prisma.project.findMany({
@@ -1148,8 +1168,16 @@ export const dagsseddelRouter = router({
       ]);
 
       const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
+      const avdelingIdMap = new Map(medlemmer.map((m) => [m.userId, m.avdelingId]));
       const brukerMap = new Map(
-        brukere.map((b) => [b.id, { ...b, ansattnummer: ansattnummerMap.get(b.id) ?? null }]),
+        brukere.map((b) => [
+          b.id,
+          {
+            ...b,
+            ansattnummer: ansattnummerMap.get(b.id) ?? null,
+            avdelingId: avdelingIdMap.get(b.id) ?? null,
+          },
+        ]),
       );
       // Slå sammen firma-prosjekter (sedel-hode) + rad-prosjekter (alle unike).
       const prosjektMap = new Map<
