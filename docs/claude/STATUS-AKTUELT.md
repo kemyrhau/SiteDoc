@@ -6,6 +6,40 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### PR T7-2c2 SplittRadModal-komponent + i18n — KLAR FOR REVIEW (branch `feature/t7-2c2`)
+
+Andre sub-PR av T7-2c-bunken. Web-UI for rad-splitting — modal som åpnes for én pending rad og lar firma-admin fordele den til N nye rader med live sum-validering. Server-mutation (`splittRad`) ble levert i T7-2c1.
+
+**Ny komponent (`apps/web/src/components/timer/SplittRadModal.tsx`, ~410 linjer):**
+- Diskriminert props-union: `{ radType: "timer" | "tillegg" | "maskin", original: ..., sheetId, prosjekter, tidsrundingMinutter, onLukk, onLagret }`. Garanterer at riktige felter på `original` matcher `radType` ved kompilering.
+- Tre-seksjons-layout via `@sitedoc/ui` `Modal` (`max-w-4xl`):
+  1. **«Original (referanse)»** — grå boks med read-only visning av key-felter fra original-raden. Egen `OriginalRefVisning`-subkomponent rendrer per radType: prosjekt-navn, timer/antall, fra-/til-tid (hvis tids-relevant), kommentar (tillegg), mengde + enhet (maskin).
+  2. **«Split-rader»** — liste som gjenbruker eksisterende `RedigerTimerRad`/`RedigerTilleggRad`/`RedigerMaskinRad` fra T7-2b2. Default: én rad pre-fylt med originalens verdier. «+ Legg til rad»-knapp pre-fyller ny rad med: `fraTid = siste rads tilTid`, `timer/antall = Math.max(0, gjenstaar)`, `projectId + lonnsartId/tilleggId/vehicleId = kopiert fra original`. Slett-knapp er no-op på rad #1 (per locked design — minst 1 rad må alltid være der; server krever .min(2) ved lagring).
+  3. **Gjenstår-indikator** — farget banner: grønn («Sum matcher original ✓») hvis `Math.abs(gjenstaar) < 0.001`, rød («X for mye fordelt») hvis `gjenstaar < 0`, gul («X gjenstår å fordele») hvis `gjenstaar > 0`. Lagre-knapp deaktivert hvis ikke balansert eller radTeller < 2.
+
+**Mutation-kobling:**
+- Kaller `trpc.timer.dagsseddel.splittRad.useMutation` med radType-diskriminert input.
+- `onSuccess`: invaliderer `hentForAttestering` + `hentTilAttestering` + `hentTilAttesteringFirma`, kaller `props.onLagret()`.
+- Pre-validering på klient: alle felter utfylt, sum balansert. Server-side validering (firma-admin-auth, `tillattRedigerVedAttestering`-gate, sum-toleranse, cross-org) gjelder uansett.
+
+**i18n:** 13 nye nøkler under `timer.splitt.*` i nb + en (`tittel.timer/tillegg/maskin`, `original`, `splitRader`, `leggTilRad`, `lagre`, `balansert`, `gjenstaar`, `foredelt`, `mengde`, `feil.minst2Rader`, `feil.sumIkkeMatch`). Auto-oversatt til 13 språk via `generate.ts` (2283 → 2296 totalt).
+
+**Designvalg:**
+- **Gjenbruker eksisterende Rediger*-komponenter:** Modalen lar ikke kunden velge per radType — den får én pre-fylt rad og kan duplisere via «+». Det er konsistent med edit-modus-paradigmet og sparer duplikat-UI.
+- **Slett-knapp som no-op på rad #1:** Per locked design. Brukeren kan slette alle andre rader, men #1 forblir. Server enforcer `.min(2)` ved lagring; klient blokkerer hvis radTeller < 2.
+- **Indikator-farger som signal:** Grønn = sum OK, rød = for mye, gul = mer gjenstår. Replicerer typisk regnskaps-validering. Sum-toleranse `< 0.001` matcher server-side Math.abs-sjekken (T7-2c1).
+- **Original (referanse) som dedikert seksjon, ikke `<details>`:** Splitting trenger original-konteksten synlig hele tiden for å sammenligne tall. Ulikt rediger-modus hvor originalene er bakgrunns-historikk.
+
+**Verifisert:** `apps/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). 0 nye feil. Mutation-input matcher T7-2c1 Zod-discriminator.
+
+**Reload-metode:** TypeScript-only + i18n. Full reload + cache-cleaning ved deploy (`rm -rf apps/web/.next` + build). Ingen schema- eller server-endring.
+
+**Forventede begrensninger (kommer i T7-2c3):**
+- Modal har ingen integrasjon i AttesteringDetalj/AttesteringDetalj_Edit ennå — den kan ikke åpnes fra UI. Brukeren ser ingen «Splitt»-knapp før T7-2c3 monterer den.
+- Mobil: får ikke splitt-funksjonalitet (kun firma-admin web-flow).
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR T7-2c1 splittRad-mutation + audit-snapshot — KLAR FOR REVIEW (branch `feature/t7-2c1`)
 
 Første sub-PR av T7-2c-bunken (rad-splitting ved attestering). Server-only — UI kommer i T7-2c2/c3. Implementerer den manglende halvdelen av kundeønske #4 «redigering og splitting av timer ved attestering».
