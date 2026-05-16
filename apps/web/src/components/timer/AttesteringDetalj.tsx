@@ -40,6 +40,10 @@ function isoTidspunktTilHHMM(iso: string | null | undefined): string {
 
 type RadStatus = "pending" | "attestert" | "returnert" | null;
 
+// T7-2d: per-rad prosjekt-join fra hentForAttestering. Brukes til å vise
+// prosjektnavn i read-only-listene når sedelen spenner flere prosjekter.
+type RadProsjekt = { id: string; name: string; projectNumber: string | null } | null;
+
 type TimerRad = {
   id: string;
   lonnsartId: string;
@@ -51,6 +55,7 @@ type TimerRad = {
   tilTid: string | null;
   timer: unknown;
   attestertStatus: string | null;
+  project?: RadProsjekt;
 };
 
 type TilleggRad = {
@@ -60,6 +65,7 @@ type TilleggRad = {
   antall: unknown;
   kommentar: string | null;
   attestertStatus: string | null;
+  project?: RadProsjekt;
 };
 
 type MaskinRad = {
@@ -73,6 +79,7 @@ type MaskinRad = {
   mengde: unknown;
   enhet: string | null;
   attestertStatus: string | null;
+  project?: RadProsjekt;
 };
 
 type Props = {
@@ -538,11 +545,12 @@ function TimerRaderLeder({
                       {navnFor(rad.lonnsartId)}
                     </p>
                     <RadStatusBadge status={rad.attestertStatus} />
-                    {prosjektKontekst && rad.projectId !== prosjektKontekst && (
-                      <span className="text-xs italic text-gray-500">
-                        {t("timer.attestering.radValg.annetProsjekt")}
-                      </span>
-                    )}
+                    {/* T7-2d: vis prosjektnavn. I prosjekt-kontekst: kun når rad
+                        tilhører annet prosjekt. I firma-kontekst: alltid. */}
+                    {rad.project?.name &&
+                      (!prosjektKontekst || rad.projectId !== prosjektKontekst) && (
+                        <span className="text-xs text-blue-600">{rad.project.name}</span>
+                      )}
                   </div>
                   <p className="text-xs text-gray-500">
                     {aktivitetNavn(rad.aktivitetId)}
@@ -654,6 +662,11 @@ function TilleggRaderLeder({
               <div className="flex flex-wrap items-center gap-2">
                 <p className="text-sm font-medium text-gray-900">{info.navn}</p>
                 <RadStatusBadge status={rad.attestertStatus} />
+                {/* T7-2d: prosjektnavn ved multi-prosjekt-sedler */}
+                {rad.project?.name &&
+                  (!prosjektKontekst || rad.projectId !== prosjektKontekst) && (
+                    <span className="text-xs text-blue-600">{rad.project.name}</span>
+                  )}
               </div>
               {rad.kommentar && (
                 <p className="text-xs text-gray-500">{rad.kommentar}</p>
@@ -727,6 +740,11 @@ function MaskinRaderLeder({
                   {equipmentMap.get(rad.vehicleId) ?? "—"}
                 </p>
                 <RadStatusBadge status={rad.attestertStatus} />
+                {/* T7-2d: prosjektnavn ved multi-prosjekt-sedler */}
+                {rad.project?.name &&
+                  (!prosjektKontekst || rad.projectId !== prosjektKontekst) && (
+                    <span className="text-xs text-blue-600">{rad.project.name}</span>
+                  )}
               </div>
               {rad.mengde !== null && rad.mengde !== undefined && (
                 <p className="text-xs text-gray-500">

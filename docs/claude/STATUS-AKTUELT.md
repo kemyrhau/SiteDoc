@@ -6,6 +6,34 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### PR T7-2d prosjektnavn per attestering-rad + aktiverer redigering test — KLAR FOR REVIEW (branch `feature/t7-2d-attestering-fixes`)
+
+Liten bugfix-PR etter T7-2c-bunken. Lukker to attestering-mangler avdekket under E2E-verifikasjon:
+
+**1. Server: per-rad prosjekt-join (`apps/api/src/routes/timer/dagsseddel.ts`)**
+
+`hentForAttestering` returnerte tidligere kun ETT prosjekt-objekt (basert på første rads `projectId`). For multi-prosjekt-sedler (T.1/T7-3b1) manglet de andre radene prosjektnavn.
+
+Fix: ny app-layer-join (svak FK uten Prisma `@relation` per A.20-mønster). Samler unike `projectId` på tvers av timer/tillegg/maskiner, gjør én `prisma.project.findMany` i parallell-Promise.all, bygger Map, beriker hver rad med `project: { id, name, projectNumber } | null`. Sheet-nivå `prosjekt`-felt beholdes for kompatibilitet (header bruker det fortsatt).
+
+**2. Klient: vis prosjektnavn per rad (`apps/web/src/components/timer/AttesteringDetalj.tsx`)**
+
+`TimerRad`/`TilleggRad`/`MaskinRad` inline-types utvidet med valgfri `project?: RadProsjekt` (`{ id, name, projectNumber } | null`).
+
+`TimerRaderLeder`, `TilleggRaderLeder`, `MaskinRaderLeder` viser nå prosjektnavn (blå tekst, `text-xs`) ved siden av rad-status-badge når:
+- **firma-kontekst** (`prosjektKontekst === undefined`): alltid (informativt)
+- **prosjekt-kontekst:** kun når `rad.projectId !== prosjektKontekst` (erstatter tidligere italic «Annet prosjekt»-tekst med faktisk navn)
+
+**3. Aktivert `tillattRedigerVedAttestering` på test-DB (Byggeleder)**
+
+`UPDATE organization_settings SET tillatt_rediger_ved_attestering = true WHERE organization_id = (SELECT id FROM organizations WHERE name ILIKE '%Byggeleder%' LIMIT 1)` mot `sitedoc_test`. Dette aktiverer Rediger-knappen + Splitt-funksjonaliteten fra T7-2c-bunken for Byggeleder på test.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 1 = 1 baseline (vitest).
+
+**Reload-metode:** Server reload kreves (Prisma-query endret). Web: full reload + cache-cleaning ved deploy.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR T7-2c3 Splitt-integrasjon i AttesteringDetalj_Edit — KLAR FOR REVIEW (branch `feature/t7-2c3`)
 
 Tredje sub-PR av T7-2c-bunken. Monterer SplittRadModal (T7-2c2) inn i edit-modus-flyten med per-rad Splitt-knapp, ulagrede-endringer-bekreftelse og automatisk state-reset etter splitt. Etter denne kan firma-admin faktisk splitte rader fra UI — kundeønske #4 «redigering og splitting av timer ved attestering» er fullt levert.
