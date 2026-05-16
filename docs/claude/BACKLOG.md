@@ -36,8 +36,6 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ### Mobil og sync
 
-- **T9d mobil-cache `arbeidstidskalender_local`** 🔴 — avhenger av T.4/T.5-implementasjon (begge nå deployet). Klar til å bygges.
-- **SummeringsBanner T7-3a oppdatering** 🔴 — leser fortsatt `OrganizationSetting.dagsnorm` i stedet for kalender-cache. Skal oppdateres når T9d landes.
 - **Pre-eksisterende timerSync.ts baseline-feil (linje 308, 334)** 🟡 — `string | null` mot lokal `.notNull()`. Akseptert som baseline, ikke prioritert.
 
 ## 2. Halvferdige features
