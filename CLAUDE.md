@@ -55,9 +55,13 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T.5 tidsrunding — IMPLEMENTERT PÅ `feature/t5-tidsrunding` 2026-05-16
+### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
 Standalone PR etter T.4-bunken. Firma-admin konfigurerer avrunding (15/30/60 min eller ingen) for fra/til-tid på timer- og maskin-rader. Avrunding skjer **visuelt ved input** — pickeren snapper til nærmeste intervall, det brukeren ser er det som lagres. Ingen server-side runding bak ryggen.
+
+**Test-QA 2026-05-16:** Dropdown vises under Pause-feltet med default «15 min» og beskrivelse «Avrund fra/til-tid på timer- og maskin-rader til nærmeste intervall.» Godkjent for prod.
+
+**Prod-deploy 2026-05-16:** `sitedoc.no` + `api.sitedoc.no` HTTP/2 200 etter `pm2 restart sitedoc-web sitedoc-api`. PR-en er **server- og web-deployet**. Mobil aktiveres når neste EAS-bygg når TestFlight/Play Store — feltet er allerede i mobil-koden (T.4-d migrasjon legger til kolonnen ved app-oppstart).
 
 **Server (`apps/api/src/routes/organisasjon.ts`):**
 - `oppdaterSetting` Zod-input: `tidsrundingMinutter: z.union([z.literal(15), z.literal(30), z.literal(60), z.null()]).optional()` — tre-verdi-validering hindrer rare verdier som 7 eller 23.

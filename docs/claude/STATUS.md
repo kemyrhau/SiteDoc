@@ -11,12 +11,20 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-05-15 (T9 firmakalender + topbar firma-kontekst deployet til prod)
+**Sist oppdatert:** 2026-05-16 (T.4-bunken a–e + T.5 tidsrunding deployet til prod)
 **Antall filer dekket:** 50 (44 i `docs/claude/` + 6 i `docs/arkiv/`) — `neste-oppgave.md` slettet 2026-05-14, innholdet konsolidert til [STATUS-AKTUELT.md § Neste oppgaver](STATUS-AKTUELT.md)
 
 ---
 
-## Prod-deploys 2026-05-03 → 2026-05-15
+## Prod-deploys 2026-05-03 → 2026-05-16
+
+**2026-05-16 — T.5 tidsrunding (web + mobil):**
+- `ba6ba243` — Firma-admin konfigurerer tidsrunding (15/30/60 min eller ingen) for fra/til-tid på timer- og maskin-rader. Server: `oppdaterSetting` Zod-validering `z.union([15, 30, 60, null])`, `hentArbeidstidDefaults` select utvidet. Web: ny `lib/tidsrunding.ts` (`rundTilNarmeste`-helper med 23:59-clamp), `StandardArbeidstidSeksjon` dropdown, `RedigerTimerRad`/`RedigerMaskinRad` step+onBlur-fallback. Mobil-cache: idempotent ALTER ADD COLUMN `tidsrunding_minutter`. Mobil-UI: speilet `utils/tidsrunding.ts`, `FraTilTidFelt` runder onChange-verdi før callback, `minuteInterval` hint for 15/30 (60 ignoreres av iOS/Android — JS-runding garanterer konsistens). `TimerSeksjon`/`MaskinSeksjon` henter via `hentOrganizationSettingLokalt`. 6 nye i18n-nøkler → 13 språk (2277 → 2283). Schema-feltet `OrganizationSetting.tidsrundingMinutter` fantes allerede fra T.1–T.6-bunken 2026-05-12.
+
+**2026-05-16 — T.4 fra/til-tid per rad (bunke a–e):**
+- `5d36c8b9` — Hele T.4-bunken. **T4-a** (impl `cfe51fc5`, merge `5acd2a5d`): schema + migrasjon `20260516000000_t4_arbeidstid_defaults` — `OrganizationSetting.standardStartTid/SluttTid/PauseMin` (defaults 07:00/15:00/30) + nullable `ArbeidstidsKalender.standardStartTid/SluttTid/pauseMin` (overstyring for sommertid_start/slutt/halvdag). **T4-b** (impl `088a1e37`, merge `9bcfb5b1`): `hentEffektivArbeidstid(orgId, dato)`-helper i `apps/api/src/services/timer/arbeidstid.ts` (sommertid-overstyring → firma-default). Hard sommertid-par-validering i kalender opprett/oppdater. **T4-c** (impl `39c43aa8`, merge `c02df657`): server-Zod-utvidelse for de tre T4-a-feltene + ny `StandardArbeidstidSeksjon` på innstillinger-side + tidsfelter i kalender-modal (sommertid_start/slutt/halvdag) + klokke-badge i månedsliste. 15 nye i18n-nøkler → 13 språk. **T4-d** (impl `2f7bf42d`, merge `7bee1633`): mobil Drizzle `fraTid`/`tilTid` på `sheet_timer_local` + `sheet_machine_local` + nye lokale tabeller `arbeidstidskalender_local` + `organization_setting_local`. Services `kalenderKatalog.ts` (med `hentEffektivArbeidstidLokal`-helper) + `organizationSettingKatalog.ts`. TimerSyncProvider 2-stegs Promise.all (base-pulls → firma-spesifikke pulls per org-id fra prosjekt-cachen). timerSync push/pull med fraTid/tilTid per rad. Server: ny medlems-tilgjengelig `organisasjon.hentArbeidstidDefaults` + fraTid/tilTid i `hentEndringerSiden`-respons. **T4-e** (impl `cea8f99e`, merge `e992aca3`): mobil UI med ny `FraTilTidFelt`-fellekomponent (DateTimePicker mode=time × 2). Montert i TimerRadModal + MaskinRadModal. Forhåndsutfylling: ny rad uten forrige → `hentEffektivArbeidstidLokal`; ny rad med forrige → forrige rads tilTid som fraTid + effektiv sluttTid. Validering `fraErForTil`. SummeringsBanner fallback til kalender-dagsnorm. 0 nye i18n-nøkler (gjenbruker startTid/sluttTid/sluttForStart).
+
+
 
 **2026-05-15 — Topbar firma-kontekst + FirmaKontekstVelger + favoritter + søk:**
 - `0bd27466` — Topbar tilpasser seg pathname via `usePathname()`. På `/dashbord/firma/*` vises ny `FirmaKontekstVelger` («Firma ▾») istedenfor `ProsjektVelger` + `ByggeplassVelger`. Ny `useFavoritter`-hook med localStorage-nøkkel `sitedoc_favoritter_${userId}` (default) eller `sitedoc_favoritter_byggeplass_${userId}` (via `nokkelPrefix`-parameter). Stjernemerking + favoritt-seksjon i `ProsjektVelger`, `FirmaKontekstVelger` og `ByggeplassVelger`. Søkefelt vises ved >7 elementer (terskel-konstant `SOK_TERSKEL = 7`). 11 nye i18n-nøkler (`topbar.*` + `byggeplassVelger.*`) auto-oversatt til 13 språk (2262 totalt).
