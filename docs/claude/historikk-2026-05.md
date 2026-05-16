@@ -2,6 +2,41 @@
 
 Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er deployet til prod og verifisert.
 
+---
+
+## T7-2c/2d/2e/2f + T7-4a–e (splittRad + prosjekt+ECO-gruppering) — DEPLOYET TIL PROD 2026-05-16 (prod-merge `86fdb5a3`)
+
+Hele bunken samlet i ett prod-deploy etter T.7-vedtak (låst 2026-05-16): maskin er utstyrsbidrag av samme tidsperiode som arbeidstimer, ikke additivt. Dagsseddel grupperes per (`projectId`, `externalCostObjectId`) med maskin som visuell underpost. Server håndhever `sum(maskin) ≤ sum(timer)` per gruppe. Grandfather: kun nye/redigerte rader valideres.
+
+**Sub-PR-er (alle på develop før prod-deploy):**
+
+- **T7-2c1** (`f6b92f70` merge, `53904028` impl) — `splittRad`-mutation i `dagsseddel.ts` med Zod discriminated union på `radType`. Per-tabell `$transaction` (marker original `erstattet` + opprett N nye med `parentRadId`). Sum-validering `Math.abs(diff) < 0.001`. Activity-log med `originalSnapshot` + `nyeSnapshot`. Retroaktiv audit-utvidelse på `redigerSedelRader`.
+- **T7-2c2** (`75aa0227` merge, `b2708f22` impl) — `SplittRadModal.tsx` (~410 linjer). Diskriminert props-union, tre-seksjons-layout (Original referanse / Split-rader gjenbruker T7-2b2 Rediger*-komponenter / Gjenstår-indikator grønn/rød/gul). 13 nye i18n-nøkler under `timer.splitt.*` × 15 språk.
+- **T7-2c3** (`4bfaacd7` merge, `ebfc269d` impl) — Integrasjon i `AttesteringDetalj_Edit`. Per-rad Splitt-knapp (kun original-rader uten `parentRadId`). `harUlagredeEndringer`-memo + `window.confirm` ved aktive endringer. Cache-resync via sortert ID-streng + useRef-guard. 2 nye i18n-nøkler.
+- **T7-2d** (`ad7fc773` merge, `762b89a0` impl) — Per-rad prosjekt-join i `hentForAttestering` (app-layer A.20). `TimerRaderLeder`/`TilleggRaderLeder`/`MaskinRaderLeder` viser prosjektnavn (blå tekst) ved multi-prosjekt-sedler. `tillattRedigerVedAttestering = true` aktivert for Byggleder på test-DB samme dag.
+- **T7-2e** (`1383b8eb` merge, `c480fe8a` impl) — Attestering edit-bugfix: tidsfelt `min-w-[120px]` + `step` clampet til 1800 (minutt-selektor alltid vises) + lokal string-state for timer-input (parses ved blur). Løser «fra-tid viser 0:» og «timer-endring fungerer ikke».
+- **T7-2f** (`14740e56` direkte til develop) — `SplittRadModal` bredde `max-w-4xl` → `max-w-6xl` + `overflow-x-auto` på rad-container.
+- **T7-4a** (`ffde00e5` merge, `f82957d2` impl) — Schema: `SheetMachine.externalCostObjectId String?` (svak FK A.20) + indeks. Migrasjon `20260516140000_t7_4a_machine_eco` (idempotent ALTER ADD COLUMN, ingen backfill). Mobil Drizzle speilet via idempotent ALTER i `migreringer.ts`.
+- **T7-4b** (`e3c99bc3` merge, `ff5c90e1` impl) — Server: `validerMaskinUnderArbeid`-helper + `hentRaderForValidering` + `feilMeldingMaskinOverstiger`. Wired inn i 7 mutasjoner (`tilfoyTimerRad`, `oppdaterTimerRad`, `maskin.tilfoy`, `maskin.oppdater`, `redigerSedelRader`, `splittRad` maskin-gren, `syncBatch` per-sedel). ECO-input lagt til på alle maskin-mutasjoner + `hentEndringerSiden`-respons. `MaskinRow`/`MaskinSnapshot` utvidet med ECO.
+- **T7-4c** (`38296dd5` merge, `151ca4a8` impl) — Web arbeider-detalj (`/dashbord/timer/[id]`): grupperingsnøkkel endret til `${projectId}|${ecoId ?? ""}`. Ny `EcoGruppe`-komponent (ECO-subheader + indigo-badge «→ Godkjenning byggherre» + arbeidstimer + indentert maskintimer + sum-indikator grønn/rød). `MaskinRadDialog` utvidet med ECO-velger. `defaultEcoId` pre-selekteres ved «+Legg til» i ECO-gruppe. 6 nye i18n-nøkler (`timer.gruppe.*` + `timer.detalj.ukjentEco`) × 15 språk.
+- **T7-4d** (`82509083` merge, `b0791470` impl) — Web attestering: `AttesteringDetalj.tsx` + `AttesteringDetalj_Edit.tsx` + `SplittRadModal.tsx` til samme prosjekt+ECO-bucket-mønster. Nye `ProsjektSectionAttest`/`EcoBucketAttest` + `ProsjektSectionEdit`/`EcoBucketEdit`. Eksisterende rad-komponenter (TimerRaderLeder/MaskinRaderLeder/TilleggRaderLeder) gjenbrukt med filtrerte rader. ECO på `MaskinRow`/`RedigerMaskinRadData` + `MaskinRadOriginal`. RedigerMaskinRad fikk ECO-velger på action-rad.
+- **T7-4e** (`08a76535` merge, `681d6098` impl) — Mobil: `apps/mobile/app/timer/[id].tsx` bygger ECO-bukets innen hvert prosjekt. Ny `EcoBucket`-komponent (speil av web `EcoGruppe`). `TimerSeksjon`/`MaskinSeksjon` fikk `defaultEcoId` + `visHeader`-props. `MaskinSeksjon` fikk ECO-velger i `MaskinRadModal` + ECO i DB-ops. `UnderprosjektVelgerModal` eksportert fra `TimerSeksjon` for gjenbruk. **Sync-fix:** `timerSync.ts` refererte `externalCostObjectId` kun for timer; maskin-mappingen i både push og pull manglet feltet. Hadde forblitt latent fordi ingen testdata har ECO på maskin enda.
+
+**Verifisering prod 2026-05-16:**
+- Migrasjon `20260516140000_t7_4a_machine_eco` applied 19:27:50 i `public._prisma_migrations`
+- Kolonne `timer.sheet_machines.external_cost_object_id` finnes i prod
+- HTTP/2 200 mot `sitedoc.no` + `api.sitedoc.no/health`
+- PM2 `sitedoc-web` + `sitedoc-api` restartet, online
+
+**Mobil:** T7-4e mobil-endringer er sovende på enhet til neste EAS-bygg. Idempotent Drizzle-migrasjon (T7-4a) kjøres ved app-oppstart via DatabaseProvider — ingen brytende endring for eldre klienter.
+
+**Dokumentasjon låst i samme runde:**
+- Flytskille arbeidstaker/attestering/Byggherre-godkjenning (T.7-utvidelse låst 2026-05-16) — se [fase-0-beslutninger.md § T.7](fase-0-beslutninger.md)
+- Dagsseddel-struktur per (prosjekt, ECO) med maskin som underpost — samme sted
+- Maskin-ECO-attestering: timer-attestering uavhengig av Byggherre-godkjenning; sistnevnte håndteres i fremtidig dokumentflyt-modul-kobling (rene visuelle hint i T7-4)
+
+---
+
 **Albansk (sq) lagt til som nytt språk + alle 14 eksisterende språk fullført IMPLEMENTERT på develop 2026-05-08.** Sitedoc støtter nå 15 språk (var 14).
 
 **Albansk (`sq.json`):** 2145 nøkler oversatt fra `en.json` via `google-translate-api-x`. Visningsnavn «Shqip», flagg 🇦🇱. Ingen batch-feil for sq → ingen fallback til engelsk. 16 nøkler er identiske med engelsk verdi (legitime internasjonale ord: Admin, Email, Inbox, Logo, Video, SiteDoc, CSV/Excel-formatnavn).
