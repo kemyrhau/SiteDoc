@@ -1115,28 +1115,80 @@ export const dagsseddelRouter = router({
 
       // Berik med ansatt-info (cross-package til kjernen-DB)
       const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
-      const brukere = await prisma.user.findMany({
-        where: { id: { in: userIder } },
-        select: { id: true, name: true, email: true },
-      });
-      const medlemmer = await prisma.organizationMember.findMany({
-        where: { userId: { in: userIder } },
-        select: { userId: true, ansattnummer: true },
-      });
+
+      // T7-4f-1: per-rad project-join — rader kan peke til andre prosjekt-IDer
+      // enn firma-eide (cross-project shift). Batch alle unike på tvers av
+      // timer/tillegg/maskiner i én findMany.
+      const radProjectIder = new Set<string>();
+      for (const s of sedler) {
+        for (const r of s.timer) radProjectIder.add(r.projectId);
+        for (const r of s.tillegg) radProjectIder.add(r.projectId);
+        for (const r of s.maskiner) radProjectIder.add(r.projectId);
+      }
+
+      const [brukere, medlemmer, ekstraProsjekter, orgSetting] = await Promise.all([
+        prisma.user.findMany({
+          where: { id: { in: userIder } },
+          select: { id: true, name: true, email: true },
+        }),
+        prisma.organizationMember.findMany({
+          where: { userId: { in: userIder } },
+          select: { userId: true, ansattnummer: true },
+        }),
+        radProjectIder.size > 0
+          ? prisma.project.findMany({
+              where: { id: { in: Array.from(radProjectIder) } },
+              select: { id: true, name: true, projectNumber: true },
+            })
+          : Promise.resolve([]),
+        prisma.organizationSetting.findUnique({
+          where: { organizationId: input.organizationId },
+          select: { dagsnorm: true, tillattRedigerVedAttestering: true },
+        }),
+      ]);
+
       const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
       const brukerMap = new Map(
         brukere.map((b) => [b.id, { ...b, ansattnummer: ansattnummerMap.get(b.id) ?? null }]),
       );
-      const prosjektMap = new Map(prosjekter.map((p) => [p.id, p]));
+      // Slå sammen firma-prosjekter (sedel-hode) + rad-prosjekter (alle unike).
+      const prosjektMap = new Map<
+        string,
+        { id: string; name: string; projectNumber: string | null }
+      >();
+      for (const p of prosjekter) prosjektMap.set(p.id, p);
+      for (const p of ekstraProsjekter) prosjektMap.set(p.id, p);
+
+      // Fallback til Prisma-default hvis settings-rad ikke finnes for firmaet.
+      const dagsnorm = orgSetting ? Number(orgSetting.dagsnorm) : 7.5;
+      const redigerTillatt = orgSetting?.tillattRedigerVedAttestering ?? false;
 
       return sedler.map((s) => {
         const projectId = s.timer[0]?.projectId ?? null;
+        const timerMedProsjekt = s.timer.map((r) => ({
+          ...r,
+          project: prosjektMap.get(r.projectId) ?? null,
+        }));
+        const tilleggMedProsjekt = s.tillegg.map((r) => ({
+          ...r,
+          project: prosjektMap.get(r.projectId) ?? null,
+        }));
+        const maskinerMedProsjekt = s.maskiner.map((r) => ({
+          ...r,
+          project: prosjektMap.get(r.projectId) ?? null,
+        }));
         return {
           ...s,
+          timer: timerMedProsjekt,
+          tillegg: tilleggMedProsjekt,
+          maskiner: maskinerMedProsjekt,
           ansatt: brukerMap.get(s.userId) ?? null,
           prosjekt: projectId ? (prosjektMap.get(projectId) ?? null) : null,
           totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
           antallRader: s.timer.length + s.tillegg.length,
+          tilleggHarKrav: s.tillegg.length > 0,
+          dagsnorm,
+          redigerTillatt,
         };
       });
     }),
