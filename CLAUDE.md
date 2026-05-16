@@ -55,7 +55,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T4-c web-UI innstillinger + kalender-modal — KLAR FOR REVIEW PÅ `feature/t4-c` (2026-05-16)
+### PR T4-c web-UI innstillinger + kalender-modal — DEPLOYET TIL TEST 2026-05-16 (merge `c02df657`, impl `39c43aa8`)
 
 Tredje sub-PR av T.4-bunken. Web-UI for de nye T4-a-feltene + server-Zod-utvidelse for å SETTE feltene. Etter denne kan firma-admin konfigurere standard arbeidsdag og legge inn periode-overstyringer for sommertid/halvdag direkte i webportalen. Mobil (T4-d/e) gjenstår.
 
@@ -85,15 +85,17 @@ Klient-side validering: start < slutt + pauseMin innenfor 0-480. Lagre-knapp akt
 - **Hard validering på server, speilet på klient:** Server avviser tidsfelter på `helligdag/fellesferie/klemdager/firma_fri` (BAD_REQUEST). Klient sender `null` for dem, så vanlig flyt trigger ikke feilen. Hvis bruker bytter type, nullstilles ikke state-feltene i komponenten — slik at bytte tilbake gjenoppretter verdiene. Verdiene sendes kun hvis `visTidsfelter === true`.
 - **`pauseMin` validering:** Server krever `min(0).max(480)` på Zod, klient speiler. 0 er gyldig for halvdag uten pause; 480 = 8 timer pause øvre grense.
 
-**Verifisert:** `@sitedoc/api` typecheck 0 nye feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). i18n-generate fullført uten feil.
+**Verifisert:** `@sitedoc/api` typecheck 0 nye feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). i18n-generate fullført uten feil. Etter deploy: `test.sitedoc.no/dashbord/firma/innstillinger` HTTP/2 200 OK.
 
-**Reload-metode:** TypeScript + i18n-endring. Full reload + cache-cleaning ved deploy. Server-reload kreves (Zod-skjema endret).
+**Reload-metode:** TypeScript + i18n-endring. Full reload + cache-cleaning ved deploy (`rm -rf apps/web/.next` + build + pm2 restart). Server-reload kreves (Zod-skjema endret). Utført 2026-05-16 ~00:45.
+
+**Sideeffekt under deploy (infrastruktur-fiks 2026-05-16):** SSH-deploy ble blokkert pga. TLS handshake failure mot ssh.sitedoc.no. Rotårsak: sitedoc.no var konfigurert i Cloudflare-zonen (Tunnel public hostnames, MX/SPF/DMARC, autoconfig, CalDAV/CardDAV) men NS hos Domeneshop pekte fortsatt mot hyp.net — zonen var i «Pending Nameserver Update». Cloudflare strammet inn på orphan-DNS som peker mot deres edge uten aktiv zone. Fikset ved å bytte NS hos Domeneshop til `riya.ns.cloudflare.com` + `simon.ns.cloudflare.com` (samme par som sitedoc.online/sitedoc.site). Propagering tok ~30 min. Permanent fiks — sitedoc.no er nå DNS-hostet hos Cloudflare på linje med de to andre domenene.
 
 **Gjenstår i T.4-bunken:**
 - **T4-d:** Mobil Drizzle — fraTid/tilTid på sheet_timer_local + sheet_machine_local + arbeidstidskalender_local-tabell + organizationSettingLocal-tabell + kalender-katalog-service + timerSync push/pull.
 - **T4-e:** Mobil UI — TimerRadModal + MaskinRadModal med DateTimePicker + forhåndsutfylling via `hentEffektivArbeidstid`-resultat (kalender-cache).
 
-Klar for review — ikke merge før Kenneth verifiserer.
+Klar for visuell verifisering på `test.sitedoc.no` — Kenneth tester StandardArbeidstidSeksjon + kalender-modal tidsfelter.
 
 ### PR T4-b hentEffektivArbeidstid + sommertid-validering — MERGET TIL DEVELOP 2026-05-16 (merge `9bcfb5b1`, impl `088a1e37`)
 
