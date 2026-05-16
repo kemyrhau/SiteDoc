@@ -55,7 +55,24 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
-### PR T4-e mobil UI fra/til per rad + forhåndsutfylling — IMPLEMENTERT PÅ `feature/t4-e` 2026-05-16
+### T.4-bunken (a/b/c/d/e) — KOMPLETT PÅ DEVELOP + DEPLOYET TIL TEST 2026-05-16
+
+Alle fem sub-PR-er av T.4 (fra/til per rad) er merget til develop og kjører på `test.sitedoc.no` (HTTP/2 200, migrasjoner aktive i `sitedoc_test`). Web (T4-c) er gått test → prod-prosess via separat deploy 2026-05-16. Mobil (T4-d/e) er på develop og venter på Kenneths visuelle verifikasjon på enhet før prod-merge + EAS-bygg.
+
+| Sub-PR | Merge-commit | Impl-commit | Status | Innhold |
+|---|---|---|---|---|
+| **T4-a** | `5acd2a5d` | `cfe51fc5` | ✅ develop + test | Schema + migrasjon. `OrganizationSetting.standardStartTid/SluttTid/PauseMin` + nullable `ArbeidstidsKalender.standardStartTid/SluttTid/pauseMin`. Additiv. |
+| **T4-b** | `9bcfb5b1` | `088a1e37` | ✅ develop + test | `hentEffektivArbeidstid(orgId, dato)`-helper i `apps/api/src/services/timer/arbeidstid.ts`. Hard sommertid-par-validering i kalender opprett/oppdater. |
+| **T4-c** | `c02df657` | `39c43aa8` | ✅ deployet til test | Server-Zod-utvidelse + web-UI (StandardArbeidstidSeksjon + kalender-modal). 15 nye i18n-nøkler → 13 språk. |
+| **T4-d** | `7bee1633` | `2f7bf42d` | ✅ develop + test | Mobil Drizzle: fraTid/tilTid + arbeidstidskalender_local + organization_setting_local. kalenderKatalog.ts + organizationSettingKatalog.ts. TimerSyncProvider 2-stegs Promise.all. timerSync push/pull. Server: ny `hentArbeidstidDefaults` + fraTid/tilTid i `hentEndringerSiden`. |
+| **T4-e** | `e992aca3` | `cea8f99e` | ✅ develop + test | Mobil UI: ny `FraTilTidFelt`-komponent (DateTimePicker mode=time). Montert i TimerRadModal + MaskinRadModal. Forhåndsutfylling: kalender-default eller forrige rads tilTid. Validering. Rad-visning utvidet med HH:MM–HH:MM. SummeringsBanner faller tilbake til kalender-dagsnorm. 0 nye i18n-nøkler. |
+
+**Neste:**
+1. Kenneth verifiserer T4-c web-UI på `test.sitedoc.no/dashbord/firma/innstillinger` + `/kalender`.
+2. Kenneth verifiserer T4-d/e mobil-UI på testbygg — forhåndsutfylling i begge modaler, validering, fra/til-visning på rad, SummeringsBanner-fallback.
+3. Etter verifikasjon: prod-merge av hele bunken samtidig (DB-migrasjon, web-deploy, EAS mobil-bygg → TestFlight/Play Store).
+
+### PR T4-e mobil UI fra/til per rad + forhåndsutfylling — MERGET TIL DEVELOP + DEPLOYET TIL TEST 2026-05-16 (merge `e992aca3`, impl `cea8f99e`)
 
 Femte og siste sub-PR av T.4-bunken. Bringer fra/til-tid per rad til mobil-UI med kalender-basert forhåndsutfylling. Ingen schema-, sync- eller server-endring (alt fundament fra T4-d).
 
@@ -102,7 +119,7 @@ Femte og siste sub-PR av T.4-bunken. Bringer fra/til-tid per rad til mobil-UI me
 
 Klar for review — ikke merge før Kenneth verifiserer på enhet at forhåndsutfylling + validering fungerer i begge modaler.
 
-### PR T4-d mobil Drizzle + kalender-cache + sync fra/til — IMPLEMENTERT PÅ `feature/t4-d` 2026-05-16
+### PR T4-d mobil Drizzle + kalender-cache + sync fra/til — MERGET TIL DEVELOP + DEPLOYET TIL TEST 2026-05-16 (merge `7bee1633`, impl `2f7bf42d`)
 
 Fjerde sub-PR av T.4-bunken. Bringer T.4-grunnmuren ut på mobil-enheten: per-rad fra/til-tid offline + lokal kalender-cache + lokal `OrganizationSetting`-cache + utvidet sync-protokoll. Ingen UI-endringer — det er T4-e som monterer DateTimePicker og forhåndsutfylling.
 
