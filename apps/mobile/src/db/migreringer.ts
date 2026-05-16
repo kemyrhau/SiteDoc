@@ -386,6 +386,32 @@ export function kjorMigreringer() {
     }
   }
 
+  // T7-4a (2026-05-16) — external_cost_object_id på sheet_machine_local.
+  // Speil av server-skjema (T7-4a migrasjon). Maskin følger samme prosjekt+ECO-
+  // gruppe som arbeidstimer per T.7 (låst 2026-05-16). Nullable, ingen backfill
+  // — eksisterende maskin-rader regnes som «hovedprosjekt» (NULL ECO).
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(sheet_machine_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "external_cost_object_id")) {
+      console.log(
+        "[MIG] Legger til external_cost_object_id på sheet_machine_local (T7-4a)",
+      );
+      db.execSync(
+        "ALTER TABLE sheet_machine_local ADD COLUMN external_cost_object_id TEXT",
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_sheet_machine_local_eco ON sheet_machine_local(external_cost_object_id)",
+      );
+    }
+  } catch (e) {
+    console.warn(
+      "[MIG] Kunne ikke utvide sheet_machine_local med external_cost_object_id:",
+      e,
+    );
+  }
+
   // T4-d — kalender-cache. Speiler ArbeidstidsKalender (T9a) for periode
   // currentYear ± 1. Brukes av hentEffektivArbeidstidLokal til offline-
   // beregning av start/slutt/pause for en dato. Soft-deleted rader skrives

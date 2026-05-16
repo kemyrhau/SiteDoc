@@ -133,6 +133,10 @@ export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
   // Per-rad prosjekt (T7-3b1). Se kommentar på sheetTimerLocal.projectId.
   projectId: text("project_id"),
   vehicleId: text("vehicle_id").notNull(),
+  // T7-4a (2026-05-16) — ECO på maskin-rad. Speil av server-schema; tilføyes
+  // idempotent via ALTER i migreringer.ts. Maskin følger samme prosjekt+ECO-
+  // gruppe som arbeidstimer (T.7 låst 2026-05-16).
+  externalCostObjectId: text("external_cost_object_id"),
   timer: real("timer").notNull(),
   mengde: real("mengde"),
   enhet: text("enhet"),
