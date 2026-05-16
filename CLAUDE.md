@@ -55,6 +55,14 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+### Neste sesjon: T7-3d merge + EAS-bygg (mobil)
+
+Naturlig neste rullout låser opp alle mobil-endringer som ligger ferdig deployet på server-siden men er sovende på enhet:
+1. **Merge T7-3d** (`feature/t7-3d`) → develop → main. Siste sub-PR i T7-3-bunken (per-rad-attestering for leder på mobil). Klar for review, venter på enhet-verifikasjon. Bringer attestering-flyten (T7-2b) til mobil-app.
+2. **EAS-bygg** for iOS + Android. Aktiverer på enhet: T7-3a/b1/b2/d (per-rad prosjekt + geo-forslag + per-rad-attestering), T4-d/e (fra/til-tid per rad + kalender-cache + forhåndsutfylling), T.5 (tidsrunding i mobil-pickere). Server-API er prod-klar for alt.
+
+Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight → Play Store. Verifikasjon på enhet før release-distribusjon.
+
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
 Standalone PR etter T.4-bunken. Firma-admin konfigurerer avrunding (15/30/60 min eller ingen) for fra/til-tid på timer- og maskin-rader. Avrunding skjer **visuelt ved input** — pickeren snapper til nærmeste intervall, det brukeren ser er det som lagres. Ingen server-side runding bak ryggen.
