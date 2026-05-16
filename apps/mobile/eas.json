@@ -39,6 +39,9 @@
         "buildConfiguration": "Release",
         "autoIncrement": true
       },
+      "android": {
+        "autoIncrement": true
+      },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.sitedoc.no",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "973406216782-3l2kr8b3qm2b6hl4udvdf2riirfsjn5b.apps.googleusercontent.com",

@@ -4,6 +4,724 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-05-08
 ---
 
+## Pågående arbeid (PR-historikk)
+
+### Neste: EAS-bygg (mobil)
+
+Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på enhet til neste EAS-bygg når TestFlight/Play Store. Aktiveres samtidig:
+- T7-3a/b1/b2/d (per-rad prosjekt + geo-forslag + per-rad-attestering)
+- T4-d/e (fra/til-tid per rad + kalender-cache + forhåndsutfylling)
+- T.5 (tidsrunding i mobil-pickere)
+
+Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
+
+### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
+
+Standalone PR etter T.4-bunken. Firma-admin konfigurerer avrunding (15/30/60 min eller ingen) for fra/til-tid på timer- og maskin-rader. Avrunding skjer **visuelt ved input** — pickeren snapper til nærmeste intervall, det brukeren ser er det som lagres. Ingen server-side runding bak ryggen.
+
+**Test-QA 2026-05-16:** Dropdown vises under Pause-feltet med default «15 min» og beskrivelse «Avrund fra/til-tid på timer- og maskin-rader til nærmeste intervall.» Godkjent for prod.
+
+**Prod-deploy 2026-05-16:** `sitedoc.no` + `api.sitedoc.no` HTTP/2 200 etter `pm2 restart sitedoc-web sitedoc-api`. PR-en er **server- og web-deployet**. Mobil aktiveres når neste EAS-bygg når TestFlight/Play Store — feltet er allerede i mobil-koden (T.4-d migrasjon legger til kolonnen ved app-oppstart).
+
+**Server (`apps/api/src/routes/organisasjon.ts`):**
+- `oppdaterSetting` Zod-input: `tidsrundingMinutter: z.union([z.literal(15), z.literal(30), z.literal(60), z.null()]).optional()` — tre-verdi-validering hindrer rare verdier som 7 eller 23.
+- `hentArbeidstidDefaults` (T4-d): utvidet `select`-clause med `tidsrundingMinutter: true` slik at mobil-cachen får feltet.
+- `hentSetting` (firma-admin web): returneres automatisk (ingen `select`).
+- Schema-feltet `OrganizationSetting.tidsrundingMinutter Int? @default(15)` fantes allerede fra tidligere migrasjon.
+
+**Web (`apps/web`):**
+- Ny `apps/web/src/lib/tidsrunding.ts` — `rundTilNarmeste(hhmm, minutter)`-helper. Clamp til 23:59 ved overflow. null = identity.
+- `StandardArbeidstidSeksjon` på `firma/innstillinger`: ny dropdown under pause-feltet med 4 valg (Ingen / 15 min / 30 min / 60 min). State holdes som `"none" | "15" | "30" | "60"`-streng, konverteres til `15 | 30 | 60 | null` ved lagre.
+- `RedigerTimerRad` + `RedigerMaskinRad` (T7-2b2 edit-modus ved attestering): ny `tidsrundingMinutter`-prop. `step={tidsrundingMinutter * 60}` på `<input type="time">` + onBlur-fallback-runding (sikrer at nettlesere som ignorerer step likevel produserer avrundede verdier). `AttesteringDetalj_Edit` henter `tidsrundingMinutter` fra `trpc.organisasjon.hentSetting` og passerer som prop til radene.
+
+**Mobil-cache (`apps/mobile/src/db`):**
+- `organizationSettingLocal.tidsrundingMinutter` lagt til (nullable integer, ingen default — server-respons styrer).
+- Idempotent `PRAGMA table_info`-sjekk + `ALTER TABLE organization_setting_local ADD COLUMN tidsrunding_minutter INTEGER` i `migreringer.ts`. Eksisterende klienter på T4-d-schema migreres automatisk ved app-oppstart.
+- `organizationSettingKatalog.refreshOrganizationSettingKatalog` skriver feltet fra server-respons (`setting.tidsrundingMinutter ?? null`).
+
+**Mobil-UI (`apps/mobile`):**
+- Ny `src/utils/tidsrunding.ts` — speil av web-helperen. `rundTilNarmeste(hhmm, minutter)`. Trivial nok at duplisering er bedre enn `packages/shared`-konfig-overhead. Kommentar peker til speilet for konsistens.
+- `FraTilTidFelt` fikk ny `tidsrundingMinutter: number | null`-prop. Ved `onChange` fra DateTimePicker: rund verdien FØR `onFraEndret`/`onTilEndret` kalles. Native `minuteInterval` på DateTimePicker brukes som hint for 15 og 30 (de eneste verdiene iOS/Android støtter — 60 ignoreres, så vi runder uansett i JS).
+- `TimerSeksjon` + `MaskinSeksjon` henter `tidsrundingMinutter` via `hentOrganizationSettingLokalt(organizationId)` i `useMemo` og passerer som prop til `FraTilTidFelt` i sine rad-modaler.
+
+**i18n:** 6 nye nøkler under `firma.innstillinger.standardArbeidstid.tidsrunding*` i nb + en. Auto-oversatt til 13 språk via `generate.ts` (2277 → 2283 totalt).
+
+**Designvalg:**
+- **«Nærmeste»-runding, ikke opp/ned:** 07:07 → 07:00 (15 min runding). 07:08 → 07:15. Matcher locked design.
+- **Schema-default 15:** Eksisterende firma uten eksplisitt valg får 15 min runding ved første kjøring. Firma-admin kan slå av via dropdown.
+- **Hvorfor onBlur-fallback på web:** `<input type="time">` `step`-attributtet håndheves inkonsistent i ulike nettlesere (Safari < 17 ignorerer 900-sekunders intervaller). onBlur-runding garanterer at lagret verdi alltid er konsistent.
+- **Hvorfor `minuteInterval` ikke alltid brukes på mobil:** iOS/Android DateTimePicker støtter kun et fast sett av verdier (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30). 60 ignoreres. Vi gir hint for 15/30 (smidigere UX) men runder uansett i JS for å garantere konsistens.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/web` typecheck 1 = 1 baseline (vitest). `apps/mobile` typecheck 12 = 12 baseline. 0 nye feil i alle apper.
+
+**Reload-metode:** TypeScript + Drizzle-skjema (ALTER ADD COLUMN). Krever full app-reload på mobil (close + open eller `r` i Metro) slik at `migreringer.ts` legger til kolonnen. Web krever cache-cleaning ved deploy (`rm -rf apps/web/.next` + build). Server reload kreves (Zod + select endret).
+
+**Forventede begrensninger:**
+- Standalone-prosjekter (uten firma) får ikke tidsrunding — `organizationSettingLocal` har kun rader for brukerens firma-medlemskap.
+- ArbeidstidSeksjon (sedel-nivå start/slutt på dagsseddel) er ikke avrundet — kun rad-modalene. Diskutabelt om det burde avrundes også; locked design gjelder kun rad-fra/til.
+- Web's edit-modus krever firma-admin (`hentSetting` er admin-only). Vanlig arbeider redigerer ikke i web — bruker mobil-modalene som henter via `hentOrganizationSettingLokalt`.
+
+Klar for review — ikke merge før Kenneth verifiserer at dropdown lagres og at picker snapper på enhet/nettleser.
+
+### T.4-bunken (a/b/c/d/e) — KOMPLETT PÅ DEVELOP + DEPLOYET TIL TEST 2026-05-16
+
+Alle fem sub-PR-er av T.4 (fra/til per rad) er merget til develop og kjører på `test.sitedoc.no` (HTTP/2 200, migrasjoner aktive i `sitedoc_test`). Web (T4-c) er gått test → prod-prosess via separat deploy 2026-05-16. Mobil (T4-d/e) er på develop og venter på Kenneths visuelle verifikasjon på enhet før prod-merge + EAS-bygg.
+
+| Sub-PR | Merge-commit | Impl-commit | Status | Innhold |
+|---|---|---|---|---|
+| **T4-a** | `5acd2a5d` | `cfe51fc5` | ✅ develop + test | Schema + migrasjon. `OrganizationSetting.standardStartTid/SluttTid/PauseMin` + nullable `ArbeidstidsKalender.standardStartTid/SluttTid/pauseMin`. Additiv. |
+| **T4-b** | `9bcfb5b1` | `088a1e37` | ✅ develop + test | `hentEffektivArbeidstid(orgId, dato)`-helper i `apps/api/src/services/timer/arbeidstid.ts`. Hard sommertid-par-validering i kalender opprett/oppdater. |
+| **T4-c** | `c02df657` | `39c43aa8` | ✅ deployet til test | Server-Zod-utvidelse + web-UI (StandardArbeidstidSeksjon + kalender-modal). 15 nye i18n-nøkler → 13 språk. |
+| **T4-d** | `7bee1633` | `2f7bf42d` | ✅ develop + test | Mobil Drizzle: fraTid/tilTid + arbeidstidskalender_local + organization_setting_local. kalenderKatalog.ts + organizationSettingKatalog.ts. TimerSyncProvider 2-stegs Promise.all. timerSync push/pull. Server: ny `hentArbeidstidDefaults` + fraTid/tilTid i `hentEndringerSiden`. |
+| **T4-e** | `e992aca3` | `cea8f99e` | ✅ develop + test | Mobil UI: ny `FraTilTidFelt`-komponent (DateTimePicker mode=time). Montert i TimerRadModal + MaskinRadModal. Forhåndsutfylling: kalender-default eller forrige rads tilTid. Validering. Rad-visning utvidet med HH:MM–HH:MM. SummeringsBanner faller tilbake til kalender-dagsnorm. 0 nye i18n-nøkler. |
+
+**Neste:**
+1. Kenneth verifiserer T4-c web-UI på `test.sitedoc.no/dashbord/firma/innstillinger` + `/kalender`.
+2. Kenneth verifiserer T4-d/e mobil-UI på testbygg — forhåndsutfylling i begge modaler, validering, fra/til-visning på rad, SummeringsBanner-fallback.
+3. Etter verifikasjon: prod-merge av hele bunken samtidig (DB-migrasjon, web-deploy, EAS mobil-bygg → TestFlight/Play Store).
+
+### PR T4-e mobil UI fra/til per rad + forhåndsutfylling — MERGET TIL DEVELOP + DEPLOYET TIL TEST 2026-05-16 (merge `e992aca3`, impl `cea8f99e`)
+
+Femte og siste sub-PR av T.4-bunken. Bringer fra/til-tid per rad til mobil-UI med kalender-basert forhåndsutfylling. Ingen schema-, sync- eller server-endring (alt fundament fra T4-d).
+
+**Ny komponent (`apps/mobile/src/components/timer-detalj/FraTilTidFelt.tsx`, ~115 linjer):**
+- Gjenbrukbar tidsfelt-velger med to side-ved-side DateTimePicker (`mode="time"`, `is24Hour`). iOS bruker `display="spinner"`, Android `default`.
+- Kontrollert via `fraTid`/`tilTid` (HH:MM | null) + setters. Picker-toggle-state internt.
+- Helpers: `hhmmTilDate`/`dateTilHhmm` for konvertering. Eksportert `fraErForTil(fra, til)`-validator brukes av forelder før lagre.
+
+**`TimerSeksjon.tsx` — utvidet:**
+- Ny prop `dato: string` (ISO YYYY-MM-DD).
+- `leggTil`/`oppdater` tar nå `fraTid: string | null` + `tilTid: string | null` og skriver dem til Drizzle.
+- `TimerRadModal` tar nye props `dato` + `eksisterendeRader` for å beregne forhåndsutfyllings-defaults.
+- `useMemo` for `defaultTider`:
+  - Rediger-modus: bruk radens egne verdier.
+  - Ny rad uten eksisterende rader: `effektiv.startTid` / `effektiv.sluttTid` fra `hentEffektivArbeidstidLokal(organizationId, new Date(dato + "T00:00:00"))`.
+  - Ny rad med eksisterende rader: forrige rads `tilTid` som ny `fraTid` (siste rad i `eksisterendeRader` med satt tilTid), `tilTid = effektiv.sluttTid`.
+- Validering i `lagre()`: `fraErForTil(fraTid, tilTid)` — viser `timer.feil.sluttForStart` hvis brudd.
+- Rad-visning: `HH:MM–HH:MM`-tekst i `flex-row flex-wrap`-bolken når begge satt.
+
+**`MaskinSeksjon.tsx` — samme mønster:**
+- `dato`-prop + utvidet `leggTil`/`oppdater`/`MaskinRadModal`.
+- `defaultTider`-`useMemo` med identisk logikk.
+- Rad-visning utvidet med fra–til-tekst.
+
+**`[id].tsx` — to endringer:**
+- `arbeidstidTimer`-beregningen faller nå tilbake til `hentEffektivArbeidstidLokal(sedel.organizationId, new Date(sedel.dato + "T00:00:00")).dagsnorm` hvis brukeren ikke har satt egen `sedel.startAt`/`endAt`. SummeringsBanner viser alltid relevant sammenligning — tidligere viste den `?` uten brukers egen registrering.
+- `ProsjektGruppe` får ny `dato`-prop som videreformidles til `TimerSeksjon` + `MaskinSeksjon`.
+
+**i18n:** 0 nye nøkler. Gjenbruker `timer.felt.startTid` ("Fra kl.") og `timer.felt.sluttTid` ("Til kl.") som tidligere ble brukt på sedel-nivå i `ArbeidstidSeksjon` — semantisk identiske. Feilmelding gjenbruker `timer.feil.sluttForStart` ("Slutt-tid må være etter start-tid."). Sparer 4 nøkler × 14 språk = 56 i18n-vedlikeholdspunkter.
+
+**Designvalg:**
+- **Forrige rads tilTid → ny rads fraTid:** Mest sannsynlig flow er at brukeren registrerer normaltid 07:00–11:00, så pause-/lunsjblokk på samme rad → ny rad 11:30–15:00. Vi tar siste rad med satt tilTid (ikke nødvendigvis siste rad totalt) for å håndtere edge case der noen rader er uten tider.
+- **DateTimePicker spinner på iOS:** Matcher eksisterende `ArbeidstidSeksjon` for konsistens. Android-default tar standard time-picker-modal.
+- **Validering på server allerede dekket:** Server-Zod aksepterer fraTid/tilTid som `string | null`. Klient-validering er kun en UX-hindring — server validerer at de er gyldige HH:MM (men ikke at fra < til, siden det er fornuftig for sjeldne edge case som natt-skift).
+
+**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Mine 4 nye komponenter har null TS-feil.
+
+**Reload-metode:** TypeScript-only (ingen schema-endring). Full app-reload (close + open eller `r` i Metro). Ingen native rebuild.
+
+**Forventede begrensninger:**
+- Ingen UI for å vise/redigere kalender på mobil — kun web (T4-c). Kalender-cache leses via `hentEffektivArbeidstidLokal` men brukeren ser ikke kalender-rader.
+- Tilleggs-rader (sheet_tillegg) har ikke fraTid/tilTid (designvalg fra T.4).
+- Ingen automatisk synking av rad-tid → sedel-tid. Sedel.startAt/endAt forblir brukerens manuelle valg i ArbeidstidSeksjon.
+
+Klar for review — ikke merge før Kenneth verifiserer på enhet at forhåndsutfylling + validering fungerer i begge modaler.
+
+### PR T4-d mobil Drizzle + kalender-cache + sync fra/til — MERGET TIL DEVELOP + DEPLOYET TIL TEST 2026-05-16 (merge `7bee1633`, impl `2f7bf42d`)
+
+Fjerde sub-PR av T.4-bunken. Bringer T.4-grunnmuren ut på mobil-enheten: per-rad fra/til-tid offline + lokal kalender-cache + lokal `OrganizationSetting`-cache + utvidet sync-protokoll. Ingen UI-endringer — det er T4-e som monterer DateTimePicker og forhåndsutfylling.
+
+**Schema (`apps/mobile/src/db/schema.ts`):**
+- `sheetTimerLocal` + `sheetMachineLocal`: nye nullable felter `fraTid: text("fra_tid")` + `tilTid: text("til_tid")`.
+- Ny tabell `arbeidstidskalenderLocal` — speil av serverens `ArbeidstidsKalender` (T9a). Lagrer id, organizationId, aar, dato (ISO YYYY-MM-DD), type, navn, timerOverstyr, standardStartTid, standardSluttTid, pauseMin, aktiv, sistOppdatert.
+- Ny tabell `organizationSettingLocal` med `organizationId` som primary key — én rad per firma. Felter: standardStartTid (default "07:00"), standardSluttTid (default "15:00"), standardPauseMin (default 30), tillattRedigerVedAttestering (default false), sistOppdatert.
+
+**Migrasjoner (`apps/mobile/src/db/migreringer.ts`):**
+- Idempotent `PRAGMA table_info`-sjekk + `ALTER TABLE ADD COLUMN fra_tid/til_tid TEXT` på begge rad-tabeller. Ingen backfill — UI (T4-e) setter verdier ved brukerinngang.
+- `CREATE TABLE IF NOT EXISTS arbeidstidskalender_local` + 3 indekser (org_aar, org_type_aar, org_dato).
+- `CREATE TABLE IF NOT EXISTS organization_setting_local` med `organization_id PRIMARY KEY` + alle DEFAULT-verdier matchet til schema.
+
+**Ny service `kalenderKatalog.ts` (~210 linjer):**
+- `refreshKalenderKatalog(klient, organizationId)` — kaller `trpc.firma.kalender.hentForMobil({ organizationId, fraAar: currentYear - 1, tilAar: currentYear + 1 })`. Full overskriving for firmaet (typisk < 50 rader per år). Soft-deleted rader skrives også; filter i hentLokalt-helpers.
+- `hentKalenderForAarLokalt(orgId, aar)` — leser aktive rader for et år (for fremtidig mobil-UI-vy).
+- `hentEffektivArbeidstidLokal(orgId, dato): { startTid, sluttTid, pauseMin, dagsnorm }` — lokal speil av servers `apps/api/src/services/timer/arbeidstid.ts`. Leser fra `organization_setting_local` + `arbeidstidskalender_local`. Logikk: firma-default → overstyring fra aktiv sommertid_start hvis dato faller mellom sommertid_start ≤ dato + sommertid_slutt ≥ dato samme år. Halvdag håndteres ikke her (per-rad-overstyring via `timerOverstyr`, registreres i UI). Hardkodet fallback "07:00"/"15:00"/30 hvis cache er tom (første kjøring offline).
+
+**Ny service `organizationSettingKatalog.ts` (~80 linjer):**
+- `refreshOrganizationSettingKatalog(klient, organizationId)` — kaller ny `trpc.organisasjon.hentArbeidstidDefaults` (se Server-tillegg). Upsert via delete+insert (singleton-rad per org).
+- `hentOrganizationSettingLokalt(orgId)` — synkron lese-helper for UI.
+
+**Server-tillegg (`apps/api/src/routes/organisasjon.ts`):**
+- Ny `hentArbeidstidDefaults`-prosedyre med `verifiserOrganisasjonTilgang` (medlemskap, ikke firma-admin) — `hentSetting` krever firma-admin og kan ikke brukes av vanlige ansatte for mobil-cachen. Returnerer kun standardStartTid, standardSluttTid, standardPauseMin, tillattRedigerVedAttestering — sensitive felter (timezone, tilgang-policies) er ekskludert via `select`-clause. Eksisterende `hentSetting` urørt.
+
+**Server-tillegg (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- `hentEndringerSiden`-respons utvidet: timer- og maskin-rader returnerer nå også `fraTid` + `tilTid`. Tidligere uteglemt i respons-mapping (selv om Prisma-skjemaet hadde feltene fra T.1 2026-05-11). syncBatch-input aksepterte allerede feltene.
+
+**`TimerSyncProvider.tsx` — 2-stegs Promise.all:**
+- Steg 1: base-pulls i parallell (`refreshKatalog` + `refreshMaskinKatalog` + `refreshProsjektKatalog`).
+- Steg 2: utleder brukerens unike firma-IDer fra `prosjekt_local`-cachen via ny `hentUnikeFirmaIderLokalt`-helper, og kjører `refreshKalenderKatalog` + `refreshOrganizationSettingKatalog` for hver i parallell. Brukere er typisk medlem av ett firma, men løsningen støtter flere uten kode-endring.
+
+**`timerSync.ts` push/pull:**
+- Push: send `fraTid`/`tilTid` per timer + maskin-rad i `syncBatch.mutate`. Tilleggs-rader har ikke fraTid/tilTid (designvalg fra T.4).
+- Pull: skriv `fraTid`/`tilTid` fra server-respons til lokal SQLite for timer + maskin-rader. Default `null` hvis ikke satt.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Mine endringer skjøvet linjenumrene på to pre-eksisterende baseline-feil i `timerSync.ts` (303→308, 329→334) — disse er T7-3b1-baseline relatert til server-respons-felter som er `string | null` mot lokal `.notNull()`.
+
+**Reload-metode:** TypeScript + Drizzle-skjema-endring. Krever full app-reload (close + open eller `r` i Metro) slik at `migreringer.ts` kjører ved oppstart og ALTER-statementene legger til kolonnene. Ingen native rebuild. Server-reload kreves ved deploy (Zod-respons og ny prosedyre).
+
+**Forventede begrensninger (kommer i T4-e):**
+- Ingen UI for fra/til-tid per rad — alle nye rader fra mobil sender `null` for fraTid/tilTid inntil T4-e monterer DateTimePicker.
+- `hentEffektivArbeidstidLokal` er klar til bruk i T4-e for forhåndsutfylling. UI som bruker den, kommer i samme sub-PR.
+- Geo-forslag (T7-3c-stilen) for fra-tid eller pause er ikke implementert.
+
+Klar for review — ikke merge før Kenneth verifiserer på enhet at migrasjonen kjører, kalender-cachen populerer, og syncBatch sender/mottar fraTid/tilTid uten regresjon.
+
+### PR T4-c web-UI innstillinger + kalender-modal — DEPLOYET TIL TEST 2026-05-16 (merge `c02df657`, impl `39c43aa8`)
+
+Tredje sub-PR av T.4-bunken. Web-UI for de nye T4-a-feltene + server-Zod-utvidelse for å SETTE feltene. Etter denne kan firma-admin konfigurere standard arbeidsdag og legge inn periode-overstyringer for sommertid/halvdag direkte i webportalen. Mobil (T4-d/e) gjenstår.
+
+**Server-Zod-utvidelse:**
+- `apps/api/src/routes/organisasjon.ts` (`oppdaterSetting`): + `standardStartTid` (HH:MM-regex), `standardSluttTid` (HH:MM-regex), `standardPauseMin` (0–480) — alle optional.
+- `apps/api/src/routes/firma/kalender.ts` (`opprett` + `oppdater`): + samme tre felter, nullable+optional. Ny `validerTidsfelter`-helper: avviser felter for andre typer enn `sommertid_start/slutt/halvdag` (BAD_REQUEST), og krever `standardStartTid < standardSluttTid` hvis begge er satt. På `oppdater` valideres mot resulterende state — dvs. type-bytte FRA halvdag TIL helligdag fanges selv om brukeren ikke eksplisitt sender `standardStartTid: null`.
+
+**Innstillinger-side (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`):**
+
+Ny `StandardArbeidstidSeksjon`-komponent (~120 linjer) plassert etter `RedigerVedAttesteringSeksjon`. Tre input-felter:
+- `<input type="time">` for `standardStartTid`
+- `<input type="time">` for `standardSluttTid`
+- `<input type="number" min={0} max={480}>` for `standardPauseMin`
+
+Klient-side validering: start < slutt + pauseMin innenfor 0-480. Lagre-knapp aktiveres når state er gyldig OG endret. Kaller eksisterende `oppdaterSetting`-mutation.
+
+**Kalender-modal (`apps/web/src/app/dashbord/firma/kalender/page.tsx`):**
+
+- `KalenderRad`-type utvidet med `standardStartTid: string | null`, `standardSluttTid: string | null`, `pauseMin: number | null`.
+- `RadModal`: 3 nye `useState` for tids-felter. Ny `visTidsfelter`-flagg som er sant for `sommertid_start | sommertid_slutt | halvdag`. Når flagget er sant, vises en grå info-boks med tre inputs (start, slutt, pause-min). Når brukeren bytter type til ikke-tidsrelevant verdi, sendes `null` for alle tre — server forkaster verdiene. Klient-side validering speiler server (start < slutt + pauseMin 0-480) for å vise feilmelding før mutation kjøres.
+- Måneds-liste: ny klokke-badge ved siden av timer-badge når enten `standardStartTid` eller `standardSluttTid` er satt. Format: `🕐 07:00–15:30` med grå border + tooltip via `title`-attributt.
+
+**i18n:** 15 nye nøkler i nb/en — 7 under `firma.innstillinger.standardArbeidstid.*` + 8 under `firma.kalender.felt.*` / `feil.*` / `tidsperiodeOverstyrt`. Auto-oversatt til 13 språk via `generate.ts` (2262 → 2277 totalt).
+
+**Designvalg:**
+- **Klokke-badge for både start og slutt:** Viser `07:00–15:30` selv om bare én av dem er overstyrt — den andre faller tilbake til firma-default ved utleting (T4-b helper), men UI-en viser eksplisitt at perioden har overstyring. Forhindrer at brukeren misforstår dataen.
+- **Hard validering på server, speilet på klient:** Server avviser tidsfelter på `helligdag/fellesferie/klemdager/firma_fri` (BAD_REQUEST). Klient sender `null` for dem, så vanlig flyt trigger ikke feilen. Hvis bruker bytter type, nullstilles ikke state-feltene i komponenten — slik at bytte tilbake gjenoppretter verdiene. Verdiene sendes kun hvis `visTidsfelter === true`.
+- **`pauseMin` validering:** Server krever `min(0).max(480)` på Zod, klient speiler. 0 er gyldig for halvdag uten pause; 480 = 8 timer pause øvre grense.
+
+**Verifisert:** `@sitedoc/api` typecheck 0 nye feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). i18n-generate fullført uten feil. Etter deploy: `test.sitedoc.no/dashbord/firma/innstillinger` HTTP/2 200 OK.
+
+**Reload-metode:** TypeScript + i18n-endring. Full reload + cache-cleaning ved deploy (`rm -rf apps/web/.next` + build + pm2 restart). Server-reload kreves (Zod-skjema endret). Utført 2026-05-16 ~00:45.
+
+**Sideeffekt under deploy (infrastruktur-fiks 2026-05-16):** SSH-deploy ble blokkert pga. TLS handshake failure mot ssh.sitedoc.no. Rotårsak: sitedoc.no var konfigurert i Cloudflare-zonen (Tunnel public hostnames, MX/SPF/DMARC, autoconfig, CalDAV/CardDAV) men NS hos Domeneshop pekte fortsatt mot hyp.net — zonen var i «Pending Nameserver Update». Cloudflare strammet inn på orphan-DNS som peker mot deres edge uten aktiv zone. Fikset ved å bytte NS hos Domeneshop til `riya.ns.cloudflare.com` + `simon.ns.cloudflare.com` (samme par som sitedoc.online/sitedoc.site). Propagering tok ~30 min. Permanent fiks — sitedoc.no er nå DNS-hostet hos Cloudflare på linje med de to andre domenene.
+
+**Gjenstår i T.4-bunken:**
+- **T4-d:** Mobil Drizzle — fraTid/tilTid på sheet_timer_local + sheet_machine_local + arbeidstidskalender_local-tabell + organizationSettingLocal-tabell + kalender-katalog-service + timerSync push/pull.
+- **T4-e:** Mobil UI — TimerRadModal + MaskinRadModal med DateTimePicker + forhåndsutfylling via `hentEffektivArbeidstid`-resultat (kalender-cache).
+
+Klar for visuell verifisering på `test.sitedoc.no` — Kenneth tester StandardArbeidstidSeksjon + kalender-modal tidsfelter.
+
+### PR T4-b hentEffektivArbeidstid + sommertid-validering — MERGET TIL DEVELOP 2026-05-16 (merge `9bcfb5b1`, impl `088a1e37`)
+
+Andre sub-PR av T.4-bunken. Server-API for å beregne effektiv arbeidstid per dato + hard validering av sommertid-par. Ingen API-input-utvidelse for de nye T4-a-feltene ennå — det kommer i T4-c (web-UI) sammen med UI-feltene.
+
+**Ny helper (`apps/api/src/services/timer/arbeidstid.ts`, ~115 linjer):**
+
+`hentEffektivArbeidstid(organizationId, dato): Promise<{ startTid, sluttTid, pauseMin, dagsnorm }>`
+
+Logikk (T.4):
+1. Hent firma-default fra `OrganizationSetting` (standardStartTid/SluttTid/PauseMin).
+2. Hvis dato faller innenfor aktiv sommertid-periode (siste aktive `sommertid_start` ≤ dato + aktiv `sommertid_slutt` ≥ dato, samme år), overstyr feltene fra `sommertid_start`-raden der de er satt.
+3. Beregn `dagsnorm = (sluttTid - startTid) - pauseMin` i timer.
+
+Halvdag håndteres ikke i hjelperen — det er per-rad-overstyring via `timerOverstyr` ved selve registreringen.
+
+Eksportert via `apps/api/src/services/timer/index.ts` — eneste tillatte importpath (per service-lag-konvensjonen).
+
+**Validering i kalender-router (`apps/api/src/routes/firma/kalender.ts`):**
+
+Ny `krevSommertidParKomplett(organizationId, aar, ignorerId?)`-helper kalles fra `opprett` (når `input.type === "sommertid_start"`) og `oppdater` (når resulterende type er `sommertid_start`). Kaster `PRECONDITION_FAILED` hvis det ikke finnes en aktiv `sommertid_slutt`-rad i samme år.
+
+Feilmelding: `«Sommertid krever en sluttdato samme år. Opprett sommertid_slutt-rad først.»`
+
+UX-konsekvens: firma-admin må opprette `sommertid_slutt`-rad FØR `sommertid_start`. Forhindrer at firma ender opp med åpent sommertids-regime som varer ut året (uten validering ville mobil/web fortsatt vist sommer-tider gjennom hele vinteren). Sommertid-status-mellomtilstanden (`bare_slutt`) tolereres for å gi en levelig opprettelses-rekkefølge.
+
+`ignorerId` passes inn fra oppdater for å håndtere edge case hvor brukeren bytter type FRA `sommertid_slutt` TIL `sommertid_start` på samme rad — raden ekskluderes da fra slutt-søket.
+
+**Verifisert:** `@sitedoc/api` typecheck 0 nye feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef).
+
+**Reload-metode:** Server reload kreves ved deploy (krever `pm2 restart`). Ingen klient-endring.
+
+**Gjenstår i T.4-bunken:** T4-d (mobil Drizzle + kalender-cache) + T4-e (mobil UI). T4-c er deployet til test 2026-05-16 — se entry øverst.
+
+### PR T4-a arbeidstid defaults — schema + migrasjon — MERGET TIL DEVELOP 2026-05-16 (merge `5acd2a5d`, impl `cfe51fc5`)
+
+Første sub-PR av T.4-bunken (fra/til per rad — implementasjons-bunke). Legger grunnmuren: firma-default for normal arbeidsdag på `OrganizationSetting` og periode-overstyringer på `ArbeidstidsKalender`. Ingen API, ingen UI — kommer i T4-b/c/d/e.
+
+**Schema-delta (`packages/db/prisma/schema.prisma`):**
+
+| Modell | Felt | Type | Default | Map |
+|---|---|---|---|---|
+| `OrganizationSetting` | `standardStartTid` | `String` | `"07:00"` | `standard_start_tid` |
+| `OrganizationSetting` | `standardSluttTid` | `String` | `"15:00"` | `standard_slutt_tid` |
+| `OrganizationSetting` | `standardPauseMin` | `Int` | `30` | `standard_pause_min` |
+| `ArbeidstidsKalender` | `standardStartTid` | `String?` | — | `standard_start_tid` |
+| `ArbeidstidsKalender` | `standardSluttTid` | `String?` | — | `standard_slutt_tid` |
+| `ArbeidstidsKalender` | `pauseMin` | `Int?` | — | `pause_min` |
+
+**Migrasjon (`20260516000000_t4_arbeidstid_defaults/migration.sql`):**
+- 3 × `ALTER TABLE organization_settings ADD COLUMN ... NOT NULL DEFAULT ...` — eksisterende rader får defaultverdi automatisk.
+- 3 × `ALTER TABLE arbeidstids_kalender ADD COLUMN ... NULL` — nullable, ingen backfill, kun satt for sommertid_start/slutt/halvdag.
+- Fullt additiv, ingen breaking change.
+
+**Logikk (implementeres i T4-b):**
+1. Slå opp kalender-rad for dato → bruk overstyringene hvis satt.
+2. Slå opp aktiv `sommertid_start`-rad (siste før dato uten påfølgende `sommertid_slutt`) → bruk overstyringene.
+3. Ellers: bruk `OrganizationSetting`-defaults.
+
+**Validering (kommer i T4-b API-lag):** `standardStartTid`/`standardSluttTid`/`pauseMin` på `ArbeidstidsKalender` er kun gyldig for `sommertid_start | sommertid_slutt | halvdag`. Avvises for `helligdag/fellesferie/klemdager/firma_fri`.
+
+**Verifisert:** `@sitedoc/db` typecheck 0 feil. `@sitedoc/api` typecheck 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef).
+
+**Reload-metode:** N/A — kun schema + migrasjon. Migrasjonen kjøres mot test ved deploy. Etter merge til develop kjører `deploy-test-cron.sh` migrasjonen automatisk.
+
+**Gjenstår i T.4-bunken:**
+- **T4-b:** Server-API (oppdaterSetting + kalender opprett/oppdater Zod-utvidelse) + `hentEffektivArbeidstid(orgId, dato)`-helper.
+- **T4-c:** Web-UI — innstillinger-side («Standard arbeidstid»-seksjon) + kalender-modal (betinget visning for sommertid_start/slutt/halvdag).
+- **T4-d:** Mobil Drizzle — fraTid/tilTid på sheet_timer_local/sheet_machine_local + ny arbeidstidskalender_local-tabell + kalender-katalog-service + timerSync push/pull.
+- **T4-e:** Mobil UI — TimerRadModal + MaskinRadModal med DateTimePicker + forhåndsutfylling fra kalender-cache.
+
+Klar for review — ikke merge før Kenneth verifiserer migrasjonen på test.
+
+### PR topbar firma-kontekst + favoritter — DEPLOYET TIL PROD 2026-05-15 (prod merge `0bd27466`)
+
+Inkluderer søkefelt og stjernemerking i ByggeplassVelger (fix-commit `d51c3690`). Topbar tilpasser seg pathname. På `/dashbord/firma/*`-ruter vises ny «Firma ▾»-velger istedenfor `ProsjektVelger` + `ByggeplassVelger`. Lar firma-admin og sitedoc-admin navigere direkte mellom firma- og prosjekt-kontekst. Favoritt-prosjekter persistert i localStorage med stjernemerking i alle tre velgere (`ProsjektVelger`, `FirmaKontekstVelger`, `ByggeplassVelger`). Søkefelt i alle velgere vises ved >7 elementer.
+
+**Ny hook (`apps/web/src/hooks/useFavoritter.ts`, ~65 linjer):**
+- `useFavoritter(userId)` — `{ favoritter: string[], erFavoritt, toggleFavoritt }`
+- localStorage-nøkkel `sitedoc_favoritter_${userId}`. Per bruker, ikke per firma.
+- Stille fallback til tom liste ved parse-feil eller manglende userId.
+
+**Ny komponent (`apps/web/src/components/layout/FirmaKontekstVelger.tsx`, ~185 linjer):**
+- «Firma ▾»-knapp med `Building2`-ikon, åpner dropdown.
+- Søkefelt vises kun ved >7 prosjekter (matcher repo-mønster fra `feedback_sjekkliste_valgmuligheter`).
+- To seksjoner: «Favoritter» (kun hvis det finnes favoritter) og «Alle prosjekter».
+- Per rad: stjerneknapp (gold-fyllt ved favoritt) + navn + prosjektnummer. Klikk på rad → `router.push(/dashbord/{id})` og Toppbar bytter tilbake til vanlig oppsett automatisk via `usePathname`.
+- `ProsjektRad`-subkomponent har separat stjerne-button slik at toggle-favoritt ikke trigger row-onClick.
+
+**ProsjektVelger.tsx — utvidet (~50 nye linjer):**
+- Importerer `useFavoritter` og `useSession`.
+- Prosjektlisten deles i favoritter + andre — seksjons-label vises kun hvis favoritter finnes.
+- Ny `ProsjektRad`-subkomponent (samme mønster som `FirmaKontekstVelger`) med stjerneknapp og row-button.
+- Scope-rader («Alle prosjekter» / «Mine prosjekter») bevart for sitedoc-admin og firma-admin.
+
+**Toppbar.tsx — usePathname-betinget rendering (~10 endrede linjer):**
+- `erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false`.
+- I firma-kontekst: `<FirmaKontekstVelger />` erstatter `ProsjektVelger` + `ByggeplassVelger`.
+- Sitedoc-admin sin `FirmaVelger` beholdes til venstre i begge moduser (firma-bytte uavhengig av kontekst).
+- Company-admin sin firma-fast-link beholdes som nå.
+
+**i18n:** 7 nye nøkler under `topbar.*` i nb/en (`firma`, `sokProsjekt`, `ingenProsjekter`, `favoritter`, `alleProsjekter`, `fjernFavoritt`, `leggTilFavoritt`). Auto-oversatt til 13 språk via `generate.ts` (2258 totalt).
+
+**Berører kun firma-admin og sitedoc-admin** — vanlig prosjektmedlem ser aldri firma-kontekst-rutene (firma-layout returnerer «ingen tilgang» uten `valgtFirma`). Stjernemerking i `ProsjektVelger` er tilgjengelig for alle.
+
+**Verifisert:** `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). 0 nye feil.
+
+**Reload-metode:** TypeScript-only + i18n. Full reload + cache-cleaning. Etter merge: `deploy-test-cron.sh` deployer automatisk til test.
+
+**Kjente begrensninger:**
+- Favoritt-toggle synkes ikke på tvers av enheter (localStorage er per-device). Skal vurderes flyttet til server-side `UserPreference`-tabell senere hvis kunder ber om sync.
+- `topbar.firma`-labelen er fast «Firma» — sitedoc-admin med valgt firma ser samtidig `FirmaVelger` med firmanavn, så ingen kollisjon.
+
+### PR T9 firmakalender (a/b/c) — DEPLOYET TIL PROD 2026-05-15 (prod merge `ca71cf48`)
+
+Hele T9-bunken (schema + tRPC + web-admin-UI) er deployet til prod. Migrasjon `20260515114710_t9_arbeidstidskalender` kjørt 15:03:30. `/dashbord/firma/kalender` returnerer HTTP 200 i prod. Inkluderer:
+
+- **T9a** (impl `92ee4975`): `ArbeidstidsKalender`-modell i `packages/db` med Variant B-felter, idempotent migrasjon, `beregnNorskeHelligdager(aar)` i `packages/db/src/seed/helligdager.ts` (Gauss-påskealgoritme uten ekstern avhengighet).
+- **T9b** (impl `27123f13`): tRPC-router `apps/api/src/routes/firma/kalender.ts` med 6 prosedyrer (hentForAar, importerNorskStandard, opprett, oppdater, slett, hentForMobil). Zod-enum-validering, firma-admin-auth for skriving, soft-delete via `aktiv=false`, sommertid-par-status som myk varsling.
+- **T9c** (impl `0997e81b`): Web-admin-UI på `/dashbord/firma/kalender` med år-velger, måneds-gruppert visning, type-badges, opprett/rediger-modal, sommertid-banner. 30 nye i18n-nøkler (`firma.kalender.*`) auto-oversatt til 13 språk.
+
+Gjenstår: **T9d** mobil-cache `arbeidstidskalender_local` når T.4/T.5 trenger den. SummeringsBanner.tsx (T7-3a) trenger oppdatering etter T9d for å lese dagsnorm fra kalender-cache.
+
+### PR T9c firmakalender — web-admin-UI — MERGET TIL DEVELOP OG PROD 2026-05-15 (develop merge `d8bc42f8`, prod merge `ca71cf48`, impl `0997e81b`)
+
+Tredje sub-PR av T9-bunken. Web-admin-UI for å administrere firmakalender, med år-velger, måneds-gruppert visning, type-badges, opprett/rediger-modal og sommertid-banner.
+
+**Sidebar-element (`apps/web/src/app/dashbord/firma/layout.tsx`):**
+- Ny «Kalender»-lenke under «Timer-rapport» med `Calendar`-ikon. Ingen `kreverFirmaModul`-gating — kalenderen er tverrgående firma-funksjon, gated via at hele firma-layouten kun er tilgjengelig for firma-admin og sitedoc-admin.
+
+**Side (`apps/web/src/app/dashbord/firma/kalender/page.tsx`, ~440 linjer):**
+
+| Seksjon | Innhold |
+|---|---|
+| Topp-rad | Tittel + beskrivelse, år-velger (←/→-knapper + årsnummer), «Importer norsk standard {{aar}}»-knapp |
+| Sommertid-banner | Vises kun når `sommertidStatus === "bare_start"` eller `"bare_slutt"`. Gul advarsel med `AlertTriangle`-ikon og forklarende tekst. |
+| Måneds-liste | 12 kort, ett per måned. Hver viser måned-navn (norsk lokalisering via `Intl.DateTimeFormat`) + «+ Legg til»-knapp + rader. Tomme måneder viser «Ingen oppføringer.» |
+| Rad | Ukedag + dato, type-badge (fargekodet per type), navn, halvdag-timer hvis aktuelt, rediger-pencil-ikon |
+
+**Modal (`RadModal`):** Felles komponent for opprett og rediger. Felter: dato (locked i rediger-modus), type-Select (7 verdier), navn, timerOverstyr (vises kun for `halvdag`-type), aktiv-checkbox (kun i rediger-modus). Bunn-action-bar: «Deaktiver» (kun i rediger), «Avbryt», «Lagre».
+
+**Type-badge-fargekoding:**
+- `helligdag` → rød
+- `fellesferie` → blå
+- `klemdager` → indigo
+- `sommertid_start/slutt` → amber
+- `halvdag` → oransje
+- `firma_fri` → grå
+
+**Cache-invalidering:** Alle mutations (opprett/oppdater/slett/importer) kaller `utils.firma.kalender.hentForAar.invalidate()`. Importerings-suksess viser kort `alert` med antall opprettet/oppdatert/hoppet over.
+
+**i18n:** 30 nye nøkler under `firma.kalender.*` i nb/en. Auto-oversatt til 13 språk via `generate.ts` (2251 totalt). Nøkler dekker tittel/beskrivelse, alle 7 type-navn (rendres via `t(\`firma.kalender.type.${rad.type}\`)`), modal-felter, sommertid-advarsel, feilmeldinger.
+
+**Verifisert:** `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). 0 nye feil i kalender-koden.
+
+**Reload-metode:** Server reload kreves ikke. TypeScript-only + i18n-endring. Test ved å åpne `/dashbord/firma/kalender` som firma-admin.
+
+**Forventede begrensninger:**
+- `confirm()` brukes for deaktiver-bekreftelse — pre-eksisterende mønster i denne mappen (jf. `firma/avdelinger/page.tsx`). Konvertering til Modal kan gjøres i felles oppfølger.
+- Ingen «Slett permanent»-knapp — kun deaktivering. Audit-spor bevares; idempotent import respekterer admin-deaktivering.
+- Mobil-cache (T9d) er separat sub-PR. SummeringsBanner (T7-3a) leser fortsatt fra `OrganizationSetting.dagsnorm` — oppdateres til å lese fra kalender-cache når T9d landes.
+
+Klar for review og test. Etter merge: Kenneth verifiserer i nettleser at år-velger, import-knapp, opprett/rediger og badges fungerer på `test.sitedoc.no/dashbord/firma/kalender`.
+
+### PR T9b firmakalender — tRPC-router + auth + importerNorskStandard — MERGET TIL DEVELOP 2026-05-15 (merge `0fdd625e`, impl `27123f13`)
+
+Andre sub-PR av T9-bunken. Bygger server-API-laget over T9a-grunnmuren. Plassert på firma-nivå (`apps/api/src/routes/firma/`) per T.9-spec som sier kalenderen angår mer enn timer-modulen. Ny `firmaRouter`-aggregator gir framtidig rom for andre firma-rette routere uten flere top-level-nøkler.
+
+**Router (`apps/api/src/routes/firma/kalender.ts`, ~340 linjer):**
+
+| Prosedyre | Type | Auth | Innhold |
+|---|---|---|---|
+| `hentForAar({ organizationId, aar })` | query | `verifiserOrganisasjonTilgang` (medlemskap) | Aktive rader for år, sortert. Returnerer `{ rader, sommertidStatus }` der `sommertidStatus ∈ komplett \| bare_start \| bare_slutt \| ingen`. |
+| `importerNorskStandard({ organizationId, aar })` | mutation | `autoriserAdminForFirma` | Kaller `beregnNorskeHelligdager(aar)` fra T9a-seed. Idempotent: oppdaterer navn på eksisterende aktive, hopper over admin-deaktiverte. Returnerer `{ opprettet, oppdatert, hoppetOver }`. |
+| `opprett({ organizationId, dato, type, navn, timerOverstyr? })` | mutation | `autoriserAdminForFirma` | Zod-enum-validering av `type`. Validerer at `timerOverstyr` kun settes for `halvdag`-type. `aar` utledes fra `dato.getUTCFullYear()`. Returnerer `{ rad, sommertidStatus }`. |
+| `oppdater({ id, organizationId, type?, navn?, timerOverstyr?, aktiv? })` | mutation | `autoriserAdminForFirma` | Henter raden først for eierskaps-verifikasjon. Dato kan ikke endres (opprett ny + slett gammel hvis du må). |
+| `slett({ id, organizationId })` | mutation | `autoriserAdminForFirma` | Soft-delete via `aktiv=false` — ikke faktisk slett. Audit-spor + idempotent import respekterer admin-deaktivering. |
+| `hentForMobil({ organizationId, fraAar, tilAar })` | query | `verifiserOrganisasjonTilgang` (medlemskap) | Periode-spørring for T9d mobil-cache. Validerer `fraAar ≤ tilAar`. |
+
+**Zod-enum for type:** `helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri`. Definert lokalt i router-fila — utvides uten DB-migrasjon.
+
+**Sommertid-par-validering (myk):** Server kaster ikke feil ved opprettelse av enkelt-poster. `sommertidStatusForAar`-helperen returnerer paret-status sammen med rader/opprettelse-respons så UI (T9c) kan varsle. Hard validering legges på forbruks-siden (auto-fordeling) når begge poster trengs.
+
+**timerOverstyr-validering:** Kun gyldig for `halvdag`-type. Må være `> 0` og `< 24`. Andre typer må sende `null`/`undefined` — ellers `BAD_REQUEST`.
+
+**Router-aggregator (`apps/api/src/routes/firma/index.ts`):** Eksporterer `firmaRouter` med `kalender` som under-nøkkel. Registrert i `appRouter` som `firma: firmaRouter` — klient kaller `trpc.firma.kalender.hentForAar.useQuery(...)`.
+
+**Verifisert:** `@sitedoc/api` typecheck 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). Mobil: ingen impact ennå (T9d henter `hentForMobil` senere).
+
+**Reload-metode:** N/A — server-only. Migrasjonen fra T9a kjøres mot test ved deploy. Etter merge til develop kjører `deploy-test-cron.sh` migrasjonen automatisk.
+
+**Gjenstår i T9-bunken:**
+- **T9c:** Web-admin-UI på firma-nivå (`apps/web/src/app/dashbord/firma/kalender/`).
+- **T9d (senere):** Mobil-cache `arbeidstidskalender_local` + sync-strategi via `trpc.firma.kalender.hentForMobil`.
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
+### PR T9a firmakalender — schema + migrasjon + helligdager-seed — MERGET TIL DEVELOP 2026-05-15 (merge `30340e6f`, impl `92ee4975`)
+
+Første sub-PR av T9-bunken (Firmakalender). Legger til grunnmuren — DB-tabell + idempotent seed-funksjon for norske helligdager. Ingen API-router og ingen UI ennå (kommer i T9b/T9c).
+
+**Schema (`packages/db/prisma/schema.prisma`):**
+- Ny modell `ArbeidstidsKalender` (linje 1942+). Variant B (dynamisk) per T.9-spec. Felter: `id, organizationId, aar, dato, type, navn, timerOverstyr, aktiv, createdAt, updatedAt`.
+- `type` som `String` (validert via Zod-enum i API-laget — ikke Prisma-enum) slik at type-listen kan utvides uten migrasjon. Verdier: `helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri`.
+- `timerOverstyr Decimal(4,2)?` — matcher `OrganizationSetting.dagsnorm`-presisjon. Nullable, settes kun for `halvdag`-type.
+- `aar Int` — duplikat av `year(dato)` for raskt år-filtrering og idempotent import.
+- Unique `(organizationId, dato)` — én rad per dato per firma. Halvdag overstyrer helligdag på samme dato.
+- Indekser: `(organizationId, aar)` for år-vy + `(organizationId, type, aar)` for type-spesifikke oppslag (f.eks. «finn sommertid-perioden i 2026»).
+- Cascade-relasjon til `Organization`. Plassert i kjernen (`packages/db`), ikke `db-timer` — kalenderen angår flere moduler.
+
+**Migrasjon (`20260515114710_t9_arbeidstidskalender/migration.sql`):**
+- `CREATE TABLE arbeidstids_kalender` med tre indekser og FK med `ON DELETE CASCADE`.
+- Idempotens ivaretas av server-laget ved import (`upsert` på `(organizationId, dato)`-nøkkelen).
+
+**Seed (`packages/db/src/seed/helligdager.ts`, 95 linjer):**
+- `beregnNorskeHelligdager(aar: number): Helligdag[]` returnerer 12 datoer per år.
+- Bevegelige helligdager beregnes via Meeus/Jones/Butcher Gauss-påskealgoritmen (~15 linjer). Skjærtorsdag/Langfredag/2. påskedag/Kristi himmelfartsdag/1. og 2. pinsedag avledes som offset fra 1. påskedag.
+- Faste: 1. nyttårsdag, Offentlig høytidsdag (1. mai), Grunnlovsdag (17. mai), 1. og 2. juledag.
+- Returneres sortert etter dato, Date i UTC ved midnatt. Ingen ekstern dato-bibliotek-avhengighet (verifiserte at `date-fns-tz` ikke er nødvendig siden vi lagrer `date` uten tid).
+
+**Eksport (`packages/db/src/index.ts`):** `beregnNorskeHelligdager` + `Helligdag`-type re-eksporteres fra `@sitedoc/db` for bruk i API-laget (T9b).
+
+**Endring i spec (`docs/claude/fase-0-beslutninger.md § T.9`):** Import-mekanismen oppdatert fra `date-fns-tz` til innebygd Gauss-algoritme. Begrunnelse skrevet inn som «Endring fra opprinnelig spec (2026-05-15)».
+
+**Verifisert:** `@sitedoc/db` typecheck 0 feil. `@sitedoc/api` typecheck 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef-feil). Mobil bruker ikke `@sitedoc/db` — null impact.
+
+**Reload-metode:** N/A — kun schema + ren TS-kode. Migrasjonen kjøres mot test ved deploy.
+
+**Gjenstår i T9-bunken:**
+- **T9b:** tRPC-router (`apps/api/src/routes/firma/kalender.ts`) med `hentForAar`, `importerNorskStandard`, `opprett`, `oppdater`, `slett`, `hentForMobil` + firma-admin-auth + Zod-enum-validering av `type`.
+- **T9c:** Web-admin-UI (plassering avklares — antakelig `apps/web/src/app/dashbord/firma/kalender/`).
+- **T9d (senere):** Mobil-cache `arbeidstidskalender_local` når T.4/T.5 trenger den.
+
+Klar for review — ikke merge før Kenneth verifiserer migrasjonen på test.
+
+### PR T7-3d per-rad-attestering for leder på mobil — DEPLOYET TIL PROD 2026-05-14 (merge `ae6e5a2d` på main, impl `ffebd082`)
+
+Fjerde sub-PR av T7-3-bunken. Bringer attestering-flyten (T7-2b) til mobil. Prosjektleder og firma-admin kan nå attestere/returnere innsendte sedler fra mobil-appen — speil av webs `AttesteringDetalj`-felleskomponent, forenklet for mobil-flate.
+
+**Nye filer (`apps/mobile`):**
+- `src/components/timer-attestering/AttesteringStatusBadge.tsx` (~40 linjer) — `pending`/`attestert`/`returnert`-badge.
+- `src/components/timer-attestering/RadCheckbox.tsx` (~80 linjer) — rad med checkbox + badge + info. Demper og deaktiverer ikke-tilgjengelige rader.
+- `src/components/timer-attestering/ReturnerModal.tsx` (~115 linjer) — modal med multiline-TextInput for kommentar (obligatorisk). Speil av webs `ReturnerDialog`. Kaller `returnerRader`.
+- `src/components/timer-attestering/AttesteringDetaljMobil.tsx` (~360 linjer) — kjernekomponent. Tre rad-seksjoner med per-rad-checkboxer, container-status-banner, bunn-action-bar (Attester/Returner). Pre-utvalg av pending-rader ved sideåpning. Cache-invalidering ved suksess.
+- `app/timer/attestering/index.tsx` (~150 linjer) — liste-side. Henter `hentTilAttesteringFirma` via `prosjekt.hentMine` → første `primaryOrganizationId` som proxy. Kort-format. Gating-bannere ved ingen tilgang.
+- `app/timer/attestering/[id].tsx` (~50 linjer) — tynn wrapper som monterer `AttesteringDetaljMobil`.
+
+**Endret:**
+- `app/(tabs)/mer.tsx` — ny menylenke «Attester timer» gated på `kanAttestereFirma`. Lenken er skjult for arbeidere uten leder-tilgang.
+
+**Server/skjema:** Null endring. Bruker eksisterende `hentTilAttesteringFirma`, `hentForAttestering`, `kanAttestereFirma`, `attesterRader`, `returnerRader` fra T7-2b1-deploy.
+
+**i18n:** Null nye nøkler. Alle gjenbrukt fra T7-2b (`timer.attestering.*`, `timer.detalj.*`, `handling.*`).
+
+**Forenklinger ifht. web (bevisst scope-redusering):**
+- Ingen edit-modus (T7-2b2) — firma-admin redigerer på web.
+- Ingen ECO-flytting per rad — utelates på mobil.
+- Ingen rediger-header-modal. Lederen attesterer, redigerer ikke.
+- Kun firma-kontekst (ingen `prosjektKontekst`-prop) — mobil-tabs er firma-orienterte.
+
+**Auth/datastrøm:** Online-only. Krever nett for mutations (samme som web — snapshot via A.7). Ingen lokal queue.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Pre-eksisterende `mer.tsx`-feil flyttet fra linje 81 til linje 101 pga. linjeforskyvning.
+
+**Reload-metode:** TypeScript-only. Full app-reload eller `r` i Metro. Ingen native rebuild.
+
+### T7-3-bunken (a/b1/b2/d) — DEPLOYET TIL PROD + venter på EAS-bygg
+
+Alle fire sub-PR-er av T7-3 (mobil timer-redesign) er på `main`. Server-route-endringer er aktive i prod (`223afc17` for a/b1/b2 2026-05-14, `ae6e5a2d` for d). Mobil-endringene er sovende på enhet til neste EAS Build → TestFlight / Play Store.
+
+| Sub-PR | Merge-commit | Impl-commit | Status | Innhold |
+|---|---|---|---|---|
+| **T7-3a** | `22a97402` | `fc087b65` | ✅ prod | Arbeidstid-seksjon + summerings-banner i mobil-detalj. Speil av T7-1a. |
+| **T7-3b1** | `cd64c51a` | `65bf48cb` | ✅ prod | Per-rad `projectId` (skjema + lokal migrasjon + sync push/pull + prosjekt-katalog-cache). Ingen UI. |
+| **T7-3b2** | `3e34ec71` | `1717fd79` | ✅ prod | UI for per-rad prosjektvelger + ProsjektGruppe-visning i [id].tsx + geo-forslag i ny.tsx. |
+| **T7-3d** | `ae6e5a2d` | `ffebd082` | ✅ prod | Per-rad-attestering for leder på mobil. Speil av webs AttesteringDetalj (forenklet). |
+
+Gjenstår av T7-3-bunken:
+- **T7-3c (planlagt eller forkastet):** Geo-forslag-utvidelser. Mye av denne ble levert i T7-3b2 — egen sub-PR kan dekke historikk/justeringer eller forkastes.
+
+### PR T7-3b2 prosjekt-velger per rad + geo-forslag — DEPLOYET TIL PROD 2026-05-14 (server-route, prod-commit `223afc17`) + venter på mobil-bygg (merge `3e34ec71`, impl `1717fd79`)
+
+Tredje sub-PR av T7-3-bunken. Aktiverer den brukervendte siden av per-rad-prosjekt: brukeren kan velge prosjekt per rad i timer/tillegg/maskin-modaler, dagsseddelen grupperer rader per prosjekt, og GPS-posisjon foreslår nærmeste prosjekt ved opprettelse. Ingen DB-, sync- eller server-endringer (alt fundament fra T7-3b1).
+
+**Filer (`apps/mobile`):**
+- **Ny** `src/components/timer-detalj/ProsjektVelger.tsx` (~130 linjer) — gjenbrukbar `ProsjektVelgerModal` + `ProsjektFelt`-trigger-knapp. Leser fra `prosjektLocal` via `hentProsjekterLokalt(organizationId)`. Søk når > 7 prosjekter. `ekskluderIder`-prop for «+ Legg til prosjekt»-knapp som filtrerer bort prosjekter som allerede har rader.
+- `src/components/timer-detalj/TimerSeksjon.tsx` — `TimerSeksjonProps` utvidet med `organizationId`. `leggTil`/`oppdater` tar nå `projectId` per rad. `TimerRadModal` får ProsjektFelt + ProsjektVelgerModal. Default = sedel-prosjekt. Underprosjekt-velger (ECO) filtreres på rad-prosjekt — bytte av prosjekt nullstiller ECO siden Underprosjekt er prosjekt-spesifikk.
+- `src/components/timer-detalj/TilleggSeksjon.tsx` — samme mønster: `organizationId` + `projectId` props, rad-modal med ProsjektFelt.
+- `src/components/timer-detalj/MaskinSeksjon.tsx` — samme.
+- `app/timer/[id].tsx` — beregner `aktiveProsjektIder` (union av sedel.projectId + alle rad.projectId + bruker-tilføyde). Rendre én `ProsjektGruppe` per id med tre seksjoner og rader filtrert til prosjektet. Header med prosjekt-navn vises kun ved multi-prosjekt. «+ Legg til prosjekt»-knapp åpner ProsjektVelgerModal med `ekskluderIder=aktiveProsjektIder`.
+- `app/timer/ny.tsx` — `useEffect` ved sideåpning: `Location.requestForegroundPermissionsAsync` → `getCurrentPositionAsync` → Haversine mot `hentProsjekterLokalt(orgId)` med 500m radius. Foreslår nærmeste prosjekt som default hvis bruker ikke har valgt manuelt. Stille fallback ved permission-avslag eller ingen treff. Visuell `MapPin`-indikator + «Foreslått basert på posisjon»-tekst når geo-forslag er aktiv.
+- `src/utils/dato.ts` + `src/types/timer-detalj.ts` — ingen endring fra T7-3b1 (Prosjekt-type allerede eksportert).
+
+**Skjema/server:** Null endring. Alt fundament ble lagt i T7-3b1.
+
+**i18n:** 1 ny nøkkel (`handling.sok` = «Søk» / «Search») — pre-eksisterende bug der eksisterende velgere brukte t-key som ikke fantes (fallback til strengen «handling.sok» i UI). Lagt til i nb + en, auto-oversatt til 13 språk. `timer.leggTilProsjekt`, `timer.geoForslag`, `timer.felt.prosjekt`, `timer.velgProsjekt`, `timer.ingenTilgjengelige` finnes allerede.
+
+**`app.json`/permissions:** `expo-location` v19.0.8 allerede installert + config-plugin med norsk permission-tekst på plass siden tidligere fase (GPS-tagging av bilder). Null endring.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). ECO-bytte ved prosjekt-bytte testes via observasjon — `valgtEcoId` nullstilles i `TimerRadModal` når ProsjektVelger setter ny `valgtProjectId`.
+
+**Reload-metode:** TypeScript- + i18n-endring. Full app-reload (close + open eller `r` i Metro). Ingen native rebuild (expo-location er allerede konfigurert).
+
+**Forventede begrensninger:**
+- Per-rad-attestering på mobil — kommer i T7-3d eller forkastes hvis attestering forblir web-only.
+- `dagsseddelLocal.projectId` beholdes som default. NOT NULL → drop kommer i T7-4+.
+- Geo-forslag krever permission ved første gang — brukeren får OS-dialog. Avslag = fall tilbake til manuell velger.
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
+### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — DEPLOYET TIL PROD 2026-05-14 (server-route, prod-commit `223afc17`) + venter på mobil-bygg (merge `cd64c51a`, impl `65bf48cb`)
+
+Andre sub-PR av T7-3-bunken. Forberedelse for T7-3b2 (UI per-rad-velger). Etter denne har mobil per-rad `projectId`-felt i lokal SQLite + sync-protokollen sender/mottar per-rad projectId mot server. Server-shimmen fra T.1 (sedel-nivå `projectId` for pre-T7-3b1-klienter) beholdes for bakoverkompatibilitet — server støtter både gammelt og nytt format. INGEN UI-endringer i denne PR-en; lokal projectId backfilles fra `dagsseddelLocal.projectId` og rad-velger kommer i T7-3b2.
+
+**Lokal SQLite-migrasjon (idempotent ALTER, mønster fra `migreringer.ts:254-272`):**
+- ALTER ADD COLUMN `project_id TEXT` på `sheet_timer_local` / `sheet_tillegg_local` / `sheet_machine_local`.
+- Backfill fra parent `dagsseddel_local.project_id` (UPDATE WHERE NULL).
+- Indeks på `project_id` per tabell.
+- Ny `prosjekt_local`-tabell (id, organization_id, name, project_number, lat, lng, aktiv, sist_oppdatert) + indeks på (organization_id, aktiv).
+
+**Klient (`apps/mobile`):**
+- `src/db/schema.ts` — `projectId` (nullable) på alle tre rad-tabeller + ny `prosjektLocal`-tabell.
+- `src/db/migreringer.ts` — idempotent ALTER + backfill + indekser + CREATE TABLE for prosjekt_local.
+- `src/services/prosjektKatalog.ts` (ny, ~95 linjer) — `refreshProsjektKatalog` (henter `trpc.prosjekt.hentMine`, hopper over standalone uten `primaryOrganizationId`, lagrer til prosjekt_local), `hentProsjekterLokalt(orgId)`, `finnProsjektLokalt(id)`.
+- `src/providers/TimerSyncProvider.tsx` — `refreshProsjektKatalog` lagt til i `Promise.all` ved login + nett-gjenkomst (samme mønster som maskinKatalog).
+- `src/services/timerSync.ts` — sender `projectId` per rad i `syncBatch` (fallback til sedel-nivå). Skriver per-rad projectId ved pull (fallback til sedel-nivå for legacy-respons).
+
+**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- `syncBatch`-input utvidet med `projectId: z.string().uuid().optional()` per rad (timer/tillegg/maskiner). Rad-nivå overstyrer sedel-nivå hvis satt; ellers fall tilbake til `lokal.projectId` (kompat-shim).
+- `hentEndringerSiden`-respons utvidet med `projectId` per rad (timer/tillegg/maskiner) så klient kan lagre per-rad-attribusjon.
+- Ny auth-sjekk: `verifiserProsjektmedlem` kalles for hver unike per-rad-`projectId` som avviker fra sedel-nivå. Hindrer at bruker fører timer på prosjekt de ikke er medlem av via per-rad-attributt.
+
+**Skjema-status server:** `db-timer.SheetTimer/Tillegg/Machine.projectId` finnes fra T.1 (PR 1B 2026-05-11). Null Prisma-migrasjon i denne PR-en.
+
+**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). `apps/api` typecheck 0 = 0 feil.
+
+**Reload-metode:** Telefon-app — TypeScript + Drizzle-skjema-endring, krever full app-reload (eller close + open) slik at `migreringer.ts` kjører ved oppstart og ALTER-statementene legger til kolonnene. Ingen native rebuild.
+
+**Forventede begrensninger (kommer i T7-3b2/c/d):**
+- Ingen UI for per-rad-prosjektvelger ennå — alle nye rader får automatisk `sedel.projectId` via fallback. Etter UI er på plass (T7-3b2) kan brukeren velge avvikende prosjekt per rad.
+- `dagsseddelLocal.projectId` beholdes som «default-prosjekt for nye rader» og fallback-verdi for legacy data. NOT NULL → drop kommer i T7-4+ etter alle telefoner kjører ny app.
+- Geo-forslag (lat/lng-feltene i prosjekt_local) kommer i T7-3c.
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
+### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — DEPLOYET TIL PROD 2026-05-14 (server-route, prod-commit `223afc17`) + venter på mobil-bygg (merge `22a97402`, impl `fc087b65`)
+
+Første sub-PR av T7-3-bunken (mobil timer-redesign). Speil av T7-1a på mobil. Bringer mobil opp på samme nivå som web for arbeidstid-registrering og løpende summering. Ingen DB-migrasjon, ingen sync-endring, ingen server-endring.
+
+**Klient (`apps/mobile`):**
+- Ny `src/components/timer-detalj/ArbeidstidSeksjon.tsx` (~270 linjer) — visning av start/slutt/pause + edit-modal med `DateTimePicker` (time-mode, 24h) for startAt/endAt og number-input for pauseMin. Lagrer direkte til `dagsseddelLocal` via drizzle og markerer `syncStatus: "pending"` slik at `TimerSyncProvider` propagerer endringen til server ved neste sync.
+- Ny `src/components/timer-detalj/SummeringsBanner.tsx` (~45 linjer) — viser registrerte timer vs utledet arbeidstid med fargekoding (grønn `totaltimer >= arbeidstidTimer`, gul ellers, grå hvis arbeidstid mangler). Bruker eksisterende i18n-nøkkel `timer.summering`.
+- `src/utils/dato.ts` — ny `isoTidspunktTilHHMM(iso)`-helper (kopi av webs implementasjon).
+- `app/timer/[id].tsx` — monterer ArbeidstidSeksjon over TimerSeksjon, beregner `arbeidstidTimer = (endAt - startAt) - pauseMin/60` og `totaltimer = sum(timerRader.timer)` via `useMemo`, monterer SummeringsBanner over Send-knappen (kun når `erRedigerbar`).
+
+**Server/skjema:** Ingen endring. `dagsseddel.upsert`/`syncBatch` aksepterte allerede `startAt/endAt/pauseMin` fra T7-1a-deploy. `dagsseddelLocal`-skjemaet har feltene fra Runde 2.
+
+**i18n:** Gjenbruker eksisterende nøkler fra T7-1a (`timer.arbeidstidIDag`, `timer.arbeidstidIDagBeskrivelse`, `timer.summering`, `timer.felt.startTid`/`sluttTid`/`pauseMin`, `handling.rediger`/`lagre`/`avbryt`). 2 nye feilmelding-nøkler i nb/en (`timer.feil.ugyldigPause`, `timer.feil.sluttForStart`) — auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Mine filer har null typescript-feil. Pre-eksisterende mobil-typecheck-baselinje uberørt.
+
+**Forventede begrensninger (kommer i T7-3b/c/d):**
+- Sedel er fortsatt prosjekt-bundet (`sedel.projectId`). Multi-prosjekt på rad-nivå kommer i T7-3b.
+- Ingen geo-forslag ved opprettelse — kommer i T7-3c.
+- Per-rad-attestering på mobil — kommer i T7-3d (eller forkastes hvis attestering forblir web-only).
+
+Klar for review — ikke merge før Kenneth verifiserer på test.
+
+### Server-side fix: `deploy-test-cron.sh` cache-bug DEPLOYET PÅ TEST-SERVER 2026-05-14
+
+Auto-deploy-skriptet `~/programmering/deploy-test-cron.sh` (cron hvert 2. min på test-serveren) hadde en stale `.next`-cache-bug som trigget «Cannot read properties of undefined (reading 'clientModules')»-feilen tre ganger denne uken (T7-2b1, T7-2b3, attestering-hint). Hver gang krevde manuell `rm -rf apps/web/.next + pnpm build + pm2 restart` på test for å løse.
+
+**Fiks:** Lagt til `STEG="clean_next" && rm -rf apps/web/.next` som eget steg i deploy-pipelinen mellom `prisma_migrate` og `build`. Trade-off: hver auto-deploy gjør nå full rebuild fra scratch (~30-60s lengre) i stedet for inkrementell, men eliminerer cache-divergens-bug. Backup-fil: `~/programmering/deploy-test-cron.sh.bak` på serveren.
+
+Skriptet er **ikke i repoet** — det ligger kun på test-serveren. Endringen er server-side og påvirker ikke prod (`./deploy.sh` gjør allerede full rebuild).
+
+### attestering-hint — kontekstuell hint om redigering DEPLOYET TIL PROD 2026-05-14 (prod-commit `d194332c`)
+
+Diskret blå info-stripe i AttesteringDetalj.tsx. Synlig kun for firma-admin når
+tillattRedigerVedAttestering = false. Lenker til /dashbord/firma/innstillinger.
+Progressive Disclosure-mønsteret — kan gjenbrukes andre steder.
+
+### PR T7-2b3 settings-toggle for «Tillat redigering ved attestering» DEPLOYET TIL PROD 2026-05-14 (prod-commit `af4a7deb`)
+
+Siste sub-PR av T7-2b-bunken. Aktiverer firma-admin til å skru `OrganizationSetting.tillattRedigerVedAttestering` på/av via UI. Med flagget på vises Rediger-knappen fra T7-2b2 i attestering-detalj-siden. Default forblir false (mest restriktivt) — kunder må eksplisitt slå på.
+
+**Klient (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`):**
+- Ny `RedigerVedAttesteringSeksjon`-komponent (~70 linjer) etter `KompetansePolicySeksjon`. Følger eksakt samme mønster som `TilgangPolicySeksjon`: henter `OrganizationSetting` via `hentSetting`-query, viser tittel + beskrivelse + checkbox-toggle + warning-tekst, kaller `oppdaterSetting({ tillattRedigerVedAttestering: boolean })` ved endring.
+- Montert i hovedsiden mellom kompetansematrise-seksjon og hjelp-modal.
+
+**Server/schema:** Ingen endringer. Server-input ble klargjort i T7-2b2 (`oppdaterSetting` tar allerede `tillattRedigerVedAttestering: boolean.optional()`).
+
+**i18n:** 5 nye nøkler i nb/en under `firma.innstillinger.redigerVedAttestering.*` (tittel, beskrivelse, toggle-label, warning, feil). Auto-oversatt til 13 språk.
+
+**Verifisert:** `apps/web` typecheck 0 nye feil. Ingen `apps/api`-endring.
+
+**Etter denne PR-en er hele T7-2b-bunken (per-rad-attestering + edit-modus + settings-UI) komplett.** Gjenstår T7-3 (mobil timer-redesign) og audit-log-payload-utvidelse (separat oppfølger).
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR T7-2b2 edit-modus ved attestering DEPLOYET TIL PROD 2026-05-14 (prod-commit `755c542a`)
+
+Andre sub-PR av T7-2b-bunken. Firma-admin kan redigere alle pending-rader på en sedel direkte uten å returnere til arbeider. Gates på ny `OrganizationSetting.tillattRedigerVedAttestering` (default false — settings-UI for å skru på kommer i T7-2b3).
+
+**Schema:**
+- `OrganizationSetting.tillattRedigerVedAttestering Boolean @default(false)` — migration `20260514120000_t7_2b2_tillatt_rediger`.
+- `SheetTimer/SheetTillegg/SheetMachine.parentRadId String?` + indeks — migration `20260514120000_t7_2b2_parent_rad_id` (db-timer). Svak selvreferanse (A.20). Ingen FK.
+- `attestertStatus`-domene utvidet: ny verdi `"erstattet"` for originaler som overskrives ved rediger. Beholdes som audit-spor.
+
+**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- Ny `redigerSedelRader({ sheetId, nyeRader: { timer[], tillegg[], maskin[] } })`. Hver rad har `originalId: uuid | null` (null = helt ny). Auth: kun firma-admin (`autoriserAdminForFirma`). Gate: `tillattRedigerVedAttestering === true` → PRECONDITION_FAILED ellers. Cross-org-validering på alle `projectId`. Transaksjon: marker alle eksisterende pending-rader som `"erstattet"` + opprett nye rader med `parentRadId = originalId` og `status = "pending"`. Activity-log per rediger.
+- `hentForAttestering`: respons utvidet med `redigerTillatt: boolean` (utledet fra org-setting).
+- `oppdaterSetting` (`apps/api/src/routes/organisasjon.ts`): Zod-input utvidet med `tillattRedigerVedAttestering: boolean.optional()`.
+
+**Web:**
+- Ny `apps/web/src/components/timer/AttesteringDetalj_Edit.tsx` (~400 linjer). Eier edit-state: tre `useState<RedigerXxxRadData[]>` med startverdier fra pending-rader. Komprimert original-seksjon øverst (lukke-bar `<details>`). Tre seksjoner under: timer/tillegg/maskin med inline-rader + «+ Legg til»-knapper. Lagre kaller `redigerSedelRader`-mutation. Avbryt forkaster endringer.
+- Tre nye sub-komponenter: `RedigerTimerRad.tsx`, `RedigerTilleggRad.tsx`, `RedigerMaskinRad.tsx` (inline-form per rad-type med slett-knapp).
+- Felles types-fil: `rediger-types.ts`.
+- `AttesteringDetalj.tsx`: ny `redigerModus`-state + Rediger-knapp i action-bar (vises bare hvis `sheet.redigerTillatt === true`). Når redigerModus = true, vises Edit-komponent istedenfor standard attestering-rader. `TimerRad`-/`MaskinRad`-typer utvidet med `byggeplassId`/`fraTid`/`tilTid` slik at typene matcher Edit-komponentens forventninger.
+
+**i18n:** 22 nye nøkler i nb/en (`timer.rediger.*` for knapper, modus-banner, placeholders, validerings-feilmeldinger). Auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest).
+
+**Designvalg/lock per locked design:**
+- Edit-modus per sedel — ikke per rad.
+- Original-rader komprimert som referanse (read-only) over edit-listen.
+- Eksisterende rader redigerbare inline; «+»-knapp legger til ny rad pre-fylt med default unntatt mengde-felter.
+- Splitting (1 → N) er implisitt: slett original-raden i edit-listen og legg til to nye — opprinnelig parentRadId-peker bevares for de nye radene som beholder original-id, ellers settes til null.
+- Settings-UI for `tillattRedigerVedAttestering` = T7-2b3 (ikke i denne PR-en — flagget er default false i prod, Rediger-knappen er dermed dormant).
+
+**Forventede begrensninger (kommer senere):**
+- T7-2b3: settings-UI på `firma/innstillinger/page.tsx`-siden + audit-log-payload utvidet med før/etter-snapshots per rad.
+- Mobil: får ikke edit-modus i T7-3 (kun firma-admin web-flow).
+- ECO-listen i RedigerTimerRad henter på `rad.projectId` — bytter projectId → ECO-listen re-fetches automatisk.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR T7-2b1 per-rad-attestering + felleskomponent AttesteringDetalj DEPLOYET TIL PROD 2026-05-14 (prod-commit `3234c057`)
+
+Første av T7-2b-bunken. Bytter attestering fra per-sedel til per-rad og refaktorerer detalj-siden til projectId-løs felleskomponent. Forutsetning for T7-2b2 (rad-splitting) + T7-2b3 (`tillattRedigerVedAttestering`-flagg + audit-log).
+
+**Schema (`packages/db-timer/prisma/schema.prisma`):** Kun kommentar-oppdatering. `SheetTimer`/`SheetTillegg`/`SheetMachine.attestertStatus`-verdiene normalisert i kommentar fra `"godkjent"` → `"attestert"` (norsk-konvensjon, følger «attestering ≠ godkjenning»-regelen). Selve feltet har vært i schema siden PR 1B (2026-05-11) med default `"pending"` og indeks på alle tre tabeller. **Ingen migrasjon kreves** — null historiske rader er skrevet med `"godkjent"`.
+
+**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- Nye mutations: `attesterRader({ radIder })` og `returnerRader({ radIder, kommentar })`. Input: `{ timerIder, tilleggIder, maskinIder }` arrays. Auth: én `krevProsjektLeder`-sjekk per unike `projectId` (ikke per rad — perf). Validerer at alle rader har `attestertStatus === "pending"`. Snapshot per rad i transaksjon (Fase 0 A.7). Etter mutasjon: sedler markeres `"accepted"` kun hvis alle rader nå er `"attestert"`; én returnert rad → sedel-status → `"returned"`.
+- `hentForAttestering`: utvidet auth med firma-admin-fallback (`autoriserAdminForFirma`) hvis `krevProsjektLeder` feiler — slik at firma-detalj-side kan bruke samme query.
+- `hentTilAttesteringFirma`: utvidet `include` med `maskiner: true` så klient kan vise fremdrift på tvers av alle tre rad-tabeller.
+- `attester`/`returner`: beholdt som `@deprecated` thin wrappers (henter alle pending-rader på sedelen, gjør samme operasjon). Fjernes ~1 uke etter klient-migrering per CLAUDE.md API-regel.
+
+**Web:**
+- Ny felleskomponent `apps/web/src/components/timer/AttesteringDetalj.tsx` (~620 linjer). Props: `sheetId`, `prosjektKontekst?: string` (undefined = firma-kontekst), `tilbakeUrl`. Per-rad-checkboxer + rad-status-badges (`pending`/`attestert`/`returnert`) i hver av tre rad-tabeller. Pre-utvalg: alle pending-rader leder har tilgang til. Container-status-banner viser fremdrift («3 av 8 attestert»). Rader fra andre prosjekter vises disabled i prosjekt-kontekst.
+- `apps/web/src/app/dashbord/[prosjektId]/timer/attestering/[id]/page.tsx`: tidligere 591 linjer, nå tynn wrapper (~50 linjer) som monterer felleskomponenten med `prosjektKontekst={params.prosjektId}`.
+- `apps/web/src/app/dashbord/firma/timer/attestering/[id]/page.tsx`: ny side (~60 linjer). Bruker `useFirma()` + `kanAttestereFirma`-query, monterer felleskomponenten projectId-løs.
+- `firma/timer/attestering/page.tsx`: «Åpne»-lenken peker nå til `/dashbord/firma/timer/attestering/${rad.id}` istedenfor prosjekt-bundet ruten (firma-admin uten prosjekt-medlemskap kan nå åpne detalj).
+
+**i18n:** 12 nye nøkler i nb/en (rad-status × 3, rad-valg-knapper/etiketter × 6, container-banner × 3). Auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil).
+
+**Forventede begrensninger (kommer i T7-2b2/b3):**
+- Ingen rad-splitting — én rad kan ikke deles i flere ved attestering.
+- Ingen direkte-redigering av timer/fra-til/ECO/lønnsart for firma-admin ved attestering — krever `OrganizationSetting.tillattRedigerVedAttestering` (T7-2b3).
+- Returnert rad-status nullstilles ikke ved gjenutsending (`sendTilAttestering`) — separat oppfølger.
+- Mobil får per-rad-attestering først i T7-3.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR ansattrolle-UI — stilling + firmaRoller synlig+redigerbar i firma/ansatte DEPLOYET TIL PROD 2026-05-13 (prod-commit `3fa34c57`)
+
+Oppfølger til O-5-bunken. Lukker konsistens-hullet hvor `endreRolle`-UI-en skrev til legacy `User.role` uten å speile til `OrganizationMember.firmaRoller` (25/26 OrganizationMember-rader i test hadde fortsatt `firmaRoller = []`). Synliggjør og redigerbar-gjør `ansattRolle` (stilling) + `firmaRoller` i firma/ansatte-siden.
+
+**Backfill (`packages/db/scripts/backfill-firma-admin-roller.ts`):** Setter `firmaRoller = ["firma_admin"]` for alle OrganizationMember-rader der `User.role === "company_admin"`. Idempotent. Kjøres mot test etter deploy.
+
+**Server (`apps/api/src/routes/organisasjon.ts`):**
+- Slettet `endreRolle` (skrev kun til legacy `User.role`).
+- Ny `settFirmaAdmin({ userId, organizationId, erAdmin: boolean })` — skriver til `OrganizationMember.firmaRoller`, idempotent, med selv-degraderingsbeskyttelse + sitedoc_admin-beskyttelse.
+- `oppdaterBruker`: fjernet `rolle`-feltet, lagt til `ansattRolle: enum("ansatt","bas","prosjektleder","daglig_leder")`. Skriver ansattRolle til OrganizationMember sammen med eksisterende ansattnummer. Respons utvidet med `ansattRolle` + `firmaRoller`.
+- `inviterBruker`: byttet `rolle: enum` til `erFirmaAdmin: boolean` + ny `ansattRolle: enum`. `User.role` settes alltid til `"user"` for nye brukere (sitedoc_admin opprettes ikke via UI). `OrganizationMember` opprettes med riktig `ansattRolle` + `firmaRoller`.
+- `hentTilgjengelige`: leser nå firma-admin-medlemskap via `OrganizationMember.firmaRoller.includes("firma_admin")` (ikke `User.role === "company_admin"`). Støtter implisitt flere firmaer per bruker.
+
+**Web (`apps/web/src/app/dashbord/firma/ansatte/page.tsx`):**
+- To nye tabell-kolonner: «Stilling» (ansattRolle som tekst) + «Tilgang» (Systemadmin/Firmaadmin/Bruker-badges basert på `User.role === "sitedoc_admin"` eller `firmaRoller.includes("firma_admin")`).
+- Legacy `endreRolle`-dropdown fjernet — alle endringer går nå via rediger-modalen.
+- `RedigerModal`: ny `ansattRolle`-dropdown (4 verdier) + `erFirmaAdmin`-checkbox. Lagre-knappen kaller `oppdaterBruker` først, deretter `settFirmaAdmin` hvis admin-status endres.
+- `InviterModal`: samme to nye felter, sendes til `inviterBruker`.
+
+**i18n:** 17 nye nøkler i `nb.json` + `en.json`, 3 utdaterte fjernet (`inviter.rolle*`). Auto-oversatt til 13 språk via `generate.ts`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil). Ingen schema-endring.
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
+### PR O-5c schema-drop User.organizationId/ansattnummer/avdelingId + OrganizationRole — prod `fe1d703d` (2026-05-13)
+
+Sluttsteg i O-5-bunken. Fjernet `User.organizationId`/`User.ansattnummer`/`User.avdelingId` + tre Prisma-relasjoner fra `packages/db/prisma/schema.prisma`. Composite uniques erstattet av globalt `email @unique`. `OrganizationRole`-tabellen droppet (0 rader). Migration `20260513210000_o5c_drop_user_org_fields`. 5 routes-callsites omarbeidet (admin/avdeling/bruker/medlem) for å beholde klient-API uberørt. Apps typecheck 0 nye feil. OrganizationMember er nå eneste sannhetskilde for firma-medlemskap, ansattnummer og avdelingsskap.
+
+### PR O-5b-fix rydd 11 resterende User.organizationId/ansattnummer-treff — prod `fe1d703d` (2026-05-13)
+
+Oppfølger til O-5b. Full-codebase-grep avdekket 11 ekstra lesinger/skrivinger av `User.organizationId`/`User.ansattnummer` som O-5b ikke fanget (mønster `where: { organizationId }` i User-spørringer). Refaktorert med `hentBrukersOrg`/`OrganizationMember.findMany`/`OrganizationMember.upsert` i `tilgangskontroll.ts`, `kompetanse.ts`, `medlem.ts`, `maskin/*`, `organisasjon.ts`. Sluttverifikasjon: 0 gjenstående direkte felt-lesinger eller -skrivinger i `apps/api/src/`. +99/-65 linjer, apps typecheck 0 nye feil.
+
+Eldre PR-er: se [docs/claude/historikk-2026-05.md](docs/claude/historikk-2026-05.md)
+
+
+---
+
 # SiteDoc — aktuell status
 
 Detaljert løpende statusrapport. CLAUDE.md har kort sammendrag øverst med
@@ -46,13 +764,16 @@ Søkefelt vises ved >7 elementer. 11 nye i18n-nøkler totalt
 
 **Tidligere § #2 «Validering av overtid basert på arbeidstid»** er konsolidert inn i T.9 — sommer/vinter-modell er nå Variant B (dynamiske perioder i `ArbeidstidsKalender`, ikke scalar-felter). 8t (sommer) / 7t (vinter) ordinær arbeidstid-validering bygges som del av T.9-implementasjon.
 
-### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟡 (T.4-bunken pågår)
+### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟢 LUKKET 2026-05-16
 
 **Side:** Timeføring.
 
-Schema + server-input på plass (T.4). UI-felt og fra<til-validering mangler.
-
-`SheetTimer.fraTid`/`tilTid` (`packages/db-timer/prisma/schema.prisma:183-184`) og `SheetMachine.fraTid`/`tilTid` (linje 256-257) er lagt til som `String? @map("fra_tid"/"til_tid")`. Server tar imot feltene i `timer.dagsseddel.tilfoyTimerRad` (`apps/api/src/routes/timer/dagsseddel.ts:372-373, 417-418`) og `redigerTimerRad` (1506-1507, 1533-1534). Mangler: server-side validering `fraTid < tilTid` (kommentar på schema-linje 183 lover dette i PR 2, ikke implementert ennå) + UI-felt for inntasting i web/mobil-skjemaene.
+Levert via T.4-bunken (prod-commit `5d36c8b9`) + T.5 tidsrunding (prod-commit `ba6ba243`).
+Server-Zod + DB-schema + web-UI + mobil-cache + mobil-UI deployet til prod 2026-05-16.
+Mobil-UI aktiveres på enhet ved neste EAS-bygg (server-respons + lokal SQLite-migrasjon
+er klare). T.5 leverer i tillegg konfigurerbar tidsrunding (15/30/60/null) — utover
+originalt kundeønske. fra<til-validering implementert via `fraErForTil`-helper på mobil
++ onBlur-runding på web.
 
 **T.4-implementasjons-bunke (planlagt 5 sub-PR-er):**
 
@@ -63,15 +784,23 @@ Schema + server-input på plass (T.4). UI-felt og fra<til-validering mangler.
 | **T4-c** | ✅ Deployet til test 2026-05-16 (merge `c02df657`, impl `39c43aa8`) | Server-Zod-utvidelse for de tre T4-a-feltene i `oppdaterSetting` + kalender `opprett`/`oppdater` (+ `validerTidsfelter`-helper). Innstillinger-side: ny `StandardArbeidstidSeksjon`. Kalender-modal: betinget visning av tidsfelter for sommertid_start/slutt/halvdag + klokke-badge i månedsliste. 15 nye i18n-nøkler → 13 språk (2277 totalt). Venter på visuell verifisering før prod-merge. |
 | **T4-d** | ✅ Merget til develop + deployet til test 2026-05-16 (merge `7bee1633`, impl `2f7bf42d`) | Mobil Drizzle: `fraTid`/`tilTid` på `sheet_timer_local` + `sheet_machine_local`. Nye lokale tabeller `arbeidstidskalender_local` + `organization_setting_local`. Nye services `kalenderKatalog.ts` (med `hentEffektivArbeidstidLokal`-helper, speil av server) + `organizationSettingKatalog.ts`. TimerSyncProvider utvidet til 2-stegs Promise.all (base-pulls → firma-spesifikke pulls per org-id fra prosjekt-cachen). `timerSync` push/pull utvidet med fraTid/tilTid per timer/maskin-rad. Server: ny medlems-tilgjengelig `organisasjon.hentArbeidstidDefaults` + fraTid/tilTid lagt til i `hentEndringerSiden`-respons-mapping. Typecheck 12 = 12 baseline. Venter på enhet-verifikasjon + prod-merge. |
 | **T4-e** | ✅ Merget til develop + deployet til test 2026-05-16 (merge `e992aca3`, impl `cea8f99e`) | Mobil UI. Ny `FraTilTidFelt`-fellekomponent (DateTimePicker mode=time, 2 felter side ved side). Montert i TimerRadModal + MaskinRadModal. Forhåndsutfylling: ny rad uten forrige rader → `hentEffektivArbeidstidLokal(orgId, dato)` (kalender + firma-default). Ny rad med forrige rader → forrige rads tilTid som fraTid. Rediger eksisterende → radens egne verdier. Validering: fraTid < tilTid hvis begge satt (`fraErForTil`-helper). Lagring til Drizzle med syncStatus=pending. SummeringsBanner: arbeidstidTimer faller tilbake til kalender-dagsnorm hvis sedel.startAt/endAt mangler — UI viser alltid relevant sammenligning. Rad-visning utvidet med `HH:MM–HH:MM`-tekst. 0 nye i18n-nøkler — gjenbruker `timer.felt.startTid/sluttTid` + `timer.feil.sluttForStart`. Typecheck 12 = 12 baseline. Venter på enhet-verifikasjon + prod-merge. |
-| **T.5 tidsrunding** | 🟡 Implementert på `feature/t5-tidsrunding` 2026-05-16 | Server: `oppdaterSetting` Zod-input + `hentArbeidstidDefaults` select utvidet med `tidsrundingMinutter`. Validering: `z.union([15, 30, 60, null])`. Web: ny dropdown i `StandardArbeidstidSeksjon` (Ingen/15/30/60). RedigerTimerRad + RedigerMaskinRad: `step={tidsrundingMinutter * 60}` + onBlur-fallback-runding via `apps/web/src/lib/tidsrunding.ts`. AttesteringDetalj_Edit henter `tidsrundingMinutter` fra `hentSetting` og passerer som prop. Mobil-cache: `organization_setting_local.tidsrunding_minutter` (idempotent ALTER) + service skriver feltet. Mobil-UI: ny `apps/mobile/src/utils/tidsrunding.ts` (speil av web). FraTilTidFelt fikk ny `tidsrundingMinutter`-prop + runder onChange-verdi før callback. `minuteInterval` på DateTimePicker for 15/30 hint til pickeren. TimerSeksjon + MaskinSeksjon henter via `hentOrganizationSettingLokalt`. 6 nye i18n-nøkler → 13 språk (2277 → 2283 totalt). Typecheck 0 nye feil i alle apper. Venter på review + enhet-verifikasjon. |
+| **T.5 tidsrunding** | ✅ Deployet til prod 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`) | Server: `oppdaterSetting` Zod-input + `hentArbeidstidDefaults` select utvidet med `tidsrundingMinutter`. Validering: `z.union([15, 30, 60, null])`. Web: ny dropdown i `StandardArbeidstidSeksjon` (Ingen/15/30/60). RedigerTimerRad + RedigerMaskinRad: `step={tidsrundingMinutter * 60}` + onBlur-fallback-runding via `apps/web/src/lib/tidsrunding.ts`. AttesteringDetalj_Edit henter `tidsrundingMinutter` fra `hentSetting` og passerer som prop. Mobil-cache: `organization_setting_local.tidsrunding_minutter` (idempotent ALTER) + service skriver feltet. Mobil-UI: ny `apps/mobile/src/utils/tidsrunding.ts` (speil av web). FraTilTidFelt fikk ny `tidsrundingMinutter`-prop + runder onChange-verdi før callback. `minuteInterval` på DateTimePicker for 15/30 hint til pickeren. TimerSeksjon + MaskinSeksjon henter via `hentOrganizationSettingLokalt`. 6 nye i18n-nøkler → 13 språk (2277 → 2283 totalt). Test-QA godkjent. Prod-deploy 2026-05-16: HTTP/2 200 på sitedoc.no + api.sitedoc.no. Mobil-app-bygg via EAS gjenstår — feltet aktiveres på enhet når TestFlight/Play Store-versjonen oppdateres. |
 
 **T.4-bunken komplett på develop + test 2026-05-16:** Alle fem sub-PR-er (a/b/c/d/e) er merget og kjører på `test.sitedoc.no` + `api-test.sitedoc.no` (HTTP/2 200, migrasjoner kjørt i `sitedoc_test`). Neste: (1) Kenneth verifiserer T4-c web-UI + T4-d/e mobil-UI på testbygg (forhåndsutfylling, validering, fra/til-visning på rad). (2) Etter verifikasjon → prod-deploy av hele bunken samtidig (server-migrasjon, web-deploy, mobil-bygg via EAS → TestFlight/Play Store).
 
-### #4 — Redigering og splitting av timer ved attestering 🟡
+**Auto-fordeling normaltid/overtid — besluttet å ikke implementere (2026-05-16).** Var tidligere notert som planlagt avhengighet av T.9-kalender. Kunden registrerer lønnsart manuelt per rad slik som i dag — `Lonnsart`-katalogen (firma-eid) dekker behovet med separate rader for «Ordinær 100», «Overtid 50%», «Overtid 100%» osv. Krever ingen ytterligere arkitektur eller regelmotor.
+
+### #4 — Redigering og splitting av timer ved attestering 🟡 DELVIS LEVERT
 
 **Side:** Attestering.
 
-Attesterende skal kunne redigere antall timer og splitte en rad i flere. **Steg 4a (ECO-flytt på attestering)** ble deployet til prod 2026-05-03 (`f98fa7a5`) — leder kan endre kostnadsbærer per rad. Mangler: redigering av timeantall + rad-splitting + audit-log på endringer.
+**Levert 2026-05-14** via T7-2b-bunken:
+- ECO-flytt på attestering (Steg 4a, prod-commit `f98fa7a5` 2026-05-03) — leder kan endre kostnadsbærer per rad.
+- Per-rad-attestering med felleskomponent AttesteringDetalj (T7-2b1, prod-commit `3234c057`).
+- **Edit-modus: firma-admin kan redigere timeantall + ECO + fra/til på alle pending-rader** via `redigerSedelRader`-mutation (T7-2b2, prod-commit `755c542a`). Gated på `OrganizationSetting.tillattRedigerVedAttestering`-toggle (T7-2b3, prod-commit `af4a7deb`) — default false, firma-admin skrur på via `/dashbord/firma/innstillinger`.
+- T.5 tidsrunding (prod-commit `ba6ba243` 2026-05-16) avrunder fra/til-input i edit-modus til konfigurert intervall (15/30/60 min).
+
+**Gjenstår:** Rad-splitting (én rad → flere med ulike prosjekt/ECO/lønnsart/fra-til) krever `splittRad`-mutation. Audit-log med før/etter-snapshots per rad (T7-2b2 logger antall + actor; per-rad-snapshots utsatt til egen oppfølger).
 
 ### #5 — Registrering av HMS-gruppe på brukere ⏸️ PARKERT
 
@@ -106,11 +835,11 @@ A.Markussen-ansatte (Malin, Silje, Florian — alle `company_admin` med `organiz
 
 Ingen treff på `Prosjektleder`/`Bas` som DB-roller. Eksisterende roller: `User.role = sitedoc_admin | company_admin | user` og `ProjectMember.role = admin | member`. Krever ny rolle-modell + matrise-UI som viser tilganger per rolle.
 
-### #8 — Fagområde og oppgaver i sjekklistemaler-listevisning 🔴
+### #8 — Fagområde og oppgaver i sjekklistemaler-listevisning 🟢 LUKKET 2026-05-12
 
 **Side:** Innstillinger – Produksjon – Sjekklistemaler.
 
-`apps/web/src/app/dashbord/oppsett/produksjon/_components/MalListe.tsx` har kun 3 kolonner: Navn (`tabell.navn`), Prefiks (`maler.prefiks`), Versjon (`maler.versjon`). Mangler kolonner for fagområde og oppgaver.
+Levert via commit `3eb7398f` (impl) + merge `542461e2` (prod) 2026-05-12. Fagområde-kolonne (Bygg/HMS/Kvalitet via `mal.domain`) + Antall punkter-kolonne (`mal._count.objects`) lagt til i `apps/web/src/app/dashbord/oppsett/produksjon/_components/MalListe.tsx`. 4 nye i18n-nøkler i 15 språk. Tabellen har nå 5 kolonner: Navn, Fagområde, Antall punkter, Prefiks, Versjon.
 
 ### #9 — Justeringer på SJA (signatur/lesetilgang/deltaker) 🔴
 
@@ -136,484 +865,12 @@ Ingen treff på `pushvarsel`/`sms` i kode. Krever ny varslingstjeneste (SMS-leve
 
 **Status:** Commit `4e29c88a` («fix: sjekkliste opprett-modal stille død») deployet til prod 2026-05-09. Lukket bug der klikk på mal i opprett-modal gjorde ingenting når innlogget bruker ikke var medlem av noen faggruppe (typisk sitedoc_admin/company_admin uten faggruppe-tilknytning) — `handleOpprettFraMal` returnerte stille. Nå: fallback-kjede henter `bestillerFaggruppeId` fra dokumentflytens `oppretter`-medlem, synlig feilmelding i Modal hvis ingen kandidat finnes. Re-test ønskelig fra kunde for å bekrefte at både «Opprett ny sjekkliste» og «+ Ny sjekkliste» nå fungerer i prosjekt 998.
 
----
-
-## Pågående arbeid
-
-### attestering-hint — kontekstuell hint om redigering DEPLOYET TIL PROD 2026-05-14 (prod-commit `d194332c`)
-
-Diskret blå info-stripe i `AttesteringDetalj.tsx` under container-banneret. Synlig kun for firma-admin (gated via `kanAttestereFirma`-query mot sheet.organizationId) når `sheet.redigerTillatt === false`. 💡-emoji + tekst «Vil firmaet korrigere timer direkte under attestering?» + lenke til `/dashbord/firma/innstillinger#rediger-ved-attestering`. 2 nye i18n-nøkler (`timer.attestering.redigerHint.tekst` + `.lenke`) i nb/en, auto-oversatt til 13 språk. Progressive Disclosure-mønsteret — kan gjenbrukes andre steder.
-
-### Server-side fix: `deploy-test-cron.sh` cache-bug DEPLOYET PÅ TEST-SERVER 2026-05-14
-
-Auto-deploy-skriptet `~/programmering/deploy-test-cron.sh` (cron hvert 2. min på test-serveren) hadde en stale `.next`-cache-bug som trigget «Cannot read properties of undefined (reading 'clientModules')»-feilen tre ganger denne uken (T7-2b1, T7-2b3, attestering-hint). Hver gang krevde manuell `rm -rf apps/web/.next + pnpm build + pm2 restart` på test for å løse.
-
-**Fiks:** Lagt til `STEG="clean_next" && rm -rf apps/web/.next` som eget steg i deploy-pipelinen mellom `prisma_migrate` og `build`. Trade-off: hver auto-deploy gjør nå full rebuild fra scratch (~30-60s lengre) i stedet for inkrementell, men eliminerer cache-divergens-bug. Backup-fil: `~/programmering/deploy-test-cron.sh.bak` på serveren.
-
-Skriptet er **ikke i repoet** — det ligger kun på test-serveren. Endringen er server-side og påvirker ikke prod (`./deploy.sh` gjør allerede full rebuild).
-
-### PR T7-3d per-rad-attestering for leder på mobil — Klar for review (branch `feature/t7-3d`)
-
-Fjerde sub-PR av T7-3-bunken. Bringer attestering-flyten (T7-2b) til mobil-app. Prosjektledere og firma-admin kan nå attestere/returnere innsendte sedler fra telefonen — speil av webs `AttesteringDetalj`, forenklet for mobil-flate.
-
-**Filer (alle nye, `apps/mobile`):**
-- `src/components/timer-attestering/AttesteringStatusBadge.tsx` (~40 linjer)
-- `src/components/timer-attestering/RadCheckbox.tsx` (~80 linjer)
-- `src/components/timer-attestering/ReturnerModal.tsx` (~115 linjer)
-- `src/components/timer-attestering/AttesteringDetaljMobil.tsx` (~360 linjer) — kjernekomponent. Tre rad-seksjoner med checkboxer, container-banner, bunn-action-bar. Pre-utvalg av pending-rader ved sideåpning. Cache-invalidering ved attester/returner.
-- `app/timer/attestering/index.tsx` (~150 linjer) — liste-side. Henter via `hentTilAttesteringFirma`. Kort-format med dato/ansatt/prosjekt/sum. Gating-bannere ved ingen tilgang.
-- `app/timer/attestering/[id].tsx` (~50 linjer) — tynn wrapper med tilbake-bar.
-
-**Endret:**
-- `app/(tabs)/mer.tsx` — ny menylenke «Attester timer» gated på `kanAttestereFirma`. Lenken er skjult for arbeidere uten leder-tilgang. Henter `orgId` via samme `prosjekt.hentMine`-proxy som liste-siden.
-
-**Server/skjema:** Null endring. Bruker eksisterende `hentTilAttesteringFirma`, `hentForAttestering`, `kanAttestereFirma`, `attesterRader`, `returnerRader` fra T7-2b1.
-
-**i18n:** Null nye nøkler. Alle gjenbrukt fra T7-2b.
-
-**Forenklinger ifht. web (bevisst scope-redusering):**
-- Ingen edit-modus (T7-2b2) — firma-admin redigerer på web
-- Ingen ECO-flytting per rad — utelates på mobil
-- Ingen rediger-header-modal
-- Kun firma-kontekst (ingen `prosjektKontekst`-prop) — mobil-tabs er firma-orienterte
-
-**Auth/datastrøm:** Online-only. Mutations krever nett (samme som web — snapshot-bygging via Fase 0 A.7). Ingen lokal queue.
-
-**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil).
-
-**Reload-metode:** TypeScript-only. Full app-reload eller `r` i Metro. Ingen native rebuild.
-
-Klar for review — ikke merge før Kenneth verifiserer på enhet.
-
-### T7-3-bunken (a/b1/b2) — DEPLOYET TIL PROD (server-route) + venter på mobil-bygg (2026-05-14)
-
-Tre sub-PR-er av T7-3 (mobil timer-redesign) merget til develop og deretter til main (prod-commit `223afc17`). Server-endringene (rad-nivå `projectId` i `syncBatch` + `hentEndringerSiden` + auth per unike rad-projectId) er aktive i prod. Mobil-endringene venter på Expo Go-test (utvikler-enhet) eller EAS Build → TestFlight / Play Store (release).
-
-| Sub-PR | Merge-commit | Impl-commit | Innhold |
-|---|---|---|---|
-| **T7-3a** | `22a97402` | `fc087b65` | Arbeidstid-seksjon + summerings-banner i mobil-detalj. Speil av T7-1a på mobil. |
-| **T7-3b1** | `cd64c51a` | `65bf48cb` | Per-rad `projectId` (skjema + lokal migrasjon + sync push/pull + prosjekt-katalog-cache). Ingen UI. |
-| **T7-3b2** | `3e34ec71` | `1717fd79` | UI for per-rad prosjekt-velger + ProsjektGruppe-visning i [id].tsx + geo-forslag i ny.tsx. |
-
-Lokal SQLite-migrasjon (T7-3b1) er fullt additiv og idempotent. Server-input/respons er additivt utvidet — pre-T7-3b-mobiler fortsetter å fungere uendret (kompat-shim). Server-shim på sedel-nivå `projectId` ryddes opp i T7-4+ etter alle telefoner kjører ny app.
-
-**Bygg-rute videre:**
-1. **Utvikler-test:** Kenneth tester på enhet via Expo Go eller tilkoblet utviklingsbygg.
-2. **EAS Build:** `eas build --platform ios --profile production` + `eas submit --platform ios --latest` for TestFlight når UI er bekreftet.
-3. **Release-windows:** Når TestFlight-build er trygt, distribusjon til alle brukere.
-
-**Gjenstår av T7-3-bunken:**
-- **T7-3c** (planlagt eller forkastet): Mye av geo-forslag-leveransen ble inkludert i T7-3b2. Egen sub-PR kan dekke historikk-baserte forslag (sist brukte prosjekt) eller forkastes.
-- **T7-3d** (planlagt eller forkastet): Per-rad-attestering på mobil for prosjektleder/firma-admin. Krever strategisk valg om mobil-attestering eller web-only.
-
-### PR T7-3b2 prosjekt-velger per rad + geo-forslag — MERGET TIL DEVELOP (branch `feature/t7-3b2`, merge `3e34ec71`, impl `1717fd79`)
-
-Tredje sub-PR av T7-3-bunken. Nå kan brukeren faktisk bruke per-rad-prosjekt: hver rad-modal har prosjekt-velger på toppen, dagsseddel-detaljsiden grupperer rader per prosjekt (én bolk med tre seksjoner per prosjekt), og «+ Legg til prosjekt»-knapp åpner velger for et nytt prosjekt på samme sedel. Ved opprettelse av ny dagsseddel foreslås nærmeste prosjekt basert på GPS.
-
-**Klient-filer:**
-- **Ny** `apps/mobile/src/components/timer-detalj/ProsjektVelger.tsx` (~130 linjer) — gjenbrukbar `ProsjektVelgerModal` (søk når > 7 prosjekter, `ekskluderIder`-prop) + trigger-knapp `ProsjektFelt`. Leser `prosjektLocal` via `hentProsjekterLokalt`.
-- `apps/mobile/src/components/timer-detalj/TimerSeksjon.tsx` — `organizationId`-prop tilført. `leggTil`/`oppdater` skriver `projectId` per rad. `TimerRadModal` har ProsjektFelt øverst. Bytte av prosjekt nullstiller ECO (`valgtEcoId`) siden Underprosjekt er prosjekt-spesifikk.
-- `apps/mobile/src/components/timer-detalj/TilleggSeksjon.tsx` — samme mønster: `organizationId` + `projectId` props, rad-modal med ProsjektFelt.
-- `apps/mobile/src/components/timer-detalj/MaskinSeksjon.tsx` — samme.
-- `apps/mobile/app/timer/[id].tsx` — beregner `aktiveProsjektIder` (union av sedel.projectId, alle rad.projectId, bruker-tilføyde ekstra-grupper). Rendre én `ProsjektGruppe` per id med tre seksjoner og filtrerte rader. Prosjekt-header (blå mini-bånd) vises kun ved multi-prosjekt. «+ Legg til prosjekt»-knapp åpner ProsjektVelgerModal med `ekskluderIder=aktiveProsjektIder`.
-- `apps/mobile/app/timer/ny.tsx` — geo-forslag-hook: `Location.requestForegroundPermissionsAsync` → `getCurrentPositionAsync(Balanced)` → Haversine mot `hentProsjekterLokalt(orgId)` med 500m radius. Stille fallback ved permission-avslag eller ingen treff. `MapPin`-ikon + «Foreslått basert på posisjon»-tekst når geo-forslag er aktivt.
-
-**Server/skjema:** Null endring. Alt fundament fra T7-3b1.
-
-**i18n:** 1 ny nøkkel (`handling.sok` = «Søk» / «Search»). Rettet pre-eksisterende bug der eksisterende velgere brukte en t-key som ikke fantes (fallback ga «handling.sok» som ren tekst i UI). `timer.leggTilProsjekt`, `timer.geoForslag`, `timer.felt.prosjekt`, `timer.velgProsjekt`, `timer.ingenTilgjengelige` allerede definert. Auto-oversatt til 13 språk via `generate.ts`.
-
-**`app.json`/permissions:** `expo-location` v19.0.8 allerede installert + config-plugin med norsk permission-tekst tidligere konfigurert for GPS-tagging av bilder. Null app.json-endring.
-
-**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). ECO-bytte ved prosjekt-bytte: `valgtEcoId` nullstilles i `TimerRadModal` når ProsjektVelger setter ny `valgtProjectId`.
-
-**Reload-metode:** TypeScript- + i18n-endring. Full app-reload (close + open eller `r` i Metro). Ingen native rebuild (expo-location er allerede konfigurert).
-
-**Forventede begrensninger:**
-- Per-rad-attestering på mobil — kommer i T7-3d eller forkastes hvis attestering forblir web-only.
-- `dagsseddelLocal.projectId` beholdes som default. NOT NULL → drop kommer i T7-4+.
-- Geo-forslag krever permission ved første kjøring — brukeren får OS-dialog. Avslag = fall tilbake til manuell velger.
-
-Klar for review — ikke merge før Kenneth verifiserer på test.
-
-### PR T7-3b1 prosjekt per rad — skjema + sync + katalog — MERGET TIL DEVELOP (branch `feature/t7-3b1`, merge `cd64c51a`, impl `65bf48cb`)
-
-Andre sub-PR av T7-3-bunken. Legger inn fundamentet for at hver rad på en mobil-dagsseddel kan tilhøre sitt eget prosjekt — uten å endre brukervendt UI ennå. Etter denne kan sync-protokollen bære per-rad-projectId mellom mobil og server, lokal SQLite har feltet, og brukerens prosjekter cacheres lokalt klare for rad-velger i T7-3b2.
-
-**Klient-filer:**
-- `apps/mobile/src/db/schema.ts` — `projectId: text("project_id")` (nullable) på `sheetTimerLocal/sheetTilleggLocal/sheetMachineLocal`. Ny `prosjektLocal`-tabell (id, organizationId, name, projectNumber, lat, lng, aktiv, sistOppdatert).
-- `apps/mobile/src/db/migreringer.ts` — idempotent ALTER ADD COLUMN på de tre rad-tabellene + backfill fra parent `dagsseddel_local.project_id` (UPDATE WHERE NULL) + indekser. Ny CREATE TABLE for prosjekt_local + indeks (organization_id, aktiv).
-- **Ny** `apps/mobile/src/services/prosjektKatalog.ts` (~95 linjer): `refreshProsjektKatalog` henter `trpc.prosjekt.hentMine`, hopper over standalone-prosjekter (uten `primaryOrganizationId`), lagrer til prosjekt_local med full overskriving. Eksponerer `hentProsjekterLokalt(orgId)` og `finnProsjektLokalt(id)` for kommende UI.
-- `apps/mobile/src/providers/TimerSyncProvider.tsx` — `refreshProsjektKatalog` lagt til i `Promise.all` ved login + nett-gjenkomst (samme mønster som `refreshMaskinKatalog`).
-- `apps/mobile/src/services/timerSync.ts` — push (`syncBatch`): hver rad sender `projectId: rad.projectId ?? sedel.projectId` (rad-nivå hvis satt, ellers fallback). Pull (`hentEndringerSiden`): lagrer `t.projectId ?? sedelProjectId` til hver rad i lokal SQLite.
-
-**Server-filer (`apps/api/src/routes/timer/dagsseddel.ts`):**
-- `syncBatch`-input: alle tre rad-array-objekter får `projectId: z.string().uuid().optional()`. CreateMany bruker `t.projectId ?? lokal.projectId` (rad overstyrer sedel; fallback for pre-T7-3b1-klienter).
-- `hentEndringerSiden`-respons: timer/tillegg/maskiner returnerer `projectId` per rad i tillegg til det aggregerte `projectId` på sedel-nivå (proxy via første rad — beholdes for bakoverkompatibilitet).
-- Ny auth-sjekk i syncBatch: `verifiserProsjektmedlem` kalles per unike rad-`projectId` som avviker fra `lokal.projectId`. Forhindrer at bruker fører timer på prosjekt de ikke er medlem av via per-rad-attributt.
-
-**Server-skjema:** Null endring. `db-timer.SheetTimer/Tillegg/Machine.projectId` ble lagt inn med T.1/PR 1B (2026-05-11). Bare server-route-koden var fortsatt sedel-nivå-orientert.
-
-**i18n:** Ingen endringer (ingen UI-strenger i denne PR-en).
-
-**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (samme pre-eksisterende feil i `hjem.tsx`/`mer.tsx`/`oppgave/[id].tsx`/`psi/[psiId].tsx`/`sjekkliste/[id].tsx`/`useOppgaveSkjema.ts`/`useSjekklisteSkjema.ts`/`timerSync.ts`).
-
-**Migrasjonsstrategi (to-stegs-policy):**
-- Lokal SQLite-migrasjon er fullt-additiv (nullable ALTER ADD COLUMN + idempotent CREATE TABLE IF NOT EXISTS). Trygt ved app-oppstart.
-- Server-input er additivt utvidet med optional-felt — pre-T7-3b1-mobiler fungerer uendret (sender ikke `projectId` per rad → server bruker shim).
-- Server-respons er additivt utvidet — pre-T7-3b1-mobiler ignorerer det nye feltet (TypeScript-strukturen kjenner bare gamle felter).
-- `dagsseddelLocal.projectId` beholdes som default-prosjekt + fallback. NOT NULL → drop kommer i T7-4+ etter alle telefoner har migrert.
-
-**Reload-metode:** TypeScript- + Drizzle-skjema-endring. Krever full app-reload (close + open eller `r` i Metro) ved første installasjon slik at `migreringer.ts` kjører ALTER-statementene. Ingen native rebuild — alle endringer er JS + SQL.
-
-**Forventede begrensninger (kommer i T7-3b2/c/d):**
-- Ingen UI for per-rad-prosjektvelger ennå. Alle nye rader får automatisk `sedel.projectId` via fallback. T7-3b2 leverer rad-nivå-velgeren.
-- Geo-forslag (lat/lng-feltene i prosjekt_local) brukes ikke ennå — kommer i T7-3c.
-- Per-rad-attestering på mobil — kommer i T7-3d (eller forkastes hvis attestering forblir web-only).
-
-Klar for review — ikke merge før Kenneth verifiserer på test.
-
-### PR T7-3a arbeidstid-seksjon + summerings-banner på mobil — MERGET TIL DEVELOP (branch `feature/t7-3a`, merge `22a97402`, impl `fc087b65`) — venter på mobil-bygg
-
-Første sub-PR av T7-3-bunken (mobil timer-redesign). Speil av T7-1a på mobil. Etter denne kan en arbeider sette start-/slutt-tid og pause på dagsseddel-detaljsiden i mobil-appen og se løpende summering av registrerte timer vs utledet arbeidstid før innsending. Ingen DB-migrasjon, ingen sync-endring, ingen server-endring.
-
-**Filer:**
-- **Ny** `apps/mobile/src/components/timer-detalj/ArbeidstidSeksjon.tsx` (~270 linjer) — visning + edit-modal med `DateTimePicker` (time-mode, 24h) for startAt/endAt + number-input for pauseMin. Skriver direkte til `dagsseddelLocal` via drizzle, setter `syncStatus="pending"` så `TimerSyncProvider` propagerer endringen i neste sync-runde.
-- **Ny** `apps/mobile/src/components/timer-detalj/SummeringsBanner.tsx` (~45 linjer) — viser registrert vs total arbeidstid. Grønn ved `totaltimer >= arbeidstidTimer`, gul ellers, grå hvis arbeidstid mangler.
-- `apps/mobile/src/utils/dato.ts` — ny `isoTidspunktTilHHMM(iso)`-helper.
-- `apps/mobile/app/timer/[id].tsx` — monterer ArbeidstidSeksjon over TimerSeksjon, beregner `arbeidstidTimer = (endAt - startAt) - pauseMin/60` og `totaltimer` via `useMemo`. SummeringsBanner over Send-knappen (kun når `erRedigerbar`).
-
-**Server/skjema:** Null endring. `dagsseddel.upsert`/`syncBatch` aksepterte allerede `startAt/endAt/pauseMin` fra T7-1a-deploy 2026-05-12. `dagsseddelLocal`-skjemaet har feltene fra Runde 2.
-
-**i18n:** Gjenbruker T7-1a-nøkler (`timer.arbeidstidIDag*`, `timer.summering`, `timer.felt.startTid/sluttTid/pauseMin`). 2 nye feilmeldinger i nb/en (`timer.feil.ugyldigPause`, `timer.feil.sluttForStart`) auto-oversatt til 13 språk via `generate.ts`.
-
-**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Pre-eksisterende mobil-typecheck-feil i `hjem.tsx`, `mer.tsx`, `oppgave/[id].tsx`, `psi/[psiId].tsx`, `sjekkliste/[id].tsx`, `useOppgaveSkjema.ts`, `useSjekklisteSkjema.ts`, `timerSync.ts` uberørt.
-
-**Reload-metode:** Telefon-app er JS-only-endring — Expo Go: rist for å reloade, eller `r` i Metro-bundleren. Ingen native rebuild (ingen nye pods/permissions).
-
-**Forventede begrensninger (kommer i T7-3b/c/d):**
-- Sedel er fortsatt prosjekt-bundet (`sedel.projectId`) — multi-prosjekt på rad-nivå kommer i T7-3b
-- Ingen geo-forslag ved sedel-opprettelse — kommer i T7-3c
-- Per-rad-attestering på mobil — kommer i T7-3d eller forkastes hvis attestering forblir web-only
-
-Klar for review — ikke merge før Kenneth verifiserer på test.
-
-### PR T7-2b3 settings-toggle for «Tillat redigering ved attestering» DEPLOYET TIL PROD 2026-05-14 (prod-commit `af4a7deb`)
-
-**T7-2b-bunken er nå komplett i prod:**
-
-| PR | Prod-commit | Innhold |
-|---|---|---|
-| T7-2b1 | `3234c057` | Per-rad-attestering + AttesteringDetalj-felleskomponent + firma-detalj-side |
-| T7-2b2 | `755c542a` | Edit-modus + `redigerSedelRader`-mutation + `parent_rad_id` + `tillatt_rediger_ved_attestering`-flagg (default false) |
-| T7-2b3 | `af4a7deb` | Settings-toggle for å skru flagget på |
-
-`tillatt_rediger_ved_attestering` er fortsatt false for alle firmaer i prod — Rediger-knappen er dormant overalt. Firma-admin kan skru på via `/dashbord/firma/innstillinger` ved behov.
-
-Siste sub-PR av T7-2b-bunken. Aktiverer firma-admin til å skru `OrganizationSetting.tillattRedigerVedAttestering` på/av via UI. Når flagget er true, viser Rediger-knappen seg i attestering-detalj-siden (T7-2b2). Default false — kunder må eksplisitt slå på.
-
-**Klient (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`):**
-- Ny `RedigerVedAttesteringSeksjon`-komponent (~70 linjer). Følger eksakt samme mønster som eksisterende `TilgangPolicySeksjon`: `useFirma()` → `hentSetting`-query → checkbox-toggle som kaller `oppdaterSetting({ tillattRedigerVedAttestering: boolean })` ved endring.
-- Layout: H2-tittel + beskrivelse + checkbox med inline-label og warning-tekst. Border + padding-stil matcher andre seksjoner.
-- Montert i hovedsiden etter `KompetansePolicySeksjon`, før hjelp-modal.
-
-**Server/schema:** Null endring. `oppdaterSetting`-input var allerede utvidet med `tillattRedigerVedAttestering: z.boolean().optional()` i T7-2b2. `hentSetting` returnerer hele OrganizationSetting-objektet → det nye feltet er allerede med i respons.
-
-**i18n:** 5 nye nøkler i nb+en under `firma.innstillinger.redigerVedAttestering.*`:
-- `.tittel` — «Rediger ved attestering» / «Edit during attestation»
-- `.beskrivelse` — full forklaring + audit-log-omtale
-- `.toggle` — checkbox-label
-- `.warning` — «Egnet for bransjer der ansatte trenger hjelp med timeregistrering»
-- `.feil` — feilmelding med `{{melding}}`-interpolering
-
-Auto-oversatt til 13 språk via `generate.ts`.
-
-**Verifisert:** `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil). Ingen API-typecheck-endring (ingen server-endring).
-
-**Etter prod-deploy er hele T7-2b-bunken komplett.** Gjenstår:
-- T7-3 (mobil timer-redesign — speil av T7-1 strukturen på mobil)
-- Audit-log-utvidelse (T7-2b2 logger antall + actor; før/etter-snapshots per rad utsettes til egen oppfølger)
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR T7-2b2 edit-modus ved attestering DEPLOYET TIL PROD 2026-05-14 (prod-commit `755c542a`)
-
-Andre sub-PR av T7-2b-bunken. Firma-admin kan redigere alle pending-rader på en sedel direkte uten å returnere til arbeider. Locked design fra Kenneth 2026-05-14:
-
-- Rediger-modus per sedel (timer + tillegg + maskin samtidig)
-- Original-rader komprimeres øverst som referanse (read-only)
-- Eksisterende rader redigerbare inline
-- «+»-knapp per type for nye rader, pre-fylt unntatt mengde-felter
-- `tillattRedigerVedAttestering`-flagg (default false) gater Rediger-knappens synlighet
-- Settings-UI for flagget = T7-2b3 (ikke i denne PR-en)
-
-**Schema-endringer:**
-
-| Tabell | Felt | Beskrivelse |
-|---|---|---|
-| `organization_settings` | `tillatt_rediger_ved_attestering BOOLEAN @default(false)` | Migration `20260514120000_t7_2b2_tillatt_rediger`. Default false (mest restriktivt). |
-| `timer.sheet_timer` | `parent_rad_id TEXT NULL` + indeks | Migration `20260514120000_t7_2b2_parent_rad_id` (db-timer). Svak selvreferanse (A.20). |
-| `timer.sheet_tillegg` | `parent_rad_id TEXT NULL` + indeks | Samme migration. |
-| `timer.sheet_machines` | `parent_rad_id TEXT NULL` + indeks | Samme migration. |
-| Alle tre rad-tabeller | `attestertStatus`-domene utvidet | Ny verdi `"erstattet"` — originaler som overskrives ved rediger beholdes som audit-spor. |
-
-**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
-
-| Mutation/query | Type | Beskrivelse |
-|---|---|---|
-| `redigerSedelRader` | Ny | Input: `{ sheetId, nyeRader: { timer[], tillegg[], maskin[] } }` der hver rad har `originalId: uuid \| null`. Auth: kun firma-admin (`autoriserAdminForFirma`). Gate: `tillattRedigerVedAttestering === true` → PRECONDITION_FAILED ellers. Cross-org-validering på alle `projectId` (via `ProjectOrganization`). Transaksjon: marker alle eksisterende pending som `"erstattet"` + opprett nye rader med `parentRadId = originalId` og `status = "pending"`. Activity-log per rediger med `actorUserId`, `targetType="DailySheet"`, `payload = { antallErstattet, antallNyeTimer/Tillegg/Maskin, sedelEier }`. |
-| `hentForAttestering` | Utvidet | Respons utvidet med `redigerTillatt: boolean` (utledet fra `OrganizationSetting`). |
-| `oppdaterSetting` (`organisasjon.ts`) | Utvidet input | Zod-input får `tillattRedigerVedAttestering: z.boolean().optional()`. |
-
-**Web (`apps/web/src/components/timer/`):**
-
-- **Ny `AttesteringDetalj_Edit.tsx`** (~400 linjer): eier edit-state via tre `useState<RedigerXxxRadData[]>`. Komprimert original-seksjon øverst i `<details open>`. Tre seksjoner under (timer/tillegg/maskin) med inline-rader + «+ Legg til»-knapper. Validerer at alle rader har påkrevde felter > 0 før kall. Lagre kaller `redigerSedelRader`. Avbryt forkaster.
-- **Tre nye sub-komponenter** (`RedigerTimerRad.tsx`, `RedigerTilleggRad.tsx`, `RedigerMaskinRad.tsx`): inline-form per rad-type med slett-knapp. Grid-layout med dropdowns for prosjekt/lønnsart/aktivitet/ECO/tillegg/equipment/enhet, time-inputs for fra/til, number-inputs for timer/antall/mengde.
-- **`rediger-types.ts`** (ny): delte TypeScript-typer for edit-modus.
-- **`AttesteringDetalj.tsx`** integrert: ny `redigerModus`-state. Rediger-knapp i action-bar vises kun hvis `sheet.redigerTillatt === true` (default false → dormant i prod inntil T7-2b3 leverer settings-UI). Når redigerModus → erstatter standard rader+actions med Edit-komponenten. `TimerRad`/`MaskinRad`-typer utvidet med `byggeplassId`/`fraTid`/`tilTid` slik at de matcher Edit-komponentens forventninger.
-
-**i18n:** 22 nye nøkler i nb/en (`timer.rediger.*`): knapp-tekster, modus-banner, slett/lagre, placeholders for dropdowns/mengde/kommentar, valideringsfeil per rad-type. Auto-oversatt til 13 språk via `generate.ts`.
-
-**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-feil i `import-hjelpere.test.ts`).
-
-**Migrasjonsstrategi (to-stegs-policy):**
-
-Begge migrasjoner er fullt-additive: nullable kolonner + boolean med default false. Krever ingen backfill. Trygt å deploye til test + prod uten ned-tids-vindu. `attestertStatus`-domene-utvidelsen er kun en applikasjons-konvensjon (ingen DB-constraint) — eksisterende rader er upåvirket.
-
-**Forventede begrensninger (kommer i T7-2b3):**
-- Settings-UI på `firma/innstillinger/page.tsx` for å skru `tillattRedigerVedAttestering` på/av — uten dette er Rediger-knappen dormant i prod.
-- Activity-log-payload-utvidelse med før/etter-snapshots per rad (b2 logger kun antall + actor).
-- Mobil får aldri edit-modus (firma-admin web-flyt kun).
-
-**Splitting (1 → N rader)** er implisitt mulig i edit-modus: slett original-raden i edit-listen og legg til to nye. `parentRadId` settes til null på de nye (helt nye rader). Brukerens forrige spørsmål om dedikert splittRad-mutation ble forkastet til fordel for edit-modus-pattern.
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR T7-2b1 per-rad-attestering + felleskomponent AttesteringDetalj DEPLOYET TIL PROD 2026-05-14 (prod-commit `3234c057`)
-
-Første sub-PR av T7-2b-bunken. Bytter attestering fra per-sedel til per-rad. Refaktorerer detalj-siden til projectId-løs felleskomponent som monteres fra både prosjekt- og firma-kontekst.
-
-**Bakgrunn:** T.3 Alt A låst i [fase-0-beslutninger.md § T.7](fase-0-beslutninger.md): «Leder attesterer kun sine rader; sedel er container uten egen attesterings-status.» PR 1B (2026-05-11) la `attestertStatus`/`attestertAvUserId`/`attestertVed` på rad-nivå i schema, men `attester`-mutationen var fortsatt per-sedel og brukte ikke feltene. Denne PR-en lukker gapet.
-
-**Schema-endring (`packages/db-timer/prisma/schema.prisma`):** Kun kommentar-rensk. Verdi-domenet i kommentar normalisert fra `"pending" | "godkjent" | "returnert"` til `"pending" | "attestert" | "returnert"` (norsk-konvensjon, følger «attestering ≠ godkjenning»-regelen). Ingen migrasjon kreves — null historiske rader er skrevet med `"godkjent"` (mutationen brukte ikke feltet).
-
-**Server-mutations (`apps/api/src/routes/timer/dagsseddel.ts`):**
-
-| Mutation | Type | Beskrivelse |
-|---|---|---|
-| `attesterRader` | Ny | Per-rad-attestering. Input: `{ radIder: { timerIder, tilleggIder, maskinIder } }`. Auth: én `krevProsjektLeder`-sjekk per unike `projectId` på tvers av valgte rader. Validerer at hver rad har `attestertStatus === "pending"`. Bygger pris-snapshot per rad i én transaksjon (Fase 0 A.7). Post-transaksjon: hvis alle rader på en sedel nå er `"attestert"`, settes `DailySheet.status = "accepted"`. Returnerer `{ antallAttestert, ferdigeSedler }`. |
-| `returnerRader` | Ny | Per-rad-retur. Input: samme `radIder` + `kommentar`. Setter rad-status til `"returnert"` + sedel-status til `"returned"` + lagrer kommentar på sedel-nivå. |
-| `hentForAttestering` | Utvidet auth | `krevProsjektLeder` som primær, `autoriserAdminForFirma` som fallback. Lar firma-admin-detalj-siden bruke samme query. |
-| `hentTilAttesteringFirma` | Utvidet | `include.maskiner: true` så klient kan vise fremdrift på tvers av alle tre rad-tabeller. |
-| `attester`/`returner` | `@deprecated` thin wrapper | Beholder bakoverkompatibilitet for mobil-app pre-T7-2b1 og T7-3. Kaller samme snapshot-logikk som tidligere. Fjernes ~1 uke etter klient-migrering. |
-
-**Klient-endringer (`apps/web`):**
-
-- **Ny felleskomponent** `src/components/timer/AttesteringDetalj.tsx` (~620 linjer). Tar `sheetId`, `prosjektKontekst?`, `tilbakeUrl`. Per-rad-checkbox-state via tre `Set<string>` (timer/tillegg/maskin). Pre-utvalg ved sideåpning: alle rader hvor `attestertStatus === "pending"` AND leder har tilgang. Per-rad-statusbadge (`pending`/`attestert`/`returnert`). Container-status-banner viser fremdrift («3 av 8 attestert»). Rader fra andre prosjekter i prosjekt-kontekst rendres disabled (kontekst, ikke valgbar).
-- **Wrapper-side prosjekt** `src/app/dashbord/[prosjektId]/timer/attestering/[id]/page.tsx`: 591 → ~50 linjer. Henter `kanAttestere` for prosjektet, monterer felleskomponenten med `prosjektKontekst={params.prosjektId}`.
-- **Wrapper-side firma** `src/app/dashbord/firma/timer/attestering/[id]/page.tsx`: ny (~60 linjer). Bruker `useFirma()` + `kanAttestereFirma`, monterer felleskomponenten projectId-løs.
-- **Firma-liste-lenke** `src/app/dashbord/firma/timer/attestering/page.tsx`: «Åpne»-knappen peker nå til `/dashbord/firma/timer/attestering/${rad.id}` istedenfor prosjekt-bundet ruten. Firma-admin uten prosjekt-medlemskap kan nå åpne detalj.
-
-**i18n:** 12 nye nøkler i `nb.json` + `en.json` (rad-status × 3, rad-valg-knapper/etiketter × 6, container-banner × 3). Auto-oversatt til 13 språk via `generate.ts`.
-
-**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 0 nye feil (kun pre-eksisterende vitest-typedef-feil i `import-hjelpere.test.ts`). Ingen DB-migrasjon. Ingen klient-API-brudd (gamle mutations beholdt som thin wrappers).
-
-**Forventede begrensninger — kommer i etterfølgende PR-er:**
-- **T7-2b2:** Rad-splitting (én rad → flere med ulike prosjekt/ECO/lønnsart/fra-til). Krever ny `parentRadId`-kolonne + `splittRad`-mutation.
-- **T7-2b3:** `OrganizationSetting.tillattRedigerVedAttestering Boolean @default(false)` + direkte-rediger-mutations for firma-admin + Activity-tabell audit-log.
-- **Returnert→pending-reset:** Når arbeider sender returnert sedel på nytt (`sendTilAttestering`), tilbakestilles ikke `attestertStatus` på returnerte rader til `"pending"` automatisk. Egen oppfølger.
-- **Mobil:** T7-3 implementerer per-rad-attestering på mobil. Mobil bruker fortsatt thin-wrapper `attester`/`returner` inntil da.
-
-**Multi-prosjekt-sedler:** Hvis sedel har rader i prosjekt A (lederens) + B (ikke lederens), kan A-leder attestere sine 5 av 9 rader. Sedel-status forblir `"sent"` til alle 9 er attestert (eller én returneres → `"returned"`). Pending B-rader synes i firma-listen så firma-admin eller B-leder kan ta dem.
-
-**Prod-deploy** (main merge-commit `3234c057`): `./deploy.sh` kjørte build, PM2 `sitedoc-web` (id 6) + `sitedoc-api` (id 4) restartet, uptime 0-1s. HTTP/2 200 på `sitedoc.no` + `api.sitedoc.no/health` OK 2026-05-14 08:45:36 GMT. Browser-verifikasjon gjenstår.
-
-## Pauset arbeid
-
-**Timer/Maskin-revurdering** er utsatt til etter Fase 0-fundament er ferdig. timer.md og maskin.md har drift mot fase-0-beslutninger og må justeres før Fase 3 (Timer-modul) og Fase 1-fullføring (Maskin-modul-gateway) — men Fase 0-fundamentet bygges nå uavhengig av denne revurderingen.
-
-## Planlagte oppgaver
-
-### Superadmin-oversikt over firma-moduler
-
-Superadmin trenger oversikt over hvilke moduler det enkelte firma har aktivert — delvis for fakturering. Ikke del av A.Markussen-kundelisten. Egen feature-sesjon.
-
-**HMS-tilgang for arbeidsgiver på andres prosjekter (juridisk gap, 2026-05-03):**
-A.27 gir firma-HMS-ansvarlig innsyn i «firmaets prosjekter» men IKKE i prosjekter
-der firmaets ansatte jobber som UE. Arbeidsmiljøloven § 2-1 krever at arbeidsgiver
-har HMS-ansvar for egne ansatte uavhengig av arbeidsplass. Løses i HMS-tilgang-runde
-(Fase 4 / Mannskap).
-
-**Steg 4c — Godkjenning UI (parkert 2026-05-03):**
-Utsatt til etter møte med A.Markussen og/eller ProAdm API-tilgang.
-Forutsetninger som mangler:
-- Avklart dokumentflyt-mal for endringsmeldinger (krever A.Markussen-input)
-- ProAdm API-integrasjon (eller manuell oppsett av mal)
-- Domeneavklaring: hvilke felter skal med, hvem godkjenner, hvilken flyt
-
-Modellen (Godkjenning + DocumentTransfer) er implementert i Fase 0 § E.12.
-Teknisk grunnlag er på plass — kun domene-avklaring mangler.
-
-**NB:** Når Godkjenning-detaljside bygges (Steg 4c): inkludér «Hvem har ballen»-badge etter samme mønster som sjekkliste/oppgave-detalj (`e82e51c5`). Server: include `recipientGroup` i `godkjenning.hentMedId`. Klient: amber pill ved siden av `<StatusBadge />` i header. Bruker eksisterende i18n-nøkkel `tabell.venterPaa`.
-
-**Header-koordinering: firma-bytte nullstiller ikke prosjekt-kontekst (observert 2026-05-03):**
-Når sitedoc_admin bytter aktivt firma via FirmaVelger, beholdes det aktive prosjektet i
-ProsjektVelger selv om prosjektet tilhører et annet firma. Prosjektlisten bør:
-1. Filtreres på valgt firma (vise kun prosjekter der primaryOrganizationId = valgtFirma.id)
-2. Nullstille aktivt prosjekt ved firma-bytte
-
-Kompleksitet: Lav-middels (~2-3t). Ikke blokkerende for pågående arbeid.
-Tas som egen oppgave etter Steg 4 er ferdig.
-
-**Arkitektur-planlegging — samlet sesjon nødvendig (2026-05-03):**
-Følgende moduler mangler forankring i vedtatt arkitekturplan ([terminologi.md § 0](terminologi.md) tre nivåer: Firma → Firmaadministrasjon → Prosjekter, samt [arkitektur-syntese.md](arkitektur-syntese.md) helhetlig produktarkitektur):
-- Timer-modul: bygget uten global firma-kontekst på plass
-- Maskin-register: bygget uten global firma-kontekst på plass
-- Mannskap/kompetansematrise: ikke planlagt i firma-kontekst
-- Organization vs OrganizationPartner: skillet mangler i datamodellen
-
-Før videre koding på noen av disse: hold en dedikert planleggingssesjon med
-frisk Opus-kontekst. Les [terminologi.md § 0](terminologi.md) + [arkitektur-syntese.md](arkitektur-syntese.md) som utgangspunkt.
-Kartlegg alle koblinger mellom modulene og firma-konteksten.
-Prioriter: Strategi A (modul-filter) → firma-kontekst full konvergens → maskin-import.
-
-**Organization vs OrganizationPartner — fundamentalt skille mangler (observert 2026-05-03):** Test-DB inneholder Organization-rader som ikke er reelle kunder (Byggherre, Tømrer Hansen, Elektrikker Hansen, Hovedentreprenør). De ble opprettet som «skall-firmaer» for å representere parter i faggrupper/dokumentflyt. Datamodellen tillater dette uten advarsel — det finnes ingen `type`/`erKunde`-felt på Organization som skiller «firma som bruker SiteDoc» fra «firma som er part i et prosjekt».
-
-**Riktig modell:** `OrganizationPartner` (linje 197-217 i schema.prisma) er det rette stedet for faggruppe-parter. Hvert kunde-firma har sitt eget partner-bibliotek (`OrganizationPartner.organizationId` peker til kunden). `Faggruppe.partnerId` (nullable FK) kobler en faggruppe til en partner-rad. Den eksisterer for nettopp dette formålet, men test-data har misbrukt Organization-tabellen i stedet.
-
-**Heuristikk-signaler for «reelt firma» (i fravær av eksplisitt felt):** users.length > 0 + harMaskinModul/harTimerModul satt + OrganizationSetting eksisterer + primaryProjects.length > 0 + avdelinger/kompetansetyper finnes. Alle disse er null/0 for skall-firmaer.
-
-**Konsekvenser:**
-- Firma-velger i Toppbar (etter `9175ab84`) viser skall-firmaer som om de var administrerbare. Klikk på dem fører til tom firma-admin-side.
-- Maskin-import er særlig sårbart: hvis sitedoc_admin velger et skall-firma og kjører import, opprettes Equipment-rader under et firma ingen administrerer = datakorruption.
-- Prod-DB ser korrekt ut i dag (3 reelle firmaer), men datamodellen forhindrer ikke fremtidig misbruk.
-
-**Mulige strategier (rangert):**
-- **A. Filter på modul-flagg** (5 min) — pragmatisk for maskin/timer-velgere. `WHERE har_maskin_modul = true` filtrerer skall-firmaer effektivt for import-flyten.
-- **B. Filter på users-count** (30 min) — fanger reelle firmaer mer generelt.
-- **C. Nytt felt `Organization.erKunde Boolean`** (2-3t migrasjon + backfill) — eksplisitt skille, riktig langsiktig.
-- **D. Migrer skall-firmaer til OrganizationPartner** (6-8t DB-cleanup) — rensker datakorrupsjon, krever audit per rad.
-
-**Anbefalt rekkefølge:** ~~Strategi A umiddelbart for maskin-import-velgeren.~~ ✅ **Strategi C IMPLEMENTERT 2026-05-03** (`Organization.erKunde`-feltet — se «Pågående arbeid» øverst). Strategi A kan nå bygges på erKunde-feltet hvis behov. Strategi D som datakvalitets-prosjekt etter A.Markussen er stabilt.
-
-**Firma-administrasjons-navigasjon — strukturell rydding (observert 2026-05-03):** Etter at global firma-kontekst (`9175ab84`) ble bygd, observerte vi at firma-velger i Toppbar kun virker på `firma/layout.tsx` — ikke på undersidene. Dypere analyse avdekket to ulike «firma»-konsepter i kodebasen:
-
-1. **`/dashbord/oppsett/firma` («Prosjekteiers innstillinger»)** — viser firma som eier det aktive prosjektet via `ProjectOrganization`-tabellen. Per-prosjekt-bundet, henter via `organisasjon.hentForProsjekt(projectId)`. Viser tom-state «Ingen firma — Du er ikke tilknyttet noe firma» når prosjektet mangler `ProjectOrganization`-rad. Skal IKKE følge FirmaVelger.
-2. **`/dashbord/firma/*` (firma-admin-seksjon, ~12 sider)** — globale firma-funksjoner: avdelinger, brukere, fakturering, innstillinger, kompetanse, prosjekter, timer-katalog. Skal følge FirmaVelger, men hver underside henter sin egen orgId via `verifiserFirmaAdmin(ctx.userId)` som leser `bruker.organizationId` direkte. Sitedoc_admin uten orgId vil fortsatt feile på undersidene.
-
-**Tre lag som mangler for full konvergens:**
-- **Lag 1 (server, ~4-6t):** ~10 ruter må ta `organizationId` som input og bruke ny `autoriserAdminForFirma(userId, orgId)`-helper. Mønster eksisterer i `maskin/import.ts:autoriserImportForFirma`.
-- **Lag 2 (klient, ~3-4t):** ~10 sider må sende `useFirma().valgtFirma.id` som input til mutations/queries.
-- **Lag 3 (rename, ~30 min):** «Firmainnstillinger» under prosjekt-sidebar er forvirrende navngitt — bør rename til «Prosjekteier» eller «Eier-firma» for å tydeliggjøre at det IKKE er firma-admin.
-
-**Total estimat:** ~10-12 timer. Ikke-blokkerende for vanlig drift; sitedoc_admin (Kenneth) påvirket — ikke A.Markussen-kunder. Prioriter etter Maskin-import-leveransen.
-
-**Onboarding-veileder (prioritert — forutsetning for A.Markussen):** Ny bruker vet ikke rekkefølge eller URL for oppsett etter prosjektopprettelse. Observert 2026-05-02: 4 404-feil ved forsøk på å finne faggruppe-oppsett via intuitive URL-er. Konkret rotårsak: to nesten-identiske faggruppe-sider eksisterer (`/dashbord/[prosjektId]/faggrupper` er **read-only**, mens `/dashbord/prosjekter/[id]/faggrupper` har **full CRUD**) — ingen visuell forskjell, ingen lenke fra read-only-siden til full versjon.
-
-**Runde 1 (a)+(b) DEPLOYET TIL PROD 2026-05-02** (`6ed8b676`):
-- ✅ (a) Lenke fra read-only faggrupper-side til CRUD: ny header-knapp «Administrer faggrupper» (Settings-ikon, øverst til høyre) + action-knapp i EmptyState. Begge peker til `/dashbord/prosjekter/${prosjektId}/faggrupper`.
-- ✅ (b) Pencil-ikon (alltid synlig, text-gray-300) ved siden av brukernavn i `/dashbord/oppsett/brukere` — klikk på navn eller ikon åpner redigeringsmodus (samme oppførsel som før, men nå oppdagbart).
-
-**SmartDok maskin-import dag 1 på develop 2026-05-03:**
-- ✅ `apps/api/src/utils/maskinImport.ts` — parser for SmartDok Excel-eksport. 13 kolonner (Maskin, Internnummer, Reg.nr, Maskinkode, Årsmodell, Lokasjon, Sist endret, Maskinansvarlig 1, Maskinansvarlig 2, Timetall, Km.stand, Notat, Status). SHA-256 fil-hash. Filtrering: «x»-rader = testdata. 0XXX-placeholder → `internNummer=null`. Kategori-mapping verifisert mot A.Markussen 126-rad-fil:
-  - Med gyldig regnr → kjøretøy (Vegvesen-oppslag bekrefter)
-  - 7000-7599 (uten regnr) → kjøretøy (bilpark)
-  - 7600-7699 (uten regnr) → anleggsmaskin (truck, hjullaster, dumper)
-  - 7700-7999 (uten regnr) → småutstyr (redskap, GPS, hammer)
-  - 9XXX → anleggsmaskin (eierskap=leid)
-  - 0XXX-placeholder → utled fra 4-sifret prefiks i navn-feltet
-- ✅ `apps/api/src/routes/maskin/import.ts` — to nye tRPC-mutations:
-  - `importerForhandsvisning` — parse + matching-rapport (kategori-fordeling, ansvarlig-match mot User.name case-insensitive, duplikat-sjekk på internNummer per org, 25 første rader som forhåndsvisning)
-  - `importerBekreft` — atomisk Prisma-transaction: Equipment + EquipmentAnsvarlig (kun rader med Maskinansvarlig 2) + VegvesenKo prio 200. Skip duplikater. Umatcha ansvarlig → `null` + advarsel (ikke blokker per Kenneth's beslutning).
-- ✅ Verifisert mot ekte fil: 125 importerbare av 126 (1 testrad filtrert), 36 med regnr, 11 leid, 10 0XXX-null, 15 ansvarlige. Fordeling 37 kjøretøy / 50 anleggsmaskin / 38 småutstyr.
-- ✅ Vegvesen-prio 200 = lavere enn 100 (auto) — worker plukker én om gangen via `ORDER BY prioritet ASC, opprettet ASC` i 60s-polling. Naturlig spredning over tid (ingen 429-risiko).
-- ✅ Dag 2: klient-UI på develop. Standalone-side `/dashbord/maskin/import` med 4-stegs progress-indikator (Last opp → Forhåndsvis → Bekreft → Resultat). Forhåndsvisning viser kategori-fordeling (kjøretøy/anleggsmaskin/småutstyr), totalsum, antall med regnummer, antall leid, fargemerkede advarsler (valideringsfeil rød / filtrerte testdata grå / duplikater gul / umatcha ansvarlig amber / matcha ansvarlig grønn) + tabell med 25 første rader (radnummer, navn, internnr, regnr, kategori, eierskap, ansvarlig 1+2 med Check/X-ikon for match-status). Bekreft-steg viser sammendrag + advarsel om atomisk operasjon. Resultat-steg viser opprettet-antall, Vegvesen-kø-antall, hoppet-over-liste, umatcha-liste. «Importer fra SmartDok»-knapp lagt til på `/dashbord/maskin`-hovedsiden. 60 nye i18n-nøkler i nb+en (`firma.maskin.import.*` + `maskin.importerFraSmartDok`). Verifisert med `pnpm build --filter @sitedoc/web` 37.6s grønt (Next.js strenge tsc).
-- ⏳ Dag 3: test-runde mot test-firma i test-DB FØR prod (per Kenneth's beslutning).
-
-**Dag 3 fix 2026-05-03 — fil-interne duplikater:** Test-runde mot Byggeleder feilet ved bekreft-steg. Rotårsak: SmartDok-fila har internnummer `7084` på to rader (17 og 99). `importerBekreft` filtrerte bare DB-eksisterende internnumre, ikke fil-interne. Andre forekomst brakk `@@unique([organizationId, internNummer])` og rullet tilbake hele transaksjonen. Fix: filtrer begge kategorier FØR `$transaction` — første forekomst importeres, etterfølgende hoppes over med grunn «duplisert i fila». Forhåndsvisning returnerer nå `duplikaterDB` + `duplikaterFilInterne` separat i tillegg til total. Hoppet-over-rapport skiller mellom «finnes allerede i firmaet» og «duplisert i fila». Klar for ny test-runde.
-
-**Runde 1 (c) progress-banner DEPLOYET TIL PROD 2026-05-02** (`098f7586`):
-- ✅ Ny tRPC-query `prosjekt.hentOnboardingStatus({ projectId })` returnerer 4 booleans: harDokumentflyt, harBrukergruppe (kategori="brukergrupper"), harMalKobletTilFlyt (DokumentflytMal-rader), harLokasjon (Byggeplass-rader).
-- ✅ Banner på prosjekt-dashbord (`/dashbord/[prosjektId]`) plasseres over prosjekt-header og under prøveperiode-banneret. Vises kun for admin (`role ∈ {admin, owner}`) og kun når minst ett steg gjenstår. Hvert steg er en pill med lenke til riktig oppsett-side: Dokumentflyt + Maler → `/dashbord/oppsett/produksjon/kontakter`, Brukergrupper → `/dashbord/oppsett/brukere`, Lokasjoner → `/dashbord/oppsett/lokasjoner`.
-- ✅ 5 nye i18n-nøkler under `onboarding.*` i nb+en.
-- ✅ Konsolidering av de to faggruppe-sidene IMPLEMENTERT på develop 2026-05-05. `/dashbord/[prosjektId]/faggrupper` har full CRUD (opprett/rediger/slett). Legacy `/dashbord/prosjekter/[id]/faggrupper` slettet, Faggrupper-fane fjernet fra `prosjekter/[id]/layout.tsx`, oversiktskort i `prosjekter/[id]/page.tsx` peker til ny rute.
-
-Blokkerer selvstendig A.Markussen-onboarding. Ankret i [onboarding-veileder.md](onboarding-veileder.md).
-
-**Testbrukere (planlagt — etter Timer er ferdig):** Opprett strukturerte testbrukere i test-DB for systematisk verifisering av tilgangsnivåer:
-- **Ola Tømrer** — produksjon-rolle (`ProjectMember.role = "worker"` eller `"field_user"`)
-- **Per Prosjektadmin** — `ProjectMember.role = "project_manager"`
-- **Kari Firmaadmin** — `User.role = "company_admin"` med `organizationId` satt
-- **Tore SiteDocAdmin** — `User.role = "sitedoc_admin"`
-
-Formål: systematisk verifisering av at riktige funksjoner er tilgjengelig per rolle, og at utilgjengelige funksjoner er skjult/blokkert. Eksempel: Timer-attestering skal kun være synlig for Per/Kari/Tore (ikke Ola); Firma-administrasjon skal kun være tilgjengelig for Kari/Tore; Superadmin-flater kun for Tore. Dekker også verifisering av RBAC-helpers (`harProsjektTilgang`, `verifiserOrganisasjonTilgang`, `verifiserSiteDocAdmin`) og sidebar-gating.
-
-### ~~«Hvem har ballen» — mangler synlig indikator (observert 2026-05-02)~~ — LØST 2026-05-05
-
-Listene fikk badge før denne sesjonen (sjekkliste-listen + oppgave-listen viser «Venter på: [gruppenavn]» når status ∈ {sent, received, in_progress}). Dokument-detaljsidene fikk samme badge 2026-05-05 — server utvidet med `recipientGroup`-include på `sjekkliste.hentMedId` + `oppgave.hentMedId`, klient viser badge ved siden av `<StatusBadge />` i header.
-
-### ~~Auto-redirect ved innlogging — mangler (observert 2026-05-02)~~ — LØST
-
-Verifisert 2026-05-05 at logikken er fullt implementert i `apps/web/src/app/dashbord/page.tsx:41-65` (auto-redirect basert på antall prosjekter) + skriving av `lastVisitedProjectId` i `apps/web/src/app/dashbord/[prosjektId]/layout.tsx:26`. Alle scenarier dekket: 0 prosjekter (admin → kom-i-gang, ikke-admin → tom-state), 1 prosjekt → direkte, 2+ → sist besøkte hvis i tilgjengelig liste, 2+ uten sist-besøkt → bli stående med oversikt. Sannsynligvis lagt til samtidig som auto-progress-arbeidet før denne sesjonen — ikke en mangel lenger.
-
 ## Kjente bugs
 
 **~~Lokasjon-modal forhåndsvelger ikke når kun ett alternativ finnes (observert 2026-05-02)~~ — LØST.** Verifisert 2026-05-05 at auto-select er implementert i `apps/web/src/components/LokasjonVelger.tsx:66-81` (to useEffect-hooks: én for bygning, én for tegning, begge sjekker `length === 1` og setter valgt verdi). Sannsynligvis lagt til etter den opprinnelige observasjonen. TegningsModal (skjermbilder, ikke samme flyt) auto-velger kun ved `standardTegningId` — bevisst design.
 
-## Planlagte faser
 
-Detaljert plan: [arkitektur-syntese.md §5](arkitektur-syntese.md). Beslutningsgrunnlag: [fase-0-beslutninger.md](fase-0-beslutninger.md).
+## Pauset, planlagt og fremtidige faser
 
-**Fase 0 — Firma-fundament + tilgangsinfrastruktur:**
-- Datamodell (13 migrasjons-steg per § E i fase-0-beslutninger): `Activity`, `OrganizationSetting`, `OrganizationPartner`, `OrganizationTemplate`, `ProjectOrganization` (rename av OrganizationProject + `rolle`), `Project.primaryOrganizationId String?` (nullable), `ProjectModule`-utvidelse (`organizationId` + `status` per A.4/A.17), `Psi.organizationId` + `projectId` nullable + `kontekstType`, `BibliotekMal`-utvidelse (kategori/domene/kobletTilModul/verifisert), `ProjectMember.periodeSlutt` + `userId` cascade SetNull (per B.7), `ExternalCostObject`, `Godkjenning` + `DocumentTransfer.kostnadSnapshot/godkjenningId`, `User`-utvidelse (canLogin, HMS-kort, ansattnummer, nasjonalitet, arbeidstillatelse + composite unique på email + phone per B.7)
-- Selektiv Timestamptz på 11 felter per B.6 (timer/audit/godkjenning/PsiSignatur/frist-felter/Invitation)
-- Infrastruktur: `prosjektProcedure`, `modulProcedure(slug)` i tRPC
-- Refaktor: 9 funksjoner i `tilgangskontroll.ts` for ProjectMember-periode
-
-**Fase 0.5 — Byggeplass + Avdeling-fundament:**
-- Tre åpne arkitektur-prinsipper besluttes (NULL-betydning, default-byggeplass, FK vs jsonb) per [byggeplass-strategi.md](byggeplass-strategi.md)
-- `ByggeplassMedlemskap` (loan-pattern: User → Byggeplass over tid)
-- Drop `building_ids` jsonb fra `project_groups`
-- `Avdeling`-tabell i `packages/db` (kjernen) — firma-intern organisatorisk inndeling, separat dimensjon fra byggeplass
-- `User.avdelingId` valgfri (ny kolonne)
-- Avklaring av seed-mekanismer som registreres her vs i Fase 3
-
-**Fase 1 — Maskin med modul-gateway** (allerede under bygging på `feature/maskin-db` — gates før prod):
-- Refaktor maskin-rutene til `modulProcedure('maskin')`
-- `EquipmentChecklist` + `EquipmentChecklistTemplate` i `db-maskin`
-- Manuell trigger fra maskinregister
-
-**Fase 2 — Mal-promotering:**
-- `OrganizationTemplate` + `ReportTemplate.organizationTemplateId`
-- UI for «Send til firmabibliotek»
-
-**Fase 3 — Timer-modul** (inkl. Kompetanseregister):
-- Lønnsarter, arbeidstidskalender, dagsseddel med byggeplassId fra dag 1
-- Underprosjekt (Proadm-import eller SiteDoc Godkjenning)
-
-**Fase 4 — Mannskap/PSI-modul.**
-
-**Fase 5 — Varelager-modul.**
-
-**Fase 6 — Avansert:** DO-kobling, AI-ukeplan.
-
-**Fase 7 — Prosjekthotell-utvidelser (parallelt spor):** Møtemal, Månedsrapport, HMS-statistikk firma-nivå, Street View, auto-trigger maskin-sjekkliste fra service-varsel.
-
-**TODO etter Maskin (Fase 1) + Timer (Fase 3):** [Aktivitetsfeed på dashboard](aktivitetsfeed.md) — bruker eksisterende Activity-tabell, polling via tRPC, konfigurerbar periode (default 10 dager) + hendelsestyper + GDPR-retensjon i OrganizationSetting. Ekstern partner-feed-scope krever egen designrunde.
-
-**Commits på `feature/maskin-db`** venter på merge til develop:
-- `a4d7771` — Proadm-detaljer i timer.md
-- `89e102c` — Proadm-regel i CLAUDE.md
-- DB-opprydning-relaterte audit/doc-commits (2026-04-25)
-- Arkitektur-dokumentasjon (2026-04-25/26)
-
-## Neste oppgaver (ikke planlagt)
-
-Konsolidert fra `neste-oppgave.md` (slettet 2026-05-14).
-
-- **OrganizationMemberPermission** (modul-tilgang per ansatt) — låst i [fase-0-beslutninger.md](fase-0-beslutninger.md). Designet er klart, ikke startet.
-- **T7-2b2** Rad-splitting ved attestering — én rad → flere med ulike prosjekt/ECO/lønnsart/fra-til. Krever `parentRadId`-kolonne + `splittRad`-mutation.
-- **T7-2b3** `OrganizationSetting.tillattRedigerVedAttestering Boolean @default(false)` + direkte-rediger-mutations for firma-admin + Activity-tabell audit-log.
-- **T7-3** Mobil timer-redesign (per-rad-attestering + prosjekt-gruppert dagsseddel). Avhenger av T7-2b-bunken og T7-0 (refaktor av `apps/mobile/app/timer/[id].tsx`).
-- **Returnert→pending-reset** ved `sendTilAttestering` — når arbeider sender returnert sedel på nytt, tilbakestilles ikke `attestertStatus` på returnerte rader automatisk.
-- **Nye integrasjonstester for `tilgangskontroll.ts`** — etter O-5c er den gamle test-fila slettet (16/22 broken). Integrasjonstester mot test-DB med OrganizationMember-fikstur er planlagt.
-
+→ Se [docs/claude/BACKLOG.md](BACKLOG.md) for konsolidert backlog
+(teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet).

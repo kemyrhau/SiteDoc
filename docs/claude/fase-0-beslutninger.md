@@ -973,7 +973,7 @@ heltall-aritmetikk — de seks øvrige bevegelige helligdagene avledes av offset
 - T.4 (fra/til per rad) — trenger kalender for standard arbeidstid-forslag
 - T.5 (tidsrunding) — trenger kalender for korrekt dagsnorm
 - SummeringsBanner.tsx (T7-3a) — må oppdateres til å lese dagsnorm fra kalender-cache
-- Auto-fordeling normaltid/overtid — trenger kalender for terskelverdi
+- ~~Auto-fordeling normaltid/overtid — trenger kalender for terskelverdi~~ **Droppet 2026-05-16** — besluttet å ikke implementere. Kunden registrerer lønnsart manuelt per rad (gjeldende praksis).
 
 ---
 
