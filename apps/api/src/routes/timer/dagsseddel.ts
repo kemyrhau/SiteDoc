@@ -139,6 +139,114 @@ async function sjekkAldersgrense(
   }
 }
 
+// T7-2c1: snapshot-helpers for audit-log ved rediger og splitt.
+// Reduserer Prisma-rad til ren JSON-serialiserbar payload (Decimal → number).
+// Returtype matcher Prisma.InputJsonValue så payload kan brukes direkte i activity.create.
+type TimerSnapshot = {
+  id: string;
+  projectId: string;
+  lonnsartId: string;
+  aktivitetId: string;
+  externalCostObjectId: string | null;
+  byggeplassId: string | null;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: number | null;
+  parentRadId: string | null;
+};
+type TilleggSnapshot = {
+  id: string;
+  projectId: string;
+  tilleggId: string;
+  antall: number | null;
+  kommentar: string | null;
+  parentRadId: string | null;
+};
+type MaskinSnapshot = {
+  id: string;
+  projectId: string;
+  vehicleId: string;
+  byggeplassId: string | null;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: number | null;
+  mengde: number | null;
+  enhet: string | null;
+  parentRadId: string | null;
+};
+
+type TimerRow = {
+  id: string;
+  projectId: string;
+  lonnsartId: string;
+  aktivitetId: string;
+  externalCostObjectId: string | null;
+  byggeplassId: string | null;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: Prisma.Decimal;
+  parentRadId: string | null;
+};
+type TilleggRow = {
+  id: string;
+  projectId: string;
+  tilleggId: string;
+  antall: Prisma.Decimal;
+  kommentar: string | null;
+  parentRadId: string | null;
+};
+type MaskinRow = {
+  id: string;
+  projectId: string;
+  vehicleId: string;
+  byggeplassId: string | null;
+  fraTid: string | null;
+  tilTid: string | null;
+  timer: Prisma.Decimal;
+  mengde: Prisma.Decimal | null;
+  enhet: string | null;
+  parentRadId: string | null;
+};
+
+function snapshotTimer(r: TimerRow): TimerSnapshot {
+  return {
+    id: r.id,
+    projectId: r.projectId,
+    lonnsartId: r.lonnsartId,
+    aktivitetId: r.aktivitetId,
+    externalCostObjectId: r.externalCostObjectId,
+    byggeplassId: r.byggeplassId,
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    timer: Number(r.timer),
+    parentRadId: r.parentRadId,
+  };
+}
+function snapshotTillegg(r: TilleggRow): TilleggSnapshot {
+  return {
+    id: r.id,
+    projectId: r.projectId,
+    tilleggId: r.tilleggId,
+    antall: Number(r.antall),
+    kommentar: r.kommentar,
+    parentRadId: r.parentRadId,
+  };
+}
+function snapshotMaskin(r: MaskinRow): MaskinSnapshot {
+  return {
+    id: r.id,
+    projectId: r.projectId,
+    vehicleId: r.vehicleId,
+    byggeplassId: r.byggeplassId,
+    fraTid: r.fraTid,
+    tilTid: r.tilTid,
+    timer: Number(r.timer),
+    mengde: r.mengde === null ? null : Number(r.mengde),
+    enhet: r.enhet,
+    parentRadId: r.parentRadId,
+  };
+}
+
 export const dagsseddelRouter = router({
   // List dagssedler for innlogget bruker, eller for et prosjekt (admin-perspektiv senere).
   list: protectedProcedure
@@ -1389,7 +1497,8 @@ export const dagsseddelRouter = router({
         }
       }
 
-      // Valider originalId hvis gitt: må finnes på sedelen og være pending
+      // Valider originalId hvis gitt: må finnes på sedelen og være pending.
+      // T7-2c1: henter også full rad-data for audit-snapshot.
       const eksisterendeIder = {
         timer: new Set<string>(),
         tillegg: new Set<string>(),
@@ -1398,15 +1507,12 @@ export const dagsseddelRouter = router({
       const [eksTimer, eksTillegg, eksMaskin] = await Promise.all([
         ctx.prismaTimer.sheetTimer.findMany({
           where: { sheetId: sheet.id, attestertStatus: "pending" },
-          select: { id: true },
         }),
         ctx.prismaTimer.sheetTillegg.findMany({
           where: { sheetId: sheet.id, attestertStatus: "pending" },
-          select: { id: true },
         }),
         ctx.prismaTimer.sheetMachine.findMany({
           where: { sheetId: sheet.id, attestertStatus: "pending" },
-          select: { id: true },
         }),
       ]);
       eksTimer.forEach((r) => eksisterendeIder.timer.add(r.id));
@@ -1517,7 +1623,8 @@ export const dagsseddelRouter = router({
         ),
       ]);
 
-      // Activity-log (etter transaksjonen — separat så feilet log ikke ruller back)
+      // Activity-log (etter transaksjonen — separat så feilet log ikke ruller back).
+      // T7-2c1: payload utvidet med originalerSnapshot + nyeSnapshot for revisjons-spor.
       await prisma.activity.create({
         data: {
           actorUserId: ctx.userId,
@@ -1531,6 +1638,16 @@ export const dagsseddelRouter = router({
             antallNyeTillegg: input.nyeRader.tillegg.length,
             antallNyeMaskin: input.nyeRader.maskin.length,
             sedelEier: sheet.userId,
+            originalerSnapshot: {
+              timer: eksTimer.map(snapshotTimer),
+              tillegg: eksTillegg.map(snapshotTillegg),
+              maskin: eksMaskin.map(snapshotMaskin),
+            },
+            nyeSnapshot: {
+              timer: input.nyeRader.timer,
+              tillegg: input.nyeRader.tillegg,
+              maskin: input.nyeRader.maskin,
+            },
           },
         },
       });
@@ -1540,6 +1657,277 @@ export const dagsseddelRouter = router({
         antallNyeTimer: input.nyeRader.timer.length,
         antallNyeTillegg: input.nyeRader.tillegg.length,
         antallNyeMaskin: input.nyeRader.maskin.length,
+      };
+    }),
+
+  // ============================================================================
+  //  T7-2c1 — Firma-admin splitter én pending rad (2026-05-16)
+  //
+  //  Erstatter én pending rad (timer/tillegg/maskin) med N nye rader. Sum
+  //  av nye rader må === original (Math.abs(diff) < 0.001). Original
+  //  markeres "erstattet", nye rader får parentRadId = original.id.
+  //  Maskin: kun timer sum-valideres; mengde distribueres fritt.
+  //  Gates på tillattRedigerVedAttestering. Skriver Activity-rad med
+  //  originalSnapshot + nyeSnapshot.
+  // ============================================================================
+
+  splittRad: protectedProcedure
+    .input(
+      z.discriminatedUnion("radType", [
+        z.object({
+          radType: z.literal("timer"),
+          radId: z.string().uuid(),
+          nyeRader: z
+            .array(
+              z.object({
+                projectId: z.string().uuid(),
+                lonnsartId: z.string().uuid(),
+                aktivitetId: z.string().uuid(),
+                externalCostObjectId: z.string().uuid().nullable().optional(),
+                byggeplassId: z.string().uuid().nullable().optional(),
+                fraTid: z.string().nullable().optional(),
+                tilTid: z.string().nullable().optional(),
+                timer: z.number().positive(),
+              }),
+            )
+            .min(2, "Splitt krever minst 2 nye rader"),
+        }),
+        z.object({
+          radType: z.literal("tillegg"),
+          radId: z.string().uuid(),
+          nyeRader: z
+            .array(
+              z.object({
+                projectId: z.string().uuid(),
+                tilleggId: z.string().uuid(),
+                antall: z.number().positive(),
+                kommentar: z.string().nullable().optional(),
+              }),
+            )
+            .min(2, "Splitt krever minst 2 nye rader"),
+        }),
+        z.object({
+          radType: z.literal("maskin"),
+          radId: z.string().uuid(),
+          nyeRader: z
+            .array(
+              z.object({
+                projectId: z.string().uuid(),
+                vehicleId: z.string().uuid(),
+                byggeplassId: z.string().uuid().nullable().optional(),
+                fraTid: z.string().nullable().optional(),
+                tilTid: z.string().nullable().optional(),
+                timer: z.number().positive(),
+                mengde: z.number().nullable().optional(),
+                enhet: z.string().nullable().optional(),
+              }),
+            )
+            .min(2, "Splitt krever minst 2 nye rader"),
+        }),
+      ]),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // 1) Hent original rad ut fra radType
+      const original =
+        input.radType === "timer"
+          ? await ctx.prismaTimer.sheetTimer.findUnique({ where: { id: input.radId } })
+          : input.radType === "tillegg"
+            ? await ctx.prismaTimer.sheetTillegg.findUnique({ where: { id: input.radId } })
+            : await ctx.prismaTimer.sheetMachine.findUnique({ where: { id: input.radId } });
+      if (!original) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `${input.radType}-rad ${input.radId} finnes ikke`,
+        });
+      }
+      if (original.attestertStatus !== "pending") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Rad har status "${original.attestertStatus}" — kun pending kan splittes`,
+        });
+      }
+
+      // 2) Hent sedel for auth + status-sjekk
+      const sheet = await ctx.prismaTimer.dailySheet.findUnique({
+        where: { id: original.sheetId },
+        select: { id: true, organizationId: true, status: true, userId: true },
+      });
+      if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+
+      // 3) Auth: kun firma-admin
+      await autoriserAdminForFirma(ctx.userId, sheet.organizationId);
+
+      // 4) Gate: tillattRedigerVedAttestering må være på
+      const setting = await ctx.prisma.organizationSetting.findUnique({
+        where: { organizationId: sheet.organizationId },
+        select: { tillattRedigerVedAttestering: true },
+      });
+      if (!setting?.tillattRedigerVedAttestering) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Rediger ved attestering er ikke tillatt for dette firmaet. Slå på i innstillinger.",
+        });
+      }
+
+      // 5) Sedel-status
+      if (sheet.status !== "sent") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Kun innsendte dagssedler kan splittes (status: ${sheet.status})`,
+        });
+      }
+
+      // 6) Cross-org-validering: alle nye projectId må tilhøre firmaet
+      const alleProjectIds = Array.from(
+        new Set(input.nyeRader.map((r) => r.projectId)),
+      );
+      const gyldigeProsjekter = await ctx.prisma.projectOrganization.findMany({
+        where: {
+          projectId: { in: alleProjectIds },
+          organizationId: sheet.organizationId,
+        },
+        select: { projectId: true },
+      });
+      const gyldigeIder = new Set(gyldigeProsjekter.map((p) => p.projectId));
+      const ugyldig = alleProjectIds.filter((pid) => !gyldigeIder.has(pid));
+      if (ugyldig.length > 0) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: `Prosjekt(er) tilhører ikke firmaet: ${ugyldig.join(", ")}`,
+        });
+      }
+
+      // 7) Sum-validering: nye rader må summere til originalens sum-felt.
+      //    Timer- og maskin-rad: sum av "timer". Tillegg-rad: sum av "antall".
+      //    Maskin "mengde" distribueres fritt — ikke sum-validert.
+      const originalSum =
+        input.radType === "tillegg"
+          ? Number((original as { antall: Prisma.Decimal }).antall)
+          : Number((original as { timer: Prisma.Decimal }).timer);
+      const nySum = input.nyeRader.reduce(
+        (acc, r) =>
+          acc + (input.radType === "tillegg" ? (r as { antall: number }).antall : (r as { timer: number }).timer),
+        0,
+      );
+      if (Math.abs(nySum - originalSum) >= 0.001) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: `Sum av split-rader (${nySum}) matcher ikke original (${originalSum})`,
+        });
+      }
+
+      // 8) Transaksjon: marker original "erstattet" + opprett nye med parentRadId
+      const naa = new Date();
+      if (input.radType === "timer") {
+        await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetTimer.update({
+            where: { id: original.id },
+            data: {
+              attestertStatus: "erstattet",
+              attestertAvUserId: ctx.userId,
+              attestertVed: naa,
+            },
+          }),
+          ...input.nyeRader.map((rad) =>
+            ctx.prismaTimer.sheetTimer.create({
+              data: {
+                sheetId: sheet.id,
+                lonnsartId: rad.lonnsartId,
+                aktivitetId: rad.aktivitetId,
+                projectId: rad.projectId,
+                externalCostObjectId: rad.externalCostObjectId ?? null,
+                byggeplassId: rad.byggeplassId ?? null,
+                fraTid: rad.fraTid ?? null,
+                tilTid: rad.tilTid ?? null,
+                timer: rad.timer,
+                attestertStatus: "pending",
+                parentRadId: original.id,
+              },
+            }),
+          ),
+        ]);
+      } else if (input.radType === "tillegg") {
+        await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetTillegg.update({
+            where: { id: original.id },
+            data: {
+              attestertStatus: "erstattet",
+              attestertAvUserId: ctx.userId,
+              attestertVed: naa,
+            },
+          }),
+          ...input.nyeRader.map((rad) =>
+            ctx.prismaTimer.sheetTillegg.create({
+              data: {
+                sheetId: sheet.id,
+                tilleggId: rad.tilleggId,
+                projectId: rad.projectId,
+                antall: rad.antall,
+                kommentar: rad.kommentar ?? null,
+                attestertStatus: "pending",
+                parentRadId: original.id,
+              },
+            }),
+          ),
+        ]);
+      } else {
+        await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetMachine.update({
+            where: { id: original.id },
+            data: {
+              attestertStatus: "erstattet",
+              attestertAvUserId: ctx.userId,
+              attestertVed: naa,
+            },
+          }),
+          ...input.nyeRader.map((rad) =>
+            ctx.prismaTimer.sheetMachine.create({
+              data: {
+                sheetId: sheet.id,
+                vehicleId: rad.vehicleId,
+                projectId: rad.projectId,
+                byggeplassId: rad.byggeplassId ?? null,
+                fraTid: rad.fraTid ?? null,
+                tilTid: rad.tilTid ?? null,
+                timer: rad.timer,
+                mengde: rad.mengde ?? null,
+                enhet: rad.enhet ?? null,
+                attestertStatus: "pending",
+                parentRadId: original.id,
+              },
+            }),
+          ),
+        ]);
+      }
+
+      // 9) Activity-log med snapshots
+      const originalSnapshot =
+        input.radType === "timer"
+          ? snapshotTimer(original as TimerRow)
+          : input.radType === "tillegg"
+            ? snapshotTillegg(original as TilleggRow)
+            : snapshotMaskin(original as MaskinRow);
+      await prisma.activity.create({
+        data: {
+          actorUserId: ctx.userId,
+          organizationId: sheet.organizationId,
+          targetType: "DailySheet",
+          targetId: sheet.id,
+          action: "splitt_rad",
+          payload: {
+            radType: input.radType,
+            antallNye: input.nyeRader.length,
+            sedelEier: sheet.userId,
+            originalSnapshot,
+            nyeSnapshot: input.nyeRader,
+          },
+        },
+      });
+
+      return {
+        radType: input.radType,
+        antallNye: input.nyeRader.length,
       };
     }),
 

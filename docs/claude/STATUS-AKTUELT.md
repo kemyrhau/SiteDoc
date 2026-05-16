@@ -6,6 +6,39 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### PR T7-2c1 splittRad-mutation + audit-snapshot — KLAR FOR REVIEW (branch `feature/t7-2c1`)
+
+Første sub-PR av T7-2c-bunken (rad-splitting ved attestering). Server-only — UI kommer i T7-2c2/c3. Implementerer den manglende halvdelen av kundeønske #4 «redigering og splitting av timer ved attestering».
+
+**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- Ny `splittRad`-mutation med Zod discriminated union på `radType: "timer" | "tillegg" | "maskin"`. Hver variant tar `radId: uuid` + `nyeRader: [...]` (`min(2)`). Per-type-felter speiler `redigerSedelRader`-formatet. UI bestemmer fordeling, server validerer.
+- Validering i rekkefølge: (1) original rad finnes + `attestertStatus === "pending"`, (2) firma-admin-auth via `autoriserAdminForFirma`, (3) `tillattRedigerVedAttestering`-gate, (4) `sheet.status === "sent"`, (5) cross-org-validering av nye `projectId`-er, (6) sum-validering: `Math.abs(nySum - originalSum) < 0.001` (timer-rad: sum av `timer`, tillegg: sum av `antall`, maskin: sum av `timer` — `mengde` distribueres fritt).
+- Transaksjon: marker original `"erstattet"` + opprett N nye rader med `parentRadId = original.id` og `attestertStatus = "pending"`. Per-tabell `$transaction` for å unngå union-type-utfordringer.
+- Activity-log etter transaksjon: `action: "splitt_rad"`, payload med `radType`, `antallNye`, `sedelEier`, `originalSnapshot` + `nyeSnapshot` (input direkte).
+
+**Snapshot-helpers (nye, modul-scope):**
+- `snapshotTimer/Tillegg/Maskin` med eksplisitte returtyper (`TimerSnapshot`/`TilleggSnapshot`/`MaskinSnapshot`) for Prisma `InputJsonValue`-kompatibilitet. Decimal → number via `Number()`.
+
+**Retroaktiv audit-utvidelse på `redigerSedelRader`:**
+- `findMany` på pending-rader endret fra `select: { id: true }` til full rad-data (samme query, mer data).
+- Activity-payload utvidet med `originalerSnapshot: { timer[], tillegg[], maskin[] }` + `nyeSnapshot: { timer[], tillegg[], maskin[] }`. Stenger T7-2b3-utestående audit-løfte.
+
+**Designvalg:**
+- **`Math.abs(diff) < 0.001`-toleranse for sum-validering:** dekker floating-point-rare ved Decimal → number → sum. Streng `===` ville feilet på `0.1 + 0.2 !== 0.3`-type problemer.
+- **Maskin: kun `timer` sum-valideres:** `mengde` på SheetMachine er per-rad enhet-spesifikk (m³, kg, stk) og kan ikke deles aritmetisk uten kontekst. Firma-admin distribuerer fritt; total kan avvike fra original uten feil.
+- **Per-tabell `$transaction`:** Prisma-`$transaction` med ulike tabell-modeller per gren gir union-type-problemer. Tre branches er enklere enn én generisk variant.
+- **Activity, ikke ny tabell:** audit-spor bygger på eksisterende `Activity`-modell i kjernen (`@sitedoc/db`). `targetType: "DailySheet"`, `action: "splitt_rad"`.
+
+**Verifisert:** `apps/api` typecheck 0 nye feil. Ingen schema-endring (felt `parentRadId` + status `"erstattet"` fantes fra T7-2b2). Ingen mobil-impact.
+
+**Reload-metode:** Server reload kreves ved deploy (`pm2 restart sitedoc-api`). Ingen klient-endring i denne PR-en.
+
+**Forventede begrensninger (kommer i T7-2c2/c3):**
+- Ingen UI for å trigge `splittRad` — mutation kan kun kalles fra tRPC-klient manuelt.
+- `redigerSedelRader` retroaktiv audit påvirker payload-størrelse i `Activity`-tabellen marginalt. Eksisterende rader uberørt (kun nye).
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### Neste: EAS-bygg (mobil)
 
 Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på enhet til neste EAS-bygg når TestFlight/Play Store. Aktiveres samtidig:
