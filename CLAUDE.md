@@ -55,6 +55,50 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+### PR T.5 tidsrunding — IMPLEMENTERT PÅ `feature/t5-tidsrunding` 2026-05-16
+
+Standalone PR etter T.4-bunken. Firma-admin konfigurerer avrunding (15/30/60 min eller ingen) for fra/til-tid på timer- og maskin-rader. Avrunding skjer **visuelt ved input** — pickeren snapper til nærmeste intervall, det brukeren ser er det som lagres. Ingen server-side runding bak ryggen.
+
+**Server (`apps/api/src/routes/organisasjon.ts`):**
+- `oppdaterSetting` Zod-input: `tidsrundingMinutter: z.union([z.literal(15), z.literal(30), z.literal(60), z.null()]).optional()` — tre-verdi-validering hindrer rare verdier som 7 eller 23.
+- `hentArbeidstidDefaults` (T4-d): utvidet `select`-clause med `tidsrundingMinutter: true` slik at mobil-cachen får feltet.
+- `hentSetting` (firma-admin web): returneres automatisk (ingen `select`).
+- Schema-feltet `OrganizationSetting.tidsrundingMinutter Int? @default(15)` fantes allerede fra tidligere migrasjon.
+
+**Web (`apps/web`):**
+- Ny `apps/web/src/lib/tidsrunding.ts` — `rundTilNarmeste(hhmm, minutter)`-helper. Clamp til 23:59 ved overflow. null = identity.
+- `StandardArbeidstidSeksjon` på `firma/innstillinger`: ny dropdown under pause-feltet med 4 valg (Ingen / 15 min / 30 min / 60 min). State holdes som `"none" | "15" | "30" | "60"`-streng, konverteres til `15 | 30 | 60 | null` ved lagre.
+- `RedigerTimerRad` + `RedigerMaskinRad` (T7-2b2 edit-modus ved attestering): ny `tidsrundingMinutter`-prop. `step={tidsrundingMinutter * 60}` på `<input type="time">` + onBlur-fallback-runding (sikrer at nettlesere som ignorerer step likevel produserer avrundede verdier). `AttesteringDetalj_Edit` henter `tidsrundingMinutter` fra `trpc.organisasjon.hentSetting` og passerer som prop til radene.
+
+**Mobil-cache (`apps/mobile/src/db`):**
+- `organizationSettingLocal.tidsrundingMinutter` lagt til (nullable integer, ingen default — server-respons styrer).
+- Idempotent `PRAGMA table_info`-sjekk + `ALTER TABLE organization_setting_local ADD COLUMN tidsrunding_minutter INTEGER` i `migreringer.ts`. Eksisterende klienter på T4-d-schema migreres automatisk ved app-oppstart.
+- `organizationSettingKatalog.refreshOrganizationSettingKatalog` skriver feltet fra server-respons (`setting.tidsrundingMinutter ?? null`).
+
+**Mobil-UI (`apps/mobile`):**
+- Ny `src/utils/tidsrunding.ts` — speil av web-helperen. `rundTilNarmeste(hhmm, minutter)`. Trivial nok at duplisering er bedre enn `packages/shared`-konfig-overhead. Kommentar peker til speilet for konsistens.
+- `FraTilTidFelt` fikk ny `tidsrundingMinutter: number | null`-prop. Ved `onChange` fra DateTimePicker: rund verdien FØR `onFraEndret`/`onTilEndret` kalles. Native `minuteInterval` på DateTimePicker brukes som hint for 15 og 30 (de eneste verdiene iOS/Android støtter — 60 ignoreres, så vi runder uansett i JS).
+- `TimerSeksjon` + `MaskinSeksjon` henter `tidsrundingMinutter` via `hentOrganizationSettingLokalt(organizationId)` i `useMemo` og passerer som prop til `FraTilTidFelt` i sine rad-modaler.
+
+**i18n:** 6 nye nøkler under `firma.innstillinger.standardArbeidstid.tidsrunding*` i nb + en. Auto-oversatt til 13 språk via `generate.ts` (2277 → 2283 totalt).
+
+**Designvalg:**
+- **«Nærmeste»-runding, ikke opp/ned:** 07:07 → 07:00 (15 min runding). 07:08 → 07:15. Matcher locked design.
+- **Schema-default 15:** Eksisterende firma uten eksplisitt valg får 15 min runding ved første kjøring. Firma-admin kan slå av via dropdown.
+- **Hvorfor onBlur-fallback på web:** `<input type="time">` `step`-attributtet håndheves inkonsistent i ulike nettlesere (Safari < 17 ignorerer 900-sekunders intervaller). onBlur-runding garanterer at lagret verdi alltid er konsistent.
+- **Hvorfor `minuteInterval` ikke alltid brukes på mobil:** iOS/Android DateTimePicker støtter kun et fast sett av verdier (1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30). 60 ignoreres. Vi gir hint for 15/30 (smidigere UX) men runder uansett i JS for å garantere konsistens.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/web` typecheck 1 = 1 baseline (vitest). `apps/mobile` typecheck 12 = 12 baseline. 0 nye feil i alle apper.
+
+**Reload-metode:** TypeScript + Drizzle-skjema (ALTER ADD COLUMN). Krever full app-reload på mobil (close + open eller `r` i Metro) slik at `migreringer.ts` legger til kolonnen. Web krever cache-cleaning ved deploy (`rm -rf apps/web/.next` + build). Server reload kreves (Zod + select endret).
+
+**Forventede begrensninger:**
+- Standalone-prosjekter (uten firma) får ikke tidsrunding — `organizationSettingLocal` har kun rader for brukerens firma-medlemskap.
+- ArbeidstidSeksjon (sedel-nivå start/slutt på dagsseddel) er ikke avrundet — kun rad-modalene. Diskutabelt om det burde avrundes også; locked design gjelder kun rad-fra/til.
+- Web's edit-modus krever firma-admin (`hentSetting` er admin-only). Vanlig arbeider redigerer ikke i web — bruker mobil-modalene som henter via `hentOrganizationSettingLokalt`.
+
+Klar for review — ikke merge før Kenneth verifiserer at dropdown lagres og at picker snapper på enhet/nettleser.
+
 ### T.4-bunken (a/b/c/d/e) — KOMPLETT PÅ DEVELOP + DEPLOYET TIL TEST 2026-05-16
 
 Alle fem sub-PR-er av T.4 (fra/til per rad) er merget til develop og kjører på `test.sitedoc.no` (HTTP/2 200, migrasjoner aktive i `sitedoc_test`). Web (T4-c) er gått test → prod-prosess via separat deploy 2026-05-16. Mobil (T4-d/e) er på develop og venter på Kenneths visuelle verifikasjon på enhet før prod-merge + EAS-bygg.

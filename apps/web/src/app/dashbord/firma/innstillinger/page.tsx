@@ -709,6 +709,8 @@ function StandardArbeidstidSeksjon() {
   const [startTid, setStartTid] = useState<string>("");
   const [sluttTid, setSluttTid] = useState<string>("");
   const [pauseMin, setPauseMin] = useState<string>("");
+  // T.5: "none" = null = ingen avrunding. Andre verdier er 15/30/60 (string i UI).
+  const [tidsrunding, setTidsrunding] = useState<string>("15");
   const [skitten, setSkitten] = useState(false);
 
   useEffect(() => {
@@ -716,6 +718,9 @@ function StandardArbeidstidSeksjon() {
       setStartTid(setting.standardStartTid);
       setSluttTid(setting.standardSluttTid);
       setPauseMin(String(setting.standardPauseMin));
+      setTidsrunding(
+        setting.tidsrundingMinutter === null ? "none" : String(setting.tidsrundingMinutter),
+      );
       setSkitten(false);
     }
   }, [setting]);
@@ -726,12 +731,16 @@ function StandardArbeidstidSeksjon() {
     const pause = Number(pauseMin);
     if (Number.isNaN(pause) || pause < 0 || pause > 480) return;
     if (startTid >= sluttTid) return;
+    // T.5: konverter UI-state til API-format.
+    const tidsrundingVerdi: 15 | 30 | 60 | null =
+      tidsrunding === "none" ? null : (Number(tidsrunding) as 15 | 30 | 60);
     oppdater.mutate(
       {
         organizationId: orgId!,
         standardStartTid: startTid,
         standardSluttTid: sluttTid,
         standardPauseMin: pause,
+        tidsrundingMinutter: tidsrundingVerdi,
       },
       { onSuccess: () => setSkitten(false) },
     );
@@ -794,6 +803,37 @@ function StandardArbeidstidSeksjon() {
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
           />
         </div>
+      </div>
+
+      {/* T.5: Tidsrunding for picker-input på timer- og maskin-rader. */}
+      <div className="mt-3">
+        <label className="mb-1 block text-xs font-medium text-gray-700">
+          {t("firma.innstillinger.standardArbeidstid.tidsrunding")}
+        </label>
+        <select
+          value={tidsrunding}
+          onChange={(e) => {
+            setTidsrunding(e.target.value);
+            setSkitten(true);
+          }}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none sm:max-w-xs"
+        >
+          <option value="none">
+            {t("firma.innstillinger.standardArbeidstid.tidsrundingIngen")}
+          </option>
+          <option value="15">
+            {t("firma.innstillinger.standardArbeidstid.tidsrunding15")}
+          </option>
+          <option value="30">
+            {t("firma.innstillinger.standardArbeidstid.tidsrunding30")}
+          </option>
+          <option value="60">
+            {t("firma.innstillinger.standardArbeidstid.tidsrunding60")}
+          </option>
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          {t("firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse")}
+        </p>
       </div>
 
       {skitten && startTid >= sluttTid && (

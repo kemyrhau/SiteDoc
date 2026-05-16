@@ -5,16 +5,25 @@
 import { Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
+import { rundTilNarmeste } from "@/lib/tidsrunding";
 import type { RedigerMaskinRadData, ProsjektValg } from "./rediger-types";
 
 type Props = {
   rad: RedigerMaskinRadData;
   prosjekter: ProsjektValg[];
+  /** T.5: null = ingen runding. Verdier 15/30/60. */
+  tidsrundingMinutter: number | null;
   onChange: (felt: Partial<RedigerMaskinRadData>) => void;
   onSlett: () => void;
 };
 
-export function RedigerMaskinRad({ rad, prosjekter, onChange, onSlett }: Props) {
+export function RedigerMaskinRad({
+  rad,
+  prosjekter,
+  tidsrundingMinutter,
+  onChange,
+  onSlett,
+}: Props) {
   const { t } = useTranslation();
   const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
   const equipment = equipmentRaw as unknown as
@@ -52,13 +61,27 @@ export function RedigerMaskinRad({ rad, prosjekter, onChange, onSlett }: Props) 
       <input
         type="time"
         value={rad.fraTid ?? ""}
+        step={tidsrundingMinutter ? tidsrundingMinutter * 60 : undefined}
         onChange={(e) => onChange({ fraTid: e.target.value || null })}
+        onBlur={(e) => {
+          if (tidsrundingMinutter && e.target.value) {
+            const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
+            if (rundet !== e.target.value) onChange({ fraTid: rundet });
+          }
+        }}
         className="col-span-1 rounded border border-gray-300 px-1 py-1 text-xs"
       />
       <input
         type="time"
         value={rad.tilTid ?? ""}
+        step={tidsrundingMinutter ? tidsrundingMinutter * 60 : undefined}
         onChange={(e) => onChange({ tilTid: e.target.value || null })}
+        onBlur={(e) => {
+          if (tidsrundingMinutter && e.target.value) {
+            const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
+            if (rundet !== e.target.value) onChange({ tilTid: rundet });
+          }
+        }}
         className="col-span-1 rounded border border-gray-300 px-1 py-1 text-xs"
       />
 
