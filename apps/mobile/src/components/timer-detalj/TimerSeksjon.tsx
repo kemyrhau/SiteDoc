@@ -37,6 +37,14 @@ interface TimerSeksjonProps {
   organizationId: string;
   rader: TimerRad[];
   projectId: string;
+  /** T7-4e (2026-05-16): ECO-filter for å pre-selektere i Add-modal og holde
+   *  nye rader i samme (projectId, ECO)-bucket som parent EcoBucket. null =
+   *  hovedgruppe (ingen ECO). */
+  defaultEcoId?: string | null;
+  /** T7-4e: skjul intern header når TimerSeksjon rendres inne i EcoBucket
+   *  (ECO-subheaderen står for kontekst der). Knapp for "+Legg til timer"
+   *  flyttes da til en sekundær placering. */
+  visHeader?: boolean;
   /** ISO YYYY-MM-DD — dato på dagsseddelen. Brukes til kalender-utleting (T4-e). */
   dato: string;
   defaultAktivitetId: string | null;
@@ -49,6 +57,8 @@ export function TimerSeksjon({
   organizationId,
   rader,
   projectId,
+  defaultEcoId = null,
+  visHeader = true,
   dato,
   defaultAktivitetId,
   redigerbar,
@@ -136,24 +146,26 @@ export function TimerSeksjon({
   );
 
   return (
-    <View className="mt-4">
-      <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
-        <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
-          {t("timer.kol.timer")} · {totaltimer.toFixed(2)} {t("timer.tEnhet")}
-        </Text>
-        {redigerbar && (
-          <Pressable
-            onPress={() => {
-              setRedigerRadId(null);
-              setVisModal(true);
-            }}
-            hitSlop={8}
-            className="rounded-full bg-blue-600 p-1.5"
-          >
-            <Plus size={14} color="#ffffff" />
-          </Pressable>
-        )}
-      </View>
+    <View className={visHeader ? "mt-4" : ""}>
+      {visHeader && (
+        <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
+          <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
+            {t("timer.kol.timer")} · {totaltimer.toFixed(2)} {t("timer.tEnhet")}
+          </Text>
+          {redigerbar && (
+            <Pressable
+              onPress={() => {
+                setRedigerRadId(null);
+                setVisModal(true);
+              }}
+              hitSlop={8}
+              className="rounded-full bg-blue-600 p-1.5"
+            >
+              <Plus size={14} color="#ffffff" />
+            </Pressable>
+          )}
+        </View>
+      )}
       {rader.length === 0 ? (
         <View className="bg-white px-4 py-6">
           <Text className="text-center text-sm text-gray-400">
@@ -175,10 +187,27 @@ export function TimerSeksjon({
         ))
       )}
 
+      {/* T7-4e: "+Legg til timer" når header er skjult (rendret i EcoBucket). */}
+      {!visHeader && redigerbar && (
+        <Pressable
+          onPress={() => {
+            setRedigerRadId(null);
+            setVisModal(true);
+          }}
+          className="mt-2 flex-row items-center justify-center gap-1 rounded border border-dashed border-gray-300 bg-white py-2 active:bg-gray-50"
+        >
+          <Plus size={12} color="#1e40af" />
+          <Text className="text-xs font-medium text-sitedoc-primary">
+            {t("timer.tilfoy.timer")}
+          </Text>
+        </Pressable>
+      )}
+
       {visModal && (
         <TimerRadModal
           organizationId={organizationId}
           defaultProjectId={projectId}
+          defaultEcoId={defaultEcoId}
           dato={dato}
           eksisterendeRader={rader}
           defaultAktivitetId={defaultAktivitetId}
@@ -336,6 +365,7 @@ function UnderprosjektEtikett({ ecoId }: { ecoId: string }) {
 function TimerRadModal({
   organizationId,
   defaultProjectId,
+  defaultEcoId,
   dato,
   eksisterendeRader,
   defaultAktivitetId,
@@ -345,6 +375,7 @@ function TimerRadModal({
 }: {
   organizationId: string;
   defaultProjectId: string;
+  defaultEcoId: string | null;
   dato: string;
   eksisterendeRader: TimerRad[];
   defaultAktivitetId: string | null;
@@ -398,8 +429,10 @@ function TimerRadModal({
   const [timer, setTimer] = useState<string>(
     eksisterendeRad?.timer ? eksisterendeRad.timer.toFixed(2) : "",
   );
+  // T7-4e: defaultEcoId pre-selekteres når bruker klikker "+Legg til timer"
+  // i en spesifikk ECO-bucket. Ved redigering brukes radens egen ECO.
   const [valgtEcoId, setValgtEcoId] = useState<string | null>(
-    eksisterendeRad?.externalCostObjectId ?? null,
+    eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
   );
   const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
   const [tilTid, setTilTid] = useState<string | null>(defaultTider.til);
@@ -845,7 +878,9 @@ function AktivitetVelgerModal({
   );
 }
 
-function UnderprosjektVelgerModal({
+// T7-4e (2026-05-16): eksportert for gjenbruk i MaskinSeksjon (ECO-velger
+// for maskin-rader, samme mønster som timer-rader).
+export function UnderprosjektVelgerModal({
   projectId,
   valgtId,
   onVelg,

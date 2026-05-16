@@ -31,6 +31,7 @@ import {
   sheetMachineLocal,
   aktivitetLocal,
   equipmentLocal,
+  externalCostObjectLocal,
 } from "../../src/db/schema";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp";
@@ -363,9 +364,10 @@ export default function DagsseddelDetalj() {
           onEndret={markerEndretOgLes}
         />
 
-        {/* T7-3b2: én bolk per prosjekt. Hver bolk har sin egen timer/
-            tillegg/maskin-seksjon med rader filtrert til dette prosjektet.
-            Prosjekt-header vises kun ved multi-prosjekt (mer enn én gruppe). */}
+        {/* T7-4e (2026-05-16): per-prosjekt blokker, med N ECO-bukets per
+            prosjekt. Hver bucket inneholder timer + maskin (underpost).
+            Tillegg holdes per-prosjekt (ingen ECO-felt på SheetTillegg).
+            Speil av T7-4c web-strukturen. */}
         {aktiveProsjektIder.map((pid) => (
           <ProsjektGruppe
             key={pid}
@@ -373,6 +375,7 @@ export default function DagsseddelDetalj() {
             visHeader={aktiveProsjektIder.length > 1}
             sheetId={sheetId}
             organizationId={sedel.organizationId}
+            sedelProjectId={sedel.projectId}
             dato={sedel.dato}
             defaultAktivitetId={sedel.aktivitetId ?? null}
             harEquipmentCache={harEquipmentCache}
@@ -456,6 +459,7 @@ function ProsjektGruppe({
   visHeader,
   sheetId,
   organizationId,
+  sedelProjectId,
   dato,
   defaultAktivitetId,
   harEquipmentCache,
@@ -469,6 +473,8 @@ function ProsjektGruppe({
   visHeader: boolean;
   sheetId: string;
   organizationId: string;
+  /** Fallback for rader uten per-rad-projectId (pre-T7-3b1-data). */
+  sedelProjectId: string;
   dato: string;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
@@ -479,6 +485,35 @@ function ProsjektGruppe({
   onEndret: () => void;
 }) {
   const prosjekt = useMemo(() => finnProsjektLokalt(projectId), [projectId]);
+
+  // T7-4e: bygg ECO-bukets innen dette prosjektet. Hovedgruppe (ECO=null)
+  // vises alltid først; ECO-er i den rekkefølgen de først dukker opp i rader.
+  // Rader uten projectId tilskrives sedelProjectId (pre-T7-3b1-fallback).
+  const ecoBuckets = useMemo(() => {
+    type Bucket = { ecoId: string | null; timer: TimerRad[]; maskin: MaskinRad[] };
+    const map = new Map<string, Bucket>();
+    const ekv = (eco: string | null) => eco ?? "";
+
+    const finn = (eco: string | null): Bucket => {
+      const k = ekv(eco);
+      let b = map.get(k);
+      if (!b) {
+        b = { ecoId: eco, timer: [], maskin: [] };
+        map.set(k, b);
+      }
+      return b;
+    };
+    for (const r of timerRader) finn(r.externalCostObjectId ?? null).timer.push(r);
+    for (const r of maskinRader) finn(r.externalCostObjectId ?? null).maskin.push(r);
+    // Hvis ingen rader: vis tom hovedgruppe så bruker kan legge til.
+    if (map.size === 0) finn(null);
+    // Sorter: hovedgruppe (null) først, deretter i innsetnings-rekkefølge.
+    return Array.from(map.values()).sort((a, b) => {
+      if (a.ecoId === null && b.ecoId !== null) return -1;
+      if (a.ecoId !== null && b.ecoId === null) return 1;
+      return 0;
+    });
+  }, [timerRader, maskinRader]);
 
   return (
     <View className="mt-2">
@@ -491,16 +526,26 @@ function ProsjektGruppe({
           </Text>
         </View>
       )}
-      <TimerSeksjon
-        sheetId={sheetId}
-        organizationId={organizationId}
-        rader={timerRader}
-        projectId={projectId}
-        dato={dato}
-        defaultAktivitetId={defaultAktivitetId}
-        redigerbar={redigerbar}
-        onEndret={onEndret}
-      />
+
+      {/* ECO-bukets (hovedgruppe + N underprosjekter) */}
+      {ecoBuckets.map((bucket) => (
+        <EcoBucket
+          key={bucket.ecoId ?? "hoved"}
+          sheetId={sheetId}
+          organizationId={organizationId}
+          projectId={projectId}
+          ecoId={bucket.ecoId}
+          dato={dato}
+          defaultAktivitetId={defaultAktivitetId}
+          harEquipmentCache={harEquipmentCache}
+          redigerbar={redigerbar}
+          timerRader={bucket.timer}
+          maskinRader={bucket.maskin}
+          onEndret={onEndret}
+        />
+      ))}
+
+      {/* Tillegg per-prosjekt (separat fra ECO-bukets — ingen ECO-felt på SheetTillegg) */}
       <TilleggSeksjon
         sheetId={sheetId}
         organizationId={organizationId}
@@ -509,16 +554,147 @@ function ProsjektGruppe({
         redigerbar={redigerbar}
         onEndret={onEndret}
       />
-      <MaskinSeksjon
+      {/* sedelProjectId brukes ikke direkte her — beholdt for fremtidig
+          backfill av rader uten projectId. void for å unngå lint-warning. */}
+      {void sedelProjectId}
+    </View>
+  );
+}
+
+/**
+ * T7-4e (2026-05-16): EcoBucket — én bucket per (projectId, externalCostObjectId).
+ * Speil av web EcoGruppe (T7-4c). Arbeidstimer (TimerSeksjon) er hovedposten;
+ * maskintimer (MaskinSeksjon) rendres indentert som visuell underpost. Sum-
+ * indikator nederst speiler server-validering fra T7-4b.
+ */
+function EcoBucket({
+  sheetId,
+  organizationId,
+  projectId,
+  ecoId,
+  dato,
+  defaultAktivitetId,
+  harEquipmentCache,
+  redigerbar,
+  timerRader,
+  maskinRader,
+  onEndret,
+}: {
+  sheetId: string;
+  organizationId: string;
+  projectId: string;
+  ecoId: string | null;
+  dato: string;
+  defaultAktivitetId: string | null;
+  harEquipmentCache: boolean;
+  redigerbar: boolean;
+  timerRader: TimerRad[];
+  maskinRader: MaskinRad[];
+  onEndret: () => void;
+}) {
+  const { t } = useTranslation();
+  const sumTimer = useMemo(
+    () => timerRader.reduce((acc, r) => acc + r.timer, 0),
+    [timerRader],
+  );
+  const sumMaskin = useMemo(
+    () => maskinRader.reduce((acc, r) => acc + r.timer, 0),
+    [maskinRader],
+  );
+  const maskinOk = sumMaskin <= sumTimer + 0.001;
+
+  // ECO-navn fra lokal cache (én lookup per bucket).
+  const ecoNavn = useMemo(() => {
+    if (!ecoId) return null;
+    const db = hentDatabase();
+    if (!db) return null;
+    const eco = db
+      .select()
+      .from(externalCostObjectLocal)
+      .where(eq(externalCostObjectLocal.id, ecoId))
+      .all()[0];
+    return eco ? { proAdmId: eco.proAdmId, kortNavn: eco.kortNavn } : null;
+  }, [ecoId]);
+
+  return (
+    <View
+      className={`mx-4 mt-3 rounded border bg-gray-50 p-3 ${
+        ecoId ? "border-indigo-200" : "border-gray-200"
+      }`}
+    >
+      {/* ECO-subheader + indigo-badge "→ Godkjenning byggherre" — kun ekte ECO-er */}
+      {ecoId && (
+        <View className="mb-2 flex-row items-center justify-between gap-2 border-b border-gray-200 pb-2">
+          <Text className="flex-1 text-xs font-semibold text-gray-800">
+            {ecoNavn
+              ? `${ecoNavn.proAdmId} · ${ecoNavn.kortNavn}`
+              : t("timer.detalj.ukjentEco")}
+          </Text>
+          <View className="rounded-full bg-indigo-100 px-2 py-0.5">
+            <Text className="text-xs font-medium text-indigo-800">
+              → {t("timer.gruppe.tilByggherre")}
+            </Text>
+          </View>
+        </View>
+      )}
+
+      {/* Arbeidstimer (hovedpost) */}
+      <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">
+        {t("timer.gruppe.arbeidstimer")} ({sumTimer.toFixed(2)} {t("timer.tEnhet")})
+      </Text>
+      <TimerSeksjon
         sheetId={sheetId}
         organizationId={organizationId}
+        rader={timerRader}
         projectId={projectId}
+        defaultEcoId={ecoId}
+        visHeader={false}
         dato={dato}
-        rader={maskinRader}
-        harEquipmentCache={harEquipmentCache}
+        defaultAktivitetId={defaultAktivitetId}
         redigerbar={redigerbar}
         onEndret={onEndret}
       />
+
+      {/* Maskintimer som underpost (indentert via ml-3 + border-l-2) */}
+      <View className="ml-3 mt-3 border-l-2 border-gray-200 pl-3">
+        <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+          {t("timer.gruppe.maskintimer")} ({sumMaskin.toFixed(2)} {t("timer.tEnhet")})
+        </Text>
+        <MaskinSeksjon
+          sheetId={sheetId}
+          organizationId={organizationId}
+          projectId={projectId}
+          defaultEcoId={ecoId}
+          visHeader={false}
+          dato={dato}
+          rader={maskinRader}
+          harEquipmentCache={harEquipmentCache}
+          redigerbar={redigerbar}
+          onEndret={onEndret}
+        />
+      </View>
+
+      {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers — speiler T7-4b */}
+      {(sumTimer > 0 || sumMaskin > 0) && (
+        <View
+          className={`mt-3 rounded border px-3 py-1.5 ${
+            maskinOk
+              ? "border-green-200 bg-green-50"
+              : "border-red-300 bg-red-50"
+          }`}
+        >
+          <Text
+            className={`text-xs font-medium ${
+              maskinOk ? "text-green-800" : "text-red-800"
+            }`}
+          >
+            {t("timer.gruppe.maskinAvArbeid", {
+              maskin: sumMaskin.toFixed(2),
+              arbeid: sumTimer.toFixed(2),
+            })}
+          </Text>
+        </View>
+      )}
     </View>
   );
 }
