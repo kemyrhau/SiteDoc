@@ -6,13 +6,14 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### Neste sesjon: T7-3d merge + EAS-bygg (mobil)
+### Neste: EAS-bygg (mobil)
 
-Naturlig neste rullout låser opp alle mobil-endringer som ligger ferdig deployet på server-siden men er sovende på enhet:
-1. **Merge T7-3d** (`feature/t7-3d`) → develop → main. Siste sub-PR i T7-3-bunken (per-rad-attestering for leder på mobil). Klar for review, venter på enhet-verifikasjon. Bringer attestering-flyten (T7-2b) til mobil-app.
-2. **EAS-bygg** for iOS + Android. Aktiverer på enhet: T7-3a/b1/b2/d (per-rad prosjekt + geo-forslag + per-rad-attestering), T4-d/e (fra/til-tid per rad + kalender-cache + forhåndsutfylling), T.5 (tidsrunding i mobil-pickere). Server-API er prod-klar for alt.
+Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på enhet til neste EAS-bygg når TestFlight/Play Store. Aktiveres samtidig:
+- T7-3a/b1/b2/d (per-rad prosjekt + geo-forslag + per-rad-attestering)
+- T4-d/e (fra/til-tid per rad + kalender-cache + forhåndsutfylling)
+- T.5 (tidsrunding i mobil-pickere)
 
-Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight → Play Store. Verifikasjon på enhet før release-distribusjon.
+Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
@@ -450,7 +451,7 @@ Første sub-PR av T9-bunken (Firmakalender). Legger til grunnmuren — DB-tabell
 
 Klar for review — ikke merge før Kenneth verifiserer migrasjonen på test.
 
-### PR T7-3d per-rad-attestering for leder på mobil — MERGET TIL DEVELOP 2026-05-14 (merge `ae6e5a2d`, impl `ffebd082`)
+### PR T7-3d per-rad-attestering for leder på mobil — DEPLOYET TIL PROD 2026-05-14 (merge `ae6e5a2d` på main, impl `ffebd082`)
 
 Fjerde sub-PR av T7-3-bunken. Bringer attestering-flyten (T7-2b) til mobil. Prosjektleder og firma-admin kan nå attestere/returnere innsendte sedler fra mobil-appen — speil av webs `AttesteringDetalj`-felleskomponent, forenklet for mobil-flate.
 
@@ -481,16 +482,16 @@ Fjerde sub-PR av T7-3-bunken. Bringer attestering-flyten (T7-2b) til mobil. Pros
 
 **Reload-metode:** TypeScript-only. Full app-reload eller `r` i Metro. Ingen native rebuild.
 
-### T7-3-bunken (a/b1/b2/d) — DEPLOYET TIL PROD (server-route) + venter på mobil-bygg
+### T7-3-bunken (a/b1/b2/d) — DEPLOYET TIL PROD + venter på EAS-bygg
 
-Alle fire sub-PR-er av T7-3 (mobil timer-redesign) er merget til develop. T7-3a/b1/b2 er deployet til prod (`223afc17` på main 2026-05-14) — server-route-endringene er aktive. T7-3d er merget til develop og venter på Kenneth-verifikasjon på enhet før prod-merge. Mobil-endringene rulles ut via Expo Go (utvikler-test) eller EAS Build → TestFlight / Play Store (release) — ikke `./deploy.sh`.
+Alle fire sub-PR-er av T7-3 (mobil timer-redesign) er på `main`. Server-route-endringer er aktive i prod (`223afc17` for a/b1/b2 2026-05-14, `ae6e5a2d` for d). Mobil-endringene er sovende på enhet til neste EAS Build → TestFlight / Play Store.
 
 | Sub-PR | Merge-commit | Impl-commit | Status | Innhold |
 |---|---|---|---|---|
 | **T7-3a** | `22a97402` | `fc087b65` | ✅ prod | Arbeidstid-seksjon + summerings-banner i mobil-detalj. Speil av T7-1a. |
 | **T7-3b1** | `cd64c51a` | `65bf48cb` | ✅ prod | Per-rad `projectId` (skjema + lokal migrasjon + sync push/pull + prosjekt-katalog-cache). Ingen UI. |
 | **T7-3b2** | `3e34ec71` | `1717fd79` | ✅ prod | UI for per-rad prosjektvelger + ProsjektGruppe-visning i [id].tsx + geo-forslag i ny.tsx. |
-| **T7-3d** | `ae6e5a2d` | `ffebd082` | 🟡 develop | Per-rad-attestering for leder på mobil. Speil av webs AttesteringDetalj (forenklet). |
+| **T7-3d** | `ae6e5a2d` | `ffebd082` | ✅ prod | Per-rad-attestering for leder på mobil. Speil av webs AttesteringDetalj (forenklet). |
 
 Gjenstår av T7-3-bunken:
 - **T7-3c (planlagt eller forkastet):** Geo-forslag-utvidelser. Mye av denne ble levert i T7-3b2 — egen sub-PR kan dekke historikk/justeringer eller forkastes.
