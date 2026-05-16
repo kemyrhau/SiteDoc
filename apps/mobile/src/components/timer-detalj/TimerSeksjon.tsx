@@ -21,6 +21,7 @@ import {
   externalCostObjectLocal,
 } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
+import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
 import type {
   TimerRad,
   Lonnsart,
@@ -28,12 +29,15 @@ import type {
   Underprosjekt,
 } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
+import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
 
 interface TimerSeksjonProps {
   sheetId: string;
   organizationId: string;
   rader: TimerRad[];
   projectId: string;
+  /** ISO YYYY-MM-DD — dato på dagsseddelen. Brukes til kalender-utleting (T4-e). */
+  dato: string;
   defaultAktivitetId: string | null;
   redigerbar: boolean;
   onEndret: () => void;
@@ -44,6 +48,7 @@ export function TimerSeksjon({
   organizationId,
   rader,
   projectId,
+  dato,
   defaultAktivitetId,
   redigerbar,
   onEndret,
@@ -64,6 +69,8 @@ export function TimerSeksjon({
       aktivitetId: string,
       timer: number,
       externalCostObjectId: string | null,
+      fraTid: string | null,
+      tilTid: string | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
@@ -76,6 +83,8 @@ export function TimerSeksjon({
           aktivitetId,
           externalCostObjectId,
           timer,
+          fraTid,
+          tilTid,
           sistEndretLokalt: Date.now(),
         })
         .run();
@@ -92,6 +101,8 @@ export function TimerSeksjon({
       aktivitetId: string,
       timer: number,
       externalCostObjectId: string | null,
+      fraTid: string | null,
+      tilTid: string | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
@@ -102,6 +113,8 @@ export function TimerSeksjon({
           aktivitetId,
           timer,
           externalCostObjectId,
+          fraTid,
+          tilTid,
           sistEndretLokalt: Date.now(),
         })
         .where(eq(sheetTimerLocal.id, radId))
@@ -165,13 +178,23 @@ export function TimerSeksjon({
         <TimerRadModal
           organizationId={organizationId}
           defaultProjectId={projectId}
+          dato={dato}
+          eksisterendeRader={rader}
           defaultAktivitetId={defaultAktivitetId}
           eksisterendeRad={
             redigerRadId
               ? rader.find((r) => r.id === redigerRadId) ?? null
               : null
           }
-          onLagre={(radProjectId, lonnsartId, aktivitetId, timer, externalCostObjectId) => {
+          onLagre={(
+            radProjectId,
+            lonnsartId,
+            aktivitetId,
+            timer,
+            externalCostObjectId,
+            fraTid,
+            tilTid,
+          ) => {
             if (redigerRadId) {
               oppdater(
                 redigerRadId,
@@ -180,9 +203,19 @@ export function TimerSeksjon({
                 aktivitetId,
                 timer,
                 externalCostObjectId,
+                fraTid,
+                tilTid,
               );
             } else {
-              leggTil(radProjectId, lonnsartId, aktivitetId, timer, externalCostObjectId);
+              leggTil(
+                radProjectId,
+                lonnsartId,
+                aktivitetId,
+                timer,
+                externalCostObjectId,
+                fraTid,
+                tilTid,
+              );
             }
             setVisModal(false);
             setRedigerRadId(null);
@@ -244,6 +277,11 @@ function TimerRadVis({
           {lonnsart?.kode && (
             <Text className="text-xs text-gray-500">{lonnsart.kode}</Text>
           )}
+          {rad.fraTid && rad.tilTid && (
+            <Text className="text-xs text-gray-500">
+              {rad.fraTid}–{rad.tilTid}
+            </Text>
+          )}
           {rad.externalCostObjectId && (
             <UnderprosjektEtikett ecoId={rad.externalCostObjectId} />
           )}
@@ -297,6 +335,8 @@ function UnderprosjektEtikett({ ecoId }: { ecoId: string }) {
 function TimerRadModal({
   organizationId,
   defaultProjectId,
+  dato,
+  eksisterendeRader,
   defaultAktivitetId,
   eksisterendeRad,
   onLagre,
@@ -304,6 +344,8 @@ function TimerRadModal({
 }: {
   organizationId: string;
   defaultProjectId: string;
+  dato: string;
+  eksisterendeRader: TimerRad[];
   defaultAktivitetId: string | null;
   eksisterendeRad: TimerRad | null;
   onLagre: (
@@ -312,10 +354,31 @@ function TimerRadModal({
     aktivitetId: string,
     timer: number,
     externalCostObjectId: string | null,
+    fraTid: string | null,
+    tilTid: string | null,
   ) => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  // T4-e: Beregn defaults for fraTid/tilTid ved opprettelse av ny rad.
+  //   - Ny rad uten eksisterende rader: fraTid = effektiv.startTid, tilTid = effektiv.sluttTid
+  //   - Ny rad med eksisterende rader: fraTid = siste rads tilTid (hvis satt), ellers effektiv.startTid; tilTid = effektiv.sluttTid
+  //   - Rediger eksisterende rad: bruk radens egne verdier
+  const defaultTider = useMemo(() => {
+    if (eksisterendeRad) {
+      return {
+        fra: eksisterendeRad.fraTid ?? null,
+        til: eksisterendeRad.tilTid ?? null,
+      };
+    }
+    const effektiv = hentEffektivArbeidstidLokal(organizationId, new Date(`${dato}T00:00:00`));
+    const forrigeMedTil = [...eksisterendeRader].reverse().find((r) => !!r.tilTid);
+    return {
+      fra: forrigeMedTil?.tilTid ?? effektiv.startTid,
+      til: effektiv.sluttTid,
+    };
+  }, [eksisterendeRad, eksisterendeRader, organizationId, dato]);
+
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     eksisterendeRad?.projectId ?? defaultProjectId,
   );
@@ -331,6 +394,8 @@ function TimerRadModal({
   const [valgtEcoId, setValgtEcoId] = useState<string | null>(
     eksisterendeRad?.externalCostObjectId ?? null,
   );
+  const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
+  const [tilTid, setTilTid] = useState<string | null>(defaultTider.til);
   const [feil, setFeil] = useState<string | null>(null);
   const [visProsjektVelger, setVisProsjektVelger] = useState(false);
   const [visLonnsartVelger, setVisLonnsartVelger] = useState(false);
@@ -399,7 +464,20 @@ function TimerRadModal({
       setFeil(t("timer.feil.ugyldigTimer"));
       return;
     }
-    onLagre(valgtProjectId, valgtLonnsartId, valgtAktivitetId, tall, valgtEcoId);
+    // T4-e: fraTid < tilTid hvis begge er satt. Null tolereres.
+    if (!fraErForTil(fraTid, tilTid)) {
+      setFeil(t("timer.feil.sluttForStart"));
+      return;
+    }
+    onLagre(
+      valgtProjectId,
+      valgtLonnsartId,
+      valgtAktivitetId,
+      tall,
+      valgtEcoId,
+      fraTid,
+      tilTid,
+    );
   }
 
   return (
@@ -475,6 +553,15 @@ function TimerRadModal({
               className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
             />
           </View>
+
+          {/* T4-e: Fra-/til-tid per rad. Forhåndsutfylling fra kalender +
+              forrige rads tilTid. */}
+          <FraTilTidFelt
+            fraTid={fraTid}
+            tilTid={tilTid}
+            onFraEndret={setFraTid}
+            onTilEndret={setTilTid}
+          />
 
           {/* Underprosjekt (valgfritt) — Tilleggsarbeid, Endring m.fl. */}
           <View>

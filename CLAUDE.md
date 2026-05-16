@@ -55,6 +55,53 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+### PR T4-e mobil UI fra/til per rad + forhåndsutfylling — IMPLEMENTERT PÅ `feature/t4-e` 2026-05-16
+
+Femte og siste sub-PR av T.4-bunken. Bringer fra/til-tid per rad til mobil-UI med kalender-basert forhåndsutfylling. Ingen schema-, sync- eller server-endring (alt fundament fra T4-d).
+
+**Ny komponent (`apps/mobile/src/components/timer-detalj/FraTilTidFelt.tsx`, ~115 linjer):**
+- Gjenbrukbar tidsfelt-velger med to side-ved-side DateTimePicker (`mode="time"`, `is24Hour`). iOS bruker `display="spinner"`, Android `default`.
+- Kontrollert via `fraTid`/`tilTid` (HH:MM | null) + setters. Picker-toggle-state internt.
+- Helpers: `hhmmTilDate`/`dateTilHhmm` for konvertering. Eksportert `fraErForTil(fra, til)`-validator brukes av forelder før lagre.
+
+**`TimerSeksjon.tsx` — utvidet:**
+- Ny prop `dato: string` (ISO YYYY-MM-DD).
+- `leggTil`/`oppdater` tar nå `fraTid: string | null` + `tilTid: string | null` og skriver dem til Drizzle.
+- `TimerRadModal` tar nye props `dato` + `eksisterendeRader` for å beregne forhåndsutfyllings-defaults.
+- `useMemo` for `defaultTider`:
+  - Rediger-modus: bruk radens egne verdier.
+  - Ny rad uten eksisterende rader: `effektiv.startTid` / `effektiv.sluttTid` fra `hentEffektivArbeidstidLokal(organizationId, new Date(dato + "T00:00:00"))`.
+  - Ny rad med eksisterende rader: forrige rads `tilTid` som ny `fraTid` (siste rad i `eksisterendeRader` med satt tilTid), `tilTid = effektiv.sluttTid`.
+- Validering i `lagre()`: `fraErForTil(fraTid, tilTid)` — viser `timer.feil.sluttForStart` hvis brudd.
+- Rad-visning: `HH:MM–HH:MM`-tekst i `flex-row flex-wrap`-bolken når begge satt.
+
+**`MaskinSeksjon.tsx` — samme mønster:**
+- `dato`-prop + utvidet `leggTil`/`oppdater`/`MaskinRadModal`.
+- `defaultTider`-`useMemo` med identisk logikk.
+- Rad-visning utvidet med fra–til-tekst.
+
+**`[id].tsx` — to endringer:**
+- `arbeidstidTimer`-beregningen faller nå tilbake til `hentEffektivArbeidstidLokal(sedel.organizationId, new Date(sedel.dato + "T00:00:00")).dagsnorm` hvis brukeren ikke har satt egen `sedel.startAt`/`endAt`. SummeringsBanner viser alltid relevant sammenligning — tidligere viste den `?` uten brukers egen registrering.
+- `ProsjektGruppe` får ny `dato`-prop som videreformidles til `TimerSeksjon` + `MaskinSeksjon`.
+
+**i18n:** 0 nye nøkler. Gjenbruker `timer.felt.startTid` ("Fra kl.") og `timer.felt.sluttTid` ("Til kl.") som tidligere ble brukt på sedel-nivå i `ArbeidstidSeksjon` — semantisk identiske. Feilmelding gjenbruker `timer.feil.sluttForStart` ("Slutt-tid må være etter start-tid."). Sparer 4 nøkler × 14 språk = 56 i18n-vedlikeholdspunkter.
+
+**Designvalg:**
+- **Forrige rads tilTid → ny rads fraTid:** Mest sannsynlig flow er at brukeren registrerer normaltid 07:00–11:00, så pause-/lunsjblokk på samme rad → ny rad 11:30–15:00. Vi tar siste rad med satt tilTid (ikke nødvendigvis siste rad totalt) for å håndtere edge case der noen rader er uten tider.
+- **DateTimePicker spinner på iOS:** Matcher eksisterende `ArbeidstidSeksjon` for konsistens. Android-default tar standard time-picker-modal.
+- **Validering på server allerede dekket:** Server-Zod aksepterer fraTid/tilTid som `string | null`. Klient-validering er kun en UX-hindring — server validerer at de er gyldige HH:MM (men ikke at fra < til, siden det er fornuftig for sjeldne edge case som natt-skift).
+
+**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Mine 4 nye komponenter har null TS-feil.
+
+**Reload-metode:** TypeScript-only (ingen schema-endring). Full app-reload (close + open eller `r` i Metro). Ingen native rebuild.
+
+**Forventede begrensninger:**
+- Ingen UI for å vise/redigere kalender på mobil — kun web (T4-c). Kalender-cache leses via `hentEffektivArbeidstidLokal` men brukeren ser ikke kalender-rader.
+- Tilleggs-rader (sheet_tillegg) har ikke fraTid/tilTid (designvalg fra T.4).
+- Ingen automatisk synking av rad-tid → sedel-tid. Sedel.startAt/endAt forblir brukerens manuelle valg i ArbeidstidSeksjon.
+
+Klar for review — ikke merge før Kenneth verifiserer på enhet at forhåndsutfylling + validering fungerer i begge modaler.
+
 ### PR T4-d mobil Drizzle + kalender-cache + sync fra/til — IMPLEMENTERT PÅ `feature/t4-d` 2026-05-16
 
 Fjerde sub-PR av T.4-bunken. Bringer T.4-grunnmuren ut på mobil-enheten: per-rad fra/til-tid offline + lokal kalender-cache + lokal `OrganizationSetting`-cache + utvidet sync-protokoll. Ingen UI-endringer — det er T4-e som monterer DateTimePicker og forhåndsutfylling.
