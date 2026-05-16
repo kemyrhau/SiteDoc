@@ -26,6 +26,8 @@ export type RedigerMaskinRadData = {
   key: string;
   originalId: string | null;
   projectId: string;
+  // T7-4d (2026-05-16): maskin følger samme prosjekt+ECO-gruppe som arbeidstimer.
+  externalCostObjectId: string | null;
   vehicleId: string;
   byggeplassId: string | null;
   fraTid: string | null;

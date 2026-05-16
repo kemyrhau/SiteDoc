@@ -43,6 +43,9 @@ type MaskinRadOriginal = {
   id: string;
   vehicleId: string;
   projectId: string;
+  // T7-4d (2026-05-16): ECO på maskin-rad. Server tar imot externalCostObjectId
+  // i splittRad maskin-gren (T7-4b).
+  externalCostObjectId: string | null;
   byggeplassId: string | null;
   fraTid: string | null;
   tilTid: string | null;
@@ -141,6 +144,7 @@ export function SplittRadModal(props: Props) {
         key: nyKey(),
         originalId: null,
         projectId: o.projectId,
+        externalCostObjectId: o.externalCostObjectId,
         vehicleId: o.vehicleId,
         byggeplassId: o.byggeplassId,
         fraTid: o.fraTid,
@@ -221,12 +225,16 @@ export function SplittRadModal(props: Props) {
       setSplitMaskin((rader) => {
         const sisteTilTid = rader[rader.length - 1]?.tilTid ?? null;
         const o = props.original;
+        // Arv ECO fra original — bruker kan endre per rad i RedigerMaskinRad-velgeren.
+        const sisteEco =
+          rader[rader.length - 1]?.externalCostObjectId ?? o.externalCostObjectId;
         return [
           ...rader,
           {
             key: nyKey(),
             originalId: null,
             projectId: o.projectId,
+            externalCostObjectId: sisteEco,
             vehicleId: o.vehicleId,
             byggeplassId: o.byggeplassId,
             fraTid: sisteTilTid,
@@ -320,6 +328,7 @@ export function SplittRadModal(props: Props) {
         radId: props.original.id,
         nyeRader: splitMaskin.map((r) => ({
           projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
           vehicleId: r.vehicleId,
           byggeplassId: r.byggeplassId,
           fraTid: r.fraTid,
