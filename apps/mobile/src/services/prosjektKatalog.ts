@@ -96,3 +96,19 @@ export function finnProsjektLokalt(id: string) {
     .all();
   return rader[0] ?? null;
 }
+
+/**
+ * Utled brukerens unike firma-IDer fra lokal prosjekt-cache. Brukes av
+ * TimerSyncProvider til å vite hvilke org-IDer kalenderKatalog og
+ * organizationSettingKatalog skal hente for. Returnerer tom array hvis
+ * prosjekt-cachen er tom (typisk ved første kjøring offline).
+ */
+export function hentUnikeFirmaIderLokalt(): string[] {
+  const db = hentDatabase();
+  if (!db) return [];
+  const rader = db
+    .select({ organizationId: prosjektLocal.organizationId })
+    .from(prosjektLocal)
+    .all();
+  return Array.from(new Set(rader.map((r) => r.organizationId)));
+}

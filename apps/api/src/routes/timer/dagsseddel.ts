@@ -1792,6 +1792,7 @@ export const dagsseddelRouter = router({
           // per-rad-attribusjon offline. Tidligere proxyet vi via første rad
           // til sedel-nivå (sedelProjectId over) — den feltet beholdes for
           // bakoverkompatibilitet med pre-T7-3b1-klienter.
+          // T4-d (2026-05-16): expose fraTid/tilTid per timer/maskin-rad.
           timer: s.timer.map((t) => ({
             id: t.id,
             projectId: t.projectId,
@@ -1799,6 +1800,8 @@ export const dagsseddelRouter = router({
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId,
             timer: Number(t.timer),
+            fraTid: t.fraTid,
+            tilTid: t.tilTid,
           })),
           tillegg: s.tillegg.map((tl) => ({
             id: tl.id,
@@ -1814,6 +1817,8 @@ export const dagsseddelRouter = router({
             timer: Number(m.timer),
             mengde: m.mengde !== null ? Number(m.mengde) : null,
             enhet: m.enhet,
+            fraTid: m.fraTid,
+            tilTid: m.tilTid,
           })),
         })),
       };

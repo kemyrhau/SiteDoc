@@ -55,6 +55,54 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 ## Pågående arbeid (kort)
 
+### PR T4-d mobil Drizzle + kalender-cache + sync fra/til — IMPLEMENTERT PÅ `feature/t4-d` 2026-05-16
+
+Fjerde sub-PR av T.4-bunken. Bringer T.4-grunnmuren ut på mobil-enheten: per-rad fra/til-tid offline + lokal kalender-cache + lokal `OrganizationSetting`-cache + utvidet sync-protokoll. Ingen UI-endringer — det er T4-e som monterer DateTimePicker og forhåndsutfylling.
+
+**Schema (`apps/mobile/src/db/schema.ts`):**
+- `sheetTimerLocal` + `sheetMachineLocal`: nye nullable felter `fraTid: text("fra_tid")` + `tilTid: text("til_tid")`.
+- Ny tabell `arbeidstidskalenderLocal` — speil av serverens `ArbeidstidsKalender` (T9a). Lagrer id, organizationId, aar, dato (ISO YYYY-MM-DD), type, navn, timerOverstyr, standardStartTid, standardSluttTid, pauseMin, aktiv, sistOppdatert.
+- Ny tabell `organizationSettingLocal` med `organizationId` som primary key — én rad per firma. Felter: standardStartTid (default "07:00"), standardSluttTid (default "15:00"), standardPauseMin (default 30), tillattRedigerVedAttestering (default false), sistOppdatert.
+
+**Migrasjoner (`apps/mobile/src/db/migreringer.ts`):**
+- Idempotent `PRAGMA table_info`-sjekk + `ALTER TABLE ADD COLUMN fra_tid/til_tid TEXT` på begge rad-tabeller. Ingen backfill — UI (T4-e) setter verdier ved brukerinngang.
+- `CREATE TABLE IF NOT EXISTS arbeidstidskalender_local` + 3 indekser (org_aar, org_type_aar, org_dato).
+- `CREATE TABLE IF NOT EXISTS organization_setting_local` med `organization_id PRIMARY KEY` + alle DEFAULT-verdier matchet til schema.
+
+**Ny service `kalenderKatalog.ts` (~210 linjer):**
+- `refreshKalenderKatalog(klient, organizationId)` — kaller `trpc.firma.kalender.hentForMobil({ organizationId, fraAar: currentYear - 1, tilAar: currentYear + 1 })`. Full overskriving for firmaet (typisk < 50 rader per år). Soft-deleted rader skrives også; filter i hentLokalt-helpers.
+- `hentKalenderForAarLokalt(orgId, aar)` — leser aktive rader for et år (for fremtidig mobil-UI-vy).
+- `hentEffektivArbeidstidLokal(orgId, dato): { startTid, sluttTid, pauseMin, dagsnorm }` — lokal speil av servers `apps/api/src/services/timer/arbeidstid.ts`. Leser fra `organization_setting_local` + `arbeidstidskalender_local`. Logikk: firma-default → overstyring fra aktiv sommertid_start hvis dato faller mellom sommertid_start ≤ dato + sommertid_slutt ≥ dato samme år. Halvdag håndteres ikke her (per-rad-overstyring via `timerOverstyr`, registreres i UI). Hardkodet fallback "07:00"/"15:00"/30 hvis cache er tom (første kjøring offline).
+
+**Ny service `organizationSettingKatalog.ts` (~80 linjer):**
+- `refreshOrganizationSettingKatalog(klient, organizationId)` — kaller ny `trpc.organisasjon.hentArbeidstidDefaults` (se Server-tillegg). Upsert via delete+insert (singleton-rad per org).
+- `hentOrganizationSettingLokalt(orgId)` — synkron lese-helper for UI.
+
+**Server-tillegg (`apps/api/src/routes/organisasjon.ts`):**
+- Ny `hentArbeidstidDefaults`-prosedyre med `verifiserOrganisasjonTilgang` (medlemskap, ikke firma-admin) — `hentSetting` krever firma-admin og kan ikke brukes av vanlige ansatte for mobil-cachen. Returnerer kun standardStartTid, standardSluttTid, standardPauseMin, tillattRedigerVedAttestering — sensitive felter (timezone, tilgang-policies) er ekskludert via `select`-clause. Eksisterende `hentSetting` urørt.
+
+**Server-tillegg (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- `hentEndringerSiden`-respons utvidet: timer- og maskin-rader returnerer nå også `fraTid` + `tilTid`. Tidligere uteglemt i respons-mapping (selv om Prisma-skjemaet hadde feltene fra T.1 2026-05-11). syncBatch-input aksepterte allerede feltene.
+
+**`TimerSyncProvider.tsx` — 2-stegs Promise.all:**
+- Steg 1: base-pulls i parallell (`refreshKatalog` + `refreshMaskinKatalog` + `refreshProsjektKatalog`).
+- Steg 2: utleder brukerens unike firma-IDer fra `prosjekt_local`-cachen via ny `hentUnikeFirmaIderLokalt`-helper, og kjører `refreshKalenderKatalog` + `refreshOrganizationSettingKatalog` for hver i parallell. Brukere er typisk medlem av ett firma, men løsningen støtter flere uten kode-endring.
+
+**`timerSync.ts` push/pull:**
+- Push: send `fraTid`/`tilTid` per timer + maskin-rad i `syncBatch.mutate`. Tilleggs-rader har ikke fraTid/tilTid (designvalg fra T.4).
+- Pull: skriv `fraTid`/`tilTid` fra server-respons til lokal SQLite for timer + maskin-rader. Default `null` hvis ikke satt.
+
+**Verifisert:** `apps/api` typecheck 0 = 0 feil. `apps/mobile` typecheck 12 = 12 baseline (0 nye feil). Mine endringer skjøvet linjenumrene på to pre-eksisterende baseline-feil i `timerSync.ts` (303→308, 329→334) — disse er T7-3b1-baseline relatert til server-respons-felter som er `string | null` mot lokal `.notNull()`.
+
+**Reload-metode:** TypeScript + Drizzle-skjema-endring. Krever full app-reload (close + open eller `r` i Metro) slik at `migreringer.ts` kjører ved oppstart og ALTER-statementene legger til kolonnene. Ingen native rebuild. Server-reload kreves ved deploy (Zod-respons og ny prosedyre).
+
+**Forventede begrensninger (kommer i T4-e):**
+- Ingen UI for fra/til-tid per rad — alle nye rader fra mobil sender `null` for fraTid/tilTid inntil T4-e monterer DateTimePicker.
+- `hentEffektivArbeidstidLokal` er klar til bruk i T4-e for forhåndsutfylling. UI som bruker den, kommer i samme sub-PR.
+- Geo-forslag (T7-3c-stilen) for fra-tid eller pause er ikke implementert.
+
+Klar for review — ikke merge før Kenneth verifiserer på enhet at migrasjonen kjører, kalender-cachen populerer, og syncBatch sender/mottar fraTid/tilTid uten regresjon.
+
 ### PR T4-c web-UI innstillinger + kalender-modal — DEPLOYET TIL TEST 2026-05-16 (merge `c02df657`, impl `39c43aa8`)
 
 Tredje sub-PR av T.4-bunken. Web-UI for de nye T4-a-feltene + server-Zod-utvidelse for å SETTE feltene. Etter denne kan firma-admin konfigurere standard arbeidsdag og legge inn periode-overstyringer for sommertid/halvdag direkte i webportalen. Mobil (T4-d/e) gjenstår.

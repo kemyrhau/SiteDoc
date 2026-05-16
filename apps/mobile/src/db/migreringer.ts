@@ -367,4 +367,65 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_prosjekt_local_org_aktiv
       ON prosjekt_local(organization_id, aktiv);
   `);
+
+  // T4-d (2026-05-16) — per-rad fra/til-tid på sheet_timer_local +
+  // sheet_machine_local. Nullable, ingen backfill — UI (T4-e) skriver verdier
+  // når bruker setter dem. Server-skjemaet har feltene fra T.1 (2026-05-11).
+  for (const tabell of ["sheet_timer_local", "sheet_machine_local"]) {
+    try {
+      const kolonner = db.getAllSync(
+        `PRAGMA table_info(${tabell})`,
+      ) as Array<{ name: string }>;
+      if (!kolonner.find((k) => k.name === "fra_tid")) {
+        console.log(`[MIG] Legger til fra_tid/til_tid på ${tabell} (T4-d)`);
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN fra_tid TEXT`);
+        db.execSync(`ALTER TABLE ${tabell} ADD COLUMN til_tid TEXT`);
+      }
+    } catch (e) {
+      console.warn(`[MIG] Kunne ikke utvide ${tabell} med fra_tid/til_tid:`, e);
+    }
+  }
+
+  // T4-d — kalender-cache. Speiler ArbeidstidsKalender (T9a) for periode
+  // currentYear ± 1. Brukes av hentEffektivArbeidstidLokal til offline-
+  // beregning av start/slutt/pause for en dato. Soft-deleted rader skrives
+  // også (filtreres i hentLokalt) per locked design 2026-05-16.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS arbeidstidskalender_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      aar INTEGER NOT NULL,
+      dato TEXT NOT NULL,
+      type TEXT NOT NULL,
+      navn TEXT NOT NULL,
+      timer_overstyr REAL,
+      standard_start_tid TEXT,
+      standard_slutt_tid TEXT,
+      pause_min INTEGER,
+      aktiv INTEGER NOT NULL DEFAULT 1,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_arbeidstidskalender_local_org_aar
+      ON arbeidstidskalender_local(organization_id, aar);
+    CREATE INDEX IF NOT EXISTS idx_arbeidstidskalender_local_org_type_aar
+      ON arbeidstidskalender_local(organization_id, type, aar);
+    CREATE INDEX IF NOT EXISTS idx_arbeidstidskalender_local_org_dato
+      ON arbeidstidskalender_local(organization_id, dato);
+  `);
+
+  // T4-d — OrganizationSetting-cache. Én rad per firma (organization_id PK).
+  // Brukes som fallback for firma-default start/slutt/pause i
+  // hentEffektivArbeidstidLokal når kalenderen ikke har overstyringer.
+  // Refresh via organizationSettingKatalog.refreshOrganizationSettingKatalog.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS organization_setting_local (
+      organization_id TEXT PRIMARY KEY NOT NULL,
+      standard_start_tid TEXT NOT NULL DEFAULT '07:00',
+      standard_slutt_tid TEXT NOT NULL DEFAULT '15:00',
+      standard_pause_min INTEGER NOT NULL DEFAULT 30,
+      tillatt_rediger_ved_attestering INTEGER NOT NULL DEFAULT 0,
+      sist_oppdatert INTEGER NOT NULL
+    );
+  `);
 }
