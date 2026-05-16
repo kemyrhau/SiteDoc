@@ -983,40 +983,85 @@ export const dagsseddelRouter = router({
         await autoriserAdminForFirma(ctx.userId, sheet.organizationId);
       }
 
-      const [aktivitet, prosjekt, brukerData, ansattMedlem, orgSetting] = await Promise.all([
-        sheet.aktivitetId
-          ? ctx.prismaTimer.aktivitet.findUnique({
-              where: { id: sheet.aktivitetId },
-            })
-          : Promise.resolve(null),
-        ctx.prisma.project.findUnique({
-          where: { id: projectId },
-          select: { id: true, name: true, projectNumber: true },
-        }),
-        prisma.user.findUnique({
-          where: { id: sheet.userId },
-          select: { id: true, name: true, email: true },
-        }),
-        prisma.organizationMember.findUnique({
-          where: {
-            userId_organizationId: {
-              userId: sheet.userId,
-              organizationId: sheet.organizationId,
+      // T7-2d (2026-05-16): Per-rad prosjekt-join. SheetTimer/Tillegg/Machine
+      // har "svak FK" til Project (A.20 — ingen Prisma @relation pga cross-package).
+      // Vi bygger app-layer-join: hent alle unike projectIds, lookup i én query,
+      // legg på rad som rad.project = { id, name, projectNumber }.
+      const alleProjectIds = Array.from(
+        new Set([
+          ...timer.map((r) => r.projectId),
+          ...tillegg.map((r) => r.projectId),
+          ...maskiner.map((r) => r.projectId),
+        ]),
+      );
+
+      const [aktivitet, prosjekt, prosjekterPerRad, brukerData, ansattMedlem, orgSetting] =
+        await Promise.all([
+          sheet.aktivitetId
+            ? ctx.prismaTimer.aktivitet.findUnique({
+                where: { id: sheet.aktivitetId },
+              })
+            : Promise.resolve(null),
+          ctx.prisma.project.findUnique({
+            where: { id: projectId },
+            select: { id: true, name: true, projectNumber: true },
+          }),
+          // T7-2d: per-rad prosjekt-lookup
+          alleProjectIds.length > 0
+            ? ctx.prisma.project.findMany({
+                where: { id: { in: alleProjectIds } },
+                select: { id: true, name: true, projectNumber: true },
+              })
+            : Promise.resolve([]),
+          prisma.user.findUnique({
+            where: { id: sheet.userId },
+            select: { id: true, name: true, email: true },
+          }),
+          prisma.organizationMember.findUnique({
+            where: {
+              userId_organizationId: {
+                userId: sheet.userId,
+                organizationId: sheet.organizationId,
+              },
             },
-          },
-          select: { ansattnummer: true },
-        }),
-        // T7-2b2: hent firmaets flagg for å gate Rediger-knapp i UI
-        prisma.organizationSetting.findUnique({
-          where: { organizationId: sheet.organizationId },
-          select: { tillattRedigerVedAttestering: true },
-        }),
-      ]);
+            select: { ansattnummer: true },
+          }),
+          // T7-2b2: hent firmaets flagg for å gate Rediger-knapp i UI
+          prisma.organizationSetting.findUnique({
+            where: { organizationId: sheet.organizationId },
+            select: { tillattRedigerVedAttestering: true },
+          }),
+        ]);
+
+      // T7-2d: bygg map og berik radene
+      const prosjektMap = new Map(prosjekterPerRad.map((p) => [p.id, p]));
+      const timerMedProsjekt = timer.map((r) => ({
+        ...r,
+        project: prosjektMap.get(r.projectId) ?? null,
+      }));
+      const tilleggMedProsjekt = tillegg.map((r) => ({
+        ...r,
+        project: prosjektMap.get(r.projectId) ?? null,
+      }));
+      const maskinerMedProsjekt = maskiner.map((r) => ({
+        ...r,
+        project: prosjektMap.get(r.projectId) ?? null,
+      }));
+
       const ansatt = brukerData
         ? { ...brukerData, ansattnummer: ansattMedlem?.ansattnummer ?? null }
         : null;
       const redigerTillatt = orgSetting?.tillattRedigerVedAttestering ?? false;
-      return { ...sheet, aktivitet, timer, tillegg, maskiner, prosjekt, ansatt, redigerTillatt };
+      return {
+        ...sheet,
+        aktivitet,
+        timer: timerMedProsjekt,
+        tillegg: tilleggMedProsjekt,
+        maskiner: maskinerMedProsjekt,
+        prosjekt,
+        ansatt,
+        redigerTillatt,
+      };
     }),
 
   // Flytt ECO på en timer-rad (Steg 4a 2026-05-03). Lederen kan endre
