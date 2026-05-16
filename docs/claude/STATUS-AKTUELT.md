@@ -20,7 +20,17 @@ Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på e
 
 Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
 
-### PR T7-4f-3 attestering-liste redesign per mockup v7 — IMPLEMENTERT PÅ feature/t7-4f-3 2026-05-16
+### Fix T7-4f fra/til på timer- og maskin-rader i attestering-liste — DEPLOYET TIL TEST 2026-05-16
+
+Mindre justering på develop direkte (etter T7-4f-3-merge). `attestering-buckets.tsx`:
+- `TimerRaderLeder`: viser `{fraTid}–{tilTid}` etter aktivitet-navn (kun når begge satt)
+- `MaskinRaderLeder`: viser `{fraTid}–{tilTid}` etter mengde+enhet (kun når begge satt)
+
+Diskret grå font-mono-tekst, skjules helt hvis tidspunkter mangler. Påvirker både attestering-listen (T7-4f-3) og detalj-siden (gjenbruker samme komponenter).
+
+### PR T7-4f-3 attestering-liste redesign per mockup v7 — DEPLOYET TIL TEST 2026-05-16 (merge `791ac396`)
+
+Tredje sub-PR i T7-4f-bunken. Fullstendig redesign av `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` (281 → ~600 linjer):
 
 Tredje sub-PR i T7-4f-bunken. Fullstendig redesign av `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` (281 → ~600 linjer):
 

@@ -194,6 +194,11 @@ function TimerRaderLeder({
                   </div>
                   <p className="text-xs text-gray-500">
                     {aktivitetNavn(rad.aktivitetId)}
+                    {rad.fraTid && rad.tilTid && (
+                      <span className="ml-2 font-mono text-gray-400">
+                        {rad.fraTid}–{rad.tilTid}
+                      </span>
+                    )}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
@@ -394,11 +399,22 @@ function MaskinRaderLeder({
                     <span className="text-xs text-blue-600">{rad.project.name}</span>
                   )}
               </div>
-              {rad.mengde !== null && rad.mengde !== undefined && (
-                <p className="text-xs text-gray-500">
-                  {tilTall(rad.mengde).toFixed(2)} {rad.enhet ?? ""}
-                </p>
-              )}
+              <p className="text-xs text-gray-500">
+                {rad.mengde !== null && rad.mengde !== undefined && (
+                  <>
+                    {tilTall(rad.mengde).toFixed(2)} {rad.enhet ?? ""}
+                  </>
+                )}
+                {rad.fraTid && rad.tilTid && (
+                  <span
+                    className={`font-mono text-gray-400 ${
+                      rad.mengde !== null && rad.mengde !== undefined ? "ml-2" : ""
+                    }`}
+                  >
+                    {rad.fraTid}–{rad.tilTid}
+                  </span>
+                )}
+              </p>
             </div>
             <span className="font-mono text-sm text-gray-900">
               {tilTall(rad.timer).toFixed(2)} {t("timer.timerEnhet")}
