@@ -20,6 +20,19 @@ Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på e
 
 Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
 
+### PR T7-4f-1 attestering-liste server-beriking — IMPLEMENTERT PÅ feature/t7-4f-1 2026-05-16
+
+Første sub-PR i T7-4f-bunken (mockup v7, spec låst i [fase-0-beslutninger.md § T7-4f](fase-0-beslutninger.md)). Utvider `hentTilAttesteringFirma` (`apps/api/src/routes/timer/dagsseddel.ts`) med:
+
+- Per-rad `project`-join (batch på tvers av timer/tillegg/maskiner — ingen N+1)
+- `tilleggHarKrav: boolean` = `sheet.tillegg.length > 0` (oransje-trigger for klient)
+- `dagsnorm: number` = `OrganizationSetting.dagsnorm` (eksisterende felt, default 7.5)
+- `redigerTillatt: boolean` = `OrganizationSetting.tillattRedigerVedAttestering`
+
+Bakover-kompatibelt — alle eksisterende felter (`totaltimer`, `antallRader`, `ansatt`, `prosjekt`) består. Typecheck (api): 0 nye feil. Typecheck (web): pre-eksisterende vitest-import-feil uavhengig av endring.
+
+Neste: T7-4f-2 (ekstraher `ProsjektSectionAttest`/`EcoBucketAttest` til delt fil).
+
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
 Standalone PR etter T.4-bunken. Firma-admin konfigurerer avrunding (15/30/60 min eller ingen) for fra/til-tid på timer- og maskin-rader. Avrunding skjer **visuelt ved input** — pickeren snapper til nærmeste intervall, det brukeren ser er det som lagres. Ingen server-side runding bak ryggen.
