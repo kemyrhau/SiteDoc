@@ -1935,3 +1935,73 @@ model OrganizationMemberPermission {
 ```
 
 Implementeres som dedikert PR etter O-3. `tilgangskontroll.ts` får ny hjelpefunksjon `harModulTilgang(userId, organizationId, modul, krevdTilgang)`.
+
+### T7-4f — Attestering-liste expanded inline (låst 2026-05-16)
+
+**Visuell struktur (godkjent mockup v7):**
+- Uke-navigasjon øverst (← Uke 20 →)
+- Filter-pills: Prosjekt | Ansatte | Avdeling
+- Gruppering per prosjekt (toggle: per ansatt)
+- Per gruppe-header: antall sedler · arbeidstimer · maskintimer · [Attester gruppe (N)]
+- Per sedel-kort med tabell:
+  Kolonner: Lønnsart | Aktivitet | Fra–til | Timer | Maskin · fra–til · timer
+  - Maskin: indentert chip per rad med maskinnavn · fra–til · timer
+  - Vareforbruk: rad integrert i sedel-tabellen (📦 vare · antall · enhet)
+  - ECO/underprosjekt: egen sub-header innen sedelen med blå venstrekant + «→ Godkjenning byggherre»
+  - Tilleggskrav (lønnsart-type): oransje rad + oransje sedel-kant
+  - Mertid uten tilleggskrav: ingen oransje — badge «X.Xt — ingen tilleggskrav»
+  - Sum-rad: arbeidstimer · maskintimer (inkl. OT-notering hvis tillegg finnes)
+
+**Nøkkelprinsipp (låst):**
+Oransje farge utløses av lønnsart-TYPE (tillegg-lønnsart registrert av arbeidstaker),
+IKKE av antall timer. Mertid uten tilleggskrav = normal grå sedel.
+
+**Handlinger per sedel:**
+- Detalj-knapp → åpner AttesteringDetalj (full redigering)
+- ↩ Returner | ✓ Attester (oransje ved tilleggskrav)
+- ⋯-meny: Rediger sedel | Splitt rad | Returner
+
+#### Sub-PR-plan (4 PR-er, ~3 timer Opus-arbeid totalt)
+
+**T7-4f-1 — Server: utvid `hentTilAttesteringFirma`** (~30 min)
+- `apps/api/src/routes/timer/dagsseddel.ts`
+- Speile `hentForAttestering`-shape: per-rad `project`-join (cross-package `prisma.project.findMany` på alle unike `projectId`), `redigerTillatt` fra `orgSetting`, beriket `aktivitet` per rad om relevant.
+- Én batch-`findMany` for prosjekter på tvers av alle sedler — ingen N+1.
+- Bakover-kompatibel: alle eksisterende felter (`totaltimer`, `antallRader`, `ansatt`, `prosjekt`) består; nye felter legges på rad-arrayene.
+- Akseptkriterier: `rader[].timer[].project` finnes når rad har annet prosjekt enn sedel-hodet; `redigerTillatt` reflekterer `OrganizationTimerSetting`.
+
+**T7-4f-2 — Refaktor: ekstraher `ProsjektSectionAttest` + `EcoBucketAttest`** (~30 min)
+- Flytt blokk `AttesteringDetalj.tsx:892–1119` til ny `apps/web/src/components/timer/attestering-buckets.tsx`.
+- Eksporter komponenter + delte typer (`TimerRad`, `MaskinRad`, `TilleggRad`, `RadProsjekt`, `EcoBucketAttestProps`).
+- `AttesteringDetalj.tsx` importerer fra ny fil — ingen funksjonell endring. Verifiser med `pnpm typecheck --filter web` + åpne én sedel på test.
+
+**T7-4f-3 — Web: expanded inline + uke-nav + filter-pills** (~90 min)
+- `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` — fullstendig redesign per mockup v7.
+- Uke-navigasjon (← Uke 20 →) med dato-range-filter på klient.
+- Filter-pills: Prosjekt | Ansatte | Avdeling (Avdeling-modell finnes — C.11 deployet).
+- Gruppering per prosjekt (default), toggle per ansatt. Gruppe-header med sum + «Attester gruppe (N)» (kaller `attester`-mutasjon i loop, viser per-rad-feilmelding ved partial fail).
+- Per sedel-kort: tabell-layout med Lønnsart | Aktivitet | Fra–til | Timer | Maskin-kolonne.
+- Tilleggskrav-detektering: hvis `timer.some(r => r.lonnsart.type === "tillegg")` → oransje rad + sedel-kant.
+- Vareforbruk-rad: foreløpig stub eller skjult (se åpen avklaring 2).
+- i18n-nøkler i `nb.json` + `en.json` (uke-nav, filter-pills, gruppe-header).
+
+**T7-4f-4 — Avklaring + evt. mini-fix: ECO-flytting fra firma-listen** (~20 min)
+- `flyttTimerRadEco` krever `krevProsjektLeder` — har INGEN firma-admin-fallback (i motsetning til `hentForAttestering`).
+- Alt A (aktivere): utvid auth med `autoriserAdminForFirma`-fallback parallell med `hentForAttestering`-mønsteret.
+- Alt B (skjule): send `kanFlytte={false}` til `ProsjektSectionAttest` fra firma-listen — detalj-siden beholder velgeren.
+
+**Avhengigheter:** T7-4f-1 → T7-4f-3 (server-shape først). T7-4f-2 → T7-4f-3 (eksport før gjenbruk). T7-4f-4 parallelt eller før T7-4f-3.
+
+#### Ikke i scope
+- Inline rad-edit (åpne detalj for full redigering — designvalg)
+- Persistert collapse-state per bruker
+- Bulk-attestering på tvers av grupper (T7-4g om aktuelt)
+- Prosjektleder-listen `[prosjektId]/timer/attestering/page.tsx` (egen oppfølger med samme mønster)
+
+#### Åpne avklaringer (før T7-4f-3 startes)
+1. **ECO-flytt i firma-listen** — aktivere (T7-4f-4 Alt A) eller skjule (Alt B)?
+2. **Vareforbruk-rad i sedel-kort** — `SheetVareforbruk` finnes IKKE i db-timer; vareforbruk er per-prosjekt, ikke per-sedel. Tre veier:
+   - (a) Skjul vareforbruk-rad i T7-4f-3, åpne ny PR T7-4f-5 når vareforbruk-kobling til sedel finnes
+   - (b) Server-side aggregering: hent `Vareforbruk`-rader per ansatt+dato og injiser i respons
+   - (c) Utsette hele T7-4f-spec til vareforbruk-modell er knyttet til SheetTimer
+3. **«Mertid uten tilleggskrav»-badge** — krever lønnsart-konfigurasjon for «normal arbeidsdag» (8t? per ansattgruppe?). Eksisterer denne grensen som data, eller hardkodes 7,5/8t i T7-4f-3?
