@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Visās taimera rindās jābūt projektam, algas veidam, darbībai un taimeram > 0.",
   "timer.rediger.feil.tilleggInkomplett": "Visās kvotu rindās ir jābūt projektam, pielaidei un daudzumam > 0.",
   "timer.rediger.feil.maskinInkomplett": "Visām mašīnu rindām ir jābūt projektam, mašīnai un taimerim > 0.",
+  "timer.rediger.splittRad": "Sadalīta rinda",
+  "timer.rediger.splittBekreft": "Jums ir nesaglabātas izmaiņas, kas tiks atmestas. Vai turpināt?",
   "timer.splitt.tittel.timer": "Sadalīta taimera rinda",
   "timer.splitt.tittel.tillegg": "Dalītā pabalsta rinda",
   "timer.splitt.tittel.maskin": "Sadalīta mašīnas rinda",

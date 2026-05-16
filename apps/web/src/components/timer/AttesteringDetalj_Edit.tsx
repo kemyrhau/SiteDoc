@@ -4,7 +4,7 @@
 // direkte uten å returnere til arbeider.
 // Mounted fra AttesteringDetalj.tsx når redigerModus = true.
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@sitedoc/ui";
@@ -12,6 +12,7 @@ import { Plus } from "lucide-react";
 import { RedigerTimerRad } from "./RedigerTimerRad";
 import { RedigerTilleggRad } from "./RedigerTilleggRad";
 import { RedigerMaskinRad } from "./RedigerMaskinRad";
+import { SplittRadModal } from "./SplittRadModal";
 import type {
   RedigerTimerRadData,
   RedigerTilleggRadData,
@@ -36,6 +37,8 @@ type TimerRad = {
   tilTid: string | null;
   timer: unknown;
   attestertStatus: string | null;
+  // T7-2c3: parentRadId trengs for å skjule Splitt-knapp på split-resultatet selv
+  parentRadId?: string | null;
 };
 type TilleggRad = {
   id: string;
@@ -44,6 +47,7 @@ type TilleggRad = {
   antall: unknown;
   kommentar: string | null;
   attestertStatus: string | null;
+  parentRadId?: string | null;
 };
 type MaskinRad = {
   id: string;
@@ -56,7 +60,15 @@ type MaskinRad = {
   mengde: unknown;
   enhet: string | null;
   attestertStatus: string | null;
+  parentRadId?: string | null;
 };
+
+// T7-2c3: hva som er aktiv splitt-handling (null = ingen modal åpen).
+type SplittAktiv =
+  | { radType: "timer"; original: TimerRad }
+  | { radType: "tillegg"; original: TilleggRad }
+  | { radType: "maskin"; original: MaskinRad }
+  | null;
 
 type Props = {
   sheetId: string;
@@ -147,6 +159,38 @@ export function AttesteringDetaljEdit({
   const [editTillegg, setEditTillegg] = useState<RedigerTilleggRadData[]>(initTillegg);
   const [editMaskin, setEditMaskin] = useState<RedigerMaskinRadData[]>(initMaskin);
   const [feil, setFeil] = useState<string | null>(null);
+
+  // T7-2c3: aktiv splitt-handling. null = ingen modal åpen.
+  const [splittAktivFor, setSplittAktivFor] = useState<SplittAktiv>(null);
+
+  // T7-2c3: når splitt har lagret, må edit-state synkroniseres med ferske
+  // pending-rader fra server (cache er allerede invalidert av modalen).
+  // Vi sammenligner sorterte ID-er; ved første render blir refs satt uten å
+  // røre state. Etterfølgende prop-endringer (typisk fra splitt-resultat)
+  // resetter state til nye init-verdier.
+  const sistSettPendingIder = useRef<string>("");
+  useEffect(() => {
+    const ider = [
+      ...pendingTimer.map((r) => `t:${r.id}`),
+      ...pendingTillegg.map((r) => `a:${r.id}`),
+      ...pendingMaskin.map((r) => `m:${r.id}`),
+    ]
+      .sort()
+      .join(",");
+    if (sistSettPendingIder.current === "") {
+      sistSettPendingIder.current = ider;
+      return;
+    }
+    if (ider !== sistSettPendingIder.current) {
+      sistSettPendingIder.current = ider;
+      setEditTimer(initTimer);
+      setEditTillegg(initTillegg);
+      setEditMaskin(initMaskin);
+    }
+    // initTimer/initTillegg/initMaskin er bevisst utelatt fra deps —
+    // ID-strengen er en stabil proxy for hvilke pending-rader som finnes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingTimer, pendingTillegg, pendingMaskin]);
 
   const lagre = trpc.timer.dagsseddel.redigerSedelRader.useMutation({
     onSuccess: () => {
@@ -239,6 +283,29 @@ export function AttesteringDetaljEdit({
     setEditMaskin((rader) => rader.filter((r) => r.key !== key));
   }
 
+  // T7-2c3: detekter om edit-state har ulagrede endringer (annet enn
+  // initial-tilstanden bygget fra pending-rader). Brukes til å spørre
+  // brukeren før modal åpnes — splitt nullstiller edit-state.
+  const harUlagredeEndringer = useMemo(() => {
+    if (editTimer.length !== initTimer.length) return true;
+    if (editTillegg.length !== initTillegg.length) return true;
+    if (editMaskin.length !== initMaskin.length) return true;
+    return (
+      JSON.stringify(editTimer) !== JSON.stringify(initTimer) ||
+      JSON.stringify(editTillegg) !== JSON.stringify(initTillegg) ||
+      JSON.stringify(editMaskin) !== JSON.stringify(initMaskin)
+    );
+  }, [editTimer, editTillegg, editMaskin, initTimer, initTillegg, initMaskin]);
+
+  // T7-2c3: åpne splitt-modal etter ulagrede-endringer-sjekk.
+  function aapneSplitt(aktiv: SplittAktiv) {
+    if (!aktiv) return;
+    if (harUlagredeEndringer && !window.confirm(t("timer.rediger.splittBekreft"))) {
+      return;
+    }
+    setSplittAktivFor(aktiv);
+  }
+
   function handleLagre() {
     setFeil(null);
     // Validering: ingen tomme dropdown-verdier på timer/tillegg/maskin
@@ -329,16 +396,27 @@ export function AttesteringDetaljEdit({
           {editTimer.length === 0 ? (
             <p className="text-xs italic text-gray-500">{t("timer.rediger.ingenTimer")}</p>
           ) : (
-            editTimer.map((rad) => (
-              <RedigerTimerRad
-                key={rad.key}
-                rad={rad}
-                prosjekter={prosjektValg}
-                tidsrundingMinutter={tidsrundingMinutter}
-                onChange={(felt) => oppdaterTimer(rad.key, felt)}
-                onSlett={() => slettTimer(rad.key)}
-              />
-            ))
+            editTimer.map((rad) => {
+              const original = rad.originalId
+                ? pendingTimer.find((r) => r.id === rad.originalId)
+                : null;
+              const kanSplittes = original && (original.parentRadId ?? null) === null;
+              return (
+                <RedigerTimerRad
+                  key={rad.key}
+                  rad={rad}
+                  prosjekter={prosjektValg}
+                  tidsrundingMinutter={tidsrundingMinutter}
+                  onChange={(felt) => oppdaterTimer(rad.key, felt)}
+                  onSlett={() => slettTimer(rad.key)}
+                  onSplitt={
+                    kanSplittes && original
+                      ? () => aapneSplitt({ radType: "timer", original })
+                      : undefined
+                  }
+                />
+              );
+            })
           )}
         </div>
       </section>
@@ -361,15 +439,26 @@ export function AttesteringDetaljEdit({
           {editTillegg.length === 0 ? (
             <p className="text-xs italic text-gray-500">{t("timer.rediger.ingenTillegg")}</p>
           ) : (
-            editTillegg.map((rad) => (
-              <RedigerTilleggRad
-                key={rad.key}
-                rad={rad}
-                prosjekter={prosjektValg}
-                onChange={(felt) => oppdaterTillegg(rad.key, felt)}
-                onSlett={() => slettTillegg(rad.key)}
-              />
-            ))
+            editTillegg.map((rad) => {
+              const original = rad.originalId
+                ? pendingTillegg.find((r) => r.id === rad.originalId)
+                : null;
+              const kanSplittes = original && (original.parentRadId ?? null) === null;
+              return (
+                <RedigerTilleggRad
+                  key={rad.key}
+                  rad={rad}
+                  prosjekter={prosjektValg}
+                  onChange={(felt) => oppdaterTillegg(rad.key, felt)}
+                  onSlett={() => slettTillegg(rad.key)}
+                  onSplitt={
+                    kanSplittes && original
+                      ? () => aapneSplitt({ radType: "tillegg", original })
+                      : undefined
+                  }
+                />
+              );
+            })
           )}
         </div>
       </section>
@@ -392,16 +481,27 @@ export function AttesteringDetaljEdit({
           {editMaskin.length === 0 ? (
             <p className="text-xs italic text-gray-500">{t("timer.rediger.ingenMaskin")}</p>
           ) : (
-            editMaskin.map((rad) => (
-              <RedigerMaskinRad
-                key={rad.key}
-                rad={rad}
-                prosjekter={prosjektValg}
-                tidsrundingMinutter={tidsrundingMinutter}
-                onChange={(felt) => oppdaterMaskin(rad.key, felt)}
-                onSlett={() => slettMaskin(rad.key)}
-              />
-            ))
+            editMaskin.map((rad) => {
+              const original = rad.originalId
+                ? pendingMaskin.find((r) => r.id === rad.originalId)
+                : null;
+              const kanSplittes = original && (original.parentRadId ?? null) === null;
+              return (
+                <RedigerMaskinRad
+                  key={rad.key}
+                  rad={rad}
+                  prosjekter={prosjektValg}
+                  tidsrundingMinutter={tidsrundingMinutter}
+                  onChange={(felt) => oppdaterMaskin(rad.key, felt)}
+                  onSlett={() => slettMaskin(rad.key)}
+                  onSplitt={
+                    kanSplittes && original
+                      ? () => aapneSplitt({ radType: "maskin", original })
+                      : undefined
+                  }
+                />
+              );
+            })
           )}
         </div>
       </section>
@@ -418,6 +518,23 @@ export function AttesteringDetaljEdit({
             : t("timer.rediger.lagre")}
         </Button>
       </div>
+
+      {/* T7-2c3: splitt-modal — åpnes per rad via Splitt-knapp */}
+      {splittAktivFor && (
+        <SplittRadModal
+          {...splittAktivFor}
+          sheetId={sheetId}
+          prosjekter={prosjektValg}
+          tidsrundingMinutter={tidsrundingMinutter}
+          onLukk={() => setSplittAktivFor(null)}
+          onLagret={() => {
+            // Modal har allerede invalidert hentForAttestering.
+            // useEffect over plukker opp endrede pending-IDer og resetter
+            // edit-state fra nye init-verdier.
+            setSplittAktivFor(null);
+          }}
+        />
+      )}
     </div>
   );
 }

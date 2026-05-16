@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Toutes les lignes du minuteur doivent avoir un projet, une rubrique, une activité et un minuteur > 0.",
   "timer.rediger.feil.tilleggInkomplett": "Toutes les lignes d'allocation doivent avoir un projet, une allocation et une quantité > 0.",
   "timer.rediger.feil.maskinInkomplett": "Toutes les lignes de machines doivent avoir un projet, une machine et un minuteur > 0.",
+  "timer.rediger.splittRad": "Fractionner la ligne",
+  "timer.rediger.splittBekreft": "Vous avez des modifications non enregistrées qui seront ignorées. Continuer?",
   "timer.splitt.tittel.timer": "Ligne de minuterie divisée",
   "timer.splitt.tittel.tillegg": "Ligne d'allocation fractionnée",
   "timer.splitt.tittel.maskin": "Rangée de machines divisée",

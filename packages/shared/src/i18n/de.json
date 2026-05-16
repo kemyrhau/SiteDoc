@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Alle Timer-Zeilen müssen Projekt, Lohnart, Aktivität und Timer > 0 haben.",
   "timer.rediger.feil.tilleggInkomplett": "Alle Aufmaßzeilen müssen Projekt, Aufmaß und Menge > 0 aufweisen.",
   "timer.rediger.feil.maskinInkomplett": "Alle Maschinenzeilen müssen Projekt, Maschine und Timer > 0 haben.",
+  "timer.rediger.splittRad": "Reihe teilen",
+  "timer.rediger.splittBekreft": "Es liegen nicht gespeicherte Änderungen vor, die verworfen werden. Weitermachen?",
   "timer.splitt.tittel.timer": "Split-Timer-Zeile",
   "timer.splitt.tittel.tillegg": "Aufteilungszeile aufteilen",
   "timer.splitt.tittel.maskin": "Maschinenreihe teilen",

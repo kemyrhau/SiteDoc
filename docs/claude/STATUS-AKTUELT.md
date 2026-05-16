@@ -6,6 +6,45 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### PR T7-2c3 Splitt-integrasjon i AttesteringDetalj_Edit — KLAR FOR REVIEW (branch `feature/t7-2c3`)
+
+Tredje sub-PR av T7-2c-bunken. Monterer SplittRadModal (T7-2c2) inn i edit-modus-flyten med per-rad Splitt-knapp, ulagrede-endringer-bekreftelse og automatisk state-reset etter splitt. Etter denne kan firma-admin faktisk splitte rader fra UI — kundeønske #4 «redigering og splitting av timer ved attestering» er fullt levert.
+
+**Endringer i `apps/web/src/components/timer`:**
+
+- **`RedigerTimerRad.tsx`** / **`RedigerTilleggRad.tsx`** / **`RedigerMaskinRad.tsx`** — ny valgfri `onSplitt?: () => void`-prop. Når satt: viser indigo «Splitt»-knapp (`Split`-ikon fra lucide) ved siden av eksisterende «Slett»-knapp. Når undefined: skjuler knappen. Beholder bakoverkompatibilitet for andre callers.
+
+- **`AttesteringDetalj_Edit.tsx`** — fem konkrete utvidelser:
+  1. Importer `SplittRadModal` + utvider `TimerRad`/`TilleggRad`/`MaskinRad` inline-types med valgfri `parentRadId: string | null` (serveren returnerer feltet allerede — bare TS-narrowing utvides).
+  2. Ny state `splittAktivFor: SplittAktiv` (discriminated union — `{ radType, original }` eller `null`).
+  3. `harUlagredeEndringer`-memo: sammenligner `editTimer/editTillegg/editMaskin` mot init-verdier via `JSON.stringify`. Brukes som forutsetning for bekreftelses-dialog.
+  4. `aapneSplitt(aktiv)`-helper: hvis `harUlagredeEndringer === true`, åpner `window.confirm` med `timer.rediger.splittBekreft`. Setter `splittAktivFor` hvis brukeren bekrefter.
+  5. Per-rad onSplitt-gating: rader rendret i edit-listen får `onSplitt`-callback satt **kun hvis** original DB-rad finnes (`rad.originalId !== null`) **og** `original.parentRadId === null` (raden er ikke selv resultat av en tidligere splitt). Nye edit-rader (lagt til i edit-modus uten lagring) får ingen Splitt-knapp.
+
+- **Cache-resync etter splitt:** Ny `useEffect` overvåker sortert ID-streng av `pendingTimer/pendingTillegg/pendingMaskin`. Ved første render lagres ID-strengen i `useRef` uten state-endring. Ved senere prop-endring (typisk fra `hentForAttestering`-invalidering etter splitt-lagring) detekteres ID-shift og state nullstilles til nye init-verdier. Pattern matcher `useRef`-guard-mønsteret som unngår infinite render-loop ved JSON-stringify-derive.
+
+- **Modal rendres** i bunnen av hovedreturen, conditional på `splittAktivFor`. Spreadet `{...splittAktivFor}` gir `radType + original` discriminert. `onLagret` setter `splittAktivFor` til null (modal har allerede invalidert query — useEffect plukker opp resten).
+
+**i18n:** 2 nye nøkler under `timer.rediger.*`:
+- `splittRad`: «Splitt rad» / «Split row»
+- `splittBekreft`: «Du har ulagrede endringer som vil bli forkastet. Fortsett?» / «You have unsaved changes that will be discarded. Continue?»
+
+Auto-oversatt til 13 språk via `generate.ts` (2296 → 2298 totalt).
+
+**Designvalg:**
+- **`parentRadId`-gate:** Per locked design vises Splitt kun på «opprinnelige» rader. Rader som selv er split-resultat (har `parentRadId` satt) kan ikke splittes videre fra UI — selv om server tillater det teknisk. Konsekvens: firma-admin kan ikke splitte i kaskade («splitt A til B+C, splitt deretter B til D+E»). Hvis dette blir et reelt behov, fjernes gaten i ett trinn.
+- **`window.confirm` for bekreftelse:** Pragmatisk valg matcher pre-eksisterende mønster i `firma/avdelinger/page.tsx` (per CLAUDE.md slett-bekreftelse-konvensjon med eksisterende unntak). Konvertering til ekte Modal-komponent kan gjøres som del av felles slett-bekreftelse-runde senere.
+- **JSON.stringify til diff:** Edit-state og init-state har samme struktur, så stringify-diff er pålitelig. Litt CPU per render men neglisjerbart for typiske sedel-størrelser (< 20 rader).
+- **Cache-resync via useRef + sortert ID-streng:** Trengs fordi `useState`-init kjøres bare ved første render. Etter splitt henter `hentForAttestering` ny data med nye rad-IDer, men AttesteringDetalj_Edit-state ville ellers vist gammel pending-liste. Pattern unngår «props-driven state»-anti-mønster ved å re-initialisere kun når ID-settet faktisk endres (ikke ved hver render).
+
+**Verifisert:** `apps/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). 0 nye feil.
+
+**Reload-metode:** TypeScript-only + i18n. Full reload + cache-cleaning ved deploy. Ingen schema- eller server-endring.
+
+**Etter denne PR-en er hele T7-2c-bunken (server-mutation + modal-UI + integrasjon) komplett.** Klar for E2E-verifikasjon på `test.sitedoc.no` — fire scenarier dokumentert i T7-2c1-PR-en (kundeønske #4 «redigering og splitting av timer ved attestering» fullt levert etter prod-deploy).
+
+Klar for review — ikke merge før Kenneth verifiserer.
+
 ### PR T7-2c2 SplittRadModal-komponent + i18n — KLAR FOR REVIEW (branch `feature/t7-2c2`)
 
 Andre sub-PR av T7-2c-bunken. Web-UI for rad-splitting — modal som åpnes for én pending rad og lar firma-admin fordele den til N nye rader med live sum-validering. Server-mutation (`splittRad`) ble levert i T7-2c1.

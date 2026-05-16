@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Wszystkie wiersze licznika czasu muszą zawierać projekt, rodzaj wynagrodzenia, czynność i licznik czasu > 0.",
   "timer.rediger.feil.tilleggInkomplett": "Wszystkie wiersze naddatku muszą mieć projekt, naddatek i ilość > 0.",
   "timer.rediger.feil.maskinInkomplett": "Wszystkie wiersze maszyny muszą mieć projekt, maszynę i licznik czasu > 0.",
+  "timer.rediger.splittRad": "Podziel rząd",
+  "timer.rediger.splittBekreft": "Masz niezapisane zmiany, które zostaną odrzucone. Kontynuować?",
   "timer.splitt.tittel.timer": "Podziel wiersz licznika czasu",
   "timer.splitt.tittel.tillegg": "Wiersz podziału zasiłku",
   "timer.splitt.tittel.maskin": "Podziel rząd maszyny",
