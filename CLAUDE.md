@@ -128,12 +128,7 @@ UX-konsekvens: firma-admin må opprette `sommertid_slutt`-rad FØR `sommertid_st
 
 **Reload-metode:** Server reload kreves ved deploy (krever `pm2 restart`). Ingen klient-endring.
 
-**Gjenstår i T.4-bunken:**
-- **T4-c:** Web-UI — innstillinger-side («Standard arbeidstid»-seksjon) + kalender-modal med betinget visning av tidsfelter for sommertid_start/slutt/halvdag.
-- **T4-d:** Mobil Drizzle — fraTid/tilTid på sheet_timer_local + sheet_machine_local + arbeidstidskalender_local-tabell + kalender-katalog-service + timerSync push/pull.
-- **T4-e:** Mobil UI — TimerRadModal + MaskinRadModal med DateTimePicker + forhåndsutfylling via `hentEffektivArbeidstid`-resultat (server-call ved sidelast eller forhåndsberegnet fra kalender-cache).
-
-Klar for review — ikke merge før Kenneth verifiserer.
+**Gjenstår i T.4-bunken:** T4-d (mobil Drizzle + kalender-cache) + T4-e (mobil UI). T4-c er deployet til test 2026-05-16 — se entry øverst.
 
 ### PR T4-a arbeidstid defaults — schema + migrasjon — MERGET TIL DEVELOP 2026-05-16 (merge `5acd2a5d`, impl `cfe51fc5`)
 
