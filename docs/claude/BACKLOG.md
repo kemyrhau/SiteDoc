@@ -16,6 +16,22 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### MASKIN-TIMER KOBLING — arkitektursvikt (høy prioritet)
+
+Kenneth-avklaring 2026-05-16: Maskintimer er en del av arbeidsdagen,
+ikke additivt. `sum(SheetMachine.timer) ≤ sum(SheetTimer.timer)` per sedel.
+
+Nåværende feil: maskin og timer faktureres som to separate summer.
+Korrekt: maskin er utstyrsbidrag av samme tidsperiode.
+
+Krever:
+1. Server-validering: `maskin.timer ≤ total worker.timer` ved opprett/oppdater
+2. UI: vis maskin som underpost av timer-seksjonen, ikke separat
+3. Attestering: `splittRad` på maskin bør validere mot timer-totalsum
+4. Mobil: samme logikk
+
+Tas i planleggingssesjon — ingen videre koding i mellomtiden.
+
 ### Datamodell og migrasjon
 
 - **P-KRITISK-1 — Sentralbiblioteket ikke seedet i prod** 🔴 — se [oppryddings-plan-2026-04-28.md § P-KRITISK-1](oppryddings-plan-2026-04-28.md). Lovpålagt grunnpakke skal auto-seedes ved firma-opprettelse.
