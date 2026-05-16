@@ -46,13 +46,16 @@ Søkefelt vises ved >7 elementer. 11 nye i18n-nøkler totalt
 
 **Tidligere § #2 «Validering av overtid basert på arbeidstid»** er konsolidert inn i T.9 — sommer/vinter-modell er nå Variant B (dynamiske perioder i `ArbeidstidsKalender`, ikke scalar-felter). 8t (sommer) / 7t (vinter) ordinær arbeidstid-validering bygges som del av T.9-implementasjon.
 
-### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟡 (T.4-bunken pågår)
+### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟢 LUKKET 2026-05-16
 
 **Side:** Timeføring.
 
-Schema + server-input på plass (T.4). UI-felt og fra<til-validering mangler.
-
-`SheetTimer.fraTid`/`tilTid` (`packages/db-timer/prisma/schema.prisma:183-184`) og `SheetMachine.fraTid`/`tilTid` (linje 256-257) er lagt til som `String? @map("fra_tid"/"til_tid")`. Server tar imot feltene i `timer.dagsseddel.tilfoyTimerRad` (`apps/api/src/routes/timer/dagsseddel.ts:372-373, 417-418`) og `redigerTimerRad` (1506-1507, 1533-1534). Mangler: server-side validering `fraTid < tilTid` (kommentar på schema-linje 183 lover dette i PR 2, ikke implementert ennå) + UI-felt for inntasting i web/mobil-skjemaene.
+Levert via T.4-bunken (prod-commit `5d36c8b9`) + T.5 tidsrunding (prod-commit `ba6ba243`).
+Server-Zod + DB-schema + web-UI + mobil-cache + mobil-UI deployet til prod 2026-05-16.
+Mobil-UI aktiveres på enhet ved neste EAS-bygg (server-respons + lokal SQLite-migrasjon
+er klare). T.5 leverer i tillegg konfigurerbar tidsrunding (15/30/60/null) — utover
+originalt kundeønske. fra<til-validering implementert via `fraErForTil`-helper på mobil
++ onBlur-runding på web.
 
 **T.4-implementasjons-bunke (planlagt 5 sub-PR-er):**
 
@@ -69,11 +72,17 @@ Schema + server-input på plass (T.4). UI-felt og fra<til-validering mangler.
 
 **Auto-fordeling normaltid/overtid — besluttet å ikke implementere (2026-05-16).** Var tidligere notert som planlagt avhengighet av T.9-kalender. Kunden registrerer lønnsart manuelt per rad slik som i dag — `Lonnsart`-katalogen (firma-eid) dekker behovet med separate rader for «Ordinær 100», «Overtid 50%», «Overtid 100%» osv. Krever ingen ytterligere arkitektur eller regelmotor.
 
-### #4 — Redigering og splitting av timer ved attestering 🟡
+### #4 — Redigering og splitting av timer ved attestering 🟡 DELVIS LEVERT
 
 **Side:** Attestering.
 
-Attesterende skal kunne redigere antall timer og splitte en rad i flere. **Steg 4a (ECO-flytt på attestering)** ble deployet til prod 2026-05-03 (`f98fa7a5`) — leder kan endre kostnadsbærer per rad. Mangler: redigering av timeantall + rad-splitting + audit-log på endringer.
+**Levert 2026-05-14** via T7-2b-bunken:
+- ECO-flytt på attestering (Steg 4a, prod-commit `f98fa7a5` 2026-05-03) — leder kan endre kostnadsbærer per rad.
+- Per-rad-attestering med felleskomponent AttesteringDetalj (T7-2b1, prod-commit `3234c057`).
+- **Edit-modus: firma-admin kan redigere timeantall + ECO + fra/til på alle pending-rader** via `redigerSedelRader`-mutation (T7-2b2, prod-commit `755c542a`). Gated på `OrganizationSetting.tillattRedigerVedAttestering`-toggle (T7-2b3, prod-commit `af4a7deb`) — default false, firma-admin skrur på via `/dashbord/firma/innstillinger`.
+- T.5 tidsrunding (prod-commit `ba6ba243` 2026-05-16) avrunder fra/til-input i edit-modus til konfigurert intervall (15/30/60 min).
+
+**Gjenstår:** Rad-splitting (én rad → flere med ulike prosjekt/ECO/lønnsart/fra-til) krever `splittRad`-mutation. Audit-log med før/etter-snapshots per rad (T7-2b2 logger antall + actor; per-rad-snapshots utsatt til egen oppfølger).
 
 ### #5 — Registrering av HMS-gruppe på brukere ⏸️ PARKERT
 
@@ -108,11 +117,11 @@ A.Markussen-ansatte (Malin, Silje, Florian — alle `company_admin` med `organiz
 
 Ingen treff på `Prosjektleder`/`Bas` som DB-roller. Eksisterende roller: `User.role = sitedoc_admin | company_admin | user` og `ProjectMember.role = admin | member`. Krever ny rolle-modell + matrise-UI som viser tilganger per rolle.
 
-### #8 — Fagområde og oppgaver i sjekklistemaler-listevisning 🔴
+### #8 — Fagområde og oppgaver i sjekklistemaler-listevisning 🟢 LUKKET 2026-05-12
 
 **Side:** Innstillinger – Produksjon – Sjekklistemaler.
 
-`apps/web/src/app/dashbord/oppsett/produksjon/_components/MalListe.tsx` har kun 3 kolonner: Navn (`tabell.navn`), Prefiks (`maler.prefiks`), Versjon (`maler.versjon`). Mangler kolonner for fagområde og oppgaver.
+Levert via commit `3eb7398f` (impl) + merge `542461e2` (prod) 2026-05-12. Fagområde-kolonne (Bygg/HMS/Kvalitet via `mal.domain`) + Antall punkter-kolonne (`mal._count.objects`) lagt til i `apps/web/src/app/dashbord/oppsett/produksjon/_components/MalListe.tsx`. 4 nye i18n-nøkler i 15 språk. Tabellen har nå 5 kolonner: Navn, Fagområde, Antall punkter, Prefiks, Versjon.
 
 ### #9 — Justeringer på SJA (signatur/lesetilgang/deltaker) 🔴
 
