@@ -8,6 +8,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 |-----|---------|
 | [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** pågående/pauset arbeid, planlagte faser, PR-historikk |
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
+| [docs/claude/BACKLOG.md](docs/claude/BACKLOG.md) | **Backlog:** teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet |
 | [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | Deploy-bash, `.env`-krav, branching, mobil reload, prod-lærdommer |
 | [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md) | Hjelpetekst-konvensjon (?-ikon) + sidestatus-tabell |
 | [docs/claude/arkitektur.md](docs/claude/arkitektur.md) | DB-skjema, relasjoner, tilgangskontroll, fagområder, rapportobjekter |
@@ -302,6 +303,24 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 - Bruk alltid `if grep -q "KEY=" file` for å bekrefte eksistens, ikke `grep KEY= file`
 - Nøkkeloperasjoner som krever Kenneth: beskriv kommandoen, si "kjør selv" — ikke kjør via SSH
 - Roterings-sekvenser: Kenneth kjører selv på server, Opus verifiserer kun at prosessen har nøkkelen (via /proc/PID/environ med lengde-sjekk)
+
+## Dokumentasjons-regler (UFRAVIKELIGE)
+
+**Størrelsesbegrensninger:**
+- CLAUDE.md: maks 40k chars — overskrides aldri
+- STATUS-AKTUELT.md § Pågående arbeid: maks 3 aktive PRs
+- Deprioritert/planlagt arbeid → [BACKLOG.md](docs/claude/BACKLOG.md) (ikke STATUS-AKTUELT.md)
+
+**Arkiveringsplikt:**
+- PR merket DEPLOYET TIL PROD → flyttes til `historikk-YYYY-MM.md` I SAMME commit
+- Aldri la deployet arbeid ligge i STATUS-AKTUELT.md
+
+**Hvilken fil oppdateres når:**
+→ Se [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md)
+
+**Sesjonstart:**
+- Les [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) eksplisitt ved behov
+- Les [BACKLOG.md](docs/claude/BACKLOG.md) kun ved strategisk planlegging
 
 ## Viktige regler
 
