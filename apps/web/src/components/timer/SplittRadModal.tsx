@@ -350,7 +350,7 @@ export function SplittRadModal(props: Props) {
       open={true}
       onClose={props.onLukk}
       title={t(`timer.splitt.tittel.${props.radType}`)}
-      className="max-w-4xl"
+      className="max-w-6xl"
     >
       <div className="space-y-4">
         {/* Original referanse */}
@@ -366,7 +366,9 @@ export function SplittRadModal(props: Props) {
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-600">
             {t("timer.splitt.splitRader")} ({radTeller})
           </p>
-          <div className="space-y-2">
+          {/* T7-2f: overflow-x-auto sikrer at rader ikke klippes på smale skjermer
+              selv etter modal-bredde-økning til max-w-6xl. */}
+          <div className="space-y-2 overflow-x-auto">
             {props.radType === "timer" &&
               splitTimer.map((rad, i) => (
                 <RedigerTimerRad
