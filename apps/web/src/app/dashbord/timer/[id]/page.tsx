@@ -61,6 +61,7 @@ type TilleggRad = {
 type MaskinRad = {
   id: string;
   projectId: string;
+  externalCostObjectId: string | null;
   vehicleId: string;
   timer: unknown;
   mengde: unknown;
@@ -87,9 +88,9 @@ export default function DagsseddelDetaljSide() {
 
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [aktivModal, setAktivModal] = useState<
-    | { type: "timer"; projectId: string; rad?: TimerRad }
+    | { type: "timer"; projectId: string; defaultEcoId?: string | null; rad?: TimerRad }
     | { type: "tillegg"; projectId: string; rad?: TilleggRad }
-    | { type: "maskin"; projectId: string; rad?: MaskinRad }
+    | { type: "maskin"; projectId: string; defaultEcoId?: string | null; rad?: MaskinRad }
     | { type: "nyProsjekt" }
     | null
   >(null);
@@ -151,31 +152,60 @@ export default function DagsseddelDetaljSide() {
   const maskinRader = (sheet.maskiner ?? []) as unknown as MaskinRad[];
   const totaltimer = timerRader.reduce((acc, r) => acc + tilTall(r.timer), 0);
 
-  // Grupper rader per projectId. Bevarer rekkefølge: prosjekt-IDer i den
-  // rekkefølgen de først dukker opp i timer-rader, deretter tillegg, maskin.
-  const grupper = (() => {
-    const map = new Map<
-      string,
-      { timer: TimerRad[]; tillegg: TilleggRad[]; maskin: MaskinRad[] }
-    >();
-    const finn = (pid: string) => {
-      let g = map.get(pid);
-      if (!g) {
-        g = { timer: [], tillegg: [], maskin: [] };
-        map.set(pid, g);
-      }
-      return g;
-    };
-    for (const r of timerRader) finn(r.projectId).timer.push(r);
-    for (const r of tilleggRader) finn(r.projectId).tillegg.push(r);
-    for (const r of maskinRader) finn(r.projectId).maskin.push(r);
-    return map;
-  })();
+  // T7-4c (2026-05-16): Grupper per (projectId, externalCostObjectId) for
+  // arbeid + maskin. Tillegg holdes per-prosjekt (ingen ECO-felt på SheetTillegg).
+  // Rekkefølge: prosjekt-IDer i den rekkefølgen de først dukker opp; innen
+  // hvert prosjekt: hovedgruppe (ECO=null) først, deretter ECO-er i rekkefølge.
+  type EcoGruppeData = { timer: TimerRad[]; maskin: MaskinRad[] };
+  const ecoGruppeKey = (pid: string, eco: string | null) =>
+    `${pid}|${eco ?? ""}`;
+  const ecoGrupper = new Map<string, EcoGruppeData>();
+  const tilleggPerProsjekt = new Map<string, TilleggRad[]>();
+  const prosjektEcoIder = new Map<string, string[]>(); // pid → ordered eco-ids (null = "")
+  const prosjektRekkefolge: string[] = [];
+
+  const noterProsjekt = (pid: string) => {
+    if (!prosjektEcoIder.has(pid)) {
+      prosjektEcoIder.set(pid, []);
+      prosjektRekkefolge.push(pid);
+    }
+  };
+  const noterEco = (pid: string, eco: string | null) => {
+    noterProsjekt(pid);
+    const liste = prosjektEcoIder.get(pid)!;
+    const ekv = eco ?? "";
+    if (!liste.includes(ekv)) liste.push(ekv);
+  };
+  const finnEcoGruppe = (pid: string, eco: string | null): EcoGruppeData => {
+    const k = ecoGruppeKey(pid, eco);
+    let g = ecoGrupper.get(k);
+    if (!g) {
+      g = { timer: [], maskin: [] };
+      ecoGrupper.set(k, g);
+    }
+    return g;
+  };
+
+  for (const r of timerRader) {
+    noterEco(r.projectId, r.externalCostObjectId);
+    finnEcoGruppe(r.projectId, r.externalCostObjectId).timer.push(r);
+  }
+  for (const r of maskinRader) {
+    noterEco(r.projectId, r.externalCostObjectId);
+    finnEcoGruppe(r.projectId, r.externalCostObjectId).maskin.push(r);
+  }
+  for (const r of tilleggRader) {
+    noterProsjekt(r.projectId);
+    const liste = tilleggPerProsjekt.get(r.projectId) ?? [];
+    liste.push(r);
+    tilleggPerProsjekt.set(r.projectId, liste);
+  }
 
   // Slå sammen prosjekt-IDer fra rader + bruker-tilføyde tomme grupper
   const aktiveProsjektIder = Array.from(
-    new Set<string>([...grupper.keys(), ...ekstraProsjektIder]),
+    new Set<string>([...prosjektRekkefolge, ...ekstraProsjektIder]),
   );
+  for (const pid of ekstraProsjektIder) noterProsjekt(pid);
 
   // T7-1a: arbeidstid utledes fra startAt/endAt/pauseMin
   const arbeidstidTimer = (() => {
@@ -307,35 +337,49 @@ export default function DagsseddelDetaljSide() {
           {t("timer.detalj.ingenProsjektGrupper")}
         </section>
       ) : (
-        aktiveProsjektIder.map((projectId) => (
-          <ProsjektGruppe
-            key={projectId}
-            projectId={projectId}
-            prosjektNavn={prosjektNavnMap.get(projectId)}
-            timer={grupper.get(projectId)?.timer ?? []}
-            tillegg={grupper.get(projectId)?.tillegg ?? []}
-            maskin={grupper.get(projectId)?.maskin ?? []}
-            erRedigerbar={erRedigerbar}
-            onTilfoyTimer={() =>
-              setAktivModal({ type: "timer", projectId })
-            }
-            onTilfoyTillegg={() =>
-              setAktivModal({ type: "tillegg", projectId })
-            }
-            onTilfoyMaskin={() =>
-              setAktivModal({ type: "maskin", projectId })
-            }
-            onRedigerTimer={(rad) =>
-              setAktivModal({ type: "timer", projectId, rad })
-            }
-            onRedigerTillegg={(rad) =>
-              setAktivModal({ type: "tillegg", projectId, rad })
-            }
-            onRedigerMaskin={(rad) =>
-              setAktivModal({ type: "maskin", projectId, rad })
-            }
-          />
-        ))
+        aktiveProsjektIder.map((projectId) => {
+          // T7-4c: hvis ingen rader på prosjektet ennå (bruker la til via
+          // "+ Legg til prosjekt"), vis kun hovedgruppen (ECO=null).
+          const ecoIder = prosjektEcoIder.get(projectId);
+          const ecoListe =
+            ecoIder && ecoIder.length > 0 ? ecoIder : [""];
+          return (
+            <ProsjektGruppe
+              key={projectId}
+              projectId={projectId}
+              prosjektNavn={prosjektNavnMap.get(projectId)}
+              tillegg={tilleggPerProsjekt.get(projectId) ?? []}
+              ecoBuckets={ecoListe.map((ekv) => {
+                const ecoId = ekv === "" ? null : ekv;
+                const data = ecoGrupper.get(ecoGruppeKey(projectId, ecoId));
+                return {
+                  ecoId,
+                  timer: data?.timer ?? [],
+                  maskin: data?.maskin ?? [],
+                };
+              })}
+              erRedigerbar={erRedigerbar}
+              onTilfoyTimer={(ecoId) =>
+                setAktivModal({ type: "timer", projectId, defaultEcoId: ecoId })
+              }
+              onTilfoyTillegg={() =>
+                setAktivModal({ type: "tillegg", projectId })
+              }
+              onTilfoyMaskin={(ecoId) =>
+                setAktivModal({ type: "maskin", projectId, defaultEcoId: ecoId })
+              }
+              onRedigerTimer={(rad) =>
+                setAktivModal({ type: "timer", projectId, rad })
+              }
+              onRedigerTillegg={(rad) =>
+                setAktivModal({ type: "tillegg", projectId, rad })
+              }
+              onRedigerMaskin={(rad) =>
+                setAktivModal({ type: "maskin", projectId, rad })
+              }
+            />
+          );
+        })
       )}
 
       {/* + Legg til prosjekt */}
@@ -416,6 +460,7 @@ export default function DagsseddelDetaljSide() {
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
           defaultAktivitetId={sheetAktivitetId}
+          defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
           onLukk={() => setAktivModal(null)}
         />
@@ -432,6 +477,7 @@ export default function DagsseddelDetaljSide() {
         <MaskinRadDialog
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
+          defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
           onLukk={() => setAktivModal(null)}
         />
@@ -454,14 +500,22 @@ export default function DagsseddelDetaljSide() {
 
 /* ------------------------------------------------------------------ */
 /*  ProsjektGruppe — én blokk per unikt projectId                       */
+/*  T7-4c (2026-05-16): inneholder nå tillegg + N ECO-bukets.           */
+/*  Hovedgruppe (ECO=null) vises uten subheader; ekte ECO-er får        */
+/*  badge "→ Godkjenning byggherre" og navn fra eksternKostObjekt.list. */
 /* ------------------------------------------------------------------ */
+
+type EcoBucket = {
+  ecoId: string | null;
+  timer: TimerRad[];
+  maskin: MaskinRad[];
+};
 
 function ProsjektGruppe({
   projectId,
   prosjektNavn,
-  timer,
   tillegg,
-  maskin,
+  ecoBuckets,
   erRedigerbar,
   onTilfoyTimer,
   onTilfoyTillegg,
@@ -472,19 +526,24 @@ function ProsjektGruppe({
 }: {
   projectId: string;
   prosjektNavn: ProsjektRef | undefined;
-  timer: TimerRad[];
   tillegg: TilleggRad[];
-  maskin: MaskinRad[];
+  ecoBuckets: EcoBucket[];
   erRedigerbar: boolean;
-  onTilfoyTimer: () => void;
+  onTilfoyTimer: (ecoId: string | null) => void;
   onTilfoyTillegg: () => void;
-  onTilfoyMaskin: () => void;
+  onTilfoyMaskin: (ecoId: string | null) => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerTillegg: (rad: TilleggRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
 }) {
   const { t } = useTranslation();
-  const sumTimer = timer.reduce((acc, r) => acc + tilTall(r.timer), 0);
+
+  // Hent ECO-katalog for å mappe ID → kortNavn (kun for ECO-er som faktisk
+  // brukes på dette prosjektet i en gruppe).
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
+  const ecoNavnMap = new Map<string, { kortNavn: string; proAdmId: string }>(
+    (ecoer ?? []).map((e) => [e.id, { kortNavn: e.kortNavn, proAdmId: e.proAdmId }]),
+  );
 
   return (
     <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
@@ -499,37 +558,30 @@ function ProsjektGruppe({
         </h2>
       </div>
 
-      {/* Timer */}
-      <div className="mb-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-700">
-            {t("timer.detalj.timerRader")}{" "}
-            <span className="font-normal text-gray-500">
-              ({sumTimer.toFixed(2)} {t("timer.timerEnhet")})
-            </span>
-          </h3>
-          {erRedigerbar && (
-            <Button variant="secondary" onClick={onTilfoyTimer}>
-              <Plus className="mr-1 h-3 w-3" />
-              {t("timer.detalj.tilfoyTimer")}
-            </Button>
-          )}
-        </div>
-        {timer.length === 0 ? (
-          <p className="text-sm text-gray-500">
-            {t("timer.detalj.ingenTimer")}
-          </p>
-        ) : (
-          <RaderTimer
-            rader={timer}
+      {/* ECO-bukets (hoved først, deretter ECO-er) */}
+      <div className="space-y-3">
+        {ecoBuckets.map((bucket) => (
+          <EcoGruppe
+            key={bucket.ecoId ?? "hoved"}
+            ecoId={bucket.ecoId}
+            ecoNavn={
+              bucket.ecoId
+                ? ecoNavnMap.get(bucket.ecoId) ?? null
+                : null
+            }
+            timer={bucket.timer}
+            maskin={bucket.maskin}
             erRedigerbar={erRedigerbar}
-            onRediger={onRedigerTimer}
+            onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId)}
+            onTilfoyMaskin={() => onTilfoyMaskin(bucket.ecoId)}
+            onRedigerTimer={onRedigerTimer}
+            onRedigerMaskin={onRedigerMaskin}
           />
-        )}
+        ))}
       </div>
 
-      {/* Tillegg */}
-      <div className="mb-4">
+      {/* Tillegg — per-prosjekt, separat fra ECO-bukets (ingen ECO-felt på Tillegg) */}
+      <div className="mt-4 border-t border-gray-100 pt-3">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-700">
             {t("timer.detalj.tilleggRader")}
@@ -553,16 +605,141 @@ function ProsjektGruppe({
           />
         )}
       </div>
-
-      {/* Maskin */}
-      <MaskinSeksjon
-        projectId={projectId}
-        rader={maskin}
-        erRedigerbar={erRedigerbar}
-        onTilfoy={onTilfoyMaskin}
-        onRediger={onRedigerMaskin}
-      />
     </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  EcoGruppe — én bucket per (projectId, ECO)                          */
+/*  Arbeidstimer er hovedposten; maskintimer rendres indentert under    */
+/*  som visuell underpost (T.7 låst 2026-05-16). Server validerer       */
+/*  sum(maskin) ≤ sum(arbeid) per bucket — UI viser samme indikator     */
+/*  med grønn/rød fargekode.                                            */
+/* ------------------------------------------------------------------ */
+
+function EcoGruppe({
+  ecoId,
+  ecoNavn,
+  timer,
+  maskin,
+  erRedigerbar,
+  onTilfoyTimer,
+  onTilfoyMaskin,
+  onRedigerTimer,
+  onRedigerMaskin,
+}: {
+  ecoId: string | null;
+  ecoNavn: { kortNavn: string; proAdmId: string } | null;
+  timer: TimerRad[];
+  maskin: MaskinRad[];
+  erRedigerbar: boolean;
+  onTilfoyTimer: () => void;
+  onTilfoyMaskin: () => void;
+  onRedigerTimer: (rad: TimerRad) => void;
+  onRedigerMaskin: (rad: MaskinRad) => void;
+}) {
+  const { t } = useTranslation();
+  const sumTimer = timer.reduce((acc, r) => acc + tilTall(r.timer), 0);
+  const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
+  const maskinOk = sumMaskin <= sumTimer + 0.001;
+
+  return (
+    <div
+      className={`rounded border bg-gray-50 p-3 ${
+        ecoId ? "border-indigo-200" : "border-gray-200"
+      }`}
+    >
+      {/* ECO-subheader med dokumentflyt-badge — kun ekte ECO-er */}
+      {ecoId && (
+        <div className="mb-2 flex items-center justify-between gap-2 border-b border-gray-200 pb-2">
+          <div className="text-xs font-semibold text-gray-800">
+            {ecoNavn
+              ? `${ecoNavn.proAdmId} · ${ecoNavn.kortNavn}`
+              : t("timer.detalj.ukjentEco")}
+          </div>
+          <span
+            className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800"
+            title={t("timer.gruppe.tilByggherreHint")}
+          >
+            → {t("timer.gruppe.tilByggherre")}
+          </span>
+        </div>
+      )}
+
+      {/* Arbeidstimer (hovedpost) */}
+      <div className="mb-3">
+        <div className="mb-1 flex items-center justify-between">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
+            {t("timer.gruppe.arbeidstimer")}{" "}
+            <span className="font-mono font-normal text-gray-500">
+              ({sumTimer.toFixed(2)} {t("timer.timerEnhet")})
+            </span>
+          </h4>
+          {erRedigerbar && (
+            <Button variant="secondary" size="sm" onClick={onTilfoyTimer}>
+              <Plus className="mr-1 h-3 w-3" />
+              {t("timer.detalj.tilfoyTimer")}
+            </Button>
+          )}
+        </div>
+        {timer.length === 0 ? (
+          <p className="text-xs italic text-gray-500">
+            {t("timer.detalj.ingenTimer")}
+          </p>
+        ) : (
+          <RaderTimer
+            rader={timer}
+            erRedigerbar={erRedigerbar}
+            onRediger={onRedigerTimer}
+          />
+        )}
+      </div>
+
+      {/* Maskintimer som underpost (indentert, mindre kontrast) */}
+      <div className="ml-3 border-l-2 border-gray-200 pl-3">
+        <div className="mb-1 flex items-center justify-between">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+            {t("timer.gruppe.maskintimer")}{" "}
+            <span className="font-mono font-normal text-gray-500">
+              ({sumMaskin.toFixed(2)} {t("timer.timerEnhet")})
+            </span>
+          </h4>
+          {erRedigerbar && (
+            <Button variant="secondary" size="sm" onClick={onTilfoyMaskin}>
+              <Plus className="mr-1 h-3 w-3" />
+              {t("timer.detalj.tilfoyMaskin")}
+            </Button>
+          )}
+        </div>
+        {maskin.length === 0 ? (
+          <p className="text-xs italic text-gray-500">
+            {t("timer.detalj.ingenMaskiner")}
+          </p>
+        ) : (
+          <RaderMaskinKompakt
+            rader={maskin}
+            erRedigerbar={erRedigerbar}
+            onRediger={onRedigerMaskin}
+          />
+        )}
+      </div>
+
+      {/* Sum-indikator — grønn når maskin ≤ arbeid, rød ellers */}
+      {(sumTimer > 0 || sumMaskin > 0) && (
+        <div
+          className={`mt-3 rounded border px-3 py-1.5 text-xs font-medium ${
+            maskinOk
+              ? "border-green-200 bg-green-50 text-green-800"
+              : "border-red-300 bg-red-50 text-red-800"
+          }`}
+        >
+          {t("timer.gruppe.maskinAvArbeid", {
+            maskin: sumMaskin.toFixed(2),
+            arbeid: sumTimer.toFixed(2),
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -724,17 +901,18 @@ function RaderTillegg({
   );
 }
 
-function MaskinSeksjon({
-  projectId,
+/**
+ * T7-4c (2026-05-16): RaderMaskinKompakt — kun rad-listen, ingen header.
+ * Header (seksjonstittel + "+ Legg til maskin"-knapp) ligger nå i EcoGruppe
+ * fordi maskintimer er underpost per (projectId, ECO)-bucket, ikke per prosjekt.
+ */
+function RaderMaskinKompakt({
   rader,
   erRedigerbar,
-  onTilfoy,
   onRediger,
 }: {
-  projectId: string;
   rader: MaskinRad[];
   erRedigerbar: boolean;
-  onTilfoy: () => void;
   onRediger: (rad: MaskinRad) => void;
 }) {
   const { t } = useTranslation();
@@ -761,29 +939,7 @@ function MaskinSeksjon({
     onError: (e: { message: string }) => alert(e.message),
   });
 
-  void projectId;
-  const harEquipment = (equipment?.length ?? 0) > 0;
-  const harRader = rader.length > 0;
-  if (!harEquipment && !harRader) return null;
-
   return (
-    <div>
-      <div className="mb-2 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-700">
-          {t("timer.detalj.maskinRader")}
-        </h3>
-        {erRedigerbar && harEquipment && (
-          <Button variant="secondary" onClick={onTilfoy}>
-            <Plus className="mr-1 h-3 w-3" />
-            {t("timer.detalj.tilfoyMaskin")}
-          </Button>
-        )}
-      </div>
-      {rader.length === 0 ? (
-        <p className="text-sm text-gray-500">
-          {t("timer.detalj.ingenMaskiner")}
-        </p>
-      ) : (
         <ul className="divide-y divide-gray-100">
           {rader.map((rad) => (
             <li key={rad.id} className="flex items-center justify-between py-2">
@@ -824,8 +980,6 @@ function MaskinSeksjon({
             </li>
           ))}
         </ul>
-      )}
-    </div>
   );
 }
 
@@ -837,12 +991,14 @@ function TimerRadDialog({
   sheetId,
   projectId,
   defaultAktivitetId,
+  defaultEcoId,
   rad,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
   defaultAktivitetId: string | null;
+  defaultEcoId?: string | null;
   rad?: TimerRad;
   onLukk: () => void;
 }) {
@@ -861,8 +1017,11 @@ function TimerRadDialog({
   const [timer, setTimer] = useState<string>(
     rad ? String(tilTall(rad.timer)) : "",
   );
+  // T7-4c: defaultEcoId pre-selekteres når bruker klikker "+Legg til timer"
+  // i en spesifikk ECO-gruppe (eks. ECO «Mur øst»). Ved redigering brukes
+  // radens egen ECO.
   const [ecoId, setEcoId] = useState<string | null>(
-    rad?.externalCostObjectId ?? null,
+    rad?.externalCostObjectId ?? defaultEcoId ?? null,
   );
   const [feil, setFeil] = useState<string | null>(null);
 
@@ -1169,11 +1328,13 @@ function TilleggRadDialog({
 function MaskinRadDialog({
   sheetId,
   projectId,
+  defaultEcoId,
   rad,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
+  defaultEcoId?: string | null;
   rad?: MaskinRad;
   onLukk: () => void;
 }) {
@@ -1189,6 +1350,9 @@ function MaskinRadDialog({
         internNummer: string | null;
       }>
     | undefined;
+  // T7-4c: ECO-katalog for prosjektet — maskin følger samme prosjekt+ECO-
+  // gruppe som arbeidstimer (T.7 låst 2026-05-16).
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
 
   const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
   const [timer, setTimer] = useState<string>(
@@ -1200,6 +1364,9 @@ function MaskinRadDialog({
       : "",
   );
   const [enhet, setEnhet] = useState<string>(rad?.enhet ?? "");
+  const [ecoId, setEcoId] = useState<string | null>(
+    rad?.externalCostObjectId ?? defaultEcoId ?? null,
+  );
   const [feil, setFeil] = useState<string | null>(null);
 
   const tilfoy = trpc.timer.dagsseddel.maskin.tilfoy.useMutation({
@@ -1236,6 +1403,7 @@ function MaskinRadDialog({
       timer: tNum,
       mengde: mengdeNum,
       enhet: enhet || null,
+      externalCostObjectId: ecoId,
     };
     if (rad) {
       oppdater.mutate({ id: rad.id, ...data });
@@ -1321,6 +1489,38 @@ function MaskinRadDialog({
                 </option>
               ))}
             </select>
+          </div>
+        </div>
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.underprosjekt")}{" "}
+            <span className="text-xs text-gray-400">
+              ({t("label.valgfritt")})
+            </span>
+          </label>
+          <div className="flex items-center gap-2">
+            <select
+              value={ecoId ?? ""}
+              onChange={(e) => setEcoId(e.target.value || null)}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="">—</option>
+              {ecoer?.map((eco) => (
+                <option key={eco.id} value={eco.id}>
+                  {eco.proAdmId} — {eco.kortNavn}
+                </option>
+              ))}
+            </select>
+            {ecoId && (
+              <button
+                type="button"
+                onClick={() => setEcoId(null)}
+                className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                title={t("handling.fjern")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
         {feil && <p className="text-sm text-red-600">{feil}</p>}
