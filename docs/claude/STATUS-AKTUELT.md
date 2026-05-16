@@ -25,7 +25,7 @@ Test-DB-tilstand: `OrganizationSetting.tillattRedigerVedAttestering = true` akti
 
 Rootcause ukjent for begge — krever kartlegging neste sesjon. Blokkerer prod-deploy av T7-2c-bunken + T7-2d.
 
-### PR T7-2d prosjektnavn per attestering-rad + aktiverer redigering test — KLAR FOR REVIEW (branch `feature/t7-2d-attestering-fixes`)
+### PR T7-2d prosjektnavn per attestering-rad + aktiverer redigering test — MERGET TIL DEVELOP 2026-05-16 (merge `ad7fc773`, impl `762b89a0`)
 
 Liten bugfix-PR etter T7-2c-bunken. Lukker to attestering-mangler avdekket under E2E-verifikasjon:
 
@@ -53,7 +53,7 @@ Fix: ny app-layer-join (svak FK uten Prisma `@relation` per A.20-mønster). Saml
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR T7-2c3 Splitt-integrasjon i AttesteringDetalj_Edit — KLAR FOR REVIEW (branch `feature/t7-2c3`)
+### PR T7-2c3 Splitt-integrasjon i AttesteringDetalj_Edit — MERGET TIL DEVELOP 2026-05-16 (merge `4bfaacd7`, impl `ebfc269d`)
 
 Tredje sub-PR av T7-2c-bunken. Monterer SplittRadModal (T7-2c2) inn i edit-modus-flyten med per-rad Splitt-knapp, ulagrede-endringer-bekreftelse og automatisk state-reset etter splitt. Etter denne kan firma-admin faktisk splitte rader fra UI — kundeønske #4 «redigering og splitting av timer ved attestering» er fullt levert.
 
@@ -92,7 +92,7 @@ Auto-oversatt til 13 språk via `generate.ts` (2296 → 2298 totalt).
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR T7-2c2 SplittRadModal-komponent + i18n — KLAR FOR REVIEW (branch `feature/t7-2c2`)
+### PR T7-2c2 SplittRadModal-komponent + i18n — MERGET TIL DEVELOP 2026-05-16 (merge `75aa0227`, impl `b2708f22`)
 
 Andre sub-PR av T7-2c-bunken. Web-UI for rad-splitting — modal som åpnes for én pending rad og lar firma-admin fordele den til N nye rader med live sum-validering. Server-mutation (`splittRad`) ble levert i T7-2c1.
 
@@ -126,7 +126,7 @@ Andre sub-PR av T7-2c-bunken. Web-UI for rad-splitting — modal som åpnes for 
 
 Klar for review — ikke merge før Kenneth verifiserer.
 
-### PR T7-2c1 splittRad-mutation + audit-snapshot — KLAR FOR REVIEW (branch `feature/t7-2c1`)
+### PR T7-2c1 splittRad-mutation + audit-snapshot — MERGET TIL DEVELOP 2026-05-16 (merge `f6b92f70`, impl `53904028`)
 
 Første sub-PR av T7-2c-bunken (rad-splitting ved attestering). Server-only — UI kommer i T7-2c2/c3. Implementerer den manglende halvdelen av kundeønske #4 «redigering og splitting av timer ved attestering».
 
