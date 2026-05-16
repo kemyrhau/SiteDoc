@@ -72,6 +72,8 @@ type MaskinRad = {
   id: string;
   vehicleId: string;
   projectId: string;
+  // T7-4d (2026-05-16): ECO på maskin-rad fra hentForAttestering.
+  externalCostObjectId: string | null;
   byggeplassId: string | null;
   fraTid: string | null;
   tilTid: string | null;
@@ -168,7 +170,7 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
     );
   }
 
-  const totaltimer = timerRader.reduce((acc, r) => acc + tilTall(r.timer), 0);
+  // T7-4d: totaltimer er nå per-bucket — beregnes inne i EcoBucketAttest.
   const totaltAntallRader = timerRader.length + tilleggRader.length + maskinRader.length;
   const antallAttestert = [...timerRader, ...tilleggRader, ...maskinRader]
     .filter((r) => r.attestertStatus === "attestert").length;
@@ -321,53 +323,92 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
         </dl>
       </section>
 
-      <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
-        <h2 className="mb-3 text-base font-semibold text-gray-900">
-          {t("timer.detalj.timerRader")}{" "}
-          <span className="text-sm font-normal text-gray-500">
-            ({totaltimer.toFixed(2)} {t("timer.timerEnhet")})
-          </span>
-        </h2>
-        {timerRader.length === 0 ? (
-          <p className="text-sm text-gray-500">{t("timer.detalj.ingenTimer")}</p>
-        ) : (
-          <TimerRaderLeder
-            rader={timerRader}
+      {/* T7-4d: per prosjekt+ECO-gruppering (samme mønster som T7-4c). Tillegg
+          holdes per-prosjekt (ingen ECO-felt på SheetTillegg). */}
+      {(() => {
+        type EcoBucketAttest = {
+          projectId: string;
+          ecoId: string | null;
+          timer: TimerRad[];
+          maskin: MaskinRad[];
+        };
+        const bucketKey = (pid: string, eco: string | null) =>
+          `${pid}|${eco ?? ""}`;
+        const bucketMap = new Map<string, EcoBucketAttest>();
+        const prosjektEcoMap = new Map<string, string[]>();
+        const prosjektRekkefolge: string[] = [];
+        const tilleggPerProsjekt = new Map<string, TilleggRad[]>();
+        const prosjektNavnMap = new Map<string, RadProsjekt | null>();
+
+        const noterProsjekt = (
+          pid: string,
+          navn: RadProsjekt | null | undefined,
+        ) => {
+          if (!prosjektEcoMap.has(pid)) {
+            prosjektEcoMap.set(pid, []);
+            prosjektRekkefolge.push(pid);
+          }
+          if (!prosjektNavnMap.has(pid) && navn) {
+            prosjektNavnMap.set(pid, navn);
+          }
+        };
+        const noterBucket = (
+          pid: string,
+          eco: string | null,
+          navn: RadProsjekt | null | undefined,
+        ) => {
+          noterProsjekt(pid, navn);
+          const ekv = eco ?? "";
+          const liste = prosjektEcoMap.get(pid)!;
+          if (!liste.includes(ekv)) liste.push(ekv);
+          const k = bucketKey(pid, eco);
+          if (!bucketMap.has(k)) {
+            bucketMap.set(k, { projectId: pid, ecoId: eco, timer: [], maskin: [] });
+          }
+        };
+
+        for (const r of timerRader) {
+          noterBucket(r.projectId, r.externalCostObjectId, r.project);
+          bucketMap.get(bucketKey(r.projectId, r.externalCostObjectId))!.timer.push(r);
+        }
+        for (const r of maskinRader) {
+          noterBucket(r.projectId, r.externalCostObjectId, r.project);
+          bucketMap.get(bucketKey(r.projectId, r.externalCostObjectId))!.maskin.push(r);
+        }
+        for (const r of tilleggRader) {
+          noterProsjekt(r.projectId, r.project);
+          const liste = tilleggPerProsjekt.get(r.projectId) ?? [];
+          liste.push(r);
+          tilleggPerProsjekt.set(r.projectId, liste);
+        }
+
+        if (prosjektRekkefolge.length === 0) {
+          return (
+            <section className="mb-6 rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+              {t("timer.detalj.ingenTimer")}
+            </section>
+          );
+        }
+
+        return prosjektRekkefolge.map((pid) => (
+          <ProsjektSectionAttest
+            key={pid}
+            projectId={pid}
+            prosjektNavn={prosjektNavnMap.get(pid) ?? null}
+            ecoKeys={prosjektEcoMap.get(pid) ?? [""]}
+            bucketMap={bucketMap}
+            tillegg={tilleggPerProsjekt.get(pid) ?? []}
             prosjektKontekst={prosjektKontekst}
-            valgte={valgteTimer}
-            onToggle={(id) => toggle(valgteTimer, id, setValgteTimer)}
+            valgteTimer={valgteTimer}
+            valgteMaskin={valgteMaskin}
+            valgteTillegg={valgteTillegg}
+            onToggleTimer={(id) => toggle(valgteTimer, id, setValgteTimer)}
+            onToggleMaskin={(id) => toggle(valgteMaskin, id, setValgteMaskin)}
+            onToggleTillegg={(id) => toggle(valgteTillegg, id, setValgteTillegg)}
             kanFlytte={sheet.status === "sent"}
           />
-        )}
-      </section>
-
-      {tilleggRader.length > 0 && (
-        <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="mb-3 text-base font-semibold text-gray-900">
-            {t("timer.detalj.tilleggRader")}
-          </h2>
-          <TilleggRaderLeder
-            rader={tilleggRader}
-            prosjektKontekst={prosjektKontekst}
-            valgte={valgteTillegg}
-            onToggle={(id) => toggle(valgteTillegg, id, setValgteTillegg)}
-          />
-        </section>
-      )}
-
-      {maskinRader.length > 0 && (
-        <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
-          <h2 className="mb-3 text-base font-semibold text-gray-900">
-            {t("timer.detalj.maskinRader")}
-          </h2>
-          <MaskinRaderLeder
-            rader={maskinRader}
-            prosjektKontekst={prosjektKontekst}
-            valgte={valgteMaskin}
-            onToggle={(id) => toggle(valgteMaskin, id, setValgteMaskin)}
-          />
-        </section>
-      )}
+        ));
+      })()}
 
       {feil && <p className="mb-3 text-sm text-red-600">{feil}</p>}
 
@@ -847,3 +888,232 @@ function ReturnerDialog({
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  T7-4d: ProsjektSectionAttest + EcoBucketAttest                      */
+/*                                                                      */
+/*  Speil av T7-4c/edit-modus-strukturen for read-only attestering:     */
+/*  per prosjekt → N ECO-buckets + per-prosjekt tillegg. Maskin         */
+/*  indentert som underpost. Indigo-badge på ECO-grupper.               */
+/*  Beholder per-rad-checkboks + flytt-ECO-funksjonalitet via           */
+/*  eksisterende TimerRaderLeder/MaskinRaderLeder/TilleggRaderLeder.    */
+/* ------------------------------------------------------------------ */
+
+type EcoBucketAttestProps = {
+  projectId: string;
+  ecoId: string | null;
+  timer: TimerRad[];
+  maskin: MaskinRad[];
+};
+
+function ProsjektSectionAttest({
+  projectId,
+  prosjektNavn,
+  ecoKeys,
+  bucketMap,
+  tillegg,
+  prosjektKontekst,
+  valgteTimer,
+  valgteMaskin,
+  valgteTillegg,
+  onToggleTimer,
+  onToggleMaskin,
+  onToggleTillegg,
+  kanFlytte,
+}: {
+  projectId: string;
+  prosjektNavn: RadProsjekt | null;
+  ecoKeys: string[];
+  bucketMap: Map<string, EcoBucketAttestProps>;
+  tillegg: TilleggRad[];
+  prosjektKontekst?: string;
+  valgteTimer: Set<string>;
+  valgteMaskin: Set<string>;
+  valgteTillegg: Set<string>;
+  onToggleTimer: (id: string) => void;
+  onToggleMaskin: (id: string) => void;
+  onToggleTillegg: (id: string) => void;
+  kanFlytte: boolean;
+}) {
+  const { t } = useTranslation();
+  // ECO-katalog for navn på subheaders (én query per prosjekt).
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
+    { projectId },
+    { enabled: !!projectId },
+  );
+  const ecoNavnMap = new Map<string, { kortNavn: string; proAdmId: string }>(
+    (ecoer ?? []).map((e) => [
+      e.id,
+      { kortNavn: e.kortNavn, proAdmId: e.proAdmId },
+    ]),
+  );
+
+  return (
+    <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
+      <h2 className="mb-4 text-base font-semibold text-gray-900">
+        {prosjektNavn?.name ?? t("timer.detalj.ukjentProsjekt")}
+        {prosjektNavn?.projectNumber && (
+          <span className="ml-2 text-sm font-normal text-gray-500">
+            ({prosjektNavn.projectNumber})
+          </span>
+        )}
+      </h2>
+
+      <div className="space-y-3">
+        {ecoKeys.map((ekv) => {
+          const ecoId = ekv === "" ? null : ekv;
+          const bucket = bucketMap.get(`${projectId}|${ekv}`) ?? {
+            projectId,
+            ecoId,
+            timer: [],
+            maskin: [],
+          };
+          return (
+            <EcoBucketAttest
+              key={ekv}
+              ecoId={ecoId}
+              ecoNavn={ecoId ? ecoNavnMap.get(ecoId) ?? null : null}
+              timer={bucket.timer}
+              maskin={bucket.maskin}
+              prosjektKontekst={prosjektKontekst}
+              valgteTimer={valgteTimer}
+              valgteMaskin={valgteMaskin}
+              onToggleTimer={onToggleTimer}
+              onToggleMaskin={onToggleMaskin}
+              kanFlytte={kanFlytte}
+            />
+          );
+        })}
+      </div>
+
+      {/* Tillegg per-prosjekt (separat fra ECO-bukets) */}
+      {tillegg.length > 0 && (
+        <div className="mt-4 border-t border-gray-100 pt-3">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700">
+            {t("timer.detalj.tilleggRader")}
+          </h3>
+          <TilleggRaderLeder
+            rader={tillegg}
+            prosjektKontekst={prosjektKontekst}
+            valgte={valgteTillegg}
+            onToggle={onToggleTillegg}
+          />
+        </div>
+      )}
+    </section>
+  );
+}
+
+function EcoBucketAttest({
+  ecoId,
+  ecoNavn,
+  timer,
+  maskin,
+  prosjektKontekst,
+  valgteTimer,
+  valgteMaskin,
+  onToggleTimer,
+  onToggleMaskin,
+  kanFlytte,
+}: {
+  ecoId: string | null;
+  ecoNavn: { kortNavn: string; proAdmId: string } | null;
+  timer: TimerRad[];
+  maskin: MaskinRad[];
+  prosjektKontekst?: string;
+  valgteTimer: Set<string>;
+  valgteMaskin: Set<string>;
+  onToggleTimer: (id: string) => void;
+  onToggleMaskin: (id: string) => void;
+  kanFlytte: boolean;
+}) {
+  const { t } = useTranslation();
+  const sumTimer = timer.reduce((acc, r) => acc + tilTall(r.timer), 0);
+  const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
+  const maskinOk = sumMaskin <= sumTimer + 0.001;
+
+  return (
+    <div
+      className={`rounded border bg-gray-50 p-3 ${
+        ecoId ? "border-indigo-200" : "border-gray-200"
+      }`}
+    >
+      {/* ECO-subheader + indigo-badge (kun ekte ECO-er) */}
+      {ecoId && (
+        <div className="mb-2 flex items-center justify-between gap-2 border-b border-gray-200 pb-2">
+          <div className="text-xs font-semibold text-gray-800">
+            {ecoNavn
+              ? `${ecoNavn.proAdmId} · ${ecoNavn.kortNavn}`
+              : t("timer.detalj.ukjentEco")}
+          </div>
+          <span
+            className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800"
+            title={t("timer.gruppe.tilByggherreHint")}
+          >
+            → {t("timer.gruppe.tilByggherre")}
+          </span>
+        </div>
+      )}
+
+      {/* Arbeidstimer (hovedpost) */}
+      <div className="mb-3">
+        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">
+          {t("timer.gruppe.arbeidstimer")}{" "}
+          <span className="font-mono font-normal text-gray-500">
+            ({sumTimer.toFixed(2)} {t("timer.timerEnhet")})
+          </span>
+        </h4>
+        {timer.length === 0 ? (
+          <p className="text-xs italic text-gray-500">
+            {t("timer.detalj.ingenTimer")}
+          </p>
+        ) : (
+          <TimerRaderLeder
+            rader={timer}
+            prosjektKontekst={prosjektKontekst}
+            valgte={valgteTimer}
+            onToggle={onToggleTimer}
+            kanFlytte={kanFlytte}
+          />
+        )}
+      </div>
+
+      {/* Maskintimer som underpost (indentert) */}
+      <div className="ml-3 border-l-2 border-gray-200 pl-3">
+        <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+          {t("timer.gruppe.maskintimer")}{" "}
+          <span className="font-mono font-normal text-gray-500">
+            ({sumMaskin.toFixed(2)} {t("timer.timerEnhet")})
+          </span>
+        </h4>
+        {maskin.length === 0 ? (
+          <p className="text-xs italic text-gray-500">
+            {t("timer.detalj.ingenMaskiner")}
+          </p>
+        ) : (
+          <MaskinRaderLeder
+            rader={maskin}
+            prosjektKontekst={prosjektKontekst}
+            valgte={valgteMaskin}
+            onToggle={onToggleMaskin}
+          />
+        )}
+      </div>
+
+      {/* Sum-indikator: speiler T7-4b server-validering */}
+      {(sumTimer > 0 || sumMaskin > 0) && (
+        <div
+          className={`mt-3 rounded border px-3 py-1.5 text-xs font-medium ${
+            maskinOk
+              ? "border-green-200 bg-green-50 text-green-800"
+              : "border-red-300 bg-red-50 text-red-800"
+          }`}
+        >
+          {t("timer.gruppe.maskinAvArbeid", {
+            maskin: sumMaskin.toFixed(2),
+            arbeid: sumTimer.toFixed(2),
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -53,6 +53,8 @@ type MaskinRad = {
   id: string;
   vehicleId: string;
   projectId: string;
+  // T7-4d (2026-05-16): ECO på maskin-rad. Server returnerer feltet fra T7-4b.
+  externalCostObjectId: string | null;
   byggeplassId: string | null;
   fraTid: string | null;
   tilTid: string | null;
@@ -146,6 +148,7 @@ export function AttesteringDetaljEdit({
     key: r.id,
     originalId: r.id,
     projectId: r.projectId,
+    externalCostObjectId: r.externalCostObjectId,
     vehicleId: r.vehicleId,
     byggeplassId: r.byggeplassId,
     fraTid: r.fraTid,
@@ -209,16 +212,19 @@ export function AttesteringDetaljEdit({
     prosjektValg[0]?.id ??
     "";
 
-  function leggTilTimer() {
+  // T7-4d: leggTilTimer/Maskin tar (projectId, ecoId) for å pre-selektere
+  // riktig prosjekt+ECO-bucket når bruker klikker "+Legg til" i en gruppe.
+  // Fallback til førsteProsjektId hvis kalt uten parametre.
+  function leggTilTimer(pid: string = førsteProsjektId, ecoId: string | null = null) {
     setEditTimer((rader) => [
       ...rader,
       {
         key: nyKey(),
         originalId: null,
-        projectId: førsteProsjektId,
+        projectId: pid,
         lonnsartId: "",
         aktivitetId: "",
-        externalCostObjectId: null,
+        externalCostObjectId: ecoId,
         byggeplassId: null,
         fraTid: null,
         tilTid: null,
@@ -239,13 +245,14 @@ export function AttesteringDetaljEdit({
       },
     ]);
   }
-  function leggTilMaskin() {
+  function leggTilMaskin(pid: string = førsteProsjektId, ecoId: string | null = null) {
     setEditMaskin((rader) => [
       ...rader,
       {
         key: nyKey(),
         originalId: null,
-        projectId: førsteProsjektId,
+        projectId: pid,
+        externalCostObjectId: ecoId,
         vehicleId: "",
         byggeplassId: null,
         fraTid: null,
@@ -352,6 +359,7 @@ export function AttesteringDetaljEdit({
         maskin: editMaskin.map((r) => ({
           originalId: r.originalId,
           projectId: r.projectId,
+          externalCostObjectId: r.externalCostObjectId,
           vehicleId: r.vehicleId,
           byggeplassId: r.byggeplassId,
           fraTid: r.fraTid,
@@ -362,6 +370,53 @@ export function AttesteringDetaljEdit({
         })),
       },
     });
+  }
+
+  // T7-4d: Bygg prosjekt+ECO-buckets. Timer + maskin grupperes per
+  // (projectId, externalCostObjectId). Tillegg holdes per-prosjekt
+  // (ingen ECO-felt på SheetTillegg).
+  type EditBucket = {
+    projectId: string;
+    ecoId: string | null;
+    timer: RedigerTimerRadData[];
+    maskin: RedigerMaskinRadData[];
+  };
+  const bucketKey = (pid: string, eco: string | null) => `${pid}|${eco ?? ""}`;
+  const bucketMap = new Map<string, EditBucket>();
+  const prosjektEcoMap = new Map<string, string[]>();
+  const prosjektRekkefolge: string[] = [];
+  const tilleggPerProsjekt = new Map<string, RedigerTilleggRadData[]>();
+
+  const noterProsjekt = (pid: string) => {
+    if (!prosjektEcoMap.has(pid)) {
+      prosjektEcoMap.set(pid, []);
+      prosjektRekkefolge.push(pid);
+    }
+  };
+  const noterBucket = (pid: string, eco: string | null) => {
+    noterProsjekt(pid);
+    const ekv = eco ?? "";
+    const liste = prosjektEcoMap.get(pid)!;
+    if (!liste.includes(ekv)) liste.push(ekv);
+    const k = bucketKey(pid, eco);
+    if (!bucketMap.has(k)) {
+      bucketMap.set(k, { projectId: pid, ecoId: eco, timer: [], maskin: [] });
+    }
+  };
+
+  for (const r of editTimer) {
+    noterBucket(r.projectId, r.externalCostObjectId);
+    bucketMap.get(bucketKey(r.projectId, r.externalCostObjectId))!.timer.push(r);
+  }
+  for (const r of editMaskin) {
+    noterBucket(r.projectId, r.externalCostObjectId);
+    bucketMap.get(bucketKey(r.projectId, r.externalCostObjectId))!.maskin.push(r);
+  }
+  for (const r of editTillegg) {
+    noterProsjekt(r.projectId);
+    const liste = tilleggPerProsjekt.get(r.projectId) ?? [];
+    liste.push(r);
+    tilleggPerProsjekt.set(r.projectId, liste);
   }
 
   return (
@@ -378,133 +433,44 @@ export function AttesteringDetaljEdit({
         maskin={pendingMaskin}
       />
 
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">
-            {t("timer.detalj.timerRader")}
-          </h3>
-          <button
-            type="button"
-            onClick={leggTilTimer}
-            className="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
-          >
-            <Plus className="h-3 w-3" />
-            {t("timer.rediger.leggTilTimer")}
-          </button>
-        </div>
-        <div className="space-y-2">
-          {editTimer.length === 0 ? (
-            <p className="text-xs italic text-gray-500">{t("timer.rediger.ingenTimer")}</p>
-          ) : (
-            editTimer.map((rad) => {
-              const original = rad.originalId
-                ? pendingTimer.find((r) => r.id === rad.originalId)
-                : null;
-              const kanSplittes = original && (original.parentRadId ?? null) === null;
-              return (
-                <RedigerTimerRad
-                  key={rad.key}
-                  rad={rad}
-                  prosjekter={prosjektValg}
-                  tidsrundingMinutter={tidsrundingMinutter}
-                  onChange={(felt) => oppdaterTimer(rad.key, felt)}
-                  onSlett={() => slettTimer(rad.key)}
-                  onSplitt={
-                    kanSplittes && original
-                      ? () => aapneSplitt({ radType: "timer", original })
-                      : undefined
-                  }
-                />
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">
-            {t("timer.detalj.tilleggRader")}
-          </h3>
-          <button
-            type="button"
-            onClick={leggTilTillegg}
-            className="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
-          >
-            <Plus className="h-3 w-3" />
-            {t("timer.rediger.leggTilTillegg")}
-          </button>
-        </div>
-        <div className="space-y-2">
-          {editTillegg.length === 0 ? (
-            <p className="text-xs italic text-gray-500">{t("timer.rediger.ingenTillegg")}</p>
-          ) : (
-            editTillegg.map((rad) => {
-              const original = rad.originalId
-                ? pendingTillegg.find((r) => r.id === rad.originalId)
-                : null;
-              const kanSplittes = original && (original.parentRadId ?? null) === null;
-              return (
-                <RedigerTilleggRad
-                  key={rad.key}
-                  rad={rad}
-                  prosjekter={prosjektValg}
-                  onChange={(felt) => oppdaterTillegg(rad.key, felt)}
-                  onSlett={() => slettTillegg(rad.key)}
-                  onSplitt={
-                    kanSplittes && original
-                      ? () => aapneSplitt({ radType: "tillegg", original })
-                      : undefined
-                  }
-                />
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      <section className="rounded-lg border border-gray-200 bg-white p-4">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-gray-900">
-            {t("timer.detalj.maskinRader")}
-          </h3>
-          <button
-            type="button"
-            onClick={leggTilMaskin}
-            className="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
-          >
-            <Plus className="h-3 w-3" />
-            {t("timer.rediger.leggTilMaskin")}
-          </button>
-        </div>
-        <div className="space-y-2">
-          {editMaskin.length === 0 ? (
-            <p className="text-xs italic text-gray-500">{t("timer.rediger.ingenMaskin")}</p>
-          ) : (
-            editMaskin.map((rad) => {
-              const original = rad.originalId
-                ? pendingMaskin.find((r) => r.id === rad.originalId)
-                : null;
-              const kanSplittes = original && (original.parentRadId ?? null) === null;
-              return (
-                <RedigerMaskinRad
-                  key={rad.key}
-                  rad={rad}
-                  prosjekter={prosjektValg}
-                  tidsrundingMinutter={tidsrundingMinutter}
-                  onChange={(felt) => oppdaterMaskin(rad.key, felt)}
-                  onSlett={() => slettMaskin(rad.key)}
-                  onSplitt={
-                    kanSplittes && original
-                      ? () => aapneSplitt({ radType: "maskin", original })
-                      : undefined
-                  }
-                />
-              );
-            })
-          )}
-        </div>
-      </section>
+      {/* T7-4d: per-prosjekt seksjoner med ECO-bukets + tillegg */}
+      {prosjektRekkefolge.length === 0 ? (
+        <section className="rounded-lg border border-dashed border-gray-300 bg-white p-6 text-center text-sm text-gray-500">
+          {t("timer.rediger.ingenTimer")}
+        </section>
+      ) : (
+        prosjektRekkefolge.map((pid) => {
+          const ecoKeys = prosjektEcoMap.get(pid) ?? [""];
+          const ecoListe = ecoKeys.length > 0 ? ecoKeys : [""];
+          const prosjektNavn =
+            prosjektValg.find((p) => p.id === pid)?.name ?? pid;
+          return (
+            <ProsjektSectionEdit
+              key={pid}
+              projectId={pid}
+              prosjektNavn={prosjektNavn}
+              ecoKeys={ecoListe}
+              bucketMap={bucketMap}
+              tillegg={tilleggPerProsjekt.get(pid) ?? []}
+              prosjekter={prosjektValg}
+              tidsrundingMinutter={tidsrundingMinutter}
+              pendingTimer={pendingTimer}
+              pendingTillegg={pendingTillegg}
+              pendingMaskin={pendingMaskin}
+              oppdaterTimer={oppdaterTimer}
+              slettTimer={slettTimer}
+              oppdaterTillegg={oppdaterTillegg}
+              slettTillegg={slettTillegg}
+              oppdaterMaskin={oppdaterMaskin}
+              slettMaskin={slettMaskin}
+              leggTilTimer={leggTilTimer}
+              leggTilTillegg={leggTilTillegg}
+              leggTilMaskin={leggTilMaskin}
+              aapneSplitt={aapneSplitt}
+            />
+          );
+        })
+      )}
 
       {feil && <p className="text-sm text-red-600">{feil}</p>}
 
@@ -577,5 +543,348 @@ function OriginalKomprimering({
         )}
       </div>
     </details>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  T7-4d: ProsjektSectionEdit + EcoBucketEdit                          */
+/*                                                                      */
+/*  Speil av T7-4c-strukturen for edit-modus: per prosjekt → N ECO-     */
+/*  buckets + per-prosjekt tillegg. Innen hver bucket: arbeidstimer +   */
+/*  maskin indentert som underpost. "+Legg til timer/maskin"-knappene   */
+/*  pre-selekterer (projectId, ECO) for ny rad.                         */
+/* ------------------------------------------------------------------ */
+
+type EditBucketRef = {
+  projectId: string;
+  ecoId: string | null;
+  timer: RedigerTimerRadData[];
+  maskin: RedigerMaskinRadData[];
+};
+
+type SplittAktivLokal =
+  | { radType: "timer"; original: TimerRad }
+  | { radType: "tillegg"; original: TilleggRad }
+  | { radType: "maskin"; original: MaskinRad };
+
+function ProsjektSectionEdit({
+  projectId,
+  prosjektNavn,
+  ecoKeys,
+  bucketMap,
+  tillegg,
+  prosjekter,
+  tidsrundingMinutter,
+  pendingTimer,
+  pendingTillegg,
+  pendingMaskin,
+  oppdaterTimer,
+  slettTimer,
+  oppdaterTillegg,
+  slettTillegg,
+  oppdaterMaskin,
+  slettMaskin,
+  leggTilTimer,
+  leggTilTillegg,
+  leggTilMaskin,
+  aapneSplitt,
+}: {
+  projectId: string;
+  prosjektNavn: string;
+  ecoKeys: string[];
+  bucketMap: Map<string, EditBucketRef>;
+  tillegg: RedigerTilleggRadData[];
+  prosjekter: ProsjektValg[];
+  tidsrundingMinutter: number | null;
+  pendingTimer: TimerRad[];
+  pendingTillegg: TilleggRad[];
+  pendingMaskin: MaskinRad[];
+  oppdaterTimer: (key: string, felt: Partial<RedigerTimerRadData>) => void;
+  slettTimer: (key: string) => void;
+  oppdaterTillegg: (key: string, felt: Partial<RedigerTilleggRadData>) => void;
+  slettTillegg: (key: string) => void;
+  oppdaterMaskin: (key: string, felt: Partial<RedigerMaskinRadData>) => void;
+  slettMaskin: (key: string) => void;
+  leggTilTimer: (pid: string, ecoId: string | null) => void;
+  leggTilTillegg: () => void;
+  leggTilMaskin: (pid: string, ecoId: string | null) => void;
+  aapneSplitt: (aktiv: SplittAktivLokal) => void;
+}) {
+  const { t } = useTranslation();
+  // Hent ECO-katalog én gang per prosjekt for navn på subheaders.
+  const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery(
+    { projectId },
+    { enabled: !!projectId },
+  );
+  const ecoNavnMap = new Map<string, { kortNavn: string; proAdmId: string }>(
+    (ecoer ?? []).map((e) => [e.id, { kortNavn: e.kortNavn, proAdmId: e.proAdmId }]),
+  );
+
+  return (
+    <section className="rounded-lg border border-gray-200 bg-white p-4">
+      <h3 className="mb-3 text-sm font-semibold text-gray-900">
+        {prosjektNavn}
+      </h3>
+      <div className="space-y-3">
+        {ecoKeys.map((ekv) => {
+          const ecoId = ekv === "" ? null : ekv;
+          const bucket = bucketMap.get(`${projectId}|${ekv}`) ?? {
+            projectId,
+            ecoId,
+            timer: [],
+            maskin: [],
+          };
+          return (
+            <EcoBucketEdit
+              key={ekv}
+              projectId={projectId}
+              ecoId={ecoId}
+              ecoNavn={ecoId ? ecoNavnMap.get(ecoId) ?? null : null}
+              timer={bucket.timer}
+              maskin={bucket.maskin}
+              prosjekter={prosjekter}
+              tidsrundingMinutter={tidsrundingMinutter}
+              pendingTimer={pendingTimer}
+              pendingMaskin={pendingMaskin}
+              oppdaterTimer={oppdaterTimer}
+              slettTimer={slettTimer}
+              oppdaterMaskin={oppdaterMaskin}
+              slettMaskin={slettMaskin}
+              leggTilTimer={leggTilTimer}
+              leggTilMaskin={leggTilMaskin}
+              aapneSplitt={aapneSplitt}
+            />
+          );
+        })}
+      </div>
+
+      {/* Tillegg per-prosjekt (separat fra ECO-bukets) */}
+      <div className="mt-4 border-t border-gray-100 pt-3">
+        <div className="mb-2 flex items-center justify-between">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
+            {t("timer.detalj.tilleggRader")}
+          </h4>
+          <button
+            type="button"
+            onClick={leggTilTillegg}
+            className="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+          >
+            <Plus className="h-3 w-3" />
+            {t("timer.rediger.leggTilTillegg")}
+          </button>
+        </div>
+        <div className="space-y-2">
+          {tillegg.length === 0 ? (
+            <p className="text-xs italic text-gray-500">
+              {t("timer.rediger.ingenTillegg")}
+            </p>
+          ) : (
+            tillegg.map((rad) => {
+              const original = rad.originalId
+                ? pendingTillegg.find((r) => r.id === rad.originalId)
+                : null;
+              const kanSplittes =
+                original && (original.parentRadId ?? null) === null;
+              return (
+                <RedigerTilleggRad
+                  key={rad.key}
+                  rad={rad}
+                  prosjekter={prosjekter}
+                  onChange={(felt) => oppdaterTillegg(rad.key, felt)}
+                  onSlett={() => slettTillegg(rad.key)}
+                  onSplitt={
+                    kanSplittes && original
+                      ? () => aapneSplitt({ radType: "tillegg", original })
+                      : undefined
+                  }
+                />
+              );
+            })
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function EcoBucketEdit({
+  projectId,
+  ecoId,
+  ecoNavn,
+  timer,
+  maskin,
+  prosjekter,
+  tidsrundingMinutter,
+  pendingTimer,
+  pendingMaskin,
+  oppdaterTimer,
+  slettTimer,
+  oppdaterMaskin,
+  slettMaskin,
+  leggTilTimer,
+  leggTilMaskin,
+  aapneSplitt,
+}: {
+  projectId: string;
+  ecoId: string | null;
+  ecoNavn: { kortNavn: string; proAdmId: string } | null;
+  timer: RedigerTimerRadData[];
+  maskin: RedigerMaskinRadData[];
+  prosjekter: ProsjektValg[];
+  tidsrundingMinutter: number | null;
+  pendingTimer: TimerRad[];
+  pendingMaskin: MaskinRad[];
+  oppdaterTimer: (key: string, felt: Partial<RedigerTimerRadData>) => void;
+  slettTimer: (key: string) => void;
+  oppdaterMaskin: (key: string, felt: Partial<RedigerMaskinRadData>) => void;
+  slettMaskin: (key: string) => void;
+  leggTilTimer: (pid: string, ecoId: string | null) => void;
+  leggTilMaskin: (pid: string, ecoId: string | null) => void;
+  aapneSplitt: (aktiv: SplittAktivLokal) => void;
+}) {
+  const { t } = useTranslation();
+  const sumTimer = timer.reduce((acc, r) => acc + r.timer, 0);
+  const sumMaskin = maskin.reduce((acc, r) => acc + r.timer, 0);
+  const maskinOk = sumMaskin <= sumTimer + 0.001;
+
+  return (
+    <div
+      className={`rounded border bg-gray-50 p-3 ${
+        ecoId ? "border-indigo-200" : "border-gray-200"
+      }`}
+    >
+      {/* ECO-subheader med indigo-badge — kun ekte ECO-er */}
+      {ecoId && (
+        <div className="mb-2 flex items-center justify-between gap-2 border-b border-gray-200 pb-2">
+          <div className="text-xs font-semibold text-gray-800">
+            {ecoNavn
+              ? `${ecoNavn.proAdmId} · ${ecoNavn.kortNavn}`
+              : t("timer.detalj.ukjentEco")}
+          </div>
+          <span
+            className="inline-flex items-center rounded-full bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800"
+            title={t("timer.gruppe.tilByggherreHint")}
+          >
+            → {t("timer.gruppe.tilByggherre")}
+          </span>
+        </div>
+      )}
+
+      {/* Arbeidstimer (hovedpost) */}
+      <div className="mb-3">
+        <div className="mb-1 flex items-center justify-between">
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
+            {t("timer.gruppe.arbeidstimer")}{" "}
+            <span className="font-mono font-normal text-gray-500">
+              ({sumTimer.toFixed(2)} {t("timer.timerEnhet")})
+            </span>
+          </h5>
+          <button
+            type="button"
+            onClick={() => leggTilTimer(projectId, ecoId)}
+            className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+          >
+            <Plus className="h-3 w-3" />
+            {t("timer.rediger.leggTilTimer")}
+          </button>
+        </div>
+        {timer.length === 0 ? (
+          <p className="text-xs italic text-gray-500">
+            {t("timer.rediger.ingenTimer")}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {timer.map((rad) => {
+              const original = rad.originalId
+                ? pendingTimer.find((r) => r.id === rad.originalId)
+                : null;
+              const kanSplittes =
+                original && (original.parentRadId ?? null) === null;
+              return (
+                <RedigerTimerRad
+                  key={rad.key}
+                  rad={rad}
+                  prosjekter={prosjekter}
+                  tidsrundingMinutter={tidsrundingMinutter}
+                  onChange={(felt) => oppdaterTimer(rad.key, felt)}
+                  onSlett={() => slettTimer(rad.key)}
+                  onSplitt={
+                    kanSplittes && original
+                      ? () => aapneSplitt({ radType: "timer", original })
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Maskintimer som underpost (indentert) */}
+      <div className="ml-3 border-l-2 border-gray-200 pl-3">
+        <div className="mb-1 flex items-center justify-between">
+          <h5 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
+            {t("timer.gruppe.maskintimer")}{" "}
+            <span className="font-mono font-normal text-gray-500">
+              ({sumMaskin.toFixed(2)} {t("timer.timerEnhet")})
+            </span>
+          </h5>
+          <button
+            type="button"
+            onClick={() => leggTilMaskin(projectId, ecoId)}
+            className="inline-flex items-center gap-1 rounded border border-gray-300 bg-white px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+          >
+            <Plus className="h-3 w-3" />
+            {t("timer.rediger.leggTilMaskin")}
+          </button>
+        </div>
+        {maskin.length === 0 ? (
+          <p className="text-xs italic text-gray-500">
+            {t("timer.rediger.ingenMaskin")}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {maskin.map((rad) => {
+              const original = rad.originalId
+                ? pendingMaskin.find((r) => r.id === rad.originalId)
+                : null;
+              const kanSplittes =
+                original && (original.parentRadId ?? null) === null;
+              return (
+                <RedigerMaskinRad
+                  key={rad.key}
+                  rad={rad}
+                  prosjekter={prosjekter}
+                  tidsrundingMinutter={tidsrundingMinutter}
+                  onChange={(felt) => oppdaterMaskin(rad.key, felt)}
+                  onSlett={() => slettMaskin(rad.key)}
+                  onSplitt={
+                    kanSplittes && original
+                      ? () => aapneSplitt({ radType: "maskin", original })
+                      : undefined
+                  }
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers (speil av server-validering) */}
+      {(sumTimer > 0 || sumMaskin > 0) && (
+        <div
+          className={`mt-3 rounded border px-3 py-1.5 text-xs font-medium ${
+            maskinOk
+              ? "border-green-200 bg-green-50 text-green-800"
+              : "border-red-300 bg-red-50 text-red-800"
+          }`}
+        >
+          {t("timer.gruppe.maskinAvArbeid", {
+            maskin: sumMaskin.toFixed(2),
+            arbeid: sumTimer.toFixed(2),
+          })}
+        </div>
+      )}
+    </div>
   );
 }
