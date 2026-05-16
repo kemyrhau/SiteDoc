@@ -278,6 +278,9 @@ export default function FirmaInnstillinger() {
       {/* Rediger ved attestering (T7-2b3) */}
       <RedigerVedAttesteringSeksjon />
 
+      {/* Standard arbeidstid (T4-c) */}
+      <StandardArbeidstidSeksjon />
+
       {/* Hjelp-modal */}
       {hjelpÅpen && (
         <div
@@ -672,6 +675,149 @@ function RedigerVedAttesteringSeksjon() {
       {oppdater.isError && (
         <p className="mt-3 text-sm text-red-500">
           {t("firma.innstillinger.redigerVedAttestering.feil", {
+            melding: oppdater.error.message,
+          })}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  StandardArbeidstidSeksjon — T4-c (2026-05-16)                     */
+/*  Firma-default for normal arbeidsdag — brukes som forhåndsutfylling */
+/*  i mobil TimerRadModal og fallback i hentEffektivArbeidstid.       */
+/* ------------------------------------------------------------------ */
+
+function StandardArbeidstidSeksjon() {
+  const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const utils = trpc.useUtils();
+
+  const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({
+    onSuccess: () => {
+      utils.organisasjon.hentSetting.invalidate();
+    },
+  });
+
+  const [startTid, setStartTid] = useState<string>("");
+  const [sluttTid, setSluttTid] = useState<string>("");
+  const [pauseMin, setPauseMin] = useState<string>("");
+  const [skitten, setSkitten] = useState(false);
+
+  useEffect(() => {
+    if (setting) {
+      setStartTid(setting.standardStartTid);
+      setSluttTid(setting.standardSluttTid);
+      setPauseMin(String(setting.standardPauseMin));
+      setSkitten(false);
+    }
+  }, [setting]);
+
+  if (!setting || !orgId) return null;
+
+  function lagre() {
+    const pause = Number(pauseMin);
+    if (Number.isNaN(pause) || pause < 0 || pause > 480) return;
+    if (startTid >= sluttTid) return;
+    oppdater.mutate(
+      {
+        organizationId: orgId!,
+        standardStartTid: startTid,
+        standardSluttTid: sluttTid,
+        standardPauseMin: pause,
+      },
+      { onSuccess: () => setSkitten(false) },
+    );
+  }
+
+  const validBeløp =
+    startTid && sluttTid && startTid < sluttTid && Number(pauseMin) >= 0;
+
+  return (
+    <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+      <h2 className="mb-1 text-sm font-semibold text-gray-700">
+        {t("firma.innstillinger.standardArbeidstid.tittel")}
+      </h2>
+      <p className="mb-4 text-xs text-gray-500">
+        {t("firma.innstillinger.standardArbeidstid.beskrivelse")}
+      </p>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            {t("firma.innstillinger.standardArbeidstid.startTid")}
+          </label>
+          <input
+            type="time"
+            value={startTid}
+            onChange={(e) => {
+              setStartTid(e.target.value);
+              setSkitten(true);
+            }}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            {t("firma.innstillinger.standardArbeidstid.sluttTid")}
+          </label>
+          <input
+            type="time"
+            value={sluttTid}
+            onChange={(e) => {
+              setSluttTid(e.target.value);
+              setSkitten(true);
+            }}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            {t("firma.innstillinger.standardArbeidstid.pauseMin")}
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={480}
+            value={pauseMin}
+            onChange={(e) => {
+              setPauseMin(e.target.value);
+              setSkitten(true);
+            }}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {skitten && startTid >= sluttTid && (
+        <p className="mt-2 text-xs text-red-500">
+          {t("firma.innstillinger.standardArbeidstid.feilRekkefolge")}
+        </p>
+      )}
+
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={lagre}
+          disabled={!skitten || !validBeløp || oppdater.isPending}
+          className="rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {oppdater.isPending
+            ? t("handling.lagrer")
+            : t("handling.lagre")}
+        </button>
+      </div>
+
+      {oppdater.isError && (
+        <p className="mt-3 text-sm text-red-500">
+          {t("firma.innstillinger.standardArbeidstid.feil", {
             melding: oppdater.error.message,
           })}
         </p>

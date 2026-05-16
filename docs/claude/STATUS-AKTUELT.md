@@ -34,24 +34,37 @@ T.4/T.5-implementasjon). SummeringsBanner.tsx (T7-3a) trenger oppdatering
 etter T9d for å lese dagsnorm fra kalender-cache i stedet for
 `OrganizationSetting.dagsnorm`.
 
-### Topbar firma-kontekst + favoritter — på feature-branch 🟡
+### Topbar firma-kontekst + favoritter — deployet til prod ✅
 
-`feature/topbar-firma-kontekst` 2026-05-15. Topbar tilpasser seg pathname:
-i firma-kontekst (`/dashbord/firma/*`) vises ny «Firma ▾»-velger
-istedenfor `ProsjektVelger` + `ByggeplassVelger`. Lar firma-admin og
-sitedoc-admin navigere direkte mellom firma- og prosjekt-kontekst.
-Favoritt-prosjekter persistert i localStorage med stjernemerking i begge
-velgere (`ProsjektVelger` og `FirmaKontekstVelger`). 7 nye i18n-nøkler.
+Deployet til prod 2026-05-15 (prod merge `0bd27466`). Topbar tilpasser seg
+pathname: i firma-kontekst (`/dashbord/firma/*`) vises ny «Firma ▾»-velger
+istedenfor `ProsjektVelger` + `ByggeplassVelger`. Favoritt-prosjekter og
+favoritt-byggeplasser persistert i localStorage med stjernemerking i alle
+tre velgere (`ProsjektVelger`, `FirmaKontekstVelger`, `ByggeplassVelger`).
+Søkefelt vises ved >7 elementer. 11 nye i18n-nøkler totalt
+(`topbar.*` + `byggeplassVelger.*`) auto-oversatt til 13 språk.
 
 **Tidligere § #2 «Validering av overtid basert på arbeidstid»** er konsolidert inn i T.9 — sommer/vinter-modell er nå Variant B (dynamiske perioder i `ArbeidstidsKalender`, ikke scalar-felter). 8t (sommer) / 7t (vinter) ordinær arbeidstid-validering bygges som del av T.9-implementasjon.
 
-### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟡
+### #3 — Tidspunkt (fra/til) per linje i timeføringen 🟡 (T.4-bunken pågår)
 
 **Side:** Timeføring.
 
 Schema + server-input på plass (T.4). UI-felt og fra<til-validering mangler.
 
 `SheetTimer.fraTid`/`tilTid` (`packages/db-timer/prisma/schema.prisma:183-184`) og `SheetMachine.fraTid`/`tilTid` (linje 256-257) er lagt til som `String? @map("fra_tid"/"til_tid")`. Server tar imot feltene i `timer.dagsseddel.tilfoyTimerRad` (`apps/api/src/routes/timer/dagsseddel.ts:372-373, 417-418`) og `redigerTimerRad` (1506-1507, 1533-1534). Mangler: server-side validering `fraTid < tilTid` (kommentar på schema-linje 183 lover dette i PR 2, ikke implementert ennå) + UI-felt for inntasting i web/mobil-skjemaene.
+
+**T.4-implementasjons-bunke (planlagt 5 sub-PR-er):**
+
+| Sub-PR | Status | Innhold |
+|---|---|---|
+| **T4-a** | ✅ Merget til develop 2026-05-16 (merge `5acd2a5d`, impl `cfe51fc5`) | Schema + migrasjon. `OrganizationSetting.standardStartTid/SluttTid/PauseMin` (defaults 07:00/15:00/30) + `ArbeidstidsKalender.standardStartTid?/SluttTid?/pauseMin?` (overstyring for sommertid_start/slutt/halvdag). Additiv migrasjon, ingen breaking. |
+| **T4-b** | ✅ Merget til develop 2026-05-16 (merge `9bcfb5b1`, impl `088a1e37`) | `hentEffektivArbeidstid(orgId, dato)`-helper i `apps/api/src/services/timer/arbeidstid.ts` (sommertid-overstyring → firma-default). Hard sommertid-par-validering i kalender opprett/oppdater (`sommertid_start` krever `sommertid_slutt` samme år). |
+| **T4-c** | ✅ Deployet til test 2026-05-16 (merge `c02df657`, impl `39c43aa8`) | Server-Zod-utvidelse for de tre T4-a-feltene i `oppdaterSetting` + kalender `opprett`/`oppdater` (+ `validerTidsfelter`-helper). Innstillinger-side: ny `StandardArbeidstidSeksjon`. Kalender-modal: betinget visning av tidsfelter for sommertid_start/slutt/halvdag + klokke-badge i månedsliste. 15 nye i18n-nøkler → 13 språk (2277 totalt). Venter på visuell verifisering før prod-merge. |
+| **T4-d** | ✅ Merget til develop + deployet til test 2026-05-16 (merge `7bee1633`, impl `2f7bf42d`) | Mobil Drizzle: `fraTid`/`tilTid` på `sheet_timer_local` + `sheet_machine_local`. Nye lokale tabeller `arbeidstidskalender_local` + `organization_setting_local`. Nye services `kalenderKatalog.ts` (med `hentEffektivArbeidstidLokal`-helper, speil av server) + `organizationSettingKatalog.ts`. TimerSyncProvider utvidet til 2-stegs Promise.all (base-pulls → firma-spesifikke pulls per org-id fra prosjekt-cachen). `timerSync` push/pull utvidet med fraTid/tilTid per timer/maskin-rad. Server: ny medlems-tilgjengelig `organisasjon.hentArbeidstidDefaults` + fraTid/tilTid lagt til i `hentEndringerSiden`-respons-mapping. Typecheck 12 = 12 baseline. Venter på enhet-verifikasjon + prod-merge. |
+| **T4-e** | ✅ Merget til develop + deployet til test 2026-05-16 (merge `e992aca3`, impl `cea8f99e`) | Mobil UI. Ny `FraTilTidFelt`-fellekomponent (DateTimePicker mode=time, 2 felter side ved side). Montert i TimerRadModal + MaskinRadModal. Forhåndsutfylling: ny rad uten forrige rader → `hentEffektivArbeidstidLokal(orgId, dato)` (kalender + firma-default). Ny rad med forrige rader → forrige rads tilTid som fraTid. Rediger eksisterende → radens egne verdier. Validering: fraTid < tilTid hvis begge satt (`fraErForTil`-helper). Lagring til Drizzle med syncStatus=pending. SummeringsBanner: arbeidstidTimer faller tilbake til kalender-dagsnorm hvis sedel.startAt/endAt mangler — UI viser alltid relevant sammenligning. Rad-visning utvidet med `HH:MM–HH:MM`-tekst. 0 nye i18n-nøkler — gjenbruker `timer.felt.startTid/sluttTid` + `timer.feil.sluttForStart`. Typecheck 12 = 12 baseline. Venter på enhet-verifikasjon + prod-merge. |
+
+**T.4-bunken komplett på develop + test 2026-05-16:** Alle fem sub-PR-er (a/b/c/d/e) er merget og kjører på `test.sitedoc.no` + `api-test.sitedoc.no` (HTTP/2 200, migrasjoner kjørt i `sitedoc_test`). Neste: (1) Kenneth verifiserer T4-c web-UI + T4-d/e mobil-UI på testbygg (forhåndsutfylling, validering, fra/til-visning på rad). (2) Etter verifikasjon → prod-deploy av hele bunken samtidig (server-migrasjon, web-deploy, mobil-bygg via EAS → TestFlight/Play Store).
 
 ### #4 — Redigering og splitting av timer ved attestering 🟡
 

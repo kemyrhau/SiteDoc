@@ -13,3 +13,5 @@ export {
   krevTimerAktivert,
   TimerModulIkkeAktivertError,
 } from "./moduleGate";
+
+export { hentEffektivArbeidstid, type EffektivArbeidstid } from "./arbeidstid";

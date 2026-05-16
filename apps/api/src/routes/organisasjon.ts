@@ -2,7 +2,11 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
-import { autoriserAdminForFirma, hentBrukersOrg } from "../trpc/tilgangskontroll";
+import {
+  autoriserAdminForFirma,
+  hentBrukersOrg,
+  verifiserOrganisasjonTilgang,
+} from "../trpc/tilgangskontroll";
 import {
   syncProjektModulerPaaAktiver,
   syncProjektModulerPaaDeaktiver,
@@ -644,6 +648,27 @@ export const organisasjonRouter = router({
     });
   }),
 
+  // T4-d (2026-05-16): medlems-tilgjengelig subset av OrganizationSetting
+  // for mobil-cache. Returnerer KUN arbeidstid-defaults + edit-flagg —
+  // sensitive felter (timezone, tilgang-policies, kompetanse-policy) er
+  // utelatt slik at sikkerhets-grensen rundt hentSetting forblir intakt.
+  hentArbeidstidDefaults: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+      return ctx.prisma.organizationSetting.upsert({
+        where: { organizationId: input.organizationId },
+        create: { organizationId: input.organizationId },
+        update: {},
+        select: {
+          standardStartTid: true,
+          standardSluttTid: true,
+          standardPauseMin: true,
+          tillattRedigerVedAttestering: true,
+        },
+      });
+    }),
+
   // Oppdater OrganizationSetting (alle felter valgfrie, gjør upsert).
   oppdaterSetting: protectedProcedure
     .input(
@@ -664,6 +689,16 @@ export const organisasjonRouter = router({
           .optional(),
         // T7-2b2 (2026-05-14): default false. Settings-UI i T7-2b3.
         tillattRedigerVedAttestering: z.boolean().optional(),
+        // T.4 (2026-05-16): firma-default for normal arbeidsdag.
+        standardStartTid: z
+          .string()
+          .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Forventet HH:MM (00:00–23:59)")
+          .optional(),
+        standardSluttTid: z
+          .string()
+          .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Forventet HH:MM (00:00–23:59)")
+          .optional(),
+        standardPauseMin: z.number().int().min(0).max(480).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

@@ -16,15 +16,19 @@ import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
 import { sheetMachineLocal, equipmentLocal } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
+import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
 import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
+import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
 
 interface MaskinSeksjonProps {
   sheetId: string;
   rader: MaskinRad[];
   organizationId: string;
   projectId: string;
+  /** ISO YYYY-MM-DD — dato på dagsseddelen. Brukes til kalender-utleting (T4-e). */
+  dato: string;
   harEquipmentCache: boolean;
   redigerbar: boolean;
   onEndret: () => void;
@@ -35,6 +39,7 @@ export function MaskinSeksjon({
   rader,
   organizationId,
   projectId,
+  dato,
   harEquipmentCache,
   redigerbar,
   onEndret,
@@ -50,6 +55,8 @@ export function MaskinSeksjon({
       timer: number,
       mengde: number | null,
       enhet: string | null,
+      fraTid: string | null,
+      tilTid: string | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
@@ -62,6 +69,8 @@ export function MaskinSeksjon({
           timer,
           mengde,
           enhet,
+          fraTid,
+          tilTid,
           sistEndretLokalt: Date.now(),
         })
         .run();
@@ -78,6 +87,8 @@ export function MaskinSeksjon({
       timer: number,
       mengde: number | null,
       enhet: string | null,
+      fraTid: string | null,
+      tilTid: string | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
@@ -88,6 +99,8 @@ export function MaskinSeksjon({
           timer,
           mengde,
           enhet,
+          fraTid,
+          tilTid,
           sistEndretLokalt: Date.now(),
         })
         .where(eq(sheetMachineLocal.id, radId))
@@ -158,16 +171,35 @@ export function MaskinSeksjon({
         <MaskinRadModal
           organizationId={organizationId}
           defaultProjectId={projectId}
+          dato={dato}
+          eksisterendeRader={rader}
           eksisterendeRad={
             redigerRadId
               ? rader.find((r) => r.id === redigerRadId) ?? null
               : null
           }
-          onLagre={(radProjectId, vehicleId, timer, mengde, enhet) => {
+          onLagre={(
+            radProjectId,
+            vehicleId,
+            timer,
+            mengde,
+            enhet,
+            fraTid,
+            tilTid,
+          ) => {
             if (redigerRadId) {
-              oppdater(redigerRadId, radProjectId, vehicleId, timer, mengde, enhet);
+              oppdater(
+                redigerRadId,
+                radProjectId,
+                vehicleId,
+                timer,
+                mengde,
+                enhet,
+                fraTid,
+                tilTid,
+              );
             } else {
-              leggTil(radProjectId, vehicleId, timer, mengde, enhet);
+              leggTil(radProjectId, vehicleId, timer, mengde, enhet, fraTid, tilTid);
             }
             setVisModal(false);
             setRedigerRadId(null);
@@ -229,6 +261,11 @@ function MaskinRadVis({
               {rad.mengde.toFixed(2)} {rad.enhet ?? ""}
             </Text>
           )}
+          {rad.fraTid && rad.tilTid && (
+            <Text className="text-xs text-gray-500">
+              {rad.fraTid}–{rad.tilTid}
+            </Text>
+          )}
         </View>
       </View>
       <Text className="font-mono text-base text-gray-900">{rad.timer.toFixed(2)}</Text>
@@ -257,12 +294,16 @@ function MaskinRadVis({
 function MaskinRadModal({
   organizationId,
   defaultProjectId,
+  dato,
+  eksisterendeRader,
   eksisterendeRad,
   onLagre,
   onLukk,
 }: {
   organizationId: string;
   defaultProjectId: string;
+  dato: string;
+  eksisterendeRader: MaskinRad[];
   eksisterendeRad: MaskinRad | null;
   onLagre: (
     projectId: string,
@@ -270,10 +311,28 @@ function MaskinRadModal({
     timer: number,
     mengde: number | null,
     enhet: string | null,
+    fraTid: string | null,
+    tilTid: string | null,
   ) => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  // T4-e: defaults for fraTid/tilTid (samme mønster som TimerRadModal).
+  const defaultTider = useMemo(() => {
+    if (eksisterendeRad) {
+      return {
+        fra: eksisterendeRad.fraTid ?? null,
+        til: eksisterendeRad.tilTid ?? null,
+      };
+    }
+    const effektiv = hentEffektivArbeidstidLokal(organizationId, new Date(`${dato}T00:00:00`));
+    const forrigeMedTil = [...eksisterendeRader].reverse().find((r) => !!r.tilTid);
+    return {
+      fra: forrigeMedTil?.tilTid ?? effektiv.startTid,
+      til: effektiv.sluttTid,
+    };
+  }, [eksisterendeRad, eksisterendeRader, organizationId, dato]);
+
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     eksisterendeRad?.projectId ?? defaultProjectId,
   );
@@ -289,6 +348,8 @@ function MaskinRadModal({
       : "",
   );
   const [enhet, setEnhet] = useState<string>(eksisterendeRad?.enhet ?? "");
+  const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
+  const [tilTid, setTilTid] = useState<string | null>(defaultTider.til);
   const [feil, setFeil] = useState<string | null>(null);
   const [visProsjektVelger, setVisProsjektVelger] = useState(false);
   const [visEquipmentVelger, setVisEquipmentVelger] = useState(false);
@@ -334,7 +395,20 @@ function MaskinRadModal({
         return;
       }
     }
-    onLagre(valgtProjectId, valgtVehicleId, tall, mengdeNum, enhet || null);
+    // T4-e: fraTid < tilTid hvis begge satt.
+    if (!fraErForTil(fraTid, tilTid)) {
+      setFeil(t("timer.feil.sluttForStart"));
+      return;
+    }
+    onLagre(
+      valgtProjectId,
+      valgtVehicleId,
+      tall,
+      mengdeNum,
+      enhet || null,
+      fraTid,
+      tilTid,
+    );
   }
 
   return (
@@ -426,6 +500,14 @@ function MaskinRadModal({
               </Pressable>
             </View>
           </View>
+
+          {/* T4-e: Fra-/til-tid per maskin-rad. Forhåndsutfylling fra kalender. */}
+          <FraTilTidFelt
+            fraTid={fraTid}
+            tilTid={tilTid}
+            onFraEndret={setFraTid}
+            onTilEndret={setTilTid}
+          />
 
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 

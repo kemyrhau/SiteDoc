@@ -11,12 +11,18 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-05-14 (T7-3-bunken komplett på develop; a/b1/b2 i prod, d venter på review)
+**Sist oppdatert:** 2026-05-15 (T9 firmakalender + topbar firma-kontekst deployet til prod)
 **Antall filer dekket:** 50 (44 i `docs/claude/` + 6 i `docs/arkiv/`) — `neste-oppgave.md` slettet 2026-05-14, innholdet konsolidert til [STATUS-AKTUELT.md § Neste oppgaver](STATUS-AKTUELT.md)
 
 ---
 
-## Prod-deploys 2026-05-03 → 2026-05-14
+## Prod-deploys 2026-05-03 → 2026-05-15
+
+**2026-05-15 — Topbar firma-kontekst + FirmaKontekstVelger + favoritter + søk:**
+- `0bd27466` — Topbar tilpasser seg pathname via `usePathname()`. På `/dashbord/firma/*` vises ny `FirmaKontekstVelger` («Firma ▾») istedenfor `ProsjektVelger` + `ByggeplassVelger`. Ny `useFavoritter`-hook med localStorage-nøkkel `sitedoc_favoritter_${userId}` (default) eller `sitedoc_favoritter_byggeplass_${userId}` (via `nokkelPrefix`-parameter). Stjernemerking + favoritt-seksjon i `ProsjektVelger`, `FirmaKontekstVelger` og `ByggeplassVelger`. Søkefelt vises ved >7 elementer (terskel-konstant `SOK_TERSKEL = 7`). 11 nye i18n-nøkler (`topbar.*` + `byggeplassVelger.*`) auto-oversatt til 13 språk (2262 totalt).
+
+**2026-05-15 — T9 firmakalender (a/b/c):**
+- `ca71cf48` — Hele T9-bunken. **T9a** (impl `92ee4975`): `ArbeidstidsKalender`-modell i `packages/db` (Variant B, dynamisk per dato per firma), migrasjon `20260515114710_t9_arbeidstidskalender` med unique `(organization_id, dato)` + indekser, `beregnNorskeHelligdager(aar)` i `packages/db/src/seed/helligdager.ts` (Meeus/Jones/Butcher Gauss-påskealgoritme, ingen ekstern avhengighet — `date-fns-tz` var unødvendig siden vi lagrer `date` uten tid). **T9b** (impl `27123f13`): tRPC-router `apps/api/src/routes/firma/kalender.ts` med 6 prosedyrer (hentForAar, importerNorskStandard, opprett, oppdater, slett, hentForMobil). Zod-enum-validering av `type`-feltet (`helligdag | fellesferie | klemdager | sommertid_start | sommertid_slutt | halvdag | firma_fri`). Firma-admin-auth for skriving, organisasjons-medlemskap for lesing. Soft-delete via `aktiv=false`. Sommertid-par-status som myk varsling (`komplett | bare_start | bare_slutt | ingen`). **T9c** (impl `0997e81b`): Web-admin-UI på `/dashbord/firma/kalender` med år-velger (←/→ + årsnummer), «Importer norsk standard {{aar}}»-knapp, sommertid-banner ved ufullstendig par, 12 måneds-kort med fargekodede type-badges, opprett/rediger-modal med locked dato i rediger-modus + soft-delete-knapp. 30 nye i18n-nøkler (`firma.kalender.*`) auto-oversatt til 13 språk. Sidebar-element «Kalender» med `Calendar`-ikon under «Timer-rapport» — tverrgående firma-funksjon, ingen `kreverFirmaModul`-gating.
 
 **2026-05-14 — T7-2b-bunken komplett (per-rad-attestering + edit-modus + settings-toggle):**
 - `3234c057` — T7-2b1 per-rad-attestering: AttesteringDetalj-felleskomponent, `attesterRader`/`returnerRader`-mutations (per-rad-validering + auth per unike projectId), per-rad-status-badge + checkboxer, firma-detalj-side (`/dashbord/firma/timer/attestering/[id]`). Schema-kommentar-rensk `godkjent → attestert` (ingen migration). Gamle `attester`/`returner` beholdt som `@deprecated` thin wrappers.

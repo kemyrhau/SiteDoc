@@ -18,7 +18,12 @@ import {
 } from "../services/timerSync";
 import { refreshKatalog } from "../services/timerKatalog";
 import { refreshMaskinKatalog } from "../services/maskinKatalog";
-import { refreshProsjektKatalog } from "../services/prosjektKatalog";
+import {
+  refreshProsjektKatalog,
+  hentUnikeFirmaIderLokalt,
+} from "../services/prosjektKatalog";
+import { refreshKalenderKatalog } from "../services/kalenderKatalog";
+import { refreshOrganizationSettingKatalog } from "../services/organizationSettingKatalog";
 
 interface TimerSyncKontekst {
   pendingAntall: number;
@@ -84,14 +89,28 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
     if (katalogRefreshRef.current) return;
     katalogRefreshRef.current = true;
     try {
-      // Parallelle pulls — Equipment-cache (Maskin-modul) er ikke-blokkerende
-      // for Timer-katalog. Hvis Maskin er av eller equipment.list feiler,
-      // returnerer refreshMaskinKatalog tom liste uten å kaste.
+      // Steg 1 — parallelle base-pulls. Prosjekt-katalog må kjøres i dette
+      // steget fordi de firma-spesifikke pullene (kalender + setting) leser
+      // unike org-IDer fra prosjekt_local-cachen.
       await Promise.all([
         refreshKatalog(utils.client),
         refreshMaskinKatalog(utils.client),
         refreshProsjektKatalog(utils.client),
       ]);
+
+      // Steg 2 — firma-spesifikke pulls (T4-d). Utled brukerens unike org-
+      // IDer fra prosjekt-cachen og hent kalender + setting for hver.
+      // Brukere er typisk medlem av ett firma, men løsningen støtter flere.
+      const orgIds = hentUnikeFirmaIderLokalt();
+      if (orgIds.length > 0) {
+        await Promise.all(
+          orgIds.flatMap((orgId) => [
+            refreshKalenderKatalog(utils.client, orgId),
+            refreshOrganizationSettingKatalog(utils.client, orgId),
+          ]),
+        );
+      }
+
       setKatalogLastet(true);
     } catch (e) {
       // Katalog-feil er ikke kritisk — UI faller tilbake til eksisterende cache
