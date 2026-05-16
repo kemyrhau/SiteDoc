@@ -190,6 +190,11 @@ export async function syncTimer(
           maskiner: maskiner.map((m) => ({
             id: m.id,
             projectId: m.projectId ?? sedel.projectId,
+            // T7-4e (2026-05-16): send ECO per maskin-rad. Server (T7-4b
+            // syncBatch) tar imot feltet og kjører sum(maskin) ≤ sum(timer)-
+            // validering per (projectId, ECO). Drizzle-kolonnen ble lagt til
+            // i T7-4a; sync-laget glemte å speile før T7-4e.
+            externalCostObjectId: m.externalCostObjectId ?? null,
             vehicleId: m.vehicleId,
             timer: m.timer,
             mengde: m.mengde,
@@ -401,6 +406,9 @@ export async function syncTimer(
             id: m.id,
             dagsseddelId: serverSedel.id,
             projectId: m.projectId ?? sedelProjectId,
+            // T7-4e: skriv ECO på maskin lokalt. Server (T7-4b hentEndringerSiden)
+            // returnerer feltet i maskiner-mappingen.
+            externalCostObjectId: m.externalCostObjectId ?? null,
             vehicleId: m.vehicleId,
             timer: m.timer,
             mengde: m.mengde,
