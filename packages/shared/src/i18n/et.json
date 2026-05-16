@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Kõikidel taimeri ridadel peab olema projekt, palgatüüp, tegevus ja taimer > 0.",
   "timer.rediger.feil.tilleggInkomplett": "Kõigil saastekvootide ridadel peab olema projekt, varu ja kogus > 0.",
   "timer.rediger.feil.maskinInkomplett": "Kõikidel masinaridadel peab olema projekt, masin ja taimer > 0.",
+  "timer.rediger.splittRad": "Poolita rida",
+  "timer.rediger.splittBekreft": "Teil on salvestamata muudatusi, mis tühistatakse. Kas jätkata?",
   "timer.splitt.tittel.timer": "Poolitati taimeri rida",
   "timer.splitt.tittel.tillegg": "Jagatud toetuse rida",
   "timer.splitt.tittel.maskin": "Poolita masinarida",

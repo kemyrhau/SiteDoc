@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Alle timer-rader må ha prosjekt, lønnsart, aktivitet og timer > 0.",
   "timer.rediger.feil.tilleggInkomplett": "Alle tillegg-rader må ha prosjekt, tillegg og antall > 0.",
   "timer.rediger.feil.maskinInkomplett": "Alle maskin-rader må ha prosjekt, maskin og timer > 0.",
+  "timer.rediger.splittRad": "Splitt rad",
+  "timer.rediger.splittBekreft": "Du har ulagrede endringer som vil bli forkastet. Fortsett?",
   "timer.splitt.tittel.timer": "Splitt timer-rad",
   "timer.splitt.tittel.tillegg": "Splitt tillegg-rad",
   "timer.splitt.tittel.maskin": "Splitt maskin-rad",

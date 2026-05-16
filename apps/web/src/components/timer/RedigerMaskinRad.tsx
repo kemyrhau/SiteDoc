@@ -2,7 +2,7 @@
 
 // T7-2b2 (2026-05-14): Inline-form for én maskin-rad i edit-modus.
 
-import { Trash2 } from "lucide-react";
+import { Split, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
@@ -15,6 +15,8 @@ type Props = {
   tidsrundingMinutter: number | null;
   onChange: (felt: Partial<RedigerMaskinRadData>) => void;
   onSlett: () => void;
+  /** T7-2c3: hvis satt, vis Splitt-knapp som kaller denne. */
+  onSplitt?: () => void;
 };
 
 export function RedigerMaskinRad({
@@ -23,6 +25,7 @@ export function RedigerMaskinRad({
   tidsrundingMinutter,
   onChange,
   onSlett,
+  onSplitt,
 }: Props) {
   const { t } = useTranslation();
   const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
@@ -121,15 +124,28 @@ export function RedigerMaskinRad({
         <option value="stk">stk</option>
       </select>
 
-      <button
-        type="button"
-        onClick={onSlett}
-        className="col-span-12 -mt-1 flex items-center justify-end gap-1 text-xs text-red-600 hover:text-red-800"
-        aria-label={t("timer.rediger.slettRad")}
-      >
-        <Trash2 className="h-3 w-3" />
-        {t("timer.rediger.slettRad")}
-      </button>
+      <div className="col-span-12 -mt-1 flex items-center justify-end gap-3">
+        {onSplitt && (
+          <button
+            type="button"
+            onClick={onSplitt}
+            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-800"
+            aria-label={t("timer.rediger.splittRad")}
+          >
+            <Split className="h-3 w-3" />
+            {t("timer.rediger.splittRad")}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onSlett}
+          className="flex items-center gap-1 text-xs text-red-600 hover:text-red-800"
+          aria-label={t("timer.rediger.slettRad")}
+        >
+          <Trash2 className="h-3 w-3" />
+          {t("timer.rediger.slettRad")}
+        </button>
+      </div>
     </div>
   );
 }

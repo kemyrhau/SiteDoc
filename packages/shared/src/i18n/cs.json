@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Všechny řádky časovače musí mít projekt, typ mzdy, činnost a časovač > 0.",
   "timer.rediger.feil.tilleggInkomplett": "Všechny řádky povolenek musí mít projekt, příspěvek a množství > 0.",
   "timer.rediger.feil.maskinInkomplett": "Všechny řady strojů musí mít projekt, stroj a časovač > 0.",
+  "timer.rediger.splittRad": "Rozdělit řádek",
+  "timer.rediger.splittBekreft": "Máte neuložené změny, které budou zahozeny. Pokračovat?",
   "timer.splitt.tittel.timer": "Rozdělit řádek časovače",
   "timer.splitt.tittel.tillegg": "Rozdělit řádek příspěvku",
   "timer.splitt.tittel.maskin": "Rozdělte strojní řadu",

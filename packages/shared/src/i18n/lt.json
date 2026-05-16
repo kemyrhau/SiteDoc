@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Visose laikmačio eilutėse turi būti nurodytas projektas, atlyginimo tipas, veikla ir laikmatis > 0.",
   "timer.rediger.feil.tilleggInkomplett": "Visose leidimų eilutėse turi būti projektas, pašalpa ir kiekis > 0.",
   "timer.rediger.feil.maskinInkomplett": "Visos mašinos eilutės turi turėti projektą, mašiną ir laikmatį > 0.",
+  "timer.rediger.splittRad": "Padalinti eilutę",
+  "timer.rediger.splittBekreft": "Turite neišsaugotų pakeitimų, kurie bus atmesti. Tęsti?",
   "timer.splitt.tittel.timer": "Padalinta laikmačio eilutė",
   "timer.splitt.tittel.tillegg": "Padalintos pašalpos eilutė",
   "timer.splitt.tittel.maskin": "Padalinta mašinos eilė",

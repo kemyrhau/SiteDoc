@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Kaikilla ajastinriveillä on oltava projekti, palkkatyyppi, aktiviteetti ja ajastin > 0.",
   "timer.rediger.feil.tilleggInkomplett": "Kaikilla korvausriveillä on oltava projekti, lisäys ja määrä > 0.",
   "timer.rediger.feil.maskinInkomplett": "Kaikilla koneriveillä on oltava projekti, kone ja ajastin > 0.",
+  "timer.rediger.splittRad": "Jaa rivi",
+  "timer.rediger.splittBekreft": "Sinulla on tallentamattomia muutoksia, jotka hylätään. Jatkaa?",
   "timer.splitt.tittel.timer": "Jaettu ajastinrivi",
   "timer.splitt.tittel.tillegg": "Jaettu korvausrivi",
   "timer.splitt.tittel.maskin": "Jaa konerivi",

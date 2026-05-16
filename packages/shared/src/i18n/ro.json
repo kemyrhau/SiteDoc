@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Toate rândurile de cronometru trebuie să aibă proiect, tip de salariu, activitate și cronometru > 0.",
   "timer.rediger.feil.tilleggInkomplett": "Toate rândurile de alocație trebuie să aibă proiect, alocație și cantitate > 0.",
   "timer.rediger.feil.maskinInkomplett": "Toate rândurile de mașini trebuie să aibă proiect, mașină și temporizator > 0.",
+  "timer.rediger.splittRad": "Rând împărțit",
+  "timer.rediger.splittBekreft": "You have unsaved changes that will be discarded. Continua?",
   "timer.splitt.tittel.timer": "Rând temporizator împărțit",
   "timer.splitt.tittel.tillegg": "Împărțiți rândul de indemnizație",
   "timer.splitt.tittel.maskin": "Împărțiți rândul de mașini",

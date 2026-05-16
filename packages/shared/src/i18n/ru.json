@@ -272,6 +272,8 @@
   "timer.rediger.feil.timerInkomplett": "Во всех строках таймера должны быть указаны проект, тип оплаты, вид деятельности и таймер > 0.",
   "timer.rediger.feil.tilleggInkomplett": "Во всех строках допусков должны быть указаны проект, припуск и количество > 0.",
   "timer.rediger.feil.maskinInkomplett": "Во всех строках машин должны быть указаны проект, машина и таймер > 0.",
+  "timer.rediger.splittRad": "Разделить строку",
+  "timer.rediger.splittBekreft": "У вас есть несохраненные изменения, которые будут отменены. Продолжать?",
   "timer.splitt.tittel.timer": "Разделить строку таймера",
   "timer.splitt.tittel.tillegg": "Разделить строку допуска",
   "timer.splitt.tittel.maskin": "Разделить машинный ряд",
