@@ -60,6 +60,9 @@ export async function refreshOrganizationSettingKatalog(
       standardSluttTid: setting.standardSluttTid ?? "15:00",
       standardPauseMin: setting.standardPauseMin ?? 30,
       tillattRedigerVedAttestering: setting.tillattRedigerVedAttestering ?? false,
+      // T.5: null betyr ingen avrunding. undefined fra server (eldre klient
+      // mot ny server) tolkes også som ingen avrunding.
+      tidsrundingMinutter: setting.tidsrundingMinutter ?? null,
       sistOppdatert: naa,
     })
     .run();

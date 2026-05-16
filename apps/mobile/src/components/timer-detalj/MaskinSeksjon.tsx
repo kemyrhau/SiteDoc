@@ -17,6 +17,7 @@ import { hentDatabase } from "../../db/database";
 import { sheetMachineLocal, equipmentLocal } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
+import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
@@ -317,6 +318,12 @@ function MaskinRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  // T.5: Hent firma-tidsrunding fra lokal cache. null = ingen runding.
+  const tidsrundingMinutter = useMemo(
+    () => hentOrganizationSettingLokalt(organizationId)?.tidsrundingMinutter ?? null,
+    [organizationId],
+  );
+
   // T4-e: defaults for fraTid/tilTid (samme mønster som TimerRadModal).
   const defaultTider = useMemo(() => {
     if (eksisterendeRad) {
@@ -501,10 +508,12 @@ function MaskinRadModal({
             </View>
           </View>
 
-          {/* T4-e: Fra-/til-tid per maskin-rad. Forhåndsutfylling fra kalender. */}
+          {/* T4-e: Fra-/til-tid per maskin-rad. Forhåndsutfylling fra kalender.
+              T.5: avrunding via firma-setting. */}
           <FraTilTidFelt
             fraTid={fraTid}
             tilTid={tilTid}
+            tidsrundingMinutter={tidsrundingMinutter}
             onFraEndret={setFraTid}
             onTilEndret={setTilTid}
           />

@@ -22,6 +22,7 @@ import {
 } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
+import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import type {
   TimerRad,
   Lonnsart,
@@ -360,6 +361,12 @@ function TimerRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  // T.5: Hent firma-tidsrunding fra lokal cache. null = ingen runding.
+  const tidsrundingMinutter = useMemo(
+    () => hentOrganizationSettingLokalt(organizationId)?.tidsrundingMinutter ?? null,
+    [organizationId],
+  );
+
   // T4-e: Beregn defaults for fraTid/tilTid ved opprettelse av ny rad.
   //   - Ny rad uten eksisterende rader: fraTid = effektiv.startTid, tilTid = effektiv.sluttTid
   //   - Ny rad med eksisterende rader: fraTid = siste rads tilTid (hvis satt), ellers effektiv.startTid; tilTid = effektiv.sluttTid
@@ -555,10 +562,11 @@ function TimerRadModal({
           </View>
 
           {/* T4-e: Fra-/til-tid per rad. Forhåndsutfylling fra kalender +
-              forrige rads tilTid. */}
+              forrige rads tilTid. T.5: avrunding via firma-setting. */}
           <FraTilTidFelt
             fraTid={fraTid}
             tilTid={tilTid}
+            tidsrundingMinutter={tidsrundingMinutter}
             onFraEndret={setFraTid}
             onTilEndret={setTilTid}
           />
