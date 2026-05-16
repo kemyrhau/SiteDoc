@@ -2,9 +2,10 @@ import { useState } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useTranslation } from "react-i18next";
+import { rundTilNarmeste } from "../../utils/tidsrunding";
 
 /* ============================================================================
- *  FraTilTidFelt (T4-e 2026-05-16)
+ *  FraTilTidFelt (T4-e 2026-05-16, T.5 2026-05-16)
  *
  *  Gjenbrukbar tids-velger for fra/til-tid per rad på dagsseddel (timer +
  *  maskin). Bruker @react-native-community/datetimepicker i mode="time".
@@ -13,16 +14,27 @@ import { useTranslation } from "react-i18next";
  *  eller null) + setters. Picker-toggle-state holdes internt.
  *
  *  Validering (fraTid < tilTid) gjøres av forelder ved lagre, ikke her.
+ *
+ *  T.5: tidsrundingMinutter rundes inn FØR onFraEndret/onTilEndret kalles.
+ *  null = ingen avrunding (identity).
  * ============================================================================ */
 
 interface Props {
   fraTid: string | null;
   tilTid: string | null;
+  /** T.5: null = ingen runding. Verdier 15/30/60. */
+  tidsrundingMinutter: number | null;
   onFraEndret: (hhmm: string) => void;
   onTilEndret: (hhmm: string) => void;
 }
 
-export function FraTilTidFelt({ fraTid, tilTid, onFraEndret, onTilEndret }: Props) {
+export function FraTilTidFelt({
+  fraTid,
+  tilTid,
+  tidsrundingMinutter,
+  onFraEndret,
+  onTilEndret,
+}: Props) {
   const { t } = useTranslation();
   const [visFraPicker, setVisFraPicker] = useState(false);
   const [visTilPicker, setVisTilPicker] = useState(false);
@@ -47,9 +59,17 @@ export function FraTilTidFelt({ fraTid, tilTid, onFraEndret, onTilEndret }: Prop
             mode="time"
             is24Hour
             display={Platform.OS === "ios" ? "spinner" : "default"}
+            // T.5: minuteInterval er en hint til pickeren — iOS/Android ignorerer den
+            // for vilkårlige verdier (kun 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30), så vi
+            // runder også ved onChange som sikker fallback.
+            minuteInterval={
+              tidsrundingMinutter === 15 || tidsrundingMinutter === 30
+                ? tidsrundingMinutter
+                : undefined
+            }
             onChange={(_, valgt) => {
               setVisFraPicker(Platform.OS === "ios");
-              if (valgt) onFraEndret(dateTilHhmm(valgt));
+              if (valgt) onFraEndret(rundTilNarmeste(dateTilHhmm(valgt), tidsrundingMinutter));
             }}
           />
         )}
@@ -73,9 +93,14 @@ export function FraTilTidFelt({ fraTid, tilTid, onFraEndret, onTilEndret }: Prop
             mode="time"
             is24Hour
             display={Platform.OS === "ios" ? "spinner" : "default"}
+            minuteInterval={
+              tidsrundingMinutter === 15 || tidsrundingMinutter === 30
+                ? tidsrundingMinutter
+                : undefined
+            }
             onChange={(_, valgt) => {
               setVisTilPicker(Platform.OS === "ios");
-              if (valgt) onTilEndret(dateTilHhmm(valgt));
+              if (valgt) onTilEndret(rundTilNarmeste(dateTilHhmm(valgt), tidsrundingMinutter));
             }}
           />
         )}

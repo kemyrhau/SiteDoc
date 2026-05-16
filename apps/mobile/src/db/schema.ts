@@ -304,5 +304,8 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
   })
     .notNull()
     .default(false),
+  // T.5 (2026-05-16) — null = ingen avrunding. Verdier 15/30/60.
+  // Tilføyes idempotent via ALTER. Brukes av FraTilTidFelt + rad-modaler.
+  tidsrundingMinutter: integer("tidsrunding_minutter"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });

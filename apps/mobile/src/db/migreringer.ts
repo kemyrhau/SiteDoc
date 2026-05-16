@@ -428,4 +428,23 @@ export function kjorMigreringer() {
       sist_oppdatert INTEGER NOT NULL
     );
   `);
+
+  // T.5 (2026-05-16) — tidsrunding for picker-input. null = ingen avrunding.
+  // Idempotent ALTER for klienter som allerede har T4-d-tabellen uten kolonnen.
+  try {
+    const kolonner = db.getAllSync(
+      `PRAGMA table_info(organization_setting_local)`,
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "tidsrunding_minutter")) {
+      console.log("[MIG] Legger til tidsrunding_minutter på organization_setting_local (T.5)");
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN tidsrunding_minutter INTEGER`,
+      );
+    }
+  } catch (e) {
+    console.warn(
+      "[MIG] Kunne ikke utvide organization_setting_local med tidsrunding_minutter:",
+      e,
+    );
+  }
 }

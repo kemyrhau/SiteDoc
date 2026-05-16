@@ -89,6 +89,13 @@ export function AttesteringDetaljEdit({
     { enabled: !!organizationId },
   );
 
+  // T.5: hent tidsrunding fra firma-setting for time-input runding.
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId },
+    { enabled: !!organizationId },
+  );
+  const tidsrundingMinutter = setting?.tidsrundingMinutter ?? null;
+
   const prosjektListe = (prosjekter ?? []) as Array<{
     id: string;
     name: string;
@@ -327,6 +334,7 @@ export function AttesteringDetaljEdit({
                 key={rad.key}
                 rad={rad}
                 prosjekter={prosjektValg}
+                tidsrundingMinutter={tidsrundingMinutter}
                 onChange={(felt) => oppdaterTimer(rad.key, felt)}
                 onSlett={() => slettTimer(rad.key)}
               />
@@ -389,6 +397,7 @@ export function AttesteringDetaljEdit({
                 key={rad.key}
                 rad={rad}
                 prosjekter={prosjektValg}
+                tidsrundingMinutter={tidsrundingMinutter}
                 onChange={(felt) => oppdaterMaskin(rad.key, felt)}
                 onSlett={() => slettMaskin(rad.key)}
               />
