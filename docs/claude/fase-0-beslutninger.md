@@ -909,6 +909,28 @@ PR T7-2 starter etter PR T7-1 er deployet og verifisert på prod. PR T7-3 kan i 
 - Alle redigeringer loggføres i audit-log uavhengig av innstilling (Activity-tabell med `actorId` + `before`/`after`-payload)
 - Splitting-regler over (rad-splitting) er tillatt uavhengig av denne innstillingen — splitting er attestering-flyt-mekanikk, ikke verdi-endring
 
+**Flytskille (låst 2026-05-16):**
+
+- Arbeidstaker: registrerer timer — ingenting annet
+- Attestering (prosjektleder): bekrefter at timer er korrekte — IKKE godkjenning til Byggherre
+- Godkjenning til Byggherre: SEPARAT prosess i dokumentflyt-modulen
+  → Byggherre kan avvise timer → ikke fakturerbart, men fortsatt prosjektkostnad
+  → Timer-modulen styrer ALDRI timer direkte til Byggherre
+
+**Dagsseddel-struktur (låst 2026-05-16):**
+
+Grupperes per prosjekt+ECO — ikke per radtype.
+
+```
+Prosjekt A (ECO=null): Arbeidstimer + Maskintimer (≤ arb.t A) + Vareforbruk
+Prosjekt B (ECO=null): Arbeidstimer + Maskintimer + Vareforbruk
+Prosjekt B (ECO=B.1):  Arbeidstimer + Maskintimer (≤ arb.t B.1) + Vareforbruk
+                       → Godkjenning via dokumentflyt (ikke timer-attestering)
+```
+
+GPS: finner prosjekt A og B, ikke ECO/underprosjekt (manuell valg av arbeider).
+Datamodell (`projectId` + `externalCostObjectId`) er KORREKT. Kun UI-gruppering mangler.
+
 ### T.8 — Innsjekk-basert prosjektforslag i dagsseddel (låst 2026-05-12)
 
 Når arbeider åpner «Ny dagsseddel», foreslås prosjekt basert på innsjekk-historikk fra Mannskap-modulen (Fase 4). Arbeider bestemmer alltid selv — forslaget kan overstyres.
