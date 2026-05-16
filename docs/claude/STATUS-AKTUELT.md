@@ -20,6 +20,20 @@ Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på e
 
 Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
 
+### PR T7-4f-2 attestering-buckets ekstrahert — IMPLEMENTERT PÅ feature/t7-4f-2 2026-05-16
+
+Andre sub-PR i T7-4f-bunken. Ekstraherer `ProsjektSectionAttest` + `EcoBucketAttest` (pluss intern `RadStatusBadge` + `TimerRaderLeder`/`TilleggRaderLeder`/`MaskinRaderLeder`) fra `AttesteringDetalj.tsx:892–1119` til ny fil `apps/web/src/components/attestering/attestering-buckets.tsx`.
+
+- Eksporterte komponenter: `ProsjektSectionAttest`, `EcoBucketAttest`
+- Eksporterte typer: `RadProsjekt`, `TimerRad`, `TilleggRad`, `MaskinRad`, `EcoBucketAttestProps`
+- `AttesteringDetalj.tsx`: 1119 → 525 linjer
+- Lucide `X`-import fjernet fra hovedfil (kun brukt i ekstrahert blokk)
+- Lokal `type EcoBucketAttest` i hovedkomponent erstattet med importert `EcoBucketAttestProps`
+- Ingen funksjonell endring — kun strukturell omplassering
+- Typecheck (web): 0 nye feil (pre-eksisterende vitest-feil består uavhengig)
+
+Neste: T7-4f-3 (firma-attestering-liste expanded inline med uke-nav + filter-pills).
+
 ### PR T7-4f-1 attestering-liste server-beriking — IMPLEMENTERT PÅ feature/t7-4f-1 2026-05-16
 
 Første sub-PR i T7-4f-bunken (mockup v7, spec låst i [fase-0-beslutninger.md § T7-4f](fase-0-beslutninger.md)). Utvider `hentTilAttesteringFirma` (`apps/api/src/routes/timer/dagsseddel.ts`) med:
