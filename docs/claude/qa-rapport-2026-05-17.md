@@ -77,9 +77,32 @@ tilleggskrav-sedler, se B5).
 Ola Tømrer har grønn «Maskintimer X av arbeidstimer Y». Per Prosjektadmin
 har det ikke. Mulig betinget rendering-bug i `SeddelKort.tsx`.
 
-### B6–B10 — fungerer ✅
+### B6 — KORRIGERT: 1-klikk redigering fungerer IKKE
 
-- B6 — 1-klikk penn fungerer (T7-5b-4 OK)
+To klikk kreves:
+1. Penn-ikon → åpner modal i attesterings-visning (les + attester)
+2. «Rediger sedel»-knapp i modal → aktiverer edit-modus
+
+Ikke 1-klikk. Modalen åpnes i read-only-modus med per-rad-checkboxer
+for attestering. Bruker må klikke «Rediger sedel» inni modalen for å
+aktivere `AttesteringDetaljEdit`.
+
+### B_ny — Lagre-knapp alltid blå (ikke grå→grønn ved endring)
+
+Spec sier knapp grå/inaktiv → grønn ved endring. Faktisk: Lagre-
+endringer-knapp er blå fra start uavhengig av om noe er endret. Ingen
+`isDirty`-logikk implementert.
+
+### B_ny2 — Maskin > Arbeid viser KORREKT rød advarsel i detaljvisning ✅
+
+«Maskintimer 7.50t av arbeidstimer 4.50t» vises i rødt i modal. Men
+dette er pause-avviket: timer-raden 07:00–12:00 = 4.5t arbeid (etter
+0:30 pause-fradrag), maskin 07:00–15:00 = 7.5t. Maskin kjørte gjennom
+pause — server-validering (T7-4b) tillater dette innenfor sedel-
+sjekken fordi `daily_sheets.startAt/endAt` definerer faktisk arbeidstid.
+
+### B7–B10 — fungerer ✅
+
 - B7 — Fra/til vises på timer og maskin
 - B8 — Underprosjekt/ECO synlig
 - B9 — Tilleggskrav oransje
@@ -87,11 +110,13 @@ har det ikke. Mulig betinget rendering-bug i `SeddelKort.tsx`.
 
 ## Prioritert rekkefølge (én fix per commit, typecheck mellom hver)
 
-1. **B1** — Modal-bredde (liten, isolert)
-2. **B2** — `null null` maskinnavn (liten, isolert)
-3. **B5** — Sum-indikator mangler (liten, isolert)
-4. **A1** — Timer-rad fra/til (medium, planlegges separat)
-5. **A3** — Vareforbruk i dagsseddel (stort, separat planleggingssesjon)
+1. **B1** — Modal-bredde ✅ DEPLOYET (`92774103`)
+2. **B6** — Penn-klikk → auto-aktiver edit-modus (liten, isolert)
+3. **B_ny** — Lagre-knapp dirty-tracking + grå→grønn (liten, isolert)
+4. **B2** — `null null` maskinnavn (liten, isolert)
+5. **B5** — Sum-indikator mangler i SeddelKort (liten, isolert)
+6. **A1** — Timer-rad fra/til (medium, planlegges separat)
+7. **A3** — Vareforbruk i dagsseddel (stort, separat planleggingssesjon)
 
 ## Kode-funn per avvik
 
@@ -133,6 +158,32 @@ viser flat tabell. T7-5a (uke-grid) planlagt men ikke bygget.
 Fikset 2026-05-17 i commit `92774103` —
 `packages/ui/src/Modal.tsx:49` har smart regex-fallback. Bekreftet
 deployet til test (HTTP 200 etter restart 224670 → 225744).
+
+### B6 — Penn-klikk åpner modal i read-only, ikke edit-modus
+`apps/web/src/components/timer/AttesteringDetalj.tsx:68` —
+`const [redigerModus, setRedigerModus] = useState(false)` starter alltid
+i `false`. T7-5b-2/3/4-arbeidet fjernet `?rediger=1`-trigger fra
+`useSearchParams` (siden modal-flyt erstattet route-trigger), men la
+ALDRI til alternativ måte å auto-aktivere edit-modus. `RedigerSeddelModal`
+monterer `<AttesteringDetalj>` uten init-prop for modus.
+
+Fix: Legg til `initialModus?: "lese" | "rediger"`-prop på
+`AttesteringDetalj` som overstyrer `useState(false)`-default.
+`RedigerSeddelModal` sender `initialModus="rediger"`. Krever også at
+`redigerTillatt=true` (vakt mot å vise edit-UI når firma har slått av
+flagget).
+
+### B_ny — Lagre-knapp uten dirty-tracking
+`apps/web/src/components/timer/AttesteringDetalj_Edit.tsx:481` —
+```tsx
+<Button onClick={handleLagre} disabled={lagre.isPending}>
+```
+Ingen `isDirty`/`hasChanges`-state. Komponenten holder redigerings-state
+i flere maps (`timerEndringer`, `tilleggEndringer`, `maskinEndringer`,
+`nyeTimerRader`, `nyeTilleggRader`, `nyeMaskinRader`, `slettedeIder`),
+men ingen samlet `harEndringer`-derived state.
+
+Fix: Beregn `harEndringer = ...endringer.size > 0 || ...nyeRader.length > 0 || ...slettede.size > 0` og pass `variant`/`className` på Button basert på den. Spec: grå/inaktiv → grønn ved endring.
 
 ### B2 — null null maskinnavn
 `apps/web/src/components/attestering/SeddelKort.tsx:138–142`:
