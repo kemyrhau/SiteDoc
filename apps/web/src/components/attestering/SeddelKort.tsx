@@ -9,7 +9,13 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { Button } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
-import { Check, ExternalLink, MoreHorizontal, RotateCcw } from "lucide-react";
+import {
+  Check,
+  ExternalLink,
+  MoreHorizontal,
+  Pencil,
+  RotateCcw,
+} from "lucide-react";
 import type { MaskinRad, TilleggRad, TimerRad } from "./attestering-buckets";
 
 type Ansatt = {
@@ -166,10 +172,6 @@ export function SeddelKort({
               )}
             </div>
             <div className="mt-0.5 text-xs text-gray-500">
-              <span className="font-mono text-gray-700">
-                {sedel.totaltimer.toFixed(2)}t
-              </span>{" "}
-              ·{" "}
               {t("timer.attestering.sedel.dagsnorm", {
                 dagsnorm: sedel.dagsnorm.toFixed(2),
               })}
@@ -182,80 +184,13 @@ export function SeddelKort({
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/dashbord/firma/timer/attestering/${sedel.id}`}
-            className="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
-          >
-            <ExternalLink className="h-3 w-3" />
-            {t("timer.attestering.meny.detalj")}
-          </Link>
-          <button
-            onClick={onReturner}
-            disabled={attesterPending}
-            className="rounded p-1.5 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
-            title={t("timer.attestering.returner")}
-            aria-label={t("timer.attestering.returner")}
-          >
-            <RotateCcw className="h-4 w-4" />
-          </button>
-          <Button
-            onClick={onAttester}
-            disabled={attesterPending}
-            size="sm"
-            className={
-              oransje
-                ? "bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500"
-                : ""
-            }
-          >
-            <Check className="mr-1 h-3.5 w-3.5" />
-            {t("timer.attestering.attester")}
-          </Button>
-          <div className="relative">
-            <button
-              onClick={() => setMenyApen((o) => !o)}
-              className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
-              title={t("timer.attestering.meny.tittel")}
-              aria-label={t("timer.attestering.meny.tittel")}
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
-            {menyApen && (
-              <>
-                <div
-                  className="fixed inset-0 z-10"
-                  onClick={() => setMenyApen(false)}
-                />
-                <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                  <Link
-                    href={`/dashbord/firma/timer/attestering/${sedel.id}`}
-                    className="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                    onClick={() => setMenyApen(false)}
-                  >
-                    {t("timer.attestering.meny.rediger")}
-                  </Link>
-                  <Link
-                    href={`/dashbord/firma/timer/attestering/${sedel.id}`}
-                    className="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                    onClick={() => setMenyApen(false)}
-                  >
-                    {t("timer.attestering.meny.splittRad")}
-                  </Link>
-                  <button
-                    onClick={() => {
-                      setMenyApen(false);
-                      onReturner();
-                    }}
-                    className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
-                  >
-                    {t("timer.attestering.meny.returner")}
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        <Link
+          href={`/dashbord/firma/timer/attestering/${sedel.id}`}
+          className="inline-flex items-center gap-1 rounded border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+        >
+          <ExternalLink className="h-3 w-3" />
+          {t("timer.attestering.meny.detalj")}
+        </Link>
       </header>
 
       {/* ---------- Tabell ---------- */}
@@ -306,7 +241,7 @@ export function SeddelKort({
                   {b.timer.map((rad) => (
                     <tr
                       key={rad.id}
-                      className="border-b border-gray-100 last:border-b-0"
+                      className="group border-b border-gray-100 last:border-b-0"
                     >
                       <td className="px-3 py-2 text-gray-900">
                         {lonnsartNavn(rad.lonnsartId)}
@@ -320,14 +255,24 @@ export function SeddelKort({
                           : "—"}
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-gray-900">
-                        {tilTall(rad.timer).toFixed(2)}t
+                        <span className="inline-flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/dashbord/firma/timer/attestering/${sedel.id}`}
+                            className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
+                            title={t("timer.attestering.meny.rediger")}
+                            aria-label={t("timer.attestering.meny.rediger")}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Link>
+                          {tilTall(rad.timer).toFixed(2)}t
+                        </span>
                       </td>
                     </tr>
                   ))}
                   {b.maskin.map((rad) => (
                     <tr
                       key={rad.id}
-                      className="border-b border-gray-100 text-gray-500 last:border-b-0"
+                      className="group border-b border-gray-100 text-gray-500 last:border-b-0"
                     >
                       <td colSpan={3} className="py-1.5 pl-9 pr-3 italic">
                         ↳ {maskinNavn(rad.vehicleId)}
@@ -343,7 +288,17 @@ export function SeddelKort({
                         )}
                       </td>
                       <td className="px-3 py-1.5 text-right font-mono">
-                        {tilTall(rad.timer).toFixed(2)}t
+                        <span className="inline-flex items-center justify-end gap-1.5">
+                          <Link
+                            href={`/dashbord/firma/timer/attestering/${sedel.id}`}
+                            className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
+                            title={t("timer.attestering.meny.rediger")}
+                            aria-label={t("timer.attestering.meny.rediger")}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Link>
+                          {tilTall(rad.timer).toFixed(2)}t
+                        </span>
                       </td>
                     </tr>
                   ))}
@@ -371,9 +326,90 @@ export function SeddelKort({
                 </td>
               </tr>
             ))}
+
+            {/* Sum-rad: total timer-sum i Timer-kolonnen */}
+            <tr className="border-t-2 border-gray-200 bg-gray-50">
+              <td className="px-3 py-2" />
+              <td className="px-3 py-2" />
+              <td className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wide text-gray-500">
+                Sum
+              </td>
+              <td className="px-3 py-2 text-right font-mono text-sm font-semibold text-gray-900">
+                {sedel.totaltimer.toFixed(2)}t
+              </td>
+            </tr>
           </tbody>
         </table>
       )}
+
+      {/* ---------- Actions under tabellen ---------- */}
+      <div className="flex items-center gap-2 border-t border-gray-100 px-4 py-3">
+        <button
+          onClick={onReturner}
+          disabled={attesterPending}
+          className="rounded p-1.5 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
+          title={t("timer.attestering.returner")}
+          aria-label={t("timer.attestering.returner")}
+        >
+          <RotateCcw className="h-4 w-4" />
+        </button>
+        <Button
+          onClick={onAttester}
+          disabled={attesterPending}
+          size="sm"
+          className={
+            oransje
+              ? "bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500"
+              : ""
+          }
+        >
+          <Check className="mr-1 h-3.5 w-3.5" />
+          {t("timer.attestering.attester")}
+        </Button>
+        <div className="relative">
+          <button
+            onClick={() => setMenyApen((o) => !o)}
+            className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
+            title={t("timer.attestering.meny.tittel")}
+            aria-label={t("timer.attestering.meny.tittel")}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+          {menyApen && (
+            <>
+              <div
+                className="fixed inset-0 z-10"
+                onClick={() => setMenyApen(false)}
+              />
+              <div className="absolute left-0 top-full z-20 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                <Link
+                  href={`/dashbord/firma/timer/attestering/${sedel.id}`}
+                  className="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  onClick={() => setMenyApen(false)}
+                >
+                  {t("timer.attestering.meny.rediger")}
+                </Link>
+                <Link
+                  href={`/dashbord/firma/timer/attestering/${sedel.id}`}
+                  className="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                  onClick={() => setMenyApen(false)}
+                >
+                  {t("timer.attestering.meny.splittRad")}
+                </Link>
+                <button
+                  onClick={() => {
+                    setMenyApen(false);
+                    onReturner();
+                  }}
+                  className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  {t("timer.attestering.meny.returner")}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
