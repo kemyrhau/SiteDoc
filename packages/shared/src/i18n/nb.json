@@ -281,6 +281,7 @@
   "timer.rediger.leggTilMaskin": "+ Legg til maskin",
   "timer.rediger.slettRad": "Slett rad",
   "timer.rediger.lagre": "Lagre endringer",
+  "timer.rediger.radModal.tittel": "Rediger arbeid",
   "timer.rediger.ingenTimer": "Ingen timer-rader",
   "timer.rediger.ingenTillegg": "Ingen tilleggsrader",
   "timer.rediger.ingenMaskin": "Ingen maskinrader",

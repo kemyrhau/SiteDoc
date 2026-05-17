@@ -26,7 +26,7 @@ import {
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import type { ProsjektValg } from "@/components/timer/rediger-types";
-import { RedigerSeddelModal } from "./RedigerSeddelModal";
+import { RedigerRadModal } from "./RedigerRadModal";
 import type { MaskinRad, TilleggRad, TimerRad } from "./attestering-buckets";
 
 type SplittAktiv =
@@ -96,7 +96,12 @@ export function SeddelKort({
   const utils = trpc.useUtils();
   const [menyApen, setMenyApen] = useState(false);
   const [splittAktiv, setSplittAktiv] = useState<SplittAktiv | null>(null);
-  const [redigerÅpen, setRedigerÅpen] = useState(false);
+  // T7-5d: penn-klikk åpner kun bucken (projectId + ecoId) raden tilhører,
+  // ikke hele sedelen.
+  const [redigerBucket, setRedigerBucket] = useState<{
+    projectId: string;
+    ecoId: string | null;
+  } | null>(null);
   const oransje = sedel.tilleggHarKrav;
   // T7-4g: mertid = arbeidet mer enn dagsnorm. Krever dagsnorm > 0 for å
   // unngå false positive på sedler uten konfigurert norm.
@@ -311,17 +316,19 @@ export function SeddelKort({
                 }}
               />
               <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                <button
-                  type="button"
+                {/* T7-5d: «Rediger hele sedelen» går til detaljsiden (full
+                    kontekst). Per-rad-redigering skjer via penn-ikon i tabellen. */}
+                <Link
+                  href={`/dashbord/firma/timer/attestering/${sedel.id}`}
                   onClick={(e) => {
                     e.stopPropagation();
                     setMenyApen(false);
-                    setRedigerÅpen(true);
                   }}
-                  className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
+                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
                 >
+                  <ExternalLink className="h-3 w-3" />
                   {t("timer.attestering.meny.rediger")}
-                </button>
+                </Link>
                 <button
                   type="button"
                   onClick={(e) => {
@@ -333,17 +340,6 @@ export function SeddelKort({
                 >
                   {t("timer.attestering.meny.returner")}
                 </button>
-                <Link
-                  href={`/dashbord/firma/timer/attestering/${sedel.id}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMenyApen(false);
-                  }}
-                  className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
-                >
-                  <ExternalLink className="h-3 w-3" />
-                  {t("timer.attestering.meny.detalj")}
-                </Link>
               </div>
             </>
           )}
@@ -438,7 +434,12 @@ export function SeddelKort({
                             <span className="inline-flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => setRedigerÅpen(true)}
+                                onClick={() =>
+                                  setRedigerBucket({
+                                    projectId: rad.projectId,
+                                    ecoId: rad.externalCostObjectId,
+                                  })
+                                }
                                 className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
                                 title={t("timer.attestering.meny.rediger")}
                                 aria-label={t("timer.attestering.meny.rediger")}
@@ -483,7 +484,12 @@ export function SeddelKort({
                             <span className="inline-flex items-center justify-end gap-1.5">
                               <button
                                 type="button"
-                                onClick={() => setRedigerÅpen(true)}
+                                onClick={() =>
+                                  setRedigerBucket({
+                                    projectId: rad.projectId,
+                                    ecoId: rad.externalCostObjectId,
+                                  })
+                                }
                                 className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
                                 title={t("timer.attestering.meny.rediger")}
                                 aria-label={t("timer.attestering.meny.rediger")}
@@ -579,12 +585,14 @@ export function SeddelKort({
         />
       )}
 
-      {/* T7-5b-4: penn-klikk åpner modal-wrapper rundt AttesteringDetalj.
-          Lukker = list-kontekst bevart. */}
-      {redigerÅpen && (
-        <RedigerSeddelModal
+      {/* T7-5d: penn-klikk åpner RedigerRadModal kun for raden+ECO-bucken.
+          Hele-sedel-redigering går til detaljsiden via ⋯-menyen. */}
+      {redigerBucket && (
+        <RedigerRadModal
           sheetId={sedel.id}
-          onLukk={() => setRedigerÅpen(false)}
+          projectId={redigerBucket.projectId}
+          ecoId={redigerBucket.ecoId}
+          onLukk={() => setRedigerBucket(null)}
         />
       )}
     </div>

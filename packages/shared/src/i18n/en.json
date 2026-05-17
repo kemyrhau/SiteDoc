@@ -281,6 +281,7 @@
   "timer.rediger.leggTilMaskin": "+ Add machine",
   "timer.rediger.slettRad": "Delete row",
   "timer.rediger.lagre": "Save changes",
+  "timer.rediger.radModal.tittel": "Edit work",
   "timer.rediger.ingenTimer": "No timer rows",
   "timer.rediger.ingenTillegg": "No allowance rows",
   "timer.rediger.ingenMaskin": "No machine rows",
