@@ -46,7 +46,13 @@ export function Modal({
           : undefined
       }
       suppressHydrationWarning
-      className={`w-full max-w-lg rounded-lg border-0 p-0 shadow-xl backdrop:bg-black/50 ${className}`}
+      // T7-5b-fiks (2026-05-17): className må kunne overstyre max-w-lg.
+      // I Tailwind taper en senere arbitrary value (max-w-[80vw]) mot en
+      // tidligere standard utility (max-w-lg) i samme utvalg. Løsning:
+      // bare legg til max-w-lg som fallback når className ikke selv har
+      // en max-w-* utility. Bevarer eksisterende callers som sender kun
+      // f.eks. className="z-[60]" (FaggruppeTilknytningModal).
+      className={`w-full ${className}${/\bmax-w-/.test(className) ? "" : " max-w-lg"} rounded-lg border-0 p-0 shadow-xl backdrop:bg-black/50`}
     >
       <div className="p-6">
         <div className="mb-4 flex items-center justify-between">
