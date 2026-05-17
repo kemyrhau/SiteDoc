@@ -449,13 +449,6 @@ export function SeddelKort({
                 >
                   {t("timer.attestering.meny.rediger")}
                 </Link>
-                <Link
-                  href={`/dashbord/firma/timer/attestering/${sedel.id}`}
-                  className="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                  onClick={() => setMenyApen(false)}
-                >
-                  {t("timer.attestering.meny.splittRad")}
-                </Link>
                 <button
                   onClick={() => {
                     setMenyApen(false);
