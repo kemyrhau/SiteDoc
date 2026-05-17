@@ -1,11 +1,10 @@
 "use client";
 
 // T7-4f-3 (2026-05-16): Firma-attestering-liste — mockup v7.
-// Uke-navigasjon, filter-pills, gruppering per prosjekt, sedel-kort med
-// expanded ECO/Maskin/Tillegg via ekstrahert ProsjektSectionAttest.
+// Uke-navigasjon, filter-pills, gruppering per prosjekt, kompakt sedel-kort
+// via SeddelKort (T7-4f-3b 2026-05-17 — flat tabell, ikke ProsjektSectionAttest).
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
@@ -14,18 +13,15 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
-  MoreHorizontal,
-  RotateCcw,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
-import {
-  ProsjektSectionAttest,
-  type EcoBucketAttestProps,
-  type MaskinRad,
-  type RadProsjekt,
-  type TilleggRad,
-  type TimerRad,
+import type {
+  MaskinRad,
+  RadProsjekt,
+  TilleggRad,
+  TimerRad,
 } from "@/components/attestering/attestering-buckets";
+import { SeddelKort } from "@/components/attestering/SeddelKort";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -408,7 +404,7 @@ function ProsjektGruppe({
       </header>
       <div className="space-y-3">
         {gruppe.sedler.map((s) => (
-          <SedelKort
+          <SeddelKort
             key={s.id}
             sedel={s}
             onAttester={() => onAttester(s.id)}
@@ -421,225 +417,6 @@ function ProsjektGruppe({
   );
 }
 
-/* ------------------------------------------------------------------ */
-/*  SedelKort                                                           */
-/* ------------------------------------------------------------------ */
-
-function SedelKort({
-  sedel,
-  onAttester,
-  onReturner,
-  attesterPending,
-}: {
-  sedel: AttesteringRad;
-  onAttester: () => void;
-  onReturner: () => void;
-  attesterPending: boolean;
-}) {
-  const { t } = useTranslation();
-  const [menyApen, setMenyApen] = useState(false);
-  const oransje = sedel.tilleggHarKrav;
-
-  // Bygg prosjekt+ECO-buckets fra sedlens rader (samme mønster som
-  // AttesteringDetalj). Maskinrader får ECO via SheetMachine.externalCostObjectId
-  // (T7-4d), tilleggsrader gruppe per prosjekt (ingen ECO på SheetTillegg).
-  const { buckets, prosjektNavnMap, ecoKeys, tilleggPerProsjekt, prosjektRekkefolge } =
-    useMemo(() => {
-      const bucketMap = new Map<string, EcoBucketAttestProps>();
-      const prosjektEcoMap = new Map<string, string[]>();
-      const rekkefolge: string[] = [];
-      const tilleggPP = new Map<string, TilleggRad[]>();
-      const prosjektNavn = new Map<string, RadProsjekt | null>();
-
-      const bucketKey = (pid: string, eco: string | null) =>
-        `${pid}|${eco ?? ""}`;
-      const noterProsjekt = (
-        pid: string,
-        navn: RadProsjekt | null | undefined,
-      ) => {
-        if (!prosjektEcoMap.has(pid)) {
-          prosjektEcoMap.set(pid, []);
-          rekkefolge.push(pid);
-        }
-        if (!prosjektNavn.has(pid) && navn) prosjektNavn.set(pid, navn);
-      };
-      const noterBucket = (
-        pid: string,
-        eco: string | null,
-        navn: RadProsjekt | null | undefined,
-      ) => {
-        noterProsjekt(pid, navn);
-        const ekv = eco ?? "";
-        const liste = prosjektEcoMap.get(pid)!;
-        if (!liste.includes(ekv)) liste.push(ekv);
-        const k = bucketKey(pid, eco);
-        if (!bucketMap.has(k)) {
-          bucketMap.set(k, { projectId: pid, ecoId: eco, timer: [], maskin: [] });
-        }
-      };
-
-      for (const r of sedel.timer) {
-        noterBucket(r.projectId, r.externalCostObjectId, r.project);
-        bucketMap.get(bucketKey(r.projectId, r.externalCostObjectId))!.timer.push(r);
-      }
-      for (const r of sedel.maskiner) {
-        noterBucket(r.projectId, r.externalCostObjectId, r.project);
-        bucketMap.get(bucketKey(r.projectId, r.externalCostObjectId))!.maskin.push(r);
-      }
-      for (const r of sedel.tillegg) {
-        noterProsjekt(r.projectId, r.project);
-        const liste = tilleggPP.get(r.projectId) ?? [];
-        liste.push(r);
-        tilleggPP.set(r.projectId, liste);
-      }
-
-      const ekm = new Map<string, string[]>();
-      for (const pid of rekkefolge) {
-        ekm.set(pid, prosjektEcoMap.get(pid) ?? [""]);
-      }
-
-      return {
-        buckets: bucketMap,
-        prosjektNavnMap: prosjektNavn,
-        ecoKeys: ekm,
-        tilleggPerProsjekt: tilleggPP,
-        prosjektRekkefolge: rekkefolge,
-      };
-    }, [sedel]);
-
-  return (
-    <div
-      className={`rounded-lg border bg-white p-4 ${
-        oransje
-          ? "border-orange-200 border-l-4 border-l-orange-400"
-          : "border-gray-200"
-      }`}
-    >
-      {/* Sedel-header */}
-      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-gray-900">
-            <span>{formatDato(sedel.dato)}</span>
-            <span className="text-gray-400">·</span>
-            <span>{sedel.ansatt?.name ?? sedel.ansatt?.email ?? "—"}</span>
-            {sedel.ansatt?.ansattnummer && (
-              <span className="text-xs text-gray-500">
-                #{sedel.ansatt.ansattnummer}
-              </span>
-            )}
-            {oransje && (
-              <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
-                {t("timer.attestering.sedel.tilleggskrav")}
-              </span>
-            )}
-          </div>
-          <div className="mt-0.5 text-xs text-gray-500">
-            <span className="font-mono text-gray-700">
-              {sedel.totaltimer.toFixed(2)}t
-            </span>{" "}
-            ·{" "}
-            {t("timer.attestering.sedel.dagsnorm", {
-              dagsnorm: sedel.dagsnorm.toFixed(2),
-            })}
-            {sedel.aktivitet && (
-              <>
-                <span className="mx-2 text-gray-400">·</span>
-                {sedel.aktivitet.navn}
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ECO-grupperinger via felles komponent (kanFlytte=false per T7-4f Alt B) */}
-      {prosjektRekkefolge.map((pid) => (
-        <ProsjektSectionAttest
-          key={pid}
-          projectId={pid}
-          prosjektNavn={prosjektNavnMap.get(pid) ?? null}
-          ecoKeys={ecoKeys.get(pid) ?? [""]}
-          bucketMap={buckets}
-          tillegg={tilleggPerProsjekt.get(pid) ?? []}
-          valgteTimer={new Set()}
-          valgteMaskin={new Set()}
-          valgteTillegg={new Set()}
-          onToggleTimer={() => {}}
-          onToggleMaskin={() => {}}
-          onToggleTillegg={() => {}}
-          kanFlytte={false}
-        />
-      ))}
-
-      {/* Actions */}
-      <div className="mt-3 flex items-center justify-end gap-2 border-t border-gray-100 pt-3">
-        <button
-          onClick={onReturner}
-          disabled={attesterPending}
-          className="rounded p-1.5 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
-          title={t("timer.attestering.returner")}
-          aria-label={t("timer.attestering.returner")}
-        >
-          <RotateCcw className="h-4 w-4" />
-        </button>
-        <Button
-          onClick={onAttester}
-          disabled={attesterPending}
-          className={
-            oransje
-              ? "bg-orange-600 text-white hover:bg-orange-700 focus:ring-orange-500"
-              : ""
-          }
-        >
-          <Check className="mr-1 h-3.5 w-3.5" />
-          {t("timer.attestering.attester")}
-        </Button>
-        <div className="relative">
-          <button
-            onClick={() => setMenyApen((o) => !o)}
-            className="rounded p-1.5 text-gray-500 hover:bg-gray-100"
-            title={t("timer.attestering.meny.tittel")}
-            aria-label={t("timer.attestering.meny.tittel")}
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
-          {menyApen && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setMenyApen(false)}
-              />
-              <div className="absolute right-0 top-full z-20 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                <Link
-                  href={`/dashbord/firma/timer/attestering/${sedel.id}`}
-                  className="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                  onClick={() => setMenyApen(false)}
-                >
-                  {t("timer.attestering.meny.rediger")}
-                </Link>
-                <Link
-                  href={`/dashbord/firma/timer/attestering/${sedel.id}`}
-                  className="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                  onClick={() => setMenyApen(false)}
-                >
-                  {t("timer.attestering.meny.splittRad")}
-                </Link>
-                <button
-                  onClick={() => {
-                    setMenyApen(false);
-                    onReturner();
-                  }}
-                  className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
-                >
-                  {t("timer.attestering.meny.returner")}
-                </button>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  ReturnerDialog                                                      */
