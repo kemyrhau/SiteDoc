@@ -56,6 +56,10 @@ type Props = {
   // følger parent-bredden. Brukes når komponenten monteres i modal med
   // egen max-w. Default false (eksisterende side-bruk uendret).
   fullBredde?: boolean;
+  // T7-5b-B6 (2026-05-17): hopp direkte i edit-modus når modus="rediger".
+  // Aktiveres kun hvis sheet.redigerTillatt=true — ellers ignoreres.
+  // Brukes av RedigerSeddelModal for å spare ett klikk fra penn-ikon.
+  initialModus?: "lese" | "rediger";
 };
 
 export function AttesteringDetalj({
@@ -64,6 +68,7 @@ export function AttesteringDetalj({
   tilbakeUrl,
   onFerdig,
   fullBredde = false,
+  initialModus,
 }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -124,6 +129,16 @@ export function AttesteringDetalj({
     setValgteMaskin(new Set(maskinRader.filter(radTilgjengelig).map((r) => r.id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheet?.id]);
+
+  // T7-5b-B6: hopp direkte i edit-modus når caller (RedigerSeddelModal)
+  // ber om det og firma har redigerTillatt=true. Sparer ett klikk fra
+  // penn-ikon — bruker slipper å klikke "Rediger sedel" inni modalen.
+  useEffect(() => {
+    if (initialModus === "rediger" && sheet?.redigerTillatt) {
+      setRedigerModus(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialModus, sheet?.redigerTillatt]);
 
   if (isLoading) {
     return (

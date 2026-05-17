@@ -36,6 +36,10 @@ export function RedigerSeddelModal({ sheetId, onLukk }: Props) {
           // T7-5b-B1: dropp max-w-3xl-wrapperen så innholdet følger
           // modal-bredden (max-w-[80vw]).
           fullBredde
+          // T7-5b-B6: åpne direkte i edit-modus så bruker slipper å
+          // klikke "Rediger sedel" inni modalen. Aktiveres kun hvis
+          // sheet.redigerTillatt=true (firma-flagget).
+          initialModus="rediger"
         />
       </div>
     </Modal>
