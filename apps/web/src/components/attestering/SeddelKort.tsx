@@ -3,6 +3,8 @@
 // T7-4f-3b (2026-05-17): Kompakt sedel-kort med tabell-layout per mockup v7.
 // Speiler ikke ProsjektSectionAttest — bygger egen flat tabell med ECO som
 // sub-headers og maskin-rader indentert under timer-rader.
+// T7-4f-splitt-1-klikk (2026-05-17): ✂-ikon per rad åpner SplittRadModal
+// direkte fra listen — sparer 2 klikk (oversikt → detalj → splitt).
 
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
@@ -15,8 +17,16 @@ import {
   MoreHorizontal,
   Pencil,
   RotateCcw,
+  Scissors,
 } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
+import { SplittRadModal } from "@/components/timer/SplittRadModal";
+import type { ProsjektValg } from "@/components/timer/rediger-types";
 import type { MaskinRad, TilleggRad, TimerRad } from "./attestering-buckets";
+
+type SplittAktiv =
+  | { radType: "timer"; original: TimerRad }
+  | { radType: "maskin"; original: MaskinRad };
 
 type Ansatt = {
   id: string;
@@ -76,8 +86,30 @@ export function SeddelKort({
   attesterPending: boolean;
 }) {
   const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+  const utils = trpc.useUtils();
   const [menyApen, setMenyApen] = useState(false);
+  const [splittAktiv, setSplittAktiv] = useState<SplittAktiv | null>(null);
   const oransje = sedel.tilleggHarKrav;
+
+  // T7-4f-splitt-1-klikk: prosjekter + tidsrunding for SplittRadModal.
+  // trpc-cache dedupliserer på tvers av sedel-kort — én faktisk query per side.
+  const { data: prosjekterRaw } = trpc.prosjekt.hentAlle.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  // T7-4f-splitt: prosjekt.hentAlle returnerer komplekse Project-objekter som
+  // trigger TS2589 ved direkte .map. Kast til minimal shape for å unngå
+  // dyp type-instantiation (CLAUDE.md § tRPC TS2589-fallgruven).
+  const prosjekter: ProsjektValg[] = (
+    (prosjekterRaw ?? []) as unknown as Array<{ id: string; name: string }>
+  ).map((p) => ({ id: p.id, name: p.name }));
+  const { data: orgSetting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const tidsrundingMinutter = orgSetting?.tidsrundingMinutter ?? null;
 
   // Kataloger for navn-oppslag (queries deler cache på tvers av sedler).
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
@@ -270,6 +302,17 @@ export function SeddelKort({
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSplittAktiv({ radType: "timer", original: rad })
+                            }
+                            className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
+                            title={t("timer.attestering.meny.splittRad")}
+                            aria-label={t("timer.attestering.meny.splittRad")}
+                          >
+                            <Scissors className="h-3 w-3" />
+                          </button>
                           {tilTall(rad.timer).toFixed(2)}t
                         </span>
                       </td>
@@ -303,6 +346,17 @@ export function SeddelKort({
                           >
                             <Pencil className="h-3.5 w-3.5" />
                           </Link>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setSplittAktiv({ radType: "maskin", original: rad })
+                            }
+                            className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
+                            title={t("timer.attestering.meny.splittRad")}
+                            aria-label={t("timer.attestering.meny.splittRad")}
+                          >
+                            <Scissors className="h-3 w-3" />
+                          </button>
                           {tilTall(rad.timer).toFixed(2)}t
                         </span>
                       </td>
@@ -416,6 +470,37 @@ export function SeddelKort({
           )}
         </div>
       </div>
+
+      {/* T7-4f-splitt-1-klikk: SplittRadModal åpnes direkte fra ✂-ikon per rad.
+          Diskriminert union må eksplisitt smales — TS klarer ikke ellers. */}
+      {splittAktiv?.radType === "timer" && (
+        <SplittRadModal
+          radType="timer"
+          original={splittAktiv.original}
+          sheetId={sedel.id}
+          prosjekter={prosjekter}
+          tidsrundingMinutter={tidsrundingMinutter}
+          onLukk={() => setSplittAktiv(null)}
+          onLagret={() => {
+            void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
+            setSplittAktiv(null);
+          }}
+        />
+      )}
+      {splittAktiv?.radType === "maskin" && (
+        <SplittRadModal
+          radType="maskin"
+          original={splittAktiv.original}
+          sheetId={sedel.id}
+          prosjekter={prosjekter}
+          tidsrundingMinutter={tidsrundingMinutter}
+          onLukk={() => setSplittAktiv(null)}
+          onLagret={() => {
+            void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
+            setSplittAktiv(null);
+          }}
+        />
+      )}
     </div>
   );
 }
