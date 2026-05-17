@@ -314,6 +314,15 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                 {ecoNavn && (
                   <span className="ml-2 text-gray-500">· {ecoNavn}</span>
                 )}
+                {/* T7-5d-pause: read-only pause-indikator. Redigering av pause
+                    er eget scope (se BACKLOG § Pause-modell). */}
+                {(sheet?.pauseMin ?? 0) > 0 && (
+                  <span className="ml-3 text-xs text-gray-500">
+                    {t("timer.rediger.radModal.pause", {
+                      min: sheet?.pauseMin ?? 0,
+                    })}
+                  </span>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Button
