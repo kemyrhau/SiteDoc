@@ -2012,6 +2012,34 @@ IKKE av antall timer. Mertid uten tilleggskrav = normal grå sedel.
 Web = ekte web-UI. Mobil = app. Ingen formfaktor-kompromiss.
 Nettleser på mobil er ikke en reell bruker-kanal for SiteDoc.
 
+**Sammenheng-prinsipp (låst 2026-05-17):**
+En «registrering» er én logisk enhet:
+```
+Timer-rad 5.0t [07:00–12:00] Anleggsarbeid
+  ↳ Maskin-rad 3.0t [07:00–10:00] CAT 320
+  ↳ Vare: 12 liter grunning
+```
+Disse henger SAMMEN på samme prosjekt + ECO + tidslinje. Splitt eller
+redigering av én del krever at hele enheten vises og kan redigeres i
+kontekst — leder må vurdere hva som skjer med maskin og varer når
+timer-raden splittes (følger nye timer-rad? deles? blir på original?).
+
+**Konsekvenser av sammenheng-prinsippet:**
+
+1. **SplittRadModal er ufullstendig i dag** — splitter kun timer-raden
+   alene. Må utvides til å vise tilhørende maskin- og vare-rader for
+   samme prosjekt+ECO+tidsoverlapp, og lar leder velge hva som skjer
+   med hver. Planlegges som T7-5c (etter T7-5b modal-flyt).
+
+2. **Detaljsiden beholdes fullt funksjonell** — IKKE slankes. Den er
+   riktig sted for kompleks redigering der sammenhenger må vurderes
+   (multi-rad-utvalg, cross-relationship-edits, full sedel-overblikk).
+   Modal-flyten (T7-5b) er for enkle endringer; detaljsiden for komplekse.
+
+3. **Modal-grenser:** Modal håndterer rad-rediger i kontekst av
+   sammenheng-gruppen, men ved kompleks attestering (multi-prosjekt,
+   per-rad-utvalg over flere ECO-er) leder bytte til detaljside.
+
 **Redigeringsmodell — ansatt:**
 - Inline tabell-redigering (hybrid: Sonnet A + Opus A)
 - Fra/til → Timer auto-beregnet (Fra+Til → timer), manuelt overstyrbart
@@ -2022,18 +2050,64 @@ Nettleser på mobil er ikke en reell bruker-kanal for SiteDoc.
 - I dag: 3 klikk (oversikt → detalj → edit → splitt)
 - Mål: 1 klikk fra attestering-liste via ✂-ikon per rad i SeddelKort
 - T7-4f-splitt-1-klikk implementerer dette
+- **Etterspørsel for sammenheng-håndtering (T7-5c):** SplittRadModal må
+  inkludere relaterte maskin/vare-rader, ikke kun timer-raden alene
+
+**Edit-flyt-arkitektur (oppdatert 2026-05-17 etter sammenheng-prinsipp):**
+
+```
+Listen (SeddelKort)        Modal (T7-5b)              Detaljside (beholdt)
+─────────────────────      ──────────────────         ──────────────────────
+✓ Attester hel sedel       ✏ Rediger sammenheng-      Per-rad-utvalg på tvers
+↩ Returner hel sedel          gruppen for én rad        av ECO/prosjekter
+✂ Splitt sammenheng-       ✓/↩ rad-utvalg innen      Kompleks rediger med
+   gruppen (T7-5c)            modalen                    full overblikk
+                            Lagre = invalider + lukk    Direktelink-mål
+```
+
+**Default for `tillattRedigerVedAttestering`:**
+- Nye firma: `true` (lederverktøy bør være aktivt som standard)
+- Eksisterende firma: uendret (beholder sin verdi)
+- Implementeres via Prisma-schema default-endring (kun DEFAULT-clause,
+  ingen UPDATE av eksisterende rader)
+
+**Sub-PR-rekkefølge:**
+- T7-5b-1 — DB-default-endring (~15 min)
+- T7-5b-2 — `AttesteringDetalj` refaktor: `onFerdig?`-prop som overstyrer
+  router-push i modal-modus (~30 min)
+- T7-5b-3 — `<RedigerSeddelModal>`-wrapper med max-w-[80vw] (~30 min)
+- T7-5b-4 — SeddelKort penn-klikk → modal (lokal state, ikke route) (~20 min)
+- T7-5c — SplittRadModal utvidet med sammenheng-håndtering (egen plan)
+
+**Lagre-knapp UX-mønster (vedtatt 2026-05-17):**
+Lagre-knapp alltid synlig i modal, grå/inaktiv som default. Aktiveres
+(grønn) når noe er endret. Escape/klikk-utenfor lukker uten advarsel —
+grønn knapp har allerede signalisert at endringer finnes. Forkastes
+endringer ved klikk utenfor.
 
 **Grid-nivåer:**
 - Dag-grid: eksisterer (T7-4c, `/dashbord/timer/[id]`)
 - Uke-grid: erstatter `/mine` — T7-5a (planlegges separat)
 - Måned-grid: kompakt rapport-visning, én linje per registrering,
-  sidevei-scroll, kolonnevalg/filter — vurderes som del av timer-rapport (T7-5b)
+  sidevei-scroll, kolonnevalg/filter — vurderes som del av timer-rapport
 
 **Maskin-rad i redigering:**
 - Vises inline i samme tabell som timer-rader med 🚜-prefiks
 - Indentert som underrad (↳) under timer-raden den hører til visuelt
 - Fra/til-tid obligatorisk på web (som på attestering edit)
+- **Per sammenheng-prinsipp:** maskin-rad er underordnet timer-rad
+  visuelt OG logisk — ved splitt/rediger av timer-raden må maskin-raden
+  vurderes (T7-5c-scope)
+
+**Vareforbruk:**
+- Modell finnes ikke i db-timer ennå (`SheetVareforbruk` mangler)
+- Når implementert: skal være en del av sammenheng-gruppen sammen med
+  timer og maskin
+- Sammenheng-prinsippet er forberedelse for vareforbruk-rader
 
 **Åpent:**
 - timer-rapport eksisterer men er prosjektbundet og mangler grid-funksjonalitet
-- Overlapp med måned-grid må kartlegges før T7-5b
+- Overlapp med måned-grid må kartlegges
+- T7-5c krever spec for sammenheng-deteksjon: er det fra/til-overlap som
+  binder timer + maskin? Eller eksplisitt FK? I dag: ingen FK, kun
+  prosjekt+ECO+sedel-id som visuell heuristikk
