@@ -7,7 +7,7 @@
 // Per-rad-attestering: hver rad har egen status, leder velger hvilke som
 // attesteres/returneres via checkboxer.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -47,9 +47,19 @@ type Props = {
   prosjektKontekst?: string;
   // Hvor «Tilbake» og redirect etter mutasjon peker
   tilbakeUrl: string;
+  // T7-5b-2 (2026-05-17): callback ved fullført mutasjon (attester/returner).
+  // Når satt: kalles i stedet for router.push(tilbakeUrl) — brukes av
+  // modal-wrapperen for å lukke modal og forbli i listen.
+  // Bakover-kompatibel: optional, eksisterende side-bruk uendret.
+  onFerdig?: () => void;
 };
 
-export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Props) {
+export function AttesteringDetalj({
+  sheetId,
+  prosjektKontekst,
+  tilbakeUrl,
+  onFerdig,
+}: Props) {
   const { t } = useTranslation();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -79,12 +89,19 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
       { enabled: !!sheet?.organizationId },
     );
 
+  // T7-5b-2: kall onFerdig hvis satt (modal-modus lukker modal),
+  // ellers router.push til tilbakeUrl (klassisk side-modus).
+  const håndterFerdig = useCallback(() => {
+    if (onFerdig) onFerdig();
+    else router.push(tilbakeUrl);
+  }, [onFerdig, router, tilbakeUrl]);
+
   const attesterRader = trpc.timer.dagsseddel.attesterRader.useMutation({
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
       void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
-      router.push(tilbakeUrl);
+      håndterFerdig();
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
@@ -422,7 +439,7 @@ export function AttesteringDetalj({ sheetId, prosjektKontekst, tilbakeUrl }: Pro
             tilleggIder: Array.from(valgteTillegg),
             maskinIder: Array.from(valgteMaskin),
           }}
-          tilbakeUrl={tilbakeUrl}
+          onFerdig={håndterFerdig}
           onLukk={() => setReturnerVises(false)}
         />
       )}
@@ -453,15 +470,16 @@ function Definisjon({
 
 function ReturnerDialog({
   radIder,
-  tilbakeUrl,
+  onFerdig,
   onLukk,
 }: {
   radIder: { timerIder: string[]; tilleggIder: string[]; maskinIder: string[] };
-  tilbakeUrl: string;
+  // T7-5b-2: parent leverer felles "ferdig"-håndtering (router.push i side-modus
+  // eller modal-lukk i modal-modus). ReturnerDialog kjenner ikke disse selv.
+  onFerdig: () => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
-  const router = useRouter();
   const utils = trpc.useUtils();
   const [kommentar, setKommentar] = useState("");
   const [feil, setFeil] = useState<string | null>(null);
@@ -472,7 +490,7 @@ function ReturnerDialog({
       void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
       onLukk();
-      router.push(tilbakeUrl);
+      onFerdig();
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
