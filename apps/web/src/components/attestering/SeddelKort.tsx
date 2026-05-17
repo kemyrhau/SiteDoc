@@ -295,7 +295,7 @@ export function SeddelKort({
                       <td className="px-3 py-2 text-right font-mono text-gray-900">
                         <span className="inline-flex items-center justify-end gap-1.5">
                           <Link
-                            href={`/dashbord/firma/timer/attestering/${sedel.id}`}
+                            href={`/dashbord/firma/timer/attestering/${sedel.id}?rediger=1`}
                             className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
                             title={t("timer.attestering.meny.rediger")}
                             aria-label={t("timer.attestering.meny.rediger")}
@@ -339,7 +339,7 @@ export function SeddelKort({
                       <td className="px-3 py-1.5 text-right font-mono">
                         <span className="inline-flex items-center justify-end gap-1.5">
                           <Link
-                            href={`/dashbord/firma/timer/attestering/${sedel.id}`}
+                            href={`/dashbord/firma/timer/attestering/${sedel.id}?rediger=1`}
                             className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
                             title={t("timer.attestering.meny.rediger")}
                             aria-label={t("timer.attestering.meny.rediger")}
