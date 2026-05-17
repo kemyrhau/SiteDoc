@@ -4,7 +4,29 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
-## T7-4f-bunken — Attestering-liste redesign mockup v7 — DEPLOYET TIL TEST 2026-05-17 (develop merge-kjede `99a4ec09..bd70392e`)
+## T7-4f + T7-5b + maskin-fra-til + B-fixes — Attestering komplett — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
+
+Komplett redesign av `/dashbord/firma/timer/attestering`-listen + modal-arkitektur + maskin-fra/til + QA-fix-runde B1/B2/B6. Spec låst i [fase-0-beslutninger.md § T7-4f og § T7-5](fase-0-beslutninger.md). Migrasjon `20260517120000_organization_setting_rediger_default_true` (`ALTER COLUMN tillattRedigerVedAttestering SET DEFAULT true`) applied i prod.
+
+**Sub-PR-er merget til develop og inkludert i prod-bunken:**
+- T7-4f-bunken (`bd70392e`) — server-beriking + ekstraher attestering-buckets + redesign attestering-liste + SeddelKort kompakt tabell + fritekst/sum/penn-fixes
+- T7-4f-splitt-1-klikk (`b8c2f835` → merge `7ee31fa3`) — ✂-ikon per rad åpner SplittRadModal direkte
+- T7-5b-1 (`b4e1a3ba` → merge `2a47dceb`) — DB-default `tillattRedigerVedAttestering=true` for nye firma
+- T7-5b-2 (`b75a2a4b` → merge `30c20df9`) — `AttesteringDetalj.onFerdig?`-prop (senere fjernet i T7-5d)
+- T7-5b-3 (`9b1055f6` → merge `b1ae1516`) — RedigerSeddelModal-wrapper (senere slettet i T7-5d)
+- T7-5b-4 (`595ad4b3` → merge `7063cb36`) — SeddelKort penn-klikk åpner modal
+- maskin-fra-til (`28a7c89a` → merge `ac7fa72e`) — MaskinRadDialog fra/til-felter
+- B1 modal-bredde (`92774103` + `f9dfacf2` + `4fa345f5`) — Modal className + fullBredde-prop (senere ryddet)
+- B2 maskinNavn null-safe (`141fc1ab`) — `[merke, modell].filter(Boolean).join(" ")` + internNavn-fallback
+- B6 initialModus-prop (`b117cb75`) — direkte edit-modus (senere fjernet i T7-5d)
+
+**Etterfølgende rens i T7-5d** (på develop fra 2026-05-17, ikke i prod ennå): RedigerSeddelModal slettet, AttesteringDetalj renset for modal-spesifikke props (`onFerdig`/`fullBredde`/`initialModus`). Per-rad-redigering via ny RedigerRadModal som åpner kun den prosjekt+ECO-bucken.
+
+**QA-rapport:** [qa-rapport-2026-05-17.md](qa-rapport-2026-05-17.md). B7–B10 ✅.
+
+---
+
+## T7-4f-bunken (opprinnelig develop-deploy) — DEPLOYET TIL TEST 2026-05-17 (develop merge-kjede `99a4ec09..bd70392e`)
 
 Komplett redesign av `/dashbord/firma/timer/attestering`-listen per godkjent mockup v7. Spec låst i [fase-0-beslutninger.md § T7-4f](fase-0-beslutninger.md). På develop og deployet til test — IKKE i prod ennå (avventer T7-4f-splitt-1-klikk + QA).
 

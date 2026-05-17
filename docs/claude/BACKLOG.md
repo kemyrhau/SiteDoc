@@ -56,7 +56,15 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 - **Pre-eksisterende timerSync.ts baseline-feil (linje 308, 334)** 🟡 — `string | null` mot lokal `.notNull()`. Akseptert som baseline, ikke prioritert.
 
-### Attestering-rediger-flyt — inkonsistens (oppdaget 2026-05-17)
+### Attestering-rediger-flyt — inkonsistens (oppdaget 2026-05-17, LØST 2026-05-17 via T7-5d)
+
+**Status:** ✅ Adressert. T7-5d (merge `9727c7f9` på develop) erstatter RedigerSeddelModal med RedigerRadModal. Penn-klikk åpner nå kun prosjekt+ECO-bucken, ikke hele sedelen i side-i-modal. AttesteringDetalj renset for modal-spesifikke props. Detaljer i [STATUS-AKTUELT.md § T7-4g + T7-5d](STATUS-AKTUELT.md).
+
+Original diagnose beholdt under for historikk.
+
+---
+
+### Attestering-rediger-flyt (original diagnose)
 
 **Stop og planlegg.** Etter T7-4f-bunken har vi to overlappende redigeringsstier som skaper forvirring. Diagnose og anbefalt arkitektur:
 
@@ -100,30 +108,57 @@ Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1
 
 **Status 2026-05-17:** T7-5b-1..4 + B-fixes implementert og deployet til test (se STATUS-AKTUELT.md). T7-5c (sammenheng-håndtering i splitt) åpen. Plasseres i `historikk` når hele bunken er deployet til prod.
 
-### Kompakt sedel-layout — utnytt skjerm bedre (oppdaget 2026-05-17)
+### Kompakt sedel-layout — utnytt skjerm bedre (oppdaget 2026-05-17, ✅ T7-4g 2026-05-17)
 
-Kenneth observerte at SeddelKort tar for mye plass: 2-3 sedler synlig på 1080px-skjerm vs. konkurrentens flat-tabell-løsning som viser 9 dagsrader. Vår sammenheng-kort-tilnærming er bevisst (timer + maskin visuelt koblet) men trimmes for tett.
+**Status:** ✅ Forslag 1 implementert. T7-4g (merge `5c6347d9` på develop) reduserer SeddelKort-header til én linje (~48px) med default-kollapsing. Auto-expand ved tilleggHarKrav eller mertid. Action-rad fjernet. Detaljer i [STATUS-AKTUELT.md § T7-4g](STATUS-AKTUELT.md).
 
-**Per-sedel plassbruk i dag (~236px):**
-- Header (avatar 36×36 + ansatt + #ansattnr + dato + tilleggskrav + dagsnorm + aktivitet + beskrivelse + Detalj-knapp): ~80px
-- Tabell-header: ~8px
-- Timer-rad: ~40px · Maskin-rad: ~24px · Sum-rad: ~32px
-- Action-rad: ~52px
+**Gjenstående:**
+- Forslag 3 (periode-presets + faner + paginering) — egen oppfølger T7-4h
+- Forslag 2 (view-toggle [Kort]/[Tabell]) — vurder etter Forslag 3
 
-**Mål:** ~120px per sedel → 6-7 sedler synlig.
+### B_ny — Lagre-knapp grå→grønn ved endring (oppdaget 2026-05-17, gjenstår på Edit-side)
 
-**Tre forslag (vurdert mot konkurrent-skjermbilde):**
-1. **Trim eksisterende kort** — header på én linje, avatar 24×24 eller fjernet, beskrivelse kun ved hover, tabell-rad-høyde 32px, action-rad inline med sum-rad
-2. **View-toggle [Kort] [Tabell]** — kort som default (sammenheng), flat tabell som power-user-modus, valg lagres i localStorage
-3. **Periode-presets + faner + paginering** — uavhengig av kort/tabell: I dag / Denne uka / Forrige uke / Denne måneden / Forrige måned / Kvartal / År / Egendefinert. Faner Attestering / Lønnsrapport / Månedlig / Eksport. Paginering ved 50+ sedler.
+**Status delvis:** Implementert i RedigerRadModal (T7-5d, via `harEndringer`-state i `RedigerRadModal.tsx`). Mangler fortsatt i `AttesteringDetalj_Edit.tsx:481` (full-sedel-edit på detaljsiden).
 
-**Anbefalt rekkefølge:** 1 → 3 → 2. Tas i neste sesjon med høy prioritet.
+Spec sier knapp grå/inaktiv → grønn ved endring. Faktisk i Edit-side: blå fra start uavhengig av om noe er endret. Ingen samlet `harEndringer`-state.
 
-### B_ny — Lagre-knapp grå→grønn ved endring (oppdaget 2026-05-17)
+**Fix-skisse:** Beregn `harEndringer = JSON.stringify(editTimer) !== JSON.stringify(initTimer) || ...` (samme mønster som RedigerRadModal) og pass som `disabled={!harEndringer || lagre.isPending}` + betinget className for grønn. Planlegges som T7-5f.
 
-Spec sier knapp grå/inaktiv → grønn ved endring. Faktisk: blå fra start uavhengig av om noe er endret. `AttesteringDetalj_Edit.tsx:481` — ingen samlet `harEndringer`-state.
+### Attestert-filter på attestering-listen (oppdaget 2026-05-17, FIX 4 fra Sonnet-plan)
 
-**Fix-skisse:** Beregn `harEndringer = timerEndringer.size > 0 || tilleggEndringer.size > 0 || maskinEndringer.size > 0 || nyeTimerRader.length > 0 || ...` og pass som `disabled={!harEndringer || lagre.isPending}` + betinget className for grønn.
+Attestering-listen viser kun sedler med `status="sent"` — attesterte sedler (`status="accepted"`) forsvinner helt. Bruker mangler oversikt over hva som er attestert denne uka.
+
+**Forslag:** Filter-toggle `[Venter på attestering ●3] [Attestert ●12]` over uke-navigasjonen. Attestert-fanen viser sedler i read-only.
+
+**Krever:**
+1. Server: utvid `hentTilAttesteringFirma` med `status?: "sent" | "accepted"` (default "sent" for bakover-kompat)
+2. Klient: ny fane-state, to queries (en per fane), invalider begge ved attester-mutation
+3. SeddelKort: ny `readOnly`-prop som skjuler ↩/✓/⋯ og per-rad penn/✂
+
+Planlegges som T7-5e.
+
+### Pause-modell på timer-rad (vedtatt 2026-05-17)
+
+**Vedtak:** Inline checkbox per timer-rad. Fra/til-tid for pause er IKKE nødvendig i MVP.
+
+**Bakgrunn:** Pause-data-analyse på 3 sedler i test-DB viste tre ulike praksiser:
+- Sedel A: pause som GAP mellom timer-rader (12:00 → 12:30)
+- Sedel B: pause trukket fra første timer-rad (-0.5t), maskin med full råtid
+- Sedel C: pause trukket fra både timer-rad OG maskin-rad
+
+Resultat: ingen invariant overholdes, og sedel B brøt maskin-timer-koblingen (`sum(maskin.timer) > sum(timer.timer)`). Datamodellen mangler eksplisitt pause-håndtering på rad-nivå.
+
+**MVP-løsning (inline checkbox):**
+- Ny kolonne `harPause: boolean` på `sheet_timer` (default false). Maskin uendret.
+- UI: checkbox «Pause i denne raden» på timer-rad-modal. Når på: `timer = (til - fra) - 30 min` (eller firma-konfigurert default).
+- Server-validering: hvis `harPause=true`, kontrollér at `timer` er konsistent med fra/til minus pause-standard.
+
+**Utenfor MVP (utsatt):**
+- Pause med fra/til som eget tidsvindu (krever ny modell + UI-kompleksitet)
+- Per-rad pause-lengde (krever input-felt i tillegg til checkbox)
+- Maskin-pause-håndtering (avhenger av om maskin går mens operatør pauser — domenespørsmål)
+
+**Implementasjons-vei:** Integreres i T7-5c (sammenheng-håndtering i splitt-modal) eller egen mini-PR T7-5g. Migrasjonen er additiv og lavrisiko.
 
 ### B5 — Sum-indikator (maskin-av-arbeid) mangler i SeddelKort (oppdaget 2026-05-17)
 

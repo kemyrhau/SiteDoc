@@ -20,29 +20,28 @@ Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på e
 
 Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
 
-### T7-4f + T7-5b + maskin-fra-til + B-fixes — Attestering komplett på develop (IKKE prod)
+### T7-4f + T7-5b + maskin-fra-til + B-fixes — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
 
-**Samlet bunke på develop, deployet til test, IKKE merget til prod.** Inkluderer mockup v7-redesign (T7-4f), modal-arkitektur (T7-5b), maskin-fra/til-felt, og QA-fix-runde B1/B2/B6.
+Hele bunken deployet til prod 2026-05-17. Migrasjon `20260517120000_organization_setting_rediger_default_true` applied. Sammenheng-prinsipp låst i [fase-0-beslutninger.md § T7-5](fase-0-beslutninger.md). Detaljer i [historikk-2026-05.md § T7-4f-bunken](historikk-2026-05.md).
+
+### T7-4g + T7-5d — Attestering UI-redesign på develop (IKKE prod)
+
+**Begge merget til develop og deployet til test 2026-05-17.** Adresserer Kenneths klage om at SeddelKort tok for mye plass og at modal-i-side føltes hverken-eller.
 
 **Sub-PR-er merget til develop:**
-- **T7-4f-bunken** (`bd70392e`): server-beriking, ekstraher attestering-buckets, redesign attestering-liste, SeddelKort kompakt tabell, fritekst/sum/penn-fixes. Detaljer i [historikk-2026-05.md § T7-4f-bunken](historikk-2026-05.md).
-- **T7-4f-splitt-1-klikk** (`b8c2f835` → merge `7ee31fa3`): ✂-ikon per rad åpner SplittRadModal direkte fra listen.
-- **T7-5b-1** (`b4e1a3ba` → merge `2a47dceb`): DB-default `tillattRedigerVedAttestering=true` for nye firma. Migrasjon kun `ALTER COLUMN ... SET DEFAULT true`, ingen UPDATE.
-- **T7-5b-2** (`b75a2a4b` → merge `30c20df9`): `AttesteringDetalj.onFerdig?`-prop (modal-vennlig overstyring av router.push).
-- **T7-5b-3** (`9b1055f6` → merge `b1ae1516`): `RedigerSeddelModal`-wrapper. Modal får `lukkVedBackdropKlikk?`-prop og smart max-w-regex (`packages/ui/src/modal.tsx`).
-- **T7-5b-4** (`595ad4b3` → merge `7063cb36`): SeddelKort penn-klikk åpner modal (lokal state, ikke route). ⋯-meny ryddet.
-- **maskin-fra-til** (`28a7c89a` → merge `ac7fa72e`): MaskinRadDialog får fra/til-felter med default-forslag fra timer-rad i samme bucket (Alt D, sammenheng-prinsipp). `maskin.oppdater` Zod-schema utvidet med fra/til.
-- **B1 modal-bredde** (`92774103` + `f9dfacf2` + `4fa345f5`): tre fixes — Modal ytre className-overstyring + indre div symmetri + AttesteringDetalj `fullBredde`-prop. Modal-kjeden nå 80vw uten skjulte cap.
-- **B2 maskinNavn null-safe** (`141fc1ab`): `${e.merke} ${e.modell}` → `[merke, modell].filter(Boolean).join(" ")` med internNavn-fallback. «null null (Heatwork 7626)» blir nå «Heatwork 7626».
-- **B6 initialModus-prop** (`b117cb75`): `AttesteringDetalj.initialModus?: "lese" | "rediger"`. RedigerSeddelModal sender "rediger" → 1-klikk fra penn til edit.
+- **T7-4g** (`85a00d22` impl, merge `5c6347d9`): Kompakt kollapset SeddelKort. Header redusert til én linje (~48px): `[OT] Ola Tømrer · ons 13. mai · 8.00t / 7.50t [↩][✓][⋯][▾]`. Default-expanded ved tilleggHarKrav eller mertid (totaltimer > dagsnorm). Action-rad nederst fjernet. Detalj-lenke i ⋯-menyen. Tilgjengelig via tastatur (Enter/Space, aria-expanded).
+- **T7-5d** (`b9a666ce` impl, merge `9727c7f9`): RedigerRadModal erstatter RedigerSeddelModal. Penn-klikk åpner KUN den prosjekt+ECO-bucken raden tilhører, ikke hele sedelen. Hele-sedel-redigering går til detaljsiden via ⋯-menyen «Rediger». Sticky bucket-header med Lagre/Avbryt. Lagring bygger full `redigerSedelRader`-payload der andre bucker går uendret igjennom. AttesteringDetalj renset for modal-spesifikke props (`onFerdig`/`fullBredde`/`initialModus`) — er igjen ren fullside-komponent. I tråd med fase-0 § T7-5 sammenheng-prinsipp.
 
-**Sammenheng-prinsipp låst** i [fase-0-beslutninger.md § T7-5](fase-0-beslutninger.md): timer-rad + tilhørende maskin + varer = én logisk enhet per prosjekt+ECO+tidslinje. T7-5c (SplittRadModal med sammenheng-håndtering) åpen, krever spec for sammenheng-deteksjon.
+**Arkitektur-drøfting 2026-05-17:** Tre alternativer vurdert — (A) patch symptomene, (B) rad-nivå redigering, (C) flat tabell (SmartDok-modellen). Valgt Alt B. Begrunnelse: adresserer rotårsaken (modal-i-side-hack via 3 overstyrings-props), honorerer vedtatt sammenheng-prinsipp, kaster ikke nylig arbeid (T7-4f/4g bevart), renser eksisterende technical debt. Alt C bryter sammenheng-prinsippet (maskin/timer på separate tabellrader). Alt A patcher symptomene uten å løse rotårsaken.
 
-**QA-rapport:** [qa-rapport-2026-05-17.md](qa-rapport-2026-05-17.md). B7–B10 ✅. B_ny (Lagre grå→grønn) og B5 (sum-indikator SeddelKort) i backlog. A1–A7 (ansatt-flyt-mangler) krever større arbeid.
+**Pause-modell vedtatt (2026-05-17):** Inline checkbox per timer-rad, fra/til-tid ikke nødvendig i MVP. Bakgrunn: pause-data-analyse i test-DB viste tre ulike praksiser (gap mellom rader / pause trukket fra første timer-rad / pause på maskin-rad også) og brudd på maskin-timer-invarianten. Inline checkbox er enklere og holder MVP-scope. Pause-felt med fra/til som eget tidsvindu utsettes til T7-5c (sammenheng-håndtering i splitt-modal) eller senere. Detaljer i [BACKLOG.md § Pause-modell](BACKLOG.md).
 
-**Neste sesjon:** Kompakt-layout / default-kollapsede sedler — Kenneths klage om at SeddelKort tar for mye plass (2-3 sedler synlig vs. konkurrent 9 dagsrader). Detaljer i [BACKLOG.md § Kompakt sedel-layout](BACKLOG.md).
+**Gjenstående før prod-deploy:**
+1. **Attestert-filter på attestering-listen** (FIX 4 fra Sonnet-plan) — venter på server-endring av `hentTilAttesteringFirma` med `status?: "sent" | "accepted"`-input + read-only-modus på SeddelKort. Egen PR T7-5e.
+2. **B_ny — dirty-tracking på AttesteringDetalj_Edit Lagre-knapp** — finnes i RedigerRadModal (via `harEndringer`-state), mangler i den eldre `AttesteringDetalj_Edit.tsx:481`. Egen PR T7-5f.
+3. **QA-verifisering på test.sitedoc.no** som innlogget bruker.
 
-**Blokkert fra prod:** Hele bunken venter på samlet prod-deploy. Verifiseringskrav: innlogget bruker-test på test.sitedoc.no.
+**Blokkert fra prod:** Venter på QA + punktene over.
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
