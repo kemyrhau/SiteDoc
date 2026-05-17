@@ -9,7 +9,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
@@ -62,12 +62,7 @@ export function AttesteringDetalj({
 }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const utils = trpc.useUtils();
-
-  // T7-4f: ?rediger=1 fra penn-ikon i SeddelKort hopper rett til edit-modus.
-  // Auto-trigger kun når sheet er lastet OG redigerTillatt=true.
-  const skalÅpneIEditModus = searchParams.get("rediger") === "1";
 
   const [returnerVises, setReturnerVises] = useState(false);
   const [redigerModus, setRedigerModus] = useState(false);
@@ -124,14 +119,6 @@ export function AttesteringDetalj({
     setValgteMaskin(new Set(maskinRader.filter(radTilgjengelig).map((r) => r.id)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheet?.id]);
-
-  // T7-4f: hopp til edit-modus når ?rediger=1 og redigerTillatt=true.
-  useEffect(() => {
-    if (skalÅpneIEditModus && sheet?.redigerTillatt) {
-      setRedigerModus(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheet?.id, skalÅpneIEditModus]);
 
   if (isLoading) {
     return (

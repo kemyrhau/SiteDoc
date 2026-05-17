@@ -22,6 +22,7 @@ import {
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import type { ProsjektValg } from "@/components/timer/rediger-types";
+import { RedigerSeddelModal } from "./RedigerSeddelModal";
 import type { MaskinRad, TilleggRad, TimerRad } from "./attestering-buckets";
 
 type SplittAktiv =
@@ -91,6 +92,7 @@ export function SeddelKort({
   const utils = trpc.useUtils();
   const [menyApen, setMenyApen] = useState(false);
   const [splittAktiv, setSplittAktiv] = useState<SplittAktiv | null>(null);
+  const [redigerÅpen, setRedigerÅpen] = useState(false);
   const oransje = sedel.tilleggHarKrav;
 
   // T7-4f-splitt-1-klikk: prosjekter + tidsrunding for SplittRadModal.
@@ -294,14 +296,15 @@ export function SeddelKort({
                       </td>
                       <td className="px-3 py-2 text-right font-mono text-gray-900">
                         <span className="inline-flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/dashbord/firma/timer/attestering/${sedel.id}?rediger=1`}
+                          <button
+                            type="button"
+                            onClick={() => setRedigerÅpen(true)}
                             className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
                             title={t("timer.attestering.meny.rediger")}
                             aria-label={t("timer.attestering.meny.rediger")}
                           >
                             <Pencil className="h-3.5 w-3.5" />
-                          </Link>
+                          </button>
                           <button
                             type="button"
                             onClick={() =>
@@ -338,14 +341,15 @@ export function SeddelKort({
                       </td>
                       <td className="px-3 py-1.5 text-right font-mono">
                         <span className="inline-flex items-center justify-end gap-1.5">
-                          <Link
-                            href={`/dashbord/firma/timer/attestering/${sedel.id}?rediger=1`}
+                          <button
+                            type="button"
+                            onClick={() => setRedigerÅpen(true)}
                             className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
                             title={t("timer.attestering.meny.rediger")}
                             aria-label={t("timer.attestering.meny.rediger")}
                           >
                             <Pencil className="h-3.5 w-3.5" />
-                          </Link>
+                          </button>
                           <button
                             type="button"
                             onClick={() =>
@@ -442,13 +446,16 @@ export function SeddelKort({
                 onClick={() => setMenyApen(false)}
               />
               <div className="absolute left-0 top-full z-20 mt-1 w-44 rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                <Link
-                  href={`/dashbord/firma/timer/attestering/${sedel.id}`}
-                  className="block px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
-                  onClick={() => setMenyApen(false)}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMenyApen(false);
+                    setRedigerÅpen(true);
+                  }}
+                  className="block w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50"
                 >
                   {t("timer.attestering.meny.rediger")}
-                </Link>
+                </button>
                 <button
                   onClick={() => {
                     setMenyApen(false);
@@ -492,6 +499,15 @@ export function SeddelKort({
             void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
             setSplittAktiv(null);
           }}
+        />
+      )}
+
+      {/* T7-5b-4: penn-klikk åpner modal-wrapper rundt AttesteringDetalj.
+          Lukker = list-kontekst bevart. */}
+      {redigerÅpen && (
+        <RedigerSeddelModal
+          sheetId={sedel.id}
+          onLukk={() => setRedigerÅpen(false)}
         />
       )}
     </div>
