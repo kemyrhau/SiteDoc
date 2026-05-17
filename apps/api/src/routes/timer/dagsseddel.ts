@@ -1125,9 +1125,11 @@ export const dagsseddelRouter = router({
         },
         include: {
           aktivitet: { select: { id: true, navn: true, kode: true } },
-          timer: true,
-          tillegg: true,
-          maskiner: true,
+          // Filtrer ut "erstattet"-rader (audit-spor fra rediger-mutasjoner).
+          // Uten dette vises gamle rader sammen med erstatningene i listen.
+          timer: { where: { attestertStatus: { not: "erstattet" } } },
+          tillegg: { where: { attestertStatus: { not: "erstattet" } } },
+          maskiner: { where: { attestertStatus: { not: "erstattet" } } },
         },
         orderBy: [{ dato: "asc" }, { createdAt: "asc" }],
       });
@@ -1249,16 +1251,17 @@ export const dagsseddelRouter = router({
       // Bruker første rad som proxy for autorisering (PR 2A — full per-rad-auth
       // kommer i senere PR per T.3).
       const [timer, tillegg, maskiner] = await Promise.all([
+        // Filtrer ut "erstattet"-rader (audit-spor fra rediger-mutasjoner).
         ctx.prismaTimer.sheetTimer.findMany({
-          where: { sheetId: sheet.id },
+          where: { sheetId: sheet.id, attestertStatus: { not: "erstattet" } },
           orderBy: { createdAt: "asc" },
         }),
         ctx.prismaTimer.sheetTillegg.findMany({
-          where: { sheetId: sheet.id },
+          where: { sheetId: sheet.id, attestertStatus: { not: "erstattet" } },
           orderBy: { createdAt: "asc" },
         }),
         ctx.prismaTimer.sheetMachine.findMany({
-          where: { sheetId: sheet.id },
+          where: { sheetId: sheet.id, attestertStatus: { not: "erstattet" } },
           orderBy: { createdAt: "asc" },
         }),
       ]);
