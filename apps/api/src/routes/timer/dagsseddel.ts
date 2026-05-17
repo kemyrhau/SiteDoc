@@ -3107,6 +3107,11 @@ export const dagsseddelRouter = router({
           timer: z.number().min(0).max(24).optional(),
           mengde: z.number().min(0).nullable().optional(),
           enhet: z.string().max(20).nullable().optional(),
+          // Maskin-fra-til (2026-05-17): la rediger-modus oppdatere
+          // fra/til-tid. tilfoy-routen aksepterte allerede disse — oppdater
+          // var glemt. Symmetri med SheetTimer.oppdater (T.4 PR 2).
+          fraTid: z.string().nullable().optional(),
+          tilTid: z.string().nullable().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -3136,6 +3141,8 @@ export const dagsseddelRouter = router({
         if (input.externalCostObjectId !== undefined) {
           data.externalCostObjectId = input.externalCostObjectId;
         }
+        if (input.fraTid !== undefined) data.fraTid = input.fraTid;
+        if (input.tilTid !== undefined) data.tilTid = input.tilTid;
 
         // T7-4b: valider post-state. Endring av timer eller ECO på maskin
         // kan bryte sum(maskin) ≤ sum(timer)-invariant.

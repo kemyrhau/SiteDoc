@@ -47,6 +47,10 @@ type TimerRad = {
   lonnsartId: string;
   aktivitetId: string;
   externalCostObjectId: string | null;
+  // Maskin-fra-til (2026-05-17): brukes til å foreslå default for maskin-rad
+  // i samme bucket (Alt D — sammenheng-prinsipp).
+  fraTid: string | null;
+  tilTid: string | null;
   timer: unknown;
 };
 
@@ -63,6 +67,9 @@ type MaskinRad = {
   projectId: string;
   externalCostObjectId: string | null;
   vehicleId: string;
+  // Maskin-fra-til (2026-05-17): valgfri tidsregistrering for maskinbruk.
+  fraTid: string | null;
+  tilTid: string | null;
   timer: unknown;
   mengde: unknown;
   enhet: string | null;
@@ -86,11 +93,28 @@ export default function DagsseddelDetaljSide() {
   );
   const { data: prosjekterRaw } = trpc.prosjekt.hentMine.useQuery();
 
+  // Maskin-fra-til (2026-05-17): orgSetting brukes som fallback når en
+  // bucket mangler timer-rader (ingen rad å ta fra/til fra). Trpc-cache
+  // dedupliserer på tvers av kall — én faktisk query per side.
+  const { data: orgSetting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: sheet?.organizationId ?? "" },
+    { enabled: !!sheet?.organizationId },
+  );
+
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [aktivModal, setAktivModal] = useState<
     | { type: "timer"; projectId: string; defaultEcoId?: string | null; rad?: TimerRad }
     | { type: "tillegg"; projectId: string; rad?: TilleggRad }
-    | { type: "maskin"; projectId: string; defaultEcoId?: string | null; rad?: MaskinRad }
+    | {
+        type: "maskin";
+        projectId: string;
+        defaultEcoId?: string | null;
+        // Maskin-fra-til (2026-05-17): forslag basert på timer-radene i
+        // samme prosjekt+ECO-bucket (Alt D — sammenheng-prinsipp).
+        defaultFraTid?: string | null;
+        defaultTilTid?: string | null;
+        rad?: MaskinRad;
+      }
     | { type: "nyProsjekt" }
     | null
   >(null);
@@ -365,8 +389,23 @@ export default function DagsseddelDetaljSide() {
               onTilfoyTillegg={() =>
                 setAktivModal({ type: "tillegg", projectId })
               }
-              onTilfoyMaskin={(ecoId) =>
-                setAktivModal({ type: "maskin", projectId, defaultEcoId: ecoId })
+              onTilfoyMaskin={(ecoId, timerRaderIBucket) =>
+                setAktivModal({
+                  type: "maskin",
+                  projectId,
+                  defaultEcoId: ecoId,
+                  // Maskin-fra-til (Alt D): foreslå fra første og siste
+                  // timer-rad i bucket. Faller tilbake til firma-default
+                  // hvis bucket er tom.
+                  defaultFraTid:
+                    timerRaderIBucket[0]?.fraTid ??
+                    orgSetting?.standardStartTid ??
+                    null,
+                  defaultTilTid:
+                    timerRaderIBucket.at(-1)?.tilTid ??
+                    orgSetting?.standardSluttTid ??
+                    null,
+                })
               }
               onRedigerTimer={(rad) =>
                 setAktivModal({ type: "timer", projectId, rad })
@@ -478,6 +517,9 @@ export default function DagsseddelDetaljSide() {
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
+          defaultFraTid={aktivModal.defaultFraTid ?? null}
+          defaultTilTid={aktivModal.defaultTilTid ?? null}
+          tidsrundingMinutter={orgSetting?.tidsrundingMinutter ?? null}
           rad={aktivModal.rad}
           onLukk={() => setAktivModal(null)}
         />
@@ -531,7 +573,9 @@ function ProsjektGruppe({
   erRedigerbar: boolean;
   onTilfoyTimer: (ecoId: string | null) => void;
   onTilfoyTillegg: () => void;
-  onTilfoyMaskin: (ecoId: string | null) => void;
+  // Maskin-fra-til (2026-05-17): sender med timer-radene i bucket slik
+  // at parent kan foreslå default fra/til (Alt D — sammenheng-prinsipp).
+  onTilfoyMaskin: (ecoId: string | null, timerRaderIBucket: TimerRad[]) => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerTillegg: (rad: TilleggRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
@@ -573,7 +617,7 @@ function ProsjektGruppe({
             maskin={bucket.maskin}
             erRedigerbar={erRedigerbar}
             onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId)}
-            onTilfoyMaskin={() => onTilfoyMaskin(bucket.ecoId)}
+            onTilfoyMaskin={() => onTilfoyMaskin(bucket.ecoId, bucket.timer)}
             onRedigerTimer={onRedigerTimer}
             onRedigerMaskin={onRedigerMaskin}
           />
@@ -1329,12 +1373,21 @@ function MaskinRadDialog({
   sheetId,
   projectId,
   defaultEcoId,
+  defaultFraTid,
+  defaultTilTid,
+  tidsrundingMinutter,
   rad,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
   defaultEcoId?: string | null;
+  // Maskin-fra-til (2026-05-17): forslag fra parent basert på timer-rader
+  // i bucket (Alt D — sammenheng-prinsipp). null hvis bucket er tom og
+  // ingen firma-default. Brukes kun for ny rad (ikke rediger).
+  defaultFraTid?: string | null;
+  defaultTilTid?: string | null;
+  tidsrundingMinutter?: number | null;
   rad?: MaskinRad;
   onLukk: () => void;
 }) {
@@ -1358,6 +1411,12 @@ function MaskinRadDialog({
   const [timer, setTimer] = useState<string>(
     rad ? String(tilTall(rad.timer)) : "",
   );
+  const [fraTid, setFraTid] = useState<string>(
+    rad?.fraTid ?? defaultFraTid ?? "",
+  );
+  const [tilTid, setTilTid] = useState<string>(
+    rad?.tilTid ?? defaultTilTid ?? "",
+  );
   const [mengde, setMengde] = useState<string>(
     rad?.mengde !== null && rad?.mengde !== undefined
       ? String(tilTall(rad.mengde))
@@ -1368,6 +1427,11 @@ function MaskinRadDialog({
     rad?.externalCostObjectId ?? defaultEcoId ?? null,
   );
   const [feil, setFeil] = useState<string | null>(null);
+
+  // T7-2e-mønster: tving step ≤ 1800 (30 min) slik at minutt-selektor vises
+  // selv om firmaet har tidsrunding på 60 min — Chrome skjuler minutter ved
+  // step=3600. Default 15 min hvis ingen orgSetting.
+  const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
 
   const tilfoy = trpc.timer.dagsseddel.maskin.tilfoy.useMutation({
     onSuccess: () => {
@@ -1404,6 +1468,9 @@ function MaskinRadDialog({
       mengde: mengdeNum,
       enhet: enhet || null,
       externalCostObjectId: ecoId,
+      // Maskin-fra-til (2026-05-17): tom streng → null (felt er valgfrie).
+      fraTid: fraTid || null,
+      tilTid: tilTid || null,
     };
     if (rad) {
       oppdater.mutate({ id: rad.id, ...data });
@@ -1456,6 +1523,39 @@ function MaskinRadDialog({
             onChange={(e) => setTimer(e.target.value)}
             required
           />
+        </div>
+        {/* Maskin-fra-til (2026-05-17): valgfrie tidspunkter for maskinbruk.
+            Forslag fra første/siste timer-rad i samme bucket (Alt D).
+            Bruker kan justere — maskin kan ha overlapp/lenger enn arbeid. */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.felt.startTid")}{" "}
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            </label>
+            <Input
+              type="time"
+              step={timeStep}
+              value={fraTid}
+              onChange={(e) => setFraTid(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.felt.sluttTid")}{" "}
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            </label>
+            <Input
+              type="time"
+              step={timeStep}
+              value={tilTid}
+              onChange={(e) => setTilTid(e.target.value)}
+            />
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
