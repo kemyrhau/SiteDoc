@@ -33,6 +33,9 @@ export function RedigerSeddelModal({ sheetId, onLukk }: Props) {
           // for å oppfylle ikke-optional-prop-kontrakten.
           tilbakeUrl=""
           onFerdig={onLukk}
+          // T7-5b-B1: dropp max-w-3xl-wrapperen så innholdet følger
+          // modal-bredden (max-w-[80vw]).
+          fullBredde
         />
       </div>
     </Modal>

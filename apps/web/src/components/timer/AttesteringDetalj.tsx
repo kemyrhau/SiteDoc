@@ -52,6 +52,10 @@ type Props = {
   // modal-wrapperen for å lukke modal og forbli i listen.
   // Bakover-kompatibel: optional, eksisterende side-bruk uendret.
   onFerdig?: () => void;
+  // T7-5b-B1 (2026-05-17): fjerner max-w-3xl-wrapperen så komponenten
+  // følger parent-bredden. Brukes når komponenten monteres i modal med
+  // egen max-w. Default false (eksisterende side-bruk uendret).
+  fullBredde?: boolean;
 };
 
 export function AttesteringDetalj({
@@ -59,6 +63,7 @@ export function AttesteringDetalj({
   prosjektKontekst,
   tilbakeUrl,
   onFerdig,
+  fullBredde = false,
 }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -130,7 +135,7 @@ export function AttesteringDetalj({
 
   if (!sheet) {
     return (
-      <div className="mx-auto max-w-3xl p-6">
+      <div className={`mx-auto ${fullBredde ? "" : "max-w-3xl"} p-6`}>
         <p className="text-sm text-red-600">{t("timer.detalj.ikkeFunnet")}</p>
         <Link
           href={tilbakeUrl}
@@ -173,7 +178,7 @@ export function AttesteringDetalj({
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className={`mx-auto ${fullBredde ? "" : "max-w-3xl"} p-6`}>
       <Link
         href={tilbakeUrl}
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"
