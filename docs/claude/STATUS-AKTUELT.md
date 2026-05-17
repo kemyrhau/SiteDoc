@@ -20,17 +20,31 @@ Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på e
 
 Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
 
-### T7-4f + T7-4f-splitt — Attestering-liste redesign mockup v7 (develop, IKKE prod)
+### T7-4f + T7-5b + maskin-fra-til + B-fixes — Attestering komplett på develop (IKKE prod)
 
-- T7-4f-1/2/3/3b + fixes: på develop, deployet til test (`bd70392e`). Detaljer arkivert i [historikk-2026-05.md § T7-4f-bunken](historikk-2026-05.md).
-- T7-4f-splitt-1-klikk: på `feature/t7-4f-splitt-1-klikk` (commit `b8c2f835`), pending review.
-- Blokkert fra prod: T7-4f-splitt-1-klikk bør inkluderes i samme prod-deploy som T7-4f-bunken.
+**Samlet bunke på develop, deployet til test, IKKE merget til prod.** Inkluderer mockup v7-redesign (T7-4f), modal-arkitektur (T7-5b), maskin-fra/til-felt, og QA-fix-runde B1/B2/B6.
 
-### T7-5 — Web dagsseddel-redigering (design-fase)
+**Sub-PR-er merget til develop:**
+- **T7-4f-bunken** (`bd70392e`): server-beriking, ekstraher attestering-buckets, redesign attestering-liste, SeddelKort kompakt tabell, fritekst/sum/penn-fixes. Detaljer i [historikk-2026-05.md § T7-4f-bunken](historikk-2026-05.md).
+- **T7-4f-splitt-1-klikk** (`b8c2f835` → merge `7ee31fa3`): ✂-ikon per rad åpner SplittRadModal direkte fra listen.
+- **T7-5b-1** (`b4e1a3ba` → merge `2a47dceb`): DB-default `tillattRedigerVedAttestering=true` for nye firma. Migrasjon kun `ALTER COLUMN ... SET DEFAULT true`, ingen UPDATE.
+- **T7-5b-2** (`b75a2a4b` → merge `30c20df9`): `AttesteringDetalj.onFerdig?`-prop (modal-vennlig overstyring av router.push).
+- **T7-5b-3** (`9b1055f6` → merge `b1ae1516`): `RedigerSeddelModal`-wrapper. Modal får `lukkVedBackdropKlikk?`-prop og smart max-w-regex (`packages/ui/src/modal.tsx`).
+- **T7-5b-4** (`595ad4b3` → merge `7063cb36`): SeddelKort penn-klikk åpner modal (lokal state, ikke route). ⋯-meny ryddet.
+- **maskin-fra-til** (`28a7c89a` → merge `ac7fa72e`): MaskinRadDialog får fra/til-felter med default-forslag fra timer-rad i samme bucket (Alt D, sammenheng-prinsipp). `maskin.oppdater` Zod-schema utvidet med fra/til.
+- **B1 modal-bredde** (`92774103` + `f9dfacf2` + `4fa345f5`): tre fixes — Modal ytre className-overstyring + indre div symmetri + AttesteringDetalj `fullBredde`-prop. Modal-kjeden nå 80vw uten skjulte cap.
+- **B2 maskinNavn null-safe** (`141fc1ab`): `${e.merke} ${e.modell}` → `[merke, modell].filter(Boolean).join(" ")` med internNavn-fallback. «null null (Heatwork 7626)» blir nå «Heatwork 7626».
+- **B6 initialModus-prop** (`b117cb75`): `AttesteringDetalj.initialModus?: "lese" | "rediger"`. RedigerSeddelModal sender "rediger" → 1-klikk fra penn til edit.
 
-Beslutninger låst i [fase-0-beslutninger.md § T7-5](fase-0-beslutninger.md): inline tabell-redigering (hybrid Sonnet A + Opus A), fra/til auto-beregner timer, splitt KUN i lederverktøy, maskin som indentert underrad. Web = ekte web-UI, mobil = app — ingen formfaktor-kompromiss.
+**Sammenheng-prinsipp låst** i [fase-0-beslutninger.md § T7-5](fase-0-beslutninger.md): timer-rad + tilhørende maskin + varer = én logisk enhet per prosjekt+ECO+tidslinje. T7-5c (SplittRadModal med sammenheng-håndtering) åpen, krever spec for sammenheng-deteksjon.
 
-Neste: planleggingssesjon T7-5a (uke-grid for `/mine`-siden).
+**QA-rapport:** [qa-rapport-2026-05-17.md](qa-rapport-2026-05-17.md). B7–B10 ✅. B_ny (Lagre grå→grønn) og B5 (sum-indikator SeddelKort) i backlog. A1–A7 (ansatt-flyt-mangler) krever større arbeid.
+
+**Neste sesjon:** Kompakt-layout / default-kollapsede sedler — Kenneths klage om at SeddelKort tar for mye plass (2-3 sedler synlig vs. konkurrent 9 dagsrader). Detaljer i [BACKLOG.md § Kompakt sedel-layout](BACKLOG.md).
+
+**Blokkert fra prod:** Hele bunken venter på samlet prod-deploy. Verifiseringskrav: innlogget bruker-test på test.sitedoc.no.
+
+### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 

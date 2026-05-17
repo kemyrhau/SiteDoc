@@ -98,7 +98,42 @@ Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1
 2. Avklar om listens ✓/↩-knapper og modalens per-rad-checkboxer skal forenes til ett mønster
 3. Vurder om detalj-siden bør slankes til kun det den gjør bedre enn modalen (per-rad multiselect, inline rediger), og fjerne det som duplikerer listen
 
-Plasseres i `historikk` når T7-5b er implementert og deployet.
+**Status 2026-05-17:** T7-5b-1..4 + B-fixes implementert og deployet til test (se STATUS-AKTUELT.md). T7-5c (sammenheng-håndtering i splitt) åpen. Plasseres i `historikk` når hele bunken er deployet til prod.
+
+### Kompakt sedel-layout — utnytt skjerm bedre (oppdaget 2026-05-17)
+
+Kenneth observerte at SeddelKort tar for mye plass: 2-3 sedler synlig på 1080px-skjerm vs. konkurrentens flat-tabell-løsning som viser 9 dagsrader. Vår sammenheng-kort-tilnærming er bevisst (timer + maskin visuelt koblet) men trimmes for tett.
+
+**Per-sedel plassbruk i dag (~236px):**
+- Header (avatar 36×36 + ansatt + #ansattnr + dato + tilleggskrav + dagsnorm + aktivitet + beskrivelse + Detalj-knapp): ~80px
+- Tabell-header: ~8px
+- Timer-rad: ~40px · Maskin-rad: ~24px · Sum-rad: ~32px
+- Action-rad: ~52px
+
+**Mål:** ~120px per sedel → 6-7 sedler synlig.
+
+**Tre forslag (vurdert mot konkurrent-skjermbilde):**
+1. **Trim eksisterende kort** — header på én linje, avatar 24×24 eller fjernet, beskrivelse kun ved hover, tabell-rad-høyde 32px, action-rad inline med sum-rad
+2. **View-toggle [Kort] [Tabell]** — kort som default (sammenheng), flat tabell som power-user-modus, valg lagres i localStorage
+3. **Periode-presets + faner + paginering** — uavhengig av kort/tabell: I dag / Denne uka / Forrige uke / Denne måneden / Forrige måned / Kvartal / År / Egendefinert. Faner Attestering / Lønnsrapport / Månedlig / Eksport. Paginering ved 50+ sedler.
+
+**Anbefalt rekkefølge:** 1 → 3 → 2. Tas i neste sesjon med høy prioritet.
+
+### B_ny — Lagre-knapp grå→grønn ved endring (oppdaget 2026-05-17)
+
+Spec sier knapp grå/inaktiv → grønn ved endring. Faktisk: blå fra start uavhengig av om noe er endret. `AttesteringDetalj_Edit.tsx:481` — ingen samlet `harEndringer`-state.
+
+**Fix-skisse:** Beregn `harEndringer = timerEndringer.size > 0 || tilleggEndringer.size > 0 || maskinEndringer.size > 0 || nyeTimerRader.length > 0 || ...` og pass som `disabled={!harEndringer || lagre.isPending}` + betinget className for grønn.
+
+### B5 — Sum-indikator (maskin-av-arbeid) mangler i SeddelKort (oppdaget 2026-05-17)
+
+`EcoBucketAttest` har grønn/rød validerings-rad («Maskintimer X av arbeidstimer Y») i `attestering-buckets.tsx:634-648`. Brukes kun i detalj-siden via ProsjektSectionAttest, IKKE i listens SeddelKort. Maskin > arbeid synlig i modal men ikke i listen.
+
+**Fix-skisse:** Legg til samme validerings-logikk i SeddelKort's sum-rad eller som egen rad nederst.
+
+### Detalj-siden vs modal — slankhetsvurdering (vedtatt 2026-05-17)
+
+Detaljsiden beholdes fullt funksjonell (sammenheng-prinsipp krever det). Reverserer tidligere skissert slanking. Detaljsiden er riktig sted for kompleks redigering der sammenhenger må vurderes (multi-rad-utvalg på tvers av ECO, full sedel-overblikk).
 
 ## 2. Halvferdige features
 
