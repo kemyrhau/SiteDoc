@@ -1081,7 +1081,15 @@ export const dagsseddelRouter = router({
   // (primary- eller partner-rolle via ProjectOrganization).
 
   hentTilAttesteringFirma: protectedProcedure
-    .input(z.object({ organizationId: z.string().uuid() }))
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        // T7-4f-3: dato-range-filter for uke-navigasjon (valgfritt).
+        // ISO-dato YYYY-MM-DD (start- og slutt-inklusive). Begge må gis sammen.
+        fraOgMed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        tilOgMed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+      }),
+    )
     .query(async ({ ctx, input }) => {
       await autoriserAdminForFirma(ctx.userId, input.organizationId);
 
@@ -1096,6 +1104,16 @@ export const dagsseddelRouter = router({
       const prosjektIder = prosjekter.map((p) => p.id);
       if (prosjektIder.length === 0) return [];
 
+      // T7-4f-3: dato-range-filter for uke-navigasjon. Bruker DateTime-instanser
+      // med UTC for ren grense — DailySheet.dato lagres som timestamp.
+      const datoFilter =
+        input.fraOgMed && input.tilOgMed
+          ? {
+              gte: new Date(`${input.fraOgMed}T00:00:00.000Z`),
+              lte: new Date(`${input.tilOgMed}T23:59:59.999Z`),
+            }
+          : undefined;
+
       // T7-2b1: delvis-attesterte sedler beholder sheet.status="sent" inntil ALLE
       // rader er attestert — eksisterende filter dekker dem. Inkluderer maskiner
       // og rad-status så klient kan vise fremdrift (X av Y attestert).
@@ -1103,6 +1121,7 @@ export const dagsseddelRouter = router({
         where: {
           status: "sent",
           timer: { some: { projectId: { in: prosjektIder } } },
+          ...(datoFilter ? { dato: datoFilter } : {}),
         },
         include: {
           aktivitet: { select: { id: true, navn: true, kode: true } },
@@ -1115,28 +1134,89 @@ export const dagsseddelRouter = router({
 
       // Berik med ansatt-info (cross-package til kjernen-DB)
       const userIder = Array.from(new Set(sedler.map((s) => s.userId)));
-      const brukere = await prisma.user.findMany({
-        where: { id: { in: userIder } },
-        select: { id: true, name: true, email: true },
-      });
-      const medlemmer = await prisma.organizationMember.findMany({
-        where: { userId: { in: userIder } },
-        select: { userId: true, ansattnummer: true },
-      });
+
+      // T7-4f-1: per-rad project-join — rader kan peke til andre prosjekt-IDer
+      // enn firma-eide (cross-project shift). Batch alle unike på tvers av
+      // timer/tillegg/maskiner i én findMany.
+      const radProjectIder = new Set<string>();
+      for (const s of sedler) {
+        for (const r of s.timer) radProjectIder.add(r.projectId);
+        for (const r of s.tillegg) radProjectIder.add(r.projectId);
+        for (const r of s.maskiner) radProjectIder.add(r.projectId);
+      }
+
+      const [brukere, medlemmer, ekstraProsjekter, orgSetting] = await Promise.all([
+        prisma.user.findMany({
+          where: { id: { in: userIder } },
+          select: { id: true, name: true, email: true },
+        }),
+        prisma.organizationMember.findMany({
+          where: { userId: { in: userIder }, organizationId: input.organizationId },
+          // T7-4f-3: avdelingId for avdeling-filter-pill på klient
+          select: { userId: true, ansattnummer: true, avdelingId: true },
+        }),
+        radProjectIder.size > 0
+          ? prisma.project.findMany({
+              where: { id: { in: Array.from(radProjectIder) } },
+              select: { id: true, name: true, projectNumber: true },
+            })
+          : Promise.resolve([]),
+        prisma.organizationSetting.findUnique({
+          where: { organizationId: input.organizationId },
+          select: { dagsnorm: true, tillattRedigerVedAttestering: true },
+        }),
+      ]);
+
       const ansattnummerMap = new Map(medlemmer.map((m) => [m.userId, m.ansattnummer]));
+      const avdelingIdMap = new Map(medlemmer.map((m) => [m.userId, m.avdelingId]));
       const brukerMap = new Map(
-        brukere.map((b) => [b.id, { ...b, ansattnummer: ansattnummerMap.get(b.id) ?? null }]),
+        brukere.map((b) => [
+          b.id,
+          {
+            ...b,
+            ansattnummer: ansattnummerMap.get(b.id) ?? null,
+            avdelingId: avdelingIdMap.get(b.id) ?? null,
+          },
+        ]),
       );
-      const prosjektMap = new Map(prosjekter.map((p) => [p.id, p]));
+      // Slå sammen firma-prosjekter (sedel-hode) + rad-prosjekter (alle unike).
+      const prosjektMap = new Map<
+        string,
+        { id: string; name: string; projectNumber: string | null }
+      >();
+      for (const p of prosjekter) prosjektMap.set(p.id, p);
+      for (const p of ekstraProsjekter) prosjektMap.set(p.id, p);
+
+      // Fallback til Prisma-default hvis settings-rad ikke finnes for firmaet.
+      const dagsnorm = orgSetting ? Number(orgSetting.dagsnorm) : 7.5;
+      const redigerTillatt = orgSetting?.tillattRedigerVedAttestering ?? false;
 
       return sedler.map((s) => {
         const projectId = s.timer[0]?.projectId ?? null;
+        const timerMedProsjekt = s.timer.map((r) => ({
+          ...r,
+          project: prosjektMap.get(r.projectId) ?? null,
+        }));
+        const tilleggMedProsjekt = s.tillegg.map((r) => ({
+          ...r,
+          project: prosjektMap.get(r.projectId) ?? null,
+        }));
+        const maskinerMedProsjekt = s.maskiner.map((r) => ({
+          ...r,
+          project: prosjektMap.get(r.projectId) ?? null,
+        }));
         return {
           ...s,
+          timer: timerMedProsjekt,
+          tillegg: tilleggMedProsjekt,
+          maskiner: maskinerMedProsjekt,
           ansatt: brukerMap.get(s.userId) ?? null,
           prosjekt: projectId ? (prosjektMap.get(projectId) ?? null) : null,
           totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
           antallRader: s.timer.length + s.tillegg.length,
+          tilleggHarKrav: s.tillegg.length > 0,
+          dagsnorm,
+          redigerTillatt,
         };
       });
     }),
@@ -3027,6 +3107,11 @@ export const dagsseddelRouter = router({
           timer: z.number().min(0).max(24).optional(),
           mengde: z.number().min(0).nullable().optional(),
           enhet: z.string().max(20).nullable().optional(),
+          // Maskin-fra-til (2026-05-17): la rediger-modus oppdatere
+          // fra/til-tid. tilfoy-routen aksepterte allerede disse — oppdater
+          // var glemt. Symmetri med SheetTimer.oppdater (T.4 PR 2).
+          fraTid: z.string().nullable().optional(),
+          tilTid: z.string().nullable().optional(),
         }),
       )
       .mutation(async ({ ctx, input }) => {
@@ -3056,6 +3141,8 @@ export const dagsseddelRouter = router({
         if (input.externalCostObjectId !== undefined) {
           data.externalCostObjectId = input.externalCostObjectId;
         }
+        if (input.fraTid !== undefined) data.fraTid = input.fraTid;
+        if (input.tilTid !== undefined) data.tilTid = input.tilTid;
 
         // T7-4b: valider post-state. Endring av timer eller ECO på maskin
         // kan bryte sum(maskin) ≤ sum(timer)-invariant.

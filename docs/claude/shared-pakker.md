@@ -14,7 +14,7 @@
 | `Badge` | Varianter (default, primary, success, warning, danger) |
 | `StatusBadge` | Dokumentstatus → oversatt tekst og farge (bruker i18next) |
 | `Spinner` | Lastespinner (sm, md, lg) |
-| `Modal` | HTML `<dialog>`, tittel, lukk-knapp |
+| `Modal` | HTML `<dialog>`, tittel, lukk-knapp. Props: `open`, `onClose`, `title`, `children`, `className`, `lukkVedBackdropKlikk` (T7-5b-3: klikk på backdrop kaller onClose). `className` overstyrer default `max-w-lg` via regex-fallback (T7-5b-fix 2026-05-17) — caller med `max-w-*` får ingen cap-konflikt. |
 | `EmptyState` | Tom tilstand med tittel, beskrivelse, handling |
 | `Tooltip` | CSS tooltip (right/bottom) |
 | `SidebarIkon` | Ikonknapp med aktiv-markering |

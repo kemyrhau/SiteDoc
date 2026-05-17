@@ -53,10 +53,11 @@ export function RedigerMaskinRad({
 
   return (
     <div className="grid grid-cols-12 gap-2 rounded border border-gray-200 bg-gray-50 p-2 text-sm">
+      {/* T7-4f-splitt: rad 1 = Prosjekt + Maskin (6+6) */}
       <select
         value={rad.projectId}
         onChange={(e) => onChange({ projectId: e.target.value })}
-        className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
+        className="col-span-6 rounded border border-gray-300 px-2 py-1 text-xs"
       >
         {prosjekter.map((p) => (
           <option key={p.id} value={p.id}>
@@ -68,7 +69,7 @@ export function RedigerMaskinRad({
       <select
         value={rad.vehicleId}
         onChange={(e) => onChange({ vehicleId: e.target.value })}
-        className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
+        className="col-span-6 rounded border border-gray-300 px-2 py-1 text-xs"
       >
         <option value="">{t("timer.rediger.maskinPlaceholder")}</option>
         {equipment?.map((e) => (
@@ -79,6 +80,7 @@ export function RedigerMaskinRad({
         ))}
       </select>
 
+      {/* T7-4f-splitt: rad 2 = Fra+Til+Timer+Mengde+Enhet (3+3+2+2+2) */}
       <input
         type="time"
         value={rad.fraTid ?? ""}
@@ -90,7 +92,7 @@ export function RedigerMaskinRad({
             if (rundet !== e.target.value) onChange({ fraTid: rundet });
           }
         }}
-        className="col-span-1 min-w-[120px] rounded border border-gray-300 px-1 py-1 text-xs"
+        className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
       />
       <input
         type="time"
@@ -103,7 +105,7 @@ export function RedigerMaskinRad({
             if (rundet !== e.target.value) onChange({ tilTid: rundet });
           }
         }}
-        className="col-span-1 min-w-[120px] rounded border border-gray-300 px-1 py-1 text-xs"
+        className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
       />
 
       <input
@@ -120,7 +122,7 @@ export function RedigerMaskinRad({
             setTimerStr(String(rad.timer));
           }
         }}
-        className="col-span-1 rounded border border-gray-300 px-2 py-1 text-right text-xs font-mono"
+        className="col-span-2 rounded border border-gray-300 px-2 py-1 text-right text-xs font-mono"
         title={t("timer.timerEnhet")}
       />
 
@@ -139,7 +141,7 @@ export function RedigerMaskinRad({
       <select
         value={rad.enhet ?? ""}
         onChange={(e) => onChange({ enhet: e.target.value || null })}
-        className="col-span-1 rounded border border-gray-300 px-1 py-1 text-xs"
+        className="col-span-2 rounded border border-gray-300 px-1 py-1 text-xs"
       >
         <option value="">—</option>
         <option value="m">m</option>

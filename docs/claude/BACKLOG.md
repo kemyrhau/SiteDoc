@@ -56,6 +56,85 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 - **Pre-eksisterende timerSync.ts baseline-feil (linje 308, 334)** 🟡 — `string | null` mot lokal `.notNull()`. Akseptert som baseline, ikke prioritert.
 
+### Attestering-rediger-flyt — inkonsistens (oppdaget 2026-05-17)
+
+**Stop og planlegg.** Etter T7-4f-bunken har vi to overlappende redigeringsstier som skaper forvirring. Diagnose og anbefalt arkitektur:
+
+#### Hva skjer teknisk etter penn-klikk i SeddelKort
+
+Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1`. Next.js gjør full sidebytte til detalj-siden (`apps/web/src/app/dashbord/firma/timer/attestering/[id]/page.tsx`), som monterer `AttesteringDetalj`. `useSearchParams()` leser `?rediger=1` og setter `redigerModus=true` via `useEffect` — **men kun hvis `sheet.redigerTillatt=true`**.
+
+`sheet.redigerTillatt` kommer fra `OrganizationSetting.tillattRedigerVedAttestering`, **default `false`**. Hvis firmaet ikke har slått den på, ignoreres `?rediger=1` og siden vises read-only med en liten advarsel-banner.
+
+#### Hva mangler i edit-modus-flyten
+
+**Teknisk:** ingenting. Lagre-knapp (`AttesteringDetalj_Edit.tsx:481`), avbryt-knapp (linje 478), cache-invalidering — alt finnes.
+
+**UX:**
+- `redigerTillatt=false` → penn-ikonet «lyver». Brukeren ser ingen åpenbar tilbakemelding på hvorfor edit ikke aktiveres.
+- Etter lagring blir bruker stående på detalj-siden i read-only. Forventer retur til listen.
+- Ingen toast/badge på listen som bekrefter at sedelen ble endret.
+- Edit-modus krever hele sedelen lastet — per-rad-edit-løfte fra penn-ikonet er overdrevet.
+- Detalj-siden duplikerer ✓/↩-knappene fra listen — to måter å gjøre samme attestering på.
+
+**Brukerens nåværende vei fra «vil endre én rad» til «endring lagret»:** 8 steg (klikk penn → vent navigasjon → sjekk redigerTillatt → endre → lagre → vent → klikk tilbake → se listen).
+
+#### Korrekt arkitektur — anbefaling: **Modal overlay (Alternativ B)**
+
+| Alternativ | Vurdering |
+|---|---|
+| A: Inline i listen | ❌ Liste-state blir kompleks. 50+ sedler × edit-state. Kataloger queries multipliseres per kort. Ytelse-risiko. |
+| **B: Modal overlay** | ✅ Beholder list-kontekst. Gjenbruker `AttesteringDetaljEdit`. Lukk = umiddelbar retur. Per-rad-attestering fungerer i bred modal. |
+| C: Sidebytte (dagens) | ❌ Tar bruker ut av list-kontekst (Kenneths hovedklage). Duplikate knapper. 8 steg. |
+
+**Implementasjons-skisse (planlagt som T7-5b):**
+- SeddelKort: penn-klikk åpner modal i stedet for å navigere
+- Ny `<AttesteringDetaljModal>`-wrapper rundt eksisterende `AttesteringDetalj`-komponent
+- `?rediger=1`-mønsteret avvikles for liste-bruk (kan beholdes for direktelink hvis aktuelt)
+- Detalj-siden beholdes for bokmark/e-post-deeplinking, men blir tertiær
+
+**Krever før implementasjon:**
+1. Avklar om `tillattRedigerVedAttestering` skal være default `true` for nye firma (i dag default `false`)
+2. Avklar om listens ✓/↩-knapper og modalens per-rad-checkboxer skal forenes til ett mønster
+3. Vurder om detalj-siden bør slankes til kun det den gjør bedre enn modalen (per-rad multiselect, inline rediger), og fjerne det som duplikerer listen
+
+**Status 2026-05-17:** T7-5b-1..4 + B-fixes implementert og deployet til test (se STATUS-AKTUELT.md). T7-5c (sammenheng-håndtering i splitt) åpen. Plasseres i `historikk` når hele bunken er deployet til prod.
+
+### Kompakt sedel-layout — utnytt skjerm bedre (oppdaget 2026-05-17)
+
+Kenneth observerte at SeddelKort tar for mye plass: 2-3 sedler synlig på 1080px-skjerm vs. konkurrentens flat-tabell-løsning som viser 9 dagsrader. Vår sammenheng-kort-tilnærming er bevisst (timer + maskin visuelt koblet) men trimmes for tett.
+
+**Per-sedel plassbruk i dag (~236px):**
+- Header (avatar 36×36 + ansatt + #ansattnr + dato + tilleggskrav + dagsnorm + aktivitet + beskrivelse + Detalj-knapp): ~80px
+- Tabell-header: ~8px
+- Timer-rad: ~40px · Maskin-rad: ~24px · Sum-rad: ~32px
+- Action-rad: ~52px
+
+**Mål:** ~120px per sedel → 6-7 sedler synlig.
+
+**Tre forslag (vurdert mot konkurrent-skjermbilde):**
+1. **Trim eksisterende kort** — header på én linje, avatar 24×24 eller fjernet, beskrivelse kun ved hover, tabell-rad-høyde 32px, action-rad inline med sum-rad
+2. **View-toggle [Kort] [Tabell]** — kort som default (sammenheng), flat tabell som power-user-modus, valg lagres i localStorage
+3. **Periode-presets + faner + paginering** — uavhengig av kort/tabell: I dag / Denne uka / Forrige uke / Denne måneden / Forrige måned / Kvartal / År / Egendefinert. Faner Attestering / Lønnsrapport / Månedlig / Eksport. Paginering ved 50+ sedler.
+
+**Anbefalt rekkefølge:** 1 → 3 → 2. Tas i neste sesjon med høy prioritet.
+
+### B_ny — Lagre-knapp grå→grønn ved endring (oppdaget 2026-05-17)
+
+Spec sier knapp grå/inaktiv → grønn ved endring. Faktisk: blå fra start uavhengig av om noe er endret. `AttesteringDetalj_Edit.tsx:481` — ingen samlet `harEndringer`-state.
+
+**Fix-skisse:** Beregn `harEndringer = timerEndringer.size > 0 || tilleggEndringer.size > 0 || maskinEndringer.size > 0 || nyeTimerRader.length > 0 || ...` og pass som `disabled={!harEndringer || lagre.isPending}` + betinget className for grønn.
+
+### B5 — Sum-indikator (maskin-av-arbeid) mangler i SeddelKort (oppdaget 2026-05-17)
+
+`EcoBucketAttest` har grønn/rød validerings-rad («Maskintimer X av arbeidstimer Y») i `attestering-buckets.tsx:634-648`. Brukes kun i detalj-siden via ProsjektSectionAttest, IKKE i listens SeddelKort. Maskin > arbeid synlig i modal men ikke i listen.
+
+**Fix-skisse:** Legg til samme validerings-logikk i SeddelKort's sum-rad eller som egen rad nederst.
+
+### Detalj-siden vs modal — slankhetsvurdering (vedtatt 2026-05-17)
+
+Detaljsiden beholdes fullt funksjonell (sammenheng-prinsipp krever det). Reverserer tidligere skissert slanking. Detaljsiden er riktig sted for kompleks redigering der sammenhenger må vurderes (multi-rad-utvalg på tvers av ECO, full sedel-overblikk).
+
 ## 2. Halvferdige features
 
 ### 3D/IFC/georeferanse

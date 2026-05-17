@@ -240,9 +240,11 @@ model OrganizationSetting {
   // Støttede verdier: 15, 30, 60, null (ingen avrunding). Default 15.
   tidsrundingMinutter    Int?    @default(15) @map("tidsrunding_minutter")
   // T7-2b2 (2026-05-14) — Tillater firma-admin å redigere sedel-rader direkte
-  // under attestering, uten å returnere sedelen til arbeider. Default false
-  // (mest restriktivt — kunde må eksplisitt slå på). Settings-UI i T7-2b3.
-  tillattRedigerVedAttestering Boolean @default(false) @map("tillatt_rediger_ved_attestering")
+  // under attestering, uten å returnere sedelen til arbeider. T7-5b-1
+  // (2026-05-17): default endret fra false til true — lederverktøy bør
+  // være aktivt som standard. Eksisterende rader beholder sin verdi.
+  // Settings-UI i T7-2b3.
+  tillattRedigerVedAttestering Boolean @default(true) @map("tillatt_rediger_ved_attestering")
 
   // T.4 (2026-05-16) — Firma-default for normal arbeidsdag. HH:MM-format.
   // Brukes som forhåndsutfylling i TimerRadModal når ingen kalender-overstyring

@@ -6,194 +6,9 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### T7-4-bunken (dagsseddel prosjekt+ECO-gruppering) — KOMPLETT PÅ DEVELOP + DEPLOYET TIL TEST 2026-05-16
+> Forrige bunke (T7-2c/2d/2e/2f + T7-4a–e) DEPLOYET TIL PROD 2026-05-16
+> (prod-merge `86fdb5a3`). Arkivert til [historikk-2026-05.md](historikk-2026-05.md).
 
-Implementerer T.7-vedtak (låst 2026-05-16): maskin er utstyrsbidrag av
-samme tidsperiode som arbeidstimer, ikke additivt. Dagsseddel grupperes
-per (projectId, externalCostObjectId)-bucket med maskin som visuell
-underpost av arbeidstimer; server håndhever `sum(maskin) ≤ sum(timer)`
-per gruppe. Grandfather: kun nye/redigerte rader valideres.
-
-| Sub-PR | Innhold | Merge-commit |
-|---|---|---|
-| T7-4a | Schema: `SheetMachine.externalCostObjectId` + idempotent migrasjon (server + mobil Drizzle) | `ffde00e5` |
-| T7-4b | Server: `validerMaskinUnderArbeid`-helper + wire-in til 7 mutasjoner + ECO på maskin-input | `e3c99bc3` |
-| T7-4c | Web arbeider-detalj: prosjekt+ECO-gruppering, maskin som underpost, sum-indikator, indigo-badge | `38296dd5` |
-| T7-4d | Web attestering (read-only + edit-modus + SplittRadModal): samme bucket-mønster | `82509083` |
-| T7-4e | Mobil: ECO-bukets i `app/timer/[id].tsx` + EcoBucket-komponent + ECO-velger i MaskinSeksjon + sync-fix for maskin-ECO | `08a76535` |
-
-**Sync-fix oppdaget i T7-4e:** `timerSync.ts` refererte `externalCostObjectId`
-kun for timer-rader; maskin-mappingen i både push og pull manglet feltet.
-Hadde forblitt latent fordi ingen testdata har ECO på maskin enda. Fikset
-samme PR — server (T7-4b) og Drizzle (T7-4a) hadde feltet allerede.
-
-**Ikke deployet til prod ennå.** Krever innlogget verifisering på test først.
-
-**Mobil reload:** Expo `r`-reload tilstrekkelig (idempotent T7-4a-migrasjon
-kjøres ved app-oppstart). Ingen EAS-bygg.
-
-### T7-2e/2f attestering edit-modus bugfix + SplittRadModal bredde — DEPLOYET TIL TEST 2026-05-16
-
-T7-2e (`1383b8eb`): tidsfelt `min-w-[120px]` + `step` clampet til 1800 så
-minutt-selektor alltid vises + lokal string-state for timer-input (parses
-ved blur for å bevare desimaltegn). Løser «fra-tid viser 0:»- og «timer-
-endring fungerer ikke»-bugs i attestering edit-modus.
-
-T7-2f (`14740e56`): SplittRadModal bredde `max-w-4xl` → `max-w-6xl` +
-`overflow-x-auto` på rad-container.
-
-Verifisert på test 2026-05-16. Klar for prod sammen med T7-2c/2d-bunken
-+ T7-4-bunken etter innlogget QA.
-
-### T7-2c-bunken (splittRad + SplittRadModal + integrasjon) — PÅ DEVELOP, IKKE PROD
-
-develop: T7-2c1 (`f6b92f70`) + T7-2c2 (`75aa0227`) + T7-2c3 (`4bfaacd7`)
-Tidligere blokkere oppløst:
-- Maskin-timer arkitekturfix → levert i T7-4-bunken
-- Edit-modus bugs → fixet i T7-2e
-
-Klar for prod sammen med T7-2d + T7-2e/2f + T7-4-bunken etter innlogget QA på test.
-
-### T7-2d prosjektnavn per attestering-rad — PÅ DEVELOP, IKKE PROD
-
-develop: `ad7fc773`
-Samme prod-status som T7-2c-bunken.
-
-Test-DB-tilstand: `OrganizationSetting.tillattRedigerVedAttestering = true` aktivert for Byggeleder (`f1000001-0000-0000-0000-000000000002`) på `sitedoc_test` 2026-05-16. Ikke gjort på prod.
-
-### PR T7-2d prosjektnavn per attestering-rad + aktiverer redigering test — MERGET TIL DEVELOP 2026-05-16 (merge `ad7fc773`, impl `762b89a0`)
-
-Liten bugfix-PR etter T7-2c-bunken. Lukker to attestering-mangler avdekket under E2E-verifikasjon:
-
-**1. Server: per-rad prosjekt-join (`apps/api/src/routes/timer/dagsseddel.ts`)**
-
-`hentForAttestering` returnerte tidligere kun ETT prosjekt-objekt (basert på første rads `projectId`). For multi-prosjekt-sedler (T.1/T7-3b1) manglet de andre radene prosjektnavn.
-
-Fix: ny app-layer-join (svak FK uten Prisma `@relation` per A.20-mønster). Samler unike `projectId` på tvers av timer/tillegg/maskiner, gjør én `prisma.project.findMany` i parallell-Promise.all, bygger Map, beriker hver rad med `project: { id, name, projectNumber } | null`. Sheet-nivå `prosjekt`-felt beholdes for kompatibilitet (header bruker det fortsatt).
-
-**2. Klient: vis prosjektnavn per rad (`apps/web/src/components/timer/AttesteringDetalj.tsx`)**
-
-`TimerRad`/`TilleggRad`/`MaskinRad` inline-types utvidet med valgfri `project?: RadProsjekt` (`{ id, name, projectNumber } | null`).
-
-`TimerRaderLeder`, `TilleggRaderLeder`, `MaskinRaderLeder` viser nå prosjektnavn (blå tekst, `text-xs`) ved siden av rad-status-badge når:
-- **firma-kontekst** (`prosjektKontekst === undefined`): alltid (informativt)
-- **prosjekt-kontekst:** kun når `rad.projectId !== prosjektKontekst` (erstatter tidligere italic «Annet prosjekt»-tekst med faktisk navn)
-
-**3. Aktivert `tillattRedigerVedAttestering` på test-DB (Byggeleder)**
-
-`UPDATE organization_settings SET tillatt_rediger_ved_attestering = true WHERE organization_id = (SELECT id FROM organizations WHERE name ILIKE '%Byggeleder%' LIMIT 1)` mot `sitedoc_test`. Dette aktiverer Rediger-knappen + Splitt-funksjonaliteten fra T7-2c-bunken for Byggeleder på test.
-
-**Verifisert:** `apps/api` typecheck 0 nye feil. `apps/web` typecheck 1 = 1 baseline (vitest).
-
-**Reload-metode:** Server reload kreves (Prisma-query endret). Web: full reload + cache-cleaning ved deploy.
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR T7-2c3 Splitt-integrasjon i AttesteringDetalj_Edit — MERGET TIL DEVELOP 2026-05-16 (merge `4bfaacd7`, impl `ebfc269d`)
-
-Tredje sub-PR av T7-2c-bunken. Monterer SplittRadModal (T7-2c2) inn i edit-modus-flyten med per-rad Splitt-knapp, ulagrede-endringer-bekreftelse og automatisk state-reset etter splitt. Etter denne kan firma-admin faktisk splitte rader fra UI — kundeønske #4 «redigering og splitting av timer ved attestering» er fullt levert.
-
-**Endringer i `apps/web/src/components/timer`:**
-
-- **`RedigerTimerRad.tsx`** / **`RedigerTilleggRad.tsx`** / **`RedigerMaskinRad.tsx`** — ny valgfri `onSplitt?: () => void`-prop. Når satt: viser indigo «Splitt»-knapp (`Split`-ikon fra lucide) ved siden av eksisterende «Slett»-knapp. Når undefined: skjuler knappen. Beholder bakoverkompatibilitet for andre callers.
-
-- **`AttesteringDetalj_Edit.tsx`** — fem konkrete utvidelser:
-  1. Importer `SplittRadModal` + utvider `TimerRad`/`TilleggRad`/`MaskinRad` inline-types med valgfri `parentRadId: string | null` (serveren returnerer feltet allerede — bare TS-narrowing utvides).
-  2. Ny state `splittAktivFor: SplittAktiv` (discriminated union — `{ radType, original }` eller `null`).
-  3. `harUlagredeEndringer`-memo: sammenligner `editTimer/editTillegg/editMaskin` mot init-verdier via `JSON.stringify`. Brukes som forutsetning for bekreftelses-dialog.
-  4. `aapneSplitt(aktiv)`-helper: hvis `harUlagredeEndringer === true`, åpner `window.confirm` med `timer.rediger.splittBekreft`. Setter `splittAktivFor` hvis brukeren bekrefter.
-  5. Per-rad onSplitt-gating: rader rendret i edit-listen får `onSplitt`-callback satt **kun hvis** original DB-rad finnes (`rad.originalId !== null`) **og** `original.parentRadId === null` (raden er ikke selv resultat av en tidligere splitt). Nye edit-rader (lagt til i edit-modus uten lagring) får ingen Splitt-knapp.
-
-- **Cache-resync etter splitt:** Ny `useEffect` overvåker sortert ID-streng av `pendingTimer/pendingTillegg/pendingMaskin`. Ved første render lagres ID-strengen i `useRef` uten state-endring. Ved senere prop-endring (typisk fra `hentForAttestering`-invalidering etter splitt-lagring) detekteres ID-shift og state nullstilles til nye init-verdier. Pattern matcher `useRef`-guard-mønsteret som unngår infinite render-loop ved JSON-stringify-derive.
-
-- **Modal rendres** i bunnen av hovedreturen, conditional på `splittAktivFor`. Spreadet `{...splittAktivFor}` gir `radType + original` discriminert. `onLagret` setter `splittAktivFor` til null (modal har allerede invalidert query — useEffect plukker opp resten).
-
-**i18n:** 2 nye nøkler under `timer.rediger.*`:
-- `splittRad`: «Splitt rad» / «Split row»
-- `splittBekreft`: «Du har ulagrede endringer som vil bli forkastet. Fortsett?» / «You have unsaved changes that will be discarded. Continue?»
-
-Auto-oversatt til 13 språk via `generate.ts` (2296 → 2298 totalt).
-
-**Designvalg:**
-- **`parentRadId`-gate:** Per locked design vises Splitt kun på «opprinnelige» rader. Rader som selv er split-resultat (har `parentRadId` satt) kan ikke splittes videre fra UI — selv om server tillater det teknisk. Konsekvens: firma-admin kan ikke splitte i kaskade («splitt A til B+C, splitt deretter B til D+E»). Hvis dette blir et reelt behov, fjernes gaten i ett trinn.
-- **`window.confirm` for bekreftelse:** Pragmatisk valg matcher pre-eksisterende mønster i `firma/avdelinger/page.tsx` (per CLAUDE.md slett-bekreftelse-konvensjon med eksisterende unntak). Konvertering til ekte Modal-komponent kan gjøres som del av felles slett-bekreftelse-runde senere.
-- **JSON.stringify til diff:** Edit-state og init-state har samme struktur, så stringify-diff er pålitelig. Litt CPU per render men neglisjerbart for typiske sedel-størrelser (< 20 rader).
-- **Cache-resync via useRef + sortert ID-streng:** Trengs fordi `useState`-init kjøres bare ved første render. Etter splitt henter `hentForAttestering` ny data med nye rad-IDer, men AttesteringDetalj_Edit-state ville ellers vist gammel pending-liste. Pattern unngår «props-driven state»-anti-mønster ved å re-initialisere kun når ID-settet faktisk endres (ikke ved hver render).
-
-**Verifisert:** `apps/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). 0 nye feil.
-
-**Reload-metode:** TypeScript-only + i18n. Full reload + cache-cleaning ved deploy. Ingen schema- eller server-endring.
-
-**Etter denne PR-en er hele T7-2c-bunken (server-mutation + modal-UI + integrasjon) komplett.** Klar for E2E-verifikasjon på `test.sitedoc.no` — fire scenarier dokumentert i T7-2c1-PR-en (kundeønske #4 «redigering og splitting av timer ved attestering» fullt levert etter prod-deploy).
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR T7-2c2 SplittRadModal-komponent + i18n — MERGET TIL DEVELOP 2026-05-16 (merge `75aa0227`, impl `b2708f22`)
-
-Andre sub-PR av T7-2c-bunken. Web-UI for rad-splitting — modal som åpnes for én pending rad og lar firma-admin fordele den til N nye rader med live sum-validering. Server-mutation (`splittRad`) ble levert i T7-2c1.
-
-**Ny komponent (`apps/web/src/components/timer/SplittRadModal.tsx`, ~410 linjer):**
-- Diskriminert props-union: `{ radType: "timer" | "tillegg" | "maskin", original: ..., sheetId, prosjekter, tidsrundingMinutter, onLukk, onLagret }`. Garanterer at riktige felter på `original` matcher `radType` ved kompilering.
-- Tre-seksjons-layout via `@sitedoc/ui` `Modal` (`max-w-4xl`):
-  1. **«Original (referanse)»** — grå boks med read-only visning av key-felter fra original-raden. Egen `OriginalRefVisning`-subkomponent rendrer per radType: prosjekt-navn, timer/antall, fra-/til-tid (hvis tids-relevant), kommentar (tillegg), mengde + enhet (maskin).
-  2. **«Split-rader»** — liste som gjenbruker eksisterende `RedigerTimerRad`/`RedigerTilleggRad`/`RedigerMaskinRad` fra T7-2b2. Default: én rad pre-fylt med originalens verdier. «+ Legg til rad»-knapp pre-fyller ny rad med: `fraTid = siste rads tilTid`, `timer/antall = Math.max(0, gjenstaar)`, `projectId + lonnsartId/tilleggId/vehicleId = kopiert fra original`. Slett-knapp er no-op på rad #1 (per locked design — minst 1 rad må alltid være der; server krever .min(2) ved lagring).
-  3. **Gjenstår-indikator** — farget banner: grønn («Sum matcher original ✓») hvis `Math.abs(gjenstaar) < 0.001`, rød («X for mye fordelt») hvis `gjenstaar < 0`, gul («X gjenstår å fordele») hvis `gjenstaar > 0`. Lagre-knapp deaktivert hvis ikke balansert eller radTeller < 2.
-
-**Mutation-kobling:**
-- Kaller `trpc.timer.dagsseddel.splittRad.useMutation` med radType-diskriminert input.
-- `onSuccess`: invaliderer `hentForAttestering` + `hentTilAttestering` + `hentTilAttesteringFirma`, kaller `props.onLagret()`.
-- Pre-validering på klient: alle felter utfylt, sum balansert. Server-side validering (firma-admin-auth, `tillattRedigerVedAttestering`-gate, sum-toleranse, cross-org) gjelder uansett.
-
-**i18n:** 13 nye nøkler under `timer.splitt.*` i nb + en (`tittel.timer/tillegg/maskin`, `original`, `splitRader`, `leggTilRad`, `lagre`, `balansert`, `gjenstaar`, `foredelt`, `mengde`, `feil.minst2Rader`, `feil.sumIkkeMatch`). Auto-oversatt til 13 språk via `generate.ts` (2283 → 2296 totalt).
-
-**Designvalg:**
-- **Gjenbruker eksisterende Rediger*-komponenter:** Modalen lar ikke kunden velge per radType — den får én pre-fylt rad og kan duplisere via «+». Det er konsistent med edit-modus-paradigmet og sparer duplikat-UI.
-- **Slett-knapp som no-op på rad #1:** Per locked design. Brukeren kan slette alle andre rader, men #1 forblir. Server enforcer `.min(2)` ved lagring; klient blokkerer hvis radTeller < 2.
-- **Indikator-farger som signal:** Grønn = sum OK, rød = for mye, gul = mer gjenstår. Replicerer typisk regnskaps-validering. Sum-toleranse `< 0.001` matcher server-side Math.abs-sjekken (T7-2c1).
-- **Original (referanse) som dedikert seksjon, ikke `<details>`:** Splitting trenger original-konteksten synlig hele tiden for å sammenligne tall. Ulikt rediger-modus hvor originalene er bakgrunns-historikk.
-
-**Verifisert:** `apps/web` typecheck 1 = 1 baseline (pre-eksisterende vitest-typedef). 0 nye feil. Mutation-input matcher T7-2c1 Zod-discriminator.
-
-**Reload-metode:** TypeScript-only + i18n. Full reload + cache-cleaning ved deploy (`rm -rf apps/web/.next` + build). Ingen schema- eller server-endring.
-
-**Forventede begrensninger (kommer i T7-2c3):**
-- Modal har ingen integrasjon i AttesteringDetalj/AttesteringDetalj_Edit ennå — den kan ikke åpnes fra UI. Brukeren ser ingen «Splitt»-knapp før T7-2c3 monterer den.
-- Mobil: får ikke splitt-funksjonalitet (kun firma-admin web-flow).
-
-Klar for review — ikke merge før Kenneth verifiserer.
-
-### PR T7-2c1 splittRad-mutation + audit-snapshot — MERGET TIL DEVELOP 2026-05-16 (merge `f6b92f70`, impl `53904028`)
-
-Første sub-PR av T7-2c-bunken (rad-splitting ved attestering). Server-only — UI kommer i T7-2c2/c3. Implementerer den manglende halvdelen av kundeønske #4 «redigering og splitting av timer ved attestering».
-
-**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
-- Ny `splittRad`-mutation med Zod discriminated union på `radType: "timer" | "tillegg" | "maskin"`. Hver variant tar `radId: uuid` + `nyeRader: [...]` (`min(2)`). Per-type-felter speiler `redigerSedelRader`-formatet. UI bestemmer fordeling, server validerer.
-- Validering i rekkefølge: (1) original rad finnes + `attestertStatus === "pending"`, (2) firma-admin-auth via `autoriserAdminForFirma`, (3) `tillattRedigerVedAttestering`-gate, (4) `sheet.status === "sent"`, (5) cross-org-validering av nye `projectId`-er, (6) sum-validering: `Math.abs(nySum - originalSum) < 0.001` (timer-rad: sum av `timer`, tillegg: sum av `antall`, maskin: sum av `timer` — `mengde` distribueres fritt).
-- Transaksjon: marker original `"erstattet"` + opprett N nye rader med `parentRadId = original.id` og `attestertStatus = "pending"`. Per-tabell `$transaction` for å unngå union-type-utfordringer.
-- Activity-log etter transaksjon: `action: "splitt_rad"`, payload med `radType`, `antallNye`, `sedelEier`, `originalSnapshot` + `nyeSnapshot` (input direkte).
-
-**Snapshot-helpers (nye, modul-scope):**
-- `snapshotTimer/Tillegg/Maskin` med eksplisitte returtyper (`TimerSnapshot`/`TilleggSnapshot`/`MaskinSnapshot`) for Prisma `InputJsonValue`-kompatibilitet. Decimal → number via `Number()`.
-
-**Retroaktiv audit-utvidelse på `redigerSedelRader`:**
-- `findMany` på pending-rader endret fra `select: { id: true }` til full rad-data (samme query, mer data).
-- Activity-payload utvidet med `originalerSnapshot: { timer[], tillegg[], maskin[] }` + `nyeSnapshot: { timer[], tillegg[], maskin[] }`. Stenger T7-2b3-utestående audit-løfte.
-
-**Designvalg:**
-- **`Math.abs(diff) < 0.001`-toleranse for sum-validering:** dekker floating-point-rare ved Decimal → number → sum. Streng `===` ville feilet på `0.1 + 0.2 !== 0.3`-type problemer.
-- **Maskin: kun `timer` sum-valideres:** `mengde` på SheetMachine er per-rad enhet-spesifikk (m³, kg, stk) og kan ikke deles aritmetisk uten kontekst. Firma-admin distribuerer fritt; total kan avvike fra original uten feil.
-- **Per-tabell `$transaction`:** Prisma-`$transaction` med ulike tabell-modeller per gren gir union-type-problemer. Tre branches er enklere enn én generisk variant.
-- **Activity, ikke ny tabell:** audit-spor bygger på eksisterende `Activity`-modell i kjernen (`@sitedoc/db`). `targetType: "DailySheet"`, `action: "splitt_rad"`.
-
-**Verifisert:** `apps/api` typecheck 0 nye feil. Ingen schema-endring (felt `parentRadId` + status `"erstattet"` fantes fra T7-2b2). Ingen mobil-impact.
-
-**Reload-metode:** Server reload kreves ved deploy (`pm2 restart sitedoc-api`). Ingen klient-endring i denne PR-en.
-
-**Forventede begrensninger (kommer i T7-2c2/c3):**
-- Ingen UI for å trigge `splittRad` — mutation kan kun kalles fra tRPC-klient manuelt.
-- `redigerSedelRader` retroaktiv audit påvirker payload-størrelse i `Activity`-tabellen marginalt. Eksisterende rader uberørt (kun nye).
-
-Klar for review — ikke merge før Kenneth verifiserer.
 
 ### Neste: EAS-bygg (mobil)
 
@@ -201,8 +16,35 @@ Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på e
 - T7-3a/b1/b2/d (per-rad prosjekt + geo-forslag + per-rad-attestering)
 - T4-d/e (fra/til-tid per rad + kalender-cache + forhåndsutfylling)
 - T.5 (tidsrunding i mobil-pickere)
+- T7-4a/e (prosjekt+ECO-bukets + EcoBucket-komponent + ECO-velger i MaskinSeksjon + sync-fix for maskin-ECO)
 
 Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
+
+### T7-4f + T7-5b + maskin-fra-til + B-fixes — Attestering komplett på develop (IKKE prod)
+
+**Samlet bunke på develop, deployet til test, IKKE merget til prod.** Inkluderer mockup v7-redesign (T7-4f), modal-arkitektur (T7-5b), maskin-fra/til-felt, og QA-fix-runde B1/B2/B6.
+
+**Sub-PR-er merget til develop:**
+- **T7-4f-bunken** (`bd70392e`): server-beriking, ekstraher attestering-buckets, redesign attestering-liste, SeddelKort kompakt tabell, fritekst/sum/penn-fixes. Detaljer i [historikk-2026-05.md § T7-4f-bunken](historikk-2026-05.md).
+- **T7-4f-splitt-1-klikk** (`b8c2f835` → merge `7ee31fa3`): ✂-ikon per rad åpner SplittRadModal direkte fra listen.
+- **T7-5b-1** (`b4e1a3ba` → merge `2a47dceb`): DB-default `tillattRedigerVedAttestering=true` for nye firma. Migrasjon kun `ALTER COLUMN ... SET DEFAULT true`, ingen UPDATE.
+- **T7-5b-2** (`b75a2a4b` → merge `30c20df9`): `AttesteringDetalj.onFerdig?`-prop (modal-vennlig overstyring av router.push).
+- **T7-5b-3** (`9b1055f6` → merge `b1ae1516`): `RedigerSeddelModal`-wrapper. Modal får `lukkVedBackdropKlikk?`-prop og smart max-w-regex (`packages/ui/src/modal.tsx`).
+- **T7-5b-4** (`595ad4b3` → merge `7063cb36`): SeddelKort penn-klikk åpner modal (lokal state, ikke route). ⋯-meny ryddet.
+- **maskin-fra-til** (`28a7c89a` → merge `ac7fa72e`): MaskinRadDialog får fra/til-felter med default-forslag fra timer-rad i samme bucket (Alt D, sammenheng-prinsipp). `maskin.oppdater` Zod-schema utvidet med fra/til.
+- **B1 modal-bredde** (`92774103` + `f9dfacf2` + `4fa345f5`): tre fixes — Modal ytre className-overstyring + indre div symmetri + AttesteringDetalj `fullBredde`-prop. Modal-kjeden nå 80vw uten skjulte cap.
+- **B2 maskinNavn null-safe** (`141fc1ab`): `${e.merke} ${e.modell}` → `[merke, modell].filter(Boolean).join(" ")` med internNavn-fallback. «null null (Heatwork 7626)» blir nå «Heatwork 7626».
+- **B6 initialModus-prop** (`b117cb75`): `AttesteringDetalj.initialModus?: "lese" | "rediger"`. RedigerSeddelModal sender "rediger" → 1-klikk fra penn til edit.
+
+**Sammenheng-prinsipp låst** i [fase-0-beslutninger.md § T7-5](fase-0-beslutninger.md): timer-rad + tilhørende maskin + varer = én logisk enhet per prosjekt+ECO+tidslinje. T7-5c (SplittRadModal med sammenheng-håndtering) åpen, krever spec for sammenheng-deteksjon.
+
+**QA-rapport:** [qa-rapport-2026-05-17.md](qa-rapport-2026-05-17.md). B7–B10 ✅. B_ny (Lagre grå→grønn) og B5 (sum-indikator SeddelKort) i backlog. A1–A7 (ansatt-flyt-mangler) krever større arbeid.
+
+**Neste sesjon:** Kompakt-layout / default-kollapsede sedler — Kenneths klage om at SeddelKort tar for mye plass (2-3 sedler synlig vs. konkurrent 9 dagsrader). Detaljer i [BACKLOG.md § Kompakt sedel-layout](BACKLOG.md).
+
+**Blokkert fra prod:** Hele bunken venter på samlet prod-deploy. Verifiseringskrav: innlogget bruker-test på test.sitedoc.no.
+
+### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 

@@ -49,6 +49,7 @@ export function RedigerTimerRad({
 
   return (
     <div className="grid grid-cols-12 gap-2 rounded border border-gray-200 bg-gray-50 p-2 text-sm">
+      {/* T7-4f-splitt: rad 1 = dropdowns (Prosjekt | Lønnsart | Aktivitet | ECO) */}
       <select
         value={rad.projectId}
         onChange={(e) => onChange({ projectId: e.target.value })}
@@ -64,7 +65,7 @@ export function RedigerTimerRad({
       <select
         value={rad.lonnsartId}
         onChange={(e) => onChange({ lonnsartId: e.target.value })}
-        className="col-span-2 rounded border border-gray-300 px-2 py-1 text-xs"
+        className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
       >
         <option value="">{t("timer.rediger.lonnsartPlaceholder")}</option>
         {lonnsarter?.map((l) => (
@@ -77,7 +78,7 @@ export function RedigerTimerRad({
       <select
         value={rad.aktivitetId}
         onChange={(e) => onChange({ aktivitetId: e.target.value })}
-        className="col-span-2 rounded border border-gray-300 px-2 py-1 text-xs"
+        className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
       >
         <option value="">{t("timer.rediger.aktivitetPlaceholder")}</option>
         {aktiviteter?.map((a) => (
@@ -92,7 +93,7 @@ export function RedigerTimerRad({
         onChange={(e) =>
           onChange({ externalCostObjectId: e.target.value || null })
         }
-        className="col-span-2 rounded border border-gray-300 px-2 py-1 text-xs"
+        className="col-span-3 rounded border border-gray-300 px-2 py-1 text-xs"
       >
         <option value="">{t("timer.attestering.flyttEco.ingenEco")}</option>
         {ecoListe?.map((eco) => (
@@ -102,6 +103,7 @@ export function RedigerTimerRad({
         ))}
       </select>
 
+      {/* T7-4f-splitt: rad 2 = tids-input + timer (4+4+4) */}
       <input
         type="time"
         value={rad.fraTid ?? ""}
@@ -114,7 +116,7 @@ export function RedigerTimerRad({
             if (rundet !== e.target.value) onChange({ fraTid: rundet });
           }
         }}
-        className="col-span-1 min-w-[120px] rounded border border-gray-300 px-1 py-1 text-xs"
+        className="col-span-4 rounded border border-gray-300 px-2 py-1 text-xs"
         placeholder="HH:MM"
       />
       <input
@@ -128,7 +130,7 @@ export function RedigerTimerRad({
             if (rundet !== e.target.value) onChange({ tilTid: rundet });
           }
         }}
-        className="col-span-1 min-w-[120px] rounded border border-gray-300 px-1 py-1 text-xs"
+        className="col-span-4 rounded border border-gray-300 px-2 py-1 text-xs"
         placeholder="HH:MM"
       />
 
@@ -146,7 +148,7 @@ export function RedigerTimerRad({
             setTimerStr(String(rad.timer));
           }
         }}
-        className="col-span-1 rounded border border-gray-300 px-2 py-1 text-right text-xs font-mono"
+        className="col-span-4 rounded border border-gray-300 px-2 py-1 text-right text-xs font-mono"
       />
 
       <div className="col-span-12 -mt-1 flex items-center justify-end gap-3">

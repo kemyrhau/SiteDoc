@@ -1935,3 +1935,188 @@ model OrganizationMemberPermission {
 ```
 
 Implementeres som dedikert PR etter O-3. `tilgangskontroll.ts` får ny hjelpefunksjon `harModulTilgang(userId, organizationId, modul, krevdTilgang)`.
+
+### T7-4f — Attestering-liste expanded inline (låst 2026-05-16)
+
+**Visuell struktur (godkjent mockup v7):**
+- Uke-navigasjon øverst (← Uke 20 →)
+- Filter-pills: Prosjekt | Ansatte | Avdeling
+- Gruppering per prosjekt (toggle: per ansatt)
+- Per gruppe-header: antall sedler · arbeidstimer · maskintimer · [Attester gruppe (N)]
+- Per sedel-kort med tabell:
+  Kolonner: Lønnsart | Aktivitet | Fra–til | Timer | Maskin · fra–til · timer
+  - Maskin: indentert chip per rad med maskinnavn · fra–til · timer
+  - Vareforbruk: rad integrert i sedel-tabellen (📦 vare · antall · enhet)
+  - ECO/underprosjekt: egen sub-header innen sedelen med blå venstrekant + «→ Godkjenning byggherre»
+  - Tilleggskrav (lønnsart-type): oransje rad + oransje sedel-kant
+  - Mertid uten tilleggskrav: ingen oransje — badge «X.Xt — ingen tilleggskrav»
+  - Sum-rad: arbeidstimer · maskintimer (inkl. OT-notering hvis tillegg finnes)
+
+**Nøkkelprinsipp (låst):**
+Oransje farge utløses av lønnsart-TYPE (tillegg-lønnsart registrert av arbeidstaker),
+IKKE av antall timer. Mertid uten tilleggskrav = normal grå sedel.
+
+**Handlinger per sedel:**
+- Detalj-knapp → åpner AttesteringDetalj (full redigering)
+- ↩ Returner | ✓ Attester (oransje ved tilleggskrav)
+- ⋯-meny: Rediger sedel | Splitt rad | Returner
+
+#### Sub-PR-plan (4 PR-er, ~3 timer Opus-arbeid totalt)
+
+**T7-4f-1 — Server: utvid `hentTilAttesteringFirma`** (~30 min)
+- `apps/api/src/routes/timer/dagsseddel.ts`
+- Speile `hentForAttestering`-shape: per-rad `project`-join (cross-package `prisma.project.findMany` på alle unike `projectId`), `redigerTillatt` fra `orgSetting`, beriket `aktivitet` per rad om relevant.
+- Én batch-`findMany` for prosjekter på tvers av alle sedler — ingen N+1.
+- Bakover-kompatibel: alle eksisterende felter (`totaltimer`, `antallRader`, `ansatt`, `prosjekt`) består; nye felter legges på rad-arrayene.
+- Akseptkriterier: `rader[].timer[].project` finnes når rad har annet prosjekt enn sedel-hodet; `redigerTillatt` reflekterer `OrganizationTimerSetting`.
+
+**T7-4f-2 — Refaktor: ekstraher `ProsjektSectionAttest` + `EcoBucketAttest`** (~30 min)
+- Flytt blokk `AttesteringDetalj.tsx:892–1119` til ny `apps/web/src/components/timer/attestering-buckets.tsx`.
+- Eksporter komponenter + delte typer (`TimerRad`, `MaskinRad`, `TilleggRad`, `RadProsjekt`, `EcoBucketAttestProps`).
+- `AttesteringDetalj.tsx` importerer fra ny fil — ingen funksjonell endring. Verifiser med `pnpm typecheck --filter web` + åpne én sedel på test.
+
+**T7-4f-3 — Web: expanded inline + uke-nav + filter-pills** (~90 min)
+- `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` — fullstendig redesign per mockup v7.
+- Uke-navigasjon (← Uke 20 →) med dato-range-filter på klient.
+- Filter-pills: Prosjekt | Ansatte | Avdeling (Avdeling-modell finnes — C.11 deployet).
+- Gruppering per prosjekt (default), toggle per ansatt. Gruppe-header med sum + «Attester gruppe (N)» (kaller `attester`-mutasjon i loop, viser per-rad-feilmelding ved partial fail).
+- Per sedel-kort: tabell-layout med Lønnsart | Aktivitet | Fra–til | Timer | Maskin-kolonne.
+- Tilleggskrav-detektering: hvis `timer.some(r => r.lonnsart.type === "tillegg")` → oransje rad + sedel-kant.
+- Vareforbruk-rad: foreløpig stub eller skjult (se åpen avklaring 2).
+- i18n-nøkler i `nb.json` + `en.json` (uke-nav, filter-pills, gruppe-header).
+
+**T7-4f-4 — Avklaring + evt. mini-fix: ECO-flytting fra firma-listen** (~20 min)
+- `flyttTimerRadEco` krever `krevProsjektLeder` — har INGEN firma-admin-fallback (i motsetning til `hentForAttestering`).
+- Alt A (aktivere): utvid auth med `autoriserAdminForFirma`-fallback parallell med `hentForAttestering`-mønsteret.
+- Alt B (skjule): send `kanFlytte={false}` til `ProsjektSectionAttest` fra firma-listen — detalj-siden beholder velgeren.
+
+**Avhengigheter:** T7-4f-1 → T7-4f-3 (server-shape først). T7-4f-2 → T7-4f-3 (eksport før gjenbruk). T7-4f-4 parallelt eller før T7-4f-3.
+
+#### Ikke i scope
+- Inline rad-edit (åpne detalj for full redigering — designvalg)
+- Persistert collapse-state per bruker
+- Bulk-attestering på tvers av grupper (T7-4g om aktuelt)
+- Prosjektleder-listen `[prosjektId]/timer/attestering/page.tsx` (egen oppfølger med samme mønster)
+
+#### Åpne avklaringer (før T7-4f-3 startes)
+1. **ECO-flytt i firma-listen** — aktivere (T7-4f-4 Alt A) eller skjule (Alt B)?
+2. **Vareforbruk-rad i sedel-kort** — `SheetVareforbruk` finnes IKKE i db-timer; vareforbruk er per-prosjekt, ikke per-sedel. Tre veier:
+   - (a) Skjul vareforbruk-rad i T7-4f-3, åpne ny PR T7-4f-5 når vareforbruk-kobling til sedel finnes
+   - (b) Server-side aggregering: hent `Vareforbruk`-rader per ansatt+dato og injiser i respons
+   - (c) Utsette hele T7-4f-spec til vareforbruk-modell er knyttet til SheetTimer
+3. **«Mertid uten tilleggskrav»-badge** — krever lønnsart-konfigurasjon for «normal arbeidsdag» (8t? per ansattgruppe?). Eksisterer denne grensen som data, eller hardkodes 7,5/8t i T7-4f-3?
+
+### T7-5 — Web dagsseddel-redigering (beslutninger 2026-05-17)
+
+**Arkitekturprinsipp (låst):**
+Web = ekte web-UI. Mobil = app. Ingen formfaktor-kompromiss.
+Nettleser på mobil er ikke en reell bruker-kanal for SiteDoc.
+
+**Sammenheng-prinsipp (låst 2026-05-17):**
+En «registrering» er én logisk enhet:
+```
+Timer-rad 5.0t [07:00–12:00] Anleggsarbeid
+  ↳ Maskin-rad 3.0t [07:00–10:00] CAT 320
+  ↳ Vare: 12 liter grunning
+```
+Disse henger SAMMEN på samme prosjekt + ECO + tidslinje. Splitt eller
+redigering av én del krever at hele enheten vises og kan redigeres i
+kontekst — leder må vurdere hva som skjer med maskin og varer når
+timer-raden splittes (følger nye timer-rad? deles? blir på original?).
+
+**Sammenheng-validering (låst 2026-05-17):**
+- `sum(maskin.timer) ≤ sum(arbeidstimer)` PER prosjekt+ECO-gruppe ALLTID
+- Gjelder også etter splitt: hver ny rad-gruppe må tilfredsstille
+  invarianten
+- Splitt-modal (T7-5c) MÅ vise maskin-rad og kreve fordeling av
+  maskintimer slik at ingen ny gruppe bryter ≤-invarianten
+- Server (T7-4b `validerMaskinUnderArbeid`) er autoritativ — klient-
+  visning er veiledende
+
+**Konsekvenser av sammenheng-prinsippet:**
+
+1. **SplittRadModal er ufullstendig i dag** — splitter kun timer-raden
+   alene. Må utvides til å vise tilhørende maskin- og vare-rader for
+   samme prosjekt+ECO+tidsoverlapp, og lar leder velge hva som skjer
+   med hver. Planlegges som T7-5c (etter T7-5b modal-flyt).
+
+2. **Detaljsiden beholdes fullt funksjonell** — IKKE slankes. Den er
+   riktig sted for kompleks redigering der sammenhenger må vurderes
+   (multi-rad-utvalg, cross-relationship-edits, full sedel-overblikk).
+   Modal-flyten (T7-5b) er for enkle endringer; detaljsiden for komplekse.
+
+3. **Modal-grenser:** Modal håndterer rad-rediger i kontekst av
+   sammenheng-gruppen, men ved kompleks attestering (multi-prosjekt,
+   per-rad-utvalg over flere ECO-er) leder bytte til detaljside.
+
+**Redigeringsmodell — ansatt:**
+- Inline tabell-redigering (hybrid: Sonnet A + Opus A)
+- Fra/til → Timer auto-beregnet (Fra+Til → timer), manuelt overstyrbart
+- + Legg til ny rad = ansattes primære verktøy
+- Splitt: KUN lederverktøy i attestering-flow — ansatt splitter IKKE
+
+**Splitt-tilgjengelighet:**
+- I dag: 3 klikk (oversikt → detalj → edit → splitt)
+- Mål: 1 klikk fra attestering-liste via ✂-ikon per rad i SeddelKort
+- T7-4f-splitt-1-klikk implementerer dette
+- **Etterspørsel for sammenheng-håndtering (T7-5c):** SplittRadModal må
+  inkludere relaterte maskin/vare-rader, ikke kun timer-raden alene
+
+**Edit-flyt-arkitektur (oppdatert 2026-05-17 etter sammenheng-prinsipp):**
+
+```
+Listen (SeddelKort)        Modal (T7-5b)              Detaljside (beholdt)
+─────────────────────      ──────────────────         ──────────────────────
+✓ Attester hel sedel       ✏ Rediger sammenheng-      Per-rad-utvalg på tvers
+↩ Returner hel sedel          gruppen for én rad        av ECO/prosjekter
+✂ Splitt sammenheng-       ✓/↩ rad-utvalg innen      Kompleks rediger med
+   gruppen (T7-5c)            modalen                    full overblikk
+                            Lagre = invalider + lukk    Direktelink-mål
+```
+
+**Default for `tillattRedigerVedAttestering`:**
+- Nye firma: `true` (lederverktøy bør være aktivt som standard)
+- Eksisterende firma: uendret (beholder sin verdi)
+- Implementeres via Prisma-schema default-endring (kun DEFAULT-clause,
+  ingen UPDATE av eksisterende rader)
+
+**Sub-PR-rekkefølge:**
+- T7-5b-1 — DB-default-endring (~15 min)
+- T7-5b-2 — `AttesteringDetalj` refaktor: `onFerdig?`-prop som overstyrer
+  router-push i modal-modus (~30 min)
+- T7-5b-3 — `<RedigerSeddelModal>`-wrapper med max-w-[80vw] (~30 min)
+- T7-5b-4 — SeddelKort penn-klikk → modal (lokal state, ikke route) (~20 min)
+- T7-5c — SplittRadModal utvidet med sammenheng-håndtering (egen plan)
+
+**Lagre-knapp UX-mønster (vedtatt 2026-05-17):**
+Lagre-knapp alltid synlig i modal, grå/inaktiv som default. Aktiveres
+(grønn) når noe er endret. Escape/klikk-utenfor lukker uten advarsel —
+grønn knapp har allerede signalisert at endringer finnes. Forkastes
+endringer ved klikk utenfor.
+
+**Grid-nivåer:**
+- Dag-grid: eksisterer (T7-4c, `/dashbord/timer/[id]`)
+- Uke-grid: erstatter `/mine` — T7-5a (planlegges separat)
+- Måned-grid: kompakt rapport-visning, én linje per registrering,
+  sidevei-scroll, kolonnevalg/filter — vurderes som del av timer-rapport
+
+**Maskin-rad i redigering:**
+- Vises inline i samme tabell som timer-rader med 🚜-prefiks
+- Indentert som underrad (↳) under timer-raden den hører til visuelt
+- Fra/til-tid obligatorisk på web (som på attestering edit)
+- **Per sammenheng-prinsipp:** maskin-rad er underordnet timer-rad
+  visuelt OG logisk — ved splitt/rediger av timer-raden må maskin-raden
+  vurderes (T7-5c-scope)
+
+**Vareforbruk:**
+- Modell finnes ikke i db-timer ennå (`SheetVareforbruk` mangler)
+- Når implementert: skal være en del av sammenheng-gruppen sammen med
+  timer og maskin
+- Sammenheng-prinsippet er forberedelse for vareforbruk-rader
+
+**Åpent:**
+- timer-rapport eksisterer men er prosjektbundet og mangler grid-funksjonalitet
+- Overlapp med måned-grid må kartlegges
+- T7-5c krever spec for sammenheng-deteksjon: er det fra/til-overlap som
+  binder timer + maskin? Eller eksplisitt FK? I dag: ingen FK, kun
+  prosjekt+ECO+sedel-id som visuell heuristikk

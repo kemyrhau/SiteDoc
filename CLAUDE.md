@@ -162,6 +162,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - Ikon-props: `JSX.Element` (ikke `React.ReactNode`) for å unngå `@types/react` v18/v19-kollisjon
 - tRPC mutation-callbacks: `_data: unknown` for å unngå TS2589
 - **tRPC-include TS2589-fallgruve:** `user: { include: { organization } }` eller `user: true` triggrer «Type instantiation excessively deep» i tRPC-klient. Bruk alltid eksplisitt `user: { select: { id, name, ... } }`. Lærdom fra O-5c 2026-05-13 (`MapperPanel.tsx:154`).
+- **Tailwind className-spesifisitet (max-w-* og lignende):** Wrapper-komponenter som concatenerer en hardkodet utility FØR caller-s `className` taper i CSS-spesifisitet — standard Tailwind-utility kommer ofte først i stylesheet og vinner mot caller-s arbitrary value (f.eks. `max-w-[80vw]` mister mot intern `max-w-lg`). Mønster for å la caller overstyre: regex-fallback. Eksempel fra Modal (T7-5b-fix 2026-05-17, `packages/ui/src/modal.tsx`): `className={`w-full ${className}${/\bmax-w-/.test(className) ? "" : " max-w-lg"} ...`}`. Bevarer eksisterende callers uten max-w-prop.
 - **Prisma-felt-cleanup-verifikasjon:** grep alene er ikke pålitelig — filtrerer ut `where: { felt: ... }` med `-v "felt:"`. Kjør alltid `npx tsc --noEmit` etter schema-endring og bruk typecheck som sannhetskilde for gjenstående bruks-steder. Lærdom fra O-5b → O-5b-fix → O-5c (grep ga to oversette runder).
 - Prisma-migreringer: `pnpm --filter @sitedoc/db exec prisma migrate dev`
 

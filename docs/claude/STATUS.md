@@ -11,12 +11,15 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-05-16 (T.4-bunken a–e + T.5 tidsrunding deployet til prod)
+**Sist oppdatert:** 2026-05-16 (T7-2c/2d/2e/2f + T7-4a–e deployet til prod)
 **Antall filer dekket:** 50 (44 i `docs/claude/` + 6 i `docs/arkiv/`) — `neste-oppgave.md` slettet 2026-05-14, innholdet konsolidert til [STATUS-AKTUELT.md § Neste oppgaver](STATUS-AKTUELT.md)
 
 ---
 
 ## Prod-deploys 2026-05-03 → 2026-05-16
+
+**2026-05-16 — T7-2c/2d/2e/2f + T7-4a–e (splittRad + prosjekt+ECO-gruppering):**
+- `86fdb5a3` — Hele bunken i ett prod-deploy. T.7-vedtak låst 2026-05-16: maskin er utstyrsbidrag av samme tidsperiode som arbeidstimer; server håndhever `sum(maskin) ≤ sum(timer)` per (`projectId`, `externalCostObjectId`)-gruppe. Migrasjon `20260516140000_t7_4a_machine_eco` applied 19:27:50 (T7-4a `SheetMachine.externalCostObjectId String?` + indeks). Server: ny `validerMaskinUnderArbeid` + `hentRaderForValidering` + `feilMeldingMaskinOverstiger` wired inn i 7 mutasjoner (`tilfoyTimerRad`, `oppdaterTimerRad`, `maskin.tilfoy`, `maskin.oppdater`, `redigerSedelRader`, `splittRad`, `syncBatch`). `splittRad`-mutation (T7-2c1) med discriminated-union Zod + audit-snapshot. Web: SplittRadModal (T7-2c2, +6xl bredde i T7-2f) + integrasjon i AttesteringDetalj_Edit (T7-2c3). Edit-bugfix T7-2e (tidsfelt min-w 120px + step clampet til 1800 + lokal string-state for timer-input). Per-rad prosjekt-join i `hentForAttestering` (T7-2d). Dagsseddel og attestering grupperer per prosjekt+ECO i ny `EcoGruppe`/`EcoBucketAttest`/`EcoBucketEdit`/`EcoBucket` (web arbeider T7-4c, web attestering T7-4d, mobil T7-4e) med maskin som indentert underpost + sum-indikator grønn/rød + indigo-badge «→ Godkjenning byggherre» på ECO-grupper. ECO-velger i web/mobil MaskinRadModal + RedigerMaskinRad. Mobil sync-fix: `timerSync.ts` maskin-mapping i push og pull manglet `externalCostObjectId` — fikset i T7-4e (latent fordi ingen testdata hadde ECO på maskin). 6 nye i18n-nøkler (`timer.gruppe.*` + `timer.detalj.ukjentEco`) × 15 språk fra T7-4c, 13 fra T7-2c2 + 2 fra T7-2c3. Mobil-endringer sovende på enhet til neste EAS-bygg (idempotent Drizzle-migrasjon kjøres ved app-oppstart).
 
 **2026-05-16 — T.5 tidsrunding (web + mobil):**
 - `ba6ba243` — Firma-admin konfigurerer tidsrunding (15/30/60 min eller ingen) for fra/til-tid på timer- og maskin-rader. Server: `oppdaterSetting` Zod-validering `z.union([15, 30, 60, null])`, `hentArbeidstidDefaults` select utvidet. Web: ny `lib/tidsrunding.ts` (`rundTilNarmeste`-helper med 23:59-clamp), `StandardArbeidstidSeksjon` dropdown, `RedigerTimerRad`/`RedigerMaskinRad` step+onBlur-fallback. Mobil-cache: idempotent ALTER ADD COLUMN `tidsrunding_minutter`. Mobil-UI: speilet `utils/tidsrunding.ts`, `FraTilTidFelt` runder onChange-verdi før callback, `minuteInterval` hint for 15/30 (60 ignoreres av iOS/Android — JS-runding garanterer konsistens). `TimerSeksjon`/`MaskinSeksjon` henter via `hentOrganizationSettingLokalt`. 6 nye i18n-nøkler → 13 språk (2277 → 2283). Schema-feltet `OrganizationSetting.tidsrundingMinutter` fantes allerede fra T.1–T.6-bunken 2026-05-12.
