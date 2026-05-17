@@ -283,6 +283,7 @@ type ValiderBrytt = {
 function validerMaskinUnderArbeid(
   timer: ValiderRad[],
   maskin: ValiderRad[],
+  pauseMin = 0,
 ): ValiderBrytt[] {
   const nokkel = (pid: string, eco: string | null) => `${pid}|${eco ?? ""}`;
   const grupper = new Map<string, ValiderBrytt>();
@@ -312,10 +313,14 @@ function validerMaskinUnderArbeid(
     grupper.set(k, g);
   }
 
+  // Pause-modell (2026-05-18): maskin kan gå mens operatør pauser
+  // (døgn-utleie). Tillat maskin opp til timer + pause per bucket.
+  // Timer-utleie-maskiner (selges pr. time) vil naturlig være ≤ timer.
+  const pauseTimer = pauseMin / 60;
   const brytt: ValiderBrytt[] = [];
   for (const g of grupper.values()) {
     // Epsilon for Decimal-runding (timer lagres med 2 desimaler).
-    if (g.maskinSum > g.timerSum + 0.001) brytt.push(g);
+    if (g.maskinSum > g.timerSum + pauseTimer + 0.001) brytt.push(g);
   }
   return brytt;
 }
@@ -714,7 +719,7 @@ export const dagsseddelRouter = router({
           timer: input.timer,
         },
       ];
-      const brytt = validerMaskinUnderArbeid(postTimer, naa.maskin);
+      const brytt = validerMaskinUnderArbeid(postTimer, naa.maskin, sheet.pauseMin);
       if (brytt.length > 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -789,7 +794,7 @@ export const dagsseddelRouter = router({
             }
           : r,
       );
-      const brytt = validerMaskinUnderArbeid(postTimer, naa.maskin);
+      const brytt = validerMaskinUnderArbeid(postTimer, naa.maskin, sheet.pauseMin);
       if (brytt.length > 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -1802,7 +1807,13 @@ export const dagsseddelRouter = router({
     .mutation(async ({ ctx, input }) => {
       const sheet = await ctx.prismaTimer.dailySheet.findUnique({
         where: { id: input.sheetId },
-        select: { id: true, organizationId: true, status: true, userId: true },
+        select: {
+          id: true,
+          organizationId: true,
+          status: true,
+          userId: true,
+          pauseMin: true,
+        },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
 
@@ -1928,14 +1939,6 @@ export const dagsseddelRouter = router({
           timer: r.timer,
         })),
       ];
-      const brytt = validerMaskinUnderArbeid(postTimer, postMaskin);
-      if (brytt.length > 0) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: await feilMeldingMaskinOverstiger(brytt),
-        });
-      }
-
       // Pause-modell (2026-05-17): beregn pauseMin fra pauseFra/pauseTil.
       // Hvis begge undefined: ikke rør pause-feltene.
       // Hvis null eller delvis null: nullstill begge + pauseMin = 0.
@@ -1966,6 +1969,17 @@ export const dagsseddelRouter = router({
         } else {
           pauseUpdate = { pauseFra: null, pauseTil: null, pauseMin: 0 };
         }
+      }
+
+      // Pause-aware maskin-validering: bruk ny pauseMin hvis vi endrer den,
+      // ellers eksisterende sheet.pauseMin.
+      const effektivPauseMin = pauseUpdate?.pauseMin ?? sheet.pauseMin;
+      const brytt = validerMaskinUnderArbeid(postTimer, postMaskin, effektivPauseMin);
+      if (brytt.length > 0) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: await feilMeldingMaskinOverstiger(brytt),
+        });
       }
 
       // Transaksjon: marker alle eksisterende pending som "erstattet" + opprett nye
@@ -2180,7 +2194,13 @@ export const dagsseddelRouter = router({
       // 2) Hent sedel for auth + status-sjekk
       const sheet = await ctx.prismaTimer.dailySheet.findUnique({
         where: { id: original.sheetId },
-        select: { id: true, organizationId: true, status: true, userId: true },
+        select: {
+          id: true,
+          organizationId: true,
+          status: true,
+          userId: true,
+          pauseMin: true,
+        },
       });
       if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
 
@@ -2317,7 +2337,7 @@ export const dagsseddelRouter = router({
             timer: rad.timer,
           })),
         ];
-        const brytt = validerMaskinUnderArbeid(baseline.timer, postMaskin);
+        const brytt = validerMaskinUnderArbeid(baseline.timer, postMaskin, sheet.pauseMin);
         if (brytt.length > 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -2928,6 +2948,7 @@ export const dagsseddelRouter = router({
           const syncBrytt = validerMaskinUnderArbeid(
             syncPostTimer,
             syncPostMaskin,
+            lokal.pauseMin,
           );
           if (syncBrytt.length > 0) {
             resultater.push({
@@ -3131,7 +3152,7 @@ export const dagsseddelRouter = router({
             timer: input.timer,
           },
         ];
-        const brytt = validerMaskinUnderArbeid(naa.timer, postMaskin);
+        const brytt = validerMaskinUnderArbeid(naa.timer, postMaskin, sheet.pauseMin);
         if (brytt.length > 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -3216,7 +3237,7 @@ export const dagsseddelRouter = router({
               }
             : r,
         );
-        const brytt = validerMaskinUnderArbeid(naa.timer, postMaskin);
+        const brytt = validerMaskinUnderArbeid(naa.timer, postMaskin, sheet.pauseMin);
         if (brytt.length > 0) {
           throw new TRPCError({
             code: "BAD_REQUEST",
