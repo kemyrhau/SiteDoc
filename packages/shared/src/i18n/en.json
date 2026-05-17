@@ -267,6 +267,8 @@
   "timer.attestering.sedel.dagsnorm": "norm {{dagsnorm}}h",
   "timer.attestering.meny.tittel": "More actions",
   "timer.attestering.meny.rediger": "Edit sheet",
+  "timer.attestering.meny.detalj": "Detail",
+  "timer.kol.fraTil": "From–to",
   "timer.attestering.meny.splittRad": "Split row",
   "timer.attestering.meny.returner": "Return",
   "timer.rediger.knapp": "Edit sheet",

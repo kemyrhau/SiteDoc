@@ -267,6 +267,8 @@
   "timer.attestering.sedel.dagsnorm": "dagsnorm {{dagsnorm}}t",
   "timer.attestering.meny.tittel": "Flere handlinger",
   "timer.attestering.meny.rediger": "Rediger sedel",
+  "timer.attestering.meny.detalj": "Detalj",
+  "timer.kol.fraTil": "Fra–til",
   "timer.attestering.meny.splittRad": "Splitt rad",
   "timer.attestering.meny.returner": "Returner",
   "timer.rediger.knapp": "Rediger sedel",

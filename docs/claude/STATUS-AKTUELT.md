@@ -20,6 +20,22 @@ Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på e
 
 Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
 
+### PR T7-4f-3b kompakt SeddelKort med tabell-layout — IMPLEMENTERT PÅ feature/t7-4f-3b 2026-05-17
+
+Ny komponent `apps/web/src/components/attestering/SeddelKort.tsx` (~330 linjer) speiler mockup v7 nøyaktig:
+
+- Sedel-header med **avatar (initialer)**, ansatt-navn + #ansattnr, dato, tilleggskrav-badge, totaltimer/dagsnorm/aktivitet
+- **Detalj-knapp** tydelig i header + ↩ Returner + ✓ Attester (oransje hvis tilleggskrav) + ⋯-meny
+- **Flat tabell** med 4 kolonner: Lønnsart | Aktivitet | Fra–til | Timer (ikke ProsjektSectionAttest)
+- **ECO-sub-headers** i tabellen med blå venstrekant + «→ Byggherre»-badge
+- **Maskin-rader** indentert grå under timer-rader: «↳ CAT 320 · 07:00–12:00 · (3.0t)»
+- **Tillegg-seksjon** med oransje venstrekant nederst i tabellen, oransje badge per rad
+- Oransje sedel-kant + oransje avatar + oransje attester-knapp ved `tilleggHarKrav=true`
+
+Erstatter inline `SedelKort` i `page.tsx`. ProsjektSectionAttest er ikke lenger brukt fra liste-siden (men beholdes for detalj-siden). i18n: 2 nye nøkler (`timer.attestering.meny.detalj`, `timer.kol.fraTil`).
+
+Typecheck (web): 0 nye feil (kun pre-eksisterende vitest-feil består).
+
 ### Fix T7-4f fra/til på timer- og maskin-rader i attestering-liste — DEPLOYET TIL TEST 2026-05-16
 
 Mindre justering på develop direkte (etter T7-4f-3-merge). `attestering-buckets.tsx`:
