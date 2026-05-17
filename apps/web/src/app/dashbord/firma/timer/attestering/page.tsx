@@ -43,6 +43,7 @@ type AttesteringRad = {
   tilleggHarKrav: boolean;
   dagsnorm: number;
   redigerTillatt: boolean;
+  beskrivelse: string | null;
   aktivitet: { id: string; navn: string; kode: string | null } | null;
   ansatt: Ansatt | null;
   prosjekt: { id: string; name: string; projectNumber: string | null } | null;

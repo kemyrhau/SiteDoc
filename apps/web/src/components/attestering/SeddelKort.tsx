@@ -32,6 +32,7 @@ export type SeddelKortData = {
   totaltimer: number;
   tilleggHarKrav: boolean;
   dagsnorm: number;
+  beskrivelse: string | null;
   aktivitet: { id: string; navn: string; kode: string | null } | null;
   ansatt: Ansatt | null;
   timer: TimerRad[];
@@ -182,6 +183,11 @@ export function SeddelKort({
                 </>
               )}
             </div>
+            {sedel.beskrivelse && (
+              <p className="mt-1 line-clamp-2 max-w-xl text-xs italic text-gray-500">
+                {sedel.beskrivelse}
+              </p>
+            )}
           </div>
         </div>
         <Link
