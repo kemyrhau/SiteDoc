@@ -136,7 +136,7 @@ export function SeddelKort({
 
   return (
     <div
-      className={`overflow-hidden rounded-lg border bg-white ${
+      className={`rounded-lg border bg-white ${
         oransje
           ? "border-orange-200 border-l-4 border-l-orange-400"
           : "border-gray-200"
