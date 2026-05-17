@@ -8,9 +8,19 @@ interface ModalProps {
   title: string;
   children: ReactNode;
   className?: string;
+  // T7-5b-3 (2026-05-17): klikk på backdrop (utenfor dialog-innhold)
+  // kaller onClose. Default false for bakover-kompatibilitet.
+  lukkVedBackdropKlikk?: boolean;
 }
 
-export function Modal({ open, onClose, title, children, className = "" }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  className = "",
+  lukkVedBackdropKlikk = false,
+}: ModalProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -28,6 +38,13 @@ export function Modal({ open, onClose, title, children, className = "" }: ModalP
     <dialog
       ref={dialogRef}
       onClose={onClose}
+      onClick={
+        lukkVedBackdropKlikk
+          ? (e) => {
+              if (e.target === dialogRef.current) onClose();
+            }
+          : undefined
+      }
       suppressHydrationWarning
       className={`w-full max-w-lg rounded-lg border-0 p-0 shadow-xl backdrop:bg-black/50 ${className}`}
     >
