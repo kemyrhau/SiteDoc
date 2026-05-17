@@ -140,7 +140,14 @@ export function SeddelKort({
   const maskinNavn = (id: string): string => {
     const e = equipment?.find((x) => x.id === id);
     if (!e) return "—";
-    return `${e.merke} ${e.modell}${e.internNavn ? ` (${e.internNavn})` : ""}`;
+    // T7-5b-B2 (2026-05-17): merke/modell kan være null eller tom streng
+    // i DB (Heatwork-rader importert uten merke/modell-data). Tidligere
+    // template literal ga "null null (Heatwork 7626)". Null-safe: bygg
+    // navn av non-empty deler, fallback til internNavn alene.
+    const navn = [e.merke, e.modell].filter(Boolean).join(" ").trim();
+    return navn
+      ? `${navn}${e.internNavn ? ` (${e.internNavn})` : ""}`
+      : e.internNavn ?? "—";
   };
   const ecoEtikett = (id: string | null): string | null => {
     if (!id) return null;
