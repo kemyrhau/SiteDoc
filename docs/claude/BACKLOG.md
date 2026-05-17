@@ -56,6 +56,50 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 - **Pre-eksisterende timerSync.ts baseline-feil (linje 308, 334)** 🟡 — `string | null` mot lokal `.notNull()`. Akseptert som baseline, ikke prioritert.
 
+### Attestering-rediger-flyt — inkonsistens (oppdaget 2026-05-17)
+
+**Stop og planlegg.** Etter T7-4f-bunken har vi to overlappende redigeringsstier som skaper forvirring. Diagnose og anbefalt arkitektur:
+
+#### Hva skjer teknisk etter penn-klikk i SeddelKort
+
+Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1`. Next.js gjør full sidebytte til detalj-siden (`apps/web/src/app/dashbord/firma/timer/attestering/[id]/page.tsx`), som monterer `AttesteringDetalj`. `useSearchParams()` leser `?rediger=1` og setter `redigerModus=true` via `useEffect` — **men kun hvis `sheet.redigerTillatt=true`**.
+
+`sheet.redigerTillatt` kommer fra `OrganizationSetting.tillattRedigerVedAttestering`, **default `false`**. Hvis firmaet ikke har slått den på, ignoreres `?rediger=1` og siden vises read-only med en liten advarsel-banner.
+
+#### Hva mangler i edit-modus-flyten
+
+**Teknisk:** ingenting. Lagre-knapp (`AttesteringDetalj_Edit.tsx:481`), avbryt-knapp (linje 478), cache-invalidering — alt finnes.
+
+**UX:**
+- `redigerTillatt=false` → penn-ikonet «lyver». Brukeren ser ingen åpenbar tilbakemelding på hvorfor edit ikke aktiveres.
+- Etter lagring blir bruker stående på detalj-siden i read-only. Forventer retur til listen.
+- Ingen toast/badge på listen som bekrefter at sedelen ble endret.
+- Edit-modus krever hele sedelen lastet — per-rad-edit-løfte fra penn-ikonet er overdrevet.
+- Detalj-siden duplikerer ✓/↩-knappene fra listen — to måter å gjøre samme attestering på.
+
+**Brukerens nåværende vei fra «vil endre én rad» til «endring lagret»:** 8 steg (klikk penn → vent navigasjon → sjekk redigerTillatt → endre → lagre → vent → klikk tilbake → se listen).
+
+#### Korrekt arkitektur — anbefaling: **Modal overlay (Alternativ B)**
+
+| Alternativ | Vurdering |
+|---|---|
+| A: Inline i listen | ❌ Liste-state blir kompleks. 50+ sedler × edit-state. Kataloger queries multipliseres per kort. Ytelse-risiko. |
+| **B: Modal overlay** | ✅ Beholder list-kontekst. Gjenbruker `AttesteringDetaljEdit`. Lukk = umiddelbar retur. Per-rad-attestering fungerer i bred modal. |
+| C: Sidebytte (dagens) | ❌ Tar bruker ut av list-kontekst (Kenneths hovedklage). Duplikate knapper. 8 steg. |
+
+**Implementasjons-skisse (planlagt som T7-5b):**
+- SeddelKort: penn-klikk åpner modal i stedet for å navigere
+- Ny `<AttesteringDetaljModal>`-wrapper rundt eksisterende `AttesteringDetalj`-komponent
+- `?rediger=1`-mønsteret avvikles for liste-bruk (kan beholdes for direktelink hvis aktuelt)
+- Detalj-siden beholdes for bokmark/e-post-deeplinking, men blir tertiær
+
+**Krever før implementasjon:**
+1. Avklar om `tillattRedigerVedAttestering` skal være default `true` for nye firma (i dag default `false`)
+2. Avklar om listens ✓/↩-knapper og modalens per-rad-checkboxer skal forenes til ett mønster
+3. Vurder om detalj-siden bør slankes til kun det den gjør bedre enn modalen (per-rad multiselect, inline rediger), og fjerne det som duplikerer listen
+
+Plasseres i `historikk` når T7-5b er implementert og deployet.
+
 ## 2. Halvferdige features
 
 ### 3D/IFC/georeferanse
