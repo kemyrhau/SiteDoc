@@ -360,6 +360,7 @@ export function AttesteringDetalj({
             onToggleMaskin={(id) => toggle(valgteMaskin, id, setValgteMaskin)}
             onToggleTillegg={(id) => toggle(valgteTillegg, id, setValgteTillegg)}
             kanFlytte={sheet.status === "sent"}
+            pauseMin={sheet.pauseMin}
           />
         ));
       })()}

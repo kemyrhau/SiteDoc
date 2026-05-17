@@ -450,6 +450,7 @@ export function ProsjektSectionAttest({
   onToggleMaskin,
   onToggleTillegg,
   kanFlytte,
+  pauseMin = 0,
 }: {
   projectId: string;
   prosjektNavn: RadProsjekt | null;
@@ -464,6 +465,8 @@ export function ProsjektSectionAttest({
   onToggleMaskin: (id: string) => void;
   onToggleTillegg: (id: string) => void;
   kanFlytte: boolean;
+  /** Sheet-level pauseMin — sendes videre til EcoBucketAttest. */
+  pauseMin?: number;
 }) {
   const { t } = useTranslation();
   // ECO-katalog for navn på subheaders (én query per prosjekt).
@@ -511,6 +514,7 @@ export function ProsjektSectionAttest({
               onToggleTimer={onToggleTimer}
               onToggleMaskin={onToggleMaskin}
               kanFlytte={kanFlytte}
+              pauseMin={pauseMin}
             />
           );
         })}
@@ -545,6 +549,7 @@ export function EcoBucketAttest({
   onToggleTimer,
   onToggleMaskin,
   kanFlytte,
+  pauseMin = 0,
 }: {
   ecoId: string | null;
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
@@ -556,11 +561,15 @@ export function EcoBucketAttest({
   onToggleTimer: (id: string) => void;
   onToggleMaskin: (id: string) => void;
   kanFlytte: boolean;
+  /** Sheet-level pauseMin — gir maskin tillatt overgang ved døgn-utleie. */
+  pauseMin?: number;
 }) {
   const { t } = useTranslation();
   const sumTimer = timer.reduce((acc, r) => acc + tilTall(r.timer), 0);
   const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
-  const maskinOk = sumMaskin <= sumTimer + 0.001;
+  // Pause-modell (2026-05-18): maskin kan gå mens operatør pauser.
+  const pauseTimer = pauseMin / 60;
+  const maskinOk = sumMaskin <= sumTimer + pauseTimer + 0.001;
 
   return (
     <div

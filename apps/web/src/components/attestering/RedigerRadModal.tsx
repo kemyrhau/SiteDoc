@@ -480,6 +480,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                         0,
                       );
                       const pauseMin = pauseMinutter(editPauseFra, editPauseTil);
+                      const pauseTimer = pauseMin / 60;
                       return editMaskin.map((rad) => (
                         <KompaktMaskinRad
                           key={rad.key}
@@ -487,7 +488,7 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                           equipment={equipment}
                           timeStep={timeStep}
                           tidsrundingMinutter={tidsrundingMinutter}
-                          overstigerArbeid={rad.timer > sumArbeid + 0.001}
+                          overstigerArbeid={rad.timer > sumArbeid + pauseTimer + 0.001}
                           pauseMin={pauseMin}
                           onChange={(felt) =>
                             setEditMaskin((rader) =>
