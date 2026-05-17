@@ -2024,6 +2024,15 @@ redigering av én del krever at hele enheten vises og kan redigeres i
 kontekst — leder må vurdere hva som skjer med maskin og varer når
 timer-raden splittes (følger nye timer-rad? deles? blir på original?).
 
+**Sammenheng-validering (låst 2026-05-17):**
+- `sum(maskin.timer) ≤ sum(arbeidstimer)` PER prosjekt+ECO-gruppe ALLTID
+- Gjelder også etter splitt: hver ny rad-gruppe må tilfredsstille
+  invarianten
+- Splitt-modal (T7-5c) MÅ vise maskin-rad og kreve fordeling av
+  maskintimer slik at ingen ny gruppe bryter ≤-invarianten
+- Server (T7-4b `validerMaskinUnderArbeid`) er autoritativ — klient-
+  visning er veiledende
+
 **Konsekvenser av sammenheng-prinsippet:**
 
 1. **SplittRadModal er ufullstendig i dag** — splitter kun timer-raden
