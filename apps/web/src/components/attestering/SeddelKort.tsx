@@ -351,38 +351,26 @@ export function SeddelKort({
               );
             })}
 
-            {/* Tillegg-rader: separat sub-seksjon, oransje styling */}
-            {sedel.tillegg.length > 0 && (
-              <>
-                <tr className="border-y border-orange-100 bg-orange-50">
-                  <td
-                    colSpan={4}
-                    className="border-l-4 border-l-orange-400 px-3 py-1.5 text-xs font-semibold text-orange-800"
-                  >
-                    {t("timer.detalj.tilleggRader")}
-                  </td>
-                </tr>
-                {sedel.tillegg.map((rad) => (
-                  <tr
-                    key={rad.id}
-                    className="border-b border-gray-100 last:border-b-0"
-                  >
-                    <td className="px-3 py-2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
-                        {tilleggNavn(rad.tilleggId)}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-gray-700">
-                      {rad.kommentar ?? "—"}
-                    </td>
-                    <td className="px-3 py-2 text-gray-400">—</td>
-                    <td className="px-3 py-2 text-right font-mono text-gray-900">
-                      {tilTall(rad.antall).toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
-              </>
-            )}
+            {/* Tillegg-rader: direkte i tabellen, oransje venstrekant per rad */}
+            {sedel.tillegg.map((rad) => (
+              <tr
+                key={rad.id}
+                className="border-b border-gray-100 last:border-b-0"
+              >
+                <td className="border-l-4 border-l-orange-400 px-3 py-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-800">
+                    {tilleggNavn(rad.tilleggId)}
+                  </span>
+                </td>
+                <td className="px-3 py-2 text-gray-700">
+                  {rad.kommentar ?? "—"}
+                </td>
+                <td className="px-3 py-2 text-gray-400">—</td>
+                <td className="px-3 py-2 text-right font-mono text-gray-900">
+                  {tilTall(rad.antall).toFixed(2)}
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
       )}
