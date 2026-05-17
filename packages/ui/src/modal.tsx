@@ -54,7 +54,14 @@ export function Modal({
       // f.eks. className="z-[60]" (FaggruppeTilknytningModal).
       className={`w-full ${className}${/\bmax-w-/.test(className) ? "" : " max-w-lg"} rounded-lg border-0 p-0 shadow-xl backdrop:bg-black/50`}
     >
-      <div className="p-6">
+      {/* T7-5b-B1 (2026-05-17): indre wrapper får mx-auto + betinget max-w-3xl.
+          Når caller sender max-w-* i Modal-className, lar vi indre div være
+          uten cap (følger ytter-dialogen). Ellers fall tilbake til max-w-3xl
+          som balanserer mot max-w-lg på ytter — historisk vant ytter ved
+          standard, indre fikk fri bredde — nå gjør vi det eksplisitt. */}
+      <div
+        className={`mx-auto ${/\bmax-w-/.test(className) ? "" : "max-w-3xl"} p-6`}
+      >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">{title}</h2>
           <button
