@@ -1742,6 +1742,20 @@ export const dagsseddelRouter = router({
     .input(
       z.object({
         sheetId: z.string().uuid(),
+        // Pause-modell (vedtatt 2026-05-17): hvis begge satt, oppdater
+        // DailySheet.pauseFra/pauseTil og deriv pauseMin fra differansen.
+        // Hvis begge null, fjern pause-vinduet og sett pauseMin = 0.
+        // Hvis undefined (ikke i payload), la pause-feltene være.
+        pauseFra: z
+          .string()
+          .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+          .nullable()
+          .optional(),
+        pauseTil: z
+          .string()
+          .regex(/^([01]\d|2[0-3]):[0-5]\d$/)
+          .nullable()
+          .optional(),
         nyeRader: z.object({
           timer: z.array(
             z.object({
@@ -1919,8 +1933,48 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // Pause-modell (2026-05-17): beregn pauseMin fra pauseFra/pauseTil.
+      // Hvis begge undefined: ikke rør pause-feltene.
+      // Hvis null eller delvis null: nullstill begge + pauseMin = 0.
+      // Ellers: beregn minutter mellom HH:MM-tidspunktene.
+      const paussFeltGitt =
+        input.pauseFra !== undefined || input.pauseTil !== undefined;
+      let pauseUpdate: {
+        pauseFra: string | null;
+        pauseTil: string | null;
+        pauseMin: number;
+      } | null = null;
+      if (paussFeltGitt) {
+        if (input.pauseFra && input.pauseTil) {
+          const [fH = 0, fM = 0] = input.pauseFra.split(":").map(Number);
+          const [tH = 0, tM = 0] = input.pauseTil.split(":").map(Number);
+          const diff = tH * 60 + tM - (fH * 60 + fM);
+          if (diff <= 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "pauseTil må være etter pauseFra",
+            });
+          }
+          pauseUpdate = {
+            pauseFra: input.pauseFra,
+            pauseTil: input.pauseTil,
+            pauseMin: Math.round(diff),
+          };
+        } else {
+          pauseUpdate = { pauseFra: null, pauseTil: null, pauseMin: 0 };
+        }
+      }
+
       // Transaksjon: marker alle eksisterende pending som "erstattet" + opprett nye
       await ctx.prismaTimer.$transaction([
+        ...(pauseUpdate
+          ? [
+              ctx.prismaTimer.dailySheet.update({
+                where: { id: sheet.id },
+                data: pauseUpdate,
+              }),
+            ]
+          : []),
         ctx.prismaTimer.sheetTimer.updateMany({
           where: { sheetId: sheet.id, attestertStatus: "pending" },
           data: {

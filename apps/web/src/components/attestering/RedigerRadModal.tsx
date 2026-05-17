@@ -24,6 +24,42 @@ function tilTall(v: unknown): number {
   return Number(v);
 }
 
+// Pause-modell (2026-05-17): hjelpere for overlap-deteksjon og minutt-aritmetikk.
+function hhmmTilMinutter(hhmm: string): number {
+  const [h = 0, m = 0] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+function pauseMinutter(
+  pauseFra: string | null,
+  pauseTil: string | null,
+): number {
+  if (!pauseFra || !pauseTil) return 0;
+  return Math.max(0, hhmmTilMinutter(pauseTil) - hhmmTilMinutter(pauseFra));
+}
+function radOverlapperPause(
+  fraTid: string | null,
+  tilTid: string | null,
+  pauseFra: string | null,
+  pauseTil: string | null,
+): boolean {
+  if (!fraTid || !tilTid || !pauseFra || !pauseTil) return false;
+  return tilTid > pauseFra && fraTid < pauseTil;
+}
+function beregnTimerMedPause(
+  fraTid: string | null,
+  tilTid: string | null,
+  pauseFra: string | null,
+  pauseTil: string | null,
+): number | null {
+  if (!fraTid || !tilTid) return null;
+  const rattid = (hhmmTilMinutter(tilTid) - hhmmTilMinutter(fraTid)) / 60;
+  if (rattid <= 0) return null;
+  const fradrag = radOverlapperPause(fraTid, tilTid, pauseFra, pauseTil)
+    ? pauseMinutter(pauseFra, pauseTil) / 60
+    : 0;
+  return Math.max(0, rattid - fradrag);
+}
+
 type Props = {
   sheetId: string;
   projectId: string;
@@ -164,6 +200,14 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
 
   const [editTimer, setEditTimer] = useState<EditTimer[]>(initTimer);
   const [editMaskin, setEditMaskin] = useState<EditMaskin[]>(initMaskin);
+  // Pause-modell: sheet-level pauseFra/pauseTil. Initialiseres fra sheet
+  // ved første load. Endring herfra reflekteres på alle overlappende rader.
+  const [editPauseFra, setEditPauseFra] = useState<string | null>(
+    sheet?.pauseFra ?? null,
+  );
+  const [editPauseTil, setEditPauseTil] = useState<string | null>(
+    sheet?.pauseTil ?? null,
+  );
   const [feil, setFeil] = useState<string | null>(null);
 
   // Synkroniser ved første data-load. Senere endringer holdes lokalt.
@@ -172,17 +216,45 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
     if (!initialisert && sheet) {
       setEditTimer(initTimer);
       setEditMaskin(initMaskin);
+      setEditPauseFra(sheet.pauseFra ?? null);
+      setEditPauseTil(sheet.pauseTil ?? null);
       setInitialisert(true);
     }
   }, [sheet, initialisert, initTimer, initMaskin]);
 
   const harEndringer = useMemo(() => {
     if (!initialisert) return false;
+    const pauseEndret =
+      editPauseFra !== (sheet?.pauseFra ?? null) ||
+      editPauseTil !== (sheet?.pauseTil ?? null);
     return (
+      pauseEndret ||
       JSON.stringify(editTimer) !== JSON.stringify(initTimer) ||
       JSON.stringify(editMaskin) !== JSON.stringify(initMaskin)
     );
-  }, [editTimer, editMaskin, initTimer, initMaskin, initialisert]);
+  }, [
+    editTimer,
+    editMaskin,
+    editPauseFra,
+    editPauseTil,
+    initTimer,
+    initMaskin,
+    initialisert,
+    sheet?.pauseFra,
+    sheet?.pauseTil,
+  ]);
+
+  // Pause-endring: oppdater state + recompute timer for alle overlappende rader.
+  function settPause(fra: string | null, til: string | null) {
+    setEditPauseFra(fra);
+    setEditPauseTil(til);
+    setEditTimer((rader) =>
+      rader.map((r) => {
+        const nyTimer = beregnTimerMedPause(r.fraTid, r.tilTid, fra, til);
+        return nyTimer !== null ? { ...r, timer: nyTimer } : r;
+      }),
+    );
+  }
 
   const lagre = trpc.timer.dagsseddel.redigerSedelRader.useMutation({
     onSuccess: () => {
@@ -217,6 +289,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
 
     lagre.mutate({
       sheetId,
+      pauseFra: editPauseFra,
+      pauseTil: editPauseTil,
       nyeRader: {
         timer: [
           ...andreTimer.map((r) => ({
@@ -314,15 +388,6 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                 {ecoNavn && (
                   <span className="ml-2 text-gray-500">· {ecoNavn}</span>
                 )}
-                {/* T7-5d-pause: read-only pause-indikator. Redigering av pause
-                    er eget scope (se BACKLOG § Pause-modell). */}
-                {(sheet?.pauseMin ?? 0) > 0 && (
-                  <span className="ml-3 text-xs text-gray-500">
-                    {t("timer.rediger.radModal.pause", {
-                      min: sheet?.pauseMin ?? 0,
-                    })}
-                  </span>
-                )}
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 <Button
@@ -365,11 +430,26 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                         aktiviteter={aktiviteter}
                         timeStep={timeStep}
                         tidsrundingMinutter={tidsrundingMinutter}
+                        pauseFra={editPauseFra}
+                        pauseTil={editPauseTil}
+                        onPauseChange={settPause}
                         onChange={(felt) =>
                           setEditTimer((rader) =>
-                            rader.map((r) =>
-                              r.key === rad.key ? { ...r, ...felt } : r,
-                            ),
+                            rader.map((r) => {
+                              if (r.key !== rad.key) return r;
+                              const nyRad = { ...r, ...felt };
+                              // Hvis fra/til endret: recompute timer m/ pause.
+                              if (felt.fraTid !== undefined || felt.tilTid !== undefined) {
+                                const nyTimer = beregnTimerMedPause(
+                                  nyRad.fraTid,
+                                  nyRad.tilTid,
+                                  editPauseFra,
+                                  editPauseTil,
+                                );
+                                if (nyTimer !== null) nyRad.timer = nyTimer;
+                              }
+                              return nyRad;
+                            }),
                           )
                         }
                         onSlett={() =>
@@ -394,27 +474,36 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                   </p>
                 ) : (
                   <div className="space-y-1">
-                    {editMaskin.map((rad) => (
-                      <KompaktMaskinRad
-                        key={rad.key}
-                        rad={rad}
-                        equipment={equipment}
-                        timeStep={timeStep}
-                        tidsrundingMinutter={tidsrundingMinutter}
-                        onChange={(felt) =>
-                          setEditMaskin((rader) =>
-                            rader.map((r) =>
-                              r.key === rad.key ? { ...r, ...felt } : r,
-                            ),
-                          )
-                        }
-                        onSlett={() =>
-                          setEditMaskin((rader) =>
-                            rader.filter((r) => r.key !== rad.key),
-                          )
-                        }
-                      />
-                    ))}
+                    {(() => {
+                      const sumArbeid = editTimer.reduce(
+                        (a, r) => a + r.timer,
+                        0,
+                      );
+                      const pauseMin = pauseMinutter(editPauseFra, editPauseTil);
+                      return editMaskin.map((rad) => (
+                        <KompaktMaskinRad
+                          key={rad.key}
+                          rad={rad}
+                          equipment={equipment}
+                          timeStep={timeStep}
+                          tidsrundingMinutter={tidsrundingMinutter}
+                          overstigerArbeid={rad.timer > sumArbeid + 0.001}
+                          pauseMin={pauseMin}
+                          onChange={(felt) =>
+                            setEditMaskin((rader) =>
+                              rader.map((r) =>
+                                r.key === rad.key ? { ...r, ...felt } : r,
+                              ),
+                            )
+                          }
+                          onSlett={() =>
+                            setEditMaskin((rader) =>
+                              rader.filter((r) => r.key !== rad.key),
+                            )
+                          }
+                        />
+                      ));
+                    })()}
                   </div>
                 )}
               </section>
@@ -438,6 +527,9 @@ function KompaktTimerRad({
   aktiviteter,
   timeStep,
   tidsrundingMinutter,
+  pauseFra,
+  pauseTil,
+  onPauseChange,
   onChange,
   onSlett,
 }: {
@@ -446,6 +538,9 @@ function KompaktTimerRad({
   aktiviteter: Array<{ id: string; navn: string }> | undefined;
   timeStep: number;
   tidsrundingMinutter: number | null;
+  pauseFra: string | null;
+  pauseTil: string | null;
+  onPauseChange: (fra: string | null, til: string | null) => void;
   onChange: (felt: Partial<EditTimer>) => void;
   onSlett: () => void;
 }) {
@@ -455,85 +550,159 @@ function KompaktTimerRad({
     setTimerStr(String(rad.timer));
   }, [rad.timer]);
 
+  const harPause = radOverlapperPause(rad.fraTid, rad.tilTid, pauseFra, pauseTil);
+  // Toggle: hvis ingen pause-vindu finnes, klikk på Pause oppretter default 30 min
+  // i midten av rad-vinduet. Hvis pause finnes, klikk fjerner den.
+  function togglePause() {
+    if (harPause) {
+      onPauseChange(null, null);
+    } else if (rad.fraTid && rad.tilTid) {
+      const fraMin = hhmmTilMinutter(rad.fraTid);
+      const tilMin = hhmmTilMinutter(rad.tilTid);
+      const midt = Math.floor((fraMin + tilMin) / 2);
+      const pFraMin = midt - 15;
+      const pTilMin = midt + 15;
+      const fmt = (m: number) =>
+        `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+      onPauseChange(fmt(pFraMin), fmt(pTilMin));
+    }
+  }
+
   return (
-    <div className="grid grid-cols-[80px_80px_1fr_1fr_80px_auto] items-center gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
-      <input
-        type="time"
-        value={rad.fraTid ?? ""}
-        step={timeStep}
-        onChange={(e) => onChange({ fraTid: e.target.value || null })}
-        onBlur={(e) => {
-          if (tidsrundingMinutter && e.target.value) {
-            const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
-            if (rundet !== e.target.value) onChange({ fraTid: rundet });
-          }
-        }}
-        className="rounded border border-gray-300 px-1.5 py-1"
-        placeholder="HH:MM"
-      />
-      <input
-        type="time"
-        value={rad.tilTid ?? ""}
-        step={timeStep}
-        onChange={(e) => onChange({ tilTid: e.target.value || null })}
-        onBlur={(e) => {
-          if (tidsrundingMinutter && e.target.value) {
-            const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
-            if (rundet !== e.target.value) onChange({ tilTid: rundet });
-          }
-        }}
-        className="rounded border border-gray-300 px-1.5 py-1"
-        placeholder="HH:MM"
-      />
-      <select
-        value={rad.lonnsartId}
-        onChange={(e) => onChange({ lonnsartId: e.target.value })}
-        className="rounded border border-gray-300 px-1.5 py-1"
-      >
-        <option value="">{t("timer.rediger.lonnsartPlaceholder")}</option>
-        {lonnsarter?.map((l) => (
-          <option key={l.id} value={l.id}>
-            {l.navn}
-          </option>
-        ))}
-      </select>
-      <select
-        value={rad.aktivitetId}
-        onChange={(e) => onChange({ aktivitetId: e.target.value })}
-        className="rounded border border-gray-300 px-1.5 py-1"
-      >
-        <option value="">{t("timer.rediger.aktivitetPlaceholder")}</option>
-        {aktiviteter?.map((a) => (
-          <option key={a.id} value={a.id}>
-            {a.navn}
-          </option>
-        ))}
-      </select>
-      <input
-        type="number"
-        step="0.25"
-        min="0"
-        value={timerStr}
-        onChange={(e) => setTimerStr(e.target.value)}
-        onBlur={() => {
-          const parsed = parseFloat(timerStr);
-          if (!isNaN(parsed) && parsed >= 0) {
-            if (parsed !== rad.timer) onChange({ timer: parsed });
-          } else {
-            setTimerStr(String(rad.timer));
-          }
-        }}
-        className="rounded border border-gray-300 px-1.5 py-1 text-right font-mono"
-      />
-      <button
-        type="button"
-        onClick={onSlett}
-        className="rounded p-1 text-red-600 hover:bg-red-50"
-        title={t("timer.rediger.slettRad")}
-        aria-label={t("timer.rediger.slettRad")}
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+    <div className="space-y-1">
+      <div className="grid grid-cols-[80px_80px_1fr_1fr_80px_auto_auto] items-center gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
+        <input
+          type="time"
+          value={rad.fraTid ?? ""}
+          step={timeStep}
+          onChange={(e) => onChange({ fraTid: e.target.value || null })}
+          onBlur={(e) => {
+            if (tidsrundingMinutter && e.target.value) {
+              const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
+              if (rundet !== e.target.value) onChange({ fraTid: rundet });
+            }
+          }}
+          className="rounded border border-gray-300 px-1.5 py-1"
+          placeholder="HH:MM"
+        />
+        <input
+          type="time"
+          value={rad.tilTid ?? ""}
+          step={timeStep}
+          onChange={(e) => onChange({ tilTid: e.target.value || null })}
+          onBlur={(e) => {
+            if (tidsrundingMinutter && e.target.value) {
+              const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
+              if (rundet !== e.target.value) onChange({ tilTid: rundet });
+            }
+          }}
+          className="rounded border border-gray-300 px-1.5 py-1"
+          placeholder="HH:MM"
+        />
+        <select
+          value={rad.lonnsartId}
+          onChange={(e) => onChange({ lonnsartId: e.target.value })}
+          className="rounded border border-gray-300 px-1.5 py-1"
+        >
+          <option value="">{t("timer.rediger.lonnsartPlaceholder")}</option>
+          {lonnsarter?.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.navn}
+            </option>
+          ))}
+        </select>
+        <select
+          value={rad.aktivitetId}
+          onChange={(e) => onChange({ aktivitetId: e.target.value })}
+          className="rounded border border-gray-300 px-1.5 py-1"
+        >
+          <option value="">{t("timer.rediger.aktivitetPlaceholder")}</option>
+          {aktiviteter?.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.navn}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number"
+          step="0.25"
+          min="0"
+          value={timerStr}
+          onChange={(e) => setTimerStr(e.target.value)}
+          onBlur={() => {
+            const parsed = parseFloat(timerStr);
+            if (!isNaN(parsed) && parsed >= 0) {
+              if (parsed !== rad.timer) onChange({ timer: parsed });
+            } else {
+              setTimerStr(String(rad.timer));
+            }
+          }}
+          className="rounded border border-gray-300 px-1.5 py-1 text-right font-mono"
+        />
+        {/* Pause-toggle: synlig kun når rad har fra/til (ellers ingen mening) */}
+        <label
+          className={`inline-flex cursor-pointer items-center gap-1 rounded px-1.5 py-1 text-[11px] ${
+            harPause
+              ? "bg-blue-50 text-blue-700"
+              : "text-gray-500 hover:bg-gray-100"
+          } ${!rad.fraTid || !rad.tilTid ? "pointer-events-none opacity-40" : ""}`}
+          title={t("timer.rediger.pause.toggleHint")}
+        >
+          <input
+            type="checkbox"
+            checked={harPause}
+            onChange={togglePause}
+            className="h-3 w-3"
+            disabled={!rad.fraTid || !rad.tilTid}
+          />
+          {t("timer.rediger.pause.label")}
+        </label>
+        <button
+          type="button"
+          onClick={onSlett}
+          className="rounded p-1 text-red-600 hover:bg-red-50"
+          title={t("timer.rediger.slettRad")}
+          aria-label={t("timer.rediger.slettRad")}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {/* Mini-pause-inputs vises kun når pause er aktiv for denne raden */}
+      {harPause && pauseFra && pauseTil && (
+        <div className="ml-4 flex items-center gap-2 text-[11px] text-gray-600">
+          <span>{t("timer.rediger.pause.intervall")}</span>
+          <input
+            type="time"
+            value={pauseFra}
+            step={timeStep}
+            onChange={(e) => onPauseChange(e.target.value || null, pauseTil)}
+            onBlur={(e) => {
+              if (tidsrundingMinutter && e.target.value) {
+                const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
+                if (rundet !== e.target.value) onPauseChange(rundet, pauseTil);
+              }
+            }}
+            className="w-[80px] rounded border border-gray-300 px-1.5 py-0.5"
+          />
+          <span>–</span>
+          <input
+            type="time"
+            value={pauseTil}
+            step={timeStep}
+            onChange={(e) => onPauseChange(pauseFra, e.target.value || null)}
+            onBlur={(e) => {
+              if (tidsrundingMinutter && e.target.value) {
+                const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
+                if (rundet !== e.target.value) onPauseChange(pauseFra, rundet);
+              }
+            }}
+            className="w-[80px] rounded border border-gray-300 px-1.5 py-0.5"
+          />
+          <span className="font-mono text-gray-500">
+            ({pauseMinutter(pauseFra, pauseTil)} min)
+          </span>
+        </div>
+      )}
     </div>
   );
 }
@@ -547,6 +716,8 @@ function KompaktMaskinRad({
   equipment,
   timeStep,
   tidsrundingMinutter,
+  overstigerArbeid,
+  pauseMin,
   onChange,
   onSlett,
 }: {
@@ -556,6 +727,8 @@ function KompaktMaskinRad({
     | undefined;
   timeStep: number;
   tidsrundingMinutter: number | null;
+  overstigerArbeid: boolean;
+  pauseMin: number;
   onChange: (felt: Partial<EditMaskin>) => void;
   onSlett: () => void;
 }) {
@@ -577,72 +750,83 @@ function KompaktMaskinRad({
   };
 
   return (
-    <div className="grid grid-cols-[80px_80px_1fr_80px_auto] items-center gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
-      <input
-        type="time"
-        value={rad.fraTid ?? ""}
-        step={timeStep}
-        onChange={(e) => onChange({ fraTid: e.target.value || null })}
-        onBlur={(e) => {
-          if (tidsrundingMinutter && e.target.value) {
-            const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
-            if (rundet !== e.target.value) onChange({ fraTid: rundet });
-          }
-        }}
-        className="rounded border border-gray-300 px-1.5 py-1"
-        placeholder="HH:MM"
-      />
-      <input
-        type="time"
-        value={rad.tilTid ?? ""}
-        step={timeStep}
-        onChange={(e) => onChange({ tilTid: e.target.value || null })}
-        onBlur={(e) => {
-          if (tidsrundingMinutter && e.target.value) {
-            const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
-            if (rundet !== e.target.value) onChange({ tilTid: rundet });
-          }
-        }}
-        className="rounded border border-gray-300 px-1.5 py-1"
-        placeholder="HH:MM"
-      />
-      <select
-        value={rad.vehicleId}
-        onChange={(e) => onChange({ vehicleId: e.target.value })}
-        className="rounded border border-gray-300 px-1.5 py-1"
-      >
-        <option value="">{t("timer.rediger.maskinPlaceholder")}</option>
-        {equipment?.map((e) => (
-          <option key={e.id} value={e.id}>
-            {equipmentEtikett(e)}
-          </option>
-        ))}
-      </select>
-      <input
-        type="number"
-        step="0.25"
-        min="0"
-        value={timerStr}
-        onChange={(e) => setTimerStr(e.target.value)}
-        onBlur={() => {
-          const parsed = parseFloat(timerStr);
-          if (!isNaN(parsed) && parsed >= 0) {
-            if (parsed !== rad.timer) onChange({ timer: parsed });
-          } else {
-            setTimerStr(String(rad.timer));
-          }
-        }}
-        className="rounded border border-gray-300 px-1.5 py-1 text-right font-mono"
-      />
-      <button
-        type="button"
-        onClick={onSlett}
-        className="rounded p-1 text-red-600 hover:bg-red-50"
-        title={t("timer.rediger.slettRad")}
-        aria-label={t("timer.rediger.slettRad")}
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+    <div className="space-y-1">
+      <div className="grid grid-cols-[80px_80px_1fr_80px_auto] items-center gap-2 rounded border border-gray-200 bg-gray-50 px-2 py-1.5 text-xs">
+        <input
+          type="time"
+          value={rad.fraTid ?? ""}
+          step={timeStep}
+          onChange={(e) => onChange({ fraTid: e.target.value || null })}
+          onBlur={(e) => {
+            if (tidsrundingMinutter && e.target.value) {
+              const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
+              if (rundet !== e.target.value) onChange({ fraTid: rundet });
+            }
+          }}
+          className="rounded border border-gray-300 px-1.5 py-1"
+          placeholder="HH:MM"
+        />
+        <input
+          type="time"
+          value={rad.tilTid ?? ""}
+          step={timeStep}
+          onChange={(e) => onChange({ tilTid: e.target.value || null })}
+          onBlur={(e) => {
+            if (tidsrundingMinutter && e.target.value) {
+              const rundet = rundTilNarmeste(e.target.value, tidsrundingMinutter);
+              if (rundet !== e.target.value) onChange({ tilTid: rundet });
+            }
+          }}
+          className="rounded border border-gray-300 px-1.5 py-1"
+          placeholder="HH:MM"
+        />
+        <select
+          value={rad.vehicleId}
+          onChange={(e) => onChange({ vehicleId: e.target.value })}
+          className="rounded border border-gray-300 px-1.5 py-1"
+        >
+          <option value="">{t("timer.rediger.maskinPlaceholder")}</option>
+          {equipment?.map((e) => (
+            <option key={e.id} value={e.id}>
+              {equipmentEtikett(e)}
+            </option>
+          ))}
+        </select>
+        <input
+          type="number"
+          step="0.25"
+          min="0"
+          value={timerStr}
+          onChange={(e) => setTimerStr(e.target.value)}
+          onBlur={() => {
+            const parsed = parseFloat(timerStr);
+            if (!isNaN(parsed) && parsed >= 0) {
+              if (parsed !== rad.timer) onChange({ timer: parsed });
+            } else {
+              setTimerStr(String(rad.timer));
+            }
+          }}
+          className="rounded border border-gray-300 px-1.5 py-1 text-right font-mono"
+        />
+        <button
+          type="button"
+          onClick={onSlett}
+          className="rounded p-1 text-red-600 hover:bg-red-50"
+          title={t("timer.rediger.slettRad")}
+          aria-label={t("timer.rediger.slettRad")}
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      {/* Info-rad: maskin > arbeid antyder mannsbetjent maskin + pause-fradrag.
+          Ingen automatisk korreksjon (krever kreverForer-flagg, egen PR). */}
+      {overstigerArbeid && (
+        <div className="ml-2 text-[11px] text-amber-700">
+          {pauseMin > 0
+            ? t("timer.rediger.maskinOverstigerMedPause", { pauseMin })
+            : t("timer.rediger.maskinOverstiger")}
+        </div>
+      )}
     </div>
   );
 }
