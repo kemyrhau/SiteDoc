@@ -1,6 +1,42 @@
 # Historikk mai 2026
 
-Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er deployet til prod og verifisert.
+Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er deployet til prod og verifisert, med unntak av de markert «DEPLOYET TIL TEST».
+
+---
+
+## T7-4f-bunken — Attestering-liste redesign mockup v7 — DEPLOYET TIL TEST 2026-05-17 (develop merge-kjede `99a4ec09..bd70392e`)
+
+Komplett redesign av `/dashbord/firma/timer/attestering`-listen per godkjent mockup v7. Spec låst i [fase-0-beslutninger.md § T7-4f](fase-0-beslutninger.md). På develop og deployet til test — IKKE i prod ennå (avventer T7-4f-splitt-1-klikk + QA).
+
+**Resultat på test:**
+- Uke-navigasjon (← Uke X →) med dato-range + «Denne uka»-snarvei
+- Filter-pills: Prosjekt / Ansatte / Avdeling (klient-side filter)
+- Gruppering per prosjekt med sum + «Attester gruppe (N)»-knapp
+- Kompakt sedel-kort med 4-kolonne tabell (Lønnsart | Aktivitet | Fra–til | Timer)
+- Avatar (initialer), tilleggskrav-badge, fritekst-beskrivelse (line-clamp-2)
+- ECO som blå sub-headers i tabellen («→ Byggherre»)
+- Maskin-rader indentert grå under timer-rader (↳ prefiks)
+- Tillegg-rader med oransje venstrekant per rad (ingen seksjonsheader)
+- Sum-rad nederst høyrejustert i Timer-kolonnen
+- Actions under tabellen (Returner / Attester / ⋯), kun Detalj-lenke i header
+- Penn-ikon på hover per timer/maskin-rad
+- Oransje styling (kant + avatar + attester-knapp) når `tilleggHarKrav=true`
+
+**Sub-PR-er:**
+- T7-4f-1 (`434a1293`) — Server: utvid `hentTilAttesteringFirma` med per-rad `project`-join, `tilleggHarKrav`, `dagsnorm`, `redigerTillatt`, ansatt-`avdelingId`
+- T7-4f-2 (`4e0bdf9b`) — Refaktor: ekstraher `ProsjektSectionAttest` + `EcoBucketAttest` til `apps/web/src/components/attestering/attestering-buckets.tsx` (1119 → 525 linjer i AttesteringDetalj)
+- T7-4f-3 (`101b756f`, merge `791ac396`) — Klient: full redesign av `firma/timer/attestering/page.tsx` (281 → ~600 linjer), uke-nav, filter-pills, gruppering, server-utvidet med `fraOgMed`/`tilOgMed`
+- T7-4f-3b (`baac7487`, merge `ac0777d8`) — Ny `SeddelKort.tsx` (~330 linjer) erstatter `ProsjektSectionAttest`-bruk i firma-listen med kompakt tabell-layout
+- Fix `df37f4d8` — fjern Tillegg seksjonsheader, oransje venstrekant per rad
+- Fix `d0818f91` — sum-rad i Timer-kolonne + penn-ikon + actions under tabell
+- Fix `bd70392e` — vis sedel-beskrivelse i kursiv grå tekst (line-clamp-2)
+
+**Tre åpne avklaringer (per spec, ikke i scope):**
+1. ECO-flytt skjult i listen via `kanFlytte={false}` (Alt B vedtatt) — T7-4f-4 ikke nødvendig
+2. Vareforbruk-rad skjult — `SheetVareforbruk` finnes ikke i db-timer ennå
+3. «Mertid uten tilleggskrav»-badge ikke implementert — krever normal-arbeidsdag-grense som data
+
+**Klar for prod:** ja, men venter på T7-4f-splitt-1-klikk (feature/t7-4f-splitt-1-klikk på remote) før samlet prod-deploy.
 
 ---
 

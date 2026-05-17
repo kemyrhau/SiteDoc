@@ -2005,3 +2005,35 @@ IKKE av antall timer. Mertid uten tilleggskrav = normal grå sedel.
    - (b) Server-side aggregering: hent `Vareforbruk`-rader per ansatt+dato og injiser i respons
    - (c) Utsette hele T7-4f-spec til vareforbruk-modell er knyttet til SheetTimer
 3. **«Mertid uten tilleggskrav»-badge** — krever lønnsart-konfigurasjon for «normal arbeidsdag» (8t? per ansattgruppe?). Eksisterer denne grensen som data, eller hardkodes 7,5/8t i T7-4f-3?
+
+### T7-5 — Web dagsseddel-redigering (beslutninger 2026-05-17)
+
+**Arkitekturprinsipp (låst):**
+Web = ekte web-UI. Mobil = app. Ingen formfaktor-kompromiss.
+Nettleser på mobil er ikke en reell bruker-kanal for SiteDoc.
+
+**Redigeringsmodell — ansatt:**
+- Inline tabell-redigering (hybrid: Sonnet A + Opus A)
+- Fra/til → Timer auto-beregnet (Fra+Til → timer), manuelt overstyrbart
+- + Legg til ny rad = ansattes primære verktøy
+- Splitt: KUN lederverktøy i attestering-flow — ansatt splitter IKKE
+
+**Splitt-tilgjengelighet:**
+- I dag: 3 klikk (oversikt → detalj → edit → splitt)
+- Mål: 1 klikk fra attestering-liste via ✂-ikon per rad i SeddelKort
+- T7-4f-splitt-1-klikk implementerer dette
+
+**Grid-nivåer:**
+- Dag-grid: eksisterer (T7-4c, `/dashbord/timer/[id]`)
+- Uke-grid: erstatter `/mine` — T7-5a (planlegges separat)
+- Måned-grid: kompakt rapport-visning, én linje per registrering,
+  sidevei-scroll, kolonnevalg/filter — vurderes som del av timer-rapport (T7-5b)
+
+**Maskin-rad i redigering:**
+- Vises inline i samme tabell som timer-rader med 🚜-prefiks
+- Indentert som underrad (↳) under timer-raden den hører til visuelt
+- Fra/til-tid obligatorisk på web (som på attestering edit)
+
+**Åpent:**
+- timer-rapport eksisterer men er prosjektbundet og mangler grid-funksjonalitet
+- Overlapp med måned-grid må kartlegges før T7-5b

@@ -20,77 +20,17 @@ Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på e
 
 Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
 
-### PR T7-4f-3b kompakt SeddelKort med tabell-layout — IMPLEMENTERT PÅ feature/t7-4f-3b 2026-05-17
+### T7-4f + T7-4f-splitt — Attestering-liste redesign mockup v7 (develop, IKKE prod)
 
-Ny komponent `apps/web/src/components/attestering/SeddelKort.tsx` (~330 linjer) speiler mockup v7 nøyaktig:
+- T7-4f-1/2/3/3b + fixes: på develop, deployet til test (`bd70392e`). Detaljer arkivert i [historikk-2026-05.md § T7-4f-bunken](historikk-2026-05.md).
+- T7-4f-splitt-1-klikk: på `feature/t7-4f-splitt-1-klikk` (commit `b8c2f835`), pending review.
+- Blokkert fra prod: T7-4f-splitt-1-klikk bør inkluderes i samme prod-deploy som T7-4f-bunken.
 
-- Sedel-header med **avatar (initialer)**, ansatt-navn + #ansattnr, dato, tilleggskrav-badge, totaltimer/dagsnorm/aktivitet
-- **Detalj-knapp** tydelig i header + ↩ Returner + ✓ Attester (oransje hvis tilleggskrav) + ⋯-meny
-- **Flat tabell** med 4 kolonner: Lønnsart | Aktivitet | Fra–til | Timer (ikke ProsjektSectionAttest)
-- **ECO-sub-headers** i tabellen med blå venstrekant + «→ Byggherre»-badge
-- **Maskin-rader** indentert grå under timer-rader: «↳ CAT 320 · 07:00–12:00 · (3.0t)»
-- **Tillegg-seksjon** med oransje venstrekant nederst i tabellen, oransje badge per rad
-- Oransje sedel-kant + oransje avatar + oransje attester-knapp ved `tilleggHarKrav=true`
+### T7-5 — Web dagsseddel-redigering (design-fase)
 
-Erstatter inline `SedelKort` i `page.tsx`. ProsjektSectionAttest er ikke lenger brukt fra liste-siden (men beholdes for detalj-siden). i18n: 2 nye nøkler (`timer.attestering.meny.detalj`, `timer.kol.fraTil`).
+Beslutninger låst i [fase-0-beslutninger.md § T7-5](fase-0-beslutninger.md): inline tabell-redigering (hybrid Sonnet A + Opus A), fra/til auto-beregner timer, splitt KUN i lederverktøy, maskin som indentert underrad. Web = ekte web-UI, mobil = app — ingen formfaktor-kompromiss.
 
-Typecheck (web): 0 nye feil (kun pre-eksisterende vitest-feil består).
-
-### Fix T7-4f fra/til på timer- og maskin-rader i attestering-liste — DEPLOYET TIL TEST 2026-05-16
-
-Mindre justering på develop direkte (etter T7-4f-3-merge). `attestering-buckets.tsx`:
-- `TimerRaderLeder`: viser `{fraTid}–{tilTid}` etter aktivitet-navn (kun når begge satt)
-- `MaskinRaderLeder`: viser `{fraTid}–{tilTid}` etter mengde+enhet (kun når begge satt)
-
-Diskret grå font-mono-tekst, skjules helt hvis tidspunkter mangler. Påvirker både attestering-listen (T7-4f-3) og detalj-siden (gjenbruker samme komponenter).
-
-### PR T7-4f-3 attestering-liste redesign per mockup v7 — DEPLOYET TIL TEST 2026-05-16 (merge `791ac396`)
-
-Tredje sub-PR i T7-4f-bunken. Fullstendig redesign av `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` (281 → ~600 linjer):
-
-Tredje sub-PR i T7-4f-bunken. Fullstendig redesign av `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` (281 → ~600 linjer):
-
-- **Uke-navigasjon** (← Uke X →) med dato-range vist, «Denne uka»-snarvei når offset ≠ 0
-- **Filter-pills**: Prosjekt / Ansatte / Avdeling som rullegardin-pills (klient-side filter på rå-data + `trpc.avdeling.hentAlle` for avdelings-navn)
-- **Server-utvidelse:** `hentTilAttesteringFirma` tar nå valgfritt `fraOgMed`/`tilOgMed` (ISO YYYY-MM-DD) og berikker ansatt med `avdelingId` fra `OrganizationMember`
-- **Gruppering per prosjekt:** header med antall sedler · arbeidstimer · maskintimer · «Attester gruppe (N)»-knapp
-- **Sedel-kort:** header (dato · ansatt · ansattnummer · tilleggskrav-badge · totaltimer / dagsnorm · aktivitet) + ECO/Maskin/Tillegg via `ProsjektSectionAttest` med `kanFlytte={false}` (T7-4f Alt B)
-- **Oransje stilising** ved `tilleggHarKrav`: venstre-kant + badge + oransje attester-knapp
-- **⋯-meny:** Rediger sedel · Splitt rad · Returner (lenker til detalj-side for redigering/splitting)
-- **i18n:** 13 nye nøkler i `nb.json` + `en.json` (uke.*, filter.*, gruppe.sedler/attesterGruppe, sedel.tilleggskrav/dagsnorm, meny.*)
-
-Vareforbruk-rad og «Mertid uten tilleggskrav»-badge er ikke i scope (per T7-4f-spec åpne avklaringer). Bulk-attester-gruppe-knappen looper `attester.mutate` per sedel — partial fail rapporteres via felles `feil`-state.
-
-Typecheck (api+web): 0 nye feil (kun pre-eksisterende vitest-feil består).
-
-Neste: T7-4f-4 (avklart Alt B — ingen kode-endring, kun verifisering i T7-4f-3 at `kanFlytte={false}` sendes til ProsjektSectionAttest fra firma-listen — utført).
-
-### PR T7-4f-2 attestering-buckets ekstrahert — IMPLEMENTERT PÅ feature/t7-4f-2 2026-05-16
-
-Andre sub-PR i T7-4f-bunken. Ekstraherer `ProsjektSectionAttest` + `EcoBucketAttest` (pluss intern `RadStatusBadge` + `TimerRaderLeder`/`TilleggRaderLeder`/`MaskinRaderLeder`) fra `AttesteringDetalj.tsx:892–1119` til ny fil `apps/web/src/components/attestering/attestering-buckets.tsx`.
-
-- Eksporterte komponenter: `ProsjektSectionAttest`, `EcoBucketAttest`
-- Eksporterte typer: `RadProsjekt`, `TimerRad`, `TilleggRad`, `MaskinRad`, `EcoBucketAttestProps`
-- `AttesteringDetalj.tsx`: 1119 → 525 linjer
-- Lucide `X`-import fjernet fra hovedfil (kun brukt i ekstrahert blokk)
-- Lokal `type EcoBucketAttest` i hovedkomponent erstattet med importert `EcoBucketAttestProps`
-- Ingen funksjonell endring — kun strukturell omplassering
-- Typecheck (web): 0 nye feil (pre-eksisterende vitest-feil består uavhengig)
-
-Neste: T7-4f-3 (firma-attestering-liste expanded inline med uke-nav + filter-pills).
-
-### PR T7-4f-1 attestering-liste server-beriking — IMPLEMENTERT PÅ feature/t7-4f-1 2026-05-16
-
-Første sub-PR i T7-4f-bunken (mockup v7, spec låst i [fase-0-beslutninger.md § T7-4f](fase-0-beslutninger.md)). Utvider `hentTilAttesteringFirma` (`apps/api/src/routes/timer/dagsseddel.ts`) med:
-
-- Per-rad `project`-join (batch på tvers av timer/tillegg/maskiner — ingen N+1)
-- `tilleggHarKrav: boolean` = `sheet.tillegg.length > 0` (oransje-trigger for klient)
-- `dagsnorm: number` = `OrganizationSetting.dagsnorm` (eksisterende felt, default 7.5)
-- `redigerTillatt: boolean` = `OrganizationSetting.tillattRedigerVedAttestering`
-
-Bakover-kompatibelt — alle eksisterende felter (`totaltimer`, `antallRader`, `ansatt`, `prosjekt`) består. Typecheck (api): 0 nye feil. Typecheck (web): pre-eksisterende vitest-import-feil uavhengig av endring.
-
-Neste: T7-4f-2 (ekstraher `ProsjektSectionAttest`/`EcoBucketAttest` til delt fil).
+Neste: planleggingssesjon T7-5a (uke-grid for `/mine`-siden).
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
