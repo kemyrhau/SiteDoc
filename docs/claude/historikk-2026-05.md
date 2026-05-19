@@ -4,6 +4,30 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## T7-4g + T7-5d + pause-modell + filter-erstattet + maskin-validering-pause — DEPLOYET TIL PROD 2026-05-19 (prod-merge `f167e72c`)
+
+Attestering UI-rensing + pause-modell + maskin-valideringskorrigering. Adresserer Kenneths klage om at SeddelKort tok for mye plass, modal-i-side føltes hverken-eller, og at pause/maskin-validering ga falske positiver for døgn-utleide maskiner. Migrasjon `20260517220000_add_pause_fra_til` applied i prod (`pause_fra`/`pause_til` TEXT-kolonner på `timer.daily_sheets`). Verifisert som innlogget bruker på A.Markussen AS — attestering-siden laster korrekt.
+
+**Sub-PR-er merget til develop og inkludert i prod-bunken:**
+- **T7-4g** (`85a00d22` impl, merge `5c6347d9`) — Kompakt kollapset SeddelKort. Header redusert til én linje (~48px): `[OT] Ola Tømrer · ons 13. mai · 8.00t / 7.50t [↩][✓][⋯][▾]`. Default-expanded ved tilleggHarKrav eller mertid (totaltimer > dagsnorm). Action-rad nederst fjernet. Detalj-lenke i ⋯-menyen. Tilgjengelig via tastatur (Enter/Space, aria-expanded).
+- **T7-5d** (`b9a666ce` impl, merge `9727c7f9`) — RedigerRadModal erstatter RedigerSeddelModal. Penn-klikk åpner KUN den prosjekt+ECO-bucken raden tilhører, ikke hele sedelen. Hele-sedel-redigering går til detaljsiden via ⋯-menyen «Rediger». Sticky bucket-header med Lagre/Avbryt. Lagring bygger full `redigerSedelRader`-payload der andre bucker går uendret igjennom. AttesteringDetalj renset for modal-spesifikke props (`onFerdig`/`fullBredde`/`initialModus`) — er igjen ren fullside-komponent. I tråd med fase-0 § T7-5 sammenheng-prinsipp.
+- **pause-modell** (`39ec00a3` impl, merge `2e3f23b8`) — Inline pause på timer-rad i RedigerRadModal. Ny `pause_fra`/`pause_til` TEXT-kolonner på `timer.daily_sheets`. pauseMin denormalisert sum, beholdes. Checkbox auto-hukes ved overlap mellom rad.fraTid/tilTid og pauseFra/pauseTil. Klikk lager default 30 min i midten av rad-intervallet. Rad-timer auto-recompute = rattid − pause-fradrag ved overlap. Sheet-level state — endring fra én rad reflekteres på alle overlapp. KompaktMaskinRad får info-rad når maskin overstiger arbeid.
+- **filter-erstattet-rader** (`abf44a5a` impl, merge `d4748b6a`) — Server-fix for visnings-duplikater etter rediger. `hentTilAttesteringFirma` og `hentForAttestering` filtrerer nå ut `attestertStatus = "erstattet"` på include/findMany. Tidligere ble erstattet og pending vist sammen i SeddelKort → 2× rader etter hver rediger. Audit-spor i DB beholdes uendret — kun visning filtreres.
+- **maskin-validering-pause** (`5a1bd3ef` impl, merge `43307429`) — Invariant utvidet til `sum(maskin) ≤ sum(timer) + pauseMin/60` per (prosjektId, ECO). Bakgrunn: maskin som leies pr. døgn (Heatwork-mønster: `equipment.utleie_enhet='doegn'`) går mens operatør pauser → 9.00t maskin mot 8.50t arbeid var falsk positiv. Maskin som selges pr. time følger operatør og blir naturlig ≤ arbeid (ingen pause-buffer brukes). Server `validerMaskinUnderArbeid` fikk `pauseMin = 0`-parameter, oppdatert i 7 kallesteder (tilfoy/oppdater × timer/maskin, redigerSedelRader, splittRad, syncBatch). Klient: `EcoBucketAttest` får valgfri `pauseMin`-prop, `RedigerRadModal` beregner `pauseTimer` fra `editPauseFra/Til`. AttesteringDetalj sender `sheet.pauseMin`.
+
+**Arkitektur-drøfting 2026-05-17:** Tre alternativer vurdert — (A) patch symptomene, (B) rad-nivå redigering, (C) flat tabell (SmartDok-modellen). Valgt Alt B. Begrunnelse: adresserer rotårsaken (modal-i-side-hack via 3 overstyrings-props), honorerer vedtatt sammenheng-prinsipp, kaster ikke nylig arbeid (T7-4f/4g bevart), renser eksisterende technical debt. Alt C bryter sammenheng-prinsippet (maskin/timer på separate tabellrader). Alt A patcher symptomene uten å løse rotårsaken.
+
+**Pause-modell — utviklet videre 2026-05-18:** Vedtatt MVP-løsning var inline checkbox uten fra/til. Faktisk implementert med fra/til-felter (mer ambisiøst enn MVP) for å støtte døgn-utleide maskiner korrekt. Pause-vindu på sedel-nivå brukes både til timer-fradrag og maskin-invariant-justering. Detaljer i [BACKLOG.md § Pause-modell](BACKLOG.md).
+
+**Kjente begrensninger akseptert ved deploy:**
+- **destruktiv recompute:** Når pause endres eller rad fra/til endres, overskrives rad.timer fra råtid − pauseMin. Manuelt justert timer kan gå tapt uten varsel. Vurderes som T7-5h.
+- **multi-rad-overlap:** Hvis flere timer-rader overlapper pause-vinduet, trekkes pause fra hver rad isolert. Sjeldent i praksis (typisk én rad per dag).
+- **per-rad audit-spor:** `redigerSedelRader` lager nye generasjoner for ALLE pending-rader på sedelen (ikke kun endret bucket). Database vokser med erstattet-rader per rediger-kall. Visnings-fix er deployet; per-rad-mutation-optimalisering er ikke prioritert.
+
+**Verifisering prod (Kenneth, innlogget A.Markussen AS):** Attestering-siden laster korrekt. Uke 21 — ingen sedler venter, det er normalt.
+
+---
+
 ## T7-4f + T7-5b + maskin-fra-til + B-fixes — Attestering komplett — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
 
 Komplett redesign av `/dashbord/firma/timer/attestering`-listen + modal-arkitektur + maskin-fra/til + QA-fix-runde B1/B2/B6. Spec låst i [fase-0-beslutninger.md § T7-4f og § T7-5](fase-0-beslutninger.md). Migrasjon `20260517120000_organization_setting_rediger_default_true` (`ALTER COLUMN tillattRedigerVedAttestering SET DEFAULT true`) applied i prod.
