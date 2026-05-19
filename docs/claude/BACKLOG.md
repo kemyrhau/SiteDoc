@@ -137,28 +137,92 @@ Attestering-listen viser kun sedler med `status="sent"` — attesterte sedler (`
 
 Planlegges som T7-5e.
 
-### Pause-modell på timer-rad (vedtatt 2026-05-17)
+### Pause-modell på timer-rad — IMPLEMENTERT 2026-05-18 (pauseFra/pauseTil i daily_sheets)
 
-**Vedtak:** Inline checkbox per timer-rad. Fra/til-tid for pause er IKKE nødvendig i MVP.
+**Faktisk implementasjon på develop 2026-05-18:** Pause med eksplisitt fra/til-vindu på sedel-nivå, ikke inline checkbox uten tider. Mer ambisiøst enn opprinnelig MVP-vedtak fordi maskin-validering for døgn-utleide maskiner (Heatwork-mønster) krevde å vite pause-lengde for invariant-justering.
 
-**Bakgrunn:** Pause-data-analyse på 3 sedler i test-DB viste tre ulike praksiser:
-- Sedel A: pause som GAP mellom timer-rader (12:00 → 12:30)
-- Sedel B: pause trukket fra første timer-rad (-0.5t), maskin med full råtid
-- Sedel C: pause trukket fra både timer-rad OG maskin-rad
+**Schema (`packages/db-timer/prisma/schema.prisma`):**
+- `DailySheet.pauseFra: String?` og `DailySheet.pauseTil: String?` (HH:MM, nullable). Migrasjon `20260517220000_add_pause_fra_til`.
+- `pauseMin` beholdt som denormalisert sum for raskt oppslag. Server beregner `pauseMin = Math.round((pauseTil - pauseFra) / 60)` ved hver oppdatering.
 
-Resultat: ingen invariant overholdes, og sedel B brøt maskin-timer-koblingen (`sum(maskin.timer) > sum(timer.timer)`). Datamodellen mangler eksplisitt pause-håndtering på rad-nivå.
+**Klient-flyt (RedigerRadModal):**
+- Checkbox auto-hukes ved overlap mellom rad.fraTid/tilTid og sheet.pauseFra/pauseTil.
+- Klikk på checkbox når ingen pause finnes lager default 30 min midt i rad-intervallet (se § Pause-default).
+- `beregnTimerMedPause(fraTid, tilTid, pauseFra, pauseTil)` returnerer `(til-fra) - pauseMin/60` ved overlap.
+- Sheet-level state — endring fra én rad reflekteres på alle overlapp.
 
-**MVP-løsning (inline checkbox):**
-- Ny kolonne `harPause: boolean` på `sheet_timer` (default false). Maskin uendret.
-- UI: checkbox «Pause i denne raden» på timer-rad-modal. Når på: `timer = (til - fra) - 30 min` (eller firma-konfigurert default).
-- Server-validering: hvis `harPause=true`, kontrollér at `timer` er konsistent med fra/til minus pause-standard.
+**Server-validering (utvidet):**
+- `validerMaskinUnderArbeid(timer, maskin, pauseMin)` — pause-buffer på maskin-invarianten (se § utleie_enhet-prinsipp).
+- `redigerSedelRader`-mutation aksepterer `pauseFra/pauseTil` i input + oppdaterer DailySheet i samme transaksjon.
 
-**Utenfor MVP (utsatt):**
-- Pause med fra/til som eget tidsvindu (krever ny modell + UI-kompleksitet)
-- Per-rad pause-lengde (krever input-felt i tillegg til checkbox)
-- Maskin-pause-håndtering (avhenger av om maskin går mens operatør pauser — domenespørsmål)
+**Bakgrunn (opprinnelig analyse):** Pause-data-analyse på 3 sedler i test-DB viste tre ulike praksiser (gap mellom rader / pause trukket fra første timer-rad / pause trukket fra maskin-rad også). Sedel B brøt maskin-timer-koblingen. Eksplisitt pause-vindu var nødvendig for å gi maskin-validering riktig kontekst.
 
-**Implementasjons-vei:** Integreres i T7-5c (sammenheng-håndtering i splitt-modal) eller egen mini-PR T7-5g. Migrasjonen er additiv og lavrisiko.
+**Kjente begrensninger — se egne seksjoner:**
+- Stille overskriving av manuelt-justert rad.timer (T7-5h)
+- Default pause-vindu er midtpunkt — bør være firma-konfigurerbar
+- Multi-rad-overlap ikke server-validert
+- utleie_enhet-prinsipp ikke håndhevet i UI ennå
+
+### Stille overskriving av manuelt-justert rad.timer (oppdaget 2026-05-18, foreslås som T7-5h)
+
+`beregnTimerMedPause` i `RedigerRadModal.tsx` overskriver `rad.timer` fra `rattid − pauseMin/60` ved hver pause- eller fra/til-endring. Hvis arbeidstaker har gjort manuell justering (f.eks. registrert 7.0t på en 8t-periode for å trekke 60 min lang lunsj som ikke er registrert som pause-vindu), forsvinner den justeringen uten varsel ved første pause-toggle eller fra/til-edit.
+
+**Eksempel:**
+- Lagret: rad 07:00–15:00, timer=7.00 (manuelt trukket 60 min)
+- Bruker klikker pause-checkbox → default 30 min vindu → recompute: 8.0 − 0.5 = **7.5**
+- Manuelt-justerte 7.00 erstattes med 7.5 uten advarsel
+
+**Fix-skisser:**
+- (A) Init-deteksjon: hvis lagret `rad.timer ≠ rattid − sheet.pauseMin/60`, anta manuell justering — krev eksplisitt brukerbekreftelse før recompute.
+- (B) «Lås timer»-toggle på rad: pause-endring overskriver kun ulåste rader.
+- (C) Toast-varsel når recompute endrer eksisterende timer-verdi.
+
+**Foreslås som T7-5h.** Ikke blokker for prod-deploy av pause-modell-bunken — eksisterende sedler beholder verdien til bruker aktivt endrer pause eller fra/til.
+
+### Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)
+
+`togglePause` i `RedigerRadModal.tsx` lager default `[midt − 15 min, midt + 15 min]` når checkbox aktiveres uten eksisterende pause-vindu. For rad 07:00–15:00 blir det 10:30–11:30, ikke 11:30–12:00 som norsk lunsj-konvensjon antyder.
+
+**Eksisterende schema-felter** (`packages/db/prisma/schema.prisma:253-255`):
+- `OrganizationSetting.standardStartTid` (default "07:00")
+- `OrganizationSetting.standardSluttTid` (default "15:00")
+- `OrganizationSetting.standardPauseMin` (default 30)
+
+**Mangler:** `standardPauseFra` / `standardPauseTil` (eller `standardPauseStart`) er **ikke** i schema. Default-midtpunkt brukes som fallback fordi vi ikke har konfigurerbart pause-tidspunkt.
+
+**Forslag:**
+- Utvid `OrganizationSetting` med `standardPauseFra: String?` (eller la `standardPauseMin + standardPauseFraOffset` utlede tidspunktet).
+- Endre `togglePause` til å bruke firma-default hvis satt, ellers midtpunkt.
+- Migrasjon additiv (nullable).
+
+### Multi-rad-overlap pause — ikke håndtert (oppdaget 2026-05-18)
+
+Hvis flere timer-rader overlapper samme pause-vindu (f.eks. 07:00–12:00 + 11:30–15:00 med pause 11:45–12:00), trekkes pause-min fra hver rad isolert i `beregnTimerMedPause`. Server-validering (`validerMaskinUnderArbeid` med pauseMin-buffer) regner pause kun én gang per bucket — det er konsistent for invarianten, men klient-summering kan vise dobbel-trukket pause.
+
+Sjeldent i praksis (typisk én sammenhengende rad per dag), ikke server-blokk. Vurdere om recompute bør splitte pause-fradraget på tvers av overlappende rader, eller om det er en arbeider-feil å registrere overlappende rader uten å selv justere pause.
+
+### utleie_enhet-prinsipp som styrende for maskin-validering (vedtatt 2026-05-18)
+
+**Vedtak:** `equipment.utleie_enhet ∈ {'doegn', 'time'}` er det styrende skillet for hvordan maskin-timer relaterer seg til arbeidstimer — ikke et hypotetisk «kreverForer»-flagg eller «mannsbetjent vs autonom»-konsept.
+
+**Bakgrunn (verifisert mot test-DB 2026-05-18):**
+- `maskin.equipment`-tabellen har ALLEREDE feltene `er_utleieobjekt: boolean`, `utleie_enhet: text` ('doegn' | 'time'), `utleiepris_per_dogn`, `utleiepris_per_time`.
+- Det finnes **ikke** noe `krever_foerer`-felt. Tidligere foreslåtte spesialtilfeller (Heatwork som «autonom», CAT 320 som «mannsbetjent») var gjettet uten datagrunnlag.
+
+**Konsekvens for maskin-invariant per (projectId, ECO)-bucket:**
+- `utleie_enhet = 'doegn'`: maskin går mens operatør pauser → invariant tillater `maskin ≤ arbeid + pauseMin/60`. Heatwork 7626 (9.00t maskin / 8.50t arbeid + 0.50t pause = 9.00t) er innenfor.
+- `utleie_enhet = 'time'`: maskin styres av operatør → faller naturlig under `maskin ≤ arbeid` (pause-buffer brukes ikke fordi maskin pauser når operatør pauser).
+- `er_utleieobjekt = false`: intern bruk, ikke fakturert utleie — invariant gjelder uansett som baseline.
+
+**Implementasjon-status 2026-05-18:**
+- Server-invariant er utvidet med `pauseMin`-buffer universelt (`validerMaskinUnderArbeid` tar pauseMin). Maskin-utleie-enhet brukes ikke i invariantsjekken — gjelder for alle.
+- UI-info-warning i `KompaktMaskinRad` viser fortsatt «⚠ Maskintimer overstiger arbeidstimer» når over arbeidstimer, uten å hensynta `utleie_enhet`. Ikke blokker, men kan misforstås for døgn-utleide.
+
+**Åpne avklaringer:**
+- Skal invariant være ulik for `utleie_enhet='time'` (strengere: `maskin ≤ arbeid`, ingen pause-buffer)? I så fall: kreves split av sjekken per maskin-rad basert på equipment-data.
+- Skal UI-warning skjules for `utleie_enhet='doegn'`-rader når maskin > arbeid (forventet)?
+
+**Foreslås som styrende prinsipp i fase-0-beslutninger.md.**
 
 ### B5 — Sum-indikator (maskin-av-arbeid) mangler i SeddelKort (oppdaget 2026-05-17)
 

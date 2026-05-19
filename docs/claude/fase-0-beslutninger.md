@@ -2024,14 +2024,40 @@ redigering av én del krever at hele enheten vises og kan redigeres i
 kontekst — leder må vurdere hva som skjer med maskin og varer når
 timer-raden splittes (følger nye timer-rad? deles? blir på original?).
 
-**Sammenheng-validering (låst 2026-05-17):**
-- `sum(maskin.timer) ≤ sum(arbeidstimer)` PER prosjekt+ECO-gruppe ALLTID
+**Sammenheng-validering (låst 2026-05-17, utvidet 2026-05-18):**
+- `sum(maskin.timer) ≤ sum(arbeidstimer) + pauseMin/60` PER prosjekt+ECO-gruppe
+- Pause-buffer-tillegget (utvidelse 2026-05-18) er nødvendig fordi
+  døgn-utleide maskiner (se § utleie_enhet-prinsipp under) går mens
+  operatør pauser. Timer-utleide maskiner faller naturlig under
+  `≤ arbeid` siden de styres av operatør (pause-bufferen brukes ikke).
 - Gjelder også etter splitt: hver ny rad-gruppe må tilfredsstille
-  invarianten
+  ≤-invarianten med pause-buffer
 - Splitt-modal (T7-5c) MÅ vise maskin-rad og kreve fordeling av
-  maskintimer slik at ingen ny gruppe bryter ≤-invarianten
+  maskintimer slik at ingen ny gruppe bryter invarianten
 - Server (T7-4b `validerMaskinUnderArbeid`) er autoritativ — klient-
-  visning er veiledende
+  visning er veiledende. Funksjonen tar `pauseMin = 0`-parameter
+  (default for å bevare gamle kall som ikke vet om pause)
+
+**utleie_enhet-prinsipp (låst 2026-05-18):**
+`equipment.utleie_enhet ∈ {'doegn', 'time'}` er det styrende skillet
+for hvordan maskin-timer relaterer seg til arbeidstimer. Ikke
+hypotetiske «kreverForer» eller «mannsbetjent»-flagg — disse
+finnes IKKE i schema og skal ikke innføres.
+- `'doegn'`: maskin går mens operatør pauser → pause-buffer i invariant
+- `'time'`: maskin styres av operatør → naturlig ≤ arbeid uten buffer
+- `er_utleieobjekt=false` (intern bruk): invariant gjelder som baseline
+Detaljer i [BACKLOG.md § utleie_enhet-prinsipp](BACKLOG.md). Åpent
+spørsmål: skal invariant være per-rad strengere for `'time'`-maskiner?
+
+**Pause-modell-vedtak (låst 2026-05-18):**
+Eksplisitt pause-vindu på sedel-nivå: `DailySheet.pauseFra/pauseTil`
+(HH:MM, nullable). `pauseMin` denormalisert sum, server-beregnet.
+Migrasjon `20260517220000_add_pause_fra_til`. Erstatter opprinnelig
+MVP-vedtak (inline checkbox uten tider) — pause-vindu var nødvendig
+for å gi maskin-validering riktig pause-buffer. Klient bruker
+overlap-deteksjon (`rad.tilTid > pauseFra AND rad.fraTid < pauseTil`)
+for å vise pause-status per rad. Detaljer i
+[BACKLOG.md § Pause-modell på timer-rad](BACKLOG.md).
 
 **Konsekvenser av sammenheng-prinsippet:**
 
