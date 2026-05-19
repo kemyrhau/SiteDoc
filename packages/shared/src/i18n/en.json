@@ -261,6 +261,8 @@
   "timer.attestering.filter.alleProsjekter": "All projects",
   "timer.attestering.filter.alleAnsatte": "All employees",
   "timer.attestering.filter.alleAvdelinger": "All departments",
+  "timer.attestering.fane.venter": "Pending approval",
+  "timer.attestering.fane.attestert": "Approved",
   "timer.attestering.gruppe.sedler": "{{antall}} sheets",
   "timer.attestering.gruppe.attesterGruppe": "Approve group ({{antall}})",
   "timer.attestering.sedel.tilleggskrav": "Premium claim",

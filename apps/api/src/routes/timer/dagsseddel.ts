@@ -1093,6 +1093,10 @@ export const dagsseddelRouter = router({
         // ISO-dato YYYY-MM-DD (start- og slutt-inklusive). Begge må gis sammen.
         fraOgMed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
         tilOgMed: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+        // T7-5e: fane-filter på attestering-listen.
+        // "sent" = venter på attestering (default, bakover-kompat).
+        // "accepted" = ferdig attestert (read-only-visning).
+        status: z.enum(["sent", "accepted"]).optional().default("sent"),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -1122,9 +1126,10 @@ export const dagsseddelRouter = router({
       // T7-2b1: delvis-attesterte sedler beholder sheet.status="sent" inntil ALLE
       // rader er attestert — eksisterende filter dekker dem. Inkluderer maskiner
       // og rad-status så klient kan vise fremdrift (X av Y attestert).
+      // T7-5e: status-input styrer fane — "sent" venter, "accepted" attestert.
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
-          status: "sent",
+          status: input.status,
           timer: { some: { projectId: { in: prosjektIder } } },
           ...(datoFilter ? { dato: datoFilter } : {}),
         },
