@@ -109,6 +109,9 @@ export default function FirmaAttesteringSide() {
   const [valgtAvdelingId, setValgtAvdelingId] = useState<string>("");
   const [returnerId, setReturnerId] = useState<string | null>(null);
   const [feil, setFeil] = useState<string | null>(null);
+  // T7-5e: fane-toggle mellom venter på attestering ("sent") og attestert
+  // ("accepted"). Attestert-fanen er read-only — knapper og redigering skjult.
+  const [aktivFane, setAktivFane] = useState<"sent" | "accepted">("sent");
 
   const ukestart = useMemo(() => getUkestart(ukeOffset), [ukeOffset]);
   const ukeslutt = useMemo(() => getUkeslutt(ukestart), [ukestart]);
@@ -121,16 +124,33 @@ export default function FirmaAttesteringSide() {
     );
   const kanAttestere = tilgang?.kanAttestere ?? false;
 
-  const { data: raderRaw, isLoading } =
+  // T7-5e: to parallelle queries (samme uke-vindu, ulik status) for å vise
+  // badge-tall på begge faner uten å bytte fane.
+  const { data: sentRaderRaw, isLoading: sentLaster } =
     trpc.timer.dagsseddel.hentTilAttesteringFirma.useQuery(
       {
         organizationId: orgId!,
         fraOgMed: isoDato(ukestart),
         tilOgMed: isoDato(ukeslutt),
+        status: "sent",
       },
       { enabled: !!orgId && kanAttestere },
     );
-  const rader = (raderRaw ?? []) as unknown as AttesteringRad[];
+  const { data: acceptedRaderRaw, isLoading: acceptedLaster } =
+    trpc.timer.dagsseddel.hentTilAttesteringFirma.useQuery(
+      {
+        organizationId: orgId!,
+        fraOgMed: isoDato(ukestart),
+        tilOgMed: isoDato(ukeslutt),
+        status: "accepted",
+      },
+      { enabled: !!orgId && kanAttestere },
+    );
+  const sentRader = (sentRaderRaw ?? []) as unknown as AttesteringRad[];
+  const acceptedRader = (acceptedRaderRaw ?? []) as unknown as AttesteringRad[];
+  const rader = aktivFane === "sent" ? sentRader : acceptedRader;
+  const isLoading = aktivFane === "sent" ? sentLaster : acceptedLaster;
+  const readOnly = aktivFane === "accepted";
 
   const { data: avdelinger } = trpc.avdeling.hentAlle.useQuery(
     { organizationId: orgId! },
@@ -233,6 +253,52 @@ export default function FirmaAttesteringSide() {
         {t("firma.timer.attesteringBeskrivelse")}
       </p>
 
+      {/* T7-5e: Fane-toggle [Venter på attestering ●N] [Attestert ●M] */}
+      <div className="mb-4 flex gap-2 border-b border-gray-200">
+        <button
+          onClick={() => setAktivFane("sent")}
+          className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+            aktivFane === "sent"
+              ? "border-blue-600 text-blue-700"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          {t("timer.attestering.fane.venter")}
+          {sentRader.length > 0 && (
+            <span
+              className={`ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-semibold ${
+                aktivFane === "sent"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {sentRader.length}
+            </span>
+          )}
+        </button>
+        <button
+          onClick={() => setAktivFane("accepted")}
+          className={`-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+            aktivFane === "accepted"
+              ? "border-blue-600 text-blue-700"
+              : "border-transparent text-gray-500 hover:text-gray-700"
+          }`}
+        >
+          {t("timer.attestering.fane.attestert")}
+          {acceptedRader.length > 0 && (
+            <span
+              className={`ml-2 inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-semibold ${
+                aktivFane === "accepted"
+                  ? "bg-blue-100 text-blue-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {acceptedRader.length}
+            </span>
+          )}
+        </button>
+      </div>
+
       {/* Uke-navigasjon */}
       <div className="mb-4 flex items-center gap-2">
         <button
@@ -329,6 +395,7 @@ export default function FirmaAttesteringSide() {
               }}
               onReturner={(id) => setReturnerId(id)}
               attesterPending={attester.isPending}
+              readOnly={readOnly}
             />
           ))}
         </div>
@@ -353,6 +420,7 @@ function ProsjektGruppe({
   onAttester,
   onReturner,
   attesterPending,
+  readOnly,
 }: {
   gruppe: {
     prosjektId: string;
@@ -365,6 +433,7 @@ function ProsjektGruppe({
   onAttester: (sheetId: string) => void;
   onReturner: (sheetId: string) => void;
   attesterPending: boolean;
+  readOnly: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -389,18 +458,20 @@ function ProsjektGruppe({
           <span className="font-mono">
             {gruppe.maskintimer.toFixed(2)}t {t("timer.gruppe.maskintimer")}
           </span>
-          <Button
-            size="sm"
-            onClick={() => {
-              for (const s of gruppe.sedler) onAttester(s.id);
-            }}
-            disabled={attesterPending}
-          >
-            <Check className="mr-1 h-3.5 w-3.5" />
-            {t("timer.attestering.gruppe.attesterGruppe", {
-              antall: gruppe.sedler.length,
-            })}
-          </Button>
+          {!readOnly && (
+            <Button
+              size="sm"
+              onClick={() => {
+                for (const s of gruppe.sedler) onAttester(s.id);
+              }}
+              disabled={attesterPending}
+            >
+              <Check className="mr-1 h-3.5 w-3.5" />
+              {t("timer.attestering.gruppe.attesterGruppe", {
+                antall: gruppe.sedler.length,
+              })}
+            </Button>
+          )}
         </div>
       </header>
       <div className="space-y-3">
@@ -411,6 +482,7 @@ function ProsjektGruppe({
             onAttester={() => onAttester(s.id)}
             onReturner={() => onReturner(s.id)}
             attesterPending={attesterPending}
+            readOnly={readOnly}
           />
         ))}
       </div>
