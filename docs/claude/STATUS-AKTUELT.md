@@ -20,29 +20,35 @@ Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på e
 
 Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
 
-### T7-4f + T7-5b + maskin-fra-til + B-fixes — Attestering komplett på develop (IKKE prod)
+### T7-4f + T7-5b + maskin-fra-til + B-fixes — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
 
-**Samlet bunke på develop, deployet til test, IKKE merget til prod.** Inkluderer mockup v7-redesign (T7-4f), modal-arkitektur (T7-5b), maskin-fra/til-felt, og QA-fix-runde B1/B2/B6.
+Hele bunken deployet til prod 2026-05-17. Migrasjon `20260517120000_organization_setting_rediger_default_true` applied. Sammenheng-prinsipp låst i [fase-0-beslutninger.md § T7-5](fase-0-beslutninger.md). Detaljer i [historikk-2026-05.md § T7-4f-bunken](historikk-2026-05.md).
+
+### T7-4g + T7-5d + pause-modell + filter-erstattet + maskin-validering-pause — Attestering UI + valideringskorrigering på develop (KLAR FOR PROD)
+
+**Bunken på develop, deployet til test 2026-05-17/18. Klar for prod-merge.** Adresserer Kenneths klage om at SeddelKort tok for mye plass, modal-i-side føltes hverken-eller, og at pause/maskin-validering ga falske positiver for døgn-utleide maskiner.
 
 **Sub-PR-er merget til develop:**
-- **T7-4f-bunken** (`bd70392e`): server-beriking, ekstraher attestering-buckets, redesign attestering-liste, SeddelKort kompakt tabell, fritekst/sum/penn-fixes. Detaljer i [historikk-2026-05.md § T7-4f-bunken](historikk-2026-05.md).
-- **T7-4f-splitt-1-klikk** (`b8c2f835` → merge `7ee31fa3`): ✂-ikon per rad åpner SplittRadModal direkte fra listen.
-- **T7-5b-1** (`b4e1a3ba` → merge `2a47dceb`): DB-default `tillattRedigerVedAttestering=true` for nye firma. Migrasjon kun `ALTER COLUMN ... SET DEFAULT true`, ingen UPDATE.
-- **T7-5b-2** (`b75a2a4b` → merge `30c20df9`): `AttesteringDetalj.onFerdig?`-prop (modal-vennlig overstyring av router.push).
-- **T7-5b-3** (`9b1055f6` → merge `b1ae1516`): `RedigerSeddelModal`-wrapper. Modal får `lukkVedBackdropKlikk?`-prop og smart max-w-regex (`packages/ui/src/modal.tsx`).
-- **T7-5b-4** (`595ad4b3` → merge `7063cb36`): SeddelKort penn-klikk åpner modal (lokal state, ikke route). ⋯-meny ryddet.
-- **maskin-fra-til** (`28a7c89a` → merge `ac7fa72e`): MaskinRadDialog får fra/til-felter med default-forslag fra timer-rad i samme bucket (Alt D, sammenheng-prinsipp). `maskin.oppdater` Zod-schema utvidet med fra/til.
-- **B1 modal-bredde** (`92774103` + `f9dfacf2` + `4fa345f5`): tre fixes — Modal ytre className-overstyring + indre div symmetri + AttesteringDetalj `fullBredde`-prop. Modal-kjeden nå 80vw uten skjulte cap.
-- **B2 maskinNavn null-safe** (`141fc1ab`): `${e.merke} ${e.modell}` → `[merke, modell].filter(Boolean).join(" ")` med internNavn-fallback. «null null (Heatwork 7626)» blir nå «Heatwork 7626».
-- **B6 initialModus-prop** (`b117cb75`): `AttesteringDetalj.initialModus?: "lese" | "rediger"`. RedigerSeddelModal sender "rediger" → 1-klikk fra penn til edit.
+- **T7-4g** (`85a00d22` impl, merge `5c6347d9`): Kompakt kollapset SeddelKort. Header redusert til én linje (~48px): `[OT] Ola Tømrer · ons 13. mai · 8.00t / 7.50t [↩][✓][⋯][▾]`. Default-expanded ved tilleggHarKrav eller mertid (totaltimer > dagsnorm). Action-rad nederst fjernet. Detalj-lenke i ⋯-menyen. Tilgjengelig via tastatur (Enter/Space, aria-expanded).
+- **T7-5d** (`b9a666ce` impl, merge `9727c7f9`): RedigerRadModal erstatter RedigerSeddelModal. Penn-klikk åpner KUN den prosjekt+ECO-bucken raden tilhører, ikke hele sedelen. Hele-sedel-redigering går til detaljsiden via ⋯-menyen «Rediger». Sticky bucket-header med Lagre/Avbryt. Lagring bygger full `redigerSedelRader`-payload der andre bucker går uendret igjennom. AttesteringDetalj renset for modal-spesifikke props (`onFerdig`/`fullBredde`/`initialModus`) — er igjen ren fullside-komponent. I tråd med fase-0 § T7-5 sammenheng-prinsipp.
+- **pause-modell** (`39ec00a3` impl, merge `2e3f23b8`): Inline pause på timer-rad i RedigerRadModal. Ny `pause_fra`/`pause_til` TEXT-kolonner på `timer.daily_sheets` (migrasjon `20260517220000_add_pause_fra_til`, kjørt på test-DB). pauseMin denormalisert sum, beholdes. Checkbox auto-hukes ved overlap mellom rad.fraTid/tilTid og pauseFra/pauseTil. Klikk lager default 30 min i midten av rad-intervallet. Rad-timer auto-recompute = rattid − pause-fradrag ved overlap. Sheet-level state — endring fra én rad reflekteres på alle overlapp. KompaktMaskinRad får info-rad når maskin overstiger arbeid.
+- **filter-erstattet-rader** (`abf44a5a` impl, merge `d4748b6a`): Server-fix for visnings-duplikater etter rediger. `hentTilAttesteringFirma` og `hentForAttestering` filtrerer nå ut `attestertStatus = "erstattet"` på include/findMany. Tidligere ble erstattet og pending vist sammen i SeddelKort → 2× rader etter hver rediger. Audit-spor i DB beholdes uendret — kun visning filtreres.
+- **maskin-validering-pause** (`5a1bd3ef` impl, merge `43307429`): Invariant utvidet til `sum(maskin) ≤ sum(timer) + pauseMin/60` per (prosjektId, ECO). Bakgrunn: maskin som leies pr. døgn (Heatwork-mønster: `equipment.utleie_enhet='doegn'`) går mens operatør pauser → 9.00t maskin mot 8.50t arbeid var falsk positiv. Maskin som selges pr. time følger operatør og blir naturlig ≤ arbeid (ingen pause-buffer brukes). Server `validerMaskinUnderArbeid` fikk `pauseMin = 0`-parameter, oppdatert i 7 kallesteder (tilfoy/oppdater × timer/maskin, redigerSedelRader, splittRad, syncBatch). Klient: `EcoBucketAttest` får valgfri `pauseMin`-prop, `RedigerRadModal` beregner `pauseTimer` fra `editPauseFra/Til`. AttesteringDetalj sender `sheet.pauseMin`.
 
-**Sammenheng-prinsipp låst** i [fase-0-beslutninger.md § T7-5](fase-0-beslutninger.md): timer-rad + tilhørende maskin + varer = én logisk enhet per prosjekt+ECO+tidslinje. T7-5c (SplittRadModal med sammenheng-håndtering) åpen, krever spec for sammenheng-deteksjon.
+**Arkitektur-drøfting 2026-05-17:** Tre alternativer vurdert — (A) patch symptomene, (B) rad-nivå redigering, (C) flat tabell (SmartDok-modellen). Valgt Alt B. Begrunnelse: adresserer rotårsaken (modal-i-side-hack via 3 overstyrings-props), honorerer vedtatt sammenheng-prinsipp, kaster ikke nylig arbeid (T7-4f/4g bevart), renser eksisterende technical debt. Alt C bryter sammenheng-prinsippet (maskin/timer på separate tabellrader). Alt A patcher symptomene uten å løse rotårsaken.
 
-**QA-rapport:** [qa-rapport-2026-05-17.md](qa-rapport-2026-05-17.md). B7–B10 ✅. B_ny (Lagre grå→grønn) og B5 (sum-indikator SeddelKort) i backlog. A1–A7 (ansatt-flyt-mangler) krever større arbeid.
+**Pause-modell — utviklet videre 2026-05-18:** Vedtatt MVP-løsning var inline checkbox uten fra/til. Faktisk implementert med fra/til-felter (mer ambisiøst enn MVP) for å støtte døgn-utleide maskiner korrekt. Pause-vindu på sedel-nivå brukes både til timer-fradrag og maskin-invariant-justering. Detaljer i [BACKLOG.md § Pause-modell](BACKLOG.md).
 
-**Neste sesjon:** Kompakt-layout / default-kollapsede sedler — Kenneths klage om at SeddelKort tar for mye plass (2-3 sedler synlig vs. konkurrent 9 dagsrader). Detaljer i [BACKLOG.md § Kompakt sedel-layout](BACKLOG.md).
+**Kjente begrensninger som ikke blokkerer prod:**
+- **destruktiv recompute:** Når pause endres eller rad fra/til endres, overskrives rad.timer fra råtid − pauseMin. Manuelt justert timer kan gå tapt uten varsel. Vurderes som T7-5h.
+- **multi-rad-overlap:** Hvis flere timer-rader overlapper pause-vinduet, trekkes pause fra hver rad isolert. Sjeldent i praksis (typisk én rad per dag).
+- **per-rad audit-spor:** `redigerSedelRader` lager nye generasjoner for ALLE pending-rader på sedelen (ikke kun endret bucket). Database vokser med erstattet-rader per rediger-kall. Visnings-fix er deployet; per-rad-mutation-optimalisering er ikke prioritert.
 
-**Blokkert fra prod:** Hele bunken venter på samlet prod-deploy. Verifiseringskrav: innlogget bruker-test på test.sitedoc.no.
+**Gjenstående som ny PR (ikke i denne bunken):**
+1. **Attestert-filter på attestering-listen** — venter på server-endring av `hentTilAttesteringFirma` med `status?: "sent" | "accepted"`-input + read-only-modus på SeddelKort. Egen PR T7-5e.
+2. **B_ny — dirty-tracking på AttesteringDetalj_Edit Lagre-knapp** — finnes i RedigerRadModal (via `harEndringer`-state), mangler i den eldre `AttesteringDetalj_Edit.tsx:481`. Egen PR T7-5f.
+
+**Prod-deploy krever:** `pnpm --filter @sitedoc/db-timer exec prisma migrate deploy` (én ny migrasjon `20260517220000_add_pause_fra_til`) + standard web/api-rebuild + pm2 restart.
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 

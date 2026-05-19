@@ -137,6 +137,11 @@ model DailySheet {
   startAt             DateTime? @map("start_at") @db.Timestamptz()
   endAt               DateTime? @map("end_at") @db.Timestamptz()
   pauseMin            Int       @default(0) @map("pause_min")
+  // Pause-modell (vedtatt 2026-05-17): pauseFra/pauseTil definerer tidspunktet
+  // for pausen. pauseMin beholdes som denormalisert sum for raskt oppslag.
+  // Nullable: eksisterende sedler har ingen pause-vindu (kun pauseMin).
+  pauseFra            String?   @map("pause_fra")
+  pauseTil            String?   @map("pause_til")
   status              String    @default("draft") // "draft" | "sent" | "returned" | "accepted"
   beskrivelse         String?   @db.Text
   lederKommentar      String?   @map("leder_kommentar") @db.Text

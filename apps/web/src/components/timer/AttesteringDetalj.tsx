@@ -7,7 +7,7 @@
 // Per-rad-attestering: hver rad har egen status, leder velger hvilke som
 // attesteres/returneres via checkboxer.
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -47,28 +47,12 @@ type Props = {
   prosjektKontekst?: string;
   // Hvor «Tilbake» og redirect etter mutasjon peker
   tilbakeUrl: string;
-  // T7-5b-2 (2026-05-17): callback ved fullført mutasjon (attester/returner).
-  // Når satt: kalles i stedet for router.push(tilbakeUrl) — brukes av
-  // modal-wrapperen for å lukke modal og forbli i listen.
-  // Bakover-kompatibel: optional, eksisterende side-bruk uendret.
-  onFerdig?: () => void;
-  // T7-5b-B1 (2026-05-17): fjerner max-w-3xl-wrapperen så komponenten
-  // følger parent-bredden. Brukes når komponenten monteres i modal med
-  // egen max-w. Default false (eksisterende side-bruk uendret).
-  fullBredde?: boolean;
-  // T7-5b-B6 (2026-05-17): hopp direkte i edit-modus når modus="rediger".
-  // Aktiveres kun hvis sheet.redigerTillatt=true — ellers ignoreres.
-  // Brukes av RedigerSeddelModal for å spare ett klikk fra penn-ikon.
-  initialModus?: "lese" | "rediger";
 };
 
 export function AttesteringDetalj({
   sheetId,
   prosjektKontekst,
   tilbakeUrl,
-  onFerdig,
-  fullBredde = false,
-  initialModus,
 }: Props) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -94,19 +78,12 @@ export function AttesteringDetalj({
       { enabled: !!sheet?.organizationId },
     );
 
-  // T7-5b-2: kall onFerdig hvis satt (modal-modus lukker modal),
-  // ellers router.push til tilbakeUrl (klassisk side-modus).
-  const håndterFerdig = useCallback(() => {
-    if (onFerdig) onFerdig();
-    else router.push(tilbakeUrl);
-  }, [onFerdig, router, tilbakeUrl]);
-
   const attesterRader = trpc.timer.dagsseddel.attesterRader.useMutation({
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
       void utils.timer.dagsseddel.hentTilAttestering.invalidate();
       void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
-      håndterFerdig();
+      router.push(tilbakeUrl);
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
@@ -130,16 +107,6 @@ export function AttesteringDetalj({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheet?.id]);
 
-  // T7-5b-B6: hopp direkte i edit-modus når caller (RedigerSeddelModal)
-  // ber om det og firma har redigerTillatt=true. Sparer ett klikk fra
-  // penn-ikon — bruker slipper å klikke "Rediger sedel" inni modalen.
-  useEffect(() => {
-    if (initialModus === "rediger" && sheet?.redigerTillatt) {
-      setRedigerModus(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialModus, sheet?.redigerTillatt]);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -150,7 +117,7 @@ export function AttesteringDetalj({
 
   if (!sheet) {
     return (
-      <div className={`mx-auto ${fullBredde ? "" : "max-w-3xl"} p-6`}>
+      <div className={`mx-auto max-w-3xl p-6`}>
         <p className="text-sm text-red-600">{t("timer.detalj.ikkeFunnet")}</p>
         <Link
           href={tilbakeUrl}
@@ -193,7 +160,7 @@ export function AttesteringDetalj({
   }
 
   return (
-    <div className={`mx-auto ${fullBredde ? "" : "max-w-3xl"} p-6`}>
+    <div className={`mx-auto max-w-3xl p-6`}>
       <Link
         href={tilbakeUrl}
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"
@@ -393,6 +360,7 @@ export function AttesteringDetalj({
             onToggleMaskin={(id) => toggle(valgteMaskin, id, setValgteMaskin)}
             onToggleTillegg={(id) => toggle(valgteTillegg, id, setValgteTillegg)}
             kanFlytte={sheet.status === "sent"}
+            pauseMin={sheet.pauseMin}
           />
         ));
       })()}
@@ -446,7 +414,7 @@ export function AttesteringDetalj({
             tilleggIder: Array.from(valgteTillegg),
             maskinIder: Array.from(valgteMaskin),
           }}
-          onFerdig={håndterFerdig}
+          onFerdig={() => router.push(tilbakeUrl)}
           onLukk={() => setReturnerVises(false)}
         />
       )}

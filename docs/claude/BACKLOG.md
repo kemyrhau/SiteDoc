@@ -56,7 +56,15 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 - **Pre-eksisterende timerSync.ts baseline-feil (linje 308, 334)** 🟡 — `string | null` mot lokal `.notNull()`. Akseptert som baseline, ikke prioritert.
 
-### Attestering-rediger-flyt — inkonsistens (oppdaget 2026-05-17)
+### Attestering-rediger-flyt — inkonsistens (oppdaget 2026-05-17, LØST 2026-05-17 via T7-5d)
+
+**Status:** ✅ Adressert. T7-5d (merge `9727c7f9` på develop) erstatter RedigerSeddelModal med RedigerRadModal. Penn-klikk åpner nå kun prosjekt+ECO-bucken, ikke hele sedelen i side-i-modal. AttesteringDetalj renset for modal-spesifikke props. Detaljer i [STATUS-AKTUELT.md § T7-4g + T7-5d](STATUS-AKTUELT.md).
+
+Original diagnose beholdt under for historikk.
+
+---
+
+### Attestering-rediger-flyt (original diagnose)
 
 **Stop og planlegg.** Etter T7-4f-bunken har vi to overlappende redigeringsstier som skaper forvirring. Diagnose og anbefalt arkitektur:
 
@@ -100,30 +108,121 @@ Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1
 
 **Status 2026-05-17:** T7-5b-1..4 + B-fixes implementert og deployet til test (se STATUS-AKTUELT.md). T7-5c (sammenheng-håndtering i splitt) åpen. Plasseres i `historikk` når hele bunken er deployet til prod.
 
-### Kompakt sedel-layout — utnytt skjerm bedre (oppdaget 2026-05-17)
+### Kompakt sedel-layout — utnytt skjerm bedre (oppdaget 2026-05-17, ✅ T7-4g 2026-05-17)
 
-Kenneth observerte at SeddelKort tar for mye plass: 2-3 sedler synlig på 1080px-skjerm vs. konkurrentens flat-tabell-løsning som viser 9 dagsrader. Vår sammenheng-kort-tilnærming er bevisst (timer + maskin visuelt koblet) men trimmes for tett.
+**Status:** ✅ Forslag 1 implementert. T7-4g (merge `5c6347d9` på develop) reduserer SeddelKort-header til én linje (~48px) med default-kollapsing. Auto-expand ved tilleggHarKrav eller mertid. Action-rad fjernet. Detaljer i [STATUS-AKTUELT.md § T7-4g](STATUS-AKTUELT.md).
 
-**Per-sedel plassbruk i dag (~236px):**
-- Header (avatar 36×36 + ansatt + #ansattnr + dato + tilleggskrav + dagsnorm + aktivitet + beskrivelse + Detalj-knapp): ~80px
-- Tabell-header: ~8px
-- Timer-rad: ~40px · Maskin-rad: ~24px · Sum-rad: ~32px
-- Action-rad: ~52px
+**Gjenstående:**
+- Forslag 3 (periode-presets + faner + paginering) — egen oppfølger T7-4h
+- Forslag 2 (view-toggle [Kort]/[Tabell]) — vurder etter Forslag 3
 
-**Mål:** ~120px per sedel → 6-7 sedler synlig.
+### B_ny — Lagre-knapp grå→grønn ved endring (oppdaget 2026-05-17, gjenstår på Edit-side)
 
-**Tre forslag (vurdert mot konkurrent-skjermbilde):**
-1. **Trim eksisterende kort** — header på én linje, avatar 24×24 eller fjernet, beskrivelse kun ved hover, tabell-rad-høyde 32px, action-rad inline med sum-rad
-2. **View-toggle [Kort] [Tabell]** — kort som default (sammenheng), flat tabell som power-user-modus, valg lagres i localStorage
-3. **Periode-presets + faner + paginering** — uavhengig av kort/tabell: I dag / Denne uka / Forrige uke / Denne måneden / Forrige måned / Kvartal / År / Egendefinert. Faner Attestering / Lønnsrapport / Månedlig / Eksport. Paginering ved 50+ sedler.
+**Status delvis:** Implementert i RedigerRadModal (T7-5d, via `harEndringer`-state i `RedigerRadModal.tsx`). Mangler fortsatt i `AttesteringDetalj_Edit.tsx:481` (full-sedel-edit på detaljsiden).
 
-**Anbefalt rekkefølge:** 1 → 3 → 2. Tas i neste sesjon med høy prioritet.
+Spec sier knapp grå/inaktiv → grønn ved endring. Faktisk i Edit-side: blå fra start uavhengig av om noe er endret. Ingen samlet `harEndringer`-state.
 
-### B_ny — Lagre-knapp grå→grønn ved endring (oppdaget 2026-05-17)
+**Fix-skisse:** Beregn `harEndringer = JSON.stringify(editTimer) !== JSON.stringify(initTimer) || ...` (samme mønster som RedigerRadModal) og pass som `disabled={!harEndringer || lagre.isPending}` + betinget className for grønn. Planlegges som T7-5f.
 
-Spec sier knapp grå/inaktiv → grønn ved endring. Faktisk: blå fra start uavhengig av om noe er endret. `AttesteringDetalj_Edit.tsx:481` — ingen samlet `harEndringer`-state.
+### Attestert-filter på attestering-listen (oppdaget 2026-05-17, FIX 4 fra Sonnet-plan)
 
-**Fix-skisse:** Beregn `harEndringer = timerEndringer.size > 0 || tilleggEndringer.size > 0 || maskinEndringer.size > 0 || nyeTimerRader.length > 0 || ...` og pass som `disabled={!harEndringer || lagre.isPending}` + betinget className for grønn.
+Attestering-listen viser kun sedler med `status="sent"` — attesterte sedler (`status="accepted"`) forsvinner helt. Bruker mangler oversikt over hva som er attestert denne uka.
+
+**Forslag:** Filter-toggle `[Venter på attestering ●3] [Attestert ●12]` over uke-navigasjonen. Attestert-fanen viser sedler i read-only.
+
+**Krever:**
+1. Server: utvid `hentTilAttesteringFirma` med `status?: "sent" | "accepted"` (default "sent" for bakover-kompat)
+2. Klient: ny fane-state, to queries (en per fane), invalider begge ved attester-mutation
+3. SeddelKort: ny `readOnly`-prop som skjuler ↩/✓/⋯ og per-rad penn/✂
+
+Planlegges som T7-5e.
+
+### Pause-modell på timer-rad — IMPLEMENTERT 2026-05-18 (pauseFra/pauseTil i daily_sheets)
+
+**Faktisk implementasjon på develop 2026-05-18:** Pause med eksplisitt fra/til-vindu på sedel-nivå, ikke inline checkbox uten tider. Mer ambisiøst enn opprinnelig MVP-vedtak fordi maskin-validering for døgn-utleide maskiner (Heatwork-mønster) krevde å vite pause-lengde for invariant-justering.
+
+**Schema (`packages/db-timer/prisma/schema.prisma`):**
+- `DailySheet.pauseFra: String?` og `DailySheet.pauseTil: String?` (HH:MM, nullable). Migrasjon `20260517220000_add_pause_fra_til`.
+- `pauseMin` beholdt som denormalisert sum for raskt oppslag. Server beregner `pauseMin = Math.round((pauseTil - pauseFra) / 60)` ved hver oppdatering.
+
+**Klient-flyt (RedigerRadModal):**
+- Checkbox auto-hukes ved overlap mellom rad.fraTid/tilTid og sheet.pauseFra/pauseTil.
+- Klikk på checkbox når ingen pause finnes lager default 30 min midt i rad-intervallet (se § Pause-default).
+- `beregnTimerMedPause(fraTid, tilTid, pauseFra, pauseTil)` returnerer `(til-fra) - pauseMin/60` ved overlap.
+- Sheet-level state — endring fra én rad reflekteres på alle overlapp.
+
+**Server-validering (utvidet):**
+- `validerMaskinUnderArbeid(timer, maskin, pauseMin)` — pause-buffer på maskin-invarianten (se § utleie_enhet-prinsipp).
+- `redigerSedelRader`-mutation aksepterer `pauseFra/pauseTil` i input + oppdaterer DailySheet i samme transaksjon.
+
+**Bakgrunn (opprinnelig analyse):** Pause-data-analyse på 3 sedler i test-DB viste tre ulike praksiser (gap mellom rader / pause trukket fra første timer-rad / pause trukket fra maskin-rad også). Sedel B brøt maskin-timer-koblingen. Eksplisitt pause-vindu var nødvendig for å gi maskin-validering riktig kontekst.
+
+**Kjente begrensninger — se egne seksjoner:**
+- Stille overskriving av manuelt-justert rad.timer (T7-5h)
+- Default pause-vindu er midtpunkt — bør være firma-konfigurerbar
+- Multi-rad-overlap ikke server-validert
+- utleie_enhet-prinsipp ikke håndhevet i UI ennå
+
+### Stille overskriving av manuelt-justert rad.timer (oppdaget 2026-05-18, foreslås som T7-5h)
+
+`beregnTimerMedPause` i `RedigerRadModal.tsx` overskriver `rad.timer` fra `rattid − pauseMin/60` ved hver pause- eller fra/til-endring. Hvis arbeidstaker har gjort manuell justering (f.eks. registrert 7.0t på en 8t-periode for å trekke 60 min lang lunsj som ikke er registrert som pause-vindu), forsvinner den justeringen uten varsel ved første pause-toggle eller fra/til-edit.
+
+**Eksempel:**
+- Lagret: rad 07:00–15:00, timer=7.00 (manuelt trukket 60 min)
+- Bruker klikker pause-checkbox → default 30 min vindu → recompute: 8.0 − 0.5 = **7.5**
+- Manuelt-justerte 7.00 erstattes med 7.5 uten advarsel
+
+**Fix-skisser:**
+- (A) Init-deteksjon: hvis lagret `rad.timer ≠ rattid − sheet.pauseMin/60`, anta manuell justering — krev eksplisitt brukerbekreftelse før recompute.
+- (B) «Lås timer»-toggle på rad: pause-endring overskriver kun ulåste rader.
+- (C) Toast-varsel når recompute endrer eksisterende timer-verdi.
+
+**Foreslås som T7-5h.** Ikke blokker for prod-deploy av pause-modell-bunken — eksisterende sedler beholder verdien til bruker aktivt endrer pause eller fra/til.
+
+### Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)
+
+`togglePause` i `RedigerRadModal.tsx` lager default `[midt − 15 min, midt + 15 min]` når checkbox aktiveres uten eksisterende pause-vindu. For rad 07:00–15:00 blir det 10:30–11:30, ikke 11:30–12:00 som norsk lunsj-konvensjon antyder.
+
+**Eksisterende schema-felter** (`packages/db/prisma/schema.prisma:253-255`):
+- `OrganizationSetting.standardStartTid` (default "07:00")
+- `OrganizationSetting.standardSluttTid` (default "15:00")
+- `OrganizationSetting.standardPauseMin` (default 30)
+
+**Mangler:** `standardPauseFra` / `standardPauseTil` (eller `standardPauseStart`) er **ikke** i schema. Default-midtpunkt brukes som fallback fordi vi ikke har konfigurerbart pause-tidspunkt.
+
+**Forslag:**
+- Utvid `OrganizationSetting` med `standardPauseFra: String?` (eller la `standardPauseMin + standardPauseFraOffset` utlede tidspunktet).
+- Endre `togglePause` til å bruke firma-default hvis satt, ellers midtpunkt.
+- Migrasjon additiv (nullable).
+
+### Multi-rad-overlap pause — ikke håndtert (oppdaget 2026-05-18)
+
+Hvis flere timer-rader overlapper samme pause-vindu (f.eks. 07:00–12:00 + 11:30–15:00 med pause 11:45–12:00), trekkes pause-min fra hver rad isolert i `beregnTimerMedPause`. Server-validering (`validerMaskinUnderArbeid` med pauseMin-buffer) regner pause kun én gang per bucket — det er konsistent for invarianten, men klient-summering kan vise dobbel-trukket pause.
+
+Sjeldent i praksis (typisk én sammenhengende rad per dag), ikke server-blokk. Vurdere om recompute bør splitte pause-fradraget på tvers av overlappende rader, eller om det er en arbeider-feil å registrere overlappende rader uten å selv justere pause.
+
+### utleie_enhet-prinsipp som styrende for maskin-validering (vedtatt 2026-05-18)
+
+**Vedtak:** `equipment.utleie_enhet ∈ {'doegn', 'time'}` er det styrende skillet for hvordan maskin-timer relaterer seg til arbeidstimer — ikke et hypotetisk «kreverForer»-flagg eller «mannsbetjent vs autonom»-konsept.
+
+**Bakgrunn (verifisert mot test-DB 2026-05-18):**
+- `maskin.equipment`-tabellen har ALLEREDE feltene `er_utleieobjekt: boolean`, `utleie_enhet: text` ('doegn' | 'time'), `utleiepris_per_dogn`, `utleiepris_per_time`.
+- Det finnes **ikke** noe `krever_foerer`-felt. Tidligere foreslåtte spesialtilfeller (Heatwork som «autonom», CAT 320 som «mannsbetjent») var gjettet uten datagrunnlag.
+
+**Konsekvens for maskin-invariant per (projectId, ECO)-bucket:**
+- `utleie_enhet = 'doegn'`: maskin går mens operatør pauser → invariant tillater `maskin ≤ arbeid + pauseMin/60`. Heatwork 7626 (9.00t maskin / 8.50t arbeid + 0.50t pause = 9.00t) er innenfor.
+- `utleie_enhet = 'time'`: maskin styres av operatør → faller naturlig under `maskin ≤ arbeid` (pause-buffer brukes ikke fordi maskin pauser når operatør pauser).
+- `er_utleieobjekt = false`: intern bruk, ikke fakturert utleie — invariant gjelder uansett som baseline.
+
+**Implementasjon-status 2026-05-18:**
+- Server-invariant er utvidet med `pauseMin`-buffer universelt (`validerMaskinUnderArbeid` tar pauseMin). Maskin-utleie-enhet brukes ikke i invariantsjekken — gjelder for alle.
+- UI-info-warning i `KompaktMaskinRad` viser fortsatt «⚠ Maskintimer overstiger arbeidstimer» når over arbeidstimer, uten å hensynta `utleie_enhet`. Ikke blokker, men kan misforstås for døgn-utleide.
+
+**Åpne avklaringer:**
+- Skal invariant være ulik for `utleie_enhet='time'` (strengere: `maskin ≤ arbeid`, ingen pause-buffer)? I så fall: kreves split av sjekken per maskin-rad basert på equipment-data.
+- Skal UI-warning skjules for `utleie_enhet='doegn'`-rader når maskin > arbeid (forventet)?
+
+**Foreslås som styrende prinsipp i fase-0-beslutninger.md.**
 
 ### B5 — Sum-indikator (maskin-av-arbeid) mangler i SeddelKort (oppdaget 2026-05-17)
 

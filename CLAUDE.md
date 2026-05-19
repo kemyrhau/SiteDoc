@@ -147,6 +147,12 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - **Test er primærmiljø** for verifisering — lokal-DB er typisk bak. Lokal brukes som sandkasse for risiko-DDL.
 - **Auto-deploy til test** etter push til develop. **ALDRI deploy til prod** uten eksplisitt forespørsel.
 - **Etter HVER mobil-commit:** skriv eksplisitt «**Reload:** [metode]».
+
+**Auto-deploy:**
+- Push til `develop` → trigges auto-deploy til test.sitedoc.no
+- Push til feature-branch → INGEN auto-deploy
+- Push til `main` → manuell prod-deploy (eksplisitt forespørsel kreves)
+
 - Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 - Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
 
