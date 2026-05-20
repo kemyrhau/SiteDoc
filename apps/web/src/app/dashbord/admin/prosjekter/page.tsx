@@ -110,10 +110,11 @@ export default function AdminProsjekter() {
   }
 
   function opprett() {
+    if (!nyttFirmaId) return; // Skal være blokkert av required + disabled-knapp.
     opprettMutasjon.mutate({
       name: nyttNavn,
       description: nyBeskrivelse || undefined,
-      organizationId: nyttFirmaId || undefined,
+      organizationId: nyttFirmaId,
     });
   }
 
@@ -432,13 +433,17 @@ function OpprettModal({
           onChange={(e) => setBeskrivelse(e.target.value)}
         />
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">Firma (valgfritt)</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700">Firma</label>
+          {/* 2026-05-20: firma er nå påkrevd — alle kunder skal være registrert
+              som firma. «Ingen firma»-option fjernet. Standalone-prosjekter
+              kan ikke opprettes via UI. */}
           <select
             value={firmaId}
             onChange={(e) => setFirmaId(e.target.value)}
+            required
             className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
           >
-            <option value="">Ingen firma</option>
+            <option value="" disabled>Velg firma…</option>
             {organisasjoner.map((org) => (
               <option key={org.id} value={org.id}>{org.name}</option>
             ))}
@@ -448,7 +453,7 @@ function OpprettModal({
           <Button type="button" variant="secondary" onClick={onClose}>
             Avbryt
           </Button>
-          <Button type="submit" disabled={!navn || laster}>
+          <Button type="submit" disabled={!navn || !firmaId || laster}>
             Opprett
           </Button>
         </div>

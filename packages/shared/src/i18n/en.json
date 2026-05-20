@@ -964,6 +964,7 @@
   "firma.ansatte.rediger.tittel": "Edit employee",
   "firma.ansatte.rediger.iconLabel": "Edit user",
   "nyttProsjekt.opprettesFor": "The project will be created for {{firma}}. Switch company in the top menu to create on behalf of another company.",
+  "nyttProsjekt.ingenFirma": "You must select a company in the top menu before you can create a project. All projects must belong to a company.",
   "firma.kompetanse.tittel": "Competence",
   "firma.kompetanse.beskrivelse": "Competence matrix and competence types for the company. Certificates, courses, and training per employee.",
   "firma.kompetanse.fane.matrise": "Matrix",
