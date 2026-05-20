@@ -84,11 +84,15 @@ export function SeddelKort({
   onAttester,
   onReturner,
   attesterPending,
+  readOnly = false,
 }: {
   sedel: SeddelKortData;
   onAttester: () => void;
   onReturner: () => void;
   attesterPending: boolean;
+  // T7-5e: read-only-modus skjuler ↩/✓/⋯-meny og per-rad penn/✂.
+  // Brukes på "Attestert"-fanen i firma-attestering-listen.
+  readOnly?: boolean;
 }) {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
@@ -258,41 +262,46 @@ export function SeddelKort({
           {sedel.totaltimer.toFixed(2)}t / {sedel.dagsnorm.toFixed(2)}t
         </span>
 
-        {/* ↩ returner */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onReturner();
-          }}
-          disabled={attesterPending}
-          className="rounded p-1 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
-          title={t("timer.attestering.returner")}
-          aria-label={t("timer.attestering.returner")}
-        >
-          <RotateCcw className="h-3.5 w-3.5" />
-        </button>
+        {/* ↩ returner — T7-5e: skjult i read-only-modus */}
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onReturner();
+            }}
+            disabled={attesterPending}
+            className="rounded p-1 text-amber-600 hover:bg-amber-50 disabled:opacity-40"
+            title={t("timer.attestering.returner")}
+            aria-label={t("timer.attestering.returner")}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+        )}
 
-        {/* ✓ attester */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAttester();
-          }}
-          disabled={attesterPending}
-          className={`rounded p-1 disabled:opacity-40 ${
-            oransje
-              ? "text-orange-700 hover:bg-orange-100"
-              : "text-green-700 hover:bg-green-100"
-          }`}
-          title={t("timer.attestering.attester")}
-          aria-label={t("timer.attestering.attester")}
-        >
-          <Check className="h-3.5 w-3.5" />
-        </button>
+        {/* ✓ attester — T7-5e: skjult i read-only-modus */}
+        {!readOnly && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAttester();
+            }}
+            disabled={attesterPending}
+            className={`rounded p-1 disabled:opacity-40 ${
+              oransje
+                ? "text-orange-700 hover:bg-orange-100"
+                : "text-green-700 hover:bg-green-100"
+            }`}
+            title={t("timer.attestering.attester")}
+            aria-label={t("timer.attestering.attester")}
+          >
+            <Check className="h-3.5 w-3.5" />
+          </button>
+        )}
 
-        {/* ⋯-meny: Rediger, Returner, Detalj */}
+        {/* ⋯-meny: Rediger, Returner, Detalj — T7-5e: skjult i read-only-modus */}
+        {!readOnly && (
         <div className="relative">
           <button
             type="button"
@@ -344,6 +353,7 @@ export function SeddelKort({
             </>
           )}
         </div>
+        )}
 
         {/* ▾ expand-indikator */}
         <ChevronDown
@@ -432,31 +442,36 @@ export function SeddelKort({
                           </td>
                           <td className="px-3 py-2 text-right font-mono text-gray-900">
                             <span className="inline-flex items-center justify-end gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setRedigerBucket({
-                                    projectId: rad.projectId,
-                                    ecoId: rad.externalCostObjectId,
-                                  })
-                                }
-                                className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
-                                title={t("timer.attestering.meny.rediger")}
-                                aria-label={t("timer.attestering.meny.rediger")}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSplittAktiv({ radType: "timer", original: rad })
-                                }
-                                className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
-                                title={t("timer.attestering.meny.splittRad")}
-                                aria-label={t("timer.attestering.meny.splittRad")}
-                              >
-                                <Scissors className="h-3 w-3" />
-                              </button>
+                              {/* T7-5e: penn/✂ skjult i read-only-modus */}
+                              {!readOnly && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setRedigerBucket({
+                                        projectId: rad.projectId,
+                                        ecoId: rad.externalCostObjectId,
+                                      })
+                                    }
+                                    className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
+                                    title={t("timer.attestering.meny.rediger")}
+                                    aria-label={t("timer.attestering.meny.rediger")}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSplittAktiv({ radType: "timer", original: rad })
+                                    }
+                                    className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
+                                    title={t("timer.attestering.meny.splittRad")}
+                                    aria-label={t("timer.attestering.meny.splittRad")}
+                                  >
+                                    <Scissors className="h-3 w-3" />
+                                  </button>
+                                </>
+                              )}
                               {tilTall(rad.timer).toFixed(2)}t
                             </span>
                           </td>
@@ -482,31 +497,36 @@ export function SeddelKort({
                           </td>
                           <td className="px-3 py-1.5 text-right font-mono">
                             <span className="inline-flex items-center justify-end gap-1.5">
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setRedigerBucket({
-                                    projectId: rad.projectId,
-                                    ecoId: rad.externalCostObjectId,
-                                  })
-                                }
-                                className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
-                                title={t("timer.attestering.meny.rediger")}
-                                aria-label={t("timer.attestering.meny.rediger")}
-                              >
-                                <Pencil className="h-3.5 w-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  setSplittAktiv({ radType: "maskin", original: rad })
-                                }
-                                className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
-                                title={t("timer.attestering.meny.splittRad")}
-                                aria-label={t("timer.attestering.meny.splittRad")}
-                              >
-                                <Scissors className="h-3 w-3" />
-                              </button>
+                              {/* T7-5e: penn/✂ skjult i read-only-modus */}
+                              {!readOnly && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setRedigerBucket({
+                                        projectId: rad.projectId,
+                                        ecoId: rad.externalCostObjectId,
+                                      })
+                                    }
+                                    className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
+                                    title={t("timer.attestering.meny.rediger")}
+                                    aria-label={t("timer.attestering.meny.rediger")}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setSplittAktiv({ radType: "maskin", original: rad })
+                                    }
+                                    className="rounded p-0.5 text-gray-400 opacity-0 transition-opacity hover:bg-gray-100 hover:text-gray-700 group-hover:opacity-100"
+                                    title={t("timer.attestering.meny.splittRad")}
+                                    aria-label={t("timer.attestering.meny.splittRad")}
+                                  >
+                                    <Scissors className="h-3 w-3" />
+                                  </button>
+                                </>
+                              )}
                               {tilTall(rad.timer).toFixed(2)}t
                             </span>
                           </td>

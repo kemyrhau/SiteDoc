@@ -261,6 +261,8 @@
   "timer.attestering.filter.alleProsjekter": "Alle prosjekter",
   "timer.attestering.filter.alleAnsatte": "Alle ansatte",
   "timer.attestering.filter.alleAvdelinger": "Alle avdelinger",
+  "timer.attestering.fane.venter": "Venter på attestering",
+  "timer.attestering.fane.attestert": "Attestert",
   "timer.attestering.gruppe.sedler": "{{antall}} sedler",
   "timer.attestering.gruppe.attesterGruppe": "Attester gruppe ({{antall}})",
   "timer.attestering.sedel.tilleggskrav": "Tilleggskrav",
