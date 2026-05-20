@@ -225,12 +225,16 @@ export const adminRouter = router({
       });
     }),
 
-  // Opprett prosjekt med valgfri firmatilknytning (kun sitedoc_admin)
+  // Opprett prosjekt med firmatilknytning (kun sitedoc_admin)
+  // 2026-05-20: firma påkrevd — alle kunder skal være registrert som firma.
+  // Bugfix: primaryOrganizationId settes nå på Project.create (var tidligere
+  // utelatt — prosjekter ble orphaned i admin-listens primær-filter selv om
+  // admin valgte firma i dropdown).
   opprettProsjekt: protectedProcedure
     .input(z.object({
       name: z.string().min(1),
       description: z.string().optional(),
-      organizationId: z.string().uuid().optional(),
+      organizationId: z.string().uuid(),
     }))
     .mutation(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
@@ -248,6 +252,7 @@ export const adminRouter = router({
           name: input.name,
           description: input.description,
           projectNumber: prosjektnummer,
+          primaryOrganizationId: input.organizationId,
           members: {
             create: {
               userId: ctx.userId!,
@@ -257,14 +262,12 @@ export const adminRouter = router({
         },
       });
 
-      if (input.organizationId) {
-        await ctx.prisma.projectOrganization.create({
-          data: {
-            organizationId: input.organizationId,
-            projectId: prosjekt.id,
-          },
-        });
-      }
+      await ctx.prisma.projectOrganization.create({
+        data: {
+          organizationId: input.organizationId,
+          projectId: prosjekt.id,
+        },
+      });
 
       return prosjekt;
     }),
