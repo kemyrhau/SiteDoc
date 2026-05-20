@@ -964,6 +964,7 @@
   "firma.ansatte.rediger.tittel": "Rediger ansatt",
   "firma.ansatte.rediger.iconLabel": "Rediger bruker",
   "nyttProsjekt.opprettesFor": "Prosjektet opprettes for {{firma}}. Bytt firma i toppmenyen for å opprette på vegne av et annet firma.",
+  "nyttProsjekt.ingenFirma": "Du må velge et firma i toppmenyen før du kan opprette et prosjekt. Alle prosjekter må tilhøre et firma.",
   "firma.kompetanse.tittel": "Kompetanse",
   "firma.kompetanse.beskrivelse": "Kompetansematrise og kompetansetyper for firmaet. Sertifikater, kurs og opplæring per ansatt.",
   "firma.kompetanse.fane.matrise": "Matrise",

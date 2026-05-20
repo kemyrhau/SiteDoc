@@ -31,7 +31,10 @@ export const createProjectSchema = z.object({
   externalProjectNumber: z.string().max(100).optional(),
   // Steg 2d: sitedoc_admin sender valgtFirma.id; vanlig bruker fallbacker til
   // egen organizationId. Server verifiserer tilgang.
-  organizationId: z.string().uuid().optional(),
+  // 2026-05-20: firma er nå påkrevd ved opprett — alle kunder skal være
+  // registrert som firma. Eksisterende standalone-prosjekter beholdes
+  // (schema fortsatt nullable), men nye kan ikke opprettes uten firma.
+  organizationId: z.string().uuid(),
 });
 
 // Faggruppevalidering

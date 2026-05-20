@@ -28,10 +28,14 @@ Hele bunken deployet til prod 2026-05-17. Migrasjon `20260517120000_organization
 
 Bunken deployet til prod 2026-05-19. Migrasjon `20260517220000_add_pause_fra_til` applied i prod (`pause_fra`/`pause_til` på `timer.daily_sheets`). Verifisert som innlogget bruker på A.Markussen AS — attestering-siden laster korrekt. Detaljer i [historikk-2026-05.md § T7-4g-bunken](historikk-2026-05.md).
 
-**Gjenstående som ny PR (ikke i denne bunken):**
-1. **Attestert-filter på attestering-listen** — server-endring av `hentTilAttesteringFirma` med `status?: "sent" | "accepted"`-input + read-only-modus på SeddelKort. Egen PR T7-5e.
-2. **B_ny — dirty-tracking på AttesteringDetalj_Edit Lagre-knapp** — finnes i RedigerRadModal (via `harEndringer`-state), mangler i `AttesteringDetalj_Edit.tsx:481`. Egen PR T7-5f.
-3. **destruktiv recompute** ved pause/fra-til-endring kan overskrive manuelt justert timer uten varsel. Vurderes som T7-5h.
+### T7-5e attestert-filter — DEPLOYET TIL PROD 2026-05-20 (prod-merge `cc8f0067`)
+
+Attestering-listen får fane-toggle `[Venter på attestering ●N] [Attestert ●M]`. Server `hentTilAttesteringFirma` aksepterer `status: "sent" | "accepted"` (default "sent" — bakover-kompat). To parallelle queries på klient for badge-tall. SeddelKort fikk `readOnly`-prop som skjuler ↩/✓/⋯/penn/✂ i attestert-fanen. 2 nye i18n-nøkler (`timer.attestering.fane.venter` + `.attestert`) i nb/en. Detaljer i [historikk-2026-05.md § T7-5e](historikk-2026-05.md).
+
+**Gjenstående som ny PR:**
+1. **T7-5f** — B_ny dirty-tracking på AttesteringDetalj_Edit Lagre-knapp. Finnes i RedigerRadModal (via `harEndringer`-state), mangler i `AttesteringDetalj_Edit.tsx:481`.
+2. **T7-5h** — destruktiv recompute ved pause/fra-til-endring kan overskrive manuelt justert timer uten varsel. Edge case, ikke blokkerende.
+3. **i18n-utvidelse** for de 11 andre språkene (T7-5e leverte kun nb/en) — håndteres av auto-oversettings-skriptet ved neste batch-oppdatering.
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 

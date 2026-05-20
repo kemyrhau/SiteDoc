@@ -4,6 +4,37 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## T7-5e attestert-filter — DEPLOYET TIL PROD 2026-05-20 (prod-merge `cc8f0067`, develop merge `e4de5362`, impl `c523323a`)
+
+Attestering-listen får fane-toggle `[Venter på attestering ●N] [Attestert ●M]`. Adresserer at attesterte sedler tidligere forsvant fra listen — bruker mistet oversikt over hva som var attestert denne uka.
+
+**Server (`apps/api/src/routes/timer/dagsseddel.ts`):**
+- `hentTilAttesteringFirma` Zod-input utvidet med `status: z.enum(["sent", "accepted"]).optional().default("sent")` — bakover-kompat for mobil og eksisterende klienter.
+- Where-clause leser `input.status` i stedet for hardkodet `"sent"`.
+- Per-rad-filter `attestertStatus: { not: "erstattet" }` gjelder begge faner — rader med `attestertStatus: "attestert"` slipper gjennom på attestert-fanen.
+
+**Klient (`apps/web/src/app/dashbord/firma/timer/attestering/page.tsx`):**
+- Ny `aktivFane: "sent" | "accepted"` state (default "sent").
+- TO parallelle queries — samme uke-vindu, ulik status — for å vise badge-tall på begge faner uten å bytte.
+- Fane-toggle over uke-navigasjonen med blå understreking på aktiv fane og rund badge-pille.
+- `ProsjektGruppe` får `readOnly`-prop — «Attester gruppe (N)»-knapp skjules på attestert-fanen.
+
+**SeddelKort (`apps/web/src/components/attestering/SeddelKort.tsx`):**
+- Ny valgfri `readOnly?: boolean`-prop (default `false`).
+- Header-knappene ↩ returner, ✓ attester og ⋯-meny skjult i read-only-modus.
+- Per-rad-knapper: penn (rediger bucket) og ✂ (splitt rad) skjult for både timer- og maskin-rader.
+
+**i18n (`packages/shared/src/i18n/{nb,en}.json`):**
+- `timer.attestering.fane.venter` — "Venter på attestering" / "Pending approval"
+- `timer.attestering.fane.attestert` — "Attestert" / "Approved"
+- De 11 andre språkene håndteres av auto-oversettings-skriptet ved neste batch.
+
+**Prod-deploy 2026-05-20:** HTTP/2 200 på sitedoc.no etter `pm2 restart sitedoc-web sitedoc-api`. Ingen migrasjon — kun server-zod-input + klient-endringer.
+
+**Typecheck:** 0 nye feil. Pre-eksisterende `vitest`-import-feil i `import-hjelpere.test.ts` ikke berørt.
+
+---
+
 ## T7-4g + T7-5d + pause-modell + filter-erstattet + maskin-validering-pause — DEPLOYET TIL PROD 2026-05-19 (prod-merge `f167e72c`)
 
 Attestering UI-rensing + pause-modell + maskin-valideringskorrigering. Adresserer Kenneths klage om at SeddelKort tok for mye plass, modal-i-side føltes hverken-eller, og at pause/maskin-validering ga falske positiver for døgn-utleide maskiner. Migrasjon `20260517220000_add_pause_fra_til` applied i prod (`pause_fra`/`pause_til` TEXT-kolonner på `timer.daily_sheets`). Verifisert som innlogget bruker på A.Markussen AS — attestering-siden laster korrekt.
