@@ -4,6 +4,36 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## opprettTestprosjekt firma påkrevd — DEPLOYET TIL PROD 2026-05-23 (prod-merge `49171634`, develop merge `ed8fe6fa`, impl `c377f9bb`)
+
+Siste konsistens-rest fra firma-påkrevd-bunken 2026-05-20: `opprettTestprosjekt` var den eneste prosjekt-opprettelse-mutasjonen som fortsatt hadde `organizationId.optional()`. Sitedoc_admin uten OrganizationMember-rad kunne trigge orphan-prosjekt ved «Opprett malprosjekt»-knappen eller «Start gratis prøveperiode» — nøyaktig samme vei som ga de 5 slettede orphans 2026-05-20.
+
+**Server (`apps/api/src/routes/prosjekt.ts:246-323`):**
+- `input.organizationId.uuid()` — `.optional()` fjernet (både fra felt og hele input-objektet)
+- `valgtOrgId` er nå alltid string — null-vei + else-fallback fjernet, ~15 linjer forenklet til ~10
+- `if (valgtOrgId)`-wrap fjernet rundt `projectOrganization.create` + `projectModule.createMany` (alltid truthy)
+- Tilgangssjekk beholdt: sitedoc_admin → enhver org, vanlig bruker → kun egen org
+- Speiler nå nøyaktig `prosjekt.opprett`-mønsteret (linje 163-243)
+
+**Admin-UI (`apps/web/src/app/dashbord/admin/prosjekter/page.tsx`):**
+- `OpprettMalMutation`-stub utvidet med `mutate(input: { organizationId: string })`
+- «Opprett malprosjekt»-knapp sender nå `{ organizationId: valgtFirma.id }`
+- `disabled` utvidet med `!valgtFirma?.id`
+
+**Kom-i-gang (`apps/web/src/app/dashbord/kom-i-gang/page.tsx`):**
+- `useTranslation` lagt til
+- `opprettMutation.onSuccess` bruker `_data: unknown` for å unngå TS2589 (samme mønster som `nytt-prosjekt/page.tsx`)
+- «Start gratis prøveperiode»-knapp sender `{ organizationId: valgtFirma.id }`
+- `disabled` utvidet med `!valgtFirma?.id`
+- Amber-banner med `Building2`-ikon vises når `!valgtFirma` — gjenbruker `t("nyttProsjekt.ingenFirma")` (oversatt til alle 15 språk)
+- Sitedoc_admin redirectes uansett bort fra siden ved valgt firma (eksisterende `useEffect`) — banneret rammer hovedsakelig vanlige brukere uten OrganizationMember-rad
+
+**Prod-deploy 2026-05-23:** HTTP/2 200 på sitedoc.no etter `pm2 restart sitedoc-web sitedoc-api`. Ingen migrasjon — kun klient + server-Zod. Bunken inkluderte også (siden forrige main-merge `c2792f28`): i18n auto-oversetting 30 nøkler × 13 språk (`072eb64f`), hjelp.flyt-relikvi-slett (`47c55faf`), backlog-oppdateringer (`da870181`, `8b7cf04e`).
+
+**Typecheck:** 0 nye feil. To TS-feil fra Zod-required-endringen (TS2589 i `kom-i-gang/page.tsx` + stub-type-mismatch i `admin/prosjekter/page.tsx`) håndtert med `_data: unknown`-mønster og utvidet stub-signatur.
+
+---
+
 ## T7-5f dirty-tracking grønn Lagre-knapp — DEPLOYET TIL PROD 2026-05-23 (prod-merge `c2792f28`, develop merge `b9364e3f`, impl `e7ac0f83` + `f0e1a740`)
 
 Lagre-knappen i attestering-edit-flatene har spec'et grå→grønn-mønster: grå/disabled inntil endring eksisterer, grønn når endringer er klare for lagring. Tidligere: alltid blå/aktiv uavhengig av om noe var endret — bruker fikk ingen visuell signal. Implementert på begge edit-flater for UX-konsistens.
