@@ -42,10 +42,11 @@ Lagre-knappen er grå/disabled inntil bruker har gjort endringer, bytter til gr�
 
 **Gjenstående som ny PR:**
 1. **T7-5h** — destruktiv recompute ved pause/fra-til-endring kan overskrive manuelt justert timer uten varsel. Edge case, ikke blokkerende.
-2. **i18n-utvidelse** for de 11 andre språkene (T7-5e + nyttProsjekt.ingenFirma leverte kun nb/en) — håndteres av auto-oversettings-skriptet ved neste batch-oppdatering.
-3. **`opprettTestprosjekt`** har fortsatt `organizationId.optional()` (`apps/api/src/routes/prosjekt.ts:246`). Brukes fra «Opprett malprosjekt»-knappen. Lav prioritet — kun superadmin.
-4. **Firma-velger på mobil** — mobilens `prosjekt.hentMine` filtrerer ikke på firma, så Kenneth ser alle sine prosjekter på tvers. PC har firma-kontekst i topbar; mobil har det ikke. Egen PR.
-5. **EAS-bygg mobil** — alle server-side PR-er i prod; mobil-endringene (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e) sovende på enhet inntil neste bygg.
+2. **i18n-utvidelse til 13 språk** — totalt **15 språk** konfigurert: en (master, 2 331 nøkler), nb (2 328), og 13 andre (cs/de/et/fi/fr/lt/lv/pl/ro/ru/sq/sv/uk, 2 298 hver). 30 nøkler fra T7-4f → T7-5e + `nyttProsjekt.ingenFirma` mangler i de 13. Håndteres av auto-oversettings-skriptet ved neste batch.
+3. **⚠️ i18n-bug** — 3 nøkler i en mangler i nb (og alle andre språk): `hjelp.flyt.bestiller`, `hjelp.flyt.utforer`, `hjelp.flyt.godkjenner`. Norske brukere ser engelsk fallback eller rå nøkkel. Norsk er kildespråk — disse må legges til i nb (+ propageres til 13 andre).
+4. **`opprettTestprosjekt`** har fortsatt `organizationId.optional()` (`apps/api/src/routes/prosjekt.ts:246`). Brukes fra «Opprett malprosjekt»-knappen. Lav prioritet — kun superadmin.
+5. **Firma-velger på mobil** — mobilens `prosjekt.hentMine` filtrerer ikke på firma, så Kenneth ser alle sine prosjekter på tvers. PC har firma-kontekst i topbar; mobil har det ikke. Egen PR.
+6. **EAS-bygg mobil** — alle server-side PR-er i prod; mobil-endringene (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e) sovende på enhet inntil neste bygg.
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
