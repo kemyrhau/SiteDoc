@@ -398,10 +398,17 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                 >
                   {t("handling.avbryt")}
                 </Button>
+                {/* T7-5f: grønn farge når harEndringer for å signalere at
+                    klikk vil lagre. Samme mønster som AttesteringDetalj_Edit. */}
                 <Button
                   size="sm"
                   onClick={handleLagre}
                   disabled={lagre.isPending || !harEndringer}
+                  className={
+                    harEndringer
+                      ? "!bg-green-600 hover:!bg-green-700 focus:!ring-green-500"
+                      : ""
+                  }
                 >
                   {lagre.isPending
                     ? t("handling.lagrer")
