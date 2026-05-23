@@ -36,12 +36,16 @@ Attestering-listen får fane-toggle `[Venter på attestering ●N] [Attestert �
 
 Forhindrer at nye prosjekter opprettes uten firma-tilknytning (orphaned). Eksisterende standalone-prosjekter beholdes (schema fortsatt nullable). I tillegg ryddet 5 orphaned testprosjekter fra prod-DB (alle Kenneths fra 2026-05-05). Bug oppdaget og fikset: `admin.opprettProsjekt` satte aldri `primaryOrganizationId` på Project.create — prosjekter ble orphaned i admin-listens primær-filter selv om admin valgte firma i dropdown. Detaljer i [historikk-2026-05.md § Firma-påkrevd-bunken](historikk-2026-05.md).
 
+### T7-5f dirty-tracking grønn Lagre-knapp — DEPLOYET TIL PROD 2026-05-23 (prod-merge `c2792f28`)
+
+Lagre-knappen er grå/disabled inntil bruker har gjort endringer, bytter til grønn når endringer eksisterer. Implementert på begge edit-flater: `AttesteringDetalj_Edit.tsx:481` (⋯-meny «Rediger sedel»-flyt) og `RedigerRadModal.tsx:401` (penn-klikk per rad). `harUlagredeEndringer`/`harEndringer`-memoer fantes allerede — kun koblet til `disabled`-prop + grønn `className` (`!bg-green-600`). Detaljer i [historikk-2026-05.md § T7-5f](historikk-2026-05.md).
+
 **Gjenstående som ny PR:**
-1. **T7-5f** — B_ny dirty-tracking på AttesteringDetalj_Edit Lagre-knapp. Finnes i RedigerRadModal (via `harEndringer`-state), mangler i `AttesteringDetalj_Edit.tsx:481`.
-2. **T7-5h** — destruktiv recompute ved pause/fra-til-endring kan overskrive manuelt justert timer uten varsel. Edge case, ikke blokkerende.
-3. **i18n-utvidelse** for de 11 andre språkene (T7-5e + nyttProsjekt.ingenFirma leverte kun nb/en) — håndteres av auto-oversettings-skriptet ved neste batch-oppdatering.
-4. **`opprettTestprosjekt`** har fortsatt `organizationId.optional()` (`apps/api/src/routes/prosjekt.ts:246`). Brukes fra «Opprett malprosjekt»-knappen. Lav prioritet — kun superadmin.
-5. **Firma-velger på mobil** — mobilens `prosjekt.hentMine` filtrerer ikke på firma, så Kenneth ser alle sine prosjekter på tvers. PC har firma-kontekst i topbar; mobil har det ikke. Egen PR.
+1. **T7-5h** — destruktiv recompute ved pause/fra-til-endring kan overskrive manuelt justert timer uten varsel. Edge case, ikke blokkerende.
+2. **i18n-utvidelse** for de 11 andre språkene (T7-5e + nyttProsjekt.ingenFirma leverte kun nb/en) — håndteres av auto-oversettings-skriptet ved neste batch-oppdatering.
+3. **`opprettTestprosjekt`** har fortsatt `organizationId.optional()` (`apps/api/src/routes/prosjekt.ts:246`). Brukes fra «Opprett malprosjekt»-knappen. Lav prioritet — kun superadmin.
+4. **Firma-velger på mobil** — mobilens `prosjekt.hentMine` filtrerer ikke på firma, så Kenneth ser alle sine prosjekter på tvers. PC har firma-kontekst i topbar; mobil har det ikke. Egen PR.
+5. **EAS-bygg mobil** — alle server-side PR-er i prod; mobil-endringene (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e) sovende på enhet inntil neste bygg.
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
