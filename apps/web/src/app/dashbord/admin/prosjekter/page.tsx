@@ -31,7 +31,7 @@ export default function AdminProsjekter() {
 
   type OpprettMalProsjekt = { id: string };
   type OpprettMalMutation = {
-    mutate: () => void;
+    mutate: (input: { organizationId: string }) => void;
     isPending?: boolean;
   };
   // @ts-ignore TS2589 — tRPC-router-typen er for dyp etter Fase 0 schema-utvidelser
@@ -186,11 +186,16 @@ export default function AdminProsjekter() {
             <AlertTriangle className="mr-1.5 h-4 w-4 text-gray-400" />
             Rydd utløpte
           </Button>
+          {/* 2026-05-23: firma påkrevd ved opprett. Knapp disabled til
+              firma er valgt i topbaren. */}
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => opprettMalprosjekt.mutate()}
-            disabled={opprettMalprosjekt.isPending}
+            onClick={() =>
+              valgtFirma?.id &&
+              opprettMalprosjekt.mutate({ organizationId: valgtFirma.id })
+            }
+            disabled={!valgtFirma?.id || opprettMalprosjekt.isPending}
           >
             <Sparkles className="mr-1.5 h-4 w-4" />
             {opprettMalprosjekt.isPending ? "Oppretter…" : "Opprett malprosjekt"}

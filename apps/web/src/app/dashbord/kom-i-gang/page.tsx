@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { useTranslation } from "react-i18next";
 import { Card, Button } from "@sitedoc/ui";
 import { CheckCircle, Building2, Users, ClipboardCheck } from "lucide-react";
 import { trpc } from "@/lib/trpc";
@@ -27,6 +28,7 @@ const FUNKSJONER = [
 ];
 
 export default function KomIGangSide() {
+  const { t } = useTranslation();
   const router = useRouter();
   const { data: session } = useSession();
   const { valgtFirma, erSitedocAdmin, isLoading: firmaLaster } = useFirma();
@@ -45,8 +47,12 @@ export default function KomIGangSide() {
     }
   }, [erSitedocAdmin, valgtFirma, firmaLaster, router]);
 
+  // _data: unknown unngår TS2589 «Type instantiation excessively deep» som
+  // utløses av Zod-required-felter på opprettTestprosjekt (CLAUDE.md § tRPC
+  // TS2589-fallgruven, samme mønster som nytt-prosjekt/page.tsx).
   const opprettMutation = trpc.prosjekt.opprettTestprosjekt.useMutation({
-    onSuccess: (prosjekt) => {
+    onSuccess: (_data: unknown) => {
+      const prosjekt = _data as { id: string };
       router.push(`/dashbord/${prosjekt.id}`);
     },
   });
@@ -80,6 +86,18 @@ export default function KomIGangSide() {
           ))}
         </div>
 
+        {/* 2026-05-23: firma påkrevd ved opprett. Vis amber-varsel hvis
+            ingen firma er valgt i topbaren — gjenbruker i18n-nøkkelen fra
+            nytt-prosjekt-flyten. */}
+        {!valgtFirma && (
+          <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+            <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-amber-700" />
+            <div className="text-amber-900">
+              {t("nyttProsjekt.ingenFirma")}
+            </div>
+          </div>
+        )}
+
         <Card className="text-center">
           <div className="mb-4">
             <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-green-50">
@@ -94,11 +112,11 @@ export default function KomIGangSide() {
           </div>
           <Button
             onClick={() =>
-              opprettMutation.mutate(
-                valgtFirma?.id ? { organizationId: valgtFirma.id } : undefined,
-              )
+              valgtFirma?.id &&
+              opprettMutation.mutate({ organizationId: valgtFirma.id })
             }
             loading={opprettMutation.isPending}
+            disabled={!valgtFirma?.id}
             className="w-full"
           >
             Start gratis prøveperiode

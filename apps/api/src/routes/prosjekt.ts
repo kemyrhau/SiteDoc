@@ -244,7 +244,7 @@ export const prosjektRouter = router({
 
   // Opprett testprosjekt med standardgrupper og moduler (for nye brukere)
   opprettTestprosjekt: protectedProcedure
-    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .input(z.object({ organizationId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.userId },
@@ -254,30 +254,23 @@ export const prosjektRouter = router({
       // O-3b: hent brukerens org via OrganizationMember (fallback User.organizationId)
       const brukersOrgId = await hentBrukersOrg(ctx.userId);
 
-      // Speiler prosjekt.opprett-mønsteret: input.organizationId vinner hvis
-      // gitt og bruker har tilgang. Sitedoc_admin → enhver org. Vanlig bruker
-      // → kun egen org. Ellers fallback til brukerens egen org.
-      let valgtOrgId: string | null = null;
-      if (input?.organizationId) {
-        if (
-          bruker.role === "sitedoc_admin" ||
-          brukersOrgId === input.organizationId
-        ) {
-          valgtOrgId = input.organizationId;
-        } else {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Ikke tilgang til å opprette prosjekt for dette firmaet",
-          });
-        }
-      } else if (brukersOrgId) {
-        valgtOrgId = brukersOrgId;
+      // 2026-05-23: firma er nå påkrevd — alle kunder skal være registrert
+      // som firma (samme prinsipp som prosjekt.opprett og admin.opprettProsjekt).
+      // Verifiser tilgang: sitedoc_admin kan opprette for enhver org, vanlig
+      // bruker kun for egen org.
+      if (
+        bruker.role !== "sitedoc_admin" &&
+        brukersOrgId !== input.organizationId
+      ) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Ikke tilgang til å opprette prosjekt for dette firmaet",
+        });
       }
+      const valgtOrgId = input.organizationId;
 
       // Steg 1e Fase B: les aktive firmamoduler fra OrganizationModule.
-      const aktiveFirmaModuler = valgtOrgId
-        ? await hentAktiveFirmamoduler(valgtOrgId)
-        : [];
+      const aktiveFirmaModuler = await hentAktiveFirmamoduler(valgtOrgId);
 
       const antall = await ctx.prisma.project.count();
       const prosjektnummer = generateProjectNumber(antall + 1);
@@ -300,26 +293,25 @@ export const prosjektRouter = router({
         });
 
         // Auto-tilknytt til valgt firma + auto-opprett ProjectModule-rader
-        // for aktive firmamoduler (Steg 1c Fase B)
-        if (valgtOrgId) {
-          await tx.projectOrganization.create({
-            data: {
-              organizationId: valgtOrgId,
-              projectId: prosjekt.id,
-            },
-          });
+        // for aktive firmamoduler (Steg 1c Fase B). valgtOrgId er garantert
+        // string etter required-Zod 2026-05-23.
+        await tx.projectOrganization.create({
+          data: {
+            organizationId: valgtOrgId,
+            projectId: prosjekt.id,
+          },
+        });
 
-          if (aktiveFirmaModuler.length > 0) {
-            await tx.projectModule.createMany({
-              data: aktiveFirmaModuler.map((slug) => ({
-                projectId: prosjekt.id,
-                moduleSlug: slug,
-                organizationId: valgtOrgId,
-                status: "aktiv",
-              })),
-              skipDuplicates: true,
-            });
-          }
+        if (aktiveFirmaModuler.length > 0) {
+          await tx.projectModule.createMany({
+            data: aktiveFirmaModuler.map((slug) => ({
+              projectId: prosjekt.id,
+              moduleSlug: slug,
+              organizationId: valgtOrgId,
+              status: "aktiv",
+            })),
+            skipDuplicates: true,
+          });
         }
 
         // Opprett standardgrupper
