@@ -4,6 +4,26 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## T7-5f dirty-tracking grønn Lagre-knapp — DEPLOYET TIL PROD 2026-05-23 (prod-merge `c2792f28`, develop merge `b9364e3f`, impl `e7ac0f83` + `f0e1a740`)
+
+Lagre-knappen i attestering-edit-flatene har spec'et grå→grønn-mønster: grå/disabled inntil endring eksisterer, grønn når endringer er klare for lagring. Tidligere: alltid blå/aktiv uavhengig av om noe var endret — bruker fikk ingen visuell signal. Implementert på begge edit-flater for UX-konsistens.
+
+**AttesteringDetalj_Edit (`apps/web/src/components/timer/AttesteringDetalj_Edit.tsx:481`):**
+- `disabled={lagre.isPending || !harUlagredeEndringer}` — koblet til eksisterende `harUlagredeEndringer`-memo (linje 296-305 fra T7-2c3, ble tidligere kun brukt til splitt-bekreftelse).
+- `className={harUlagredeEndringer ? "!bg-green-600 hover:!bg-green-700 focus:!ring-green-500" : ""}`
+
+**RedigerRadModal (`apps/web/src/components/attestering/RedigerRadModal.tsx:401`):**
+- Disabled-logikken fantes fra T7-5d. Lagt til grønn className i ny commit for konsistens med AttesteringDetalj_Edit.
+- Samme `!bg-green-600 hover:!bg-green-700 focus:!ring-green-500`-mønster.
+
+**Tailwind `!`-prefix:** Sikrer override mot `Button.varianter.primary.bg-sitedoc-primary`. Speiler mønsteret i CLAUDE.md § Tailwind className-spesifisitet.
+
+**Prod-deploy 2026-05-23:** HTTP/2 200 på sitedoc.no etter `pm2 restart sitedoc-web sitedoc-api`. Ingen migrasjon — kun klient-className. Test-QA bekreftet at grå→grønn-mønster fungerer på begge flater (én sedel hadde pause-checkbox endret fra forrige sesjon, så knappen var grønn ved åpning som forventet).
+
+**Typecheck:** 0 nye feil. Pre-eksisterende `vitest`-import-feil i `import-hjelpere.test.ts` ikke berørt.
+
+---
+
 ## Firma påkrevd ved prosjektopprettelse + admin.opprettProsjekt-bugfix — DEPLOYET TIL PROD 2026-05-20 (prod-merge `a5bea017`, develop merge `2435dedd`, impl `30818195` + `9863836e`)
 
 Adresserer at PC-admin og mobil viste ulike prosjekt-lister: PC filtrerer på `primaryOrganizationId = valgtFirma.id`, mobil bruker `prosjekt.hentMine` uten firma-filter. Grunn: 5 av 8 prosjekter i prod-DB var orphaned (`primaryOrganizationId = null`) fordi opprettelse-flyten tillot det. Kenneths beslutning: alle kunder skal være registrert som firma — prosjekter må ha firma-tilknytning ved opprettelse. Eksisterende standalone-prosjekter beholdes (schema fortsatt nullable for bakover-kompat); kun opprettelse-flyten er strammet.

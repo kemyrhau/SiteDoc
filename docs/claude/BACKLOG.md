@@ -234,6 +234,22 @@ Sjeldent i praksis (typisk én sammenhengende rad per dag), ikke server-blokk. V
 
 Detaljsiden beholdes fullt funksjonell (sammenheng-prinsipp krever det). Reverserer tidligere skissert slanking. Detaljsiden er riktig sted for kompleks redigering der sammenhenger må vurderes (multi-rad-utvalg på tvers av ECO, full sedel-overblikk).
 
+### i18n: `pause.toggleHint` (fr) — «saut» i stedet for «pause» (oppdaget 2026-05-23)
+
+Auto-oversettings-skriptet (`packages/shared/src/i18n/generate.ts`) oversatte engelsk «pause» til fransk «saut» (hopp) for nøkkelen `timer.rediger.pause.toggleHint`. Google Translate forveksler her «pause» (avbrudd) med «skip/leap» i kontekst av rad-redigering.
+
+**Status:** Kosmetisk avvik, brukere forstår fortsatt kontekst fra omkringliggende UI. Ikke blokkerende.
+
+**Fix-skisse:** Manuell rettelse i `packages/shared/src/i18n/fr.json` — bytt til standard fransk «pause» (samme ord som engelsk og norsk). Verifiser også andre `pause.*`-nøkler i fr.json for samme problem.
+
+### i18n: `timer.gruppe.maskinAvArbeid` — engelsk kildetekst er klønete (oppdaget 2026-05-23)
+
+Engelsk kildetekst mangler verb-bro mellom `{{maskin}}h` og `{{arbeid}}h`-variablene («Machine hours {{maskin}}h of work hours {{arbeid}}h»). Auto-oversetting produserer ord-for-ord-versjoner som er gramatisk dårlige på alle 13 målspråk (de/fr/sv/pl verifisert — alle har samme problem).
+
+**Status:** Semantikken er forståelig, men formuleringen er klønete på alle språk inkludert norsk.
+
+**Fix-skisse:** Forbedre engelsk kildetekst først — f.eks. «{{maskin}}h machine hours of {{arbeid}}h worked» eller egen formulering med klar struktur. Deretter re-kjør auto-oversettings-skriptet med `--force` for nøkkelen, eller manuell rettelse i hver språkfil. Vurder samtidig om norsk kildetekst (nb.json) bør være primær — i dag er en.json master, men nb leveres separat, så kildeendring må gjøres begge steder.
+
 ## 2. Halvferdige features
 
 ### 3D/IFC/georeferanse
