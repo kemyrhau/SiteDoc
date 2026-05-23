@@ -32,10 +32,16 @@ Bunken deployet til prod 2026-05-19. Migrasjon `20260517220000_add_pause_fra_til
 
 Attestering-listen får fane-toggle `[Venter på attestering ●N] [Attestert ●M]`. Server `hentTilAttesteringFirma` aksepterer `status: "sent" | "accepted"` (default "sent" — bakover-kompat). To parallelle queries på klient for badge-tall. SeddelKort fikk `readOnly`-prop som skjuler ↩/✓/⋯/penn/✂ i attestert-fanen. 2 nye i18n-nøkler (`timer.attestering.fane.venter` + `.attestert`) i nb/en. Detaljer i [historikk-2026-05.md § T7-5e](historikk-2026-05.md).
 
+### Firma påkrevd ved prosjektopprettelse + admin.opprettProsjekt-bugfix — DEPLOYET TIL PROD 2026-05-20 (prod-merge `a5bea017`)
+
+Forhindrer at nye prosjekter opprettes uten firma-tilknytning (orphaned). Eksisterende standalone-prosjekter beholdes (schema fortsatt nullable). I tillegg ryddet 5 orphaned testprosjekter fra prod-DB (alle Kenneths fra 2026-05-05). Bug oppdaget og fikset: `admin.opprettProsjekt` satte aldri `primaryOrganizationId` på Project.create — prosjekter ble orphaned i admin-listens primær-filter selv om admin valgte firma i dropdown. Detaljer i [historikk-2026-05.md § Firma-påkrevd-bunken](historikk-2026-05.md).
+
 **Gjenstående som ny PR:**
 1. **T7-5f** — B_ny dirty-tracking på AttesteringDetalj_Edit Lagre-knapp. Finnes i RedigerRadModal (via `harEndringer`-state), mangler i `AttesteringDetalj_Edit.tsx:481`.
 2. **T7-5h** — destruktiv recompute ved pause/fra-til-endring kan overskrive manuelt justert timer uten varsel. Edge case, ikke blokkerende.
-3. **i18n-utvidelse** for de 11 andre språkene (T7-5e leverte kun nb/en) — håndteres av auto-oversettings-skriptet ved neste batch-oppdatering.
+3. **i18n-utvidelse** for de 11 andre språkene (T7-5e + nyttProsjekt.ingenFirma leverte kun nb/en) — håndteres av auto-oversettings-skriptet ved neste batch-oppdatering.
+4. **`opprettTestprosjekt`** har fortsatt `organizationId.optional()` (`apps/api/src/routes/prosjekt.ts:246`). Brukes fra «Opprett malprosjekt»-knappen. Lav prioritet — kun superadmin.
+5. **Firma-velger på mobil** — mobilens `prosjekt.hentMine` filtrerer ikke på firma, så Kenneth ser alle sine prosjekter på tvers. PC har firma-kontekst i topbar; mobil har det ikke. Egen PR.
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 

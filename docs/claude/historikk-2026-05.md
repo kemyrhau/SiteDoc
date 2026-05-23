@@ -4,6 +4,46 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Firma påkrevd ved prosjektopprettelse + admin.opprettProsjekt-bugfix — DEPLOYET TIL PROD 2026-05-20 (prod-merge `a5bea017`, develop merge `2435dedd`, impl `30818195` + `9863836e`)
+
+Adresserer at PC-admin og mobil viste ulike prosjekt-lister: PC filtrerer på `primaryOrganizationId = valgtFirma.id`, mobil bruker `prosjekt.hentMine` uten firma-filter. Grunn: 5 av 8 prosjekter i prod-DB var orphaned (`primaryOrganizationId = null`) fordi opprettelse-flyten tillot det. Kenneths beslutning: alle kunder skal være registrert som firma — prosjekter må ha firma-tilknytning ved opprettelse. Eksisterende standalone-prosjekter beholdes (schema fortsatt nullable for bakover-kompat); kun opprettelse-flyten er strammet.
+
+**Prod-DB ryddet (Steg 1):**
+- 5 orphans slettet fra `projects`: alle «Testside Kenneth Myrhaug» (SD-20260505-0003 til -0007), opprettet 2026-05-05
+- 3 prosjekter gjenstår: Testprosjekt → Kenneths testmiljø, Fredriks testprosjekt → HRP AS, 998 Instinniforbotn → A.Markussen AS
+- Ingen reelle brukere berørt
+
+**Zod (`packages/shared/src/validation/index.ts`):**
+- `createProjectSchema.organizationId: .uuid()` — fjernet `.optional()`. Kommentar oppdatert.
+
+**Admin-UI (`apps/web/src/app/dashbord/admin/prosjekter/page.tsx`):**
+- «Ingen firma»-option fjernet fra firma-dropdown
+- Placeholder «Velg firma…» (disabled) som default
+- `required`-attribut på `<select>`
+- Opprett-knappen disabled inntil firma valgt
+- `opprett()` blokkerer mutate hvis `!nyttFirmaId` (defense-in-depth)
+
+**Vanlig nytt-prosjekt (`apps/web/src/app/dashbord/nytt-prosjekt/page.tsx`):**
+- `handleSubmit` blokkerer hvis `!valgtFirma?.id`
+- Amber varsel-banner vises hvis ingen firma valgt i topbaren
+- Opprett-knappen disabled inntil firma valgt
+- onSuccess-callback: `_data: unknown` for å unngå TS2589 (utløst av Zod-required)
+
+**Bugfix `admin.opprettProsjekt` (`apps/api/src/routes/admin.ts:229-272`):**
+- `input.organizationId.uuid()` — fjernet `.optional()`
+- Project.create.data utvidet med `primaryOrganizationId: input.organizationId` (var tidligere utelatt!)
+- `if (input.organizationId)`-wrap rundt projectOrganization.create fjernet (alltid truthy)
+- Bug-konsekvens før fix: prosjekter opprettet via SiteDoc Admin > Prosjekter ble orphaned i admin-listens primær-filter selv om admin valgte firma. Forklarer hvorfor flere admin-UI-prosjekter manglet på firma-spesifikke views.
+
+**i18n (`packages/shared/src/i18n/{nb,en}.json`):**
+- `nyttProsjekt.ingenFirma` — varsel-tekst når firma mangler
+
+**Prod-deploy 2026-05-20:** HTTP/2 200 på sitedoc.no etter `pm2 restart sitedoc-web sitedoc-api`. Ingen migrasjon — kun klient+server-logikk.
+
+**Typecheck:** 0 nye feil. Pre-eksisterende `vitest`-import-feil i `import-hjelpere.test.ts` ikke berørt.
+
+---
+
 ## T7-5e attestert-filter — DEPLOYET TIL PROD 2026-05-20 (prod-merge `cc8f0067`, develop merge `e4de5362`, impl `c523323a`)
 
 Attestering-listen får fane-toggle `[Venter på attestering ●N] [Attestert ●M]`. Adresserer at attesterte sedler tidligere forsvant fra listen — bruker mistet oversikt over hva som var attestert denne uka.
