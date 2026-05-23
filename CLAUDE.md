@@ -227,6 +227,8 @@ Bruk dette mønsteret før du lager en eksplisitt katalog-tabell. Katalog-tabell
   4. Nøkkelformat: `seksjon.noekkel` (f.eks. `oppgaver.tittel`, `handling.lagre`)
   5. Gjenbruk eksisterende nøkler der mulig (`handling.lagre`, `handling.avbryt`, `tabell.navn` etc.)
   6. For data utenfor komponenter (arrays, configs): bruk `labelKey` i stedet for `label`, kall `t()` ved rendering
+  7. Kjør auto-oversetting til de 13 andre språkene: `pnpm --filter @sitedoc/shared exec tsx src/i18n/generate.ts`. Skriptet oversetter fra `en.json` (master) til 13 målspråk. Full arbeidsflyt + kjente quirks i [docs/claude/shared-pakker.md § i18n](docs/claude/shared-pakker.md).
+- **i18n-diagnostikk-regel:** Når du ser at en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Hvis nøkkelen ikke finnes i `*.ts`/`*.tsx`, er det en relikvi som skal slettes — ikke en bug som skal fylles. Lærdom fra `hjelp.flyt.{bestiller,utforer,godkjenner}` 2026-05-23 (HjelpModal-refaktorering etterlot ubrukte nøkler i en.json som så ut som «mangler i nb»).
 
 ## Terminologi og hierarki
 
@@ -356,6 +358,13 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
   - **Godkjenning** = entreprenør får byggherre til å godta kostnad → Dokumentflyt-modul
   - Eksisterende inkonsistens i timer-prototype + 14 i18n-filer rettes når Timer-modulen bygges (Fase 3)
   - `DokumentflytMedlem.rolle = "godkjenner"` er KORREKT bruk (dokumentflyt-rolle, ikke timer)
+- **Firma påkrevd ved prosjekt-opprettelse** (ufravikelig låst 2026-05-20): Alle prosjekt-opprettelse-mutasjoner MÅ kreve `organizationId` for å hindre orphan-prosjekter (`primaryOrganizationId = null`). Mønster:
+  1. Zod-input: `organizationId: z.string().uuid()` — **uten** `.optional()`
+  2. Project.create: `primaryOrganizationId: input.organizationId` (eller `valgtOrgId` etter tilgangs-sjekk)
+  3. Tilgangs-sjekk: `sitedoc_admin` → enhver org, vanlig bruker → kun egen org via `OrganizationMember`
+  4. Klient-side: UI-knapp `disabled` uten valgt firma + amber-banner som gjenbruker `t("nyttProsjekt.ingenFirma")` der det er relevant
+
+  Referanse-implementasjoner: `prosjekt.opprett` (`apps/api/src/routes/prosjekt.ts:163`), `admin.opprettProsjekt` (`apps/api/src/routes/admin.ts:229`), `opprettTestprosjekt` (`apps/api/src/routes/prosjekt.ts:246`). Bakgrunn: 5 orphans i prod-DB 2026-05-20 fra opprettelse uten firma — slettet samme dag. Eksisterende standalone-prosjekter beholdes (schema fortsatt nullable for bakover-kompat); kun opprettelse-flyten er strammet. Ved ny opprettelse-mutasjon (import-route, ny mobil-flyt, etc.) skal samme mønster speiles.
 - **To-stegs migrations-policy** (ufravikelig fra 2026-04-26):
   1. Aldri slett kolonner i én migrering. Steg 1: legg til ny kolonne (nullable). Steg 2: migrer data. Steg 3: NEXT release setter NOT NULL eller dropper gammel
   2. Migrasjoner ALDRI redigeres etter merge til `main` — sikrer reproduserbarhet

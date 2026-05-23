@@ -27,9 +27,21 @@ Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
 
 ### i18n (`packages/shared/src/i18n/`)
 
-- `nb.json` / `en.json` — ~1350 oversettelsesnøkler (norsk kilde, engelsk manuell)
-- `index.ts` — `STOETTEDE_SPRAAK` (14 språk med flagg: nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, fr), `SpraakKode` type, `STANDARD_SPRAAK`
-- `generate.ts` — CLI-script for auto-oversettelse via Google Translate
+- 15 språkfiler, 2 328 nøkler hver. `en.json` er **master** (`generate.ts` oversetter fra engelsk for bedre presisjon på fagtermer). `nb.json` brukes for nøkkelrekkefølge.
+- `index.ts` — `STOETTEDE_SPRAAK` (15 språk med flagg: nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, fr, sq), `SpraakKode` type, `STANDARD_SPRAAK = "nb"`
+- `generate.ts` — CLI-script for auto-oversettelse via Google Translate (`google-translate-api-x`)
+
+#### Arbeidsflyt for ny i18n-nøkkel
+
+1. Legg til nøkkel i **både** `nb.json` og `en.json`. `en.json` er master — generate.ts oversetter fra engelsk, så engelsk fagterm må være presis.
+2. Kjør auto-oversetting: `pnpm --filter @sitedoc/shared exec tsx src/i18n/generate.ts` (default = kun manglende nøkler. `--force` regenererer alle).
+3. Verifiser at alle 15 språkfiler har samme antall nøkler etterpå.
+4. Stikkprøve-QA på fagtermer for noen utvalgte språk (de/fr/sv/pl typisk) — Google Translate kan ta feil i kontekst. Kjente quirks logget i [BACKLOG.md § i18n](BACKLOG.md): fransk «pause» kan bli oversatt til «saut» (hopp), klønete kildetekst gir klønete oversettelser på alle språk.
+5. Mobil + web henter automatisk fra `@sitedoc/shared` ved neste build — ingen separat distribusjon.
+
+#### Diagnostikk-regel: i18n-diff er ikke alltid en bug
+
+Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Hvis nøkkelen ikke brukes noe sted i `*.ts`/`*.tsx`, er det en relikvi som skal slettes — ikke en bug som skal fylles. Lærdom fra `hjelp.flyt.{bestiller,utforer,godkjenner}` 2026-05-23 (HjelpModal-refaktorering etterlot ubrukte nøkler i en.json).
 
 ### Typer (`packages/shared/src/types/`)
 
