@@ -478,7 +478,21 @@ export function AttesteringDetaljEdit({
         <Button variant="secondary" onClick={onAvbryt} disabled={lagre.isPending}>
           {t("handling.avbryt")}
         </Button>
-        <Button onClick={handleLagre} disabled={lagre.isPending}>
+        {/* T7-5f: dirty-tracking. Lagre er grå/disabled inntil edit-state
+            avviker fra init-state (harUlagredeEndringer-memo finnes allerede
+            for splitt-bekreftelse, linje 296-305). Grønn farge når aktiv
+            for å signalere at klikk vil lagre. Speiler i prinsipp samme
+            mønster som RedigerRadModal — der mangler grønn fargeskift; se
+            oppfølger i historikk-2026-05.md § T7-5f. */}
+        <Button
+          onClick={handleLagre}
+          disabled={lagre.isPending || !harUlagredeEndringer}
+          className={
+            harUlagredeEndringer
+              ? "!bg-green-600 hover:!bg-green-700 focus:!ring-green-500"
+              : ""
+          }
+        >
           {lagre.isPending
             ? t("handling.lagrer")
             : t("timer.rediger.lagre")}
