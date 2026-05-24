@@ -10,15 +10,46 @@ sist_verifisert_mot_kode: 2026-05-08
 > (prod-merge `86fdb5a3`). Arkivert til [historikk-2026-05.md](historikk-2026-05.md).
 
 
-### Neste: EAS-bygg (mobil)
+### Mobil firma-velger + i18n — DEPLOYET TIL PROD 2026-05-24 (prod-merge `fa92528a`)
 
-Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på enhet til neste EAS-bygg når TestFlight/Play Store. Aktiveres samtidig:
-- T7-3a/b1/b2/d (per-rad prosjekt + geo-forslag + per-rad-attestering)
-- T4-d/e (fra/til-tid per rad + kalender-cache + forhåndsutfylling)
-- T.5 (tidsrunding i mobil-pickere)
-- T7-4a/e (prosjekt+ECO-bukets + EcoBucket-komponent + ECO-velger i MaskinSeksjon + sync-fix for maskin-ECO)
+Multi-firma sitedoc_admin (Kenneth) ser nå et amber-banner på mobil-forsiden («Velg firma — du er medlem av flere firmaer») når ingen firma er valgt. Trykk åpner modal-velger som speiler ProsjektVelger-mønsteret. Vanlig A.Markussen-ansatt (single-firma) får auto-velg ved første lasting og merker ingen UI-endring.
 
-Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
+Server-side: ny tRPC-prosedyre `organisasjon.hentMineMedlemskap` returnerer brukerens OrganizationMember-rader (sitedoc_admin får alle kunde-firmaer per webens `hentTilgjengelige`-mønster). Klient-side: `FirmaKontekst` med SecureStore-persistering + `useFirma()`-hook, firma-velger-UI i `mer.tsx`-seksjon + hjem.tsx-banner. Alle 5 mobil-`hentMine`-callsites gated på `valgtFirmaId`. `mer.tsx` og `timer/attestering/index.tsx` ble samtidig forenklet — 22 linjer netto kode-reduksjon fra fjernet «plukk-orgId-fra-første-prosjekt»-logikk (tidligere ikke-deterministisk for multi-firma-brukere).
+
+i18n: 7 nye nøkler × 13 språk auto-oversatt. Manuell QA avdekket at engelsk «Switch» ble feiloversatt som NOUN (elektrisk bryter) i 9/13 språk; løst ved å bytte engelsk kilde til «Change» + manuell rens av 3 gjenstående (pl/cs/uk).
+
+EAS iOS production build #22 (`e8289e0a`) submittert til TestFlight (`6707d04b`) 2026-05-24. Bygget inkluderer også hele mai-bunken (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e) som var sovende på enhet til denne runden. Apple-prosessering pågår; verifisering på enhet kommer. Android-bygg ikke kjørt ennå.
+
+Sub-commits på `feature/mobil-firma-velger` (merget til develop `a85469f2`, deretter til main `fa92528a`):
+1. `99e0b136` — feat(api): `organisasjon.hentMineMedlemskap`
+2. `3d0c8c90` — feat(mobile): FirmaKontekst + `useFirma()`-hook
+3. `7e82b075` — feat(mobile): firma-velger-UI (modal + mer.tsx + hjem.tsx-banner)
+4. `f18dda7e` — feat(mobile): hentMine-callsites gated på `valgtFirmaId`
+5. `585acc33` — i18n: 13 språk auto-oversatt + 3 manuelle rettelser
+
+### Firma-bytte residual data — fix-bunke på develop 2026-05-25
+
+Gjennomgang av mobil-appen via TestFlight build #22 (sitedoc_admin) avdekket at byggeplass og prosjektID hang igjen i konteksten etter firma-bytte. Web hadde tilsvarende race-bug. To uavhengige fikser:
+
+1. **Web: `apps/web/src/kontekst/byggeplass-kontekst.tsx`** — ny useEffect med `valgtFirma?.id` som dependency clearer `aktivByggeplass` + `standardTegning` + `aktivTegning` umiddelbart ved firma-bytte. Hindrer at gammel byggeplass-etikett henger igjen i topbar mens ProsjektKontekst auto-resetter prosjektId. Develop-merge `83ba968e`, deployet til test 2026-05-25.
+
+2. **Mobil: `apps/mobile/src/kontekst/ProsjektKontekst.tsx`** — ny useEffect med `valgtFirmaId` som dependency nullstiller `valgtProsjektId` ved firma-bytte. Skip-first-render-mønster via `useRef` hindrer at persistert valg renses ved app-oppstart. Byggeplass-derivering nullstilles automatisk som cascade (mobil-byggeplass-kontekst er allerede `useMemo`-derived fra `valgtProsjektId`, så ingen separat byggeplass-fiks trengs på mobil). Develop-merge `f7322519`. Krever ny EAS-bygg for å nå TestFlight-brukere.
+
+**Sikkerhets-rammen:** UX-bug for sitedoc_admin (admin har bypass server-side i `harProsjektTilgang`). For vanlige brukere ville samme situasjon returnert FORBIDDEN — ingen data-lekkasje, men UX-en lyver og bryter mental modell.
+
+**Tilhørende backlog-tilføyelser samme dag:**
+- «Vis som bruker (impersonering)» — sitedoc_admin-funksjon for å se appen fra brukerens perspektiv (develop `a8f96700` 2026-05-24)
+- «Dokumentflyt send-modal redesign» — høy prioritet, grunnleggende UX (develop `eb9c9e7d` 2026-05-25). Se [BACKLOG.md § Dokumentflyt send-modal redesign](BACKLOG.md).
+
+### Neste: EAS-bygg (mobil) — etter TestFlight-verifikasjon av #22
+
+Build #22 (`e8289e0a`) leverer firma-velger + hele mai-bunken til TestFlight. Apple-prosessering pågår; venter på enhet-verifikasjon før Android-bygg + Play Store-distribusjon.
+
+Etter verifikasjon vil neste bygg inkludere:
+- Mobil ProsjektKontekst auto-reset ved firma-bytte (`f7322519`)
+- (Eventuelle flere mobil-fikser før EAS-rebuild — batches på `develop` inntil dekret)
+
+Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store.
 
 ### T7-4f + T7-5b + maskin-fra-til + B-fixes — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
 
