@@ -17,6 +17,7 @@ import { useTranslation } from "react-i18next";
 import * as Location from "expo-location";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
+import { useFirma } from "../kontekst/FirmaKontekst";
 
 // Persistering av sist brukt bygning/tegning per prosjekt
 const BYGNING_KEY_PREFIX = "sitedoc_sist_bygning_";
@@ -236,10 +237,12 @@ export function OpprettDokumentModal({
     : [];
   const harSubjects = malSubjects.length > 0;
 
-  // Hent prosjektnavn for auto-tittel
-  const prosjektQuery = trpc.prosjekt.hentMine.useQuery(undefined, {
-    enabled: synlig,
-  });
+  // Hent prosjektnavn for auto-tittel — gated på valgt firma
+  const { valgtFirmaId } = useFirma();
+  const prosjektQuery = trpc.prosjekt.hentMine.useQuery(
+    { organizationId: valgtFirmaId ?? undefined },
+    { enabled: synlig && !!valgtFirmaId },
+  );
   const prosjekter = prosjektQuery.data ?? [];
   const valgtProsjekt = prosjekter.find((p: { id: string }) => p.id === valgtProsjektId);
   const prosjektNavn = valgtProsjekt?.name ?? "";

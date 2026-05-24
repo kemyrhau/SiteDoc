@@ -101,6 +101,44 @@ export const organisasjonRouter = router({
     return beriker(orgs);
   }),
 
+  /**
+   * Hent firmaer brukeren er medlem av — for mobil firma-velger.
+   * Speiler webens `hentTilgjengelige`-shape, men inkluderer alle medlemskap
+   * (ikke kun firma-admin). Tar ikke med `aktiveFirmamoduler` — velgeren
+   * trenger kun navn.
+   *
+   * - sitedoc_admin: alle kunde-firmaer (erKunde: true) — speiler webens topbar
+   * - vanlig bruker / firma-admin: alle OrganizationMember-rader
+   *
+   * Returnerer tom liste hvis brukeren verken er sitedoc_admin eller medlem.
+   */
+  hentMineMedlemskap: protectedProcedure.query(async ({ ctx }) => {
+    const bruker = await ctx.prisma.user.findUniqueOrThrow({
+      where: { id: ctx.userId },
+      select: { role: true },
+    });
+
+    if (bruker.role === "sitedoc_admin") {
+      return ctx.prisma.organization.findMany({
+        where: { erKunde: true },
+        select: { id: true, name: true, erKunde: true },
+        orderBy: { name: "asc" },
+      });
+    }
+
+    const medlemskap = await ctx.prisma.organizationMember.findMany({
+      where: { userId: ctx.userId },
+      select: { organizationId: true },
+    });
+    if (medlemskap.length === 0) return [];
+
+    return ctx.prisma.organization.findMany({
+      where: { id: { in: medlemskap.map((m) => m.organizationId) } },
+      select: { id: true, name: true, erKunde: true },
+      orderBy: { name: "asc" },
+    });
+  }),
+
   // Opprett ny organisasjon
   opprett: protectedProcedure
     .input(z.object({ name: z.string().min(1).max(255) }))
