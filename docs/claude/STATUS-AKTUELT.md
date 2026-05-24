@@ -40,10 +40,14 @@ Forhindrer at nye prosjekter opprettes uten firma-tilknytning (orphaned). Eksist
 
 Lagre-knappen er grå/disabled inntil bruker har gjort endringer, bytter til grønn når endringer eksisterer. Implementert på begge edit-flater: `AttesteringDetalj_Edit.tsx:481` (⋯-meny «Rediger sedel»-flyt) og `RedigerRadModal.tsx:401` (penn-klikk per rad). `harUlagredeEndringer`/`harEndringer`-memoer fantes allerede — kun koblet til `disabled`-prop + grønn `className` (`!bg-green-600`). Detaljer i [historikk-2026-05.md § T7-5f](historikk-2026-05.md).
 
+### opprettTestprosjekt firma påkrevd — DEPLOYET TIL PROD 2026-05-23 (prod-merge `49171634`)
+
+Siste konsistens-rest fra firma-påkrevd-bunken 2026-05-20: `opprettTestprosjekt` var den eneste prosjekt-opprettelse-mutasjonen som fortsatt hadde `organizationId.optional()`. Sitedoc_admin uten OrganizationMember-rad kunne trigge orphan-prosjekt ved «Opprett malprosjekt» eller «Start gratis prøveperiode» uten valgt firma. Server-input gjort required, klient-knapper disabled uten firma, amber-banner på `kom-i-gang`-siden (gjenbruker `nyttProsjekt.ingenFirma`). Speiler nå `prosjekt.opprett`-mønsteret eksakt. Detaljer i [historikk-2026-05.md § opprettTestprosjekt](historikk-2026-05.md).
+
 **Gjenstående som ny PR:**
 1. **T7-5h** — destruktiv recompute ved pause/fra-til-endring kan overskrive manuelt justert timer uten varsel. Edge case, ikke blokkerende.
 2. ~~**i18n-utvidelse til 13 språk**~~ — ✅ FERDIG 2026-05-23: auto-oversettings-skriptet kjørt for de 30 manglende nøklene. Alle 15 språk har nå **2 328 nøkler**. Stikkprøver bekreftet at fagtermer som «attestert/godkjent», «pause», «firma» er korrekt oversatt og at `{{maskin}}`/`{{arbeid}}`-variabler er bevart. Manuell QA på fagtermer fortsatt anbefalt (skriptets avslutningsmelding), men ingen blokkerende kvalitetsproblem.
-3. **`opprettTestprosjekt`** har fortsatt `organizationId.optional()` (`apps/api/src/routes/prosjekt.ts:246`). Brukes fra «Opprett malprosjekt»-knappen. Lav prioritet — kun superadmin.
+3. ~~**`opprettTestprosjekt`** required organizationId~~ — ✅ FERDIG 2026-05-23 (prod-merge `49171634`). Server + admin-UI + kom-i-gang-UI oppdatert. Speiler nå `prosjekt.opprett` eksakt.
 4. **Firma-velger på mobil** — mobilens `prosjekt.hentMine` filtrerer ikke på firma, så Kenneth ser alle sine prosjekter på tvers. PC har firma-kontekst i topbar; mobil har det ikke. Egen PR.
 5. **EAS-bygg mobil** — alle server-side PR-er i prod; mobil-endringene (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e) sovende på enhet inntil neste bygg.
 

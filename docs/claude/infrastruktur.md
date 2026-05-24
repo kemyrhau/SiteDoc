@@ -85,6 +85,19 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm build --filter @site
 - **Cloudflare Tunnel:** Systemd, config `/etc/cloudflared/config.yml`, tunnel ID `189a5af2-59f9-48df-a834-8e934313aa51`
 - **Domene:** sitedoc.no (Domeneshop, DNS via Cloudflare)
 
+## Cloudflare Tunnel — viktig
+
+- **Aktiv config:** `/etc/cloudflared/config.yml` (root-eid, lest av systemd via `--config`-flagg). `~/.cloudflared/config.yml` ignoreres — orphan-fila er arkivert som `.orphan-2026-05-24`.
+- **Sync-modell:** cloudflared pusher lokal config til Cloudflare-edge ved restart. PATCH via Cloudflare API blir overskrevet ved neste restart — `/etc/cloudflared/config.yml` er eneste varige sannhetskilde.
+- **Ny hostname (5 steg):**
+  1. `sudo cp /etc/cloudflared/config.yml /etc/cloudflared/config.yml.bak-$(date +%Y%m%d-%H%M%S)` — gratis backup
+  2. `sudo nano /etc/cloudflared/config.yml` — entry over `http_status:404`-linja
+  3. Cloudflare DNS → CNAME `<host>` → `189a5af2-59f9-48df-a834-8e934313aa51.cfargotunnel.com`, proxied
+  4. `sudo cloudflared --config /etc/cloudflared/config.yml tunnel ingress validate` — fanger YAML-feil før restart
+  5. `sudo systemctl restart cloudflared` + verifiser med `curl -sI https://<host>`
+- **Felle:** `cloudflared tunnel route dns <id> <host>` sier «already configured to route to your tunnel» selv om Cloudflare-edge ikke ruterer dit. Meldingen sjekker kun CNAME-recorden, ikke remote tunnel-config. Stol ikke på den.
+- **Diagnose-rekkefølge ved 404:** full prosedyre i memory `reference_sitedoc_infrastruktur.md`. Kort: `ps aux | grep cloudflared` (hvilken config), `grep <host> /etc/cloudflared/config.yml` (routet?), Cloudflare DNS (CNAME finnes?), `cloudflared tunnel info <id>` (connector oppe?).
+
 ## Auth-konfigurasjon
 
 - **Auth.js:** `trustHost: true` (bak Cloudflare). Klient-side `signIn()` (IKKE server actions — MissingCSRF bak tunnel). `allowDangerousEmailAccountLinking: true` (påkrevd for invitasjonsflyt — godkjent risiko)

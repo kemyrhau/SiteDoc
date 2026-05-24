@@ -23,6 +23,7 @@ import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { hentProsjekterLokalt } from "../../src/services/prosjektKatalog";
 import { trpc } from "../../src/lib/trpc";
+import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { eq } from "drizzle-orm";
 
 type Prosjekt = { id: string; name: string; projectNumber: string | null };
@@ -66,6 +67,7 @@ export default function NyDagsseddelSide() {
   const { t } = useTranslation();
   const { bruker } = useAuth();
   const { triggerSync, oppdaterTellere } = useTimerSync();
+  const { valgtFirmaId } = useFirma();
 
   const [dato, setDato] = useState<string>(formatIsoDato(new Date()));
   const [visDatoVelger, setVisDatoVelger] = useState(false);
@@ -79,9 +81,13 @@ export default function NyDagsseddelSide() {
   const [geoForslagId, setGeoForslagId] = useState<string | null>(null);
 
   // Hent prosjekter (online — for offline-bruk må klargjøring kjøres først)
-  const { data: prosjekterData } = trpc.prosjekt.hentMine.useQuery(undefined, {
-    staleTime: 60 * 1000,
-  });
+  const { data: prosjekterData } = trpc.prosjekt.hentMine.useQuery(
+    { organizationId: valgtFirmaId ?? undefined },
+    {
+      enabled: !!valgtFirmaId,
+      staleTime: 60 * 1000,
+    },
+  );
   const prosjekter = (prosjekterData ?? []) as unknown as Prosjekt[];
 
   // Hent aktive aktiviteter fra lokal cache (offline-trygt — uavhengig av org-id
