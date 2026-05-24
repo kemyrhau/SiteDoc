@@ -85,6 +85,17 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm build --filter @site
 - **Cloudflare Tunnel:** Systemd, config `/etc/cloudflared/config.yml`, tunnel ID `189a5af2-59f9-48df-a834-8e934313aa51`
 - **Domene:** sitedoc.no (Domeneshop, DNS via Cloudflare)
 
+## Cloudflare Tunnel — viktig
+
+- **Aktiv config:** `/etc/cloudflared/config.yml` (root-eid, lest av systemd via `--config`-flagg). `~/.cloudflared/config.yml` ignoreres — orphan-fila er arkivert som `.orphan-2026-05-24`.
+- **Sync-modell:** cloudflared pusher lokal config til Cloudflare-edge ved restart. PATCH via Cloudflare API blir overskrevet ved neste restart — `/etc/cloudflared/config.yml` er eneste varige sannhetskilde.
+- **Ny hostname (4 steg):**
+  1. `sudo nano /etc/cloudflared/config.yml` — entry over `http_status:404`-linja
+  2. Cloudflare DNS → CNAME `<host>` → `189a5af2-59f9-48df-a834-8e934313aa51.cfargotunnel.com`, proxied
+  3. `sudo systemctl restart cloudflared`
+  4. Verifiser: `curl -sI https://<host>`
+- **Diagnose-rekkefølge ved 404:** full prosedyre i memory `reference_sitedoc_infrastruktur.md`. Kort: `ps aux | grep cloudflared` (hvilken config), `grep <host> /etc/cloudflared/config.yml` (routet?), Cloudflare DNS (CNAME finnes?), `cloudflared tunnel info <id>` (connector oppe?).
+
 ## Auth-konfigurasjon
 
 - **Auth.js:** `trustHost: true` (bak Cloudflare). Klient-side `signIn()` (IKKE server actions — MissingCSRF bak tunnel). `allowDangerousEmailAccountLinking: true` (påkrevd for invitasjonsflyt — godkjent risiko)
