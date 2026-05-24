@@ -108,8 +108,11 @@ export default function HjemSkjerm() {
   const utils = trpc.useUtils();
   const queryClient = useQueryClient();
 
-  // Hent prosjektdata for valgt prosjekt
-  const prosjektQuery = trpc.prosjekt.hentMine.useQuery();
+  // Hent prosjektdata for valgt prosjekt — gated på valgt firma
+  const prosjektQuery = trpc.prosjekt.hentMine.useQuery(
+    { organizationId: valgtFirmaId ?? undefined },
+    { enabled: !!valgtFirmaId },
+  );
   const valgtProsjekt = prosjektQuery.data?.find(
     (p) => p.id === valgtProsjektId,
   );

@@ -3,8 +3,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, ChevronRight, AlertCircle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { useAuth } from "../../../src/providers/AuthProvider";
 import { trpc } from "../../../src/lib/trpc";
+import { useFirma } from "../../../src/kontekst/FirmaKontekst";
 import { formatNorskDato } from "../../../src/utils/dato";
 
 type AttesteringRad = {
@@ -31,24 +31,14 @@ type AttesteringRad = {
  * Mobil-attestering-liste — firma-kontekst. Speil av webs
  * `/dashbord/firma/timer/attestering`-side, tilpasset mobil-flate.
  *
- * Bruker organizationId fra første treff fra `hentMine`-prosjekt-katalog
- * via brukerens session. Online-only flyt — krever nett.
+ * Bruker organizationId fra useFirma()-konteksten. Online-only flyt —
+ * krever nett.
  */
 export default function AttesteringListeSide() {
   const router = useRouter();
   const { t } = useTranslation();
-  const { bruker } = useAuth();
-
-  // Hent organizationId via prosjekt.hentMine — første prosjekt med firma-
-  // tilhørighet brukes som proxy. Brukeren tilhører ett firma.
-  const { data: prosjekter } = trpc.prosjekt.hentMine.useQuery(undefined, {
-    enabled: !!bruker?.id,
-    staleTime: 60 * 1000,
-  });
-
-  const orgId = (prosjekter as unknown as Array<{ primaryOrganizationId: string | null }> | undefined)
-    ?.map((p) => p.primaryOrganizationId)
-    .find((id): id is string => !!id);
+  const { valgtFirmaId } = useFirma();
+  const orgId = valgtFirmaId;
 
   const { data: tilgang, isLoading: tilgangLaster } =
     trpc.timer.dagsseddel.kanAttestereFirma.useQuery(

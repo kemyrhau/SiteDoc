@@ -43,30 +43,20 @@ export default function MerSkjerm() {
   const [offlineTekst, setOfflineTekst] = useState<string | null>(null);
   const [visSpraakModal, setVisSpraakModal] = useState(false);
   const [visFirmaVelger, setVisFirmaVelger] = useState(false);
-  const { valgtFirma, firmaer } = useFirma();
+  const { valgtFirma, firmaer, valgtFirmaId } = useFirma();
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
 
-  // T7-3d: hent firma-id via brukerens prosjekter for attestering-tilgangs-gate.
-  // Lenken vises kun for prosjektledere + firma-admin.
-  const { data: prosjekterForOrgIdent } = trpc.prosjekt.hentMine.useQuery(
-    undefined,
-    { enabled: !!bruker?.id, staleTime: 60 * 1000 },
-  );
-  const orgIdForAttestering = (
-    prosjekterForOrgIdent as unknown as
-      | Array<{ primaryOrganizationId: string | null }>
-      | undefined
-  )
-    ?.map((p) => p.primaryOrganizationId)
-    .find((id): id is string => !!id);
+  // T7-3d: attestering-lenken vises kun for prosjektledere + firma-admin
+  // i valgt firma. orgId hentes fra useFirma() — speiler firma-kontekstens
+  // valg, ikke utledning fra første prosjekts primaryOrganizationId.
   const { data: kanAttestereFirma } =
     trpc.timer.dagsseddel.kanAttestereFirma.useQuery(
-      { organizationId: orgIdForAttestering ?? "" },
-      { enabled: !!orgIdForAttestering },
+      { organizationId: valgtFirmaId ?? "" },
+      { enabled: !!valgtFirmaId },
     );
 
   const tegningerQuery = trpc.tegning.hentForProsjekt.useQuery(

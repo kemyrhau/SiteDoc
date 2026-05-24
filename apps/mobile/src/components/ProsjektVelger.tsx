@@ -10,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { X, Check, RefreshCw } from "lucide-react-native";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
+import { useFirma } from "../kontekst/FirmaKontekst";
 
 interface ProsjektVelgerProps {
   synlig: boolean;
@@ -18,7 +19,11 @@ interface ProsjektVelgerProps {
 
 export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
   const { valgtProsjektId, byttProsjekt } = useProsjekt();
-  const prosjektQuery = trpc.prosjekt.hentMine.useQuery();
+  const { valgtFirmaId } = useFirma();
+  const prosjektQuery = trpc.prosjekt.hentMine.useQuery(
+    { organizationId: valgtFirmaId ?? undefined },
+    { enabled: !!valgtFirmaId },
+  );
   const { data: prosjekter, isLoading, error } = prosjektQuery;
 
   function velgProsjekt(id: string) {
