@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { useProsjekt } from "./prosjekt-kontekst";
+import { useFirma } from "./firma-kontekst";
 
 // Beholder samme localStorage-nøkkel for bakoverkompatibilitet
 const BYGGEPLASS_STORAGE_KEY = "sitedoc-aktiv-bygning";
@@ -58,12 +59,24 @@ const ByggeplassKontekst = createContext<ByggeplassKontekstType | null>(null);
 
 export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const { prosjektId } = useProsjekt();
+  const { valgtFirma } = useFirma();
   const [aktivByggeplass, setAktivByggeplass] = useState<AktivByggeplass | null>(null);
   const [standardTegning, setStandardTegning] = useState<StandardTegning | null>(null);
   const [aktivTegning, setAktivTegning] = useState<AktivTegning | null>(null);
   const [posisjonsvelgerAktiv, setPosisjonsvelgerAktiv] = useState(false);
   const [posisjonsvelgerFeltId, setPosisjonsvelgerFeltId] = useState<string | null>(null);
   const posisjonsResultatRef = useRef<PosisjonsResultat | null>(null);
+
+  // Defensiv cleanup ved firma-bytte: clear byggeplass-state umiddelbart
+  // slik at gammel byggeplass-etikett ikke henger igjen i topbar mens
+  // ProsjektKontekst auto-resetter prosjektId. Uten dette så user en
+  // byggeplass fra forrige firma selv etter at prosjekt-velgeren viste
+  // «Velg prosjekt»-prompt.
+  useEffect(() => {
+    setAktivByggeplass(null);
+    setStandardTegning(null);
+    setAktivTegning(null);
+  }, [valgtFirma?.id]);
 
   // Les fra localStorage etter mount
   useEffect(() => {
