@@ -25,6 +25,8 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
+import { useFirma } from "../../src/kontekst/FirmaKontekst";
+import { FirmaVelger } from "../../src/components/FirmaVelger";
 import { trpc } from "../../src/lib/trpc";
 import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
 import { byttSpraak } from "../../src/lib/i18n";
@@ -40,6 +42,8 @@ export default function MerSkjerm() {
   const { pendingAntall, conflictAntall } = useTimerSync();
   const [offlineTekst, setOfflineTekst] = useState<string | null>(null);
   const [visSpraakModal, setVisSpraakModal] = useState(false);
+  const [visFirmaVelger, setVisFirmaVelger] = useState(false);
+  const { valgtFirma, firmaer } = useFirma();
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
@@ -191,6 +195,32 @@ export default function MerSkjerm() {
           <MenyRad ikon={QrCode} tekst={t("mer.skannQR")} />
         </View>
 
+        {/* Firma — kun synlig ved multi-firma-medlemskap */}
+        {firmaer.length > 1 && (
+          <View className="mt-4">
+            <View className="border-b border-gray-200 px-4 pb-1.5 pt-3">
+              <Text className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                {t("mer.mittFirma")}
+              </Text>
+            </View>
+            <Pressable
+              onPress={() => setVisFirmaVelger(true)}
+              className="flex-row items-center justify-between border-b border-gray-100 bg-white px-4 py-3.5 active:bg-gray-50"
+            >
+              <View className="flex-row items-center gap-3">
+                <Building2 size={20} color="#6b7280" />
+                <Text className="text-base text-gray-900">
+                  {valgtFirma?.name ?? t("firma.velgFirma")}
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-2">
+                <Text className="text-sm text-blue-600">{t("mer.byttFirma")}</Text>
+                <ChevronRight size={18} color="#d1d5db" />
+              </View>
+            </Pressable>
+          </View>
+        )}
+
         {/* Språk */}
         <View className="mt-4">
           <View className="border-b border-gray-200 px-4 pb-1.5 pt-3">
@@ -280,6 +310,8 @@ export default function MerSkjerm() {
           </View>
         </TouchableOpacity>
       </Modal>
+
+      <FirmaVelger synlig={visFirmaVelger} onLukk={() => setVisFirmaVelger(false)} />
     </SafeAreaView>
   );
 }

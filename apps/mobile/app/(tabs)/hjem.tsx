@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   RefreshCw,
   ShieldCheck,
+  Building2,
 } from "lucide-react-native";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
@@ -28,6 +29,8 @@ import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { ProsjektVelger } from "../../src/components/ProsjektVelger";
+import { useFirma } from "../../src/kontekst/FirmaKontekst";
+import { FirmaVelger } from "../../src/components/FirmaVelger";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
 
@@ -96,9 +99,11 @@ export default function HjemSkjerm() {
   const { valgtProsjektId } = useProsjekt();
   const { valgtBygningId } = useByggeplass();
   const [velgerSynlig, setVelgerSynlig] = useState(false);
+  const [visFirmaVelger, setVisFirmaVelger] = useState(false);
   const [opprettKategori, setOpprettKategori] = useState<"sjekkliste" | "oppgave" | null>(null);
   const [valgtMal, setValgtMal] = useState<MalData | null>(null);
   const [visAndroidMeny, setVisAndroidMeny] = useState(false);
+  const { valgtFirmaId, firmaer } = useFirma();
   const router = useRouter();
   const utils = trpc.useUtils();
   const queryClient = useQueryClient();
@@ -311,6 +316,23 @@ export default function HjemSkjerm() {
           <RefreshControl refreshing={erRefreshing} onRefresh={onRefresh} />
         }
       >
+        {firmaer.length > 1 && !valgtFirmaId && (
+          <Pressable
+            onPress={() => setVisFirmaVelger(true)}
+            className="mx-4 mt-3 flex-row items-center gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3"
+          >
+            <Building2 size={20} color="#d97706" />
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-amber-900">
+                {t("hjem.velgFirma")}
+              </Text>
+              <Text className="mt-0.5 text-xs text-amber-700">
+                {t("hjem.velgFirmaUndertekst")}
+              </Text>
+            </View>
+            <ChevronRight size={18} color="#d97706" />
+          </Pressable>
+        )}
         {prosjektQuery.isLoading ? (
           /* Laster prosjekter */
           <View className="items-center pt-20">
@@ -553,6 +575,9 @@ export default function HjemSkjerm() {
         synlig={velgerSynlig}
         onLukk={() => setVelgerSynlig(false)}
       />
+
+      {/* Firma-velger-modal */}
+      <FirmaVelger synlig={visFirmaVelger} onLukk={() => setVisFirmaVelger(false)} />
 
       {/* Android-meny for opprettelse */}
       <RNModal
