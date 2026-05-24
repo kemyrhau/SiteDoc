@@ -34,6 +34,50 @@ Tas i planleggingssesjon — ingen videre koding i mellomtiden.
 
 Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 2026-05-16) — flytskille arbeidstaker/attestering/Byggherre-godkjenning + dagsseddel-struktur per prosjekt+ECO.
 
+### Dokumentflyt send-modal redesign (høy prioritet — grunnleggende UX)
+
+**Oppdaget 2026-05-25** ved gjennomgang av mobilens `DokumentHandlingsmeny.tsx`. Gjelder både oppgave og sjekkliste (samme komponent).
+
+**Problemet:** Dagens send-modal blander fire konseptuelle kategorier i én flat ActionSheet-liste uten visuell separasjon:
+
+| # | Kategori | Eksempler |
+|---|---|---|
+| A | Flyt-progresjon i AKTIV flyt | Send til primær, Svar avsender, Send tilbake |
+| B | Flyt-bytte til ANNEN flyt | «Andre faggrupper» = annen dokumentflyt |
+| C | Godkjenner-respons | Godkjenn, Avvis |
+| D | Admin-livssyklus | Godkjenn (forced), Lukk, Trekk tilbake, Gjenåpne |
+
+Konsekvens: brukeren kan ikke se forskjell på «send neste boks i samme flyt» og «forlat denne flyten og bytt til en annen» — to fundamentalt ulike handlinger ser identiske ut. ⚙-tegnet brukes som visuell separator for admin-handlingene, semantisk feil (tannhjul = innstillinger, ikke livssyklus).
+
+**Kjerneinnsikt (Kenneth 2026-05-25):** Brukeren mangler kontekst om HVOR de er i flyten. Send-knapp uten å se boksene/leddene gir ingen orientering. Flyten må visualiseres øverst i send-modalen med brukerens egen boks markert — først da gir «videre» og «tilbake» mening.
+
+**Designbeslutninger låst:**
+
+1. **Flyt-visualisering øverst i modal:** `[Tømrer] → [Byggherre] → [Ledelse]` med markering av brukerens boks. Brukeren ser umiddelbart hvor de står og hvor det går.
+2. **«Videre» / «Send tilbake» får semantikk** fordi boksene er synlige — dagens ord-baserte knapper uten kontekst kan tolkes vilkårlig.
+3. **Admin-handlinger collapsed under «MER ▾»:** Godkjenn (forced), Lukk, Gjenåpne, Trekk tilbake skjules som standard. Reduserer kognitiv støy for den vanlige flyt-handlingen. Distinkte lucide-ikoner per handling, ikke ⚙.
+4. **Gruppenavn i labels:** «Send til Byggherre» (mottaker-navn) > «Send». Forutsigbar konsekvens uten å lese fint.
+5. **Flyt-bytte er sekundær handling:** Egen «Flytt til annen flyt»-undermeny (dropdown + søk når ≥3 alternativer). Ikke blandet inn i primær flyt-progresjon. Bekreftelses-modal kreves («Oppgaven flyttes fra X til Y. Forrige flyt forlates»).
+
+**Åpne spørsmål — må avklares før implementasjon:**
+
+- **Mottaker-navn:** Skal vi vise PERSONEN/gruppen som faktisk får oppgaven («Send til Per Hansen (Tømrer)») i stedet for kun gruppenavn? Mer informativt, men lengre tekst på mobil.
+- **Videresend ferdig oppgave vs flyt-bytte:** Når status=`approved`/`closed` viser dagens UI «Videresend ▾». Det er konseptuelt forskjellig fra flyt-bytte under aktiv behandling. Skal disse to ha ulik label? («Videresend som referanse» vs «Flytt til ny flyt»)
+- **Mobil ActionSheet → custom Modal:** Dagens `ActionSheetIOS` støtter kun flat liste. Gruppert layout + dropdown + søk + flyt-visualisering krever custom `Modal`-komponent (samme mønster som `FirmaVelger`/`ProsjektVelger`). Dette er en større endring i UI-mønster enn skissert.
+
+**Avhengighet:** Variant 3 må implementeres server-side først — ny tRPC-prosedyre `oppgave.hentTilgjengeligeFlyter` (+ tilsvarende for sjekkliste) som returnerer `{ gjeldende, andre[], kanFlytte }` filtrert på brukerens tilgang (admin/registrator/har-ballen/cross-flyt-medlem). Klient bruker `andre[]` i «Flytt til annen flyt»-dropdown. Spec klar; venter på design-runden over.
+
+**Tilgangs-utvidelse i samme runde (`endreStatus` server):** Dagens regel tillater kun admin/registrator å bytte flyt. Utvides til også å tillate «har ballen» (`userId === recipientUserId` eller medlem av `recipientGroup`) og «cross-flyt-medlem» (medlem av både gammel og ny flyt).
+
+**Berører:**
+- `apps/mobile/src/components/DokumentHandlingsmeny.tsx` — full omskriving
+- `apps/api/src/routes/oppgave.ts` — ny prosedyre + utvidet endreStatus
+- `apps/api/src/routes/sjekkliste.ts` — speilet endring
+- `packages/shared/src/i18n/*` — nye nøkler for «Flyt», «Flytt til annen flyt», «Mer», bekreftelses-tekst
+- Server-tilgangskontroll-helper for å sjekke flyt-medlemskap
+
+**Estimat:** Server ~45 min, mobil-UI ~3 timer (oppgave), sjekkliste ~30 min (gjenbruk). I18n auto-oversett. Totalt ~5 timer Opus-arbeid + EAS-bygg.
+
 ### Datamodell og migrasjon
 
 - **P-KRITISK-1 — Sentralbiblioteket ikke seedet i prod** 🔴 — se [oppryddings-plan-2026-04-28.md § P-KRITISK-1](oppryddings-plan-2026-04-28.md). Lovpålagt grunnpakke skal auto-seedes ved firma-opprettelse.
