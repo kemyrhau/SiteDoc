@@ -10,6 +10,21 @@ sist_verifisert_mot_kode: 2026-05-08
 > (prod-merge `86fdb5a3`). Arkivert til [historikk-2026-05.md](historikk-2026-05.md).
 
 
+### Dokumentflyt send-modal redesign — SERVER FERDIG på feature/dokumentflyt-send-modal 2026-05-25
+
+**Status:** Server-Commit 1 ferdig på `feature/dokumentflyt-send-modal`. Mobil-Commit 2 (full omskriving av `DokumentHandlingsmeny.tsx`) gjenstår.
+
+**Implementert på server:**
+1. **Delt helper i `tilgangskontroll.ts`** — `finnBrukersBoks`, `hentBrukerProsjektTilgang`, `kanByttFlyt`. 124 nye linjer. Spesifisitets-hierarki projectMember > group > faggruppe.
+2. **Ny prosedyre `oppgave.hentTilgjengeligeFlyter`** — returnerer `{ gjeldende, andre[], kanFlytte }` med medlemsdetaljer (erHovedansvarlig + projectMember.user + group + faggruppe) per medlem. Filtrert på `templateId` for samme dokumenttype.
+3. **Speilet i `sjekkliste.hentTilgjengeligeFlyter`** — identisk shape.
+4. **`endreStatus` Lag 1 utvidet** — admin/registrator/sitedoc-admin + «har ballen»-bruker som er medlem av mål-flyten. Erstatter tidligere snevrere kryssfaggruppe-blokk.
+5. **Auto-utled mottaker ved flyt-bytte** — server finner `erHovedansvarlig=true`-medlemmet på utforer-rollen i mål-flyten og setter `recipientUserId`/`recipientGroupId` deterministisk. Klient sender ikke mottaker ved flyt-bytte.
+
+**Verifikasjon:** `apps/api` typecheck 0 = 0 feil. Web 1 = 1 baseline (vitest), mobil 12 = 12 baseline — ingen nye feil i andre apper.
+
+**Gjenstående (Commit 2):** Mobil-UI per BACKLOG.md § Dokumentflyt send-modal redesign punkt 1-10 — full omskriving av `DokumentHandlingsmeny.tsx` til boks-basert komponent med statusvalg-popup. Avhenger av server-Commit 1 verifiseres på test først.
+
 ### Mobil firma-velger + i18n — DEPLOYET TIL PROD 2026-05-24 (prod-merge `fa92528a`)
 
 Multi-firma sitedoc_admin får amber-banner + modal-velger på mobil. Server: ny `organisasjon.hentMineMedlemskap`. Klient: FirmaKontekst + 5 hentMine-callsites gated på valgtFirmaId. i18n: 7 nøkler × 13 språk. EAS iOS build #22 (`e8289e0a`) submittert til TestFlight (`6707d04b`); inkluderer hele mai-bunken som var sovende på enhet. Detaljer i [historikk-2026-05.md § Mobil firma-velger](historikk-2026-05.md).
