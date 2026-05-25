@@ -136,6 +136,10 @@ export default function OppgaveDetalj() {
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
+  const { data: tilgjengeligeFlyter } = trpc.oppgave.hentTilgjengeligeFlyter.useQuery(
+    { id: id! },
+    { enabled: !!id },
+  );
 
   // Utled flytmedlemmer og rolle
   const flytMedlemmer = useMemo((): FlytMedlem[] => {
@@ -739,15 +743,9 @@ export default function OppgaveDetalj() {
             });
           }}
           onSlett={["draft", "cancelled"].includes(oppgave.status) ? håndterSlett : undefined}
-          alleFaggrupper={(alleFaggrupper ?? []) as Array<{ id: string; name: string; color: string | null }>}
-          dokumentflyter={(dokumentflyterRå ?? []) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["dokumentflyter"]}
-          templateId={oppgave.template?.id}
-          standardFaggruppeId={oppgave.utforerFaggruppe?.id}
-          minRolle={minRolle}
-          flytMedlemmer={flytMedlemmer}
-          recipientUserId={(oppgaveDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
-          recipientGroupId={(oppgaveDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
-          bestillerUserId={(oppgaveDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+          tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["tilgjengeligeFlyter"]}
+          minRolle={minRolle ?? null}
+          erFirmaAdmin={minFlytInfo?.erAdmin === true}
         />
 
         {/* Lagre-knapp */}

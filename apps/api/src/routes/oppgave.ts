@@ -749,6 +749,7 @@ export const oppgaveRouter = router({
               id: gjeldendeFlyt.id,
               name: gjeldendeFlyt.name,
               faggruppe: gjeldendeFlyt.faggruppe,
+              medlemmer: gjeldendeFlyt.medlemmer,
               brukersBoks: finnBrukersBoks(gjeldendeFlyt, tilgang),
             }
           : null,

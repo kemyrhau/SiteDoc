@@ -1,58 +1,49 @@
 /**
- * Posisjon-basert handlingsmeny for mobilens detaljsider.
- * Bruker ActionSheetIOS (iOS) og Alert (Android).
+ * Boks-basert handlingsmeny for mobilens detaljsider.
+ * Erstatter forrige ActionSheet-baserte versjon.
+ *
+ * UX-spec: BACKLOG.md § Dokumentflyt send-modal redesign (punkt 1-10).
+ *
+ * - Flyt-bokser alltid synlig i bunn, fargefylte (Faggruppe.color), uten tekst
+ * - Trykk på boks → popup med tilgjengelige statuser + medlemsliste (stjerne på hovedansvarlig)
+ * - Status-trykk → bekreftelses-modal med valgfritt kommentarfelt
+ * - Flyt-bytte = egen nedtrekksmeny (kun for cross-flyt-medlemmer)
+ * - ⋯-meny for admin-handlinger (Lukk, Gjenåpne, Trekk tilbake)
+ * - Custom RN Modal — ingen ActionSheetIOS, ingen Alert
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   Text,
   Pressable,
-  ActionSheetIOS,
-  Alert,
-  Platform,
   Modal,
   TextInput,
   KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from "react-native";
-import { ChevronDown } from "lucide-react-native";
+import { Star, MoreHorizontal, ChevronDown } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import type { DokumentflytRolle } from "@sitedoc/shared";
-import type { FlytMedlem } from "./FlytIndikator";
+import { hentRolleFiltrertHandlinger, type StatusHandling, type DokumentflytRolle } from "@sitedoc/shared";
+import { byggLedd, type FlytMedlem, type Ledd } from "../utils/dokumentflyt-ledd";
 
-/* ------------------------------------------------------------------ */
-/*  Typer                                                              */
-/* ------------------------------------------------------------------ */
-
-interface FaggruppeData {
-  id: string;
-  name: string;
-  color: string | null;
-}
-
-interface DokumentflytData {
-  id: string;
-  name: string;
-  faggruppeId: string | null;
-  maler: Array<{ template: { id: string } }>;
-  medlemmer: Array<{
-    rolle: string;
-    erHovedansvarlig: boolean;
-    faggruppeId?: string | null;
-    projectMemberId?: string | null;
-    groupId?: string | null;
-    hovedansvarligPerson?: { user: { id: string; name: string | null } } | null;
-    projectMember?: { user: { id: string; name: string | null } } | null;
-    group?: { id: string; name: string } | null;
+interface TilgjengeligeFlyter {
+  gjeldende: {
+    id: string;
+    name: string;
+    faggruppe: { id: string; name: string; color: string | null } | null;
+    medlemmer: FlytMedlem[];
+    brukersBoks: { steg: number; rolle: string; kilde: string } | null;
+  } | null;
+  andre: Array<{
+    id: string;
+    name: string;
+    faggruppe: { id: string; name: string; color: string | null } | null;
+    brukersBoks: { steg: number; rolle: string };
+    medlemKilde: string;
   }>;
-}
-
-interface VideresendValg {
-  key: string;
-  faggruppeNavn: string;
-  dokumentflytId: string;
-  visningsnavn: string;
-  mottaker?: { userId?: string; groupId?: string };
+  kanFlytte: boolean;
 }
 
 interface Mottaker {
@@ -66,408 +57,398 @@ interface Props {
   erLaster: boolean;
   onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: Mottaker) => void;
   onSlett?: () => void;
-  alleFaggrupper?: FaggruppeData[];
-  dokumentflyter?: DokumentflytData[];
-  templateId?: string | null;
-  standardFaggruppeId?: string;
-  minRolle?: DokumentflytRolle | null;
-  flytMedlemmer?: FlytMedlem[];
-  recipientUserId?: string | null;
-  recipientGroupId?: string | null;
-  bestillerUserId?: string;
+  tilgjengeligeFlyter: TilgjengeligeFlyter | null;
+  minRolle: DokumentflytRolle | null;
+  erFirmaAdmin?: boolean;
 }
 
-/* ------------------------------------------------------------------ */
-/*  Flytposisjon-hjelpere                                              */
-/* ------------------------------------------------------------------ */
-
-interface Ledd {
-  gruppeIder: Set<string>;
-  brukerIder: Set<string>;
-  faggruppeIder: Set<string>;
-}
-
-function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
-  const stegMap = new Map<number, FlytMedlem[]>();
-  for (const m of medlemmer) {
-    const liste = stegMap.get(m.steg) ?? [];
-    liste.push(m);
-    stegMap.set(m.steg, liste);
-  }
-  return [...stegMap.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([_steg, medl]) => ({
-      gruppeIder: new Set(medl.filter((m) => m.group).map((m) => m.group!.id)),
-      brukerIder: new Set(medl.filter((m) => m.projectMember).map((m) => m.projectMember!.user.id)),
-      faggruppeIder: new Set(medl.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id)),
-    }));
-}
-
-function finnAktivtIndex(ledd: Ledd[], status: string, recipientUserId?: string | null, recipientGroupId?: string | null, bestillerUserId?: string): number {
-  if (status === "draft" || status === "cancelled") {
-    if (bestillerUserId) {
-      const idx = ledd.findIndex((l) => l.brukerIder.has(bestillerUserId));
-      if (idx !== -1) return idx;
-    }
-    return 0;
-  }
-  if (status === "closed" || status === "approved") return -1;
-  if (recipientGroupId) {
-    const idx = ledd.findIndex((l) => l.gruppeIder.has(recipientGroupId));
-    if (idx !== -1) return idx;
-  }
-  if (recipientUserId) {
-    const idx = ledd.findIndex((l) => l.brukerIder.has(recipientUserId));
-    if (idx !== -1) return idx;
-  }
-  return ledd.length > 1 ? ledd.length - 1 : -1;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Videresend-valg (forenklet byggVideresendValg)                     */
-/* ------------------------------------------------------------------ */
-
-function byggValg(
-  alleFaggrupper: FaggruppeData[],
-  dokumentflyter: DokumentflytData[],
-  templateId: string | null | undefined,
-): VideresendValg[] {
-  const valg: VideresendValg[] = [];
-  for (const fg of alleFaggrupper) {
-    const flyter = dokumentflyter.filter((df) => {
-      if (df.faggruppeId !== fg.id) return false;
-      if (!templateId) return true;
-      return df.maler.some((m) => m.template.id === templateId);
-    });
-    for (const df of flyter) {
-      const mottaker = finnMottaker(df);
-      valg.push({
-        key: flyter.length > 1 ? `${fg.id}__${df.id}` : fg.id,
-        faggruppeNavn: fg.name,
-        dokumentflytId: df.id,
-        visningsnavn: flyter.length > 1 ? `${fg.name} (${df.name})` : fg.name,
-        mottaker,
-      });
-    }
-  }
-  return valg;
-}
-
-function finnMottaker(df: DokumentflytData): { userId?: string; groupId?: string } | undefined {
-  for (const rolle of ["utforer", "bestiller", "godkjenner"]) {
-    const medl = df.medlemmer.filter((m) => m.rolle === rolle);
-    if (medl.length === 0) continue;
-    const ha = medl.find((m) => m.erHovedansvarlig) ?? medl[0];
-    if (ha?.group) return { groupId: ha.group.id };
-    if (ha?.hovedansvarligPerson?.user) return { userId: ha.hovedansvarligPerson.user.id };
-    if (ha?.projectMember?.user) return { userId: ha.projectMember.user.id };
-  }
-  return undefined;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Hovedkomponent                                                      */
-/* ------------------------------------------------------------------ */
+const BOKS_WIDTH = 36;
+const BOKS_HEIGHT = 28;
+const DEFAULT_FARGE = "#9ca3af"; // gray-400 hvis Faggruppe.color mangler
 
 export function DokumentHandlingsmeny({
   status,
   erLaster,
   onEndreStatus,
   onSlett,
-  alleFaggrupper,
-  dokumentflyter,
-  templateId,
-  standardFaggruppeId,
+  tilgjengeligeFlyter,
   minRolle,
-  flytMedlemmer,
-  recipientUserId,
-  recipientGroupId,
-  bestillerUserId,
+  erFirmaAdmin,
 }: Props) {
   const { t } = useTranslation();
-  const [visKommentar, setVisKommentar] = useState<{ nyStatus: string; mottaker?: Mottaker; label: string } | null>(null);
+  const [valgtBoksIdx, setValgtBoksIdx] = useState<number | null>(null);
+  const [visBekreftelse, setVisBekreftelse] = useState<{
+    nyStatus: string;
+    label: string;
+    mottaker?: Mottaker;
+    bekreftelsesTekst: string;
+  } | null>(null);
   const [kommentar, setKommentar] = useState("");
+  const [visAdminMeny, setVisAdminMeny] = useState(false);
+  const [visFlytBytte, setVisFlytBytte] = useState(false);
+  const [visFlytBytteBekreft, setVisFlytBytteBekreft] = useState<{
+    flytId: string;
+    flytNavn: string;
+  } | null>(null);
 
-  const videresendValg = useMemo(
-    () => byggValg(alleFaggrupper ?? [], dokumentflyter ?? [], templateId),
-    [alleFaggrupper, dokumentflyter, templateId],
+  const ledd = useMemo(
+    () => byggLedd(tilgjengeligeFlyter?.gjeldende?.medlemmer ?? []),
+    [tilgjengeligeFlyter],
+  );
+  const brukersStegIdx = useMemo(() => {
+    const steg = tilgjengeligeFlyter?.gjeldende?.brukersBoks?.steg;
+    if (steg === undefined) return -1;
+    return ledd.findIndex((l) => l.steg === steg);
+  }, [ledd, tilgjengeligeFlyter]);
+
+  const erAdmin = minRolle === "registrator" || erFirmaAdmin === true;
+
+  // Tilgjengelige statushandlinger for brukerens rolle + nåværende status
+  const statusHandlinger = useMemo(
+    () => hentRolleFiltrertHandlinger(status, minRolle),
+    [status, minRolle],
   );
 
-  const ledd = useMemo(() => byggLedd(flytMedlemmer ?? []), [flytMedlemmer]);
-  const aktivtIndex = useMemo(
-    () => finnAktivtIndex(ledd, status, recipientUserId, recipientGroupId, bestillerUserId),
-    [ledd, status, recipientUserId, recipientGroupId, bestillerUserId],
+  // Filtrer statushandlinger til de som er meningsfulle for "tap på boks":
+  // ekskluder admin-handlinger (Lukk, Gjenåpne, Trekk tilbake) som tilhører ⋯-meny.
+  const ADMIN_STATUSER = new Set(["closed", "cancelled", "draft"]);
+  const boksStatusHandlinger = useMemo(
+    () => statusHandlinger.filter((h) => !ADMIN_STATUSER.has(h.nyStatus as string)),
+    [statusHandlinger],
   );
-  const erAdmin = minRolle === "registrator";
-  const erSisteBoks = ledd.length > 0 && aktivtIndex === ledd.length - 1;
-  const erFørsteBoks = aktivtIndex === 0;
 
-  /* ---- Bygg ActionSheet-valg ---- */
+  const adminHandlinger = useMemo(
+    () => statusHandlinger.filter((h) => ADMIN_STATUSER.has(h.nyStatus as string)),
+    [statusHandlinger],
+  );
 
-  interface ArkElement { label: string; nyStatus: string; mottaker?: Mottaker; erDestruktiv?: boolean }
+  // Lesevisning — bruker uten rolle og flyt finnes
+  if (minRolle === null && (tilgjengeligeFlyter?.gjeldende?.medlemmer.length ?? 0) > 0) {
+    return null;
+  }
 
-  const byggArkValg = useCallback((): ArkElement[] => {
-    const el: ArkElement[] = [];
+  const valgtLedd = valgtBoksIdx !== null ? ledd[valgtBoksIdx] : null;
 
-    if (status === "draft") {
-      for (const v of videresendValg) {
-        el.push({ label: v.visningsnavn, nyStatus: "sent", mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined });
-      }
-      if (el.length === 0) el.push({ label: t("handling.send"), nyStatus: "sent" });
-      return el;
-    }
+  function bekreftStatus(handling: StatusHandling, dokumentflytId?: string) {
+    const label = t(handling.tekstNoekkel);
+    const tekst = t("statushandling.bekreftSendBytte", { status: label });
+    setVisBekreftelse({
+      nyStatus: handling.nyStatus as string,
+      label,
+      mottaker: dokumentflytId ? { dokumentflytId } : undefined,
+      bekreftelsesTekst: tekst,
+    });
+    setValgtBoksIdx(null);
+    setVisAdminMeny(false);
+  }
 
-    if (["received", "in_progress", "rejected"].includes(status)) {
-      if (erSisteBoks) {
-        el.push({ label: t("statushandling.svarAvsender"), nyStatus: "responded" });
-      } else {
-        const primær = standardFaggruppeId ? videresendValg.find((v) => v.faggruppeNavn && v.key.startsWith(standardFaggruppeId)) : undefined;
-        if (primær) {
-          el.push({ label: primær.visningsnavn, nyStatus: "responded", mottaker: primær.mottaker ? { ...primær.mottaker, dokumentflytId: primær.dokumentflytId } : undefined });
-        }
-        // Send tilbake — fra boks 2 og oppover
-        if (!erFørsteBoks) {
-          el.push({ label: t("statushandling.sendTilbake"), nyStatus: "sent" });
-        }
-        // Andre faggrupper
-        const andre = videresendValg.filter((v) => !primær || v.key !== primær.key);
-        for (const v of andre) {
-          el.push({ label: v.visningsnavn, nyStatus: "forwarded", mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined });
-        }
-      }
-    }
+  function bekreftFlytBytte(flytId: string, flytNavn: string) {
+    setVisFlytBytteBekreft({ flytId, flytNavn });
+    setVisFlytBytte(false);
+  }
 
-    if (status === "responded") {
-      el.push({ label: t("statushandling.svarAvsender"), nyStatus: "rejected" });
-      for (const v of videresendValg) {
-        el.push({ label: v.visningsnavn, nyStatus: "forwarded", mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined });
-      }
-    }
-
-    if (status === "approved" || status === "closed") {
-      for (const v of videresendValg) {
-        el.push({ label: v.visningsnavn, nyStatus: "forwarded", mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined });
-      }
-    }
-
-    // Admin-seksjon: registrator/admin ELLER siste boks (godkjenner)
-    if ((erAdmin || erSisteBoks) && !["draft", "cancelled"].includes(status)) {
-      const adminEl: ArkElement[] = [];
-      if (!["approved"].includes(status)) adminEl.push({ label: `⚙ ${t("handling.godkjenn")}`, nyStatus: "approved" });
-      if (!["closed"].includes(status)) adminEl.push({ label: `⚙ ${t("handling.lukk")}`, nyStatus: "closed" });
-      if (!["cancelled"].includes(status)) adminEl.push({ label: `⚙ ${t("statushandling.trekkTilbake")}`, nyStatus: "cancelled", erDestruktiv: true });
-      if (!["draft"].includes(status)) adminEl.push({ label: `⚙ ${t("statushandling.gjenapne")}`, nyStatus: "draft" });
-      if (adminEl.length > 0) el.push(...adminEl);
-    }
-
-    return el;
-  }, [status, erSisteBoks, erFørsteBoks, erAdmin, videresendValg, standardFaggruppeId, t]);
-
-  const arkValg = useMemo(byggArkValg, [byggArkValg]);
-
-  /* ---- Vis ActionSheet / Alert ---- */
-
-  const visSendValg = useCallback(() => {
-    if (arkValg.length === 0) return;
-
-    // Kun én mottaker og ikke admin → send direkte med kommentar
-    if (arkValg.length === 1 && !erAdmin) {
-      const valg = arkValg[0]!;
-      setVisKommentar({ nyStatus: valg.nyStatus, mottaker: valg.mottaker, label: valg.label });
-      return;
-    }
-
-    const labels = [...arkValg.map((v) => v.label), t("handling.avbryt")];
-
-    if (Platform.OS === "ios") {
-      const destruktive = arkValg.findIndex((v) => v.erDestruktiv);
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: labels,
-          cancelButtonIndex: labels.length - 1,
-          destructiveButtonIndex: destruktive !== -1 ? destruktive : undefined,
-        },
-        (index) => {
-          if (index === labels.length - 1) return; // Avbryt
-          const valg = arkValg[index];
-          if (valg) {
-            setVisKommentar({ nyStatus: valg.nyStatus, mottaker: valg.mottaker, label: valg.label });
-          }
-        },
-      );
-    } else {
-      // Android: Alert med knapper (maks 3 synlige, resten i liste-stil)
-      Alert.alert(
-        t("handling.send"),
-        undefined,
-        [
-          ...arkValg.map((v) => ({
-            text: v.label,
-            style: (v.erDestruktiv ? "destructive" : "default") as "destructive" | "default",
-            onPress: () => setVisKommentar({ nyStatus: v.nyStatus, mottaker: v.mottaker, label: v.label }),
-          })),
-          { text: t("handling.avbryt"), style: "cancel" as const },
-        ],
-      );
-    }
-  }, [arkValg, erAdmin, t]);
-
-  const bekreftHandling = useCallback(() => {
-    if (!visKommentar) return;
-    onEndreStatus(visKommentar.nyStatus, kommentar.trim() || undefined, visKommentar.mottaker);
-    setVisKommentar(null);
+  function utforHandling() {
+    if (!visBekreftelse) return;
+    onEndreStatus(visBekreftelse.nyStatus, kommentar.trim() || undefined, visBekreftelse.mottaker);
+    setVisBekreftelse(null);
     setKommentar("");
-  }, [visKommentar, kommentar, onEndreStatus]);
+  }
 
-  /* ---- Render ---- */
+  function utforFlytBytte() {
+    if (!visFlytBytteBekreft) return;
+    onEndreStatus("forwarded", kommentar.trim() || undefined, {
+      dokumentflytId: visFlytBytteBekreft.flytId,
+    });
+    setVisFlytBytteBekreft(null);
+    setKommentar("");
+  }
 
-  // Lesevisning
-  if (minRolle === null && (flytMedlemmer?.length ?? 0) > 0) {
+  // Vis ingen UI når flyt ikke eksisterer (eks. lese-bare dokumenter)
+  if (!tilgjengeligeFlyter?.gjeldende && status !== "draft") {
     return null;
   }
 
-  // Terminal uten handlinger
-  if (["closed"].includes(status) && arkValg.length === 0 && !erAdmin) {
-    return null;
-  }
+  const harFlytBytte =
+    tilgjengeligeFlyter?.kanFlytte === true && (tilgjengeligeFlyter.andre.length ?? 0) > 0;
+
+  // Splitt bokser i to rader hvis ≥5
+  const visRader: Array<Ledd[]> = ledd.length <= 4 ? [ledd] : delIToRader(ledd);
 
   return (
     <>
-      <View className="flex-row gap-2">
-        {/* Kladd: Send + Slett */}
-        {status === "draft" && (
-          <>
-            <Pressable
-              onPress={visSendValg}
-              disabled={erLaster}
-              className={`flex-1 flex-row items-center justify-center gap-1 rounded-lg py-3 ${erLaster ? "bg-blue-400" : "bg-blue-600"}`}
-            >
-              <Text className="font-medium text-white">{t("handling.send")}</Text>
-              {arkValg.length > 1 && <ChevronDown size={14} color="#ffffff" />}
-            </Pressable>
-            {onSlett && (
-              <Pressable
-                onPress={onSlett}
-                disabled={erLaster}
-                className="items-center justify-center rounded-lg border border-red-200 bg-red-50 px-6 py-3"
-              >
-                <Text className="font-medium text-red-600">{t("handling.slett")}</Text>
-              </Pressable>
-            )}
-          </>
-        )}
+      <View className="flex-row items-center gap-2">
+        {/* Boks-rad — alltid synlig */}
+        <View className="flex-1">
+          {visRader.map((rad, radIdx) => (
+            <View key={radIdx} className="flex-row items-center gap-1 mb-1">
+              {rad.map((l) => {
+                const globalIdx = ledd.indexOf(l);
+                const erBrukers = globalIdx === brukersStegIdx;
+                const farge = l.farge ?? DEFAULT_FARGE;
+                return (
+                  <View key={globalIdx} className="flex-row items-center">
+                    <Pressable
+                      onPress={() => setValgtBoksIdx(globalIdx)}
+                      disabled={erLaster}
+                      style={{
+                        width: BOKS_WIDTH,
+                        height: BOKS_HEIGHT,
+                        backgroundColor: farge,
+                        borderRadius: 4,
+                        borderWidth: erBrukers ? 3 : 0,
+                        borderColor: "#1e40af",
+                      }}
+                    />
+                    {globalIdx < ledd.length - 1 &&
+                      !(radIdx < visRader.length - 1 && l === rad[rad.length - 1]) && (
+                        <Text className="text-xs text-gray-400 mx-0.5">→</Text>
+                      )}
+                  </View>
+                );
+              })}
+            </View>
+          ))}
+        </View>
 
-        {/* Sendt: Trekk tilbake */}
-        {status === "sent" && (
+        {/* Flyt-bytte-knapp — kun for cross-flyt-medlemmer */}
+        {harFlytBytte && (
           <Pressable
-            onPress={() => setVisKommentar({ nyStatus: "cancelled", mottaker: undefined, label: t("statushandling.trekkTilbake") })}
+            onPress={() => setVisFlytBytte(true)}
             disabled={erLaster}
-            className="flex-1 items-center rounded-lg border border-red-200 bg-red-50 py-3"
+            className="flex-row items-center gap-1 rounded-lg border border-gray-200 px-2 py-2"
           >
-            <Text className="font-medium text-red-600">{erLaster ? t("statushandling.endrer") : t("statushandling.trekkTilbake")}</Text>
+            <Text className="text-xs text-gray-700">{t("dokumentflyt.byttFlyt")}</Text>
+            <ChevronDown size={12} color="#374151" />
           </Pressable>
         )}
 
-        {/* Avbrutt: Gjenåpne + Slett */}
-        {status === "cancelled" && (
-          <>
-            <Pressable
-              onPress={() => setVisKommentar({ nyStatus: "draft", mottaker: undefined, label: t("statushandling.gjenapne") })}
-              disabled={erLaster}
-              className={`flex-1 items-center rounded-lg py-3 ${erLaster ? "bg-blue-400" : "bg-blue-600"}`}
-            >
-              <Text className="font-medium text-white">{t("statushandling.gjenapne")}</Text>
-            </Pressable>
-            {onSlett && (
-              <Pressable
-                onPress={onSlett}
-                disabled={erLaster}
-                className="items-center justify-center rounded-lg border border-red-200 bg-red-50 px-6 py-3"
-              >
-                <Text className="font-medium text-red-600">{t("handling.slett")}</Text>
-              </Pressable>
-            )}
-          </>
-        )}
-
-        {/* Responded (godkjenner / siste boks): Godkjenn + Avvis + Send */}
-        {status === "responded" && (
-          <>
-            <Pressable
-              onPress={() => setVisKommentar({ nyStatus: "approved", mottaker: undefined, label: t("handling.godkjenn") })}
-              disabled={erLaster}
-              className={`flex-1 items-center rounded-lg py-3 ${erLaster ? "bg-green-400" : "bg-green-600"}`}
-            >
-              <Text className="font-medium text-white">{t("handling.godkjenn")}</Text>
-            </Pressable>
-            <Pressable
-              onPress={() => setVisKommentar({ nyStatus: "rejected", mottaker: undefined, label: t("handling.avvis") })}
-              disabled={erLaster}
-              className="items-center justify-center rounded-lg border border-red-200 bg-red-50 px-4 py-3"
-            >
-              <Text className="font-medium text-red-600">{t("handling.avvis")}</Text>
-            </Pressable>
-            {arkValg.length > 0 && (
-              <Pressable
-                onPress={visSendValg}
-                disabled={erLaster}
-                className="flex-row items-center gap-1 rounded-lg border border-gray-200 bg-white px-4 py-3"
-              >
-                <Text className="font-medium text-gray-700">{t("handling.send")}</Text>
-                <ChevronDown size={12} color="#374151" />
-              </Pressable>
-            )}
-          </>
-        )}
-
-        {/* Received / In_progress / Rejected: Send */}
-        {["received", "in_progress", "rejected"].includes(status) && (
+        {/* Admin-⋯-meny — kun for registrator/firma-admin */}
+        {erAdmin && adminHandlinger.length > 0 && (
           <Pressable
-            onPress={visSendValg}
+            onPress={() => setVisAdminMeny(true)}
             disabled={erLaster}
-            className={`flex-1 flex-row items-center justify-center gap-1 rounded-lg py-3 ${erLaster ? "bg-blue-400" : "bg-blue-600"}`}
+            className="items-center justify-center rounded-lg border border-gray-200 px-2 py-2"
           >
-            <Text className="font-medium text-white">{erLaster ? t("statushandling.endrer") : t("handling.send")}</Text>
-            {arkValg.length > 1 && <ChevronDown size={14} color="#ffffff" />}
+            <MoreHorizontal size={16} color="#374151" />
           </Pressable>
         )}
 
-        {/* Approved / Closed: Lukk + Videresend */}
-        {["approved", "closed"].includes(status) && (
-          <>
-            {status === "approved" && (
-              <Pressable
-                onPress={() => setVisKommentar({ nyStatus: "closed", mottaker: undefined, label: t("handling.lukk") })}
-                disabled={erLaster}
-                className={`flex-1 items-center rounded-lg py-3 ${erLaster ? "bg-gray-400" : "bg-gray-600"}`}
-              >
-                <Text className="font-medium text-white">{t("handling.lukk")}</Text>
-              </Pressable>
-            )}
-            {arkValg.length > 0 && (
-              <Pressable
-                onPress={visSendValg}
-                disabled={erLaster}
-                className="flex-row items-center gap-1 rounded-lg border border-gray-200 bg-white px-4 py-3"
-              >
-                <Text className="font-medium text-gray-700">{t("statushandling.videresend")}</Text>
-                <ChevronDown size={12} color="#374151" />
-              </Pressable>
-            )}
-          </>
+        {/* Slett-knapp i draft/cancelled */}
+        {onSlett && ["draft", "cancelled"].includes(status) && (
+          <Pressable
+            onPress={onSlett}
+            disabled={erLaster}
+            className="items-center justify-center rounded-lg border border-red-200 bg-red-50 px-3 py-2"
+          >
+            <Text className="text-xs font-medium text-red-600">{t("handling.slett")}</Text>
+          </Pressable>
         )}
       </View>
 
-      {/* Kommentar-modal */}
-      <Modal visible={!!visKommentar} transparent animationType="fade" onRequestClose={() => setVisKommentar(null)}>
+      {/* Boks-popup: medlemmer + tilgjengelige statuser */}
+      <Modal
+        visible={valgtLedd !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setValgtBoksIdx(null)}
+      >
+        <Pressable
+          className="flex-1 justify-end bg-black/40"
+          onPress={() => setValgtBoksIdx(null)}
+        >
+          <Pressable className="rounded-t-2xl bg-white px-4 pb-8 pt-4">
+            {valgtLedd && (
+              <>
+                <View
+                  className="mb-3 self-start rounded px-2 py-0.5"
+                  style={{ backgroundColor: valgtLedd.farge ?? DEFAULT_FARGE }}
+                >
+                  <Text className="text-xs font-semibold text-white">{valgtLedd.navn}</Text>
+                </View>
+
+                {/* Medlemmer */}
+                <ScrollView className="mb-3 max-h-40">
+                  {valgtLedd.medlemmer.map((m) => {
+                    const navn =
+                      m.projectMember?.user.name ??
+                      m.group?.name ??
+                      m.faggruppe?.name ??
+                      "?";
+                    return (
+                      <View
+                        key={m.id ?? `${m.rolle}-${m.steg}-${navn}`}
+                        className="flex-row items-center gap-2 py-1"
+                      >
+                        {m.erHovedansvarlig && (
+                          <Star size={12} color="#f59e0b" fill="#f59e0b" />
+                        )}
+                        <Text className="text-sm text-gray-800">{navn}</Text>
+                        <Text className="text-xs text-gray-400">({t(`dokumentflyt.${m.rolle}`)})</Text>
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+
+                {/* Tilgjengelige statushandlinger */}
+                <View className="gap-2">
+                  {boksStatusHandlinger.length === 0 ? (
+                    <Text className="text-sm italic text-gray-500">
+                      {t("dokumentflyt.ingenHandlinger")}
+                    </Text>
+                  ) : (
+                    boksStatusHandlinger.map((h) => (
+                      <Pressable
+                        key={h.nyStatus}
+                        onPress={() => bekreftStatus(h)}
+                        disabled={erLaster}
+                        className={`items-center rounded-lg py-3 ${h.farge}`}
+                      >
+                        <Text className="font-medium text-white">{t(h.tekstNoekkel)}</Text>
+                      </Pressable>
+                    ))
+                  )}
+                </View>
+              </>
+            )}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Flyt-bytte-dropdown */}
+      <Modal
+        visible={visFlytBytte}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVisFlytBytte(false)}
+      >
+        <Pressable
+          className="flex-1 justify-end bg-black/40"
+          onPress={() => setVisFlytBytte(false)}
+        >
+          <Pressable className="rounded-t-2xl bg-white px-4 pb-8 pt-4">
+            <Text className="mb-3 text-sm font-semibold text-gray-700">
+              {t("dokumentflyt.velgFlyt")}
+            </Text>
+            <ScrollView className="max-h-80">
+              {(tilgjengeligeFlyter?.andre ?? []).map((f) => (
+                <Pressable
+                  key={f.id}
+                  onPress={() => bekreftFlytBytte(f.id, f.faggruppe?.name ?? f.name)}
+                  className="flex-row items-center gap-2 border-b border-gray-100 py-3"
+                >
+                  <View
+                    style={{
+                      width: 14,
+                      height: 14,
+                      backgroundColor: f.faggruppe?.color ?? DEFAULT_FARGE,
+                      borderRadius: 3,
+                    }}
+                  />
+                  <Text className="flex-1 text-sm text-gray-800">
+                    {f.faggruppe?.name ?? f.name}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Flyt-bytte-bekreftelse */}
+      <Modal
+        visible={visFlytBytteBekreft !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVisFlytBytteBekreft(null)}
+      >
         <KeyboardAvoidingView
           className="flex-1 justify-end"
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-          <Pressable className="flex-1" onPress={() => setVisKommentar(null)} />
-          <View className="rounded-t-2xl bg-white px-4 pb-8 pt-4 shadow-lg">
+          <Pressable className="flex-1" onPress={() => setVisFlytBytteBekreft(null)} />
+          <View className="rounded-t-2xl bg-white px-4 pb-8 pt-4">
+            <Text className="mb-2 text-sm font-semibold text-gray-700">
+              {t("dokumentflyt.bekreftFlytBytte", {
+                gammel: tilgjengeligeFlyter?.gjeldende?.faggruppe?.name ?? tilgjengeligeFlyter?.gjeldende?.name ?? "",
+                ny: visFlytBytteBekreft?.flytNavn ?? "",
+              })}
+            </Text>
+            <Text className="mb-3 text-xs text-gray-500">
+              {t("dokumentflyt.bekreftFlytBytteHjelp")}
+            </Text>
+            <TextInput
+              value={kommentar}
+              onChangeText={setKommentar}
+              placeholder={t("statushandling.valgfriKommentar")}
+              placeholderTextColor="#9ca3af"
+              className="mb-3 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800"
+              autoFocus
+            />
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={utforFlytBytte}
+                disabled={erLaster}
+                className={`flex-1 items-center rounded-lg py-3 ${erLaster ? "bg-blue-400" : "bg-blue-600"}`}
+              >
+                <Text className="font-medium text-white">
+                  {erLaster ? t("statushandling.endrer") : t("handling.bekreft")}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={() => { setVisFlytBytteBekreft(null); setKommentar(""); }}
+                className="items-center rounded-lg border border-gray-200 px-6 py-3"
+              >
+                <Text className="font-medium text-gray-600">{t("handling.avbryt")}</Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Admin-meny */}
+      <Modal
+        visible={visAdminMeny}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVisAdminMeny(false)}
+      >
+        <Pressable
+          className="flex-1 justify-end bg-black/40"
+          onPress={() => setVisAdminMeny(false)}
+        >
+          <Pressable className="rounded-t-2xl bg-white px-4 pb-8 pt-4">
             <Text className="mb-3 text-sm font-semibold text-gray-700">
-              {t("statushandling.bekreftHandling", { handling: visKommentar?.label ?? "" })}
+              {t("dokumentflyt.adminHandlinger")}
+            </Text>
+            {adminHandlinger.map((h) => (
+              <Pressable
+                key={h.nyStatus}
+                onPress={() => bekreftStatus(h)}
+                disabled={erLaster}
+                className="border-b border-gray-100 py-3"
+              >
+                <Text className="text-base text-gray-800">{t(h.tekstNoekkel)}</Text>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Status-bekreftelses-modal */}
+      <Modal
+        visible={visBekreftelse !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVisBekreftelse(null)}
+      >
+        <KeyboardAvoidingView
+          className="flex-1 justify-end"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <Pressable className="flex-1" onPress={() => setVisBekreftelse(null)} />
+          <View className="rounded-t-2xl bg-white px-4 pb-8 pt-4">
+            <Text className="mb-3 text-sm font-semibold text-gray-700">
+              {visBekreftelse?.bekreftelsesTekst}
             </Text>
             <TextInput
               value={kommentar}
@@ -477,11 +458,11 @@ export function DokumentHandlingsmeny({
               className="mb-3 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800"
               autoFocus
               returnKeyType="done"
-              onSubmitEditing={bekreftHandling}
+              onSubmitEditing={utforHandling}
             />
             <View className="flex-row gap-2">
               <Pressable
-                onPress={bekreftHandling}
+                onPress={utforHandling}
                 disabled={erLaster}
                 className={`flex-1 items-center rounded-lg py-3 ${erLaster ? "bg-blue-400" : "bg-blue-600"}`}
               >
@@ -490,7 +471,7 @@ export function DokumentHandlingsmeny({
                 </Text>
               </Pressable>
               <Pressable
-                onPress={() => { setVisKommentar(null); setKommentar(""); }}
+                onPress={() => { setVisBekreftelse(null); setKommentar(""); }}
                 className="items-center rounded-lg border border-gray-200 px-6 py-3"
               >
                 <Text className="font-medium text-gray-600">{t("handling.avbryt")}</Text>
@@ -501,4 +482,9 @@ export function DokumentHandlingsmeny({
       </Modal>
     </>
   );
+}
+
+function delIToRader(ledd: Ledd[]): Array<Ledd[]> {
+  const midt = Math.ceil(ledd.length / 2);
+  return [ledd.slice(0, midt), ledd.slice(midt)];
 }
