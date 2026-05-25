@@ -36,47 +36,52 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 ### Dokumentflyt send-modal redesign (høy prioritet — grunnleggende UX)
 
-**Oppdaget 2026-05-25** ved gjennomgang av mobilens `DokumentHandlingsmeny.tsx`. Gjelder både oppgave og sjekkliste (samme komponent).
+**Oppdaget 2026-05-25** ved gjennomgang av mobilens `DokumentHandlingsmeny.tsx`. Gjelder både oppgave og sjekkliste (samme komponent). Spec låst 2026-05-25.
 
-**Problemet:** Dagens send-modal blander fire konseptuelle kategorier i én flat ActionSheet-liste uten visuell separasjon:
+**Problemet:** Dagens send-modal blander fire konseptuelle kategorier i én flat ActionSheet-liste uten visuell separasjon (flyt-progresjon i aktiv flyt / flyt-bytte til annen flyt / godkjenner-respons / admin-livssyklus). Brukeren mangler kontekst om HVOR de er i flyten — en tekstlig handlings-liste uten visuell flyt gir ingen orientering. ⚙ brukes som separator for admin, semantisk feil.
 
-| # | Kategori | Eksempler |
-|---|---|---|
-| A | Flyt-progresjon i AKTIV flyt | Send til primær, Svar avsender, Send tilbake |
-| B | Flyt-bytte til ANNEN flyt | «Andre faggrupper» = annen dokumentflyt |
-| C | Godkjenner-respons | Godkjenn, Avvis |
-| D | Admin-livssyklus | Godkjenn (forced), Lukk, Trekk tilbake, Gjenåpne |
+**Kjerneinnsikt:** Flyten må visualiseres permanent i detaljsiden med brukerens egen boks markert. «Send hit» blir betydningsbærende først når mottaker-boksen er visuelt synlig.
 
-Konsekvens: brukeren kan ikke se forskjell på «send neste boks i samme flyt» og «forlat denne flyten og bytt til en annen» — to fundamentalt ulike handlinger ser identiske ut. ⚙-tegnet brukes som visuell separator for admin-handlingene, semantisk feil (tannhjul = innstillinger, ikke livssyklus).
+#### Låst design
 
-**Kjerneinnsikt (Kenneth 2026-05-25):** Brukeren mangler kontekst om HVOR de er i flyten. Send-knapp uten å se boksene/leddene gir ingen orientering. Flyten må visualiseres øverst i send-modalen med brukerens egen boks markert — først da gir «videre» og «tilbake» mening.
+1. **Flyt-bokser alltid synlig i detaljsiden** — fargede bokser (`Faggruppe.color`) uten tekst, brukerens boks markert med ring/aktivt-indikator. Bunn-bar erstattes; bokse-raden er den nye primær-handlings-UI-en.
+2. **Trykk på boks → popup** med boksnavn (faggruppe-navn) + medlems-liste (personer/gruppe, hovedansvarlig markert med stjerne) + «Send hit»-knapp + valgfritt kommentarfelt. Alle bokser trykkbare.
+3. **Ingen tekst under boksene** — navn vises kun i popup ved trykk. Bevisst minimalisme; bruker lærer fargene over tid og kan alltid trykke for å verifisere.
+4. **Mottaker styrt av flyt-oppsett** — `recipientUserId`/`recipientGroupId` utledes deterministisk fra boksens hovedansvarlig (`erHovedansvarlig=true`-medlem) eller første gruppe-medlem. Bruker velger IKKE mottaker i send-modalen; mottaker konfigureres ved flyt-oppsett.
+5. **Godkjenn/Avvis i popup på egen boks** når `status="responded"`. Konseptuelt: «handle på egen ballen» framfor å sende videre. To primær-knapper i popup'en (Godkjenn grønn / Avvis rød). Flyt-bokse-trykk på andre bokser fortsatt tilgjengelig.
+6. **Admin-handlinger bak `⋯`-meny** — Lukk, Gjenåpne, Trekk tilbake skjult under «⋯»-knapp ved siden av bokse-raden. Synlig kun for `minRolle === "registrator"` eller `erFirmaAdmin`. Bryter dagens mønster med ⚙-prefiks som visuell separator.
+7. **Layout-regler:**
+   - ≤4 bokser: én rad
+   - ≥5 bokser: to rader med wrap (lese-rekkefølge venstre→høyre, ikke U-form)
+   - Pil-konnektor mellom siste på rad 1 og første på rad 2
+8. **Ikke-nabo-trykk krever bekreftelses-modal** («Du hopper over [Byggherre] — bekreft?»). Naboboks: direkte uten ekstra bekreftelse (kommentarfelt fortsatt valgfritt). Primær intensjon: nabo-progresjon; skip-over som sekundær handling.
 
-**Designbeslutninger låst:**
+#### Fortsatt åpent — må avklares før implementasjon
 
-1. **Flyt-visualisering øverst i modal:** `[Tømrer] → [Byggherre] → [Ledelse]` med markering av brukerens boks. Brukeren ser umiddelbart hvor de står og hvor det går.
-2. **«Videre» / «Send tilbake» får semantikk** fordi boksene er synlige — dagens ord-baserte knapper uten kontekst kan tolkes vilkårlig.
-3. **Admin-handlinger collapsed under «MER ▾»:** Godkjenn (forced), Lukk, Gjenåpne, Trekk tilbake skjules som standard. Reduserer kognitiv støy for den vanlige flyt-handlingen. Distinkte lucide-ikoner per handling, ikke ⚙.
-4. **Gruppenavn i labels:** «Send til Byggherre» (mottaker-navn) > «Send». Forutsigbar konsekvens uten å lese fint.
-5. **Flyt-bytte er sekundær handling:** Egen «Flytt til annen flyt»-undermeny (dropdown + søk når ≥3 alternativer). Ikke blandet inn i primær flyt-progresjon. Bekreftelses-modal kreves («Oppgaven flyttes fra X til Y. Forrige flyt forlates»).
+- **Flyt-bytte (Variant 3) — plassering i ny UI.** Server-spec klar: `oppgave.hentTilgjengeligeFlyter` returnerer `{ gjeldende, andre[], kanFlytte }`. Plassering uavklart — mulige alternativer: (a) egen knapp ved siden av `⋯`-meny, (b) inne i `⋯`-meny som «Flytt til annen flyt», (c) inne i popup på trykket boks som sekundær-handling. Bekreftelses-modal kreves uansett («Oppgaven flyttes fra X til Y. Forrige flyt forlates»).
+- **`approved`/`closed`-tilstand:** Skal flyt-boksene vises i grå-toner uten interaksjon (historisk visning), eller skjules helt? Dagens UI har «Videresend ▾» her som fortsatt har semantisk verdi for refererende handlinger.
+- **Android-tilpasning:** Dagens `ActionSheetIOS` har Android-fallback til `Alert`. Ny modell krever custom `Modal`-komponent for popup'en (samme mønster som `FirmaVelger`/`ProsjektVelger`). Begge plattformer bruker da samme komponent — Android-spesifikke avvik forventes ikke, men må verifiseres mot Material-konvensjoner.
 
-**Åpne spørsmål — må avklares før implementasjon:**
+#### Tilgangs-utvidelse i samme runde
 
-- **Mottaker-navn:** Skal vi vise PERSONEN/gruppen som faktisk får oppgaven («Send til Per Hansen (Tømrer)») i stedet for kun gruppenavn? Mer informativt, men lengre tekst på mobil.
-- **Videresend ferdig oppgave vs flyt-bytte:** Når status=`approved`/`closed` viser dagens UI «Videresend ▾». Det er konseptuelt forskjellig fra flyt-bytte under aktiv behandling. Skal disse to ha ulik label? («Videresend som referanse» vs «Flytt til ny flyt»)
-- **Mobil ActionSheet → custom Modal:** Dagens `ActionSheetIOS` støtter kun flat liste. Gruppert layout + dropdown + søk + flyt-visualisering krever custom `Modal`-komponent (samme mønster som `FirmaVelger`/`ProsjektVelger`). Dette er en større endring i UI-mønster enn skissert.
+`endreStatus` server-regel utvides — dagens regel tillater kun `admin`/`registrator` å bytte flyt. Utvides til også å tillate:
+- «Har ballen» (`userId === recipientUserId` eller medlem av `recipientGroup`)
+- «Cross-flyt-medlem» (medlem av både gammel og ny flyt ved flyt-bytte)
 
-**Avhengighet:** Variant 3 må implementeres server-side først — ny tRPC-prosedyre `oppgave.hentTilgjengeligeFlyter` (+ tilsvarende for sjekkliste) som returnerer `{ gjeldende, andre[], kanFlytte }` filtrert på brukerens tilgang (admin/registrator/har-ballen/cross-flyt-medlem). Klient bruker `andre[]` i «Flytt til annen flyt»-dropdown. Spec klar; venter på design-runden over.
+Skip-over-nabo: tillatt for alle med flyt-tilgang, men UI krever bekreftelse (punkt 8 over). Server validerer ikke retning — det er en UX-konvensjon, ikke en sikkerhetsregel.
 
-**Tilgangs-utvidelse i samme runde (`endreStatus` server):** Dagens regel tillater kun admin/registrator å bytte flyt. Utvides til også å tillate «har ballen» (`userId === recipientUserId` eller medlem av `recipientGroup`) og «cross-flyt-medlem» (medlem av både gammel og ny flyt).
+#### Berører
 
-**Berører:**
-- `apps/mobile/src/components/DokumentHandlingsmeny.tsx` — full omskriving
-- `apps/api/src/routes/oppgave.ts` — ny prosedyre + utvidet endreStatus
+- `apps/mobile/src/components/DokumentHandlingsmeny.tsx` — full omskriving til boks-basert komponent
+- `apps/mobile/src/components/FlytIndikator.tsx` — sannsynligvis innlemmes i ny komponent (`byggLedd` blir delt helper)
+- `apps/api/src/routes/oppgave.ts` — ny `hentTilgjengeligeFlyter`-prosedyre + utvidet `endreStatus`-tilgangs-validering
 - `apps/api/src/routes/sjekkliste.ts` — speilet endring
-- `packages/shared/src/i18n/*` — nye nøkler for «Flyt», «Flytt til annen flyt», «Mer», bekreftelses-tekst
+- `packages/shared/src/i18n/*` — nye nøkler: «Send hit», «Du hopper over», bekreftelses-tekst, popup-tittel, admin-meny-elementer
 - Server-tilgangskontroll-helper for å sjekke flyt-medlemskap
 
-**Estimat:** Server ~45 min, mobil-UI ~3 timer (oppgave), sjekkliste ~30 min (gjenbruk). I18n auto-oversett. Totalt ~5 timer Opus-arbeid + EAS-bygg.
+#### Estimat
+
+Server ~45 min, mobil-UI ~4 timer (oppgave, ny boks-komponent), sjekkliste ~30 min (gjenbruk). I18n auto-oversett. Totalt ~6 timer Opus-arbeid + EAS-bygg. Avhenger av at de tre åpne punktene over avklares før implementasjon starter.
 
 ### Datamodell og migrasjon
 
