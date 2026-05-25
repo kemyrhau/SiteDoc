@@ -134,6 +134,8 @@ export function MalListe({
   const [redigerBeskrivelse, setRedigerBeskrivelse] = useState("");
   const [redigerSubjects, setRedigerSubjects] = useState<string[]>([]);
   const [redigerEnableChangeLog, setRedigerEnableChangeLog] = useState(false);
+  const [redigerWorkflowIds, setRedigerWorkflowIds] = useState<Set<string>>(new Set());
+  const [visRedigerFlytModal, setVisRedigerFlytModal] = useState(false);
 
   const { data: alleMaler, isLoading } = trpc.mal.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
@@ -199,6 +201,7 @@ export function MalListe({
       description: redigerBeskrivelse.trim() || undefined,
       subjects: redigerSubjects.filter((s) => s.trim() !== ""),
       enableChangeLog: redigerEnableChangeLog,
+      workflowIds: Array.from(redigerWorkflowIds),
     });
   }
 
@@ -216,6 +219,8 @@ export function MalListe({
     const subjects = Array.isArray(mal.subjects) ? (mal.subjects as string[]) : [];
     setRedigerSubjects(subjects);
     setRedigerEnableChangeLog(mal.enableChangeLog);
+    const koblinger = (mal as { dokumentflytMaler?: Array<{ dokumentflytId: string }> }).dokumentflytMaler ?? [];
+    setRedigerWorkflowIds(new Set(koblinger.map((k) => k.dokumentflytId)));
     setVisRedigerModal(true);
   }
 
@@ -457,16 +462,16 @@ export function MalListe({
             error={prefiksFeil ?? undefined}
           />
 
-          {/* Faggruppetilknytning */}
+          {/* Dokumentflyt-kobling */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              {t("tabell.faggruppe")}
+              {t("maler.dokumentflyt")}
             </label>
             <div className="flex items-center gap-3">
               <span className="text-sm text-gray-500">
                 {valgteWorkflowIds.size === 0
-                  ? t("maler.ingenFaggrupperValgt")
-                  : `${valgteWorkflowIds.size} ${t("maler.arbeidsforlopValgt")}`}
+                  ? t("maler.ingenDokumentflytValgt")
+                  : `${valgteWorkflowIds.size} ${t("maler.dokumentflytValgt")}`}
               </span>
               <button
                 type="button"
@@ -477,6 +482,11 @@ export function MalListe({
                 {t("handling.velg")}
               </button>
             </div>
+            {valgteWorkflowIds.size === 0 && (
+              <p className="mt-1 text-xs text-amber-600">
+                {t("maler.ingenDokumentflytAdvarsel")}
+              </p>
+            )}
           </div>
 
           {/* Fagområde */}
@@ -532,7 +542,7 @@ export function MalListe({
         </form>
       </Modal>
 
-      {/* Faggruppetilknytning-modal (sekundær, z-60) */}
+      {/* Dokumentflyt-velger for opprett-modal */}
       {prosjektId && (
         <FaggruppeTilknytningModal
           open={visFaggruppeTilknytning}
@@ -543,6 +553,21 @@ export function MalListe({
           onBekreft={(ids) => {
             setValgteWorkflowIds(ids);
             setVisFaggruppeTilknytning(false);
+          }}
+        />
+      )}
+
+      {/* Dokumentflyt-velger for rediger-modal */}
+      {prosjektId && (
+        <FaggruppeTilknytningModal
+          open={visRedigerFlytModal}
+          onClose={() => setVisRedigerFlytModal(false)}
+          prosjektId={prosjektId}
+          kategori={kategori}
+          valgteWorkflowIds={redigerWorkflowIds}
+          onBekreft={(ids) => {
+            setRedigerWorkflowIds(ids);
+            setVisRedigerFlytModal(false);
           }}
         />
       )}
@@ -571,6 +596,33 @@ export function MalListe({
             value={redigerBeskrivelse}
             onChange={(e) => setRedigerBeskrivelse(e.target.value)}
           />
+
+          {/* Dokumentflyt-kobling */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">
+              {t("maler.dokumentflyt")}
+            </label>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-gray-500">
+                {redigerWorkflowIds.size === 0
+                  ? t("maler.ingenDokumentflytValgt")
+                  : `${redigerWorkflowIds.size} ${t("maler.dokumentflytValgt")}`}
+              </span>
+              <button
+                type="button"
+                onClick={() => setVisRedigerFlytModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                <Building2 className="h-3.5 w-3.5" />
+                {t("handling.velg")}
+              </button>
+            </div>
+            {redigerWorkflowIds.size === 0 && (
+              <p className="mt-1 text-xs text-amber-600">
+                {t("maler.ingenDokumentflytAdvarsel")}
+              </p>
+            )}
+          </div>
 
           {/* Forhåndsdefinerte emner */}
           <div className="flex flex-col gap-1">
