@@ -73,6 +73,30 @@ Brukeren får funksjonell HMS fra ett klikk. Tilpasning er deretter justering av
 
 **Sannsynlig oppfølger:** Samme mønster gjelder andre moduler (Godkjenning — under verifisering 2026-05-26). Hvis ja: refaktorere modul-seeding generisk så alle moduler kan deklarere komplett pakke (maler + grupper + flyter + koblinger).
 
+### Mal-builder redesign — én samlet mal med type-avkrysning (høy prioritet)
+
+**Idé (Kenneth 2026-05-26):** Erstatt dagens to separate lister (Oppgavemaler / Sjekklistemaler) med én samlet mal-builder. Brukeren haker av for dokumenttype på selve malen:
+
+- ☐ Oppgave
+- ☐ Sjekkliste
+- ☐ HMS (kun synlig når HMS-modulen er aktivert for firmaet)
+- ☐ Godkjenning (kun synlig når Godkjenning-modulen er aktivert for firmaet)
+
+En mal kan kombinere typer (f.eks. HMS + Sjekkliste = SJA). Type-valget erstatter dagens skjulte `domain`-dropdown (Bygg/HMS/Kvalitet) og gjør malkategorisering selvforklarende — brukeren trenger ikke vite hva «domain» betyr internt.
+
+**Avhengighet:** HMS-modul redesign + Godkjenning-modul redesign bør gjøres parallelt — type-avkrysning er brukerflaten som eksponerer modul-koblingen. Hvis HMS-haken vises uten at modulen er aktiv, har den ingen effekt. Hvis HMS-modulen ikke gjør noe meningsfullt etter aktivering, hjelper det ikke at brukeren kan hake den av på malen. De tre må henge sammen for å gi verdi.
+
+**Berører:**
+- `apps/web/src/app/dashbord/oppsett/produksjon/` — mal-builder UI (slå sammen `sjekklistemaler/` og `oppgavemaler/` til én liste, eller endre `MalListe.tsx` til å vise begge kategorier samtidig)
+- `ReportTemplate.category` (i dag «oppgave» | «sjekkliste») + `ReportTemplate.domain` (Bygg/HMS/Kvalitet) — kan erstattes eller suppleres av eksplisitte type-flagg (f.eks. `types: Json` med array som `["sjekkliste", "hms"]`)
+- `modul.ts` — modul-aktiverings-logikk må eksponere hvilke modul-slugs som er aktive for prosjektet/firmaet så UI kan vise/skjule HMS- og Godkjenning-haker dynamisk
+- `oppgave.opprett`/`sjekkliste.opprett`/`godkjenning.opprett` — server må vite hvilken tabell dokumentet havner i basert på mal-type-kombinasjonen
+
+**Designspørsmål for senere runde:**
+- Hvis en mal er både Oppgave OG Sjekkliste, hvilken tabell havner et opprettet dokument i? Eller får brukeren et type-valg ved opprettelse?
+- Skal eksisterende `category`-feltet beholdes for bakoverkompatibilitet, eller erstattes helt?
+- Skal HMS/Godkjenning være eksklusive (kun én av gangen) eller kan en mal være HMS + Godkjenning samtidig?
+
 ### MASKIN-TIMER KOBLING — arkitektursvikt (høy prioritet)
 
 Kenneth-avklaring 2026-05-16: Maskintimer er en del av arbeidsdagen,
