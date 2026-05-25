@@ -309,6 +309,14 @@ Engelsk kildetekst mangler verb-bro mellom `{{maskin}}h` og `{{arbeid}}h`-variab
 
 ## 2. Halvferdige features
 
+### Web DokumentHandlingsmeny — redesign til boks-modell (høy prioritet)
+
+Samme redesign som mobil fikk i Commit 2 (`91bc235f`). Web-versjonen (`apps/web/src/components/DokumentHandlingsmeny.tsx`, 734 linjer) bruker fortsatt gammelt ActionSheet-mønster uten flyt-kontekst — brukeren bekrefter «Send» uten å se hvor dokumentet går.
+
+Bør speile mobil-modellen: flyt-bokser alltid synlig, klikkbare, popup med statuser, ⋯-admin-meny, flyt-bytte-dropdown. Avventer til mobil-UX er verifisert på enhet (build #23) før vi kjører samme redesign på web — får bekreftet at modellen fungerer i praksis først.
+
+Eksisterende `apps/web/src/components/FlytIndikator.tsx` (199 linjer) og `apps/web/src/components/StatusHandlinger.tsx` (278 linjer) kan gjenbrukes som byggesteiner. Server-API (`oppgave.hentTilgjengeligeFlyter` + utvidet `endreStatus`-tilgang) er allerede i prod (`4968a23c`) og kan konsumeres uten endring.
+
 ### 3D/IFC/georeferanse
 
 Status og roadmap dokumentert i Claude-memory (`project_3d_status.md`,
