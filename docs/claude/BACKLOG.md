@@ -36,52 +36,58 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 ### Dokumentflyt send-modal redesign (høy prioritet — grunnleggende UX)
 
-**Oppdaget 2026-05-25** ved gjennomgang av mobilens `DokumentHandlingsmeny.tsx`. Gjelder både oppgave og sjekkliste (samme komponent). Spec låst 2026-05-25.
+**Oppdaget 2026-05-25** ved gjennomgang av mobilens `DokumentHandlingsmeny.tsx`. Gjelder både oppgave og sjekkliste (samme komponent). Spec låst 2026-05-25, utvidet samme dag.
 
-**Problemet:** Dagens send-modal blander fire konseptuelle kategorier i én flat ActionSheet-liste uten visuell separasjon (flyt-progresjon i aktiv flyt / flyt-bytte til annen flyt / godkjenner-respons / admin-livssyklus). Brukeren mangler kontekst om HVOR de er i flyten — en tekstlig handlings-liste uten visuell flyt gir ingen orientering. ⚙ brukes som separator for admin, semantisk feil.
+**Problemet:** Dagens send-modal blander fire konseptuelle kategorier i én flat ActionSheet-liste uten visuell separasjon (flyt-progresjon i aktiv flyt / flyt-bytte til annen flyt / godkjenner-respons / admin-livssyklus). Brukeren mangler kontekst om HVOR de er i flyten. ⚙ brukes som separator for admin, semantisk feil.
 
-**Kjerneinnsikt:** Flyten må visualiseres permanent i detaljsiden med brukerens egen boks markert. «Send hit» blir betydningsbærende først når mottaker-boksen er visuelt synlig.
+**Kjerneinnsikt:** Flyten må visualiseres permanent i detaljsiden med brukerens egen boks markert. Trykk på en boks åpner popup med tilgjengelige STATUSER for den retningen — status er primær-handlingen, ikke et generisk «Send hit».
 
 #### Låst design
 
 1. **Flyt-bokser alltid synlig i detaljsiden** — fargede bokser (`Faggruppe.color`) uten tekst, brukerens boks markert med ring/aktivt-indikator. Bunn-bar erstattes; bokse-raden er den nye primær-handlings-UI-en.
-2. **Trykk på boks → popup** med boksnavn (faggruppe-navn) + medlems-liste (personer/gruppe, hovedansvarlig markert med stjerne) + «Send hit»-knapp + valgfritt kommentarfelt. Alle bokser trykkbare.
-3. **Ingen tekst under boksene** — navn vises kun i popup ved trykk. Bevisst minimalisme; bruker lærer fargene over tid og kan alltid trykke for å verifisere.
-4. **Mottaker styrt av flyt-oppsett** — `recipientUserId`/`recipientGroupId` utledes deterministisk fra boksens hovedansvarlig (`erHovedansvarlig=true`-medlem) eller første gruppe-medlem. Bruker velger IKKE mottaker i send-modalen; mottaker konfigureres ved flyt-oppsett.
-5. **Godkjenn/Avvis i popup på egen boks** når `status="responded"`. Konseptuelt: «handle på egen ballen» framfor å sende videre. To primær-knapper i popup'en (Godkjenn grønn / Avvis rød). Flyt-bokse-trykk på andre bokser fortsatt tilgjengelig.
-6. **Admin-handlinger bak `⋯`-meny** — Lukk, Gjenåpne, Trekk tilbake skjult under «⋯»-knapp ved siden av bokse-raden. Synlig kun for `minRolle === "registrator"` eller `erFirmaAdmin`. Bryter dagens mønster med ⚙-prefiks som visuell separator.
-7. **Layout-regler:**
+2. **Trykk på boks → popup med tilgjengelige STATUSER** (ikke «Send hit»-knapp). Hver tilgjengelig status er en separat knapp. Eksempler:
+   - Nabo-boks fra status `received`: `[Send hit]` (→ `sent` til nabo)
+   - Nabo-boks fra status `in_progress`: `[Send videre]` + `[Send tilbake]`
+   - Egen boks med status `responded`: `[Godkjenn]` + `[Avvis]` (statusforespørsler — handle på egen ballen)
+
+   Status bærer semantikken; mottaker styres deterministisk av flyt-oppsett. «Send hit»-knappen er fjernet.
+3. **Bekreftelses-modal etter status-valg** — «Ønsker du å sende og bytte til [ny status]?» + valgfritt kommentarfelt + Bekreft/Avbryt. To-trinns-flyt: boks → status → bekreft.
+4. **Ingen tekst under boksene** — boksnavn vises kun i popup ved trykk. Bevisst minimalisme.
+5. **Mottaker styrt av flyt-oppsett** — `recipientUserId`/`recipientGroupId` utledes fra boksens hovedansvarlig-medlem (markert med stjerne i popup'ens medlems-liste). Bruker velger ikke mottaker.
+6. **Admin-handlinger bak `⋯`-meny** — Lukk, Gjenåpne, Trekk tilbake skjult under «⋯»-knapp ved siden av bokse-raden. Synlig kun for `minRolle === "registrator"` eller `erFirmaAdmin`. Bryter dagens mønster med ⚙-prefiks.
+7. **Flyt-bytte = egen nedtrekksmeny** ved siden av bokse-raden, synlig kun for brukere som er medlem av minst én annen dokumentflyt på samme dokumenttype. Velg flyt → oppgaven flyttes dit og **lander hos brukerens egen boks i den nye flyten** (ikke vilkårlig mottaker). Bekreftelses-modal: «Oppgaven flyttes fra [flyt A] til [flyt B]. Forrige flyt forlates.»
+8. **Layout-regler:**
    - ≤4 bokser: én rad
    - ≥5 bokser: to rader med wrap (lese-rekkefølge venstre→høyre, ikke U-form)
    - Pil-konnektor mellom siste på rad 1 og første på rad 2
-8. **Ikke-nabo-trykk krever bekreftelses-modal** («Du hopper over [Byggherre] — bekreft?»). Naboboks: direkte uten ekstra bekreftelse (kommentarfelt fortsatt valgfritt). Primær intensjon: nabo-progresjon; skip-over som sekundær handling.
+9. **Skip-over (ikke-nabo-trykk) tillatt** — samme popup-flyt som nabo-trykk. Bekreftelses-modalen i punkt 3 fungerer som safeguard; ingen ekstra mellom-bekreftelse trengs.
+10. **Android = custom RN Modal** — ingen `ActionSheetIOS`, ingen plattform-spesifikk `Alert`. Samme komponent på iOS og Android (samme mønster som `FirmaVelger`/`ProsjektVelger`).
 
-#### Fortsatt åpent — må avklares før implementasjon
+#### Fortsatt åpent (detalj-spørsmål, ikke blokkerer implementasjon)
 
-- **Flyt-bytte (Variant 3) — plassering i ny UI.** Server-spec klar: `oppgave.hentTilgjengeligeFlyter` returnerer `{ gjeldende, andre[], kanFlytte }`. Plassering uavklart — mulige alternativer: (a) egen knapp ved siden av `⋯`-meny, (b) inne i `⋯`-meny som «Flytt til annen flyt», (c) inne i popup på trykket boks som sekundær-handling. Bekreftelses-modal kreves uansett («Oppgaven flyttes fra X til Y. Forrige flyt forlates»).
-- **`approved`/`closed`-tilstand:** Skal flyt-boksene vises i grå-toner uten interaksjon (historisk visning), eller skjules helt? Dagens UI har «Videresend ▾» her som fortsatt har semantisk verdi for refererende handlinger.
-- **Android-tilpasning:** Dagens `ActionSheetIOS` har Android-fallback til `Alert`. Ny modell krever custom `Modal`-komponent for popup'en (samme mønster som `FirmaVelger`/`ProsjektVelger`). Begge plattformer bruker da samme komponent — Android-spesifikke avvik forventes ikke, men må verifiseres mot Material-konvensjoner.
+- **`approved`/`closed`-tilstand:** Skal flyt-boksene grå-tones som «lukket flyt» eller forbli trykkbare for «videresend som referanse»? Dagens server flytter oppgaven mellom flyter også fra approved/closed via `forwarded`-mekanisme. Foreslått retning: grå-toning + trykkbart, popup viser tilgjengelige statuser (typisk kun «Send som referanse») med klar advarsel om at oppgaven flyttes over. Avklares ved implementasjon.
 
 #### Tilgangs-utvidelse i samme runde
 
 `endreStatus` server-regel utvides — dagens regel tillater kun `admin`/`registrator` å bytte flyt. Utvides til også å tillate:
 - «Har ballen» (`userId === recipientUserId` eller medlem av `recipientGroup`)
-- «Cross-flyt-medlem» (medlem av både gammel og ny flyt ved flyt-bytte)
+- «Cross-flyt-medlem» (medlem av både gammel og ny flyt) — tett knyttet til at flyt-bytte lander på brukerens egen boks i ny flyt
 
-Skip-over-nabo: tillatt for alle med flyt-tilgang, men UI krever bekreftelse (punkt 8 over). Server validerer ikke retning — det er en UX-konvensjon, ikke en sikkerhetsregel.
+Skip-over-nabo: tillatt for alle med flyt-tilgang. Server validerer ikke retning — det er en UX-konvensjon styrt av bekreftelses-modalen.
 
 #### Berører
 
-- `apps/mobile/src/components/DokumentHandlingsmeny.tsx` — full omskriving til boks-basert komponent
+- `apps/mobile/src/components/DokumentHandlingsmeny.tsx` — full omskriving til boks-basert komponent med statusvalg-popup
 - `apps/mobile/src/components/FlytIndikator.tsx` — sannsynligvis innlemmes i ny komponent (`byggLedd` blir delt helper)
 - `apps/api/src/routes/oppgave.ts` — ny `hentTilgjengeligeFlyter`-prosedyre + utvidet `endreStatus`-tilgangs-validering
 - `apps/api/src/routes/sjekkliste.ts` — speilet endring
-- `packages/shared/src/i18n/*` — nye nøkler: «Send hit», «Du hopper over», bekreftelses-tekst, popup-tittel, admin-meny-elementer
+- `packages/shared/src/utils/statusHandlinger.ts` — kilde for tilgjengelige statuser per boks. Mobil bør konsumere `hentRolleFiltrertHandlinger` (i dag dupliserer den logikken lokalt).
+- `packages/shared/src/i18n/*` — nye nøkler: bekreftelses-tekst, popup-tittel, flyt-bytte-tekst, admin-meny-elementer
 - Server-tilgangskontroll-helper for å sjekke flyt-medlemskap
 
 #### Estimat
 
-Server ~45 min, mobil-UI ~4 timer (oppgave, ny boks-komponent), sjekkliste ~30 min (gjenbruk). I18n auto-oversett. Totalt ~6 timer Opus-arbeid + EAS-bygg. Avhenger av at de tre åpne punktene over avklares før implementasjon starter.
+Server ~45 min, mobil-UI ~5 timer (oppgave, ny boks-komponent med statusvalg-popup), sjekkliste ~30 min (gjenbruk). I18n auto-oversett. Totalt ~7 timer Opus-arbeid + EAS-bygg.
 
 ### Datamodell og migrasjon
 
@@ -417,6 +423,18 @@ Aktiv Fase: 0 (firma-fundament) er i hovedsak ferdig — gjenstående §-E-steg 
 ### Etter Fase 1 + Fase 3
 
 - **Aktivitetsfeed på dashboard** — bruker eksisterende Activity-tabell, polling via tRPC, konfigurerbar periode (default 10 dager) + hendelsestyper + GDPR-retensjon i `OrganizationSetting`. Ekstern partner-feed-scope krever egen designrunde. Se [aktivitetsfeed.md](aktivitetsfeed.md).
+
+### Konfigurerbare statuser per flyt (lav prioritet)
+
+**Idé 2026-05-25.** Tillat at hver dokumentflyt (eller dokumenttype-mal) aktiverer kun et subset av tilgjengelige statuser. Konfigureres i mal-byggeren for sjekklister/oppgaver — en enkel flyt kan eks. ha kun `draft → sent → responded → approved`, mens en kompleks flyt har hele matrisen (`in_progress`, `rejected`, mellomtrinn osv.).
+
+**Konsekvens for send-modal-redesign:** Popup'en med tilgjengelige statuser per boks filtreres på flyt-konfigurasjon i tillegg til rolle-tilgang. Færre status-knapper å vise — enklere for brukeren.
+
+**Konfigurasjonssted:** Mal-bygger-UI ([MALBYGGER.md](../../MALBYGGER.md)). Eksisterende mal-konfigurasjon utvides med status-toggle-matrise. Mest sannsynlig per dokumenttype-mal, ikke per enkelt dokumentflyt.
+
+**Avhengighet:** Krever migrering — ny `ReportTemplate.tilgjengeligeStatuser: Json` (eller `OrganizationTemplate.tilgjengeligeStatuser` når Fase 2 mal-promotering lander). Default = alle statuser aktive (bakover-kompat).
+
+**Lav prioritet:** Vurder etter dokumentflyt send-modal-redesignen er deployet og i bruk. Sjelden at kunder spør om dette — eksisterende standard-flyt dekker de fleste tilfeller.
 
 ### Tverrgående
 
