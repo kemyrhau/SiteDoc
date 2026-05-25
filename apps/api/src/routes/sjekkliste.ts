@@ -10,6 +10,9 @@ import {
   verifiserDokumentTilgang,
   verifiserFlytRolle,
   hentBrukerTillatelser,
+  hentBrukerProsjektTilgang,
+  finnBrukersBoks,
+  kanByttFlyt,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { oversettFritekst } from "../services/oversettelse-service";
@@ -508,6 +511,114 @@ export const sjekklisteRouter = router({
     }),
 
   // Endre status (med overgangslogging)
+  /**
+   * Hent dokumentflyter brukeren kan flytte sjekklisten til.
+   * Speil av oppgave.hentTilgjengeligeFlyter — samme shape, samme regler.
+   */
+  hentTilgjengeligeFlyter: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const sjekkliste = await ctx.prisma.checklist.findUniqueOrThrow({
+        where: { id: input.id },
+        select: {
+          templateId: true,
+          dokumentflytId: true,
+          recipientUserId: true,
+          recipientGroupId: true,
+          bestillerFaggruppeId: true,
+          utforerFaggruppeId: true,
+          template: { select: { domain: true, projectId: true } },
+        },
+      });
+
+      const projectId = sjekkliste.template.projectId;
+
+      await verifiserDokumentTilgang(
+        ctx.userId,
+        projectId,
+        sjekkliste.bestillerFaggruppeId,
+        sjekkliste.utforerFaggruppeId,
+        sjekkliste.template.domain,
+        input.id,
+        "checklist",
+      );
+
+      const tilgang = await hentBrukerProsjektTilgang(ctx.userId, projectId);
+
+      const alleFlyter = await ctx.prisma.dokumentflyt.findMany({
+        where: {
+          projectId,
+          ...(sjekkliste.templateId
+            ? { maler: { some: { templateId: sjekkliste.templateId } } }
+            : {}),
+        },
+        select: {
+          id: true,
+          name: true,
+          faggruppe: { select: { id: true, name: true, color: true } },
+          medlemmer: {
+            select: {
+              steg: true,
+              rolle: true,
+              erHovedansvarlig: true,
+              projectMemberId: true,
+              groupId: true,
+              faggruppeId: true,
+              projectMember: {
+                select: { id: true, user: { select: { id: true, name: true } } },
+              },
+              group: { select: { id: true, name: true } },
+              faggruppe: { select: { id: true, name: true } },
+            },
+            orderBy: { steg: "asc" },
+          },
+        },
+        orderBy: { name: "asc" },
+      });
+
+      const gjeldendeFlyt =
+        alleFlyter.find((f) => f.id === sjekkliste.dokumentflytId) ?? null;
+
+      const andre = alleFlyter
+        .filter((f) => f.id !== sjekkliste.dokumentflytId)
+        .map((f) => ({ flyt: f, boks: finnBrukersBoks(f, tilgang) }))
+        .filter(
+          (x): x is { flyt: typeof x.flyt; boks: NonNullable<typeof x.boks> } =>
+            x.boks !== null,
+        )
+        .map((x) => ({
+          id: x.flyt.id,
+          name: x.flyt.name,
+          faggruppe: x.flyt.faggruppe,
+          brukersBoks: { steg: x.boks.steg, rolle: x.boks.rolle },
+          medlemKilde: x.boks.kilde,
+        }));
+
+      const kanFlytte = kanByttFlyt(
+        tilgang,
+        {
+          recipientUserId: sjekkliste.recipientUserId,
+          recipientGroupId: sjekkliste.recipientGroupId,
+        },
+        andre.length > 0,
+        ctx.userId,
+      );
+
+      return {
+        gjeldende: gjeldendeFlyt
+          ? {
+              id: gjeldendeFlyt.id,
+              name: gjeldendeFlyt.name,
+              faggruppe: gjeldendeFlyt.faggruppe,
+              medlemmer: gjeldendeFlyt.medlemmer,
+              brukersBoks: finnBrukersBoks(gjeldendeFlyt, tilgang),
+            }
+          : null,
+        andre: kanFlytte ? andre : [],
+        kanFlytte,
+      };
+    }),
+
   endreStatus: protectedProcedure
     .input(
       z.object({
@@ -620,10 +731,6 @@ export const sjekklisteRouter = router({
 
       // Videresending: bytt mottaker, evt. bytt dokumentflyt + faggruppe
       if (input.nyStatus === "forwarded") {
-        if (!input.recipientUserId && !input.recipientGroupId) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
-        }
-
         // Sjekk om dokumentflyt/faggruppe endres
         let flytBytteData: { dokumentflytId: string; utforerFaggruppeId: string; nyFaggruppeNavn: string; nyFlytNavn: string } | null = null;
         if (input.dokumentflytId && input.dokumentflytId !== sjekkliste.dokumentflytId) {
@@ -641,35 +748,85 @@ export const sjekklisteRouter = router({
             nyFlytNavn: nyFlyt.name,
           };
 
-          // Kryssfaggruppe-validering: kun prosjekteier/registrator/admin kan sende på tvers
-          const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
-          if (bruker?.role !== "sitedoc_admin") {
-            const medlem = await ctx.prisma.projectMember.findUnique({
-              where: { userId_projectId: { userId: ctx.userId, projectId } },
+          // Flyt-bytte-tilgang (BACKLOG: dokumentflyt send-modal redesign):
+          // admin/registrator/sitedoc-admin + "har ballen"-bruker som er medlem
+          // av mål-flyten (cross-flyt-medlem).
+          const tilgang = await hentBrukerProsjektTilgang(ctx.userId, projectId);
+          const malFlytTilhorighet = await ctx.prisma.dokumentflyt.findFirst({
+            where: {
+              id: input.dokumentflytId,
+              projectId,
+              medlemmer: {
+                some: {
+                  OR: [
+                    { projectMemberId: tilgang.projectMemberId },
+                    ...(tilgang.gruppeIder.size > 0
+                      ? [{ groupId: { in: [...tilgang.gruppeIder] } }]
+                      : []),
+                    ...(tilgang.faggruppeIder.size > 0
+                      ? [{ faggruppeId: { in: [...tilgang.faggruppeIder] } }]
+                      : []),
+                  ],
+                },
+              },
+            },
+            select: { id: true },
+          });
+          if (
+            !kanByttFlyt(
+              tilgang,
+              {
+                recipientUserId: sjekkliste.recipientUserId,
+                recipientGroupId: sjekkliste.recipientGroupId,
+              },
+              malFlytTilhorighet !== null,
+              ctx.userId,
+            )
+          ) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Du har ikke tilgang til å bytte flyt på dette dokumentet",
             });
-            if (medlem?.role !== "admin") {
-              const tillatelser = await hentBrukerTillatelser(ctx.userId, projectId);
-              const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
-              if (!erRegistrator) {
-                throw new TRPCError({
-                  code: "FORBIDDEN",
-                  message: "Kun prosjekteier eller registrator kan sende på tvers av faggrupper",
-                });
-              }
-            }
           }
+        }
+
+        // Auto-utled mottaker ved flyt-bytte fra erHovedansvarlig på utforer-
+        // rollen i mål-flyten. Klient sender ikke mottaker ved flyt-bytte —
+        // server styrer. Samme mønster som ved oppretting (sjekkliste.ts:200-209).
+        let effektivRecipientUserId: string | null = input.recipientUserId ?? null;
+        let effektivRecipientGroupId: string | null = input.recipientGroupId ?? null;
+        if (flytBytteData) {
+          const hovedansvarlig = await ctx.prisma.dokumentflytMedlem.findFirst({
+            where: {
+              dokumentflytId: flytBytteData.dokumentflytId,
+              rolle: "utforer",
+              erHovedansvarlig: true,
+            },
+            include: { projectMember: { select: { userId: true } } },
+          });
+          if (hovedansvarlig?.projectMember?.userId) {
+            effektivRecipientUserId = hovedansvarlig.projectMember.userId;
+            effektivRecipientGroupId = null;
+          } else if (hovedansvarlig?.groupId) {
+            effektivRecipientGroupId = hovedansvarlig.groupId;
+            effektivRecipientUserId = null;
+          }
+        }
+
+        if (!effektivRecipientUserId && !effektivRecipientGroupId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "Videresending krever en mottaker" });
         }
 
         const gammelFaggruppeNavn = sjekkliste.utforerFaggruppe?.name ?? "Ukjent";
 
-        const nyEier = await utledNyEier(input.recipientUserId, input.recipientGroupId);
+        const nyEier = await utledNyEier(effektivRecipientUserId, effektivRecipientGroupId);
 
         const resultat = await ctx.prisma.$transaction(async (tx) => {
           const oppdatert = await tx.checklist.update({
             where: { id: input.id },
             data: {
-              recipientUserId: input.recipientUserId ?? null,
-              recipientGroupId: input.recipientGroupId ?? null,
+              recipientUserId: effektivRecipientUserId,
+              recipientGroupId: effektivRecipientGroupId,
               ...(nyEier ? { eierUserId: nyEier } : {}),
               ...(flytBytteData ? {
                 dokumentflytId: flytBytteData.dokumentflytId,
@@ -689,8 +846,8 @@ export const sjekklisteRouter = router({
               fromStatus: sjekkliste.status,
               toStatus: sjekkliste.status,
               comment: kommentar,
-              recipientUserId: input.recipientUserId,
-              recipientGroupId: input.recipientGroupId,
+              recipientUserId: effektivRecipientUserId,
+              recipientGroupId: effektivRecipientGroupId,
               ...snapshot,
               ...(flytBytteData ? {
                 recipientEnterpriseName: flytBytteData.nyFaggruppeNavn,
@@ -700,7 +857,10 @@ export const sjekklisteRouter = router({
           });
           return oppdatert;
         });
-        void varsle(true);
+        void varsle(true, {
+          recipientUserId: effektivRecipientUserId,
+          recipientGroupId: effektivRecipientGroupId,
+        });
         return resultat;
       }
 

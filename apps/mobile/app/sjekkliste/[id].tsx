@@ -218,6 +218,10 @@ export default function SjekklisteUtfylling() {
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
+  const { data: tilgjengeligeFlyter } = trpc.sjekkliste.hentTilgjengeligeFlyter.useQuery(
+    { id: id! },
+    { enabled: !!id },
+  );
 
   const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
     { projectId: valgtProsjektId! },
@@ -917,15 +921,9 @@ export default function SjekklisteUtfylling() {
             });
           }}
           onSlett={["draft", "cancelled"].includes(sjekkliste.status) ? håndterSlett : undefined}
-          alleFaggrupper={(alleFaggrupper ?? []) as Array<{ id: string; name: string; color: string | null }>}
-          dokumentflyter={(dokumentflyterRå ?? []) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["dokumentflyter"]}
-          templateId={sjekkliste.template?.id}
-          standardFaggruppeId={sjekkliste.utforerFaggruppe?.id}
-          minRolle={minRolle}
-          flytMedlemmer={flytMedlemmer}
-          recipientUserId={(sjekklisteDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
-          recipientGroupId={(sjekklisteDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
-          bestillerUserId={(sjekklisteDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+          tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["tilgjengeligeFlyter"]}
+          minRolle={minRolle ?? null}
+          erFirmaAdmin={minFlytInfo?.erAdmin === true}
         />
 
         {erRedigerbar && (

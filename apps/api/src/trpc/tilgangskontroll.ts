@@ -875,3 +875,127 @@ export async function verifiserMaskinAnsvarligSkriveTilgang(
     message: "Kun firma-admin eller hovedansvarlig kan endre ansvarlige",
   });
 }
+
+// ---------------------------------------------------------------------------
+// Dokumentflyt-tilgang — flyt-bytte + brukers boks i flyt
+// Brukes av oppgave.hentTilgjengeligeFlyter, sjekkliste.hentTilgjengeligeFlyter,
+// og av begge endreStatus Lag 1-blokker (kryssfaggruppe/flyt-bytte).
+// ---------------------------------------------------------------------------
+
+export interface BrukersBoks {
+  steg: number;
+  rolle: string;
+  kilde: "projectMember" | "group" | "faggruppe";
+}
+
+/**
+ * Finn brukerens posisjon (steg + rolle) i en gitt dokumentflyt.
+ * Spesifisitets-hierarki: projectMember > group > faggruppe.
+ * Returnerer null hvis brukeren ikke er medlem av flyten.
+ */
+export function finnBrukersBoks(
+  flyt: {
+    medlemmer: Array<{
+      steg: number;
+      rolle: string;
+      projectMemberId: string | null;
+      groupId: string | null;
+      faggruppeId: string | null;
+    }>;
+  },
+  bruker: {
+    projectMemberId: string;
+    faggruppeIder: Set<string>;
+    gruppeIder: Set<string>;
+  },
+): BrukersBoks | null {
+  for (const m of flyt.medlemmer) {
+    if (m.projectMemberId === bruker.projectMemberId) {
+      return { steg: m.steg, rolle: m.rolle, kilde: "projectMember" };
+    }
+  }
+  for (const m of flyt.medlemmer) {
+    if (m.groupId && bruker.gruppeIder.has(m.groupId)) {
+      return { steg: m.steg, rolle: m.rolle, kilde: "group" };
+    }
+  }
+  for (const m of flyt.medlemmer) {
+    if (m.faggruppeId && bruker.faggruppeIder.has(m.faggruppeId)) {
+      return { steg: m.steg, rolle: m.rolle, kilde: "faggruppe" };
+    }
+  }
+  return null;
+}
+
+export interface BrukerProsjektTilgang {
+  erSitedocAdmin: boolean;
+  erProsjektAdmin: boolean;
+  erRegistrator: boolean;
+  projectMemberId: string;
+  faggruppeIder: Set<string>;
+  gruppeIder: Set<string>;
+}
+
+/**
+ * Aggregert tilgangs-info for én bruker i ett prosjekt. Henter user.role,
+ * ProjectMember + relasjoner, og permissions i ett kall. Kaster FORBIDDEN
+ * hvis brukeren ikke er medlem av prosjektet.
+ */
+export async function hentBrukerProsjektTilgang(
+  userId: string,
+  projectId: string,
+): Promise<BrukerProsjektTilgang> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    include: {
+      faggruppeKoblinger: { select: { faggruppeId: true } },
+      groupMemberships: { select: { groupId: true } },
+    },
+  });
+  if (!medlem) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem av prosjektet" });
+  }
+  const tillatelser = await hentBrukerTillatelser(userId, projectId);
+  return {
+    erSitedocAdmin: bruker?.role === "sitedoc_admin",
+    erProsjektAdmin: medlem.role === "admin",
+    erRegistrator: tillatelser.has("create_checklists") || tillatelser.has("create_tasks"),
+    projectMemberId: medlem.id,
+    faggruppeIder: new Set(medlem.faggruppeKoblinger.map((k) => k.faggruppeId)),
+    gruppeIder: new Set(medlem.groupMemberships.map((g) => g.groupId)),
+  };
+}
+
+/**
+ * Avgjør om brukeren kan bytte oppgave/sjekkliste til en annen dokumentflyt.
+ * Fire veier til ja:
+ *   1. Sitedoc-admin
+ *   2. Prosjektadmin (ProjectMember.role === "admin")
+ *   3. Registrator (create_checklists eller create_tasks)
+ *   4. Har ballen + cross-flyt-medlem (er recipient eller medlem av
+ *      recipientGroup, og er medlem av minst én annen flyt på samme
+ *      dokumenttype). BACKLOG: flyt-bytte lander på brukerens egen boks
+ *      i ny flyt, så cross-flyt-medlemskap er en forutsetning.
+ */
+export function kanByttFlyt(
+  tilgang: BrukerProsjektTilgang,
+  dokumentRecipient: {
+    recipientUserId: string | null;
+    recipientGroupId: string | null;
+  },
+  brukerHarAndreFlyter: boolean,
+  userId: string,
+): boolean {
+  if (tilgang.erSitedocAdmin) return true;
+  if (tilgang.erProsjektAdmin) return true;
+  if (tilgang.erRegistrator) return true;
+  const harBallen =
+    dokumentRecipient.recipientUserId === userId ||
+    (dokumentRecipient.recipientGroupId !== null &&
+      tilgang.gruppeIder.has(dokumentRecipient.recipientGroupId));
+  return harBallen && brukerHarAndreFlyter;
+}

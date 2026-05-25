@@ -10,15 +10,50 @@ sist_verifisert_mot_kode: 2026-05-08
 > (prod-merge `86fdb5a3`). Arkivert til [historikk-2026-05.md](historikk-2026-05.md).
 
 
-### Neste: EAS-bygg (mobil)
+### Dokumentflyt send-modal redesign — SERVER FERDIG på feature/dokumentflyt-send-modal 2026-05-25
 
-Alle relevante PRs er i prod på server-siden. Mobil-endringene er sovende på enhet til neste EAS-bygg når TestFlight/Play Store. Aktiveres samtidig:
-- T7-3a/b1/b2/d (per-rad prosjekt + geo-forslag + per-rad-attestering)
-- T4-d/e (fra/til-tid per rad + kalender-cache + forhåndsutfylling)
-- T.5 (tidsrunding i mobil-pickere)
-- T7-4a/e (prosjekt+ECO-bukets + EcoBucket-komponent + ECO-velger i MaskinSeksjon + sync-fix for maskin-ECO)
+**Status:** Server-Commit 1 ferdig på `feature/dokumentflyt-send-modal`. Mobil-Commit 2 (full omskriving av `DokumentHandlingsmeny.tsx`) gjenstår.
 
-Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store. On-device-verifikasjon før release-distribusjon.
+**Implementert på server:**
+1. **Delt helper i `tilgangskontroll.ts`** — `finnBrukersBoks`, `hentBrukerProsjektTilgang`, `kanByttFlyt`. 124 nye linjer. Spesifisitets-hierarki projectMember > group > faggruppe.
+2. **Ny prosedyre `oppgave.hentTilgjengeligeFlyter`** — returnerer `{ gjeldende, andre[], kanFlytte }` med medlemsdetaljer (erHovedansvarlig + projectMember.user + group + faggruppe) per medlem. Filtrert på `templateId` for samme dokumenttype.
+3. **Speilet i `sjekkliste.hentTilgjengeligeFlyter`** — identisk shape.
+4. **`endreStatus` Lag 1 utvidet** — admin/registrator/sitedoc-admin + «har ballen»-bruker som er medlem av mål-flyten. Erstatter tidligere snevrere kryssfaggruppe-blokk.
+5. **Auto-utled mottaker ved flyt-bytte** — server finner `erHovedansvarlig=true`-medlemmet på utforer-rollen i mål-flyten og setter `recipientUserId`/`recipientGroupId` deterministisk. Klient sender ikke mottaker ved flyt-bytte.
+
+**Verifikasjon:** `apps/api` typecheck 0 = 0 feil. Web 1 = 1 baseline (vitest), mobil 12 = 12 baseline — ingen nye feil i andre apper.
+
+**Gjenstående (Commit 2):** Mobil-UI per BACKLOG.md § Dokumentflyt send-modal redesign punkt 1-10 — full omskriving av `DokumentHandlingsmeny.tsx` til boks-basert komponent med statusvalg-popup. Avhenger av server-Commit 1 verifiseres på test først.
+
+### Mobil firma-velger + i18n — DEPLOYET TIL PROD 2026-05-24 (prod-merge `fa92528a`)
+
+Multi-firma sitedoc_admin får amber-banner + modal-velger på mobil. Server: ny `organisasjon.hentMineMedlemskap`. Klient: FirmaKontekst + 5 hentMine-callsites gated på valgtFirmaId. i18n: 7 nøkler × 13 språk. EAS iOS build #22 (`e8289e0a`) submittert til TestFlight (`6707d04b`); inkluderer hele mai-bunken som var sovende på enhet. Detaljer i [historikk-2026-05.md § Mobil firma-velger](historikk-2026-05.md).
+
+### Firma-bytte residual data — fix-bunke på develop 2026-05-25
+
+Gjennomgang av mobil-appen via TestFlight build #22 (sitedoc_admin) avdekket at byggeplass og prosjektID hang igjen i konteksten etter firma-bytte. Web hadde tilsvarende race-bug. To uavhengige fikser:
+
+1. **Web: `apps/web/src/kontekst/byggeplass-kontekst.tsx`** — ny useEffect med `valgtFirma?.id` som dependency clearer `aktivByggeplass` + `standardTegning` + `aktivTegning` umiddelbart ved firma-bytte. Hindrer at gammel byggeplass-etikett henger igjen i topbar mens ProsjektKontekst auto-resetter prosjektId. Develop-merge `83ba968e`, deployet til test 2026-05-25.
+
+2. **Mobil: `apps/mobile/src/kontekst/ProsjektKontekst.tsx`** — ny useEffect med `valgtFirmaId` som dependency nullstiller `valgtProsjektId` ved firma-bytte. Skip-first-render-mønster via `useRef` hindrer at persistert valg renses ved app-oppstart. Byggeplass-derivering nullstilles automatisk som cascade (mobil-byggeplass-kontekst er allerede `useMemo`-derived fra `valgtProsjektId`, så ingen separat byggeplass-fiks trengs på mobil). Develop-merge `f7322519`. Krever ny EAS-bygg for å nå TestFlight-brukere.
+
+**Sikkerhets-rammen:** UX-bug for sitedoc_admin (admin har bypass server-side i `harProsjektTilgang`). For vanlige brukere ville samme situasjon returnert FORBIDDEN — ingen data-lekkasje, men UX-en lyver og bryter mental modell.
+
+**Tilhørende backlog-tilføyelser samme dag:**
+- «Vis som bruker (impersonering)» — sitedoc_admin-funksjon for å se appen fra brukerens perspektiv (develop `a8f96700` 2026-05-24)
+- «Dokumentflyt send-modal redesign» — høy prioritet, grunnleggende UX (develop `eb9c9e7d` 2026-05-25). Se [BACKLOG.md § Dokumentflyt send-modal redesign](BACKLOG.md).
+
+### Neste: EAS-bygg (mobil) — etter TestFlight-verifikasjon av #22
+
+Build #22 (`e8289e0a`) leverer firma-velger + mai-bunken til TestFlight. Apple-prosessering pågår; venter på enhet-verifikasjon før Android-bygg + Play Store-distribusjon.
+
+Develop er 2 commits foran main:
+- `f7322519` mobil ProsjektKontekst auto-reset
+- `3ff2879c` STATUS-docs
+
+**Ikke prod-deployes alene** — mobil-fiksen krever ny EAS-bygg for å nå brukere, og en docs-only commit rettferdiggjør ikke egen prod-deploy. Vi batcher flere mobile-fikser på develop inntil ny EAS-bygg er aktuell.
+
+Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight.
 
 ### T7-4f + T7-5b + maskin-fra-til + B-fixes — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
 
