@@ -4,6 +4,43 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Mobil firma-velger + i18n — DEPLOYET TIL PROD 2026-05-24 (prod-merge `fa92528a`, develop merge `a85469f2`)
+
+Multi-firma sitedoc_admin (Kenneth) ser nå et amber-banner på mobil-forsiden («Velg firma — du er medlem av flere firmaer») når ingen firma er valgt. Trykk åpner modal-velger som speiler ProsjektVelger-mønsteret. Vanlig A.Markussen-ansatt (single-firma) får auto-velg ved første lasting og merker ingen UI-endring.
+
+Server-side: ny tRPC-prosedyre `organisasjon.hentMineMedlemskap` returnerer brukerens OrganizationMember-rader (sitedoc_admin får alle kunde-firmaer per webens `hentTilgjengelige`-mønster). Klient-side: `FirmaKontekst` med SecureStore-persistering + `useFirma()`-hook, firma-velger-UI i `mer.tsx`-seksjon + hjem.tsx-banner. Alle 5 mobil-`hentMine`-callsites gated på `valgtFirmaId`. `mer.tsx` og `timer/attestering/index.tsx` ble samtidig forenklet — 22 linjer netto kode-reduksjon fra fjernet «plukk-orgId-fra-første-prosjekt»-logikk (tidligere ikke-deterministisk for multi-firma-brukere).
+
+i18n: 7 nye nøkler × 13 språk auto-oversatt. Manuell QA avdekket at engelsk «Switch» ble feiloversatt som NOUN (elektrisk bryter) i 9/13 språk; løst ved å bytte engelsk kilde til «Change» + manuell rens av 3 gjenstående (pl/cs/uk).
+
+EAS iOS production build #22 (`e8289e0a`) submittert til TestFlight (`6707d04b`) 2026-05-24. Bygget inkluderer også hele mai-bunken (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e) som var sovende på enhet til denne runden. Apple-prosessering pågår; verifisering på enhet kommer. Android-bygg ikke kjørt ennå.
+
+Sub-commits på `feature/mobil-firma-velger`:
+1. `99e0b136` — feat(api): `organisasjon.hentMineMedlemskap`
+2. `3d0c8c90` — feat(mobile): FirmaKontekst + `useFirma()`-hook
+3. `7e82b075` — feat(mobile): firma-velger-UI
+4. `f18dda7e` — feat(mobile): hentMine-callsites gated på `valgtFirmaId`
+5. `585acc33` — i18n: 13 språk auto-oversatt + 3 manuelle rettelser
+
+---
+
+## Firma-bytte residual data — DEPLOYET TIL TEST 2026-05-25 (develop merge `83ba968e` web + `f7322519` mobil)
+
+Gjennomgang av mobil-appen via TestFlight build #22 (sitedoc_admin) avdekket at byggeplass og prosjektID hang igjen i konteksten etter firma-bytte. Web hadde tilsvarende race-bug. To uavhengige fikser:
+
+1. **Web: `apps/web/src/kontekst/byggeplass-kontekst.tsx`** (impl `1da69d23`, develop-merge `83ba968e`) — ny useEffect med `valgtFirma?.id` som dependency clearer `aktivByggeplass` + `standardTegning` + `aktivTegning` umiddelbart ved firma-bytte. Hindrer at gammel byggeplass-etikett henger igjen i topbar mens ProsjektKontekst auto-resetter prosjektId. Deployet til test 2026-05-25.
+
+2. **Mobil: `apps/mobile/src/kontekst/ProsjektKontekst.tsx`** (impl `2654b691`, develop-merge `f7322519`) — ny useEffect med `valgtFirmaId` som dependency nullstiller `valgtProsjektId` ved firma-bytte. Skip-first-render-mønster via `useRef` hindrer at persistert valg renses ved app-oppstart. Byggeplass-derivering nullstilles automatisk som cascade. Krever ny EAS-bygg for å nå TestFlight-brukere.
+
+**Sikkerhets-rammen:** UX-bug for sitedoc_admin (admin har bypass server-side i `harProsjektTilgang`). For vanlige brukere ville samme situasjon returnert FORBIDDEN — ingen data-lekkasje.
+
+**Tilhørende backlog-tilføyelser samme dag:**
+- «Vis som bruker (impersonering)» (develop `a8f96700`)
+- «Dokumentflyt send-modal redesign» — høy prioritet (develop `eb9c9e7d`)
+
+Venter på prod-deploy sammen med neste batch av mobil-fikser + ny EAS-bygg.
+
+---
+
 ## opprettTestprosjekt firma påkrevd — DEPLOYET TIL PROD 2026-05-23 (prod-merge `49171634`, develop merge `ed8fe6fa`, impl `c377f9bb`)
 
 Siste konsistens-rest fra firma-påkrevd-bunken 2026-05-20: `opprettTestprosjekt` var den eneste prosjekt-opprettelse-mutasjonen som fortsatt hadde `organizationId.optional()`. Sitedoc_admin uten OrganizationMember-rad kunne trigge orphan-prosjekt ved «Opprett malprosjekt»-knappen eller «Start gratis prøveperiode» — nøyaktig samme vei som ga de 5 slettede orphans 2026-05-20.

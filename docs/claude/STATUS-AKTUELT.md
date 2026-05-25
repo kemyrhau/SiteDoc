@@ -12,20 +12,7 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ### Mobil firma-velger + i18n — DEPLOYET TIL PROD 2026-05-24 (prod-merge `fa92528a`)
 
-Multi-firma sitedoc_admin (Kenneth) ser nå et amber-banner på mobil-forsiden («Velg firma — du er medlem av flere firmaer») når ingen firma er valgt. Trykk åpner modal-velger som speiler ProsjektVelger-mønsteret. Vanlig A.Markussen-ansatt (single-firma) får auto-velg ved første lasting og merker ingen UI-endring.
-
-Server-side: ny tRPC-prosedyre `organisasjon.hentMineMedlemskap` returnerer brukerens OrganizationMember-rader (sitedoc_admin får alle kunde-firmaer per webens `hentTilgjengelige`-mønster). Klient-side: `FirmaKontekst` med SecureStore-persistering + `useFirma()`-hook, firma-velger-UI i `mer.tsx`-seksjon + hjem.tsx-banner. Alle 5 mobil-`hentMine`-callsites gated på `valgtFirmaId`. `mer.tsx` og `timer/attestering/index.tsx` ble samtidig forenklet — 22 linjer netto kode-reduksjon fra fjernet «plukk-orgId-fra-første-prosjekt»-logikk (tidligere ikke-deterministisk for multi-firma-brukere).
-
-i18n: 7 nye nøkler × 13 språk auto-oversatt. Manuell QA avdekket at engelsk «Switch» ble feiloversatt som NOUN (elektrisk bryter) i 9/13 språk; løst ved å bytte engelsk kilde til «Change» + manuell rens av 3 gjenstående (pl/cs/uk).
-
-EAS iOS production build #22 (`e8289e0a`) submittert til TestFlight (`6707d04b`) 2026-05-24. Bygget inkluderer også hele mai-bunken (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e) som var sovende på enhet til denne runden. Apple-prosessering pågår; verifisering på enhet kommer. Android-bygg ikke kjørt ennå.
-
-Sub-commits på `feature/mobil-firma-velger` (merget til develop `a85469f2`, deretter til main `fa92528a`):
-1. `99e0b136` — feat(api): `organisasjon.hentMineMedlemskap`
-2. `3d0c8c90` — feat(mobile): FirmaKontekst + `useFirma()`-hook
-3. `7e82b075` — feat(mobile): firma-velger-UI (modal + mer.tsx + hjem.tsx-banner)
-4. `f18dda7e` — feat(mobile): hentMine-callsites gated på `valgtFirmaId`
-5. `585acc33` — i18n: 13 språk auto-oversatt + 3 manuelle rettelser
+Multi-firma sitedoc_admin får amber-banner + modal-velger på mobil. Server: ny `organisasjon.hentMineMedlemskap`. Klient: FirmaKontekst + 5 hentMine-callsites gated på valgtFirmaId. i18n: 7 nøkler × 13 språk. EAS iOS build #22 (`e8289e0a`) submittert til TestFlight (`6707d04b`); inkluderer hele mai-bunken som var sovende på enhet. Detaljer i [historikk-2026-05.md § Mobil firma-velger](historikk-2026-05.md).
 
 ### Firma-bytte residual data — fix-bunke på develop 2026-05-25
 
@@ -43,13 +30,15 @@ Gjennomgang av mobil-appen via TestFlight build #22 (sitedoc_admin) avdekket at 
 
 ### Neste: EAS-bygg (mobil) — etter TestFlight-verifikasjon av #22
 
-Build #22 (`e8289e0a`) leverer firma-velger + hele mai-bunken til TestFlight. Apple-prosessering pågår; venter på enhet-verifikasjon før Android-bygg + Play Store-distribusjon.
+Build #22 (`e8289e0a`) leverer firma-velger + mai-bunken til TestFlight. Apple-prosessering pågår; venter på enhet-verifikasjon før Android-bygg + Play Store-distribusjon.
 
-Etter verifikasjon vil neste bygg inkludere:
-- Mobil ProsjektKontekst auto-reset ved firma-bytte (`f7322519`)
-- (Eventuelle flere mobil-fikser før EAS-rebuild — batches på `develop` inntil dekret)
+Develop er 2 commits foran main:
+- `f7322519` mobil ProsjektKontekst auto-reset
+- `3ff2879c` STATUS-docs
 
-Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight. Tilsvarende for Android → Play Store.
+**Ikke prod-deployes alene** — mobil-fiksen krever ny EAS-bygg for å nå brukere, og en docs-only commit rettferdiggjør ikke egen prod-deploy. Vi batcher flere mobile-fikser på develop inntil ny EAS-bygg er aktuell.
+
+Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight.
 
 ### T7-4f + T7-5b + maskin-fra-til + B-fixes — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
 
