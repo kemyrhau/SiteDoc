@@ -22,6 +22,7 @@ export const malRouter = router({
         where: { projectId: input.projectId },
         include: {
           _count: { select: { objects: true, checklists: true } },
+          dokumentflytMaler: { select: { dokumentflytId: true } },
         },
         orderBy: { updatedAt: "desc" },
       });
@@ -36,6 +37,7 @@ export const malRouter = router({
         include: {
           objects: { orderBy: { sortOrder: "asc" } },
           project: true,
+          dokumentflytMaler: { select: { dokumentflytId: true } },
         },
       });
       await verifiserProsjektmedlem(ctx.userId, mal.projectId);
@@ -47,12 +49,24 @@ export const malRouter = router({
     .input(createTemplateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      const { workflowIds: _workflowIds, ...malData } = input;
+      const { workflowIds, ...malData } = input;
 
-      return ctx.prisma.reportTemplate.create({ data: malData });
+      return ctx.prisma.$transaction(async (tx) => {
+        const mal = await tx.reportTemplate.create({ data: malData });
+        if (workflowIds.length > 0) {
+          await tx.dokumentflytMal.createMany({
+            data: workflowIds.map((dokumentflytId) => ({
+              dokumentflytId,
+              templateId: mal.id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+        return mal;
+      });
     }),
 
-  // Oppdater mal (navn, beskrivelse, prefiks, fagområde)
+  // Oppdater mal (navn, beskrivelse, prefiks, fagområde, dokumentflyt-koblinger)
   oppdaterMal: protectedProcedure
     .input(
       z.object({
@@ -67,13 +81,30 @@ export const malRouter = router({
         showLocation: z.boolean().optional(),
         showPriority: z.boolean().optional(),
         enableChangeLog: z.boolean().optional(),
+        workflowIds: z.array(z.string().uuid()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const { id, ...data } = input;
+      const { id, workflowIds, ...data } = input;
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, mal.projectId);
-      return ctx.prisma.reportTemplate.update({ where: { id }, data });
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const oppdatert = await tx.reportTemplate.update({ where: { id }, data });
+        if (workflowIds !== undefined) {
+          await tx.dokumentflytMal.deleteMany({ where: { templateId: id } });
+          if (workflowIds.length > 0) {
+            await tx.dokumentflytMal.createMany({
+              data: workflowIds.map((dokumentflytId) => ({
+                dokumentflytId,
+                templateId: id,
+              })),
+              skipDuplicates: true,
+            });
+          }
+        }
+        return oppdatert;
+      });
     }),
 
   // Slett mal

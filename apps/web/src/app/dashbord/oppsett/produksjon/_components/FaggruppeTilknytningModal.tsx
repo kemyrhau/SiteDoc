@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { ChevronDown, ChevronRight, Workflow as WorkflowIcon } from "lucide-react";
@@ -23,6 +24,7 @@ export function FaggruppeTilknytningModal({
   valgteWorkflowIds,
   onBekreft,
 }: FaggruppeTilknytningModalProps) {
+  const { t } = useTranslation();
   const [lokaleValg, setLokaleValg] = useState<Set<string>>(new Set());
 
   // Synkroniser fra props ved åpning
@@ -75,10 +77,7 @@ export function FaggruppeTilknytningModal({
     });
   }
 
-  const tittel =
-    kategori === "sjekkliste"
-      ? "Sjekkliste for faggruppetilknytning"
-      : "Oppgave for faggruppetilknytning";
+  const tittel = t("maler.velgDokumentflyt");
 
   return (
     <Modal open={open} onClose={onClose} title={tittel} className="z-[60]">
@@ -88,12 +87,12 @@ export function FaggruppeTilknytningModal({
         </div>
       ) : !faggrupper || faggrupper.length === 0 ? (
         <div className="py-8 text-center text-sm text-gray-500">
-          Ingen faggrupper i prosjektet
+          {t("maler.ingenFaggrupperIProsjekt")}
         </div>
       ) : (
         <div className="flex flex-col gap-2">
           <p className="mb-2 text-sm text-gray-500">
-            Velg hvilke arbeidsforløp denne malen skal tilknyttes.
+            {t("maler.velgDokumentflytBeskrivelse", { kategori: kategori === "sjekkliste" ? t("maler.sjekkliste") : t("maler.oppgave") })}
           </p>
 
           <div className="max-h-[400px] overflow-y-auto space-y-1">
@@ -114,9 +113,9 @@ export function FaggruppeTilknytningModal({
 
           <div className="flex gap-3 pt-4">
             <Button variant="secondary" onClick={onClose}>
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
-            <Button onClick={() => onBekreft(lokaleValg)}>OK</Button>
+            <Button onClick={() => onBekreft(lokaleValg)}>{t("handling.ok")}</Button>
           </div>
         </div>
       )}
