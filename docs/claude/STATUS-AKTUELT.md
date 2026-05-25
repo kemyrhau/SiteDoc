@@ -10,50 +10,27 @@ sist_verifisert_mot_kode: 2026-05-08
 > (prod-merge `86fdb5a3`). Arkivert til [historikk-2026-05.md](historikk-2026-05.md).
 
 
-### Dokumentflyt send-modal redesign — SERVER FERDIG på feature/dokumentflyt-send-modal 2026-05-25
+### Dokumentflyt send-modal redesign — DEPLOYET TIL PROD 2026-05-25 (prod-merge `4968a23c`)
 
-**Status:** Server-Commit 1 ferdig på `feature/dokumentflyt-send-modal`. Mobil-Commit 2 (full omskriving av `DokumentHandlingsmeny.tsx`) gjenstår.
-
-**Implementert på server:**
-1. **Delt helper i `tilgangskontroll.ts`** — `finnBrukersBoks`, `hentBrukerProsjektTilgang`, `kanByttFlyt`. 124 nye linjer. Spesifisitets-hierarki projectMember > group > faggruppe.
-2. **Ny prosedyre `oppgave.hentTilgjengeligeFlyter`** — returnerer `{ gjeldende, andre[], kanFlytte }` med medlemsdetaljer (erHovedansvarlig + projectMember.user + group + faggruppe) per medlem. Filtrert på `templateId` for samme dokumenttype.
-3. **Speilet i `sjekkliste.hentTilgjengeligeFlyter`** — identisk shape.
-4. **`endreStatus` Lag 1 utvidet** — admin/registrator/sitedoc-admin + «har ballen»-bruker som er medlem av mål-flyten. Erstatter tidligere snevrere kryssfaggruppe-blokk.
-5. **Auto-utled mottaker ved flyt-bytte** — server finner `erHovedansvarlig=true`-medlemmet på utforer-rollen i mål-flyten og setter `recipientUserId`/`recipientGroupId` deterministisk. Klient sender ikke mottaker ved flyt-bytte.
-
-**Verifikasjon:** `apps/api` typecheck 0 = 0 feil. Web 1 = 1 baseline (vitest), mobil 12 = 12 baseline — ingen nye feil i andre apper.
-
-**Gjenstående (Commit 2):** Mobil-UI per BACKLOG.md § Dokumentflyt send-modal redesign punkt 1-10 — full omskriving av `DokumentHandlingsmeny.tsx` til boks-basert komponent med statusvalg-popup. Avhenger av server-Commit 1 verifiseres på test først.
+Boks-basert handlingsmeny på mobil-detaljside. Server-Commit 1 (`hentTilgjengeligeFlyter` + utvidet flyt-bytte-tilgang + auto-mottaker) + Mobil-Commit 2 (full omskriving av `DokumentHandlingsmeny.tsx`) + i18n 15 språk. EAS iOS build #23 (`a5e6e2ea`) submittert til TestFlight (`898599df`). Fire kjente avvik fra spec dokumentert for enhet-testing. Detaljer i [historikk-2026-05.md § Dokumentflyt send-modal redesign](historikk-2026-05.md).
 
 ### Mobil firma-velger + i18n — DEPLOYET TIL PROD 2026-05-24 (prod-merge `fa92528a`)
 
 Multi-firma sitedoc_admin får amber-banner + modal-velger på mobil. Server: ny `organisasjon.hentMineMedlemskap`. Klient: FirmaKontekst + 5 hentMine-callsites gated på valgtFirmaId. i18n: 7 nøkler × 13 språk. EAS iOS build #22 (`e8289e0a`) submittert til TestFlight (`6707d04b`); inkluderer hele mai-bunken som var sovende på enhet. Detaljer i [historikk-2026-05.md § Mobil firma-velger](historikk-2026-05.md).
 
-### Firma-bytte residual data — fix-bunke på develop 2026-05-25
+### Neste: TestFlight-verifisering av build #23
 
-Gjennomgang av mobil-appen via TestFlight build #22 (sitedoc_admin) avdekket at byggeplass og prosjektID hang igjen i konteksten etter firma-bytte. Web hadde tilsvarende race-bug. To uavhengige fikser:
+Build #23 (`a5e6e2ea-b570-45d0-a710-1dca7b678f35`) submittert til TestFlight via submission `898599df-aa55-4689-9f2a-cd21b4d26861` 2026-05-25. Apple-prosessering pågår. Venter på enhet-verifikasjon før Android-bygg + Play Store.
 
-1. **Web: `apps/web/src/kontekst/byggeplass-kontekst.tsx`** — ny useEffect med `valgtFirma?.id` som dependency clearer `aktivByggeplass` + `standardTegning` + `aktivTegning` umiddelbart ved firma-bytte. Hindrer at gammel byggeplass-etikett henger igjen i topbar mens ProsjektKontekst auto-resetter prosjektId. Develop-merge `83ba968e`, deployet til test 2026-05-25.
+**Bygget leverer:**
+- Boks-basert `DokumentHandlingsmeny` (send-modal redesign, Commit 2)
+- ProsjektKontekst auto-reset ved firma-bytte
+- Hele mai-bunken som tidligere var sovende på enhet (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e, firma-velger)
 
-2. **Mobil: `apps/mobile/src/kontekst/ProsjektKontekst.tsx`** — ny useEffect med `valgtFirmaId` som dependency nullstiller `valgtProsjektId` ved firma-bytte. Skip-first-render-mønster via `useRef` hindrer at persistert valg renses ved app-oppstart. Byggeplass-derivering nullstilles automatisk som cascade (mobil-byggeplass-kontekst er allerede `useMemo`-derived fra `valgtProsjektId`, så ingen separat byggeplass-fiks trengs på mobil). Develop-merge `f7322519`. Krever ny EAS-bygg for å nå TestFlight-brukere.
-
-**Sikkerhets-rammen:** UX-bug for sitedoc_admin (admin har bypass server-side i `harProsjektTilgang`). For vanlige brukere ville samme situasjon returnert FORBIDDEN — ingen data-lekkasje, men UX-en lyver og bryter mental modell.
-
-**Tilhørende backlog-tilføyelser samme dag:**
-- «Vis som bruker (impersonering)» — sitedoc_admin-funksjon for å se appen fra brukerens perspektiv (develop `a8f96700` 2026-05-24)
-- «Dokumentflyt send-modal redesign» — høy prioritet, grunnleggende UX (develop `eb9c9e7d` 2026-05-25). Se [BACKLOG.md § Dokumentflyt send-modal redesign](BACKLOG.md).
-
-### Neste: EAS-bygg (mobil) — etter TestFlight-verifikasjon av #22
-
-Build #22 (`e8289e0a`) leverer firma-velger + mai-bunken til TestFlight. Apple-prosessering pågår; venter på enhet-verifikasjon før Android-bygg + Play Store-distribusjon.
-
-Develop er 2 commits foran main:
-- `f7322519` mobil ProsjektKontekst auto-reset
-- `3ff2879c` STATUS-docs
-
-**Ikke prod-deployes alene** — mobil-fiksen krever ny EAS-bygg for å nå brukere, og en docs-only commit rettferdiggjør ikke egen prod-deploy. Vi batcher flere mobile-fikser på develop inntil ny EAS-bygg er aktuell.
-
-Trinn: `eas build --platform ios --profile production` + `eas submit --platform ios --latest` → TestFlight.
+**Fokusområder for enhet-testing:**
+- Verifiser fire kjente avvik fra spec dokumentert i [historikk-2026-05.md § Dokumentflyt send-modal redesign](historikk-2026-05.md): statusvalg-popup-mapping, auto-mottaker-landing, `erFirmaAdmin`-rolle-sjekk, approved/closed-tilstand
+- Bekreft firma-bytte clearer byggeplass + prosjektId korrekt
+- Generell regresjonssjekk på timer-flyt etter ny mobil-bunke
 
 ### T7-4f + T7-5b + maskin-fra-til + B-fixes — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
 

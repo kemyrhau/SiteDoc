@@ -23,21 +23,47 @@ Sub-commits på `feature/mobil-firma-velger`:
 
 ---
 
-## Firma-bytte residual data — DEPLOYET TIL TEST 2026-05-25 (develop merge `83ba968e` web + `f7322519` mobil)
+## Dokumentflyt send-modal redesign — DEPLOYET TIL PROD 2026-05-25 (prod-merge `4968a23c`)
+
+Boks-basert handlingsmeny på mobil-detaljside erstatter forrige ActionSheet-baserte modell. Spec låst i BACKLOG.md § Dokumentflyt send-modal redesign 2026-05-25 (punkt 1-10). Server-Commit 1 + Mobil-Commit 2 + i18n (15 språk) merget til main og deployet i én bunke.
+
+**Server-side (Commit 1, develop `584148b2` → main `4968a23c`):**
+- Delt helper i `apps/api/src/trpc/tilgangskontroll.ts`: `finnBrukersBoks`, `hentBrukerProsjektTilgang`, `kanByttFlyt` (124 nye linjer). Spesifisitets-hierarki projectMember > group > faggruppe.
+- Ny `oppgave.hentTilgjengeligeFlyter` + speil i `sjekkliste.hentTilgjengeligeFlyter`: returnerer `{ gjeldende, andre[], kanFlytte }` med fulle medlemsdetaljer (`erHovedansvarlig`, `projectMember.user`, `group`, `faggruppe`) for popup-rendring. Filtrert på `templateId` for samme dokumenttype.
+- `endreStatus` Lag 1-utvidelse i begge ruter: ny regel `admin/registrator/sitedoc-admin + har-ballen + cross-flyt-medlem`. Erstatter tidligere snevrere kryssfaggruppe-blokk.
+- `endreStatus` auto-utleder mottaker ved flyt-bytte fra `erHovedansvarlig=true`-medlem på utforer-rollen i mål-flyten. Klient sender ikke mottaker ved flyt-bytte; server styrer deterministisk.
+
+**Mobil-side (Commit 2, develop `91bc235f`):**
+- Ny utility `apps/mobile/src/utils/dokumentflyt-ledd.ts` (`byggLedd`, `Ledd`, `FlytMedlem`). Brukes av både FlytIndikator (topbar, kompakt) og ny `DokumentHandlingsmeny`.
+- `FlytIndikator.tsx` refaktorert til å importere fra delt helper — ingen funksjonell endring i topbar-visning.
+- `DokumentHandlingsmeny.tsx` full omskriving: fargede flyt-bokser alltid synlig i bunn, trykk åpner popup med medlemsliste + tilgjengelige statushandlinger. Stjerne på `erHovedansvarlig`. Egen `⋯`-meny for admin-handlinger (Lukk, Gjenåpne, Trekk tilbake). Flyt-bytte-dropdown synlig kun for cross-flyt-medlemmer med bekreftelses-modal. Custom RN Modal på iOS og Android (ingen `ActionSheetIOS`/`Alert`). ≤4 bokser én rad, ≥5 to rader.
+- Callsites (`oppgave/[id].tsx` + `sjekkliste/[id].tsx`) bytter til `hentTilgjengeligeFlyter`-query. Tidligere props (`alleFaggrupper`, `dokumentflyter`, `flytMedlemmer`, recipient-felter, etc.) erstattet med `tilgjengeligeFlyter` + `minRolle` + `erFirmaAdmin`.
+
+**i18n (develop `495d3a37`):** 7 nye nøkler × 15 språk (1 master + 14 auto-oversatt). 2 342 nøkler totalt.
+
+**EAS iOS production build #23 (`a5e6e2ea`)** bygget mot prod-API, submittert til TestFlight via submission `898599df-aa55-4689-9f2a-cd21b4d26861`. Bygget leverer også de sovende mobil-endringene fra forrige runde (ProsjektKontekst auto-reset ved firma-bytte, `f7322519`).
+
+**Kjente avvik fra spec — observasjoner for enhet-testing, ikke planlagte oppgaver:**
+1. **Statusvalg-popup viser samme statuser uansett boks-retning.** Implementasjonen bruker `hentRolleFiltrertHandlinger(status, rolle)` for alle bokser uten å skille på nabo (steg+1), forrige (steg-1), egen eller skip-over. Spec punkt 2 hadde eksempler som «Nabo-boks fra received: [Send hit]», «Nabo-boks fra in_progress: [Send videre] + [Send tilbake]» som antyder retnings-spesifikk filtrering — det ble ikke gjort fordi `isValidStatusTransition` ikke entydig støtter retnings-mapping (eks. `received → sent` er ikke en gyldig overgang). Vurder finjustering etter test på enhet.
+2. **Auto-mottaker lander på hovedansvarlig utfører, ikke nødvendigvis brukerens egen boks.** Spec punkt 7 sa «oppgaven lander hos brukerens egen boks i den nye flyten». Server velger i stedet `erHovedansvarlig=true` på utforer-rollen via etablert mønster fra opprettelses-flyten. Hvis brukeren er godkjenner i mål-flyt og hovedansvarlig utforer er en annen person, lander oppgaven hos den hovedansvarlige utføreren — ikke hos brukeren. Funksjonelt OK siden mottakeren er den som forventes å starte arbeidet, men avviker fra spec-formuleringen.
+3. **`erFirmaAdmin`-prop bruker prosjekt-admin i stedet for firma-admin.** Mobil-callsite passerer `minFlytInfo?.erAdmin === true` som `erFirmaAdmin`-prop. `minFlytInfo.erAdmin` er ProjectMember.role === "admin" (prosjekt-admin), ikke User.role === "company_admin" eller OrganizationMember.firmaRoller.includes("firma_admin"). Reell firma-admin-sjekk gjøres ikke. Admin-meny vises riktig for prosjektadmin, men firma-admin uten ProjectMember-rad får ikke `⋯`-meny. Rydding-kandidat.
+4. **`approved`/`closed`-grå-toning ikke implementert.** Spec'ens «fortsatt åpent»-punkt foreslo grå-toning + trykkbart i approved/closed for «videresend som referanse». Komponenten returnerer i stedet `null` når flyt-data mangler og status ≠ draft — dvs. ingen UI i terminal-tilstand. Bekreftes eller endres i senere iterasjon.
+
+---
+
+## Firma-bytte residual data — DEPLOYET TIL PROD 2026-05-25 (prod-merge `4968a23c`, develop-merger `83ba968e` web + `f7322519` mobil)
 
 Gjennomgang av mobil-appen via TestFlight build #22 (sitedoc_admin) avdekket at byggeplass og prosjektID hang igjen i konteksten etter firma-bytte. Web hadde tilsvarende race-bug. To uavhengige fikser:
 
-1. **Web: `apps/web/src/kontekst/byggeplass-kontekst.tsx`** (impl `1da69d23`, develop-merge `83ba968e`) — ny useEffect med `valgtFirma?.id` som dependency clearer `aktivByggeplass` + `standardTegning` + `aktivTegning` umiddelbart ved firma-bytte. Hindrer at gammel byggeplass-etikett henger igjen i topbar mens ProsjektKontekst auto-resetter prosjektId. Deployet til test 2026-05-25.
+1. **Web: `apps/web/src/kontekst/byggeplass-kontekst.tsx`** (impl `1da69d23`, develop-merge `83ba968e`) — ny useEffect med `valgtFirma?.id` som dependency clearer `aktivByggeplass` + `standardTegning` + `aktivTegning` umiddelbart ved firma-bytte. Hindrer at gammel byggeplass-etikett henger igjen i topbar mens ProsjektKontekst auto-resetter prosjektId.
 
-2. **Mobil: `apps/mobile/src/kontekst/ProsjektKontekst.tsx`** (impl `2654b691`, develop-merge `f7322519`) — ny useEffect med `valgtFirmaId` som dependency nullstiller `valgtProsjektId` ved firma-bytte. Skip-first-render-mønster via `useRef` hindrer at persistert valg renses ved app-oppstart. Byggeplass-derivering nullstilles automatisk som cascade. Krever ny EAS-bygg for å nå TestFlight-brukere.
+2. **Mobil: `apps/mobile/src/kontekst/ProsjektKontekst.tsx`** (impl `2654b691`, develop-merge `f7322519`) — ny useEffect med `valgtFirmaId` som dependency nullstiller `valgtProsjektId` ved firma-bytte. Skip-first-render-mønster via `useRef` hindrer at persistert valg renses ved app-oppstart. Byggeplass-derivering nullstilles automatisk som cascade. Levert til TestFlight i EAS build #23 (`a5e6e2ea`) submittert som `898599df` samtidig med send-modal-redesign-bunken.
 
 **Sikkerhets-rammen:** UX-bug for sitedoc_admin (admin har bypass server-side i `harProsjektTilgang`). For vanlige brukere ville samme situasjon returnert FORBIDDEN — ingen data-lekkasje.
 
 **Tilhørende backlog-tilføyelser samme dag:**
 - «Vis som bruker (impersonering)» (develop `a8f96700`)
-- «Dokumentflyt send-modal redesign» — høy prioritet (develop `eb9c9e7d`)
-
-Venter på prod-deploy sammen med neste batch av mobil-fikser + ny EAS-bygg.
+- «Dokumentflyt send-modal redesign» — høy prioritet, deployet samme dag (se entry over)
 
 ---
 
