@@ -14,6 +14,10 @@ sist_verifisert_mot_kode: 2026-05-08
 
 Boks-basert handlingsmeny på mobil-detaljside. Server-Commit 1 (`hentTilgjengeligeFlyter` + utvidet flyt-bytte-tilgang + auto-mottaker) + Mobil-Commit 2 (full omskriving av `DokumentHandlingsmeny.tsx`) + i18n 15 språk. EAS iOS build #23 (`a5e6e2ea`) submittert til TestFlight (`898599df`). Fire kjente avvik fra spec dokumentert for enhet-testing. Detaljer i [historikk-2026-05.md § Dokumentflyt send-modal redesign](historikk-2026-05.md).
 
+### Mal→dokumentflyt-kobling bugfix + UI-terminologi — DEPLOYET TIL PROD 2026-05-25 (prod-merge `ed7675a5`)
+
+Bugfiks: `mal.opprett` ignorerte `workflowIds`-input — UI-valget av flyter ved mal-opprettelse var kosmetisk, ingen koblinger ble lagret. Nå opprettes `DokumentflytMal`-rader i transaksjon. `mal.oppdaterMal` aksepterer også `workflowIds` (replace-on-update). UI-terminologi rettet: «Faggruppe» → «Dokumentflyt», amber-advarsel ved tomt valg, rediger-modal med pre-utfylling. 9 nye i18n-nøkler × 15 språk. Prod-DB-funn: 4 av 11 maler manglet flyt-kobling pga. den eksisterende bugen — beholdes urørt, brukerne kan redigere via ny rediger-modal. Detaljer i [historikk-2026-05.md § Mal→dokumentflyt-kobling bugfix](historikk-2026-05.md).
+
 ### Mobil firma-velger + i18n — DEPLOYET TIL PROD 2026-05-24 (prod-merge `fa92528a`)
 
 Multi-firma sitedoc_admin får amber-banner + modal-velger på mobil. Server: ny `organisasjon.hentMineMedlemskap`. Klient: FirmaKontekst + 5 hentMine-callsites gated på valgtFirmaId. i18n: 7 nøkler × 13 språk. EAS iOS build #22 (`e8289e0a`) submittert til TestFlight (`6707d04b`); inkluderer hele mai-bunken som var sovende på enhet. Detaljer i [historikk-2026-05.md § Mobil firma-velger](historikk-2026-05.md).
@@ -31,6 +35,14 @@ Build #23 (`a5e6e2ea-b570-45d0-a710-1dca7b678f35`) submittert til TestFlight via
 - Verifiser fire kjente avvik fra spec dokumentert i [historikk-2026-05.md § Dokumentflyt send-modal redesign](historikk-2026-05.md): statusvalg-popup-mapping, auto-mottaker-landing, `erFirmaAdmin`-rolle-sjekk, approved/closed-tilstand
 - Bekreft firma-bytte clearer byggeplass + prosjektId korrekt
 - Generell regresjonssjekk på timer-flyt etter ny mobil-bunke
+
+### Develop foran main — 2 docs-commits (ikke prod-deployes alene)
+
+Develop har to commits som er rene BACKLOG-tilføyelser (planleggings-runde 2026-05-26):
+- `02ca7518` HMS- og Godkjenning-modul redesign-spec
+- `04c56d0c` mal-builder redesign med type-avkrysning
+
+**Ikke prod-deployes alene** — docs-only commits rettferdiggjør ikke egen prod-deploy. Batches med neste funksjonelle endring som skal til prod. Detaljer i [BACKLOG.md § 1 Teknisk gjeld](BACKLOG.md).
 
 ### T7-4f + T7-5b + maskin-fra-til + B-fixes — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
 
