@@ -171,7 +171,9 @@ export const oppgaveRouter = router({
         },
       });
 
-      // Tilgangssjekk via oppretter-faggruppens prosjekt
+      // Tilgangssjekk via oppretter-faggruppens prosjekt.
+      // hmsSynlighet sendes inn slik at "apen" HMS-dokumenter er lesbare for alle
+      // prosjektmedlemmer (lesing — mutations beholder streng tilgang).
       await verifiserDokumentTilgang(
         ctx.userId,
         hentProjectId(oppgave),
@@ -180,6 +182,7 @@ export const oppgaveRouter = router({
         oppgave.template?.domain,
         oppgave.id,
         "task",
+        oppgave.template?.hmsSynlighet,
       );
 
       // Sett lestAvMottakerVed når mottaker åpner mens status er «sent»
@@ -206,7 +209,7 @@ export const oppgaveRouter = router({
         where: { id: input.taskId },
         include: {
           bestillerFaggruppe: { select: { projectId: true } },
-          template: { select: { domain: true, projectId: true } },
+          template: { select: { domain: true, hmsSynlighet: true, projectId: true } },
         },
       });
       await verifiserDokumentTilgang(
@@ -217,6 +220,7 @@ export const oppgaveRouter = router({
         oppgave.template?.domain,
         oppgave.id,
         "task",
+        oppgave.template?.hmsSynlighet,
       );
 
       return ctx.prisma.taskComment.findMany({

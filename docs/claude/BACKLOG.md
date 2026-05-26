@@ -44,38 +44,25 @@ Et dokument starter som **Teknisk avklaring** og kan eskalere til **Økonomisk k
 
 **Oppfølger:** Godkjenning-hake i mal-builder (samme mønster som HMS-haken, `0278cfb3`) aktiveres når Godkjenning-modulen er designet.
 
-### HMS-modul redesign — komplett HMS-pakke ved aktivering (høy prioritet)
+### HMS-modul redesign — DEPLOYET TIL PROD 2026-05-26 (prod-merge `69068ba0` + fix `c1fbc19f`)
 
-**Oppdaget 2026-05-26** ved sporing av HMS-modulens faktiske tilknytning til flyter/grupper/maler.
+✅ **Implementert.** HMS-modul-seeding (`dd491081`) + HMS-prosjektvisning (`69068ba0`) dekker hele specen + synlighet-oppfølgeren. Detaljer i [historikk-2026-05.md § HMS-prosjektvisning](historikk-2026-05.md).
 
-**Problemet:** I dag gjør HMS-modulen (`hms-avvik` i `PROSJEKT_MODULER`) kun én ting: oppretter HMS-avvik-oppgavemalen. Gruppe, dokumentflyt og mal→flyt-koblinger må brukeren forstå og konfigurere selv i fire separate UI-flater uten veiledning. SJA og RUH eksisterer i prod som foreldreløse maler uten fungerende flyt-kobling (verifisert i prod-DB 2026-05-26: 0 rader i `DokumentflytMal` for begge).
+**Status per del:**
+- Modul-seeding: HMS-gruppe + HMS-flyt + mal-koblinger ✅
+- SJA + RUH-maler i `PROSJEKT_MODULER` med subdomain/synlighet ✅
+- HMS-spesialrute i `sjekkliste.opprett` (speil av `oppgave.opprett`) ✅
+- Synlighet per mal (`hmsSynlighet: "privat" | "apen"`) + tilgangskontroll i `hms.hentDokumenter` ✅
+- Mal-builder UI for subdomain + synlighet ✅
+- HMS-prosjektvisning med KPI + 4 tabs + statistikk ✅
+- Sidebar-element gated på `hms-avvik` ✅
+- Fix-migrasjon for prefix-baserte subdomains (SJA/RUH som var feilklassifisert som avvik etter PR 1) ✅
 
-Server-koden i `oppgave.opprett` har en HMS-spesialrute som leter etter en `ProjectGroup` med `domains: ["hms"]` og auto-tilordner mottaker, men dette mønsteret eksisterer ikke for sjekklister og sjekker ikke om HMS-modulen er aktiv. «HMS-modulen aktiv» betyr i praksis ingenting — modulen kunne slettes uten at noe sluttet å virke.
-
-**Tre frakoblede lag som ingen kjenner hverandre:**
-- `ReportTemplate.domain = "hms"` — etikett på malen
-- `ProjectGroup.domains = ["hms"]` — etikett på gruppen
-- `DokumentflytMal` — kobling mal↔flyt
-
-Brukeren må manuelt forstå alle tre og lenke dem sammen.
-
-**Løsning:** Utvid modul-aktivering til å seed hele HMS-pakken i én transaksjon:
-1. Maler: HMS-avvik (eksisterer), SJA, RUH
-2. HMS-gruppe med `domains: ["hms"]` (hvis ikke finnes)
-3. Standard HMS-dokumentflyt med plassholder-medlemmer
-4. Koble alle HMS-malene til flyten via `DokumentflytMal`
-
-Brukeren får funksjonell HMS fra ett klikk. Tilpasning er deretter justering av et fungerende oppsett, ikke nybygging av et puslespill.
-
-**Krever:**
-- Utvidelse av `PROSJEKT_MODULER`-strukturen i `packages/shared/src/types/index.ts` med `dokumentflyter[]` og `grupper[]` per modul
-- Utvidelse av `modul.aktiver`-mutasjonen i `apps/api/src/routes/modul.ts` til å seed disse
-- Vurdere om opprett-routene skal sjekke modul-status før HMS-auto-rute (eller automatisk opprette manglende HMS-gruppe ved behov)
-- Migrasjons-strategi for eksisterende prod-prosjekter med foreldreløse HMS-maler
-
-**Sannsynlig oppfølger:** Samme mønster gjelder andre moduler (Godkjenning — under verifisering 2026-05-26). Hvis ja: refaktorere modul-seeding generisk så alle moduler kan deklarere komplett pakke (maler + grupper + flyter + koblinger).
-
-**Oppfølger — synlighet per mal:** Kenneth besluttet 2026-05-26 at HMS-dokumenter skal ha synlighet satt per mal: «Privat» (kun involverte) eller «Åpen» (hele prosjektet kan se). Krever nytt felt på `ReportTemplate` (`hmsSynlighet: "privat" | "apen"?`) + UI i mal-builder + tilgangskontroll i dokumentflyt-routene. Ikke implementert.
+**Gjenstående oppgaver (lav prioritet, eventuelle oppfølgere):**
+- Web DokumentHandlingsmeny redesign for HMS-dokumenter — venter på mobil-bunke-verifikasjon (build #23). § 2 «Halvferdige features».
+- Backfill-script kjørt på test, **IKKE på prod** — Kenneth tar beslutning. Prosjekter uten manuelt opprettede SJA/RUH-maler får dem KUN ved neste `modul.aktiver`-call eller manuell trigger.
+- Statistikk-fane utvidelser (CSV/PDF-eksport, per-måned drill-down) — separat oppfølger ved kundeønske.
+- Same-modul-seeding for Godkjenning-modul (§ Godkjenning-modul nedenfor) — generalisering vurderes ved den implementasjon.
 
 ### MASKIN-TIMER KOBLING — arkitektursvikt (høy prioritet)
 

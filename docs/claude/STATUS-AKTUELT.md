@@ -10,20 +10,23 @@ sist_verifisert_mot_kode: 2026-05-08
 > (prod-merge `86fdb5a3`). Arkivert til [historikk-2026-05.md](historikk-2026-05.md).
 
 
-### Develop foran main — 4 docs-commits (ikke prod-deployes alene)
+### Develop foran main — 1 docs-commit (ikke prod-deploy alene)
 
-Etter HMS-modul-seeding-prod-deploy (`dd491081`) er develop oppdatert med fire docs-commits som flytter dokumentasjon og fanger oppfølgere:
+Etter HMS-prosjektvisning-prod-deploy (`c1fbc19f`) er develop oppdatert med én docs-commit:
 
-- `dffa6358` — backlog-entry «Dokumentflyt/kontaktliste redesign» (skille faggrupper fra interne grupper)
-- `d8b2deec` — arkivering av HMS-modul-seeding til historikk-2026-05.md
-- `df6fa0e5` — STATUS-fix etter read-state-feil i d8b2deec
-- `ce904636` — HMS-synlighet-oppfølger i BACKLOG (privat/åpen per mal — låst beslutning som ikke ble implementert i mal-builder-PR) + grunnprinsipp i MALBYGGER.md (Oppgave/Sjekkliste er separate typer, HMS er modifikator)
+- `985dbfd2` — to nye regler i CLAUDE.md fra dagens prod-deploy-lærdom: (1) `prisma generate` må kjøres eksplisitt mellom `migrate deploy` og `pnpm build`, (2) migrasjons-backfill må bruke diskriminerende WHERE-betingelse, ikke hardkode én verdi på alle rader.
 
-**Ikke prod-deployes alene.** Batches med neste funksjonelle endring som skal til prod. Detaljer i respektive filer.
+**Ikke prod-deployes alene.** Batches med neste funksjonelle endring som skal til prod.
 
-### HMS-modul-seeding + moduler-deaktiver-modal — DEPLOYET TIL PROD 2026-05-26 (prod-merge `dd491081`)
+### HMS-prosjektvisning + mal-builder subdomain/synlighet — DEPLOYET TIL PROD 2026-05-26 (prod-merge `69068ba0` + `c1fbc19f`)
 
-`modul.aktiver` for `hms-avvik` seeder nå HMS-pakken i én transaksjon: ProjectGroup («HMS-ansvarlige», `domains: ["hms"]`, `isDefault: true`), Dokumentflyt («HMS» med bestiller-null-medlem + utforer-medlem på HMS-gruppen), og `DokumentflytMal`-koblinger for alle `ReportTemplate(domain="hms")` på prosjektet. Reaktiverings-grenen kjører også seeding-løkkene — alle steg idempotente. DB-verifisering 2026-05-26: HMS-flyt med 2 medlemmer + 1 mal-kobling som spec'et. Samtidig: erstattet native `confirm()` på moduler-side med Modal-komponent (per CLAUDE.md), 3 nye i18n-nøkler × 15 språk. Funn etter deploy: HMS-flyten er usynlig i dokumentflyt-admin-UI (grupperer kun på faggruppe-medlemmer, ikke ProjectGroup) — backlog-entry skrevet. Detaljer i [historikk-2026-05.md § HMS-modul-seeding](historikk-2026-05.md).
+Komplett HMS-modul-redesign på prosjektnivå (BACKLOG § HMS-modul redesign). To prod-deploys samme dag:
+
+**Hoved-deploy `69068ba0`:** Ny rute `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx` med KPI-bånd (åpne avvik, SJA siste 30d, RUH siste 30d), 4 tabs (Avvik/SJA/RUH/Statistikk), Ny-dropdown med to-linjes hjelpetekst, statistikk-fane med SVG-paneler (avvik-per-måned, per-faggruppe, status-fordeling). Sidebar-element gated på `ProjectModule.hms-avvik`. Mal-builder utvidet med subdomain-radio (Avvik/SJA/RUH) + synlighet-toggle (Privat/Åpen) i HMS-blokk — amber-advarsel ved synlighet-endring. Server: ny `hms.hentDokumenter` med privat-synlighets-filter, `sjekkliste.opprett` HMS-spesialrute (speil av oppgave.opprett), `mal.opprett`/`oppdaterMal` aksepterer subdomain + hmsSynlighet. Schema: `ReportTemplate.subdomain` + `hms_synlighet` + nullable `Checklist.bestillerFaggruppeId`/`utforerFaggruppeId` (speil av Task). 35 nye i18n-nøkler + 3 hjelpetekst-nøkler × 15 språk (2361 → 2399). Engangs-backfill-script `apps/api/scripts/backfill-hms-maler.ts` kjørt på test-DB (begge prosjekter fikk SJA + RUH).
+
+**Fix-deploy `c1fbc19f`:** Oppfølger-migrasjon `20260526220000_fix_hms_subdomain_prefix_match` for PR 1-backfill-bug. PR 1-migrasjonen hardkodet `subdomain='avvik'` på ALLE HMS-maler — traff også eksisterende SJA + RUH-maler som kunder hadde opprettet manuelt (998 Instinniforbotn på prod). Rettet via prefix-baserte UPDATEs. `hms_synlighet` IKKE endret for å bevare tilgangskontroll på eksisterende dokumenter (1 SJA-sjekkliste fantes på prod). Lærdommer dokumentert i CLAUDE.md (`985dbfd2`).
+
+**Prod-deploy hendelse:** Første build feilet pga `prisma generate` ikke kjørte etter pull. PM2 restartet imens med gammel kode mot ny DB-schema — heldigvis bakover-kompatibelt (kun additive felt + relaxed NULL). Rettet via eksplisitt `prisma generate` + rebuild. Regel skrevet inn i CLAUDE.md. Detaljer i [historikk-2026-05.md § HMS-prosjektvisning](historikk-2026-05.md).
 
 ### Dokumentflyt send-modal redesign — DEPLOYET TIL PROD 2026-05-25 (prod-merge `4968a23c`)
 
