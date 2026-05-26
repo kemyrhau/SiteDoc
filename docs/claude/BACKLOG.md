@@ -108,6 +108,46 @@ En bruker som oppretter et dokument kan ikke åpne det igjen via direkte URL (`/
 
 **Vurderes som samlet oppfølger-PR** når kundefeedback indikerer behov, eller når Godkjenning-modul-redesign trigger generalisering av modul-mønstre.
 
+### Status-audit på tvers av dokumenttyper (middels prioritet)
+
+**Oppdaget 2026-05-27** ved gjennomgang av filter-sidebar i oppgaver-modulen. Skjermbildet viser åtte synlige status-valg i oppgave-filteret — vi vet ikke hvilke som faktisk blir brukt på tvers av modulene, hvilke som er døde paths, eller om oversikten er konsistent for sjekklister / HMS / godkjenninger.
+
+**`DOCUMENT_STATUSES` (`packages/shared/src/types/index.ts:4-14`) — 9 verdier:**
+- `draft` → Utkast (grå)
+- `sent` → Sendt (blå)
+- `received` → Mottatt (lilla)
+- `in_progress` → Under arbeid (gul)
+- `responded` → Besvart (rosa)
+- `approved` → Godkjent (grønn)
+- `rejected` → Avvist (rød)
+- `closed` → Lukket (svart)
+- `cancelled` → (ikke synlig i oppgave-filter; trolig kun internt)
+
+Status-overganger styres av `isValidStatusTransition` i `packages/shared/src/utils/index.ts:33` — samme funksjon brukes på server og klient.
+
+**Audit-oppgave — undersøke per dokumenttype (oppgaver, sjekklister, HMS-dokumenter, godkjenninger):**
+
+1. **Hvilke statuser brukes faktisk?** Tell forekomster i prod-DB per dokumenttype. Statuser med 0 rader i prod over flere måneder er kandidater for å rydde bort eller revurdere semantikk.
+2. **Hvilke statuser er låst bak konfigurasjon?** F.eks. `approved`/`rejected` krever sannsynligvis godkjenningsflyt — uten dokumentflyt-oppsett kommer oppgaven aldri dit. Dokumenter hvilke statuser som krever hvilket oppsett.
+3. **Hvilke overganger er reelt mulige?** Verifiser at `isValidStatusTransition`-matrisen matcher det dokumentflyten faktisk håndhever via `verifiserFlytRolle`. Mistanke: noen overganger er gyldige per util-funksjon, men `verifiserFlytRolle` avviser dem fordi ingen rolle har lov til å gjøre overgangen.
+4. **Hva er forskjellen mellom dokumenttyper?**
+   - **Oppgave (Task):** Trolig hele 9-pakken.
+   - **Sjekkliste (Checklist):** Speil av Task? Eller egen mindre delmengde?
+   - **HMS-dokument:** SJA/RUH har trolig egen logikk (svar/lukk) — brukes `approved`/`rejected`-grenen i det hele tatt?
+   - **Godkjenning (TE/Endring/Varsel):** Modulen er ikke implementert ennå (BACKLOG § Godkjenning-modul). Spec her må definere status-utvalg fra start.
+5. **Hvordan kan vi utnytte statuser bedre?**
+   - Dashboard-widget per status per dokumenttype (allerede delvis i HMS).
+   - Auto-overgang ved tidsfrist (f.eks. `sent` → `received` etter X timer hvis mottaker ikke har åpnet).
+   - SLA-måling per overgang (gj.snitt-tid `sent` → `responded`).
+   - Status-tilgang-matrise: hvem kan flytte til hvilken status, gjøre eksplisitt i UI ved status-handlinger.
+6. **Filter-konsistens.** Skjermbildet viser kun status-filter; sammenlign med sjekkliste/HMS-filtersidebar for å se om vi mangler «Alle åpne» (alt unntatt `closed`/`cancelled`/`approved`/`rejected`) — typisk default-filter i andre verktøy.
+
+**Konkret leveranse:**
+- Markdown-notat (kandidat: `docs/claude/status-audit-2026-05-27.md`) med matrise: dokumenttype × status × «brukes ja/nei» × «overgang-regel» × «forslag».
+- Funn-baserte oppfølger-tickets per dokumenttype.
+
+**Avhengighet:** Bør gjøres FØR Godkjenning-modul-redesign (BACKLOG § Godkjenning-modul TE/Endring/Varsel) — Godkjenning-modulens statusprogresjon (TE → Endring/Varsel) bør re-bruke audit-funn istedenfor å lage egen modell.
+
 ### Dokumentflyt send-modal redesign — DEPLOYET TIL PROD 2026-05-25 (prod-merge `4968a23c`)
 
 **Status:** ✅ Implementert og deployet i én bunke (server-Commit 1 `584148b2` + mobil-Commit 2 `91bc235f` + i18n `495d3a37` → develop-merge `88d8299f` → prod-merge `4968a23c`). EAS iOS build #23 (`a5e6e2ea`) submittert til TestFlight (`898599df`). Fire kjente avvik fra spec dokumentert for enhet-testing. Detaljer i [historikk-2026-05.md § Dokumentflyt send-modal redesign](historikk-2026-05.md). Spec under beholdes for referanse til hva som ble låst før implementasjon.
