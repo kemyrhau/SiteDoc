@@ -210,11 +210,15 @@ Felter med eksisterende data kan **aldri** fjernes fra malen, uavhengig av dokum
 
 HMS-standardfelter (Alvorlighetsgrad, Beskrivelse) er ikke hardkodet — admin kan fjerne dem **så lenge ingen dokumenter har brukt dem**.
 
-### 3. Type-endring — permanent (avklart i docs)
+### 3. Type-endring — tillatt så lenge ingen dokumenter eksisterer (revidert 2026-05-26)
 
-Type er permanent etter opprettelse. Konvertering mellom typer er eksplisitt forbudt i `docs/claude/dokumentflyt.md`:
-- «Oppgave skilles fra sjekkliste ved opprettelse — de to konverteres ikke til hverandre»
-- «Godkjenning kan aldri flyttes til en sjekklisteflyt eller oppgaveflyt»
+Type kan endres i mal-rediger-modalen så lenge malen ikke har eksisterende dokumenter (Task- eller Checklist-rader). Server validerer i `mal.oppdaterMal` ved å telle `task.count + checklist.count` for malen og avviser konvertering hvis totalt > 0. UI speiler reglen — type-radio er disabled med forklarende tekst når dokumenter eksisterer.
+
+HMS-status (domain "hms" via HMS-hake) kan endres uten begrensning, men UI viser advarsel om at tilgangskontroll for eksisterende dokumenter endres umiddelbart.
+
+Godkjenning forblir spesiell — Godkjenning-modul-redesign vil definere flytregler. Eksisterende doc-tekst i `docs/claude/dokumentflyt.md` om «Godkjenning kan aldri flyttes til en sjekklisteflyt eller oppgaveflyt» beholdes inntil videre som flyt-regel (ikke type-regel).
+
+Tidligere absolutt-forbud erstattet 2026-05-26 etter at felt-lås-prinsippet (§2) ble fastslått som rådende dataintegritets-mekanisme.
 
 ### 4. Sidebar — én "Maler"-lenke
 

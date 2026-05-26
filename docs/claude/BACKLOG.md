@@ -16,6 +16,87 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
+
+**Oppdaget 2026-05-26** ved sporing av Godkjenning-modulens faktiske implementasjon, og presisert med produktbeskrivelse fra Kenneth samme dag.
+
+**Produktbeskrivelse (Kenneth 2026-05-26):** Godkjenning dekker formell kommunikasjon mellom kontraktsparter i to relasjoner:
+
+1. **Entreprenør → Byggherre:** Teknisk avklaring (TE) eller Økonomisk krav
+2. **UE → HE (Hovedentreprenør):** Teknisk avklaring eller Økonomisk krav
+
+Brukeren konfigurerer selv dokumentflyter per relasjon. Systemet dikterer ikke partsstrukturen.
+
+Et dokument starter som **Teknisk avklaring** og kan eskalere til **Økonomisk krav** (Endring/Varsel) — men må bevare historikken fra original-dokumentet gjennom hele livsløpet.
+
+**Manglende:**
+- Statusprogresjonen TE → Endring/Varsel er ikke implementert.
+- `Godkjenning`-tabellen i schema (`schema.prisma:937-980`) har riktige felter (`externalCostObjectId`, `internRef`, `byggherreRef`, `kortNavn`, `godkjentVed`, `transfers` med kostnadsnapshot) men **ingen route bruker den**.
+- Godkjenning-modulen lager i dag kun en vanlig `Task` fra GM-malen via `oppgave.opprett`. Den ekstra tabellen forblir tom og urørt.
+- Verifisert i prod-DB 2026-05-26: «Godkjenning»-malen (GM, bygg) har 0 rader i `DokumentflytMal` — ingen mottaker-utledning fungerer.
+
+**Krever (i prioritert rekkefølge):**
+1. **`godkjenning.opprett`-route** + statusovergangs-logikk (TE → Endring/Varsel) med bevart referanse til original-dokument. Bygger på eksisterende `Godkjenning`-tabell og `DocumentTransfer.kostnadsnapshot`-mønster.
+2. **Samme modul-seeding-redesign som HMS:** utvid modul-aktivering til å seed maler + plassholder-flyter for de to standard-relasjonene (TE-til-byggherre, TE-til-HE) som brukeren kan justere.
+3. **UI-skille:** Brukeren må kunne se Godkjenning som egen dokumenttype (ikke vanlig oppgave) i opprett-modaler og listevisninger.
+
+**Avhengighet:** Krever Kenneths produktbeslutning om eskalering-mekanikken (knapp i dokumentet? statusovergang via dokumentflyt? egen «Eskaler til Økonomisk krav»-handling?). Spec-runde anbefales før koding.
+
+### HMS-modul redesign — komplett HMS-pakke ved aktivering (høy prioritet)
+
+**Oppdaget 2026-05-26** ved sporing av HMS-modulens faktiske tilknytning til flyter/grupper/maler.
+
+**Problemet:** I dag gjør HMS-modulen (`hms-avvik` i `PROSJEKT_MODULER`) kun én ting: oppretter HMS-avvik-oppgavemalen. Gruppe, dokumentflyt og mal→flyt-koblinger må brukeren forstå og konfigurere selv i fire separate UI-flater uten veiledning. SJA og RUH eksisterer i prod som foreldreløse maler uten fungerende flyt-kobling (verifisert i prod-DB 2026-05-26: 0 rader i `DokumentflytMal` for begge).
+
+Server-koden i `oppgave.opprett` har en HMS-spesialrute som leter etter en `ProjectGroup` med `domains: ["hms"]` og auto-tilordner mottaker, men dette mønsteret eksisterer ikke for sjekklister og sjekker ikke om HMS-modulen er aktiv. «HMS-modulen aktiv» betyr i praksis ingenting — modulen kunne slettes uten at noe sluttet å virke.
+
+**Tre frakoblede lag som ingen kjenner hverandre:**
+- `ReportTemplate.domain = "hms"` — etikett på malen
+- `ProjectGroup.domains = ["hms"]` — etikett på gruppen
+- `DokumentflytMal` — kobling mal↔flyt
+
+Brukeren må manuelt forstå alle tre og lenke dem sammen.
+
+**Løsning:** Utvid modul-aktivering til å seed hele HMS-pakken i én transaksjon:
+1. Maler: HMS-avvik (eksisterer), SJA, RUH
+2. HMS-gruppe med `domains: ["hms"]` (hvis ikke finnes)
+3. Standard HMS-dokumentflyt med plassholder-medlemmer
+4. Koble alle HMS-malene til flyten via `DokumentflytMal`
+
+Brukeren får funksjonell HMS fra ett klikk. Tilpasning er deretter justering av et fungerende oppsett, ikke nybygging av et puslespill.
+
+**Krever:**
+- Utvidelse av `PROSJEKT_MODULER`-strukturen i `packages/shared/src/types/index.ts` med `dokumentflyter[]` og `grupper[]` per modul
+- Utvidelse av `modul.aktiver`-mutasjonen i `apps/api/src/routes/modul.ts` til å seed disse
+- Vurdere om opprett-routene skal sjekke modul-status før HMS-auto-rute (eller automatisk opprette manglende HMS-gruppe ved behov)
+- Migrasjons-strategi for eksisterende prod-prosjekter med foreldreløse HMS-maler
+
+**Sannsynlig oppfølger:** Samme mønster gjelder andre moduler (Godkjenning — under verifisering 2026-05-26). Hvis ja: refaktorere modul-seeding generisk så alle moduler kan deklarere komplett pakke (maler + grupper + flyter + koblinger).
+
+### Mal-builder redesign — én samlet mal med type-avkrysning (høy prioritet)
+
+**Idé (Kenneth 2026-05-26):** Erstatt dagens to separate lister (Oppgavemaler / Sjekklistemaler) med én samlet mal-builder. Brukeren haker av for dokumenttype på selve malen:
+
+- ☐ Oppgave
+- ☐ Sjekkliste
+- ☐ HMS (kun synlig når HMS-modulen er aktivert for firmaet)
+- ☐ Godkjenning (kun synlig når Godkjenning-modulen er aktivert for firmaet)
+
+En mal kan kombinere typer (f.eks. HMS + Sjekkliste = SJA). Type-valget erstatter dagens skjulte `domain`-dropdown (Bygg/HMS/Kvalitet) og gjør malkategorisering selvforklarende — brukeren trenger ikke vite hva «domain» betyr internt.
+
+**Avhengighet:** HMS-modul redesign + Godkjenning-modul redesign bør gjøres parallelt — type-avkrysning er brukerflaten som eksponerer modul-koblingen. Hvis HMS-haken vises uten at modulen er aktiv, har den ingen effekt. Hvis HMS-modulen ikke gjør noe meningsfullt etter aktivering, hjelper det ikke at brukeren kan hake den av på malen. De tre må henge sammen for å gi verdi.
+
+**Berører:**
+- `apps/web/src/app/dashbord/oppsett/produksjon/` — mal-builder UI (slå sammen `sjekklistemaler/` og `oppgavemaler/` til én liste, eller endre `MalListe.tsx` til å vise begge kategorier samtidig)
+- `ReportTemplate.category` (i dag «oppgave» | «sjekkliste») + `ReportTemplate.domain` (Bygg/HMS/Kvalitet) — kan erstattes eller suppleres av eksplisitte type-flagg (f.eks. `types: Json` med array som `["sjekkliste", "hms"]`)
+- `modul.ts` — modul-aktiverings-logikk må eksponere hvilke modul-slugs som er aktive for prosjektet/firmaet så UI kan vise/skjule HMS- og Godkjenning-haker dynamisk
+- `oppgave.opprett`/`sjekkliste.opprett`/`godkjenning.opprett` — server må vite hvilken tabell dokumentet havner i basert på mal-type-kombinasjonen
+
+**Designspørsmål for senere runde:**
+- Hvis en mal er både Oppgave OG Sjekkliste, hvilken tabell havner et opprettet dokument i? Eller får brukeren et type-valg ved opprettelse?
+- Skal eksisterende `category`-feltet beholdes for bakoverkompatibilitet, eller erstattes helt?
+- Skal HMS/Godkjenning være eksklusive (kun én av gangen) eller kan en mal være HMS + Godkjenning samtidig?
+
 ### MASKIN-TIMER KOBLING — arkitektursvikt (høy prioritet)
 
 Kenneth-avklaring 2026-05-16: Maskintimer er en del av arbeidsdagen,

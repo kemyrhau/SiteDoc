@@ -4,6 +4,33 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Mal→dokumentflyt-kobling bugfix + UI-terminologi — DEPLOYET TIL PROD 2026-05-25 (prod-merge `ed7675a5`, develop-commit `36c42504`)
+
+Bugfiks i mal-byggeren: `mal.opprett`-mutasjonen destrukturerte `workflowIds` med `_`-prefiks (`const { workflowIds: _workflowIds, ...malData } = input`) og kastet det vekk — UI-valget av dokumentflyter ved mal-opprettelse var en kosmetisk illusjon. Ingen `DokumentflytMal`-rader ble lagret. Resultat: maler opprettet via UI fikk null koblinger, ble usynlige i opprett-modalens flyt-velger, og brukerne måtte koble via dokumentflyt-administrasjon (omvendt vei).
+
+**Server-endringer (`apps/api/src/routes/mal.ts`):**
+- `mal.opprett` bruker nå `workflowIds` — wrapped i `$transaction`, oppretter `DokumentflytMal`-rader for hvert flyt-ID.
+- `mal.oppdaterMal` aksepterer nytt `workflowIds`-felt (Zod-validert). Replace-on-update via `deleteMany` + `createMany` i transaksjon.
+- `mal.hentMedId` + `hentForProsjekt` returnerer nå `dokumentflytMaler: { select: { dokumentflytId: true } }` så rediger-modal kan pre-populere valgte flyter uten ekstra query.
+
+**UI-terminologi (`apps/web/src/app/dashbord/oppsett/produksjon/_components/`):**
+- `MalListe.tsx`: feltlabel «Faggruppe» → «Dokumentflyt» i opprett-modal. Amber-advarsel under feltet hvis ingen flyt er valgt («Malen vil ikke være tilgjengelig før den er koblet til minst én dokumentflyt»). Visuell — blokkerer ikke lagring.
+- Rediger-modal: nytt dokumentflyt-felt med pre-populering fra eksisterende `mal.dokumentflytMaler`. Separat `FaggruppeTilknytningModal`-instans for rediger-flyt.
+- `FaggruppeTilknytningModal.tsx`: modal-tittel «Velg dokumentflyt». Beskrivelse «Velg hvilke dokumentflyter denne {{kategori}}-malen skal kunne brukes med.» Hardkodede norske strenger fjernet, alle via i18n.
+
+**i18n:** 9 nye nøkler under `maler.*` (dokumentflyt, ingenDokumentflytValgt, dokumentflytValgt, ingenDokumentflytAdvarsel, velgDokumentflyt, velgDokumentflytBeskrivelse, ingenFaggrupperIProsjekt, sjekkliste, oppgave). Auto-oversatt til 13 språk via `generate.ts` — 2 351 nøkler totalt.
+
+**Prod-DB-funn ved verifisering 2026-05-26:** 4 av 11 maler i prod manglet flyt-kobling pga. den eksisterende bugen — `Godkjenning` (GM), `KS avvik` (K-avv), `RUH`, `SJA`. Disse beholdes urørt; brukerne kan nå redigere malene via den nye rediger-modalen for å koble dem til en eksisterende flyt. Bugfiksen sikrer at fremtidige opprettelser lagrer koblingen.
+
+**Verifisering:** apps/api typecheck 0 = 0 feil, web 1 = 1 baseline (vitest). Prod-deploy 2026-05-25 22:55 GMT — `sitedoc.no` + `api.sitedoc.no/health` HTTP/2 200. Build inkluderte 21 filer (291 inn, 61 ut) inklusiv en docs-only commit (`0f7ab677`) som la til web-DokumentHandlingsmeny-redesign i backlog.
+
+**Tilhørende oppdagelser ved sporing 2026-05-26 (planlagt arbeid i [BACKLOG.md § 1](BACKLOG.md)):**
+- HMS-modul redesign — komplett HMS-pakke ved aktivering
+- Godkjenning-modul — TE/Endring/Varsel statusflyt + bruke eksisterende Godkjenning-tabell
+- Mal-builder redesign — én samlet mal-builder med type-avkrysning (avhenger av de to over)
+
+---
+
 ## Mobil firma-velger + i18n — DEPLOYET TIL PROD 2026-05-24 (prod-merge `fa92528a`, develop merge `a85469f2`)
 
 Multi-firma sitedoc_admin (Kenneth) ser nå et amber-banner på mobil-forsiden («Velg firma — du er medlem av flere firmaer») når ingen firma er valgt. Trykk åpner modal-velger som speiler ProsjektVelger-mønsteret. Vanlig A.Markussen-ansatt (single-firma) får auto-velg ved første lasting og merker ingen UI-endring.
