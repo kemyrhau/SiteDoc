@@ -4,6 +4,48 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Mal-builder type-radio + HMS-hake — DEPLOYET TIL PROD 2026-05-26 (prod-merge `0278cfb3`, develop-commit `b6a86ca8`)
+
+Første steg av mal-builder redesign (BACKLOG § 1). Erstatter skjult `domain`-dropdown med eksplisitte type-haker + HMS-checkbox i begge mal-modaler. Server-side konverterings-validering hindrer at type endres for maler med eksisterende dokumenter.
+
+**Bakgrunn:** BACKLOG-Q3 spec'et «én samlet mal med type-avkrysning». Planleggings-runden 2026-05-26 låste avgrensning til kun haker i eksisterende opprett/rediger-modaler — ikke sammenslåing av lister, ikke nye ruter. SJA og lignende kombinasjoner (Sjekkliste + HMS) muliggjøres ved at HMS er separat checkbox uavhengig av type-radio.
+
+**Server-endringer (`apps/api/src/routes/mal.ts`):**
+- `mal.oppdaterMal` Zod-input utvidet med `category: z.enum(["oppgave", "sjekkliste"]).optional()`. Domain-input beholdt med `["bygg", "hms", "kvalitet"]` for bakover-kompat selv om UI ikke lenger sender kvalitet.
+- Konverterings-validering: hvis `input.category !== mal.category`, telles `task.count + checklist.count` for `templateId`. Avvises med klartekst-feilmelding hvis totalt > 0.
+- `mal.hentForProsjekt._count` utvidet med `tasks: true` for UI-disablement av type-radio når dokumenter eksisterer.
+
+**Klient (`apps/web/src/app/dashbord/oppsett/produksjon/_components/MalListe.tsx`):**
+- Ny `trpc.modul.hentForProsjekt`-query for å sjekke `ProjectModule.hms-avvik`-aktiv-status. HMS-checkbox vises kun hvis modulen er aktiv på prosjektet (eller i rediger-modalen: hvis malen allerede er HMS).
+- Opprett-modal: type-radio (Oppgave/Sjekkliste) — disabled, forhåndsvalgt fra `kategori`-prop (oppgavemaler-siden → Oppgave låst). HMS-checkbox under radio med kort beskrivelse. Fagområde-dropdown med Bygg/HMS/Kvalitet fjernet helt — domain styres nå av `erHms ? "hms" : "bygg"`.
+- Rediger-modal: ny type-radio (redigerbar) forhåndsutfylt fra `mal.category`. Disabled med forklaring hvis `_count.tasks + _count.checklists > 0`. HMS-checkbox forhåndsutfylt fra `mal.domain === "hms"`, redigerbar. Amber-advarsel under haken når `redigerErHms !== redigerOpprinneligErHms` («Endring av HMS-status endrer tilgangskontroll for eksisterende dokumenter»).
+
+**i18n:** 7 nye nøkler under `maler.*`:
+- `type.label`, `type.oppgave`, `type.sjekkliste`
+- `hms.hake`, `hms.beskrivelse`, `hms.endringAdvarsel`
+- `feilKonvertering` (interpolert med `{{antall}}`)
+
+Auto-oversatt til 13 språk via `generate.ts` — **2 358 nøkler totalt** per språk.
+
+**Doc-oppdatering (`MALBYGGER.md §3`):** Tidligere absolutt-forbud («Type er permanent etter opprettelse») erstattet med dataintegritets-regel: «Type-endring tillatt så lenge ingen dokumenter eksisterer (samme prinsipp som felt-lås §2)». Speil av server-validering.
+
+**Prod-DB-funn 2026-05-26:** `SELECT domain, COUNT(*) FROM report_templates GROUP BY domain` ga `bygg: 8, hms: 4, kvalitet: 0`. «Kvalitet» som domain-valg har ingen runtime-effekt utover å skjule maler for vanlige brukere (per `tilgangskontroll.ts` Lag 3 — ingen standard-gruppe har `domains: ["kvalitet"]`). Trygt fjernet fra UI uten datakonsekvens. Schema-feltet beholdes for bakover-kompat.
+
+**Verifisering:** apps/api typecheck 0 = 0 feil, web 1 = 1 baseline (vitest). Test-deploy 2026-05-26 ~18:48 — `test.sitedoc.no` HTTP/2 200 (krevde manuell `pnpm build` etter pull pga. manglende `.next` etter restart). Prod-deploy 2026-05-26 ~18:57 — `sitedoc.no` + `api.sitedoc.no/health` HTTP/2 200. Build inkluderte 21 filer (404 inn, 22 ut).
+
+**Batchede docs-commits inkludert i samme prod-deploy:**
+- `02ca7518` — HMS- og Godkjenning-modul redesign-spec (BACKLOG § 1)
+- `04c56d0c` — mal-builder redesign med type-avkrysning (BACKLOG § 1)
+- `c171a0c7` — arkiver mal→dokumentflyt-bugfix + flagg develop-foran-main
+
+**Avhengig oppfølger-arbeid (BACKLOG § 1):**
+- HMS-modul redesign — komplett HMS-pakke ved aktivering, vil flytte HMS-gating fra `ProjectModule` til `OrganizationModule`
+- Godkjenning-modul redesign — TE/Endring/Varsel statusflyt + bruke eksisterende Godkjenning-tabell
+- Godkjenning-hake i mal-builder — venter på Godkjenning-modul-design
+- Samlet `/maler`-liste (PR 2) — sammenslåing av oppgavemaler/ + sjekklistemaler/ til én side med type-filter
+
+---
+
 ## Mal→dokumentflyt-kobling bugfix + UI-terminologi — DEPLOYET TIL PROD 2026-05-25 (prod-merge `ed7675a5`, develop-commit `36c42504`)
 
 Bugfiks i mal-byggeren: `mal.opprett`-mutasjonen destrukturerte `workflowIds` med `_`-prefiks (`const { workflowIds: _workflowIds, ...malData } = input`) og kastet det vekk — UI-valget av dokumentflyter ved mal-opprettelse var en kosmetisk illusjon. Ingen `DokumentflytMal`-rader ble lagret. Resultat: maler opprettet via UI fikk null koblinger, ble usynlige i opprett-modalens flyt-velger, og brukerne måtte koble via dokumentflyt-administrasjon (omvendt vei).

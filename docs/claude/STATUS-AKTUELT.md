@@ -36,13 +36,9 @@ Build #23 (`a5e6e2ea-b570-45d0-a710-1dca7b678f35`) submittert til TestFlight via
 - Bekreft firma-bytte clearer byggeplass + prosjektId korrekt
 - Generell regresjonssjekk på timer-flyt etter ny mobil-bunke
 
-### Develop foran main — 2 docs-commits (ikke prod-deployes alene)
+### Mal-builder type-radio + HMS-hake — DEPLOYET TIL PROD 2026-05-26 (prod-merge `0278cfb3`)
 
-Develop har to commits som er rene BACKLOG-tilføyelser (planleggings-runde 2026-05-26):
-- `02ca7518` HMS- og Godkjenning-modul redesign-spec
-- `04c56d0c` mal-builder redesign med type-avkrysning
-
-**Ikke prod-deployes alene** — docs-only commits rettferdiggjør ikke egen prod-deploy. Batches med neste funksjonelle endring som skal til prod. Detaljer i [BACKLOG.md § 1 Teknisk gjeld](BACKLOG.md).
+Første steg av mal-builder redesign (BACKLOG § 1). Opprett-modal: type-radio Oppgave/Sjekkliste (disabled, forhåndsvalgt fra mal-builder-side) + HMS-checkbox gated på `ProjectModule.hms-avvik`. Fagområde-dropdown fjernet — domain styres nå av HMS-haken alene (`erHms ? "hms" : "bygg"`). Rediger-modal: samme radio (redigerbar, disabled hvis dokumenter eksisterer) + HMS-checkbox med amber-advarsel ved status-endring. `mal.oppdaterMal` aksepterer `category` med konverterings-validering (task.count + checklist.count, avvis hvis > 0). `MALBYGGER.md §3` oppdatert: type-endring tillatt så lenge ingen dokumenter eksisterer. 7 nye i18n-nøkler × 15 språk. Prod-DB-funn: 0 maler med `domain="kvalitet"` — trygt fjernet fra UI. Inkluderer 3 batchede docs-commits (`02ca7518`, `04c56d0c`, `c171a0c7`). Detaljer i [historikk-2026-05.md § Mal-builder type-radio + HMS-hake](historikk-2026-05.md).
 
 ### T7-4f + T7-5b + maskin-fra-til + B-fixes — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
 
