@@ -153,6 +153,8 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - Push til feature-branch → INGEN auto-deploy
 - Push til `main` → manuell prod-deploy (eksplisitt forespørsel kreves)
 
+**Etter Prisma schema-endring (ufravikelig fra 2026-05-26):** Kjør alltid `pnpm --filter @sitedoc/db exec prisma generate` eksplisitt mellom `prisma migrate deploy` og `pnpm build`. `migrate deploy` regenererer ikke Prisma-klienten automatisk — uten dette steget bruker API-bygget gammel klient og typecheck feiler på nye/endrede felter. Lærdom 2026-05-26: prod-deploy av HMS-PR feilet i build pga manglende generate; PM2 restartet imens med gammel kode mot ny DB-schema. Korrekt sekvens: `git pull → rm -rf apps/web/.next → prisma migrate deploy → prisma generate → pnpm build → pm2 restart`.
+
 - Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 - Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
 
@@ -369,6 +371,7 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
   1. Aldri slett kolonner i én migrering. Steg 1: legg til ny kolonne (nullable). Steg 2: migrer data. Steg 3: NEXT release setter NOT NULL eller dropper gammel
   2. Migrasjoner ALDRI redigeres etter merge til `main` — sikrer reproduserbarhet
   3. Cross-package-FK håndteres som svake String-felt uten Prisma `@relation` (etablert mønster i `db-maskin`)
+- **Migrasjons-backfill-disiplin** (ufravikelig fra 2026-05-26): Aldri hardkode én enkelt verdi på alle rader uten eksplisitt WHERE-betingelse som matcher felt utover `domain`. Bruk `prefix`, `name` eller andre diskriminerende felt for å sikre korrekt klassifisering. Lærdom 2026-05-26: PR 1-migrasjon (`20260526200000_report_template_subdomain_hms_synlighet`) satte `subdomain='avvik'` på ALLE HMS-maler — traff også eksisterende SJA/RUH-maler kunder hadde opprettet manuelt. Måtte rettes via oppfølger-migrasjon (`20260526220000_fix_hms_subdomain_prefix_match`). Korrekt mønster: `UPDATE ... WHERE prefix = 'SJA' SET subdomain = 'sja'` for hver kjent prefix-verdi, ikke én generisk default for alle.
 - ALDRI commit `.env`-filer
 - Bilder komprimeres til 300–400 KB før opplasting
 - Alle database-endringer via Prisma-migreringer
