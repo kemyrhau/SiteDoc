@@ -10,6 +10,17 @@ sist_verifisert_mot_kode: 2026-05-08
 > (prod-merge `86fdb5a3`). Arkivert til [historikk-2026-05.md](historikk-2026-05.md).
 
 
+### Develop foran main — 4 docs-commits (ikke prod-deployes alene)
+
+Etter HMS-modul-seeding-prod-deploy (`dd491081`) er develop oppdatert med fire docs-commits som flytter dokumentasjon og fanger oppfølgere:
+
+- `dffa6358` — backlog-entry «Dokumentflyt/kontaktliste redesign» (skille faggrupper fra interne grupper)
+- `d8b2deec` — arkivering av HMS-modul-seeding til historikk-2026-05.md
+- `df6fa0e5` — STATUS-fix etter read-state-feil i d8b2deec
+- `ce904636` — HMS-synlighet-oppfølger i BACKLOG (privat/åpen per mal — låst beslutning som ikke ble implementert i mal-builder-PR) + grunnprinsipp i MALBYGGER.md (Oppgave/Sjekkliste er separate typer, HMS er modifikator)
+
+**Ikke prod-deployes alene.** Batches med neste funksjonelle endring som skal til prod. Detaljer i respektive filer.
+
 ### HMS-modul-seeding + moduler-deaktiver-modal — DEPLOYET TIL PROD 2026-05-26 (prod-merge `dd491081`)
 
 `modul.aktiver` for `hms-avvik` seeder nå HMS-pakken i én transaksjon: ProjectGroup («HMS-ansvarlige», `domains: ["hms"]`, `isDefault: true`), Dokumentflyt («HMS» med bestiller-null-medlem + utforer-medlem på HMS-gruppen), og `DokumentflytMal`-koblinger for alle `ReportTemplate(domain="hms")` på prosjektet. Reaktiverings-grenen kjører også seeding-løkkene — alle steg idempotente. DB-verifisering 2026-05-26: HMS-flyt med 2 medlemmer + 1 mal-kobling som spec'et. Samtidig: erstattet native `confirm()` på moduler-side med Modal-komponent (per CLAUDE.md), 3 nye i18n-nøkler × 15 språk. Funn etter deploy: HMS-flyten er usynlig i dokumentflyt-admin-UI (grupperer kun på faggruppe-medlemmer, ikke ProjectGroup) — backlog-entry skrevet. Detaljer i [historikk-2026-05.md § HMS-modul-seeding](historikk-2026-05.md).
