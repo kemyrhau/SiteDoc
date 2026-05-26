@@ -29,14 +29,20 @@ export const sjekklisteRouter = router({
         projectId: z.string().uuid(),
         status: documentStatusSchema.optional(),
         byggeplassId: z.string().uuid().optional(),
+        // Hvis utelatt: ekskluder HMS-dokumenter (de vises på egen HMS-side).
+        // Eksplisitt verdi filtrerer på det domenet.
+        domain: z.enum(["bygg", "hms", "kvalitet"]).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       const tilgangsFilter = await byggTilgangsFilter(ctx.userId, input.projectId);
+      const templateDomainFilter = input.domain
+        ? { domain: input.domain }
+        : { domain: { not: "hms" } };
 
       return ctx.prisma.checklist.findMany({
         where: {
-          template: { projectId: input.projectId },
+          template: { projectId: input.projectId, ...templateDomainFilter },
           ...(input.status ? { status: input.status } : {}),
           ...(input.byggeplassId ? { OR: [{ byggeplassId: input.byggeplassId }, { byggeplassId: null }] } : {}),
           ...(tilgangsFilter ?? {}),

@@ -447,6 +447,8 @@ export interface ModulMal {
   beskrivelse: string;
   kategori: "oppgave" | "sjekkliste";
   domain: string;
+  subdomain?: "avvik" | "sja" | "ruh"; // Kun for HMS-maler — skiller HMS-avvik/SJA/RUH i HMS-prosjektvisning
+  hmsSynlighet?: "privat" | "apen"; // Kun for HMS-maler — "privat": innsender+HMS-ansvarlige, "apen": hele prosjektet
   emner?: string[];
   objekter: ModulObjekt[];
 }
@@ -519,6 +521,8 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
         beskrivelse: "Registrering av HMS-avvik og uønskede hendelser",
         kategori: "oppgave",
         domain: "hms",
+        subdomain: "avvik",
+        hmsSynlighet: "privat",
         emner: ["Personskade", "Nestenulykke", "Farlig forhold", "Risikoobservasjon", "Miljøavvik"],
         objekter: [
           { type: "location", label: "Lokasjon", sortOrder: 0, config: { zone: "topptekst" } },
@@ -534,6 +538,50 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
           { type: "date", label: "Frist for lukking", sortOrder: 22, config: { zone: "datafelter" } },
           { type: "traffic_light", label: "Status", sortOrder: 23, required: true, config: { options: [{ value: "red", label: "Åpent" }, { value: "yellow", label: "Under behandling" }, { value: "green", label: "Lukket" }], zone: "datafelter" } },
           { type: "signature", label: "Signatur ansvarlig", sortOrder: 24, config: { zone: "datafelter" } },
+        ],
+      },
+      {
+        navn: "SJA",
+        prefix: "SJA",
+        beskrivelse: "Sikker Jobb-Analyse — risikovurdering før utførelse",
+        kategori: "sjekkliste",
+        domain: "hms",
+        subdomain: "sja",
+        hmsSynlighet: "apen",
+        emner: ["Arbeid i høyden", "Varme arbeider", "Gravearbeid", "Elektrisk arbeid", "Løft", "Trafikkfarlig arbeid"],
+        objekter: [
+          { type: "location", label: "Lokasjon", sortOrder: 0, config: { zone: "topptekst" } },
+          { type: "date", label: "Dato", sortOrder: 1, required: true, config: { zone: "topptekst" } },
+          { type: "person", label: "Arbeidsleder", sortOrder: 2, required: true, config: { zone: "topptekst" } },
+          { type: "heading", label: "Arbeidsbeskrivelse", sortOrder: 10, config: { zone: "datafelter" } },
+          { type: "text_field", label: "Beskrivelse av arbeid", sortOrder: 11, required: true, config: { multiline: true, zone: "datafelter" } },
+          { type: "persons", label: "Deltakere", sortOrder: 12, required: true, config: { zone: "datafelter" } },
+          { type: "heading", label: "Risikovurdering", sortOrder: 20, config: { zone: "datafelter" } },
+          { type: "text_field", label: "Identifiserte farer", sortOrder: 21, required: true, config: { multiline: true, zone: "datafelter" } },
+          { type: "text_field", label: "Tiltak", sortOrder: 22, required: true, config: { multiline: true, zone: "datafelter" } },
+          { type: "text_field", label: "Verneutstyr og tiltak", sortOrder: 23, config: { multiline: true, zone: "datafelter" } },
+          { type: "attachments", label: "Vedlegg", sortOrder: 24, config: { zone: "datafelter" } },
+          { type: "signature", label: "Signatur arbeidsleder", sortOrder: 30, required: true, config: { zone: "datafelter" } },
+        ],
+      },
+      {
+        navn: "RUH",
+        prefix: "RUH",
+        beskrivelse: "Rapport om Uønsket Hendelse — nestenulykke, farlig forhold, risikoobservasjon",
+        kategori: "sjekkliste",
+        domain: "hms",
+        subdomain: "ruh",
+        hmsSynlighet: "privat",
+        emner: ["Nestenulykke", "Farlig forhold", "Risikoobservasjon", "Forbedringsforslag"],
+        objekter: [
+          { type: "location", label: "Lokasjon", sortOrder: 0, config: { zone: "topptekst" } },
+          { type: "date_time", label: "Tidspunkt", sortOrder: 1, required: true, config: { zone: "topptekst" } },
+          { type: "person", label: "Innmelder", sortOrder: 2, required: true, config: { zone: "topptekst" } },
+          { type: "heading", label: "Observasjon", sortOrder: 10, config: { zone: "datafelter" } },
+          { type: "list_single", label: "Type observasjon", sortOrder: 11, required: true, config: { options: ["Nestenulykke", "Farlig forhold", "Risikoobservasjon", "Forbedringsforslag"], zone: "datafelter" } },
+          { type: "text_field", label: "Beskrivelse", sortOrder: 12, required: true, config: { multiline: true, zone: "datafelter" } },
+          { type: "text_field", label: "Foreslåtte tiltak", sortOrder: 13, config: { multiline: true, zone: "datafelter" } },
+          { type: "attachments", label: "Vedlegg", sortOrder: 14, config: { zone: "datafelter" } },
         ],
       },
     ],
