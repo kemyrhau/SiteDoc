@@ -3,7 +3,7 @@
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
-import { Button, Spinner } from "@sitedoc/ui";
+import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import {
   FileCheck,
@@ -72,9 +72,12 @@ export default function ModulerSide() {
     },
   });
 
+  const [bekreftDeaktivering, setBekreftDeaktivering] = useState<{ slug: string; navn: string } | null>(null);
+
   const deaktiverMutation = trpc.modul.deaktiver.useMutation({
     onSuccess: () => {
       utils.modul.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setBekreftDeaktivering(null);
     },
   });
 
@@ -224,14 +227,7 @@ export default function ModulerSide() {
               {/* Handling */}
               {erAktiv ? (
                 <button
-                  onClick={() => {
-                    if (confirm(`Deaktiver modulen «${modul.navn}»? Eksisterende maler og data beholdes.`)) {
-                      deaktiverMutation.mutate({
-                        projectId: prosjektId!,
-                        moduleSlug: modul.slug,
-                      });
-                    }
-                  }}
+                  onClick={() => setBekreftDeaktivering({ slug: modul.slug, navn: modul.navn })}
                   disabled={erPending}
                   className="flex items-center justify-center gap-2 rounded-lg border border-gray-200 px-4 py-2 text-sm text-gray-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
                 >
@@ -258,6 +254,45 @@ export default function ModulerSide() {
           );
         })}
       </div>
+
+      {/* Bekreft deaktivering — erstatter native confirm() per CLAUDE.md */}
+      <Modal
+        open={bekreftDeaktivering !== null}
+        onClose={() => setBekreftDeaktivering(null)}
+        title={t("moduler.deaktiverBekreftTittel")}
+      >
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-gray-700">
+            {bekreftDeaktivering && t("moduler.deaktiverBekreftTekst", { navn: bekreftDeaktivering.navn })}
+          </p>
+          <p className="text-sm text-gray-500">
+            {t("moduler.deaktiverBekreftBeskrivelse")}
+          </p>
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                if (bekreftDeaktivering) {
+                  deaktiverMutation.mutate({
+                    projectId: prosjektId!,
+                    moduleSlug: bekreftDeaktivering.slug,
+                  });
+                }
+              }}
+              loading={deaktiverMutation.isPending}
+              className="!text-red-600 hover:!bg-red-50 hover:!border-red-200"
+            >
+              {t("moduler.deaktiver")}
+            </Button>
+            <Button
+              variant="secondary"
+              onClick={() => setBekreftDeaktivering(null)}
+            >
+              {t("handling.avbryt")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
     </div>
   );

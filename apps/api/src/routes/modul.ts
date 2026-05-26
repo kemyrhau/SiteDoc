@@ -4,6 +4,92 @@ import { PROSJEKT_MODULER } from "@sitedoc/shared";
 import type { Prisma } from "@sitedoc/db";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
+/**
+ * Seeder HMS-spesifikk infrastruktur når hms-avvik-modulen aktiveres:
+ * - HMS-gruppe (ProjectGroup med domains: ["hms"])
+ * - HMS-dokumentflyt med bestiller-boks (åpen) + utforer-boks (HMS-gruppe)
+ * - Kobler alle ReportTemplate(domain="hms") på prosjektet til flyten
+ *
+ * Idempotent: gjentatte kall gir ikke duplikater.
+ */
+async function seedHmsModulOmradet(
+  tx: Prisma.TransactionClient,
+  projectId: string,
+): Promise<void> {
+  // 1) Finn eller opprett HMS-gruppen
+  let hmsGruppe = await tx.projectGroup.findFirst({
+    where: { projectId, domains: { array_contains: ["hms"] } },
+    select: { id: true },
+  });
+  if (!hmsGruppe) {
+    hmsGruppe = await tx.projectGroup.create({
+      data: {
+        projectId,
+        name: "HMS-ansvarlige",
+        slug: "hms-ansvarlige",
+        category: "field",
+        domains: ["hms"],
+        permissions: [
+          "create_tasks",
+          "create_checklists",
+          "checklist_edit",
+          "checklist_view",
+          "task_edit",
+          "task_view",
+        ],
+        isDefault: true,
+      },
+      select: { id: true },
+    });
+  }
+
+  // 2) Finn eksisterende HMS-flyt via DokumentflytMal-kobling til mal med domain="hms"
+  let hmsFlyt = await tx.dokumentflyt.findFirst({
+    where: {
+      projectId,
+      maler: { some: { template: { domain: "hms" } } },
+    },
+    select: { id: true },
+  });
+  if (!hmsFlyt) {
+    hmsFlyt = await tx.dokumentflyt.create({
+      data: { projectId, name: "HMS" },
+      select: { id: true },
+    });
+    // Boks 1: bestiller — null-medlem (åpen for alle prosjektmedlemmer)
+    await tx.dokumentflytMedlem.create({
+      data: { dokumentflytId: hmsFlyt.id, rolle: "bestiller", steg: 1 },
+    });
+    // Boks 2: utforer — HMS-gruppen
+    await tx.dokumentflytMedlem.create({
+      data: {
+        dokumentflytId: hmsFlyt.id,
+        rolle: "utforer",
+        steg: 2,
+        groupId: hmsGruppe.id,
+      },
+    });
+  }
+
+  // 3) Koble alle HMS-maler til flyten — idempotent via composite-unique
+  const hmsMaler = await tx.reportTemplate.findMany({
+    where: { projectId, domain: "hms" },
+    select: { id: true },
+  });
+  for (const mal of hmsMaler) {
+    await tx.dokumentflytMal.upsert({
+      where: {
+        dokumentflytId_templateId: {
+          dokumentflytId: hmsFlyt.id,
+          templateId: mal.id,
+        },
+      },
+      create: { dokumentflytId: hmsFlyt.id, templateId: mal.id },
+      update: {},
+    });
+  }
+}
+
 export const modulRouter = router({
   // Hent aktive moduler for et prosjekt
   hentForProsjekt: protectedProcedure
@@ -63,35 +149,36 @@ export const modulRouter = router({
         },
       });
 
-      if (eksisterende) {
-        // Reaktiver hvis deaktivert (per A.17: arkivert/slettet → aktiv)
-        if (eksisterende.status !== "aktiv") {
-          return ctx.prisma.projectModule.update({
-            where: { id: eksisterende.id },
-            data: { status: "aktiv" },
+      // Opprett/reaktiver modulen + seed maler + (for HMS) seed gruppe/flyt/koblinger
+      // i én transaksjon. Reaktivering kjører også seeding-løkkene — alle steg er
+      // idempotente, slik at brukere som har slettet HMS-gruppen mellom deaktivering
+      // og reaktivering får den gjenopprettet.
+      return ctx.prisma.$transaction(async (tx) => {
+        // Registrer eller reaktiver ProjectModule
+        let modul;
+        if (eksisterende) {
+          modul = eksisterende.status === "aktiv"
+            ? eksisterende
+            : await tx.projectModule.update({
+                where: { id: eksisterende.id },
+                data: { status: "aktiv" },
+              });
+        } else {
+          modul = await tx.projectModule.create({
+            data: {
+              projectId: input.projectId,
+              moduleSlug: input.moduleSlug,
+            },
           });
         }
-        return eksisterende;
-      }
 
-      // Opprett modulen og malene i en transaksjon
-      return ctx.prisma.$transaction(async (tx) => {
-        // Registrer modulen
-        const modul = await tx.projectModule.create({
-          data: {
-            projectId: input.projectId,
-            moduleSlug: input.moduleSlug,
-          },
-        });
-
-        // Opprett maler med rapportobjekter
+        // Opprett maler med rapportobjekter (idempotent på prefix)
         for (const malDef of modulDef.maler) {
-          // Sjekk om mal med samme prefix allerede finnes
           const eksisterendeMal = await tx.reportTemplate.findFirst({
             where: { projectId: input.projectId, prefix: malDef.prefix },
           });
 
-          if (eksisterendeMal) continue; // Ikke overskriv eksisterende
+          if (eksisterendeMal) continue;
 
           const mal = await tx.reportTemplate.create({
             data: {
@@ -105,7 +192,6 @@ export const modulRouter = router({
             },
           });
 
-          // Opprett rapportobjekter
           if (malDef.objekter.length > 0) {
             await tx.reportObject.createMany({
               data: malDef.objekter.map((obj) => ({
@@ -118,6 +204,11 @@ export const modulRouter = router({
               })),
             });
           }
+        }
+
+        // HMS-spesifikk seeding: gruppe + flyt + mal-koblinger
+        if (input.moduleSlug === "hms-avvik") {
+          await seedHmsModulOmradet(tx, input.projectId);
         }
 
         return modul;
