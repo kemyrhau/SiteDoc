@@ -75,6 +75,8 @@ Brukeren får funksjonell HMS fra ett klikk. Tilpasning er deretter justering av
 
 **Sannsynlig oppfølger:** Samme mønster gjelder andre moduler (Godkjenning — under verifisering 2026-05-26). Hvis ja: refaktorere modul-seeding generisk så alle moduler kan deklarere komplett pakke (maler + grupper + flyter + koblinger).
 
+**Oppfølger — synlighet per mal:** Kenneth besluttet 2026-05-26 at HMS-dokumenter skal ha synlighet satt per mal: «Privat» (kun involverte) eller «Åpen» (hele prosjektet kan se). Krever nytt felt på `ReportTemplate` (`hmsSynlighet: "privat" | "apen"?`) + UI i mal-builder + tilgangskontroll i dokumentflyt-routene. Ikke implementert.
+
 ### MASKIN-TIMER KOBLING — arkitektursvikt (høy prioritet)
 
 Kenneth-avklaring 2026-05-16: Maskintimer er en del av arbeidsdagen,

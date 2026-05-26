@@ -2,6 +2,16 @@
 
 Én felles malbygger der bruker velger dokumenttype ved oppstart. Typen bestemmer flyt, låseregler og ruting.
 
+## Grunnprinsipp — type vs modifikator
+
+**Oppgave og Sjekkliste er fundamentalt forskjellige dokumenttyper** med separate tabeller (`Task` vs `Checklist`), ulike låseregler og ulike workflow-mønstre. De skal aldri slås sammen til én liste eller blandes i UI.
+
+**HMS og Godkjenning er modifikatorer** på en mal-type — ikke typer i seg selv. En HMS-mal er enten en HMS-oppgave eller en HMS-sjekkliste. Tilsvarende for Godkjenning når den modulen designes.
+
+Dette prinsippet styrer UI-arkitekturen: mal-administrasjon kan ha to separate lister (oppgavemaler/sjekklistemaler) — det er korrekt. HMS-haken settes på en mal innenfor sin type, ikke som en alternativ type.
+
+Bakgrunn: feilformulert planleggings-utkast 2026-05-26 antydet «én samlet mal-builder» som skulle erstatte de to listene. Det viste seg å være feil scope — Kenneth presiserte at dokumenttypene har grunnleggende forskjellig funksjon og må holdes separate i datamodell, server-routing og UI.
+
 ## Dokumenttyper
 
 | Type | Kategori | Flyt | Låseregel | Ruting | Domain |
