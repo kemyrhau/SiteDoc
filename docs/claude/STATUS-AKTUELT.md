@@ -6,44 +6,28 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Forrige bunke (T7-2c/2d/2e/2f + T7-4a–e) DEPLOYET TIL PROD 2026-05-16
-> (prod-merge `86fdb5a3`). Arkivert til [historikk-2026-05.md](historikk-2026-05.md).
+> Forrige bunke (HMS-modul redesign 2026-05-26/27) arkivert til
+> [historikk-2026-05.md § HMS åpen-synlighet](historikk-2026-05.md),
+> [§ HMS-prosjektvisning](historikk-2026-05.md), [§ HMS-modul-seeding](historikk-2026-05.md).
 
+### Innsender-tilgang — DEPLOYET TIL TEST 2026-05-27 (develop-commit `b4e53e17`)
 
-### HMS åpen-synlighet + prod-backfill — DEPLOYET TIL PROD 2026-05-27 (prod-merge `c0c00374`)
+`verifiserDokumentTilgang` ga FORBIDDEN til brukere som hadde opprettet eller var direkte mottaker av et dokument, med mindre de også var i en gruppe som dekket dokumentets faggruppe/domain. Reelt scenario: arbeider oppretter HMS-avvik via mobilen, klikker URL fra epost-notifikasjon, får FORBIDDEN selv om de er innsender.
 
-Avslutter HMS-modul redesign-bunken. `verifiserDokumentTilgang` utvidet med valgfri `templateHmsSynlighet`-parameter — `oppgave.hentMedId`, `oppgave.hentKommentarer` og `sjekkliste.hentMedId` sender `template.hmsSynlighet` slik at åpne HMS-dokumenter (SJA-default) blir lesbare for alle verifiserte prosjektmedlemmer. Mutations beholder streng tilgang via faggruppe/gruppe-modell. Privat-modellen er uendret. Detaljer i [historikk-2026-05.md § HMS åpen-synlighet](historikk-2026-05.md).
+**Endringer (`apps/api/src/trpc/tilgangskontroll.ts`):**
+- `findUnique` for `bestillerUserId`/`recipientUserId` løftet ut av firmaansvarlig-grenen til en lokal helper-blokk som kjører én gang før forgreningene.
+- Ny innsender-gren rett etter firmaansvarlig: gir tilgang hvis `userId === bestillerUserId || userId === recipientUserId`.
+- Ingen kallsteder endret — alle 17 i `oppgave.ts`/`sjekkliste.ts` sender allerede `dokumentId` + `dokumentType`.
 
-**Prod-backfill kjørt samme dag:** `backfill-hms-maler.ts` mot sitedoc-DB. Tre prosjekter berørt:
-- 998 Instinniforbotn: HMS-gruppe + HMS-flyt opprettet (manglet), eksisterende SJA-mal oppdatert til `hmsSynlighet="apen"` (var feilklassifisert som «privat» etter PR 1-backfill).
-- Fredriks testprosjekt: full HMS-pakke opprettet (HMS-gruppe + flyt + 3 maler).
-- Testprosjekt: SJA + RUH-maler opprettet.
+**Slett-sikring:** Status-baserte begrensninger håndheves fortsatt av kallernes egne sjekker etter `verifiserDokumentTilgang`. Innsender kan slette eget dokument kun i utkast/cancelled-status, ikke etter at flyt er startet — eksisterende `if (status !== "draft" && status !== "cancelled")` i `slett`-mutasjonene matcher Kenneths spec direkte.
 
-Final prod-DB-tilstand: 3 av 3 HMS-aktive prosjekter har komplett {HMS-avvik (privat), SJA (apen), RUH (privat)}-pakke.
+**Verifisert:** `@sitedoc/api` typecheck 0 feil. Deployet til test 2026-05-27 (sitedoc-test-api online, uptime 26m etter restart).
 
-### HMS-prosjektvisning + mal-builder subdomain/synlighet — DEPLOYET TIL PROD 2026-05-26 (prod-merge `69068ba0` + `c1fbc19f`)
+**Klar for review:** Kenneth verifiserer på test.sitedoc.no — opprett oppgave/HMS-avvik som vanlig prosjektmedlem uten faggruppe-tilgang til malens domain, åpne dokumentet via direktelenke → skal returnere 200, ikke FORBIDDEN. Etter verifikasjon: prod-merge + arkiver BACKLOG § 1-entry til historikk.
 
-Komplett HMS-modul-redesign på prosjektnivå (BACKLOG § HMS-modul redesign). To prod-deploys samme dag:
+Refs [BACKLOG.md § 1 Innsender-tilgang](BACKLOG.md).
 
-**Hoved-deploy `69068ba0`:** Ny rute `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx` med KPI-bånd (åpne avvik, SJA siste 30d, RUH siste 30d), 4 tabs (Avvik/SJA/RUH/Statistikk), Ny-dropdown med to-linjes hjelpetekst, statistikk-fane med SVG-paneler (avvik-per-måned, per-faggruppe, status-fordeling). Sidebar-element gated på `ProjectModule.hms-avvik`. Mal-builder utvidet med subdomain-radio (Avvik/SJA/RUH) + synlighet-toggle (Privat/Åpen) i HMS-blokk — amber-advarsel ved synlighet-endring. Server: ny `hms.hentDokumenter` med privat-synlighets-filter, `sjekkliste.opprett` HMS-spesialrute (speil av oppgave.opprett), `mal.opprett`/`oppdaterMal` aksepterer subdomain + hmsSynlighet. Schema: `ReportTemplate.subdomain` + `hms_synlighet` + nullable `Checklist.bestillerFaggruppeId`/`utforerFaggruppeId` (speil av Task). 35 nye i18n-nøkler + 3 hjelpetekst-nøkler × 15 språk (2361 → 2399). Engangs-backfill-script `apps/api/scripts/backfill-hms-maler.ts` kjørt på test-DB (begge prosjekter fikk SJA + RUH).
-
-**Fix-deploy `c1fbc19f`:** Oppfølger-migrasjon `20260526220000_fix_hms_subdomain_prefix_match` for PR 1-backfill-bug. PR 1-migrasjonen hardkodet `subdomain='avvik'` på ALLE HMS-maler — traff også eksisterende SJA + RUH-maler som kunder hadde opprettet manuelt (998 Instinniforbotn på prod). Rettet via prefix-baserte UPDATEs. `hms_synlighet` IKKE endret for å bevare tilgangskontroll på eksisterende dokumenter (1 SJA-sjekkliste fantes på prod). Lærdommer dokumentert i CLAUDE.md (`985dbfd2`).
-
-**Prod-deploy hendelse:** Første build feilet pga `prisma generate` ikke kjørte etter pull. PM2 restartet imens med gammel kode mot ny DB-schema — heldigvis bakover-kompatibelt (kun additive felt + relaxed NULL). Rettet via eksplisitt `prisma generate` + rebuild. Regel skrevet inn i CLAUDE.md. Detaljer i [historikk-2026-05.md § HMS-prosjektvisning](historikk-2026-05.md).
-
-### Dokumentflyt send-modal redesign — DEPLOYET TIL PROD 2026-05-25 (prod-merge `4968a23c`)
-
-Boks-basert handlingsmeny på mobil-detaljside. Server-Commit 1 (`hentTilgjengeligeFlyter` + utvidet flyt-bytte-tilgang + auto-mottaker) + Mobil-Commit 2 (full omskriving av `DokumentHandlingsmeny.tsx`) + i18n 15 språk. EAS iOS build #23 (`a5e6e2ea`) submittert til TestFlight (`898599df`). Fire kjente avvik fra spec dokumentert for enhet-testing. Detaljer i [historikk-2026-05.md § Dokumentflyt send-modal redesign](historikk-2026-05.md).
-
-### Mal→dokumentflyt-kobling bugfix + UI-terminologi — DEPLOYET TIL PROD 2026-05-25 (prod-merge `ed7675a5`)
-
-Bugfiks: `mal.opprett` ignorerte `workflowIds`-input — UI-valget av flyter ved mal-opprettelse var kosmetisk, ingen koblinger ble lagret. Nå opprettes `DokumentflytMal`-rader i transaksjon. `mal.oppdaterMal` aksepterer også `workflowIds` (replace-on-update). UI-terminologi rettet: «Faggruppe» → «Dokumentflyt», amber-advarsel ved tomt valg, rediger-modal med pre-utfylling. 9 nye i18n-nøkler × 15 språk. Prod-DB-funn: 4 av 11 maler manglet flyt-kobling pga. den eksisterende bugen — beholdes urørt, brukerne kan redigere via ny rediger-modal. Detaljer i [historikk-2026-05.md § Mal→dokumentflyt-kobling bugfix](historikk-2026-05.md).
-
-### Mobil firma-velger + i18n — DEPLOYET TIL PROD 2026-05-24 (prod-merge `fa92528a`)
-
-Multi-firma sitedoc_admin får amber-banner + modal-velger på mobil. Server: ny `organisasjon.hentMineMedlemskap`. Klient: FirmaKontekst + 5 hentMine-callsites gated på valgtFirmaId. i18n: 7 nøkler × 13 språk. EAS iOS build #22 (`e8289e0a`) submittert til TestFlight (`6707d04b`); inkluderer hele mai-bunken som var sovende på enhet. Detaljer i [historikk-2026-05.md § Mobil firma-velger](historikk-2026-05.md).
-
-### Neste: TestFlight-verifisering av build #23
+### Pågående: TestFlight build #23 enhet-verifisering
 
 Build #23 (`a5e6e2ea-b570-45d0-a710-1dca7b678f35`) submittert til TestFlight via submission `898599df-aa55-4689-9f2a-cd21b4d26861` 2026-05-25. Apple-prosessering pågår. Venter på enhet-verifikasjon før Android-bygg + Play Store.
 
@@ -57,42 +41,12 @@ Build #23 (`a5e6e2ea-b570-45d0-a710-1dca7b678f35`) submittert til TestFlight via
 - Bekreft firma-bytte clearer byggeplass + prosjektId korrekt
 - Generell regresjonssjekk på timer-flyt etter ny mobil-bunke
 
-### Mal-builder type-radio + HMS-hake — DEPLOYET TIL PROD 2026-05-26 (prod-merge `0278cfb3`)
+### Gjenstående PRs (åpne)
 
-Første steg av mal-builder redesign (BACKLOG § 1). Opprett-modal: type-radio Oppgave/Sjekkliste (disabled, forhåndsvalgt fra mal-builder-side) + HMS-checkbox gated på `ProjectModule.hms-avvik`. Fagområde-dropdown fjernet — domain styres nå av HMS-haken alene (`erHms ? "hms" : "bygg"`). Rediger-modal: samme radio (redigerbar, disabled hvis dokumenter eksisterer) + HMS-checkbox med amber-advarsel ved status-endring. `mal.oppdaterMal` aksepterer `category` med konverterings-validering (task.count + checklist.count, avvis hvis > 0). `MALBYGGER.md §3` oppdatert: type-endring tillatt så lenge ingen dokumenter eksisterer. 7 nye i18n-nøkler × 15 språk. Prod-DB-funn: 0 maler med `domain="kvalitet"` — trygt fjernet fra UI. Inkluderer 3 batchede docs-commits (`02ca7518`, `04c56d0c`, `c171a0c7`). Detaljer i [historikk-2026-05.md § Mal-builder type-radio + HMS-hake](historikk-2026-05.md).
-
-### T7-4f + T7-5b + maskin-fra-til + B-fixes — DEPLOYET TIL PROD 2026-05-17 (prod-merge `44de2521`)
-
-Hele bunken deployet til prod 2026-05-17. Migrasjon `20260517120000_organization_setting_rediger_default_true` applied. Sammenheng-prinsipp låst i [fase-0-beslutninger.md § T7-5](fase-0-beslutninger.md). Detaljer i [historikk-2026-05.md § T7-4f-bunken](historikk-2026-05.md).
-
-### T7-4g + T7-5d + pause-modell + filter-erstattet + maskin-validering-pause — DEPLOYET TIL PROD 2026-05-19 (prod-merge `f167e72c`)
-
-Bunken deployet til prod 2026-05-19. Migrasjon `20260517220000_add_pause_fra_til` applied i prod (`pause_fra`/`pause_til` på `timer.daily_sheets`). Verifisert som innlogget bruker på A.Markussen AS — attestering-siden laster korrekt. Detaljer i [historikk-2026-05.md § T7-4g-bunken](historikk-2026-05.md).
-
-### T7-5e attestert-filter — DEPLOYET TIL PROD 2026-05-20 (prod-merge `cc8f0067`)
-
-Attestering-listen får fane-toggle `[Venter på attestering ●N] [Attestert ●M]`. Server `hentTilAttesteringFirma` aksepterer `status: "sent" | "accepted"` (default "sent" — bakover-kompat). To parallelle queries på klient for badge-tall. SeddelKort fikk `readOnly`-prop som skjuler ↩/✓/⋯/penn/✂ i attestert-fanen. 2 nye i18n-nøkler (`timer.attestering.fane.venter` + `.attestert`) i nb/en. Detaljer i [historikk-2026-05.md § T7-5e](historikk-2026-05.md).
-
-### Firma påkrevd ved prosjektopprettelse + admin.opprettProsjekt-bugfix — DEPLOYET TIL PROD 2026-05-20 (prod-merge `a5bea017`)
-
-Forhindrer at nye prosjekter opprettes uten firma-tilknytning (orphaned). Eksisterende standalone-prosjekter beholdes (schema fortsatt nullable). I tillegg ryddet 5 orphaned testprosjekter fra prod-DB (alle Kenneths fra 2026-05-05). Bug oppdaget og fikset: `admin.opprettProsjekt` satte aldri `primaryOrganizationId` på Project.create — prosjekter ble orphaned i admin-listens primær-filter selv om admin valgte firma i dropdown. Detaljer i [historikk-2026-05.md § Firma-påkrevd-bunken](historikk-2026-05.md).
-
-### T7-5f dirty-tracking grønn Lagre-knapp — DEPLOYET TIL PROD 2026-05-23 (prod-merge `c2792f28`)
-
-Lagre-knappen er grå/disabled inntil bruker har gjort endringer, bytter til grønn når endringer eksisterer. Implementert på begge edit-flater: `AttesteringDetalj_Edit.tsx:481` (⋯-meny «Rediger sedel»-flyt) og `RedigerRadModal.tsx:401` (penn-klikk per rad). `harUlagredeEndringer`/`harEndringer`-memoer fantes allerede — kun koblet til `disabled`-prop + grønn `className` (`!bg-green-600`). Detaljer i [historikk-2026-05.md § T7-5f](historikk-2026-05.md).
-
-### opprettTestprosjekt firma påkrevd — DEPLOYET TIL PROD 2026-05-23 (prod-merge `49171634`)
-
-Siste konsistens-rest fra firma-påkrevd-bunken 2026-05-20: `opprettTestprosjekt` var den eneste prosjekt-opprettelse-mutasjonen som fortsatt hadde `organizationId.optional()`. Sitedoc_admin uten OrganizationMember-rad kunne trigge orphan-prosjekt ved «Opprett malprosjekt» eller «Start gratis prøveperiode» uten valgt firma. Server-input gjort required, klient-knapper disabled uten firma, amber-banner på `kom-i-gang`-siden (gjenbruker `nyttProsjekt.ingenFirma`). Speiler nå `prosjekt.opprett`-mønsteret eksakt. Detaljer i [historikk-2026-05.md § opprettTestprosjekt](historikk-2026-05.md).
-
-**Gjenstående som ny PR:**
 1. **T7-5h** — destruktiv recompute ved pause/fra-til-endring kan overskrive manuelt justert timer uten varsel. Edge case, ikke blokkerende.
-2. ~~**i18n-utvidelse til 13 språk**~~ — ✅ FERDIG 2026-05-23: auto-oversettings-skriptet kjørt for de 30 manglende nøklene. Alle 15 språk har nå **2 328 nøkler**. Stikkprøver bekreftet at fagtermer som «attestert/godkjent», «pause», «firma» er korrekt oversatt og at `{{maskin}}`/`{{arbeid}}`-variabler er bevart. Manuell QA på fagtermer fortsatt anbefalt (skriptets avslutningsmelding), men ingen blokkerende kvalitetsproblem.
-3. ~~**`opprettTestprosjekt`** required organizationId~~ — ✅ FERDIG 2026-05-23 (prod-merge `49171634`). Server + admin-UI + kom-i-gang-UI oppdatert. Speiler nå `prosjekt.opprett` eksakt.
-4. **Firma-velger på mobil** — mobilens `prosjekt.hentMine` filtrerer ikke på firma, så Kenneth ser alle sine prosjekter på tvers. PC har firma-kontekst i topbar; mobil har det ikke. Egen PR.
-5. **EAS-bygg mobil** — alle server-side PR-er i prod; mobil-endringene (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e) sovende på enhet inntil neste bygg.
-
-**Opprydning 2026-05-23:** Tre relikvi-nøkler slettet fra `en.json` (`hjelp.flyt.bestiller`, `hjelp.flyt.utforer`, `hjelp.flyt.godkjenner`). Lagt til i commit `781a5e5e` (2026-04-07) for opprinnelig HjelpModal med tre faste faner, men aldri tilkoblet kode etter refaktorering til generisk `<HjelpFane>`-wrapper. Brukes ikke i UI — verken før eller nå. Konseptet «Bestiller/Utfører/Godkjenner» lever videre under `dokumentflyt.*` og `tabell.*`-nøkler som er fullt oversatt. Ingen UI-konsekvens.
+2. **EAS Android-bygg + Play Store** — etter TestFlight #23 enhet-verifikasjon.
+3. **P-KRITISK-1/-2/-3** — sentralbiblioteket ikke seedet i prod, `FtdChangeEvent`/`FtdTnotaChangeLink` mangler i prod, `BibliotekMal` mangler 4 fase-0-felt. Se [oppryddings-plan-2026-04-28.md](oppryddings-plan-2026-04-28.md).
+4. **HMS-prosjektvisning teknisk gjeld (6 punkter, lav prio)** — TS2589-workaround, plain HTML-tabell, byggeplass-filter, klient-side statistikk, useVerktoylinje droppet, `hms-avvik`-slug misvisende. Se [BACKLOG.md § 1](BACKLOG.md).
 
 ### PR T.5 tidsrunding — DEPLOYET TIL PROD 2026-05-16 (merge `c2b2ede1` develop / `ba6ba243` prod, impl `2560f0d5`)
 
