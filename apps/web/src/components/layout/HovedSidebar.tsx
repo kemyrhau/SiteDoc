@@ -16,6 +16,7 @@ import {
   BarChart3,
   FileSearch,
   ShieldCheck,
+  ShieldAlert,
   Clock,
   Truck,
   CheckCircle2,
@@ -74,6 +75,13 @@ const hovedelementer: SidebarElement[] = [
     ikon: <ListTodo className="h-5 w-5" />,
     kreverProsjekt: true,
     kreverGruppemodul: "oppgaver",
+  },
+  {
+    id: "hms",
+    labelKey: "nav.hms",
+    ikon: <ShieldAlert className="h-5 w-5" />,
+    kreverProsjekt: true,
+    kreverModul: "hms-avvik",
   },
   // Maler er tilgjengelig via Innstillinger → Oppgavemaler / Sjekklistemaler
   {

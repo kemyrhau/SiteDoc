@@ -68,62 +68,61 @@ function komponerWhere(
   return { AND: [base, ...aktive] };
 }
 
-const HMS_INCLUDES_TASK = {
-  template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
-  bestiller: true,
-  bestillerFaggruppe: true,
-  utforerFaggruppe: true,
-  drawing: { select: { id: true, name: true, floor: true, byggeplass: { select: { id: true, name: true } } } },
-  recipientUser: { select: { id: true, name: true } },
-  recipientGroup: { select: { id: true, name: true } },
-  dokumentflyt: {
+const TASK_SELECT = {
+  id: true,
+  title: true,
+  number: true,
+  status: true,
+  dueDate: true,
+  createdAt: true,
+  updatedAt: true,
+  data: true,
+  template: {
     select: {
       id: true,
+      prefix: true,
       name: true,
-      medlemmer: {
-        select: {
-          id: true,
-          rolle: true,
-          steg: true,
-          faggruppe: { select: { id: true, name: true } },
-          projectMember: { include: { user: { select: { id: true, name: true } } } },
-          group: { select: { id: true, name: true } },
-        },
-        orderBy: { steg: "asc" as const },
-      },
+      domain: true,
+      subdomain: true,
+      hmsSynlighet: true,
+      objects: { select: { id: true, label: true, type: true } },
     },
   },
-  _count: { select: { images: true, transfers: true } },
-};
+  bestiller: { select: { id: true, name: true } },
+  bestillerUserId: true,
+  bestillerFaggruppe: { select: { id: true, name: true } },
+  recipientUser: { select: { id: true, name: true } },
+  recipientUserId: true,
+  recipientGroup: { select: { id: true, name: true } },
+} as const;
 
-const HMS_INCLUDES_CHECKLIST = {
-  template: { include: { objects: { select: { id: true, label: true, type: true, config: true } } } },
-  bestillerFaggruppe: true,
-  utforerFaggruppe: true,
-  bestiller: true,
-  byggeplass: { select: { id: true, name: true, number: true } },
-  drawing: { select: { id: true, name: true, floor: true } },
-  recipientUser: { select: { id: true, name: true } },
-  recipientGroup: { select: { id: true, name: true } },
-  dokumentflyt: {
+const CHECKLIST_SELECT = {
+  id: true,
+  title: true,
+  number: true,
+  status: true,
+  dueDate: true,
+  createdAt: true,
+  updatedAt: true,
+  data: true,
+  template: {
     select: {
       id: true,
+      prefix: true,
       name: true,
-      medlemmer: {
-        select: {
-          id: true,
-          rolle: true,
-          steg: true,
-          faggruppe: { select: { id: true, name: true } },
-          projectMember: { include: { user: { select: { id: true, name: true } } } },
-          group: { select: { id: true, name: true } },
-        },
-        orderBy: { steg: "asc" as const },
-      },
+      domain: true,
+      subdomain: true,
+      hmsSynlighet: true,
+      objects: { select: { id: true, label: true, type: true } },
     },
   },
-  _count: { select: { images: true, transfers: true } },
-};
+  bestiller: { select: { id: true, name: true } },
+  bestillerUserId: true,
+  bestillerFaggruppe: { select: { id: true, name: true } },
+  recipientUser: { select: { id: true, name: true } },
+  recipientUserId: true,
+  recipientGroup: { select: { id: true, name: true } },
+} as const;
 
 export const hmsRouter = router({
   /**
@@ -159,7 +158,7 @@ export const hmsRouter = router({
               tilgangsFilter,
               synlighetsFilter,
             ),
-            include: HMS_INCLUDES_TASK,
+            select: TASK_SELECT,
             orderBy: { updatedAt: "desc" },
           })
         : Promise.resolve([]);
@@ -174,7 +173,7 @@ export const hmsRouter = router({
               tilgangsFilter,
               synlighetsFilter,
             ),
-            include: HMS_INCLUDES_CHECKLIST,
+            select: CHECKLIST_SELECT,
             orderBy: { updatedAt: "desc" },
           })
         : Promise.resolve([]);
@@ -189,7 +188,7 @@ export const hmsRouter = router({
               tilgangsFilter,
               synlighetsFilter,
             ),
-            include: HMS_INCLUDES_CHECKLIST,
+            select: CHECKLIST_SELECT,
             orderBy: { updatedAt: "desc" },
           })
         : Promise.resolve([]);

@@ -9,6 +9,7 @@ import {
   verifiserFaggruppeTilhorighet,
   verifiserDokumentTilgang,
   verifiserFlytRolle,
+  verifiserProsjektmedlem,
   hentBrukerTillatelser,
   hentBrukerProsjektTilgang,
   finnBrukersBoks,
@@ -141,8 +142,8 @@ export const sjekklisteRouter = router({
     .input(
       z.object({
         templateId: z.string().uuid(),
-        bestillerFaggruppeId: z.string().uuid(),
-        utforerFaggruppeId: z.string().uuid(),
+        bestillerFaggruppeId: z.string().uuid().optional(),
+        utforerFaggruppeId: z.string().uuid().optional(),
         title: z.string().max(255).optional(),
         dokumentflytId: z.string().uuid().optional(),
         subject: z.string().max(500).optional(),
@@ -152,27 +153,62 @@ export const sjekklisteRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      // Verifiser at bruker tilhører oppretter-faggruppen
-      await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
-
-      // Sjekk grense for gratisbrukere (10 sjekklister per prosjekt)
-      const bruker = await ctx.prisma.user.findUniqueOrThrow({
-        where: { id: ctx.userId },
-        select: { role: true },
+      // Hent malen for å sjekke domain (HMS vs standard)
+      const malForDomain = await ctx.prisma.reportTemplate.findUniqueOrThrow({
+        where: { id: input.templateId },
+        select: { domain: true, projectId: true },
       });
-      if (bruker.role !== "sitedoc_admin") {
-        const faggruppe = await ctx.prisma.faggruppe.findUniqueOrThrow({
-          where: { id: input.bestillerFaggruppeId },
-          select: { projectId: true },
+      const erHms = malForDomain.domain === "hms";
+
+      // HMS-sjekklister (SJA, RUH): auto-rut til HMS-gruppen, ingen faggruppe.
+      // Speiler oppgave.opprett-mønsteret for HMS.
+      let recipientGroupId: string | undefined;
+      if (erHms) {
+        await verifiserProsjektmedlem(ctx.userId, malForDomain.projectId);
+
+        const hmsGruppe = await ctx.prisma.projectGroup.findFirst({
+          where: {
+            projectId: malForDomain.projectId,
+            domains: { array_contains: ["hms"] },
+          },
+          select: { id: true },
         });
-        const antall = await ctx.prisma.checklist.count({
-          where: { bestillerFaggruppe: { projectId: faggruppe.projectId } },
-        });
-        if (antall >= 10) {
+        if (!hmsGruppe) {
           throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Grensen på 10 sjekklister per prosjekt er nådd. Kontakt SiteDoc for å oppgradere.",
+            code: "BAD_REQUEST",
+            message: "HMS-gruppe ikke konfigurert i dette prosjektet. Aktiver HMS-modulen på nytt under Oppsett → Moduler.",
           });
+        }
+        recipientGroupId = hmsGruppe.id;
+      } else {
+        // Standard: faggrupper påkrevd
+        if (!input.bestillerFaggruppeId || !input.utforerFaggruppeId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Bestiller- og utfører-faggruppe er påkrevd for denne sjekklistetypen",
+          });
+        }
+        await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
+
+        // Sjekk grense for gratisbrukere (10 sjekklister per prosjekt)
+        const bruker = await ctx.prisma.user.findUniqueOrThrow({
+          where: { id: ctx.userId },
+          select: { role: true },
+        });
+        if (bruker.role !== "sitedoc_admin") {
+          const faggruppe = await ctx.prisma.faggruppe.findUniqueOrThrow({
+            where: { id: input.bestillerFaggruppeId },
+            select: { projectId: true },
+          });
+          const antall = await ctx.prisma.checklist.count({
+            where: { bestillerFaggruppe: { projectId: faggruppe.projectId } },
+          });
+          if (antall >= 10) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Grensen på 10 sjekklister per prosjekt er nådd. Kontakt SiteDoc for å oppgradere.",
+            });
+          }
         }
       }
 
@@ -199,9 +235,11 @@ export const sjekklisteRouter = router({
         // Auto-generer tittel fra malnavn (nummer vises separat i Nr-kolonne)
         const tittel = input.title?.trim() || mal.name;
 
-        // Finn hovedansvarlig fra dokumentflyt (utfører med erHovedansvarlig)
+        // Finn hovedansvarlig fra dokumentflyt (utfører med erHovedansvarlig).
+        // Default: HMS-grenens recipientGroupId (settes ovenfor for erHms). Overskrives
+        // hvis dokumentflyt har egen hovedansvarlig.
         let recipientUserId: string | undefined;
-        let recipientGroupId: string | undefined;
+        let endeligRecipientGroupId: string | undefined = recipientGroupId;
         if (input.dokumentflytId) {
           const hovedansvarlig = await tx.dokumentflytMedlem.findFirst({
             where: {
@@ -215,8 +253,9 @@ export const sjekklisteRouter = router({
           });
           if (hovedansvarlig?.projectMember?.userId) {
             recipientUserId = hovedansvarlig.projectMember.userId;
+            endeligRecipientGroupId = undefined;
           } else if (hovedansvarlig?.groupId) {
-            recipientGroupId = hovedansvarlig.groupId;
+            endeligRecipientGroupId = hovedansvarlig.groupId;
           }
         }
 
@@ -236,7 +275,7 @@ export const sjekklisteRouter = router({
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             status: "draft",
             recipientUserId,
-            recipientGroupId,
+            recipientGroupId: endeligRecipientGroupId,
           },
         });
       });
@@ -1038,14 +1077,19 @@ export const sjekklisteRouter = router({
         });
       }
 
-      // Valider at ny eier tilhører samme faggruppe
-      const nyEierMedlem = await ctx.prisma.projectMember.findFirst({
-        where: {
-          userId: input.nyEierUserId,
-          projectId,
-          faggruppeKoblinger: { some: { faggruppeId: sjekkliste.bestillerFaggruppeId } },
-        },
-      });
+      // Valider at ny eier tilhører samme faggruppe (kun relevant når sjekklisten
+      // er knyttet til en faggruppe — HMS-sjekklister har null bestillerFaggruppeId)
+      const nyEierMedlem = sjekkliste.bestillerFaggruppeId
+        ? await ctx.prisma.projectMember.findFirst({
+            where: {
+              userId: input.nyEierUserId,
+              projectId,
+              faggruppeKoblinger: { some: { faggruppeId: sjekkliste.bestillerFaggruppeId } },
+            },
+          })
+        : await ctx.prisma.projectMember.findFirst({
+            where: { userId: input.nyEierUserId, projectId },
+          });
 
       if (!nyEierMedlem) {
         throw new TRPCError({

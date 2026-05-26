@@ -7,6 +7,7 @@ import { useNavigasjon, type Seksjon } from "@/kontekst/navigasjon-kontekst";
 const seksjonMap: Record<string, Seksjon> = {
   sjekklister: "sjekklister",
   oppgaver: "oppgaver",
+  hms: "hms",
   maler: "maler",
   tegninger: "tegninger",
   punktskyer: "3d-visning",

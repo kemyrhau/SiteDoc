@@ -832,8 +832,8 @@ model Checklist {
   id                   String    @id @default(uuid())
   templateId           String    @map("template_id")
   bestillerUserId      String    @map("bestiller_user_id")
-  bestillerFaggruppeId String    @map("bestiller_faggruppe_id")
-  utforerFaggruppeId   String    @map("utforer_faggruppe_id")
+  bestillerFaggruppeId String?   @map("bestiller_faggruppe_id")
+  utforerFaggruppeId   String?   @map("utforer_faggruppe_id")
   eierUserId           String?   @map("eier_user_id")
   status               String    @default("draft")
   title                String
@@ -854,8 +854,8 @@ model Checklist {
 
   template           ReportTemplate       @relation(fields: [templateId], references: [id])
   bestiller          User                 @relation("ChecklistCreator", fields: [bestillerUserId], references: [id])
-  bestillerFaggruppe Faggruppe            @relation("ChecklistBestillerFaggruppe", fields: [bestillerFaggruppeId], references: [id])
-  utforerFaggruppe   Faggruppe            @relation("ChecklistUtforerFaggruppe", fields: [utforerFaggruppeId], references: [id])
+  bestillerFaggruppe Faggruppe?           @relation("ChecklistBestillerFaggruppe", fields: [bestillerFaggruppeId], references: [id])
+  utforerFaggruppe   Faggruppe?           @relation("ChecklistUtforerFaggruppe", fields: [utforerFaggruppeId], references: [id])
   eier               User?                @relation("ChecklistOwner", fields: [eierUserId], references: [id], onDelete: SetNull)
   dokumentflyt       Dokumentflyt?        @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   byggeplass         Byggeplass?          @relation(fields: [byggeplassId], references: [id], onDelete: SetNull)

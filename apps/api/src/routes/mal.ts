@@ -76,6 +76,8 @@ export const malRouter = router({
         prefix: z.string().max(20).optional(),
         category: z.enum(["oppgave", "sjekkliste"]).optional(),
         domain: z.enum(["bygg", "hms", "kvalitet"]).optional(),
+        subdomain: z.enum(["avvik", "sja", "ruh"]).nullable().optional(),
+        hmsSynlighet: z.enum(["privat", "apen"]).nullable().optional(),
         subjects: z.array(z.string().max(255)).optional(),
         showSubject: z.boolean().optional(),
         showFaggruppe: z.boolean().optional(),

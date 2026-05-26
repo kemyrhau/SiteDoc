@@ -6,6 +6,7 @@ export type Seksjon =
   | "dashbord"
   | "sjekklister"
   | "oppgaver"
+  | "hms"
   | "maler"
   | "tegninger"
   | "punktskyer"
