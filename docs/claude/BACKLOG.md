@@ -44,19 +44,20 @@ Et dokument starter som **Teknisk avklaring** og kan eskalere til **Økonomisk k
 
 **Oppfølger:** Godkjenning-hake i mal-builder (samme mønster som HMS-haken, `0278cfb3`) aktiveres når Godkjenning-modulen er designet.
 
-### HMS-modul redesign — DEPLOYET TIL PROD 2026-05-26 (prod-merge `69068ba0` + fix `c1fbc19f`)
+### HMS-modul redesign — DEPLOYET TIL PROD 2026-05-26/27 (prod-merge `69068ba0` + fix `c1fbc19f` + åpen-synlighet `c0c00374`)
 
-✅ **Implementert.** HMS-modul-seeding (`dd491081`) + HMS-prosjektvisning (`69068ba0`) dekker hele specen + synlighet-oppfølgeren. Detaljer i [historikk-2026-05.md § HMS-prosjektvisning](historikk-2026-05.md).
+✅ **Implementert.** HMS-modul-seeding (`dd491081`) + HMS-prosjektvisning (`69068ba0`) + subdomain-fix (`c1fbc19f`) + åpen-synlighet (`c0c00374`) dekker hele specen + synlighet-oppfølgeren. Detaljer i [historikk-2026-05.md § HMS-prosjektvisning](historikk-2026-05.md) + [§ HMS åpen-synlighet](historikk-2026-05.md).
 
 **Status per del:**
 - Modul-seeding: HMS-gruppe + HMS-flyt + mal-koblinger ✅
 - SJA + RUH-maler i `PROSJEKT_MODULER` med subdomain/synlighet ✅
 - HMS-spesialrute i `sjekkliste.opprett` (speil av `oppgave.opprett`) ✅
-- Synlighet per mal (`hmsSynlighet: "privat" | "apen"`) + tilgangskontroll i `hms.hentDokumenter` ✅
+- Synlighet per mal (`hmsSynlighet: "privat" | "apen"`) + tilgangskontroll i `hms.hentDokumenter` (privat) og `verifiserDokumentTilgang` (åpen) ✅
 - Mal-builder UI for subdomain + synlighet ✅
 - HMS-prosjektvisning med KPI + 4 tabs + statistikk ✅
 - Sidebar-element gated på `hms-avvik` ✅
 - Fix-migrasjon for prefix-baserte subdomains (SJA/RUH som var feilklassifisert som avvik etter PR 1) ✅
+- Prod-backfill kjørt for alle 3 HMS-aktive prosjekter ✅
 
 **Gjenstående oppgaver (lav prioritet, eventuelle oppfølgere):**
 - Web DokumentHandlingsmeny redesign for HMS-dokumenter — venter på mobil-bunke-verifikasjon (build #23). § 2 «Halvferdige features».
@@ -81,6 +82,31 @@ Krever:
 Tas i planleggingssesjon — ingen videre koding i mellomtiden.
 
 Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 2026-05-16) — flytskille arbeidstaker/attestering/Byggherre-godkjenning + dagsseddel-struktur per prosjekt+ECO.
+
+### Innsender-tilgang — `verifiserDokumentTilgang` mangler `bestillerUserId`-sjekk (middels prioritet)
+
+**Oppdaget 2026-05-27** under HMS-PR-sikkerhetsanalyse. Sannsynligvis generelt SiteDoc-problem, ikke HMS-spesifikt.
+
+En bruker som oppretter et dokument kan ikke åpne det igjen via direkte URL (`/oppgaver/<id>` eller `/sjekklister/<id>`) med mindre de er i en gruppe som dekker dokumentets faggruppe/domain. `verifiserDokumentTilgang` (`apps/api/src/trpc/tilgangskontroll.ts:366`) sjekker `bestillerUserId === userId` KUN i firmaansvarlig-grenen (linje 406-447), ikke for vanlige medlemmer.
+
+**Reelt scenario:** Arbeider oppretter HMS-avvik via mobilen. Senere klikker de URL fra epost-notifikasjon for å se status — får `FORBIDDEN` med mindre de er i HMS-gruppen.
+
+**Fix-skisse:** Ny gren i `verifiserDokumentTilgang` rett etter prosjekt-medlem-verifisering (linje 400): hent dokumentet, sjekk `bestillerUserId === userId || recipientUserId === userId`, gi tilgang hvis match. Krever at funksjonen mottar `dokumentId` + `dokumentType` (som allerede gjøres via firmaansvarlig-grenen). Risiko: må verifisere at ingen mutations bruker `verifiserDokumentTilgang` der vi vil at innsender ikke skal kunne handle.
+
+**Avhengighet:** Verifiser om dette gjelder ALLE dokumenttyper eller om eksisterende firma-medlemskaps-mønster faktisk dekker normale flyter.
+
+### HMS-prosjektvisning teknisk gjeld (lav prioritet)
+
+**Samlet fra HMS-PR-analyse 2026-05-27** etter prod-deploy. Seks kjente avvik som ikke blokkerer funksjon, men reduserer konsistens/skala:
+
+1. **TS2589-workaround i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`** — imperativ `utils.client.X.mutate()` i stedet for `useMutation`-hook (kombinasjonen av `oppgave.opprett` + `sjekkliste.opprett` typegen pumpet for dyp etter `recipientGroupId`-utvidelse). Mister `isPending`/`error`-state og optimistic updates.
+2. **Plain HTML-tabell** brukt i HMS-side-tabellene i stedet for `@sitedoc/ui` Table. Mister sortering, kolonnebredde-resize og kolonnevelger som oppgaver/sjekklister-listene har. Forskjellig UX i samme app.
+3. **HMS-siden ignorerer aktiv byggeplass.** `useByggeplass()` ikke brukt — viser alle HMS-dokumenter uavhengig av byggeplass-kontekst. Inkonsistent med oppgaver/sjekklister som filtrerer på `byggeplassId`.
+4. **Statistikk-fanen aggregerer på klient.** `månederData`, `statusData`, `faggruppeData` regnes på klient fra `dokumenter.avvik`-arrayet. Hvis prosjekt har 1000+ HMS-avvik, blir søyler/bars trege. Server-aggregering kreves for skala.
+5. **`useVerktoylinje`-pattern droppet** — HMS-siden bruker inline header med Ny-dropdown i stedet for global verktøylinje (oppgaver/sjekklister mønster). Funksjonelt OK, men inkonsistent.
+6. **Modul-slug `hms-avvik` misvisende.** Slug-en var korrekt da modulen kun dekket HMS-avvik. Nå dekker den SJA + RUH også. Rename krever migrasjon + mobil-app-bakover-kompat-arbeid (mobil sender slug-en ved aktivering). Vurder ved neste modul-redesign.
+
+**Vurderes som samlet oppfølger-PR** når kundefeedback indikerer behov, eller når Godkjenning-modul-redesign trigger generalisering av modul-mønstre.
 
 ### Dokumentflyt send-modal redesign — DEPLOYET TIL PROD 2026-05-25 (prod-merge `4968a23c`)
 
