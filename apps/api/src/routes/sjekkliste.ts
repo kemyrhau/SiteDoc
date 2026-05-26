@@ -110,7 +110,9 @@ export const sjekklisteRouter = router({
         },
       });
 
-      // Tilgangssjekk — hent projectId og domain fra malen
+      // Tilgangssjekk — hent projectId, domain og hmsSynlighet fra malen.
+      // hmsSynlighet sendes inn slik at "apen" HMS-dokumenter er lesbare for alle
+      // prosjektmedlemmer (lesing — mutations beholder streng tilgang).
       await verifiserDokumentTilgang(
         ctx.userId,
         sjekkliste.template.projectId,
@@ -119,6 +121,7 @@ export const sjekklisteRouter = router({
         sjekkliste.template.domain,
         sjekkliste.id,
         "checklist",
+        sjekkliste.template.hmsSynlighet,
       );
 
       // Sett lestAvMottakerVed når mottaker åpner mens status er «sent»

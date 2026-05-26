@@ -371,6 +371,7 @@ export async function verifiserDokumentTilgang(
   templateDomain?: string | null,
   dokumentId?: string,
   dokumentType?: "task" | "checklist",
+  templateHmsSynlighet?: string | null,
 ): Promise<void> {
   // sitedoc_admin ser alt
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
@@ -471,6 +472,12 @@ export async function verifiserDokumentTilgang(
       if (matcherFaggruppe) return;
     }
   }
+
+  // HMS åpen-synlighet: alle prosjektmedlemmer kan lese dokumentet.
+  // Bruker er verifisert som prosjektmedlem ovenfor (linje 395-400). Skal kun
+  // sendes inn fra lese-routes (hentMedId, hentKommentarer); mutations beholder
+  // streng tilgang via faggruppe/gruppe-domain.
+  if (templateDomain === "hms" && templateHmsSynlighet === "apen") return;
 
   throw new TRPCError({
     code: "FORBIDDEN",
