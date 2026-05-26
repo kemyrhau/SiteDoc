@@ -15,6 +15,7 @@ import { invitasjonRouter } from "../routes/invitasjon";
 import { bildeRouter } from "../routes/bilde";
 import { vaerRouter } from "../routes/vaer";
 import { modulRouter } from "../routes/modul";
+import { hmsRouter } from "../routes/hms";
 import { organisasjonRouter } from "../routes/organisasjon";
 import { adminRouter } from "../routes/admin";
 import { punktskyRouter } from "../routes/punktsky";
@@ -59,6 +60,7 @@ export const appRouter = router({
   bilde: bildeRouter,
   vaer: vaerRouter,
   modul: modulRouter,
+  hms: hmsRouter,
   organisasjon: organisasjonRouter,
   admin: adminRouter,
   punktsky: punktskyRouter,

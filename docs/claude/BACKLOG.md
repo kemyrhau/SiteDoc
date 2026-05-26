@@ -75,6 +75,8 @@ Brukeren får funksjonell HMS fra ett klikk. Tilpasning er deretter justering av
 
 **Sannsynlig oppfølger:** Samme mønster gjelder andre moduler (Godkjenning — under verifisering 2026-05-26). Hvis ja: refaktorere modul-seeding generisk så alle moduler kan deklarere komplett pakke (maler + grupper + flyter + koblinger).
 
+**Oppfølger — synlighet per mal:** Kenneth besluttet 2026-05-26 at HMS-dokumenter skal ha synlighet satt per mal: «Privat» (kun involverte) eller «Åpen» (hele prosjektet kan se). Krever nytt felt på `ReportTemplate` (`hmsSynlighet: "privat" | "apen"?`) + UI i mal-builder + tilgangskontroll i dokumentflyt-routene. Ikke implementert.
+
 ### MASKIN-TIMER KOBLING — arkitektursvikt (høy prioritet)
 
 Kenneth-avklaring 2026-05-16: Maskintimer er en del av arbeidsdagen,
@@ -367,6 +369,32 @@ Engelsk kildetekst mangler verb-bro mellom `{{maskin}}h` og `{{arbeid}}h`-variab
 **Fix-skisse:** Forbedre engelsk kildetekst først — f.eks. «{{maskin}}h machine hours of {{arbeid}}h worked» eller egen formulering med klar struktur. Deretter re-kjør auto-oversettings-skriptet med `--force` for nøkkelen, eller manuell rettelse i hver språkfil. Vurder samtidig om norsk kildetekst (nb.json) bør være primær — i dag er en.json master, men nb leveres separat, så kildeendring må gjøres begge steder.
 
 ## 2. Halvferdige features
+
+### Dokumentflyt/kontaktliste redesign — skille faggrupper fra interne grupper (høy prioritet)
+
+**Oppdaget 2026-05-26** etter prod-deploy av HMS-modul-seeding (`dddf2732`). Dagens dokumentflyt-side grupperer alt etter faggruppe, men `HMS-ansvarlige`-gruppen (og andre `ProjectGroup`-instanser med `domains: ["hms"]` eller `category: "brukergrupper"`) er ikke faggrupper — det er en annen datatype som ikke vises i dagens visning.
+
+**To konkrete problemer:**
+1. **HMS-flyten (opprettet av `modul.aktiver` for hms-avvik) er usynlig i dokumentflyt-administrasjon.** Flyten har et `DokumentflytMedlem` med `faggruppeId = null` + `groupId = HMS-gruppen.id`. Dagens UI grupperer kun på faggruppe-medlemmer og hopper over null-faggruppe-rader.
+2. **Kenneth opplever faggruppe-visningen som svak.** Ønsker to visningsmoduser: én for navn/enkle lister (interne grupper, ansatte), én for faggruppe-struktur (kontraktsparter med faggruppe-farge + rolle-organisering).
+
+**Rotårsak:** UI blander to konsepter som er forskjellige i datamodellen:
+- **Faggruppe** (`Faggruppe`-tabell) — eksterne kontraktsparter (Byggherre, Bygg, Elektro, VVS, Ventilasjon). Har `color`, `industry`, `faggruppeNummer`. Vises i dokumentflyt som «boks» i flytkjeden.
+- **ProjectGroup** (`ProjectGroup`-tabell) — interne grupper (HMS-ansvarlige, brukergrupper). Har `domains`, `permissions`, `modules`. Brukes til tilgangskontroll og som flyt-medlem via `DokumentflytMedlem.groupId`.
+
+`DokumentflytMedlem`-schemaet støtter allerede begge via `faggruppeId | projectMemberId | groupId` (mutex), men UI gjenspeiler ikke den fleksibiliteten.
+
+**Krever design-runde før implementasjon.** Åpne spørsmål:
+- Skal interne grupper vises i samme flyt-visualisering som faggrupper, eller i et separat panel?
+- Hvordan visualiserer vi en flyt med både faggruppe- og gruppe-medlemmer (eks. HMS-flyt der bestiller er åpen og utforer er HMS-gruppen)?
+- Skal Kenneths to visningsmoduser være toggle-bare per side, eller skal de skilles ut til separate sider (kontaktliste vs flyt-administrasjon)?
+- Hva med brukergrupper som ikke er involvert i noen flyt — vises de noe sted i dag?
+
+**Berører:**
+- `apps/web/src/app/dashbord/oppsett/produksjon/dokumentflyt/page.tsx` — primær side
+- `apps/web/src/app/dashbord/oppsett/produksjon/_components/dokumentflyt-komponenter.tsx` — komponenter
+- `apps/web/src/app/dashbord/oppsett/produksjon/kontakter/` — kontaktliste (sannsynligvis berørt av samme to-konsept-skille)
+- Server `gruppe.hentForProsjekt` returnerer allerede ProjectGroup-data — UI må bare konsumere det
 
 ### Web DokumentHandlingsmeny — redesign til boks-modell (høy prioritet)
 

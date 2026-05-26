@@ -4,6 +4,78 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## HMS-modul-seeding + moduler-deaktiver-modal — DEPLOYET TIL PROD 2026-05-26 (prod-merge `dd491081`)
+
+Første steg av HMS-modul redesign (BACKLOG § 1). Når brukeren aktiverer `hms-avvik`-modulen på et prosjekt, seedes nå hele HMS-pakken i samme transaksjon — ikke bare HMS-mal-raden som før. Bygger på planleggings-runden 2026-05-26 (beslutninger låst etter spec-drøfting + kode-grunnlag).
+
+### Server-endringer (`apps/api/src/routes/modul.ts`)
+
+**Ny helper `seedHmsModulOmradet(tx, projectId)` (~85 linjer):**
+- **Steg 1 — HMS-gruppe:** `ProjectGroup.findFirst({ where: { projectId, domains: { array_contains: ["hms"] } } })`. Hvis null: opprett med `name="HMS-ansvarlige"`, `slug="hms-ansvarlige"`, `category="field"`, `domains=["hms"]`, `isDefault=true`, permissions kopiert fra `STANDARD_PROJECT_GROUPS.hms-ledere` (`create_tasks`, `create_checklists`, `checklist_edit/view`, `task_edit/view`).
+- **Steg 2 — HMS-flyt:** `Dokumentflyt.findFirst({ where: { projectId, maler: { some: { template: { domain: "hms" } } } } })`. Gjenkjenner eksisterende «HMS-avvik»-flyt fra `prosjekt.opprett`-seeding via `DokumentflytMal`-kobling (uten å rename). Hvis null: opprett med `name="HMS"` + null-medlem-bestiller (steg 1, alle FK null = «åpen for alle») + utforer-medlem med `groupId=hmsGruppe.id` (steg 2). Medlemmer opprettes KUN når flyten opprettes nå — eksisterende flyter med faggruppe-medlemmer berøres ikke.
+- **Steg 3 — Mal-koblinger:** `findMany` på `ReportTemplate(projectId, domain="hms")`, deretter `DokumentflytMal.upsert` for hver. Idempotent via composite-unique `(dokumentflytId, templateId)`.
+
+**Restrukturert `modul.aktiver`:** Reaktiverings-grenen returnerer ikke lenger tidlig. All logikk (ProjectModule opprettelse/reaktivering, mal-seeding, HMS-seeding) kjører i én transaksjon. Kall `seedHmsModulOmradet(tx, projectId)` etter mal-løkken kun når `moduleSlug === "hms-avvik"`. Idempotens-garantier:
+- `ProjectModule.create` skippes hvis raden finnes — status oppdateres til «aktiv» i stedet
+- `ReportTemplate.create` skippes hvis prefix finnes (eksisterende mønster)
+- `ProjectGroup.create` skippes hvis gruppe med `domains: ["hms"]` finnes
+- `Dokumentflyt.create` skippes hvis flyt med HMS-mal-kobling finnes
+- `DokumentflytMal.upsert` håndterer kobling-duplikater
+
+### Klient-endring (`apps/web/src/app/dashbord/oppsett/produksjon/moduler/page.tsx`)
+
+Per CLAUDE.md skal slett/deaktiver-operasjoner bruke ekte modal-komponent, ikke native `confirm()`. Linje 228 hadde `if (confirm(...))` — erstattet med:
+- Ny state `bekreftDeaktivering: { slug, navn } | null`
+- onClick åpner modal istedenfor `confirm()`
+- Ny `<Modal>` nederst i komponenten med to-knapp-mønster (Deaktiver med rød hover-styling + Avbryt). Lukker automatisk via `onSuccess` på `deaktiverMutation`.
+
+### i18n
+
+3 nye nøkler under `moduler.deaktiverBekreft*`:
+- `Tittel` («Deaktiver modul»)
+- `Tekst` («Deaktiver modulen «{{navn}}»?»)
+- `Beskrivelse` («Eksisterende maler og data beholdes. Du kan reaktivere modulen senere.»)
+
+Auto-oversatt til 13 språk via `generate.ts` — **2361 nøkler totalt** per språk.
+
+### DB-verifisering på test-DB (2026-05-26)
+
+Etter test-deploy + bruker-aktivering av `hms-avvik` på et test-prosjekt:
+
+```
+ name | antall_maler |   rolle   |               group_id
+------+--------------+-----------+--------------------------------------
+ HMS  |            1 | bestiller | (NULL)
+ HMS  |            1 | utforer   | dec1a76e-638b-402d-9589-2dfb7cd20731
+```
+
+Bekreftet: HMS-flyt opprettet med `name="HMS"`, 2 medlemmer (bestiller null-medlem + utforer på HMS-gruppen), 1 `DokumentflytMal`-kobling.
+
+### Verifisering
+
+- `apps/api` typecheck 0 = 0 feil
+- `apps/web` typecheck 1 = 1 baseline (vitest)
+- Test-deploy 2026-05-26 ~18:25 — `test.sitedoc.no` HTTP/2 200
+- Prod-deploy 2026-05-26 ~18:40 — `sitedoc.no` + `api.sitedoc.no/health` HTTP/2 200
+
+### Avgrensninger (utenfor denne PR)
+
+- HMS-spesialruten i `oppgave.opprett:313-336` (ProjectGroup-direkte-lookup via `domains: ["hms"]`) er ikke refaktorert. Kjører parallelt med ny `DokumentflytMal`-mekanikk.
+- `prosjekt.opprett`-seeding av HMS-flyt med faggruppe-baserte medlemmer er ikke endret. Nye prosjekter får fortsatt «HMS-avvik»-flyt-mønsteret ved opprettelse.
+- `sjekkliste.opprett` har fortsatt ingen HMS-spesialrute (kun `oppgave.opprett` har).
+- Ingen schema-endring.
+
+### Funn etter prod-deploy
+
+HMS-gruppen og HMS-flyten er deployet og seedes korrekt, men er **usynlig i dokumentflyt-administrasjons-siden**. UI-en grupperer kun på `Faggruppe`-medlemmer (ikke `ProjectGroup`-medlemmer via `groupId`). Lagt til som backlog-entry under [BACKLOG § 2](BACKLOG.md): «Dokumentflyt/kontaktliste redesign — skille faggrupper fra interne grupper» (krever design-runde).
+
+### Batchede docs-commits inkludert i samme prod-deploy
+
+- `a96ab4c6` — arkivering av mal-builder type-radio + HMS-hake prod-deploy
+- `9b914a8f` — fjernet feilformulert mal-builder-redesign-entry, lagt Godkjenning-hake som oppfølger
+
+---
+
 ## Mal-builder type-radio + HMS-hake — DEPLOYET TIL PROD 2026-05-26 (prod-merge `0278cfb3`, develop-commit `b6a86ca8`)
 
 Første steg av mal-builder redesign (BACKLOG § 1). Erstatter skjult `domain`-dropdown med eksplisitte type-haker + HMS-checkbox i begge mal-modaler. Server-side konverterings-validering hindrer at type endres for maler med eksisterende dokumenter.

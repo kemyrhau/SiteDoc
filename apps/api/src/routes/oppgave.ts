@@ -39,16 +39,27 @@ export const oppgaveRouter = router({
         projectId: z.string().uuid(),
         status: documentStatusSchema.optional(),
         byggeplassId: z.string().uuid().optional(),
+        // Hvis utelatt: ekskluder HMS-dokumenter (de vises på egen HMS-side).
+        // Eksplisitt verdi filtrerer på det domenet.
+        domain: z.enum(["bygg", "hms", "kvalitet"]).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       const tilgangsFilter = await byggTilgangsFilter(ctx.userId, input.projectId);
+      const domainFilter = input.domain
+        ? { template: { is: { domain: input.domain } } }
+        : { template: { is: { domain: { not: "hms" } } } };
 
       return ctx.prisma.task.findMany({
         where: {
-          OR: [
-            { bestillerFaggruppe: { projectId: input.projectId } },
-            { template: { projectId: input.projectId }, bestillerFaggruppeId: null },
+          AND: [
+            {
+              OR: [
+                { bestillerFaggruppe: { projectId: input.projectId } },
+                { template: { projectId: input.projectId }, bestillerFaggruppeId: null },
+              ],
+            },
+            domainFilter,
           ],
           ...(input.status ? { status: input.status } : {}),
           ...(input.byggeplassId ? { OR: [{ drawing: { byggeplassId: input.byggeplassId } }, { drawingId: null }] } : {}),

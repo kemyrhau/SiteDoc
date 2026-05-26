@@ -21,6 +21,9 @@ interface MalListeProps {
   hjelpInnhold?: React.ReactNode;
 }
 
+type HmsSubdomain = "avvik" | "sja" | "ruh";
+type HmsSynlighet = "privat" | "apen";
+
 type MalRad = {
   id: string;
   name: string;
@@ -28,11 +31,18 @@ type MalRad = {
   prefix: string | null;
   category: string;
   domain: string;
+  subdomain: HmsSubdomain | null;
+  hmsSynlighet: HmsSynlighet | null;
   version: number;
   subjects: unknown;
   enableChangeLog: boolean;
   _count: { objects: number; checklists: number; tasks: number };
 };
+
+// Default-synlighet per subdomain. Bruker kan overstyre manuelt.
+function defaultSynlighet(subdomain: HmsSubdomain): HmsSynlighet {
+  return subdomain === "sja" ? "apen" : "privat";
+}
 
 // Dropdown-meny som lukkes ved klikk utenfor
 function Dropdown({
@@ -124,6 +134,8 @@ export function MalListe({
   const [beskrivelse, setBeskrivelse] = useState("");
   const [prefiksFeil, setPrefiksFeil] = useState<string | null>(null);
   const [erHms, setErHms] = useState(false);
+  const [subdomain, setSubdomain] = useState<HmsSubdomain>("avvik");
+  const [hmsSynlighet, setHmsSynlighet] = useState<HmsSynlighet>("privat");
   const [valgteWorkflowIds, setValgteWorkflowIds] = useState<Set<string>>(new Set());
   const [visFaggruppeTilknytning, setVisFaggruppeTilknytning] = useState(false);
   const [aktiverOppretting, _setAktiverOppretting] = useState(true);
@@ -139,6 +151,9 @@ export function MalListe({
   const [redigerCategory, setRedigerCategory] = useState<MalKategori>("sjekkliste");
   const [redigerErHms, setRedigerErHms] = useState(false);
   const [redigerOpprinneligErHms, setRedigerOpprinneligErHms] = useState(false);
+  const [redigerSubdomain, setRedigerSubdomain] = useState<HmsSubdomain>("avvik");
+  const [redigerHmsSynlighet, setRedigerHmsSynlighet] = useState<HmsSynlighet>("privat");
+  const [redigerOpprinneligSynlighet, setRedigerOpprinneligSynlighet] = useState<HmsSynlighet | null>(null);
 
   const { data: alleMaler, isLoading } = trpc.mal.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
@@ -163,6 +178,8 @@ export function MalListe({
       setBeskrivelse("");
       setPrefiksFeil(null);
       setErHms(false);
+      setSubdomain("avvik");
+      setHmsSynlighet("privat");
       setValgteWorkflowIds(new Set());
     },
   });
@@ -198,6 +215,8 @@ export function MalListe({
       description: beskrivelse.trim() || undefined,
       category: kategori,
       domain: erHms ? "hms" : "bygg",
+      subdomain: erHms ? subdomain : null,
+      hmsSynlighet: erHms ? hmsSynlighet : null,
       workflowIds: Array.from(valgteWorkflowIds),
     });
   }
@@ -212,6 +231,8 @@ export function MalListe({
       description: redigerBeskrivelse.trim() || undefined,
       category: redigerCategory,
       domain: redigerErHms ? "hms" : "bygg",
+      subdomain: redigerErHms ? redigerSubdomain : null,
+      hmsSynlighet: redigerErHms ? redigerHmsSynlighet : null,
       subjects: redigerSubjects.filter((s) => s.trim() !== ""),
       enableChangeLog: redigerEnableChangeLog,
       workflowIds: Array.from(redigerWorkflowIds),
@@ -236,6 +257,11 @@ export function MalListe({
     const erHmsNa = mal.domain === "hms";
     setRedigerErHms(erHmsNa);
     setRedigerOpprinneligErHms(erHmsNa);
+    const radSubdomain: HmsSubdomain = (mal.subdomain ?? "avvik");
+    const radSynlighet: HmsSynlighet = mal.hmsSynlighet ?? defaultSynlighet(radSubdomain);
+    setRedigerSubdomain(radSubdomain);
+    setRedigerHmsSynlighet(radSynlighet);
+    setRedigerOpprinneligSynlighet(erHmsNa ? radSynlighet : null);
     const koblinger = (mal as { dokumentflytMaler?: Array<{ dokumentflytId: string }> }).dokumentflytMaler ?? [];
     setRedigerWorkflowIds(new Set(koblinger.map((k) => k.dokumentflytId)));
     setVisRedigerModal(true);
@@ -547,7 +573,12 @@ export function MalListe({
                   type="checkbox"
                   className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
                   checked={erHms}
-                  onChange={(e) => setErHms(e.target.checked)}
+                  onChange={(e) => {
+                    setErHms(e.target.checked);
+                    if (e.target.checked) {
+                      setHmsSynlighet(defaultSynlighet(subdomain));
+                    }
+                  }}
                 />
                 <span className="text-sm font-medium text-gray-700">
                   {t("maler.hms.hake")}
@@ -556,6 +587,64 @@ export function MalListe({
               <p className="text-xs text-gray-500 ml-6">
                 {t("maler.hms.beskrivelse")}
               </p>
+            </div>
+          )}
+
+          {/* HMS-subdomain + synlighet (kun når HMS er valgt) */}
+          {hmsModulAktiv && erHms && (
+            <div className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-3 ml-6">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">
+                  {t("hms.subdomain.label")}
+                </label>
+                <div className="flex gap-4">
+                  {(["avvik", "sja", "ruh"] as HmsSubdomain[]).map((sd) => (
+                    <label key={sd} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="opprett-subdomain"
+                        value={sd}
+                        checked={subdomain === sd}
+                        onChange={() => {
+                          setSubdomain(sd);
+                          setHmsSynlighet(defaultSynlighet(sd));
+                        }}
+                        className="h-4 w-4 text-sitedoc-primary"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {t(`hms.subdomain.${sd}`)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">
+                  {t("hms.synlighet.label")}
+                </label>
+                <div className="flex gap-4">
+                  {(["privat", "apen"] as HmsSynlighet[]).map((v) => (
+                    <label key={v} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="opprett-synlighet"
+                        value={v}
+                        checked={hmsSynlighet === v}
+                        onChange={() => setHmsSynlighet(v)}
+                        className="h-4 w-4 text-sitedoc-primary"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {t(`hms.synlighet.${v}`)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  {hmsSynlighet === "privat"
+                    ? t("hms.synlighet.privatBeskrivelse")
+                    : t("hms.synlighet.apenBeskrivelse")}
+                </p>
+              </div>
             </div>
           )}
 
@@ -715,7 +804,12 @@ export function MalListe({
                   type="checkbox"
                   className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
                   checked={redigerErHms}
-                  onChange={(e) => setRedigerErHms(e.target.checked)}
+                  onChange={(e) => {
+                    setRedigerErHms(e.target.checked);
+                    if (e.target.checked && redigerOpprinneligSynlighet === null) {
+                      setRedigerHmsSynlighet(defaultSynlighet(redigerSubdomain));
+                    }
+                  }}
                 />
                 <span className="text-sm font-medium text-gray-700">
                   {t("maler.hms.hake")}
@@ -729,6 +823,72 @@ export function MalListe({
                   {t("maler.hms.endringAdvarsel")}
                 </p>
               )}
+            </div>
+          )}
+
+          {/* HMS-subdomain + synlighet i rediger-modus */}
+          {redigerErHms && (
+            <div className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-3 ml-6">
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">
+                  {t("hms.subdomain.label")}
+                </label>
+                <div className="flex gap-4">
+                  {(["avvik", "sja", "ruh"] as HmsSubdomain[]).map((sd) => (
+                    <label key={sd} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="rediger-subdomain"
+                        value={sd}
+                        checked={redigerSubdomain === sd}
+                        onChange={() => {
+                          setRedigerSubdomain(sd);
+                          if (redigerOpprinneligSynlighet === null) {
+                            setRedigerHmsSynlighet(defaultSynlighet(sd));
+                          }
+                        }}
+                        className="h-4 w-4 text-sitedoc-primary"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {t(`hms.subdomain.${sd}`)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">
+                  {t("hms.synlighet.label")}
+                </label>
+                <div className="flex gap-4">
+                  {(["privat", "apen"] as HmsSynlighet[]).map((v) => (
+                    <label key={v} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="rediger-synlighet"
+                        value={v}
+                        checked={redigerHmsSynlighet === v}
+                        onChange={() => setRedigerHmsSynlighet(v)}
+                        className="h-4 w-4 text-sitedoc-primary"
+                      />
+                      <span className="text-sm text-gray-700">
+                        {t(`hms.synlighet.${v}`)}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  {redigerHmsSynlighet === "privat"
+                    ? t("hms.synlighet.privatBeskrivelse")
+                    : t("hms.synlighet.apenBeskrivelse")}
+                </p>
+                {redigerOpprinneligSynlighet !== null
+                  && redigerHmsSynlighet !== redigerOpprinneligSynlighet && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    {t("hms.synlighet.endringAdvarsel")}
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

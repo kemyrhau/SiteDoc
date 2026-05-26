@@ -81,7 +81,7 @@ export const adminRouter = router({
     const sjekklistePerProsjekt = new Map<string, number>();
     const oppgavePerProsjekt = new Map<string, number>();
     for (const s of sjekklisteTellere) {
-      const pid = faggruppeProsjektMap.get(s.bestillerFaggruppeId);
+      const pid = s.bestillerFaggruppeId ? faggruppeProsjektMap.get(s.bestillerFaggruppeId) : undefined;
       if (pid) sjekklistePerProsjekt.set(pid, (sjekklistePerProsjekt.get(pid) ?? 0) + s._count);
     }
     for (const o of oppgaveTellere) {

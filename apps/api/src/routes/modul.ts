@@ -71,6 +71,47 @@ async function seedHmsModulOmradet(
     });
   }
 
+  // 2.5) Backfill: opprett manglende HMS-maler (SJA + RUH + HMS-avvik) for prosjekter
+  // som hadde modulen aktivert før SJA/RUH ble lagt til i PROSJEKT_MODULER. Idempotent
+  // via prefix-sjekk. Speiler modul.aktiver-løkkens opprettings-logikk slik at funksjonen
+  // er selv-helbredende uavhengig av hvilken kallsti som treffer den.
+  const hmsModulDef = PROSJEKT_MODULER.find((m) => m.slug === "hms-avvik");
+  if (hmsModulDef) {
+    for (const malDef of hmsModulDef.maler) {
+      const finnes = await tx.reportTemplate.findFirst({
+        where: { projectId, prefix: malDef.prefix },
+        select: { id: true },
+      });
+      if (finnes) continue;
+      const nyMal = await tx.reportTemplate.create({
+        data: {
+          projectId,
+          name: malDef.navn,
+          description: malDef.beskrivelse,
+          prefix: malDef.prefix,
+          category: malDef.kategori,
+          domain: malDef.domain,
+          subdomain: malDef.subdomain ?? null,
+          hmsSynlighet: malDef.hmsSynlighet ?? null,
+          subjects: (malDef.emner ?? []) as Prisma.InputJsonValue,
+        },
+        select: { id: true },
+      });
+      if (malDef.objekter.length > 0) {
+        await tx.reportObject.createMany({
+          data: malDef.objekter.map((obj) => ({
+            templateId: nyMal.id,
+            type: obj.type,
+            label: obj.label,
+            sortOrder: obj.sortOrder,
+            required: obj.required ?? false,
+            config: obj.config as Prisma.InputJsonValue,
+          })),
+        });
+      }
+    }
+  }
+
   // 3) Koble alle HMS-maler til flyten — idempotent via composite-unique
   const hmsMaler = await tx.reportTemplate.findMany({
     where: { projectId, domain: "hms" },
@@ -188,6 +229,8 @@ export const modulRouter = router({
               prefix: malDef.prefix,
               category: malDef.kategori,
               domain: malDef.domain,
+              subdomain: malDef.subdomain ?? null,
+              hmsSynlighet: malDef.hmsSynlighet ?? null,
               subjects: (malDef.emner ?? []) as Prisma.InputJsonValue,
             },
           });
