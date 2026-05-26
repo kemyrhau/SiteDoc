@@ -4,6 +4,43 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Innsender-tilgang i verifiserDokumentTilgang — DEPLOYET TIL PROD 2026-05-27 (prod-merge `b3194f1d`, develop-commit `b4e53e17`)
+
+Tetter sikkerhets-gap i `verifiserDokumentTilgang`: brukere som hadde opprettet eller var direkte mottaker av et dokument fikk FORBIDDEN ved direktelenke-oppslag med mindre de også var i en gruppe som dekket dokumentets faggruppe/domain.
+
+### Reelt scenario som drev fiksen
+
+Arbeider oppretter HMS-avvik via mobilen. Etter epost-notifikasjon klikker de URL i e-posten for å se status — får FORBIDDEN selv om de er innsender. Samme bug rammer mottaker som åpner egen oppgave-direktelenke uten gruppe-medlemskap. Oppdaget under HMS-PR-sikkerhetsanalyse 2026-05-27 (BACKLOG § 1 «Innsender-tilgang»).
+
+### Kode-endring (`apps/api/src/trpc/tilgangskontroll.ts`)
+
+- `findUnique` for `bestillerUserId`/`recipientUserId` løftet ut av firmaansvarlig-grenen til en lokal `dokumentParter`-helper-blokk som kjører **én gang** før forgreningene. Firmaansvarlig-grenen gjenbruker resultatet i stedet for eget DB-kall.
+- Ny innsender-gren rett etter firmaansvarlig: gir tilgang hvis `bestillerUserId === userId || recipientUserId === userId`.
+- Ingen kallsteder endret — alle 17 i `oppgave.ts`/`sjekkliste.ts` sender allerede `dokumentId` + `dokumentType`.
+
+### Slett-sikring
+
+Status-baserte begrensninger håndheves fortsatt av kallernes egne sjekker **etter** `verifiserDokumentTilgang`. Innsender kan slette eget dokument kun i `draft`/`cancelled`-status (eksisterende `if (status !== "draft" && status !== "cancelled")` i `slett`-mutasjonene matcher Kenneths spec direkte — ingen ekstra `tillatInnsender`-flagg trengtes).
+
+### Verifikasjonsgrunnlag før koding
+
+Opus verifiserte tre konkrete punkter Kenneth ba om før implementasjonsbeslutning:
+
+1. **Alle 17 kallsteder** sender allerede `dokumentId` + `dokumentType` → Alternativ A (lookup inne i funksjonen) krevde **0 kallsteder endret**.
+2. Backlog-skissens «linje 400»-plassering var upresis — riktig plassering er linje 449 (etter firmaansvarlig-grenen). Lar oss gjenbruke `findUnique`-resultatet.
+3. Slett-mutasjonene sjekker allerede status **etter** `verifiserDokumentTilgang` i begge filer (`oppgave.ts:1125` og `sjekkliste.ts:1026`) — eksisterende guard er identisk med Kenneths spec.
+
+### Verifisering
+
+`@sitedoc/api` typecheck 0 feil. Deployet til test 2026-05-27 (uptime 26m etter restart). Prod-deploy `b3194f1d`: 3 builds successful (1m 18s), ingen pending migrasjoner (kun kode-endring), `sitedoc.no` HTTP/2 200, `api.sitedoc.no/health` HTTP/2 200. Visuell verifisering må gjøres som innlogget bruker — opprett HMS-avvik som vanlig prosjektmedlem uten faggruppe-tilgang til malens domain, åpne via direktelenke, bekreft 200 (ikke FORBIDDEN).
+
+### Avgrensninger (utenfor denne fiksen)
+
+- Mutations utover `slett` (`oppdater`, `oppdaterData`, `endreStatus`, `leggTilKommentar`, `forbedreOversettelse`) får nå innsender-tilgang gjennom samme gren. Flow-rolle-håndhevelse (`verifiserFlytRolle`) i `endreStatus` håndterer fortsatt overgangs-rettighetene. Innsender = `bestiller`-rolle i flyt og har derfor flyt-rolle-baserte rettigheter.
+- Ingen tilgang basert på `DocumentTransfer.senderId` for vanlige medlemmer — kun via firmaansvarlig-grenen (uendret).
+
+---
+
 ## HMS åpen-synlighet + prod-backfill — DEPLOYET TIL PROD 2026-05-27 (prod-merge `c0c00374`, develop-commit `7e17b3c3`)
 
 Avsluttende fiks etter HMS-prosjektvisning-bunken (`69068ba0` + `c1fbc19f`). Adresserer åpen-synlighet-gapet og rydder prod-DB.

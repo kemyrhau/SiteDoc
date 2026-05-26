@@ -83,17 +83,9 @@ Tas i planleggingssesjon — ingen videre koding i mellomtiden.
 
 Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 2026-05-16) — flytskille arbeidstaker/attestering/Byggherre-godkjenning + dagsseddel-struktur per prosjekt+ECO.
 
-### Innsender-tilgang — `verifiserDokumentTilgang` mangler `bestillerUserId`-sjekk (middels prioritet)
+### Innsender-tilgang — DEPLOYET TIL PROD 2026-05-27 (prod-merge `b3194f1d`, develop-commit `b4e53e17`)
 
-**Oppdaget 2026-05-27** under HMS-PR-sikkerhetsanalyse. Sannsynligvis generelt SiteDoc-problem, ikke HMS-spesifikt.
-
-En bruker som oppretter et dokument kan ikke åpne det igjen via direkte URL (`/oppgaver/<id>` eller `/sjekklister/<id>`) med mindre de er i en gruppe som dekker dokumentets faggruppe/domain. `verifiserDokumentTilgang` (`apps/api/src/trpc/tilgangskontroll.ts:366`) sjekker `bestillerUserId === userId` KUN i firmaansvarlig-grenen (linje 406-447), ikke for vanlige medlemmer.
-
-**Reelt scenario:** Arbeider oppretter HMS-avvik via mobilen. Senere klikker de URL fra epost-notifikasjon for å se status — får `FORBIDDEN` med mindre de er i HMS-gruppen.
-
-**Fix-skisse:** Ny gren i `verifiserDokumentTilgang` rett etter prosjekt-medlem-verifisering (linje 400): hent dokumentet, sjekk `bestillerUserId === userId || recipientUserId === userId`, gi tilgang hvis match. Krever at funksjonen mottar `dokumentId` + `dokumentType` (som allerede gjøres via firmaansvarlig-grenen). Risiko: må verifisere at ingen mutations bruker `verifiserDokumentTilgang` der vi vil at innsender ikke skal kunne handle.
-
-**Avhengighet:** Verifiser om dette gjelder ALLE dokumenttyper eller om eksisterende firma-medlemskaps-mønster faktisk dekker normale flyter.
+✅ **Implementert.** `verifiserDokumentTilgang` utvidet med innsender/mottaker-gren rett etter firmaansvarlig (linje 451-460). `findUnique` for `bestillerUserId`/`recipientUserId` løftet til lokal helper, gjenbrukes av firmaansvarlig + innsender. Alle 17 kallsteder uendret. Slett-sikring håndheves fortsatt av `slett`-mutasjonens egen status-sjekk (`status !== "draft" && status !== "cancelled"`). Detaljer i [historikk-2026-05.md § Innsender-tilgang](historikk-2026-05.md).
 
 ### HMS-prosjektvisning teknisk gjeld (lav prioritet)
 

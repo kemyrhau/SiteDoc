@@ -6,26 +6,13 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Forrige bunke (HMS-modul redesign 2026-05-26/27) arkivert til
-> [historikk-2026-05.md § HMS åpen-synlighet](historikk-2026-05.md),
-> [§ HMS-prosjektvisning](historikk-2026-05.md), [§ HMS-modul-seeding](historikk-2026-05.md).
-
-### Innsender-tilgang — DEPLOYET TIL TEST 2026-05-27 (develop-commit `b4e53e17`)
-
-`verifiserDokumentTilgang` ga FORBIDDEN til brukere som hadde opprettet eller var direkte mottaker av et dokument, med mindre de også var i en gruppe som dekket dokumentets faggruppe/domain. Reelt scenario: arbeider oppretter HMS-avvik via mobilen, klikker URL fra epost-notifikasjon, får FORBIDDEN selv om de er innsender.
-
-**Endringer (`apps/api/src/trpc/tilgangskontroll.ts`):**
-- `findUnique` for `bestillerUserId`/`recipientUserId` løftet ut av firmaansvarlig-grenen til en lokal helper-blokk som kjører én gang før forgreningene.
-- Ny innsender-gren rett etter firmaansvarlig: gir tilgang hvis `userId === bestillerUserId || userId === recipientUserId`.
-- Ingen kallsteder endret — alle 17 i `oppgave.ts`/`sjekkliste.ts` sender allerede `dokumentId` + `dokumentType`.
-
-**Slett-sikring:** Status-baserte begrensninger håndheves fortsatt av kallernes egne sjekker etter `verifiserDokumentTilgang`. Innsender kan slette eget dokument kun i utkast/cancelled-status, ikke etter at flyt er startet — eksisterende `if (status !== "draft" && status !== "cancelled")` i `slett`-mutasjonene matcher Kenneths spec direkte.
-
-**Verifisert:** `@sitedoc/api` typecheck 0 feil. Deployet til test 2026-05-27 (sitedoc-test-api online, uptime 26m etter restart).
-
-**Klar for review:** Kenneth verifiserer på test.sitedoc.no — opprett oppgave/HMS-avvik som vanlig prosjektmedlem uten faggruppe-tilgang til malens domain, åpne dokumentet via direktelenke → skal returnere 200, ikke FORBIDDEN. Etter verifikasjon: prod-merge + arkiver BACKLOG § 1-entry til historikk.
-
-Refs [BACKLOG.md § 1 Innsender-tilgang](BACKLOG.md).
+> Forrige bunke (innsender-tilgang i `verifiserDokumentTilgang`) DEPLOYET
+> TIL PROD 2026-05-27 (prod-merge `b3194f1d`, develop-commit `b4e53e17`).
+> Arkivert til [historikk-2026-05.md § Innsender-tilgang](historikk-2026-05.md).
+> HMS-bunken (2026-05-26/27) arkivert i samme fil:
+> [§ HMS åpen-synlighet](historikk-2026-05.md),
+> [§ HMS-prosjektvisning](historikk-2026-05.md),
+> [§ HMS-modul-seeding](historikk-2026-05.md).
 
 ### Pågående: TestFlight build #23 enhet-verifisering
 
