@@ -95,13 +95,13 @@ function NyDropdown({
           {alternativer.length === 0 ? (
             <div className="px-4 py-2 text-sm text-gray-500">{t("hms.ingenMalerTilgjengelig")}</div>
           ) : (
-            alternativer.map(({ subdomain, mal }) => (
+            alternativer.map(({ mal }) => (
               <button
                 key={mal.id}
                 onClick={() => { setOpen(false); onClick(mal); }}
                 className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
               >
-                {t(`hms.subdomain.${subdomain}`)} — {mal.name}
+                {mal.name}
               </button>
             ))
           )}
