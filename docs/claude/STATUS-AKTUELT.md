@@ -10,6 +10,10 @@ sist_verifisert_mot_kode: 2026-05-08
 > (prod-merge `86fdb5a3`). Arkivert til [historikk-2026-05.md](historikk-2026-05.md).
 
 
+### HMS-modul-seeding + moduler-deaktiver-modal — DEPLOYET TIL PROD 2026-05-26 (prod-merge `dd491081`)
+
+`modul.aktiver` for `hms-avvik` seeder nå HMS-pakken i én transaksjon: ProjectGroup («HMS-ansvarlige», `domains: ["hms"]`, `isDefault: true`), Dokumentflyt («HMS» med bestiller-null-medlem + utforer-medlem på HMS-gruppen), og `DokumentflytMal`-koblinger for alle `ReportTemplate(domain="hms")` på prosjektet. Reaktiverings-grenen kjører også seeding-løkkene — alle steg idempotente. DB-verifisering 2026-05-26: HMS-flyt med 2 medlemmer + 1 mal-kobling som spec'et. Samtidig: erstattet native `confirm()` på moduler-side med Modal-komponent (per CLAUDE.md), 3 nye i18n-nøkler × 15 språk. Funn etter deploy: HMS-flyten er usynlig i dokumentflyt-admin-UI (grupperer kun på faggruppe-medlemmer, ikke ProjectGroup) — backlog-entry skrevet. Detaljer i [historikk-2026-05.md § HMS-modul-seeding](historikk-2026-05.md).
+
 ### Dokumentflyt send-modal redesign — DEPLOYET TIL PROD 2026-05-25 (prod-merge `4968a23c`)
 
 Boks-basert handlingsmeny på mobil-detaljside. Server-Commit 1 (`hentTilgjengeligeFlyter` + utvidet flyt-bytte-tilgang + auto-mottaker) + Mobil-Commit 2 (full omskriving av `DokumentHandlingsmeny.tsx`) + i18n 15 språk. EAS iOS build #23 (`a5e6e2ea`) submittert til TestFlight (`898599df`). Fire kjente avvik fra spec dokumentert for enhet-testing. Detaljer i [historikk-2026-05.md § Dokumentflyt send-modal redesign](historikk-2026-05.md).
