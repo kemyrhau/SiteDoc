@@ -4,6 +4,94 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## HMS-prosjektvisning + mal-builder subdomain/synlighet — DEPLOYET TIL PROD 2026-05-26 (prod-merge `69068ba0` + fix `c1fbc19f`)
+
+Komplett HMS-modul redesign på prosjektnivå. Spec: BACKLOG § HMS-modul redesign + § Synlighet per mal. To prod-deploys samme dag — hoved-bunken `69068ba0` + oppfølger-fix `c1fbc19f`.
+
+### Server-endringer
+
+**Schema (`packages/db/prisma/schema.prisma`):**
+- `ReportTemplate.subdomain: String?` (avvik | sja | ruh) + `hmsSynlighet: String?` (privat | apen). Nullable — Zod-validering håndhever verdier i API-laget.
+- `Checklist.bestillerFaggruppeId` + `utforerFaggruppeId` gjort nullable (speil av Task) for å støtte HMS-sjekklister (SJA/RUH) som auto-rutes til HMS-gruppen uten faggruppe.
+
+**Migrasjoner:**
+- `20260526200000_report_template_subdomain_hms_synlighet` — ADD COLUMN subdomain + hms_synlighet + backfill av eksisterende `domain='hms'`-rader til `('avvik', 'privat')`. **Bug**: hardkodet `subdomain='avvik'` på ALLE HMS-maler — traff eksisterende SJA/RUH-maler kunder hadde opprettet manuelt. Rettet via oppfølger-migrasjon.
+- `20260526210000_checklist_faggruppe_nullable` — ALTER COLUMN DROP NOT NULL på begge faggruppe-FK på Checklist.
+- `20260526220000_fix_hms_subdomain_prefix_match` — Fix-migrasjon: prefix-baserte UPDATEs for SJA og RUH. `hms_synlighet` IKKE endret for å bevare tilgangskontroll på eksisterende dokumenter (1 SJA-sjekkliste fantes på prod 998 Instinniforbotn).
+
+**Nye/utvidede routes:**
+- `apps/api/src/routes/hms.ts` — ny router med `hentDokumenter`-prosedyre. Returnerer `{ avvik: Task[], sja: Checklist[], ruh: Checklist[] }`. Bruker explicit `select` (ikke `include`) for å unngå TS2589. Tilgangskontroll: `byggHmsSynlighetsFilter` overlay som filtrerer privat-synlighet (innsender + recipient + HMS-gruppe-medlemmer + admin ser alt).
+- `apps/api/src/routes/sjekkliste.ts` — HMS-spesialrute i `opprett` (speil av `oppgave.opprett:313-336`). Faggrupper påkrevd KUN for non-HMS. Helper-fiks i `admin.ts` og `sjekkliste.byttEier` for nullable bestillerFaggruppeId.
+- `apps/api/src/routes/oppgave.ts` + `sjekkliste.ts` — `hentForProsjekt` utvidet med valgfri `domain`-filter. Default: ekskluder HMS (de vises på egen HMS-side).
+- `apps/api/src/routes/mal.ts` + `oppdaterMal` — aksepterer `subdomain` + `hmsSynlighet`. Shared `createTemplateSchema` utvidet.
+- `apps/api/src/routes/modul.ts` — `seedHmsModulOmradet` utvidet med inline backfill (selv-helbredende) som oppretter manglende HMS-maler basert på `PROSJEKT_MODULER`-definisjonen. Mal-create-løkken setter også `subdomain`/`hmsSynlighet`.
+
+**Shared (`packages/shared/src/types/index.ts`):**
+- `ModulMal`-interface utvidet med `subdomain?` + `hmsSynlighet?`.
+- `PROSJEKT_MODULER.hms-avvik` utvidet med to nye maler:
+  - **SJA** (sjekkliste, subdomain="sja", hmsSynlighet="apen", prefix="SJA") — risikovurdering før risikoarbeid. Felter: arbeidsleder, deltakere (persons), identifiserte farer, tiltak, verneutstyr, signatur.
+  - **RUH** (sjekkliste, subdomain="ruh", hmsSynlighet="privat", prefix="RUH") — rapport om uønsket hendelse. Felter: type observasjon, beskrivelse, foreslåtte tiltak, vedlegg.
+- HMS-avvik-mal utvidet med subdomain="avvik" + hmsSynlighet="privat".
+
+### Klient-endringer
+
+**Ny rute (`apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`, ~574 linjer):**
+- KPI-bånd: 3 kort (åpne avvik, SJA siste 30 dager, RUH siste 30 dager). Amber-fargetone hvis åpne avvik > 0.
+- 4 tabs: Avvik / SJA / RUH / Statistikk. Hver tab har antall-badge.
+- Filter-toggle: "Vis alle (inkl. lukkede)" — default skjult.
+- Ny-dropdown: to-linjes layout med mal-navn (bold) + hjelpetekst (grå). Bredde 320px.
+- Tabeller med plain HTML (`@sitedoc/ui` Table-komponent har egen API med kolonner-prop, ikke kompatibelt). Hver rad klikkbar → navigerer til `/oppgaver/<id>` eller `/sjekklister/<id>`.
+- Statistikk-fane: 3 SVG-paneler — avvik per måned (søyle, siste 6 mnd), avvik per faggruppe (horisontal bar, topp 5), status-fordeling (stacked bar med legend).
+- TS2589-workaround: imperativ tRPC-call via `utils.client.X.mutate()` i stedet for `useMutation`-hook (kombinasjonen av oppgave+sjekkliste-opprett etter recipientGroupId-utvidelse pumpet typegen for dyp).
+
+**Mal-builder (`MalListe.tsx`):**
+- Subdomain-radio (Avvik/SJA/RUH) + synlighet-toggle (Privat/Åpen) i HMS-blokk, synlig kun når `erHms === true` og `hms-avvik`-modul er aktiv.
+- Default-synlighet auto-settes fra subdomain (privat for avvik/ruh, apen for sja).
+- Amber-advarsel ved synlighet-endring i rediger-modus: «Endring av synlighet påvirker også eksisterende dokumenter av denne malen.»
+- Eksisterende sjekkliste-detalj-side oppdatert for nullable utforerFaggruppe.
+
+**Sidebar (`HovedSidebar.tsx` + `navigasjon-kontekst.tsx` + `useAktivSeksjon.ts`):**
+- Nytt element «HMS» med ShieldAlert-ikon, plassert etter «Oppgaver». Gated på `kreverModul: "hms-avvik"`.
+- Seksjon-union utvidet med `"hms"`.
+
+### i18n
+
+35 nye nøkler under `hms.*` + `nav.hms` + 3 hjelpetekst-nøkler (`hms.hjelp.{avvik,sja,ruh}`). Auto-oversatt til 13 språk via `generate.ts` (2361 → 2399 totalt).
+
+### Engangs-backfill
+
+**Test-DB (2026-05-26):** `apps/api/scripts/backfill-hms-maler.ts` kjørt mot test. Begge HMS-aktive prosjekter (Markussen Boligfelt B12 + Test redigert mal Kenneth Myrhaug) fikk SJA + RUH-maler opprettet. Eksisterende HMS-maler fikk oppdatert subdomain via prefix-match.
+
+**Prod-DB (2026-05-26):** Fix-migrasjon `20260526220000` retter SJA/RUH-maler på 998 Instinniforbotn fra feilaktig subdomain='avvik' til riktige verdier. Backfill-script IKKE kjørt på prod ennå — Kenneth har bedt om å vente. Andre prosjekter har fortsatt kun HMS-avvik (testprosjekt).
+
+### Prod-deploy hendelse
+
+Første prod-build feilet på `@sitedoc/api#build` med tre TS-feil — Prisma-klienten på server var ikke regenerert etter pull (`migrate deploy` regenererer ikke automatisk). PM2 hadde i mellomtiden restartet med gammel kode mot ny DB-schema — heldigvis bakover-kompatibelt (kun additive felt + relaxed NULL-constraints). Rettet ved å kjøre `pnpm --filter @sitedoc/db exec prisma generate` eksplisitt før `pnpm build`. Regel skrevet inn i CLAUDE.md (commit `985dbfd2`): «Etter Prisma schema-endring: kjør prisma generate eksplisitt mellom migrate deploy og pnpm build.»
+
+### Verifisering
+
+- Test-DB: HMS-maler korrekt klassifisert med subdomain etter backfill-script. UI verifisert med 4 tabs + dropdown.
+- Prod-DB etter fix-migrasjon (2026-05-26): 998 Instinniforbotn SJA → "sja", RUH → "ruh", HMS → "avvik". Testprosjekt HMS → "avvik".
+- HTTP/2 200 på sitedoc.no + api.sitedoc.no/health.
+- Per CLAUDE.md «Prod-verifisering må alltid gjøres som innlogget bruker» — venter på Kenneths visuelle verifikasjon.
+
+### Batchede docs-commits inkludert i samme prod-deploy
+
+I `69068ba0`: `dffa6358`, `d8b2deec`, `df6fa0e5`, `ce904636`, `3fd8eba3` (dokumentflyt/kontaktliste redesign backlog + HMS-modul-seeding arkivering + STATUS-fixes + HMS-synlighet-oppfølger).
+
+### Avgrensninger
+
+- Backfill-script IKKE kjørt på prod — Kenneth tar beslutning.
+- Web DokumentHandlingsmeny redesign for HMS-dokumenter venter på enhet-verifikasjon av mobil-bunken (build #23). Eksisterende oppgave/sjekkliste-detaljsider brukes for HMS-dokumenter i mellomtiden.
+- Statistikk-fane er basis-versjon (3 SVG-paneler). Fremtidige utvidelser: eksport (CSV/PDF), per-måned drill-down, alvorlighet-trend.
+
+### Lærdommer i CLAUDE.md (commit `985dbfd2`)
+
+1. **Etter Prisma schema-endring:** Kjør alltid `pnpm --filter @sitedoc/db exec prisma generate` eksplisitt mellom `migrate deploy` og `pnpm build`. `migrate deploy` regenererer ikke klienten automatisk.
+2. **Migrasjons-backfill-disiplin:** Aldri hardkode én verdi på alle rader uten diskriminerende WHERE-betingelse. Bruk prefix, navn eller andre felt for korrekt klassifisering.
+
+---
+
 ## HMS-modul-seeding + moduler-deaktiver-modal — DEPLOYET TIL PROD 2026-05-26 (prod-merge `dd491081`)
 
 Første steg av HMS-modul redesign (BACKLOG § 1). Når brukeren aktiverer `hms-avvik`-modulen på et prosjekt, seedes nå hele HMS-pakken i samme transaksjon — ikke bare HMS-mal-raden som før. Bygger på planleggings-runden 2026-05-26 (beslutninger låst etter spec-drøfting + kode-grunnlag).
