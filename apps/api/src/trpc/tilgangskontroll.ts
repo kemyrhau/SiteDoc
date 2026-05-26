@@ -403,6 +403,20 @@ export async function verifiserDokumentTilgang(
   // Prosjektadmin ser alt
   if (medlem.role === "admin") return;
 
+  // Last dokumentpartene én gang — gjenbrukes av firmaansvarlig + innsender-grenen.
+  let dokumentParter: { bestillerUserId: string | null; recipientUserId: string | null } | null = null;
+  if (dokumentId && dokumentType) {
+    dokumentParter = dokumentType === "task"
+      ? await prisma.task.findUnique({
+          where: { id: dokumentId },
+          select: { bestillerUserId: true, recipientUserId: true },
+        })
+      : await prisma.checklist.findUnique({
+          where: { id: dokumentId },
+          select: { bestillerUserId: true, recipientUserId: true },
+        });
+  }
+
   // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
   if (medlem.erFirmaansvarlig && dokumentId && dokumentType) {
     const brukerOrgId = await hentBrukersOrg(userId);
@@ -413,21 +427,11 @@ export async function verifiserDokumentTilgang(
       })).map((m) => m.userId);
 
       // Sjekk bestillerUserId og recipientUserId
-      const dokument = dokumentType === "task"
-        ? await prisma.task.findUnique({
-            where: { id: dokumentId },
-            select: { bestillerUserId: true, recipientUserId: true },
-          })
-        : await prisma.checklist.findUnique({
-            where: { id: dokumentId },
-            select: { bestillerUserId: true, recipientUserId: true },
-          });
-
-      if (dokument) {
+      if (dokumentParter) {
         const involverteUserIder = new Set(firmaUserIder);
         if (
-          (dokument.bestillerUserId && involverteUserIder.has(dokument.bestillerUserId)) ||
-          (dokument.recipientUserId && involverteUserIder.has(dokument.recipientUserId))
+          (dokumentParter.bestillerUserId && involverteUserIder.has(dokumentParter.bestillerUserId)) ||
+          (dokumentParter.recipientUserId && involverteUserIder.has(dokumentParter.recipientUserId))
         ) {
           return;
         }
@@ -444,6 +448,18 @@ export async function verifiserDokumentTilgang(
         select: { id: true },
       });
       if (transferMatch) return;
+    }
+  }
+
+  // Innsender/mottaker: bruker som er bestiller eller direkte mottaker av dokumentet
+  // får tilgang. Status-baserte begrensninger (f.eks. slett kun i utkast) håndheves
+  // av kallenes egne sjekker etter denne funksjonen.
+  if (dokumentParter) {
+    if (
+      (dokumentParter.bestillerUserId && dokumentParter.bestillerUserId === userId) ||
+      (dokumentParter.recipientUserId && dokumentParter.recipientUserId === userId)
+    ) {
+      return;
     }
   }
 
