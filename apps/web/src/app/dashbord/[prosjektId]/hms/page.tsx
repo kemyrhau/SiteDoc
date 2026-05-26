@@ -91,17 +91,18 @@ function NyDropdown({
         <ChevronDown className="h-3 w-3" />
       </button>
       {open && (
-        <div className="absolute right-0 z-50 mt-1 min-w-[200px] rounded-md border border-gray-200 bg-white shadow-lg">
+        <div className="absolute right-0 z-50 mt-1 w-80 rounded-md border border-gray-200 bg-white shadow-lg">
           {alternativer.length === 0 ? (
             <div className="px-4 py-2 text-sm text-gray-500">{t("hms.ingenMalerTilgjengelig")}</div>
           ) : (
-            alternativer.map(({ mal }) => (
+            alternativer.map(({ subdomain, mal }) => (
               <button
                 key={mal.id}
                 onClick={() => { setOpen(false); onClick(mal); }}
-                className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+                className="block w-full px-4 py-2 text-left hover:bg-gray-50"
               >
-                {mal.name}
+                <div className="text-sm font-semibold text-gray-900">{mal.name}</div>
+                <div className="mt-0.5 text-xs text-gray-500">{t(`hms.hjelp.${subdomain}`)}</div>
               </button>
             ))
           )}
