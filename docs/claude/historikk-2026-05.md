@@ -4,6 +4,77 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## HMS åpen-synlighet + prod-backfill — DEPLOYET TIL PROD 2026-05-27 (prod-merge `c0c00374`, develop-commit `7e17b3c3`)
+
+Avsluttende fiks etter HMS-prosjektvisning-bunken (`69068ba0` + `c1fbc19f`). Adresserer åpen-synlighet-gapet og rydder prod-DB.
+
+### Sikkerhets-analyse som drev fiksen
+
+`verifiserDokumentTilgang` (`apps/api/src/trpc/tilgangskontroll.ts:366`) brukes av `oppgave.hentMedId`, `oppgave.hentKommentarer` og `sjekkliste.hentMedId`. Den evaluerer tilgang via fire lag: admin-bypass, firmaansvarlig-involvering, direkte faggruppe-match, gruppe-domain-match. **Ingen sjekk på `hmsSynlighet`.**
+
+**Konsekvens før fiks:**
+- **Privat-synlighet:** Trygt håndhevet implisitt — HMS-dokumenter med null faggrupper er kun synlige for HMS-gruppe-medlemmer (tverrgående domain-tilgang) + admin + firmaansvarlig. ✅
+- **Åpen-synlighet:** Brutt — vanlige prosjektmedlemmer blokkert fra åpne HMS-dokumenter selv om malen sier «alle skal se». ❌
+
+### Kode-endring
+
+**`apps/api/src/trpc/tilgangskontroll.ts`:**
+- Ny valgfri parameter `templateHmsSynlighet?: string | null` på `verifiserDokumentTilgang`. Eksisterende kall som ikke sender den får uendret oppførsel (privat-default).
+- Ny gren rett før FORBIDDEN-kast: `if (templateDomain === "hms" && templateHmsSynlighet === "apen") return;`. Bruker er allerede verifisert som prosjektmedlem ovenfor (linje 395-400), så det er trygt å gi tilgang her.
+
+**`apps/api/src/routes/oppgave.ts`:**
+- `hentMedId` (linje 175): sender `oppgave.template?.hmsSynlighet`. Template-include inkluderer feltet automatisk.
+- `hentKommentarer` (linje 212): Prisma `select` utvidet med `hmsSynlighet: true` + sender feltet.
+
+**`apps/api/src/routes/sjekkliste.ts`:**
+- `hentMedId` (linje 114): sender `sjekkliste.template.hmsSynlighet`.
+
+**Mutations berøres ikke** — `oppdater`, `oppdaterData`, `endreStatus`, `slett`, `byttEier`, `flytt`, `forbedreOversettelse`, `leggTilKommentar`, `hentTilgjengeligeFlyter` beholder eksisterende streng tilgang. Åpen-modellen gjelder kun lesing.
+
+### Prod-backfill kjørt samme dag
+
+`apps/api/scripts/backfill-hms-maler.ts` mot prod (sitedoc-DB). Loopet gjennom alle prosjekter med `hms-avvik`-modul aktiv:
+
+| Prosjekt | Endringer |
+|---|---|
+| Fredriks testprosjekt | + HMS-gruppe, + HMS-flyt, + HMS/SJA/RUH-maler (full pakke) |
+| Testprosjekt | + SJA + RUH-maler, HMS oppdatert |
+| 998 Instinniforbotn | + HMS-gruppe (manglet), + HMS-flyt, HMS/SJA/RUH oppdatert til riktig subdomain + hmsSynlighet |
+
+**Final prod-DB-tilstand:**
+
+| Prosjekt | HMS | SJA | RUH |
+|---|---|---|---|
+| 998 Instinniforbotn | avvik / privat | sja / **apen** ✅ | ruh / privat |
+| Fredriks testprosjekt | avvik / privat | sja / apen | ruh / privat |
+| Testprosjekt | avvik / privat | sja / apen | ruh / privat |
+
+Den ene eksisterende SJA-sjekklisten på 998 Instinniforbotn er nå korrekt åpen for alle prosjektmedlemmer (datadrift fra PR 1-backfill rettet).
+
+### Sikkerhets-modell etter fiks
+
+- **Privat HMS-dokument (default for avvik + RUH):** Innsender via firmaansvarlig OR HMS-gruppe-medlem OR admin ser. Vanlig prosjektmedlem blokkert via URL-share.
+- **Åpen HMS-dokument (default for SJA):** Alle prosjektmedlemmer kan lese via `hentMedId`/`hentKommentarer`. Mutations krever fortsatt HMS-gruppe eller admin.
+
+### Verifisering
+
+- Typecheck `@sitedoc/api`: 0 nye feil
+- Prod-deploy: HTTP/2 200 på sitedoc.no + api.sitedoc.no/health
+- Migrasjon: ingen pending (sjekk-kun)
+- Per CLAUDE.md «Prod-verifisering må alltid gjøres som innlogget bruker» — venter på Kenneths visuelle verifikasjon
+
+### Batchede docs-commits inkludert i samme prod-deploy
+
+- `35d10154` — STATUS + historikk + BACKLOG-oppdatering for HMS-prosjektvisning-bunken
+- `985dbfd2` — CLAUDE.md: to nye prod-deploy-regler (prisma generate eksplisitt + migrasjons-backfill-disiplin)
+- `674d3a79` — fix-migrasjon for SJA/RUH-prefix subdomain (egen entry i historikk)
+
+### Pre-eksisterende observasjon (ikke HMS-introdusert)
+
+`verifiserDokumentTilgang` har ingen `bestillerUserId === userId`-sjekk for vanlige medlemmer. En arbeider som oppretter et dokument kan ikke åpne det igjen via direkte URL med mindre de er i en gruppe som dekker dokumentets faggruppe/domain. Sannsynligvis et generelt SiteDoc-problem, ikke kun HMS — verifiseres separat hvis kundeobservert.
+
+---
+
 ## HMS-prosjektvisning + mal-builder subdomain/synlighet — DEPLOYET TIL PROD 2026-05-26 (prod-merge `69068ba0` + fix `c1fbc19f`)
 
 Komplett HMS-modul redesign på prosjektnivå. Spec: BACKLOG § HMS-modul redesign + § Synlighet per mal. To prod-deploys samme dag — hoved-bunken `69068ba0` + oppfølger-fix `c1fbc19f`.

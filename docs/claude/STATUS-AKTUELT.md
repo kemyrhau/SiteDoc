@@ -10,13 +10,16 @@ sist_verifisert_mot_kode: 2026-05-08
 > (prod-merge `86fdb5a3`). Arkivert til [historikk-2026-05.md](historikk-2026-05.md).
 
 
-### Develop foran main — 1 docs-commit (ikke prod-deploy alene)
+### HMS åpen-synlighet + prod-backfill — DEPLOYET TIL PROD 2026-05-27 (prod-merge `c0c00374`)
 
-Etter HMS-prosjektvisning-prod-deploy (`c1fbc19f`) er develop oppdatert med én docs-commit:
+Avslutter HMS-modul redesign-bunken. `verifiserDokumentTilgang` utvidet med valgfri `templateHmsSynlighet`-parameter — `oppgave.hentMedId`, `oppgave.hentKommentarer` og `sjekkliste.hentMedId` sender `template.hmsSynlighet` slik at åpne HMS-dokumenter (SJA-default) blir lesbare for alle verifiserte prosjektmedlemmer. Mutations beholder streng tilgang via faggruppe/gruppe-modell. Privat-modellen er uendret. Detaljer i [historikk-2026-05.md § HMS åpen-synlighet](historikk-2026-05.md).
 
-- `985dbfd2` — to nye regler i CLAUDE.md fra dagens prod-deploy-lærdom: (1) `prisma generate` må kjøres eksplisitt mellom `migrate deploy` og `pnpm build`, (2) migrasjons-backfill må bruke diskriminerende WHERE-betingelse, ikke hardkode én verdi på alle rader.
+**Prod-backfill kjørt samme dag:** `backfill-hms-maler.ts` mot sitedoc-DB. Tre prosjekter berørt:
+- 998 Instinniforbotn: HMS-gruppe + HMS-flyt opprettet (manglet), eksisterende SJA-mal oppdatert til `hmsSynlighet="apen"` (var feilklassifisert som «privat» etter PR 1-backfill).
+- Fredriks testprosjekt: full HMS-pakke opprettet (HMS-gruppe + flyt + 3 maler).
+- Testprosjekt: SJA + RUH-maler opprettet.
 
-**Ikke prod-deployes alene.** Batches med neste funksjonelle endring som skal til prod.
+Final prod-DB-tilstand: 3 av 3 HMS-aktive prosjekter har komplett {HMS-avvik (privat), SJA (apen), RUH (privat)}-pakke.
 
 ### HMS-prosjektvisning + mal-builder subdomain/synlighet — DEPLOYET TIL PROD 2026-05-26 (prod-merge `69068ba0` + `c1fbc19f`)
 
