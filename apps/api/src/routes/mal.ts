@@ -21,7 +21,7 @@ export const malRouter = router({
       return ctx.prisma.reportTemplate.findMany({
         where: { projectId: input.projectId },
         include: {
-          _count: { select: { objects: true, checklists: true } },
+          _count: { select: { objects: true, checklists: true, tasks: true } },
           dokumentflytMaler: { select: { dokumentflytId: true } },
         },
         orderBy: { updatedAt: "desc" },
@@ -66,7 +66,7 @@ export const malRouter = router({
       });
     }),
 
-  // Oppdater mal (navn, beskrivelse, prefiks, fagområde, dokumentflyt-koblinger)
+  // Oppdater mal (navn, beskrivelse, prefiks, type, fagområde, dokumentflyt-koblinger)
   oppdaterMal: protectedProcedure
     .input(
       z.object({
@@ -74,6 +74,7 @@ export const malRouter = router({
         name: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
         prefix: z.string().max(20).optional(),
+        category: z.enum(["oppgave", "sjekkliste"]).optional(),
         domain: z.enum(["bygg", "hms", "kvalitet"]).optional(),
         subjects: z.array(z.string().max(255)).optional(),
         showSubject: z.boolean().optional(),
@@ -86,8 +87,25 @@ export const malRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const { id, workflowIds, ...data } = input;
-      const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
+      const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({
+        where: { id },
+        select: { projectId: true, category: true },
+      });
       await verifiserProsjektmedlem(ctx.userId, mal.projectId);
+
+      // Konverterings-validering: type kan ikke endres hvis dokumenter eksisterer
+      if (input.category !== undefined && input.category !== mal.category) {
+        const [taskAntall, checklistAntall] = await Promise.all([
+          ctx.prisma.task.count({ where: { templateId: id } }),
+          ctx.prisma.checklist.count({ where: { templateId: id } }),
+        ]);
+        const totalt = taskAntall + checklistAntall;
+        if (totalt > 0) {
+          throw new Error(
+            `Kan ikke endre type — det finnes ${totalt} eksisterende dokumenter knyttet til denne malen`,
+          );
+        }
+      }
 
       return ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.reportTemplate.update({ where: { id }, data });

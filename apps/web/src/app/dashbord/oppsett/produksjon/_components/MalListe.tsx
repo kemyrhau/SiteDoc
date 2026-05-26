@@ -31,7 +31,7 @@ type MalRad = {
   version: number;
   subjects: unknown;
   enableChangeLog: boolean;
-  _count: { objects: number; checklists: number };
+  _count: { objects: number; checklists: number; tasks: number };
 };
 
 // Dropdown-meny som lukkes ved klikk utenfor
@@ -123,7 +123,7 @@ export function MalListe({
   const [prefiks, setPrefiks] = useState("");
   const [beskrivelse, setBeskrivelse] = useState("");
   const [prefiksFeil, setPrefiksFeil] = useState<string | null>(null);
-  const [domain, setDomain] = useState<"bygg" | "hms" | "kvalitet">("bygg");
+  const [erHms, setErHms] = useState(false);
   const [valgteWorkflowIds, setValgteWorkflowIds] = useState<Set<string>>(new Set());
   const [visFaggruppeTilknytning, setVisFaggruppeTilknytning] = useState(false);
   const [aktiverOppretting, _setAktiverOppretting] = useState(true);
@@ -136,11 +136,22 @@ export function MalListe({
   const [redigerEnableChangeLog, setRedigerEnableChangeLog] = useState(false);
   const [redigerWorkflowIds, setRedigerWorkflowIds] = useState<Set<string>>(new Set());
   const [visRedigerFlytModal, setVisRedigerFlytModal] = useState(false);
+  const [redigerCategory, setRedigerCategory] = useState<MalKategori>("sjekkliste");
+  const [redigerErHms, setRedigerErHms] = useState(false);
+  const [redigerOpprinneligErHms, setRedigerOpprinneligErHms] = useState(false);
 
   const { data: alleMaler, isLoading } = trpc.mal.hentForProsjekt.useQuery(
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
+
+  const { data: moduler } = trpc.modul.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const hmsModulAktiv = moduler?.some(
+    (m) => m.moduleSlug === "hms-avvik" && m.status === "aktiv",
+  ) ?? false;
 
   const opprettMutation = trpc.mal.opprett.useMutation({
     onSuccess: () => {
@@ -151,7 +162,7 @@ export function MalListe({
       setPrefiks("");
       setBeskrivelse("");
       setPrefiksFeil(null);
-      setDomain("bygg");
+      setErHms(false);
       setValgteWorkflowIds(new Set());
     },
   });
@@ -186,7 +197,7 @@ export function MalListe({
       prefix: prefiks.trim() || undefined,
       description: beskrivelse.trim() || undefined,
       category: kategori,
-      domain,
+      domain: erHms ? "hms" : "bygg",
       workflowIds: Array.from(valgteWorkflowIds),
     });
   }
@@ -199,6 +210,8 @@ export function MalListe({
       name: redigerNavn.trim(),
       prefix: redigerPrefiks.trim() || undefined,
       description: redigerBeskrivelse.trim() || undefined,
+      category: redigerCategory,
+      domain: redigerErHms ? "hms" : "bygg",
       subjects: redigerSubjects.filter((s) => s.trim() !== ""),
       enableChangeLog: redigerEnableChangeLog,
       workflowIds: Array.from(redigerWorkflowIds),
@@ -219,6 +232,10 @@ export function MalListe({
     const subjects = Array.isArray(mal.subjects) ? (mal.subjects as string[]) : [];
     setRedigerSubjects(subjects);
     setRedigerEnableChangeLog(mal.enableChangeLog);
+    setRedigerCategory(mal.category as MalKategori);
+    const erHmsNa = mal.domain === "hms";
+    setRedigerErHms(erHmsNa);
+    setRedigerOpprinneligErHms(erHmsNa);
     const koblinger = (mal as { dokumentflytMaler?: Array<{ dokumentflytId: string }> }).dokumentflytMaler ?? [];
     setRedigerWorkflowIds(new Set(koblinger.map((k) => k.dokumentflytId)));
     setVisRedigerModal(true);
@@ -489,21 +506,58 @@ export function MalListe({
             )}
           </div>
 
-          {/* Fagområde */}
+          {/* Type (låst basert på mal-builder-side) */}
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
-              {t("tabell.fagomraade")}
+              {t("maler.type.label")}
             </label>
-            <select
-              value={domain}
-              onChange={(e) => setDomain(e.target.value as "bygg" | "hms" | "kvalitet")}
-              className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-            >
-              <option value="bygg">Bygg</option>
-              <option value="hms">HMS</option>
-              <option value="kvalitet">Kvalitet</option>
-            </select>
+            <div className="flex gap-4">
+              <label className="flex items-center gap-2 opacity-60 cursor-not-allowed">
+                <input
+                  type="radio"
+                  name="opprett-type"
+                  value="oppgave"
+                  checked={kategori === "oppgave"}
+                  disabled
+                  readOnly
+                  className="h-4 w-4 text-sitedoc-primary"
+                />
+                <span className="text-sm text-gray-700">{t("maler.type.oppgave")}</span>
+              </label>
+              <label className="flex items-center gap-2 opacity-60 cursor-not-allowed">
+                <input
+                  type="radio"
+                  name="opprett-type"
+                  value="sjekkliste"
+                  checked={kategori === "sjekkliste"}
+                  disabled
+                  readOnly
+                  className="h-4 w-4 text-sitedoc-primary"
+                />
+                <span className="text-sm text-gray-700">{t("maler.type.sjekkliste")}</span>
+              </label>
+            </div>
           </div>
+
+          {/* HMS-hake (gated på ProjectModule hms-avvik) */}
+          {hmsModulAktiv && (
+            <div className="flex flex-col gap-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
+                  checked={erHms}
+                  onChange={(e) => setErHms(e.target.checked)}
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {t("maler.hms.hake")}
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 ml-6">
+                {t("maler.hms.beskrivelse")}
+              </p>
+            </div>
+          )}
 
           {/* Innstillinger */}
           <div className="flex flex-col gap-1">
@@ -596,6 +650,87 @@ export function MalListe({
             value={redigerBeskrivelse}
             onChange={(e) => setRedigerBeskrivelse(e.target.value)}
           />
+
+          {/* Type (redigerbar — låst hvis dokumenter eksisterer) */}
+          {(() => {
+            const harDokumenter =
+              (valgtMal?._count?.checklists ?? 0) + (valgtMal?._count?.tasks ?? 0) > 0;
+            return (
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-gray-700">
+                  {t("maler.type.label")}
+                </label>
+                <div className="flex gap-4">
+                  <label
+                    className={`flex items-center gap-2 ${
+                      harDokumenter ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rediger-type"
+                      value="oppgave"
+                      checked={redigerCategory === "oppgave"}
+                      disabled={harDokumenter}
+                      onChange={() => setRedigerCategory("oppgave")}
+                      className="h-4 w-4 text-sitedoc-primary"
+                    />
+                    <span className="text-sm text-gray-700">{t("maler.type.oppgave")}</span>
+                  </label>
+                  <label
+                    className={`flex items-center gap-2 ${
+                      harDokumenter ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rediger-type"
+                      value="sjekkliste"
+                      checked={redigerCategory === "sjekkliste"}
+                      disabled={harDokumenter}
+                      onChange={() => setRedigerCategory("sjekkliste")}
+                      className="h-4 w-4 text-sitedoc-primary"
+                    />
+                    <span className="text-sm text-gray-700">{t("maler.type.sjekkliste")}</span>
+                  </label>
+                </div>
+                {harDokumenter && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {t("maler.feilKonvertering", {
+                      antall: (valgtMal?._count?.checklists ?? 0) + (valgtMal?._count?.tasks ?? 0),
+                      defaultValue:
+                        "Kan ikke endre type — det finnes eksisterende dokumenter knyttet til denne malen.",
+                    })}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* HMS-hake (redigerbar) */}
+          {(hmsModulAktiv || redigerOpprinneligErHms) && (
+            <div className="flex flex-col gap-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
+                  checked={redigerErHms}
+                  onChange={(e) => setRedigerErHms(e.target.checked)}
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  {t("maler.hms.hake")}
+                </span>
+              </label>
+              <p className="text-xs text-gray-500 ml-6">
+                {t("maler.hms.beskrivelse")}
+              </p>
+              {redigerErHms !== redigerOpprinneligErHms && (
+                <p className="mt-1 text-xs text-amber-600 ml-6">
+                  {t("maler.hms.endringAdvarsel")}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Dokumentflyt-kobling */}
           <div className="flex flex-col gap-1">
