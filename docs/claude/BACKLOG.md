@@ -26,8 +26,8 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 Tre funn fra sikkerhets-audit 2026-05-27 som ikke ble adressert i prod-bunken (`9ca0257e`). Anbefalt rekkefølge for utbedring.
 
-**M1 — Global tRPC-rate-limit** 🟡 IMPLEMENTERT PÅ DEVELOP 2026-05-27, IKKE PROD-DEPLOYET
-Type-aware standard rate-limit (100 mutations/min per userId) lagt inn i `protectedProcedure` direkte — alle mutations får automatisk beskyttelse, queries hopper over. `inviteProcedure` (10/min) brukt på `organisasjon.inviterBruker`. `opprettProsjektProcedure` (20/min) brukt på `prosjekt.opprett`, `prosjekt.opprettTestprosjekt`, `admin.opprettProsjekt`. `Cf-Connecting-Ip`-header brukes som klient-IP (Cloudflare-spesifikk, blokkert mot spoofing). Detaljer i [STATUS-AKTUELT.md § M1](STATUS-AKTUELT.md). Klar for prod-deploy etter test-verifisering.
+**M1 — Global tRPC-rate-limit** ✅ DEPLOYET TIL PROD 2026-05-27 (prod-merge `54885eb2`)
+Arkivert til [historikk-2026-05.md § M1](historikk-2026-05.md).
 
 **H1 — Mobil session-token rotasjon eller device-binding (høy prioritet, ~3t)** 🔴
 `mobilAuth.byttToken` lager 30-dagers token, roteres kun ved app-oppstart (`mobilAuth.verifiser`). Mellom oppstart roterer den ikke — token-lekkasje (logging, MITM på utestet nettverk, malware) gir 30 dagers ubegrenset tilgang. Fix-alternativer: (a) roter ved hver tRPC-mutasjon hvis token er eldre enn 7 dager, (b) bind token til device-fingerprint som sjekkes ved bruk.
@@ -37,7 +37,21 @@ Type-aware standard rate-limit (100 mutations/min per userId) lagt inn i `protec
 
 **Sekundære oppfølgere (ikke kode-fix):**
 - Sjekk eksisterende serverlogger for token-lekkasje før M4-redaction ble aktivert. Manuell loggevurdering.
-- Permanent `deploy-test-cron.sh` → `pnpm build --force`-fiks. Server-side skript, ikke i repo.
+- Permanent `deploy-test-cron.sh` → `pnpm build --force`-fiks. Server-side skript, ikke i repo. Rammet 3 ganger i mai 2026, krever manuell `pnpm build --force` per deploy. Bør prioriteres for å redusere friksjon.
+
+### Fastify-logger viser server-IP, ikke klient-IP (lav prio, fra M1-sesjon 2026-05-27)
+
+**Sted:** `apps/api/src/server.ts` request-serializer.
+
+Etter M1-deploy bruker rate-limit-koden `hentKlientIp(req)` som leser `cf-connecting-ip`-header og får ekte klient-IP. Men Fastify-loggerens custom request-serializer leser `req.ip` direkte — som med Cloudflare Tunnel viser server-WAN-IP (`193.90.181.205`) i stedet for klient-IP.
+
+**Konsekvens:** Debug-logger ved feilsituasjoner viser ikke hvilken klient som faktisk gjorde requesten. Påvirker ikke rate-limit-funksjonalitet (den bruker `hentKlientIp` korrekt), kun observability.
+
+**Fix-skisse:** Oppdater serializer til å lese `cf-connecting-ip`-header først:
+```typescript
+remoteAddress: (req.headers["cf-connecting-ip"] as string) ?? req.ip,
+```
+Trivielt, ~5 minutter. Vurder samtidig om vi vil bytte fra «remoteAddress» til «klientIp» som loggfelt-navn for å gjøre semantikken eksplisitt.
 
 ### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 

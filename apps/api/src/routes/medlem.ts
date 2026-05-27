@@ -264,7 +264,7 @@ export const medlemRouter = router({
 
           await ctx.prisma.projectInvitation.create({
             data: {
-              email: user.email,
+              email: user.email.toLowerCase(),
               token,
               projectId: input.projectId,
               role: input.role,

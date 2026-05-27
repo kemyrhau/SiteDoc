@@ -6,48 +6,35 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### M1 — global tRPC-rate-limit + trustProxy — MERGET TIL DEVELOP 2026-05-27
+### Dagens samlede aktivitet — 2026-05-27 (5 prod-deploys + omfattende sikkerhets-arbeid)
 
-Sikkerhets-audit M1-funn. Implementert i fire trinn på develop, prod-deploy venter.
+Uvanlig tett deploy-dag. Ingen regresjon observert.
 
-**Trinn 0 (deployet til test):** `trustProxy: true` i Fastify-config (`apps/api/src/server.ts`). Også custom request-serializer som logger `req.ip` som `remoteAddress`. Commit `e480b48f` → `251d38ad` (justering: "127.0.0.1" → true). Verifisert at curl med `X-Forwarded-For: 9.9.9.9` gir `remoteAddress: 9.9.9.9` ✓. **Men Cloudflare Tunnel sender ikke X-Forwarded-For med klient-IP** — bruker `Cf-Connecting-Ip`-header i stedet (Cloudflare blokkerer spoofing av denne, bekreftet med HTTP 403). Trinn 1 håndterer dette.
+| # | Prod-merge | Tidspunkt | Innhold |
+|---|---|---|---|
+| 1 | `b3194f1d` | morgen | Innsender-tilgang i `verifiserDokumentTilgang` |
+| 2 | `8c256f64` | midt på dagen | Filter-rensing F1 (cancelled i HMS LUKKET) + Tiltak 1 («Alle åpne»-snarvei) |
+| 3 | `9ca0257e` | ettermiddag | Sikkerhets-audit-bunke (K1 dev-login + M2 raw-SQL + M3 sesjon-maxAge 24t + M4 logger-redact + H3 OAuth-linking + error-håndtering) |
+| 4 | `54885eb2` | 16:43 | M1 global tRPC-rate-limit + trustProxy: true + cf-connecting-ip |
+| 5 | (HMS-bunke) | tidligere/samme dag | HMS åpen-synlighet + HMS-prosjektvisning + HMS-modul-seeding |
 
-**Trinn 1 (denne commit):** `apps/api/src/utils/rateLimiter.ts` utvidet:
-- Ny `hentKlientIp(req)` — prioriterer `cf-connecting-ip`-header, fallback til `req.ip`, siste fallback `"unknown"`.
-- Ny `sjekkRateLimitDetalj(...)` — returnerer `{ ok, retryAfterSeconds }` slik at kallere kan sende Retry-After-info.
-- `sjekkRateLimit` beholdt som thin wrapper for bakover-kompat (4 eksisterende kallsteder).
-- 4 eksisterende kallsteder (mobilAuth.byttToken, invitasjon.validerToken, invitasjon.aksepter, /upload) oppdatert til `hentKlientIp(ctx.req)`. Uten dette ville deres rate-limit fortsatt være effektivt globalt.
+**Sikkerhets-audit oppsummering (utført 2026-05-27, 14 funn):**
+- ✅ Adressert: K1, M2, M3, M4, H3, M1 (rate-limit), error-håndtering på `/logg-inn`
+- 🔴 Gjenstår i [BACKLOG](BACKLOG.md): H1 (mobil-token-rotasjon), H2 (case-sensitive invitasjon-match)
+- Microsoft OAuth bekreftet aktivert i prod (var antatt kun planlagt) → H3 ble aktiv risiko
 
-**Trinn 2 (denne commit):** `apps/api/src/trpc/trpc.ts` — variant B (type-aware middleware i `protectedProcedure` selv, ingen eksplisitt rull-ut nødvendig):
-- Ny helper `lagRateLimitMiddleware(bucket, max, windowMs)` — type-aware (skip queries, kun mutations).
-- `standardRateLimit` — 100 mutations/min per `ctx.userId`, lagt inn i `protectedProcedure` via `.use(...)`. Alle eksisterende mutations får automatisk rate-limit uten kode-endring.
-- `inviteProcedure` — 10/min per userId, eksport for invite-mutations.
-- `opprettProsjektProcedure` — 20/min per userId, eksport for prosjekt-opprettelse.
-- Throttle-hendelser logges via `ctx.req.log.info({ bucket, userId, path, retryAfterSeconds }, "rate-limit hit")` for telemetri.
+**Konsekvenser nå aktive i prod:**
+- Alle web-sesjoner invalidert ved M3-deploy — brukere må logge inn på nytt
+- `OAuthAccountNotLinked` blokkerer cross-provider Google↔Microsoft-linking
+- Alle tRPC-mutations rate-limited: standard 100/min per userId, `inviterBruker` 10/min, `prosjekt.opprett` 20/min
+- `dev-login` fail-secure: krever eksplisitt `NODE_ENV=development` eller `ENABLE_DEV_LOGIN=true`
 
-**Trinn 3 (denne commit):** Tre mutations byttet fra `protectedProcedure` til strammere prosedyrer:
-- `organisasjon.inviterBruker` → `inviteProcedure` (10/min)
-- `prosjekt.opprett` + `prosjekt.opprettTestprosjekt` → `opprettProsjektProcedure` (20/min)
-- `admin.opprettProsjekt` → `opprettProsjektProcedure` (20/min)
+**Docs-oppdatering (`91578127`):** api.md rate-limit-tabell utvidet med M1-rader. CLAUDE.md deploy-sekvens delt i prod (uten `.next`-rensing, anbefalt) vs test (krever `--force` pga Turbo-cache-bug).
 
-**Verifisering:** `@sitedoc/api` typecheck 0 = 0. `apps/web` typecheck 1 = 1 baseline (vitest). 0 nye feil.
-
-**Forventede begrensninger:**
-- In-memory bucket per Node-prosess. PM2 kjører i fork-mode (én prosess) → konsistent state. Hvis vi noen gang går til cluster-mode må vi flytte til Redis.
-- Per-userId only, ikke per-IP. Misbruk fra delt-IP-network (kontor med 50 ansatte bak NAT) er ikke aggregert. Kan utvides ved behov.
-
-Klar for test-deploy via auto-deploy + verifisering før prod.
-
-> Forrige bunke (sikkerhets-audit-fikser K1+M2+M3+M4+H3+error-håndtering)
-> DEPLOYET TIL PROD 2026-05-27 (prod-merge `9ca0257e`).
-> Arkivert til [historikk-2026-05.md § Sikkerhets-audit-bunke](historikk-2026-05.md).
-> Filter-rensing F1 + Tiltak 1 (2026-05-27, prod-merge `8c256f64`) arkivert
-> i samme fil: [§ Filter-rensing](historikk-2026-05.md).
-> Innsender-tilgang (2026-05-27, prod-merge `b3194f1d`) arkivert i samme fil:
-> [§ Innsender-tilgang](historikk-2026-05.md).
-> HMS-bunken (2026-05-26/27) arkivert i samme fil:
-> [§ HMS åpen-synlighet](historikk-2026-05.md),
-> [§ HMS-prosjektvisning](historikk-2026-05.md),
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
+> [§ M1](historikk-2026-05.md), [§ Sikkerhets-audit-bunke](historikk-2026-05.md),
+> [§ Filter-rensing](historikk-2026-05.md), [§ Innsender-tilgang](historikk-2026-05.md),
+> [§ HMS åpen-synlighet](historikk-2026-05.md), [§ HMS-prosjektvisning](historikk-2026-05.md),
 > [§ HMS-modul-seeding](historikk-2026-05.md).
 
 ### Pågående: TestFlight build #23 enhet-verifisering
