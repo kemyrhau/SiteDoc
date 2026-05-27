@@ -18,15 +18,25 @@ export async function createContext({ req, res }: CreateContextOptions) {
   let actualUserId: string | null = null;
   let imperseringAktiv = false;
 
-  // Hent sesjonstoken fra cookie eller Authorization-header
+  // Hent sesjonstoken fra cookie eller Authorization-header.
+  // Spor kilden — mobil-rotasjons-middleware (H1) skal kun rotere bearer-
+  // tokens. Web-cookie eies av Auth.js og roteres ikke av oss.
   const cookieHeader = req.headers.cookie ?? "";
   const sessionTokenMatch = cookieHeader.match(
     /(?:__Secure-)?authjs\.session-token=([^;]+)/,
   );
-  const sessionToken =
-    sessionTokenMatch?.[1] ??
-    req.headers.authorization?.replace("Bearer ", "") ??
-    null;
+  const bearerToken =
+    req.headers.authorization?.replace("Bearer ", "") ?? null;
+  const sessionToken = sessionTokenMatch?.[1] ?? bearerToken ?? null;
+  const tokenKilde: "bearer" | "cookie" | null = sessionTokenMatch?.[1]
+    ? "cookie"
+    : bearerToken
+      ? "bearer"
+      : null;
+
+  // Mutable container for nytt rotert token. Middleware (trinn 3) skriver
+  // hit; tRPC responseMeta leser og setter X-Session-Token-header på respons.
+  const nyttSessionTokenForRespons: { value: string | null } = { value: null };
 
   if (sessionToken) {
     try {
@@ -72,6 +82,8 @@ export async function createContext({ req, res }: CreateContextOptions) {
     actualUserId,
     imperseringAktiv,
     sessionToken,
+    tokenKilde,
+    nyttSessionTokenForRespons,
   };
 }
 

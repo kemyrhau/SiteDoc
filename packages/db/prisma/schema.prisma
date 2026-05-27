@@ -319,6 +319,13 @@ model Session {
   userId       String   @map("user_id")
   expires      DateTime
 
+  // Per H1 sikkerhets-audit 2026-05-27: spor token-alder for rotasjon ved
+  // bruk. lastRotatedAt oppdateres ved hver mobil-token-rotasjon (mellom-
+  // oppstart-middleware + verifiser-oppstart). createdAt røres aldri etter
+  // opprettelse — gir audit-spor på faktisk sesjon-alder.
+  createdAt     DateTime @default(now()) @map("created_at")
+  lastRotatedAt DateTime @default(now()) @map("last_rotated_at")
+
   // Impersonering (sitedoc_admin "view as user"). Når impersonatedUserId er
   // satt og impersonationExpiresAt > now, opptrer admin som annen bruker.
   // originalUserId peker tilbake til admin for audit-logger.

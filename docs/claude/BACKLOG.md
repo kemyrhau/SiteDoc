@@ -22,36 +22,21 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 **Gjenstående oppfølger:** Eksplisitt linking-flyt for brukere som faktisk trenger å koble ny provider til samme e-post-konto. Ikke prioritert — utløses ved kundefeedback. Eventuell implementasjon: innstillinger-side med «Koble til Microsoft»-knapp som lager `Account`-rad mot eksisterende `User` etter ekstra verifikasjon (bekreftelses-e-post eller re-auth).
 
-### Sikkerhets-audit gjenstående: M1, H1, H2 (2026-05-27)
+### Sikkerhets-audit gjenstående: H1 (2026-05-27)
 
-Tre funn fra sikkerhets-audit 2026-05-27 som ikke ble adressert i prod-bunken (`9ca0257e`). Anbefalt rekkefølge for utbedring.
+Siste funn fra sikkerhets-audit 2026-05-27 som ikke er adressert. M1, M2, M3, M4, H3, H2, K1 + error-håndtering på `/logg-inn` deployet til prod gjennom dagen (se [historikk-2026-05.md](historikk-2026-05.md)).
 
-**M1 — Global tRPC-rate-limit** ✅ DEPLOYET TIL PROD 2026-05-27 (prod-merge `54885eb2`)
-Arkivert til [historikk-2026-05.md § M1](historikk-2026-05.md).
+**M1 — Global tRPC-rate-limit** ✅ DEPLOYET TIL PROD 2026-05-27 (prod-merge `54885eb2`). Arkivert til [historikk-2026-05.md § M1](historikk-2026-05.md).
+
+**H2 — Streng case-sensitive invitasjon-match** ✅ DEPLOYET TIL PROD 2026-05-27 (prod-merge `b97494cd`). Arkivert til [historikk-2026-05.md § Fastify-logger + H2](historikk-2026-05.md).
 
 **H1 — Mobil session-token rotasjon eller device-binding (høy prioritet, ~3t)** 🔴
 `mobilAuth.byttToken` lager 30-dagers token, roteres kun ved app-oppstart (`mobilAuth.verifiser`). Mellom oppstart roterer den ikke — token-lekkasje (logging, MITM på utestet nettverk, malware) gir 30 dagers ubegrenset tilgang. Fix-alternativer: (a) roter ved hver tRPC-mutasjon hvis token er eldre enn 7 dager, (b) bind token til device-fingerprint som sjekkes ved bruk.
 
-**H2 — Case-sensitive invitasjon-match i Auth.js signIn-event (høy prioritet, ~1t)** 🔴
-`apps/web/src/auth.ts:53-66`: invitasjons-auto-aksept bruker `email: { equals: user.email, mode: "insensitive" }`. Unicode-confusables (cyrillisk «а» vs latinsk «a») kan teoretisk matche ventende invitasjoner med spoofet e-post. Fix: bytt til streng `equals: user.email`, eller normaliser e-poster ved opprettelse (`.toLowerCase()`) og match streng.
-
 **Sekundære oppfølgere (ikke kode-fix):**
 - Sjekk eksisterende serverlogger for token-lekkasje før M4-redaction ble aktivert. Manuell loggevurdering.
-- Permanent `deploy-test-cron.sh` → `pnpm build --force`-fiks. Server-side skript, ikke i repo. Rammet 3 ganger i mai 2026, krever manuell `pnpm build --force` per deploy. Bør prioriteres for å redusere friksjon.
-
-### Fastify-logger viser server-IP, ikke klient-IP (lav prio, fra M1-sesjon 2026-05-27)
-
-**Sted:** `apps/api/src/server.ts` request-serializer.
-
-Etter M1-deploy bruker rate-limit-koden `hentKlientIp(req)` som leser `cf-connecting-ip`-header og får ekte klient-IP. Men Fastify-loggerens custom request-serializer leser `req.ip` direkte — som med Cloudflare Tunnel viser server-WAN-IP (`193.90.181.205`) i stedet for klient-IP.
-
-**Konsekvens:** Debug-logger ved feilsituasjoner viser ikke hvilken klient som faktisk gjorde requesten. Påvirker ikke rate-limit-funksjonalitet (den bruker `hentKlientIp` korrekt), kun observability.
-
-**Fix-skisse:** Oppdater serializer til å lese `cf-connecting-ip`-header først:
-```typescript
-remoteAddress: (req.headers["cf-connecting-ip"] as string) ?? req.ip,
-```
-Trivielt, ~5 minutter. Vurder samtidig om vi vil bytte fra «remoteAddress» til «klientIp» som loggfelt-navn for å gjøre semantikken eksplisitt.
+- Permanent `deploy-test-cron.sh` → `pnpm build --force`-fiks. Server-side skript, ikke i repo. Rammet 3+ ganger i mai 2026, krever manuell `pnpm build --force` per deploy. Bør prioriteres for å redusere friksjon.
+- **User.email-normalisering** (oppstått fra H2 2026-05-27) — PrismaAdapter + Auth.js OAuth-flyt skriver `User.email` med casing fra provider. To brukere med samme lowercase-e-post men ulik case kan eksistere som separate rader pga `@unique` er case-sensitive. Ikke aktuell utnytting kjent, men inkonsekvent med invitasjons-flyten som nå er lowercase. Bredere refaktor som krever migrering av `User.email` + adapter-override + verifisering av Google/Microsoft OAuth-flyt.
 
 ### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 

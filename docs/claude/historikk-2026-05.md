@@ -4,6 +4,35 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Fastify-logger leser cf-connecting-ip + H2 streng invitasjon-match — DEPLOYET TIL PROD 2026-05-27 (prod-merge `b97494cd`)
+
+Oppfølger-bunke etter M1. To uavhengige fikser bundlet i én prod-deploy.
+
+### Fastify-logger leser cf-connecting-ip (commit `8d7646b3`, lav prio)
+
+Custom request-serializer i `apps/api/src/server.ts` brukte `req.ip` direkte. Gjennom Cloudflare Tunnel + cloudflared (WSL2 Mirror Mode) returnerer det server-WAN-IP (`193.90.181.205`), ikke faktisk klient-IP. Rate-limit-koden brukte allerede `hentKlientIp(req)` som leser `cf-connecting-ip` — loggeren var inkonsistent.
+
+**Fix:** Serializer leser nå `cf-connecting-ip`-header først, faller tilbake til `req.ip`. Speiler logikken fra `apps/api/src/utils/rateLimiter.ts:hentKlientIp`. Forbedrer observability uten å røre rate-limit-funksjonalitet.
+
+### H2 — streng case-sensitive invitasjon-match (commit `921024b8`, høy prio, sikkerhet)
+
+Siste lavt-hengende funn fra sikkerhets-audit 2026-05-27. `apps/web/src/auth.ts` signIn-event brukte `email: { equals: user.email, mode: "insensitive" }` ved auto-aksept av invitasjoner. Sårbar mot case-folding-vektor: angriper kunne opprette Google-konto `john@x.com` og auto-akseptere en invitasjon registrert med `JOHN@x.com`.
+
+**Fix i tre lag:**
+1. `apps/api/src/routes/medlem.ts:267` — `ProjectInvitation.create({ data: { email: user.email.toLowerCase() } })`
+2. `apps/api/src/routes/gruppe.ts:381, 390` — samme normalisering for både `findFirst` pending-sjekk og `create`
+3. `apps/web/src/auth.ts:63` — bytt `mode: "insensitive"` → streng `email: user.email.toLowerCase()`
+
+**Backfill:** Prod-DB og test-DB sjekket før implementasjon — 0/5 og 0/10 rader hadde mixed-case e-post. Ingen migrasjon nødvendig; alle eksisterende rader matcher allerede.
+
+**Gjenstår i [BACKLOG](BACKLOG.md):** H1 (mobil session-token rotasjon, ~3t) er siste sikkerhets-audit-funn.
+
+**User.email-normalisering** ikke rørt — krever bredere refaktor av PrismaAdapter + Auth.js OAuth-flyt. Tas som separat oppfølger dersom konkret risiko verifiseres.
+
+**Verifisert:** API + web typecheck 0 nye feil. Prod-deploy 2026-05-27 ~18:00 UTC. `sitedoc.no/logg-inn` + `api.sitedoc.no/health` HTTP 200. Innlogget verifikasjon som Kenneth bekreftet normal render.
+
+---
+
 ## M1 — global tRPC-rate-limit + Cloudflare klient-IP — DEPLOYET TIL PROD 2026-05-27 (prod-merge `54885eb2`)
 
 Sikkerhets-audit M1-funn. Implementert i fire trinn over tre commits etter at audit-bunken var deployet til prod.

@@ -112,6 +112,17 @@ async function start() {
       }),
       router: appRouter,
       createContext: () => createContext({ req, res }),
+      // H1 mobil-token-rotasjon: hvis rotasjons-middleware satte ny token
+      // i ctx.nyttSessionTokenForRespons.value, eksponer den som
+      // X-Session-Token respons-header. Mobil-klient lytter og oppdaterer
+      // SecureStore.
+      responseMeta(opts) {
+        const nyttToken = opts.ctx?.nyttSessionTokenForRespons?.value;
+        if (nyttToken) {
+          return { headers: new Headers({ "x-session-token": nyttToken }) };
+        }
+        return {};
+      },
     });
 
     const body = await response.text();
