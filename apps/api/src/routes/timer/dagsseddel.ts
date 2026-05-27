@@ -950,6 +950,44 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // Re-send etter returnering (2026-05-27): nullstill returnerte rader
+      // til pending så leder kan attestere på nytt. Uten dette ville rader
+      // med attestertStatus="returnert" blokkere attester-mutationen
+      // («Kun rader med status «pending» kan attesteres»).
+      //
+      // Audit-felter (attestertAvUserId, attestertVed) nullstilles også —
+      // permanent audit-spor hører hjemme i Activity-tabellen (T7-2b3),
+      // ikke i status-feltene. Når raden senere attesteres, settes feltene
+      // med nye verdier.
+      if (sheet.status === "returned") {
+        await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetTimer.updateMany({
+            where: { sheetId: sheet.id, attestertStatus: "returnert" },
+            data: {
+              attestertStatus: "pending",
+              attestertAvUserId: null,
+              attestertVed: null,
+            },
+          }),
+          ctx.prismaTimer.sheetTillegg.updateMany({
+            where: { sheetId: sheet.id, attestertStatus: "returnert" },
+            data: {
+              attestertStatus: "pending",
+              attestertAvUserId: null,
+              attestertVed: null,
+            },
+          }),
+          ctx.prismaTimer.sheetMachine.updateMany({
+            where: { sheetId: sheet.id, attestertStatus: "returnert" },
+            data: {
+              attestertStatus: "pending",
+              attestertAvUserId: null,
+              attestertVed: null,
+            },
+          }),
+        ]);
+      }
+
       return ctx.prismaTimer.dailySheet.update({
         where: { id: sheet.id },
         data: { status: "sent" },

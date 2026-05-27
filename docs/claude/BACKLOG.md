@@ -38,22 +38,11 @@ Alle 14 funn fra sikkerhets-audit 2026-05-27 er adressert i prod. Se [historikk-
 - Permanent `deploy-test-cron.sh` → `pnpm build --force`-fiks. Server-side skript, ikke i repo. Rammet 3+ ganger i mai 2026, krever manuell `pnpm build --force` per deploy. Bør prioriteres for å redusere friksjon.
 - **User.email-normalisering** (oppstått fra H2 2026-05-27) — PrismaAdapter + Auth.js OAuth-flyt skriver `User.email` med casing fra provider. To brukere med samme lowercase-e-post men ulik case kan eksistere som separate rader pga `@unique` er case-sensitive. Ikke aktuell utnytting kjent, men inkonsekvent med invitasjons-flyten som nå er lowercase. Bredere refaktor som krever migrering av `User.email` + adapter-override + verifisering av Google/Microsoft OAuth-flyt.
 
-### Refaktor: web-tRPC-route lager egen Context (oppdaget 2026-05-27 under H1-deploy)
+### Refaktor: web-tRPC-route — DEPLOYET TIL PROD 2026-05-27 (prod-merge `77e6553d`)
 
-**Sted:** `apps/web/src/app/api/trpc/[...trpc]/route.ts:61-72`
+✅ Implementert via `lagContextStamme`-helper (Alternativ 1). Arkivert til [historikk-2026-05.md § lagContextStamme + B5](historikk-2026-05.md).
 
-Web-routen kaller `fetchRequestHandler` med en inline `createContext` som bygger Context-objektet manuelt — kopierer feltene fra `apps/api/src/trpc/context.ts:createContext` men er ikke synkronisert. Når Context-typen utvides i `apps/api`, kompilerer `apps/api` fortsatt, men `apps/web#build` feiler med «Type ... is not assignable to ...».
-
-**Konsekvens 2026-05-27 (H1-deploy):** Migrasjon kjørte, PM2 restartet sitedoc-web på gammel kode i ~25 min mens DB var på nytt schema. Risiko-vurdering var lav i dette tilfellet (defaults dekket gammel kode), men mønstret er en tikkende bombe.
-
-**Fix-alternativer:**
-1. **Eksporter delt helper fra `apps/api`** — flytt `createContext` til en eksport som tar `{ req, res, ekstraFelter }`-overload slik at web-routen kan kalle den med Auth.js-session som ekstra-felt. Web og api deler typer og oppførsel.
-2. **Behold to implementasjoner, men typecheck i CI** — kjør `pnpm --filter web exec tsc --noEmit` som del av `pnpm build` med fail-fast slik at deploy-bash kan se feilen FØR PM2 restart.
-3. **Web bruker `apps/api/src/trpc/context.ts` direkte** — krever at api-pakken eksponerer `createContext` (i dag intern). Mer kompliserer Next.js import-grafen.
-
-**Anbefaling:** Alternativ 1. Estimat ~1-2t.
-
-**Tilleggsforslag:** Endre prod-deploy-bash til å feile hard på `pnpm build` exit ≠ 0, og IKKE kjøre `pm2 restart` hvis build feilet. I dag restartet PM2 selv om Turbo rapporterte exit 1. Server-side skript-endring.
+**Tilleggsforslag fortsatt åpent:** Server-side `deploy-test-cron.sh` skal feile hard på `pnpm build` exit ≠ 0 og IKKE kjøre `pm2 restart`. CLAUDE.md har regelen (commit `95ff4a07`), men cron-skriptet er server-side og ikke i repo. Krever manuell oppdatering av skriptet på `sitedoc`-serveren.
 
 ### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 
@@ -252,10 +241,10 @@ Server ~45 min, mobil-UI ~5 timer (oppgave, ny boks-komponent med statusvalg-pop
 
 - **40 åpne P-oppgaver i [oppryddings-plan-2026-04-28.md](oppryddings-plan-2026-04-28.md)** 🟡 — P2 faggruppe-rename, P3 drift-detaljer, P4 Kenneth-drøftinger, P5 svakhet-reparering.
 - **Firma-administrasjons-navigasjon strukturell rydding (~10-12t)** 🔴 — 3 lag: ~10 ruter trenger `organizationId` som input, ~10 sider må sende `useFirma().valgtFirma.id`, rename av «Firmainnstillinger» → «Prosjekteier». Ikke-blokkerende.
-- **Header-koordinering: firma-bytte nullstiller ikke prosjekt** 🔴 — observert 2026-05-03. Kompleksitet lav-middels (~2-3t).
+- ~~**Header-koordinering: firma-bytte nullstiller ikke prosjekt**~~ ✅ LØST — verifisert mot kode 2026-05-27. `prosjekt-kontekst.tsx:101-114` har auto-reset useEffect (P1 Fase 2, 2026-05-05). `byggeplass-kontekst.tsx:70-79` har defensiv cleanup ved firma-bytte. Entry-en var hjemløs drift fra før P1 Fase 2-deploy.
 - **Nye integrasjonstester for `tilgangskontroll.ts`** 🔴 — etter O-5c er gammel test-fil slettet (16/22 broken). Integrasjonstester mot test-DB med OrganizationMember-fikstur er planlagt.
 - **T7-2b3 audit-log payload utvidelse** 🔴 — før/etter-snapshots per rad i Activity-tabell.
-- **Returnert→pending-reset ved `sendTilAttestering`** 🔴 — når arbeider sender returnert sedel på nytt, tilbakestilles ikke `attestertStatus` automatisk.
+- ~~**Returnert→pending-reset ved `sendTilAttestering`**~~ ✅ Implementert 2026-05-27 på develop. `send`-mutation i `dagsseddel.ts:931` utvidet med betinget `$transaction` som nullstiller returnerte rader til pending ved re-send. Backfill-SELECT mot prod-DB ga 0 rader — ingen migrasjon nødvendig.
 
 ### Mobil og sync
 
@@ -321,26 +310,13 @@ Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1
 - Forslag 3 (periode-presets + faner + paginering) — egen oppfølger T7-4h
 - Forslag 2 (view-toggle [Kort]/[Tabell]) — vurder etter Forslag 3
 
-### B_ny — Lagre-knapp grå→grønn ved endring (oppdaget 2026-05-17, gjenstår på Edit-side)
+### B_ny / T7-5f — Lagre-knapp grå→grønn — DEPLOYET TIL PROD 2026-05-23 (prod-merge `c2792f28`, impl `e7ac0f83` + utvidelse `f0e1a740`)
 
-**Status delvis:** Implementert i RedigerRadModal (T7-5d, via `harEndringer`-state i `RedigerRadModal.tsx`). Mangler fortsatt i `AttesteringDetalj_Edit.tsx:481` (full-sedel-edit på detaljsiden).
+✅ Implementert på både `AttesteringDetalj_Edit.tsx:296-305, 487-499` (`harUlagredeEndringer`-memo + grønn className når dirty) OG `RedigerRadModal`. Tidligere arkiv-commit `be73e2c6`. Entry var hjemløs drift som ikke ble fjernet etter prod-deploy.
 
-Spec sier knapp grå/inaktiv → grønn ved endring. Faktisk i Edit-side: blå fra start uavhengig av om noe er endret. Ingen samlet `harEndringer`-state.
+### T7-5e — Attestert-filter på attestering-listen — DEPLOYET TIL PROD 2026-05-20 (prod-merge `cc8f0067`, impl `c523323a`)
 
-**Fix-skisse:** Beregn `harEndringer = JSON.stringify(editTimer) !== JSON.stringify(initTimer) || ...` (samme mønster som RedigerRadModal) og pass som `disabled={!harEndringer || lagre.isPending}` + betinget className for grønn. Planlegges som T7-5f.
-
-### Attestert-filter på attestering-listen (oppdaget 2026-05-17, FIX 4 fra Sonnet-plan)
-
-Attestering-listen viser kun sedler med `status="sent"` — attesterte sedler (`status="accepted"`) forsvinner helt. Bruker mangler oversikt over hva som er attestert denne uka.
-
-**Forslag:** Filter-toggle `[Venter på attestering ●3] [Attestert ●12]` over uke-navigasjonen. Attestert-fanen viser sedler i read-only.
-
-**Krever:**
-1. Server: utvid `hentTilAttesteringFirma` med `status?: "sent" | "accepted"` (default "sent" for bakover-kompat)
-2. Klient: ny fane-state, to queries (en per fane), invalider begge ved attester-mutation
-3. SeddelKort: ny `readOnly`-prop som skjuler ↩/✓/⋯ og per-rad penn/✂
-
-Planlegges som T7-5e.
+✅ Implementert. Fane-toggle `[Venter ●N] [Attestert ●M]` over uke-navigasjon, to parallelle queries, `readOnly`-prop til SeddelKort + ProsjektGruppe, i18n-nøkler `timer.attestering.fane.{venter,attestert}` i 15 språk. Tidligere arkiv-commit `8aa664cb`. Entry var hjemløs drift som ikke ble fjernet etter prod-deploy.
 
 ### Pause-modell på timer-rad — IMPLEMENTERT 2026-05-18 (pauseFra/pauseTil i daily_sheets)
 
@@ -429,11 +405,9 @@ Sjeldent i praksis (typisk én sammenhengende rad per dag), ikke server-blokk. V
 
 **Foreslås som styrende prinsipp i fase-0-beslutninger.md.**
 
-### B5 — Sum-indikator (maskin-av-arbeid) mangler i SeddelKort (oppdaget 2026-05-17)
+### B5 — Sum-indikator (maskin-av-arbeid) i SeddelKort — DEPLOYET TIL PROD 2026-05-27 (prod-merge `f7a836f8`)
 
-`EcoBucketAttest` har grønn/rød validerings-rad («Maskintimer X av arbeidstimer Y») i `attestering-buckets.tsx:634-648`. Brukes kun i detalj-siden via ProsjektSectionAttest, IKKE i listens SeddelKort. Maskin > arbeid synlig i modal men ikke i listen.
-
-**Fix-skisse:** Legg til samme validerings-logikk i SeddelKort's sum-rad eller som egen rad nederst.
+✅ Implementert. Grønn/rød badge med samme invariant som EcoBucketAttest (inkl. pause-buffer per T.7 2026-05-18). Auto-expand-trigger utvidet med `maskinOver`. Arkivert til [historikk-2026-05.md § lagContextStamme + B5](historikk-2026-05.md).
 
 ### Detalj-siden vs modal — slankhetsvurdering (vedtatt 2026-05-17)
 
