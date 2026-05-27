@@ -24,16 +24,22 @@ const server = Fastify({
   trustProxy: true,
   logger: {
     redact: ["req.headers.authorization", "req.headers.cookie"],
-    // Logg req.ip (Fastify's parsed klient-IP etter trustProxy) i stedet for
-    // TCP-IP. Forutsetning for at rate-limit per IP fungerer reelt.
+    // Logg ekte klient-IP fra cf-connecting-ip (satt av cloudflared, blokkert
+    // mot spoofing av Cloudflare). req.ip viser server-WAN-IP gjennom WSL2
+    // Mirror Mode + cloudflared, ikke faktisk klient. Speiler hentKlientIp i
+    // utils/rateLimiter.ts — rate-limit og logger må enes om kilde.
     serializers: {
-      req: (req) => ({
-        method: req.method,
-        url: req.url,
-        host: req.headers?.host,
-        remoteAddress: req.ip,
-        remotePort: req.socket?.remotePort,
-      }),
+      req: (req) => {
+        const cf = req.headers?.["cf-connecting-ip"];
+        const klientIp = typeof cf === "string" && cf.length > 0 ? cf : req.ip;
+        return {
+          method: req.method,
+          url: req.url,
+          host: req.headers?.host,
+          remoteAddress: klientIp,
+          remotePort: req.socket?.remotePort,
+        };
+      },
     },
   },
 });
