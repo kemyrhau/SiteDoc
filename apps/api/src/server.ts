@@ -14,10 +14,14 @@ import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
 
 const server = Fastify({
-  // Fastify mottar requests via Cloudflare Tunnel → cloudflared på localhost.
-  // Stol kun på loopback-proxy for X-Forwarded-For — direkte eksponert Fastify
-  // ville kunne IP-spoofe, men trafikken kommer alltid via 127.0.0.1 i prod/test.
-  trustProxy: "127.0.0.1",
+  // Fastify mottar requests via Cloudflare Tunnel → cloudflared. cloudflared
+  // proxy-er ikke via 127.0.0.1 i prod/test pga WSL2 Mirror Mode — den
+  // treffer Fastify via Windows-vertens IP (193.90.181.205). Eksplisitt
+  // allowlist ville måtte oppdateres ved infra-endringer, så vi stoler på
+  // X-Forwarded-For uansett. Trygt fordi Fastify ALDRI eksponeres direkte —
+  // alltid bak cloudflared. Operasjonell merknad: ved fremtidig direkte-
+  // eksponering (Tailscale, midlertidig debug) må trustProxy strammes igjen.
+  trustProxy: true,
   logger: {
     redact: ["req.headers.authorization", "req.headers.cookie"],
     // Logg req.ip (Fastify's parsed klient-IP etter trustProxy) i stedet for
