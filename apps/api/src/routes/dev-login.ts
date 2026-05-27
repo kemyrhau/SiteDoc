@@ -6,8 +6,12 @@ import { prisma } from "@sitedoc/db";
  * Dev-bypass-innlogging for mobil-simulator. Plain Fastify-route — ikke tRPC.
  *
  * Aktiv kun når:
- *   - NODE_ENV !== "production"  (lokal `pnpm dev`)
+ *   - NODE_ENV === "development"   (lokal `pnpm dev`)
  *   - ELLER ENABLE_DEV_LOGIN === "true" (eksplisitt opt-in på test-server)
+ *
+ * Hvit-liste-mønster (fail-secure): hvis NODE_ENV glipper (ukjent verdi,
+ * ufullstendig env ved deploy), forblir routen deaktivert. Tidligere
+ * `NODE_ENV !== "production"` ville fail-open ved env-feil.
  *
  * Plassert på Fastify (apps/api) framfor Next.js (apps/web) fordi mobilen
  * allerede treffer api-test.sitedoc.no for tRPC og vi vet det fungerer fra
@@ -22,7 +26,7 @@ import { prisma } from "@sitedoc/db";
 const TEST_BRUKER_EMAIL = "kemyrhau@gmail.com";
 
 export function erDevLoginAktiv(): boolean {
-  if (process.env.NODE_ENV !== "production") return true;
+  if (process.env.NODE_ENV === "development") return true;
   if (process.env.ENABLE_DEV_LOGIN === "true") return true;
   return false;
 }

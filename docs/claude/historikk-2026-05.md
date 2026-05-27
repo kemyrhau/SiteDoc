@@ -4,6 +4,47 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Filter-rensing F1 + Tiltak 1 — DEPLOYET TIL PROD 2026-05-27 (prod-merge `8c256f64`, develop-commit `118c9385`)
+
+To handlingsrettede tickets fra status-audit 2026-05-27. Rene UI-/i18n-endringer, ingen schema-endring.
+
+### F1 — `cancelled` lagt til `LUKKET_STATUSER` i HMS-filteret
+
+`apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx:63`. Tidligere ekskluderte både `ÅPEN_STATUSER` og `LUKKET_STATUSER` `cancelled` — avbrutte HMS-dokumenter forsvant fra listen når `visAlle=false`. Fiks: `LUKKET_STATUSER = new Set(["approved", "closed", "cancelled"])`. Avbrutt er en endelig tilstand, semantisk lik closed/approved. KPI-tellingen `apneAvvik` er uendret — vi vil ikke at avbrutte saker skal telle som åpne.
+
+### Tiltak 1 — «Alle åpne»-snarvei i status-kolonnens filter på oppgaver + sjekklister
+
+Ny `filterSnarveier?: { label: string; verdier: string[] }[]`-prop på `KolonneDef<T>` i `packages/ui/src/table.tsx`. `FilterDropdown` rendrer snarvei-knapper rett under «Alle»-knappen, med `border-b`-skille til alternativ-listen. Klikk setter `onChange(verdier.join(","))` og lukker dropdown. Bruker eksisterende multi-select komma-separert filter-mekanisme — ingen server- eller filter-logikk-endring.
+
+Aktivert på status-kolonnen i `oppgaver/page.tsx` og `sjekklister/page.tsx` med snarvei `[{ label: t("status.alleApne"), verdier: ["draft", "sent", "received", "in_progress", "responded"] }]` — 5 åpne statuser, ekskluderer `approved/closed/rejected/cancelled` per backlog-spec.
+
+HMS-siden bruker binær `visAlle`-toggle (annen UX-modell). Etter F1-fiks er den effektivt en «Alle åpne»-toggle — ikke endret.
+
+### Plassering — viktig avgrensning
+
+Snarveien lever i tabell-kolonne-filter (klikk filter-ikon på Status-kolonneoverskriften), IKKE i sidebar. Det finnes ingen sidebar-filter i oppgaver/sjekklister-sidene. Tabellen rendres bare når prosjektet har minst én oppgave/sjekkliste — på tomt prosjekt vises `EmptyState` og filter-mekanismen er ikke synlig. Mulig oppfølger: flytte filter-mekanikken til sidebar/over-tabell-filterpanel slik at snarvei er synlig også i tomtilstand.
+
+### i18n
+
+Ny `status.alleApne` (nb: «Alle åpne», en: «All open»). Auto-generert til 13 målspråk via `pnpm --filter @sitedoc/shared exec tsx src/i18n/generate.ts` (2400 nøkler totalt).
+
+### Verifisering
+
+- `@sitedoc/ui` typecheck 0 = 0.
+- `apps/web` typecheck 2 = 2 baseline (TS2589 på `oppgaver/page.tsx:333` ved `trpc.oppgave.opprett.useMutation` + vitest-typedef). TS2589 er pre-eksisterende (bekreftet ved `git stash`-test før commit). 0 nye feil.
+- Prod: `sitedoc.no` HTTP/2 200, `api.sitedoc.no/health` HTTP/2 200 etter `pm2 restart` 14:29 UTC.
+- HMS-siden lastet korrekt som innlogget bruker (verifisert av Kenneth).
+
+### Refactor-bidrag
+
+Lokal `KolDef`-interface i `oppgaver/page.tsx:553` (tidligere `Parameters<typeof Table<OppgaveRad>>[0]["kolonner"][number]`) for å matche mønsteret i `sjekklister/page.tsx` og redusere risiko for fremtidig TS2589-pump. Fikset ikke den eksisterende TS2589 på linje 333 — den er ubunnet av denne PR-en.
+
+### Sideeffekt under test-deploy
+
+Auto-deploy via `deploy-test-cron.sh` trakk commiten, men Turborepo cache-hittet på `apps/web#build` selv etter manuell `rm -rf apps/web/.next`. Måtte kjøre `pnpm build --force` for å bypass Turbo-cache og få ny `.next`. Prod-deploy var ren rebuild (0 cached) fordi serveren ikke hadde tidligere Turbo-cache for denne commiten.
+
+---
+
 ## Innsender-tilgang i verifiserDokumentTilgang — DEPLOYET TIL PROD 2026-05-27 (prod-merge `b3194f1d`, develop-commit `b4e53e17`)
 
 Tetter sikkerhets-gap i `verifiserDokumentTilgang`: brukere som hadde opprettet eller var direkte mottaker av et dokument fikk FORBIDDEN ved direktelenke-oppslag med mindre de også var i en gruppe som dekket dokumentets faggruppe/domain.

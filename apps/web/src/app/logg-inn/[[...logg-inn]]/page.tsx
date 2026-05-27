@@ -1,8 +1,25 @@
 "use client";
 
 import { signIn } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
+import { useTranslation } from "react-i18next";
+
+const KJENTE_FEILKODER = new Set([
+  "OAuthAccountNotLinked",
+  "AccessDenied",
+  "OAuthCallback",
+]);
 
 export default function LoggInnSide() {
+  const searchParams = useSearchParams();
+  const { t } = useTranslation();
+  const feilkode = searchParams.get("error");
+  const feilNokkel = feilkode && KJENTE_FEILKODER.has(feilkode)
+    ? `auth.feil.${feilkode}`
+    : feilkode
+      ? "auth.feil.generisk"
+      : null;
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-md rounded-lg border border-gray-200 bg-white p-8 shadow-sm">
@@ -12,6 +29,14 @@ export default function LoggInnSide() {
         <p className="mb-6 text-center text-sm text-gray-500">
           Logg inn for å fortsette
         </p>
+        {feilNokkel && (
+          <div
+            role="alert"
+            className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800"
+          >
+            {t(feilNokkel)}
+          </div>
+        )}
         <div className="flex flex-col gap-3">
           <button
             onClick={() => signIn("google", { callbackUrl: "/dashbord" })}

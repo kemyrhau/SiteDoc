@@ -6,28 +6,47 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Forrige bunke (innsender-tilgang i `verifiserDokumentTilgang`) DEPLOYET
-> TIL PROD 2026-05-27 (prod-merge `b3194f1d`, develop-commit `b4e53e17`).
-> Arkivert til [historikk-2026-05.md § Innsender-tilgang](historikk-2026-05.md).
+### Sikkerhets-audit-fiks H3 + logg-inn error-håndtering — MERGET TIL DEVELOP 2026-05-27 (oppfølger)
+
+`allowDangerousEmailAccountLinking: false` satt på begge OAuth-providers (`apps/web/src/auth.ts:26, 34`). Verifisert null migrasjons-risiko mot prod-DB: 2 accounts totalt (1 google + 1 microsoft-entra-id), 0 brukere med koblet begge providers. Detaljer i [BACKLOG.md § H3](BACKLOG.md).
+
+**Error-håndtering på `/logg-inn` (oppfølger-commit):** `apps/web/src/app/logg-inn/[[...logg-inn]]/page.tsx` leser nå `error`-query-param via `useSearchParams()` og viser warning-banner over login-knappene. Tre kjente Auth.js-feilkoder mappes til spesifikke meldinger:
+
+- `OAuthAccountNotLinked` → «Du har allerede en konto med denne e-posten. Bruk samme innloggingsmetode som første gang.»
+- `AccessDenied` → «Tilgang avvist. Prøv igjen eller kontakt support.»
+- `OAuthCallback` → «Innlogging feilet midlertidig. Prøv igjen.»
+- Ukjente koder → generisk «Innlogging feilet. Prøv igjen.»
+
+4 nye i18n-nøkler under `auth.feil.*` i nb + en, auto-generert til 13 språk (2404 nøkler totalt).
+
+**Konsekvens etter prod-deploy:** Bruker som triggrer linking-konflikt mellom Google og Microsoft 365 ser nå en forklarende banner i stedet for stille loop. Eksplisitt linking-flyt (innstillinger-side med «Koble til Microsoft»-knapp) er fremtidig oppfølger ved kundefeedback.
+
+### Sikkerhets-audit-fikser K1+M2+M3+M4 — MERGET TIL DEVELOP 2026-05-27
+
+Fire raske fikser fra sikkerhets-audit 2026-05-27. Ingen schema-endring, ingen breaking.
+
+- **K1** (`apps/api/src/routes/dev-login.ts:24-28`): `erDevLoginAktiv()` snudd til hvit-liste — `NODE_ENV === "development"` i stedet for `NODE_ENV !== "production"`. Fail-secure ved env-feil. Verifisert at prod har `NODE_ENV=production`, så routen forblir 404 etter deploy.
+- **M2** (`apps/api/src/server.ts:107`): `prisma.$executeRawUnsafe(...)` → tagget template literal `prisma.$executeRaw\`...\``. Hardkodet SQL — ingen funksjons-endring, men eliminerer refactor-fallgruve.
+- **M3** (`apps/web/src/auth.ts`): Lagt til `session: { strategy: "database", maxAge: 24*60*60, updateAge: 60*60 }`. Web-sesjon utløper etter 24t inaktivitet (tidligere Auth.js default 30 dager). **Konsekvens:** alle web-brukere må logge inn på nytt etter deploy til prod.
+- **M4** (`apps/api/src/server.ts:17`): Fastify-logger `redact: ["req.headers.authorization", "req.headers.cookie"]`. Forhindrer at session-token havner i serverlogger ved feilsituasjoner.
+
+**Microsoft OAuth-verifisering (audit-funn):** Microsoft Entra ID ER aktivert i prod (`AUTH_MICROSOFT_ENTRA_ID_*` satt i `apps/web/.env`, login-knapp synlig). H3 (`allowDangerousEmailAccountLinking: true`) flyttet til [BACKLOG.md § H3](BACKLOG.md) som aktiv risiko, ikke hypotetisk.
+
+**Verifisering:** `@sitedoc/api` typecheck 0 = 0. `apps/web` typecheck 2 = 2 baseline (TS2589 på `oppgaver/page.tsx:333` + vitest, begge pre-eksisterende). 0 nye feil.
+
+**Reload-metode:** TypeScript-only. Standard build + pm2 restart. M3 invaliderer web-sesjoner ved deploy.
+
+Klar for test-deploy via auto-deploy.
+
+> Forrige bunke (filter-rensing F1 + Tiltak 1) DEPLOYET TIL PROD 2026-05-27
+> (prod-merge `8c256f64`, develop-commit `118c9385`).
+> Arkivert til [historikk-2026-05.md § Filter-rensing](historikk-2026-05.md).
+> Innsender-tilgang (2026-05-27, prod-merge `b3194f1d`) arkivert i samme fil:
+> [§ Innsender-tilgang](historikk-2026-05.md).
 > HMS-bunken (2026-05-26/27) arkivert i samme fil:
 > [§ HMS åpen-synlighet](historikk-2026-05.md),
 > [§ HMS-prosjektvisning](historikk-2026-05.md),
 > [§ HMS-modul-seeding](historikk-2026-05.md).
-
-### Filter-rensing F1 + Tiltak 1 — MERGET TIL DEVELOP 2026-05-27
-
-To handlingsrettede tickets fra status-audit 2026-05-27 ([BACKLOG.md § F1](BACKLOG.md) + [§ Tiltak 1](BACKLOG.md)).
-
-- **F1:** `cancelled` lagt til `LUKKET_STATUSER` i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx:63`. Avbrutte HMS-dokumenter er nå synlige når `visAlle=true`. KPI-tellingen uendret.
-- **Tiltak 1:** Ny `filterSnarveier`-prop på `KolonneDef<T>` i `packages/ui/src/table.tsx` + render i `FilterDropdown`. Aktivert på status-kolonnen i oppgaver + sjekklister med snarvei «Alle åpne» = `["draft", "sent", "received", "in_progress", "responded"]`. Multi-select-mekanikken finnes fra før via komma-separert filter-verdi.
-
-**i18n:** ny `status.alleApne` (nb: «Alle åpne», en: «All open»), auto-generert til 13 språk (2400 nøkler).
-
-**Verifisert:** `@sitedoc/ui` typecheck 0 = 0. `apps/web` typecheck 2 = 2 baseline (TS2589 på `trpc.oppgave.opprett.useMutation` linje 333 + vitest-typedef). TS2589 er pre-eksisterende (bekreftet ved stash-test); 0 nye feil.
-
-**Reload-metode:** TypeScript- + i18n-endring. Standard cache-cleaning ved deploy (`rm -rf apps/web/.next` + build) håndteres av `deploy-test-cron.sh`.
-
-Klar for test-deploy via auto-deploy. Verifisér på `test.sitedoc.no/dashbord/<prosjektId>/oppgaver` at filter-ikonet på status-kolonnen viser «Alle åpne» mellom «Alle» og status-listen.
 
 ### Pågående: TestFlight build #23 enhet-verifisering
 

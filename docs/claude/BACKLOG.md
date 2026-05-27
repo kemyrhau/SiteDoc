@@ -16,6 +16,12 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### H3 — `allowDangerousEmailAccountLinking: false` på begge OAuth-providers — IMPLEMENTERT PÅ DEVELOP 2026-05-27
+
+✅ **Implementert.** `apps/web/src/auth.ts:26, 34` satt til `false` på Google + Microsoft. Migrasjons-risiko verifisert null: prod-DB hadde kun 2 accounts (1 google + 1 microsoft-entra-id), 0 brukere hadde koblet begge providers ved tidspunkt for fiks.
+
+**Fremtidig oppfølger ved kundefeedback:** Hvis en bruker faktisk trenger å linke en ny provider til samme e-post-konto, må de gjøre det via eksplisitt flyt — ikke automatisk ved login. Vurder eget innstillinger-skjermbilde med «Koble til Microsoft»-knapp som lager `Account`-rad mot eksisterende `User` etter ekstra verifikasjon (bekreftelses-e-post eller re-auth). Ingen UI for dette i dag. Brukere som logger inn med ny provider og samme e-post vil få `OAuthAccountNotLinked`-feilmelding fra Auth.js — vi bør verifisere at feilsiden formidler dette tydelig på `/logg-inn`.
+
 ### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 
 **Oppdaget 2026-05-26** ved sporing av Godkjenning-modulens faktiske implementasjon, og presisert med produktbeskrivelse fra Kenneth samme dag.
