@@ -4,6 +4,73 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## H1 — mobil token-rotasjon ved bruk — DEPLOYET TIL PROD 2026-05-27 (prod-merge `29bdded8` + web-fix `43460d80`)
+
+Siste sikkerhets-audit-funn fra 2026-05-27. Mobil session-token roteres nå ved aktiv bruk hvis token er eldre enn 7 dager, ikke kun ved app-oppstart (`mobilAuth.verifiser`). Reduserer token-eksponering ved lekkasje fra 30 dager worst-case til 7 dager.
+
+### Schema + migrasjon (`20260527200000_session_rotation_tracking`)
+
+To nye felter på `Session`:
+- `createdAt DateTime @default(now())` — opprinnelig session-opprettelse, røres aldri etter init
+- `lastRotatedAt DateTime @default(now())` — siste rotasjons-tidspunkt, brukes av middleware-terskel
+
+Migrasjons-strategi:
+1. `ADD COLUMN` (nullable først)
+2. Backfill: `created_at = last_rotated_at = expires - INTERVAL '30 days'` for eksisterende rader (worst-case-antagelse: alle eksisterende sessions ~30 dager gamle)
+3. `SET NOT NULL` + `SET DEFAULT CURRENT_TIMESTAMP`
+
+Backfill-konsekvens: alle eksisterende mobil-sessions roteres ved første mutation hvis `expires > now + 7d` (typisk). Helt nye sessions ved deploy får 7 dagers grace.
+
+### Server-arkitektur (commit `0c62231d`)
+
+**`apps/api/src/trpc/context.ts`** — utvidet:
+- Skille `tokenKilde: "bearer" | "cookie" | null` basert på om cookie-regex eller `Authorization`-header ga treff
+- Mutable `nyttSessionTokenForRespons: { value: string | null }` for middleware → responseMeta-kommunikasjon
+
+**`apps/api/src/trpc/trpc.ts`** — ny `mobilTokenRotasjon`-middleware på `protectedProcedure` (etter rate-limit). Trigger-vilkår (alle må være sanne):
+- `type === "mutation"` (queries roterer ikke — for hyppig)
+- `ctx.tokenKilde === "bearer"` (web-cookie eies av Auth.js)
+- `ctx.sessionToken` satt
+- `session.lastRotatedAt < now - 7d`
+
+Race-vern: `UPDATE sessions ... WHERE id = session.id AND session_token = oldToken` — parallelle mutations som begge prøver å rotere får én vinner (idempotent). Rotasjons-feil logges som warning men velter aldri handler-responsen.
+
+**`apps/api/src/server.ts`** — `responseMeta` på `fetchRequestHandler` leser `ctx.nyttSessionTokenForRespons.value` og setter `X-Session-Token`-respons-header når rotasjon skjedde.
+
+**`apps/api/src/routes/mobilAuth.ts`** — `byttToken` setter `createdAt` + `lastRotatedAt` eksplisitt ved Session.create. `verifiser`-rotasjonen ved oppstart oppdaterer nå også `lastRotatedAt`.
+
+### Mobil-klient (commit `0c62231d`)
+
+`apps/mobile/src/lib/trpc.ts` `httpBatchLink` fikk custom `fetch` som leser `X-Session-Token` fra respons-header. Hvis satt: kall `lagreSessionToken(nyttToken)` (SecureStore på native, localStorage på web). Neste request bruker automatisk det nye tokenet via `headers()`-callback. SecureStore-feil svelges stille (gammel token virker inntil neste rotasjon).
+
+### Deploy-hendelse: web-bygg feilet ved første forsøk
+
+`apps/web/src/app/api/trpc/[...trpc]/route.ts` lager egen Context-instans direkte (ikke via `createContext`-helperen). Da Context-typen ble utvidet med `tokenKilde` + `nyttSessionTokenForRespons`, kompilerer `apps/api` fortsatt, men `apps/web#build` feilet:
+
+```
+Type '{ ...; sessionToken: string | null; }' is not assignable to
+type '{ ...; nyttSessionTokenForRespons: { ... }; ... }'
+```
+
+Migrasjonen kjørte først, deretter feilet web-bygg, men PM2 restartet web likevel på gammel kode. DB var på nytt schema i ~25 min mens web kjørte gammel kode. Risiko-vurdering: defaults dekket gammel kode (nye felter har `@default(now())`), så ingen funksjonell regresjon.
+
+**Fix (`4e353118`):** Speil de to nye Context-feltene i web-routen — `tokenKilde: "cookie"` når sessionToken satt, ellers `null`. `nyttSessionTokenForRespons: { value: null }` (aldri brukt på web pga middleware filter). Re-bygg + restart, alt OK.
+
+**Lærdom notert i BACKLOG:** Web-routen lager egen Context istedenfor å bruke delt helper — type-skift på Context kan bryte web-bygg uten å fanges av API-typecheck. Tilleggslærdom: prod-deploy-bash bør feile hard på `pnpm build` exit ≠ 0 og IKKE kjøre PM2 restart. I dag restartet PM2 selv om Turbo rapporterte exit 1.
+
+### Verifikasjon
+
+- API typecheck: 0 nye feil. Mobile typecheck: 12 = 12 baseline.
+- Migrasjon kjørt mot prod-DB: `created_at` + `last_rotated_at`-kolonner finnes, eksisterende sessions backfillet.
+- `sitedoc.no/logg-inn` + `api.sitedoc.no/health` HTTP 200 etter web-fix.
+
+### Gjenstående oppfølgere
+
+- **Race-handling på mobil ved samtidige mutations:** to parallelle mutations kan begge motta `X-Session-Token`; siste skrivning vinner. Worst case: én 401 + automatisk re-fetch. Dokumentert som akseptert risiko.
+- **Device-fingerprint** vurderes som forsterkning senere PR — ikke i denne runden.
+
+---
+
 ## Fastify-logger leser cf-connecting-ip + H2 streng invitasjon-match — DEPLOYET TIL PROD 2026-05-27 (prod-merge `b97494cd`)
 
 Oppfølger-bunke etter M1. To uavhengige fikser bundlet i én prod-deploy.

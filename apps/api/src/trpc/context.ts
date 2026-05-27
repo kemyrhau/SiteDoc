@@ -10,6 +10,46 @@ export interface CreateContextOptions {
 }
 
 /**
+ * Input til lagContextStamme — alt som auth-flyten har utledet og som
+ * helperen ikke kan utlede selv (varierer mellom runtimes).
+ */
+export interface ContextStammeInput {
+  userId: string | null;
+  actualUserId: string | null;
+  imperseringAktiv: boolean;
+  sessionToken: string | null;
+  tokenKilde: "bearer" | "cookie" | null;
+}
+
+/**
+ * Felles Context-stamme delt mellom Fastify-createContext (api) og
+ * Next.js-tRPC-routen (web). Bygger alle Context-felter unntatt req/res
+ * — de tilhører ulike runtimes (FastifyRequest vs Web Request) og må
+ * settes per side.
+ *
+ * Hvorfor: H1-deploy 2026-05-27 viste at web-routen som dupliserer
+ * Context-bygging ikke fanges av API-typecheck når Context utvides.
+ * lagContextStamme er ett sted å legge til nye felter — TypeScript-
+ * kompilatoren tvinger oppdatering av begge kallsteder via input-typen.
+ */
+export function lagContextStamme(input: ContextStammeInput) {
+  return {
+    prisma,
+    prismaMaskin,
+    prismaTimer,
+    prismaVarelager,
+    userId: input.userId,
+    actualUserId: input.actualUserId,
+    imperseringAktiv: input.imperseringAktiv,
+    sessionToken: input.sessionToken,
+    tokenKilde: input.tokenKilde,
+    // Mutable container for nytt rotert token. Middleware skriver hit;
+    // tRPC responseMeta leser og setter X-Session-Token-header på respons.
+    nyttSessionTokenForRespons: { value: null as string | null },
+  };
+}
+
+/**
  * Opprett tRPC-kontekst for hver forespørsel.
  * Verifiserer sesjonstoken fra Auth.js via database-oppslag.
  */
@@ -33,10 +73,6 @@ export async function createContext({ req, res }: CreateContextOptions) {
     : bearerToken
       ? "bearer"
       : null;
-
-  // Mutable container for nytt rotert token. Middleware (trinn 3) skriver
-  // hit; tRPC responseMeta leser og setter X-Session-Token-header på respons.
-  const nyttSessionTokenForRespons: { value: string | null } = { value: null };
 
   if (sessionToken) {
     try {
@@ -72,18 +108,15 @@ export async function createContext({ req, res }: CreateContextOptions) {
   }
 
   return {
-    prisma,
-    prismaMaskin,
-    prismaTimer,
-    prismaVarelager,
+    ...lagContextStamme({
+      userId,
+      actualUserId,
+      imperseringAktiv,
+      sessionToken,
+      tokenKilde,
+    }),
     req,
     res,
-    userId,
-    actualUserId,
-    imperseringAktiv,
-    sessionToken,
-    tokenKilde,
-    nyttSessionTokenForRespons,
   };
 }
 
