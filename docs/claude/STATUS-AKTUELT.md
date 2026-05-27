@@ -6,9 +6,9 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### Dagens samlede aktivitet — 2026-05-27 (10 prod-deploys: sikkerhets-audit komplett + UX + bugfix)
+### Dagens samlede aktivitet — 2026-05-27 (11 prod-deploys: sikkerhets-audit komplett + UX + bugfix + docs-konsistens)
 
-Uvanlig tett deploy-dag. Ingen funksjonell regresjon observert. Hele sikkerhets-audit-bunken (14 funn) lukket. Etterfulgt av lagContextStamme-refaktor, B5 UX-forbedring, returnert→pending-reset bugfix og fr.json i18n-drift.
+Uvanlig tett deploy-dag. Ingen funksjonell regresjon observert. Hele sikkerhets-audit-bunken (14 funn) lukket. Etterfulgt av lagContextStamme-refaktor, B5 UX-forbedring, returnert→pending-reset bugfix, i18n pause-drift på 4 språk, og 3 docs-konsistens-oppdateringer.
 
 | # | Prod-merge | Tidspunkt | Innhold |
 |---|---|---|---|
@@ -21,7 +21,8 @@ Uvanlig tett deploy-dag. Ingen funksjonell regresjon observert. Hele sikkerhets-
 | 7 | `77e6553d` | 19:45 | lagContextStamme-refaktor (eliminerer kilden til H1 web-bygg-feil) |
 | 8 | `f7a836f8` | 20:00 | B5 maskin-av-arbeid-validering i SeddelKort |
 | 9 | `baa462e1` | 20:30 | Returnert→pending-reset ved re-send + fr.json pause-drift |
-| 10 | (HMS-bunke) | tidligere/samme dag | HMS åpen-synlighet + HMS-prosjektvisning + HMS-modul-seeding |
+| 10 | `d8b60854` | 21:30 | i18n pause-drift de/sv/et + docs-konsistens (arkitektur lagContextStamme + infrastruktur cf-connecting-ip + timer.md re-send) |
+| 11 | (HMS-bunke) | tidligere/samme dag | HMS åpen-synlighet + HMS-prosjektvisning + HMS-modul-seeding |
 
 **Sikkerhets-audit oppsummering (utført 2026-05-27, 14 funn — alle lukket):**
 - ✅ Adressert: K1, M2, M3, M4, H3, M1 (rate-limit), H2 (invitasjon-match), H1 (mobil-token-rotasjon), error-håndtering på `/logg-inn`
