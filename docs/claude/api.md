@@ -171,6 +171,30 @@ Alle routere som opererer på prosjektdata har `verifiserProsjektmedlem`-sjekk. 
 - `company_admin`-fallback i `verifiserProsjektmedlem`/`verifiserAdmin`: sjekker `OrganizationProject`-kobling, hindrer kryssorg-tilgang
 - `eksternKostObjekt.list`: bruker `krevBrukersOrg(ctx.userId)` og filtrerer på `organizationId` — **firma-isolert, ikke prosjekt-isolert**. Designvalg: ECO er firma-bredt synlig på tvers av firmaets prosjekter (Proadm-import lager dem firma-globalt). Bruker som sender `projectId` for et prosjekt de ikke er medlem av (men er i samme firma) får fortsatt resultatet. Bevisst — ikke en manglende sjekk
 
+## Mobil session-token rotasjon (H1)
+
+Mobil `Session.sessionToken` roteres ved aktiv bruk hvis token er eldre enn 7 dager. Implementert som tRPC-middleware (`mobilTokenRotasjon` i `apps/api/src/trpc/trpc.ts`) på `protectedProcedure` etter rate-limit-middleware. Reduserer worst-case eksponering ved token-lekkasje fra 30 dager til 7 dager. Deployet til prod 2026-05-27 (`29bdded8` + web-fix `43460d80`).
+
+**Trigger-vilkår (alle må være sanne):**
+- `type === "mutation"` — queries roterer aldri (for hyppig, ville generert mye DB-skriving)
+- `ctx.tokenKilde === "bearer"` — kun mobil-sessions; web-cookie eies av Auth.js
+- `ctx.sessionToken` er satt
+- `session.lastRotatedAt < now - 7 dager`
+
+**Hvordan klient mottar ny token:** Server setter `X-Session-Token`-respons-header via `responseMeta` på `fetchRequestHandler` (`apps/api/src/server.ts`). Mobil-klientens `httpBatchLink` i `apps/mobile/src/lib/trpc.ts` har custom `fetch` som leser headeren og kaller `lagreSessionToken(nyttToken)` (SecureStore på native, localStorage på web). Neste request bruker automatisk den nye tokenet via `headers()`-callback.
+
+**Session-tabell-felter (fra migrasjon `20260527200000_session_rotation_tracking`):**
+- `createdAt` — settes ved Session.create, røres aldri etter. Audit-spor for opprinnelig sesjon-alder.
+- `lastRotatedAt` — oppdateres ved hver rotasjon. Middleware-terskelen sammenligner mot denne.
+
+Backfill-strategi: eksisterende sessions fikk `created_at = last_rotated_at = expires - INTERVAL '30 days'` — worst-case-antagelse om at de er ~30 dager gamle.
+
+**Race-vern:** Rotasjonen kjører `UPDATE sessions ... WHERE id = session.id AND session_token = oldToken`. Parallelle mutations som begge prøver å rotere får én vinner; tapere ser `count === 0` og ignorerer stille uten å velte handler-responsen.
+
+**Web-flyten urørt:** `apps/web/src/app/api/trpc/[...trpc]/route.ts` setter `tokenKilde: "cookie"` slik at middleware hopper over. Auth.js eier web-cookie-rotasjon.
+
+**Oppstart-rotasjon (`mobilAuth.verifiser`):** Kalles ved app-oppstart. Roterer alltid (uavhengig av 7-dagers terskel), forlenger `expires` med 30 dager, oppdaterer `lastRotatedAt`. Returnerer `nyttToken` i respons-body (egen mekanisme — verifiser-flyten er eldre enn middleware).
+
 ## Filopplasting
 
 `/upload`-endepunkt (REST, ikke tRPC) i `apps/api/src/routes/upload.ts`:

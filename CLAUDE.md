@@ -169,6 +169,25 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
   ```
   `--force` overstyrer Turbo-cache som ellers cache-hitter på `apps/web#build` selv etter `.next` er slettet. Verifisert tre ganger i mai 2026 etter at `deploy-test-cron.sh` ble forsøkt strammet inn (skriptet er server-side og må fortsatt oppdateres til å bruke `--force`).
 
+**Ufravikelig regel — pm2 restart MÅ IKKE kjøres hvis pnpm build feilet (2026-05-27):**
+
+`pnpm build 2>&1 | tail -5`-mønsteret skjuler exit-koden fra `pnpm build` fordi `tail` returnerer 0 uavhengig av oppstrømsfeil. Bruk i stedet `pnpm build && pm2 restart ...` (uten pipe) eller sjekk `$?` eksplisitt før restart.
+
+**Lærdom 2026-05-27 (H1-deploy `29bdded8`):** Prod-deploy kommandoen brukte `pnpm build 2>&1 | tail -5 && pm2 restart sitedoc-api && pm2 restart sitedoc-web`. Web-bygg feilet (manglende Context-felter i `apps/web/src/app/api/trpc/[...trpc]/route.ts`), men PM2 restartet likevel fordi `tail` ga exit 0. DB-migrasjonen kjørte først, så sitedoc-web kjørte gammel kode mot nytt schema i 25 minutter inntil fix (`4e353118`) ble committet og deployet på nytt.
+
+Risikoen var lav i dette tilfellet pga schema-defaults, men mønsteret er en tikkende bombe ved type-skift, fjernede felter eller andre breaking changes.
+
+**Korrekt mønster:**
+```bash
+ssh sitedoc "cd ~/programmering/sitedoc && git pull \
+  && pnpm --filter @sitedoc/db exec prisma migrate deploy \
+  && pnpm --filter @sitedoc/db exec prisma generate \
+  && pnpm build \
+  && pm2 restart sitedoc-api \
+  && pm2 restart sitedoc-web"
+```
+Bruk `&&`-kjeding hele veien — første feil stopper sekvensen. Hvis du trenger å se output, kjør `pnpm build` uten pipe og les loggen etterpå med separat ssh-kall.
+
 - Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 - Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
 
