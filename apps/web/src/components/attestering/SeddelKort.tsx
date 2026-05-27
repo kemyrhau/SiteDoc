@@ -47,6 +47,9 @@ export type SeddelKortData = {
   totaltimer: number;
   tilleggHarKrav: boolean;
   dagsnorm: number;
+  // B5 (2026-05-27): pauseMin trengs for maskin-av-arbeid-invarianten
+  // (døgn-utleide maskiner går mens operatør pauser, T.7 2026-05-18).
+  pauseMin: number;
   beskrivelse: string | null;
   aktivitet: { id: string; navn: string; kode: string | null } | null;
   ansatt: Ansatt | null;
@@ -111,9 +114,22 @@ export function SeddelKort({
   // unngå false positive på sedler uten konfigurert norm.
   const harMertid =
     sedel.dagsnorm > 0 && sedel.totaltimer > sedel.dagsnorm + 0.001;
-  // T7-4g: default-expanded ved tilleggskrav ELLER mertid — leder må se
-  // detaljene når noe avviker fra normal arbeidsdag.
-  const [expanded, setExpanded] = useState<boolean>(oransje || harMertid);
+  // B5 (2026-05-27): maskin-av-arbeid-invariant speilet fra EcoBucketAttest
+  // (attestering-buckets.tsx:572). Pause-buffer fordi døgn-utleide maskiner
+  // går mens operatør pauser (T.7 2026-05-18). Auto-expand når brutt så
+  // leder ser detaljene umiddelbart.
+  const sumMaskin = sedel.maskiner.reduce(
+    (acc, r) => acc + tilTall(r.timer),
+    0,
+  );
+  const pauseTimer = sedel.pauseMin / 60;
+  const maskinOk = sumMaskin <= sedel.totaltimer + pauseTimer + 0.001;
+  const maskinOver = sumMaskin > 0 && !maskinOk;
+  // T7-4g: default-expanded ved tilleggskrav ELLER mertid ELLER maskin
+  // over invariant — leder må se detaljene når noe avviker.
+  const [expanded, setExpanded] = useState<boolean>(
+    oransje || harMertid || maskinOver,
+  );
 
   // T7-4f-splitt-1-klikk: prosjekter + tidsrunding for SplittRadModal.
   // trpc-cache dedupliserer på tvers av sedel-kort — én faktisk query per side.
@@ -568,6 +584,28 @@ export function SeddelKort({
                     {sedel.totaltimer.toFixed(2)}t
                   </td>
                 </tr>
+                {/* B5 (2026-05-27): maskin-av-arbeid-validering — speiler
+                    EcoBucketAttest. Vises kun når sedel har arbeid eller
+                    maskin-rader registrert. */}
+                {(sumMaskin > 0 || sedel.totaltimer > 0) && (
+                  <tr className="border-t border-gray-100">
+                    <td colSpan={3} className="px-3 py-1.5 text-right">
+                      <span
+                        className={`inline-block rounded border px-2 py-1 text-xs font-medium ${
+                          maskinOk
+                            ? "border-green-200 bg-green-50 text-green-800"
+                            : "border-red-300 bg-red-50 text-red-800"
+                        }`}
+                      >
+                        {t("timer.gruppe.maskinAvArbeid", {
+                          maskin: sumMaskin.toFixed(2),
+                          arbeid: sedel.totaltimer.toFixed(2),
+                        })}
+                      </span>
+                    </td>
+                    <td className="px-3 py-1.5" />
+                  </tr>
+                )}
               </tbody>
             </table>
           )}
