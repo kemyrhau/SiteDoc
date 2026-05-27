@@ -43,6 +43,10 @@ type AttesteringRad = {
   tilleggHarKrav: boolean;
   dagsnorm: number;
   redigerTillatt: boolean;
+  // B5 (2026-05-27): pauseMin trengs for maskin-av-arbeid-invarianten
+  // i SeddelKort. Server returnerer feltet via ...s-spread i
+  // hentTilAttesteringFirma — eksplisitt her for type-fanging.
+  pauseMin: number;
   beskrivelse: string | null;
   aktivitet: { id: string; navn: string; kode: string | null } | null;
   ansatt: Ansatt | null;
