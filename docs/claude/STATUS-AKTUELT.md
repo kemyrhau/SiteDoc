@@ -6,6 +6,38 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### M1 — global tRPC-rate-limit + trustProxy — MERGET TIL DEVELOP 2026-05-27
+
+Sikkerhets-audit M1-funn. Implementert i fire trinn på develop, prod-deploy venter.
+
+**Trinn 0 (deployet til test):** `trustProxy: true` i Fastify-config (`apps/api/src/server.ts`). Også custom request-serializer som logger `req.ip` som `remoteAddress`. Commit `e480b48f` → `251d38ad` (justering: "127.0.0.1" → true). Verifisert at curl med `X-Forwarded-For: 9.9.9.9` gir `remoteAddress: 9.9.9.9` ✓. **Men Cloudflare Tunnel sender ikke X-Forwarded-For med klient-IP** — bruker `Cf-Connecting-Ip`-header i stedet (Cloudflare blokkerer spoofing av denne, bekreftet med HTTP 403). Trinn 1 håndterer dette.
+
+**Trinn 1 (denne commit):** `apps/api/src/utils/rateLimiter.ts` utvidet:
+- Ny `hentKlientIp(req)` — prioriterer `cf-connecting-ip`-header, fallback til `req.ip`, siste fallback `"unknown"`.
+- Ny `sjekkRateLimitDetalj(...)` — returnerer `{ ok, retryAfterSeconds }` slik at kallere kan sende Retry-After-info.
+- `sjekkRateLimit` beholdt som thin wrapper for bakover-kompat (4 eksisterende kallsteder).
+- 4 eksisterende kallsteder (mobilAuth.byttToken, invitasjon.validerToken, invitasjon.aksepter, /upload) oppdatert til `hentKlientIp(ctx.req)`. Uten dette ville deres rate-limit fortsatt være effektivt globalt.
+
+**Trinn 2 (denne commit):** `apps/api/src/trpc/trpc.ts` — variant B (type-aware middleware i `protectedProcedure` selv, ingen eksplisitt rull-ut nødvendig):
+- Ny helper `lagRateLimitMiddleware(bucket, max, windowMs)` — type-aware (skip queries, kun mutations).
+- `standardRateLimit` — 100 mutations/min per `ctx.userId`, lagt inn i `protectedProcedure` via `.use(...)`. Alle eksisterende mutations får automatisk rate-limit uten kode-endring.
+- `inviteProcedure` — 10/min per userId, eksport for invite-mutations.
+- `opprettProsjektProcedure` — 20/min per userId, eksport for prosjekt-opprettelse.
+- Throttle-hendelser logges via `ctx.req.log.info({ bucket, userId, path, retryAfterSeconds }, "rate-limit hit")` for telemetri.
+
+**Trinn 3 (denne commit):** Tre mutations byttet fra `protectedProcedure` til strammere prosedyrer:
+- `organisasjon.inviterBruker` → `inviteProcedure` (10/min)
+- `prosjekt.opprett` + `prosjekt.opprettTestprosjekt` → `opprettProsjektProcedure` (20/min)
+- `admin.opprettProsjekt` → `opprettProsjektProcedure` (20/min)
+
+**Verifisering:** `@sitedoc/api` typecheck 0 = 0. `apps/web` typecheck 1 = 1 baseline (vitest). 0 nye feil.
+
+**Forventede begrensninger:**
+- In-memory bucket per Node-prosess. PM2 kjører i fork-mode (én prosess) → konsistent state. Hvis vi noen gang går til cluster-mode må vi flytte til Redis.
+- Per-userId only, ikke per-IP. Misbruk fra delt-IP-network (kontor med 50 ansatte bak NAT) er ikke aggregert. Kan utvides ved behov.
+
+Klar for test-deploy via auto-deploy + verifisering før prod.
+
 > Forrige bunke (sikkerhets-audit-fikser K1+M2+M3+M4+H3+error-håndtering)
 > DEPLOYET TIL PROD 2026-05-27 (prod-merge `9ca0257e`).
 > Arkivert til [historikk-2026-05.md § Sikkerhets-audit-bunke](historikk-2026-05.md).

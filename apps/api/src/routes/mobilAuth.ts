@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, publicProcedure, protectedProcedure } from "../trpc/trpc";
 import { randomBytes } from "crypto";
-import { sjekkRateLimit } from "../utils/rateLimiter";
+import { sjekkRateLimit, hentKlientIp } from "../utils/rateLimiter";
 
 const GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
 const MICROSOFT_USERINFO_URL = "https://graph.microsoft.com/v1.0/me";
@@ -80,7 +80,7 @@ export const mobilAuthRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const ip = ctx.req.ip ?? ctx.req.headers["x-forwarded-for"]?.toString() ?? "unknown";
+      const ip = hentKlientIp(ctx.req);
       if (!sjekkRateLimit("byttToken", ip, 10, 60 * 1000)) {
         throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "For mange innloggingsforsøk. Prøv igjen om litt." });
       }

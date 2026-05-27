@@ -26,8 +26,8 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 Tre funn fra sikkerhets-audit 2026-05-27 som ikke ble adressert i prod-bunken (`9ca0257e`). Anbefalt rekkefølge for utbedring.
 
-**M1 — Global tRPC-rate-limit (middels prioritet, ~2t)** 🔴
-Kun `mobilAuth.byttToken` (10/min) og `/upload` (30/min) har rate-limits. Resten av tRPC-mutations — inkludert `oppgave.opprett`, `medlem.inviter`, `prosjekt.opprett`, attestering-flyter — er ubegrenset. Komprimittert konto kan trashe DB via massespam, eller bruke `inviter*` til e-postspam. Fix: tRPC-middleware med rate-limit per `ctx.userId` + per IP, egen sterkere bucket for `inviter*`.
+**M1 — Global tRPC-rate-limit** 🟡 IMPLEMENTERT PÅ DEVELOP 2026-05-27, IKKE PROD-DEPLOYET
+Type-aware standard rate-limit (100 mutations/min per userId) lagt inn i `protectedProcedure` direkte — alle mutations får automatisk beskyttelse, queries hopper over. `inviteProcedure` (10/min) brukt på `organisasjon.inviterBruker`. `opprettProsjektProcedure` (20/min) brukt på `prosjekt.opprett`, `prosjekt.opprettTestprosjekt`, `admin.opprettProsjekt`. `Cf-Connecting-Ip`-header brukes som klient-IP (Cloudflare-spesifikk, blokkert mot spoofing). Detaljer i [STATUS-AKTUELT.md § M1](STATUS-AKTUELT.md). Klar for prod-deploy etter test-verifisering.
 
 **H1 — Mobil session-token rotasjon eller device-binding (høy prioritet, ~3t)** 🔴
 `mobilAuth.byttToken` lager 30-dagers token, roteres kun ved app-oppstart (`mobilAuth.verifiser`). Mellom oppstart roterer den ikke — token-lekkasje (logging, MITM på utestet nettverk, malware) gir 30 dagers ubegrenset tilgang. Fix-alternativer: (a) roter ved hver tRPC-mutasjon hvis token er eldre enn 7 dager, (b) bind token til device-fingerprint som sjekkes ved bruk.

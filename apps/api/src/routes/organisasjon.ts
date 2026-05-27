@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../trpc/trpc";
+import { router, protectedProcedure, inviteProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import {
@@ -423,7 +423,7 @@ export const organisasjonRouter = router({
   // Oppretter User med canLogin = true og en OrganizationMember-rad. Bruker logger
   // inn via OAuth (Google/Microsoft) med matchende e-post første gang.
   // Stilling (ansattRolle) og firma-admin-status eies av OrganizationMember.
-  inviterBruker: protectedProcedure
+  inviterBruker: inviteProcedure
     .input(
       z.object({
         organizationId: z.string().uuid(),

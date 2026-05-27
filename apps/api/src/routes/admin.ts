@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../trpc/trpc";
+import { router, protectedProcedure, opprettProsjektProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { Prisma, krypter } from "@sitedoc/db";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
@@ -230,7 +230,7 @@ export const adminRouter = router({
   // Bugfix: primaryOrganizationId settes nå på Project.create (var tidligere
   // utelatt — prosjekter ble orphaned i admin-listens primær-filter selv om
   // admin valgte firma i dropdown).
-  opprettProsjekt: protectedProcedure
+  opprettProsjekt: opprettProsjektProcedure
     .input(z.object({
       name: z.string().min(1),
       description: z.string().optional(),

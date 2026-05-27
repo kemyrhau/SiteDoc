@@ -6,7 +6,7 @@ import { sendInvitasjonsEpost } from "../services/epost";
 import {
   verifiserAdminEllerFirmaansvarlig,
 } from "../trpc/tilgangskontroll";
-import { sjekkRateLimit } from "../utils/rateLimiter";
+import { sjekkRateLimit, hentKlientIp } from "../utils/rateLimiter";
 
 export const invitasjonRouter = router({
   // Hent invitasjoner for et prosjekt
@@ -37,7 +37,7 @@ export const invitasjonRouter = router({
   validerToken: publicProcedure
     .input(z.object({ token: z.string() }))
     .query(async ({ ctx, input }) => {
-      const ip = ctx.req.ip ?? ctx.req.headers["x-forwarded-for"]?.toString() ?? "unknown";
+      const ip = hentKlientIp(ctx.req);
       if (!sjekkRateLimit("invitasjon", ip, 20, 60 * 1000)) {
         throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "For mange forespørsler. Prøv igjen senere." });
       }
@@ -80,7 +80,7 @@ export const invitasjonRouter = router({
   aksepter: publicProcedure
     .input(z.object({ token: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const ip = ctx.req.ip ?? ctx.req.headers["x-forwarded-for"]?.toString() ?? "unknown";
+      const ip = hentKlientIp(ctx.req);
       if (!sjekkRateLimit("invitasjon", ip, 10, 60 * 1000)) {
         throw new TRPCError({ code: "TOO_MANY_REQUESTS", message: "For mange forespørsler. Prøv igjen senere." });
       }
