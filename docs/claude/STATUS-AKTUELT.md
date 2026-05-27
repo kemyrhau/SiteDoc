@@ -6,11 +6,20 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### Sikkerhets-audit-fiks H3 — MERGET TIL DEVELOP 2026-05-27 (oppfølger)
+### Sikkerhets-audit-fiks H3 + logg-inn error-håndtering — MERGET TIL DEVELOP 2026-05-27 (oppfølger)
 
 `allowDangerousEmailAccountLinking: false` satt på begge OAuth-providers (`apps/web/src/auth.ts:26, 34`). Verifisert null migrasjons-risiko mot prod-DB: 2 accounts totalt (1 google + 1 microsoft-entra-id), 0 brukere med koblet begge providers. Detaljer i [BACKLOG.md § H3](BACKLOG.md).
 
-**Konsekvens etter prod-deploy:** Brukere som logger inn med ny provider mot samme e-post som eksisterende konto får `OAuthAccountNotLinked`-feilmelding fra Auth.js. Vurder å verifisere at `/logg-inn`-feilside formidler dette tydelig.
+**Error-håndtering på `/logg-inn` (oppfølger-commit):** `apps/web/src/app/logg-inn/[[...logg-inn]]/page.tsx` leser nå `error`-query-param via `useSearchParams()` og viser warning-banner over login-knappene. Tre kjente Auth.js-feilkoder mappes til spesifikke meldinger:
+
+- `OAuthAccountNotLinked` → «Du har allerede en konto med denne e-posten. Bruk samme innloggingsmetode som første gang.»
+- `AccessDenied` → «Tilgang avvist. Prøv igjen eller kontakt support.»
+- `OAuthCallback` → «Innlogging feilet midlertidig. Prøv igjen.»
+- Ukjente koder → generisk «Innlogging feilet. Prøv igjen.»
+
+4 nye i18n-nøkler under `auth.feil.*` i nb + en, auto-generert til 13 språk (2404 nøkler totalt).
+
+**Konsekvens etter prod-deploy:** Bruker som triggrer linking-konflikt mellom Google og Microsoft 365 ser nå en forklarende banner i stedet for stille loop. Eksplisitt linking-flyt (innstillinger-side med «Koble til Microsoft»-knapp) er fremtidig oppfølger ved kundefeedback.
 
 ### Sikkerhets-audit-fikser K1+M2+M3+M4 — MERGET TIL DEVELOP 2026-05-27
 
