@@ -244,7 +244,7 @@ Server ~45 min, mobil-UI ~5 timer (oppgave, ny boks-komponent med statusvalg-pop
 - ~~**Header-koordinering: firma-bytte nullstiller ikke prosjekt**~~ ✅ LØST — verifisert mot kode 2026-05-27. `prosjekt-kontekst.tsx:101-114` har auto-reset useEffect (P1 Fase 2, 2026-05-05). `byggeplass-kontekst.tsx:70-79` har defensiv cleanup ved firma-bytte. Entry-en var hjemløs drift fra før P1 Fase 2-deploy.
 - **Nye integrasjonstester for `tilgangskontroll.ts`** 🔴 — etter O-5c er gammel test-fil slettet (16/22 broken). Integrasjonstester mot test-DB med OrganizationMember-fikstur er planlagt.
 - **T7-2b3 audit-log payload utvidelse** 🔴 — før/etter-snapshots per rad i Activity-tabell.
-- **Returnert→pending-reset ved `sendTilAttestering`** 🔴 — når arbeider sender returnert sedel på nytt, tilbakestilles ikke `attestertStatus` automatisk.
+- ~~**Returnert→pending-reset ved `sendTilAttestering`**~~ ✅ Implementert 2026-05-27 på develop. `send`-mutation i `dagsseddel.ts:931` utvidet med betinget `$transaction` som nullstiller returnerte rader til pending ved re-send. Backfill-SELECT mot prod-DB ga 0 rader — ingen migrasjon nødvendig.
 
 ### Mobil og sync
 
