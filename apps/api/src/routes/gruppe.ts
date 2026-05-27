@@ -378,7 +378,7 @@ export const gruppeRouter = router({
           // Sjekk om det allerede finnes en ventende invitasjon for denne e-posten og prosjektet
           const eksisterendeInvitasjon = await ctx.prisma.projectInvitation.findFirst({
             where: {
-              email: user.email,
+              email: user.email.toLowerCase(),
               projectId: input.projectId,
               status: "pending",
             },
@@ -387,7 +387,7 @@ export const gruppeRouter = router({
           if (!eksisterendeInvitasjon) {
             await ctx.prisma.projectInvitation.create({
               data: {
-                email: user.email,
+                email: user.email.toLowerCase(),
                 token,
                 projectId: input.projectId,
                 role: "member",

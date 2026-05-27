@@ -56,11 +56,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   events: {
     async signIn({ user }) {
-      // Auto-aksepter ventende invitasjoner for denne e-posten
+      // Auto-aksepter ventende invitasjoner for denne e-posten.
+      // Streng equals mot lowercase — invitasjoner normaliseres til lowercase
+      // ved opprettelse (medlem.ts, gruppe.ts). mode: "insensitive" var
+      // sårbar mot case-folding-vektor (JOHN@x.com-invitasjon kunne matche
+      // john@x.com-Google-konto opprettet av angriper). Lukket 2026-05-27.
       if (user.email) {
         await prisma.projectInvitation.updateMany({
           where: {
-            email: { equals: user.email, mode: "insensitive" },
+            email: user.email.toLowerCase(),
             status: "pending",
           },
           data: {
