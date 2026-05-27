@@ -510,6 +510,7 @@ export default function SjekklisteSide() {
       id: string; header: string; celle: (rad: SjekklisteRad) => JSX.Element;
       bredde?: string; sorterbar?: boolean; sorterVerdi?: (rad: SjekklisteRad) => string | number | null;
       filtrerbar?: boolean; filterAlternativer?: { value: string; label: string }[];
+      filterSnarveier?: { label: string; verdier: string[] }[];
     }
     const defs: Record<string, KolDef> = {
       prefix: { id: "prefix", header: t("tabell.prefix"),
@@ -537,7 +538,8 @@ export default function SjekklisteSide() {
             )}
           </div>
         ),
-        bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [] },
+        bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
+        filterSnarveier: [{ label: t("status.alleApne"), verdier: ["draft", "sent", "received", "in_progress", "responded"] }] },
       ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"), celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
         sorterbar: true, sorterVerdi: (rad) => formaterAnsvarlig(rad), filtrerbar: true, filterAlternativer: dynamiskFilter.ansvarlig ?? [] },
       opprettetAv: { id: "opprettetAv", header: t("tabell.opprettetAv"), celle: (rad) => rad.bestiller?.name

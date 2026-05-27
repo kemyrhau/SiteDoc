@@ -60,7 +60,7 @@ function hentDataVerdi(
 }
 
 const ÅPEN_STATUSER = new Set(["draft", "sent", "received", "in_progress", "responded", "rejected"]);
-const LUKKET_STATUSER = new Set(["approved", "closed"]);
+const LUKKET_STATUSER = new Set(["approved", "closed", "cancelled"]);
 
 function NyDropdown({
   alternativer,

@@ -371,6 +371,7 @@
   "oppsett.kontrollplan": "Valvontasuunnitelma",
   "oppsett.mappeoppsett": "Kansion asetukset",
   "status.alle": "Kaikki",
+  "status.alleApne": "Kaikki auki",
   "status.utkast": "Luonnos",
   "status.sendt": "Lähetetty",
   "status.mottatt": "Vastaanotettu",

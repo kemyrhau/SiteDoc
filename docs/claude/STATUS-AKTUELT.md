@@ -6,26 +6,28 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Forrige bunke (HMS-modul redesign 2026-05-26/27) arkivert til
-> [historikk-2026-05.md § HMS åpen-synlighet](historikk-2026-05.md),
-> [§ HMS-prosjektvisning](historikk-2026-05.md), [§ HMS-modul-seeding](historikk-2026-05.md).
+> Forrige bunke (innsender-tilgang i `verifiserDokumentTilgang`) DEPLOYET
+> TIL PROD 2026-05-27 (prod-merge `b3194f1d`, develop-commit `b4e53e17`).
+> Arkivert til [historikk-2026-05.md § Innsender-tilgang](historikk-2026-05.md).
+> HMS-bunken (2026-05-26/27) arkivert i samme fil:
+> [§ HMS åpen-synlighet](historikk-2026-05.md),
+> [§ HMS-prosjektvisning](historikk-2026-05.md),
+> [§ HMS-modul-seeding](historikk-2026-05.md).
 
-### Innsender-tilgang — DEPLOYET TIL TEST 2026-05-27 (develop-commit `b4e53e17`)
+### Filter-rensing F1 + Tiltak 1 — MERGET TIL DEVELOP 2026-05-27
 
-`verifiserDokumentTilgang` ga FORBIDDEN til brukere som hadde opprettet eller var direkte mottaker av et dokument, med mindre de også var i en gruppe som dekket dokumentets faggruppe/domain. Reelt scenario: arbeider oppretter HMS-avvik via mobilen, klikker URL fra epost-notifikasjon, får FORBIDDEN selv om de er innsender.
+To handlingsrettede tickets fra status-audit 2026-05-27 ([BACKLOG.md § F1](BACKLOG.md) + [§ Tiltak 1](BACKLOG.md)).
 
-**Endringer (`apps/api/src/trpc/tilgangskontroll.ts`):**
-- `findUnique` for `bestillerUserId`/`recipientUserId` løftet ut av firmaansvarlig-grenen til en lokal helper-blokk som kjører én gang før forgreningene.
-- Ny innsender-gren rett etter firmaansvarlig: gir tilgang hvis `userId === bestillerUserId || userId === recipientUserId`.
-- Ingen kallsteder endret — alle 17 i `oppgave.ts`/`sjekkliste.ts` sender allerede `dokumentId` + `dokumentType`.
+- **F1:** `cancelled` lagt til `LUKKET_STATUSER` i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx:63`. Avbrutte HMS-dokumenter er nå synlige når `visAlle=true`. KPI-tellingen uendret.
+- **Tiltak 1:** Ny `filterSnarveier`-prop på `KolonneDef<T>` i `packages/ui/src/table.tsx` + render i `FilterDropdown`. Aktivert på status-kolonnen i oppgaver + sjekklister med snarvei «Alle åpne» = `["draft", "sent", "received", "in_progress", "responded"]`. Multi-select-mekanikken finnes fra før via komma-separert filter-verdi.
 
-**Slett-sikring:** Status-baserte begrensninger håndheves fortsatt av kallernes egne sjekker etter `verifiserDokumentTilgang`. Innsender kan slette eget dokument kun i utkast/cancelled-status, ikke etter at flyt er startet — eksisterende `if (status !== "draft" && status !== "cancelled")` i `slett`-mutasjonene matcher Kenneths spec direkte.
+**i18n:** ny `status.alleApne` (nb: «Alle åpne», en: «All open»), auto-generert til 13 språk (2400 nøkler).
 
-**Verifisert:** `@sitedoc/api` typecheck 0 feil. Deployet til test 2026-05-27 (sitedoc-test-api online, uptime 26m etter restart).
+**Verifisert:** `@sitedoc/ui` typecheck 0 = 0. `apps/web` typecheck 2 = 2 baseline (TS2589 på `trpc.oppgave.opprett.useMutation` linje 333 + vitest-typedef). TS2589 er pre-eksisterende (bekreftet ved stash-test); 0 nye feil.
 
-**Klar for review:** Kenneth verifiserer på test.sitedoc.no — opprett oppgave/HMS-avvik som vanlig prosjektmedlem uten faggruppe-tilgang til malens domain, åpne dokumentet via direktelenke → skal returnere 200, ikke FORBIDDEN. Etter verifikasjon: prod-merge + arkiver BACKLOG § 1-entry til historikk.
+**Reload-metode:** TypeScript- + i18n-endring. Standard cache-cleaning ved deploy (`rm -rf apps/web/.next` + build) håndteres av `deploy-test-cron.sh`.
 
-Refs [BACKLOG.md § 1 Innsender-tilgang](BACKLOG.md).
+Klar for test-deploy via auto-deploy. Verifisér på `test.sitedoc.no/dashbord/<prosjektId>/oppgaver` at filter-ikonet på status-kolonnen viser «Alle åpne» mellom «Alle» og status-listen.
 
 ### Pågående: TestFlight build #23 enhet-verifisering
 

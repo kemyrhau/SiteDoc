@@ -83,17 +83,9 @@ Tas i planleggingssesjon — ingen videre koding i mellomtiden.
 
 Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 2026-05-16) — flytskille arbeidstaker/attestering/Byggherre-godkjenning + dagsseddel-struktur per prosjekt+ECO.
 
-### Innsender-tilgang — `verifiserDokumentTilgang` mangler `bestillerUserId`-sjekk (middels prioritet)
+### Innsender-tilgang — DEPLOYET TIL PROD 2026-05-27 (prod-merge `b3194f1d`, develop-commit `b4e53e17`)
 
-**Oppdaget 2026-05-27** under HMS-PR-sikkerhetsanalyse. Sannsynligvis generelt SiteDoc-problem, ikke HMS-spesifikt.
-
-En bruker som oppretter et dokument kan ikke åpne det igjen via direkte URL (`/oppgaver/<id>` eller `/sjekklister/<id>`) med mindre de er i en gruppe som dekker dokumentets faggruppe/domain. `verifiserDokumentTilgang` (`apps/api/src/trpc/tilgangskontroll.ts:366`) sjekker `bestillerUserId === userId` KUN i firmaansvarlig-grenen (linje 406-447), ikke for vanlige medlemmer.
-
-**Reelt scenario:** Arbeider oppretter HMS-avvik via mobilen. Senere klikker de URL fra epost-notifikasjon for å se status — får `FORBIDDEN` med mindre de er i HMS-gruppen.
-
-**Fix-skisse:** Ny gren i `verifiserDokumentTilgang` rett etter prosjekt-medlem-verifisering (linje 400): hent dokumentet, sjekk `bestillerUserId === userId || recipientUserId === userId`, gi tilgang hvis match. Krever at funksjonen mottar `dokumentId` + `dokumentType` (som allerede gjøres via firmaansvarlig-grenen). Risiko: må verifisere at ingen mutations bruker `verifiserDokumentTilgang` der vi vil at innsender ikke skal kunne handle.
-
-**Avhengighet:** Verifiser om dette gjelder ALLE dokumenttyper eller om eksisterende firma-medlemskaps-mønster faktisk dekker normale flyter.
+✅ **Implementert.** `verifiserDokumentTilgang` utvidet med innsender/mottaker-gren rett etter firmaansvarlig (linje 451-460). `findUnique` for `bestillerUserId`/`recipientUserId` løftet til lokal helper, gjenbrukes av firmaansvarlig + innsender. Alle 17 kallsteder uendret. Slett-sikring håndheves fortsatt av `slett`-mutasjonens egen status-sjekk (`status !== "draft" && status !== "cancelled"`). Detaljer i [historikk-2026-05.md § Innsender-tilgang](historikk-2026-05.md).
 
 ### HMS-prosjektvisning teknisk gjeld (lav prioritet)
 
@@ -108,45 +100,48 @@ En bruker som oppretter et dokument kan ikke åpne det igjen via direkte URL (`/
 
 **Vurderes som samlet oppfølger-PR** når kundefeedback indikerer behov, eller når Godkjenning-modul-redesign trigger generalisering av modul-mønstre.
 
-### Status-audit på tvers av dokumenttyper (middels prioritet)
+### Status-audit på tvers av dokumenttyper — UTFØRT 2026-05-27
 
-**Oppdaget 2026-05-27** ved gjennomgang av filter-sidebar i oppgaver-modulen. Skjermbildet viser åtte synlige status-valg i oppgave-filteret — vi vet ikke hvilke som faktisk blir brukt på tvers av modulene, hvilke som er døde paths, eller om oversikten er konsistent for sjekklister / HMS / godkjenninger.
+✅ **Audit kjørt 2026-05-27.** Tre handlingsrettede tickets opprettet nedenfor (F1, F7, Tiltak 1). Andre funn (timestamp-felter for SLA, flyt-oppsett-validering, stuck-state ved manglende godkjenner-rolle, tooltip ved blokkert handling) ble vurdert som ikke-handlingsrettede uten produktbeslutning — tas opp ved Godkjenning-modul-redesign eller kundefeedback.
 
-**`DOCUMENT_STATUSES` (`packages/shared/src/types/index.ts:4-14`) — 9 verdier:**
-- `draft` → Utkast (grå)
-- `sent` → Sendt (blå)
-- `received` → Mottatt (lilla)
-- `in_progress` → Under arbeid (gul)
-- `responded` → Besvart (rosa)
-- `approved` → Godkjent (grønn)
-- `rejected` → Avvist (rød)
-- `closed` → Lukket (svart)
-- `cancelled` → (ikke synlig i oppgave-filter; trolig kun internt)
+**Sammendrag av kode-grunnlag** (verifiser mot kode FØR oppfølger-handling, kan ha endret seg):
+- `DOCUMENT_STATUSES` (9 verdier) i `packages/shared/src/types/index.ts:4-14`.
+- Tilstandsmaskin: `isValidStatusTransition` i `packages/shared/src/utils/index.ts:33`.
+- Rolle-handling-matrise: `ROLLE_HANDLINGER` (bestiller/utforer/godkjenner) i `packages/shared/src/utils/statusHandlinger.ts:110-125`. Registrator får alle handlinger.
+- Auto-overgang `sent → received` skjer i `endreStatus`-mutationen (oppgave.ts:1022 / sjekkliste.ts:923).
+- HMS-modulen bruker samme statusflyt uten subdomain-spesifikk differensiering.
 
-Status-overganger styres av `isValidStatusTransition` i `packages/shared/src/utils/index.ts:33` — samme funksjon brukes på server og klient.
+**Avhengighet:** Godkjenning-modul-redesign (§ Godkjenning-modul TE/Endring/Varsel) bør re-bruke disse fakta istedenfor å lage egen modell. Verifiser mot kode på det tidspunktet.
 
-**Audit-oppgave — undersøke per dokumenttype (oppgaver, sjekklister, HMS-dokumenter, godkjenninger):**
+### F1 — `cancelled`-status mangler i HMS-filter — IMPLEMENTERT PÅ DEVELOP 2026-05-27
 
-1. **Hvilke statuser brukes faktisk?** Tell forekomster i prod-DB per dokumenttype. Statuser med 0 rader i prod over flere måneder er kandidater for å rydde bort eller revurdere semantikk.
-2. **Hvilke statuser er låst bak konfigurasjon?** F.eks. `approved`/`rejected` krever sannsynligvis godkjenningsflyt — uten dokumentflyt-oppsett kommer oppgaven aldri dit. Dokumenter hvilke statuser som krever hvilket oppsett.
-3. **Hvilke overganger er reelt mulige?** Verifiser at `isValidStatusTransition`-matrisen matcher det dokumentflyten faktisk håndhever via `verifiserFlytRolle`. Mistanke: noen overganger er gyldige per util-funksjon, men `verifiserFlytRolle` avviser dem fordi ingen rolle har lov til å gjøre overgangen.
-4. **Hva er forskjellen mellom dokumenttyper?**
-   - **Oppgave (Task):** Trolig hele 9-pakken.
-   - **Sjekkliste (Checklist):** Speil av Task? Eller egen mindre delmengde?
-   - **HMS-dokument:** SJA/RUH har trolig egen logikk (svar/lukk) — brukes `approved`/`rejected`-grenen i det hele tatt?
-   - **Godkjenning (TE/Endring/Varsel):** Modulen er ikke implementert ennå (BACKLOG § Godkjenning-modul). Spec her må definere status-utvalg fra start.
-5. **Hvordan kan vi utnytte statuser bedre?**
-   - Dashboard-widget per status per dokumenttype (allerede delvis i HMS).
-   - Auto-overgang ved tidsfrist (f.eks. `sent` → `received` etter X timer hvis mottaker ikke har åpnet).
-   - SLA-måling per overgang (gj.snitt-tid `sent` → `responded`).
-   - Status-tilgang-matrise: hvem kan flytte til hvilken status, gjøre eksplisitt i UI ved status-handlinger.
-6. **Filter-konsistens.** Skjermbildet viser kun status-filter; sammenlign med sjekkliste/HMS-filtersidebar for å se om vi mangler «Alle åpne» (alt unntatt `closed`/`cancelled`/`approved`/`rejected`) — typisk default-filter i andre verktøy.
+✅ **Fix:** `cancelled` lagt til i `LUKKET_STATUSER` i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx:63`. Avbrutt er en endelig tilstand (samme semantikk som closed/approved), ikke en åpen. KPI-tellingen `apneAvvik` er uendret — vi vil ikke at avbrutte saker skal telle som åpne. Verifisering på test etter auto-deploy.
 
-**Konkret leveranse:**
-- Markdown-notat (kandidat: `docs/claude/status-audit-2026-05-27.md`) med matrise: dokumenttype × status × «brukes ja/nei» × «overgang-regel» × «forslag».
-- Funn-baserte oppfølger-tickets per dokumenttype.
+### F7 — HMS subdomain-spesifikk statusflyt (høy prioritet, krever spec-runde)
 
-**Avhengighet:** Bør gjøres FØR Godkjenning-modul-redesign (BACKLOG § Godkjenning-modul TE/Endring/Varsel) — Godkjenning-modulens statusprogresjon (TE → Endring/Varsel) bør re-bruke audit-funn istedenfor å lage egen modell.
+**Oppdaget under status-audit 2026-05-27.** Alle tre HMS-subdomains (Avvik, SJA, RUH) bruker samme generelle dokumentflyt — ingen subdomain-spesifikk håndtering på server eller i mal-builder.
+
+**Antagelse om reell bruk per subdomain:**
+- **SJA** (Sikker Jobb Analyse) — formell godkjenning er kjernen. Bør kreve `approved` før `closed`. I dag er hele flyten valgfri.
+- **RUH** (Rapporterte Uønskede Hendelser) — primært rapport-orientert. Flyten `received → closed` direkte (uten responded/approved) er trolig vanlig praksis. I dag tvinges samme flyt som SJA.
+- **Avvik** — full flyt er sannsynligvis korrekt.
+
+**Krever (i prioritert rekkefølge):**
+1. Produktbeslutning: skal hver subdomain ha hardkodet default-flyt eller fortsatt konfigurerbar per mal?
+2. Hvis hardkodet default: utvid `mal.opprett` til å seede subdomain-spesifikk dokumentflyt med riktige roller. Mal-builder UI viser default-flyt med mulighet for overstyring.
+3. Hvis konfigurerbar: legg til UI-advarsel i mal-builder ved subdomain SJA hvis flyten mangler `godkjenner`-rolle.
+
+**Avhengighet:** Bør koordineres med F-tickets fra HMS-prosjektvisning teknisk gjeld (§ 1 over) og Godkjenning-modul-redesign. Estimat 8-12t etter spec-runde.
+
+### Tiltak 1 — «Alle åpne»-filter i oppgave/sjekkliste-filter — IMPLEMENTERT PÅ DEVELOP 2026-05-27
+
+✅ **Fix:** Ny `filterSnarveier`-prop på `KolonneDef<T>` i `packages/ui/src/table.tsx` + render-blokk i `FilterDropdown` (rad rett under «Alle», visuelt skille med border-bottom). Klikk setter `filterVerdier[kolId] = verdier.join(",")`. Multi-select-mekanikken finnes fra før i page.tsx-filtrering.
+
+Aktivert på status-kolonnen i oppgaver + sjekklister med snarvei `["draft", "sent", "received", "in_progress", "responded"]` (5 åpne statuser, ekskluderer `approved/closed/rejected/cancelled`).
+
+HMS-siden bruker binær `visAlle`-toggle (annen UX-modell) som etter F1-fiks effektivt allerede er en «Alle åpne»-toggle — ikke endret.
+
+i18n: ny `status.alleApne` i nb («Alle åpne») + en («All open»), auto-generert til 13 språk.
 
 ### Dokumentflyt send-modal redesign — DEPLOYET TIL PROD 2026-05-25 (prod-merge `4968a23c`)
 
