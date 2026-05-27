@@ -4,6 +4,69 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Sikkerhets-audit-bunke — DEPLOYET TIL PROD 2026-05-27 (prod-merge `9ca0257e`)
+
+Audit utført 2026-05-27 (read-only) avdekket 14 funn. Seks ble utbedret i denne bunken: K1, M2, M3, M4 i én commit (`cdaafe32`), H3 i oppfølger (`6ae317c4`), error-håndtering på `/logg-inn` i siste oppfølger (`a1f33b61`). Resten (M1 global tRPC-rate-limit, H1 mobil-token-rotasjon, H2 case-sensitive invitasjon-match) er ikke startet — anbefalt rekkefølge i audit-rapport.
+
+### K1 — `dev-login` fail-secure (kritisk)
+
+`apps/api/src/routes/dev-login.ts:24-28`. `erDevLoginAktiv()` snudd fra `NODE_ENV !== "production"` til `NODE_ENV === "development"`. Forhindrer at hardkodet test-bruker (`kemyrhau@gmail.com` — Kenneth, sitedoc_admin) eksponeres på prod hvis NODE_ENV glipper i deploy (container-restart med ufullstendig env, deploy-skript-feil, ny servernode). Verifisert at prod har `NODE_ENV=production` og routen forblir 404 etter deploy.
+
+### M2 — Prisma raw query trygd (middels)
+
+`apps/api/src/server.ts:107`. `prisma.$executeRawUnsafe(...)` byttet til tagget template literal `prisma.$executeRaw\`...\``. Hardkodet SQL i dag (recovery av stuck embedding-chunks ved server-oppstart), ingen funksjons-endring, men eliminerer fallgruve hvis en senere endring introduserer variabler.
+
+### M3 — Auth.js session maxAge (middels)
+
+`apps/web/src/auth.ts`. Lagt til `session: { strategy: "database", maxAge: 24 * 60 * 60, updateAge: 60 * 60 }`. Web-sesjon utløper etter 24 timer (tidligere Auth.js default 30 dager). updateAge=1t forlenger sesjonen ved aktivitet hver time. **Konsekvens ved deploy:** Alle eksisterende web-sesjoner ble invalidert — Kenneth og andre web-brukere måtte logge inn på nytt. Mobil-sesjoner ikke berørt (eget 30-dagers token via mobilAuth).
+
+### M4 — Fastify-logger redaction (middels)
+
+`apps/api/src/server.ts:17`. Bytt fra `logger: true` til `logger: { redact: ["req.headers.authorization", "req.headers.cookie"] }`. Forhindrer at session-token havner i serverlogger ved feilsituasjoner. Eksisterende logger-volumer bør sjekkes manuelt for kompromiss — ikke gjort.
+
+### H3 — `allowDangerousEmailAccountLinking: false` (høy)
+
+`apps/web/src/auth.ts:26, 34`. Satt til `false` på både Google og Microsoft Entra ID. Tidligere ville en bruker med samme e-post hos begge providers fått kontoene automatisk linket — en kompromittert Google-konto ga full tilgang til Microsoft-kontoens data, eller omvendt.
+
+**Migrasjons-risiko verifisert null** mot prod-DB før commit: 2 accounts totalt (1 google + 1 microsoft-entra-id), 0 brukere med koblet begge providers. Trygt å aktivere uten å miste eksisterende koblinger.
+
+**Microsoft OAuth-status:** ER live i prod (verifisert: `AUTH_MICROSOFT_ENTRA_ID_ID/SECRET/ISSUER` satt i `apps/web/.env`, login-knapp synlig på `/logg-inn` + `/aksepter-invitasjon`).
+
+### Error-håndtering på `/logg-inn` (oppfølger)
+
+`apps/web/src/app/logg-inn/[[...logg-inn]]/page.tsx`. Tidligere viste siden kun login-knapper uten error-feedback — Auth.js-redirect med `?error=OAuthAccountNotLinked` resulterte i stille login-loop. Nå leses `error`-query-param via `useSearchParams()` og warning-banner vises med spesifikk melding for tre kjente Auth.js-feilkoder + generisk fallback:
+
+- `OAuthAccountNotLinked` → «Du har allerede en konto med denne e-posten. Bruk samme innloggingsmetode som første gang.»
+- `AccessDenied` → «Tilgang avvist. Prøv igjen eller kontakt support.»
+- `OAuthCallback` → «Innlogging feilet midlertidig. Prøv igjen.»
+- Ukjent kode → «Innlogging feilet. Prøv igjen.»
+
+4 nye i18n-nøkler under `auth.feil.*` i nb + en, auto-generert til 13 språk (2404 nøkler totalt).
+
+### Microsoft OAuth-verifisering (audit-funn, ikke en endring)
+
+Bekreftet under audit at Microsoft Entra ID-provider ER aktivert i prod. Tidligere antagelse var at det kun var Google + planlagt Microsoft. Etterforskning av `apps/web/.env` på prod-server viste alle tre AUTH_MICROSOFT_ENTRA_ID_*-vars satt og login-knapp synlig i UI.
+
+### Verifisering
+
+- `@sitedoc/api` typecheck 0 = 0.
+- `apps/web` typecheck 1 = 1 baseline (vitest). TS2589 på `oppgaver/page.tsx:333` (sett under filter-rensing-deployen) forsvant under denne kjøringen — sannsynlig tsc-cache-issue tidligere.
+- Prod: `sitedoc.no` HTTP/2 200, `sitedoc.no/logg-inn` HTTP/2 200, `api.sitedoc.no/health` HTTP/2 200 etter deploy 15:41 UTC.
+
+### Sideeffekt: Turbo-cache-bug rammet test-deploy igjen
+
+Auto-deploy via `deploy-test-cron.sh` resulterte i 500 på test-siden fordi `pnpm build` cache-hittet på `apps/web#build` selv etter `rm -rf apps/web/.next`. Måtte kjøre `pnpm build --force` manuelt for å bypass Turbo-cache. Prod-deployen var ren (0 cached, 3 total) fordi den var første gang serveren bygget commitene. Server-side fiks av `deploy-test-cron.sh` til å bruke `--force` er en oppfølger — skriptet ligger ikke i repoet.
+
+### Gjenstående fra audit-rapport (ikke startet)
+
+- **M1** — global tRPC-rate-limit per `ctx.userId` + per IP. Spesielt på `inviter*`-mutations som potensielt brukes til e-postspam. Estimat ~2t.
+- **H1** — mobil-token-rotasjon eller device-binding for å redusere risiko ved token-lekkasje. Estimat ~3t.
+- **H2** — case-sensitive invitasjon-match i Auth.js `signIn`-event. Unicode-confusable-bypass mulig i dag. Estimat ~1t.
+- Sjekk eksisterende serverlogger for token-lekkasje før M4-fiks (manuell oppfølger).
+- Permanent `deploy-test-cron.sh --force`-fiks (server-side, ikke i repo).
+
+---
+
 ## Filter-rensing F1 + Tiltak 1 — DEPLOYET TIL PROD 2026-05-27 (prod-merge `8c256f64`, develop-commit `118c9385`)
 
 To handlingsrettede tickets fra status-audit 2026-05-27. Rene UI-/i18n-endringer, ingen schema-endring.

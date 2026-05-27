@@ -6,41 +6,43 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### Sikkerhets-audit-fiks H3 + logg-inn error-håndtering — MERGET TIL DEVELOP 2026-05-27 (oppfølger)
+### M1 — global tRPC-rate-limit + trustProxy — MERGET TIL DEVELOP 2026-05-27
 
-`allowDangerousEmailAccountLinking: false` satt på begge OAuth-providers (`apps/web/src/auth.ts:26, 34`). Verifisert null migrasjons-risiko mot prod-DB: 2 accounts totalt (1 google + 1 microsoft-entra-id), 0 brukere med koblet begge providers. Detaljer i [BACKLOG.md § H3](BACKLOG.md).
+Sikkerhets-audit M1-funn. Implementert i fire trinn på develop, prod-deploy venter.
 
-**Error-håndtering på `/logg-inn` (oppfølger-commit):** `apps/web/src/app/logg-inn/[[...logg-inn]]/page.tsx` leser nå `error`-query-param via `useSearchParams()` og viser warning-banner over login-knappene. Tre kjente Auth.js-feilkoder mappes til spesifikke meldinger:
+**Trinn 0 (deployet til test):** `trustProxy: true` i Fastify-config (`apps/api/src/server.ts`). Også custom request-serializer som logger `req.ip` som `remoteAddress`. Commit `e480b48f` → `251d38ad` (justering: "127.0.0.1" → true). Verifisert at curl med `X-Forwarded-For: 9.9.9.9` gir `remoteAddress: 9.9.9.9` ✓. **Men Cloudflare Tunnel sender ikke X-Forwarded-For med klient-IP** — bruker `Cf-Connecting-Ip`-header i stedet (Cloudflare blokkerer spoofing av denne, bekreftet med HTTP 403). Trinn 1 håndterer dette.
 
-- `OAuthAccountNotLinked` → «Du har allerede en konto med denne e-posten. Bruk samme innloggingsmetode som første gang.»
-- `AccessDenied` → «Tilgang avvist. Prøv igjen eller kontakt support.»
-- `OAuthCallback` → «Innlogging feilet midlertidig. Prøv igjen.»
-- Ukjente koder → generisk «Innlogging feilet. Prøv igjen.»
+**Trinn 1 (denne commit):** `apps/api/src/utils/rateLimiter.ts` utvidet:
+- Ny `hentKlientIp(req)` — prioriterer `cf-connecting-ip`-header, fallback til `req.ip`, siste fallback `"unknown"`.
+- Ny `sjekkRateLimitDetalj(...)` — returnerer `{ ok, retryAfterSeconds }` slik at kallere kan sende Retry-After-info.
+- `sjekkRateLimit` beholdt som thin wrapper for bakover-kompat (4 eksisterende kallsteder).
+- 4 eksisterende kallsteder (mobilAuth.byttToken, invitasjon.validerToken, invitasjon.aksepter, /upload) oppdatert til `hentKlientIp(ctx.req)`. Uten dette ville deres rate-limit fortsatt være effektivt globalt.
 
-4 nye i18n-nøkler under `auth.feil.*` i nb + en, auto-generert til 13 språk (2404 nøkler totalt).
+**Trinn 2 (denne commit):** `apps/api/src/trpc/trpc.ts` — variant B (type-aware middleware i `protectedProcedure` selv, ingen eksplisitt rull-ut nødvendig):
+- Ny helper `lagRateLimitMiddleware(bucket, max, windowMs)` — type-aware (skip queries, kun mutations).
+- `standardRateLimit` — 100 mutations/min per `ctx.userId`, lagt inn i `protectedProcedure` via `.use(...)`. Alle eksisterende mutations får automatisk rate-limit uten kode-endring.
+- `inviteProcedure` — 10/min per userId, eksport for invite-mutations.
+- `opprettProsjektProcedure` — 20/min per userId, eksport for prosjekt-opprettelse.
+- Throttle-hendelser logges via `ctx.req.log.info({ bucket, userId, path, retryAfterSeconds }, "rate-limit hit")` for telemetri.
 
-**Konsekvens etter prod-deploy:** Bruker som triggrer linking-konflikt mellom Google og Microsoft 365 ser nå en forklarende banner i stedet for stille loop. Eksplisitt linking-flyt (innstillinger-side med «Koble til Microsoft»-knapp) er fremtidig oppfølger ved kundefeedback.
+**Trinn 3 (denne commit):** Tre mutations byttet fra `protectedProcedure` til strammere prosedyrer:
+- `organisasjon.inviterBruker` → `inviteProcedure` (10/min)
+- `prosjekt.opprett` + `prosjekt.opprettTestprosjekt` → `opprettProsjektProcedure` (20/min)
+- `admin.opprettProsjekt` → `opprettProsjektProcedure` (20/min)
 
-### Sikkerhets-audit-fikser K1+M2+M3+M4 — MERGET TIL DEVELOP 2026-05-27
+**Verifisering:** `@sitedoc/api` typecheck 0 = 0. `apps/web` typecheck 1 = 1 baseline (vitest). 0 nye feil.
 
-Fire raske fikser fra sikkerhets-audit 2026-05-27. Ingen schema-endring, ingen breaking.
+**Forventede begrensninger:**
+- In-memory bucket per Node-prosess. PM2 kjører i fork-mode (én prosess) → konsistent state. Hvis vi noen gang går til cluster-mode må vi flytte til Redis.
+- Per-userId only, ikke per-IP. Misbruk fra delt-IP-network (kontor med 50 ansatte bak NAT) er ikke aggregert. Kan utvides ved behov.
 
-- **K1** (`apps/api/src/routes/dev-login.ts:24-28`): `erDevLoginAktiv()` snudd til hvit-liste — `NODE_ENV === "development"` i stedet for `NODE_ENV !== "production"`. Fail-secure ved env-feil. Verifisert at prod har `NODE_ENV=production`, så routen forblir 404 etter deploy.
-- **M2** (`apps/api/src/server.ts:107`): `prisma.$executeRawUnsafe(...)` → tagget template literal `prisma.$executeRaw\`...\``. Hardkodet SQL — ingen funksjons-endring, men eliminerer refactor-fallgruve.
-- **M3** (`apps/web/src/auth.ts`): Lagt til `session: { strategy: "database", maxAge: 24*60*60, updateAge: 60*60 }`. Web-sesjon utløper etter 24t inaktivitet (tidligere Auth.js default 30 dager). **Konsekvens:** alle web-brukere må logge inn på nytt etter deploy til prod.
-- **M4** (`apps/api/src/server.ts:17`): Fastify-logger `redact: ["req.headers.authorization", "req.headers.cookie"]`. Forhindrer at session-token havner i serverlogger ved feilsituasjoner.
+Klar for test-deploy via auto-deploy + verifisering før prod.
 
-**Microsoft OAuth-verifisering (audit-funn):** Microsoft Entra ID ER aktivert i prod (`AUTH_MICROSOFT_ENTRA_ID_*` satt i `apps/web/.env`, login-knapp synlig). H3 (`allowDangerousEmailAccountLinking: true`) flyttet til [BACKLOG.md § H3](BACKLOG.md) som aktiv risiko, ikke hypotetisk.
-
-**Verifisering:** `@sitedoc/api` typecheck 0 = 0. `apps/web` typecheck 2 = 2 baseline (TS2589 på `oppgaver/page.tsx:333` + vitest, begge pre-eksisterende). 0 nye feil.
-
-**Reload-metode:** TypeScript-only. Standard build + pm2 restart. M3 invaliderer web-sesjoner ved deploy.
-
-Klar for test-deploy via auto-deploy.
-
-> Forrige bunke (filter-rensing F1 + Tiltak 1) DEPLOYET TIL PROD 2026-05-27
-> (prod-merge `8c256f64`, develop-commit `118c9385`).
-> Arkivert til [historikk-2026-05.md § Filter-rensing](historikk-2026-05.md).
+> Forrige bunke (sikkerhets-audit-fikser K1+M2+M3+M4+H3+error-håndtering)
+> DEPLOYET TIL PROD 2026-05-27 (prod-merge `9ca0257e`).
+> Arkivert til [historikk-2026-05.md § Sikkerhets-audit-bunke](historikk-2026-05.md).
+> Filter-rensing F1 + Tiltak 1 (2026-05-27, prod-merge `8c256f64`) arkivert
+> i samme fil: [§ Filter-rensing](historikk-2026-05.md).
 > Innsender-tilgang (2026-05-27, prod-merge `b3194f1d`) arkivert i samme fil:
 > [§ Innsender-tilgang](historikk-2026-05.md).
 > HMS-bunken (2026-05-26/27) arkivert i samme fil:

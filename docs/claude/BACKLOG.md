@@ -16,11 +16,28 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
-### H3 — `allowDangerousEmailAccountLinking: false` på begge OAuth-providers — IMPLEMENTERT PÅ DEVELOP 2026-05-27
+### H3 — `allowDangerousEmailAccountLinking: false` — DEPLOYET TIL PROD 2026-05-27 (prod-merge `9ca0257e`)
 
-✅ **Implementert.** `apps/web/src/auth.ts:26, 34` satt til `false` på Google + Microsoft. Migrasjons-risiko verifisert null: prod-DB hadde kun 2 accounts (1 google + 1 microsoft-entra-id), 0 brukere hadde koblet begge providers ved tidspunkt for fiks.
+✅ Arkivert til [historikk-2026-05.md § Sikkerhets-audit-bunke](historikk-2026-05.md).
 
-**Fremtidig oppfølger ved kundefeedback:** Hvis en bruker faktisk trenger å linke en ny provider til samme e-post-konto, må de gjøre det via eksplisitt flyt — ikke automatisk ved login. Vurder eget innstillinger-skjermbilde med «Koble til Microsoft»-knapp som lager `Account`-rad mot eksisterende `User` etter ekstra verifikasjon (bekreftelses-e-post eller re-auth). Ingen UI for dette i dag. Brukere som logger inn med ny provider og samme e-post vil få `OAuthAccountNotLinked`-feilmelding fra Auth.js — vi bør verifisere at feilsiden formidler dette tydelig på `/logg-inn`.
+**Gjenstående oppfølger:** Eksplisitt linking-flyt for brukere som faktisk trenger å koble ny provider til samme e-post-konto. Ikke prioritert — utløses ved kundefeedback. Eventuell implementasjon: innstillinger-side med «Koble til Microsoft»-knapp som lager `Account`-rad mot eksisterende `User` etter ekstra verifikasjon (bekreftelses-e-post eller re-auth).
+
+### Sikkerhets-audit gjenstående: M1, H1, H2 (2026-05-27)
+
+Tre funn fra sikkerhets-audit 2026-05-27 som ikke ble adressert i prod-bunken (`9ca0257e`). Anbefalt rekkefølge for utbedring.
+
+**M1 — Global tRPC-rate-limit** 🟡 IMPLEMENTERT PÅ DEVELOP 2026-05-27, IKKE PROD-DEPLOYET
+Type-aware standard rate-limit (100 mutations/min per userId) lagt inn i `protectedProcedure` direkte — alle mutations får automatisk beskyttelse, queries hopper over. `inviteProcedure` (10/min) brukt på `organisasjon.inviterBruker`. `opprettProsjektProcedure` (20/min) brukt på `prosjekt.opprett`, `prosjekt.opprettTestprosjekt`, `admin.opprettProsjekt`. `Cf-Connecting-Ip`-header brukes som klient-IP (Cloudflare-spesifikk, blokkert mot spoofing). Detaljer i [STATUS-AKTUELT.md § M1](STATUS-AKTUELT.md). Klar for prod-deploy etter test-verifisering.
+
+**H1 — Mobil session-token rotasjon eller device-binding (høy prioritet, ~3t)** 🔴
+`mobilAuth.byttToken` lager 30-dagers token, roteres kun ved app-oppstart (`mobilAuth.verifiser`). Mellom oppstart roterer den ikke — token-lekkasje (logging, MITM på utestet nettverk, malware) gir 30 dagers ubegrenset tilgang. Fix-alternativer: (a) roter ved hver tRPC-mutasjon hvis token er eldre enn 7 dager, (b) bind token til device-fingerprint som sjekkes ved bruk.
+
+**H2 — Case-sensitive invitasjon-match i Auth.js signIn-event (høy prioritet, ~1t)** 🔴
+`apps/web/src/auth.ts:53-66`: invitasjons-auto-aksept bruker `email: { equals: user.email, mode: "insensitive" }`. Unicode-confusables (cyrillisk «а» vs latinsk «a») kan teoretisk matche ventende invitasjoner med spoofet e-post. Fix: bytt til streng `equals: user.email`, eller normaliser e-poster ved opprettelse (`.toLowerCase()`) og match streng.
+
+**Sekundære oppfølgere (ikke kode-fix):**
+- Sjekk eksisterende serverlogger for token-lekkasje før M4-redaction ble aktivert. Manuell loggevurdering.
+- Permanent `deploy-test-cron.sh` → `pnpm build --force`-fiks. Server-side skript, ikke i repo.
 
 ### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 

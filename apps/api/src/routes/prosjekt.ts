@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, protectedProcedure } from "../trpc/trpc";
+import { router, protectedProcedure, opprettProsjektProcedure } from "../trpc/trpc";
 import { createProjectSchema, STANDARD_PROJECT_GROUPS, PROSJEKT_MODULER, STANDARD_FAGGRUPPER, STANDARD_DOKUMENTFLYTER } from "@sitedoc/shared";
 import { generateProjectNumber } from "@sitedoc/shared";
 import type { Prisma } from "@sitedoc/db";
@@ -160,7 +160,7 @@ export const prosjektRouter = router({
   // rader for aktive firmamoduler. Steg 2d (2026-05-03): tar valgfri organizationId
   // fra input. Sitedoc_admin sender valgtFirma.id når de oppretter prosjekt på
   // vegne av et kunde-firma. Vanlig bruker fallbacker til egen organizationId.
-  opprett: protectedProcedure
+  opprett: opprettProsjektProcedure
     .input(createProjectSchema)
     .mutation(async ({ ctx, input }) => {
       const antall = await ctx.prisma.project.count();
@@ -243,7 +243,7 @@ export const prosjektRouter = router({
     }),
 
   // Opprett testprosjekt med standardgrupper og moduler (for nye brukere)
-  opprettTestprosjekt: protectedProcedure
+  opprettTestprosjekt: opprettProsjektProcedure
     .input(z.object({ organizationId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const bruker = await ctx.prisma.user.findUniqueOrThrow({

@@ -14,8 +14,27 @@ import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
 
 const server = Fastify({
+  // Fastify mottar requests via Cloudflare Tunnel → cloudflared. cloudflared
+  // proxy-er ikke via 127.0.0.1 i prod/test pga WSL2 Mirror Mode — den
+  // treffer Fastify via Windows-vertens IP (193.90.181.205). Eksplisitt
+  // allowlist ville måtte oppdateres ved infra-endringer, så vi stoler på
+  // X-Forwarded-For uansett. Trygt fordi Fastify ALDRI eksponeres direkte —
+  // alltid bak cloudflared. Operasjonell merknad: ved fremtidig direkte-
+  // eksponering (Tailscale, midlertidig debug) må trustProxy strammes igjen.
+  trustProxy: true,
   logger: {
     redact: ["req.headers.authorization", "req.headers.cookie"],
+    // Logg req.ip (Fastify's parsed klient-IP etter trustProxy) i stedet for
+    // TCP-IP. Forutsetning for at rate-limit per IP fungerer reelt.
+    serializers: {
+      req: (req) => ({
+        method: req.method,
+        url: req.url,
+        host: req.headers?.host,
+        remoteAddress: req.ip,
+        remotePort: req.socket?.remotePort,
+      }),
+    },
   },
 });
 
