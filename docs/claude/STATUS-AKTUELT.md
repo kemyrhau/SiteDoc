@@ -6,9 +6,9 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### Dagens samlede aktivitet — 2026-05-27 (6 prod-deploys + omfattende sikkerhets-arbeid)
+### Dagens samlede aktivitet — 2026-05-27 (7 prod-deploys + komplett sikkerhets-audit lukket)
 
-Uvanlig tett deploy-dag. Ingen regresjon observert.
+Uvanlig tett deploy-dag. Ingen funksjonell regresjon observert. Hele sikkerhets-audit-bunken (14 funn) er nå adressert i prod.
 
 | # | Prod-merge | Tidspunkt | Innhold |
 |---|---|---|---|
@@ -17,11 +17,11 @@ Uvanlig tett deploy-dag. Ingen regresjon observert.
 | 3 | `9ca0257e` | ettermiddag | Sikkerhets-audit-bunke (K1 dev-login + M2 raw-SQL + M3 sesjon-maxAge 24t + M4 logger-redact + H3 OAuth-linking + error-håndtering) |
 | 4 | `54885eb2` | 16:43 | M1 global tRPC-rate-limit + trustProxy: true + cf-connecting-ip |
 | 5 | `b97494cd` | 18:00 | Fastify-logger leser cf-connecting-ip + H2 streng invitasjon-match |
-| 6 | (HMS-bunke) | tidligere/samme dag | HMS åpen-synlighet + HMS-prosjektvisning + HMS-modul-seeding |
+| 6 | `29bdded8` + `43460d80` | 19:00–19:15 | H1 mobil token-rotasjon + web-context-fix |
+| 7 | (HMS-bunke) | tidligere/samme dag | HMS åpen-synlighet + HMS-prosjektvisning + HMS-modul-seeding |
 
-**Sikkerhets-audit oppsummering (utført 2026-05-27, 14 funn):**
-- ✅ Adressert: K1, M2, M3, M4, H3, M1 (rate-limit), H2 (invitasjon-match), error-håndtering på `/logg-inn`
-- 🔴 Gjenstår i [BACKLOG](BACKLOG.md): H1 (mobil-token-rotasjon, ~3t) — siste funn
+**Sikkerhets-audit oppsummering (utført 2026-05-27, 14 funn — alle lukket):**
+- ✅ Adressert: K1, M2, M3, M4, H3, M1 (rate-limit), H2 (invitasjon-match), H1 (mobil-token-rotasjon), error-håndtering på `/logg-inn`
 - Microsoft OAuth bekreftet aktivert i prod (var antatt kun planlagt) → H3 ble aktiv risiko
 
 **Konsekvenser nå aktive i prod:**
@@ -29,14 +29,18 @@ Uvanlig tett deploy-dag. Ingen regresjon observert.
 - `OAuthAccountNotLinked` blokkerer cross-provider Google↔Microsoft-linking
 - Alle tRPC-mutations rate-limited: standard 100/min per userId, `inviterBruker` 10/min, `prosjekt.opprett` 20/min
 - `dev-login` fail-secure: krever eksplisitt `NODE_ENV=development` eller `ENABLE_DEV_LOGIN=true`
+- Mobil session-token roteres ved aktiv bruk hvis > 7 dager gammel (worst-case eksponering 30d → 7d)
+
+**H1 deploy-hendelse:** Første prod-deploy av H1 (`29bdded8`) lot DB-migrasjonen kjøre OK, men `@sitedoc/web#build` feilet pga at web-routen lager egen Context-instans uten de nye feltene. PM2 restartet web på gammel kode i ~25 min mens DB var på nytt schema (lav risiko pga schema-defaults). Fix `4e353118` → re-merge `43460d80` → re-bygg + restart løste det. Lærdom notert i [BACKLOG § Refaktor: web-tRPC-route lager egen Context](BACKLOG.md).
 
 **Docs-oppdatering (`91578127`):** api.md rate-limit-tabell utvidet med M1-rader. CLAUDE.md deploy-sekvens delt i prod (uten `.next`-rensing, anbefalt) vs test (krever `--force` pga Turbo-cache-bug).
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
-> [§ Fastify-logger + H2](historikk-2026-05.md), [§ M1](historikk-2026-05.md),
-> [§ Sikkerhets-audit-bunke](historikk-2026-05.md), [§ Filter-rensing](historikk-2026-05.md),
-> [§ Innsender-tilgang](historikk-2026-05.md), [§ HMS åpen-synlighet](historikk-2026-05.md),
-> [§ HMS-prosjektvisning](historikk-2026-05.md), [§ HMS-modul-seeding](historikk-2026-05.md).
+> [§ H1](historikk-2026-05.md), [§ Fastify-logger + H2](historikk-2026-05.md),
+> [§ M1](historikk-2026-05.md), [§ Sikkerhets-audit-bunke](historikk-2026-05.md),
+> [§ Filter-rensing](historikk-2026-05.md), [§ Innsender-tilgang](historikk-2026-05.md),
+> [§ HMS åpen-synlighet](historikk-2026-05.md), [§ HMS-prosjektvisning](historikk-2026-05.md),
+> [§ HMS-modul-seeding](historikk-2026-05.md).
 
 ### Pågående: TestFlight build #23 enhet-verifisering
 

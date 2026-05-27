@@ -22,21 +22,38 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 **Gjenstående oppfølger:** Eksplisitt linking-flyt for brukere som faktisk trenger å koble ny provider til samme e-post-konto. Ikke prioritert — utløses ved kundefeedback. Eventuell implementasjon: innstillinger-side med «Koble til Microsoft»-knapp som lager `Account`-rad mot eksisterende `User` etter ekstra verifikasjon (bekreftelses-e-post eller re-auth).
 
-### Sikkerhets-audit gjenstående: H1 (2026-05-27)
+### Sikkerhets-audit 2026-05-27 — alle høy-prio funn lukket ✅
 
-Siste funn fra sikkerhets-audit 2026-05-27 som ikke er adressert. M1, M2, M3, M4, H3, H2, K1 + error-håndtering på `/logg-inn` deployet til prod gjennom dagen (se [historikk-2026-05.md](historikk-2026-05.md)).
+Alle 14 funn fra sikkerhets-audit 2026-05-27 er adressert i prod. Se [historikk-2026-05.md](historikk-2026-05.md) for full arkiv.
 
-**M1 — Global tRPC-rate-limit** ✅ DEPLOYET TIL PROD 2026-05-27 (prod-merge `54885eb2`). Arkivert til [historikk-2026-05.md § M1](historikk-2026-05.md).
-
-**H2 — Streng case-sensitive invitasjon-match** ✅ DEPLOYET TIL PROD 2026-05-27 (prod-merge `b97494cd`). Arkivert til [historikk-2026-05.md § Fastify-logger + H2](historikk-2026-05.md).
-
-**H1 — Mobil session-token rotasjon eller device-binding (høy prioritet, ~3t)** 🔴
-`mobilAuth.byttToken` lager 30-dagers token, roteres kun ved app-oppstart (`mobilAuth.verifiser`). Mellom oppstart roterer den ikke — token-lekkasje (logging, MITM på utestet nettverk, malware) gir 30 dagers ubegrenset tilgang. Fix-alternativer: (a) roter ved hver tRPC-mutasjon hvis token er eldre enn 7 dager, (b) bind token til device-fingerprint som sjekkes ved bruk.
+| Funn | Prod-merge | Arkiv |
+|---|---|---|
+| K1 + M2 + M3 + M4 + H3 + error-håndtering | `9ca0257e` | [§ Sikkerhets-audit-bunke](historikk-2026-05.md) |
+| M1 (global tRPC-rate-limit) | `54885eb2` | [§ M1](historikk-2026-05.md) |
+| H2 (case-sensitive invitasjon-match) + Fastify-logger | `b97494cd` | [§ Fastify-logger + H2](historikk-2026-05.md) |
+| H1 (mobil token-rotasjon) | `29bdded8` + fix `43460d80` | [§ H1](historikk-2026-05.md) |
 
 **Sekundære oppfølgere (ikke kode-fix):**
 - Sjekk eksisterende serverlogger for token-lekkasje før M4-redaction ble aktivert. Manuell loggevurdering.
 - Permanent `deploy-test-cron.sh` → `pnpm build --force`-fiks. Server-side skript, ikke i repo. Rammet 3+ ganger i mai 2026, krever manuell `pnpm build --force` per deploy. Bør prioriteres for å redusere friksjon.
 - **User.email-normalisering** (oppstått fra H2 2026-05-27) — PrismaAdapter + Auth.js OAuth-flyt skriver `User.email` med casing fra provider. To brukere med samme lowercase-e-post men ulik case kan eksistere som separate rader pga `@unique` er case-sensitive. Ikke aktuell utnytting kjent, men inkonsekvent med invitasjons-flyten som nå er lowercase. Bredere refaktor som krever migrering av `User.email` + adapter-override + verifisering av Google/Microsoft OAuth-flyt.
+
+### Refaktor: web-tRPC-route lager egen Context (oppdaget 2026-05-27 under H1-deploy)
+
+**Sted:** `apps/web/src/app/api/trpc/[...trpc]/route.ts:61-72`
+
+Web-routen kaller `fetchRequestHandler` med en inline `createContext` som bygger Context-objektet manuelt — kopierer feltene fra `apps/api/src/trpc/context.ts:createContext` men er ikke synkronisert. Når Context-typen utvides i `apps/api`, kompilerer `apps/api` fortsatt, men `apps/web#build` feiler med «Type ... is not assignable to ...».
+
+**Konsekvens 2026-05-27 (H1-deploy):** Migrasjon kjørte, PM2 restartet sitedoc-web på gammel kode i ~25 min mens DB var på nytt schema. Risiko-vurdering var lav i dette tilfellet (defaults dekket gammel kode), men mønstret er en tikkende bombe.
+
+**Fix-alternativer:**
+1. **Eksporter delt helper fra `apps/api`** — flytt `createContext` til en eksport som tar `{ req, res, ekstraFelter }`-overload slik at web-routen kan kalle den med Auth.js-session som ekstra-felt. Web og api deler typer og oppførsel.
+2. **Behold to implementasjoner, men typecheck i CI** — kjør `pnpm --filter web exec tsc --noEmit` som del av `pnpm build` med fail-fast slik at deploy-bash kan se feilen FØR PM2 restart.
+3. **Web bruker `apps/api/src/trpc/context.ts` direkte** — krever at api-pakken eksponerer `createContext` (i dag intern). Mer kompliserer Next.js import-grafen.
+
+**Anbefaling:** Alternativ 1. Estimat ~1-2t.
+
+**Tilleggsforslag:** Endre prod-deploy-bash til å feile hard på `pnpm build` exit ≠ 0, og IKKE kjøre `pm2 restart` hvis build feilet. I dag restartet PM2 selv om Turbo rapporterte exit 1. Server-side skript-endring.
 
 ### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 
