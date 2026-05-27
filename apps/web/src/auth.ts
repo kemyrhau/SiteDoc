@@ -21,6 +21,11 @@ baseAdapter.getUserByEmail = async (email: string) => {
 export const { handlers, signIn, signOut, auth } = NextAuth({
   trustHost: true,
   adapter: baseAdapter,
+  session: {
+    strategy: "database",
+    maxAge: 24 * 60 * 60, // 24 timer
+    updateAge: 60 * 60, // forny ved aktivitet hver time
+  },
   providers: [
     Google({
       allowDangerousEmailAccountLinking: true,

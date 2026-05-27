@@ -6,6 +6,23 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### Sikkerhets-audit-fikser K1+M2+M3+M4 — MERGET TIL DEVELOP 2026-05-27
+
+Fire raske fikser fra sikkerhets-audit 2026-05-27. Ingen schema-endring, ingen breaking.
+
+- **K1** (`apps/api/src/routes/dev-login.ts:24-28`): `erDevLoginAktiv()` snudd til hvit-liste — `NODE_ENV === "development"` i stedet for `NODE_ENV !== "production"`. Fail-secure ved env-feil. Verifisert at prod har `NODE_ENV=production`, så routen forblir 404 etter deploy.
+- **M2** (`apps/api/src/server.ts:107`): `prisma.$executeRawUnsafe(...)` → tagget template literal `prisma.$executeRaw\`...\``. Hardkodet SQL — ingen funksjons-endring, men eliminerer refactor-fallgruve.
+- **M3** (`apps/web/src/auth.ts`): Lagt til `session: { strategy: "database", maxAge: 24*60*60, updateAge: 60*60 }`. Web-sesjon utløper etter 24t inaktivitet (tidligere Auth.js default 30 dager). **Konsekvens:** alle web-brukere må logge inn på nytt etter deploy til prod.
+- **M4** (`apps/api/src/server.ts:17`): Fastify-logger `redact: ["req.headers.authorization", "req.headers.cookie"]`. Forhindrer at session-token havner i serverlogger ved feilsituasjoner.
+
+**Microsoft OAuth-verifisering (audit-funn):** Microsoft Entra ID ER aktivert i prod (`AUTH_MICROSOFT_ENTRA_ID_*` satt i `apps/web/.env`, login-knapp synlig). H3 (`allowDangerousEmailAccountLinking: true`) flyttet til [BACKLOG.md § H3](BACKLOG.md) som aktiv risiko, ikke hypotetisk.
+
+**Verifisering:** `@sitedoc/api` typecheck 0 = 0. `apps/web` typecheck 2 = 2 baseline (TS2589 på `oppgaver/page.tsx:333` + vitest, begge pre-eksisterende). 0 nye feil.
+
+**Reload-metode:** TypeScript-only. Standard build + pm2 restart. M3 invaliderer web-sesjoner ved deploy.
+
+Klar for test-deploy via auto-deploy.
+
 > Forrige bunke (filter-rensing F1 + Tiltak 1) DEPLOYET TIL PROD 2026-05-27
 > (prod-merge `8c256f64`, develop-commit `118c9385`).
 > Arkivert til [historikk-2026-05.md § Filter-rensing](historikk-2026-05.md).

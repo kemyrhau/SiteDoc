@@ -16,6 +16,21 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### H3 — `allowDangerousEmailAccountLinking: true` på begge OAuth-providers (sikkerhets-audit 2026-05-27)
+
+**Aktiv risiko nå** — Microsoft OAuth ER live i prod (verifisert 2026-05-27: `AUTH_MICROSOFT_ENTRA_ID_ID/SECRET/ISSUER` satt i `apps/web/.env`, knapp synlig på `/logg-inn` + `/aksepter-invitasjon`).
+
+`apps/web/src/auth.ts:26, 34` setter `allowDangerousEmailAccountLinking: true` på både Google og Microsoft. Hvis en bruker har samme e-post hos begge providers, vil Auth.js automatisk linke kontoene. **En kompromittert Google-konto gir dermed full tilgang til Microsoft-kontoens data, eller omvendt.**
+
+**Fix-skisse:**
+1. Sett `allowDangerousEmailAccountLinking: false` på begge providers.
+2. Implementer eksplisitt linking-flyt: bruker med eksisterende konto må logge inn med opprinnelig provider først, så koble ny provider fra innstillinger-side.
+3. Migrasjons-vurdering: kjør spørring mot `Account`-tabellen for å sjekke om noen brukere allerede har koblet kontoer på tvers av providers. Hvis ja, må disse beholdes — flagget styrer kun ny linking.
+
+**Avhengighet:** Produktbeslutning kreves om hvordan eksplisitt linking skal designes (eget innstillinger-skjermbilde? signIn-callback med valgmulighet?). Ikke en ren kode-fix.
+
+**Estimat:** 3-4t etter produktbeslutning. Kan også vurderes konservativt på Microsoft kun (provideren med færrest brukere i dag), Google kan beholde dangerous=true hvis kunde-segmentet er låst til Google Workspace.
+
 ### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 
 **Oppdaget 2026-05-26** ved sporing av Godkjenning-modulens faktiske implementasjon, og presisert med produktbeskrivelse fra Kenneth samme dag.

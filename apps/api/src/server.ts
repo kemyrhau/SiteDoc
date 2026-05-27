@@ -14,7 +14,9 @@ import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
 
 const server = Fastify({
-  logger: true,
+  logger: {
+    redact: ["req.headers.authorization", "req.headers.cookie"],
+  },
 });
 
 async function start() {
@@ -104,9 +106,7 @@ async function start() {
     // Recovery: sett stuck embedding-chunks tilbake til pending ved oppstart
     try {
       const { prisma } = await import("@sitedoc/db");
-      const stuck = await prisma.$executeRawUnsafe(
-        `UPDATE ftd_document_chunks SET embedding_state = 'pending' WHERE embedding_state = 'processing'`,
-      );
+      const stuck = await prisma.$executeRaw`UPDATE ftd_document_chunks SET embedding_state = 'pending' WHERE embedding_state = 'processing'`;
       if (stuck > 0) {
         server.log.info(`Embedding recovery: ${stuck} stuck chunks satt tilbake til pending`);
       }
