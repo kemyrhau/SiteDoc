@@ -14,6 +14,21 @@ sist_verifisert_mot_kode: 2026-05-08
 > [§ HMS-prosjektvisning](historikk-2026-05.md),
 > [§ HMS-modul-seeding](historikk-2026-05.md).
 
+### Filter-rensing F1 + Tiltak 1 — MERGET TIL DEVELOP 2026-05-27
+
+To handlingsrettede tickets fra status-audit 2026-05-27 ([BACKLOG.md § F1](BACKLOG.md) + [§ Tiltak 1](BACKLOG.md)).
+
+- **F1:** `cancelled` lagt til `LUKKET_STATUSER` i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx:63`. Avbrutte HMS-dokumenter er nå synlige når `visAlle=true`. KPI-tellingen uendret.
+- **Tiltak 1:** Ny `filterSnarveier`-prop på `KolonneDef<T>` i `packages/ui/src/table.tsx` + render i `FilterDropdown`. Aktivert på status-kolonnen i oppgaver + sjekklister med snarvei «Alle åpne» = `["draft", "sent", "received", "in_progress", "responded"]`. Multi-select-mekanikken finnes fra før via komma-separert filter-verdi.
+
+**i18n:** ny `status.alleApne` (nb: «Alle åpne», en: «All open»), auto-generert til 13 språk (2400 nøkler).
+
+**Verifisert:** `@sitedoc/ui` typecheck 0 = 0. `apps/web` typecheck 2 = 2 baseline (TS2589 på `trpc.oppgave.opprett.useMutation` linje 333 + vitest-typedef). TS2589 er pre-eksisterende (bekreftet ved stash-test); 0 nye feil.
+
+**Reload-metode:** TypeScript- + i18n-endring. Standard cache-cleaning ved deploy (`rm -rf apps/web/.next` + build) håndteres av `deploy-test-cron.sh`.
+
+Klar for test-deploy via auto-deploy. Verifisér på `test.sitedoc.no/dashbord/<prosjektId>/oppgaver` at filter-ikonet på status-kolonnen viser «Alle åpne» mellom «Alle» og status-listen.
+
 ### Pågående: TestFlight build #23 enhet-verifisering
 
 Build #23 (`a5e6e2ea-b570-45d0-a710-1dca7b678f35`) submittert til TestFlight via submission `898599df-aa55-4689-9f2a-cd21b4d26861` 2026-05-25. Apple-prosessering pågår. Venter på enhet-verifikasjon før Android-bygg + Play Store.

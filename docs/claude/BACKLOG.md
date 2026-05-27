@@ -113,13 +113,9 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 **Avhengighet:** Godkjenning-modul-redesign (§ Godkjenning-modul TE/Endring/Varsel) bør re-bruke disse fakta istedenfor å lage egen modell. Verifiser mot kode på det tidspunktet.
 
-### F1 — `cancelled`-status mangler i HMS-filter (lav prioritet)
+### F1 — `cancelled`-status mangler i HMS-filter — IMPLEMENTERT PÅ DEVELOP 2026-05-27
 
-**Oppdaget under status-audit 2026-05-27.** HMS-prosjektvisning (`apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx:62-63`) kategoriserer kun 8 statuser i ÅPEN/LUKKET-grupper. `cancelled` mangler i begge — avbrutte HMS-dokumenter blir usynlige i listen.
-
-Til sammenligning lister oppgaver- og sjekklister-filteret alle 9 statuser eksplisitt.
-
-**Fix-skisse:** Legg `cancelled` i en ny `AVBRUTT`-gruppe (eller utvid ÅPEN). Lav alvorlighet, lav kompleksitet — UI-only endring. Estimat ~30 min.
+✅ **Fix:** `cancelled` lagt til i `LUKKET_STATUSER` i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx:63`. Avbrutt er en endelig tilstand (samme semantikk som closed/approved), ikke en åpen. KPI-tellingen `apneAvvik` er uendret — vi vil ikke at avbrutte saker skal telle som åpne. Verifisering på test etter auto-deploy.
 
 ### F7 — HMS subdomain-spesifikk statusflyt (høy prioritet, krever spec-runde)
 
@@ -137,15 +133,15 @@ Til sammenligning lister oppgaver- og sjekklister-filteret alle 9 statuser ekspl
 
 **Avhengighet:** Bør koordineres med F-tickets fra HMS-prosjektvisning teknisk gjeld (§ 1 over) og Godkjenning-modul-redesign. Estimat 8-12t etter spec-runde.
 
-### Tiltak 1 — «Alle åpne»-filter i oppgave/sjekkliste/HMS-filter (lav prioritet)
+### Tiltak 1 — «Alle åpne»-filter i oppgave/sjekkliste-filter — IMPLEMENTERT PÅ DEVELOP 2026-05-27
 
-**Oppdaget under status-audit 2026-05-27.** Filter-sidebar har «Alle» som default-valg, men ingen «Alle åpne»-snarvei. Brukerne må manuelt klikke seg gjennom åpne statuser én og én eller bla seg gjennom hele listen.
+✅ **Fix:** Ny `filterSnarveier`-prop på `KolonneDef<T>` i `packages/ui/src/table.tsx` + render-blokk i `FilterDropdown` (rad rett under «Alle», visuelt skille med border-bottom). Klikk setter `filterVerdier[kolId] = verdier.join(",")`. Multi-select-mekanikken finnes fra før i page.tsx-filtrering.
 
-«Alle åpne» = alle statuser unntatt `closed`, `approved`, `rejected`, `cancelled`. Matcher typisk default-filter i andre verktøy.
+Aktivert på status-kolonnen i oppgaver + sjekklister med snarvei `["draft", "sent", "received", "in_progress", "responded"]` (5 åpne statuser, ekskluderer `approved/closed/rejected/cancelled`).
 
-**Fix-skisse:** Ny rad over `Alle` i tre filter-komponenter (`apps/web/src/app/dashbord/[prosjektId]/oppgaver/page.tsx:58-68`, sjekklister:59-69, hms-side). 2-3 nye i18n-nøkler × 15 språk. Estimat ~1t.
+HMS-siden bruker binær `visAlle`-toggle (annen UX-modell) som etter F1-fiks effektivt allerede er en «Alle åpne»-toggle — ikke endret.
 
-**Avhengighet:** Ingen.
+i18n: ny `status.alleApne` i nb («Alle åpne») + en («All open»), auto-generert til 13 språk.
 
 ### Dokumentflyt send-modal redesign — DEPLOYET TIL PROD 2026-05-25 (prod-merge `4968a23c`)
 

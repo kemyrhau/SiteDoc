@@ -550,7 +550,17 @@ export default function OppgaverSide() {
 
   // Bygg kolonnedefinisjoner
   const kolonneDefinisjoner = useMemo(() => {
-    type KolDef = Parameters<typeof Table<OppgaveRad>>[0]["kolonner"][number];
+    interface KolDef {
+      id: string;
+      header: string;
+      celle: (rad: OppgaveRad) => JSX.Element;
+      bredde?: string;
+      sorterbar?: boolean;
+      sorterVerdi?: (rad: OppgaveRad) => string | number | null;
+      filtrerbar?: boolean;
+      filterAlternativer?: { value: string; label: string }[];
+      filterSnarveier?: { label: string; verdier: string[] }[];
+    }
     const defs: Record<string, KolDef> = {
       prefix: {
         id: "prefix", header: t("tabell.prefix"),
@@ -592,6 +602,7 @@ export default function OppgaverSide() {
         ),
         bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status,
         filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
+        filterSnarveier: [{ label: t("status.alleApne"), verdier: ["draft", "sent", "received", "in_progress", "responded"] }],
       },
       prioritet: {
         id: "prioritet", header: t("tabell.prioritet"),

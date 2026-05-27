@@ -9,6 +9,8 @@ interface KolonneDef<T> {
   sorterVerdi?: (rad: T) => string | number | null;
   filtrerbar?: boolean;
   filterAlternativer?: { value: string; label: string }[];
+  /** Snarveier rendres over alternativ-listen i filter-dropdown. Klikk setter filterverdi til verdier.join(","). */
+  filterSnarveier?: { label: string; verdier: string[] }[];
 }
 
 type SorterRetning = "asc" | "desc";
@@ -86,10 +88,12 @@ function FilterIkon() {
 
 function FilterDropdown({
   alternativer,
+  snarveier,
   verdi,
   onChange,
 }: {
   alternativer: { value: string; label: string }[];
+  snarveier?: { label: string; verdier: string[] }[];
   verdi: string;
   onChange: (verdi: string) => void;
 }) {
@@ -147,6 +151,28 @@ function FilterDropdown({
           >
             Alle
           </button>
+          {snarveier && snarveier.length > 0 && (
+            <div className="border-b border-gray-100">
+              {snarveier.map((sn) => {
+                const snarveiVerdi = sn.verdier.join(",");
+                const erAktiv = verdi === snarveiVerdi;
+                return (
+                  <button
+                    key={sn.label}
+                    onClick={() => {
+                      onChange(snarveiVerdi);
+                      setApen(false);
+                    }}
+                    className={`block w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${
+                      erAktiv ? "font-semibold text-blue-600" : "text-gray-600"
+                    }`}
+                  >
+                    {sn.label}
+                  </button>
+                );
+              })}
+            </div>
+          )}
           {alternativer.map((alt) => (
             <label
               key={alt.value}
@@ -325,6 +351,7 @@ export function Table<T>({
                     {kol.filtrerbar && kol.filterAlternativer && onFilterEndring && (
                       <FilterDropdown
                         alternativer={kol.filterAlternativer}
+                        snarveier={kol.filterSnarveier}
                         verdi={filterVerdier?.[kol.id] ?? ""}
                         onChange={(v) => onFilterEndring(kol.id, v)}
                       />
