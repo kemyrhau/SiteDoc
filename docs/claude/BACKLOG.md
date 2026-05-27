@@ -16,20 +16,11 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
-### H3 — `allowDangerousEmailAccountLinking: true` på begge OAuth-providers (sikkerhets-audit 2026-05-27)
+### H3 — `allowDangerousEmailAccountLinking: false` på begge OAuth-providers — IMPLEMENTERT PÅ DEVELOP 2026-05-27
 
-**Aktiv risiko nå** — Microsoft OAuth ER live i prod (verifisert 2026-05-27: `AUTH_MICROSOFT_ENTRA_ID_ID/SECRET/ISSUER` satt i `apps/web/.env`, knapp synlig på `/logg-inn` + `/aksepter-invitasjon`).
+✅ **Implementert.** `apps/web/src/auth.ts:26, 34` satt til `false` på Google + Microsoft. Migrasjons-risiko verifisert null: prod-DB hadde kun 2 accounts (1 google + 1 microsoft-entra-id), 0 brukere hadde koblet begge providers ved tidspunkt for fiks.
 
-`apps/web/src/auth.ts:26, 34` setter `allowDangerousEmailAccountLinking: true` på både Google og Microsoft. Hvis en bruker har samme e-post hos begge providers, vil Auth.js automatisk linke kontoene. **En kompromittert Google-konto gir dermed full tilgang til Microsoft-kontoens data, eller omvendt.**
-
-**Fix-skisse:**
-1. Sett `allowDangerousEmailAccountLinking: false` på begge providers.
-2. Implementer eksplisitt linking-flyt: bruker med eksisterende konto må logge inn med opprinnelig provider først, så koble ny provider fra innstillinger-side.
-3. Migrasjons-vurdering: kjør spørring mot `Account`-tabellen for å sjekke om noen brukere allerede har koblet kontoer på tvers av providers. Hvis ja, må disse beholdes — flagget styrer kun ny linking.
-
-**Avhengighet:** Produktbeslutning kreves om hvordan eksplisitt linking skal designes (eget innstillinger-skjermbilde? signIn-callback med valgmulighet?). Ikke en ren kode-fix.
-
-**Estimat:** 3-4t etter produktbeslutning. Kan også vurderes konservativt på Microsoft kun (provideren med færrest brukere i dag), Google kan beholde dangerous=true hvis kunde-segmentet er låst til Google Workspace.
+**Fremtidig oppfølger ved kundefeedback:** Hvis en bruker faktisk trenger å linke en ny provider til samme e-post-konto, må de gjøre det via eksplisitt flyt — ikke automatisk ved login. Vurder eget innstillinger-skjermbilde med «Koble til Microsoft»-knapp som lager `Account`-rad mot eksisterende `User` etter ekstra verifikasjon (bekreftelses-e-post eller re-auth). Ingen UI for dette i dag. Brukere som logger inn med ny provider og samme e-post vil få `OAuthAccountNotLinked`-feilmelding fra Auth.js — vi bør verifisere at feilsiden formidler dette tydelig på `/logg-inn`.
 
 ### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 

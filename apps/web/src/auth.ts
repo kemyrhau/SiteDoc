@@ -28,7 +28,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   },
   providers: [
     Google({
-      allowDangerousEmailAccountLinking: true,
+      allowDangerousEmailAccountLinking: false,
     }),
     ...(process.env.AUTH_MICROSOFT_ENTRA_ID_ID
       ? [
@@ -36,7 +36,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
             clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
             issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
-            allowDangerousEmailAccountLinking: true,
+            allowDangerousEmailAccountLinking: false,
             authorization: { params: { scope: "openid profile email" } },
             checks: ["state"],
           }),

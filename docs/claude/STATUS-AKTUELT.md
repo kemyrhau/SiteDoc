@@ -6,6 +6,12 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### Sikkerhets-audit-fiks H3 — MERGET TIL DEVELOP 2026-05-27 (oppfølger)
+
+`allowDangerousEmailAccountLinking: false` satt på begge OAuth-providers (`apps/web/src/auth.ts:26, 34`). Verifisert null migrasjons-risiko mot prod-DB: 2 accounts totalt (1 google + 1 microsoft-entra-id), 0 brukere med koblet begge providers. Detaljer i [BACKLOG.md § H3](BACKLOG.md).
+
+**Konsekvens etter prod-deploy:** Brukere som logger inn med ny provider mot samme e-post som eksisterende konto får `OAuthAccountNotLinked`-feilmelding fra Auth.js. Vurder å verifisere at `/logg-inn`-feilside formidler dette tydelig.
+
 ### Sikkerhets-audit-fikser K1+M2+M3+M4 — MERGET TIL DEVELOP 2026-05-27
 
 Fire raske fikser fra sikkerhets-audit 2026-05-27. Ingen schema-endring, ingen breaking.
