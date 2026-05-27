@@ -169,6 +169,7 @@ Alle routere som opererer på prosjektdata har `verifiserProsjektmedlem`-sjekk. 
 - `mengde.oppdaterDokument`: `verifiserProsjektmedlem` + kontraktisolering (kontraktId må tilhøre samme prosjekt)
 - `admin.*integrasjon*`: `verifiserSiteDocAdmin` (kun superadmin, aldri company_admin). API-nøkler returneres aldri — kun `harNøkkel: boolean`
 - `company_admin`-fallback i `verifiserProsjektmedlem`/`verifiserAdmin`: sjekker `OrganizationProject`-kobling, hindrer kryssorg-tilgang
+- `eksternKostObjekt.list`: bruker `krevBrukersOrg(ctx.userId)` og filtrerer på `organizationId` — **firma-isolert, ikke prosjekt-isolert**. Designvalg: ECO er firma-bredt synlig på tvers av firmaets prosjekter (Proadm-import lager dem firma-globalt). Bruker som sender `projectId` for et prosjekt de ikke er medlem av (men er i samme firma) får fortsatt resultatet. Bevisst — ikke en manglende sjekk
 
 ## Filopplasting
 
@@ -182,14 +183,23 @@ Alle routere som opererer på prosjektdata har `verifiserProsjektmedlem`-sjekk. 
 
 ## Rate limiting
 
-Minnebasert rate limiter i `apps/api/src/utils/rateLimiter.ts`. Automatisk opprydding hvert 5. minutt.
+Minnebasert rate limiter i `apps/api/src/utils/rateLimiter.ts`. Automatisk opprydding hvert 5. minutt. Bruker `hentKlientIp(req)` som prioriterer `cf-connecting-ip`-header (Cloudflare Tunnel sender klient-IP der, ikke i X-Forwarded-For).
 
-| Endepunkt | Grense | Per |
-|-----------|--------|-----|
-| `/upload` | 30/min | IP |
-| `mobilAuth.byttToken` | 10/min | IP |
-| `invitasjon.validerToken` | 20/min | IP |
-| `invitasjon.aksepter` | 10/min | IP |
+| Endepunkt | Grense | Per | Aktivert |
+|-----------|--------|-----|----------|
+| **Alle protectedProcedure-mutations** (default) | 100/min | userId | M1 (2026-05-27) |
+| `organisasjon.inviterBruker` (`inviteProcedure`) | 10/min | userId | M1 (2026-05-27) |
+| `prosjekt.opprett` + `opprettTestprosjekt` + `admin.opprettProsjekt` (`opprettProsjektProcedure`) | 20/min | userId | M1 (2026-05-27) |
+| `/upload` | 30/min | cf-connecting-ip (Cloudflare) | Original |
+| `mobilAuth.byttToken` | 10/min | cf-connecting-ip (Cloudflare) | Original |
+| `invitasjon.validerToken` | 20/min | cf-connecting-ip (Cloudflare) | Original |
+| `invitasjon.aksepter` | 10/min | cf-connecting-ip (Cloudflare) | Original |
+
+**Merknader:**
+- **Queries rate-limites ikke.** Middleware i `protectedProcedure` sjekker `type !== "mutation"` og skipper queries — read-only er trygt og typisk høyfrekvent.
+- Throttle-hendelser logges via `ctx.req.log.info({ bucket, userId, path, retryAfterSeconds }, "rate-limit hit")` for telemetri.
+- `inviteProcedure` og `opprettProsjektProcedure` arver også standard 100/min — strengeste limit vinner i praksis.
+- Begrensning: per-userId only, ikke per-IP. Misbruk fra delt-IP-network (NAT, kontor) er ikke aggregert.
 
 ## Gratis-grenser
 

@@ -153,7 +153,21 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - Push til feature-branch → INGEN auto-deploy
 - Push til `main` → manuell prod-deploy (eksplisitt forespørsel kreves)
 
-**Etter Prisma schema-endring (ufravikelig fra 2026-05-26):** Kjør alltid `pnpm --filter @sitedoc/db exec prisma generate` eksplisitt mellom `prisma migrate deploy` og `pnpm build`. `migrate deploy` regenererer ikke Prisma-klienten automatisk — uten dette steget bruker API-bygget gammel klient og typecheck feiler på nye/endrede felter. Lærdom 2026-05-26: prod-deploy av HMS-PR feilet i build pga manglende generate; PM2 restartet imens med gammel kode mot ny DB-schema. Korrekt sekvens: `git pull → rm -rf apps/web/.next → prisma migrate deploy → prisma generate → pnpm build → pm2 restart`.
+**Etter Prisma schema-endring (ufravikelig fra 2026-05-26):** Kjør alltid `pnpm --filter @sitedoc/db exec prisma generate` eksplisitt mellom `prisma migrate deploy` og `pnpm build`. `migrate deploy` regenererer ikke Prisma-klienten automatisk — uten dette steget bruker API-bygget gammel klient og typecheck feiler på nye/endrede felter. Lærdom 2026-05-26: prod-deploy av HMS-PR feilet i build pga manglende generate; PM2 restartet imens med gammel kode mot ny DB-schema.
+
+**Deploy-sekvens:**
+
+- **Prod (anbefalt — Turbo-cache er typisk ren fordi hver prod-deploy har nye commits):**
+  ```
+  git pull → prisma migrate deploy → prisma generate → pnpm build → pm2 restart
+  ```
+  `.next`-rensing er anbefalt men ikke ufravikelig. Hvis prod noen gang viser «Cannot read properties of undefined (reading 'clientModules')» eller «Could not find a production build», legg inn `rm -rf apps/web/.next && pnpm build --force` mellom migrate og build.
+
+- **Test (ufravikelig — Turbo-cache rammer her gjentatte ganger):**
+  ```
+  git pull → prisma migrate deploy → prisma generate → rm -rf apps/web/.next → pnpm build --force → pm2 restart
+  ```
+  `--force` overstyrer Turbo-cache som ellers cache-hitter på `apps/web#build` selv etter `.next` er slettet. Verifisert tre ganger i mai 2026 etter at `deploy-test-cron.sh` ble forsøkt strammet inn (skriptet er server-side og må fortsatt oppdateres til å bruke `--force`).
 
 - Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 - Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
