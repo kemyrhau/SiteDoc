@@ -6,19 +6,35 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Forrige bunke (M1 global tRPC-rate-limit + trustProxy) DEPLOYET TIL PROD
-> 2026-05-27 (prod-merge `54885eb2`).
-> Arkivert til [historikk-2026-05.md § M1](historikk-2026-05.md).
-> Sikkerhets-audit-fikser (K1+M2+M3+M4+H3+error-håndtering, prod-merge
-> `9ca0257e`) arkivert i samme fil:
-> [§ Sikkerhets-audit-bunke](historikk-2026-05.md).
-> Filter-rensing F1 + Tiltak 1 (2026-05-27, prod-merge `8c256f64`) arkivert
-> i samme fil: [§ Filter-rensing](historikk-2026-05.md).
-> Innsender-tilgang (2026-05-27, prod-merge `b3194f1d`) arkivert i samme fil:
-> [§ Innsender-tilgang](historikk-2026-05.md).
-> HMS-bunken (2026-05-26/27) arkivert i samme fil:
-> [§ HMS åpen-synlighet](historikk-2026-05.md),
-> [§ HMS-prosjektvisning](historikk-2026-05.md),
+### Dagens samlede aktivitet — 2026-05-27 (5 prod-deploys + omfattende sikkerhets-arbeid)
+
+Uvanlig tett deploy-dag. Ingen regresjon observert.
+
+| # | Prod-merge | Tidspunkt | Innhold |
+|---|---|---|---|
+| 1 | `b3194f1d` | morgen | Innsender-tilgang i `verifiserDokumentTilgang` |
+| 2 | `8c256f64` | midt på dagen | Filter-rensing F1 (cancelled i HMS LUKKET) + Tiltak 1 («Alle åpne»-snarvei) |
+| 3 | `9ca0257e` | ettermiddag | Sikkerhets-audit-bunke (K1 dev-login + M2 raw-SQL + M3 sesjon-maxAge 24t + M4 logger-redact + H3 OAuth-linking + error-håndtering) |
+| 4 | `54885eb2` | 16:43 | M1 global tRPC-rate-limit + trustProxy: true + cf-connecting-ip |
+| 5 | (HMS-bunke) | tidligere/samme dag | HMS åpen-synlighet + HMS-prosjektvisning + HMS-modul-seeding |
+
+**Sikkerhets-audit oppsummering (utført 2026-05-27, 14 funn):**
+- ✅ Adressert: K1, M2, M3, M4, H3, M1 (rate-limit), error-håndtering på `/logg-inn`
+- 🔴 Gjenstår i [BACKLOG](BACKLOG.md): H1 (mobil-token-rotasjon), H2 (case-sensitive invitasjon-match)
+- Microsoft OAuth bekreftet aktivert i prod (var antatt kun planlagt) → H3 ble aktiv risiko
+
+**Konsekvenser nå aktive i prod:**
+- Alle web-sesjoner invalidert ved M3-deploy — brukere må logge inn på nytt
+- `OAuthAccountNotLinked` blokkerer cross-provider Google↔Microsoft-linking
+- Alle tRPC-mutations rate-limited: standard 100/min per userId, `inviterBruker` 10/min, `prosjekt.opprett` 20/min
+- `dev-login` fail-secure: krever eksplisitt `NODE_ENV=development` eller `ENABLE_DEV_LOGIN=true`
+
+**Docs-oppdatering (`91578127`):** api.md rate-limit-tabell utvidet med M1-rader. CLAUDE.md deploy-sekvens delt i prod (uten `.next`-rensing, anbefalt) vs test (krever `--force` pga Turbo-cache-bug).
+
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
+> [§ M1](historikk-2026-05.md), [§ Sikkerhets-audit-bunke](historikk-2026-05.md),
+> [§ Filter-rensing](historikk-2026-05.md), [§ Innsender-tilgang](historikk-2026-05.md),
+> [§ HMS åpen-synlighet](historikk-2026-05.md), [§ HMS-prosjektvisning](historikk-2026-05.md),
 > [§ HMS-modul-seeding](historikk-2026-05.md).
 
 ### Pågående: TestFlight build #23 enhet-verifisering
