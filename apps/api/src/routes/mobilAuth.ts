@@ -129,8 +129,10 @@ export const mobilAuthRouter = router({
         });
       }
 
-      // 4. Opprett sesjon (30 dager)
+      // 4. Opprett sesjon (30 dager). createdAt + lastRotatedAt får default
+      // NOW() fra schema, men settes eksplisitt for klarhet og audit-spor.
       const sessionToken = randomBytes(32).toString("hex");
+      const naa = new Date();
       const expires = new Date();
       expires.setDate(expires.getDate() + 30);
 
@@ -139,6 +141,8 @@ export const mobilAuthRouter = router({
           sessionToken,
           userId: bruker.id,
           expires,
+          createdAt: naa,
+          lastRotatedAt: naa,
         },
       });
 
@@ -169,7 +173,11 @@ export const mobilAuthRouter = router({
       nyUtloper.setDate(nyUtloper.getDate() + 30);
       await ctx.prisma.session.updateMany({
         where: { sessionToken: gammelToken, userId: ctx.userId },
-        data: { sessionToken: nyttToken, expires: nyUtloper },
+        data: {
+          sessionToken: nyttToken,
+          expires: nyUtloper,
+          lastRotatedAt: new Date(),
+        },
       });
     }
 
