@@ -4,6 +4,48 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Returnert→pending-reset ved re-send + fr.json pause-drift — DEPLOYET TIL PROD 2026-05-27 (prod-merge `baa462e1`, impl `da0b2aad`)
+
+To uavhengige fixes bundlet i én bunke.
+
+### Returnert→pending-reset ved re-send
+
+**Bug:** `send`-mutationen i `apps/api/src/routes/timer/dagsseddel.ts:931-957` aksepterte både `"draft"` og `"returned"` som inngangs-status, men oppdaterte kun `sheet.status: "sent"` — rader med `attestertStatus: "returnert"` (satt av leder-returnering) forble returnert etter re-send. Det blokkerte attester-mutationen som krever pending («Kun rader med status «pending» kan attesteres», linje 1538).
+
+Returner-kommentaren linje 1729-1731 sa eksplisitt: «Pending-rader på samme sedel forblir pending — håndteres ved re-attestering etter at arbeider sender på nytt.» — design-intensjonen var der, men implementasjonen manglet.
+
+**Fix:** Når `sheet.status === "returned"` ved send, kjør `$transaction` som setter `attestertStatus = "pending"` + nullstiller `attestertAvUserId` + `attestertVed` på alle tre tabeller (sheet_timer, sheet_tillegg, sheet_machines). Audit-spor flyttes til Activity-tabellen (T7-2b3 i BACKLOG). draft → sent-flyten urørt (rader er pending fra opprettelse).
+
+**Backfill-vurdering:** SELECT mot prod-DB:
+```sql
+SELECT count(*) FROM timer.daily_sheets ds WHERE ds.status = 'sent'
+AND (EXISTS (SELECT 1 FROM timer.sheet_timer WHERE sheet_id = ds.id AND attestert_status = 'returnert')
+  OR EXISTS (SELECT 1 FROM timer.sheet_tillegg WHERE sheet_id = ds.id AND attestert_status = 'returnert')
+  OR EXISTS (SELECT 1 FROM timer.sheet_machines WHERE sheet_id = ds.id AND attestert_status = 'returnert'));
+```
+Resultat: 0 rader. Ingen migrasjon nødvendig — kode-endring alene.
+
+### fr.json pause-drift
+
+Auto-oversettelses-skriptet (`packages/shared/src/i18n/generate.ts`) hadde produsert «saut/casser/rupture» for engelsk «break» — kontekst-tap (Google Translate forveksler «break» som pause/avbrudd med «break» som hopp/knekke). Fire nøkler rettet i `packages/shared/src/i18n/fr.json`:
+
+| Nøkkel | Før | Etter |
+|---|---|---|
+| `timer.gruppe.maskinAvArbeid` | Klønete ord-for-ord | «Heures machine {{maskin}}h sur {{arbeid}}h de travail» |
+| `timer.rediger.pause.label` | «Casser» | «Pause» |
+| `timer.rediger.pause.toggleHint` | «un saut» | «une pause» |
+| `timer.rediger.pause.intervall` | «Fenêtre de rupture :» | «Fenêtre de pause :» |
+
+Trivielt manuelt fix — auto-oversettelse-skript ikke kjørt på nytt (de tre andre språkene har eget kontekst, ikke samme drift).
+
+### Verifikasjon
+
+API typecheck 0 nye feil. Ingen schema-endring, ingen mobil. Prod-deploy 2026-05-27 ~20:25 UTC. `sitedoc.no/logg-inn` + `api.sitedoc.no/health` HTTP 200.
+
+Lukker BACKLOG-entries: «Returnert→pending-reset ved `sendTilAttestering`» og «i18n: `pause.toggleHint` (fr) — «saut» i stedet for «pause»».
+
+---
+
 ## lagContextStamme-refaktor + B5 maskin-av-arbeid i SeddelKort — DEPLOYET TIL PROD 2026-05-27 (prod-merger `77e6553d` + `f7a836f8`)
 
 To uavhengige UI-/refaktor-PRer deployet samme kveld etter H1-bunken.

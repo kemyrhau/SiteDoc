@@ -98,6 +98,20 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm build --filter @site
 - **Felle:** `cloudflared tunnel route dns <id> <host>` sier «already configured to route to your tunnel» selv om Cloudflare-edge ikke ruterer dit. Meldingen sjekker kun CNAME-recorden, ikke remote tunnel-config. Stol ikke på den.
 - **Diagnose-rekkefølge ved 404:** full prosedyre i memory `reference_sitedoc_infrastruktur.md`. Kort: `ps aux | grep cloudflared` (hvilken config), `grep <host> /etc/cloudflared/config.yml` (routet?), Cloudflare DNS (CNAME finnes?), `cloudflared tunnel info <id>` (connector oppe?).
 
+### Klient-IP gjennom Cloudflare Tunnel (M1-lærdom 2026-05-27)
+
+Cloudflare Tunnel sender IKKE klient-IP i `X-Forwarded-For`. I stedet brukes `Cf-Connecting-Ip`-headeren (blokkert mot spoofing av Cloudflare-edge — verifisert med HTTP 403 ved override-forsøk).
+
+**WSL2 Mirror Mode-konsekvens:** cloudflared kjører på Windows-host og treffer Fastify via WSL2 Mirror Mode — IKKE loopback. Det betyr at `req.ip` viser Windows-host-IP (`193.90.181.205`, server-WAN-IP), ikke faktisk klient. Eksplisitt `trustProxy: "127.0.0.1"`-allowlist matcher ikke; vi trenger `trustProxy: true`.
+
+**Trygt fordi:** Fastify eksponeres aldri direkte — alltid bak cloudflared. Ved fremtidig direkte-eksponering (Tailscale, midlertidig debug) MÅ `trustProxy` strammes igjen.
+
+**Bruksmønster i kode:**
+- `apps/api/src/utils/rateLimiter.ts:hentKlientIp(req)` prioriterer `cf-connecting-ip`, faller tilbake til `req.ip`. Brukes av rate-limit + logger-serializer.
+- `apps/api/src/server.ts`: `trustProxy: true` + custom request-serializer som leser samme header.
+
+Uten dette ville rate-limit per IP være effektivt globalt (alle requests ser ut til å komme fra server-WAN-IP).
+
 ## Auth-konfigurasjon
 
 - **Auth.js:** `trustHost: true` (bak Cloudflare). Klient-side `signIn()` (IKKE server actions — MissingCSRF bak tunnel). `allowDangerousEmailAccountLinking: true` (påkrevd for invitasjonsflyt — godkjent risiko)

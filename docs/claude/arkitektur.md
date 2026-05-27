@@ -169,6 +169,19 @@ Maler har `domain` (`"bygg"` | `"hms"` | `"kvalitet"`, default `"bygg"`). Gruppe
 
 **Global tillatelsesstyring:** Tillatelser per gruppe-mal er globale — kun SiteDoc-admin kan endre. Prosjektadmin kan kun tilordne brukere til grupper.
 
+## tRPC-Context — `lagContextStamme`-mønsteret
+
+tRPC-Context (`apps/api/src/trpc/context.ts`) bygges på tvers av to runtimes som har ulike auth-flyter:
+
+- **Fastify** (`apps/api`): direkte DB-lookup på `sessionToken`, støtter både cookie (web-trafikk via Cloudflare Tunnel) og `Authorization: Bearer` (mobil-trafikk)
+- **Next.js** (`apps/web/src/app/api/trpc/[...trpc]/route.ts`): bruker `auth()` fra next-auth + separat impersonering-DB-lookup. Kun cookie-flyt.
+
+Begge bygger samme Context-objekt med identiske felter. For å hindre type-drift (verifisert som reell hendelse 2026-05-27 ved H1-deploy) brukes en delt `lagContextStamme(input: ContextStammeInput)`-helper som bygger felt-stammen — alle Context-felter unntatt `req`/`res` som varierer mellom runtimes. Hver side spreader inn resultatet og legger på runtime-spesifikk `req`/`res`.
+
+**Regel:** Når Context utvides med et nytt felt, må feltet legges til på enten `ContextStamme`-return-type (felt som ikke trenger auth-utleding) eller `ContextStammeInput` (felt som trenger runtime-spesifikk utleding). TypeScript-kompilatoren tvinger oppdatering av begge kallsteder via input-typen — drift kan ikke smuglses inn ved at kun én side oppdateres.
+
+Auth-utledning er bevisst forskjellig per runtime (Auth.js vs DB-lookup). Helperen håndterer kun felt-stammen, ikke auth-flyt. Se [historikk-2026-05.md § lagContextStamme + B5](historikk-2026-05.md) for full bakgrunn.
+
 ## Statusoverganger
 
 Valideres via `isValidStatusTransition()` fra `@sitedoc/shared`:
