@@ -344,21 +344,11 @@ Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1
 - Multi-rad-overlap ikke server-validert
 - utleie_enhet-prinsipp ikke håndhevet i UI ennå
 
-### Stille overskriving av manuelt-justert rad.timer (oppdaget 2026-05-18, foreslås som T7-5h)
+### T7-5h — Stille overskriving av manuelt-justert rad.timer — IMPLEMENTERT PÅ DEVELOP 2026-05-28
 
-`beregnTimerMedPause` i `RedigerRadModal.tsx` overskriver `rad.timer` fra `rattid − pauseMin/60` ved hver pause- eller fra/til-endring. Hvis arbeidstaker har gjort manuell justering (f.eks. registrert 7.0t på en 8t-periode for å trekke 60 min lang lunsj som ikke er registrert som pause-vindu), forsvinner den justeringen uten varsel ved første pause-toggle eller fra/til-edit.
+✅ Variant A' (smart init + opt-in recompute) implementert i `RedigerRadModal.tsx`. Init-deteksjon flagger rader hvor lagret timer avviker > 0.01t fra `beregnTimerMedPause(...)`-resultatet. `settPause` og fra/til-onChange hopper over flaggede rader. ↻-knapp tilbys i sekundær-rad under hovedraden — bruker velger selv om hen vil bytte til default. Direkte redigering av timer-feltet markerer raden som manuelt justert. 3 nye i18n-nøkler auto-oversatt til 13 språk.
 
-**Eksempel:**
-- Lagret: rad 07:00–15:00, timer=7.00 (manuelt trukket 60 min)
-- Bruker klikker pause-checkbox → default 30 min vindu → recompute: 8.0 − 0.5 = **7.5**
-- Manuelt-justerte 7.00 erstattes med 7.5 uten advarsel
-
-**Fix-skisser:**
-- (A) Init-deteksjon: hvis lagret `rad.timer ≠ rattid − sheet.pauseMin/60`, anta manuell justering — krev eksplisitt brukerbekreftelse før recompute.
-- (B) «Lås timer»-toggle på rad: pause-endring overskriver kun ulåste rader.
-- (C) Toast-varsel når recompute endrer eksisterende timer-verdi.
-
-**Foreslås som T7-5h.** Ikke blokker for prod-deploy av pause-modell-bunken — eksisterende sedler beholder verdien til bruker aktivt endrer pause eller fra/til.
+Detaljer i [STATUS-AKTUELT.md § T7-5h](STATUS-AKTUELT.md). Scope: kun web. Mobil-komponenter har separat recompute-logikk og er ikke berørt — egen sub-PR ved behov.
 
 ### Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)
 

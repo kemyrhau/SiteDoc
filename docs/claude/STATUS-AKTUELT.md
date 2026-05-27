@@ -6,6 +6,34 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### PR T7-5h — Stille overskriving av manuelt-justert rad.timer — IMPLEMENTERT PÅ DEVELOP 2026-05-28
+
+Variant A' (smart init + opt-in recompute) — fanger problemet før overskriving uten modal-forstyrrelse.
+
+**Endringer i `apps/web/src/components/attestering/RedigerRadModal.tsx`:**
+- Nytt state `manueltJustert: Set<string>` (rad-keys).
+- Init-deteksjon i `useEffect`: for hver rad i `initTimer`, sammenlign lagret `timer` mot `beregnTimerMedPause(...)` ved `sheet.pauseFra/pauseTil`. Avvik > 0.01t flagger raden.
+- `settPause` hopper over rader i `manueltJustert`-settet.
+- `KompaktTimerRad`-onChange hopper over auto-recompute ved fra/til-endring hvis flagget. Direkte redigering av timer-feltet markerer raden som manuelt justert.
+- Ny `onRecompute`-callback: setter timer til beregnet verdi + fjerner fra settet. Også koblet til onSlett som rydder settet.
+- ↻-knapp i sekundær-rad under hovedraden (samme stil-mønster som pause-input-raden, amber-farget). Synlig kun når raden er manuelt justert OG default-beregningen avviker > 0.01t fra lagret verdi.
+
+**i18n:** 3 nye nøkler — `timer.rediger.manuellJustering`, `timer.rediger.brukDefault`, `timer.rediger.brukDefaultHint`. Auto-oversatt til 13 språk via `generate.ts` (2404 → 2407 nøkler).
+
+**Scope:** Kun web. Mobil-komponenter (`TimerRadModal.tsx`) har separat recompute-logikk og er ikke berørt — egen sub-PR ved behov.
+
+**Verifisert:** `@sitedoc/web` typecheck 1 = 1 baseline (vitest). 0 nye feil.
+
+**Reload-metode:** TypeScript-only + i18n. Full reload + cache-cleaning ved deploy. Ingen schema-endring, ingen server-reload.
+
+**Bug-scenario som nå er dekket:**
+- Lagret: rad 07:00–15:00, timer=7.00 (manuelt trukket 60 min)
+- Bruker klikker pause-checkbox → pause-vindu opprettes
+- Tidligere: timer-verdien ble stille overskrevet til 7.5
+- Nå: timer beholder 7.00; ↻-knapp vises under raden med tooltip «Bruk 7.50t»; bruker velger selv om hen vil bytte til default
+
+Klar for review — ikke merge før Kenneth verifiserer på enhet/nettleser at ↻-knappen vises riktig og at auto-overskriving er stoppet.
+
 ### Dagens samlede aktivitet — 2026-05-27 (11 prod-deploys: sikkerhets-audit komplett + UX + bugfix + docs-konsistens)
 
 Uvanlig tett deploy-dag. Ingen funksjonell regresjon observert. Hele sikkerhets-audit-bunken (14 funn) lukket. Etterfulgt av lagContextStamme-refaktor, B5 UX-forbedring, returnert→pending-reset bugfix, i18n pause-drift på 4 språk, og 3 docs-konsistens-oppdateringer.
