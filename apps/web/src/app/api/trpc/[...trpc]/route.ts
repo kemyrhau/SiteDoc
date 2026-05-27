@@ -69,6 +69,11 @@ async function handler(req: Request) {
       actualUserId,
       imperseringAktiv,
       sessionToken,
+      // Web-flyten er alltid cookie-basert (Auth.js eier rotasjon).
+      // mobilTokenRotasjon-middleware sjekker tokenKilde === "bearer"
+      // og hopper over web — feltene er bare med for type-kompatibilitet.
+      tokenKilde: (sessionToken ? "cookie" : null) as "bearer" | "cookie" | null,
+      nyttSessionTokenForRespons: { value: null as string | null },
     }),
   });
 }
