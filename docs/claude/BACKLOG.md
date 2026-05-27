@@ -38,22 +38,11 @@ Alle 14 funn fra sikkerhets-audit 2026-05-27 er adressert i prod. Se [historikk-
 - Permanent `deploy-test-cron.sh` → `pnpm build --force`-fiks. Server-side skript, ikke i repo. Rammet 3+ ganger i mai 2026, krever manuell `pnpm build --force` per deploy. Bør prioriteres for å redusere friksjon.
 - **User.email-normalisering** (oppstått fra H2 2026-05-27) — PrismaAdapter + Auth.js OAuth-flyt skriver `User.email` med casing fra provider. To brukere med samme lowercase-e-post men ulik case kan eksistere som separate rader pga `@unique` er case-sensitive. Ikke aktuell utnytting kjent, men inkonsekvent med invitasjons-flyten som nå er lowercase. Bredere refaktor som krever migrering av `User.email` + adapter-override + verifisering av Google/Microsoft OAuth-flyt.
 
-### Refaktor: web-tRPC-route lager egen Context (oppdaget 2026-05-27 under H1-deploy)
+### Refaktor: web-tRPC-route — DEPLOYET TIL PROD 2026-05-27 (prod-merge `77e6553d`)
 
-**Sted:** `apps/web/src/app/api/trpc/[...trpc]/route.ts:61-72`
+✅ Implementert via `lagContextStamme`-helper (Alternativ 1). Arkivert til [historikk-2026-05.md § lagContextStamme + B5](historikk-2026-05.md).
 
-Web-routen kaller `fetchRequestHandler` med en inline `createContext` som bygger Context-objektet manuelt — kopierer feltene fra `apps/api/src/trpc/context.ts:createContext` men er ikke synkronisert. Når Context-typen utvides i `apps/api`, kompilerer `apps/api` fortsatt, men `apps/web#build` feiler med «Type ... is not assignable to ...».
-
-**Konsekvens 2026-05-27 (H1-deploy):** Migrasjon kjørte, PM2 restartet sitedoc-web på gammel kode i ~25 min mens DB var på nytt schema. Risiko-vurdering var lav i dette tilfellet (defaults dekket gammel kode), men mønstret er en tikkende bombe.
-
-**Fix-alternativer:**
-1. **Eksporter delt helper fra `apps/api`** — flytt `createContext` til en eksport som tar `{ req, res, ekstraFelter }`-overload slik at web-routen kan kalle den med Auth.js-session som ekstra-felt. Web og api deler typer og oppførsel.
-2. **Behold to implementasjoner, men typecheck i CI** — kjør `pnpm --filter web exec tsc --noEmit` som del av `pnpm build` med fail-fast slik at deploy-bash kan se feilen FØR PM2 restart.
-3. **Web bruker `apps/api/src/trpc/context.ts` direkte** — krever at api-pakken eksponerer `createContext` (i dag intern). Mer kompliserer Next.js import-grafen.
-
-**Anbefaling:** Alternativ 1. Estimat ~1-2t.
-
-**Tilleggsforslag:** Endre prod-deploy-bash til å feile hard på `pnpm build` exit ≠ 0, og IKKE kjøre `pm2 restart` hvis build feilet. I dag restartet PM2 selv om Turbo rapporterte exit 1. Server-side skript-endring.
+**Tilleggsforslag fortsatt åpent:** Server-side `deploy-test-cron.sh` skal feile hard på `pnpm build` exit ≠ 0 og IKKE kjøre `pm2 restart`. CLAUDE.md har regelen (commit `95ff4a07`), men cron-skriptet er server-side og ikke i repo. Krever manuell oppdatering av skriptet på `sitedoc`-serveren.
 
 ### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 
@@ -429,11 +418,9 @@ Sjeldent i praksis (typisk én sammenhengende rad per dag), ikke server-blokk. V
 
 **Foreslås som styrende prinsipp i fase-0-beslutninger.md.**
 
-### B5 — Sum-indikator (maskin-av-arbeid) mangler i SeddelKort (oppdaget 2026-05-17)
+### B5 — Sum-indikator (maskin-av-arbeid) i SeddelKort — DEPLOYET TIL PROD 2026-05-27 (prod-merge `f7a836f8`)
 
-`EcoBucketAttest` har grønn/rød validerings-rad («Maskintimer X av arbeidstimer Y») i `attestering-buckets.tsx:634-648`. Brukes kun i detalj-siden via ProsjektSectionAttest, IKKE i listens SeddelKort. Maskin > arbeid synlig i modal men ikke i listen.
-
-**Fix-skisse:** Legg til samme validerings-logikk i SeddelKort's sum-rad eller som egen rad nederst.
+✅ Implementert. Grønn/rød badge med samme invariant som EcoBucketAttest (inkl. pause-buffer per T.7 2026-05-18). Auto-expand-trigger utvidet med `maskinOver`. Arkivert til [historikk-2026-05.md § lagContextStamme + B5](historikk-2026-05.md).
 
 ### Detalj-siden vs modal — slankhetsvurdering (vedtatt 2026-05-17)
 

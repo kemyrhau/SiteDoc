@@ -4,6 +4,48 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## lagContextStamme-refaktor + B5 maskin-av-arbeid i SeddelKort — DEPLOYET TIL PROD 2026-05-27 (prod-merger `77e6553d` + `f7a836f8`)
+
+To uavhengige UI-/refaktor-PRer deployet samme kveld etter H1-bunken.
+
+### lagContextStamme-refaktor (prod-merge `77e6553d`, commit `ecdc60a4`)
+
+Eliminerer kilden til H1-deploy-hendelsen tidligere samme dag (`29bdded8` web-bygg-feil pga manglende Context-felter). `apps/web/src/app/api/trpc/[...trpc]/route.ts` lagde sin egen Context-instans uten å arve felter fra `apps/api/src/trpc/context.ts:createContext`. Type-skift fanges ikke i API-typecheck og bryter web-bygg ved deploy.
+
+**Løsning:** Ny eksportert `lagContextStamme(input: ContextStammeInput)` i `apps/api/src/trpc/context.ts` bygger felt-stammen (alle Context-felter unntatt `req`/`res` som varierer mellom runtimes). Både Fastify-`createContext` og web-route spreader inn resultatet + legger på runtime-spesifikk `req`/`res`.
+
+Type-skift på Context krever nå endring av enten `ContextStamme`-return-type eller `ContextStammeInput` — TypeScript-kompilatoren tvinger oppdatering av begge kallsteder. H1-hendelsen ville vært fanget av typecheck.
+
+**Auth-utledning forblir bevisst forskjellig:**
+- API (Fastify): direkte DB-lookup på sessionToken, støtter både cookie og Bearer
+- Web (Next.js): `auth()` fra next-auth + separat impersonering-DB-lookup. Kun cookie-flyt.
+
+Helperen håndterer kun felt-stammen, ikke auth-flyt.
+
+**Cleanup:** Web-routen fjerner ubrukte `prismaMaskin`/`prismaTimer`/`prismaVarelager`-importer (kommer nå fra helper). `prisma`-import beholdt for impersonering-lookuppen.
+
+Ren type-refaktor. Ingen runtime-endring, ingen schema. Typecheck 0 nye feil i begge apper.
+
+### B5 — maskin-av-arbeid-validering i SeddelKort (prod-merge `f7a836f8`, commit `d6f3d914`)
+
+Maskin > arbeidstimer-validering var kun synlig i detalj-siden via `EcoBucketAttest` (`attestering-buckets.tsx:642-656`). I attestering-listen måtte prosjektleder åpne hver sedel for å sjekke om maskinbruken passet arbeidstiden.
+
+**Endringer:**
+- `AttesteringRad` (`apps/web/src/app/dashbord/firma/timer/attestering/page.tsx`) og `SeddelKortData` (`apps/web/src/components/attestering/SeddelKort.tsx`) utvidet med `pauseMin: number`. Server returnerer feltet allerede via `...s`-spread i `hentTilAttesteringFirma` — eksplisitt typedef for kompilator-fanging.
+- `SeddelKort` beregner `sumMaskin = sedel.maskiner.reduce(...)`, `pauseTimer = sedel.pauseMin / 60`, `maskinOk = sumMaskin <= sedel.totaltimer + pauseTimer + 0.001`, `maskinOver = sumMaskin > 0 && !maskinOk`. Samme invariant som EcoBucketAttest (T.7 2026-05-18 — døgn-utleide maskiner går mens operatør pauser).
+- Auto-expand-trigger utvidet: `oransje || harMertid || maskinOver`. Leder ser detaljene umiddelbart ved invariant-brudd. State er ikke låst — bruker kan kollapse manuelt.
+- Ny validerings-rad i tabellen under eksisterende sum-rad. Grønn/rød badge gjenbruker i18n-nøkkel `timer.gruppe.maskinAvArbeid` — ingen nye språkfiler.
+
+**Bevisst utelatt:** Indikator i kollapset header. Auto-expand er primær-signal. Vurderes som oppfølger hvis kundefeedback tyder på behov.
+
+Ingen schema-endring, ingen mobil. Typecheck 0 nye feil.
+
+### Deploy-erfaring (positiv kontrast til tidligere H1-hendelse)
+
+Begge bunker deployet med ny `&&`-kjede-bash uten `| tail -5`-pipe (CLAUDE.md-regel `95ff4a07`). Build kjørte rent, PM2 restartet kun etter at hele kjeden lykkes. Ingen fall-tilbake til gammel kode mot nytt schema.
+
+---
+
 ## H1 — mobil token-rotasjon ved bruk — DEPLOYET TIL PROD 2026-05-27 (prod-merge `29bdded8` + web-fix `43460d80`)
 
 Siste sikkerhets-audit-funn fra 2026-05-27. Mobil session-token roteres nå ved aktiv bruk hvis token er eldre enn 7 dager, ikke kun ved app-oppstart (`mobilAuth.verifiser`). Reduserer token-eksponering ved lekkasje fra 30 dager worst-case til 7 dager.
