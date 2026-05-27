@@ -210,14 +210,37 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
   );
   const [feil, setFeil] = useState<string | null>(null);
 
+  // T7-5h: rader hvor lagret timer-verdi avviker fra (rattid − pauseMin/60)
+  // antas å være manuelt justert (skjult lunsj-fradrag, halvtid o.l.).
+  // Auto-recompute ved pause-toggle eller fra/til-endring hopper over disse
+  // for å unngå at justeringen overskrives stille. ↻-knappen i raden lar
+  // bruker eksplisitt oppgradere til default-beregningen.
+  const [manueltJustert, setManueltJustert] = useState<Set<string>>(new Set());
+
   // Synkroniser ved første data-load. Senere endringer holdes lokalt.
   const [initialisert, setInitialisert] = useState(false);
   useEffect(() => {
     if (!initialisert && sheet) {
+      const initialPauseFra = sheet.pauseFra ?? null;
+      const initialPauseTil = sheet.pauseTil ?? null;
+      // T7-5h: init-deteksjon av manuelt justerte rader.
+      const justerte = new Set<string>();
+      for (const r of initTimer) {
+        const forventet = beregnTimerMedPause(
+          r.fraTid,
+          r.tilTid,
+          initialPauseFra,
+          initialPauseTil,
+        );
+        if (forventet !== null && Math.abs(r.timer - forventet) > 0.01) {
+          justerte.add(r.key);
+        }
+      }
+      setManueltJustert(justerte);
       setEditTimer(initTimer);
       setEditMaskin(initMaskin);
-      setEditPauseFra(sheet.pauseFra ?? null);
-      setEditPauseTil(sheet.pauseTil ?? null);
+      setEditPauseFra(initialPauseFra);
+      setEditPauseTil(initialPauseTil);
       setInitialisert(true);
     }
   }, [sheet, initialisert, initTimer, initMaskin]);
@@ -245,11 +268,13 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
   ]);
 
   // Pause-endring: oppdater state + recompute timer for alle overlappende rader.
+  // T7-5h: rader merket som manuelt justert beholdes som de er.
   function settPause(fra: string | null, til: string | null) {
     setEditPauseFra(fra);
     setEditPauseTil(til);
     setEditTimer((rader) =>
       rader.map((r) => {
+        if (manueltJustert.has(r.key)) return r;
         const nyTimer = beregnTimerMedPause(r.fraTid, r.tilTid, fra, til);
         return nyTimer !== null ? { ...r, timer: nyTimer } : r;
       }),
@@ -440,13 +465,18 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                         pauseFra={editPauseFra}
                         pauseTil={editPauseTil}
                         onPauseChange={settPause}
-                        onChange={(felt) =>
+                        erManueltJustert={manueltJustert.has(rad.key)}
+                        onChange={(felt) => {
                           setEditTimer((rader) =>
                             rader.map((r) => {
                               if (r.key !== rad.key) return r;
                               const nyRad = { ...r, ...felt };
-                              // Hvis fra/til endret: recompute timer m/ pause.
-                              if (felt.fraTid !== undefined || felt.tilTid !== undefined) {
+                              // T7-5h: hopp over auto-recompute hvis raden er manuelt justert.
+                              if (
+                                (felt.fraTid !== undefined ||
+                                  felt.tilTid !== undefined) &&
+                                !manueltJustert.has(r.key)
+                              ) {
                                 const nyTimer = beregnTimerMedPause(
                                   nyRad.fraTid,
                                   nyRad.tilTid,
@@ -457,13 +487,45 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                               }
                               return nyRad;
                             }),
-                          )
-                        }
-                        onSlett={() =>
+                          );
+                          // T7-5h: direkte redigering av timer-feltet markerer raden som manuelt justert.
+                          if (felt.timer !== undefined) {
+                            setManueltJustert((prev) => {
+                              const ny = new Set(prev);
+                              ny.add(rad.key);
+                              return ny;
+                            });
+                          }
+                        }}
+                        onRecompute={() => {
+                          const nyTimer = beregnTimerMedPause(
+                            rad.fraTid,
+                            rad.tilTid,
+                            editPauseFra,
+                            editPauseTil,
+                          );
+                          if (nyTimer === null) return;
+                          setEditTimer((rader) =>
+                            rader.map((r) =>
+                              r.key === rad.key ? { ...r, timer: nyTimer } : r,
+                            ),
+                          );
+                          setManueltJustert((prev) => {
+                            const ny = new Set(prev);
+                            ny.delete(rad.key);
+                            return ny;
+                          });
+                        }}
+                        onSlett={() => {
                           setEditTimer((rader) =>
                             rader.filter((r) => r.key !== rad.key),
-                          )
-                        }
+                          );
+                          setManueltJustert((prev) => {
+                            const ny = new Set(prev);
+                            ny.delete(rad.key);
+                            return ny;
+                          });
+                        }}
                       />
                     ))}
                   </div>
@@ -538,7 +600,9 @@ function KompaktTimerRad({
   pauseFra,
   pauseTil,
   onPauseChange,
+  erManueltJustert,
   onChange,
+  onRecompute,
   onSlett,
 }: {
   rad: EditTimer;
@@ -549,7 +613,9 @@ function KompaktTimerRad({
   pauseFra: string | null;
   pauseTil: string | null;
   onPauseChange: (fra: string | null, til: string | null) => void;
+  erManueltJustert: boolean;
   onChange: (felt: Partial<EditTimer>) => void;
+  onRecompute: () => void;
   onSlett: () => void;
 }) {
   const { t } = useTranslation();
@@ -559,6 +625,18 @@ function KompaktTimerRad({
   }, [rad.timer]);
 
   const harPause = radOverlapperPause(rad.fraTid, rad.tilTid, pauseFra, pauseTil);
+
+  // T7-5h: når raden er manuelt justert, sammenlign default-beregningen mot
+  // lagret verdi. Vis ↻-knapp kun hvis verdiene avviker — ellers er
+  // recompute en no-op for brukeren.
+  const forventetTimer = erManueltJustert
+    ? beregnTimerMedPause(rad.fraTid, rad.tilTid, pauseFra, pauseTil)
+    : null;
+  const visRecompute =
+    erManueltJustert &&
+    forventetTimer !== null &&
+    Math.abs(forventetTimer - rad.timer) > 0.01;
+
   // Toggle: hvis ingen pause-vindu finnes, klikk på Pause oppretter default 30 min
   // i midten av rad-vinduet. Hvis pause finnes, klikk fjerner den.
   function togglePause() {
@@ -709,6 +787,22 @@ function KompaktTimerRad({
           <span className="font-mono text-gray-500">
             ({pauseMinutter(pauseFra, pauseTil)} min)
           </span>
+        </div>
+      )}
+      {/* T7-5h: manuell justering oppdaget — tilby ikke-destruktiv recompute. */}
+      {visRecompute && forventetTimer !== null && (
+        <div className="ml-4 flex items-center gap-2 text-[11px] text-amber-700">
+          <span>{t("timer.rediger.manuellJustering")}</span>
+          <button
+            type="button"
+            onClick={onRecompute}
+            className="rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 hover:bg-amber-100"
+            title={t("timer.rediger.brukDefaultHint", {
+              timer: forventetTimer.toFixed(2),
+            })}
+          >
+            ↻ {t("timer.rediger.brukDefault", { timer: forventetTimer.toFixed(2) })}
+          </button>
         </div>
       )}
     </div>
