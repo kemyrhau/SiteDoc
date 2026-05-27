@@ -4,6 +4,69 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## M1 — global tRPC-rate-limit + Cloudflare klient-IP — DEPLOYET TIL PROD 2026-05-27 (prod-merge `54885eb2`)
+
+Sikkerhets-audit M1-funn. Implementert i fire trinn over tre commits etter at audit-bunken var deployet til prod.
+
+### Trinn 0 — trustProxy + custom request-serializer (commit `e480b48f` → justering `251d38ad`)
+
+Fastify hadde ingen `trustProxy`-config — alle prod-klienter så ut som `127.0.0.1` fordi cloudflared proxy-er til Fastify lokalt. Forutsetning for at rate-limit per IP gir mening.
+
+**Førstegangs forsøk (`e480b48f`):** `trustProxy: "127.0.0.1"`. Verifisering på test viste at `req.ip` fortsatt var `193.90.181.205` (server-WAN-IP). Rotårsak: cloudflared kjører på Windows-host og treffer Fastify via WSL2 Mirror Mode, så proxy-IP er Windows-host-IP, ikke loopback. Eksplisitt allowlist matchet ikke.
+
+**Korrigering (`251d38ad`):** `trustProxy: true`. Trygt fordi Fastify aldri eksponeres direkte — alltid bak cloudflared. Verifisert at curl med `X-Forwarded-For: 9.9.9.9` gir `remoteAddress: 9.9.9.9` i logger.
+
+**Custom request-serializer:** Logger nå `req.ip` som `remoteAddress` i stedet for TCP-IP. Foreløpig forutsetning for å kunne se klient-IP i logger.
+
+### Trinn 1 — `rateLimiter.ts` utvidet (commit `7a9f172d`)
+
+**Funn:** Selv med `trustProxy: true` viste vanlig prod-trafikk fortsatt `remoteAddress: 193.90.181.205`. Cloudflare Tunnel sender ikke X-Forwarded-For med klient-IP — den bruker `Cf-Connecting-Ip`-header i stedet. Bekreftet med HTTP 403 ved spoofing-forsøk (Cloudflare blokkerer override av sin egen header).
+
+**Endringer:**
+- Ny `hentKlientIp(req): string` — prioriterer `cf-connecting-ip`, fallback til `req.ip`, siste fallback `"unknown"`.
+- Ny `sjekkRateLimitDetalj(...): { ok, retryAfterSeconds }` for å støtte Retry-After-info.
+- `sjekkRateLimit` beholdt som thin wrapper for bakover-kompat (4 eksisterende kallsteder).
+- 4 eksisterende kallsteder (`mobilAuth.byttToken`, `invitasjon.validerToken`, `invitasjon.aksepter`, `/upload`) oppdatert til `hentKlientIp(ctx.req)`. Uten dette ville deres rate-limit fortsatt være effektivt globalt.
+
+### Trinn 2 — tRPC-middleware (Variant B — type-aware i `protectedProcedure`)
+
+`apps/api/src/trpc/trpc.ts` utvidet:
+- `lagRateLimitMiddleware(bucket, max, windowMs)` — felles helper. Skipper queries via `type !== "mutation"`-sjekk.
+- `standardRateLimit` (100/min per userId) lagt inn i `protectedProcedure` direkte via `.use(...)`. Alle 100+ mutations får automatisk beskyttelse uten kallsted-endringer.
+- `inviteProcedure` (10/min per userId) — eksport for invite-mutations.
+- `opprettProsjektProcedure` (20/min per userId) — eksport for prosjekt-opprettelse.
+- Throttle-hendelser logges som strukturert pino-JSON via `ctx.req.log.info({ bucket, userId, path, retryAfterSeconds }, "rate-limit hit")`.
+
+**Variant-valg:** Type-aware middleware i `protectedProcedure` selv (Variant B) i stedet for eksplisitt `rateLimitProtectedProcedure`-wrapper på 100+ kallsteder (Variant A). Mindre overflate, ingen rull-ut, færre måter ting kan glippe.
+
+### Trinn 3 — sensitive mutations bytter prosedyre
+
+- `organisasjon.inviterBruker` → `inviteProcedure`
+- `prosjekt.opprett` + `prosjekt.opprettTestprosjekt` → `opprettProsjektProcedure`
+- `admin.opprettProsjekt` → `opprettProsjektProcedure`
+
+### Trinn 4 — telemetri
+
+Integrert i middleware. Throttle-hendelser logges som strukturert info-log med `bucket`, `userId`, `path`, `retryAfterSeconds`.
+
+### Verifisering
+
+- `@sitedoc/api` typecheck 0 = 0.
+- `apps/web` typecheck 1 = 1 baseline (vitest).
+- Prod: `sitedoc.no` HTTP/2 200, `api.sitedoc.no/health` HTTP/2 200 etter deploy 16:43 UTC.
+
+### Kjente begrensninger
+
+- **In-memory bucket per Node-prosess.** PM2 kjører fork-mode (én prosess) → konsistent state. Hvis vi går til cluster-mode, må vi flytte til Redis.
+- **Per-userId only, ikke per-IP.** Misbruk fra delt-IP-network (kontor med 50 ansatte bak NAT) er ikke aggregert. Kan utvides ved behov.
+- **`req.ip` i Fastify-logger viser fortsatt server-IP** (`193.90.181.205`) i prod-logger fordi serializeren leser `req.ip` direkte, ikke `cf-connecting-ip`. Rate-limit fungerer korrekt (bruker `hentKlientIp`), men logger-debug viser feil IP. Notert som oppfølger.
+
+### Sideeffekter under deploy
+
+Turbo-cache-bugen rammet test-deployet to ganger (trustProxy- og req.ip-iterasjoner) — krevde manuell `pnpm build --force` for å overstyre. Prod-deployen var ren (alltid 0 cached, 3 total). Permanent server-side-fiks av `deploy-test-cron.sh` er fortsatt en oppfølger.
+
+---
+
 ## Sikkerhets-audit-bunke — DEPLOYET TIL PROD 2026-05-27 (prod-merge `9ca0257e`)
 
 Audit utført 2026-05-27 (read-only) avdekket 14 funn. Seks ble utbedret i denne bunken: K1, M2, M3, M4 i én commit (`cdaafe32`), H3 i oppfølger (`6ae317c4`), error-håndtering på `/logg-inn` i siste oppfølger (`a1f33b61`). Resten (M1 global tRPC-rate-limit, H1 mobil-token-rotasjon, H2 case-sensitive invitasjon-match) er ikke startet — anbefalt rekkefølge i audit-rapport.
