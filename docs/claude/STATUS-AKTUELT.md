@@ -6,7 +6,7 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### Dagens samlede aktivitet — 2026-05-27 (5 prod-deploys + omfattende sikkerhets-arbeid)
+### Dagens samlede aktivitet — 2026-05-27 (6 prod-deploys + omfattende sikkerhets-arbeid)
 
 Uvanlig tett deploy-dag. Ingen regresjon observert.
 
@@ -16,11 +16,12 @@ Uvanlig tett deploy-dag. Ingen regresjon observert.
 | 2 | `8c256f64` | midt på dagen | Filter-rensing F1 (cancelled i HMS LUKKET) + Tiltak 1 («Alle åpne»-snarvei) |
 | 3 | `9ca0257e` | ettermiddag | Sikkerhets-audit-bunke (K1 dev-login + M2 raw-SQL + M3 sesjon-maxAge 24t + M4 logger-redact + H3 OAuth-linking + error-håndtering) |
 | 4 | `54885eb2` | 16:43 | M1 global tRPC-rate-limit + trustProxy: true + cf-connecting-ip |
-| 5 | (HMS-bunke) | tidligere/samme dag | HMS åpen-synlighet + HMS-prosjektvisning + HMS-modul-seeding |
+| 5 | `b97494cd` | 18:00 | Fastify-logger leser cf-connecting-ip + H2 streng invitasjon-match |
+| 6 | (HMS-bunke) | tidligere/samme dag | HMS åpen-synlighet + HMS-prosjektvisning + HMS-modul-seeding |
 
 **Sikkerhets-audit oppsummering (utført 2026-05-27, 14 funn):**
-- ✅ Adressert: K1, M2, M3, M4, H3, M1 (rate-limit), error-håndtering på `/logg-inn`
-- 🔴 Gjenstår i [BACKLOG](BACKLOG.md): H1 (mobil-token-rotasjon), H2 (case-sensitive invitasjon-match)
+- ✅ Adressert: K1, M2, M3, M4, H3, M1 (rate-limit), H2 (invitasjon-match), error-håndtering på `/logg-inn`
+- 🔴 Gjenstår i [BACKLOG](BACKLOG.md): H1 (mobil-token-rotasjon, ~3t) — siste funn
 - Microsoft OAuth bekreftet aktivert i prod (var antatt kun planlagt) → H3 ble aktiv risiko
 
 **Konsekvenser nå aktive i prod:**
@@ -32,10 +33,10 @@ Uvanlig tett deploy-dag. Ingen regresjon observert.
 **Docs-oppdatering (`91578127`):** api.md rate-limit-tabell utvidet med M1-rader. CLAUDE.md deploy-sekvens delt i prod (uten `.next`-rensing, anbefalt) vs test (krever `--force` pga Turbo-cache-bug).
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
-> [§ M1](historikk-2026-05.md), [§ Sikkerhets-audit-bunke](historikk-2026-05.md),
-> [§ Filter-rensing](historikk-2026-05.md), [§ Innsender-tilgang](historikk-2026-05.md),
-> [§ HMS åpen-synlighet](historikk-2026-05.md), [§ HMS-prosjektvisning](historikk-2026-05.md),
-> [§ HMS-modul-seeding](historikk-2026-05.md).
+> [§ Fastify-logger + H2](historikk-2026-05.md), [§ M1](historikk-2026-05.md),
+> [§ Sikkerhets-audit-bunke](historikk-2026-05.md), [§ Filter-rensing](historikk-2026-05.md),
+> [§ Innsender-tilgang](historikk-2026-05.md), [§ HMS åpen-synlighet](historikk-2026-05.md),
+> [§ HMS-prosjektvisning](historikk-2026-05.md), [§ HMS-modul-seeding](historikk-2026-05.md).
 
 ### Pågående: TestFlight build #23 enhet-verifisering
 
