@@ -1,9 +1,7 @@
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { appRouter } from "@sitedoc/api/src/trpc/router";
 import { prisma } from "@sitedoc/db";
-import { prismaMaskin } from "@sitedoc/db-maskin";
-import { prismaTimer } from "@sitedoc/db-timer";
-import { prismaVarelager } from "@sitedoc/db-varelager";
+import { lagContextStamme } from "@sitedoc/api/src/trpc/context";
 import { auth } from "@/auth";
 
 /**
@@ -58,22 +56,21 @@ async function handler(req: Request) {
     endpoint: "/api/trpc",
     req,
     router: appRouter,
+    // Web-flyten er alltid cookie-basert (Auth.js eier rotasjon).
+    // mobilTokenRotasjon-middleware sjekker tokenKilde === "bearer" og
+    // hopper over web. Felt-stammen kommer fra lagContextStamme — én
+    // delt kilde for både Fastify-context.ts og denne routen. Type-skift
+    // på Context fanges nå automatisk av typecheck i begge sider.
     createContext: () => ({
-      prisma,
-      prismaMaskin,
-      prismaTimer,
-      prismaVarelager,
+      ...lagContextStamme({
+        userId,
+        actualUserId,
+        imperseringAktiv,
+        sessionToken,
+        tokenKilde: sessionToken ? "cookie" : null,
+      }),
       req: req as never,
       res: {} as never,
-      userId,
-      actualUserId,
-      imperseringAktiv,
-      sessionToken,
-      // Web-flyten er alltid cookie-basert (Auth.js eier rotasjon).
-      // mobilTokenRotasjon-middleware sjekker tokenKilde === "bearer"
-      // og hopper over web — feltene er bare med for type-kompatibilitet.
-      tokenKilde: (sessionToken ? "cookie" : null) as "bearer" | "cookie" | null,
-      nyttSessionTokenForRespons: { value: null as string | null },
     }),
   });
 }
