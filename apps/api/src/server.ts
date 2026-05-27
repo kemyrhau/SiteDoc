@@ -14,8 +14,23 @@ import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
 
 const server = Fastify({
+  // Fastify mottar requests via Cloudflare Tunnel → cloudflared på localhost.
+  // Stol kun på loopback-proxy for X-Forwarded-For — direkte eksponert Fastify
+  // ville kunne IP-spoofe, men trafikken kommer alltid via 127.0.0.1 i prod/test.
+  trustProxy: "127.0.0.1",
   logger: {
     redact: ["req.headers.authorization", "req.headers.cookie"],
+    // Logg req.ip (Fastify's parsed klient-IP etter trustProxy) i stedet for
+    // TCP-IP. Forutsetning for at rate-limit per IP fungerer reelt.
+    serializers: {
+      req: (req) => ({
+        method: req.method,
+        url: req.url,
+        host: req.headers?.host,
+        remoteAddress: req.ip,
+        remotePort: req.socket?.remotePort,
+      }),
+    },
   },
 });
 
