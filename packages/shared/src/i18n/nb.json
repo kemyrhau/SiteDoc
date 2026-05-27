@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Ukjent underprosjekt",
   "timer.gruppe.arbeidstimer": "Arbeidstimer",
   "timer.gruppe.maskintimer": "Maskintimer",
-  "timer.gruppe.maskinAvArbeid": "Maskintimer {{maskin}}t av arbeidstimer {{arbeid}}t",
+  "timer.gruppe.maskinAvArbeid": "Maskin {{maskin}}t / Arbeid {{arbeid}}t",
   "timer.gruppe.tilByggherre": "Godkjenning byggherre",
   "timer.gruppe.tilByggherreHint": "Underprosjekt-timer sendes til byggherre via dokumentflyt-modulen, ikke timer-attestering",
   "timer.velgAktivitet": "— Velg aktivitet —",

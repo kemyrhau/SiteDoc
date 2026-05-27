@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Неизвестный подпроект",
   "timer.gruppe.arbeidstimer": "Часы работы",
   "timer.gruppe.maskintimer": "Машиночасы",
-  "timer.gruppe.maskinAvArbeid": "Машино-часы {{maskin}}ч рабочих часов {{arbeid}}ч",
+  "timer.gruppe.maskinAvArbeid": "Машина {{maskin}}ч / Работа {{arbeid}}ч",
   "timer.gruppe.tilByggherre": "Одобрение клиента",
   "timer.gruppe.tilByggherreHint": "Часы подпроекта отправляются клиенту через модуль документооборота, а не через подтверждение таймера.",
   "timer.velgAktivitet": "— Выберите вид деятельности —",

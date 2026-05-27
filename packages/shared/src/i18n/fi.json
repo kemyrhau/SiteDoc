@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Tuntematon osaprojekti",
   "timer.gruppe.arbeidstimer": "Työajat",
   "timer.gruppe.maskintimer": "Konetunnit",
-  "timer.gruppe.maskinAvArbeid": "Konetunnit {{maskin}}h työtunnit {{arbeid}}h",
+  "timer.gruppe.maskinAvArbeid": "Kone {{maskin}}h / työ {{arbeid}}h",
   "timer.gruppe.tilByggherre": "Asiakkaan hyväksyntä",
   "timer.gruppe.tilByggherreHint": "Osaprojektitunnit lähetetään asiakkaalle dokumenttivirtamoduulin kautta, ei ajastintodistusta",
   "timer.velgAktivitet": "— Valitse toiminta —",

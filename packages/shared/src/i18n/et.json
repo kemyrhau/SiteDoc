@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Tundmatu alamprojekt",
   "timer.gruppe.arbeidstimer": "Tööaeg",
   "timer.gruppe.maskintimer": "Masina tunnid",
-  "timer.gruppe.maskinAvArbeid": "Masinatunnid {{maskin}}h töötunnid {{arbeid}}h",
+  "timer.gruppe.maskinAvArbeid": "Masin {{maskin}}h / töö {{arbeid}}h",
   "timer.gruppe.tilByggherre": "Kliendi heakskiit",
   "timer.gruppe.tilByggherreHint": "Alamprojekti tunnid saadetakse kliendile dokumendivoo mooduli kaudu, mitte taimeri atesteerimine",
   "timer.velgAktivitet": "— vali tegevus —",

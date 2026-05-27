@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Neznámý dílčí projekt",
   "timer.gruppe.arbeidstimer": "Pracovní doba",
   "timer.gruppe.maskintimer": "Strojní hodiny",
-  "timer.gruppe.maskinAvArbeid": "Strojové hodiny {{maskin}}h pracovních hodin {{arbeid}}h",
+  "timer.gruppe.maskinAvArbeid": "Stroj {{maskin}}h / Práce {{arbeid}}h",
   "timer.gruppe.tilByggherre": "Schválení klienta",
   "timer.gruppe.tilByggherreHint": "Hodiny dílčího projektu jsou klientovi zasílány prostřednictvím modulu toku dokumentů, nikoli atestace časovače",
   "timer.velgAktivitet": "— Vyberte aktivitu —",

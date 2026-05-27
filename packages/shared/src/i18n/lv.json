@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Nezināms apakšprojekts",
   "timer.gruppe.arbeidstimer": "Darba laiks",
   "timer.gruppe.maskintimer": "Mašīnu stundas",
-  "timer.gruppe.maskinAvArbeid": "Mašīnas stundas {{maskin}}h darba stundas {{arbeid}}h",
+  "timer.gruppe.maskinAvArbeid": "Mašīna {{maskin}}h / darbs {{arbeid}}h",
   "timer.gruppe.tilByggherre": "Klienta apstiprinājums",
   "timer.gruppe.tilByggherreHint": "Apakšprojekta stundas klientam tiek nosūtītas caur dokumentu plūsmas moduli, nevis taimera atestāciju",
   "timer.velgAktivitet": "— Izvēlieties darbību —",
