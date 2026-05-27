@@ -4,6 +4,35 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## T7-5h — Stille overskriving av manuelt-justert rad.timer — DEPLOYET TIL PROD 2026-05-28 (prod-merge `6fd294d1`, impl `82cd65fa`)
+
+**Bug:** `beregnTimerMedPause` i `apps/web/src/components/attestering/RedigerRadModal.tsx` overskrev `rad.timer` ved hver pause- eller fra/til-endring til `rattid − pauseMin/60`. Hvis arbeider hadde gjort manuell justering (f.eks. lagret 7.0t på en 8t-periode for å trekke 60 min skjult lunsj), forsvant justeringen uten varsel ved første pause-toggle eller fra/til-edit. Bug-rapport i [BACKLOG.md § Stille overskriving](BACKLOG.md), oppdaget 2026-05-18.
+
+**Løsning — Variant A' (smart init + opt-in recompute):**
+- Nytt state `manueltJustert: Set<string>` (rad-keys).
+- Init-deteksjon i `useEffect`: sammenlign lagret `rad.timer` mot `beregnTimerMedPause(...)`-resultatet ved `sheet.pauseFra/pauseTil`. Avvik > 0.01t flagger raden.
+- `settPause` og `KompaktTimerRad`-onChange ved fra/til-endring hopper over flaggede rader. Manuell justering overskrives ikke lenger stille.
+- Direkte redigering av timer-feltet (onBlur etter parseFloat) markerer raden som manuelt justert.
+- Ny ↻-knapp i sekundær-rad under hovedraden (samme stil-mønster som pause-input-raden, amber-farget) — synlig kun når raden er manuelt justert OG default-beregningen avviker > 0.01t fra lagret. Klikk bytter til default + fjerner flagget. Også koblet til onSlett som rydder settet.
+
+**i18n:** 3 nye nøkler — `timer.rediger.manuellJustering`, `timer.rediger.brukDefault`, `timer.rediger.brukDefaultHint`. Auto-oversatt til 13 språk (2404 → 2407 nøkler).
+
+**Bug-scenario som nå er dekket:**
+- Lagret rad 07:00–15:00, timer=7.00 (manuelt trukket 60 min)
+- Bruker klikker pause-checkbox → tidligere overskrev timer til 7.5
+- Nå: 7.00 beholdes; ↻-knapp tilbyr «Bruk 7.50t» hvis bruker ønsker default-beregningen
+
+**Scope:** Kun web. Mobil-komponenter (`apps/mobile/.../TimerRadModal.tsx`) har separat recompute-logikk og er ikke berørt — egen sub-PR ved behov.
+
+**Verifisering:** Typecheck 1 = 1 baseline (vitest). Test-deploy `82cd65fa` på `test.sitedoc.no` HTTP 200. Prod-deploy `6fd294d1` med Turbo 3 successful / 1m20.947s; `sitedoc.no` + `api.sitedoc.no/health` HTTP/2 200 etter PM2 restart.
+
+**Avhengige tickets fortsatt åpne (BACKLOG):**
+- Pause-vindu default = midtpunkt (`OrganizationSetting.standardPauseFra` mangler i schema)
+- Multi-rad-overlap pause — ikke håndtert
+- `utleie_enhet`-prinsipp i UI
+
+---
+
 ## Returnert→pending-reset ved re-send + fr.json pause-drift — DEPLOYET TIL PROD 2026-05-27 (prod-merge `baa462e1`, impl `da0b2aad`)
 
 To uavhengige fixes bundlet i én bunke.

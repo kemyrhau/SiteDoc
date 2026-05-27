@@ -344,11 +344,9 @@ Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1
 - Multi-rad-overlap ikke server-validert
 - utleie_enhet-prinsipp ikke håndhevet i UI ennå
 
-### T7-5h — Stille overskriving av manuelt-justert rad.timer — IMPLEMENTERT PÅ DEVELOP 2026-05-28
+### T7-5h — Stille overskriving av manuelt-justert rad.timer — DEPLOYET TIL PROD 2026-05-28 (prod-merge `6fd294d1`)
 
-✅ Variant A' (smart init + opt-in recompute) implementert i `RedigerRadModal.tsx`. Init-deteksjon flagger rader hvor lagret timer avviker > 0.01t fra `beregnTimerMedPause(...)`-resultatet. `settPause` og fra/til-onChange hopper over flaggede rader. ↻-knapp tilbys i sekundær-rad under hovedraden — bruker velger selv om hen vil bytte til default. Direkte redigering av timer-feltet markerer raden som manuelt justert. 3 nye i18n-nøkler auto-oversatt til 13 språk.
-
-Detaljer i [STATUS-AKTUELT.md § T7-5h](STATUS-AKTUELT.md). Scope: kun web. Mobil-komponenter har separat recompute-logikk og er ikke berørt — egen sub-PR ved behov.
+✅ Arkivert til [historikk-2026-05.md § T7-5h](historikk-2026-05.md). Scope: kun web. Mobil-komponenter har separat recompute-logikk og er ikke berørt — egen sub-PR ved behov.
 
 ### Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)
 
