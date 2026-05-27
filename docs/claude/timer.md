@@ -630,7 +630,7 @@ Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` pek
 | `startAt` | `timestamptz?` | Klokkeslett start (forenklet forslag til arbeider; faktisk tid per rad ligger på `SheetTimer.fraTid`/`tilTid` per T.4) |
 | `endAt` | `timestamptz?` | Klokkeslett slutt (forenklet forslag) |
 | `pauseMin` | `int` default 0 | Pause i minutter |
-| `status` | `text` default `draft` | `draft` \| `sent` \| `returned` \| `accepted`. **Per T.3 Alternativ A** skal sedelen være container uten egen attesterings-status (attestering per rad). Foreløpig beholdt for bakoverkompatibilitet — full migrering til per-rad-attestering i senere PR. |
+| `status` | `text` default `draft` | `draft` \| `sent` \| `returned` \| `accepted`. **Per T.3 Alternativ A** skal sedelen være container uten egen attesterings-status (attestering per rad). Foreløpig beholdt for bakoverkompatibilitet — full migrering til per-rad-attestering i senere PR. **Re-send etter retur (2026-05-27):** Når `send`-mutationen kalles på en sedel med `status="returned"`, nullstilles alle rader med `attestertStatus="returnert"` til `"pending"` i samme transaksjon (audit-felter `attestertAvUserId`/`attestertVed` nullstilles også). Uten dette ville leder ikke kunne attestere returnerte rader etter at arbeider gjør rettelser. Se [historikk-2026-05.md § Returnert→pending-reset](historikk-2026-05.md). |
 | `beskrivelse` | `text?` | Fritekst fra ansatt |
 | `lederKommentar` | `text?` | Toveis-kommunikasjon: leder kan svare ansatt |
 | `syncStatus` | `text` | `pending` \| `synced` \| `conflict` |
