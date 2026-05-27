@@ -188,6 +188,24 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull \
 ```
 Bruk `&&`-kjeding hele veien — første feil stopper sekvensen. Hvis du trenger å se output, kjør `pnpm build` uten pipe og les loggen etterpå med separat ssh-kall.
 
+**Ufravikelig regel — `git checkout develop` etter prod-deploy-sekvensen (2026-05-27):**
+
+Etter `git checkout main && git merge develop && git push origin main` + `ssh sitedoc ...`-kjeden er lokal branch fortsatt `main`. Påfølgende docs-commits (arkivering, STATUS-AKTUELT-oppdatering, BACKLOG-rydding) MÅ kjøres på `develop`, ikke main.
+
+```bash
+# Etter prod-deploy-sekvens, ALLTID:
+git checkout develop
+# ... deretter docs-commit + push
+```
+
+**Lærdom 2026-05-27 (3 hendelser samme dag):** Tre arkiverings-commits landet på lokal `main` istedenfor `develop` fordi `git checkout` ble glemt etter prod-deploy. Måtte ryddes via `git cherry-pick` til develop + `git reset --hard origin/main`. Lokal main = remote main alltid; develop er der docs-arbeid skjer.
+
+Hvis du oppdager at en commit havnet på lokal main:
+1. `git checkout develop`
+2. `git cherry-pick <hash>` — overfør til develop
+3. `git push origin develop`
+4. `git checkout main && git reset --hard origin/main` — rydd lokal main
+
 - Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 - Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
 
