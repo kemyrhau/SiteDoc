@@ -712,6 +712,7 @@ export async function byggTilgangsFilter(
 /**
  * Hent brukerens samlede tillatelser fra alle grupper.
  * Admin får alle tillatelser.
+ * firma_admin på en koblet ProjectOrganization arver fulle tillatelser uten ProjectMember-rad.
  */
 export async function hentBrukerTillatelser(
   userId: string,
@@ -735,6 +736,18 @@ export async function hentBrukerTillatelser(
   });
 
   if (!medlem) {
+    // Firma-admin-fallback: speiler verifiserAdmin/verifiserProsjektmedlem.
+    // firma_admin på en koblet ProjectOrganization arver fulle prosjekt-tillatelser.
+    const orgKoblinger = await prisma.projectOrganization.findMany({
+      where: { projectId },
+      select: { organizationId: true },
+    });
+    for (const { organizationId } of orgKoblinger) {
+      if (await erFirmaAdmin(userId, organizationId)) {
+        return new Set([...PERMISSIONS] as Permission[]);
+      }
+    }
+
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Du er ikke medlem av dette prosjektet",
