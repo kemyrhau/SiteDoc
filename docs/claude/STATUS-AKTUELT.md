@@ -6,11 +6,11 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
 
-### Dagens samlede aktivitet — 2026-05-28 (5 prod-deploys: firma-HMS-dashbord komplett + 3 tekniske lukkinger)
+### Dagens samlede aktivitet — 2026-05-28 (6 prod-deploys: firma-HMS-dashbord komplett + 3 tekniske lukkinger + tilgangs-asymmetri-fiks)
 
-Tett deploy-dag etter compact 2026-05-28 morgen. Hele firma-HMS-dashbord-bunken (Trinn 1-4) komplett i prod. Tre tekniske lukkinger på toppen: pause-default, impersonering audit-log, HMS-tabell-redesign.
+Tett deploy-dag etter compact 2026-05-28 morgen. Hele firma-HMS-dashbord-bunken (Trinn 1-4) komplett i prod. Tre tekniske lukkinger på toppen: pause-default, impersonering audit-log, HMS-tabell-redesign. Sent på dagen avdekket prod-impersonering av firma-admin Florian en rotårsak-asymmetri i `hentBrukerTillatelser` — to-stegs fiks lukket den.
 
 | # | Prod-merge | Innhold |
 |---|---|---|
@@ -19,6 +19,7 @@ Tett deploy-dag etter compact 2026-05-28 morgen. Hele firma-HMS-dashbord-bunken 
 | 3 | `75a09ccf` | `standardPauseFra` — firma-konfigurerbar pause-default som respekterer norsk lunsj-konvensjon |
 | 4 | `30467d74` | Impersonering audit-log — ny `ImpersonationAudit`-tabell (Variant B, isolert) erstatter `console.log`-mønster |
 | 5 | `12e19c0a` | HMS-tabell redesign — tre HMS-tabeller (Avvik/SJA/RUH) konvertert fra plain HTML til `@sitedoc/ui Table` med sortering, filter, kolonne-resize, status-snarvei |
+| 6 | `c85d8e8d` | Firma-admin tilgangs-asymmetri-fiks (`4e622d7e` + `c22a345d`) — `hentBrukerTillatelser` arver nå fulle PERMISSIONS for firma-admin uavhengig av ProjectMember-rad. Speiler `verifiserAdmin`-mønsteret. Florian ser nå «Produksjon» + 8+ UI-callsites virker. |
 
 **BACKLOG-lukninger etter dagens deploys:**
 - Firma-nivå HMS-dashboard ✅ alle 4 trinn ferdig
@@ -27,6 +28,8 @@ Tett deploy-dag etter compact 2026-05-28 morgen. Hele firma-HMS-dashbord-bunken 
 - Pause-vindu default ✅
 - Vis som bruker (impersonering) — audit-log ✅ (kun lese-prosedyre + UI gjenstår, venter på tilgangs-oversikt-UX-sesjon)
 - HMS-tabell redesign ✅ (punkt 2 HMS-teknisk gjeld)
+
+**Diagnoseprosess-lærdom (deploy #6):** Første firma-admin-fiks (`4e622d7e`) var basert på antagelsen at firma-admin manglet ProjectMember-rad. Da Florian-verifisering avdekket at fiksen ikke virket, kjørte vi re-diagnose av `verifiserAdmin`-mønsteret (linje 226-232) som viste at firma-admin-sjekken må plasseres **etter** prosjekt-admin-sjekken, ikke i fallback-blokken. Korrigerende fiks (`c22a345d`) speilet det eksakte mønsteret. Lærdom: Når en tilgangsfunksjon skal "speile" en annen, sjekk **plasseringen** av hver gren — ikke bare at logikken finnes.
 
 **Nye BACKLOG-entries opprettet under sesjonen:**
 - «Firma-nivå tilgangskontrolloversikt» (planlagt UX-sesjon: firma-innstillinger + tilgangsoversikt)

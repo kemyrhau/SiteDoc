@@ -132,7 +132,7 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | `verifiserProsjektmedlem(userId, projectId)` | FORBIDDEN hvis ikke medlem. company_admin med riktig org arver tilgang uten ProjectMember-rad |
 | `verifiserOrganisasjonTilgang(userId, organisationId)` | FORBIDDEN hvis bruker ikke tilhører organisasjonen. company_admin uten organizationId = ugyldig |
 | `verifiserDokumentTilgang(userId, projectId, bestillerId, utforerId, domain?)` | Faggruppe + fagområde-tilgang. bestillerId/utforerId nullable for HMS |
-| `hentBrukerTillatelser(userId, projectId)` | `Permission`-set fra grupper. Admin har alle |
+| `hentBrukerTillatelser(userId, projectId)` | `Permission`-set fra grupper. `sitedoc_admin`, prosjekt-admin, og `firma_admin` på koblet `ProjectOrganization` får alle PERMISSIONS — uavhengig av ProjectMember-rad (fix `c22a345d` 2026-05-28 speilet `verifiserAdmin`-mønster) |
 | `verifiserTillatelse(userId, projectId, permission)` | FORBIDDEN hvis mangler |
 | `verifiserFlytRolle(...)` | Sjekker flytrolle for statusovergang (403 ved mismatch) |
 | `harFirmaHmsTilgang(userId, organizationId)` | `true` for sitedoc_admin, firma-admin, eller bruker med `"hms_ansvarlig"` i `OrganizationMember.firmaRoller`. Trinn 1 av firma-HMS-dashboard (2026-05-29) |
