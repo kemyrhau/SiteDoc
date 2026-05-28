@@ -1,12 +1,12 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
-import { Spinner, EmptyState } from "@sitedoc/ui";
-import { ShieldAlert, AlertTriangle, ClipboardList, FileWarning, Clock } from "lucide-react";
+import { Spinner, EmptyState, SearchInput } from "@sitedoc/ui";
+import { ShieldAlert, AlertTriangle, ClipboardList, FileWarning, Clock, ChevronDown } from "lucide-react";
 import { KpiKort, MånedSøyler, FaggruppeBars } from "@/components/hms/visning";
 import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
 import type { DokumentRad } from "@/components/hms/types";
@@ -14,6 +14,18 @@ import type { DokumentRad } from "@/components/hms/types";
 type Tab = "avvik" | "sja" | "ruh" | "statistikk";
 
 const LUKKET = new Set(["closed", "approved", "cancelled"]);
+
+function filtrerPaSok<T extends DokumentRad>(rader: T[], sok: string): T[] {
+  const q = sok.trim().toLowerCase();
+  if (!q) return rader;
+  return rader.filter((r) => {
+    const tittel = (r.title ?? "").toLowerCase();
+    const lopenr = r.number ? String(r.number) : "";
+    const prefix = (r.template.prefix ?? "").toLowerCase();
+    const fullNr = `${prefix}-${lopenr}`.toLowerCase();
+    return tittel.includes(q) || lopenr.includes(q) || fullNr.includes(q);
+  });
+}
 
 export default function FirmaHmsSide() {
   const { t } = useTranslation();
@@ -32,6 +44,7 @@ export default function FirmaHmsSide() {
     [searchParams],
   );
   const aktivTab = (searchParams.get("tab") ?? "avvik") as Tab;
+  const [tekstSok, setTekstSok] = useState("");
 
   function settUrl(params: Record<string, string | undefined>) {
     const sp = new URLSearchParams(searchParams.toString());
@@ -95,6 +108,18 @@ export default function FirmaHmsSide() {
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [prosjekter, prosjektIder]);
 
+  // Antall åpne avvik per byggeplass — beregnet klient-side for combobox-visning
+  const apneAvvikPerByggeplass = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const t of dokumenter.avvik as DokumentRad[]) {
+      if (LUKKET.has(t.status)) continue;
+      const bid = t.drawing?.byggeplass?.id;
+      if (!bid) continue;
+      map[bid] = (map[bid] ?? 0) + 1;
+    }
+    return map;
+  }, [dokumenter.avvik]);
+
   if (!organizationId) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -129,10 +154,13 @@ export default function FirmaHmsSide() {
     router.push(dest);
   }
 
-  // Antall per tab
-  const antallAvvik = dokumenter.avvik.length;
-  const antallSja = dokumenter.sja.length;
-  const antallRuh = dokumenter.ruh.length;
+  // Antall per tab — etter fritekst-søk
+  const filtrertAvvik = filtrerPaSok(dokumenter.avvik as DokumentRad[], tekstSok);
+  const filtrertSja = filtrerPaSok(dokumenter.sja as DokumentRad[], tekstSok);
+  const filtrertRuh = filtrerPaSok(dokumenter.ruh as DokumentRad[], tekstSok);
+  const antallAvvik = filtrertAvvik.length;
+  const antallSja = filtrertSja.length;
+  const antallRuh = filtrertRuh.length;
 
   return (
     <div className="space-y-4">
@@ -142,76 +170,49 @@ export default function FirmaHmsSide() {
         <p className="mt-1 text-sm text-gray-600">{t("firma.hms.beskrivelse")}</p>
       </div>
 
-      {/* Filter-panel */}
-      <div className="rounded-lg border border-gray-200 bg-white p-4 space-y-3">
-        <div>
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-700">
-              {t("firma.hms.filter.prosjekt")}
-            </h3>
-            {(prosjektIder.length > 0 || byggeplassIder.length > 0) && (
-              <button
-                type="button"
-                onClick={tomFilter}
-                className="text-xs text-sitedoc-primary hover:underline"
-              >
-                {t("firma.hms.filter.tom")}
-              </button>
-            )}
-          </div>
-          {prosjekter.length === 0 ? (
-            <p className="text-xs italic text-gray-500">—</p>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {prosjekter.map((p) => {
-                const valgt = prosjektIder.includes(p.id);
-                return (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => toggleProsjekt(p.id)}
-                    className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                      valgt
-                        ? "border-sitedoc-primary bg-sitedoc-primary text-white"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                  >
-                    {p.name}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </div>
+      {/* Fritekst-søk på tvers av faner */}
+      <SearchInput
+        verdi={tekstSok}
+        onChange={setTekstSok}
+        placeholder={t("firma.hms.sok.placeholder")}
+      />
 
-        {tilgjengeligeByggeplasser.length > 0 && (
-          <div>
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-700">
-              {t("firma.hms.filter.byggeplass")}
-            </h3>
-            <div className="flex flex-wrap gap-2">
-              {tilgjengeligeByggeplasser.map((b) => {
-                const valgt = byggeplassIder.includes(b.id);
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => toggleByggeplass(b.id)}
-                    className={`rounded-full border px-3 py-1 text-xs transition-colors ${
-                      valgt
-                        ? "border-sitedoc-secondary bg-sitedoc-secondary text-white"
-                        : "border-gray-300 bg-white text-gray-700 hover:bg-gray-50"
-                    }`}
-                    title={b.prosjektNavn}
-                  >
-                    {b.name}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+      {/* Filter-panel med combobox-er */}
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <MultiComboks
+          label={t("firma.hms.filter.prosjekt")}
+          options={prosjekter.map((p) => ({
+            id: p.id,
+            name: p.name,
+            antall: statistikk?.apneAvvikPerProsjekt[p.id] ?? 0,
+          }))}
+          valgte={prosjektIder}
+          onToggle={toggleProsjekt}
+          placeholderSok={t("firma.hms.sok.prosjekt")}
+        />
+        <MultiComboks
+          label={t("firma.hms.filter.byggeplass")}
+          options={tilgjengeligeByggeplasser.map((b) => ({
+            id: b.id,
+            name: b.name,
+            antall: apneAvvikPerByggeplass[b.id] ?? 0,
+            underTekst: b.prosjektNavn,
+          }))}
+          valgte={byggeplassIder}
+          onToggle={toggleByggeplass}
+          placeholderSok={t("firma.hms.sok.byggeplass")}
+        />
       </div>
+
+      {(prosjektIder.length > 0 || byggeplassIder.length > 0 || tekstSok.length > 0) && (
+        <button
+          type="button"
+          onClick={() => { tomFilter(); setTekstSok(""); }}
+          className="text-xs text-sitedoc-primary hover:underline"
+        >
+          {t("firma.hms.filter.tom")}
+        </button>
+      )}
 
       {/* Tab-bar */}
       <div className="flex gap-1 border-b border-gray-200">
@@ -242,7 +243,7 @@ export default function FirmaHmsSide() {
         <div className="rounded-lg border border-gray-200 bg-white p-4">
           {aktivTab === "avvik" && (
             <AvvikTabell
-              rader={dokumenter.avvik as DokumentRad[]}
+              rader={filtrertAvvik}
               onKlikk={drillNed}
               visProsjektKolonne
               visByggeplassKolonne
@@ -250,7 +251,7 @@ export default function FirmaHmsSide() {
           )}
           {aktivTab === "sja" && (
             <SjaTabell
-              rader={dokumenter.sja as DokumentRad[]}
+              rader={filtrertSja}
               onKlikk={drillNed}
               visProsjektKolonne
               visByggeplassKolonne
@@ -258,7 +259,7 @@ export default function FirmaHmsSide() {
           )}
           {aktivTab === "ruh" && (
             <RuhTabell
-              rader={dokumenter.ruh as DokumentRad[]}
+              rader={filtrertRuh}
               onKlikk={drillNed}
               visProsjektKolonne
               visByggeplassKolonne
@@ -309,6 +310,114 @@ function TabKnapp({
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Søkbar multi-select-combobox. Søkefelt vises ved >7 options (matcher
+ * mønsteret i ProsjektVelger/ByggeplassVelger). Valgte vises som
+ * checkbox-rad; antall valgte vises i label-knappen.
+ */
+function MultiComboks({
+  label,
+  options,
+  valgte,
+  onToggle,
+  placeholderSok,
+}: {
+  label: string;
+  options: { id: string; name: string; antall?: number; underTekst?: string }[];
+  valgte: string[];
+  onToggle: (id: string) => void;
+  placeholderSok?: string;
+}) {
+  const [apen, setApen] = useState(false);
+  const [sok, setSok] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function klikkUtenfor(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setApen(false);
+    }
+    if (apen) document.addEventListener("mousedown", klikkUtenfor);
+    return () => document.removeEventListener("mousedown", klikkUtenfor);
+  }, [apen]);
+
+  const filtrerte = useMemo(() => {
+    if (!sok.trim()) return options;
+    const q = sok.toLowerCase().trim();
+    return options.filter((o) => o.name.toLowerCase().includes(q));
+  }, [options, sok]);
+
+  const valgteSet = useMemo(() => new Set(valgte), [valgte]);
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setApen(!apen)}
+        className="flex w-full items-center justify-between gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+      >
+        <span className="truncate">
+          {label}
+          {valgte.length > 0 && (
+            <span className="ml-1 inline-flex items-center justify-center rounded-full bg-sitedoc-primary px-2 py-0.5 text-xs font-medium text-white">
+              {valgte.length}
+            </span>
+          )}
+        </span>
+        <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
+      </button>
+      {apen && (
+        <div className="absolute z-20 mt-1 max-h-80 w-full overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+          {options.length > 7 && (
+            <div className="sticky top-0 border-b border-gray-100 bg-white p-2">
+              <input
+                type="text"
+                value={sok}
+                onChange={(e) => setSok(e.target.value)}
+                placeholder={placeholderSok ?? "Søk..."}
+                className="w-full rounded border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                autoFocus
+              />
+            </div>
+          )}
+          {filtrerte.length === 0 ? (
+            <div className="px-3 py-2 text-sm text-gray-500">—</div>
+          ) : (
+            filtrerte.map((o) => {
+              const valgt = valgteSet.has(o.id);
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => onToggle(o.id)}
+                  className={`flex w-full items-start gap-2 px-3 py-2 text-left text-sm transition-colors ${
+                    valgt ? "bg-sitedoc-primary/5" : "hover:bg-gray-50"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={valgt}
+                    readOnly
+                    className="mt-0.5 h-4 w-4 flex-shrink-0"
+                  />
+                  <span className="flex-1 truncate">
+                    <span className="text-gray-900">{o.name}</span>
+                    {o.antall !== undefined && (
+                      <span className="ml-1 text-xs text-gray-500">({o.antall})</span>
+                    )}
+                    {o.underTekst && (
+                      <span className="ml-2 text-xs text-gray-400">· {o.underTekst}</span>
+                    )}
+                  </span>
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
