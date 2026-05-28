@@ -3,6 +3,7 @@ import { router, protectedProcedure, opprettProsjektProcedure } from "../trpc/tr
 import { TRPCError } from "@trpc/server";
 import { Prisma, krypter } from "@sitedoc/db";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
+import { hentBrukersOrg } from "../trpc/tilgangskontroll";
 
 /**
  * Verifiser at bruker er SiteDoc-administrator.
@@ -657,20 +658,34 @@ export const adminRouter = router({
 
       const utloperVed = new Date(Date.now() + 60 * 60 * 1000); // 1 time
 
-      await ctx.prisma.session.update({
+      const oppdatertSesjon = await ctx.prisma.session.update({
         where: { sessionToken: ctx.sessionToken },
         data: {
           impersonatedUserId: input.targetUserId,
           originalUserId: adminUserId,
           impersonationExpiresAt: utloperVed,
         },
+        select: { id: true },
       });
 
-      // Audit-log: best-effort. Activity-tabellen krever projectId, så vi
-      // bruker target sin organizationId og null projectId via raw query
-      // — eller logger til console for nå.
-      // eslint-disable-next-line no-console
-      console.log(`[impersonering] start admin=${adminUserId} target=${input.targetUserId} utloper=${utloperVed.toISOString()}`);
+      // Persistent audit-spor (Variant B, 2026-05-28) — erstatter console.log.
+      // Defensiv .catch: audit-feil skal ikke blokkere selve impersoneringen
+      // (Session er allerede oppdatert).
+      const targetOrgId = await hentBrukersOrg(input.targetUserId).catch(() => null);
+      await ctx.prisma.impersonationAudit
+        .create({
+          data: {
+            adminUserId,
+            targetUserId: input.targetUserId,
+            targetOrganizationId: targetOrgId,
+            sessionId: oppdatertSesjon.id,
+            utloperVed,
+          },
+        })
+        .catch((e: unknown) => {
+          // eslint-disable-next-line no-console
+          console.warn("[impersonering] audit INSERT feilet:", e);
+        });
 
       return {
         ok: true as const,
@@ -689,17 +704,37 @@ export const adminRouter = router({
       throw new TRPCError({ code: "UNAUTHORIZED" });
     }
 
-    await ctx.prisma.session.update({
+    const oppdatertSesjon = await ctx.prisma.session.update({
       where: { sessionToken: ctx.sessionToken },
       data: {
         impersonatedUserId: null,
         originalUserId: null,
         impersonationExpiresAt: null,
       },
+      select: { id: true },
     });
 
-    // eslint-disable-next-line no-console
-    console.log(`[impersonering] stopp admin=${adminUserId}`);
+    // Persistent audit-spor (Variant B, 2026-05-28) — markér siste aktive rad
+    // for denne (admin, session) som manuelt avsluttet. Idempotent updateMany:
+    // ingen rad oppdatert hvis ingen aktiv audit finnes (forsvarlig hvis
+    // start-INSERT feilet defensivt eller raden allerede er ryddet av lazy
+    // utløps-markering).
+    await ctx.prisma.impersonationAudit
+      .updateMany({
+        where: {
+          adminUserId,
+          sessionId: oppdatertSesjon.id,
+          avsluttetVed: null,
+        },
+        data: {
+          avsluttetVed: new Date(),
+          avsluttetGrunn: "manuell",
+        },
+      })
+      .catch((e: unknown) => {
+        // eslint-disable-next-line no-console
+        console.warn("[impersonering] audit UPDATE feilet:", e);
+      });
 
     return { ok: true as const };
   }),
