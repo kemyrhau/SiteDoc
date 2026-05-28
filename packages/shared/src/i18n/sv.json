@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Okänt delprojekt",
   "timer.gruppe.arbeidstimer": "Arbetstider",
   "timer.gruppe.maskintimer": "Maskintimmar",
-  "timer.gruppe.maskinAvArbeid": "Maskintimmar {{maskin}}h arbetstimmar {{arbeid}}h",
+  "timer.gruppe.maskinAvArbeid": "Maskin {{maskin}}h / Arbete {{arbeid}}h",
   "timer.gruppe.tilByggherre": "Kundens godkännande",
   "timer.gruppe.tilByggherreHint": "Delprojekttimmar skickas till uppdragsgivaren via dokumentflödesmodulen, inte timerintyg",
   "timer.velgAktivitet": "— Välj aktivitet —",

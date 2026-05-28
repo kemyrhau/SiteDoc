@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Nieznany podprojekt",
   "timer.gruppe.arbeidstimer": "Godziny pracy",
   "timer.gruppe.maskintimer": "Godziny pracy maszyny",
-  "timer.gruppe.maskinAvArbeid": "Godziny pracy maszyn {{maskin}}h godzin pracy {{arbeid}}h",
+  "timer.gruppe.maskinAvArbeid": "Maszyna {{maskin}}godz. / Praca {{arbeid}}godz",
   "timer.gruppe.tilByggherre": "Zatwierdzenie klienta",
   "timer.gruppe.tilByggherreHint": "Godziny podprojektów przesyłane są do klienta poprzez moduł obiegu dokumentów, a nie zaświadczenie timera",
   "timer.velgAktivitet": "— Wybierz aktywność —",

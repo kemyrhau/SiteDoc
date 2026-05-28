@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Subproiect necunoscut",
   "timer.gruppe.arbeidstimer": "Program de lucru",
   "timer.gruppe.maskintimer": "Ore de mașină",
-  "timer.gruppe.maskinAvArbeid": "Ore de mașină {{maskin}}h de ore de lucru {{arbeid}}h",
+  "timer.gruppe.maskinAvArbeid": "Mașină {{maskin}}h / Lucru {{arbeid}}h",
   "timer.gruppe.tilByggherre": "Aprobarea clientului",
   "timer.gruppe.tilByggherreHint": "Orele de subproiect sunt trimise clientului prin modulul de flux de documente, nu prin atestarea temporizatorului",
   "timer.velgAktivitet": "— Selectați activitatea —",

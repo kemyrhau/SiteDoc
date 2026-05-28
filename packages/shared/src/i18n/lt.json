@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Nežinomas subprojektas",
   "timer.gruppe.arbeidstimer": "Darbo valandos",
   "timer.gruppe.maskintimer": "Mašinos valandos",
-  "timer.gruppe.maskinAvArbeid": "Mašinos valandos {{maskin}} val. darbo valandos {{arbeid}} val",
+  "timer.gruppe.maskinAvArbeid": "Mašina {{maskin}} val. / Darbas {{arbeid}} val",
   "timer.gruppe.tilByggherre": "Kliento patvirtinimas",
   "timer.gruppe.tilByggherreHint": "Subprojekto valandos klientui siunčiamos per dokumentų srauto modulį, o ne atestacija su laikmačiu",
   "timer.velgAktivitet": "— Pasirinkite veiklą —",

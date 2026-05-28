@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Невідомий підпроект",
   "timer.gruppe.arbeidstimer": "Час роботи",
   "timer.gruppe.maskintimer": "Годин машини",
-  "timer.gruppe.maskinAvArbeid": "Машиногодини {{maskin}}год робочих годин {{arbeid}}год",
+  "timer.gruppe.maskinAvArbeid": "Машина {{maskin}}h / Робота {{arbeid}}h",
   "timer.gruppe.tilByggherre": "Схвалення клієнта",
   "timer.gruppe.tilByggherreHint": "Години підпроекту надсилаються клієнту через модуль документообігу, а не атестацію таймера",
   "timer.velgAktivitet": "— Виберіть діяльність —",

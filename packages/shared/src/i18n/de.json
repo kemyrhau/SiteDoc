@@ -117,7 +117,7 @@
   "timer.detalj.ukjentEco": "Unbekanntes Teilprojekt",
   "timer.gruppe.arbeidstimer": "Arbeitszeiten",
   "timer.gruppe.maskintimer": "Maschinenstunden",
-  "timer.gruppe.maskinAvArbeid": "Maschinenstunden {{maskin}}h der Arbeitsstunden {{arbeid}}h",
+  "timer.gruppe.maskinAvArbeid": "Maschine {{maskin}}h / Arbeit {{arbeid}}h",
   "timer.gruppe.tilByggherre": "Zustimmung des Kunden",
   "timer.gruppe.tilByggherreHint": "Teilprojektstunden werden über das Dokumentenflussmodul an den Kunden gesendet, nicht über die Zeitbescheinigung",
   "timer.velgAktivitet": "— Aktivität auswählen —",

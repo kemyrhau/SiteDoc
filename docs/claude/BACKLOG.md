@@ -344,11 +344,9 @@ Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1
 - Multi-rad-overlap ikke server-validert
 - utleie_enhet-prinsipp ikke håndhevet i UI ennå
 
-### T7-5h — Stille overskriving av manuelt-justert rad.timer — IMPLEMENTERT PÅ DEVELOP 2026-05-28
+### T7-5h — Stille overskriving av manuelt-justert rad.timer — DEPLOYET TIL PROD 2026-05-28 (prod-merge `6fd294d1`)
 
-✅ Variant A' (smart init + opt-in recompute) implementert i `RedigerRadModal.tsx`. Init-deteksjon flagger rader hvor lagret timer avviker > 0.01t fra `beregnTimerMedPause(...)`-resultatet. `settPause` og fra/til-onChange hopper over flaggede rader. ↻-knapp tilbys i sekundær-rad under hovedraden — bruker velger selv om hen vil bytte til default. Direkte redigering av timer-feltet markerer raden som manuelt justert. 3 nye i18n-nøkler auto-oversatt til 13 språk.
-
-Detaljer i [STATUS-AKTUELT.md § T7-5h](STATUS-AKTUELT.md). Scope: kun web. Mobil-komponenter har separat recompute-logikk og er ikke berørt — egen sub-PR ved behov.
+✅ Arkivert til [historikk-2026-05.md § T7-5h](historikk-2026-05.md). Scope: kun web. Mobil-komponenter har separat recompute-logikk og er ikke berørt — egen sub-PR ved behov.
 
 ### Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)
 
@@ -410,15 +408,9 @@ Auto-oversettings-skriptet forvekslet engelsk «break» (pause) med «break» (k
 - **fr** (prod-merge `baa462e1`, impl `da0b2aad`): label «Casser» → «Pause», toggleHint «saut» → «pause», intervall «rupture» → «pause», maskinAvArbeid-formulering forbedret. Arkivert til [historikk-2026-05.md § Returnert→pending-reset + fr.json](historikk-2026-05.md).
 - **de/sv/et** (prod-merge `d8b60854`, impl `eae412c0`): samme mønster fikset på tysk («Brechen» → «Pause»), svensk («Bryta» → «Paus» + hint «avbrott» → «paus»), estisk («Katkesta» → «Paus»). Audit-funn via pre-compact dokumentasjons-sjekk.
 
-### i18n: `timer.gruppe.maskinAvArbeid` — engelsk kildetekst er klønete (delvis lukket 2026-05-27) 🟡
+### i18n: `timer.gruppe.maskinAvArbeid` — IMPLEMENTERT PÅ DEVELOP 2026-05-28 ✅
 
-Engelsk kildetekst mangler verb-bro mellom `{{maskin}}h` og `{{arbeid}}h`-variablene («Machine hours {{maskin}}h of work hours {{arbeid}}h»). Auto-oversetting produserer ord-for-ord-versjoner som er gramatisk dårlige på alle 13 målspråk.
-
-**Status:**
-- ✅ **fr** fikset (prod-merge `baa462e1`): «Heures machine {{maskin}}h sur {{arbeid}}h de travail»
-- 🟡 **12 andre språk gjenstår** — verifisert klønete formulering på sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, sq (audit 2026-05-27)
-
-**Fix-skisse:** Forbedre engelsk kildetekst først — f.eks. «{{maskin}}h machine hours of {{arbeid}}h worked» eller egen formulering med klar struktur. Deretter re-kjør auto-oversettings-skriptet med `--force` for nøkkelen, eller manuell rettelse i hver språkfil. Vurder samtidig om norsk kildetekst (nb.json) bør være primær — i dag er en.json master, men nb leveres separat, så kildeendring må gjøres begge steder.
+Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arbeid}}h» til «Machine {{maskin}}h / Work {{arbeid}}h» (kort, klar struktur med universell slash-separator). Norsk speilet: «Maskin {{maskin}}t / Arbeid {{arbeid}}t». Nøkkelen slettet i 12 språk og re-generert via `generate.ts` — alle oversettelser nå gramatisk korrekte. ro fikset manuelt (Google Translate hoppet over «Work»; satt til «Lucru»). fr beholdt sin manuelle verdi fra `baa462e1`.
 
 ## 2. Halvferdige features
 
@@ -475,10 +467,7 @@ separat chat per `feedback_3d_annen_chat`.
 
 ### Timer-relatert
 
-- **Attestering edit-modus bugs (oppdaget 2026-05-16)** 🔴 — to bugs blokkerer prod-deploy av T7-2c-bunken + T7-2d:
-  1. Fra-tid viser «0:» i stedet for korrekt tid (f.eks. 07:00). Sannsynlig tidsformat-initialiseringsfeil.
-  2. Timer-endring fungerer ikke i edit-modus — input aksepterer ikke ny verdi eller verdien lagres ikke.
-  Rootcause ukjent for begge — krever kartlegging neste sesjon i `RedigerTimerRad`/`RedigerMaskinRad` + `AttesteringDetalj_Edit`.
+- ~~**Attestering edit-modus bugs (oppdaget 2026-05-16)**~~ ✅ LØST — fixet i T7-2e (commit `c480fe8a`, prod-deploy via `86fdb5a3`). Bug 1 (fra-tid «0:») rotårsak: `col-span-1` for smal + `step=3600` skjuler minutter i Chrome — fix: `min-w-[120px]` + clamp `step ≤ 1800`. Bug 2 (timer-desimaler): controlled re-render «spiste» punktum — fix: lokal `timerStr`-state, parse ved blur. Entry var hjemløs drift fra før prod-deploy. Verifisert mot kode 2026-05-28 (`RedigerTimerRad.tsx:41-48` + `RedigerMaskinRad.tsx:46-52`).
 - **T7-3c geo-forslag-utvidelser** ❓ — historikk-baserte forslag (sist brukte prosjekt). Mye av geo-forslag-leveransen kom i T7-3b2. Egen sub-PR eller forkastes.
 - **`OrganizationMemberPermission` (modul-tilgang per ansatt)** 🔴 — låst i [fase-0-beslutninger.md](fase-0-beslutninger.md). Designet klart, ikke startet.
 
