@@ -4,6 +4,50 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## utloperVed-fix i admin.hentImpersoneringStatus — DEPLOYET TIL PROD 2026-05-28 (prod-merge `1d432aed`, impl `6d9b5479`)
+
+`hentImpersoneringStatus` returnerte hardkodet `utloperVed: null`. Endret til å slå opp `Session.impersonationExpiresAt` via `ctx.sessionToken` og returnere ISO-streng. Tidlig-return-sjekken utvidet med `!ctx.sessionToken`.
+
+Ingen breaking change — klienten (`ImpersoneringBanner.tsx`) leser ikke `utloperVed` i dag, så returtype-utvidelsen fra `null` til `string | null` har null konsekvens. Forbereder fremtidig polish hvor banner kan vise countdown eller skjules automatisk ved utløp.
+
+Sammenfallende BACKLOG-statusoppdateringer (audit 2026-05-28):
+- **Firma-administrasjons-navigasjon strukturell rydding** → ✅ FERDIG. Alle 3 lag i mål: rename (`f3b8bb1a` + `e7168b32`), 100% server-orgId-input (kompetanse `opprett/oppdater/slett` utleder via `verifiserKompetanseSkriveTilgang` per design; vareImport 2/2 — tidligere telle-feil), 10/10 firma-sider bruker `useFirma()`.
+- **Vis som bruker (impersonering)** → 🟡 med kun audit-log igjen. Schema, 3 server-prosedyrer, context, UI (`ImperserKnapp` + `ImpersoneringBanner` montert i `dashbord/layout.tsx`), i18n alt på plass. Audit til Activity-tabell krever schema-beslutning (null-projectId eller separat tabell), estimat 1-2t.
+
+**Verifisering:** `@sitedoc/api` typecheck rent. Test-deploy auto-trigget før prod-merge. HTTP/2 200 på `sitedoc.no` + `api.sitedoc.no/health` etter prod-deploy.
+
+---
+
+## i18n maskinAvArbeid kildetekst-forenkling + 2 BACKLOG-drift-fjernelser — DEPLOYET TIL PROD 2026-05-28 (prod-merge `ba1a5056`, impl `f4f1cebb`)
+
+Tredje av topp-3-kandidatene fra audit 2026-05-28.
+
+**Engelsk kildetekst:**
+- Før: «Machine hours {{maskin}}h of work hours {{arbeid}}h»
+- Nå: «Machine {{maskin}}h / Work {{arbeid}}h»
+
+**Norsk speilet:**
+- Før: «Maskintimer {{maskin}}t av arbeidstimer {{arbeid}}t»
+- Nå: «Maskin {{maskin}}t / Arbeid {{arbeid}}t»
+
+Kort, klar struktur med universell slash-separator. Auto-oversetting via `generate.ts` produserer nå gramatisk korrekte oversettelser på alle 13 målspråk.
+
+**Prosess:**
+1. Forbedret kildetekst i `nb.json` + `en.json`
+2. Slettet nøkkelen i 12 språk (`sv`, `lt`, `pl`, `uk`, `ro`, `et`, `fi`, `cs`, `de`, `ru`, `lv`, `sq`) via Node-script
+3. Kjørte `generate.ts` uten `--force` (fyller kun manglende nøkler — fr beholdt sin manuelle verdi fra `baa462e1`)
+4. Manuell ro-fix: Google Translate hoppet over «Work» → satt til «Lucru»
+
+**Sammenfallende BACKLOG-rydding:**
+- «Attestering edit-modus bugs (2026-05-16)» markert som ✅ LØST. Verifisert mot kode: T7-2e (`c480fe8a`, prod-deploy via `86fdb5a3`) fikset Bug 1 (`min-w-[120px]` + clamp `step ≤ 1800`) og Bug 2 (lokal `timerStr`-state, parse ved blur). Entry var hjemløs drift.
+- maskinAvArbeid-entry strammet til peker mot denne implementasjonen.
+
+**Deploy-hendelse:** Test-deploy ble truffet av Turbo-cache-bug — `Could not find a production build` + `clientModules`-feil i klient. Løst manuelt: `rm -rf apps/web/.next && pnpm build --force && pm2 restart sitedoc-test-web` (1m47s, 0 cache-hits). Kjent issue dokumentert i CLAUDE.md; rotårsak: `deploy-test-cron.sh` mangler `--force` (server-side, ikke i repo).
+
+**Verifisering:** UI-konsumenten `EcoBucketEdit.tsx:896` er uendret. HTTP/2 200 på prod.
+
+---
+
 ## T7-5h — Stille overskriving av manuelt-justert rad.timer — DEPLOYET TIL PROD 2026-05-28 (prod-merge `6fd294d1`, impl `82cd65fa`)
 
 **Bug:** `beregnTimerMedPause` i `apps/web/src/components/attestering/RedigerRadModal.tsx` overskrev `rad.timer` ved hver pause- eller fra/til-endring til `rattid − pauseMin/60`. Hvis arbeider hadde gjort manuell justering (f.eks. lagret 7.0t på en 8t-periode for å trekke 60 min skjult lunsj), forsvant justeringen uten varsel ved første pause-toggle eller fra/til-edit. Bug-rapport i [BACKLOG.md § Stille overskriving](BACKLOG.md), oppdaget 2026-05-18.

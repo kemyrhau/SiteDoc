@@ -6,11 +6,28 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### T7-5h — DEPLOYET TIL PROD 2026-05-28 (prod-merge `6fd294d1`, impl `82cd65fa`)
+### Dagens samlede aktivitet — 2026-05-28 (4 prod-deploys: topp-3-kandidater + BACKLOG-audit + statusoppdateringer)
 
-Bevarer manuelt-justert `rad.timer` ved pause-endring og fra/til-endring i `RedigerRadModal.tsx`. Init-deteksjon flagger rader med avvik > 0.01t fra default-beregning; flaggede rader får ↻-knapp som lar bruker eksplisitt bytte til default. Direkte redigering av timer-feltet markerer raden som manuelt justert.
+Plukket og lukket alle tre kandidater fra BACKLOG-audit, etterfulgt av full status-audit av 26 åpne 🔴-entries som avdekket 3 drift-entries (allerede deployet) og 2 delvis-statuser som er praktisk talt ferdige.
 
-Arkivert til [historikk-2026-05.md § T7-5h](historikk-2026-05.md).
+| # | Prod-merge | Innhold |
+|---|---|---|
+| 1 | `6fd294d1` | T7-5h — bevar manuelt-justert `rad.timer` ved pause-endring (smart init + opt-in recompute, ↻-knapp i amber) |
+| 2 | `ba1a5056` | i18n `maskinAvArbeid` kildetekst-forenkling (14 språk) + 2 BACKLOG-drift-fjernelser (attestering edit-bugs ✅ LØST via T7-2e, maskinAvArbeid-entry strammet) |
+| 3 | `1d432aed` | `admin.hentImpersoneringStatus.utloperVed`-fix + 2 BACKLOG-statusoppdateringer (firma-admin-navigasjon ✅ FERDIG, impersonering 🟡 audit-log gjenstår) |
+| — | drift-rydding | BACKLOG-audit-commit `6ea50af3` (3 drift-entries: P-KRITISK-2/-3 + 3D Fase 2 mobil IFC; 2 nyanseringer) |
+
+**BACKLOG-statusendringer etter audit:**
+- 26 → 22 åpne 🔴-entries
+- 0 → 4 presise 🟡-entries med konkret gjenstående arbeid
+- Verifikasjonsmetode: `git log --all --grep` + kode-sjekk + branch-contains for hver entry
+
+**Deploy-hendelse:** Test-deploy etter `ba1a5056` ble truffet av Turbo-cache-bug (`Could not find a production build` + `clientModules`-feil). Løst manuelt via `rm -rf apps/web/.next && pnpm build --force` på serveren. Kjent issue; `deploy-test-cron.sh` (server-side, ikke i repo) trenger fortsatt `--force`-fiks.
+
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
+> [§ utloperVed-fix](historikk-2026-05.md),
+> [§ i18n maskinAvArbeid + 2 BACKLOG-rydding](historikk-2026-05.md),
+> [§ T7-5h](historikk-2026-05.md).
 
 ### Dagens samlede aktivitet — 2026-05-27 (11 prod-deploys: sikkerhets-audit komplett + UX + bugfix + docs-konsistens)
 
