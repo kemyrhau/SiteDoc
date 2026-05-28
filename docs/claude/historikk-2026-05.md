@@ -4,6 +4,27 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Impersonering audit-log — `ImpersonationAudit`-tabell (Variant B) — DEPLOYET TIL PROD 2026-05-28 (prod-merge `30467d74`, impl `631b38d5`)
+
+Lukker BACKLOG-entry «Vis som bruker (impersonering)» gjenstående punkt (audit-logging). Erstatter `console.log`-mønsteret i `admin.startImpersonering` og `admin.stoppImpersonering` med persistent audit-spor i isolert tabell.
+
+**Vedtak:** Variant B (isolert tabell) framfor å tøye Activity-policyen (Activity krever `projectId`). Isolert tabell holder Activity-modellen ren og gir spesifikke audit-felter.
+
+**Schema:** Ny modell `ImpersonationAudit` med `adminUserId`, `targetUserId`, `targetOrganizationId` (nullable, utledet via `hentBrukersOrg`), `sessionId` (ren string uten FK — overlever `Session.delete()` slik at auditen ikke kan forsvinne), `startetVed`, `utloperVed`, `avsluttetVed` (null mens aktiv), `avsluttetGrunn` (`"manuell" | "utlopt" | null`). FK med `onDelete: RESTRICT` på begge User-relasjoner. Indekser på `adminUserId`, `targetUserId`, `avsluttetVed`. Back-relations på `User`: `impersonertSomAdmin` + `impersonertSomTarget`. Migrasjon `20260528220000_impersonation_audit` opprettet manuelt (shadow-DB pgvector-issue).
+
+**Server (`apps/api/src/routes/admin.ts`):**
+- `startImpersonering`: `session.update` får `select: { id: true }` for `sessionId`. Etter session-update kalles `impersonationAudit.create` med defensiv `.catch((e) => console.warn(...))`. `targetOrganizationId` utledes via `hentBrukersOrg(targetUserId).catch(() => null)`. Audit-feil blokkerer ikke selve impersoneringen.
+- `stoppImpersonering`: speilet mønster — `session.update.select.id` + `impersonationAudit.updateMany` med predikat `{ adminUserId, sessionId, avsluttetVed: null }` og `data: { avsluttetVed: new Date(), avsluttetGrunn: "manuell" }`. Idempotent.
+- Begge `console.log`-linjer fjernet.
+
+**Utenfor scope:** Lese-prosedyre + UI (venter på tilgangs-oversikt-UX-sesjon), IP/User-Agent-felter, lazy utløps-markering (utledes via `avsluttetVed IS NULL AND utloperVed < NOW()`), backfill av historikk.
+
+**Verifisert:** `@sitedoc/api` 0 = 0, `@sitedoc/web` 1 = 1 baseline (vitest). Prod-DB `sitedoc` har `impersonation_audit`-tabell med 9 kolonner. HTTP/2 200 på `sitedoc.no/` + `/dashbord/admin/firmaer`.
+
+**Deploy-hendelse på test (samme dag):** `deploy-test-cron.sh` ble trigget av min push til develop samtidig som vi kjørte manuell test-deploy. Konkurrerende `next build` ga `ENOENT _ssgManifest.js`-feil. `&&`-kjeden stoppet før pm2 restart — regelen virket som tiltenkt. Ventet på cron-build, kjørte manuell rebuild med ledig server. Underliggende: `deploy-test-cron.sh` mangler skript-mutex (PID-fil eller flock) — notert i BACKLOG § Sikkerhets-audit sekundære oppfølgere.
+
+---
+
 ## standardPauseFra — firma-konfigurerbar pause-default — DEPLOYET TIL PROD 2026-05-28 (prod-merge `75a09ccf`, impl `fdd45949`)
 
 Lukker BACKLOG-entry «Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)». Erstatter midtpunkt-fallback i `togglePause` med firma-konfigurerbar default som respekterer norsk lunsj-konvensjon.

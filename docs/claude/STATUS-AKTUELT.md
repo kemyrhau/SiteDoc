@@ -6,39 +6,37 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md).
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md).
 
-### PR Impersonering audit-log — `ImpersonationAudit`-tabell (Variant B) — IMPLEMENTERT PÅ DEVELOP 2026-05-28
+### PR HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — IMPLEMENTERT PÅ DEVELOP 2026-05-28
 
-Lukker BACKLOG-entry «Vis som bruker (impersonering)» gjenstående punkt (audit-logging). Erstatter `console.log`-mønsteret i `admin.startImpersonering` (linje 673) og `admin.stoppImpersonering` (linje 702) med persistent audit-spor i isolert tabell.
+Lukker punkt 2 i HMS-prosjektvisning teknisk gjeld. Tre HMS-tabeller (`AvvikTabell`, `SjaTabell`, `RuhTabell` i `apps/web/src/components/hms/tabeller.tsx`) konvertert fra plain HTML til delt `@sitedoc/ui Table`. Får sortering, kolonnefilter, kolonnebredde-resize, og «Alle åpne»-snarvei på Avvik-status.
 
-**Schema (`packages/db/prisma/schema.prisma`):**
-- Ny modell `ImpersonationAudit` med felter `adminUserId`, `targetUserId`, `targetOrganizationId` (nullable), `sessionId` (string uten FK — overlever `Session.delete()`), `startetVed`, `utloperVed`, `avsluttetVed` (null mens aktiv), `avsluttetGrunn` (`"manuell" | "utlopt" | null`).
-- FK med `onDelete: RESTRICT` på begge User-relasjoner — User med audit-spor kan ikke slettes uten å rydde auditen først.
-- Indekser på `adminUserId`, `targetUserId`, `avsluttetVed`.
-- Back-relations på `User`: `impersonertSomAdmin` + `impersonertSomTarget`.
-- Migrasjon `20260528220000_impersonation_audit` opprettet manuelt (shadow-DB pgvector-issue, samme mønster som forrige PR).
+**Endringer i `apps/web/src/components/hms/tabeller.tsx`:**
+- Full omskriving (195 → 410 linjer). Bytte til `Table<DokumentRad>` med `KolonneDef`-array per komponent.
+- Lokal state per komponent for `filterVerdier` + `kolonneBredder`. Mønstret matcher `oppgaver/page.tsx`.
+- Tom-tilstand håndteres utenfor Table — beholder `EmptyState`-komponent for rikere UX (tittel + beskrivelse).
+- Filter-alternativer bygges dynamisk via `unikeVerdier`-helper som leser unike verdier ut av rad-arrayen.
+- Status-snarvei «Alle åpne» (`["draft","sent","received","in_progress","responded"]`) kun på `AvvikTabell` — SJA og RUH har andre flyt-mønstre der snarveien ikke gir samme verdi.
+- Behandle-knapp (`onHurtigBehandle`) flyttet til egen kolonne med `e.stopPropagation()` på klikk slik at rad-klikk (drill-ned) ikke utløses.
+- Komponent-signaturen uendret — `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx` og `apps/web/src/app/dashbord/firma/hms/page.tsx` uberørt.
 
-**Server (`apps/api/src/routes/admin.ts`):**
-- `startImpersonering`: `session.update` får nå `select: { id: true }` slik at vi har `sessionId`. Etter session-update kalles `ctx.prisma.impersonationAudit.create` med defensiv `.catch((e) => console.warn(...))`. `targetOrganizationId` utledes via `hentBrukersOrg(targetUserId).catch(() => null)`. Audit-feil blokkerer ikke selve impersoneringen.
-- `stoppImpersonering`: speilet mønster — `session.update` får `select: { id: true }`, deretter `impersonationAudit.updateMany({ where: { adminUserId, sessionId, avsluttetVed: null }, data: { avsluttetVed: new Date(), avsluttetGrunn: "manuell" } })`. Idempotent — gjør ingenting hvis ingen aktiv audit-rad finnes.
-- Begge `console.log`-linjene fjernet.
+**Trade-off:** Filter-state nullstilles ved tab-bytte i firma-HMS (Avvik→SJA→Avvik). Akseptert siden tabs har ulike kolonner uansett. Kan heves til kallsiden i senere iterasjon hvis Kenneth savner persistens.
 
-**Hva som IKKE er med (utenfor scope):**
-- Ingen lese-prosedyre (`hentImpersoneringLogg` el.) — venter på tilgangs-oversikt-UX-sesjon. Audit tilgjengelig via direkte SQL.
-- Ingen IP/User-Agent-felter — additivt senere ved behov.
-- Ingen lazy utløps-markering — utledes via `avsluttetVed IS NULL AND utloperVed < NOW()` ved fremtidig spørring.
-- Ingen backfill av historiske `console.log`-utdata — kun fremover.
+**Bonus:** Endringen gjelder automatisk for begge HMS-sider (prosjekt + firma) siden de bruker samme komponenter.
 
-**Verifisert:** `@sitedoc/api` 0 = 0 feil. `@sitedoc/web` 1 = 1 baseline (vitest, pre-eksisterende).
+**Ingen nye i18n-nøkler** — gjenbruker alle eksisterende (`hms.tom.*`, `hms.kolonne.*`, `tabell.*`, `firma.hms.kolonne.*`, `firma.hms.hurtig.knapp`, `status.alleApne`).
 
-**Reload-metode:** Server-reload kreves (ny Prisma-klient med ImpersonationAudit-modell + ny audit-logikk i prosedyrene). Web cache-cleaning + `pnpm build --force` på test (Turbo-cache-bug). Ingen mobil-endring.
+**Verifisert:** `@sitedoc/web` 1 = 1 baseline (vitest, pre-eksisterende). 0 nye type-feil.
+
+**Reload-metode:** TypeScript-only på web. Cache-cleaning + `pnpm build --force` på test (Turbo-cache-bug). Ingen server-endring, ingen mobil-endring.
 
 **Klar for review** — Kenneth verifiserer at:
-- Impersonering fungerer som før (Session-flagg + UI-banner)
-- `psql sitedoc_test -c "SELECT * FROM impersonation_audit ORDER BY startet_ved DESC LIMIT 5"` viser INSERT etter `startImpersonering`-kall
-- `stoppImpersonering` setter `avsluttet_ved` + `avsluttet_grunn = 'manuell'`
-- Utløp etter 1 time lar raden stå med `avsluttet_ved IS NULL` (utløp markeres ikke automatisk per scope-vedtak)
+- `/dashbord/[prosjektId]/hms` Avvik-fanen — kolonne-headere klikkbare for sortering, filter-ikon på kolonner med dropdown, drag på kolonne-kant for å justere bredde
+- Status-kolonnen viser «Alle åpne»-snarvei i filter-dropdown (ved siden av vanlige status-alternativer)
+- `/dashbord/firma/hms` Avvik-fanen — samme funksjonalitet + behandle-knapp som åpner hurtig-modal uten å trigge drill-ned
+- SJA + RUH-faner — sortering + filter fungerer som forventet
+- Tom-tilstand viser `EmptyState` med tittel + beskrivelse (ikke Tables enkle tomMelding)
 
 ### PR HMS-byggeplass-filter innad i prosjektet — IMPLEMENTERT PÅ DEVELOP 2026-05-29
 
