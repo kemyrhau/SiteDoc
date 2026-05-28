@@ -419,6 +419,60 @@ export const organisasjonRouter = router({
       return { ok: true };
     }),
 
+  // Sett eller fjern hms_ansvarlig-rollen for en bruker (kun firmaadmin).
+  // Speil av settFirmaAdmin — skriver til OrganizationMember.firmaRoller.
+  // Trinn 1 av firma-HMS-dashboard (2026-05-29).
+  settFirmaHmsAnsvarlig: protectedProcedure
+    .input(
+      z.object({
+        userId: z.string().uuid(),
+        organizationId: z.string().uuid(),
+        harTilgang: z.boolean(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+
+      const member = await ctx.prisma.organizationMember.findUnique({
+        where: {
+          userId_organizationId: { userId: input.userId, organizationId: orgId },
+        },
+        select: {
+          id: true,
+          firmaRoller: true,
+          user: { select: { role: true } },
+        },
+      });
+
+      if (!member) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Brukeren tilhører ikke firmaet",
+        });
+      }
+
+      if (member.user.role === "sitedoc_admin") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kan ikke endre systemadministrator",
+        });
+      }
+
+      const har = member.firmaRoller.includes("hms_ansvarlig");
+      if (input.harTilgang && !har) {
+        await ctx.prisma.organizationMember.update({
+          where: { id: member.id },
+          data: { firmaRoller: [...member.firmaRoller, "hms_ansvarlig"] },
+        });
+      } else if (!input.harTilgang && har) {
+        await ctx.prisma.organizationMember.update({
+          where: { id: member.id },
+          data: { firmaRoller: member.firmaRoller.filter((r) => r !== "hms_ansvarlig") },
+        });
+      }
+      return { ok: true };
+    }),
+
   // Inviter ny bruker til firmaet (firma-admin)
   // Oppretter User med canLogin = true og en OrganizationMember-rad. Bruker logger
   // inn via OAuth (Google/Microsoft) med matchende e-post første gang.
