@@ -578,7 +578,9 @@ export const adminRouter = router({
   // --------------------------------------------------------------------------
 
   hentImpersoneringStatus: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.imperseringAktiv) return { aktiv: false } as const;
+    if (!ctx.imperseringAktiv || !ctx.sessionToken) {
+      return { aktiv: false } as const;
+    }
 
     const user = await ctx.prisma.user.findUnique({
       where: { id: ctx.userId },
@@ -589,6 +591,12 @@ export const adminRouter = router({
       where: { userId: ctx.userId },
       select: { organization: { select: { id: true, name: true } } },
     });
+    // Hent utløpstidspunkt for impersonering — slik at banner kan vise
+    // countdown eller skjules automatisk ved utløp (klient-side oppfølger).
+    const session = await ctx.prisma.session.findUnique({
+      where: { sessionToken: ctx.sessionToken },
+      select: { impersonationExpiresAt: true },
+    });
     return {
       aktiv: true as const,
       target: {
@@ -596,7 +604,7 @@ export const adminRouter = router({
         organizationId: medlem?.organization.id ?? null,
         organization: medlem ? { name: medlem.organization.name } : null,
       },
-      utloperVed: null as null | string,
+      utloperVed: session?.impersonationExpiresAt?.toISOString() ?? null,
     };
   }),
 
