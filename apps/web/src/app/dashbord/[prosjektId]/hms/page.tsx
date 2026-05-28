@@ -4,6 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { Spinner, EmptyState, StatusBadge } from "@sitedoc/ui";
 import { Plus, ChevronDown, ShieldAlert, AlertTriangle, ClipboardList, FileWarning } from "lucide-react";
 
@@ -228,12 +229,13 @@ export default function HmsSide() {
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
+  const { aktivByggeplass } = useByggeplass();
 
   const [aktivTab, setAktivTab] = useState<Tab>("avvik");
   const [visAlle, setVisAlle] = useState(false);
 
   const dokumenterQuery = trpc.hms.hentDokumenter.useQuery(
-    { projectId: params.prosjektId },
+    { projectId: params.prosjektId, byggeplassId: aktivByggeplass?.id ?? undefined },
     { enabled: !!params.prosjektId },
   );
   const dokumenter = dokumenterQuery.data as

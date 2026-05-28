@@ -6,6 +6,32 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### PR HMS-byggeplass-filter innad i prosjektet — IMPLEMENTERT PÅ DEVELOP 2026-05-29
+
+Lukker punkt 3 i HMS-prosjektvisning teknisk gjeld. HMS-siden viser nå bare dokumenter knyttet til aktiv byggeplass (samt prosjekt-brede dokumenter uten byggeplass-tilknytning).
+
+**Endringer i `apps/api/src/routes/hms.ts`:**
+- Input-schema utvidet med `byggeplassId: z.string().uuid().optional()`.
+- To filter-klausuler bygget asymmetrisk:
+  - `taskByggeplassClause` for HMS-avvik: `OR: [{ drawing: { byggeplassId } }, { drawingId: null }]` (Task har bare `drawingId`, ikke direkte byggeplass-felt).
+  - `checklistByggeplassClause` for SJA + RUH: `OR: [{ byggeplassId }, { byggeplassId: null }]` (Checklist har feltet direkte).
+- Task-query: eksisterende `OR` (bestillerFaggruppe vs null) konvertert til `AND: [...]`-struktur for å kombinere med byggeplass-`OR` uten konflikt. Checklist-queries spreader klausulen som `OR: [...]` direkte på where (kun ett OR-uttrykk per query).
+- Prosjekt-brede dokumenter (uten drawing/byggeplass) inkluderes alltid — de er relevante for arbeid på alle byggeplasser. Matcher menneskelig intuisjon.
+
+**Endringer i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`:**
+- Import: `useByggeplass` fra `@/kontekst/byggeplass-kontekst`.
+- Hook: `const { aktivByggeplass } = useByggeplass();`.
+- Query-input utvidet: `{ projectId, byggeplassId: aktivByggeplass?.id ?? undefined }`. Når ingen byggeplass valgt sendes `undefined` → server returnerer alle dokumenter (default-oppførsel uendret).
+- Cache-invalidering uendret — `utils.hms.hentDokumenter.invalidate({ projectId })` matcher på query-key-prefiks og dekker alle byggeplass-varianter.
+
+**Verifisert:** `@sitedoc/api` typecheck 0 = 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (vitest). 0 nye feil.
+
+**Reload-metode:** Server-reload kreves (input-schema endret). Web TypeScript-only + cache-cleaning ved deploy.
+
+**Forventet konsekvens:** Når brukeren har valgt en aktiv byggeplass, viser HMS-siden bare HMS-dokumenter knyttet til den byggeplassen (eller prosjekt-brede). «Alle byggeplasser»-modus (aktivByggeplass = null) viser alt som før.
+
+Klar for review — ikke merge før Kenneth verifiserer på nettleser at filteret oppfører seg riktig (særlig at prosjekt-brede dokumenter fortsatt vises ved valgt byggeplass).
+
 ### PR Oppgave-mobil rettighetsoppfølger — IMPLEMENTERT PÅ DEVELOP 2026-05-29
 
 Speiler sjekkliste-mobil-mønsteret (`60601d3c Port rettighetsbasert UI til mobil`) inn i oppgave-fila. Lukker BACKLOG-entry «Oppgave-mobil rettighetsoppfølger».

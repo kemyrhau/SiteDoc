@@ -135,6 +135,7 @@ export const hmsRouter = router({
         projectId: z.string().uuid(),
         status: documentStatusSchema.optional(),
         subdomain: z.enum(["avvik", "sja", "ruh"]).optional(),
+        byggeplassId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -144,15 +145,40 @@ export const hmsRouter = router({
 
       const statusFilter = input.status ? { status: input.status } : {};
 
+      // Byggeplass-filter (asymmetri): Task har drawingId (filtreres via drawing.byggeplassId);
+      // Checklist har byggeplassId direkte. Prosjekt-brede dokumenter (uten byggeplass/tegning)
+      // inkluderes alltid — de er relevante for arbeid på alle byggeplasser.
+      const taskByggeplassClause = input.byggeplassId
+        ? {
+            OR: [
+              { drawing: { byggeplassId: input.byggeplassId } },
+              { drawingId: null },
+            ],
+          }
+        : null;
+      const checklistByggeplassClause = input.byggeplassId
+        ? {
+            OR: [
+              { byggeplassId: input.byggeplassId },
+              { byggeplassId: null },
+            ],
+          }
+        : null;
+
       const avvikPromise = (input.subdomain === undefined || input.subdomain === "avvik")
         ? ctx.prisma.task.findMany({
             where: komponerWhere(
               {
                 ...statusFilter,
                 template: { is: { projectId: input.projectId, domain: "hms", subdomain: "avvik" } },
-                OR: [
-                  { bestillerFaggruppe: { projectId: input.projectId } },
-                  { bestillerFaggruppeId: null },
+                AND: [
+                  {
+                    OR: [
+                      { bestillerFaggruppe: { projectId: input.projectId } },
+                      { bestillerFaggruppeId: null },
+                    ],
+                  },
+                  ...(taskByggeplassClause ? [taskByggeplassClause] : []),
                 ],
               },
               tilgangsFilter,
@@ -169,6 +195,7 @@ export const hmsRouter = router({
               {
                 ...statusFilter,
                 template: { is: { projectId: input.projectId, domain: "hms", subdomain: "sja" } },
+                ...(checklistByggeplassClause ?? {}),
               },
               tilgangsFilter,
               synlighetsFilter,
@@ -184,6 +211,7 @@ export const hmsRouter = router({
               {
                 ...statusFilter,
                 template: { is: { projectId: input.projectId, domain: "hms", subdomain: "ruh" } },
+                ...(checklistByggeplassClause ?? {}),
               },
               tilgangsFilter,
               synlighetsFilter,
