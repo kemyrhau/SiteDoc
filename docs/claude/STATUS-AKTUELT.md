@@ -34,6 +34,8 @@ Tett deploy-dag etter compact 2026-05-28 morgen. Hele firma-HMS-dashbord-bunken 
 **Nye BACKLOG-entries opprettet under sesjonen:**
 - «Firma-nivå tilgangskontrolloversikt» (planlagt UX-sesjon: firma-innstillinger + tilgangsoversikt)
 
+**DB-undersøkelse — k-avv-mal sletting (kveld):** Florian rapporterte at én av to k-avv-maler ble slettet. Undersøkelse av prod-DB viste at `report_templates` mangler `deleted_at` (sletting = hard-delete, ikke gjenopprettbart) og at `activity_log`-tabellen er **tom for alle hendelser siste 24t** — vi har null spor av hvem som slettet hva. `ImpersonationAudit` derimot fungerer som forventet og logget alle 4 av dagens impersonerings-sesjoner (Kenneth → Florian, alle avsluttet manuelt). Lærdom: `activity_log`-skjema finnes (15 kolonner inkl. `payload jsonb`, retention-felter) men ingen kode skriver til den. Plan-skisse for hybrid Prisma middleware + eksplisitt tRPC-skriving (5 dagers estimat) drøftet — ikke prioritert/scope-bestemt ennå. Bør legges som BACKLOG-entry ved neste planleggings-sesjon.
+
 **Deploy-hendelse:** Auto-deploy-cron-race vs manuell test-deploy slo inn 3 ganger samme dag — push til develop trigget cron parallelt med vår manuelle deploy → `ENOENT _ssgManifest.js` / `ENOENT pages-manifest.json`. `&&`-kjeden stoppet konsekvent før pm2 restart, så pm2 kjørte aldri gammel kode mot ny build. Underliggende: `deploy-test-cron.sh` mangler skript-mutex (PID-fil eller flock). Allerede notert i BACKLOG § Sikkerhets-audit sekundære oppfølgere — bør prioriteres pga gjentakelse.
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
