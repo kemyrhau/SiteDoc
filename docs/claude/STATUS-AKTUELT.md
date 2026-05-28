@@ -8,6 +8,36 @@ sist_verifisert_mot_kode: 2026-05-08
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md).
 
+### PR HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — IMPLEMENTERT PÅ DEVELOP 2026-05-28
+
+Lukker punkt 2 i HMS-prosjektvisning teknisk gjeld. Tre HMS-tabeller (`AvvikTabell`, `SjaTabell`, `RuhTabell` i `apps/web/src/components/hms/tabeller.tsx`) konvertert fra plain HTML til delt `@sitedoc/ui Table`. Får sortering, kolonnefilter, kolonnebredde-resize, og «Alle åpne»-snarvei på Avvik-status.
+
+**Endringer i `apps/web/src/components/hms/tabeller.tsx`:**
+- Full omskriving (195 → 410 linjer). Bytte til `Table<DokumentRad>` med `KolonneDef`-array per komponent.
+- Lokal state per komponent for `filterVerdier` + `kolonneBredder`. Mønstret matcher `oppgaver/page.tsx`.
+- Tom-tilstand håndteres utenfor Table — beholder `EmptyState`-komponent for rikere UX (tittel + beskrivelse).
+- Filter-alternativer bygges dynamisk via `unikeVerdier`-helper som leser unike verdier ut av rad-arrayen.
+- Status-snarvei «Alle åpne» (`["draft","sent","received","in_progress","responded"]`) kun på `AvvikTabell` — SJA og RUH har andre flyt-mønstre der snarveien ikke gir samme verdi.
+- Behandle-knapp (`onHurtigBehandle`) flyttet til egen kolonne med `e.stopPropagation()` på klikk slik at rad-klikk (drill-ned) ikke utløses.
+- Komponent-signaturen uendret — `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx` og `apps/web/src/app/dashbord/firma/hms/page.tsx` uberørt.
+
+**Trade-off:** Filter-state nullstilles ved tab-bytte i firma-HMS (Avvik→SJA→Avvik). Akseptert siden tabs har ulike kolonner uansett. Kan heves til kallsiden i senere iterasjon hvis Kenneth savner persistens.
+
+**Bonus:** Endringen gjelder automatisk for begge HMS-sider (prosjekt + firma) siden de bruker samme komponenter.
+
+**Ingen nye i18n-nøkler** — gjenbruker alle eksisterende (`hms.tom.*`, `hms.kolonne.*`, `tabell.*`, `firma.hms.kolonne.*`, `firma.hms.hurtig.knapp`, `status.alleApne`).
+
+**Verifisert:** `@sitedoc/web` 1 = 1 baseline (vitest, pre-eksisterende). 0 nye type-feil.
+
+**Reload-metode:** TypeScript-only på web. Cache-cleaning + `pnpm build --force` på test (Turbo-cache-bug). Ingen server-endring, ingen mobil-endring.
+
+**Klar for review** — Kenneth verifiserer at:
+- `/dashbord/[prosjektId]/hms` Avvik-fanen — kolonne-headere klikkbare for sortering, filter-ikon på kolonner med dropdown, drag på kolonne-kant for å justere bredde
+- Status-kolonnen viser «Alle åpne»-snarvei i filter-dropdown (ved siden av vanlige status-alternativer)
+- `/dashbord/firma/hms` Avvik-fanen — samme funksjonalitet + behandle-knapp som åpner hurtig-modal uten å trigge drill-ned
+- SJA + RUH-faner — sortering + filter fungerer som forventet
+- Tom-tilstand viser `EmptyState` med tittel + beskrivelse (ikke Tables enkle tomMelding)
+
 ### PR HMS-byggeplass-filter innad i prosjektet — IMPLEMENTERT PÅ DEVELOP 2026-05-29
 
 Lukker punkt 3 i HMS-prosjektvisning teknisk gjeld. HMS-siden viser nå bare dokumenter knyttet til aktiv byggeplass (samt prosjekt-brede dokumenter uten byggeplass-tilknytning).
