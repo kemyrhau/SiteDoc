@@ -6,39 +6,7 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md).
-
-### PR Impersonering audit-log — `ImpersonationAudit`-tabell (Variant B) — IMPLEMENTERT PÅ DEVELOP 2026-05-28
-
-Lukker BACKLOG-entry «Vis som bruker (impersonering)» gjenstående punkt (audit-logging). Erstatter `console.log`-mønsteret i `admin.startImpersonering` (linje 673) og `admin.stoppImpersonering` (linje 702) med persistent audit-spor i isolert tabell.
-
-**Schema (`packages/db/prisma/schema.prisma`):**
-- Ny modell `ImpersonationAudit` med felter `adminUserId`, `targetUserId`, `targetOrganizationId` (nullable), `sessionId` (string uten FK — overlever `Session.delete()`), `startetVed`, `utloperVed`, `avsluttetVed` (null mens aktiv), `avsluttetGrunn` (`"manuell" | "utlopt" | null`).
-- FK med `onDelete: RESTRICT` på begge User-relasjoner — User med audit-spor kan ikke slettes uten å rydde auditen først.
-- Indekser på `adminUserId`, `targetUserId`, `avsluttetVed`.
-- Back-relations på `User`: `impersonertSomAdmin` + `impersonertSomTarget`.
-- Migrasjon `20260528220000_impersonation_audit` opprettet manuelt (shadow-DB pgvector-issue, samme mønster som forrige PR).
-
-**Server (`apps/api/src/routes/admin.ts`):**
-- `startImpersonering`: `session.update` får nå `select: { id: true }` slik at vi har `sessionId`. Etter session-update kalles `ctx.prisma.impersonationAudit.create` med defensiv `.catch((e) => console.warn(...))`. `targetOrganizationId` utledes via `hentBrukersOrg(targetUserId).catch(() => null)`. Audit-feil blokkerer ikke selve impersoneringen.
-- `stoppImpersonering`: speilet mønster — `session.update` får `select: { id: true }`, deretter `impersonationAudit.updateMany({ where: { adminUserId, sessionId, avsluttetVed: null }, data: { avsluttetVed: new Date(), avsluttetGrunn: "manuell" } })`. Idempotent — gjør ingenting hvis ingen aktiv audit-rad finnes.
-- Begge `console.log`-linjene fjernet.
-
-**Hva som IKKE er med (utenfor scope):**
-- Ingen lese-prosedyre (`hentImpersoneringLogg` el.) — venter på tilgangs-oversikt-UX-sesjon. Audit tilgjengelig via direkte SQL.
-- Ingen IP/User-Agent-felter — additivt senere ved behov.
-- Ingen lazy utløps-markering — utledes via `avsluttetVed IS NULL AND utloperVed < NOW()` ved fremtidig spørring.
-- Ingen backfill av historiske `console.log`-utdata — kun fremover.
-
-**Verifisert:** `@sitedoc/api` 0 = 0 feil. `@sitedoc/web` 1 = 1 baseline (vitest, pre-eksisterende).
-
-**Reload-metode:** Server-reload kreves (ny Prisma-klient med ImpersonationAudit-modell + ny audit-logikk i prosedyrene). Web cache-cleaning + `pnpm build --force` på test (Turbo-cache-bug). Ingen mobil-endring.
-
-**Klar for review** — Kenneth verifiserer at:
-- Impersonering fungerer som før (Session-flagg + UI-banner)
-- `psql sitedoc_test -c "SELECT * FROM impersonation_audit ORDER BY startet_ved DESC LIMIT 5"` viser INSERT etter `startImpersonering`-kall
-- `stoppImpersonering` setter `avsluttet_ved` + `avsluttet_grunn = 'manuell'`
-- Utløp etter 1 time lar raden stå med `avsluttet_ved IS NULL` (utløp markeres ikke automatisk per scope-vedtak)
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md).
 
 ### PR HMS-byggeplass-filter innad i prosjektet — IMPLEMENTERT PÅ DEVELOP 2026-05-29
 
