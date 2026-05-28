@@ -712,7 +712,8 @@ export async function byggTilgangsFilter(
 /**
  * Hent brukerens samlede tillatelser fra alle grupper.
  * Admin får alle tillatelser.
- * firma_admin på en koblet ProjectOrganization arver fulle tillatelser uten ProjectMember-rad.
+ * firma_admin på en koblet ProjectOrganization arver fulle tillatelser uavhengig av
+ * om ProjectMember-rad finnes eller ikke (speiler verifiserAdmin-mønsteret).
  */
 export async function hentBrukerTillatelser(
   userId: string,
@@ -735,28 +736,29 @@ export async function hentBrukerTillatelser(
     },
   });
 
-  if (!medlem) {
-    // Firma-admin-fallback: speiler verifiserAdmin/verifiserProsjektmedlem.
-    // firma_admin på en koblet ProjectOrganization arver fulle prosjekt-tillatelser.
-    const orgKoblinger = await prisma.projectOrganization.findMany({
-      where: { projectId },
-      select: { organizationId: true },
-    });
-    for (const { organizationId } of orgKoblinger) {
-      if (await erFirmaAdmin(userId, organizationId)) {
-        return new Set([...PERMISSIONS] as Permission[]);
-      }
-    }
+  // Prosjektadmin har alle tillatelser
+  if (medlem?.role === "admin") {
+    return new Set([...PERMISSIONS] as Permission[]);
+  }
 
+  // Firma-admin-fallback: speiler verifiserAdmin (linje 226-232).
+  // firma_admin på en koblet ProjectOrganization arver fulle prosjekt-tillatelser,
+  // også når bruker er ProjectMember med role="member".
+  const orgKoblinger = await prisma.projectOrganization.findMany({
+    where: { projectId },
+    select: { organizationId: true },
+  });
+  for (const { organizationId } of orgKoblinger) {
+    if (await erFirmaAdmin(userId, organizationId)) {
+      return new Set([...PERMISSIONS] as Permission[]);
+    }
+  }
+
+  if (!medlem) {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Du er ikke medlem av dette prosjektet",
     });
-  }
-
-  // Prosjektadmin har alle tillatelser
-  if (medlem.role === "admin") {
-    return new Set([...PERMISSIONS] as Permission[]);
   }
 
   // Samle alle tillatelser fra grupper og utvid gamle til nye
