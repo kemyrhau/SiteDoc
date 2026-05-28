@@ -74,6 +74,27 @@ export default function FirmaHmsSide() {
     { enabled: !!organizationId && harTilgangQuery.data === true },
   );
 
+  // Data-ekstraksjon + alle useMemo plassert FØR early returns slik at
+  // hook-rekkefølgen er identisk i hver render (React-regel).
+  const data = oversiktQuery.data;
+  const prosjekter = data?.prosjekter ?? [];
+  const dokumenter = data?.dokumenter ?? { avvik: [], sja: [], ruh: [] };
+  const statistikk = data?.statistikk;
+
+  // Byggeplass-alternativer kaskadert fra valgte prosjekter (eller alle hvis ingen valgt)
+  const tilgjengeligeByggeplasser = useMemo(() => {
+    const aktuelle = prosjektIder.length > 0
+      ? prosjekter.filter((p) => prosjektIder.includes(p.id))
+      : prosjekter;
+    const map = new Map<string, { id: string; name: string; prosjektNavn: string }>();
+    for (const p of aktuelle) {
+      for (const b of p.byggeplasser) {
+        map.set(b.id, { id: b.id, name: b.name, prosjektNavn: p.name });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [prosjekter, prosjektIder]);
+
   if (!organizationId) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -97,25 +118,6 @@ export default function FirmaHmsSide() {
       </div>
     );
   }
-
-  const data = oversiktQuery.data;
-  const prosjekter = data?.prosjekter ?? [];
-  const dokumenter = data?.dokumenter ?? { avvik: [], sja: [], ruh: [] };
-  const statistikk = data?.statistikk;
-
-  // Byggeplass-alternativer kaskadert fra valgte prosjekter (eller alle hvis ingen valgt)
-  const tilgjengeligeByggeplasser = useMemo(() => {
-    const aktuelle = prosjektIder.length > 0
-      ? prosjekter.filter((p) => prosjektIder.includes(p.id))
-      : prosjekter;
-    const map = new Map<string, { id: string; name: string; prosjektNavn: string }>();
-    for (const p of aktuelle) {
-      for (const b of p.byggeplasser) {
-        map.set(b.id, { id: b.id, name: b.name, prosjektNavn: p.name });
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [prosjekter, prosjektIder]);
 
   // Drill-ned: bygger til prosjekt-detalj basert på subdomain
   function drillNed(rad: DokumentRad) {
