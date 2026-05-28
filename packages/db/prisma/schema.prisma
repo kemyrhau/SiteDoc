@@ -52,6 +52,7 @@ model User {
   folderAccess            FolderAccess[]
   taskComments            TaskComment[]
   checklistChangeLogs     ChecklistChangeLog[]
+  taskChangeLogs          TaskChangeLog[]
   ansvarligFaggrupper     Faggruppe[]             @relation("FaggruppeAnsvarlig")
   psiSignaturer           PsiSignatur[]
   godkjenteKontrollplaner Kontrollplan[]          @relation("KontrollplanGodkjenner")
@@ -962,6 +963,7 @@ model Task {
   transfers          DocumentTransfer[]
   images             Image[]
   comments           TaskComment[]
+  changeLog          TaskChangeLog[]
 
   @@index([templateId])
   @@index([bestillerUserId])
@@ -1247,6 +1249,23 @@ model ChecklistChangeLog {
 
   @@index([checklistId])
   @@map("checklist_change_log")
+}
+
+model TaskChangeLog {
+  id         String   @id @default(uuid())
+  taskId     String   @map("task_id")
+  userId     String   @map("user_id")
+  fieldId    String   @map("field_id")
+  fieldLabel String   @map("field_label")
+  oldValue   String?  @map("old_value")
+  newValue   String?  @map("new_value")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+  @@map("task_change_log")
 }
 
 // ============================================================

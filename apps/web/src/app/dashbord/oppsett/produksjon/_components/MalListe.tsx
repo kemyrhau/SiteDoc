@@ -964,28 +964,26 @@ export function MalListe({
             </div>
           </div>
 
-          {/* Endringslogg (kun for sjekklister) */}
-          {kategori === "sjekkliste" && (
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-gray-700">
-                Innstillinger
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
-                  checked={redigerEnableChangeLog}
-                  onChange={(e) => setRedigerEnableChangeLog(e.target.checked)}
-                />
-                <span className="text-sm text-gray-700">
-                  Aktiver automatisk endringslogg
-                </span>
-              </label>
-              <p className="text-xs text-gray-500 ml-6">
-                Logger feltendringer med tidsstempel og bruker nederst i sjekklisten
-              </p>
-            </div>
-          )}
+          {/* Endringslogg — gjelder både oppgave- og sjekkliste-maler */}
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-gray-700">
+              Innstillinger
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
+                checked={redigerEnableChangeLog}
+                onChange={(e) => setRedigerEnableChangeLog(e.target.checked)}
+              />
+              <span className="text-sm text-gray-700">
+                Aktiver automatisk endringslogg
+              </span>
+            </label>
+            <p className="text-xs text-gray-500 ml-6">
+              Logger feltendringer med tidsstempel og bruker
+            </p>
+          </div>
 
           <div className="flex gap-3 pt-2">
             <Button type="submit" loading={oppdaterMutation.isPending}>

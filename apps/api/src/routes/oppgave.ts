@@ -508,7 +508,8 @@ export const oppgaveRouter = router({
             select: {
               domain: true,
               projectId: true,
-              objects: { select: { id: true, type: true } },
+              enableChangeLog: true,
+              objects: { select: { id: true, label: true, type: true } },
             },
           },
         },
@@ -522,6 +523,51 @@ export const oppgaveRouter = router({
         oppgave.id,
         "task",
       );
+
+      // Generer endringslogg hvis aktivert på malen (speil av sjekkliste.oppdaterData:374-407)
+      const endringsloggRader: {
+        taskId: string;
+        userId: string;
+        fieldId: string;
+        fieldLabel: string;
+        oldValue: string | null;
+        newValue: string | null;
+      }[] = [];
+
+      if (oppgave.template?.enableChangeLog) {
+        const gammelData = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
+        const nyData = input.data as Record<string, Record<string, unknown>>;
+        const displayTyper = new Set(["heading", "subtitle"]);
+
+        const objektMap = new Map(
+          oppgave.template.objects
+            .filter((o) => !displayTyper.has(o.type))
+            .map((o) => [o.id, o.label]),
+        );
+
+        for (const [feltId, nyVerdi] of Object.entries(nyData)) {
+          const label = objektMap.get(feltId);
+          if (!label) continue;
+
+          const gammelVerdi = gammelData[feltId];
+          const gammelV = gammelVerdi?.verdi ?? null;
+          const nyV = nyVerdi?.verdi ?? null;
+
+          const gammelStr = gammelV != null ? JSON.stringify(gammelV) : null;
+          const nyStr = nyV != null ? JSON.stringify(nyV) : null;
+
+          if (gammelStr !== nyStr) {
+            endringsloggRader.push({
+              taskId: input.id,
+              userId: ctx.userId,
+              fieldId: feltId,
+              fieldLabel: label,
+              oldValue: gammelStr,
+              newValue: nyStr,
+            });
+          }
+        }
+      }
 
       // Fritekst-oversettelse Lag 3
       const projectId = hentProjectId(oppgave);
@@ -589,10 +635,16 @@ export const oppgaveRouter = router({
         const eksisterende = (fersk.data ?? {}) as Record<string, unknown>;
         const merget = { ...eksisterende, ...input.data };
 
-        return tx.task.update({
+        const oppdatert = await tx.task.update({
           where: { id: input.id },
           data: { data: merget as Prisma.InputJsonValue },
         });
+
+        if (endringsloggRader.length > 0) {
+          await tx.taskChangeLog.createMany({ data: endringsloggRader });
+        }
+
+        return oppdatert;
       });
     }),
 
@@ -610,7 +662,14 @@ export const oppgaveRouter = router({
         where: { id: input.id },
         include: {
           bestillerFaggruppe: { select: { projectId: true } },
-          template: { select: { domain: true, projectId: true } },
+          template: {
+            select: {
+              domain: true,
+              projectId: true,
+              enableChangeLog: true,
+              objects: { select: { id: true, label: true } },
+            },
+          },
         },
       });
       const projectId = hentProjectId(oppgave);
@@ -628,6 +687,8 @@ export const oppgaveRouter = router({
 
       const original = felt.original as { spraak: string; verdi?: string; kommentar?: string } | undefined;
       if (!original) throw new TRPCError({ code: "BAD_REQUEST", message: "Ingen original å forbedre" });
+
+      const verdiFor = felt.verdi ?? null;
 
       if (input.motor) {
         const prosjekt = await ctx.prisma.project.findUnique({
@@ -656,9 +717,34 @@ export const oppgaveRouter = router({
         if (input.manuellKommentar !== undefined) felt.kommentar = input.manuellKommentar;
       }
 
-      return ctx.prisma.task.update({
-        where: { id: input.id },
-        data: { data: data as Prisma.InputJsonValue },
+      // Generer endringslogg-rad hvis aktivert på malen og verdi faktisk endret
+      const verdiEtter = felt.verdi ?? null;
+      const verdiForStr = verdiFor != null ? JSON.stringify(verdiFor) : null;
+      const verdiEtterStr = verdiEtter != null ? JSON.stringify(verdiEtter) : null;
+      const skalLogge =
+        oppgave.template?.enableChangeLog && verdiForStr !== verdiEtterStr;
+      const feltLabel = oppgave.template?.objects.find((o) => o.id === input.feltId)?.label;
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const oppdatert = await tx.task.update({
+          where: { id: input.id },
+          data: { data: data as Prisma.InputJsonValue },
+        });
+
+        if (skalLogge && feltLabel) {
+          await tx.taskChangeLog.create({
+            data: {
+              taskId: input.id,
+              userId: ctx.userId,
+              fieldId: input.feltId,
+              fieldLabel: feltLabel,
+              oldValue: verdiForStr,
+              newValue: verdiEtterStr,
+            },
+          });
+        }
+
+        return oppdatert;
       });
     }),
 
