@@ -4,6 +4,63 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — DEPLOYET TIL PROD 2026-05-28 (prod-merge `12e19c0a`, impl `9aa5faef`)
+
+Lukker punkt 2 i HMS-prosjektvisning teknisk gjeld. Tre HMS-tabeller (`AvvikTabell`, `SjaTabell`, `RuhTabell` i `apps/web/src/components/hms/tabeller.tsx`) konvertert fra plain HTML til delt `@sitedoc/ui Table`. Får sortering, kolonnefilter, kolonnebredde-resize, og «Alle åpne»-snarvei på Avvik-status.
+
+**Endringer:**
+- Full omskriving av `tabeller.tsx` (195 → 410 linjer). Bytte til `Table<DokumentRad>` med `KolonneDef`-array per komponent. Mønstret matcher `oppgaver/page.tsx`.
+- Lokal state per komponent for `filterVerdier` + `kolonneBredder`. Tab-bytte i firma-HMS nullstiller tilstand (akseptert trade-off — tabs har ulike kolonner uansett).
+- Tom-tilstand håndteres utenfor Table — beholder `EmptyState` for rikere UX.
+- Filter-alternativer bygges dynamisk via `unikeVerdier`-helper.
+- Status-snarvei «Alle åpne» (`["draft","sent","received","in_progress","responded"]`) kun på `AvvikTabell` — SJA/RUH har andre flyt-mønstre.
+- Behandle-knapp som egen kolonne med `e.stopPropagation()` på klikk.
+- Komponent-signaturen uendret — `[prosjektId]/hms/page.tsx` og `firma/hms/page.tsx` uberørt. Bonus: endringen treffer begge sider automatisk.
+- Ingen nye i18n-nøkler — 16 brukte nøkler finnes fra før.
+
+**Verifisert:** `@sitedoc/web` 1 = 1 baseline (vitest). HTTP/2 200 på `sitedoc.no/` + `/dashbord/firma/hms` etter prod-deploy.
+
+**Deploy-hendelse (tredje gang dagen):** `deploy-test-cron.sh` ble trigget av min push til develop samtidig som vi kjørte manuell test-deploy. Konkurrerende `next build` ga `ENOENT pages-manifest.json`. `&&`-kjeden stoppet før pm2 restart — regelen virket som tiltenkt. Tredje gangen samme race har slått inn på én dag — bekrefter at `deploy-test-cron.sh` mangler skript-mutex (PID-fil eller flock). Allerede notert i BACKLOG § Sikkerhets-audit sekundære oppfølgere.
+
+---
+
+## HMS-byggeplass-filter innad i prosjektet — DEPLOYET TIL PROD 2026-05-28 (prod-merge `526db462`, impl `c3dc62c4`)
+
+Lukker punkt 3 i HMS-prosjektvisning teknisk gjeld. HMS-siden viser nå kun dokumenter knyttet til aktiv byggeplass (samt prosjekt-brede dokumenter uten byggeplass-tilknytning).
+
+**Endringer i `apps/api/src/routes/hms.ts`:**
+- Input-schema utvidet med `byggeplassId: z.string().uuid().optional()`.
+- Asymmetriske filter-klausuler: `taskByggeplassClause` for Task (via `drawing.byggeplassId`, fordi Task har bare `drawingId`), `checklistByggeplassClause` for Checklist (direkte `byggeplassId`).
+- Task-query: eksisterende `OR` konvertert til `AND: [...]`-struktur for å kombinere med byggeplass-`OR` uten konflikt.
+- Prosjekt-brede dokumenter (uten drawing/byggeplass) inkluderes alltid.
+
+**Endringer i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`:**
+- Import `useByggeplass` + `aktivByggeplass?.id ?? undefined` i query-input.
+
+**Verifisert:** `@sitedoc/api` 0 = 0, `@sitedoc/web` 1 = 1 baseline.
+
+**Deployet sammen med Firma-HMS-dashbord Trinn 1-3-bunken** via prod-merge `526db462`.
+
+---
+
+## Oppgave-mobil rettighetsoppfølger — DEPLOYET TIL PROD 2026-05-28 (prod-merge `526db462`, impl `32dd43ac`)
+
+Speiler sjekkliste-mobil-mønsteret (`60601d3c Port rettighetsbasert UI til mobil`) inn i oppgave-fila.
+
+**Endringer i `apps/mobile/app/oppgave/[id].tsx`:**
+- Imports utvidet: `beregnHarBallen` + `HarBallenDokument`-type fra `@sitedoc/shared`.
+- Ny query `trpc.gruppe.hentMineTillatelser` + `mineTillatelser`-Set.
+- 3 nye useMemo: `harBallen`, `flytRettighet`, `rettighetInput`.
+- `useOppgaveSkjema(id!)` → `useOppgaveSkjema(id!, rettighetInput)`.
+
+Hook'en (`useOppgaveSkjema.ts:160`) tok allerede imot `rettighetInput?: RettighetInput` som valgfri parameter — endringen er additiv.
+
+**Verifisert:** `@sitedoc/mobile` 12 = 12 baseline (0 nye feil).
+
+**Aktiveres på mobil** ved neste EAS-bygg + TestFlight/Play Store-distribusjon. **Deployet sammen med Firma-HMS-bunken** via prod-merge `526db462`.
+
+---
+
 ## Impersonering audit-log — `ImpersonationAudit`-tabell (Variant B) — DEPLOYET TIL PROD 2026-05-28 (prod-merge `30467d74`, impl `631b38d5`)
 
 Lukker BACKLOG-entry «Vis som bruker (impersonering)» gjenstående punkt (audit-logging). Erstatter `console.log`-mønsteret i `admin.startImpersonering` og `admin.stoppImpersonering` med persistent audit-spor i isolert tabell.

@@ -6,83 +6,40 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md).
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
 
-### PR HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — IMPLEMENTERT PÅ DEVELOP 2026-05-28
+### Dagens samlede aktivitet — 2026-05-28 (5 prod-deploys: firma-HMS-dashbord komplett + 3 tekniske lukkinger)
 
-Lukker punkt 2 i HMS-prosjektvisning teknisk gjeld. Tre HMS-tabeller (`AvvikTabell`, `SjaTabell`, `RuhTabell` i `apps/web/src/components/hms/tabeller.tsx`) konvertert fra plain HTML til delt `@sitedoc/ui Table`. Får sortering, kolonnefilter, kolonnebredde-resize, og «Alle åpne»-snarvei på Avvik-status.
+Tett deploy-dag etter compact 2026-05-28 morgen. Hele firma-HMS-dashbord-bunken (Trinn 1-4) komplett i prod. Tre tekniske lukkinger på toppen: pause-default, impersonering audit-log, HMS-tabell-redesign.
 
-**Endringer i `apps/web/src/components/hms/tabeller.tsx`:**
-- Full omskriving (195 → 410 linjer). Bytte til `Table<DokumentRad>` med `KolonneDef`-array per komponent.
-- Lokal state per komponent for `filterVerdier` + `kolonneBredder`. Mønstret matcher `oppgaver/page.tsx`.
-- Tom-tilstand håndteres utenfor Table — beholder `EmptyState`-komponent for rikere UX (tittel + beskrivelse).
-- Filter-alternativer bygges dynamisk via `unikeVerdier`-helper som leser unike verdier ut av rad-arrayen.
-- Status-snarvei «Alle åpne» (`["draft","sent","received","in_progress","responded"]`) kun på `AvvikTabell` — SJA og RUH har andre flyt-mønstre der snarveien ikke gir samme verdi.
-- Behandle-knapp (`onHurtigBehandle`) flyttet til egen kolonne med `e.stopPropagation()` på klikk slik at rad-klikk (drill-ned) ikke utløses.
-- Komponent-signaturen uendret — `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx` og `apps/web/src/app/dashbord/firma/hms/page.tsx` uberørt.
+| # | Prod-merge | Innhold |
+|---|---|---|
+| 1 | `526db462` | Firma-HMS-dashbord Trinn 1-3 (server-rolle-fundament + server-data + klient-side) + 4 UX-iterasjoner + HMS-byggeplass-filter + Oppgave-mobil rettighetsoppfølger |
+| 2 | `eacdb40e` | Firma-HMS-dashbord Trinn 4 (`hms_ansvarlig`-tildeling i `firma/ansatte` + `FirmaHurtigModal` for avvik-behandling fra firma-dashbord) |
+| 3 | `75a09ccf` | `standardPauseFra` — firma-konfigurerbar pause-default som respekterer norsk lunsj-konvensjon |
+| 4 | `30467d74` | Impersonering audit-log — ny `ImpersonationAudit`-tabell (Variant B, isolert) erstatter `console.log`-mønster |
+| 5 | `12e19c0a` | HMS-tabell redesign — tre HMS-tabeller (Avvik/SJA/RUH) konvertert fra plain HTML til `@sitedoc/ui Table` med sortering, filter, kolonne-resize, status-snarvei |
 
-**Trade-off:** Filter-state nullstilles ved tab-bytte i firma-HMS (Avvik→SJA→Avvik). Akseptert siden tabs har ulike kolonner uansett. Kan heves til kallsiden i senere iterasjon hvis Kenneth savner persistens.
+**BACKLOG-lukninger etter dagens deploys:**
+- Firma-nivå HMS-dashboard ✅ alle 4 trinn ferdig
+- HMS-byggeplass-filter innad i prosjektet ✅ (punkt 3 HMS-teknisk gjeld)
+- Oppgave-mobil rettighetsoppfølger ✅
+- Pause-vindu default ✅
+- Vis som bruker (impersonering) — audit-log ✅ (kun lese-prosedyre + UI gjenstår, venter på tilgangs-oversikt-UX-sesjon)
+- HMS-tabell redesign ✅ (punkt 2 HMS-teknisk gjeld)
 
-**Bonus:** Endringen gjelder automatisk for begge HMS-sider (prosjekt + firma) siden de bruker samme komponenter.
+**Nye BACKLOG-entries opprettet under sesjonen:**
+- «Firma-nivå tilgangskontrolloversikt» (planlagt UX-sesjon: firma-innstillinger + tilgangsoversikt)
 
-**Ingen nye i18n-nøkler** — gjenbruker alle eksisterende (`hms.tom.*`, `hms.kolonne.*`, `tabell.*`, `firma.hms.kolonne.*`, `firma.hms.hurtig.knapp`, `status.alleApne`).
+**Deploy-hendelse:** Auto-deploy-cron-race vs manuell test-deploy slo inn 3 ganger samme dag — push til develop trigget cron parallelt med vår manuelle deploy → `ENOENT _ssgManifest.js` / `ENOENT pages-manifest.json`. `&&`-kjeden stoppet konsekvent før pm2 restart, så pm2 kjørte aldri gammel kode mot ny build. Underliggende: `deploy-test-cron.sh` mangler skript-mutex (PID-fil eller flock). Allerede notert i BACKLOG § Sikkerhets-audit sekundære oppfølgere — bør prioriteres pga gjentakelse.
 
-**Verifisert:** `@sitedoc/web` 1 = 1 baseline (vitest, pre-eksisterende). 0 nye type-feil.
-
-**Reload-metode:** TypeScript-only på web. Cache-cleaning + `pnpm build --force` på test (Turbo-cache-bug). Ingen server-endring, ingen mobil-endring.
-
-**Klar for review** — Kenneth verifiserer at:
-- `/dashbord/[prosjektId]/hms` Avvik-fanen — kolonne-headere klikkbare for sortering, filter-ikon på kolonner med dropdown, drag på kolonne-kant for å justere bredde
-- Status-kolonnen viser «Alle åpne»-snarvei i filter-dropdown (ved siden av vanlige status-alternativer)
-- `/dashbord/firma/hms` Avvik-fanen — samme funksjonalitet + behandle-knapp som åpner hurtig-modal uten å trigge drill-ned
-- SJA + RUH-faner — sortering + filter fungerer som forventet
-- Tom-tilstand viser `EmptyState` med tittel + beskrivelse (ikke Tables enkle tomMelding)
-
-### PR HMS-byggeplass-filter innad i prosjektet — IMPLEMENTERT PÅ DEVELOP 2026-05-29
-
-Lukker punkt 3 i HMS-prosjektvisning teknisk gjeld. HMS-siden viser nå bare dokumenter knyttet til aktiv byggeplass (samt prosjekt-brede dokumenter uten byggeplass-tilknytning).
-
-**Endringer i `apps/api/src/routes/hms.ts`:**
-- Input-schema utvidet med `byggeplassId: z.string().uuid().optional()`.
-- To filter-klausuler bygget asymmetrisk:
-  - `taskByggeplassClause` for HMS-avvik: `OR: [{ drawing: { byggeplassId } }, { drawingId: null }]` (Task har bare `drawingId`, ikke direkte byggeplass-felt).
-  - `checklistByggeplassClause` for SJA + RUH: `OR: [{ byggeplassId }, { byggeplassId: null }]` (Checklist har feltet direkte).
-- Task-query: eksisterende `OR` (bestillerFaggruppe vs null) konvertert til `AND: [...]`-struktur for å kombinere med byggeplass-`OR` uten konflikt. Checklist-queries spreader klausulen som `OR: [...]` direkte på where (kun ett OR-uttrykk per query).
-- Prosjekt-brede dokumenter (uten drawing/byggeplass) inkluderes alltid — de er relevante for arbeid på alle byggeplasser. Matcher menneskelig intuisjon.
-
-**Endringer i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`:**
-- Import: `useByggeplass` fra `@/kontekst/byggeplass-kontekst`.
-- Hook: `const { aktivByggeplass } = useByggeplass();`.
-- Query-input utvidet: `{ projectId, byggeplassId: aktivByggeplass?.id ?? undefined }`. Når ingen byggeplass valgt sendes `undefined` → server returnerer alle dokumenter (default-oppførsel uendret).
-- Cache-invalidering uendret — `utils.hms.hentDokumenter.invalidate({ projectId })` matcher på query-key-prefiks og dekker alle byggeplass-varianter.
-
-**Verifisert:** `@sitedoc/api` typecheck 0 = 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (vitest). 0 nye feil.
-
-**Reload-metode:** Server-reload kreves (input-schema endret). Web TypeScript-only + cache-cleaning ved deploy.
-
-**Forventet konsekvens:** Når brukeren har valgt en aktiv byggeplass, viser HMS-siden bare HMS-dokumenter knyttet til den byggeplassen (eller prosjekt-brede). «Alle byggeplasser»-modus (aktivByggeplass = null) viser alt som før.
-
-Klar for review — ikke merge før Kenneth verifiserer på nettleser at filteret oppfører seg riktig (særlig at prosjekt-brede dokumenter fortsatt vises ved valgt byggeplass).
-
-### PR Oppgave-mobil rettighetsoppfølger — IMPLEMENTERT PÅ DEVELOP 2026-05-29
-
-Speiler sjekkliste-mobil-mønsteret (`60601d3c Port rettighetsbasert UI til mobil`) inn i oppgave-fila. Lukker BACKLOG-entry «Oppgave-mobil rettighetsoppfølger».
-
-**Endringer i `apps/mobile/app/oppgave/[id].tsx`:**
-- Imports utvidet: `beregnHarBallen` + `HarBallenDokument`-type fra `@sitedoc/shared`.
-- Ny query `trpc.gruppe.hentMineTillatelser` + `mineTillatelser`-Set (etter `tilgjengeligeFlyter`-query).
-- 3 nye useMemo-blokker etter `minRolle`: `harBallen` (kaller `beregnHarBallen`), `flytRettighet` (iterer flyt-medlemmer, match på `projectMemberId`/`groupId`), `rettighetInput` (objektet som sendes til hook).
-- `useOppgaveSkjema(id!)` → `useOppgaveSkjema(id!, rettighetInput)`.
-
-Hook'en (`apps/mobile/src/hooks/useOppgaveSkjema.ts:160`) tok allerede imot `rettighetInput?: RettighetInput` som valgfri parameter — vi sendte bare ikke inn argumentet. Endringen er additiv og påvirker ikke eksisterende default-oppførsel når `minFlytInfo` ikke er lastet.
-
-**Verifisert:** `@sitedoc/mobile` typecheck 12 = 12 baseline (0 nye feil).
-
-**Reload-metode:** TypeScript-only på mobil. Full app-reload (close + open eller `r` i Metro). Ingen native rebuild. Ingen schema-endring, ingen i18n.
-
-**Forventet konsekvens:** Oppgave-detaljvisning i mobil vil nå håndheve rettighet-styring lik sjekkliste-detaljvisning — `kanRedigere`-flagg fra flyt-medlemskap kontrollerer redigerings-tilgang, `harBallen`/`flytRettighet` påvirker UI-state.
-
-Klar for review — ikke merge før Kenneth verifiserer på enhet at oppgave-rettigheter oppfører seg likt som sjekklister.
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
+> [§ Firma-HMS-dashbord Trinn 1-4](historikk-2026-05.md),
+> [§ HMS-byggeplass-filter](historikk-2026-05.md),
+> [§ Oppgave-mobil rettighetsoppfølger](historikk-2026-05.md),
+> [§ standardPauseFra](historikk-2026-05.md),
+> [§ Impersonering audit-log](historikk-2026-05.md),
+> [§ HMS-tabell redesign](historikk-2026-05.md).
 
 ### Dagens samlede aktivitet — 2026-05-28 (4 prod-deploys: topp-3-kandidater + BACKLOG-audit + statusoppdateringer)
 

@@ -120,7 +120,7 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 **Samlet fra HMS-PR-analyse 2026-05-27** etter prod-deploy. Seks kjente avvik som ikke blokkerer funksjon, men reduserer konsistens/skala:
 
 1. **TS2589-workaround i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`** — imperativ `utils.client.X.mutate()` i stedet for `useMutation`-hook (kombinasjonen av `oppgave.opprett` + `sjekkliste.opprett` typegen pumpet for dyp etter `recipientGroupId`-utvidelse). Mister `isPending`/`error`-state og optimistic updates.
-2. ~~**Plain HTML-tabell** brukt i HMS-side-tabellene i stedet for `@sitedoc/ui` Table.~~ ✅ IMPLEMENTERT PÅ DEVELOP 2026-05-28 — alle tre HMS-tabeller (AvvikTabell, SjaTabell, RuhTabell) konvertert til delt `Table`-komponent. Gjelder både prosjekt-HMS og firma-HMS automatisk. Status-snarvei «Alle åpne» kun på AvvikTabell. Filter-state nullstilles ved tab-bytte i firma-HMS (akseptert trade-off).
+2. ~~**Plain HTML-tabell** brukt i HMS-side-tabellene i stedet for `@sitedoc/ui` Table.~~ ✅ DEPLOYET TIL PROD 2026-05-28 (prod-merge `12e19c0a`, arkivert til [historikk-2026-05.md](historikk-2026-05.md)). Tre HMS-tabeller (AvvikTabell, SjaTabell, RuhTabell) konvertert til delt `Table`-komponent. Gjelder både prosjekt-HMS og firma-HMS automatisk. Status-snarvei «Alle åpne» kun på AvvikTabell.
 3. ~~**HMS-siden støtter byggeplass-filter innad i prosjektet.**~~ ✅ DEPLOYET TIL PROD 2026-05-29 (prod-merge `526db462`, impl `c3dc62c4`). `hms.hentDokumenter` utvidet med `byggeplassId: z.string().uuid().optional()`. Asymmetri Task vs Checklist (Task via `drawing.byggeplassId`, Checklist direkte). Prosjekt-brede dokumenter (`null`) inkluderes alltid. Klient sender `aktivByggeplass?.id` fra `useByggeplass()`. Cache-invalidering uendret.
 4. **Statistikk-fanen aggregerer på klient.** `månederData`, `statusData`, `faggruppeData` regnes på klient fra `dokumenter.avvik`-arrayet. Hvis prosjekt har 1000+ HMS-avvik, blir søyler/bars trege. Server-aggregering kreves for skala.
 5. **`useVerktoylinje`-pattern droppet** — HMS-siden bruker inline header med Ny-dropdown i stedet for global verktøylinje (oppgaver/sjekklister mønster). Funksjonelt OK, men inkonsistent.
@@ -388,20 +388,6 @@ Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1
 ✅ Arkivert til [historikk-2026-05.md § T7-5h](historikk-2026-05.md). Scope: kun web. Mobil-komponenter har separat recompute-logikk og er ikke berørt — egen sub-PR ved behov.
 
 ### Pause-vindu default — DEPLOYET TIL PROD 2026-05-28 ✅ (prod-merge `75a09ccf`, arkivert til [historikk-2026-05.md](historikk-2026-05.md))
-
-`togglePause` i `RedigerRadModal.tsx` lager default `[midt − 15 min, midt + 15 min]` når checkbox aktiveres uten eksisterende pause-vindu. For rad 07:00–15:00 blir det 10:30–11:30, ikke 11:30–12:00 som norsk lunsj-konvensjon antyder.
-
-**Eksisterende schema-felter** (`packages/db/prisma/schema.prisma:253-255`):
-- `OrganizationSetting.standardStartTid` (default "07:00")
-- `OrganizationSetting.standardSluttTid` (default "15:00")
-- `OrganizationSetting.standardPauseMin` (default 30)
-
-**Mangler:** `standardPauseFra` / `standardPauseTil` (eller `standardPauseStart`) er **ikke** i schema. Default-midtpunkt brukes som fallback fordi vi ikke har konfigurerbart pause-tidspunkt.
-
-**Forslag:**
-- Utvid `OrganizationSetting` med `standardPauseFra: String?` (eller la `standardPauseMin + standardPauseFraOffset` utlede tidspunktet).
-- Endre `togglePause` til å bruke firma-default hvis satt, ellers midtpunkt.
-- Migrasjon additiv (nullable).
 
 ### Multi-rad-overlap pause — ikke håndtert (oppdaget 2026-05-18)
 
