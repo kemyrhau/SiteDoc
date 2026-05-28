@@ -231,8 +231,8 @@ Server ~45 min, mobil-UI ~5 timer (oppgave, ny boks-komponent med statusvalg-pop
 ### Datamodell og migrasjon
 
 - **P-KRITISK-1 — Sentralbiblioteket ikke seedet i prod** 🔴 — se [oppryddings-plan-2026-04-28.md § P-KRITISK-1](oppryddings-plan-2026-04-28.md). Lovpålagt grunnpakke skal auto-seedes ved firma-opprettelse.
-- **P-KRITISK-2 — `FtdChangeEvent` og `FtdTnotaChangeLink` mangler i prod** 🔴 — se [oppryddings-plan-2026-04-28.md § P-KRITISK-2](oppryddings-plan-2026-04-28.md).
-- **P-KRITISK-3 — `BibliotekMal` mangler 4 fase-0-besluttede felt** 🔴 — `kategori`, `domene`, `kobletTilModul`, `verifisert`. Se [oppryddings-plan-2026-04-28.md § P-KRITISK-3](oppryddings-plan-2026-04-28.md).
+- ~~**P-KRITISK-2 — `FtdChangeEvent` og `FtdTnotaChangeLink` mangler i prod**~~ ✅ DEPLOYET — migrasjon tilført i `4f32d702 fix(migrations): tilføy FtdChangeEvent + FtdTnotaChangeLink-migrasjon` (merget til main via `29a3733f`). Verifisert 2026-05-28 mot kode + git-historikk. Entry var hjemløs drift fra før prod-deploy.
+- ~~**P-KRITISK-3 — `BibliotekMal` mangler 4 fase-0-besluttede felt**~~ ✅ DEPLOYET — alle 4 felt (`kategori`, `domene`, `kobletTilModul`, `verifisert`) lagt til i `29311756 feat(db): Fase 0 § E steg 8 — BibliotekMal-utvidelse`. Verifisert 2026-05-28: `packages/db/prisma/schema.prisma` har feltene; commit er i main. Entry var hjemløs drift.
 - **DB-naming-audit alias-rydding** 🟡 — etter mobil-app-oppdatering kan alias-feltene fjernes. Se [db-naming-audit-2026-04-25.md](db-naming-audit-2026-04-25.md).
 - **Cross-package svake FK orphan-deteksjon** 🔴 — `db-maskin` referer til `User.id` via String uten cascade. Backlog-oppgave per [arkitektur-syntese.md § 6.1](arkitektur-syntese.md).
 - **Organization vs OrganizationPartner — strategi D (DB-cleanup, 6-8t)** 🔴 — skall-firmaer i test-DB. Strategi C `Organization.erKunde` implementert 2026-05-03. Audit per rad gjenstår.
@@ -240,7 +240,7 @@ Server ~45 min, mobil-UI ~5 timer (oppgave, ny boks-komponent med statusvalg-pop
 ### Refaktor og rydding
 
 - **40 åpne P-oppgaver i [oppryddings-plan-2026-04-28.md](oppryddings-plan-2026-04-28.md)** 🟡 — P2 faggruppe-rename, P3 drift-detaljer, P4 Kenneth-drøftinger, P5 svakhet-reparering.
-- **Firma-administrasjons-navigasjon strukturell rydding (~10-12t)** 🔴 — 3 lag: ~10 ruter trenger `organizationId` som input, ~10 sider må sende `useFirma().valgtFirma.id`, rename av «Firmainnstillinger» → «Prosjekteier». Ikke-blokkerende.
+- ~~**Firma-administrasjons-navigasjon strukturell rydding (~10-12t)**~~ ✅ FERDIG — audit utført 2026-05-28. Alle tre lag i mål: (1) rename «Firmainnstillinger» → «Prosjekteier» (`f3b8bb1a` + `e7168b32`), (2) firma-relevante server-ruter har `organizationId`-input (organisasjon 15/22 — 7 manglende er bruker-spesifikke queries; avdeling, kompetansetype, kalender, lonnsart, aktivitet, tillegg, vare, vareKategori 100%; kompetanse `opprett`/`oppdater`/`slett` utleder org via `verifiserKompetanseSkriveTilgang` per design, ikke bug; vareImport 2/2 — telle-feil i tidligere audit), (3) 10/10 firma-sider bruker `useFirma()` (kun stub-siden `fakturering` mangler, og den får det naturlig når den implementeres). Opprinnelig «~10-12t»-estimat var foreldet — reelt arbeid skjedde gradvis gjennom Blokk A-C + andre PRs.
 - ~~**Header-koordinering: firma-bytte nullstiller ikke prosjekt**~~ ✅ LØST — verifisert mot kode 2026-05-27. `prosjekt-kontekst.tsx:101-114` har auto-reset useEffect (P1 Fase 2, 2026-05-05). `byggeplass-kontekst.tsx:70-79` har defensiv cleanup ved firma-bytte. Entry-en var hjemløs drift fra før P1 Fase 2-deploy.
 - **Nye integrasjonstester for `tilgangskontroll.ts`** 🔴 — etter O-5c er gammel test-fil slettet (16/22 broken). Integrasjonstester mot test-DB med OrganizationMember-fikstur er planlagt.
 - **T7-2b3 audit-log payload utvidelse** 🔴 — før/etter-snapshots per rad i Activity-tabell.
@@ -455,7 +455,7 @@ Status og roadmap dokumentert i Claude-memory (`project_3d_status.md`,
 separat chat per `feedback_3d_annen_chat`.
 
 - **3D Fase 1 — Web layout-level viewer-persistering** 🔴 — flytt `SammenslattIfcViewer` til prosjekt-layout, vis/skjul basert på rute. Eliminerer re-lasting ved 3D ↔ Tegninger-bytte.
-- **3D Fase 2 — Mobil IFC-visning i React Native** 🔴 — WebView med web-vieweren er enklest. Offline-støtte via forhåndslast.
+- **3D Fase 2 — Mobil IFC-visning i React Native** 🟡 — grunnleggende viewer DEPLOYET via `eef2ee92 Mobil IFC 3D-viewer — WebView-komponent og navigasjon (Fase 2 Steg 2-3)`. Komponenten lever i `apps/mobile/src/components/IfcViewer.tsx` + ruter `apps/mobile/app/{3d-visning,tegning-3d}.tsx`. Persistent WebView-optimaliseringen ble forsøkt to ganger og revertert begge (`773720d1`, `a319c7e8`) — viewer re-laster ved navigasjon, men fungerer. Fragment-caching tilført (`8c86c85c`). Offline-støtte og persistent-mount gjenstår.
 - **3D Fase 3 — Live site-view (AR/3D på byggeplass)** 🔴 — ARKit (iOS) / ARCore (Android). GPS + kompass for grov posisjonering, manuell justering for presisjon.
 - **Test absolutt `treDTilTegning`** 🟡 — markør-offset-fixen kan ha løst hele problemet. Ikke testet etter fix.
 - **Fjern 3D debug-logging** 🟡 — `tegningTil3D` og `treDTilTegning` logger til console når debug ferdig.
@@ -577,7 +577,7 @@ Aktiv Fase: 0 (firma-fundament) er i hovedsak ferdig — gjenstående §-E-steg 
 ### Tverrgående
 
 - **Superadmin-oversikt over firma-moduler** 🔴 — fakturerings-orientert. Egen feature-sesjon.
-- **Vis som bruker (impersonering)** 🔴 — sitedoc_admin velger firma, deretter bruker, og ser appen fra brukerens perspektiv. Kun for sitedoc_admin. Egen sesjon.
+- **Vis som bruker (impersonering)** 🟡 — DEPLOYET. Schema (`Session.impersonatedUserId/originalUserId/impersonationExpiresAt`), 3 server-prosedyrer (`admin.hentImpersoneringStatus/startImpersonering/stoppImpersonering`), context-håndtering (`actualUserId` bevart for audit), UI (`ImperserKnapp` i `admin/firmaer/page.tsx:821`, `ImpersoneringBanner` montert i `dashbord/layout.tsx`), i18n-nøkler — alt på plass. `utloperVed` returneres nå korrekt fra `hentImpersoneringStatus` (fix 2026-05-28). **Gjenstående:** Audit-logging til Activity-tabell — i dag bare `console.log` i `admin.ts:665`. Activity krever projectId, så enten policy-utvidelse (tillat null) eller separat impersonering-audit-tabell. Estimat 1-2t etter schema-beslutning.
 - **Import-modul (HR-data)** 🔴 — datainfrastruktur, mater Timer med ansattnummer, hmsKortNr osv.
 - **AI-integrasjon** 🔴 — Copilot plugin, MCP server, innebygd assistent. Se [ai-integrasjon.md](ai-integrasjon.md).
 - **Fremdriftsplanlegger** 🔴 — ressursplanlegging, kompetanse, bemanning, forslag-motor. Etter timer+maskin+HR. Se [planlegger.md](planlegger.md).
