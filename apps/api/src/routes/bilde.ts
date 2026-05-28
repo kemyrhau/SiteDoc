@@ -159,6 +159,8 @@ export const bildeRouter = router({
       }
       await verifiserProsjektmedlem(ctx.userId, oppgave.template.projectId);
 
+      // TODO (audit): Image-modellen mangler userId-kolonne. Når feltet legges til
+      // (se BACKLOG § Activity-logging — opplaster-spor), settes userId: ctx.userId her.
       return ctx.prisma.image.create({
         data: {
           taskId: input.taskId,

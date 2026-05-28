@@ -523,6 +523,15 @@ export const oppgaveRouter = router({
         "task",
       );
 
+      // Status-guard: felt-endring blokkert etter sending, unntatt sjekkliste-domenet
+      // (sjekkliste-utfylling skjer etter sending via registrator). Audit-hull lukket 2026-05-28.
+      if (oppgave.status !== "draft" && oppgave.template?.domain !== "sjekkliste") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Felt kan ikke endres etter sending",
+        });
+      }
+
       // Fritekst-oversettelse Lag 3
       const projectId = hentProjectId(oppgave);
       const prosjekt = await ctx.prisma.project.findUnique({
@@ -621,6 +630,14 @@ export const oppgaveRouter = router({
         oppgave.id,
         "task",
       );
+
+      // Status-guard: oversettelse-forbedring blokkert etter sending, unntatt sjekkliste-domenet.
+      if (oppgave.status !== "draft" && oppgave.template?.domain !== "sjekkliste") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Oversettelse kan ikke endres etter sending",
+        });
+      }
 
       const data = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
       const felt = data[input.feltId];
