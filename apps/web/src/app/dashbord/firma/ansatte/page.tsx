@@ -2,7 +2,7 @@
 
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
-import { Shield, User, Pencil, Plus, X } from "lucide-react";
+import { Shield, ShieldAlert, User, Pencil, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -101,6 +101,7 @@ export default function FirmaBrukere() {
               {brukere.map((b) => {
                 const erSystemadmin = b.role === "sitedoc_admin";
                 const erFirmaAdmin = b.firmaRoller.includes("firma_admin");
+                const erHmsAnsvarlig = b.firmaRoller.includes("hms_ansvarlig");
                 return (
                   <tr
                     key={b.id}
@@ -135,9 +136,15 @@ export default function FirmaBrukere() {
                             <Shield className="h-3 w-3" />
                             {t("firma.ansatte.tilgang.firmaAdmin")}
                           </span>
-                        ) : (
+                        ) : !erHmsAnsvarlig ? (
                           <span className="inline-flex rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
                             {t("firma.ansatte.tilgang.bruker")}
+                          </span>
+                        ) : null}
+                        {erHmsAnsvarlig && (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700">
+                            <ShieldAlert className="h-3 w-3" />
+                            {t("firma.ansatte.tilgang.hmsAnsvarlig")}
                           </span>
                         )}
                       </div>
@@ -204,6 +211,7 @@ function InviterModal({
   const [ansattnummer, setAnsattnummer] = useState("");
   const [ansattRolle, setAnsattRolle] = useState<AnsattRolle>("ansatt");
   const [erFirmaAdmin, setErFirmaAdmin] = useState(false);
+  const [erHmsAnsvarlig, setErHmsAnsvarlig] = useState(false);
 
   const inviter = trpc.organisasjon.inviterBruker.useMutation({
     onSuccess: () => onSuksess(),
@@ -222,6 +230,7 @@ function InviterModal({
       ansattnummer: ansattnummer.trim() || undefined,
       ansattRolle,
       erFirmaAdmin,
+      erHmsAnsvarlig,
     });
   }
 
@@ -331,6 +340,21 @@ function InviterModal({
             </p>
           </div>
 
+          <div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={erHmsAnsvarlig}
+                onChange={(e) => setErHmsAnsvarlig(e.target.checked)}
+              />
+              <ShieldAlert className="h-3.5 w-3.5 text-green-600" />
+              {t("firma.ansatte.hmsAnsvarligLabel")}
+            </label>
+            <p className="ml-6 mt-1 text-xs text-gray-500">
+              {t("firma.ansatte.hmsAnsvarligHjelp")}
+            </p>
+          </div>
+
           {inviter.isError && (
             <p className="text-sm text-red-500">{inviter.error.message}</p>
           )}
@@ -381,13 +405,18 @@ function RedigerModal({
   const [erFirmaAdmin, setErFirmaAdmin] = useState(
     bruker.firmaRoller.includes("firma_admin"),
   );
+  const [erHmsAnsvarlig, setErHmsAnsvarlig] = useState(
+    bruker.firmaRoller.includes("hms_ansvarlig"),
+  );
   const [feilmelding, setFeilmelding] = useState<string | null>(null);
   const [lagrer, setLagrer] = useState(false);
 
   const opprinneligErFirmaAdmin = bruker.firmaRoller.includes("firma_admin");
+  const opprinneligErHmsAnsvarlig = bruker.firmaRoller.includes("hms_ansvarlig");
 
   const oppdater = trpc.organisasjon.oppdaterBruker.useMutation();
   const settFirmaAdmin = trpc.organisasjon.settFirmaAdmin.useMutation();
+  const settFirmaHmsAnsvarlig = trpc.organisasjon.settFirmaHmsAnsvarlig.useMutation();
 
   const kanLagre =
     navn.trim().length > 0 && email.trim().length > 0 && !lagrer;
@@ -413,6 +442,13 @@ function RedigerModal({
           userId: bruker.id,
           organizationId,
           erAdmin: erFirmaAdmin,
+        });
+      }
+      if (erHmsAnsvarlig !== opprinneligErHmsAnsvarlig) {
+        await settFirmaHmsAnsvarlig.mutateAsync({
+          userId: bruker.id,
+          organizationId,
+          harTilgang: erHmsAnsvarlig,
         });
       }
       onSuksess();
@@ -522,6 +558,21 @@ function RedigerModal({
             </label>
             <p className="ml-6 mt-1 text-xs text-gray-500">
               {t("firma.ansatte.firmaAdminHjelp")}
+            </p>
+          </div>
+
+          <div>
+            <label className="flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={erHmsAnsvarlig}
+                onChange={(e) => setErHmsAnsvarlig(e.target.checked)}
+              />
+              <ShieldAlert className="h-3.5 w-3.5 text-green-600" />
+              {t("firma.ansatte.hmsAnsvarligLabel")}
+            </label>
+            <p className="ml-6 mt-1 text-xs text-gray-500">
+              {t("firma.ansatte.hmsAnsvarligHjelp")}
             </p>
           </div>
 

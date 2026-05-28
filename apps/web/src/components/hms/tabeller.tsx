@@ -10,6 +10,7 @@ type TabellProps = {
   onKlikk: (rad: DokumentRad) => void;
   visProsjektKolonne?: boolean;
   visByggeplassKolonne?: boolean;
+  onHurtigBehandle?: (rad: DokumentRad) => void;
 };
 
 function byggeplassNavnAvvik(r: DokumentRad): string {
@@ -24,6 +25,7 @@ export function AvvikTabell({
   onKlikk,
   visProsjektKolonne = false,
   visByggeplassKolonne = false,
+  onHurtigBehandle,
 }: TabellProps) {
   const { t } = useTranslation();
   if (rader.length === 0) {
@@ -46,6 +48,7 @@ export function AvvikTabell({
           <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("hms.kolonne.alvorlighet")}</th>
           <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.status")}</th>
           <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.tidsfrist")}</th>
+          {onHurtigBehandle && <th className="w-24 px-3 py-2" />}
         </tr>
       </thead>
       <tbody>
@@ -70,6 +73,20 @@ export function AvvikTabell({
             </td>
             <td className="px-3 py-2"><StatusBadge status={r.status} /></td>
             <td className="px-3 py-2 text-sm text-gray-700">{formaterDato(r.dueDate ?? null)}</td>
+            {onHurtigBehandle && (
+              <td className="px-3 py-2 text-right">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onHurtigBehandle(r);
+                  }}
+                  className="rounded-md border border-gray-300 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                >
+                  {t("firma.hms.hurtig.knapp")}
+                </button>
+              </td>
+            )}
           </tr>
         ))}
       </tbody>

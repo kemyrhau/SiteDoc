@@ -171,6 +171,32 @@ Alle routere som opererer på prosjektdata har `verifiserProsjektmedlem`-sjekk. 
 - `company_admin`-fallback i `verifiserProsjektmedlem`/`verifiserAdmin`: sjekker `OrganizationProject`-kobling, hindrer kryssorg-tilgang
 - `eksternKostObjekt.list`: bruker `krevBrukersOrg(ctx.userId)` og filtrerer på `organizationId` — **firma-isolert, ikke prosjekt-isolert**. Designvalg: ECO er firma-bredt synlig på tvers av firmaets prosjekter (Proadm-import lager dem firma-globalt). Bruker som sender `projectId` for et prosjekt de ikke er medlem av (men er i samme firma) får fortsatt resultatet. Bevisst — ikke en manglende sjekk
 
+## Firma-HMS-tilgang (Trinn 1–3 av firma-HMS-dashboard, 2026-05-29)
+
+Tre tRPC-prosedyrer + én helper etablerer rolle-modellen `firmaRoller += "hms_ansvarlig"` på `OrganizationMember`. Ingen schema-endring — utvidelse av eksisterende array-felt.
+
+**Helper (`apps/api/src/trpc/tilgangskontroll.ts`):**
+- `harFirmaHmsTilgang(userId, organizationId): Promise<boolean>` — returnerer `true` for `sitedoc_admin`, `firma-admin` på orgId, eller bruker med `"hms_ansvarlig"` i `firmaRoller`. Eksportert; brukes av server-prosedyrer + klient-gating.
+
+**tRPC-prosedyrer (`apps/api/src/routes/organisasjon.ts`):**
+- `settFirmaHmsAnsvarlig({ userId, organizationId, harTilgang })` — speil av `settFirmaAdmin`. Skriver til `OrganizationMember.firmaRoller` via spread/filter. Krever firma-admin via `verifiserFirmaAdmin`. Sitedoc-admin-vern bevart.
+- `harHmsTilgang({ organizationId }): boolean` — klient-side gating-query. Tynn wrapper rundt `harFirmaHmsTilgang`. Brukes i `firma/layout.tsx` for å skjule HMS-sidebar-lenke + i `firma/hms/page.tsx` for å vise «ingen tilgang»-tilstand.
+
+**Ny prosedyre (`apps/api/src/routes/hms.ts`):**
+- `hms.hentFirmaOversikt({ organizationId, prosjektIds?, byggeplassIds?, status?, subdomain? })` — aggregerer HMS-dokumenter på tvers av alle prosjekter i firmaet. Auth: `harFirmaHmsTilgang` → 403 FORBIDDEN ellers. **Bypass av `byggHmsSynlighetsFilter` og `byggTilgangsFilter`** — firma-rollen er auth-grunnlaget; firma-HMS ser alt inkl. private dokumenter. Returnerer `{ prosjekter, dokumenter: { avvik, sja, ruh }, statistikk: { apneAvvikPerProsjekt, sjaFrekvensPerMaaned, ruhRatePerMaaned, saksbehandlingstidMedianDager } }`. Asymmetri Task vs Checklist for byggeplass-filter (Task via `drawing.byggeplassId`, Checklist direkte).
+
+**Synlighetsfilter-utvidelse (`byggHmsSynlighetsFilter`):**
+Eksisterende filter (admin → null; HMS-gruppe-medlem → null; ellers privat-policy) utvidet med firma-HMS-bypass mellom HMS-gruppe-sjekk og fallback. Hvis prosjektet har `primaryOrganizationId` og brukeren har `harFirmaHmsTilgang` på den org-en, returneres `null` (full synlighet). Påvirker også prosjekt-nivå-HMS-siden.
+
+**Byggeplass-filter på `hms.hentDokumenter` (HMS-byggeplass-filter, 2026-05-29):**
+`hentDokumenter` utvidet med `byggeplassId: z.string().uuid().optional()`. Asymmetri-mønster:
+- Task (HMS-avvik): `OR: [{ drawing: { byggeplassId } }, { drawingId: null }]` — Task har kun `drawingId`, ikke direkte byggeplass-felt.
+- Checklist (SJA, RUH): `OR: [{ byggeplassId }, { byggeplassId: null }]` — Checklist har feltet direkte.
+- Prosjekt-brede dokumenter (`null`) inkluderes alltid — de er relevante for arbeid på alle byggeplasser.
+- Eksisterende Task-`OR` (bestillerFaggruppe vs null) konvertert til `AND: [...]`-struktur for å kombinere med byggeplass-`OR` uten Prisma-OR-konflikt.
+
+**Audit-spor:** `hentFirmaOversikt` logger til `console.log` for hver oppslag. Activity-tabell-integrasjon utsatt til samme oppgave som impersonering-audit (krever schema-beslutning om null-projectId-policy).
+
 ## Mobil session-token rotasjon (H1)
 
 Mobil `Session.sessionToken` roteres ved aktiv bruk hvis token er eldre enn 7 dager. Implementert som tRPC-middleware (`mobilTokenRotasjon` i `apps/api/src/trpc/trpc.ts`) på `protectedProcedure` etter rate-limit-middleware. Reduserer worst-case eksponering ved token-lekkasje fra 30 dager til 7 dager. Deployet til prod 2026-05-27 (`29bdded8` + web-fix `43460d80`).

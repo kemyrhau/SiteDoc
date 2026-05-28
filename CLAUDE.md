@@ -258,6 +258,21 @@ Fordeler:
 
 Bruk dette mønsteret før du lager en eksplisitt katalog-tabell. Katalog-tabell er kun riktig når verdiene er regulert (lønnsart, lovpålagte koder) eller deles på tvers av firma.
 
+### Filter-standard (vedtatt 2026-05-29)
+
+Alle filterpaneler bruker `MultiComboks` (`apps/web/src/components/ui/MultiComboks.tsx`) for multi-select og `SearchInput` (`@sitedoc/ui`) for fritekst-søk. Fritekst-søk er alltid en del av filter-blokken, ikke et separat element på siden.
+
+**Mønster:**
+- Fritekst-søk plasseres øverst (filtrerer på tittel/løpenummer/identifikator på tvers av visningens faner)
+- Multi-select-velgere plasseres under (typisk i grid-1/2-kolonner ved skjermbredde)
+- Valgte vises som chips under hver `MultiComboks`-knapp — alltid synlig uten å åpne menyen, med X-knapp for å fjerne
+- Søkefelt i `MultiComboks`-dropdown er alltid synlig (ikke gated på antall options)
+- «Tøm filter»-knapp under, vises kun når noe er valgt
+
+**Referanseimplementasjon:** `apps/web/src/app/dashbord/firma/hms/page.tsx` (firma-HMS-dashboard).
+
+Andre filterpaneler oppgraderes til samme mønster ved neste iterasjon på fila. Ikke-blokkerende for eksisterende sider — kun ny kode skal følge standarden.
+
 ## Fargepalett
 
 | Farge | Hex | Bruk |

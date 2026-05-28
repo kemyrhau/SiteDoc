@@ -497,12 +497,15 @@ export const organisasjonRouter = router({
           .enum(["ansatt", "bas", "prosjektleder", "daglig_leder"])
           .optional(),
         erFirmaAdmin: z.boolean().optional(),
+        erHmsAnsvarlig: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
       const ansattRolle = input.ansattRolle ?? "ansatt";
-      const firmaRoller = input.erFirmaAdmin ? ["firma_admin"] : [];
+      const firmaRoller: string[] = [];
+      if (input.erFirmaAdmin) firmaRoller.push("firma_admin");
+      if (input.erHmsAnsvarlig) firmaRoller.push("hms_ansvarlig");
 
       const eksisterende = await ctx.prisma.user.findFirst({
         where: { email: input.email, canLogin: true },
