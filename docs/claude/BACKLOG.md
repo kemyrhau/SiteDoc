@@ -128,7 +128,7 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 **Vurderes som samlet oppfølger-PR** når kundefeedback indikerer behov, eller når Godkjenning-modul-redesign trigger generalisering av modul-mønstre.
 
-### Firma-nivå HMS-dashboard — aggregering på tvers av prosjekter 🟡 (Trinn 1-3 deployet til prod 2026-05-29, Trinn 4 implementert på develop 2026-05-29)
+### Firma-nivå HMS-dashboard — aggregering på tvers av prosjekter ✅ FERDIG (alle 4 trinn deployet til prod 2026-05-29, prod-merger `526db462` + `eacdb40e`, arkivert til [historikk-2026-05.md](historikk-2026-05.md))
 
 **Oppdaget 2026-05-29** ved gjennomgang av HMS-arkitekturen. HMS er i dag strikt prosjekt-isolert: én side på `/dashbord/[prosjektId]/hms/` per prosjekt, `verifiserProsjektmedlem`-gating på server, ingen firma-nivå-aggregering. Det finnes ingen ruter under `/dashbord/firma/` som matcher HMS, avvik, SJA eller RUH.
 
