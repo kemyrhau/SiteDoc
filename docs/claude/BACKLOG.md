@@ -153,7 +153,17 @@ De to rollene kan tilhøre ulike personer — firma-HMS-ansvarlig er typisk én 
 - Behandling fra firma-nivå må navigere ned til prosjekt-detalj eller åpne modal i prosjekt-kontekst — felles vs. prosjekt-isolert tilgangskontroll må avklares
 - Aggregering kan gjenbruke `hms.hentDokumenter` per prosjekt med `Promise.all` initialt, server-side aggregering for skala senere (jf. punkt 4 i HMS-prosjektvisning teknisk gjeld)
 
-**Avhengighet:** Krever spec-runde for å avklare (a) hvilke firma-roller får tilgang, (b) hvor mye behandling som skal kunne skje fra firma-nivå vs. drill-ned til prosjekt, (c) interaksjon med synlighet-policy (privat/åpen) på tvers av prosjekter. Fase 7-nivå arbeid; ikke startet.
+**Spec-beslutninger 2026-05-29:**
+
+- **Behandling:** Full behandling fra firma-dashbordet — kommentere, statusendring og tildele utfører direkte fra firma-listen uten å forlate dashbordet. Server-prosedyrene som gjør disse handlingene må aksepteres uten prosjekt-kontekst, eller dashbordet kaller eksisterende prosjekt-prosedyrer med projectId hentet fra dokument-raden.
+- **Synlighet:** Firma-HMS-ansvarlig ser alle HMS-dokumenter inkl. private (`hmsSynlighet: "privat"`). Likestilt med prosjekt-HMS-ansvarlig i tilgang. `byggHmsSynlighetsFilter` må utvides eller bypass-es når firma-HMS-rolle er aktiv. Tilgang logges som audit-spor.
+- **Statistikk-KPI-er** (alle fire valgt):
+  1. Åpne avvik per prosjekt (status ≠ closed/approved/cancelled, gruppert per prosjekt)
+  2. SJA-frekvens per måned (siste 12 mnd, total + per prosjekt)
+  3. RUH-rate per måned + trend (indikerer rapporteringskultur)
+  4. Saksbehandlingstid median (dager fra opprettet til closed, per prosjekt + firma-total)
+
+**Avhengighet:** Krever rolle-modell-beslutning (`OrganizationGroup` vs `OrganizationMember`-rolle) før implementasjon. Server-aggregering av statistikk skal være rask nok for firma med 50+ prosjekter — vurderes om Promise.all per prosjekt eller én rå-SQL-query. Fase 7-nivå arbeid; ikke startet.
 
 **Eksisterende referanse:** Fase 7 § «HMS-statistikk på firma-nivå» nevner dette kort — denne entry-en utvider med konkret arkitekturskisse.
 
