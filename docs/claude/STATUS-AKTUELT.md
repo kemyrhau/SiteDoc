@@ -6,7 +6,24 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### PR Firma-HMS-dashboard Trinn 1-3 — IMPLEMENTERT PÅ DEVELOP 2026-05-29
+### PR Firma-HMS-dashboard Trinn 1-3 — DEPLOYET TIL PROD 2026-05-29 (prod-merge `526db462`)
+
+Hele Trinn 1-3-bunken + relaterte fixes deployet til prod via merge `526db462`. 16 commits totalt i denne dagens leveranse. Trinn 4 (UI for å tildele `hms_ansvarlig`-rolle + valgfri full behandling fra firma-rad) gjenstår.
+
+**Hovedcommits (Trinn 1-3):**
+- `93970feb` — Trinn 1: `harFirmaHmsTilgang` + `settFirmaHmsAnsvarlig`
+- `e56434bf` — Trinn 2: `byggHmsSynlighetsFilter`-bypass + `hms.hentFirmaOversikt`
+- `8a632248` — Trinn 3: klient-side firma-HMS-page + refactor til shared `components/hms/`
+
+**Etterfølgende fixes + UX-iterasjoner samme dag:**
+- `eb5f9969` — fix: hook-order-violation (`tilgjengeligeByggeplasser`-useMemo flyttet over early returns) — løste «client-side exception» som ble synlig først etter clean rebuild
+- `6d601291` — feat: filter-panel redesign — chips erstattet med `MultiComboks` (multi-select-combobox) + `SearchInput`-fritekst øverst som filtrerer dokumenter på tittel/løpenummer på tvers av alle 3 dokument-faner
+- `00763bd9` — fix: `MultiComboks` UX — valgte vises som chips under nedtrekksknappen (alltid synlig, X-knapp for å fjerne); søkefelt i dropdown er alltid synlig (ikke gated på >7 options)
+- `8b00539a` — refactor: `MultiComboks` ekstrahert til delt komponent `apps/web/src/components/ui/MultiComboks.tsx` + ny § «Filter-standard (vedtatt 2026-05-29)» i CLAUDE.md (UI-designprinsipper)
+
+**Også deployet i samme merge:** Oppgave-mobil rettighetsoppfølger (`32dd43ac`), HMS-byggeplass-filter innad i prosjektet (`c3dc62c4`).
+
+### PR Firma-HMS-dashboard Trinn 1-3 — opprinnelig STATUS (arkivert nedenfor 2026-05-29)
 
 Tre trinn av firma-nivå-HMS-dashboard ferdig på develop. Trinn 4 (UI for å tildele `hms_ansvarlig`-rolle + valgfri full behandling fra firma-rad) gjenstår.
 

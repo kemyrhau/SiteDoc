@@ -125,7 +125,7 @@ To uavhengige akser kombinert med modul-gateway.
 ```
 Lag 6 — SiteDoc super-admin (sitedoc_admin)
 Lag 5 — Firma-admin (company_admin)
-Lag 5b — Firma-HMS-ansvarlig (kan se firma-HMS, ikke nødvendigvis annet)
+Lag 5b — Firma-HMS-ansvarlig (kan se firma-HMS, ikke nødvendigvis annet) — IMPLEMENTERT 2026-05-29 via `OrganizationMember.firmaRoller += "hms_ansvarlig"`. Helper `harFirmaHmsTilgang` + bypass i `byggHmsSynlighetsFilter` + dedikert firma-HMS-dashbord på `/dashbord/firma/hms`. Trinn 1-3 deployet til prod via merge `526db462`. Trinn 4 (tildelings-UI + valgfri full behandling fra firma-rad) gjenstår.
 Lag 4 — Prosjekt-admin (bas, prosjektleder, byggeleder)
 Lag 3 — Prosjekt-medlem (ser alle byggeplasser på prosjektet)
 Lag 2 — Byggeplass-medlem (begrenset til spesifikke byggeplasser)

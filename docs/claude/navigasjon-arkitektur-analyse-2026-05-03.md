@@ -51,6 +51,7 @@ Firma (Organization)
 | **Prosjektmalverk** (firma-bibliotek) | **MANGLER** | Skal være `/dashbord/firma/maler` | **Bygg i Fase 2** (OrganizationTemplate) |
 | **Fremdriftsplanlegger** | **MANGLER** | `/dashbord/firma/planlegger` | Fase 4+ |
 | **Varelager** | **MANGLER** | `/dashbord/firma/varelager` | Fase 5 |
+| **Firma-HMS-dashbord** | `/dashbord/firma/hms` | ✅ Implementert 2026-05-29 (Trinn 1–3 deployet via `526db462`) | Aggregering av HMS-avvik/SJA/RUH på tvers av firma-prosjekter. Gated via `kreverHmsTilgang`-felt på NavElement, sjekkes via ny `trpc.organisasjon.harHmsTilgang`-query. Synlig for firma-admin og bruker med `firmaRoller.includes("hms_ansvarlig")` |
 
 ### B. Per-prosjekt — alltid på (Faggrupper + Tegninger)
 

@@ -121,14 +121,14 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 1. **TS2589-workaround i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`** — imperativ `utils.client.X.mutate()` i stedet for `useMutation`-hook (kombinasjonen av `oppgave.opprett` + `sjekkliste.opprett` typegen pumpet for dyp etter `recipientGroupId`-utvidelse). Mister `isPending`/`error`-state og optimistic updates.
 2. **Plain HTML-tabell** brukt i HMS-side-tabellene i stedet for `@sitedoc/ui` Table. Mister sortering, kolonnebredde-resize og kolonnevelger som oppgaver/sjekklister-listene har. Forskjellig UX i samme app.
-3. **HMS-siden støtter byggeplass-filter innad i prosjektet.** 🟡 IMPLEMENTERT PÅ DEVELOP 2026-05-29 — `hms.hentDokumenter` utvidet med `byggeplassId: z.string().uuid().optional()`. Asymmetri: `Task` (HMS-avvik) filtreres via `drawing.byggeplassId` med `taskByggeplassClause`; `Checklist` (HMS-SJA, HMS-RUH) bruker `byggeplassId` direkte med `checklistByggeplassClause`. Eksisterende Task-`OR` (bestillerFaggruppe vs null) bevart ved å konvertere til `AND: [...]`-struktur. Prosjekt-brede dokumenter (`drawingId=null`/`byggeplassId=null`) inkluderes alltid — relevant for arbeid på alle byggeplasser. Klient (`hms/page.tsx`) henter `aktivByggeplass` fra `useByggeplass()` og sender id-en i query. Cache-invalidering uendret (matches på projectId-prefiks).
+3. ~~**HMS-siden støtter byggeplass-filter innad i prosjektet.**~~ ✅ DEPLOYET TIL PROD 2026-05-29 (prod-merge `526db462`, impl `c3dc62c4`). `hms.hentDokumenter` utvidet med `byggeplassId: z.string().uuid().optional()`. Asymmetri Task vs Checklist (Task via `drawing.byggeplassId`, Checklist direkte). Prosjekt-brede dokumenter (`null`) inkluderes alltid. Klient sender `aktivByggeplass?.id` fra `useByggeplass()`. Cache-invalidering uendret.
 4. **Statistikk-fanen aggregerer på klient.** `månederData`, `statusData`, `faggruppeData` regnes på klient fra `dokumenter.avvik`-arrayet. Hvis prosjekt har 1000+ HMS-avvik, blir søyler/bars trege. Server-aggregering kreves for skala.
 5. **`useVerktoylinje`-pattern droppet** — HMS-siden bruker inline header med Ny-dropdown i stedet for global verktøylinje (oppgaver/sjekklister mønster). Funksjonelt OK, men inkonsistent.
 6. **Modul-slug `hms-avvik` misvisende.** Slug-en var korrekt da modulen kun dekket HMS-avvik. Nå dekker den SJA + RUH også. Rename krever migrasjon + mobil-app-bakover-kompat-arbeid (mobil sender slug-en ved aktivering). Vurder ved neste modul-redesign.
 
 **Vurderes som samlet oppfølger-PR** når kundefeedback indikerer behov, eller når Godkjenning-modul-redesign trigger generalisering av modul-mønstre.
 
-### Firma-nivå HMS-dashboard — aggregering på tvers av prosjekter (planlagt) 🔴
+### Firma-nivå HMS-dashboard — aggregering på tvers av prosjekter 🟡 (Trinn 1-3 deployet til prod 2026-05-29, Trinn 4 gjenstår)
 
 **Oppdaget 2026-05-29** ved gjennomgang av HMS-arkitekturen. HMS er i dag strikt prosjekt-isolert: én side på `/dashbord/[prosjektId]/hms/` per prosjekt, `verifiserProsjektmedlem`-gating på server, ingen firma-nivå-aggregering. Det finnes ingen ruter under `/dashbord/firma/` som matcher HMS, avvik, SJA eller RUH.
 
@@ -531,7 +531,7 @@ direkte fra listen.
 
 - **Adaptivt søk for sjekklister/oppgaver/HMS/RUH** 🔴 — krever kode-utforskning. Se [adaptiv-sok-plan.md](adaptiv-sok-plan.md).
 - **Dokumentflyt mobil** 🔴 — finner ikke arbeidsforløp (bruker-basert vs entreprise-basert matching).
-- **Oppgave-mobil rettighetsoppfølger** 🟡 IMPLEMENTERT PÅ DEVELOP 2026-05-29 — `apps/mobile/app/oppgave/[id].tsx` får nå `rettighetInput` ved kall til `useOppgaveSkjema`. Speil av sjekkliste-mønster (`60601d3c Port rettighetsbasert UI til mobil`): `gruppe.hentMineTillatelser`-query + 4 useMemo-blokker (`mineTillatelser`, `harBallen`, `flytRettighet`, `rettighetInput`). Imports utvidet med `beregnHarBallen` + `HarBallenDokument`-type. Klar for prod etter Kenneth-verifisering på enhet.
+- ~~**Oppgave-mobil rettighetsoppfølger**~~ ✅ DEPLOYET TIL PROD 2026-05-29 (prod-merge `526db462`, impl `32dd43ac`). `apps/mobile/app/oppgave/[id].tsx` får nå `rettighetInput` ved kall til `useOppgaveSkjema` — speil av sjekkliste-mønster fra `60601d3c`. Aktiveres på mobil ved neste EAS-bygg + TestFlight/Play Store-distribusjon.
 
 ## 3. Fremtidige faser
 

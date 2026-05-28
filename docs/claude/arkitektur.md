@@ -135,6 +135,7 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
 | `hentBrukerTillatelser(userId, projectId)` | `Permission`-set fra grupper. Admin har alle |
 | `verifiserTillatelse(userId, projectId, permission)` | FORBIDDEN hvis mangler |
 | `verifiserFlytRolle(...)` | Sjekker flytrolle for statusovergang (403 ved mismatch) |
+| `harFirmaHmsTilgang(userId, organizationId)` | `true` for sitedoc_admin, firma-admin, eller bruker med `"hms_ansvarlig"` i `OrganizationMember.firmaRoller`. Trinn 1 av firma-HMS-dashboard (2026-05-29) |
 
 **Tilgangslogikk for dokumentvisning:**
 - Admin ser alltid alt
@@ -144,6 +145,9 @@ Hjelpemodul i `apps/api/src/trpc/tilgangskontroll.ts`:
   - Gruppe uten faggrupper → tverrgående: ser ALLE dokumenter med matchende domain
   - Gruppe med faggrupper → faggruppe-begrenset: kun matchende domain OG faggruppe
 - Samlet: union av gruppers tilganger + direkte DokumentflytKobling-tilgang
+
+**Firma-HMS-bypass i `byggHmsSynlighetsFilter` (2026-05-29):**
+HMS-spesifikk synlighetsfilter (`apps/api/src/routes/hms.ts`) sjekker etter HMS-gruppe-medlemskap også for firma-HMS-rolle. Hvis prosjektet har `primaryOrganizationId` og `harFirmaHmsTilgang(userId, orgId)` returnerer true, returnerer filteret `null` (full synlighet, også private HMS-dokumenter). Påvirker både prosjekt-nivå-HMS-side og `hms.hentFirmaOversikt`-aggregering. Bypass-rekkefølge: sitedoc_admin → ProjectMember.admin → HMS-gruppe-medlem → **firma-HMS-tilgang** → privat-policy-fallback.
 
 **Rettighetsbasert redigering (per dokument):**
 - `utledDokumentRettighet()` i `@sitedoc/shared` → `"admin"` / `"redigerer"` / `"leser"`
