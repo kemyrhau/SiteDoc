@@ -173,6 +173,38 @@ async function erFirmaAdmin(
 }
 
 /**
+ * Sjekk om bruker har HMS-tilgang på firma-nivå.
+ * Returnerer true for: sitedoc_admin, firma-admin eller hms_ansvarlig på orgId.
+ *
+ * Brukes for firma-nivå HMS-dashbord: lese på tvers av firma-prosjekter,
+ * inkl. private dokumenter, og behandle direkte fra firma-rad.
+ *
+ * Trinn 1 av firma-HMS-dashboard (2026-05-29).
+ */
+export async function harFirmaHmsTilgang(
+  userId: string,
+  organizationId: string,
+): Promise<boolean> {
+  // sitedoc_admin → ja
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (user?.role === "sitedoc_admin") return true;
+
+  // firma_admin eller hms_ansvarlig på orgId → ja
+  const member = await prisma.organizationMember.findUnique({
+    where: { userId_organizationId: { userId, organizationId } },
+    select: { firmaRoller: true },
+  });
+  if (!member) return false;
+  return (
+    member.firmaRoller.includes("firma_admin") ||
+    member.firmaRoller.includes("hms_ansvarlig")
+  );
+}
+
+/**
  * Verifiser at bruker er admin i prosjektet.
  * company_admin med riktig org arver admin-rettigheter uten ProjectMember-rad.
  */

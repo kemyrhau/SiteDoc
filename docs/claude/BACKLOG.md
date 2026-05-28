@@ -121,12 +121,51 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 1. **TS2589-workaround i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`** — imperativ `utils.client.X.mutate()` i stedet for `useMutation`-hook (kombinasjonen av `oppgave.opprett` + `sjekkliste.opprett` typegen pumpet for dyp etter `recipientGroupId`-utvidelse). Mister `isPending`/`error`-state og optimistic updates.
 2. **Plain HTML-tabell** brukt i HMS-side-tabellene i stedet for `@sitedoc/ui` Table. Mister sortering, kolonnebredde-resize og kolonnevelger som oppgaver/sjekklister-listene har. Forskjellig UX i samme app.
-3. **HMS-siden ignorerer aktiv byggeplass.** `useByggeplass()` ikke brukt — viser alle HMS-dokumenter uavhengig av byggeplass-kontekst. Inkonsistent med oppgaver/sjekklister som filtrerer på `byggeplassId`.
+3. **HMS-siden støtter byggeplass-filter innad i prosjektet.** 🟡 IMPLEMENTERT PÅ DEVELOP 2026-05-29 — `hms.hentDokumenter` utvidet med `byggeplassId: z.string().uuid().optional()`. Asymmetri: `Task` (HMS-avvik) filtreres via `drawing.byggeplassId` med `taskByggeplassClause`; `Checklist` (HMS-SJA, HMS-RUH) bruker `byggeplassId` direkte med `checklistByggeplassClause`. Eksisterende Task-`OR` (bestillerFaggruppe vs null) bevart ved å konvertere til `AND: [...]`-struktur. Prosjekt-brede dokumenter (`drawingId=null`/`byggeplassId=null`) inkluderes alltid — relevant for arbeid på alle byggeplasser. Klient (`hms/page.tsx`) henter `aktivByggeplass` fra `useByggeplass()` og sender id-en i query. Cache-invalidering uendret (matches på projectId-prefiks).
 4. **Statistikk-fanen aggregerer på klient.** `månederData`, `statusData`, `faggruppeData` regnes på klient fra `dokumenter.avvik`-arrayet. Hvis prosjekt har 1000+ HMS-avvik, blir søyler/bars trege. Server-aggregering kreves for skala.
 5. **`useVerktoylinje`-pattern droppet** — HMS-siden bruker inline header med Ny-dropdown i stedet for global verktøylinje (oppgaver/sjekklister mønster). Funksjonelt OK, men inkonsistent.
 6. **Modul-slug `hms-avvik` misvisende.** Slug-en var korrekt da modulen kun dekket HMS-avvik. Nå dekker den SJA + RUH også. Rename krever migrasjon + mobil-app-bakover-kompat-arbeid (mobil sender slug-en ved aktivering). Vurder ved neste modul-redesign.
 
 **Vurderes som samlet oppfølger-PR** når kundefeedback indikerer behov, eller når Godkjenning-modul-redesign trigger generalisering av modul-mønstre.
+
+### Firma-nivå HMS-dashboard — aggregering på tvers av prosjekter (planlagt) 🔴
+
+**Oppdaget 2026-05-29** ved gjennomgang av HMS-arkitekturen. HMS er i dag strikt prosjekt-isolert: én side på `/dashbord/[prosjektId]/hms/` per prosjekt, `verifiserProsjektmedlem`-gating på server, ingen firma-nivå-aggregering. Det finnes ingen ruter under `/dashbord/firma/` som matcher HMS, avvik, SJA eller RUH.
+
+**Mål:** Firma-admin og HMS-ansvarlig skal se HMS-tilstand på tvers av alle firma-prosjektene fra ett sted — statistikk (åpne avvik per prosjekt, gjennomsnittlig saksbehandlingstid, SJA-frekvens, RUH-rate), prioritert handlingsliste (eldste åpne avvik, frister som nærmer seg) og felles behandling (kommentere/godkjenne uten å hoppe inn i hvert prosjekt).
+
+**Skiller seg fra oppgaver/sjekklister:** HMS har juridisk + arbeidsmiljø-dimensjon som krever firma-overblikk (internkontroll-forskriften §5, NS 5814). Oppgaver og sjekklister er strengt prosjekt-brede per design — det er produksjon-/leveranse-styring uten tilsvarende kryss-prosjekt-mandat. HMS skiller seg.
+
+**Filter-krav på firma-nivå:** Brukeren skal kunne filtrere HMS-hendelser på prosjekt og byggeplass. Default er «alle prosjekter, alle byggeplasser» — filter-velgere lar firma-admin/HMS-ansvarlig snevre inn til ett eller flere prosjekter, og videre til byggeplass(er) innenfor de valgte prosjektene. Filter-state gjenspeiles i URL slik at delbar lenke kan peke til «alle åpne HMS-avvik på Byggeplass A i Prosjekt X». Knyttes til samme byggeplass-felter som prosjekt-nivå-filter (asymmetri Task `drawing.byggeplassId` vs Checklist `byggeplassId`).
+
+**Rolle-modell:** To separate HMS-roller:
+
+1. **HMS-ansvarlig på firma-nivå** — ser alle prosjekters HMS-data, kan behandle fra firma-dashbordet. **Finnes ikke i kodebasen i dag.** Krever enten ny `OrganizationGroup`-type (gruppe-basert tilgang på firma-nivå, parallell til `ProjectGroup` på prosjekt-nivå) eller ny rolle på `OrganizationMember` (felt-basert, f.eks. `OrganizationMember.hmsAnsvarlig: boolean` eller utvidelse av eksisterende `role`-enum).
+2. **HMS-ansvarlig på prosjekt-nivå** — `ProjectGroup` med `domains: ["hms"]`. Eksisterer allerede og er aktivt brukt i `byggHmsSynlighetsFilter` for å gi utvidet tilgang til private HMS-dokumenter.
+
+De to rollene kan tilhøre ulike personer — firma-HMS-ansvarlig er typisk én sentral person eller HMS-koordinator, prosjekt-HMS-ansvarlig er prosjektspesifikk og kan rotere. Tilgangsmodellen må reflektere at firma-nivå-tilgang ikke automatisk gir prosjekt-nivå-tilgang og omvendt, men firma-HMS-ansvarlig får implisitt lese-tilgang til alle prosjekters HMS-data (eventuell sammenheng med `hmsSynlighet: "privat"` må avklares).
+
+**Avhengighet for implementasjon:** Beslutning om OrganizationGroup vs OrganizationMember-rolle må tas FØR firma-HMS-dashbord bygges, ellers risikerer vi å skrive tilgangskontroll to ganger. **Vedtak 2026-05-29: OrganizationMember.firmaRoller += "hms_ansvarlig"** (utvidelse av eksisterende array, ingen schema-endring). Server-fundament implementert i Trinn 1 (`93970feb`) og Trinn 2 (utvidet `byggHmsSynlighetsFilter` + ny `hms.hentFirmaOversikt`). **Trinn 3** (klient-side: ny side `/dashbord/firma/hms/page.tsx` med filter, URL-state, 4 faner + statistikk-panel, samt refaktor av delte HMS-komponenter til `components/hms/`) implementert 2026-05-29. Gjenstår: Trinn 4 (UI for å tildele `hms_ansvarlig`-rollen i `firma/ansatte/page.tsx` + valgfri full behandling fra firma-rad istedenfor drill-ned).
+
+**Konsekvenser for arkitektur:**
+- Ny rute `apps/web/src/app/dashbord/firma/hms/` (planlagt under firmamoduler)
+- Ny server-prosedyre `firma.hms.aggregerForOrganisasjon` eller `hms.hentFirmaOversikt`, gated på firma-admin / HMS-ansvarlig-rolle
+- Behandling fra firma-nivå må navigere ned til prosjekt-detalj eller åpne modal i prosjekt-kontekst — felles vs. prosjekt-isolert tilgangskontroll må avklares
+- Aggregering kan gjenbruke `hms.hentDokumenter` per prosjekt med `Promise.all` initialt, server-side aggregering for skala senere (jf. punkt 4 i HMS-prosjektvisning teknisk gjeld)
+
+**Spec-beslutninger 2026-05-29:**
+
+- **Behandling:** Full behandling fra firma-dashbordet — kommentere, statusendring og tildele utfører direkte fra firma-listen uten å forlate dashbordet. Server-prosedyrene som gjør disse handlingene må aksepteres uten prosjekt-kontekst, eller dashbordet kaller eksisterende prosjekt-prosedyrer med projectId hentet fra dokument-raden.
+- **Synlighet:** Firma-HMS-ansvarlig ser alle HMS-dokumenter inkl. private (`hmsSynlighet: "privat"`). Likestilt med prosjekt-HMS-ansvarlig i tilgang. `byggHmsSynlighetsFilter` må utvides eller bypass-es når firma-HMS-rolle er aktiv. Tilgang logges som audit-spor.
+- **Statistikk-KPI-er** (alle fire valgt):
+  1. Åpne avvik per prosjekt (status ≠ closed/approved/cancelled, gruppert per prosjekt)
+  2. SJA-frekvens per måned (siste 12 mnd, total + per prosjekt)
+  3. RUH-rate per måned + trend (indikerer rapporteringskultur)
+  4. Saksbehandlingstid median (dager fra opprettet til closed, per prosjekt + firma-total)
+
+**Avhengighet:** Krever rolle-modell-beslutning (`OrganizationGroup` vs `OrganizationMember`-rolle) før implementasjon. Server-aggregering av statistikk skal være rask nok for firma med 50+ prosjekter — vurderes om Promise.all per prosjekt eller én rå-SQL-query. Fase 7-nivå arbeid; ikke startet.
+
+**Eksisterende referanse:** Fase 7 § «HMS-statistikk på firma-nivå» nevner dette kort — denne entry-en utvider med konkret arkitekturskisse.
 
 ### Status-audit på tvers av dokumenttyper — UTFØRT 2026-05-27
 
@@ -492,7 +531,7 @@ direkte fra listen.
 
 - **Adaptivt søk for sjekklister/oppgaver/HMS/RUH** 🔴 — krever kode-utforskning. Se [adaptiv-sok-plan.md](adaptiv-sok-plan.md).
 - **Dokumentflyt mobil** 🔴 — finner ikke arbeidsforløp (bruker-basert vs entreprise-basert matching).
-- **Oppgave-mobil rettighetsoppfølger** 🔴 — `apps/mobile/app/oppgave/[id].tsx` mangler `rettighetInput`, samme bug som sjekkliste-fix 2026-05-08.
+- **Oppgave-mobil rettighetsoppfølger** 🟡 IMPLEMENTERT PÅ DEVELOP 2026-05-29 — `apps/mobile/app/oppgave/[id].tsx` får nå `rettighetInput` ved kall til `useOppgaveSkjema`. Speil av sjekkliste-mønster (`60601d3c Port rettighetsbasert UI til mobil`): `gruppe.hentMineTillatelser`-query + 4 useMemo-blokker (`mineTillatelser`, `harBallen`, `flytRettighet`, `rettighetInput`). Imports utvidet med `beregnHarBallen` + `HarBallenDokument`-type. Klar for prod etter Kenneth-verifisering på enhet.
 
 ## 3. Fremtidige faser
 

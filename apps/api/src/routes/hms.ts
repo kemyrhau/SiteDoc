@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { byggTilgangsFilter, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { byggTilgangsFilter, harFirmaHmsTilgang, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { prisma } from "@sitedoc/db";
 
@@ -48,6 +49,19 @@ async function byggHmsSynlighetsFilter(
     return (domains as unknown[]).includes("hms");
   });
   if (erHmsAnsvarlig) return null;
+
+  // Firma-HMS-tilgang (Trinn 1, 2026-05-29) — bruker med "hms_ansvarlig"
+  // i firmaRoller ser alt inkl. private HMS-dokumenter på alle prosjekter
+  // i samme firma. Standalone-prosjekter (primaryOrganizationId = null) er
+  // upåvirket — kun firma-bundne prosjekter dekkes.
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { primaryOrganizationId: true },
+  });
+  if (project?.primaryOrganizationId) {
+    const erFirmaHms = await harFirmaHmsTilgang(userId, project.primaryOrganizationId);
+    if (erFirmaHms) return null;
+  }
 
   // Vanlig bruker: "apen" ELLER innsender/mottaker
   return {
@@ -135,6 +149,7 @@ export const hmsRouter = router({
         projectId: z.string().uuid(),
         status: documentStatusSchema.optional(),
         subdomain: z.enum(["avvik", "sja", "ruh"]).optional(),
+        byggeplassId: z.string().uuid().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -144,15 +159,40 @@ export const hmsRouter = router({
 
       const statusFilter = input.status ? { status: input.status } : {};
 
+      // Byggeplass-filter (asymmetri): Task har drawingId (filtreres via drawing.byggeplassId);
+      // Checklist har byggeplassId direkte. Prosjekt-brede dokumenter (uten byggeplass/tegning)
+      // inkluderes alltid — de er relevante for arbeid på alle byggeplasser.
+      const taskByggeplassClause = input.byggeplassId
+        ? {
+            OR: [
+              { drawing: { byggeplassId: input.byggeplassId } },
+              { drawingId: null },
+            ],
+          }
+        : null;
+      const checklistByggeplassClause = input.byggeplassId
+        ? {
+            OR: [
+              { byggeplassId: input.byggeplassId },
+              { byggeplassId: null },
+            ],
+          }
+        : null;
+
       const avvikPromise = (input.subdomain === undefined || input.subdomain === "avvik")
         ? ctx.prisma.task.findMany({
             where: komponerWhere(
               {
                 ...statusFilter,
                 template: { is: { projectId: input.projectId, domain: "hms", subdomain: "avvik" } },
-                OR: [
-                  { bestillerFaggruppe: { projectId: input.projectId } },
-                  { bestillerFaggruppeId: null },
+                AND: [
+                  {
+                    OR: [
+                      { bestillerFaggruppe: { projectId: input.projectId } },
+                      { bestillerFaggruppeId: null },
+                    ],
+                  },
+                  ...(taskByggeplassClause ? [taskByggeplassClause] : []),
                 ],
               },
               tilgangsFilter,
@@ -169,6 +209,7 @@ export const hmsRouter = router({
               {
                 ...statusFilter,
                 template: { is: { projectId: input.projectId, domain: "hms", subdomain: "sja" } },
+                ...(checklistByggeplassClause ?? {}),
               },
               tilgangsFilter,
               synlighetsFilter,
@@ -184,6 +225,7 @@ export const hmsRouter = router({
               {
                 ...statusFilter,
                 template: { is: { projectId: input.projectId, domain: "hms", subdomain: "ruh" } },
+                ...(checklistByggeplassClause ?? {}),
               },
               tilgangsFilter,
               synlighetsFilter,
@@ -195,5 +237,244 @@ export const hmsRouter = router({
 
       const [avvik, sja, ruh] = await Promise.all([avvikPromise, sjaPromise, ruhPromise]);
       return { avvik, sja, ruh };
+    }),
+
+  /**
+   * Hent HMS-oversikt på tvers av alle prosjekter i et firma.
+   *
+   * Trinn 2 av firma-HMS-dashboard (2026-05-29). Krever firma-admin eller
+   * hms_ansvarlig på orgId (via harFirmaHmsTilgang). Bypass-er
+   * byggHmsSynlighetsFilter og byggTilgangsFilter — auth-grunnlaget er
+   * firma-rollen, ikke prosjektmedlemskap.
+   *
+   * Returnerer:
+   * - prosjekter: filter-velger-data (id, name, byggeplasser)
+   * - dokumenter: { avvik, sja, ruh } med template.project + byggeplass-info
+   * - statistikk: 4 KPI-er (apneAvvikPerProsjekt, sjaFrekvensPerMaaned,
+   *   ruhRatePerMaaned, saksbehandlingstidMedianDager)
+   */
+  hentFirmaOversikt: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        prosjektIds: z.array(z.string().uuid()).optional(),
+        byggeplassIds: z.array(z.string().uuid()).optional(),
+        status: documentStatusSchema.optional(),
+        subdomain: z.enum(["avvik", "sja", "ruh"]).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const harTilgang = await harFirmaHmsTilgang(ctx.userId, input.organizationId);
+      if (!harTilgang) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Krever firma-admin eller hms_ansvarlig",
+        });
+      }
+
+      // Hent alle prosjekter i firmaet (filter-velger-data + filter-anchor)
+      const alleProsjekter = await ctx.prisma.project.findMany({
+        where: {
+          primaryOrganizationId: input.organizationId,
+          ...(input.prosjektIds ? { id: { in: input.prosjektIds } } : {}),
+        },
+        select: {
+          id: true,
+          name: true,
+          byggeplasser: { select: { id: true, name: true } },
+        },
+        orderBy: { name: "asc" },
+      });
+
+      const projectIdList = alleProsjekter.map((p) => p.id);
+
+      if (projectIdList.length === 0) {
+        return {
+          prosjekter: [],
+          dokumenter: { avvik: [], sja: [], ruh: [] },
+          statistikk: {
+            apneAvvikPerProsjekt: {},
+            sjaFrekvensPerMaaned: {},
+            ruhRatePerMaaned: {},
+            saksbehandlingstidMedianDager: null,
+          },
+        };
+      }
+
+      const statusFilter = input.status ? { status: input.status } : {};
+
+      // Byggeplass-filter (asymmetri Task vs Checklist, samme som Del 1)
+      const taskByggeplassClause = input.byggeplassIds && input.byggeplassIds.length > 0
+        ? {
+            OR: [
+              { drawing: { byggeplassId: { in: input.byggeplassIds } } },
+              { drawingId: null },
+            ],
+          }
+        : null;
+      const checklistByggeplassClause = input.byggeplassIds && input.byggeplassIds.length > 0
+        ? {
+            OR: [
+              { byggeplassId: { in: input.byggeplassIds } },
+              { byggeplassId: null },
+            ],
+          }
+        : null;
+
+      const avvikPromise = (input.subdomain === undefined || input.subdomain === "avvik")
+        ? ctx.prisma.task.findMany({
+            where: {
+              ...statusFilter,
+              template: { is: { projectId: { in: projectIdList }, domain: "hms", subdomain: "avvik" } },
+              ...(taskByggeplassClause ?? {}),
+            },
+            select: {
+              ...TASK_SELECT,
+              template: {
+                select: {
+                  id: true,
+                  prefix: true,
+                  name: true,
+                  domain: true,
+                  subdomain: true,
+                  hmsSynlighet: true,
+                  objects: { select: { id: true, label: true, type: true } },
+                  project: { select: { id: true, name: true } },
+                },
+              },
+              drawing: { select: { byggeplass: { select: { id: true, name: true } } } },
+            },
+            orderBy: { updatedAt: "desc" },
+          })
+        : Promise.resolve([]);
+
+      const sjaPromise = (input.subdomain === undefined || input.subdomain === "sja")
+        ? ctx.prisma.checklist.findMany({
+            where: {
+              ...statusFilter,
+              template: { is: { projectId: { in: projectIdList }, domain: "hms", subdomain: "sja" } },
+              ...(checklistByggeplassClause ?? {}),
+            },
+            select: {
+              ...CHECKLIST_SELECT,
+              template: {
+                select: {
+                  id: true,
+                  prefix: true,
+                  name: true,
+                  domain: true,
+                  subdomain: true,
+                  hmsSynlighet: true,
+                  objects: { select: { id: true, label: true, type: true } },
+                  project: { select: { id: true, name: true } },
+                },
+              },
+              byggeplass: { select: { id: true, name: true } },
+            },
+            orderBy: { updatedAt: "desc" },
+          })
+        : Promise.resolve([]);
+
+      const ruhPromise = (input.subdomain === undefined || input.subdomain === "ruh")
+        ? ctx.prisma.checklist.findMany({
+            where: {
+              ...statusFilter,
+              template: { is: { projectId: { in: projectIdList }, domain: "hms", subdomain: "ruh" } },
+              ...(checklistByggeplassClause ?? {}),
+            },
+            select: {
+              ...CHECKLIST_SELECT,
+              template: {
+                select: {
+                  id: true,
+                  prefix: true,
+                  name: true,
+                  domain: true,
+                  subdomain: true,
+                  hmsSynlighet: true,
+                  objects: { select: { id: true, label: true, type: true } },
+                  project: { select: { id: true, name: true } },
+                },
+              },
+              byggeplass: { select: { id: true, name: true } },
+            },
+            orderBy: { updatedAt: "desc" },
+          })
+        : Promise.resolve([]);
+
+      const [avvik, sja, ruh] = await Promise.all([avvikPromise, sjaPromise, ruhPromise]);
+
+      // ---------- Statistikk-aggregering ----------
+      const LUKKET = new Set(["closed", "approved", "cancelled"]);
+      const apneAvvikPerProsjekt: Record<string, number> = {};
+      for (const t of avvik) {
+        if (LUKKET.has(t.status)) continue;
+        const pid = (t as { template: { project: { id: string } | null } }).template.project?.id;
+        if (!pid) continue;
+        apneAvvikPerProsjekt[pid] = (apneAvvikPerProsjekt[pid] ?? 0) + 1;
+      }
+
+      const tolvMndTilbake = new Date();
+      tolvMndTilbake.setMonth(tolvMndTilbake.getMonth() - 12);
+      const formatMaaned = (d: Date) =>
+        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+
+      const sjaFrekvensPerMaaned: Record<string, number> = {};
+      for (const c of sja) {
+        const created = new Date(c.createdAt);
+        if (created < tolvMndTilbake) continue;
+        const key = formatMaaned(created);
+        sjaFrekvensPerMaaned[key] = (sjaFrekvensPerMaaned[key] ?? 0) + 1;
+      }
+
+      const ruhRatePerMaaned: Record<string, number> = {};
+      for (const c of ruh) {
+        const created = new Date(c.createdAt);
+        if (created < tolvMndTilbake) continue;
+        const key = formatMaaned(created);
+        ruhRatePerMaaned[key] = (ruhRatePerMaaned[key] ?? 0) + 1;
+      }
+
+      // Saksbehandlingstid: median dager fra createdAt til updatedAt for lukkede avvik.
+      // updatedAt brukes som proxy for closedAt — fungerer så lenge siste oppdatering
+      // er statusovergang til closed.
+      const lukkedeDager: number[] = [];
+      for (const t of avvik) {
+        if (t.status !== "closed") continue;
+        const created = new Date(t.createdAt).getTime();
+        const closed = new Date(t.updatedAt).getTime();
+        const dager = (closed - created) / 86400000;
+        if (dager >= 0) lukkedeDager.push(dager);
+      }
+      lukkedeDager.sort((a, b) => a - b);
+      let saksbehandlingstidMedianDager: number | null = null;
+      if (lukkedeDager.length > 0) {
+        const midt = Math.floor(lukkedeDager.length / 2);
+        if (lukkedeDager.length % 2 === 0) {
+          const a = lukkedeDager[midt - 1] ?? 0;
+          const b = lukkedeDager[midt] ?? 0;
+          saksbehandlingstidMedianDager = (a + b) / 2;
+        } else {
+          saksbehandlingstidMedianDager = lukkedeDager[midt] ?? 0;
+        }
+      }
+
+      // Audit-markør for private dokumenter — egen oppfølger for Activity-rad.
+      // eslint-disable-next-line no-console
+      console.log(
+        `[firma-hms-oversikt] userId=${ctx.userId} orgId=${input.organizationId} ` +
+          `prosjekter=${projectIdList.length} avvik=${avvik.length} sja=${sja.length} ruh=${ruh.length}`,
+      );
+
+      return {
+        prosjekter: alleProsjekter,
+        dokumenter: { avvik, sja, ruh },
+        statistikk: {
+          apneAvvikPerProsjekt,
+          sjaFrekvensPerMaaned,
+          ruhRatePerMaaned,
+          saksbehandlingstidMedianDager,
+        },
+      };
     }),
 });

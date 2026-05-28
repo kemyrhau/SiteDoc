@@ -6,11 +6,115 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### T7-5h — DEPLOYET TIL PROD 2026-05-28 (prod-merge `6fd294d1`, impl `82cd65fa`)
+### PR Firma-HMS-dashboard Trinn 1-3 — IMPLEMENTERT PÅ DEVELOP 2026-05-29
 
-Bevarer manuelt-justert `rad.timer` ved pause-endring og fra/til-endring i `RedigerRadModal.tsx`. Init-deteksjon flagger rader med avvik > 0.01t fra default-beregning; flaggede rader får ↻-knapp som lar bruker eksplisitt bytte til default. Direkte redigering av timer-feltet markerer raden som manuelt justert.
+Tre trinn av firma-nivå-HMS-dashboard ferdig på develop. Trinn 4 (UI for å tildele `hms_ansvarlig`-rolle + valgfri full behandling fra firma-rad) gjenstår.
 
-Arkivert til [historikk-2026-05.md § T7-5h](historikk-2026-05.md).
+**Trinn 1 — Server-rolle-fundament (`93970feb`):**
+- Ny `harFirmaHmsTilgang(userId, organizationId)` i `tilgangskontroll.ts` — sjekker sitedoc_admin, firma-admin eller `firmaRoller.includes("hms_ansvarlig")`
+- Ny `settFirmaHmsAnsvarlig`-mutasjon i `organisasjon.ts` — speil av `settFirmaAdmin`
+
+**Trinn 2 — Server-data (`e56434bf`):**
+- `byggHmsSynlighetsFilter` utvidet med firma-HMS-bypass på prosjekt-nivå-HMS
+- Ny `hms.hentFirmaOversikt`-prosedyre med asymmetrisk byggeplass-filter, statistikk-aggregering (4 KPI-er), bypass av begge filtre fordi firma-rollen er auth-grunnlaget
+
+**Trinn 3 — Klient-side (denne commit):**
+- Refaktor: HMS-komponenter (`KpiKort`, `MånedSøyler`, `FaggruppeBars`, `AvvikTabell`/`SjaTabell`/`RuhTabell`, format-helpers) flyttet til `apps/web/src/components/hms/{visning.tsx,tabeller.tsx,types.ts}`
+- Prosjekt-nivå-HMS-page bruker nå shared-komponentene (ingen funksjonell endring)
+- Tabell-komponentene utvidet med `visProsjektKolonne` + `visByggeplassKolonne`-props og endret onKlikk-signatur fra `(id)` til `(rad)` for å støtte drill-ned med projectId
+- Ny `organisasjon.harHmsTilgang`-query for klient-side gating
+- Ny rute `/dashbord/firma/hms/page.tsx` med:
+  - URL-state for `prosjekt`, `byggeplass`, `tab` (kommaseparerte IDer i query-params, delbar lenke)
+  - Filter-panel: prosjekt-chips + byggeplass-chips (kaskade fra valgte prosjekter, eller alle)
+  - Fire faner: Avvik / SJA / RUH / Statistikk
+  - StatistikkPanel med 4 KPI-kort + topp-10 åpne avvik per prosjekt + SJA-frekvens 12-mnd + RUH-rate 12-mnd
+  - Drill-ned: rad-klikk navigerer til prosjekt-detalj basert på subdomain
+- Nav-lenke i `firma/layout.tsx` med ny `kreverHmsTilgang`-gating-felt (mellom Kompetanse og Moduler)
+- 15 nye i18n-nøkler (nb + en) auto-oversatt til 13 språk
+
+**Verifisert:** `@sitedoc/api` typecheck 0 = 0, `@sitedoc/web` typecheck 1 = 1 baseline (vitest). 0 nye feil.
+
+**Reload-metode:** Web — TypeScript + i18n. Full reload + cache-cleaning. Server-reload kreves (nye prosedyrer).
+
+**Klar for review** — Kenneth verifiserer at:
+- HMS-fane vises i firma-sidebar når innlogget som firma-admin eller bruker med `hms_ansvarlig`
+- Filter på prosjekt og byggeplass oppdaterer URL og dokumentliste
+- Drill-ned tar til riktig prosjekt-rute (oppgaver for avvik, sjekklister for SJA/RUH)
+- Statistikk viser fornuftige tall basert på testdataen
+- Prosjekt-nivå-HMS-side fortsetter å virke etter refactor
+
+**Gjenstår (Trinn 4):**
+- UI i `firma/ansatte/page.tsx` for å tildele `hms_ansvarlig`-rollen (speil av firma-admin-toggle)
+- Vurder full behandling (kommentar + statusendring direkte fra firma-rad) istedenfor drill-ned
+
+### PR HMS-byggeplass-filter innad i prosjektet — IMPLEMENTERT PÅ DEVELOP 2026-05-29
+
+Lukker punkt 3 i HMS-prosjektvisning teknisk gjeld. HMS-siden viser nå bare dokumenter knyttet til aktiv byggeplass (samt prosjekt-brede dokumenter uten byggeplass-tilknytning).
+
+**Endringer i `apps/api/src/routes/hms.ts`:**
+- Input-schema utvidet med `byggeplassId: z.string().uuid().optional()`.
+- To filter-klausuler bygget asymmetrisk:
+  - `taskByggeplassClause` for HMS-avvik: `OR: [{ drawing: { byggeplassId } }, { drawingId: null }]` (Task har bare `drawingId`, ikke direkte byggeplass-felt).
+  - `checklistByggeplassClause` for SJA + RUH: `OR: [{ byggeplassId }, { byggeplassId: null }]` (Checklist har feltet direkte).
+- Task-query: eksisterende `OR` (bestillerFaggruppe vs null) konvertert til `AND: [...]`-struktur for å kombinere med byggeplass-`OR` uten konflikt. Checklist-queries spreader klausulen som `OR: [...]` direkte på where (kun ett OR-uttrykk per query).
+- Prosjekt-brede dokumenter (uten drawing/byggeplass) inkluderes alltid — de er relevante for arbeid på alle byggeplasser. Matcher menneskelig intuisjon.
+
+**Endringer i `apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`:**
+- Import: `useByggeplass` fra `@/kontekst/byggeplass-kontekst`.
+- Hook: `const { aktivByggeplass } = useByggeplass();`.
+- Query-input utvidet: `{ projectId, byggeplassId: aktivByggeplass?.id ?? undefined }`. Når ingen byggeplass valgt sendes `undefined` → server returnerer alle dokumenter (default-oppførsel uendret).
+- Cache-invalidering uendret — `utils.hms.hentDokumenter.invalidate({ projectId })` matcher på query-key-prefiks og dekker alle byggeplass-varianter.
+
+**Verifisert:** `@sitedoc/api` typecheck 0 = 0 feil. `@sitedoc/web` typecheck 1 = 1 baseline (vitest). 0 nye feil.
+
+**Reload-metode:** Server-reload kreves (input-schema endret). Web TypeScript-only + cache-cleaning ved deploy.
+
+**Forventet konsekvens:** Når brukeren har valgt en aktiv byggeplass, viser HMS-siden bare HMS-dokumenter knyttet til den byggeplassen (eller prosjekt-brede). «Alle byggeplasser»-modus (aktivByggeplass = null) viser alt som før.
+
+Klar for review — ikke merge før Kenneth verifiserer på nettleser at filteret oppfører seg riktig (særlig at prosjekt-brede dokumenter fortsatt vises ved valgt byggeplass).
+
+### PR Oppgave-mobil rettighetsoppfølger — IMPLEMENTERT PÅ DEVELOP 2026-05-29
+
+Speiler sjekkliste-mobil-mønsteret (`60601d3c Port rettighetsbasert UI til mobil`) inn i oppgave-fila. Lukker BACKLOG-entry «Oppgave-mobil rettighetsoppfølger».
+
+**Endringer i `apps/mobile/app/oppgave/[id].tsx`:**
+- Imports utvidet: `beregnHarBallen` + `HarBallenDokument`-type fra `@sitedoc/shared`.
+- Ny query `trpc.gruppe.hentMineTillatelser` + `mineTillatelser`-Set (etter `tilgjengeligeFlyter`-query).
+- 3 nye useMemo-blokker etter `minRolle`: `harBallen` (kaller `beregnHarBallen`), `flytRettighet` (iterer flyt-medlemmer, match på `projectMemberId`/`groupId`), `rettighetInput` (objektet som sendes til hook).
+- `useOppgaveSkjema(id!)` → `useOppgaveSkjema(id!, rettighetInput)`.
+
+Hook'en (`apps/mobile/src/hooks/useOppgaveSkjema.ts:160`) tok allerede imot `rettighetInput?: RettighetInput` som valgfri parameter — vi sendte bare ikke inn argumentet. Endringen er additiv og påvirker ikke eksisterende default-oppførsel når `minFlytInfo` ikke er lastet.
+
+**Verifisert:** `@sitedoc/mobile` typecheck 12 = 12 baseline (0 nye feil).
+
+**Reload-metode:** TypeScript-only på mobil. Full app-reload (close + open eller `r` i Metro). Ingen native rebuild. Ingen schema-endring, ingen i18n.
+
+**Forventet konsekvens:** Oppgave-detaljvisning i mobil vil nå håndheve rettighet-styring lik sjekkliste-detaljvisning — `kanRedigere`-flagg fra flyt-medlemskap kontrollerer redigerings-tilgang, `harBallen`/`flytRettighet` påvirker UI-state.
+
+Klar for review — ikke merge før Kenneth verifiserer på enhet at oppgave-rettigheter oppfører seg likt som sjekklister.
+
+### Dagens samlede aktivitet — 2026-05-28 (4 prod-deploys: topp-3-kandidater + BACKLOG-audit + statusoppdateringer)
+
+Plukket og lukket alle tre kandidater fra BACKLOG-audit, etterfulgt av full status-audit av 26 åpne 🔴-entries som avdekket 3 drift-entries (allerede deployet) og 2 delvis-statuser som er praktisk talt ferdige.
+
+| # | Prod-merge | Innhold |
+|---|---|---|
+| 1 | `6fd294d1` | T7-5h — bevar manuelt-justert `rad.timer` ved pause-endring (smart init + opt-in recompute, ↻-knapp i amber) |
+| 2 | `ba1a5056` | i18n `maskinAvArbeid` kildetekst-forenkling (14 språk) + 2 BACKLOG-drift-fjernelser (attestering edit-bugs ✅ LØST via T7-2e, maskinAvArbeid-entry strammet) |
+| 3 | `1d432aed` | `admin.hentImpersoneringStatus.utloperVed`-fix + 2 BACKLOG-statusoppdateringer (firma-admin-navigasjon ✅ FERDIG, impersonering 🟡 audit-log gjenstår) |
+| — | drift-rydding | BACKLOG-audit-commit `6ea50af3` (3 drift-entries: P-KRITISK-2/-3 + 3D Fase 2 mobil IFC; 2 nyanseringer) |
+
+**BACKLOG-statusendringer etter audit:**
+- 26 → 22 åpne 🔴-entries
+- 0 → 4 presise 🟡-entries med konkret gjenstående arbeid
+- Verifikasjonsmetode: `git log --all --grep` + kode-sjekk + branch-contains for hver entry
+
+**Deploy-hendelse:** Test-deploy etter `ba1a5056` ble truffet av Turbo-cache-bug (`Could not find a production build` + `clientModules`-feil). Løst manuelt via `rm -rf apps/web/.next && pnpm build --force` på serveren. Kjent issue; `deploy-test-cron.sh` (server-side, ikke i repo) trenger fortsatt `--force`-fiks.
+
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
+> [§ utloperVed-fix](historikk-2026-05.md),
+> [§ i18n maskinAvArbeid + 2 BACKLOG-rydding](historikk-2026-05.md),
+> [§ T7-5h](historikk-2026-05.md).
 
 ### Dagens samlede aktivitet — 2026-05-27 (11 prod-deploys: sikkerhets-audit komplett + UX + bugfix + docs-konsistens)
 

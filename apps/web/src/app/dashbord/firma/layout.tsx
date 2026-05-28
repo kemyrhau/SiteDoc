@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3, Boxes, Package, Database, ArrowLeft, Calendar } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3, Boxes, Package, Database, ArrowLeft, Calendar, ShieldAlert } from "lucide-react";
+import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
@@ -12,6 +13,7 @@ interface NavElement {
   ikon: JSX.Element;
   kreverFirmaModul?: "timer" | "varelager";
   kreverSitedocAdmin?: boolean;
+  kreverHmsTilgang?: boolean;
 }
 
 const navigasjon: NavElement[] = [
@@ -39,6 +41,12 @@ const navigasjon: NavElement[] = [
     label: "Kompetanse",
     href: "/dashbord/firma/kompetanse",
     ikon: <Award className="h-4 w-4" />,
+  },
+  {
+    label: "HMS",
+    href: "/dashbord/firma/hms",
+    ikon: <ShieldAlert className="h-4 w-4" />,
+    kreverHmsTilgang: true,
   },
   {
     label: "Moduler",
@@ -95,6 +103,11 @@ export default function FirmaLayout({
   const { valgtFirma, erSitedocAdmin, isLoading } = useFirma();
   const harTimerModul = valgtFirma?.aktiveFirmamoduler.includes("timer") ?? false;
   const harVarelagerModul = valgtFirma?.aktiveFirmamoduler.includes("varelager") ?? false;
+  const hmsTilgangQuery = trpc.organisasjon.harHmsTilgang.useQuery(
+    { organizationId: valgtFirma?.id ?? "" },
+    { enabled: !!valgtFirma?.id },
+  );
+  const harHmsTilgang = hmsTilgangQuery.data ?? false;
 
   if (isLoading) {
     return (
@@ -144,6 +157,7 @@ export default function FirmaLayout({
               if (element.kreverFirmaModul === "timer" && !harTimerModul) return false;
               if (element.kreverFirmaModul === "varelager" && !harVarelagerModul) return false;
               if (element.kreverSitedocAdmin && !erSitedocAdmin) return false;
+              if (element.kreverHmsTilgang && !harHmsTilgang) return false;
               return true;
             })
             .map((element) => (
