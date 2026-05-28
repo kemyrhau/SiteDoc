@@ -781,6 +781,42 @@ Ved sync-konflikt vises modal til klient som taper:
 
 **Lukker også:** [oppryddings-plan-2026-04-28.md](oppryddings-plan-2026-04-28.md) P1.4 (intern motsigelse) og 3A.7 (cross-modul-konflikt — overgår hit).
 
+### A.31 Godkjenning-dokumentflyt-konsept omdøpes til Avklaring — ✅ **VEDTATT 2026-05-28**
+
+**Beslutning:** Fase 0-konseptet «Godkjenning» (dokumentforløp til byggherre for kontraktsmessig avklaring av tilleggsarbeid, endringer, varsel, regningsarbeid) omdøpes til **Avklaring**.
+
+**Begrunnelse:** «Godkjenning» som modul-/entitetsnavn kolliderer med eksisterende **status-verdi `"godkjent"`** i `DocumentTransfer.toStatus`. Navnekollisjonen skapte semantisk forvirring i kode-undersøkelse 2026-05-28 (Godkjenning som planlagt feature vs. godkjent som flyt-tilstand). Avklaring er bransje-naturlig norsk for byggherre-prosessen og kolliderer ikke med eksisterende terminologi.
+
+**Definisjoner etter A.31:**
+
+| Begrep | Hva det betyr | Domene |
+|--------|---------------|--------|
+| **Attestering** | Arbeider får lønn for registrert tid | Timer-modul |
+| **Avklaring** | Dokument som leder til en beslutning fra byggherre (TE, endringsmelding, varsel, regningsarbeid → avklart/avvist) | Dokumentflyt |
+| **Godkjent / avvist** | Status-verdier i `DocumentTransfer.toStatus` (gjelder ALLE dokumenttyper, ikke kun Avklaring) | Flyt-mekanikk |
+
+**Erstatter:** A.8-tabellens andre rad («Godkjenning | Entreprenør kan fakturere mot byggherre | Dokumentflyt») — Avklaring tar over som modul-/konsept-navn. A.8 selv beholdes som historisk anker; A.31 supersederer raden om Godkjenning.
+
+**Påvirker (ikke implementert ennå — schema-renamen tas når Avklaring bygges):**
+- `model Godkjenning` (`schema.prisma:984-1027`) → `model Avklaring`
+- `DocumentTransfer.godkjenningId` (linje 1033) → `DocumentTransfer.avklaringId`
+- `Godkjenning.endretEtterSending` / `sistEndretVed` / `godkjentVed` / `godkjentAvUserId` — feltnavn endres tilsvarende (`endretEtterSending` beholdes som generell semantikk; `godkjentVed/AvUserId` → `avklartVed/AvUserId`)
+- Tabellnavn `godkjenninger` → `avklaringer`
+- A.2-seksjon i denne fila (Godkjenning — utvidet dokumentflyt-type) får note om rename
+- BACKLOG-entries med «Godkjenning-modul» → «Avklaring-modul»
+
+**Bevares uten endring:**
+- `DocumentTransfer.toStatus = "godkjent"` (status-verdi, ikke modul-navn) — gjelder fortsatt alle dokumenttyper
+- `DokumentflytMedlem.rolle = "godkjenner"` — dokumentflyt-rolle, ikke modul (jf. A.8 bekreftelse linje 337)
+- Timer-attestering (A.8 første rad) — uendret
+
+**Status:** Godkjenning-konseptet er IKKE implementert i UI/API i dag (verifisert 2026-05-28: ingen `apps/api/src/routes/godkjenning.ts`, kun `Godkjenning`-modell i schema + redirect-stub `timer/godkjenning/page.tsx` → `attestering`). Renamen kan gjennomføres rent uten data-migrasjon når Avklaring bygges som modul.
+
+**Konsekvens for sannhetskilder:**
+- [terminologi.md](terminologi.md) får ny rad for Avklaring og note om at Godkjenning-modul-navnet er erstattet (men status-verdien `godkjent` fortsatt finnes)
+- [arkitektur-syntese.md](arkitektur-syntese.md) — referanser til Godkjenning-modul oppdateres ved neste rens
+- [dokumentflyt.md](dokumentflyt.md) — eventuelle Godkjenning-modul-referanser oppdateres ved neste rens
+
 ---
 
 ## T. Timer-modul arkitektur (låst 2026-05-11)
