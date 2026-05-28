@@ -6,45 +6,39 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md).
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md).
 
-### PR `standardPauseFra` — firma-konfigurerbar pause-default — IMPLEMENTERT PÅ DEVELOP 2026-05-28
+### PR Impersonering audit-log — `ImpersonationAudit`-tabell (Variant B) — IMPLEMENTERT PÅ DEVELOP 2026-05-28
 
-Lukker BACKLOG-entry «Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)». Erstatter midtpunkt-fallback i `togglePause` med firma-konfigurerbar default som respekterer norsk lunsj-konvensjon.
+Lukker BACKLOG-entry «Vis som bruker (impersonering)» gjenstående punkt (audit-logging). Erstatter `console.log`-mønsteret i `admin.startImpersonering` (linje 673) og `admin.stoppImpersonering` (linje 702) med persistent audit-spor i isolert tabell.
 
 **Schema (`packages/db/prisma/schema.prisma`):**
-- Nytt felt `OrganizationSetting.standardPauseFra String? @map("standard_pause_fra")` (nullable HH:MM, additivt). Migrasjon `20260528200000_add_standard_pause_fra` opprettet manuelt (shadow-DB krever pgvector som ikke er installert lokalt, kjent prosjekt-mønster).
+- Ny modell `ImpersonationAudit` med felter `adminUserId`, `targetUserId`, `targetOrganizationId` (nullable), `sessionId` (string uten FK — overlever `Session.delete()`), `startetVed`, `utloperVed`, `avsluttetVed` (null mens aktiv), `avsluttetGrunn` (`"manuell" | "utlopt" | null`).
+- FK med `onDelete: RESTRICT` på begge User-relasjoner — User med audit-spor kan ikke slettes uten å rydde auditen først.
+- Indekser på `adminUserId`, `targetUserId`, `avsluttetVed`.
+- Back-relations på `User`: `impersonertSomAdmin` + `impersonertSomTarget`.
+- Migrasjon `20260528220000_impersonation_audit` opprettet manuelt (shadow-DB pgvector-issue, samme mønster som forrige PR).
 
-**Server (`apps/api/src/routes/organisasjon.ts`):**
-- `hentArbeidstidDefaults`: `select.standardPauseFra: true` (mobil-cache).
-- `oppdaterSetting`: Zod-input får `standardPauseFra: union(HH:MM-regex | null).optional()` — `null` nullstiller, ingen verdi = uendret. `settingData` spreader feltet automatisk inn i upsert.
-- `hentSetting` returnerer feltet via Prisma default-select uten endring.
+**Server (`apps/api/src/routes/admin.ts`):**
+- `startImpersonering`: `session.update` får nå `select: { id: true }` slik at vi har `sessionId`. Etter session-update kalles `ctx.prisma.impersonationAudit.create` med defensiv `.catch((e) => console.warn(...))`. `targetOrganizationId` utledes via `hentBrukersOrg(targetUserId).catch(() => null)`. Audit-feil blokkerer ikke selve impersoneringen.
+- `stoppImpersonering`: speilet mønster — `session.update` får `select: { id: true }`, deretter `impersonationAudit.updateMany({ where: { adminUserId, sessionId, avsluttetVed: null }, data: { avsluttetVed: new Date(), avsluttetGrunn: "manuell" } })`. Idempotent — gjør ingenting hvis ingen aktiv audit-rad finnes.
+- Begge `console.log`-linjene fjernet.
 
-**Web UI (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`):**
-- `StandardArbeidstidSeksjon`: ny `<input type="time">` for "Pause fra (valgfri)" plassert mellom pause-min-blokken og tidsrunding-blokken. Tom streng = null = ingen firma-default (fallback til midtpunkt). State + initialisering + lagre.
+**Hva som IKKE er med (utenfor scope):**
+- Ingen lese-prosedyre (`hentImpersoneringLogg` el.) — venter på tilgangs-oversikt-UX-sesjon. Audit tilgjengelig via direkte SQL.
+- Ingen IP/User-Agent-felter — additivt senere ved behov.
+- Ingen lazy utløps-markering — utledes via `avsluttetVed IS NULL AND utloperVed < NOW()` ved fremtidig spørring.
+- Ingen backfill av historiske `console.log`-utdata — kun fremover.
 
-**togglePause-logikk (`apps/web/src/components/attestering/RedigerRadModal.tsx`):**
-- `standardPauseFra` + `standardPauseMin` hentes fra `setting`-queryen og sendes som props til `KompaktTimerRad`.
-- Ny togglePause-rekkefølge: (1) har pause → fjern; (2) firma-default satt + vinduet `[standardPauseFra, standardPauseFra + standardPauseMin]` ligger innenfor rad-intervallet → bruk default; (3) ellers midtpunkt-fallback (eksisterende oppførsel).
-- Eksempel: rad 07:00–15:00 med firma-default 11:30 (30 min) gir nå 11:30–12:00 (matcher norsk lunsj). Rad 17:00–22:00 (kveldsskift) ligger utenfor default-vinduet → faller tilbake til midtpunkt-fallback 19:15–19:45.
+**Verifisert:** `@sitedoc/api` 0 = 0 feil. `@sitedoc/web` 1 = 1 baseline (vitest, pre-eksisterende).
 
-**Mobil (`apps/mobile/src/db/{schema.ts,migreringer.ts}` + `services/organizationSettingKatalog.ts`):**
-- Drizzle-kolonne `standardPauseFra: text("standard_pause_fra")` på `organizationSettingLocal` (nullable).
-- Idempotent `PRAGMA table_info` + `ALTER TABLE ... ADD COLUMN` i migreringer.ts (eksisterende klienter migreres ved app-oppstart).
-- Katalog-service skriver `setting.standardPauseFra ?? null` ved refresh.
-- Mobil-UI bruker IKKE togglePause-mønsteret — pause er sedel-nivå med eksplisitte fra/til-felter. Cache populerer for fremtidig bruk og holder kontrakten konsistent server-side.
-
-**i18n:** 2 nye nøkler (`pauseFra`, `pauseFraHjelp`) i nb + en, auto-oversatt til 13 språk via `generate.ts` (2439 → 2441).
-
-**Verifisert:** `@sitedoc/api` 0 = 0 feil. `@sitedoc/web` 1 = 1 baseline (vitest typedef, pre-eksisterende). `@sitedoc/mobile` har samme pre-eksisterende baseline-feil som før (erstattVedlegg, timerSync, psi onLukk) — ikke berørt av denne PR.
-
-**Reload-metode:** Server-reload kreves (Zod + select endret + Prisma-klient regenerert med nytt felt). Web cache-cleaning + `pnpm build --force` på test (Turbo-cache-bug). Mobil app-reload trigger ALTER ADD COLUMN ved oppstart.
+**Reload-metode:** Server-reload kreves (ny Prisma-klient med ImpersonationAudit-modell + ny audit-logikk i prosedyrene). Web cache-cleaning + `pnpm build --force` på test (Turbo-cache-bug). Ingen mobil-endring.
 
 **Klar for review** — Kenneth verifiserer at:
-- `firma/innstillinger` viser ny «Pause fra (valgfri)»-input
-- Lagring uten verdi → behold uendret (eller sett null hvis feltet tømmes)
-- Lagring med f.eks. `11:30` → togglePause i attestering-modal bruker 11:30–12:00 for normal 07:00–15:00-rad
-- Kveldsskift-rad utenfor default-vinduet får eksisterende midtpunkt-fallback
+- Impersonering fungerer som før (Session-flagg + UI-banner)
+- `psql sitedoc_test -c "SELECT * FROM impersonation_audit ORDER BY startet_ved DESC LIMIT 5"` viser INSERT etter `startImpersonering`-kall
+- `stoppImpersonering` setter `avsluttet_ved` + `avsluttet_grunn = 'manuell'`
+- Utløp etter 1 time lar raden stå med `avsluttet_ved IS NULL` (utløp markeres ikke automatisk per scope-vedtak)
 
 ### PR HMS-byggeplass-filter innad i prosjektet — IMPLEMENTERT PÅ DEVELOP 2026-05-29
 

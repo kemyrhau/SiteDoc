@@ -57,6 +57,9 @@ model User {
   godkjenteKontrollplaner Kontrollplan[]          @relation("KontrollplanGodkjenner")
   kontrollplanHistorikk   KontrollplanHistorikk[]
   kompetanser             AnsattKompetanse[]
+  // 2026-05-28 — impersonering audit (Variant B: isolert tabell).
+  impersonertSomAdmin     ImpersonationAudit[]    @relation("ImpersonationAdmin")
+  impersonertSomTarget    ImpersonationAudit[]    @relation("ImpersonationTarget")
 
   @@map("users")
 }
@@ -346,6 +349,36 @@ model Session {
   @@index([userId])
   @@index([impersonatedUserId])
   @@map("sessions")
+}
+
+// 2026-05-28 — persistent audit-spor for impersonering (sitedoc_admin "view as user").
+// Erstatter console.log-utdraget i admin.startImpersonering/stoppImpersonering.
+// Variant B (isolert tabell, vedtatt 2026-05-28): unngår å tøye Activity-policy
+// (Activity krever projectId). sessionId lagres som ren string uten FK slik at
+// auditen overlever Session.delete() — auditen MÅ ikke kunne forsvinne.
+// Utløp markeres ikke eksplisitt — utledes via (avsluttetVed IS NULL AND
+// utloperVed < NOW()) ved fremtidig lese-prosedyre.
+model ImpersonationAudit {
+  id                   String    @id @default(cuid())
+  adminUserId          String    @map("admin_user_id")
+  targetUserId         String    @map("target_user_id")
+  targetOrganizationId String?   @map("target_organization_id")
+  sessionId            String    @map("session_id")
+  startetVed           DateTime  @default(now()) @map("startet_ved")
+  utloperVed           DateTime  @map("utloper_ved")
+  avsluttetVed         DateTime? @map("avsluttet_ved")
+  // "manuell" | "utlopt" | null (mens aktiv). Utlopt-markering kan settes lazy
+  // av hentImpersoneringStatus når den finner og rydder utløpt sesjon — utenfor
+  // denne PR-en.
+  avsluttetGrunn       String?   @map("avsluttet_grunn")
+
+  admin  User @relation("ImpersonationAdmin", fields: [adminUserId], references: [id])
+  target User @relation("ImpersonationTarget", fields: [targetUserId], references: [id])
+
+  @@index([adminUserId])
+  @@index([targetUserId])
+  @@index([avsluttetVed])
+  @@map("impersonation_audit")
 }
 
 model VerificationToken {
