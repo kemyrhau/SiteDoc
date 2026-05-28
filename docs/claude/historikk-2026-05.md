@@ -4,7 +4,7 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
-## Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — DEPLOYET TIL PROD 2026-05-28 (prod-merge `c85d8e8d`, impl `c22a345d` + `4e622d7e`)
+## Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — DEPLOYET TIL PROD 2026-05-28 (prod-merger `e4296c8a` delvis + `c85d8e8d` komplett, impl `4e622d7e` + `c22a345d`)
 
 Rotårsak-fiks for et synlighetsproblem oppdaget under prod-impersonering av firma-admin Florian: «Produksjon»-seksjonen i `/dashbord/oppsett`-sidebar var skjult, og tilsvarende 8+ UI-callsites som leser `tillatelser?.includes("manage_field")` feilet.
 
