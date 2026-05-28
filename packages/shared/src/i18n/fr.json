@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Heure de début",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Heure de fin",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Pause (minutes)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Démarrage avec pause (facultatif)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Quand la pause commence (HH:MM). Vide = pas de valeur par défaut — le saut est placé au milieu de l'intervalle de ligne.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Arrondissement du temps",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Arrondissez de/à l’heure sur les rangées de minuterie et de machine à l’intervalle le plus proche.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Aucune",

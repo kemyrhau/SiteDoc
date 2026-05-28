@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Koha e fillimit",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Koha e përfundimit",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Pushim (minuta)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Fillimi i pushimit (opsionale)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Kur fillon pushimi (HH:MM). Bosh = pa parazgjedhje - pushimi vendoset në mes të intervalit të rreshtit.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Rrumbullakimi i kohës",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Rrumbullakosni herë pas here në rreshtat e kohëmatësit dhe të makinës në intervalin më të afërt.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Asnjë",

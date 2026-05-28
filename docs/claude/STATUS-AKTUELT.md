@@ -6,90 +6,45 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-### PR Firma-HMS-dashboard Trinn 4 — IMPLEMENTERT PÅ DEVELOP 2026-05-29
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md).
 
-Lukker siste gjenstående punkt fra Trinn 1-3-bunken. To deler i én commit.
+### PR `standardPauseFra` — firma-konfigurerbar pause-default — IMPLEMENTERT PÅ DEVELOP 2026-05-28
 
-**Del A — Tildeling av `hms_ansvarlig` i `firma/ansatte/page.tsx`:**
-- `RedigerModal` utvidet med ny checkbox-rad under firma-admin-checkbox, med `ShieldAlert`-ikon (grønn) og hjelpetekst. Speiler `settFirmaAdmin`-mønsteret: lokal state `erHmsAnsvarlig` initialisert fra `bruker.firmaRoller`, `settFirmaHmsAnsvarlig.mutateAsync` kalles bare hvis verdien er endret.
-- `InviterModal` utvidet på samme måte — kunne invitere direkte som HMS-ansvarlig. `inviterBruker`-input utvidet med `erHmsAnsvarlig?: boolean`; `firmaRoller`-arrayen bygges nå konkatenativt (`firma_admin` og/eller `hms_ansvarlig`).
-- Tabellrad viser grønn HMS-ansvarlig-chip ved siden av rolle-chip (kan vises parallelt med firmaadmin-chip).
+Lukker BACKLOG-entry «Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)». Erstatter midtpunkt-fallback i `togglePause` med firma-konfigurerbar default som respekterer norsk lunsj-konvensjon.
 
-**Del B — `FirmaHurtigModal` (B1: minimal hurtig-modal):**
-- Ny komponent `apps/web/src/components/hms/firma-hurtig-modal.tsx` — status-dropdown (gyldige overganger via `isValidStatusTransition`) + intern kommentar-tekstboks (maks 2000 tegn).
-- Ny prosedyre `hms.firmaBehandleAvvik(organizationId, taskId, nyStatus?, kommentar?)` — bypasser flyt-rolle-validering. Tilgang via `harFirmaHmsTilgang`. Verifiserer at oppgaven hører til orgen via `Project.primaryOrganizationId` og at domain er `"hms"`. Status-overgang valideres på server med `isValidStatusTransition`. Oppretter `TaskComment` ved kommentar.
-- `AvvikTabell` fikk valgfri `onHurtigBehandle`-prop: når satt, vises en "Behandle"-knapp i ny kolonne med `e.stopPropagation()` så rad-klikk (drill-ned) ikke utløses. Andre callere uberørt.
-- Bevisst begrensning: kun avvik (Task) får hurtig-behandling. SJA/RUH (Checklist) har ikke ChecklistComment-tabell, og behandling for dem skjer best via drill-ned. Drill-ned forblir hovedflyt for alle dokumenttyper.
-- 14 nye i18n-nøkler (nb + en, 3 til ansatte-modal + 11 til hurtig-modal), auto-oversatt til 13 språk.
+**Schema (`packages/db/prisma/schema.prisma`):**
+- Nytt felt `OrganizationSetting.standardPauseFra String? @map("standard_pause_fra")` (nullable HH:MM, additivt). Migrasjon `20260528200000_add_standard_pause_fra` opprettet manuelt (shadow-DB krever pgvector som ikke er installert lokalt, kjent prosjekt-mønster).
 
-**Verifisert:** `@sitedoc/web` + `@sitedoc/api` typecheck grønt. `@sitedoc/mobile` har samme pre-eksisterende feil som før (erstattVedlegg, timerSync, psi onLukk) — ikke berørt av denne PR.
+**Server (`apps/api/src/routes/organisasjon.ts`):**
+- `hentArbeidstidDefaults`: `select.standardPauseFra: true` (mobil-cache).
+- `oppdaterSetting`: Zod-input får `standardPauseFra: union(HH:MM-regex | null).optional()` — `null` nullstiller, ingen verdi = uendret. `settingData` spreader feltet automatisk inn i upsert.
+- `hentSetting` returnerer feltet via Prisma default-select uten endring.
 
-**Reload-metode:** Web — TypeScript + i18n + nye prosedyrer. Full reload + cache-cleaning på test, server-restart kreves.
+**Web UI (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`):**
+- `StandardArbeidstidSeksjon`: ny `<input type="time">` for "Pause fra (valgfri)" plassert mellom pause-min-blokken og tidsrunding-blokken. Tom streng = null = ingen firma-default (fallback til midtpunkt). State + initialisering + lagre.
 
-**Klar for review** — Kenneth verifiserer at:
-- Checkbox for HMS-ansvarlig vises i RedigerModal og InviterModal under firma/ansatte
-- Grønn HMS-ansvarlig-chip vises i tabellraden (kan vises parallelt med firmaadmin-chip)
-- Behandle-knapp vises på avvik-rad i firma/hms-dashbord (ikke SJA/RUH)
-- Hurtig-modal endrer status og legger til kommentar uten å forlate firma-konteksten
-- Oversikten re-fetches etter lagring (kommentar/status-endring reflekteres)
+**togglePause-logikk (`apps/web/src/components/attestering/RedigerRadModal.tsx`):**
+- `standardPauseFra` + `standardPauseMin` hentes fra `setting`-queryen og sendes som props til `KompaktTimerRad`.
+- Ny togglePause-rekkefølge: (1) har pause → fjern; (2) firma-default satt + vinduet `[standardPauseFra, standardPauseFra + standardPauseMin]` ligger innenfor rad-intervallet → bruk default; (3) ellers midtpunkt-fallback (eksisterende oppførsel).
+- Eksempel: rad 07:00–15:00 med firma-default 11:30 (30 min) gir nå 11:30–12:00 (matcher norsk lunsj). Rad 17:00–22:00 (kveldsskift) ligger utenfor default-vinduet → faller tilbake til midtpunkt-fallback 19:15–19:45.
 
-### PR Firma-HMS-dashboard Trinn 1-3 — DEPLOYET TIL PROD 2026-05-29 (prod-merge `526db462`)
+**Mobil (`apps/mobile/src/db/{schema.ts,migreringer.ts}` + `services/organizationSettingKatalog.ts`):**
+- Drizzle-kolonne `standardPauseFra: text("standard_pause_fra")` på `organizationSettingLocal` (nullable).
+- Idempotent `PRAGMA table_info` + `ALTER TABLE ... ADD COLUMN` i migreringer.ts (eksisterende klienter migreres ved app-oppstart).
+- Katalog-service skriver `setting.standardPauseFra ?? null` ved refresh.
+- Mobil-UI bruker IKKE togglePause-mønsteret — pause er sedel-nivå med eksplisitte fra/til-felter. Cache populerer for fremtidig bruk og holder kontrakten konsistent server-side.
 
-Hele Trinn 1-3-bunken + relaterte fixes deployet til prod via merge `526db462`. 16 commits totalt i denne dagens leveranse. Trinn 4 (UI for å tildele `hms_ansvarlig`-rolle + valgfri full behandling fra firma-rad) gjenstår.
+**i18n:** 2 nye nøkler (`pauseFra`, `pauseFraHjelp`) i nb + en, auto-oversatt til 13 språk via `generate.ts` (2439 → 2441).
 
-**Hovedcommits (Trinn 1-3):**
-- `93970feb` — Trinn 1: `harFirmaHmsTilgang` + `settFirmaHmsAnsvarlig`
-- `e56434bf` — Trinn 2: `byggHmsSynlighetsFilter`-bypass + `hms.hentFirmaOversikt`
-- `8a632248` — Trinn 3: klient-side firma-HMS-page + refactor til shared `components/hms/`
+**Verifisert:** `@sitedoc/api` 0 = 0 feil. `@sitedoc/web` 1 = 1 baseline (vitest typedef, pre-eksisterende). `@sitedoc/mobile` har samme pre-eksisterende baseline-feil som før (erstattVedlegg, timerSync, psi onLukk) — ikke berørt av denne PR.
 
-**Etterfølgende fixes + UX-iterasjoner samme dag:**
-- `eb5f9969` — fix: hook-order-violation (`tilgjengeligeByggeplasser`-useMemo flyttet over early returns) — løste «client-side exception» som ble synlig først etter clean rebuild
-- `6d601291` — feat: filter-panel redesign — chips erstattet med `MultiComboks` (multi-select-combobox) + `SearchInput`-fritekst øverst som filtrerer dokumenter på tittel/løpenummer på tvers av alle 3 dokument-faner
-- `00763bd9` — fix: `MultiComboks` UX — valgte vises som chips under nedtrekksknappen (alltid synlig, X-knapp for å fjerne); søkefelt i dropdown er alltid synlig (ikke gated på >7 options)
-- `8b00539a` — refactor: `MultiComboks` ekstrahert til delt komponent `apps/web/src/components/ui/MultiComboks.tsx` + ny § «Filter-standard (vedtatt 2026-05-29)» i CLAUDE.md (UI-designprinsipper)
-
-**Også deployet i samme merge:** Oppgave-mobil rettighetsoppfølger (`32dd43ac`), HMS-byggeplass-filter innad i prosjektet (`c3dc62c4`).
-
-### PR Firma-HMS-dashboard Trinn 1-3 — opprinnelig STATUS (arkivert nedenfor 2026-05-29)
-
-Tre trinn av firma-nivå-HMS-dashboard ferdig på develop. Trinn 4 (UI for å tildele `hms_ansvarlig`-rolle + valgfri full behandling fra firma-rad) gjenstår.
-
-**Trinn 1 — Server-rolle-fundament (`93970feb`):**
-- Ny `harFirmaHmsTilgang(userId, organizationId)` i `tilgangskontroll.ts` — sjekker sitedoc_admin, firma-admin eller `firmaRoller.includes("hms_ansvarlig")`
-- Ny `settFirmaHmsAnsvarlig`-mutasjon i `organisasjon.ts` — speil av `settFirmaAdmin`
-
-**Trinn 2 — Server-data (`e56434bf`):**
-- `byggHmsSynlighetsFilter` utvidet med firma-HMS-bypass på prosjekt-nivå-HMS
-- Ny `hms.hentFirmaOversikt`-prosedyre med asymmetrisk byggeplass-filter, statistikk-aggregering (4 KPI-er), bypass av begge filtre fordi firma-rollen er auth-grunnlaget
-
-**Trinn 3 — Klient-side (denne commit):**
-- Refaktor: HMS-komponenter (`KpiKort`, `MånedSøyler`, `FaggruppeBars`, `AvvikTabell`/`SjaTabell`/`RuhTabell`, format-helpers) flyttet til `apps/web/src/components/hms/{visning.tsx,tabeller.tsx,types.ts}`
-- Prosjekt-nivå-HMS-page bruker nå shared-komponentene (ingen funksjonell endring)
-- Tabell-komponentene utvidet med `visProsjektKolonne` + `visByggeplassKolonne`-props og endret onKlikk-signatur fra `(id)` til `(rad)` for å støtte drill-ned med projectId
-- Ny `organisasjon.harHmsTilgang`-query for klient-side gating
-- Ny rute `/dashbord/firma/hms/page.tsx` med:
-  - URL-state for `prosjekt`, `byggeplass`, `tab` (kommaseparerte IDer i query-params, delbar lenke)
-  - Filter-panel: prosjekt-chips + byggeplass-chips (kaskade fra valgte prosjekter, eller alle)
-  - Fire faner: Avvik / SJA / RUH / Statistikk
-  - StatistikkPanel med 4 KPI-kort + topp-10 åpne avvik per prosjekt + SJA-frekvens 12-mnd + RUH-rate 12-mnd
-  - Drill-ned: rad-klikk navigerer til prosjekt-detalj basert på subdomain
-- Nav-lenke i `firma/layout.tsx` med ny `kreverHmsTilgang`-gating-felt (mellom Kompetanse og Moduler)
-- 15 nye i18n-nøkler (nb + en) auto-oversatt til 13 språk
-
-**Verifisert:** `@sitedoc/api` typecheck 0 = 0, `@sitedoc/web` typecheck 1 = 1 baseline (vitest). 0 nye feil.
-
-**Reload-metode:** Web — TypeScript + i18n. Full reload + cache-cleaning. Server-reload kreves (nye prosedyrer).
+**Reload-metode:** Server-reload kreves (Zod + select endret + Prisma-klient regenerert med nytt felt). Web cache-cleaning + `pnpm build --force` på test (Turbo-cache-bug). Mobil app-reload trigger ALTER ADD COLUMN ved oppstart.
 
 **Klar for review** — Kenneth verifiserer at:
-- HMS-fane vises i firma-sidebar når innlogget som firma-admin eller bruker med `hms_ansvarlig`
-- Filter på prosjekt og byggeplass oppdaterer URL og dokumentliste
-- Drill-ned tar til riktig prosjekt-rute (oppgaver for avvik, sjekklister for SJA/RUH)
-- Statistikk viser fornuftige tall basert på testdataen
-- Prosjekt-nivå-HMS-side fortsetter å virke etter refactor
-
-**Gjenstår (Trinn 4):**
-- UI i `firma/ansatte/page.tsx` for å tildele `hms_ansvarlig`-rollen (speil av firma-admin-toggle)
-- Vurder full behandling (kommentar + statusendring direkte fra firma-rad) istedenfor drill-ned
+- `firma/innstillinger` viser ny «Pause fra (valgfri)»-input
+- Lagring uten verdi → behold uendret (eller sett null hvis feltet tømmes)
+- Lagring med f.eks. `11:30` → togglePause i attestering-modal bruker 11:30–12:00 for normal 07:00–15:00-rad
+- Kveldsskift-rad utenfor default-vinduet får eksisterende midtpunkt-fallback
 
 ### PR HMS-byggeplass-filter innad i prosjektet — IMPLEMENTERT PÅ DEVELOP 2026-05-29
 

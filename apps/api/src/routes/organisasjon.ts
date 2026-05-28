@@ -767,6 +767,9 @@ export const organisasjonRouter = router({
           standardStartTid: true,
           standardSluttTid: true,
           standardPauseMin: true,
+          // 2026-05-28: firma-default for pause-start (HH:MM, nullable).
+          // Brukes av RedigerRadModal.togglePause når vinduet ligger innenfor rad-intervallet.
+          standardPauseFra: true,
           tillattRedigerVedAttestering: true,
           // T.5 (2026-05-16): mobil-cache trenger feltet for å avrunde picker-input.
           tidsrundingMinutter: true,
@@ -804,6 +807,14 @@ export const organisasjonRouter = router({
           .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Forventet HH:MM (00:00–23:59)")
           .optional(),
         standardPauseMin: z.number().int().min(0).max(480).optional(),
+        // 2026-05-28: firma-default for pause-start (HH:MM). null = nullstill,
+        // ingen verdi = uendret. Brukes av RedigerRadModal.togglePause.
+        standardPauseFra: z
+          .union([
+            z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Forventet HH:MM (00:00–23:59)"),
+            z.null(),
+          ])
+          .optional(),
         // T.5 (2026-05-16): tidsrunding for picker-input på timer-/maskin-rad.
         // null = ingen avrunding. Verdier 15/30/60 minutter er de eneste støttede
         // per locked design — andre intervaller gir uforutsigbar UX.

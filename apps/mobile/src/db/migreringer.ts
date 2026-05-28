@@ -467,9 +467,18 @@ export function kjorMigreringer() {
         `ALTER TABLE organization_setting_local ADD COLUMN tidsrunding_minutter INTEGER`,
       );
     }
+    // 2026-05-28 — firma-default for pause-start (HH:MM, nullable).
+    if (!kolonner.find((k) => k.name === "standard_pause_fra")) {
+      console.log(
+        "[MIG] Legger til standard_pause_fra på organization_setting_local",
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN standard_pause_fra TEXT`,
+      );
+    }
   } catch (e) {
     console.warn(
-      "[MIG] Kunne ikke utvide organization_setting_local med tidsrunding_minutter:",
+      "[MIG] Kunne ikke utvide organization_setting_local:",
       e,
     );
   }

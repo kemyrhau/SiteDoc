@@ -311,5 +311,8 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
   // T.5 (2026-05-16) — null = ingen avrunding. Verdier 15/30/60.
   // Tilføyes idempotent via ALTER. Brukes av FraTilTidFelt + rad-modaler.
   tidsrundingMinutter: integer("tidsrunding_minutter"),
+  // 2026-05-28 — firma-default for pause-start (HH:MM). Tilføyes idempotent via ALTER.
+  // Mobil leser cachen via organizationSettingKatalog ved Timer-modul-bruk.
+  standardPauseFra: text("standard_pause_fra"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });

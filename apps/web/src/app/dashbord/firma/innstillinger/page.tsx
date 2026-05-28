@@ -709,6 +709,8 @@ function StandardArbeidstidSeksjon() {
   const [startTid, setStartTid] = useState<string>("");
   const [sluttTid, setSluttTid] = useState<string>("");
   const [pauseMin, setPauseMin] = useState<string>("");
+  // 2026-05-28: tom streng = null = ingen firma-default, fallback til midtpunkt.
+  const [pauseFra, setPauseFra] = useState<string>("");
   // T.5: "none" = null = ingen avrunding. Andre verdier er 15/30/60 (string i UI).
   const [tidsrunding, setTidsrunding] = useState<string>("15");
   const [skitten, setSkitten] = useState(false);
@@ -718,6 +720,7 @@ function StandardArbeidstidSeksjon() {
       setStartTid(setting.standardStartTid);
       setSluttTid(setting.standardSluttTid);
       setPauseMin(String(setting.standardPauseMin));
+      setPauseFra(setting.standardPauseFra ?? "");
       setTidsrunding(
         setting.tidsrundingMinutter === null ? "none" : String(setting.tidsrundingMinutter),
       );
@@ -740,6 +743,7 @@ function StandardArbeidstidSeksjon() {
         standardStartTid: startTid,
         standardSluttTid: sluttTid,
         standardPauseMin: pause,
+        standardPauseFra: pauseFra.trim() === "" ? null : pauseFra,
         tidsrundingMinutter: tidsrundingVerdi,
       },
       { onSuccess: () => setSkitten(false) },
@@ -803,6 +807,25 @@ function StandardArbeidstidSeksjon() {
             className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
           />
         </div>
+      </div>
+
+      {/* 2026-05-28: firma-default for pause-start. Tom = midtpunkt-fallback. */}
+      <div className="mt-3 sm:max-w-xs">
+        <label className="mb-1 block text-xs font-medium text-gray-700">
+          {t("firma.innstillinger.standardArbeidstid.pauseFra")}
+        </label>
+        <input
+          type="time"
+          value={pauseFra}
+          onChange={(e) => {
+            setPauseFra(e.target.value);
+            setSkitten(true);
+          }}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          {t("firma.innstillinger.standardArbeidstid.pauseFraHjelp")}
+        </p>
       </div>
 
       {/* T.5: Tidsrunding for picker-input på timer- og maskin-rader. */}

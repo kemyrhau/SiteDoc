@@ -4,6 +4,50 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Firma-HMS-dashbord Trinn 1-4 — alle DEPLOYET TIL PROD 2026-05-29
+
+Komplett firma-nivå-HMS-aggregering på tvers av alle firma-prosjekter, levert i to bunker samme dag. Lukker BACKLOG-entry «Firma-nivå HMS-dashboard — aggregering på tvers av prosjekter» (alle 4 trinn ✅ ferdig).
+
+### Trinn 1-3 — prod-merge `526db462` (16 commits)
+
+**Hovedcommits:**
+- `93970feb` — Trinn 1 (server-rolle-fundament): `harFirmaHmsTilgang(userId, organizationId)` i `tilgangskontroll.ts` (sitedoc_admin / firma-admin / `firmaRoller.includes("hms_ansvarlig")`), ny `settFirmaHmsAnsvarlig`-mutasjon i `organisasjon.ts` (speil av `settFirmaAdmin`).
+- `e56434bf` — Trinn 2 (server-data): `byggHmsSynlighetsFilter` utvidet med firma-HMS-bypass på prosjekt-nivå. Ny `hms.hentFirmaOversikt`-prosedyre med asymmetrisk byggeplass-filter (Task via `drawing.byggeplassId`, Checklist direkte) og statistikk-aggregering (4 KPI-er).
+- `8a632248` — Trinn 3 (klient-side): Ny rute `/dashbord/firma/hms/page.tsx` med URL-state for `prosjekt`/`byggeplass`/`tab`, fire faner (Avvik / SJA / RUH / Statistikk), StatistikkPanel med 4 KPI-kort + topp-10 åpne avvik per prosjekt + SJA-frekvens 12-mnd + RUH-rate 12-mnd. HMS-komponenter (`KpiKort`, `MånedSøyler`, `FaggruppeBars`, `AvvikTabell`/`SjaTabell`/`RuhTabell`, format-helpers) refaktorert til `apps/web/src/components/hms/{visning.tsx,tabeller.tsx,types.ts}`. Prosjekt-nivå-HMS-page bruker nå shared-komponentene uten funksjonell endring. Drill-ned navigerer til prosjekt-detalj basert på subdomain. Nav-lenke i `firma/layout.tsx` med ny `kreverHmsTilgang`-gating-felt.
+
+**Etterfølgende fixes + UX-iterasjoner samme dag:**
+- `eb5f9969` — fix: hook-order-violation (`tilgjengeligeByggeplasser`-useMemo flyttet over early returns) — løste «client-side exception» som ble synlig først etter clean rebuild.
+- `6d601291` — feat: filter-panel redesign — chips erstattet med `MultiComboks` (multi-select-combobox) + `SearchInput`-fritekst øverst.
+- `00763bd9` — fix: `MultiComboks` UX — valgte vises som chips under nedtrekksknappen (alltid synlig, X-knapp for å fjerne); søkefelt i dropdown er alltid synlig (ikke gated på >7 options).
+- `8b00539a` — refactor: `MultiComboks` ekstrahert til delt komponent `apps/web/src/components/ui/MultiComboks.tsx` + ny § «Filter-standard (vedtatt 2026-05-29)» i CLAUDE.md.
+
+**Også deployet i samme merge:** Oppgave-mobil rettighetsoppfølger (`32dd43ac`), HMS-byggeplass-filter innad i prosjektet (`c3dc62c4`).
+
+### Trinn 4 — prod-merge `eacdb40e` (impl `fd4a5916`)
+
+**Del A — Tildeling av `hms_ansvarlig` i `firma/ansatte/page.tsx`:**
+- `RedigerModal` utvidet med ny checkbox-rad under firma-admin-checkbox, med `ShieldAlert`-ikon (grønn) og hjelpetekst. Speiler `settFirmaAdmin`-mønsteret: lokal state `erHmsAnsvarlig` initialisert fra `bruker.firmaRoller`, `settFirmaHmsAnsvarlig.mutateAsync` kalles bare hvis verdien er endret.
+- `InviterModal` utvidet på samme måte. `inviterBruker`-input utvidet med `erHmsAnsvarlig?: boolean`; `firmaRoller`-arrayen bygges nå konkatenativt (`firma_admin` og/eller `hms_ansvarlig`).
+- Tabellrad viser grønn HMS-ansvarlig-chip ved siden av rolle-chip (kan vises parallelt med firmaadmin-chip).
+
+**Del B — `FirmaHurtigModal` (B1: minimal hurtig-modal):**
+- Ny komponent `apps/web/src/components/hms/firma-hurtig-modal.tsx` — status-dropdown (gyldige overganger via `isValidStatusTransition`) + intern kommentar-tekstboks (maks 2000 tegn).
+- Ny prosedyre `hms.firmaBehandleAvvik(organizationId, taskId, nyStatus?, kommentar?)` — bypasser flyt-rolle-validering. Tilgang via `harFirmaHmsTilgang`. Verifiserer at oppgaven hører til orgen via `Project.primaryOrganizationId` og at `template.domain === "hms"`. Status-overgang valideres på server med `isValidStatusTransition`. Oppretter `TaskComment` ved kommentar.
+- `AvvikTabell` fikk valgfri `onHurtigBehandle`-prop. Når satt vises "Behandle"-knapp i ny kolonne med `e.stopPropagation()` så rad-klikk (drill-ned) ikke utløses. Andre callere uberørt.
+- Bevisst begrensning: kun avvik (Task) får hurtig-behandling. SJA/RUH (Checklist) har ikke ChecklistComment-tabell — behandling for dem skjer best via drill-ned. Drill-ned forblir hovedflyt for alle dokumenttyper.
+
+**i18n totalt over hele bunken:** ca. 30 nye nøkler (nb + en) auto-oversatt til 13 språk via `generate.ts`.
+
+**Vedtak om rolle-modell (2026-05-29):** `OrganizationMember.firmaRoller` (eksisterende `String[]`) utvides med `"hms_ansvarlig"`-verdi i stedet for å introdusere en separat `OrganizationGroup`-tabell. Ingen schema-endring. To separate HMS-roller eksisterer side om side: firma-HMS-ansvarlig (denne PR) ser alt på tvers av prosjekter via bypass i `byggHmsSynlighetsFilter`, prosjekt-HMS-ansvarlig (`ProjectGroup` med `domains: ["hms"]`, eksisterende) gir prosjekt-lokal HMS-tilgang. De kan tilhøre ulike personer.
+
+**Deploy-hendelser samme dag:**
+- Test-deploy etter Trinn 3 ble truffet av Turbo-cache-bug (`Could not find a production build` + `clientModules`-feil). Løst manuelt: `rm -rf apps/web/.next && pnpm build --force && pm2 restart sitedoc-test-web`. `deploy-test-cron.sh` (server-side) mangler fortsatt `--force`-fiks — kjent issue.
+- Klient-side-exception etter første Trinn 3-deploy avdekket hook-order-violation: `tilgjengeligeByggeplasser`-useMemo lå etter 3 early returns. Fix `eb5f9969` flyttet data-ekstraksjon + useMemo over early returns.
+
+**Verifisering:** `@sitedoc/web` + `@sitedoc/api` typecheck grønt på alle 4 trinn. HTTP/2 200 på `sitedoc.no/` + `/dashbord/firma/hms` + `/dashbord/firma/ansatte` etter prod-deploy. Visuell verifisering i nettleser som innlogget bruker gjenstår per «prod-verifisering må alltid gjøres som innlogget bruker»-regel.
+
+---
+
 ## utloperVed-fix i admin.hentImpersoneringStatus — DEPLOYET TIL PROD 2026-05-28 (prod-merge `1d432aed`, impl `6d9b5479`)
 
 `hentImpersoneringStatus` returnerte hardkodet `utloperVed: null`. Endret til å slå opp `Session.impersonationExpiresAt` via `ctx.sessionToken` og returnere ISO-streng. Tidlig-return-sjekken utvidet med `!ctx.sessionToken`.

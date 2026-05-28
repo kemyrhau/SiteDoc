@@ -128,7 +128,7 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 
 **Vurderes som samlet oppfølger-PR** når kundefeedback indikerer behov, eller når Godkjenning-modul-redesign trigger generalisering av modul-mønstre.
 
-### Firma-nivå HMS-dashboard — aggregering på tvers av prosjekter 🟡 (Trinn 1-3 deployet til prod 2026-05-29, Trinn 4 implementert på develop 2026-05-29)
+### Firma-nivå HMS-dashboard — aggregering på tvers av prosjekter ✅ FERDIG (alle 4 trinn deployet til prod 2026-05-29, prod-merger `526db462` + `eacdb40e`, arkivert til [historikk-2026-05.md](historikk-2026-05.md))
 
 **Oppdaget 2026-05-29** ved gjennomgang av HMS-arkitekturen. HMS er i dag strikt prosjekt-isolert: én side på `/dashbord/[prosjektId]/hms/` per prosjekt, `verifiserProsjektmedlem`-gating på server, ingen firma-nivå-aggregering. Det finnes ingen ruter under `/dashbord/firma/` som matcher HMS, avvik, SJA eller RUH.
 
@@ -387,7 +387,7 @@ Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1
 
 ✅ Arkivert til [historikk-2026-05.md § T7-5h](historikk-2026-05.md). Scope: kun web. Mobil-komponenter har separat recompute-logikk og er ikke berørt — egen sub-PR ved behov.
 
-### Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)
+### Pause-vindu default — IMPLEMENTERT PÅ DEVELOP 2026-05-28 ✅ (firma-konfigurerbar `OrganizationSetting.standardPauseFra`)
 
 `togglePause` i `RedigerRadModal.tsx` lager default `[midt − 15 min, midt + 15 min]` når checkbox aktiveres uten eksisterende pause-vindu. For rad 07:00–15:00 blir det 10:30–11:30, ikke 11:30–12:00 som norsk lunsj-konvensjon antyder.
 
@@ -615,6 +615,7 @@ Aktiv Fase: 0 (firma-fundament) er i hovedsak ferdig — gjenstående §-E-steg 
 
 ### Tverrgående
 
+- **Firma-nivå tilgangskontrolloversikt** 🔴 — firma-admin skal kunne se en samlet oversikt over hvem som har hvilke roller og tilganger i firmaet, i ett strukturert UI. I dag finnes data spredt (User.role, OrganizationMember.firmaRoller, ProjectMember.role + kapabiliteter, OrganizationMember.firmaansvarlig, ProjectGroup-medlemskap, modul-tilganger). Ingen sentralisert visning. Skal designes fra bunnen — IKKE kopiert eller portert fra Tromsø Salsaklubb-prosjektet (annet domene, annen tilgangsmodell). Del av planlagt UX-sesjon for firma-innstillinger + tilgangsoversikt (se rapport 2026-05-28). Krever: (1) skisse av visnings-struktur (matrise person × tilgang? person × rolle med expand? rolle × tildelte personer?), (2) avklaring av om dette skal være lese-bare oversikt eller redigerbart kontrollpanel, (3) hvilke roller/tilganger som er relevante å vise (kjerne-roller, kapabiliteter, firma-roller, prosjekt-roller, modul-tilganger). Estimat 6-10t etter spec-runde.
 - **Superadmin-oversikt over firma-moduler** 🔴 — fakturerings-orientert. Egen feature-sesjon.
 - **Vis som bruker (impersonering)** 🟡 — DEPLOYET. Schema (`Session.impersonatedUserId/originalUserId/impersonationExpiresAt`), 3 server-prosedyrer (`admin.hentImpersoneringStatus/startImpersonering/stoppImpersonering`), context-håndtering (`actualUserId` bevart for audit), UI (`ImperserKnapp` i `admin/firmaer/page.tsx:821`, `ImpersoneringBanner` montert i `dashbord/layout.tsx`), i18n-nøkler — alt på plass. `utloperVed` returneres nå korrekt fra `hentImpersoneringStatus` (fix 2026-05-28). **Gjenstående:** Audit-logging til Activity-tabell — i dag bare `console.log` i `admin.ts:665`. Activity krever projectId, så enten policy-utvidelse (tillat null) eller separat impersonering-audit-tabell. Estimat 1-2t etter schema-beslutning.
 - **Import-modul (HR-data)** 🔴 — datainfrastruktur, mater Timer med ansattnummer, hmsKortNr osv.

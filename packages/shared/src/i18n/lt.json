@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Pradžios laikas",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Pabaigos laikas",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Pertrauka (min.)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Pertraukos pradžia (neprivaloma)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Kai prasideda pertrauka (HH:MM). Tuščias = nėra numatytojo – pertrauka dedama eilutės intervalo viduryje.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Laiko apvalinimas",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Laikmačio ir mašinos eilutes suapvalinti iki artimiausio intervalo.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Nėra",

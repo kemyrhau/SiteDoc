@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Aloitusaika",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Päättymisaika",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Tauko (minuuttia)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Taukoaloitus (valinnainen)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Kun tauko alkaa (HH:MM). Tyhjä = ei oletusarvoa — tauko sijoitetaan rivivälin keskelle.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Ajan pyöristys",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Pyöristä ajastimen ja koneen rivit lähimpään aikaväliin.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Ei mitään",

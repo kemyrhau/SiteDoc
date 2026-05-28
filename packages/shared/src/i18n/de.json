@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Startzeit",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Endzeit",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Pause (Minuten)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Pausenstart (optional)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Wenn die Pause beginnt (HH:MM). Leer = kein Standardwert – Pause wird in der Mitte des Zeilenintervalls platziert.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Zeitrundung",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Runden Sie die Zeit von/bis in den Timer- und Maschinenreihen auf das nächste Intervall.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Keiner",
