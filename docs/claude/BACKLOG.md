@@ -492,7 +492,7 @@ direkte fra listen.
 
 - **Adaptivt søk for sjekklister/oppgaver/HMS/RUH** 🔴 — krever kode-utforskning. Se [adaptiv-sok-plan.md](adaptiv-sok-plan.md).
 - **Dokumentflyt mobil** 🔴 — finner ikke arbeidsforløp (bruker-basert vs entreprise-basert matching).
-- **Oppgave-mobil rettighetsoppfølger** 🔴 — `apps/mobile/app/oppgave/[id].tsx` mangler `rettighetInput`, samme bug som sjekkliste-fix 2026-05-08.
+- **Oppgave-mobil rettighetsoppfølger** 🟡 IMPLEMENTERT PÅ DEVELOP 2026-05-29 — `apps/mobile/app/oppgave/[id].tsx` får nå `rettighetInput` ved kall til `useOppgaveSkjema`. Speil av sjekkliste-mønster (`60601d3c Port rettighetsbasert UI til mobil`): `gruppe.hentMineTillatelser`-query + 4 useMemo-blokker (`mineTillatelser`, `harBallen`, `flytRettighet`, `rettighetInput`). Imports utvidet med `beregnHarBallen` + `HarBallenDokument`-type. Klar for prod etter Kenneth-verifisering på enhet.
 
 ## 3. Fremtidige faser
 

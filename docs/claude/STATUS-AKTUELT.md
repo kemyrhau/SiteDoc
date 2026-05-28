@@ -6,6 +6,26 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### PR Oppgave-mobil rettighetsoppfølger — IMPLEMENTERT PÅ DEVELOP 2026-05-29
+
+Speiler sjekkliste-mobil-mønsteret (`60601d3c Port rettighetsbasert UI til mobil`) inn i oppgave-fila. Lukker BACKLOG-entry «Oppgave-mobil rettighetsoppfølger».
+
+**Endringer i `apps/mobile/app/oppgave/[id].tsx`:**
+- Imports utvidet: `beregnHarBallen` + `HarBallenDokument`-type fra `@sitedoc/shared`.
+- Ny query `trpc.gruppe.hentMineTillatelser` + `mineTillatelser`-Set (etter `tilgjengeligeFlyter`-query).
+- 3 nye useMemo-blokker etter `minRolle`: `harBallen` (kaller `beregnHarBallen`), `flytRettighet` (iterer flyt-medlemmer, match på `projectMemberId`/`groupId`), `rettighetInput` (objektet som sendes til hook).
+- `useOppgaveSkjema(id!)` → `useOppgaveSkjema(id!, rettighetInput)`.
+
+Hook'en (`apps/mobile/src/hooks/useOppgaveSkjema.ts:160`) tok allerede imot `rettighetInput?: RettighetInput` som valgfri parameter — vi sendte bare ikke inn argumentet. Endringen er additiv og påvirker ikke eksisterende default-oppførsel når `minFlytInfo` ikke er lastet.
+
+**Verifisert:** `@sitedoc/mobile` typecheck 12 = 12 baseline (0 nye feil).
+
+**Reload-metode:** TypeScript-only på mobil. Full app-reload (close + open eller `r` i Metro). Ingen native rebuild. Ingen schema-endring, ingen i18n.
+
+**Forventet konsekvens:** Oppgave-detaljvisning i mobil vil nå håndheve rettighet-styring lik sjekkliste-detaljvisning — `kanRedigere`-flagg fra flyt-medlemskap kontrollerer redigerings-tilgang, `harBallen`/`flytRettighet` påvirker UI-state.
+
+Klar for review — ikke merge før Kenneth verifiserer på enhet at oppgave-rettigheter oppfører seg likt som sjekklister.
+
 ### Dagens samlede aktivitet — 2026-05-28 (4 prod-deploys: topp-3-kandidater + BACKLOG-audit + statusoppdateringer)
 
 Plukket og lukket alle tre kandidater fra BACKLOG-audit, etterfulgt av full status-audit av 26 åpne 🔴-entries som avdekket 3 drift-entries (allerede deployet) og 2 delvis-statuser som er praktisk talt ferdige.

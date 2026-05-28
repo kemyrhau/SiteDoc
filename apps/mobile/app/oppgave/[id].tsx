@@ -29,8 +29,8 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle } from "@sitedoc/shared";
-import type { FlytMedlemInfo } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, beregnHarBallen } from "@sitedoc/shared";
+import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { FlytIndikator } from "../../src/components/FlytIndikator";
 import type { FlytMedlem } from "../../src/components/FlytIndikator";
@@ -141,6 +141,15 @@ export default function OppgaveDetalj() {
     { enabled: !!id },
   );
 
+  const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
+    { projectId: valgtProsjektId! },
+    { enabled: !!valgtProsjektId },
+  );
+  const mineTillatelser = useMemo(
+    () => new Set<string>(mineTillatelserRå ?? []),
+    [mineTillatelserRå],
+  );
+
   // Utled flytmedlemmer og rolle
   const flytMedlemmer = useMemo((): FlytMedlem[] => {
     const op = oppgaveDetalj as unknown as { dokumentflytId?: string | null };
@@ -175,6 +184,48 @@ export default function OppgaveDetalj() {
       { bestillerFaggruppeId: op.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: op.utforerFaggruppe?.id ?? "" },
     );
   }, [minFlytInfo, oppgaveDetalj, dokumentflyterRå]);
+
+  const harBallen = useMemo(() => {
+    if (!oppgaveDetalj || !minFlytInfo) return false;
+    return beregnHarBallen(
+      oppgaveDetalj as unknown as HarBallenDokument,
+      { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder },
+    );
+  }, [oppgaveDetalj, minFlytInfo]);
+
+  const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
+    if (!minFlytInfo || !oppgaveDetalj || !dokumentflyterRå) return undefined;
+    const op = oppgaveDetalj as unknown as { dokumentflytId?: string | null };
+    if (!op.dokumentflytId) return undefined;
+    const rå = dokumentflyterRå as unknown as Array<{
+      id: string;
+      medlemmer: Array<{
+        kanRedigere: boolean;
+        faggruppeId?: string | null;
+        projectMemberId?: string | null;
+        groupId?: string | null;
+      }>;
+    }>;
+    const flyt = rå.find((df) => df.id === op.dokumentflytId);
+    if (!flyt) return undefined;
+    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[] };
+    for (const m of flyt.medlemmer) {
+      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
+      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
+    }
+    return undefined;
+  }, [minFlytInfo, oppgaveDetalj, dokumentflyterRå]);
+
+  const rettighetInput = useMemo(() => {
+    if (!minFlytInfo) return undefined;
+    return {
+      erAdmin: minFlytInfo.erAdmin,
+      minRolle,
+      tillatelser: mineTillatelser,
+      harBallen,
+      flytRettighet,
+    };
+  }, [minFlytInfo, minRolle, mineTillatelser, harBallen, flytRettighet]);
 
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
@@ -269,7 +320,7 @@ export default function OppgaveDetalj() {
     erRedigerbar,
     lagreStatus,
     synkStatus,
-  } = useOppgaveSkjema(id!);
+  } = useOppgaveSkjema(id!, rettighetInput);
 
   // On-demand oversettelse av firmainnhold
   const prosjektKildesprak = (detaljQuery.data as unknown as { template?: { project?: { sourceLanguage?: string } } })?.template?.project?.sourceLanguage;
