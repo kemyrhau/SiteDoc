@@ -4,6 +4,30 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## standardPauseFra — firma-konfigurerbar pause-default — DEPLOYET TIL PROD 2026-05-28 (prod-merge `75a09ccf`, impl `fdd45949`)
+
+Lukker BACKLOG-entry «Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)». Erstatter midtpunkt-fallback i `togglePause` med firma-konfigurerbar default som respekterer norsk lunsj-konvensjon.
+
+**Schema:** Nytt felt `OrganizationSetting.standardPauseFra String? @map("standard_pause_fra")` (nullable HH:MM, additivt). Migrasjon `20260528200000_add_standard_pause_fra` opprettet manuelt (shadow-DB krever pgvector som ikke er installert lokalt).
+
+**Server (`apps/api/src/routes/organisasjon.ts`):** `hentArbeidstidDefaults.select` utvidet med `standardPauseFra` (mobil-cache). `oppdaterSetting`-Zod-input får `standardPauseFra: union(HH:MM-regex | null).optional()` — `null` nullstiller, ingen verdi = uendret. `hentSetting` returnerer feltet automatisk via Prisma default-select.
+
+**Web UI (`firma/innstillinger/page.tsx`):** `StandardArbeidstidSeksjon` har ny `<input type="time">` for «Pause fra (valgfri)» mellom pause-min og tidsrunding. Tom streng = null = ingen firma-default (fallback til midtpunkt).
+
+**togglePause-logikk (`RedigerRadModal.tsx`):** `standardPauseFra` + `standardPauseMin` hentes fra `setting`-queryen og sendes som props til `KompaktTimerRad`. Ny togglePause-rekkefølge: (1) har pause → fjern; (2) firma-default satt + vinduet `[standardPauseFra, standardPauseFra + standardPauseMin]` ligger innenfor rad-intervallet → bruk default; (3) ellers midtpunkt-fallback.
+
+**Eksempel:** Rad 07:00–15:00 med firma-default 11:30 (30 min) gir 11:30–12:00 (matcher norsk lunsj). Kveldsskift 17:00–22:00 ligger utenfor default-vinduet → midtpunkt-fallback 19:15–19:45.
+
+**Mobil:** Drizzle-kolonne `standardPauseFra` på `organizationSettingLocal` (nullable). Idempotent `PRAGMA table_info` + `ALTER TABLE ... ADD COLUMN` i `migreringer.ts`. `organizationSettingKatalog.refresh` skriver verdien fra server. Mobil-UI bruker IKKE togglePause-mønsteret — pause er sedel-nivå med eksplisitte fra/til-felter. Cache populerer for fremtidig bruk.
+
+**i18n:** 2 nye nøkler (`pauseFra`, `pauseFraHjelp`) i nb + en, auto-oversatt til 13 språk (2439 → 2441).
+
+**Verifisert:** `@sitedoc/api` 0 = 0, `@sitedoc/web` 1 = 1 baseline (vitest), `@sitedoc/mobile` baseline uendret. Prod-merge `75a09ccf` verifisert: `psql sitedoc` viser `organization_settings.standard_pause_fra` eksisterer. HTTP/2 200 på `sitedoc.no/` + `/dashbord/firma/innstillinger`.
+
+**Deploy-disiplin verifisert:** Test-deploy med `&&`-kjeding (ingen pipe-tail), `prisma generate` eksplisitt mellom `migrate deploy` og `pnpm build`, både `sitedoc-test-api` og `sitedoc-test-web` restartet. Prod-deploy samme sekvens. `git checkout develop` etter prod-deploy per ufravikelig regel.
+
+---
+
 ## Firma-HMS-dashbord Trinn 1-4 — alle DEPLOYET TIL PROD 2026-05-29
 
 Komplett firma-nivå-HMS-aggregering på tvers av alle firma-prosjekter, levert i to bunker samme dag. Lukker BACKLOG-entry «Firma-nivå HMS-dashboard — aggregering på tvers av prosjekter» (alle 4 trinn ✅ ferdig).
