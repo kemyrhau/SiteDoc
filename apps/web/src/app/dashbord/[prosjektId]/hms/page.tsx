@@ -5,8 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
-import { Spinner, EmptyState, StatusBadge } from "@sitedoc/ui";
+import { Spinner, EmptyState } from "@sitedoc/ui";
 import { Plus, ChevronDown, ShieldAlert, AlertTriangle, ClipboardList, FileWarning } from "lucide-react";
+import { KpiKort, MånedSøyler, FaggruppeBars, formaterDato, hentDataVerdi } from "@/components/hms/visning";
+import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
+import type { DokumentRad } from "@/components/hms/types";
 
 type Tab = "avvik" | "sja" | "ruh" | "statistikk";
 
@@ -14,51 +17,7 @@ interface MalRef { id: string; name: string; prefix: string | null; subdomain: s
 
 type Subdomain = "avvik" | "sja" | "ruh";
 
-interface DokumentRad {
-  id: string;
-  title: string;
-  number: number | null;
-  status: string;
-  dueDate?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  data: Record<string, unknown> | null;
-  template: { id: string; prefix: string | null; name: string; subdomain: string | null };
-  bestiller?: { name: string | null } | null;
-}
-
-function formaterDato(dato: string | null | undefined): string {
-  if (!dato) return "—";
-  return new Date(dato).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function formaterLopenummer(rad: DokumentRad): string {
-  return rad.number ? String(rad.number).padStart(3, "0") : "—";
-}
-
-// Bygger felt-oppslag basert på template.objects og rad.data. Returnerer første matchende
-// objekts verdi (typisk én rad per objekt-label på HMS-malene).
-function hentDataVerdi(
-  rad: DokumentRad & { template?: { objects?: Array<{ id: string; label: string; type: string }> } },
-  labelMatch: (label: string) => boolean,
-): string {
-  if (!rad.data || !rad.template?.objects) return "—";
-  for (const obj of rad.template.objects) {
-    if (labelMatch(obj.label)) {
-      const verdi = rad.data[obj.id];
-      if (verdi == null || verdi === "") continue;
-      if (obj.type === "date" || obj.type === "date_time") {
-        if (typeof verdi === "string") {
-          try { return new Date(verdi).toLocaleDateString("nb-NO", { day: "numeric", month: "short", year: "numeric" }); } catch { return verdi; }
-        }
-      }
-      if (typeof verdi === "string") return verdi;
-      if (Array.isArray(verdi)) return verdi.map(String).join(", ");
-      return String(verdi);
-    }
-  }
-  return "—";
-}
+// DokumentRad + format-helpers + tabeller importeres fra @/components/hms.
 
 const ÅPEN_STATUSER = new Set(["draft", "sent", "received", "in_progress", "responded", "rejected"]);
 const LUKKET_STATUSER = new Set(["approved", "closed", "cancelled"]);
@@ -113,83 +72,7 @@ function NyDropdown({
   );
 }
 
-function KpiKort({
-  ikon,
-  tittel,
-  verdi,
-  variant = "neutral",
-}: {
-  ikon: React.ReactNode;
-  tittel: string;
-  verdi: number;
-  variant?: "neutral" | "warning" | "danger";
-}) {
-  const farger = {
-    neutral: "border-gray-200 bg-white",
-    warning: "border-amber-200 bg-amber-50",
-    danger: "border-red-200 bg-red-50",
-  }[variant];
-  const ikonFarge = {
-    neutral: "text-gray-400",
-    warning: "text-amber-600",
-    danger: "text-red-600",
-  }[variant];
-
-  return (
-    <div className={`flex items-center gap-3 rounded-lg border p-4 ${farger}`}>
-      <div className={ikonFarge}>{ikon}</div>
-      <div className="flex flex-col">
-        <span className="text-xs uppercase tracking-wide text-gray-500">{tittel}</span>
-        <span className="text-2xl font-semibold text-gray-900">{verdi}</span>
-      </div>
-    </div>
-  );
-}
-
-function MånedSøyler({ data, label }: { data: { maned: string; antall: number }[]; label: string }) {
-  const maks = Math.max(1, ...data.map((d) => d.antall));
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold text-gray-700">{label}</h3>
-      <div className="flex items-end gap-2 h-32">
-        {data.map((d) => {
-          const hoyde = (d.antall / maks) * 100;
-          return (
-            <div key={d.maned} className="flex flex-1 flex-col items-center gap-1">
-              <div className="text-xs text-gray-600">{d.antall || ""}</div>
-              <div className="w-full bg-sitedoc-primary rounded-t" style={{ height: `${hoyde}%`, minHeight: d.antall > 0 ? "4px" : "0" }} />
-              <div className="text-xs text-gray-500">{d.maned}</div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function FaggruppeBars({ data, label }: { data: { navn: string; antall: number }[]; label: string }) {
-  const maks = Math.max(1, ...data.map((d) => d.antall));
-  return (
-    <div className="rounded-lg border border-gray-200 bg-white p-4">
-      <h3 className="mb-3 text-sm font-semibold text-gray-700">{label}</h3>
-      {data.length === 0 ? (
-        <p className="text-sm text-gray-500">—</p>
-      ) : (
-        <div className="flex flex-col gap-2">
-          {data.slice(0, 5).map((d) => (
-            <div key={d.navn} className="flex items-center gap-2">
-              <div className="w-24 truncate text-xs text-gray-700">{d.navn}</div>
-              <div className="flex-1 bg-gray-100 rounded h-4 overflow-hidden">
-                <div className="bg-sitedoc-secondary h-full" style={{ width: `${(d.antall / maks) * 100}%` }} />
-              </div>
-              <div className="w-8 text-right text-xs text-gray-600">{d.antall}</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
+// KpiKort, MånedSøyler, FaggruppeBars importeres fra @/components/hms/visning.
 
 function StatusFordeling({ data, label }: { data: { status: string; antall: number; farge: string }[]; label: string }) {
   const total = data.reduce((s, d) => s + d.antall, 0);
@@ -442,19 +325,19 @@ export default function HmsSide() {
       {aktivTab === "avvik" && (
         <AvvikTabell
           rader={filtrer(avvik)}
-          onKlikk={(id) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${id}`)}
+          onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
         />
       )}
       {aktivTab === "sja" && (
         <SjaTabell
           rader={filtrer(sja)}
-          onKlikk={(id) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${id}`)}
+          onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
         />
       )}
       {aktivTab === "ruh" && (
         <RuhTabell
           rader={filtrer(ruh)}
-          onKlikk={(id) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${id}`)}
+          onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
         />
       )}
       {aktivTab === "statistikk" && (
@@ -470,107 +353,4 @@ export default function HmsSide() {
   );
 }
 
-function AvvikTabell({ rader, onKlikk }: { rader: DokumentRad[]; onKlikk: (id: string) => void }) {
-  const { t } = useTranslation();
-  if (rader.length === 0) {
-    return <EmptyState title={t("hms.tom.avvik")} description={t("hms.tom.avvikBeskrivelse")} />;
-  }
-  return (
-    <table className="w-full border-collapse">
-      <thead>
-        <tr>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.nr")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.tittel")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("hms.kolonne.alvorlighet")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.status")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.tidsfrist")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rader.map((r) => (
-          <tr
-            key={r.id}
-            onClick={() => onKlikk(r.id)}
-            className="cursor-pointer hover:bg-gray-50 border-t border-gray-100"
-          >
-            <td className="px-3 py-2 text-sm text-gray-700">{r.template.prefix ? `${r.template.prefix}-${formaterLopenummer(r)}` : formaterLopenummer(r)}</td>
-            <td className="px-3 py-2 text-sm text-gray-900">{r.title}</td>
-            <td className="px-3 py-2 text-sm text-gray-700">{hentDataVerdi(r, (l) => l.toLowerCase().includes("alvorlig"))}</td>
-            <td className="px-3 py-2"><StatusBadge status={r.status} /></td>
-            <td className="px-3 py-2 text-sm text-gray-700">{formaterDato(r.dueDate ?? null)}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function SjaTabell({ rader, onKlikk }: { rader: DokumentRad[]; onKlikk: (id: string) => void }) {
-  const { t } = useTranslation();
-  if (rader.length === 0) {
-    return <EmptyState title={t("hms.tom.sja")} description={t("hms.tom.sjaBeskrivelse")} />;
-  }
-  return (
-    <table className="w-full border-collapse">
-      <thead>
-        <tr>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.nr")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.tittel")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.dato")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("hms.kolonne.arbeidsleder")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.status")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rader.map((r) => (
-          <tr
-            key={r.id}
-            onClick={() => onKlikk(r.id)}
-            className="cursor-pointer hover:bg-gray-50 border-t border-gray-100"
-          >
-            <td className="px-3 py-2 text-sm text-gray-700">{r.template.prefix ? `${r.template.prefix}-${formaterLopenummer(r)}` : formaterLopenummer(r)}</td>
-            <td className="px-3 py-2 text-sm text-gray-900">{r.title}</td>
-            <td className="px-3 py-2 text-sm text-gray-700">{hentDataVerdi(r, (l) => l.toLowerCase() === "dato")}</td>
-            <td className="px-3 py-2 text-sm text-gray-700">{hentDataVerdi(r, (l) => l.toLowerCase().includes("arbeidsleder"))}</td>
-            <td className="px-3 py-2"><StatusBadge status={r.status} /></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-function RuhTabell({ rader, onKlikk }: { rader: DokumentRad[]; onKlikk: (id: string) => void }) {
-  const { t } = useTranslation();
-  if (rader.length === 0) {
-    return <EmptyState title={t("hms.tom.ruh")} description={t("hms.tom.ruhBeskrivelse")} />;
-  }
-  return (
-    <table className="w-full border-collapse">
-      <thead>
-        <tr>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.nr")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("hms.kolonne.typeObservasjon")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("hms.kolonne.innmelder")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.opprettelsesdato")}</th>
-          <th className="text-left text-xs font-medium text-gray-500 px-3 py-2">{t("tabell.status")}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {rader.map((r) => (
-          <tr
-            key={r.id}
-            onClick={() => onKlikk(r.id)}
-            className="cursor-pointer hover:bg-gray-50 border-t border-gray-100"
-          >
-            <td className="px-3 py-2 text-sm text-gray-700">{r.template.prefix ? `${r.template.prefix}-${formaterLopenummer(r)}` : formaterLopenummer(r)}</td>
-            <td className="px-3 py-2 text-sm text-gray-700">{hentDataVerdi(r, (l) => l.toLowerCase().includes("type"))}</td>
-            <td className="px-3 py-2 text-sm text-gray-700">{hentDataVerdi(r, (l) => l.toLowerCase().includes("innmelder"))}</td>
-            <td className="px-3 py-2 text-sm text-gray-700">{formaterDato(r.createdAt)}</td>
-            <td className="px-3 py-2"><StatusBadge status={r.status} /></td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
+// AvvikTabell, SjaTabell, RuhTabell importeres fra @/components/hms/tabeller.

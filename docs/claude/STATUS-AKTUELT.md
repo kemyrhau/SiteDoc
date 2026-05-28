@@ -6,6 +6,47 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
+### PR Firma-HMS-dashboard Trinn 1-3 — IMPLEMENTERT PÅ DEVELOP 2026-05-29
+
+Tre trinn av firma-nivå-HMS-dashboard ferdig på develop. Trinn 4 (UI for å tildele `hms_ansvarlig`-rolle + valgfri full behandling fra firma-rad) gjenstår.
+
+**Trinn 1 — Server-rolle-fundament (`93970feb`):**
+- Ny `harFirmaHmsTilgang(userId, organizationId)` i `tilgangskontroll.ts` — sjekker sitedoc_admin, firma-admin eller `firmaRoller.includes("hms_ansvarlig")`
+- Ny `settFirmaHmsAnsvarlig`-mutasjon i `organisasjon.ts` — speil av `settFirmaAdmin`
+
+**Trinn 2 — Server-data (`e56434bf`):**
+- `byggHmsSynlighetsFilter` utvidet med firma-HMS-bypass på prosjekt-nivå-HMS
+- Ny `hms.hentFirmaOversikt`-prosedyre med asymmetrisk byggeplass-filter, statistikk-aggregering (4 KPI-er), bypass av begge filtre fordi firma-rollen er auth-grunnlaget
+
+**Trinn 3 — Klient-side (denne commit):**
+- Refaktor: HMS-komponenter (`KpiKort`, `MånedSøyler`, `FaggruppeBars`, `AvvikTabell`/`SjaTabell`/`RuhTabell`, format-helpers) flyttet til `apps/web/src/components/hms/{visning.tsx,tabeller.tsx,types.ts}`
+- Prosjekt-nivå-HMS-page bruker nå shared-komponentene (ingen funksjonell endring)
+- Tabell-komponentene utvidet med `visProsjektKolonne` + `visByggeplassKolonne`-props og endret onKlikk-signatur fra `(id)` til `(rad)` for å støtte drill-ned med projectId
+- Ny `organisasjon.harHmsTilgang`-query for klient-side gating
+- Ny rute `/dashbord/firma/hms/page.tsx` med:
+  - URL-state for `prosjekt`, `byggeplass`, `tab` (kommaseparerte IDer i query-params, delbar lenke)
+  - Filter-panel: prosjekt-chips + byggeplass-chips (kaskade fra valgte prosjekter, eller alle)
+  - Fire faner: Avvik / SJA / RUH / Statistikk
+  - StatistikkPanel med 4 KPI-kort + topp-10 åpne avvik per prosjekt + SJA-frekvens 12-mnd + RUH-rate 12-mnd
+  - Drill-ned: rad-klikk navigerer til prosjekt-detalj basert på subdomain
+- Nav-lenke i `firma/layout.tsx` med ny `kreverHmsTilgang`-gating-felt (mellom Kompetanse og Moduler)
+- 15 nye i18n-nøkler (nb + en) auto-oversatt til 13 språk
+
+**Verifisert:** `@sitedoc/api` typecheck 0 = 0, `@sitedoc/web` typecheck 1 = 1 baseline (vitest). 0 nye feil.
+
+**Reload-metode:** Web — TypeScript + i18n. Full reload + cache-cleaning. Server-reload kreves (nye prosedyrer).
+
+**Klar for review** — Kenneth verifiserer at:
+- HMS-fane vises i firma-sidebar når innlogget som firma-admin eller bruker med `hms_ansvarlig`
+- Filter på prosjekt og byggeplass oppdaterer URL og dokumentliste
+- Drill-ned tar til riktig prosjekt-rute (oppgaver for avvik, sjekklister for SJA/RUH)
+- Statistikk viser fornuftige tall basert på testdataen
+- Prosjekt-nivå-HMS-side fortsetter å virke etter refactor
+
+**Gjenstår (Trinn 4):**
+- UI i `firma/ansatte/page.tsx` for å tildele `hms_ansvarlig`-rollen (speil av firma-admin-toggle)
+- Vurder full behandling (kommentar + statusendring direkte fra firma-rad) istedenfor drill-ned
+
 ### PR HMS-byggeplass-filter innad i prosjektet — IMPLEMENTERT PÅ DEVELOP 2026-05-29
 
 Lukker punkt 3 i HMS-prosjektvisning teknisk gjeld. HMS-siden viser nå bare dokumenter knyttet til aktiv byggeplass (samt prosjekt-brede dokumenter uten byggeplass-tilknytning).
