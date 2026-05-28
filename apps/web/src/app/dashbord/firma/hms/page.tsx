@@ -9,6 +9,7 @@ import { Spinner, EmptyState, SearchInput } from "@sitedoc/ui";
 import { ShieldAlert, AlertTriangle, ClipboardList, FileWarning, Clock } from "lucide-react";
 import { KpiKort, MånedSøyler, FaggruppeBars } from "@/components/hms/visning";
 import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
+import { FirmaHurtigModal } from "@/components/hms/firma-hurtig-modal";
 import type { DokumentRad } from "@/components/hms/types";
 import { MultiComboks } from "@/components/ui/MultiComboks";
 
@@ -46,6 +47,7 @@ export default function FirmaHmsSide() {
   );
   const aktivTab = (searchParams.get("tab") ?? "avvik") as Tab;
   const [tekstSok, setTekstSok] = useState("");
+  const [hurtigRad, setHurtigRad] = useState<DokumentRad | null>(null);
 
   function settUrl(params: Record<string, string | undefined>) {
     const sp = new URLSearchParams(searchParams.toString());
@@ -77,6 +79,8 @@ export default function FirmaHmsSide() {
     { organizationId: organizationId ?? "" },
     { enabled: !!organizationId },
   );
+
+  const utils = trpc.useUtils();
 
   // ----- Data -----
   const oversiktQuery = trpc.hms.hentFirmaOversikt.useQuery(
@@ -248,6 +252,7 @@ export default function FirmaHmsSide() {
               onKlikk={drillNed}
               visProsjektKolonne
               visByggeplassKolonne
+              onHurtigBehandle={setHurtigRad}
             />
           )}
           {aktivTab === "sja" && (
@@ -285,6 +290,18 @@ export default function FirmaHmsSide() {
               />
             )}
         </div>
+      )}
+
+      {hurtigRad && organizationId && (
+        <FirmaHurtigModal
+          rad={hurtigRad}
+          organizationId={organizationId}
+          onLukk={() => setHurtigRad(null)}
+          onSuksess={() => {
+            void utils.hms.hentFirmaOversikt.invalidate();
+            setHurtigRad(null);
+          }}
+        />
       )}
     </div>
   );

@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { byggTilgangsFilter, harFirmaHmsTilgang, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
-import { documentStatusSchema } from "@sitedoc/shared";
+import { documentStatusSchema, isValidStatusTransition } from "@sitedoc/shared";
 import { prisma } from "@sitedoc/db";
 
 /**
@@ -476,5 +476,102 @@ export const hmsRouter = router({
           saksbehandlingstidMedianDager,
         },
       };
+    }),
+
+  // Hurtig-behandling av avvik (Task) fra firma-HMS-dashbord.
+  // Lar firma_admin / hms_ansvarlig endre status og legge til intern kommentar
+  // uten å være medlem av faggruppen — bypasser flyt-rolle-validering.
+  // Bevisst begrenset: ingen videresending, ingen eier-bytte (drill-ned for det).
+  // Trinn 4 av firma-HMS-dashboard (2026-05-29).
+  firmaBehandleAvvik: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        taskId: z.string().uuid(),
+        nyStatus: documentStatusSchema.optional(),
+        kommentar: z.string().max(2000).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!input.nyStatus && !input.kommentar?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Oppgi status, kommentar eller begge",
+        });
+      }
+
+      const harTilgang = await harFirmaHmsTilgang(ctx.userId, input.organizationId);
+      if (!harTilgang) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Krever firma-admin eller HMS-ansvarlig",
+        });
+      }
+
+      const oppgave = await ctx.prisma.task.findUnique({
+        where: { id: input.taskId },
+        select: {
+          id: true,
+          status: true,
+          template: { select: { domain: true, projectId: true } },
+          bestillerFaggruppe: { select: { projectId: true } },
+        },
+      });
+      if (!oppgave) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Avvik ikke funnet" });
+      }
+
+      // Verifiser at oppgaven hører til et prosjekt i firmaet
+      const projectId = oppgave.template?.projectId ?? oppgave.bestillerFaggruppe?.projectId;
+      if (!projectId) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Oppgave mangler prosjekt",
+        });
+      }
+      const prosjekt = await ctx.prisma.project.findUnique({
+        where: { id: projectId },
+        select: { primaryOrganizationId: true },
+      });
+      if (prosjekt?.primaryOrganizationId !== input.organizationId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Oppgave hører ikke til firmaet",
+        });
+      }
+
+      // Begrens til HMS-domene (avvik er HMS i firma-dashbordet)
+      if (oppgave.template?.domain !== "hms") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Hurtig-behandling kun for HMS-avvik",
+        });
+      }
+
+      // Valider status-overgang hvis oppgitt
+      if (input.nyStatus && input.nyStatus !== oppgave.status) {
+        if (!isValidStatusTransition(oppgave.status, input.nyStatus)) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: `Ugyldig statusovergang ${oppgave.status} → ${input.nyStatus}`,
+          });
+        }
+        await ctx.prisma.task.update({
+          where: { id: input.taskId },
+          data: { status: input.nyStatus },
+        });
+      }
+
+      if (input.kommentar?.trim()) {
+        await ctx.prisma.taskComment.create({
+          data: {
+            taskId: input.taskId,
+            userId: ctx.userId,
+            content: input.kommentar.trim(),
+          },
+        });
+      }
+
+      return { ok: true };
     }),
 });
