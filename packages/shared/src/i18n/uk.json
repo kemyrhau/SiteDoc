@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Час початку",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Час закінчення",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Перерва (хвилин)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Початок перерви (необов'язково)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Коли починається перерва (ГГ:ХХ). Порожньо = за замовчуванням немає — розрив розміщується в середині інтервалу рядка.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Округлення часу",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Округлення від/до часу в рядках таймера та машини до найближчого інтервалу.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Жодного",

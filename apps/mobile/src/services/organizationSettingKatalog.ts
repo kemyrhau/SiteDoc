@@ -63,6 +63,8 @@ export async function refreshOrganizationSettingKatalog(
       // T.5: null betyr ingen avrunding. undefined fra server (eldre klient
       // mot ny server) tolkes også som ingen avrunding.
       tidsrundingMinutter: setting.tidsrundingMinutter ?? null,
+      // 2026-05-28: null = ingen firma-default (midtpunkt-fallback).
+      standardPauseFra: setting.standardPauseFra ?? null,
       sistOppdatert: naa,
     })
     .run();

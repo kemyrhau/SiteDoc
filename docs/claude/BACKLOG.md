@@ -387,7 +387,7 @@ Penn-ikonet er en `<Link>` til `/dashbord/firma/timer/attestering/[id]?rediger=1
 
 ✅ Arkivert til [historikk-2026-05.md § T7-5h](historikk-2026-05.md). Scope: kun web. Mobil-komponenter har separat recompute-logikk og er ikke berørt — egen sub-PR ved behov.
 
-### Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)
+### Pause-vindu default — IMPLEMENTERT PÅ DEVELOP 2026-05-28 ✅ (firma-konfigurerbar `OrganizationSetting.standardPauseFra`)
 
 `togglePause` i `RedigerRadModal.tsx` lager default `[midt − 15 min, midt + 15 min]` når checkbox aktiveres uten eksisterende pause-vindu. For rad 07:00–15:00 blir det 10:30–11:30, ikke 11:30–12:00 som norsk lunsj-konvensjon antyder.
 

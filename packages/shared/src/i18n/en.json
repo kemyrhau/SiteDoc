@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Start time",
   "firma.innstillinger.standardArbeidstid.sluttTid": "End time",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Break (minutes)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Break start (optional)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "When the break starts (HH:MM). Empty = no default — break is placed in the middle of the row interval.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Time rounding",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Round from/to time on timer and machine rows to the nearest interval.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "None",

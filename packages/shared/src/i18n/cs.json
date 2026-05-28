@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Čas zahájení",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Čas ukončení",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Přestávka (minuty)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Přestávka (volitelné)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Když začne přestávka (HH:MM). Prázdné = žádné výchozí — zalomení je umístěno uprostřed intervalu řádku.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Zaokrouhlování času",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Zaokrouhlete od/do času na časovači a řádcích stroje na nejbližší interval.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Žádný",

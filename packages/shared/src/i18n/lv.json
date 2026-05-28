@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Sākuma laiks",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Beigu laiks",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Pārtraukums (minūtes)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Pārtraukuma sākums (pēc izvēles)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Kad sākas pārtraukums (HH:MM). Tukšs = nav noklusējuma — pārtraukums tiek ievietots rindas intervāla vidū.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Laika noapaļošana",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Noapaļot no/uz laiku taimerī un mašīnas rindas līdz tuvākajam intervālam.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Nav",

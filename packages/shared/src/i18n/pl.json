@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Czas rozpoczęcia",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Koniec czasu",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Przerwa (minuty)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Rozpoczęcie przerwy (opcjonalnie)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Kiedy zaczyna się przerwa (GG:MM). Pusty = brak wartości domyślnej — przerwa jest umieszczana w środku interwału wiersza.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Zaokrąglanie czasu",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Zaokrąglaj od/do czasu w rzędach timera i maszyny do najbliższego interwału.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Nic",

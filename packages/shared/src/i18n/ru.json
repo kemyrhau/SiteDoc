@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Время начала",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Время окончания",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Перерыв (минуты)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Начало перерыва (по желанию)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Когда начнется перерыв (ЧЧ:ММ). Пусто = нет по умолчанию — разрыв размещается в середине интервала строк.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Округление времени",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Округлите время от/до на таймере и рядах машины до ближайшего интервала.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Никто",

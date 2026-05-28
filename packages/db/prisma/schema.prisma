@@ -253,6 +253,11 @@ model OrganizationSetting {
   standardStartTid String @default("07:00") @map("standard_start_tid")
   standardSluttTid String @default("15:00") @map("standard_slutt_tid")
   standardPauseMin Int    @default(30)      @map("standard_pause_min")
+  // 2026-05-28: nullable HH:MM. Når satt brukes som default pause-start i
+  // RedigerRadModal.togglePause hvis vinduet [standardPauseFra,
+  // standardPauseFra+standardPauseMin] ligger innenfor rad-intervallet.
+  // Tom = eksisterende midtpunkt-fallback. Bakover-kompatibilitet bevart.
+  standardPauseFra String? @map("standard_pause_fra")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")

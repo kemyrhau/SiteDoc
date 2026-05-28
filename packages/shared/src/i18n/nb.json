@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Start kl.",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Slutt kl.",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Pause (minutter)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Pause fra (valgfri)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Tidspunkt pause starter (HH:MM). Tom = ingen default — pause settes i midten av rad-intervallet.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Tidsrunding",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Avrund fra/til-tid på timer- og maskin-rader til nærmeste intervall.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Ingen",

@@ -8,6 +8,44 @@ sist_verifisert_mot_kode: 2026-05-08
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md).
 
+### PR `standardPauseFra` — firma-konfigurerbar pause-default — IMPLEMENTERT PÅ DEVELOP 2026-05-28
+
+Lukker BACKLOG-entry «Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)». Erstatter midtpunkt-fallback i `togglePause` med firma-konfigurerbar default som respekterer norsk lunsj-konvensjon.
+
+**Schema (`packages/db/prisma/schema.prisma`):**
+- Nytt felt `OrganizationSetting.standardPauseFra String? @map("standard_pause_fra")` (nullable HH:MM, additivt). Migrasjon `20260528200000_add_standard_pause_fra` opprettet manuelt (shadow-DB krever pgvector som ikke er installert lokalt, kjent prosjekt-mønster).
+
+**Server (`apps/api/src/routes/organisasjon.ts`):**
+- `hentArbeidstidDefaults`: `select.standardPauseFra: true` (mobil-cache).
+- `oppdaterSetting`: Zod-input får `standardPauseFra: union(HH:MM-regex | null).optional()` — `null` nullstiller, ingen verdi = uendret. `settingData` spreader feltet automatisk inn i upsert.
+- `hentSetting` returnerer feltet via Prisma default-select uten endring.
+
+**Web UI (`apps/web/src/app/dashbord/firma/innstillinger/page.tsx`):**
+- `StandardArbeidstidSeksjon`: ny `<input type="time">` for "Pause fra (valgfri)" plassert mellom pause-min-blokken og tidsrunding-blokken. Tom streng = null = ingen firma-default (fallback til midtpunkt). State + initialisering + lagre.
+
+**togglePause-logikk (`apps/web/src/components/attestering/RedigerRadModal.tsx`):**
+- `standardPauseFra` + `standardPauseMin` hentes fra `setting`-queryen og sendes som props til `KompaktTimerRad`.
+- Ny togglePause-rekkefølge: (1) har pause → fjern; (2) firma-default satt + vinduet `[standardPauseFra, standardPauseFra + standardPauseMin]` ligger innenfor rad-intervallet → bruk default; (3) ellers midtpunkt-fallback (eksisterende oppførsel).
+- Eksempel: rad 07:00–15:00 med firma-default 11:30 (30 min) gir nå 11:30–12:00 (matcher norsk lunsj). Rad 17:00–22:00 (kveldsskift) ligger utenfor default-vinduet → faller tilbake til midtpunkt-fallback 19:15–19:45.
+
+**Mobil (`apps/mobile/src/db/{schema.ts,migreringer.ts}` + `services/organizationSettingKatalog.ts`):**
+- Drizzle-kolonne `standardPauseFra: text("standard_pause_fra")` på `organizationSettingLocal` (nullable).
+- Idempotent `PRAGMA table_info` + `ALTER TABLE ... ADD COLUMN` i migreringer.ts (eksisterende klienter migreres ved app-oppstart).
+- Katalog-service skriver `setting.standardPauseFra ?? null` ved refresh.
+- Mobil-UI bruker IKKE togglePause-mønsteret — pause er sedel-nivå med eksplisitte fra/til-felter. Cache populerer for fremtidig bruk og holder kontrakten konsistent server-side.
+
+**i18n:** 2 nye nøkler (`pauseFra`, `pauseFraHjelp`) i nb + en, auto-oversatt til 13 språk via `generate.ts` (2439 → 2441).
+
+**Verifisert:** `@sitedoc/api` 0 = 0 feil. `@sitedoc/web` 1 = 1 baseline (vitest typedef, pre-eksisterende). `@sitedoc/mobile` har samme pre-eksisterende baseline-feil som før (erstattVedlegg, timerSync, psi onLukk) — ikke berørt av denne PR.
+
+**Reload-metode:** Server-reload kreves (Zod + select endret + Prisma-klient regenerert med nytt felt). Web cache-cleaning + `pnpm build --force` på test (Turbo-cache-bug). Mobil app-reload trigger ALTER ADD COLUMN ved oppstart.
+
+**Klar for review** — Kenneth verifiserer at:
+- `firma/innstillinger` viser ny «Pause fra (valgfri)»-input
+- Lagring uten verdi → behold uendret (eller sett null hvis feltet tømmes)
+- Lagring med f.eks. `11:30` → togglePause i attestering-modal bruker 11:30–12:00 for normal 07:00–15:00-rad
+- Kveldsskift-rad utenfor default-vinduet får eksisterende midtpunkt-fallback
+
 ### PR HMS-byggeplass-filter innad i prosjektet — IMPLEMENTERT PÅ DEVELOP 2026-05-29
 
 Lukker punkt 3 i HMS-prosjektvisning teknisk gjeld. HMS-siden viser nå bare dokumenter knyttet til aktiv byggeplass (samt prosjekt-brede dokumenter uten byggeplass-tilknytning).

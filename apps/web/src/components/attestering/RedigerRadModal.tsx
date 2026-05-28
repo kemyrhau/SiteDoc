@@ -115,6 +115,9 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
   );
   const tidsrundingMinutter = setting?.tidsrundingMinutter ?? null;
   const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
+  // 2026-05-28: firma-default for pause-start (togglePause-fallback).
+  const standardPauseFra = setting?.standardPauseFra ?? null;
+  const standardPauseMin = setting?.standardPauseMin ?? 30;
 
   // Plukk pending-rader for denne bucken (projectId + ecoId).
   // Alle andre pending-rader sendes uendret i lagre-payloaden.
@@ -464,6 +467,8 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                         tidsrundingMinutter={tidsrundingMinutter}
                         pauseFra={editPauseFra}
                         pauseTil={editPauseTil}
+                        standardPauseFra={standardPauseFra}
+                        standardPauseMin={standardPauseMin}
                         onPauseChange={settPause}
                         erManueltJustert={manueltJustert.has(rad.key)}
                         onChange={(felt) => {
@@ -599,6 +604,8 @@ function KompaktTimerRad({
   tidsrundingMinutter,
   pauseFra,
   pauseTil,
+  standardPauseFra,
+  standardPauseMin,
   onPauseChange,
   erManueltJustert,
   onChange,
@@ -612,6 +619,8 @@ function KompaktTimerRad({
   tidsrundingMinutter: number | null;
   pauseFra: string | null;
   pauseTil: string | null;
+  standardPauseFra: string | null;
+  standardPauseMin: number;
   onPauseChange: (fra: string | null, til: string | null) => void;
   erManueltJustert: boolean;
   onChange: (felt: Partial<EditTimer>) => void;
@@ -637,21 +646,36 @@ function KompaktTimerRad({
     forventetTimer !== null &&
     Math.abs(forventetTimer - rad.timer) > 0.01;
 
-  // Toggle: hvis ingen pause-vindu finnes, klikk på Pause oppretter default 30 min
-  // i midten av rad-vinduet. Hvis pause finnes, klikk fjerner den.
+  // Toggle:
+  //   - har pause: klikk fjerner den
+  //   - ingen pause + firma-default satt + default ligger innenfor rad-intervallet:
+  //       bruk firma-default (standardPauseFra + standardPauseMin)
+  //   - ellers: midtpunkt-fallback (default 30 min sentrert i rad-vinduet)
   function togglePause() {
     if (harPause) {
       onPauseChange(null, null);
-    } else if (rad.fraTid && rad.tilTid) {
-      const fraMin = hhmmTilMinutter(rad.fraTid);
-      const tilMin = hhmmTilMinutter(rad.tilTid);
-      const midt = Math.floor((fraMin + tilMin) / 2);
-      const pFraMin = midt - 15;
-      const pTilMin = midt + 15;
-      const fmt = (m: number) =>
-        `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
-      onPauseChange(fmt(pFraMin), fmt(pTilMin));
+      return;
     }
+    if (!rad.fraTid || !rad.tilTid) return;
+
+    const fraMin = hhmmTilMinutter(rad.fraTid);
+    const tilMin = hhmmTilMinutter(rad.tilTid);
+    const fmt = (m: number) =>
+      `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+
+    // Forsøk firma-default først
+    if (standardPauseFra) {
+      const defaultFraMin = hhmmTilMinutter(standardPauseFra);
+      const defaultTilMin = defaultFraMin + standardPauseMin;
+      if (defaultFraMin >= fraMin && defaultTilMin <= tilMin) {
+        onPauseChange(standardPauseFra, fmt(defaultTilMin));
+        return;
+      }
+    }
+
+    // Fallback: midtpunkt med 30 min vindu
+    const midt = Math.floor((fraMin + tilMin) / 2);
+    onPauseChange(fmt(midt - 15), fmt(midt + 15));
   }
 
   return (

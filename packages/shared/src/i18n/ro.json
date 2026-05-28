@@ -939,6 +939,8 @@
   "firma.innstillinger.standardArbeidstid.startTid": "Ora de începere",
   "firma.innstillinger.standardArbeidstid.sluttTid": "Ora de sfârșit",
   "firma.innstillinger.standardArbeidstid.pauseMin": "Pauza (minute)",
+  "firma.innstillinger.standardArbeidstid.pauseFra": "Pornire pauză (opțional)",
+  "firma.innstillinger.standardArbeidstid.pauseFraHjelp": "Când începe pauză (HH:MM). Gol = fără implicit — pauză este plasată la mijlocul intervalului de rând.",
   "firma.innstillinger.standardArbeidstid.tidsrunding": "Rotunjirea timpului",
   "firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse": "Rotunjiți de la/la timp pe rândurile de cronometru și mașină la cel mai apropiat interval.",
   "firma.innstillinger.standardArbeidstid.tidsrundingIngen": "Nici unul",
