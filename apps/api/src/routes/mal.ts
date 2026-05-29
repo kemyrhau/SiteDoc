@@ -91,12 +91,19 @@ export const malRouter = router({
       const { id, workflowIds, ...data } = input;
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({
         where: { id },
-        select: { projectId: true, category: true },
+        select: { projectId: true, category: true, domain: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mal.projectId);
 
-      // Konverterings-validering: type kan ikke endres hvis dokumenter eksisterer
-      if (input.category !== undefined && input.category !== mal.category) {
+      // Konverterings-validering: type (category) eller domain kan ikke
+      // endres hvis dokumenter eksisterer. Domain-skift uten dokument-sjekk
+      // ville etterlatt eksisterende task/checklist med en domain-kopi som
+      // ikke lenger matcher malen — stille forsvinning fra HMS-dashbord.
+      const skifterCategory =
+        input.category !== undefined && input.category !== mal.category;
+      const skifterDomain =
+        input.domain !== undefined && input.domain !== mal.domain;
+      if (skifterCategory || skifterDomain) {
         const [taskAntall, checklistAntall] = await Promise.all([
           ctx.prisma.task.count({ where: { templateId: id } }),
           ctx.prisma.checklist.count({ where: { templateId: id } }),
@@ -104,7 +111,7 @@ export const malRouter = router({
         const totalt = taskAntall + checklistAntall;
         if (totalt > 0) {
           throw new Error(
-            `Kan ikke endre type — det finnes ${totalt} eksisterende dokumenter knyttet til denne malen`,
+            `Kan ikke endre mal-type — det finnes ${totalt} eksisterende dokumenter knyttet til denne malen`,
           );
         }
       }
