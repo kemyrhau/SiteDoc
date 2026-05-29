@@ -4,6 +4,43 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — DEPLOYET TIL PROD 2026-05-29 (prod-merge `6359e2da`, impl `fa76de83`)
+
+UX-bug eksponert under bred kartlegging av filterbruk i `/dashbord/`: på `/dashbord/oppsett/*`-sidene viste toppbar «Mine prosjekter» selv om datalaget brukte sticky-prosjektet fra localStorage. Brukeren administrerte ett bestemt prosjekt uten å se hvilket. Asymmetri mellom presentasjon og data-state.
+
+**Forløp:** Bred UX-konsistens-undersøkelse identifiserte at `/oppsett/*`-grenen (14 sider) er per-prosjekt, men URL-en bærer ikke `prosjektId` — `prosjekt-kontekst.tsx:58` faller tilbake til localStorage. Diagnose av `ProsjektVelger.tsx:45-50` viste at `knappTekst` ble gated på `prosjektScope` (som er `"mine"` når URL mangler `prosjektId`), ikke på om et prosjekt faktisk er aktivt. `valgtProsjekt` var allerede tilgjengelig i komponenten — den ble bare ikke brukt.
+
+**Endring:** `apps/web/src/components/layout/ProsjektVelger.tsx:45-54` — `knappTekst`-uttrykket prioriterer nå `valgtProsjekt?.name` over scope-tekst:
+
+```ts
+const knappTekst =
+  valgtProsjekt?.name
+  ?? (prosjektScope === "alle"
+        ? t("prosjektVelger.alleProsjekter")
+        : prosjektScope === "mine"
+          ? t("prosjektVelger.mineProsjekter")
+          : t("prosjektVelger.velgProsjekt"));
+```
+
+**Bevart atferd:**
+- `/dashbord/[prosjektId]/*` viser fortsatt prosjektnavn (uendret — `valgtProsjekt` er definert der også).
+- `/dashbord` (root-landing) uten valgt prosjekt viser scope-tekst.
+- `/dashbord/firma/*` uendret (FirmaKontekstVelger overstyrer ProsjektVelger).
+
+**Verifisering:**
+- Typecheck ren (eneste avvik: pre-eksisterende vitest-feil i `mengde/__tests__/import-hjelpere.test.ts`).
+- `sitedoc.no` HTTP 200.
+- PM2 restart: `sitedoc-api` (pid 422426), `sitedoc-web` (pid 422446).
+
+**Bi-funn under sesjonen (ikke implementert, BACKLOG):**
+- 14 oppsett-sider mangler `prosjektId` i URL — sticky-state-felle. Ikke delbare URLer.
+- 16 av 30 detalj-sider og 11 av 14 oppsett-sider viser ByggeplassVelger uten å bruke `useByggeplass()`. Skissert strategi B (per-side declaration via `useToppbarFiltre`-hook) for å deaktivere ubrukte velgere visuelt.
+- Parallell rute-tre `/dashbord/prosjekter/[id]/...` (6 sider) — potensiell dødkode etter rute-omstilling.
+
+**Diagnose-lærdom:** Når UI viser en label som ikke matcher datalagets state, sjekk om datakilden brukes som gate på presentasjonsuttrykket. Her var `valgtProsjekt` ferdig hentet og tilgjengelig — `knappTekst` skjønte bare ikke å spørre etter den. En linje endret prioritet, og hele klasse av symptomer (14 sider) ble løst samtidig.
+
+---
+
 ## RUH bytter fra sjekkliste til oppgave-shape — DEPLOYET TIL PROD 2026-05-29 (prod-merge `354fc4ea`, impl `38d005a0`)
 
 RUH-arbeidsflyt (tildeling, statusendring, dokumentflyt) er nå konsistent med avvik — begge bruker task-shape. Tidligere var RUH delvis sjekkliste (data-tabell + opprettelses-kanal) og delvis oppgave (UX-forventning). Den fragmenterte modellen ble eksponert under undersøkelse av prefix/domain-koblingen samme dag og rydding av MalbyggerV2-scope.
