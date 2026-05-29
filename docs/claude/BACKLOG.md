@@ -44,11 +44,13 @@ Alle 14 funn fra sikkerhets-audit 2026-05-27 er adressert i prod. Se [historikk-
 
 **Tilleggsforslag fortsatt åpent:** Server-side `deploy-test-cron.sh` skal feile hard på `pnpm build` exit ≠ 0 og IKKE kjøre `pm2 restart`. CLAUDE.md har regelen (commit `95ff4a07`), men cron-skriptet er server-side og ikke i repo. Krever manuell oppdatering av skriptet på `sitedoc`-serveren.
 
-### Godkjenning-modul — TE/Endring/Varsel statusflyt (høy prioritet)
+### Avklaring-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 
-**Oppdaget 2026-05-26** ved sporing av Godkjenning-modulens faktiske implementasjon, og presisert med produktbeskrivelse fra Kenneth samme dag.
+> **Terminologi-rename 2026-05-28 (A.31):** Modul-konseptet tidligere kalt «Godkjenning» er omdøpt til **Avklaring** for å unngå kollisjon med status-verdien `"godkjent"` i `DocumentTransfer.toStatus`. Schema-rename (`model Godkjenning` → `model Avklaring`, `godkjenninger` → `avklaringer`) gjennomføres når modulen bygges. Se [fase-0-beslutninger.md § A.31](fase-0-beslutninger.md).
 
-**Produktbeskrivelse (Kenneth 2026-05-26):** Godkjenning dekker formell kommunikasjon mellom kontraktsparter i to relasjoner:
+**Oppdaget 2026-05-26** ved sporing av Avklaring-modulens (tidligere «Godkjenning-modulens») faktiske implementasjon, og presisert med produktbeskrivelse fra Kenneth samme dag.
+
+**Produktbeskrivelse (Kenneth 2026-05-26):** Avklaring dekker formell kommunikasjon mellom kontraktsparter i to relasjoner:
 
 1. **Entreprenør → Byggherre:** Teknisk avklaring (TE) eller Økonomisk krav
 2. **UE → HE (Hovedentreprenør):** Teknisk avklaring eller Økonomisk krav
@@ -59,18 +61,18 @@ Et dokument starter som **Teknisk avklaring** og kan eskalere til **Økonomisk k
 
 **Manglende:**
 - Statusprogresjonen TE → Endring/Varsel er ikke implementert.
-- `Godkjenning`-tabellen i schema (`schema.prisma:937-980`) har riktige felter (`externalCostObjectId`, `internRef`, `byggherreRef`, `kortNavn`, `godkjentVed`, `transfers` med kostnadsnapshot) men **ingen route bruker den**.
-- Godkjenning-modulen lager i dag kun en vanlig `Task` fra GM-malen via `oppgave.opprett`. Den ekstra tabellen forblir tom og urørt.
-- Verifisert i prod-DB 2026-05-26: «Godkjenning»-malen (GM, bygg) har 0 rader i `DokumentflytMal` — ingen mottaker-utledning fungerer.
+- `Godkjenning`-tabellen i schema (`schema.prisma:984-1027`) har riktige felter (`externalCostObjectId`, `internRef`, `byggherreRef`, `kortNavn`, `godkjentVed`, `transfers` med kostnadsnapshot) men **ingen route bruker den**. NB: Tabellnavn omdøpes til `avklaringer` per A.31 når routen bygges.
+- Avklaring-modulen lager i dag kun en vanlig `Task` fra GM-malen via `oppgave.opprett`. Den ekstra tabellen forblir tom og urørt.
+- Verifisert i prod-DB 2026-05-26: «Godkjenning»-malen (GM, bygg) har 0 rader i `DokumentflytMal` — ingen mottaker-utledning fungerer. (Mal-navnet i prod-DB kan omdøpes til «Avklaring» som del av modul-leveransen.)
 
 **Krever (i prioritert rekkefølge):**
-1. **`godkjenning.opprett`-route** + statusovergangs-logikk (TE → Endring/Varsel) med bevart referanse til original-dokument. Bygger på eksisterende `Godkjenning`-tabell og `DocumentTransfer.kostnadsnapshot`-mønster.
+1. **`avklaring.opprett`-route** + statusovergangs-logikk (TE → Endring/Varsel) med bevart referanse til original-dokument. Bygger på eksisterende `Godkjenning`-tabell (omdøpes til `Avklaring`) og `DocumentTransfer.kostnadsnapshot`-mønster.
 2. **Samme modul-seeding-redesign som HMS:** utvid modul-aktivering til å seed maler + plassholder-flyter for de to standard-relasjonene (TE-til-byggherre, TE-til-HE) som brukeren kan justere.
-3. **UI-skille:** Brukeren må kunne se Godkjenning som egen dokumenttype (ikke vanlig oppgave) i opprett-modaler og listevisninger.
+3. **UI-skille:** Brukeren må kunne se Avklaring som egen dokumenttype (ikke vanlig oppgave) i opprett-modaler og listevisninger.
 
 **Avhengighet:** Krever Kenneths produktbeslutning om eskalering-mekanikken (knapp i dokumentet? statusovergang via dokumentflyt? egen «Eskaler til Økonomisk krav»-handling?). Spec-runde anbefales før koding.
 
-**Oppfølger:** Godkjenning-hake i mal-builder (samme mønster som HMS-haken, `0278cfb3`) aktiveres når Godkjenning-modulen er designet.
+**Oppfølger:** Avklaring-hake i mal-builder (samme mønster som HMS-haken, `0278cfb3`) aktiveres når Avklaring-modulen er designet.
 
 ### HMS-modul redesign — DEPLOYET TIL PROD 2026-05-26/27 (prod-merge `69068ba0` + fix `c1fbc19f` + åpen-synlighet `c0c00374`)
 
@@ -91,7 +93,7 @@ Et dokument starter som **Teknisk avklaring** og kan eskalere til **Økonomisk k
 - Web DokumentHandlingsmeny redesign for HMS-dokumenter — venter på mobil-bunke-verifikasjon (build #23). § 2 «Halvferdige features».
 - Backfill-script kjørt på test, **IKKE på prod** — Kenneth tar beslutning. Prosjekter uten manuelt opprettede SJA/RUH-maler får dem KUN ved neste `modul.aktiver`-call eller manuell trigger.
 - Statistikk-fane utvidelser (CSV/PDF-eksport, per-måned drill-down) — separat oppfølger ved kundeønske.
-- Same-modul-seeding for Godkjenning-modul (§ Godkjenning-modul nedenfor) — generalisering vurderes ved den implementasjon.
+- Same-modul-seeding for Avklaring-modul (§ Avklaring-modul nedenfor) — generalisering vurderes ved den implementasjon.
 
 ### MASKIN-TIMER KOBLING — arkitektursvikt (høy prioritet)
 
@@ -126,7 +128,7 @@ Se [fase-0-beslutninger.md T.7](fase-0-beslutninger.md) for full spec (låst 202
 5. **`useVerktoylinje`-pattern droppet** — HMS-siden bruker inline header med Ny-dropdown i stedet for global verktøylinje (oppgaver/sjekklister mønster). Funksjonelt OK, men inkonsistent.
 6. **Modul-slug `hms-avvik` misvisende.** Slug-en var korrekt da modulen kun dekket HMS-avvik. Nå dekker den SJA + RUH også. Rename krever migrasjon + mobil-app-bakover-kompat-arbeid (mobil sender slug-en ved aktivering). Vurder ved neste modul-redesign.
 
-**Vurderes som samlet oppfølger-PR** når kundefeedback indikerer behov, eller når Godkjenning-modul-redesign trigger generalisering av modul-mønstre.
+**Vurderes som samlet oppfølger-PR** når kundefeedback indikerer behov, eller når Avklaring-modul-redesign trigger generalisering av modul-mønstre.
 
 ### Firma-nivå HMS-dashboard — aggregering på tvers av prosjekter ✅ FERDIG (alle 4 trinn deployet til prod 2026-05-29, prod-merger `526db462` + `eacdb40e`, arkivert til [historikk-2026-05.md](historikk-2026-05.md))
 
@@ -169,7 +171,7 @@ De to rollene kan tilhøre ulike personer — firma-HMS-ansvarlig er typisk én 
 
 ### Status-audit på tvers av dokumenttyper — UTFØRT 2026-05-27
 
-✅ **Audit kjørt 2026-05-27.** Tre handlingsrettede tickets opprettet nedenfor (F1, F7, Tiltak 1). Andre funn (timestamp-felter for SLA, flyt-oppsett-validering, stuck-state ved manglende godkjenner-rolle, tooltip ved blokkert handling) ble vurdert som ikke-handlingsrettede uten produktbeslutning — tas opp ved Godkjenning-modul-redesign eller kundefeedback.
+✅ **Audit kjørt 2026-05-27.** Tre handlingsrettede tickets opprettet nedenfor (F1, F7, Tiltak 1). Andre funn (timestamp-felter for SLA, flyt-oppsett-validering, stuck-state ved manglende godkjenner-rolle, tooltip ved blokkert handling) ble vurdert som ikke-handlingsrettede uten produktbeslutning — tas opp ved Avklaring-modul-redesign eller kundefeedback.
 
 **Sammendrag av kode-grunnlag** (verifiser mot kode FØR oppfølger-handling, kan ha endret seg):
 - `DOCUMENT_STATUSES` (9 verdier) i `packages/shared/src/types/index.ts:4-14`.
@@ -178,7 +180,7 @@ De to rollene kan tilhøre ulike personer — firma-HMS-ansvarlig er typisk én 
 - Auto-overgang `sent → received` skjer i `endreStatus`-mutationen (oppgave.ts:1022 / sjekkliste.ts:923).
 - HMS-modulen bruker samme statusflyt uten subdomain-spesifikk differensiering.
 
-**Avhengighet:** Godkjenning-modul-redesign (§ Godkjenning-modul TE/Endring/Varsel) bør re-bruke disse fakta istedenfor å lage egen modell. Verifiser mot kode på det tidspunktet.
+**Avhengighet:** Avklaring-modul-redesign (§ Avklaring-modul TE/Endring/Varsel) bør re-bruke disse fakta istedenfor å lage egen modell. Verifiser mot kode på det tidspunktet.
 
 ### F1 — `cancelled`-status mangler i HMS-filter — IMPLEMENTERT PÅ DEVELOP 2026-05-27
 
@@ -198,7 +200,7 @@ De to rollene kan tilhøre ulike personer — firma-HMS-ansvarlig er typisk én 
 2. Hvis hardkodet default: utvid `mal.opprett` til å seede subdomain-spesifikk dokumentflyt med riktige roller. Mal-builder UI viser default-flyt med mulighet for overstyring.
 3. Hvis konfigurerbar: legg til UI-advarsel i mal-builder ved subdomain SJA hvis flyten mangler `godkjenner`-rolle.
 
-**Avhengighet:** Bør koordineres med F-tickets fra HMS-prosjektvisning teknisk gjeld (§ 1 over) og Godkjenning-modul-redesign. Estimat 8-12t etter spec-runde.
+**Avhengighet:** Bør koordineres med F-tickets fra HMS-prosjektvisning teknisk gjeld (§ 1 over) og Avklaring-modul-redesign. Estimat 8-12t etter spec-runde.
 
 ### Tiltak 1 — «Alle åpne»-filter i oppgave/sjekkliste-filter — IMPLEMENTERT PÅ DEVELOP 2026-05-27
 
@@ -282,7 +284,9 @@ Server ~45 min, mobil-UI ~5 timer (oppgave, ny boks-komponent med statusvalg-pop
 - ~~**Firma-administrasjons-navigasjon strukturell rydding (~10-12t)**~~ ✅ FERDIG — audit utført 2026-05-28. Alle tre lag i mål: (1) rename «Firmainnstillinger» → «Prosjekteier» (`f3b8bb1a` + `e7168b32`), (2) firma-relevante server-ruter har `organizationId`-input (organisasjon 15/22 — 7 manglende er bruker-spesifikke queries; avdeling, kompetansetype, kalender, lonnsart, aktivitet, tillegg, vare, vareKategori 100%; kompetanse `opprett`/`oppdater`/`slett` utleder org via `verifiserKompetanseSkriveTilgang` per design, ikke bug; vareImport 2/2 — telle-feil i tidligere audit), (3) 10/10 firma-sider bruker `useFirma()` (kun stub-siden `fakturering` mangler, og den får det naturlig når den implementeres). Opprinnelig «~10-12t»-estimat var foreldet — reelt arbeid skjedde gradvis gjennom Blokk A-C + andre PRs.
 - ~~**Header-koordinering: firma-bytte nullstiller ikke prosjekt**~~ ✅ LØST — verifisert mot kode 2026-05-27. `prosjekt-kontekst.tsx:101-114` har auto-reset useEffect (P1 Fase 2, 2026-05-05). `byggeplass-kontekst.tsx:70-79` har defensiv cleanup ved firma-bytte. Entry-en var hjemløs drift fra før P1 Fase 2-deploy.
 - **Nye integrasjonstester for `tilgangskontroll.ts`** 🔴 — etter O-5c er gammel test-fil slettet (16/22 broken). Integrasjonstester mot test-DB med OrganizationMember-fikstur er planlagt.
-- **T7-2b3 audit-log payload utvidelse** 🔴 — før/etter-snapshots per rad i Activity-tabell.
+- **Activity-logging — aktivere `activity_log` for tilstandsendringer** 🔴 — `activity_log`-skjema finnes (15 kolonner, payload jsonb, retention-felter, anonymisering) men **ingen kode skriver til tabellen**. Bekreftet 2026-05-28: 0 rader siste 24t, ingen spor av template-sletting eller tilgangs-endringer. **Note — dokumentflyt-domenet er allerede dekket:** `DocumentTransfer`-tabellen (`schema.prisma:1029-1060`) logger juridisk audit-trail for alle status-overganger (draft→sent→received→responded/godkjent), kommentarer, faggruppe-snapshots og kostnad-snapshot. `TaskComment` dekker frittstående kommentarer, `ChecklistChangeLog` dekker sjekkliste-felt-endringer. Disse skal IKKE replikeres til `activity_log` — Activity dekker det som ikke har egen audit-mekanisme i dag. **Implementasjonsrekkefølge (mangler i dag):** (1) **template-CRUD** (`report_templates`) — opprettelse/endring/sletting (akutt etter Florian-k-avv-mysteriet 2026-05-28: hard-delete uten spor), (2) **`project_members`-endringer** (role, kanAttestere, erFirmaansvarlig — tilgangs-kritisk), (3) **`groups`/permissions** (permission-endringer er audit-kritiske), (4) **hard-delete generelt** via Prisma middleware som sikkerhetsnett for alle modeller. **Arkitektur-skisse (5 dager):** Hybrid Prisma middleware + eksplisitt tRPC-skriving, AsyncLocalStorage for userId-context, whitelist per modell, retention 18 mnd via PM2 cron. Erstatter T7-2b3 før/etter-snapshot-utvidelse (samme tabell, samme infrastruktur).
+- ~~**TaskChangeLog — audit-trail for felt-endringer på oppgaver etter sending**~~ ✅ IMPLEMENTERT PÅ DEVELOP 2026-05-29. Ny `TaskChangeLog`-modell i `schema.prisma` (speil av `ChecklistChangeLog`) + migrasjon `20260529000000_task_change_log`. Logging-blokk i `oppgave.oppdaterData` (gjenbruk diff-mønster fra sjekkliste:374-407) + per-felt-log i `forbedreOversettelse` (verdi-diff i transaksjon). UI-gate i `MalListe.tsx:968` fjernet — endringslogg-togglen vises nå for både oppgave- og sjekkliste-maler. Hjelpetekst gjort kategori-nøytral. Eksisterende `enableChangeLog`-flag på `ReportTemplate` (default `false`) gjenbrukes — ingen schema-endring på malen, ingen breaking changes. Venter på prod-deploy.
+- **UI-cache-forsinkelse ved gruppe-oppdatering** 🟡 — React Query oppdaterer ikke andre brukeres sesjoner ved DB-endring (gruppe-permissions, ProjectMember-rolle etc.). Bruker som er midt i en sesjon ser gammel rolle-state inntil window-focus eller manuell refresh. Kjent begrensning av React Query sin per-klient-cache-modell. Mulige fremtidige løsninger: kortere `staleTime` på gruppe-queries (offer mot ekstra server-trafikk), optimistisk invalidering via WebSocket/SSE-broadcast ved gruppe-endring, eller polling-interval på sentrale tilgangs-queries. Ikke prioritert — tas opp ved kundefeedback eller når impersonerings-tilgangs-oversikt-UX-sesjonen drøftes.
 - ~~**Returnert→pending-reset ved `sendTilAttestering`**~~ ✅ Implementert 2026-05-27 på develop. `send`-mutation i `dagsseddel.ts:931` utvidet med betinget `$transaction` som nullstiller returnerte rader til pending ved re-send. Backfill-SELECT mot prod-DB ga 0 rader — ingen migrasjon nødvendig.
 
 ### Mobil og sync

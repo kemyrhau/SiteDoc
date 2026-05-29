@@ -169,6 +169,7 @@ Alle routere som opererer på prosjektdata har `verifiserProsjektmedlem`-sjekk. 
 - `mengde.oppdaterDokument`: `verifiserProsjektmedlem` + kontraktisolering (kontraktId må tilhøre samme prosjekt)
 - `admin.*integrasjon*`: `verifiserSiteDocAdmin` (kun superadmin, aldri company_admin). API-nøkler returneres aldri — kun `harNøkkel: boolean`
 - `company_admin`-fallback i `verifiserProsjektmedlem`/`verifiserAdmin`: sjekker `OrganizationProject`-kobling, hindrer kryssorg-tilgang
+- `gruppe.hentMineTillatelser` → `hentBrukerTillatelser`: speiler `verifiserAdmin`-mønsteret (fix `c22a345d` 2026-05-28). Returnerer alle `PERMISSIONS` for `sitedoc_admin`, prosjekt-admin, og `firma_admin` på koblet `ProjectOrganization` — **uavhengig av om ProjectMember-rad finnes**. Tidligere asymmetri: firma-admin med `ProjectMember.role = "member"` i eget prosjekt fikk kun gruppe-permissions, mens `verifiserAdmin` ga full tilgang. Treffer 8+ UI-callsites som leser `tillatelser?.includes("manage_field")` (oppsett-sidebar, maler, tegninger, `OpprettOppgaveModal`)
 - `eksternKostObjekt.list`: bruker `krevBrukersOrg(ctx.userId)` og filtrerer på `organizationId` — **firma-isolert, ikke prosjekt-isolert**. Designvalg: ECO er firma-bredt synlig på tvers av firmaets prosjekter (Proadm-import lager dem firma-globalt). Bruker som sender `projectId` for et prosjekt de ikke er medlem av (men er i samme firma) får fortsatt resultatet. Bevisst — ikke en manglende sjekk
 
 ## Firma-HMS-tilgang (Trinn 1–3 av firma-HMS-dashboard, 2026-05-29)
@@ -195,7 +196,24 @@ Eksisterende filter (admin → null; HMS-gruppe-medlem → null; ellers privat-p
 - Prosjekt-brede dokumenter (`null`) inkluderes alltid — de er relevante for arbeid på alle byggeplasser.
 - Eksisterende Task-`OR` (bestillerFaggruppe vs null) konvertert til `AND: [...]`-struktur for å kombinere med byggeplass-`OR` uten Prisma-OR-konflikt.
 
-**Audit-spor:** `hentFirmaOversikt` logger til `console.log` for hver oppslag. Activity-tabell-integrasjon utsatt til samme oppgave som impersonering-audit (krever schema-beslutning om null-projectId-policy).
+**Audit-spor:** `hentFirmaOversikt` logger til `console.log` for hver oppslag. Activity-tabell-integrasjon krever schema-beslutning om null-projectId-policy og er ikke prioritert ennå.
+
+## Impersonering audit (`ImpersonationAudit`-tabell, 2026-05-28)
+
+`admin.startImpersonering` og `admin.stoppImpersonering` skriver til den isolerte `ImpersonationAudit`-tabellen (Variant B) — ikke `Activity`-tabellen. Designet holder `Activity` rent og gir spesifikke audit-felter uten å kreve null-projectId-policy.
+
+**Skjema (`packages/db/prisma/schema.prisma`):**
+- `adminUserId`, `targetUserId` — FK til `User` med `onDelete: RESTRICT` (audit kan ikke forsvinne ved User-sletting)
+- `targetOrganizationId` — for fremtidig firma-filter
+- `sessionId` — ren string uten FK (overlever `Session.delete()`)
+- `startetVed`, `utloperVed` — tidssone-aware
+- `avsluttetVed`, `avsluttetGrunn` — null mens aktiv; grunn er `"manuell"` ved eksplisitt stopp (utløps-markering utledes ved spørring)
+
+**Skrive-prosedyrer:**
+- `startImpersonering` — `INSERT` etter `Session.update`, defensiv `.catch` så audit-feil ikke blokkerer impersoneringen
+- `stoppImpersonering` — `updateMany` med `WHERE adminUserId, sessionId, avsluttetVed: null` (idempotent — gjør ingenting hvis ingen aktiv rad)
+
+**Lese-prosedyre + UI:** Ikke implementert — venter på tilgangs-oversikt-UX-sesjon. Tabellen er tilgjengelig via direkte SQL for `sitedoc_admin` i mellomtiden.
 
 ## Mobil session-token rotasjon (H1)
 

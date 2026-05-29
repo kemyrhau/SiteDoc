@@ -4,6 +4,32 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — DEPLOYET TIL PROD 2026-05-28 (prod-merger `e4296c8a` delvis + `c85d8e8d` komplett, impl `4e622d7e` + `c22a345d`)
+
+Rotårsak-fiks for et synlighetsproblem oppdaget under prod-impersonering av firma-admin Florian: «Produksjon»-seksjonen i `/dashbord/oppsett`-sidebar var skjult, og tilsvarende 8+ UI-callsites som leser `tillatelser?.includes("manage_field")` feilet.
+
+**Diagnose:** `hentBrukerTillatelser` i `apps/api/src/trpc/tilgangskontroll.ts` manglet firma-admin-fallback som søsterfunksjonene `verifiserAdmin` og `verifiserProsjektmedlem` allerede har. Backend-rutene under «Produksjon» (`dokumentflyt.ts`, `mal.ts`, `mappe.ts`) brukte konsekvent `verifiserProsjektmedlem` med firma-fallback — firma-admin kunne teknisk operere via direktelenker, men UI-laget skjulte menypunkter fordi tillatelses-query feilet.
+
+**To-stegs fiks:**
+- `4e622d7e` (delvis): La firma-admin-fallback inn i `if (!medlem)`-blokken — dekket kun tilfellet der firma-admin **mangler** ProjectMember-rad.
+- `c22a345d` (komplett): Flyttet firma-admin-sjekken **ut av** `if (!medlem)` til etter `medlem?.role === "admin"`-sjekken. Dekker nå også det vanlige tilfellet der firma-admin **er** ProjectMember med `role = "member"` i eget prosjekt (som Florian).
+
+**Algoritmen speiler nå `verifiserAdmin` eksakt:**
+1. `sitedoc_admin` → alle PERMISSIONS
+2. `ProjectMember.role === "admin"` → alle PERMISSIONS
+3. `firma_admin` på koblet `ProjectOrganization` → alle PERMISSIONS *(treffer Florian)*
+4. Ellers: gruppe-permissions, eller FORBIDDEN hvis ingen ProjectMember
+
+**Verifisert:** `@sitedoc/api` 0=0 typecheck. Etter prod-deploy: impersonering av Florian viste identisk sidebar-visning som Kenneth (kun «Admin»-knappen øverst var borte, som forventet for ikke-`sitedoc_admin`).
+
+**Bonus:** Fikset treffer 8+ UI-callsites samtidig (`oppsett/[prosjektId]/maler/page.tsx`, `OpprettOppgaveModal.tsx`, `tegninger/page.tsx`, `tegning-3d/page.tsx`, layout-sidebar) — ingen kallsteder måtte endres.
+
+**Diagnoseprosess:** Første runde (`4e622d7e`) ble laget basert på antagelsen at firma-admin manglet ProjectMember-rad. Da fikset ikke virket under Florian-verifisering, kjørte vi en re-diagnose av `verifiserAdmin` (linje 226-232) vs `hentBrukerTillatelser` (linje 738-755) som avdekket at `verifiserAdmin` har firma-admin-sjekken **etter** prosjekt-admin-sjekken, ikke kun i fallback-blokken. Den korrekte fiksen (`c22a345d`) speilet mønsteret eksakt.
+
+**Designprinsipp diskutert (ikke implementert):** Kenneth foreslo at vanlige `member`-brukere bør se «Produksjon»-seksjonen som read-only — synlighet for alle, redigering kun for de med rettighet (som GitHub/Notion-modellen). Krever skille mellom `kanSe` og `kanRedigere` i hvert felt. Tas i planlagt UX-sesjon for firma-innstillinger + tilgangsoversikt.
+
+---
+
 ## HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — DEPLOYET TIL PROD 2026-05-28 (prod-merge `12e19c0a`, impl `9aa5faef`)
 
 Lukker punkt 2 i HMS-prosjektvisning teknisk gjeld. Tre HMS-tabeller (`AvvikTabell`, `SjaTabell`, `RuhTabell` i `apps/web/src/components/hms/tabeller.tsx`) konvertert fra plain HTML til delt `@sitedoc/ui Table`. Får sortering, kolonnefilter, kolonnebredde-resize, og «Alle åpne»-snarvei på Avvik-status.
