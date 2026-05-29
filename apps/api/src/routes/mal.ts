@@ -12,6 +12,29 @@ const configSchema = z.preprocess(
   z.record(z.string(), z.unknown()),
 ) as z.ZodType<Record<string, unknown>>;
 
+// Subdomain ↔ category-mapping (vedtatt 2026-05-29).
+// avvik+ruh bruker task-shape (oppgave); sja bruker checklist-shape.
+// HMS-fanene i hms.ts er hardkodet til disse datakildene — feilkombinasjon
+// gjør at dokumenter opprettes i feil tabell og forsvinner stille fra alle
+// visninger (HMS-fanen ekskluderer feil tabell; Oppgaver/Sjekklister-fanen
+// ekskluderer fordi domain="hms" filtreres bort der).
+function valideerSubdomainCategory(
+  subdomain: "avvik" | "sja" | "ruh" | null | undefined,
+  category: "oppgave" | "sjekkliste" | undefined,
+): void {
+  if (!subdomain || !category) return;
+  const forventet: Record<"avvik" | "sja" | "ruh", "oppgave" | "sjekkliste"> = {
+    avvik: "oppgave",
+    ruh: "oppgave",
+    sja: "sjekkliste",
+  };
+  if (category !== forventet[subdomain]) {
+    throw new Error(
+      "SJA bruker sjekkliste-format. Avvik og RUH bruker oppgave-format.",
+    );
+  }
+}
+
 export const malRouter = router({
   // Hent alle maler for et prosjekt
   hentForProsjekt: protectedProcedure
@@ -49,6 +72,7 @@ export const malRouter = router({
     .input(createTemplateSchema)
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      valideerSubdomainCategory(input.subdomain, input.category);
       const { workflowIds, ...malData } = input;
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -91,9 +115,21 @@ export const malRouter = router({
       const { id, workflowIds, ...data } = input;
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({
         where: { id },
-        select: { projectId: true, category: true, domain: true },
+        select: { projectId: true, category: true, domain: true, subdomain: true },
       });
       await verifiserProsjektmedlem(ctx.userId, mal.projectId);
+
+      // Subdomain ↔ category-validering: bruk effektiv tilstand etter
+      // oppdatering (input-verdi hvis satt, ellers eksisterende verdi).
+      const effektivSubdomain =
+        input.subdomain !== undefined
+          ? input.subdomain
+          : (mal.subdomain as "avvik" | "sja" | "ruh" | null);
+      const effektivCategory =
+        input.category !== undefined
+          ? input.category
+          : (mal.category as "oppgave" | "sjekkliste");
+      valideerSubdomainCategory(effektivSubdomain, effektivCategory);
 
       // Konverterings-validering: type (category) eller domain kan ikke
       // endres hvis dokumenter eksisterer. Domain-skift uten dokument-sjekk

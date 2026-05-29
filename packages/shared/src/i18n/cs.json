@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "HMS šablona",
   "maler.hms.beskrivelse": "Automatické směrování ke koordinátorovi HMS a následuje řízení přístupu HMS",
   "maler.hms.endringAdvarsel": "Změna stavu HMS změní řízení přístupu pro existující dokumenty z této šablony.",
+  "maler.hms.prefiksHint": "Předpona vypadá jako typ HMS – chcete zaškrtnout políčko HMS?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Incidenty",
   "hms.tabs.sja": "JSA",

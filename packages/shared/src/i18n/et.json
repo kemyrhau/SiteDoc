@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "HMS-i mall",
   "maler.hms.beskrivelse": "Suunab automaatselt marsruudi HMS-i koordinaatorile ja järgib HMS-i juurdepääsu juhtimist",
   "maler.hms.endringAdvarsel": "HMS-i oleku muutmine muudab selle malli olemasolevate dokumentide juurdepääsu juhtimist.",
+  "maler.hms.prefiksHint": "Eesliide näeb välja nagu HMS-tüüp – kas soovite HMS-i märkeruudu lubada?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Juhtumid",
   "hms.tabs.sja": "JSA",

@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "HMS-Vorlage",
   "maler.hms.beskrivelse": "Leitet automatisch zum HMS-Koordinator weiter und folgt der HMS-Zugriffskontrolle",
   "maler.hms.endringAdvarsel": "Durch die Änderung des HMS-Status ändert sich die Zugriffskontrolle für vorhandene Dokumente aus dieser Vorlage.",
+  "maler.hms.prefiksHint": "Das Präfix sieht aus wie ein HMS-Typ. Möchten Sie das HMS-Kontrollkästchen aktivieren?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Vorfälle",
   "hms.tabs.sja": "JSA",

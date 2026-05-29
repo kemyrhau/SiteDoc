@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "HMS šablonas",
   "maler.hms.beskrivelse": "Automatiškai nukreipia į HMS koordinatorių ir seka HMS prieigos kontrolę",
   "maler.hms.endringAdvarsel": "Pakeitus HMS būseną, pakeičiamas esamų dokumentų prieigos valdymas iš šio šablono.",
+  "maler.hms.prefiksHint": "Priešdėlis atrodo kaip HMS tipas – ar norite įjungti HMS žymimąjį laukelį?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Incidentai",
   "hms.tabs.sja": "JSA",

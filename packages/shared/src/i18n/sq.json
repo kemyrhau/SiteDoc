@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "Shablloni HMS",
   "maler.hms.beskrivelse": "Drejtohet automatikisht te koordinatori HMS dhe ndjek kontrollin e hyrjes HMS",
   "maler.hms.endringAdvarsel": "Ndryshimi i statusit HMS ndryshon kontrollin e aksesit për dokumentet ekzistuese nga ky shabllon.",
+  "maler.hms.prefiksHint": "Parashtesa duket si një lloj HMS — dëshironi të aktivizoni kutinë e kontrollit HMS?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Incidentet",
   "hms.tabs.sja": "JSA",

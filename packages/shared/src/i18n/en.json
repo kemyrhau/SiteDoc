@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "HMS template",
   "maler.hms.beskrivelse": "Auto-routes to HMS coordinator and follows HMS access control",
   "maler.hms.endringAdvarsel": "Changing HMS status changes access control for existing documents from this template.",
+  "maler.hms.prefiksHint": "The prefix looks like an HMS type — do you want to enable the HMS checkbox?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Incidents",
   "hms.tabs.sja": "JSA",

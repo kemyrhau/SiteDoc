@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "HMS veidne",
   "maler.hms.beskrivelse": "Automātiski novirza uz HMS koordinatoru un seko HMS piekļuves kontrolei",
   "maler.hms.endringAdvarsel": "Mainot HMS statusu, tiek mainīta piekļuves kontrole esošajiem dokumentiem no šīs veidnes.",
+  "maler.hms.prefiksHint": "Prefikss izskatās pēc HMS tipa — vai vēlaties iespējot HMS izvēles rūtiņu?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Starpgadījumi",
   "hms.tabs.sja": "JSA",

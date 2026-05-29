@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "Szablon HMS-a",
   "maler.hms.beskrivelse": "Automatycznie wyznacza trasę do koordynatora HMS i przestrzega kontroli dostępu HMS",
   "maler.hms.endringAdvarsel": "Zmiana statusu HMS powoduje zmianę kontroli dostępu do istniejących dokumentów z tego szablonu.",
+  "maler.hms.prefiksHint": "Przedrostek wygląda jak typ HMS — czy chcesz włączyć pole wyboru HMS?",
   "hms.tittel": "BHP",
   "hms.tabs.avvik": "Incydenty",
   "hms.tabs.sja": "JSA",

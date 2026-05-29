@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "Modèle HMS",
   "maler.hms.beskrivelse": "Achemine automatiquement vers le coordinateur HMS et suit le contrôle d'accès HMS",
   "maler.hms.endringAdvarsel": "La modification du statut HMS modifie le contrôle d'accès aux documents existants à partir de ce modèle.",
+  "maler.hms.prefiksHint": "Le préfixe ressemble à un type HMS. Voulez-vous activer la case HMS ?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Incidents",
   "hms.tabs.sja": "JSA",

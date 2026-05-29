@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "Шаблон HMS",
   "maler.hms.beskrivelse": "Автоматически направляется к координатору HMS и следует контролю доступа HMS.",
   "maler.hms.endringAdvarsel": "Изменение статуса HMS меняет контроль доступа к существующим документам из этого шаблона.",
+  "maler.hms.prefiksHint": "Префикс выглядит как тип HMS — хотите включить флажок HMS?",
   "hms.tittel": "НИУ ВШЭ",
   "hms.tabs.avvik": "Инциденты",
   "hms.tabs.sja": "АПБ",
