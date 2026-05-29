@@ -4,6 +4,37 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## TaskChangeLog — audit-trail for felt-endringer på oppgaver — DEPLOYET TIL PROD 2026-05-29 (prod-merge `fff9daf4`, impl `6d6e2321`)
+
+Lukker audit-hullet oppdaget under dokumentflyt-undersøkelsen 2026-05-28: `oppgave.oppdaterData` og `forbedreOversettelse` tillot mottaker å endre `task.data` etter sending uten spor i `DocumentTransfer` eller andre eksisterende audit-tabeller. Sjekklister har samme behov og har allerede `ChecklistChangeLog` med `enableChangeLog`-flag på malen — Tasks manglet ekvivalent.
+
+**Forløp:** Initial reaksjon var en status-guard mot felt-endring etter sending (commit `5f5c9fb6`, revertert i `a3e48ef5`). Reverten ble utløst av at HMS-mottaker MÅ kunne fylle inn «Tiltak utført» etter at avvik er `received` — status-guard var feil løsning. Audit-trail (per-felt-diff-logging) er det riktige svaret: tillater redigering, logger hvem som endret hva og når.
+
+**Endringer:**
+- **Schema:** Ny `TaskChangeLog`-modell (speil av `ChecklistChangeLog`) med `taskId`, `userId`, `fieldId`, `fieldLabel`, `oldValue?`, `newValue?`, `createdAt`. Cascade-delete fra Task. Relasjoner på `User.taskChangeLogs` og `Task.changeLog`.
+- **Migrasjon:** `20260529000000_task_change_log` — manuell SQL (CREATE TABLE + 1 index + 2 FK). Pgvector-shadow-issue gjorde at `prisma migrate dev` ikke var et alternativ.
+- **`oppgave.oppdaterData`:** Template-select utvidet med `enableChangeLog` + `objects.select.label`. Endringslogg-blokk identisk med `sjekkliste.ts:374-407` (samler diff av `verdi`-felt for ikke-display-typer). Skriver via `tx.taskChangeLog.createMany` i samme transaksjon som `task.update`.
+- **`oppgave.forbedreOversettelse`:** Snapshot av `felt.verdi` før motor/manuell-blokk. Etter endring beregnes diff. Skriver én rad via `tx.taskChangeLog.create` hvis `enableChangeLog && verdi-diff`. Hele oppdateringen flyttet inn i transaksjon.
+- **`MalListe.tsx:968`:** `kategori === "sjekkliste"`-gate fjernet på endringslogg-togglen. Togglen vises nå for både oppgave- og sjekkliste-maler. Hjelpetekst nøytralisert («Logger feltendringer med tidsstempel og bruker»).
+
+**Bevart uendret:**
+- `enableChangeLog`-flag på `ReportTemplate` (default `false`, allerede eksisterende, schema.prisma:770) gjenbrukes — ingen schema-endring på malen.
+- `ChecklistChangeLog`-mønsteret og `sjekkliste.oppdaterData` — ingen funksjonell endring på sjekkliste-domenet.
+- Eksisterende oppgave-maler beholder `false`-default — opt-in per mal, ingen breaking changes.
+
+**Prod-bruk-baseline ved deploy:** 1 sjekkliste-mal har flagget aktivt (uendret), 0 oppgave-maler. Bekreftet via `SELECT enable_change_log, category, COUNT(*) FROM report_templates GROUP BY ...`.
+
+**Verifisering:**
+- Migrasjon applied til både `sitedoc_test` og `sitedoc` (prod-DB).
+- `\dt task_change_log` viser tabell i public-schema.
+- `sitedoc.no` HTTP 200, `api.sitedoc.no/health` HTTP 200.
+- PM2 restart: `sitedoc-api` (pid 380069), `sitedoc-web` (pid 380089).
+- Typecheck: `@sitedoc/api` ren, `@sitedoc/web` ren (eksklusive pre-eksisterende vitest-mangler i `mengde/__tests__/import-hjelpere.test.ts`).
+
+**Diagnose-lærdom:** Når en eksisterende rute eksponerer en audit-bekymring, undersøk om søsterruten har et etablert mønster FØR du designer fra grunnen. `ChecklistChangeLog`/`enableChangeLog`-flag på samme felles `ReportTemplate` var løsningen — vi trengte bare å speile mønsteret, ikke designe en ny audit-arkitektur.
+
+---
+
 ## Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — DEPLOYET TIL PROD 2026-05-28 (prod-merger `e4296c8a` delvis + `c85d8e8d` komplett, impl `4e622d7e` + `c22a345d`)
 
 Rotårsak-fiks for et synlighetsproblem oppdaget under prod-impersonering av firma-admin Florian: «Produksjon»-seksjonen i `/dashbord/oppsett`-sidebar var skjult, og tilsvarende 8+ UI-callsites som leser `tillatelser?.includes("manage_field")` feilet.
