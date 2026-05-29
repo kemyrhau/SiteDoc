@@ -138,7 +138,8 @@ export default function HmsSide() {
   async function handleOpprett(mal: MalRef) {
     const subdomain = mal.subdomain as Subdomain | null;
     try {
-      if (subdomain === "avvik") {
+      if (subdomain === "avvik" || subdomain === "ruh") {
+        // RUH bruker oppgave-flyt (vedtatt 2026-05-29) — samme som avvik.
         const resultat = (await utils.client.oppgave.opprett.mutate({
           templateId: mal.id,
           title: mal.name,
@@ -146,7 +147,7 @@ export default function HmsSide() {
         })) as { id: string };
         await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
         router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
-      } else if (subdomain === "sja" || subdomain === "ruh") {
+      } else if (subdomain === "sja") {
         const resultat = (await utils.client.sjekkliste.opprett.mutate({
           templateId: mal.id,
           title: mal.name,

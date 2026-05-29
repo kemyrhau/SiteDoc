@@ -361,7 +361,7 @@ export function RuhTabell({
 
   const feltMapping: Record<string, (r: DokumentRad) => string> = {
     prosjekt: hentProsjekt,
-    byggeplass: byggeplassNavnSjekkliste,
+    byggeplass: byggeplassNavnAvvik,
     typeObservasjon: hentTypeObservasjon,
     innmelder: hentInnmelder,
     status: (r) => r.status,
@@ -407,11 +407,11 @@ export function RuhTabell({
       k.push({
         id: "byggeplass",
         header: t("firma.hms.kolonne.byggeplass"),
-        celle: (r) => <span className="text-sm text-gray-700">{byggeplassNavnSjekkliste(r)}</span>,
+        celle: (r) => <span className="text-sm text-gray-700">{byggeplassNavnAvvik(r)}</span>,
         sorterbar: true,
-        sorterVerdi: byggeplassNavnSjekkliste,
+        sorterVerdi: byggeplassNavnAvvik,
         filtrerbar: true,
-        filterAlternativer: unikeVerdier(rader, byggeplassNavnSjekkliste),
+        filterAlternativer: unikeVerdier(rader, byggeplassNavnAvvik),
       });
     }
     k.push({

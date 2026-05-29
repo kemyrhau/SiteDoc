@@ -219,18 +219,28 @@ export const hmsRouter = router({
           })
         : Promise.resolve([]);
 
+      // RUH henter fra task — samme shape som avvik. RUH-malen har
+      // category="oppgave" (vedtatt 2026-05-29; tidligere "sjekkliste").
       const ruhPromise = (input.subdomain === undefined || input.subdomain === "ruh")
-        ? ctx.prisma.checklist.findMany({
+        ? ctx.prisma.task.findMany({
             where: komponerWhere(
               {
                 ...statusFilter,
                 template: { is: { projectId: input.projectId, domain: "hms", subdomain: "ruh" } },
-                ...(checklistByggeplassClause ?? {}),
+                AND: [
+                  {
+                    OR: [
+                      { bestillerFaggruppe: { projectId: input.projectId } },
+                      { bestillerFaggruppeId: null },
+                    ],
+                  },
+                  ...(taskByggeplassClause ? [taskByggeplassClause] : []),
+                ],
               },
               tilgangsFilter,
               synlighetsFilter,
             ),
-            select: CHECKLIST_SELECT,
+            select: TASK_SELECT,
             orderBy: { updatedAt: "desc" },
           })
         : Promise.resolve([]);
@@ -375,15 +385,16 @@ export const hmsRouter = router({
           })
         : Promise.resolve([]);
 
+      // RUH henter fra task — samme shape som avvik (vedtatt 2026-05-29).
       const ruhPromise = (input.subdomain === undefined || input.subdomain === "ruh")
-        ? ctx.prisma.checklist.findMany({
+        ? ctx.prisma.task.findMany({
             where: {
               ...statusFilter,
               template: { is: { projectId: { in: projectIdList }, domain: "hms", subdomain: "ruh" } },
-              ...(checklistByggeplassClause ?? {}),
+              ...(taskByggeplassClause ?? {}),
             },
             select: {
-              ...CHECKLIST_SELECT,
+              ...TASK_SELECT,
               template: {
                 select: {
                   id: true,
@@ -396,7 +407,7 @@ export const hmsRouter = router({
                   project: { select: { id: true, name: true } },
                 },
               },
-              byggeplass: { select: { id: true, name: true } },
+              drawing: { select: { byggeplass: { select: { id: true, name: true } } } },
             },
             orderBy: { updatedAt: "desc" },
           })
