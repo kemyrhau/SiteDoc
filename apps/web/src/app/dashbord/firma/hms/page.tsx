@@ -149,11 +149,12 @@ export default function FirmaHmsSide() {
     );
   }
 
-  // Drill-ned: bygger til prosjekt-detalj basert på subdomain
+  // Drill-ned: bygger til prosjekt-detalj basert på subdomain.
+  // RUH bruker oppgave-flyt (vedtatt 2026-05-29) — samme som avvik.
   function drillNed(rad: DokumentRad) {
     const pid = rad.template.project?.id;
     if (!pid) return;
-    const dest = rad.template.subdomain === "avvik"
+    const dest = rad.template.subdomain === "avvik" || rad.template.subdomain === "ruh"
       ? `/dashbord/${pid}/oppgaver/${rad.id}`
       : `/dashbord/${pid}/sjekklister/${rad.id}`;
     router.push(dest);

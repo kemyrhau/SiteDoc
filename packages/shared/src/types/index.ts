@@ -568,7 +568,7 @@ export const PROSJEKT_MODULER: ModulDefinisjon[] = [
         navn: "RUH",
         prefix: "RUH",
         beskrivelse: "Rapport om Uønsket Hendelse — nestenulykke, farlig forhold, risikoobservasjon",
-        kategori: "sjekkliste",
+        kategori: "oppgave",
         domain: "hms",
         subdomain: "ruh",
         hmsSynlighet: "privat",

@@ -796,35 +796,36 @@ export function MalListe({
             );
           })()}
 
-          {/* HMS-hake (redigerbar) */}
-          {(hmsModulAktiv || redigerOpprinneligErHms) && (
-            <div className="flex flex-col gap-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
-                  checked={redigerErHms}
-                  onChange={(e) => {
-                    setRedigerErHms(e.target.checked);
-                    if (e.target.checked && redigerOpprinneligSynlighet === null) {
-                      setRedigerHmsSynlighet(defaultSynlighet(redigerSubdomain));
-                    }
-                  }}
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  {t("maler.hms.hake")}
-                </span>
-              </label>
-              <p className="text-xs text-gray-500 ml-6">
-                {t("maler.hms.beskrivelse")}
+          {/* HMS-hake (redigerbar) — vises alltid i rediger-modal slik at
+              eksisterende ikke-HMS-mal kan konverteres uten at HMS-modulen
+              må aktiveres på prosjektet først. Server blokkerer domain-skift
+              hvis dokumenter finnes. */}
+          <div className="flex flex-col gap-1">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
+                checked={redigerErHms}
+                onChange={(e) => {
+                  setRedigerErHms(e.target.checked);
+                  if (e.target.checked && redigerOpprinneligSynlighet === null) {
+                    setRedigerHmsSynlighet(defaultSynlighet(redigerSubdomain));
+                  }
+                }}
+              />
+              <span className="text-sm font-medium text-gray-700">
+                {t("maler.hms.hake")}
+              </span>
+            </label>
+            <p className="text-xs text-gray-500 ml-6">
+              {t("maler.hms.beskrivelse")}
+            </p>
+            {redigerErHms !== redigerOpprinneligErHms && (
+              <p className="mt-1 text-xs text-amber-600 ml-6">
+                {t("maler.hms.endringAdvarsel")}
               </p>
-              {redigerErHms !== redigerOpprinneligErHms && (
-                <p className="mt-1 text-xs text-amber-600 ml-6">
-                  {t("maler.hms.endringAdvarsel")}
-                </p>
-              )}
-            </div>
-          )}
+            )}
+          </div>
 
           {/* HMS-subdomain + synlighet i rediger-modus */}
           {redigerErHms && (

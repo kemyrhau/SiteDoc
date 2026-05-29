@@ -6,7 +6,25 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
+
+### Dagens samlede aktivitet — 2026-05-29 (1 prod-deploy: TaskChangeLog audit-trail)
+
+Audit-hull oppdaget under gårsdagens dokumentflyt-undersøkelse lukket. `oppgave.oppdaterData` og `forbedreOversettelse` tillot felt-endring etter sending uten audit-spor. Initial status-guard (`5f5c9fb6`) ble revertert (`a3e48ef5`) etter erkjennelse av at HMS-mottaker MÅ kunne fylle inn «Tiltak utført» etter `received`. Riktig løsning: speil av `ChecklistChangeLog`-mønsteret via ny `TaskChangeLog`-modell.
+
+| # | Prod-merge | Innhold |
+|---|---|---|
+| 1 | `fff9daf4` | TaskChangeLog — ny modell + migrasjon `20260529000000_task_change_log`, diff-logging i `oppgave.oppdaterData` + `forbedreOversettelse`, UI-gate fjernet i `MalListe.tsx:968` |
+
+**BACKLOG-lukninger etter dagens deploy:**
+- TaskChangeLog ✅
+
+**Verifisering på prod:** Migrasjon applied (`\dt task_change_log` bekreftet), HTTP 200 på `sitedoc.no` + `api.sitedoc.no/health`. Visuell verifisering av togglen på oppgave-maler i `/dashbord/oppsett/produksjon/oppgavemaler` + ende-til-ende-test mot `task_change_log` gjenstår (anbefalt som innlogget bruker).
+
+**Diagnose-lærdom:** Når en eksisterende rute eksponerer en audit-bekymring, undersøk om søsterruten har et etablert mønster FØR du designer fra grunnen. Sjekkliste-domenets `ChecklistChangeLog` + `enableChangeLog`-flag på felles `ReportTemplate` var hele løsningen — Tasks trengte bare å speile det.
+
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
+> [§ TaskChangeLog](historikk-2026-05.md).
 
 ### Dagens samlede aktivitet — 2026-05-28 (6 prod-deploys: firma-HMS-dashbord komplett + 3 tekniske lukkinger + tilgangs-asymmetri-fiks)
 
