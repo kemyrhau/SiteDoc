@@ -42,12 +42,16 @@ export function ProsjektVelger() {
     p.projectNumber.toLowerCase().includes(sok.toLowerCase()),
   );
 
+  // Prioriter sticky/aktivt prosjektnavn over scope-tekst slik at
+  // /dashbord/oppsett/*-sider viser hvilket prosjekt brukeren administrerer
+  // (URL-en bærer ikke prosjektId der, men datalaget bruker sticky-prosjektet).
   const knappTekst =
-    prosjektScope === "enkelt"
-      ? valgtProsjekt?.name ?? t("prosjektVelger.velgProsjekt")
-      : prosjektScope === "alle"
-        ? t("prosjektVelger.alleProsjekter")
-        : t("prosjektVelger.mineProsjekter");
+    valgtProsjekt?.name
+    ?? (prosjektScope === "alle"
+          ? t("prosjektVelger.alleProsjekter")
+          : prosjektScope === "mine"
+            ? t("prosjektVelger.mineProsjekter")
+            : t("prosjektVelger.velgProsjekt"));
 
   return (
     <div ref={ref} className="relative">

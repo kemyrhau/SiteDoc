@@ -6,25 +6,39 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
 
-### Dagens samlede aktivitet — 2026-05-29 (1 prod-deploy: TaskChangeLog audit-trail)
+### Dagens samlede aktivitet — 2026-05-29 (3 prod-deploys: TaskChangeLog audit-trail + HMS-checkbox-fiks + RUH→oppgave)
 
-Audit-hull oppdaget under gårsdagens dokumentflyt-undersøkelse lukket. `oppgave.oppdaterData` og `forbedreOversettelse` tillot felt-endring etter sending uten audit-spor. Initial status-guard (`5f5c9fb6`) ble revertert (`a3e48ef5`) etter erkjennelse av at HMS-mottaker MÅ kunne fylle inn «Tiltak utført» etter `received`. Riktig løsning: speil av `ChecklistChangeLog`-mønsteret via ny `TaskChangeLog`-modell.
+Tett deploy-dag med tre sammenhengende oppryddinger i HMS/mal-domenet. Morgenen startet med å lukke audit-hullet fra gårsdagens dokumentflyt-undersøkelse (TaskChangeLog). Ettermiddagen fant en UX-felle der HMS-haken var skjult i rediger-modal for ikke-HMS-maler på prosjekter uten HMS-modul — minimal-fiks + server-guard for domain-skift deployet sammen. Sent ettermiddag ble konseptuell asymmetri eksponert: RUH var sjekkliste, avvik var oppgave, SJA sjekkliste — RUH passer bedre som oppgave (én innmelder, statusovergang, tildeling). Deployet samme dag.
 
 | # | Prod-merge | Innhold |
 |---|---|---|
 | 1 | `fff9daf4` | TaskChangeLog — ny modell + migrasjon `20260529000000_task_change_log`, diff-logging i `oppgave.oppdaterData` + `forbedreOversettelse`, UI-gate fjernet i `MalListe.tsx:968` |
+| 2 | `354fc4ea` (impl `c040990a`) | HMS-checkbox alltid synlig i mal-rediger-modal (fjernet `hmsModulAktiv`-render-gate på linje 800). Server-guard i `mal.oppdaterMal` utvidet til å blokkere domain-skift når dokumenter eksisterer (samme mønster som eksisterende category-vern) |
+| 3 | `354fc4ea` (impl `38d005a0`) | RUH bytter fra sjekkliste til oppgave-shape. `hms.ts` henter RUH fra `task.findMany`, `hms/page.tsx` ruter RUH-opprett til `oppgave.opprett`, `firma/hms` drillNed sender RUH til `/oppgaver`, `RuhTabell` bytter til `byggeplassNavnAvvik`. Seed-data + migrasjon `20260529100000_ruh_category_oppgave` backfiller 2 eksisterende RUH-maler (`category='sjekkliste'` → `'oppgave'`). Verifisert: 0 RUH-dokumenter eksisterer i prod, ingen dokument-migrasjon nødvendig |
 
-**BACKLOG-lukninger etter dagens deploy:**
+**BACKLOG-lukninger etter dagens deploys:**
 - TaskChangeLog ✅
+- MalbyggerV2 fire-fane redesign 🔵 UTSATT (skissert som åpen entry; fokus på dagens HMS/oppgave-rydding i stedet)
 
-**Verifisering på prod:** Migrasjon applied (`\dt task_change_log` bekreftet), HTTP 200 på `sitedoc.no` + `api.sitedoc.no/health`. Visuell verifisering av togglen på oppgave-maler i `/dashbord/oppsett/produksjon/oppgavemaler` + ende-til-ende-test mot `task_change_log` gjenstår (anbefalt som innlogget bruker).
+**Nye BACKLOG-entries opprettet under sesjonen:**
+- HMS-prefix-UX-felle — amber-hint når mal har prefix matching HMS-mønster (SJA|RUH|AVVIK) men HMS-hake er av
+- Subdomain↔category-sammenheng-validering — server-side sjekk som forhindrer feilkombinasjon der dokumenter blir usynlige
 
-**Diagnose-lærdom:** Når en eksisterende rute eksponerer en audit-bekymring, undersøk om søsterruten har et etablert mønster FØR du designer fra grunnen. Sjekkliste-domenets `ChecklistChangeLog` + `enableChangeLog`-flag på felles `ReportTemplate` var hele løsningen — Tasks trengte bare å speile det.
+**Verifisering på prod:**
+- Migrasjoner applied (`20260529000000_task_change_log` + `20260529100000_ruh_category_oppgave`).
+- Backfill bekreftet: 2 RUH-maler i prod har nå `category='oppgave'`.
+- HTTP 200 på `sitedoc.no`.
+- PM2 restart: `sitedoc-api` (pid 415525), `sitedoc-web` (pid 415545).
+- Visuell verifisering som innlogget bruker mot prod gjenstår — særlig: (a) HMS-haken kan krysses av i rediger-modal for ikke-HMS-mal, (b) RUH-opprett fra HMS-fanen havner i `/oppgaver/...`, (c) TaskChangeLog-toggle på oppgave-maler.
+
+**Diagnose-lærdom:**
+- Et felt som «ikke er låst» kan likevel være utilgjengelig hvis hele render-greinen er gated. Sjekk render-betingelser, ikke bare `disabled`-state, når UX-feller skal diagnostiseres.
+- Konseptuell asymmetri (RUH=sjekkliste mens avvik=oppgave) blir ofte eksponert i tilstøtende undersøkelser, ikke i bug-rapporter. Rydd asymmetri i samme sesjon som man rører den.
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
-> [§ TaskChangeLog](historikk-2026-05.md).
+> [§ RUH bytter fra sjekkliste til oppgave-shape](historikk-2026-05.md), [§ HMS-checkbox + domain-guard](historikk-2026-05.md), [§ TaskChangeLog](historikk-2026-05.md).
 
 ### Dagens samlede aktivitet — 2026-05-28 (6 prod-deploys: firma-HMS-dashbord komplett + 3 tekniske lukkinger + tilgangs-asymmetri-fiks)
 

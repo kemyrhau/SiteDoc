@@ -4,6 +4,54 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## RUH bytter fra sjekkliste til oppgave-shape — DEPLOYET TIL PROD 2026-05-29 (prod-merge `354fc4ea`, impl `38d005a0`)
+
+RUH-arbeidsflyt (tildeling, statusendring, dokumentflyt) er nå konsistent med avvik — begge bruker task-shape. Tidligere var RUH delvis sjekkliste (data-tabell + opprettelses-kanal) og delvis oppgave (UX-forventning). Den fragmenterte modellen ble eksponert under undersøkelse av prefix/domain-koblingen samme dag og rydding av MalbyggerV2-scope.
+
+**Forløp:** Etter at minimal-fiks for HMS-checkbox-gate (commit `c040990a`) ble pushet tidligere på dagen, dukket en konseptuell asymmetri fram: avvik henter fra `task`, men SJA og RUH henter begge fra `checklist`. RUH passer bedre som oppgave (én innmelder per hendelse, statusoverganger som «under behandling», tildeling til verneombud) — SJA passer som sjekkliste (gruppearbeid, flere underpunkter, ferdigstillelse-stempel). Drøftet med Kenneth, RUH-bytte vedtatt.
+
+**Endringer:**
+- **`apps/api/src/routes/hms.ts`:** `ruhPromise` i `hentDokumenter` + firma-aggregeringen bytter fra `checklist.findMany` til `task.findMany`. Speiler avvik-strukturen (faggruppe-OR, `taskByggeplassClause`).
+- **`apps/web/src/app/dashbord/[prosjektId]/hms/page.tsx`:** `handleOpprett` samler avvik+ruh i samme gren som kaller `oppgave.opprett` og redirecter til `/oppgaver/${id}`. Kun SJA går nå til `sjekkliste.opprett`.
+- **`apps/web/src/app/dashbord/firma/hms/page.tsx`:** `drillNed` inkluderer RUH i oppgave-grenen.
+- **`apps/web/src/components/hms/tabeller.tsx`:** `RuhTabell` bytter `byggeplassNavnSjekkliste` → `byggeplassNavnAvvik` (task-shape leser `r.drawing?.byggeplass?.name`, ikke `r.byggeplass?.name`).
+- **`packages/shared/src/types/index.ts`:** RUH-mal-seed `kategori: "sjekkliste"` → `"oppgave"`. Gjelder fremtidige prosjekter ved modul-aktivering.
+- **Migrasjon `20260529100000_ruh_category_oppgave`:** `UPDATE report_templates SET category='oppgave' WHERE subdomain='ruh' AND category='sjekkliste'`. Backfill av eksisterende RUH-maler i prod (2 rader).
+
+**Prod-bruk-baseline ved deploy:** 0 RUH-dokumenter eksisterer (`checklists JOIN report_templates WHERE subdomain='ruh'` → 0 rader). Kun 2 RUH-maler å backfille — ingen dokument-migrasjon nødvendig. Verifisert via prod-DB-query både før migrasjon og etter (begge maler nå `category='oppgave'`).
+
+**Verifisering:**
+- Migrasjon applied i både `sitedoc_test` og `sitedoc` (prod-DB).
+- Backfill bekreftet: 2 RUH-maler har `category='oppgave'`.
+- `sitedoc.no` HTTP 200, `test.sitedoc.no` HTTP 200.
+- PM2 restart: `sitedoc-api` (pid 415525), `sitedoc-web` (pid 415545).
+- Typecheck: ren på `@sitedoc/api`, `@sitedoc/web`, `@sitedoc/shared`.
+
+**Diagnose-lærdom:** Konseptuell asymmetri ble eksponert ved spørsmål om prefix/domain — ikke ved bug-rapport. Når man rydder *én* aspekt av et område (HMS-checkbox-gate), avdekkes ofte tilstøtende inkonsistens som er verdt å rydde i samme sesjon. Den opprinnelige RUH-modellen var ikke direkte feil, men inkonsistent — task-shape gir RUH lik UX-modell som avvik (én innmelder, statusovergang, tildeling).
+
+---
+
+## HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — DEPLOYET TIL PROD 2026-05-29 (prod-merge `354fc4ea`, impl `c040990a`)
+
+Minimal-fiks for UX-felle: HMS-haken i mal-rediger-modal var skjult når HMS-modulen var inaktiv på prosjektet — selv om malen var en eksisterende ikke-HMS-mal. Brukeren hadde dermed ingen vei fra ikke-HMS til HMS uten først å aktivere modulen, som ikke var åpenbart i UI.
+
+**Forløp:** Kenneth rapporterte at HMS-haken ikke kunne krysses av i rediger-modal. Initial diagnose viste alle felt som «ikke låst», men dypere lesing av `MalListe.tsx:800` avdekket render-betingelsen `{(hmsModulAktiv || redigerOpprinneligErHms) && (...)}` — for en eksisterende ikke-HMS-mal i prosjekt uten HMS-modul ble hele blokken skjult. Drøftet to-spor-fiks: minimal (fjern gate) eller fire-fane-redesign. Vedtatt minimal-fiks først; redesign skissert som BACKLOG-entry MalbyggerV2.
+
+**Endringer:**
+- **`apps/web/.../MalListe.tsx:800`:** Fjernet `(hmsModulAktiv || redigerOpprinneligErHms) &&`-betingelsen. HMS-checkboxen rendres alltid i rediger-modal. Kommentar lagt til som forklarer hvorfor server-guarden er nødvendig.
+- **`apps/api/src/routes/mal.ts:92-115`:** Utvidet eksisterende `category`-sjekk til også å fange `domain`-endring når dokumenter eksisterer. Speiler nøyaktig samme telling (`tasks.count + checklists.count`) og throw-mønster. Feilmelding: «Kan ikke endre mal-type — det finnes N eksisterende dokumenter knyttet til denne malen».
+
+**Bakgrunn for server-guarden:** Uten dokument-vern kunne en bruker nå (etter UI-fiksen) endre domain hms→bygg etter at dokumenter er opprettet — gamle `tasks` og `checklists` beholder sin egen `domain`-kopi som ikke synkroniseres, og forsvinner stille fra HMS-dashbord-filteret som krever `template.domain="hms"`. Guarden lukker den risikoen ved samme commit.
+
+**Verifisering:**
+- Typecheck ren (eneste avvik: pre-eksisterende vitest-feil i `mengde/__tests__/import-hjelpere.test.ts`).
+- `sitedoc.no` HTTP 200.
+- Visuell verifisering som innlogget bruker i rediger-modal mot eksisterende ikke-HMS-mal i prosjekt uten HMS-modul: HMS-haken vises og kan krysses av — *gjenstår å bekrefte av Kenneth*.
+
+**Diagnose-lærdom:** Et felt som «ikke er låst» kan likevel være utilgjengelig hvis hele render-greinen er gated bak en betingelse som brukeren ikke kjenner til. Søk etter «render-gate» (betinget JSX-blokk rundt feltet) er like viktig som «disabled-state» (egenskap på input) når UX-feller skal diagnostiseres.
+
+---
+
 ## TaskChangeLog — audit-trail for felt-endringer på oppgaver — DEPLOYET TIL PROD 2026-05-29 (prod-merge `fff9daf4`, impl `6d6e2321`)
 
 Lukker audit-hullet oppdaget under dokumentflyt-undersøkelsen 2026-05-28: `oppgave.oppdaterData` og `forbedreOversettelse` tillot mottaker å endre `task.data` etter sending uten spor i `DocumentTransfer` eller andre eksisterende audit-tabeller. Sjekklister har samme behov og har allerede `ChecklistChangeLog` med `enableChangeLog`-flag på malen — Tasks manglet ekvivalent.
