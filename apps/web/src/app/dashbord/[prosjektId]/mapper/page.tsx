@@ -25,8 +25,10 @@ import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
 import { useTranslation } from "react-i18next";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function MapperSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
   const { data: session } = useSession();

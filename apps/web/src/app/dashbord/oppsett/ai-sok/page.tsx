@@ -17,8 +17,10 @@ import {
   Info,
 } from "lucide-react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function AiSokSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { prosjektId } = useProsjekt();
   const { t } = useTranslation();
 

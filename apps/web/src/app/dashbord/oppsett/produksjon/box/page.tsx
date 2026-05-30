@@ -29,6 +29,7 @@ import {
   Globe,
 } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -1077,6 +1078,7 @@ function ImportMapperModal({
 /* ------------------------------------------------------------------ */
 
 export default function BoxSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
   const utils = trpc.useUtils();

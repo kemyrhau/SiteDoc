@@ -4,8 +4,10 @@ import { useParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { MalBygger } from "@/components/malbygger";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function MalDetaljSide() {
+  useToppbarFiltre({ byggeplass: false });
   const params = useParams<{ prosjektId: string; malId: string }>();
 
   const { data: mal, isLoading } = trpc.mal.hentMedId.useQuery(

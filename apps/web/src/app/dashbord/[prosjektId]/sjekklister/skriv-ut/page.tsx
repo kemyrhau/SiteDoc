@@ -9,6 +9,7 @@ import { PrintHeader } from "@/components/PrintHeader";
 import { RapportObjektVisning } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
 import type { RapportObjekt } from "@sitedoc/pdf";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 interface SjekklisteData {
   [objektId: string]: {
@@ -39,6 +40,7 @@ interface SjekklistePrintData {
 }
 
 export default function SkrivUtFlereSide() {
+  useToppbarFiltre({ byggeplass: false });
   const params = useParams<{ prosjektId: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();

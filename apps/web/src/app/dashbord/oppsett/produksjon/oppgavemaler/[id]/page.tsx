@@ -5,8 +5,10 @@ import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import { MalBygger } from "@/components/malbygger";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function OppgavemalByggerSide() {
+  useToppbarFiltre({ byggeplass: false });
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const { t } = useTranslation();

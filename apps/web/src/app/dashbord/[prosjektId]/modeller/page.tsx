@@ -15,6 +15,7 @@ import {
   Trash2,
   Scissors,
 } from "lucide-react";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -58,6 +59,7 @@ interface TreNode {
 /* ------------------------------------------------------------------ */
 
 export default function ModellerSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const utils = trpc.useUtils();
 

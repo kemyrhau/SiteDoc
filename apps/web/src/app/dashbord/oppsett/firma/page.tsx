@@ -5,8 +5,10 @@ import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { Spinner, Button, Input, EmptyState } from "@sitedoc/ui";
 import { Building2, Pencil } from "lucide-react";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function FirmaInnstillinger() {
+  useToppbarFiltre({ byggeplass: false });
   const utils = trpc.useUtils();
   const { prosjektId } = useProsjekt();
   const { data: organisasjon, isLoading } = trpc.organisasjon.hentForProsjekt.useQuery(

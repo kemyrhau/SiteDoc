@@ -3,8 +3,10 @@
 import { MalListe } from "../_components/MalListe";
 import { useTranslation } from "react-i18next";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function SjekklistemalerSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   return (
     <MalListe

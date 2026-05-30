@@ -8,8 +8,10 @@ import { ArrowLeft, Globe, Loader2, RefreshCw, Check, X, FileText, Download } fr
 import { Button } from "@sitedoc/ui";
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function DokumentLeser() {
+  useToppbarFiltre({ byggeplass: false });
   const { t, i18n } = useTranslation();
   const params = useParams();
   const searchParams = useSearchParams();

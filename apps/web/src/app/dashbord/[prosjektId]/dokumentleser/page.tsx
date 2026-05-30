@@ -16,8 +16,10 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function DokumentleserSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { t, i18n } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const searchParams = useSearchParams();

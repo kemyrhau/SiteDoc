@@ -7,6 +7,7 @@ import { FileSearch, Search, Brain, BookOpen, AlertTriangle, Filter } from "luci
 import { trpc } from "@/lib/trpc";
 import { TreffListe } from "@/components/ftd-sok/treff-liste";
 import { Fulltekst } from "@/components/ftd-sok/fulltekst";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 type SokModus = "ai" | "leksikalsk";
 
@@ -26,6 +27,7 @@ function kortFilnavn(filnavn: string): string {
 }
 
 export default function DokumentsokSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;

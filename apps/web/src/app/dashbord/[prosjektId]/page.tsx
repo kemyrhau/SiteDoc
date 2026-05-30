@@ -10,8 +10,10 @@ import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge } from "@sitedoc/ui";
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
 import { DashbordPanel } from "@/components/paneler/DashbordPanel";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function ProsjektOversikt() {
+  useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();

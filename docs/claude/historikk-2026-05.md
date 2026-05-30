@@ -4,6 +4,41 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## Subdomain↔category-validering + HMS-prefiks amber-hint — DEPLOYET TIL PROD 2026-05-30 (prod-merge `765e060e`, impl `8d517732`)
+
+To sammenhengende UX-lukninger identifisert under prefix/domain-undersøkelsen 2026-05-29. Lukker BACKLOG-entries opprettet samme dag.
+
+**Forløp:** Etter ProsjektVelger-fiksen sent 2026-05-29 var to BACKLOG-entries klare for implementasjon — begge identifisert som bi-funn under RUH-arbeidet (`38d005a0`) og HMS-checkbox-fiksen (`c040990a`). Pakket sammen som naturlig oppfølger siden begge handler om mal-konfigurasjon-validering for HMS.
+
+**Konflikt-håndtering:** Første instruks fra Kenneth hadde RUH = sjekkliste, som motsa 2026-05-29-koden der RUH ble flyttet til oppgave-shape. Flagget eksplisitt med konkret konsekvens (vil bryte prod ved neste RUH-mal-lagring). Kenneth bekreftet alternativ A: hold på 2026-05-29-beslutningen, mapping `avvik+ruh → oppgave, sja → sjekkliste`.
+
+**Endringer:**
+
+1. **`apps/api/src/routes/mal.ts`** — ny `valideerSubdomainCategory`-helper + kall i `opprett` og `oppdaterMal`. Mapping:
+   - `avvik` → `oppgave` (task-shape)
+   - `ruh` → `oppgave` (task-shape, konsistent med 2026-05-29-redesign)
+   - `sja` → `sjekkliste` (checklist-shape)
+
+   I `oppdaterMal` beregnes effektiv tilstand etter oppdatering (input-verdi hvis satt, ellers eksisterende mal-verdi) før validering. Feilmelding: «SJA bruker sjekkliste-format. Avvik og RUH bruker oppgave-format.»
+
+   Bakgrunn: HMS-fanene i `hms.ts` er hardkodet til datakilde per subdomain. Uten validering kunne en bruker endre `category` på en HMS-mal slik at dokumentet havnet i feil tabell og forsvant stille fra alle visninger (HMS-fanen ekskluderer feil tabell; Oppgaver/Sjekklister-fanen ekskluderer fordi `domain="hms"` filtreres bort der).
+
+2. **`apps/web/.../MalListe.tsx`** — ny `seerUtSomHmsPrefiks`-helper (case-insensitiv match mot «SJA», «RUH», «AVVIK» etter trim) + amber-hint i både opprett- og rediger-modal. Hint-tekst: «Prefiksen ser ut som en HMS-type — vil du aktivere HMS-haken?»
+
+   Vises uavhengig av `hmsModulAktiv` — i prosjekter der modulen ikke er aktiv hjelper hintet brukeren forstå at modulen må aktiveres først. Amber-mønsteret matcher eksisterende HMS-endringsadvarsler i samme fil.
+
+3. **i18n:** ny nøkkel `maler.hms.prefiksHint` i `nb.json` + `en.json`, auto-oversatt til 14 språk via `generate.ts` (2441 → 2442 nøkler).
+
+**Verifisering:**
+- Typecheck ren på `@sitedoc/api`, `@sitedoc/web`, `@sitedoc/shared` (eneste avvik: pre-eksisterende vitest-feil i `mengde/__tests__/`).
+- `sitedoc.no` HTTP 200, `test.sitedoc.no` HTTP 200.
+- PM2 restart: `sitedoc-api` (pid 448453), `sitedoc-web` (pid 448473).
+- Visuell verifisering som innlogget bruker mot prod gjenstår.
+
+**Diagnose-lærdom:** Når en instruks motsier nylig deployet kode, må flagging skje med konkret konsekvens-beskrivelse, ikke kun spørsmål. Den første gangen jeg flagget konflikten (RUH = sjekkliste vs. RUH = oppgave) ble instruksen gjentatt ordrett — antagelig fordi konflikten ikke ble lest som «vil bryte prod». Andre flagging med eksplisitt liste over konsekvenser («server-validatoren avviser begge prod-RUH-maler», «hms.ts henter fra task.findMany — opprett kaller oppgave.opprett — server-validator sier sjekkliste») trakk fram alternativ A som klar valg. Kort, konkret konsekvens-beskrivelse > abstrakt prinsipiell advarsel.
+
+---
+
 ## ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — DEPLOYET TIL PROD 2026-05-29 (prod-merge `6359e2da`, impl `fa76de83`)
 
 UX-bug eksponert under bred kartlegging av filterbruk i `/dashbord/`: på `/dashbord/oppsett/*`-sidene viste toppbar «Mine prosjekter» selv om datalaget brukte sticky-prosjektet fra localStorage. Brukeren administrerte ett bestemt prosjekt uten å se hvilket. Asymmetri mellom presentasjon og data-state.
