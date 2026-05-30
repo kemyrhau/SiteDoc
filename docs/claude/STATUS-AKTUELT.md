@@ -6,7 +6,31 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — deployet til prod 2026-05-29](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Subdomain↔category-validering + HMS-prefiks amber-hint — deployet til prod 2026-05-30](historikk-2026-05.md), [§ ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — deployet til prod 2026-05-29](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
+
+### Samlet aktivitet — 2026-05-30 (1 prod-deploy: subdomain↔category-validering + HMS-prefiks amber-hint)
+
+Naturlig oppfølger av 2026-05-29-sesjonens bi-funn — to BACKLOG-entries (begge opprettet samme dag) pakket og deployet sammen. Lukker stille feilklassifisering på begge nivåer: server-validatoren blokkerer ugyldig subdomain↔category-kombinasjon, klient-hint advarer om HMS-aktig prefiks uten HMS-hake.
+
+| # | Prod-merge | Innhold |
+|---|---|---|
+| 1 | `765e060e` (impl `8d517732`) | Subdomain↔category-validering i `mal.opprett` + `mal.oppdaterMal`. Mapping: `avvik+ruh → oppgave`, `sja → sjekkliste`. Effektiv tilstand etter oppdatering valideres. HMS-prefiks amber-hint i `MalListe.tsx` (opprett + rediger): når prefiks matcher SJA/RUH/AVVIK case-insensitivt OG HMS-haken er av. i18n auto-oversatt til 14 språk (2441 → 2442 nøkler) |
+
+**BACKLOG-lukninger:**
+- HMS-prefix-UX-felle (amber-hint) ✅
+- Subdomain↔category-sammenheng-validering ✅
+
+**Konflikt-håndtering under sesjonen:** Første instruks fra Kenneth hadde RUH = sjekkliste, som motsa 2026-05-29-koden. Flagget eksplisitt med konsekvens-beskrivelse (server-validatoren ville avvise begge prod-RUH-maler, motstride `hms.ts`/`firma-HMS`-koden fra `354fc4ea`). Kenneth bekreftet alternativ A: hold på 2026-05-29-beslutningen.
+
+**Verifisering på prod:**
+- HTTP 200 på `sitedoc.no`.
+- PM2 restart: `sitedoc-api` (pid 448453), `sitedoc-web` (pid 448473).
+- Visuell verifisering som innlogget bruker mot prod gjenstår — særlig: (a) amber-hint vises ved prefiks «SJA»/«RUH»/«AVVIK» uten HMS-hake, (b) hint forsvinner når HMS-haken aktiveres, (c) ikke-matchende prefikser holder hintet skjult.
+
+**Diagnose-lærdom:** Når en instruks motsier nylig deployet kode, må flagging skje med konkret konsekvens-beskrivelse, ikke kun spørsmål. Kort, konkret konsekvens-beskrivelse > abstrakt prinsipiell advarsel.
+
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
+> [§ Subdomain↔category-validering + HMS-prefiks amber-hint](historikk-2026-05.md).
 
 ### Samlet aktivitet — 2026-05-29 (4 prod-deploys: TaskChangeLog audit-trail + HMS-checkbox-fiks + RUH→oppgave + ProsjektVelger-UX)
 
