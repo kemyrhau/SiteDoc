@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { Spinner } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import {
@@ -1314,6 +1315,10 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 /* ------------------------------------------------------------------ */
 
 export default function BrukereSide() {
+  // Bruker-administrasjon er per-prosjekt men ikke per-byggeplass.
+  // Deaktiverer byggeplass-velger i toppbar slik at brukeren ser at den
+  // ikke har effekt på denne siden.
+  useToppbarFiltre({ byggeplass: false });
   const { prosjektId } = useProsjekt();
   if (!prosjektId) return <div className="flex justify-center py-12"><Spinner size="lg" /></div>;
   return <KontaktTabell prosjektId={prosjektId} />;

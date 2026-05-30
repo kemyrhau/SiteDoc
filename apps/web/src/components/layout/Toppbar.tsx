@@ -14,6 +14,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { useToppbarFiltreKontekst } from "@/kontekst/toppbar-filtre-kontekst";
 import { SpraakVelger } from "./SpraakVelger";
 import {
   LayoutDashboard,
@@ -36,6 +37,7 @@ export function Toppbar() {
   const { prosjektId } = useProsjekt();
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
   const { erSitedocAdmin, erCompanyAdmin } = useFirma();
+  const { byggeplassAktiv } = useToppbarFiltreKontekst();
   const { t } = useTranslation();
 
   // Hent firma-info for company_admin (fast firma-link i header).
@@ -104,7 +106,7 @@ export function Toppbar() {
             {prosjektId && (
               <>
                 <div className="mx-1 h-5 w-px bg-white/20" />
-                <ByggeplassVelger />
+                <ByggeplassVelger disabled={!byggeplassAktiv} />
               </>
             )}
           </>
