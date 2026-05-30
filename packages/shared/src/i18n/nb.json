@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "HMS-mal",
   "maler.hms.beskrivelse": "Auto-ruter til HMS-koordinator og er underlagt HMS-tilgangskontroll",
   "maler.hms.endringAdvarsel": "Endring av HMS-status endrer tilgangskontroll for eksisterende dokumenter av denne malen.",
+  "maler.hms.prefiksHint": "Prefiksen ser ut som en HMS-type — vil du aktivere HMS-haken?",
   "hms.tittel": "HMS",
   "hms.tabs.avvik": "Avvik",
   "hms.tabs.sja": "SJA",

@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "Șablon HMS",
   "maler.hms.beskrivelse": "Rută automat către coordonatorul HMS și urmează controlul accesului HMS",
   "maler.hms.endringAdvarsel": "Modificarea stării HMS modifică controlul accesului pentru documentele existente din acest șablon.",
+  "maler.hms.prefiksHint": "Prefixul arată ca un tip HMS — doriți să activați caseta de selectare HMS?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Incidente",
   "hms.tabs.sja": "JSA",

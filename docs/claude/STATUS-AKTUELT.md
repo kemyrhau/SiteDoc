@@ -6,17 +6,18 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — deployet til prod 2026-05-29](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
 
-### Dagens samlede aktivitet — 2026-05-29 (3 prod-deploys: TaskChangeLog audit-trail + HMS-checkbox-fiks + RUH→oppgave)
+### Samlet aktivitet — 2026-05-29 (4 prod-deploys: TaskChangeLog audit-trail + HMS-checkbox-fiks + RUH→oppgave + ProsjektVelger-UX)
 
-Tett deploy-dag med tre sammenhengende oppryddinger i HMS/mal-domenet. Morgenen startet med å lukke audit-hullet fra gårsdagens dokumentflyt-undersøkelse (TaskChangeLog). Ettermiddagen fant en UX-felle der HMS-haken var skjult i rediger-modal for ikke-HMS-maler på prosjekter uten HMS-modul — minimal-fiks + server-guard for domain-skift deployet sammen. Sent ettermiddag ble konseptuell asymmetri eksponert: RUH var sjekkliste, avvik var oppgave, SJA sjekkliste — RUH passer bedre som oppgave (én innmelder, statusovergang, tildeling). Deployet samme dag.
+Tett deploy-dag med fire sammenhengende oppryddinger i HMS/mal-domenet og toppbar. Morgenen startet med å lukke audit-hullet fra gårsdagens dokumentflyt-undersøkelse (TaskChangeLog). Ettermiddagen fant en UX-felle der HMS-haken var skjult i rediger-modal for ikke-HMS-maler på prosjekter uten HMS-modul — minimal-fiks + server-guard for domain-skift deployet sammen. Sent ettermiddag ble konseptuell asymmetri eksponert: RUH var sjekkliste, avvik var oppgave, SJA sjekkliste — RUH passer bedre som oppgave (én innmelder, statusovergang, tildeling). Kvelden lukket en fjerde UX-bug avdekket under bred filterbruk-kartlegging: `/oppsett/*`-sidene viste «Mine prosjekter» i toppbar selv om datalaget brukte sticky-prosjektet.
 
 | # | Prod-merge | Innhold |
 |---|---|---|
 | 1 | `fff9daf4` | TaskChangeLog — ny modell + migrasjon `20260529000000_task_change_log`, diff-logging i `oppgave.oppdaterData` + `forbedreOversettelse`, UI-gate fjernet i `MalListe.tsx:968` |
 | 2 | `354fc4ea` (impl `c040990a`) | HMS-checkbox alltid synlig i mal-rediger-modal (fjernet `hmsModulAktiv`-render-gate på linje 800). Server-guard i `mal.oppdaterMal` utvidet til å blokkere domain-skift når dokumenter eksisterer (samme mønster som eksisterende category-vern) |
 | 3 | `354fc4ea` (impl `38d005a0`) | RUH bytter fra sjekkliste til oppgave-shape. `hms.ts` henter RUH fra `task.findMany`, `hms/page.tsx` ruter RUH-opprett til `oppgave.opprett`, `firma/hms` drillNed sender RUH til `/oppgaver`, `RuhTabell` bytter til `byggeplassNavnAvvik`. Seed-data + migrasjon `20260529100000_ruh_category_oppgave` backfiller 2 eksisterende RUH-maler (`category='sjekkliste'` → `'oppgave'`). Verifisert: 0 RUH-dokumenter eksisterer i prod, ingen dokument-migrasjon nødvendig |
+| 4 | `6359e2da` (impl `fa76de83`) | ProsjektVelger viser sticky-prosjektnavn på `/dashbord/oppsett/*`-sider. `knappTekst`-uttrykket (linje 45-54) prioriterer `valgtProsjekt?.name` over scope-tekst. Asymmetri mellom presentasjon (URL-basert scope) og data-state (sticky `prosjektId`) lukket |
 
 **BACKLOG-lukninger etter dagens deploys:**
 - TaskChangeLog ✅
@@ -26,19 +27,25 @@ Tett deploy-dag med tre sammenhengende oppryddinger i HMS/mal-domenet. Morgenen 
 - HMS-prefix-UX-felle — amber-hint når mal har prefix matching HMS-mønster (SJA|RUH|AVVIK) men HMS-hake er av
 - Subdomain↔category-sammenheng-validering — server-side sjekk som forhindrer feilkombinasjon der dokumenter blir usynlige
 
+**Identifisert under filterbruk-kartleggingen (ikke implementert):**
+- 14 oppsett-sider mangler `prosjektId` i URL — sticky-state-felle, ikke delbare URLer.
+- 16/30 detalj-sider og 11/14 oppsett-sider viser ByggeplassVelger uten å bruke `useByggeplass()`. Foreslått strategi B (per-side declaration via `useToppbarFiltre`-hook) for visuell deaktivering.
+- Parallell rute-tre `/dashbord/prosjekter/[id]/...` (6 sider) — potensiell dødkode etter rute-omstilling.
+
 **Verifisering på prod:**
 - Migrasjoner applied (`20260529000000_task_change_log` + `20260529100000_ruh_category_oppgave`).
 - Backfill bekreftet: 2 RUH-maler i prod har nå `category='oppgave'`.
 - HTTP 200 på `sitedoc.no`.
-- PM2 restart: `sitedoc-api` (pid 415525), `sitedoc-web` (pid 415545).
-- Visuell verifisering som innlogget bruker mot prod gjenstår — særlig: (a) HMS-haken kan krysses av i rediger-modal for ikke-HMS-mal, (b) RUH-opprett fra HMS-fanen havner i `/oppgaver/...`, (c) TaskChangeLog-toggle på oppgave-maler.
+- PM2 restart (siste): `sitedoc-api` (pid 422426), `sitedoc-web` (pid 422446).
+- Visuell verifisering som innlogget bruker mot prod gjenstår — særlig: (a) HMS-haken kan krysses av i rediger-modal for ikke-HMS-mal, (b) RUH-opprett fra HMS-fanen havner i `/oppgaver/...`, (c) TaskChangeLog-toggle på oppgave-maler, (d) ProsjektVelger viser prosjektnavn på `/oppsett/brukere`.
 
 **Diagnose-lærdom:**
 - Et felt som «ikke er låst» kan likevel være utilgjengelig hvis hele render-greinen er gated. Sjekk render-betingelser, ikke bare `disabled`-state, når UX-feller skal diagnostiseres.
 - Konseptuell asymmetri (RUH=sjekkliste mens avvik=oppgave) blir ofte eksponert i tilstøtende undersøkelser, ikke i bug-rapporter. Rydd asymmetri i samme sesjon som man rører den.
+- Når UI viser en label som ikke matcher datalagets state, sjekk om datakilden brukes som gate på presentasjonsuttrykket. `valgtProsjekt` var ferdig hentet — `knappTekst` skjønte bare ikke å spørre etter den.
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
-> [§ RUH bytter fra sjekkliste til oppgave-shape](historikk-2026-05.md), [§ HMS-checkbox + domain-guard](historikk-2026-05.md), [§ TaskChangeLog](historikk-2026-05.md).
+> [§ ProsjektVelger viser aktivt prosjektnavn](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape](historikk-2026-05.md), [§ HMS-checkbox + domain-guard](historikk-2026-05.md), [§ TaskChangeLog](historikk-2026-05.md).
 
 ### Dagens samlede aktivitet — 2026-05-28 (6 prod-deploys: firma-HMS-dashbord komplett + 3 tekniske lukkinger + tilgangs-asymmetri-fiks)
 

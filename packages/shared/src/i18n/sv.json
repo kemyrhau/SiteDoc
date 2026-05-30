@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "HMS mall",
   "maler.hms.beskrivelse": "Rutter automatiskt till HMS-koordinator och följer HMS-passeringskontroll",
   "maler.hms.endringAdvarsel": "Ändring av HMS-status ändrar åtkomstkontroll för befintliga dokument från denna mall.",
+  "maler.hms.prefiksHint": "Prefixet ser ut som en HMS-typ — vill du aktivera kryssrutan HMS?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Incidenter",
   "hms.tabs.sja": "JSA",

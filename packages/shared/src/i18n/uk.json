@@ -1257,6 +1257,7 @@
   "maler.hms.hake": "Шаблон HMS",
   "maler.hms.beskrivelse": "Автоматичні маршрути до координатора HMS і контроль доступу HMS",
   "maler.hms.endringAdvarsel": "Зміна статусу HMS змінює контроль доступу до існуючих документів із цього шаблону.",
+  "maler.hms.prefiksHint": "Префікс виглядає як тип HMS — увімкнути прапорець HMS?",
   "hms.tittel": "HSE",
   "hms.tabs.avvik": "Інциденти",
   "hms.tabs.sja": "JSA",

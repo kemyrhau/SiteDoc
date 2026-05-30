@@ -44,6 +44,15 @@ function defaultSynlighet(subdomain: HmsSubdomain): HmsSynlighet {
   return subdomain === "sja" ? "apen" : "privat";
 }
 
+// Prefiks-mønster som matcher reserverte HMS-typer. Case-insensitiv.
+// Brukes til amber-hint når brukeren skriver «SJA», «RUH» eller «AVVIK»
+// uten å krysse av HMS-haken — stille feilklassifisering ellers (dokumenter
+// havner i Oppgaver-fanen og telles ikke i HMS-KPI).
+function seerUtSomHmsPrefiks(prefiks: string): boolean {
+  const trimmed = prefiks.trim().toUpperCase();
+  return trimmed === "SJA" || trimmed === "RUH" || trimmed === "AVVIK";
+}
+
 // Dropdown-meny som lukkes ved klikk utenfor
 function Dropdown({
   trigger,
@@ -565,6 +574,16 @@ export function MalListe({
             </div>
           </div>
 
+          {/* HMS-prefiks-hint: vises uavhengig av hmsModulAktiv slik at
+              brukeren ikke stille feilklassifiserer en HMS-mal som vanlig.
+              Hvis modulen ikke er aktiv, hjelper hintet brukeren skjønne at
+              modulen må aktiveres først. */}
+          {seerUtSomHmsPrefiks(prefiks) && !erHms && (
+            <p className="text-xs text-amber-600">
+              {t("maler.hms.prefiksHint")}
+            </p>
+          )}
+
           {/* HMS-hake (gated på ProjectModule hms-avvik) */}
           {hmsModulAktiv && (
             <div className="flex flex-col gap-1">
@@ -795,6 +814,13 @@ export function MalListe({
               </div>
             );
           })()}
+
+          {/* HMS-prefiks-hint i rediger-modus */}
+          {seerUtSomHmsPrefiks(redigerPrefiks) && !redigerErHms && (
+            <p className="text-xs text-amber-600">
+              {t("maler.hms.prefiksHint")}
+            </p>
+          )}
 
           {/* HMS-hake (redigerbar) — vises alltid i rediger-modal slik at
               eksisterende ikke-HMS-mal kan konverteres uten at HMS-modulen
