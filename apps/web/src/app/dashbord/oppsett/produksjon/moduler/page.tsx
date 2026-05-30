@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 /* Ikon-mapping fra strengnavn til komponent */
 const IKON_MAP: Record<string, React.ReactNode> = {
@@ -43,6 +44,7 @@ const MOTOR_INFO: Record<string, { navn: string; beskrivelse: string; betalt: bo
 };
 
 export default function ModulerSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
 

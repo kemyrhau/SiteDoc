@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 const STATUSER = ["draft", "sent", "returned", "accepted"] as const;
 type StatusFilter = (typeof STATUSER)[number] | "alle";
@@ -43,6 +44,7 @@ function tilIso(d: Date): string {
 }
 
 export default function TimerListSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;

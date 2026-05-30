@@ -14,6 +14,7 @@ import {
   Input,
 } from "@sitedoc/ui";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 type FaggruppeRad = {
   id: string;
@@ -25,6 +26,7 @@ type FaggruppeRad = {
 };
 
 export default function FaggrupperSide() {
+  useToppbarFiltre({ byggeplass: false });
   const params = useParams<{ prosjektId: string }>();
   const { t } = useTranslation();
   const utils = trpc.useUtils();

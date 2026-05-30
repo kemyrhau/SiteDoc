@@ -18,6 +18,7 @@ import { useOversettelse } from "@/hooks/useOversettelse";
 import { DokumentTidslinje } from "@/components/DokumentTidslinje";
 import { usePresence } from "@/hooks/usePresence";
 import { useTranslation } from "react-i18next";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 /* ------------------------------------------------------------------ */
 /*  LagreIndikator                                                     */
@@ -150,6 +151,7 @@ function DialogSeksjon({ oppgaveId }: { oppgaveId: string }) {
 /* ------------------------------------------------------------------ */
 
 export default function OppgaveDetaljSide() {
+  useToppbarFiltre({ byggeplass: false });
   const params = useParams<{ prosjektId: string; oppgaveId: string }>();
   const router = useRouter();
   const { t } = useTranslation();

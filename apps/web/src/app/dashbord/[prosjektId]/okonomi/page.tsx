@@ -14,11 +14,13 @@ import { ImportSammenligning } from "@/components/mengde/import-sammenligning";
 import { ImportDialog } from "@/components/mengde/import-dialog";
 import { DebugErrorBoundary } from "@/components/error-boundary";
 import { trpc } from "@/lib/trpc";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 type Fane = "oversikt" | "avviksanalyse" | "rapport" | "dokumenter";
 type DokType = "a_nota" | "t_nota";
 
 export default function OkonomiSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const prosjektId = params.prosjektId;

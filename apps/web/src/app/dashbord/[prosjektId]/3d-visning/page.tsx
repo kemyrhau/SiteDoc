@@ -25,12 +25,14 @@ import type {
   OverflateData,
   KuttFyllResultatType,
 } from "./typer";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 /* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
 
 export default function TreDVisning() {
+  useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const [aktivFane, setAktivFane] = useState<Fane>("3d-modell");

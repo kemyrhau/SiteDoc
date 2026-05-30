@@ -29,6 +29,7 @@ import {
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { nesteAutoFarge, FARGE_MAP as FAGGRUPPE_FARGER } from "../_components/faggruppe-farger";
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -893,6 +894,7 @@ function FlytBoks({
 /* ------------------------------------------------------------------ */
 
 export default function KontakterSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { prosjektId } = useProsjekt();
   const { t } = useTranslation();
   const [utvidetFaggruppe, setUtvidetFaggruppe] = useState<Set<string>>(new Set());

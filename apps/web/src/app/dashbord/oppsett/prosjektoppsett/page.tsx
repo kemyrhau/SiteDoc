@@ -21,6 +21,7 @@ import {
   Globe,
 } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 // Leaflet krever window — laster dynamisk uten SSR
 const KartVelgerDynamic = dynamic(
@@ -90,6 +91,7 @@ function Seksjon({
 /* ------------------------------------------------------------------ */
 
 export default function ProsjektoppsettSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { prosjektId } = useProsjekt();
   const { t } = useTranslation();
   const utils = trpc.useUtils();

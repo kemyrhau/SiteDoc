@@ -6,8 +6,10 @@ import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, Badge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { Plus } from "lucide-react";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 export default function MalerSide() {
+  useToppbarFiltre({ byggeplass: false });
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();

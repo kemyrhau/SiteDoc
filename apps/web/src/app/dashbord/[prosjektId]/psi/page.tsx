@@ -6,10 +6,12 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Card } from "@sitedoc/ui";
 import { ShieldCheck, CheckCircle, Clock, AlertTriangle, Users, Building2, Globe } from "lucide-react";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 type Filter = "alle" | "fullfort" | "paagaar" | "utdatert";
 
 export default function PsiDashboardSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const [filter, setFilter] = useState<Filter>("alle");

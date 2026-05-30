@@ -15,6 +15,7 @@ import {
   ChevronDown,
   Trash2,
 } from "lucide-react";
+import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
 /* ------------------------------------------------------------------ */
 /*  Klassifiseringskoder og farger (ASPRS)                              */
@@ -92,6 +93,7 @@ interface KlassifiseringRad {
 /* ------------------------------------------------------------------ */
 
 export default function PunktSkyerSide() {
+  useToppbarFiltre({ byggeplass: false });
   const { prosjektId } = useParams<{ prosjektId: string }>();
   const utils = trpc.useUtils();
 
