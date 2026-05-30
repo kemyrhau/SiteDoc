@@ -173,24 +173,34 @@ Uvanlig tett deploy-dag. Ingen funksjonell regresjon observert. Hele sikkerhets-
 > [§ Innsender-tilgang](historikk-2026-05.md), [§ HMS åpen-synlighet](historikk-2026-05.md),
 > [§ HMS-prosjektvisning](historikk-2026-05.md), [§ HMS-modul-seeding](historikk-2026-05.md).
 
-### Pågående: TestFlight build #23 enhet-verifisering
+### Pågående: TestFlight build #24 enhet-verifisering (build #23 superseded)
 
-Build #23 (`a5e6e2ea-b570-45d0-a710-1dca7b678f35`) submittert til TestFlight via submission `898599df-aa55-4689-9f2a-cd21b4d26861` 2026-05-25. Apple-prosessering pågår. Venter på enhet-verifikasjon før Android-bygg + Play Store.
+Build #24 (`7d3952d2-3939-49fc-ae63-93fd1a10cfe5`, iOS buildNumber 27) bygd og submittert til TestFlight via submission `c57f9b1a-1b03-4a49-9b46-906a89a0a7ab` 2026-05-30. Apple-prosessering pågår (5-10 min). Erstatter build #23 som var inkompatibel med server etter sikkerhets-audit-deploy 2026-05-27.
 
-**Bygget leverer:**
-- Boks-basert `DokumentHandlingsmeny` (send-modal redesign, Commit 2)
-- ProsjektKontekst auto-reset ved firma-bytte
-- Hele mai-bunken som tidligere var sovende på enhet (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e, firma-velger)
+**Hvorfor build #23 sluttet å virke (diagnose 2026-05-30):**
+
+Build #23 ble bygd 2026-05-25 fra `91bc235f` eller tidligere. H1 mobil-token-rotasjon-fix på klient-siden (`apps/mobile/src/lib/trpc.ts` fetch-handler som leser `x-session-token`-respons-header) ble committet 2026-05-27 i `0c62231d` — to dager etter build #23 ble bygd. Da server begynte å rotere mobil-sessionTokens for sesjoner med `lastRotatedAt > 7d` etter prod-deploy 2026-05-27, sendte server ny token via X-Session-Token-header. Build #23 ignorerte headeren → påfølgende requests gikk med død token → 401 → «henter ikke data fra server».
+
+Migrasjonen `20260527200000_session_rotation_tracking` backfilte `last_rotated_at = expires - 30 days` for alle eksisterende sesjoner, slik at en hvilken som helst mobil-sesjon opprettet før 2026-05-20 (typisk) trigget rotasjon ved første mutation etter deploy.
+
+**Build #24 leverer (alt fra #23 + 2 nye mobil-commits):**
+- `0c62231d` H1 mobil token-rotasjon-håndtering (fix for rotårsak — leser `x-session-token` i fetch-handler og lagrer til SecureStore)
+- `32dd43ac` oppgave-detalj `rettighetInput` (speil av sjekkliste-fix fra 2026-05-08)
+- Alt build #23-innhold: boks-basert `DokumentHandlingsmeny`, ProsjektKontekst auto-reset ved firma-bytte, hele mai-bunken (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e, firma-velger)
 
 **Fokusområder for enhet-testing:**
+- Verifiser at innlogging holder over 7-dagers-grensen (eller trigge rotasjon manuelt ved å backdatere `Session.lastRotatedAt` i test-DB)
 - Verifiser fire kjente avvik fra spec dokumentert i [historikk-2026-05.md § Dokumentflyt send-modal redesign](historikk-2026-05.md): statusvalg-popup-mapping, auto-mottaker-landing, `erFirmaAdmin`-rolle-sjekk, approved/closed-tilstand
 - Bekreft firma-bytte clearer byggeplass + prosjektId korrekt
 - Generell regresjonssjekk på timer-flyt etter ny mobil-bunke
+- Oppgave-rettighet: bekreft at oppgave-detalj nå viser handlingsknapper korrekt for ulike roller
+
+**Lærdom:** Server-side sikkerhets-audit-fix kan introdusere protokoll-endring som krever koordinert mobil-bygg. Ved fremtidige X-Session-Token-lignende mekanismer: vurder en kort overgangsperiode der server logger «klient-mangler-rotasjon» uten å rotere, slik at vi kan oppdage mismatch FØR tokens roteres bort under føttene på utdaterte klienter.
 
 ### Gjenstående PRs (åpne)
 
 1. **T7-5h** — destruktiv recompute ved pause/fra-til-endring kan overskrive manuelt justert timer uten varsel. Edge case, ikke blokkerende.
-2. **EAS Android-bygg + Play Store** — etter TestFlight #23 enhet-verifikasjon.
+2. **EAS Android-bygg + Play Store** — etter TestFlight #24 enhet-verifikasjon.
 3. **P-KRITISK-1/-2/-3** — sentralbiblioteket ikke seedet i prod, `FtdChangeEvent`/`FtdTnotaChangeLink` mangler i prod, `BibliotekMal` mangler 4 fase-0-felt. Se [oppryddings-plan-2026-04-28.md](oppryddings-plan-2026-04-28.md).
 4. **HMS-prosjektvisning teknisk gjeld (6 punkter, lav prio)** — TS2589-workaround, plain HTML-tabell, byggeplass-filter, klient-side statistikk, useVerktoylinje droppet, `hms-avvik`-slug misvisende. Se [BACKLOG.md § 1](BACKLOG.md).
 
