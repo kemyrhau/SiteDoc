@@ -273,6 +273,22 @@ Alle filterpaneler bruker `MultiComboks` (`apps/web/src/components/ui/MultiCombo
 
 Andre filterpaneler oppgraderes til samme mønster ved neste iterasjon på fila. Ikke-blokkerende for eksisterende sider — kun ny kode skal følge standarden.
 
+### Toppbar-filtre-standard (vedtatt 2026-05-30)
+
+Nye sider skal deklarere hvilke toppbar-filtre de bruker via `useToppbarFiltre`-hooken (`apps/web/src/hooks/useToppbarFiltre.ts`). Hooken setter visuell tilstand på filter-velgerne i toppbar: velgere som ikke er i bruk på siden vises grå/ikke-klikkbar (`opacity-40 + cursor-not-allowed`) slik at brukeren ser at de ikke har effekt.
+
+**Mønster:**
+- **Sider som IKKE bruker byggeplass som filter:** kall `useToppbarFiltre({ byggeplass: false })` øverst i side-komponenten
+- **Sider som bruker byggeplass aktivt** (`bilder`, `hms`, `kontrollplan`, `oppgaver` (listing), `sjekklister` (listing + detalj), `tegninger`, `tegning-3d`, `vareforbruk`, `lokasjoner`): IKKE kall hooken — default-tilstand er aktiv velger
+- Default er aktiv. Hooken resetter til aktiv ved unmount, så neste rute starter med ren tilstand
+
+**Implementasjon:**
+- Kontekst: `apps/web/src/kontekst/toppbar-filtre-kontekst.tsx` — `ToppbarFiltreProvider` med `{ byggeplassAktiv: boolean }`
+- Hook: `apps/web/src/hooks/useToppbarFiltre.ts`
+- Komponent-integrasjon: `apps/web/src/components/layout/ByggeplassVelger.tsx` har `disabled`-prop, leses fra konteksten via `Toppbar.tsx`
+
+**Hvorfor:** Tidligere viste ByggeplassVelger seg på alle prosjekt-scoped sider uavhengig av om sidens datalag faktisk filtrerte på byggeplass. Brukeren kunne velge byggeplass og forvente at innholdet endret seg, men på 16/30 detalj-sider og 11/14 oppsett-sider hadde valget ingen effekt. Visuell deaktivering gir tydelig signal om hvilke kontroller som har effekt på gjeldende side.
+
 ## Fargepalett
 
 | Farge | Hex | Bruk |
