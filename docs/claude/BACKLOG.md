@@ -44,6 +44,22 @@ Alle 14 funn fra sikkerhets-audit 2026-05-27 er adressert i prod. Se [historikk-
 
 **Tilleggsforslag fortsatt åpent:** Server-side `deploy-test-cron.sh` skal feile hard på `pnpm build` exit ≠ 0 og IKKE kjøre `pm2 restart`. CLAUDE.md har regelen (commit `95ff4a07`), men cron-skriptet er server-side og ikke i repo. Krever manuell oppdatering av skriptet på `sitedoc`-serveren.
 
+### Mobil hentMineMedlemskap — tom for sitedoc_admin + standalone-brukere (høy prioritet)
+
+**Oppdaget 2026-06-01** via Kenneth-rapport fra build #27 TestFlight: tom Hjem-skjerm, ingen firma-velger, ingen prosjekter. Diagnose i [STATUS-AKTUELT.md § Pågående: mobil hentMineMedlemskap-bug](STATUS-AKTUELT.md).
+
+**To-sporet problem:**
+1. **Design-svakhet (bekreftet):** `organisasjon.hentMineMedlemskap` returnerer `[]` for brukere uten OrganizationMember-rad. Rammer brukere invitert via ProjectMember-bare og brukere på standalone-prosjekt. Mobil-flyten gater alle prosjekt-spørringer på `valgtFirmaId` → tom hjem.
+2. **Sitedoc_admin runtime-mismatch (ikke avdekket):** Kenneth er sitedoc_admin, server skal returnere 3 firmaer, men klienten ser 0. Token er ferskt, endepunkt deployet, mobil-koden i build #27 = dagens develop. Krever enhets-logger fra build #28.
+
+**Plan:**
+1. Server-fiks: utvid `hentMineMedlemskap` til å inkludere `Organization` via `ProjectMember → Project.primaryOrganizationId` når `OrganizationMember.count === 0`. Konkret kode-skisse i STATUS-AKTUELT.
+2. Diagnose-logging i `FirmaKontekst.tsx:71-78` (`console.log(firmaerQuery.data/error/isLoading)`) for build #28.
+3. Begge endringer i samme PR til develop → server-fiks deployes til prod separat → mobil-bygg #28 til TestFlight.
+4. Etter rotårsak avdekket fra enhets-logger: konkret runtime-fiks i oppfølger-PR.
+
+**Bi-funn:** «Ukjent bruker»-meldingen ved utlogging (`mer.tsx:248`, `bruker?.name ?? "Ukjent bruker"`) er forventet kortvarig fallback når `setBruker(null)` rendres før navigation. Ikke en bug.
+
 ### Avklaring-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 
 > **Terminologi-rename 2026-05-28 (A.31):** Modul-konseptet tidligere kalt «Godkjenning» er omdøpt til **Avklaring** for å unngå kollisjon med status-verdien `"godkjent"` i `DocumentTransfer.toStatus`. Schema-rename (`model Godkjenning` → `model Avklaring`, `godkjenninger` → `avklaringer`) gjennomføres når modulen bygges. Se [fase-0-beslutninger.md § A.31](fase-0-beslutninger.md).
