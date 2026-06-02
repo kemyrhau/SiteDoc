@@ -19,10 +19,10 @@ interface ProsjektVelgerProps {
 
 export function ProsjektVelger({ synlig, onLukk }: ProsjektVelgerProps) {
   const { valgtProsjektId, byttProsjekt } = useProsjekt();
-  const { valgtFirmaId } = useFirma();
+  const { valgtFirmaId, firmaer, lasterFirmaer } = useFirma();
   const prosjektQuery = trpc.prosjekt.hentMine.useQuery(
     { organizationId: valgtFirmaId ?? undefined },
-    { enabled: !!valgtFirmaId },
+    { enabled: !!valgtFirmaId || (!lasterFirmaer && firmaer.length === 0) },
   );
   const { data: prosjekter, isLoading, error } = prosjektQuery;
 
