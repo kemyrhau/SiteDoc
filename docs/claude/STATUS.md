@@ -11,12 +11,15 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-05-23 (opprettTestprosjekt firma påkrevd + i18n-batch + relikvi-slett deployet til prod)
+**Sist oppdatert:** 2026-06-02 (mobil hentMineMedlemskap-bug fikset + verifisert i build #29 — historikk-2026-06.md opprettet)
 **Antall filer dekket:** 50 (44 i `docs/claude/` + 6 i `docs/arkiv/`) — `neste-oppgave.md` slettet 2026-05-14, innholdet konsolidert til [STATUS-AKTUELT.md § Neste oppgaver](STATUS-AKTUELT.md)
 
 ---
 
-## Prod-deploys 2026-05-03 → 2026-05-23
+## Prod-deploys 2026-05-03 → 2026-06-02
+
+**2026-06-02 — mobil hentMineMedlemskap-bug fikset (prosjektadmin/standalone-brukere uten firma):**
+- `21555a5c` (prod-merge) — Server-fallback i `hentMineMedlemskap` (utleder firma fra `ProjectMember → Project.primaryOrganizationId`) + klient-fiks (`9e1bbf02`: fjernet firma-gating på prosjekt-query i `hjem.tsx` + `ProsjektVelger.tsx`) + diagnose-logging fjernet (`d9d90322`). I EAS build #29 (iOS), verifisert i TestFlight av Kenneth. **Ny fil `historikk-2026-06.md` opprettet 2026-06-02** (1 sak arkivert: mobil hentMineMedlemskap-bug). Ingen migrasjon.
 
 **2026-05-23 — opprettTestprosjekt firma påkrevd + i18n-batch + relikvi-slett:**
 - `49171634` — Siste konsistens-rest fra firma-påkrevd-bunken 2026-05-20. `opprettTestprosjekt` (`apps/api/src/routes/prosjekt.ts:246`) gjort required: `organizationId: z.string().uuid()`, valgtOrgId alltid string, `if (valgtOrgId)`-wrap fjernet. Admin-UI «Opprett malprosjekt»-knapp + kom-i-gang «Start gratis prøveperiode»-knapp disabled uten valgt firma. Amber-banner på `kom-i-gang`-siden gjenbruker `t("nyttProsjekt.ingenFirma")`. TS2589 håndtert med `_data: unknown`-mønster i `kom-i-gang/page.tsx` + utvidet stub-signatur i `admin/prosjekter/page.tsx`. Speiler nå `prosjekt.opprett`-mønsteret eksakt. Merget inkluderte også i18n auto-oversetting 30 nøkler × 13 språk (`072eb64f`, alle 15 språk har nå 2 328 nøkler), `hjelp.flyt.*`-relikvier slettet fra en.json (`47c55faf`, ubrukt HjelpModal-rest fra commit `781a5e5e` 2026-04-07), to i18n-kvalitetsoppgaver logget i backlog (`da870181`: fr `pause`→`saut`, klønete `maskinAvArbeid`-kildetekst). Ingen migrasjon.
