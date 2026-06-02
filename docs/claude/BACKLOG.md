@@ -44,9 +44,11 @@ Alle 14 funn fra sikkerhets-audit 2026-05-27 er adressert i prod. Se [historikk-
 
 **Tilleggsforslag fortsatt åpent:** Server-side `deploy-test-cron.sh` skal feile hard på `pnpm build` exit ≠ 0 og IKKE kjøre `pm2 restart`. CLAUDE.md har regelen (commit `95ff4a07`), men cron-skriptet er server-side og ikke i repo. Krever manuell oppdatering av skriptet på `sitedoc`-serveren.
 
-### Mobil hentMineMedlemskap — tom for sitedoc_admin + standalone-brukere (høy prioritet)
+### Mobil hentMineMedlemskap — tom for sitedoc_admin + standalone-brukere — ✅ FIKSET (build #29, 2026-06-02)
 
-**Oppdaget 2026-06-01** via Kenneth-rapport fra build #27 TestFlight: tom Hjem-skjerm, ingen firma-velger, ingen prosjekter. Diagnose i [STATUS-AKTUELT.md § Pågående: mobil hentMineMedlemskap-bug](STATUS-AKTUELT.md).
+**Oppdaget 2026-06-01** via Kenneth-rapport fra build #27 TestFlight: tom Hjem-skjerm, ingen firma-velger, ingen prosjekter.
+
+**Rotårsak:** klienten gatet prosjekt-lasting på valgt firma (`enabled: !!valgtFirmaId`) → 0-firma-/uvalgt-firma-bruker hang på evig «Henter prosjekter…». Fikset 2026-06-02: server-fallback (`hentMineMedlemskap` utleder firma fra prosjekt-medlemskap, prod-merge `21555a5c`) + klient-fiks (`9e1bbf02`, fjernet firma-gating). I EAS build #29 (TestFlight). Detaljer i [STATUS-AKTUELT.md § FIKSET: mobil hentMineMedlemskap-bug](STATUS-AKTUELT.md). **Gjenstår:** enhets-verifisering på TestFlight.
 
 **To-sporet problem:**
 1. **Design-svakhet (bekreftet):** `organisasjon.hentMineMedlemskap` returnerer `[]` for brukere uten OrganizationMember-rad. Rammer brukere invitert via ProjectMember-bare og brukere på standalone-prosjekt. Mobil-flyten gater alle prosjekt-spørringer på `valgtFirmaId` → tom hjem.

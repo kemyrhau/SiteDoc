@@ -8,7 +8,19 @@ sist_verifisert_mot_kode: 2026-05-08
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ useToppbarFiltre-hook + ByggeplassVelger disabled-state — deployet til prod 2026-05-30](historikk-2026-05.md), [§ Subdomain↔category-validering + HMS-prefiks amber-hint — deployet til prod 2026-05-30](historikk-2026-05.md), [§ ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — deployet til prod 2026-05-29](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
 
-### Pågående: mobil hentMineMedlemskap-bug (sitedoc_admin + standalone-brukere) — UNDERSØKT 2026-06-01
+### FIKSET: mobil hentMineMedlemskap-bug (sitedoc_admin + standalone-brukere) — build #29 til TestFlight 2026-06-02
+
+**✅ Rotårsak avdekket + fikset 2026-06-02.** Diagnose via Expo-simulator/Console viste at klienten gatet prosjekt-lasting på valgt firma (`enabled: !!valgtFirmaId`). Bruker uten firma (eller med flere firmaer der ingen var auto-valgt) → query disabled → `isLoading=true` permanent → «Henter prosjekter…» hang evig. Server (`prosjekt.hentMine`) var aldri problemet — den returnerer alltid brukerens prosjekter, med firma-filter kun når `organizationId` sendes.
+
+**Fiks (2 deler):**
+1. **Server-fallback** (commit `17e0419e`, prod-merge `21555a5c`, prod-deploy 2026-06-02): `hentMineMedlemskap` utleder firmaer fra `ProjectMember → Project.primaryOrganizationId` når bruker har 0 `OrganizationMember`-rader. Live i prod.
+2. **Klient-fiks** (commit `9e1bbf02`): `enabled: !!valgtFirmaId || (!lasterFirmaer && firmaer.length === 0)` i `hjem.tsx` + `ProsjektVelger.tsx`. 0-firma-brukere (kun standalone-prosjekter) får nå prosjektene lastet uten firmavalg. I **EAS build #29** (commit `9e1bbf02`, submittet til TestFlight 2026-06-02, submission `362bac68`).
+
+**Diagnose-logging fjernet** fra `FirmaKontekst.tsx` etter rotårsak avdekket.
+
+---
+
+**Opprinnelig diagnose (2026-06-01) — beholdt for historikk:**
 
 **Symptom (rapportert fra build #27 TestFlight):** Kenneth (sitedoc_admin) ser tom Hjem-skjerm — ingen prosjekter, ingen firma-velger. På Mer-fanen mangler firma-seksjon. Brukerkort viser «Kenneth Myrhaug» korrekt. Reinstall av appen ga samme resultat.
 
@@ -65,11 +77,11 @@ sist_verifisert_mot_kode: 2026-05-08
    }, [firmaerQuery.data, firmaerQuery.error, firmaerQuery.isLoading]);
    ```
 
-**Neste steg:**
-- Implementer server-fiks + diagnose-logging på develop
-- Server-fiks deployes til test → prod separat (tar effekt for standalone-brukere umiddelbart)
-- Mobil-bygg #28 (TestFlight) — verifiseres på enhet for å fange console-logger og bekrefte at sitedoc_admin-bugen vises
-- Etter rotårsak avdekket fra diagnose: konkret fiks i ny PR
+**Status (2026-06-02) — fullført:**
+- ✅ Server-fallback deployet til prod (`21555a5c`)
+- ✅ Klient-fiks committet (`9e1bbf02`), diagnose-logging fjernet
+- ✅ EAS build #29 submittet til TestFlight (submission `362bac68`, bygget «finished»)
+- ⏳ **Gjenstår:** verifiser på enhet når build #29 er tilgjengelig i TestFlight — bekreft at 0-firma-bruker og prosjektadmin-uten-org får prosjektene sine. Arkiveres til `historikk-2026-06.md` etter enhets-verifisering.
 
 **Bi-funn under sesjonen:**
 - «Ukjent bruker»-meldingen ved utlogging er fra `mer.tsx:248` (`bruker?.name ?? "Ukjent bruker"`). Vises kortvarig når `setBruker(null)` rendres før navigation til logg-inn-skjerm. Forventet adferd, ikke en bug.
