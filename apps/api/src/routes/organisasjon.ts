@@ -110,8 +110,12 @@ export const organisasjonRouter = router({
    *
    * - sitedoc_admin: alle kunde-firmaer (erKunde: true) — speiler webens topbar
    * - vanlig bruker / firma-admin: alle OrganizationMember-rader
+   * - fallback: brukere uten OrganizationMember-rad får firmaer via
+   *   ProjectMember → Project.primaryOrganizationId (rammer brukere invitert
+   *   direkte til prosjekt + brukere på standalone-prosjekt)
    *
-   * Returnerer tom liste hvis brukeren verken er sitedoc_admin eller medlem.
+   * Returnerer tom liste kun hvis bruker hverken har OrganizationMember-rader
+   * eller ProjectMember-rader med firma-koblet prosjekt.
    */
   hentMineMedlemskap: protectedProcedure.query(async ({ ctx }) => {
     const bruker = await ctx.prisma.user.findUniqueOrThrow({
@@ -131,7 +135,26 @@ export const organisasjonRouter = router({
       where: { userId: ctx.userId },
       select: { organizationId: true },
     });
-    if (medlemskap.length === 0) return [];
+
+    if (medlemskap.length === 0) {
+      const prosjekter = await ctx.prisma.project.findMany({
+        where: {
+          members: { some: { userId: ctx.userId } },
+          primaryOrganizationId: { not: null },
+        },
+        select: { primaryOrganizationId: true },
+        distinct: ["primaryOrganizationId"],
+      });
+      const orgIder = prosjekter
+        .map((p) => p.primaryOrganizationId)
+        .filter((id): id is string => id !== null);
+      if (orgIder.length === 0) return [];
+      return ctx.prisma.organization.findMany({
+        where: { id: { in: orgIder } },
+        select: { id: true, name: true, erKunde: true },
+        orderBy: { name: "asc" },
+      });
+    }
 
     return ctx.prisma.organization.findMany({
       where: { id: { in: medlemskap.map((m) => m.organizationId) } },

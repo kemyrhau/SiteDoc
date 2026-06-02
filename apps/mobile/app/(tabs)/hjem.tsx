@@ -103,15 +103,17 @@ export default function HjemSkjerm() {
   const [opprettKategori, setOpprettKategori] = useState<"sjekkliste" | "oppgave" | null>(null);
   const [valgtMal, setValgtMal] = useState<MalData | null>(null);
   const [visAndroidMeny, setVisAndroidMeny] = useState(false);
-  const { valgtFirmaId, firmaer } = useFirma();
+  const { valgtFirmaId, firmaer, lasterFirmaer } = useFirma();
   const router = useRouter();
   const utils = trpc.useUtils();
   const queryClient = useQueryClient();
 
-  // Hent prosjektdata for valgt prosjekt — gated på valgt firma
+  // Hent prosjektdata. Gated på valgt firma — men også aktiv når bruker
+  // ikke har noe firma (kun standalone-prosjekter), ellers henger queryen
+  // som disabled (isLoading=true) og «Henter prosjekter…» blir evig spinner.
   const prosjektQuery = trpc.prosjekt.hentMine.useQuery(
     { organizationId: valgtFirmaId ?? undefined },
-    { enabled: !!valgtFirmaId },
+    { enabled: !!valgtFirmaId || (!lasterFirmaer && firmaer.length === 0) },
   );
   const valgtProsjekt = prosjektQuery.data?.find(
     (p) => p.id === valgtProsjektId,

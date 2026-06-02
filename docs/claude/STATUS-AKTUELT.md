@@ -6,31 +6,104 @@ sist_verifisert_mot_kode: 2026-05-08
 
 ## Pågående arbeid (PR-historikk)
 
-> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ Subdomain↔category-validering + HMS-prefiks amber-hint — deployet til prod 2026-05-30](historikk-2026-05.md), [§ ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — deployet til prod 2026-05-29](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
+> Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ useToppbarFiltre-hook + ByggeplassVelger disabled-state — deployet til prod 2026-05-30](historikk-2026-05.md), [§ Subdomain↔category-validering + HMS-prefiks amber-hint — deployet til prod 2026-05-30](historikk-2026-05.md), [§ ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — deployet til prod 2026-05-29](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
 
-### Samlet aktivitet — 2026-05-30 (1 prod-deploy: subdomain↔category-validering + HMS-prefiks amber-hint)
+### Pågående: mobil hentMineMedlemskap-bug (sitedoc_admin + standalone-brukere) — UNDERSØKT 2026-06-01
 
-Naturlig oppfølger av 2026-05-29-sesjonens bi-funn — to BACKLOG-entries (begge opprettet samme dag) pakket og deployet sammen. Lukker stille feilklassifisering på begge nivåer: server-validatoren blokkerer ugyldig subdomain↔category-kombinasjon, klient-hint advarer om HMS-aktig prefiks uten HMS-hake.
+**Symptom (rapportert fra build #27 TestFlight):** Kenneth (sitedoc_admin) ser tom Hjem-skjerm — ingen prosjekter, ingen firma-velger. På Mer-fanen mangler firma-seksjon. Brukerkort viser «Kenneth Myrhaug» korrekt. Reinstall av appen ga samme resultat.
+
+**Undersøkt:**
+
+| Sjekk | Resultat |
+|-------|----------|
+| Kenneth sin rolle i prod-DB | `sitedoc_admin` ✓ |
+| `er_kunde=true`-firmaer i prod | 3 (A.Markussen, HRP, Kenneths testmiljø) ✓ |
+| Kenneth sin session | Sist rotert 2026-06-01 12:23, expires 2026-07-01 ✓ Aktiv |
+| Endepunkt `organisasjon.hentMineMedlemskap` på prod | Deployet (returnerer 401 UNAUTHORIZED uten token — forventet) |
+| Mobil-koden i build #27 | Identisk med dagens develop (siste mobil-commit `fdd45949` 2026-05-29, før build #27) |
+| Reinstall fra TestFlight | Samme problem, utelukker stuck SecureStore-token |
+| `firmaerQuery` enabled-betingelse | Ingen (`FirmaKontekst.tsx:71-73`) — kallet kjøres alltid |
+
+**Server-side prosedyre (`apps/api/src/routes/organisasjon.ts:116-141`):**
+- For `sitedoc_admin`: returnerer alle `Organization` med `erKunde=true` (skal returnere 3 for Kenneth)
+- For ikke-admin: returnerer firmaer Kenneth er `OrganizationMember` i
+- **Kjent svakhet:** Returnerer `[]` for brukere med 0 OrganizationMember-rader. Rammer:
+  - Brukere invitert via `ProjectMember` uten å være `OrganizationMember`
+  - Brukere på standalone-prosjekt (`Project.primaryOrganizationId = null`)
+
+**For Kenneth spesifikt:** server skal returnere 3, klienten ser 0. Runtime-mismatch ikke diagnostiserbar uten enhets-logger.
+
+**Klient-flyt (`hjem.tsx`, `mer.tsx`):**
+- `prosjektQuery` gated på `valgtFirmaId` (linje 114) — kjører ikke uten valgt firma
+- Auto-velg kun ved `firmaer.length === 1` — sitedoc_admin med 3 firmaer treffer ikke
+- Amber-banner og firma-seksjon gated på `firmaer.length > 1` — vises ikke hvis klienten ser 0
+
+**Plan — to-sporet i samme PR:**
+
+1. **Server-side fiks (`hentMineMedlemskap`):** utvid prosedyren slik at brukere uten OrganizationMember også får relaterte firmaer via `ProjectMember → Project.primaryOrganizationId`. Lukker standalone-bruker-problemet uavhengig av sitedoc_admin-bugen:
+   ```ts
+   if (medlemskap.length === 0) {
+     const orgIdFraProsjekt = await ctx.prisma.project.findMany({
+       where: { members: { some: { userId: ctx.userId } }, primaryOrganizationId: { not: null } },
+       select: { primaryOrganizationId: true },
+       distinct: ["primaryOrganizationId"],
+     });
+     return ctx.prisma.organization.findMany({
+       where: { id: { in: orgIdFraProsjekt.map(p => p.primaryOrganizationId!) } },
+       select: { id: true, name: true, erKunde: true },
+     });
+   }
+   ```
+
+2. **Diagnose-logging i `FirmaKontekst.tsx:71-78`** for å fange sitedoc_admin runtime-mismatch i build #28:
+   ```ts
+   const firmaer = useMemo(() => {
+     console.log("[FirmaKontekst] firmaerQuery.data:", firmaerQuery.data);
+     console.log("[FirmaKontekst] firmaerQuery.error:", firmaerQuery.error);
+     console.log("[FirmaKontekst] firmaerQuery.isLoading:", firmaerQuery.isLoading);
+     return firmaerQuery.data ?? [];
+   }, [firmaerQuery.data, firmaerQuery.error, firmaerQuery.isLoading]);
+   ```
+
+**Neste steg:**
+- Implementer server-fiks + diagnose-logging på develop
+- Server-fiks deployes til test → prod separat (tar effekt for standalone-brukere umiddelbart)
+- Mobil-bygg #28 (TestFlight) — verifiseres på enhet for å fange console-logger og bekrefte at sitedoc_admin-bugen vises
+- Etter rotårsak avdekket fra diagnose: konkret fiks i ny PR
+
+**Bi-funn under sesjonen:**
+- «Ukjent bruker»-meldingen ved utlogging er fra `mer.tsx:248` (`bruker?.name ?? "Ukjent bruker"`). Vises kortvarig når `setBruker(null)` rendres før navigation til logg-inn-skjerm. Forventet adferd, ikke en bug.
+- Kenneths innsikt: «dette gjelder også brukere som inviteres til prosjekt uten å være firmamedlemmer» — bekreftet via prosedyre-lesing.
+
+### Samlet aktivitet — 2026-05-30 (2 prod-deploys: subdomain↔category-validering + HMS-prefiks amber-hint + useToppbarFiltre)
+
+To sammenhengende oppryddinger natt og dag 2026-05-30. Natt: server-validering + amber-hint som naturlig oppfølger av 2026-05-29-bi-funnene fra HMS/mal-arbeidet. Dag: ny toppbar-filter-arkitektur som løser at 27 sider viste ByggeplassVelger uten å bruke den — identifisert under filterbruk-kartleggingen 2026-05-29.
 
 | # | Prod-merge | Innhold |
 |---|---|---|
 | 1 | `765e060e` (impl `8d517732`) | Subdomain↔category-validering i `mal.opprett` + `mal.oppdaterMal`. Mapping: `avvik+ruh → oppgave`, `sja → sjekkliste`. Effektiv tilstand etter oppdatering valideres. HMS-prefiks amber-hint i `MalListe.tsx` (opprett + rediger): når prefiks matcher SJA/RUH/AVVIK case-insensitivt OG HMS-haken er av. i18n auto-oversatt til 14 språk (2441 → 2442 nøkler) |
+| 2 | `08a03b78` (impl `1ba86093` + `2e6c3cff`) | `useToppbarFiltre`-hook + `ByggeplassVelger` disabled-state. Del 1: ny kontekst (`toppbar-filtre-kontekst.tsx`) + hook (`useToppbarFiltre.ts`) + `ByggeplassVelger` med `disabled`-prop (opacity-40 + cursor-not-allowed) + Toppbar leser kontekst + layout wrapper. Del 2: 26 sider (16 detalj + 10 oppsett) deklarerer `useToppbarFiltre({ byggeplass: false })`. CLAUDE.md-regel «Toppbar-filtre-standard» lagt til (commit `c070f078`) |
 
 **BACKLOG-lukninger:**
 - HMS-prefix-UX-felle (amber-hint) ✅
 - Subdomain↔category-sammenheng-validering ✅
+- useToppbarFiltre-hook (identifisert som strategi B 2026-05-29) ✅
 
-**Konflikt-håndtering under sesjonen:** Første instruks fra Kenneth hadde RUH = sjekkliste, som motsa 2026-05-29-koden. Flagget eksplisitt med konsekvens-beskrivelse (server-validatoren ville avvise begge prod-RUH-maler, motstride `hms.ts`/`firma-HMS`-koden fra `354fc4ea`). Kenneth bekreftet alternativ A: hold på 2026-05-29-beslutningen.
+**Konflikt-håndtering under sesjonen:** Første instruks fra Kenneth (subdomain-validering) hadde RUH = sjekkliste, som motsa 2026-05-29-koden. Flagget eksplisitt med konsekvens-beskrivelse (server-validatoren ville avvise begge prod-RUH-maler, motstride `hms.ts`/`firma-HMS`-koden fra `354fc4ea`). Kenneth bekreftet alternativ A: hold på 2026-05-29-beslutningen.
 
 **Verifisering på prod:**
-- HTTP 200 på `sitedoc.no`.
-- PM2 restart: `sitedoc-api` (pid 448453), `sitedoc-web` (pid 448473).
-- Visuell verifisering som innlogget bruker mot prod gjenstår — særlig: (a) amber-hint vises ved prefiks «SJA»/«RUH»/«AVVIK» uten HMS-hake, (b) hint forsvinner når HMS-haken aktiveres, (c) ikke-matchende prefikser holder hintet skjult.
+- HTTP 200 på `sitedoc.no` etter begge deploys.
+- PM2 restart (siste): `sitedoc-api` (pid 489318), `sitedoc-web` (pid 489338).
+- Visuell verifisering som innlogget bruker mot prod gjenstår — særlig: (a) amber-hint vises ved prefiks «SJA»/«RUH»/«AVVIK» uten HMS-hake, (b) ByggeplassVelger er grå på `/oppsett/brukere` og 25 andre sider, normal på `/hms`/`tegninger`/`oppgaver`-listing/etc.
 
-**Diagnose-lærdom:** Når en instruks motsier nylig deployet kode, må flagging skje med konkret konsekvens-beskrivelse, ikke kun spørsmål. Kort, konkret konsekvens-beskrivelse > abstrakt prinsipiell advarsel.
+**Deploy-hendelse (useToppbarFiltre Del 1):** Første test-deploy uten `git pull` feilet med manglende `pages-manifest.json`. Re-deploy med `git pull && rm -rf .next && pnpm build --force` gikk gjennom. Påminnelse: server-cron auto-puller etter push, men kan henge etter ved rask kommando-sekvens.
+
+**Diagnose-lærdom:**
+- Når en instruks motsier nylig deployet kode, må flagging skje med konkret konsekvens-beskrivelse, ikke kun spørsmål. Kort, konkret konsekvens-beskrivelse > abstrakt prinsipiell advarsel.
+- Når et UI-element vises uten å være funksjonelt på en gitt side, er det bedre å gjøre tilstanden eksplisitt (disabled-prop med visuell deaktivering) enn å skjule elementet helt. Skjult element gir inkonsekvent toppbar-layout som hopper ved navigasjon; disabled element holder layout stabil og kommuniserer at funksjonen finnes men ikke er relevant her.
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md):
-> [§ Subdomain↔category-validering + HMS-prefiks amber-hint](historikk-2026-05.md).
+> [§ useToppbarFiltre-hook + ByggeplassVelger disabled-state](historikk-2026-05.md), [§ Subdomain↔category-validering + HMS-prefiks amber-hint](historikk-2026-05.md).
 
 ### Samlet aktivitet — 2026-05-29 (4 prod-deploys: TaskChangeLog audit-trail + HMS-checkbox-fiks + RUH→oppgave + ProsjektVelger-UX)
 

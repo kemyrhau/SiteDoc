@@ -71,10 +71,14 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
   const firmaerQuery = trpc.organisasjon.hentMineMedlemskap.useQuery(undefined, {
     staleTime: 60 * 1000,
   });
-  const firmaer = useMemo(
-    () => firmaerQuery.data ?? [],
-    [firmaerQuery.data],
-  );
+  const firmaer = useMemo(() => {
+    // Diagnose-logging build #28 — fjernes etter rotårsak avdekket for
+    // sitedoc_admin tom-firma-bug rapportert fra TestFlight build #27.
+    console.log("[FirmaKontekst] firmaerQuery.data:", firmaerQuery.data);
+    console.log("[FirmaKontekst] firmaerQuery.error:", firmaerQuery.error);
+    console.log("[FirmaKontekst] firmaerQuery.isLoading:", firmaerQuery.isLoading);
+    return firmaerQuery.data ?? [];
+  }, [firmaerQuery.data, firmaerQuery.error, firmaerQuery.isLoading]);
   const lasterFirmaer = firmaerQuery.isLoading || lasterLagret;
 
   useEffect(() => {

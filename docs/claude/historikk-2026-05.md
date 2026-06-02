@@ -4,6 +4,45 @@ Arkivert fra CLAUDE.md § Pågående arbeid 2026-05-12. Alle PR-er under er depl
 
 ---
 
+## useToppbarFiltre-hook + ByggeplassVelger disabled-state — DEPLOYET TIL PROD 2026-05-30 (prod-merge `08a03b78`, impl `1ba86093` + `2e6c3cff`)
+
+Per-side deklarasjon av hvilke toppbar-filtre ruten faktisk bruker. ByggeplassVelger vises grå/ikke-klikkbar (`opacity-40 + cursor-not-allowed`) på sider som ikke filtrerer på byggeplass — løser kjent UX-problem der 16 av 30 detalj-sider og 11 av 14 oppsett-sider viste velgeren uten å bruke den.
+
+**Forløp:** Identifisert som bi-funn under filterbruk-kartleggingen 2026-05-29. Strategi B (per-side declaration via hook) valgt fremfor rute-basert deny-list eller URL-mønster-matching pga skalerbarhet — hver side eier sin egen filter-deklarasjon. Implementert i to PR-er:
+
+**Del 1 (`1ba86093`) — infrastruktur:**
+- `apps/web/src/kontekst/toppbar-filtre-kontekst.tsx` (ny) — `ToppbarFiltreProvider` med state `{ byggeplassAktiv: boolean }`. Default `true`.
+- `apps/web/src/hooks/useToppbarFiltre.ts` (ny) — `useToppbarFiltre({ byggeplass: false })`. useEffect setter ved mount, reset til `true` ved unmount.
+- `apps/web/src/components/layout/ByggeplassVelger.tsx` — ny `disabled`-prop. Single-byggeplass-rendringen får `opacity-40`. Dropdown-knapp får `cursor-not-allowed` + ignorerer klikk når disabled.
+- `apps/web/src/components/layout/Toppbar.tsx` — leser `byggeplassAktiv` fra konteksten, passerer `disabled={!byggeplassAktiv}` til velgeren.
+- `apps/web/src/app/dashbord/layout.tsx` — wrapper med `ToppbarFiltreProvider` mellom `ByggeplassProvider` og `PresenceProvider`.
+- Proof-of-concept: `oppsett/brukere/page.tsx` deklarerer `useToppbarFiltre({ byggeplass: false })`.
+
+**Del 2 (`2e6c3cff`) — 26 sider:**
+
+A. `/dashbord/[prosjektId]/*` (16 sider): `page.tsx`, `3d-visning`, `dokumenter/[id]/les`, `dokumentleser`, `faggrupper`, `maler`, `maler/[malId]`, `mapper`, `modeller`, `okonomi`, `oppgaver/[id]`, `psi`, `punktskyer`, `sjekklister/skriv-ut`, `sok`, `timer`.
+
+B. `/dashbord/oppsett/*` (10 sider): `ai-sok`, `firma`, `produksjon/box`, `produksjon/dokumentflyt`, `produksjon/moduler`, `produksjon/oppgavemaler`, `produksjon/oppgavemaler/[id]`, `produksjon/sjekklistemaler`, `produksjon/sjekklistemaler/[id]`, `prosjektoppsett`.
+
+Ikke berørt (bruker byggeplass aktivt): `bilder`, `hms`, `kontrollplan`, `oppgaver` (listing), `sjekklister` (listing + detalj), `tegning-3d`, `tegninger`, `vareforbruk`, `lokasjoner`, `produksjon/psi`.
+
+Unntak (server-side redirect-stub uten "use client"): `[prosjektId]/timer/[id]/page.tsx` — kan ikke bruke React hook, rendres aldri som UI.
+
+**Implementasjon Del 2:** Python-skript for konsistens (`/tmp/legg-til-hook.py`). 3 filer rammet av edge case (hook satt inn midt i multi-line `import type {...}` / `import {...}`-blokk) ble rettet manuelt: `3d-visning`, `modeller`, `punktskyer`.
+
+**CLAUDE.md-regel (`c070f078`):** Ny seksjon «Toppbar-filtre-standard (vedtatt 2026-05-30)» under UI-designprinsipper. Sikrer at fremtidige sider deklarerer korrekt filter-bruk uten å trenge gjeninnføring av regelen.
+
+**Verifisering:**
+- Typecheck ren på `@sitedoc/web` (eneste avvik: pre-eksisterende vitest-feil i `mengde/__tests__/`).
+- `sitedoc.no` HTTP 200, `test.sitedoc.no` HTTP 200 etter Del 1 og Del 2.
+- PM2 restart (siste): `sitedoc-api` (pid 489318), `sitedoc-web` (pid 489338).
+
+**Deploy-hendelse:** Første test-deploy av Del 1 (kommando uten `git pull`) feilet fordi serveren ikke hadde commiten enda — `pages-manifest.json` mangler-feil. Re-deploy med `git pull && rm -rf .next && pnpm build --force` gikk gjennom. Påminnelse: server-cron auto-puller etter push, men kan henge etter ved rask kommando-sekvens. Inkluder `git pull` for sikkerhets skyld.
+
+**Diagnose-lærdom:** Når et UI-element vises uten å være funksjonelt på en gitt side, er det bedre å gjøre tilstanden eksplisitt (disabled-prop med visuell deaktivering) enn å skjule elementet helt. Skjult element gir inkonsekvent toppbar-layout som hopper ved navigasjon; disabled element holder layout stabil og kommuniserer at funksjonen finnes men ikke er relevant her.
+
+---
+
 ## Subdomain↔category-validering + HMS-prefiks amber-hint — DEPLOYET TIL PROD 2026-05-30 (prod-merge `765e060e`, impl `8d517732`)
 
 To sammenhengende UX-lukninger identifisert under prefix/domain-undersøkelsen 2026-05-29. Lukker BACKLOG-entries opprettet samme dag.
