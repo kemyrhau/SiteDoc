@@ -10,7 +10,7 @@ sist_verifisert_mot_kode: 2026-05-08
 
 > ✅ Arkivert til [historikk-2026-06.md § Mobil hentMineMedlemskap-bug — FIKSET + verifisert i TestFlight build #29 (2026-06-02)](historikk-2026-06.md).
 >
-> ✅ Arkivert til [historikk-2026-06.md § OAuth-innlogging: account-linking + orphan-guard + duplikat-opprydding — deployet til prod 2026-06-05](historikk-2026-06.md). (`e12355d9` account-linking + `f6522a94` signIn-guard. Gjenstår: tilsvarende guard for mobil-flyten.)
+> ✅ Arkivert til [historikk-2026-06.md § OAuth-innlogging: account-linking + orphan-guard + duplikat-opprydding — deployet til prod 2026-06-05](historikk-2026-06.md). (`e12355d9` account-linking + `f6522a94` web signIn-guard + `f3a16cef` mobil-guard i `mobilAuth.byttToken`. Både web- og mobil-OAuth dekket.)
 
 ### Samlet aktivitet — 2026-05-30 (2 prod-deploys: subdomain↔category-validering + HMS-prefiks amber-hint + useToppbarFiltre)
 

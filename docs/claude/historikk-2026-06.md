@@ -50,5 +50,5 @@ Blokkerende `signIn`-callback i `auth.ts`: slipper kun gjennom hvis **(a)** eksi
 - Slettet gmail-orphans `malinbacklund89@gmail.com` og test-orphan `kmy@sitedoc.no`.
 - Beholdt (per beslutning): `mathias.jensen989@gmail.com` (personlig login) + `mathias@amarkussen.no` (jobb) som to separate gyldige kontoer.
 
-### Gjenstår
-- Tilsvarende orphan-guard for mobil-innloggingsflyt (`mobilAuth.byttToken` på API-et) — web-guarden dekker ikke mobil.
+### 4. Mobil orphan-guard (oppfølger) — DEPLOYET TIL PROD 2026-06-05 (prod-merge `f3a16cef`, commit `91fa7867`)
+Tilsvarende guard lagt til i `mobilAuth.byttToken` (`apps/api/src/routes/mobilAuth.ts`): før User-opprettelse sjekkes samme a/b/c/d-regler som web-guarden — (a) eksisterende canLogin-bruker (case-insensitiv), (b) ventende `ProjectInvitation`, (c) allerede koblet konto (slått opp før opprettelse → returnerende bruker), (d) sitedoc_admin (dekket av a). Ellers `TRPCError FORBIDDEN` med samme melding. Mobil-innlogging lager ikke lenger orphan-kontoer. Både web- og mobil-OAuth er nå dekket.

@@ -24,7 +24,7 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 **Merknad — `User.email` er globalt unik** (`@unique`, ikke composite). `getUserByEmail`-overstyringen bruker `findFirst` med `canLogin=true` + eldste-først for determinisme.
 
-**Gjenstår:** Tilsvarende oppførsel for **mobil-innloggingsflyten** (`mobilAuth.byttToken` på API-et) — verken account-linking eller orphan-guard er dekket der. Web-guarden gjelder kun Auth.js-OAuth.
+**Mobil-guard** (`91fa7867`, prod-merge `f3a16cef`, 2026-06-05): tilsvarende orphan-guard lagt til i `mobilAuth.byttToken` med samme a/b/c/d-regler → `TRPCError FORBIDDEN` ved ingen match. **Både web- og mobil-OAuth er nå dekket.** (Account-linking på mobil håndteres allerede i `byttToken` via account-koblingen — ikke samme PrismaAdapter-mekanisme som web.)
 
 ### Sikkerhets-audit 2026-05-27 — alle høy-prio funn lukket ✅
 
