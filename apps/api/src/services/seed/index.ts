@@ -56,6 +56,10 @@ export async function seedLonnsartNivaa1(organizationId: string): Promise<SeedRe
     navn: rad.navn,
     rekkefolge: idx,
     seedNivaa: 1,
+    // Variant B: «Timelønn» er default auto-valgt lønnsart på ny timer-rad.
+    // Firma-admin kan flytte default til en annen lønnsart (f.eks. «Fastlønn»
+    // for fastlønnede firma) via lonnsart.settStandard.
+    erStandardvalg: rad.navn === "Timelønn",
   }));
 
   const resultat = await prismaTimer.lonnsart.createMany({ data });

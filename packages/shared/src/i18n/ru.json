@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Одобренный",
   "vareforbruk.slett.bekreft": "Удалить это потребление?",
   "vareforbruk.modulIkkeAktivert.tittel": "Расход материала не активен",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Активируйте модуль «Материалы» в администрации фирмы для учета потребления."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Активируйте модуль «Материалы» в администрации фирмы для учета потребления.",
+  "firma.timer.felt.standard": "По умолчанию",
+  "firma.timer.standard.erValgt": "Тип оплаты по умолчанию для новых строк времени",
+  "firma.timer.standard.settValgt": "Установить по умолчанию для новых строк времени"
 }

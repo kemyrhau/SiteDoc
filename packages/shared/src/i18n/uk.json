@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Затверджено",
   "vareforbruk.slett.bekreft": "Видалити це споживання?",
   "vareforbruk.modulIkkeAktivert.tittel": "Витрата матеріалів не активна",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Для реєстрації споживання активуйте модуль «Матеріали» в адміністрації фірми."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Для реєстрації споживання активуйте модуль «Матеріали» в адміністрації фірми.",
+  "firma.timer.felt.standard": "За замовчуванням",
+  "firma.timer.standard.erValgt": "Тип оплати за умовчанням для нових часових рядків",
+  "firma.timer.standard.settValgt": "Установити за умовчанням для нових рядків часу"
 }

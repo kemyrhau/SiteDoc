@@ -33,6 +33,10 @@ model Lonnsart {
   tvungenKommentar Boolean  @default(false) @map("tvungen_kommentar")
   rekkefolge       Int      @default(0)
   aktiv            Boolean  @default(true)
+  // Variant B (2026-06-05): auto-valgt lønnsart på ny timer-rad når sedelen
+  // er tom (ingen forrige rad å arve fra). Maks én true per organizationId —
+  // håndheves i lonnsart.settStandard (nullstiller andre i samme transaksjon).
+  erStandardvalg   Boolean  @default(false) @map("er_standardvalg")
   seedNivaa        Int?     @map("seed_nivaa") // 1, 2 eller null (3 = egendefinert)
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")

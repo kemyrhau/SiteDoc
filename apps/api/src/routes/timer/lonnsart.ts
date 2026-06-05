@@ -152,6 +152,42 @@ export const lonnsartRouter = router({
       }
     }),
 
+  // Variant B (2026-06-05): sett én lønnsart som firma-default (auto-valgt på
+  // ny timer-rad når sedelen er tom). Håndhever maks én erStandardvalg=true per
+  // organisasjon ved å nullstille alle andre i samme transaksjon.
+  settStandard: protectedProcedure
+    .input(z.object({
+      id: z.string().uuid(),
+      organizationId: z.string().uuid(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      await krevTimerAktivert(orgId);
+
+      const eksisterende = await ctx.prismaTimer.lonnsart.findFirst({
+        where: { id: input.id, organizationId: orgId },
+      });
+      if (!eksisterende) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Lønnsart finnes ikke eller tilhører ikke ditt firma",
+        });
+      }
+
+      await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.lonnsart.updateMany({
+          where: { organizationId: orgId, erStandardvalg: true },
+          data: { erStandardvalg: false },
+        }),
+        ctx.prismaTimer.lonnsart.update({
+          where: { id: input.id },
+          data: { erStandardvalg: true },
+        }),
+      ]);
+
+      return { ok: true };
+    }),
+
   // Soft-delete: setter aktiv = false. Lønnsarter slettes aldri hardt
   // siden SheetTimer.lonnsartId har Restrict-FK.
   deaktiver: protectedProcedure

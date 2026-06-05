@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Genehmigt",
   "vareforbruk.slett.bekreft": "Diesen Verbrauch löschen?",
   "vareforbruk.modulIkkeAktivert.tittel": "Der Materialverbrauch ist nicht aktiv",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivieren Sie das Materialmodul in der Firmenverwaltung, um den Verbrauch zu erfassen."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivieren Sie das Materialmodul in der Firmenverwaltung, um den Verbrauch zu erfassen.",
+  "firma.timer.felt.standard": "Standard",
+  "firma.timer.standard.erValgt": "Standardlohntyp für neue Zeitzeilen",
+  "firma.timer.standard.settValgt": "Als Standard für neue Zeitzeilen festlegen"
 }

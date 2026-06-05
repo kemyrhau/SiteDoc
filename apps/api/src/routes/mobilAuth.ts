@@ -189,22 +189,24 @@ export const mobilAuthRouter = router({
    * Lett endepunkt for mobilapp-oppstart (ingen tung data).
    */
   verifiser: protectedProcedure.query(async ({ ctx }) => {
-    // Forny sesjonen med 30 nye dager ved aktiv bruk
+    // Forny sesjonen med 30 nye dager ved aktiv bruk — men IKKE roter
+    // sessionToken her. verifiser kjøres ved hver app-oppstart/reload, og
+    // token-rotasjon på dette tidspunktet skapte et race: samtidige queries
+    // (prosjekt.hentMine, refreshKatalog) som leste det gamle tokenet fra
+    // SecureStore før det nye var lagret, traff en allerede-rotert sesjon →
+    // UNAUTHORIZED → global retry-handler logget brukeren ut. Sikkerhets-
+    // rotasjon (worst-case-eksponering) håndteres av H1-mutation-middleweren
+    // (mobilTokenRotasjon i trpc/trpc.ts) som kun roterer ved mutations når
+    // lastRotatedAt > 7 dager — der finnes ikke startup-racet.
     const gammelToken =
       ctx.req.headers.authorization?.replace("Bearer ", "") ?? null;
 
-    let nyttToken: string | null = null;
     if (gammelToken) {
-      nyttToken = randomBytes(32).toString("hex");
       const nyUtloper = new Date();
       nyUtloper.setDate(nyUtloper.getDate() + 30);
       await ctx.prisma.session.updateMany({
         where: { sessionToken: gammelToken, userId: ctx.userId },
-        data: {
-          sessionToken: nyttToken,
-          expires: nyUtloper,
-          lastRotatedAt: new Date(),
-        },
+        data: { expires: nyUtloper },
       });
     }
 
@@ -213,7 +215,9 @@ export const mobilAuthRouter = router({
       select: { id: true, name: true, email: true, image: true, language: true },
     });
 
-    return { valid: true, user: bruker, nyttToken };
+    // nyttToken alltid null — token roteres ikke ved verifiser lenger.
+    // Klienten (AuthProvider) tåler dette og beholder eksisterende token.
+    return { valid: true, user: bruker, nyttToken: null };
   }),
 
   /**

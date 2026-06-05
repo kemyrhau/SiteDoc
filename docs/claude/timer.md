@@ -169,6 +169,8 @@ Lønnsart-katalogen er per Organization og bygges som tre nivåer.
 
 Auto-importeres ved firma-opprettelse via seed-mekanisme (event-hook `onOrganizationCreated`, etablert i Fase 0). Ingen bransje-bias. Pålagt av norsk lov (arbeidsmiljølov, ferielov, folketrygdlov, a-melding-krav).
 
+> **Variant B (2026-06-05) — default-lønnsart på ny rad:** `Lonnsart.erStandardvalg Boolean @default(false)`. Seed setter `true` på «Timelønn»; firma-admin kan flytte default til en annen `type="ordinaer"`-lønnsart via stjerne-knapp på `/dashbord/firma/timer/lonnsarter` (`timer.lonnsart.settStandard`, maks én per org). Mobil `TimerRadModal` forhåndsvelger lønnsart i prioritert rekkefølge: forrige rad på sedelen (Variant A) → firma-default (`erStandardvalg`) → tom. Auto-fordeling normaltid/overtid (under) er fortsatt ikke implementert — Variant B forhåndsvelger kun lønnsart, ikke timefordeling.
+
 | Kategori | Lønnsart | Lovgrunnlag |
 |---|---|---|
 | Grunnlønn | Fastlønn (månedslønn) | Arbeidsmiljølov |

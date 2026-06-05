@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Approuvée",
   "vareforbruk.slett.bekreft": "Supprimer cette consommation ?",
   "vareforbruk.modulIkkeAktivert.tittel": "La consommation de matière n'est pas active",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Activez le module Matériaux dans l'administration Firma pour enregistrer la consommation."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Activez le module Matériaux dans l'administration Firma pour enregistrer la consommation.",
+  "firma.timer.felt.standard": "Défaut",
+  "firma.timer.standard.erValgt": "Type de paie par défaut pour les nouvelles lignes de temps",
+  "firma.timer.standard.settValgt": "Définir par défaut pour les nouvelles lignes de temps"
 }

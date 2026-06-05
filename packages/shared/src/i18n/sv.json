@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Godkänd",
   "vareforbruk.slett.bekreft": "Ta bort denna förbrukning?",
   "vareforbruk.modulIkkeAktivert.tittel": "Materialförbrukningen är inte aktiv",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivera materialmodulen i firmaadministration för att registrera förbrukning."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivera materialmodulen i firmaadministration för att registrera förbrukning.",
+  "firma.timer.felt.standard": "Standard",
+  "firma.timer.standard.erValgt": "Standardlönetyp för nya tidsrader",
+  "firma.timer.standard.settValgt": "Ställ in som standard för nya tidsrader"
 }

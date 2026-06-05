@@ -24,7 +24,7 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 **Merknad — `User.email` er globalt unik** (`@unique`, ikke composite). `getUserByEmail`-overstyringen bruker `findFirst` med `canLogin=true` + eldste-først for determinisme.
 
-**Gjenstår:** Tilsvarende oppførsel for **mobil-innloggingsflyten** (`mobilAuth.byttToken` på API-et) — verken account-linking eller orphan-guard er dekket der. Web-guarden gjelder kun Auth.js-OAuth.
+**Mobil-guard** (`91fa7867`, prod-merge `f3a16cef`, 2026-06-05): tilsvarende orphan-guard lagt til i `mobilAuth.byttToken` med samme a/b/c/d-regler → `TRPCError FORBIDDEN` ved ingen match. **Både web- og mobil-OAuth er nå dekket.** (Account-linking på mobil håndteres allerede i `byttToken` via account-koblingen — ikke samme PrismaAdapter-mekanisme som web.)
 
 ### Sikkerhets-audit 2026-05-27 — alle høy-prio funn lukket ✅
 
@@ -465,6 +465,10 @@ Auto-oversettings-skriptet forvekslet engelsk «break» (pause) med «break» (k
 Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arbeid}}h» til «Machine {{maskin}}h / Work {{arbeid}}h» (kort, klar struktur med universell slash-separator). Norsk speilet: «Maskin {{maskin}}t / Arbeid {{arbeid}}t». Nøkkelen slettet i 12 språk og re-generert via `generate.ts` — alle oversettelser nå gramatisk korrekte. ro fikset manuelt (Google Translate hoppet over «Work»; satt til «Lucru»). fr beholdt sin manuelle verdi fra `baa462e1`.
 
 ## 2. Halvferdige features
+
+### Tilbake-pil i kommentar-modal (mobil `oppgave/[id].tsx`) 🟡
+
+`ArrowLeft`-knapp i headeren på kommentar-dialogen for å lukke den. Ucommittet WIP fra 2026-06-01 (forkastet 2026-06-05 — endringen lå ucommittet lokalt gjennom flere sesjoner uten å bli fullført). Skal vurderes på nytt: om kommentar-dialogen trenger en eksplisitt tilbake-/lukk-pil i tillegg til eksisterende lukking.
 
 ### Dokumentflyt/kontaktliste redesign — skille faggrupper fra interne grupper (høy prioritet)
 

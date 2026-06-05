@@ -20,7 +20,8 @@
 
 **2026-06-05 — OAuth account-linking + signIn-guard mot orphan-kontoer:**
 - `e12355d9` (prod-merge) — `allowDangerousEmailAccountLinking: true` på Google + Microsoft (`apps/web/src/auth.ts`): logg inn med enten tilbyder på samme e-post → samme konto. Reverserer H3-audit (trygt: begge IdP-er verifiserer e-post-eierskap).
-- `f6522a94` (prod-merge, commit `ef5906bb`) — Blokkerende `signIn`-guard: uinviterte OAuth-pålogginger avvises (`auth.feil.AccessDenied`, 14 språk) og oppretter IKKE tom orphan-konto. Regler a/b/c/d. Verifisert på test at `return false` hindrer User-opprettelse. Duplikat-/orphan-opprydding i prod-DB (Mathias-typo, Malin/kmy gmail-orphans). Gjelder kun web-OAuth; mobil-flyt gjenstår. Ingen migrasjon. Detaljer i [historikk-2026-06.md](historikk-2026-06.md).
+- `f6522a94` (prod-merge, commit `ef5906bb`) — Blokkerende web `signIn`-guard: uinviterte OAuth-pålogginger avvises (`auth.feil.AccessDenied`, 14 språk) og oppretter IKKE tom orphan-konto. Regler a/b/c/d. Verifisert på test at `return false` hindrer User-opprettelse. Duplikat-/orphan-opprydding i prod-DB (Mathias-typo, Malin/kmy gmail-orphans). Ingen migrasjon.
+- `f3a16cef` (prod-merge, commit `91fa7867`) — Mobil orphan-guard i `mobilAuth.byttToken` (samme a/b/c/d → `TRPCError FORBIDDEN`). Både web- og mobil-OAuth nå dekket. Detaljer i [historikk-2026-06.md](historikk-2026-06.md).
 
 **2026-06-02 — mobil hentMineMedlemskap-bug fikset (prosjektadmin/standalone-brukere uten firma):**
 - `21555a5c` (prod-merge) — Server-fallback i `hentMineMedlemskap` (utleder firma fra `ProjectMember → Project.primaryOrganizationId`) + klient-fiks (`9e1bbf02`: fjernet firma-gating på prosjekt-query i `hjem.tsx` + `ProsjektVelger.tsx`) + diagnose-logging fjernet (`d9d90322`). I EAS build #29 (iOS), verifisert i TestFlight av Kenneth. **Ny fil `historikk-2026-06.md` opprettet 2026-06-02** (1 sak arkivert: mobil hentMineMedlemskap-bug). Ingen migrasjon.

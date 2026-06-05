@@ -271,6 +271,23 @@ export function kjorMigreringer() {
     console.warn("[MIG] Kunne ikke utvide sheet_timer_local med aktivitet_id:", e);
   }
 
+  // Variant B (2026-06-05) — firma-default lønnsart. Idempotent ALTER: legg til
+  // er_standardvalg på lonnsart_local hvis mangler. Backfill ikke nødvendig —
+  // refreshKatalog full-overskriver lonnsart_local fra server ved neste pull.
+  try {
+    const lonnsartInfo = db.getAllSync(
+      "PRAGMA table_info(lonnsart_local)",
+    ) as Array<{ name: string }>;
+    if (!lonnsartInfo.find((k) => k.name === "er_standardvalg")) {
+      console.log("[MIG] Legger til er_standardvalg på lonnsart_local (Variant B)");
+      db.execSync(
+        `ALTER TABLE lonnsart_local ADD COLUMN er_standardvalg INTEGER NOT NULL DEFAULT 0`,
+      );
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide lonnsart_local med er_standardvalg:", e);
+  }
+
   // Ny tabell: sheet_machine_local (maskinbruk per dagsseddel)
   // vehicleId er svak FK til db-maskin Equipment (ingen lokal cache i C9
   // — Maskin-modul på mobil utsatt til Runde 2.6).
