@@ -12,51 +12,7 @@ sist_verifisert_mot_kode: 2026-05-08
 >
 > ✅ Arkivert til [historikk-2026-06.md § OAuth-innlogging: account-linking + orphan-guard + duplikat-opprydding — deployet til prod 2026-06-05](historikk-2026-06.md). (`e12355d9` account-linking + `f6522a94` web signIn-guard + `f3a16cef` mobil-guard i `mobilAuth.byttToken`. Både web- og mobil-OAuth dekket.)
 
-### Timer mobil UX — «husk sist brukt» lønnsart/aktivitet + tydeligere tom-tilstand (Variant A) — PÅ DEVELOP 2026-06-05
-
-Liten klient-only UX-forbedring i `apps/mobile/src/components/timer-detalj/TimerSeksjon.tsx` (ingen DB-, server- eller i18n-endring):
-- **Husk sist brukt:** Ny rad i `TimerRadModal` forhåndsvelger forrige rads `lonnsartId` + `aktivitetId` på samme sedel (ny `defaultValg`-useMemo, speiler `defaultTider`-mønsteret for fra/til-tid). Aktivitet faller tilbake til sedelens `defaultAktivitetId` når sedelen er tom. Rediger-modus bruker fortsatt radens egne verdier.
-- **Tydeligere tom-tilstand:** Når sedelen har 0 timer-rader og er redigerbar, vises full-bredde «Legg til timer-rad»-knapp (gjenbruker `timer.tilfoy.timer`) i stedet for kun det lille «+»-ikonet i header. Read-only viser fortsatt info-tekst.
-
-**Bakgrunn:** Design-utredning avdekket at ny rad alltid startet tom (ingen auto-select av lønnsart) og at «+»-knappen var lite synlig. Variant A løser det vanligste tilfellet (flere rader med samme lønnsart) uten DB-migrasjon. Variant B (firma-konfigurerbar default via `Lonnsart.erStandardvalg`) er oppfølger ved behov.
-
-**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil), 0 feil i `TimerSeksjon.tsx`.
-
-**Reload:** TypeScript-only (ingen schema-endring). Full app-reload (close + open eller `r` i Metro). Ingen native rebuild.
-
-> **Oppfølger samme dag:** duplikat-fiks (`336acdcb`) — tom-tilstand-knappen og den stiplede «+Legg til timer»-knappen i EcoBucket (`visHeader=false`) ble begge vist ved 0 rader. Den stiplede gates nå på `rader.length > 0` (kun for å legge til FLERE rader). Verifisert på enhet via Metro mot test.
-
-### Auth-fiks: `mobilAuth.verifiser` roterer ikke token lenger (startup-race) — PÅ DEVELOP 2026-06-05
-
-Mobil-brukere ble logget ut ved app-oppstart/reload med «Kunne ikke hente prosjekter — Du må være innlogget», og måtte reinstallere for å få opp prosjekter.
-
-**Rotårsak (race):** `mobilAuth.verifiser` (kjøres ved hver oppstart i `AuthProvider.sjekkToken`) roterte `sessionToken` ubetinget. Samtidige queries (`prosjekt.hentMine`, `refreshKatalog`) leste gammelt token fra SecureStore før det nye var lagret → traff allerede-rotert sesjon → UNAUTHORIZED → global retry-handler (`providers/index.tsx`) kalte `loggUt()`. Innført med H1-auditen `0c62231d` (2026-05-27); forverret i Metro-dev der hver `r`-reload trigger nytt race.
-
-**Fiks (`apps/api/src/routes/mobilAuth.ts`):** `verifiser` forlenger kun `expires` (+30 dager), beholder `sessionToken` uendret, returnerer `nyttToken: null`. Sikkerhets-rotasjon beholdes i 7-dagers H1-mutation-middleweren (`trpc/trpc.ts`) der startup-racet ikke finnes. `AuthProvider` tåler `nyttToken: null` (beholder eksisterende token).
-
-**Ikke relatert til Variant A/B** — ren auth-kode. Verifisert: api typecheck rent.
-
-**Reload:** Kun server (tRPC-prosedyre endret). Ingen schema/mobil-endring — men mobil-klienter slutter å bli logget ut først etter at server-fiksen er deployet.
-
-### Timer Variant B — firma-konfigurerbar default-lønnsart på ny rad — PÅ DEVELOP 2026-06-05
-
-Oppfølger av Variant A: auto-valgt lønnsart også på **første/tom** rad (Variant A dekket kun rad 2+ via forrige rad på samme sedel). Firma-konfigurerbar via nytt felt — full-stack.
-
-| Lag | Endring |
-|-----|---------|
-| **db-timer** | `Lonnsart.erStandardvalg Boolean @default(false)` + migrasjon `20260605180000_lonnsart_er_standardvalg` (additiv NOT NULL DEFAULT false + backfill `er_standardvalg=true WHERE navn='Timelønn' AND seed_nivaa=1`) |
-| **Seed** | `seedLonnsartNivaa1` setter `erStandardvalg: rad.navn === "Timelønn"` — nye firma får «Timelønn» som default |
-| **Server** | `timer.lonnsart.settStandard`-mutation (firma-admin) — nullstiller alle andre + setter valgt i `$transaction` (maks én per org). `list` returnerer feltet automatisk |
-| **Web** | `/dashbord/firma/timer/lonnsarter` — stjerne-kolonne (`Star`), klikk markerer standard. Kun `type==="ordinaer"` er klikkbar; defensiv fylt stjerne hvis annen type allerede er satt |
-| **Mobil cache** | `lonnsartLocal.erStandardvalg` + idempotent ALTER i `migreringer.ts` + `refreshKatalog`-mapping + ny `hentStandardLonnsartLokalt(orgId)`-helper |
-| **Mobil UI** | `TimerRadModal.defaultValg` prioritetskjede: forrige rad (Variant A) → firma-default (Variant B) → tom |
-| **i18n** | 3 nye nøkler (`firma.timer.felt.standard`, `firma.timer.standard.{erValgt,settValgt}`) auto-oversatt til 14 språk (2442 → 2445) |
-
-**Prioritetskjede ny rad:** forrige rads lønnsart → firma-default (`erStandardvalg`) → tom. Migrerte firma (tom katalog) får ingen default → faller til tom (uendret).
-
-**Verifisert:** api typecheck 0, web 1 = vitest-baseline, mobil 12 = baseline (0 nye feil, 0 i berørte filer).
-
-**Reload:** TS + Drizzle-schema (ALTER ADD COLUMN) + Prisma-migrasjon (server). Mobil: full app-reload så `migreringer.ts` legger til kolonnen. Server-deploy kreves (ny mutation + migrasjon + regenerert klient).
+> ✅ Arkivert til [historikk-2026-06.md § Timer auto-select lønnsart (Variant A + B) + auth-fiks — deployet til prod 2026-06-06](historikk-2026-06.md). (prod-merge `ac1a4367`: `13c33ed6` Variant A + `336acdcb` duplikat-fiks + `5d3e8579` Variant B + `0a79c42c` auth-fiks. Mobil enhet-verifisering utestående pga Cloudflare↔Expo-Go-quirk i simulator — tas på TestFlight.)
 
 ### Samlet aktivitet — 2026-05-30 (2 prod-deploys: subdomain↔category-validering + HMS-prefiks amber-hint + useToppbarFiltre)
 

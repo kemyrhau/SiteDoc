@@ -8,6 +8,21 @@ sist_verifisert_mot_kode: 2026-06-05
 
 Arkiv av ferdigstilt arbeid. Aktivt arbeid ligger i [STATUS-AKTUELT.md](STATUS-AKTUELT.md).
 
+## § Timer auto-select lønnsart (Variant A + B) + auth-fiks — DEPLOYET TIL PROD 2026-06-06 (prod-merge `ac1a4367`)
+
+Bunke på fire develop-commits, samlet prod-deployet 2026-06-06. Begge migrasjoner (`@sitedoc/db` + `@sitedoc/db-timer`) kjørt, klienter regenerert. Web `sitedoc.no` + api `api.sitedoc.no/health` HTTP 200. PM2 restart: `sitedoc-api` (pid 873348), `sitedoc-web` (pid 873368).
+
+| Commit | Innhold |
+|--------|---------|
+| `13c33ed6` | **Variant A** — `TimerSeksjon.tsx`: ny rad forhåndsvelger forrige rads `lonnsartId` + `aktivitetId` på samme sedel (`defaultValg`-useMemo, speiler `defaultTider`). Full-bredde «Legg til timer-rad»-knapp ved tom sedel. Klient-only. |
+| `336acdcb` | **Duplikat-fiks** — stiplet «+Legg til timer»-knapp i EcoBucket gates på `rader.length > 0` så den ikke vises samtidig som tom-tilstand-knappen. |
+| `5d3e8579` | **Variant B** — `Lonnsart.erStandardvalg` + migrasjon `20260605180000_lonnsart_er_standardvalg` (additiv + backfill «Timelønn»). Seed markerer «Timelønn». `timer.lonnsart.settStandard` (maks én per org). Web stjerne-kolonne. Mobil cache + `hentStandardLonnsartLokalt`. Prioritetskjede: forrige rad → firma-default → tom. i18n 14 språk (2442→2445). |
+| `0a79c42c` | **Auth-fiks** — `mobilAuth.verifiser` roterer ikke `sessionToken` lenger (forlenger kun `expires`), eliminerer startup-race der samtidige queries med gammelt token traff allerede-rotert sesjon → UNAUTHORIZED → utlogging. Sikkerhets-rotasjon beholdt i 7-dagers H1-mutation-middleware. |
+
+**Prod-migrasjon-merknad:** Variant B-backfill traff 0 rader i prod (vs 1 i test) fordi prod-firmaet kun har Nivå 2-pakken (25 lønnsarter) seedet — ingen «Timelønn» (Nivå 1) å markere. Korrekt oppførsel; firma-admin kan markere default via web-stjernen, eller får «Timelønn» auto-markert hvis Nivå 1 seedes.
+
+**Mobil-verifisering utestående:** Variant A/B + auth-fiks på enhet kunne ikke verifiseres i iOS-simulator pga Cloudflare↔Expo-Go-quirk (POST `/dev-login` svarer 200 på server, men responsen når ikke simulatoren — bekreftet via server-logg req-41) + Google passkey-prompt. Tas på fysisk enhet via TestFlight ved neste EAS-bygg. Web-delen av Variant B (stjerne-kolonne) verifiserbar direkte på `sitedoc.no`.
+
 ## § Mobil hentMineMedlemskap-bug (sitedoc_admin + standalone-/prosjekt-uten-firma-brukere) — FIKSET + verifisert i TestFlight build #29 (2026-06-02)
 
 **Symptom (rapportert fra build #27/#28 TestFlight):** Bruker ser tom Hjem-skjerm med evig «Henter prosjekter…»-spinner, ingen prosjekter, ingen firma-velger. Gjelder prosjektadmin/medlemmer som ikke er `OrganizationMember`.
