@@ -12,6 +12,18 @@ sist_verifisert_mot_kode: 2026-05-08
 >
 > ✅ Arkivert til [historikk-2026-06.md § OAuth-innlogging: account-linking + orphan-guard + duplikat-opprydding — deployet til prod 2026-06-05](historikk-2026-06.md). (`e12355d9` account-linking + `f6522a94` web signIn-guard + `f3a16cef` mobil-guard i `mobilAuth.byttToken`. Både web- og mobil-OAuth dekket.)
 
+### Timer mobil UX — «husk sist brukt» lønnsart/aktivitet + tydeligere tom-tilstand (Variant A) — PÅ DEVELOP 2026-06-05
+
+Liten klient-only UX-forbedring i `apps/mobile/src/components/timer-detalj/TimerSeksjon.tsx` (ingen DB-, server- eller i18n-endring):
+- **Husk sist brukt:** Ny rad i `TimerRadModal` forhåndsvelger forrige rads `lonnsartId` + `aktivitetId` på samme sedel (ny `defaultValg`-useMemo, speiler `defaultTider`-mønsteret for fra/til-tid). Aktivitet faller tilbake til sedelens `defaultAktivitetId` når sedelen er tom. Rediger-modus bruker fortsatt radens egne verdier.
+- **Tydeligere tom-tilstand:** Når sedelen har 0 timer-rader og er redigerbar, vises full-bredde «Legg til timer-rad»-knapp (gjenbruker `timer.tilfoy.timer`) i stedet for kun det lille «+»-ikonet i header. Read-only viser fortsatt info-tekst.
+
+**Bakgrunn:** Design-utredning avdekket at ny rad alltid startet tom (ingen auto-select av lønnsart) og at «+»-knappen var lite synlig. Variant A løser det vanligste tilfellet (flere rader med samme lønnsart) uten DB-migrasjon. Variant B (firma-konfigurerbar default via `Lonnsart.erStandardvalg`) er oppfølger ved behov.
+
+**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil), 0 feil i `TimerSeksjon.tsx`.
+
+**Reload:** TypeScript-only (ingen schema-endring). Full app-reload (close + open eller `r` i Metro). Ingen native rebuild.
+
 ### Samlet aktivitet — 2026-05-30 (2 prod-deploys: subdomain↔category-validering + HMS-prefiks amber-hint + useToppbarFiltre)
 
 To sammenhengende oppryddinger natt og dag 2026-05-30. Natt: server-validering + amber-hint som naturlig oppfølger av 2026-05-29-bi-funnene fra HMS/mal-arbeidet. Dag: ny toppbar-filter-arkitektur som løser at 27 sider viste ByggeplassVelger uten å bruke den — identifisert under filterbruk-kartleggingen 2026-05-29.

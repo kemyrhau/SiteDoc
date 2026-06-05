@@ -168,9 +168,24 @@ export function TimerSeksjon({
       )}
       {rader.length === 0 ? (
         <View className="bg-white px-4 py-6">
-          <Text className="text-center text-sm text-gray-400">
-            {t("timer.ingenTimerRader")}
-          </Text>
+          {redigerbar ? (
+            <Pressable
+              onPress={() => {
+                setRedigerRadId(null);
+                setVisModal(true);
+              }}
+              className="flex-row items-center justify-center gap-2 rounded-lg bg-blue-600 py-3 active:bg-blue-700"
+            >
+              <Plus size={16} color="#ffffff" />
+              <Text className="text-base font-semibold text-white">
+                {t("timer.tilfoy.timer")}
+              </Text>
+            </Pressable>
+          ) : (
+            <Text className="text-center text-sm text-gray-400">
+              {t("timer.ingenTimerRader")}
+            </Text>
+          )}
         </View>
       ) : (
         rader.map((rad) => (
@@ -417,14 +432,36 @@ function TimerRadModal({
     };
   }, [eksisterendeRad, eksisterendeRader, organizationId, dato]);
 
+  // Variant A: husk sist brukte lønnsart + aktivitet fra forrige rad på sedelen.
+  //   - Rediger eksisterende rad: bruk radens egne verdier
+  //   - Ny rad med eksisterende rader: forhåndsvelg siste rads lønnsart/aktivitet
+  //   - Ny rad uten eksisterende rader: tom lønnsart, aktivitet faller til
+  //     sedelens default (defaultAktivitetId)
+  const defaultValg = useMemo(() => {
+    if (eksisterendeRad) {
+      return {
+        lonnsartId: eksisterendeRad.lonnsartId,
+        aktivitetId: eksisterendeRad.aktivitetId,
+      };
+    }
+    const sisteRad =
+      eksisterendeRader.length > 0
+        ? eksisterendeRader[eksisterendeRader.length - 1]
+        : null;
+    return {
+      lonnsartId: sisteRad?.lonnsartId ?? "",
+      aktivitetId: sisteRad?.aktivitetId ?? defaultAktivitetId ?? "",
+    };
+  }, [eksisterendeRad, eksisterendeRader, defaultAktivitetId]);
+
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     eksisterendeRad?.projectId ?? defaultProjectId,
   );
   const [valgtLonnsartId, setValgtLonnsartId] = useState<string>(
-    eksisterendeRad?.lonnsartId ?? "",
+    defaultValg.lonnsartId,
   );
   const [valgtAktivitetId, setValgtAktivitetId] = useState<string>(
-    eksisterendeRad?.aktivitetId ?? defaultAktivitetId ?? "",
+    defaultValg.aktivitetId,
   );
   const [timer, setTimer] = useState<string>(
     eksisterendeRad?.timer ? eksisterendeRad.timer.toFixed(2) : "",
