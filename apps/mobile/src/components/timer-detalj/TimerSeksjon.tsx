@@ -202,8 +202,10 @@ export function TimerSeksjon({
         ))
       )}
 
-      {/* T7-4e: "+Legg til timer" når header er skjult (rendret i EcoBucket). */}
-      {!visHeader && redigerbar && (
+      {/* T7-4e: "+Legg til timer" når header er skjult (rendret i EcoBucket).
+          Vises kun når det allerede finnes rader — tom-tilstand har sin egen
+          full-bredde knapp over, så vi unngår to «legg til»-knapper samtidig. */}
+      {!visHeader && redigerbar && rader.length > 0 && (
         <Pressable
           onPress={() => {
             setRedigerRadId(null);
