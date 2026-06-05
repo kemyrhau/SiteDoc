@@ -16,11 +16,17 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
-### H3 — `allowDangerousEmailAccountLinking: false` — DEPLOYET TIL PROD 2026-05-27 (prod-merge `9ca0257e`)
+### H3 — `allowDangerousEmailAccountLinking` — ⚠️ REVERSERT til `true` 2026-06-05
 
-✅ Arkivert til [historikk-2026-05.md § Sikkerhets-audit-bunke](historikk-2026-05.md).
+**Opprinnelig (2026-05-27, prod-merge `9ca0257e`):** satt til `false` som del av sikkerhets-audit-bunken (arkivert i [historikk-2026-05.md § Sikkerhets-audit-bunke](historikk-2026-05.md)).
 
-**Gjenstående oppfølger:** Eksplisitt linking-flyt for brukere som faktisk trenger å koble ny provider til samme e-post-konto. Ikke prioritert — utløses ved kundefeedback. Eventuell implementasjon: innstillinger-side med «Koble til Microsoft»-knapp som lager `Account`-rad mot eksisterende `User` etter ekstra verifikasjon (bekreftelses-e-post eller re-auth).
+**Reversert til `true` 2026-06-05** (begge tilbydere i `apps/web/src/auth.ts`) etter krav om at brukere skal kunne logge inn med **enten Google eller Microsoft 365 på samme e-post** og lande på samme konto. Uten dette fikk brukere `OAuthAccountNotLinked`-feilen («Du har allerede en konto med denne e-posten…») når de byttet innloggingsmetode.
+
+**Begrunnelse for at det er trygt her:** «dangerous»-flagget gjelder risikoen for at en tilbyder som **ikke** verifiserer e-post-eierskap kan brukes til konto-overtakelse. SiteDoc har kun **Google** og **Microsoft 365** — begge verifiserer e-post-eierskap (kan ikke autentisere som en e-post du ikke eier). Den klassiske angrepsvektoren finnes derfor ikke. H3 var en konservativ blankoavslåing for et scenario vi ikke har.
+
+**Composite-email-merknad:** e-post er ikke globalt unik (`@@unique([email, organizationId])`). Auto-kobling fester seg til den `canLogin=true`-brukeren `getUserByEmail`-overstyringen returnerer (eldste først) — samme rad vanlig innlogging allerede bruker.
+
+**Gjenstår å vurdere:** mobil-flyten (`mobilAuth.byttToken` på API-et) har ikke samme PrismaAdapter-kobling — bør sjekkes separat om den trenger tilsvarende oppførsel for at begge knapper skal virke på mobil.
 
 ### Sikkerhets-audit 2026-05-27 — alle høy-prio funn lukket ✅
 
@@ -44,9 +50,9 @@ Alle 14 funn fra sikkerhets-audit 2026-05-27 er adressert i prod. Se [historikk-
 
 **Tilleggsforslag fortsatt åpent:** Server-side `deploy-test-cron.sh` skal feile hard på `pnpm build` exit ≠ 0 og IKKE kjøre `pm2 restart`. CLAUDE.md har regelen (commit `95ff4a07`), men cron-skriptet er server-side og ikke i repo. Krever manuell oppdatering av skriptet på `sitedoc`-serveren.
 
-### Mobil hentMineMedlemskap — tom for sitedoc_admin + standalone-brukere (høy prioritet)
+### Mobil hentMineMedlemskap — tom for sitedoc_admin + standalone-brukere — ✅ FIKSET + verifisert (build #29, 2026-06-02)
 
-**Oppdaget 2026-06-01** via Kenneth-rapport fra build #27 TestFlight: tom Hjem-skjerm, ingen firma-velger, ingen prosjekter. Diagnose i [STATUS-AKTUELT.md § Pågående: mobil hentMineMedlemskap-bug](STATUS-AKTUELT.md).
+**Oppdaget 2026-06-01**, fikset + verifisert i TestFlight build #29 2026-06-02. Rotårsak: klienten gatet prosjekt-lasting på valgt firma (`enabled: !!valgtFirmaId`) → 0-firma-/uvalgt-firma-bruker hang på evig «Henter prosjekter…». Fiks: server-fallback (prod-merge `21555a5c`) + klient-fiks (`9e1bbf02`). Arkivert til [historikk-2026-06.md § Mobil hentMineMedlemskap-bug](historikk-2026-06.md).
 
 **To-sporet problem:**
 1. **Design-svakhet (bekreftet):** `organisasjon.hentMineMedlemskap` returnerer `[]` for brukere uten OrganizationMember-rad. Rammer brukere invitert via ProjectMember-bare og brukere på standalone-prosjekt. Mobil-flyten gater alle prosjekt-spørringer på `valgtFirmaId` → tom hjem.
