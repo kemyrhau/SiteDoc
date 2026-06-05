@@ -1,7 +1,7 @@
 ---
 name: historikk-2026-06
 description: Arkiv av deployete/ferdigstilte PR-er og saker fra juni 2026.
-sist_verifisert_mot_kode: 2026-06-02
+sist_verifisert_mot_kode: 2026-06-05
 ---
 
 # Historikk — juni 2026
@@ -34,3 +34,21 @@ Arkiv av ferdigstilt arbeid. Aktivt arbeid ligger i [STATUS-AKTUELT.md](STATUS-A
 **Diagnose-vei-lærdommer:**
 - `console.log` fra et Hermes release-/TestFlight-bygg når **ikke** fram til Mac Console.app (kun native os_log-støy vises). Diagnose-logging i release-bygg er en blindvei — bruk dev-build mot Metro, eller les koden.
 - Dev-login (`/dev-login`) returnerer 404 mot prod (kun test/lokal). Native Google-OAuth round-tripper ikke i Expo Go/`expo start` (custom URL-scheme ikke registrert) — kun i standalone/dev-client-bygg.
+
+## § OAuth-innlogging: account-linking + orphan-guard + duplikat-opprydding — DEPLOYET TIL PROD 2026-06-05
+
+Tre sammenhengende auth-forbedringer. Rotmekanisme: firma-ansatte logget inn med privat Gmail i stedet for invitert jobb-e-post → tomme orphan-kontoer uten firma/prosjekt som låste e-poster og ga «ser ingenting»-opplevelse. I tillegg kunne inviterte `@firma.no`-kontoer (User-rad uten OAuth-konto) ikke logge inn første gang pga `OAuthAccountNotLinked`.
+
+### 1. Google↔Microsoft account-linking (prod-merge `e12355d9`)
+`allowDangerousEmailAccountLinking: true` på begge OAuth-tilbydere i `apps/web/src/auth.ts`. Lar bruker logge inn med enten Google eller Microsoft 365 på samme e-post og lande på samme konto — fjerner `OAuthAccountNotLinked`. **Reverserer H3-audit (2026-05-27)**; trygt fordi begge IdP-er (Google + Microsoft) verifiserer e-post-eierskap, så den klassiske konto-overtakelse-vektoren (useriøs tilbyder) ikke gjelder.
+
+### 2. signIn-guard mot orphan-kontoer (prod-merge `f6522a94`, commit `ef5906bb`)
+Blokkerende `signIn`-callback i `auth.ts`: slipper kun gjennom hvis **(a)** eksisterende `canLogin`-User på e-posten (case-insensitiv), **(b)** ventende `ProjectInvitation`, **(c)** allerede koblet OAuth-konto via `accounts` (returnerende bruker — kritisk for e-postendringer), **(d)** `sitedoc_admin` (dekket av a). Ellers `return false` → **ingen User opprettes**, e-posten forblir fri. Feilmelding `auth.feil.AccessDenied`: «Du har ikke tilgang. Bruk e-posten du ble invitert med, eller kontakt administrator.» (14 språk). **Verifisert på test.sitedoc.no:** uinvitert innlogging (`kmy@sitedoc.no`) avvist, `sitedoc_test` users uendret (27), ingen User-rad opprettet → `return false` hindrer opprettelsen, ikke bare sesjonen. **Gjelder kun web-OAuth; mobil (`mobilAuth.byttToken`) er IKKE dekket — eget oppfølgingspunkt.**
+
+### 3. Duplikat-/orphan-opprydding (prod-DB, read-only FK-sjekk før hver DELETE)
+- A.Markussen: slettet typo-konto «Mathias Jensen 2» (`mathias.jenssen989@gmail.com`, 0 innlogginger) — medlemskap var duplikat av jobbkontoen `mathias@amarkussen.no`.
+- Slettet gmail-orphans `malinbacklund89@gmail.com` og test-orphan `kmy@sitedoc.no`.
+- Beholdt (per beslutning): `mathias.jensen989@gmail.com` (personlig login) + `mathias@amarkussen.no` (jobb) som to separate gyldige kontoer.
+
+### Gjenstår
+- Tilsvarende orphan-guard for mobil-innloggingsflyt (`mobilAuth.byttToken` på API-et) — web-guarden dekker ikke mobil.

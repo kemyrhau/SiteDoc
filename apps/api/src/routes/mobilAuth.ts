@@ -91,13 +91,49 @@ export const mobilAuthRouter = router({
           ? await hentGoogleBrukerinfo(input.accessToken)
           : await hentMicrosoftBrukerinfo(input.accessToken);
 
-      // 2. Finn eller opprett bruker (per B.7 Fase 0 minimum: findFirst med canLogin=true, eldste først)
+      const providerNavn = input.provider === "google" ? "google" : "microsoft-entra-id";
+
+      // 2. Orphan-guard + finn/opprett bruker. Speiler web-guarden
+      // (apps/web/src/auth.ts): hindre at uinviterte OAuth-pålogginger
+      // oppretter tomme orphan-kontoer som låser e-poster. Slipp KUN gjennom
+      // hvis (a) eksisterende canLogin-bruker (dekker (d) sitedoc_admin),
+      // (b) ventende invitasjon, eller (c) allerede koblet konto.
+
+      // (a) Eksisterende canLogin-bruker på e-posten (case-insensitiv, eldste først).
       let bruker = await ctx.prisma.user.findFirst({
-        where: { email: brukerinfo.email, canLogin: true },
+        where: { email: { equals: brukerinfo.email, mode: "insensitive" }, canLogin: true },
         orderBy: { createdAt: "asc" },
       });
 
+      // (c) Returnerende bruker via allerede koblet konto — slå opp FØR
+      // eventuell opprettelse, kritisk hvis DB-e-posten er endret bort fra
+      // tilbyderens e-post (koblingen ligger på provider+providerAccountId).
+      const eksisterendeKonto = await ctx.prisma.account.findUnique({
+        where: {
+          provider_providerAccountId: {
+            provider: providerNavn,
+            providerAccountId: brukerinfo.providerAccountId,
+          },
+        },
+      });
+      if (!bruker && eksisterendeKonto) {
+        bruker = await ctx.prisma.user.findUnique({ where: { id: eksisterendeKonto.userId } });
+      }
+
       if (!bruker) {
+        // (b) Opprett ny bruker KUN hvis det finnes en ventende invitasjon på
+        // e-posten. Streng lowercase-equals — invitasjoner normaliseres til
+        // lowercase ved opprettelse (jf. medlem.ts/gruppe.ts).
+        const invitasjon = await ctx.prisma.projectInvitation.findFirst({
+          where: { email: brukerinfo.email.toLowerCase(), status: "pending" },
+          select: { id: true },
+        });
+        if (!invitasjon) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Du har ikke tilgang. Bruk e-posten du ble invitert med, eller kontakt administrator.",
+          });
+        }
         bruker = await ctx.prisma.user.create({
           data: {
             email: brukerinfo.email,
@@ -107,22 +143,13 @@ export const mobilAuthRouter = router({
         });
       }
 
-      // 3. Finn eller opprett account-kobling
-      const eksisterendeKonto = await ctx.prisma.account.findUnique({
-        where: {
-          provider_providerAccountId: {
-            provider: input.provider === "google" ? "google" : "microsoft-entra-id",
-            providerAccountId: brukerinfo.providerAccountId,
-          },
-        },
-      });
-
+      // 3. Opprett account-kobling hvis den mangler.
       if (!eksisterendeKonto) {
         await ctx.prisma.account.create({
           data: {
             userId: bruker.id,
             type: "oauth",
-            provider: input.provider === "google" ? "google" : "microsoft-entra-id",
+            provider: providerNavn,
             providerAccountId: brukerinfo.providerAccountId,
             access_token: input.accessToken,
           },

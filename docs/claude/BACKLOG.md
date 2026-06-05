@@ -16,17 +16,15 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
-### H3 — `allowDangerousEmailAccountLinking` — ⚠️ REVERSERT til `true` 2026-06-05
+### H3 — `allowDangerousEmailAccountLinking` reversert + signIn-guard — ✅ DEPLOYET TIL PROD 2026-06-05
 
-**Opprinnelig (2026-05-27, prod-merge `9ca0257e`):** satt til `false` som del av sikkerhets-audit-bunken (arkivert i [historikk-2026-05.md § Sikkerhets-audit-bunke](historikk-2026-05.md)).
+✅ Arkivert til [historikk-2026-06.md § OAuth-innlogging: account-linking + orphan-guard + duplikat-opprydding](historikk-2026-06.md).
 
-**Reversert til `true` 2026-06-05** (begge tilbydere i `apps/web/src/auth.ts`) etter krav om at brukere skal kunne logge inn med **enten Google eller Microsoft 365 på samme e-post** og lande på samme konto. Uten dette fikk brukere `OAuthAccountNotLinked`-feilen («Du har allerede en konto med denne e-posten…») når de byttet innloggingsmetode.
+**Kort:** `allowDangerousEmailAccountLinking` reversert fra `false` (H3-audit 2026-05-27, prod-merge `9ca0257e`) til `true` (prod-merge `e12355d9`) — lar Google/Microsoft logge inn på samme konto via e-post; trygt fordi begge IdP-er verifiserer e-post-eierskap. Samtidig lagt til en **blokkerende `signIn`-guard** (`f6522a94`) som hindrer uinviterte pålogginger i å opprette tomme orphan-kontoer (a/b/c/d-regler, verifisert på test at `return false` hindrer User-opprettelse).
 
-**Begrunnelse for at det er trygt her:** «dangerous»-flagget gjelder risikoen for at en tilbyder som **ikke** verifiserer e-post-eierskap kan brukes til konto-overtakelse. SiteDoc har kun **Google** og **Microsoft 365** — begge verifiserer e-post-eierskap (kan ikke autentisere som en e-post du ikke eier). Den klassiske angrepsvektoren finnes derfor ikke. H3 var en konservativ blankoavslåing for et scenario vi ikke har.
+**Merknad — `User.email` er globalt unik** (`@unique`, ikke composite). `getUserByEmail`-overstyringen bruker `findFirst` med `canLogin=true` + eldste-først for determinisme.
 
-**Composite-email-merknad:** e-post er ikke globalt unik (`@@unique([email, organizationId])`). Auto-kobling fester seg til den `canLogin=true`-brukeren `getUserByEmail`-overstyringen returnerer (eldste først) — samme rad vanlig innlogging allerede bruker.
-
-**Gjenstår å vurdere:** mobil-flyten (`mobilAuth.byttToken` på API-et) har ikke samme PrismaAdapter-kobling — bør sjekkes separat om den trenger tilsvarende oppførsel for at begge knapper skal virke på mobil.
+**Gjenstår:** Tilsvarende oppførsel for **mobil-innloggingsflyten** (`mobilAuth.byttToken` på API-et) — verken account-linking eller orphan-guard er dekket der. Web-guarden gjelder kun Auth.js-OAuth.
 
 ### Sikkerhets-audit 2026-05-27 — alle høy-prio funn lukket ✅
 
