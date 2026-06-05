@@ -27,8 +27,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     updateAge: 60 * 60, // forny ved aktivitet hver time
   },
   providers: [
+    // allowDangerousEmailAccountLinking: true — lar bruker logge inn med
+    // ENTEN Google eller Microsoft 365 på samme e-post og lande på samme
+    // konto. Trygt her fordi BEGGE tilbydere verifiserer e-post-eierskap;
+    // den klassiske konto-overtakelse-vektoren (useriøs tilbyder som ikke
+    // verifiserer e-post) gjelder ikke. Reverserer H3-audit 2026-05-27.
     Google({
-      allowDangerousEmailAccountLinking: false,
+      allowDangerousEmailAccountLinking: true,
     }),
     ...(process.env.AUTH_MICROSOFT_ENTRA_ID_ID
       ? [
@@ -36,7 +41,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
             clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
             issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_ISSUER,
-            allowDangerousEmailAccountLinking: false,
+            // Se kommentar over Google-tilbyderen — samme begrunnelse.
+            allowDangerousEmailAccountLinking: true,
             authorization: { params: { scope: "openid profile email" } },
             checks: ["state"],
           }),
