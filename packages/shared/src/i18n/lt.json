@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Prisijungimo klaida",
   "auth.apiTilkoblingFeil": "Nepavyko prisijungti prie API",
   "auth.feil.OAuthAccountNotLinked": "Jau turite paskyrą su šiuo el. pašto adresu. Naudokite tą patį prisijungimo būdą kaip ir pirmą kartą.",
-  "auth.feil.AccessDenied": "Prieiga uždrausta. Bandykite dar kartą arba susisiekite su palaikymo komanda.",
+  "auth.feil.AccessDenied": "Jūs neturite prieigos. Naudokite el. pašto adresą, kuriuo buvote pakviesti, arba susisiekite su administratoriumi.",
   "auth.feil.OAuthCallback": "Prisijungti laikinai nepavyko. Bandykite dar kartą.",
   "auth.feil.generisk": "Prisijungti nepavyko. Bandykite dar kartą.",
   "feil.kunAdmin": "Tik projekto administratoriai turi prieigą prie projekto nustatymų.",

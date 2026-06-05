@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Gabim identifikimi",
   "auth.apiTilkoblingFeil": "Nuk mund të lidhej me API",
   "auth.feil.OAuthAccountNotLinked": "Ju tashmë keni një llogari me këtë email. Përdorni të njëjtën metodë hyrjeje si herën e parë.",
-  "auth.feil.AccessDenied": "Qasja u refuzua. Provo sërish ose kontakto mbështetjen.",
+  "auth.feil.AccessDenied": "Nuk ke akses. Përdorni emailin me të cilin jeni ftuar ose kontaktoni administratorin tuaj.",
   "auth.feil.OAuthCallback": "Identifikimi dështoi përkohësisht. Provo sërish.",
   "auth.feil.generisk": "Identifikimi dështoi. Provo sërish.",
   "feil.kunAdmin": "Vetëm administratorët e projektit kanë qasje në cilësimet e projektit.",

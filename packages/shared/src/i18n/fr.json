@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Erreur de connexion",
   "auth.apiTilkoblingFeil": "Impossible de se connecter à l'API",
   "auth.feil.OAuthAccountNotLinked": "Vous avez déjà un compte avec cette email. Utilisez la même méthode de connexion que la première fois.",
-  "auth.feil.AccessDenied": "Accès refusé. Réessayez ou contactez l'assistance.",
+  "auth.feil.AccessDenied": "Vous n'y avez pas accès. Utilisez l'e-mail avec lequel vous avez été invité ou contactez votre administrateur.",
   "auth.feil.OAuthCallback": "La connexion a échoué temporairement. Essayer à nouveau.",
   "auth.feil.generisk": "La connexion a échoué. Essayer à nouveau.",
   "feil.kunAdmin": "Seuls les administrateurs du projet ont accès aux paramètres du projet.",

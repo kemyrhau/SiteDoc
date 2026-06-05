@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Kirjautumisvirhe",
   "auth.apiTilkoblingFeil": "API-yhteys epäonnistui",
   "auth.feil.OAuthAccountNotLinked": "Sinulla on jo tili tällä sähköpostilla. Käytä samaa kirjautumistapaa kuin ensimmäisellä kerralla.",
-  "auth.feil.AccessDenied": "Käyttö estetty. Yritä uudelleen tai ota yhteyttä tukeen.",
+  "auth.feil.AccessDenied": "Sinulla ei ole pääsyä. Käytä sähköpostiosoitetta, jolla sinut kutsuttiin, tai ota yhteyttä järjestelmänvalvojaan.",
   "auth.feil.OAuthCallback": "Kirjautuminen epäonnistui väliaikaisesti. Yritä uudelleen.",
   "auth.feil.generisk": "Kirjautuminen epäonnistui. Yritä uudelleen.",
   "feil.kunAdmin": "Vain projektien ylläpitäjillä on pääsy projektiasetuksiin.",

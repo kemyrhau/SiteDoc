@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Eroare de autentificare",
   "auth.apiTilkoblingFeil": "Nu s-a putut conecta la API",
   "auth.feil.OAuthAccountNotLinked": "Aveți deja un cont cu acest e-mail. Utilizați aceeași metodă de conectare ca prima dată.",
-  "auth.feil.AccessDenied": "Acces interzis. Încercați din nou sau contactați asistența.",
+  "auth.feil.AccessDenied": "Nu ai acces. Utilizați e-mailul cu care ați fost invitat sau contactați administratorul.",
   "auth.feil.OAuthCallback": "Conectarea a eșuat temporar. Încearcă din nou.",
   "auth.feil.generisk": "Autentificare eșuată. Încearcă din nou.",
   "feil.kunAdmin": "Doar administratorii proiectului au acces la setările proiectului.",

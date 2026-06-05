@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Login error",
   "auth.apiTilkoblingFeil": "Could not connect to API",
   "auth.feil.OAuthAccountNotLinked": "You already have an account with this email. Use the same login method as the first time.",
-  "auth.feil.AccessDenied": "Access denied. Try again or contact support.",
+  "auth.feil.AccessDenied": "You don't have access. Use the email you were invited with, or contact your administrator.",
   "auth.feil.OAuthCallback": "Login failed temporarily. Try again.",
   "auth.feil.generisk": "Login failed. Try again.",
   "feil.kunAdmin": "Only project administrators have access to project settings.",
