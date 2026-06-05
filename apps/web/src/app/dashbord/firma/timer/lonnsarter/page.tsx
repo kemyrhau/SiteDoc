@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
-import { Plus, Pencil, Power } from "lucide-react";
+import { Plus, Pencil, Power, Star } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 
 const TYPE_VERDIER = ["ordinaer", "fravaer", "feriepenger", "diett"] as const;
@@ -26,6 +26,7 @@ type LonnsartRad = {
   tvungenKommentar: boolean;
   rekkefolge: number;
   aktiv: boolean;
+  erStandardvalg: boolean;
   seedNivaa: number | null;
 };
 
@@ -61,6 +62,11 @@ export default function LonnsarterSide() {
   });
 
   const oppdater = trpc.timer.lonnsart.oppdater.useMutation({
+    onSuccess: () => utils.timer.lonnsart.list.invalidate(),
+    onError: (e) => alert(e.message),
+  });
+
+  const settStandard = trpc.timer.lonnsart.settStandard.useMutation({
     onSuccess: () => utils.timer.lonnsart.list.invalidate(),
     onError: (e) => alert(e.message),
   });
@@ -116,6 +122,7 @@ export default function LonnsarterSide() {
                 <th className="px-3 py-3">{t("firma.timer.felt.nivaa")}</th>
                 <th className="px-3 py-3 text-right">{t("firma.timer.felt.sats")}</th>
                 <th className="px-3 py-3">{t("firma.timer.felt.eksport")}</th>
+                <th className="px-3 py-3 text-center">{t("firma.timer.felt.standard")}</th>
                 <th className="px-3 py-3">{t("firma.timer.felt.status")}</th>
                 <th className="px-3 py-3 text-right">{t("handling.handlinger")}</th>
               </tr>
@@ -147,6 +154,36 @@ export default function LonnsarterSide() {
                   </td>
                   <td className="px-3 py-2 text-gray-600">
                     {rad.skalEksporteres ? t("ja") : t("nei")}
+                  </td>
+                  <td className="px-3 py-2 text-center">
+                    {rad.type === "ordinaer" ? (
+                      <button
+                        onClick={() => {
+                          if (!rad.erStandardvalg) {
+                            settStandard.mutate({ id: rad.id, organizationId: orgId! });
+                          }
+                        }}
+                        disabled={settStandard.isPending || !rad.aktiv}
+                        className="rounded p-1 disabled:opacity-40"
+                        title={
+                          rad.erStandardvalg
+                            ? t("firma.timer.standard.erValgt")
+                            : t("firma.timer.standard.settValgt")
+                        }
+                      >
+                        <Star
+                          className={`mx-auto h-4 w-4 ${
+                            rad.erStandardvalg
+                              ? "fill-amber-400 text-amber-500"
+                              : "text-gray-300 hover:text-amber-400"
+                          }`}
+                        />
+                      </button>
+                    ) : rad.erStandardvalg ? (
+                      <Star className="mx-auto h-4 w-4 fill-amber-400 text-amber-500" />
+                    ) : (
+                      <span className="text-gray-300">—</span>
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <span

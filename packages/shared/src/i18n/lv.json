@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Apstiprināts",
   "vareforbruk.slett.bekreft": "Vai dzēst šo patēriņu?",
   "vareforbruk.modulIkkeAktivert.tittel": "Materiālu patēriņš nav aktīvs",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Lai reģistrētu patēriņu, uzņēmuma administrācijā aktivizējiet moduli Materiāli."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Lai reģistrētu patēriņu, uzņēmuma administrācijā aktivizējiet moduli Materiāli.",
+  "firma.timer.felt.standard": "Noklusējums",
+  "firma.timer.standard.erValgt": "Noklusējuma samaksas veids jaunajām laika rindām",
+  "firma.timer.standard.settValgt": "Iestatīt kā noklusējumu jaunajām laika rindām"
 }

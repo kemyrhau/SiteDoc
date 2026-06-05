@@ -22,6 +22,7 @@ import {
 } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
+import { hentStandardLonnsartLokalt } from "../../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import type {
   TimerRad,
@@ -434,11 +435,11 @@ function TimerRadModal({
     };
   }, [eksisterendeRad, eksisterendeRader, organizationId, dato]);
 
-  // Variant A: husk sist brukte lønnsart + aktivitet fra forrige rad på sedelen.
+  // Forhåndsvelg lønnsart + aktivitet på ny rad. Prioritetskjede:
   //   - Rediger eksisterende rad: bruk radens egne verdier
-  //   - Ny rad med eksisterende rader: forhåndsvelg siste rads lønnsart/aktivitet
-  //   - Ny rad uten eksisterende rader: tom lønnsart, aktivitet faller til
-  //     sedelens default (defaultAktivitetId)
+  //   - Ny rad med eksisterende rader: forrige rads lønnsart/aktivitet (Variant A)
+  //   - Ny rad på tom sedel: firma-default lønnsart (Variant B, erStandardvalg)
+  //     → tom hvis ingen er markert. Aktivitet faller til sedelens default.
   const defaultValg = useMemo(() => {
     if (eksisterendeRad) {
       return {
@@ -450,11 +451,13 @@ function TimerRadModal({
       eksisterendeRader.length > 0
         ? eksisterendeRader[eksisterendeRader.length - 1]
         : null;
+    const firmaDefaultLonnsartId =
+      hentStandardLonnsartLokalt(organizationId)?.id ?? "";
     return {
-      lonnsartId: sisteRad?.lonnsartId ?? "",
+      lonnsartId: sisteRad?.lonnsartId ?? firmaDefaultLonnsartId,
       aktivitetId: sisteRad?.aktivitetId ?? defaultAktivitetId ?? "",
     };
-  }, [eksisterendeRad, eksisterendeRader, defaultAktivitetId]);
+  }, [eksisterendeRad, eksisterendeRader, defaultAktivitetId, organizationId]);
 
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     eksisterendeRad?.projectId ?? defaultProjectId,

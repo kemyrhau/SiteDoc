@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Hyväksytty",
   "vareforbruk.slett.bekreft": "Poistetaanko tämä kulutus?",
   "vareforbruk.modulIkkeAktivert.tittel": "Materiaalin kulutus ei ole aktiivinen",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivoi Materiaalit-moduuli yrityksen hallinnassa kulutuksen rekisteröimiseksi."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivoi Materiaalit-moduuli yrityksen hallinnassa kulutuksen rekisteröimiseksi.",
+  "firma.timer.felt.standard": "Oletus",
+  "firma.timer.standard.erValgt": "Uusien aikarivien oletusmaksutyyppi",
+  "firma.timer.standard.settValgt": "Aseta oletukseksi uusille aikariveille"
 }

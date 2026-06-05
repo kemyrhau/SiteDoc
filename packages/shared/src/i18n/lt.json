@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Patvirtinta",
   "vareforbruk.slett.bekreft": "Ištrinti šį suvartojimą?",
   "vareforbruk.modulIkkeAktivert.tittel": "Medžiagos suvartojimas nėra aktyvus",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Norėdami užregistruoti suvartojimą, įmonės administracijoje suaktyvinkite modulį Medžiagos."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Norėdami užregistruoti suvartojimą, įmonės administracijoje suaktyvinkite modulį Medžiagos.",
+  "firma.timer.felt.standard": "Numatytoji",
+  "firma.timer.standard.erValgt": "Numatytasis naujų laiko eilučių mokėjimo tipas",
+  "firma.timer.standard.settValgt": "Nustatyti kaip numatytąjį naujoms laiko eilutėms"
 }

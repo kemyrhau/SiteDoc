@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Attestert",
   "vareforbruk.slett.bekreft": "Slett dette vareforbruket?",
   "vareforbruk.modulIkkeAktivert.tittel": "Vareforbruk er ikke aktivert",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktiver Varelager-modulen i firma-administrasjon for å registrere vareforbruk."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktiver Varelager-modulen i firma-administrasjon for å registrere vareforbruk.",
+  "firma.timer.felt.standard": "Standard",
+  "firma.timer.standard.erValgt": "Standard lønnsart for nye timer-rader",
+  "firma.timer.standard.settValgt": "Sett som standard for nye timer-rader"
 }

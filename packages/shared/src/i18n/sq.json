@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Miratuar",
   "vareforbruk.slett.bekreft": "Të fshihet ky konsum?",
   "vareforbruk.modulIkkeAktivert.tittel": "Konsumi i materialit nuk është aktiv",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivizoni modulin Materiale në administrimin e firmës për të regjistruar konsumin."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivizoni modulin Materiale në administrimin e firmës për të regjistruar konsumin.",
+  "firma.timer.felt.standard": "E paracaktuar",
+  "firma.timer.standard.erValgt": "Lloji i parazgjedhur i pagesës për rreshtat e rinj kohorë",
+  "firma.timer.standard.settValgt": "Cakto si parazgjedhje për rreshtat e rinj kohorë"
 }

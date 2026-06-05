@@ -74,6 +74,7 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
         satsEnhet: l.satsEnhet,
         rekkefolge: l.rekkefolge,
         aktiv: l.aktiv,
+        erStandardvalg: l.erStandardvalg ?? false,
         seedNivaa: l.seedNivaa,
         sistOppdatert: naa,
       })
@@ -157,6 +158,28 @@ export function hentLonnsarterLokalt(organizationId: string) {
       ),
     )
     .all();
+}
+
+/**
+ * Variant B: hent firmaets default-lønnsart (erStandardvalg=true) fra lokal
+ * cache. Brukes til å forhåndsvelge lønnsart på første rad av en tom sedel.
+ * Returnerer null hvis ingen er markert (f.eks. migrerte firma med tom katalog).
+ */
+export function hentStandardLonnsartLokalt(organizationId: string) {
+  const db = hentDatabase();
+  if (!db) return null;
+  const rader = db
+    .select()
+    .from(lonnsartLocal)
+    .where(
+      and(
+        eq(lonnsartLocal.organizationId, organizationId),
+        eq(lonnsartLocal.aktiv, true),
+        eq(lonnsartLocal.erStandardvalg, true),
+      ),
+    )
+    .all();
+  return rader[0] ?? null;
 }
 
 export function hentAktiviteterLokalt(organizationId: string) {

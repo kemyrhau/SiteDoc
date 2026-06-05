@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Aprobat",
   "vareforbruk.slett.bekreft": "Ștergeți acest consum?",
   "vareforbruk.modulIkkeAktivert.tittel": "Consumul de materiale nu este activ",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Activați modulul Materiale în administrare firma pentru a înregistra consumul."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Activați modulul Materiale în administrare firma pentru a înregistra consumul.",
+  "firma.timer.felt.standard": "Implicit",
+  "firma.timer.standard.erValgt": "Tip de plată prestabilit pentru noile rânduri de timp",
+  "firma.timer.standard.settValgt": "Setați ca prestabilit pentru noile rânduri de timp"
 }

@@ -2440,5 +2440,8 @@
   "vareforbruk.lastBadge": "Approved",
   "vareforbruk.slett.bekreft": "Delete this consumption?",
   "vareforbruk.modulIkkeAktivert.tittel": "Material consumption is not active",
-  "vareforbruk.modulIkkeAktivert.beskrivelse": "Activate the Materials module in firma administration to register consumption."
+  "vareforbruk.modulIkkeAktivert.beskrivelse": "Activate the Materials module in firma administration to register consumption.",
+  "firma.timer.felt.standard": "Vaikimisi",
+  "firma.timer.standard.erValgt": "Uute ajaridade vaikemakse tüüp",
+  "firma.timer.standard.settValgt": "Määra uute ajaridade jaoks vaikeseadeks"
 }

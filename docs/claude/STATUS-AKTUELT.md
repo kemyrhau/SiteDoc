@@ -24,6 +24,28 @@ Liten klient-only UX-forbedring i `apps/mobile/src/components/timer-detalj/Timer
 
 **Reload:** TypeScript-only (ingen schema-endring). Full app-reload (close + open eller `r` i Metro). Ingen native rebuild.
 
+> **Oppfølger samme dag:** duplikat-fiks (`336acdcb`) — tom-tilstand-knappen og den stiplede «+Legg til timer»-knappen i EcoBucket (`visHeader=false`) ble begge vist ved 0 rader. Den stiplede gates nå på `rader.length > 0` (kun for å legge til FLERE rader). Verifisert på enhet via Metro mot test.
+
+### Timer Variant B — firma-konfigurerbar default-lønnsart på ny rad — PÅ DEVELOP 2026-06-05
+
+Oppfølger av Variant A: auto-valgt lønnsart også på **første/tom** rad (Variant A dekket kun rad 2+ via forrige rad på samme sedel). Firma-konfigurerbar via nytt felt — full-stack.
+
+| Lag | Endring |
+|-----|---------|
+| **db-timer** | `Lonnsart.erStandardvalg Boolean @default(false)` + migrasjon `20260605180000_lonnsart_er_standardvalg` (additiv NOT NULL DEFAULT false + backfill `er_standardvalg=true WHERE navn='Timelønn' AND seed_nivaa=1`) |
+| **Seed** | `seedLonnsartNivaa1` setter `erStandardvalg: rad.navn === "Timelønn"` — nye firma får «Timelønn» som default |
+| **Server** | `timer.lonnsart.settStandard`-mutation (firma-admin) — nullstiller alle andre + setter valgt i `$transaction` (maks én per org). `list` returnerer feltet automatisk |
+| **Web** | `/dashbord/firma/timer/lonnsarter` — stjerne-kolonne (`Star`), klikk markerer standard. Kun `type==="ordinaer"` er klikkbar; defensiv fylt stjerne hvis annen type allerede er satt |
+| **Mobil cache** | `lonnsartLocal.erStandardvalg` + idempotent ALTER i `migreringer.ts` + `refreshKatalog`-mapping + ny `hentStandardLonnsartLokalt(orgId)`-helper |
+| **Mobil UI** | `TimerRadModal.defaultValg` prioritetskjede: forrige rad (Variant A) → firma-default (Variant B) → tom |
+| **i18n** | 3 nye nøkler (`firma.timer.felt.standard`, `firma.timer.standard.{erValgt,settValgt}`) auto-oversatt til 14 språk (2442 → 2445) |
+
+**Prioritetskjede ny rad:** forrige rads lønnsart → firma-default (`erStandardvalg`) → tom. Migrerte firma (tom katalog) får ingen default → faller til tom (uendret).
+
+**Verifisert:** api typecheck 0, web 1 = vitest-baseline, mobil 12 = baseline (0 nye feil, 0 i berørte filer).
+
+**Reload:** TS + Drizzle-schema (ALTER ADD COLUMN) + Prisma-migrasjon (server). Mobil: full app-reload så `migreringer.ts` legger til kolonnen. Server-deploy kreves (ny mutation + migrasjon + regenerert klient).
+
 ### Samlet aktivitet — 2026-05-30 (2 prod-deploys: subdomain↔category-validering + HMS-prefiks amber-hint + useToppbarFiltre)
 
 To sammenhengende oppryddinger natt og dag 2026-05-30. Natt: server-validering + amber-hint som naturlig oppfølger av 2026-05-29-bi-funnene fra HMS/mal-arbeidet. Dag: ny toppbar-filter-arkitektur som løser at 27 sider viste ByggeplassVelger uten å bruke den — identifisert under filterbruk-kartleggingen 2026-05-29.
