@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Anmeldefehler",
   "auth.apiTilkoblingFeil": "Verbindung zum API fehlgeschlagen",
   "auth.feil.OAuthAccountNotLinked": "Sie haben bereits ein Konto mit dieser E-Mail-Adresse. Verwenden Sie dieselbe Anmeldemethode wie beim ersten Mal.",
-  "auth.feil.AccessDenied": "Zugriff verweigert. Versuchen Sie es erneut oder wenden Sie sich an den Support.",
+  "auth.feil.AccessDenied": "Sie haben keinen Zugriff. Verwenden Sie die E-Mail-Adresse, mit der Sie eingeladen wurden, oder wenden Sie sich an Ihren Administrator.",
   "auth.feil.OAuthCallback": "Die Anmeldung ist vorübergehend fehlgeschlagen. Versuchen Sie es erneut.",
   "auth.feil.generisk": "Fehler bei der Anmeldung. Versuchen Sie es erneut.",
   "feil.kunAdmin": "Nur Projektadministratoren haben Zugang zu den Projekteinstellungen.",

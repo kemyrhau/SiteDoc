@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Inloggningsfel",
   "auth.apiTilkoblingFeil": "Kunde inte ansluta till API",
   "auth.feil.OAuthAccountNotLinked": "Du har redan ett konto med den här e-postadressen. Använd samma inloggningsmetod som första gången.",
-  "auth.feil.AccessDenied": "Åtkomst nekad. Försök igen eller kontakta supporten.",
+  "auth.feil.AccessDenied": "Du har inte tillgång. Använd e-postadressen du blev inbjuden med eller kontakta din administratör.",
   "auth.feil.OAuthCallback": "Inloggningen misslyckades tillfälligt. Försök igen.",
   "auth.feil.generisk": "Inloggningen misslyckades. Försök igen.",
   "feil.kunAdmin": "Endast projektadministratörer har tillgång till projektinställningar.",

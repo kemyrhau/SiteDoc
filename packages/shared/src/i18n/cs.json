@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Chyba přihlášení",
   "auth.apiTilkoblingFeil": "Nepodařilo se připojit k API",
   "auth.feil.OAuthAccountNotLinked": "Již máte účet s tímto e-mailem. Použijte stejný způsob přihlášení jako poprvé.",
-  "auth.feil.AccessDenied": "Přístup odepřen. Zkuste to znovu nebo kontaktujte podporu.",
+  "auth.feil.AccessDenied": "Nemáte přístup. Použijte e-mail, se kterým jste byli pozváni, nebo kontaktujte svého administrátora.",
   "auth.feil.OAuthCallback": "Přihlášení se dočasně nezdařilo. Zkuste to znovu.",
   "auth.feil.generisk": "Přihlášení se nezdařilo. Zkuste to znovu.",
   "feil.kunAdmin": "Pouze administrátoři projektu mají přístup k nastavení projektu.",

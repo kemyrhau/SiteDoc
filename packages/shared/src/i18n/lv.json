@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Pieteikšanās kļūda",
   "auth.apiTilkoblingFeil": "Nevarēja izveidot savienojumu ar API",
   "auth.feil.OAuthAccountNotLinked": "Jums jau ir konts ar šo e-pasta adresi. Izmantojiet to pašu pieteikšanās metodi kā pirmo reizi.",
-  "auth.feil.AccessDenied": "Piekļuve liegta. Mēģiniet vēlreiz vai sazinieties ar atbalsta dienestu.",
+  "auth.feil.AccessDenied": "Jums nav piekļuves. Izmantojiet e-pasta adresi, ar kuru saņēmāt uzaicinājumu, vai sazinieties ar administratoru.",
   "auth.feil.OAuthCallback": "Pieteikšanās īslaicīgi neizdevās. Mēģiniet vēlreiz.",
   "auth.feil.generisk": "Pieteikšanās neizdevās. Mēģiniet vēlreiz.",
   "feil.kunAdmin": "Tikai projekta administratoriem ir piekļuve projekta iestatījumiem.",

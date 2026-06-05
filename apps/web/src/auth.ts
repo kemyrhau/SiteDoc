@@ -53,6 +53,56 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/logg-inn",
   },
   callbacks: {
+    // Kvalitetssikring (2026-06-05): hindre at vilkårlige OAuth-pålogginger
+    // oppretter tomme orphan-kontoer som «låser» e-poster (jf. Mathias/Malin
+    // som logget inn med privat Gmail i stedet for invitert jobb-e-post →
+    // tomme kontoer uten firma/prosjekt som blokkerte korrekt invitasjon).
+    // Slipp KUN gjennom hvis bruker er invitert/eksisterende eller allerede
+    // koblet. Returnerer false → Auth.js oppretter IKKE bruker, og sender til
+    // /logg-inn?error=AccessDenied (vises som auth.feil.AccessDenied).
+    async signIn({ user, account }) {
+      const email = user.email?.toLowerCase();
+      if (!email) return false;
+
+      // (c) Returnerende bruker med allerede koblet OAuth-konto — slå opp via
+      // provider-kobling, IKKE e-post. Kritisk: en e-postendring i DB skal
+      // ikke låse ute en eksisterende bruker hvis tilbyderen hevder gammel
+      // e-post (koblingen ligger på provider+providerAccountId).
+      if (account?.provider && account.providerAccountId) {
+        const koblet = await prisma.account.findUnique({
+          where: {
+            provider_providerAccountId: {
+              provider: account.provider,
+              providerAccountId: account.providerAccountId,
+            },
+          },
+          select: { userId: true },
+        });
+        if (koblet) return true;
+      }
+
+      // (a) Eksisterende canLogin-bruker på e-posten (case-insensitiv). Dekker
+      // inviterte firma-brukere (inviterBruker oppretter User-rad) og (d)
+      // sitedoc_admin (har alltid User-rad). Case-insensitiv er trygt her:
+      // tilbyderen har allerede verifisert eierskap til e-postadressen.
+      const eksisterende = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" }, canLogin: true },
+        select: { id: true },
+      });
+      if (eksisterende) return true;
+
+      // (b) Ventende invitasjon på e-posten. Streng lowercase-equals — samme
+      // som events.signIn (invitasjoner normaliseres til lowercase ved
+      // opprettelse), unngår case-folding-vektoren lukket 2026-05-27.
+      const invitasjon = await prisma.projectInvitation.findFirst({
+        where: { email, status: "pending" },
+        select: { id: true },
+      });
+      if (invitasjon) return true;
+
+      // Ikke invitert → nekt. Ingen User opprettes, e-posten forblir fri.
+      return false;
+    },
     session({ session, user }) {
       if (session.user) {
         session.user.id = user.id;

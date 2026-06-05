@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Błąd logowania",
   "auth.apiTilkoblingFeil": "Nie można połączyć się z API",
   "auth.feil.OAuthAccountNotLinked": "Masz już konto z tym adresem e-mail. Użyj tej samej metody logowania, co za pierwszym razem.",
-  "auth.feil.AccessDenied": "Odmowa dostępu. Spróbuj ponownie lub skontaktuj się z pomocą techniczną.",
+  "auth.feil.AccessDenied": "Nie masz dostępu. Użyj adresu e-mail, na który Cię zaproszono, lub skontaktuj się z administratorem.",
   "auth.feil.OAuthCallback": "Logowanie chwilowo nie powiodło się. Spróbuj ponownie.",
   "auth.feil.generisk": "Logowanie nie powiodło się. Spróbuj ponownie.",
   "feil.kunAdmin": "Tylko administratorzy projektu mają dostęp do ustawień projektu.",

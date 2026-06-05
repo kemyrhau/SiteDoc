@@ -1551,7 +1551,7 @@
   "auth.innloggingsfeil": "Innloggingsfeil",
   "auth.apiTilkoblingFeil": "Kunne ikke koble til API",
   "auth.feil.OAuthAccountNotLinked": "Du har allerede en konto med denne e-posten. Bruk samme innloggingsmetode som første gang.",
-  "auth.feil.AccessDenied": "Tilgang avvist. Prøv igjen eller kontakt support.",
+  "auth.feil.AccessDenied": "Du har ikke tilgang. Bruk e-posten du ble invitert med, eller kontakt administrator.",
   "auth.feil.OAuthCallback": "Innlogging feilet midlertidig. Prøv igjen.",
   "auth.feil.generisk": "Innlogging feilet. Prøv igjen.",
   "feil.kunAdmin": "Kun prosjektadministratorer har tilgang til prosjektinnstillinger.",
