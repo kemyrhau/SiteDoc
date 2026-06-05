@@ -466,6 +466,10 @@ Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arb
 
 ## 2. Halvferdige features
 
+### Tilbake-pil i kommentar-modal (mobil `oppgave/[id].tsx`) 🟡
+
+`ArrowLeft`-knapp i headeren på kommentar-dialogen for å lukke den. Ucommittet WIP fra 2026-06-01 (forkastet 2026-06-05 — endringen lå ucommittet lokalt gjennom flere sesjoner uten å bli fullført). Skal vurderes på nytt: om kommentar-dialogen trenger en eksplisitt tilbake-/lukk-pil i tillegg til eksisterende lukking.
+
 ### Dokumentflyt/kontaktliste redesign — skille faggrupper fra interne grupper (høy prioritet)
 
 **Oppdaget 2026-05-26** etter prod-deploy av HMS-modul-seeding (`dddf2732`). Dagens dokumentflyt-side grupperer alt etter faggruppe, men `HMS-ansvarlige`-gruppen (og andre `ProjectGroup`-instanser med `domains: ["hms"]` eller `category: "brukergrupper"`) er ikke faggrupper — det er en annen datatype som ikke vises i dagens visning.
