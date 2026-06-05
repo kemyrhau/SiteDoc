@@ -26,6 +26,18 @@ Liten klient-only UX-forbedring i `apps/mobile/src/components/timer-detalj/Timer
 
 > **Oppfølger samme dag:** duplikat-fiks (`336acdcb`) — tom-tilstand-knappen og den stiplede «+Legg til timer»-knappen i EcoBucket (`visHeader=false`) ble begge vist ved 0 rader. Den stiplede gates nå på `rader.length > 0` (kun for å legge til FLERE rader). Verifisert på enhet via Metro mot test.
 
+### Auth-fiks: `mobilAuth.verifiser` roterer ikke token lenger (startup-race) — PÅ DEVELOP 2026-06-05
+
+Mobil-brukere ble logget ut ved app-oppstart/reload med «Kunne ikke hente prosjekter — Du må være innlogget», og måtte reinstallere for å få opp prosjekter.
+
+**Rotårsak (race):** `mobilAuth.verifiser` (kjøres ved hver oppstart i `AuthProvider.sjekkToken`) roterte `sessionToken` ubetinget. Samtidige queries (`prosjekt.hentMine`, `refreshKatalog`) leste gammelt token fra SecureStore før det nye var lagret → traff allerede-rotert sesjon → UNAUTHORIZED → global retry-handler (`providers/index.tsx`) kalte `loggUt()`. Innført med H1-auditen `0c62231d` (2026-05-27); forverret i Metro-dev der hver `r`-reload trigger nytt race.
+
+**Fiks (`apps/api/src/routes/mobilAuth.ts`):** `verifiser` forlenger kun `expires` (+30 dager), beholder `sessionToken` uendret, returnerer `nyttToken: null`. Sikkerhets-rotasjon beholdes i 7-dagers H1-mutation-middleweren (`trpc/trpc.ts`) der startup-racet ikke finnes. `AuthProvider` tåler `nyttToken: null` (beholder eksisterende token).
+
+**Ikke relatert til Variant A/B** — ren auth-kode. Verifisert: api typecheck rent.
+
+**Reload:** Kun server (tRPC-prosedyre endret). Ingen schema/mobil-endring — men mobil-klienter slutter å bli logget ut først etter at server-fiksen er deployet.
+
 ### Timer Variant B — firma-konfigurerbar default-lønnsart på ny rad — PÅ DEVELOP 2026-06-05
 
 Oppfølger av Variant A: auto-valgt lønnsart også på **første/tom** rad (Variant A dekket kun rad 2+ via forrige rad på samme sedel). Firma-konfigurerbar via nytt felt — full-stack.
