@@ -4,10 +4,11 @@ import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import { prisma } from "@sitedoc/db";
 
-// Per B.7 Fase 0 minimum: email er ikke lenger globalt unique (composite
-// @@unique([email, organizationId])). PrismaAdapter.getUserByEmail bruker
-// findUnique, som krever globalt unique-felt. Override til findFirst med
-// canLogin=true filter og deterministisk eldste-først ordering.
+// getUserByEmail-overstyring: filtrer på canLogin=true (utelukk deaktiverte
+// brukere fra e-post-basert innloggingsoppslag) + deterministisk eldste-først
+// rekkefølge. Merk: User.email er globalt unik (@unique) — den tidligere
+// composite-unikheten (@@unique([email, organizationId])) ble droppet i O-5c
+// 2026-05-13, så det er ikke lenger grunnen til overstyringen.
 const baseAdapter = PrismaAdapter(prisma);
 baseAdapter.getUserByEmail = async (email: string) => {
   const bruker = await prisma.user.findFirst({
