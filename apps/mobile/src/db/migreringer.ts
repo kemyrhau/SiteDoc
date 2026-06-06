@@ -288,6 +288,27 @@ export function kjorMigreringer() {
     console.warn("[MIG] Kunne ikke utvide lonnsart_local med er_standardvalg:", e);
   }
 
+  // «Start dag / Slutt dag»-økt (2026-06-06) — lokal arbeidsøkt-logg som
+  // genererer dagsseddel-forslag. KUN lokal, synkes aldri.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS arbeidsdag_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      dato TEXT NOT NULL,
+      start_at TEXT NOT NULL,
+      start_lat REAL,
+      start_lng REAL,
+      end_at TEXT,
+      end_lat REAL,
+      end_lng REAL,
+      status TEXT NOT NULL DEFAULT 'paagaar',
+      generert_dagsseddel_id TEXT,
+      sist_endret_lokalt INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_arbeidsdag_local_user_status
+      ON arbeidsdag_local(user_id, status);
+  `);
+
   // Ny tabell: sheet_machine_local (maskinbruk per dagsseddel)
   // vehicleId er svak FK til db-maskin Equipment (ingen lokal cache i C9
   // — Maskin-modul på mobil utsatt til Runde 2.6).

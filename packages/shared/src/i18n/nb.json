@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktiver Varelager-modulen i firma-administrasjon for å registrere vareforbruk.",
   "firma.timer.felt.standard": "Standard",
   "firma.timer.standard.erValgt": "Standard lønnsart for nye timer-rader",
-  "firma.timer.standard.settValgt": "Sett som standard for nye timer-rader"
+  "firma.timer.standard.settValgt": "Sett som standard for nye timer-rader",
+  "timer.startDag.start": "Start dag",
+  "timer.startDag.slutt": "Slutt dag",
+  "timer.startDag.status": "Pågår siden {{start}} · {{forlopt}}"
 }

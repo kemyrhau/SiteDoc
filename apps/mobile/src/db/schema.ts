@@ -179,6 +179,28 @@ export const lonnsartLocal = sqliteTable("lonnsart_local", {
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — siste pull fra server
 });
 
+/**
+ * arbeidsdag_local — «Start dag / Slutt dag»-økt (worker-drevet, 2026-06-06).
+ * Lokal arbeidsøkt-logg som produserer et dagsseddel-forslag. KUN lokal state —
+ * synkes ALDRI til server (kun den genererte dagsseddelen synkes via timerSync).
+ * Egen tabell, ikke kolonner på dagsseddel_local: økten er konseptuelt adskilt
+ * fra den formelle dagsseddelen.
+ */
+export const arbeidsdagLocal = sqliteTable("arbeidsdag_local", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  dato: text("dato").notNull(), // ISO YYYY-MM-DD
+  startAt: text("start_at").notNull(), // ISO timestamp
+  startLat: real("start_lat"),
+  startLng: real("start_lng"),
+  endAt: text("end_at"), // ISO timestamp — null = pågår
+  endLat: real("end_lat"),
+  endLng: real("end_lng"),
+  status: text("status").notNull().default("paagaar"), // 'paagaar' | 'avsluttet' | 'forkastet'
+  generertDagsseddelId: text("generert_dagsseddel_id"), // FK → dagsseddel_local.id (svak)
+  sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+});
+
 export const aktivitetLocal = sqliteTable("aktivitet_local", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull(),

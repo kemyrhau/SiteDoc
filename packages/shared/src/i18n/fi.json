@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivoi Materiaalit-moduuli yrityksen hallinnassa kulutuksen rekisteröimiseksi.",
   "firma.timer.felt.standard": "Oletus",
   "firma.timer.standard.erValgt": "Uusien aikarivien oletusmaksutyyppi",
-  "firma.timer.standard.settValgt": "Aseta oletukseksi uusille aikariveille"
+  "firma.timer.standard.settValgt": "Aseta oletukseksi uusille aikariveille",
+  "timer.startDag.start": "Aloita päivä",
+  "timer.startDag.slutt": "Loppupäivä",
+  "timer.startDag.status": "Käynnissä {{start}} lähtien · {{forlopt}}"
 }

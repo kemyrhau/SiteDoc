@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Lai reģistrētu patēriņu, uzņēmuma administrācijā aktivizējiet moduli Materiāli.",
   "firma.timer.felt.standard": "Noklusējums",
   "firma.timer.standard.erValgt": "Noklusējuma samaksas veids jaunajām laika rindām",
-  "firma.timer.standard.settValgt": "Iestatīt kā noklusējumu jaunajām laika rindām"
+  "firma.timer.standard.settValgt": "Iestatīt kā noklusējumu jaunajām laika rindām",
+  "timer.startDag.start": "Sākuma diena",
+  "timer.startDag.slutt": "Beigu diena",
+  "timer.startDag.status": "Darbojas kopš {{start}} · {{forlopt}}"
 }

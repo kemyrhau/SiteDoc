@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivera materialmodulen i firmaadministration för att registrera förbrukning.",
   "firma.timer.felt.standard": "Standard",
   "firma.timer.standard.erValgt": "Standardlönetyp för nya tidsrader",
-  "firma.timer.standard.settValgt": "Ställ in som standard för nya tidsrader"
+  "firma.timer.standard.settValgt": "Ställ in som standard för nya tidsrader",
+  "timer.startDag.start": "Start day",
+  "timer.startDag.slutt": "End day",
+  "timer.startDag.status": "Running since {{start}} · {{forlopt}}"
 }

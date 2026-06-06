@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Norėdami užregistruoti suvartojimą, įmonės administracijoje suaktyvinkite modulį Medžiagos.",
   "firma.timer.felt.standard": "Numatytoji",
   "firma.timer.standard.erValgt": "Numatytasis naujų laiko eilučių mokėjimo tipas",
-  "firma.timer.standard.settValgt": "Nustatyti kaip numatytąjį naujoms laiko eilutėms"
+  "firma.timer.standard.settValgt": "Nustatyti kaip numatytąjį naujoms laiko eilutėms",
+  "timer.startDag.start": "Pradžios diena",
+  "timer.startDag.slutt": "Pabaigos diena",
+  "timer.startDag.status": "Veikia nuo {{start}} · {{forlopt}}"
 }

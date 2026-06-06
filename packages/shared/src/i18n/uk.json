@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Для реєстрації споживання активуйте модуль «Матеріали» в адміністрації фірми.",
   "firma.timer.felt.standard": "За замовчуванням",
   "firma.timer.standard.erValgt": "Тип оплати за умовчанням для нових часових рядків",
-  "firma.timer.standard.settValgt": "Установити за умовчанням для нових рядків часу"
+  "firma.timer.standard.settValgt": "Установити за умовчанням для нових рядків часу",
+  "timer.startDag.start": "День початку",
+  "timer.startDag.slutt": "Кінцевий день",
+  "timer.startDag.status": "Запущено з {{start}} · {{forlopt}}"
 }

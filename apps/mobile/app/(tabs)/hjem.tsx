@@ -33,6 +33,7 @@ import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { FirmaVelger } from "../../src/components/FirmaVelger";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+import { StartSluttDagKort } from "../../src/components/StartSluttDagKort";
 
 const AKTIVE_STATUSER = ["sent", "received", "in_progress"];
 
@@ -321,6 +322,9 @@ export default function HjemSkjerm() {
           <RefreshControl refreshing={erRefreshing} onRefresh={onRefresh} />
         }
       >
+        {/* «Start dag / Slutt dag» — worker-drevet arbeidsdag → dagsseddel-forslag */}
+        <StartSluttDagKort />
+
         {firmaer.length > 1 && !valgtFirmaId && (
           <Pressable
             onPress={() => setVisFirmaVelger(true)}

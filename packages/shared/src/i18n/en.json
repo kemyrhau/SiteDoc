@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Activate the Materials module in firma administration to register consumption.",
   "firma.timer.felt.standard": "Default",
   "firma.timer.standard.erValgt": "Default pay type for new time rows",
-  "firma.timer.standard.settValgt": "Set as default for new time rows"
+  "firma.timer.standard.settValgt": "Set as default for new time rows",
+  "timer.startDag.start": "Start day",
+  "timer.startDag.slutt": "End day",
+  "timer.startDag.status": "Running since {{start}} · {{forlopt}}"
 }

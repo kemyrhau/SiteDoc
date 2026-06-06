@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Активируйте модуль «Материалы» в администрации фирмы для учета потребления.",
   "firma.timer.felt.standard": "По умолчанию",
   "firma.timer.standard.erValgt": "Тип оплаты по умолчанию для новых строк времени",
-  "firma.timer.standard.settValgt": "Установить по умолчанию для новых строк времени"
+  "firma.timer.standard.settValgt": "Установить по умолчанию для новых строк времени",
+  "timer.startDag.start": "Начало дня",
+  "timer.startDag.slutt": "Конец дня",
+  "timer.startDag.status": "В беге с {{start}} · {{forlopt}}"
 }

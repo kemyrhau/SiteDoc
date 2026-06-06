@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Activați modulul Materiale în administrare firma pentru a înregistra consumul.",
   "firma.timer.felt.standard": "Implicit",
   "firma.timer.standard.erValgt": "Tip de plată prestabilit pentru noile rânduri de timp",
-  "firma.timer.standard.settValgt": "Setați ca prestabilit pentru noile rânduri de timp"
+  "firma.timer.standard.settValgt": "Setați ca prestabilit pentru noile rânduri de timp",
+  "timer.startDag.start": "Începe ziua",
+  "timer.startDag.slutt": "Ziua de sfârșit",
+  "timer.startDag.status": "Alergă de la {{start}} · {{forlopt}}"
 }

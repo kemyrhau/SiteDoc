@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Activez le module Matériaux dans l'administration Firma pour enregistrer la consommation.",
   "firma.timer.felt.standard": "Défaut",
   "firma.timer.standard.erValgt": "Type de paie par défaut pour les nouvelles lignes de temps",
-  "firma.timer.standard.settValgt": "Définir par défaut pour les nouvelles lignes de temps"
+  "firma.timer.standard.settValgt": "Définir par défaut pour les nouvelles lignes de temps",
+  "timer.startDag.start": "Jour de début",
+  "timer.startDag.slutt": "Fin de journée",
+  "timer.startDag.status": "En cours d'exécution depuis {{start}} · {{forlopt}}"
 }

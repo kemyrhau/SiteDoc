@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Aktivizoni modulin Materiale në administrimin e firmës për të regjistruar konsumin.",
   "firma.timer.felt.standard": "E paracaktuar",
   "firma.timer.standard.erValgt": "Lloji i parazgjedhur i pagesës për rreshtat e rinj kohorë",
-  "firma.timer.standard.settValgt": "Cakto si parazgjedhje për rreshtat e rinj kohorë"
+  "firma.timer.standard.settValgt": "Cakto si parazgjedhje për rreshtat e rinj kohorë",
+  "timer.startDag.start": "Dita e fillimit",
+  "timer.startDag.slutt": "Dita e fundit",
+  "timer.startDag.status": "Vrapon që nga {{start}} · {{forlopt}}"
 }

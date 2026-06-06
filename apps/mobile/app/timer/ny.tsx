@@ -23,6 +23,7 @@ import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { hentProsjekterLokalt } from "../../src/services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
+import { haversineKm } from "../../src/utils/geo";
 import { trpc } from "../../src/lib/trpc";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { eq } from "drizzle-orm";
@@ -55,23 +56,6 @@ function formatNorskDato(iso: string): string {
     month: "long",
     year: "numeric",
   });
-}
-
-function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 export default function NyDagsseddelSide() {

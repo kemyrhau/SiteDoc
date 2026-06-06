@@ -2443,5 +2443,8 @@
   "vareforbruk.modulIkkeAktivert.beskrivelse": "Pro evidenci spotřeby aktivujte v administraci firmy modul Materiály.",
   "firma.timer.felt.standard": "Výchozí",
   "firma.timer.standard.erValgt": "Výchozí typ platby pro nové časové řádky",
-  "firma.timer.standard.settValgt": "Nastavit jako výchozí pro nové časové řádky"
+  "firma.timer.standard.settValgt": "Nastavit jako výchozí pro nové časové řádky",
+  "timer.startDag.start": "Startovní den",
+  "timer.startDag.slutt": "Konec dne",
+  "timer.startDag.status": "Běží od {{start}} · {{forlopt}}"
 }
