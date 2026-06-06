@@ -64,20 +64,27 @@ dig +short api-test.sitedoc.no AAAA   # har hosten IPv6? (ja → happy-eyeballs 
 
 ## Løsninger (rangert)
 
-1. **Reboot Mac** — river ned `utun`-restene helt. Reneste.
+1. **Reboot Mac** — river ned `utun`-restene helt. Reneste. **✅ Bekreftet løst 2026-06-07:**
+   etter reboot (NordVPN avsluttet) returnerer `[HEALTH]` 200 (117 ms) og `[AUTH] verifiser` 200
+   (83 ms) — tidligere hang begge evig. Appen kommer forbi spinneren til full hjemskjerm.
+   Gjenværende `utun` var kun link-local; `scutil --nwi` viste «No IPv6 states». Google-proben
+   (IPv6) feiler nå raskt (catch) i stedet for å henge — død stall er borte.
 2. **IPv6 → Link-local only** — `networksetup -setv6off Wi-Fi` (tilbake: `-setv6automatic Wi-Fi`),
    eller System Settings → Wi-Fi → Details → TCP/IP → Configure IPv6 → Link-local only. Tvinger
    IPv4 (samme sti som curl). Omgår uten reboot.
 3. **Full NordVPN-avinstallering** hvis problemet gjentar seg.
 
-## Separat kode-robusthetsbug (ÅPEN OPPFØLGER)
+## Separat kode-robusthetsbug
 
-`verifiser`-fetchen i `apps/mobile/src/providers/AuthProvider.tsx` (sjekkToken) mangler
-**timeout/AbortController**. En hengende fetch gir **evig spinner** i stedet for å degradere til
-cachet bruker / innloggingsskjerm. Bør fikses uansett miljøårsak:
-- Legg AbortController med timeout (f.eks. 10–15 s) på verifiser-fetchen.
-- Vurder samme på øvrige rå fetcher (dev-login) + en fornuftig tRPC/React Query-timeout.
-- Effekt: ved tapt/hengende respons faller appen til offline/cachet i stedet for å låse seg.
+**✅ LØST (2026-06-07):** `verifiser`-fetchen i `apps/mobile/src/providers/AuthProvider.tsx`
+(sjekkToken) har nå **AbortController med 12 s timeout**. Ved tapt/hengende respons kaster
+fetch `AbortError` → fanges av ytre catch → appen degraderer til cachet bruker i stedet for evig
+spinner. Samme commit fjernet all `[AUTH]`/`[HEALTH]`/`[NEUTRAL]`-debug-instrumentering brukt til
+rotårsak-diagnosen.
+
+**Gjenstående (BACKLOG-oppfølger):** dev-login + øvrige rå fetcher mangler fortsatt timeout, og en
+fornuftig tRPC/React Query-timeout er ikke satt. Holdt utenfor denne fiksen for å holde diffen
+minimal — se [BACKLOG.md](BACKLOG.md).
 
 ## Sjekkliste — «hvis simulatoren henger igjen»
 
