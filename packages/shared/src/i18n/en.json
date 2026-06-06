@@ -2446,5 +2446,8 @@
   "firma.timer.standard.settValgt": "Set as default for new time rows",
   "timer.startDag.start": "Start day",
   "timer.startDag.slutt": "End day",
-  "timer.startDag.status": "Running since {{start}} · {{forlopt}}"
+  "timer.startDag.status": "Running since {{start}} · {{forlopt}}",
+  "timer.startDag.bekreftTittel": "End the work day?",
+  "timer.startDag.bekreftMelding": "Started {{start}} · {{forlopt}} recorded",
+  "timer.startDag.bekreftAvslutt": "End day"
 }

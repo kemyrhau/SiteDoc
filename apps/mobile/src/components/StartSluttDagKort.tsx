@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
 import { useRouter } from "expo-router";
 import { Play, Square, Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -134,7 +134,7 @@ export function StartSluttDagKort() {
     }
   }, [bruker?.id, behandler]);
 
-  const sluttDag = useCallback(async () => {
+  const utforSluttDag = useCallback(async () => {
     if (!aktivDag || !bruker?.id || behandler) return;
     setBehandler(true);
     try {
@@ -175,6 +175,23 @@ export function StartSluttDagKort() {
     }
   }, [aktivDag, bruker?.id, valgtFirmaId, behandler, router, oppdaterTellere, triggerSync]);
 
+  // Bekreft før avslutning — «Slutt dag» er irreversibel og genererer et
+  // dagsseddel-forslag umiddelbart. Vis forløpt tid så brukeren ser hva som
+  // registreres før de bekrefter.
+  const bekreftSlutt = useCallback(() => {
+    if (!aktivDag || behandler) return;
+    const diffMin = Math.max(0, Math.floor((Date.now() - new Date(aktivDag.startAt).getTime()) / 60_000));
+    const forlopt = `${String(Math.floor(diffMin / 60)).padStart(2, "0")}t ${String(diffMin % 60).padStart(2, "0")}m`;
+    Alert.alert(
+      t("timer.startDag.bekreftTittel"),
+      t("timer.startDag.bekreftMelding", { start: tilHHMM(aktivDag.startAt), forlopt }),
+      [
+        { text: t("handling.avbryt"), style: "cancel" },
+        { text: t("timer.startDag.bekreftAvslutt"), style: "destructive", onPress: () => { void utforSluttDag(); } },
+      ],
+    );
+  }, [aktivDag, behandler, t, utforSluttDag]);
+
   if (!bruker?.id) return null;
 
   // Inaktiv — «Start dag»
@@ -214,7 +231,7 @@ export function StartSluttDagKort() {
         </Text>
       </View>
       <Pressable
-        onPress={sluttDag}
+        onPress={bekreftSlutt}
         disabled={behandler}
         className="mt-3 flex-row items-center justify-center gap-2 rounded-lg bg-red-600 py-3 active:bg-red-700 disabled:opacity-50"
       >

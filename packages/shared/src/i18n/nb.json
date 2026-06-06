@@ -2446,5 +2446,8 @@
   "firma.timer.standard.settValgt": "Sett som standard for nye timer-rader",
   "timer.startDag.start": "Start dag",
   "timer.startDag.slutt": "Slutt dag",
-  "timer.startDag.status": "Pågår siden {{start}} · {{forlopt}}"
+  "timer.startDag.status": "Pågår siden {{start}} · {{forlopt}}",
+  "timer.startDag.bekreftTittel": "Avslutte arbeidsdagen?",
+  "timer.startDag.bekreftMelding": "Startet {{start}} · {{forlopt}} registrert",
+  "timer.startDag.bekreftAvslutt": "Avslutt dag"
 }
