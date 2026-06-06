@@ -14,6 +14,18 @@ sist_verifisert_mot_kode: 2026-05-08
 
 > ✅ Arkivert til [historikk-2026-06.md § Timer auto-select lønnsart (Variant A + B) + auth-fiks — deployet til prod 2026-06-06](historikk-2026-06.md). (prod-merge `ac1a4367`: `13c33ed6` Variant A + `336acdcb` duplikat-fiks + `5d3e8579` Variant B + `0a79c42c` auth-fiks. Mobil enhet-verifisering utestående pga Cloudflare↔Expo-Go-quirk i simulator — tas på TestFlight.)
 
+### Timer mobil: firma-standard arbeidstid + «Start dag / Slutt dag»-MVP — PÅ DEVELOP/TEST 2026-06-06 (ikke prod)
+
+Mobil-only, deployet til test (`020d4aeb`), **ikke prod** (mobil-feature → krever EAS-bygg for å nå brukere).
+- **`f0cba6ed`** — `ny.tsx` forhåndsutfyller «Arbeidstid i dag» fra firmaets standardarbeidstid (`hentEffektivArbeidstidLokal`) ved opprettelse, redigerbar.
+- **`020d4aeb`** — «Start dag / Slutt dag»-MVP: worker-drevet GPS+tid-bracketing på hjem-skjermen (`StartSluttDagKort` + ny lokal `arbeidsdag_local`-tabell, KUN lokal — synkes aldri). Ved «Slutt dag» genereres dagsseddel-forslag (prosjekt via Haversine, arbeidstid = brutto − firma-pause, auto-fordeling Timelønn + Overtid 50% via navne-match), navigerer til draft for bekreftelse. Delt `utils/geo.ts`. i18n 14 språk.
+
+**Enhet-verifisering utestående:** Blokkert i iOS-simulator av miljø-sak (NordVPN/IPv6, IKKE kode — se [simulator-ipv6-nordvpn.md](simulator-ipv6-nordvpn.md)). Bekreftelsestest pågår etter Mac-reboot.
+
+**Åpne oppfølgere:** (1) AuthProvider `verifiser`-fetch mangler timeout (BACKLOG). (2) overtid-navne-match → `Lonnsart.overtidsnivaa`-felt. (3) prod-deploy + EAS-bygg når MVP er enhet-verifisert.
+
+**Reload:** TS + Drizzle-schema (ALTER `arbeidsdag_local`). Full app-reload på mobil.
+
 ### Samlet aktivitet — 2026-05-30 (2 prod-deploys: subdomain↔category-validering + HMS-prefiks amber-hint + useToppbarFiltre)
 
 To sammenhengende oppryddinger natt og dag 2026-05-30. Natt: server-validering + amber-hint som naturlig oppfølger av 2026-05-29-bi-funnene fra HMS/mal-arbeidet. Dag: ny toppbar-filter-arkitektur som løser at 27 sider viste ByggeplassVelger uten å bruke den — identifisert under filterbruk-kartleggingen 2026-05-29.
