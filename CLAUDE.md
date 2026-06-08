@@ -6,6 +6,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 
 | Fil | Innhold |
 |-----|---------|
+| [docs/claude/SITEDOC-CLAUDE-VEILEDER.md](docs/claude/SITEDOC-CLAUDE-VEILEDER.md) | **Veileder Opus:** sesjonsoppstart-veileder — vis ved sesjon-start |
+| [docs/claude/kontroll-claude-veileder.md](docs/claude/kontroll-claude-veileder.md) | **Veileder kontroll-Claude:** arbeidsmåte for verifiseringslaget over Opus — les `parallell-arbeid-lock.md` først |
 | [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** pågående/pauset arbeid, planlagte faser, PR-historikk |
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
 | [docs/claude/BACKLOG.md](docs/claude/BACKLOG.md) | **Backlog:** teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet |
@@ -155,7 +157,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - Push til feature-branch → INGEN auto-deploy
 - Push til `main` → manuell prod-deploy (eksplisitt forespørsel kreves)
 
-**Etter Prisma schema-endring (ufravikelig fra 2026-05-26):** Kjør alltid `pnpm --filter @sitedoc/db exec prisma generate` eksplisitt mellom `prisma migrate deploy` og `pnpm build`. `migrate deploy` regenererer ikke Prisma-klienten automatisk — uten dette steget bruker API-bygget gammel klient og typecheck feiler på nye/endrede felter. Lærdom 2026-05-26: prod-deploy av HMS-PR feilet i build pga manglende generate; PM2 restartet imens med gammel kode mot ny DB-schema.
+**Etter Prisma schema-endring (ufravikelig fra 2026-05-26):** Kjør alltid `pnpm --filter @sitedoc/db exec prisma generate` eksplisitt mellom `prisma migrate deploy` og `pnpm build`. `migrate deploy` regenererer ikke Prisma-klienten automatisk — uten dette steget bruker API-bygget gammel klient og typecheck feiler på nye/endrede felter (lærdom 2026-05-26: HMS-PR-prod-deploy feilet i build pga manglende generate).
 
 **Deploy-sekvens:**
 
@@ -175,9 +177,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 
 `pnpm build 2>&1 | tail -5`-mønsteret skjuler exit-koden fra `pnpm build` fordi `tail` returnerer 0 uavhengig av oppstrømsfeil. Bruk i stedet `pnpm build && pm2 restart ...` (uten pipe) eller sjekk `$?` eksplisitt før restart.
 
-**Lærdom 2026-05-27 (H1-deploy `29bdded8`):** Prod-deploy kommandoen brukte `pnpm build 2>&1 | tail -5 && pm2 restart sitedoc-api && pm2 restart sitedoc-web`. Web-bygg feilet (manglende Context-felter i `apps/web/src/app/api/trpc/[...trpc]/route.ts`), men PM2 restartet likevel fordi `tail` ga exit 0. DB-migrasjonen kjørte først, så sitedoc-web kjørte gammel kode mot nytt schema i 25 minutter inntil fix (`4e353118`) ble committet og deployet på nytt.
-
-Risikoen var lav i dette tilfellet pga schema-defaults, men mønsteret er en tikkende bombe ved type-skift, fjernede felter eller andre breaking changes.
+Bakgrunn (H1-deploy `29bdded8`, 2026-05-27: `tail`-pipe skjulte byggfeil → PM2 restartet gammel kode mot nytt schema i 25 min) + full lærdom i [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 
 **Korrekt mønster:**
 ```bash
@@ -200,13 +200,7 @@ git checkout develop
 # ... deretter docs-commit + push
 ```
 
-**Lærdom 2026-05-27 (3 hendelser samme dag):** Tre arkiverings-commits landet på lokal `main` istedenfor `develop` fordi `git checkout` ble glemt etter prod-deploy. Måtte ryddes via `git cherry-pick` til develop + `git reset --hard origin/main`. Lokal main = remote main alltid; develop er der docs-arbeid skjer.
-
-Hvis du oppdager at en commit havnet på lokal main:
-1. `git checkout develop`
-2. `git cherry-pick <hash>` — overfør til develop
-3. `git push origin develop`
-4. `git checkout main && git reset --hard origin/main` — rydd lokal main
+Lokal main = remote main alltid; develop er der docs-arbeid skjer. Recovery hvis en commit havnet på lokal main (cherry-pick → develop, så `reset --hard origin/main`): se [deploy-detaljer.md](docs/claude/deploy-detaljer.md). Lærdom 2026-05-27 (3 hendelser samme dag).
 
 - Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 - Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
@@ -223,16 +217,13 @@ Hvis du oppdager at en commit havnet på lokal main:
 - Ikon-props: `JSX.Element` (ikke `React.ReactNode`) for å unngå `@types/react` v18/v19-kollisjon
 - tRPC mutation-callbacks: `_data: unknown` for å unngå TS2589
 - **tRPC-include TS2589-fallgruve:** `user: { include: { organization } }` eller `user: true` triggrer «Type instantiation excessively deep» i tRPC-klient. Bruk alltid eksplisitt `user: { select: { id, name, ... } }`. Lærdom fra O-5c 2026-05-13 (`MapperPanel.tsx:154`).
-- **Tailwind className-spesifisitet (max-w-* og lignende):** Wrapper-komponenter som concatenerer en hardkodet utility FØR caller-s `className` taper i CSS-spesifisitet — standard Tailwind-utility kommer ofte først i stylesheet og vinner mot caller-s arbitrary value (f.eks. `max-w-[80vw]` mister mot intern `max-w-lg`). Mønster for å la caller overstyre: regex-fallback. Eksempel fra Modal (T7-5b-fix 2026-05-17, `packages/ui/src/modal.tsx`): `className={`w-full ${className}${/\bmax-w-/.test(className) ? "" : " max-w-lg"} ...`}`. Bevarer eksisterende callers uten max-w-prop.
+- **Tailwind className-spesifisitet (max-w-* o.l.):** Wrapper som concatenerer en hardkodet utility FØR caller-s `className` taper i CSS-spesifisitet (f.eks. `max-w-[80vw]` mister mot intern `max-w-lg`). La caller overstyre via regex-fallback: `className={`w-full ${className}${/\bmax-w-/.test(className) ? "" : " max-w-lg"}`}` (Modal, `packages/ui/src/modal.tsx`, T7-5b-fix 2026-05-17).
 - **Prisma-felt-cleanup-verifikasjon:** grep alene er ikke pålitelig — filtrerer ut `where: { felt: ... }` med `-v "felt:"`. Kjør alltid `npx tsc --noEmit` etter schema-endring og bruk typecheck som sannhetskilde for gjenstående bruks-steder. Lærdom fra O-5b → O-5b-fix → O-5c (grep ga to oversette runder).
 - Prisma-migreringer: `pnpm --filter @sitedoc/db exec prisma migrate dev`
 
 ## UI-designprinsipper
 
-- **Renest mulig UI** — hvert element må rettferdiggjøre sin eksistens
-- Unngå toasts, bannere, animasjoner uten tydelig behov
-- Foretrekk subtile signaler fremfor påtrengende meldinger
-- Dalux-stil: profesjonelt, kompakt, funksjonelt
+- **Renest mulig UI** — hvert element må rettferdiggjøre sin eksistens. Unngå toasts/bannere/animasjoner uten tydelig behov; foretrekk subtile signaler.
 
 ### Slett-bekreftelse i UI
 
@@ -252,44 +243,22 @@ For inputs der bruker registrerer fritt valgte verdier (material, kategori, etik
 
 Gjelder alle «lærende» inputs — materialer, kategorier, etiketter, taggegruppe-navn, leverandører, etc.
 
-Fordeler:
-- Ingen forhåndskonfigurering kreves
-- Lærer naturlig av faktisk bruk
-- Skalerer fra 1 til 100+ verdier uten redesign
-- Håndterer både små og store firma med samme kode
+Fordeler: ingen forhåndskonfigurering, lærer av faktisk bruk, skalerer 1→100+ verdier uten redesign.
 
 Bruk dette mønsteret før du lager en eksplisitt katalog-tabell. Katalog-tabell er kun riktig når verdiene er regulert (lønnsart, lovpålagte koder) eller deles på tvers av firma.
 
 ### Filter-standard (vedtatt 2026-05-29)
 
-Alle filterpaneler bruker `MultiComboks` (`apps/web/src/components/ui/MultiComboks.tsx`) for multi-select og `SearchInput` (`@sitedoc/ui`) for fritekst-søk. Fritekst-søk er alltid en del av filter-blokken, ikke et separat element på siden.
-
-**Mønster:**
-- Fritekst-søk plasseres øverst (filtrerer på tittel/løpenummer/identifikator på tvers av visningens faner)
-- Multi-select-velgere plasseres under (typisk i grid-1/2-kolonner ved skjermbredde)
-- Valgte vises som chips under hver `MultiComboks`-knapp — alltid synlig uten å åpne menyen, med X-knapp for å fjerne
-- Søkefelt i `MultiComboks`-dropdown er alltid synlig (ikke gated på antall options)
-- «Tøm filter»-knapp under, vises kun når noe er valgt
-
-**Referanseimplementasjon:** `apps/web/src/app/dashbord/firma/hms/page.tsx` (firma-HMS-dashboard).
-
-Andre filterpaneler oppgraderes til samme mønster ved neste iterasjon på fila. Ikke-blokkerende for eksisterende sider — kun ny kode skal følge standarden.
+Filterpaneler bruker `MultiComboks` (`apps/web/src/components/ui/MultiComboks.tsx`) for multi-select + `SearchInput` (`@sitedoc/ui`) for fritekst-søk (alltid del av filter-blokken, ikke separat element). Fritekst øverst (tittel/løpenummer på tvers av faner), multi-select under (grid), valgte som chips med X-knapp, søkefelt i dropdown alltid synlig, «Tøm filter» kun når noe er valgt. Referanse: `dashbord/firma/hms/page.tsx`. Ikke-blokkerende — kun ny kode følger standarden.
 
 ### Toppbar-filtre-standard (vedtatt 2026-05-30)
 
-Nye sider skal deklarere hvilke toppbar-filtre de bruker via `useToppbarFiltre`-hooken (`apps/web/src/hooks/useToppbarFiltre.ts`). Hooken setter visuell tilstand på filter-velgerne i toppbar: velgere som ikke er i bruk på siden vises grå/ikke-klikkbar (`opacity-40 + cursor-not-allowed`) slik at brukeren ser at de ikke har effekt.
+Nye sider deklarerer hvilke toppbar-filtre de bruker via `useToppbarFiltre`-hooken (`apps/web/src/hooks/useToppbarFiltre.ts`): velgere som ikke er i bruk vises grå/ikke-klikkbar (`opacity-40 + cursor-not-allowed`) så brukeren ser at de ikke har effekt.
 
-**Mønster:**
-- **Sider som IKKE bruker byggeplass som filter:** kall `useToppbarFiltre({ byggeplass: false })` øverst i side-komponenten
-- **Sider som bruker byggeplass aktivt** (`bilder`, `hms`, `kontrollplan`, `oppgaver` (listing), `sjekklister` (listing + detalj), `tegninger`, `tegning-3d`, `vareforbruk`, `lokasjoner`): IKKE kall hooken — default-tilstand er aktiv velger
-- Default er aktiv. Hooken resetter til aktiv ved unmount, så neste rute starter med ren tilstand
+- **Side som IKKE filtrerer på byggeplass:** kall `useToppbarFiltre({ byggeplass: false })` øverst i komponenten.
+- **Side som bruker byggeplass aktivt** (bilder, hms, kontrollplan, oppgaver/sjekklister, tegninger, tegning-3d, vareforbruk, lokasjoner): ikke kall hooken — default er aktiv; hooken resetter ved unmount.
 
-**Implementasjon:**
-- Kontekst: `apps/web/src/kontekst/toppbar-filtre-kontekst.tsx` — `ToppbarFiltreProvider` med `{ byggeplassAktiv: boolean }`
-- Hook: `apps/web/src/hooks/useToppbarFiltre.ts`
-- Komponent-integrasjon: `apps/web/src/components/layout/ByggeplassVelger.tsx` har `disabled`-prop, leses fra konteksten via `Toppbar.tsx`
-
-**Hvorfor:** Tidligere viste ByggeplassVelger seg på alle prosjekt-scoped sider uavhengig av om sidens datalag faktisk filtrerte på byggeplass. Brukeren kunne velge byggeplass og forvente at innholdet endret seg, men på 16/30 detalj-sider og 11/14 oppsett-sider hadde valget ingen effekt. Visuell deaktivering gir tydelig signal om hvilke kontroller som har effekt på gjeldende side.
+Integrasjon: `toppbar-filtre-kontekst.tsx` + `ByggeplassVelger.tsx` (`disabled`-prop via `Toppbar.tsx`). Bakgrunn: byggeplass-velger viste seg uten effekt på 16/30 detalj-/11/14 oppsett-sider.
 
 ## Fargepalett
 
@@ -314,7 +283,7 @@ Nye sider skal deklarere hvilke toppbar-filtre de bruker via `useToppbarFiltre`-
   5. Gjenbruk eksisterende nøkler der mulig (`handling.lagre`, `handling.avbryt`, `tabell.navn` etc.)
   6. For data utenfor komponenter (arrays, configs): bruk `labelKey` i stedet for `label`, kall `t()` ved rendering
   7. Kjør auto-oversetting til de 13 andre språkene: `pnpm --filter @sitedoc/shared exec tsx src/i18n/generate.ts`. Skriptet oversetter fra `en.json` (master) til 13 målspråk. Full arbeidsflyt + kjente quirks i [docs/claude/shared-pakker.md § i18n](docs/claude/shared-pakker.md).
-- **i18n-diagnostikk-regel:** Når du ser at en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Hvis nøkkelen ikke finnes i `*.ts`/`*.tsx`, er det en relikvi som skal slettes — ikke en bug som skal fylles. Lærdom fra `hjelp.flyt.{bestiller,utforer,godkjenner}` 2026-05-23 (HjelpModal-refaktorering etterlot ubrukte nøkler i en.json som så ut som «mangler i nb»).
+- **i18n-diagnostikk-regel:** Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Finnes nøkkelen ikke i `*.ts`/`*.tsx` er det en relikvi som skal slettes, ikke en bug som skal fylles (lærdom `hjelp.flyt.*` 2026-05-23).
 
 ## Terminologi og hierarki
 
@@ -450,36 +419,36 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
   3. Tilgangs-sjekk: `sitedoc_admin` → enhver org, vanlig bruker → kun egen org via `OrganizationMember`
   4. Klient-side: UI-knapp `disabled` uten valgt firma + amber-banner som gjenbruker `t("nyttProsjekt.ingenFirma")` der det er relevant
 
-  Referanse-implementasjoner: `prosjekt.opprett` (`apps/api/src/routes/prosjekt.ts:163`), `admin.opprettProsjekt` (`apps/api/src/routes/admin.ts:229`), `opprettTestprosjekt` (`apps/api/src/routes/prosjekt.ts:246`). Bakgrunn: 5 orphans i prod-DB 2026-05-20 fra opprettelse uten firma — slettet samme dag. Eksisterende standalone-prosjekter beholdes (schema fortsatt nullable for bakover-kompat); kun opprettelse-flyten er strammet. Ved ny opprettelse-mutasjon (import-route, ny mobil-flyt, etc.) skal samme mønster speiles.
+  Referanse-impl: `prosjekt.opprett`/`opprettTestprosjekt` (`prosjekt.ts:163`/`:246`), `admin.opprettProsjekt` (`admin.ts:229`). Standalone-prosjekter beholdes (schema nullable for bakover-kompat); kun opprettelse-flyten er strammet — speil mønsteret ved ny opprettelse-mutasjon. Bakgrunn: 5 prod-orphans 2026-05-20.
 - **To-stegs migrations-policy** (ufravikelig fra 2026-04-26):
   1. Aldri slett kolonner i én migrering. Steg 1: legg til ny kolonne (nullable). Steg 2: migrer data. Steg 3: NEXT release setter NOT NULL eller dropper gammel
   2. Migrasjoner ALDRI redigeres etter merge til `main` — sikrer reproduserbarhet
   3. Cross-package-FK håndteres som svake String-felt uten Prisma `@relation` (etablert mønster i `db-maskin`)
-- **Migrasjons-backfill-disiplin** (ufravikelig fra 2026-05-26): Aldri hardkode én enkelt verdi på alle rader uten eksplisitt WHERE-betingelse som matcher felt utover `domain`. Bruk `prefix`, `name` eller andre diskriminerende felt for å sikre korrekt klassifisering. Lærdom 2026-05-26: PR 1-migrasjon (`20260526200000_report_template_subdomain_hms_synlighet`) satte `subdomain='avvik'` på ALLE HMS-maler — traff også eksisterende SJA/RUH-maler kunder hadde opprettet manuelt. Måtte rettes via oppfølger-migrasjon (`20260526220000_fix_hms_subdomain_prefix_match`). Korrekt mønster: `UPDATE ... WHERE prefix = 'SJA' SET subdomain = 'sja'` for hver kjent prefix-verdi, ikke én generisk default for alle.
+- **Migrasjons-backfill-disiplin** (ufravikelig fra 2026-05-26): Aldri hardkode én enkelt verdi på alle rader uten eksplisitt WHERE som matcher felt utover `domain` — bruk `prefix`/`name`/diskriminerende felt (`UPDATE ... WHERE prefix='SJA' SET subdomain='sja'` per kjent verdi, ikke én generisk default). Lærdom 2026-05-26 (HMS-mal-backfill traff SJA/RUH-maler) + oppfølger-fiks: se git-historikk.
 - ALDRI commit `.env`-filer
 - Bilder komprimeres til 300–400 KB før opplasting
 - Alle database-endringer via Prisma-migreringer
 - **ALDRI slett eksisterende data** — migreringer må bevare brukere, medlemskap og prosjektdata (bruk ALTER/RENAME/INSERT, ikke DROP+CREATE)
 - **API-bakoverkompatibilitet:** Ved rename av tRPC-routere, behold gammel router som alias i minst 1 uke — mobilbrukere kan ikke oppdatere umiddelbart
 - Mobil-appen MÅ fungere offline
-- **Prosjektisolering:** Alle spørringer, filtre og søk SKAL være prosjektbasert. Ingen data skal lekke mellom prosjekter — hvert prosjekt er en isolert enhet. Alle API-queries MÅ filtrere på `projectId`
+- **Prosjektisolering:** Alle spørringer, filtre og søk SKAL være prosjektbasert. Ingen data skal lekke mellom prosjekter — hvert prosjekt er en isolert enhet. Alle API-queries MÅ filtrere på `projectId`. **Gjelder prosjektmoduler.** Firmamoduler (timer, maskin, vareforbruk) isolerer i stedet på `organizationId` — to-produkt-modellen, se [terminologi.md § 0](docs/claude/terminologi.md). Sensitive felt som fra/til (innsjekk/utsjekk-tidspunkt) er firma-isolert uansett modul
 - Statusoverganger via `isValidStatusTransition()` på server og klient
 - E-postsending (Resend) er valgfri — API starter uten nøkkel
 - **Delt infrastruktur:** Brukeren har flere prosjekter som deler domene (sitedoc.no), OAuth-klienter, ngrok-konto og server. ALDRI endre `.env`-filer, DNS/tunnel-config eller OAuth-oppsett uten å spørre — endringer kan påvirke andre prosjekter
 - **Proadm-integrasjon:** all godkjenning skjer i SiteDoc. Proadm mottar kun ferdig godkjente timer/tillegg/utlegg — ingen godkjenningsflyt eller statusoppdateringer tilbake. Detaljer i [docs/claude/timer.md](docs/claude/timer.md)
 - **Lønnsart-grense — regnskap eier kobling og satser:** SiteDoc leverer default lønnsart-numre (avlest fra SmartDok som referanse), men numrene er redigerbare per firma — kunder må kunne tilpasse til sitt eget regnskapssystem. Lønnsart-til-konto-mapping og faktiske satser tilhører regnskap, ikke SiteDoc.
-- **SmartDok maskin-eksport:** Detaljer i [docs/claude/maskin.md § SmartDok-import](docs/claude/maskin.md). Excel-format, ansvarlig som klartekst-navn matches mot `User.name` (case-insensitive), 7600-tall = anleggsmaskin (A.Markussen-konvensjon), Vegvesen-oppslag prio 100 ved gyldig regnummer. Implementasjon planlagt etter Blokk C.
+- **SmartDok maskin-eksport:** Format, navne-matching, 7600-konvensjon og Vegvesen-prioritet i [docs/claude/maskin.md § SmartDok-import](docs/claude/maskin.md). Implementasjon planlagt etter Blokk C.
 - **Auto-commit:** Commit og push til `develop` automatisk etter ferdig implementasjon
 - **Auto-deploy til test:** Etter push til `develop`, deploy til test.sitedoc.no automatisk
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
 - **Prod-verifisering må alltid gjøres som innlogget bruker** (vedtatt 2026-05-02): `curl -sI` og HTTP 200 bekrefter kun at serveren svarer — ikke at data og funksjonalitet er intakt. Etter enhver prod-deploy: verifiser i nettleser som innlogget bruker at prosjekter, moduler og kritiske ruter laster korrekt. En anonym sesjon som viser «Ingen prosjekter» er IKKE en godkjent verifisering.
 - **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer
-- **STATUS.md vedlikehold:** Når en fil i `docs/claude/` endrer status (verifisert / drift identifisert / under arbeid / ferdig), oppdater [docs/claude/STATUS.md](docs/claude/STATUS.md) i SAMME commit. Aldri separat commit kun for status-oppdatering. Gjelder også når nye filer opprettes eller eksisterende slettes/arkiveres. Tre faste felter må oppdateres samtidig: (1) linje 14 dato, (2) linje 21-22 tellinger ✅/⚠️, (3) tagger på berørte rader + status-flytting mellom seksjoner. § E-commits skal også inkludere STATUS.md-oppdatering med commit-hash i tagg-kommentar. Lærdom 2026-04-30 og 2026-05-01: utelatelser krevde retro-rettelses-commits.
+- **STATUS.md vedlikehold:** Når en fil i `docs/claude/` endrer status (verifisert / drift identifisert / under arbeid / ferdig), oppdater [docs/claude/STATUS.md](docs/claude/STATUS.md) i SAMME commit. Aldri separat commit kun for status-oppdatering. Gjelder også når nye filer opprettes eller eksisterende slettes/arkiveres. Tre faste felter samtidig: (1) linje 14 dato, (2) linje 21-22 tellinger ✅/⚠️, (3) tagger på berørte rader + status-flytting mellom seksjoner.
 - **Funksjonsendrings-commits MÅ oppdatere status-dokumenter** (vedtatt 2026-05-02, ufravikelig): Hver commit som inneholder funksjonsendringer (ny feature, modul-runde, deploy, schema-endring, vesentlig refactor) MÅ i SAMME commit inkludere:
   1. **CLAUDE.md § Pågående arbeid** — oppdatert status med commit-hash for det som ble implementert/deployet
   2. **docs/claude/STATUS-AKTUELT.md** — oppdatert med hva som er implementert/deployet (hvilken runde, hvilket miljø, hash)
 
-  Dette er ikke valgfritt og skal ikke overlates til en separat oppfølger-commit. Lærdom: status-dokumenter som oppdateres i egen commit etterpå blir glemt eller drifter, og fremtidige sesjoner tar utdaterte beslutninger basert på utdatert status. Trivielle commits (ren typo-fix, kommentar-rens, formatting) er unntatt.
+  Dette er ikke valgfritt og skal ikke overlates til en separat oppfølger-commit (status-dok i egen commit etterpå blir glemt/drifter). Trivielle commits (typo-fix, kommentar-rens, formatting) er unntatt.
 - **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
   - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh sitedoc "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall

@@ -77,6 +77,13 @@ Rename gjennomført april 2026 (112 filer, feature/faggruppe-rename). Regler:
 - Datalag-isolasjon via egne DB-skjemaer (`packages/db-timer/`, `packages/db-maskin/` osv.)
 - App-plassering valgfri: integrert i `apps/web/src/app/<modul>/` (default, enklest) eller isolert `apps/<modul>/` (for separat skalering/deploy)
 
+> **🟢 To isolasjonsmodeller — én plattform (anker, 2026-06-08):** SiteDoc er **to produkter på samme plattform**, og isolasjonen følger modul-typologien:
+> - **Prosjekthotell** (prosjektmoduler) — data eies av prosjekt, **isolasjon på `projectId`**, tilgang via `ProjectMember`. CLAUDE.md-regelen «alle queries MÅ filtrere på projectId» gjelder her.
+> - **Firma-drift** (firmamoduler: timer, maskin, vareforbruk, kompetanse, planlegger) — data eies av firma + arbeider, prosjekt er en *valgfri etikett* på radene. **Isolasjon på `organizationId`**, tilgang via firma-medlemskap.
+> - **Feltnivå-skjerping:** enkelte sensitive felt bærer firma-isolasjon uansett modul. **Fra/til (innsjekk/utsjekk-tidspunkt)** er firma-isolert selv i den prosjekt-scopede PSI-modulen — byggherre/SHA-KU ser §15-aggregat, ikke klokkeslett.
+>
+> Auth, brukere og organisasjoner deles — ikke to kodebaser. Gjelder **alle** firmamoduler. Forankret i [OPPSUMMERING-timer-arkitektur.md § A](OPPSUMMERING-timer-arkitektur.md); se [arkitektur-syntese.md § 2.6](arkitektur-syntese.md) + CLAUDE.md § Prosjektisolering (annotert).
+
 ## 1. Organisasjon og firma
 
 - **Firma:** Selskapet som eier SiteDoc-kontoen. DB: `Organization`. Eksempel: A.Markussen AS, Veidekke. Eier prosjekter og firmamoduler (timer, maskin, HR, planlegging). Kobling til prosjekter via `OrganizationProject`

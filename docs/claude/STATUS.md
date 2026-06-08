@@ -11,8 +11,8 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-06-05 (OAuth account-linking + signIn-guard mot orphan-kontoer deployet til prod — arkivert i historikk-2026-06.md)
-**Antall filer dekket:** 50 (44 i `docs/claude/` + 6 i `docs/arkiv/`) — `neste-oppgave.md` slettet 2026-05-14, innholdet konsolidert til [STATUS-AKTUELT.md § Neste oppgaver](STATUS-AKTUELT.md)
+**Sist oppdatert:** 2026-06-08 (timer-arkitektur-beslutningssett rutet til sannhetskilder — SPOR 2 ankerbatch: to-produkt-isolasjon i terminologi/arkitektur/arkitektur-syntese + CLAUDE.md regel-annotering/veileder-linje/40k-trim + SPOR 1-funn til BACKLOG. Grunnlag: arbeidsdokument `OPPSUMMERING-timer-arkitektur.md`, IKKE i registeret)
+**Antall filer dekket:** 51 (45 i `docs/claude/` + 6 i `docs/arkiv/`) — `kontroll-claude-veileder.md` tilføyd 2026-06-08. `OPPSUMMERING-timer-arkitektur.md` er midlertidig arbeidsdokument (banner: IKKE i DOC-MAP, fjernes etter SPOR 2/3), ikke talt
 
 ---
 
@@ -197,12 +197,13 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
-| arkitektur.md | 2026-04-27 | **Sannhetskilde:** Fundament |
-| arkitektur-syntese.md | 2026-05-01 | **Sannhetskilde:** Anker for Fase 0-koding (sammen med fase-0-beslutninger.md). 3A komplett. § 5 Fase 0.5: A.30 byggeplassId-NULL = A1 vedtatt. § 6.1.1 Cross-modul-tilgang via service-lag |
+| arkitektur.md | 2026-04-27 | **Sannhetskilde:** Fundament. + YAML-header + K(2026-06-08): firmamodul-isolasjon (org vs prosjekt) + planlagte timer-entiteter (Oppmotested, Project.type, vehicleId) |
+| arkitektur-syntese.md | 2026-05-01 | **Sannhetskilde:** Anker for Fase 0-koding (sammen med fase-0-beslutninger.md). 3A komplett. § 5 Fase 0.5: A.30 byggeplassId-NULL = A1 vedtatt. § 6.1.1 Cross-modul-tilgang via service-lag. K(2026-06-08): § 2.6 firma-isolasjon + § 3.4 fra/til-isolasjon (reconciling) |
 | dokumentflyt.md | 2026-04-27 | **Sannhetskilde:** Fundament. § 2.3 HMS-tabell utvidet med firma-HMS-ansvarlig-lese-tilgang (per A.27) |
 | fase-0-beslutninger.md | 2026-05-12 | **Sannhetskilde:** Anker for Fase 0/0.5-koding. § E KOMPLETT på prod (alle 13 § E-steg). A.4-overstyring oppdatert 2026-05-05 (peker til Steg 1e). **§ T (T.1–T.6) tilføyd 2026-05-11 (`1d819ff4`)** — Timer-modul arkitektur-redesign, deployet prod 2026-05-12 (PR 1A–2C) |
-| terminologi.md | 2026-04-27 | **Sannhetskilde:** Fundament |
+| terminologi.md | 2026-04-27 | **Sannhetskilde:** Fundament. K(2026-06-08): to-produkt-isolasjonsmodell (§ 0) — prosjektmodul=projectId / firmamodul=organizationId |
 | SITEDOC-CLAUDE-VEILEDER.md | 2026-05-03 | **Meta-fil:** Sesjonsoppstart-veileder for Opus |
+| kontroll-claude-veileder.md | 2026-06-08 | **Meta-fil:** Arbeidsmåte for kontroll-Claude (verifiseringslaget over Opus). Indeksert i CLAUDE.md. Se `parallell-arbeid-lock.md` (repo-rot) |
 
 ## ⚠️ Drift identifisert (Bunke 3A.1, 2026-04-28)
 

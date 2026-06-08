@@ -1,10 +1,12 @@
 ---
 name: STATUS-AKTUELT
 description: Løpende statusrapport for pågående arbeid, pauset arbeid og planlagte faser. Oppdateres ved hver vesentlig fremdrift.
-sist_verifisert_mot_kode: 2026-05-08
+sist_verifisert_mot_kode: 2026-06-08
 ---
 
 ## Pågående arbeid (PR-historikk)
+
+> 📋 **PLANLAGT FASE — Timer-arkitektur (reise / oppmøtested / ikke-prosjekt-tid / firma-isolasjon):** Beslutningssett ferdig, ikke startet (IKKE PR). Bygger på «Start dag / Slutt dag»-MVP (under). Fase 1: Oppmøtested + GPS · Fase 1b: firma-isolasjons-fiks (`rapport.ts` org-filter + `tilfoyTimerRad` firma-grense) · Fase 2: Alt C (`Project.type`, `SheetTimer.vehicleId?`, intern-prosjekt-flyt) · Fase 3: reise-regelsett på `OrganizationSetting`. Grunnlag: [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md). Ingen kode før per-fase-godkjenning.
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ useToppbarFiltre-hook + ByggeplassVelger disabled-state — deployet til prod 2026-05-30](historikk-2026-05.md), [§ Subdomain↔category-validering + HMS-prefiks amber-hint — deployet til prod 2026-05-30](historikk-2026-05.md), [§ ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — deployet til prod 2026-05-29](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
 

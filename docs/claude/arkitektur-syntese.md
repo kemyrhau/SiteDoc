@@ -177,6 +177,12 @@ Project (overstyring per prosjekt)
 | Multi-firma-bruker | Modell A vedtatt (B.7) — én User per person×firma med reaktivering. Composite unique på `(email, organizationId)` + `(phone, organizationId)` forbereder multi-identifikator-auth. |
 | Firma-HMS-rapporter synlig for vanlige ansatte | Kun egne (default), konfigurerbart per firma |
 
+### 2.6 Firma-isolasjon — sikkerhetslaget (reconciling, 2026-06-08) ✅
+
+Tilgangsmodellen over (Akse A/B + gateway) er **forretningslaget** — hvem som kan *føre/se* innen et firma. Under det ligger et ufravikelig **sikkerhetslag**: firmamoduler (timer, maskin, vareforbruk) isolerer data på `organizationId`, **ikke** `projectId`. Et firma ser kun egne timer-/maskindata — aldri prosjekteiers eller et annet firmas, selv på delte prosjekter. Server-side, alltid. Forankring: SHA/arbeidsgiver-rapportering + CLAUDE.md «kryssorg: aldri pull».
+
+**Forretningslaget for timer (G1, 2026-06-08):** firma-nivå tilgang — en aktiv firma-ansatt kan føre mot et hvilket som helst av *firmaets* prosjekter (den harde `ProjectMember`-gaten faller for eget firma; § 2.4 `timerTilgangDefault='alle-ansatte'` er A.Markussens default). Kostnadskontroll ligger i attesteringen (`draft→sent→accepted`), ikke i velgeren. GPS = friksjonsfjerner (smart, prioriterende velger), ikke hard port. Detaljer: [OPPSUMMERING-timer-arkitektur.md § D](OPPSUMMERING-timer-arkitektur.md).
+
 ---
 
 ## 3. Datamodell-prinsipper
@@ -214,6 +220,8 @@ Etablert mønster i tre eksisterende implementasjoner. **Kanon: `EquipmentAssign
 **Sjekklister/Oppgaver/Godkjenning** beholder kun prosjekt-kontekst — krever required `bestillerFaggruppeId` + `utforerFaggruppeId`. Ingen endring.
 
 **HMS-rapport (Psi)** beholder ren prosjekt-kontekst — `projectId` forblir required (per CLAUDE.md § Tre nivåer-anker, korrigert 2026-04-28). PSI er prosjektmodul. Tidligere foreslått firma-eid PSI-utvidelse (organizationId + projectId nullable + kontekstType) er **forkastet**.
+
+**Fra/til feltnivå-isolasjon (reconciling, 2026-06-08):** Selv om PSI er prosjekt-scopet, er innsjekk/utsjekk-*tidspunkt* (fra/til) **firma-isolert** (jf. § 2.6). Byggherre og byggherres SHA-KU ser aggregert §15-tilstedeværelse (hvem/arbeidsgiver/HMS-kort), **ikke** klokkeslett. Byggherrens mannskaps-behov dekkes alltid av PSI-tilstedeværelse, aldri av timer/fra-til. Se [OPPSUMMERING § E](OPPSUMMERING-timer-arkitektur.md) + [mannskap.md](mannskap.md).
 
 **PSI-utvidelser i fremtidige faser:**
 - `eksternSystem`-felt (PSI gjennomført i SiteDoc eller eksternt system per byggeplass) — registrert som NY-7 / 4A i [oppryddings-plan-2026-04-28.md](oppryddings-plan-2026-04-28.md)
