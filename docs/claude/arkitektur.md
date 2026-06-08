@@ -7,7 +7,7 @@ sist_verifisert_mot_kode: 2026-06-08
 # Arkitektur — Database og tilgangskontroll
 
 > **🟢 Firmamodul-isolasjon + planlagte timer-entiteter (anker, 2026-06-08):** Firmamoduler (timer, maskin, vareforbruk) isolerer på `organizationId`, prosjektmoduler på `projectId` (to-produkt-modellen — se [terminologi.md § 0](terminologi.md) + [arkitektur-syntese.md § 2.6](arkitektur-syntese.md)). **Fra/til (innsjekk/utsjekk-tidspunkt)** er firma-isolert selv i prosjekt-scopet PSI. Planlagte additive skjema-utvidelser (alle nullable/defaultet → enkelt-stegs, T.2 ikke gjenåpnet):
-> - **`Oppmotested`** (kjerne, søsken til `Avdeling`): `{ organizationId, navn, lat, lng, radiusM, avdelingId?, aktiv }` — geofence for «Start dag».
+> - **`Oppmotested`** (kjerne, søsken til `Avdeling`): `{ organizationId, navn, adresse?, lat, lng, radiusM, avdelingId?, aktiv }` — geofence for «Start dag». **✅ Implementert Fase 1 (2026-06-08)** — migrasjon `20260608120000_oppmotested_fase1`, additiv. FK org Cascade / avdeling SetNull.
 > - **`Project.type String @default("kunde")`** ("kunde" | "internt") — interne prosjekter for ikke-prosjekt-tid (Alt C); filtreres ut av kundevendte lister, vises i timer-velger.
 > - **`SheetTimer.vehicleId String?`** (svak FK → db-maskin.Equipment) — kostnadsbærer for maskinvedlikehold; distinkt fra `SheetMachine.vehicleId` (drift).
 > - **`OrganizationSetting`** + reise-regelsett (`reiseTerskelMin`, `reiseUnder/OverTerskelType`, `reisetidTellerOvertid`).

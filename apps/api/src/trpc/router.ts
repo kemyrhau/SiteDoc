@@ -30,6 +30,7 @@ import { omradeRouter } from "../routes/omrade";
 import { kontrollplanRouter } from "../routes/kontrollplan";
 import { maskinRouter } from "../routes/maskin";
 import { avdelingRouter } from "../routes/avdeling";
+import { oppmotestedRouter } from "../routes/oppmotested";
 import { kompetansetypeRouter } from "../routes/kompetansetype";
 import { kompetanseRouter } from "../routes/kompetanse";
 import { timerRouter } from "../routes/timer";
@@ -75,6 +76,7 @@ export const appRouter = router({
   kontrollplan: kontrollplanRouter,
   maskin: maskinRouter,
   avdeling: avdelingRouter,
+  oppmotested: oppmotestedRouter,
   kompetansetype: kompetansetypeRouter,
   kompetanse: kompetanseRouter,
   timer: timerRouter,

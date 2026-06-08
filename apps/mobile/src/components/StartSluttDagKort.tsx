@@ -19,6 +19,7 @@ import { useFirma } from "../kontekst/FirmaKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { haversineKm } from "../utils/geo";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
+import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
 import { hentStandardLonnsartLokalt } from "../services/timerKatalog";
 
@@ -27,7 +28,32 @@ type AktivDag = {
   startAt: string;
   startLat: number | null;
   startLng: number | null;
+  oppmotestedNavn: string | null;
 };
+
+/**
+ * Fase 1: identifiser hvilket oppmøtested arbeider startet på via GPS.
+ * Nærmeste oppmøtested innenfor sin geofence-radius. Returnerer null hvis
+ * ingen treff (da brukes prosjekt-deteksjon / manuell flyt som før).
+ * KUN dokumentasjon + forslag — aldri lønnsgrunnlag.
+ */
+function identifiserOppmotested(
+  lat: number | null,
+  lng: number | null,
+  orgId: string,
+): { id: string; navn: string } | null {
+  if (lat == null || lng == null || !orgId) return null;
+  let beste: { id: string; navn: string } | null = null;
+  let besteM = Infinity;
+  for (const s of hentOppmotederLokalt(orgId)) {
+    const meter = haversineKm(lat, lng, s.lat, s.lng) * 1000;
+    if (meter <= s.radiusM && meter < besteM) {
+      besteM = meter;
+      beste = { id: s.id, navn: s.navn };
+    }
+  }
+  return beste;
+}
 
 function formatIsoDato(d: Date): string {
   const aar = d.getFullYear();
@@ -87,6 +113,7 @@ export function StartSluttDagKort() {
           startAt: rad.startAt,
           startLat: rad.startLat,
           startLng: rad.startLng,
+          oppmotestedNavn: rad.oppmotestedNavn ?? null,
         }
       : null;
   }, [bruker?.id]);
@@ -110,6 +137,8 @@ export function StartSluttDagKort() {
       const { lat, lng } = await fangGps();
       const db = hentDatabase();
       if (!db) return;
+      // GPS-identifiser oppmøtested (dokumentasjon + forslag, aldri lønn).
+      const oppm = identifiserOppmotested(lat, lng, valgtFirmaId ?? "");
       const naaIso = new Date().toISOString();
       const id = randomUUID();
       db.insert(arbeidsdagLocal)
@@ -125,14 +154,22 @@ export function StartSluttDagKort() {
           endLng: null,
           status: "paagaar",
           generertDagsseddelId: null,
+          oppmotestedId: oppm?.id ?? null,
+          oppmotestedNavn: oppm?.navn ?? null,
           sistEndretLokalt: Date.now(),
         })
         .run();
-      setAktivDag({ id, startAt: naaIso, startLat: lat, startLng: lng });
+      setAktivDag({
+        id,
+        startAt: naaIso,
+        startLat: lat,
+        startLng: lng,
+        oppmotestedNavn: oppm?.navn ?? null,
+      });
     } finally {
       setBehandler(false);
     }
-  }, [bruker?.id, behandler]);
+  }, [bruker?.id, behandler, valgtFirmaId]);
 
   const utforSluttDag = useCallback(async () => {
     if (!aktivDag || !bruker?.id || behandler) return;
@@ -230,6 +267,11 @@ export function StartSluttDagKort() {
           })}
         </Text>
       </View>
+      {aktivDag.oppmotestedNavn ? (
+        <Text className="mt-1 pl-6 text-xs text-green-700">
+          {t("timer.startDag.startetPaa", { sted: aktivDag.oppmotestedNavn })}
+        </Text>
+      ) : null}
       <Pressable
         onPress={bekreftSlutt}
         disabled={behandler}

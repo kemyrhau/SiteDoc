@@ -198,6 +198,10 @@ export const arbeidsdagLocal = sqliteTable("arbeidsdag_local", {
   endLng: real("end_lng"),
   status: text("status").notNull().default("paagaar"), // 'paagaar' | 'avsluttet' | 'forkastet'
   generertDagsseddelId: text("generert_dagsseddel_id"), // FK → dagsseddel_local.id (svak)
+  // Fase 1 (2026-06-08): GPS-identifisert oppmøtested ved «Start dag» —
+  // dokumentasjon, aldri lønnsgrunnlag. null = ikke innenfor noe geofence.
+  oppmotestedId: text("oppmotested_id"),
+  oppmotestedNavn: text("oppmotested_navn"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -282,6 +286,21 @@ export const prosjektLocal = sqliteTable("prosjekt_local", {
   lat: real("lat"),
   lng: real("lng"),
   aktiv: integer("aktiv", { mode: "boolean" }).notNull().default(true),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
+ * oppmotested_local — offline-cache av firmaets oppmøtesteder (kontorer) for
+ * GPS-identifikasjon ved «Start dag» (Fase 1, 2026-06-08). KUN lokal, synkes
+ * aldri opp. Refresh via oppmotestedKatalog.refreshOppmotestedKatalog.
+ */
+export const oppmotestedLocal = sqliteTable("oppmotested_local", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  navn: text("navn").notNull(),
+  lat: real("lat").notNull(),
+  lng: real("lng").notNull(),
+  radiusM: integer("radius_m").notNull().default(150),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
 

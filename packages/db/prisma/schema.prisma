@@ -91,6 +91,7 @@ model Organization {
   integrations        OrganizationIntegration[]
   setting             OrganizationSetting?
   avdelinger          Avdeling[]
+  oppmotesteder       Oppmotested[]
   kompetansetyper     Kompetansetype[]
   arbeidstidsKalender ArbeidstidsKalender[]
 
@@ -1910,10 +1911,41 @@ model Avdeling {
 
   organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationMembers OrganizationMember[]
+  oppmotesteder       Oppmotested[]
 
   @@unique([organizationId, navn])
   @@index([organizationId, aktiv])
   @@map("avdelinger")
+}
+
+// ---------------------------------------------------------------------------
+// Oppmotested — firma-eid geo-entitet (kontor/verksted) med geofence-radius.
+// Søsken til Avdeling (firma-infrastruktur i kjernen, ikke modul-tabell — KS-3).
+// Fase 1 (2026-06-08): GPS identifiserer hvilket oppmøtested arbeider startet på
+// ved «Start dag» (mobil, lokal-only dokumentasjon). Ingen lønns-/reiselogikk.
+// Valgfri avdelingId — org-akse (Avdeling) og fysisk-akse (kontor) er ikke 1:1.
+// ---------------------------------------------------------------------------
+
+model Oppmotested {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  navn           String
+  adresse        String?
+  lat            Float
+  lng            Float
+  radiusM        Int      @default(150) @map("radius_m")
+  avdelingId     String?  @map("avdeling_id")
+  aktiv          Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  avdeling     Avdeling?    @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, navn])
+  @@index([organizationId, aktiv])
+  @@index([avdelingId])
+  @@map("oppmotesteder")
 }
 
 // ---------------------------------------------------------------------------

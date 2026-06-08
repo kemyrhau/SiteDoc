@@ -12,7 +12,9 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-06-08 (timer-arkitektur-beslutningssett rutet til sannhetskilder — SPOR 2: ankerbatch (to-produkt-isolasjon i terminologi/arkitektur/arkitektur-syntese + CLAUDE.md regel/veiledere/40k-trim + SPOR 1 til BACKLOG) + modul-spec-batch (timer.md § Planlagte utvidelser, maskin.md vedlikehold≠drift, mannskap.md § E fra/til-isolasjon, planlegger.md premiss, fase-0 § T.10). Grunnlag: arbeidsdokument `OPPSUMMERING-timer-arkitektur.md`, IKKE i registeret)
-**Antall filer dekket:** 51 (45 i `docs/claude/` + 6 i `docs/arkiv/`) — `kontroll-claude-veileder.md` tilføyd 2026-06-08. `OPPSUMMERING-timer-arkitektur.md` er midlertidig arbeidsdokument (banner: IKKE i DOC-MAP, fjernes etter SPOR 2/3), ikke talt
+**Antall filer dekket:** 51 (45 i `docs/claude/` + 6 i `docs/arkiv/`) — `kontroll-claude-veileder.md` tilføyd 2026-06-08. `OPPSUMMERING-timer-arkitektur.md` + `FASE-1-PLAN-oppmotested-gps.md` er midlertidige arbeidsdokumenter (banner: IKKE i DOC-MAP, fjernes etter SPOR 3), ikke talt
+
+> **SPOR 3 Fase 1 implementert 2026-06-08 (develop/test):** Oppmøtested-entitet + API + web-side + mobil GPS-identifikasjon. Oppmøtested markert planlagt→implementert i `timer.md` § B + `arkitektur.md`-anker. Rent additivt, T.2/firma-isolasjon urørt.
 
 ---
 
