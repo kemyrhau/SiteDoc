@@ -16,7 +16,7 @@
 
 > **SPOR 3 Fase 1 implementert 2026-06-08 (develop/test):** Oppmøtested-entitet + API + web-side + mobil GPS-identifikasjon. Oppmøtested markert planlagt→implementert i `timer.md` § B + `arkitektur.md`-anker. Rent additivt, T.2/firma-isolasjon urørt.
 >
-> **Docs-/commit-/push-rutine forankret 2026-06-08:** roller + dual-review-gate i `kontroll-claude-veileder.md` § 10; CLAUDE.md auto-commit/auto-deploy reconciliert (commit+push etter dual-review, ikke auto) + peker til § 10. Mobil-auth-funn til BACKLOG (logout-frys nær-fiks + dev-login IPv6 + rå-fetch-timeout-utvidelse).
+> **Docs-/commit-/push-rutine forankret 2026-06-08:** roller + dual-review-gate i `kontroll-claude-veileder.md` § 10; CLAUDE.md auto-commit/auto-deploy reconciliert (commit+push etter dual-review, ikke auto) + peker til § 10. Mobil-auth-funn til BACKLOG (logout-frys nær-fiks + dev-login IPv6 + rå-fetch-timeout-utvidelse). Fase 1-oppfølgere (Leaflet-kartvelger / EAS-verifisering / Fase 1c byggeplass-georef) fanget i BACKLOG før `FASE-1-PLAN`-arbeidsdokumentet fjernes.
 
 ---
 
