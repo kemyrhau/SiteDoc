@@ -6,6 +6,7 @@ import { router, protectedProcedure } from "../../trpc/trpc";
 import {
   autoriserAdminForFirma,
   verifiserProsjektmedlem,
+  verifiserProsjekterTilhørerFirma,
   hentBrukersOrg,
   krevBrukersOrg,
 } from "../../trpc/tilgangskontroll";
@@ -706,6 +707,9 @@ export const dagsseddelRouter = router({
           message: "Aktivitet finnes ikke i firmaets katalog",
         });
       }
+
+      // Fase 1b: firma-grense på rad-projectId (lukker cross-firma-lekkasje).
+      await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
 
       // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
       // Defensiv — å legge til en timer-rad kan kun øke timer-summen i
@@ -1883,31 +1887,15 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // Cross-org-validering: alle nye-rad projectIds må tilhøre firmaet
-      const alleProjectIds = Array.from(
-        new Set([
+      // Fase 1b: firma-grense på alle nye-rad projectIds (delt helper).
+      await verifiserProsjekterTilhørerFirma(
+        [
           ...input.nyeRader.timer.map((r) => r.projectId),
           ...input.nyeRader.tillegg.map((r) => r.projectId),
           ...input.nyeRader.maskin.map((r) => r.projectId),
-        ]),
+        ],
+        sheet.organizationId,
       );
-      if (alleProjectIds.length > 0) {
-        const gyldigeProsjekter = await ctx.prisma.projectOrganization.findMany({
-          where: {
-            projectId: { in: alleProjectIds },
-            organizationId: sheet.organizationId,
-          },
-          select: { projectId: true },
-        });
-        const gyldigeIder = new Set(gyldigeProsjekter.map((p) => p.projectId));
-        const ugyldig = alleProjectIds.filter((pid) => !gyldigeIder.has(pid));
-        if (ugyldig.length > 0) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: `Prosjekt(er) tilhører ikke firmaet: ${ugyldig.join(", ")}`,
-          });
-        }
-      }
 
       // Valider originalId hvis gitt: må finnes på sedelen og være pending.
       // T7-2c1: henter også full rad-data for audit-snapshot.
@@ -2271,25 +2259,11 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // 6) Cross-org-validering: alle nye projectId må tilhøre firmaet
-      const alleProjectIds = Array.from(
-        new Set(input.nyeRader.map((r) => r.projectId)),
+      // 6) Fase 1b: firma-grense på alle nye projectId (delt helper).
+      await verifiserProsjekterTilhørerFirma(
+        input.nyeRader.map((r) => r.projectId),
+        sheet.organizationId,
       );
-      const gyldigeProsjekter = await ctx.prisma.projectOrganization.findMany({
-        where: {
-          projectId: { in: alleProjectIds },
-          organizationId: sheet.organizationId,
-        },
-        select: { projectId: true },
-      });
-      const gyldigeIder = new Set(gyldigeProsjekter.map((p) => p.projectId));
-      const ugyldig = alleProjectIds.filter((pid) => !gyldigeIder.has(pid));
-      if (ugyldig.length > 0) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: `Prosjekt(er) tilhører ikke firmaet: ${ugyldig.join(", ")}`,
-        });
-      }
 
       // 7) Sum-validering: nye rader må summere til originalens sum-felt.
       //    Timer- og maskin-rad: sum av "timer". Tillegg-rad: sum av "antall".
@@ -2966,6 +2940,21 @@ export const dagsseddelRouter = router({
           for (const pid of radProjectIder) {
             await verifiserProsjektmedlem(ctx.userId, pid);
           }
+
+          // Fase 1b: firma-grense på alle RESOLVERTE rad-projectIds (med
+          // sedel-nivå fallback). Medlemskaps-løkka over filtrerer bort rad-IDer
+          // == lokal.projectId og hopper sedel-nivå for eksisterende sedler —
+          // firma-grensen dekker den luken (foreign projectId via re-sync av
+          // egen eksisterende sedel). Delt helper, samme grense som de andre
+          // skrive-stiene. Beholder medlemskaps-løkka (G1-policy utenfor 1b).
+          await verifiserProsjekterTilhørerFirma(
+            [
+              ...lokal.timer.map((t) => t.projectId ?? lokal.projectId),
+              ...lokal.tillegg.map((t) => t.projectId ?? lokal.projectId),
+              ...lokal.maskiner.map((m) => m.projectId ?? lokal.projectId),
+            ],
+            orgId,
+          );
 
           const dato = new Date(lokal.dato);
 

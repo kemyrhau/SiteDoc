@@ -6,6 +6,16 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
+### Fase 1b — Firma-isolasjons-fiks (timer) — IMPLEMENTERT, venter dual-review 2026-06-08 (ikke pushet)
+
+Timer-arkitektur SPOR 3 Fase 1b — sikkerhetslag, rent additiv logikk (ingen schema/migrasjon). Lukker verifisert cross-firma-lekkasje. Implementert:
+- **Helper (kjerne):** `verifiserProsjekterTilhørerFirma(projectIds, orgId)` i `tilgangskontroll.ts` — FORBIDDEN hvis projectId verken er **eid** (`primaryOrganizationId`) **eller koblet** (`ProjectOrganization`) til firmaet. Unionen dekker underentreprenør + eide (inkl. legacy uten ProjectOrganization-rad).
+- **`dagsseddel.ts`:** helper anvendt på `tilfoyTimerRad` (var usjekket) + `syncBatch` rad-nivå (lukket luke: re-sync av egen eksisterende sedel med foreign projectId == sedel-nivå); `redigerSedelRader` + `splittRad` refaktorert fra duplisert inline-blokk til helper (atferdsidentisk + eier-gren).
+- **`rapport.ts` (`firmaPeriodeRapport`):** la til `dailySheet.organizationId == orgId` — SHA-modell, hvert firma rapporterer egne timer. Cross-org-invitert arbeiders sedel bevisst ekskludert.
+- **Data-sjekk (test-DB 2026-06-08):** 1 eid legacy-prosjekt uten ProjectOrganization-rad hadde timer-rader → dekkes av eier-grenen (0 eksisterende rader avvist av union-grensen).
+
+**Grenser holdt:** G1-policy-harmonisering (`verifiserProsjektmedlem` → firma-nivå i `opprett`/`syncBatch`) IKKE rørt (BACKLOG). Rapport-prosjekt-asymmetri (primaryOrg vs ProjectOrg utvalg) → BACKLOG. Sannhetskilde: [timer.md § Firma-isolasjon](timer.md).
+
 ### Fase 1 — Oppmøtested + GPS-identifikasjon — PÅ DEVELOP/TEST 2026-06-08 (ikke prod)
 
 Timer-arkitektur SPOR 3 Fase 1 (lavest risiko, rent additivt — rører ikke T.2 eller firma-isolasjon). Implementert:
@@ -17,7 +27,7 @@ Timer-arkitektur SPOR 3 Fase 1 (lavest risiko, rent additivt — rører ikke T.2
 
 **Grenser holdt:** ingen reise-/lønnslogikk (Fase 3), ingen firma-isolasjons-fiks (Fase 1b), ingen Alt C (Fase 2). **Mobil-del krever EAS-bygg for brukere.** Plan: [FASE-1-PLAN-oppmotested-gps.md](FASE-1-PLAN-oppmotested-gps.md) · grunnlag [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md).
 
-> 📋 **GJENSTÅENDE FASER (IKKE startet):** Fase 1b: firma-isolasjons-fiks (`rapport.ts` org-filter + `tilfoyTimerRad` firma-grense) · Fase 2: Alt C (`Project.type`, `SheetTimer.vehicleId?`, intern-prosjekt-flyt) · Fase 3: reise-regelsett på `OrganizationSetting`. Ingen kode før per-fase-godkjenning.
+> 📋 **GJENSTÅENDE FASER:** ~~Fase 1b: firma-isolasjons-fiks~~ (✅ implementert, se over) · Fase 2: Alt C (`Project.type`, `SheetTimer.vehicleId?`, intern-prosjekt-flyt) · Fase 3: reise-regelsett på `OrganizationSetting`. Ingen kode før per-fase-godkjenning.
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ useToppbarFiltre-hook + ByggeplassVelger disabled-state — deployet til prod 2026-05-30](historikk-2026-05.md), [§ Subdomain↔category-validering + HMS-prefiks amber-hint — deployet til prod 2026-05-30](historikk-2026-05.md), [§ ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — deployet til prod 2026-05-29](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
 

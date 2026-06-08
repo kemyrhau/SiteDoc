@@ -17,6 +17,8 @@
 > **SPOR 3 Fase 1 implementert 2026-06-08 (develop/test):** Oppmøtested-entitet + API + web-side + mobil GPS-identifikasjon. Oppmøtested markert planlagt→implementert i `timer.md` § B + `arkitektur.md`-anker. Rent additivt, T.2/firma-isolasjon urørt.
 >
 > **Docs-/commit-/push-rutine forankret 2026-06-08:** roller + dual-review-gate i `kontroll-claude-veileder.md` § 10; CLAUDE.md auto-commit/auto-deploy reconciliert (commit+push etter dual-review, ikke auto) + peker til § 10. Mobil-auth-funn til BACKLOG (logout-frys nær-fiks + dev-login IPv6 + rå-fetch-timeout-utvidelse). Fase 1-oppfølgere (Leaflet-kartvelger / EAS-verifisering / Fase 1c byggeplass-georef) fanget i BACKLOG før `FASE-1-PLAN`-arbeidsdokumentet fjernes.
+>
+> **SPOR 3 Fase 1b implementert 2026-06-08 (venter dual-review, ikke pushet):** Firma-isolasjons-fiks — delt helper `verifiserProsjekterTilhørerFirma` (union eid/ProjectOrganization) på `tilfoyTimerRad`+`syncBatch`, refaktorert `redigerSedelRader`+`splittRad`, `rapport.ts` sedel-org-filter. Sannhetskilde `timer.md` § Firma-isolasjon. Rent additiv logikk, ingen migrasjon.
 
 ---
 
@@ -264,7 +266,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | planlegger.md | — | Planlagt fase. K(2026-06-08): forhåndsfyll-aldri-lås-premiss + YAML-header tilføyd |
 | shared-pakker.md | — | — |
 | smartdok-undersokelse-2026-04-25.md | — | Arkivert v1 |
-| timer.md | 2026-05-12 | Runde 1A+1B+1C (`c1122c2e`) + Runde 2 C1-C8 (`1cce62f3`) + Runde 2.5/C9 + 2.6 + 2.7 (`de33aefc`/`03d8c63a`/`05b3bddb`) + attestering-rename (`8aa792b2`) deployet til prod 2026-05-02. **Steg 4a** (ECO-flytt på attestering, `da6b34a5`) deployet 2026-05-03. **U1** (leder-timer-rapport, `c551063f`) + **U2** (CSV/Excel-eksport, `31cff7da`) deployet 2026-05-06. **T.1–T.6 arkitektur-redesign** (PR 1A `862c70c3` + PR 1B `bba971ba` + PR 2A `6431873c` + PR 2B `8478d4a7` + PR 2C min `0700b8ed`) deployet prod 2026-05-12: `DailySheet.projectId` droppet, projectId/byggeplassId/fraTid/tilTid/attestert*-felter på rad-nivå, `OrganizationSetting.tidsrundingMinutter` (T.5). Schema-tabeller og indekser oppdatert. Åpen oppgave: PR 2C full (mobil Drizzle-omskriving). K(2026-06-08): § Planlagte arkitektur-utvidelser (reise/oppmøtested/Alt C/firma-isolasjon — rapport-lekkasje notert som kjent issue) |
+| timer.md | 2026-05-12 | Runde 1A+1B+1C (`c1122c2e`) + Runde 2 C1-C8 (`1cce62f3`) + Runde 2.5/C9 + 2.6 + 2.7 (`de33aefc`/`03d8c63a`/`05b3bddb`) + attestering-rename (`8aa792b2`) deployet til prod 2026-05-02. **Steg 4a** (ECO-flytt på attestering, `da6b34a5`) deployet 2026-05-03. **U1** (leder-timer-rapport, `c551063f`) + **U2** (CSV/Excel-eksport, `31cff7da`) deployet 2026-05-06. **T.1–T.6 arkitektur-redesign** (PR 1A `862c70c3` + PR 1B `bba971ba` + PR 2A `6431873c` + PR 2B `8478d4a7` + PR 2C min `0700b8ed`) deployet prod 2026-05-12: `DailySheet.projectId` droppet, projectId/byggeplassId/fraTid/tilTid/attestert*-felter på rad-nivå, `OrganizationSetting.tidsrundingMinutter` (T.5). Schema-tabeller og indekser oppdatert. Åpen oppgave: PR 2C full (mobil Drizzle-omskriving). K(2026-06-08): § Planlagte arkitektur-utvidelser (reise/oppmøtested/Alt C/firma-isolasjon — rapport-lekkasje notert som kjent issue). **Fase 1b (2026-06-08):** § Firma-isolasjon (sikkerhetslag) lagt til — helper + 4 skrive-stier + rapport-org-filter implementert, lekkasje lukket |
 | varsling.md | — | — |
 
 ## 📦 Arkivert

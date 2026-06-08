@@ -271,6 +271,52 @@ export async function verifiserProsjektmedlem(
 }
 
 /**
+ * Verifiser at alle oppgitte prosjekter tilhører firmaet.
+ *
+ * Firma-grense på rad-nivå for timer-modulen (`SheetTimer.projectId` er svak FK til
+ * Project i kjerne-DB). Dette er en FIRMA-grense, ikke prosjekt-medlemskap (jf. G1
+ * firma-nivå-tilgang): et firma kan føre timer mot ethvert prosjekt det har en relasjon
+ * til. "Tilhører" = unionen av to relasjoner:
+ *   - DELTAR: ProjectOrganization-kobling (dekker underentreprenør på annet firmas prosjekt)
+ *   - EIER: primaryOrganizationId == orgId (dekker også LEGACY eide prosjekter som mangler
+ *     ProjectOrganization-rad — opprettet før auto-koblingen, jf. admin.ts-bugfix; verifisert
+ *     på test: "Test redigert mal" hadde timer-rader uten kobling men eide-match).
+ *
+ * Ren ProjectOrganization-sjekk ville feilaktig avvist skriv mot firmaets egne legacy-
+ * prosjekter — derfor unionen. Kaster FORBIDDEN hvis ett eller flere projectId verken er
+ * eid av eller koblet til orgId. Tom liste = no-op. To samlede findMany (ikke N oppslag).
+ */
+export async function verifiserProsjekterTilhørerFirma(
+  projectIds: string[],
+  organizationId: string,
+): Promise<void> {
+  const unike = Array.from(new Set(projectIds));
+  if (unike.length === 0) return;
+
+  const [koblet, eide] = await Promise.all([
+    prisma.projectOrganization.findMany({
+      where: { projectId: { in: unike }, organizationId },
+      select: { projectId: true },
+    }),
+    prisma.project.findMany({
+      where: { id: { in: unike }, primaryOrganizationId: organizationId },
+      select: { id: true },
+    }),
+  ]);
+  const gyldigeIder = new Set<string>([
+    ...koblet.map((p) => p.projectId),
+    ...eide.map((p) => p.id),
+  ]);
+  const ugyldig = unike.filter((pid) => !gyldigeIder.has(pid));
+  if (ugyldig.length > 0) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Prosjekt(er) tilhører ikke firmaet: ${ugyldig.join(", ")}`,
+    });
+  }
+}
+
+/**
  * Verifiser at bruker tilhører den angitte organisasjonen.
  * Brukes for org-admin-sider (/org/innstillinger).
  */

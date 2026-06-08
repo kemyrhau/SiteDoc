@@ -1,6 +1,6 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: 2026-05-01
+sist_verifisert_mot_kode: 2026-06-08
 sist_endret: 2026-06-08
 gjelder_versjon: Fase 3
 avhenger_av:
@@ -360,6 +360,35 @@ Stegvis flyt — hvert steg er en seksjon på skjermen:
 4. **Enhet** — auto-foreslått fra maskintype (kantsteinsetter → m, lastebil → m3). Kan overstyres
 5. **Kopiér forrige dag** — én knapp som **foreslår** verdier fra gårsdagens seddel. Foreslåtte verdier vises med visuell indikator (lys grå bakgrunn + «auto-foreslått»-tag) og er redigerbare før lagring. Kopierer: prosjekt, underprosjekt, aktivitet, lønnsart-fordeling, avdeling. Kopierer IKKE: klokkeslett, maskinrader, materialer, utlegg, kommentar — disse er typisk dagsspesifikke. Brukeren ser tydelig hva som er foreslått vs hva som er ferskt — ingen skjult automatikk
 6. **Materialer** — fritekst + mengde + enhet-dropdown (m3/m2/tonn/kg/m)
+
+## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
+
+Timer er en **firmamodul**: data eies av firma + arbeider, med `projectId` som etikett på radene. Isolasjonen er på **organisasjon (firma)**, ikke prosjekt-medlemskap (jf. to-produkt-modellen i [terminologi.md § 0](terminologi.md) og OPPSUMMERING-timer-arkitektur § D/G1).
+
+To skiller som ikke må blandes:
+- **Sikkerhetslag (firma-grense, ufravikelig, server-side):** hvilke prosjekter en arbeiders timer-rad *kan* peke på.
+- **Forretningslag (G1 firma-nivå-tilgang, policy):** hvilke prosjekter velgeren *tilbyr*. Harmonisering av medlemskaps-gaten (`verifiserProsjektmedlem` i `opprett`/`syncBatch`) → firma-nivå er **ikke** del av Fase 1b (BACKLOG).
+
+### Firma-grense på rad-projectId
+
+`SheetTimer.projectId` er en svak FK til `Project` i kjerne-DB. Felles helper i `tilgangskontroll.ts`:
+
+**`verifiserProsjekterTilhørerFirma(projectIds, organizationId)`** — kaster `FORBIDDEN` hvis et projectId verken er **eid av** (`Project.primaryOrganizationId == orgId`) **eller koblet til** (`ProjectOrganization`) firmaet. Unionen dekker både underentreprenør (deltar via ProjectOrganization på annet firmas prosjekt) **og** eide prosjekter — inkludert **legacy eide** som mangler ProjectOrganization-rad (opprettet før auto-koblingen, jf. `admin.ts`-bugfix; verifisert mot test-DB 2026-06-08: én slik rad fantes, dekkes nå av eier-grenen).
+
+Anvendt på alle fire rad-skrive-stiene i `dagsseddel.ts`:
+
+| Sti | Før Fase 1b | Etter |
+|-----|-------------|-------|
+| `tilfoyTimerRad` | ingen prosjekt-firma-sjekk (hull) | helper på `input.projectId` |
+| `syncBatch` (rad-nivå) | kun medlemskap på rad-IDer ≠ sedel-nivå; luke for re-sync av egen eksisterende sedel | helper på alle resolverte rad-projectIds (medlemskaps-løkka beholdt) |
+| `redigerSedelRader` | inline ProjectOrganization-sjekk | refaktorert til helper (+ eier-gren) |
+| `splittRad` | inline ProjectOrganization-sjekk | refaktorert til helper (+ eier-gren) |
+
+### Firma-grense på firmaPeriodeRapport
+
+`rapport.ts` (`firmaPeriodeRapport`) filtrerer nå dagssedler på **`dailySheet.organizationId == orgId`** i tillegg til prosjekt-tilhørighet. SHA/arbeidsgiver-modellen: hvert firma rapporterer **egne** timer, aldri prosjekteiers. Lukker cross-firma-lekkasje der en cross-org-invitert arbeiders sedel (annet org) med rad mot firmaets prosjekt tidligere dukket opp i rapporten — nå bevisst ekskludert.
+
+> **Kjent asymmetri (BACKLOG, ikke 1b):** `rapport.ts` henter «firmaets prosjekter» via `primaryOrganizationId` (kun eide), mens rad-grensen tillater deltatte (ProjectOrganization). En underentreprenørs egne timer på et deltatt-men-ikke-eid prosjekt vises derfor ikke i firmaets periode-rapport. Under-rapportering, ikke lekkasje — eget oppfølgings-punkt.
 
 ## Eksport til lønnssystem
 
