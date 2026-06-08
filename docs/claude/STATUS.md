@@ -255,7 +255,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | byggeplass-strategi.md | — | Planlagt fase. Fase 0.5 §§ 1-3 + § 5 implementert 2026-05-01. ByggeplassMedlemskap utsatt til Fase 4 (Mannskap) |
 | db-naming-audit-2026-04-25.md | — | Datert audit 2026-04-25 |
 | db-opprydning.md | — | **Arbeidsanker:** Markert AKTIV |
-| deploy-detaljer.md | — | Operasjonell deploy-info. Lærdom om SITEDOC_INTEGRATION_KEY må stå i BÅDE web- og api-ecosystem-blokker tilføyd 2026-05-07 |
+| deploy-detaljer.md | — | Operasjonell deploy-info. Lærdom om SITEDOC_INTEGRATION_KEY må stå i BÅDE web- og api-ecosystem-blokker tilføyd 2026-05-07. K(2026-06-08): pgvector-gotcha — lokal `migrate dev` feiler på shadow-DB, håndskriv migrasjon i idempotent stil |
 | hjelpetekster.md | — | Konvensjon for ?-ikon + sidestatus-tabell |
 | infrastruktur.md | — | — |
 | kontrollplan.md | — | — |
