@@ -6,9 +6,9 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
-### Fase 1b — Firma-isolasjons-fiks (timer) — IMPLEMENTERT, venter dual-review 2026-06-08 (ikke pushet)
+### Fase 1b — Firma-isolasjons-fiks (timer) — PÅ DEVELOP/TEST 2026-06-09 (ikke prod) — commit `eea004cb`
 
-Timer-arkitektur SPOR 3 Fase 1b — sikkerhetslag, rent additiv logikk (ingen schema/migrasjon). Lukker verifisert cross-firma-lekkasje. Implementert:
+Timer-arkitektur SPOR 3 Fase 1b — sikkerhetslag, rent additiv logikk (ingen schema/migrasjon). Lukker verifisert cross-firma-lekkasje. Dual-review + funksjonell verifisering fullført (rapport-org-filter intakt på test; write-path-avvisning verifisert i kode). Implementert:
 - **Helper (kjerne):** `verifiserProsjekterTilhørerFirma(projectIds, orgId)` i `tilgangskontroll.ts` — FORBIDDEN hvis projectId verken er **eid** (`primaryOrganizationId`) **eller koblet** (`ProjectOrganization`) til firmaet. Unionen dekker underentreprenør + eide (inkl. legacy uten ProjectOrganization-rad).
 - **`dagsseddel.ts`:** helper anvendt på `tilfoyTimerRad` (var usjekket) + `syncBatch` rad-nivå (lukket luke: re-sync av egen eksisterende sedel med foreign projectId == sedel-nivå); `redigerSedelRader` + `splittRad` refaktorert fra duplisert inline-blokk til helper (atferdsidentisk + eier-gren).
 - **`rapport.ts` (`firmaPeriodeRapport`):** la til `dailySheet.organizationId == orgId` — SHA-modell, hvert firma rapporterer egne timer. Cross-org-invitert arbeiders sedel bevisst ekskludert.
