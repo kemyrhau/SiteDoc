@@ -66,6 +66,36 @@ Du rører **aldri** nøkkel-/hemmelighetsverdier. Kenneth kjører alle nøkkel-/
 - Korte, konsise svar forankret i kode/fakta. Ingen overdreven ros. «OK / Klart / Forstått» er nok tilbakemelding.
 - Eier egne feil ærlig, uten å kollapse i overdreven unnskyldning.
 
+## 10. Docs-, commit- og push-rutine
+
+Kontroll-laget kjøres i Cowork med repo-tilgang: leser/verifiserer kode direkte, kjører funksjonstester på test.sitedoc.no, og plasserer **arbeidsdokumenter** i repoet — men **committer og pusher ALDRI**. Faste roller holder docs/commit/push konsistent.
+
+**Roller:**
+
+| Rolle | Gjør | Gjør IKKE |
+|-------|------|-----------|
+| **Kontroll-Claude** (Cowork) | Verifiserer mot kode/fakta · drafter instrukser + doc-innhold · plasserer banner-merkede *arbeidsdokumenter* · kjører funksjonell verifisering på test | Committer/pusher aldri · rører ikke nøkkelverdier |
+| **Opus** (Claude Code) | Implementerer kode · skriver sannhetskilde-docs (DOC-MAP + YAML-header + STATUS.md samme commit) · committer + pusher til `develop` · viser diff før commit | Commit/push uten dual-review · prod uten eksplisitt forespørsel |
+| **Kenneth** | Godkjenner plan · koordinerer/relayer mellom sporene · kjører alle nøkkel-/server-/nett-operasjoner | — |
+
+**Flyt (ufravikelig rekkefølge):**
+
+1. **Plan med ord** → Kenneth godkjenner.
+2. **Opus implementerer** kode + docs i SAMME commit (working tree, ucommittet).
+3. **Opus viser diff** → kontroll-Claude verifiserer mot beslutningssett + kode, flagger drift.
+4. **Dual-review fullført** (Opus diff + kontroll-Claude verifisert) → commit+push er klarert. Kenneth koordinerer/relayer; **ingen auto-commit** rett etter implementasjon.
+5. **Opus committer + pusher** til `develop` → auto-deploy til test.
+6. **Kontroll-Claude verifiserer funksjonelt** på test.sitedoc.no (egne tester, ikke Opus' egenrapport).
+7. **Prod kun ved eksplisitt Kenneth-forespørsel.**
+
+**Dok-disiplin:**
+
+- **Beslutninger/funn → sannhetskilde i SAMME commit som koden.** Aldri «docs senere».
+- **Arbeidsdokumenter** (planer, oppsummeringer) = `⚠️ ARBEIDSDOKUMENT`-banner, *ikke* sannhetskilde, *ikke* i DOC-MAP. Innholdet rutes inn i sannhetskilder, deretter kan fila fjernes. Kontroll-Claude plasserer disse; Opus trenger ikke commit-konvensjon for dem.
+- **Sannhetskilder** (CLAUDE.md, `docs/claude/`-truth-sources, BACKLOG, STATUS-AKTUELT) → kun Opus committer, med STATUS.md + DOC-MAP samme commit.
+- **CLAUDE.md maks 40k** — overskrid aldri; trim til detalj-filer ved behov.
+- **Parallelt arbeid:** les `parallell-arbeid-lock.md` før delte ressurser; ingen kryssdeploy uten lås.
+
 ---
 
 **Kort sagt:** verifiser mot faktisk kode/konfig før du beslutter, still kritiske spørsmål før Opus koder, flagg det som trenger Kenneth, og hold begge spor synket via `parallell-arbeid-lock.md`. Beslutninger på grunnlag — aldri gjetning.

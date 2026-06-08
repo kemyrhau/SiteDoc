@@ -72,7 +72,7 @@ Utfør kun handlinger direkte knyttet til den uttrykkelige oppgaven. Hvis andre 
 - Ved tvil: still kontrollspørsmål før handling
 
 **Spør alltid før du:**
-- Pusher commits til remote
+- Pusher til `main`/prod eller gjør force-push/destruktiv push (vanlige `develop`-commits dekkes av dual-review-gaten — se § Commit + push)
 - Endrer eller forkaster pågående PRs
 - Kjører destruktive git-operasjoner (reset --hard, force push, branch-sletting)
 - Endrer database-skjema eller kjører migreringer
@@ -434,14 +434,14 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
 - **Prosjektisolering:** Alle spørringer, filtre og søk SKAL være prosjektbasert. Ingen data skal lekke mellom prosjekter — hvert prosjekt er en isolert enhet. Alle API-queries MÅ filtrere på `projectId`. **Gjelder prosjektmoduler.** Firmamoduler (timer, maskin, vareforbruk) isolerer i stedet på `organizationId` — to-produkt-modellen, se [terminologi.md § 0](docs/claude/terminologi.md). Sensitive felt som fra/til (innsjekk/utsjekk-tidspunkt) er firma-isolert uansett modul
 - Statusoverganger via `isValidStatusTransition()` på server og klient
 - E-postsending (Resend) er valgfri — API starter uten nøkkel
-- **Delt infrastruktur:** Brukeren har flere prosjekter som deler domene (sitedoc.no), OAuth-klienter, ngrok-konto og server. ALDRI endre `.env`-filer, DNS/tunnel-config eller OAuth-oppsett uten å spørre — endringer kan påvirke andre prosjekter
+- **Delt infrastruktur:** Flere prosjekter deler domene (sitedoc.no), OAuth, ngrok og server. ALDRI endre `.env`, DNS/tunnel-config eller OAuth uten å spørre — kan påvirke andre prosjekter
 - **Proadm-integrasjon:** all godkjenning skjer i SiteDoc. Proadm mottar kun ferdig godkjente timer/tillegg/utlegg — ingen godkjenningsflyt eller statusoppdateringer tilbake. Detaljer i [docs/claude/timer.md](docs/claude/timer.md)
-- **Lønnsart-grense — regnskap eier kobling og satser:** SiteDoc leverer default lønnsart-numre (avlest fra SmartDok som referanse), men numrene er redigerbare per firma — kunder må kunne tilpasse til sitt eget regnskapssystem. Lønnsart-til-konto-mapping og faktiske satser tilhører regnskap, ikke SiteDoc.
+- **Lønnsart-grense — regnskap eier kobling og satser:** SiteDoc leverer default lønnsart-numre (redigerbare per firma); lønnsart-til-konto-mapping og faktiske satser tilhører regnskap, ikke SiteDoc.
 - **SmartDok maskin-eksport:** Format, navne-matching, 7600-konvensjon og Vegvesen-prioritet i [docs/claude/maskin.md § SmartDok-import](docs/claude/maskin.md). Implementasjon planlagt etter Blokk C.
-- **Auto-commit:** Commit og push til `develop` automatisk etter ferdig implementasjon
-- **Auto-deploy til test:** Etter push til `develop`, deploy til test.sitedoc.no automatisk
+- **Commit + push til `develop`:** etter dual-review (Opus viser diff + kontroll-Claude verifiserer), ikke automatisk etter implementasjon. Kenneth koordinerer/relayer. Full rutine: [kontroll-claude-veileder.md § 10](docs/claude/kontroll-claude-veileder.md).
+- **Auto-deploy til test:** konsekvens ETTER godkjent push til `develop`.
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
-- **Prod-verifisering må alltid gjøres som innlogget bruker** (vedtatt 2026-05-02): `curl -sI` og HTTP 200 bekrefter kun at serveren svarer — ikke at data og funksjonalitet er intakt. Etter enhver prod-deploy: verifiser i nettleser som innlogget bruker at prosjekter, moduler og kritiske ruter laster korrekt. En anonym sesjon som viser «Ingen prosjekter» er IKKE en godkjent verifisering.
+- **Prod-verifisering må alltid gjøres som innlogget bruker** (vedtatt 2026-05-02): `curl -sI`/HTTP 200 bekrefter kun at serveren svarer, ikke at data er intakt. Etter prod-deploy: verifiser i nettleser som innlogget at prosjekter/moduler/kritiske ruter laster. Anonym «Ingen prosjekter» er IKKE godkjent verifisering.
 - **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer
 - **STATUS.md vedlikehold:** Når en fil i `docs/claude/` endrer status (verifisert / drift identifisert / under arbeid / ferdig), oppdater [docs/claude/STATUS.md](docs/claude/STATUS.md) i SAMME commit. Aldri separat commit kun for status-oppdatering. Gjelder også når nye filer opprettes eller eksisterende slettes/arkiveres. Tre faste felter samtidig: (1) linje 14 dato, (2) linje 21-22 tellinger ✅/⚠️, (3) tagger på berørte rader + status-flytting mellom seksjoner.
 - **Funksjonsendrings-commits MÅ oppdatere status-dokumenter** (vedtatt 2026-05-02, ufravikelig): Hver commit som inneholder funksjonsendringer (ny feature, modul-runde, deploy, schema-endring, vesentlig refactor) MÅ i SAMME commit inkludere:

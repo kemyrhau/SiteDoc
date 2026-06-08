@@ -15,6 +15,8 @@
 **Antall filer dekket:** 51 (45 i `docs/claude/` + 6 i `docs/arkiv/`) — `kontroll-claude-veileder.md` tilføyd 2026-06-08. `OPPSUMMERING-timer-arkitektur.md` + `FASE-1-PLAN-oppmotested-gps.md` er midlertidige arbeidsdokumenter (banner: IKKE i DOC-MAP, fjernes etter SPOR 3), ikke talt
 
 > **SPOR 3 Fase 1 implementert 2026-06-08 (develop/test):** Oppmøtested-entitet + API + web-side + mobil GPS-identifikasjon. Oppmøtested markert planlagt→implementert i `timer.md` § B + `arkitektur.md`-anker. Rent additivt, T.2/firma-isolasjon urørt.
+>
+> **Docs-/commit-/push-rutine forankret 2026-06-08:** roller + dual-review-gate i `kontroll-claude-veileder.md` § 10; CLAUDE.md auto-commit/auto-deploy reconciliert (commit+push etter dual-review, ikke auto) + peker til § 10. Mobil-auth-funn til BACKLOG (logout-frys nær-fiks + dev-login IPv6 + rå-fetch-timeout-utvidelse).
 
 ---
 
@@ -205,7 +207,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | fase-0-beslutninger.md | 2026-05-12 | **Sannhetskilde:** Anker for Fase 0/0.5-koding. § E KOMPLETT på prod (alle 13 § E-steg). A.4-overstyring oppdatert 2026-05-05 (peker til Steg 1e). **§ T (T.1–T.6) tilføyd 2026-05-11 (`1d819ff4`)** — Timer-modul arkitektur-redesign, deployet prod 2026-05-12 (PR 1A–2C). **§ T.10 (2026-06-08):** Ikke-prosjekt-tid (Alt C) + oppmøtested + reise-regelsett — T.2 IKKE gjenåpnet |
 | terminologi.md | 2026-04-27 | **Sannhetskilde:** Fundament. K(2026-06-08): to-produkt-isolasjonsmodell (§ 0) — prosjektmodul=projectId / firmamodul=organizationId |
 | SITEDOC-CLAUDE-VEILEDER.md | 2026-05-03 | **Meta-fil:** Sesjonsoppstart-veileder for Opus |
-| kontroll-claude-veileder.md | 2026-06-08 | **Meta-fil:** Arbeidsmåte for kontroll-Claude (verifiseringslaget over Opus). Indeksert i CLAUDE.md. Se `parallell-arbeid-lock.md` (repo-rot) |
+| kontroll-claude-veileder.md | 2026-06-08 | **Meta-fil:** Arbeidsmåte for kontroll-Claude (verifiseringslaget over Opus). Indeksert i CLAUDE.md. Se `parallell-arbeid-lock.md` (repo-rot). K(2026-06-08): § 10 Docs-/commit-/push-rutine (dual-review-gate; CLAUDE.md auto-commit reconciliert + peker hit) |
 
 ## ⚠️ Drift identifisert (Bunke 3A.1, 2026-04-28)
 
