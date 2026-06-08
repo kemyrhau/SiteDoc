@@ -1,7 +1,7 @@
 ---
 status: aktiv
 sist_verifisert_mot_kode: 2026-05-01
-sist_endret: 2026-05-01
+sist_endret: 2026-06-08
 gjelder_versjon: Fase 3
 avhenger_av:
   - arkitektur.md
@@ -610,6 +610,31 @@ Hvis én av disse er av, skjules knappen — ingen poeng å tilby Underprosjekt-
 **Aldri automatisk basert på godkjent-status.** Begrunnelse: i norsk entrepriserett (NS 8405/8406/8407) er entreprenøren kontraktspliktig til å utføre arbeid selv ved økonomisk uenighet. Hvis vi blokkerte Underprosjekt-opprettelse til Godkjenningen var økonomisk avklart, ville vi hindre lovpålagt utførelse. Utførelse-spor (timer) må alltid kunne starte uavhengig av økonomi-spor (pris/fakturering).
 
 Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` peker til kilde-dokumentet. Endringer i Godkjenningens økonomiske status påvirker ikke Underprosjektets åpen/lukket-status.
+
+## Planlagte arkitektur-utvidelser (2026-06-08)
+
+> **🟢 Beslutningssett rutet fra [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md).** Schema-skisse i [arkitektur.md](arkitektur.md). Faseinndelt via SPOR 3 — ikke kodet ennå. Alt additivt (nullable/defaultet) → enkelt-stegs migrasjoner; **T.2 (`projectId NOT NULL`) gjenåpnes IKKE**.
+
+### Reise og oppmøtested (planlagt — § B)
+
+- **Oppmøtested = egen geo-entitet** (kjerne, søsken til `Avdeling`): `{ organizationId, navn, lat, lng, radiusM, avdelingId?, aktiv }`. A.Markussen: 3 kontorer (Narvik, Harstad, Tromsø). Geofence identifiserer kontor + logger inn/ut som *dokumentasjon* + *foreslår* starttid — aldri auto-rad (`fase-0 T.8:983`).
+- **Kompensert reise = kontor→byggeplass + byggeplass→byggeplass.** Hjem→arbeidssted er IKKE kompensert. Reisetid = **lønnsart-rad (ordinær lønn), utenfor overtid** (jf. § Lønnsart-katalog + `:282`). Ingen avstands-/godtgjørelse-sats (regnskap eier satser).
+- **Reise-regelsett = firmainnstilling** (konfigurerbart, ikke regelmotor): `OrganizationSetting` + `reiseTerskelMin` (default 30) / `reiseUnderTerskelType` / `reiseOverTerskelType` / `reisetidTellerOvertid`. `<terskel` → arbeidstid, `>terskel` → reisetid. Terskel + lovlighet er per firmas tariff/avtale, ikke universell lov.
+- **MVP på `Project.latitude/longitude`** (finnes, nullable); byggeplass-GPS er senere arbeid (`T.8:990`).
+- ⚠️ **Auto-fordeling normaltid/overtid er IKKE implementert** (§ Auto-fordeling er spec, ikke kode — `:172`). Reise-klassifisering må koordineres med den når den bygges; anta ikke at motoren finnes.
+
+### Ikke-prosjekt-tid (Alt C — § C)
+
+- Internt arbeid + maskinvedlikehold = **interne `Project`-rader** (`Project.type "kunde"|"internt"`, default "kunde"). `projectId` forblir NOT NULL → **T.2 urørt**. 1–2 generiske interne prosjekter per firma, ikke ett per aktivitet. Interne filtreres ut av kundevendte lister, vises i timer-velger. Tilgang: `type="internt"`-unntak i `verifiserProsjektmedlem` (firma-ansatte uten ProjectMember-rad).
+- **Dynamisk intern-liste = eksisterende `Aktivitet`** (firma-scoped). Ingen ny katalog-tabell.
+- **`SheetTimer.vehicleId String?`** (nytt, svak FK → db-maskin.Equipment) = kostnadsbærer for maskinvedlikehold. **Vedlikehold ≠ drift:** `SheetTimer.vehicleId` (mekaniker-timer *mot* maskin) er distinkt fra `SheetMachine.vehicleId` (drift/maskinfører). Se [maskin.md § Kobling til andre moduler](maskin.md).
+- Maskinkost-fordeling = regnskap/ProAdm, ikke SiteDoc (datamodell holdes åpen; ProAdm utgående eksport finnes ikke i dag).
+
+### Firma-isolasjon + tilgang (§ D / G1)
+
+- **Sikkerhetslag (ufravikelig):** timer-data isoleres på `organizationId` (`DailySheet` org-eid per T.1), ikke `projectId`. Et firma ser kun egne timer — aldri prosjekteiers/annet firmas, selv på delte prosjekter. Forankring: SHA/arbeidsgiver-rapportering.
+- ⚠️ **KJENT ISSUE (ikke fikset):** `rapport.ts:80-92` filtrerer sedler kun på `projectId ∈ firmaets prosjekter`, **uten** `organizationId`-filter → cross-firma-lekkasje på delte prosjekter. `tilfoyTimerRad` mangler firma-grense-sjekk på rad-`projectId`. Fikses i SPOR 3 Fase 1b (se [BACKLOG.md](BACKLOG.md)).
+- **Forretningslag (G1):** firma-nivå tilgang — aktiv firma-ansatt kan føre mot et hvilket som helst av firmaets prosjekter (hard ProjectMember-gate faller for eget firma; `timerTilgangDefault='alle-ansatte'`). Kostnadskontroll ligger i attesteringen, ikke velgeren. GPS = friksjonsfjerner (smart, prioriterende velger), ikke hard port.
 
 ## Database — `packages/db-timer`
 

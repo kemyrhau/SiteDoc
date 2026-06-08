@@ -1,7 +1,7 @@
 ---
 status: under_arbeid
 sist_verifisert_mot_kode: 2026-04-28
-sist_endret: 2026-04-28
+sist_endret: 2026-06-08
 gjelder_versjon: Fase 4
 avhenger_av:
   - arkitektur.md
@@ -102,6 +102,8 @@ Vy i PSI-modulen i hovedappen (`packages/db`) — ikke isolert app, ikke separat
 ### Tilstedeværelse-data (innsjekk/utsjekk)
 
 Designes i Fase 4 som del av PSI-modul-utvidelse. Forventet datapunkter: `medlem-referanse` (userId nullable + gjeste-felter per PsiSignatur-mønster), `byggeplass-referanse`, `innsjekkTid`, `utsjekkTid?` (null = fortsatt på plassen), `kilde` (geofence/qr/app/manuell), `autoUtlogget` (boolean for 12t-policy). Eksakt modell-plassering (utvid `PsiSignatur`, ny `PsiTilstedevarelse`-tabell, eller annet) vurderes når Fase 4 starter.
+
+> **🔒 Fra/til feltnivå-isolasjon (anker, 2026-06-08 — § E i [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md)):** Byggherres §15-behov (hvem er på plassen) dekkes av **PSI-tilstedeværelse — aldri av timer/fra-til**. Selv om PSI er prosjekt-scopet, er innsjekk/utsjekk-*tidspunkt* (`innsjekkTid`/`utsjekkTid`) **firma-isolert på feltnivå**: byggherre OG byggherres SHA-KU ser **aggregert §15-tilstedeværelse** (navn/arbeidsgiver/HMS-kort), **ikke klokkeslett**. Faren å unngå: at noen senere dekker byggherres mannskaps-behov ved å lekke timer/fra-til — svaret er alltid PSI-tilstedeværelse. Se også [arkitektur-syntese.md § 3.4](arkitektur-syntese.md) + [terminologi.md § 0](terminologi.md).
 
 ## Komplett flyt — PSI → Mannskap → Innsjekk
 

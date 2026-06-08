@@ -1,7 +1,7 @@
 ---
 status: aktiv
 sist_verifisert_mot_kode: ukjent
-sist_endret: 2026-04-28
+sist_endret: 2026-06-08
 gjelder_versjon: Fase 1
 avhenger_av:
   - arkitektur.md
@@ -98,6 +98,9 @@ Mottakere: `ansvarligId` + utstyrsadmin-rolle.
 ### Kobling til andre moduler
 
 - **Timer** (senere): `timer_entries.equipmentId` FK-klart i datamodellen, men UI eies av timer-modulen når den bygges
+  - **Vedlikehold ≠ drift (planlagt 2026-06-08, Alt C — § C i [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md)):** To distinkte maskin-koblinger på dagsseddelen, må ikke forveksles:
+    - **Drift** = `SheetMachine` (maskinen *som opereres*, med egne `timer` + maskinfører + `projectId`). Per [fase-0 C.18](fase-0-beslutninger.md). Equipment-katalog leveres via service-lag (cross-modul-konvensjon).
+    - **Vedlikehold** = `SheetTimer.vehicleId` (planlagt, nullable, svak FK → `Equipment`): en *mekanikers arbeidstimer mot* en maskin, ikke maskinens driftstimer. Kostnadsbærer for at regnskap/ProAdm kan fordele senere. SiteDoc bygger **ingen fordelingsmotor**; `ServiceRecord` er vedlikeholds*historikk*, ikke arbeidstimer.
 - **Økonomi (FTD)**: passiv readonly-visning — maskin-kortet viser servicekostnader + manuelle FTD-poster + drivstoff. Maskin-modulen skriver ikke til FTD
 - **Kontrollplan**: ingen direkte kobling i MVP
 - **Mannskap**: geofencing via eksisterende innsjekk (ikke ny infrastruktur)

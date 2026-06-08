@@ -11,7 +11,7 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-06-08 (timer-arkitektur-beslutningssett rutet til sannhetskilder — SPOR 2 ankerbatch: to-produkt-isolasjon i terminologi/arkitektur/arkitektur-syntese + CLAUDE.md regel-annotering/veileder-linje/40k-trim + SPOR 1-funn til BACKLOG. Grunnlag: arbeidsdokument `OPPSUMMERING-timer-arkitektur.md`, IKKE i registeret)
+**Sist oppdatert:** 2026-06-08 (timer-arkitektur-beslutningssett rutet til sannhetskilder — SPOR 2: ankerbatch (to-produkt-isolasjon i terminologi/arkitektur/arkitektur-syntese + CLAUDE.md regel/veiledere/40k-trim + SPOR 1 til BACKLOG) + modul-spec-batch (timer.md § Planlagte utvidelser, maskin.md vedlikehold≠drift, mannskap.md § E fra/til-isolasjon, planlegger.md premiss, fase-0 § T.10). Grunnlag: arbeidsdokument `OPPSUMMERING-timer-arkitektur.md`, IKKE i registeret)
 **Antall filer dekket:** 51 (45 i `docs/claude/` + 6 i `docs/arkiv/`) — `kontroll-claude-veileder.md` tilføyd 2026-06-08. `OPPSUMMERING-timer-arkitektur.md` er midlertidig arbeidsdokument (banner: IKKE i DOC-MAP, fjernes etter SPOR 2/3), ikke talt
 
 ---
@@ -200,7 +200,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | arkitektur.md | 2026-04-27 | **Sannhetskilde:** Fundament. + YAML-header + K(2026-06-08): firmamodul-isolasjon (org vs prosjekt) + planlagte timer-entiteter (Oppmotested, Project.type, vehicleId) |
 | arkitektur-syntese.md | 2026-05-01 | **Sannhetskilde:** Anker for Fase 0-koding (sammen med fase-0-beslutninger.md). 3A komplett. § 5 Fase 0.5: A.30 byggeplassId-NULL = A1 vedtatt. § 6.1.1 Cross-modul-tilgang via service-lag. K(2026-06-08): § 2.6 firma-isolasjon + § 3.4 fra/til-isolasjon (reconciling) |
 | dokumentflyt.md | 2026-04-27 | **Sannhetskilde:** Fundament. § 2.3 HMS-tabell utvidet med firma-HMS-ansvarlig-lese-tilgang (per A.27) |
-| fase-0-beslutninger.md | 2026-05-12 | **Sannhetskilde:** Anker for Fase 0/0.5-koding. § E KOMPLETT på prod (alle 13 § E-steg). A.4-overstyring oppdatert 2026-05-05 (peker til Steg 1e). **§ T (T.1–T.6) tilføyd 2026-05-11 (`1d819ff4`)** — Timer-modul arkitektur-redesign, deployet prod 2026-05-12 (PR 1A–2C) |
+| fase-0-beslutninger.md | 2026-05-12 | **Sannhetskilde:** Anker for Fase 0/0.5-koding. § E KOMPLETT på prod (alle 13 § E-steg). A.4-overstyring oppdatert 2026-05-05 (peker til Steg 1e). **§ T (T.1–T.6) tilføyd 2026-05-11 (`1d819ff4`)** — Timer-modul arkitektur-redesign, deployet prod 2026-05-12 (PR 1A–2C). **§ T.10 (2026-06-08):** Ikke-prosjekt-tid (Alt C) + oppmøtested + reise-regelsett — T.2 IKKE gjenåpnet |
 | terminologi.md | 2026-04-27 | **Sannhetskilde:** Fundament. K(2026-06-08): to-produkt-isolasjonsmodell (§ 0) — prosjektmodul=projectId / firmamodul=organizationId |
 | SITEDOC-CLAUDE-VEILEDER.md | 2026-05-03 | **Meta-fil:** Sesjonsoppstart-veileder for Opus |
 | kontroll-claude-veileder.md | 2026-06-08 | **Meta-fil:** Arbeidsmåte for kontroll-Claude (verifiseringslaget over Opus). Indeksert i CLAUDE.md. Se `parallell-arbeid-lock.md` (repo-rot) |
@@ -219,7 +219,7 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
 | onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
-| mannskap.md | 2026-04-28 | **Vy-beskrivelse i PSI-konteksten** etter 1D-presisering. Datamodell forkastet (Mannskapsmedlem dupliserer User per memory). Endelig datamodell designes Fase 4 (PSI-utvidelse) |
+| mannskap.md | 2026-04-28 | **Vy-beskrivelse i PSI-konteksten** etter 1D-presisering. Datamodell forkastet (Mannskapsmedlem dupliserer User per memory). Endelig datamodell designes Fase 4 (PSI-utvidelse). K(2026-06-08): fra/til feltnivå-isolasjon (§ E — byggherre/SHA-KU ser §15-aggregat, ikke klokkeslett) |
 | oppryddings-plan-2026-04-28.md | 2026-04-30 | **Arbeidsanker:** Aktiv anker. P1.1+P1.2+P1.3+P1.4+P1.5+P1.6+P1.7+P4.3+P4.4+C.15+SCREENING-29-1+SCREENING-29-3 lukket. N2.2.3+N2.2.4 omformulert (avventer ekstern API-tilgang). 3A komplett |
 | timer-funn-fra-screening-2026-04-27.md | 2026-04-28 | **Arbeidsanker:** Midlertidig, slettes etter Timer/Maskin-revurdering |
 | dagsseddel-design.md | 2026-05-02 | **Arbeidsanker:** Aktivitet flyttet til `SheetTimer.aktivitetId` (NOT NULL) per rad — implementert i Runde 2.5/C9 deployet til prod 2026-05-02 |
@@ -255,12 +255,12 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 | hjelpetekster.md | — | Konvensjon for ?-ikon + sidestatus-tabell |
 | infrastruktur.md | — | — |
 | kontrollplan.md | — | — |
-| maskin.md | 2026-05-01 | Blokk A+B+C+C1+C2 + parser-verifikasjon. Prod-deploy 2026-05-01. **Steg 3 deployet 2026-05-03** (`33a2b9b4`) — sitedoc_admin med firma-kontekst kan importere SmartDok-Excel. **U6-fix 2026-05-06** (`3dd4371b`) — equipment-router gates trygt på sitedoc_admin firma-kontekst. **Equipment-utleie-utvidelse 2026-05-06** (`b7127475`) — `erUtleieobjekt`/`utleieprisPerDogn`/`utleieprisPerTime`/`utleieEnhet` |
+| maskin.md | 2026-05-01 | Blokk A+B+C+C1+C2 + parser-verifikasjon. Prod-deploy 2026-05-01. **Steg 3 deployet 2026-05-03** (`33a2b9b4`) — sitedoc_admin med firma-kontekst kan importere SmartDok-Excel. **U6-fix 2026-05-06** (`3dd4371b`) — equipment-router gates trygt på sitedoc_admin firma-kontekst. **Equipment-utleie-utvidelse 2026-05-06** (`b7127475`) — `erUtleieobjekt`/`utleieprisPerDogn`/`utleieprisPerTime`/`utleieEnhet`. K(2026-06-08): vedlikehold≠drift-skille (`SheetTimer.vehicleId` vs `SheetMachine.vehicleId`) |
 | migrering-reporttemplate.md | — | Ikke implementert |
-| planlegger.md | — | Planlagt fase |
+| planlegger.md | — | Planlagt fase. K(2026-06-08): forhåndsfyll-aldri-lås-premiss + YAML-header tilføyd |
 | shared-pakker.md | — | — |
 | smartdok-undersokelse-2026-04-25.md | — | Arkivert v1 |
-| timer.md | 2026-05-12 | Runde 1A+1B+1C (`c1122c2e`) + Runde 2 C1-C8 (`1cce62f3`) + Runde 2.5/C9 + 2.6 + 2.7 (`de33aefc`/`03d8c63a`/`05b3bddb`) + attestering-rename (`8aa792b2`) deployet til prod 2026-05-02. **Steg 4a** (ECO-flytt på attestering, `da6b34a5`) deployet 2026-05-03. **U1** (leder-timer-rapport, `c551063f`) + **U2** (CSV/Excel-eksport, `31cff7da`) deployet 2026-05-06. **T.1–T.6 arkitektur-redesign** (PR 1A `862c70c3` + PR 1B `bba971ba` + PR 2A `6431873c` + PR 2B `8478d4a7` + PR 2C min `0700b8ed`) deployet prod 2026-05-12: `DailySheet.projectId` droppet, projectId/byggeplassId/fraTid/tilTid/attestert*-felter på rad-nivå, `OrganizationSetting.tidsrundingMinutter` (T.5). Schema-tabeller og indekser oppdatert. Åpen oppgave: PR 2C full (mobil Drizzle-omskriving) |
+| timer.md | 2026-05-12 | Runde 1A+1B+1C (`c1122c2e`) + Runde 2 C1-C8 (`1cce62f3`) + Runde 2.5/C9 + 2.6 + 2.7 (`de33aefc`/`03d8c63a`/`05b3bddb`) + attestering-rename (`8aa792b2`) deployet til prod 2026-05-02. **Steg 4a** (ECO-flytt på attestering, `da6b34a5`) deployet 2026-05-03. **U1** (leder-timer-rapport, `c551063f`) + **U2** (CSV/Excel-eksport, `31cff7da`) deployet 2026-05-06. **T.1–T.6 arkitektur-redesign** (PR 1A `862c70c3` + PR 1B `bba971ba` + PR 2A `6431873c` + PR 2B `8478d4a7` + PR 2C min `0700b8ed`) deployet prod 2026-05-12: `DailySheet.projectId` droppet, projectId/byggeplassId/fraTid/tilTid/attestert*-felter på rad-nivå, `OrganizationSetting.tidsrundingMinutter` (T.5). Schema-tabeller og indekser oppdatert. Åpen oppgave: PR 2C full (mobil Drizzle-omskriving). K(2026-06-08): § Planlagte arkitektur-utvidelser (reise/oppmøtested/Alt C/firma-isolasjon — rapport-lekkasje notert som kjent issue) |
 | varsling.md | — | — |
 
 ## 📦 Arkivert
