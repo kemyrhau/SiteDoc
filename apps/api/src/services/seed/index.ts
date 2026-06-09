@@ -14,6 +14,8 @@
  */
 
 import { prismaTimer } from "@sitedoc/db-timer";
+import { prisma } from "@sitedoc/db";
+import { generateProjectNumber } from "@sitedoc/shared";
 
 export interface SeedResultat {
   antall: number;
@@ -201,6 +203,49 @@ export async function seedExpenseCategories(organizationId: string): Promise<See
 }
 
 // ============================================================================
+//  Interne prosjekter — Fase 2 / T.10 (ikke-prosjekt-tid, Alt C)
+//  To firma-eide bærere for internt arbeid + maskinvedlikehold.
+//  VILKÅR 3 (Kenneth 2026-06-09): intern-prosjekt-seed enabler INGEN andre
+//  prosjektmoduler — KUN timer-flate. Derfor oppretter denne KUN Project-rader:
+//    - ingen ProjectMember (firma-ansatte når dem via type="internt"-unntak)
+//    - ingen ProjectOrganization (firma-grense passerer via primaryOrganizationId)
+//    - ingen ProjectModule (syncProjektModulerPaaAktiver ekskluderer type="internt")
+//  Granularitet ellers via Aktivitet (firma-scoped katalog, ingen ny tabell).
+// ============================================================================
+
+const INTERNE_PROSJEKT_NAVN = [
+  "Internt arbeid",
+  "Verksted/maskinvedlikehold",
+];
+
+export async function seedInterneProsjekter(
+  organizationId: string,
+): Promise<SeedResultat> {
+  const finnes = await prisma.project.count({
+    where: { primaryOrganizationId: organizationId, type: "internt" },
+  });
+  if (finnes > 0) return { antall: 0, hoppet: true };
+
+  // Globalt løpenummer for unikt projectNumber (samme kilde som prosjekt.opprett).
+  const totalt = await prisma.project.count();
+
+  let antall = 0;
+  for (let i = 0; i < INTERNE_PROSJEKT_NAVN.length; i++) {
+    await prisma.project.create({
+      data: {
+        projectNumber: generateProjectNumber(totalt + 1 + i),
+        name: INTERNE_PROSJEKT_NAVN[i]!,
+        type: "internt",
+        primaryOrganizationId: organizationId,
+      },
+    });
+    antall++;
+  }
+
+  return { antall, hoppet: false };
+}
+
+// ============================================================================
 //  Samlet entry-point — kalles fra timer.onboarding.aktiverNivaa1-mutation
 // ============================================================================
 
@@ -215,6 +260,7 @@ export interface SeedTimerResultat {
   aktiviteter: SeedResultat;
   tillegg: SeedResultat;
   expenseCategories: SeedResultat;
+  interneProsjekter: SeedResultat;
 }
 
 export async function seedTimerForOrganization(
@@ -225,6 +271,7 @@ export async function seedTimerForOrganization(
   const aktiviteter = await seedAktiviteter(organizationId);
   const tillegg = await seedTillegg(organizationId);
   const expenseCategories = await seedExpenseCategories(organizationId);
+  const interneProsjekter = await seedInterneProsjekter(organizationId);
 
   const lonnsartNivaa2 = options.inkluderNivaa2
     ? await seedLonnsartNivaa2(organizationId)
@@ -236,5 +283,6 @@ export async function seedTimerForOrganization(
     aktiviteter,
     tillegg,
     expenseCategories,
+    interneProsjekter,
   };
 }

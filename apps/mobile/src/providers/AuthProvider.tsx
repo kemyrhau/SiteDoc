@@ -59,10 +59,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const token = await hentSessionToken();
         if (token) {
-          // Lett verifisering — fornyer også sesjonen med 30 nye dager
-          const res = await fetch(`${AUTH_CONFIG.apiUrl}/trpc/mobilAuth.verifiser`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
+          // Lett verifisering — fornyer også sesjonen med 30 nye dager.
+          // AbortController gir 12s timeout: en hengende/tapt respons faller
+          // til cachet bruker via ytre catch i stedet for evig spinner.
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 12_000);
+          let res: Response;
+          try {
+            res = await fetch(`${AUTH_CONFIG.apiUrl}/trpc/mobilAuth.verifiser`, {
+              headers: { Authorization: `Bearer ${token}` },
+              signal: controller.signal,
+            });
+          } finally {
+            clearTimeout(timeout);
+          }
 
           if (res.ok) {
             // Oppdater cached brukerdata fra server (kan ha endret navn/bilde)
@@ -90,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch {
-        // Nettverksfeil — bruk cached data (offline-støtte)
+        // Nettverksfeil/timeout — bruk cached data (offline-støtte)
         const lagretBruker = await hentBrukerData();
         if (lagretBruker) {
           setBruker(lagretBruker);

@@ -22,6 +22,8 @@ import { useAuth } from "../../src/providers/AuthProvider";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { hentProsjekterLokalt } from "../../src/services/prosjektKatalog";
+import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
+import { haversineKm } from "../../src/utils/geo";
 import { trpc } from "../../src/lib/trpc";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { eq } from "drizzle-orm";
@@ -36,6 +38,17 @@ function formatIsoDato(d: Date): string {
   return `${aar}-${maaned}-${dag}`;
 }
 
+// Konverter HH:MM (firmaets standardarbeidstid) + ISO-dato → ISO-timestamp.
+// Brukes til å forhåndsutfylle «Arbeidstid i dag» ved opprettelse.
+function hhmmTilIso(isoDato: string, hhmm: string | null): string | null {
+  if (!hhmm) return null;
+  const [t, m] = hhmm.split(":").map((n) => parseInt(n, 10));
+  if (isNaN(t) || isNaN(m)) return null;
+  const d = new Date(`${isoDato}T00:00:00`);
+  d.setHours(t, m, 0, 0);
+  return d.toISOString();
+}
+
 function formatNorskDato(iso: string): string {
   return new Date(iso).toLocaleDateString("no-NB", {
     weekday: "long",
@@ -43,23 +56,6 @@ function formatNorskDato(iso: string): string {
     month: "long",
     year: "numeric",
   });
-}
-
-function haversineKm(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6371;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 export default function NyDagsseddelSide() {
@@ -197,6 +193,15 @@ export default function NyDagsseddelSide() {
       const id = randomUUID();
       const naa = Date.now();
 
+      // Forhåndsutfyll «Arbeidstid i dag» fra firmaets standardarbeidstid
+      // (arbeidstidsordning). Faller tilbake til 07:00–15:00 / 30 min hvis
+      // organization_setting_local-cachen er tom (første kjøring / offline).
+      // Redigerbar via ArbeidstidSeksjon. Bruker valgtFirmaId til oppslag.
+      const effektiv = hentEffektivArbeidstidLokal(
+        valgtFirmaId ?? "",
+        new Date(`${dato}T00:00:00`),
+      );
+
       // Vi mangler organizationId fra brukeren — bruker tomt for nå.
       // Server validerer ved sync uansett.
       db.insert(dagsseddelLocal)
@@ -209,9 +214,9 @@ export default function NyDagsseddelSide() {
           avdelingId: null,
           byggeplassId: null,
           dato,
-          startAt: null,
-          endAt: null,
-          pauseMin: 0,
+          startAt: hhmmTilIso(dato, effektiv.startTid),
+          endAt: hhmmTilIso(dato, effektiv.sluttTid),
+          pauseMin: effektiv.pauseMin,
           status: "draft",
           beskrivelse: beskrivelse.trim() || null,
           lederKommentar: null,

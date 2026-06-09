@@ -193,6 +193,12 @@ model SheetTimer {
   fraTid                String?  @map("fra_tid")
   tilTid                String?  @map("til_tid")
   externalCostObjectId  String?  @map("external_cost_object_id") // svak FK → external_cost_objects (kjernen)
+  // vehicleId (Fase 2 / T.10): kostnadsbærer for maskinvedlikehold — timene en
+  // mekaniker fører på vedlikehold av en maskin attribueres til maskinen.
+  // DISTINKT fra SheetMachine.vehicleId (drift/anleggstimer, jf. C.18). Svak FK
+  // → maskin.equipment (db-maskin, A.20-mønster, ingen @relation). Nullable —
+  // settes kun på interne verksted-rader. Org-validering i app-lag (§2.D).
+  vehicleId             String?  @map("vehicle_id")
   timer                 Decimal  @db.Decimal(6, 2)
   attestertSnapshot     Json?    @map("attestert_snapshot") // Pris-snapshot ved attestering (Fase 0 A.7) — inkluderer aktivitet-snapshot post-C9
   // T.3 — Per-rad attestering. "pending" | "attestert" | "returnert" | "erstattet".
@@ -218,6 +224,7 @@ model SheetTimer {
   @@index([externalCostObjectId])
   @@index([projectId])
   @@index([byggeplassId])
+  @@index([vehicleId])
   @@index([attestertStatus])
   @@index([parentRadId])
   @@map("sheet_timer")

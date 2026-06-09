@@ -47,6 +47,9 @@ type TimerRad = {
   lonnsartId: string;
   aktivitetId: string;
   externalCostObjectId: string | null;
+  // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment). Settes kun
+  // på interne verksted-rader.
+  vehicleId: string | null;
   // Maskin-fra-til (2026-05-17): brukes til å foreslå default for maskin-rad
   // i samme bucket (Alt D — sammenheng-prinsipp).
   fraTid: string | null;
@@ -79,6 +82,7 @@ type ProsjektRef = {
   id: string;
   name: string;
   projectNumber: string;
+  type?: string;
 };
 
 export default function DagsseddelDetaljSide() {
@@ -91,7 +95,7 @@ export default function DagsseddelDetaljSide() {
     { id: params.id },
     { retry: false },
   );
-  const { data: prosjekterRaw } = trpc.prosjekt.hentMine.useQuery();
+  const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery();
 
   // Maskin-fra-til (2026-05-17): orgSetting brukes som fallback når en
   // bucket mangler timer-rader (ingen rad å ta fra/til fra). Trpc-cache
@@ -498,6 +502,7 @@ export default function DagsseddelDetaljSide() {
         <TimerRadDialog
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
+          prosjektType={prosjektNavnMap.get(aktivModal.projectId)?.type ?? "kunde"}
           defaultAktivitetId={sheetAktivitetId}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
@@ -1034,6 +1039,7 @@ function RaderMaskinKompakt({
 function TimerRadDialog({
   sheetId,
   projectId,
+  prosjektType,
   defaultAktivitetId,
   defaultEcoId,
   rad,
@@ -1041,6 +1047,8 @@ function TimerRadDialog({
 }: {
   sheetId: string;
   projectId: string;
+  // Fase 2 / T.10: "internt" → vis maskinvelger (vedlikehold-kostnadsbærer).
+  prosjektType?: string;
   defaultAktivitetId: string | null;
   defaultEcoId?: string | null;
   rad?: TimerRad;
@@ -1054,6 +1062,17 @@ function TimerRadDialog({
     projectId,
   });
 
+  // T.10 / §2.D: maskinvelger for kostnadsbærer ved maskinvedlikehold. Hentes
+  // kun for interne prosjekter (verksted). Tom liste / inaktiv maskin-modul →
+  // feltet skjules. Org-validering håndheves uansett på server.
+  const erInternt = prosjektType === "internt";
+  const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(undefined, {
+    enabled: erInternt,
+  });
+  const equipment = equipmentRaw as unknown as
+    | Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null }>
+    | undefined;
+
   const [lonnsartId, setLonnsartId] = useState<string>(rad?.lonnsartId ?? "");
   const [aktivitetId, setAktivitetId] = useState<string>(
     rad?.aktivitetId ?? defaultAktivitetId ?? "",
@@ -1066,6 +1085,10 @@ function TimerRadDialog({
   // radens egen ECO.
   const [ecoId, setEcoId] = useState<string | null>(
     rad?.externalCostObjectId ?? defaultEcoId ?? null,
+  );
+  // T.10: kostnadsbærer for maskinvedlikehold (kun interne prosjekter).
+  const [vehicleId, setVehicleId] = useState<string | null>(
+    rad?.vehicleId ?? null,
   );
   const [feil, setFeil] = useState<string | null>(null);
 
@@ -1100,6 +1123,8 @@ function TimerRadDialog({
         aktivitetId,
         timer: tNum,
         externalCostObjectId: ecoId,
+        // Send alltid (kan nullstilles); ignoreres for ikke-interne prosjekter.
+        vehicleId: erInternt ? vehicleId : null,
       });
     } else {
       tilfoy.mutate({
@@ -1109,6 +1134,7 @@ function TimerRadDialog({
         aktivitetId,
         timer: tNum,
         externalCostObjectId: ecoId,
+        vehicleId: erInternt ? vehicleId : null,
       });
     }
   }
@@ -1209,6 +1235,42 @@ function TimerRadDialog({
             )}
           </div>
         </div>
+        {/* T.10: maskinvedlikehold-kostnadsbærer — kun interne prosjekter med
+            maskiner i firmaets register. */}
+        {erInternt && equipment && equipment.length > 0 && (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.felt.maskin")}{" "}
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            </label>
+            <div className="flex items-center gap-2">
+              <select
+                value={vehicleId ?? ""}
+                onChange={(e) => setVehicleId(e.target.value || null)}
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">—</option>
+                {equipment.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.internNavn ?? [m.merke, m.modell].filter(Boolean).join(" ")}
+                  </option>
+                ))}
+              </select>
+              {vehicleId && (
+                <button
+                  type="button"
+                  onClick={() => setVehicleId(null)}
+                  className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                  title={t("handling.fjern")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onLukk}>

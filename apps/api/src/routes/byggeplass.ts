@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createByggeplassSchema } from "@sitedoc/shared";
 import { verifiserAdmin, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 
 export const byggeplassRouter = router({
   // Hent alle byggeplasser for et prosjekt
@@ -88,6 +89,54 @@ export const byggeplassRouter = router({
       const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({ where: { id }, select: { projectId: true } });
       await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
       return ctx.prisma.byggeplass.update({ where: { id }, data });
+    }),
+
+  // Fase 1c: beregn geofence (senter + radius) fra nyeste georefererte tegning.
+  // Overskriver alltid (eksplisitt bruker-handling). Auto-fyll ved georeferering
+  // skjer separat i tegning.settGeoReferanse (kun når geofence er tom).
+  beregnGeofence: protectedProcedure
+    .input(z.object({ byggeplassId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
+        where: { id: input.byggeplassId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
+      const geofence = await oppdaterByggeplassGeofence(input.byggeplassId, false);
+      if (!geofence) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Fant ingen georeferert tegning på byggeplassen, eller georeferansen er ugyldig.",
+        });
+      }
+      return geofence;
+    }),
+
+  // Fase 1c: manuell overstyring av geofence (eller nullstilling med null-verdier).
+  settGeofence: protectedProcedure
+    .input(
+      z.object({
+        byggeplassId: z.string().uuid(),
+        latitude: z.number().min(-90).max(90).nullable(),
+        longitude: z.number().min(-180).max(180).nullable(),
+        radiusM: z.number().int().min(1).max(100000).nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
+        where: { id: input.byggeplassId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
+      return ctx.prisma.byggeplass.update({
+        where: { id: input.byggeplassId },
+        data: {
+          latitude: input.latitude,
+          longitude: input.longitude,
+          radiusM: input.radiusM,
+        },
+      });
     }),
 
   // Publiser byggeplass

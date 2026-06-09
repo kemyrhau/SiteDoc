@@ -1,10 +1,68 @@
 ---
 name: STATUS-AKTUELT
 description: Løpende statusrapport for pågående arbeid, pauset arbeid og planlagte faser. Oppdateres ved hver vesentlig fremdrift.
-sist_verifisert_mot_kode: 2026-05-08
+sist_verifisert_mot_kode: 2026-06-08
 ---
 
 ## Pågående arbeid (PR-historikk)
+
+> **Timer-arkitektur SPOR 3** kjører som en sekvens på develop/test (venter prod): Fase 1 (oppmøtested) · Fase 1b (firma-isolasjon) · Fase 1c-server (byggeplass-geofence) · Fase 2 (ikke-prosjekt-tid / Alt C) · Fase 3 (reise). Samme initiativ — listet hver for seg for sporbarhet.
+
+### Fase 3 — Reise-regelsett (§ B) — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
+
+Timer-arkitektur SPOR 3 Fase 3 (T.10 / OPPSUMMERING §B). Reise mellom oppmøtested og byggeplass klassifiseres mot firma-konfigurerbar terskel. Ratifisert av kontroll-Claude før implementasjon; Kenneth-OK på 5-felts migrasjon. Implementert:
+- **DB:** 5 reise-felt på `OrganizationSetting` (`reiseTerskelMin`/`reiseUnderTerskelType`/`reiseOverTerskelType`/`reisetidTellerOvertid`/`reiseLonnsartId`) — migrasjon `20260609160000_reise_regelsett_fase3`, additiv. `reiseLonnsartId` svak FK → `timer.Lonnsart` (A.20).
+- **Shared:** `klassifiserReise` + `estimerReisetidMin` + eksportert `avstandMeter` (ren, delt web/mobil/API).
+- **API:** `oppdaterSetting` (org-validerer `reiseLonnsartId` mot firmaets katalog) + `hentArbeidstidDefaults` utvidet (member-lesbar, mobil-cache).
+- **Web:** «Reise»-seksjon i `/dashbord/firma/innstillinger` (terskel, retning, overtid-flagg, reise-lønnsart fra `ordinaer`-arter). i18n 14 språk.
+- **Mobil:** setting-cache + Drizzle-schema utvidet (idempotent ALTER) + reise-forslag i «Slutt dag» (`genererForslag`): kontor→byggeplass (kun når oppmøtested identifisert), GPS-distanse, **estimert** reisetid, klassifisert; 'reisetid' → egen lønnsart-rad. `reisetidTellerOvertid` styrer dagsnorm-terskelen.
+- **Avvik A:** km-godtgjørelse-arter beholdt uendret; «Reise/transport» er reisetid-arten (kun docs-reframe). **Avvik C:** estimat-MVP, GPS-faktisk-tid senere.
+
+**Grenser holdt:** server-side auto-fordeling-motor finnes fortsatt ikke — reise hekter på klient-MVP og dokumenterer kontrakt. Steg 5 (modal-forslag) dekket av eksisterende lønnsart-velger (reisetid ER en lønnsart). Sannhetskilde: [timer.md § Reise og oppmøtested](timer.md).
+
+### Fase 2 — Ikke-prosjekt-tid (Alt C) — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
+
+Timer-arkitektur SPOR 3 Fase 2 (T.10 / OPPSUMMERING §C). Internt arbeid + maskinvedlikehold som firma-eide interne prosjekter. **T.2 urørt** (`projectId` forblir NOT NULL). Ratifisert av kontroll-Claude før implementasjon; Kenneth-OK på migrasjon + vilkår 3. Implementert:
+- **DB:** `Project.type "kunde"|"internt"` (migrasjon `20260609140000_project_type_fase2`) + `SheetTimer.vehicleId String?` (svak FK → Equipment, `20260609140100_sheet_timer_vehicle_id_fase2`). Begge additive.
+- **Seed:** `seedInterneProsjekter` oppretter 2 interne prosjekter per firma («Internt arbeid» + «Verksted/maskinvedlikehold»), kalt fra begge onboarding-modus. **Vilkår 3:** kun `Project`-rader — ingen ProjectMember/ProjectOrganization/ProjectModule. `syncProjektModulerPaaAktiver` ekskluderer `type="internt"`.
+- **Tilgang:** `type="internt"`-unntak i `verifiserProsjektmedlem` (smalt: type + OrganizationMember på prosjektets org). Ny `prosjekt.hentForTimer` (union medlemskap + interne); `hentMine`/`hentAlle` filtrerer interne ut.
+- **§2.D (ufravikelig):** `verifiserKjoretoyTilhørerFirma` validerer `vehicleId` mot `Equipment.organizationId` på `tilfoyTimerRad`/`oppdaterTimerRad`/`syncBatch`.
+- **Web:** maskinvelger i timer-rad-modal (kun interne prosjekter m/maskiner) + «Internt»-merke i `ProsjektRadVelger`. i18n 14 språk (`timer.felt.maskin`, `timer.internt`).
+
+**Grenser holdt:** ingen fordelingsmotor i SiteDoc (regnskap/ProAdm eier fordeling). Mobil-UI for `vehicleId` = oppfølger (server + sync-felt klart). Sannhetskilde: [timer.md § Ikke-prosjekt-tid](timer.md).
+
+### Fase 1c-server — Byggeplass-geofence fra georeferert tegning — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
+
+Timer-arkitektur SPOR 3 Fase 1c (server-del). Gir `Byggeplass` GPS-senter + radius så mobil senere kan identifisere hvilken byggeplass arbeider står på. Løser byggeplass-koordinat-gapet (`fase-0 T.8:990`). Implementert:
+- **DB (kjerne):** `Byggeplass.latitude/longitude/radiusM` (nullable) + migrasjon `20260609100000_byggeplass_geofence_fase1c` (additiv, enkelt-steg). **Migrasjon mot test = TIMER-sporets domene; prod → LÅS + Kenneth.**
+- **Shared:** `beregnByggeplassGeofence(geoReference, bufferM=100)` — senter (midtpunkt→GPS) + radius (utstrekning + 100 m buffer), gjenbruker `tegningTilGps` (kapsler UTM/NTM).
+- **API:** service `byggeplassGeofence.ts` (nyeste georef-tegning) + `bygning.beregnGeofence` (eksplisitt, overskriver) + `bygning.settGeofence` (manuell override/nullstill) + auto-fyll i `tegning.settGeoReferanse` **kun når geofence er tom** (klobrer aldri satt/manuell verdi — derav ingen 4. flagg-kolonne).
+- **Web:** lokasjoner-side «endre navn»-modal — geofence-felt + «Beregn fra tegning» + «Lagre geofence». i18n `lokasjoner.geofence.*` (14 språk).
+
+**Grenser holdt:** mobil byggeplass-deteksjon = **1c-mobil** (gjenstår, EAS-buntet med Fase 1 — BACKLOG). Sannhetskilde: [timer.md § Byggeplass-geofence](timer.md).
+
+### Fase 1b — Firma-isolasjons-fiks (timer) — PÅ DEVELOP/TEST 2026-06-09 (ikke prod) — commit `eea004cb`
+
+Timer-arkitektur SPOR 3 Fase 1b — sikkerhetslag, rent additiv logikk (ingen schema/migrasjon). Lukker verifisert cross-firma-lekkasje. Dual-review + funksjonell verifisering fullført (rapport-org-filter intakt på test; write-path-avvisning verifisert i kode). Implementert:
+- **Helper (kjerne):** `verifiserProsjekterTilhørerFirma(projectIds, orgId)` i `tilgangskontroll.ts` — FORBIDDEN hvis projectId verken er **eid** (`primaryOrganizationId`) **eller koblet** (`ProjectOrganization`) til firmaet. Unionen dekker underentreprenør + eide (inkl. legacy uten ProjectOrganization-rad).
+- **`dagsseddel.ts`:** helper anvendt på `tilfoyTimerRad` (var usjekket) + `syncBatch` rad-nivå (lukket luke: re-sync av egen eksisterende sedel med foreign projectId == sedel-nivå); `redigerSedelRader` + `splittRad` refaktorert fra duplisert inline-blokk til helper (atferdsidentisk + eier-gren).
+- **`rapport.ts` (`firmaPeriodeRapport`):** la til `dailySheet.organizationId == orgId` — SHA-modell, hvert firma rapporterer egne timer. Cross-org-invitert arbeiders sedel bevisst ekskludert.
+- **Data-sjekk (test-DB 2026-06-08):** 1 eid legacy-prosjekt uten ProjectOrganization-rad hadde timer-rader → dekkes av eier-grenen (0 eksisterende rader avvist av union-grensen).
+
+**Grenser holdt:** G1-policy-harmonisering (`verifiserProsjektmedlem` → firma-nivå i `opprett`/`syncBatch`) IKKE rørt (BACKLOG). Rapport-prosjekt-asymmetri (primaryOrg vs ProjectOrg utvalg) → BACKLOG. Sannhetskilde: [timer.md § Firma-isolasjon](timer.md).
+
+### Fase 1 — Oppmøtested + GPS-identifikasjon — PÅ DEVELOP/TEST 2026-06-08 (ikke prod)
+
+Timer-arkitektur SPOR 3 Fase 1 (lavest risiko, rent additivt — rører ikke T.2 eller firma-isolasjon). Implementert:
+- **DB (kjerne):** `Oppmotested`-entitet + migrasjon `20260608120000_oppmotested_fase1` (additiv ny tabell, FK org Cascade / avdeling SetNull).
+- **API:** `oppmotestedRouter` — firma-admin CRUD (`hentAlle`/`opprett`/`oppdater`/`slett`) + member-lesbar `hentForFirma` (mobil-cache).
+- **Web:** `/dashbord/firma/oppmotesteder` — liste + opprett/rediger/slett-modal (manuell lat/lng; Leaflet-kartvelger = senere oppfølger) + ?-hjelpetekst + nav-lenke.
+- **Mobil:** `oppmotested_local`-cache (refresh i TimerSyncProvider) + GPS-identifikasjon i «Start dag» (Haversine mot geofence-radius → lagrer identifisert oppmøtested på `arbeidsdag_local`, viser i kortet). **Aldri auto-rad** (`fase-0 T.8:983`); lokal-only dokumentasjon.
+- i18n 14 språk + hjelpetekst.
+
+**Grenser holdt:** ingen reise-/lønnslogikk (Fase 3), ingen firma-isolasjons-fiks (Fase 1b), ingen Alt C (Fase 2). **Mobil-del krever EAS-bygg for brukere.** Plan: [FASE-1-PLAN-oppmotested-gps.md](FASE-1-PLAN-oppmotested-gps.md) · grunnlag [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md).
+
+> 📋 **GJENSTÅENDE FASER:** ~~Fase 1b: firma-isolasjons-fiks~~ (✅ implementert, se over) · Fase 2: Alt C (`Project.type`, `SheetTimer.vehicleId?`, intern-prosjekt-flyt) · Fase 3: reise-regelsett på `OrganizationSetting`. Ingen kode før per-fase-godkjenning.
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ useToppbarFiltre-hook + ByggeplassVelger disabled-state — deployet til prod 2026-05-30](historikk-2026-05.md), [§ Subdomain↔category-validering + HMS-prefiks amber-hint — deployet til prod 2026-05-30](historikk-2026-05.md), [§ ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — deployet til prod 2026-05-29](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
 
@@ -12,51 +70,19 @@ sist_verifisert_mot_kode: 2026-05-08
 >
 > ✅ Arkivert til [historikk-2026-06.md § OAuth-innlogging: account-linking + orphan-guard + duplikat-opprydding — deployet til prod 2026-06-05](historikk-2026-06.md). (`e12355d9` account-linking + `f6522a94` web signIn-guard + `f3a16cef` mobil-guard i `mobilAuth.byttToken`. Både web- og mobil-OAuth dekket.)
 
-### Timer mobil UX — «husk sist brukt» lønnsart/aktivitet + tydeligere tom-tilstand (Variant A) — PÅ DEVELOP 2026-06-05
+> ✅ Arkivert til [historikk-2026-06.md § Timer auto-select lønnsart (Variant A + B) + auth-fiks — deployet til prod 2026-06-06](historikk-2026-06.md). (prod-merge `ac1a4367`: `13c33ed6` Variant A + `336acdcb` duplikat-fiks + `5d3e8579` Variant B + `0a79c42c` auth-fiks. Mobil enhet-verifisering utestående pga Cloudflare↔Expo-Go-quirk i simulator — tas på TestFlight.)
 
-Liten klient-only UX-forbedring i `apps/mobile/src/components/timer-detalj/TimerSeksjon.tsx` (ingen DB-, server- eller i18n-endring):
-- **Husk sist brukt:** Ny rad i `TimerRadModal` forhåndsvelger forrige rads `lonnsartId` + `aktivitetId` på samme sedel (ny `defaultValg`-useMemo, speiler `defaultTider`-mønsteret for fra/til-tid). Aktivitet faller tilbake til sedelens `defaultAktivitetId` når sedelen er tom. Rediger-modus bruker fortsatt radens egne verdier.
-- **Tydeligere tom-tilstand:** Når sedelen har 0 timer-rader og er redigerbar, vises full-bredde «Legg til timer-rad»-knapp (gjenbruker `timer.tilfoy.timer`) i stedet for kun det lille «+»-ikonet i header. Read-only viser fortsatt info-tekst.
+### Timer mobil: firma-standard arbeidstid + «Start dag / Slutt dag»-MVP — PÅ DEVELOP/TEST 2026-06-06 (ikke prod)
 
-**Bakgrunn:** Design-utredning avdekket at ny rad alltid startet tom (ingen auto-select av lønnsart) og at «+»-knappen var lite synlig. Variant A løser det vanligste tilfellet (flere rader med samme lønnsart) uten DB-migrasjon. Variant B (firma-konfigurerbar default via `Lonnsart.erStandardvalg`) er oppfølger ved behov.
+Mobil-only, deployet til test (`020d4aeb`), **ikke prod** (mobil-feature → krever EAS-bygg for å nå brukere).
+- **`f0cba6ed`** — `ny.tsx` forhåndsutfyller «Arbeidstid i dag» fra firmaets standardarbeidstid (`hentEffektivArbeidstidLokal`) ved opprettelse, redigerbar.
+- **`020d4aeb`** — «Start dag / Slutt dag»-MVP: worker-drevet GPS+tid-bracketing på hjem-skjermen (`StartSluttDagKort` + ny lokal `arbeidsdag_local`-tabell, KUN lokal — synkes aldri). Ved «Slutt dag» genereres dagsseddel-forslag (prosjekt via Haversine, arbeidstid = brutto − firma-pause, auto-fordeling Timelønn + Overtid 50% via navne-match), navigerer til draft for bekreftelse. Delt `utils/geo.ts`. i18n 14 språk.
 
-**Verifisert:** `apps/mobile` typecheck 12 = 12 baseline (0 nye feil), 0 feil i `TimerSeksjon.tsx`.
+**Enhet-verifisering utestående:** Blokkert i iOS-simulator av miljø-sak (NordVPN/IPv6, IKKE kode — se [simulator-ipv6-nordvpn.md](simulator-ipv6-nordvpn.md)). Bekreftelsestest pågår etter Mac-reboot.
 
-**Reload:** TypeScript-only (ingen schema-endring). Full app-reload (close + open eller `r` i Metro). Ingen native rebuild.
+**Åpne oppfølgere:** (1) AuthProvider `verifiser`-fetch mangler timeout (BACKLOG). (2) overtid-navne-match → `Lonnsart.overtidsnivaa`-felt. (3) prod-deploy + EAS-bygg når MVP er enhet-verifisert.
 
-> **Oppfølger samme dag:** duplikat-fiks (`336acdcb`) — tom-tilstand-knappen og den stiplede «+Legg til timer»-knappen i EcoBucket (`visHeader=false`) ble begge vist ved 0 rader. Den stiplede gates nå på `rader.length > 0` (kun for å legge til FLERE rader). Verifisert på enhet via Metro mot test.
-
-### Auth-fiks: `mobilAuth.verifiser` roterer ikke token lenger (startup-race) — PÅ DEVELOP 2026-06-05
-
-Mobil-brukere ble logget ut ved app-oppstart/reload med «Kunne ikke hente prosjekter — Du må være innlogget», og måtte reinstallere for å få opp prosjekter.
-
-**Rotårsak (race):** `mobilAuth.verifiser` (kjøres ved hver oppstart i `AuthProvider.sjekkToken`) roterte `sessionToken` ubetinget. Samtidige queries (`prosjekt.hentMine`, `refreshKatalog`) leste gammelt token fra SecureStore før det nye var lagret → traff allerede-rotert sesjon → UNAUTHORIZED → global retry-handler (`providers/index.tsx`) kalte `loggUt()`. Innført med H1-auditen `0c62231d` (2026-05-27); forverret i Metro-dev der hver `r`-reload trigger nytt race.
-
-**Fiks (`apps/api/src/routes/mobilAuth.ts`):** `verifiser` forlenger kun `expires` (+30 dager), beholder `sessionToken` uendret, returnerer `nyttToken: null`. Sikkerhets-rotasjon beholdes i 7-dagers H1-mutation-middleweren (`trpc/trpc.ts`) der startup-racet ikke finnes. `AuthProvider` tåler `nyttToken: null` (beholder eksisterende token).
-
-**Ikke relatert til Variant A/B** — ren auth-kode. Verifisert: api typecheck rent.
-
-**Reload:** Kun server (tRPC-prosedyre endret). Ingen schema/mobil-endring — men mobil-klienter slutter å bli logget ut først etter at server-fiksen er deployet.
-
-### Timer Variant B — firma-konfigurerbar default-lønnsart på ny rad — PÅ DEVELOP 2026-06-05
-
-Oppfølger av Variant A: auto-valgt lønnsart også på **første/tom** rad (Variant A dekket kun rad 2+ via forrige rad på samme sedel). Firma-konfigurerbar via nytt felt — full-stack.
-
-| Lag | Endring |
-|-----|---------|
-| **db-timer** | `Lonnsart.erStandardvalg Boolean @default(false)` + migrasjon `20260605180000_lonnsart_er_standardvalg` (additiv NOT NULL DEFAULT false + backfill `er_standardvalg=true WHERE navn='Timelønn' AND seed_nivaa=1`) |
-| **Seed** | `seedLonnsartNivaa1` setter `erStandardvalg: rad.navn === "Timelønn"` — nye firma får «Timelønn» som default |
-| **Server** | `timer.lonnsart.settStandard`-mutation (firma-admin) — nullstiller alle andre + setter valgt i `$transaction` (maks én per org). `list` returnerer feltet automatisk |
-| **Web** | `/dashbord/firma/timer/lonnsarter` — stjerne-kolonne (`Star`), klikk markerer standard. Kun `type==="ordinaer"` er klikkbar; defensiv fylt stjerne hvis annen type allerede er satt |
-| **Mobil cache** | `lonnsartLocal.erStandardvalg` + idempotent ALTER i `migreringer.ts` + `refreshKatalog`-mapping + ny `hentStandardLonnsartLokalt(orgId)`-helper |
-| **Mobil UI** | `TimerRadModal.defaultValg` prioritetskjede: forrige rad (Variant A) → firma-default (Variant B) → tom |
-| **i18n** | 3 nye nøkler (`firma.timer.felt.standard`, `firma.timer.standard.{erValgt,settValgt}`) auto-oversatt til 14 språk (2442 → 2445) |
-
-**Prioritetskjede ny rad:** forrige rads lønnsart → firma-default (`erStandardvalg`) → tom. Migrerte firma (tom katalog) får ingen default → faller til tom (uendret).
-
-**Verifisert:** api typecheck 0, web 1 = vitest-baseline, mobil 12 = baseline (0 nye feil, 0 i berørte filer).
-
-**Reload:** TS + Drizzle-schema (ALTER ADD COLUMN) + Prisma-migrasjon (server). Mobil: full app-reload så `migreringer.ts` legger til kolonnen. Server-deploy kreves (ny mutation + migrasjon + regenerert klient).
+**Reload:** TS + Drizzle-schema (ALTER `arbeidsdag_local`). Full app-reload på mobil.
 
 ### Samlet aktivitet — 2026-05-30 (2 prod-deploys: subdomain↔category-validering + HMS-prefiks amber-hint + useToppbarFiltre)
 

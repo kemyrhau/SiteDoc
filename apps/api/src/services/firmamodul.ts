@@ -119,6 +119,9 @@ export async function syncProjektModulerPaaAktiver(
 ): Promise<void> {
   const prosjekter = await tx.project.findMany({
     where: {
+      // VILKÅR 3 (Fase 2 / T.10): interne prosjekter får ALDRI ProjectModule-rader
+      // — de skal kun nås via timer-flate, ikke enable noen prosjektmodul.
+      type: { not: "internt" },
       OR: [
         { primaryOrganizationId: organizationId },
         { projectOrganizations: { some: { organizationId } } },

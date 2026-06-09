@@ -1,7 +1,7 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: 2026-05-01
-sist_endret: 2026-05-01
+sist_verifisert_mot_kode: 2026-06-08
+sist_endret: 2026-06-08
 gjelder_versjon: Fase 3
 avhenger_av:
   - arkitektur.md
@@ -222,6 +222,8 @@ Valgfri import ved onboarding. Pakke-orientert UX: vises som «Bransje: Anlegg/b
 | Andre | Fakturerbar tid | Skille fra intern |
 | Andre | Timer prosjektleder | PL med egen sats |
 
+> **Reisetid vs. reise-godtgjørelse (Fase 3 § B, avvik A):** To distinkte konsepter — ikke slå sammen. **Reise-godtgjørelse** («Reise 7,5–15 km» … «45–60 km», «Kilometergodtgjørelse») er **avstands-/godtgjørelse-satser — regnskap eier satsene** og km-utmålingen. **Reisetid** er **timeført arbeidstid** på lønnsarten «Reise/transport til prosjekter» (`ordinaer`), klassifisert mot firmaets terskel (kontor→byggeplass). Fase 3 `reiseLonnsartId` peker som standard på reisetid-arten, IKKE en km-godtgjørelse-art. Seed-artene beholdes uendret; kun denne tekst-distinksjonen er reframet (ingen rad-rename).
+
 #### Nivå 3 — Egendefinerte
 
 Opprettes av kunden via admin-UI ved behov. SiteDoc leverer ingen mal — kun verktøyet. Eksempler på lønnsarter som typisk hører her: kloakk-tillegg, brøyte-beredskap, firma-spesifikke skifttillegg-satser (30/40/50% utenfor standard 2-skift/natt), tariff-spesifikke satser, bransje-detaljer (bergspreng, dykker, etc.).
@@ -243,6 +245,8 @@ Når kunden bruker Nivå 1 «Timelønn» + «Overtid 50%/100%»: systemet foresl
 Eksempel: 10t totalt → Timelønn 7,5t + Overtid 50% 2,5t. Bruker justerer til 8t + 2t hvis ønskelig.
 
 Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger lønnsart manuelt.
+
+> **Status (2026-06-09):** Server-motoren er fortsatt ikke bygget. Eneste fordelings-logikk er klient-MVP i mobil `StartSluttDagKort.genererForslag` (navne-match «Overtid 50%», erstattes av `Lonnsart.overtidsnivaa`). **Reise-kobling (Fase 3 § B):** reise-andelen føres på egen lønnsart-rad og holdes utenfor normaltid/overtid-grunnlaget (`arbeidstimer = total − reisetid`, ingen dobbelttelling av brutto). `reisetidTellerOvertid` styrer terskelen: `false` (default) → dagsnorm gjelder kun arbeidstimene (reise utenfor overtid); `true` → reise spiser av dagsnorm (`dagsnorm − reisetid`), så mer arbeidstid havner i overtid. Når server-motoren bygges arver den samme kontrakt.
 
 ### Aktivitet-katalog (datadrevet, tre-nivå)
 
@@ -360,6 +364,56 @@ Stegvis flyt — hvert steg er en seksjon på skjermen:
 4. **Enhet** — auto-foreslått fra maskintype (kantsteinsetter → m, lastebil → m3). Kan overstyres
 5. **Kopiér forrige dag** — én knapp som **foreslår** verdier fra gårsdagens seddel. Foreslåtte verdier vises med visuell indikator (lys grå bakgrunn + «auto-foreslått»-tag) og er redigerbare før lagring. Kopierer: prosjekt, underprosjekt, aktivitet, lønnsart-fordeling, avdeling. Kopierer IKKE: klokkeslett, maskinrader, materialer, utlegg, kommentar — disse er typisk dagsspesifikke. Brukeren ser tydelig hva som er foreslått vs hva som er ferskt — ingen skjult automatikk
 6. **Materialer** — fritekst + mengde + enhet-dropdown (m3/m2/tonn/kg/m)
+
+## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
+
+Timer er en **firmamodul**: data eies av firma + arbeider, med `projectId` som etikett på radene. Isolasjonen er på **organisasjon (firma)**, ikke prosjekt-medlemskap (jf. to-produkt-modellen i [terminologi.md § 0](terminologi.md) og OPPSUMMERING-timer-arkitektur § D/G1).
+
+To skiller som ikke må blandes:
+- **Sikkerhetslag (firma-grense, ufravikelig, server-side):** hvilke prosjekter en arbeiders timer-rad *kan* peke på.
+- **Forretningslag (G1 firma-nivå-tilgang, policy):** hvilke prosjekter velgeren *tilbyr*. Harmonisering av medlemskaps-gaten (`verifiserProsjektmedlem` i `opprett`/`syncBatch`) → firma-nivå er **ikke** del av Fase 1b (BACKLOG).
+
+### Firma-grense på rad-projectId
+
+`SheetTimer.projectId` er en svak FK til `Project` i kjerne-DB. Felles helper i `tilgangskontroll.ts`:
+
+**`verifiserProsjekterTilhørerFirma(projectIds, organizationId)`** — kaster `FORBIDDEN` hvis et projectId verken er **eid av** (`Project.primaryOrganizationId == orgId`) **eller koblet til** (`ProjectOrganization`) firmaet. Unionen dekker både underentreprenør (deltar via ProjectOrganization på annet firmas prosjekt) **og** eide prosjekter — inkludert **legacy eide** som mangler ProjectOrganization-rad (opprettet før auto-koblingen, jf. `admin.ts`-bugfix; verifisert mot test-DB 2026-06-08: én slik rad fantes, dekkes nå av eier-grenen).
+
+Anvendt på alle fire rad-skrive-stiene i `dagsseddel.ts`:
+
+| Sti | Før Fase 1b | Etter |
+|-----|-------------|-------|
+| `tilfoyTimerRad` | ingen prosjekt-firma-sjekk (hull) | helper på `input.projectId` |
+| `syncBatch` (rad-nivå) | kun medlemskap på rad-IDer ≠ sedel-nivå; luke for re-sync av egen eksisterende sedel | helper på alle resolverte rad-projectIds (medlemskaps-løkka beholdt) |
+| `redigerSedelRader` | inline ProjectOrganization-sjekk | refaktorert til helper (+ eier-gren) |
+| `splittRad` | inline ProjectOrganization-sjekk | refaktorert til helper (+ eier-gren) |
+
+### Firma-grense på firmaPeriodeRapport
+
+`rapport.ts` (`firmaPeriodeRapport`) filtrerer nå dagssedler på **`dailySheet.organizationId == orgId`** i tillegg til prosjekt-tilhørighet. SHA/arbeidsgiver-modellen: hvert firma rapporterer **egne** timer, aldri prosjekteiers. Lukker cross-firma-lekkasje der en cross-org-invitert arbeiders sedel (annet org) med rad mot firmaets prosjekt tidligere dukket opp i rapporten — nå bevisst ekskludert.
+
+> **Kjent asymmetri (BACKLOG, ikke 1b):** `rapport.ts` henter «firmaets prosjekter» via `primaryOrganizationId` (kun eide), mens rad-grensen tillater deltatte (ProjectOrganization). En underentreprenørs egne timer på et deltatt-men-ikke-eid prosjekt vises derfor ikke i firmaets periode-rapport. Under-rapportering, ikke lekkasje — eget oppfølgings-punkt.
+
+## Byggeplass-geofence (GPS-deteksjon) — ✅ 1c-server IMPLEMENTERT, 🟡 1c-mobil gjenstår
+
+Gir `Byggeplass` GPS-senter + radius så mobil kan identifisere **hvilken byggeplass** arbeider står på (utvider Fase 1 som kun identifiserte prosjekt/oppmøtested). Løser byggeplass-koordinat-gapet [`fase-0 T.8:990`](fase-0-beslutninger.md) — som også Fase 3 (kontor→byggeplass-reise) trenger.
+
+### Datamodell (kjerne `packages/db`)
+`Byggeplass.latitude Float?`, `longitude Float?`, `radiusM Int?` — alle nullable, additivt (migrasjon `20260609100000_byggeplass_geofence_fase1c`, enkelt-steg). Ingen 4. flagg-kolonne: override beskyttes av «auto fyller kun når tom»-regelen under.
+
+### Geofence-avledning
+`beregnByggeplassGeofence(geoReference, bufferM=100)` (`packages/shared/src/utils/georeferanse.ts`): senter = tegningens midtpunkt (50,50 %) → GPS via `tegningTilGps`; radius = største avstand fra senter til de fire hjørnene (tegningsutstrekning) + 100 m buffer. Gjenbruker den eksisterende transformen, som kapsler UTM/NTM-projeksjonen via referansepunktene — ingen ny projeksjons-matte. Service `apps/api/src/services/byggeplassGeofence.ts` velger **nyeste georefererte tegning** (`createdAt desc`) på byggeplassen.
+
+### Triggere (API)
+- **Auto (fyller kun når tom):** `tegning.settGeoReferanse` kaller geofence-service med `kunHvisTom=true` når tegningen har `byggeplassId` → fyller geofence første gang en koblet tegning georefereres, **klobrer aldri** en satt/manuell verdi. Best-effort (feiler aldri georeferering-kallet).
+- **Eksplisitt:** `bygning.beregnGeofence({byggeplassId})` — overskriver alltid fra nyeste georef-tegning. `BAD_REQUEST` hvis ingen georef-tegning / degenerert georeferanse.
+- **Manuell override:** `bygning.settGeofence({byggeplassId, latitude, longitude, radiusM})` — null-verdier nullstiller.
+
+### Web
+Lokasjoner-siden (`oppsett/lokasjoner`), «endre navn»-modal: geofence-felt (lat/lng/radius) + «Beregn fra tegning» + «Lagre geofence». i18n `lokasjoner.geofence.*`.
+
+### 1c-mobil (gjenstår, BACKLOG)
+GPS-deteksjon av byggeplass i mobil «Start dag» (Haversine mot `Byggeplass`-koordinater, utvider `apps/mobile/app/timer/ny.tsx`). Splittet ut fordi det krever EAS-bygg — buntes med Fase 1 mobil-verifisering. **Aldri auto-rad** (`T.8:983`) — kun forslag/etikett.
 
 ## Eksport til lønnssystem
 
@@ -610,6 +664,37 @@ Hvis én av disse er av, skjules knappen — ingen poeng å tilby Underprosjekt-
 **Aldri automatisk basert på godkjent-status.** Begrunnelse: i norsk entrepriserett (NS 8405/8406/8407) er entreprenøren kontraktspliktig til å utføre arbeid selv ved økonomisk uenighet. Hvis vi blokkerte Underprosjekt-opprettelse til Godkjenningen var økonomisk avklart, ville vi hindre lovpålagt utførelse. Utførelse-spor (timer) må alltid kunne starte uavhengig av økonomi-spor (pris/fakturering).
 
 Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` peker til kilde-dokumentet. Endringer i Godkjenningens økonomiske status påvirker ikke Underprosjektets åpen/lukket-status.
+
+## Planlagte arkitektur-utvidelser (2026-06-08)
+
+> **🟢 Beslutningssett rutet fra [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md).** Schema-skisse i [arkitektur.md](arkitektur.md). Faseinndelt via SPOR 3 — ikke kodet ennå. Alt additivt (nullable/defaultet) → enkelt-stegs migrasjoner; **T.2 (`projectId NOT NULL`) gjenåpnes IKKE**.
+
+### Reise og oppmøtested (§ B)
+
+> **✅ Fase 1 implementert (2026-06-08, develop/test):** `Oppmotested`-entitet (kjerne) + `oppmotestedRouter` (firma-admin CRUD + member-lesbar `hentForFirma`) + web firmainnstillinger-side (`/dashbord/firma/oppmotesteder`, manuell lat/lng — Leaflet-kartvelger er senere oppfølger) + mobil `oppmotested_local`-cache + GPS-identifikasjon i «Start dag» (Haversine mot geofence-radius, lagrer identifisert oppmøtested på `arbeidsdag_local` som dokumentasjon, aldri auto-rad). Migrasjon `20260608120000_oppmotested_fase1` (additiv).
+
+> **✅ Fase 3 implementert (2026-06-09, develop/test — venter dual-review):** Reise-regelsett som firmainnstilling på `OrganizationSetting` (migrasjon `20260609160000_reise_regelsett_fase3`, additiv): `reiseTerskelMin` (30), `reiseUnderTerskelType` ('arbeidstid'), `reiseOverTerskelType` ('reisetid'), `reisetidTellerOvertid` (false), `reiseLonnsartId` (svak FK → `timer.Lonnsart`, A.20). Delt klassifisering `klassifiserReise` + `estimerReisetidMin` + eksportert `avstandMeter` i `@sitedoc/shared`. Setting-API: `oppdaterSetting` (org-validerer `reiseLonnsartId`) + `hentArbeidstidDefaults` (member-lesbar, mobil-cache). Web: «Reise»-seksjon i `/dashbord/firma/innstillinger`. Mobil: setting-cache utvidet + reise-forslag i «Slutt dag» (`StartSluttDagKort.genererForslag`) — KUN når oppmøtested ble identifisert (kontor→byggeplass), GPS-distanse start→slutt, **estimert** reisetid (MVP, GPS-faktisk-tid senere), klassifisert mot terskel; 'reisetid' → egen reise-lønnsart-rad. **`reisetidTellerOvertid` styrer om reise spiser av dagsnorm-terskelen** (jf. auto-fordeling-koordinering under). Alt forslag i draft — arbeider justerer, aldri auto-rad. **Byggeplass-GPS på mobil = senere (1c-mobil); reise-distanse bruker start/slutt-GPS + `Project.lat/lng`-MVP.**
+
+- **Oppmøtested = egen geo-entitet** (kjerne, søsken til `Avdeling`): `{ organizationId, navn, adresse?, lat, lng, radiusM, avdelingId?, aktiv }`. A.Markussen: 3 kontorer (Narvik, Harstad, Tromsø). Geofence identifiserer kontor + logger inn/ut som *dokumentasjon* + *foreslår* starttid — aldri auto-rad (`fase-0 T.8:983`).
+- **Kompensert reise = kontor→byggeplass + byggeplass→byggeplass.** Hjem→arbeidssted er IKKE kompensert. Reisetid = **lønnsart-rad (ordinær lønn), utenfor overtid** (jf. § Lønnsart-katalog + `:282`). Ingen avstands-/godtgjørelse-sats (regnskap eier satser).
+- **Reise-regelsett = firmainnstilling** (konfigurerbart, ikke regelmotor): `OrganizationSetting` + `reiseTerskelMin` (default 30) / `reiseUnderTerskelType` / `reiseOverTerskelType` / `reisetidTellerOvertid`. `<terskel` → arbeidstid, `>terskel` → reisetid. Terskel + lovlighet er per firmas tariff/avtale, ikke universell lov.
+- **MVP på `Project.latitude/longitude`** (finnes, nullable); byggeplass-GPS er senere arbeid (`T.8:990`).
+- ⚠️ **Auto-fordeling normaltid/overtid er IKKE implementert** (§ Auto-fordeling er spec, ikke kode — `:172`). Reise-klassifisering må koordineres med den når den bygges; anta ikke at motoren finnes.
+
+### Ikke-prosjekt-tid (Alt C — § C)
+
+> **✅ Fase 2 implementert (2026-06-09, develop/test — venter dual-review):** `Project.type "kunde"|"internt"` (migrasjon `20260609140000_project_type_fase2`, additiv default "kunde") + `SheetTimer.vehicleId String?` (migrasjon `20260609140100_sheet_timer_vehicle_id_fase2`). Seed av **2 interne prosjekter** per firma («Internt arbeid» + «Verksted/maskinvedlikehold») via `seedInterneProsjekter` (`apps/api/src/services/seed/index.ts`), kalt fra begge timer-onboarding-modus. **Vilkår 3 (Kenneth):** interne prosjekter får ALDRI ProjectModule-rader — `syncProjektModulerPaaAktiver` (`firmamodul.ts`) ekskluderer `type="internt"`; seeden oppretter heller ingen ProjectMember/ProjectOrganization (firma-grense passerer via `primaryOrganizationId`). Tilgang: `type="internt"`-unntak i `verifiserProsjektmedlem` (`tilgangskontroll.ts`, smalt: kun `type="internt"` + OrganizationMember på prosjektets org). Timer-velger: ny `prosjekt.hentForTimer` (union medlemskap + interne for egen org) — kundevendte `hentMine`/`hentAlle` filtrerer interne ut. `vehicleId` settes via maskinvelger i timer-rad-modalen (kun interne prosjekter); **§2.D org-validering** mot `Equipment.organizationId` i `verifiserKjoretoyTilhørerFirma` (`dagsseddel.ts`) på alle skrive-stier (tilfoy/oppdater/syncBatch).
+
+- Internt arbeid + maskinvedlikehold = **interne `Project`-rader** (`Project.type "kunde"|"internt"`, default "kunde"). `projectId` forblir NOT NULL → **T.2 urørt**. 1–2 generiske interne prosjekter per firma, ikke ett per aktivitet. Interne filtreres ut av kundevendte lister, vises i timer-velger. Tilgang: `type="internt"`-unntak i `verifiserProsjektmedlem` (firma-ansatte uten ProjectMember-rad).
+- **Dynamisk intern-liste = eksisterende `Aktivitet`** (firma-scoped). Ingen ny katalog-tabell.
+- **`SheetTimer.vehicleId String?`** (nytt, svak FK → db-maskin.Equipment) = kostnadsbærer for maskinvedlikehold. **Vedlikehold ≠ drift:** `SheetTimer.vehicleId` (mekaniker-timer *mot* maskin) er distinkt fra `SheetMachine.vehicleId` (drift/maskinfører). Se [maskin.md § Kobling til andre moduler](maskin.md).
+- Maskinkost-fordeling = regnskap/ProAdm, ikke SiteDoc (datamodell holdes åpen; ProAdm utgående eksport finnes ikke i dag).
+
+### Firma-isolasjon + tilgang (§ D / G1)
+
+- **Sikkerhetslag (ufravikelig):** timer-data isoleres på `organizationId` (`DailySheet` org-eid per T.1), ikke `projectId`. Et firma ser kun egne timer — aldri prosjekteiers/annet firmas, selv på delte prosjekter. Forankring: SHA/arbeidsgiver-rapportering.
+- ⚠️ **KJENT ISSUE (ikke fikset):** `rapport.ts:80-92` filtrerer sedler kun på `projectId ∈ firmaets prosjekter`, **uten** `organizationId`-filter → cross-firma-lekkasje på delte prosjekter. `tilfoyTimerRad` mangler firma-grense-sjekk på rad-`projectId`. Fikses i SPOR 3 Fase 1b (se [BACKLOG.md](BACKLOG.md)).
+- **Forretningslag (G1):** firma-nivå tilgang — aktiv firma-ansatt kan føre mot et hvilket som helst av firmaets prosjekter (hard ProjectMember-gate faller for eget firma; `timerTilgangDefault='alle-ansatte'`). Kostnadskontroll ligger i attesteringen, ikke velgeren. GPS = friksjonsfjerner (smart, prioriterende velger), ikke hard port.
 
 ## Database — `packages/db-timer`
 

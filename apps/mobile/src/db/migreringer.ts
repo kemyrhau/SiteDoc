@@ -288,6 +288,42 @@ export function kjorMigreringer() {
     console.warn("[MIG] Kunne ikke utvide lonnsart_local med er_standardvalg:", e);
   }
 
+  // «Start dag / Slutt dag»-økt (2026-06-06) — lokal arbeidsøkt-logg som
+  // genererer dagsseddel-forslag. KUN lokal, synkes aldri.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS arbeidsdag_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      user_id TEXT NOT NULL,
+      dato TEXT NOT NULL,
+      start_at TEXT NOT NULL,
+      start_lat REAL,
+      start_lng REAL,
+      end_at TEXT,
+      end_lat REAL,
+      end_lng REAL,
+      status TEXT NOT NULL DEFAULT 'paagaar',
+      generert_dagsseddel_id TEXT,
+      sist_endret_lokalt INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_arbeidsdag_local_user_status
+      ON arbeidsdag_local(user_id, status);
+  `);
+
+  // Fase 1 (2026-06-08): GPS-identifisert oppmøtested på arbeidsdag (dokumentasjon,
+  // aldri lønnsgrunnlag). Idempotent ALTER — eksisterende rader får NULL.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(arbeidsdag_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "oppmotested_id")) {
+      console.log("[MIG] Legger til oppmotested_id/navn på arbeidsdag_local (Fase 1)");
+      db.execSync(`ALTER TABLE arbeidsdag_local ADD COLUMN oppmotested_id TEXT`);
+      db.execSync(`ALTER TABLE arbeidsdag_local ADD COLUMN oppmotested_navn TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide arbeidsdag_local med oppmøtested:", e);
+  }
+
   // Ny tabell: sheet_machine_local (maskinbruk per dagsseddel)
   // vehicleId er svak FK til db-maskin Equipment (ingen lokal cache i C9
   // — Maskin-modul på mobil utsatt til Runde 2.6).
@@ -383,6 +419,25 @@ export function kjorMigreringer() {
 
     CREATE INDEX IF NOT EXISTS idx_prosjekt_local_org_aktiv
       ON prosjekt_local(organization_id, aktiv);
+  `);
+
+  // Fase 1 (2026-06-08) — oppmotested_local: offline-cache av firmaets
+  // oppmøtesteder (kontorer) for GPS-identifikasjon ved «Start dag». KUN lokal,
+  // synkes aldri opp. Refresh via oppmotestedKatalog.refreshOppmotestedKatalog
+  // (login + nett-gjenkomst), speiler prosjekt_local.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS oppmotested_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      navn TEXT NOT NULL,
+      lat REAL NOT NULL,
+      lng REAL NOT NULL,
+      radius_m INTEGER NOT NULL DEFAULT 150,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_oppmotested_local_org
+      ON oppmotested_local(organization_id);
   `);
 
   // T4-d (2026-05-16) — per-rad fra/til-tid på sheet_timer_local +
@@ -491,6 +546,27 @@ export function kjorMigreringer() {
       );
       db.execSync(
         `ALTER TABLE organization_setting_local ADD COLUMN standard_pause_fra TEXT`,
+      );
+    }
+    // Fase 3 (§ B) — reise-regelsett-felt for offline reise-forslag i «Slutt dag».
+    if (!kolonner.find((k) => k.name === "reise_terskel_min")) {
+      console.log(
+        "[MIG] Legger til reise-regelsett-kolonner på organization_setting_local (Fase 3)",
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reise_terskel_min INTEGER NOT NULL DEFAULT 30`,
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reise_under_terskel_type TEXT NOT NULL DEFAULT 'arbeidstid'`,
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reise_over_terskel_type TEXT NOT NULL DEFAULT 'reisetid'`,
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reisetid_teller_overtid INTEGER NOT NULL DEFAULT 0`,
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reise_lonnsart_id TEXT`,
       );
     }
   } catch (e) {

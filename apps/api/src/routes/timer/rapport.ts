@@ -79,6 +79,11 @@ export const rapportRouter = router({
       // T.1 (2026-05-11): DailySheet har ikke projectId — filtrer via SheetTimer-join.
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where: {
+          // Fase 1b: firma-isolasjon — kun sedler EID av firmaet (SHA-modell:
+          // hvert firma rapporterer egne timer, aldri prosjekteiers). Lukker
+          // cross-firma-lekkasje på delte prosjekter. Cross-org-invitert
+          // arbeiders sedel (annet org) ekskluderes bevisst.
+          organizationId: orgId,
           timer: { some: { projectId: { in: prosjektIder } } },
           dato: { gte: fraDato, lte: tilDato },
           ...(input.ansattId ? { userId: input.ansattId } : {}),

@@ -1,5 +1,13 @@
 # Infrastruktur og deployment
 
+> **Ny server under oppsett (2026-06-08) — IKKE prod ennå.** En dedikert Ubuntu 24.04-boks
+> (`192.168.1.209`, hostname `sitedoc`) er satt opp for å erstatte dagens prod (Kenspill/WSL).
+> Den har TPM-auto-opplåsing av kryptert disk, slår seg på selv etter strømbrudd, og nås via
+> Tailscale: `ssh server-ny` fra Mac (tailnet `100.76.248.15`, nøkkel `~/.ssh/server_ny`).
+> **Sendfil er migrert dit** (Docker, 2026-06-08, `sendfil.sitedoc.site` via tunnel `sitedoc-ny`). sitedoc + salsaklubb er foreløpig IKKE migrert — resten av dette dokumentet beskriver fortsatt live prod (gammel server).
+> Full historikk: [`../../ny-server-fjerntilgang-plan.md`](../../ny-server-fjerntilgang-plan.md).
+> Neste fase (Docker + migrering): [`../../ny-server-migrering-kickoff.md`](../../ny-server-migrering-kickoff.md).
+
 ## Serverarkitektur
 
 ```

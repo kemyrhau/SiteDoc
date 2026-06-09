@@ -6,6 +6,7 @@ import { router, protectedProcedure } from "../../trpc/trpc";
 import {
   autoriserAdminForFirma,
   verifiserProsjektmedlem,
+  verifiserProsjekterTilhørerFirma,
   hentBrukersOrg,
   krevBrukersOrg,
 } from "../../trpc/tilgangskontroll";
@@ -13,6 +14,30 @@ import { krevTimerAktivert } from "../../services/timer";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
 type DagsseddelStatus = (typeof STATUS_VERDIER)[number];
+
+/**
+ * §2.D (ufravikelig, Fase 2 / T.10): valider at vehicleId (kostnadsbærer for
+ * maskinvedlikehold på SheetTimer) tilhører firmaet. Equipment er svak FK
+ * (db-maskin, ingen @relation), så org-isolasjon MÅ håndheves i app-lag — ellers
+ * cross-firma-lekkasje av maskin-ID. Dynamisk import speiler tilgangskontroll.ts-
+ * mønsteret (unngår sirkulær avhengighet i tRPC-laget).
+ */
+async function verifiserKjoretoyTilhørerFirma(
+  vehicleId: string,
+  organizationId: string,
+): Promise<void> {
+  const { prismaMaskin } = await import("@sitedoc/db-maskin");
+  const utstyr = await prismaMaskin.equipment.findFirst({
+    where: { id: vehicleId, organizationId },
+    select: { id: true },
+  });
+  if (!utstyr) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Maskin/utstyr finnes ikke i firmaets register",
+    });
+  }
+}
 
 /**
  * Status-livssyklus per Runde 1B-spec:
@@ -673,6 +698,8 @@ export const dagsseddelRouter = router({
         fraTid: z.string().nullable().optional(),
         tilTid: z.string().nullable().optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
+        // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
+        vehicleId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -707,6 +734,14 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // Fase 1b: firma-grense på rad-projectId (lukker cross-firma-lekkasje).
+      await verifiserProsjekterTilhørerFirma([input.projectId], sheet.organizationId);
+
+      // §2.D: vehicleId (maskinvedlikehold-kostnadsbærer) må tilhøre firmaet.
+      if (input.vehicleId) {
+        await verifiserKjoretoyTilhørerFirma(input.vehicleId, sheet.organizationId);
+      }
+
       // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
       // Defensiv — å legge til en timer-rad kan kun øke timer-summen i
       // bucket. Beholdes for konsistens på tvers av mutasjoner.
@@ -738,6 +773,7 @@ export const dagsseddelRouter = router({
           fraTid: input.fraTid ?? null,
           tilTid: input.tilTid ?? null,
           externalCostObjectId: input.externalCostObjectId ?? null,
+          vehicleId: input.vehicleId ?? null,
         },
       });
     }),
@@ -750,6 +786,8 @@ export const dagsseddelRouter = router({
         aktivitetId: z.string().uuid().optional(),
         timer: z.number().min(0).max(24).optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
+        // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
+        vehicleId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -777,6 +815,13 @@ export const dagsseddelRouter = router({
       if (input.timer !== undefined) data.timer = input.timer;
       if (input.externalCostObjectId !== undefined) {
         data.externalCostObjectId = input.externalCostObjectId;
+      }
+      if (input.vehicleId !== undefined) {
+        // §2.D: valider mot firmaets maskinregister når en ID settes (ikke ved null).
+        if (input.vehicleId) {
+          await verifiserKjoretoyTilhørerFirma(input.vehicleId, sheet.organizationId);
+        }
+        data.vehicleId = input.vehicleId;
       }
 
       // T7-4b: valider post-state. Reduksjon av timer eller flytting til
@@ -1819,6 +1864,8 @@ export const dagsseddelRouter = router({
               fraTid: z.string().nullable().optional(),
               tilTid: z.string().nullable().optional(),
               timer: z.number().positive(),
+              // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
+              vehicleId: z.string().uuid().nullable().optional(),
             }),
           ),
           tillegg: z.array(
@@ -1883,30 +1930,27 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // Cross-org-validering: alle nye-rad projectIds må tilhøre firmaet
-      const alleProjectIds = Array.from(
-        new Set([
+      // Fase 1b: firma-grense på alle nye-rad projectIds (delt helper).
+      await verifiserProsjekterTilhørerFirma(
+        [
           ...input.nyeRader.timer.map((r) => r.projectId),
           ...input.nyeRader.tillegg.map((r) => r.projectId),
           ...input.nyeRader.maskin.map((r) => r.projectId),
-        ]),
+        ],
+        sheet.organizationId,
       );
-      if (alleProjectIds.length > 0) {
-        const gyldigeProsjekter = await ctx.prisma.projectOrganization.findMany({
-          where: {
-            projectId: { in: alleProjectIds },
-            organizationId: sheet.organizationId,
-          },
-          select: { projectId: true },
-        });
-        const gyldigeIder = new Set(gyldigeProsjekter.map((p) => p.projectId));
-        const ugyldig = alleProjectIds.filter((pid) => !gyldigeIder.has(pid));
-        if (ugyldig.length > 0) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: `Prosjekt(er) tilhører ikke firmaet: ${ugyldig.join(", ")}`,
-          });
-        }
+
+      // §2.D: org-valider timer-rad-vehicleId (maskinvedlikehold-kostnadsbærer)
+      // mot firmaets maskinregister — samme grense som de andre skrive-stiene.
+      const redigerVehicleIder = Array.from(
+        new Set(
+          input.nyeRader.timer
+            .map((r) => r.vehicleId)
+            .filter((v): v is string => !!v),
+        ),
+      );
+      for (const vid of redigerVehicleIder) {
+        await verifiserKjoretoyTilhørerFirma(vid, sheet.organizationId);
       }
 
       // Valider originalId hvis gitt: må finnes på sedelen og være pending.
@@ -2071,6 +2115,7 @@ export const dagsseddelRouter = router({
               fraTid: rad.fraTid ?? null,
               tilTid: rad.tilTid ?? null,
               timer: rad.timer,
+              vehicleId: rad.vehicleId ?? null,
               attestertStatus: "pending",
               parentRadId: rad.originalId,
             },
@@ -2271,25 +2316,11 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // 6) Cross-org-validering: alle nye projectId må tilhøre firmaet
-      const alleProjectIds = Array.from(
-        new Set(input.nyeRader.map((r) => r.projectId)),
+      // 6) Fase 1b: firma-grense på alle nye projectId (delt helper).
+      await verifiserProsjekterTilhørerFirma(
+        input.nyeRader.map((r) => r.projectId),
+        sheet.organizationId,
       );
-      const gyldigeProsjekter = await ctx.prisma.projectOrganization.findMany({
-        where: {
-          projectId: { in: alleProjectIds },
-          organizationId: sheet.organizationId,
-        },
-        select: { projectId: true },
-      });
-      const gyldigeIder = new Set(gyldigeProsjekter.map((p) => p.projectId));
-      const ugyldig = alleProjectIds.filter((pid) => !gyldigeIder.has(pid));
-      if (ugyldig.length > 0) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: `Prosjekt(er) tilhører ikke firmaet: ${ugyldig.join(", ")}`,
-        });
-      }
 
       // 7) Sum-validering: nye rader må summere til originalens sum-felt.
       //    Timer- og maskin-rad: sum av "timer". Tillegg-rad: sum av "antall".
@@ -2334,6 +2365,9 @@ export const dagsseddelRouter = router({
                 fraTid: rad.fraTid ?? null,
                 tilTid: rad.tilTid ?? null,
                 timer: rad.timer,
+                // T.10: split = samme arbeid → arv original-radens kostnadsbærer.
+                // Allerede org-validert da originalen ble opprettet — ingen ny sjekk.
+                vehicleId: (original as { vehicleId: string | null }).vehicleId ?? null,
                 attestertStatus: "pending",
                 parentRadId: original.id,
               },
@@ -2704,6 +2738,7 @@ export const dagsseddelRouter = router({
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId,
+            vehicleId: t.vehicleId,
             timer: Number(t.timer),
             fraTid: t.fraTid,
             tilTid: t.tilTid,
@@ -2770,6 +2805,8 @@ export const dagsseddelRouter = router({
                 aktivitetId: z.string().uuid(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
                 timer: z.number().min(0).max(24),
+                // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
+                vehicleId: z.string().uuid().nullable().optional(),
               }),
             ),
             tillegg: z.array(
@@ -2967,6 +3004,34 @@ export const dagsseddelRouter = router({
             await verifiserProsjektmedlem(ctx.userId, pid);
           }
 
+          // Fase 1b: firma-grense på alle RESOLVERTE rad-projectIds (med
+          // sedel-nivå fallback). Medlemskaps-løkka over filtrerer bort rad-IDer
+          // == lokal.projectId og hopper sedel-nivå for eksisterende sedler —
+          // firma-grensen dekker den luken (foreign projectId via re-sync av
+          // egen eksisterende sedel). Delt helper, samme grense som de andre
+          // skrive-stiene. Beholder medlemskaps-løkka (G1-policy utenfor 1b).
+          await verifiserProsjekterTilhørerFirma(
+            [
+              ...lokal.timer.map((t) => t.projectId ?? lokal.projectId),
+              ...lokal.tillegg.map((t) => t.projectId ?? lokal.projectId),
+              ...lokal.maskiner.map((m) => m.projectId ?? lokal.projectId),
+            ],
+            orgId,
+          );
+
+          // §2.D: valider alle timer-rad-vehicleId (maskinvedlikehold-kostnadsbærer)
+          // mot firmaets maskinregister. Samlet pr. unik ID for å unngå N oppslag.
+          const timerVehicleIder = Array.from(
+            new Set(
+              lokal.timer
+                .map((t) => t.vehicleId)
+                .filter((v): v is string => !!v),
+            ),
+          );
+          for (const vid of timerVehicleIder) {
+            await verifiserKjoretoyTilhørerFirma(vid, orgId);
+          }
+
           const dato = new Date(lokal.dato);
 
           // Klient kan ikke sette accepted — lederen attesterer på server
@@ -3062,6 +3127,7 @@ export const dagsseddelRouter = router({
                   lonnsartId: t.lonnsartId,
                   aktivitetId: t.aktivitetId,
                   externalCostObjectId: t.externalCostObjectId ?? null,
+                  vehicleId: t.vehicleId ?? null,
                   timer: t.timer,
                 })),
               });

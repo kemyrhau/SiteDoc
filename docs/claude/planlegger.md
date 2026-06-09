@@ -1,7 +1,17 @@
+---
+name: planlegger
+description: Fremdriftsplanlegger (Fase 4) — ressursplanlegging, kompetanse, bemanning, forslag-motor. Forhåndsfyller/foreslår, låser aldri.
+sist_verifisert_mot_kode: ukjent
+sist_endret: 2026-06-08
+gjelder_versjon: Fase 4
+---
+
 # Fremdriftsplanlegger — Fase 4
 
 ## Formål
 Ressursplanlegging på dagsnivå: match ansatte med riktig kompetanse til riktige prosjekter, med maskin- og utstyrsbehov. Vises som daglig plan i mobil-app ned på individnivå.
+
+> **🟢 Premiss (2026-06-08 — § F/§ 1.12 i [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md)):** Hvis/når planleggeren styrer timeføring, skal den **forhåndsfylle/foreslå, aldri låse** — arbeidere avviker alltid fra plan (samme separasjonsprinsipp som `fase-0 T.8:983`). Planlegger-modulen er **ikke bygget ennå** (kun denne spec-en). Mulig fremtidig kobling: hvis intern aktivitet (vedlikehold/rydding/tilbud, Alt C) skal kunne **planlegges** og ikke bare føres, trengs en delt «intern aktivitet»-referanse mellom `BemanningsBehov` (planlegger) og `SheetTimer` (timer) — i dag refererer planlegger-modellen kun `prosjektId`. Designes ikke nå.
 
 ## Tre moduler
 

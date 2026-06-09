@@ -24,6 +24,7 @@ import {
 } from "../services/prosjektKatalog";
 import { refreshKalenderKatalog } from "../services/kalenderKatalog";
 import { refreshOrganizationSettingKatalog } from "../services/organizationSettingKatalog";
+import { refreshOppmotestedKatalog } from "../services/oppmotestedKatalog";
 
 interface TimerSyncKontekst {
   pendingAntall: number;
@@ -107,6 +108,7 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
           orgIds.flatMap((orgId) => [
             refreshKalenderKatalog(utils.client, orgId),
             refreshOrganizationSettingKatalog(utils.client, orgId),
+            refreshOppmotestedKatalog(utils.client, orgId),
           ]),
         );
       }

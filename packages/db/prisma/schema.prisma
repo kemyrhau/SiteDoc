@@ -91,6 +91,7 @@ model Organization {
   integrations        OrganizationIntegration[]
   setting             OrganizationSetting?
   avdelinger          Avdeling[]
+  oppmotesteder       Oppmotested[]
   kompetansetyper     Kompetansetype[]
   arbeidstidsKalender ArbeidstidsKalender[]
 
@@ -263,6 +264,24 @@ model OrganizationSetting {
   // Tom = eksisterende midtpunkt-fallback. Bakover-kompatibilitet bevart.
   standardPauseFra String? @map("standard_pause_fra")
 
+  // Reise-regelsett (Fase 3 / T.10 § B) — firmainnstilling, ikke regelmotor.
+  // Terskel/retning/lovlighet er avtale-avhengig (tariff), derfor konfigurerbart.
+  // Reisetid = lønnsart-rad (arbeidstid, utenfor overtid by default), IKKE
+  // avstands-/godtgjørelse-sats (km-godtgjørelse er separate lønnsarter, regnskap
+  // eier satsene). Klassifisering: reisetid < terskel → underType, ≥ terskel → overType.
+  reiseTerskelMin       Int     @default(30)            @map("reise_terskel_min")
+  // "arbeidstid" | "reisetid" — hva reisetid UNDER terskelen klassifiseres som.
+  reiseUnderTerskelType String  @default("arbeidstid")  @map("reise_under_terskel_type")
+  // "arbeidstid" | "reisetid" — hva reisetid OVER/LIK terskelen klassifiseres som.
+  reiseOverTerskelType  String  @default("reisetid")    @map("reise_over_terskel_type")
+  // Hvis true: reise-timer inngår i arbeidstime-grunnlaget før normaltid/overtid-
+  // splittet (kan skyve totalen til overtid). Default false: reise er separat rad
+  // utenfor overtid-fordelingen.
+  reisetidTellerOvertid Boolean @default(false)         @map("reisetid_teller_overtid")
+  // Konkret reise-lønnsart (svak FK → timer.Lonnsart, A.20-mønster, ingen @relation
+  // — ligger i db-timer). NULL → fallback til navne-match ("reise/transport").
+  reiseLonnsartId       String?                         @map("reise_lonnsart_id")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -406,6 +425,12 @@ model Project {
   utskriftsinnstillinger    Json?     @map("utskrifts_innstillinger") // { logo, eksternProsjektnummer, prosjektnavn, fraTil, lokasjon, tegningsnummer, vaer }
   sourceLanguage            String    @default("nb") @map("source_language") // Kildespråk for prosjektet
   status                    String    @default("active")
+  // type (Fase 2 / T.10): "kunde" | "internt". Interne prosjekter er firma-eide
+  // bærere for ikke-prosjekt-tid (internt arbeid + maskinvedlikehold) i Timer.
+  // Additivt — alle eksisterende prosjekter er "kunde". Filtreres ut av
+  // kundevendte lister; nås kun via timer-flate (T.10, vilkår 3: enabler ingen
+  // andre prosjektmoduler).
+  type                      String    @default("kunde")
   trialExpiresAt            DateTime? @map("trial_expires_at")
   primaryOrganizationId     String?   @map("primary_organization_id") // Per fase-0-beslutninger.md § E steg 4 (nullable per B.4 interim)
   createdAt                 DateTime  @default(now()) @map("created_at")
@@ -437,6 +462,7 @@ model Project {
 
   @@index([trialExpiresAt])
   @@index([primaryOrganizationId])
+  @@index([type])
   @@map("projects")
 }
 
@@ -712,6 +738,12 @@ model Byggeplass {
   address     String?
   type        String   @default("bygg") // "bygg" | "anlegg"
   status      String   @default("unpublished")
+  // Fase 1c: geofence avledet fra georeferert tegning (eller manuelt overstyrt).
+  // Brukes til GPS-identifikasjon av byggeplass i timer (1c-mobil). Nullable —
+  // settes når en koblet tegning georefereres, eller manuelt.
+  latitude    Float?   @map("latitude")
+  longitude   Float?   @map("longitude")
+  radiusM     Int?     @map("radius_m") // geofence-radius (tegningsutstrekning + buffer)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -1910,10 +1942,41 @@ model Avdeling {
 
   organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   organizationMembers OrganizationMember[]
+  oppmotesteder       Oppmotested[]
 
   @@unique([organizationId, navn])
   @@index([organizationId, aktiv])
   @@map("avdelinger")
+}
+
+// ---------------------------------------------------------------------------
+// Oppmotested — firma-eid geo-entitet (kontor/verksted) med geofence-radius.
+// Søsken til Avdeling (firma-infrastruktur i kjernen, ikke modul-tabell — KS-3).
+// Fase 1 (2026-06-08): GPS identifiserer hvilket oppmøtested arbeider startet på
+// ved «Start dag» (mobil, lokal-only dokumentasjon). Ingen lønns-/reiselogikk.
+// Valgfri avdelingId — org-akse (Avdeling) og fysisk-akse (kontor) er ikke 1:1.
+// ---------------------------------------------------------------------------
+
+model Oppmotested {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  navn           String
+  adresse        String?
+  lat            Float
+  lng            Float
+  radiusM        Int      @default(150) @map("radius_m")
+  avdelingId     String?  @map("avdeling_id")
+  aktiv          Boolean  @default(true)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  avdeling     Avdeling?    @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, navn])
+  @@index([organizationId, aktiv])
+  @@index([avdelingId])
+  @@map("oppmotesteder")
 }
 
 // ---------------------------------------------------------------------------

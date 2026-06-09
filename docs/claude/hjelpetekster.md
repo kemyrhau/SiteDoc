@@ -52,3 +52,4 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 | AI-søk | /oppsett/ai-sok | ❌ | Legg til |
 | Admin/Firmaer | /admin/firmaer | ❌ | Legg til |
 | Kontrollplan | /dashbord/[prosjektId]/kontrollplan | ✅ | OK — matrise/liste, polygon-tegning, sluttrapport, kaskade-flytt |
+| Oppmøtesteder | /dashbord/firma/oppmotesteder | ✅ | Fase 1 2026-06-08 — hva/GPS/personvern (lokal-only, ikke lønnsgrunnlag) |

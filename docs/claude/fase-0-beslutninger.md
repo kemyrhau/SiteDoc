@@ -1033,6 +1033,20 @@ heltall-aritmetikk — de seks øvrige bevegelige helligdagene avledes av offset
 - SummeringsBanner.tsx (T7-3a) — må oppdateres til å lese dagsnorm fra kalender-cache
 - ~~Auto-fordeling normaltid/overtid — trenger kalender for terskelverdi~~ **Droppet 2026-05-16** — besluttet å ikke implementere. Kunden registrerer lønnsart manuelt per rad (gjeldende praksis).
 
+### T.10 — Ikke-prosjekt-tid (Alt C) + oppmøtested + reise-regelsett — besluttet 2026-06-08
+
+Beslutningssett for reise, oppmøtested og ikke-prosjekt-tid. Grunnlag: [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md) (fil:linje verifisert mot kode). Spec i [timer.md § Planlagte arkitektur-utvidelser](timer.md); schema-skisse i [arkitektur.md](arkitektur.md). Faseinndelt via SPOR 3 — ikke kodet. Alt additivt → enkelt-stegs.
+
+**Ikke-prosjekt-tid (Alt C):** Internt arbeid + maskinvedlikehold = interne `Project`-rader (`Project.type "kunde"|"internt"`, default "kunde"). **T.2 (`projectId NOT NULL`) gjenåpnes IKKE** — prosjekt-isolasjon urørt, ~185 projectId-bruksstedene urørt. Dynamisk intern-liste = eksisterende `Aktivitet` (firma-scoped), ingen ny katalog. Kostnadsbærer = `SheetTimer.vehicleId String?` (svak FK → Equipment), distinkt fra `SheetMachine.vehicleId` (drift, jf. C.18). Tilgang til interne prosjekter via `type="internt"`-unntak i `verifiserProsjektmedlem`. **Ingen fordelingsmotor i SiteDoc** (regnskap/ProAdm eier fordeling).
+
+> **✅ IMPLEMENTERT (Fase 2, 2026-06-09, develop/test — venter dual-review):** Migrasjoner `20260609140000_project_type_fase2` + `20260609140100_sheet_timer_vehicle_id_fase2` (begge additive). 2 interne prosjekter seedet per firma («Internt arbeid» + «Verksted/maskinvedlikehold»). **Vilkår 3 (Kenneth):** intern-prosjekt-seed enabler INGEN andre prosjektmoduler — `syncProjektModulerPaaAktiver` ekskluderer `type="internt"`, og seeden oppretter verken ProjectMember, ProjectOrganization eller ProjectModule. §2.D vehicleId→Equipment.organizationId-validering håndhevet på alle skrive-stier. Detaljer + fil-referanser i [timer.md § Ikke-prosjekt-tid](timer.md).
+
+**Oppmøtested:** egen geo-entitet i kjernen (søsken til `Avdeling`) med `lat/lng/radiusM` + valgfri `avdelingId`. GPS identifiserer kontor + dokumenterer inn/ut + foreslår starttid — aldri auto-rad (T.8). MVP på `Project.latitude/longitude` (byggeplass-GPS er senere, T.8).
+
+**Reise:** kompensert kun kontor→byggeplass / byggeplass→byggeplass (ikke hjem→arbeidssted). Reisetid = lønnsart-rad utenfor overtid (ikke avstands-/godtgjørelse-sats). Reise-regelsett = konfigurerbar firmainnstilling på `OrganizationSetting` (`reiseTerskelMin` m.fl.), ikke regelmotor. Terskel + lovlighet per firmas tariff/avtale.
+
+**Firma-isolasjon:** timer-data isoleres på `organizationId` (sikkerhetslag, `DailySheet` org-eid per T.1). ⚠️ **Kjent issue (ikke fikset):** `rapport.ts:80-92` mangler org-filter → cross-firma-lekkasje på delte prosjekter; `tilfoyTimerRad` mangler firma-grense-sjekk. Fikses SPOR 3 Fase 1b. Forretningslag (G1): firma-nivå tilgang, GPS = smart velger, ikke hard port.
+
 ---
 
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding

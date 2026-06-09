@@ -281,6 +281,9 @@ export default function FirmaInnstillinger() {
       {/* Standard arbeidstid (T4-c) */}
       <StandardArbeidstidSeksjon />
 
+      {/* Reise-regelsett (Fase 3 § B) */}
+      <ReiseSeksjon />
+
       {/* Hjelp-modal */}
       {hjelpÅpen && (
         <div
@@ -884,6 +887,189 @@ function StandardArbeidstidSeksjon() {
             melding: oppdater.error.message,
           })}
         </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Reise-regelsett (Fase 3 § B). Terskel (min) + retning under/over terskel +
+ * om reisetid teller mot overtid + konkret reise-lønnsart. Konfigurerbart fordi
+ * terskel/lovlighet er avtale-avhengig (tariff). Reisetid = lønnsart-rad
+ * (arbeidstid), ikke avstands-/godtgjørelse-sats.
+ */
+function ReiseSeksjon() {
+  const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  // Reise-lønnsart velges fra firmaets ordinaer-arter (timeførte, ikke diett/godtgjørelse).
+  const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery(undefined, {
+    enabled: !!orgId,
+  });
+  const utils = trpc.useUtils();
+
+  const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({
+    onSuccess: () => {
+      utils.organisasjon.hentSetting.invalidate();
+    },
+  });
+
+  const [terskel, setTerskel] = useState<string>("30");
+  const [underType, setUnderType] = useState<string>("arbeidstid");
+  const [overType, setOverType] = useState<string>("reisetid");
+  const [tellerOvertid, setTellerOvertid] = useState<boolean>(false);
+  const [lonnsartId, setLonnsartId] = useState<string>("");
+  const [skitten, setSkitten] = useState(false);
+
+  useEffect(() => {
+    if (setting) {
+      setTerskel(String(setting.reiseTerskelMin));
+      setUnderType(setting.reiseUnderTerskelType);
+      setOverType(setting.reiseOverTerskelType);
+      setTellerOvertid(setting.reisetidTellerOvertid);
+      setLonnsartId(setting.reiseLonnsartId ?? "");
+      setSkitten(false);
+    }
+  }, [setting]);
+
+  if (!setting || !orgId) return null;
+
+  // Kun ordinaer-arter (reisetid er timeført arbeidstid, ikke diett/feriepenger).
+  const reiseArtKandidater = (
+    (lonnsarter ?? []) as unknown as Array<{ id: string; navn: string; type: string; aktiv: boolean }>
+  ).filter((l) => l.type === "ordinaer" && l.aktiv);
+
+  function lagre() {
+    const min = Number(terskel);
+    if (Number.isNaN(min) || min < 0 || min > 1440) return;
+    oppdater.mutate(
+      {
+        organizationId: orgId!,
+        reiseTerskelMin: min,
+        reiseUnderTerskelType: underType as "arbeidstid" | "reisetid",
+        reiseOverTerskelType: overType as "arbeidstid" | "reisetid",
+        reisetidTellerOvertid: tellerOvertid,
+        reiseLonnsartId: lonnsartId === "" ? null : lonnsartId,
+      },
+      { onSuccess: () => setSkitten(false) },
+    );
+  }
+
+  return (
+    <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+      <h2 className="mb-1 text-sm font-semibold text-gray-700">
+        {t("firma.innstillinger.reise.tittel")}
+      </h2>
+      <p className="mb-4 text-xs text-gray-500">
+        {t("firma.innstillinger.reise.beskrivelse")}
+      </p>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            {t("firma.innstillinger.reise.terskel")}
+          </label>
+          <input
+            type="number"
+            min={0}
+            max={1440}
+            value={terskel}
+            onChange={(e) => {
+              setTerskel(e.target.value);
+              setSkitten(true);
+            }}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            {t("firma.innstillinger.reise.underType")}
+          </label>
+          <select
+            value={underType}
+            onChange={(e) => {
+              setUnderType(e.target.value);
+              setSkitten(true);
+            }}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+          >
+            <option value="arbeidstid">{t("firma.innstillinger.reise.somArbeidstid")}</option>
+            <option value="reisetid">{t("firma.innstillinger.reise.somReisetid")}</option>
+          </select>
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-700">
+            {t("firma.innstillinger.reise.overType")}
+          </label>
+          <select
+            value={overType}
+            onChange={(e) => {
+              setOverType(e.target.value);
+              setSkitten(true);
+            }}
+            className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+          >
+            <option value="arbeidstid">{t("firma.innstillinger.reise.somArbeidstid")}</option>
+            <option value="reisetid">{t("firma.innstillinger.reise.somReisetid")}</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="mt-3 sm:max-w-xs">
+        <label className="mb-1 block text-xs font-medium text-gray-700">
+          {t("firma.innstillinger.reise.lonnsart")}
+        </label>
+        <select
+          value={lonnsartId}
+          onChange={(e) => {
+            setLonnsartId(e.target.value);
+            setSkitten(true);
+          }}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+        >
+          <option value="">{t("firma.innstillinger.reise.lonnsartAuto")}</option>
+          {reiseArtKandidater.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.navn}
+            </option>
+          ))}
+        </select>
+        <p className="mt-1 text-xs text-gray-500">
+          {t("firma.innstillinger.reise.lonnsartHjelp")}
+        </p>
+      </div>
+
+      <label className="mt-3 flex items-center gap-2 text-sm text-gray-700">
+        <input
+          type="checkbox"
+          checked={tellerOvertid}
+          onChange={(e) => {
+            setTellerOvertid(e.target.checked);
+            setSkitten(true);
+          }}
+          className="h-4 w-4 rounded border-gray-300"
+        />
+        {t("firma.innstillinger.reise.tellerOvertid")}
+      </label>
+
+      <div className="mt-4 flex justify-end">
+        <button
+          type="button"
+          onClick={lagre}
+          disabled={!skitten || oppdater.isPending}
+          className="rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {oppdater.isPending ? t("handling.lagrer") : t("handling.lagre")}
+        </button>
+      </div>
+
+      {oppdater.isError && (
+        <p className="mt-3 text-sm text-red-500">{oppdater.error.message}</p>
       )}
     </div>
   );

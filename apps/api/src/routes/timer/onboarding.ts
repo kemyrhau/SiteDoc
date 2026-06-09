@@ -5,6 +5,7 @@ import { autoriserAdminForFirma, resolverOrgFraInput } from "../../trpc/tilgangs
 import {
   seedTimerForOrganization,
   seedLonnsartNivaa2,
+  seedInterneProsjekter,
 } from "../../services/seed";
 import {
   syncProjektModulerPaaAktiver,
@@ -127,6 +128,10 @@ export const onboardingRouter = router({
       await skrivOrganizationModuleAktiver(tx, orgId, "timer", ctx.userId);
       await syncProjektModulerPaaAktiver(tx, orgId, "timer");
     });
+
+    // Interne prosjekter (T.10) er infrastruktur, ikke katalog — også migrerings-
+    // firma trenger dem for å føre ikke-prosjekt-tid. Idempotent.
+    await seedInterneProsjekter(orgId);
 
     return { aktivert: true };
   }),

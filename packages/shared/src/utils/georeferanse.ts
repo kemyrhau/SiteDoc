@@ -390,3 +390,53 @@ export function beregnKalibreringsFeil(ref: GeoReferanse): {
 
   return { gjennomsnittFeil, maksFeil, feilPerPunkt };
 }
+
+/**
+ * Avstand i meter mellom to GPS-punkter (ekvirektangulær tilnærming — samme som
+ * beregnKalibreringsFeil, presis nok for byggeplass-skala).
+ */
+export function avstandMeter(
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number },
+): number {
+  const R = 6371000; // jordradius i meter
+  const dLat = (b.lat - a.lat) * (Math.PI / 180);
+  const dLng = (b.lng - a.lng) * (Math.PI / 180);
+  const midLat = ((a.lat + b.lat) / 2) * (Math.PI / 180);
+  const dx = dLng * Math.cos(midLat) * R;
+  const dy = dLat * R;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/**
+ * Fase 1c: avled byggeplass-geofence (senter + radius) fra en tegnings georeferanse.
+ * Senter = tegningens midtpunkt (50,50 %) → GPS. Radius = største avstand fra senter
+ * til de fire hjørnene (tegningsutstrekning) + buffer. Gjenbruker den eksisterende
+ * transformen, som kapsler UTM/NTM-projeksjonen via referansepunktene.
+ *
+ * Kaster hvis georeferansen er degenerert (identiske/kolineære punkter) — kallet
+ * fanges av API-laget. bufferM default 100 m.
+ */
+export function beregnByggeplassGeofence(
+  ref: GeoReferanse,
+  bufferM: number = 100,
+): { lat: number; lng: number; radiusM: number } {
+  const t = beregnTransformasjon(ref);
+  const senter = tegningTilGps({ x: 50, y: 50 }, t);
+  const hjorner = [
+    { x: 0, y: 0 },
+    { x: 100, y: 0 },
+    { x: 0, y: 100 },
+    { x: 100, y: 100 },
+  ];
+  let maks = 0;
+  for (const h of hjorner) {
+    const d = avstandMeter(senter, tegningTilGps(h, t));
+    if (d > maks) maks = d;
+  }
+  return {
+    lat: senter.lat,
+    lng: senter.lng,
+    radiusM: Math.round(maks + bufferM),
+  };
+}

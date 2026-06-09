@@ -90,6 +90,8 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-loc
 
 **Prod bruker `prisma migrate deploy`** — IKKE `pnpm db:migrate` (som kjører interaktiv `prisma migrate dev`). `prisma generate` må kjøres etter migrate for at API-bygget skal se nye Prisma-modeller. **Kjør for ALLE tre db-pakker** (`@sitedoc/db` + `@sitedoc/db-maskin` + `@sitedoc/db-timer`) — uten `db-maskin`-generate feiler `@sitedoc/api`-bygget med `Cannot find module '.prisma/maskin-client'` (tilsvarende for `db-timer`/`.prisma/timer-client`). Lærdom fra prod-deploy 2026-04-30 (db-maskin) + test-deploy 2026-05-01 (db-timer).
 
+**Lokal `prisma migrate dev` feiler på shadow-DB** (`P3006: extension "vector" is not available` — pgvector er ikke installert i lokal PostgreSQL, så shadow-DB-en kan ikke replaye `20260331120000_embedding_vector_pgvector`). **Workaround:** håndskriv migrasjonen i idempotent stil (`CREATE TABLE IF NOT EXISTS` + `DO $$ … EXCEPTION WHEN duplicate_object`-blokker for FK-er, se f.eks. `20260608120000_oppmotested_fase1`) + `prisma generate` separat for klienten. Den anvendes korrekt på test/prod via `migrate deploy` (de har pgvector). Aldri kjør `migrate dev`-reset lokalt. Lærdom Fase 1 2026-06-08.
+
 **Modul-DB-pakker krever `.env` på server** (gitignored, må opprettes manuelt ved første deploy av en ny db-pakke). Hver pakke leser `DATABASE_URL` fra sin egen `.env`-fil ved migrate/generate — symlink eller env-export fungerer ikke. Filinnhold er identisk for `db-maskin` og `db-timer`:
 
 ```

@@ -179,6 +179,32 @@ export const lonnsartLocal = sqliteTable("lonnsart_local", {
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — siste pull fra server
 });
 
+/**
+ * arbeidsdag_local — «Start dag / Slutt dag»-økt (worker-drevet, 2026-06-06).
+ * Lokal arbeidsøkt-logg som produserer et dagsseddel-forslag. KUN lokal state —
+ * synkes ALDRI til server (kun den genererte dagsseddelen synkes via timerSync).
+ * Egen tabell, ikke kolonner på dagsseddel_local: økten er konseptuelt adskilt
+ * fra den formelle dagsseddelen.
+ */
+export const arbeidsdagLocal = sqliteTable("arbeidsdag_local", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  dato: text("dato").notNull(), // ISO YYYY-MM-DD
+  startAt: text("start_at").notNull(), // ISO timestamp
+  startLat: real("start_lat"),
+  startLng: real("start_lng"),
+  endAt: text("end_at"), // ISO timestamp — null = pågår
+  endLat: real("end_lat"),
+  endLng: real("end_lng"),
+  status: text("status").notNull().default("paagaar"), // 'paagaar' | 'avsluttet' | 'forkastet'
+  generertDagsseddelId: text("generert_dagsseddel_id"), // FK → dagsseddel_local.id (svak)
+  // Fase 1 (2026-06-08): GPS-identifisert oppmøtested ved «Start dag» —
+  // dokumentasjon, aldri lønnsgrunnlag. null = ikke innenfor noe geofence.
+  oppmotestedId: text("oppmotested_id"),
+  oppmotestedNavn: text("oppmotested_navn"),
+  sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+});
+
 export const aktivitetLocal = sqliteTable("aktivitet_local", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull(),
@@ -264,6 +290,21 @@ export const prosjektLocal = sqliteTable("prosjekt_local", {
 });
 
 /**
+ * oppmotested_local — offline-cache av firmaets oppmøtesteder (kontorer) for
+ * GPS-identifikasjon ved «Start dag» (Fase 1, 2026-06-08). KUN lokal, synkes
+ * aldri opp. Refresh via oppmotestedKatalog.refreshOppmotestedKatalog.
+ */
+export const oppmotestedLocal = sqliteTable("oppmotested_local", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  navn: text("navn").notNull(),
+  lat: real("lat").notNull(),
+  lng: real("lng").notNull(),
+  radiusM: integer("radius_m").notNull().default(150),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
  * arbeidstidskalender_local — offline-cache av firma-kalender (T4-d / T9d
  * 2026-05-16). Brukes av hentEffektivArbeidstidLokal til å beregne start/
  * slutt/pauseMin for en gitt dato uten nett. Refresh ved login + nett-
@@ -319,5 +360,14 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
   // 2026-05-28 — firma-default for pause-start (HH:MM). Tilføyes idempotent via ALTER.
   // Mobil leser cachen via organizationSettingKatalog ved Timer-modul-bruk.
   standardPauseFra: text("standard_pause_fra"),
+  // Fase 3 (§ B) — reise-regelsett for offline reise-forslag i «Slutt dag».
+  // Tilføyes idempotent via ALTER. null på reiseLonnsartId = navne-match-fallback.
+  reiseTerskelMin: integer("reise_terskel_min").notNull().default(30),
+  reiseUnderTerskelType: text("reise_under_terskel_type").notNull().default("arbeidstid"),
+  reiseOverTerskelType: text("reise_over_terskel_type").notNull().default("reisetid"),
+  reisetidTellerOvertid: integer("reisetid_teller_overtid", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  reiseLonnsartId: text("reise_lonnsart_id"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
