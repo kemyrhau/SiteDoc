@@ -43,7 +43,9 @@ Gjelder: `.env`, server/PM2/deploy, DNS/OAuth/ngrok, **prod-DB-migrering**.
 
 | Ressurs | Holdes av | Siden | Slippes når |
 |---------|-----------|-------|-------------|
-| _(ingen aktiv lås)_ | — | — | — |
+| **prod-DB (`sitedoc`) — migrering** | **TIMER** | 2026-06-10 (SPOR 3 prod-deploy: Fase 1+1b+1c+2+3, 5 migrasjoner) | Når prod-migrate-deploy + verifisering er fullført |
+
+> ⚠️ **NY-SERVER:** ikke flytt/migrer prod-DB-data (`sitedoc`) før denne låsen er sluppet. TIMER kjører `prisma migrate deploy` mot prod nå (additive migrasjoner: oppmøtested, byggeplass-geofence, Project.type, SheetTimer.vehicleId, reise-regelsett). Data-flytting ETTER.
 
 ### Protokoll
 1. **Før** du rører en eksklusiv ressurs: sjekk tabellen. Holdt av det andre sporet → **STOPP**, koordiner via Kenneth.
