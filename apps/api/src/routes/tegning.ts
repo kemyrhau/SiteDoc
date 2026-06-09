@@ -15,6 +15,7 @@ import {
 } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { konverterDwg } from "../services/dwgKonvertering";
+import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { trekUtIfcMetadata } from "../services/ifcMetadata";
 /** Hent bildedimensjoner fra fil (PNG/SVG/JPG) via sharp (dynamisk import) */
 async function hentBildeDimensjoner(filsti: string): Promise<{ width: number; height: number } | null> {
@@ -403,12 +404,23 @@ export const tegningRouter = router({
       geoReference: geoReferanseSchema,
     }))
     .mutation(async ({ ctx, input }) => {
-      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true } });
+      const tegning = await ctx.prisma.drawing.findUniqueOrThrow({ where: { id: input.drawingId }, select: { projectId: true, byggeplassId: true } });
       await verifiserProsjektmedlem(ctx.userId, tegning.projectId);
-      return ctx.prisma.drawing.update({
+      const oppdatert = await ctx.prisma.drawing.update({
         where: { id: input.drawingId },
         data: { geoReference: input.geoReference },
       });
+      // Fase 1c: auto-fyll byggeplass-geofence fra denne tegningen — kun hvis
+      // geofencen er tom (klobrer aldri en satt/manuell verdi). Feiler aldri
+      // georeferering-kallet.
+      if (tegning.byggeplassId) {
+        try {
+          await oppdaterByggeplassGeofence(tegning.byggeplassId, true);
+        } catch {
+          /* geofence-avledning er best-effort */
+        }
+      }
+      return oppdatert;
     }),
 
   // Sett GPS-override for IFC-modell (kalibrering med valgfri rotasjon)

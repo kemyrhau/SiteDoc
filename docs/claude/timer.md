@@ -390,6 +390,27 @@ Anvendt på alle fire rad-skrive-stiene i `dagsseddel.ts`:
 
 > **Kjent asymmetri (BACKLOG, ikke 1b):** `rapport.ts` henter «firmaets prosjekter» via `primaryOrganizationId` (kun eide), mens rad-grensen tillater deltatte (ProjectOrganization). En underentreprenørs egne timer på et deltatt-men-ikke-eid prosjekt vises derfor ikke i firmaets periode-rapport. Under-rapportering, ikke lekkasje — eget oppfølgings-punkt.
 
+## Byggeplass-geofence (GPS-deteksjon) — ✅ 1c-server IMPLEMENTERT, 🟡 1c-mobil gjenstår
+
+Gir `Byggeplass` GPS-senter + radius så mobil kan identifisere **hvilken byggeplass** arbeider står på (utvider Fase 1 som kun identifiserte prosjekt/oppmøtested). Løser byggeplass-koordinat-gapet [`fase-0 T.8:990`](fase-0-beslutninger.md) — som også Fase 3 (kontor→byggeplass-reise) trenger.
+
+### Datamodell (kjerne `packages/db`)
+`Byggeplass.latitude Float?`, `longitude Float?`, `radiusM Int?` — alle nullable, additivt (migrasjon `20260609100000_byggeplass_geofence_fase1c`, enkelt-steg). Ingen 4. flagg-kolonne: override beskyttes av «auto fyller kun når tom»-regelen under.
+
+### Geofence-avledning
+`beregnByggeplassGeofence(geoReference, bufferM=100)` (`packages/shared/src/utils/georeferanse.ts`): senter = tegningens midtpunkt (50,50 %) → GPS via `tegningTilGps`; radius = største avstand fra senter til de fire hjørnene (tegningsutstrekning) + 100 m buffer. Gjenbruker den eksisterende transformen, som kapsler UTM/NTM-projeksjonen via referansepunktene — ingen ny projeksjons-matte. Service `apps/api/src/services/byggeplassGeofence.ts` velger **nyeste georefererte tegning** (`createdAt desc`) på byggeplassen.
+
+### Triggere (API)
+- **Auto (fyller kun når tom):** `tegning.settGeoReferanse` kaller geofence-service med `kunHvisTom=true` når tegningen har `byggeplassId` → fyller geofence første gang en koblet tegning georefereres, **klobrer aldri** en satt/manuell verdi. Best-effort (feiler aldri georeferering-kallet).
+- **Eksplisitt:** `bygning.beregnGeofence({byggeplassId})` — overskriver alltid fra nyeste georef-tegning. `BAD_REQUEST` hvis ingen georef-tegning / degenerert georeferanse.
+- **Manuell override:** `bygning.settGeofence({byggeplassId, latitude, longitude, radiusM})` — null-verdier nullstiller.
+
+### Web
+Lokasjoner-siden (`oppsett/lokasjoner`), «endre navn»-modal: geofence-felt (lat/lng/radius) + «Beregn fra tegning» + «Lagre geofence». i18n `lokasjoner.geofence.*`.
+
+### 1c-mobil (gjenstår, BACKLOG)
+GPS-deteksjon av byggeplass i mobil «Start dag» (Haversine mot `Byggeplass`-koordinater, utvider `apps/mobile/app/timer/ny.tsx`). Splittet ut fordi det krever EAS-bygg — buntes med Fase 1 mobil-verifisering. **Aldri auto-rad** (`T.8:983`) — kun forslag/etikett.
+
 ## Eksport til lønnssystem
 
 Støtter flere systemer via adapter-mønster (samme prinsipp som `BilagsKilde` i økonomi-modulen):

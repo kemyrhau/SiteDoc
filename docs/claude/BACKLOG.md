@@ -16,6 +16,14 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### Legacy eide prosjekter mangler `ProjectOrganization`-rad (datakvalitet) 🟡
+
+Funnet under Timer Fase 1b-data-sjekk (2026-06-09). `admin.ts:266` + `prosjekt.ts:220-226` oppretter nå en `ProjectOrganization`-rad for eier-org ved prosjekt-opprettelse, men dette var en **senere bugfix** — prosjekter opprettet før den mangler raden, selv om de har `Project.primaryOrganizationId` satt. Verifisert mot test-DB: minst ett slikt prosjekt («Test redigert mal») med timer-rader. Prod kan ha tilsvarende (ikke sjekket).
+
+**Konsekvens:** kode som avgjør firma-tilhørighet **kun** via `ProjectOrganization` (uten å falle tilbake på `primaryOrganizationId`) vil feilaktig behandle disse som ikke-firma-prosjekter. Fase 1b-helperen `verifiserProsjekterTilhørerFirma` dekker dette via union (eid ELLER koblet), men andre stier kan ikke ha samme beskyttelse.
+
+**Foreslått fiks:** backfill-migrasjon som setter inn manglende `ProjectOrganization`-rader for alle `Project` med `primaryOrganizationId IS NOT NULL` som ikke allerede har en kobling for den orgen (idempotent `INSERT ... WHERE NOT EXISTS`). Da kan union-fallbacken på sikt forenkles til ren ProjectOrganization-sjekk. **Krever migrasjon → prod = LÅS + Kenneth.** Lav hast (1b-unionen holder timer trygg i mellomtiden).
+
 ### H3 — `allowDangerousEmailAccountLinking` reversert + signIn-guard — ✅ DEPLOYET TIL PROD 2026-06-05
 
 ✅ Arkivert til [historikk-2026-06.md § OAuth-innlogging: account-linking + orphan-guard + duplikat-opprydding](historikk-2026-06.md).
@@ -539,7 +547,8 @@ separat chat per `feedback_3d_annen_chat`.
 - **Oppmøtested Fase 1-oppfølgere (etter Fase 1 develop/test 2026-06-08; Fase 1b ferdig 2026-06-09 `eea004cb`)** 🟡 — tre oppfølgere fanget fra `FASE-1-PLAN`-arbeidsdokumentet (alt nå i BACKLOG → arbeidsdokumentet kan fjernes). Rekkefølge videre: **Fase 1c → Fase 2 (Alt C) → Fase 3 (reise)**:
   - **Leaflet-kartvelger** for oppmøtested-koordinater (web `/dashbord/firma/oppmotesteder` bruker i dag manuell lat/lng — react-leaflet er ikke wiret i web ennå). Kart-klikk + marker-drag → setter lat/lng, manuell inntasting som fallback.
   - **EAS-enhet-verifisering** av Fase 1 mobil-del (GPS-identifikasjon i «Start dag»). Simulator dekker, men ikke fysisk enhet; krever EAS/TestFlight-bygg.
-  - **Fase 1c — byggeplass-geofence fra georeferert tegning:** avled byggeplassens geofence fra `Drawing.geoReference` (Json) + `coordinateSystem` (`packages/db/prisma/schema.prisma:637/633`) + 100 m buffer, ved å gjenbruke eksisterende GPS-transform (`tegninger/page.tsx:149`, `GeoReferanse` i `@sitedoc/shared`). Erstatter/utfyller `Project.lat/lng` for prosjekt-deteksjon. **Bonus:** løser byggeplass-koordinat-gapet (`fase-0 T.8:990`) som også Fase 3 (kontor→byggeplass-reise) trenger. Egen fase pga. reell kompleksitet (UTM/NTM → lat/lng-projeksjon, område + buffer).
+  - **Fase 1c-server — byggeplass-geofence fra georeferert tegning:** ✅ IMPLEMENTERT 2026-06-09 (develop/test, venter prod). `Byggeplass.latitude/longitude/radiusM` + `beregnByggeplassGeofence` (shared) + `bygning.beregnGeofence`/`settGeofence` + auto-fyll i `tegning.settGeoReferanse` (kun når tom) + web override. Løser byggeplass-koordinat-gapet (`fase-0 T.8:990`). Sannhetskilde [timer.md § Byggeplass-geofence](timer.md).
+  - **Fase 1c-mobil — byggeplass-GPS-deteksjon i «Start dag»:** 🟡 GJENSTÅR. Utvid `apps/mobile/app/timer/ny.tsx:138-150` (Haversine `mobile/src/utils/geo.ts`) til å detektere byggeplass via `Byggeplass`-koordinater i tillegg til prosjekt. Krever EAS-bygg → buntes med Fase 1 mobil-verifisering over. Aldri auto-rad (`T.8:983`).
 
 ### Attestering-liste — expanded inline-visning (oppdaget 2026-05-16)
 

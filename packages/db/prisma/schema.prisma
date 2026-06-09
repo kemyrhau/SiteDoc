@@ -713,6 +713,12 @@ model Byggeplass {
   address     String?
   type        String   @default("bygg") // "bygg" | "anlegg"
   status      String   @default("unpublished")
+  // Fase 1c: geofence avledet fra georeferert tegning (eller manuelt overstyrt).
+  // Brukes til GPS-identifikasjon av byggeplass i timer (1c-mobil). Nullable —
+  // settes når en koblet tegning georefereres, eller manuelt.
+  latitude    Float?   @map("latitude")
+  longitude   Float?   @map("longitude")
+  radiusM     Int?     @map("radius_m") // geofence-radius (tegningsutstrekning + buffer)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

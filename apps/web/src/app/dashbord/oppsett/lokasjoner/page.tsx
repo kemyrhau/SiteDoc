@@ -810,6 +810,31 @@ export default function LokasjonerSide() {
     },
   });
 
+  // Fase 1c: geofence-override (lat/lng/radius som tekst, parses ved lagring)
+  const [geoLat, setGeoLat] = useState("");
+  const [geoLng, setGeoLng] = useState("");
+  const [geoRadius, setGeoRadius] = useState("");
+  const [geoFeil, setGeoFeil] = useState<string | null>(null);
+
+  const beregnGeofenceMutation = trpc.bygning.beregnGeofence.useMutation({
+    onSuccess: (data: { lat: number; lng: number; radiusM: number }) => {
+      utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setGeoLat(String(data.lat));
+      setGeoLng(String(data.lng));
+      setGeoRadius(String(data.radiusM));
+      setGeoFeil(null);
+    },
+    onError: (feil: { message: string }) => setGeoFeil(feil.message),
+  });
+
+  const settGeofenceMutation = trpc.bygning.settGeofence.useMutation({
+    onSuccess: () => {
+      utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setGeoFeil(null);
+    },
+    onError: (feil: { message: string }) => setGeoFeil(feil.message),
+  });
+
   const valgtLokasjon = lokasjoner?.find((b) => b.id === valgtId) ?? null;
   const upubliserte = lokasjoner?.filter((b) => b.status === "unpublished") ?? [];
   const publiserte = lokasjoner?.filter((b) => b.status === "published") ?? [];
@@ -842,8 +867,33 @@ export default function LokasjonerSide() {
   function apneEndreNavn() {
     if (!valgtLokasjon) return;
     setEndreNavn(valgtLokasjon.name);
+    const lok = valgtLokasjon as typeof valgtLokasjon & {
+      latitude?: number | null;
+      longitude?: number | null;
+      radiusM?: number | null;
+    };
+    setGeoLat(lok.latitude != null ? String(lok.latitude) : "");
+    setGeoLng(lok.longitude != null ? String(lok.longitude) : "");
+    setGeoRadius(lok.radiusM != null ? String(lok.radiusM) : "");
+    setGeoFeil(null);
     setVisEndreNavnModal(true);
     setVisMerMeny(false);
+  }
+
+  function handleLagreGeofence() {
+    if (!valgtId) return;
+    const lat = geoLat.trim() === "" ? null : Number(geoLat);
+    const lng = geoLng.trim() === "" ? null : Number(geoLng);
+    const radiusM = geoRadius.trim() === "" ? null : Math.round(Number(geoRadius));
+    if (
+      (lat !== null && Number.isNaN(lat)) ||
+      (lng !== null && Number.isNaN(lng)) ||
+      (radiusM !== null && Number.isNaN(radiusM))
+    ) {
+      setGeoFeil(t("lokasjoner.geofence.ugyldig"));
+      return;
+    }
+    settGeofenceMutation.mutate({ byggeplassId: valgtId, latitude: lat, longitude: lng, radiusM });
   }
 
   const harValgt = !!valgtLokasjon;
@@ -1082,13 +1132,66 @@ export default function LokasjonerSide() {
               variant="secondary"
               onClick={() => setVisEndreNavnModal(false)}
             >
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
             <Button type="submit" disabled={oppdaterMutation.isPending}>
-              Lagre
+              {t("handling.lagre")}
             </Button>
           </div>
         </form>
+
+        {/* Fase 1c: byggeplass-geofence (GPS-senter + radius for timer-deteksjon) */}
+        <div className="mt-5 border-t border-gray-200 pt-4">
+          <div className="mb-2 flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-gray-400" />
+            <span className="text-sm font-semibold text-gray-900">
+              {t("lokasjoner.geofence.tittel")}
+            </span>
+          </div>
+          <p className="mb-3 text-xs text-gray-500">
+            {t("lokasjoner.geofence.beskrivelse")}
+          </p>
+          <div className="mb-3 grid grid-cols-3 gap-2">
+            <Input
+              label={t("lokasjoner.geofence.lat")}
+              value={geoLat}
+              onChange={(e) => setGeoLat(e.target.value)}
+              placeholder="—"
+            />
+            <Input
+              label={t("lokasjoner.geofence.lng")}
+              value={geoLng}
+              onChange={(e) => setGeoLng(e.target.value)}
+              placeholder="—"
+            />
+            <Input
+              label={t("lokasjoner.geofence.radius")}
+              value={geoRadius}
+              onChange={(e) => setGeoRadius(e.target.value)}
+              placeholder="—"
+            />
+          </div>
+          {geoFeil && (
+            <p className="mb-2 text-xs text-sitedoc-error">{geoFeil}</p>
+          )}
+          <div className="flex justify-between gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => valgtId && beregnGeofenceMutation.mutate({ byggeplassId: valgtId })}
+              disabled={beregnGeofenceMutation.isPending}
+            >
+              {t("lokasjoner.geofence.beregnFraTegning")}
+            </Button>
+            <Button
+              type="button"
+              onClick={handleLagreGeofence}
+              disabled={settGeofenceMutation.isPending}
+            >
+              {t("lokasjoner.geofence.lagre")}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Fullskjerm redigeringsvisning */}

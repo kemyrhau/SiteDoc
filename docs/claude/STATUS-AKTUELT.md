@@ -6,6 +6,18 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
+> **Timer-arkitektur SPOR 3** kjører som en sekvens på develop/test (venter prod): Fase 1 (oppmøtested) · Fase 1b (firma-isolasjon) · Fase 1c-server (byggeplass-geofence). Samme initiativ — listet hver for seg for sporbarhet.
+
+### Fase 1c-server — Byggeplass-geofence fra georeferert tegning — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
+
+Timer-arkitektur SPOR 3 Fase 1c (server-del). Gir `Byggeplass` GPS-senter + radius så mobil senere kan identifisere hvilken byggeplass arbeider står på. Løser byggeplass-koordinat-gapet (`fase-0 T.8:990`). Implementert:
+- **DB (kjerne):** `Byggeplass.latitude/longitude/radiusM` (nullable) + migrasjon `20260609100000_byggeplass_geofence_fase1c` (additiv, enkelt-steg). **Migrasjon mot test = TIMER-sporets domene; prod → LÅS + Kenneth.**
+- **Shared:** `beregnByggeplassGeofence(geoReference, bufferM=100)` — senter (midtpunkt→GPS) + radius (utstrekning + 100 m buffer), gjenbruker `tegningTilGps` (kapsler UTM/NTM).
+- **API:** service `byggeplassGeofence.ts` (nyeste georef-tegning) + `bygning.beregnGeofence` (eksplisitt, overskriver) + `bygning.settGeofence` (manuell override/nullstill) + auto-fyll i `tegning.settGeoReferanse` **kun når geofence er tom** (klobrer aldri satt/manuell verdi — derav ingen 4. flagg-kolonne).
+- **Web:** lokasjoner-side «endre navn»-modal — geofence-felt + «Beregn fra tegning» + «Lagre geofence». i18n `lokasjoner.geofence.*` (14 språk).
+
+**Grenser holdt:** mobil byggeplass-deteksjon = **1c-mobil** (gjenstår, EAS-buntet med Fase 1 — BACKLOG). Sannhetskilde: [timer.md § Byggeplass-geofence](timer.md).
+
 ### Fase 1b — Firma-isolasjons-fiks (timer) — PÅ DEVELOP/TEST 2026-06-09 (ikke prod) — commit `eea004cb`
 
 Timer-arkitektur SPOR 3 Fase 1b — sikkerhetslag, rent additiv logikk (ingen schema/migrasjon). Lukker verifisert cross-firma-lekkasje. Dual-review + funksjonell verifisering fullført (rapport-org-filter intakt på test; write-path-avvisning verifisert i kode). Implementert:
