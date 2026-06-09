@@ -12,7 +12,7 @@
 | Spor | Kontroll-Claude | Branch / worktree | Status |
 |------|-----------------|-------------------|--------|
 | **TIMER-ARKITEKTUR** | denne Cowork-samtalen | `develop` | Aktiv — SPOR 2 (docs-routing) |
-| **NY-SERVER** | denne Cowork-samtalen (→ flyttes til ny samtale for migreringsfasen) | _(model 1: Kenneth utfører fra Mac, kontroll-Claude verifiserer)_ | **Fjerntilgang FULLFØRT 2026-06-08** (TPM + UEFI + Tailscale + SSH-herding). **Docker + tunnel `sitedoc-ny` oppe. SENDFIL MIGRERT 2026-06-08** (Docker, herdet, DNS flyttet — gammel sendfil stoppet som rollback). **Neste:** salsaklubb (krever Postgres-container + delt DNS/Stripe/Vipps), deretter sitedoc sist. |
+| **NY-SERVER** | egen Cowork-samtale | **worktree `../sitedoc-server`, branch `ny-server`** (model 1: Kenneth utfører fra Mac, kontroll-Claude verifiserer) | **Fjerntilgang + Docker + tunnel `sitedoc-ny` oppe. SENDFIL MIGRERT 2026-06-08. SALSAKLUBB MIGRERT 2026-06-09** (Docker + delt Postgres 16-container; alle 5 hostnavn på ny tunnel; gamle stoppet som rollback). **Neste:** sitedoc SIST (test + prod; sitedoc.no er egen sone → cloudflared route dns vil IKKE virke, bruk dashboard). NY-SERVER pusher kun til branch `ny-server`, aldri develop. |
 
 > **Kontekst:** Dagens server = Ubuntu under en Win-PC i daglig bruk, ukontrollert ukentlig restart (ustabil). NY-SERVER bygger et nytt, stabilt, sikrere oppsett. Begge spor deployer fra samme repo, men til **ulike mål** under overgangen: TIMER → dagens test/prod; NY-SERVER → nytt oppsett. Ingen kryssdeploy uten lås.
 

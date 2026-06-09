@@ -181,6 +181,17 @@ Hvilke hostnavn er gated av **Cloudflare Access** i dag? Særlig `ssh.sitedoc.no
    - **📋 OPUS-INSTRUKS (oppfølger, etter pilot):** endre `storage.ts` til å lagre **relativ** sti + resolve mot `UPLOADS_ROOT` ved servering → framtidige flyttinger slipper sti-omskriving. Motor-uavhengig.
 
 **App 2 — Tromsosalsaklubb:**
+> **FULLFØRT 2026-06-09 ✅** — salsaklubb kjører i Docker på ny server (image `salsaklubb:latest`, port `127.0.0.1:3200`, på `appnet`), DB i delt Postgres 16-container (rolle `salsa`, db `tromsosalsaklubb`). Alle 5 hostnavn flyttet til tunnel `sitedoc-ny`. Live verifisert: `sitedoc.online`/`sitedoc.site` 200, `kontroll` 302 (Access), test+prod på nett. Gammel salsaklubb stoppet som rollback.
+>
+> **Grunnmur etablert:** delt nett `docker network create appnet`; `~/stack/postgres` (postgres:16, `127.0.0.1:5432`, volum `pgdata`, superbruker-pw i `.env`); rolle `salsa` + db `tromsosalsaklubb` (owner salsa, passord satt via `\password`).
+> **DB-migrering:** `pg_dump -Fc` (live snapshot OK) → `pg_restore --no-owner --no-privileges -U salsa` (cutover: `--clean --if-exists`). Rad-tall verifisert likt (kunder/pameldinger/kurs/bilag/sider).
+>
+> **Lærdommer (kritiske for sitedoc-fasen):**
+> 1. **Prisma på `node:slim`:** feildetekterer OpenSSL → laster `debian-openssl-1.1.x`-engine som mangler `libssl.so.1.1`. Fiks: `binaryTargets=["native","debian-openssl-3.0.x"]` i schema + `apt-get install openssl` i begge image-steg.
+> 2. **⚠️ cloudflared `tunnel route dns` legger cert-ens autoriserte sone PÅ slutten** av hostnavn utenfor sonen. Cert var for `sitedoc.site` → `.online`-navn ble bogus `sitedoc.online.sitedoc.site` i stedet for flyttet → 502 på de ekte `.online`-sidene (gammel app stoppet). **For hostnavn i annen sone (sitedoc.no!): bruk Cloudflare-dashboardet** (endre CNAME-target → `<tunnel-uuid>.cfargotunnel.com`) eller re-autentiser cloudflared per sone.
+> 3. **Ingress-rekkefølge:** eksplisitt hostnavn (sendfil.sitedoc.site) MÅ stå før `*.sitedoc.site`-wildcard i config.
+> 4. **NEXTAUTH_URL fantes ikke** i salsaklubb-`.env` (multi-tenant host-deteksjon) → domene-agnostisk, Stripe/Vipps-callbacks uendret ved cutover.
+
 1. Docker + Prisma; `pg_dump -Fc tromsosalsaklubb` → `pg_restore` til ny container. Verifiser rad-tall per tabell + innlogging.
 2. ⚠️ **Stripe/Vipps:** webhook-/callback-URLer og NEXTAUTH_URL må stemme med endelig domene før prod-flip — eksterne integrasjoner = ekstra cross-app-omtanke. Beskrives som eget delsteg m/rollback.
 3. Test mot midlertidig subdomene → ⚠️ cutover (lås + godkjenning) per domene.
