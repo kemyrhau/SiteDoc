@@ -166,7 +166,7 @@ Hvilke hostnavn er gated av **Cloudflare Access** i dag? Særlig `ssh.sitedoc.no
 - Merk: container er forsvar-i-dybden, ikke en VM-grense (kerneleksploits kan bryte ut). Sikkerheten kommer av *hvordan* containeren kjøres, ikke av at den er en container.
 
 **Pilot — Sendfil:**
-> **PILOT FULLFØRT 2026-06-08 ✅** — `sendfil.sitedoc.site` kjører nå i Docker på ny server, DNS flyttet til tunnel `sitedoc-ny`. Live verifisert: miniatyrer rendrer, admin lister alle delinger, `file`+`thumb` HTTP 200 (lokalt før DNS + i nettleser etter). Gammel sendfil står **stoppet men intakt** på gammel server som rollback.
+> **PILOT FULLFØRT 2026-06-08 ✅** — `sendfil.sitedoc.site` kjører nå i Docker på ny server, DNS flyttet til tunnel `sitedoc-ny`. Live verifisert: miniatyrer rendrer, admin lister alle delinger, `file`+`thumb` HTTP 200 (lokalt før DNS + i nettleser etter), **og skrive-sti bekreftet** (ny opplasting via admin → thumbnail generert + nedlasting OK). Gammel sendfil står **stoppet men intakt** på gammel server som rollback. **Sendfil repo-docs (CLAUDE.md/deploy.md/arkitektur.md) oppdatert til Docker/ny-server 2026-06-08.**
 >
 > **Fremdrift:** Docker-filer pushet til repo. `sendfil:latest` bygget (383 MB). Kode via **rsync fra Mac** (GitHub HTTPS-passord-auth død → server-git-auth via SSH-nøkkel utsatt). Data via **Mac som rsync-mellomledd** (serverne når ikke hverandre direkte). Sti-fiks (absolutt→`/uploads`) kjørt på DB etter kopi.
 >
