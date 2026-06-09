@@ -17,11 +17,13 @@ import {
 import { useAuth } from "../providers/AuthProvider";
 import { useFirma } from "../kontekst/FirmaKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
+import { avstandMeter, estimerReisetidMin, klassifiserReise, type ReiseKategori } from "@sitedoc/shared";
 import { haversineKm } from "../utils/geo";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
 import { hentStandardLonnsartLokalt } from "../services/timerKatalog";
+import { hentOrganizationSettingLokalt } from "../services/organizationSettingKatalog";
 
 type AktivDag = {
   id: string;
@@ -347,8 +349,65 @@ function genererForslag(
   );
   const bruttoTimer =
     (new Date(sluttIso).getTime() - new Date(dag.startAt).getTime()) / 3_600_000;
-  const arbeidstimer =
+  const totalTimer =
     Math.round(Math.max(0, bruttoTimer - effektiv.pauseMin / 60) * 100) / 100;
+
+  // Fase 3 (§ B): reise-forslag. KUN når oppmøtested ble identifisert ved start
+  // (kontor→byggeplass — hjem→arbeidssted kompenseres ikke). GPS-distanse
+  // start→slutt; reisetid ESTIMERES (fast-MVP, arbeider justerer). Klassifiseres
+  // mot firmaets terskel; 'reisetid' → egen reise-lønnsart-rad. Aldri auto-rad
+  // uten innsyn — havner i draft som forslag.
+  const regel = hentOrganizationSettingLokalt(orgId);
+  let reisetidTimer = 0;
+  let reiseLonnsartId: string | null = null;
+  if (
+    dag.oppmotestedNavn &&
+    regel &&
+    dag.startLat != null &&
+    dag.startLng != null &&
+    endLat != null &&
+    endLng != null
+  ) {
+    const reisetidMin = estimerReisetidMin(
+      avstandMeter(
+        { lat: dag.startLat, lng: dag.startLng },
+        { lat: endLat, lng: endLng },
+      ),
+    );
+    const kategori: ReiseKategori = klassifiserReise(reisetidMin, {
+      reiseTerskelMin: regel.reiseTerskelMin,
+      reiseUnderTerskelType: regel.reiseUnderTerskelType as ReiseKategori,
+      reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
+    });
+    if (kategori === "reisetid" && reisetidMin > 0) {
+      // Resolver reise-lønnsart: eksplisitt valgt (reiseLonnsartId), ellers
+      // navne-match ("reise/transport") — samme MVP-mønster som overtid under.
+      reiseLonnsartId = regel.reiseLonnsartId ?? null;
+      if (!reiseLonnsartId) {
+        const match = db
+          .select()
+          .from(lonnsartLocal)
+          .where(
+            and(
+              eq(lonnsartLocal.organizationId, orgId),
+              eq(lonnsartLocal.aktiv, true),
+            ),
+          )
+          .all()
+          .find((l) => /reise|transport/i.test(l.navn));
+        reiseLonnsartId = match?.id ?? null;
+      }
+      // Bare foreslå reisetid hvis vi faktisk har en art å føre den på.
+      if (reiseLonnsartId) {
+        reisetidTimer = Math.round((reisetidMin / 60) * 100) / 100;
+      }
+    }
+  }
+
+  // Arbeidstimer til normaltid/overtid-fordeling = total minus reise-andelen
+  // (reise føres på egen rad). Unngår dobbelttelling av brutto-tiden.
+  const arbeidstimer =
+    Math.round(Math.max(0, totalTimer - reisetidTimer) * 100) / 100;
 
   // 4. Dagsseddel (draft).
   const sheetId = randomUUID();
@@ -378,7 +437,14 @@ function genererForslag(
 
   // 5. Auto-fordeling normaltid/overtid.
   if (arbeidstimer > 0) {
-    const dagsnorm = effektiv.dagsnorm > 0 ? effektiv.dagsnorm : arbeidstimer;
+    const dagsnorm0 = effektiv.dagsnorm > 0 ? effektiv.dagsnorm : arbeidstimer;
+    // Fase 3: når reisetid teller mot overtid, spiser reise-andelen av dagsnorm-
+    // budsjettet → mer av arbeidstiden havner i overtid. Når false (default) er
+    // reise utenfor terskelen og dagsnorm gjelder kun arbeidstimene.
+    const dagsnorm =
+      regel?.reisetidTellerOvertid && reisetidTimer > 0
+        ? Math.max(0, dagsnorm0 - reisetidTimer)
+        : dagsnorm0;
     const timelonnTimer = Math.min(arbeidstimer, dagsnorm);
     const overtidTimer = Math.round((arbeidstimer - timelonnTimer) * 100) / 100;
 
@@ -430,6 +496,26 @@ function genererForslag(
           .run();
       }
     }
+  }
+
+  // 6. Reise-rad (Fase 3 § B) — separat lønnsart-rad utenfor arbeidstime-splittet
+  // (eller medregnet i terskelen når reisetidTellerOvertid, jf. dagsnorm-justering
+  // over). Føres på prosjektet arbeider endte på. Forslag i draft — arbeider justerer.
+  if (reisetidTimer > 0 && reiseLonnsartId) {
+    db.insert(sheetTimerLocal)
+      .values({
+        id: randomUUID(),
+        dagsseddelId: sheetId,
+        projectId: valgtProsjekt.id,
+        lonnsartId: reiseLonnsartId,
+        aktivitetId: aktivitet.id,
+        externalCostObjectId: null,
+        timer: reisetidTimer,
+        fraTid: null,
+        tilTid: null,
+        sistEndretLokalt: Date.now(),
+      })
+      .run();
   }
 
   return sheetId;

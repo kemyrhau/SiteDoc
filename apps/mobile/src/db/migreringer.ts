@@ -548,6 +548,27 @@ export function kjorMigreringer() {
         `ALTER TABLE organization_setting_local ADD COLUMN standard_pause_fra TEXT`,
       );
     }
+    // Fase 3 (§ B) — reise-regelsett-felt for offline reise-forslag i «Slutt dag».
+    if (!kolonner.find((k) => k.name === "reise_terskel_min")) {
+      console.log(
+        "[MIG] Legger til reise-regelsett-kolonner på organization_setting_local (Fase 3)",
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reise_terskel_min INTEGER NOT NULL DEFAULT 30`,
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reise_under_terskel_type TEXT NOT NULL DEFAULT 'arbeidstid'`,
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reise_over_terskel_type TEXT NOT NULL DEFAULT 'reisetid'`,
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reisetid_teller_overtid INTEGER NOT NULL DEFAULT 0`,
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN reise_lonnsart_id TEXT`,
+      );
+    }
   } catch (e) {
     console.warn(
       "[MIG] Kunne ikke utvide organization_setting_local:",

@@ -222,6 +222,8 @@ Valgfri import ved onboarding. Pakke-orientert UX: vises som «Bransje: Anlegg/b
 | Andre | Fakturerbar tid | Skille fra intern |
 | Andre | Timer prosjektleder | PL med egen sats |
 
+> **Reisetid vs. reise-godtgjørelse (Fase 3 § B, avvik A):** To distinkte konsepter — ikke slå sammen. **Reise-godtgjørelse** («Reise 7,5–15 km» … «45–60 km», «Kilometergodtgjørelse») er **avstands-/godtgjørelse-satser — regnskap eier satsene** og km-utmålingen. **Reisetid** er **timeført arbeidstid** på lønnsarten «Reise/transport til prosjekter» (`ordinaer`), klassifisert mot firmaets terskel (kontor→byggeplass). Fase 3 `reiseLonnsartId` peker som standard på reisetid-arten, IKKE en km-godtgjørelse-art. Seed-artene beholdes uendret; kun denne tekst-distinksjonen er reframet (ingen rad-rename).
+
 #### Nivå 3 — Egendefinerte
 
 Opprettes av kunden via admin-UI ved behov. SiteDoc leverer ingen mal — kun verktøyet. Eksempler på lønnsarter som typisk hører her: kloakk-tillegg, brøyte-beredskap, firma-spesifikke skifttillegg-satser (30/40/50% utenfor standard 2-skift/natt), tariff-spesifikke satser, bransje-detaljer (bergspreng, dykker, etc.).
@@ -243,6 +245,8 @@ Når kunden bruker Nivå 1 «Timelønn» + «Overtid 50%/100%»: systemet foresl
 Eksempel: 10t totalt → Timelønn 7,5t + Overtid 50% 2,5t. Bruker justerer til 8t + 2t hvis ønskelig.
 
 Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger lønnsart manuelt.
+
+> **Status (2026-06-09):** Server-motoren er fortsatt ikke bygget. Eneste fordelings-logikk er klient-MVP i mobil `StartSluttDagKort.genererForslag` (navne-match «Overtid 50%», erstattes av `Lonnsart.overtidsnivaa`). **Reise-kobling (Fase 3 § B):** reise-andelen føres på egen lønnsart-rad og holdes utenfor normaltid/overtid-grunnlaget (`arbeidstimer = total − reisetid`, ingen dobbelttelling av brutto). `reisetidTellerOvertid` styrer terskelen: `false` (default) → dagsnorm gjelder kun arbeidstimene (reise utenfor overtid); `true` → reise spiser av dagsnorm (`dagsnorm − reisetid`), så mer arbeidstid havner i overtid. Når server-motoren bygges arver den samme kontrakt.
 
 ### Aktivitet-katalog (datadrevet, tre-nivå)
 
@@ -667,7 +671,9 @@ Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` pek
 
 ### Reise og oppmøtested (§ B)
 
-> **✅ Fase 1 implementert (2026-06-08, develop/test):** `Oppmotested`-entitet (kjerne) + `oppmotestedRouter` (firma-admin CRUD + member-lesbar `hentForFirma`) + web firmainnstillinger-side (`/dashbord/firma/oppmotesteder`, manuell lat/lng — Leaflet-kartvelger er senere oppfølger) + mobil `oppmotested_local`-cache + GPS-identifikasjon i «Start dag» (Haversine mot geofence-radius, lagrer identifisert oppmøtested på `arbeidsdag_local` som dokumentasjon, aldri auto-rad). Migrasjon `20260608120000_oppmotested_fase1` (additiv). **Reise-/lønnslogikk (§ B nedenfor) + byggeplass-GPS er senere faser (3 / 1c), ikke bygget.**
+> **✅ Fase 1 implementert (2026-06-08, develop/test):** `Oppmotested`-entitet (kjerne) + `oppmotestedRouter` (firma-admin CRUD + member-lesbar `hentForFirma`) + web firmainnstillinger-side (`/dashbord/firma/oppmotesteder`, manuell lat/lng — Leaflet-kartvelger er senere oppfølger) + mobil `oppmotested_local`-cache + GPS-identifikasjon i «Start dag» (Haversine mot geofence-radius, lagrer identifisert oppmøtested på `arbeidsdag_local` som dokumentasjon, aldri auto-rad). Migrasjon `20260608120000_oppmotested_fase1` (additiv).
+
+> **✅ Fase 3 implementert (2026-06-09, develop/test — venter dual-review):** Reise-regelsett som firmainnstilling på `OrganizationSetting` (migrasjon `20260609160000_reise_regelsett_fase3`, additiv): `reiseTerskelMin` (30), `reiseUnderTerskelType` ('arbeidstid'), `reiseOverTerskelType` ('reisetid'), `reisetidTellerOvertid` (false), `reiseLonnsartId` (svak FK → `timer.Lonnsart`, A.20). Delt klassifisering `klassifiserReise` + `estimerReisetidMin` + eksportert `avstandMeter` i `@sitedoc/shared`. Setting-API: `oppdaterSetting` (org-validerer `reiseLonnsartId`) + `hentArbeidstidDefaults` (member-lesbar, mobil-cache). Web: «Reise»-seksjon i `/dashbord/firma/innstillinger`. Mobil: setting-cache utvidet + reise-forslag i «Slutt dag» (`StartSluttDagKort.genererForslag`) — KUN når oppmøtested ble identifisert (kontor→byggeplass), GPS-distanse start→slutt, **estimert** reisetid (MVP, GPS-faktisk-tid senere), klassifisert mot terskel; 'reisetid' → egen reise-lønnsart-rad. **`reisetidTellerOvertid` styrer om reise spiser av dagsnorm-terskelen** (jf. auto-fordeling-koordinering under). Alt forslag i draft — arbeider justerer, aldri auto-rad. **Byggeplass-GPS på mobil = senere (1c-mobil); reise-distanse bruker start/slutt-GPS + `Project.lat/lng`-MVP.**
 
 - **Oppmøtested = egen geo-entitet** (kjerne, søsken til `Avdeling`): `{ organizationId, navn, adresse?, lat, lng, radiusM, avdelingId?, aktiv }`. A.Markussen: 3 kontorer (Narvik, Harstad, Tromsø). Geofence identifiserer kontor + logger inn/ut som *dokumentasjon* + *foreslår* starttid — aldri auto-rad (`fase-0 T.8:983`).
 - **Kompensert reise = kontor→byggeplass + byggeplass→byggeplass.** Hjem→arbeidssted er IKKE kompensert. Reisetid = **lønnsart-rad (ordinær lønn), utenfor overtid** (jf. § Lønnsart-katalog + `:282`). Ingen avstands-/godtgjørelse-sats (regnskap eier satser).

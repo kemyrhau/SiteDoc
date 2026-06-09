@@ -395,7 +395,7 @@ export function beregnKalibreringsFeil(ref: GeoReferanse): {
  * Avstand i meter mellom to GPS-punkter (ekvirektangulær tilnærming — samme som
  * beregnKalibreringsFeil, presis nok for byggeplass-skala).
  */
-function avstandMeter(
+export function avstandMeter(
   a: { lat: number; lng: number },
   b: { lat: number; lng: number },
 ): number {

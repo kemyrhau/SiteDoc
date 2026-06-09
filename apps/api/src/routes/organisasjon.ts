@@ -796,6 +796,12 @@ export const organisasjonRouter = router({
           tillattRedigerVedAttestering: true,
           // T.5 (2026-05-16): mobil-cache trenger feltet for å avrunde picker-input.
           tidsrundingMinutter: true,
+          // Fase 3 (§ B): reise-regelsett for offline reise-forslag i «Slutt dag».
+          reiseTerskelMin: true,
+          reiseUnderTerskelType: true,
+          reiseOverTerskelType: true,
+          reisetidTellerOvertid: true,
+          reiseLonnsartId: true,
         },
       });
     }),
@@ -844,11 +850,36 @@ export const organisasjonRouter = router({
         tidsrundingMinutter: z
           .union([z.literal(15), z.literal(30), z.literal(60), z.null()])
           .optional(),
+        // Fase 3 (§ B): reise-regelsett. Terskel i minutter, retning under/over
+        // terskel, om reisetid teller mot overtid, og konkret reise-lønnsart.
+        reiseTerskelMin: z.number().int().min(0).max(1440).optional(),
+        reiseUnderTerskelType: z.enum(["arbeidstid", "reisetid"]).optional(),
+        reiseOverTerskelType: z.enum(["arbeidstid", "reisetid"]).optional(),
+        reisetidTellerOvertid: z.boolean().optional(),
+        // null = nullstill (fallback til navne-match), uuid = peker på lønnsart.
+        reiseLonnsartId: z.string().uuid().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const { organizationId: inputOrgId, ...settingData } = input;
       const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, inputOrgId);
+
+      // Fase 3: reise-lønnsart er svak FK → timer.Lonnsart. Org-isolasjon
+      // håndheves i app-lag — valider at arten finnes i firmaets katalog når
+      // en ID settes (ikke ved null = nullstill).
+      if (settingData.reiseLonnsartId) {
+        const art = await ctx.prismaTimer.lonnsart.findFirst({
+          where: { id: settingData.reiseLonnsartId, organizationId: orgId },
+          select: { id: true },
+        });
+        if (!art) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Reise-lønnsart finnes ikke i firmaets katalog",
+          });
+        }
+      }
+
       return ctx.prisma.organizationSetting.upsert({
         where: { organizationId: orgId },
         create: {

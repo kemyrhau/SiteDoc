@@ -65,6 +65,13 @@ export async function refreshOrganizationSettingKatalog(
       tidsrundingMinutter: setting.tidsrundingMinutter ?? null,
       // 2026-05-28: null = ingen firma-default (midtpunkt-fallback).
       standardPauseFra: setting.standardPauseFra ?? null,
+      // Fase 3 (§ B): reise-regelsett. Defaultes hvis server-feltet mangler
+      // (eldre server mot ny klient) — samme verdier som schema-default.
+      reiseTerskelMin: setting.reiseTerskelMin ?? 30,
+      reiseUnderTerskelType: setting.reiseUnderTerskelType ?? "arbeidstid",
+      reiseOverTerskelType: setting.reiseOverTerskelType ?? "reisetid",
+      reisetidTellerOvertid: setting.reisetidTellerOvertid ?? false,
+      reiseLonnsartId: setting.reiseLonnsartId ?? null,
       sistOppdatert: naa,
     })
     .run();

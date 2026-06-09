@@ -360,5 +360,14 @@ export const organizationSettingLocal = sqliteTable("organization_setting_local"
   // 2026-05-28 — firma-default for pause-start (HH:MM). Tilføyes idempotent via ALTER.
   // Mobil leser cachen via organizationSettingKatalog ved Timer-modul-bruk.
   standardPauseFra: text("standard_pause_fra"),
+  // Fase 3 (§ B) — reise-regelsett for offline reise-forslag i «Slutt dag».
+  // Tilføyes idempotent via ALTER. null på reiseLonnsartId = navne-match-fallback.
+  reiseTerskelMin: integer("reise_terskel_min").notNull().default(30),
+  reiseUnderTerskelType: text("reise_under_terskel_type").notNull().default("arbeidstid"),
+  reiseOverTerskelType: text("reise_over_terskel_type").notNull().default("reisetid"),
+  reisetidTellerOvertid: integer("reisetid_teller_overtid", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  reiseLonnsartId: text("reise_lonnsart_id"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });

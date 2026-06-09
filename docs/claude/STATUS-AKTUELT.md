@@ -6,7 +6,19 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
-> **Timer-arkitektur SPOR 3** kjører som en sekvens på develop/test (venter prod): Fase 1 (oppmøtested) · Fase 1b (firma-isolasjon) · Fase 1c-server (byggeplass-geofence) · Fase 2 (ikke-prosjekt-tid / Alt C). Samme initiativ — listet hver for seg for sporbarhet.
+> **Timer-arkitektur SPOR 3** kjører som en sekvens på develop/test (venter prod): Fase 1 (oppmøtested) · Fase 1b (firma-isolasjon) · Fase 1c-server (byggeplass-geofence) · Fase 2 (ikke-prosjekt-tid / Alt C) · Fase 3 (reise). Samme initiativ — listet hver for seg for sporbarhet.
+
+### Fase 3 — Reise-regelsett (§ B) — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
+
+Timer-arkitektur SPOR 3 Fase 3 (T.10 / OPPSUMMERING §B). Reise mellom oppmøtested og byggeplass klassifiseres mot firma-konfigurerbar terskel. Ratifisert av kontroll-Claude før implementasjon; Kenneth-OK på 5-felts migrasjon. Implementert:
+- **DB:** 5 reise-felt på `OrganizationSetting` (`reiseTerskelMin`/`reiseUnderTerskelType`/`reiseOverTerskelType`/`reisetidTellerOvertid`/`reiseLonnsartId`) — migrasjon `20260609160000_reise_regelsett_fase3`, additiv. `reiseLonnsartId` svak FK → `timer.Lonnsart` (A.20).
+- **Shared:** `klassifiserReise` + `estimerReisetidMin` + eksportert `avstandMeter` (ren, delt web/mobil/API).
+- **API:** `oppdaterSetting` (org-validerer `reiseLonnsartId` mot firmaets katalog) + `hentArbeidstidDefaults` utvidet (member-lesbar, mobil-cache).
+- **Web:** «Reise»-seksjon i `/dashbord/firma/innstillinger` (terskel, retning, overtid-flagg, reise-lønnsart fra `ordinaer`-arter). i18n 14 språk.
+- **Mobil:** setting-cache + Drizzle-schema utvidet (idempotent ALTER) + reise-forslag i «Slutt dag» (`genererForslag`): kontor→byggeplass (kun når oppmøtested identifisert), GPS-distanse, **estimert** reisetid, klassifisert; 'reisetid' → egen lønnsart-rad. `reisetidTellerOvertid` styrer dagsnorm-terskelen.
+- **Avvik A:** km-godtgjørelse-arter beholdt uendret; «Reise/transport» er reisetid-arten (kun docs-reframe). **Avvik C:** estimat-MVP, GPS-faktisk-tid senere.
+
+**Grenser holdt:** server-side auto-fordeling-motor finnes fortsatt ikke — reise hekter på klient-MVP og dokumenterer kontrakt. Steg 5 (modal-forslag) dekket av eksisterende lønnsart-velger (reisetid ER en lønnsart). Sannhetskilde: [timer.md § Reise og oppmøtested](timer.md).
 
 ### Fase 2 — Ikke-prosjekt-tid (Alt C) — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
 

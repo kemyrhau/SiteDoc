@@ -264,6 +264,24 @@ model OrganizationSetting {
   // Tom = eksisterende midtpunkt-fallback. Bakover-kompatibilitet bevart.
   standardPauseFra String? @map("standard_pause_fra")
 
+  // Reise-regelsett (Fase 3 / T.10 § B) — firmainnstilling, ikke regelmotor.
+  // Terskel/retning/lovlighet er avtale-avhengig (tariff), derfor konfigurerbart.
+  // Reisetid = lønnsart-rad (arbeidstid, utenfor overtid by default), IKKE
+  // avstands-/godtgjørelse-sats (km-godtgjørelse er separate lønnsarter, regnskap
+  // eier satsene). Klassifisering: reisetid < terskel → underType, ≥ terskel → overType.
+  reiseTerskelMin       Int     @default(30)            @map("reise_terskel_min")
+  // "arbeidstid" | "reisetid" — hva reisetid UNDER terskelen klassifiseres som.
+  reiseUnderTerskelType String  @default("arbeidstid")  @map("reise_under_terskel_type")
+  // "arbeidstid" | "reisetid" — hva reisetid OVER/LIK terskelen klassifiseres som.
+  reiseOverTerskelType  String  @default("reisetid")    @map("reise_over_terskel_type")
+  // Hvis true: reise-timer inngår i arbeidstime-grunnlaget før normaltid/overtid-
+  // splittet (kan skyve totalen til overtid). Default false: reise er separat rad
+  // utenfor overtid-fordelingen.
+  reisetidTellerOvertid Boolean @default(false)         @map("reisetid_teller_overtid")
+  // Konkret reise-lønnsart (svak FK → timer.Lonnsart, A.20-mønster, ingen @relation
+  // — ligger i db-timer). NULL → fallback til navne-match ("reise/transport").
+  reiseLonnsartId       String?                         @map("reise_lonnsart_id")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
