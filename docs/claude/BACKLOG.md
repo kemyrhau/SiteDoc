@@ -558,6 +558,16 @@ separat chat per `feedback_3d_annen_chat`.
   - **Fase 1c-server — byggeplass-geofence fra georeferert tegning:** ✅ IMPLEMENTERT 2026-06-09 (develop/test, venter prod). `Byggeplass.latitude/longitude/radiusM` + `beregnByggeplassGeofence` (shared) + `bygning.beregnGeofence`/`settGeofence` + auto-fyll i `tegning.settGeoReferanse` (kun når tom) + web override. Løser byggeplass-koordinat-gapet (`fase-0 T.8:990`). Sannhetskilde [timer.md § Byggeplass-geofence](timer.md).
   - **Fase 1c-mobil — byggeplass-GPS-deteksjon i «Start dag»:** 🟡 GJENSTÅR. Utvid `apps/mobile/app/timer/ny.tsx:138-150` (Haversine `mobile/src/utils/geo.ts`) til å detektere byggeplass via `Byggeplass`-koordinater i tillegg til prosjekt. Krever EAS-bygg → buntes med Fase 1 mobil-verifisering over. Aldri auto-rad (`T.8:983`).
 
+### Reise (Fase 3) — forbedringer etter MVP
+
+Tre idéer fanget 2026-06-09 etter at Fase 3 reise-MVP (estimat ×50 km/t, avvik C) ble implementert på develop/test. Distinkt fra §G3-punktet (`:554` — som gjelder *policy-bekreftelse* av terskel/lovlighet hos A.Markussen/regnskap/jurist). Disse er *byggbare forbedringer* av selve reisetid-utledningen.
+
+- **Reisetid-matrise: Google-kjøretid kontor×byggeplass (ANBEFALT — Kenneth: bør implementeres 2026-06-09)** 🟡 — Forhåndsberegn [oppmøtested × byggeplass] kjøretid via Google Directions ved georeferanse-oppsett (byggeplass-koordinater fra Fase 1c). Per tur blir et rent oppslag: GPS-identifisert kontor → byggeplass → ferdig reisetid, offline-cachet, håndterer fler-kontor-firma. **Erstatter estimat-MVP (×50 km/t, avvik C)** med faktisk kjøretid. Recompute toveis ved samme invalidering som 1c i `tegning.settGeoReferanse`: byggeplass-georef endres → recompute den raden; oppmøtested legges til/flyttes → recompute den kolonnen. Google-nøkkel brukes KUN ved oppsett (ikke per registrering). Fallback: ikke-registrert startsted → estimat/ingen reisetid. Ny matrise-tabell (oppmotestedId × byggeplassId → minutter) + mobil-cache.
+
+- **Per-prosjekt reisetid-berettigelse-flagg** 🟡 — `Project.reisetidBerettiget` (boolean), satt ved prosjekt-opprettelse, gate for om reisetid i det hele tatt gjelder prosjektet. Kombineres med terskelen: reisetid foreslås kun når prosjektet er berettiget OG reisetid > terskel. Lar firma skru av reise-forslag på nær-/by-prosjekter uten å rote til terskel-regelen.
+
+- **Kontinuerlig GPS-logging for faktisk reisetid — KREVER PERSONVERN-VURDERING** 🔴 — App logger GPS kontinuerlig (midlertidig under reise) for *målt* reisetid (ankomst − avreise) i stedet for estimat. **Sporing av ansatte er regulert** (GDPR + arbeidsmiljølov, Datatilsynets praksis om lokasjonssporing). **Bygges IKKE uten personvern-/juridisk vurdering.** Reisetid-matrisen (over) dekker behovet for nøyaktighet uten kontinuerlig sporing — derfor er denne lavt prioritert og kun notert for fullstendighet.
+
 ### Attestering-liste — expanded inline-visning (oppdaget 2026-05-16)
 
 Attestering-listen viser kun rad-antall, ikke innhold. Prosjektleder
