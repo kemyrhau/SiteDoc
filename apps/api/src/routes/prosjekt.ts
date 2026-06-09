@@ -37,17 +37,48 @@ export const prosjektRouter = router({
       });
     }),
 
+  // Fase 2 / T.10: prosjektvelger for Timer. Union av:
+  //   - kunde-prosjekter der bruker er medlem (samme scope som hentMine —
+  //     interne har ingen ProjectMember-rader, så de faller naturlig bort her)
+  //   - interne prosjekter (type="internt") for brukerens eget firma
+  // Egen prosedyre slik at kundevendte lister (hentMine/hentAlle) forblir rene
+  // og fortsatt filtrerer interne ut. Brukes KUN av timer-flate.
+  hentForTimer: protectedProcedure
+    .query(async ({ ctx }) => {
+      const brukersOrgId = await hentBrukersOrg(ctx.userId);
+      const where: Prisma.ProjectWhereInput = {
+        OR: [
+          { members: { some: { userId: ctx.userId } } },
+          ...(brukersOrgId
+            ? [{ type: "internt", primaryOrganizationId: brukersOrgId }]
+            : []),
+        ],
+      };
+      return ctx.prisma.project.findMany({
+        where,
+        orderBy: [{ type: "asc" }, { updatedAt: "desc" }],
+        include: {
+          faggrupper: true,
+          _count: { select: { members: true } },
+        },
+      });
+    }),
+
   // Hent alle prosjekter (sitedoc_admin ser alle, kan filtreres på firma).
   hentAlle: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
     .query(async ({ ctx, input }) => {
       const bruker = await ctx.prisma.user.findUniqueOrThrow({ where: { id: ctx.userId }, select: { role: true } });
       const erSitedocAdmin = bruker.role === "sitedoc_admin";
+      // Fase 2 / T.10: hentAlle er en kundevendt liste — interne prosjekter
+      // (type="internt") filtreres alltid ut. For ikke-admin er member-scopet
+      // allerede uten interne (de har ingen ProjectMember-rader); type-filteret
+      // er nødvendig for sitedoc_admin-grenen (tomt filter / org-filter).
       const where: Prisma.ProjectWhereInput = erSitedocAdmin
         ? input?.organizationId
-          ? { primaryOrganizationId: input.organizationId }
-          : {}
-        : { members: { some: { userId: ctx.userId } } };
+          ? { type: "kunde", primaryOrganizationId: input.organizationId }
+          : { type: "kunde" }
+        : { type: "kunde", members: { some: { userId: ctx.userId } } };
       return ctx.prisma.project.findMany({
         where,
         orderBy: { createdAt: "desc" },

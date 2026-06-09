@@ -135,6 +135,8 @@
   "timer.felt.antallTimer": "Кількість годин",
   "timer.felt.antall": "Кількість",
   "timer.felt.kommentar": "коментар",
+  "timer.felt.maskin": "Машина (обслуговування)",
+  "timer.internt": "внутрішній",
   "timer.feil.ingenAktivitet": "Виберіть дію перед створенням щоденника.",
   "timer.detalj.detaljer": "Подробиці",
   "timer.detalj.timerRader": "Годинні ряди",

@@ -63,27 +63,38 @@ export default function NyDagsseddelSide() {
   const { data: aktiviteter, isLoading: aktiviteterLaster } =
     trpc.timer.aktivitet.list.useQuery();
   const { data: prosjekterRaw, isLoading: prosjekterLaster } =
-    trpc.prosjekt.hentMine.useQuery();
+    trpc.prosjekt.hentForTimer.useQuery();
 
   type ProsjektMedGps = {
     id: string;
     name: string;
     projectNumber: string;
+    type: string;
     latitude: number | null;
     longitude: number | null;
   };
 
+  // Cast til flat type for å unngå TS2589 (dyp tRPC-retur med faggrupper/_count).
+  const prosjekterFlat = (prosjekterRaw ?? []) as unknown as Array<{
+    id: string;
+    name: string;
+    projectNumber: string;
+    type: string;
+    latitude: number | null;
+    longitude: number | null;
+  }>;
+
   const prosjekter = useMemo<ProsjektMedGps[]>(
     () =>
-      (prosjekterRaw ?? []).map((p) => ({
+      prosjekterFlat.map((p) => ({
         id: p.id,
         name: p.name,
         projectNumber: p.projectNumber,
-        latitude: (p as unknown as { latitude: number | null }).latitude ?? null,
-        longitude:
-          (p as unknown as { longitude: number | null }).longitude ?? null,
+        type: p.type ?? "kunde",
+        latitude: p.latitude ?? null,
+        longitude: p.longitude ?? null,
       })),
-    [prosjekterRaw],
+    [prosjekterFlat],
   );
 
   // Geo-forslag: ved mount, spør om posisjon og finn nærmeste prosjekt

@@ -135,6 +135,8 @@
   "timer.felt.antallTimer": "Anzahl der Stunden",
   "timer.felt.antall": "Menge",
   "timer.felt.kommentar": "Kommentar",
+  "timer.felt.maskin": "Maschine (Wartung)",
+  "timer.internt": "Intern",
   "timer.feil.ingenAktivitet": "Wählen Sie eine Aktivität aus, bevor Sie das Tagesblatt erstellen.",
   "timer.detalj.detaljer": "Details",
   "timer.detalj.timerRader": "Stundenreihen",

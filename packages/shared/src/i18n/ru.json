@@ -135,6 +135,8 @@
   "timer.felt.antallTimer": "Количество часов",
   "timer.felt.antall": "Количество",
   "timer.felt.kommentar": "Комментарий",
+  "timer.felt.maskin": "Машина (обслуживание)",
+  "timer.internt": "Внутренний",
   "timer.feil.ingenAktivitet": "Прежде чем создавать ежедневный лист, выберите занятие.",
   "timer.detalj.detaljer": "Подробности",
   "timer.detalj.timerRader": "Часовые ряды",

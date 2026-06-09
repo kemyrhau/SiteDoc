@@ -8,6 +8,8 @@ export interface ProsjektForVelger {
   id: string;
   name: string;
   projectNumber: string;
+  // Fase 2 / T.10: "internt" markeres med merke i velgeren (ikke-prosjekt-tid).
+  type?: string;
 }
 
 interface ProsjektRadVelgerProps {
@@ -110,7 +112,14 @@ export function ProsjektRadVelger({
                       p.id === valgtId ? "bg-blue-50" : ""
                     }`}
                   >
-                    <span className="font-medium text-gray-900">{p.name}</span>
+                    <span className="flex items-center gap-2 font-medium text-gray-900">
+                      {p.name}
+                      {p.type === "internt" && (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-700">
+                          {t("timer.internt")}
+                        </span>
+                      )}
+                    </span>
                     {p.projectNumber && (
                       <span className="text-xs text-gray-500">
                         {p.projectNumber}

@@ -264,6 +264,28 @@ export async function verifiserProsjektmedlem(
     if (await erFirmaAdmin(userId, organizationId)) return;
   }
 
+  // Fase 2 / T.10: interne prosjekter (type="internt") er firma-eide bærere for
+  // ikke-prosjekt-tid. Alle firma-ansatte (OrganizationMember på prosjektets
+  // primaryOrganizationId) når dem UTEN ProjectMember-rad. Smalt unntak: gjelder
+  // KUN type="internt" + samme org — kunde-prosjekter er uberørt. Interne prosjekter
+  // har ingen andre prosjektmoduler (vilkår 3), så praktisk eksponering er timer-flate.
+  const prosjekt = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { type: true, primaryOrganizationId: true },
+  });
+  if (prosjekt?.type === "internt" && prosjekt.primaryOrganizationId) {
+    const erAnsatt = await prisma.organizationMember.findUnique({
+      where: {
+        userId_organizationId: {
+          userId,
+          organizationId: prosjekt.primaryOrganizationId,
+        },
+      },
+      select: { id: true },
+    });
+    if (erAnsatt) return;
+  }
+
   throw new TRPCError({
     code: "FORBIDDEN",
     message: "Du er ikke medlem av dette prosjektet",

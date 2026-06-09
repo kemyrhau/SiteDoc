@@ -135,6 +135,8 @@
   "timer.felt.antallTimer": "Liczba godzin",
   "timer.felt.antall": "Ilość",
   "timer.felt.kommentar": "Komentarz",
+  "timer.felt.maskin": "Maszyna (konserwacja)",
+  "timer.internt": "Wewnętrzny",
   "timer.feil.ingenAktivitet": "Wybierz czynność przed utworzeniem arkusza dziennego.",
   "timer.detalj.detaljer": "Bliższe dane",
   "timer.detalj.timerRader": "Rzędy godzinowe",

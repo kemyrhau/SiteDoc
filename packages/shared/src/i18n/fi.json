@@ -135,6 +135,8 @@
   "timer.felt.antallTimer": "Tuntien lukumäärä",
   "timer.felt.antall": "Määrä",
   "timer.felt.kommentar": "Kommentti",
+  "timer.felt.maskin": "Kone (huolto)",
+  "timer.internt": "Sisäinen",
   "timer.feil.ingenAktivitet": "Valitse aktiviteetti ennen päiväkirjan luomista.",
   "timer.detalj.detaljer": "Yksityiskohdat",
   "timer.detalj.timerRader": "Tuntirivit",

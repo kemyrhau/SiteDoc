@@ -6,7 +6,18 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
-> **Timer-arkitektur SPOR 3** kjører som en sekvens på develop/test (venter prod): Fase 1 (oppmøtested) · Fase 1b (firma-isolasjon) · Fase 1c-server (byggeplass-geofence). Samme initiativ — listet hver for seg for sporbarhet.
+> **Timer-arkitektur SPOR 3** kjører som en sekvens på develop/test (venter prod): Fase 1 (oppmøtested) · Fase 1b (firma-isolasjon) · Fase 1c-server (byggeplass-geofence) · Fase 2 (ikke-prosjekt-tid / Alt C). Samme initiativ — listet hver for seg for sporbarhet.
+
+### Fase 2 — Ikke-prosjekt-tid (Alt C) — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
+
+Timer-arkitektur SPOR 3 Fase 2 (T.10 / OPPSUMMERING §C). Internt arbeid + maskinvedlikehold som firma-eide interne prosjekter. **T.2 urørt** (`projectId` forblir NOT NULL). Ratifisert av kontroll-Claude før implementasjon; Kenneth-OK på migrasjon + vilkår 3. Implementert:
+- **DB:** `Project.type "kunde"|"internt"` (migrasjon `20260609140000_project_type_fase2`) + `SheetTimer.vehicleId String?` (svak FK → Equipment, `20260609140100_sheet_timer_vehicle_id_fase2`). Begge additive.
+- **Seed:** `seedInterneProsjekter` oppretter 2 interne prosjekter per firma («Internt arbeid» + «Verksted/maskinvedlikehold»), kalt fra begge onboarding-modus. **Vilkår 3:** kun `Project`-rader — ingen ProjectMember/ProjectOrganization/ProjectModule. `syncProjektModulerPaaAktiver` ekskluderer `type="internt"`.
+- **Tilgang:** `type="internt"`-unntak i `verifiserProsjektmedlem` (smalt: type + OrganizationMember på prosjektets org). Ny `prosjekt.hentForTimer` (union medlemskap + interne); `hentMine`/`hentAlle` filtrerer interne ut.
+- **§2.D (ufravikelig):** `verifiserKjoretoyTilhørerFirma` validerer `vehicleId` mot `Equipment.organizationId` på `tilfoyTimerRad`/`oppdaterTimerRad`/`syncBatch`.
+- **Web:** maskinvelger i timer-rad-modal (kun interne prosjekter m/maskiner) + «Internt»-merke i `ProsjektRadVelger`. i18n 14 språk (`timer.felt.maskin`, `timer.internt`).
+
+**Grenser holdt:** ingen fordelingsmotor i SiteDoc (regnskap/ProAdm eier fordeling). Mobil-UI for `vehicleId` = oppfølger (server + sync-felt klart). Sannhetskilde: [timer.md § Ikke-prosjekt-tid](timer.md).
 
 ### Fase 1c-server — Byggeplass-geofence fra georeferert tegning — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
 

@@ -135,6 +135,8 @@
   "timer.felt.antallTimer": "Numri i orëve",
   "timer.felt.antall": "Sasia",
   "timer.felt.kommentar": "Komentoni",
+  "timer.felt.maskin": "Makinë (mirëmbajtje)",
+  "timer.internt": "E brendshme",
   "timer.feil.ingenAktivitet": "Zgjidhni një aktivitet përpara se të krijoni fletën ditore.",
   "timer.detalj.detaljer": "Detajet",
   "timer.detalj.timerRader": "Rreshtat e orës",

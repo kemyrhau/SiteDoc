@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Input } from "@sitedoc/ui";
-import { useFirma } from "@/kontekst/firma-kontekst";
 import { Clock, FileText, Briefcase, Activity } from "lucide-react";
 
 /**
@@ -80,7 +79,6 @@ function periodeRange(periode: Periode, fraEgen: string, tilEgen: string): { fra
 
 export default function MineTimerSide() {
   const { t } = useTranslation();
-  const { valgtFirma } = useFirma();
   const [periode, setPeriode] = useState<Periode>("denne_uken");
   const [fraEgen, setFraEgen] = useState<string>(tilIso(ukestart(new Date())));
   const [tilEgen, setTilEgen] = useState<string>(tilIso(new Date()));
@@ -90,9 +88,9 @@ export default function MineTimerSide() {
     [periode, fraEgen, tilEgen],
   );
 
-  const { data: prosjekter } = trpc.prosjekt.hentMine.useQuery({
-    organizationId: valgtFirma?.id,
-  });
+  // hentForTimer (Fase 2 / T.10): inkluderer interne prosjekter så navn på
+  // ikke-prosjekt-tid-rader resolver i lista (hentMine ville utelatt dem).
+  const { data: prosjekter } = trpc.prosjekt.hentForTimer.useQuery();
   const prosjektNavnMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const p of (prosjekter ?? []) as Array<{ id: string; name: string }>) {

@@ -135,6 +135,8 @@
   "timer.felt.antallTimer": "Number of hours",
   "timer.felt.antall": "Quantity",
   "timer.felt.kommentar": "Comment",
+  "timer.felt.maskin": "Machine (maintenance)",
+  "timer.internt": "Internal",
   "timer.feil.ingenAktivitet": "Select an activity before creating the daily sheet.",
   "timer.detalj.detaljer": "Details",
   "timer.detalj.timerRader": "Hour rows",

@@ -135,6 +135,8 @@
   "timer.felt.antallTimer": "Nombre d'heures",
   "timer.felt.antall": "Quantité",
   "timer.felt.kommentar": "Commentaire",
+  "timer.felt.maskin": "Machine (entretien)",
+  "timer.internt": "Interne",
   "timer.feil.ingenAktivitet": "Sélectionnez une activité avant de créer la feuille journalière.",
   "timer.detalj.detaljer": "Détails",
   "timer.detalj.timerRader": "Lignes d'heures",

@@ -407,6 +407,12 @@ model Project {
   utskriftsinnstillinger    Json?     @map("utskrifts_innstillinger") // { logo, eksternProsjektnummer, prosjektnavn, fraTil, lokasjon, tegningsnummer, vaer }
   sourceLanguage            String    @default("nb") @map("source_language") // Kildespråk for prosjektet
   status                    String    @default("active")
+  // type (Fase 2 / T.10): "kunde" | "internt". Interne prosjekter er firma-eide
+  // bærere for ikke-prosjekt-tid (internt arbeid + maskinvedlikehold) i Timer.
+  // Additivt — alle eksisterende prosjekter er "kunde". Filtreres ut av
+  // kundevendte lister; nås kun via timer-flate (T.10, vilkår 3: enabler ingen
+  // andre prosjektmoduler).
+  type                      String    @default("kunde")
   trialExpiresAt            DateTime? @map("trial_expires_at")
   primaryOrganizationId     String?   @map("primary_organization_id") // Per fase-0-beslutninger.md § E steg 4 (nullable per B.4 interim)
   createdAt                 DateTime  @default(now()) @map("created_at")
@@ -438,6 +444,7 @@ model Project {
 
   @@index([trialExpiresAt])
   @@index([primaryOrganizationId])
+  @@index([type])
   @@map("projects")
 }
 

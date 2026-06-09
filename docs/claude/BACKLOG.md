@@ -16,6 +16,14 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🔴 SIKKERHETS-GAP: `SheetMachine.vehicleId` (maskindrift) er IKKE org-validert
+
+Oppdaget under Timer Fase 2-dual-review (2026-06-09). `SheetMachine.vehicleId` (drift/maskinfører-timer) skrives på `syncBatch` (`dagsseddel.ts` maskin-createMany), `redigerSedelRader` og `splittRad` **uten** å validere at maskinen tilhører firmaet. Samme cross-firma-lekkasje-klasse som §2.D dekket for det nye `SheetTimer.vehicleId` — men dette er **pre-eksisterende** (gjelder maskinbruk-raden, ikke kostnadsbæreren), og ble bevisst holdt utenfor Fase 2-scope.
+
+**Konsekvens:** en klient kan teoretisk sende en `vehicleId` som peker på et annet firmas `Equipment`-rad. `Equipment` er svak FK (`db-maskin`, ingen `@relation`), så Prisma håndhever ingenting — org-isolasjon MÅ skje i app-lag. I dag mangler den på alle SheetMachine-skrive-stier.
+
+**Foreslått fiks:** gjenbruk `verifiserKjoretoyTilhørerFirma(vehicleId, organizationId)` (`dagsseddel.ts`, innført i Fase 2 §2.D) på maskin-radene i `tilfoyMaskinRad`/`oppdaterMaskinRad`/`syncBatch`/`redigerSedelRader`/`splittRad` — samlet pr. unik ID, samme mønster som timer-stiene allerede bruker. Rent additiv logikk, ingen schema/migrasjon. **Ikke fikset her** (egen PR for sporbarhet — Fase 2 holdt seg til §2.D-scope).
+
 ### Legacy eide prosjekter mangler `ProjectOrganization`-rad (datakvalitet) 🟡
 
 Funnet under Timer Fase 1b-data-sjekk (2026-06-09). `admin.ts:266` + `prosjekt.ts:220-226` oppretter nå en `ProjectOrganization`-rad for eier-org ved prosjekt-opprettelse, men dette var en **senere bugfix** — prosjekter opprettet før den mangler raden, selv om de har `Project.primaryOrganizationId` satt. Verifisert mot test-DB: minst ett slikt prosjekt («Test redigert mal») med timer-rader. Prod kan ha tilsvarende (ikke sjekket).

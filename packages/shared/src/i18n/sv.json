@@ -135,6 +135,8 @@
   "timer.felt.antallTimer": "Antal timmar",
   "timer.felt.antall": "Kvantitet",
   "timer.felt.kommentar": "Kommentar",
+  "timer.felt.maskin": "Maskin (underhåll)",
+  "timer.internt": "Inre",
   "timer.feil.ingenAktivitet": "Välj en aktivitet innan du skapar det dagliga arket.",
   "timer.detalj.detaljer": "Detaljer",
   "timer.detalj.timerRader": "Timrader",
