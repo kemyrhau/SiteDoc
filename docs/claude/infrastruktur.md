@@ -6,6 +6,7 @@
 > Tailscale: `ssh server-ny` fra Mac (tailnet `100.76.248.15`, nøkkel `~/.ssh/server_ny`).
 > Alle tre apper (sendfil, salsaklubb, sitedoc) kjører i Docker bak tunnel `sitedoc-ny`.
 > Docker-oppsett: [`../../docker/DOCKER-NOTES.md`](../../docker/DOCKER-NOTES.md) + [`../../docker/docker-compose.yml`](../../docker/docker-compose.yml).
+> **Drift, deploy og gjenoppretting (runbook): [`ny-server-veileder.md`](ny-server-veileder.md).**
 > Migreringshistorikk: [`../../ny-server-migrering-plan.md`](../../ny-server-migrering-plan.md).
 
 ## Serverarkitektur
