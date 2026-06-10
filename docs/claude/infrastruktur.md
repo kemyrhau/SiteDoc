@@ -1,130 +1,115 @@
 # Infrastruktur og deployment
 
-> **Ny server under oppsett (2026-06-08) — IKKE prod ennå.** En dedikert Ubuntu 24.04-boks
-> (`192.168.1.209`, hostname `sitedoc`) er satt opp for å erstatte dagens prod (Kenspill/WSL).
+> **Prod kjører i Docker på ny server (gjeldende fra 2026-06-10).** En dedikert Ubuntu 24.04-boks
+> (`192.168.1.209`, hostname `sitedoc`) erstattet den gamle prod-en (Kenspill/WSL).
 > Den har TPM-auto-opplåsing av kryptert disk, slår seg på selv etter strømbrudd, og nås via
 > Tailscale: `ssh server-ny` fra Mac (tailnet `100.76.248.15`, nøkkel `~/.ssh/server_ny`).
-> **Sendfil er migrert dit** (Docker, 2026-06-08, `sendfil.sitedoc.site` via tunnel `sitedoc-ny`). sitedoc + salsaklubb er foreløpig IKKE migrert — resten av dette dokumentet beskriver fortsatt live prod (gammel server).
-> Full historikk: [`../../ny-server-fjerntilgang-plan.md`](../../ny-server-fjerntilgang-plan.md).
-> Neste fase (Docker + migrering): [`../../ny-server-migrering-kickoff.md`](../../ny-server-migrering-kickoff.md).
+> Alle tre apper (sendfil, salsaklubb, sitedoc) kjører i Docker bak tunnel `sitedoc-ny`.
+> Docker-oppsett: [`../../docker/DOCKER-NOTES.md`](../../docker/DOCKER-NOTES.md) + [`../../docker/docker-compose.yml`](../../docker/docker-compose.yml).
+> Migreringshistorikk: [`../../ny-server-migrering-plan.md`](../../ny-server-migrering-plan.md).
 
 ## Serverarkitektur
 
 ```
-Mac (utvikling) → git push → GitHub → ssh sitedoc → git pull + build + pm2 restart
-                                    → eas build → TestFlight
+Mac (utvikling) → git push → GitHub
+                → rsync repo → server-ny:~/stack/sitedoc → docker compose build + up
+                → eas build → TestFlight
 
-PC/WSL (server):
-  Produksjon:
-    Next.js    :3100 → sitedoc.no          (Cloudflare Tunnel)
-    Fastify    :3001 → api.sitedoc.no      (Cloudflare Tunnel)
-    PostgreSQL :5432 (db: sitedoc, bruker: kemyr)
-
-  Test:
-    Next.js    :3300 → test.sitedoc.no     (Cloudflare Tunnel)
-    Fastify    :3301 → api-test.sitedoc.no (Cloudflare Tunnel)
-    PostgreSQL :5432 (db: sitedoc_test, bruker: kemyr)
-
-  Felles:
-    SSH        :22   → ssh.sitedoc.no      (Cloudflare Tunnel)
-    Embedding  :3302 → NorBERT + multilingual-e5-base (PM2: norbert-embed)
-    Oversettelse:3303 → OPUS-MT oversettelsesserver (PM2: oversettelse-server)
-    Python venv: ~/norbert-env (torch + transformers + sentencepiece)
+server-ny (Ubuntu 24.04, Docker):
+  Container sitedoc-api   :3001 → api.sitedoc.no   (publiserer også :3100 — se under)
+  Container sitedoc-web   :3100 → sitedoc.no       (deler api sitt nett-namespace)
+  Container sitedoc-embed :3302 → NorBERT + multilingual-e5-base   (internt på appnet)
+  Container sitedoc-oversettelse :3303 → OPUS-MT   (internt på appnet)
+  Container postgres      :5432 → pgvector/pgvector:pg16 (delt, egen compose ~/stack/postgres)
+                                  db: sitedoc (+ sitedoc_test), rolle: sitedoc
+  cloudflared (systemd)         → tunnel sitedoc-ny → sitedoc.no / api.sitedoc.no
 ```
 
-## PM2-prosesser
+> **Web↔API-nettverk (cutover-lærdom):** `sitedoc-web` bruker `network_mode: "service:sitedoc-api"` og deler API-containerens nett-namespace. Derfor publiserer `sitedoc-api` **begge** porter (`127.0.0.1:3001` + `127.0.0.1:3100`), og web sin server-side proxy av `/uploads`/`/api` til `localhost:3001` treffer API-en. Uten dette ble tegninger/3D brutt.
 
-| Navn | Port | Beskrivelse |
-|------|------|-------------|
-| `sitedoc-web` | 3100 | Produksjon Next.js |
-| `sitedoc-api` | 3001 | Produksjon Fastify/tRPC |
-| `sitedoc-test-web` | 3300 | Test Next.js |
-| `sitedoc-test-api` | 3301 | Test Fastify/tRPC |
-| `norbert-embed` | 3302 | Multi-modell embedding: NorBERT (norsk) + multilingual-e5-base (flerspråklig, lazy) |
-| `oversettelse-server` | 3303 | Helsinki-NLP/OPUS-MT oversettelse, LRU-cache maks 3 modeller, pivot nb→en→target |
+## Containere (docker compose)
 
-## Server-avhengigheter (apt)
+| Container | Image | Port (host) | Beskrivelse |
+|-----------|-------|-------------|-------------|
+| `sitedoc-api` | Dockerfile.api | `127.0.0.1:3001` + `:3100` | Fastify/tRPC, kjøres via `tsx src/server.ts` (root `tsconfig` har `noEmit`) |
+| `sitedoc-web` | Dockerfile.web | (deler api-namespace) | Next.js 14, `pnpm start`, PORT 3100 |
+| `sitedoc-embed` | Dockerfile.ml | intern `appnet:3302` | NorBERT (norsk) + multilingual-e5-base (flerspråklig, lazy) |
+| `sitedoc-oversettelse` | Dockerfile.ml | intern `appnet:3303` | OPUS-MT, pivot nb→en→target, LRU-cache |
+| `postgres` | pgvector/pgvector:pg16 | `127.0.0.1:5432` | delt, egen compose i `~/stack/postgres` |
 
-- `poppler-utils` — pdftoppm for PDF→PNG (tegninger + OCR-rendering)
-- `tesseract-ocr` + `tesseract-ocr-nor` — OCR for skannede PDFer (v5.3.4, norsk språkpakke)
-- `xvfb` — virtuelt display for CloudCompare (punktsky-konvertering)
+API når ML-tjenestene via env: `NORBERT_URL=http://embed:3302`, `OVERSETTELSE_URL=http://oversettelse:3303`.
 
-## Miljøvariabler (PM2)
+> ⚠️ **Kjent kode-feil (app-spor):** `norbert-server.py` binder `127.0.0.1` (loopback) i stedet for `0.0.0.0` → embedding/AI-søk er **utilgjengelig cross-container** til dette fikses (gjør bind konfigurerbar, sett `0.0.0.0` i Docker). `oversettelse-server.py` binder korrekt `0.0.0.0`.
 
-- `UPLOADS_DIR=/home/kemyr/programmering/sitedoc/apps/api/uploads` — påkrevd for web-prosessen (tRPC server-side i Next.js bruker annen cwd)
+## Native avhengigheter
+
+Bygges nå inn i Docker-imagene (ikke apt på host). `Dockerfile.api` installerer `poppler-utils` (PDF→PNG), `tesseract-ocr` + `tesseract-ocr-nor` (OCR), `xvfb`, `openssl`, `ca-certificates`, `fontconfig`. DWG→DXF: `libredwg`/ODA er kommentert ut (legg ODA-`.deb` i `docker/vendor/` for bedre DWG-konvertering).
+
+## Miljøvariabler
+
+Container-env settes via `env_file` (se «Env-filer på server» under) + `environment:` i `docker-compose.yml`. Uploads er bind-mountet (`~/stack/sitedoc/uploads` → `/app/apps/api/uploads`), så egen `UPLOADS_DIR`-variabel trengs ikke som på gammel server.
 
 ## Deployment
 
-### Produksjon (main-branch)
+Server-git er ikke satt opp ennå, så deploy går via rsync fra Mac + Docker-bygg på server-ny:
 
 ```bash
-bash deploy.sh
-# Eller manuelt:
-ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-lockfile && pnpm db:migrate && pnpm build && pm2 restart sitedoc-web sitedoc-api"
-```
-
-### Test (develop-branch)
-
-```bash
-bash deploy-test.sh
-# Eller manuelt:
-ssh sitedoc "cd ~/programmering/sitedoc-test && git pull && pnpm install --frozen-lockfile && pnpm db:migrate && pnpm build && pm2 restart sitedoc-test-web sitedoc-test-api"
-```
-
-### Kun web-deploy (prod)
-
-```bash
-ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm build --filter @sitedoc/web && pm2 restart sitedoc-web"
+git push                                  # fra Mac (kildekontroll)
+rsync -a --exclude node_modules --exclude .next --exclude .git \
+  ~/Documents/Programmering/SiteDoc/ server-ny:stack/sitedoc/
+ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.yml up -d --build'
 ```
 
 **Viktig:**
-- Filteret er `@sitedoc/web` (pakkenavn), IKKE `web`
-- Prisma-endringer: `pnpm db:migrate` FØR bygg
-- Koden MÅ være pushet til GitHub før deploy
-- Produksjon bruker `pm2 restart sitedoc-web sitedoc-api` (IKKE `pm2 restart all` — unngå restart av test-prosesser)
+- `ssh -t` (TTY) kreves for at `sudo` skal kunne lese passord.
+- Prisma-endringer: kjør migrasjoner mot Postgres-containeren (de fire klientene db/db-maskin/db-timer/db-varelager genereres i `Dockerfile.api`-bygget).
+- Rebuild/restart gir et kort avbrudd — varsle ved aktivitet.
+- Cutover (DNS-flytt) for `sitedoc.no`/`api.sitedoc.no` gjøres via **Cloudflare-dashboard** (egen sone — cloudflared CLI ruter feil her, jf. salsaklubb-lærdom).
 
 ## Serverdetaljer
 
-- **SSH:** `ssh sitedoc` fra Mac (nøkkel `~/.ssh/sitedoc_server`)
-- **Prosjektmappe (prod):** `~/programmering/sitedoc` (main-branch)
-- **Prosjektmappe (test):** `~/programmering/sitedoc-test` (develop-branch)
-- **PM2 (prod):** `sitedoc-web`, `sitedoc-api`
-- **PM2 (test):** `sitedoc-test-web`, `sitedoc-test-api`
-- **Cloudflare Tunnel:** Systemd, config `/etc/cloudflared/config.yml`, tunnel ID `189a5af2-59f9-48df-a834-8e934313aa51`
+- **SSH:** `ssh server-ny` fra Mac (Tailscale, nøkkel `~/.ssh/server_ny`)
+- **Prosjekt-/stack-mappe:** `~/stack/sitedoc` (rsync-mål, inneholder `docker/` + repo) og `~/stack/postgres` (delt DB)
+- **Containere (prod):** `sitedoc-api`, `sitedoc-web`, `sitedoc-embed`, `sitedoc-oversettelse`
+- **Cloudflare Tunnel:** systemd, config `/etc/cloudflared/config.yml`, tunnel `sitedoc-ny` (ID `eb262307-f893-4fbf-82b7-420178cf6aea`)
 - **Domene:** sitedoc.no (Domeneshop, DNS via Cloudflare)
+
+> **Gammel prod (Kenspill/WSL, PM2) — utgått 2026-06-10, beholdes stoppet som rollback.** Gammelt oppsett: `~/programmering/sitedoc`, `ssh sitedoc`, `pm2`, tunnel `sitedoc` (ID `189a5af2-…`). Rollback = DNS tilbake + PM2 start. Avvikles når ny server er bekreftet stabil.
 
 ## Cloudflare Tunnel — viktig
 
-- **Aktiv config:** `/etc/cloudflared/config.yml` (root-eid, lest av systemd via `--config`-flagg). `~/.cloudflared/config.yml` ignoreres — orphan-fila er arkivert som `.orphan-2026-05-24`.
+Gjelder tunnel `sitedoc-ny` på ny server (mekanikken er identisk med den gamle):
+
+- **Aktiv config:** `/etc/cloudflared/config.yml` (root-eid, lest av systemd via `--config`-flagg). `~/.cloudflared/config.yml` ignoreres.
 - **Sync-modell:** cloudflared pusher lokal config til Cloudflare-edge ved restart. PATCH via Cloudflare API blir overskrevet ved neste restart — `/etc/cloudflared/config.yml` er eneste varige sannhetskilde.
 - **Ny hostname (5 steg):**
   1. `sudo cp /etc/cloudflared/config.yml /etc/cloudflared/config.yml.bak-$(date +%Y%m%d-%H%M%S)` — gratis backup
   2. `sudo nano /etc/cloudflared/config.yml` — entry over `http_status:404`-linja
-  3. Cloudflare DNS → CNAME `<host>` → `189a5af2-59f9-48df-a834-8e934313aa51.cfargotunnel.com`, proxied
+  3. Cloudflare DNS → CNAME `<host>` → `eb262307-f893-4fbf-82b7-420178cf6aea.cfargotunnel.com`, proxied
   4. `sudo cloudflared --config /etc/cloudflared/config.yml tunnel ingress validate` — fanger YAML-feil før restart
   5. `sudo systemctl restart cloudflared` + verifiser med `curl -sI https://<host>`
-- **Felle:** `cloudflared tunnel route dns <id> <host>` sier «already configured to route to your tunnel» selv om Cloudflare-edge ikke ruterer dit. Meldingen sjekker kun CNAME-recorden, ikke remote tunnel-config. Stol ikke på den.
-- **Diagnose-rekkefølge ved 404:** full prosedyre i memory `reference_sitedoc_infrastruktur.md`. Kort: `ps aux | grep cloudflared` (hvilken config), `grep <host> /etc/cloudflared/config.yml` (routet?), Cloudflare DNS (CNAME finnes?), `cloudflared tunnel info <id>` (connector oppe?).
+- **Felle:** `cloudflared tunnel route dns <id> <host>` sier «already configured» selv om edge ikke ruterer dit — sjekker kun CNAME, ikke remote tunnel-config. For hostnames utenfor cert-sonen: bruk Cloudflare-dashboard (jf. salsaklubb `.online`-lærdom).
 
-### Klient-IP gjennom Cloudflare Tunnel (M1-lærdom 2026-05-27)
+### Klient-IP gjennom Cloudflare Tunnel
 
 Cloudflare Tunnel sender IKKE klient-IP i `X-Forwarded-For`. I stedet brukes `Cf-Connecting-Ip`-headeren (blokkert mot spoofing av Cloudflare-edge — verifisert med HTTP 403 ved override-forsøk).
 
-**WSL2 Mirror Mode-konsekvens:** cloudflared kjører på Windows-host og treffer Fastify via WSL2 Mirror Mode — IKKE loopback. Det betyr at `req.ip` viser Windows-host-IP (`193.90.181.205`, server-WAN-IP), ikke faktisk klient. Eksplisitt `trustProxy: "127.0.0.1"`-allowlist matcher ikke; vi trenger `trustProxy: true`.
+cloudflared (på host) treffer API-containeren over docker-nettet, så `req.ip` viser ikke faktisk klient. Derfor: `trustProxy: true` + les `cf-connecting-ip`.
 
-**Trygt fordi:** Fastify eksponeres aldri direkte — alltid bak cloudflared. Ved fremtidig direkte-eksponering (Tailscale, midlertidig debug) MÅ `trustProxy` strammes igjen.
+> Historikk: på gammel WSL2-server traff cloudflared Fastify via WSL2 Mirror Mode (ikke loopback), med samme konklusjon. Rasjonalet er det samme i Docker.
+
+**Trygt fordi:** Fastify eksponeres aldri direkte — alltid bak cloudflared. Ved fremtidig direkte-eksponering MÅ `trustProxy` strammes igjen.
 
 **Bruksmønster i kode:**
-- `apps/api/src/utils/rateLimiter.ts:hentKlientIp(req)` prioriterer `cf-connecting-ip`, faller tilbake til `req.ip`. Brukes av rate-limit + logger-serializer.
+- `apps/api/src/utils/rateLimiter.ts:hentKlientIp(req)` prioriterer `cf-connecting-ip`, faller tilbake til `req.ip`.
 - `apps/api/src/server.ts`: `trustProxy: true` + custom request-serializer som leser samme header.
-
-Uten dette ville rate-limit per IP være effektivt globalt (alle requests ser ut til å komme fra server-WAN-IP).
 
 ## Auth-konfigurasjon
 
 - **Auth.js:** `trustHost: true` (bak Cloudflare). Klient-side `signIn()` (IKKE server actions — MissingCSRF bak tunnel). `allowDangerousEmailAccountLinking: true` (påkrevd for invitasjonsflyt — godkjent risiko)
+- **AUTH_URL / NEXTAUTH_URL = `https://sitedoc.no`** i `web.env` (cutover-lærdom): cloudflared sender `Host: localhost` internt, så uten eksplisitt AUTH_URL bygde Auth.js `redirect_uri=https://localhost:3100` → OAuth `redirect_uri_mismatch`. `AUTH_TRUST_HOST=true` settes også.
 - **Google OAuth:** Web + iOS client. Consent screen: SiteDoc
-- **Microsoft Entra ID:** Multitenant, `checks: ["state"]` (PKCE feiler bak tunnel). App ID: `d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`. Client secret: `SiteDoc_Prod2`
+- **Microsoft Entra ID:** Multitenant, `checks: ["state"]` (PKCE feiler bak tunnel). App ID: `d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`
 
 ## Sikkerhet
 
@@ -136,20 +121,20 @@ Uten dette ville rate-limit per IP være effektivt globalt (alle requests ser ut
 
 **Mobilsesjon:** 256-bit token (`crypto.randomBytes`), roteres ved hver `verifiser`-kall, server-side sletting ved utlogging.
 
-**API-autorisasjon:** Alle ruter med prosjektdata har `verifiserProsjektmedlem`-sjekk. Dokumentruter bruker `verifiserDokumentTilgang` (entreprise + domain). `endreStatus` bruker `ctx.userId` (aldri bruker-input som `senderId`).
+**API-autorisasjon:** Alle ruter med prosjektdata har `verifiserProsjektmedlem`-sjekk. Dokumentruter bruker `verifiserDokumentTilgang`. `endreStatus` bruker `ctx.userId` (aldri bruker-input som `senderId`).
 
 ### Kjente aksepterte risikoer
 
-- **`allowDangerousEmailAccountLinking`** — Påkrevd for invitasjonsflyten (inviterte brukere uten OAuth-konto). Risiko: kontoovertakelse hvis angriper kontrollerer OAuth-konto med offerets e-post. Lav i praksis (Google/Microsoft verifiserer e-post)
+- **`allowDangerousEmailAccountLinking`** — Påkrevd for invitasjonsflyten. Risiko: kontoovertakelse hvis angriper kontrollerer OAuth-konto med offerets e-post. Lav i praksis (Google/Microsoft verifiserer e-post)
 - **OAuth access tokens lagres ukryptert** i `accounts`-tabellen (Auth.js standard). Krever DB-kompromittering for utnyttelse
 
 ### Anbefalte tiltak (prioritert)
 
-1. **Oppgrader Next.js 14 → 15+** — Kjent DoS-sårbarhet (HTTP-deserialisering). Stor jobb pga. React 19 og App Router-endringer — gjøres som egen oppgave
-2. **Sett sikkerhetsheadere i Cloudflare** — CSP, X-Frame-Options, Strict-Transport-Security. Konfigureres i Cloudflare Dashboard → Rules → Transform Rules
-3. **Web-tRPC: verifiser sesjon i database** — I dag stoler web på Auth.js cookie-deserialisering uten DB-oppslag. En slettet sesjon forblir gyldig til cookien utløper. Fiks: legg til DB-sjekk i `apps/web/src/app/api/trpc/[...trpc]/route.ts`
-4. **Maks alder på mobilappens offline-cache** — I dag brukes cached brukerdata uten tidsbegrensning. Legg til 24-timers maks alder i `AuthProvider`
-5. **Flytt rate limiting til Redis** — Minnebasert rate limiter nullstilles ved restart. Ikke kritisk nå, men bør gjøres når brukerbase vokser
+1. **Oppgrader Next.js 14 → 15+** — Kjent DoS-sårbarhet (HTTP-deserialisering). Stor jobb pga. React 19 og App Router-endringer — egen oppgave
+2. **Sett sikkerhetsheadere i Cloudflare** — CSP, X-Frame-Options, Strict-Transport-Security (Cloudflare Dashboard → Rules → Transform Rules)
+3. **Web-tRPC: verifiser sesjon i database** — web stoler i dag på Auth.js cookie-deserialisering uten DB-oppslag. En slettet sesjon forblir gyldig til cookien utløper. Fiks: DB-sjekk i `apps/web/src/app/api/trpc/[...trpc]/route.ts`
+4. **Maks alder på mobilappens offline-cache** — 24-timers maks alder i `AuthProvider`
+5. **Flytt rate limiting til Redis** — minnebasert nullstilles ved restart; bør gjøres når brukerbasen vokser
 
 ## TODO: Chunked upload for store filer
 
@@ -158,62 +143,27 @@ Cloudflare Free-plan har 100 MB upload-grense. Store IFC-filer (>100 MB) feiler.
 **Plan:**
 1. **Klient:** Del filen i chunks (f.eks. 50 MB), send hver chunk med `uploadId` + `chunkIndex` + `totalChunks`
 2. **API:** Nytt `/upload/chunk`-endepunkt som lagrer chunks midlertidig, og `/upload/complete` som setter dem sammen
-3. **Opprydding:** Slett uferdige chunks etter 1 time (cron eller lazy cleanup)
-4. **Fremdriftsindikator:** Vis upload-progress på klientsiden (prosent per chunk)
+3. **Opprydding:** Slett uferdige chunks etter 1 time
+4. **Fremdriftsindikator:** Upload-progress på klientsiden
 
 Berører: `apps/api/src/routes/upload.ts`, opplastingskomponenter i web og mobil.
 
 ## Env-filer på server
 
-### Produksjon (`~/programmering/sitedoc/`)
+Env ligger nå i `~/stack/sitedoc/docker/env/` (lest av compose via `env_file`):
 
 | Fil | Nøkkelvariabler |
 |-----|----------------|
-| `apps/api/.env` | DATABASE_URL, PORT=3001, HOST, AUTH_SECRET, RESEND_API_KEY |
-| `apps/web/.env.local` | AUTH_SECRET, AUTH_GOOGLE_ID/SECRET, AUTH_MICROSOFT_ENTRA_ID_*, DATABASE_URL, RESEND_API_KEY |
-| `packages/db/.env` | DATABASE_URL |
+| `docker/env/api.env` | `DATABASE_URL`/`DIRECT_URL` (`postgresql://sitedoc:***@postgres:5432/sitedoc`), `PORT=3001`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `SITEDOC_INTEGRATION_KEY` |
+| `docker/env/web.env` | `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_MICROSOFT_*`, `AUTH_URL`/`NEXTAUTH_URL=https://sitedoc.no`, `AUTH_TRUST_HOST=true`, `DATABASE_URL` (samme), `RESEND_*` |
 
-### Test (`~/programmering/sitedoc-test/`)
+> Env-filene kopieres aldri inn i image (`.dockerignore` ekskluderer `docker/env/*.env`); de leses kun på host ved `up`. Nøkler håndteres av Kenneth.
 
-| Fil | Nøkkelvariabler |
-|-----|----------------|
-| `apps/api/.env` | DATABASE_URL (sitedoc_test), PORT=3301, HOST, AUTH_SECRET (egen), APP_URL=https://test.sitedoc.no |
-| `apps/web/.env.local` | API_PORT=3301, AUTH_SECRET (matcher API), AUTH_GOOGLE_ID/SECRET, AUTH_MICROSOFT_ENTRA_ID_*, DATABASE_URL (sitedoc_test) |
-| `packages/db/.env` | DATABASE_URL (sitedoc_test) |
+## Test-miljø
 
-- `.env.local` har prioritet over `.env` i Next.js — sjekk BEGGE
-- Microsoft-variabler MÅ stå i `.env.local`
-- Test og produksjon har **separate AUTH_SECRET** og **separate databaser**
+Test-databasen `sitedoc_test` finnes i den delte Postgres-containeren (restoret med `pg_restore --no-owner` + `REFRESH COLLATION VERSION`). Test ble validert via samme Docker-stack under generalprøven før cutover.
 
-## Test-miljø detaljer
-
-### Uploads
-Test-API-en bruker en **symlink** til prod sin uploads-mappe:
-```
-~/programmering/sitedoc-test/apps/api/uploads → ~/programmering/sitedoc/apps/api/uploads
-```
-Begge miljøer deler altså samme lokale fillagring. Ikke slett filer i uploads-mappen uten å sjekke begge databaser.
-
-### Test-API oppstart
-Test-API-en kjøres med `tsx` (ikke kompilert JS), fordi root `tsconfig.json` har `noEmit: true`:
-```bash
-cd ~/programmering/sitedoc-test/apps/api && PORT=3301 pm2 start 'npx tsx src/server.ts' --name sitedoc-test-api
-```
-
-### Test-database
-Test-databasen (`sitedoc_test`) ble populert med data kopiert fra prod (prosjekt, bygninger, tegninger, sjekklister, rapportmaler, etc.). Bruker-IDer er forskjellige mellom prod og test — ved kopiering av data må `created_by`/`user_id`-felt mappes til riktig test-bruker.
-
-### Kjente problemer i test-miljøet
-- **IFC 3D-viewer:** Modeller laster ikke (uvisst årsak — bør debugges)
-- **Tegningsvisning:** Zoom/pan fungerer ikke (bug finnes også i prod — ikke testet der heller)
-
-### Arbeidsflyt
-
-1. Utvikle på `develop`-branch
-2. `bash deploy-test.sh` → deployer til test.sitedoc.no
-3. Test grundig
-4. Merge `develop` → `main`
-5. `bash deploy.sh` → deployer til sitedoc.no
+> **Gjenstår (valgfritt):** et permanent, alltid-på test-miljø (`test.sitedoc.no`) på ny server med egen compose/containere er ikke re-etablert ennå (gammelt test var PM2 `sitedoc-test-*`). Settes opp ved behov.
 
 ## EAS Build og TestFlight
 

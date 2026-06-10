@@ -1,7 +1,7 @@
-# Sitedoc — Docker på ny server (UTKAST 2026-06-09)
+# Sitedoc — Docker på ny server (I PROD fra 2026-06-10)
 
-> Førsteutkast av full-Docker-oppsett for sitedoc. Vil trenge bygg-fiks-runder (som Prisma-openssl på salsaklubb).
-> Bygges/testes **uten å røre prod** — gammel sitedoc kjører til cutover.
+> Full-Docker-oppsett for sitedoc, **deployet til prod på server-ny 2026-06-10** (test+prod, pgvector, ML, innlogget+tegninger+3D verifisert). Gammel sitedoc (PM2) står stoppet som rollback.
+> Gjeldende deploy/infra: `../docs/claude/infrastruktur.md`. Seksjonene under er oppsett-/build-referansen som ble fulgt.
 
 ## Komponenter
 | Tjeneste | Image | Port | Innhold |

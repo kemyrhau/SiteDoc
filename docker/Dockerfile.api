@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# UTKAST 2026-06-09 (NY-SERVER) — sitedoc API (Fastify/tRPC) i monorepo.
+# NY-SERVER — sitedoc API (Fastify/tRPC) i monorepo (i prod fra 2026-06-10).
 # Build-context = repo-rot. Bygg: docker compose -f docker/docker-compose.yml build sitedoc-api
 
 # ============ Build (hele monorepoet) ============

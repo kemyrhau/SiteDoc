@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# UTKAST 2026-06-09 (NY-SERVER) — sitedoc web (Next.js 14) i monorepo.
+# NY-SERVER — sitedoc web (Next.js 14) i monorepo (i prod fra 2026-06-10).
 # Bygger api-pakken også (tRPC-typer er devDependency av web). Fett image (web er IKKE standalone ennaa).
 # Oppfoelger: sett `output: "standalone"` i apps/web/next.config.mjs for slankere image.
 

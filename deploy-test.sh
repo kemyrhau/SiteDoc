@@ -1,21 +1,14 @@
 #!/bin/bash
-# SiteDoc TEST deploy-script — deployer develop-branch til test.sitedoc.no
-set -e
+# SiteDoc TEST deploy-script — UTGÅTT.
+#
+# Det gamle test-miljøet (PM2 sitedoc-test-* på gammel WSL-server via `ssh sitedoc`)
+# er avviklet sammen med migreringen 2026-06-10. Et permanent test-miljø på ny server
+# (Docker, test.sitedoc.no) er IKKE re-etablert ennå — test-DB `sitedoc_test` finnes i
+# postgres-containeren, men det kjører ingen egen test-web/-api-container.
+#
+# Se docs/claude/infrastruktur.md → «Test-miljø». Oppdater dette skriptet til
+# rsync + docker compose (egen test-compose) når test-stacken settes opp.
 
-echo "🧪 Deployer SiteDoc TEST til serveren..."
-
-# Push develop-branch til GitHub
-echo "→ Pusher develop til GitHub..."
-git push origin develop
-
-# Bygg og restart på serveren
-echo "→ Bygger test-miljø på serveren..."
-ssh sitedoc "cd ~/programmering/sitedoc-test && git pull && pnpm install --frozen-lockfile && pnpm db:migrate && pnpm build && pm2 restart sitedoc-test-web sitedoc-test-api"
-
-echo "→ Sjekker status..."
-ssh sitedoc "pm2 list"
-
-echo ""
-echo "✅ Test-deploy ferdig!"
-echo "   Web:  https://test.sitedoc.no"
-echo "   API:  https://api-test.sitedoc.no/health"
+echo "⚠️  deploy-test.sh er utgått: test-miljøet er ikke re-etablert på ny server."
+echo "   Se docs/claude/infrastruktur.md → Test-miljø."
+exit 1

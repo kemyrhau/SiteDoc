@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1
-# UTKAST 2026-06-09 (NY-SERVER) — Python ML-tjenester (embedding 3302 + oversettelse 3303).
+# NY-SERVER — Python ML-tjenester (embedding 3302 + oversettelse 3303) (i prod fra 2026-06-10).
 # Scriptene bruker stdlib http.server + torch/transformers. Samme image kjorer begge (command settes i compose).
 # Modellvekter (NorBERT, multilingual-e5, OPUS-MT) lastes fra HuggingFace ved foerste kjoring -> caches i /models-volum.
 

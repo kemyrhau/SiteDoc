@@ -6,10 +6,11 @@ sist_verifisert_mot_kode: 2026-05-02
 
 # Deploy-detaljer
 
+> ⚠️ **Deploy-kommandoene og server-stiene nedenfor (ssh sitedoc, pm2, `~/programmering/sitedoc(-test)`) beskriver den GAMLE PM2/WSL-serveren — utgått 2026-06-10.** Gjeldende deploy kjører i Docker på server-ny: se [`infrastruktur.md`](infrastruktur.md) + `deploy.sh`. Lærdommene (branching, mobil-reload, tRPC-env-konsekvens, prisma-migrate, db-pakke-generate) er fortsatt gyldige og host-uavhengige.
+
 CLAUDE.md har kort oversikt over miljøer + deploy-kommandoen. Denne fila har
-alle detaljene: branching-regler, full bash-kommando, `.env`-krav for
-modul-DB-pakker, mobil reload-typer, tRPC-mutations env-konsekvens og
-prod-lærdommer.
+alle detaljene: branching-regler, modul-DB-pakke-lærdommer, mobil reload-typer,
+tRPC-mutations env-konsekvens og prod-lærdommer.
 
 ## Branching
 
@@ -78,7 +79,7 @@ Regler frem til da:
 3. **Test** — verifiser på test.sitedoc.no
 4. **Deploy til prod** (kun på eksplisitt forespørsel) — `git checkout main && git merge develop --no-edit && git push origin main` etterfulgt av server-deploy
 
-## Deploy-kommandoer
+## Deploy-kommandoer (GAMMEL SERVER — utgått, se infrastruktur.md/deploy.sh)
 
 ```bash
 # Test (automatisk etter push til develop)
@@ -88,7 +89,7 @@ ssh sitedoc "cd ~/programmering/sitedoc-test && git fetch origin && git reset --
 ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-lockfile && pnpm --filter @sitedoc/db exec prisma migrate deploy && pnpm --filter @sitedoc/db exec prisma generate && pnpm --filter @sitedoc/db-maskin exec prisma migrate deploy && pnpm --filter @sitedoc/db-maskin exec prisma generate && pnpm --filter @sitedoc/db-timer exec prisma migrate deploy && pnpm --filter @sitedoc/db-timer exec prisma generate && du -sm apps/web/.next/cache 2>/dev/null | awk '\$1>500{print \"Rydder .next/cache (\"\$1\"MB)\"}' && find apps/web/.next/cache -maxdepth 0 -type d 2>/dev/null | xargs -I{} sh -c 'size=\$(du -sm {} | cut -f1); [ \$size -gt 500 ] && rm -rf {}' && pnpm build && pm2 restart all"
 ```
 
-**Prod bruker `prisma migrate deploy`** — IKKE `pnpm db:migrate` (som kjører interaktiv `prisma migrate dev`). `prisma generate` må kjøres etter migrate for at API-bygget skal se nye Prisma-modeller. **Kjør for ALLE tre db-pakker** (`@sitedoc/db` + `@sitedoc/db-maskin` + `@sitedoc/db-timer`) — uten `db-maskin`-generate feiler `@sitedoc/api`-bygget med `Cannot find module '.prisma/maskin-client'` (tilsvarende for `db-timer`/`.prisma/timer-client`). Lærdom fra prod-deploy 2026-04-30 (db-maskin) + test-deploy 2026-05-01 (db-timer).
+**Prod bruker `prisma migrate deploy`** — IKKE `pnpm db:migrate` (som kjører interaktiv `prisma migrate dev`). `prisma generate` må kjøres etter migrate for at API-bygget skal se nye Prisma-modeller. **Kjør for alle fire db-pakker** (`@sitedoc/db` + `@sitedoc/db-maskin` + `@sitedoc/db-timer` + `@sitedoc/db-varelager`) — uten `db-maskin`-generate feiler `@sitedoc/api`-bygget med `Cannot find module '.prisma/maskin-client'` (tilsvarende for `db-timer`/`.prisma/timer-client`). Lærdom fra prod-deploy 2026-04-30 (db-maskin) + test-deploy 2026-05-01 (db-timer).
 
 **Lokal `prisma migrate dev` feiler på shadow-DB** (`P3006: extension "vector" is not available` — pgvector er ikke installert i lokal PostgreSQL, så shadow-DB-en kan ikke replaye `20260331120000_embedding_vector_pgvector`). **Workaround:** håndskriv migrasjonen i idempotent stil (`CREATE TABLE IF NOT EXISTS` + `DO $$ … EXCEPTION WHEN duplicate_object`-blokker for FK-er, se f.eks. `20260608120000_oppmotested_fase1`) + `prisma generate` separat for klienten. Den anvendes korrekt på test/prod via `migrate deploy` (de har pgvector). Aldri kjør `migrate dev`-reset lokalt. Lærdom Fase 1 2026-06-08.
 
