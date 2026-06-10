@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1
+# UTKAST 2026-06-09 (NY-SERVER) — sitedoc web (Next.js 14) i monorepo.
+# Bygger api-pakken også (tRPC-typer er devDependency av web). Fett image (web er IKKE standalone ennaa).
+# Oppfoelger: sett `output: "standalone"` i apps/web/next.config.mjs for slankere image.
+
+FROM node:20-bookworm-slim AS build
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ openssl \
+    && rm -rf /var/lib/apt/lists/*
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @sitedoc/db exec prisma generate \
+ && pnpm --filter @sitedoc/db-maskin exec prisma generate \
+ && pnpm --filter @sitedoc/db-timer exec prisma generate \
+ && pnpm --filter @sitedoc/db-varelager exec prisma generate
+RUN pnpm turbo build --filter @sitedoc/web
+
+ENV NODE_ENV=production
+ENV PORT=3100
+WORKDIR /app/apps/web
+EXPOSE 3100
+# `next start` respekterer PORT-env
+CMD ["pnpm", "start"]
