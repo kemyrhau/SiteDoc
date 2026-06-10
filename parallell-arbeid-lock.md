@@ -12,7 +12,7 @@
 | Spor | Kontroll-Claude | Branch / worktree | Status |
 |------|-----------------|-------------------|--------|
 | **TIMER-ARKITEKTUR** | denne Cowork-samtalen | `develop` | Aktiv — SPOR 2 (docs-routing) |
-| **NY-SERVER** | denne Cowork-samtalen (→ flyttes til ny samtale for migreringsfasen) | _(model 1: Kenneth utfører fra Mac, kontroll-Claude verifiserer)_ | **Fjerntilgang FULLFØRT 2026-06-08** (TPM + UEFI + Tailscale + SSH-herding). **Docker + tunnel `sitedoc-ny` oppe. SENDFIL MIGRERT 2026-06-08** (Docker, herdet, DNS flyttet — gammel sendfil stoppet som rollback). **Neste:** salsaklubb (krever Postgres-container + delt DNS/Stripe/Vipps), deretter sitedoc sist. |
+| **NY-SERVER** | egen Cowork-samtale | **worktree `../sitedoc-server`, branch `ny-server`** (model 1: Kenneth utfører fra Mac, kontroll-Claude verifiserer) | **MIGRERING FULLFØRT 2026-06-10 ✅** — alle tre apper i Docker på ny server: SENDFIL (2026-06-08), SALSAKLUBB (2026-06-09), SITEDOC (2026-06-10, test+prod, pgvector, ML, innlogget+tegninger+3D verifisert). Delt Postgres `pgvector/pgvector:pg16` + restic-backup (NVMe). Gamle apper stoppet som rollback. **Sitedoc-dev var fryst på TIMER-sporet under flyttingen.** Gjenstår: avvikle gamle (stopp + fjern fra gammel tunnel), off-disk-backup-disk, ODA for DWG, slett junk-DNS. NY-SERVER pusher kun til branch `ny-server`, aldri develop. |
 
 > **Kontekst:** Dagens server = Ubuntu under en Win-PC i daglig bruk, ukontrollert ukentlig restart (ustabil). NY-SERVER bygger et nytt, stabilt, sikrere oppsett. Begge spor deployer fra samme repo, men til **ulike mål** under overgangen: TIMER → dagens test/prod; NY-SERVER → nytt oppsett. Ingen kryssdeploy uten lås.
 
