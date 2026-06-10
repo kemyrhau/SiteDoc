@@ -12,7 +12,7 @@ services:
       PORT: "3001"
       HOST: "0.0.0.0"
       NORBERT_URL: "http://embed:3302"
-      # OVERSETTELSE_URL: "http://oversettelse:3303"   # VERIFISER env-navn i oversettelse-service.ts
+      OVERSETTELSE_URL: "http://oversettelse:3303"   # env-navn verifisert mot oversettelse-service.ts:11
     ports:
       - "127.0.0.1:3001:3001"
       - "127.0.0.1:3100:3100"   # web lytter her (deler api sitt nett-namespace)
