@@ -47,6 +47,15 @@ sitedoc-api  ──► oversettelse:3303   (OVERSETTELSE_URL)
 
 > ML-tjenestene må binde `0.0.0.0` for å nås cross-container (de bor i egne containere). `NORBERT_HOST=0.0.0.0` settes i compose; `oversettelse` binder `0.0.0.0` fast.
 
+### Hvorfor både Cloudflare og Tailscale
+
+De løser to ulike problemer og erstatter ikke hverandre:
+
+- **Cloudflare = offentlig inngang (for kundene).** Tunnelen kobler seg *ut* fra serveren til Cloudflare, så vi slipper å åpne porter eller ha fast offentlig IP hjemme. Cloudflare gir DNS, automatisk HTTPS/TLS, DDoS-/WAF-beskyttelse og skjuler serverens IP. Publikum er ikke på Tailscale-nettet, så de *må* nå appene via en offentlig vei.
+- **Tailscale = privat inngang (for drift).** Privat VPN mellom våre egne enheter — slik vi administrerer serveren (`ssh server-ny`) uten å eksponere SSH mot internett.
+
+Kort: **Cloudflare slipper kundene inn, Tailscale slipper oss inn.** På gammel server gikk SSH også via Cloudflare (`ssh.sitedoc.no`); den rollen flyttet til Tailscale. De er uavhengige — skulle Cloudflare ha trøbbel, kommer vi fortsatt inn via Tailscale for å fikse ting.
+
 ---
 
 ## 3. Hvordan deploye riktig
