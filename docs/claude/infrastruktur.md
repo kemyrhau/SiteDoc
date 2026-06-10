@@ -62,7 +62,7 @@ ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-com
 
 **Viktig:**
 - `ssh -t` (TTY) kreves for at `sudo` skal kunne lese passord.
-- Prisma-endringer: kjør migrasjoner mot Postgres-containeren (de fire klientene db/db-maskin/db-timer/db-varelager genereres i `Dockerfile.api`-bygget).
+- Prisma-endringer: de fire klientene (db/db-maskin/db-timer/db-varelager) genereres i `Dockerfile.api`-bygget, men `prisma migrate deploy` mot Postgres-containeren er **ikke automatisert ennå** — må kjøres manuelt ved schema-endring (åpent punkt, jf. `deploy.sh`).
 - Rebuild/restart gir et kort avbrudd — varsle ved aktivitet.
 - Cutover (DNS-flytt) for `sitedoc.no`/`api.sitedoc.no` gjøres via **Cloudflare-dashboard** (egen sone — cloudflared CLI ruter feil her, jf. salsaklubb-lærdom).
 
@@ -163,7 +163,7 @@ Env ligger nå i `~/stack/sitedoc/docker/env/` (lest av compose via `env_file`):
 
 Test-databasen `sitedoc_test` finnes i den delte Postgres-containeren (restoret med `pg_restore --no-owner` + `REFRESH COLLATION VERSION`). Test ble validert via samme Docker-stack under generalprøven før cutover.
 
-> **Gjenstår (valgfritt):** et permanent, alltid-på test-miljø (`test.sitedoc.no`) på ny server med egen compose/containere er ikke re-etablert ennå (gammelt test var PM2 `sitedoc-test-*`). Settes opp ved behov.
+> **TODO (viktig — ikke gjort ennå):** `test.sitedoc.no` skal ha **egne containere** (test-web/-api/-ml, egen compose eller compose-profil, mot `sitedoc_test`-DB) som speiler prod. Uten det kan man ikke verifisere en deploy før prod — som er hele poenget med et test-miljø. Gammelt test var PM2 `sitedoc-test-*` på gammel server. Settes opp som del av deploy-pipeline-modningen (sammen med automatisert `prisma migrate deploy`).
 
 ## EAS Build og TestFlight
 
