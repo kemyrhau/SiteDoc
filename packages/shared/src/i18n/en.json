@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Meeting points — help",
   "firma.oppmotested.hjelp.hva": "Meeting points are the company's fixed offices or workshops. Each has a GPS position and a radius (geofence).",
   "firma.oppmotested.hjelp.gps": "When an employee starts the day in the app, the phone recognises which meeting point they are within and suggests it. This is only a suggestion — hours are never created automatically.",
-  "firma.oppmotested.hjelp.personvern": "The position is used locally on the phone as documentation of where the day started. It is not a basis for pay, and pay is always anchored to the employment contract."
+  "firma.oppmotested.hjelp.personvern": "The position is used locally on the phone as documentation of where the day started. It is not a basis for pay, and pay is always anchored to the employment contract.",
+  "firma.oppmotested.hjelp.adresse": "Enter the address and click “Geocode” to fetch the coordinates automatically. You can fine-tune by clicking the map or editing the coordinates directly.",
+  "firma.oppmotested.geokod": "Geocode",
+  "firma.oppmotested.geokodLaster": "Searching …",
+  "firma.oppmotested.geokodIngen": "No match found for the address. Adjust it, or place the point manually on the map.",
+  "firma.oppmotested.kartHjelp": "Click or drag the marker to adjust the position. The circle shows the geofence radius."
 }

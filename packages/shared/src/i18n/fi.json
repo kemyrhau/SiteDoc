@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Tapaamispaikat - apua",
   "firma.oppmotested.hjelp.hva": "Tapaamispaikat ovat yrityksen kiinteät toimistot tai työpajat. Jokaisella on GPS-sijainti ja säde (geoaita).",
   "firma.oppmotested.hjelp.gps": "Kun työntekijä aloittaa päivän sovelluksessa, puhelin tunnistaa missä kohtaamispisteessä hän on ja ehdottaa sitä. Tämä on vain ehdotus – tunteja ei koskaan luoda automaattisesti.",
-  "firma.oppmotested.hjelp.personvern": "Sijaintia käytetään paikallisesti puhelimessa dokumentointina siitä, mistä päivä alkoi. Se ei ole palkan peruste, vaan palkka on aina ankkuroitu työsopimukseen."
+  "firma.oppmotested.hjelp.personvern": "Sijaintia käytetään paikallisesti puhelimessa dokumentointina siitä, mistä päivä alkoi. Se ei ole palkan peruste, vaan palkka on aina ankkuroitu työsopimukseen.",
+  "firma.oppmotested.hjelp.adresse": "Anna osoite ja napsauta \"Geokoodi\" hakeaksesi koordinaatit automaattisesti. Voit hienosäätää napsauttamalla karttaa tai muokkaamalla koordinaatteja suoraan.",
+  "firma.oppmotested.geokod": "Geokoodi",
+  "firma.oppmotested.geokodLaster": "Haetaan…",
+  "firma.oppmotested.geokodIngen": "Osoitetta ei löytynyt. Säädä sitä tai aseta piste manuaalisesti kartalle.",
+  "firma.oppmotested.kartHjelp": "Napsauta tai vedä merkkiä säätääksesi sijaintia. Ympyrä näyttää geoaidan säteen."
 }

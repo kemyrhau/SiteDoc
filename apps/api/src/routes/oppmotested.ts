@@ -7,6 +7,7 @@ import {
   autoriserAdminForFirma,
   verifiserOrganisasjonTilgang,
 } from "../trpc/tilgangskontroll";
+import { geokodAdresse } from "../services/rute-service";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -94,6 +95,20 @@ export const oppmotestedRouter = router({
         },
         orderBy: { navn: "asc" },
       });
+    }),
+
+  // Geokod en adresse → koordinat (firma-admin). Fyller lat/lng i UI; lagret
+  // verdi = feltene (kart-klikk/manuell override bevart). Null-treff → null.
+  geokod: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        adresse: z.string().min(1).max(500),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      return geokodAdresse(input.adresse);
     }),
 
   // Opprett nytt oppmøtested

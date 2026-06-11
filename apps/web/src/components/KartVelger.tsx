@@ -22,6 +22,8 @@ interface KartVelgerProps {
   onVelgPosisjon: (lat: number, lng: number) => void;
   disabled?: boolean;
   hoyde?: string;
+  /** Valgfri geofence-radius i meter — tegner en sirkel rundt markøren. */
+  radiusM?: number | null;
 }
 
 export function KartVelger({
@@ -30,10 +32,15 @@ export function KartVelger({
   onVelgPosisjon,
   disabled = false,
   hoyde = "300px",
+  radiusM,
 }: KartVelgerProps) {
   const kartRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markorRef = useRef<L.Marker | null>(null);
+  const sirkelRef = useRef<L.Circle | null>(null);
+  // Siste radius tilgjengelig for klikk/dra-handlere som registreres én gang.
+  const radiusRef = useRef<number | null | undefined>(radiusM);
+  radiusRef.current = radiusM;
 
   // Standard: Oslo
   const defaultLat = 59.91;
@@ -43,6 +50,30 @@ export function KartVelger({
   const senterLat = harKoordinater ? latitude : defaultLat;
   const senterLng = harKoordinater ? longitude : defaultLng;
   const zoom = harKoordinater ? 15 : 5;
+
+  // Tegn/flytt/fjern radius-sirkelen. Trygt å kalle uten kart (no-op).
+  function syncSirkel(lat: number, lng: number) {
+    const map = mapRef.current;
+    if (!map) return;
+    const r = radiusRef.current;
+    if (r != null && r > 0) {
+      if (sirkelRef.current) {
+        sirkelRef.current.setLatLng([lat, lng]);
+        sirkelRef.current.setRadius(r);
+      } else {
+        sirkelRef.current = L.circle([lat, lng], {
+          radius: r,
+          color: "#1e40af",
+          fillColor: "#3b82f6",
+          fillOpacity: 0.12,
+          weight: 1,
+        }).addTo(map);
+      }
+    } else if (sirkelRef.current) {
+      sirkelRef.current.remove();
+      sirkelRef.current = null;
+    }
+  }
 
   useEffect(() => {
     if (!kartRef.current || mapRef.current) return;
@@ -61,10 +92,12 @@ export function KartVelger({
         icon: markorIkon,
         draggable: !disabled,
       }).addTo(map);
+      syncSirkel(latitude, longitude);
 
       if (!disabled) {
         markorRef.current.on("dragend", () => {
           const pos = markorRef.current!.getLatLng();
+          syncSirkel(pos.lat, pos.lng);
           onVelgPosisjon(pos.lat, pos.lng);
         });
       }
@@ -85,10 +118,12 @@ export function KartVelger({
 
           markorRef.current.on("dragend", () => {
             const pos = markorRef.current!.getLatLng();
+            syncSirkel(pos.lat, pos.lng);
             onVelgPosisjon(pos.lat, pos.lng);
           });
         }
 
+        syncSirkel(lat, lng);
         onVelgPosisjon(lat, lng);
       });
     }
@@ -100,11 +135,12 @@ export function KartVelger({
       map.remove();
       mapRef.current = null;
       markorRef.current = null;
+      sirkelRef.current = null;
     };
     // eslint-disable-next-line
   }, []);
 
-  // Oppdater markør når koordinater endres eksternt
+  // Oppdater markør + sirkel når koordinater/radius endres eksternt
   useEffect(() => {
     if (!mapRef.current) return;
 
@@ -117,13 +153,21 @@ export function KartVelger({
           draggable: !disabled,
         }).addTo(mapRef.current);
       }
+      syncSirkel(latitude, longitude);
       mapRef.current.setView([latitude, longitude], 15);
-    } else if (markorRef.current) {
-      markorRef.current.remove();
-      markorRef.current = null;
+    } else {
+      if (markorRef.current) {
+        markorRef.current.remove();
+        markorRef.current = null;
+      }
+      if (sirkelRef.current) {
+        sirkelRef.current.remove();
+        sirkelRef.current = null;
+      }
       mapRef.current.setView([defaultLat, defaultLng], 5);
     }
-  }, [latitude, longitude, harKoordinater, disabled]);
+    // eslint-disable-next-line
+  }, [latitude, longitude, harKoordinater, disabled, radiusM]);
 
   return (
     <div

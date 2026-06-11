@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Miejsca spotkań — pomoc",
   "firma.oppmotested.hjelp.hva": "Miejscem spotkań są stałe biura lub warsztaty firmy. Każdy z nich ma pozycję GPS i promień (geofence).",
   "firma.oppmotested.hjelp.gps": "Gdy pracownik rozpoczyna dzień w aplikacji, telefon rozpoznaje, w którym miejscu spotkania się znajduje i podpowiada mu to. To tylko sugestia – godziny nigdy nie są tworzone automatycznie.",
-  "firma.oppmotested.hjelp.personvern": "Pozycja jest używana lokalnie w telefonie jako dokumentacja tego, gdzie rozpoczął się dzień. Nie stanowi ono podstawy wynagrodzenia, a wynagrodzenie jest zawsze powiązane z umową o pracę."
+  "firma.oppmotested.hjelp.personvern": "Pozycja jest używana lokalnie w telefonie jako dokumentacja tego, gdzie rozpoczął się dzień. Nie stanowi ono podstawy wynagrodzenia, a wynagrodzenie jest zawsze powiązane z umową o pracę.",
+  "firma.oppmotested.hjelp.adresse": "Wpisz adres i kliknij „Geokod”, aby automatycznie pobrać współrzędne. Możesz dostroić, klikając mapę lub bezpośrednio edytując współrzędne.",
+  "firma.oppmotested.geokod": "Geokod",
+  "firma.oppmotested.geokodLaster": "Wyszukiwanie…",
+  "firma.oppmotested.geokodIngen": "Nie znaleziono dopasowania dla adresu. Dostosuj go lub umieść punkt ręcznie na mapie.",
+  "firma.oppmotested.kartHjelp": "Kliknij lub przeciągnij znacznik, aby dostosować położenie. Okrąg pokazuje promień geofence."
 }

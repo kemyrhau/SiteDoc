@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Tikšanās vietas — palīdzība",
   "firma.oppmotested.hjelp.hva": "Tikšanās vietas ir uzņēmuma stacionārie biroji vai darbnīcas. Katram no tiem ir GPS pozīcija un rādiuss (ģeožogs).",
   "firma.oppmotested.hjelp.gps": "Kad darbinieks sāk dienu lietotnē, tālrunis atpazīst, kurā tikšanās punktā viņš atrodas, un iesaka to. Tas ir tikai ieteikums — stundas nekad netiek izveidotas automātiski.",
-  "firma.oppmotested.hjelp.personvern": "Pozīcija tiek izmantota lokāli pa tālruni kā dokumentācija par to, kur diena sākās. Tas nav atalgojuma pamats, un atalgojums vienmēr ir piesaistīts darba līgumam."
+  "firma.oppmotested.hjelp.personvern": "Pozīcija tiek izmantota lokāli pa tālruni kā dokumentācija par to, kur diena sākās. Tas nav atalgojuma pamats, un atalgojums vienmēr ir piesaistīts darba līgumam.",
+  "firma.oppmotested.hjelp.adresse": "Ievadiet adresi un noklikšķiniet uz “Ģeokods”, lai automātiski iegūtu koordinātas. Varat precīzi noregulēt, noklikšķinot uz kartes vai tieši rediģējot koordinātas.",
+  "firma.oppmotested.geokod": "Ģeokods",
+  "firma.oppmotested.geokodLaster": "Notiek meklēšana…",
+  "firma.oppmotested.geokodIngen": "Adresei nav atrasta atbilstība. Pielāgojiet to vai novietojiet punktu manuāli kartē.",
+  "firma.oppmotested.kartHjelp": "Noklikšķiniet vai velciet marķieri, lai pielāgotu pozīciju. Aplis parāda ģeožoga rādiusu."
 }

@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Puncte de întâlnire — ajutor",
   "firma.oppmotested.hjelp.hva": "Punctele de întâlnire sunt birourile fixe sau atelierele companiei. Fiecare are o poziție GPS și o rază (geofence).",
   "firma.oppmotested.hjelp.gps": "Când un angajat își începe ziua în aplicație, telefonul recunoaște punctul de întâlnire în care se află și îl sugerează. Aceasta este doar o sugestie - orele nu sunt niciodată create automat.",
-  "firma.oppmotested.hjelp.personvern": "Poziția este utilizată local pe telefon ca documentare a locului în care a început ziua. Nu este o bază pentru salariu, iar salariul este întotdeauna ancorat de contractul de muncă."
+  "firma.oppmotested.hjelp.personvern": "Poziția este utilizată local pe telefon ca documentare a locului în care a început ziua. Nu este o bază pentru salariu, iar salariul este întotdeauna ancorat de contractul de muncă.",
+  "firma.oppmotested.hjelp.adresse": "Introduceți adresa și faceți clic pe „Geocode” pentru a prelua coordonatele automat. Puteți regla fin făcând clic pe hartă sau editând direct coordonatele.",
+  "firma.oppmotested.geokod": "Geocod",
+  "firma.oppmotested.geokodLaster": "Se caută…",
+  "firma.oppmotested.geokodIngen": "Nu s-a găsit nicio potrivire pentru adresa. Ajustați-l sau plasați punctul manual pe hartă.",
+  "firma.oppmotested.kartHjelp": "Faceți clic sau trageți marcatorul pentru a ajusta poziția. Cercul arată raza gardului geografic."
 }

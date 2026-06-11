@@ -6,14 +6,20 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
-### Reisetid-matrise R1 (grunnmur) — PÅ DEVELOP 2026-06-11 (venter dual-review)
+### Reisetid-matrise R1 (grunnmur) + R2 (kontor-geokoding + kart) — PÅ DEVELOP 2026-06-11 (venter dual-review)
 
-Erstatter på sikt ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. R1 legger kun grunnmuren — ingen kallere ennå (R2 kontor-geokoding, R3 recompute-motor + triggere, R4 oppslag + mobil-cache kobler på). Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).
+Erstatter på sikt ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. R1+R2 legger grunnmur + kontor-geokoding — matrise-rader skrives først i R3 (recompute-motor + triggere); R4 = oppslag + mobil-cache. Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).
 
+**R1 (grunnmur):**
 - **Schema (kjerne):** ny `ReisetidMatrise` i `packages/db` (søsken til `Oppmotested` — geo-infra, KS-3): `{ organizationId (denormalisert), oppmotestedId + byggeplassId (begge FK Cascade), kjoretidMin, kilde, beregnetAt }`, `@@unique([oppmotestedId, byggeplassId])`. Migrasjon `20260611120000_reisetid_matrise` (additiv `CREATE TABLE`).
 - **Rute-service:** `apps/api/src/services/rute-service.ts` — keyless `geokodAdresse` (Nominatim) + `hentKjoretidMatrise` (OSRM `/table`, fler-kontor×fler-byggeplass i ett kall) bak provider-iface. Public OSM-default + valgfri `OSRM_BASE_URL`/`NOMINATIM_BASE_URL` (process.env, rører ingen `.env`). Alle feil → null (matrise = forslag-cache, aldri kritisk sti).
 - **kilde:** v1 skriver kun `"osrm"`; estimat-fallback beregnes live ved oppslag (R4), lagres aldri.
-- **Reload:** ingen mobil-endring (R1 er server/schema-only).
+
+**R2 (kontor-geokoding + kart):**
+- **Server:** nytt `oppmotested.geokod` (`oppmotested.ts`, firma-admin, `{organizationId, adresse}` → `{lat,lng}|null`). Ingen auto-geokoding i opprett/oppdater — knapp-trigget, lagret verdi = feltene.
+- **Web:** `OppmotestedModal` (`/dashbord/firma/oppmotesteder`) — «Geokod adresse»-knapp + dynamisk `KartVelger` (ssr:false) med punkt + geofence-sirkel, to-veis felt↔kart. `KartVelger.tsx` utvidet med valgfri `radiusM`-prop (`L.circle`, bakover-kompatibel). Manuell lat/lng + kart-klikk/dra som override.
+- **i18n:** `firma.oppmotested.geokod*` + `hjelp.adresse` (nb+en + 13 auto-språk). Hjelpetekst-linje lagt til.
+- **Reload:** ingen mobil-endring (R1+R2 er server/web-only).
 
 ### NorBERT cross-container-bind-fiks + doc-drift-opprydding — PÅ DEVELOP 2026-06-10 (deploy + prod-re-sjekk utestående)
 

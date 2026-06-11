@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Points de rendez-vous — aide",
   "firma.oppmotested.hjelp.hva": "Les points de rendez-vous sont les bureaux fixes ou les ateliers de l'entreprise. Chacun a une position GPS et un rayon (géofence).",
   "firma.oppmotested.hjelp.gps": "Lorsqu'un employé commence la journée dans l'application, le téléphone reconnaît à quel point de rendez-vous il se trouve et le suggère. Ceci n'est qu'une suggestion : les heures ne sont jamais créées automatiquement.",
-  "firma.oppmotested.hjelp.personvern": "La position est utilisée localement au téléphone comme documentation du début de la journée. Il ne s’agit pas d’une base de rémunération et la rémunération est toujours ancrée dans le contrat de travail."
+  "firma.oppmotested.hjelp.personvern": "La position est utilisée localement au téléphone comme documentation du début de la journée. Il ne s’agit pas d’une base de rémunération et la rémunération est toujours ancrée dans le contrat de travail.",
+  "firma.oppmotested.hjelp.adresse": "Entrez l'adresse et cliquez sur « Géocoder » pour récupérer automatiquement les coordonnées. Vous pouvez affiner le réglage en cliquant sur la carte ou en modifiant directement les coordonnées.",
+  "firma.oppmotested.geokod": "Géocodage",
+  "firma.oppmotested.geokodLaster": "Recherche…",
+  "firma.oppmotested.geokodIngen": "Aucune correspondance trouvée pour l'adresse. Ajustez-le ou placez le point manuellement sur la carte.",
+  "firma.oppmotested.kartHjelp": "Cliquez ou faites glisser le marqueur pour ajuster la position. Le cercle montre le rayon de la barrière géographique."
 }

@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Mötesplatser — hjälp",
   "firma.oppmotested.hjelp.hva": "Träffpunkter är företagets fasta kontor eller verkstäder. Var och en har en GPS-position och en radie (geofence).",
   "firma.oppmotested.hjelp.gps": "När en anställd börjar dagen i appen känner telefonen igen vilken mötesplats de befinner sig inom och föreslår det. Detta är bara ett förslag - timmar skapas aldrig automatiskt.",
-  "firma.oppmotested.hjelp.personvern": "Tjänsten används lokalt på telefon som dokumentation av var dagen började. Det är inte löneunderlag och lönen är alltid förankrad i anställningsavtalet."
+  "firma.oppmotested.hjelp.personvern": "Tjänsten används lokalt på telefon som dokumentation av var dagen började. Det är inte löneunderlag och lönen är alltid förankrad i anställningsavtalet.",
+  "firma.oppmotested.hjelp.adresse": "Ange adressen och klicka på \"Geokod\" för att hämta koordinaterna automatiskt. Du kan finjustera genom att klicka på kartan eller redigera koordinaterna direkt.",
+  "firma.oppmotested.geokod": "Geokod",
+  "firma.oppmotested.geokodLaster": "Söker …",
+  "firma.oppmotested.geokodIngen": "Ingen matchning hittades för adressen. Justera den eller placera punkten manuellt på kartan.",
+  "firma.oppmotested.kartHjelp": "Klicka eller dra markören för att justera positionen. Cirkeln visar geofenceradien."
 }

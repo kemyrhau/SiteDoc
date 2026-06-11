@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Susitikimo taškai – pagalba",
   "firma.oppmotested.hjelp.hva": "Susitikimo taškai yra įmonės nuolatiniai biurai arba dirbtuvės. Kiekvienas turi GPS padėtį ir spindulį (geotvorą).",
   "firma.oppmotested.hjelp.gps": "Kai darbuotojas pradeda dieną programėlėje, telefonas atpažįsta, kuriame susitikimo taške jis yra, ir pasiūlo tai. Tai tik pasiūlymas – valandos niekada nėra sukuriamos automatiškai.",
-  "firma.oppmotested.hjelp.personvern": "Pozicija naudojama lokaliai telefone kaip dokumentas, kur prasidėjo diena. Tai nėra darbo užmokesčio pagrindas, o atlyginimas visada yra susietas su darbo sutartimi."
+  "firma.oppmotested.hjelp.personvern": "Pozicija naudojama lokaliai telefone kaip dokumentas, kur prasidėjo diena. Tai nėra darbo užmokesčio pagrindas, o atlyginimas visada yra susietas su darbo sutartimi.",
+  "firma.oppmotested.hjelp.adresse": "Įveskite adresą ir spustelėkite „Geokodas“, kad automatiškai gautumėte koordinates. Galite tiksliai sureguliuoti spustelėdami žemėlapį arba tiesiogiai redaguodami koordinates.",
+  "firma.oppmotested.geokod": "Geokodas",
+  "firma.oppmotested.geokodLaster": "Ieškoma…",
+  "firma.oppmotested.geokodIngen": "Adreso atitikmenų nerasta. Sureguliuokite jį arba rankiniu būdu padėkite tašką žemėlapyje.",
+  "firma.oppmotested.kartHjelp": "Spustelėkite arba vilkite žymeklį, kad sureguliuotumėte padėtį. Apskritimas rodo geotvoros spindulį."
 }

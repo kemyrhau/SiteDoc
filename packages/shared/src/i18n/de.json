@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Treffpunkte – Hilfe",
   "firma.oppmotested.hjelp.hva": "Treffpunkte sind die festen Büros oder Werkstätten des Unternehmens. Jeder hat eine GPS-Position und einen Radius (Geofence).",
   "firma.oppmotested.hjelp.gps": "Wenn ein Mitarbeiter den Tag in der App beginnt, erkennt das Telefon, an welchem ​​Treffpunkt er sich befindet, und schlägt ihn vor. Dies ist nur ein Vorschlag – Stunden werden nie automatisch erstellt.",
-  "firma.oppmotested.hjelp.personvern": "Die Position wird lokal am Telefon als Dokumentation verwendet, wo der Tag begonnen hat. Es stellt keine Entgeltgrundlage dar und die Entlohnung ist stets im Arbeitsvertrag verankert."
+  "firma.oppmotested.hjelp.personvern": "Die Position wird lokal am Telefon als Dokumentation verwendet, wo der Tag begonnen hat. Es stellt keine Entgeltgrundlage dar und die Entlohnung ist stets im Arbeitsvertrag verankert.",
+  "firma.oppmotested.hjelp.adresse": "Geben Sie die Adresse ein und klicken Sie auf „Geokodieren“, um die Koordinaten automatisch abzurufen. Sie können eine Feinabstimmung vornehmen, indem Sie auf die Karte klicken oder die Koordinaten direkt bearbeiten.",
+  "firma.oppmotested.geokod": "Geokodieren",
+  "firma.oppmotested.geokodLaster": "Suche …",
+  "firma.oppmotested.geokodIngen": "Für die Adresse wurde keine Übereinstimmung gefunden. Passen Sie es an oder platzieren Sie den Punkt manuell auf der Karte.",
+  "firma.oppmotested.kartHjelp": "Klicken oder ziehen Sie die Markierung, um die Position anzupassen. Der Kreis zeigt den Geofence-Radius."
 }

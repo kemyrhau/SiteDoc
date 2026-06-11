@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Oppmøtesteder — hjelp",
   "firma.oppmotested.hjelp.hva": "Oppmøtesteder er firmaets faste kontorer eller verksteder. Hvert sted har en GPS-posisjon og en radius (geofence).",
   "firma.oppmotested.hjelp.gps": "Når en ansatt starter dagen i appen, kjenner mobilen igjen hvilket oppmøtested de er innenfor og foreslår dette. Dette er kun et forslag — det opprettes aldri timer automatisk.",
-  "firma.oppmotested.hjelp.personvern": "Posisjonen brukes lokalt på telefonen som dokumentasjon av hvor dagen startet. Den er ikke lønnsgrunnlag, og lønn ankres alltid på arbeidsavtalen."
+  "firma.oppmotested.hjelp.personvern": "Posisjonen brukes lokalt på telefonen som dokumentasjon av hvor dagen startet. Den er ikke lønnsgrunnlag, og lønn ankres alltid på arbeidsavtalen.",
+  "firma.oppmotested.hjelp.adresse": "Skriv inn adressen og trykk «Geokod» for å hente koordinatene automatisk. Du kan finjustere ved å klikke på kartet eller redigere koordinatene direkte.",
+  "firma.oppmotested.geokod": "Geokod",
+  "firma.oppmotested.geokodLaster": "Søker …",
+  "firma.oppmotested.geokodIngen": "Fant ingen treff på adressen. Juster den, eller sett punktet manuelt på kartet.",
+  "firma.oppmotested.kartHjelp": "Klikk eller dra markøren for å justere posisjonen. Sirkelen viser geofence-radiusen."
 }

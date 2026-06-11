@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Pikat e takimit - ndihmë",
   "firma.oppmotested.hjelp.hva": "Pikat e takimit janë zyrat ose punëtoritë fikse të kompanisë. Secili ka një pozicion GPS dhe një rreze (geofence).",
   "firma.oppmotested.hjelp.gps": "Kur një punonjës fillon ditën në aplikacion, telefoni njeh se në cilën pikë takimi janë dhe e sugjeron atë. Ky është vetëm një sugjerim - orët nuk krijohen kurrë automatikisht.",
-  "firma.oppmotested.hjelp.personvern": "Pozicioni përdoret lokalisht në telefon si dokumentacion se ku filloi dita. Nuk është një bazë për pagesë dhe paga është gjithmonë e ankoruar në kontratën e punës."
+  "firma.oppmotested.hjelp.personvern": "Pozicioni përdoret lokalisht në telefon si dokumentacion se ku filloi dita. Nuk është një bazë për pagesë dhe paga është gjithmonë e ankoruar në kontratën e punës.",
+  "firma.oppmotested.hjelp.adresse": "Futni adresën dhe klikoni \"Gjeokod\" për të marrë koordinatat automatikisht. Mund të rregulloni mirë duke klikuar hartën ose duke redaktuar drejtpërdrejt koordinatat.",
+  "firma.oppmotested.geokod": "Gjeokodi",
+  "firma.oppmotested.geokodLaster": "Po kërkon…",
+  "firma.oppmotested.geokodIngen": "Nuk u gjet asnjë përputhje për adresën. Rregullojeni atë ose vendosni pikën manualisht në hartë.",
+  "firma.oppmotested.kartHjelp": "Klikoni ose tërhiqni shënuesin për të rregulluar pozicionin. Rrethi tregon rrezen e gjeofences."
 }

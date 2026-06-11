@@ -2494,5 +2494,10 @@
   "firma.oppmotested.hjelp.tittel": "Kohtumispunktid — abi",
   "firma.oppmotested.hjelp.hva": "Kohtumispunktid on ettevõtte kindlad kontorid või töökojad. Igal neist on GPS-positsioon ja raadius (geopiirkond).",
   "firma.oppmotested.hjelp.gps": "Kui töötaja alustab päeva rakenduses, tunneb telefon ära, millises kohtumispunktis ta viibib ja soovitab seda. See on vaid soovitus – tunde ei looda kunagi automaatselt.",
-  "firma.oppmotested.hjelp.personvern": "Asendit kasutatakse telefonis kohapeal dokumentatsioonina selle kohta, kus päev algas. See ei ole töötasu aluseks ja tasu on alati töölepinguga ankurdatud."
+  "firma.oppmotested.hjelp.personvern": "Asendit kasutatakse telefonis kohapeal dokumentatsioonina selle kohta, kus päev algas. See ei ole töötasu aluseks ja tasu on alati töölepinguga ankurdatud.",
+  "firma.oppmotested.hjelp.adresse": "Sisestage aadress ja klõpsake koordinaatide automaatseks toomiseks \"Geokood\". Saate täpsustada, klõpsates kaardil või muutes koordinaate otse.",
+  "firma.oppmotested.geokod": "Geokood",
+  "firma.oppmotested.geokodLaster": "Otsimine…",
+  "firma.oppmotested.geokodIngen": "Aadressile ei leitud vastet. Reguleerige seda või asetage punkt käsitsi kaardile.",
+  "firma.oppmotested.kartHjelp": "Asukoha reguleerimiseks klõpsake või lohistage markerit. Ring näitab geotara raadiust."
 }
