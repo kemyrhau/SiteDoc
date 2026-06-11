@@ -524,6 +524,14 @@ Eksisterende `apps/web/src/components/FlytIndikator.tsx` (199 linjer) og `apps/w
 
 `firma/innstillinger` er blitt uoversiktlig, og enkelte modul-koblinger havner adskilt fra det de hører til (f.eks. maskin-side ved en innstillingsknapp — må diskuteres). Mye har fornuftig plassering; dette gjelder primært innstillinger + noen spredte enkeltsider, ikke en total omskriving. Plan: dedikert sesjon med full IA-analyse — enumerér alle innstillings-/modul-ruter, mål mot domene-arbeidsflyt + tre-nivå-arkitektur, foreslå logiske grupperinger + ny navigasjonsstruktur med visuelle mockups. Bygg på [navigasjon-arkitektur-analyse-2026-05-03](navigasjon-arkitektur-analyse-2026-05-03.md), [ux-arkitektur-agenda](ux-arkitektur-agenda.md), [admin-navigasjon-analyse-2026-05-03](admin-navigasjon-analyse-2026-05-03.md), [domene-arbeidsflyt](domene-arbeidsflyt.md). Ingen ad-hoc flytting underveis — samles til én restrukturering. Trigget av reise-matrise-knapp-plassering (R3, 2026-06-11).
 
+### Hilsen viser ekte admin-navn under impersonering (funn 2026-06-11) 🟡
+
+Toppbar-hilsenen bruker `useSession()` (ekte innlogget bruker), ikke impersonerings-bevisst kontekst → viser `sitedoc_admin` sitt navn mens man impersonerer. Uavhengig, isolert fiks (impersonerings-bevisst bruker-kontekst i hilsenen). Lav prioritet. Kilde: `funn-impersonering-og-prosjektoppsett.md`.
+
+### kom-i-gang viser «første prosjekt»-onboarding feilaktig (funn 2026-06-11) 🟡
+
+`kom-i-gang` viser «første prosjekt»-onboarding for ikke-admin selv med valgt prosjekt; redirect kun for `sitedoc_admin`, mangler prosjekt-guard. Sannsynligvis erstattet av planlagt prosjektoppsett-omstrukturering (firma-malprosjekt) → knytt til IA/restrukturerings-saken over, ikke isolert fiks. Kilde: `funn-impersonering-og-prosjektoppsett.md`.
+
 ### 3D/IFC/georeferanse
 
 Status og roadmap dokumentert i Claude-memory (`project_3d_status.md`,
