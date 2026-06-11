@@ -520,6 +520,10 @@ Bør speile mobil-modellen: flyt-bokser alltid synlig, klikkbare, popup med stat
 
 Eksisterende `apps/web/src/components/FlytIndikator.tsx` (199 linjer) og `apps/web/src/components/StatusHandlinger.tsx` (278 linjer) kan gjenbrukes som byggesteiner. Server-API (`oppgave.hentTilgjengeligeFlyter` + utvidet `endreStatus`-tilgang) er allerede i prod (`4968a23c`) og kan konsumeres uten endring.
 
+### Innstillinger + IA/UX-restrukturering (egen sesjon, etter R-fasene) 🟡
+
+`firma/innstillinger` er blitt uoversiktlig, og enkelte modul-koblinger havner adskilt fra det de hører til (f.eks. maskin-side ved en innstillingsknapp — må diskuteres). Mye har fornuftig plassering; dette gjelder primært innstillinger + noen spredte enkeltsider, ikke en total omskriving. Plan: dedikert sesjon med full IA-analyse — enumerér alle innstillings-/modul-ruter, mål mot domene-arbeidsflyt + tre-nivå-arkitektur, foreslå logiske grupperinger + ny navigasjonsstruktur med visuelle mockups. Bygg på [navigasjon-arkitektur-analyse-2026-05-03](navigasjon-arkitektur-analyse-2026-05-03.md), [ux-arkitektur-agenda](ux-arkitektur-agenda.md), [admin-navigasjon-analyse-2026-05-03](admin-navigasjon-analyse-2026-05-03.md), [domene-arbeidsflyt](domene-arbeidsflyt.md). Ingen ad-hoc flytting underveis — samles til én restrukturering. Trigget av reise-matrise-knapp-plassering (R3, 2026-06-11).
+
 ### 3D/IFC/georeferanse
 
 Status og roadmap dokumentert i Claude-memory (`project_3d_status.md`,
