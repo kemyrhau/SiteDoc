@@ -101,6 +101,19 @@ export const oppmotestedRouter = router({
       });
     }),
 
+  // R4: member-lesbar reisetid-matrise for firmaet (mobil-cache). Speiler
+  // hentForFirma-mønsteret (verifiserOrganisasjonTilgang). Kun feltene
+  // mobil-oppslaget trenger.
+  hentMatriseForFirma: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+      return ctx.prisma.reisetidMatrise.findMany({
+        where: { organizationId: input.organizationId },
+        select: { oppmotestedId: true, byggeplassId: true, kjoretidMin: true },
+      });
+    }),
+
   // Geokod en adresse → koordinat (firma-admin). Fyller lat/lng i UI; lagret
   // verdi = feltene (kart-klikk/manuell override bevart). Null-treff → null.
   geokod: protectedProcedure

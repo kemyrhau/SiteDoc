@@ -2,11 +2,33 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createByggeplassSchema } from "@sitedoc/shared";
-import { verifiserAdmin, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import {
+  verifiserAdmin,
+  verifiserProsjektmedlem,
+  verifiserOrganisasjonTilgang,
+} from "../trpc/tilgangskontroll";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { recomputeRadForByggeplass } from "../services/reisetidMatrise";
 
 export const byggeplassRouter = router({
+  // R4: member-lesbar liste over firmaets byggeplasser (mobil-cache for
+  // reisetid-matrise → prosjekt→primær-byggeplass-resolusjon). Firma-scopet via
+  // project.primaryOrganizationId. Kun lette felt (id/projectId/number/status).
+  hentForFirma: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+      return ctx.prisma.byggeplass.findMany({
+        where: { project: { primaryOrganizationId: input.organizationId } },
+        select: {
+          id: true,
+          projectId: true,
+          number: true,
+          status: true,
+        },
+      });
+    }),
+
   // Hent alle byggeplasser for et prosjekt
   hentForProsjekt: protectedProcedure
     .input(z.object({

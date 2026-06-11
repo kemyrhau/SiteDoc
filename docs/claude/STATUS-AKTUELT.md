@@ -6,9 +6,15 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
-### Reisetid-matrise R1 (grunnmur) + R2 (kontor-geokoding + kart) + R3 (recompute-motor) — PÅ DEVELOP 2026-06-11 (venter dual-review)
+### Reisetid-matrise R1–R4 (komplett serie) — PÅ DEVELOP 2026-06-11 (venter dual-review)
 
-Erstatter på sikt ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. R1+R2+R3 = grunnmur + kontor-geokoding + matrise-fylling; R4 = oppslag (erstatte `estimerReisetidMin`-kallet i `StartSluttDagKort:371`) + mobil-cache (ikke startet). Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).
+Erstatter ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. **R1** grunnmur (schema + rute-service) · **R2** kontor-geokoding + kart · **R3** recompute-motor + triggere · **R4** oppslag + mobil-cache. Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).
+
+**R4 (oppslag + mobil-cache):**
+- **Server:** member-lesbare `oppmotested.hentMatriseForFirma` + `bygning.hentForFirma` (firma-scopet via `project.primaryOrganizationId`).
+- **Mobil-cache:** `reisetid_matrise_local` + `byggeplass_local` (id/projectId/number/status, ingen koord) via nye `reisetidMatriseKatalog`/`byggeplassKatalog`, refresh wiret i `TimerSyncProvider`.
+- **Oppslag (`StartSluttDagKort:371`):** GPS-kontor (`arbeidsdag_local.oppmotestedId`) → prosjektets **primær-byggeplass** (`resolverPrimaerByggeplass`: kandidater m/matrise-rad, published først → lavest number null-sist → id) → matrise-oppslag. `≥0`→faktisk reisetid, `<0`→ingen forslag, ingen rad→`estimerReisetidMin`-fallback. `total − reisetid`-formelen uendret.
+- **Reload: EAS/TestFlight** (mobil-endring). Fase 1c-mobil (eksplisitt byggeplass-GPS) egen fremtidig fase — R4 forward-kompatibel.
 
 **R3 (recompute-motor + triggere):**
 - **Service:** `apps/api/src/services/reisetidMatrise.ts` — `recomputeMatrise({organizationId, oppmotestedId?, byggeplassId?})` (kolonne/rad/full backfill). Firma-isolasjon HARD (kontorer på `organizationId`, byggeplasser på `project.primaryOrganizationId` — aldri kryssorg). Koord-fallback byggeplass→`Project.lat/lng`→hopp over. OSRM-batching chunks à `90−antallKontorer`. Uoppnåelig → `kjoretidMin=-1`.

@@ -364,6 +364,35 @@ export function kjorMigreringer() {
       ON equipment_local(organization_id);
   `);
 
+  // R4 (2026-06-11) — byggeplass_local + reisetid_matrise_local for
+  // reisetid-oppslag (kontor→primær-byggeplass → kjøretid). Refresh via
+  // byggeplassKatalog + reisetidMatriseKatalog.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS byggeplass_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      number INTEGER,
+      status TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_byggeplass_local_prosjekt
+      ON byggeplass_local(project_id);
+
+    CREATE TABLE IF NOT EXISTS reisetid_matrise_local (
+      organization_id TEXT NOT NULL,
+      oppmotested_id TEXT NOT NULL,
+      byggeplass_id TEXT NOT NULL,
+      kjoretid_min INTEGER NOT NULL,
+      sist_oppdatert INTEGER NOT NULL,
+      PRIMARY KEY (oppmotested_id, byggeplass_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_reisetid_matrise_local_org
+      ON reisetid_matrise_local(organization_id);
+  `);
+
   // T7-3b1 (2026-05-14) — per-rad project_id på alle tre rad-tabeller.
   // Server-skjemaet flyttet projectId til rad-nivå 2026-05-11 (T.1/PR 1B);
   // mobil-sync sendte fortsatt sedel-nivå med kompat-shim på server.

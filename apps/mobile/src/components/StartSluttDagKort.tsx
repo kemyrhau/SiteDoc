@@ -24,12 +24,17 @@ import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
 import { hentStandardLonnsartLokalt } from "../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../services/organizationSettingKatalog";
+import {
+  hentMatriseRadLokalt,
+  resolverPrimaerByggeplass,
+} from "../services/reisetidMatriseKatalog";
 
 type AktivDag = {
   id: string;
   startAt: string;
   startLat: number | null;
   startLng: number | null;
+  oppmotestedId: string | null;
   oppmotestedNavn: string | null;
 };
 
@@ -115,6 +120,7 @@ export function StartSluttDagKort() {
           startAt: rad.startAt,
           startLat: rad.startLat,
           startLng: rad.startLng,
+          oppmotestedId: rad.oppmotestedId ?? null,
           oppmotestedNavn: rad.oppmotestedNavn ?? null,
         }
       : null;
@@ -166,6 +172,7 @@ export function StartSluttDagKort() {
         startAt: naaIso,
         startLat: lat,
         startLng: lng,
+        oppmotestedId: oppm?.id ?? null,
         oppmotestedNavn: oppm?.navn ?? null,
       });
     } finally {
@@ -352,54 +359,70 @@ function genererForslag(
   const totalTimer =
     Math.round(Math.max(0, bruttoTimer - effektiv.pauseMin / 60) * 100) / 100;
 
-  // Fase 3 (§ B): reise-forslag. KUN når oppmøtested ble identifisert ved start
-  // (kontor→byggeplass — hjem→arbeidssted kompenseres ikke). GPS-distanse
-  // start→slutt; reisetid ESTIMERES (fast-MVP, arbeider justerer). Klassifiseres
-  // mot firmaets terskel; 'reisetid' → egen reise-lønnsart-rad. Aldri auto-rad
-  // uten innsyn — havner i draft som forslag.
+  // Fase 3 (§ B) + R4: reise-forslag. KUN når oppmøtested ble identifisert ved
+  // start (kontor→byggeplass — hjem→arbeidssted kompenseres ikke). Reisetid =
+  // matrise-kjøretid (kontor→prosjektets primær-byggeplass; autoritativ,
+  // end-uavhengig). kjoretidMin < 0 = uoppnåelig → ingen forslag (ingen
+  // fallback). Ingen matrise-rad/byggeplass → graceful estimat-fallback
+  // (GPS-distanse start→slutt). Klassifiseres mot terskel; 'reisetid' → egen
+  // lønnsart-rad. Aldri auto-rad uten innsyn — havner i draft som forslag.
   const regel = hentOrganizationSettingLokalt(orgId);
   let reisetidTimer = 0;
   let reiseLonnsartId: string | null = null;
-  if (
-    dag.oppmotestedNavn &&
-    regel &&
-    dag.startLat != null &&
-    dag.startLng != null &&
-    endLat != null &&
-    endLng != null
-  ) {
-    const reisetidMin = estimerReisetidMin(
-      avstandMeter(
-        { lat: dag.startLat, lng: dag.startLng },
-        { lat: endLat, lng: endLng },
-      ),
+  if (dag.oppmotestedId && regel) {
+    let reisetidMin: number | null = null;
+    const byggeplassId = resolverPrimaerByggeplass(
+      valgtProsjekt.id,
+      dag.oppmotestedId,
     );
-    const kategori: ReiseKategori = klassifiserReise(reisetidMin, {
-      reiseTerskelMin: regel.reiseTerskelMin,
-      reiseUnderTerskelType: regel.reiseUnderTerskelType as ReiseKategori,
-      reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
-    });
-    if (kategori === "reisetid" && reisetidMin > 0) {
-      // Resolver reise-lønnsart: eksplisitt valgt (reiseLonnsartId), ellers
-      // navne-match ("reise/transport") — samme MVP-mønster som overtid under.
-      reiseLonnsartId = regel.reiseLonnsartId ?? null;
-      if (!reiseLonnsartId) {
-        const match = db
-          .select()
-          .from(lonnsartLocal)
-          .where(
-            and(
-              eq(lonnsartLocal.organizationId, orgId),
-              eq(lonnsartLocal.aktiv, true),
-            ),
-          )
-          .all()
-          .find((l) => /reise|transport/i.test(l.navn));
-        reiseLonnsartId = match?.id ?? null;
-      }
-      // Bare foreslå reisetid hvis vi faktisk har en art å føre den på.
-      if (reiseLonnsartId) {
-        reisetidTimer = Math.round((reisetidMin / 60) * 100) / 100;
+    if (byggeplassId) {
+      const rad = hentMatriseRadLokalt(dag.oppmotestedId, byggeplassId);
+      // -1 (uoppnåelig) → 0: ingen forslag, OG hopp over estimat-fallback.
+      if (rad) reisetidMin = rad.kjoretidMin < 0 ? 0 : rad.kjoretidMin;
+    }
+    // Fallback kun når matrisen ikke ga svar (ingen rad/byggeplass).
+    if (
+      reisetidMin == null &&
+      dag.startLat != null &&
+      dag.startLng != null &&
+      endLat != null &&
+      endLng != null
+    ) {
+      reisetidMin = estimerReisetidMin(
+        avstandMeter(
+          { lat: dag.startLat, lng: dag.startLng },
+          { lat: endLat, lng: endLng },
+        ),
+      );
+    }
+    if (reisetidMin != null && reisetidMin > 0) {
+      const kategori: ReiseKategori = klassifiserReise(reisetidMin, {
+        reiseTerskelMin: regel.reiseTerskelMin,
+        reiseUnderTerskelType: regel.reiseUnderTerskelType as ReiseKategori,
+        reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
+      });
+      if (kategori === "reisetid") {
+        // Resolver reise-lønnsart: eksplisitt valgt (reiseLonnsartId), ellers
+        // navne-match ("reise/transport") — samme MVP-mønster som overtid under.
+        reiseLonnsartId = regel.reiseLonnsartId ?? null;
+        if (!reiseLonnsartId) {
+          const match = db
+            .select()
+            .from(lonnsartLocal)
+            .where(
+              and(
+                eq(lonnsartLocal.organizationId, orgId),
+                eq(lonnsartLocal.aktiv, true),
+              ),
+            )
+            .all()
+            .find((l) => /reise|transport/i.test(l.navn));
+          reiseLonnsartId = match?.id ?? null;
+        }
+        // Bare foreslå reisetid hvis vi faktisk har en art å føre den på.
+        if (reiseLonnsartId) {
+          reisetidTimer = Math.round((reisetidMin / 60) * 100) / 100;
+        }
       }
     }
   }

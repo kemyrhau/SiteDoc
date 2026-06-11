@@ -1,4 +1,10 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  real,
+  primaryKey,
+} from "drizzle-orm/sqlite-core";
 
 /**
  * Lokal kopi av sjekkliste-utfylling.
@@ -303,6 +309,41 @@ export const oppmotestedLocal = sqliteTable("oppmotested_local", {
   radiusM: integer("radius_m").notNull().default(150),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
+
+/**
+ * byggeplass_local — offline-cache av firmaets byggeplasser (R4, 2026-06-11).
+ * KUN lette felt (id/projectId/number/status) for prosjekt→primær-byggeplass-
+ * resolusjon i reisetid-oppslaget. Ingen koordinater (matrisen bærer kjøretid).
+ * Refresh via byggeplassKatalog.refreshByggeplassKatalog. KUN lokal.
+ */
+export const byggeplassLocal = sqliteTable("byggeplass_local", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  projectId: text("project_id").notNull(),
+  number: integer("number"),
+  status: text("status"),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
+ * reisetid_matrise_local — offline-cache av firmaets reisetid-matrise (R4,
+ * 2026-06-11). Speiler server ReisetidMatrise: kjøretid (min) per
+ * [kontor × byggeplass]. kjoretidMin < 0 = uoppnåelig. Refresh via
+ * reisetidMatriseKatalog.refreshReisetidMatriseKatalog. KUN lokal.
+ */
+export const reisetidMatriseLocal = sqliteTable(
+  "reisetid_matrise_local",
+  {
+    organizationId: text("organization_id").notNull(),
+    oppmotestedId: text("oppmotested_id").notNull(),
+    byggeplassId: text("byggeplass_id").notNull(),
+    kjoretidMin: integer("kjoretid_min").notNull(),
+    sistOppdatert: integer("sist_oppdatert").notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.oppmotestedId, t.byggeplassId] }),
+  }),
+);
 
 /**
  * arbeidstidskalender_local — offline-cache av firma-kalender (T4-d / T9d
