@@ -1,5 +1,6 @@
 import { prisma } from "@sitedoc/db";
 import { beregnByggeplassGeofence, type GeoReferanse } from "@sitedoc/shared";
+import { recomputeRadForByggeplass } from "./reisetidMatrise";
 
 /**
  * Fase 1c: beregn og lagre byggeplass-geofence fra nyeste georefererte tegning.
@@ -51,5 +52,7 @@ export async function oppdaterByggeplassGeofence(
       radiusM: geofence.radiusM,
     },
   });
+  // R3: byggeplass-koordinat endret (success-sti) → recompute rad (fire-and-forget).
+  recomputeRadForByggeplass(byggeplassId);
   return geofence;
 }

@@ -8,6 +8,10 @@ import {
   verifiserOrganisasjonTilgang,
 } from "../trpc/tilgangskontroll";
 import { geokodAdresse } from "../services/rute-service";
+import {
+  recomputeMatrise,
+  recomputeMatriseIBakgrunn,
+} from "../services/reisetidMatrise";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -111,6 +115,15 @@ export const oppmotestedRouter = router({
       return geokodAdresse(input.adresse);
     }),
 
+  // R3: on-demand full firma-backfill av reisetid-matrisen (admin-only).
+  // Await-er (eksplisitt brukerhandling — vil ha antall rader / feil).
+  beregnMatrise: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
+      return recomputeMatrise({ organizationId: orgId });
+    }),
+
   // Opprett nytt oppmøtested
   opprett: protectedProcedure
     .input(
@@ -128,7 +141,7 @@ export const oppmotestedRouter = router({
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
       await verifiserAvdelingValgfri(input.avdelingId, orgId);
       try {
-        return await ctx.prisma.oppmotested.create({
+        const opprettet = await ctx.prisma.oppmotested.create({
           data: {
             organizationId: orgId,
             navn: input.navn.trim(),
@@ -139,6 +152,12 @@ export const oppmotestedRouter = router({
             avdelingId: input.avdelingId ?? null,
           },
         });
+        // R3: nytt kontor → recompute kolonne (fire-and-forget).
+        recomputeMatriseIBakgrunn({
+          organizationId: orgId,
+          oppmotestedId: opprettet.id,
+        });
+        return opprettet;
       } catch (e) {
         if (
           e instanceof Prisma.PrismaClientKnownRequestError &&
@@ -170,7 +189,7 @@ export const oppmotestedRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const orgId = await verifiserFirmaAdmin(ctx.userId, input.organizationId);
-      await hentOppmotestedForFirma(input.id, orgId);
+      const eksisterende = await hentOppmotestedForFirma(input.id, orgId);
       if (input.avdelingId !== undefined) {
         await verifiserAvdelingValgfri(input.avdelingId, orgId);
       }
@@ -189,10 +208,20 @@ export const oppmotestedRouter = router({
       }
 
       try {
-        return await ctx.prisma.oppmotested.update({
+        const oppdatert = await ctx.prisma.oppmotested.update({
           where: { id: input.id },
           data,
         });
+        // R3: recompute kolonne KUN hvis koordinatene faktisk endret seg.
+        const latEndret = input.lat !== undefined && input.lat !== eksisterende.lat;
+        const lngEndret = input.lng !== undefined && input.lng !== eksisterende.lng;
+        if (latEndret || lngEndret) {
+          recomputeMatriseIBakgrunn({
+            organizationId: orgId,
+            oppmotestedId: input.id,
+          });
+        }
+        return oppdatert;
       } catch (e) {
         if (
           e instanceof Prisma.PrismaClientKnownRequestError &&

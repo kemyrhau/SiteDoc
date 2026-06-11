@@ -919,6 +919,9 @@ function ReiseSeksjon() {
     },
   });
 
+  // R3: on-demand full firma-backfill av reisetid-matrisen (kontor × byggeplass).
+  const beregnMatrise = trpc.oppmotested.beregnMatrise.useMutation();
+
   const [terskel, setTerskel] = useState<string>("30");
   const [underType, setUnderType] = useState<string>("arbeidstid");
   const [overType, setOverType] = useState<string>("reisetid");
@@ -1071,6 +1074,39 @@ function ReiseSeksjon() {
       {oppdater.isError && (
         <p className="mt-3 text-sm text-red-500">{oppdater.error.message}</p>
       )}
+
+      <div className="mt-6 border-t border-gray-100 pt-4">
+        <h3 className="mb-1 text-sm font-medium text-gray-700">
+          {t("firma.innstillinger.reise.matriseTittel")}
+        </h3>
+        <p className="mb-3 text-xs text-gray-500">
+          {t("firma.innstillinger.reise.matriseBeskrivelse")}
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => beregnMatrise.mutate({ organizationId: orgId! })}
+            disabled={beregnMatrise.isPending}
+            className="rounded-md border border-sitedoc-primary px-4 py-2 text-sm font-medium text-sitedoc-primary hover:bg-sitedoc-primary/5 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {beregnMatrise.isPending
+              ? t("firma.innstillinger.reise.matriseBeregner")
+              : t("firma.innstillinger.reise.matriseBeregn")}
+          </button>
+          {beregnMatrise.isSuccess && (
+            <span className="text-xs text-sitedoc-success">
+              {t("firma.innstillinger.reise.matriseFerdig", {
+                antall: beregnMatrise.data.rader,
+              })}
+            </span>
+          )}
+          {beregnMatrise.isError && (
+            <span className="text-xs text-red-500">
+              {beregnMatrise.error.message}
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

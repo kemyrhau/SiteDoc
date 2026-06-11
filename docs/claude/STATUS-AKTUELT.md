@@ -6,9 +6,16 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
-### Reisetid-matrise R1 (grunnmur) + R2 (kontor-geokoding + kart) — PÅ DEVELOP 2026-06-11 (venter dual-review)
+### Reisetid-matrise R1 (grunnmur) + R2 (kontor-geokoding + kart) + R3 (recompute-motor) — PÅ DEVELOP 2026-06-11 (venter dual-review)
 
-Erstatter på sikt ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. R1+R2 legger grunnmur + kontor-geokoding — matrise-rader skrives først i R3 (recompute-motor + triggere); R4 = oppslag + mobil-cache. Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).
+Erstatter på sikt ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. R1+R2+R3 = grunnmur + kontor-geokoding + matrise-fylling; R4 = oppslag (erstatte `estimerReisetidMin`-kallet i `StartSluttDagKort:371`) + mobil-cache (ikke startet). Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).
+
+**R3 (recompute-motor + triggere):**
+- **Service:** `apps/api/src/services/reisetidMatrise.ts` — `recomputeMatrise({organizationId, oppmotestedId?, byggeplassId?})` (kolonne/rad/full backfill). Firma-isolasjon HARD (kontorer på `organizationId`, byggeplasser på `project.primaryOrganizationId` — aldri kryssorg). Koord-fallback byggeplass→`Project.lat/lng`→hopp over. OSRM-batching chunks à `90−antallKontorer`. Uoppnåelig → `kjoretidMin=-1`.
+- **Triggere:** `oppmotested.opprett`→kolonne, `oppdater` (kun ved lat/lng-endring)→kolonne, `slett`→FK-Cascade; byggeplass-koord begge skrivesteder (`oppdaterByggeplassGeofence` success + inline `settGeofence`)→rad. Fire-and-forget (lagring venter aldri på OSRM). Stale-rydding ved koord-tap; OSRM-feil beholder eksisterende.
+- **On-demand:** `oppmotested.beregnMatrise` (admin-only, await full backfill) + knapp i Reise-seksjonen (`firma/innstillinger`).
+- **R4-kontrakt dokumentert** (timer.md): `<0`→ingen forslag, fravær→live-fallback, `≥0`→faktisk tid.
+- **i18n:** 5 nye `firma.innstillinger.reise.matrise*` (nb+en + 13 språk). **Reload:** ingen mobil-endring.
 
 **R1 (grunnmur):**
 - **Schema (kjerne):** ny `ReisetidMatrise` i `packages/db` (søsken til `Oppmotested` — geo-infra, KS-3): `{ organizationId (denormalisert), oppmotestedId + byggeplassId (begge FK Cascade), kjoretidMin, kilde, beregnetAt }`, `@@unique([oppmotestedId, byggeplassId])`. Migrasjon `20260611120000_reisetid_matrise` (additiv `CREATE TABLE`).

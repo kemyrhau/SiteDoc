@@ -4,6 +4,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { createByggeplassSchema } from "@sitedoc/shared";
 import { verifiserAdmin, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
+import { recomputeRadForByggeplass } from "../services/reisetidMatrise";
 
 export const byggeplassRouter = router({
   // Hent alle byggeplasser for et prosjekt
@@ -129,7 +130,7 @@ export const byggeplassRouter = router({
         select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
-      return ctx.prisma.byggeplass.update({
+      const oppdatert = await ctx.prisma.byggeplass.update({
         where: { id: input.byggeplassId },
         data: {
           latitude: input.latitude,
@@ -137,6 +138,10 @@ export const byggeplassRouter = router({
           radiusM: input.radiusM,
         },
       });
+      // R3: manuell geofence-endring (inkl. nullstilling) → recompute rad
+      // (fire-and-forget; null-koord → stale-rydding i recomputeMatrise).
+      recomputeRadForByggeplass(input.byggeplassId);
+      return oppdatert;
     }),
 
   // Publiser byggeplass
