@@ -580,6 +580,8 @@ Tre idéer fanget 2026-06-09 etter at Fase 3 reise-MVP (estimat ×50 km/t, avvik
 
 - **Kontinuerlig GPS-logging for faktisk reisetid — KREVER PERSONVERN-VURDERING** 🔴 — App logger GPS kontinuerlig (midlertidig under reise) for *målt* reisetid (ankomst − avreise) i stedet for estimat. **Sporing av ansatte er regulert** (GDPR + arbeidsmiljølov, Datatilsynets praksis om lokasjonssporing). **Bygges IKKE uten personvern-/juridisk vurdering.** Reisetid-matrisen (over) dekker behovet for nøyaktighet uten kontinuerlig sporing — derfor er denne lavt prioritert og kun notert for fullstendighet.
 
+- **Matrise-trigger ved prosjekt-koordinat (fallback-luke, lav prioritet)** 🟢 — Byggeplass som kun bruker `Project.latitude/longitude`-fallback (uten georeferert tegning) får ingen auto-recompute ved opprettelse; ingen trigger fyrer på prosjekt-koordinat. Dekkes i dag av «beregn matrise»-knappen + graceful estimat-fallback i oppslaget. Fiks når ønsket: trigger `recomputeRadForByggeplass` når `Project.latitude/longitude` settes/endres, for prosjektets byggeplasser. Normal-flyt (georeferering → `oppdaterByggeplassGeofence`) er allerede dekket av R3.
+
 ### Attestering-liste — expanded inline-visning (oppdaget 2026-05-16)
 
 Attestering-listen viser kun rad-antall, ikke innhold. Prosjektleder
