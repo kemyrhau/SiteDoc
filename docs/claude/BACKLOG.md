@@ -24,6 +24,15 @@ Oppdaget under Timer Fase 2-dual-review (2026-06-09). `SheetMachine.vehicleId` (
 
 **Foreslått fiks:** gjenbruk `verifiserKjoretoyTilhørerFirma(vehicleId, organizationId)` (`dagsseddel.ts`, innført i Fase 2 §2.D) på maskin-radene i `tilfoyMaskinRad`/`oppdaterMaskinRad`/`syncBatch`/`redigerSedelRader`/`splittRad` — samlet pr. unik ID, samme mønster som timer-stiene allerede bruker. Rent additiv logikk, ingen schema/migrasjon. **Ikke fikset her** (egen PR for sporbarhet — Fase 2 holdt seg til §2.D-scope).
 
+### Pre-eksisterende typecheck-gjeld (mobil + web) 🟡
+
+Fanget under R4-konsistens-sjekk (2026-06-11) — **ikke R-serie-introdusert** (R-serie-filer er rein; verifisert mot kode). Type-only, blokkerer **ikke** byggene (EAS = Metro/Babel uten `tsc`; web Next.js-build typesjekker ikke test-filer).
+
+- **Mobil (~12 feil):** `erstattVedlegg` mangler i `UseOppgaveSkjemaResultat`/`UseSjekklisteSkjemaResultat` (`useOppgaveSkjema.ts:615`/`useSjekklisteSkjema.ts:594` — egenskapen finnes i runtime, type-interface usynket); `timerSync.ts:313/339` Drizzle-overload på `byggeplassId` (`string | null` vs insert-type); + følgefeil i `oppgave/[id].tsx`, `psi/[psiId].tsx`, `sjekkliste/[id].tsx`.
+- **Web (1 feil):** `vitest`-modul mangler typer i `src/components/mengde/__tests__/import-hjelpere.test.ts` (test-tooling, ikke produksjonskode).
+
+Fiks når noen rører de filene: synk hook-resultat-typene med faktisk retur, og gi `byggeplassId` riktig Drizzle-type / `vitest` til devDependencies+tsconfig. Lav prio — ingen runtime-effekt.
+
 ### Legacy eide prosjekter mangler `ProjectOrganization`-rad (datakvalitet) 🟡
 
 Funnet under Timer Fase 1b-data-sjekk (2026-06-09). `admin.ts:266` + `prosjekt.ts:220-226` oppretter nå en `ProjectOrganization`-rad for eier-org ved prosjekt-opprettelse, men dette var en **senere bugfix** — prosjekter opprettet før den mangler raden, selv om de har `Project.primaryOrganizationId` satt. Verifisert mot test-DB: minst ett slikt prosjekt («Test redigert mal») med timer-rader. Prod kan ha tilsvarende (ikke sjekket).
@@ -585,6 +594,8 @@ Tre idéer fanget 2026-06-09 etter at Fase 3 reise-MVP (estimat ×50 km/t, avvik
 - **Kontinuerlig GPS-logging for faktisk reisetid — NEDGRADERT, KREVER PERSONVERN-VURDERING** 🔴 (lavest prio, notert for fullstendighet) — App logger GPS kontinuerlig (midlertidig under reise) for *målt* reisetid (ankomst − avreise) i stedet for estimat. **To grunner til at dette IKKE bygges:** (1) **Sporing av ansatte er regulert** (GDPR + arbeidsmiljølov, Datatilsynets praksis om lokasjonssporing) — bygges ikke uten personvern-/juridisk vurdering. (2) **Læring (R4, 2026-06-11): et observert ankomst−avreise-delta er ikke ren reisetid** — det inkluderer arbeids-stopp underveis, så det måler feil størrelse. R4-modellen er autoritativ i stedet: matrise-kjøretid = reisetid; `arbeidstimer = total − reisetid` håndterer arbeids-stopp korrekt som arbeidstid. Reisetid-matrisen gir altså både nøyaktighet UTEN sporing OG riktig begrep — denne entryen er derfor nedgradert til kun-for-fullstendighet.
 
 - **Matrise-trigger ved prosjekt-koordinat (fallback-luke, lav prioritet)** 🟢 — Byggeplass som kun bruker `Project.latitude/longitude`-fallback (uten georeferert tegning) får ingen auto-recompute ved opprettelse; ingen trigger fyrer på prosjekt-koordinat. Dekkes i dag av «beregn matrise»-knappen + graceful estimat-fallback i oppslaget. Fiks når ønsket: trigger `recomputeRadForByggeplass` når `Project.latitude/longitude` settes/endres, for prosjektets byggeplasser. Normal-flyt (georeferering → `oppdaterByggeplassGeofence`) er allerede dekket av R3.
+
+- **Matrise-viewer + uoppnåelig-surfacing (drøftet R3, utsatt 2026-06-11)** 🟢 — reisetid-matrisen er i dag en black box: «beregn» gir kun «X rader beregnet», ingen måte å SE radene (kontor→byggeplass-tider, særlig -1/veiløse par som trenger koordinat-sjekk, og mistenkelig like/store tider). To nivåer: (a) **LETT:** la `recomputeMatrise` returnere antall uoppnåelige → «X beregnet, Y uoppnåelige» i knapp-resultatet (~5 linjer, fanger sikkerhetssignalet). (b) **FULL:** read-only tabell kontor × byggeplass → minutter (-1 markert) i Reise-seksjonen. Vurdering: full viewer er smal admin-diagnostikk (gull-plating nå) → vurder under IA/innstillinger-restruktureringen. (a) kan gjøres når som helst hvis -1-synlighet ønskes. Kontekst: reisetid er justerbart forslag (feil verdi ikke kritisk), men -1 = ingen forslag, og firmaet bør vite hvilke par som mangler.
 
 ### Attestering-liste — expanded inline-visning (oppdaget 2026-05-16)
 
