@@ -67,8 +67,9 @@ Kort: **Cloudflare slipper kundene inn, Tailscale slipper oss inn.** På gammel 
 git push
 ```
 ```
-rsync -a --exclude node_modules --exclude .next --exclude .git ~/Documents/Programmering/SiteDoc/ server-ny:stack/sitedoc/
+rsync -a --exclude node_modules --exclude .next --exclude .git --exclude docker/env ~/Documents/Programmering/SiteDoc/ server-ny:stack/sitedoc/
 ```
+> `--exclude docker/env` er viktig: env-filene (secrets) bor kun på server, og må aldri overskrives av Mac-kopien.
 ```
 ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.yml up -d --build'
 ```
@@ -81,6 +82,18 @@ Legg tjenestenavn til slutt for å bare bygge/restarte dem (rører ikke resten):
 ```
 ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.yml up -d --build embed oversettelse'
 ```
+
+### Test-stack (staging — test.sitedoc.no)
+
+Eget oppsett som kjører ved siden av prod: `docker-compose.test.yml` (prosjekt `sitedoc-test`, containere `sitedoc-test-api`/`-web`) mot `sitedoc_test`-DB, deler prod sin `embed`/`oversettelse`/`postgres`. Eksponert på `test.sitedoc.no` + `api-test.sitedoc.no` via samme tunnel (`sitedoc-ny`). Env: `docker/env/{api-test,web-test}.env` (egen `AUTH_SECRET`, `AUTH_URL=https://test.sitedoc.no`, `DATABASE_URL` → `sitedoc_test`).
+
+Bruk: rsync som over, deretter:
+```
+ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.test.yml up -d --build'
+```
+> ⚠️ Kjør **aldri** `--remove-orphans` på prod- eller test-compose. De har egne `name:` (`sitedoc` / `sitedoc-test`), så de ser ikke lenger hverandre som orphans — men flagget ville uansett kunne slette den andre stacken.
+
+Anbefalt flyt: rsync develop-kode → deploy **test** → verifiser innlogget på `test.sitedoc.no` → så deploy prod.
 
 ### Prisma-migrasjoner (åpent punkt)
 `prisma migrate deploy` er **ikke automatisert** i Docker-deployen. Klientene genereres i bygget, men ved schema-endring må migrasjonen kjøres manuelt mot `postgres`-containeren for alle fire db-pakker (db, db-maskin, db-timer, db-varelager) FØR build. Dette bør automatiseres (se TODO i `infrastruktur.md`).

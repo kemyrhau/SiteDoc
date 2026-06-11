@@ -40,7 +40,7 @@ server-ny (Ubuntu 24.04, Docker):
 
 API når ML-tjenestene via env: `NORBERT_URL=http://embed:3302`, `OVERSETTELSE_URL=http://oversettelse:3303`.
 
-> ⚠️ **Kjent kode-feil (app-spor):** `norbert-server.py` binder `127.0.0.1` (loopback) i stedet for `0.0.0.0` → embedding/AI-søk er **utilgjengelig cross-container** til dette fikses (gjør bind konfigurerbar, sett `0.0.0.0` i Docker). `oversettelse-server.py` binder korrekt `0.0.0.0`.
+> ⚠️ **Kode-feil — fiks klar på develop, deploy gjenstår:** `norbert-server.py` bandt `127.0.0.1` (loopback) → embedding/AI-søk var **utilgjengelig cross-container**. Fiks ligger på develop (Opus): bind gjort konfigurerbar via `NORBERT_HOST`, satt `0.0.0.0` i compose. Embedding er gjenopprettet straks fiksen er deployet + re-sjekket (`REACHABLE`). `oversettelse-server.py` binder korrekt `0.0.0.0`.
 
 ## Native avhengigheter
 
@@ -162,9 +162,11 @@ Env ligger nå i `~/stack/sitedoc/docker/env/` (lest av compose via `env_file`):
 
 ## Test-miljø
 
-Test-databasen `sitedoc_test` finnes i den delte Postgres-containeren (restoret med `pg_restore --no-owner` + `REFRESH COLLATION VERSION`). Test ble validert via samme Docker-stack under generalprøven før cutover.
+Test-databasen `sitedoc_test` finnes i den delte Postgres-containeren (restoret med `pg_restore --no-owner` + `REFRESH COLLATION VERSION`).
 
-> **TODO (viktig — ikke gjort ennå):** `test.sitedoc.no` skal ha **egne containere** (test-web/-api/-ml, egen compose eller compose-profil, mot `sitedoc_test`-DB) som speiler prod. Uten det kan man ikke verifisere en deploy før prod — som er hele poenget med et test-miljø. Gammelt test var PM2 `sitedoc-test-*` på gammel server. Settes opp som del av deploy-pipeline-modningen (sammen med automatisert `prisma migrate deploy`).
+**Test-stack er etablert (2026-06-11):** egne containere `sitedoc-test-api` + `sitedoc-test-web` (prosjekt `sitedoc-test`) via `docker/docker-compose.test.yml`, mot `sitedoc_test`-DB, deler prod sin `embed`/`oversettelse`/`postgres`. Eksponert på `test.sitedoc.no` (3300) + `api-test.sitedoc.no` (3301) via tunnel `sitedoc-ny`. Env: `docker/env/{api-test,web-test}.env`. Verifisert HTTP 200 eksternt. Deploy-prosedyre i [`ny-server-veileder.md`](ny-server-veileder.md) → «Test-stack».
+
+> Gjenstår fortsatt: automatisert `prisma migrate deploy` (kjøres manuelt ved schema-endring — se TODO over).
 
 ## EAS Build og TestFlight
 

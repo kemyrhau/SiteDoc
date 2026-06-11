@@ -1,0 +1,44 @@
+# NY-SERVER — sitedoc TEST-stack (staging på server-ny).
+# Kjører ved siden av prod. Deler appnet + ML (embed/oversettelse) + postgres-containeren.
+# DB: sitedoc_test. Domener: test.sitedoc.no (web 3300) + api-test.sitedoc.no (api 3301).
+# Egne images (sitedoc-test-*) så prod-imagene står urørt.
+# Forutsetter at prod-stacken (embed/oversettelse/postgres) kjører på 'appnet'.
+# Bygg/kjør fra repo-rot:  sudo docker compose -f docker/docker-compose.test.yml up -d --build
+name: sitedoc-test                     # eget prosjektnavn — skiller test fra prod (ingen orphan-advarsel / --remove-orphans-fare)
+services:
+  sitedoc-test-api:
+    build: { context: .., dockerfile: docker/Dockerfile.api }
+    image: sitedoc-test-api:latest
+    container_name: sitedoc-test-api
+    restart: unless-stopped
+    env_file: ./env/api-test.env       # DATABASE_URL -> postgres:5432/sitedoc_test, AUTH_* (egen test), APP_URL=https://test.sitedoc.no ...
+    environment:
+      PORT: "3301"
+      HOST: "0.0.0.0"
+      NORBERT_URL: "http://embed:3302"             # deler prod sin embed (statsløs modell-server)
+      OVERSETTELSE_URL: "http://oversettelse:3303" # deler prod sin oversettelse
+    ports:
+      - "127.0.0.1:3301:3301"
+      - "127.0.0.1:3300:3300"   # test-web lytter her (deler api sitt nett-namespace)
+    networks: [appnet]
+    volumes:
+      - /home/kemyrhau/stack/sitedoc/uploads:/app/apps/api/uploads   # delt med prod (som gammel test-symlink) — test ser ekte filer
+    security_opt: ["no-new-privileges:true"]
+
+  sitedoc-test-web:
+    build: { context: .., dockerfile: docker/Dockerfile.web }
+    image: sitedoc-test-web:latest
+    container_name: sitedoc-test-web
+    restart: unless-stopped
+    env_file: ./env/web-test.env       # AUTH_* (egen test), AUTH_URL/NEXTAUTH_URL=https://test.sitedoc.no, DATABASE_URL (sitedoc_test) ...
+    environment:
+      PORT: "3300"
+    network_mode: "service:sitedoc-test-api"
+    depends_on: [sitedoc-test-api]
+    security_opt: ["no-new-privileges:true"]
+
+# embed / oversettelse / postgres bor i prod-compose (docker-compose.yml).
+# test-api når dem via det delte, eksterne nettet 'appnet' på tjenestenavn.
+networks:
+  appnet:
+    external: true

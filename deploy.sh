@@ -13,7 +13,7 @@ git push
 
 # 2. Synk kode til server-ny
 echo "→ rsync til server-ny:~/stack/sitedoc ..."
-rsync -a --exclude node_modules --exclude .next --exclude .git \
+rsync -a --exclude node_modules --exclude .next --exclude .git --exclude docker/env \
   ~/Documents/Programmering/SiteDoc/ server-ny:stack/sitedoc/
 
 # 3. (Ved schema-endring) Prisma-migrasjoner — IKKE automatisert i Docker-oppsettet ennå.
