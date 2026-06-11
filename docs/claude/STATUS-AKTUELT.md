@@ -6,6 +6,15 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
+### Reisetid-matrise R1 (grunnmur) — PÅ DEVELOP 2026-06-11 (venter dual-review)
+
+Erstatter på sikt ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. R1 legger kun grunnmuren — ingen kallere ennå (R2 kontor-geokoding, R3 recompute-motor + triggere, R4 oppslag + mobil-cache kobler på). Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).
+
+- **Schema (kjerne):** ny `ReisetidMatrise` i `packages/db` (søsken til `Oppmotested` — geo-infra, KS-3): `{ organizationId (denormalisert), oppmotestedId + byggeplassId (begge FK Cascade), kjoretidMin, kilde, beregnetAt }`, `@@unique([oppmotestedId, byggeplassId])`. Migrasjon `20260611120000_reisetid_matrise` (additiv `CREATE TABLE`).
+- **Rute-service:** `apps/api/src/services/rute-service.ts` — keyless `geokodAdresse` (Nominatim) + `hentKjoretidMatrise` (OSRM `/table`, fler-kontor×fler-byggeplass i ett kall) bak provider-iface. Public OSM-default + valgfri `OSRM_BASE_URL`/`NOMINATIM_BASE_URL` (process.env, rører ingen `.env`). Alle feil → null (matrise = forslag-cache, aldri kritisk sti).
+- **kilde:** v1 skriver kun `"osrm"`; estimat-fallback beregnes live ved oppslag (R4), lagres aldri.
+- **Reload:** ingen mobil-endring (R1 er server/schema-only).
+
 ### NorBERT cross-container-bind-fiks + doc-drift-opprydding — PÅ DEVELOP 2026-06-10 (deploy + prod-re-sjekk utestående)
 
 Fikser at embedding/AI-søk var nede i Docker-prod: `norbert-server.py` bandt `127.0.0.1` (uoppnåelig cross-container på `appnet`). I tillegg opprydding av dokumentasjonsdrift funnet i kode-vs-doc-gjennomgang 2026-06-10.
