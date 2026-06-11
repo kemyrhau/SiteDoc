@@ -40,7 +40,7 @@ services:
     container_name: sitedoc-embed
     restart: unless-stopped
     command: ["python", "norbert-server.py"]
-    environment: { NORBERT_PORT: "3302" }
+    environment: { NORBERT_PORT: "3302", NORBERT_HOST: "0.0.0.0" }   # bind 0.0.0.0 for cross-container-tilgang fra api
     networks: [appnet]
     volumes: ["ml_models:/models"]
 

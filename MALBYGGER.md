@@ -16,7 +16,7 @@ Bakgrunn: feilformulert planleggings-utkast 2026-05-26 antydet «én samlet mal-
 
 | Type | Kategori | Flyt | Låseregel | Ruting | Domain |
 |------|----------|------|-----------|--------|--------|
-| **Sjekkliste** | `sjekkliste` | Toveis | Kan redigeres etter utkast | Standard entrepriseflyt | `bygg` / `kvalitet` |
+| **Sjekkliste** | `sjekkliste` | Toveis | Kan redigeres etter utkast | Standard faggruppeflyt | `bygg` / `kvalitet` |
 | **Oppgave** | `oppgave` | Toveis | Låses etter utkast (append-only) | Krever faggruppe-valg | `bygg` |
 | **HMS (RUH/SJA)** | `oppgave` | Toveis | Låses etter utkast (append-only) | Auto-ruter til HMS-gruppe | `hms` |
 | **Godkjenning** | `oppgave` | Enveis | Låses etter utkast | Bestiller → godkjenner, ingen retur | `bygg` |

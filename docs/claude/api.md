@@ -5,11 +5,11 @@ Alle routere i `apps/api/src/routes/`:
 | Router | Prosedyrer |
 |--------|-----------|
 | `prosjekt` | hentMine, hentAlle (filtrert på medlemskap), hentMedId, opprett (auto-admin, auto-tilknytt firma), opprettTestprosjekt (m/standardgrupper+moduler), oppdater |
-| `entreprise` | hentForProsjekt, hentMedId, opprett, oppdater, slett |
+| `faggruppe` | hentForProsjekt, hentMedId, opprett, oppdater, kopier, settAnsvarlig, slett. _Note: montert også som `entreprise`-alias (bakoverkompat for mobil) — samme `faggruppeRouter`. «entreprise» er forbudt i ny kode._ |
 | `sjekkliste` | hentForProsjekt (m/statusfilter + buildingId-filter), hentMedId (m/changeLog), opprett, oppdater (metadata + entrepriser, kun draft), oppdaterData (m/automatisk endringslogg), endreStatus, slett (kun draft, blokkeres ved tilknyttede oppgaver) |
 | `oppgave` | hentForProsjekt (m/statusfilter), hentForTegning (markører per tegning), hentMedId (m/template.objects+kommentarer), hentForSjekkliste, hentKommentarer, leggTilKommentar, opprett (m/tegningsposisjon, templateId påkrevd), oppdater (m/entrepriser, kun draft), oppdaterData, endreStatus, slett (kun draft) |
 | `mal` | hentForProsjekt, hentMedId, opprett, oppdaterMal, slettMal, leggTilObjekt, oppdaterObjekt, oppdaterRekkefølge, sjekkObjektBruk, slettObjekt |
-| `bygning` | hentForProsjekt (m/valgfri type-filter), hentMedId, opprett (m/type), oppdater, publiser, slett |
+| `byggeplass` | hentForProsjekt (m/valgfri type-filter), hentMedId, opprett (m/type), oppdater, beregnGeofence, settGeofence, publiser, hentSletteSammendrag, slett. _Note: montert også som `bygning`-alias (bakoverkompat) — samme `byggeplassRouter`._ |
 | `tegning` | hentForProsjekt (m/filtre), hentForBygning, hentMedId, opprett (m/asynkron DWG-konvertering + layout-splitting, IFC-metadatautvinning), oppdater, lastOppRevisjon, hentRevisjoner, tilknyttBygning, settGeoReferanse, fjernGeoReferanse, hentKonverteringsStatus, provKonverteringIgjen (m/layout-splitting), slett |
 | `punktsky` | hentForProsjekt (m/buildingId-filter), hentMedId, opprett (m/asynkron konvertering via CloudCompare+PotreeConverter), hentKonverteringsStatus, slett |
 | `dokumentflyt` | hentForProsjekt, opprett, oppdater, slett, leggTilMedlem, fjernMedlem |
@@ -28,6 +28,25 @@ Alle routere i `apps/api/src/routes/`:
 | `ftdSok` | sokDokumenter (tsvector m/norsk stemming + ILIKE fallback, mappetilgangsfilter), hentDokumentChunks, nsKoder, nsChunks |
 | `bruker` | hentSpraak (brukerens valgte språk), oppdaterSpraak (lagre språkvalg i DB) |
 | `kontrakt` | hentForProsjekt (m/building, _count), opprett (navn, type 8405/8406/8407, byggherre, entreprenor, buildingId), oppdater (alle felter inkl. bygning), slett (fjerner kobling fra entrepriser og dokumenter, m/bekreftelsesmodal) |
+| `hms` | hentDokumenter (avvik/sja/ruh på tvers av maler, m/statusfilter + byggeplassId-filter + synlighetsfilter), hentFirmaOversikt (firma-bred HMS-aggregering på tvers av prosjekter, krever `harFirmaHmsTilgang`), firmaBehandleAvvik (firma-HMS statusendring/kommentar på Task) |
+| `bibliotek` | hentStandarder (BibliotekStandard m/maler), hentProsjektValg (aktiverte bibliotekmaler per prosjekt), importerMal (kopier bibliotekmal til prosjekt), fjernValg. _Sjekklistebibliotek/kontrollplan-maler — se kontrollplan.md_ |
+| `omrade` | hentForProsjekt (m/valgfri type-filter, inkl. byggeplass+tegning), hentForByggeplass, hentForTegning, opprett, oppdater, slett |
+| `kontrollplan` | hentForByggeplass, opprettEllerHent, opprettPunkter, oppdaterPunkt, slettPunkt, opprettMilepel, oppdaterMilepel, slettMilepel, oppdaterStatus, skyvOmrade, kopierPunkter, skyvKaskade, hentKaskadeBerort, hentHistorikk, hentSluttrapportData, hentStatusForProsjekt |
+| `maskin` | Nestet (`maskin/index.ts`): `equipment` (list, antallPerKategori, hentMuligeAnsvarlige, hentMedId, opprett, oppdater, settStatus, hentFraVegvesenForhandsvisning, opprettMedVegvesen, oppdaterFraVegvesen), `vegvesenKo` (hentStatus), `ansvarlig` (list, tilfoy, fjern), `import` (importerForhandsvisning, importerBekreft). _Firmamodul, `db-maskin` — se maskin.md_ |
+| `avdeling` | hentAlle, opprett, oppdater, slett (firmaadmin-scope, krever organizationId) |
+| `oppmotested` | hentAlle, hentForFirma, opprett, oppdater, slett (firma-isolert oppmøtested-katalog) |
+| `kompetansetype` | hentAlle, opprett, oppdater, slett (firmaets kompetansetype-katalog) |
+| `kompetanse` | hentMatrise (AnsattKompetanse-matrise), hentForBruker, opprett, oppdater, slett, importerForhandsvisning, importerBekreft (CSV/Excel-import) |
+| `timer` | Nestet (`timer/index.ts`): `onboarding` (status, aktiverNivaa1/Nivaa2/TomKatalog), `lonnsart` (list, opprett, oppdater, settStandard, deaktiver), `aktivitet` (list, opprett, oppdater, deaktiver), `tillegg` (list, opprett, oppdater, deaktiver), `dagsseddel` (list, hentMedId, opprett, oppdater, tilfoy/oppdater/fjernTimerRad, tilfoy/oppdater/fjernTilleggRad, send, slett, hentTilAttestering, hentTilGodkjenning, kanAttestere, kanGodkjenne, hentTilAttesteringFirma, kanAttestereFirma, hentForAttestering, flyttTimerRadEco, attesterRader, returnerRader, redigerSedelRader, splittRad, attester, returner, hentEndringerSiden, syncBatch, maskin-undergruppe tilfoy/oppdater/fjern, hentDagstotal), `rapport` (firmaPeriodeRapport, hentFirmaProsjekterMedTimer, hentFirmaAnsatteMedTimer). _Firmamodul, `db-timer` — se timer.md_ |
+| `eksternKostObjekt` | list (ExternalCostObject = «Underprosjekt» i UI; firma-isolert via `krevBrukersOrg`, ikke prosjekt-isolert — lese-only for timer-velgere) |
+| `vareKategori` | list, opprett, oppdater, slett (vareforbruk-modulens kategorikatalog) |
+| `vare` | list, hentMedId, opprett, oppdater, deaktiver (vareforbruk-modulens varekatalog) |
+| `vareforbruk` | list, hentMedId, opprett, oppdater, slett (vareforbruk-registrering, m/byggeplass + eksternt kostobjekt). _Firmamodul, `db-varelager` — se steg-4b-plan.md_ |
+| `vareImport` | importerForhandsvisning, importerBekreft (vare-/kategori-import) |
+| `firmaIntegrasjon` | list, lagre, slett (firma-integrasjonskonfigurasjon; API-nøkler returneres ALDRI — kun `harNøkkel`. Rotfil `routes/firma-integrasjon.ts`) |
+| `firma` | Nestet (`firma/index.ts`): `kalender` (hentForAar, importerNorskStandard, opprett, oppdater, slett, hentForMobil — firma-arbeidskalender/helligdager) |
+| `psi` | hentForProsjekt, hentMedObjekter, opprett, bumpVersjon, byttMal, deaktiver, reaktiver, oppdaterGjesteBeskjed, oppdaterSpraak, oversettInnhold, hentSignaturer, hentMinStatus, startGjennomforing, oppdaterProgresjon, guestStart (public), guestOppdaterProgresjon (public), hentForProsjektPublic (public), kopier. _Prosjektspesifikk sikkerhetsinstruks — multi-byggeplass, quiz, signatur, gjeste-QR_ |
+| `aiSok` | sok (hybrid vektor+leksikalsk+re-ranking), blokkSok, genererEmbeddings, stoppEmbeddings, embeddingStatus, hentReferanseDokumenter, hentInnstillinger, oppdaterInnstillinger. _Se ai-sok.md_ |
 
 **Dokumentflyt:**
 - **Mapper** → opplasting → FtdDocument → auto scanning/chunking → søkbart (dokumentsøk-modul)

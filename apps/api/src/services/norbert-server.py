@@ -23,6 +23,9 @@ import torch
 from transformers import AutoTokenizer, AutoModel
 
 PORT = int(os.environ.get("NORBERT_PORT", "3302"))
+# Bind-adresse. Default 127.0.0.1 (trygt lokalt/utenfor Docker). I Docker må
+# tjenesten nås cross-container på appnet → sett NORBERT_HOST=0.0.0.0 i compose-env.
+HOST = os.environ.get("NORBERT_HOST", "127.0.0.1")
 
 # ---- NorBERT (lastes ved oppstart) ----
 print("Laster NorBERT (ltgoslo/norbert2)...", flush=True)
@@ -165,6 +168,6 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    server = HTTPServer(("127.0.0.1", PORT), Handler)
-    print(f"Embedding-server klar på http://127.0.0.1:{PORT} (NorBERT + E5 lazy)", flush=True)
+    server = HTTPServer((HOST, PORT), Handler)
+    print(f"Embedding-server klar på http://{HOST}:{PORT} (NorBERT + E5 lazy)", flush=True)
     server.serve_forever()

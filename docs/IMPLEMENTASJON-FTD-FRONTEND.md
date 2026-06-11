@@ -818,6 +818,8 @@ const ftdModuler = [
 
 ## Steg 8: Parsing-worker (Python)
 
+> ⚠️ **Forkastet — ikke implementert som beskrevet (status 2026-06-10).** Python-workeren under ble aldri koblet til. A-nota-, XML- og mengdebeskrivelse-parsing kjøres i stedet in-process i TypeScript i `apps/api/src/services/ftd-prosessering.ts` (A-nota-logikk portert fra Python). `ftd-worker/` beholdes som referanse-implementasjon, men `FTD_PARSER_URL`/port 8001 brukes ikke noe sted. Resten av dette steget er historisk plan.
+
 A-nota-parsing, XML-budsjett og mengdebeskrivelse krever Python (regex-tung logikk). Løsning:
 
 ### Minimal FastAPI-worker

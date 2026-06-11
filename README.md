@@ -1,12 +1,12 @@
 # SiteDoc
 
-Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobil, nettbrett) med offline-støtte, bildekomprimering, GPS-tagging og entreprisearbeidsflyt.
+Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobil, nettbrett) med offline-støtte, bildekomprimering, GPS-tagging og faggruppe-arbeidsflyt (dokumentflyt mellom faggrupper).
 
 ## Funksjoner
 
 - **Sjekklister** — Strukturerte dokumenter basert på gjenbrukbare rapportmaler med 15 ulike objekttyper
-- **Oppgaver** — Arbeidsoppgaver med prioritet, frist og ansvarlig entreprise
-- **Entrepriseflyt** — Dokumenter flyter mellom oppretter- og svarer-entrepriser med full sporbarhet
+- **Oppgaver** — Arbeidsoppgaver med prioritet, frist og ansvarlig faggruppe
+- **Faggruppeflyt** — Dokumenter flyter mellom oppretter- og svarer-faggrupper med full sporbarhet
 - **Malbygger** — Drag-and-drop-bygger for rapportmaler på PC
 - **Tegninger** — Prosjekttegninger (PDF/DWG) med versjonering
 - **Offline-først** — Mobil-appen fungerer fullt offline med SQLite og bakgrunnssynkronisering
@@ -18,7 +18,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 |-----|-----------|
 | Monorepo | Turborepo, pnpm |
 | Frontend web | Next.js 14+ (App Router), React, TypeScript, Tailwind CSS |
-| Frontend mobil | React Native, Expo (SDK 52+), NativeWind |
+| Frontend mobil | React Native, Expo (SDK 54), NativeWind |
 | Backend API | Node.js, Fastify, tRPC |
 | Database (server) | PostgreSQL, Prisma ORM |
 | Database (lokal) | SQLite, Drizzle ORM |
@@ -82,7 +82,11 @@ sitedoc/
 ├── packages/
 │   ├── shared/         # Delte typer, utils, validering (Zod)
 │   ├── db/             # Prisma schema, migreringer, seed
-│   └── ui/             # Delte UI-komponenter
+│   ├── ui/             # Delte UI-komponenter
+│   ├── pdf/            # Delt PDF-generering (HTML-strenger, null avhengigheter)
+│   ├── db-timer/       # Egne Prisma-tabeller for timer (postgres-schema "timer")
+│   ├── db-maskin/      # Egne Prisma-tabeller for maskin (postgres-schema "maskin")
+│   └── db-varelager/   # Egne Prisma-tabeller for vareforbruk (postgres-schema "varelager")
 ├── CLAUDE.md           # AI-assistentkonfigurasjon
 ├── turbo.json
 └── package.json
@@ -115,20 +119,20 @@ Web-appen bruker et Dalux-inspirert tre-kolonne layout:
 +------+------------------+--------------------------------+
 ```
 
-- **Ikonsidebar** — Navigasjon mellom seksjoner (Dashbord, Sjekklister, Oppgaver, Maler, Tegninger, Entrepriser)
+- **Ikonsidebar** — Navigasjon mellom seksjoner (Dashbord, Sjekklister, Oppgaver, Maler, Tegninger, Faggrupper)
 - **Sekundært panel** — Kontekstuell filtrering, statusgrupper og søk
 - **Hovedinnhold** — Tabeller og detaljvisninger med kontekstuell verktøylinje
 
-## Entrepriseflyt
+## Faggruppeflyt
 
-Sentral forretningslogikk for dokumentflyt mellom entrepriser:
+Sentral forretningslogikk for dokumentflyt mellom faggrupper:
 
 ```
 draft → sent → received → in_progress → responded → approved/rejected → closed
 ```
 
-- Oppretter-entreprise initierer og godkjenner/avviser
-- Svarer-entreprise mottar, fyller ut og besvarer
+- Oppretter-faggruppe initierer og godkjenner/avviser
+- Svarer-faggruppe mottar, fyller ut og besvarer
 - Alle overganger logges med full sporbarhet
 
 ## Lisens
