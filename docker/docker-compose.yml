@@ -1,6 +1,7 @@
 # NY-SERVER — sitedoc full-Docker stack (i prod fra 2026-06-10).
 # Build-context = repo-rot (..). Postgres er den delte pgvector-containeren paa 'appnet' (egen compose).
 # Kjor fra repo-rot:  sudo docker compose -f docker/docker-compose.yml up -d --build
+name: sitedoc                          # eksplisitt prosjektnavn (skiller prod fra test-stacken)
 services:
   sitedoc-api:
     build: { context: .., dockerfile: docker/Dockerfile.api }
