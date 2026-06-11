@@ -570,6 +570,10 @@ separat chat per `feedback_3d_annen_chat`.
   - **Fase 1c-server — byggeplass-geofence fra georeferert tegning:** ✅ IMPLEMENTERT 2026-06-09 (develop/test, venter prod). `Byggeplass.latitude/longitude/radiusM` + `beregnByggeplassGeofence` (shared) + `bygning.beregnGeofence`/`settGeofence` + auto-fyll i `tegning.settGeoReferanse` (kun når tom) + web override. Løser byggeplass-koordinat-gapet (`fase-0 T.8:990`). Sannhetskilde [timer.md § Byggeplass-geofence](timer.md).
   - **Fase 1c-mobil — byggeplass-GPS-deteksjon i «Start dag»:** 🟡 GJENSTÅR. Utvid `apps/mobile/app/timer/ny.tsx:138-150` (Haversine `mobile/src/utils/geo.ts`) til å detektere byggeplass via `Byggeplass`-koordinater i tillegg til prosjekt. Krever EAS-bygg → buntes med Fase 1 mobil-verifisering over. Aldri auto-rad (`T.8:983`).
 
+### Byggeplass-ankomst → HMS mannskaps-register (byggherreforskriften §15) 🟡
+
+Når 1c-mobil bygges (byggeplass-GPS-ankomst), skal ankomst-innlogging mate HMS/PSI-mannskaps-oversikten (§15, lovpålagt) som **PRIMÆR** formål. HMS-compliance, ikke produktivitets-sporing → sterkere personvern-grunnlag enn reisetid. Reisetid (R4) er sekundær avledning. Kobling: 1c-mobil (ankomst-deteksjon) + [mannskap.md](mannskap.md) (§15-tilstedeværelse, fra/til firma-isolert). Design: ankomst-event → PSI-presence + HMS-register.
+
 ### Reise (Fase 3) — forbedringer etter MVP
 
 Tre idéer fanget 2026-06-09 etter at Fase 3 reise-MVP (estimat ×50 km/t, avvik C) ble implementert på develop/test. Distinkt fra §G3-punktet (`:554` — som gjelder *policy-bekreftelse* av terskel/lovlighet hos A.Markussen/regnskap/jurist). Disse er *byggbare forbedringer* av selve reisetid-utledningen.
