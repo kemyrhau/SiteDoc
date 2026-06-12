@@ -597,6 +597,8 @@ Tre idéer fanget 2026-06-09 etter at Fase 3 reise-MVP (estimat ×50 km/t, avvik
 
 - **Matrise-viewer + uoppnåelig-surfacing (drøftet R3, utsatt 2026-06-11)** 🟢 — reisetid-matrisen er i dag en black box: «beregn» gir kun «X rader beregnet», ingen måte å SE radene (kontor→byggeplass-tider, særlig -1/veiløse par som trenger koordinat-sjekk, og mistenkelig like/store tider). To nivåer: (a) **LETT:** la `recomputeMatrise` returnere antall uoppnåelige → «X beregnet, Y uoppnåelige» i knapp-resultatet (~5 linjer, fanger sikkerhetssignalet). (b) **FULL:** read-only tabell kontor × byggeplass → minutter (-1 markert) i Reise-seksjonen. Vurdering: full viewer er smal admin-diagnostikk (gull-plating nå) → vurder under IA/innstillinger-restruktureringen. (a) kan gjøres når som helst hvis -1-synlighet ønskes. Kontekst: reisetid er justerbart forslag (feil verdi ikke kritisk), men -1 = ingen forslag, og firmaet bør vite hvilke par som mangler.
 
+- **R4-avhengighet av `bygning`-router-alias (back-compat-flagg, lav prioritet)** 🟡 — R4 mobil-cache henter byggeplasser via `klient.bygning.hentForFirma` (`apps/mobile/src/services/byggeplassKatalog.ts:29`). `bygning` er kun en bakoverkompatibel alias for `byggeplassRouter` i `apps/api/src/trpc/router.ts:53`, merket «1 uke». **Fjernes aliaset, brytes R4s byggeplass-fetch** (matrise-oppslaget på mobil mister byggeplass-koblingen). Avklar om `bygning`-nøkkelen skal være permanent; hvis ikke, flytt R4-kallet (og evt. andre konsumenter) til den kanoniske router-nøkkelen FØR aliaset fjernes. Funnet under R4-verifisering 2026-06-12.
+
 ### Attestering-liste — expanded inline-visning (oppdaget 2026-05-16)
 
 Attestering-listen viser kun rad-antall, ikke innhold. Prosjektleder

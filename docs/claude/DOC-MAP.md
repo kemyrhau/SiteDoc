@@ -21,6 +21,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Dokumentflyt-regler endres | `dokumentflyt.md` |
 | Domeneflyt/arbeidsflyt endres | `domene-arbeidsflyt.md` |
 | Mobil-spec endres | `mobil.md` |
+| EAS-bygg/credentials-endring | `eas-build-veileder.md` |
 | Web-spec endres | `web.md` |
 | Terminologi/hierarki endres | `terminologi.md` |
 | Arkitektur-syntese endres | `arkitektur-syntese.md` |
