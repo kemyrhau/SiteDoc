@@ -101,7 +101,7 @@ cd apps/mobile && eas build --platform ios --profile test
 Bygget legges i kø (~15–30 min) → du får en build-URL. Når ferdig: installer på enhet
 (intern distribusjon-lenke), eller `eas submit --platform ios --latest` til TestFlight.
 
-## App variants — test + prod side om side (planlagt 2026-06-13)
+## App variants — test + prod side om side (implementert 2026-06-12)
 
 **Problem (oppdaget 2026-06-12):** Test-bygget (Expo intern distribusjon, mot api-test) og
 prod-bygget (TestFlight, mot prod) har **samme bundle-ID** (`com.kemyrhau.sitedoc`). iOS tillater
@@ -110,29 +110,36 @@ reinstallere for å bytte. Tungvint.
 
 **Løsning — gi test-bygget eget bundle-ID + navn** så de sameksisterer:
 
-1. **`app.json` → `app.config.js`** (dynamisk config som leser en env-variabel):
+1. **`app.json` beholdes som statisk base** + ny **`apps/mobile/app.config.js`** (dynamisk config
+   som utvider basen via `config`-parameteren Expo sender inn, og overstyrer KUN på `APP_VARIANT`):
    ```js
-   const IS_TEST = process.env.APP_VARIANT === "test";
-   export default {
-     // ... eksisterende felter ...
-     name: IS_TEST ? "SiteDoc TEST" : "SiteDoc",
-     ios: {
-       // ... eksisterende ios-felter ...
-       bundleIdentifier: IS_TEST ? "com.kemyrhau.sitedoc.test" : "com.kemyrhau.sitedoc",
-     },
+   module.exports = ({ config }) => {
+     const erTest = process.env.APP_VARIANT === "test";
+     return {
+       ...config,
+       name: erTest ? "SiteDoc TEST" : config.name,
+       ios: {
+         ...config.ios,
+         bundleIdentifier: erTest ? "com.kemyrhau.sitedoc.test" : config.ios.bundleIdentifier,
+       },
+     };
    };
    ```
-   (Behold alt fra `app.json`; bare gjør `name` + `ios.bundleIdentifier` betinget. Vurder egen
-   ikon-farge for test så de er lette å skille på hjemskjermen.)
-2. **`eas.json`** — legg `"APP_VARIANT": "test"` i `test`-profilens `env`-blokk.
+   Kun `name` + `ios.bundleIdentifier` er betinget — alt annet arves fra `app.json` (ingen
+   duplisering).
+2. **`eas.json`** — `"APP_VARIANT": "test"` ligger i `test`-profilens `env`-blokk.
 3. **Bygg på nytt** med `test`-profilen. Det nye bundle-ID-et (`...sitedoc.test`) trenger ny
    provisioning-profil — men **API-nøkkelen ordner det uten passord** (registrerer ID + lager
    ad-hoc-profil med den allerede registrerte enheten).
 
 Resultat: «SiteDoc TEST» installeres som **egen app** ved siden av prod-«SiteDoc». Ingen bytting.
 
-> Dette er en **kode-endring** (`app.json`→`app.config.js`) = Opus' lane → kontroll-Claude
-> verifiserer → så bygg.
+> ⚠️ **`scheme` ("sitedoc") og `android.package` holdes BEVISST DELT.** `auth.ts:84` hardkoder
+> `makeRedirectUri({ scheme: "sitedoc" })`, så å gjøre scheme betinget ville brutt test-OAuth.
+> Full scheme-separasjon (app.json + `auth.ts:84` + Google `sitedoc-test://`-registrering) er en
+> egen senere oppfølger — se [BACKLOG.md](BACKLOG.md). Praktisk konsekvens nå: ikke kjør OAuth i
+> begge apper «samtidig» (iOS-udefinert hvilken app som fanger redirect på delt scheme).
+> Eget test-ikon (lettere å skille på hjemskjerm) er valgfritt, ikke gjort nå.
 
 ## Fallgruver (lærdom 2026-06-12)
 

@@ -341,6 +341,8 @@ Server ~45 min, mobil-UI ~5 timer (oppgave, ny boks-komponent med statusvalg-pop
 
 - **Pre-eksisterende timerSync.ts baseline-feil (linje 308, 334)** 🟡 — `string | null` mot lokal `.notNull()`. Akseptert som baseline, ikke prioritert.
 
+- **Full scheme-separasjon for app variants (oppfølger til app-variants 2026-06-12)** 🟡 — App-variants (del B, 2026-06-12) gir test-bygget eget `ios.bundleIdentifier` (`com.kemyrhau.sitedoc.test`) via `app.config.js`, men `scheme` ("sitedoc") + `android.package` holdes DELT fordi `apps/mobile/src/services/auth.ts:84` hardkoder `makeRedirectUri({ scheme: "sitedoc" })`. Konsekvens: «SiteDoc TEST» og prod-«SiteDoc» deler URL-scheme → iOS-udefinert hvilken app som fanger OAuth-redirect hvis begge er installert. For ekte isolasjon: (1) gjør `scheme` betinget i `app.config.js` (`sitedoc-test` på APP_VARIANT), (2) la `auth.ts:84` lese scheme fra config i stedet for hardkoding, (3) registrer `sitedoc-test://`-redirect i Google OAuth-klient. Lav prio — praktisk workaround er å ikke kjøre OAuth i begge apper samtidig. Se [eas-build-veileder.md § App variants](eas-build-veileder.md).
+
 ### Attestering-rediger-flyt — inkonsistens (oppdaget 2026-05-17, LØST 2026-05-17 via T7-5d)
 
 **Status:** ✅ Adressert. T7-5d (merge `9727c7f9` på develop) erstatter RedigerSeddelModal med RedigerRadModal. Penn-klikk åpner nå kun prosjekt+ECO-bucken, ikke hele sedelen i side-i-modal. AttesteringDetalj renset for modal-spesifikke props. Detaljer i [STATUS-AKTUELT.md § T7-4g + T7-5d](STATUS-AKTUELT.md).
