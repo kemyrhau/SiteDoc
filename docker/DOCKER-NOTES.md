@@ -35,5 +35,15 @@ Alle på docker-nett `appnet`, bundet til `127.0.0.1`.
 5. **Opp:** `... up -d`. Verifiser lokalt: `curl 127.0.0.1:3001/health`, `curl -H "Host: test.sitedoc.no" 127.0.0.1:3100/` (innlogget), AI-søk + oversettelse (treffer embed/oversettelse).
 6. **Cutover** (eget steg, prod): fersk `pg_dump sitedoc` → restore (ALDRI slett data) → flytt DNS for `sitedoc.no` + `api.sitedoc.no` via **Cloudflare-dashboard** (egen sone — cloudflared CLI virker IKKE her, jf. salsaklubb-lærdom) → verifiser innlogget i nettleser.
 
+## Gotcha: `API_PORT` for Next `/api/upload`-rewrite (lærdom 2026-06-12)
+Web-containeren deler API-ens nett-namespace (`network_mode: service:<api>`). Next-rewriten i
+`apps/web/next.config.js` proxer `/api/upload` + `/api/uploads/:path*` til
+`http://localhost:${API_PORT || "3001"}/upload`. **`API_PORT` MÅ matche API-ens `PORT`** i samme
+namespace, ellers treffer rewriten en død port → 500 «Internal Server Error» → «Kunne ikke laste opp
+filen» i UI (og tegningsbilder vises ikke). Prod-API = 3001 (= default, virket tilfeldigvis), men
+**test-API = 3301** → test manglet `API_PORT` og all tegning/bilde-opplasting var brutt etter
+Docker-migreringen. Begge web-tjenester setter nå `API_PORT` eksplisitt i `environment`.
+Endring leses ved server-start → `up -d <web>` (ingen rebuild nødvendig).
+
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.
