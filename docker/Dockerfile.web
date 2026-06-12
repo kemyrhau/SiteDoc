@@ -14,6 +14,11 @@ RUN pnpm --filter @sitedoc/db exec prisma generate \
  && pnpm --filter @sitedoc/db-maskin exec prisma generate \
  && pnpm --filter @sitedoc/db-timer exec prisma generate \
  && pnpm --filter @sitedoc/db-varelager exec prisma generate
+# API_PORT bakes inn i Next routes-manifest (/api/upload(s)-rewrites) ved BUILD-tid og MÅ
+# matche API-ens interne PORT per miljø (prod 3001 / test 3301). Runtime-env er for sent —
+# manifesten er allerede generert. Settes via build-arg fra compose.
+ARG API_PORT=3001
+ENV API_PORT=${API_PORT}
 RUN pnpm turbo build --filter @sitedoc/web
 
 ENV NODE_ENV=production

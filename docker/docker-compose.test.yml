@@ -26,14 +26,17 @@ services:
     security_opt: ["no-new-privileges:true"]
 
   sitedoc-test-web:
-    build: { context: .., dockerfile: docker/Dockerfile.web }
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      args:
+        API_PORT: "3301"   # bakes inn i Next-rewrite ved build (test-api lytter 3301, ikke default 3001)
     image: sitedoc-test-web:latest
     container_name: sitedoc-test-web
     restart: unless-stopped
     env_file: ./env/web-test.env       # AUTH_* (egen test), AUTH_URL/NEXTAUTH_URL=https://test.sitedoc.no, DATABASE_URL (sitedoc_test) ...
     environment:
       PORT: "3300"
-      API_PORT: "3301"   # Next /api/upload(s)-rewrite proxer hit (deler test-api namespace; api lytter 3301, ikke default 3001)
     network_mode: "service:sitedoc-test-api"
     depends_on: [sitedoc-test-api]
     security_opt: ["no-new-privileges:true"]

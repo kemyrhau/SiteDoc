@@ -41,9 +41,14 @@ Web-containeren deler API-ens nett-namespace (`network_mode: service:<api>`). Ne
 `http://localhost:${API_PORT || "3001"}/upload`. **`API_PORT` MÅ matche API-ens `PORT`** i samme
 namespace, ellers treffer rewriten en død port → 500 «Internal Server Error» → «Kunne ikke laste opp
 filen» i UI (og tegningsbilder vises ikke). Prod-API = 3001 (= default, virket tilfeldigvis), men
-**test-API = 3301** → test manglet `API_PORT` og all tegning/bilde-opplasting var brutt etter
-Docker-migreringen. Begge web-tjenester setter nå `API_PORT` eksplisitt i `environment`.
-Endring leses ved server-start → `up -d <web>` (ingen rebuild nødvendig).
+**test-API = 3301** → test fikk feil port og all tegning/bilde-opplasting var brutt etter
+Docker-migreringen.
+
+⚠️ **Kritisk: rewrite-destinasjonen bakes inn i `.next/routes-manifest.json` ved `next build`-tid**,
+ikke ved server-start. Runtime-env (`environment:` / `env_file`) er for sent. `API_PORT` settes
+derfor som **build-arg** (Dockerfile.web: `ARG API_PORT=3001` → `ENV` før `pnpm turbo build`),
+matet per miljø fra `compose.build.args` (test 3301 / prod 3001). **Endring krever rebuild:**
+`sudo docker compose -f docker/docker-compose.test.yml up -d --build sitedoc-test-web`.
 
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.
