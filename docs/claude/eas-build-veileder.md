@@ -101,6 +101,32 @@ cd apps/mobile && eas build --platform ios --profile test
 Bygget legges i kø (~15–30 min) → du får en build-URL. Når ferdig: installer på enhet
 (intern distribusjon-lenke), eller `eas submit --platform ios --latest` til TestFlight.
 
+## Automatisert bygg (.env + wrapper) — slipp å sette env hver gang
+
+For å unngå å eksportere ASC-nøkkel-variablene manuelt i hvert nytt terminalvindu finnes en
+wrapper: **`apps/mobile/eas-build.sh`**.
+
+1. **Opprett `apps/mobile/.env.eas.local`** (én gang) med de fem credential-variablene:
+   ```bash
+   EXPO_ASC_API_KEY_PATH=/Users/<bruker>/sti/AuthKey_DINKEY.p8
+   EXPO_ASC_KEY_ID=DIN_KEY_ID
+   EXPO_ASC_ISSUER_ID=DIN_ISSUER_ID
+   EXPO_APPLE_TEAM_ID=WVFPRZ8T98
+   EXPO_APPLE_TEAM_TYPE=INDIVIDUAL
+   ```
+2. **Kjør wrapperen:**
+   ```bash
+   cd apps/mobile && ./eas-build.sh          # profil "test" (default)
+   ./eas-build.sh preview                     # annen profil
+   ```
+   Scriptet `source`-er `.env.eas.local` (`set -a` → env eksporteres) og kjører
+   `eas build --platform ios --profile <profil>`. Apple-login-prompt → API-nøkkelen brukes
+   automatisk (svar `n` om den spør).
+
+> 🔒 **`.env.eas.local` committes ALDRI** — den inneholder Apple-credentials. Den er git-ignorert
+> både av rot-`.gitignore` (`.env.*.local`) og eksplisitt av `apps/mobile/.gitignore`. Verifisér
+> ved tvil: `git check-ignore -v apps/mobile/.env.eas.local` skal returnere en treff-linje.
+
 ## App variants — test + prod side om side (implementert 2026-06-12)
 
 **Problem (oppdaget 2026-06-12):** Test-bygget (Expo intern distribusjon, mot api-test) og
