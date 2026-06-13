@@ -969,6 +969,8 @@ Datamodell (`projectId` + `externalCostObjectId`) er KORREKT. Kun UI-gruppering 
 
 ### T.8 — Innsjekk-basert prosjektforslag i dagsseddel (låst 2026-05-12)
 
+> **🟡 Under revurdering (2026-06-13):** Kenneth foreslår evolusjon fra dagens konservative modell (hint + eksplisitt opprettelse) til **auto-utkast fra GPS-dagflyt + godkjenning ved innsending** (draft→sent). Utredning + de to alternativene i [BACKLOG.md § Timer-relatert](BACKLOG.md). Separasjons-prinsippet under gjelder inntil beslutning er tatt.
+
 Når arbeider åpner «Ny dagsseddel», foreslås prosjekt basert på innsjekk-historikk fra Mannskap-modulen (Fase 4). Arbeider bestemmer alltid selv — forslaget kan overstyres.
 
 **Forslags-prioritet:**
