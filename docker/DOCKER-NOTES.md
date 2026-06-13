@@ -35,20 +35,29 @@ Alle på docker-nett `appnet`, bundet til `127.0.0.1`.
 5. **Opp:** `... up -d`. Verifiser lokalt: `curl 127.0.0.1:3001/health`, `curl -H "Host: test.sitedoc.no" 127.0.0.1:3100/` (innlogget), AI-søk + oversettelse (treffer embed/oversettelse).
 6. **Cutover** (eget steg, prod): fersk `pg_dump sitedoc` → restore (ALDRI slett data) → flytt DNS for `sitedoc.no` + `api.sitedoc.no` via **Cloudflare-dashboard** (egen sone — cloudflared CLI virker IKKE her, jf. salsaklubb-lærdom) → verifiser innlogget i nettleser.
 
-## Gotcha: `API_PORT` for Next `/api/upload`-rewrite (lærdom 2026-06-12)
+## Gotcha: `API_PORT` for Next `/api/upload`-rewrite — 3 lag (lærdom 2026-06-12/13)
 Web-containeren deler API-ens nett-namespace (`network_mode: service:<api>`). Next-rewriten i
 `apps/web/next.config.js` proxer `/api/upload` + `/api/uploads/:path*` til
 `http://localhost:${API_PORT || "3001"}/upload`. **`API_PORT` MÅ matche API-ens `PORT`** i samme
 namespace, ellers treffer rewriten en død port → 500 «Internal Server Error» → «Kunne ikke laste opp
 filen» i UI (og tegningsbilder vises ikke). Prod-API = 3001 (= default, virket tilfeldigvis), men
 **test-API = 3301** → test fikk feil port og all tegning/bilde-opplasting var brutt etter
-Docker-migreringen.
+Docker-migreringen. Feilsøkingen avdekket TRE lag som alle må stemme:
 
-⚠️ **Kritisk: rewrite-destinasjonen bakes inn i `.next/routes-manifest.json` ved `next build`-tid**,
-ikke ved server-start. Runtime-env (`environment:` / `env_file`) er for sent. `API_PORT` settes
-derfor som **build-arg** (Dockerfile.web: `ARG API_PORT=3001` → `ENV` før `pnpm turbo build`),
-matet per miljø fra `compose.build.args` (test 3301 / prod 3001). **Endring krever rebuild:**
-`sudo docker compose -f docker/docker-compose.test.yml up -d --build sitedoc-test-web`.
+1. **Runtime-env er for sent.** Rewrite-destinasjonen bakes inn i `.next/routes-manifest.json` ved
+   `next build`-tid. `environment:` / `env_file` påvirker ikke en allerede bygd manifest.
+2. **Build-arg.** `API_PORT` settes som build-arg: `Dockerfile.web` har `ARG API_PORT=3001` → `ENV
+   API_PORT=${API_PORT}` FØR `pnpm turbo build`. Per miljø: **test 3301 / prod 3001**.
+3. **Turbo v2 strict-env.** Selv med ARG/ENV stripper Turbo v2 ukjente env-variabler bort fra
+   build-taskens miljø → `next build` så aldri `API_PORT`. **`turbo.json` må ha
+   `tasks.build.env: ["API_PORT"]`** (slipper den gjennom OG inn i cache-hashen, så portbytte
+   buster cachen). Uten dette nr. 2 er virkningsløst.
+
+**Bevist deploy-sti:** `docker build --build-arg API_PORT=<port> ...` (eksplisitt) + `up -d`.
+Hvorvidt `compose.build.args` alene når frem til buildx/bake er **uavklart** — ikke bekreftet, ikke
+anta det. Bruk eksplisitt `--build-arg` ved web-rebuild til dette evt. er verifisert. Verifiser
+manifest etter build: `grep '/api/upload' apps/web/.next/routes-manifest.json` skal vise riktig
+port; live: `curl -X POST https://test.sitedoc.no/api/upload` skal gi `401 JSON` (ikke `500`).
 
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.
