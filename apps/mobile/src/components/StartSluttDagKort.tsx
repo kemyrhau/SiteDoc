@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { Play, Square, Clock } from "lucide-react-native";
+import { Play, Square, Clock, AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import * as Location from "expo-location";
@@ -104,6 +104,9 @@ export function StartSluttDagKort() {
   const [aktivDag, setAktivDag] = useState<AktivDag | null>(null);
   const [naa, setNaa] = useState<number>(Date.now());
   const [behandler, setBehandler] = useState(false);
+  // Lag 2: arbeider har bekreftet «jeg jobber fortsatt» på en gammel åpen dag
+  // → skjul glemt-dag-prompten for denne økten og vis normal «Slutt dag».
+  const [jobberFortsatt, setJobberFortsatt] = useState(false);
 
   // Les pågående arbeidsdag ved montering.
   const lesAktivDag = useCallback(() => {
@@ -195,14 +198,18 @@ export function StartSluttDagKort() {
     }
   }, [bruker?.id, behandler, valgtFirmaId]);
 
-  const utforSluttDag = useCallback(async () => {
+  const utforSluttDag = useCallback(async (overstyrtSluttIso?: string) => {
     if (!aktivDag || !bruker?.id || behandler) return;
     setBehandler(true);
     try {
-      const { lat, lng } = await fangGps();
+      // Lag 2 (gjenoppretting av glemt dag): bruk estimert slutt-tid og IKKE
+      // GPS-ved-slutt — arbeider er ikke nødvendigvis på stedet nå.
+      const { lat, lng } = overstyrtSluttIso
+        ? { lat: null as number | null, lng: null as number | null }
+        : await fangGps();
       const db = hentDatabase();
       if (!db) return;
-      const sluttIso = new Date().toISOString();
+      const sluttIso = overstyrtSluttIso ?? new Date().toISOString();
       const dagsseddelId = genererForslag(
         bruker.id,
         valgtFirmaId ?? "",
@@ -253,6 +260,22 @@ export function StartSluttDagKort() {
     );
   }, [aktivDag, behandler, t, utforSluttDag]);
 
+  // Lag 2 (glemt dag): gjenoppretting — estimer slutt = firma-standard slutt-tid
+  // på START-dagen, og generer draft arbeider kan korrigere. (Merkingen
+  // sluttTidKilde="system" påføres i 4b-2 når feltet finnes.)
+  const gjenopprettGlemtDag = useCallback(() => {
+    if (!aktivDag || behandler) return;
+    const startDato = formatIsoDato(new Date(aktivDag.startAt));
+    const effektiv = hentEffektivArbeidstidLokal(
+      valgtFirmaId ?? "",
+      new Date(`${startDato}T00:00:00`),
+    );
+    const [tt, mm] = effektiv.sluttTid.split(":").map(Number);
+    const slutt = new Date(aktivDag.startAt);
+    slutt.setHours(tt, mm, 0, 0);
+    void utforSluttDag(slutt.toISOString());
+  }, [aktivDag, behandler, valgtFirmaId, utforSluttDag]);
+
   if (!bruker?.id) return null;
 
   // Inaktiv — «Start dag»
@@ -272,6 +295,52 @@ export function StartSluttDagKort() {
           {t("timer.startDag.start")}
         </Text>
       </Pressable>
+    );
+  }
+
+  // Lag 2: gammel åpen dag (startet før i dag) + ikke bekreftet «jobber fortsatt»
+  // → glemt-dag-prompt i stedet for normal «Slutt dag». Adresserer glemt «Slutt
+  // dag» (BUG-1) + 4a over-splitt av fler-døgns økt.
+  const startDato = formatIsoDato(new Date(aktivDag.startAt));
+  if (startDato < formatIsoDato(new Date()) && !jobberFortsatt) {
+    return (
+      <View className="mx-4 mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+        <View className="flex-row items-center gap-2">
+          <AlertTriangle size={16} color="#b45309" />
+          <Text className="flex-1 text-sm font-semibold text-amber-900">
+            {t("timer.glemtDag.tittel")}
+          </Text>
+        </View>
+        <Text className="mt-1 text-xs text-amber-800">
+          {t("timer.glemtDag.melding", { dato: startDato })}
+        </Text>
+        <View className="mt-3 gap-2">
+          <Pressable
+            onPress={() => gjenopprettGlemtDag()}
+            disabled={behandler}
+            className="flex-row items-center justify-center gap-2 rounded-lg bg-amber-600 py-3 active:bg-amber-700 disabled:opacity-50"
+          >
+            {behandler ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Square size={16} color="#ffffff" fill="#ffffff" />
+            )}
+            <Text className="text-base font-semibold text-white">
+              {t("timer.glemtDag.glemte")}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setJobberFortsatt(true)}
+            disabled={behandler}
+            className="flex-row items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white py-3 active:bg-amber-100 disabled:opacity-50"
+          >
+            <Clock size={16} color="#b45309" />
+            <Text className="text-base font-medium text-amber-800">
+              {t("timer.glemtDag.jobberFortsatt")}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
     );
   }
 
