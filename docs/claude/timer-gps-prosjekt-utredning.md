@@ -38,6 +38,8 @@ som en *etikett* arbeider velger. De kolliderer når valgt prosjekt ≠ faktisk 
 
 ## BESLUTNING 1 (avgjør resten) — T.8: konservativ vs auto-utkast
 
+> **✅ VEDTATT 2026-06-20: Alternativ B (auto-utkast).** Modulen bygger seg selv (draft fra dag-flyt), viser arbeider alt, korrigerbart, godkjennes ved innsending (`draft→sent`). Styrer Del 2/3 + BESLUTNING 2–6. Foldet til `fase-0 § T.8`; «aldri auto-rad» → «aldri auto-innsending» ved bygging av Del 3.
+
 **Spørsmål:** Hvem skriver timer-radene, og hvor ligger godkjennings-punktet?
 
 | | Hvem skriver utkastet | Godkjennings-punkt |
