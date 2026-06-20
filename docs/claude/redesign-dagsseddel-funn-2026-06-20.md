@@ -1,0 +1,254 @@
+---
+fil: redesign-dagsseddel-funn-2026-06-20.md
+status: 🟠 MIDLERTIDIG ARBEIDSDOKUMENT — kun for dagsseddel-redesign
+opprettet: 2026-06-20
+sist_verifisert_mot_kode: 2026-06-20
+emne: Funn fra dokumentasjon + kode-verifisering før redesign av dagsseddel-registrering
+---
+
+> # ⚠️ MIDLERTIDIG — IKKE i registeret / DOC-MAP / fil-telling
+> Arbeidsdokument for dagsseddel-redesignet (samme konvensjon som
+> `OPPSUMMERING-timer-arkitektur.md`). **Alle beslutninger og endringer som følger
+> av dette skal omskrives inn i eksisterende sannhetskilder** (timer.md,
+> dagsseddel-design.md, fase-0-beslutninger.md, terminologi.md, maskin.md,
+> steg-4b-plan.md) — deretter slettes/arkiveres dette dokumentet.
+
+# Funn: dagsseddel-registrering — dokumentasjon vs. kode
+
+## Hovedkonklusjon (snur hypotesen)
+
+Kenneth forventet «funn som logisk ikke eksisterer i UI». Sannheten er motsatt for de
+fleste punktene: **funksjonaliteten ER bygget i mobil-koden — men skjult/gated** slik
+at den er usynlig i normaltilfellet (én arbeider, ett prosjekt, ingen maskin-modul).
+Skjermbildene viser et *innskrumpet* UI, ikke et *manglende* UI.
+
+Det reelle problemet er **synlighet og selvforklaring**, ikke manglende felter.
+
+## Metode
+
+- Docs lest 2026-06-20 (11 filer) + kode-verifisert mot mobil-komponentene:
+  `app/timer/[id].tsx`, `timer-detalj/{TimerSeksjon,MaskinSeksjon,ArbeidstidSeksjon,FraTilTidFelt,ProsjektVelger}.tsx`.
+- Status: ✅ implementert+verifisert · 🟡 planlagt/ikke-bygget · ⚠️ bygget-men-skjult/gated · 📄 doc-drift
+
+---
+
+## DEL 1 — Per registrering: doc-intensjon vs. KODE (verifisert)
+
+### A. Arbeidstid / timer-rad (`SheetTimer`) — ✅ + ⚠️
+- **Doc:** rad bærer lønnsart + aktivitet + projectId + ECO + fra/til + timer; sedel
+  bærer kun konvolutt (`startAt/endAt/pauseMin`). *(timer.md:756–784)*
+- **Kode:** Bekreftet. `TimerRadModal` (`TimerSeksjon.tsx:383`) har prosjekt, lønnsart,
+  aktivitet, antall timer, fra/til, underprosjekt. `EcoBucket` (`[id].tsx:570`) grupperer
+  rader per prosjekt+ECO. **Per-rad `projectId` ER implementert på mobil** (insert `radProjectId`
+  i `sheetTimerLocal.projectId`, `TimerSeksjon.tsx:93`).
+- **⚠️ Skjult:** Ved ÉN prosjektgruppe vises ingen prosjekt-header (`[id].tsx:375`
+  `visHeader={aktiveProsjektIder.length > 1}`). Toppbaren viser i stedet `aktivitet.navn`
+  («Anleggsarbeid», `[id].tsx:277`) — som leses som prosjekt.
+
+### B. Reisetid — ✅
+- **Doc:** reisetid = egen lønnsart-rad, ikke felt/tillegg. *(timer.md:286)*
+- **Kode:** Bekreftet — reisetid føres ved å velge «Reise»-lønnsart i `TimerRadModal`.
+  R4 auto-forslag i `StartSluttDagKort` (matrise). Ingen egen reise-UI (riktig per modell).
+- **🟡** Reise-regelsett + matrise R1–R4 = develop/test, ikke prod.
+
+### C. Underprosjekt (= ECO) — ✅ + ⚠️
+- **Doc:** «Underprosjekt» = `ExternalCostObject`, per rad. *(terminologi.md:105)*
+- **Kode:** Bekreftet — `UnderprosjektVelgerModal` (`TimerSeksjon.tsx:925`, med fritekstsøk),
+  ECO per timer-rad OG maskin-rad, ECO-bucket med «→ Godkjenning byggherre»-badge (`[id].tsx:633`).
+- **⚠️ Skjult:** Underprosjekt-velgeren ligger inne i rad-modalen; ingen synlig inngang før
+  man åpner en rad. ECO-listen krever at det finnes ECO-er (avledes fra Godkjenning/Proadm).
+
+### D. Prosjekt-tilknytning + synlighet — ✅ modell / ⚠️ synlighet
+- **Doc:** én sedel per (bruker, dag); projectId per rad; T.7 prosjekt+ECO-gruppert UI. *(fase-0 § T.1, T.7)*
+- **Kode:** Bekreftet — `ProsjektGruppe` + `EcoBucket` + «+ Legg til prosjekt»
+  (`ProsjektVelgerModal`, `[id].tsx:439`). T.7-strukturen ER bygget på mobil.
+- **⚠️ HOVEDFUNN (svarer på spørsmål 1):** prosjektet er usynlig i normaltilfellet
+  (én gruppe → ingen header). **Dette er rotårsaken — ikke at modellen mangler.**
+
+### E. Maskintimer (`SheetMachine`) — ✅ + ⚠️
+- **Doc:** maskin = egne rader, soft-skjul når Equipment-liste tom. *(C.18; dagsseddel-design.md:235)*
+- **Kode:** Bekreftet — `MaskinSeksjon` + `MaskinRadModal` + `EquipmentVelgerModal`.
+  **Soft-skjul:** `if (!harEquipmentCache && rader.length === 0) return null` (`MaskinSeksjon.tsx:143`).
+- **⚠️ Forklarer skjerm 3:** «MASKINTIMER 0.00 T» uten «legg til»-vei = tom Equipment-cache
+  (Maskin-modul ikke aktiv for firmaet).
+
+### F. Produksjonsmengde — ✅ (kun maskin)
+- **Kode:** `SheetMachine.mengde` + `enhet` finnes i `MaskinRadModal` (`MaskinSeksjon.tsx:555–576`,
+  enhet-velger). Bekreftet bygget.
+- **⚠️ Designspørsmål:** «annen produksjonsmengde» for *arbeider* (uten maskin) finnes ikke —
+  mengde henger kun på maskin-raden.
+
+### G. Varekjøp / vareforbruk — 🟡 IKKE BYGGET (ekte gap)
+- **Doc:** Vare + Vareforbruk, registreres på sedel; men fase-0 sier «`SheetVareforbruk` mangler».
+- **Kode:** `grep` i hele `apps/mobile` for vareforbruk/vare/SheetVare → **0 treff**. Ingen
+  vare-seksjon, ingen import. **Reelt fravær — ikke skjult.** Dette er det eneste kravet av de
+  seks som faktisk ikke finnes i UI.
+
+### H. Roller: arbeider vs. maskinfører — 📄 modell-mismatch
+- **Doc + kode:** «Maskinfører» er IKKE en rolle — maskinbruk er data (`SheetMachine`), gated på
+  modul-aktivering. Alle ser samme flyt; maskin-seksjon soft-skjules.
+- **⚠️ Designspørsmål til Kenneth:** ønsker du *rolle-baserte* registreringsoppsett (arbeider-modus
+  vs. maskinfører-modus), eller holder dagens modul-gating + soft-skjul? Modellen har ikke roller i dag.
+
+### I. Maskin/utstyr-velger fritekstsøk — ✅ ALLEREDE BYGGET
+- **Krav (Kenneth):** fritekstsøk på maskin-nummer OG -navn, ingen lange nedtrekk.
+- **Kode:** `EquipmentVelgerModal` filtrerer på merke, modell, internNavn, **internNummer**,
+  registreringsnummer (`MaskinSeksjon.tsx:713–724`); søkefelt vises når listen > 7 (`:742`).
+  **Kravet er oppfylt** — bare udokumentert. Samme mønster i lønnsart-, aktivitet- og ECO-velgerne.
+
+---
+
+## DEL 2 — Svar på Kenneths spørsmål (verifisert mot kode)
+
+**Spørsmål 1 — forstår bruker hvilket prosjekt?**
+Nei, men ikke fordi modellen mangler — fordi **prosjekt-headeren er gated til >1 prosjekt**
+(`[id].tsx:375`) og toppbaren viser lønnsart/aktivitet («Anleggsarbeid») i stedet. Fjern gaten /
+vis alltid prosjektet → løst.
+
+**Spørsmål 2 — er «Legg til timer-rad» logisk?**
+Delvis. Strukturen er: «Arbeidstid i dag» (konvolutt for overtid) → per prosjekt+ECO-bucket med
+«Arbeidstimer» + «Legg til timer-rad» + maskin nestet under. Knappen er logisk *når man forstår*
+at raden er der prosjekt/lønnsart/aktivitet/ECO settes — men det forklares ikke, og siden prosjektet
+er skjult, mister raden sin kontekst.
+
+**«+ Legg til prosjekt»:** nytt **hovedprosjekt** (ny prosjektgruppe), ikke underprosjekt. ✅ verifisert.
+**Maskin «legg til»:** finnes, men **soft-skjult** når Equipment-cache er tom. ✅ verifisert.
+**Varekjøp / arbeider-produksjonsmengde:** finnes **ikke**. ✅ verifisert.
+
+---
+
+## DEL 3 — Gap-liste (verifisert)
+
+**Ekte mangler (bygges):**
+- **GAP-1 — Vareforbruk/varekjøp:** ikke i mobil-UI i det hele tatt (0 grep-treff). Modul ikke bygget.
+- **GAP-2 — Arbeider-produksjonsmengde:** mengde henger kun på maskin-rad; ikke for arbeider.
+
+**Synlighets-/UX-feil (bygget, men skjult — dette er kjernen i redesignet):**
+- **UX-1 — Prosjekt usynlig ved én gruppe** (`[id].tsx:375` `visHeader>1`) + toppbar viser aktivitet. → spørsmål 1.
+- **UX-2 — «Legg til timer-rad»/konvolutt-relasjon uforklart.** → spørsmål 2.
+- **UX-3 — Maskin-seksjon helt skjult** uten aktiv Maskin-modul (soft-skjul). Bevisst, men gir «hvor er maskin?».
+- **UX-4 — Underprosjekt/ECO** kun synlig inne i rad-modal; ingen inngang utenfra.
+
+**Tidsbug (skjerm 1, 165.57 T):**
+- **BUG-1:** «Arbeidstid i dag» 14:32→12:37 = 165.57 T stammer trolig fra **glemt «Slutt dag»**:
+  start 13. juni, «Slutt dag» trykket ~7 dager senere → 168 t. `StartSluttDagKort`-flyten har
+  **ingen maks-varighet-vakt / auto-utsjekk** (jf. 12t-presedensen). Merk: manuell redigering
+  *har* vakt (`ArbeidstidSeksjon.tsx:143` `diffMin<=0`), og `arbeidstidTimer` klamrer `Math.max(0,…)`
+  (`[id].tsx:150`) — så **skjerm 1 (13. juni) er sannsynligvis et ELDRE bygg**; skjerm 3 (20. juni)
+  er gjeldende kode. Bør bekreftes, men auto-flyt-vakten mangler uansett.
+
+**Doc-drift (omskrives):**
+- **DRIFT-1:** `timer.md:124` sier mobil henger bak (PR 2C, projectId på sedel-nivå) — koden viser
+  per-rad `projectId` implementert. Trolig utdatert claim.
+- **DRIFT-2:** `timer.md:330–357` UX-skisse viser prosjekt på sedel-nivå (pre-T.1) — utdatert.
+- **DRIFT-3:** Fritekstsøk på alle velgere (incl. utstyr nr+navn) er bygget men udokumentert.
+- **DRIFT-4:** `timer-input-katalog.md` er tom plassholder.
+- **DRIFT-5:** auto-fordeling normaltid/overtid — T.9 (droppet) vs OPPSUMMERING (manglende). Koden
+  forhåndsvelger kun lønnsart (Variant B), ingen fordelingsmotor → T.9 er korrekt; OPPSUMMERING bør rettes.
+
+---
+
+## DEL 4 — Beslutnings-status relevant for redesign
+
+**LÅST:** T.1 (sedel/bruker/dag), T.2 (projectId per rad), T.3 (attestering per gruppe), T.4
+(fra/til per rad + validering), T.7 (prosjekt+ECO-gruppert UI), Alt C (interne prosjekt-rader),
+G1 (firma-nivå tilgang), reisetid = lønnsart-rad.
+
+**ÅPENT (`timer-gps-prosjekt-utredning.md`):** BESLUTNING 1 (konservativ vs auto-utkast — **styrer
+redesignet**), 2–6 (mismatch, dag-flyt, to-lags §15, autoritet, multi-byggeplass), reisetid-terskel/lovlighet,
+byggeplass-GPS (1c-mobil). **Nye designspørsmål fra dette passet:** roller (H), arbeider-produksjonsmengde (F/GAP-2).
+
+## DEL 5 — Hva må omskrives i eksisterende docs (etter beslutninger)
+
+1. `timer.md:124` — fjern/oppdater «mobil bak»-claim (DRIFT-1).
+2. `timer.md:330–357` — oppdater UX-skisse til T.7-gruppert, prosjekt per rad (DRIFT-2).
+3. `maskin.md` / `dagsseddel-design.md` — dokumenter fritekstsøk-mønsteret på utstyr-velger (DRIFT-3).
+4. `timer-input-katalog.md` — fyll eller slett (DRIFT-4).
+5. fase-0 § T.9 vs `OPPSUMMERING` — reconcile auto-fordeling (DRIFT-5).
+6. Nye beslutninger (synlighet/roller/varekjøp/produksjonsmengde) → riktig sannhetskilde når vedtatt.
+
+---
+
+## DEL 6 — Beslutninger fra Kenneth (2026-06-20) + design
+
+### BESLUTNING R — «Roller» løses via kompetansematrisen, ikke rolle
+
+Kenneth: les matrisen — om arbeider har **maskinførerbevis** / **40-timers sikkerhetskurs** —
+og styr registreringsvalg ut fra det (ikke en hardkodet rolle).
+
+**Verifisert mot kode/schema:**
+- `Kompetansetype` (`schema.prisma:2034`) har `navn`, **`kategori`** (enum `KOMPETANSE_KATEGORIER`),
+  `aktiv`, **`kobletTilEquipmentModell`** (fritekst merke+modell, forberedt for «DO-kobling Fase 6»).
+- Kategori-katalogen inneholder **`"TRUCK-/MASKINFØRERBEVIS"`** (`fase-0:679`) — ren gating-akse.
+- `AnsattKompetanse` har `utloper` (utløpsdato) → gating må respektere utløp.
+- «Maskinførerbevis»/«40t» er IKKE seedet — `Kompetansetype` er firma-definert; firmaet oppretter
+  typene selv (kategori settes ved opprettelse).
+
+**Gap som må lukkes før dette kan bygges:**
+- 🟡 **Kompetanse er ikke på mobil** (0 grep-treff i `apps/mobile`). Offline-gating krever ny
+  lokal cache (`kompetansetype_local` + `ansatt_kompetanse_local`) + sync. **Største forutsetning.**
+- 🟡 Ingen kryssmodul-konsum i dag (timer/maskin leser ikke kompetanse).
+- 📄 CLAUDE.md-drift: påstår `apps/api/src/services/kompetanse/` — finnes ikke; er `routes/kompetanse.ts`
+  + `routes/kompetansetype.ts` + `utils/kompetanseImport.ts`.
+
+**Design (rangert):**
+- **R-1 (anbefalt MVP):** vis maskin-seksjon kun hvis arbeider har aktiv (ikke-utløpt) kompetanse med
+  `kategori = "TRUCK-/MASKINFØRERBEVIS"` — i tillegg til dagens `harEquipmentCache`-gate.
+- **R-2 (Fase 2, sterkere):** begrens HVILKET utstyr via `kobletTilEquipmentModell` (kun sertifisert
+  merke+modell). = «DO-kobling Fase 6», allerede forutsett i schema.
+- Respekter `utloper` i begge.
+
+**AVKLART (2026-06-20):** Matrise-drevet. Hent fra kompetansematrisen alle som er huket av for
+**maskinfører / har 40-timers kurs**, og eksponer maskin-registrering for dem. Ingen separat hard
+«site-gate» besluttet — maskinførerbevis + 40t leses som *kvalifikasjon* for maskin-registrering.
+Eksakt kombinasjon (maskinførerbevis alene vs. + 40t) og om det skal være firma-konfigurerbart,
+avklares ved bygging. **Forutsetning står: kompetanse må synces til mobil først.**
+
+### BESLUTNING P — Produksjonsmengde for arbeider = fritekstfelt
+
+Kenneth: arbeider skal ha et **fritekstfelt der han skriver hva han har gjort** (ikke tallmengde).
+
+**Verifisert mot schema:**
+- **`DailySheet.beskrivelse String? @db.Text`** finnes allerede (`db-timer schema:150`) — fritekst på
+  **dag-nivå** — men eksponeres IKKE i mobil-UI i dag (ArbeidstidSeksjon viser den ikke).
+- `SheetTimer` har INGEN fritekst. `SheetTillegg.kommentar` finnes (`:245`).
+
+**Design (rangert):**
+- **P-1 (minst arbeid):** eksponer eksisterende `DailySheet.beskrivelse` i mobil — ingen schema-endring.
+  Men dag-nivå (én tekst for hele dagen).
+- **P-2 (per aktivitet):** nytt fritekstfelt på `SheetTimer` (per rad) — krever schema + to-stegs migrering.
+  Mest presist («hva jeg gjorde på denne posten»).
+- **P-3:** per prosjektgruppe (mellomting).
+
+**AVKLART (2026-06-20):** **Per timer-rad (P-2)** — nytt fritekstfelt på `SheetTimer` + to-stegs
+migrering. Eksport: **utsatt** — rapport-valg (hva som skal med i utskrift) utvikles senere når
+timeregistrering er funksjonell. Inntil da: lagres som intern dokumentasjon.
+
+---
+
+## DEL 7 — BESLUTNING 1 VEDTATT (2026-06-20): auto-utkast (Alternativ B)
+
+Kenneth: «Modulen bygger seg selv, men viser arbeider hva som er registrert. Den må kunne korrigeres
+av arbeider før innsending dersom automatikken registrerer noe annet enn arbeidstaker ønsker.»
+
+→ **Alternativ B (auto-utkast)** valgt. Styrer hele to-be-redesignet.
+
+**Invariant:** auto-skriving skjer alltid som `draft`. Arbeider ser alt, kan redigere/slette enhver
+auto-rad, og **godkjenner ved innsending (`draft → sent`)**. Ingen lønn uten menneskelig godkjenning.
+Formuleringen «aldri auto-rad» erstattes av **«aldri auto-*innsending*»**.
+
+**Doc-konsekvens (omskrives i sannhetskilder via gaten):**
+- `fase-0 § T.8` separasjons-prinsipp («innsjekk trigger aldri auto-dagsseddel/rader») → revideres til
+  auto-utkast med godkjenning ved innsending.
+- `timer.md:416` «aldri auto-rad» → «aldri auto-innsending».
+- `timer-gps-prosjekt-utredning.md` BESLUTNING 1 → markeres **vedtatt (B)**.
+
+**Byggbart nå (uten byggeplass-GPS) — «auto-utkast MVP»:** ved Slutt dag auto-genereres draft-dagsseddel
+med arbeidstid-rad (timer = total − reise) på valgt prosjekt + reise-rad fra R4-matrise. Arbeider
+korrigerer + sender. + synlighets-fiks (UX-1) så prosjektet vises.
+
+**Blokkert av byggeplass-GPS (1c-mobil):** BESLUTNING 2 (prosjekt-mismatch), 3 (dag-flyt-overganger),
+6 (multi-byggeplass) — alt som krever GPS-drevet prosjekt/byggeplass-deteksjon + reise→arbeid-overganger.
+
+**Kan låses uavhengig:** BESLUTNING 5 (arbeider-valg autoritativt, GPS advisory — G1). BESLUTNING 4
+(to-lags §15-presence vs lønnstid) avhenger av Mannskap Fase 4.
