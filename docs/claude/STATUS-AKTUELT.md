@@ -18,6 +18,8 @@ Engangs GPS-identifikasjon av byggeplass ved «Start dag» — passiv dokumentas
 
 UX-1 (prosjekt alltid synlig på dagsseddel) på develop, del av dagsseddel-redesign / Del 3. `[id].tsx`: `visHeader={true}` + fjernet aktivitet-undertittel i toppbaren + dødkode-rens. Funn-dok: [redesign-dagsseddel-funn-2026-06-20.md DEL 3](redesign-dagsseddel-funn-2026-06-20.md). **Reload:** full JS-reload (Metro «r»).
 
+Slice 1 display-refinements (maskin «herav», prosjekt-subtotal, dagssum herav-maskin, send-hint) på develop.
+
 ### Reisetid-matrise R1–R4 (komplett serie) — PÅ DEVELOP 2026-06-11 (venter dual-review)
 
 Erstatter ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. **R1** grunnmur (schema + rute-service) · **R2** kontor-geokoding + kart · **R3** recompute-motor + triggere · **R4** oppslag + mobil-cache. Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).

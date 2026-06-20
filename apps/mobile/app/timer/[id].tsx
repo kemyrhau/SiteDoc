@@ -151,6 +151,11 @@ export default function DagsseddelDetalj() {
     [timerRader],
   );
 
+  const totalMaskin = useMemo(
+    () => maskinRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
+    [maskinRader],
+  );
+
   // T7-3b2: aktive prosjekt-grupper. Inkluder alltid sedel.projectId som
   // standard-gruppe, samt alle distinkte projectId fra rader og bruker-
   // tilføyde ekstra-grupper.
@@ -396,6 +401,7 @@ export default function DagsseddelDetalj() {
             <SummeringsBanner
               totaltimer={totaltimer}
               arbeidstidTimer={arbeidstidTimer}
+              maskinTimer={totalMaskin}
             />
           )}
           {erRedigerbar && (
@@ -408,6 +414,11 @@ export default function DagsseddelDetalj() {
                 {t("timer.sendTilAttestering")}
               </Text>
             </Pressable>
+          )}
+          {erRedigerbar && (
+            <Text className="text-center text-xs text-gray-500">
+              {t("timer.sendGodkjennHint")}
+            </Text>
           )}
           {sedel.status === "draft" && (
             <Pressable
@@ -471,7 +482,15 @@ function ProsjektGruppe({
   maskinRader: MaskinRad[];
   onEndret: () => void;
 }) {
+  const { t } = useTranslation();
   const prosjekt = useMemo(() => finnProsjektLokalt(projectId), [projectId]);
+
+  // Subtotal i gruppe-header: sum av prosjektets arbeidstimer. Maskin holdes
+  // utenfor (vises som «herav» i hver ECO-bucket).
+  const prosjektTimer = useMemo(
+    () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
+    [timerRader],
+  );
 
   // T7-4e: bygg ECO-bukets innen dette prosjektet. Hovedgruppe (ECO=null)
   // vises alltid først; ECO-er i den rekkefølgen de først dukker opp i rader.
@@ -505,11 +524,14 @@ function ProsjektGruppe({
   return (
     <View className="mt-2">
       {visHeader && (
-        <View className="mx-4 mt-4 rounded-t-lg border border-b-0 border-gray-200 bg-blue-50 px-4 py-2">
-          <Text className="text-sm font-semibold text-sitedoc-primary">
+        <View className="mx-4 mt-4 flex-row items-center justify-between gap-2 rounded-t-lg border border-b-0 border-gray-200 bg-blue-50 px-4 py-2">
+          <Text className="flex-1 text-sm font-semibold text-sitedoc-primary">
             {prosjekt
               ? `${prosjekt.projectNumber ? prosjekt.projectNumber + " — " : ""}${prosjekt.name}`
               : projectId}
+          </Text>
+          <Text className="text-sm font-semibold text-sitedoc-primary">
+            {prosjektTimer.toFixed(2)} {t("timer.tEnhet")}
           </Text>
         </View>
       )}
@@ -645,7 +667,7 @@ function EcoBucket({
       {/* Maskintimer som underpost (indentert via ml-3 + border-l-2) */}
       <View className="ml-3 mt-3 border-l-2 border-gray-200 pl-3">
         <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
-          {t("timer.gruppe.maskintimer")} ({sumMaskin.toFixed(2)} {t("timer.tEnhet")})
+          {t("timer.gruppe.heravMaskin")} ({sumMaskin.toFixed(2)} {t("timer.tEnhet")})
         </Text>
         <MaskinSeksjon
           sheetId={sheetId}

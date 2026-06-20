@@ -126,6 +126,13 @@ er skjult, mister raden sin kontekst.
 **Synlighets-/UX-feil (bygget, men skjult — dette er kjernen i redesignet):**
 - **UX-1 — Prosjekt usynlig ved én gruppe** (`[id].tsx:375` `visHeader>1`) + toppbar viser aktivitet. → spørsmål 1.
   ✅ **LØST (2026-06-20, develop):** `visHeader={true}` (header alltid synlig) + fjernet aktivitet-undertittelen i toppbaren + dødkode-rens (aktivitet-state/-query/-import). Typecheck rent, ingen nye i18n-nøkler.
+
+**Slice 1 — display-refinements mot v2-mockup (✅ gjort 2026-06-20, develop):**
+- Maskin vises som «herav på maskin» (ny nøkkel `timer.gruppe.heravMaskin`), nesting + maskinAvArbeid-indikator beholdt.
+- Prosjekt-subtotal (sum arbeidstimer, maskin utenfor) høyrejustert i gruppe-header.
+- Dagssum-banner får valgfri «herav maskin {{maskin}} t»-linje (`timer.summering.heravMaskin`) når maskin > 0.
+- Send-mikrotekst «Når du sender, godkjenner du timene dine.» (`timer.sendGodkjennHint`) under send-knappen.
+- 3 nye i18n-nøkler i 15 språk. Auto-fyll-banner hører til Slice 3 (auto-utkast), ikke her.
 - **UX-2 — «Legg til timer-rad»/konvolutt-relasjon uforklart.** → spørsmål 2.
 - **UX-3 — Maskin-seksjon helt skjult** uten aktiv Maskin-modul (soft-skjul). Bevisst, men gir «hvor er maskin?».
 - **UX-4 — Underprosjekt/ECO** kun synlig inne i rad-modal; ingen inngang utenfra.

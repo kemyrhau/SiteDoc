@@ -4,11 +4,14 @@ import { useTranslation } from "react-i18next";
 interface SummeringsBannerProps {
   totaltimer: number;
   arbeidstidTimer: number | null;
+  /** Sum maskintimer på tvers av prosjekter — vises som «herav» når > 0. */
+  maskinTimer?: number;
 }
 
 export function SummeringsBanner({
   totaltimer,
   arbeidstidTimer,
+  maskinTimer,
 }: SummeringsBannerProps) {
   const { t } = useTranslation();
 
@@ -34,6 +37,13 @@ export function SummeringsBanner({
           total: arbeidstidTimer === null ? "?" : arbeidstidTimer.toFixed(2),
         })}
       </Text>
+      {maskinTimer !== undefined && maskinTimer > 0 && (
+        <Text className={`mt-0.5 text-xs ${tekstFarge}`}>
+          {t("timer.summering.heravMaskin", {
+            maskin: maskinTimer.toFixed(2),
+          })}
+        </Text>
+      )}
     </View>
   );
 }
