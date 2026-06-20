@@ -597,7 +597,7 @@ Fra [redesign-dagsseddel-funn-2026-06-20.md DEL 3](redesign-dagsseddel-funn-2026
 
 `StartSluttDagKort`-flyten har ingen maks-varighet-vakt eller auto-utsjekk (jf. 12t-presedensen for innsjekk). Glemt «Slutt dag» → urealistisk arbeidstid (165.57 t observert på skjerm 1 i screening 2026-06-20: «Start dag» 13. juni, «Slutt dag» trykket ~7 dager senere → 168 t brutto). Manuell rad-redigering *har* vakt (`ArbeidstidSeksjon.tsx:143` `diffMin<=0`) og `arbeidstidTimer` klamrer `Math.max(0,…)` (`[id].tsx`), men auto-flyt-vakten mangler. Fiks: maks-varighet/auto-utsjekk i «Start dag»-økt-flyten.
 
-### Slice 3 — auto-utkast MVP (auto-generer draft ved «Slutt dag») 🟡
+### Slice 3 — auto-utkast MVP (auto-generer draft ved «Slutt dag») ✅ DEVELOP 2026-06-20 (`a79a8fae`)
 
 Mål = v2-mockup (låst 2026-06-20). Forankret i BESLUTNING 1 = Alternativ B (auto-utkast + innsendings-godkjenning, jf. `fase-0` T.8-revisjon over). Ved «Slutt dag» auto-genereres en **draft**-dagsseddel på valgt prosjekt med arbeidstid + reise, med **auto-fyll-banner** og **reise som egen rad**. Arbeider korrigerer + sender (draft→sent = godkjenning). Synlighets-fiks (UX-1) er allerede levert. Senere utvidelser: maskin + multi-prosjekt-auto-deteksjon (krever byggeplass-GPS L2). Ingen kode før beslutnings-detaljene er låst per mockup.
 
@@ -605,6 +605,20 @@ Mål = v2-mockup (låst 2026-06-20). Forankret i BESLUTNING 1 = Alternativ B (au
 
 **Idempotens (LÅST 2026-06-20, Alt 1):** ved «Slutt dag» — finnes allerede en draft for `(userId, dato)` → naviger til den eksisterende i stedet for å lage ny. Begrunnelse: server håndhever `@@unique([userId, dato])` på `DailySheet` (`db-timer/schema.prisma:164`), så «alltid ny» ville gitt sync-konflikt og «merge» dobbelttellings-risiko. Alt 1 respekterer modellen, unngår duplikat + dobbel-lønn, enklest.
 - **Edge case (akseptabel MVP-tradeoff):** er den eksisterende draften tom (manuelt opprettet, ingen rader), åpnes den uten auto-fyll → arbeider mister auto-genereringen i det sjeldne tilfellet. Greit for MVP. «Auto-fyll tom eksisterende draft» (skriv auto-rader inn i tom draft) er en mulig senere forfining.
+
+### Slice 4 — dag-grense + nattskift + glemt-dag + system-flagg + arbeidstids-varsel 🟡 (designet 2026-06-20, ingen kode)
+
+Større slice enn 1–3: krever **én server-migrering (gated)** + split-logikk + gjenopprettings-prompt + attesterings-badge → eget bygg i frisk økt. Bygger på Slice 3 («Start/Slutt dag»-flyten + `genererForslag`). Forankret i AML **§ 10-6** (alminnelig/utvidet arbeidstid: 13 t varsel-default, 16 t ved tariff) + **§ 10-8** (11 t døgnhvile). **Prinsipp:** SiteDoc *flagger + registrerer* — juridisk ansvar for arbeidstidsgrenser ligger hos firmaets HMS, ikke i appen.
+
+**Lag 1 — midnatt-SPLITT (ikke klemming):** et skift som krysser 00:00 deles i **én dagsseddel per kalenderdag**; timene summerer til reell total (12 t nattskift fra 19:00 → 5 t på dag 1 + 7 t på dag 2). Ikke klem til én dag, ikke kutt på midnatt-totalen. Reise føres på **start-dagen**. Overtid/tariff-behandling av nattetimene er **regnskaps-scope** (lønnsart-grensen — SiteDoc registrerer rådata, regnskap eier satser/kobling).
+
+**Lag 2 — glemt-dag vs. nattskift (gjenopprettings-prompt):** ved «Start dag» / app-åpning, hvis en arbeidsdag fra en **tidligere dato** fortsatt er åpen (`arbeidsdag_local.status="paagaar"`) → spør arbeider: **«Jobber du fortsatt, eller glemte du å avslutte i går?»**. «Jobber fortsatt» → behold åpen (ekte nattskift/lang vakt → Lag 1 splitt ved avslutning). «Glemte å avslutte» → la arbeider sette riktig slutt-tid (system-flagg, Lag 3). Erstatter dagens manglende maks-varighet-vakt (jf. BUG-1: 165 t fra glemt «Slutt dag»).
+
+**Lag 3 — system-flagg på slutt-tid:** nytt server-felt **`DailySheet.sluttTidKilde: "bruker" | "system"`** (Prisma-migrering i `db-timer`, **gated** + `/sitedoc_test` foran). Settes `"system"` når slutt-tiden er system-bestemt (auto-utsjekk/gjenoppretting/maks-varighet-klamp), `"bruker"` (eller nullstilles til bruker-verdi) ved **eksplisitt redigering** av tidspunktet. Vises som **badge i attestering** så attestant ser at tiden ikke er arbeider-bekreftet. Speiler 12 t auto-utsjekk-presedensen (mannskap.md) for timer-domenet.
+
+**Arbeidstids-varsel (samme badge-mekanisme):** ny `OrganizationSetting`-terskel (**default 13 t**, firma kan heve til **16 t** ved tariff). Overskrides total arbeidstid på en dagsseddel terskelen → **varsel, ikke blokkering** (arbeider kan fortsatt sende; utførelse låses aldri bak dette). Samme badge i attestering så attestant/HMS ser flagget. To-stegs-migrerings-policy gjelder for både `sluttTidKilde` og terskel-feltet.
+
+**Avhengigheter/rekkefølge:** Lag 1+2 er mobil-lokalt (kan bygges uten server-migrering om system-flagget utsettes), men Lag 3 + arbeidstids-varsel krever server-migreringen → mest sammenhengende å ta hele Slice 4 som ett bygg med migrerings-OK i forkant. Berører `StartSluttDagKort.tsx` (gjenopprettings-prompt + splitt), `genererForslag` (per-dag-splitt), `db-timer/schema.prisma` (`sluttTidKilde` + terskel på `OrganizationSetting`), attestering-UI (badge), mobil-cache (terskel). Modul-avhengighets-regelen: verifiser mot [timer.md](timer.md) + [mannskap.md](mannskap.md) (auto-utsjekk-presedens) før koding.
 
 ### Byggeplass-ankomst → HMS mannskaps-register (byggherreforskriften §15) 🟡
 
