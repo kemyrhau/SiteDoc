@@ -38,6 +38,8 @@
   "timer.reisetid": "Ceļojuma laiks",
   "timer.autoFyll.tittel": "Diena ir aizpildīta automātiski",
   "timer.autoFyll.hjelp": "Pārbaudiet, labojiet un iesniedziet.",
+  "timer.deltMidnatt.tittel": "Sadalās pusnaktī",
+  "timer.deltMidnatt.hjelp": "Daļa no maiņas, kas ilga divas dienas.",
   "timer.tillegg": "Papildinājumi",
   "timer.overtidsmat": "Virsstundu maltīte",
   "timer.nattillegg": "Nakts papildinājums",

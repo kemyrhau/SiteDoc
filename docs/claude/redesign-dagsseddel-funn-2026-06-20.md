@@ -276,6 +276,14 @@ korrigerer + sender. + synlighets-fiks (UX-1) så prosjektet vises.
 - **Reise-rad-merking** (`TimerSeksjon`/`TimerRadVis`): reise-rad vises med 🚗 + «Reisetid» (gjenbruker `timer.reisetid`). Deteksjon via ny delt `hentReiseLonnsartId(orgId)` i `timerKatalog.ts` — ÉN sannhetskilde (reiseLonnsartId ellers `/reise|transport/i`), hoistet én gang i `TimerSeksjon`, så generering og render aldri drifter.
 - **Verifisering:** mobil typecheck = 0 nye feil fra Slice 3-filene (kun pre-eksisterende baseline-gjeld, bl.a. `timerSync.ts` aktivitetId-null som er bevist uavhengig av kolonnen). **Reload:** full JS-reload (Metro «r») — idempotent ALTER kjører ved `DatabaseProvider`-mount.
 
+**Slice 4a — midnatt-splitt (✅ gjort 2026-06-20, develop):**
+- `genererForslag` refaktorert: ny ren helper `splittVedMidnatt` (`apps/mobile/src/utils/dagsegment.ts`) deler `[startAt, sluttIso]` ved hver lokale 00:00 → ett dag-segment per kalenderdag. `opprettDagsseddelForSegment` lager én draft per segment. Verifisert: 19:00→07:00 = 5t (dag D) + 7t (dag D+1), sum = reell total; dagskift uendret (1 segment).
+- **Låst (Kenneth 2026-06-20):** pause (firma-standard) + reise **kun på start-dagen** (1a); per-dag Timelønn/Overtid-split beholdt (2, «registrer rådata»); overtid/tariff = regnskaps-scope.
+- **«Delt ved midnatt»-merking:** lokal nullable `dagsseddel_local.delt_ved_midnatt` (idempotent ALTER, synces aldri), satt når segmenter > 1; lett indigo-badge på review-skjerm (`Split`-ikon, `timer.deltMidnatt.tittel`/`.hjelp` × 15 språk).
+- **Idempotens per dag:** eksisterende `(userId, dato)`-sedel beholdes, øvrige dager opprettes; naviger til start-dagens sedel.
+- **Kjent luke → Lag 2 (4b):** glemt «Slutt dag» over flere døgn over-splittes (3 dager → 4 sedler). Glemt-dag-prompt i 4b fanger det. 4b krever gated server-migrering (`sluttTidKilde` 3-verdi inkl. «midnatt» + arbeidstids-terskel) — ikke startet.
+- **Verifisering:** typecheck 0 nye feil fra 4a-filene. **Reload:** full JS-reload (Metro «r»).
+
 **Blokkert av byggeplass-GPS (1c-mobil):** BESLUTNING 2 (prosjekt-mismatch), 3 (dag-flyt-overganger),
 6 (multi-byggeplass) — alt som krever GPS-drevet prosjekt/byggeplass-deteksjon + reise→arbeid-overganger.
 

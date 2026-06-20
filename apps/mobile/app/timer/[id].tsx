@@ -21,6 +21,7 @@ import {
   RotateCcw,
   Plus,
   Sparkles,
+  Split,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
@@ -359,6 +360,20 @@ export default function DagsseddelDetalj() {
             </View>
             <Text className="mt-1 text-xs text-blue-700">
               {t("timer.autoFyll.hjelp")}
+            </Text>
+          </View>
+        )}
+
+        {/* Slice 4a: «delt ved midnatt»-merking — sedelen er ett segment av et
+            skift som krysset midnatt. Forklarer lave per-dag-timer som legitim
+            splitt. Vises uavhengig av status (fakta om sedelen). */}
+        {sedel.deltVedMidnatt && (
+          <View className="mx-4 mt-4 flex-row items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
+            <Split size={14} color="#4338ca" />
+            <Text className="flex-1 text-xs text-indigo-800">
+              <Text className="font-semibold">{t("timer.deltMidnatt.tittel")}</Text>
+              {" — "}
+              {t("timer.deltMidnatt.hjelp")}
             </Text>
           </View>
         )}

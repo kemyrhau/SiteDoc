@@ -38,6 +38,8 @@
   "timer.reisetid": "Reisezeit",
   "timer.autoFyll.tittel": "Der Tag wurde automatisch ausgefüllt",
   "timer.autoFyll.hjelp": "Prüfen, korrigieren und absenden.",
+  "timer.deltMidnatt.tittel": "Aufteilung um Mitternacht",
+  "timer.deltMidnatt.hjelp": "Teil einer Schicht, die sich über zwei Tage erstreckte.",
   "timer.tillegg": "Ergänzungen",
   "timer.overtidsmat": "Überstundenmahlzeit",
   "timer.nattillegg": "Nachtzuschlag",

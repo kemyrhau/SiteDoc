@@ -38,6 +38,8 @@
   "timer.reisetid": "Час подорожі",
   "timer.autoFyll.tittel": "День заповнено автоматично",
   "timer.autoFyll.hjelp": "Перевірте, виправте та надішліть.",
+  "timer.deltMidnatt.tittel": "Розділ опівночі",
+  "timer.deltMidnatt.hjelp": "Частина зміни, яка тривала два дні.",
   "timer.tillegg": "БАДи",
   "timer.overtidsmat": "Понаднормове харчування",
   "timer.nattillegg": "Нічна добавка",

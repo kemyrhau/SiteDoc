@@ -660,4 +660,19 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] Kunne ikke utvide dagsseddel_local med auto_generert:", e);
   }
+
+  // Slice 4a (2026-06-20) — delt_ved_midnatt på dagsseddel_local. Nullable, KUN
+  // lokal (synces aldri). Markerer sedler som er segmenter av et midnatt-splittet
+  // skift, for «delt ved midnatt»-merking. Idempotent ALTER.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(dagsseddel_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "delt_ved_midnatt")) {
+      console.log("[MIG] Legger til delt_ved_midnatt på dagsseddel_local (Slice 4a)");
+      db.execSync(`ALTER TABLE dagsseddel_local ADD COLUMN delt_ved_midnatt INTEGER`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide dagsseddel_local med delt_ved_midnatt:", e);
+  }
 }

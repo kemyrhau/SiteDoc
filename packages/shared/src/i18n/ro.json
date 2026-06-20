@@ -38,6 +38,8 @@
   "timer.reisetid": "Timp de călătorie",
   "timer.autoFyll.tittel": "Ziua a fost completată automat",
   "timer.autoFyll.hjelp": "Verificați, corectați și trimiteți.",
+  "timer.deltMidnatt.tittel": "Split la miezul nopții",
+  "timer.deltMidnatt.hjelp": "Parte dintr-o tură care a durat două zile.",
   "timer.tillegg": "Suplimente",
   "timer.overtidsmat": "Masa pentru ore suplimentare",
   "timer.nattillegg": "Supliment de noapte",

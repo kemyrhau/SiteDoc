@@ -38,6 +38,8 @@
   "timer.reisetid": "Restid",
   "timer.autoFyll.tittel": "Dagen har fyllts i automatiskt",
   "timer.autoFyll.hjelp": "Kontrollera, rätta och skicka in.",
+  "timer.deltMidnatt.tittel": "Dela vid midnatt",
+  "timer.deltMidnatt.hjelp": "En del av ett skifte som sträckte sig över två dagar.",
   "timer.tillegg": "Kosttillskott",
   "timer.overtidsmat": "Övertidsmåltid",
   "timer.nattillegg": "Natttillägg",

@@ -38,6 +38,8 @@
   "timer.reisetid": "Cestovní čas",
   "timer.autoFyll.tittel": "Den byl vyplněn automaticky",
   "timer.autoFyll.hjelp": "Zkontrolujte, opravte a odešlete.",
+  "timer.deltMidnatt.tittel": "Rozdělení o půlnoci",
+  "timer.deltMidnatt.hjelp": "Část směny, která trvala dva dny.",
   "timer.tillegg": "Doplňky",
   "timer.overtidsmat": "Stravování přesčas",
   "timer.nattillegg": "Noční doplněk",

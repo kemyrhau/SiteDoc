@@ -38,6 +38,8 @@
   "timer.reisetid": "Koha e Udhëtimit",
   "timer.autoFyll.tittel": "Dita është plotësuar automatikisht",
   "timer.autoFyll.hjelp": "Kontrolloni, korrigjoni dhe dorëzoni.",
+  "timer.deltMidnatt.tittel": "Ndahet në mesnatë",
+  "timer.deltMidnatt.hjelp": "Pjesë e një ndërrimi që zgjati dy ditë.",
   "timer.tillegg": "Suplementet",
   "timer.overtidsmat": "Ushqimi jashtë orarit",
   "timer.nattillegg": "Suplement nate",

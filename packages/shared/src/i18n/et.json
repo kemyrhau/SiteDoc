@@ -38,6 +38,8 @@
   "timer.reisetid": "Reisi aeg",
   "timer.autoFyll.tittel": "Päev on täidetud automaatselt",
   "timer.autoFyll.hjelp": "Kontrollige, parandage ja esitage.",
+  "timer.deltMidnatt.tittel": "Pooli keskööl",
+  "timer.deltMidnatt.hjelp": "Osa vahetusest, mis kestis kaks päeva.",
   "timer.tillegg": "Toidulisandid",
   "timer.overtidsmat": "Ületunnitöö söök",
   "timer.nattillegg": "Öine täiendus",

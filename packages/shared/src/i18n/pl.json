@@ -38,6 +38,8 @@
   "timer.reisetid": "Czas podróży",
   "timer.autoFyll.tittel": "Dzień został uzupełniony automatycznie",
   "timer.autoFyll.hjelp": "Sprawdź, popraw i wyślij.",
+  "timer.deltMidnatt.tittel": "Rozdzielenie o północy",
+  "timer.deltMidnatt.hjelp": "Część zmiany, która trwała dwa dni.",
   "timer.tillegg": "Suplementy",
   "timer.overtidsmat": "Posiłek w godzinach nadliczbowych",
   "timer.nattillegg": "Dodatek na noc",

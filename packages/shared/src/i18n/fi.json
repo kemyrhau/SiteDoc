@@ -38,6 +38,8 @@
   "timer.reisetid": "Matka-aika",
   "timer.autoFyll.tittel": "Päivä on täytetty automaattisesti",
   "timer.autoFyll.hjelp": "Tarkista, korjaa ja lähetä.",
+  "timer.deltMidnatt.tittel": "Jaettu keskiyöllä",
+  "timer.deltMidnatt.hjelp": "Osa vuorosta, joka kesti kaksi päivää.",
   "timer.tillegg": "Lisäravinteet",
   "timer.overtidsmat": "Ylityöt Ateria",
   "timer.nattillegg": "Yötäydennys",

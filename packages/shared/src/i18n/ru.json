@@ -38,6 +38,8 @@
   "timer.reisetid": "Время в пути",
   "timer.autoFyll.tittel": "День был заполнен автоматически",
   "timer.autoFyll.hjelp": "Проверьте, исправьте и отправьте.",
+  "timer.deltMidnatt.tittel": "Сплит в полночь",
+  "timer.deltMidnatt.hjelp": "Часть смены, длившейся два дня.",
   "timer.tillegg": "Добавки",
   "timer.overtidsmat": "Сверхурочное питание",
   "timer.nattillegg": "Ночная доплата",

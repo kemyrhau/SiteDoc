@@ -38,6 +38,8 @@
   "timer.reisetid": "Kelionės laikas",
   "timer.autoFyll.tittel": "Diena buvo užpildyta automatiškai",
   "timer.autoFyll.hjelp": "Patikrinkite, pataisykite ir pateikite.",
+  "timer.deltMidnatt.tittel": "Pasidalijo vidurnaktį",
+  "timer.deltMidnatt.hjelp": "Dalis pamainos, kuri truko dvi dienas.",
   "timer.tillegg": "Papildai",
   "timer.overtidsmat": "Viršvalandžių maitinimas",
   "timer.nattillegg": "Naktinis papildymas",

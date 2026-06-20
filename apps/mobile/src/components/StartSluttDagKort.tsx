@@ -19,6 +19,7 @@ import { useFirma } from "../kontekst/FirmaKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { avstandMeter, estimerReisetidMin, klassifiserReise, type ReiseKategori } from "@sitedoc/shared";
 import { haversineKm } from "../utils/geo";
+import { splittVedMidnatt, type Dagsegment } from "../utils/dagsegment";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
@@ -314,14 +315,16 @@ export function StartSluttDagKort() {
 }
 
 /**
- * Generer et dagsseddel-forslag fra en avsluttet arbeidsdag-økt.
- * Returnerer dagsseddel-id, eller null hvis prosjekt/aktivitet ikke kan
- * utledes offline (kaller da manuell opprettelse).
+ * Generer dagsseddel-forslag fra en avsluttet arbeidsdag-økt.
+ * Returnerer **start-dagens** dagsseddel-id (for navigering), eller null hvis
+ * prosjekt/aktivitet ikke kan utledes offline (kaller da manuell opprettelse).
  *
- * Prosjekt: nærmeste fra Haversine (start-GPS, ellers slutt-GPS). Arbeidstid:
- * (slutt − start) − firma-pauseMin. Auto-fordeling: Timelønn (firma-default,
- * Variant B `erStandardvalg`) opp til dagsnorm + «Overtid 50%» (navne-match,
- * midlertidig MVP-identifikasjon) for overskytende.
+ * Slice 4a: en økt som krysser midnatt deles i én dagsseddel per kalenderdag
+ * (`splittVedMidnatt`); timene summerer til reell total. Reise + firma-pause
+ * føres KUN på start-dagen (vedtatt 2026-06-20). Per dag gjelder dagens
+ * auto-fordeling: Timelønn (firma-default, Variant B `erStandardvalg`) opp til
+ * dagsnorm + «Overtid 50%» (navne-match) for overskytende. Prosjekt = nærmeste
+ * via Haversine (start-GPS, ellers slutt-GPS).
  */
 function genererForslag(
   userId: string,
@@ -333,21 +336,6 @@ function genererForslag(
 ): string | null {
   const db = hentDatabase();
   if (!db) return null;
-
-  // Idempotens: server håndhever @@unique([userId, dato]) på DailySheet.
-  // Finnes det allerede en dagsseddel for (bruker, dato) lokalt → naviger til
-  // den i stedet for å opprette en ny (en ny ville gitt sync-konflikt). Auto-
-  // fyll hoppes da over; er den eksisterende draften tom, mister arbeider auto-
-  // genereringen (akseptabel MVP-tradeoff, dokumentert i BACKLOG Slice 3).
-  const dato = formatIsoDato(new Date(dag.startAt));
-  const eksisterende = db
-    .select({ id: dagsseddelLocal.id })
-    .from(dagsseddelLocal)
-    .where(
-      and(eq(dagsseddelLocal.userId, userId), eq(dagsseddelLocal.dato, dato)),
-    )
-    .all()[0];
-  if (eksisterende) return eksisterende.id;
 
   // 1. Prosjekt via Haversine.
   const prosjekter = hentProsjekterLokalt(orgId);
@@ -377,21 +365,11 @@ function genererForslag(
   const aktivitet =
     aktiviteter.find((a) => a.navn === "Anleggsarbeid") ?? aktiviteter[0];
 
-  // 3. Arbeidstid = brutto − firma-pause.
-  const effektiv = hentEffektivArbeidstidLokal(
-    orgId,
-    new Date(`${dato}T00:00:00`),
-  );
-  const bruttoTimer =
-    (new Date(sluttIso).getTime() - new Date(dag.startAt).getTime()) / 3_600_000;
-  const totalTimer =
-    Math.round(Math.max(0, bruttoTimer - effektiv.pauseMin / 60) * 100) / 100;
-
-  // Fase 3 (§ B) + R4: reise-forslag. KUN når oppmøtested ble identifisert ved
-  // start (kontor→byggeplass — hjem→arbeidssted kompenseres ikke). Reisetid =
-  // matrise-kjøretid (kontor→prosjektets primær-byggeplass; autoritativ,
-  // end-uavhengig). kjoretidMin < 0 = uoppnåelig → ingen forslag (ingen
-  // fallback). Ingen matrise-rad/byggeplass → graceful estimat-fallback
+  // 3. Reise-forslag (føres på START-dagen). Fase 3 (§ B) + R4: KUN når
+  // oppmøtested ble identifisert ved start (kontor→byggeplass — hjem→arbeidssted
+  // kompenseres ikke). Reisetid = matrise-kjøretid (kontor→prosjektets primær-
+  // byggeplass; autoritativ, end-uavhengig). kjoretidMin < 0 = uoppnåelig →
+  // ingen forslag. Ingen matrise-rad/byggeplass → graceful estimat-fallback
   // (GPS-distanse start→slutt). Klassifiseres mot terskel; 'reisetid' → egen
   // lønnsart-rad. Aldri auto-rad uten innsyn — havner i draft som forslag.
   const regel = hentOrganizationSettingLokalt(orgId);
@@ -442,28 +420,117 @@ function genererForslag(
     }
   }
 
-  // Arbeidstimer til normaltid/overtid-fordeling = total minus reise-andelen
-  // (reise føres på egen rad). Unngår dobbelttelling av brutto-tiden.
+  // 4. Midnatt-splitt (Slice 4a): én dagsseddel per kalenderdag. Normalt ett
+  // segment (dagskift); kryssende skift → flere. Reise + firma-pause kun på
+  // start-segmentet. Returner start-dagens sedel for navigering.
+  const segmenter = splittVedMidnatt(dag.startAt, sluttIso);
+  const deltVedMidnatt = segmenter.length > 1;
+  let startSheetId: string | null = null;
+  for (const seg of segmenter) {
+    const pauseMin = seg.erStartSegment
+      ? hentEffektivArbeidstidLokal(orgId, new Date(`${seg.dato}T00:00:00`))
+          .pauseMin
+      : 0;
+    const id = opprettDagsseddelForSegment({
+      userId,
+      orgId,
+      segment: seg,
+      prosjektId: valgtProsjekt.id,
+      aktivitetId: aktivitet.id,
+      pauseMin,
+      reisetidTimer: seg.erStartSegment ? reisetidTimer : 0,
+      reiseLonnsartId,
+      reisetidTellerOvertid: regel?.reisetidTellerOvertid ?? false,
+      deltVedMidnatt,
+    });
+    if (seg.erStartSegment) startSheetId = id;
+  }
+  return startSheetId;
+}
+
+/**
+ * Opprett én dagsseddel (draft) for ett dag-segment + dens timer-rader.
+ *
+ * Idempotens per dag: server håndhever `@@unique([userId, dato])` på
+ * `DailySheet`, så finnes det allerede en sedel for `(userId, segment.dato)`
+ * lokalt → behold den (returner id) og hopp over opprettelse. Ved splitt
+ * betyr det at allerede-eksisterende dager beholdes mens nye dager opprettes.
+ */
+function opprettDagsseddelForSegment(args: {
+  userId: string;
+  orgId: string;
+  segment: Dagsegment;
+  prosjektId: string;
+  aktivitetId: string;
+  pauseMin: number;
+  reisetidTimer: number;
+  reiseLonnsartId: string | null;
+  reisetidTellerOvertid: boolean;
+  deltVedMidnatt: boolean;
+}): string | null {
+  const {
+    userId,
+    orgId,
+    segment,
+    prosjektId,
+    aktivitetId,
+    pauseMin,
+    reisetidTimer,
+    reiseLonnsartId,
+    reisetidTellerOvertid,
+    deltVedMidnatt,
+  } = args;
+  const db = hentDatabase();
+  if (!db) return null;
+
+  // Idempotens per dag (jf. doc over).
+  const eksisterende = db
+    .select({ id: dagsseddelLocal.id })
+    .from(dagsseddelLocal)
+    .where(
+      and(
+        eq(dagsseddelLocal.userId, userId),
+        eq(dagsseddelLocal.dato, segment.dato),
+      ),
+    )
+    .all()[0];
+  if (eksisterende) return eksisterende.id;
+
+  // Arbeidstid = segment-brutto − pause (pause kun på start-dagen, 1a).
+  const bruttoTimer =
+    (new Date(segment.sluttIso).getTime() -
+      new Date(segment.startIso).getTime()) /
+    3_600_000;
+  const totalTimer =
+    Math.round(Math.max(0, bruttoTimer - pauseMin / 60) * 100) / 100;
+  // Arbeidstimer til normaltid/overtid = total minus reise-andelen (reise føres
+  // på egen rad). Unngår dobbelttelling av brutto-tiden.
   const arbeidstimer =
     Math.round(Math.max(0, totalTimer - reisetidTimer) * 100) / 100;
 
-  // 4. Dagsseddel (draft).
+  const effektiv = hentEffektivArbeidstidLokal(
+    orgId,
+    new Date(`${segment.dato}T00:00:00`),
+  );
+
+  // Dagsseddel (draft).
   const sheetId = randomUUID();
   db.insert(dagsseddelLocal)
     .values({
       id: sheetId,
       userId,
       organizationId: "",
-      projectId: valgtProsjekt.id,
-      aktivitetId: aktivitet.id,
+      projectId: prosjektId,
+      aktivitetId,
       avdelingId: null,
       byggeplassId: null,
-      dato,
-      startAt: dag.startAt,
-      endAt: sluttIso,
-      pauseMin: effektiv.pauseMin,
+      dato: segment.dato,
+      startAt: segment.startIso,
+      endAt: segment.sluttIso,
+      pauseMin,
       status: "draft",
       autoGenerert: true,
+      deltVedMidnatt,
       beskrivelse: null,
       lederKommentar: null,
       attestertVed: null,
@@ -474,14 +541,14 @@ function genererForslag(
     })
     .run();
 
-  // 5. Auto-fordeling normaltid/overtid.
+  // Auto-fordeling normaltid/overtid (per dag).
   if (arbeidstimer > 0) {
     const dagsnorm0 = effektiv.dagsnorm > 0 ? effektiv.dagsnorm : arbeidstimer;
     // Fase 3: når reisetid teller mot overtid, spiser reise-andelen av dagsnorm-
     // budsjettet → mer av arbeidstiden havner i overtid. Når false (default) er
     // reise utenfor terskelen og dagsnorm gjelder kun arbeidstimene.
     const dagsnorm =
-      regel?.reisetidTellerOvertid && reisetidTimer > 0
+      reisetidTellerOvertid && reisetidTimer > 0
         ? Math.max(0, dagsnorm0 - reisetidTimer)
         : dagsnorm0;
     const timelonnTimer = Math.min(arbeidstimer, dagsnorm);
@@ -493,9 +560,9 @@ function genererForslag(
         .values({
           id: randomUUID(),
           dagsseddelId: sheetId,
-          projectId: valgtProsjekt.id,
+          projectId: prosjektId,
           lonnsartId: standard.id,
-          aktivitetId: aktivitet.id,
+          aktivitetId,
           externalCostObjectId: null,
           timer: timelonnTimer,
           fraTid: null,
@@ -523,9 +590,9 @@ function genererForslag(
           .values({
             id: randomUUID(),
             dagsseddelId: sheetId,
-            projectId: valgtProsjekt.id,
+            projectId: prosjektId,
             lonnsartId: overtid.id,
-            aktivitetId: aktivitet.id,
+            aktivitetId,
             externalCostObjectId: null,
             timer: overtidTimer,
             fraTid: null,
@@ -537,17 +604,16 @@ function genererForslag(
     }
   }
 
-  // 6. Reise-rad (Fase 3 § B) — separat lønnsart-rad utenfor arbeidstime-splittet
-  // (eller medregnet i terskelen når reisetidTellerOvertid, jf. dagsnorm-justering
-  // over). Føres på prosjektet arbeider endte på. Forslag i draft — arbeider justerer.
+  // Reise-rad (Fase 3 § B) — separat lønnsart-rad, kun på start-segmentet
+  // (reisetidTimer = 0 ellers). Føres på samme prosjekt. Forslag i draft.
   if (reisetidTimer > 0 && reiseLonnsartId) {
     db.insert(sheetTimerLocal)
       .values({
         id: randomUUID(),
         dagsseddelId: sheetId,
-        projectId: valgtProsjekt.id,
+        projectId: prosjektId,
         lonnsartId: reiseLonnsartId,
-        aktivitetId: aktivitet.id,
+        aktivitetId,
         externalCostObjectId: null,
         timer: reisetidTimer,
         fraTid: null,

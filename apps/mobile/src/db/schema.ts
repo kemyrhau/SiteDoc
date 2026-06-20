@@ -98,6 +98,11 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
   // (genererForslag). KUN lokal — synces ALDRI til server. Gater auto-fyll-
   // banneret på review-skjermen. Manuelle ny.tsx-drafts lar feltet stå null.
   autoGenerert: integer("auto_generert", { mode: "boolean" }),
+  // Slice 4a (2026-06-20): true når sedelen er ett av flere segmenter fra et
+  // skift som krysset midnatt (genererForslag → splittVedMidnatt). KUN lokal.
+  // Gir en «delt ved midnatt»-merking på review-skjermen så lave per-dag-timer
+  // (f.eks. 5 t av et 12t-nattskift) leses som legitim splitt, ikke feil.
+  deltVedMidnatt: integer("delt_ved_midnatt", { mode: "boolean" }),
   beskrivelse: text("beskrivelse"),
   lederKommentar: text("leder_kommentar"),
   attestertVed: text("attestert_ved"), // ISO timestamp fra server

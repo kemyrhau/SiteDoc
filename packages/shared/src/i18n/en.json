@@ -38,6 +38,8 @@
   "timer.reisetid": "Travel Time",
   "timer.autoFyll.tittel": "The day has been filled in automatically",
   "timer.autoFyll.hjelp": "Check, correct and submit.",
+  "timer.deltMidnatt.tittel": "Split at midnight",
+  "timer.deltMidnatt.hjelp": "Part of a shift that spanned two days.",
   "timer.tillegg": "Supplements",
   "timer.overtidsmat": "Overtime Meal",
   "timer.nattillegg": "Night Supplement",
