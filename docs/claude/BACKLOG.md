@@ -581,6 +581,25 @@ separat chat per `feedback_3d_annen_chat`.
   - **EAS-enhet-verifisering** av Fase 1 mobil-del (GPS-identifikasjon i «Start dag»). Simulator dekker, men ikke fysisk enhet; krever EAS/TestFlight-bygg.
   - **Fase 1c-server — byggeplass-geofence fra georeferert tegning:** ✅ IMPLEMENTERT 2026-06-09 (develop/test, venter prod). `Byggeplass.latitude/longitude/radiusM` + `beregnByggeplassGeofence` (shared) + `bygning.beregnGeofence`/`settGeofence` + auto-fyll i `tegning.settGeoReferanse` (kun når tom) + web override. Løser byggeplass-koordinat-gapet (`fase-0 T.8:990`). Sannhetskilde [timer.md § Byggeplass-geofence](timer.md).
   - **Fase 1c-mobil — byggeplass-GPS-deteksjon i «Start dag»:** 🟡 GJENSTÅR. Utvid `apps/mobile/app/timer/ny.tsx:138-150` (Haversine `mobile/src/utils/geo.ts`) til å detektere byggeplass via `Byggeplass`-koordinater i tillegg til prosjekt. Krever EAS-bygg → buntes med Fase 1 mobil-verifisering over. Aldri auto-rad (`T.8:983`).
+- **Web-parity TimerRadDialog — T.12 beskrivelse (ikke-blokkerende, 2026-06-20)** 🟢 — T.12 (fritekst per timer-rad, `SheetTimer.beskrivelse`) ble bygget mobil-fokusert (Slice 2, commit `a51821c3`). Web `TimerRadDialog` mangler tilsvarende felt. Feltet er nullable + tRPC-input er `.optional()` → web brekker ikke uten det. Speil mobil-mønsteret: multiline-input med `t("timer.felt.radBeskrivelse")` + visning i rad-detalj. Kort follow-up.
+
+### Doc-drift (timer) — fanget fra redesign-screening 2026-06-20 🟡
+
+Fra [redesign-dagsseddel-funn-2026-06-20.md DEL 3](redesign-dagsseddel-funn-2026-06-20.md). Reconcile sannhetskilder mot faktisk kode.
+
+- **DRIFT-1 — `timer.md:124` PR 2C-status utdatert** — bunter ferdig + åpent arbeid under ett «🔴 Åpen»-banner. Faktisk *delvis gjort*: per-rad `projectId`/`fraTid`/`tilTid` + `timerSync` + screens er levert (T7-3b1/T4). Genuint åpent: `dagsseddel_local.project_id` fortsatt `.notNull()` (`schema:84`), + `byggeplassId`/attestert-felter på rad-tabellene + NOT NULL-constraint + full backfill. Fiks: rett `timer.md:124` så ferdig/åpent ikke buntes.
+- **DRIFT-2 — `timer.md:330-357` UX-skisse pre-T.1** — viser prosjekt på sedel-nivå (før per-rad-projectId). Utdatert; oppdater til per-rad-modellen.
+- **DRIFT-3 — fritekstsøk udokumentert** — fritekstsøk på alle velgere (inkl. utstyr nr+navn) er bygget, men ikke dokumentert i `timer.md`.
+- **DRIFT-4 — `timer-input-katalog.md` tom plassholder** — fyll eller slett.
+- **DRIFT-5 — auto-fordeling normaltid/overtid: T.9-droppet vs OPPSUMMERING-manglende** — koden forhåndsvelger kun lønnsart (Variant B), ingen fordelingsmotor → T.9 (droppet) er korrekt; OPPSUMMERING bør rettes. Reconcile de to.
+
+### BUG-1 — StartSluttDagKort mangler maks-varighet-vakt / auto-utsjekk 🟡
+
+`StartSluttDagKort`-flyten har ingen maks-varighet-vakt eller auto-utsjekk (jf. 12t-presedensen for innsjekk). Glemt «Slutt dag» → urealistisk arbeidstid (165.57 t observert på skjerm 1 i screening 2026-06-20: «Start dag» 13. juni, «Slutt dag» trykket ~7 dager senere → 168 t brutto). Manuell rad-redigering *har* vakt (`ArbeidstidSeksjon.tsx:143` `diffMin<=0`) og `arbeidstidTimer` klamrer `Math.max(0,…)` (`[id].tsx`), men auto-flyt-vakten mangler. Fiks: maks-varighet/auto-utsjekk i «Start dag»-økt-flyten.
+
+### Slice 3 — auto-utkast MVP (auto-generer draft ved «Slutt dag») 🟡
+
+Mål = v2-mockup (låst 2026-06-20). Forankret i BESLUTNING 1 = Alternativ B (auto-utkast + innsendings-godkjenning, jf. `fase-0` T.8-revisjon over). Ved «Slutt dag» auto-genereres en **draft**-dagsseddel på valgt prosjekt med arbeidstid + reise, med **auto-fyll-banner** og **reise som egen rad**. Arbeider korrigerer + sender (draft→sent = godkjenning). Synlighets-fiks (UX-1) er allerede levert. Senere utvidelser: maskin + multi-prosjekt-auto-deteksjon (krever byggeplass-GPS L2). Ingen kode før beslutnings-detaljene er låst per mockup.
 
 ### Byggeplass-ankomst → HMS mannskaps-register (byggherreforskriften §15) 🟡
 
