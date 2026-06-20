@@ -6,6 +6,14 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
+### Byggeplass-GPS L1 (Del 1 av byggeplass-GPS/dagsseddel-programmet) — PÅ DEVELOP 2026-06-20
+
+Engangs GPS-identifikasjon av byggeplass ved «Start dag» — passiv dokumentasjon, speil av oppmøtested-mønsteret. Ingen Prisma-migrering (geofence-felt finnes på `Byggeplass` fra 1c-server), ingen atferdsendring i registrering.
+- **Server:** `bygning.hentForFirma` select utvidet additivt med `name/latitude/longitude/radiusM`.
+- **Mobil:** `byggeplass_local` + `arbeidsdag_local` utvidet (nullable, idempotent ALTER); ny `identifiserByggeplass` (org-scopet, Haversine ≤ radiusM, hopper over rader uten geofence) kalt i `StartSluttDagKort.startDag` → lagrer `byggeplassId/Navn` på arbeidsdag-raden. **KUN dokumentasjon** — rører ikke reise/lønn/prosjektvalg.
+- **Verifisering:** API typecheck grønn; mobil = uendret pre-eksisterende baseline-gjeld (0 fra L1-filene). Sannhetskilde [timer.md § Byggeplass-geofence](timer.md). **Reload:** full JS-reload (Metro «r») — `kjorMigreringer` kjører idempotent ALTER ved `DatabaseProvider`-mount.
+- **Gjenstår (ikke-blokkerende):** funksjonell GPS-test på enhet (innenfor-radius, krever EAS test-bygg); beslutnings-folding (B/R/P + T.8 «aldri auto-rad»→«aldri auto-innsending») i egen doc-pass.
+
 ### Reisetid-matrise R1–R4 (komplett serie) — PÅ DEVELOP 2026-06-11 (venter dual-review)
 
 Erstatter ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. **R1** grunnmur (schema + rute-service) · **R2** kontor-geokoding + kart · **R3** recompute-motor + triggere · **R4** oppslag + mobil-cache. Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).

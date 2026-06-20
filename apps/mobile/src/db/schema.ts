@@ -208,6 +208,11 @@ export const arbeidsdagLocal = sqliteTable("arbeidsdag_local", {
   // dokumentasjon, aldri lønnsgrunnlag. null = ikke innenfor noe geofence.
   oppmotestedId: text("oppmotested_id"),
   oppmotestedNavn: text("oppmotested_navn"),
+  // L1 (2026-06-20): GPS-identifisert byggeplass ved «Start dag» — speil av
+  // oppmøtested. Dokumentasjon, aldri lønn/reise/prosjektvalg. null = utenfor
+  // alle byggeplass-geofence.
+  byggeplassId: text("byggeplass_id"),
+  byggeplassNavn: text("byggeplass_navn"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -312,9 +317,10 @@ export const oppmotestedLocal = sqliteTable("oppmotested_local", {
 
 /**
  * byggeplass_local — offline-cache av firmaets byggeplasser (R4, 2026-06-11).
- * KUN lette felt (id/projectId/number/status) for prosjekt→primær-byggeplass-
- * resolusjon i reisetid-oppslaget. Ingen koordinater (matrisen bærer kjøretid).
- * Refresh via byggeplassKatalog.refreshByggeplassKatalog. KUN lokal.
+ * Lette felt for prosjekt→primær-byggeplass-resolusjon i reisetid-oppslaget.
+ * L1 (2026-06-20): utvidet med navn + geofence (lat/lng/radiusM, alle nullable
+ * — geofence er valgfri på server) for GPS-identifikasjon av byggeplass ved
+ * «Start dag». Refresh via byggeplassKatalog.refreshByggeplassKatalog. KUN lokal.
  */
 export const byggeplassLocal = sqliteTable("byggeplass_local", {
   id: text("id").primaryKey(),
@@ -322,6 +328,10 @@ export const byggeplassLocal = sqliteTable("byggeplass_local", {
   projectId: text("project_id").notNull(),
   number: integer("number"),
   status: text("status"),
+  navn: text("navn"),
+  lat: real("lat"),
+  lng: real("lng"),
+  radiusM: integer("radius_m"),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
 

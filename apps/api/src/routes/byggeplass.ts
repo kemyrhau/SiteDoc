@@ -13,7 +13,8 @@ import { recomputeRadForByggeplass } from "../services/reisetidMatrise";
 export const byggeplassRouter = router({
   // R4: member-lesbar liste over firmaets byggeplasser (mobil-cache for
   // reisetid-matrise → prosjekt→primær-byggeplass-resolusjon). Firma-scopet via
-  // project.primaryOrganizationId. Kun lette felt (id/projectId/number/status).
+  // project.primaryOrganizationId. L1 (2026-06-20): utvidet med name + geofence
+  // (latitude/longitude/radiusM) for GPS-identifikasjon av byggeplass på mobil.
   hentForFirma: protectedProcedure
     .input(z.object({ organizationId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
@@ -25,6 +26,10 @@ export const byggeplassRouter = router({
           projectId: true,
           number: true,
           status: true,
+          name: true,
+          latitude: true,
+          longitude: true,
+          radiusM: true,
         },
       });
     }),

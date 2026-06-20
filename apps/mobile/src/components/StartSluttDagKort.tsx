@@ -21,6 +21,7 @@ import { avstandMeter, estimerReisetidMin, klassifiserReise, type ReiseKategori 
 import { haversineKm } from "../utils/geo";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
+import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
 import { hentStandardLonnsartLokalt } from "../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../services/organizationSettingKatalog";
@@ -36,6 +37,8 @@ type AktivDag = {
   startLng: number | null;
   oppmotestedId: string | null;
   oppmotestedNavn: string | null;
+  byggeplassId: string | null;
+  byggeplassNavn: string | null;
 };
 
 /**
@@ -122,6 +125,8 @@ export function StartSluttDagKort() {
           startLng: rad.startLng,
           oppmotestedId: rad.oppmotestedId ?? null,
           oppmotestedNavn: rad.oppmotestedNavn ?? null,
+          byggeplassId: rad.byggeplassId ?? null,
+          byggeplassNavn: rad.byggeplassNavn ?? null,
         }
       : null;
   }, [bruker?.id]);
@@ -145,8 +150,10 @@ export function StartSluttDagKort() {
       const { lat, lng } = await fangGps();
       const db = hentDatabase();
       if (!db) return;
-      // GPS-identifiser oppmøtested (dokumentasjon + forslag, aldri lønn).
+      // GPS-identifiser oppmøtested + byggeplass (dokumentasjon + forslag, aldri
+      // lønn/reise/prosjektvalg). L1: byggeplass speiler oppmøtested-mønsteret.
       const oppm = identifiserOppmotested(lat, lng, valgtFirmaId ?? "");
+      const bygg = identifiserByggeplass(lat, lng, valgtFirmaId ?? "");
       const naaIso = new Date().toISOString();
       const id = randomUUID();
       db.insert(arbeidsdagLocal)
@@ -164,6 +171,8 @@ export function StartSluttDagKort() {
           generertDagsseddelId: null,
           oppmotestedId: oppm?.id ?? null,
           oppmotestedNavn: oppm?.navn ?? null,
+          byggeplassId: bygg?.id ?? null,
+          byggeplassNavn: bygg?.navn ?? null,
           sistEndretLokalt: Date.now(),
         })
         .run();
@@ -174,6 +183,8 @@ export function StartSluttDagKort() {
         startLng: lng,
         oppmotestedId: oppm?.id ?? null,
         oppmotestedNavn: oppm?.navn ?? null,
+        byggeplassId: bygg?.id ?? null,
+        byggeplassNavn: bygg?.navn ?? null,
       });
     } finally {
       setBehandler(false);

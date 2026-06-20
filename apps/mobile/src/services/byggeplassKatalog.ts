@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import { byggeplassLocal } from "../db/schema";
+import { haversineKm } from "../utils/geo";
 import type { trpc } from "../lib/trpc";
 
 /* ============================================================================
@@ -35,6 +36,10 @@ export async function refreshByggeplassKatalog(
         projectId: string;
         number: number | null;
         status: string;
+        name: string;
+        latitude: number | null;
+        longitude: number | null;
+        radiusM: number | null;
       }>;
     });
 
@@ -52,12 +57,49 @@ export async function refreshByggeplassKatalog(
         projectId: b.projectId,
         number: b.number ?? null,
         status: b.status ?? null,
+        navn: b.name ?? null,
+        lat: b.latitude ?? null,
+        lng: b.longitude ?? null,
+        radiusM: b.radiusM ?? null,
         sistOppdatert: naa,
       })
       .run();
   }
 
   return { byggeplasser: byggeplasser.length };
+}
+
+/**
+ * L1 (2026-06-20): identifiser hvilken byggeplass arbeider startet på via GPS.
+ * Speil av identifiserOppmotested (StartSluttDagKort.tsx): nærmeste byggeplass
+ * innenfor sin geofence-radius, org-scopet (på tvers av firmaets prosjekter).
+ * Hopper over rader uten lat/lng/radiusM (geofence valgfri på server).
+ * KUN dokumentasjon — aldri lønn/reise/prosjektvalg. Returnerer null ved ingen treff.
+ */
+export function identifiserByggeplass(
+  lat: number | null,
+  lng: number | null,
+  organizationId: string,
+): { id: string; navn: string | null } | null {
+  if (lat == null || lng == null || !organizationId) return null;
+  const db = hentDatabase();
+  if (!db) return null;
+  const rader = db
+    .select()
+    .from(byggeplassLocal)
+    .where(eq(byggeplassLocal.organizationId, organizationId))
+    .all();
+  let beste: { id: string; navn: string | null } | null = null;
+  let besteM = Infinity;
+  for (const b of rader) {
+    if (b.lat == null || b.lng == null || b.radiusM == null) continue;
+    const meter = haversineKm(lat, lng, b.lat, b.lng) * 1000;
+    if (meter <= b.radiusM && meter < besteM) {
+      besteM = meter;
+      beste = { id: b.id, navn: b.navn ?? null };
+    }
+  }
+  return beste;
 }
 
 /**

@@ -393,6 +393,32 @@ export function kjorMigreringer() {
       ON reisetid_matrise_local(organization_id);
   `);
 
+  // L1 (2026-06-20): GPS-identifikasjon av byggeplass ved «Start dag».
+  // Idempotent ALTER — byggeplass_local får navn + geofence (lat/lng/radius_m),
+  // arbeidsdag_local får byggeplass_id/navn (speil av oppmøtested). Alle nullable.
+  try {
+    const bk = db.getAllSync(
+      "PRAGMA table_info(byggeplass_local)",
+    ) as Array<{ name: string }>;
+    if (!bk.find((k) => k.name === "navn")) {
+      console.log("[MIG] Legger til navn/lat/lng/radius_m på byggeplass_local (L1)");
+      db.execSync(`ALTER TABLE byggeplass_local ADD COLUMN navn TEXT`);
+      db.execSync(`ALTER TABLE byggeplass_local ADD COLUMN lat REAL`);
+      db.execSync(`ALTER TABLE byggeplass_local ADD COLUMN lng REAL`);
+      db.execSync(`ALTER TABLE byggeplass_local ADD COLUMN radius_m INTEGER`);
+    }
+    const ad = db.getAllSync(
+      "PRAGMA table_info(arbeidsdag_local)",
+    ) as Array<{ name: string }>;
+    if (!ad.find((k) => k.name === "byggeplass_id")) {
+      console.log("[MIG] Legger til byggeplass_id/navn på arbeidsdag_local (L1)");
+      db.execSync(`ALTER TABLE arbeidsdag_local ADD COLUMN byggeplass_id TEXT`);
+      db.execSync(`ALTER TABLE arbeidsdag_local ADD COLUMN byggeplass_navn TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide byggeplass/arbeidsdag med byggeplass-geofence (L1):", e);
+  }
+
   // T7-3b1 (2026-05-14) — per-rad project_id på alle tre rad-tabeller.
   // Server-skjemaet flyttet projectId til rad-nivå 2026-05-11 (T.1/PR 1B);
   // mobil-sync sendte fortsatt sedel-nivå med kompat-shim på server.
