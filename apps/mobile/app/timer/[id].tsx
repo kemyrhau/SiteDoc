@@ -29,7 +29,6 @@ import {
   sheetTimerLocal,
   sheetTilleggLocal,
   sheetMachineLocal,
-  aktivitetLocal,
   equipmentLocal,
   externalCostObjectLocal,
 } from "../../src/db/schema";
@@ -50,7 +49,6 @@ import type {
   TimerRad,
   TilleggRad,
   MaskinRad,
-  Aktivitet,
 } from "../../src/types/timer-detalj";
 
 export default function DagsseddelDetalj() {
@@ -64,7 +62,6 @@ export default function DagsseddelDetalj() {
   const [timerRader, setTimerRader] = useState<TimerRad[]>([]);
   const [tilleggRader, setTilleggRader] = useState<TilleggRad[]>([]);
   const [maskinRader, setMaskinRader] = useState<MaskinRad[]>([]);
-  const [aktivitet, setAktivitet] = useState<Aktivitet | null>(null);
   const [harEquipmentCache, setHarEquipmentCache] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
   // Tomme prosjekt-grupper som brukeren har lagt til via «+ Legg til prosjekt».
@@ -108,13 +105,6 @@ export default function DagsseddelDetalj() {
       .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
       .all();
     setMaskinRader(maskiner);
-
-    const akt = db
-      .select()
-      .from(aktivitetLocal)
-      .where(eq(aktivitetLocal.id, sedelRad.aktivitetId))
-      .all()[0];
-    setAktivitet(akt ?? null);
 
     // Soft-skjul-sjekk: maskin-seksjonen vises kun hvis Equipment-cache er
     // populert (Maskin-modul aktivert + firmaet har utstyr) eller hvis
@@ -274,9 +264,6 @@ export default function DagsseddelDetalj() {
           <Text className="text-base font-semibold text-gray-900">
             {formatNorskDato(sedel.dato)}
           </Text>
-          {aktivitet && (
-            <Text className="text-xs text-gray-500">{aktivitet.navn}</Text>
-          )}
         </View>
         <TimerStatusMerkelapp
           status={sedel.status}
@@ -372,7 +359,7 @@ export default function DagsseddelDetalj() {
           <ProsjektGruppe
             key={pid}
             projectId={pid}
-            visHeader={aktiveProsjektIder.length > 1}
+            visHeader={true}
             sheetId={sheetId}
             organizationId={sedel.organizationId}
             sedelProjectId={sedel.projectId}
