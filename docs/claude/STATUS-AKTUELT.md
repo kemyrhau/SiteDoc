@@ -20,7 +20,7 @@ UX-1 (prosjekt alltid synlig på dagsseddel) på develop, del av dagsseddel-rede
 
 Slice 1 display-refinements (maskin «herav», prosjekt-subtotal, dagssum herav-maskin, send-hint) på develop.
 
-Slice 2 / T.12 fritekst per timer-rad («hva gjorde du?») på develop — `SheetTimer.beskrivelse` (nullable, additiv migrering `20260620120000_sheet_timer_beskrivelse`), tRPC (tilfoy/oppdater/syncBatch/hentEndringerSiden), mobil schema+ALTER+sync+UI (TimerRadModal/TimerRadVis). Nye distinkte i18n-nøkler `timer.felt.radBeskrivelse`/`timer.radBeskrivelsePlaceholder` (15 språk) — IKKE gjenbrukt sedel-kommentar-nøkkelen `timer.felt.beskrivelse`. Migrering kjøres mot `sitedoc_test` ifm. manuell test-deploy (ikke prod).
+Slice 2 / T.12 fritekst per timer-rad («hva gjorde du?») på develop — `SheetTimer.beskrivelse` (nullable, additiv migrering `20260620120000_sheet_timer_beskrivelse`), tRPC (tilfoy/oppdater/syncBatch/hentEndringerSiden), mobil schema+ALTER+sync+UI (TimerRadModal/TimerRadVis). Nye distinkte i18n-nøkler `timer.felt.radBeskrivelse`/`timer.radBeskrivelsePlaceholder` (15 språk) — IKKE gjenbrukt sedel-kommentar-nøkkelen `timer.felt.beskrivelse`. Migrering anvendt + verifisert 2026-06-20 på `sitedoc_test` (`current_database` bekreftet, `beskrivelse` finnes på `timer.sheet_timer`, 0 berørte rader — gamle rader intakte/NULL). Ikke prod.
 
 ### Reisetid-matrise R1–R4 (komplett serie) — PÅ DEVELOP 2026-06-11 (venter dual-review)
 
