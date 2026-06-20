@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Algas veids",
   "timer.felt.tillegg": "Pabalsts",
   "timer.felt.underprosjekt": "Apakšprojekts",
+  "timer.felt.radBeskrivelse": "ko tu izdarīji?",
+  "timer.radBeskrivelsePlaceholder": "Piem. \"Ieliets pamats, B ass\"",
   "timer.velgUnderprosjekt": "Atlasiet apakšprojektu (neobligāti)",
   "timer.ingenUnderprosjekter": "Šim projektam nav apakšprojektu.",
   "timer.tilfoy.timer": "Pievienojiet laika rindu",

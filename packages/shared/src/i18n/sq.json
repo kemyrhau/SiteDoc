@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Lloji i pagës",
   "timer.felt.tillegg": "Kompensimi",
   "timer.felt.underprosjekt": "Nënprojekt",
+  "timer.felt.radBeskrivelse": "Çfarë bëre?",
+  "timer.radBeskrivelsePlaceholder": "P.sh. \"Themeli i derdhur, boshti B\"",
   "timer.velgUnderprosjekt": "Zgjidh nën-projektin (opsionale)",
   "timer.ingenUnderprosjekter": "Nuk ka nënprojekte për këtë projekt.",
   "timer.tilfoy.timer": "Shto rreshtin kohor",

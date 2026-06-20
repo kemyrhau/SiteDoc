@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Druh mzdy",
   "timer.felt.tillegg": "Příspěvek",
   "timer.felt.underprosjekt": "Dílčí projekt",
+  "timer.felt.radBeskrivelse": "co jsi udělal?",
+  "timer.radBeskrivelsePlaceholder": "Např. \"Litý základ, osa B\"",
   "timer.velgUnderprosjekt": "Vyberte dílčí projekt (volitelné)",
   "timer.ingenUnderprosjekter": "Pro tento projekt nejsou žádné dílčí projekty.",
   "timer.tilfoy.timer": "Přidat časový řádek",

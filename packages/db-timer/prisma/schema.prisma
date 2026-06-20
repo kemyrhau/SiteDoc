@@ -192,6 +192,9 @@ model SheetTimer {
   // T.4 — Per-rad tid HH:MM. Server validerer fraTid < tilTid i PR 2.
   fraTid                String?  @map("fra_tid")
   tilTid                String?  @map("til_tid")
+  // T.12 — Fritekst per rad: «hva jeg gjorde» på denne aktiviteten. Nullable,
+  // additivt. Ingen index (fritekst-felt, ikke filtrerbart).
+  beskrivelse           String?  @db.Text
   externalCostObjectId  String?  @map("external_cost_object_id") // svak FK → external_cost_objects (kjernen)
   // vehicleId (Fase 2 / T.10): kostnadsbærer for maskinvedlikehold — timene en
   // mekaniker fører på vedlikehold av en maskin attribueres til maskinen.

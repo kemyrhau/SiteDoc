@@ -124,6 +124,9 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   // setter dem i T4-e. Server-skjemaet har feltene fra T.1 (2026-05-11).
   fraTid: text("fra_tid"),
   tilTid: text("til_tid"),
+  // T.12 — fritekst per rad («hva jeg gjorde»). Tilføyes idempotent via ALTER
+  // i migreringer.ts. Nullable, speil av server-skjema (SheetTimer.beskrivelse).
+  beskrivelse: text("beskrivelse"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 

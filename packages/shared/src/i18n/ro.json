@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Tipul salariului",
   "timer.felt.tillegg": "Alocație",
   "timer.felt.underprosjekt": "Subproiect",
+  "timer.felt.radBeskrivelse": "Ce-ai făcut?",
+  "timer.radBeskrivelsePlaceholder": "de ex. „Fond de ten turnat, axa B”",
   "timer.velgUnderprosjekt": "Selectați subproiectul (opțional)",
   "timer.ingenUnderprosjekter": "Nu există subproiecte pentru acest proiect.",
   "timer.tilfoy.timer": "Adăugați rândul de timp",

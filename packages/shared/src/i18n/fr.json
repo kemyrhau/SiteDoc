@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Type de salaire",
   "timer.felt.tillegg": "Allocation",
   "timer.felt.underprosjekt": "Sous-projet",
+  "timer.felt.radBeskrivelse": "Qu'est-ce que tu as fait?",
+  "timer.radBeskrivelsePlaceholder": "Par ex. \"Fondation coulée, axe B\"",
   "timer.velgUnderprosjekt": "Sélectionnez un sous-projet (facultatif)",
   "timer.ingenUnderprosjekter": "Aucun sous-projet pour ce projet.",
   "timer.tilfoy.timer": "Ajouter une ligne de temps",

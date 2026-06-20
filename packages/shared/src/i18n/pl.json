@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Rodzaj wynagrodzenia",
   "timer.felt.tillegg": "Dodatek",
   "timer.felt.underprosjekt": "Podprojekt",
+  "timer.felt.radBeskrivelse": "Co zrobiłeś?",
+  "timer.radBeskrivelsePlaceholder": "Np. „Wylany fundament, oś B”",
   "timer.velgUnderprosjekt": "Wybierz podprojekt (opcjonalnie)",
   "timer.ingenUnderprosjekter": "Brak podprojektów dla tego projektu.",
   "timer.tilfoy.timer": "Dodaj wiersz czasu",

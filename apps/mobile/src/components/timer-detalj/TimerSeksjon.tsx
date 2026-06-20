@@ -83,6 +83,7 @@ export function TimerSeksjon({
       externalCostObjectId: string | null,
       fraTid: string | null,
       tilTid: string | null,
+      beskrivelse: string | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
@@ -97,6 +98,7 @@ export function TimerSeksjon({
           timer,
           fraTid,
           tilTid,
+          beskrivelse,
           sistEndretLokalt: Date.now(),
         })
         .run();
@@ -115,6 +117,7 @@ export function TimerSeksjon({
       externalCostObjectId: string | null,
       fraTid: string | null,
       tilTid: string | null,
+      beskrivelse: string | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
@@ -127,6 +130,7 @@ export function TimerSeksjon({
           externalCostObjectId,
           fraTid,
           tilTid,
+          beskrivelse,
           sistEndretLokalt: Date.now(),
         })
         .where(eq(sheetTimerLocal.id, radId))
@@ -242,6 +246,7 @@ export function TimerSeksjon({
             externalCostObjectId,
             fraTid,
             tilTid,
+            beskrivelse,
           ) => {
             if (redigerRadId) {
               oppdater(
@@ -253,6 +258,7 @@ export function TimerSeksjon({
                 externalCostObjectId,
                 fraTid,
                 tilTid,
+                beskrivelse,
               );
             } else {
               leggTil(
@@ -263,6 +269,7 @@ export function TimerSeksjon({
                 externalCostObjectId,
                 fraTid,
                 tilTid,
+                beskrivelse,
               );
             }
             setVisModal(false);
@@ -334,6 +341,15 @@ function TimerRadVis({
             <UnderprosjektEtikett ecoId={rad.externalCostObjectId} />
           )}
         </View>
+        {/* T.12: fritekst-beskrivelse av hva som ble gjort */}
+        {rad.beskrivelse && (
+          <View className="mt-1 flex-row items-start gap-1">
+            <Pencil size={12} color="#9ca3af" style={{ marginTop: 2 }} />
+            <Text className="flex-1 text-xs italic text-gray-600">
+              {rad.beskrivelse}
+            </Text>
+          </View>
+        )}
       </View>
       <Text className="font-mono text-base text-gray-900">
         {rad.timer.toFixed(2)}
@@ -406,6 +422,7 @@ function TimerRadModal({
     externalCostObjectId: string | null,
     fraTid: string | null,
     tilTid: string | null,
+    beskrivelse: string | null,
   ) => void;
   onLukk: () => void;
 }) {
@@ -478,6 +495,9 @@ function TimerRadModal({
   );
   const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
   const [tilTid, setTilTid] = useState<string | null>(defaultTider.til);
+  const [beskrivelse, setBeskrivelse] = useState<string>(
+    eksisterendeRad?.beskrivelse ?? "",
+  );
   const [feil, setFeil] = useState<string | null>(null);
   const [visProsjektVelger, setVisProsjektVelger] = useState(false);
   const [visLonnsartVelger, setVisLonnsartVelger] = useState(false);
@@ -559,6 +579,7 @@ function TimerRadModal({
       valgtEcoId,
       fraTid,
       tilTid,
+      beskrivelse.trim() || null,
     );
   }
 
@@ -674,6 +695,22 @@ function TimerRadModal({
                 </Pressable>
               )}
             </View>
+          </View>
+
+          {/* T.12: fritekst per rad — «hva gjorde du?» (valgfritt) */}
+          <View>
+            <Text className="mb-1 text-sm font-medium text-gray-700">
+              {t("timer.felt.radBeskrivelse")}
+            </Text>
+            <TextInput
+              value={beskrivelse}
+              onChangeText={setBeskrivelse}
+              placeholder={t("timer.radBeskrivelsePlaceholder")}
+              multiline
+              numberOfLines={3}
+              textAlignVertical="top"
+              className="min-h-[72px] rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
+            />
           </View>
 
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}

@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Lohnart",
   "timer.felt.tillegg": "Zuschuss",
   "timer.felt.underprosjekt": "Teilprojekt",
+  "timer.felt.radBeskrivelse": "Was hast du gemacht?",
+  "timer.radBeskrivelsePlaceholder": "Z.B. „Gegossenes Fundament, B-Achse“",
   "timer.velgUnderprosjekt": "Teilprojekt auswählen (optional)",
   "timer.ingenUnderprosjekter": "Keine Unterprojekte für dieses Projekt.",
   "timer.tilfoy.timer": "Zeitzeile hinzufügen",

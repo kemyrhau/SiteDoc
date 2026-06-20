@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Wage type",
   "timer.felt.tillegg": "Allowance",
   "timer.felt.underprosjekt": "Sub-project",
+  "timer.felt.radBeskrivelse": "What did you do?",
+  "timer.radBeskrivelsePlaceholder": "E.g. \"Poured foundation, B-axis\"",
   "timer.velgUnderprosjekt": "Select sub-project (optional)",
   "timer.ingenUnderprosjekter": "No sub-projects for this project.",
   "timer.tilfoy.timer": "Add time row",

@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Darbo užmokesčio rūšis",
   "timer.felt.tillegg": "Pašalpa",
   "timer.felt.underprosjekt": "Subprojektas",
+  "timer.felt.radBeskrivelse": "ką tu padarei?",
+  "timer.radBeskrivelsePlaceholder": "Pvz. \"Litas pagrindas, B ašis\"",
   "timer.velgUnderprosjekt": "Pasirinkite subprojektą (neprivaloma)",
   "timer.ingenUnderprosjekter": "Šiam projektui subprojektų nėra.",
   "timer.tilfoy.timer": "Pridėti laiko eilutę",

@@ -20,6 +20,8 @@ UX-1 (prosjekt alltid synlig på dagsseddel) på develop, del av dagsseddel-rede
 
 Slice 1 display-refinements (maskin «herav», prosjekt-subtotal, dagssum herav-maskin, send-hint) på develop.
 
+Slice 2 / T.12 fritekst per timer-rad («hva gjorde du?») på develop — `SheetTimer.beskrivelse` (nullable, additiv migrering `20260620120000_sheet_timer_beskrivelse`), tRPC (tilfoy/oppdater/syncBatch/hentEndringerSiden), mobil schema+ALTER+sync+UI (TimerRadModal/TimerRadVis). Nye distinkte i18n-nøkler `timer.felt.radBeskrivelse`/`timer.radBeskrivelsePlaceholder` (15 språk) — IKKE gjenbrukt sedel-kommentar-nøkkelen `timer.felt.beskrivelse`. Migrering kjøres mot `sitedoc_test` ifm. manuell test-deploy (ikke prod).
+
 ### Reisetid-matrise R1–R4 (komplett serie) — PÅ DEVELOP 2026-06-11 (venter dual-review)
 
 Erstatter ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. **R1** grunnmur (schema + rute-service) · **R2** kontor-geokoding + kart · **R3** recompute-motor + triggere · **R4** oppslag + mobil-cache. Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).

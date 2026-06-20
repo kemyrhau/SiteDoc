@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Löneart",
   "timer.felt.tillegg": "Ersättning",
   "timer.felt.underprosjekt": "Delprojekt",
+  "timer.felt.radBeskrivelse": "Vad gjorde du?",
+  "timer.radBeskrivelsePlaceholder": "Till exempel. \"Utgjuten grund, B-axel\"",
   "timer.velgUnderprosjekt": "Välj delprojekt (valfritt)",
   "timer.ingenUnderprosjekter": "Inga delprojekt för detta projekt.",
   "timer.tilfoy.timer": "Lägg till tidsrad",

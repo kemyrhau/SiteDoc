@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Тип заробітної плати",
   "timer.felt.tillegg": "Допомога",
   "timer.felt.underprosjekt": "Підпроект",
+  "timer.felt.radBeskrivelse": "що ти зробив",
+  "timer.radBeskrivelsePlaceholder": "наприклад \"Заливний фундамент, вісь В\"",
   "timer.velgUnderprosjekt": "Виберіть підпроект (необов'язково)",
   "timer.ingenUnderprosjekter": "Для цього проекту немає підпроектів.",
   "timer.tilfoy.timer": "Додайте рядок часу",

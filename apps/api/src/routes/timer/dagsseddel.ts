@@ -697,6 +697,8 @@ export const dagsseddelRouter = router({
         timer: z.number().min(0).max(24),
         fraTid: z.string().nullable().optional(),
         tilTid: z.string().nullable().optional(),
+        // T.12: fritekst per rad («hva jeg gjorde»).
+        beskrivelse: z.string().nullable().optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
         // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
         vehicleId: z.string().uuid().nullable().optional(),
@@ -772,6 +774,7 @@ export const dagsseddelRouter = router({
           timer: input.timer,
           fraTid: input.fraTid ?? null,
           tilTid: input.tilTid ?? null,
+          beskrivelse: input.beskrivelse ?? null,
           externalCostObjectId: input.externalCostObjectId ?? null,
           vehicleId: input.vehicleId ?? null,
         },
@@ -785,6 +788,8 @@ export const dagsseddelRouter = router({
         lonnsartId: z.string().uuid().optional(),
         aktivitetId: z.string().uuid().optional(),
         timer: z.number().min(0).max(24).optional(),
+        // T.12: fritekst per rad («hva jeg gjorde»).
+        beskrivelse: z.string().nullable().optional(),
         externalCostObjectId: z.string().uuid().nullable().optional(),
         // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
         vehicleId: z.string().uuid().nullable().optional(),
@@ -813,6 +818,7 @@ export const dagsseddelRouter = router({
         data.aktivitet = { connect: { id: input.aktivitetId } };
       }
       if (input.timer !== undefined) data.timer = input.timer;
+      if (input.beskrivelse !== undefined) data.beskrivelse = input.beskrivelse;
       if (input.externalCostObjectId !== undefined) {
         data.externalCostObjectId = input.externalCostObjectId;
       }
@@ -2742,6 +2748,7 @@ export const dagsseddelRouter = router({
             timer: Number(t.timer),
             fraTid: t.fraTid,
             tilTid: t.tilTid,
+            beskrivelse: t.beskrivelse,
           })),
           tillegg: s.tillegg.map((tl) => ({
             id: tl.id,
@@ -2805,6 +2812,8 @@ export const dagsseddelRouter = router({
                 aktivitetId: z.string().uuid(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
                 timer: z.number().min(0).max(24),
+                // T.12: fritekst per rad («hva jeg gjorde»).
+                beskrivelse: z.string().nullable().optional(),
                 // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
                 vehicleId: z.string().uuid().nullable().optional(),
               }),
@@ -3129,6 +3138,7 @@ export const dagsseddelRouter = router({
                   externalCostObjectId: t.externalCostObjectId ?? null,
                   vehicleId: t.vehicleId ?? null,
                   timer: t.timer,
+                  beskrivelse: t.beskrivelse ?? null,
                 })),
               });
             }

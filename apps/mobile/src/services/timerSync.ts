@@ -179,6 +179,8 @@ export async function syncTimer(
             timer: t.timer,
             fraTid: t.fraTid ?? null,
             tilTid: t.tilTid ?? null,
+            // T.12: fritekst per rad («hva jeg gjorde»).
+            beskrivelse: t.beskrivelse ?? null,
           })),
           tillegg: tillegg.map((tl) => ({
             id: tl.id,
@@ -383,6 +385,8 @@ export async function syncTimer(
             timer: t.timer,
             fraTid: t.fraTid ?? null,
             tilTid: t.tilTid ?? null,
+            // T.12: fritekst per rad («hva jeg gjorde»).
+            beskrivelse: t.beskrivelse ?? null,
             sistEndretLokalt: serverTidMs,
           })
           .run();

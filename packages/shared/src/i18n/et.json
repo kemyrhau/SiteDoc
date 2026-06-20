@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Palga liik",
   "timer.felt.tillegg": "Toetus",
   "timer.felt.underprosjekt": "Alamprojekt",
+  "timer.felt.radBeskrivelse": "Mida sa tegid?",
+  "timer.radBeskrivelsePlaceholder": "Nt. \"Valatud vundament, B-telg\"",
   "timer.velgUnderprosjekt": "Valige alamprojekt (valikuline)",
   "timer.ingenUnderprosjekter": "Selle projekti jaoks pole alamprojekte.",
   "timer.tilfoy.timer": "Lisa ajarida",

@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Palkkatyyppi",
   "timer.felt.tillegg": "Korvaus",
   "timer.felt.underprosjekt": "Osaprojekti",
+  "timer.felt.radBeskrivelse": "Mitä teit?",
+  "timer.radBeskrivelsePlaceholder": "Esim. \"Valattu pohja, B-akseli\"",
   "timer.velgUnderprosjekt": "Valitse osaprojekti (valinnainen)",
   "timer.ingenUnderprosjekter": "Tälle hankkeelle ei ole osaprojekteja.",
   "timer.tilfoy.timer": "Lisää aikarivi",

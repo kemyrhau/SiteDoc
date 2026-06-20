@@ -630,4 +630,19 @@ export function kjorMigreringer() {
       e,
     );
   }
+
+  // T.12 (2026-06-20) — beskrivelse (fritekst per rad) på sheet_timer_local.
+  // Nullable, ingen backfill. Idempotent ALTER. Speil av server-skjema
+  // (SheetTimer.beskrivelse).
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(sheet_timer_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "beskrivelse")) {
+      console.log("[MIG] Legger til beskrivelse på sheet_timer_local (T.12)");
+      db.execSync(`ALTER TABLE sheet_timer_local ADD COLUMN beskrivelse TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide sheet_timer_local med beskrivelse:", e);
+  }
 }

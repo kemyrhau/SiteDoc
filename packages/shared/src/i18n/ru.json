@@ -193,6 +193,8 @@
   "timer.felt.lonnsart": "Тип оплаты",
   "timer.felt.tillegg": "Разрешение",
   "timer.felt.underprosjekt": "Подпроект",
+  "timer.felt.radBeskrivelse": "Что ты сделал?",
+  "timer.radBeskrivelsePlaceholder": "Например. «Залитый фундамент, ось B»",
   "timer.velgUnderprosjekt": "Выберите подпроект (необязательно)",
   "timer.ingenUnderprosjekter": "Для этого проекта нет подпроектов.",
   "timer.tilfoy.timer": "Добавить строку времени",

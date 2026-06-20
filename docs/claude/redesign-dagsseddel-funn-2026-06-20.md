@@ -133,6 +133,13 @@ er skjult, mister raden sin kontekst.
 - Dagssum-banner får valgfri «herav maskin {{maskin}} t»-linje (`timer.summering.heravMaskin`) når maskin > 0.
 - Send-mikrotekst «Når du sender, godkjenner du timene dine.» (`timer.sendGodkjennHint`) under send-knappen.
 - 3 nye i18n-nøkler i 15 språk. Auto-fyll-banner hører til Slice 3 (auto-utkast), ikke her.
+
+**Slice 2 — T.12 fritekst per timer-rad (✅ gjort 2026-06-20, develop):**
+- `SheetTimer.beskrivelse String? @db.Text` (nullable, additiv migrering `20260620120000_sheet_timer_beskrivelse`, ingen index/backfill). Speilet i `sheet_timer_local` (Drizzle + idempotent ALTER).
+- tRPC: `tilfoyTimerRad`/`oppdaterTimerRad` (input+lagring), `hentEndringerSiden` (pull), `syncBatch` (input+createMany). timerSync push+pull.
+- UI: `TimerRadModal` multiline-input («Hva gjorde du?») + `TimerRadVis` pencil-ikon-linje (jf. v2 «Støpte fundament, B-akse»).
+- **Relikvi-felle unngått:** `timer.felt.beskrivelse`/`timer.beskrivelsePlaceholder` finnes allerede som *sedel-/dag-kommentar* (`DailySheet.beskrivelse`, brukt web `ny/page`+`[id]`+`AttesteringDetalj` / mobil `ny.tsx`). T.12 bruker nye distinkte nøkler `timer.felt.radBeskrivelse`/`timer.radBeskrivelsePlaceholder` (15 språk) for ikke å kollidere.
+- **Web-parity** (`TimerRadDialog`): utestående kort follow-up — nullable felt, web brekker ikke uten.
 - **UX-2 — «Legg til timer-rad»/konvolutt-relasjon uforklart.** → spørsmål 2.
 - **UX-3 — Maskin-seksjon helt skjult** uten aktiv Maskin-modul (soft-skjul). Bevisst, men gir «hvor er maskin?».
 - **UX-4 — Underprosjekt/ECO** kun synlig inne i rad-modal; ingen inngang utenfra.
