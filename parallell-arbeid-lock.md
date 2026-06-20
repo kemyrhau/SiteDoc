@@ -74,6 +74,19 @@ Gjelder: `.env`, OAuth-secrets, DB-passord, SSH-nøkler, API-nøkler.
 
 ---
 
+## Git-skriving — sandkasse-`.git`-unlink-asymmetri (lærdom 2026-06-20)
+
+Kontroll-Claudes sandkasse kan **lage** filer under `.git/` men **ikke slette** dem
+(`touch .git/.skrivetest` = OK, `rm` = «Operation not permitted»). En git-skriveoperasjon
+(`commit`/`add`) fra sandkasse-siden kan derfor etterlate en foreldet `.git/index.lock` som
+**kun den native siden (Opus) kan rydde**. Symptom: «Unable to create '.git/index.lock': File
+exists» med gammel mtime og **ingen** levende git-prosess — det er filsystem-asymmetri, ikke en
+live samtidighets-kollisjon mellom sporene.
+
+**Tiltak:**
+- **Kontroll-Claude gjør kun lese-git i sandkassen** (`status`/`diff`/`log`/`show`) — aldri `add`/`commit`.
+- **Alle git-skrivinger gjøres native av Opus** (som også kan rydde en stale lock etter å ha bekreftet ingen levende git-prosess: `ps aux | grep "[g]it "`).
+
 ## Distribusjon og worktrees
 
 - **Bruk én git-worktree per spor** (samme repo, separate mapper): `git worktree add ../sitedoc-server develop` for server-sporet. Da redigerer de to Opus-instansene aldri samme arbeidstre samtidig, men deployer fra samme grunnlag.

@@ -138,8 +138,14 @@ er skjult, mister raden sin kontekst.
   er gjeldende kode. Bør bekreftes, men auto-flyt-vakten mangler uansett.
 
 **Doc-drift (omskrives):**
-- **DRIFT-1:** `timer.md:124` sier mobil henger bak (PR 2C, projectId på sedel-nivå) — koden viser
-  per-rad `projectId` implementert. Trolig utdatert claim.
+- **DRIFT-1 (bekreftet 2026-06-20):** `timer.md:124` bunter ferdig + åpent arbeid under ett
+  «🔴 Åpen»-banner (PR 2C). Verifisert mot kode — driften er *delvis*:
+  - ✅ **Gjort:** `sheet_timer_local.projectId` (nullable, T7-3b1) + `fraTid`/`tilTid` (T4);
+    `timerSync.ts:175/185/192` sender projectId per rad; screens bruker det. timer.md:124s
+    «legge til project_id på sheet_timer_local» + «oppdatere timerSync/screens» er altså gjort.
+  - 🔴 **Genuint åpent:** `dagsseddel_local.project_id` fortsatt `.notNull()` (`schema:84`);
+    `byggeplassId` + attestert-felter på rad-tabellene + NOT NULL-constraint + full backfill gjenstår.
+  - **Fiks:** rett timer.md:124 så ferdig/åpent ikke buntes — hører til BACKLOG-foldingen av DRIFT-1.
 - **DRIFT-2:** `timer.md:330–357` UX-skisse viser prosjekt på sedel-nivå (pre-T.1) — utdatert.
 - **DRIFT-3:** Fritekstsøk på alle velgere (incl. utstyr nr+navn) er bygget men udokumentert.
 - **DRIFT-4:** `timer-input-katalog.md` er tom plassholder.
