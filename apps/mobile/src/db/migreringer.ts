@@ -645,4 +645,19 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] Kunne ikke utvide sheet_timer_local med beskrivelse:", e);
   }
+
+  // Slice 3 (2026-06-20) — auto_generert på dagsseddel_local. Nullable, KUN
+  // lokal (synces aldri). Markerer auto-genererte drafts fra «Slutt dag» så
+  // auto-fyll-banneret kan gates. Idempotent ALTER.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(dagsseddel_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "auto_generert")) {
+      console.log("[MIG] Legger til auto_generert på dagsseddel_local (Slice 3)");
+      db.execSync(`ALTER TABLE dagsseddel_local ADD COLUMN auto_generert INTEGER`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide dagsseddel_local med auto_generert:", e);
+  }
 }

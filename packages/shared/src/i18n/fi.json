@@ -36,6 +36,8 @@
   "timer.overtid50": "Ylityöt 50 %",
   "timer.overtid100": "Ylityöt 100 %",
   "timer.reisetid": "Matka-aika",
+  "timer.autoFyll.tittel": "Päivä on täytetty automaattisesti",
+  "timer.autoFyll.hjelp": "Tarkista, korjaa ja lähetä.",
   "timer.tillegg": "Lisäravinteet",
   "timer.overtidsmat": "Ylityöt Ateria",
   "timer.nattillegg": "Yötäydennys",

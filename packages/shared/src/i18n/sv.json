@@ -36,6 +36,8 @@
   "timer.overtid50": "Övertid 50 %",
   "timer.overtid100": "Övertid 100 %",
   "timer.reisetid": "Restid",
+  "timer.autoFyll.tittel": "Dagen har fyllts i automatiskt",
+  "timer.autoFyll.hjelp": "Kontrollera, rätta och skicka in.",
   "timer.tillegg": "Kosttillskott",
   "timer.overtidsmat": "Övertidsmåltid",
   "timer.nattillegg": "Natttillägg",

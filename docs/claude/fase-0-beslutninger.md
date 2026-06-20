@@ -969,7 +969,11 @@ Datamodell (`projectId` + `externalCostObjectId`) er KORREKT. Kun UI-gruppering 
 
 ### T.8 — Innsjekk-basert prosjektforslag i dagsseddel (låst 2026-05-12)
 
-> **✅ VEDTATT 2026-06-20: Alternativ B (auto-utkast).** Modulen auto-skriver dagsseddel-utkast (`draft`) fra GPS-dagflyt; arbeider ser alt, kan redigere/slette enhver auto-rad, og **godkjenner ved innsending** (`draft → sent`). Ingen lønn uten menneskelig godkjenning. Når auto-utkast-funksjonen bygges (Del 3 «auto-utkast MVP»), endres «aldri auto-rad» → **«aldri auto-innsending»**. Inntil da gjelder dagens konservative atferd (separasjons-prinsippet under); L1 byggeplass-GPS (2026-06-20) er fortsatt ren dokumentasjon. Utredning: [timer-gps-prosjekt-utredning.md](timer-gps-prosjekt-utredning.md).
+> **✅ VEDTATT 2026-06-20: Alternativ B (auto-utkast) — BYGGET (Slice 3, develop 2026-06-20).** Modulen auto-skriver dagsseddel-utkast (`draft`) fra GPS-dagflyt; arbeider ser alt, kan redigere/slette enhver auto-rad, og **godkjenner ved innsending** (`draft → sent`). Ingen lønn uten menneskelig godkjenning.
+>
+> **Viktig historikk:** auto-*opprettelsen* (draft + arbeidstid/overtid/reise-rader ved «Slutt dag») var **allerede live fra «Start dag/Slutt dag»-MVP 2026-06-06** (`genererForslag`, `StartSluttDagKort.tsx`). Den opprinnelige T.8-formuleringen «aldri auto-rad» beskrev altså et **eksisterende avvik** mot koden — ikke en regel Slice 3 brøt. Slice 3 (2026-06-20) la til UX-signallaget (auto-fyll-banner, lokal `autoGenerert`-markør, reise-rad-merking) + idempotens (naviger til eksisterende `(userId,dato)`-draft) og **retter formuleringen: «aldri auto-rad» → «aldri auto-innsending»**.
+>
+> L1 byggeplass-GPS (2026-06-20) er fortsatt ren dokumentasjon. Utredning: [timer-gps-prosjekt-utredning.md](timer-gps-prosjekt-utredning.md).
 
 Når arbeider åpner «Ny dagsseddel», foreslås prosjekt basert på innsjekk-historikk fra Mannskap-modulen (Fase 4). Arbeider bestemmer alltid selv — forslaget kan overstyres.
 
@@ -980,11 +984,11 @@ Når arbeider åpner «Ny dagsseddel», foreslås prosjekt basert på innsjekk-h
 3. Ingen innsjekk i dag → fall tilbake til GPS-avstand (dagens T7-1b-implementasjon)
 4. Ingen GPS-koordinater → ingen forslag
 
-**Separasjons-prinsipp (dagens atferd — gjelder inntil Del 3 «auto-utkast MVP» bygges; da: auto-utkast som `draft` + godkjenning ved innsending, jf. vedtaket over):**
+**Separasjons-prinsipp (REVIDERT 2026-06-20 etter Alt B / Slice 3 — gjelder framtidig *innsjekk*-kobling fra Mannskap Fase 4, ikke dagens GPS-dagflyt):**
 
-- Innsjekk trigger ALDRI automatisk dagsseddel eller timer-rader
-- Innsjekk-data brukes KUN som hint i prosjekt-velger
-- Arbeider må eksplisitt bekrefte prosjektvalg og opprette dagsseddel
+- **Aldri auto-*innsending*:** auto-skrevne rader havner alltid som `draft`; lønn krever menneskelig godkjenning ved innsending (`draft → sent`). (Erstatter den gamle «aldri auto-rad» — som var et avvik mot koden, jf. banneret over.)
+- Arbeider kan redigere/slette enhver auto-rad før innsending
+- Fremtidig Mannskap-innsjekk (Fase 4) er fortsatt kun *hint* i prosjekt-forslag — den trigger ikke i seg selv auto-dagsseddel (GPS-dagflyt via «Start/Slutt dag» gjør det)
 
 **Avhengigheter:**
 

@@ -36,6 +36,8 @@
   "timer.overtid50": "ore suplimentare 50%",
   "timer.overtid100": "ore suplimentare 100%",
   "timer.reisetid": "Timp de călătorie",
+  "timer.autoFyll.tittel": "Ziua a fost completată automat",
+  "timer.autoFyll.hjelp": "Verificați, corectați și trimiteți.",
   "timer.tillegg": "Suplimente",
   "timer.overtidsmat": "Masa pentru ore suplimentare",
   "timer.nattillegg": "Supliment de noapte",

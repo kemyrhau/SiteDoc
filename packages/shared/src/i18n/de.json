@@ -36,6 +36,8 @@
   "timer.overtid50": "Überstunden 50 %",
   "timer.overtid100": "Überstunden 100 %",
   "timer.reisetid": "Reisezeit",
+  "timer.autoFyll.tittel": "Der Tag wurde automatisch ausgefüllt",
+  "timer.autoFyll.hjelp": "Prüfen, korrigieren und absenden.",
   "timer.tillegg": "Ergänzungen",
   "timer.overtidsmat": "Überstundenmahlzeit",
   "timer.nattillegg": "Nachtzuschlag",

@@ -94,6 +94,10 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
   })
     .notNull()
     .default("draft"),
+  // Slice 3 (2026-06-20): markerer at draften ble auto-generert av «Slutt dag»
+  // (genererForslag). KUN lokal — synces ALDRI til server. Gater auto-fyll-
+  // banneret på review-skjermen. Manuelle ny.tsx-drafts lar feltet stå null.
+  autoGenerert: integer("auto_generert", { mode: "boolean" }),
   beskrivelse: text("beskrivelse"),
   lederKommentar: text("leder_kommentar"),
   attestertVed: text("attestert_ved"), // ISO timestamp fra server

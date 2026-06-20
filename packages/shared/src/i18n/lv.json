@@ -36,6 +36,8 @@
   "timer.overtid50": "virsstundas 50%",
   "timer.overtid100": "virsstundas 100%",
   "timer.reisetid": "Ceļojuma laiks",
+  "timer.autoFyll.tittel": "Diena ir aizpildīta automātiski",
+  "timer.autoFyll.hjelp": "Pārbaudiet, labojiet un iesniedziet.",
   "timer.tillegg": "Papildinājumi",
   "timer.overtidsmat": "Virsstundu maltīte",
   "timer.nattillegg": "Nakts papildinājums",

@@ -36,6 +36,8 @@
   "timer.overtid50": "Nadgodziny 50%",
   "timer.overtid100": "Nadgodziny 100%",
   "timer.reisetid": "Czas podróży",
+  "timer.autoFyll.tittel": "Dzień został uzupełniony automatycznie",
+  "timer.autoFyll.hjelp": "Sprawdź, popraw i wyślij.",
   "timer.tillegg": "Suplementy",
   "timer.overtidsmat": "Posiłek w godzinach nadliczbowych",
   "timer.nattillegg": "Dodatek na noc",

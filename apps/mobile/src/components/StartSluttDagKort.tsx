@@ -23,7 +23,10 @@ import { hentProsjekterLokalt } from "../services/prosjektKatalog";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
-import { hentStandardLonnsartLokalt } from "../services/timerKatalog";
+import {
+  hentStandardLonnsartLokalt,
+  hentReiseLonnsartId,
+} from "../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../services/organizationSettingKatalog";
 import {
   hentMatriseRadLokalt,
@@ -331,6 +334,21 @@ function genererForslag(
   const db = hentDatabase();
   if (!db) return null;
 
+  // Idempotens: server håndhever @@unique([userId, dato]) på DailySheet.
+  // Finnes det allerede en dagsseddel for (bruker, dato) lokalt → naviger til
+  // den i stedet for å opprette en ny (en ny ville gitt sync-konflikt). Auto-
+  // fyll hoppes da over; er den eksisterende draften tom, mister arbeider auto-
+  // genereringen (akseptabel MVP-tradeoff, dokumentert i BACKLOG Slice 3).
+  const dato = formatIsoDato(new Date(dag.startAt));
+  const eksisterende = db
+    .select({ id: dagsseddelLocal.id })
+    .from(dagsseddelLocal)
+    .where(
+      and(eq(dagsseddelLocal.userId, userId), eq(dagsseddelLocal.dato, dato)),
+    )
+    .all()[0];
+  if (eksisterende) return eksisterende.id;
+
   // 1. Prosjekt via Haversine.
   const prosjekter = hentProsjekterLokalt(orgId);
   if (prosjekter.length === 0) return null;
@@ -360,7 +378,6 @@ function genererForslag(
     aktiviteter.find((a) => a.navn === "Anleggsarbeid") ?? aktiviteter[0];
 
   // 3. Arbeidstid = brutto − firma-pause.
-  const dato = formatIsoDato(new Date(dag.startAt));
   const effektiv = hentEffektivArbeidstidLokal(
     orgId,
     new Date(`${dato}T00:00:00`),
@@ -413,23 +430,10 @@ function genererForslag(
         reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
       });
       if (kategori === "reisetid") {
-        // Resolver reise-lønnsart: eksplisitt valgt (reiseLonnsartId), ellers
-        // navne-match ("reise/transport") — samme MVP-mønster som overtid under.
-        reiseLonnsartId = regel.reiseLonnsartId ?? null;
-        if (!reiseLonnsartId) {
-          const match = db
-            .select()
-            .from(lonnsartLocal)
-            .where(
-              and(
-                eq(lonnsartLocal.organizationId, orgId),
-                eq(lonnsartLocal.aktiv, true),
-              ),
-            )
-            .all()
-            .find((l) => /reise|transport/i.test(l.navn));
-          reiseLonnsartId = match?.id ?? null;
-        }
+        // Resolver reise-lønnsart via delt helper — samme kilde som render-
+        // laget bruker for reise-merking, så generering og visning aldri
+        // drifter fra hverandre (reiseLonnsartId ellers navne-match).
+        reiseLonnsartId = hentReiseLonnsartId(orgId);
         // Bare foreslå reisetid hvis vi faktisk har en art å føre den på.
         if (reiseLonnsartId) {
           reisetidTimer = Math.round((reisetidMin / 60) * 100) / 100;
@@ -459,6 +463,7 @@ function genererForslag(
       endAt: sluttIso,
       pauseMin: effektiv.pauseMin,
       status: "draft",
+      autoGenerert: true,
       beskrivelse: null,
       lederKommentar: null,
       attestertVed: null,

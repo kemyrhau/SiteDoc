@@ -36,6 +36,8 @@
   "timer.overtid50": "jashtë orarit 50%",
   "timer.overtid100": "jashtë orarit 100%",
   "timer.reisetid": "Koha e Udhëtimit",
+  "timer.autoFyll.tittel": "Dita është plotësuar automatikisht",
+  "timer.autoFyll.hjelp": "Kontrolloni, korrigjoni dhe dorëzoni.",
   "timer.tillegg": "Suplementet",
   "timer.overtidsmat": "Ushqimi jashtë orarit",
   "timer.nattillegg": "Suplement nate",

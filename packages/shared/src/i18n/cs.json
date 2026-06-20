@@ -36,6 +36,8 @@
   "timer.overtid50": "Přesčas 50 %",
   "timer.overtid100": "Přesčasy 100 %",
   "timer.reisetid": "Cestovní čas",
+  "timer.autoFyll.tittel": "Den byl vyplněn automaticky",
+  "timer.autoFyll.hjelp": "Zkontrolujte, opravte a odešlete.",
   "timer.tillegg": "Doplňky",
   "timer.overtidsmat": "Stravování přesčas",
   "timer.nattillegg": "Noční doplněk",

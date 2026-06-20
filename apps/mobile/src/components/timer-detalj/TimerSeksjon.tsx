@@ -9,7 +9,7 @@ import {
   FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Plus, Trash2, Pencil, X, Check } from "lucide-react-native";
+import { Plus, Trash2, Pencil, X, Check, Car } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq, and } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
@@ -22,7 +22,10 @@ import {
 } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
-import { hentStandardLonnsartLokalt } from "../../services/timerKatalog";
+import {
+  hentStandardLonnsartLokalt,
+  hentReiseLonnsartId,
+} from "../../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import type {
   TimerRad,
@@ -72,6 +75,13 @@ export function TimerSeksjon({
   const totaltimer = useMemo(
     () => rader.reduce((acc, r) => acc + r.timer, 0),
     [rader],
+  );
+
+  // Slice 3: resolver reise-lønnsart ÉN gang (samme kilde som genererForslag),
+  // så reise-rader kan merkes visuelt. Sammenlignes per rad mot rad.lonnsartId.
+  const reiseLonnsartId = useMemo(
+    () => hentReiseLonnsartId(organizationId),
+    [organizationId],
   );
 
   const leggTil = useCallback(
@@ -197,6 +207,7 @@ export function TimerSeksjon({
           <TimerRadVis
             key={rad.id}
             rad={rad}
+            erReise={reiseLonnsartId != null && rad.lonnsartId === reiseLonnsartId}
             redigerbar={redigerbar}
             onRediger={() => {
               setRedigerRadId(rad.id);
@@ -287,15 +298,18 @@ export function TimerSeksjon({
 
 function TimerRadVis({
   rad,
+  erReise,
   redigerbar,
   onRediger,
   onSlett,
 }: {
   rad: TimerRad;
+  erReise: boolean;
   redigerbar: boolean;
   onRediger: () => void;
   onSlett: () => void;
 }) {
+  const { t } = useTranslation();
   const lonnsart = useMemo(() => {
     const db = hentDatabase();
     if (!db) return null;
@@ -322,9 +336,20 @@ function TimerRadVis({
   return (
     <View className="flex-row items-center gap-2 border-b border-gray-100 bg-white px-4 py-3">
       <View className="flex-1">
-        <Text className="text-base text-gray-900">
-          {lonnsart?.navn ?? rad.lonnsartId}
-        </Text>
+        {erReise ? (
+          // Slice 3: reise-rad merkes distinkt (🚗 + «Reisetid») så den skiller
+          // seg fra arbeidstid-radene i prosjektgruppen.
+          <View className="flex-row items-center gap-1.5">
+            <Car size={15} color="#1e40af" />
+            <Text className="text-base font-medium text-sitedoc-primary">
+              {t("timer.reisetid")}
+            </Text>
+          </View>
+        ) : (
+          <Text className="text-base text-gray-900">
+            {lonnsart?.navn ?? rad.lonnsartId}
+          </Text>
+        )}
         <View className="flex-row flex-wrap gap-2">
           {aktivitet && (
             <Text className="text-xs text-gray-500">{aktivitet.navn}</Text>

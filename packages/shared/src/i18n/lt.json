@@ -36,6 +36,8 @@
   "timer.overtid50": "viršvalandžiai 50 proc.",
   "timer.overtid100": "viršvalandžiai 100 proc.",
   "timer.reisetid": "Kelionės laikas",
+  "timer.autoFyll.tittel": "Diena buvo užpildyta automatiškai",
+  "timer.autoFyll.hjelp": "Patikrinkite, pataisykite ir pateikite.",
   "timer.tillegg": "Papildai",
   "timer.overtidsmat": "Viršvalandžių maitinimas",
   "timer.nattillegg": "Naktinis papildymas",

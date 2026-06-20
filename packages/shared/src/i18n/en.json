@@ -36,6 +36,8 @@
   "timer.overtid50": "Overtime 50%",
   "timer.overtid100": "Overtime 100%",
   "timer.reisetid": "Travel Time",
+  "timer.autoFyll.tittel": "The day has been filled in automatically",
+  "timer.autoFyll.hjelp": "Check, correct and submit.",
   "timer.tillegg": "Supplements",
   "timer.overtidsmat": "Overtime Meal",
   "timer.nattillegg": "Night Supplement",

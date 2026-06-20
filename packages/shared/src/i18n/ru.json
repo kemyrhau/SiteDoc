@@ -36,6 +36,8 @@
   "timer.overtid50": "Сверхурочные 50%",
   "timer.overtid100": "Сверхурочные 100%",
   "timer.reisetid": "Время в пути",
+  "timer.autoFyll.tittel": "День был заполнен автоматически",
+  "timer.autoFyll.hjelp": "Проверьте, исправьте и отправьте.",
   "timer.tillegg": "Добавки",
   "timer.overtidsmat": "Сверхурочное питание",
   "timer.nattillegg": "Ночная доплата",

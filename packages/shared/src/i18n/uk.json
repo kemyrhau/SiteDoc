@@ -36,6 +36,8 @@
   "timer.overtid50": "Понаднормова робота 50%",
   "timer.overtid100": "Понаднормова робота 100%",
   "timer.reisetid": "Час подорожі",
+  "timer.autoFyll.tittel": "День заповнено автоматично",
+  "timer.autoFyll.hjelp": "Перевірте, виправте та надішліть.",
   "timer.tillegg": "БАДи",
   "timer.overtidsmat": "Понаднормове харчування",
   "timer.nattillegg": "Нічна добавка",

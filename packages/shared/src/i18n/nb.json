@@ -36,6 +36,8 @@
   "timer.overtid50": "Overtid 50%",
   "timer.overtid100": "Overtid 100%",
   "timer.reisetid": "Reisetid",
+  "timer.autoFyll.tittel": "Dagen er fylt ut automatisk",
+  "timer.autoFyll.hjelp": "Sjekk, rett og send.",
   "timer.tillegg": "Tillegg",
   "timer.overtidsmat": "Overtidsmat",
   "timer.nattillegg": "Nattillegg",

@@ -20,6 +20,7 @@ import {
   CheckCircle,
   RotateCcw,
   Plus,
+  Sparkles,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
@@ -343,6 +344,22 @@ export default function DagsseddelDetalj() {
                 {t("timer.sync.venterEn")}
               </Text>
             </View>
+          </View>
+        )}
+
+        {/* Slice 3: auto-fyll-banner — kun på auto-genererte drafts. Forsvinner
+            automatisk ved innsending (gated på status === "draft"). */}
+        {sedel.status === "draft" && sedel.autoGenerert && (
+          <View className="mx-4 mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <Sparkles size={16} color="#1e40af" />
+              <Text className="text-sm font-semibold text-blue-900">
+                {t("timer.autoFyll.tittel")}
+              </Text>
+            </View>
+            <Text className="mt-1 text-xs text-blue-700">
+              {t("timer.autoFyll.hjelp")}
+            </Text>
           </View>
         )}
 

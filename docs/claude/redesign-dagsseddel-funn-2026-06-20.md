@@ -268,6 +268,14 @@ Formuleringen «aldri auto-rad» erstattes av **«aldri auto-*innsending*»**.
 med arbeidstid-rad (timer = total − reise) på valgt prosjekt + reise-rad fra R4-matrise. Arbeider
 korrigerer + sender. + synlighets-fiks (UX-1) så prosjektet vises.
 
+**Slice 3 — auto-utkast MVP (✅ gjort 2026-06-20, develop):**
+- **Viktig innsnevring:** selve auto-genereringen var **allerede bygget** (`genererForslag`, fra «Start/Slutt dag»-MVP 2026-06-06 + R4) — draft + arbeidstid (total − reise, splittet Timelønn/Overtid) + reise-rad. Slice 3 la til UX-signallaget + idempotens.
+- **Idempotens (Alt 1):** `genererForslag` slår opp eksisterende `(userId, dato)`-draft lokalt → navigerer dit i stedet for å lage ny (server `@@unique([userId,dato])`). Edge: tom eksisterende draft åpnes uten auto-fyll (akseptabel MVP-tradeoff).
+- **Auto-markør:** ny nullable lokal kolonne `dagsseddel_local.auto_generert` (idempotent ALTER, KUN lokal — synces aldri). `genererForslag` setter `autoGenerert: true`; manuelle `ny.tsx`-drafts lar den stå null.
+- **Auto-fyll-banner** (`[id].tsx`): ✨ + «Dagen er fylt ut automatisk / Sjekk, rett og send», gated `status === "draft" && autoGenerert` → forsvinner automatisk ved innsending. Nye nøkler `timer.autoFyll.tittel`/`.hjelp` (15 språk).
+- **Reise-rad-merking** (`TimerSeksjon`/`TimerRadVis`): reise-rad vises med 🚗 + «Reisetid» (gjenbruker `timer.reisetid`). Deteksjon via ny delt `hentReiseLonnsartId(orgId)` i `timerKatalog.ts` — ÉN sannhetskilde (reiseLonnsartId ellers `/reise|transport/i`), hoistet én gang i `TimerSeksjon`, så generering og render aldri drifter.
+- **Verifisering:** mobil typecheck = 0 nye feil fra Slice 3-filene (kun pre-eksisterende baseline-gjeld, bl.a. `timerSync.ts` aktivitetId-null som er bevist uavhengig av kolonnen). **Reload:** full JS-reload (Metro «r») — idempotent ALTER kjører ved `DatabaseProvider`-mount.
+
 **Blokkert av byggeplass-GPS (1c-mobil):** BESLUTNING 2 (prosjekt-mismatch), 3 (dag-flyt-overganger),
 6 (multi-byggeplass) — alt som krever GPS-drevet prosjekt/byggeplass-deteksjon + reise→arbeid-overganger.
 

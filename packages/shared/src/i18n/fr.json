@@ -36,6 +36,8 @@
   "timer.overtid50": "Heures supplémentaires 50%",
   "timer.overtid100": "Heures supplémentaires 100 %",
   "timer.reisetid": "Temps de trajet",
+  "timer.autoFyll.tittel": "Le jour a été renseigné automatiquement",
+  "timer.autoFyll.hjelp": "Vérifiez, corrigez et soumettez.",
   "timer.tillegg": "Suppléments",
   "timer.overtidsmat": "Repas en heures supplémentaires",
   "timer.nattillegg": "Supplément de nuit",

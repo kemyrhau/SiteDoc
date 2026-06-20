@@ -36,6 +36,8 @@
   "timer.overtid50": "Ületunnid 50%",
   "timer.overtid100": "Ületunnid 100%",
   "timer.reisetid": "Reisi aeg",
+  "timer.autoFyll.tittel": "Päev on täidetud automaatselt",
+  "timer.autoFyll.hjelp": "Kontrollige, parandage ja esitage.",
   "timer.tillegg": "Toidulisandid",
   "timer.overtidsmat": "Ületunnitöö söök",
   "timer.nattillegg": "Öine täiendus",
