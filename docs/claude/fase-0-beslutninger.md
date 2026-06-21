@@ -1065,6 +1065,8 @@ Beslutningssett for reise, oppmøtested og ikke-prosjekt-tid. Grunnlag: [OPPSUMM
 
 Arbeider skal kunne skrive fritekst «hva jeg har gjort» **per timer-rad** (ikke tallmengde). Nytt nullable fritekstfelt på `SheetTimer` (per aktivitet) + to-stegs migrering (per migrasjonspolicy). Eksisterende `DailySheet.beskrivelse` (dag-nivå) er forkastet som for grovt. Eksport: **utsatt** — rapport-valg (hva som tas med i utskrift) utvikles senere når timeregistrering er funksjonell; inntil da intern dokumentasjon.
 
+> **Konsekvens-notis (avklart ved Funn #1-reversering 2026-06-21):** Numerisk **produksjonsmengde hører til vareforbruk-modulen (`db-varelager`), IKKE timeregistrering.** Et `mengde`+`enhet`-felt på `SheetTimer` ble bygget i sin helhet (server+mobil+web+sync+migrering) og **fullstendig revertert** — mengde på timer-rad er forkastet. **T.12 forblir fritekst-only.** Produksjonsmengde tas opp som egen runde i vareforbruk-modulen senere.
+
 ---
 
 ## B. ÅPNE BLOKKERER-SPØRSMÅL — må besluttes før koding

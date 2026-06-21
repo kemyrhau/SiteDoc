@@ -12,8 +12,10 @@ sist_verifisert_mot_kode: 2026-06-08
 
 > 🟡 **develop bærer udeployet kode foran prod (tas med ved neste prod-merge):**
 > - **T.12 web-parity** (`8f92f0ea`, `TimerRadDialog` fritekst) — distinkt fra deployet mobil/server-T.12 (Slice 2, `SheetTimer.beskrivelse`).
-> - **Funn #2 — kvittering-vedlegg på tillegg-rader** (mobil capture/offline-kø + web-visning + server-API + sync). **Krever DB-migrering** `20260621140000_sheet_tillegg_vedlegg` (additiv `CREATE TABLE`, db-timer) — anvendes på `sitedoc_test` etter push (Kenneth GO), **prod gjenstår**. Mobil-delen når arbeidere først ved nytt EAS-bygg. Ny `SheetTilleggVedlegg`-tabell (svak FK, ingen `@relation`). Fillagring = lokal disk (S3-drift notert i BACKLOG).
+> - **Funn #2 — kvittering-vedlegg på tillegg-rader** (mobil capture/offline-kø + web-visning + server-API + sync, commit `6370d8d1`). Ny `SheetTilleggVedlegg`-tabell (svak FK, ingen `@relation`), migrering `20260621140000_sheet_tillegg_vedlegg` (additiv `CREATE TABLE`). **✅ Test-deployet til server-ny (Docker test-stack) 2026-06-21 — edge-verifisert** (api-test 401/405 på de nye rutene). **Prod gjenstår.** Mobil-delen når arbeidere først ved nytt EAS-bygg. Fillagring = lokal disk (S3-drift notert i BACKLOG). NB: feilplassert Kenspill-migrering = harmløs legacy-levning (jf. infrastruktur.md).
 > Resten av develop-deltaet foran main er doc-only.
+
+> ▶️ **NESTE: #3 — T.11 maskin-registrering gated på kompetansematrise.** Låste beslutninger (fase-0 § T.11): (1) gating via **avledet flagg** fra kompetansematrisen (aktiv, ikke-utløpt `AnsattKompetanse` med kategori `TRUCK-/MASKINFØRERBEVIS`) — ikke hardkodet rolle; (2) **soft flagg/varsel**, ikke hard blokk. **Prerequisitt:** kompetanse er ikke synket til mobil i dag (0 grep-treff i `apps/mobile`) → ny lokal cache (`kompetansetype_local` + `ansatt_kompetanse_local`) + sync må bygges FØR gating. Plan-først ved oppstart.
 
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 
