@@ -55,6 +55,8 @@ type TimerRad = {
   fraTid: string | null;
   tilTid: string | null;
   timer: unknown;
+  // T.12 (2026-06-21): fritekst per rad — «hva gjorde du?». Speiler mobil.
+  beskrivelse: string | null;
 };
 
 type TilleggRad = {
@@ -850,6 +852,12 @@ function RaderTimer({
                 {lonnsart?.navn ?? "—"}
               </p>
               <p className="text-xs text-gray-500">{aktivitet?.navn ?? "—"}</p>
+              {/* T.12: fritekst-beskrivelse av hva som ble gjort (speiler mobil) */}
+              {rad.beskrivelse && (
+                <p className="mt-0.5 text-xs italic text-gray-600">
+                  {rad.beskrivelse}
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-3">
               <span className="font-mono text-sm text-gray-900">
@@ -1090,6 +1098,10 @@ function TimerRadDialog({
   const [vehicleId, setVehicleId] = useState<string | null>(
     rad?.vehicleId ?? null,
   );
+  // T.12: fritekst per rad — «hva gjorde du?» (valgfritt). Speiler mobil.
+  const [beskrivelse, setBeskrivelse] = useState<string>(
+    rad?.beskrivelse ?? "",
+  );
   const [feil, setFeil] = useState<string | null>(null);
 
   const tilfoy = trpc.timer.dagsseddel.tilfoyTimerRad.useMutation({
@@ -1125,6 +1137,7 @@ function TimerRadDialog({
         externalCostObjectId: ecoId,
         // Send alltid (kan nullstilles); ignoreres for ikke-interne prosjekter.
         vehicleId: erInternt ? vehicleId : null,
+        beskrivelse: beskrivelse.trim() || null,
       });
     } else {
       tilfoy.mutate({
@@ -1135,6 +1148,7 @@ function TimerRadDialog({
         timer: tNum,
         externalCostObjectId: ecoId,
         vehicleId: erInternt ? vehicleId : null,
+        beskrivelse: beskrivelse.trim() || null,
       });
     }
   }
@@ -1271,6 +1285,22 @@ function TimerRadDialog({
             </div>
           </div>
         )}
+        {/* T.12: fritekst per rad — «hva gjorde du?» (valgfritt). Speiler mobil. */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.radBeskrivelse")}{" "}
+            <span className="text-xs text-gray-400">
+              ({t("label.valgfritt")})
+            </span>
+          </label>
+          <textarea
+            value={beskrivelse}
+            onChange={(e) => setBeskrivelse(e.target.value)}
+            placeholder={t("timer.radBeskrivelsePlaceholder")}
+            rows={3}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+          />
+        </div>
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onLukk}>
