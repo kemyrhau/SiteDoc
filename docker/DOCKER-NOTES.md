@@ -1,7 +1,9 @@
 # Sitedoc — Docker på ny server (I PROD fra 2026-06-10)
 
-> Full-Docker-oppsett for sitedoc, **deployet til prod på server-ny 2026-06-10** (test+prod, pgvector, ML, innlogget+tegninger+3D verifisert). Gammel sitedoc (PM2) står stoppet som rollback.
+> Full-Docker-oppsett for sitedoc, **deployet til prod på server-ny 2026-06-10** (test+prod, pgvector, ML, innlogget+tegninger+3D verifisert). Gammel sitedoc (PM2) er rollback.
 > Gjeldende deploy/infra: `../docs/claude/infrastruktur.md`. Seksjonene under er oppsett-/build-referansen som ble fulgt.
+>
+> 🖥️ **Server-tilgang:** gjeldende server = **`server-ny`** (Tailscale; sudo-steg kjøres av Kenneth via **`! ssh -t server-ny ...`**). SSH-aliaset **`ssh sitedoc` → Kenspill/WSL = GAMMEL (legacy) server — IKKE for deploy/verifisering.** ⚠️ **Test/prod-host-mapping UBEKREFTET (2026-06-21):** Kenspill kjører fortsatt test-PM2 (observert) samtidig som server-ny har Docker-test-stack — avvent Kenneths bekreftelse før du stoler på hvor test kjører (jf. [infrastruktur.md](../docs/claude/infrastruktur.md)).
 
 ## Komponenter
 | Tjeneste | Image | Port | Innhold |

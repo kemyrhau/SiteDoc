@@ -164,6 +164,8 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 **Deploy-sekvens:**
 
 > ⚠️ **Prod kjører i Docker på `server-ny` (fra 2026-06-10).** Gjeldende deploy: rsync repo → `sudo docker compose -f docker/docker-compose.yml up -d --build`. Server-, env- og deploy-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) + [docker/DOCKER-NOTES.md](docker/DOCKER-NOTES.md). Den gamle PM2-deploy-prosedyren (rollback til gammel server) ligger i [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
+>
+> 🖥️ **Server-tilgang (ufravikelig):** Gjeldende server = **`server-ny`** (Tailscale; Kenneth kjører sudo-steg via **`! ssh -t server-ny ...`** for ekte TTY). SSH-aliaset **`ssh sitedoc` → Kenspill/WSL = GAMMEL (legacy) server — IKKE bruk for deploy eller verifisering.** ⚠️ **Test/prod-host-mapping er UBEKREFTET (2026-06-21):** docs sier test = server-ny Docker (infra:169), men Kenspill kjører fortsatt test-PM2 + eget `sitedoc_test`. **Ikke gjett hvor test kjører — avvent Kenneths bekreftelse.**
 
 - Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 - Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
@@ -418,7 +420,7 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
   Dette er ikke valgfritt og skal ikke overlates til en separat oppfølger-commit (status-dok i egen commit etterpå blir glemt/drifter). Trivielle commits (typo-fix, kommentar-rens, formatting) er unntatt.
 - **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
-  - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh sitedoc "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall
+  - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh server-ny "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall. (Merk: `ssh sitedoc` → Kenspill = legacy, ikke for deploy/verifisering — se server-tilgang-banneret over.)
   - **Filtrer output:** Bruk `| tail -n`, `| head -n`, `| grep` for å begrense output fra verbose kommandoer (build-logger, PM2-lister, psql-resultater)
   - **Unngå gjentatte lesinger:** Les en fil én gang, ikke les samme fil flere ganger i samme sesjon
   - **Bruk subagenter** for utforskning som krever mange søk/fillesinger
