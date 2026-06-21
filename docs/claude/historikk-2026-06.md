@@ -8,6 +8,27 @@ sist_verifisert_mot_kode: 2026-06-05
 
 Arkiv av ferdigstilt arbeid. Aktivt arbeid ligger i [STATUS-AKTUELT.md](STATUS-AKTUELT.md).
 
+## § Slice 1–4 + reisetid R1–R4 + byggeplass-GPS L1 — DEPLOYET TIL PROD 2026-06-21 (prod-merge `32b88bd7`)
+
+Stor samlet deploy av all develop-akkumulering siden 06-10 (`aed86d0f → 32b88bd7`). **SERVER (API+web) KUN** — se mobil-forbeholdet nederst.
+
+**Dagsseddel-redesign (Slice 1–4):**
+- **Slice 3 — auto-utkast MVP** (`a79a8fae`): auto-fyll-banner + lokal `auto_generert`-markør + reise-rad-merking (🚗 «Reisetid» via delt `hentReiseLonnsartId`) + idempotens (eksisterende `(userId,dato)`-draft → naviger dit). BESLUTNING 1 = Alt B (auto-utkast, godkjenning ved innsending). T.8 «aldri auto-rad»→«aldri auto-innsending».
+- **Slice 4a — midnatt-splitt** (`b0352ee6`): `genererForslag` → per-segment via ren `splittVedMidnatt` (`utils/dagsegment.ts`); skift over 00:00 → én draft per kalenderdag (verifisert 19:00→07:00 = 5t+7t). Pause+reise kun start-dag; per-dag Timelønn/Overtid; lokal `delt_ved_midnatt` + badge.
+- **Slice 4b-1 — glemt-dag-prompt** (`ebf9fc41`): åpen arbeidsdag fra tidligere dato → «Jobber du fortsatt / glemte du å avslutte». Fanger BUG-1 (165t-glemt).
+- **Slice 4b-2 — `sluttTidKilde` + arbeidstids-varsel** (`43db24d2`): `DailySheet.sluttTidKilde` 3-verdi (bruker/midnatt/system) + `OrganizationSetting.arbeidstidVarselTimer` (13/16 tariff). Server (5 prosedyrer) + mobil (lokal kolonne + sync + set-semantikk) + attestering-badges (web+mobil, varsel ikke blokkering) + admin-UI. Smartere natt-estimat i gjenoppretting.
+- Slice 1/2: display-refinements (maskin «herav», subtotal, send-hint) + T.12 fritekst per timer-rad. UX-1: prosjekt alltid synlig.
+
+**Reisetid-matrise R1–R4** (`562fd707` R1 · `876ad9ca` R2 · `7d98b80a` R3 · `39912f4b` R4): forhåndsberegnet kjøretid per [kontor × byggeplass] (OSRM/Nominatim keyless) erstatter ×50km/t-estimat. Ny `ReisetidMatrise`-tabell + recompute-motor + triggere + oppslag + mobil-cache. Dual-reviewet ved commit (det tidligere «venter dual-review»-merket var utdatert).
+
+**Byggeplass-GPS L1** (`fe1d1a20`): passiv GPS-identifikasjon av byggeplass ved «Start dag» (speil av oppmøtested-mønsteret). Kun dokumentasjon.
+
+**NorBERT bind-fix** (`norbert-server.py` `NORBERT_HOST`): koden merget. **MEN embed/oversettelse-rebuild ble IKKE kjørt** i denne deployen (egen oppgave — se BACKLOG).
+
+**Migrering (4 additive, anvendt + verifisert på prod 2026-06-21 via engangs-container, gate traff `/sitedoc`):** `db`: `20260611120000_reisetid_matrise`, `20260621120000_organization_setting_arbeidstid_varsel` · `db-timer`: `20260620120000_sheet_timer_beskrivelse`, `20260621120000_daily_sheet_slutt_tid_kilde`. Verifisert: `slutt_tid_kilde` (NOT NULL DEFAULT 'bruker') + `arbeidstid_varsel_timer` (NOT NULL DEFAULT 13) finnes, alle 4 «applied». Backup `pg_dump -Fc` (454K) tatt før. Innlogget prod-verifisering grønn. Deploy-mekanikk-lærdommer fanget i [docker/DOCKER-NOTES.md § Deploy-mekanikk](../../docker/DOCKER-NOTES.md).
+
+> ⚠️ **MOBIL IKKE DEPLOYET:** Prod 2026-06-21 = server (API+web). Alle mobil-endringene (auto-utkast, midnatt-splitt, glemt-dag-prompt, reise-cache, GPS L1, badges) krever **EAS prod-bygg ETTER enhetstest** (gate). Arbeidere kjører gammel app inntil da.
+
 ## § Timer-arkitektur SPOR 3 (Fase 1 + 1b + 1c-server + 2 + 3) — DEPLOYET TIL PROD 2026-06-10 (prod-merge `aed86d0f`)
 
 Hele SPOR 3-sekvensen samlet prod-deployet 2026-06-10 etter at hver fase var dual-review'd og verifisert på develop/test. Deploy-sekvens per [deploy-detaljer.md](deploy-detaljer.md): `migrate deploy` + `generate` for alle 3 db-pakker, `&&`-kjedet uten tail-pipe, **navngitt** `pm2 restart sitedoc-api && sitedoc-web` (ikke `pm2 restart all` — prod-pm2 er delt infra med `sitedoc-test-*`/`norbert-embed`/`oversettelse-server`; CLAUDE.md ufravikelig navngitt-restart-regel).
