@@ -97,7 +97,7 @@ To isolasjonsmodeller på **én** plattform — ikke to kodebaser. Auth, brukere
 
 | Påstand | Fil:linje |
 |---------|-----------|
-| `SheetTimer.projectId` NOT NULL | `db-timer/schema.prisma:189` |
+| `SheetTimer.projectId` NOT NULL | `db-timer/schema.prisma:197` |
 | `SheetMachine.projectId` NOT NULL / `vehicleId` (drift) | `:272` / `:270` |
 | `SheetTimer.aktivitetId` NOT NULL, `externalCostObjectId?` | `:186` / `:195` (ingen vehicleId i dag) |
 | `Aktivitet` firma-scoped (dynamisk liste) | `db-timer:56` |
