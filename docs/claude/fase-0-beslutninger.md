@@ -1061,6 +1061,19 @@ Beslutningssett for reise, oppmøtested og ikke-prosjekt-tid. Grunnlag: [OPPSUMM
 
 **Forutsetning (ikke bygget):** kompetanse er IKKE synket til mobil (0 referanser i `apps/mobile`). Offline-gating krever ny lokal cache (`kompetansetype_local` + `ansatt_kompetanse_local`) + sync FØR T.11 kan implementeres.
 
+#### Implementert (Funksjon #3, 2026-06-22) — soft-flagg, ikke hard gating
+
+Forutsetningen over («full kompetanse-cache til mobil») viste seg unødvendig: i stedet for å replikere hele matrisen ned, **avleder serveren ett boolean per bruker** og synker kun flagget. Fire beslutninger låst:
+
+- **(1a) Gating-regel — kun maskinførerbevis.** Maskin-registrering vurderes mot kategori `MASKINFORERBEVIS_KATEGORI = "TRUCK-/MASKINFØRERBEVIS"` (gyldig = `utloper` null eller ikke utløpt; `kompetanseStatus() !== "utlopt"`). **40-timers teorikurs er forløper/delkomponent i maskinfører-løpet fram mot beviset** — ikke et urelatert kurs og ikke et eget gating-punkt. Vi gater på det fullførte beviset, som fanger løpet implisitt når beviset er registrert som gyldig kompetanse. (40t som generell plass-/verneombud-tilgang hører eventuelt hjemme i mannskap/PSI, ikke i maskin-gating.)
+- **(1b) Ett grovt flagg.** `harGyldigMaskinforerbevis: boolean` per (bruker, org) — «har minst én gyldig maskinførerbevis-kompetanse». Ikke fin-matchet mot maskinmodell ennå (`kobletTilEquipmentModell` er fritekst, tynt utfylt — **Fase 6-utvidelse** for DO-kobling).
+- **(2) Ingen migrering.** Rent avledet server-side. Mobil bærer flagget per org i **SecureStore** (`sitedoc_maskinforerbevis`), hentet sammen med equipment-cachen (`refreshMaskinKatalog`, login + nett-gjenkomst). Ingen SQLite-kolonne, ingen Prisma-migrering.
+- **(4) Live, ikke snapshot.** Leder-varselet beregnes live mot dagens kompetanse ved attestering-tidspunkt (avledet `manglerMaskinforerbevis` per sedel i `hentForAttestering` + `hentTilAttesteringFirma`). Revisjonsspor kan senere legges i eksisterende `SheetMachine.attestertSnapshot` — ikke bygget nå.
+
+**Soft-flagg, aldri blokkerende** (jf. «flagg, ikke avvis», samme mønster som arbeidstids-varselet i Slice 4b-2): MaskinSeksjon vises og lagring tillates uendret — varselet er informativt («flagget for synlighet»), ikke anklagende. Arbeider ser eget varsel (`timer.maskinforerbevis.arbeider`); leder ser per-sedel-varsel i attestering web+mobil (`timer.maskinforerbevis.leder`). Synlighet av maskin-seksjonen styres fortsatt av Equipment-cache-gaten (`harEquipmentCache`) — uendret.
+
+Service: `apps/api/src/services/kompetanse/maskinforerbevis.ts` (`harGyldigMaskinforerbevis` + `...Batch`). Mobil-status-query: `kompetanse.minMaskinstatus`.
+
 ### T.12 — Produksjonsbeskrivelse (fritekst) per timer-rad — ✅ VEDTATT 2026-06-20
 
 Arbeider skal kunne skrive fritekst «hva jeg har gjort» **per timer-rad** (ikke tallmengde). Nytt nullable fritekstfelt på `SheetTimer` (per aktivitet) + to-stegs migrering (per migrasjonspolicy). Eksisterende `DailySheet.beskrivelse` (dag-nivå) er forkastet som for grovt. Eksport: **utsatt** — rapport-valg (hva som tas med i utskrift) utvikles senere når timeregistrering er funksjonell; inntil da intern dokumentasjon.

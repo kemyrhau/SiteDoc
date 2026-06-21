@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db";
-import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import {
   autoriserAdminForFirma,
@@ -13,6 +12,7 @@ import {
   parseCsvFil,
   parseXlsxFil,
 } from "../utils/kompetanseImport";
+import { harGyldigMaskinforerbevis } from "../services/kompetanse/maskinforerbevis";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -28,6 +28,26 @@ async function verifiserFirmaAdmin(
 }
 
 export const kompetanseRouter = router({
+  // T.11: mobil henter sin EGEN maskinførerbevis-status per org hen er medlem
+  // i. Lett payload (ett boolean per org) — speiles til SecureStore på mobil,
+  // ikke SQLite. Ingen firma-admin-gate: bruker spør om egen status.
+  minMaskinstatus: protectedProcedure.query(async ({ ctx }) => {
+    const medlemskap = await ctx.prisma.organizationMember.findMany({
+      where: { userId: ctx.userId },
+      select: { organizationId: true },
+    });
+    const perOrg = await Promise.all(
+      medlemskap.map(async (m) => ({
+        organizationId: m.organizationId,
+        harGyldigMaskinforerbevis: await harGyldigMaskinforerbevis(
+          ctx.userId,
+          m.organizationId,
+        ),
+      })),
+    );
+    return { perOrg };
+  }),
+
   // Hent kompetansematrise for hele firmaet (brukere × kompetansetyper)
   // Returnerer flat data — UI bygger matrise-rendering
   hentMatrise: protectedProcedure

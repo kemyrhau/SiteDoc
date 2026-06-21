@@ -2526,5 +2526,7 @@
   "firma.oppmotested.geokod": "Geokood",
   "firma.oppmotested.geokodLaster": "Otsimine…",
   "firma.oppmotested.geokodIngen": "Aadressile ei leitud vastet. Reguleerige seda või asetage punkt käsitsi kaardile.",
-  "firma.oppmotested.kartHjelp": "Asukoha reguleerimiseks klõpsake või lohistage markerit. Ring näitab geotara raadiust."
+  "firma.oppmotested.kartHjelp": "Asukoha reguleerimiseks klõpsake või lohistage markerit. Ring näitab geotara raadiust.",
+  "timer.maskinforerbevis.arbeider": "Masinatööd logitakse ilma registreeritud operaatori tunnistuseta. Märgistatud teie halduri nähtavuse tagamiseks.",
+  "timer.maskinforerbevis.leder": "Masinatöö ilma registreeritud operaatori sertifikaadita — nähtavuse huvides märgistatud."
 }

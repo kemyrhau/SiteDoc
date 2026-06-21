@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -45,6 +45,7 @@ import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBa
 import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektVelger";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
+import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt } from "../../src/utils/dato";
 import type {
   Sedel,
@@ -65,6 +66,8 @@ export default function DagsseddelDetalj() {
   const [tilleggRader, setTilleggRader] = useState<TilleggRad[]>([]);
   const [maskinRader, setMaskinRader] = useState<MaskinRad[]>([]);
   const [harEquipmentCache, setHarEquipmentCache] = useState(false);
+  // T.11: default true så arbeider ikke får falsk-flagg før status er synket.
+  const [harMaskinforerbevis, setHarMaskinforerbevis] = useState(true);
   const [feil, setFeil] = useState<string | null>(null);
   // Tomme prosjekt-grupper som brukeren har lagt til via «+ Legg til prosjekt».
   // Gruppen blir varig så snart første rad er lagt til i den.
@@ -124,6 +127,20 @@ export default function DagsseddelDetalj() {
       lesData();
     }, [lesData]),
   );
+
+  // T.11: les innlogget brukers maskinførerbevis-status (SecureStore, async)
+  // for sedelens org. Styrer soft-varsel i MaskinSeksjon — aldri blokkerende.
+  useEffect(() => {
+    const orgId = sedel?.organizationId;
+    if (!orgId) return;
+    let aktiv = true;
+    void harMaskinforerbevisLokalt(orgId).then((gyldig) => {
+      if (aktiv) setHarMaskinforerbevis(gyldig);
+    });
+    return () => {
+      aktiv = false;
+    };
+  }, [sedel?.organizationId]);
 
   const erRedigerbar = useMemo(() => {
     if (!sedel) return false;
@@ -403,6 +420,7 @@ export default function DagsseddelDetalj() {
             dato={sedel.dato}
             defaultAktivitetId={sedel.aktivitetId ?? null}
             harEquipmentCache={harEquipmentCache}
+            harMaskinforerbevis={harMaskinforerbevis}
             redigerbar={erRedigerbar}
             timerRader={timerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
@@ -493,6 +511,7 @@ function ProsjektGruppe({
   dato,
   defaultAktivitetId,
   harEquipmentCache,
+  harMaskinforerbevis,
   redigerbar,
   timerRader,
   tilleggRader,
@@ -508,6 +527,7 @@ function ProsjektGruppe({
   dato: string;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
+  harMaskinforerbevis: boolean;
   redigerbar: boolean;
   timerRader: TimerRad[];
   tilleggRader: TilleggRad[];
@@ -579,6 +599,7 @@ function ProsjektGruppe({
           dato={dato}
           defaultAktivitetId={defaultAktivitetId}
           harEquipmentCache={harEquipmentCache}
+          harMaskinforerbevis={harMaskinforerbevis}
           redigerbar={redigerbar}
           timerRader={bucket.timer}
           maskinRader={bucket.maskin}
@@ -616,6 +637,7 @@ function EcoBucket({
   dato,
   defaultAktivitetId,
   harEquipmentCache,
+  harMaskinforerbevis,
   redigerbar,
   timerRader,
   maskinRader,
@@ -628,6 +650,7 @@ function EcoBucket({
   dato: string;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
+  harMaskinforerbevis: boolean;
   redigerbar: boolean;
   timerRader: TimerRad[];
   maskinRader: MaskinRad[];
@@ -710,6 +733,7 @@ function EcoBucket({
           dato={dato}
           rader={maskinRader}
           harEquipmentCache={harEquipmentCache}
+          harMaskinforerbevis={harMaskinforerbevis}
           redigerbar={redigerbar}
           onEndret={onEndret}
         />

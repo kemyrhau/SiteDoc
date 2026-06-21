@@ -2526,5 +2526,7 @@
   "firma.oppmotested.geokod": "Geokodas",
   "firma.oppmotested.geokodLaster": "Ieškoma…",
   "firma.oppmotested.geokodIngen": "Adreso atitikmenų nerasta. Sureguliuokite jį arba rankiniu būdu padėkite tašką žemėlapyje.",
-  "firma.oppmotested.kartHjelp": "Spustelėkite arba vilkite žymeklį, kad sureguliuotumėte padėtį. Apskritimas rodo geotvoros spindulį."
+  "firma.oppmotested.kartHjelp": "Spustelėkite arba vilkite žymeklį, kad sureguliuotumėte padėtį. Apskritimas rodo geotvoros spindulį.",
+  "timer.maskinforerbevis.arbeider": "Mašinos darbai registruojami be registruoto operatoriaus pažymėjimo. Pažymėta, kad jūsų vadovas būtų matomas.",
+  "timer.maskinforerbevis.leder": "Mašina dirba be registruoto operatoriaus pažymėjimo – pažymėta, kad būtų matoma."
 }

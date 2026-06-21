@@ -2526,5 +2526,7 @@
   "firma.oppmotested.geokod": "Gjeokodi",
   "firma.oppmotested.geokodLaster": "Po kërkon…",
   "firma.oppmotested.geokodIngen": "Nuk u gjet asnjë përputhje për adresën. Rregullojeni atë ose vendosni pikën manualisht në hartë.",
-  "firma.oppmotested.kartHjelp": "Klikoni ose tërhiqni shënuesin për të rregulluar pozicionin. Rrethi tregon rrezen e gjeofences."
+  "firma.oppmotested.kartHjelp": "Klikoni ose tërhiqni shënuesin për të rregulluar pozicionin. Rrethi tregon rrezen e gjeofences.",
+  "timer.maskinforerbevis.arbeider": "Puna e makinës po regjistrohet pa një certifikatë operatori të regjistruar. Shënuar për dukshmërinë e menaxherit tuaj.",
+  "timer.maskinforerbevis.leder": "Puna e makinerisë pa një certifikatë operatori të regjistruar — e shënuar për dukshmëri."
 }

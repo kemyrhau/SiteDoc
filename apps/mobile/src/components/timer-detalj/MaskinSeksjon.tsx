@@ -9,7 +9,7 @@ import {
   FlatList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Plus, Trash2, Pencil, X, Check } from "lucide-react-native";
+import { Plus, Trash2, Pencil, X, Check, AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
@@ -39,6 +39,9 @@ interface MaskinSeksjonProps {
   /** ISO YYYY-MM-DD — dato på dagsseddelen. Brukes til kalender-utleting (T4-e). */
   dato: string;
   harEquipmentCache: boolean;
+  /** T.11: false når innlogget bruker mangler gyldig maskinførerbevis i org.
+   *  Styrer soft-varsel — påvirker ALDRI synlighet eller lagring. */
+  harMaskinforerbevis: boolean;
   redigerbar: boolean;
   onEndret: () => void;
 }
@@ -52,6 +55,7 @@ export function MaskinSeksjon({
   visHeader = true,
   dato,
   harEquipmentCache,
+  harMaskinforerbevis,
   redigerbar,
   onEndret,
 }: MaskinSeksjonProps) {
@@ -144,6 +148,18 @@ export function MaskinSeksjon({
 
   return (
     <View className={visHeader ? "mt-4" : ""}>
+      {/* T.11: soft-varsel når arbeider mangler gyldig maskinførerbevis.
+          Informativt («flagget for synlighet»), aldri blokkerende. */}
+      {harEquipmentCache && !harMaskinforerbevis && (
+        <View className="mx-4 mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+          <View className="flex-row items-center gap-2">
+            <AlertTriangle size={14} color="#b45309" />
+            <Text className="flex-1 text-xs text-amber-800">
+              {t("timer.maskinforerbevis.arbeider")}
+            </Text>
+          </View>
+        </View>
+      )}
       {visHeader && (
         <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
           <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">

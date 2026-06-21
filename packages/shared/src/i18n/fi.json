@@ -2526,5 +2526,7 @@
   "firma.oppmotested.geokod": "Geokoodi",
   "firma.oppmotested.geokodLaster": "Haetaan…",
   "firma.oppmotested.geokodIngen": "Osoitetta ei löytynyt. Säädä sitä tai aseta piste manuaalisesti kartalle.",
-  "firma.oppmotested.kartHjelp": "Napsauta tai vedä merkkiä säätääksesi sijaintia. Ympyrä näyttää geoaidan säteen."
+  "firma.oppmotested.kartHjelp": "Napsauta tai vedä merkkiä säätääksesi sijaintia. Ympyrä näyttää geoaidan säteen.",
+  "timer.maskinforerbevis.arbeider": "Konetyöt kirjataan ilman rekisteröityä käyttäjätodistusta. Merkitty esimiehesi näkyvyyden vuoksi.",
+  "timer.maskinforerbevis.leder": "Konetyö ilman rekisteröityä käyttäjätodistusta – merkitty näkyvyyttä varten."
 }

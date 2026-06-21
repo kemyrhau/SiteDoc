@@ -2526,5 +2526,7 @@
   "firma.oppmotested.geokod": "Geocod",
   "firma.oppmotested.geokodLaster": "Se caută…",
   "firma.oppmotested.geokodIngen": "Nu s-a găsit nicio potrivire pentru adresa. Ajustați-l sau plasați punctul manual pe hartă.",
-  "firma.oppmotested.kartHjelp": "Faceți clic sau trageți marcatorul pentru a ajusta poziția. Cercul arată raza gardului geografic."
+  "firma.oppmotested.kartHjelp": "Faceți clic sau trageți marcatorul pentru a ajusta poziția. Cercul arată raza gardului geografic.",
+  "timer.maskinforerbevis.arbeider": "Lucrările la mașină sunt înregistrate fără un certificat de operator înregistrat. Semnalat pentru vizibilitatea managerului dvs.",
+  "timer.maskinforerbevis.leder": "Lucru la mașină fără un certificat de operator înregistrat - marcat pentru vizibilitate."
 }

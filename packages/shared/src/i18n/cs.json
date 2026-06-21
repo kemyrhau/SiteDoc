@@ -2526,5 +2526,7 @@
   "firma.oppmotested.geokod": "Geokód",
   "firma.oppmotested.geokodLaster": "Hledání…",
   "firma.oppmotested.geokodIngen": "Pro adresu nebyla nalezena žádná shoda. Upravte jej nebo umístěte bod ručně na mapu.",
-  "firma.oppmotested.kartHjelp": "Klepnutím nebo přetažením značky upravte polohu. Kruh ukazuje poloměr geofence."
+  "firma.oppmotested.kartHjelp": "Klepnutím nebo přetažením značky upravte polohu. Kruh ukazuje poloměr geofence.",
+  "timer.maskinforerbevis.arbeider": "Práce stroje se zaznamenává bez registrovaného certifikátu operátora. Označeno pro viditelnost vašeho manažera.",
+  "timer.maskinforerbevis.leder": "Práce na stroji bez registrovaného certifikátu operátora – označeno pro viditelnost."
 }

@@ -2526,5 +2526,7 @@
   "firma.oppmotested.geokod": "Geokodieren",
   "firma.oppmotested.geokodLaster": "Suche …",
   "firma.oppmotested.geokodIngen": "Für die Adresse wurde keine Übereinstimmung gefunden. Passen Sie es an oder platzieren Sie den Punkt manuell auf der Karte.",
-  "firma.oppmotested.kartHjelp": "Klicken oder ziehen Sie die Markierung, um die Position anzupassen. Der Kreis zeigt den Geofence-Radius."
+  "firma.oppmotested.kartHjelp": "Klicken oder ziehen Sie die Markierung, um die Position anzupassen. Der Kreis zeigt den Geofence-Radius.",
+  "timer.maskinforerbevis.arbeider": "Maschinenarbeiten werden ohne registriertes Bedienerzertifikat protokolliert. Markiert für die Sichtbarkeit Ihres Managers.",
+  "timer.maskinforerbevis.leder": "Maschinenarbeiten ohne registriertes Bedienerzertifikat – zur besseren Sichtbarkeit gekennzeichnet."
 }

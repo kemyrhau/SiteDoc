@@ -54,6 +54,8 @@ type AttesteringRad = {
   timer: TimerRad[];
   tillegg: TilleggRad[];
   maskiner: MaskinRad[];
+  // T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
+  manglerMaskinforerbevis: boolean;
 };
 
 /* ------------------------------------------------------------------ */

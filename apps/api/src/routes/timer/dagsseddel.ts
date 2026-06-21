@@ -11,6 +11,10 @@ import {
   krevBrukersOrg,
 } from "../../trpc/tilgangskontroll";
 import { krevTimerAktivert } from "../../services/timer";
+import {
+  harGyldigMaskinforerbevis,
+  harGyldigMaskinforerbevisBatch,
+} from "../../services/kompetanse/maskinforerbevis";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
 type DagsseddelStatus = (typeof STATUS_VERDIER)[number];
@@ -1402,6 +1406,18 @@ export const dagsseddelRouter = router({
       const dagsnorm = orgSetting ? Number(orgSetting.dagsnorm) : 7.5;
       const redigerTillatt = orgSetting?.tillattRedigerVedAttestering ?? false;
 
+      // T.11: avledet (live) sertifikat-flagg for leder-synlighet. Kun sedler
+      // med maskin-rader er relevante — batch ett oppslag for deres eiere.
+      const maskinUserIder = Array.from(
+        new Set(
+          sedler.filter((s) => s.maskiner.length > 0).map((s) => s.userId),
+        ),
+      );
+      const maskinforerbevisMap = await harGyldigMaskinforerbevisBatch(
+        maskinUserIder,
+        input.organizationId,
+      );
+
       return sedler.map((s) => {
         const projectId = s.timer[0]?.projectId ?? null;
         const timerMedProsjekt = s.timer.map((r) => ({
@@ -1428,6 +1444,9 @@ export const dagsseddelRouter = router({
           tilleggHarKrav: s.tillegg.length > 0,
           dagsnorm,
           redigerTillatt,
+          // T.11: true når sedel har maskinarbeid og eier mangler gyldig bevis.
+          manglerMaskinforerbevis:
+            s.maskiner.length > 0 && !maskinforerbevisMap.get(s.userId),
         };
       });
     }),
@@ -1563,6 +1582,13 @@ export const dagsseddelRouter = router({
         ? { ...brukerData, ansattnummer: ansattMedlem?.ansattnummer ?? null }
         : null;
       const redigerTillatt = orgSetting?.tillattRedigerVedAttestering ?? false;
+
+      // T.11: live sertifikat-status for seddel-eier (kun relevant ved
+      // maskin-rader). Flagg for leder-synlighet — aldri blokkerende.
+      const manglerMaskinforerbevis =
+        maskiner.length > 0 &&
+        !(await harGyldigMaskinforerbevis(sheet.userId, sheet.organizationId));
+
       return {
         ...sheet,
         aktivitet,
@@ -1574,6 +1600,8 @@ export const dagsseddelRouter = router({
         redigerTillatt,
         // Slice 4b-2: terskel for arbeidstids-varsel-badge i attestering.
         arbeidstidVarselTimer: orgSetting?.arbeidstidVarselTimer ?? 13,
+        // T.11: flagg for leder — maskinarbeid uten gyldig maskinførerbevis.
+        manglerMaskinforerbevis,
       };
     }),
 

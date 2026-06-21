@@ -2526,5 +2526,7 @@
   "firma.oppmotested.geokod": "Geokod",
   "firma.oppmotested.geokodLaster": "Wyszukiwanie…",
   "firma.oppmotested.geokodIngen": "Nie znaleziono dopasowania dla adresu. Dostosuj go lub umieść punkt ręcznie na mapie.",
-  "firma.oppmotested.kartHjelp": "Kliknij lub przeciągnij znacznik, aby dostosować położenie. Okrąg pokazuje promień geofence."
+  "firma.oppmotested.kartHjelp": "Kliknij lub przeciągnij znacznik, aby dostosować położenie. Okrąg pokazuje promień geofence.",
+  "timer.maskinforerbevis.arbeider": "Praca maszyny jest rejestrowana bez certyfikatu zarejestrowanego operatora. Oznaczone jako widoczne dla Twojego menedżera.",
+  "timer.maskinforerbevis.leder": "Praca maszynowa bez certyfikatu zarejestrowanego operatora — oznaczona dla widoczności."
 }

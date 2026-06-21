@@ -938,6 +938,8 @@ Arbeider legger ved kvittering (bilde/scan) på et tillegg/utlegg. **Flere vedle
 - `(byggeplassId)` — **NY T.2**
 - `(attestertStatus)` — **NY T.3**
 
+**T.11 maskinførerbevis-flagg (soft, 2026-06-22):** Ved siden av Equipment-cache-soft-skjulet flagges maskinarbeid registrert av arbeider **uten gyldig maskinførerbevis** (kompetanse-kategori `TRUCK-/MASKINFØRERBEVIS`, ikke utløpt). Rent avledet server-side — ingen kolonne på `sheet_machines`. Arbeider ser eget soft-varsel i `MaskinSeksjon` (mobil); leder ser per-sedel-varsel i attestering (`hentForAttestering` + `hentTilAttesteringFirma` returnerer avledet `manglerMaskinforerbevis`). Aldri blokkerende — synlighet/lagring uendret. Mobil-flagg synkes via `kompetanse.minMaskinstatus` → SecureStore (`sitedoc_maskinforerbevis`), ikke SQLite. Full beslutning: [fase-0 § T.11](fase-0-beslutninger.md).
+
 ### ~~`sheet_materials`~~ (FORELDET — se C.16 Vareforbruk)
 
 > **🟦 FORELDET 2026-05-02:** Skissen nedenfor er erstattet av

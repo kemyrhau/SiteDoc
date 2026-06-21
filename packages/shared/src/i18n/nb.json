@@ -2526,5 +2526,7 @@
   "firma.oppmotested.geokod": "Geokod",
   "firma.oppmotested.geokodLaster": "Søker …",
   "firma.oppmotested.geokodIngen": "Fant ingen treff på adressen. Juster den, eller sett punktet manuelt på kartet.",
-  "firma.oppmotested.kartHjelp": "Klikk eller dra markøren for å justere posisjonen. Sirkelen viser geofence-radiusen."
+  "firma.oppmotested.kartHjelp": "Klikk eller dra markøren for å justere posisjonen. Sirkelen viser geofence-radiusen.",
+  "timer.maskinforerbevis.arbeider": "Maskinarbeid registreres uten registrert maskinførerbevis. Flagges for synlighet hos leder.",
+  "timer.maskinforerbevis.leder": "Maskinarbeid uten registrert maskinførerbevis — flagget for synlighet."
 }

@@ -236,6 +236,16 @@ export function AttesteringDetalj({
           )}
         </div>
       )}
+      {/* T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
+          Informativt, ikke blokkerende. */}
+      {maskinRader.length > 0 && sheet.manglerMaskinforerbevis && (
+        <div className="mb-4">
+          <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            {t("timer.maskinforerbevis.leder")}
+          </span>
+        </div>
+      )}
       {/* Container-status-banner (T7-2b1): viser fremdrift på tvers av rader */}
       {totaltAntallRader > 0 && (
         <div

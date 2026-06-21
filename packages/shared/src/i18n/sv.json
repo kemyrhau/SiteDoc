@@ -2526,5 +2526,7 @@
   "firma.oppmotested.geokod": "Geokod",
   "firma.oppmotested.geokodLaster": "Söker …",
   "firma.oppmotested.geokodIngen": "Ingen matchning hittades för adressen. Justera den eller placera punkten manuellt på kartan.",
-  "firma.oppmotested.kartHjelp": "Klicka eller dra markören för att justera positionen. Cirkeln visar geofenceradien."
+  "firma.oppmotested.kartHjelp": "Klicka eller dra markören för att justera positionen. Cirkeln visar geofenceradien.",
+  "timer.maskinforerbevis.arbeider": "Maskinarbete loggas utan registrerat operatörsintyg. Flaggat för din chefs synlighet.",
+  "timer.maskinforerbevis.leder": "Maskinarbete utan registrerat operatörscertifikat — flaggad för synlighet."
 }
