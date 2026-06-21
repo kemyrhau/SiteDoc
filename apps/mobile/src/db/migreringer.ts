@@ -692,4 +692,40 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] Kunne ikke utvide dagsseddel_local med slutt_tid_kilde:", e);
   }
+
+  // Funn #2 (2026-06-21) — kvittering-vedlegg på tillegg-rad. Ny lokal tabell
+  // sheet_tillegg_vedlegg_local (idempotent CREATE) + opplastings_ko utvidet med
+  // sheet_tillegg_id (idempotent ALTER, additivt — eksisterende køoppføringer
+  // urørt). Speil av server SheetTilleggVedlegg + sheet_tillegg_id på kø-raden.
+  try {
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS sheet_tillegg_vedlegg_local (
+        id TEXT PRIMARY KEY NOT NULL,
+        sheet_tillegg_id TEXT NOT NULL,
+        lokal_sti TEXT,
+        server_url TEXT,
+        filnavn TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        filstorrelse INTEGER,
+        sist_endret_lokalt INTEGER NOT NULL
+      )
+    `);
+    db.execSync(`
+      CREATE INDEX IF NOT EXISTS idx_sheet_tillegg_vedlegg_rad
+        ON sheet_tillegg_vedlegg_local(sheet_tillegg_id)
+    `);
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke opprette sheet_tillegg_vedlegg_local:", e);
+  }
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(opplastings_ko)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "sheet_tillegg_id")) {
+      console.log("[MIG] Legger til sheet_tillegg_id på opplastings_ko (Funn #2)");
+      db.execSync(`ALTER TABLE opplastings_ko ADD COLUMN sheet_tillegg_id TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide opplastings_ko med sheet_tillegg_id:", e);
+  }
 }

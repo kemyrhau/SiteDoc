@@ -277,6 +277,30 @@ model SheetTillegg {
 }
 
 // ==========================================================================
+//  SheetTilleggVedlegg — kvittering-/bilde-vedlegg på en tillegg-rad
+//  (Funn #2, 2026-06-21). Arbeider legger ved kvittering (bilde/scan) på et
+//  tillegg/utlegg. Flere vedlegg per rad. Lagring: server-lokal disk via
+//  /upload (fileUrl = /uploads/...), IKKE S3 (jf. BACKLOG S3-drift-note).
+//  sheetTilleggId er svak String-FK uten @relation (A.20 cross-modul-mønster).
+// ==========================================================================
+
+model SheetTilleggVedlegg {
+  id             String   @id @default(uuid())
+  sheetTilleggId String   @map("sheet_tillegg_id") // svak FK → sheet_tillegg (ingen @relation)
+  fileUrl        String   @map("file_url")
+  fileName       String   @map("file_name")
+  mimeType       String   @map("mime_type")
+  fileSize       Int      @map("file_size")
+  gpsLat         Float?   @map("gps_lat")
+  gpsLng         Float?   @map("gps_lng")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([sheetTilleggId])
+  @@map("sheet_tillegg_vedlegg")
+  @@schema("timer")
+}
+
+// ==========================================================================
 //  SheetMachine — maskinbruk-rader per dagsseddel (C9 2026-05-02)
 //  vehicleId er svak FK til db-maskin Equipment (per A.20 cross-package-mønster)
 //  Soft-skjul i UI: seksjon vises kun når Maskin-modul er aktivert for firmaet

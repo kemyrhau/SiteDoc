@@ -10,7 +10,10 @@ sist_verifisert_mot_kode: 2026-06-08
 
 > ⚠️ **MOBIL IKKE PÅ ARBEIDERNES TELEFONER — prod-deployen 2026-06-21 er SERVER (API+web) KUN.** Alle mobil-endringene (auto-utkast, midnatt-splitt, glemt-dag-prompt, reise-cache, GPS L1, attestering-badges) krever **EAS prod-bygg ETTER enhetstest** (gate — se BACKLOG § EAS). **Arbeidere kjører gammel app inntil EAS-bygget er ute.**
 
-> 🟡 **develop bærer 1 udeployet kode-endring foran prod:** T.12 web-parity (`8f92f0ea`, `TimerRadDialog` fritekst per timer-rad) — **distinkt fra deployet mobil/server-T.12** (Slice 2, `SheetTimer.beskrivelse`) i banneret over. Tas med ved neste prod-merge. Resten av develop-deltaet foran main er doc-only (DRIFT-rens + CLAUDE.md-trim).
+> 🟡 **develop bærer udeployet kode foran prod (tas med ved neste prod-merge):**
+> - **T.12 web-parity** (`8f92f0ea`, `TimerRadDialog` fritekst) — distinkt fra deployet mobil/server-T.12 (Slice 2, `SheetTimer.beskrivelse`).
+> - **Funn #2 — kvittering-vedlegg på tillegg-rader** (mobil capture/offline-kø + web-visning + server-API + sync). **Krever DB-migrering** `20260621140000_sheet_tillegg_vedlegg` (additiv `CREATE TABLE`, db-timer) — anvendes på `sitedoc_test` etter push (Kenneth GO), **prod gjenstår**. Mobil-delen når arbeidere først ved nytt EAS-bygg. Ny `SheetTilleggVedlegg`-tabell (svak FK, ingen `@relation`). Fillagring = lokal disk (S3-drift notert i BACKLOG).
+> Resten av develop-deltaet foran main er doc-only.
 
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 

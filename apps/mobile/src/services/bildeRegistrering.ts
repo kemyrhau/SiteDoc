@@ -10,9 +10,14 @@ import { hentSessionToken } from "./auth";
 export async function registrerBildeIDatabase(params: {
   sjekklisteId?: string | null;
   oppgaveId?: string | null;
+  // Funn #2: kvittering-vedlegg på en tillegg-rad (timer-modul).
+  sheetTilleggId?: string | null;
+  // Klient-id (= lokal vedleggId) for id-konsistens mot mobil-cachen.
+  vedleggId?: string | null;
   fileUrl: string;
   fileName: string;
   fileSize: number;
+  mimeType?: string;
   gpsLat?: number | null;
   gpsLng?: number | null;
   gpsAktivert?: boolean;
@@ -29,7 +34,20 @@ export async function registrerBildeIDatabase(params: {
   let prosedyre: string;
   let input: Record<string, unknown>;
 
-  if (params.oppgaveId) {
+  if (params.sheetTilleggId) {
+    // Funn #2: tillegg-kvittering → timer-modulens vedlegg-rute (db-timer).
+    prosedyre = "timer.dagsseddel.tilfoyTilleggVedlegg";
+    input = {
+      id: params.vedleggId ?? undefined,
+      sheetTilleggId: params.sheetTilleggId,
+      fileUrl: params.fileUrl,
+      fileName: params.fileName,
+      mimeType: params.mimeType ?? "image/jpeg",
+      fileSize: params.fileSize,
+      gpsLat: params.gpsLat ?? undefined,
+      gpsLng: params.gpsLng ?? undefined,
+    };
+  } else if (params.oppgaveId) {
     prosedyre = "bilde.opprettForOppgave";
     input = {
       taskId: params.oppgaveId,
@@ -88,5 +106,31 @@ export async function registrerBildeIDatabase(params: {
   } catch (feil) {
     // Ikke-kritisk — bildet er allerede opplastet til S3/R2
     console.warn("[BILDE-REG] Nettverksfeil:", feil instanceof Error ? feil.message : feil);
+  }
+}
+
+/**
+ * Funn #2: slett et opplastet tillegg-vedlegg på server (best-effort, online).
+ * Lokal sletting håndteres av kalleren; denne fjerner server-recorden.
+ * Offline → server-raden blir kortvarig foreldreløs (akseptabel MVP-tradeoff).
+ */
+export async function fjernTilleggVedleggServer(id: string): Promise<void> {
+  const token = await hentSessionToken();
+  if (!token) return;
+  try {
+    const url = `${AUTH_CONFIG.apiUrl}/trpc/timer.dagsseddel.fjernTilleggVedlegg`;
+    const respons = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ id }),
+    });
+    if (!respons.ok) {
+      console.warn("[BILDE-REG] Server-sletting feilet:", respons.status);
+    }
+  } catch (feil) {
+    console.warn("[BILDE-REG] Server-sletting nettverksfeil:", feil instanceof Error ? feil.message : feil);
   }
 }

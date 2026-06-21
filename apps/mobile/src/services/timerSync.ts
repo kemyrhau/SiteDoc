@@ -4,6 +4,7 @@ import {
   dagsseddelLocal,
   sheetTimerLocal,
   sheetTilleggLocal,
+  sheetTilleggVedleggLocal,
   sheetMachineLocal,
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
@@ -411,6 +412,38 @@ export async function syncTimer(
             sistEndretLokalt: serverTidMs,
           })
           .run();
+        // Funn #2: upsert kvittering-vedlegg per rad. Additivt — lokale vedlegg
+        // som ennå ikke er lastet opp (ingen server-rad) RØRES IKKE (egen tabell,
+        // ikke omfattet av sheetTilleggLocal-deleteMany over). Id-konsistens
+        // (klient-id == server-id) hindrer duplikater.
+        for (const v of (tl as { vedlegg?: Array<{
+          id: string; fileUrl: string; fileName: string; mimeType: string; fileSize: number;
+        }> }).vedlegg ?? []) {
+          const finnes = db
+            .select()
+            .from(sheetTilleggVedleggLocal)
+            .where(eq(sheetTilleggVedleggLocal.id, v.id))
+            .all()[0];
+          if (finnes) {
+            db.update(sheetTilleggVedleggLocal)
+              .set({ serverUrl: v.fileUrl, sistEndretLokalt: serverTidMs })
+              .where(eq(sheetTilleggVedleggLocal.id, v.id))
+              .run();
+          } else {
+            db.insert(sheetTilleggVedleggLocal)
+              .values({
+                id: v.id,
+                sheetTilleggId: tl.id,
+                lokalSti: null,
+                serverUrl: v.fileUrl,
+                filnavn: v.fileName,
+                mimeType: v.mimeType,
+                filstorrelse: v.fileSize,
+                sistEndretLokalt: serverTidMs,
+              })
+              .run();
+          }
+        }
       }
       for (const m of serverSedel.maskiner ?? []) {
         db.insert(sheetMachineLocal)

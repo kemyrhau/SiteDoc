@@ -834,6 +834,23 @@ Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetill
 - `(projectId)` — **NY T.2**
 - `(attestertStatus)` — **NY T.3**
 
+### `sheet_tillegg_vedlegg` (kvittering-vedlegg på tillegg-rad) — NY Funn #2 (2026-06-21)
+
+Arbeider legger ved kvittering (bilde/scan) på et tillegg/utlegg. **Flere vedlegg per rad.** Lagring: server-lokal disk via REST `/upload` (`fileUrl = /uploads/...`), **ikke S3** — se [BACKLOG § S3-drift](BACKLOG.md). `sheetTilleggId` er **svak String-FK uten Prisma `@relation`** (A.20 cross-modul-mønster).
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `id` | `uuid` PK | Klient-generert (= lokal `vedleggId`) for id-konsistens mot mobil-cachen → ingen duplikater ved pull |
+| `sheetTilleggId` | `uuid` (svak FK → `sheet_tillegg`) | Hvilken tillegg-rad vedlegget hører til. Ingen `@relation`. |
+| `fileUrl` | `text` | `/uploads/...` (servert statisk av API). Rå nøkler returneres aldri til klient. |
+| `fileName` / `mimeType` / `fileSize` | `text` / `text` / `int` | Fil-metadata |
+| `gpsLat` / `gpsLng` | `float?` | GPS ved capture (valgfri) |
+| `createdAt` | `timestamptz` | |
+
+**Indeks:** `(sheetTilleggId)`.
+
+**Flyt (offline-først):** mobil tar bilde → `bilde.komprimer` (300–400 KB) → lagres lokalt (`sheet_tillegg_vedlegg_local`) → legges i felles opplastings-kø (`OpplastingsKoProvider`, additiv `sheetTillegg`-gren) → ved nett: `/upload` + `timer.dagsseddel.tilfoyTilleggVedlegg`. «Venter på opplasting» vises til `serverUrl` er satt. Pull (`hentEndringerSiden`) henter vedlegg-metadata per rad (svak FK → separat fetch, ikke Prisma-`include`); lokale ikke-opplastede vedlegg røres aldri. Web (`/dashbord/timer/[id]`) viser miniatyr + forstørr/nedlast for leder.
+
 ### `lonnsarter` (lønnsart-katalog per Organization)
 
 | Felt | Type | Beskrivelse |

@@ -3,7 +3,12 @@ import type { ReactNode } from "react";
 import { eq, or, and, lt } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../db/database";
-import { opplastingsKo, sjekklisteFeltdata, oppgaveFeltdata } from "../db/schema";
+import {
+  opplastingsKo,
+  sjekklisteFeltdata,
+  oppgaveFeltdata,
+  sheetTilleggVedleggLocal,
+} from "../db/schema";
 import { lastOppFil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
 import { registrerBildeIDatabase } from "../services/bildeRegistrering";
@@ -13,6 +18,9 @@ import { AUTH_CONFIG } from "../config/auth";
 export interface NyKoOppforing {
   sjekklisteId?: string;
   oppgaveId?: string;
+  // Funn #2: kvittering-vedlegg på tillegg-rad. Additivt — eksisterende kallere
+  // (sjekkliste/oppgave) lar feltet stå undefined.
+  sheetTilleggId?: string;
   objektId: string;
   vedleggId: string;
   lokalSti: string;
@@ -32,12 +40,23 @@ type OpplastingFullfortCallback = (
   serverUrl: string,
 ) => void;
 
+// Funn #2: dedikert callback for tillegg-vedlegg (separat fra den typede
+// sjekkliste/oppgave-callbacken over) — så UI kan oppdatere «venter på
+// opplasting» → opplastet live, uten å røre eksisterende callback-kontrakt.
+type TilleggVedleggFullfortCallback = (
+  vedleggId: string,
+  serverUrl: string,
+) => void;
+
 interface OpplastingsKoKontekst {
   leggIKo: (oppforing: NyKoOppforing) => Promise<void>;
   ventende: number;
   totalt: number;
   erAktiv: boolean;
   registrerCallback: (cb: OpplastingFullfortCallback) => () => void;
+  registrerTilleggVedleggCallback: (
+    cb: TilleggVedleggFullfortCallback,
+  ) => () => void;
 }
 
 const OpplastingsKoContext = createContext<OpplastingsKoKontekst>({
@@ -46,6 +65,7 @@ const OpplastingsKoContext = createContext<OpplastingsKoKontekst>({
   totalt: 0,
   erAktiv: false,
   registrerCallback: () => () => {},
+  registrerTilleggVedleggCallback: () => () => {},
 });
 
 export function useOpplastingsKo() {
@@ -62,6 +82,10 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   const prosessererRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const callbacksRef = useRef<Set<OpplastingFullfortCallback>>(new Set());
+  // Funn #2: dedikert callback-sett for tillegg-vedlegg.
+  const tilleggCallbacksRef = useRef<Set<TilleggVedleggFullfortCallback>>(
+    new Set(),
+  );
 
   const oppdaterTellere = useCallback(() => {
     const db = hentDatabase();
@@ -101,6 +125,35 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
     (dokumentId: string, dokumentType: "sjekkliste" | "oppgave", objektId: string, vedleggId: string, serverUrl: string) => {
       for (const cb of callbacksRef.current) {
         cb(dokumentId, dokumentType, objektId, vedleggId, serverUrl);
+      }
+    },
+    [],
+  );
+
+  // Funn #2: registrer/avregistrer tillegg-vedlegg-callback (live UI-oppdatering).
+  const registrerTilleggVedleggCallback = useCallback(
+    (cb: TilleggVedleggFullfortCallback) => {
+      tilleggCallbacksRef.current.add(cb);
+      return () => {
+        tilleggCallbacksRef.current.delete(cb);
+      };
+    },
+    [],
+  );
+
+  // Funn #2: skriv server-URL til lokal vedlegg-rad (vedleggId = lokal rad-id)
+  // + publiser til aktive tillegg-callbacks.
+  const fullforTilleggVedlegg = useCallback(
+    (vedleggId: string, serverUrl: string) => {
+      const db = hentDatabase();
+      if (db) {
+        db.update(sheetTilleggVedleggLocal)
+          .set({ serverUrl, sistEndretLokalt: Date.now() })
+          .where(eq(sheetTilleggVedleggLocal.id, vedleggId))
+          .run();
+      }
+      for (const cb of tilleggCallbacksRef.current) {
+        cb(vedleggId, serverUrl);
       }
     },
     [],
@@ -257,6 +310,32 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           .where(eq(opplastingsKo.id, oppforing.id))
           .run();
 
+        // Funn #2: tillegg-vedlegg har egen registrerings-/oppdaterings-sti.
+        // Tidlig retur → den eksisterende sjekkliste/oppgave-koden under er
+        // urørt og kjører kun for ikke-tillegg-oppføringer.
+        if (oppforing.sheetTilleggId) {
+          registrerBildeIDatabase({
+            sheetTilleggId: oppforing.sheetTilleggId,
+            vedleggId: oppforing.vedleggId,
+            fileUrl: resultat.fileUrl,
+            fileName: resultat.fileName,
+            fileSize: resultat.fileSize,
+            mimeType: oppforing.mimeType,
+            gpsLat: oppforing.gpsLat,
+            gpsLng: oppforing.gpsLng,
+          }).catch((f) =>
+            console.warn("[KØ] Tillegg-vedlegg-registrering feilet (ikke-kritisk):", f),
+          );
+          fullforTilleggVedlegg(oppforing.vedleggId, resultat.fileUrl);
+          await slettLokaltBilde(oppforing.lokalSti);
+          oppdaterTellere();
+          prosessererRef.current = false;
+          prosesserNeste().catch((f) =>
+            console.error("[KØ] Neste etter tillegg-vedlegg feilet:", f),
+          );
+          return;
+        }
+
         // Registrer bildet i server-databasen (images-tabellen)
         registrerBildeIDatabase({
           sjekklisteId: oppforing.sjekklisteId,
@@ -322,7 +401,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
       prosessererRef.current = false;
       settErAktiv(false);
     }
-  }, [erPaaNettet, oppdaterTellere, oppdaterFeltdataVedlegg, publiserFullfort]);
+  }, [erPaaNettet, oppdaterTellere, oppdaterFeltdataVedlegg, publiserFullfort, fullforTilleggVedlegg]);
 
   // Start/stopp prosessering basert på nettverkstilstand
   useEffect(() => {
@@ -364,6 +443,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             id: randomUUID(),
             sjekklisteId: oppforing.sjekklisteId ?? null,
             oppgaveId: oppforing.oppgaveId ?? null,
+            sheetTilleggId: oppforing.sheetTilleggId ?? null,
             objektId: oppforing.objektId,
             vedleggId: oppforing.vedleggId,
             lokalSti: oppforing.lokalSti,
@@ -399,7 +479,14 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
 
   return (
     <OpplastingsKoContext.Provider
-      value={{ leggIKo, ventende, totalt, erAktiv, registrerCallback }}
+      value={{
+        leggIKo,
+        ventende,
+        totalt,
+        erAktiv,
+        registrerCallback,
+        registrerTilleggVedleggCallback,
+      }}
     >
       {children}
     </OpplastingsKoContext.Provider>

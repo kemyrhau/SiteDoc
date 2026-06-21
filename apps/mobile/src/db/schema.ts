@@ -40,6 +40,9 @@ export const opplastingsKo = sqliteTable("opplastings_ko", {
   id: text("id").primaryKey(),
   sjekklisteId: text("sjekkliste_id"),
   oppgaveId: text("oppgave_id"),
+  // Funn #2: kvittering-vedlegg på tillegg-rad. Nullable, additivt — eksisterende
+  // sjekkliste/oppgave-køoppføringer lar feltet stå null. Tilføyes idempotent.
+  sheetTilleggId: text("sheet_tillegg_id"),
   objektId: text("objekt_id").notNull(),
   vedleggId: text("vedlegg_id").notNull(),
   lokalSti: text("lokal_sti").notNull(),
@@ -179,6 +182,26 @@ export const sheetTilleggLocal = sqliteTable("sheet_tillegg_local", {
   kommentar: text("kommentar"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
+
+/**
+ * sheet_tillegg_vedlegg_local — kvittering-/bilde-vedlegg på en tillegg-rad
+ * (Funn #2). Offline-først: `lokalSti` peker på lokal fil til opplasting,
+ * `serverUrl` settes når opplastings-køen har lastet opp (null = «venter»).
+ * Speil av server-tabell `SheetTilleggVedlegg`.
+ */
+export const sheetTilleggVedleggLocal = sqliteTable(
+  "sheet_tillegg_vedlegg_local",
+  {
+    id: text("id").primaryKey(),
+    sheetTilleggId: text("sheet_tillegg_id").notNull(),
+    lokalSti: text("lokal_sti"), // file://-URI til opplasting; null etter opprydding
+    serverUrl: text("server_url"), // /uploads/...; null = venter på opplasting
+    filnavn: text("filnavn").notNull(),
+    mimeType: text("mime_type").notNull(),
+    filstorrelse: integer("filstorrelse"),
+    sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+  },
+);
 
 export const lonnsartLocal = sqliteTable("lonnsart_local", {
   id: text("id").primaryKey(),

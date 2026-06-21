@@ -59,12 +59,22 @@ type TimerRad = {
   beskrivelse: string | null;
 };
 
+type TilleggVedlegg = {
+  id: string;
+  fileUrl: string;
+  fileName: string;
+  mimeType: string;
+  fileSize: number;
+};
+
 type TilleggRad = {
   id: string;
   projectId: string;
   tilleggId: string;
   antall: unknown;
   kommentar: string | null;
+  // Funn #2 (2026-06-21): kvittering-vedlegg per tillegg-rad (fra hentMedId).
+  vedlegg?: TilleggVedlegg[];
 };
 
 type MaskinRad = {
@@ -921,6 +931,26 @@ function RaderTillegg({
               </p>
               {rad.kommentar && (
                 <p className="text-xs text-gray-500">{rad.kommentar}</p>
+              )}
+              {/* Funn #2: kvittering-vedlegg — leder kan se/forstørre/laste ned. */}
+              {rad.vedlegg && rad.vedlegg.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {rad.vedlegg.map((v) => (
+                    <a
+                      key={v.id}
+                      href={`/api${v.fileUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={v.fileName}
+                    >
+                      <img
+                        src={`/api${v.fileUrl}`}
+                        alt={t("timer.vedlegg.tittel")}
+                        className="h-14 w-14 rounded border border-gray-200 object-cover hover:opacity-80"
+                      />
+                    </a>
+                  ))}
+                </div>
               )}
             </div>
             <div className="flex items-center gap-3">

@@ -558,7 +558,19 @@ export const dagsseddelRouter = router({
             select: { id: true, name: true, projectNumber: true },
           })
         : null;
-      return { ...sheet, aktivitet, timer, tillegg, maskiner, prosjekt };
+      // Funn #2: hent kvittering-vedlegg for tillegg-radene og fest per rad.
+      const tilleggIder = tillegg.map((t) => t.id);
+      const vedlegg = tilleggIder.length
+        ? await ctx.prismaTimer.sheetTilleggVedlegg.findMany({
+            where: { sheetTilleggId: { in: tilleggIder } },
+            orderBy: { createdAt: "asc" },
+          })
+        : [];
+      const tilleggMedVedlegg = tillegg.map((t) => ({
+        ...t,
+        vedlegg: vedlegg.filter((v) => v.sheetTilleggId === t.id),
+      }));
+      return { ...sheet, aktivitet, timer, tillegg: tilleggMedVedlegg, maskiner, prosjekt };
     }),
 
   opprett: protectedProcedure
@@ -888,6 +900,92 @@ export const dagsseddelRouter = router({
       }
 
       return ctx.prismaTimer.sheetTimer.delete({ where: { id: input.id } });
+    }),
+
+  // ----- Tillegg-vedlegg (kvittering) — Funn #2 --------------------------
+  // Bilde-/kvittering-vedlegg på en tillegg-rad. Filen lastes opp via REST
+  // /upload (lokal disk); denne prosedyren registrerer kun metadata. Eierskap
+  // verifiseres via tillegg-radens egen dagsseddel (hentEgenDagsseddel).
+  tilfoyTilleggVedlegg: protectedProcedure
+    .input(
+      z.object({
+        // Klient-generert id (= lokal vedleggId) for idempotens + id-konsistens
+        // mot mobil-cachen (hindrer duplikater ved pull). Valgfri for kompat.
+        id: z.string().uuid().optional(),
+        sheetTilleggId: z.string().uuid(),
+        fileUrl: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+        fileSize: z.number().int().min(0),
+        gpsLat: z.number().nullable().optional(),
+        gpsLng: z.number().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const rad = await ctx.prismaTimer.sheetTillegg.findUnique({
+        where: { id: input.sheetTilleggId },
+      });
+      if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+      // Firma-grense: brukeren må eie dagsseddelen tillegg-raden ligger på.
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      const data = {
+        sheetTilleggId: input.sheetTilleggId,
+        fileUrl: input.fileUrl,
+        fileName: input.fileName,
+        mimeType: input.mimeType,
+        fileSize: input.fileSize,
+        gpsLat: input.gpsLat ?? null,
+        gpsLng: input.gpsLng ?? null,
+      };
+      // Idempotent upsert på klient-id (re-sync av samme vedlegg → ingen duplikat).
+      if (input.id) {
+        return ctx.prismaTimer.sheetTilleggVedlegg.upsert({
+          where: { id: input.id },
+          create: { id: input.id, ...data },
+          update: { fileUrl: input.fileUrl },
+        });
+      }
+      return ctx.prismaTimer.sheetTilleggVedlegg.create({ data });
+    }),
+
+  listTilleggVedlegg: protectedProcedure
+    .input(z.object({ sheetId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      // Eierskap via egen dagsseddel. Returnerer alle vedlegg for sedlens
+      // tillegg-rader (fileUrl = /uploads/...; aldri rå lagrings-nøkler).
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
+      const rader = await ctx.prismaTimer.sheetTillegg.findMany({
+        where: { sheetId: input.sheetId },
+        select: { id: true },
+      });
+      if (rader.length === 0) return [];
+      return ctx.prismaTimer.sheetTilleggVedlegg.findMany({
+        where: { sheetTilleggId: { in: rader.map((r) => r.id) } },
+        orderBy: { createdAt: "asc" },
+      });
+    }),
+
+  fjernTilleggVedlegg: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const vedlegg = await ctx.prismaTimer.sheetTilleggVedlegg.findUnique({
+        where: { id: input.id },
+      });
+      if (!vedlegg) throw new TRPCError({ code: "NOT_FOUND" });
+      const rad = await ctx.prismaTimer.sheetTillegg.findUnique({
+        where: { id: vedlegg.sheetTilleggId },
+      });
+      if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      if (!erRedigerbar(sheet.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Dagsseddel er låst (status: ${sheet.status})`,
+        });
+      }
+      return ctx.prismaTimer.sheetTilleggVedlegg.delete({
+        where: { id: input.id },
+      });
     }),
 
   // ----- Tillegg-rader ---------------------------------------------------
@@ -2730,6 +2828,22 @@ export const dagsseddelRouter = router({
         orderBy: { updatedAt: "desc" },
       });
 
+      // Funn #2: vedlegg har svak FK (ingen @relation) → kan ikke include-es.
+      // Hent metadata separat for alle tillegg-rader og grupper per rad-id.
+      const alleTilleggIder = sedler.flatMap((s) => s.tillegg.map((tl) => tl.id));
+      const alleVedlegg = alleTilleggIder.length
+        ? await ctx.prismaTimer.sheetTilleggVedlegg.findMany({
+            where: { sheetTilleggId: { in: alleTilleggIder } },
+            orderBy: { createdAt: "asc" },
+          })
+        : [];
+      const vedleggPerRad = new Map<string, typeof alleVedlegg>();
+      for (const v of alleVedlegg) {
+        const liste = vedleggPerRad.get(v.sheetTilleggId) ?? [];
+        liste.push(v);
+        vedleggPerRad.set(v.sheetTilleggId, liste);
+      }
+
       return {
         serverTid: new Date().toISOString(),
         sedler: sedler.map((s) => ({
@@ -2775,6 +2889,14 @@ export const dagsseddelRouter = router({
             tilleggId: tl.tilleggId,
             antall: Number(tl.antall),
             kommentar: tl.kommentar,
+            // Funn #2: kvittering-vedlegg per tillegg-rad (metadata).
+            vedlegg: (vedleggPerRad.get(tl.id) ?? []).map((v) => ({
+              id: v.id,
+              fileUrl: v.fileUrl,
+              fileName: v.fileName,
+              mimeType: v.mimeType,
+              fileSize: v.fileSize,
+            })),
           })),
           maskiner: s.maskiner.map((m) => ({
             id: m.id,
