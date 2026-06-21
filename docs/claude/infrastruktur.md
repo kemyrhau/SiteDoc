@@ -79,7 +79,7 @@ ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-com
 
 > **Gammel server (Kenspill/WSL, PM2) — legacy, utgått 2026-06-10, beholdes som rollback.** Gammelt oppsett: `~/programmering/sitedoc` + `~/programmering/sitedoc-test`, **SSH-alias `ssh sitedoc`**, `pm2`, tunnel `sitedoc` (ID `189a5af2-…`). **IKKE bruk `ssh sitedoc` for deploy eller verifisering** — gjeldende server er `server-ny` (`ssh server-ny` via Tailscale; sudo via `! ssh -t server-ny`).
 >
-> ⚠️ **OBSERVERT-AVVIK (2026-06-21): Kenspill er IKKE fullstendig stoppet.** Under Funn #2-verifisering kjørte `sitedoc-test-api`/`sitedoc-test-web` som **online PM2-prosesser** på Kenspill (port 3301/3300) + et eget `sitedoc_test` der + cloudflared-mapping `api-test.sitedoc.no → localhost:3301`. Dette **motsier «stoppet»** og «Test-stack» under (server-ny). **Hvor test FAKTISK serveres eksternt (Kenspill-tunnel `sitedoc` vs server-ny-tunnel `sitedoc-ny`) er UBEKREFTET — avventer Kenneths avklaring. Ikke gjett.**
+> ℹ️ **Kenspill kjører fortsatt en STALE test-PM2 (avklart 2026-06-21).** `sitedoc-test-api`/`sitedoc-test-web` står online som PM2 på Kenspill (3301/3300) med et eget `sitedoc_test` + cloudflared-mapping `api-test → localhost:3301` i Kenspill-tunnelen `sitedoc`. **Men edge serveres IKKE herfra** — `test.sitedoc.no`/`api-test.sitedoc.no` går til **server-ny** (tunnel `sitedoc-ny`, bevist via Funn #2-deploy: 401/405 først etter server-ny-deploy). Kenspill-test-stacken er en legacy-levning (inkl. en harmløs Funn #2-migrering som ved uhell traff Kenspills `sitedoc_test`). **Ikke bruk Kenspill for noe; bør stoppes/avvikles.**
 
 ## Cloudflare Tunnel — viktig
 
@@ -170,7 +170,7 @@ Test-databasen `sitedoc_test` finnes i den delte Postgres-containeren (restoret 
 
 **Test-stack på server-ny (etablert 2026-06-11):** egne containere `sitedoc-test-api` + `sitedoc-test-web` (prosjekt `sitedoc-test`) via `docker/docker-compose.test.yml`, mot `sitedoc_test`-DB, deler prod sin `embed`/`oversettelse`/`postgres`. Eksponert på `test.sitedoc.no` (3300) + `api-test.sitedoc.no` (3301) via tunnel `sitedoc-ny`. Env: `docker/env/{api-test,web-test}.env`. Verifisert HTTP 200 eksternt (2026-06-11). Deploy-prosedyre i [`ny-server-veileder.md`](ny-server-veileder.md) → «Test-stack».
 
-> ⚠️ **UBEKREFTET hvilken test-stack som faktisk serverer `test.sitedoc.no`/`api-test.sitedoc.no` eksternt (2026-06-21).** Det finnes test-stack på **BÅDE** server-ny (Docker, denne seksjonen) **OG** Kenspill (PM2 — observert online, se «Gammel server»-blokken over). Begge bruker port 3300/3301 og har et `sitedoc_test`. Funn #2-deploy traff Kenspill-PM2, mens edge (`api-test`) ga 404 på de nye rutene → indikerer at edge peker på server-ny. **Kenneth bekrefter den autoritative test-host-mappingen før vi stoler på den. Ikke gjett en tredje gang.**
+> ✅ **Denne (server-ny) er den autoritative test-stacken som serverer edge (bekreftet 2026-06-21).** `test.sitedoc.no`/`api-test.sitedoc.no` går hit (tunnel `sitedoc-ny`). Bevis: Funn #2-rutene ga 404 på edge før server-ny-deploy og 401/405 etter — så edge = server-ny. **Deploy/migrer test KUN her** (rsync + `docker-compose.test.yml`, se [`ny-server-veileder.md`](ny-server-veileder.md) → «Test-stack»). Kenspills test-PM2 (se «Gammel server»-blokken) er en stale legacy-levning som ikke serverer edge.
 
 > Gjenstår fortsatt: automatisert `prisma migrate deploy` (kjøres manuelt ved schema-endring — se TODO over).
 

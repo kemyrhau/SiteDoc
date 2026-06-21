@@ -3,7 +3,7 @@
 > Full-Docker-oppsett for sitedoc, **deployet til prod på server-ny 2026-06-10** (test+prod, pgvector, ML, innlogget+tegninger+3D verifisert). Gammel sitedoc (PM2) er rollback.
 > Gjeldende deploy/infra: `../docs/claude/infrastruktur.md`. Seksjonene under er oppsett-/build-referansen som ble fulgt.
 >
-> 🖥️ **Server-tilgang:** gjeldende server = **`server-ny`** (Tailscale; sudo-steg kjøres av Kenneth via **`! ssh -t server-ny ...`**). SSH-aliaset **`ssh sitedoc` → Kenspill/WSL = GAMMEL (legacy) server — IKKE for deploy/verifisering.** ⚠️ **Test/prod-host-mapping UBEKREFTET (2026-06-21):** Kenspill kjører fortsatt test-PM2 (observert) samtidig som server-ny har Docker-test-stack — avvent Kenneths bekreftelse før du stoler på hvor test kjører (jf. [infrastruktur.md](../docs/claude/infrastruktur.md)).
+> 🖥️ **Server-tilgang:** gjeldende server = **`server-ny`** (Tailscale; sudo-steg kjøres av Kenneth via **`! ssh -t server-ny ...`**). SSH-aliaset **`ssh sitedoc` → Kenspill/WSL = GAMMEL (legacy) server — IKKE for deploy/verifisering.** **Host-mapping (bekreftet 2026-06-21):** både prod OG test (`test.sitedoc.no` 3300 / `api-test.sitedoc.no` 3301, prosjekt `sitedoc-test`, tunnel `sitedoc-ny`) serveres fra **server-ny**. Kenspills test-PM2 + `sitedoc_test` er en stale legacy-levning som ikke serverer edge — ikke bruk (jf. [infrastruktur.md](../docs/claude/infrastruktur.md)).
 
 ## Komponenter
 | Tjeneste | Image | Port | Innhold |

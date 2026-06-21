@@ -163,16 +163,13 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 
 **Deploy-sekvens:**
 
-> ⚠️ **Prod kjører i Docker på `server-ny` (fra 2026-06-10).** Gjeldende deploy: rsync repo → `sudo docker compose -f docker/docker-compose.yml up -d --build`. Server-, env- og deploy-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) + [docker/DOCKER-NOTES.md](docker/DOCKER-NOTES.md). Den gamle PM2-deploy-prosedyren (rollback til gammel server) ligger i [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
+> ⚠️ **Server + deploy (server-ny, Docker, fra 2026-06-10) — to guardrails hver sesjon trenger:**
+> 1. Gjeldende server = **`server-ny`**. Opus/kontroll-Claude kan **ikke** `sudo` (ikke-interaktivt) → **Kenneth kjører alle `sudo docker`-steg via `! ssh -t server-ny ...`** (ekte TTY); ikke kast bort runder på `ssh -t`/`sudo -n`. Native `git`/`rsync` kan Opus kjøre.
+> 2. **`ssh sitedoc` → Kenspill = GAMMEL (legacy) server — IKKE for deploy/verifisering.**
 >
-> 🖥️ **Server-tilgang (ufravikelig):** Gjeldende server = **`server-ny`** (Tailscale; Kenneth kjører sudo-steg via **`! ssh -t server-ny ...`** for ekte TTY). SSH-aliaset **`ssh sitedoc` → Kenspill/WSL = GAMMEL (legacy) server — IKKE bruk for deploy eller verifisering.** ⚠️ **Test/prod-host-mapping er UBEKREFTET (2026-06-21):** docs sier test = server-ny Docker (infra:169), men Kenspill kjører fortsatt test-PM2 + eget `sitedoc_test`. **Ikke gjett hvor test kjører — avvent Kenneths bekreftelse.**
+> Prod-deploy: rsync → `sudo docker compose -f docker/docker-compose.yml up -d --build`. Detaljer: server/host-mapping (prod+test→server-ny, tunnel `sitedoc-ny`, Kenspill-stale-stack)/env/PM2-rollback i [infrastruktur.md](docs/claude/infrastruktur.md) + [DOCKER-NOTES.md](docker/DOCKER-NOTES.md); branching, full deploy-bash, mobil reload-tabell, tRPC env-konsekvens i [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 
-- Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
-- Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
-
-**Server-deploy-mekanikk (server-ny, Docker — ufravikelig, lærdom 2026-06-21):** Full detalj + eksakte kommandoer i [docker/DOCKER-NOTES.md § Deploy-mekanikk](docker/DOCKER-NOTES.md) + [infrastruktur.md](docs/claude/infrastruktur.md). To regler styrer hver sesjon:
-- **sudo/TTY-barriere:** Opus/kontroll-Claude-skall er ikke-interaktive → kan **ikke** kjøre `sudo`. **Kenneth kjører alle `sudo docker`-steg via `!`-prefiks** (ekte TTY); ikke kast bort runder på `ssh -t`/`sudo -n` (feiler alltid). Native `git`/`rsync` kan Opus kjøre.
-- **Migrerings-gate:** prod krever DB `/sitedoc`, test krever `sitedoc_test`. Compose-prosjektnavn (`-p docker`), postgres-container-navn (`grep postgres`), `--no-deps`-isolering (rør aldri `embed`/`oversettelse`) og `-c`-vs-`-lc`-fellen står i DOCKER-NOTES.
+**Server-deploy-mekanikk (server-ny, Docker — ufravikelig, lærdom 2026-06-21):** Full detalj + eksakte kommandoer i [docker/DOCKER-NOTES.md § Deploy-mekanikk](docker/DOCKER-NOTES.md) + [infrastruktur.md](docs/claude/infrastruktur.md). Sesjons-kritisk regel (resten i DOCKER-NOTES): **migrerings-gate — prod krever DB `/sitedoc`, test krever `sitedoc_test`** (sjekk `$DATABASE_URL` før `migrate deploy`). Compose-prosjektnavn (`-p docker`), postgres-container (`grep postgres`), `--no-deps`-isolering og `-c`-vs-`-lc`-fellen står i DOCKER-NOTES. (sudo/TTY-barrieren: se server-tilgang-banneret over.)
 
 ## Kodestil
 
