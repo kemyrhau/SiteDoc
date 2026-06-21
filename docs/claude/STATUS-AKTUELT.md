@@ -10,6 +10,8 @@ sist_verifisert_mot_kode: 2026-06-08
 
 > ⚠️ **MOBIL IKKE PÅ ARBEIDERNES TELEFONER — prod-deployen 2026-06-21 er SERVER (API+web) KUN.** Alle mobil-endringene (auto-utkast, midnatt-splitt, glemt-dag-prompt, reise-cache, GPS L1, attestering-badges) krever **EAS prod-bygg ETTER enhetstest** (gate — se BACKLOG § EAS). **Arbeidere kjører gammel app inntil EAS-bygget er ute.**
 
+> 🟡 **develop bærer 1 udeployet kode-endring foran prod:** T.12 web-parity (`8f92f0ea`, `TimerRadDialog` fritekst per timer-rad) — **distinkt fra deployet mobil/server-T.12** (Slice 2, `SheetTimer.beskrivelse`) i banneret over. Tas med ved neste prod-merge. Resten av develop-deltaet foran main er doc-only (DRIFT-rens + CLAUDE.md-trim).
+
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 
 ### Samlet aktivitet — 2026-05-30 (2 prod-deploys: subdomain↔category-validering + HMS-prefiks amber-hint + useToppbarFiltre)
