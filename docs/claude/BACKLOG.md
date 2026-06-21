@@ -46,8 +46,8 @@ Fanget i avslutnings-auditen etter Slice 1–4 + reise + GPS L1 prod-deploy (`32
 - **Compose-prosjektnavn-reconcile (`docker` ↔ `sitedoc`):** kjørende prod-containere er prosjekt `docker`; `docker-compose.yml` har `name: sitedoc` → krever `-p docker` ved hver `compose`-kommando. Bestem ett navn permanent (down + up under riktig `-p`, eller dropp `name:`). Gjøres når NorBERT-rebuild uansett gjenskaper embed/oversettelse. Dok: [DOCKER-NOTES § Deploy-mekanikk](../../docker/DOCKER-NOTES.md).
 - **`add_klasse4_indekser` finished_at NULL (lavprio):** `_prisma_migrations` viser `20260430120000_add_klasse4_indekser` med tom `finished_at` på prod. Avklart ikke-blokkerende (indeksene er anvendt, `migrate deploy` 2026-06-21 lyktes uten å snuble på den). Rydd raden (sett finished_at, eller resolve) når noen uansett er i prod-DB.
 - **CLAUDE.md nær størrelsesgrense (39844/40k):** hovedfila er ~156 tegn under den ufravikelige 40k-grensen etter deploy-mekanikk-blokken. Trim ved neste anledning (flytt detalj til `docs/claude/`-filer, behold kun overordnede regler) før nye tilføyelser.
-- **Slett `redesign-dagsseddel-funn-2026-06-20.md` (klar):** Slice 3/4-atferden er nå konsolidert i kanonisk [timer.md § Auto-generering av dagsseddel](timer.md) (2026-06-21) — funn-doken er merket KLAR FOR SLETTING og kan fjernes ved neste rens-pass (ikke slettet ennå for å beholde spor).
-- Eksisterende (står fortsatt): web-parity T.12 (`TimerRadDialog`), DRIFT-1..5 (timer.md-rensing), arbeider-review arbeidstids-badge (§ Slice 4 over).
+- ~~**Slett `redesign-dagsseddel-funn-2026-06-20.md`**~~ ✅ **GJORT 2026-06-21** — alle unike beslutninger Explore-verifisert fanget i sannhetskilder (R/P→fase-0 T.11/T.12, BESLUTNING 1→timer-gps-utredning, GAP-1→fase-0 C.16, GAP-2→dagsseddel-design, Slice 3/4→timer.md). Fila slettet (var ikke i STATUS-register/DOC-MAP/fil-telling).
+- ~~web-parity T.12 (`TimerRadDialog`)~~ ✅ **GJORT 2026-06-21** (`8f92f0ea`) · ~~DRIFT-1..5 (timer.md-rensing)~~ ✅ **GJORT 2026-06-21** (se § Doc-drift under). Står fortsatt: arbeider-review arbeidstids-badge (§ Slice 4 over).
 
 ### Legacy eide prosjekter mangler `ProjectOrganization`-rad (datakvalitet) 🟡
 
@@ -599,15 +599,15 @@ separat chat per `feedback_3d_annen_chat`.
   - **Fase 1c-mobil — byggeplass-GPS-deteksjon i «Start dag»:** 🟡 GJENSTÅR. Utvid `apps/mobile/app/timer/ny.tsx:138-150` (Haversine `mobile/src/utils/geo.ts`) til å detektere byggeplass via `Byggeplass`-koordinater i tillegg til prosjekt. Krever EAS-bygg → buntes med Fase 1 mobil-verifisering over. Aldri auto-rad (`T.8:983`).
 - **Web-parity TimerRadDialog — T.12 beskrivelse (ikke-blokkerende, 2026-06-20)** 🟢 — T.12 (fritekst per timer-rad, `SheetTimer.beskrivelse`) ble bygget mobil-fokusert (Slice 2, commit `a51821c3`). Web `TimerRadDialog` mangler tilsvarende felt. Feltet er nullable + tRPC-input er `.optional()` → web brekker ikke uten det. Speil mobil-mønsteret: multiline-input med `t("timer.felt.radBeskrivelse")` + visning i rad-detalj. Kort follow-up.
 
-### Doc-drift (timer) — fanget fra redesign-screening 2026-06-20 🟡
+### Doc-drift (timer) — ✅ LØST 2026-06-21
 
-Fra [redesign-dagsseddel-funn-2026-06-20.md DEL 3](redesign-dagsseddel-funn-2026-06-20.md). Reconcile sannhetskilder mot faktisk kode.
+Fra redesign-screening 2026-06-20. Reconciliert timer.md mot faktisk kode.
 
-- **DRIFT-1 — `timer.md:124` PR 2C-status utdatert** — bunter ferdig + åpent arbeid under ett «🔴 Åpen»-banner. Faktisk *delvis gjort*: per-rad `projectId`/`fraTid`/`tilTid` + `timerSync` + screens er levert (T7-3b1/T4). Genuint åpent: `dagsseddel_local.project_id` fortsatt `.notNull()` (`schema:84`), + `byggeplassId`/attestert-felter på rad-tabellene + NOT NULL-constraint + full backfill. Fiks: rett `timer.md:124` så ferdig/åpent ikke buntes.
-- **DRIFT-2 — `timer.md:330-357` UX-skisse pre-T.1** — viser prosjekt på sedel-nivå (før per-rad-projectId). Utdatert; oppdater til per-rad-modellen.
-- **DRIFT-3 — fritekstsøk udokumentert** — fritekstsøk på alle velgere (inkl. utstyr nr+navn) er bygget, men ikke dokumentert i `timer.md`.
-- **DRIFT-4 — `timer-input-katalog.md` tom plassholder** — fyll eller slett.
-- **DRIFT-5 — auto-fordeling normaltid/overtid: T.9-droppet vs OPPSUMMERING-manglende** — koden forhåndsvelger kun lønnsart (Variant B), ingen fordelingsmotor → T.9 (droppet) er korrekt; OPPSUMMERING bør rettes. Reconcile de to.
+- ~~**DRIFT-1 — `timer.md:124` PR 2C-status**~~ ✅ Splittet ferdig (per-rad projectId/fraTid/tilTid + timerSync + screens, T7-3b1/T4) vs genuint åpent (`dagsseddel_local.project_id` `.notNull()` + byggeplassId/attestert-felter + NOT NULL + backfill). Status 🔴→🟡.
+- ~~**DRIFT-2 — `timer.md:300-366` UX-skisse pre-T.1**~~ ✅ Skrevet om til T.7 per-rad-modell (prosjekt per rad, prosjekt+ECO-gruppert visning).
+- ~~**DRIFT-3 — fritekstsøk udokumentert**~~ ✅ Ny subseksjon «Fritekstsøk på velgere» i timer.md (lønnsart/aktivitet/ECO/utstyr nr+navn, terskel > 7).
+- ~~**DRIFT-4 — `timer-input-katalog.md` tom plassholder**~~ ✅ SLETTET 2026-06-21 (2 innkommende lenker repointet til timer.md; spec bor kanonisk i timer.md § Datamodell).
+- ~~**DRIFT-5 — auto-fordeling T.9-droppet vs OPPSUMMERING**~~ ✅ timer.md klargjort: ingen fordelingsmotor i manuell flyt (T.9 droppet = fasit); eneste Timelønn/Overtid-split skjer i auto-utkast (Slice 3 `genererForslag`). OPPSUMMERING er ikke-registrert arbeidsdok (egen lenke-reconciliering per STATUS).
 
 ### BUG-1 — StartSluttDagKort mangler maks-varighet-vakt / auto-utsjekk 🟡
 

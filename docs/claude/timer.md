@@ -121,7 +121,7 @@ Kun ett: **Drømmescenario for Proadm → SiteDoc Godkjenning auto-avledning** (
 | **Runde 2.7** — Mine timer + dagstotal-banner + ukesoppsummering | 🟢 Implementert 2026-05-02 (`feature/timer-2.7`) | DagstotalBanner-komponent på mobil (lokal Drizzle-spørring, brukes i ny.tsx + [id].tsx) — viser sum timer på tvers av prosjekter for valgt dato. UkeTotalBanner mobil i `/timer/index.tsx`. Web uke-navigator utvidet med totalsum «Uke X — totalt Y.YYt». Ny `/dashbord/timer/mine` (web): periode-velger (5 valg inkl. egendefinert), 4 oppsummerings-kort, per aktivitet/status-aggregeringer, detaljliste. Sidebar-element «Mine timer» i firma-layout (gates på timer-modul). Ny `/timer/mine` (mobil): periode-toggle (3 valg), 2 pills, aktivitet-aggregering, detaljliste. Mer-tab Timer-rad fikk søsken-link «Mine timer». Bruker eksisterende `timer.dagsseddel.list` med klient-side aggregering. ~22 nye i18n-nøkler nb+en. Ingen DB-migrasjon, ingen server-endring. |
 | **Runde 3** — Eksport-adaptere | ❌ Ikke startet | Proadm/Tripletex/Visma/Poweroffice-adaptere |
 | **T.1–T.6 arkitektur-redesign** | 🟢 Deployet prod 2026-05-12 | 5 PR-er (`862c70c3`/`bba971ba`/`6431873c`/`8478d4a7`/`0700b8ed`). DailySheet.projectId droppet, projectId på rad-nivå (NOT NULL), fra/til per rad (T.4), per-rad attestering-felter (T.3), `OrganizationSetting.tidsrundingMinutter` (T.5). Detaljer i [fase-0-beslutninger.md § T](fase-0-beslutninger.md) + [STATUS-AKTUELT.md § Implementasjonsstatus](STATUS-AKTUELT.md). |
-| **PR 2C full (mobil Drizzle-omskriving)** | 🔴 Åpen oppgave (utsatt) | Mobil Drizzle-schema speiler fortsatt gammel server-modell der `dagsseddel_local.project_id` er NOT NULL på sedel-nivå. Full T.1/T.2-speiling krever: (1) gjøre `dagsseddel_local.project_id` nullable (SQLite TABLE-recreate), (2) legge til `project_id` NOT NULL + `byggeplass_id` + `fra_tid` + `til_tid` + attestert-felter på `sheet_timer_local`/`sheet_machine_local`/`sheet_tillegg_local`, (3) backfill rad-tabellene fra parent, (4) oppdatere `timerSync.ts` til å sende projectId per rad, (5) oppdatere `app/timer/[id].tsx`/`ny.tsx`/`mine.tsx`. PR 2C min (`0700b8ed`) leverer kun defensiv null-guard. Full PR 2C utsatt til ny krav (f.eks. mobil-flerprosjekt-dagsseddel) trigger den. |
+| **PR 2C full (mobil Drizzle-omskriving)** | 🟡 Delvis (kjernen levert, rest utsatt) | **✅ Levert (T7-3b1/T4):** per-rad `projectId` + `fraTid`/`tilTid` på `sheet_timer_local`/`sheet_machine_local`; `timerSync.ts` sender projectId per rad; screens (`[id].tsx`/`ny.tsx`/`mine.tsx`) bruker rad-nivå-modellen. **🔴 Genuint åpent:** `dagsseddel_local.project_id` fortsatt `.notNull()` på sedel-nivå (`schema:84`, SQLite TABLE-recreate kreves for nullable) + `byggeplass_id` + attestert-felter på rad-tabellene + NOT NULL-constraint + full backfill fra parent. PR 2C min (`0700b8ed`) leverer kun defensiv null-guard. Resten utsatt til nytt krav (f.eks. mobil-flerprosjekt-dagsseddel) trigger den. |
 
 ---
 
@@ -300,70 +300,81 @@ Hvis kunden ikke har konfigurert regelen (eller ikke har importert tilhørende l
 
 ### Dagsseddel-flyt (mobil)
 
-Stegvis flyt — hvert steg er en seksjon på skjermen:
+> **Modell-merknad (T.1/T.7, deployet prod 2026-05-12):** Dagsseddelen er **én per (bruker, dag)** og eies av arbeider/firma, ikke prosjekt. **Prosjekt ligger per rad** (`SheetTimer.projectId`), ikke som sedel-header. UI grupperes prosjekt → ECO (T.7): hver prosjektgruppe har egne timer-/maskin-rader. Skissen under er oppdatert til denne modellen (var pre-T.1 frem til 2026-06-21).
+
+Konvolutt (sedel-nivå) + rader (per prosjekt/ECO):
 
 ```
-1. Dato                  → normaldag fra OrganizationSetting
-2. Prosjekt              → liste av aktive prosjekter
-3. Tilleggsarbeid (ECO)  → valgfri dropdown — endring/varsel/regningsarbeid
-4. Aktivitet             → dropdown (default «Anleggsarbeid» hvis seedet)
-5. Avdeling              → valgfri (auto-foreslår fra User.avdelingId)
-6. Klokkeslett           → valgfri (Fra/Til). Obligatorisk hvis
-                           nattskift-tillegg krysses (krever klokkeslett
-                           for å forsvares juridisk).
-7. Pause                 → minutter (default 0)
-8. Timer                 → totalt antall + auto-fordeling Nivå 1-lønnsarter
-                           (Timelønn / Overtid 50% / 100%) basert på
-                           dagsnorm. Bruker kan overstyre eller velge
-                           andre lønnsarter manuelt.
-9. Lønnsart-rader        → liste av (lønnsart, timer)
-10. Tillegg              → automatiske forslag fra regler + manuelle
-11. Maskiner             → fra maskinregister, timer + valgfri mengde
-12. Materialer           → fritekst + mengde + enhet
-13. Utlegg               → kategori + beløp + valgfritt kvitteringsbilde
-14. Beskrivelse          → valgfri tekst
-15. [Lagre utkast]   [Send til leder]
+SEDEL-NIVÅ (konvolutt):
+  Dato            → normaldag fra OrganizationSetting
+  Arbeidstid      → Fra/Til + Pause (StartSluttDagKort / ArbeidstidSeksjon).
+                    Klokkeslett obligatorisk hvis nattskift-tillegg krysses
+                    (juridisk krav).
+  Beskrivelse     → valgfri dag-kommentar (DailySheet.beskrivelse)
+
+PER PROSJEKTGRUPPE (T.7) — «+ Legg til prosjekt» åpner ny gruppe:
+  Prosjekt        → ProsjektVelger (per gruppe = ett hovedprosjekt)
+  Underprosjekt   → valgfri ECO-velger per rad (endring/varsel/regningsarbeid)
+  Timer-rad(er)   → (lønnsart, aktivitet, timer, fra/til, ECO, fritekst).
+                    «Legg til timer-rad» legger til flere rader i gruppen.
+  Maskin-rad(er)  → nestet under gruppen — fra maskinregister, timer + valgfri
+                    mengde/enhet. Soft-skjules når Equipment-cache er tom.
+
+Tillegg          → automatiske forslag fra regler + manuelle
+Utlegg           → kategori + beløp + valgfritt kvitteringsbilde
+[Lagre utkast]   [Send til leder]
 ```
 
 **Selv-attestering vs send-til-leder:** To knapper — kunden velger via `OrganizationSetting.tillattSelvAttestering` om begge tillates, eller kun «Send til leder».
 
-### UX-visning — dagsseddel (mobil)
+### UX-visning — dagsseddel (mobil, T.7-gruppert)
 
 ```
 ┌─────────────────────────────────────────────┐
 │  Dagsseddel — 16. apr 2026                  │
-│  Prosjekt: E6 Kvænangsfjellet               │
-│  Tilleggsarbeid: [Plunder og heft uke 14 ▾] │
-│  Aktivitet:      [Anleggsarbeid ▾]          │
+│  Arbeidstid: 07:00–17:00   Pause: 30 min    │
 ├─────────────────────────────────────────────┤
-│  Klokkeslett: [—:—]–[—:—]   Pause: [30] min │
-│  Timer:    [10.0]                           │
-│   Auto: Timelønn 7,5 + Overtid 50% 2,5      │
-│   [endre fordeling ▾]  [legg til lønnsart]  │
+│  ▾ E6 Kvænangsfjellet            10,0 t      │
+│    Tømrer · Anleggsarbeid   07:00–11:00 4,0 │
+│      «Støpte fundament, B-akse»             │
+│    Tømrer · Anleggsarbeid   11:30–17:00 6,0 │
+│    [+ Legg til timer-rad]                   │
+│    herav på maskin: Gravemaskin EQ-042 5,0  │
 │                                             │
+│  [+ Legg til prosjekt]                      │
+├─────────────────────────────────────────────┤
 │  Tillegg:                                   │
 │  ☑ Overtidsmat (auto: timer > 9t)           │
 │  ☐ Skifttillegg 30% ▾                       │
-│  ☐ Brøyte-beredskap ▾                       │
-│                                             │
-│  ▸ Maskiner    (3)                          │
-│  ▸ Materialer  (1)                          │
 │  ▸ Utlegg      (kvittering)                 │
 │                                             │
-│  Kommentar: [_______________________]       │
-│                                             │
+│  Beskrivelse: [____________________]        │
 │  [Lagre utkast]  [Send til leder]           │
 └─────────────────────────────────────────────┘
 ```
 
+**Lønnsart-fordeling (T.9 droppet — ingen fordelingsmotor):** I **manuell** rad-registrering velger arbeider lønnsart selv per rad (Variant B: forhåndsvalg/forslag av lønnsart, ingen auto-split av totaltimer på normaltid/OT50/OT100). Den eneste auto-splittingen Timelønn/Overtid mot dagsnorm skjer i **auto-utkast-genereringen** (Slice 3, `genererForslag` ved «Slutt dag») — se [§ Auto-generering av dagsseddel](#auto-generering-av-dagsseddel-slice-34--deployet-prod-2026-06-21-server). Auto-rader er alltid `draft` og redigeres/godkjennes av arbeider før innsending.
+
 **Smarte valg som minimerer inntasting:**
 
-1. **Totaltimer øverst** — brukeren taster inn totaltimer, systemet fordeler automatisk på normaltid/50%/100% basert på dagsnorm
-2. **Tilleggsregler** — automatiske forslag fra konfigurasjon, brukeren bekrefter eller overstyrer
-3. **Maskiner** — nedtrekk fra maskinregisteret (kun maskiner tilordnet prosjektet). Sist brukte øverst
-4. **Enhet** — auto-foreslått fra maskintype (kantsteinsetter → m, lastebil → m3). Kan overstyres
-5. **Kopiér forrige dag** — én knapp som **foreslår** verdier fra gårsdagens seddel. Foreslåtte verdier vises med visuell indikator (lys grå bakgrunn + «auto-foreslått»-tag) og er redigerbare før lagring. Kopierer: prosjekt, underprosjekt, aktivitet, lønnsart-fordeling, avdeling. Kopierer IKKE: klokkeslett, maskinrader, materialer, utlegg, kommentar — disse er typisk dagsspesifikke. Brukeren ser tydelig hva som er foreslått vs hva som er ferskt — ingen skjult automatikk
-6. **Materialer** — fritekst + mengde + enhet-dropdown (m3/m2/tonn/kg/m)
+1. **Tilleggsregler** — automatiske forslag fra konfigurasjon, brukeren bekrefter eller overstyrer
+2. **Maskiner** — nedtrekk fra maskinregisteret. Sist brukte øverst; soft-skjul når Equipment-cache tom
+3. **Enhet** — auto-foreslått fra maskintype (kantsteinsetter → m, lastebil → m3). Kan overstyres
+4. **Auto-utkast ved «Slutt dag»** (Slice 3) — draft genereres med arbeidstid (total − reise, splittet Timelønn/Overtid) + reise-rad fra R4-matrise. Arbeider korrigerer + sender. Ingen skjult automatikk — alt synlig som `draft`, aldri auto-innsending
+5. **Materialer** — fritekst + mengde + enhet-dropdown (m3/m2/tonn/kg/m)
+
+### Fritekstsøk på velgere (implementert)
+
+Alle velger-modaler i timer-UI bruker fritekstsøk i stedet for lange nedtrekk — speiler CLAUDE.md § «Adaptive nedtrekksmenyer». Søkefeltet vises når listen passerer 7 elementer (terskel `> 7`):
+
+| Velger | Felt det søkes på | Komponent |
+|---|---|---|
+| Lønnsart | navn | `LonnsartVelgerModal` |
+| Aktivitet | navn | aktivitet-velger |
+| Underprosjekt (ECO) | proAdmId + kortNavn | `UnderprosjektVelgerModal` (`TimerSeksjon.tsx`) |
+| Utstyr/maskin | merke, modell, internNavn, **internNummer**, registreringsnummer | `EquipmentVelgerModal` (`MaskinSeksjon.tsx`) |
+
+Utstyr-velgeren oppfyller kravet om søk på **både maskinnummer og -navn** (ingen lange nedtrekk). Samme mønster gjelder web-velgerne.
 
 ## Firma-isolasjon (sikkerhetslag) — ✅ IMPLEMENTERT Fase 1b
 

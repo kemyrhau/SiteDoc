@@ -167,7 +167,7 @@ Byggeplass-sletting kan miste viktig kontekst hvis ikke håndtert eksplisitt. Ek
 Identifiserte fra modul-dokumentasjonen:
 
 - **Mannskap-modul (`db-mannskap`)** — modellert med `Innsjekk.byggeplassId` ([mannskap.md](mannskap.md)). Må bygges på etablert byggeplass-strategi
-- **Timer-modul (`db-timer`)** — modellert uten byggeplass i dag. Dagsseddel-design avklares mot Prinsipp A og B før implementasjon. Se [timer-input-katalog.md](timer-input-katalog.md)
+- **Timer-modul (`db-timer`)** — modellert uten byggeplass i dag. Dagsseddel-design avklares mot Prinsipp A og B før implementasjon. Se [timer.md § Datamodell](timer.md)
 - **Timer-modul + Avdeling** — `DailySheet.avdelingId` valgfri, auto-foreslås fra `User.avdelingId`. Eksport-filtrering bruker avdeling
 - **Maskin-modul + Avdeling** — `EquipmentAnsvarlig.avdelingId` valgfri. Equipment selv har ingen avdelings-FK (har GPS-lokasjon for fysisk sporing)
 - **User-utvidelse** — `User.avdelingId` valgfri legges til i Fase 0.5
