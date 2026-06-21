@@ -198,7 +198,11 @@ export function StartSluttDagKort() {
     }
   }, [bruker?.id, behandler, valgtFirmaId]);
 
-  const utforSluttDag = useCallback(async (overstyrtSluttIso?: string) => {
+  const utforSluttDag = useCallback(
+    async (
+      overstyrtSluttIso?: string,
+      sisteSegmentKilde: "bruker" | "system" = "bruker",
+    ) => {
     if (!aktivDag || !bruker?.id || behandler) return;
     setBehandler(true);
     try {
@@ -217,6 +221,7 @@ export function StartSluttDagKort() {
         sluttIso,
         lat,
         lng,
+        sisteSegmentKilde,
       );
       db.update(arbeidsdagLocal)
         .set({
@@ -260,9 +265,9 @@ export function StartSluttDagKort() {
     );
   }, [aktivDag, behandler, t, utforSluttDag]);
 
-  // Lag 2 (glemt dag): gjenoppretting — estimer slutt = firma-standard slutt-tid
-  // på START-dagen, og generer draft arbeider kan korrigere. (Merkingen
-  // sluttTidKilde="system" påføres i 4b-2 når feltet finnes.)
+  // Lag 2 (glemt dag): gjenoppretting — estimer slutt-tid og generer draft
+  // arbeider kan korrigere. Slutt merkes sluttTidKilde="system" → kontroll-badge
+  // i attestering (tiden er gjettet, ikke bekreftet).
   const gjenopprettGlemtDag = useCallback(() => {
     if (!aktivDag || behandler) return;
     const startDato = formatIsoDato(new Date(aktivDag.startAt));
@@ -270,10 +275,18 @@ export function StartSluttDagKort() {
       valgtFirmaId ?? "",
       new Date(`${startDato}T00:00:00`),
     );
+    const start = new Date(aktivDag.startAt);
     const [tt, mm] = effektiv.sluttTid.split(":").map(Number);
-    const slutt = new Date(aktivDag.startAt);
+    let slutt = new Date(start);
     slutt.setHours(tt, mm, 0, 0);
-    void utforSluttDag(slutt.toISOString());
+    // Nattskift-edge (4b-2): standardSluttTid ligger før start-klokkeslettet →
+    // 0/negativ varighet. Estimer i stedet start + dagsnorm (krysser evt.
+    // midnatt → 4a-splitt håndterer det). Arbeider korrigerer uansett.
+    if (slutt.getTime() <= start.getTime()) {
+      const dagsnormTimer = effektiv.dagsnorm > 0 ? effektiv.dagsnorm : 7.5;
+      slutt = new Date(start.getTime() + dagsnormTimer * 3_600_000);
+    }
+    void utforSluttDag(slutt.toISOString(), "system");
   }, [aktivDag, behandler, valgtFirmaId, utforSluttDag]);
 
   if (!bruker?.id) return null;
@@ -402,6 +415,10 @@ function genererForslag(
   sluttIso: string,
   endLat: number | null,
   endLng: number | null,
+  // Slice 4b-2: kilde for SISTE segments slutt-tid. Normal «Slutt dag» = "bruker"
+  // (arbeider-handling); glemt-dag-gjenoppretting = "system" (estimert/gjettet).
+  // Ikke-siste segmenter får alltid "midnatt" (automatisk dag-grense).
+  sisteSegmentKilde: "bruker" | "system" = "bruker",
 ): string | null {
   const db = hentDatabase();
   if (!db) return null;
@@ -495,11 +512,14 @@ function genererForslag(
   const segmenter = splittVedMidnatt(dag.startAt, sluttIso);
   const deltVedMidnatt = segmenter.length > 1;
   let startSheetId: string | null = null;
-  for (const seg of segmenter) {
+  segmenter.forEach((seg, i) => {
     const pauseMin = seg.erStartSegment
       ? hentEffektivArbeidstidLokal(orgId, new Date(`${seg.dato}T00:00:00`))
           .pauseMin
       : 0;
+    // Ikke-siste segment ender på en automatisk midnatt-grense → "midnatt".
+    // Siste segment ender på den faktiske/estimerte slutt-tiden → sisteSegmentKilde.
+    const erSiste = i === segmenter.length - 1;
     const id = opprettDagsseddelForSegment({
       userId,
       orgId,
@@ -511,9 +531,10 @@ function genererForslag(
       reiseLonnsartId,
       reisetidTellerOvertid: regel?.reisetidTellerOvertid ?? false,
       deltVedMidnatt,
+      sluttTidKilde: erSiste ? sisteSegmentKilde : "midnatt",
     });
     if (seg.erStartSegment) startSheetId = id;
-  }
+  });
   return startSheetId;
 }
 
@@ -536,6 +557,7 @@ function opprettDagsseddelForSegment(args: {
   reiseLonnsartId: string | null;
   reisetidTellerOvertid: boolean;
   deltVedMidnatt: boolean;
+  sluttTidKilde: "bruker" | "midnatt" | "system";
 }): string | null {
   const {
     userId,
@@ -548,6 +570,7 @@ function opprettDagsseddelForSegment(args: {
     reiseLonnsartId,
     reisetidTellerOvertid,
     deltVedMidnatt,
+    sluttTidKilde,
   } = args;
   const db = hentDatabase();
   if (!db) return null;
@@ -600,6 +623,7 @@ function opprettDagsseddelForSegment(args: {
       status: "draft",
       autoGenerert: true,
       deltVedMidnatt,
+      sluttTidKilde,
       beskrivelse: null,
       lederKommentar: null,
       attestertVed: null,

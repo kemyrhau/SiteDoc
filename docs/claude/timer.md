@@ -726,6 +726,7 @@ Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` pek
 | `dato` | `date` | Arbeidsdag |
 | `startAt` | `timestamptz?` | Klokkeslett start (forenklet forslag til arbeider; faktisk tid per rad ligger på `SheetTimer.fraTid`/`tilTid` per T.4) |
 | `endAt` | `timestamptz?` | Klokkeslett slutt (forenklet forslag) |
+| `sluttTidKilde` | `text` default `bruker` | **Slice 4b-2 (2026-06-21).** Kilde for slutt-tiden: `bruker` (arbeider satte/bekreftet — normal «Slutt dag»/manuell/redigering), `midnatt` (automatisk dag-grense fra midnatt-splitt Slice 4a — ikke-siste segment), `system` (system-gjettet: glemt-dag-gjenoppretting/maks-varighet → **kontroll-badge i attestering**). Nullstilles til `bruker` ved eksplisitt tid-redigering. Speiler `MannskapsInnsjekk.autoUtlogget`-presedens. |
 | `pauseMin` | `int` default 0 | Pause i minutter |
 | `status` | `text` default `draft` | `draft` \| `sent` \| `returned` \| `accepted`. **Per T.3 Alternativ A** skal sedelen være container uten egen attesterings-status (attestering per rad). Foreløpig beholdt for bakoverkompatibilitet — full migrering til per-rad-attestering i senere PR. **Re-send etter retur (2026-05-27):** Når `send`-mutationen kalles på en sedel med `status="returned"`, nullstilles alle rader med `attestertStatus="returnert"` til `"pending"` i samme transaksjon (audit-felter `attestertAvUserId`/`attestertVed` nullstilles også). Uten dette ville leder ikke kunne attestere returnerte rader etter at arbeider gjør rettelser. Se [historikk-2026-05.md § Returnert→pending-reset](historikk-2026-05.md). |
 | `beskrivelse` | `text?` | Fritekst fra ansatt |
@@ -752,6 +753,8 @@ Underprosjektets `kilde` settes til `sitedoc_godkjenning` og `godkjenningId` pek
 **Note om ECO-flytting (vedtatt 2026-04-29):** `externalCostObjectId` flyttet fra `daily_sheets`-nivå til `sheet_timer`-nivå (linje-nivå). Begrunnelse: multi-ECO er svært vanlig hos A.Markussen — ansatte jobber regelmessig på flere underprosjekter samme dag. Med ECO på linje kan én dagsseddel inneholde rader med ulike ECO-koblinger.
 
 **Note om T.1 (vedtatt 2026-05-11, deployet 2026-05-12):** `projectId` flyttet fra `daily_sheets` til rad-nivå. Begrunnelse: arbeider kan jobbe på flere prosjekter samme dag, og dagsseddelen eies av arbeider (ikke prosjekt). Unique-constraint endret til `(userId, dato)` — én dagsseddel per arbeider per dag, uavhengig av prosjekter. Prosjekt-filtrering i spørringer går nå via `timer: { some: { projectId } }`-relasjon eller direkte mot `sheet_timer.project_id`.
+
+**Arbeidstids-varsel (Slice 4b-2, 2026-06-21):** `OrganizationSetting.arbeidstidVarselTimer` (`int` default 13; firma hever til 16 ved tariff via samme felt) er terskelen for arbeidstids-varsel. Ved attestering vises en **varsel-badge** når total av alle timer-rader (**inkl. reise** — kompensert reise er arbeidstid) på en dagsseddel overstiger terskelen. Per kalenderdag/dagsseddel (ekte AML-«døgn» = rullende 24t er utenfor MVP). **Varsel, ikke blokkering** — innsending/utførelse låses aldri. Forankret AML § 10-6 (13/16t) + § 10-8 (11t døgnhvile); SiteDoc flagger, firmaets HMS eier ansvaret.
 
 ### `sheet_timer` (timer-rader per dagsseddel)
 

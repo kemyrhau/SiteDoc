@@ -103,6 +103,10 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
   // Gir en «delt ved midnatt»-merking på review-skjermen så lave per-dag-timer
   // (f.eks. 5 t av et 12t-nattskift) leses som legitim splitt, ikke feil.
   deltVedMidnatt: integer("delt_ved_midnatt", { mode: "boolean" }),
+  // Slice 4b-2 (2026-06-21): kilde for slutt-tiden — "bruker" | "midnatt" |
+  // "system". Speiler server DailySheet.sluttTidKilde. Settes i genererForslag
+  // (midnatt/bruker/system), nullstilles til "bruker" ved manuell tid-redigering.
+  sluttTidKilde: text("slutt_tid_kilde").notNull().default("bruker"),
   beskrivelse: text("beskrivelse"),
   lederKommentar: text("leder_kommentar"),
   attestertVed: text("attestert_ved"), // ISO timestamp fra server

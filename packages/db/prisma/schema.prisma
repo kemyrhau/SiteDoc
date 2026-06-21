@@ -237,6 +237,11 @@ model OrganizationSetting {
   dagsnorm               Decimal @default(7.5) @map("dagsnorm") @db.Decimal(4, 2)
   // Terskel for overtidsmat-tillegg (timer)
   overtidsmatTerskel     Decimal @default(9.0) @map("overtidsmat_terskel") @db.Decimal(4, 2)
+  // Slice 4b-2 (2026-06-21) — arbeidstids-varsel-terskel (timer per dagsseddel).
+  // Total av alle timer-rader (inkl. reise) > denne → varsel-badge i attestering
+  // (IKKE blokkering). Default 13 (AML § 10-6 alminnelig/utvidet); firma hever
+  // til 16 ved tariff via samme felt. SiteDoc flagger, firmaets HMS eier ansvaret.
+  arbeidstidVarselTimer  Int     @default(13) @map("arbeidstid_varsel_timer")
   // Tillater ansatte å attestere egen dagsseddel (selv-attestering)
   tillattSelvAttestering Boolean @default(true) @map("tillatt_selv_attestering")
   // Antall dager før dagsseddel låses for endring (NULL = ingen alders-grense, status styrer låsing)

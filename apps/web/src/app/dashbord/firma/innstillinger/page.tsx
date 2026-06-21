@@ -716,6 +716,8 @@ function StandardArbeidstidSeksjon() {
   const [pauseFra, setPauseFra] = useState<string>("");
   // T.5: "none" = null = ingen avrunding. Andre verdier er 15/30/60 (string i UI).
   const [tidsrunding, setTidsrunding] = useState<string>("15");
+  // Slice 4b-2: arbeidstids-varsel-terskel (timer/dagsseddel). 13 default, 16 tariff.
+  const [arbeidstidVarsel, setArbeidstidVarsel] = useState<string>("13");
   const [skitten, setSkitten] = useState(false);
 
   useEffect(() => {
@@ -727,6 +729,7 @@ function StandardArbeidstidSeksjon() {
       setTidsrunding(
         setting.tidsrundingMinutter === null ? "none" : String(setting.tidsrundingMinutter),
       );
+      setArbeidstidVarsel(String(setting.arbeidstidVarselTimer));
       setSkitten(false);
     }
   }, [setting]);
@@ -736,6 +739,8 @@ function StandardArbeidstidSeksjon() {
   function lagre() {
     const pause = Number(pauseMin);
     if (Number.isNaN(pause) || pause < 0 || pause > 480) return;
+    const varsel = Number(arbeidstidVarsel);
+    if (Number.isNaN(varsel) || varsel < 1 || varsel > 24) return;
     if (startTid >= sluttTid) return;
     // T.5: konverter UI-state til API-format.
     const tidsrundingVerdi: 15 | 30 | 60 | null =
@@ -748,6 +753,7 @@ function StandardArbeidstidSeksjon() {
         standardPauseMin: pause,
         standardPauseFra: pauseFra.trim() === "" ? null : pauseFra,
         tidsrundingMinutter: tidsrundingVerdi,
+        arbeidstidVarselTimer: Number(arbeidstidVarsel),
       },
       { onSuccess: () => setSkitten(false) },
     );
@@ -859,6 +865,27 @@ function StandardArbeidstidSeksjon() {
         </select>
         <p className="mt-1 text-xs text-gray-500">
           {t("firma.innstillinger.standardArbeidstid.tidsrundingBeskrivelse")}
+        </p>
+      </div>
+
+      {/* Slice 4b-2: arbeidstids-varsel-terskel (timer per dagsseddel). */}
+      <div className="mt-3 sm:max-w-xs">
+        <label className="mb-1 block text-xs font-medium text-gray-700">
+          {t("firma.innstillinger.standardArbeidstid.arbeidstidVarsel")}
+        </label>
+        <input
+          type="number"
+          min={1}
+          max={24}
+          value={arbeidstidVarsel}
+          onChange={(e) => {
+            setArbeidstidVarsel(e.target.value);
+            setSkitten(true);
+          }}
+          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
+        />
+        <p className="mt-1 text-xs text-gray-500">
+          {t("firma.innstillinger.standardArbeidstid.arbeidstidVarselHjelp")}
         </p>
       </div>
 

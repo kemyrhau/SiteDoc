@@ -574,6 +574,7 @@ export const dagsseddelRouter = router({
         startAt: z.string().nullable().optional(), // ISO timestamp
         endAt: z.string().nullable().optional(),
         pauseMin: z.number().int().min(0).default(0),
+        sluttTidKilde: z.enum(["bruker", "midnatt", "system"]).default("bruker"),
         beskrivelse: z.string().nullable().optional(),
       }),
     )
@@ -616,6 +617,7 @@ export const dagsseddelRouter = router({
             startAt: input.startAt ? new Date(input.startAt) : null,
             endAt: input.endAt ? new Date(input.endAt) : null,
             pauseMin: input.pauseMin,
+            sluttTidKilde: input.sluttTidKilde,
             beskrivelse: input.beskrivelse ?? null,
             status: "draft",
           },
@@ -647,6 +649,7 @@ export const dagsseddelRouter = router({
         startAt: z.string().nullable().optional(),
         endAt: z.string().nullable().optional(),
         pauseMin: z.number().int().min(0).optional(),
+        sluttTidKilde: z.enum(["bruker", "midnatt", "system"]).optional(),
         beskrivelse: z.string().nullable().optional(),
       }),
     )
@@ -676,6 +679,15 @@ export const dagsseddelRouter = router({
       }
       if (input.pauseMin !== undefined) data.pauseMin = input.pauseMin;
       if (input.beskrivelse !== undefined) data.beskrivelse = input.beskrivelse;
+      // Slice 4b-2: eksplisitt sluttTidKilde vinner; ellers — endres slutt-tiden
+      // manuelt (input.endAt satt) er det en bruker-bekreftet tid → "bruker"
+      // (nullstiller evt. "system"/"midnatt"). Dekker web-redigering som ikke
+      // sender feltet eksplisitt.
+      if (input.sluttTidKilde !== undefined) {
+        data.sluttTidKilde = input.sluttTidKilde;
+      } else if (input.endAt !== undefined) {
+        data.sluttTidKilde = "bruker";
+      }
 
       return ctx.prismaTimer.dailySheet.update({
         where: { id: input.id },
@@ -1423,10 +1435,14 @@ export const dagsseddelRouter = router({
             },
             select: { ansattnummer: true },
           }),
-          // T7-2b2: hent firmaets flagg for å gate Rediger-knapp i UI
+          // T7-2b2: hent firmaets flagg for å gate Rediger-knapp i UI.
+          // Slice 4b-2: + arbeidstidVarselTimer for arbeidstids-varsel-badge.
           prisma.organizationSetting.findUnique({
             where: { organizationId: sheet.organizationId },
-            select: { tillattRedigerVedAttestering: true },
+            select: {
+              tillattRedigerVedAttestering: true,
+              arbeidstidVarselTimer: true,
+            },
           }),
         ]);
 
@@ -1458,6 +1474,8 @@ export const dagsseddelRouter = router({
         prosjekt,
         ansatt,
         redigerTillatt,
+        // Slice 4b-2: terskel for arbeidstids-varsel-badge i attestering.
+        arbeidstidVarselTimer: orgSetting?.arbeidstidVarselTimer ?? 13,
       };
     }),
 
@@ -2728,6 +2746,7 @@ export const dagsseddelRouter = router({
           startAt: s.startAt?.toISOString() ?? null,
           endAt: s.endAt?.toISOString() ?? null,
           pauseMin: s.pauseMin,
+          sluttTidKilde: s.sluttTidKilde,
           status: s.status,
           beskrivelse: s.beskrivelse,
           lederKommentar: s.lederKommentar,
@@ -2800,6 +2819,9 @@ export const dagsseddelRouter = router({
             endAt: z.string().nullable().optional(),
             pauseMin: z.number().int().min(0).default(0),
             status: z.enum(STATUS_VERDIER),
+            sluttTidKilde: z
+              .enum(["bruker", "midnatt", "system"])
+              .default("bruker"),
             beskrivelse: z.string().nullable().optional(),
             // T7-3b1: projectId per rad (optional). Bruk rad-nivå hvis satt,
             // ellers fall tilbake til lokal.projectId (sedel-nivå, kompat-shim
@@ -3095,6 +3117,7 @@ export const dagsseddelRouter = router({
                 startAt: lokal.startAt ? new Date(lokal.startAt) : null,
                 endAt: lokal.endAt ? new Date(lokal.endAt) : null,
                 pauseMin: lokal.pauseMin,
+                sluttTidKilde: lokal.sluttTidKilde,
                 status: innkommendeStatus,
                 beskrivelse: lokal.beskrivelse ?? null,
                 syncStatus: "synced",
@@ -3108,6 +3131,7 @@ export const dagsseddelRouter = router({
                 startAt: lokal.startAt ? new Date(lokal.startAt) : null,
                 endAt: lokal.endAt ? new Date(lokal.endAt) : null,
                 pauseMin: lokal.pauseMin,
+                sluttTidKilde: lokal.sluttTidKilde,
                 status: innkommendeStatus,
                 beskrivelse: lokal.beskrivelse ?? null,
                 syncStatus: "synced",

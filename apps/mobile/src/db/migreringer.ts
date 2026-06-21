@@ -675,4 +675,21 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] Kunne ikke utvide dagsseddel_local med delt_ved_midnatt:", e);
   }
+
+  // Slice 4b-2 (2026-06-21) — slutt_tid_kilde på dagsseddel_local. NOT NULL
+  // DEFAULT 'bruker' (speiler server). Markerer system-bestemt slutt-tid for
+  // kontroll-badge i attestering. Idempotent ALTER.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(dagsseddel_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "slutt_tid_kilde")) {
+      console.log("[MIG] Legger til slutt_tid_kilde på dagsseddel_local (Slice 4b-2)");
+      db.execSync(
+        `ALTER TABLE dagsseddel_local ADD COLUMN slutt_tid_kilde TEXT NOT NULL DEFAULT 'bruker'`,
+      );
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide dagsseddel_local med slutt_tid_kilde:", e);
+  }
 }
