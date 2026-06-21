@@ -6,12 +6,13 @@ sist_verifisert_mot_kode: 2026-06-20
 emne: Funn fra dokumentasjon + kode-verifisering før redesign av dagsseddel-registrering
 ---
 
-> # ⚠️ MIDLERTIDIG — IKKE i registeret / DOC-MAP / fil-telling
-> Arbeidsdokument for dagsseddel-redesignet (samme konvensjon som
-> `OPPSUMMERING-timer-arkitektur.md`). **Alle beslutninger og endringer som følger
-> av dette skal omskrives inn i eksisterende sannhetskilder** (timer.md,
-> dagsseddel-design.md, fase-0-beslutninger.md, terminologi.md, maskin.md,
-> steg-4b-plan.md) — deretter slettes/arkiveres dette dokumentet.
+> # ✅ KLAR FOR SLETTING (2026-06-21) — innhold konsolidert i sannhetskilder
+> Slice 1–4 er bygget, prod-deployet (server, `32b88bd7`) og **den live atferden
+> er nå omskrevet inn i kanonisk [timer.md § Auto-generering av dagsseddel](timer.md)**
+> (auto-utkast B, midnatt-splitt, glemt-dag-gjenoppretting, `sluttTidKilde`-semantikk,
+> arbeidstids-varsel) + fase-0 T.8 + BACKLOG. Dette dokumentet kan **slettes** —
+> beholdt midlertidig kun som spor til neste rens-pass. Var: midlertidig arbeidsdokument
+> (IKKE i registeret / DOC-MAP / fil-telling).
 
 # Funn: dagsseddel-registrering — dokumentasjon vs. kode
 
