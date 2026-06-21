@@ -1,6 +1,13 @@
 """
 FTD Parsing Worker — Minimal FastAPI for SiteDoc økonomi-modul.
 
+⚠️ IKKE I BRUK (status 2026-06-10): Denne Python-workeren ble aldri koblet til.
+A-nota-, XML- og mengdebeskrivelse-parsing er i stedet implementert in-process i
+TypeScript i `apps/api/src/services/ftd-prosessering.ts` (A-nota-logikk portert fra
+Python). Ingen kode kaller denne — ingen `FTD_PARSER_URL`/port 8001 i apps/ eller
+packages/. Beholdes som referanse-implementasjon; selve fila er kun et skjelett
+(flere endepunkter returnerer `status: "placeholder"`).
+
 Endepunkter:
   POST /parse/a-nota      — Parse A-nota Excel → strukturert JSON
   POST /parse/xml-budget   — Parse NS3459 XML → strukturert JSON

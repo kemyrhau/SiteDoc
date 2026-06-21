@@ -364,6 +364,61 @@ export function kjorMigreringer() {
       ON equipment_local(organization_id);
   `);
 
+  // R4 (2026-06-11) — byggeplass_local + reisetid_matrise_local for
+  // reisetid-oppslag (kontor→primær-byggeplass → kjøretid). Refresh via
+  // byggeplassKatalog + reisetidMatriseKatalog.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS byggeplass_local (
+      id TEXT PRIMARY KEY NOT NULL,
+      organization_id TEXT NOT NULL,
+      project_id TEXT NOT NULL,
+      number INTEGER,
+      status TEXT,
+      sist_oppdatert INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_byggeplass_local_prosjekt
+      ON byggeplass_local(project_id);
+
+    CREATE TABLE IF NOT EXISTS reisetid_matrise_local (
+      organization_id TEXT NOT NULL,
+      oppmotested_id TEXT NOT NULL,
+      byggeplass_id TEXT NOT NULL,
+      kjoretid_min INTEGER NOT NULL,
+      sist_oppdatert INTEGER NOT NULL,
+      PRIMARY KEY (oppmotested_id, byggeplass_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_reisetid_matrise_local_org
+      ON reisetid_matrise_local(organization_id);
+  `);
+
+  // L1 (2026-06-20): GPS-identifikasjon av byggeplass ved «Start dag».
+  // Idempotent ALTER — byggeplass_local får navn + geofence (lat/lng/radius_m),
+  // arbeidsdag_local får byggeplass_id/navn (speil av oppmøtested). Alle nullable.
+  try {
+    const bk = db.getAllSync(
+      "PRAGMA table_info(byggeplass_local)",
+    ) as Array<{ name: string }>;
+    if (!bk.find((k) => k.name === "navn")) {
+      console.log("[MIG] Legger til navn/lat/lng/radius_m på byggeplass_local (L1)");
+      db.execSync(`ALTER TABLE byggeplass_local ADD COLUMN navn TEXT`);
+      db.execSync(`ALTER TABLE byggeplass_local ADD COLUMN lat REAL`);
+      db.execSync(`ALTER TABLE byggeplass_local ADD COLUMN lng REAL`);
+      db.execSync(`ALTER TABLE byggeplass_local ADD COLUMN radius_m INTEGER`);
+    }
+    const ad = db.getAllSync(
+      "PRAGMA table_info(arbeidsdag_local)",
+    ) as Array<{ name: string }>;
+    if (!ad.find((k) => k.name === "byggeplass_id")) {
+      console.log("[MIG] Legger til byggeplass_id/navn på arbeidsdag_local (L1)");
+      db.execSync(`ALTER TABLE arbeidsdag_local ADD COLUMN byggeplass_id TEXT`);
+      db.execSync(`ALTER TABLE arbeidsdag_local ADD COLUMN byggeplass_navn TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide byggeplass/arbeidsdag med byggeplass-geofence (L1):", e);
+  }
+
   // T7-3b1 (2026-05-14) — per-rad project_id på alle tre rad-tabeller.
   // Server-skjemaet flyttet projectId til rad-nivå 2026-05-11 (T.1/PR 1B);
   // mobil-sync sendte fortsatt sedel-nivå med kompat-shim på server.
@@ -574,5 +629,67 @@ export function kjorMigreringer() {
       "[MIG] Kunne ikke utvide organization_setting_local:",
       e,
     );
+  }
+
+  // T.12 (2026-06-20) — beskrivelse (fritekst per rad) på sheet_timer_local.
+  // Nullable, ingen backfill. Idempotent ALTER. Speil av server-skjema
+  // (SheetTimer.beskrivelse).
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(sheet_timer_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "beskrivelse")) {
+      console.log("[MIG] Legger til beskrivelse på sheet_timer_local (T.12)");
+      db.execSync(`ALTER TABLE sheet_timer_local ADD COLUMN beskrivelse TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide sheet_timer_local med beskrivelse:", e);
+  }
+
+  // Slice 3 (2026-06-20) — auto_generert på dagsseddel_local. Nullable, KUN
+  // lokal (synces aldri). Markerer auto-genererte drafts fra «Slutt dag» så
+  // auto-fyll-banneret kan gates. Idempotent ALTER.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(dagsseddel_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "auto_generert")) {
+      console.log("[MIG] Legger til auto_generert på dagsseddel_local (Slice 3)");
+      db.execSync(`ALTER TABLE dagsseddel_local ADD COLUMN auto_generert INTEGER`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide dagsseddel_local med auto_generert:", e);
+  }
+
+  // Slice 4a (2026-06-20) — delt_ved_midnatt på dagsseddel_local. Nullable, KUN
+  // lokal (synces aldri). Markerer sedler som er segmenter av et midnatt-splittet
+  // skift, for «delt ved midnatt»-merking. Idempotent ALTER.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(dagsseddel_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "delt_ved_midnatt")) {
+      console.log("[MIG] Legger til delt_ved_midnatt på dagsseddel_local (Slice 4a)");
+      db.execSync(`ALTER TABLE dagsseddel_local ADD COLUMN delt_ved_midnatt INTEGER`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide dagsseddel_local med delt_ved_midnatt:", e);
+  }
+
+  // Slice 4b-2 (2026-06-21) — slutt_tid_kilde på dagsseddel_local. NOT NULL
+  // DEFAULT 'bruker' (speiler server). Markerer system-bestemt slutt-tid for
+  // kontroll-badge i attestering. Idempotent ALTER.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(dagsseddel_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "slutt_tid_kilde")) {
+      console.log("[MIG] Legger til slutt_tid_kilde på dagsseddel_local (Slice 4b-2)");
+      db.execSync(
+        `ALTER TABLE dagsseddel_local ADD COLUMN slutt_tid_kilde TEXT NOT NULL DEFAULT 'bruker'`,
+      );
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide dagsseddel_local med slutt_tid_kilde:", e);
   }
 }

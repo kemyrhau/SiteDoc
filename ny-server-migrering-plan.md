@@ -181,11 +181,34 @@ Hvilke hostnavn er gated av **Cloudflare Access** i dag? Særlig `ssh.sitedoc.no
    - **📋 OPUS-INSTRUKS (oppfølger, etter pilot):** endre `storage.ts` til å lagre **relativ** sti + resolve mot `UPLOADS_ROOT` ved servering → framtidige flyttinger slipper sti-omskriving. Motor-uavhengig.
 
 **App 2 — Tromsosalsaklubb:**
+> **FULLFØRT 2026-06-09 ✅** — salsaklubb kjører i Docker på ny server (image `salsaklubb:latest`, port `127.0.0.1:3200`, på `appnet`), DB i delt Postgres 16-container (rolle `salsa`, db `tromsosalsaklubb`). Alle 5 hostnavn flyttet til tunnel `sitedoc-ny`. Live verifisert: `sitedoc.online`/`sitedoc.site` 200, `kontroll` 302 (Access), test+prod på nett. Gammel salsaklubb stoppet som rollback.
+>
+> **Grunnmur etablert:** delt nett `docker network create appnet`; `~/stack/postgres` (postgres:16, `127.0.0.1:5432`, volum `pgdata`, superbruker-pw i `.env`); rolle `salsa` + db `tromsosalsaklubb` (owner salsa, passord satt via `\password`).
+> **DB-migrering:** `pg_dump -Fc` (live snapshot OK) → `pg_restore --no-owner --no-privileges -U salsa` (cutover: `--clean --if-exists`). Rad-tall verifisert likt (kunder/pameldinger/kurs/bilag/sider).
+>
+> **Lærdommer (kritiske for sitedoc-fasen):**
+> 1. **Prisma på `node:slim`:** feildetekterer OpenSSL → laster `debian-openssl-1.1.x`-engine som mangler `libssl.so.1.1`. Fiks: `binaryTargets=["native","debian-openssl-3.0.x"]` i schema + `apt-get install openssl` i begge image-steg.
+> 2. **⚠️ cloudflared `tunnel route dns` legger cert-ens autoriserte sone PÅ slutten** av hostnavn utenfor sonen. Cert var for `sitedoc.site` → `.online`-navn ble bogus `sitedoc.online.sitedoc.site` i stedet for flyttet → 502 på de ekte `.online`-sidene (gammel app stoppet). **For hostnavn i annen sone (sitedoc.no!): bruk Cloudflare-dashboardet** (endre CNAME-target → `<tunnel-uuid>.cfargotunnel.com`) eller re-autentiser cloudflared per sone.
+> 3. **Ingress-rekkefølge:** eksplisitt hostnavn (sendfil.sitedoc.site) MÅ stå før `*.sitedoc.site`-wildcard i config.
+> 4. **NEXTAUTH_URL fantes ikke** i salsaklubb-`.env` (multi-tenant host-deteksjon) → domene-agnostisk, Stripe/Vipps-callbacks uendret ved cutover.
+
 1. Docker + Prisma; `pg_dump -Fc tromsosalsaklubb` → `pg_restore` til ny container. Verifiser rad-tall per tabell + innlogging.
 2. ⚠️ **Stripe/Vipps:** webhook-/callback-URLer og NEXTAUTH_URL må stemme med endelig domene før prod-flip — eksterne integrasjoner = ekstra cross-app-omtanke. Beskrives som eget delsteg m/rollback.
 3. Test mot midlertidig subdomene → ⚠️ cutover (lås + godkjenning) per domene.
 
 **App 3 — SiteDoc (sist):**
+> **FULLFØRT 2026-06-10 ✅** — sitedoc kjører i full Docker på ny server: web (3100) + api (3001) + ML embed (3302) + oversettelse (3303), mot delt **pgvector**-Postgres (`sitedoc`-rolle, db `sitedoc`). Prod-kode = **main** (matcher prod-DB-skjema; ingen migrasjoner). DNS `sitedoc.no` + `api.sitedoc.no` flyttet til tunnel `sitedoc-ny` via **dashboard** (egen sone). Innlogget verifisert: prosjekter, dokumenter, **tegninger og 3D** laster. Gammel sitedoc stoppet som rollback.
+>
+> **Docker-oppsett:** `docker/Dockerfile.{api,web,ml}` + `docker/docker-compose.yml` i repoet (ny-server). api/web bygges fra monorepoet (pnpm + 4 Prisma-generate + turbo). ML = python:3.12 + torch/transformers, modeller i `ml_models`-volum. ODA/libredwg utelatt (DWG-konvertering degradert til ODA legges inn — egen oppfølger).
+>
+> **Kritiske lærdommer (cutover):**
+> 1. **api kjøres med `tsx src/server.ts`**, ikke `node dist/server.js` (root-tsconfig `noEmit` → dist har extensionless ESM-imports). Runtime-imaget trenger corepack/pnpm.
+> 2. **Prisma på `node:slim`:** `binaryTargets=["native","debian-openssl-3.0.x"]` + `openssl` i imaget (ellers libssl-feil). pgvector pre-opprettes som superbruker; restore som app-rolle gir to ufarlige vector-feil.
+> 3. **cloudflared sender `Host: localhost:<port>`** til origin → Auth.js (`trustHost`) lager `redirect_uri=https://localhost:3100/...` → Google `redirect_uri_mismatch`. **Fiks: eksplisitt `AUTH_URL`/`NEXTAUTH_URL=https://sitedoc.no` i web-env.**
+> 4. **web↔api over `localhost` er hardkodet** (`next.config.js` rewrites `/api/uploads` + `lib/trpc.ts` server-side) → bryter i separate containere (ECONNREFUSED). **Fiks: web deler api sitt nett-namespace (`network_mode: "service:sitedoc-api"`, api publiserer 3100).** Løser uploads + tegninger + 3D + SSR-tRPC samtidig.
+> 5. **web-env måtte ha både riktig host OG rolle:** `DATABASE_URL` → `sitedoc@postgres:5432/sitedoc` (ikke `kemyr@localhost`). `env_file`-innholdsendring krever `docker compose up -d --force-recreate`.
+> 6. **DNS for egen sone (sitedoc.no):** cloudflared `route dns` virker IKKE (cert-sone-mismatch, jf. salsaklubb) → bruk Cloudflare-dashboard.
+
 1. Egen underbeslutning: containerisering av web/api + Postgres, og hva som skjer med Python-tjenester (3302/3303) + native apt-deps + tunge konvertere (egne containere vs host).
 2. **Test-miljø først** (`sitedoc_test`): dump/restore + full funksjonell verifisering. Deretter prod (`sitedoc`) — `pg_dump -Fc` → restore → rad-tall + innlogget verifisering i nettleser (ikke bare HTTP 200, jf. CLAUDE.md).
 3. ⚠️ Prod-cutover av `sitedoc.no`/`api.sitedoc.no` helt til slutt, lås + godkjenning + rollback. **«ALDRI slett data».**

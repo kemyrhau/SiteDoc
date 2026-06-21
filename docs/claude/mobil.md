@@ -156,6 +156,22 @@ PSI er en personlig sikkerhetsgjennomgang, IKKE en sjekkliste. Gjennomføres via
 
 **Viktig:** PSI-maler har `category = "psi"` — IKKE `"sjekkliste"`. Skal ALDRI vises i sjekkliste-opprettelsesdialogen.
 
+## Timer (firma timer-modul)
+
+Timeregistrering for feltarbeider. Skjermene ligger i `apps/mobile/app/timer/` (offline-first via lokal Drizzle/SQLite). Detaljer i [docs/claude/timer.md](timer.md).
+
+| Skjerm | Formål |
+|--------|--------|
+| `index.tsx` | Dagsseddel-liste — leser lokale dagssedler (`dagsseddelLocal`) for innlogget bruker, sortert på dato, m/totaltimer per sedel |
+| `mine.tsx` | «Mine timer» — kompakt rapport på tvers av prosjekter (lokal Drizzle-spørring, klient-side aggregering). Periodevalg: denne uken / forrige uke / denne måneden (egendefinert periode er web-only) |
+| `ny.tsx` | Ny dagsseddel — velg prosjekt + aktivitet, dato, GPS-fangst. Skriver lokalt (`dagsseddelLocal`/`aktivitetLocal`), dagstotal-banner viser allerede ført tid |
+| `[id].tsx` | Dagsseddel-detalj — rediger timer-/tillegg-/maskinrader lokalt, send, slett |
+| `attestering/index.tsx` + `[id].tsx` | Firma-attestering (firma-kontekst via `useFirma()`, online-only): liste + detalj. Speil av webs `/dashbord/firma/timer/attestering`. Bruker `timer.dagsseddel.kanAttestereFirma`/`hentTilAttesteringFirma` |
+
+**Attestering ≠ Godkjenning:** Attestering = arbeider får lønn for registrert tid (timer-modul). Se [terminologi.md](terminologi.md).
+
+**Offline-cacher (Drizzle/SQLite) for «Start/Slutt dag»-forslag:** `oppmotested_local` (Fase 1, GPS-kontor-identifikasjon) + `arbeidstidskalender_local`/`organization_setting_local` (arbeidstid/reise-regelsett) + **R4 (2026-06-11):** `reisetid_matrise_local` (kjøretid kontor×byggeplass, `kjoretidMin < 0` = uoppnåelig) + `byggeplass_local` (id/projectId/number/status for prosjekt→primær-byggeplass-resolusjon). Refresh via katalog-tjenestene (`oppmotestedKatalog`, `reisetidMatriseKatalog`, `byggeplassKatalog`, …) wiret i `TimerSyncProvider` (per-org, ved login + nett-gjenkomst). Reise-forslaget i `StartSluttDagKort.genererForslag` slår opp matrisen (kontor→primær-byggeplass → faktisk reisetid), med graceful `estimerReisetidMin`-fallback når rad mangler. Detaljer i [timer.md § Reise og oppmøtested](timer.md).
+
 ## Flerspråklig (i18n)
 
 **Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (14 språk, ~920 nøkler).

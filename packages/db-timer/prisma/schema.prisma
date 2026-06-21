@@ -146,6 +146,14 @@ model DailySheet {
   // Nullable: eksisterende sedler har ingen pause-vindu (kun pauseMin).
   pauseFra            String?   @map("pause_fra")
   pauseTil            String?   @map("pause_til")
+  // Slice 4b-2 (2026-06-21): kilde for slutt-tiden.
+  //   "bruker"  = arbeider satte/bekreftet tiden (normal «Slutt dag», manuell
+  //               oppretting/redigering) → ingen kontroll-badge.
+  //   "midnatt" = automatisk dag-grense fra midnatt-splitt (Slice 4a) → normalt,
+  //               ingen badge.
+  //   "system"  = system-gjettet tid (glemt-dag-gjenoppretting / maks-varighet)
+  //               → kontroll-badge i attestering (ikke arbeider-bekreftet).
+  sluttTidKilde       String    @default("bruker") @map("slutt_tid_kilde")
   status              String    @default("draft") // "draft" | "sent" | "returned" | "accepted"
   beskrivelse         String?   @db.Text
   lederKommentar      String?   @map("leder_kommentar") @db.Text
@@ -192,6 +200,9 @@ model SheetTimer {
   // T.4 — Per-rad tid HH:MM. Server validerer fraTid < tilTid i PR 2.
   fraTid                String?  @map("fra_tid")
   tilTid                String?  @map("til_tid")
+  // T.12 — Fritekst per rad: «hva jeg gjorde» på denne aktiviteten. Nullable,
+  // additivt. Ingen index (fritekst-felt, ikke filtrerbart).
+  beskrivelse           String?  @db.Text
   externalCostObjectId  String?  @map("external_cost_object_id") // svak FK → external_cost_objects (kjernen)
   // vehicleId (Fase 2 / T.10): kostnadsbærer for maskinvedlikehold — timene en
   // mekaniker fører på vedlikehold av en maskin attribueres til maskinen.

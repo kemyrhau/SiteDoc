@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { View, Text, Pressable, ScrollView, ActivityIndicator } from "react-native";
-import { Check, RotateCcw, AlertCircle } from "lucide-react-native";
+import { Check, RotateCcw, AlertCircle, AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import { trpc } from "../../lib/trpc";
@@ -251,6 +251,28 @@ export function AttesteringDetaljMobil({
             </Text>
           )}
         </View>
+
+        {/* Slice 4b-2: kontroll-badges — system-bestemt slutt-tid + arbeidstid
+            over terskel (inkl. reise). Varsel, ikke blokkering. */}
+        {sheet.sluttTidKilde === "system" && (
+          <View className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2">
+            <AlertTriangle size={14} color="#b45309" />
+            <Text className="flex-1 text-xs text-amber-900">
+              {t("timer.attestering.systemSluttBadge")}
+            </Text>
+          </View>
+        )}
+        {totaltimer > (sheet.arbeidstidVarselTimer ?? 13) && (
+          <View className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3 py-2">
+            <AlertTriangle size={14} color="#b91c1c" />
+            <Text className="flex-1 text-xs text-red-900">
+              {t("timer.attestering.arbeidstidVarsel", {
+                timer: totaltimer.toFixed(2),
+                terskel: sheet.arbeidstidVarselTimer ?? 13,
+              })}
+            </Text>
+          </View>
+        )}
 
         {/* Timer-rader */}
         <Seksjon

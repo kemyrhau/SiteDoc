@@ -796,6 +796,8 @@ export const organisasjonRouter = router({
           tillattRedigerVedAttestering: true,
           // T.5 (2026-05-16): mobil-cache trenger feltet for å avrunde picker-input.
           tidsrundingMinutter: true,
+          // Slice 4b-2 (2026-06-21): arbeidstids-varsel-terskel (timer/dagsseddel).
+          arbeidstidVarselTimer: true,
           // Fase 3 (§ B): reise-regelsett for offline reise-forslag i «Slutt dag».
           reiseTerskelMin: true,
           reiseUnderTerskelType: true,
@@ -836,6 +838,9 @@ export const organisasjonRouter = router({
           .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Forventet HH:MM (00:00–23:59)")
           .optional(),
         standardPauseMin: z.number().int().min(0).max(480).optional(),
+        // Slice 4b-2 (2026-06-21): arbeidstids-varsel-terskel (timer per
+        // dagsseddel). 13 default (AML § 10-6), firma hever til 16 ved tariff.
+        arbeidstidVarselTimer: z.number().int().min(1).max(24).optional(),
         // 2026-05-28: firma-default for pause-start (HH:MM). null = nullstill,
         // ingen verdi = uendret. Brukes av RedigerRadModal.togglePause.
         standardPauseFra: z

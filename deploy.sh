@@ -1,19 +1,33 @@
 #!/bin/bash
-# SiteDoc deploy-script — kjør fra Mac for å oppdatere serveren
+# SiteDoc deploy-script — kjør fra Mac for å oppdatere ny server (Docker på server-ny).
+# Gammel PM2/WSL-deploy (ssh sitedoc) er utgått. Server-git er ikke satt opp ennå,
+# så koden synkes med rsync og bygges/startes med docker compose på server-ny.
+# Detaljer: docs/claude/infrastruktur.md + docker/DOCKER-NOTES.md
 set -e
 
-echo "🚀 Deployer SiteDoc til serveren..."
+echo "🚀 Deployer SiteDoc til server-ny (Docker)..."
 
-# Push lokale endringer til GitHub
+# 1. Kildekontroll
 echo "→ Pusher til GitHub..."
 git push
 
-# Bygg og restart på serveren
-echo "→ Bygger på serveren..."
-ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-lockfile && pnpm --filter @sitedoc/db migrate:deploy && pnpm --filter @sitedoc/db generate && pnpm --filter @sitedoc/db-maskin migrate:deploy && pnpm --filter @sitedoc/db-maskin generate && pnpm --filter @sitedoc/db-timer migrate:deploy && pnpm --filter @sitedoc/db-timer generate && pnpm --filter @sitedoc/db-varelager migrate:deploy && pnpm --filter @sitedoc/db-varelager generate && du -sm apps/web/.next/cache 2>/dev/null | awk '\$1>500{print \"Rydder .next/cache (\"\$1\"MB)\"}' && find apps/web/.next/cache -maxdepth 0 -type d 2>/dev/null | xargs -I{} sh -c 'size=\$(du -sm {} | cut -f1); [ \$size -gt 500 ] && rm -rf {}' && pnpm build --filter @sitedoc/web --filter @sitedoc/api && pm2 restart sitedoc-web sitedoc-api"
+# 2. Synk kode til server-ny
+echo "→ rsync til server-ny:~/stack/sitedoc ..."
+rsync -a --exclude node_modules --exclude .next --exclude .git --exclude docker/env \
+  ~/Documents/Programmering/SiteDoc/ server-ny:stack/sitedoc/
 
+# 3. (Ved schema-endring) Prisma-migrasjoner — IKKE automatisert i Docker-oppsettet ennå.
+#    DB ble flyttet via pg_dump/pg_restore ved cutover; løpende schema-endringer må
+#    kjøres manuelt mot postgres-containeren for alle fire db-pakker
+#    (@sitedoc/db, -maskin, -timer, -varelager) FØR build. Se infrastruktur.md (TODO).
+
+# 4. Bygg + start containere (ssh -t kreves for sudo-passord)
+echo "→ docker compose up -d --build på server-ny..."
+ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.yml up -d --build'
+
+# 5. Status
 echo "→ Sjekker status..."
-ssh sitedoc "pm2 list"
+ssh -t server-ny 'sudo docker compose -f ~/stack/sitedoc/docker/docker-compose.yml ps'
 
 echo ""
 echo "✅ Deploy ferdig!"

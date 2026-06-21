@@ -237,6 +237,11 @@ model OrganizationSetting {
   dagsnorm               Decimal @default(7.5) @map("dagsnorm") @db.Decimal(4, 2)
   // Terskel for overtidsmat-tillegg (timer)
   overtidsmatTerskel     Decimal @default(9.0) @map("overtidsmat_terskel") @db.Decimal(4, 2)
+  // Slice 4b-2 (2026-06-21) — arbeidstids-varsel-terskel (timer per dagsseddel).
+  // Total av alle timer-rader (inkl. reise) > denne → varsel-badge i attestering
+  // (IKKE blokkering). Default 13 (AML § 10-6 alminnelig/utvidet); firma hever
+  // til 16 ved tariff via samme felt. SiteDoc flagger, firmaets HMS eier ansvaret.
+  arbeidstidVarselTimer  Int     @default(13) @map("arbeidstid_varsel_timer")
   // Tillater ansatte å attestere egen dagsseddel (selv-attestering)
   tillattSelvAttestering Boolean @default(true) @map("tillatt_selv_attestering")
   // Antall dager før dagsseddel låses for endring (NULL = ingen alders-grense, status styrer låsing)
@@ -753,9 +758,10 @@ model Byggeplass {
   checklists      Checklist[]
   ftdKontrakter   FtdKontrakt[]
   gruppeKoblinger ProjectGroupByggeplass[]
-  psiEr           Psi[]
-  omrader         Omrade[]
-  kontrollplaner  Kontrollplan[]
+  psiEr            Psi[]
+  omrader          Omrade[]
+  kontrollplaner   Kontrollplan[]
+  reisetidMatriser ReisetidMatrise[]
 
   @@index([status])
   @@map("byggeplasser")
@@ -1970,13 +1976,42 @@ model Oppmotested {
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  avdeling     Avdeling?    @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
+  organization     Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  avdeling         Avdeling?          @relation(fields: [avdelingId], references: [id], onDelete: SetNull)
+  reisetidMatriser ReisetidMatrise[]
 
   @@unique([organizationId, navn])
   @@index([organizationId, aktiv])
   @@index([avdelingId])
   @@map("oppmotesteder")
+}
+
+// ---------------------------------------------------------------------------
+// ReisetidMatrise — forhåndsberegnet kjøretid per [kontor × byggeplass].
+// Geo-infra i kjernen (KS-3-presedens, søsken til Oppmotested), ikke modul-tabell.
+// R1 (2026-06-11): grunnmur. Erstatter ×50km/t-estimatet i reise-forslag med
+// faktisk oppslag (R4). kjoretidMin avledes via OSRM /table (rute-service.ts).
+// organizationId er denormalisert fra Oppmotested for org-filtrert oppslag uten
+// join (Byggeplass har ingen organizationId — org-aksen går via project).
+// kilde: v1 skriver kun "osrm"; estimat-fallback beregnes live ved oppslag,
+// lagres aldri. Begge FK Cascade — en rad er meningsløs uten begge endepunkter.
+// ---------------------------------------------------------------------------
+
+model ReisetidMatrise {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  oppmotestedId  String   @map("oppmotested_id")
+  byggeplassId   String   @map("byggeplass_id")
+  kjoretidMin    Int      @map("kjoretid_min")
+  kilde          String
+  beregnetAt     DateTime @default(now()) @map("beregnet_at")
+
+  oppmotested Oppmotested @relation(fields: [oppmotestedId], references: [id], onDelete: Cascade)
+  byggeplass  Byggeplass  @relation(fields: [byggeplassId], references: [id], onDelete: Cascade)
+
+  @@unique([oppmotestedId, byggeplassId])
+  @@index([organizationId])
+  @@map("reisetid_matrise")
 }
 
 // ---------------------------------------------------------------------------

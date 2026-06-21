@@ -164,6 +164,12 @@ export async function syncTimer(
           startAt: sedel.startAt ?? null,
           endAt: sedel.endAt ?? null,
           pauseMin: sedel.pauseMin,
+          // Slice 4b-2: kilde for slutt-tiden (bruker/midnatt/system). Lokal
+          // kolonne er text (string); tRPC-input er enum-union → cast.
+          sluttTidKilde: (sedel.sluttTidKilde ?? "bruker") as
+            | "bruker"
+            | "midnatt"
+            | "system",
           status: sedel.status,
           beskrivelse: sedel.beskrivelse ?? null,
           // T7-3b1: send projectId per rad. Faller tilbake til sedel-nivå
@@ -179,6 +185,8 @@ export async function syncTimer(
             timer: t.timer,
             fraTid: t.fraTid ?? null,
             tilTid: t.tilTid ?? null,
+            // T.12: fritekst per rad («hva jeg gjorde»).
+            beskrivelse: t.beskrivelse ?? null,
           })),
           tillegg: tillegg.map((tl) => ({
             id: tl.id,
@@ -322,6 +330,7 @@ export async function syncTimer(
             startAt: serverSedel.startAt,
             endAt: serverSedel.endAt,
             pauseMin: serverSedel.pauseMin,
+            sluttTidKilde: serverSedel.sluttTidKilde ?? "bruker",
             status: serverSedel.status as "draft" | "sent" | "returned" | "accepted",
             beskrivelse: serverSedel.beskrivelse,
             lederKommentar: serverSedel.lederKommentar,
@@ -343,6 +352,7 @@ export async function syncTimer(
             startAt: serverSedel.startAt,
             endAt: serverSedel.endAt,
             pauseMin: serverSedel.pauseMin,
+            sluttTidKilde: serverSedel.sluttTidKilde ?? "bruker",
             status: serverSedel.status as "draft" | "sent" | "returned" | "accepted",
             beskrivelse: serverSedel.beskrivelse,
             lederKommentar: serverSedel.lederKommentar,
@@ -383,6 +393,8 @@ export async function syncTimer(
             timer: t.timer,
             fraTid: t.fraTid ?? null,
             tilTid: t.tilTid ?? null,
+            // T.12: fritekst per rad («hva jeg gjorde»).
+            beskrivelse: t.beskrivelse ?? null,
             sistEndretLokalt: serverTidMs,
           })
           .run();

@@ -8,6 +8,34 @@ sist_verifisert_mot_kode: 2026-06-05
 
 Arkiv av ferdigstilt arbeid. Aktivt arbeid ligger i [STATUS-AKTUELT.md](STATUS-AKTUELT.md).
 
+## § Timer-arkitektur SPOR 3 (Fase 1 + 1b + 1c-server + 2 + 3) — DEPLOYET TIL PROD 2026-06-10 (prod-merge `aed86d0f`)
+
+Hele SPOR 3-sekvensen samlet prod-deployet 2026-06-10 etter at hver fase var dual-review'd og verifisert på develop/test. Deploy-sekvens per [deploy-detaljer.md](deploy-detaljer.md): `migrate deploy` + `generate` for alle 3 db-pakker, `&&`-kjedet uten tail-pipe, **navngitt** `pm2 restart sitedoc-api && sitedoc-web` (ikke `pm2 restart all` — prod-pm2 er delt infra med `sitedoc-test-*`/`norbert-embed`/`oversettelse-server`; CLAUDE.md ufravikelig navngitt-restart-regel).
+
+**5 migrasjoner anvendt** (bekreftet via `_prisma_migrations` — alle `finished`, 0 blokkerende; prod-DB-migrering-LÅS satt før / sluppet etter):
+
+| Migrasjon | Pakke |
+|---|---|
+| `20260608120000_oppmotested_fase1` | `@sitedoc/db` |
+| `20260609100000_byggeplass_geofence_fase1c` | `@sitedoc/db` |
+| `20260609140000_project_type_fase2` | `@sitedoc/db` |
+| `20260609160000_reise_regelsett_fase3` | `@sitedoc/db` |
+| `20260609140100_sheet_timer_vehicle_id_fase2` | `@sitedoc/db-timer` |
+
+Schema live på prod (stikkprøve): `projects.type`, 5 reise-kolonner på `organization_settings`, `timer.sheet_timer.vehicle_id`, `byggeplasser.radius_m`, `oppmotesteder`-tabell. Web+api HTTP 200.
+
+**Fase 1 — Oppmøtested + GPS-identifikasjon** (impl `ea511e3c`): `Oppmotested`-entitet (kjerne) + `oppmotestedRouter` (firma-admin CRUD + member-lesbar `hentForFirma`) + web `/dashbord/firma/oppmotesteder` (manuell lat/lng) + mobil `oppmotested_local`-cache + GPS-identifikasjon i «Start dag» (Haversine mot geofence-radius → `arbeidsdag_local`, dokumentasjon/forslag, aldri auto-rad). Sannhetskilde [timer.md § Reise og oppmøtested](timer.md).
+
+**Fase 1b — Firma-isolasjons-fiks** (impl `eea004cb`, docs `47a6b38b`; ren additiv logikk, ingen migrasjon): delt `verifiserProsjekterTilhørerFirma(projectIds, orgId)` (union eid/`primaryOrganizationId` ELLER koblet/`ProjectOrganization`) på `tilfoyTimerRad` + `syncBatch` rad-nivå; `redigerSedelRader`+`splittRad` refaktorert til helper; `rapport.ts` sedel-`organizationId`-filter (SHA-modell). Lukker cross-firma-lekkasje. Sannhetskilde [timer.md § Firma-isolasjon](timer.md).
+
+**Fase 1c-server — Byggeplass-geofence** (impl `ee45ead3`): `Byggeplass.latitude/longitude/radiusM` + `beregnByggeplassGeofence(ref, bufferM=100)` (shared) + `bygning.beregnGeofence`/`settGeofence` + auto-fyll i `tegning.settGeoReferanse` (kun når geofence tom) + web override-modal. Løser byggeplass-koordinat-gapet (`fase-0 T.8:990`). Mobil-deteksjon = 1c-mobil (gjenstår, BACKLOG). Sannhetskilde [timer.md § Byggeplass-geofence](timer.md).
+
+**Fase 2 — Ikke-prosjekt-tid (Alt C)** (impl `12678577`): `Project.type "kunde"|"internt"` + `SheetTimer.vehicleId String?` (svak FK → Equipment). `seedInterneProsjekter` (2 interne prosjekter per firma, begge onboarding-modus) — **vilkår 3:** kun `Project`-rader, `syncProjektModulerPaaAktiver` ekskluderer `type="internt"`. `type="internt"`-unntak i `verifiserProsjektmedlem` (smalt) + ny `prosjekt.hentForTimer` (kundevendte lister filtrerer interne ut). **§2.D:** `verifiserKjoretoyTilhørerFirma` org-validerer `vehicleId` på alle skrive-stier. T.2 urørt. Sannhetskilde [timer.md § Ikke-prosjekt-tid](timer.md). **Oppfølger:** `SheetMachine.vehicleId` (drift) IKKE org-validert — BACKLOG sikkerhets-gap.
+
+**Fase 3 — Reise-regelsett (§ B)** (impl `162ef59e`): 5 reise-felt på `OrganizationSetting` (`reiseTerskelMin`/`reiseUnderTerskelType`/`reiseOverTerskelType`/`reisetidTellerOvertid`/`reiseLonnsartId` svak FK → `timer.Lonnsart`). Shared `klassifiserReise`+`estimerReisetidMin`+`avstandMeter`. `oppdaterSetting` (org-validerer `reiseLonnsartId`) + `hentArbeidstidDefaults` utvidet. Web «Reise»-seksjon. Mobil setting-cache + reise-forslag i «Slutt dag» (kontor→byggeplass, **estimat-MVP** ×50 km/t — GPS-faktisk senere; `reisetidTellerOvertid` styrer dagsnorm-terskel). Avvik A: km-godtgjørelse-arter uendret, «Reise/transport» = reisetid-art. Sannhetskilde [timer.md § Reise og oppmøtested](timer.md). **Oppfølger:** reisetid-matrise (Google-kjøretid, anbefalt) + per-prosjekt berettigelse-flagg + kontinuerlig GPS (personvern-gate) — BACKLOG.
+
+**Utestående (ikke prod-blokkerende):** mobil-delene (Fase 1 GPS, Fase 2 `vehicleId`-UI, Fase 3 reise-forslag) når brukere først via EAS-bygg; innlogget prod-verifisering i nettleser (Kenneth).
+
 ## § Timer auto-select lønnsart (Variant A + B) + auth-fiks — DEPLOYET TIL PROD 2026-06-06 (prod-merge `ac1a4367`)
 
 Bunke på fire develop-commits, samlet prod-deployet 2026-06-06. Begge migrasjoner (`@sitedoc/db` + `@sitedoc/db-timer`) kjørt, klienter regenerert. Web `sitedoc.no` + api `api.sitedoc.no/health` HTTP 200. PM2 restart: `sitedoc-api` (pid 873348), `sitedoc-web` (pid 873368).

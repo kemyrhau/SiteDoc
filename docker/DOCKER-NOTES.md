@@ -1,0 +1,63 @@
+# Sitedoc — Docker på ny server (I PROD fra 2026-06-10)
+
+> Full-Docker-oppsett for sitedoc, **deployet til prod på server-ny 2026-06-10** (test+prod, pgvector, ML, innlogget+tegninger+3D verifisert). Gammel sitedoc (PM2) står stoppet som rollback.
+> Gjeldende deploy/infra: `../docs/claude/infrastruktur.md`. Seksjonene under er oppsett-/build-referansen som ble fulgt.
+
+## Komponenter
+| Tjeneste | Image | Port | Innhold |
+|---|---|---|---|
+| `sitedoc-api` | Dockerfile.api | 3001 | Fastify/tRPC + native konvertere (poppler, tesseract+nor, xvfb, libredwg, evt. ODA) |
+| `sitedoc-web` | Dockerfile.web | 3100 | Next.js 14 |
+| `embed` | Dockerfile.ml | 3302 | NorBERT + multilingual-e5 (torch/transformers) |
+| `oversettelse` | Dockerfile.ml | 3303 | OPUS-MT (samme image, annen command) |
+| `postgres` | pgvector/pgvector:pg16 | 5432 | delt container (egen compose) — pgvector klar |
+
+Alle på docker-nett `appnet`, bundet til `127.0.0.1`.
+
+## Det Kenneth må skaffe / sette (nøkler — Claude ser dem aldri)
+1. **Env-filer** i `docker/env/`:
+   - `api.env` — `DATABASE_URL=postgresql://<rolle>:<pw>@postgres:5432/sitedoc`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `APP_URL`, `SITEDOC_INTEGRATION_KEY` …
+   - `web.env` — `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_MICROSOFT_*`, `AUTH_TRUST_HOST=true`, `DATABASE_URL` (samme), `RESEND_*` …
+   - Kopier fra gammel server (`~/programmering/sitedoc/apps/{api/.env,web/.env.local}`), endre kun `DATABASE_URL`/`DIRECT_URL` → `@postgres:5432`.
+2. **DB-rolle:** opprett `sitedoc`-rolle (least-privilege) + database, som vi gjorde med `salsa`. Prod-DB er eid av `postgres` på gammel server — vi restorer med `--no-owner` til ny rolle.
+3. **(Valgfritt) ODAFileConverter .deb** → `docker/vendor/` + fjern kommentar i Dockerfile.api. Uten den: `dwg2dxf` (libredwg) som fallback.
+
+## Åpne punkter å verifisere under bygg
+- **Oversettelse-URL env-navn:** sjekk `apps/api/src/services/oversettelse-service.ts` — sett riktig env (f.eks. `OVERSETTELSE_URL=http://oversettelse:3303`) i `api.env`/compose. (`NORBERT_URL` er bekreftet.)
+- **web build** kan trenge `output: "standalone"` i `next.config.mjs` for slankere/raskere runtime (oppfølger, ikke blokkerende).
+- **ML første start** laster flere GB modellvekter fra HuggingFace → `ml_models`-volum. Bygg/kjør `embed` først så vekter caches.
+
+## Build-/test-rekkefølge (TEST-miljø først — generalprøve)
+1. Postgres → pgvector ✅ (gjort). Opprett rolle `sitedoc` + database `sitedoc_test`.
+2. **DB-migrering (test):** `pg_dump -Fc sitedoc_test` (gammel) → Mac → ny server → `pg_restore --no-owner --no-privileges -U sitedoc -d sitedoc_test` → `ALTER DATABASE sitedoc_test REFRESH COLLATION VERSION;` → bekreft `CREATE EXTENSION vector` finnes.
+3. **Kode på server:** rsync ny-server-branch (eller prod-kode) til `~/stack/sitedoc`.
+4. **Bygg:** `sudo docker compose -f docker/docker-compose.yml build` (api + web + ml — tar tid).
+5. **Opp:** `... up -d`. Verifiser lokalt: `curl 127.0.0.1:3001/health`, `curl -H "Host: test.sitedoc.no" 127.0.0.1:3100/` (innlogget), AI-søk + oversettelse (treffer embed/oversettelse).
+6. **Cutover** (eget steg, prod): fersk `pg_dump sitedoc` → restore (ALDRI slett data) → flytt DNS for `sitedoc.no` + `api.sitedoc.no` via **Cloudflare-dashboard** (egen sone — cloudflared CLI virker IKKE her, jf. salsaklubb-lærdom) → verifiser innlogget i nettleser.
+
+## Gotcha: `API_PORT` for Next `/api/upload`-rewrite — 3 lag (lærdom 2026-06-12/13)
+Web-containeren deler API-ens nett-namespace (`network_mode: service:<api>`). Next-rewriten i
+`apps/web/next.config.js` proxer `/api/upload` + `/api/uploads/:path*` til
+`http://localhost:${API_PORT || "3001"}/upload`. **`API_PORT` MÅ matche API-ens `PORT`** i samme
+namespace, ellers treffer rewriten en død port → 500 «Internal Server Error» → «Kunne ikke laste opp
+filen» i UI (og tegningsbilder vises ikke). Prod-API = 3001 (= default, virket tilfeldigvis), men
+**test-API = 3301** → test fikk feil port og all tegning/bilde-opplasting var brutt etter
+Docker-migreringen. Feilsøkingen avdekket TRE lag som alle må stemme:
+
+1. **Runtime-env er for sent.** Rewrite-destinasjonen bakes inn i `.next/routes-manifest.json` ved
+   `next build`-tid. `environment:` / `env_file` påvirker ikke en allerede bygd manifest.
+2. **Build-arg.** `API_PORT` settes som build-arg: `Dockerfile.web` har `ARG API_PORT=3001` → `ENV
+   API_PORT=${API_PORT}` FØR `pnpm turbo build`. Per miljø: **test 3301 / prod 3001**.
+3. **Turbo v2 strict-env.** Selv med ARG/ENV stripper Turbo v2 ukjente env-variabler bort fra
+   build-taskens miljø → `next build` så aldri `API_PORT`. **`turbo.json` må ha
+   `tasks.build.env: ["API_PORT"]`** (slipper den gjennom OG inn i cache-hashen, så portbytte
+   buster cachen). Uten dette nr. 2 er virkningsløst.
+
+**Bevist deploy-sti:** `docker build --build-arg API_PORT=<port> ...` (eksplisitt) + `up -d`.
+Hvorvidt `compose.build.args` alene når frem til buildx/bake er **uavklart** — ikke bekreftet, ikke
+anta det. Bruk eksplisitt `--build-arg` ved web-rebuild til dette evt. er verifisert. Verifiser
+manifest etter build: `grep '/api/upload' apps/web/.next/routes-manifest.json` skal vise riktig
+port; live: `curl -X POST https://test.sitedoc.no/api/upload` skal gi `401 JSON` (ikke `500`).
+
+## Rollback
+Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.

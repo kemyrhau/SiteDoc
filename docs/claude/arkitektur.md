@@ -10,7 +10,8 @@ sist_verifisert_mot_kode: 2026-06-08
 > - **`Oppmotested`** (kjerne, søsken til `Avdeling`): `{ organizationId, navn, adresse?, lat, lng, radiusM, avdelingId?, aktiv }` — geofence for «Start dag». **✅ Implementert Fase 1 (2026-06-08)** — migrasjon `20260608120000_oppmotested_fase1`, additiv. FK org Cascade / avdeling SetNull.
 > - **`Project.type String @default("kunde")`** ("kunde" | "internt") — interne prosjekter for ikke-prosjekt-tid (Alt C); filtreres ut av kundevendte lister, vises i timer-velger.
 > - **`SheetTimer.vehicleId String?`** (svak FK → db-maskin.Equipment) — kostnadsbærer for maskinvedlikehold; distinkt fra `SheetMachine.vehicleId` (drift).
-> - **`OrganizationSetting`** + reise-regelsett (`reiseTerskelMin`, `reiseUnder/OverTerskelType`, `reisetidTellerOvertid`).
+> - **`OrganizationSetting`** + reise-regelsett (`reiseTerskelMin`, `reiseUnder/OverTerskelType`, `reisetidTellerOvertid`, `reiseLonnsartId`).
+> - **`ReisetidMatrise`** (kjerne, søsken til `Oppmotested` — geo-infra): `{ organizationId (denormalisert), oppmotestedId, byggeplassId, kjoretidMin, kilde, beregnetAt }` — forhåndsberegnet kjøretid per [kontor × byggeplass] (OSRM). Begge FK Cascade, `@@unique([oppmotestedId, byggeplassId])`. `kjoretidMin < 0` = uoppnåelig. **✅ Implementert R1 (2026-06-11, develop)** — migrasjon `20260611120000_reisetid_matrise`, additiv. Fylles av recompute-motor (R3); leses av reise-forslag (R4). Se [timer.md § Reise og oppmøtested](timer.md).
 >
 > Full begrunnelse + fil:linje: [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md). Implementeres faseinndelt via SPOR 3.
 

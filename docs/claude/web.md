@@ -41,7 +41,7 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/oppgaver/[id]          -> Oppgave-detalj
 /dashbord/[prosjektId]/maler                  -> Mal-liste
 /dashbord/[prosjektId]/maler/[id]             -> Malbygger
-/dashbord/[prosjektId]/entrepriser            -> Entreprise-liste
+/dashbord/[prosjektId]/faggrupper             -> Faggruppe-liste (tabell m/opprett/rediger/slett-modaler, faggruppeNummer, org.nr, dokumenttellere). Erstatter den gamle «entrepriser»-ruten — «entreprise» er forbudt i ny kode
 /dashbord/[prosjektId]/mapper                 -> Mapper (read-only, ?mappe=id, filopplasting m/fremdriftsindikator via XMLHttpRequest progress)
 /dashbord/[prosjektId]/tegninger              -> Interaktiv tegningsvisning
 /dashbord/[prosjektId]/3d-visning            -> Samlet 3D-visning (IFC + punktsky + overflater + kutt/fyll)
@@ -51,6 +51,9 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 /dashbord/[prosjektId]/kontrollplan            -> Kontrollplan: matrisevisning (områder × maler gruppert etter milepæl) + listevisning (toggle). UkeVelger-kalender, flervalg-opprettelse, inline milepæl/område, fristflytting
 /dashbord/[prosjektId]/bilder                 -> Bildegalleri (liste + tegningsvisning)
 /dashbord/[prosjektId]/okonomi               -> Økonomi: 4 faner (Oversikt, Avviksanalyse, Rapport, Dokumenter). Kontrakt påkrevd (auto-velg hvis kun én). Oversikt: spec-poster med piltast-nav, sammenligning, overskridelsesmarkering, NS-kode arv, gul prikk (●) ved postnr der split-dokumentasjon finnes. Dobbeltklikk rad → detaljmodal med dokumentasjon-seksjon ("Åpne dokumentasjon (X sider)" + kildeliste "A-nota 4: s.1-3"), NS-kode panel med NS 3420-oppslag. Rapport-fane: Innestående-tabell. Dokumenter-fane: Nr-kolonne, inline type-editor
+/dashbord/[prosjektId]/hms                   -> HMS-modul: 4 faner (Avvik, SJA, RUH, Statistikk). Dokumenttabeller per subdomain (avvik/sja/ruh) m/åpen/lukket-status, byggeplassfilter, KPI-kort + måned-søyler + faggruppe-bars. «Ny»-dropdown velger HMS-mal. Bruker hms.hentDokumenter
+/dashbord/[prosjektId]/timer                 -> Timeliste (firma timer-modul): ukevisning m/forrige/neste-navigering, statusfilter (draft/sent/returned/accepted), dagsseddel-rader m/aktivitet og totaltimer. Undersider: /[id] (dagsseddel-detalj), /ny (ny dagsseddel), /attestering (+ /[id]), /godkjenning
+/dashbord/[prosjektId]/vareforbruk           -> Vareforbruk (firma varelager-modul): registrerings-liste m/dato, vare, antall, byggeplass, eksternt kostobjekt. Opprett/rediger/slett via modal. Bruker vareforbruk-routeren
 /dashbord/[prosjektId]/sok                   -> Dokumentsøk: AI-søk (NorBERT hybrid vektor+leksikalsk+re-ranking) med fallback til tekstsøk. Modusveksler, NS-dokumentfilter (dropdown med enkeltdokumenter), dedup per dokument, søkeord-highlighting, dobbelt-klikk åpner original. Tilgangskontrollert via hentTilgjengeligeMappeIder
 /dashbord/[prosjektId]/mapper                -> Mapper: dokumentliste med embedding-statusindikator + oversettelsestatus (grønn prikk/spinner på BookOpen-ikon). Les-knapp åpner Reader View
 /dashbord/[prosjektId]/dokumenter/[id]/les   -> Dokumentleser (Reader View): PDF-sider med bilder rendres som hele sidebilder (pdftoppm 150 DPI + sharp JPEG 80%), rene tekstsider viser headings/tekst. Språkvelger, fallback til nb, nedlastingsknapp. Sammenlign-panel for oversettelsesmotorbytte. ?embed=true for mobil WebView

@@ -969,6 +969,14 @@ Datamodell (`projectId` + `externalCostObjectId`) er KORREKT. Kun UI-gruppering 
 
 ### T.8 — Innsjekk-basert prosjektforslag i dagsseddel (låst 2026-05-12)
 
+> **✅ VEDTATT 2026-06-20: Alternativ B (auto-utkast) — BYGGET (Slice 3, develop 2026-06-20).** Modulen auto-skriver dagsseddel-utkast (`draft`) fra GPS-dagflyt; arbeider ser alt, kan redigere/slette enhver auto-rad, og **godkjenner ved innsending** (`draft → sent`). Ingen lønn uten menneskelig godkjenning.
+>
+> **Viktig historikk:** auto-*opprettelsen* (draft + arbeidstid/overtid/reise-rader ved «Slutt dag») var **allerede live fra «Start dag/Slutt dag»-MVP 2026-06-06** (`genererForslag`, `StartSluttDagKort.tsx`). Den opprinnelige T.8-formuleringen «aldri auto-rad» beskrev altså et **eksisterende avvik** mot koden — ikke en regel Slice 3 brøt. Slice 3 (2026-06-20) la til UX-signallaget (auto-fyll-banner, lokal `autoGenerert`-markør, reise-rad-merking) + idempotens (naviger til eksisterende `(userId,dato)`-draft) og **retter formuleringen: «aldri auto-rad» → «aldri auto-innsending»**.
+>
+> L1 byggeplass-GPS (2026-06-20) er fortsatt ren dokumentasjon. Utredning: [timer-gps-prosjekt-utredning.md](timer-gps-prosjekt-utredning.md).
+>
+> **Slice 4 (2026-06-20/21):** midnatt-splitt (4a) + glemt-dag-prompt (4b-1) + `DailySheet.sluttTidKilde` 3-verdi (`bruker`/`midnatt`/`system`) + arbeidstids-varsel (4b-2). System-gjettet slutt-tid (glemt-dag-gjenoppretting) merkes `system` → kontroll-badge i attestering. Full spec: [BACKLOG.md § Slice 4](BACKLOG.md).
+
 Når arbeider åpner «Ny dagsseddel», foreslås prosjekt basert på innsjekk-historikk fra Mannskap-modulen (Fase 4). Arbeider bestemmer alltid selv — forslaget kan overstyres.
 
 **Forslags-prioritet:**
@@ -978,11 +986,11 @@ Når arbeider åpner «Ny dagsseddel», foreslås prosjekt basert på innsjekk-h
 3. Ingen innsjekk i dag → fall tilbake til GPS-avstand (dagens T7-1b-implementasjon)
 4. Ingen GPS-koordinater → ingen forslag
 
-**Separasjons-prinsipp overholdes:**
+**Separasjons-prinsipp (REVIDERT 2026-06-20 etter Alt B / Slice 3 — gjelder framtidig *innsjekk*-kobling fra Mannskap Fase 4, ikke dagens GPS-dagflyt):**
 
-- Innsjekk trigger ALDRI automatisk dagsseddel eller timer-rader
-- Innsjekk-data brukes KUN som hint i prosjekt-velger
-- Arbeider må eksplisitt bekrefte prosjektvalg og opprette dagsseddel
+- **Aldri auto-*innsending*:** auto-skrevne rader havner alltid som `draft`; lønn krever menneskelig godkjenning ved innsending (`draft → sent`). (Erstatter den gamle «aldri auto-rad» — som var et avvik mot koden, jf. banneret over.)
+- Arbeider kan redigere/slette enhver auto-rad før innsending
+- Fremtidig Mannskap-innsjekk (Fase 4) er fortsatt kun *hint* i prosjekt-forslag — den trigger ikke i seg selv auto-dagsseddel (GPS-dagflyt via «Start/Slutt dag» gjør det)
 
 **Avhengigheter:**
 
@@ -1046,6 +1054,16 @@ Beslutningssett for reise, oppmøtested og ikke-prosjekt-tid. Grunnlag: [OPPSUMM
 **Reise:** kompensert kun kontor→byggeplass / byggeplass→byggeplass (ikke hjem→arbeidssted). Reisetid = lønnsart-rad utenfor overtid (ikke avstands-/godtgjørelse-sats). Reise-regelsett = konfigurerbar firmainnstilling på `OrganizationSetting` (`reiseTerskelMin` m.fl.), ikke regelmotor. Terskel + lovlighet per firmas tariff/avtale.
 
 **Firma-isolasjon:** timer-data isoleres på `organizationId` (sikkerhetslag, `DailySheet` org-eid per T.1). ⚠️ **Kjent issue (ikke fikset):** `rapport.ts:80-92` mangler org-filter → cross-firma-lekkasje på delte prosjekter; `tilfoyTimerRad` mangler firma-grense-sjekk. Fikses SPOR 3 Fase 1b. Forretningslag (G1): firma-nivå tilgang, GPS = smart velger, ikke hard port.
+
+### T.11 — Maskin-registrering gated på kompetansematrise — ✅ VEDTATT 2026-06-20
+
+«Maskinfører» er ikke en rolle i modellen — maskinbruk er data (`SheetMachine`). Maskin-registrering (maskin-seksjonen på dagsseddel) styres i stedet av **kompetansematrisen**: eksponer maskin-registrering kun for arbeidere som i matrisen er huket av for maskinfører / 40-timers kurs. Mekanisme: aktiv, ikke-utløpt `AnsattKompetanse` med `Kompetansetype.kategori = "TRUCK-/MASKINFØRERBEVIS"` (+ evt. 40t-kurs-type). Senere (Fase 2 / DO-kobling): begrens hvilket utstyr via `Kompetansetype.kobletTilEquipmentModell`. Gating kommer i tillegg til dagens soft-skjul på Equipment-cache.
+
+**Forutsetning (ikke bygget):** kompetanse er IKKE synket til mobil (0 referanser i `apps/mobile`). Offline-gating krever ny lokal cache (`kompetansetype_local` + `ansatt_kompetanse_local`) + sync FØR T.11 kan implementeres.
+
+### T.12 — Produksjonsbeskrivelse (fritekst) per timer-rad — ✅ VEDTATT 2026-06-20
+
+Arbeider skal kunne skrive fritekst «hva jeg har gjort» **per timer-rad** (ikke tallmengde). Nytt nullable fritekstfelt på `SheetTimer` (per aktivitet) + to-stegs migrering (per migrasjonspolicy). Eksisterende `DailySheet.beskrivelse` (dag-nivå) er forkastet som for grovt. Eksport: **utsatt** — rapport-valg (hva som tas med i utskrift) utvikles senere når timeregistrering er funksjonell; inntil da intern dokumentasjon.
 
 ---
 

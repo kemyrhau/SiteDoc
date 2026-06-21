@@ -121,6 +121,9 @@ Firma: Byggeleder (f1000001-0000-0000-0000-000000000002)
 ---
 
 ## Deploy-sekvens (lær av feil)
+
+> ⚠️ **Kommandoene under (`ssh sitedoc`, `pm2`) er GAMMEL SERVER — utgått 2026-06-10.** Gjeldende deploy kjører i Docker på server-ny: se **[`ny-server-veileder.md`](ny-server-veileder.md)** (full drift-veileder) + [`infrastruktur.md`](infrastruktur.md). Lærdommene under (prisma generate før migrate, API må restartes ved API-kodeendring) er fortsatt gyldige.
+
 ```bash
 # Test-deploy (ALLTID begge prosesser når API-kode endres)
 ssh sitedoc "cd ~/programmering/sitedoc-test &&

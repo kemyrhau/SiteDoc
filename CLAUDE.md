@@ -26,6 +26,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md) | **🟢 STYRENDE:** Virkelig arbeidsflyt — alle arkitektur-beslutninger skal forklares herfra |
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared + @sitedoc/ui — typer, validering, komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Server, env-filer, EAS Build, TestFlight, OAuth |
+| [docs/claude/eas-build-veileder.md](docs/claude/eas-build-veileder.md) | EAS iOS-bygg: credentials (API-nøkkel + 2FA-felle), profiler, device-reg, app variants |
 | [docs/claude/simulator-ipv6-nordvpn.md](docs/claude/simulator-ipv6-nordvpn.md) | **Feilsøking:** iOS-simulator henger på evig spinner — IPv6/NordVPN-rotårsak. Sjekk VPN/IPv6 FØR koden |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | **Hierarki + modulsystem + alle termer.** Tre-nivå-anker |
 | [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk: embedding, hybrid søk, RAG, settings + testing UI |
@@ -34,6 +35,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | Peker til [kontrollplan.md](docs/claude/kontrollplan.md). Konsolidert 2026-04-16 |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
 | [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟢 VEDTATT:** Aktivitet per `SheetTimer`-rad, ny `SheetMachine` — se også fase-0 C.18 |
+| [docs/claude/timer-gps-prosjekt-utredning.md](docs/claude/timer-gps-prosjekt-utredning.md) | **🟡 UTREDNING:** timer-registrering + GPS + prosjekt-tilknytning + dag-flyt — 6 beslutninger (T.8 først), for dedikert sesjon |
 | [docs/claude/steg-4b-plan.md](docs/claude/steg-4b-plan.md) | **🟡 VEDTATT:** Vareforbruk-modul (`db-varelager`), 5 faser, A.Markussen-import |
 | [docs/claude/maskin.md](docs/claude/maskin.md) | Utstyrsregister: 3 kategorier, Vegvesen API, EU-kontroll, vedlikehold |
 | [docs/claude/kontrollplan.md](docs/claude/kontrollplan.md) | Kontrollplan + Sjekklistebibliotek: NS 3420, lovkrav, matrise, sluttrapport |
@@ -88,7 +90,7 @@ Merk: Denne regelen overstyrer IKKE indeks-regelen. Når en regel sier "oppdater
 - **Frontend web:** Next.js 14+ (App Router), React, TypeScript
 - **Frontend mobil:** React Native, Expo (SDK 54)
 - **Backend API:** Node.js, Fastify, tRPC
-- **Database (server):** PostgreSQL med Prisma ORM (v6.19)
+- **Database (server):** PostgreSQL med Prisma ORM (^6.3.0)
 - **Database (lokal):** SQLite via expo-sqlite, Drizzle ORM
 - **Fillagring:** S3-kompatibel (AWS S3 / Cloudflare R2 / MinIO)
 - **Auth:** Auth.js v5 (next-auth) med Google og Microsoft Entra ID, database-sesjoner
@@ -100,9 +102,9 @@ Merk: Denne regelen overstyrer IKKE indeks-regelen. Når en regel sier "oppdater
 - **3D/Punktsky:** Three.js, potree-core (punktsky-viewer), @thatopen/components (IFC 3D-viewer)
 - **Tegningskonvertering:** ODA File Converter / libredwg (DWG→SVG), CloudCompare (E57/PLY→LAS), PotreeConverter (LAS→Potree octree)
 - **Ikoner:** lucide-react
-- **i18n:** i18next + react-i18next (13 språk, ~600 nøkler i packages/shared/src/i18n/)
+- **i18n:** i18next + react-i18next (15 språkfiler i packages/shared/src/i18n/ — 14 brukervendte språk, ~2500 nøkler)
 - **Dokumentoversettelse:** OPUS-MT (selvhostet, port 3303) + Google Translate (gratis, google-translate-api-x) + DeepL (betalt). Translation memory cache, kildespråk-deteksjon
-- **Flerspråklig embedding:** intfloat/multilingual-e5-base (768 dim, 100+ språk, port 3302)
+- **Flerspråklig embedding:** NorBERT (`ltgoslo/norbert2`, norsk) + intfloat/multilingual-e5-base (768 dim, 100+ språk) — selvhostet embedding-server, port 3302
 - **Dokumentleser:** Blokkbasert Reader View med språkvelger, sammenlign-panel for motorbytte
 
 ## Prosjektstruktur
@@ -112,15 +114,15 @@ sitedoc/
 ├── apps/
 │   ├── web/              # Next.js — src/app/, src/components/, src/kontekst/, src/hooks/, src/lib/
 │   ├── mobile/           # Expo — src/db/, src/providers/, src/services/, app/
-│   ├── api/              # Fastify — src/routes/, src/services/, src/trpc/
-│   └── timer/            # (planlagt) Next.js — timer.sitedoc.no
+│   └── api/              # Fastify — src/routes/, src/services/, src/trpc/
 ├── packages/
 │   ├── shared/           # Delte typer, Zod-schemaer, utils
 │   ├── db/               # Prisma schema, migreringer, seed
 │   ├── ui/               # 14 delte UI-komponenter
 │   ├── pdf/              # Delt PDF-generering (HTML-strenger, null avhengigheter)
 │   ├── db-timer/         # Egne Prisma-tabeller for timer (Fase 3, postgres-schema "timer")
-│   └── db-maskin/        # Egne Prisma-tabeller for maskin (Fase 1, postgres-schema "maskin")
+│   ├── db-maskin/        # Egne Prisma-tabeller for maskin (Fase 3, postgres-schema "maskin")
+│   └── db-varelager/     # Egne Prisma-tabeller for vareforbruk (postgres-schema "varelager")
 ├── docs/claude/          # Detaljert Claude-dokumentasjon
 ├── CLAUDE.md             # Denne filen
 └── turbo.json
@@ -130,7 +132,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 
 **Modul-plassering — to varianter:**
 - **Integrert i web-appen** (enklest): `apps/web/src/app/<modul>/` + `packages/db-<modul>/`. Ingen egen DNS, port eller deploy. Maskin bruker dette mønsteret.
-- **Isolert app** (når modulen trenger separat skalering, tilgang eller deploy): `apps/<modul>/` + `packages/db-<modul>/` + egen DNS/PM2. Timer planlegges som dette.
+- **Isolert app** (når modulen trenger separat skalering, tilgang eller deploy): `apps/<modul>/` + `packages/db-<modul>/` + egen DNS. Foreløpig bruker ingen moduler dette — Timer ble bygget integrert (api-routere + `db-timer` + web/mobil-ruter), ikke som egen app.
 
 ## Kommandoer
 
@@ -161,46 +163,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 
 **Deploy-sekvens:**
 
-- **Prod (anbefalt — Turbo-cache er typisk ren fordi hver prod-deploy har nye commits):**
-  ```
-  git pull → prisma migrate deploy → prisma generate → pnpm build → pm2 restart
-  ```
-  `.next`-rensing er anbefalt men ikke ufravikelig. Hvis prod noen gang viser «Cannot read properties of undefined (reading 'clientModules')» eller «Could not find a production build», legg inn `rm -rf apps/web/.next && pnpm build --force` mellom migrate og build.
-
-- **Test (ufravikelig — Turbo-cache rammer her gjentatte ganger):**
-  ```
-  git pull → prisma migrate deploy → prisma generate → rm -rf apps/web/.next → pnpm build --force → pm2 restart
-  ```
-  `--force` overstyrer Turbo-cache som ellers cache-hitter på `apps/web#build` selv etter `.next` er slettet. Verifisert tre ganger i mai 2026 etter at `deploy-test-cron.sh` ble forsøkt strammet inn (skriptet er server-side og må fortsatt oppdateres til å bruke `--force`).
-
-**Ufravikelig regel — pm2 restart MÅ IKKE kjøres hvis pnpm build feilet (2026-05-27):**
-
-`pnpm build 2>&1 | tail -5`-mønsteret skjuler exit-koden fra `pnpm build` fordi `tail` returnerer 0 uavhengig av oppstrømsfeil. Bruk i stedet `pnpm build && pm2 restart ...` (uten pipe) eller sjekk `$?` eksplisitt før restart.
-
-Bakgrunn (H1-deploy `29bdded8`, 2026-05-27: `tail`-pipe skjulte byggfeil → PM2 restartet gammel kode mot nytt schema i 25 min) + full lærdom i [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
-
-**Korrekt mønster:**
-```bash
-ssh sitedoc "cd ~/programmering/sitedoc && git pull \
-  && pnpm --filter @sitedoc/db exec prisma migrate deploy \
-  && pnpm --filter @sitedoc/db exec prisma generate \
-  && pnpm build \
-  && pm2 restart sitedoc-api \
-  && pm2 restart sitedoc-web"
-```
-Bruk `&&`-kjeding hele veien — første feil stopper sekvensen. Hvis du trenger å se output, kjør `pnpm build` uten pipe og les loggen etterpå med separat ssh-kall.
-
-**Ufravikelig regel — `git checkout develop` etter prod-deploy-sekvensen (2026-05-27):**
-
-Etter `git checkout main && git merge develop && git push origin main` + `ssh sitedoc ...`-kjeden er lokal branch fortsatt `main`. Påfølgende docs-commits (arkivering, STATUS-AKTUELT-oppdatering, BACKLOG-rydding) MÅ kjøres på `develop`, ikke main.
-
-```bash
-# Etter prod-deploy-sekvens, ALLTID:
-git checkout develop
-# ... deretter docs-commit + push
-```
-
-Lokal main = remote main alltid; develop er der docs-arbeid skjer. Recovery hvis en commit havnet på lokal main (cherry-pick → develop, så `reset --hard origin/main`): se [deploy-detaljer.md](docs/claude/deploy-detaljer.md). Lærdom 2026-05-27 (3 hendelser samme dag).
+> ⚠️ **Prod kjører i Docker på `server-ny` (fra 2026-06-10).** Gjeldende deploy: rsync repo → `sudo docker compose -f docker/docker-compose.yml up -d --build`. Server-, env- og deploy-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) + [docker/DOCKER-NOTES.md](docker/DOCKER-NOTES.md). Den gamle PM2-deploy-prosedyren (rollback til gammel server) ligger i [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 
 - Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 - Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).

@@ -1,4 +1,10 @@
-import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
+import {
+  sqliteTable,
+  text,
+  integer,
+  real,
+  primaryKey,
+} from "drizzle-orm/sqlite-core";
 
 /**
  * Lokal kopi av sjekkliste-utfylling.
@@ -88,6 +94,19 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
   })
     .notNull()
     .default("draft"),
+  // Slice 3 (2026-06-20): markerer at draften ble auto-generert av «Slutt dag»
+  // (genererForslag). KUN lokal — synces ALDRI til server. Gater auto-fyll-
+  // banneret på review-skjermen. Manuelle ny.tsx-drafts lar feltet stå null.
+  autoGenerert: integer("auto_generert", { mode: "boolean" }),
+  // Slice 4a (2026-06-20): true når sedelen er ett av flere segmenter fra et
+  // skift som krysset midnatt (genererForslag → splittVedMidnatt). KUN lokal.
+  // Gir en «delt ved midnatt»-merking på review-skjermen så lave per-dag-timer
+  // (f.eks. 5 t av et 12t-nattskift) leses som legitim splitt, ikke feil.
+  deltVedMidnatt: integer("delt_ved_midnatt", { mode: "boolean" }),
+  // Slice 4b-2 (2026-06-21): kilde for slutt-tiden — "bruker" | "midnatt" |
+  // "system". Speiler server DailySheet.sluttTidKilde. Settes i genererForslag
+  // (midnatt/bruker/system), nullstilles til "bruker" ved manuell tid-redigering.
+  sluttTidKilde: text("slutt_tid_kilde").notNull().default("bruker"),
   beskrivelse: text("beskrivelse"),
   lederKommentar: text("leder_kommentar"),
   attestertVed: text("attestert_ved"), // ISO timestamp fra server
@@ -118,6 +137,9 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   // setter dem i T4-e. Server-skjemaet har feltene fra T.1 (2026-05-11).
   fraTid: text("fra_tid"),
   tilTid: text("til_tid"),
+  // T.12 — fritekst per rad («hva jeg gjorde»). Tilføyes idempotent via ALTER
+  // i migreringer.ts. Nullable, speil av server-skjema (SheetTimer.beskrivelse).
+  beskrivelse: text("beskrivelse"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -202,6 +224,11 @@ export const arbeidsdagLocal = sqliteTable("arbeidsdag_local", {
   // dokumentasjon, aldri lønnsgrunnlag. null = ikke innenfor noe geofence.
   oppmotestedId: text("oppmotested_id"),
   oppmotestedNavn: text("oppmotested_navn"),
+  // L1 (2026-06-20): GPS-identifisert byggeplass ved «Start dag» — speil av
+  // oppmøtested. Dokumentasjon, aldri lønn/reise/prosjektvalg. null = utenfor
+  // alle byggeplass-geofence.
+  byggeplassId: text("byggeplass_id"),
+  byggeplassNavn: text("byggeplass_navn"),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
@@ -303,6 +330,46 @@ export const oppmotestedLocal = sqliteTable("oppmotested_local", {
   radiusM: integer("radius_m").notNull().default(150),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });
+
+/**
+ * byggeplass_local — offline-cache av firmaets byggeplasser (R4, 2026-06-11).
+ * Lette felt for prosjekt→primær-byggeplass-resolusjon i reisetid-oppslaget.
+ * L1 (2026-06-20): utvidet med navn + geofence (lat/lng/radiusM, alle nullable
+ * — geofence er valgfri på server) for GPS-identifikasjon av byggeplass ved
+ * «Start dag». Refresh via byggeplassKatalog.refreshByggeplassKatalog. KUN lokal.
+ */
+export const byggeplassLocal = sqliteTable("byggeplass_local", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  projectId: text("project_id").notNull(),
+  number: integer("number"),
+  status: text("status"),
+  navn: text("navn"),
+  lat: real("lat"),
+  lng: real("lng"),
+  radiusM: integer("radius_m"),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
+ * reisetid_matrise_local — offline-cache av firmaets reisetid-matrise (R4,
+ * 2026-06-11). Speiler server ReisetidMatrise: kjøretid (min) per
+ * [kontor × byggeplass]. kjoretidMin < 0 = uoppnåelig. Refresh via
+ * reisetidMatriseKatalog.refreshReisetidMatriseKatalog. KUN lokal.
+ */
+export const reisetidMatriseLocal = sqliteTable(
+  "reisetid_matrise_local",
+  {
+    organizationId: text("organization_id").notNull(),
+    oppmotestedId: text("oppmotested_id").notNull(),
+    byggeplassId: text("byggeplass_id").notNull(),
+    kjoretidMin: integer("kjoretid_min").notNull(),
+    sistOppdatert: integer("sist_oppdatert").notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.oppmotestedId, t.byggeplassId] }),
+  }),
+);
 
 /**
  * arbeidstidskalender_local — offline-cache av firma-kalender (T4-d / T9d

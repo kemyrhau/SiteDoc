@@ -1,0 +1,66 @@
+# NY-SERVER — sitedoc full-Docker stack (i prod fra 2026-06-10).
+# Build-context = repo-rot (..). Postgres er den delte pgvector-containeren paa 'appnet' (egen compose).
+# Kjor fra repo-rot:  sudo docker compose -f docker/docker-compose.yml up -d --build
+name: sitedoc                          # eksplisitt prosjektnavn (skiller prod fra test-stacken)
+services:
+  sitedoc-api:
+    build: { context: .., dockerfile: docker/Dockerfile.api }
+    image: sitedoc-api:latest
+    container_name: sitedoc-api
+    restart: unless-stopped
+    env_file: ./env/api.env            # se DOCKER-NOTES.md (DATABASE_URL -> postgres:5432, AUTH_*, RESEND, VEGVESEN ...)
+    environment:
+      PORT: "3001"
+      HOST: "0.0.0.0"
+      NORBERT_URL: "http://embed:3302"
+      OVERSETTELSE_URL: "http://oversettelse:3303"   # env-navn verifisert mot oversettelse-service.ts:11
+    ports:
+      - "127.0.0.1:3001:3001"
+      - "127.0.0.1:3100:3100"   # web lytter her (deler api sitt nett-namespace)
+    networks: [appnet]
+    volumes:
+      - /home/kemyrhau/stack/sitedoc/uploads:/app/apps/api/uploads
+    depends_on: [embed, oversettelse]
+    security_opt: ["no-new-privileges:true"]
+
+  sitedoc-web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.web
+      args:
+        API_PORT: "3001"   # bakes inn i Next-rewrite ved build (= default; eksplisitt for symmetri med test)
+    image: sitedoc-web:latest
+    container_name: sitedoc-web
+    restart: unless-stopped
+    env_file: ./env/web.env            # AUTH_SECRET, AUTH_GOOGLE_*, AUTH_MICROSOFT_*, DATABASE_URL, RESEND ...
+    environment:
+      PORT: "3100"
+    network_mode: "service:sitedoc-api"
+    depends_on: [sitedoc-api]
+    security_opt: ["no-new-privileges:true"]
+
+  embed:
+    build: { context: .., dockerfile: docker/Dockerfile.ml }
+    image: sitedoc-ml:latest
+    container_name: sitedoc-embed
+    restart: unless-stopped
+    command: ["python", "norbert-server.py"]
+    environment: { NORBERT_PORT: "3302", NORBERT_HOST: "0.0.0.0" }   # bind 0.0.0.0 for cross-container-tilgang fra api
+    networks: [appnet]
+    volumes: ["ml_models:/models"]
+
+  oversettelse:
+    image: sitedoc-ml:latest            # gjenbruker image bygget av 'embed'
+    container_name: sitedoc-oversettelse
+    restart: unless-stopped
+    command: ["python", "oversettelse-server.py"]
+    networks: [appnet]
+    volumes: ["ml_models:/models"]
+    depends_on: [embed]
+
+networks:
+  appnet:
+    external: true
+
+volumes:
+  ml_models:

@@ -6,7 +6,15 @@ import {
   tilleggLocal,
   externalCostObjectLocal,
 } from "../db/schema";
+import { hentOrganizationSettingLokalt } from "./organizationSettingKatalog";
 import type { trpc } from "../lib/trpc";
+
+/**
+ * Navne-match for reise-lønnsart når firmaet ikke har satt reiseLonnsartId
+ * eksplisitt. Holdes som én konstant så generering (genererForslag) og
+ * render (reise-merking i TimerSeksjon) aldri kan drifte fra hverandre.
+ */
+const REISE_LONNSART_REGEX = /reise|transport/i;
 
 /* ============================================================================
  *  Timer-katalog-cache (Runde 2)
@@ -180,6 +188,22 @@ export function hentStandardLonnsartLokalt(organizationId: string) {
     )
     .all();
   return rader[0] ?? null;
+}
+
+/**
+ * Resolver firmaets reise-lønnsart fra lokal cache — ÉN sannhetskilde delt
+ * mellom generering (genererForslag) og render (reise-merking). Prioritet:
+ *   1. OrganizationSetting.reiseLonnsartId (eksplisitt valgt av firma-admin)
+ *   2. Navne-match (/reise|transport/i) mot aktive lønnsarter
+ * Returnerer null hvis ingen passende lønnsart finnes.
+ */
+export function hentReiseLonnsartId(organizationId: string): string | null {
+  const regel = hentOrganizationSettingLokalt(organizationId);
+  if (regel?.reiseLonnsartId) return regel.reiseLonnsartId;
+  const match = hentLonnsarterLokalt(organizationId).find((l) =>
+    REISE_LONNSART_REGEX.test(l.navn),
+  );
+  return match?.id ?? null;
 }
 
 export function hentAktiviteterLokalt(organizationId: string) {

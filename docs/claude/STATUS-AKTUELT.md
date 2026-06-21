@@ -6,63 +6,76 @@ sist_verifisert_mot_kode: 2026-06-08
 
 ## Pågående arbeid (PR-historikk)
 
-> **Timer-arkitektur SPOR 3** kjører som en sekvens på develop/test (venter prod): Fase 1 (oppmøtested) · Fase 1b (firma-isolasjon) · Fase 1c-server (byggeplass-geofence) · Fase 2 (ikke-prosjekt-tid / Alt C) · Fase 3 (reise). Samme initiativ — listet hver for seg for sporbarhet.
+### Byggeplass-GPS L1 (Del 1 av byggeplass-GPS/dagsseddel-programmet) — PÅ DEVELOP 2026-06-20
 
-### Fase 3 — Reise-regelsett (§ B) — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
+Engangs GPS-identifikasjon av byggeplass ved «Start dag» — passiv dokumentasjon, speil av oppmøtested-mønsteret. Ingen Prisma-migrering (geofence-felt finnes på `Byggeplass` fra 1c-server), ingen atferdsendring i registrering.
+- **Server:** `bygning.hentForFirma` select utvidet additivt med `name/latitude/longitude/radiusM`.
+- **Mobil:** `byggeplass_local` + `arbeidsdag_local` utvidet (nullable, idempotent ALTER); ny `identifiserByggeplass` (org-scopet, Haversine ≤ radiusM, hopper over rader uten geofence) kalt i `StartSluttDagKort.startDag` → lagrer `byggeplassId/Navn` på arbeidsdag-raden. **KUN dokumentasjon** — rører ikke reise/lønn/prosjektvalg.
+- **Verifisering:** API typecheck grønn; mobil = uendret pre-eksisterende baseline-gjeld (0 fra L1-filene). Sannhetskilde [timer.md § Byggeplass-geofence](timer.md). **Reload:** full JS-reload (Metro «r») — `kjorMigreringer` kjører idempotent ALTER ved `DatabaseProvider`-mount.
+- **Gjenstår (ikke-blokkerende):** funksjonell GPS-test på enhet (innenfor-radius, krever EAS test-bygg); beslutnings-folding (B/R/P + T.8 «aldri auto-rad»→«aldri auto-innsending») i egen doc-pass.
 
-Timer-arkitektur SPOR 3 Fase 3 (T.10 / OPPSUMMERING §B). Reise mellom oppmøtested og byggeplass klassifiseres mot firma-konfigurerbar terskel. Ratifisert av kontroll-Claude før implementasjon; Kenneth-OK på 5-felts migrasjon. Implementert:
-- **DB:** 5 reise-felt på `OrganizationSetting` (`reiseTerskelMin`/`reiseUnderTerskelType`/`reiseOverTerskelType`/`reisetidTellerOvertid`/`reiseLonnsartId`) — migrasjon `20260609160000_reise_regelsett_fase3`, additiv. `reiseLonnsartId` svak FK → `timer.Lonnsart` (A.20).
-- **Shared:** `klassifiserReise` + `estimerReisetidMin` + eksportert `avstandMeter` (ren, delt web/mobil/API).
-- **API:** `oppdaterSetting` (org-validerer `reiseLonnsartId` mot firmaets katalog) + `hentArbeidstidDefaults` utvidet (member-lesbar, mobil-cache).
-- **Web:** «Reise»-seksjon i `/dashbord/firma/innstillinger` (terskel, retning, overtid-flagg, reise-lønnsart fra `ordinaer`-arter). i18n 14 språk.
-- **Mobil:** setting-cache + Drizzle-schema utvidet (idempotent ALTER) + reise-forslag i «Slutt dag» (`genererForslag`): kontor→byggeplass (kun når oppmøtested identifisert), GPS-distanse, **estimert** reisetid, klassifisert; 'reisetid' → egen lønnsart-rad. `reisetidTellerOvertid` styrer dagsnorm-terskelen.
-- **Avvik A:** km-godtgjørelse-arter beholdt uendret; «Reise/transport» er reisetid-arten (kun docs-reframe). **Avvik C:** estimat-MVP, GPS-faktisk-tid senere.
+### Dagsseddel-redesign UX-1 — PÅ DEVELOP 2026-06-20
 
-**Grenser holdt:** server-side auto-fordeling-motor finnes fortsatt ikke — reise hekter på klient-MVP og dokumenterer kontrakt. Steg 5 (modal-forslag) dekket av eksisterende lønnsart-velger (reisetid ER en lønnsart). Sannhetskilde: [timer.md § Reise og oppmøtested](timer.md).
+UX-1 (prosjekt alltid synlig på dagsseddel) på develop, del av dagsseddel-redesign / Del 3. `[id].tsx`: `visHeader={true}` + fjernet aktivitet-undertittel i toppbaren + dødkode-rens. Funn-dok: [redesign-dagsseddel-funn-2026-06-20.md DEL 3](redesign-dagsseddel-funn-2026-06-20.md). **Reload:** full JS-reload (Metro «r»).
 
-### Fase 2 — Ikke-prosjekt-tid (Alt C) — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
+Slice 1 display-refinements (maskin «herav», prosjekt-subtotal, dagssum herav-maskin, send-hint) på develop.
 
-Timer-arkitektur SPOR 3 Fase 2 (T.10 / OPPSUMMERING §C). Internt arbeid + maskinvedlikehold som firma-eide interne prosjekter. **T.2 urørt** (`projectId` forblir NOT NULL). Ratifisert av kontroll-Claude før implementasjon; Kenneth-OK på migrasjon + vilkår 3. Implementert:
-- **DB:** `Project.type "kunde"|"internt"` (migrasjon `20260609140000_project_type_fase2`) + `SheetTimer.vehicleId String?` (svak FK → Equipment, `20260609140100_sheet_timer_vehicle_id_fase2`). Begge additive.
-- **Seed:** `seedInterneProsjekter` oppretter 2 interne prosjekter per firma («Internt arbeid» + «Verksted/maskinvedlikehold»), kalt fra begge onboarding-modus. **Vilkår 3:** kun `Project`-rader — ingen ProjectMember/ProjectOrganization/ProjectModule. `syncProjektModulerPaaAktiver` ekskluderer `type="internt"`.
-- **Tilgang:** `type="internt"`-unntak i `verifiserProsjektmedlem` (smalt: type + OrganizationMember på prosjektets org). Ny `prosjekt.hentForTimer` (union medlemskap + interne); `hentMine`/`hentAlle` filtrerer interne ut.
-- **§2.D (ufravikelig):** `verifiserKjoretoyTilhørerFirma` validerer `vehicleId` mot `Equipment.organizationId` på `tilfoyTimerRad`/`oppdaterTimerRad`/`syncBatch`.
-- **Web:** maskinvelger i timer-rad-modal (kun interne prosjekter m/maskiner) + «Internt»-merke i `ProsjektRadVelger`. i18n 14 språk (`timer.felt.maskin`, `timer.internt`).
+### Slice 4 (4a + 4b-1 + 4b-2) — KOMPLETT PÅ DEVELOP/TEST 2026-06-21 (ikke prod)
 
-**Grenser holdt:** ingen fordelingsmotor i SiteDoc (regnskap/ProAdm eier fordeling). Mobil-UI for `vehicleId` = oppfølger (server + sync-felt klart). Sannhetskilde: [timer.md § Ikke-prosjekt-tid](timer.md).
+Hele Slice 4 (dag-grense/nattskift + glemt-dag + system-flagg + arbeidstids-varsel) er på develop. **4b-2-migreringen anvendt + verifisert 2026-06-21 på `sitedoc_test`** (T.12-sekvens: rsync → rebuild test-stack → migrate via engangs-container fra nytt image, gated `grep -q sitedoc_test` → up → verifisert via postgres-containeren): `slutt_tid_kilde` (NOT NULL DEFAULT 'bruker') på `timer.daily_sheets` + `arbeidstid_varsel_timer` (NOT NULL DEFAULT 13) på `organization_settings` — gaten traff `sitedoc_test`, begge migreringer «applied», **12/12 rader backfill (0 berørt)**, upload-regresjon 401 (web-port OK). Ikke prod. Mobil-distribusjon krever EAS.
 
-### Fase 1c-server — Byggeplass-geofence fra georeferert tegning — IMPLEMENTERT, venter dual-review 2026-06-09 (ikke pushet)
+### Slice 4b-2 / sluttTidKilde + arbeidstids-varsel — detaljer
 
-Timer-arkitektur SPOR 3 Fase 1c (server-del). Gir `Byggeplass` GPS-senter + radius så mobil senere kan identifisere hvilken byggeplass arbeider står på. Løser byggeplass-koordinat-gapet (`fase-0 T.8:990`). Implementert:
-- **DB (kjerne):** `Byggeplass.latitude/longitude/radiusM` (nullable) + migrasjon `20260609100000_byggeplass_geofence_fase1c` (additiv, enkelt-steg). **Migrasjon mot test = TIMER-sporets domene; prod → LÅS + Kenneth.**
-- **Shared:** `beregnByggeplassGeofence(geoReference, bufferM=100)` — senter (midtpunkt→GPS) + radius (utstrekning + 100 m buffer), gjenbruker `tegningTilGps` (kapsler UTM/NTM).
-- **API:** service `byggeplassGeofence.ts` (nyeste georef-tegning) + `bygning.beregnGeofence` (eksplisitt, overskriver) + `bygning.settGeofence` (manuell override/nullstill) + auto-fyll i `tegning.settGeoReferanse` **kun når geofence er tom** (klobrer aldri satt/manuell verdi — derav ingen 4. flagg-kolonne).
-- **Web:** lokasjoner-side «endre navn»-modal — geofence-felt + «Beregn fra tegning» + «Lagre geofence». i18n `lokasjoner.geofence.*` (14 språk).
+To additive migreringer (gated, /sitedoc_test-vakt + T.12-sekvens): `db-timer DailySheet.sluttTidKilde @default("bruker")` + `db OrganizationSetting.arbeidstidVarselTimer @default(13)`. **Lag 3:** `sluttTidKilde` 3-verdi ("bruker"|"midnatt"|"system") — server (opprett/oppdater/syncBatch/hentEndringerSiden/hentForAttestering) + mobil (lokal kolonne + ALTER + sync + set-semantikk via threaded param i `opprettDagsseddelForSegment`: ikke-siste→midnatt, siste→bruker/system; reset bruker ved redigering). Smartere natt-estimat i glemt-dag-gjenoppretting (standardSluttTid ≤ start → start+dagsnorm). **Arbeidstids-varsel:** `arbeidstidVarselTimer` (default 13/16 tariff) — `organisasjon`-router + admin-UI i firma/innstillinger. **Badges** (web `AttesteringDetalj` + mobil `AttesteringDetaljMobil`): kontroll-badge ved system-slutt + arbeidstids-varsel (sum inkl. reise > terskel), begge varsel ikke blokkering. i18n 4 nøkler × 15 språk. Typecheck: 0 nye feil (api/web/mobil). **Deploy:** rsync → rebuild test-stack → migrate via engangs-container (gated grep -q /sitedoc_test, begge migreringer) → prisma generate ×2 → up → verifiser \d daily_sheets + \d organization_settings. **Reload:** EAS (mobil-endring). Ikke prod.
 
-**Grenser holdt:** mobil byggeplass-deteksjon = **1c-mobil** (gjenstår, EAS-buntet med Fase 1 — BACKLOG). Sannhetskilde: [timer.md § Byggeplass-geofence](timer.md).
+Slice 4b-1 / Lag 2 glemt-dag-prompt (mobil-lokalt, ingen migrering) på develop 2026-06-20. `StartSluttDagKort`: åpen `arbeidsdag_local` med start-dato < i dag → amber-prompt «Glemte du å avslutte?» — «Jeg glemte å avslutte» (gjenoppretting: estimer slutt = firma `standardSluttTid` på start-dagen via `utforSluttDag(overstyrtSluttIso)`, uten GPS-ved-slutt → draft til korrigering) / «Jeg jobber fortsatt» (behold åpen). Fanger BUG-1 (165t-glemt) + 4a over-splitt-luke. i18n `timer.glemtDag.*` × 15 språk. Typecheck 0 nye feil. **Reload:** full JS-reload (Metro «r»). 4b-2 (`sluttTidKilde` + arbeidstids-varsel + badges) krever gated server-migrering — ikke startet. Ikke prod.
 
-### Fase 1b — Firma-isolasjons-fiks (timer) — PÅ DEVELOP/TEST 2026-06-09 (ikke prod) — commit `eea004cb`
+Slice 4a / midnatt-splitt (mobil-lokalt, ingen migrering) på develop 2026-06-20. `genererForslag` refaktorert til per-segment via ren `splittVedMidnatt`-helper (`apps/mobile/src/utils/dagsegment.ts`): skift over 00:00 → én draft per kalenderdag, sum = reell total (verifisert 19:00→07:00 = 5t+7t=12t). Pause + reise kun på start-dagen; per-dag Timelønn/Overtid-split beholdt; per-dag idempotens. «Delt ved midnatt»-merking via lokal nullable `dagsseddel_local.delt_ved_midnatt` (idempotent ALTER) + badge på review-skjerm (`timer.deltMidnatt.*` × 15 språk). Kjent luke: glemt fler-døgns økt over-splittes → fanges av Lag 2 i 4b. 4b (glemt-dag-prompt + `sluttTidKilde` + arbeidstids-varsel) krever gated server-migrering, ikke startet. Typecheck: 0 nye feil. **Reload:** full JS-reload (Metro «r»). Ikke prod.
 
-Timer-arkitektur SPOR 3 Fase 1b — sikkerhetslag, rent additiv logikk (ingen schema/migrasjon). Lukker verifisert cross-firma-lekkasje. Dual-review + funksjonell verifisering fullført (rapport-org-filter intakt på test; write-path-avvisning verifisert i kode). Implementert:
-- **Helper (kjerne):** `verifiserProsjekterTilhørerFirma(projectIds, orgId)` i `tilgangskontroll.ts` — FORBIDDEN hvis projectId verken er **eid** (`primaryOrganizationId`) **eller koblet** (`ProjectOrganization`) til firmaet. Unionen dekker underentreprenør + eide (inkl. legacy uten ProjectOrganization-rad).
-- **`dagsseddel.ts`:** helper anvendt på `tilfoyTimerRad` (var usjekket) + `syncBatch` rad-nivå (lukket luke: re-sync av egen eksisterende sedel med foreign projectId == sedel-nivå); `redigerSedelRader` + `splittRad` refaktorert fra duplisert inline-blokk til helper (atferdsidentisk + eier-gren).
-- **`rapport.ts` (`firmaPeriodeRapport`):** la til `dailySheet.organizationId == orgId` — SHA-modell, hvert firma rapporterer egne timer. Cross-org-invitert arbeiders sedel bevisst ekskludert.
-- **Data-sjekk (test-DB 2026-06-08):** 1 eid legacy-prosjekt uten ProjectOrganization-rad hadde timer-rader → dekkes av eier-grenen (0 eksisterende rader avvist av union-grensen).
+Slice 3 / auto-utkast MVP (auto-generer draft ved «Slutt dag») på develop 2026-06-20 — Alternativ B. **Innsnevring:** selve genereringen var allerede bygget (`genererForslag`, fra «Start/Slutt dag»-MVP 2026-06-06 + R4); Slice 3 = UX-signallaget + idempotens. (1) Idempotens (Alt 1): eksisterende `(userId,dato)`-draft → naviger dit (server `@@unique`). (2) Lokal nullable `dagsseddel_local.auto_generert` (idempotent ALTER, synces aldri) satt i `genererForslag`. (3) Auto-fyll-banner (`[id].tsx`, gated `draft && autoGenerert`, nye nøkler `timer.autoFyll.*` × 15 språk). (4) Reise-rad-merking 🚗 «Reisetid» via ny delt `hentReiseLonnsartId` (`timerKatalog.ts`, ÉN kilde mot drift). T.8-formulering «aldri auto-rad»→«aldri auto-innsending» foldet (auto-opprettelse var live fra 2026-06-06). Typecheck: 0 nye feil fra Slice 3-filer. **Reload:** full JS-reload (Metro «r»). Ikke prod.
 
-**Grenser holdt:** G1-policy-harmonisering (`verifiserProsjektmedlem` → firma-nivå i `opprett`/`syncBatch`) IKKE rørt (BACKLOG). Rapport-prosjekt-asymmetri (primaryOrg vs ProjectOrg utvalg) → BACKLOG. Sannhetskilde: [timer.md § Firma-isolasjon](timer.md).
+Slice 2 / T.12 fritekst per timer-rad («hva gjorde du?») på develop — `SheetTimer.beskrivelse` (nullable, additiv migrering `20260620120000_sheet_timer_beskrivelse`), tRPC (tilfoy/oppdater/syncBatch/hentEndringerSiden), mobil schema+ALTER+sync+UI (TimerRadModal/TimerRadVis). Nye distinkte i18n-nøkler `timer.felt.radBeskrivelse`/`timer.radBeskrivelsePlaceholder` (15 språk) — IKKE gjenbrukt sedel-kommentar-nøkkelen `timer.felt.beskrivelse`. Migrering anvendt + verifisert 2026-06-20 på `sitedoc_test` (`current_database` bekreftet, `beskrivelse` finnes på `timer.sheet_timer`, 0 berørte rader — gamle rader intakte/NULL). Ikke prod.
 
-### Fase 1 — Oppmøtested + GPS-identifikasjon — PÅ DEVELOP/TEST 2026-06-08 (ikke prod)
+### Reisetid-matrise R1–R4 (komplett serie) — PÅ DEVELOP 2026-06-11 (venter dual-review)
 
-Timer-arkitektur SPOR 3 Fase 1 (lavest risiko, rent additivt — rører ikke T.2 eller firma-isolasjon). Implementert:
-- **DB (kjerne):** `Oppmotested`-entitet + migrasjon `20260608120000_oppmotested_fase1` (additiv ny tabell, FK org Cascade / avdeling SetNull).
-- **API:** `oppmotestedRouter` — firma-admin CRUD (`hentAlle`/`opprett`/`oppdater`/`slett`) + member-lesbar `hentForFirma` (mobil-cache).
-- **Web:** `/dashbord/firma/oppmotesteder` — liste + opprett/rediger/slett-modal (manuell lat/lng; Leaflet-kartvelger = senere oppfølger) + ?-hjelpetekst + nav-lenke.
-- **Mobil:** `oppmotested_local`-cache (refresh i TimerSyncProvider) + GPS-identifikasjon i «Start dag» (Haversine mot geofence-radius → lagrer identifisert oppmøtested på `arbeidsdag_local`, viser i kortet). **Aldri auto-rad** (`fase-0 T.8:983`); lokal-only dokumentasjon.
-- i18n 14 språk + hjelpetekst.
+Erstatter ×50km/t-estimatet i reise-forslag med faktisk forhåndsberegnet kjøretid per [kontor × byggeplass]. **R1** grunnmur (schema + rute-service) · **R2** kontor-geokoding + kart · **R3** recompute-motor + triggere · **R4** oppslag + mobil-cache. Forankret BACKLOG `§G:565` (Kenneth 2026-06-09).
 
-**Grenser holdt:** ingen reise-/lønnslogikk (Fase 3), ingen firma-isolasjons-fiks (Fase 1b), ingen Alt C (Fase 2). **Mobil-del krever EAS-bygg for brukere.** Plan: [FASE-1-PLAN-oppmotested-gps.md](FASE-1-PLAN-oppmotested-gps.md) · grunnlag [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md).
+**R4 (oppslag + mobil-cache):**
+- **Server:** member-lesbare `oppmotested.hentMatriseForFirma` + `bygning.hentForFirma` (firma-scopet via `project.primaryOrganizationId`).
+- **Mobil-cache:** `reisetid_matrise_local` + `byggeplass_local` (id/projectId/number/status, ingen koord) via nye `reisetidMatriseKatalog`/`byggeplassKatalog`, refresh wiret i `TimerSyncProvider`.
+- **Oppslag (`StartSluttDagKort:371`):** GPS-kontor (`arbeidsdag_local.oppmotestedId`) → prosjektets **primær-byggeplass** (`resolverPrimaerByggeplass`: kandidater m/matrise-rad, published først → lavest number null-sist → id) → matrise-oppslag. `≥0`→faktisk reisetid, `<0`→ingen forslag, ingen rad→`estimerReisetidMin`-fallback. `total − reisetid`-formelen uendret.
+- **Reload: EAS/TestFlight** (mobil-endring). Fase 1c-mobil (eksplisitt byggeplass-GPS) egen fremtidig fase — R4 forward-kompatibel.
 
-> 📋 **GJENSTÅENDE FASER:** ~~Fase 1b: firma-isolasjons-fiks~~ (✅ implementert, se over) · Fase 2: Alt C (`Project.type`, `SheetTimer.vehicleId?`, intern-prosjekt-flyt) · Fase 3: reise-regelsett på `OrganizationSetting`. Ingen kode før per-fase-godkjenning.
+**R3 (recompute-motor + triggere):**
+- **Service:** `apps/api/src/services/reisetidMatrise.ts` — `recomputeMatrise({organizationId, oppmotestedId?, byggeplassId?})` (kolonne/rad/full backfill). Firma-isolasjon HARD (kontorer på `organizationId`, byggeplasser på `project.primaryOrganizationId` — aldri kryssorg). Koord-fallback byggeplass→`Project.lat/lng`→hopp over. OSRM-batching chunks à `90−antallKontorer`. Uoppnåelig → `kjoretidMin=-1`.
+- **Triggere:** `oppmotested.opprett`→kolonne, `oppdater` (kun ved lat/lng-endring)→kolonne, `slett`→FK-Cascade; byggeplass-koord begge skrivesteder (`oppdaterByggeplassGeofence` success + inline `settGeofence`)→rad. Fire-and-forget (lagring venter aldri på OSRM). Stale-rydding ved koord-tap; OSRM-feil beholder eksisterende.
+- **On-demand:** `oppmotested.beregnMatrise` (admin-only, await full backfill) + knapp i Reise-seksjonen (`firma/innstillinger`).
+- **R4-kontrakt dokumentert** (timer.md): `<0`→ingen forslag, fravær→live-fallback, `≥0`→faktisk tid.
+- **i18n:** 5 nye `firma.innstillinger.reise.matrise*` (nb+en + 13 språk). **Reload:** ingen mobil-endring.
+
+**R1 (grunnmur):**
+- **Schema (kjerne):** ny `ReisetidMatrise` i `packages/db` (søsken til `Oppmotested` — geo-infra, KS-3): `{ organizationId (denormalisert), oppmotestedId + byggeplassId (begge FK Cascade), kjoretidMin, kilde, beregnetAt }`, `@@unique([oppmotestedId, byggeplassId])`. Migrasjon `20260611120000_reisetid_matrise` (additiv `CREATE TABLE`).
+- **Rute-service:** `apps/api/src/services/rute-service.ts` — keyless `geokodAdresse` (Nominatim) + `hentKjoretidMatrise` (OSRM `/table`, fler-kontor×fler-byggeplass i ett kall) bak provider-iface. Public OSM-default + valgfri `OSRM_BASE_URL`/`NOMINATIM_BASE_URL` (process.env, rører ingen `.env`). Alle feil → null (matrise = forslag-cache, aldri kritisk sti).
+- **kilde:** v1 skriver kun `"osrm"`; estimat-fallback beregnes live ved oppslag (R4), lagres aldri.
+
+**R2 (kontor-geokoding + kart):**
+- **Server:** nytt `oppmotested.geokod` (`oppmotested.ts`, firma-admin, `{organizationId, adresse}` → `{lat,lng}|null`). Ingen auto-geokoding i opprett/oppdater — knapp-trigget, lagret verdi = feltene.
+- **Web:** `OppmotestedModal` (`/dashbord/firma/oppmotesteder`) — «Geokod adresse»-knapp + dynamisk `KartVelger` (ssr:false) med punkt + geofence-sirkel, to-veis felt↔kart. `KartVelger.tsx` utvidet med valgfri `radiusM`-prop (`L.circle`, bakover-kompatibel). Manuell lat/lng + kart-klikk/dra som override.
+- **i18n:** `firma.oppmotested.geokod*` + `hjelp.adresse` (nb+en + 13 auto-språk). Hjelpetekst-linje lagt til.
+- **Reload:** ingen mobil-endring (R1+R2 er server/web-only).
+
+### NorBERT cross-container-bind-fiks + doc-drift-opprydding — PÅ DEVELOP 2026-06-10 (deploy + prod-re-sjekk utestående)
+
+Fikser at embedding/AI-søk var nede i Docker-prod: `norbert-server.py` bandt `127.0.0.1` (uoppnåelig cross-container på `appnet`). I tillegg opprydding av dokumentasjonsdrift funnet i kode-vs-doc-gjennomgang 2026-06-10.
+
+- **App-kode:** `apps/api/src/services/norbert-server.py` — bind gjort konfigurerbar via `NORBERT_HOST` (default `127.0.0.1`); `docker/docker-compose.yml` setter `NORBERT_HOST=0.0.0.0` på `embed`. (`oversettelse-server.py` bandt allerede `0.0.0.0`.)
+- **CLAUDE.md:** Prisma `v6.19`→`^6.3.0`; i18n «13 språk/~600 nøkler»→«15 språkfiler/~2500»; `apps/timer` fjernet (timer er integrert, ikke egen app); `db-varelager` lagt i struktur; `db-maskin` Fase 1→3; NorBERT lagt i embedding-beskrivelse; deploy-seksjon merket utdatert m/peker til `infrastruktur.md`.
+- **Docs:** README/MALBYGGER «entreprise»→«faggruppe» (prosa) + Expo SDK 54 + db-pakker i struktur; `api.md` komplett routertabell (43 routere, `entreprise→faggruppe`/`bygning→byggeplass`-aliaser notert); `web.md` (faggrupper/timer/vareforbruk/hms); `mobil.md` (timer-modul).
+- **ftd-worker:** merket «ikke i bruk» (foreldreløs; parsing skjer in-process i `ftd-prosessering.ts`).
+
+**Utestående (Kenneth — krever sudo på server-ny):** rebuild `embed`/`oversettelse` + re-sjekk `docker exec sitedoc-api node -e "...connect(3302,'embed')..."` → forventet `REACHABLE`. Deretter prod-verifisering av AI-søk som innlogget. **Reload:** ingen mobil-endring.
+
+> ✅ **Arkivert til [historikk-2026-06.md § Timer-arkitektur SPOR 3 (Fase 1 + 1b + 1c-server + 2 + 3) — DEPLOYET TIL PROD 2026-06-10](historikk-2026-06.md)** (prod-merge `aed86d0f`: Fase 1 `ea511e3c` · 1b `eea004cb` (docs `47a6b38b`) · 1c-server `ee45ead3` · 2 `12678577` · 3 `162ef59e`). 5 migrasjoner anvendt på prod + verifisert via `_prisma_migrations` (alle finished, 0 blokkerende). **Utestående (ikke prod-blokkerende):** mobil-deler via EAS-bygg + innlogget prod-verifisering (Kenneth). Mobil-MVP «Start dag/Slutt dag» = egen aktiv post under (krever EAS).
 
 > Arkivert til [historikk-2026-05.md](historikk-2026-05.md): [§ useToppbarFiltre-hook + ByggeplassVelger disabled-state — deployet til prod 2026-05-30](historikk-2026-05.md), [§ Subdomain↔category-validering + HMS-prefiks amber-hint — deployet til prod 2026-05-30](historikk-2026-05.md), [§ ProsjektVelger viser aktivt prosjektnavn på oppsett-sider — deployet til prod 2026-05-29](historikk-2026-05.md), [§ RUH bytter fra sjekkliste til oppgave-shape — deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-checkbox alltid synlig i rediger-modal + server-guard for domain-skift — deployet til prod 2026-05-29](historikk-2026-05.md), [§ TaskChangeLog — deployet til prod 2026-05-29](historikk-2026-05.md), [§ Firma-admin tilgangs-asymmetri i `hentBrukerTillatelser` — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Firma-HMS-dashbord Trinn 1-4 — alle deployet til prod 2026-05-29](historikk-2026-05.md), [§ HMS-byggeplass-filter — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Oppgave-mobil rettighetsoppfølger — deployet til prod 2026-05-28](historikk-2026-05.md), [§ standardPauseFra — firma-konfigurerbar pause-default — deployet til prod 2026-05-28](historikk-2026-05.md), [§ Impersonering audit-log — `ImpersonationAudit`-tabell — deployet til prod 2026-05-28](historikk-2026-05.md), [§ HMS-tabell redesign — `<table>` → `@sitedoc/ui Table` — deployet til prod 2026-05-28](historikk-2026-05.md).
 

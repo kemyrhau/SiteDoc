@@ -1,0 +1,3 @@
+# Apple-credentials for eas-build.sh — committes ALDRI (rot-.gitignore fanger
+# også .env.*.local; denne er eksplisitt lokal for tydelighet).
+.env.eas.local

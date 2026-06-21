@@ -20,6 +20,8 @@ import {
   CheckCircle,
   RotateCcw,
   Plus,
+  Sparkles,
+  Split,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
@@ -29,7 +31,6 @@ import {
   sheetTimerLocal,
   sheetTilleggLocal,
   sheetMachineLocal,
-  aktivitetLocal,
   equipmentLocal,
   externalCostObjectLocal,
 } from "../../src/db/schema";
@@ -50,7 +51,6 @@ import type {
   TimerRad,
   TilleggRad,
   MaskinRad,
-  Aktivitet,
 } from "../../src/types/timer-detalj";
 
 export default function DagsseddelDetalj() {
@@ -64,7 +64,6 @@ export default function DagsseddelDetalj() {
   const [timerRader, setTimerRader] = useState<TimerRad[]>([]);
   const [tilleggRader, setTilleggRader] = useState<TilleggRad[]>([]);
   const [maskinRader, setMaskinRader] = useState<MaskinRad[]>([]);
-  const [aktivitet, setAktivitet] = useState<Aktivitet | null>(null);
   const [harEquipmentCache, setHarEquipmentCache] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
   // Tomme prosjekt-grupper som brukeren har lagt til via «+ Legg til prosjekt».
@@ -109,13 +108,6 @@ export default function DagsseddelDetalj() {
       .all();
     setMaskinRader(maskiner);
 
-    const akt = db
-      .select()
-      .from(aktivitetLocal)
-      .where(eq(aktivitetLocal.id, sedelRad.aktivitetId))
-      .all()[0];
-    setAktivitet(akt ?? null);
-
     // Soft-skjul-sjekk: maskin-seksjonen vises kun hvis Equipment-cache er
     // populert (Maskin-modul aktivert + firmaet har utstyr) eller hvis
     // sedlen allerede har maskin-rader (gamle rader bevares).
@@ -159,6 +151,11 @@ export default function DagsseddelDetalj() {
   const totaltimer = useMemo(
     () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
     [timerRader],
+  );
+
+  const totalMaskin = useMemo(
+    () => maskinRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
+    [maskinRader],
   );
 
   // T7-3b2: aktive prosjekt-grupper. Inkluder alltid sedel.projectId som
@@ -274,9 +271,6 @@ export default function DagsseddelDetalj() {
           <Text className="text-base font-semibold text-gray-900">
             {formatNorskDato(sedel.dato)}
           </Text>
-          {aktivitet && (
-            <Text className="text-xs text-gray-500">{aktivitet.navn}</Text>
-          )}
         </View>
         <TimerStatusMerkelapp
           status={sedel.status}
@@ -354,6 +348,36 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
+        {/* Slice 3: auto-fyll-banner — kun på auto-genererte drafts. Forsvinner
+            automatisk ved innsending (gated på status === "draft"). */}
+        {sedel.status === "draft" && sedel.autoGenerert && (
+          <View className="mx-4 mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <Sparkles size={16} color="#1e40af" />
+              <Text className="text-sm font-semibold text-blue-900">
+                {t("timer.autoFyll.tittel")}
+              </Text>
+            </View>
+            <Text className="mt-1 text-xs text-blue-700">
+              {t("timer.autoFyll.hjelp")}
+            </Text>
+          </View>
+        )}
+
+        {/* Slice 4a: «delt ved midnatt»-merking — sedelen er ett segment av et
+            skift som krysset midnatt. Forklarer lave per-dag-timer som legitim
+            splitt. Vises uavhengig av status (fakta om sedelen). */}
+        {sedel.deltVedMidnatt && (
+          <View className="mx-4 mt-4 flex-row items-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2">
+            <Split size={14} color="#4338ca" />
+            <Text className="flex-1 text-xs text-indigo-800">
+              <Text className="font-semibold">{t("timer.deltMidnatt.tittel")}</Text>
+              {" — "}
+              {t("timer.deltMidnatt.hjelp")}
+            </Text>
+          </View>
+        )}
+
         <ArbeidstidSeksjon
           sheetId={sheetId}
           dato={sedel.dato}
@@ -372,7 +396,7 @@ export default function DagsseddelDetalj() {
           <ProsjektGruppe
             key={pid}
             projectId={pid}
-            visHeader={aktiveProsjektIder.length > 1}
+            visHeader={true}
             sheetId={sheetId}
             organizationId={sedel.organizationId}
             sedelProjectId={sedel.projectId}
@@ -409,6 +433,7 @@ export default function DagsseddelDetalj() {
             <SummeringsBanner
               totaltimer={totaltimer}
               arbeidstidTimer={arbeidstidTimer}
+              maskinTimer={totalMaskin}
             />
           )}
           {erRedigerbar && (
@@ -421,6 +446,11 @@ export default function DagsseddelDetalj() {
                 {t("timer.sendTilAttestering")}
               </Text>
             </Pressable>
+          )}
+          {erRedigerbar && (
+            <Text className="text-center text-xs text-gray-500">
+              {t("timer.sendGodkjennHint")}
+            </Text>
           )}
           {sedel.status === "draft" && (
             <Pressable
@@ -484,7 +514,15 @@ function ProsjektGruppe({
   maskinRader: MaskinRad[];
   onEndret: () => void;
 }) {
+  const { t } = useTranslation();
   const prosjekt = useMemo(() => finnProsjektLokalt(projectId), [projectId]);
+
+  // Subtotal i gruppe-header: sum av prosjektets arbeidstimer. Maskin holdes
+  // utenfor (vises som «herav» i hver ECO-bucket).
+  const prosjektTimer = useMemo(
+    () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
+    [timerRader],
+  );
 
   // T7-4e: bygg ECO-bukets innen dette prosjektet. Hovedgruppe (ECO=null)
   // vises alltid først; ECO-er i den rekkefølgen de først dukker opp i rader.
@@ -518,11 +556,14 @@ function ProsjektGruppe({
   return (
     <View className="mt-2">
       {visHeader && (
-        <View className="mx-4 mt-4 rounded-t-lg border border-b-0 border-gray-200 bg-blue-50 px-4 py-2">
-          <Text className="text-sm font-semibold text-sitedoc-primary">
+        <View className="mx-4 mt-4 flex-row items-center justify-between gap-2 rounded-t-lg border border-b-0 border-gray-200 bg-blue-50 px-4 py-2">
+          <Text className="flex-1 text-sm font-semibold text-sitedoc-primary">
             {prosjekt
               ? `${prosjekt.projectNumber ? prosjekt.projectNumber + " — " : ""}${prosjekt.name}`
               : projectId}
+          </Text>
+          <Text className="text-sm font-semibold text-sitedoc-primary">
+            {prosjektTimer.toFixed(2)} {t("timer.tEnhet")}
           </Text>
         </View>
       )}
@@ -658,7 +699,7 @@ function EcoBucket({
       {/* Maskintimer som underpost (indentert via ml-3 + border-l-2) */}
       <View className="ml-3 mt-3 border-l-2 border-gray-200 pl-3">
         <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
-          {t("timer.gruppe.maskintimer")} ({sumMaskin.toFixed(2)} {t("timer.tEnhet")})
+          {t("timer.gruppe.heravMaskin")} ({sumMaskin.toFixed(2)} {t("timer.tEnhet")})
         </Text>
         <MaskinSeksjon
           sheetId={sheetId}

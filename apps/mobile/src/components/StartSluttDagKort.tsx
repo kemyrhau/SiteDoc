@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { View, Text, Pressable, ActivityIndicator, Alert } from "react-native";
 import { useRouter } from "expo-router";
-import { Play, Square, Clock } from "lucide-react-native";
+import { Play, Square, Clock, AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
 import * as Location from "expo-location";
@@ -19,18 +19,30 @@ import { useFirma } from "../kontekst/FirmaKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { avstandMeter, estimerReisetidMin, klassifiserReise, type ReiseKategori } from "@sitedoc/shared";
 import { haversineKm } from "../utils/geo";
+import { splittVedMidnatt, type Dagsegment } from "../utils/dagsegment";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
+import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
-import { hentStandardLonnsartLokalt } from "../services/timerKatalog";
+import {
+  hentStandardLonnsartLokalt,
+  hentReiseLonnsartId,
+} from "../services/timerKatalog";
 import { hentOrganizationSettingLokalt } from "../services/organizationSettingKatalog";
+import {
+  hentMatriseRadLokalt,
+  resolverPrimaerByggeplass,
+} from "../services/reisetidMatriseKatalog";
 
 type AktivDag = {
   id: string;
   startAt: string;
   startLat: number | null;
   startLng: number | null;
+  oppmotestedId: string | null;
   oppmotestedNavn: string | null;
+  byggeplassId: string | null;
+  byggeplassNavn: string | null;
 };
 
 /**
@@ -92,6 +104,9 @@ export function StartSluttDagKort() {
   const [aktivDag, setAktivDag] = useState<AktivDag | null>(null);
   const [naa, setNaa] = useState<number>(Date.now());
   const [behandler, setBehandler] = useState(false);
+  // Lag 2: arbeider har bekreftet «jeg jobber fortsatt» på en gammel åpen dag
+  // → skjul glemt-dag-prompten for denne økten og vis normal «Slutt dag».
+  const [jobberFortsatt, setJobberFortsatt] = useState(false);
 
   // Les pågående arbeidsdag ved montering.
   const lesAktivDag = useCallback(() => {
@@ -115,7 +130,10 @@ export function StartSluttDagKort() {
           startAt: rad.startAt,
           startLat: rad.startLat,
           startLng: rad.startLng,
+          oppmotestedId: rad.oppmotestedId ?? null,
           oppmotestedNavn: rad.oppmotestedNavn ?? null,
+          byggeplassId: rad.byggeplassId ?? null,
+          byggeplassNavn: rad.byggeplassNavn ?? null,
         }
       : null;
   }, [bruker?.id]);
@@ -139,8 +157,10 @@ export function StartSluttDagKort() {
       const { lat, lng } = await fangGps();
       const db = hentDatabase();
       if (!db) return;
-      // GPS-identifiser oppmøtested (dokumentasjon + forslag, aldri lønn).
+      // GPS-identifiser oppmøtested + byggeplass (dokumentasjon + forslag, aldri
+      // lønn/reise/prosjektvalg). L1: byggeplass speiler oppmøtested-mønsteret.
       const oppm = identifiserOppmotested(lat, lng, valgtFirmaId ?? "");
+      const bygg = identifiserByggeplass(lat, lng, valgtFirmaId ?? "");
       const naaIso = new Date().toISOString();
       const id = randomUUID();
       db.insert(arbeidsdagLocal)
@@ -158,6 +178,8 @@ export function StartSluttDagKort() {
           generertDagsseddelId: null,
           oppmotestedId: oppm?.id ?? null,
           oppmotestedNavn: oppm?.navn ?? null,
+          byggeplassId: bygg?.id ?? null,
+          byggeplassNavn: bygg?.navn ?? null,
           sistEndretLokalt: Date.now(),
         })
         .run();
@@ -166,21 +188,32 @@ export function StartSluttDagKort() {
         startAt: naaIso,
         startLat: lat,
         startLng: lng,
+        oppmotestedId: oppm?.id ?? null,
         oppmotestedNavn: oppm?.navn ?? null,
+        byggeplassId: bygg?.id ?? null,
+        byggeplassNavn: bygg?.navn ?? null,
       });
     } finally {
       setBehandler(false);
     }
   }, [bruker?.id, behandler, valgtFirmaId]);
 
-  const utforSluttDag = useCallback(async () => {
+  const utforSluttDag = useCallback(
+    async (
+      overstyrtSluttIso?: string,
+      sisteSegmentKilde: "bruker" | "system" = "bruker",
+    ) => {
     if (!aktivDag || !bruker?.id || behandler) return;
     setBehandler(true);
     try {
-      const { lat, lng } = await fangGps();
+      // Lag 2 (gjenoppretting av glemt dag): bruk estimert slutt-tid og IKKE
+      // GPS-ved-slutt — arbeider er ikke nødvendigvis på stedet nå.
+      const { lat, lng } = overstyrtSluttIso
+        ? { lat: null as number | null, lng: null as number | null }
+        : await fangGps();
       const db = hentDatabase();
       if (!db) return;
-      const sluttIso = new Date().toISOString();
+      const sluttIso = overstyrtSluttIso ?? new Date().toISOString();
       const dagsseddelId = genererForslag(
         bruker.id,
         valgtFirmaId ?? "",
@@ -188,6 +221,7 @@ export function StartSluttDagKort() {
         sluttIso,
         lat,
         lng,
+        sisteSegmentKilde,
       );
       db.update(arbeidsdagLocal)
         .set({
@@ -231,6 +265,30 @@ export function StartSluttDagKort() {
     );
   }, [aktivDag, behandler, t, utforSluttDag]);
 
+  // Lag 2 (glemt dag): gjenoppretting — estimer slutt-tid og generer draft
+  // arbeider kan korrigere. Slutt merkes sluttTidKilde="system" → kontroll-badge
+  // i attestering (tiden er gjettet, ikke bekreftet).
+  const gjenopprettGlemtDag = useCallback(() => {
+    if (!aktivDag || behandler) return;
+    const startDato = formatIsoDato(new Date(aktivDag.startAt));
+    const effektiv = hentEffektivArbeidstidLokal(
+      valgtFirmaId ?? "",
+      new Date(`${startDato}T00:00:00`),
+    );
+    const start = new Date(aktivDag.startAt);
+    const [tt, mm] = effektiv.sluttTid.split(":").map(Number);
+    let slutt = new Date(start);
+    slutt.setHours(tt, mm, 0, 0);
+    // Nattskift-edge (4b-2): standardSluttTid ligger før start-klokkeslettet →
+    // 0/negativ varighet. Estimer i stedet start + dagsnorm (krysser evt.
+    // midnatt → 4a-splitt håndterer det). Arbeider korrigerer uansett.
+    if (slutt.getTime() <= start.getTime()) {
+      const dagsnormTimer = effektiv.dagsnorm > 0 ? effektiv.dagsnorm : 7.5;
+      slutt = new Date(start.getTime() + dagsnormTimer * 3_600_000);
+    }
+    void utforSluttDag(slutt.toISOString(), "system");
+  }, [aktivDag, behandler, valgtFirmaId, utforSluttDag]);
+
   if (!bruker?.id) return null;
 
   // Inaktiv — «Start dag»
@@ -250,6 +308,52 @@ export function StartSluttDagKort() {
           {t("timer.startDag.start")}
         </Text>
       </Pressable>
+    );
+  }
+
+  // Lag 2: gammel åpen dag (startet før i dag) + ikke bekreftet «jobber fortsatt»
+  // → glemt-dag-prompt i stedet for normal «Slutt dag». Adresserer glemt «Slutt
+  // dag» (BUG-1) + 4a over-splitt av fler-døgns økt.
+  const startDato = formatIsoDato(new Date(aktivDag.startAt));
+  if (startDato < formatIsoDato(new Date()) && !jobberFortsatt) {
+    return (
+      <View className="mx-4 mt-3 rounded-lg border border-amber-300 bg-amber-50 p-3">
+        <View className="flex-row items-center gap-2">
+          <AlertTriangle size={16} color="#b45309" />
+          <Text className="flex-1 text-sm font-semibold text-amber-900">
+            {t("timer.glemtDag.tittel")}
+          </Text>
+        </View>
+        <Text className="mt-1 text-xs text-amber-800">
+          {t("timer.glemtDag.melding", { dato: startDato })}
+        </Text>
+        <View className="mt-3 gap-2">
+          <Pressable
+            onPress={() => gjenopprettGlemtDag()}
+            disabled={behandler}
+            className="flex-row items-center justify-center gap-2 rounded-lg bg-amber-600 py-3 active:bg-amber-700 disabled:opacity-50"
+          >
+            {behandler ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <Square size={16} color="#ffffff" fill="#ffffff" />
+            )}
+            <Text className="text-base font-semibold text-white">
+              {t("timer.glemtDag.glemte")}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => setJobberFortsatt(true)}
+            disabled={behandler}
+            className="flex-row items-center justify-center gap-2 rounded-lg border border-amber-300 bg-white py-3 active:bg-amber-100 disabled:opacity-50"
+          >
+            <Clock size={16} color="#b45309" />
+            <Text className="text-base font-medium text-amber-800">
+              {t("timer.glemtDag.jobberFortsatt")}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
     );
   }
 
@@ -293,14 +397,16 @@ export function StartSluttDagKort() {
 }
 
 /**
- * Generer et dagsseddel-forslag fra en avsluttet arbeidsdag-økt.
- * Returnerer dagsseddel-id, eller null hvis prosjekt/aktivitet ikke kan
- * utledes offline (kaller da manuell opprettelse).
+ * Generer dagsseddel-forslag fra en avsluttet arbeidsdag-økt.
+ * Returnerer **start-dagens** dagsseddel-id (for navigering), eller null hvis
+ * prosjekt/aktivitet ikke kan utledes offline (kaller da manuell opprettelse).
  *
- * Prosjekt: nærmeste fra Haversine (start-GPS, ellers slutt-GPS). Arbeidstid:
- * (slutt − start) − firma-pauseMin. Auto-fordeling: Timelønn (firma-default,
- * Variant B `erStandardvalg`) opp til dagsnorm + «Overtid 50%» (navne-match,
- * midlertidig MVP-identifikasjon) for overskytende.
+ * Slice 4a: en økt som krysser midnatt deles i én dagsseddel per kalenderdag
+ * (`splittVedMidnatt`); timene summerer til reell total. Reise + firma-pause
+ * føres KUN på start-dagen (vedtatt 2026-06-20). Per dag gjelder dagens
+ * auto-fordeling: Timelønn (firma-default, Variant B `erStandardvalg`) opp til
+ * dagsnorm + «Overtid 50%» (navne-match) for overskytende. Prosjekt = nærmeste
+ * via Haversine (start-GPS, ellers slutt-GPS).
  */
 function genererForslag(
   userId: string,
@@ -309,6 +415,10 @@ function genererForslag(
   sluttIso: string,
   endLat: number | null,
   endLng: number | null,
+  // Slice 4b-2: kilde for SISTE segments slutt-tid. Normal «Slutt dag» = "bruker"
+  // (arbeider-handling); glemt-dag-gjenoppretting = "system" (estimert/gjettet).
+  // Ikke-siste segmenter får alltid "midnatt" (automatisk dag-grense).
+  sisteSegmentKilde: "bruker" | "system" = "bruker",
 ): string | null {
   const db = hentDatabase();
   if (!db) return null;
@@ -341,90 +451,179 @@ function genererForslag(
   const aktivitet =
     aktiviteter.find((a) => a.navn === "Anleggsarbeid") ?? aktiviteter[0];
 
-  // 3. Arbeidstid = brutto − firma-pause.
-  const dato = formatIsoDato(new Date(dag.startAt));
-  const effektiv = hentEffektivArbeidstidLokal(
-    orgId,
-    new Date(`${dato}T00:00:00`),
-  );
-  const bruttoTimer =
-    (new Date(sluttIso).getTime() - new Date(dag.startAt).getTime()) / 3_600_000;
-  const totalTimer =
-    Math.round(Math.max(0, bruttoTimer - effektiv.pauseMin / 60) * 100) / 100;
-
-  // Fase 3 (§ B): reise-forslag. KUN når oppmøtested ble identifisert ved start
-  // (kontor→byggeplass — hjem→arbeidssted kompenseres ikke). GPS-distanse
-  // start→slutt; reisetid ESTIMERES (fast-MVP, arbeider justerer). Klassifiseres
-  // mot firmaets terskel; 'reisetid' → egen reise-lønnsart-rad. Aldri auto-rad
-  // uten innsyn — havner i draft som forslag.
+  // 3. Reise-forslag (føres på START-dagen). Fase 3 (§ B) + R4: KUN når
+  // oppmøtested ble identifisert ved start (kontor→byggeplass — hjem→arbeidssted
+  // kompenseres ikke). Reisetid = matrise-kjøretid (kontor→prosjektets primær-
+  // byggeplass; autoritativ, end-uavhengig). kjoretidMin < 0 = uoppnåelig →
+  // ingen forslag. Ingen matrise-rad/byggeplass → graceful estimat-fallback
+  // (GPS-distanse start→slutt). Klassifiseres mot terskel; 'reisetid' → egen
+  // lønnsart-rad. Aldri auto-rad uten innsyn — havner i draft som forslag.
   const regel = hentOrganizationSettingLokalt(orgId);
   let reisetidTimer = 0;
   let reiseLonnsartId: string | null = null;
-  if (
-    dag.oppmotestedNavn &&
-    regel &&
-    dag.startLat != null &&
-    dag.startLng != null &&
-    endLat != null &&
-    endLng != null
-  ) {
-    const reisetidMin = estimerReisetidMin(
-      avstandMeter(
-        { lat: dag.startLat, lng: dag.startLng },
-        { lat: endLat, lng: endLng },
-      ),
+  if (dag.oppmotestedId && regel) {
+    let reisetidMin: number | null = null;
+    const byggeplassId = resolverPrimaerByggeplass(
+      valgtProsjekt.id,
+      dag.oppmotestedId,
     );
-    const kategori: ReiseKategori = klassifiserReise(reisetidMin, {
-      reiseTerskelMin: regel.reiseTerskelMin,
-      reiseUnderTerskelType: regel.reiseUnderTerskelType as ReiseKategori,
-      reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
-    });
-    if (kategori === "reisetid" && reisetidMin > 0) {
-      // Resolver reise-lønnsart: eksplisitt valgt (reiseLonnsartId), ellers
-      // navne-match ("reise/transport") — samme MVP-mønster som overtid under.
-      reiseLonnsartId = regel.reiseLonnsartId ?? null;
-      if (!reiseLonnsartId) {
-        const match = db
-          .select()
-          .from(lonnsartLocal)
-          .where(
-            and(
-              eq(lonnsartLocal.organizationId, orgId),
-              eq(lonnsartLocal.aktiv, true),
-            ),
-          )
-          .all()
-          .find((l) => /reise|transport/i.test(l.navn));
-        reiseLonnsartId = match?.id ?? null;
-      }
-      // Bare foreslå reisetid hvis vi faktisk har en art å føre den på.
-      if (reiseLonnsartId) {
-        reisetidTimer = Math.round((reisetidMin / 60) * 100) / 100;
+    if (byggeplassId) {
+      const rad = hentMatriseRadLokalt(dag.oppmotestedId, byggeplassId);
+      // -1 (uoppnåelig) → 0: ingen forslag, OG hopp over estimat-fallback.
+      if (rad) reisetidMin = rad.kjoretidMin < 0 ? 0 : rad.kjoretidMin;
+    }
+    // Fallback kun når matrisen ikke ga svar (ingen rad/byggeplass).
+    if (
+      reisetidMin == null &&
+      dag.startLat != null &&
+      dag.startLng != null &&
+      endLat != null &&
+      endLng != null
+    ) {
+      reisetidMin = estimerReisetidMin(
+        avstandMeter(
+          { lat: dag.startLat, lng: dag.startLng },
+          { lat: endLat, lng: endLng },
+        ),
+      );
+    }
+    if (reisetidMin != null && reisetidMin > 0) {
+      const kategori: ReiseKategori = klassifiserReise(reisetidMin, {
+        reiseTerskelMin: regel.reiseTerskelMin,
+        reiseUnderTerskelType: regel.reiseUnderTerskelType as ReiseKategori,
+        reiseOverTerskelType: regel.reiseOverTerskelType as ReiseKategori,
+      });
+      if (kategori === "reisetid") {
+        // Resolver reise-lønnsart via delt helper — samme kilde som render-
+        // laget bruker for reise-merking, så generering og visning aldri
+        // drifter fra hverandre (reiseLonnsartId ellers navne-match).
+        reiseLonnsartId = hentReiseLonnsartId(orgId);
+        // Bare foreslå reisetid hvis vi faktisk har en art å føre den på.
+        if (reiseLonnsartId) {
+          reisetidTimer = Math.round((reisetidMin / 60) * 100) / 100;
+        }
       }
     }
   }
 
-  // Arbeidstimer til normaltid/overtid-fordeling = total minus reise-andelen
-  // (reise føres på egen rad). Unngår dobbelttelling av brutto-tiden.
+  // 4. Midnatt-splitt (Slice 4a): én dagsseddel per kalenderdag. Normalt ett
+  // segment (dagskift); kryssende skift → flere. Reise + firma-pause kun på
+  // start-segmentet. Returner start-dagens sedel for navigering.
+  const segmenter = splittVedMidnatt(dag.startAt, sluttIso);
+  const deltVedMidnatt = segmenter.length > 1;
+  let startSheetId: string | null = null;
+  segmenter.forEach((seg, i) => {
+    const pauseMin = seg.erStartSegment
+      ? hentEffektivArbeidstidLokal(orgId, new Date(`${seg.dato}T00:00:00`))
+          .pauseMin
+      : 0;
+    // Ikke-siste segment ender på en automatisk midnatt-grense → "midnatt".
+    // Siste segment ender på den faktiske/estimerte slutt-tiden → sisteSegmentKilde.
+    const erSiste = i === segmenter.length - 1;
+    const id = opprettDagsseddelForSegment({
+      userId,
+      orgId,
+      segment: seg,
+      prosjektId: valgtProsjekt.id,
+      aktivitetId: aktivitet.id,
+      pauseMin,
+      reisetidTimer: seg.erStartSegment ? reisetidTimer : 0,
+      reiseLonnsartId,
+      reisetidTellerOvertid: regel?.reisetidTellerOvertid ?? false,
+      deltVedMidnatt,
+      sluttTidKilde: erSiste ? sisteSegmentKilde : "midnatt",
+    });
+    if (seg.erStartSegment) startSheetId = id;
+  });
+  return startSheetId;
+}
+
+/**
+ * Opprett én dagsseddel (draft) for ett dag-segment + dens timer-rader.
+ *
+ * Idempotens per dag: server håndhever `@@unique([userId, dato])` på
+ * `DailySheet`, så finnes det allerede en sedel for `(userId, segment.dato)`
+ * lokalt → behold den (returner id) og hopp over opprettelse. Ved splitt
+ * betyr det at allerede-eksisterende dager beholdes mens nye dager opprettes.
+ */
+function opprettDagsseddelForSegment(args: {
+  userId: string;
+  orgId: string;
+  segment: Dagsegment;
+  prosjektId: string;
+  aktivitetId: string;
+  pauseMin: number;
+  reisetidTimer: number;
+  reiseLonnsartId: string | null;
+  reisetidTellerOvertid: boolean;
+  deltVedMidnatt: boolean;
+  sluttTidKilde: "bruker" | "midnatt" | "system";
+}): string | null {
+  const {
+    userId,
+    orgId,
+    segment,
+    prosjektId,
+    aktivitetId,
+    pauseMin,
+    reisetidTimer,
+    reiseLonnsartId,
+    reisetidTellerOvertid,
+    deltVedMidnatt,
+    sluttTidKilde,
+  } = args;
+  const db = hentDatabase();
+  if (!db) return null;
+
+  // Idempotens per dag (jf. doc over).
+  const eksisterende = db
+    .select({ id: dagsseddelLocal.id })
+    .from(dagsseddelLocal)
+    .where(
+      and(
+        eq(dagsseddelLocal.userId, userId),
+        eq(dagsseddelLocal.dato, segment.dato),
+      ),
+    )
+    .all()[0];
+  if (eksisterende) return eksisterende.id;
+
+  // Arbeidstid = segment-brutto − pause (pause kun på start-dagen, 1a).
+  const bruttoTimer =
+    (new Date(segment.sluttIso).getTime() -
+      new Date(segment.startIso).getTime()) /
+    3_600_000;
+  const totalTimer =
+    Math.round(Math.max(0, bruttoTimer - pauseMin / 60) * 100) / 100;
+  // Arbeidstimer til normaltid/overtid = total minus reise-andelen (reise føres
+  // på egen rad). Unngår dobbelttelling av brutto-tiden.
   const arbeidstimer =
     Math.round(Math.max(0, totalTimer - reisetidTimer) * 100) / 100;
 
-  // 4. Dagsseddel (draft).
+  const effektiv = hentEffektivArbeidstidLokal(
+    orgId,
+    new Date(`${segment.dato}T00:00:00`),
+  );
+
+  // Dagsseddel (draft).
   const sheetId = randomUUID();
   db.insert(dagsseddelLocal)
     .values({
       id: sheetId,
       userId,
       organizationId: "",
-      projectId: valgtProsjekt.id,
-      aktivitetId: aktivitet.id,
+      projectId: prosjektId,
+      aktivitetId,
       avdelingId: null,
       byggeplassId: null,
-      dato,
-      startAt: dag.startAt,
-      endAt: sluttIso,
-      pauseMin: effektiv.pauseMin,
+      dato: segment.dato,
+      startAt: segment.startIso,
+      endAt: segment.sluttIso,
+      pauseMin,
       status: "draft",
+      autoGenerert: true,
+      deltVedMidnatt,
+      sluttTidKilde,
       beskrivelse: null,
       lederKommentar: null,
       attestertVed: null,
@@ -435,14 +634,14 @@ function genererForslag(
     })
     .run();
 
-  // 5. Auto-fordeling normaltid/overtid.
+  // Auto-fordeling normaltid/overtid (per dag).
   if (arbeidstimer > 0) {
     const dagsnorm0 = effektiv.dagsnorm > 0 ? effektiv.dagsnorm : arbeidstimer;
     // Fase 3: når reisetid teller mot overtid, spiser reise-andelen av dagsnorm-
     // budsjettet → mer av arbeidstiden havner i overtid. Når false (default) er
     // reise utenfor terskelen og dagsnorm gjelder kun arbeidstimene.
     const dagsnorm =
-      regel?.reisetidTellerOvertid && reisetidTimer > 0
+      reisetidTellerOvertid && reisetidTimer > 0
         ? Math.max(0, dagsnorm0 - reisetidTimer)
         : dagsnorm0;
     const timelonnTimer = Math.min(arbeidstimer, dagsnorm);
@@ -454,9 +653,9 @@ function genererForslag(
         .values({
           id: randomUUID(),
           dagsseddelId: sheetId,
-          projectId: valgtProsjekt.id,
+          projectId: prosjektId,
           lonnsartId: standard.id,
-          aktivitetId: aktivitet.id,
+          aktivitetId,
           externalCostObjectId: null,
           timer: timelonnTimer,
           fraTid: null,
@@ -484,9 +683,9 @@ function genererForslag(
           .values({
             id: randomUUID(),
             dagsseddelId: sheetId,
-            projectId: valgtProsjekt.id,
+            projectId: prosjektId,
             lonnsartId: overtid.id,
-            aktivitetId: aktivitet.id,
+            aktivitetId,
             externalCostObjectId: null,
             timer: overtidTimer,
             fraTid: null,
@@ -498,17 +697,16 @@ function genererForslag(
     }
   }
 
-  // 6. Reise-rad (Fase 3 § B) — separat lønnsart-rad utenfor arbeidstime-splittet
-  // (eller medregnet i terskelen når reisetidTellerOvertid, jf. dagsnorm-justering
-  // over). Føres på prosjektet arbeider endte på. Forslag i draft — arbeider justerer.
+  // Reise-rad (Fase 3 § B) — separat lønnsart-rad, kun på start-segmentet
+  // (reisetidTimer = 0 ellers). Føres på samme prosjekt. Forslag i draft.
   if (reisetidTimer > 0 && reiseLonnsartId) {
     db.insert(sheetTimerLocal)
       .values({
         id: randomUUID(),
         dagsseddelId: sheetId,
-        projectId: valgtProsjekt.id,
+        projectId: prosjektId,
         lonnsartId: reiseLonnsartId,
-        aktivitetId: aktivitet.id,
+        aktivitetId,
         externalCostObjectId: null,
         timer: reisetidTimer,
         fraTid: null,

@@ -1,0 +1,47 @@
+# syntax=docker/dockerfile:1
+# NY-SERVER — sitedoc API (Fastify/tRPC) i monorepo (i prod fra 2026-06-10).
+# Build-context = repo-rot. Bygg: docker compose -f docker/docker-compose.yml build sitedoc-api
+
+# ============ Build (hele monorepoet) ============
+FROM node:20-bookworm-slim AS build
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+WORKDIR /app
+# Build-tid native (prisma engines, sharp, evt. node-gyp)
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ openssl \
+    && rm -rf /var/lib/apt/lists/*
+COPY . .
+RUN pnpm install --frozen-lockfile
+# 4 Prisma-klienter (db, db-maskin, db-timer, db-varelager)
+RUN pnpm --filter @sitedoc/db exec prisma generate \
+ && pnpm --filter @sitedoc/db-maskin exec prisma generate \
+ && pnpm --filter @sitedoc/db-timer exec prisma generate \
+ && pnpm --filter @sitedoc/db-varelager exec prisma generate
+RUN pnpm turbo build --filter @sitedoc/api
+
+# ============ Runtime (med native konvertere API-et shell-er ut til) ============
+FROM node:20-bookworm-slim AS runtime
+ENV NODE_ENV=production
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      poppler-utils tesseract-ocr tesseract-ocr-nor xvfb \
+      openssl ca-certificates fontconfig \
+    && rm -rf /var/lib/apt/lists/*
+# DWG-konvertering: libredwg er ikke i bookworm-apt (gammel server bygde fra kilde).
+# Legg til ODAFileConverter (seksjonen under) eller bygg libredwg fra kilde senere.
+# Uten det feiler KUN DWG→DXF-konvertering; resten av API-et virker.
+
+# --- ODAFileConverter (valgfri, bedre DWG enn libredwg-fallback) ---
+# Last ned .deb fra https://www.opendesign.com/guestfiles/oda_file_converter (krever ODA-konto),
+# legg den i docker/vendor/, og fjern kommentarene under. Uten ODA brukes dwg2dxf (libredwg) som fallback.
+# COPY docker/vendor/ODAFileConverter*.deb /tmp/oda.deb
+# RUN apt-get update && (dpkg -i /tmp/oda.deb || apt-get -f install -y) \
+#     && rm -f /tmp/oda.deb && rm -rf /var/lib/apt/lists/*
+# ENV ODA_CONVERTER_PATH=/usr/bin/ODAFileConverter
+
+WORKDIR /app
+COPY --from=build /app ./
+WORKDIR /app/apps/api
+EXPOSE 3001
+# Repoet kjorer api via tsx (root tsconfig har noEmit -> dist har extensionless ESM-imports som
+# `node dist/server.js` ikke resolver). tsx kjorer TS-kilde direkte, slik test-oppsettet gjor.
+CMD ["pnpm", "exec", "tsx", "src/server.ts"]

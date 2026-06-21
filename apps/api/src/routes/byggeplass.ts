@@ -2,10 +2,38 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createByggeplassSchema } from "@sitedoc/shared";
-import { verifiserAdmin, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import {
+  verifiserAdmin,
+  verifiserProsjektmedlem,
+  verifiserOrganisasjonTilgang,
+} from "../trpc/tilgangskontroll";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
+import { recomputeRadForByggeplass } from "../services/reisetidMatrise";
 
 export const byggeplassRouter = router({
+  // R4: member-lesbar liste over firmaets byggeplasser (mobil-cache for
+  // reisetid-matrise → prosjekt→primær-byggeplass-resolusjon). Firma-scopet via
+  // project.primaryOrganizationId. L1 (2026-06-20): utvidet med name + geofence
+  // (latitude/longitude/radiusM) for GPS-identifikasjon av byggeplass på mobil.
+  hentForFirma: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+      return ctx.prisma.byggeplass.findMany({
+        where: { project: { primaryOrganizationId: input.organizationId } },
+        select: {
+          id: true,
+          projectId: true,
+          number: true,
+          status: true,
+          name: true,
+          latitude: true,
+          longitude: true,
+          radiusM: true,
+        },
+      });
+    }),
+
   // Hent alle byggeplasser for et prosjekt
   hentForProsjekt: protectedProcedure
     .input(z.object({
@@ -129,7 +157,7 @@ export const byggeplassRouter = router({
         select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
-      return ctx.prisma.byggeplass.update({
+      const oppdatert = await ctx.prisma.byggeplass.update({
         where: { id: input.byggeplassId },
         data: {
           latitude: input.latitude,
@@ -137,6 +165,10 @@ export const byggeplassRouter = router({
           radiusM: input.radiusM,
         },
       });
+      // R3: manuell geofence-endring (inkl. nullstilling) → recompute rad
+      // (fire-and-forget; null-koord → stale-rydding i recomputeMatrise).
+      recomputeRadForByggeplass(input.byggeplassId);
+      return oppdatert;
     }),
 
   // Publiser byggeplass

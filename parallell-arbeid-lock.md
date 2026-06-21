@@ -12,7 +12,7 @@
 | Spor | Kontroll-Claude | Branch / worktree | Status |
 |------|-----------------|-------------------|--------|
 | **TIMER-ARKITEKTUR** | denne Cowork-samtalen | `develop` | Aktiv — SPOR 2 (docs-routing) |
-| **NY-SERVER** | denne Cowork-samtalen (→ flyttes til ny samtale for migreringsfasen) | _(model 1: Kenneth utfører fra Mac, kontroll-Claude verifiserer)_ | **Fjerntilgang FULLFØRT 2026-06-08** (TPM + UEFI + Tailscale + SSH-herding). **Docker + tunnel `sitedoc-ny` oppe. SENDFIL MIGRERT 2026-06-08** (Docker, herdet, DNS flyttet — gammel sendfil stoppet som rollback). **Neste:** salsaklubb (krever Postgres-container + delt DNS/Stripe/Vipps), deretter sitedoc sist. |
+| **NY-SERVER** | egen Cowork-samtale | **worktree `../sitedoc-server`, branch `ny-server`** (model 1: Kenneth utfører fra Mac, kontroll-Claude verifiserer) | **MIGRERING FULLFØRT 2026-06-10 ✅** — alle tre apper i Docker på ny server: SENDFIL (2026-06-08), SALSAKLUBB (2026-06-09), SITEDOC (2026-06-10, test+prod, pgvector, ML, innlogget+tegninger+3D verifisert). Delt Postgres `pgvector/pgvector:pg16` + restic-backup (NVMe). Gamle apper stoppet som rollback. **Sitedoc-dev var fryst på TIMER-sporet under flyttingen.** Gjenstår: avvikle gamle (stopp + fjern fra gammel tunnel), off-disk-backup-disk, ODA for DWG, slett junk-DNS. NY-SERVER pusher kun til branch `ny-server`, aldri develop. |
 
 > **Kontekst:** Dagens server = Ubuntu under en Win-PC i daglig bruk, ukontrollert ukentlig restart (ustabil). NY-SERVER bygger et nytt, stabilt, sikrere oppsett. Begge spor deployer fra samme repo, men til **ulike mål** under overgangen: TIMER → dagens test/prod; NY-SERVER → nytt oppsett. Ingen kryssdeploy uten lås.
 
@@ -43,9 +43,9 @@ Gjelder: `.env`, server/PM2/deploy, DNS/OAuth/ngrok, **prod-DB-migrering**.
 
 | Ressurs | Holdes av | Siden | Slippes når |
 |---------|-----------|-------|-------------|
-| **prod-DB (`sitedoc`) — migrering** | **TIMER** | 2026-06-10 (SPOR 3 prod-deploy: Fase 1+1b+1c+2+3, 5 migrasjoner) | Når prod-migrate-deploy + verifisering er fullført |
+| _(ingen aktiv lås)_ | — | — | — |
 
-> ⚠️ **NY-SERVER:** ikke flytt/migrer prod-DB-data (`sitedoc`) før denne låsen er sluppet. TIMER kjører `prisma migrate deploy` mot prod nå (additive migrasjoner: oppmøtested, byggeplass-geofence, Project.type, SheetTimer.vehicleId, reise-regelsett). Data-flytting ETTER.
+> ✅ **SPOR 3 prod-deploy fullført 2026-06-10** (Fase 1+1b+1c+2+3, 5 additive migrasjoner anvendt på `sitedoc`, verifisert via `_prisma_migrations` — alle finished, 0 blokkerende). LÅS sluppet. **NY-SERVER:** prod-DB-data-flytting kan nå skje.
 
 ### Protokoll
 1. **Før** du rører en eksklusiv ressurs: sjekk tabellen. Holdt av det andre sporet → **STOPP**, koordiner via Kenneth.
@@ -73,6 +73,19 @@ Gjelder: `.env`, OAuth-secrets, DB-passord, SSH-nøkler, API-nøkler.
 > Server-hardening kan heve hygienen (rotasjonsrutine, secrets-manager) — men det er en designvurdering server-sporet tar, og den skal **aldri** flytte nøkkel-håndtering bort fra Kenneth uten hans eksplisitte beslutning.
 
 ---
+
+## Git-skriving — sandkasse-`.git`-unlink-asymmetri (lærdom 2026-06-20)
+
+Kontroll-Claudes sandkasse kan **lage** filer under `.git/` men **ikke slette** dem
+(`touch .git/.skrivetest` = OK, `rm` = «Operation not permitted»). En git-skriveoperasjon
+(`commit`/`add`) fra sandkasse-siden kan derfor etterlate en foreldet `.git/index.lock` som
+**kun den native siden (Opus) kan rydde**. Symptom: «Unable to create '.git/index.lock': File
+exists» med gammel mtime og **ingen** levende git-prosess — det er filsystem-asymmetri, ikke en
+live samtidighets-kollisjon mellom sporene.
+
+**Tiltak:**
+- **Kontroll-Claude gjør kun lese-git i sandkassen** (`status`/`diff`/`log`/`show`) — aldri `add`/`commit`.
+- **Alle git-skrivinger gjøres native av Opus** (som også kan rydde en stale lock etter å ha bekreftet ingen levende git-prosess: `ps aux | grep "[g]it "`).
 
 ## Distribusjon og worktrees
 

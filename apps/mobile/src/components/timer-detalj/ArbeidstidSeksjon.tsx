@@ -157,6 +157,9 @@ function RedigerArbeidstidModal({
         startAt: nyStart,
         endAt: nyEnd,
         pauseMin: pauseTall,
+        // Slice 4b-2: manuell redigering av slutt-tid → bruker-bekreftet tid,
+        // nullstiller evt. "system"/"midnatt" (fjerner kontroll-badge).
+        sluttTidKilde: "bruker",
         syncStatus: "pending",
         sistEndretLokalt: Date.now(),
       })

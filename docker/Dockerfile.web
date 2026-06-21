@@ -1,0 +1,29 @@
+# syntax=docker/dockerfile:1
+# NY-SERVER — sitedoc web (Next.js 14) i monorepo (i prod fra 2026-06-10).
+# Bygger api-pakken også (tRPC-typer er devDependency av web). Fett image (web er IKKE standalone ennaa).
+# Oppfoelger: sett `output: "standalone"` i apps/web/next.config.mjs for slankere image.
+
+FROM node:20-bookworm-slim AS build
+RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+WORKDIR /app
+RUN apt-get update && apt-get install -y --no-install-recommends python3 make g++ openssl \
+    && rm -rf /var/lib/apt/lists/*
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm --filter @sitedoc/db exec prisma generate \
+ && pnpm --filter @sitedoc/db-maskin exec prisma generate \
+ && pnpm --filter @sitedoc/db-timer exec prisma generate \
+ && pnpm --filter @sitedoc/db-varelager exec prisma generate
+# API_PORT bakes inn i Next routes-manifest (/api/upload(s)-rewrites) ved BUILD-tid og MÅ
+# matche API-ens interne PORT per miljø (prod 3001 / test 3301). Runtime-env er for sent —
+# manifesten er allerede generert. Settes via build-arg fra compose.
+ARG API_PORT=3001
+ENV API_PORT=${API_PORT}
+RUN pnpm turbo build --filter @sitedoc/web
+
+ENV NODE_ENV=production
+ENV PORT=3100
+WORKDIR /app/apps/web
+EXPOSE 3100
+# `next start` respekterer PORT-env
+CMD ["pnpm", "start"]

@@ -1,11 +1,23 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
-import { Plus, Pencil, Trash2, MapPin, HelpCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, MapPin, HelpCircle, Search } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+
+// Leaflet krever window — laster dynamisk uten SSR
+const KartVelgerDynamic = dynamic(
+  () => import("@/components/KartVelger").then((m) => m.KartVelger),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="h-[300px] animate-pulse rounded-lg bg-gray-100" />
+    ),
+  },
+);
 
 type OppmotestedRad = {
   id: string;
@@ -75,6 +87,7 @@ export default function OppmotesterSide() {
       >
         <div className="space-y-2 text-sm text-gray-600">
           <p>{t("firma.oppmotested.hjelp.hva")}</p>
+          <p>{t("firma.oppmotested.hjelp.adresse")}</p>
           <p>{t("firma.oppmotested.hjelp.gps")}</p>
           <p>{t("firma.oppmotested.hjelp.personvern")}</p>
         </div>
@@ -211,8 +224,22 @@ function OppmotestedModal({
   const [lng, setLng] = useState(rad ? String(rad.lng) : "");
   const [radiusM, setRadiusM] = useState(String(rad?.radiusM ?? 150));
   const [avdelingId, setAvdelingId] = useState(rad?.avdelingId ?? "");
+  const [geokodMelding, setGeokodMelding] = useState<string | null>(null);
 
   const { data: avdelinger } = trpc.avdeling.hentAlle.useQuery({ organizationId: orgId });
+
+  const geokod = trpc.oppmotested.geokod.useMutation({
+    onSuccess: (treff) => {
+      if (treff) {
+        setLat(String(treff.lat));
+        setLng(String(treff.lng));
+        setGeokodMelding(null);
+      } else {
+        setGeokodMelding(t("firma.oppmotested.geokodIngen"));
+      }
+    },
+    onError: (e) => setGeokodMelding(e.message),
+  });
 
   const ferdig = () => {
     utils.oppmotested.hentAlle.invalidate();
@@ -261,11 +288,35 @@ function OppmotestedModal({
           onChange={(e) => setNavn(e.target.value)}
           placeholder={t("firma.oppmotested.navnPlaceholder")}
         />
-        <Input
-          label={t("firma.oppmotested.felt.adresse")}
-          value={adresse}
-          onChange={(e) => setAdresse(e.target.value)}
-        />
+        <div>
+          <div className="flex items-end gap-2">
+            <div className="flex-1">
+              <Input
+                label={t("firma.oppmotested.felt.adresse")}
+                value={adresse}
+                onChange={(e) => {
+                  setAdresse(e.target.value);
+                  setGeokodMelding(null);
+                }}
+              />
+            </div>
+            <Button
+              variant="secondary"
+              onClick={() =>
+                geokod.mutate({ organizationId: orgId, adresse: adresse.trim() })
+              }
+              disabled={adresse.trim().length === 0 || geokod.isPending}
+            >
+              <Search className="mr-1.5 h-4 w-4" />
+              {geokod.isPending
+                ? t("firma.oppmotested.geokodLaster")
+                : t("firma.oppmotested.geokod")}
+            </Button>
+          </div>
+          {geokodMelding && (
+            <p className="mt-1 text-xs text-sitedoc-error">{geokodMelding}</p>
+          )}
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <Input
             label={t("firma.oppmotested.felt.lat")}
@@ -281,6 +332,19 @@ function OppmotestedModal({
           />
         </div>
         <p className="text-xs text-gray-400">{t("firma.oppmotested.koordinatHjelp")}</p>
+        <div>
+          <KartVelgerDynamic
+            latitude={Number.isFinite(latNum) ? latNum : null}
+            longitude={Number.isFinite(lngNum) ? lngNum : null}
+            radiusM={Number.isFinite(radiusNum) ? radiusNum : null}
+            onVelgPosisjon={(nyLat, nyLng) => {
+              setLat(String(nyLat));
+              setLng(String(nyLng));
+            }}
+            hoyde="260px"
+          />
+          <p className="mt-1 text-xs text-gray-400">{t("firma.oppmotested.kartHjelp")}</p>
+        </div>
         <Input
           label={t("firma.oppmotested.felt.radius")}
           type="number"

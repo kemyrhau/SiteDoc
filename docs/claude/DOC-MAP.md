@@ -17,10 +17,12 @@ sist_verifisert_mot_kode: 2026-05-16
 | Fil opprettet/arkivert/slettet | `STATUS.md` (fil-register) |
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |
+| Timer/GPS/prosjekt-utredning (dag-flyt, T.8 m.fl.) | `timer-gps-prosjekt-utredning.md` |
 | Maskin-modul spec endres | `maskin.md` |
 | Dokumentflyt-regler endres | `dokumentflyt.md` |
 | Domeneflyt/arbeidsflyt endres | `domene-arbeidsflyt.md` |
 | Mobil-spec endres | `mobil.md` |
+| EAS-bygg/credentials-endring | `eas-build-veileder.md` |
 | Web-spec endres | `web.md` |
 | Terminologi/hierarki endres | `terminologi.md` |
 | Arkitektur-syntese endres | `arkitektur-syntese.md` |

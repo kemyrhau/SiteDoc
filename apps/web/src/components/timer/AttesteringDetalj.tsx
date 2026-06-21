@@ -13,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
-import { ArrowLeft, Check, Pencil, RotateCcw } from "lucide-react";
+import { ArrowLeft, Check, Pencil, RotateCcw, AlertTriangle } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { AttesteringDetaljEdit } from "@/components/timer/AttesteringDetalj_Edit";
 import {
@@ -209,6 +209,33 @@ export function AttesteringDetalj({
         />
       ) : (
       <>
+      {/* Slice 4b-2: kontroll-badges. (1) system-bestemt slutt-tid (ikke
+          arbeider-bekreftet). (2) total arbeidstid (inkl. reise) over firmaets
+          terskel. Begge er VARSEL, ikke blokkering. */}
+      {(sheet.sluttTidKilde === "system" ||
+        timerRader.reduce((s, r) => s + Number(r.timer), 0) >
+          sheet.arbeidstidVarselTimer) && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          {sheet.sluttTidKilde === "system" && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-900">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {t("timer.attestering.systemSluttBadge")}
+            </span>
+          )}
+          {timerRader.reduce((s, r) => s + Number(r.timer), 0) >
+            sheet.arbeidstidVarselTimer && (
+            <span className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-900">
+              <AlertTriangle className="h-3.5 w-3.5" />
+              {t("timer.attestering.arbeidstidVarsel", {
+                timer: timerRader
+                  .reduce((s, r) => s + Number(r.timer), 0)
+                  .toFixed(2),
+                terskel: sheet.arbeidstidVarselTimer,
+              })}
+            </span>
+          )}
+        </div>
+      )}
       {/* Container-status-banner (T7-2b1): viser fremdrift på tvers av rader */}
       {totaltAntallRader > 0 && (
         <div
