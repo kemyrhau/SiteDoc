@@ -59,5 +59,38 @@ anta det. Bruk eksplisitt `--build-arg` ved web-rebuild til dette evt. er verifi
 manifest etter build: `grep '/api/upload' apps/web/.next/routes-manifest.json` skal vise riktig
 port; live: `curl -X POST https://test.sitedoc.no/api/upload` skal gi `401 JSON` (ikke `500`).
 
+## Deploy-mekanikk (lærdommer fra Slice 1–4 prod-deploy 2026-06-21)
+
+Denne deployen traff gjentatt friksjon som ikke var dokumentert → «gjenoppdaget». Fanget her som fast prosedyre.
+
+1. **sudo/TTY-barriere.** `server-ny` `sudo` krever interaktivt passord (ingen NOPASSWD). Opus/kontroll-Claude kjører i ikke-interaktive skall → `ssh -t … sudo …` gir «Pseudo-terminal will not be allocated» + «sudo: a password is required», og `sudo -n` gir «a password is required». **Konklusjon:** Opus prøver ALDRI å kjøre `sudo` på server — Kenneth kjører alle `sudo docker`-steg via `!`-prefiks (ekte TTY). Opus kjører native `git`/`rsync` (uten sudo) selv.
+
+2. **Postgres-container heter `postgres`** (compose-tjeneste), IKKE `sitedoc-postgres`. Finn robust:
+   ```
+   PG=$(sudo docker ps --format '{{.Names}}' | grep -m1 postgres)
+   sudo docker exec "$PG" psql -U sitedoc -d <db> -c "…"
+   ```
+
+3. **Compose-prosjektnavn-mismatch.** Kjørende prod-containere ble opprettet under prosjekt `docker` (mappe-avledet, før `name:`-linja fantes), men `docker-compose.yml` har nå `name: sitedoc`. `compose up` uten `-p` lager da et NYTT prosjekt → `Conflict. The container name "/sitedoc-api" is already in use`. **Workaround:** `-p docker` (matcher kjørende prosjekt). Diagnostiser med `docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' sitedoc-api`. **Reconcile-følgesak:** bestem ett prosjektnavn permanent — gjøres når NorBERT-rebuild uansett gjenskaper embed/oversettelse.
+
+4. **Nett-topologi.** `appnet` er `external: true` (delt på tvers av stacks → ufarlig ved recreate). `sitedoc-web` bruker `network_mode: "service:sitedoc-api"` (deler api-namespace) → web recreates med/etter api.
+
+5. **Migrate via engangs-container.** Runtime-imaget har prisma CLI + migrasjonsfiler (`COPY --from=build /app`). Kjør:
+   ```
+   sudo docker compose -p docker -f docker/docker-compose.yml run --rm --no-deps \
+     --entrypoint sh sitedoc-api -c '<gate>; pnpm --filter @sitedoc/db exec prisma migrate deploy && pnpm --filter @sitedoc/db-timer exec prisma migrate deploy'
+   ```
+   - **Bruk `-c`, IKKE `-lc`.** Login-shell (`-l`) sourcer container-profil som gir `sh: 1: : not found`-støy OG tømmer `$DATABASE_URL` → gaten ser tom URL → **falsk «ABORT: ikke sitedoc»** (skjedde 2026-06-21; ingen skade, gate feilet trygt).
+   - **Gate (db-navn, ikke secret):** prod krever `/sitedoc`, test krever `sitedoc_test`:
+     ```
+     echo "$DATABASE_URL" | grep -q sitedoc_test && { echo ABORT test; exit 1; }
+     echo "$DATABASE_URL" | grep -qE "/sitedoc([?]|$)" || { echo ABORT ikke-sitedoc; exit 1; }
+     ```
+   - **`generate` er bakt inn i `Dockerfile.api`-bygget** (4 klienter) → IKKE eget runtime-steg (en `--rm`-generate ville vært flyktig).
+
+6. **Deploy KUN api+web** (ikke rør embed/oversettelse): `up -d --no-deps sitedoc-api sitedoc-web`. `--no-deps` hindrer at compose gjenskaper `embed`/`oversettelse` (begge `sitedoc-ml:latest`) — viktig når ml-imaget også ble bygd men NorBERT-rebuild skal være egen oppgave.
+
+**Bevist null-nedetid additiv-migrerings-sekvens (2026-06-21):** rsync → `build --build-arg API_PORT=<port>` → migrate (engangs-container, gated) → `up -d --no-deps sitedoc-api sitedoc-web`. Gammel api kjører OLD-klient under build+migrate (rører ikke nye kolonner) → null gap. Backup først: `pg_dump -Fc -U sitedoc -d sitedoc`.
+
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.

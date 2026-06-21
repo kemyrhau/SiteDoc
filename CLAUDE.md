@@ -168,6 +168,13 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 - Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
 
+**Server-deploy-mekanikk (server-ny, Docker — ufravikelig, lærdom 2026-06-21):** Full detalj + eksakte kommandoer i [docker/DOCKER-NOTES.md § Deploy-mekanikk](docker/DOCKER-NOTES.md) + [infrastruktur.md](docs/claude/infrastruktur.md). Kritiske regler:
+- **sudo/TTY-barriere:** `server-ny` `sudo` krever interaktivt passord (ingen NOPASSWD). Opus/kontroll-Claude-skall er **ikke-interaktive → kan ikke kjøre `sudo`**. **Kenneth kjører alle `sudo docker`-steg via `!`-prefiks** (ekte TTY). Ikke kast bort runder på å prøve `ssh -t`/`sudo -n` — det feiler alltid. Native `git`/`rsync` (uten sudo) kan Opus kjøre.
+- **Postgres-container heter `postgres`** (ikke `sitedoc-postgres`) — finn alltid via `docker ps --format '{{.Names}}' | grep postgres`.
+- **Compose-prosjektnavn-mismatch:** kjørende prod-containere er prosjekt `docker` (mappe-avledet), men `docker-compose.yml` har `name: sitedoc` → `up` gir navnekonflikt. Bruk **`-p docker`**. (`appnet` er `external: true` (delt) → network-trygt; `web` bruker `network_mode: service:sitedoc-api`.)
+- **Deploy kun api+web:** `up -d --no-deps sitedoc-api sitedoc-web` — rør **aldri** `embed`/`oversettelse` utilsiktet (de deler `sitedoc-ml`-image; rebuild = egen oppgave).
+- **Migrate via engangs-container:** `compose run --rm --no-deps --entrypoint sh <api> -c '…'` — bruk **`-c`, IKKE `-lc`** (login-shell tømmer `$DATABASE_URL` → falsk-abort). Gate: prod krever `/sitedoc`, test krever `sitedoc_test`. `generate` er bakt inn i `Dockerfile`-bygget (ikke eget steg).
+
 ## Kodestil
 
 - TypeScript strict mode, ingen `any`

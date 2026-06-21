@@ -62,9 +62,11 @@ ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-com
 ```
 
 **Viktig:**
-- `ssh -t` (TTY) kreves for at `sudo` skal kunne lese passord.
-- Prisma-endringer: de fire klientene (db/db-maskin/db-timer/db-varelager) genereres i `Dockerfile.api`-bygget, men `prisma migrate deploy` mot Postgres-containeren er **ikke automatisert ennå** — må kjøres manuelt ved schema-endring (åpent punkt, jf. `deploy.sh`).
-- Rebuild/restart gir et kort avbrudd — varsle ved aktivitet.
+- `ssh -t` (TTY) kreves for at `sudo` skal kunne lese passord. **Opus/kontroll-Claude-skall er ikke-interaktive → kan IKKE kjøre `sudo`** (`ssh -t … sudo` og `sudo -n` feiler begge på passord). **Kenneth kjører alle `sudo docker`-steg via `!`-prefiks** (ekte TTY); Opus kjører native `git`/`rsync` selv. Full deploy-mekanikk + lærdommer: [docker/DOCKER-NOTES.md § Deploy-mekanikk](../../docker/DOCKER-NOTES.md).
+- **Compose-prosjekt:** kjørende prod-containere er prosjekt `docker` (ikke `sitedoc` fra `name:`-linja) → bruk **`-p docker`** ved `compose`-kommandoer, ellers navnekonflikt. Deploy kun api+web: `up -d --no-deps sitedoc-api sitedoc-web` (rør ikke embed/oversettelse).
+- **Postgres-container:** heter `postgres`, ikke `sitedoc-postgres` — finn via `docker ps --format '{{.Names}}' | grep postgres`.
+- Prisma-endringer: de fire klientene (db/db-maskin/db-timer/db-varelager) genereres i `Dockerfile.api`-bygget, men `prisma migrate deploy` mot Postgres-containeren er **ikke automatisert ennå** — kjøres manuelt via engangs-container (`compose run --rm --no-deps --entrypoint sh sitedoc-api -c '…'`, bruk `-c` IKKE `-lc` — login-shell tømmer `$DATABASE_URL`), gated på db-navn (prod `/sitedoc`, test `sitedoc_test`). Se DOCKER-NOTES § Deploy-mekanikk pkt. 5.
+- Rebuild/restart gir et kort avbrudd — varsle ved aktivitet. (Additive migreringer kan kjøres null-nedetid: build → migrate → `up --no-deps api web`; gammel api kjører OLD-klient under migrate.)
 - Cutover (DNS-flytt) for `sitedoc.no`/`api.sitedoc.no` gjøres via **Cloudflare-dashboard** (egen sone — cloudflared CLI ruter feil her, jf. salsaklubb-lærdom).
 
 ## Serverdetaljer
