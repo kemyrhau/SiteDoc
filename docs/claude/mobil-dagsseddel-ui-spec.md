@@ -161,8 +161,12 @@ Flyt-endring, ikke presentasjon. Operasjonaliserer T.8 for fler-økt- og glemt-d
 > - **UF-3 (B kladd-påminnelse)** — mild amber-notis øverst i timer-listen (`timer/index.tsx`):
 >   usendte drafts MED innhold fra TIDLIGERE dager (`status=draft` ∧ rader > 0 ∧ `dato < i dag`).
 >   Trykk åpner eldste. Distinkt fra glemt-dag-prompt (uavsluttet økt); dagens egen draft maser ikke.
-> **Gjenstår:** **UF-4 recall (E) — egen server-runde** (krever ny tRPC-mutasjon `sent→draft`, ingen
-> `cancelled`-status finnes, ingen migrering). Se [BACKLOG](BACKLOG.md).
+> - **UF-4 (E recall)** — ny server-mutasjon `timer.dagsseddel.gjenaapneDagsseddel` (`apps/api/.../dagsseddel.ts`):
+>   eier-only (`hentEgenDagsseddel`), KUN `status="sent"` (`accepted` → tydelig feil), `sent→draft` +
+>   nullstiller ALLE rad-attestasjoner til `pending` (speiler re-send-mønster). Leder-kø (`hentTilAttestering`,
+>   filtrerer `status="sent"`) tømmer seg automatisk. Mobil: online-only «Gjenåpne for redigering»-knapp på
+>   sent-blokk i `[id].tsx` → suksess speiler lokal `draft`; `accepted`/offline → melding. Ingen migrering.
+>   **Krever server-deploy til test for ende-til-ende-verifisering.** **U-flyt-planen komplett.**
 
 **A. Multi-økt-append.** Andre «Start dag» samme døgn skal **finne og appende til
 eksisterende draft-dagsseddel** (ny økt = nye rader på samme sedel), ikke opprette

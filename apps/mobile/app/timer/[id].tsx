@@ -45,6 +45,7 @@ import {
   byggeplassLocal,
 } from "../../src/db/schema";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
+import { trpc } from "../../src/lib/trpc";
 import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { TimerSeksjon } from "../../src/components/timer-detalj/TimerSeksjon";
@@ -74,6 +75,8 @@ export default function DagsseddelDetalj() {
   }>();
   const sheetId = params.id ?? "";
   const { triggerSync, oppdaterTellere } = useTimerSync();
+  // UF-4: recall — online-only (server er sannhetskilde for sent/accepted).
+  const gjenaapneMutation = trpc.timer.dagsseddel.gjenaapneDagsseddel.useMutation();
 
   const [sedel, setSedel] = useState<Sedel | null>(null);
   const [timerRader, setTimerRader] = useState<TimerRad[]>([]);
@@ -251,6 +254,42 @@ export default function DagsseddelDetalj() {
     oppdaterTellere();
     void triggerSync();
     lesData();
+  }
+
+  // UF-4: gjenåpne en sendt sedel for etter-registrering. Online-only — kaller
+  // server-mutasjonen direkte (man kan ikke recalle uten å kjenne server-status).
+  // Suksess → speil server lokalt (draft, synced). accepted/offline → melding.
+  function gjenaapne() {
+    if (!sedel) return;
+    setFeil(null);
+    gjenaapneMutation.mutate(
+      { id: sheetId },
+      {
+        onSuccess: () => {
+          const db = hentDatabase();
+          if (db) {
+            db.update(dagsseddelLocal)
+              .set({
+                status: "draft",
+                syncStatus: "synced",
+                sistEndretLokalt: Date.now(),
+              })
+              .where(eq(dagsseddelLocal.id, sheetId))
+              .run();
+          }
+          oppdaterTellere();
+          lesData();
+        },
+        onError: (e: unknown) => {
+          const melding = e instanceof Error ? e.message : "";
+          setFeil(
+            melding.includes("godkjent")
+              ? t("timer.gjenaapne.feilGodkjent")
+              : t("timer.gjenaapne.feilNett"),
+          );
+        },
+      },
+    );
   }
 
   function slettSedel() {
@@ -515,6 +554,24 @@ export default function DagsseddelDetalj() {
             <Text className="text-center text-xs text-gray-500">
               {t("timer.sendGodkjennHint")}
             </Text>
+          )}
+          {/* UF-4: recall — kun på SENDT sedel (ikke godkjent). */}
+          {sedel.status === "sent" && (
+            <>
+              <Pressable
+                onPress={gjenaapne}
+                disabled={gjenaapneMutation.isPending}
+                className="flex-row items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white py-3 active:bg-blue-50 disabled:opacity-50"
+              >
+                <RotateCcw size={16} color="#1e40af" />
+                <Text className="text-base font-medium text-sitedoc-primary">
+                  {t("timer.gjenaapne.knapp")}
+                </Text>
+              </Pressable>
+              <Text className="text-center text-xs text-gray-500">
+                {t("timer.gjenaapne.hjelp")}
+              </Text>
+            </>
           )}
           {sedel.status === "draft" && (
             <Pressable

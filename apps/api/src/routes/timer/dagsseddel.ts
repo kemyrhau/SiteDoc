@@ -1159,6 +1159,66 @@ export const dagsseddelRouter = router({
       });
     }),
 
+  // Recall (UF-4, 2026-06-22): arbeider gjenåpner sin egen SENDTE (ikke godkjente)
+  // dagsseddel for etter-registrering (f.eks. glemte maskintimer). sent → draft.
+  // Guards: eier-only (hentEgenDagsseddel), KUN status="sent". "accepted" blokkeres
+  // med tydelig melding (leder har godkjent → kontakt leder). draft/returned er alt
+  // redigerbar → samme guard avviser.
+  //
+  // Nullstiller ALLE rad-attestasjoner til pending: en "sent"-sedel kan ha delvis
+  // attesterte rader (leder rakk noen før alle var ferdige). Etter recall + redigering
+  // er de utdaterte og må re-vurderes rent. Speiler re-send-etter-retur-mønsteret over;
+  // permanent audit-spor hører hjemme i Activity-tabellen (T7-2b3), ikke status-feltene.
+  // Når leder forsvinner sedelen fra «Venter på attestering» automatisk (kø-query
+  // filtrerer på status="sent").
+  gjenaapneDagsseddel: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
+
+      if (sheet.status !== "sent") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            sheet.status === "accepted"
+              ? "Dagsseddelen er allerede godkjent av leder — kontakt leder for endring"
+              : `Kan ikke gjenåpne dagsseddel med status «${sheet.status}»`,
+        });
+      }
+
+      await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.updateMany({
+          where: { sheetId: sheet.id },
+          data: {
+            attestertStatus: "pending",
+            attestertAvUserId: null,
+            attestertVed: null,
+          },
+        }),
+        ctx.prismaTimer.sheetTillegg.updateMany({
+          where: { sheetId: sheet.id },
+          data: {
+            attestertStatus: "pending",
+            attestertAvUserId: null,
+            attestertVed: null,
+          },
+        }),
+        ctx.prismaTimer.sheetMachine.updateMany({
+          where: { sheetId: sheet.id },
+          data: {
+            attestertStatus: "pending",
+            attestertAvUserId: null,
+            attestertVed: null,
+          },
+        }),
+      ]);
+
+      return ctx.prismaTimer.dailySheet.update({
+        where: { id: sheet.id },
+        data: { status: "draft", attestertVed: null, attestertAvUserId: null },
+      });
+    }),
+
   // Slett egen dagsseddel — kun draft-status tillatt
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
