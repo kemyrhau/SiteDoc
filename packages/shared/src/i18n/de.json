@@ -81,6 +81,7 @@
   "timer.tilbake": "Zurück zur Übersicht",
   "timer.aapne": "Offen",
   "timer.ingenSedler": "In diesem Zeitraum gibt es keine Tagesbettwäsche.",
+  "timer.kladdPaaminnelse": "Nicht gesendete Entwürfe: {{antall}}. Tippen Sie hier, um den Antrag zur Genehmigung einzureichen.",
   "timer.timerEnhet": "H",
   "timer.opprett": "Tagesblatt erstellen",
   "timer.idag": "Heute",

@@ -81,6 +81,7 @@
   "timer.tilbake": "Back to overview",
   "timer.aapne": "Open",
   "timer.ingenSedler": "No daily sheets in this period.",
+  "timer.kladdPaaminnelse": "Unsent drafts: {{antall}}. Tap to submit for approval.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Create daily sheet",
   "timer.idag": "Today",

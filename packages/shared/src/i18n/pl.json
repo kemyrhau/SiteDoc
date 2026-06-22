@@ -81,6 +81,7 @@
   "timer.tilbake": "Powrót do przeglądu",
   "timer.aapne": "Otwarte",
   "timer.ingenSedler": "Brak arkuszy dziennych w tym okresie.",
+  "timer.kladdPaaminnelse": "Niewysłane wersje robocze: {{antall}}. Kliknij, aby przesłać do zatwierdzenia.",
   "timer.timerEnhet": "H",
   "timer.opprett": "Utwórz arkusz dzienny",
   "timer.idag": "Dzisiaj",

@@ -81,6 +81,7 @@
   "timer.tilbake": "Kthehu te përmbledhja",
   "timer.aapne": "Hapur",
   "timer.ingenSedler": "Nuk ka fletë ditore në këtë periudhë.",
+  "timer.kladdPaaminnelse": "Draftet e padërguara: {{antall}}. Trokit për ta paraqitur për miratim.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Krijo fletë ditore",
   "timer.idag": "Sot",

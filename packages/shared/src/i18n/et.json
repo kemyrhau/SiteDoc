@@ -81,6 +81,7 @@
   "timer.tilbake": "Tagasi ülevaate juurde",
   "timer.aapne": "Avatud",
   "timer.ingenSedler": "Sel perioodil pole päevalehti.",
+  "timer.kladdPaaminnelse": "Saatmata mustandid: {{antall}}. Puudutage kinnitamiseks esitamiseks.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Loo päevaleht",
   "timer.idag": "Täna",

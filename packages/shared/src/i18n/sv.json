@@ -81,6 +81,7 @@
   "timer.tilbake": "Tillbaka till översikten",
   "timer.aapne": "Öppna",
   "timer.ingenSedler": "Inga dagliga lakan under denna period.",
+  "timer.kladdPaaminnelse": "Ej skickade utkast: {{antall}}. Tryck för att skicka för godkännande.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Skapa dagliga ark",
   "timer.idag": "I dag",

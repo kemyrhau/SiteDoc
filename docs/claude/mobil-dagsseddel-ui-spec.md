@@ -145,7 +145,7 @@ Hver slice: egen commit på develop → dual-review → test-build → device-ve
 
 Flyt-endring, ikke presentasjon. Operasjonaliserer T.8 for fler-økt- og glemt-dag-tilfeller.
 
-> **Status (2026-06-22): UF-0 + UF-1 + UF-2 på develop.**
+> **Status (2026-06-22): UF-0 + UF-1 + UF-2 + UF-3 på develop — mobil-only-planen komplett.**
 > - **UF-0** — delt `finnEllerOpprettDagsseddel` (`apps/mobile/src/services/dagsseddelOpprett.ts`):
 >   find-or-create per `(userId, dato)` + org-backfill + arbeidstid-prefill. Begge inngangspunkter
 >   (`ny.tsx` + `opprettDagsseddelForSegment`) ruter gjennom den. Fikser 🔴 duplikat-dagsseddel/sync-stuck.
@@ -158,9 +158,11 @@ Flyt-endring, ikke presentasjon. Operasjonaliserer T.8 for fler-økt- og glemt-d
 >   Spenn > hard-cap (trinn 8, konstant `MAKS_ENKELTSKIFT_TIMER=16`) → kappes til start +
 >   sesongjustert dagsnorm (trinn 7, `effektiv.dagsnorm`), `sluttTidKilde="system"` → kontroll-badge.
 >   Fjerner 160 t-rotårsaken (blind N×24t-splitt av glemt avslutning). Legitimt nattskift (< cap) urørt.
-> **Gjenstår denne planen:** UF-3 kladd-påminnelse (B). **UF-4 recall (E)
-> utsatt til egen server-runde** — krever ny tRPC-mutasjon (`sent→draft`, ingen `cancelled`-status
-> finnes), ingen migrering. Se [BACKLOG](BACKLOG.md).
+> - **UF-3 (B kladd-påminnelse)** — mild amber-notis øverst i timer-listen (`timer/index.tsx`):
+>   usendte drafts MED innhold fra TIDLIGERE dager (`status=draft` ∧ rader > 0 ∧ `dato < i dag`).
+>   Trykk åpner eldste. Distinkt fra glemt-dag-prompt (uavsluttet økt); dagens egen draft maser ikke.
+> **Gjenstår:** **UF-4 recall (E) — egen server-runde** (krever ny tRPC-mutasjon `sent→draft`, ingen
+> `cancelled`-status finnes, ingen migrering). Se [BACKLOG](BACKLOG.md).
 
 **A. Multi-økt-append.** Andre «Start dag» samme døgn skal **finne og appende til
 eksisterende draft-dagsseddel** (ny økt = nye rader på samme sedel), ikke opprette

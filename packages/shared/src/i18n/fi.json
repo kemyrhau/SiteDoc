@@ -81,6 +81,7 @@
   "timer.tilbake": "Takaisin yleiskatsaukseen",
   "timer.aapne": "Avata",
   "timer.ingenSedler": "Ei päivittäisiä lakanoita tänä aikana.",
+  "timer.kladdPaaminnelse": "Lähettämättömät luonnokset: {{antall}}. Lähetä hyväksyttäväksi napauttamalla.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Luo päivittäinen arkki",
   "timer.idag": "Tänään",

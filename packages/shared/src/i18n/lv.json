@@ -81,6 +81,7 @@
   "timer.tilbake": "Atpakaļ uz pārskatu",
   "timer.aapne": "Atvērt",
   "timer.ingenSedler": "Šajā periodā nav nekādu ikdienas palagu.",
+  "timer.kladdPaaminnelse": "Nenosūtītie melnraksti: {{antall}}. Pieskarieties, lai iesniegtu apstiprināšanai.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Izveidojiet ikdienas lapu",
   "timer.idag": "Šodien",

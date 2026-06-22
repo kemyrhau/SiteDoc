@@ -81,6 +81,7 @@
   "timer.tilbake": "Повернутися до огляду",
   "timer.aapne": "ВІДЧИНЕНО",
   "timer.ingenSedler": "У цей період без щоденної білизни.",
+  "timer.kladdPaaminnelse": "Unsent drafts: {{antall}}. Tap to submit for approval.",
   "timer.timerEnhet": "ч",
   "timer.opprett": "Створення щоденного аркуша",
   "timer.idag": "Сьогодні",

@@ -81,6 +81,7 @@
   "timer.tilbake": "Retour à l'aperçu",
   "timer.aapne": "Ouvrir",
   "timer.ingenSedler": "Pas de feuilles journalières à cette période.",
+  "timer.kladdPaaminnelse": "Brouillons non envoyés : {{antall}}. Appuyez pour soumettre pour approbation.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Créer une feuille quotidienne",
   "timer.idag": "Aujourd'hui",
