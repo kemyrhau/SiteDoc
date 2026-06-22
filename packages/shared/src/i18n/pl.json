@@ -41,6 +41,8 @@
   "timer.deltMidnatt.tittel": "Rozdzielenie o północy",
   "timer.deltMidnatt.hjelp": "Część zmiany, która trwała dwa dni.",
   "timer.dagFinnes.notis": "Masz już wpis na ten dzień — otworzyliśmy go. Twój projekt jest gotowy do rejestrowania czasu.",
+  "timer.appendSendt.tittel": "Dzień został już przesłany",
+  "timer.appendSendt.melding": "Masz wpis na ten dzień, który został już przesłany do zatwierdzenia. Nowa sesja nie została dodana. Aby zmienić dzień, należy go ponownie otworzyć (w późniejszym terminie).",
   "timer.glemtDag.tittel": "Czy zapomniałeś zakończyć dzień?",
   "timer.glemtDag.melding": "Twój dzień z {{dato}} jest nadal otwarty.",
   "timer.glemtDag.glemte": "Zapomniałem to zakończyć",

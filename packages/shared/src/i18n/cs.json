@@ -41,6 +41,8 @@
   "timer.deltMidnatt.tittel": "Rozdělení o půlnoci",
   "timer.deltMidnatt.hjelp": "Část směny, která trvala dva dny.",
   "timer.dagFinnes.notis": "Pro tento den jste již měli záznam – otevřeli jsme ho. Váš projekt je připraven k přihlášení.",
+  "timer.appendSendt.tittel": "Den je již odeslán",
+  "timer.appendSendt.melding": "Máte záznam pro tento den, který již byl odeslán ke schválení. Nová relace nebyla přidána. Chcete-li změnit den, musí být znovu otevřen (přichází později).",
   "timer.glemtDag.tittel": "Zapomněli jste ukončit den?",
   "timer.glemtDag.melding": "Váš den od {{dato}} je stále otevřený.",
   "timer.glemtDag.glemte": "Zapomněl jsem to ukončit",

@@ -9,6 +9,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import {
   arbeidsdagLocal,
+  dagsseddelLocal,
   sheetTimerLocal,
   aktivitetLocal,
   lonnsartLocal,
@@ -214,7 +215,7 @@ export function StartSluttDagKort() {
       const db = hentDatabase();
       if (!db) return;
       const sluttIso = overstyrtSluttIso ?? new Date().toISOString();
-      const dagsseddelId = genererForslag(
+      const forslag = genererForslag(
         bruker.id,
         valgtFirmaId ?? "",
         aktivDag,
@@ -223,6 +224,7 @@ export function StartSluttDagKort() {
         lng,
         sisteSegmentKilde,
       );
+      const dagsseddelId = forslag.id;
       db.update(arbeidsdagLocal)
         .set({
           endAt: sluttIso,
@@ -239,6 +241,13 @@ export function StartSluttDagKort() {
       void triggerSync();
       if (dagsseddelId) {
         router.push(`/timer/${dagsseddelId}`);
+        // UF-1: dagens sedel var alt sendt → den nye økten ble ikke lagt til.
+        if (forslag.blokkertSendt) {
+          Alert.alert(
+            t("timer.appendSendt.tittel"),
+            t("timer.appendSendt.melding"),
+          );
+        }
       } else {
         // Kunne ikke utlede prosjekt/aktivitet offline → manuell opprettelse.
         router.push("/timer/ny");
@@ -246,7 +255,7 @@ export function StartSluttDagKort() {
     } finally {
       setBehandler(false);
     }
-  }, [aktivDag, bruker?.id, valgtFirmaId, behandler, router, oppdaterTellere, triggerSync]);
+  }, [aktivDag, bruker?.id, valgtFirmaId, behandler, router, oppdaterTellere, triggerSync, t]);
 
   // Bekreft før avslutning — «Slutt dag» er irreversibel og genererer et
   // dagsseddel-forslag umiddelbart. Vis forløpt tid så brukeren ser hva som
@@ -419,13 +428,13 @@ function genererForslag(
   // (arbeider-handling); glemt-dag-gjenoppretting = "system" (estimert/gjettet).
   // Ikke-siste segmenter får alltid "midnatt" (automatisk dag-grense).
   sisteSegmentKilde: "bruker" | "system" = "bruker",
-): string | null {
+): { id: string | null; blokkertSendt: boolean } {
   const db = hentDatabase();
-  if (!db) return null;
+  if (!db) return { id: null, blokkertSendt: false };
 
   // 1. Prosjekt via Haversine.
   const prosjekter = hentProsjekterLokalt(orgId);
-  if (prosjekter.length === 0) return null;
+  if (prosjekter.length === 0) return { id: null, blokkertSendt: false };
   const lat = dag.startLat ?? endLat;
   const lng = dag.startLng ?? endLng;
   let valgtProsjekt = prosjekter[0];
@@ -447,7 +456,7 @@ function genererForslag(
     .from(aktivitetLocal)
     .where(eq(aktivitetLocal.aktiv, true))
     .all();
-  if (aktiviteter.length === 0) return null;
+  if (aktiviteter.length === 0) return { id: null, blokkertSendt: false };
   const aktivitet =
     aktiviteter.find((a) => a.navn === "Anleggsarbeid") ?? aktiviteter[0];
 
@@ -512,6 +521,7 @@ function genererForslag(
   const segmenter = splittVedMidnatt(dag.startAt, sluttIso);
   const deltVedMidnatt = segmenter.length > 1;
   let startSheetId: string | null = null;
+  let blokkertSendt = false;
   segmenter.forEach((seg, i) => {
     const pauseMin = seg.erStartSegment
       ? hentEffektivArbeidstidLokal(orgId, new Date(`${seg.dato}T00:00:00`))
@@ -520,7 +530,7 @@ function genererForslag(
     // Ikke-siste segment ender på en automatisk midnatt-grense → "midnatt".
     // Siste segment ender på den faktiske/estimerte slutt-tiden → sisteSegmentKilde.
     const erSiste = i === segmenter.length - 1;
-    const id = opprettDagsseddelForSegment({
+    const res = opprettDagsseddelForSegment({
       userId,
       orgId,
       segment: seg,
@@ -533,9 +543,10 @@ function genererForslag(
       deltVedMidnatt,
       sluttTidKilde: erSiste ? sisteSegmentKilde : "midnatt",
     });
-    if (seg.erStartSegment) startSheetId = id;
+    if (res?.utfall === "blokkertSendt") blokkertSendt = true;
+    if (seg.erStartSegment) startSheetId = res?.id ?? null;
   });
-  return startSheetId;
+  return { id: startSheetId, blokkertSendt };
 }
 
 /**
@@ -543,10 +554,16 @@ function genererForslag(
  *
  * Sedel-opprettelsen (find-or-create + idempotens per `(userId, dato)` +
  * org-backfill) deles med `ny.tsx` via `finnEllerOpprettDagsseddel` (UF-0).
- * Server håndhever `@@unique([userId, dato])` på `DailySheet`, så finnes dagen
- * alt lokalt → behold den (returner id) og hopp over rad-generering. Ved splitt
- * betyr det at allerede-eksisterende dager beholdes mens nye dager opprettes.
+ * Server håndhever `@@unique([userId, dato])` på `DailySheet`.
+ *
+ * UF-1 (multi-økt-append): finnes dagen alt som **redigerbar draft/returned**
+ * → denne øktens rader **appendes** på samme sedel + arbeidstid-vinduet utvides
+ * til å dekke økten. Er sedelen alt **sendt/godkjent** → ingen append (ville gi
+ * server-konflikt); returneres som `blokkertSendt` så UI kan varsle (recall er
+ * UF-4, egen server-runde).
  */
+type SegmentUtfall = "opprettet" | "appendet" | "blokkertSendt";
+
 function opprettDagsseddelForSegment(args: {
   userId: string;
   orgId: string;
@@ -559,7 +576,7 @@ function opprettDagsseddelForSegment(args: {
   reisetidTellerOvertid: boolean;
   deltVedMidnatt: boolean;
   sluttTidKilde: "bruker" | "midnatt" | "system";
-}): string | null {
+}): { id: string; utfall: SegmentUtfall } | null {
   const {
     userId,
     orgId,
@@ -576,9 +593,8 @@ function opprettDagsseddelForSegment(args: {
   const db = hentDatabase();
   if (!db) return null;
 
-  // UF-0: sedel-opprettelse + idempotens via delt helper (org-backfill følger
-  // med). Atferdsbevarende: finnes dagen alt, returner den UTEN å appende denne
-  // øktens rader (uendret fra før — multi-økt-append er UF-1).
+  // UF-0/UF-1: sedel-opprettelse + idempotens via delt helper (org-backfill
+  // følger med).
   const resultat = finnEllerOpprettDagsseddel(db, {
     userId,
     orgId,
@@ -593,9 +609,20 @@ function opprettDagsseddelForSegment(args: {
     sluttTidKilde,
   });
   const sheetId = resultat.id;
-  if (resultat.eksisterte) return sheetId;
 
-  // Nyopprettet → generer rader.
+  // UF-1: dagen finnes alt.
+  if (resultat.eksisterte) {
+    if (resultat.status !== "draft" && resultat.status !== "returned") {
+      // Sendt/godkjent → kan ikke appende ny økt (ville gi server-konflikt).
+      // Recall er UF-4 (egen server-runde).
+      return { id: sheetId, utfall: "blokkertSendt" };
+    }
+    // Redigerbar draft/returned → append: utvid arbeidstid-vinduet til å dekke
+    // den nye økten. Rad-genereringen under bruker sheetId → appender rader.
+    utvidArbeidstidsvindu(db, sheetId, segment.startIso, segment.sluttIso);
+  }
+
+  // Nyopprettet eller append → generer (og append) denne øktens rader.
   // Arbeidstid = segment-brutto − pause (pause kun på start-dagen, 1a).
   const bruttoTimer =
     (new Date(segment.sluttIso).getTime() -
@@ -695,5 +722,38 @@ function opprettDagsseddelForSegment(args: {
       .run();
   }
 
-  return sheetId;
+  return { id: sheetId, utfall: resultat.eksisterte ? "appendet" : "opprettet" };
+}
+
+/**
+ * UF-1: utvid sedelens arbeidstid-vindu så det dekker en appendet økt.
+ * startAt = tidligste, endAt = seneste. Markerer pending for re-sync.
+ */
+function utvidArbeidstidsvindu(
+  db: NonNullable<ReturnType<typeof hentDatabase>>,
+  sheetId: string,
+  nyStartIso: string,
+  nySluttIso: string,
+): void {
+  const sedel = db
+    .select({ startAt: dagsseddelLocal.startAt, endAt: dagsseddelLocal.endAt })
+    .from(dagsseddelLocal)
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .all()[0];
+  if (!sedel) return;
+
+  const tidligste =
+    sedel.startAt && sedel.startAt < nyStartIso ? sedel.startAt : nyStartIso;
+  const seneste =
+    sedel.endAt && sedel.endAt > nySluttIso ? sedel.endAt : nySluttIso;
+
+  db.update(dagsseddelLocal)
+    .set({
+      startAt: tidligste,
+      endAt: seneste,
+      syncStatus: "pending",
+      sistEndretLokalt: Date.now(),
+    })
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .run();
 }

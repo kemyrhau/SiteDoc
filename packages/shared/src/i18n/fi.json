@@ -41,6 +41,8 @@
   "timer.deltMidnatt.tittel": "Jaettu keskiyöllä",
   "timer.deltMidnatt.hjelp": "Osa vuorosta, joka kesti kaksi päivää.",
   "timer.dagFinnes.notis": "Sinulla oli jo merkintä tälle päivälle – avasimme sen. Projektisi on valmis kirjautumaan sisään.",
+  "timer.appendSendt.tittel": "Päivä on jo lähetetty",
+  "timer.appendSendt.melding": "Sinulla on tämän päivän merkintä, joka on jo lähetetty hyväksyttäväksi. Uutta istuntoa ei lisätty. Jos haluat muuttaa päivää, se on avattava uudelleen (tulossa myöhemmin).",
   "timer.glemtDag.tittel": "Unohditko päättää päivän?",
   "timer.glemtDag.melding": "Päiväsi {{dato}} on edelleen auki.",
   "timer.glemtDag.glemte": "Unohdin lopettaa sen",

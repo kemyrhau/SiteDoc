@@ -41,6 +41,8 @@
   "timer.deltMidnatt.tittel": "Dela vid midnatt",
   "timer.deltMidnatt.hjelp": "En del av ett skifte som sträckte sig över två dagar.",
   "timer.dagFinnes.notis": "Du hade redan ett bidrag för denna dag – vi öppnade det. Ditt projekt är redo att logga in.",
+  "timer.appendSendt.tittel": "Dagen är redan inlämnad",
+  "timer.appendSendt.melding": "Du har ett bidrag för denna dag som redan har skickats in för godkännande. Den nya sessionen lades inte till. För att ändra dag måste den öppnas igen (kommer senare).",
   "timer.glemtDag.tittel": "Har du glömt att avsluta dagen?",
   "timer.glemtDag.melding": "Din dag från {{dato}} är fortfarande öppen.",
   "timer.glemtDag.glemte": "Jag glömde att avsluta det",

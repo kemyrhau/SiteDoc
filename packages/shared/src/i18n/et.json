@@ -41,6 +41,8 @@
   "timer.deltMidnatt.tittel": "Pooli keskööl",
   "timer.deltMidnatt.hjelp": "Osa vahetusest, mis kestis kaks päeva.",
   "timer.dagFinnes.notis": "Teil oli selle päeva sissekanne juba olemas – avasime selle. Teie projekt on sisselogimiseks valmis.",
+  "timer.appendSendt.tittel": "Päev on juba esitatud",
+  "timer.appendSendt.melding": "Teil on selle päeva kanne, mis on juba kinnitamiseks esitatud. Uut seanssi ei lisatud. Päeva muutmiseks tuleb see uuesti avada (tuleb hiljem).",
   "timer.glemtDag.tittel": "Kas unustasite päeva lõpetada?",
   "timer.glemtDag.melding": "Teie päev alates {{dato}} on endiselt avatud.",
   "timer.glemtDag.glemte": "Ma unustasin selle lõpetada",

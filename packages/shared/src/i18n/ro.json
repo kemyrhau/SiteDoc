@@ -41,6 +41,8 @@
   "timer.deltMidnatt.tittel": "Split la miezul nopții",
   "timer.deltMidnatt.hjelp": "Parte dintr-o tură care a durat două zile.",
   "timer.dagFinnes.notis": "Aveți deja o înregistrare pentru această zi - am deschis-o. Proiectul dvs. este gata de conectare.",
+  "timer.appendSendt.tittel": "Ziua este deja transmisă",
+  "timer.appendSendt.melding": "Aveți o înregistrare pentru această zi care a fost deja trimisă spre aprobare. Noua sesiune nu a fost adăugată. Pentru a schimba ziua trebuie redeschis (vin mai târziu).",
   "timer.glemtDag.tittel": "Ai uitat să închei ziua?",
   "timer.glemtDag.melding": "Ziua dvs. de la {{dato}} este încă deschisă.",
   "timer.glemtDag.glemte": "Am uitat să-l pun capăt",

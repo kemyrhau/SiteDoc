@@ -41,6 +41,8 @@
   "timer.deltMidnatt.tittel": "Ndahet në mesnatë",
   "timer.deltMidnatt.hjelp": "Pjesë e një ndërrimi që zgjati dy ditë.",
   "timer.dagFinnes.notis": "Ju tashmë kishit një hyrje për këtë ditë - ne e hapëm atë. Projekti juaj është gati për të hyrë në kohë.",
+  "timer.appendSendt.tittel": "Dita është dorëzuar tashmë",
+  "timer.appendSendt.melding": "Ju keni një hyrje për këtë ditë që tashmë është dorëzuar për miratim. Sesioni i ri nuk u shtua. Për të ndryshuar ditën duhet të rihapet (vjen më vonë).",
   "timer.glemtDag.tittel": "Keni harruar ta mbyllni ditën?",
   "timer.glemtDag.melding": "Dita juaj nga {{dato}} është ende e hapur.",
   "timer.glemtDag.glemte": "Kam harruar t'i jap fund",

@@ -41,6 +41,8 @@
   "timer.deltMidnatt.tittel": "Delt ved midnatt",
   "timer.deltMidnatt.hjelp": "Del av et skift som gikk over to dager.",
   "timer.dagFinnes.notis": "Du hadde allerede en registrering for denne dagen — vi åpnet den. Prosjektet ditt er klart til å føres.",
+  "timer.appendSendt.tittel": "Dagen er allerede sendt",
+  "timer.appendSendt.melding": "Du har en registrering for denne dagen som alt er sendt til attestering. Den nye økten ble ikke lagt til. For å endre dagen må den åpnes på nytt (kommer senere).",
   "timer.glemtDag.tittel": "Glemte du å avslutte?",
   "timer.glemtDag.melding": "Dagen din fra {{dato}} er fortsatt åpen.",
   "timer.glemtDag.glemte": "Jeg glemte å avslutte",
