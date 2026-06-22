@@ -88,7 +88,6 @@
   "timer.status": "Status",
   "timer.ukeSum": "totalt {{timer}}t",
   "timer.banner.dagstotal": "Du har ført {{timer}}t i dag på {{antall}} dagsseddel(er)",
-  "timer.banner.ingenIDag": "Ingen timer registrert i dag ennå",
   "timer.banner.uketotal": "Uke {{ukeNr}} — {{timer}}t på {{antall}} dagssedler",
   "timer.mine.tittel": "Mine timer",
   "timer.mine.beskrivelse": "Personlig oversikt over timer-historikken på tvers av prosjekter.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Legg til tillegg",
   "timer.rediger.timer": "Rediger timer-rad",
   "timer.rediger.tillegg": "Rediger tillegg",
-  "timer.sendTilAttestering": "Send til attestering",
   "timer.sendGodkjennHint": "Når du sender, godkjenner du timene dine.",
   "timer.slettDagsseddel": "Slett dagsseddel",
   "timer.bekreftSlett": "Slett dagsseddel?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Fant ingen treff på adressen. Juster den, eller sett punktet manuelt på kartet.",
   "firma.oppmotested.kartHjelp": "Klikk eller dra markøren for å justere posisjonen. Sirkelen viser geofence-radiusen.",
   "timer.maskinforerbevis.arbeider": "Maskinarbeid registreres uten registrert maskinførerbevis. Flagges for synlighet hos leder.",
-  "timer.maskinforerbevis.leder": "Maskinarbeid uten registrert maskinførerbevis — flagget for synlighet."
+  "timer.maskinforerbevis.leder": "Maskinarbeid uten registrert maskinførerbevis — flagget for synlighet.",
+  "timer.sendMedSum": "Send {{timer}} t til attestering"
 }

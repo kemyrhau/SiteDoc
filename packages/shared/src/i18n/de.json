@@ -88,7 +88,6 @@
   "timer.status": "Status",
   "timer.ukeSum": "insgesamt {{timer}}h",
   "timer.banner.dagstotal": "Sie haben heute {{timer}}h über {{antall}} Tagesblätter registriert.",
-  "timer.banner.ingenIDag": "Heute sind noch keine Stunden registriert",
   "timer.banner.uketotal": "Woche {{ukeNr}} – {{timer}}h über {{antall}} Tagesblätter",
   "timer.mine.tittel": "Meine Stunden",
   "timer.mine.beskrivelse": "Persönlicher Überblick über Ihren Stundenverlauf über Projekte hinweg.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Zulage hinzufügen",
   "timer.rediger.timer": "Zeitzeile bearbeiten",
   "timer.rediger.tillegg": "Zulage bearbeiten",
-  "timer.sendTilAttestering": "Zur Genehmigung senden",
   "timer.sendGodkjennHint": "Mit dem Absenden genehmigen Sie Ihre Stunden.",
   "timer.slettDagsseddel": "Stundenzettel löschen",
   "timer.bekreftSlett": "Stundenzettel löschen?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Für die Adresse wurde keine Übereinstimmung gefunden. Passen Sie es an oder platzieren Sie den Punkt manuell auf der Karte.",
   "firma.oppmotested.kartHjelp": "Klicken oder ziehen Sie die Markierung, um die Position anzupassen. Der Kreis zeigt den Geofence-Radius.",
   "timer.maskinforerbevis.arbeider": "Maschinenarbeiten werden ohne registriertes Bedienerzertifikat protokolliert. Markiert für die Sichtbarkeit Ihres Managers.",
-  "timer.maskinforerbevis.leder": "Maschinenarbeiten ohne registriertes Bedienerzertifikat – zur besseren Sichtbarkeit gekennzeichnet."
+  "timer.maskinforerbevis.leder": "Maschinenarbeiten ohne registriertes Bedienerzertifikat – zur besseren Sichtbarkeit gekennzeichnet.",
+  "timer.sendMedSum": "Senden Sie {{timer}}h zur Genehmigung"
 }

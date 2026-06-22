@@ -88,7 +88,6 @@
   "timer.status": "Status",
   "timer.ukeSum": "totalt {{timer}}h",
   "timer.banner.dagstotal": "Du har registrerat {{timer}}h idag på {{antall}} dagliga blad",
-  "timer.banner.ingenIDag": "Inga timmar registrerade idag än",
   "timer.banner.uketotal": "Vecka {{ukeNr}} — {{timer}}h över {{antall}} dagliga blad",
   "timer.mine.tittel": "Mina timmar",
   "timer.mine.beskrivelse": "Personlig översikt över din timhistorik över projekt.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Lägg till ersättning",
   "timer.rediger.timer": "Redigera tidsrad",
   "timer.rediger.tillegg": "Redigera ersättning",
-  "timer.sendTilAttestering": "Skicka för godkännande",
   "timer.sendGodkjennHint": "Genom att skicka godkänner du dina timmar.",
   "timer.slettDagsseddel": "Ta bort tidrapport",
   "timer.bekreftSlett": "Ta bort tidrapport?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Ingen matchning hittades för adressen. Justera den eller placera punkten manuellt på kartan.",
   "firma.oppmotested.kartHjelp": "Klicka eller dra markören för att justera positionen. Cirkeln visar geofenceradien.",
   "timer.maskinforerbevis.arbeider": "Maskinarbete loggas utan registrerat operatörsintyg. Flaggat för din chefs synlighet.",
-  "timer.maskinforerbevis.leder": "Maskinarbete utan registrerat operatörscertifikat — flaggad för synlighet."
+  "timer.maskinforerbevis.leder": "Maskinarbete utan registrerat operatörscertifikat — flaggad för synlighet.",
+  "timer.sendMedSum": "Skicka {{timer}}h för godkännande"
 }

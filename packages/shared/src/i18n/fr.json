@@ -88,7 +88,6 @@
   "timer.status": "Statut",
   "timer.ukeSum": "total {{timer}}h",
   "timer.banner.dagstotal": "Vous avez enregistré {{timer}}h aujourd'hui sur {{antall}} feuille(s) quotidienne(s)",
-  "timer.banner.ingenIDag": "Aucune heure enregistrée aujourd'hui pour l'instant",
   "timer.banner.uketotal": "Semaine {{ukeNr}} – {{timer}}h sur {{antall}} feuilles quotidiennes",
   "timer.mine.tittel": "Mes horaires",
   "timer.mine.beskrivelse": "Aperçu personnel de votre historique d'heures à travers les projets.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Ajouter une allocation",
   "timer.rediger.timer": "Modifier la ligne de temps",
   "timer.rediger.tillegg": "Modifier l'allocation",
-  "timer.sendTilAttestering": "Envoyer pour approbation",
   "timer.sendGodkjennHint": "En envoyant, vous approuvez vos horaires.",
   "timer.slettDagsseddel": "Supprimer la feuille de temps",
   "timer.bekreftSlett": "Supprimer la feuille de temps ?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Aucune correspondance trouvée pour l'adresse. Ajustez-le ou placez le point manuellement sur la carte.",
   "firma.oppmotested.kartHjelp": "Cliquez ou faites glisser le marqueur pour ajuster la position. Le cercle montre le rayon de la barrière géographique.",
   "timer.maskinforerbevis.arbeider": "Le travail sur machine est enregistré sans certificat d'opérateur enregistré. Marqué pour la visibilité de votre manager.",
-  "timer.maskinforerbevis.leder": "Travail sur machine sans certificat d’opérateur enregistré – signalé pour visibilité."
+  "timer.maskinforerbevis.leder": "Travail sur machine sans certificat d’opérateur enregistré – signalé pour visibilité.",
+  "timer.sendMedSum": "Envoyer {{timer}}h pour approbation"
 }

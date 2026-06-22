@@ -88,7 +88,6 @@
   "timer.status": "Olek",
   "timer.ukeSum": "kokku {{timer}}h",
   "timer.banner.dagstotal": "Olete täna registreerinud {{timer}} h {{antall}} päevalehele",
-  "timer.banner.ingenIDag": "Täna pole veel ühtegi tundi registreeritud",
   "timer.banner.uketotal": "Nädal {{ukeNr}} – {{timer}} h {{antall}} päevalehe vahel",
   "timer.mine.tittel": "Minu tunnid",
   "timer.mine.beskrivelse": "Isiklik ülevaade teie tundide ajaloost projektide lõikes.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Lisa toetust",
   "timer.rediger.timer": "Muutke ajarida",
   "timer.rediger.tillegg": "Muuda toetust",
-  "timer.sendTilAttestering": "Saada kinnitamiseks",
   "timer.sendGodkjennHint": "Saates kinnitate oma lahtiolekuajad.",
   "timer.slettDagsseddel": "Kustuta ajaleht",
   "timer.bekreftSlett": "Kas kustutada ajaleht?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Aadressile ei leitud vastet. Reguleerige seda või asetage punkt käsitsi kaardile.",
   "firma.oppmotested.kartHjelp": "Asukoha reguleerimiseks klõpsake või lohistage markerit. Ring näitab geotara raadiust.",
   "timer.maskinforerbevis.arbeider": "Masinatööd logitakse ilma registreeritud operaatori tunnistuseta. Märgistatud teie halduri nähtavuse tagamiseks.",
-  "timer.maskinforerbevis.leder": "Masinatöö ilma registreeritud operaatori sertifikaadita — nähtavuse huvides märgistatud."
+  "timer.maskinforerbevis.leder": "Masinatöö ilma registreeritud operaatori sertifikaadita — nähtavuse huvides märgistatud.",
+  "timer.sendMedSum": "Saada kinnitamiseks {{timer}}h"
 }

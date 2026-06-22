@@ -88,7 +88,6 @@
   "timer.status": "Статус",
   "timer.ukeSum": "всього {{timer}} год",
   "timer.banner.dagstotal": "Ви зареєстрували {{timer}} год сьогодні на {{antall}} щоденних аркушах",
-  "timer.banner.ingenIDag": "Сьогодні ще немає зареєстрованих годин",
   "timer.banner.uketotal": "Тиждень {{ukeNr}} — {{timer}} год на {{antall}} щоденних аркушах",
   "timer.mine.tittel": "Мої години",
   "timer.mine.beskrivelse": "Персональний огляд вашої годинної історії за проектами.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Додайте надбавку",
   "timer.rediger.timer": "Редагувати рядок часу",
   "timer.rediger.tillegg": "Редагувати допуск",
-  "timer.sendTilAttestering": "Надіслати на затвердження",
   "timer.sendGodkjennHint": "Відправляючи, ви підтверджуєте свої години.",
   "timer.slettDagsseddel": "Видалити табель обліку робочого часу",
   "timer.bekreftSlett": "Видалити табель обліку робочого часу?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Не знайдено збігів для адреси. Налаштуйте його або розмістіть точку на карті вручну.",
   "firma.oppmotested.kartHjelp": "Натисніть або перетягніть маркер, щоб налаштувати положення. Коло показує радіус геозони.",
   "timer.maskinforerbevis.arbeider": "Робота машини ведеться без зареєстрованого сертифіката оператора. Позначено для видимості вашого менеджера.",
-  "timer.maskinforerbevis.leder": "Машина працює без зареєстрованого сертифіката оператора — позначено для видимості."
+  "timer.maskinforerbevis.leder": "Машина працює без зареєстрованого сертифіката оператора — позначено для видимості.",
+  "timer.sendMedSum": "Надіслати {{timer}} год на затвердження"
 }

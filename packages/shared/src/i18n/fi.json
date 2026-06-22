@@ -88,7 +88,6 @@
   "timer.status": "Status",
   "timer.ukeSum": "yhteensä {{ajastin}}h",
   "timer.banner.dagstotal": "Olet rekisteröitynyt tänään {{timer}}h {{antall}} päiväkirjalle",
-  "timer.banner.ingenIDag": "Tänään ei ole vielä rekisteröitynyt tuntia",
   "timer.banner.uketotal": "Viikko {{ukeNr}} – {{timer}}h {{antall}} arkin yli",
   "timer.mine.tittel": "Minun tunnini",
   "timer.mine.beskrivelse": "Henkilökohtainen yleiskatsaus tuntihistoriaasi eri projekteissa.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Lisää korvaus",
   "timer.rediger.timer": "Muokkaa aikariviä",
   "timer.rediger.tillegg": "Muokkaa korvausta",
-  "timer.sendTilAttestering": "Lähetä hyväksyttäväksi",
   "timer.sendGodkjennHint": "Lähettämällä hyväksyt aukioloaikasi.",
   "timer.slettDagsseddel": "Poista aikataulukko",
   "timer.bekreftSlett": "Poistetaanko aikataulukko?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Osoitetta ei löytynyt. Säädä sitä tai aseta piste manuaalisesti kartalle.",
   "firma.oppmotested.kartHjelp": "Napsauta tai vedä merkkiä säätääksesi sijaintia. Ympyrä näyttää geoaidan säteen.",
   "timer.maskinforerbevis.arbeider": "Konetyöt kirjataan ilman rekisteröityä käyttäjätodistusta. Merkitty esimiehesi näkyvyyden vuoksi.",
-  "timer.maskinforerbevis.leder": "Konetyö ilman rekisteröityä käyttäjätodistusta – merkitty näkyvyyttä varten."
+  "timer.maskinforerbevis.leder": "Konetyö ilman rekisteröityä käyttäjätodistusta – merkitty näkyvyyttä varten.",
+  "timer.sendMedSum": "Lähetä {{timer}}h hyväksyttäväksi"
 }

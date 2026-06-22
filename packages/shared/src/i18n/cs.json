@@ -88,7 +88,6 @@
   "timer.status": "Postavení",
   "timer.ukeSum": "celkem {{časovač}} h",
   "timer.banner.dagstotal": "Dnes jste zaregistrovali {{timer}} h v {{antall}} denních listech",
-  "timer.banner.ingenIDag": "Dnes ještě nejsou zaregistrovány žádné hodiny",
   "timer.banner.uketotal": "Týden {{ukeNr}} – {{timer}}h v {{antall}} denních listech",
   "timer.mine.tittel": "Moje hodiny",
   "timer.mine.beskrivelse": "Osobní přehled vaší hodinové historie napříč projekty.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Přidejte příspěvek",
   "timer.rediger.timer": "Upravit řádek času",
   "timer.rediger.tillegg": "Upravit příspěvek",
-  "timer.sendTilAttestering": "Odeslat ke schválení",
   "timer.sendGodkjennHint": "Odesláním schvalujete otevírací dobu.",
   "timer.slettDagsseddel": "Smazat časový rozvrh",
   "timer.bekreftSlett": "Smazat časový rozvrh?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Pro adresu nebyla nalezena žádná shoda. Upravte jej nebo umístěte bod ručně na mapu.",
   "firma.oppmotested.kartHjelp": "Klepnutím nebo přetažením značky upravte polohu. Kruh ukazuje poloměr geofence.",
   "timer.maskinforerbevis.arbeider": "Práce stroje se zaznamenává bez registrovaného certifikátu operátora. Označeno pro viditelnost vašeho manažera.",
-  "timer.maskinforerbevis.leder": "Práce na stroji bez registrovaného certifikátu operátora – označeno pro viditelnost."
+  "timer.maskinforerbevis.leder": "Práce na stroji bez registrovaného certifikátu operátora – označeno pro viditelnost.",
+  "timer.sendMedSum": "Odeslat {{timer}} h ke schválení"
 }

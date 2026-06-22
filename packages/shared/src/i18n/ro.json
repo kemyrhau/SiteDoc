@@ -88,7 +88,6 @@
   "timer.status": "Stare",
   "timer.ukeSum": "total {{timer}}h",
   "timer.banner.dagstotal": "V-ați înregistrat astăzi {{timer}}h pe {{antall}} foi(e) zilnice",
-  "timer.banner.ingenIDag": "Nu s-a înregistrat încă oră astăzi",
   "timer.banner.uketotal": "Săptămâna {{ukeNr}} — {{timer}}h pe {{antall}} foi zilnice",
   "timer.mine.tittel": "Orele mele",
   "timer.mine.beskrivelse": "Prezentare generală personală a istoricului orelor dvs. în cadrul proiectelor.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Adăugați alocația",
   "timer.rediger.timer": "Editați rândul de timp",
   "timer.rediger.tillegg": "Editați alocația",
-  "timer.sendTilAttestering": "Trimiteți pentru aprobare",
   "timer.sendGodkjennHint": "Prin trimitere, îți aprobi programul.",
   "timer.slettDagsseddel": "Ștergeți foaia de pontaj",
   "timer.bekreftSlett": "Ștergeți foaia de pontaj?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Nu s-a găsit nicio potrivire pentru adresa. Ajustați-l sau plasați punctul manual pe hartă.",
   "firma.oppmotested.kartHjelp": "Faceți clic sau trageți marcatorul pentru a ajusta poziția. Cercul arată raza gardului geografic.",
   "timer.maskinforerbevis.arbeider": "Lucrările la mașină sunt înregistrate fără un certificat de operator înregistrat. Semnalat pentru vizibilitatea managerului dvs.",
-  "timer.maskinforerbevis.leder": "Lucru la mașină fără un certificat de operator înregistrat - marcat pentru vizibilitate."
+  "timer.maskinforerbevis.leder": "Lucru la mașină fără un certificat de operator înregistrat - marcat pentru vizibilitate.",
+  "timer.sendMedSum": "Trimiteți {{timer}}h pentru aprobare"
 }

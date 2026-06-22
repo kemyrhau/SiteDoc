@@ -88,7 +88,6 @@
   "timer.status": "Būsena",
   "timer.ukeSum": "iš viso {{timer}} val",
   "timer.banner.dagstotal": "Šiandien užregistravote {{timer}} val. per {{antall}} dienos lapą (-us)",
-  "timer.banner.ingenIDag": "Šiandien dar nėra registruotų valandų",
   "timer.banner.uketotal": "{{ukeNr}} savaitė – {{timer}} val. per {{antall}} dienos lapų",
   "timer.mine.tittel": "Mano valandos",
   "timer.mine.beskrivelse": "Asmeninė jūsų valandų istorijos apžvalga projektuose.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Pridėti pašalpą",
   "timer.rediger.timer": "Redaguoti laiko eilutę",
   "timer.rediger.tillegg": "Redaguoti pašalpą",
-  "timer.sendTilAttestering": "Siųsti patvirtinti",
   "timer.sendGodkjennHint": "Siųsdami patvirtinate savo darbo valandas.",
   "timer.slettDagsseddel": "Ištrinkite laiko lapą",
   "timer.bekreftSlett": "Ištrinti laiko apskaitos žiniaraštį?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Adreso atitikmenų nerasta. Sureguliuokite jį arba rankiniu būdu padėkite tašką žemėlapyje.",
   "firma.oppmotested.kartHjelp": "Spustelėkite arba vilkite žymeklį, kad sureguliuotumėte padėtį. Apskritimas rodo geotvoros spindulį.",
   "timer.maskinforerbevis.arbeider": "Mašinos darbai registruojami be registruoto operatoriaus pažymėjimo. Pažymėta, kad jūsų vadovas būtų matomas.",
-  "timer.maskinforerbevis.leder": "Mašina dirba be registruoto operatoriaus pažymėjimo – pažymėta, kad būtų matoma."
+  "timer.maskinforerbevis.leder": "Mašina dirba be registruoto operatoriaus pažymėjimo – pažymėta, kad būtų matoma.",
+  "timer.sendMedSum": "Siųsti {{timer}} val. patvirtinti"
 }

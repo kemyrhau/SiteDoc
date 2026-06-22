@@ -88,7 +88,6 @@
   "timer.status": "Status",
   "timer.ukeSum": "łącznie {{timer}} godz",
   "timer.banner.dagstotal": "Zarejestrowałeś dzisiaj {{timer}}h w {{antall}} arkuszach dziennych",
-  "timer.banner.ingenIDag": "Dzisiaj nie zarejestrowano jeszcze żadnych godzin",
   "timer.banner.uketotal": "Tydzień {{ukeNr}} — {{timer}}h w {{antall}} arkuszach dziennych",
   "timer.mine.tittel": "Moje godziny",
   "timer.mine.beskrivelse": "Osobisty przegląd historii godzin w projektach.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Dodaj zasiłek",
   "timer.rediger.timer": "Edytuj wiersz czasu",
   "timer.rediger.tillegg": "Edytuj zasiłek",
-  "timer.sendTilAttestering": "Wyślij do zatwierdzenia",
   "timer.sendGodkjennHint": "Wysyłając akceptujesz swoje godziny pracy.",
   "timer.slettDagsseddel": "Usuń arkusz czasu",
   "timer.bekreftSlett": "Usunąć arkusz czasu pracy?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Nie znaleziono dopasowania dla adresu. Dostosuj go lub umieść punkt ręcznie na mapie.",
   "firma.oppmotested.kartHjelp": "Kliknij lub przeciągnij znacznik, aby dostosować położenie. Okrąg pokazuje promień geofence.",
   "timer.maskinforerbevis.arbeider": "Praca maszyny jest rejestrowana bez certyfikatu zarejestrowanego operatora. Oznaczone jako widoczne dla Twojego menedżera.",
-  "timer.maskinforerbevis.leder": "Praca maszynowa bez certyfikatu zarejestrowanego operatora — oznaczona dla widoczności."
+  "timer.maskinforerbevis.leder": "Praca maszynowa bez certyfikatu zarejestrowanego operatora — oznaczona dla widoczności.",
+  "timer.sendMedSum": "Wyślij {{timer}}h do zatwierdzenia"
 }

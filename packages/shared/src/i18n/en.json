@@ -88,7 +88,6 @@
   "timer.status": "Status",
   "timer.ukeSum": "total {{timer}}h",
   "timer.banner.dagstotal": "You've registered {{timer}}h today across {{antall}} daily sheet(s)",
-  "timer.banner.ingenIDag": "No hours registered today yet",
   "timer.banner.uketotal": "Week {{ukeNr}} — {{timer}}h across {{antall}} daily sheets",
   "timer.mine.tittel": "My hours",
   "timer.mine.beskrivelse": "Personal overview of your hour history across projects.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Add allowance",
   "timer.rediger.timer": "Edit time row",
   "timer.rediger.tillegg": "Edit allowance",
-  "timer.sendTilAttestering": "Send for approval",
   "timer.sendGodkjennHint": "By sending, you approve your hours.",
   "timer.slettDagsseddel": "Delete time sheet",
   "timer.bekreftSlett": "Delete time sheet?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "No match found for the address. Adjust it, or place the point manually on the map.",
   "firma.oppmotested.kartHjelp": "Click or drag the marker to adjust the position. The circle shows the geofence radius.",
   "timer.maskinforerbevis.arbeider": "Machine work is being logged without a registered operator certificate. Flagged for your manager's visibility.",
-  "timer.maskinforerbevis.leder": "Machine work without a registered operator certificate — flagged for visibility."
+  "timer.maskinforerbevis.leder": "Machine work without a registered operator certificate — flagged for visibility.",
+  "timer.sendMedSum": "Send {{timer}}h for approval"
 }

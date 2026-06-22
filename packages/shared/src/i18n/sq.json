@@ -88,7 +88,6 @@
   "timer.status": "Statusi",
   "timer.ukeSum": "gjithsej {{timer}}h",
   "timer.banner.dagstotal": "Ju jeni regjistruar {{timer}} orë sot në {{antall}} fletë(t) ditore",
-  "timer.banner.ingenIDag": "Sot nuk është regjistruar ende asnjë orë",
   "timer.banner.uketotal": "Java {{ukeNr}} — {{timer}}h nëpër fletët ditore të {{antall}}",
   "timer.mine.tittel": "Orët e mia",
   "timer.mine.beskrivelse": "Pasqyrë personale e historisë suaj të orës nëpër projekte.",
@@ -214,7 +213,6 @@
   "timer.tilfoy.tillegg": "Shto kompensim",
   "timer.rediger.timer": "Redakto rreshtin kohor",
   "timer.rediger.tillegg": "Redakto kompensimin",
-  "timer.sendTilAttestering": "Dërgo për miratim",
   "timer.sendGodkjennHint": "Duke dërguar, ju miratoni orët tuaja.",
   "timer.slettDagsseddel": "Fshi fletën e kohës",
   "timer.bekreftSlett": "Të fshihet fleta kohore?",
@@ -2528,5 +2526,6 @@
   "firma.oppmotested.geokodIngen": "Nuk u gjet asnjë përputhje për adresën. Rregullojeni atë ose vendosni pikën manualisht në hartë.",
   "firma.oppmotested.kartHjelp": "Klikoni ose tërhiqni shënuesin për të rregulluar pozicionin. Rrethi tregon rrezen e gjeofences.",
   "timer.maskinforerbevis.arbeider": "Puna e makinës po regjistrohet pa një certifikatë operatori të regjistruar. Shënuar për dukshmërinë e menaxherit tuaj.",
-  "timer.maskinforerbevis.leder": "Puna e makinerisë pa një certifikatë operatori të regjistruar — e shënuar për dukshmëri."
+  "timer.maskinforerbevis.leder": "Puna e makinerisë pa një certifikatë operatori të regjistruar — e shënuar për dukshmëri.",
+  "timer.sendMedSum": "Dërgo {{timer}}h për miratim"
 }
