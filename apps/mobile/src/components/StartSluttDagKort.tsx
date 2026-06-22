@@ -19,7 +19,11 @@ import { useFirma } from "../kontekst/FirmaKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { avstandMeter, estimerReisetidMin, klassifiserReise, type ReiseKategori } from "@sitedoc/shared";
 import { haversineKm } from "../utils/geo";
-import { splittVedMidnatt, type Dagsegment } from "../utils/dagsegment";
+import {
+  splittVedMidnatt,
+  kappGlemtDagSlutt,
+  type Dagsegment,
+} from "../utils/dagsegment";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
@@ -406,6 +410,14 @@ export function StartSluttDagKort() {
 }
 
 /**
+ * UF-2 trinn 8 — hard enkelt-skift-cap (timer). Spenn over dette tolkes som
+ * glemt avslutning og kappes (se `kappGlemtDagSlutt`). Konstant inntil videre;
+ * å gjøre den til en firma-setting (AML/tariff per firma) krever server +
+ * migrering → egen runde.
+ */
+const MAKS_ENKELTSKIFT_TIMER = 16;
+
+/**
  * Generer dagsseddel-forslag fra en avsluttet arbeidsdag-økt.
  * Returnerer **start-dagens** dagsseddel-id (for navigering), eller null hvis
  * prosjekt/aktivitet ikke kan utledes offline (kaller da manuell opprettelse).
@@ -515,10 +527,31 @@ function genererForslag(
     }
   }
 
-  // 4. Midnatt-splitt (Slice 4a): én dagsseddel per kalenderdag. Normalt ett
+  // 4. UF-2: universell enkelt-skift-cap FØR midnatt-splitt. Er spennet (start→
+  // slutt) større enn hard-cap (trinn 8), tolkes det som glemt avslutning og
+  // slutt kappes til start + sesongjustert dagsnorm (trinn 7) → unngår N×24t-
+  // sedler. Kilde tvinges til "system" (gjettet → kontroll-badge). Et legitimt
+  // nattskift (< cap) slipper urørt gjennom. Recovery-banen estimerer alt en
+  // kort slutt → passerer uberørt (ingen dobbel-kapp).
+  const effektivStartDag = hentEffektivArbeidstidLokal(
+    orgId,
+    new Date(`${formatIsoDato(new Date(dag.startAt))}T00:00:00`),
+  );
+  const kappLengdeTimer =
+    effektivStartDag.dagsnorm > 0 ? effektivStartDag.dagsnorm : 7.5;
+  const { sluttIso: effektivSluttIso, kappet } = kappGlemtDagSlutt(
+    dag.startAt,
+    sluttIso,
+    { deteksjonsTimer: MAKS_ENKELTSKIFT_TIMER, kappLengdeTimer },
+  );
+  const effektivSisteKilde: "bruker" | "system" = kappet
+    ? "system"
+    : sisteSegmentKilde;
+
+  // Midnatt-splitt (Slice 4a): én dagsseddel per kalenderdag. Normalt ett
   // segment (dagskift); kryssende skift → flere. Reise + firma-pause kun på
   // start-segmentet. Returner start-dagens sedel for navigering.
-  const segmenter = splittVedMidnatt(dag.startAt, sluttIso);
+  const segmenter = splittVedMidnatt(dag.startAt, effektivSluttIso);
   const deltVedMidnatt = segmenter.length > 1;
   let startSheetId: string | null = null;
   let blokkertSendt = false;
@@ -541,7 +574,7 @@ function genererForslag(
       reiseLonnsartId,
       reisetidTellerOvertid: regel?.reisetidTellerOvertid ?? false,
       deltVedMidnatt,
-      sluttTidKilde: erSiste ? sisteSegmentKilde : "midnatt",
+      sluttTidKilde: erSiste ? effektivSisteKilde : "midnatt",
     });
     if (res?.utfall === "blokkertSendt") blokkertSendt = true;
     if (seg.erStartSegment) startSheetId = res?.id ?? null;

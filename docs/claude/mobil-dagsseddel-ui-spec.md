@@ -145,7 +145,7 @@ Hver slice: egen commit på develop → dual-review → test-build → device-ve
 
 Flyt-endring, ikke presentasjon. Operasjonaliserer T.8 for fler-økt- og glemt-dag-tilfeller.
 
-> **Status (2026-06-22): UF-0 + UF-1 på develop.**
+> **Status (2026-06-22): UF-0 + UF-1 + UF-2 på develop.**
 > - **UF-0** — delt `finnEllerOpprettDagsseddel` (`apps/mobile/src/services/dagsseddelOpprett.ts`):
 >   find-or-create per `(userId, dato)` + org-backfill + arbeidstid-prefill. Begge inngangspunkter
 >   (`ny.tsx` + `opprettDagsseddelForSegment`) ruter gjennom den. Fikser 🔴 duplikat-dagsseddel/sync-stuck.
@@ -153,7 +153,12 @@ Flyt-endring, ikke presentasjon. Operasjonaliserer T.8 for fler-økt- og glemt-d
 >   eksisterende **redigerbar** draft + utvider arbeidstid-vinduet (`utvidArbeidstidsvindu`). Er dagen
 >   alt **sendt/godkjent** → ingen append (ville gi server-konflikt), arbeider varsles
 >   (`timer.appendSendt.*`); endring krever recall (UF-4).
-> **Gjenstår denne planen:** UF-2 glemt-dag-cap (C/D), UF-3 kladd-påminnelse (B). **UF-4 recall (E)
+> - **UF-2 (C/D glemt-dag-cap)** — ny ren util `kappGlemtDagSlutt` (`dagsegment.ts`): universell
+>   enkelt-skift-cap FØR `splittVedMidnatt` i `genererForslag` (chokepoint for ALLE slutt-baner).
+>   Spenn > hard-cap (trinn 8, konstant `MAKS_ENKELTSKIFT_TIMER=16`) → kappes til start +
+>   sesongjustert dagsnorm (trinn 7, `effektiv.dagsnorm`), `sluttTidKilde="system"` → kontroll-badge.
+>   Fjerner 160 t-rotårsaken (blind N×24t-splitt av glemt avslutning). Legitimt nattskift (< cap) urørt.
+> **Gjenstår denne planen:** UF-3 kladd-påminnelse (B). **UF-4 recall (E)
 > utsatt til egen server-runde** — krever ny tRPC-mutasjon (`sent→draft`, ingen `cancelled`-status
 > finnes), ingen migrering. Se [BACKLOG](BACKLOG.md).
 
@@ -180,14 +185,15 @@ Universell enkelt-skift-cap på ALLE sluttbaner** (ikke bare gjenopprett-banen).
 - **Rotårsak 160 t (verifisert):** en sluttbane med `slutt = nå` + `splittVedMidnatt`
   (`dagsegment.ts:38–76`) deler et fler-døgns spenn **blindt** dag-for-dag (while-løkke
   uten øvre grense, linje 61) → N døgnsedler à ~24 t.
-- **Fiks:** `splittVedMidnatt` skiller **nattskift** (kort, krysser én midnatt → split)
-  fra **glemt avslutning** (fler-døgns spenn → **kapp** til enkelt-skift, ikke split).
+- **Fiks (✅ UF-2):** ny ren util `kappGlemtDagSlutt` (`dagsegment.ts`) kalt FØR `splittVedMidnatt`
+  i `genererForslag` skiller **nattskift** (kort, < hard-cap → split som før) fra **glemt avslutning**
+  (spenn > hard-cap → **kapp** til start + sesong-dagsnorm, ikke split). `splittVedMidnatt` forblir ren.
 
   | Trinn | Signal | Status |
   |---|---|---|
-  | (2) | Neste «Start dag» **kapper** forrige uavsluttede økt | **Buildable nå** |
-  | (7) | Sesongjustert normaldag (vinter 7 / sommer 8 / ellers 7,5 t, firma-setting) | **Buildable nå** |
-  | (8) | Hard AML/tariff-cap (absolutt øvre grense) | **Buildable nå** |
+  | (2) | Neste «Start dag» **kapper** forrige uavsluttede økt | ✅ Dekket: glemt-dag-prompt (Slice 4b-1) + universell cap (UF-2) gjør normal-slutt-banen trygg |
+  | (7) | Sesongjustert normaldag (vinter 7 / sommer 8 / ellers 7,5 t, firma-setting) | ✅ **UF-2** — kapp-lengde = `effektiv.dagsnorm` (sesongjustert via summertid-kalender) |
+  | (8) | Hard AML/tariff-cap (absolutt øvre grense) | ✅ **UF-2** — `MAKS_ENKELTSKIFT_TIMER=16` (konstant; firma-setting krever server+migrering → egen runde) |
   | (1) | Byggeplass-geofence-utgang / PSI-utsjekk | Modul-avhengig (juridisk sign-off gjenstår — se [timer-gps-prosjekt-utredning.md](timer-gps-prosjekt-utredning.md)) |
   | (3) | Planlagt skift | Modul-avhengig (Planlegger) |
   | (4) | Kollega-/skift-slutt | Modul-avhengig (Mannskap/PSI) |
