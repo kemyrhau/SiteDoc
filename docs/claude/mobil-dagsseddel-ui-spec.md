@@ -145,6 +145,14 @@ Hver slice: egen commit på develop → dual-review → test-build → device-ve
 
 Flyt-endring, ikke presentasjon. Operasjonaliserer T.8 for fler-økt- og glemt-dag-tilfeller.
 
+> **Status (2026-06-22): UF-0 (fundament) på develop.** Delt `finnEllerOpprettDagsseddel`
+> (`apps/mobile/src/services/dagsseddelOpprett.ts`): find-or-create per `(userId, dato)`
+> + org-backfill + arbeidstid-prefill. Begge inngangspunkter (`ny.tsx` + `opprettDagsseddelForSegment`)
+> ruter gjennom den. Fikser 🔴 duplikat-dagsseddel/sync-stuck + konsoliderer divergensen.
+> **Gjenstår denne planen:** UF-1 multi-økt-append (A), UF-2 glemt-dag-cap (C/D), UF-3
+> kladd-påminnelse (B). **UF-4 recall (E) utsatt til egen server-runde** — krever ny tRPC-mutasjon
+> (`sent→draft`, ingen `cancelled`-status finnes), ingen migrering. Se [BACKLOG](BACKLOG.md).
+
 **A. Multi-økt-append.** Andre «Start dag» samme døgn skal **finne og appende til
 eksisterende draft-dagsseddel** (ny økt = nye rader på samme sedel), ikke opprette
 ny / no-op.

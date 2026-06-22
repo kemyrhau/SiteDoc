@@ -40,6 +40,7 @@
   "timer.autoFyll.hjelp": "Kontrollige, parandage ja esitage.",
   "timer.deltMidnatt.tittel": "Pooli keskööl",
   "timer.deltMidnatt.hjelp": "Osa vahetusest, mis kestis kaks päeva.",
+  "timer.dagFinnes.notis": "Teil oli selle päeva sissekanne juba olemas – avasime selle. Teie projekt on sisselogimiseks valmis.",
   "timer.glemtDag.tittel": "Kas unustasite päeva lõpetada?",
   "timer.glemtDag.melding": "Teie päev alates {{dato}} on endiselt avatud.",
   "timer.glemtDag.glemte": "Ma unustasin selle lõpetada",

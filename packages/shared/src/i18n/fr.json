@@ -40,6 +40,7 @@
   "timer.autoFyll.hjelp": "Vérifiez, corrigez et soumettez.",
   "timer.deltMidnatt.tittel": "Split à minuit",
   "timer.deltMidnatt.hjelp": "Une partie d'un quart de travail qui a duré deux jours.",
+  "timer.dagFinnes.notis": "Vous aviez déjà une entrée pour cette journée, nous l'avons ouverte. Votre projet est prêt à enregistrer du temps.",
   "timer.glemtDag.tittel": "Avez-vous oublié de terminer la journée ?",
   "timer.glemtDag.melding": "Votre journée du {{dato}} est toujours ouverte.",
   "timer.glemtDag.glemte": "j'ai oublié d'y mettre fin",

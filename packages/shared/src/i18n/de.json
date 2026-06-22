@@ -40,6 +40,7 @@
   "timer.autoFyll.hjelp": "Prüfen, korrigieren und absenden.",
   "timer.deltMidnatt.tittel": "Aufteilung um Mitternacht",
   "timer.deltMidnatt.hjelp": "Teil einer Schicht, die sich über zwei Tage erstreckte.",
+  "timer.dagFinnes.notis": "Für diesen Tag hatten Sie bereits einen Eintrag – wir haben ihn geöffnet. Ihr Projekt ist bereit, Zeit zu protokollieren.",
   "timer.glemtDag.tittel": "Haben Sie vergessen, den Tag zu beenden?",
   "timer.glemtDag.melding": "Ihr Tag vom {{dato}} ist noch offen.",
   "timer.glemtDag.glemte": "Ich habe vergessen, es zu beenden",

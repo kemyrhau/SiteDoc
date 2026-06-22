@@ -40,6 +40,7 @@
   "timer.autoFyll.hjelp": "Pārbaudiet, labojiet un iesniedziet.",
   "timer.deltMidnatt.tittel": "Sadalās pusnaktī",
   "timer.deltMidnatt.hjelp": "Daļa no maiņas, kas ilga divas dienas.",
+  "timer.dagFinnes.notis": "Jums jau bija ieraksts par šo dienu — mēs to atvērām. Jūsu projekts ir gatavs pieteikšanās laikam.",
   "timer.glemtDag.tittel": "Vai aizmirsāt beigt dienu?",
   "timer.glemtDag.melding": "Jūsu diena no {{dato}} joprojām ir atvērta.",
   "timer.glemtDag.glemte": "Es aizmirsu to beigt",

@@ -9,7 +9,6 @@ import { eq, and, desc } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import {
   arbeidsdagLocal,
-  dagsseddelLocal,
   sheetTimerLocal,
   aktivitetLocal,
   lonnsartLocal,
@@ -24,6 +23,7 @@ import { hentProsjekterLokalt } from "../services/prosjektKatalog";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
+import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
 import {
   hentStandardLonnsartLokalt,
   hentReiseLonnsartId,
@@ -541,9 +541,10 @@ function genererForslag(
 /**
  * Opprett én dagsseddel (draft) for ett dag-segment + dens timer-rader.
  *
- * Idempotens per dag: server håndhever `@@unique([userId, dato])` på
- * `DailySheet`, så finnes det allerede en sedel for `(userId, segment.dato)`
- * lokalt → behold den (returner id) og hopp over opprettelse. Ved splitt
+ * Sedel-opprettelsen (find-or-create + idempotens per `(userId, dato)` +
+ * org-backfill) deles med `ny.tsx` via `finnEllerOpprettDagsseddel` (UF-0).
+ * Server håndhever `@@unique([userId, dato])` på `DailySheet`, så finnes dagen
+ * alt lokalt → behold den (returner id) og hopp over rad-generering. Ved splitt
  * betyr det at allerede-eksisterende dager beholdes mens nye dager opprettes.
  */
 function opprettDagsseddelForSegment(args: {
@@ -575,19 +576,26 @@ function opprettDagsseddelForSegment(args: {
   const db = hentDatabase();
   if (!db) return null;
 
-  // Idempotens per dag (jf. doc over).
-  const eksisterende = db
-    .select({ id: dagsseddelLocal.id })
-    .from(dagsseddelLocal)
-    .where(
-      and(
-        eq(dagsseddelLocal.userId, userId),
-        eq(dagsseddelLocal.dato, segment.dato),
-      ),
-    )
-    .all()[0];
-  if (eksisterende) return eksisterende.id;
+  // UF-0: sedel-opprettelse + idempotens via delt helper (org-backfill følger
+  // med). Atferdsbevarende: finnes dagen alt, returner den UTEN å appende denne
+  // øktens rader (uendret fra før — multi-økt-append er UF-1).
+  const resultat = finnEllerOpprettDagsseddel(db, {
+    userId,
+    orgId,
+    dato: segment.dato,
+    prosjektId,
+    aktivitetId,
+    startAt: segment.startIso,
+    endAt: segment.sluttIso,
+    pauseMin,
+    autoGenerert: true,
+    deltVedMidnatt,
+    sluttTidKilde,
+  });
+  const sheetId = resultat.id;
+  if (resultat.eksisterte) return sheetId;
 
+  // Nyopprettet → generer rader.
   // Arbeidstid = segment-brutto − pause (pause kun på start-dagen, 1a).
   const bruttoTimer =
     (new Date(segment.sluttIso).getTime() -
@@ -604,35 +612,6 @@ function opprettDagsseddelForSegment(args: {
     orgId,
     new Date(`${segment.dato}T00:00:00`),
   );
-
-  // Dagsseddel (draft).
-  const sheetId = randomUUID();
-  db.insert(dagsseddelLocal)
-    .values({
-      id: sheetId,
-      userId,
-      organizationId: "",
-      projectId: prosjektId,
-      aktivitetId,
-      avdelingId: null,
-      byggeplassId: null,
-      dato: segment.dato,
-      startAt: segment.startIso,
-      endAt: segment.sluttIso,
-      pauseMin,
-      status: "draft",
-      autoGenerert: true,
-      deltVedMidnatt,
-      sluttTidKilde,
-      beskrivelse: null,
-      lederKommentar: null,
-      attestertVed: null,
-      syncStatus: "pending",
-      feilmelding: null,
-      sistEndretLokalt: Date.now(),
-      sistSynkronisert: null,
-    })
-    .run();
 
   // Auto-fordeling normaltid/overtid (per dag).
   if (arbeidstimer > 0) {

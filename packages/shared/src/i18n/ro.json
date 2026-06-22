@@ -40,6 +40,7 @@
   "timer.autoFyll.hjelp": "Verificați, corectați și trimiteți.",
   "timer.deltMidnatt.tittel": "Split la miezul nopții",
   "timer.deltMidnatt.hjelp": "Parte dintr-o tură care a durat două zile.",
+  "timer.dagFinnes.notis": "Aveți deja o înregistrare pentru această zi - am deschis-o. Proiectul dvs. este gata de conectare.",
   "timer.glemtDag.tittel": "Ai uitat să închei ziua?",
   "timer.glemtDag.melding": "Ziua dvs. de la {{dato}} este încă deschisă.",
   "timer.glemtDag.glemte": "Am uitat să-l pun capăt",

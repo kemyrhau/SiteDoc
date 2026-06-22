@@ -40,6 +40,7 @@
   "timer.autoFyll.hjelp": "Check, correct and submit.",
   "timer.deltMidnatt.tittel": "Split at midnight",
   "timer.deltMidnatt.hjelp": "Part of a shift that spanned two days.",
+  "timer.dagFinnes.notis": "You already had an entry for this day — we opened it. Your project is ready to log time on.",
   "timer.glemtDag.tittel": "Did you forget to end the day?",
   "timer.glemtDag.melding": "Your day from {{dato}} is still open.",
   "timer.glemtDag.glemte": "I forgot to end it",

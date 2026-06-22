@@ -40,6 +40,7 @@
   "timer.autoFyll.hjelp": "Перевірте, виправте та надішліть.",
   "timer.deltMidnatt.tittel": "Розділ опівночі",
   "timer.deltMidnatt.hjelp": "Частина зміни, яка тривала два дні.",
+  "timer.dagFinnes.notis": "У вас вже була заявка на цей день — ми її відкрили. Ваш проект готовий до входу.",
   "timer.glemtDag.tittel": "Ви забули закінчити день?",
   "timer.glemtDag.melding": "Ваш день із {{dato}} ще відкритий.",
   "timer.glemtDag.glemte": "Я забув закінчити",

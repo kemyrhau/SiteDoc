@@ -40,6 +40,7 @@
   "timer.autoFyll.hjelp": "Kontrolloni, korrigjoni dhe dorëzoni.",
   "timer.deltMidnatt.tittel": "Ndahet në mesnatë",
   "timer.deltMidnatt.hjelp": "Pjesë e një ndërrimi që zgjati dy ditë.",
+  "timer.dagFinnes.notis": "Ju tashmë kishit një hyrje për këtë ditë - ne e hapëm atë. Projekti juaj është gati për të hyrë në kohë.",
   "timer.glemtDag.tittel": "Keni harruar ta mbyllni ditën?",
   "timer.glemtDag.melding": "Dita juaj nga {{dato}} është ende e hapur.",
   "timer.glemtDag.glemte": "Kam harruar t'i jap fund",

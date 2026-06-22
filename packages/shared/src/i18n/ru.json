@@ -40,6 +40,7 @@
   "timer.autoFyll.hjelp": "Проверьте, исправьте и отправьте.",
   "timer.deltMidnatt.tittel": "Сплит в полночь",
   "timer.deltMidnatt.hjelp": "Часть смены, длившейся два дня.",
+  "timer.dagFinnes.notis": "У вас уже была запись на этот день — мы открыли ее. Ваш проект готов к входу в систему.",
   "timer.glemtDag.tittel": "Вы забыли закончить день?",
   "timer.glemtDag.melding": "Ваш день от {{dato}} еще открыт.",
   "timer.glemtDag.glemte": "Я забыл закончить это",

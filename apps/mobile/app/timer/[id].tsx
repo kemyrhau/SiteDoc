@@ -29,6 +29,8 @@ import {
   Split,
   ChevronDown,
   ChevronRight,
+  Info,
+  X,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
@@ -65,7 +67,11 @@ import type {
 export default function DagsseddelDetalj() {
   const router = useRouter();
   const { t } = useTranslation();
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{
+    id: string;
+    aapnetEksisterende?: string;
+    nyttProsjekt?: string;
+  }>();
   const sheetId = params.id ?? "";
   const { triggerSync, oppdaterTellere } = useTimerSync();
 
@@ -81,6 +87,20 @@ export default function DagsseddelDetalj() {
   // Gruppen blir varig så snart første rad er lagt til i den.
   const [ekstraProsjektIder, setEkstraProsjektIder] = useState<string[]>([]);
   const [visLeggTilProsjekt, setVisLeggTilProsjekt] = useState(false);
+  // UF-0: find-or-open fra «+ Ny» — subtil notis om at dagen alt fantes.
+  const [visAapnetNotis, setVisAapnetNotis] = useState(
+    params.aapnetEksisterende === "1",
+  );
+
+  // UF-0: bevart prosjekt-valg — kom brukeren hit via find-or-open med et valgt
+  // prosjekt, vis det som en (tom) gruppe så de straks kan føre rader på det.
+  useEffect(() => {
+    const pid = params.nyttProsjekt;
+    if (!pid) return;
+    setEkstraProsjektIder((forrige) =>
+      forrige.includes(pid) ? forrige : [...forrige, pid],
+    );
+  }, [params.nyttProsjekt]);
 
   const lesData = useCallback(() => {
     const db = hentDatabase();
@@ -323,6 +343,19 @@ export default function DagsseddelDetalj() {
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="pb-24">
+        {/* UF-0: subtil notis — dagen fantes alt, find-or-open åpnet den. */}
+        {visAapnetNotis && (
+          <View className="mx-4 mt-4 flex-row items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+            <Info size={14} color="#6b7280" />
+            <Text className="flex-1 text-xs text-gray-600">
+              {t("timer.dagFinnes.notis")}
+            </Text>
+            <Pressable onPress={() => setVisAapnetNotis(false)} hitSlop={8}>
+              <X size={14} color="#9ca3af" />
+            </Pressable>
+          </View>
+        )}
+
         {/* Status-banners */}
         {sedel.status === "returned" && (
           <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">

@@ -40,6 +40,7 @@
   "timer.autoFyll.hjelp": "Kontrollera, rätta och skicka in.",
   "timer.deltMidnatt.tittel": "Dela vid midnatt",
   "timer.deltMidnatt.hjelp": "En del av ett skifte som sträckte sig över två dagar.",
+  "timer.dagFinnes.notis": "Du hade redan ett bidrag för denna dag – vi öppnade det. Ditt projekt är redo att logga in.",
   "timer.glemtDag.tittel": "Har du glömt att avsluta dagen?",
   "timer.glemtDag.melding": "Din dag från {{dato}} är fortfarande öppen.",
   "timer.glemtDag.glemte": "Jag glömde att avsluta det",
