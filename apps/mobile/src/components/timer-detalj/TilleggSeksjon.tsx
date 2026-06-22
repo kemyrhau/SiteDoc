@@ -8,6 +8,8 @@ import {
   Modal,
   FlatList,
   Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, Trash2, Pencil, X, Check, Camera, ImagePlus, Clock } from "lucide-react-native";
@@ -502,7 +504,16 @@ function TilleggRadModal({
           </Pressable>
         </View>
 
-        <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
+        >
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="p-4 gap-4"
+          keyboardShouldPersistTaps="handled"
+        >
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.prosjekt")} *
@@ -577,6 +588,7 @@ function TilleggRadModal({
             </Text>
           </Pressable>
         </ScrollView>
+        </KeyboardAvoidingView>
 
         {visVelger && (
           <TilleggVelgerModal
@@ -666,6 +678,7 @@ function TilleggVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onVelg(item.id)}

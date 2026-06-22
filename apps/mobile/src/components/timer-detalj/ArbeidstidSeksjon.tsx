@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { View, Text, Pressable, Modal, TextInput, Platform } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  Modal,
+  TextInput,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Pencil, X, Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -191,7 +200,16 @@ function RedigerArbeidstidModal({
           </Pressable>
         </View>
 
-        <View className="gap-4 p-4">
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
+        >
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="gap-4 p-4"
+          keyboardShouldPersistTaps="handled"
+        >
           <Text className="text-xs text-gray-500">
             {t("timer.arbeidstidIDagBeskrivelse")}
           </Text>
@@ -275,7 +293,8 @@ function RedigerArbeidstidModal({
               </Text>
             </Pressable>
           </View>
-        </View>
+        </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );

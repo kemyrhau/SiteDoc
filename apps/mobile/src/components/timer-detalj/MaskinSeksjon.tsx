@@ -7,6 +7,8 @@ import {
   ScrollView,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, Trash2, Pencil, X, Check, AlertTriangle } from "lucide-react-native";
@@ -519,7 +521,16 @@ function MaskinRadModal({
           </Pressable>
         </View>
 
-        <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
+        >
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="p-4 gap-4"
+          keyboardShouldPersistTaps="handled"
+        >
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.prosjekt")} *
@@ -623,6 +634,7 @@ function MaskinRadModal({
             </Text>
           </Pressable>
         </ScrollView>
+        </KeyboardAvoidingView>
 
         {visEquipmentVelger && (
           <EquipmentVelgerModal
@@ -748,6 +760,7 @@ function EquipmentVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => {
             const navn =
               `${item.merke ?? ""} ${item.modell ?? ""}`.trim() ||

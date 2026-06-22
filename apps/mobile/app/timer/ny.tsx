@@ -8,6 +8,7 @@ import {
   Modal,
   FlatList,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -225,7 +226,16 @@ export default function NyDagsseddelSide() {
       {/* Dagstotal-banner — viser hvor mye som allerede er ført på valgt dato */}
       {bruker?.id && <DagstotalBanner userId={bruker.id} dato={dato} />}
 
-      <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="p-4 gap-4"
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Dato */}
         <View>
           <Text className="mb-1 text-sm font-medium text-gray-700">
@@ -336,6 +346,7 @@ export default function NyDagsseddelSide() {
           </Text>
         </Pressable>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Prosjekt-velger */}
       <ListeVelgerModal<Prosjekt>
@@ -441,6 +452,7 @@ function ListeVelgerModal<T extends { id: string }>({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onVelg(item)}

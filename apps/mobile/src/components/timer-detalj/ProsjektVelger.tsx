@@ -83,6 +83,7 @@ export function ProsjektVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onVelg(item.id)}
