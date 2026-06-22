@@ -84,7 +84,7 @@ Topp-til-bunn. Referanse-mockup (kilde: `timer.md:330–354`), utvidet med **top
 | Element | Målkrav (v2) | Status i dag |
 |---|---|---|
 | **Topp-sum** | Dagens totale registrerte timer vises **øverst** (under arbeidstid), m/ «X t av Y t» + grønn når ≥ norm. Synlig uten å scrolle. | ❌ `SummeringsBanner` ligger **nederst** (funn b) |
-| **Gruppe-header** | Viser byggeplass + faggruppe + ECO-badge; kollapsbar; gruppe-sum til høyre. | 🟡 delvis (prosjektnavn, mangler byggeplass/ECO-badge/footer — funn c) |
+| **Gruppe-header** | Viser byggeplass + ECO-badge; kollapsbar; gruppe-sum til høyre. **Faggruppe = oppfølger (IKKE U1-scope)** — finnes ikke i lokal cache, krever utvidelse av prosjekt-sync (`prosjektLocal` + `refreshProsjektKatalog` + server-payload); spores i [BACKLOG](BACKLOG.md). | ✅ U1 (`19a4a224`): byggeplass + kollaps + ECO-badge-chip + gruppe-sum. Faggruppe utsatt. |
 | **Velger-felt** | Alle velger-bokser (prosjekt, lønnsart, aktivitet, ECO, utstyr, enhet, tillegg) har synlig **chevron-affordance** → tydelig at de er trykkbare/redigerbare. | ❌ rendres som ren tekstboks (funn a, 10 bokser) |
 | **Timer-rad** | lønnsart · aktivitet · fra/til · timer · ECO + valgfri **fritekst** (produksjonsbeskrivelse). | ✅ (T.12 fritekst deployet) |
 | **Maskin-rad** | Nestet under gruppen, «↳ herav maskin». **Soft-skjul** når Equipment-cache tom. **Soft-varsel** ved manglende maskinførerbevis (ikke blokkér). **«+ Legg til maskin» synlig når cache er populert.** | 🟡 logikk deployet (T.11 + soft-skjul). **Device-funn #4:** «+ Legg til maskin» manglet på enhet — verifisert årsak: knappen finnes (`MaskinSeksjon.tsx:152/189`) men gates av `redigerbar && harEquipmentCache`; **tom Equipment-cache** ga ingen knapp, ikke manglende affordance. Re-test etter EQ-042-seed + re-login (cache-refresh) bekrefter. |
@@ -127,8 +127,8 @@ Topp-til-bunn. Referanse-mockup (kilde: `timer.md:330–354`), utvidet med **top
 
 | Slice | Innhold | Dekker funn | Akseptanse |
 |---|---|---|---|
-| **U1** | **Topp-sum + v2-layout.** Løft dag-total til topp (sticky/øverst, «X t av Y t», grønn ved ≥ norm). v2 gruppe-header (byggeplass + faggruppe + ECO-badge) + gruppe-footer (gruppe-sum). | (b) + (c-struktur) | Sum synlig uten scroll; hver gruppe viser byggeplass + ECO-badge + sum. |
-| **U2** | **Velger-affordance.** Delt `VelgerFelt`-komponent med chevron-ikon, brukt på alle 10 velger-bokser (prosjekt/lønnsart/aktivitet/ECO/utstyr/enhet/tillegg). Ingen ny i18n-streng. | (a) | Alle velgere viser chevron; arbeider oppfatter dem som trykkbare. |
+| **U1** ✅ | **Topp-sum + v2-layout** (`19a4a224`). Dag-total øverst («X t av Y t», grønn ved ≥ norm). v2 gruppe-header (byggeplass + ECO-badge + gruppe-sum), kollapsbar. **Faggruppe utsatt** (oppfølger — krever prosjekt-sync-utvidelse, ikke ren UI). | (b) + (c-struktur) | Sum synlig uten scroll; hver gruppe viser byggeplass + ECO-badge + sum. |
+| **U2** ✅ | **Velger-affordance** (`1f612c13`). Delt `VelgerFelt`-komponent med chevron-ikon, brukt på alle 10 modal-velgere (prosjekt/lønnsart/aktivitet/ECO/utstyr/enhet/tillegg). Ingen ny i18n-streng. | (a) | Alle velgere viser chevron; arbeider oppfatter dem som trykkbare. |
 | **U3** | **Visuell finpuss** mot mockup (spacing, typografi, badge-stil, kollaps-animasjon). Avgrenset. **+ tid-felt-affordanse:** de 6 tid-feltene (Timer/Maskin/Arbeidstid fra-til via `FraTilTidFelt` + `ArbeidstidSeksjon`) deler den flate-boks-utseendet og «ser låst ut» — gi dem en **`Clock`-ikon-affordanse** (ikke chevron; de er tid-spinnere, ikke nedtrekk). Utsatt fra U2 (som dekket modal-velgerne). | (c-rest) + tid-felt | Skjerm matcher v2-mockup; tid-feltene ser trykkbare ut; ingen funksjonell endring. |
 | **U-flyt** | **Multi-økt / kladd-robusthet** (flyt-endring — se § 6.1). Multi-økt-append + kladd-påminnelse + glemt-dag-signal-stige. | flyt-funn #2 + #5 | Andre «Start dag» samme døgn appender til eksisterende draft; glemt fler-døgns økt kappes (ikke 160 t); usendt kladd gir mild påminnelse. |
 
@@ -190,7 +190,7 @@ Universell enkelt-skift-cap på ALLE sluttbaner** (ikke bare gjenopprett-banen).
 På fersk test-build, fysisk enhet:
 
 - [ ] **Topp-sum** vises øverst på sedelen; oppdateres når rad legges til/endres.
-- [ ] Hver **prosjektgruppe** viser byggeplass + faggruppe + ECO-badge + gruppe-sum.
+- [ ] Hver **prosjektgruppe** viser byggeplass + ECO-badge + gruppe-sum. *(Faggruppe = senere oppfølger, ikke U1.)*
 - [ ] Alle **velger-felt** har synlig chevron — oppleves som redigerbare.
 - [ ] **Timer-rad** har fritekst-felt for produksjonsbeskrivelse.
 - [ ] **Maskin-seksjon** vises kun når firmaet har utstyr; **soft-varsel** ved manglende

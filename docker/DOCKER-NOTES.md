@@ -94,5 +94,7 @@ Denne deployen traff gjentatt friksjon som ikke var dokumentert → «gjenoppdag
 
 **Bevist null-nedetid additiv-migrerings-sekvens (2026-06-21):** rsync → `build --build-arg API_PORT=<port>` → migrate (engangs-container, gated) → `up -d --no-deps sitedoc-api sitedoc-web`. Gammel api kjører OLD-klient under build+migrate (rører ikke nye kolonner) → null gap. Backup først: `pg_dump -Fc -U sitedoc -d sitedoc`.
 
+> ⚠️ **rsync MÅ skje FØR `docker compose build` (lærdom 2026-06-22).** Bygg-konteksten er server-fila i `~/stack/sitedoc` (`context: ..`), ikke Mac-en. Kjøres `build` uten fersk rsync, gjenbruker Docker cachede lag og imaget får IKKE den nye koden. **Diagnostisk fingerprint:** et ekte (cache-miss) bygg tar ~**268 s**; et tomt cache-bygg uten ny kode tar ~**6,1 s** — og nye tRPC-ruter svarer da **404** på edge fordi de aldri kom inn i imaget. Ser du et ~6 s «build» etter en kodeendring: du glemte rsync. Rekkefølge alltid: **rsync → build → (migrate) → up**.
+
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.
