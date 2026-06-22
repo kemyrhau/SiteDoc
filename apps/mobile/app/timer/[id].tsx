@@ -7,6 +7,11 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from "react-native-reanimated";
 import {
   useLocalSearchParams,
   useRouter,
@@ -616,13 +621,11 @@ function ProsjektGruppe({
   }, [timerRader, maskinRader]);
 
   return (
-    <View className="mt-2">
+    <Animated.View layout={LinearTransition} className="mt-2">
       {visHeader && (
         <Pressable
           onPress={() => setKollapset((v) => !v)}
-          className={`mx-4 mt-4 flex-row items-center justify-between gap-2 border border-gray-200 bg-blue-50 px-4 py-2 ${
-            kollapset ? "rounded-lg" : "rounded-t-lg border-b-0"
-          }`}
+          className="mx-4 mt-4 flex-row items-center justify-between gap-2 rounded-lg border border-gray-200 bg-blue-50 px-4 py-2.5"
         >
           <View className="flex-1 flex-row items-center gap-1.5">
             {kollapset ? (
@@ -647,25 +650,33 @@ function ProsjektGruppe({
         </Pressable>
       )}
 
-      {/* ECO-bukets (hovedgruppe + N underprosjekter) — skjules ved kollaps */}
-      {!kollapset &&
-        ecoBuckets.map((bucket) => (
-        <EcoBucket
-          key={bucket.ecoId ?? "hoved"}
-          sheetId={sheetId}
-          organizationId={organizationId}
-          projectId={projectId}
-          ecoId={bucket.ecoId}
-          dato={dato}
-          defaultAktivitetId={defaultAktivitetId}
-          harEquipmentCache={harEquipmentCache}
-          harMaskinforerbevis={harMaskinforerbevis}
-          redigerbar={redigerbar}
-          timerRader={bucket.timer}
-          maskinRader={bucket.maskin}
-          onEndret={onEndret}
-        />
-      ))}
+      {/* ECO-bukets (hovedgruppe + N underprosjekter) — skjules ved kollaps.
+          U3: myk fade-inn/ut + layout-transisjon (Reanimated). */}
+      {!kollapset && (
+        <Animated.View
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(150)}
+          layout={LinearTransition}
+        >
+          {ecoBuckets.map((bucket) => (
+            <EcoBucket
+              key={bucket.ecoId ?? "hoved"}
+              sheetId={sheetId}
+              organizationId={organizationId}
+              projectId={projectId}
+              ecoId={bucket.ecoId}
+              dato={dato}
+              defaultAktivitetId={defaultAktivitetId}
+              harEquipmentCache={harEquipmentCache}
+              harMaskinforerbevis={harMaskinforerbevis}
+              redigerbar={redigerbar}
+              timerRader={bucket.timer}
+              maskinRader={bucket.maskin}
+              onEndret={onEndret}
+            />
+          ))}
+        </Animated.View>
+      )}
 
       {/* Tillegg per-prosjekt (separat fra ECO-bukets — ingen ECO-felt på SheetTillegg) */}
       <TilleggSeksjon
@@ -679,7 +690,7 @@ function ProsjektGruppe({
       {/* sedelProjectId brukes ikke direkte her — beholdt for fremtidig
           backfill av rader uten projectId. void for å unngå lint-warning. */}
       {void sedelProjectId}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -768,7 +779,7 @@ function EcoBucket({
               </Text>
             )}
           </View>
-          <View className="rounded-full bg-indigo-100 px-2 py-0.5">
+          <View className="rounded bg-indigo-100 px-1.5 py-0.5">
             <Text className="text-xs font-medium text-indigo-800">
               → {t("timer.gruppe.tilByggherre")}
             </Text>
@@ -777,7 +788,7 @@ function EcoBucket({
       )}
 
       {/* Arbeidstimer (hovedpost) */}
-      <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">
+      <Text className="mb-1 text-xs font-medium text-gray-700">
         {t("timer.gruppe.arbeidstimer")} ({sumTimer.toFixed(2)} {t("timer.tEnhet")})
       </Text>
       <TimerSeksjon
@@ -795,7 +806,7 @@ function EcoBucket({
 
       {/* Maskintimer som underpost (indentert via ml-3 + border-l-2) */}
       <View className="ml-3 mt-3 border-l-2 border-gray-200 pl-3">
-        <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+        <Text className="mb-1 text-xs font-medium text-gray-600">
           {t("timer.gruppe.heravMaskin")} ({sumMaskin.toFixed(2)} {t("timer.tEnhet")})
         </Text>
         <MaskinSeksjon

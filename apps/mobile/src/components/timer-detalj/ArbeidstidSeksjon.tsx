@@ -8,6 +8,7 @@ import { eq } from "drizzle-orm";
 import { hentDatabase } from "../../db/database";
 import { dagsseddelLocal } from "../../db/schema";
 import { isoTidspunktTilHHMM } from "../../utils/dato";
+import { TidFeltBoks } from "./TidFeltBoks";
 
 interface ArbeidstidSeksjonProps {
   sheetId: string;
@@ -76,6 +77,10 @@ export function ArbeidstidSeksjon({
       )}
     </View>
   );
+}
+
+function dateTilHhmm(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 function Felt({ label, verdi }: { label: string; verdi: string }) {
@@ -196,16 +201,10 @@ function RedigerArbeidstidModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.startTid")}
             </Text>
-            <Pressable
+            <TidFeltBoks
+              verdi={startDato ? dateTilHhmm(startDato) : null}
               onPress={() => setVisStartPicker(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text className="text-base text-gray-900">
-                {startDato
-                  ? `${String(startDato.getHours()).padStart(2, "0")}:${String(startDato.getMinutes()).padStart(2, "0")}`
-                  : "—"}
-              </Text>
-            </Pressable>
+            />
             {visStartPicker && (
               <DateTimePicker
                 value={startDato ?? new Date()}
@@ -225,16 +224,10 @@ function RedigerArbeidstidModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.sluttTid")}
             </Text>
-            <Pressable
+            <TidFeltBoks
+              verdi={endDato ? dateTilHhmm(endDato) : null}
               onPress={() => setVisEndPicker(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text className="text-base text-gray-900">
-                {endDato
-                  ? `${String(endDato.getHours()).padStart(2, "0")}:${String(endDato.getMinutes()).padStart(2, "0")}`
-                  : "—"}
-              </Text>
-            </Pressable>
+            />
             {visEndPicker && (
               <DateTimePicker
                 value={endDato ?? new Date()}

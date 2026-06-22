@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { View, Text, Pressable, Platform } from "react-native";
+import { View, Text, Platform } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { useTranslation } from "react-i18next";
 import { rundTilNarmeste } from "../../utils/tidsrunding";
+import { TidFeltBoks } from "./TidFeltBoks";
 
 /* ============================================================================
  *  FraTilTidFelt (T4-e 2026-05-16, T.5 2026-05-16)
@@ -45,14 +46,7 @@ export function FraTilTidFelt({
         <Text className="mb-1 text-sm font-medium text-gray-700">
           {t("timer.felt.startTid")}
         </Text>
-        <Pressable
-          onPress={() => setVisFraPicker(true)}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-        >
-          <Text className={`text-base ${fraTid ? "text-gray-900" : "text-gray-400"}`}>
-            {fraTid ?? "—"}
-          </Text>
-        </Pressable>
+        <TidFeltBoks verdi={fraTid} onPress={() => setVisFraPicker(true)} />
         {visFraPicker && (
           <DateTimePicker
             value={hhmmTilDate(fraTid)}
@@ -79,14 +73,7 @@ export function FraTilTidFelt({
         <Text className="mb-1 text-sm font-medium text-gray-700">
           {t("timer.felt.sluttTid")}
         </Text>
-        <Pressable
-          onPress={() => setVisTilPicker(true)}
-          className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-        >
-          <Text className={`text-base ${tilTid ? "text-gray-900" : "text-gray-400"}`}>
-            {tilTid ?? "—"}
-          </Text>
-        </Pressable>
+        <TidFeltBoks verdi={tilTid} onPress={() => setVisTilPicker(true)} />
         {visTilPicker && (
           <DateTimePicker
             value={hhmmTilDate(tilTid)}
