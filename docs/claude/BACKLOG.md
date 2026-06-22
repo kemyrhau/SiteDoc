@@ -72,6 +72,8 @@ Fanget under enhetstest av timer-redesignet på fysisk enhet. Samles til en dedi
 - **(b) Topp-sum på dagsseddelen** — vis total registrerte timer øverst på sedelen (ikke bare per gruppe), så arbeider ser dagens sum med én gang.
 - **(c) v2-visuell polish** — gruppe-header med byggeplass, ECO-badge, footer. Mot v2-mockup. Avgrenset visuell finpuss.
 
+- **🔍 UNDERSØK: auto-draft settes med `organizationId: ""`** (sidefunn under U-flyt-spec-verifisering 2026-06-22) — `opprettDagsseddelForSegment` (`apps/mobile/src/components/StartSluttDagKort.tsx:614`) inserterer den auto-genererte dagsseddelen i lokal Drizzle med `organizationId: ""` (tom streng, ikke faktisk org-id). **Ikke bekreftet feil** — verifiser før klassifisering. Mulige konsekvenser å sjekke: (1) firma-isolasjon (queries som filtrerer på `organizationId`), (2) **T.11 maskinførerbevis-flagg-oppslag** (per-org `harMaskinforerbevisLokalt(organizationId)` — tom org gir ikke treff → default `true`/`false` feil vei), (3) sync til server (settes/backfilles `organizationId` ved push, eller propageres tomt?). Kan være at feltet settes korrekt et annet sted (sync-hydrering) eller backfilles — verifiser hele livsløpet før vi kaller det bug.
+
 ### Legacy eide prosjekter mangler `ProjectOrganization`-rad (datakvalitet) 🟡
 
 Funnet under Timer Fase 1b-data-sjekk (2026-06-09). `admin.ts:266` + `prosjekt.ts:220-226` oppretter nå en `ProjectOrganization`-rad for eier-org ved prosjekt-opprettelse, men dette var en **senere bugfix** — prosjekter opprettet før den mangler raden, selv om de har `Project.primaryOrganizationId` satt. Verifisert mot test-DB: minst ett slikt prosjekt («Test redigert mal») med timer-rader. Prod kan ha tilsvarende (ikke sjekket).

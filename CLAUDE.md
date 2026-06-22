@@ -35,6 +35,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | Peker til [kontrollplan.md](docs/claude/kontrollplan.md). Konsolidert 2026-04-16 |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
 | [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟢 VEDTATT:** Aktivitet per `SheetTimer`-rad, ny `SheetMachine` — se også fase-0 C.18 |
+| [docs/claude/mobil-dagsseddel-ui-spec.md](docs/claude/mobil-dagsseddel-ui-spec.md) | **🟢 MÅL-SPEC:** Mobil dagsseddel-UI v2-overhaul — fasiten A.Markussen verifiserer mot. U-serie: U1–U3 visuelle + U-flyt (multi-økt/glemt-dag) |
 | [docs/claude/timer-gps-prosjekt-utredning.md](docs/claude/timer-gps-prosjekt-utredning.md) | **🟡 UTREDNING:** timer-registrering + GPS + prosjekt-tilknytning + dag-flyt — 6 beslutninger (T.8 først), for dedikert sesjon |
 | [docs/claude/steg-4b-plan.md](docs/claude/steg-4b-plan.md) | **🟡 VEDTATT:** Vareforbruk-modul (`db-varelager`), 5 faser, A.Markussen-import |
 | [docs/claude/maskin.md](docs/claude/maskin.md) | Utstyrsregister: 3 kategorier, Vegvesen API, EU-kontroll, vedlikehold |
