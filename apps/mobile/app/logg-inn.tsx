@@ -6,6 +6,7 @@ import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../src/providers/AuthProvider";
+import { VersjonsFooter } from "../src/components/VersjonsFooter";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -161,6 +162,8 @@ export default function LoggInnSkjerm() {
           <Text className="mt-4 text-sm text-red-500">{feilmelding}</Text>
         )}
       </View>
+
+      <VersjonsFooter className="pb-4" />
     </SafeAreaView>
   );
 }
