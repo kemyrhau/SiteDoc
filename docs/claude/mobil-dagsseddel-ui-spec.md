@@ -129,7 +129,7 @@ Topp-til-bunn. Referanse-mockup (kilde: `timer.md:330–354`), utvidet med **top
 |---|---|---|---|
 | **U1** | **Topp-sum + v2-layout.** Løft dag-total til topp (sticky/øverst, «X t av Y t», grønn ved ≥ norm). v2 gruppe-header (byggeplass + faggruppe + ECO-badge) + gruppe-footer (gruppe-sum). | (b) + (c-struktur) | Sum synlig uten scroll; hver gruppe viser byggeplass + ECO-badge + sum. |
 | **U2** | **Velger-affordance.** Delt `VelgerFelt`-komponent med chevron-ikon, brukt på alle 10 velger-bokser (prosjekt/lønnsart/aktivitet/ECO/utstyr/enhet/tillegg). Ingen ny i18n-streng. | (a) | Alle velgere viser chevron; arbeider oppfatter dem som trykkbare. |
-| **U3** | **Visuell finpuss** mot mockup (spacing, typografi, badge-stil, kollaps-animasjon). Avgrenset. | (c-rest) | Skjerm matcher v2-mockup; ingen funksjonell endring. |
+| **U3** | **Visuell finpuss** mot mockup (spacing, typografi, badge-stil, kollaps-animasjon). Avgrenset. **+ tid-felt-affordanse:** de 6 tid-feltene (Timer/Maskin/Arbeidstid fra-til via `FraTilTidFelt` + `ArbeidstidSeksjon`) deler den flate-boks-utseendet og «ser låst ut» — gi dem en **`Clock`-ikon-affordanse** (ikke chevron; de er tid-spinnere, ikke nedtrekk). Utsatt fra U2 (som dekket modal-velgerne). | (c-rest) + tid-felt | Skjerm matcher v2-mockup; tid-feltene ser trykkbare ut; ingen funksjonell endring. |
 | **U-flyt** | **Multi-økt / kladd-robusthet** (flyt-endring — se § 6.1). Multi-økt-append + kladd-påminnelse + glemt-dag-signal-stige. | flyt-funn #2 + #5 | Andre «Start dag» samme døgn appender til eksisterende draft; glemt fler-døgns økt kappes (ikke 160 t); usendt kladd gir mild påminnelse. |
 
 **Sekvensering:** **U1–U3 (visuelle) først** — A.Markussen vurderer mot designet

@@ -23,6 +23,7 @@ import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
+import { VelgerFelt } from "./VelgerFelt";
 
 interface MaskinSeksjonProps {
   sheetId: string;
@@ -534,25 +535,22 @@ function MaskinRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.utstyr")} *
             </Text>
-            <Pressable
-              onPress={() => setVisEquipmentVelger(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text
-                className={`text-base ${valgtEquipment ? "text-gray-900" : "text-gray-400"}`}
-              >
-                {valgtEquipment
+            <VelgerFelt
+              verdi={
+                valgtEquipment
                   ? `${valgtEquipment.merke ?? ""} ${valgtEquipment.modell ?? ""}`.trim() ||
                     valgtEquipment.internNavn ||
-                    t("timer.velgUtstyr")
-                  : t("timer.velgUtstyr")}
-              </Text>
-              {valgtEquipment?.internNummer && (
-                <Text className="mt-0.5 text-xs text-gray-500">
-                  #{valgtEquipment.internNummer}
-                </Text>
-              )}
-            </Pressable>
+                    null
+                  : null
+              }
+              placeholder={t("timer.velgUtstyr")}
+              onPress={() => setVisEquipmentVelger(true)}
+              underTekst={
+                valgtEquipment?.internNummer
+                  ? `#${valgtEquipment.internNummer}`
+                  : null
+              }
+            />
           </View>
 
           <View>
@@ -580,14 +578,11 @@ function MaskinRadModal({
                 keyboardType="decimal-pad"
                 className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
               />
-              <Pressable
+              <VelgerFelt
+                verdi={enhet || null}
+                placeholder={t("timer.felt.enhet")}
                 onPress={() => setVisEnhetVelger(true)}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-3"
-              >
-                <Text className={`text-base ${enhet ? "text-gray-900" : "text-gray-400"}`}>
-                  {enhet || t("timer.felt.enhet")}
-                </Text>
-              </Pressable>
+              />
             </View>
           </View>
 
@@ -607,29 +602,14 @@ function MaskinRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.underprosjekt")}
             </Text>
-            <View className="flex-row items-center gap-2">
-              <Pressable
-                onPress={() => setVisEcoVelger(true)}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-3"
-              >
-                <Text
-                  className={`text-base ${valgtEco ? "text-gray-900" : "text-gray-400"}`}
-                >
-                  {valgtEco
-                    ? `${valgtEco.proAdmId} — ${valgtEco.kortNavn}`
-                    : t("timer.velgUnderprosjekt")}
-                </Text>
-              </Pressable>
-              {valgtEcoId && (
-                <Pressable
-                  onPress={() => setValgtEcoId(null)}
-                  hitSlop={8}
-                  className="rounded p-2 active:bg-gray-100"
-                >
-                  <X size={18} color="#6b7280" />
-                </Pressable>
-              )}
-            </View>
+            <VelgerFelt
+              verdi={
+                valgtEco ? `${valgtEco.proAdmId} — ${valgtEco.kortNavn}` : null
+              }
+              placeholder={t("timer.velgUnderprosjekt")}
+              onPress={() => setVisEcoVelger(true)}
+              onClear={() => setValgtEcoId(null)}
+            />
           </View>
 
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}

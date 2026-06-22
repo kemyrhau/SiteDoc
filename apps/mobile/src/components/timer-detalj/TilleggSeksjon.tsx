@@ -28,6 +28,7 @@ import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
 import { AUTH_CONFIG } from "../../config/auth";
 import type { TilleggRad, Tillegg } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
+import { VelgerFelt } from "./VelgerFelt";
 
 interface TilleggSeksjonProps {
   sheetId: string;
@@ -517,16 +518,11 @@ function TilleggRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.tillegg")} *
             </Text>
-            <Pressable
+            <VelgerFelt
+              verdi={valgtTillegg?.navn ?? null}
+              placeholder={t("timer.velgTillegg")}
               onPress={() => setVisVelger(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text
-                className={`text-base ${valgtTillegg ? "text-gray-900" : "text-gray-400"}`}
-              >
-                {valgtTillegg?.navn ?? t("timer.velgTillegg")}
-              </Text>
-            </Pressable>
+            />
           </View>
 
           <View>

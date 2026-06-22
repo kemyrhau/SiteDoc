@@ -35,6 +35,7 @@ import type {
 } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
+import { VelgerFelt } from "./VelgerFelt";
 
 interface TimerSeksjonProps {
   sheetId: string;
@@ -641,32 +642,22 @@ function TimerRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.lonnsart")} *
             </Text>
-            <Pressable
+            <VelgerFelt
+              verdi={valgtLonnsart?.navn ?? null}
+              placeholder={t("timer.velgLonnsart")}
               onPress={() => setVisLonnsartVelger(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text
-                className={`text-base ${valgtLonnsart ? "text-gray-900" : "text-gray-400"}`}
-              >
-                {valgtLonnsart?.navn ?? t("timer.velgLonnsart")}
-              </Text>
-            </Pressable>
+            />
           </View>
 
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.aktivitet")} *
             </Text>
-            <Pressable
+            <VelgerFelt
+              verdi={valgtAktivitet?.navn ?? null}
+              placeholder={t("timer.velgAktivitet")}
               onPress={() => setVisAktivitetVelger(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text
-                className={`text-base ${valgtAktivitet ? "text-gray-900" : "text-gray-400"}`}
-              >
-                {valgtAktivitet?.navn ?? t("timer.velgAktivitet")}
-              </Text>
-            </Pressable>
+            />
           </View>
 
           <View>
@@ -697,29 +688,14 @@ function TimerRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.underprosjekt")}
             </Text>
-            <View className="flex-row items-center gap-2">
-              <Pressable
-                onPress={() => setVisEcoVelger(true)}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-3"
-              >
-                <Text
-                  className={`text-base ${valgtEco ? "text-gray-900" : "text-gray-400"}`}
-                >
-                  {valgtEco
-                    ? `${valgtEco.proAdmId} — ${valgtEco.kortNavn}`
-                    : t("timer.velgUnderprosjekt")}
-                </Text>
-              </Pressable>
-              {valgtEcoId && (
-                <Pressable
-                  onPress={() => setValgtEcoId(null)}
-                  hitSlop={8}
-                  className="rounded p-2 active:bg-gray-100"
-                >
-                  <X size={18} color="#6b7280" />
-                </Pressable>
-              )}
-            </View>
+            <VelgerFelt
+              verdi={
+                valgtEco ? `${valgtEco.proAdmId} — ${valgtEco.kortNavn}` : null
+              }
+              placeholder={t("timer.velgUnderprosjekt")}
+              onPress={() => setVisEcoVelger(true)}
+              onClear={() => setValgtEcoId(null)}
+            />
           </View>
 
           {/* T.12: fritekst per rad — «hva gjorde du?» (valgfritt) */}
