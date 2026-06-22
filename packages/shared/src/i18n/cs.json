@@ -82,6 +82,7 @@
   "timer.aapne": "OTEVŘENO",
   "timer.ingenSedler": "V tomto období nejsou žádné denní listy.",
   "timer.kladdPaaminnelse": "Neodeslané koncepty: {{antall}}. Klepnutím odešlete ke schválení.",
+  "timer.lonnsartHint": "Typ platby se vybírá podle časového záznamu uvnitř listu.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Vytvořte denní list",
   "timer.idag": "Dnes",

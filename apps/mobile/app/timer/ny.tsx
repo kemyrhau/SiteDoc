@@ -333,6 +333,10 @@ export default function NyDagsseddelSide() {
           />
         </View>
 
+        {/* Del 2-A: lønnsart-hint — lønnsart settes per timer-rad inne på
+            sedelen (ikke ved opprettelse), så arbeider ikke leter etter den her. */}
+        <Text className="text-xs text-gray-500">{t("timer.lonnsartHint")}</Text>
+
         {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
         {/* Lagre-knapp */}

@@ -82,6 +82,7 @@
   "timer.aapne": "Deschide",
   "timer.ingenSedler": "Fără cearșafuri zilnice în această perioadă.",
   "timer.kladdPaaminnelse": "Schițe netrimise: {{antall}}. Atingeți pentru a trimite spre aprobare.",
+  "timer.lonnsartHint": "Tipul de plată este selectat în funcție de timp introdus în foaie.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Creați foaia zilnică",
   "timer.idag": "Astăzi",

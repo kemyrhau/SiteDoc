@@ -82,6 +82,7 @@
   "timer.aapne": "Open",
   "timer.ingenSedler": "No daily sheets in this period.",
   "timer.kladdPaaminnelse": "Unsent drafts: {{antall}}. Tap to submit for approval.",
+  "timer.lonnsartHint": "Pay type is selected per time entry inside the sheet.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Create daily sheet",
   "timer.idag": "Today",

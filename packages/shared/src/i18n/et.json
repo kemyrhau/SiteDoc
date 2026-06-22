@@ -82,6 +82,7 @@
   "timer.aapne": "Avatud",
   "timer.ingenSedler": "Sel perioodil pole päevalehti.",
   "timer.kladdPaaminnelse": "Saatmata mustandid: {{antall}}. Puudutage kinnitamiseks esitamiseks.",
+  "timer.lonnsartHint": "Tasu tüüp valitakse ajalehe sisestuse kohta.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Loo päevaleht",
   "timer.idag": "Täna",

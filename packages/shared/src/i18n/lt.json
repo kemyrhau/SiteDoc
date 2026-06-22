@@ -82,6 +82,7 @@
   "timer.aapne": "Atidaryti",
   "timer.ingenSedler": "Šiuo laikotarpiu kasdienių lapų nėra.",
   "timer.kladdPaaminnelse": "Neišsiųsti juodraščiai: {{antall}}. Palieskite, kad pateiktumėte patvirtinti.",
+  "timer.lonnsartHint": "Mokėjimo tipas pasirenkamas už laiko įrašą lapo viduje.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Sukurkite dienos lapą",
   "timer.idag": "Šiandien",

@@ -82,6 +82,7 @@
   "timer.aapne": "Åpne",
   "timer.ingenSedler": "Ingen dagssedler i denne perioden.",
   "timer.kladdPaaminnelse": "Usendte kladder: {{antall}}. Trykk for å sende til attestering.",
+  "timer.lonnsartHint": "Lønnsart velges per timer-rad inne på sedelen.",
   "timer.timerEnhet": "t",
   "timer.opprett": "Opprett dagsseddel",
   "timer.idag": "I dag",

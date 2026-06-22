@@ -82,6 +82,7 @@
   "timer.aapne": "ВІДЧИНЕНО",
   "timer.ingenSedler": "У цей період без щоденної білизни.",
   "timer.kladdPaaminnelse": "Unsent drafts: {{antall}}. Tap to submit for approval.",
+  "timer.lonnsartHint": "Тип оплати вибирається для запису часу в аркуші.",
   "timer.timerEnhet": "ч",
   "timer.opprett": "Створення щоденного аркуша",
   "timer.idag": "Сьогодні",

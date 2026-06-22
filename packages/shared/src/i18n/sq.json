@@ -82,6 +82,7 @@
   "timer.aapne": "Hapur",
   "timer.ingenSedler": "Nuk ka fletë ditore në këtë periudhë.",
   "timer.kladdPaaminnelse": "Draftet e padërguara: {{antall}}. Trokit për ta paraqitur për miratim.",
+  "timer.lonnsartHint": "Lloji i pagesës zgjidhet për çdo hyrje brenda fletës.",
   "timer.timerEnhet": "h",
   "timer.opprett": "Krijo fletë ditore",
   "timer.idag": "Sot",
