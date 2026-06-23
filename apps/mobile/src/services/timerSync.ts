@@ -101,6 +101,22 @@ export function tellConflict(userId: string): number {
 }
 
 /**
+ * Klassifiser en kastet syncBatch-feil for gift-isolering (fiks A).
+ * `400` (BAD_REQUEST/Zod) = ugyldig data klienten ikke kan rette via retry →
+ * **permanent** (isoler + quarantine kun den giftige sedelen). Alt annet
+ * (`401`/`403`/`5xx`/nettverk/ingen status) → **transient** (behold ALLE pending,
+ * retry hele neste tick — aldri tap av gyldige timer). tRPC-klientfeil bærer
+ * HTTP-status i `e.data.httpStatus`. Auth (401) er transient: token-rotasjonen
+ * er passiv (`lib/trpc`), så en hard 401 stopper push til re-login, men dataene
+ * blir trygt stående pending — ikke quarantine.
+ */
+function erPermanentFeil(e: unknown): boolean {
+  const status = (e as { data?: { httpStatus?: number } } | null)?.data
+    ?.httpStatus;
+  return status === 400;
+}
+
+/**
  * Hovedinngang: push pending → pull server-endringer.
  * Returnerer telling som UI kan vise.
  */
@@ -116,6 +132,50 @@ export async function syncTimer(
   const resultat: SyncResultat = {
     push: { ok: 0, conflict: 0, feilet: 0 },
     pull: { mottatt: 0 },
+  };
+
+  // Anvend syncBatch-resultater på lokal DB + oppdater tellere. Delt mellom
+  // normal batch-send og per-item-fallback (gift-isolering ved permanent feil).
+  const anvendSvar = (
+    svar: Awaited<ReturnType<typeof klient.timer.dagsseddel.syncBatch.mutate>>,
+    naa: number,
+  ) => {
+    for (const r of svar.resultater) {
+      if (r.resultat === "ok" && r.serverData) {
+        db.update(dagsseddelLocal)
+          .set({
+            syncStatus: "synced",
+            status: r.serverData.status,
+            lederKommentar: r.serverData.lederKommentar,
+            attestertVed: r.serverData.attestertVed,
+            feilmelding: null,
+            sistSynkronisert: naa,
+          })
+          .where(eq(dagsseddelLocal.id, r.clientUuid))
+          .run();
+        resultat.push.ok++;
+      } else if (r.resultat === "conflict" && r.serverData) {
+        db.update(dagsseddelLocal)
+          .set({
+            syncStatus: "conflict",
+            status: r.serverData.status,
+            lederKommentar: r.serverData.lederKommentar,
+            attestertVed: r.serverData.attestertVed,
+            feilmelding: r.feilmelding ?? "Server-versjonen vinner",
+            sistSynkronisert: naa,
+          })
+          .where(eq(dagsseddelLocal.id, r.clientUuid))
+          .run();
+        resultat.push.conflict++;
+      } else {
+        // "feilet" — behold pending, lagre feilmelding
+        db.update(dagsseddelLocal)
+          .set({ feilmelding: r.feilmelding ?? "Ukjent feil" })
+          .where(eq(dagsseddelLocal.id, r.clientUuid))
+          .run();
+        resultat.push.feilet++;
+      }
+    }
   };
 
   /* ---------------- PUSH: lokale pending → server ----------------- */
@@ -218,61 +278,60 @@ export async function syncTimer(
         const svar = await klient.timer.dagsseddel.syncBatch.mutate({
           sedler: sedlerMedRader,
         });
-
-        const naa = Date.now();
-        for (const r of svar.resultater) {
-          if (r.resultat === "ok" && r.serverData) {
+        anvendSvar(svar, Date.now());
+      } catch (e) {
+        if (!erPermanentFeil(e)) {
+          // Transient (nettverk/5xx/401): behold ALLE pending — ingen quarantine,
+          // ingen tap av timer. Stopp denne ticken; retry hele batchen neste tick.
+          const melding = e instanceof Error ? e.message : "Nettverksfeil";
+          if (batch[0]) {
             db.update(dagsseddelLocal)
-              .set({
-                syncStatus: "synced",
-                status: r.serverData.status,
-                lederKommentar: r.serverData.lederKommentar,
-                attestertVed: r.serverData.attestertVed,
-                feilmelding: null,
-                sistSynkronisert: naa,
-              })
-              .where(eq(dagsseddelLocal.id, r.clientUuid))
+              .set({ feilmelding: melding })
+              .where(eq(dagsseddelLocal.id, batch[0].id))
               .run();
-            resultat.push.ok++;
-          } else if (r.resultat === "conflict" && r.serverData) {
+          }
+          resultat.feil = melding;
+          resultat.push.feilet += batch.length;
+          // Transient → stopp denne ticken (retry hele neste gang).
+          return resultat;
+        }
+
+        // Permanent (400/Zod): batchen inneholder ≥1 «gift»-sedel som ble avvist,
+        // og HELE batchen ble forkastet av Zod FØR noe ble skrevet på server.
+        // Send hver sedel ALENE for å isolere giften: gode sedler synker, kun
+        // giften quarantines (gjenbruker conflict-tilstand + -banner). Ingen
+        // return-abort — vi fortsetter til neste batch etterpå.
+        for (const item of sedlerMedRader) {
+          try {
+            const enkeltSvar = await klient.timer.dagsseddel.syncBatch.mutate({
+              sedler: [item],
+            });
+            anvendSvar(enkeltSvar, Date.now());
+          } catch (e2) {
+            if (!erPermanentFeil(e2)) {
+              // Transient midt i isolering — behold pending, prøv neste sedel.
+              const melding = e2 instanceof Error ? e2.message : "Nettverksfeil";
+              db.update(dagsseddelLocal)
+                .set({ feilmelding: melding })
+                .where(eq(dagsseddelLocal.id, item.clientUuid))
+                .run();
+              resultat.feil = melding;
+              resultat.push.feilet++;
+              continue;
+            }
+            // Giften isolert → quarantine så den slutter å blokkere køen og
+            // synliggjøres for arbeider (conflict-banneret viser feilmeldingen).
+            const melding = e2 instanceof Error ? e2.message : "Ugyldig data";
             db.update(dagsseddelLocal)
               .set({
                 syncStatus: "conflict",
-                status: r.serverData.status,
-                lederKommentar: r.serverData.lederKommentar,
-                attestertVed: r.serverData.attestertVed,
-                feilmelding: r.feilmelding ?? "Server-versjonen vinner",
-                sistSynkronisert: naa,
+                feilmelding: `Kan ikke sendes (ugyldig data): ${melding}`,
               })
-              .where(eq(dagsseddelLocal.id, r.clientUuid))
+              .where(eq(dagsseddelLocal.id, item.clientUuid))
               .run();
             resultat.push.conflict++;
-          } else {
-            // "feilet" — behold pending, lagre feilmelding
-            db.update(dagsseddelLocal)
-              .set({
-                feilmelding: r.feilmelding ?? "Ukjent feil",
-              })
-              .where(eq(dagsseddelLocal.id, r.clientUuid))
-              .run();
-            resultat.push.feilet++;
           }
         }
-      } catch (e) {
-        // Hele batch feilet (nettverksfeil, server nede). Behold pending.
-        // Marker første rad i batch med feilmeldingen som indikator,
-        // men ikke spam alle rader.
-        const melding = e instanceof Error ? e.message : "Nettverksfeil";
-        if (batch[0]) {
-          db.update(dagsseddelLocal)
-            .set({ feilmelding: melding })
-            .where(eq(dagsseddelLocal.id, batch[0].id))
-            .run();
-        }
-        resultat.feil = melding;
-        resultat.push.feilet += batch.length;
-        // Avbryt videre batches — vi kommer tilbake ved neste sync-tick
-        return resultat;
       }
     }
   }
