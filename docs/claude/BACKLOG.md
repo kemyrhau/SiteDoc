@@ -81,6 +81,7 @@ Fanget under enhetstest av timer-redesignet på fysisk enhet. Samles til en dedi
   1. **For mange bannere/signaler stablet** på dagsseddel-skjermen — topp-sum + «du har ført X» + «venter på sync» + arbeidstid-kort konkurrerer om oppmerksomheten. Vurder å slå sammen / nedprioritere / vise betinget.
   2. **Misforståelige etiketter** — «av 7.50t», «herav maskin», «Maskin/Arbeid» tolkes feil av arbeider. Gjennomgå ordlyd for felt-arbeider-forståelse.
   3. **For mange steg** — åpne sedel → modal → felter → lagre → tilbake. Vurder å redusere stegene (inline-redigering, færre modaler, hurtigregistrering).
+  4. **Smart fra/til-default** — ny timer-rad bør starte etter **siste registrerte `tilTid`** på sedelen, ikke alltid 07:00–15:00 (default sjekker ikke eksisterende rader → arbeider må re-justere hver rad i et fler-rads skift).
   **Eksplisitt IKKE i scope:** antall felt per rad (det er ikke problemet). Egen UX-økt etter TestFlight-validering av gjeldende redesign.
 
 - **🟡 Byggeplass/underprosjekt-timeregistrering (mobil).** I dag kan man kun «Legg til prosjekt» på en sedel — ikke byggeplass eller underprosjekt. Separat fra forenkling-økta; hører til [byggeplass-strategi.md](byggeplass-strategi.md)-fasen + registrerings-forenkling-økta. Ønsket:
