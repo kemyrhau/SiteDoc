@@ -8,21 +8,21 @@ import {
   Modal,
   FlatList,
   Platform,
+  KeyboardAvoidingView,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Calendar, ChevronRight, Check, X, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { randomUUID } from "expo-crypto";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as Location from "expo-location";
 import { hentDatabase } from "../../src/db/database";
-import { dagsseddelLocal, aktivitetLocal } from "../../src/db/schema";
+import { aktivitetLocal } from "../../src/db/schema";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { hentProsjekterLokalt } from "../../src/services/prosjektKatalog";
-import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
+import { finnEllerOpprettDagsseddel } from "../../src/services/dagsseddelOpprett";
 import { haversineKm } from "../../src/utils/geo";
 import { trpc } from "../../src/lib/trpc";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
@@ -36,17 +36,6 @@ function formatIsoDato(d: Date): string {
   const maaned = String(d.getMonth() + 1).padStart(2, "0");
   const dag = String(d.getDate()).padStart(2, "0");
   return `${aar}-${maaned}-${dag}`;
-}
-
-// Konverter HH:MM (firmaets standardarbeidstid) + ISO-dato → ISO-timestamp.
-// Brukes til å forhåndsutfylle «Arbeidstid i dag» ved opprettelse.
-function hhmmTilIso(isoDato: string, hhmm: string | null): string | null {
-  if (!hhmm) return null;
-  const [t, m] = hhmm.split(":").map((n) => parseInt(n, 10));
-  if (isNaN(t) || isNaN(m)) return null;
-  const d = new Date(`${isoDato}T00:00:00`);
-  d.setHours(t, m, 0, 0);
-  return d.toISOString();
 }
 
 function formatNorskDato(iso: string): string {
@@ -190,48 +179,31 @@ export default function NyDagsseddelSide() {
 
     setLagrer(true);
     try {
-      const id = randomUUID();
-      const naa = Date.now();
-
-      // Forhåndsutfyll «Arbeidstid i dag» fra firmaets standardarbeidstid
-      // (arbeidstidsordning). Faller tilbake til 07:00–15:00 / 30 min hvis
-      // organization_setting_local-cachen er tom (første kjøring / offline).
-      // Redigerbar via ArbeidstidSeksjon. Bruker valgtFirmaId til oppslag.
-      const effektiv = hentEffektivArbeidstidLokal(
-        valgtFirmaId ?? "",
-        new Date(`${dato}T00:00:00`),
-      );
-
-      // Vi mangler organizationId fra brukeren — bruker tomt for nå.
-      // Server validerer ved sync uansett.
-      db.insert(dagsseddelLocal)
-        .values({
-          id,
-          userId: bruker.id,
-          organizationId: "",
-          projectId: valgtProsjekt.id,
-          aktivitetId: valgtAktivitet.id,
-          avdelingId: null,
-          byggeplassId: null,
-          dato,
-          startAt: hhmmTilIso(dato, effektiv.startTid),
-          endAt: hhmmTilIso(dato, effektiv.sluttTid),
-          pauseMin: effektiv.pauseMin,
-          status: "draft",
-          beskrivelse: beskrivelse.trim() || null,
-          lederKommentar: null,
-          attestertVed: null,
-          syncStatus: "pending",
-          feilmelding: null,
-          sistEndretLokalt: naa,
-          sistSynkronisert: null,
-        })
-        .run();
+      // UF-0: find-or-open. Helper er idempotent per (userId, dato) — finnes
+      // dagen alt, åpner vi den eksisterende sedelen i stedet for å inserte en
+      // duplikat (som ville kollidere med server @@unique → sync-stuck).
+      // Arbeidstid-prefill + org-backfill håndteres i helperen.
+      const resultat = finnEllerOpprettDagsseddel(db, {
+        userId: bruker.id,
+        orgId: valgtFirmaId ?? "",
+        dato,
+        prosjektId: valgtProsjekt.id,
+        aktivitetId: valgtAktivitet.id,
+        beskrivelse: beskrivelse.trim() || null,
+      });
 
       oppdaterTellere();
       void triggerSync();
 
-      router.replace(`/timer/${id}`);
+      // Fantes dagen alt: ta med brukerens prosjekt-valg til den eksisterende
+      // sedelen (bevart prosjekt-valg) + flagg subtil notis på mål-skjermen.
+      if (resultat.eksisterte) {
+        router.replace(
+          `/timer/${resultat.id}?aapnetEksisterende=1&nyttProsjekt=${valgtProsjekt.id}`,
+        );
+      } else {
+        router.replace(`/timer/${resultat.id}`);
+      }
     } catch (e) {
       setFeil(e instanceof Error ? e.message : "Ukjent feil");
     } finally {
@@ -254,7 +226,16 @@ export default function NyDagsseddelSide() {
       {/* Dagstotal-banner — viser hvor mye som allerede er ført på valgt dato */}
       {bruker?.id && <DagstotalBanner userId={bruker.id} dato={dato} />}
 
-      <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={0}
+      >
+      <ScrollView
+        className="flex-1"
+        contentContainerClassName="p-4 gap-4"
+        keyboardShouldPersistTaps="handled"
+      >
         {/* Dato */}
         <View>
           <Text className="mb-1 text-sm font-medium text-gray-700">
@@ -352,6 +333,10 @@ export default function NyDagsseddelSide() {
           />
         </View>
 
+        {/* Del 2-A: lønnsart-hint — lønnsart settes per timer-rad inne på
+            sedelen (ikke ved opprettelse), så arbeider ikke leter etter den her. */}
+        <Text className="text-xs text-gray-500">{t("timer.lonnsartHint")}</Text>
+
         {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
         {/* Lagre-knapp */}
@@ -365,6 +350,7 @@ export default function NyDagsseddelSide() {
           </Text>
         </Pressable>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Prosjekt-velger */}
       <ListeVelgerModal<Prosjekt>
@@ -470,6 +456,7 @@ function ListeVelgerModal<T extends { id: string }>({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onVelg(item)}

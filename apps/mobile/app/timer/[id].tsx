@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,11 @@ import {
   Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  LinearTransition,
+} from "react-native-reanimated";
 import {
   useLocalSearchParams,
   useRouter,
@@ -22,6 +27,10 @@ import {
   Plus,
   Sparkles,
   Split,
+  ChevronDown,
+  ChevronRight,
+  Info,
+  X,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
@@ -33,8 +42,10 @@ import {
   sheetMachineLocal,
   equipmentLocal,
   externalCostObjectLocal,
+  byggeplassLocal,
 } from "../../src/db/schema";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
+import { trpc } from "../../src/lib/trpc";
 import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp";
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { TimerSeksjon } from "../../src/components/timer-detalj/TimerSeksjon";
@@ -45,6 +56,7 @@ import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBa
 import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektVelger";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
+import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt } from "../../src/utils/dato";
 import type {
   Sedel,
@@ -56,20 +68,42 @@ import type {
 export default function DagsseddelDetalj() {
   const router = useRouter();
   const { t } = useTranslation();
-  const params = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams<{
+    id: string;
+    aapnetEksisterende?: string;
+    nyttProsjekt?: string;
+  }>();
   const sheetId = params.id ?? "";
   const { triggerSync, oppdaterTellere } = useTimerSync();
+  // UF-4: recall — online-only (server er sannhetskilde for sent/accepted).
+  const gjenaapneMutation = trpc.timer.dagsseddel.gjenaapneDagsseddel.useMutation();
 
   const [sedel, setSedel] = useState<Sedel | null>(null);
   const [timerRader, setTimerRader] = useState<TimerRad[]>([]);
   const [tilleggRader, setTilleggRader] = useState<TilleggRad[]>([]);
   const [maskinRader, setMaskinRader] = useState<MaskinRad[]>([]);
   const [harEquipmentCache, setHarEquipmentCache] = useState(false);
+  // T.11: default true så arbeider ikke får falsk-flagg før status er synket.
+  const [harMaskinforerbevis, setHarMaskinforerbevis] = useState(true);
   const [feil, setFeil] = useState<string | null>(null);
   // Tomme prosjekt-grupper som brukeren har lagt til via «+ Legg til prosjekt».
   // Gruppen blir varig så snart første rad er lagt til i den.
   const [ekstraProsjektIder, setEkstraProsjektIder] = useState<string[]>([]);
   const [visLeggTilProsjekt, setVisLeggTilProsjekt] = useState(false);
+  // UF-0: find-or-open fra «+ Ny» — subtil notis om at dagen alt fantes.
+  const [visAapnetNotis, setVisAapnetNotis] = useState(
+    params.aapnetEksisterende === "1",
+  );
+
+  // UF-0: bevart prosjekt-valg — kom brukeren hit via find-or-open med et valgt
+  // prosjekt, vis det som en (tom) gruppe så de straks kan føre rader på det.
+  useEffect(() => {
+    const pid = params.nyttProsjekt;
+    if (!pid) return;
+    setEkstraProsjektIder((forrige) =>
+      forrige.includes(pid) ? forrige : [...forrige, pid],
+    );
+  }, [params.nyttProsjekt]);
 
   const lesData = useCallback(() => {
     const db = hentDatabase();
@@ -125,22 +159,30 @@ export default function DagsseddelDetalj() {
     }, [lesData]),
   );
 
+  // T.11: les innlogget brukers maskinførerbevis-status (SecureStore, async)
+  // for sedelens org. Styrer soft-varsel i MaskinSeksjon — aldri blokkerende.
+  useEffect(() => {
+    const orgId = sedel?.organizationId;
+    if (!orgId) return;
+    let aktiv = true;
+    void harMaskinforerbevisLokalt(orgId).then((gyldig) => {
+      if (aktiv) setHarMaskinforerbevis(gyldig);
+    });
+    return () => {
+      aktiv = false;
+    };
+  }, [sedel?.organizationId]);
+
   const erRedigerbar = useMemo(() => {
     if (!sedel) return false;
     return sedel.status === "draft" || sedel.status === "returned";
   }, [sedel]);
 
-  const arbeidstidTimer = useMemo(() => {
+  // Topp-sum-norm = sesongjustert dagsnorm fra firma-kalender (fase-0:1041),
+  // decouplet fra start/slutt-vinduet: en kort dag er gyldig og akseptert (blå),
+  // ikke en falsk «under norm»-alarm fra full-dag-prefill.
+  const normTimer = useMemo(() => {
     if (!sedel) return null;
-    // T4-e: Hvis brukeren har satt egen start/slutt på sedelen, bruk de.
-    // Ellers fall tilbake til effektiv dagsnorm fra firma-kalender (firma-
-    // default + sommertid-overstyring fra arbeidstidskalender_local).
-    if (sedel.startAt && sedel.endAt) {
-      const diff =
-        (new Date(sedel.endAt).getTime() - new Date(sedel.startAt).getTime()) /
-        3600000;
-      return Math.max(0, diff - (sedel.pauseMin ?? 0) / 60);
-    }
     const effektiv = hentEffektivArbeidstidLokal(
       sedel.organizationId,
       new Date(`${sedel.dato}T00:00:00`),
@@ -206,6 +248,42 @@ export default function DagsseddelDetalj() {
     oppdaterTellere();
     void triggerSync();
     lesData();
+  }
+
+  // UF-4: gjenåpne en sendt sedel for etter-registrering. Online-only — kaller
+  // server-mutasjonen direkte (man kan ikke recalle uten å kjenne server-status).
+  // Suksess → speil server lokalt (draft, synced). accepted/offline → melding.
+  function gjenaapne() {
+    if (!sedel) return;
+    setFeil(null);
+    gjenaapneMutation.mutate(
+      { id: sheetId },
+      {
+        onSuccess: () => {
+          const db = hentDatabase();
+          if (db) {
+            db.update(dagsseddelLocal)
+              .set({
+                status: "draft",
+                syncStatus: "synced",
+                sistEndretLokalt: Date.now(),
+              })
+              .where(eq(dagsseddelLocal.id, sheetId))
+              .run();
+          }
+          oppdaterTellere();
+          lesData();
+        },
+        onError: (e: unknown) => {
+          const melding = e instanceof Error ? e.message : "";
+          setFeil(
+            melding.includes("godkjent")
+              ? t("timer.gjenaapne.feilGodkjent")
+              : t("timer.gjenaapne.feilNett"),
+          );
+        },
+      },
+    );
   }
 
   function slettSedel() {
@@ -286,7 +364,31 @@ export default function DagsseddelDetalj() {
         ekskluderSheetId={sedel.id}
       />
 
+      {/* U1: topp-sum — dagens registrerte timer vs norm, synlig uten scroll
+          (flyttet fra bunn-handlingsblokken). Fast over ScrollView; vises i
+          alle tilstander, ikke bare ved redigerbar. */}
+      <View className="mx-4 mt-3">
+        <SummeringsBanner
+          totaltimer={totaltimer}
+          normTimer={normTimer}
+          maskinTimer={totalMaskin}
+        />
+      </View>
+
       <ScrollView className="flex-1" contentContainerClassName="pb-24">
+        {/* UF-0: subtil notis — dagen fantes alt, find-or-open åpnet den. */}
+        {visAapnetNotis && (
+          <View className="mx-4 mt-4 flex-row items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+            <Info size={14} color="#6b7280" />
+            <Text className="flex-1 text-xs text-gray-600">
+              {t("timer.dagFinnes.notis")}
+            </Text>
+            <Pressable onPress={() => setVisAapnetNotis(false)} hitSlop={8}>
+              <X size={14} color="#9ca3af" />
+            </Pressable>
+          </View>
+        )}
+
         {/* Status-banners */}
         {sedel.status === "returned" && (
           <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
@@ -400,9 +502,11 @@ export default function DagsseddelDetalj() {
             sheetId={sheetId}
             organizationId={sedel.organizationId}
             sedelProjectId={sedel.projectId}
+            sedelByggeplassId={sedel.byggeplassId ?? null}
             dato={sedel.dato}
             defaultAktivitetId={sedel.aktivitetId ?? null}
             harEquipmentCache={harEquipmentCache}
+            harMaskinforerbevis={harMaskinforerbevis}
             redigerbar={erRedigerbar}
             timerRader={timerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
@@ -427,15 +531,8 @@ export default function DagsseddelDetalj() {
           <Text className="mx-4 mt-4 text-sm text-red-600">{feil}</Text>
         )}
 
-        {/* Handlinger */}
+        {/* Handlinger (topp-sum flyttet til toppen — U1) */}
         <View className="mx-4 mt-6 gap-2">
-          {erRedigerbar && (
-            <SummeringsBanner
-              totaltimer={totaltimer}
-              arbeidstidTimer={arbeidstidTimer}
-              maskinTimer={totalMaskin}
-            />
-          )}
           {erRedigerbar && (
             <Pressable
               onPress={sendTilAttestering}
@@ -443,7 +540,7 @@ export default function DagsseddelDetalj() {
             >
               <Send size={16} color="#ffffff" />
               <Text className="text-base font-semibold text-white">
-                {t("timer.sendTilAttestering")}
+                {t("timer.sendMedSum", { timer: totaltimer.toFixed(2) })}
               </Text>
             </Pressable>
           )}
@@ -451,6 +548,24 @@ export default function DagsseddelDetalj() {
             <Text className="text-center text-xs text-gray-500">
               {t("timer.sendGodkjennHint")}
             </Text>
+          )}
+          {/* UF-4: recall — kun på SENDT sedel (ikke godkjent). */}
+          {sedel.status === "sent" && (
+            <>
+              <Pressable
+                onPress={gjenaapne}
+                disabled={gjenaapneMutation.isPending}
+                className="flex-row items-center justify-center gap-2 rounded-lg border border-blue-300 bg-white py-3 active:bg-blue-50 disabled:opacity-50"
+              >
+                <RotateCcw size={16} color="#1e40af" />
+                <Text className="text-base font-medium text-sitedoc-primary">
+                  {t("timer.gjenaapne.knapp")}
+                </Text>
+              </Pressable>
+              <Text className="text-center text-xs text-gray-500">
+                {t("timer.gjenaapne.hjelp")}
+              </Text>
+            </>
           )}
           {sedel.status === "draft" && (
             <Pressable
@@ -490,9 +605,11 @@ function ProsjektGruppe({
   sheetId,
   organizationId,
   sedelProjectId,
+  sedelByggeplassId,
   dato,
   defaultAktivitetId,
   harEquipmentCache,
+  harMaskinforerbevis,
   redigerbar,
   timerRader,
   tilleggRader,
@@ -505,9 +622,14 @@ function ProsjektGruppe({
   organizationId: string;
   /** Fallback for rader uten per-rad-projectId (pre-T7-3b1-data). */
   sedelProjectId: string;
+  /** U1: GPS-fanget byggeplass-id på sedelen — fallback i gruppe-header for
+   *  sedelens primærprosjekt når byggeplassLocal ikke er entydig per prosjekt.
+   *  Navnet resolves via byggeplassLocal (id → navn). */
+  sedelByggeplassId: string | null;
   dato: string;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
+  harMaskinforerbevis: boolean;
   redigerbar: boolean;
   timerRader: TimerRad[];
   tilleggRader: TilleggRad[];
@@ -516,6 +638,35 @@ function ProsjektGruppe({
 }) {
   const { t } = useTranslation();
   const prosjekt = useMemo(() => finnProsjektLokalt(projectId), [projectId]);
+  // U1: v2 gruppe-header kan kollapses (skjuler ECO-bukets, beholder sum).
+  const [kollapset, setKollapset] = useState(false);
+
+  // U1: byggeplass i gruppe-header. Vis byggeplassLocal.navn KUN når prosjektet
+  // har nøyaktig én byggeplass i cache (unngå å vise feil ved flere). Fallback
+  // til sedelens GPS-fangede byggeplass på primærprosjektet.
+  const byggeplassNavn = useMemo(() => {
+    const db = hentDatabase();
+    if (!db) return null;
+    // Primær: entydig byggeplass for prosjektet (nøyaktig én i cache).
+    const perProsjekt = db
+      .select({ navn: byggeplassLocal.navn })
+      .from(byggeplassLocal)
+      .where(eq(byggeplassLocal.projectId, projectId))
+      .all();
+    if (perProsjekt.length === 1 && perProsjekt[0].navn) {
+      return perProsjekt[0].navn;
+    }
+    // Fallback: GPS-fanget byggeplass på sedelens primærprosjekt (id → navn).
+    if (projectId === sedelProjectId && sedelByggeplassId) {
+      const treff = db
+        .select({ navn: byggeplassLocal.navn })
+        .from(byggeplassLocal)
+        .where(eq(byggeplassLocal.id, sedelByggeplassId))
+        .all()[0];
+      if (treff?.navn) return treff.navn;
+    }
+    return null;
+  }, [projectId, sedelProjectId, sedelByggeplassId]);
 
   // Subtotal i gruppe-header: sum av prosjektets arbeidstimer. Maskin holdes
   // utenfor (vises som «herav» i hver ECO-bucket).
@@ -554,37 +705,62 @@ function ProsjektGruppe({
   }, [timerRader, maskinRader]);
 
   return (
-    <View className="mt-2">
+    <Animated.View layout={LinearTransition} className="mt-2">
       {visHeader && (
-        <View className="mx-4 mt-4 flex-row items-center justify-between gap-2 rounded-t-lg border border-b-0 border-gray-200 bg-blue-50 px-4 py-2">
-          <Text className="flex-1 text-sm font-semibold text-sitedoc-primary">
-            {prosjekt
-              ? `${prosjekt.projectNumber ? prosjekt.projectNumber + " — " : ""}${prosjekt.name}`
-              : projectId}
-          </Text>
+        <Pressable
+          onPress={() => setKollapset((v) => !v)}
+          className="mx-4 mt-4 flex-row items-center justify-between gap-2 rounded-lg border border-gray-200 bg-blue-50 px-4 py-2.5"
+        >
+          <View className="flex-1 flex-row items-center gap-1.5">
+            {kollapset ? (
+              <ChevronRight size={16} color="#1e40af" />
+            ) : (
+              <ChevronDown size={16} color="#1e40af" />
+            )}
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-sitedoc-primary">
+                {prosjekt
+                  ? `${prosjekt.projectNumber ? prosjekt.projectNumber + " — " : ""}${prosjekt.name}`
+                  : projectId}
+              </Text>
+              {byggeplassNavn && (
+                <Text className="text-xs text-gray-600">{byggeplassNavn}</Text>
+              )}
+            </View>
+          </View>
           <Text className="text-sm font-semibold text-sitedoc-primary">
             {prosjektTimer.toFixed(2)} {t("timer.tEnhet")}
           </Text>
-        </View>
+        </Pressable>
       )}
 
-      {/* ECO-bukets (hovedgruppe + N underprosjekter) */}
-      {ecoBuckets.map((bucket) => (
-        <EcoBucket
-          key={bucket.ecoId ?? "hoved"}
-          sheetId={sheetId}
-          organizationId={organizationId}
-          projectId={projectId}
-          ecoId={bucket.ecoId}
-          dato={dato}
-          defaultAktivitetId={defaultAktivitetId}
-          harEquipmentCache={harEquipmentCache}
-          redigerbar={redigerbar}
-          timerRader={bucket.timer}
-          maskinRader={bucket.maskin}
-          onEndret={onEndret}
-        />
-      ))}
+      {/* ECO-bukets (hovedgruppe + N underprosjekter) — skjules ved kollaps.
+          U3: myk fade-inn/ut + layout-transisjon (Reanimated). */}
+      {!kollapset && (
+        <Animated.View
+          entering={FadeIn.duration(150)}
+          exiting={FadeOut.duration(150)}
+          layout={LinearTransition}
+        >
+          {ecoBuckets.map((bucket) => (
+            <EcoBucket
+              key={bucket.ecoId ?? "hoved"}
+              sheetId={sheetId}
+              organizationId={organizationId}
+              projectId={projectId}
+              ecoId={bucket.ecoId}
+              dato={dato}
+              defaultAktivitetId={defaultAktivitetId}
+              harEquipmentCache={harEquipmentCache}
+              harMaskinforerbevis={harMaskinforerbevis}
+              redigerbar={redigerbar}
+              timerRader={bucket.timer}
+              maskinRader={bucket.maskin}
+              onEndret={onEndret}
+            />
+          ))}
+        </Animated.View>
+      )}
 
       {/* Tillegg per-prosjekt (separat fra ECO-bukets — ingen ECO-felt på SheetTillegg) */}
       <TilleggSeksjon
@@ -598,7 +774,7 @@ function ProsjektGruppe({
       {/* sedelProjectId brukes ikke direkte her — beholdt for fremtidig
           backfill av rader uten projectId. void for å unngå lint-warning. */}
       {void sedelProjectId}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -616,6 +792,7 @@ function EcoBucket({
   dato,
   defaultAktivitetId,
   harEquipmentCache,
+  harMaskinforerbevis,
   redigerbar,
   timerRader,
   maskinRader,
@@ -628,6 +805,7 @@ function EcoBucket({
   dato: string;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
+  harMaskinforerbevis: boolean;
   redigerbar: boolean;
   timerRader: TimerRad[];
   maskinRader: MaskinRad[];
@@ -666,12 +844,26 @@ function EcoBucket({
       {/* ECO-subheader + indigo-badge "→ Godkjenning byggherre" — kun ekte ECO-er */}
       {ecoId && (
         <View className="mb-2 flex-row items-center justify-between gap-2 border-b border-gray-200 pb-2">
-          <Text className="flex-1 text-xs font-semibold text-gray-800">
-            {ecoNavn
-              ? `${ecoNavn.proAdmId} · ${ecoNavn.kortNavn}`
-              : t("timer.detalj.ukjentEco")}
-          </Text>
-          <View className="rounded-full bg-indigo-100 px-2 py-0.5">
+          <View className="flex-1 flex-row items-center gap-1.5">
+            {ecoNavn ? (
+              <>
+                {/* U1: ECO-id som badge-chip */}
+                <View className="rounded bg-indigo-100 px-1.5 py-0.5">
+                  <Text className="text-xs font-semibold text-indigo-800">
+                    {ecoNavn.proAdmId}
+                  </Text>
+                </View>
+                <Text className="flex-1 text-xs font-medium text-gray-700">
+                  {ecoNavn.kortNavn}
+                </Text>
+              </>
+            ) : (
+              <Text className="flex-1 text-xs font-semibold text-gray-800">
+                {t("timer.detalj.ukjentEco")}
+              </Text>
+            )}
+          </View>
+          <View className="rounded bg-indigo-100 px-1.5 py-0.5">
             <Text className="text-xs font-medium text-indigo-800">
               → {t("timer.gruppe.tilByggherre")}
             </Text>
@@ -680,7 +872,7 @@ function EcoBucket({
       )}
 
       {/* Arbeidstimer (hovedpost) */}
-      <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-700">
+      <Text className="mb-1 text-xs font-medium text-gray-700">
         {t("timer.gruppe.arbeidstimer")} ({sumTimer.toFixed(2)} {t("timer.tEnhet")})
       </Text>
       <TimerSeksjon
@@ -698,7 +890,7 @@ function EcoBucket({
 
       {/* Maskintimer som underpost (indentert via ml-3 + border-l-2) */}
       <View className="ml-3 mt-3 border-l-2 border-gray-200 pl-3">
-        <Text className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-600">
+        <Text className="mb-1 text-xs font-medium text-gray-600">
           {t("timer.gruppe.heravMaskin")} ({sumMaskin.toFixed(2)} {t("timer.tEnhet")})
         </Text>
         <MaskinSeksjon
@@ -710,6 +902,7 @@ function EcoBucket({
           dato={dato}
           rader={maskinRader}
           harEquipmentCache={harEquipmentCache}
+          harMaskinforerbevis={harMaskinforerbevis}
           redigerbar={redigerbar}
           onEndret={onEndret}
         />

@@ -1,7 +1,16 @@
 import { eq, and } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import { equipmentLocal } from "../db/schema";
+import { lagreVerdi, hentVerdi } from "./auth";
 import type { trpc } from "../lib/trpc";
+
+/** T.11: SecureStore-nøkkel for maskinførerbevis-status per org (JSON-array). */
+export const MASKINFORERBEVIS_KEY = "sitedoc_maskinforerbevis";
+
+type MaskinforerbevisPerOrg = {
+  organizationId: string;
+  harGyldigMaskinforerbevis: boolean;
+};
 
 /* ============================================================================
  *  Maskin-katalog-cache (Runde 2.6 2026-05-02)
@@ -75,7 +84,38 @@ export async function refreshMaskinKatalog(klient: TrpcKlient): Promise<{
       .run();
   }
 
+  // T.11: hent innlogget brukers maskinførerbevis-status (per org) sammen med
+  // equipment-cachen — samme livssyklus (login + nett-gjenkomst). Lagres i
+  // SecureStore, ikke SQLite (ingen migrering). Ikke-kritisk hvis ruten feiler.
+  const status = await klient.kompetanse.minMaskinstatus
+    .query()
+    .catch((e) => {
+      console.warn("[MASKIN-KATALOG] Maskinførerbevis-pull feilet:", e);
+      return { perOrg: [] as MaskinforerbevisPerOrg[] };
+    });
+  await lagreVerdi(MASKINFORERBEVIS_KEY, JSON.stringify(status.perOrg));
+
   return { equipment: equipment.length };
+}
+
+/**
+ * T.11: synkron-vennlig lese-helper for maskinførerbevis-status. Leser
+ * SecureStore (async) og returnerer om innlogget bruker har gyldig bevis i
+ * gitt org. Default `true` ved manglende status — unngår falsk-flagg før
+ * første sync. (Soft-flagg, aldri blokkerende.)
+ */
+export async function harMaskinforerbevisLokalt(
+  organizationId: string,
+): Promise<boolean> {
+  const raw = await hentVerdi(MASKINFORERBEVIS_KEY);
+  if (!raw) return true;
+  try {
+    const perOrg = JSON.parse(raw) as MaskinforerbevisPerOrg[];
+    const treff = perOrg.find((o) => o.organizationId === organizationId);
+    return treff?.harGyldigMaskinforerbevis ?? false;
+  } catch {
+    return true;
+  }
 }
 
 /**

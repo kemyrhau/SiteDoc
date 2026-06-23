@@ -22,7 +22,7 @@ Fundament-filer som er verifisert (sannhetskilde):
 
 **Status:** Pakken er referert i 4+ doc-filer som om den eksisterer:
 - [timer.md](timer.md) — appstruktur, dagsseddel-tabeller, sync-mønster
-- [timer-input-katalog.md](timer-input-katalog.md) — peker til db-timer-skjema
+- [timer.md § Datamodell](timer.md) — db-timer-skjema (kanonisk; `timer-input-katalog.md` slettet 2026-06-21)
 - (tidligere) datamodell-arkitektur.md — listet `Wage`/`Addition`/`Allowance` "i db-timer"
 - [arkitektur-syntese.md](arkitektur-syntese.md) — module-arkitektur
 

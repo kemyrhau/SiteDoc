@@ -7,6 +7,8 @@ import {
   ScrollView,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Plus, Trash2, Pencil, X, Check, Car } from "lucide-react-native";
@@ -35,6 +37,8 @@ import type {
 } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
+import { VelgerFelt } from "./VelgerFelt";
+import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 
 interface TimerSeksjonProps {
   sheetId: string;
@@ -625,7 +629,16 @@ function TimerRadModal({
           </Pressable>
         </View>
 
-        <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
+        >
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="p-4 gap-4"
+          keyboardShouldPersistTaps="handled"
+        >
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.prosjekt")} *
@@ -641,32 +654,22 @@ function TimerRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.lonnsart")} *
             </Text>
-            <Pressable
+            <VelgerFelt
+              verdi={valgtLonnsart?.navn ?? null}
+              placeholder={t("timer.velgLonnsart")}
               onPress={() => setVisLonnsartVelger(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text
-                className={`text-base ${valgtLonnsart ? "text-gray-900" : "text-gray-400"}`}
-              >
-                {valgtLonnsart?.navn ?? t("timer.velgLonnsart")}
-              </Text>
-            </Pressable>
+            />
           </View>
 
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.aktivitet")} *
             </Text>
-            <Pressable
+            <VelgerFelt
+              verdi={valgtAktivitet?.navn ?? null}
+              placeholder={t("timer.velgAktivitet")}
               onPress={() => setVisAktivitetVelger(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text
-                className={`text-base ${valgtAktivitet ? "text-gray-900" : "text-gray-400"}`}
-              >
-                {valgtAktivitet?.navn ?? t("timer.velgAktivitet")}
-              </Text>
-            </Pressable>
+            />
           </View>
 
           <View>
@@ -678,6 +681,7 @@ function TimerRadModal({
               onChangeText={setTimer}
               placeholder="0,00"
               keyboardType="decimal-pad"
+              inputAccessoryViewID={TASTATUR_FERDIG_ID}
               className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
             />
           </View>
@@ -697,29 +701,14 @@ function TimerRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.underprosjekt")}
             </Text>
-            <View className="flex-row items-center gap-2">
-              <Pressable
-                onPress={() => setVisEcoVelger(true)}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-3"
-              >
-                <Text
-                  className={`text-base ${valgtEco ? "text-gray-900" : "text-gray-400"}`}
-                >
-                  {valgtEco
-                    ? `${valgtEco.proAdmId} — ${valgtEco.kortNavn}`
-                    : t("timer.velgUnderprosjekt")}
-                </Text>
-              </Pressable>
-              {valgtEcoId && (
-                <Pressable
-                  onPress={() => setValgtEcoId(null)}
-                  hitSlop={8}
-                  className="rounded p-2 active:bg-gray-100"
-                >
-                  <X size={18} color="#6b7280" />
-                </Pressable>
-              )}
-            </View>
+            <VelgerFelt
+              verdi={
+                valgtEco ? `${valgtEco.proAdmId} — ${valgtEco.kortNavn}` : null
+              }
+              placeholder={t("timer.velgUnderprosjekt")}
+              onPress={() => setVisEcoVelger(true)}
+              onClear={() => setValgtEcoId(null)}
+            />
           </View>
 
           {/* T.12: fritekst per rad — «hva gjorde du?» (valgfritt) */}
@@ -749,6 +738,8 @@ function TimerRadModal({
             </Text>
           </Pressable>
         </ScrollView>
+        </KeyboardAvoidingView>
+        <TastaturFerdig />
 
         {visLonnsartVelger && (
           <LonnsartVelgerModal
@@ -863,6 +854,7 @@ function LonnsartVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onVelg(item.id)}
@@ -953,6 +945,7 @@ function AktivitetVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onVelg(item.id)}
@@ -1053,6 +1046,7 @@ export function UnderprosjektVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onVelg(item.id)}

@@ -7,9 +7,11 @@ import {
   ScrollView,
   Modal,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Plus, Trash2, Pencil, X, Check } from "lucide-react-native";
+import { Plus, Trash2, Pencil, X, Check, AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
@@ -23,6 +25,8 @@ import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
+import { VelgerFelt } from "./VelgerFelt";
+import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 
 interface MaskinSeksjonProps {
   sheetId: string;
@@ -39,6 +43,9 @@ interface MaskinSeksjonProps {
   /** ISO YYYY-MM-DD — dato på dagsseddelen. Brukes til kalender-utleting (T4-e). */
   dato: string;
   harEquipmentCache: boolean;
+  /** T.11: false når innlogget bruker mangler gyldig maskinførerbevis i org.
+   *  Styrer soft-varsel — påvirker ALDRI synlighet eller lagring. */
+  harMaskinforerbevis: boolean;
   redigerbar: boolean;
   onEndret: () => void;
 }
@@ -52,6 +59,7 @@ export function MaskinSeksjon({
   visHeader = true,
   dato,
   harEquipmentCache,
+  harMaskinforerbevis,
   redigerbar,
   onEndret,
 }: MaskinSeksjonProps) {
@@ -144,6 +152,18 @@ export function MaskinSeksjon({
 
   return (
     <View className={visHeader ? "mt-4" : ""}>
+      {/* T.11: soft-varsel når arbeider mangler gyldig maskinførerbevis.
+          Informativt («flagget for synlighet»), aldri blokkerende. */}
+      {harEquipmentCache && !harMaskinforerbevis && (
+        <View className="mx-4 mt-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5">
+          <View className="flex-row items-center gap-2">
+            <AlertTriangle size={14} color="#b45309" />
+            <Text className="flex-1 text-xs text-amber-800">
+              {t("timer.maskinforerbevis.arbeider")}
+            </Text>
+          </View>
+        </View>
+      )}
       {visHeader && (
         <View className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-2">
           <Text className="text-sm font-semibold uppercase tracking-wide text-gray-700">
@@ -502,7 +522,16 @@ function MaskinRadModal({
           </Pressable>
         </View>
 
-        <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
+        >
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="p-4 gap-4"
+          keyboardShouldPersistTaps="handled"
+        >
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.prosjekt")} *
@@ -518,25 +547,22 @@ function MaskinRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.utstyr")} *
             </Text>
-            <Pressable
-              onPress={() => setVisEquipmentVelger(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text
-                className={`text-base ${valgtEquipment ? "text-gray-900" : "text-gray-400"}`}
-              >
-                {valgtEquipment
+            <VelgerFelt
+              verdi={
+                valgtEquipment
                   ? `${valgtEquipment.merke ?? ""} ${valgtEquipment.modell ?? ""}`.trim() ||
                     valgtEquipment.internNavn ||
-                    t("timer.velgUtstyr")
-                  : t("timer.velgUtstyr")}
-              </Text>
-              {valgtEquipment?.internNummer && (
-                <Text className="mt-0.5 text-xs text-gray-500">
-                  #{valgtEquipment.internNummer}
-                </Text>
-              )}
-            </Pressable>
+                    null
+                  : null
+              }
+              placeholder={t("timer.velgUtstyr")}
+              onPress={() => setVisEquipmentVelger(true)}
+              underTekst={
+                valgtEquipment?.internNummer
+                  ? `#${valgtEquipment.internNummer}`
+                  : null
+              }
+            />
           </View>
 
           <View>
@@ -548,6 +574,7 @@ function MaskinRadModal({
               onChangeText={setTimer}
               placeholder="0,00"
               keyboardType="decimal-pad"
+              inputAccessoryViewID={TASTATUR_FERDIG_ID}
               className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
             />
           </View>
@@ -562,16 +589,14 @@ function MaskinRadModal({
                 onChangeText={setMengde}
                 placeholder="0,00"
                 keyboardType="decimal-pad"
+                inputAccessoryViewID={TASTATUR_FERDIG_ID}
                 className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
               />
-              <Pressable
+              <VelgerFelt
+                verdi={enhet || null}
+                placeholder={t("timer.felt.enhet")}
                 onPress={() => setVisEnhetVelger(true)}
-                className="rounded-lg border border-gray-300 bg-white px-4 py-3"
-              >
-                <Text className={`text-base ${enhet ? "text-gray-900" : "text-gray-400"}`}>
-                  {enhet || t("timer.felt.enhet")}
-                </Text>
-              </Pressable>
+              />
             </View>
           </View>
 
@@ -591,29 +616,14 @@ function MaskinRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.underprosjekt")}
             </Text>
-            <View className="flex-row items-center gap-2">
-              <Pressable
-                onPress={() => setVisEcoVelger(true)}
-                className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-3"
-              >
-                <Text
-                  className={`text-base ${valgtEco ? "text-gray-900" : "text-gray-400"}`}
-                >
-                  {valgtEco
-                    ? `${valgtEco.proAdmId} — ${valgtEco.kortNavn}`
-                    : t("timer.velgUnderprosjekt")}
-                </Text>
-              </Pressable>
-              {valgtEcoId && (
-                <Pressable
-                  onPress={() => setValgtEcoId(null)}
-                  hitSlop={8}
-                  className="rounded p-2 active:bg-gray-100"
-                >
-                  <X size={18} color="#6b7280" />
-                </Pressable>
-              )}
-            </View>
+            <VelgerFelt
+              verdi={
+                valgtEco ? `${valgtEco.proAdmId} — ${valgtEco.kortNavn}` : null
+              }
+              placeholder={t("timer.velgUnderprosjekt")}
+              onPress={() => setVisEcoVelger(true)}
+              onClear={() => setValgtEcoId(null)}
+            />
           </View>
 
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
@@ -627,6 +637,8 @@ function MaskinRadModal({
             </Text>
           </Pressable>
         </ScrollView>
+        </KeyboardAvoidingView>
+        <TastaturFerdig />
 
         {visEquipmentVelger && (
           <EquipmentVelgerModal
@@ -752,6 +764,7 @@ function EquipmentVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => {
             const navn =
               `${item.merke ?? ""} ${item.modell ?? ""}`.trim() ||

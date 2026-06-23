@@ -64,6 +64,13 @@ export const KOMPETANSE_KATEGORIER = [
 
 export type KompetanseKategori = (typeof KOMPETANSE_KATEGORIER)[number];
 
+// T.11: kategorien som gater maskin-registrering. 40-timers teorikurs er
+// forløper/delkomponent i maskinfører-løpet fram mot beviset — vi gater på
+// det fullførte beviset (denne kategorien), som fanger løpet implisitt når
+// beviset er registrert som gyldig kompetanse.
+export const MASKINFORERBEVIS_KATEGORI: KompetanseKategori =
+  "TRUCK-/MASKINFØRERBEVIS";
+
 // Hvem kan registrere AnsattKompetanse-rader (per OrganizationSetting)
 // Default 'firma_admin' (mest restriktivt). Kunde løsner opp ved behov.
 export const KOMPETANSE_REGISTRERING_TILGANG = [

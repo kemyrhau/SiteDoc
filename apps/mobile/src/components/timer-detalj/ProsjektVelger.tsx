@@ -12,6 +12,7 @@ import { X, Check } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { hentProsjekterLokalt } from "../../services/prosjektKatalog";
 import type { Prosjekt } from "../../types/timer-detalj";
+import { VelgerFelt } from "./VelgerFelt";
 
 /**
  * Prosjekt-velger-modal for rad-nivå prosjektvalg (T7-3b2 2026-05-14).
@@ -82,6 +83,7 @@ export function ProsjektVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onVelg(item.id)}
@@ -127,18 +129,16 @@ export function ProsjektFelt({
   onTrykk: () => void;
 }) {
   const { t } = useTranslation();
+  // U2: tynn wrapper rundt VelgerFelt — formaterer prosjekt-strengen, deler
+  // chevron-affordance med de øvrige velgerne.
+  const verdi = prosjektNavn
+    ? `${prosjektNummer ? prosjektNummer + " — " : ""}${prosjektNavn}`
+    : null;
   return (
-    <Pressable
+    <VelgerFelt
+      verdi={verdi}
+      placeholder={t("timer.velgProsjekt")}
       onPress={onTrykk}
-      className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-    >
-      <Text
-        className={`text-base ${prosjektNavn ? "text-gray-900" : "text-gray-400"}`}
-      >
-        {prosjektNavn
-          ? `${prosjektNummer ? prosjektNummer + " — " : ""}${prosjektNavn}`
-          : t("timer.velgProsjekt")}
-      </Text>
-    </Pressable>
+    />
   );
 }

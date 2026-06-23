@@ -35,6 +35,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | Peker til [kontrollplan.md](docs/claude/kontrollplan.md). Konsolidert 2026-04-16 |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
 | [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟢 VEDTATT:** Aktivitet per `SheetTimer`-rad, ny `SheetMachine` — se også fase-0 C.18 |
+| [docs/claude/mobil-dagsseddel-ui-spec.md](docs/claude/mobil-dagsseddel-ui-spec.md) | **🟢 MÅL-SPEC:** Mobil dagsseddel-UI v2-overhaul — fasiten A.Markussen verifiserer mot. U-serie: U1–U3 visuelle + U-flyt (multi-økt/glemt-dag) |
 | [docs/claude/timer-gps-prosjekt-utredning.md](docs/claude/timer-gps-prosjekt-utredning.md) | **🟡 UTREDNING:** timer-registrering + GPS + prosjekt-tilknytning + dag-flyt — 6 beslutninger (T.8 først), for dedikert sesjon |
 | [docs/claude/steg-4b-plan.md](docs/claude/steg-4b-plan.md) | **🟡 VEDTATT:** Vareforbruk-modul (`db-varelager`), 5 faser, A.Markussen-import |
 | [docs/claude/maskin.md](docs/claude/maskin.md) | Utstyrsregister: 3 kategorier, Vegvesen API, EU-kontroll, vedlikehold |
@@ -163,10 +164,13 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 
 **Deploy-sekvens:**
 
-> ⚠️ **Prod kjører i Docker på `server-ny` (fra 2026-06-10).** Gjeldende deploy: rsync repo → `sudo docker compose -f docker/docker-compose.yml up -d --build`. Server-, env- og deploy-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) + [docker/DOCKER-NOTES.md](docker/DOCKER-NOTES.md). Den gamle PM2-deploy-prosedyren (rollback til gammel server) ligger i [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
+> ⚠️ **Server + deploy (server-ny, Docker, fra 2026-06-10) — to guardrails hver sesjon trenger:**
+> 1. Gjeldende server = **`server-ny`**. Opus/kontroll-Claude kan **ikke** `sudo` (ikke-interaktivt) → **Kenneth kjører alle `sudo docker`-steg via `! ssh -t server-ny ...`** (ekte TTY); ikke kast bort runder på `ssh -t`/`sudo -n`. Native `git`/`rsync` kan Opus kjøre.
+> 2. **`ssh sitedoc` → Kenspill = GAMMEL (legacy) server — IKKE for deploy/verifisering.**
+>
+> Prod-deploy: rsync → `sudo docker compose -f docker/docker-compose.yml up -d --build`. Detaljer: server/host-mapping (prod+test→server-ny, tunnel `sitedoc-ny`, Kenspill-stale-stack)/env/PM2-rollback i [infrastruktur.md](docs/claude/infrastruktur.md) + [DOCKER-NOTES.md](docker/DOCKER-NOTES.md); branching, full deploy-bash, mobil reload-tabell, tRPC env-konsekvens i [deploy-detaljer.md](docs/claude/deploy-detaljer.md).
 
-- Branching-regler, full deploy-bash, `.env`-krav, mobil reload-tabell, tRPC env-konsekvens og prod-lærdommer i [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md).
-- Server-detaljer i [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md).
+**Server-deploy-mekanikk (server-ny, Docker — ufravikelig, lærdom 2026-06-21):** Full detalj + eksakte kommandoer i [docker/DOCKER-NOTES.md § Deploy-mekanikk](docker/DOCKER-NOTES.md) + [infrastruktur.md](docs/claude/infrastruktur.md). Sesjons-kritisk regel (resten i DOCKER-NOTES): **migrerings-gate — prod krever DB `/sitedoc`, test krever `sitedoc_test`** (sjekk `$DATABASE_URL` før `migrate deploy`). Compose-prosjektnavn (`-p docker`), postgres-container (`grep postgres`), `--no-deps`-isolering og `-c`-vs-`-lc`-fellen står i DOCKER-NOTES. (sudo/TTY-barrieren: se server-tilgang-banneret over.)
 
 ## Kodestil
 
@@ -414,7 +418,7 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
   Dette er ikke valgfritt og skal ikke overlates til en separat oppfølger-commit (status-dok i egen commit etterpå blir glemt/drifter). Trivielle commits (typo-fix, kommentar-rens, formatting) er unntatt.
 - **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
-  - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh sitedoc "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall
+  - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh server-ny "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall. (Merk: `ssh sitedoc` → Kenspill = legacy, ikke for deploy/verifisering — se server-tilgang-banneret over.)
   - **Filtrer output:** Bruk `| tail -n`, `| head -n`, `| grep` for å begrense output fra verbose kommandoer (build-logger, PM2-lister, psql-resultater)
   - **Unngå gjentatte lesinger:** Les en fil én gang, ikke les samme fil flere ganger i samme sesjon
   - **Bruk subagenter** for utforskning som krever mange søk/fillesinger

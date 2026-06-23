@@ -62,9 +62,11 @@ ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-com
 ```
 
 **Viktig:**
-- `ssh -t` (TTY) kreves for at `sudo` skal kunne lese passord.
-- Prisma-endringer: de fire klientene (db/db-maskin/db-timer/db-varelager) genereres i `Dockerfile.api`-bygget, men `prisma migrate deploy` mot Postgres-containeren er **ikke automatisert ennå** — må kjøres manuelt ved schema-endring (åpent punkt, jf. `deploy.sh`).
-- Rebuild/restart gir et kort avbrudd — varsle ved aktivitet.
+- `ssh -t` (TTY) kreves for at `sudo` skal kunne lese passord. **Opus/kontroll-Claude-skall er ikke-interaktive → kan IKKE kjøre `sudo`** (`ssh -t … sudo` og `sudo -n` feiler begge på passord). **Kenneth kjører alle `sudo docker`-steg via `!`-prefiks** (ekte TTY); Opus kjører native `git`/`rsync` selv. Full deploy-mekanikk + lærdommer: [docker/DOCKER-NOTES.md § Deploy-mekanikk](../../docker/DOCKER-NOTES.md).
+- **Compose-prosjekt:** kjørende prod-containere er prosjekt `docker` (ikke `sitedoc` fra `name:`-linja) → bruk **`-p docker`** ved `compose`-kommandoer, ellers navnekonflikt. Deploy kun api+web: `up -d --no-deps sitedoc-api sitedoc-web` (rør ikke embed/oversettelse).
+- **Postgres-container:** heter `postgres`, ikke `sitedoc-postgres` — finn via `docker ps --format '{{.Names}}' | grep postgres`.
+- Prisma-endringer: de fire klientene (db/db-maskin/db-timer/db-varelager) genereres i `Dockerfile.api`-bygget, men `prisma migrate deploy` mot Postgres-containeren er **ikke automatisert ennå** — kjøres manuelt via engangs-container (`compose run --rm --no-deps --entrypoint sh sitedoc-api -c '…'`, bruk `-c` IKKE `-lc` — login-shell tømmer `$DATABASE_URL`), gated på db-navn (prod `/sitedoc`, test `sitedoc_test`). Se DOCKER-NOTES § Deploy-mekanikk pkt. 5.
+- Rebuild/restart gir et kort avbrudd — varsle ved aktivitet. (Additive migreringer kan kjøres null-nedetid: build → migrate → `up --no-deps api web`; gammel api kjører OLD-klient under migrate.)
 - Cutover (DNS-flytt) for `sitedoc.no`/`api.sitedoc.no` gjøres via **Cloudflare-dashboard** (egen sone — cloudflared CLI ruter feil her, jf. salsaklubb-lærdom).
 
 ## Serverdetaljer
@@ -75,7 +77,9 @@ ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-com
 - **Cloudflare Tunnel:** systemd, config `/etc/cloudflared/config.yml`, tunnel `sitedoc-ny` (ID `eb262307-f893-4fbf-82b7-420178cf6aea`)
 - **Domene:** sitedoc.no (Domeneshop, DNS via Cloudflare)
 
-> **Gammel prod (Kenspill/WSL, PM2) — utgått 2026-06-10, beholdes stoppet som rollback.** Gammelt oppsett: `~/programmering/sitedoc`, `ssh sitedoc`, `pm2`, tunnel `sitedoc` (ID `189a5af2-…`). Rollback = DNS tilbake + PM2 start. Avvikles når ny server er bekreftet stabil.
+> **Gammel server (Kenspill/WSL, PM2) — legacy, utgått 2026-06-10, beholdes som rollback.** Gammelt oppsett: `~/programmering/sitedoc` + `~/programmering/sitedoc-test`, **SSH-alias `ssh sitedoc`**, `pm2`, tunnel `sitedoc` (ID `189a5af2-…`). **IKKE bruk `ssh sitedoc` for deploy eller verifisering** — gjeldende server er `server-ny` (`ssh server-ny` via Tailscale; sudo via `! ssh -t server-ny`).
+>
+> ℹ️ **Kenspill kjører fortsatt en STALE test-PM2 (avklart 2026-06-21).** `sitedoc-test-api`/`sitedoc-test-web` står online som PM2 på Kenspill (3301/3300) med et eget `sitedoc_test` + cloudflared-mapping `api-test → localhost:3301` i Kenspill-tunnelen `sitedoc`. **Men edge serveres IKKE herfra** — `test.sitedoc.no`/`api-test.sitedoc.no` går til **server-ny** (tunnel `sitedoc-ny`, bevist via Funn #2-deploy: 401/405 først etter server-ny-deploy). Kenspill-test-stacken er en legacy-levning (inkl. en harmløs Funn #2-migrering som ved uhell traff Kenspills `sitedoc_test`). **Ikke bruk Kenspill for noe; bør stoppes/avvikles.**
 
 ## Cloudflare Tunnel — viktig
 
@@ -164,7 +168,9 @@ Env ligger nå i `~/stack/sitedoc/docker/env/` (lest av compose via `env_file`):
 
 Test-databasen `sitedoc_test` finnes i den delte Postgres-containeren (restoret med `pg_restore --no-owner` + `REFRESH COLLATION VERSION`).
 
-**Test-stack er etablert (2026-06-11):** egne containere `sitedoc-test-api` + `sitedoc-test-web` (prosjekt `sitedoc-test`) via `docker/docker-compose.test.yml`, mot `sitedoc_test`-DB, deler prod sin `embed`/`oversettelse`/`postgres`. Eksponert på `test.sitedoc.no` (3300) + `api-test.sitedoc.no` (3301) via tunnel `sitedoc-ny`. Env: `docker/env/{api-test,web-test}.env`. Verifisert HTTP 200 eksternt. Deploy-prosedyre i [`ny-server-veileder.md`](ny-server-veileder.md) → «Test-stack».
+**Test-stack på server-ny (etablert 2026-06-11):** egne containere `sitedoc-test-api` + `sitedoc-test-web` (prosjekt `sitedoc-test`) via `docker/docker-compose.test.yml`, mot `sitedoc_test`-DB, deler prod sin `embed`/`oversettelse`/`postgres`. Eksponert på `test.sitedoc.no` (3300) + `api-test.sitedoc.no` (3301) via tunnel `sitedoc-ny`. Env: `docker/env/{api-test,web-test}.env`. Verifisert HTTP 200 eksternt (2026-06-11). Deploy-prosedyre i [`ny-server-veileder.md`](ny-server-veileder.md) → «Test-stack».
+
+> ✅ **Denne (server-ny) er den autoritative test-stacken som serverer edge (bekreftet 2026-06-21).** `test.sitedoc.no`/`api-test.sitedoc.no` går hit (tunnel `sitedoc-ny`). Bevis: Funn #2-rutene ga 404 på edge før server-ny-deploy og 401/405 etter — så edge = server-ny. **Deploy/migrer test KUN her** (rsync + `docker-compose.test.yml`, se [`ny-server-veileder.md`](ny-server-veileder.md) → «Test-stack»). Kenspills test-PM2 (se «Gammel server»-blokken) er en stale legacy-levning som ikke serverer edge.
 
 > Gjenstår fortsatt: automatisert `prisma migrate deploy` (kjøres manuelt ved schema-endring — se TODO over).
 

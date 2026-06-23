@@ -29,6 +29,39 @@ function formatIsoDato(d: Date): string {
 }
 
 /**
+ * UF-2 (glemt-dag-cap) — skill **nattskift** (kort, krysser typisk én midnatt)
+ * fra **glemt avslutning** (fler-døgns spenn) FØR midnatt-splitt.
+ *
+ * Rotårsak 160 t: en sluttbane med `slutt = nå` mater et fler-døgns spenn inn i
+ * `splittVedMidnatt`, som deler det blindt dag-for-dag → N døgnsedler à ~24 t.
+ *
+ * Universell enkelt-skift-cap (gjelder ALLE sluttbaner): er spennet større enn
+ * `deteksjonsTimer` (trinn 8 — hard AML/tariff-cap), tolkes økten som en glemt
+ * avslutning og slutt-tiden **kappes** til `start + kappLengdeTimer` (trinn 7 —
+ * sesongjustert dagsnorm). `kappet: true` signaliserer at slutt-kilden bør
+ * settes til "system" (gjettet → kontroll-badge, korrigerbart forslag).
+ *
+ * Et legitimt nattskift (< deteksjonsTimer, krysser én midnatt) slipper urørt
+ * gjennom og splittes som normalt.
+ */
+export function kappGlemtDagSlutt(
+  startIso: string,
+  sluttIso: string,
+  opts: { deteksjonsTimer: number; kappLengdeTimer: number },
+): { sluttIso: string; kappet: boolean } {
+  const start = new Date(startIso).getTime();
+  const slutt = new Date(sluttIso).getTime();
+  const spennTimer = (slutt - start) / 3_600_000;
+  if (!(spennTimer > opts.deteksjonsTimer)) {
+    return { sluttIso, kappet: false };
+  }
+  return {
+    sluttIso: new Date(start + opts.kappLengdeTimer * 3_600_000).toISOString(),
+    kappet: true,
+  };
+}
+
+/**
  * Del [startIso, sluttIso] ved hver lokale midnatt.
  *
  * - Samme kalenderdag (eller `slutt <= start`) → ett segment (uendret atferd

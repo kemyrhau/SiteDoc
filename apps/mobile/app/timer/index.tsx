@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -8,9 +8,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
-import { ArrowLeft, Plus, ChevronRight } from "lucide-react-native";
+import { ArrowLeft, Plus, ChevronRight, Info } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 import { hentDatabase } from "../../src/db/database";
 import { dagsseddelLocal, sheetTimerLocal } from "../../src/db/schema";
 import { useAuth } from "../../src/providers/AuthProvider";
@@ -67,6 +67,11 @@ function formatDato(iso: string): string {
   });
 }
 
+function iDagIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export default function TimerListeSide() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -91,6 +96,17 @@ export default function TimerListeSide() {
     }
   }, [triggerSync, bruker?.id]);
 
+  // UF-3: kladd-påminnelse — usendte drafts MED innhold fra TIDLIGERE dager.
+  // Distinkt fra glemt-dag-prompt (StartSluttDagKort = uavsluttet økt): dette
+  // er «økten er avsluttet, men kladden er ikke sendt». Dagens egen draft (under
+  // arbeid) maser ikke — kun dato < i dag.
+  const usendteKladder = useMemo(() => {
+    const iDag = iDagIso();
+    return rader.filter(
+      (r) => r.status === "draft" && r.antallRader > 0 && r.dato < iDag,
+    );
+  }, [rader]);
+
   return (
     <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
       {/* Topp-bar */}
@@ -106,6 +122,24 @@ export default function TimerListeSide() {
       <TimerSyncStatusBar />
 
       {bruker?.id && <UkeTotalBanner userId={bruker.id} />}
+
+      {/* UF-3: mild kladd-påminnelse — trykk åpner eldste usendte kladd. */}
+      {usendteKladder.length > 0 && (
+        <Pressable
+          onPress={() =>
+            router.push(
+              `/timer/${usendteKladder[usendteKladder.length - 1].id}`,
+            )
+          }
+          className="mx-4 mt-3 flex-row items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 active:bg-amber-100"
+        >
+          <Info size={16} color="#b45309" />
+          <Text className="flex-1 text-sm text-amber-800">
+            {t("timer.kladdPaaminnelse", { antall: usendteKladder.length })}
+          </Text>
+          <ChevronRight size={16} color="#b45309" />
+        </Pressable>
+      )}
 
       <FlatList<DagsseddelRad>
         data={rader}

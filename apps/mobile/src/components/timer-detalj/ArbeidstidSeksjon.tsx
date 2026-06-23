@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { View, Text, Pressable, Modal, TextInput, Platform } from "react-native";
+import {
+  View,
+  Text,
+  Pressable,
+  Modal,
+  TextInput,
+  Platform,
+  KeyboardAvoidingView,
+  ScrollView,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Pencil, X, Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -8,6 +17,7 @@ import { eq } from "drizzle-orm";
 import { hentDatabase } from "../../db/database";
 import { dagsseddelLocal } from "../../db/schema";
 import { isoTidspunktTilHHMM } from "../../utils/dato";
+import { TidFeltBoks } from "./TidFeltBoks";
 
 interface ArbeidstidSeksjonProps {
   sheetId: string;
@@ -76,6 +86,10 @@ export function ArbeidstidSeksjon({
       )}
     </View>
   );
+}
+
+function dateTilHhmm(d: Date): string {
+  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
 function Felt({ label, verdi }: { label: string; verdi: string }) {
@@ -186,7 +200,16 @@ function RedigerArbeidstidModal({
           </Pressable>
         </View>
 
-        <View className="gap-4 p-4">
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
+        >
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="gap-4 p-4"
+          keyboardShouldPersistTaps="handled"
+        >
           <Text className="text-xs text-gray-500">
             {t("timer.arbeidstidIDagBeskrivelse")}
           </Text>
@@ -196,16 +219,10 @@ function RedigerArbeidstidModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.startTid")}
             </Text>
-            <Pressable
+            <TidFeltBoks
+              verdi={startDato ? dateTilHhmm(startDato) : null}
               onPress={() => setVisStartPicker(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text className="text-base text-gray-900">
-                {startDato
-                  ? `${String(startDato.getHours()).padStart(2, "0")}:${String(startDato.getMinutes()).padStart(2, "0")}`
-                  : "—"}
-              </Text>
-            </Pressable>
+            />
             {visStartPicker && (
               <DateTimePicker
                 value={startDato ?? new Date()}
@@ -225,16 +242,10 @@ function RedigerArbeidstidModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.sluttTid")}
             </Text>
-            <Pressable
+            <TidFeltBoks
+              verdi={endDato ? dateTilHhmm(endDato) : null}
               onPress={() => setVisEndPicker(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text className="text-base text-gray-900">
-                {endDato
-                  ? `${String(endDato.getHours()).padStart(2, "0")}:${String(endDato.getMinutes()).padStart(2, "0")}`
-                  : "—"}
-              </Text>
-            </Pressable>
+            />
             {visEndPicker && (
               <DateTimePicker
                 value={endDato ?? new Date()}
@@ -282,7 +293,8 @@ function RedigerArbeidstidModal({
               </Text>
             </Pressable>
           </View>
-        </View>
+        </ScrollView>
+        </KeyboardAvoidingView>
       </SafeAreaView>
     </Modal>
   );

@@ -19,11 +19,16 @@ import { useFirma } from "../kontekst/FirmaKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { avstandMeter, estimerReisetidMin, klassifiserReise, type ReiseKategori } from "@sitedoc/shared";
 import { haversineKm } from "../utils/geo";
-import { splittVedMidnatt, type Dagsegment } from "../utils/dagsegment";
+import {
+  splittVedMidnatt,
+  kappGlemtDagSlutt,
+  type Dagsegment,
+} from "../utils/dagsegment";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
 import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
 import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
+import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
 import {
   hentStandardLonnsartLokalt,
   hentReiseLonnsartId,
@@ -214,7 +219,7 @@ export function StartSluttDagKort() {
       const db = hentDatabase();
       if (!db) return;
       const sluttIso = overstyrtSluttIso ?? new Date().toISOString();
-      const dagsseddelId = genererForslag(
+      const forslag = genererForslag(
         bruker.id,
         valgtFirmaId ?? "",
         aktivDag,
@@ -223,6 +228,7 @@ export function StartSluttDagKort() {
         lng,
         sisteSegmentKilde,
       );
+      const dagsseddelId = forslag.id;
       db.update(arbeidsdagLocal)
         .set({
           endAt: sluttIso,
@@ -239,6 +245,13 @@ export function StartSluttDagKort() {
       void triggerSync();
       if (dagsseddelId) {
         router.push(`/timer/${dagsseddelId}`);
+        // UF-1: dagens sedel var alt sendt → den nye økten ble ikke lagt til.
+        if (forslag.blokkertSendt) {
+          Alert.alert(
+            t("timer.appendSendt.tittel"),
+            t("timer.appendSendt.melding"),
+          );
+        }
       } else {
         // Kunne ikke utlede prosjekt/aktivitet offline → manuell opprettelse.
         router.push("/timer/ny");
@@ -246,7 +259,7 @@ export function StartSluttDagKort() {
     } finally {
       setBehandler(false);
     }
-  }, [aktivDag, bruker?.id, valgtFirmaId, behandler, router, oppdaterTellere, triggerSync]);
+  }, [aktivDag, bruker?.id, valgtFirmaId, behandler, router, oppdaterTellere, triggerSync, t]);
 
   // Bekreft før avslutning — «Slutt dag» er irreversibel og genererer et
   // dagsseddel-forslag umiddelbart. Vis forløpt tid så brukeren ser hva som
@@ -397,6 +410,14 @@ export function StartSluttDagKort() {
 }
 
 /**
+ * UF-2 trinn 8 — hard enkelt-skift-cap (timer). Spenn over dette tolkes som
+ * glemt avslutning og kappes (se `kappGlemtDagSlutt`). Konstant inntil videre;
+ * å gjøre den til en firma-setting (AML/tariff per firma) krever server +
+ * migrering → egen runde.
+ */
+const MAKS_ENKELTSKIFT_TIMER = 16;
+
+/**
  * Generer dagsseddel-forslag fra en avsluttet arbeidsdag-økt.
  * Returnerer **start-dagens** dagsseddel-id (for navigering), eller null hvis
  * prosjekt/aktivitet ikke kan utledes offline (kaller da manuell opprettelse).
@@ -419,13 +440,13 @@ function genererForslag(
   // (arbeider-handling); glemt-dag-gjenoppretting = "system" (estimert/gjettet).
   // Ikke-siste segmenter får alltid "midnatt" (automatisk dag-grense).
   sisteSegmentKilde: "bruker" | "system" = "bruker",
-): string | null {
+): { id: string | null; blokkertSendt: boolean } {
   const db = hentDatabase();
-  if (!db) return null;
+  if (!db) return { id: null, blokkertSendt: false };
 
   // 1. Prosjekt via Haversine.
   const prosjekter = hentProsjekterLokalt(orgId);
-  if (prosjekter.length === 0) return null;
+  if (prosjekter.length === 0) return { id: null, blokkertSendt: false };
   const lat = dag.startLat ?? endLat;
   const lng = dag.startLng ?? endLng;
   let valgtProsjekt = prosjekter[0];
@@ -447,7 +468,7 @@ function genererForslag(
     .from(aktivitetLocal)
     .where(eq(aktivitetLocal.aktiv, true))
     .all();
-  if (aktiviteter.length === 0) return null;
+  if (aktiviteter.length === 0) return { id: null, blokkertSendt: false };
   const aktivitet =
     aktiviteter.find((a) => a.navn === "Anleggsarbeid") ?? aktiviteter[0];
 
@@ -506,12 +527,34 @@ function genererForslag(
     }
   }
 
-  // 4. Midnatt-splitt (Slice 4a): én dagsseddel per kalenderdag. Normalt ett
+  // 4. UF-2: universell enkelt-skift-cap FØR midnatt-splitt. Er spennet (start→
+  // slutt) større enn hard-cap (trinn 8), tolkes det som glemt avslutning og
+  // slutt kappes til start + sesongjustert dagsnorm (trinn 7) → unngår N×24t-
+  // sedler. Kilde tvinges til "system" (gjettet → kontroll-badge). Et legitimt
+  // nattskift (< cap) slipper urørt gjennom. Recovery-banen estimerer alt en
+  // kort slutt → passerer uberørt (ingen dobbel-kapp).
+  const effektivStartDag = hentEffektivArbeidstidLokal(
+    orgId,
+    new Date(`${formatIsoDato(new Date(dag.startAt))}T00:00:00`),
+  );
+  const kappLengdeTimer =
+    effektivStartDag.dagsnorm > 0 ? effektivStartDag.dagsnorm : 7.5;
+  const { sluttIso: effektivSluttIso, kappet } = kappGlemtDagSlutt(
+    dag.startAt,
+    sluttIso,
+    { deteksjonsTimer: MAKS_ENKELTSKIFT_TIMER, kappLengdeTimer },
+  );
+  const effektivSisteKilde: "bruker" | "system" = kappet
+    ? "system"
+    : sisteSegmentKilde;
+
+  // Midnatt-splitt (Slice 4a): én dagsseddel per kalenderdag. Normalt ett
   // segment (dagskift); kryssende skift → flere. Reise + firma-pause kun på
   // start-segmentet. Returner start-dagens sedel for navigering.
-  const segmenter = splittVedMidnatt(dag.startAt, sluttIso);
+  const segmenter = splittVedMidnatt(dag.startAt, effektivSluttIso);
   const deltVedMidnatt = segmenter.length > 1;
   let startSheetId: string | null = null;
+  let blokkertSendt = false;
   segmenter.forEach((seg, i) => {
     const pauseMin = seg.erStartSegment
       ? hentEffektivArbeidstidLokal(orgId, new Date(`${seg.dato}T00:00:00`))
@@ -520,7 +563,7 @@ function genererForslag(
     // Ikke-siste segment ender på en automatisk midnatt-grense → "midnatt".
     // Siste segment ender på den faktiske/estimerte slutt-tiden → sisteSegmentKilde.
     const erSiste = i === segmenter.length - 1;
-    const id = opprettDagsseddelForSegment({
+    const res = opprettDagsseddelForSegment({
       userId,
       orgId,
       segment: seg,
@@ -531,21 +574,29 @@ function genererForslag(
       reiseLonnsartId,
       reisetidTellerOvertid: regel?.reisetidTellerOvertid ?? false,
       deltVedMidnatt,
-      sluttTidKilde: erSiste ? sisteSegmentKilde : "midnatt",
+      sluttTidKilde: erSiste ? effektivSisteKilde : "midnatt",
     });
-    if (seg.erStartSegment) startSheetId = id;
+    if (res?.utfall === "blokkertSendt") blokkertSendt = true;
+    if (seg.erStartSegment) startSheetId = res?.id ?? null;
   });
-  return startSheetId;
+  return { id: startSheetId, blokkertSendt };
 }
 
 /**
  * Opprett én dagsseddel (draft) for ett dag-segment + dens timer-rader.
  *
- * Idempotens per dag: server håndhever `@@unique([userId, dato])` på
- * `DailySheet`, så finnes det allerede en sedel for `(userId, segment.dato)`
- * lokalt → behold den (returner id) og hopp over opprettelse. Ved splitt
- * betyr det at allerede-eksisterende dager beholdes mens nye dager opprettes.
+ * Sedel-opprettelsen (find-or-create + idempotens per `(userId, dato)` +
+ * org-backfill) deles med `ny.tsx` via `finnEllerOpprettDagsseddel` (UF-0).
+ * Server håndhever `@@unique([userId, dato])` på `DailySheet`.
+ *
+ * UF-1 (multi-økt-append): finnes dagen alt som **redigerbar draft/returned**
+ * → denne øktens rader **appendes** på samme sedel + arbeidstid-vinduet utvides
+ * til å dekke økten. Er sedelen alt **sendt/godkjent** → ingen append (ville gi
+ * server-konflikt); returneres som `blokkertSendt` så UI kan varsle (recall er
+ * UF-4, egen server-runde).
  */
+type SegmentUtfall = "opprettet" | "appendet" | "blokkertSendt";
+
 function opprettDagsseddelForSegment(args: {
   userId: string;
   orgId: string;
@@ -558,7 +609,7 @@ function opprettDagsseddelForSegment(args: {
   reisetidTellerOvertid: boolean;
   deltVedMidnatt: boolean;
   sluttTidKilde: "bruker" | "midnatt" | "system";
-}): string | null {
+}): { id: string; utfall: SegmentUtfall } | null {
   const {
     userId,
     orgId,
@@ -575,19 +626,36 @@ function opprettDagsseddelForSegment(args: {
   const db = hentDatabase();
   if (!db) return null;
 
-  // Idempotens per dag (jf. doc over).
-  const eksisterende = db
-    .select({ id: dagsseddelLocal.id })
-    .from(dagsseddelLocal)
-    .where(
-      and(
-        eq(dagsseddelLocal.userId, userId),
-        eq(dagsseddelLocal.dato, segment.dato),
-      ),
-    )
-    .all()[0];
-  if (eksisterende) return eksisterende.id;
+  // UF-0/UF-1: sedel-opprettelse + idempotens via delt helper (org-backfill
+  // følger med).
+  const resultat = finnEllerOpprettDagsseddel(db, {
+    userId,
+    orgId,
+    dato: segment.dato,
+    prosjektId,
+    aktivitetId,
+    startAt: segment.startIso,
+    endAt: segment.sluttIso,
+    pauseMin,
+    autoGenerert: true,
+    deltVedMidnatt,
+    sluttTidKilde,
+  });
+  const sheetId = resultat.id;
 
+  // UF-1: dagen finnes alt.
+  if (resultat.eksisterte) {
+    if (resultat.status !== "draft" && resultat.status !== "returned") {
+      // Sendt/godkjent → kan ikke appende ny økt (ville gi server-konflikt).
+      // Recall er UF-4 (egen server-runde).
+      return { id: sheetId, utfall: "blokkertSendt" };
+    }
+    // Redigerbar draft/returned → append: utvid arbeidstid-vinduet til å dekke
+    // den nye økten. Rad-genereringen under bruker sheetId → appender rader.
+    utvidArbeidstidsvindu(db, sheetId, segment.startIso, segment.sluttIso);
+  }
+
+  // Nyopprettet eller append → generer (og append) denne øktens rader.
   // Arbeidstid = segment-brutto − pause (pause kun på start-dagen, 1a).
   const bruttoTimer =
     (new Date(segment.sluttIso).getTime() -
@@ -604,35 +672,6 @@ function opprettDagsseddelForSegment(args: {
     orgId,
     new Date(`${segment.dato}T00:00:00`),
   );
-
-  // Dagsseddel (draft).
-  const sheetId = randomUUID();
-  db.insert(dagsseddelLocal)
-    .values({
-      id: sheetId,
-      userId,
-      organizationId: "",
-      projectId: prosjektId,
-      aktivitetId,
-      avdelingId: null,
-      byggeplassId: null,
-      dato: segment.dato,
-      startAt: segment.startIso,
-      endAt: segment.sluttIso,
-      pauseMin,
-      status: "draft",
-      autoGenerert: true,
-      deltVedMidnatt,
-      sluttTidKilde,
-      beskrivelse: null,
-      lederKommentar: null,
-      attestertVed: null,
-      syncStatus: "pending",
-      feilmelding: null,
-      sistEndretLokalt: Date.now(),
-      sistSynkronisert: null,
-    })
-    .run();
 
   // Auto-fordeling normaltid/overtid (per dag).
   if (arbeidstimer > 0) {
@@ -716,5 +755,38 @@ function opprettDagsseddelForSegment(args: {
       .run();
   }
 
-  return sheetId;
+  return { id: sheetId, utfall: resultat.eksisterte ? "appendet" : "opprettet" };
+}
+
+/**
+ * UF-1: utvid sedelens arbeidstid-vindu så det dekker en appendet økt.
+ * startAt = tidligste, endAt = seneste. Markerer pending for re-sync.
+ */
+function utvidArbeidstidsvindu(
+  db: NonNullable<ReturnType<typeof hentDatabase>>,
+  sheetId: string,
+  nyStartIso: string,
+  nySluttIso: string,
+): void {
+  const sedel = db
+    .select({ startAt: dagsseddelLocal.startAt, endAt: dagsseddelLocal.endAt })
+    .from(dagsseddelLocal)
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .all()[0];
+  if (!sedel) return;
+
+  const tidligste =
+    sedel.startAt && sedel.startAt < nyStartIso ? sedel.startAt : nyStartIso;
+  const seneste =
+    sedel.endAt && sedel.endAt > nySluttIso ? sedel.endAt : nySluttIso;
+
+  db.update(dagsseddelLocal)
+    .set({
+      startAt: tidligste,
+      endAt: seneste,
+      syncStatus: "pending",
+      sistEndretLokalt: Date.now(),
+    })
+    .where(eq(dagsseddelLocal.id, sheetId))
+    .run();
 }

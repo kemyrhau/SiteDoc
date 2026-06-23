@@ -164,6 +164,8 @@ apps/api/src/services/maskin/
 > [dagsseddel-design.md § Modul-avhengigheter](dagsseddel-design.md).
 > Timer eier dagsseddelen; Maskin integreres som betinget kostnadskilde.
 
+**Kompetanse-kobling (T.11, soft-flagg 2026-06-22):** Maskin-registrering på dagsseddel flagges (ikke blokkeres) når arbeider mangler gyldig maskinførerbevis. Gating-logikken leser **kompetanse** (kjernen, `packages/db` — kategori `TRUCK-/MASKINFØRERBEVIS`), ikke Maskin-data, via `apps/api/src/services/kompetanse/maskinforerbevis.ts`. Equipment-modellens `kobletTilEquipmentModell` (fritekst) er reservert for **Fase 6**-utvidelse: fin-matche hvilket bevis som kreves for hvilken maskinmodell (DO-kobling). I dag er flagget grovkornet («har minst ett gyldig bevis»). Full beslutning: [fase-0 § T.11](fase-0-beslutninger.md).
+
 **Avgrensning:** Service-laget eksponerer kun **lese-funksjoner** for cross-modul-tilgang. Skriving til Maskin-data skjer alltid via Maskin sine egne tRPC-ruter (`maskin.equipment.*`, `maskin.assignment.*` osv.) med full tilgangskontroll. Andre moduler skal ikke skrive til Maskin-data direkte.
 
 **Tester:** Service-laget mockes i unit-tester for konsumerende moduler — Timer-tester trenger ikke spinne opp `db-maskin`.

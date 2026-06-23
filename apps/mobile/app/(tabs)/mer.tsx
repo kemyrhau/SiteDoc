@@ -20,13 +20,13 @@ import {
 } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTimerSync } from "../../src/providers/TimerSyncProvider";
-import { ActivityIndicator } from "react-native";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { FirmaVelger } from "../../src/components/FirmaVelger";
+import { VersjonsFooter } from "../../src/components/VersjonsFooter";
 import { trpc } from "../../src/lib/trpc";
 import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
 import { byttSpraak } from "../../src/lib/i18n";
@@ -268,6 +268,8 @@ export default function MerSkjerm() {
             </View>
           </Pressable>
         </View>
+
+        <VersjonsFooter className="mt-6 mb-2" />
       </ScrollView>
 
       {/* Språkvelger-modal */}

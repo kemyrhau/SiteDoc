@@ -19,5 +19,15 @@ module.exports = ({ config }) => {
         ? "com.kemyrhau.sitedoc.test"
         : config.ios.bundleIdentifier,
     },
+    extra: {
+      // Bevarer router + eas.projectId fra app.json — ALDRI dropp disse.
+      ...config.extra,
+      // Synlig build-identifikator (vises i VersjonsFooter). EAS setter full
+      // git-hash i EAS_BUILD_GIT_COMMIT_HASH (verifisert mot EAS-docs) — kutt
+      // til 7 tegn. Lokal kjøring (ingen env) → "dev".
+      gitCommit: (process.env.EAS_BUILD_GIT_COMMIT_HASH || "dev").slice(0, 7),
+      // Build-dato settes ved config-evaluering (= build-tidspunkt på EAS).
+      byggDato: new Date().toISOString().slice(0, 10),
+    },
   };
 };

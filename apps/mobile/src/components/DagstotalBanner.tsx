@@ -59,15 +59,11 @@ export function DagstotalBanner({
     return { totalt, antallSedler };
   }, [userId, dato, ekskluderSheetId]);
 
+  // U1: i én-sedel-per-dag-modellen er kryss-sedel-summen (denne sedelen
+  // ekskludert) nesten alltid 0 → «ingen i dag»-linja var støy øverst.
+  // Vis banneret kun når det faktisk er ført timer på ANDRE sedler samme dag.
   if (oppsummering.antallSedler === 0 && oppsummering.totalt === 0) {
-    return (
-      <View className="flex-row items-center gap-2 border-b border-blue-100 bg-blue-50 px-4 py-2">
-        <Clock size={14} color="#1e40af" />
-        <Text className="text-xs text-blue-900">
-          {t("timer.banner.ingenIDag")}
-        </Text>
-      </View>
-    );
+    return null;
   }
 
   return (

@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import {
+  AlertTriangle,
   Check,
   ChevronDown,
   ExternalLink,
@@ -56,6 +57,9 @@ export type SeddelKortData = {
   timer: TimerRad[];
   tillegg: TilleggRad[];
   maskiner: MaskinRad[];
+  // T.11: true når sedel har maskinarbeid og eier mangler gyldig
+  // maskinførerbevis. Leder-synlighet — aldri blokkerende.
+  manglerMaskinforerbevis: boolean;
 };
 
 function initialer(navn: string | null | undefined, email: string | undefined): string {
@@ -604,6 +608,18 @@ export function SeddelKort({
                       </span>
                     </td>
                     <td className="px-3 py-1.5" />
+                  </tr>
+                )}
+                {/* T.11: leder-synlighet — maskinarbeid uten gyldig
+                    maskinførerbevis. Informativt, ikke blokkerende. */}
+                {sumMaskin > 0 && sedel.manglerMaskinforerbevis && (
+                  <tr className="border-t border-gray-100">
+                    <td colSpan={4} className="px-3 py-1.5">
+                      <span className="inline-flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-xs font-medium text-amber-800">
+                        <AlertTriangle className="h-3.5 w-3.5" />
+                        {t("timer.maskinforerbevis.leder")}
+                      </span>
+                    </td>
                   </tr>
                 )}
               </tbody>

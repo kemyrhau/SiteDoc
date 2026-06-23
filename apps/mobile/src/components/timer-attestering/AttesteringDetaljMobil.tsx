@@ -185,6 +185,19 @@ export function AttesteringDetaljMobil({
           )}
         </View>
 
+        {/* T.11: leder-synlighet — maskinarbeid uten gyldig maskinførerbevis.
+            Informativt, ikke blokkerende. */}
+        {maskinRader.length > 0 && sheet.manglerMaskinforerbevis && (
+          <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={16} color="#b45309" />
+              <Text className="flex-1 text-sm text-amber-800">
+                {t("timer.maskinforerbevis.leder")}
+              </Text>
+            </View>
+          </View>
+        )}
+
         {/* Container-status-banner */}
         {counters.total > 0 && (
           <View

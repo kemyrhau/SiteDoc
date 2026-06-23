@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -7,17 +7,31 @@ import {
   ScrollView,
   Modal,
   FlatList,
+  Image,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Plus, Trash2, Pencil, X, Check } from "lucide-react-native";
+import { Plus, Trash2, Pencil, X, Check, Camera, ImagePlus, Clock } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
-import { sheetTilleggLocal, tilleggLocal } from "../../db/schema";
+import {
+  sheetTilleggLocal,
+  tilleggLocal,
+  sheetTilleggVedleggLocal,
+} from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
+import { taBilde, velgBilde } from "../../services/bilde";
+import { lagreLokaltBilde, slettLokaltBilde } from "../../services/lokalBilde";
+import { fjernTilleggVedleggServer } from "../../services/bildeRegistrering";
+import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
+import { AUTH_CONFIG } from "../../config/auth";
 import type { TilleggRad, Tillegg } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
+import { VelgerFelt } from "./VelgerFelt";
+import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 
 interface TilleggSeksjonProps {
   sheetId: string;
@@ -192,6 +206,17 @@ function TilleggRadVis({
     return treff ?? null;
   }, [rad.tilleggId]);
 
+  // Funn #2: antall kvittering-vedlegg på raden (synlighets-indikator).
+  const antallVedlegg = useMemo(() => {
+    const db = hentDatabase();
+    if (!db) return 0;
+    return db
+      .select()
+      .from(sheetTilleggVedleggLocal)
+      .where(eq(sheetTilleggVedleggLocal.sheetTilleggId, rad.id))
+      .all().length;
+  }, [rad.id]);
+
   return (
     <View className="flex-row items-center gap-2 border-b border-gray-100 bg-white px-4 py-3">
       <View className="flex-1">
@@ -200,6 +225,12 @@ function TilleggRadVis({
         </Text>
         {rad.kommentar && (
           <Text className="text-xs text-gray-500">{rad.kommentar}</Text>
+        )}
+        {antallVedlegg > 0 && (
+          <View className="mt-0.5 flex-row items-center gap-1">
+            <Camera size={11} color="#9ca3af" />
+            <Text className="text-xs text-gray-500">{antallVedlegg}</Text>
+          </View>
         )}
       </View>
       <Text className="font-mono text-base text-gray-900">{rad.antall.toFixed(2)}</Text>
@@ -218,6 +249,168 @@ function TilleggRadVis({
             className="rounded p-1.5 active:bg-red-50"
           >
             <Trash2 size={16} color="#dc2626" />
+          </Pressable>
+        </View>
+      )}
+    </View>
+  );
+}
+
+type LokaltTilleggVedlegg = typeof sheetTilleggVedleggLocal.$inferSelect;
+
+/**
+ * Funn #2: kvittering-vedlegg på en tillegg-rad. Krever en lagret rad (id).
+ * Offline-først: bildet tas + komprimeres (300–400 KB) + lagres lokalt, legges
+ * i opplastings-køen, og synkes når nett er tilbake. «Venter på opplasting»
+ * vises til `serverUrl` er satt.
+ */
+function VedleggSeksjon({
+  sheetTilleggId,
+  redigerbar,
+}: {
+  sheetTilleggId: string;
+  redigerbar: boolean;
+}) {
+  const { t } = useTranslation();
+  const { leggIKo, registrerTilleggVedleggCallback } = useOpplastingsKo();
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [arbeider, setArbeider] = useState(false);
+
+  const vedlegg = useMemo<LokaltTilleggVedlegg[]>(() => {
+    const db = hentDatabase();
+    if (!db) return [];
+    return db
+      .select()
+      .from(sheetTilleggVedleggLocal)
+      .where(eq(sheetTilleggVedleggLocal.sheetTilleggId, sheetTilleggId))
+      .all();
+    // refreshKey bumpes ved capture/fjern/kø-fullført
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheetTilleggId, refreshKey]);
+
+  // Live-oppdatering når køen fullfører en opplasting (serverUrl settes).
+  useEffect(
+    () => registrerTilleggVedleggCallback(() => setRefreshKey((k) => k + 1)),
+    [registrerTilleggVedleggCallback],
+  );
+
+  const leggVed = useCallback(
+    async (kilde: "kamera" | "galleri") => {
+      setArbeider(true);
+      try {
+        const res = kilde === "kamera" ? await taBilde() : await velgBilde();
+        if (!res) return;
+        const db = hentDatabase();
+        if (!db) return;
+        const vedleggId = randomUUID();
+        const filnavn = `kvittering-${vedleggId}.jpg`;
+        const lokalSti = await lagreLokaltBilde(res.uri, filnavn);
+        db.insert(sheetTilleggVedleggLocal)
+          .values({
+            id: vedleggId,
+            sheetTilleggId,
+            lokalSti,
+            serverUrl: null,
+            filnavn,
+            mimeType: "image/jpeg",
+            filstorrelse: res.filstorrelse,
+            sistEndretLokalt: Date.now(),
+          })
+          .run();
+        await leggIKo({
+          sheetTilleggId,
+          objektId: sheetTilleggId,
+          vedleggId,
+          lokalSti,
+          filnavn,
+          mimeType: "image/jpeg",
+          filstorrelse: res.filstorrelse,
+          gpsLat: res.gpsLat,
+          gpsLng: res.gpsLng,
+          gpsAktivert: true,
+        });
+        setRefreshKey((k) => k + 1);
+      } finally {
+        setArbeider(false);
+      }
+    },
+    [sheetTilleggId, leggIKo],
+  );
+
+  const fjern = useCallback(async (v: LokaltTilleggVedlegg) => {
+    const db = hentDatabase();
+    if (!db) return;
+    db.delete(sheetTilleggVedleggLocal)
+      .where(eq(sheetTilleggVedleggLocal.id, v.id))
+      .run();
+    if (v.lokalSti) await slettLokaltBilde(v.lokalSti);
+    if (v.serverUrl) fjernTilleggVedleggServer(v.id).catch(() => {});
+    setRefreshKey((k) => k + 1);
+  }, []);
+
+  return (
+    <View>
+      <Text className="mb-1 text-sm font-medium text-gray-700">
+        {t("timer.vedlegg.tittel")}
+      </Text>
+      {vedlegg.length === 0 ? (
+        <Text className="mb-2 text-xs text-gray-400">
+          {t("timer.vedlegg.ingen")}
+        </Text>
+      ) : (
+        <View className="mb-2 flex-row flex-wrap gap-2">
+          {vedlegg.map((v) => {
+            const uri = v.serverUrl
+              ? `${AUTH_CONFIG.apiUrl}${v.serverUrl}`
+              : v.lokalSti ?? undefined;
+            return (
+              <View key={v.id} className="relative">
+                {uri && (
+                  <Image
+                    source={{ uri }}
+                    className="h-20 w-20 rounded-lg bg-gray-100"
+                  />
+                )}
+                {!v.serverUrl && (
+                  <View className="absolute bottom-0 left-0 right-0 flex-row items-center justify-center gap-1 rounded-b-lg bg-black/50 py-0.5">
+                    <Clock size={10} color="#ffffff" />
+                    <Text className="text-[10px] text-white">
+                      {t("timer.vedlegg.venterOpplasting")}
+                    </Text>
+                  </View>
+                )}
+                {redigerbar && (
+                  <Pressable
+                    onPress={() => fjern(v)}
+                    hitSlop={8}
+                    className="absolute -right-2 -top-2 rounded-full bg-red-600 p-1"
+                  >
+                    <X size={12} color="#ffffff" />
+                  </Pressable>
+                )}
+              </View>
+            );
+          })}
+        </View>
+      )}
+      {redigerbar && (
+        <View className="flex-row gap-2">
+          <Pressable
+            onPress={() => leggVed("kamera")}
+            disabled={arbeider}
+            className="flex-1 flex-row items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white py-3 active:bg-gray-50"
+          >
+            <Camera size={18} color="#1e40af" />
+            <Text className="text-sm font-medium text-sitedoc-primary">
+              {t("timer.vedlegg.leggTil")}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => leggVed("galleri")}
+            disabled={arbeider}
+            className="rounded-lg border border-gray-300 bg-white px-4 py-3 active:bg-gray-50"
+          >
+            <ImagePlus size={18} color="#1e40af" />
           </Pressable>
         </View>
       )}
@@ -312,7 +505,16 @@ function TilleggRadModal({
           </Pressable>
         </View>
 
-        <ScrollView className="flex-1" contentContainerClassName="p-4 gap-4">
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+          keyboardVerticalOffset={0}
+        >
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="p-4 gap-4"
+          keyboardShouldPersistTaps="handled"
+        >
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.prosjekt")} *
@@ -328,16 +530,11 @@ function TilleggRadModal({
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.tillegg")} *
             </Text>
-            <Pressable
+            <VelgerFelt
+              verdi={valgtTillegg?.navn ?? null}
+              placeholder={t("timer.velgTillegg")}
               onPress={() => setVisVelger(true)}
-              className="rounded-lg border border-gray-300 bg-white px-3 py-3"
-            >
-              <Text
-                className={`text-base ${valgtTillegg ? "text-gray-900" : "text-gray-400"}`}
-              >
-                {valgtTillegg?.navn ?? t("timer.velgTillegg")}
-              </Text>
-            </Pressable>
+            />
           </View>
 
           <View>
@@ -348,6 +545,7 @@ function TilleggRadModal({
               value={antall}
               onChangeText={setAntall}
               keyboardType="decimal-pad"
+              inputAccessoryViewID={TASTATUR_FERDIG_ID}
               className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
             />
           </View>
@@ -366,6 +564,21 @@ function TilleggRadModal({
             />
           </View>
 
+          {/* Funn #2: kvittering-vedlegg — kun på lagret rad (krever id). For ny
+              rad vises en hint om å lagre først. */}
+          {eksisterendeRad ? (
+            <VedleggSeksjon sheetTilleggId={eksisterendeRad.id} redigerbar={true} />
+          ) : (
+            <View>
+              <Text className="mb-1 text-sm font-medium text-gray-700">
+                {t("timer.vedlegg.tittel")}
+              </Text>
+              <Text className="text-xs text-gray-400">
+                {t("timer.vedlegg.lagreForst")}
+              </Text>
+            </View>
+          )}
+
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
           <Pressable
@@ -377,6 +590,8 @@ function TilleggRadModal({
             </Text>
           </Pressable>
         </ScrollView>
+        </KeyboardAvoidingView>
+        <TastaturFerdig />
 
         {visVelger && (
           <TilleggVelgerModal
@@ -466,6 +681,7 @@ function TilleggVelgerModal({
         <FlatList
           data={filtrert}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
             <Pressable
               onPress={() => onVelg(item.id)}

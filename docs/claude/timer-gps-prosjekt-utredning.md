@@ -94,6 +94,8 @@ Geofence-overgangene driver **to lag med ulik commit-semantikk:**
 
 **Nøkkel:** §15-presence (nærvær) er mindre sensitiv enn lønnstid og kan automatiseres uavhengig av Beslutning 1. Lønnslaget følger Beslutning 1.
 
+**Privacy-by-design (prinsipp):** Appen lagrer **kun inn/ut-hendelser, aldri bevegelsesspor.** Geofence-evalueringen skjer i OS-laget (iOS/Android region monitoring) — appen mottar og persisterer bare selve overgangs-eventet (innsjekk/utsjekk med tidspunkt + byggeplass), ikke kontinuerlig posisjon. Eventene mapper direkte til **PSI/§15-nærværsdata** (rettslig forpliktelse, GDPR art. 6(1)(c) — byggherreforskriften §15), ikke til en sporings-logg. Dette **de-risker feature-en betydelig** personvernmessig (ingen bevegelseshistorikk = ingen sporings-profil), men **juridisk sign-off på rettsgrunnlaget gjenstår** før implementasjon. Skiller seg fra «kontinuerlig GPS-sporing» (eksplisitt ut av scope, se under).
+
 **Avhengighet:** Fase 4 Mannskap (PSI innsjekk/utsjekk-tabeller).
 
 ---
