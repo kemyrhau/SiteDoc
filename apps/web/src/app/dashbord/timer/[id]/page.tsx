@@ -247,15 +247,11 @@ export default function DagsseddelDetaljSide() {
   );
   for (const pid of ekstraProsjektIder) noterProsjekt(pid);
 
-  // T7-1a: arbeidstid utledes fra startAt/endAt/pauseMin
-  const arbeidstidTimer = (() => {
-    const startIso = sheet.startAt as string | null;
-    const endIso = sheet.endAt as string | null;
-    if (!startIso || !endIso) return null;
-    const diff =
-      (new Date(endIso).getTime() - new Date(startIso).getTime()) / 3600000;
-    return Math.max(0, diff - (sheet.pauseMin ?? 0) / 60);
-  })();
+  // Topp-sum-norm = firmaets dagsnorm (fase-0:1041), decouplet fra arbeidstid-
+  // vinduet: en kort dag er gyldig og akseptert (blå), ikke en falsk «under
+  // norm»-alarm. Web bruker flat OrganizationSetting.dagsnorm (sesongjustering
+  // krever server-endepunkt → utenfor scope); null til orgSetting er lastet (grå).
+  const normTimer = orgSetting ? tilTall(orgSetting.dagsnorm) : null;
 
   // Filtrer prosjekter som ikke er aktive ennå (tilgjengelige for «+ Legg til prosjekt»)
   const ledigeProsjekter = prosjekterForVelger.filter(
@@ -450,24 +446,37 @@ export default function DagsseddelDetaljSide() {
         </div>
       )}
 
-      {/* T7-1a-summering */}
-      {erRedigerbar && (
-        <div
-          className={`mb-4 rounded-lg border p-4 text-sm ${
-            arbeidstidTimer === null
+      {/* Topp-sum — tre-veis trafikklys relativt til dagsnorm (paritet m/ mobil
+          SummeringsBanner). Rund KUN for farge (nærmeste 15 min, T.5-konsistent);
+          vist tall uendret. grønn = treffer · gul = over · blå = under (akseptert). */}
+      {erRedigerbar &&
+        (() => {
+          const rundet = Math.round(totaltimer * 4) / 4;
+          const sone =
+            normTimer === null
+              ? "grå"
+              : Math.abs(rundet - normTimer) < 0.001
+                ? "grønn"
+                : rundet > normTimer
+                  ? "gul"
+                  : "blå";
+          const farge =
+            sone === "grå"
               ? "border-gray-200 bg-gray-50 text-gray-600"
-              : totaltimer >= arbeidstidTimer
+              : sone === "grønn"
                 ? "border-green-200 bg-green-50 text-green-700"
-                : "border-yellow-200 bg-yellow-50 text-yellow-800"
-          }`}
-        >
-          {t("timer.summering", {
-            registrert: totaltimer.toFixed(2),
-            total:
-              arbeidstidTimer === null ? "?" : arbeidstidTimer.toFixed(2),
-          })}
-        </div>
-      )}
+                : sone === "gul"
+                  ? "border-yellow-200 bg-yellow-50 text-yellow-800"
+                  : "border-blue-200 bg-blue-50 text-blue-700";
+          return (
+            <div className={`mb-4 rounded-lg border p-4 text-sm ${farge}`}>
+              {t("timer.summering", {
+                registrert: totaltimer.toFixed(2),
+                total: normTimer === null ? "?" : normTimer.toFixed(2),
+              })}
+            </div>
+          );
+        })()}
 
       {/* Send + slett */}
       {erRedigerbar && (

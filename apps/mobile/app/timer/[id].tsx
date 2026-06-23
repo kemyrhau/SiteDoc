@@ -178,17 +178,11 @@ export default function DagsseddelDetalj() {
     return sedel.status === "draft" || sedel.status === "returned";
   }, [sedel]);
 
-  const arbeidstidTimer = useMemo(() => {
+  // Topp-sum-norm = sesongjustert dagsnorm fra firma-kalender (fase-0:1041),
+  // decouplet fra start/slutt-vinduet: en kort dag er gyldig og akseptert (blå),
+  // ikke en falsk «under norm»-alarm fra full-dag-prefill.
+  const normTimer = useMemo(() => {
     if (!sedel) return null;
-    // T4-e: Hvis brukeren har satt egen start/slutt på sedelen, bruk de.
-    // Ellers fall tilbake til effektiv dagsnorm fra firma-kalender (firma-
-    // default + sommertid-overstyring fra arbeidstidskalender_local).
-    if (sedel.startAt && sedel.endAt) {
-      const diff =
-        (new Date(sedel.endAt).getTime() - new Date(sedel.startAt).getTime()) /
-        3600000;
-      return Math.max(0, diff - (sedel.pauseMin ?? 0) / 60);
-    }
     const effektiv = hentEffektivArbeidstidLokal(
       sedel.organizationId,
       new Date(`${sedel.dato}T00:00:00`),
@@ -376,7 +370,7 @@ export default function DagsseddelDetalj() {
       <View className="mx-4 mt-3">
         <SummeringsBanner
           totaltimer={totaltimer}
-          arbeidstidTimer={arbeidstidTimer}
+          normTimer={normTimer}
           maskinTimer={totalMaskin}
         />
       </View>
