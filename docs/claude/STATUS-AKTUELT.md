@@ -12,6 +12,20 @@ sist_verifisert_mot_kode: 2026-06-08
 >
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 
+### B2+B6 sedel-nivå byggeplass — IMPLEMENTERT PÅ DEVELOP 2026-06-23 (mobil)
+
+Sedel-nivå byggeplass på timer-dagsseddel (kode-review-vedtak 2026-06-23, [timer-gps-prosjekt-utredning.md § 2026-06-23](timer-gps-prosjekt-utredning.md)). Tre deler:
+
+- **Del 1** — `arbeidsdag.byggeplassId` kopieres inn i auto-utkastet: `FinnEllerOpprettArgs.byggeplassId` + insert (`dagsseddelOpprett.ts`); threades via `genererForslag`/`opprettDagsseddelForSegment` (`StartSluttDagKort.tsx`); `ny.tsx` sender eksplisitt `null`. Kun NYE drafts — UF-1-append + eksisterende sedler urørt (idempotens).
+- **Del 2** — `ByggeplassVelgerModal` (ny, speiler `ProsjektVelger`), filtrert på `sedel.projectId`; skriver `byggeplassId` + `syncStatus="pending"`. Blå sedel-topp-oversikt (aktivt prosjekt + byggeplass, pil-til-høyre) på `[id].tsx`. Fjernet redundant byggeplass-visning i primærprosjektets gruppe-header.
+- **Del 3** — myk, ikke-blokkerende mismatch-advisory når GPS-byggeplassen tilhører et annet prosjekt enn det valgte (G1: arbeider-valg autoritativt).
+
+i18n: 3 nye nøkler × 15 språk. **Server/schema uendret** — sedel-nivå-sync var allerede klar (server propagerer `byggeplassId` til rader). Typecheck: null nye feil (gjenstående = pre-eksisterende baseline, BACKLOG «Mobil ~12 feil»).
+
+**Distribusjon:** når A.Markussen via **NESTE TestFlight prod-bygg** (etter #30) — ikke i #30. **Reload:** Expo JS/TS (Fast Refresh).
+
+**Parkert (Beslutning 6-oppfølger):** per-rad byggeplass / «splitt dagen mellom byggeplasser» (krever server `syncBatch` rad-input + mobil rad-tabeller).
+
 ### Samlet aktivitet — 2026-05-30 (2 prod-deploys: subdomain↔category-validering + HMS-prefiks amber-hint + useToppbarFiltre)
 
 To sammenhengende oppryddinger natt og dag 2026-05-30. Natt: server-validering + amber-hint som naturlig oppfølger av 2026-05-29-bi-funnene fra HMS/mal-arbeidet. Dag: ny toppbar-filter-arkitektur som løser at 27 sider viste ByggeplassVelger uten å bruke den — identifisert under filterbruk-kartleggingen 2026-05-29.

@@ -569,6 +569,9 @@ function genererForslag(
       segment: seg,
       prosjektId: valgtProsjekt.id,
       aktivitetId: aktivitet.id,
+      // L1: samme GPS-byggeplass på alle midnatt-segmenter (én arbeidsdag = én
+      // byggeplass). Idempotens i helperen sikrer at kun NY draft får verdien.
+      byggeplassId: dag.byggeplassId,
       pauseMin,
       reisetidTimer: seg.erStartSegment ? reisetidTimer : 0,
       reiseLonnsartId,
@@ -603,6 +606,8 @@ function opprettDagsseddelForSegment(args: {
   segment: Dagsegment;
   prosjektId: string;
   aktivitetId: string;
+  /** L1: GPS-fanget byggeplass på arbeidsdagen — kopieres inn på NY draft. */
+  byggeplassId: string | null;
   pauseMin: number;
   reisetidTimer: number;
   reiseLonnsartId: string | null;
@@ -616,6 +621,7 @@ function opprettDagsseddelForSegment(args: {
     segment,
     prosjektId,
     aktivitetId,
+    byggeplassId,
     pauseMin,
     reisetidTimer,
     reiseLonnsartId,
@@ -634,6 +640,7 @@ function opprettDagsseddelForSegment(args: {
     dato: segment.dato,
     prosjektId,
     aktivitetId,
+    byggeplassId,
     startAt: segment.startIso,
     endAt: segment.sluttIso,
     pauseMin,

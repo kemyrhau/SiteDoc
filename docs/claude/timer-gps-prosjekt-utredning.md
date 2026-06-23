@@ -59,13 +59,13 @@ Uavhengig kode-sjekk (Opus) av tilstanden siden 2026-06-13. Endrer status på Be
 | **B5** — autoritet arbeider-valg vs GPS | = **dagens oppførsel** (arbeider-valg autoritativt, GPS advarer/foreslår, jf. G1). |
 | **B6** — multi-byggeplass-dager | = **byggeplass-registrering**, fases (sedel-nivå nå, per-rad/splitt-dag som oppfølger). |
 
-### Vedtak — B2+B6 sedel-nivå-runde (neste, byggbar til TestFlight)
+### Vedtak — B2+B6 sedel-nivå-runde ✅ IMPLEMENTERT PÅ DEVELOP 2026-06-23 (mobil)
 
-1. **Kopier `arbeidsdag.byggeplassId` → draft** i `opprettDagsseddelForSegment` (1 linje; erstatter hardkodet `null`).
-2. **Byggeplass-velger** m/ pil-til-høyre + blå topp-oversikt (sedel-nivå overstyring av GPS-forslaget).
-3. **Mismatch-advisory** (soft, ikke-blokkerende — Beslutning 2).
+1. **Kopier `arbeidsdag.byggeplassId` → draft** — `FinnEllerOpprettArgs.byggeplassId` + insert (`dagsseddelOpprett.ts`); threadet via `genererForslag`/`opprettDagsseddelForSegment`; `ny.tsx` sender `null`. Kun NYE drafts (UF-1-append urørt).
+2. **Byggeplass-velger** (`ByggeplassVelgerModal`, filtrert på `sedel.projectId`) + blå sedel-topp-oversikt m/ pil-til-høyre på `[id].tsx`. Redundant gruppe-header-visning for primærprosjektet fjernet.
+3. **Mismatch-advisory** (soft, ikke-blokkerende) når GPS-byggeplass tilhører annet prosjekt enn valgt.
 
-Sedel-nivå er allerede server-klart (sync + propagering); denne runden er ren mobil + den ene draft-linja.
+Sedel-nivå var allerede server-klart (sync + propagering) → ren mobil-runde, ingen schema/server. i18n: 3 nøkler × 15 språk. Distribueres via NESTE TestFlight prod-bygg (ikke #30). Se [STATUS-AKTUELT.md § B2+B6 sedel-nivå byggeplass](STATUS-AKTUELT.md).
 
 ### Parkert (eksplisitt)
 
