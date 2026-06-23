@@ -42,9 +42,9 @@ const navigasjon: NavElement[] = [
     kreverProsjekt: true,
   },
   {
-    id: "lokasjoner",
+    id: "byggeplasser",
     labelKey: "oppsett.lokasjoner",
-    href: "/dashbord/oppsett/lokasjoner",
+    href: "/dashbord/oppsett/byggeplasser",
     ikon: <MapPin className="h-4 w-4" />,
     kreverProsjekt: true,
   },
@@ -135,7 +135,7 @@ export default function OppsettLayout({
     });
 
   const [ekspandert, setEkspandert] = useState<Record<string, boolean>>({
-    lokasjoner: true,
+    byggeplasser: true,
     produksjon: true,
     prosjekteier: false,
   });

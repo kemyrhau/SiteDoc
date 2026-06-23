@@ -231,7 +231,7 @@ export function BilderPanel() {
               {(!bygninger || (bygninger as unknown[]).length === 0) && (
                 <div className="flex flex-col items-center gap-2 py-6 text-center">
                   <Building2 className="h-8 w-8 text-gray-300" />
-                  <p className="text-sm text-gray-400">Ingen lokasjoner</p>
+                  <p className="text-sm text-gray-400">Ingen byggeplasser</p>
                 </div>
               )}
             </>

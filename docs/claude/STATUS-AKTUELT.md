@@ -21,7 +21,7 @@ Geofence-oppsett for byggeplass uten georeferert tegning — **enabler for bygge
 
 i18n: 7 nye nøkler × 15 språk. **Schema uendret** (geofence-felter finnes). Server: kun geokod-proxy (~21 linjer). Typecheck: API + web rene (gjenstående web-feil = pre-eksisterende `vitest`-modul). **Auto-deploy til test** → testbart på test.sitedoc.no umiddelbart (ingen EAS).
 
-**Neste:** Del C — rename «Lokasjon» → «Byggeplass» (rute + ~50 i18n-nøkler + referanser), egen runde/commit.
+**Del C — rename «Lokasjon» → «Byggeplass» ✅ GJORT 2026-06-23 (egen commit):** rute `oppsett/lokasjoner`→`byggeplasser` + `next.config`-redirect (temporær), nav-id/href/state, 22 i18n-verdier × 15 språk (nøkkel-navn beholdt — interne), hardkodede panel-strenger. De 6 «andre» lokasjon-konseptene (malbygger-felt, maskin, prosjektlokasjon) urørt. + **A (bug-fix):** `byggeplassVelger.*` (4 nøkler) re-aligned til «byggeplass»-term (fr var uoversatt engelsk). Komponent-navn (C.4) utelatt bevisst.
 
 ### B2+B6 sedel-nivå byggeplass — IMPLEMENTERT PÅ DEVELOP 2026-06-23 (mobil)
 
