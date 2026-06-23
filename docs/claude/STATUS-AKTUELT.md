@@ -12,6 +12,17 @@ sist_verifisert_mot_kode: 2026-06-08
 >
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 
+### Kart-geofence-editor + adresse-geokoding på lokasjons-siden — IMPLEMENTERT PÅ DEVELOP 2026-06-23 (web)
+
+Geofence-oppsett for byggeplass uten georeferert tegning — **enabler for byggeplass-GPS** (L1/B2+B6 lener seg på `Byggeplass.latitude/longitude/radiusM`). I `dashbord/oppsett/lokasjoner/page.tsx` geofence-editor:
+
+- **Del A — kart-editor:** `KartVelger` (Leaflet, dynamic/SSR-av) i geofence-modalen — klikk/dra markør setter senter, sirkel = radius (live). Radius via slider (25–500, steg 25) + tall-felt (opp til 100000). lat/lng redigerbare for finjustering. «Beregn fra tegning» beholdt som alternativ bane. `settGeofence` uendret.
+- **Del B — adresse-geokoding:** adresse-felt + «Søk»-knapp (button-trigget, ikke autocomplete — Nominatim-policy) → ny `bygning.geokod`-proc (byggeplassId-scopet auth = `verifiserProsjektmedlem`, tynn proxy over delt `geokodAdresse`/rute-service). OSM-attribusjon. Nyplassert senter får default 150 m radius.
+
+i18n: 7 nye nøkler × 15 språk. **Schema uendret** (geofence-felter finnes). Server: kun geokod-proxy (~21 linjer). Typecheck: API + web rene (gjenstående web-feil = pre-eksisterende `vitest`-modul). **Auto-deploy til test** → testbart på test.sitedoc.no umiddelbart (ingen EAS).
+
+**Neste:** Del C — rename «Lokasjon» → «Byggeplass» (rute + ~50 i18n-nøkler + referanser), egen runde/commit.
+
 ### B2+B6 sedel-nivå byggeplass — IMPLEMENTERT PÅ DEVELOP 2026-06-23 (mobil)
 
 Sedel-nivå byggeplass på timer-dagsseddel (kode-review-vedtak 2026-06-23, [timer-gps-prosjekt-utredning.md § 2026-06-23](timer-gps-prosjekt-utredning.md)). Tre deler:
