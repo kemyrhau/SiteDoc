@@ -93,7 +93,29 @@ Fanget under enhetstest av timer-redesignet på fysisk enhet. Samles til en dedi
   - **✅ Sedel-nivå byggeplass (én/dag): IMPLEMENTERT PÅ DEVELOP 2026-06-23 (mobil).** Punkt 1–2 levert: `arbeidsdag.byggeplassId` kopieres inn i auto-utkast (`dagsseddelOpprett.ts`/`StartSluttDagKort.tsx`), `ByggeplassVelgerModal` (filtrert på `sedel.projectId`) + blå sedel-topp + soft mismatch-advisory på `[id].tsx`. Ingen schema/server (sedel-nivå-sync alt klar). Distribueres via NESTE TestFlight prod-bygg (ikke #30). Se [STATUS-AKTUELT.md](STATUS-AKTUELT.md).
   - **🟡 Per-rad / «splitt dagen mellom byggeplasser» (punkt 3): Beslutning 6-oppfølger (ikke startet).** Krever server `syncBatch` rad-input + mobil rad-tabeller (`sheetTimerLocal`/`sheetMachineLocal.byggeplassId`) — `@@unique(userId, dato)` gjør sedel-nivå = én byggeplass/dag, så splitt-dagen krever per-rad-modell.
 
-- **🔵 Mobil global byggeplass-UX — DESIGN-SESJON (design-først, fanget 2026-06-23).** Ingen kode før vedtatt løsning. **Bakgrunn (gjennomgang 2026-06-23):** web har nå **global toppbar-byggeplass-velger** (`useToppbarFiltre` + `ByggeplassVelger.tsx`, prosjekt-modul-filter på tvers av sider), mens mobil har **to frakoblede** byggeplass-flater: (1) sedel-nivå byggeplass i timer (L1/B6, `timer-detalj/ByggeplassVelger.tsx`) og (2) byggeplass-filter i tegninger/bilder/PSI-paneler. Asymmetri web↔mobil + intern mobil-fragmentering. **Spørsmål til sesjonen:** skal mobil få en tilsvarende **global aktiv-byggeplass-kontekst** (som web-toppbaren), eller forblir byggeplass per-flate? Hvordan henger timer-byggeplass (firma-isolert, org-scopet) sammen med prosjektmodul-byggeplass (prosjekt-isolert)? Geo-anker (GPS→byggeplass) på tvers? **Kryss-ref:** [byggeplass-strategi.md](byggeplass-strategi.md) (byggeplass på tvers av moduler, 3 åpne prinsipper) + Byggeplass/underprosjekt-timeregistrering-saken over. **Kø-merknad:** sterk eksisterende kø (dynamisk fler-ledds attestering, registrerings-forenkling, PSI-GPS-oppfølgere) — prioriteres mot disse når den tas.
+- **🟢 Mobil global byggeplass-UX — VEDTATT 2026-06-24 (design-sesjon 2026-06-23/24).** Bygges i faser, dual-review per fase. EAS-bygg kreves for enhetstest.
+
+  **Bakgrunn (gjennomgang 2026-06-23):** web har global toppbar-byggeplass-velger (`useToppbarFiltre` + `ByggeplassVelger.tsx`), mens mobil hadde byggeplass fragmentert i **tre** flater: (A) `ByggeplassKontekst` (`bygningMap[prosjektId]`, paneler/tegninger/3D/hjem), (B) timer-sedel `dagsseddelLocal.byggeplassId` (frakoblet), (C) `OpprettDokumentModal` egen lokal state + `sitedoc_sist_bygning_{prosjektId}` (ignorerer A). GPS (`identifiserByggeplass`) matet kun timer.
+
+  **Verifisert tilstand:** global prosjekt-kontekst finnes alt (`ProsjektKontekst`, speiler web → F5 oppfylt). Byggeplass-kontekst finnes (`ByggeplassKontekst.tsx`, per-prosjekt) — skal konsolideres til eneste kilde.
+
+  **Vedtatt målmodell:** `ByggeplassKontekst` = **eneste globale kilde** for aktiv byggeplass (per aktivt prosjekt). Alle flater leser/skriver den. Header-chip på tvers av skjermer (hjem/timer/sjekklister/tegninger). GPS auto-set + synlig override. Timer-utkast **defaulter** fra global byggeplass (per-sedel-override beholdt). Per-byggeplass siste-tegning-minne. Favoritter.
+
+  **Faser (dual-review hver):**
+  - **F1 (høyest risiko):** konsolider `ByggeplassKontekst` → eneste kilde; fold inn `OpprettDokumentModal` (C); legg til `sistTegningPerByggeplass: {byggeplassId → tegningId}` (erstatter per-prosjekt-nøkkelen). Gate: de tre flatene (A/B/C) må fortsatt virke.
+  - **F2:** delt `ByggeplassChip` (byggeplass-only — prosjekt implisitt) på hjem/timer/sjekklister/tegninger; gjenbruk byggeplass-velger (bottom-sheet «Bytt byggeplass»).
+  - **F3:** GPS auto-set + synlig override (gjenbruk `identifiserByggeplass` + mismatch-mønster).
+  - **F4:** timer default-kjede: GPS → global kontekst → ingen; per-sedel-velger beholdt.
+  - **F6 (lokal):** Favoritt-byggeplasser — per-bruker, mobil-persistert sett (ingen server); stjerne-toggle + sortering favoritter→GPS-forslag→resten. Cross-device-favoritter = senere server-oppfølger.
+
+  **Beslutninger:**
+  - **D1** — GPS auto-setter global byggeplass **kun når ingen er valgt** for prosjektet; ellers soft-forslag (aldri stille bytte midt i økt).
+  - **D2** — timer defaulter fra global byggeplass **kun når `sedel.projectId === valgtProsjektId`** (to-produkt-grensen: timer org-scopet, paneler prosjekt-scopet — samme `byggeplassLocal`-entitet).
+  - **D3** — utsett navnerydding «bygning»→«byggeplass» i kontekst-internals (`valgtBygningId`/`settBygning`/`bygningMap`) — intern identifikator, egen churn-runde.
+
+  **Schema/server:** ingen (alt finnes: `byggeplassLocal`, `dagsseddelLocal.byggeplassId`). i18n: chip-label, GPS-status, «Favoritt», «Husker siste tegning», «Manuelt bytte» (nb+en+generate).
+
+  **Kryss-ref:** [byggeplass-strategi.md](byggeplass-strategi.md) (byggeplass på tvers av moduler) + Byggeplass/underprosjekt-timeregistrering-saken over (Beslutning 6 / per-rad-oppfølger).
 
 - **🟡 TestFlight for test-varianten (A.Markussen-distribusjon).** Test-bygget bruker bundle `com.kemyrhau.sitedoc.test` med `distribution: internal` (ad-hoc) → kun enheter med registrert UDID kan installere (i dag kun Kenneths). TestFlight (mange testere uten UDID-registrering) er **kun** satt opp for prod-profilen (bundle `com.kemyrhau.sitedoc`, ASC-app 6760205962). For å gi A.Markussen testtilgang uten UDID-registrering kreves enten (a) egen ASC-app for `.test`-bundlen + `submit.test`-profil i `eas.json`, eller (b) bruk prod-profil-bygg + `eas submit` til TestFlight. Avklares før bredere pilotering. Se [eas-build-veileder.md § App variants](eas-build-veileder.md).
 
