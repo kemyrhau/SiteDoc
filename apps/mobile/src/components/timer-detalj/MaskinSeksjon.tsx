@@ -26,6 +26,7 @@ import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 import { VelgerFelt } from "./VelgerFelt";
+import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 
 interface MaskinSeksjonProps {
   sheetId: string;
@@ -573,6 +574,7 @@ function MaskinRadModal({
               onChangeText={setTimer}
               placeholder="0,00"
               keyboardType="decimal-pad"
+              inputAccessoryViewID={TASTATUR_FERDIG_ID}
               className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
             />
           </View>
@@ -587,6 +589,7 @@ function MaskinRadModal({
                 onChangeText={setMengde}
                 placeholder="0,00"
                 keyboardType="decimal-pad"
+                inputAccessoryViewID={TASTATUR_FERDIG_ID}
                 className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
               />
               <VelgerFelt
@@ -635,6 +638,7 @@ function MaskinRadModal({
           </Pressable>
         </ScrollView>
         </KeyboardAvoidingView>
+        <TastaturFerdig />
 
         {visEquipmentVelger && (
           <EquipmentVelgerModal

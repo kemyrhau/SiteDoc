@@ -38,6 +38,7 @@ import type {
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
 import { VelgerFelt } from "./VelgerFelt";
+import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 
 interface TimerSeksjonProps {
   sheetId: string;
@@ -680,6 +681,7 @@ function TimerRadModal({
               onChangeText={setTimer}
               placeholder="0,00"
               keyboardType="decimal-pad"
+              inputAccessoryViewID={TASTATUR_FERDIG_ID}
               className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
             />
           </View>
@@ -737,6 +739,7 @@ function TimerRadModal({
           </Pressable>
         </ScrollView>
         </KeyboardAvoidingView>
+        <TastaturFerdig />
 
         {visLonnsartVelger && (
           <LonnsartVelgerModal

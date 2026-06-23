@@ -31,6 +31,7 @@ import { AUTH_CONFIG } from "../../config/auth";
 import type { TilleggRad, Tillegg } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { VelgerFelt } from "./VelgerFelt";
+import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 
 interface TilleggSeksjonProps {
   sheetId: string;
@@ -544,6 +545,7 @@ function TilleggRadModal({
               value={antall}
               onChangeText={setAntall}
               keyboardType="decimal-pad"
+              inputAccessoryViewID={TASTATUR_FERDIG_ID}
               className="rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
             />
           </View>
@@ -589,6 +591,7 @@ function TilleggRadModal({
           </Pressable>
         </ScrollView>
         </KeyboardAvoidingView>
+        <TastaturFerdig />
 
         {visVelger && (
           <TilleggVelgerModal

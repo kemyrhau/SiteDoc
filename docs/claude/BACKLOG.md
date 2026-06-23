@@ -68,9 +68,14 @@ Fanget i avslutnings-auditen etter Slice 1–4 + reise + GPS L1 prod-deploy (`32
 
 Fanget under enhetstest av timer-redesignet på fysisk enhet. Samles til en dedikert UI-polish-sesjon (ikke blokkerende).
 
-- **(a) Prosjekt-felt mangler synlig redigerbar-affordance på timer-rad** — `ProsjektFelt` (`apps/mobile/.../ProsjektVelger.tsx`) er en `Pressable` som åpner velger-modal, men rendres som ren tekstboks uten chevron e.l. → arbeider tror prosjektet er låst («kan ikke endre prosjekt»). Gjelder samme mønster på alle velger-felt (lønnsart/aktivitet/ECO/utstyr/enhet/tillegg). Fiks: delt `VelgerFelt`-komponent med chevron-affordance (ikon, ingen ny i18n-streng). Kartlagt 2026-06-21 (10 velger-bokser).
-- **(b) Topp-sum på dagsseddelen** — vis total registrerte timer øverst på sedelen (ikke bare per gruppe), så arbeider ser dagens sum med én gang.
-- **(c) v2-visuell polish** — gruppe-header med byggeplass, ECO-badge, footer. Mot v2-mockup. Avgrenset visuell finpuss.
+- **✅ (a) Prosjekt-felt-affordance — LUKKET (U2).** Delt `VelgerFelt`-komponent med chevron-affordanse på alle 10 modal-velgere.
+- **✅ (b) Topp-sum på dagsseddelen — LUKKET (U1).** Dag-total øverst, synlig uten scroll.
+- **✅ (c) v2-visuell polish — LUKKET (U3).** Gruppe-header byggeplass + ECO-badge + kort-stil + kollaps-animasjon.
+
+**UI/device-test-funn (2026-06-22/23) — andre enhetstest-runde, alle ✅ LUKKET:**
+- **✅ Tidshjul (blocker) — LUKKET.** Inline iOS-spinner i fra/til-velgeren rant utenfor høyre skjermkant (rendret i halv-bredde `flex-1`-kolonne) + valgt tid committet ikke ved trykk. Fiks: modal-basert full-bredde spinner + «Ferdig»-knapp (`FraTilTidFelt.tsx`); Android `display="default"` urørt.
+- **✅ Keyboard-dismiss numeriske felt — LUKKET.** iOS decimal-pad manglet lukk-tast → ny delt `TastaturFerdig` (`InputAccessoryView` + «Ferdig») på timer/maskin/mengde/tillegg-antall-feltene.
+- **✅ Grønn-boks-wording — LUKKET.** «Maskin Xt / Arbeid Yt» leste additivt → omformulert til «Herav maskin Xt av Yt arbeid» (`timer.gruppe.maskinAvArbeid`).
 
 - **U1-utsettelse: faggruppe i gruppe-header** 🟡 (2026-06-22) — v2 gruppe-header skal vise byggeplass + **faggruppe** + ECO-badge ([mobil-dagsseddel-ui-spec.md § 2/§3](mobil-dagsseddel-ui-spec.md)). **Faggruppe finnes ikke i lokal cache** — `prosjektLocal` (`apps/mobile/src/db/schema.ts`) har kun `id/orgId/name/projectNumber/lat/lng/aktiv`. U1 leverer byggeplass + ECO-badge (begge lokalt tilgjengelig); faggruppe utsatt fordi den krever å utvide prosjekt-sync (`prosjektKatalog.refreshProsjektKatalog` + server `prosjekt.list`-payload + ny kolonne i `prosjektLocal`) — en flyt/schema-endring utenfor U1s «ren UI»-mandat. **Oppfølger:** legg `faggruppe` (arbeiderens faggruppe på prosjektet) i prosjekt-sync, så fyll inn i gruppe-header. Avklar kilde: `ProjectMember`/dokumentflyt-faggruppe per (bruker, prosjekt).
 
