@@ -11,6 +11,10 @@ import { Platform } from "react-native";
 import { useProsjekt } from "./ProsjektKontekst";
 
 const BYGGEPLASS_MAP_KEY = "sitedoc_bygning_per_prosjekt";
+// F1: per-byggeplass siste-tegning-minne. Erstatter de per-prosjekt-nøklede
+// `sitedoc_sist_tegning_{prosjektId}` i OpprettDokumentModal — flyttes hit så
+// ByggeplassKontekst er eneste kilde (mockup: «Husker siste tegning per byggeplass»).
+const SIST_TEGNING_MAP_KEY = "sitedoc_sist_tegning_per_byggeplass";
 
 async function lagreVerdi(key: string, value: string): Promise<void> {
   if (Platform.OS === "web") {
@@ -33,12 +37,18 @@ interface ByggeplassKontekstType {
   valgtBygningId: string | null;
   settBygning: (id: string) => void;
   lasterBygningId: boolean;
+  /** F1: siste brukte tegning for en gitt byggeplass (null hvis ingen). */
+  hentSistTegning: (byggeplassId: string) => string | null;
+  /** F1: husk siste brukte tegning per byggeplass (persistert). */
+  settSistTegning: (byggeplassId: string, tegningId: string) => void;
 }
 
 const ByggeplassContext = createContext<ByggeplassKontekstType>({
   valgtBygningId: null,
   settBygning: () => {},
   lasterBygningId: true,
+  hentSistTegning: () => null,
+  settSistTegning: () => {},
 });
 
 export function useByggeplass() {
@@ -48,23 +58,26 @@ export function useByggeplass() {
 export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const { valgtProsjektId } = useProsjekt();
   const [bygningMap, setBygningMap] = useState<Record<string, string>>({});
+  const [sistTegningMap, setSistTegningMap] = useState<Record<string, string>>({});
   const [lasterBygningId, setLasterBygningId] = useState(true);
 
-  // Last lagret bygnings-map ved oppstart
+  // Last lagret bygnings-map + siste-tegning-map ved oppstart
   useEffect(() => {
-    async function lastLagretBygninger() {
+    async function lastLagret() {
       try {
-        const lagret = await hentVerdi(BYGGEPLASS_MAP_KEY);
-        if (lagret) {
-          setBygningMap(JSON.parse(lagret));
-        }
+        const [lagretBygning, lagretTegning] = await Promise.all([
+          hentVerdi(BYGGEPLASS_MAP_KEY),
+          hentVerdi(SIST_TEGNING_MAP_KEY),
+        ]);
+        if (lagretBygning) setBygningMap(JSON.parse(lagretBygning));
+        if (lagretTegning) setSistTegningMap(JSON.parse(lagretTegning));
       } catch {
         // Ignorer feil
       } finally {
         setLasterBygningId(false);
       }
     }
-    lastLagretBygninger();
+    lastLagret();
   }, []);
 
   const valgtBygningId = useMemo(
@@ -84,8 +97,32 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     [valgtProsjektId],
   );
 
+  const hentSistTegning = useCallback(
+    (byggeplassId: string) => sistTegningMap[byggeplassId] ?? null,
+    [sistTegningMap],
+  );
+
+  const settSistTegning = useCallback(
+    (byggeplassId: string, tegningId: string) => {
+      setSistTegningMap((prev) => {
+        const neste = { ...prev, [byggeplassId]: tegningId };
+        lagreVerdi(SIST_TEGNING_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+        return neste;
+      });
+    },
+    [],
+  );
+
   return (
-    <ByggeplassContext.Provider value={{ valgtBygningId, settBygning, lasterBygningId }}>
+    <ByggeplassContext.Provider
+      value={{
+        valgtBygningId,
+        settBygning,
+        lasterBygningId,
+        hentSistTegning,
+        settSistTegning,
+      }}
+    >
       {children}
     </ByggeplassContext.Provider>
   );

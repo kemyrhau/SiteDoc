@@ -102,7 +102,7 @@ Fanget under enhetstest av timer-redesignet på fysisk enhet. Samles til en dedi
   **Vedtatt målmodell:** `ByggeplassKontekst` = **eneste globale kilde** for aktiv byggeplass (per aktivt prosjekt). Alle flater leser/skriver den. Header-chip på tvers av skjermer (hjem/timer/sjekklister/tegninger). GPS auto-set + synlig override. Timer-utkast **defaulter** fra global byggeplass (per-sedel-override beholdt). Per-byggeplass siste-tegning-minne. Favoritter.
 
   **Faser (dual-review hver):**
-  - **F1 (høyest risiko):** konsolider `ByggeplassKontekst` → eneste kilde; fold inn `OpprettDokumentModal` (C); legg til `sistTegningPerByggeplass: {byggeplassId → tegningId}` (erstatter per-prosjekt-nøkkelen). Gate: de tre flatene (A/B/C) må fortsatt virke.
+  - **✅ F1 (høyest risiko) — GJORT 2026-06-24 (develop).** Konsoliderte `ByggeplassKontekst` → eneste kilde: la til `sistTegningPerByggeplass: {byggeplassId → tegningId}` (`hentSistTegning`/`settSistTegning`); foldet `OpprettDokumentModal` (C) til Option B (leser default byggeplass fra `valgtBygningId` + tegning fra `hentSistTegning`, skriver `settSistTegning` ved opprett, droppet egne `sitedoc_sist_*`-nøkler, **kaller ikke** `settBygning` — ingen stille nav-bytte). GPS-tegnings-bounds-logikk bevart. Tre flater verifisert urørt (A additiv, B timer urørt, C logikk intakt).
   - **F2:** delt `ByggeplassChip` (byggeplass-only — prosjekt implisitt) på hjem/timer/sjekklister/tegninger; gjenbruk byggeplass-velger (bottom-sheet «Bytt byggeplass»).
   - **F3:** GPS auto-set + synlig override (gjenbruk `identifiserByggeplass` + mismatch-mønster).
   - **F4:** timer default-kjede: GPS → global kontekst → ingen; per-sedel-velger beholdt.
