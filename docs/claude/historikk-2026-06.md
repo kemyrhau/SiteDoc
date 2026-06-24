@@ -8,6 +8,16 @@ sist_verifisert_mot_kode: 2026-06-05
 
 Arkiv av ferdigstilt arbeid. Aktivt arbeid ligger i [STATUS-AKTUELT.md](STATUS-AKTUELT.md).
 
+## § Geofence-editor (A+B) + «Lokasjon»→«Byggeplass»-rename (C) — DEPLOYET TIL PROD 2026-06-24 (prod-merge `a558db2e`)
+
+Web/api, **ingen migrering**. Deploy via **manuell** rsync `main` → `server-ny:~/stack/sitedoc` + `sudo docker compose -p docker -f docker/docker-compose.yml build/up sitedoc-api sitedoc-web` — **ikke** auto-deploy (auto-deploy-til-test rebuilder ikke web; rotårsak-sak i [BACKLOG § Auto-deploy til test rebuilder ikke web](BACKLOG.md)). Test verifisert grønt (innlogget, 2026-06-24): nav «Byggeplasser», `/oppsett/byggeplasser` laster (geofence-editor + adresse-søk), `/oppsett/lokasjoner` redirecter.
+
+- **Del A — kart-geofence-editor** (`byggeplasser/page.tsx`, impl `8deb3a4b`): `KartVelger` (Leaflet) i geofence-modalen — klikk/dra markør + sirkel=radius (live), radius-slider 25–500 + tall-felt (opp til 100000), redigerbar lat/lng, «Beregn fra tegning» beholdt. `settGeofence` uendret.
+- **Del B — adresse-geokoding** (impl `8deb3a4b`): adresse-felt + «Søk» (button-trigget, ikke autocomplete — Nominatim-policy) → ny `bygning.geokod`-proc (byggeplassId-scopet auth, tynn proxy over `geokodAdresse`/rute-service). OSM-attribusjon; nyplassert senter får default 150 m.
+- **Del C — rename «Lokasjon»→«Byggeplass»** (impl `915400ac`): rute `oppsett/lokasjoner`→`byggeplasser` + `next.config`-redirect (temporær), nav-id/href/state, 22 i18n-verdier × 15 språk (nøkkel-navn beholdt), hardkodede panel-strenger. De 6 andre «lokasjon»-konseptene (malbygger-felt, maskin, prosjektlokasjon) urørt. + `byggeplassVelger.*`-term-fix (fr var uoversatt engelsk).
+
+**Oppfølger (handling kreves):** prod-prosjektet har **ingen byggeplasser ennå** — opprett + sett geofence (kart/adresse-søk på sitedoc.no → Byggeplasser) før A.Markussen tester GPS (What-to-Test pkt 1+3).
+
 ## § Timer-bunke (UF-0…UF-4, fiks A, tre-veis-farge, U1–U3, T.11, Funn #2, tidshjul/keyboard/wording) — DEPLOYET TIL PROD 2026-06-23 (prod-merge `13dc110e`)
 
 Samlet deploy av all develop-akkumulering siden 06-21 (`32b88bd7 → 13dc110e`). Server (API+web) live på prod nå; mobil-UX distribueres via TestFlight prod-bygg #30 (validering pågår, ikke hos arbeidere ennå).
