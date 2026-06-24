@@ -1960,7 +1960,7 @@
   "hjelp.lokasjoner.hvaTittel": "Kas tai yra?",
   "hjelp.lokasjoner.hva": "Statybvietės yra projekto vietos su susijusiais brėžiniais. Įkelkite aukštų planus, suskirstytus pagal aukštus, kad vartotojai galėtų dėti kontrolinius sąrašus ir užduotis tiesiai ant brėžinio. Taip visi tiksliai žino, kur buvo rasta problema.",
   "hjelp.lokasjoner.tipsTittel": "Darbo pradžia",
-  "hjelp.lokasjoner.tips": "Sukurkite statybvietę, įkelkite aukštų planus ir paskelbkite, kai būsite pasiruošę. Nepublikuotos statybvietės matomos tik administratoriams. Naudokite tą patį pavadinimą kaip ir brėžiniuose (pvz., «A-101»), kad būtų lengviau atpažinti.",
+  "hjelp.lokasjoner.tips": "Sukurti statybvietę – ji sąraše parenkama automatiškai. Pasirinkite svetainę ir naudokite įrankių juostą: „Geofence“ nustato GPS centrą (žemėlapio ar adreso paiešką) laiko aptikimui, „Brėžiniai“ atveria aukštų planus. Paskelbti, kai būsite pasiruošę; neskelbtos statybvietės matomos tik administratoriams.",
   "hjelp.oppgavemaler.hvaTittel": "Kas tai yra?",
   "hjelp.oppgavemaler.hva": "Užduočių šablonai yra paruoštos formos, naudojamos kuriant užduotis. Užuot rašę viską nuo nulio, vartotojai pasirenka šabloną – pvz. „Nukrypimų ataskaita“ arba „Skundas“. Šablonai pridedami prie dokumentų srautų, kad būtų galima valdyti, kas gali juos naudoti.",
   "hjelp.oppgavemaler.tipsTittel": "Darbo pradžia",

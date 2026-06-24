@@ -1960,7 +1960,7 @@
   "hjelp.lokasjoner.hvaTittel": "Çfarë është kjo?",
   "hjelp.lokasjoner.hva": "Vendet e ndërtimit janë vende në projekt me vizatime të lidhura. Ngarko planet e dyshemesë të organizuara sipas katit, në mënyrë që përdoruesit të mund të vendosin lista kontrolli dhe detyra direkt në vizatim. Në këtë mënyrë të gjithë e dinë saktësisht se ku është gjetur një problem.",
   "hjelp.lokasjoner.tipsTittel": "Duke filluar",
-  "hjelp.lokasjoner.tips": "Krijoni një kantier ndërtimi, ngarkoni planet e dyshemesë dhe publikoni kur të jeni gati. Vendet e papublikuara të ndërtimit janë të dukshme vetëm për administratorët. Përdorni të njëjtin emër si në vizatime (p.sh. «A-101») për njohje të lehtë.",
+  "hjelp.lokasjoner.tips": "Krijoni një kantier ndërtimi - ai zgjidhet automatikisht në listë. Zgjidhni një faqe dhe përdorni shiritin e veglave: «Geofence» vendos qendrën GPS (kërkimi i hartës ose adresës) për zbulimin e kohës, «Vizatimet» hap planimetritë. Publikoni kur të jetë gati; faqet e papublikuara të ndërtimit janë të dukshme vetëm për administratorët.",
   "hjelp.oppgavemaler.hvaTittel": "Çfarë është kjo?",
   "hjelp.oppgavemaler.hva": "Modelet e detyrave janë forma të gatshme që përdoren gjatë krijimit të detyrave. Në vend që të shkruajnë gjithçka nga e para, përdoruesit zgjedhin një shabllon - p.sh. \"Raporti i devijimit\" ose \"Ankesa\". Modelet janë bashkangjitur në rrjedhat e dokumenteve për të kontrolluar se kush mund t'i përdorë ato.",
   "hjelp.oppgavemaler.tipsTittel": "Duke filluar",

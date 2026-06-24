@@ -1961,7 +1961,7 @@
   "hjelp.lokasjoner.hvaTittel": "What is this?",
   "hjelp.lokasjoner.hva": "Building sites are places in the project with associated drawings. Upload floor plans organized by floor, so users can place checklists and tasks directly on the drawing. This way everyone knows exactly where an issue was found.",
   "hjelp.lokasjoner.tipsTittel": "Getting started",
-  "hjelp.lokasjoner.tips": "Create a building site, upload floor plans, and publish when ready. Unpublished building sites are only visible to administrators. Use the same naming as in drawings (e.g. «A-101») for easy recognition.",
+  "hjelp.lokasjoner.tips": "Create a building site — it is selected in the list automatically. Select a site and use the toolbar: «Geofence» sets the GPS centre (map or address search) for time detection, «Drawings» opens floor plans. Publish when ready; unpublished building sites are only visible to administrators.",
   "hjelp.oppgavemaler.hvaTittel": "What is this?",
   "hjelp.oppgavemaler.hva": "Task templates are ready-made forms used when creating tasks. Instead of writing everything from scratch, users pick a template — e.g. «Deviation report» or «Complaint». Templates are attached to document flows to control who can use them.",
   "hjelp.oppgavemaler.tipsTittel": "Getting started",

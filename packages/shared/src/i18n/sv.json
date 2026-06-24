@@ -1960,7 +1960,7 @@
   "hjelp.lokasjoner.hvaTittel": "Vad är det här?",
   "hjelp.lokasjoner.hva": "Byggarbetsplatser är platser i projektet med tillhörande ritningar. Ladda upp planritningar ordnade efter våning, så att användare kan placera checklistor och uppgifter direkt på ritningen. På så sätt vet alla exakt var ett problem hittades.",
   "hjelp.lokasjoner.tipsTittel": "Komma igång",
-  "hjelp.lokasjoner.tips": "Skapa en byggarbetsplats, ladda upp planritningar och publicera när du är klar. Opublicerade byggarbetsplatser är endast synliga för administratörer. Använd samma namn som i ritningar (t.ex. «A-101») för enkel igenkänning.",
+  "hjelp.lokasjoner.tips": "Skapa en byggarbetsplats — den väljs automatiskt i listan. Välj en plats och använd verktygsfältet: «Geofence» ställer in GPS-centret (karta eller adresssökning) för tidsdetektering, «ritningar» öppnar planritningar. Publicera när det är klart; opublicerade byggarbetsplatser är endast synliga för administratörer.",
   "hjelp.oppgavemaler.hvaTittel": "Vad är det här?",
   "hjelp.oppgavemaler.hva": "Uppgiftsmallar är färdiga formulär som används när du skapar uppgifter. Istället för att skriva allt från grunden väljer användarna en mall — t.ex. «Avvikelserapport» eller «Klagomål». Mallar bifogas dokumentflöden för att styra vem som kan använda dem.",
   "hjelp.oppgavemaler.tipsTittel": "Komma igång",

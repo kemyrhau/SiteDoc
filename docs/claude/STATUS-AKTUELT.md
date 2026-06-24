@@ -12,6 +12,10 @@ sist_verifisert_mot_kode: 2026-06-08
 >
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 
+### Geofence-discoverability (web) — PÅ DEVELOP 2026-06-24
+
+Geofence-editoren gjort oppdagbar på `byggeplasser/page.tsx`: egen synlig **«Geofence»**-verktøylinje-knapp (MapPin) → egen modal (skilt ut fra «Endre navn», som nå er ren navne-endring). Ikon/label-fiks: «Endre navn» Copy→Pencil, «Rediger»→**«Tegninger»** (LayoutGrid). Opprett markerer ny byggeplass i lista (ikke auto-kast inn i tegnings-editor). Geofence-seksjon flyttet verbatim (settGeofence/beregnGeofence/geokod uendret). i18n: ingen nye nøkler (gjenbruk `lokasjoner.geofence.tittel` + `nav.tegninger`), hjelp-tips oppdatert (15 språk). **Test-verifisering krever manuell rebuild** (auto-deploy rebuilder ikke web). Prod-deploy avventer eksplisitt forespørsel — kreves før 999/A.Markussen-geofence kan settes lett i prod-UI.
+
 ### Mobil EAS-bunt — byggeplass-UX F1–F6 + F-A + F-B + F-G — I EAS PROD-BYGG #32 (2026-06-24)
 
 **#32 superseder #31** (`cc119d42`) — la til F-G (glemt-dag 0-fiks) på develop (`c6babc44`). #32 bygges fra `main` etter merge develop→main. **Når brukere via TestFlight når `eas submit` #32 er kjørt** (Kenneths ASC-steg). Device-test av hele bunten via TestFlight-intern. Samlet innhold:

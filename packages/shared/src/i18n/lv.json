@@ -1960,7 +1960,7 @@
   "hjelp.lokasjoner.hvaTittel": "Kas tas ir?",
   "hjelp.lokasjoner.hva": "Būvlaukumi ir vietas projektā ar saistītajiem rasējumiem. Augšupielādējiet stāvu plānus, kas sakārtoti pa stāviem, lai lietotāji varētu ievietot kontrolsarakstus un uzdevumus tieši zīmējumā. Tādējādi visi precīzi zina, kur tika konstatēta problēma.",
   "hjelp.lokasjoner.tipsTittel": "Darba sākšana",
-  "hjelp.lokasjoner.tips": "Izveidojiet būvlaukumu, augšupielādējiet stāvu plānus un publicējiet, kad tas ir gatavs. Nepublicētas būvlaukumi ir redzami tikai administratoriem. Izmantojiet tos pašus nosaukumus kā zīmējumos (piem., «A-101»), lai atvieglotu atpazīšanu.",
+  "hjelp.lokasjoner.tips": "Izveidot būvlaukumu — tas tiek atlasīts sarakstā automātiski. Izvēlieties vietni un izmantojiet rīkjoslu: «Geofence» iestata GPS centru (kartes vai adreses meklēšanu) laika noteikšanai, «Zīmējumi» atver stāvu plānus. Publicēt, kad tas ir gatavs; nepublicētas būvlaukumi ir redzami tikai administratoriem.",
   "hjelp.oppgavemaler.hvaTittel": "Kas tas ir?",
   "hjelp.oppgavemaler.hva": "Uzdevumu veidnes ir gatavas veidlapas, ko izmanto, veidojot uzdevumus. Tā vietā, lai rakstītu visu no jauna, lietotāji izvēlas veidni, piemēram, «Ziņojums par novirzi» vai «Sūdzība». Veidnes ir pievienotas dokumentu plūsmām, lai kontrolētu, kas tās var izmantot.",
   "hjelp.oppgavemaler.tipsTittel": "Darba sākšana",

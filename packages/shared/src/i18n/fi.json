@@ -1960,7 +1960,7 @@
   "hjelp.lokasjoner.hvaTittel": "Mikä tämä on?",
   "hjelp.lokasjoner.hva": "Rakennustyömaat ovat projektin paikkoja niihin liittyvine piirroksineen. Lataa kerrosten mukaan järjestettyjä pohjapiirroksia, jotta käyttäjät voivat sijoittaa tarkistuslistoja ja tehtäviä suoraan piirustukseen. Näin kaikki tietävät tarkalleen, mistä ongelma havaittiin.",
   "hjelp.lokasjoner.tipsTittel": "Aloittaminen",
-  "hjelp.lokasjoner.tips": "Luo rakennustyömaa, lataa pohjapiirrokset ja julkaise, kun olet valmis. Julkaisemattomat rakennustyömaat näkyvät vain ylläpitäjille. Käytä samaa nimeä kuin piirustuksissa (esim. «A-101») tunnistamisen helpottamiseksi.",
+  "hjelp.lokasjoner.tips": "Luo rakennustyömaa — se valitaan luettelosta automaattisesti. Valitse sivusto ja käytä työkalupalkkia: «Geofence» asettaa GPS-keskuksen (kartta- tai osoitehaku) ajan havaitsemiseen, «Piirostukset» avaa pohjapiirrokset. Julkaise, kun olet valmis; julkaisemattomat rakennustyömaat näkyvät vain ylläpitäjille.",
   "hjelp.oppgavemaler.hvaTittel": "Mikä tämä on?",
   "hjelp.oppgavemaler.hva": "Tehtävämallit ovat valmiita lomakkeita, joita käytetään tehtäviä luotaessa. Sen sijaan, että kirjoittaisivat kaiken tyhjästä, käyttäjät valitsevat mallin – esim. \"Poikkeamaraportti\" tai \"valitus\". Mallit liitetään asiakirjavirtoihin, jotta voidaan hallita, kuka voi käyttää niitä.",
   "hjelp.oppgavemaler.tipsTittel": "Aloittaminen",

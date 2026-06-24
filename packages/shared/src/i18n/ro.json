@@ -1960,7 +1960,7 @@
   "hjelp.lokasjoner.hvaTittel": "Ce este asta?",
   "hjelp.lokasjoner.hva": "Building sites are places in the project with associated drawings. Upload floor plans organized by floor, so users can place checklists and tasks directly on the drawing. This way everyone knows exactly where an issue was found.",
   "hjelp.lokasjoner.tipsTittel": "Noțiuni de bază",
-  "hjelp.lokasjoner.tips": "Create a building site, upload floor plans, and publish when ready. Unpublished building sites are only visible to administrators. Use the same naming as in drawings (e.g. «A-101») for easy recognition.",
+  "hjelp.lokasjoner.tips": "Creați un șantier - este selectat automat în listă. Selectați un site și utilizați bara de instrumente: «Geofence» setează centrul GPS (căutare pe hartă sau adrese) pentru detectarea timpului, «Desene» deschide planurile de etaj. Publicați când este gata; șantierele nepublicate sunt vizibile numai pentru administratori.",
   "hjelp.oppgavemaler.hvaTittel": "Ce este asta?",
   "hjelp.oppgavemaler.hva": "Șabloanele de sarcini sunt formulare gata făcute utilizate la crearea sarcinilor. În loc să scrie totul de la zero, utilizatorii aleg un șablon - de ex. „Raport de abatere” sau „Plângere”. Șabloanele sunt atașate fluxurilor de documente pentru a controla cine le poate folosi.",
   "hjelp.oppgavemaler.tipsTittel": "Noțiuni de bază",
