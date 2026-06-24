@@ -28,6 +28,10 @@ Avdekket ved gjennomgang av A.Markussens lønnsart-liste (2026-06-24). Auto-gene
 
 Glemt sent skift (start 21:33) ga 0.00t / ingen timer-rad. To rotårsaker fikset: **(c)** hele-dags pause+reise lå på start-segmentet → kort start-segment klampet arbeidstimer til 0 (`Math.max(0,…)`). Ny `fordelArbeidstidFradrag` (pause→lengste, reise→start m/ overflyt, kappet til kapasitet) bevarer dag-total-invariant, aldri kapp-og-mist. **(d)** manglende standard-lønnsart surfaces (se over). `splittVedMidnatt`/UF-2/F-A/F-B urørt. **Device-verifiseres på #32** (a: banner uten lønnsart, b: ~2.45t-rad m/ lønnsart + pause på lengste segment) før submit.
 
+### 🔴 Geofence-editor uoppdagbar — gjemt i «Endre navn»-modal (Copy-ikon)
+
+Fanget 2026-06-24: verken Kenneth eller kontroll-Claude fant geofence-editoren i web selv med steg-for-steg. Tre lag feil veivisning i `apps/web/src/app/dashbord/oppsett/byggeplasser/page.tsx`: (1) `bygning.opprett`-suksess kaster brukeren rett inn i fullskjerm tegnings-editor (`setRedigerLokasjonId`, :798) — ser ut som hovedflyten, men geofence er ikke der; (2) geofence-seksjonen ligger nederst i **«Endre navn»**-modalen (:1178–1309), åpnet av knapp med **Copy-ikon** + `t("lokasjoner.endreNavn")` — feil ikon + misvisende label; (3) modalen vises kun etter at en byggeplass er markert, og «Rediger» (blyant) åpner i stedet tegnings-editoren (motsatt av forventning). **Fix:** egen synlig «Geofence/Georeferanse»-handling på markert byggeplass, ikke auto-åpne tegnings-editor ved opprett, rett Copy-ikon/label. Liten fokusert UX-sesjon. Treffer også ekte kunder (samme vegg).
+
 ### 🔴 Auto-deploy til test rebuilder ikke web (feilaktig antakelse hele økta)
 
 Oppdaget 2026-06-24. Geofence-editor (A+B, `8deb3a4b`) + «Lokasjon»→«Byggeplass»-rename (C, `915400ac`) ble pushet til `develop` 2026-06-23/24, men **nådde aldri `test.sitedoc.no`**: navet viste fortsatt «Lokasjoner», `/dashbord/oppsett/byggeplasser` ga 404, `/lokasjoner` var urørt (verifisert via nettleser 2026-06-24). Antakelsen «testbart umiddelbart» for web-endringer — brukt gjennom hele økta — er **ugyldig**.

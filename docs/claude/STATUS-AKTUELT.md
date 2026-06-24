@@ -16,9 +16,11 @@ sist_verifisert_mot_kode: 2026-06-08
 
 Geofence-editoren gjort oppdagbar på `byggeplasser/page.tsx`: egen synlig **«Geofence»**-verktøylinje-knapp (MapPin) → egen modal (skilt ut fra «Endre navn», som nå er ren navne-endring). Ikon/label-fiks: «Endre navn» Copy→Pencil, «Rediger»→**«Tegninger»** (LayoutGrid). Opprett markerer ny byggeplass i lista (ikke auto-kast inn i tegnings-editor). Geofence-seksjon flyttet verbatim (settGeofence/beregnGeofence/geokod uendret). i18n: ingen nye nøkler (gjenbruk `lokasjoner.geofence.tittel` + `nav.tegninger`), hjelp-tips oppdatert (15 språk). **Test-verifisering krever manuell rebuild** (auto-deploy rebuilder ikke web). Prod-deploy avventer eksplisitt forespørsel — kreves før 999/A.Markussen-geofence kan settes lett i prod-UI.
 
-### Mobil EAS-bunt — byggeplass-UX F1–F6 + F-A + F-B + F-G — I EAS PROD-BYGG #32 (2026-06-24)
+### Mobil EAS-bunt — #31 BYGGET (uten F-G) · #32 (med F-G) KVOTE-BLOKKERT til 1. juli (2026-06-24)
 
-**#32 superseder #31** (`cc119d42`) — la til F-G (glemt-dag 0-fiks) på develop (`c6babc44`). #32 bygges fra `main` etter merge develop→main. **Når brukere via TestFlight når `eas submit` #32 er kjørt** (Kenneths ASC-steg). Device-test av hele bunten via TestFlight-intern. Samlet innhold:
+**#31** (`cc119d42`) er **bygget/finished** og er det shippable bygget: byggeplass-UX F1–F6 + F-A + F-B + B2+B6 — **mangler F-G**. Submit til TestFlight = Kenneths ASC-steg (`eas submit --platform ios --profile production --id cc119d42-e1ba-47a3-bfe9-c126ec367282`).
+
+**#32** legger til **F-G** (glemt-dag 0-fiks, `c6babc44`, merget til `main` `73c30e02`) — men er **EAS-kvote-BLOKKERT** (fri-plan iOS-kvote brukt opp denne måneden, reset **onsdag 1. juli 2026**). **#32 er IKKE bygget.** Bygges fra `main` 1. juli (eller `eas build --local` på Mac m/ Xcode). **Device-verify (a/b) + F-G-distribusjon venter på #32.** Samlet innhold i bunten:
 
 - **Mobil global byggeplass-UX (F1–F6)** — `ByggeplassKontekst` eneste kilde, header-chip (hjem/sjekklister), GPS auto-set + override, timer-default fra global, favoritter. Detaljer: [BACKLOG.md § Mobil global byggeplass-UX](BACKLOG.md). Commits `a46d58e9`/`b2ee5fb4`/`0eb2c9ef`/`d7419e6b`/`7c3ae7e3`.
 - **F-A glemt-dag-transparens** (device-test-funn 2026-06-24) — `sluttTidKilde="system"`-utkast viser konkret banner: «Estimert slutt: HH:MM (gjettet) · X.X t på N rader — sjekk og rett» (`timer/[id].tsx`). Ikke-blokkerende.
