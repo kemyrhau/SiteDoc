@@ -21,6 +21,7 @@ import { useByggeplass } from "../kontekst/ByggeplassKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { avstandMeter, estimerReisetidMin, klassifiserReise, type ReiseKategori } from "@sitedoc/shared";
 import { haversineKm } from "../utils/geo";
+import { rundTimerTilNarmeste } from "../utils/tidsrunding";
 import {
   splittVedMidnatt,
   kappGlemtDagSlutt,
@@ -589,6 +590,8 @@ function genererForslag(
       // segmenter (én arbeidsdag = én byggeplass). Idempotens i helperen sikrer
       // at kun NY draft får verdien; per-sedel-velger kan overstyre etterpå.
       byggeplassId: byggeplassDefault,
+      // F-B: firmaets tidsrunding-grid for auto-rad-runding (regel fra org-setting).
+      tidsrundingMinutter: regel?.tidsrundingMinutter ?? null,
       pauseMin,
       reisetidTimer: seg.erStartSegment ? reisetidTimer : 0,
       reiseLonnsartId,
@@ -631,6 +634,8 @@ function opprettDagsseddelForSegment(args: {
   reisetidTellerOvertid: boolean;
   deltVedMidnatt: boolean;
   sluttTidKilde: "bruker" | "midnatt" | "system";
+  /** F-B: firmaets tidsrunding-grid (15/30/60 min) — null = ingen runding. */
+  tidsrundingMinutter: number | null;
 }): { id: string; utfall: SegmentUtfall } | null {
   const {
     userId,
@@ -645,6 +650,7 @@ function opprettDagsseddelForSegment(args: {
     reisetidTellerOvertid,
     deltVedMidnatt,
     sluttTidKilde,
+    tidsrundingMinutter,
   } = args;
   const db = hentDatabase();
   if (!db) return null;
@@ -689,8 +695,11 @@ function opprettDagsseddelForSegment(args: {
     Math.round(Math.max(0, bruttoTimer - pauseMin / 60) * 100) / 100;
   // Arbeidstimer til normaltid/overtid = total minus reise-andelen (reise føres
   // på egen rad). Unngår dobbelttelling av brutto-tiden.
-  const arbeidstimer =
-    Math.round(Math.max(0, totalTimer - reisetidTimer) * 100) / 100;
+  // F-B: rund arbeidstimer til firmaets tidsrunding-grid (15 min = 0.25 t) FØR
+  // normaltid/overtid-splitten — auto-rader hadde rå varighet (6.10/8.24 t).
+  // null = ingen runding konfigurert → behold 2-desimal. Reise rundes ikke.
+  const raaArbeid = Math.round(Math.max(0, totalTimer - reisetidTimer) * 100) / 100;
+  const arbeidstimer = rundTimerTilNarmeste(raaArbeid, tidsrundingMinutter);
 
   const effektiv = hentEffektivArbeidstidLokal(
     orgId,

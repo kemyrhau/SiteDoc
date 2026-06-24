@@ -12,6 +12,16 @@ sist_verifisert_mot_kode: 2026-06-08
 >
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 
+### Neste EAS-bunt (mobil) — byggeplass-UX F1–F6 + F-A + F-B — PÅ DEVELOP 2026-06-24
+
+Samles i ett `eas build --profile test` for device-test av alt på én gang:
+
+- **Mobil global byggeplass-UX (F1–F6)** — `ByggeplassKontekst` eneste kilde, header-chip (hjem/sjekklister), GPS auto-set + override, timer-default fra global, favoritter. Detaljer: [BACKLOG.md § Mobil global byggeplass-UX](BACKLOG.md). Commits `a46d58e9`/`b2ee5fb4`/`0eb2c9ef`/`d7419e6b`/`7c3ae7e3`.
+- **F-A glemt-dag-transparens** (device-test-funn 2026-06-24) — `sluttTidKilde="system"`-utkast viser konkret banner: «Estimert slutt: HH:MM (gjettet) · X.X t på N rader — sjekk og rett» (`timer/[id].tsx`). Ikke-blokkerende.
+- **F-B auto-rundings-fiks** (device-test-funn 2026-06-24, bug) — auto-genererte timer-rader rundes nå til firmaets tidsrunding-grid (15 min = 0.25 t) på **arbeidstimer** før normaltid/overtid-splitt (`StartSluttDagKort.genererForslag` + ny `rundTimerTilNarmeste`). Reise urørt; `null` → behold 2-desimal. Rettet rå-varighet (6.10/8.24 t).
+
+Ingen schema/server. Device-test dekker: chip/GPS/favoritt + glemt-dag-banner + 15-min-rundede auto-timer. Etter grønn enhetstest → prod-distribusjon via TestFlight.
+
 ### Kart-geofence-editor + adresse-geokoding på lokasjons-siden — IMPLEMENTERT PÅ DEVELOP 2026-06-23 (web)
 
 Geofence-oppsett for byggeplass uten georeferert tegning — **enabler for byggeplass-GPS** (L1/B2+B6 lener seg på `Byggeplass.latitude/longitude/radiusM`). I `dashbord/oppsett/lokasjoner/page.tsx` geofence-editor:

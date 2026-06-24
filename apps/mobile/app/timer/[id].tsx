@@ -59,7 +59,7 @@ import { ByggeplassVelgerModal } from "../../src/components/timer-detalj/Byggepl
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
-import { formatNorskDato, formatTidspunkt } from "../../src/utils/dato";
+import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
 import type {
   Sedel,
   TimerRad,
@@ -569,9 +569,28 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
-        {/* Slice 3: auto-fyll-banner — kun på auto-genererte drafts. Forsvinner
-            automatisk ved innsending (gated på status === "draft"). */}
-        {sedel.status === "draft" && sedel.autoGenerert && (
+        {/* F-A: glemt-dag (sluttTidKilde="system") — konkret estimat-banner så
+            arbeider ser gjettet slutt + total + antall rader. Ikke-blokkerende. */}
+        {sedel.status === "draft" &&
+        sedel.autoGenerert &&
+        sedel.sluttTidKilde === "system" ? (
+          <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={16} color="#b45309" />
+              <Text className="text-sm font-semibold text-amber-900">
+                {t("timer.glemtDag.tittel")}
+              </Text>
+            </View>
+            <Text className="mt-1 text-xs text-amber-800">
+              {t("timer.glemtDag.hjelp", {
+                sluttTid: isoTidspunktTilHHMM(sedel.endAt),
+                timer: totaltimer.toFixed(1),
+                antall: timerRader.length,
+              })}
+            </Text>
+          </View>
+        ) : sedel.status === "draft" && sedel.autoGenerert ? (
+          /* Slice 3: generisk auto-fyll-banner (bruker-bekreftet slutt). */
           <View className="mx-4 mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
             <View className="flex-row items-center gap-2">
               <Sparkles size={16} color="#1e40af" />
@@ -583,7 +602,7 @@ export default function DagsseddelDetalj() {
               {t("timer.autoFyll.hjelp")}
             </Text>
           </View>
-        )}
+        ) : null}
 
         {/* Slice 4a: «delt ved midnatt»-merking — sedelen er ett segment av et
             skift som krysset midnatt. Forklarer lave per-dag-timer som legitim

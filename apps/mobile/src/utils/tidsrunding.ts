@@ -7,6 +7,22 @@
  *
  * Speilet i apps/web/src/lib/tidsrunding.ts — hold synkronisert.
  */
+/**
+ * F-B (2026-06-24) — Rund desimaltimer til nærmeste `minutter`-grid (15 → 0.25 t).
+ * Brukes i timer-auto-utkastet (`genererForslag`) der rader ikke har fra/til, så
+ * HH:MM-rundingen (`rundTilNarmeste`) ikke er anvendelig. `minutter` null/0 →
+ * uendret (ingen runding konfigurert). KUN mobil auto-flyt — web har ingen
+ * auto-draft-generering, så denne speiles ikke i web-lib.
+ */
+export function rundTimerTilNarmeste(
+  timer: number,
+  minutter: number | null,
+): number {
+  if (!minutter || timer <= 0) return timer;
+  const steg = minutter / 60;
+  return Math.round(Math.round(timer / steg) * steg * 100) / 100;
+}
+
 export function rundTilNarmeste(
   hhmm: string,
   minutter: number | null,

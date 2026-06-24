@@ -38,6 +38,8 @@
   "timer.reisetid": "Travel Time",
   "timer.autoFyll.tittel": "The day has been filled in automatically",
   "timer.autoFyll.hjelp": "Check, correct and submit.",
+  "timer.glemtDag.tittel": "Recovered day — estimated",
+  "timer.glemtDag.hjelp": "Estimated end: {{sluttTid}} (guessed) · {{timer}} h on {{antall}} rows — review and correct.",
   "timer.deltMidnatt.tittel": "Split at midnight",
   "timer.deltMidnatt.hjelp": "Part of a shift that spanned two days.",
   "timer.dagFinnes.notis": "You already had an entry for this day — we opened it. Your project is ready to log time on.",
