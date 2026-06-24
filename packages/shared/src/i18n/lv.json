@@ -40,6 +40,8 @@
   "timer.autoFyll.hjelp": "Pārbaudiet, labojiet un iesniedziet.",
   "timer.glemtDag.tittel": "Vai aizmirsāt beigt dienu?",
   "timer.glemtDag.hjelp": "Paredzamās beigas: {{sluttTid}} (uzminēts) · {{timer}} h uz {{antall}} rindām — pārskatiet un izlabojiet.",
+  "timer.manglerLonnsart.tittel": "Trūkst noklusējuma algas veida",
+  "timer.manglerLonnsart.hjelp": "Stundas nevarēja aizpildīt automātiski, jo uzņēmumam nav noklusējuma algas veida. Pievienojiet stundas manuāli ar pareizo algas veidu vai lūdziet uzņēmuma administratoram iestatīt noklusējuma algas veidu.",
   "timer.deltMidnatt.tittel": "Sadalās pusnaktī",
   "timer.deltMidnatt.hjelp": "Daļa no maiņas, kas ilga divas dienas.",
   "timer.dagFinnes.notis": "Jums jau bija ieraksts par šo dienu — mēs to atvērām. Jūsu projekts ir gatavs pieteikšanās laikam.",

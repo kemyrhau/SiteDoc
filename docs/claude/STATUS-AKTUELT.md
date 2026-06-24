@@ -12,26 +12,18 @@ sist_verifisert_mot_kode: 2026-06-08
 >
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 
-### Neste EAS-bunt (mobil) — byggeplass-UX F1–F6 + F-A + F-B — PÅ DEVELOP 2026-06-24
+### Mobil EAS-bunt — byggeplass-UX F1–F6 + F-A + F-B + F-G — I EAS PROD-BYGG #32 (2026-06-24)
 
-Samles i ett `eas build --profile test` for device-test av alt på én gang:
+**#32 superseder #31** (`cc119d42`) — la til F-G (glemt-dag 0-fiks) på develop (`c6babc44`). #32 bygges fra `main` etter merge develop→main. **Når brukere via TestFlight når `eas submit` #32 er kjørt** (Kenneths ASC-steg). Device-test av hele bunten via TestFlight-intern. Samlet innhold:
 
 - **Mobil global byggeplass-UX (F1–F6)** — `ByggeplassKontekst` eneste kilde, header-chip (hjem/sjekklister), GPS auto-set + override, timer-default fra global, favoritter. Detaljer: [BACKLOG.md § Mobil global byggeplass-UX](BACKLOG.md). Commits `a46d58e9`/`b2ee5fb4`/`0eb2c9ef`/`d7419e6b`/`7c3ae7e3`.
 - **F-A glemt-dag-transparens** (device-test-funn 2026-06-24) — `sluttTidKilde="system"`-utkast viser konkret banner: «Estimert slutt: HH:MM (gjettet) · X.X t på N rader — sjekk og rett» (`timer/[id].tsx`). Ikke-blokkerende.
 - **F-B auto-rundings-fiks** (device-test-funn 2026-06-24, bug) — auto-genererte timer-rader rundes nå til firmaets tidsrunding-grid (15 min = 0.25 t) på **arbeidstimer** før normaltid/overtid-splitt (`StartSluttDagKort.genererForslag` + ny `rundTimerTilNarmeste`). Reise urørt; `null` → behold 2-desimal. Rettet rå-varighet (6.10/8.24 t).
+- **F-G glemt-dag 0-fiks** (device-test-funn 2026-06-24, bug — `c6babc44`) — (c) `fordelArbeidstidFradrag`: pause→lengste, reise→start m/ overflyt, kappet til kapasitet → kort start-segment klampes aldri til 0; dag-total invariant. (d) rød «Mangler standard-lønnsart»-banner ([id].tsx) i stedet for stille 0. `splittVedMidnatt`/UF-2/F-A/F-B urørt. Rot-fiks (org-config) i [BACKLOG § Org uten standard-lønnsart](BACKLOG.md).
 
-Ingen schema/server. Device-test dekker: chip/GPS/favoritt + glemt-dag-banner + 15-min-rundede auto-timer. Etter grønn enhetstest → prod-distribusjon via TestFlight.
+Ingen schema/server. Device-test (via TestFlight #32, begge må stå før submit): (a) org uten lønnsart → banner (ikke stille 0) · (b) org m/ lønnsart + start 21:33 → ~2.45t-rad på dag-1, pause på lengste segment · + chip/GPS/favoritt + glemt-dag-transparens + 15-min-runding. **Handling før GPS-test:** prod-prosjektet mangler byggeplasser — opprett + sett geofence på sitedoc.no → Byggeplasser (What-to-Test pkt 1+3).
 
-### Kart-geofence-editor + adresse-geokoding på lokasjons-siden — IMPLEMENTERT PÅ DEVELOP 2026-06-23 (web)
-
-Geofence-oppsett for byggeplass uten georeferert tegning — **enabler for byggeplass-GPS** (L1/B2+B6 lener seg på `Byggeplass.latitude/longitude/radiusM`). I `dashbord/oppsett/lokasjoner/page.tsx` geofence-editor:
-
-- **Del A — kart-editor:** `KartVelger` (Leaflet, dynamic/SSR-av) i geofence-modalen — klikk/dra markør setter senter, sirkel = radius (live). Radius via slider (25–500, steg 25) + tall-felt (opp til 100000). lat/lng redigerbare for finjustering. «Beregn fra tegning» beholdt som alternativ bane. `settGeofence` uendret.
-- **Del B — adresse-geokoding:** adresse-felt + «Søk»-knapp (button-trigget, ikke autocomplete — Nominatim-policy) → ny `bygning.geokod`-proc (byggeplassId-scopet auth = `verifiserProsjektmedlem`, tynn proxy over delt `geokodAdresse`/rute-service). OSM-attribusjon. Nyplassert senter får default 150 m radius.
-
-i18n: 7 nye nøkler × 15 språk. **Schema uendret** (geofence-felter finnes). Server: kun geokod-proxy (~21 linjer). Typecheck: API + web rene (gjenstående web-feil = pre-eksisterende `vitest`-modul). **Auto-deploy til test** → testbart på test.sitedoc.no umiddelbart (ingen EAS).
-
-**Del C — rename «Lokasjon» → «Byggeplass» ✅ GJORT 2026-06-23 (egen commit):** rute `oppsett/lokasjoner`→`byggeplasser` + `next.config`-redirect (temporær), nav-id/href/state, 22 i18n-verdier × 15 språk (nøkkel-navn beholdt — interne), hardkodede panel-strenger. De 6 «andre» lokasjon-konseptene (malbygger-felt, maskin, prosjektlokasjon) urørt. + **A (bug-fix):** `byggeplassVelger.*` (4 nøkler) re-aligned til «byggeplass»-term (fr var uoversatt engelsk). Komponent-navn (C.4) utelatt bevisst.
+> Web-sporet (geofence-editor A+B + rename C) **DEPLOYET TIL PROD 2026-06-24** (`a558db2e`) → arkivert til [historikk-2026-06.md § Geofence-editor + rename](historikk-2026-06.md).
 
 ### B2+B6 sedel-nivå byggeplass — IMPLEMENTERT PÅ DEVELOP 2026-06-23 (mobil)
 
@@ -43,7 +35,7 @@ Sedel-nivå byggeplass på timer-dagsseddel (kode-review-vedtak 2026-06-23, [tim
 
 i18n: 3 nye nøkler × 15 språk. **Server/schema uendret** — sedel-nivå-sync var allerede klar (server propagerer `byggeplassId` til rader). Typecheck: null nye feil (gjenstående = pre-eksisterende baseline, BACKLOG «Mobil ~12 feil»).
 
-**Distribusjon:** når A.Markussen via **NESTE TestFlight prod-bygg** (etter #30) — ikke i #30. **Reload:** Expo JS/TS (Fast Refresh).
+**Distribusjon:** i **EAS prod-bygg #31** (`cc119d42`, 2026-06-24) → A.Markussen via TestFlight når `eas submit` er kjørt. **Reload:** Expo JS/TS (Fast Refresh).
 
 **Parkert (Beslutning 6-oppfølger):** per-rad byggeplass / «splitt dagen mellom byggeplasser» (krever server `syncBatch` rad-input + mobil rad-tabeller).
 

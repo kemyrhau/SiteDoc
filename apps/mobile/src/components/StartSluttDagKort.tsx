@@ -426,6 +426,66 @@ export function StartSluttDagKort() {
 const MAKS_ENKELTSKIFT_TIMER = 16;
 
 /**
+ * Glemt-dag 0-fiks (c): fordel hele-dags-fradrag (pause + reise) over
+ * midnatt-segmentene slik at intet segment får negativ arbeidstid
+ * (`brutto − fradrag ≥ 0`). Tidligere lå alt på start-segmentet — et kort
+ * start-segment (sen start nær midnatt) kunne ikke bære pause+reise →
+ * `Math.max(0, …)` kappet arbeidstimene til 0 og timene forsvant.
+ *
+ * Regler: **reise** prioriteres på start-segmentet (start-dags reise), med
+ * overflyt til lengste-først. **Pause** prioriteres på lengste segment.
+ * Begge kappes til hvert segments gjenværende kapasitet og rest omfordeles —
+ * **aldri kapp-og-mist** (cond. 2). Σ fradrag bevares så lenge
+ * Σbrutto ≥ Σfradrag → dag-total (`Σbrutto − pause`) er invariant (cond. 1).
+ * Ett segment (normalt dagskift) → alt på det ene = uendret atferd (cond. 4).
+ */
+function fordelArbeidstidFradrag(
+  bruttoTimer: number[],
+  startIndeks: number,
+  pauseTotalMin: number,
+  reiseTotalTimer: number,
+): { pauseMin: number[]; reisetidTimer: number[] } {
+  const n = bruttoTimer.length;
+  const kapasitet = bruttoTimer.slice();
+  const reisePer = new Array<number>(n).fill(0);
+  const pauseTimerPer = new Array<number>(n).fill(0);
+
+  const lengsteForst = bruttoTimer
+    .map((b, i) => ({ b, i }))
+    .sort((a, z) => z.b - a.b)
+    .map((x) => x.i);
+
+  // 1) Reise: start-segment først, så lengste-først for evt. overflyt.
+  const reiseRekke = [
+    startIndeks,
+    ...lengsteForst.filter((i) => i !== startIndeks),
+  ];
+  let restReise = Math.max(0, reiseTotalTimer);
+  for (const i of reiseRekke) {
+    if (restReise <= 0) break;
+    const ta = Math.min(restReise, kapasitet[i]);
+    reisePer[i] += ta;
+    kapasitet[i] -= ta;
+    restReise -= ta;
+  }
+
+  // 2) Pause: lengste-først, i kapasiteten som er igjen etter reise.
+  let restPauseTimer = Math.max(0, pauseTotalMin) / 60;
+  for (const i of lengsteForst) {
+    if (restPauseTimer <= 0) break;
+    const ta = Math.min(restPauseTimer, kapasitet[i]);
+    pauseTimerPer[i] += ta;
+    kapasitet[i] -= ta;
+    restPauseTimer -= ta;
+  }
+
+  return {
+    pauseMin: pauseTimerPer.map((t) => Math.round(t * 60)),
+    reisetidTimer: reisePer.map((t) => Math.round(t * 100) / 100),
+  };
+}
+
+/**
  * Generer dagsseddel-forslag fra en avsluttet arbeidsdag-økt.
  * Returnerer **start-dagens** dagsseddel-id (for navigering), eller null hvis
  * prosjekt/aktivitet ikke kan utledes offline (kaller da manuell opprettelse).
@@ -560,10 +620,26 @@ function genererForslag(
     : sisteSegmentKilde;
 
   // Midnatt-splitt (Slice 4a): én dagsseddel per kalenderdag. Normalt ett
-  // segment (dagskift); kryssende skift → flere. Reise + firma-pause kun på
-  // start-segmentet. Returner start-dagens sedel for navigering.
+  // segment (dagskift); kryssende skift → flere. Pause + reise fordeles over
+  // segmentene (pause→lengste, reise→start m/ overflyt — se
+  // fordelArbeidstidFradrag), ikke lenger blindt på start-segmentet. Returner
+  // start-dagens sedel for navigering.
   const segmenter = splittVedMidnatt(dag.startAt, effektivSluttIso);
   const deltVedMidnatt = segmenter.length > 1;
+  // Glemt-dag 0-fiks (c): fordel pause + reise over segmentene (pause→lengste,
+  // reise→start m/ overflyt) så et kort start-segment aldri klampes til 0.
+  const bruttoPerSeg = segmenter.map(
+    (s) =>
+      (new Date(s.sluttIso).getTime() - new Date(s.startIso).getTime()) /
+      3_600_000,
+  );
+  const startIdx = segmenter.findIndex((s) => s.erStartSegment);
+  const fradrag = fordelArbeidstidFradrag(
+    bruttoPerSeg,
+    startIdx >= 0 ? startIdx : 0,
+    effektivStartDag.pauseMin,
+    reisetidTimer,
+  );
   // F4: byggeplass-default-kjede → GPS (arbeidsdag) → global kontekst → ingen.
   // D2: kontekst-fallback kun når utkastets prosjekt = aktivt prosjekt (timer er
   // firma-scopet; et utkast på et annet prosjekt skal ikke arve feil byggeplass).
@@ -573,10 +649,6 @@ function genererForslag(
   let startSheetId: string | null = null;
   let blokkertSendt = false;
   segmenter.forEach((seg, i) => {
-    const pauseMin = seg.erStartSegment
-      ? hentEffektivArbeidstidLokal(orgId, new Date(`${seg.dato}T00:00:00`))
-          .pauseMin
-      : 0;
     // Ikke-siste segment ender på en automatisk midnatt-grense → "midnatt".
     // Siste segment ender på den faktiske/estimerte slutt-tiden → sisteSegmentKilde.
     const erSiste = i === segmenter.length - 1;
@@ -592,8 +664,10 @@ function genererForslag(
       byggeplassId: byggeplassDefault,
       // F-B: firmaets tidsrunding-grid for auto-rad-runding (regel fra org-setting).
       tidsrundingMinutter: regel?.tidsrundingMinutter ?? null,
-      pauseMin,
-      reisetidTimer: seg.erStartSegment ? reisetidTimer : 0,
+      // (c): fordelt pause + reise per segment (pause→lengste, reise→start
+      // m/ overflyt) — aldri hele-dags-fradrag på et kort start-segment.
+      pauseMin: fradrag.pauseMin[i],
+      reisetidTimer: fradrag.reisetidTimer[i],
       reiseLonnsartId,
       reisetidTellerOvertid: regel?.reisetidTellerOvertid ?? false,
       deltVedMidnatt,

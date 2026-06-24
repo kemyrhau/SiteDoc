@@ -16,6 +16,14 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟡 Org uten standard-lønnsart → auto-timer kan ikke føres (rot-fiks: onboarding/validering)
+
+Avdekket via glemt-dag 0-bug (device-test 2026-06-24, prod #30). Mangler et firma standard-lønnsart, kan `genererForslag` ikke gjette lønnsart → arbeids-radene droppes (`StartSluttDagKort.tsx:723`-gate). Mobil **surfacer nå** rød banner «Mangler standard-lønnsart» på auto-utkast (F-G/(d), `c6babc44`) i stedet for stille 0 — men det er **sikkerhetsnettet, ikke rot-fiksen**. Rot: hvert firma bør GARANTERT ha en standard-lønnsart. Vurder: (a) onboarding-steg som krever standard-lønnsart, (b) server-seed/default ved firma-opprettelse, (c) admin-varsel i web. Til da fanger banneret feilen for arbeideren.
+
+### 🟢 Glemt-dag 0-bug (sen start, midnatt-splitt) — FIKSET PÅ DEVELOP 2026-06-24 (`c6babc44`, i EAS #32)
+
+Glemt sent skift (start 21:33) ga 0.00t / ingen timer-rad. To rotårsaker fikset: **(c)** hele-dags pause+reise lå på start-segmentet → kort start-segment klampet arbeidstimer til 0 (`Math.max(0,…)`). Ny `fordelArbeidstidFradrag` (pause→lengste, reise→start m/ overflyt, kappet til kapasitet) bevarer dag-total-invariant, aldri kapp-og-mist. **(d)** manglende standard-lønnsart surfaces (se over). `splittVedMidnatt`/UF-2/F-A/F-B urørt. **Device-verifiseres på #32** (a: banner uten lønnsart, b: ~2.45t-rad m/ lønnsart + pause på lengste segment) før submit.
+
 ### 🔴 Auto-deploy til test rebuilder ikke web (feilaktig antakelse hele økta)
 
 Oppdaget 2026-06-24. Geofence-editor (A+B, `8deb3a4b`) + «Lokasjon»→«Byggeplass»-rename (C, `915400ac`) ble pushet til `develop` 2026-06-23/24, men **nådde aldri `test.sitedoc.no`**: navet viste fortsatt «Lokasjoner», `/dashbord/oppsett/byggeplasser` ga 404, `/lokasjoner` var urørt (verifisert via nettleser 2026-06-24). Antakelsen «testbart umiddelbart» for web-endringer — brukt gjennom hele økta — er **ugyldig**.
@@ -25,6 +33,15 @@ Oppdaget 2026-06-24. Geofence-editor (A+B, `8deb3a4b`) + «Lokasjon»→«Byggep
 **Bidiagnose (2026-06-24):** manuell `rsync -a` (uten `--delete`) lar **slettede/omdøpte filer ligge igjen** på server — `apps/web/.../oppsett/lokasjoner/` ble ikke fjernet ved C-rename (ny `byggeplasser/` la seg ved siden av). Vurder `--delete` i deploy-mekanikken (men da må `.env`-bevaring sikres — `--delete` uten excludes ville slette server-`.env`). Hører til samme rotårsak-rydding.
 
 **Umiddelbar workaround brukt:** manuell rsync `develop` → `server-ny:~/stack/sitedoc` + `sudo docker compose -f docker/docker-compose.test.yml build/up` (Kenneth, ekte TTY).
+
+### 🔴 Web-timer-UI foreldet mot T.1-modell (dagsseddel ikke lenger prosjekt-eid) + 3 web-funn
+
+Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). `DailySheet` har `@@unique([userId, dato])` og **`projectId` ble droppet** (T.1, 2026-05-11, `db-timer/prisma/schema.prisma:133-134`) — dagsseddel er firma/arbeider-eid, prosjekt ligger på rad (`SheetTimer.projectId`). Web-UI behandler den fortsatt som prosjekt-eid → modell-mismatch.
+
+- **🔴 Hovedbug (usynlig kollisjon):** «Ny dagsseddel» har prosjekt-velger + lista filtrerer «for dette prosjektet». En eksisterende `(userId,dato)`-sedel (f.eks. laget på mobil) vises derfor IKKE under et annet prosjekts filter, men opprett på samme dato kolliderer på `(userId,dato)` → «Du har allerede en dagsseddel for denne datoen» (P2002, `apps/api/.../timer/dagsseddel.ts:650`) for en sedel arbeideren ikke kan se. **Fix:** fjern prosjekt-velger på opprett, av-filtrer lista (eller filtrer via rad-prosjekt), prosjekt-på-rad. Egen sesjon — reell redesign, ikke hotfix. **Verifiser web-list-query mot kode før fiks.**
+- **🟡 Ingen forslag/auto-utkast i web:** «intelligent timeføring» (`genererForslag`) er mobil-only. Vurder web-paritet eller bevisst «kun mobil»-beslutning.
+- **❓ Byggeplass-velger deaktivert i web-timer:** verifiser tilsiktet (`useToppbarFiltre`) vs hull. Merk asymmetri: `DailySheet` har `byggeplassId` men ikke `projectId`.
+- **🔴 Advarsel ved 2+ byggeplasser:** ved oppsett av flere byggeplasser på et prosjekt, minn om at geolokasjon/geofence bør settes per byggeplass (ellers ingen GPS-auto-valg). Akseptert som OK: prosjekt-georef (Prosjektlokasjon) vs byggeplass-georef-konflikt der byggeplass-velger er deaktivert i prosjekt-innstillingen.
 
 ### 🔴 SIKKERHETS-GAP: `SheetMachine.vehicleId` (maskindrift) er IKKE org-validert
 

@@ -40,6 +40,8 @@
   "timer.autoFyll.hjelp": "Sprawdź, popraw i wyślij.",
   "timer.glemtDag.tittel": "Czy zapomniałeś zakończyć dzień?",
   "timer.glemtDag.hjelp": "Szacowany koniec: {{sluttTid}} (odgadnięty) · {{timer}} godz. w {{antall}} wierszach — sprawdź i popraw.",
+  "timer.manglerLonnsart.tittel": "Brak domyślnego rodzaju wynagrodzenia",
+  "timer.manglerLonnsart.hjelp": "Godziny nie mogły zostać wpisane automatycznie, ponieważ firma nie ma domyślnego rodzaju wynagrodzenia. Dodaj godziny ręcznie, podając prawidłowy rodzaj wynagrodzenia lub poproś administratora firmy o skonfigurowanie domyślnego rodzaju wynagrodzenia.",
   "timer.deltMidnatt.tittel": "Rozdzielenie o północy",
   "timer.deltMidnatt.hjelp": "Część zmiany, która trwała dwa dni.",
   "timer.dagFinnes.notis": "Masz już wpis na ten dzień — otworzyliśmy go. Twój projekt jest gotowy do rejestrowania czasu.",
