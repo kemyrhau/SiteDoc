@@ -34,6 +34,7 @@ import { FirmaVelger } from "../../src/components/FirmaVelger";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
 import { StartSluttDagKort } from "../../src/components/StartSluttDagKort";
+import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 
 const AKTIVE_STATUSER = ["sent", "received", "in_progress"];
 
@@ -128,10 +129,8 @@ export default function HjemSkjerm() {
   type BygningMedTegninger = { id: string; name: string; drawings: Array<{ fileType: string | null }> };
   const bygninger = bygningQuery.data as BygningMedTegninger[] | undefined;
 
-  const valgtBygningNavn = useMemo(() => {
-    if (!valgtBygningId || !bygninger) return null;
-    return bygninger.find((b) => b.id === valgtBygningId)?.name ?? null;
-  }, [valgtBygningId, bygninger]);
+  // F2: valgt byggeplass vises nå via delt ByggeplassChip (øverst i ScrollView),
+  // ikke som subtittel i header — én tappbar byggeplass-kontroll.
 
   // Sjekk om 3D-visning modulen er aktiv
   const modulQuery = trpc.modul.hentForProsjekt.useQuery(
@@ -302,11 +301,6 @@ export default function HjemSkjerm() {
             <Text className="text-lg font-semibold text-white" numberOfLines={1}>
               {valgtProsjekt?.name ?? t("hjem.velgProsjektKnapp")}
             </Text>
-            {valgtBygningNavn && (
-              <Text className="text-[10px] text-blue-200" numberOfLines={1}>
-                {valgtBygningNavn}
-              </Text>
-            )}
           </View>
           <ChevronDown size={20} color="#ffffff" />
         </Pressable>
@@ -322,6 +316,9 @@ export default function HjemSkjerm() {
           <RefreshControl refreshing={erRefreshing} onRefresh={onRefresh} />
         }
       >
+        {/* F2: global byggeplass-chip — synlig på alle relevante skjermer */}
+        <ByggeplassChip />
+
         {/* «Start dag / Slutt dag» — worker-drevet arbeidsdag → dagsseddel-forslag */}
         <StartSluttDagKort />
 
