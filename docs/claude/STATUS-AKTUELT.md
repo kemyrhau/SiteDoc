@@ -12,15 +12,16 @@ sist_verifisert_mot_kode: 2026-06-08
 >
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 
-### Mobil EAS-bunt — byggeplass-UX F1–F6 + F-A + F-B — I EAS PROD-BYGG #31 (2026-06-24)
+### Mobil EAS-bunt — byggeplass-UX F1–F6 + F-A + F-B + F-G — I EAS PROD-BYGG #32 (2026-06-24)
 
-På `main` (`a558db2e`). **EAS prod-bygg #31** fyrt av 2026-06-24 (`production`-profil, build-ID `cc119d42-e1ba-47a3-bfe9-c126ec367282`, i kø). **Når brukere via TestFlight når `eas submit` er kjørt** (Kenneths ASC-steg). Device-test av hele bunten skjer via TestFlight-intern. Samlet innhold:
+**#32 superseder #31** (`cc119d42`) — la til F-G (glemt-dag 0-fiks) på develop (`c6babc44`). #32 bygges fra `main` etter merge develop→main. **Når brukere via TestFlight når `eas submit` #32 er kjørt** (Kenneths ASC-steg). Device-test av hele bunten via TestFlight-intern. Samlet innhold:
 
 - **Mobil global byggeplass-UX (F1–F6)** — `ByggeplassKontekst` eneste kilde, header-chip (hjem/sjekklister), GPS auto-set + override, timer-default fra global, favoritter. Detaljer: [BACKLOG.md § Mobil global byggeplass-UX](BACKLOG.md). Commits `a46d58e9`/`b2ee5fb4`/`0eb2c9ef`/`d7419e6b`/`7c3ae7e3`.
 - **F-A glemt-dag-transparens** (device-test-funn 2026-06-24) — `sluttTidKilde="system"`-utkast viser konkret banner: «Estimert slutt: HH:MM (gjettet) · X.X t på N rader — sjekk og rett» (`timer/[id].tsx`). Ikke-blokkerende.
 - **F-B auto-rundings-fiks** (device-test-funn 2026-06-24, bug) — auto-genererte timer-rader rundes nå til firmaets tidsrunding-grid (15 min = 0.25 t) på **arbeidstimer** før normaltid/overtid-splitt (`StartSluttDagKort.genererForslag` + ny `rundTimerTilNarmeste`). Reise urørt; `null` → behold 2-desimal. Rettet rå-varighet (6.10/8.24 t).
+- **F-G glemt-dag 0-fiks** (device-test-funn 2026-06-24, bug — `c6babc44`) — (c) `fordelArbeidstidFradrag`: pause→lengste, reise→start m/ overflyt, kappet til kapasitet → kort start-segment klampes aldri til 0; dag-total invariant. (d) rød «Mangler standard-lønnsart»-banner ([id].tsx) i stedet for stille 0. `splittVedMidnatt`/UF-2/F-A/F-B urørt. Rot-fiks (org-config) i [BACKLOG § Org uten standard-lønnsart](BACKLOG.md).
 
-Ingen schema/server. Device-test (via TestFlight #31) dekker: chip/GPS/favoritt + glemt-dag-banner + 15-min-rundede auto-timer. **Handling før GPS-test:** prod-prosjektet mangler byggeplasser — opprett + sett geofence på sitedoc.no → Byggeplasser (What-to-Test pkt 1+3).
+Ingen schema/server. Device-test (via TestFlight #32, begge må stå før submit): (a) org uten lønnsart → banner (ikke stille 0) · (b) org m/ lønnsart + start 21:33 → ~2.45t-rad på dag-1, pause på lengste segment · + chip/GPS/favoritt + glemt-dag-transparens + 15-min-runding. **Handling før GPS-test:** prod-prosjektet mangler byggeplasser — opprett + sett geofence på sitedoc.no → Byggeplasser (What-to-Test pkt 1+3).
 
 > Web-sporet (geofence-editor A+B + rename C) **DEPLOYET TIL PROD 2026-06-24** (`a558db2e`) → arkivert til [historikk-2026-06.md § Geofence-editor + rename](historikk-2026-06.md).
 
