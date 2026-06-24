@@ -40,6 +40,8 @@
   "timer.autoFyll.hjelp": "Vérifiez, corrigez et soumettez.",
   "timer.glemtDag.tittel": "Avez-vous oublié de terminer la journée ?",
   "timer.glemtDag.hjelp": "Fin estimée : {{sluttTid}} (deviné) · {{timer}} h sur {{antall}} lignes – vérifiez et corrigez.",
+  "timer.manglerLonnsart.tittel": "Rubrique par défaut manquante",
+  "timer.manglerLonnsart.hjelp": "Les heures n'ont pas pu être renseignées automatiquement car l'entreprise n'a pas de rubrique par défaut. Ajoutez des heures manuellement avec le type de salaire correct ou demandez à un administrateur de l'entreprise de configurer un type de salaire par défaut.",
   "timer.deltMidnatt.tittel": "Split à minuit",
   "timer.deltMidnatt.hjelp": "Une partie d'un quart de travail qui a duré deux jours.",
   "timer.dagFinnes.notis": "Vous aviez déjà une entrée pour cette journée, nous l'avons ouverte. Votre projet est prêt à enregistrer du temps.",

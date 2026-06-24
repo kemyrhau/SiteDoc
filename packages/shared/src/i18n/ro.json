@@ -40,6 +40,8 @@
   "timer.autoFyll.hjelp": "Verificați, corectați și trimiteți.",
   "timer.glemtDag.tittel": "Ai uitat să închei ziua?",
   "timer.glemtDag.hjelp": "Sfârșitul estimat: {{sluttTid}} (ghicit) · {{timer}} h pe {{antall}} rânduri — revizuiți și corectați.",
+  "timer.manglerLonnsart.tittel": "Lipsește tipul de salariu implicit",
+  "timer.manglerLonnsart.hjelp": "Orele nu au putut fi completate automat, deoarece compania nu are un tip de salariu implicit. Adăugați manual orele cu tipul de salariu corect sau cereți unui administrator al companiei să configureze un tip de salariu prestabilit.",
   "timer.deltMidnatt.tittel": "Split la miezul nopții",
   "timer.deltMidnatt.hjelp": "Parte dintr-o tură care a durat două zile.",
   "timer.dagFinnes.notis": "Aveți deja o înregistrare pentru această zi - am deschis-o. Proiectul dvs. este gata de conectare.",

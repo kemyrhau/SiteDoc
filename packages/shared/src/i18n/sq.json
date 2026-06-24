@@ -40,6 +40,8 @@
   "timer.autoFyll.hjelp": "Kontrolloni, korrigjoni dhe dorëzoni.",
   "timer.glemtDag.tittel": "Keni harruar ta mbyllni ditën?",
   "timer.glemtDag.hjelp": "Fundi i përllogaritur: {{sluttTid}} (menduar) · {{timer}} orë në {{antall}} rreshta — rishikoni dhe korrigjoni.",
+  "timer.manglerLonnsart.tittel": "Mungon lloji i pagës së paracaktuar",
+  "timer.manglerLonnsart.hjelp": "Orari nuk mund të plotësohej automatikisht sepse kompania nuk ka lloj pagash të paracaktuar. Shtoni orët manualisht me llojin e saktë të pagës ose kërkoni nga një administrator i kompanisë të konfigurojë një lloj pagash të paracaktuar.",
   "timer.deltMidnatt.tittel": "Ndahet në mesnatë",
   "timer.deltMidnatt.hjelp": "Pjesë e një ndërrimi që zgjati dy ditë.",
   "timer.dagFinnes.notis": "Ju tashmë kishit një hyrje për këtë ditë - ne e hapëm atë. Projekti juaj është gati për të hyrë në kohë.",

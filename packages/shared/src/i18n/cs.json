@@ -40,6 +40,8 @@
   "timer.autoFyll.hjelp": "Zkontrolujte, opravte a odešlete.",
   "timer.glemtDag.tittel": "Zapomněli jste ukončit den?",
   "timer.glemtDag.hjelp": "Odhadovaný konec: {{sluttTid}} (předpokládaný) · {{timer}} h na {{antall}} řádcích – zkontrolujte a opravte.",
+  "timer.manglerLonnsart.tittel": "Chybí výchozí mzdový druh",
+  "timer.manglerLonnsart.hjelp": "Hodiny nebylo možné vyplnit automaticky, protože společnost nemá výchozí mzdový druh. Přidejte hodiny ručně se správným typem mzdy nebo požádejte správce společnosti, aby nastavil výchozí typ mzdy.",
   "timer.deltMidnatt.tittel": "Rozdělení o půlnoci",
   "timer.deltMidnatt.hjelp": "Část směny, která trvala dva dny.",
   "timer.dagFinnes.notis": "Pro tento den jste již měli záznam – otevřeli jsme ho. Váš projekt je připraven k přihlášení.",

@@ -40,6 +40,8 @@
   "timer.autoFyll.hjelp": "Sjekk, rett og send.",
   "timer.glemtDag.tittel": "Gjenopprettet dag — estimert",
   "timer.glemtDag.hjelp": "Estimert slutt: {{sluttTid}} (gjettet) · {{timer}} t på {{antall}} rader — sjekk og rett.",
+  "timer.manglerLonnsart.tittel": "Mangler standard-lønnsart",
+  "timer.manglerLonnsart.hjelp": "Timene kunne ikke føres automatisk fordi firmaet ikke har en standard-lønnsart. Legg til timer manuelt med riktig lønnsart, eller be firma-admin sette opp standard-lønnsart.",
   "timer.deltMidnatt.tittel": "Delt ved midnatt",
   "timer.deltMidnatt.hjelp": "Del av et skift som gikk over to dager.",
   "timer.dagFinnes.notis": "Du hadde allerede en registrering for denne dagen — vi åpnet den. Prosjektet ditt er klart til å føres.",

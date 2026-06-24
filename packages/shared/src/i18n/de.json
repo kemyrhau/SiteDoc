@@ -40,6 +40,8 @@
   "timer.autoFyll.hjelp": "Prüfen, korrigieren und absenden.",
   "timer.glemtDag.tittel": "Haben Sie vergessen, den Tag zu beenden?",
   "timer.glemtDag.hjelp": "Voraussichtliches Ende: {{sluttTid}} (geschätzt) · {{timer}} Stunden in {{antall}} Zeilen – überprüfen und korrigieren.",
+  "timer.manglerLonnsart.tittel": "Fehlende Standardlohnart",
+  "timer.manglerLonnsart.hjelp": "Stunden konnten nicht automatisch ausgefüllt werden, da das Unternehmen keine Standardlohnart hat. Fügen Sie Stunden manuell mit der richtigen Lohnart hinzu oder bitten Sie einen Unternehmensadministrator, eine Standardlohnart einzurichten.",
   "timer.deltMidnatt.tittel": "Aufteilung um Mitternacht",
   "timer.deltMidnatt.hjelp": "Teil einer Schicht, die sich über zwei Tage erstreckte.",
   "timer.dagFinnes.notis": "Für diesen Tag hatten Sie bereits einen Eintrag – wir haben ihn geöffnet. Ihr Projekt ist bereit, Zeit zu protokollieren.",

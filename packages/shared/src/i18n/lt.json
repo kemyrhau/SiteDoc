@@ -40,6 +40,8 @@
   "timer.autoFyll.hjelp": "Patikrinkite, pataisykite ir pateikite.",
   "timer.glemtDag.tittel": "Ar pamiršai užbaigti dieną?",
   "timer.glemtDag.hjelp": "Numatoma pabaiga: {{sluttTid}} (atspėjama) · {{timer}} h {{antall}} eilučių – peržiūrėkite ir pataisykite.",
+  "timer.manglerLonnsart.tittel": "Trūksta numatytojo darbo užmokesčio tipo",
+  "timer.manglerLonnsart.hjelp": "Automatiškai įrašyti valandų nepavyko, nes įmonė neturi numatytojo darbo užmokesčio tipo. Pridėkite valandas rankiniu būdu naudodami tinkamą darbo užmokesčio tipą arba paprašykite įmonės administratoriaus nustatyti numatytąjį darbo užmokesčio tipą.",
   "timer.deltMidnatt.tittel": "Pasidalijo vidurnaktį",
   "timer.deltMidnatt.hjelp": "Dalis pamainos, kuri truko dvi dienas.",
   "timer.dagFinnes.notis": "Jau turėjote šios dienos įrašą – mes jį atidarėme. Jūsų projektas paruoštas prisijungti.",

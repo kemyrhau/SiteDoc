@@ -58,6 +58,7 @@ import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektV
 import { ByggeplassVelgerModal } from "../../src/components/timer-detalj/ByggeplassVelger";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
+import { hentStandardLonnsartLokalt } from "../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
 import type {
@@ -181,6 +182,15 @@ export default function DagsseddelDetalj() {
     if (!sedel) return false;
     return sedel.status === "draft" || sedel.status === "returned";
   }, [sedel]);
+
+  // (d) Direkte-deteksjon: auto-utkast der firmaet mangler standard-lønnsart →
+  // auto-genereringen kan ikke gjette lønnsart, så arbeids-rader droppes
+  // (`genererForslag` :723-gate). Surface i stedet for stille 0 — aldri tapt,
+  // aldri feil lønn. Arbeider fører timer manuelt med riktig lønnsart.
+  const manglerStandardLonnsart = useMemo(() => {
+    if (!sedel?.autoGenerert) return false;
+    return hentStandardLonnsartLokalt(sedel.organizationId) == null;
+  }, [sedel?.autoGenerert, sedel?.organizationId]);
 
   // Topp-sum-norm = sesongjustert dagsnorm fra firma-kalender (fase-0:1041),
   // decouplet fra start/slutt-vinduet: en kort dag er gyldig og akseptert (blå),
@@ -603,6 +613,23 @@ export default function DagsseddelDetalj() {
             </Text>
           </View>
         ) : null}
+
+        {/* (d): firmaet mangler standard-lønnsart → auto-rader kunne ikke føres.
+            Surface tydelig (aldri stille 0) — arbeider fører manuelt m/ riktig
+            lønnsart. Ingen gjetting = ingen feil lønn. */}
+        {manglerStandardLonnsart && erRedigerbar && (
+          <View className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={16} color="#b91c1c" />
+              <Text className="text-sm font-semibold text-red-900">
+                {t("timer.manglerLonnsart.tittel")}
+              </Text>
+            </View>
+            <Text className="mt-1 text-xs text-red-800">
+              {t("timer.manglerLonnsart.hjelp")}
+            </Text>
+          </View>
+        )}
 
         {/* Slice 4a: «delt ved midnatt»-merking — sedelen er ett segment av et
             skift som krysset midnatt. Forklarer lave per-dag-timer som legitim
