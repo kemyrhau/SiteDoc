@@ -14,11 +14,14 @@ import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKata
 export function ByggeplassVelgerModal({
   projectId,
   valgtId,
+  gpsForeslagId,
   onVelg,
   onLukk,
 }: {
   projectId: string;
   valgtId: string | null;
+  /** F3: GPS-foreslått byggeplass — badges «du er her» på raden. */
+  gpsForeslagId?: string | null;
   onVelg: (id: string) => void;
   onLukk: () => void;
 }) {
@@ -81,8 +84,14 @@ export function ByggeplassVelgerModal({
                 <Text className="text-base text-gray-900">
                   {item.navn ?? item.id}
                 </Text>
-                {item.number != null && (
-                  <Text className="text-xs text-gray-500">#{item.number}</Text>
+                {item.id === gpsForeslagId ? (
+                  <Text className="text-xs text-green-600">
+                    {t("byggeplassVelger.gpsForeslarHer")}
+                  </Text>
+                ) : (
+                  item.number != null && (
+                    <Text className="text-xs text-gray-500">#{item.number}</Text>
+                  )
                 )}
               </View>
               {item.id === valgtId && <Check size={18} color="#1e40af" />}

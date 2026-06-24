@@ -8,7 +8,13 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import { Platform } from "react-native";
+import * as Location from "expo-location";
 import { useProsjekt } from "./ProsjektKontekst";
+import { useFirma } from "./FirmaKontekst";
+import {
+  identifiserByggeplass,
+  hentByggeplasserForProsjektLokalt,
+} from "../services/byggeplassKatalog";
 
 const BYGGEPLASS_MAP_KEY = "sitedoc_bygning_per_prosjekt";
 // F1: per-byggeplass siste-tegning-minne. Erstatter de per-prosjekt-nøklede
@@ -41,6 +47,9 @@ interface ByggeplassKontekstType {
   hentSistTegning: (byggeplassId: string) => string | null;
   /** F1: husk siste brukte tegning per byggeplass (persistert). */
   settSistTegning: (byggeplassId: string, tegningId: string) => void;
+  /** F3: GPS-identifisert byggeplass (org-vid, best-effort hvis posisjon
+   *  allerede er tillatt). null = ingen GPS / utenfor geofence. */
+  gpsByggeplassId: string | null;
 }
 
 const ByggeplassContext = createContext<ByggeplassKontekstType>({
@@ -49,6 +58,7 @@ const ByggeplassContext = createContext<ByggeplassKontekstType>({
   lasterBygningId: true,
   hentSistTegning: () => null,
   settSistTegning: () => {},
+  gpsByggeplassId: null,
 });
 
 export function useByggeplass() {
@@ -57,8 +67,10 @@ export function useByggeplass() {
 
 export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const { valgtProsjektId } = useProsjekt();
+  const { valgtFirmaId } = useFirma();
   const [bygningMap, setBygningMap] = useState<Record<string, string>>({});
   const [sistTegningMap, setSistTegningMap] = useState<Record<string, string>>({});
+  const [gpsByggeplassId, setGpsByggeplassId] = useState<string | null>(null);
   const [lasterBygningId, setLasterBygningId] = useState(true);
 
   // Last lagret bygnings-map + siste-tegning-map ved oppstart
@@ -97,6 +109,58 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     [valgtProsjektId],
   );
 
+  // F3: GPS-identifiser byggeplass (best-effort — kun hvis posisjon ALLEREDE er
+  // tillatt; prompter ikke fra provideren). D1: auto-set kun når ingen byggeplass
+  // er valgt for prosjektet OG GPS-treffet hører til prosjektet. Ellers kun
+  // forslag (gpsByggeplassId) — aldri stille bytte.
+  useEffect(() => {
+    if (!valgtProsjektId || !valgtFirmaId) {
+      setGpsByggeplassId(null);
+      return;
+    }
+    // Vent til persistert map er lastet — ellers kan auto-set overstyre et
+    // lagret valg (race mellom de to mount-effektene).
+    if (lasterBygningId) return;
+    let aktiv = true;
+    (async () => {
+      try {
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (!aktiv || !perm.granted) return;
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (!aktiv) return;
+        const bygg = identifiserByggeplass(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          valgtFirmaId,
+        );
+        if (!aktiv) return;
+        setGpsByggeplassId(bygg?.id ?? null);
+        // D1: auto-set kun når tom + GPS-treff i dette prosjektet. Funksjonell
+        // oppdatering leser NYESTE map (race-fri mot persistert lasting); rører
+        // ikke et eksisterende valg.
+        if (bygg) {
+          setBygningMap((prev) => {
+            if (prev[valgtProsjektId]) return prev;
+            const iProsjekt = hentByggeplasserForProsjektLokalt(
+              valgtProsjektId,
+            ).some((b) => b.id === bygg.id);
+            if (!iProsjekt) return prev;
+            const neste = { ...prev, [valgtProsjektId]: bygg.id };
+            lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+            return neste;
+          });
+        }
+      } catch {
+        // GPS feilet stille — chip fungerer som manuell velger.
+      }
+    })();
+    return () => {
+      aktiv = false;
+    };
+  }, [valgtProsjektId, valgtFirmaId, lasterBygningId]);
+
   const hentSistTegning = useCallback(
     (byggeplassId: string) => sistTegningMap[byggeplassId] ?? null,
     [sistTegningMap],
@@ -121,6 +185,7 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
         lasterBygningId,
         hentSistTegning,
         settSistTegning,
+        gpsByggeplassId,
       }}
     >
       {children}

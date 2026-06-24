@@ -18,7 +18,7 @@ import { ByggeplassVelgerModal } from "./timer-detalj/ByggeplassVelger";
 export function ByggeplassChip() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, settBygning } = useByggeplass();
+  const { valgtBygningId, settBygning, gpsByggeplassId } = useByggeplass();
   const [visVelger, setVisVelger] = useState(false);
 
   const byggeplasser = useMemo(
@@ -30,6 +30,14 @@ export function ByggeplassChip() {
     () => byggeplasser.find((b) => b.id === valgtBygningId) ?? null,
     [byggeplasser, valgtBygningId],
   );
+
+  // F3: GPS-forslag — kun relevant når treffet hører til dette prosjektet.
+  const gpsValgt = useMemo(
+    () => byggeplasser.find((b) => b.id === gpsByggeplassId) ?? null,
+    [byggeplasser, gpsByggeplassId],
+  );
+  const paaPlass = !!valgtBygningId && gpsByggeplassId === valgtBygningId;
+  const foreslar = !!gpsValgt && gpsByggeplassId !== valgtBygningId;
 
   // Ingen kontekst (intet prosjekt) eller ingen byggeplasser i cache → ingen chip.
   if (!valgtProsjektId || byggeplasser.length === 0) return null;
@@ -43,9 +51,21 @@ export function ByggeplassChip() {
         className="mx-4 mt-3 flex-row items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3"
       >
         <MapPin size={18} color="#1e40af" />
-        <Text className="flex-1 text-sm font-semibold text-sitedoc-primary" numberOfLines={1}>
-          {tittel}
-        </Text>
+        <View className="flex-1">
+          <Text className="text-sm font-semibold text-sitedoc-primary" numberOfLines={1}>
+            {tittel}
+          </Text>
+          {paaPlass && (
+            <Text className="text-xs text-green-600" numberOfLines={1}>
+              {t("byggeplass.gpsPaaPlass")}
+            </Text>
+          )}
+          {foreslar && (
+            <Text className="text-xs text-blue-600" numberOfLines={1}>
+              {t("byggeplass.gpsForeslar")}: {gpsValgt?.navn}
+            </Text>
+          )}
+        </View>
         <ChevronDown size={18} color="#1e40af" />
       </Pressable>
 
@@ -53,6 +73,7 @@ export function ByggeplassChip() {
         <ByggeplassVelgerModal
           projectId={valgtProsjektId}
           valgtId={valgtBygningId}
+          gpsForeslagId={gpsByggeplassId}
           onVelg={(id) => {
             settBygning(id);
             setVisVelger(false);
