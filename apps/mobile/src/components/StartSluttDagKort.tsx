@@ -16,6 +16,8 @@ import {
 } from "../db/schema";
 import { useAuth } from "../providers/AuthProvider";
 import { useFirma } from "../kontekst/FirmaKontekst";
+import { useProsjekt } from "../kontekst/ProsjektKontekst";
+import { useByggeplass } from "../kontekst/ByggeplassKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { avstandMeter, estimerReisetidMin, klassifiserReise, type ReiseKategori } from "@sitedoc/shared";
 import { haversineKm } from "../utils/geo";
@@ -104,6 +106,9 @@ export function StartSluttDagKort() {
   const router = useRouter();
   const { bruker } = useAuth();
   const { valgtFirmaId } = useFirma();
+  // F4: timer-utkast defaulter byggeplass GPS → global kontekst → ingen.
+  const { valgtProsjektId } = useProsjekt();
+  const { valgtBygningId } = useByggeplass();
   const { triggerSync, oppdaterTellere } = useTimerSync();
 
   const [aktivDag, setAktivDag] = useState<AktivDag | null>(null);
@@ -226,6 +231,8 @@ export function StartSluttDagKort() {
         sluttIso,
         lat,
         lng,
+        valgtBygningId,
+        valgtProsjektId,
         sisteSegmentKilde,
       );
       const dagsseddelId = forslag.id;
@@ -259,7 +266,7 @@ export function StartSluttDagKort() {
     } finally {
       setBehandler(false);
     }
-  }, [aktivDag, bruker?.id, valgtFirmaId, behandler, router, oppdaterTellere, triggerSync, t]);
+  }, [aktivDag, bruker?.id, valgtFirmaId, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t]);
 
   // Bekreft før avslutning — «Slutt dag» er irreversibel og genererer et
   // dagsseddel-forslag umiddelbart. Vis forløpt tid så brukeren ser hva som
@@ -436,6 +443,9 @@ function genererForslag(
   sluttIso: string,
   endLat: number | null,
   endLng: number | null,
+  // F4: global aktiv byggeplass + aktivt prosjekt (for D2-match-sjekk).
+  kontekstByggeplassId: string | null,
+  aktivtProsjektId: string | null,
   // Slice 4b-2: kilde for SISTE segments slutt-tid. Normal «Slutt dag» = "bruker"
   // (arbeider-handling); glemt-dag-gjenoppretting = "system" (estimert/gjettet).
   // Ikke-siste segmenter får alltid "midnatt" (automatisk dag-grense).
@@ -553,6 +563,12 @@ function genererForslag(
   // start-segmentet. Returner start-dagens sedel for navigering.
   const segmenter = splittVedMidnatt(dag.startAt, effektivSluttIso);
   const deltVedMidnatt = segmenter.length > 1;
+  // F4: byggeplass-default-kjede → GPS (arbeidsdag) → global kontekst → ingen.
+  // D2: kontekst-fallback kun når utkastets prosjekt = aktivt prosjekt (timer er
+  // firma-scopet; et utkast på et annet prosjekt skal ikke arve feil byggeplass).
+  const byggeplassDefault =
+    dag.byggeplassId ??
+    (valgtProsjekt.id === aktivtProsjektId ? kontekstByggeplassId : null);
   let startSheetId: string | null = null;
   let blokkertSendt = false;
   segmenter.forEach((seg, i) => {
@@ -569,9 +585,10 @@ function genererForslag(
       segment: seg,
       prosjektId: valgtProsjekt.id,
       aktivitetId: aktivitet.id,
-      // L1: samme GPS-byggeplass på alle midnatt-segmenter (én arbeidsdag = én
-      // byggeplass). Idempotens i helperen sikrer at kun NY draft får verdien.
-      byggeplassId: dag.byggeplassId,
+      // L1/F4: samme byggeplass-default (GPS → kontekst → ingen) på alle midnatt-
+      // segmenter (én arbeidsdag = én byggeplass). Idempotens i helperen sikrer
+      // at kun NY draft får verdien; per-sedel-velger kan overstyre etterpå.
+      byggeplassId: byggeplassDefault,
       pauseMin,
       reisetidTimer: seg.erStartSegment ? reisetidTimer : 0,
       reiseLonnsartId,
