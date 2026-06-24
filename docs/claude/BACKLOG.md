@@ -20,6 +20,10 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 Avdekket via glemt-dag 0-bug (device-test 2026-06-24, prod #30). Mangler et firma standard-lønnsart, kan `genererForslag` ikke gjette lønnsart → arbeids-radene droppes (`StartSluttDagKort.tsx:723`-gate). Mobil **surfacer nå** rød banner «Mangler standard-lønnsart» på auto-utkast (F-G/(d), `c6babc44`) i stedet for stille 0 — men det er **sikkerhetsnettet, ikke rot-fiksen**. Rot: hvert firma bør GARANTERT ha en standard-lønnsart. Vurder: (a) onboarding-steg som krever standard-lønnsart, (b) server-seed/default ved firma-opprettelse, (c) admin-varsel i web. Til da fanger banneret feilen for arbeideren.
 
+### 🔴 Auto-overtid matcher feil lønnsart på navn (kan treffe «Overtid lærling 50%»)
+
+Avdekket ved gjennomgang av A.Markussens lønnsart-liste (2026-06-24). Auto-genereringen velger overtid-lønnsart via navne-match `/overtid/i.test(navn) && /50/.test(navn)` (`StartSluttDagKort.tsx:824`, MVP-kommentar: «Erstattes av `Lonnsart.overtidsnivaa`»). I et firma uten en ren «Overtid 50%» — men med **«Overtid lærling 50%»** (som A.Markussen) — treffer regex'en lærling-raden. En **normal arbeider** ville da fått *lærling*-overtid = feil lønn. Påvirker ikke glemt-dag-happy-path (kort dag < norm = ingen overtid), men er en reell felltype. **Rot-fiks:** erstatt navne-match med strukturert `Lonnsart.overtidsnivaa`-felt (allerede flagget i koden) — overtid skal aldri velges på fritekst-navn. Gjelder også 100%-matchen.
+
 ### 🟢 Glemt-dag 0-bug (sen start, midnatt-splitt) — FIKSET PÅ DEVELOP 2026-06-24 (`c6babc44`, i EAS #32)
 
 Glemt sent skift (start 21:33) ga 0.00t / ingen timer-rad. To rotårsaker fikset: **(c)** hele-dags pause+reise lå på start-segmentet → kort start-segment klampet arbeidstimer til 0 (`Math.max(0,…)`). Ny `fordelArbeidstidFradrag` (pause→lengste, reise→start m/ overflyt, kappet til kapasitet) bevarer dag-total-invariant, aldri kapp-og-mist. **(d)** manglende standard-lønnsart surfaces (se over). `splittVedMidnatt`/UF-2/F-A/F-B urørt. **Device-verifiseres på #32** (a: banner uten lønnsart, b: ~2.45t-rad m/ lønnsart + pause på lengste segment) før submit.
