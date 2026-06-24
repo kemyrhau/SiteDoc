@@ -803,6 +803,7 @@
   "byggeplassVelger.ingen": "No building sites found",
   "byggeplassVelger.alle": "All building sites",
   "byggeplassVelger.gpsForeslarHer": "GPS suggests — you are here",
+  "byggeplassVelger.favoritt": "Favorite",
   "byggeplass.gpsPaaPlass": "GPS · you are on site",
   "byggeplass.gpsForeslar": "GPS suggests",
   "dashbord.venterPaaTilgangTittel": "Waiting for project access",

@@ -803,6 +803,7 @@
   "byggeplassVelger.ingen": "Inga byggarbetsplatser hittades",
   "byggeplassVelger.alle": "Alla byggarbetsplatser",
   "byggeplassVelger.gpsForeslarHer": "GPS föreslår - du är här",
+  "byggeplassVelger.favoritt": "Favorit",
   "byggeplass.gpsPaaPlass": "GPS · du är på plats",
   "byggeplass.gpsForeslar": "GPS föreslår",
   "dashbord.venterPaaTilgangTittel": "Väntar på projektåtkomst",

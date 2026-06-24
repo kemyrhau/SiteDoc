@@ -21,6 +21,9 @@ const BYGGEPLASS_MAP_KEY = "sitedoc_bygning_per_prosjekt";
 // `sitedoc_sist_tegning_{prosjektId}` i OpprettDokumentModal — flyttes hit så
 // ByggeplassKontekst er eneste kilde (mockup: «Husker siste tegning per byggeplass»).
 const SIST_TEGNING_MAP_KEY = "sitedoc_sist_tegning_per_byggeplass";
+// F6: favoritt-byggeplasser (lokalt sett, ingen server). Enhets-lokalt som de
+// øvrige nøklene (én bruker per enhet i praksis).
+const FAVORITT_KEY = "sitedoc_byggeplass_favoritter";
 
 async function lagreVerdi(key: string, value: string): Promise<void> {
   if (Platform.OS === "web") {
@@ -50,6 +53,10 @@ interface ByggeplassKontekstType {
   /** F3: GPS-identifisert byggeplass (org-vid, best-effort hvis posisjon
    *  allerede er tillatt). null = ingen GPS / utenfor geofence. */
   gpsByggeplassId: string | null;
+  /** F6: favoritt-byggeplass-IDer (lokalt). */
+  favorittIder: string[];
+  /** F6: veksle favoritt-status for en byggeplass (persistert). */
+  toggleFavoritt: (byggeplassId: string) => void;
 }
 
 const ByggeplassContext = createContext<ByggeplassKontekstType>({
@@ -59,6 +66,8 @@ const ByggeplassContext = createContext<ByggeplassKontekstType>({
   hentSistTegning: () => null,
   settSistTegning: () => {},
   gpsByggeplassId: null,
+  favorittIder: [],
+  toggleFavoritt: () => {},
 });
 
 export function useByggeplass() {
@@ -71,18 +80,21 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const [bygningMap, setBygningMap] = useState<Record<string, string>>({});
   const [sistTegningMap, setSistTegningMap] = useState<Record<string, string>>({});
   const [gpsByggeplassId, setGpsByggeplassId] = useState<string | null>(null);
+  const [favorittIder, setFavorittIder] = useState<string[]>([]);
   const [lasterBygningId, setLasterBygningId] = useState(true);
 
-  // Last lagret bygnings-map + siste-tegning-map ved oppstart
+  // Last lagret bygnings-map + siste-tegning-map + favoritter ved oppstart
   useEffect(() => {
     async function lastLagret() {
       try {
-        const [lagretBygning, lagretTegning] = await Promise.all([
+        const [lagretBygning, lagretTegning, lagretFavoritt] = await Promise.all([
           hentVerdi(BYGGEPLASS_MAP_KEY),
           hentVerdi(SIST_TEGNING_MAP_KEY),
+          hentVerdi(FAVORITT_KEY),
         ]);
         if (lagretBygning) setBygningMap(JSON.parse(lagretBygning));
         if (lagretTegning) setSistTegningMap(JSON.parse(lagretTegning));
+        if (lagretFavoritt) setFavorittIder(JSON.parse(lagretFavoritt));
       } catch {
         // Ignorer feil
       } finally {
@@ -177,6 +189,16 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const toggleFavoritt = useCallback((byggeplassId: string) => {
+    setFavorittIder((prev) => {
+      const neste = prev.includes(byggeplassId)
+        ? prev.filter((id) => id !== byggeplassId)
+        : [...prev, byggeplassId];
+      lagreVerdi(FAVORITT_KEY, JSON.stringify(neste)).catch(() => {});
+      return neste;
+    });
+  }, []);
+
   return (
     <ByggeplassContext.Provider
       value={{
@@ -186,6 +208,8 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
         hentSistTegning,
         settSistTegning,
         gpsByggeplassId,
+        favorittIder,
+        toggleFavoritt,
       }}
     >
       {children}

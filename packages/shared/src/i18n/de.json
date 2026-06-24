@@ -803,6 +803,7 @@
   "byggeplassVelger.ingen": "Keine Baustellen gefunden",
   "byggeplassVelger.alle": "Alle Baustellen",
   "byggeplassVelger.gpsForeslarHer": "GPS deutet darauf hin, dass Sie hier sind",
+  "byggeplassVelger.favoritt": "Favoritin",
   "byggeplass.gpsPaaPlass": "GPS · Sie sind vor Ort",
   "byggeplass.gpsForeslar": "GPS schlägt vor",
   "dashbord.venterPaaTilgangTittel": "Wartet auf Projektzugriff",

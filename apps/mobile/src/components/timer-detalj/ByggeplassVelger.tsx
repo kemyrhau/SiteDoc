@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import { View, Text, Pressable, Modal, FlatList, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { X, Check } from "lucide-react-native";
+import { X, Check, Star } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKatalog";
+import { useByggeplass } from "../../kontekst/ByggeplassKontekst";
 
 /**
  * Byggeplass-velger-modal for sedel-nivå byggeplass (L1, B6 sedel-nivå-runde).
@@ -26,6 +27,7 @@ export function ByggeplassVelgerModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
+  const { favorittIder, toggleFavoritt } = useByggeplass();
   const [sok, setSok] = useState("");
 
   const byggeplasser = useMemo(() => {
@@ -34,14 +36,19 @@ export function ByggeplassVelgerModal({
   }, [projectId]);
 
   const filtrert = useMemo(() => {
-    if (!sok.trim()) return byggeplasser;
-    const q = sok.toLowerCase();
-    return byggeplasser.filter(
-      (b) =>
-        (b.navn ?? "").toLowerCase().includes(q) ||
-        String(b.number ?? "").includes(q),
-    );
-  }, [byggeplasser, sok]);
+    const q = sok.trim().toLowerCase();
+    const treff = q
+      ? byggeplasser.filter(
+          (b) =>
+            (b.navn ?? "").toLowerCase().includes(q) ||
+            String(b.number ?? "").includes(q),
+        )
+      : byggeplasser;
+    // F6: sortér favoritter → GPS-forslag → resten (stabil innen hver gruppe).
+    const rang = (id: string) =>
+      favorittIder.includes(id) ? 0 : id === gpsForeslagId ? 1 : 2;
+    return [...treff].sort((a, b) => rang(a.id) - rang(b.id));
+  }, [byggeplasser, sok, favorittIder, gpsForeslagId]);
 
   return (
     <Modal
@@ -88,12 +95,28 @@ export function ByggeplassVelgerModal({
                   <Text className="text-xs text-green-600">
                     {t("byggeplassVelger.gpsForeslarHer")}
                   </Text>
+                ) : favorittIder.includes(item.id) ? (
+                  <Text className="text-xs text-amber-600">
+                    {t("byggeplassVelger.favoritt")}
+                  </Text>
                 ) : (
                   item.number != null && (
                     <Text className="text-xs text-gray-500">#{item.number}</Text>
                   )
                 )}
               </View>
+              {/* F6: stjerne-toggle (egen trykk-flate — velger ikke byggeplass) */}
+              <Pressable
+                onPress={() => toggleFavoritt(item.id)}
+                hitSlop={10}
+                className="px-1"
+              >
+                <Star
+                  size={18}
+                  color="#d97706"
+                  fill={favorittIder.includes(item.id) ? "#d97706" : "none"}
+                />
+              </Pressable>
               {item.id === valgtId && <Check size={18} color="#1e40af" />}
             </Pressable>
           )}
