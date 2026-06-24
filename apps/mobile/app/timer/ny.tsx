@@ -189,6 +189,9 @@ export default function NyDagsseddelSide() {
         dato,
         prosjektId: valgtProsjekt.id,
         aktivitetId: valgtAktivitet.id,
+        // Manuell oppretting har ingen GPS-kontekst → sedel-nivå byggeplass settes
+        // via velgeren på detalj-skjermen (L1). Eksplisitt null.
+        byggeplassId: null,
         beskrivelse: beskrivelse.trim() || null,
       });
 

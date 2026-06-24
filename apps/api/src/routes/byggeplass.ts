@@ -9,6 +9,7 @@ import {
 } from "../trpc/tilgangskontroll";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { recomputeRadForByggeplass } from "../services/reisetidMatrise";
+import { geokodAdresse } from "../services/rute-service";
 
 export const byggeplassRouter = router({
   // R4: member-lesbar liste over firmaets byggeplasser (mobil-cache for
@@ -169,6 +170,26 @@ export const byggeplassRouter = router({
       // (fire-and-forget; null-koord → stale-rydding i recomputeMatrise).
       recomputeRadForByggeplass(input.byggeplassId);
       return oppdatert;
+    }),
+
+  // Geokod adresse → koordinater. Tynn proxy over delt rute-service (Nominatim
+  // med identifiserende User-Agent + timeout + null-ved-feil; policy-kontroll
+  // sentralt, ikke i browser). byggeplassId-scopet auth (speiler settGeofence) —
+  // adresse-søk i geofence-editoren. Lagrer ingenting; returnerer { lat, lng } | null.
+  geokod: protectedProcedure
+    .input(
+      z.object({
+        byggeplassId: z.string().uuid(),
+        adresse: z.string().min(1).max(500),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const byggeplass = await ctx.prisma.byggeplass.findUniqueOrThrow({
+        where: { id: input.byggeplassId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
+      return geokodAdresse(input.adresse);
     }),
 
   // Publiser byggeplass

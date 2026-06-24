@@ -34,6 +34,10 @@ export interface FinnEllerOpprettArgs {
   dato: string;
   prosjektId: string;
   aktivitetId: string;
+  /** Sedel-nivå GPS-byggeplass (L1). Settes kun ved auto-utkast («Slutt dag»);
+   *  manuell oppretting sender null. Skrives kun på NY sedel — eksisterende
+   *  (idempotens-treff/UF-1-append) røres aldri. */
+  byggeplassId?: string | null;
   /** Sedel-nivå-felt ved NY-oppretting. Utelatt → arbeidstid-prefill (manuell). */
   startAt?: string | null;
   endAt?: string | null;
@@ -104,7 +108,7 @@ export function finnEllerOpprettDagsseddel(
       projectId: args.prosjektId,
       aktivitetId: args.aktivitetId,
       avdelingId: null,
-      byggeplassId: null,
+      byggeplassId: args.byggeplassId ?? null,
       dato: args.dato,
       startAt: startAt ?? null,
       endAt: endAt ?? null,

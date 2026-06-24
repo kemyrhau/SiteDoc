@@ -1,7 +1,7 @@
 ---
 name: timer-gps-prosjekt-utredning
 status: agenda
-sist_verifisert_mot_kode: 2026-06-13
+sist_verifisert_mot_kode: 2026-06-23
 ---
 
 # Utredning: Timer-registrering, GPS, prosjekt-tilknytning og dag-flyt
@@ -33,6 +33,45 @@ som en *etikett* arbeider velger. De kolliderer når valgt prosjekt ≠ faktisk 
 - **Ingen** validering av valgt prosjekt mot GPS-posisjon i dag.
 - Dagsseddel-status: `draft → sent → accepted` (`draft/returned` redigerbar, `sent/accepted` låst). Innsending = `draft→sent`; leder-attestering = `→accepted`.
 - T.8 i dag: innsjekk = **hint** i prosjekt-velger; arbeider oppretter dagsseddel + rader **eksplisitt**; innsjekk trigger **aldri** auto-dagsseddel/rader.
+
+---
+
+## 2026-06-23 — kode-review + justering
+
+Uavhengig kode-sjekk (Opus) av tilstanden siden 2026-06-13. Endrer status på Beslutning 2–6 og fastsetter neste byggbare runde.
+
+### Verifiserte funn
+
+- **L1 byggeplass-GPS ferdig.** `byggeplassLocal`-cache med navn + `lat/lng/radiusM` (alle nullable) — `apps/mobile/src/db/schema.ts:364`. `identifiserByggeplass()` Haversine point-in-circle — `byggeplassKatalog.ts:79`. Server `bygning.hentForFirma` leverer `latitude/longitude/radiusM` → caches lokalt (`byggeplassKatalog.ts:30,61`). Byggeplass **identifiseres kun ved Start** (`StartSluttDagKort.tsx:168`, i `startDag`) — ved slutt fanges kun `endLat/endLng`, ingen ny byggeplass-deteksjon. **Én arbeidsdag = én byggeplass.**
+- **Auto-utkast (Slice 3) live** — `genererForslag()` → `opprettDagsseddelForSegment` lager draft + auto-rader (`StartSluttDagKort.tsx`).
+- **R4 reisetid-matrise live** (`reisetidMatriseKatalog.ts`, `resolverPrimaerByggeplass`) · **UF-1 multi-prosjekt live** (GPS velger nærmeste blant flere prosjekter, `StartSluttDagKort.tsx:455-462`).
+- **Sedel-nivå byggeplass: server + sync ferdig.** `dagsseddelLocal.byggeplassId` finnes (`schema.ts:90`); mobil-sync sender det (`timerSync.ts:223`); `syncBatch`-input tar imot på sedel-nivå (`dagsseddel.ts:3026`) og **propagerer til alle rader** ved skriving (`createMany`: `byggeplassId: lokal.byggeplassId ?? null` — `dagsseddel.ts:3369` timer, `:3398` maskin). **Eneste manglende ledning:** `opprettDagsseddelForSegment` hardkoder `byggeplassId: null` (`dagsseddelOpprett.ts:107`) → GPS-byggeplassen på `arbeidsdagLocal` kopieres ikke inn i auto-utkastet.
+- **Per-rad byggeplass: IKKE server-klart.** `syncBatch` rad-input (`timer`/`maskiner`) har kun `projectId`, ikke `byggeplassId` (`dagsseddel.ts:3039-3073`) — byggeplass kommer kun fra sedel-nivå og propageres ned. `sheetTimerLocal`/`sheetMachineLocal` (mobil rad-tabeller) mangler `byggeplassId` (kun `projectId`, `schema.ts:126,155`). Ekte per-rad krever derfor **både** server-input-utvidelse **og** mobil rad-tabeller.
+- **§15/innsjekk-utsjekk + OS-region-monitoring: ikke bygd** (0 treff på `innsjekk`/`utsjekk`/`mannskap`/`startGeofencing`/region-monitoring). Geofence i dag er kun Haversine point-in-circle ved Start, ikke kontinuerlig OS-overvåking.
+
+### Justert status, Beslutning 2–6
+
+| Beslutning | Status etter review |
+|---|---|
+| **B2** — prosjekt-mismatch advisory | **Byggbar nå** (sedel-nivå). Byggeplass-deteksjon finnes; mangler å koble soft advarsel. |
+| **B3** — dag-flyt-overganger (ankomst/avreise) | Trenger **OS-geofence** (region monitoring) — ikke bygd. |
+| **B4** — §15-presence vs lønnstid | Lønns-laget **live** (auto-utkast); **§15-presence gated** (Fase 4 Mannskap + juridisk sign-off). |
+| **B5** — autoritet arbeider-valg vs GPS | = **dagens oppførsel** (arbeider-valg autoritativt, GPS advarer/foreslår, jf. G1). |
+| **B6** — multi-byggeplass-dager | = **byggeplass-registrering**, fases (sedel-nivå nå, per-rad/splitt-dag som oppfølger). |
+
+### Vedtak — B2+B6 sedel-nivå-runde ✅ IMPLEMENTERT PÅ DEVELOP 2026-06-23 (mobil)
+
+1. **Kopier `arbeidsdag.byggeplassId` → draft** — `FinnEllerOpprettArgs.byggeplassId` + insert (`dagsseddelOpprett.ts`); threadet via `genererForslag`/`opprettDagsseddelForSegment`; `ny.tsx` sender `null`. Kun NYE drafts (UF-1-append urørt).
+2. **Byggeplass-velger** (`ByggeplassVelgerModal`, filtrert på `sedel.projectId`) + blå sedel-topp-oversikt m/ pil-til-høyre på `[id].tsx`. Redundant gruppe-header-visning for primærprosjektet fjernet.
+3. **Mismatch-advisory** (soft, ikke-blokkerende) når GPS-byggeplass tilhører annet prosjekt enn valgt.
+
+Sedel-nivå var allerede server-klart (sync + propagering) → ren mobil-runde, ingen schema/server. i18n: 3 nøkler × 15 språk. Distribueres via NESTE TestFlight prod-bygg (ikke #30). Se [STATUS-AKTUELT.md § B2+B6 sedel-nivå byggeplass](STATUS-AKTUELT.md).
+
+### Parkert (eksplisitt)
+
+- **Per-rad byggeplass / «splitt dagen mellom byggeplasser»** (prosjekt-101-behovet) = **Beslutning 6-oppfølger.** Krever server `syncBatch` rad-input + mobil rad-tabeller (`sheetTimerLocal`/`sheetMachineLocal.byggeplassId`). Begrunnelse: `@@unique(userId, dato)` på `DailySheet` → sedel-nivå = én byggeplass/dag; splitt-dagen krever per-rad-modell.
+- **Underprosjekt** (dokumentflyt-utledet, distinkt fra byggeplass) · **multi-leg reise** → Fase 3.
+- **§15-presence + OS-region-monitoring** → Fase 4 Mannskap + juridisk sign-off.
 
 ---
 

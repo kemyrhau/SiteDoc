@@ -18,36 +18,11 @@ import * as Location from "expo-location";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 import { useFirma } from "../kontekst/FirmaKontekst";
+import { useByggeplass } from "../kontekst/ByggeplassKontekst";
 
-// Persistering av sist brukt bygning/tegning per prosjekt
-const BYGNING_KEY_PREFIX = "sitedoc_sist_bygning_";
-const TEGNING_KEY_PREFIX = "sitedoc_sist_tegning_";
-
-async function lagreVerdi(key: string, value: string): Promise<void> {
-  if (Platform.OS === "web") {
-    localStorage.setItem(key, value);
-  } else {
-    const SecureStore = await import("expo-secure-store");
-    await SecureStore.setItemAsync(key, value);
-  }
-}
-
-async function hentVerdi(key: string): Promise<string | null> {
-  if (Platform.OS === "web") {
-    return localStorage.getItem(key);
-  }
-  const SecureStore = await import("expo-secure-store");
-  return SecureStore.getItemAsync(key);
-}
-
-async function slettVerdi(key: string): Promise<void> {
-  if (Platform.OS === "web") {
-    localStorage.removeItem(key);
-  } else {
-    const SecureStore = await import("expo-secure-store");
-    await SecureStore.deleteItemAsync(key);
-  }
-}
+// F1 (Option B): sist-brukt byggeplass/tegning leses fra og skrives til
+// ByggeplassKontekst (eneste kilde) — modalen har ikke lenger egne
+// `sitedoc_sist_*`-nøkler. Global aktiv byggeplass settes av chip/GPS, ikke her.
 
 /** Sjekk om GPS-koordinat er innenfor tegningens georeferanse-bounds */
 function erInnenforBounds(
@@ -156,6 +131,13 @@ export function OpprettDokumentModal({
   const erOppgave = kategori === "oppgave";
   const erFraSjekkliste = !!sjekklisteId && !!sjekklisteFeltId;
   const { valgtProsjektId } = useProsjekt();
+  // F1 (Option B): les default byggeplass + per-byggeplass siste-tegning fra
+  // global kontekst. Modalen kaller IKKE settBygning (ingen stille nav-bytte).
+  const {
+    valgtBygningId: kontekstBygningId,
+    hentSistTegning,
+    settSistTegning,
+  } = useByggeplass();
 
   const [emne, setEmne] = useState("");
   const [prioritet, setPrioritet] = useState<Prioritet>("medium");
@@ -185,9 +167,12 @@ export function OpprettDokumentModal({
     harKjørtLokasjon.current = true;
 
     (async () => {
-      // Hent sist brukte fra lagring
-      const lagretBygningId = await hentVerdi(`${BYGNING_KEY_PREFIX}${valgtProsjektId}`);
-      const lagretTegningId = await hentVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`);
+      // F1: default byggeplass = global kontekst; default tegning = per-byggeplass
+      // siste-tegning-minne (erstatter de gamle per-prosjekt-nøklene).
+      const lagretBygningId = kontekstBygningId;
+      const lagretTegningId = kontekstBygningId
+        ? hentSistTegning(kontekstBygningId)
+        : null;
 
       // Forsøk GPS
       try {
@@ -224,7 +209,8 @@ export function OpprettDokumentModal({
         setLokasjonKilde("lagret");
       }
     })();
-  }, [synlig, valgtProsjektId, alleTegninger.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [synlig, valgtProsjektId, alleTegninger.length, kontekstBygningId]);
 
   // Nullstill ref når modal lukkes
   useEffect(() => {
@@ -423,10 +409,10 @@ export function OpprettDokumentModal({
       return;
     }
 
-    // Lagre sist brukte bygning/tegning
-    if (valgtProsjektId) {
-      if (valgtBygningId) lagreVerdi(`${BYGNING_KEY_PREFIX}${valgtProsjektId}`, valgtBygningId);
-      if (valgtTegningId) lagreVerdi(`${TEGNING_KEY_PREFIX}${valgtProsjektId}`, valgtTegningId);
+    // F1 (Option B): husk siste tegning per byggeplass i felles kontekst.
+    // Skriver IKKE global aktiv byggeplass (settBygning) — det er chip/GPS sin jobb.
+    if (valgtBygningId && valgtTegningId) {
+      settSistTegning(valgtBygningId, valgtTegningId);
     }
 
     if (kategori === "sjekkliste") {
@@ -464,6 +450,7 @@ export function OpprettDokumentModal({
     emne,
     valgtBygningId,
     valgtTegningId,
+    settSistTegning,
     prioritet,
     opprettSjekkliste,
     opprettOppgave,

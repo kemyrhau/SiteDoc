@@ -16,6 +16,16 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🔴 Auto-deploy til test rebuilder ikke web (feilaktig antakelse hele økta)
+
+Oppdaget 2026-06-24. Geofence-editor (A+B, `8deb3a4b`) + «Lokasjon»→«Byggeplass»-rename (C, `915400ac`) ble pushet til `develop` 2026-06-23/24, men **nådde aldri `test.sitedoc.no`**: navet viste fortsatt «Lokasjoner», `/dashbord/oppsett/byggeplasser` ga 404, `/lokasjoner` var urørt (verifisert via nettleser 2026-06-24). Antakelsen «testbart umiddelbart» for web-endringer — brukt gjennom hele økta — er **ugyldig**.
+
+**Undersøk rotårsak:** om auto-deploy-til-test (a) **ikke trigges** av push til `develop`, (b) **ikke rebuilder web-imaget** (Docker-cache — jf. [DOCKER-NOTES § rsync FØR build](../../docker/DOCKER-NOTES.md): cache-bygg ~6 s vs ekte ~268 s, og rsync må skje først), eller (c) **ikke finnes** i det hele tatt. Korriger CLAUDE.md «Auto-deploy til test» (+ infrastruktur.md) om antakelsen er feil.
+
+**Bidiagnose (2026-06-24):** manuell `rsync -a` (uten `--delete`) lar **slettede/omdøpte filer ligge igjen** på server — `apps/web/.../oppsett/lokasjoner/` ble ikke fjernet ved C-rename (ny `byggeplasser/` la seg ved siden av). Vurder `--delete` i deploy-mekanikken (men da må `.env`-bevaring sikres — `--delete` uten excludes ville slette server-`.env`). Hører til samme rotårsak-rydding.
+
+**Umiddelbar workaround brukt:** manuell rsync `develop` → `server-ny:~/stack/sitedoc` + `sudo docker compose -f docker/docker-compose.test.yml build/up` (Kenneth, ekte TTY).
+
 ### 🔴 SIKKERHETS-GAP: `SheetMachine.vehicleId` (maskindrift) er IKKE org-validert
 
 Oppdaget under Timer Fase 2-dual-review (2026-06-09). `SheetMachine.vehicleId` (drift/maskinfører-timer) skrives på `syncBatch` (`dagsseddel.ts` maskin-createMany), `redigerSedelRader` og `splittRad` **uten** å validere at maskinen tilhører firmaet. Samme cross-firma-lekkasje-klasse som §2.D dekket for det nye `SheetTimer.vehicleId` — men dette er **pre-eksisterende** (gjelder maskinbruk-raden, ikke kostnadsbæreren), og ble bevisst holdt utenfor Fase 2-scope.
@@ -89,6 +99,33 @@ Fanget under enhetstest av timer-redesignet på fysisk enhet. Samles til en dedi
   2. **Visuell forsterkning øverst** (blå) av aktivt prosjekt + byggeplass.
   3. **Føre timer per byggeplass** for å dele arbeidsdagen innen ett prosjekt (eks. «101 — småprosjekter» med mange byggeplasser).
   **Geo-anker:** geolokalisering ligger på **byggeplass** (via tegninger), ikke prosjekt → GPS kan på sikt foreslå byggeplass. Krever sannsynligvis å utvide mobil-cache + sedel-/rad-modell med byggeplass/underprosjekt-tilknytning (avklares i byggeplass-strategi-fasen).
+  **Status (kode-review 2026-06-23 — se [timer-gps-prosjekt-utredning.md § 2026-06-23](timer-gps-prosjekt-utredning.md)):** = **Beslutning 6** i utredningen, fases:
+  - **✅ Sedel-nivå byggeplass (én/dag): IMPLEMENTERT PÅ DEVELOP 2026-06-23 (mobil).** Punkt 1–2 levert: `arbeidsdag.byggeplassId` kopieres inn i auto-utkast (`dagsseddelOpprett.ts`/`StartSluttDagKort.tsx`), `ByggeplassVelgerModal` (filtrert på `sedel.projectId`) + blå sedel-topp + soft mismatch-advisory på `[id].tsx`. Ingen schema/server (sedel-nivå-sync alt klar). Distribueres via NESTE TestFlight prod-bygg (ikke #30). Se [STATUS-AKTUELT.md](STATUS-AKTUELT.md).
+  - **🟡 Per-rad / «splitt dagen mellom byggeplasser» (punkt 3): Beslutning 6-oppfølger (ikke startet).** Krever server `syncBatch` rad-input + mobil rad-tabeller (`sheetTimerLocal`/`sheetMachineLocal.byggeplassId`) — `@@unique(userId, dato)` gjør sedel-nivå = én byggeplass/dag, så splitt-dagen krever per-rad-modell.
+
+- **🟢 Mobil global byggeplass-UX — LANDET PÅ DEVELOP 2026-06-24 (F1–F6 ✅).** Alle faser bygget + dual-review per fase. **Gjenstår: EAS-bygg for enhetstest** av hele kjeden (mobil-runde, ingen auto-deploy). Etter verifisert enhetstest → klar for prod-distribusjon via TestFlight.
+
+  **Bakgrunn (gjennomgang 2026-06-23):** web har global toppbar-byggeplass-velger (`useToppbarFiltre` + `ByggeplassVelger.tsx`), mens mobil hadde byggeplass fragmentert i **tre** flater: (A) `ByggeplassKontekst` (`bygningMap[prosjektId]`, paneler/tegninger/3D/hjem), (B) timer-sedel `dagsseddelLocal.byggeplassId` (frakoblet), (C) `OpprettDokumentModal` egen lokal state + `sitedoc_sist_bygning_{prosjektId}` (ignorerer A). GPS (`identifiserByggeplass`) matet kun timer.
+
+  **Verifisert tilstand:** global prosjekt-kontekst finnes alt (`ProsjektKontekst`, speiler web → F5 oppfylt). Byggeplass-kontekst finnes (`ByggeplassKontekst.tsx`, per-prosjekt) — skal konsolideres til eneste kilde.
+
+  **Vedtatt målmodell:** `ByggeplassKontekst` = **eneste globale kilde** for aktiv byggeplass (per aktivt prosjekt). Alle flater leser/skriver den. Header-chip på tvers av skjermer (hjem/timer/sjekklister/tegninger). GPS auto-set + synlig override. Timer-utkast **defaulter** fra global byggeplass (per-sedel-override beholdt). Per-byggeplass siste-tegning-minne. Favoritter.
+
+  **Faser (dual-review hver):**
+  - **✅ F1 (høyest risiko) — GJORT 2026-06-24 (develop).** Konsoliderte `ByggeplassKontekst` → eneste kilde: la til `sistTegningPerByggeplass: {byggeplassId → tegningId}` (`hentSistTegning`/`settSistTegning`); foldet `OpprettDokumentModal` (C) til Option B (leser default byggeplass fra `valgtBygningId` + tegning fra `hentSistTegning`, skriver `settSistTegning` ved opprett, droppet egne `sitedoc_sist_*`-nøkler, **kaller ikke** `settBygning` — ingen stille nav-bytte). GPS-tegnings-bounds-logikk bevart. Tre flater verifisert urørt (A additiv, B timer urørt, C logikk intakt).
+  - **✅ F2 — GJORT 2026-06-24 (develop).** Delt `ByggeplassChip` (byggeplass-only, gjenbruk `ByggeplassVelgerModal` bottom-sheet, `settBygning` ved valg) på **hjem** (erstattet redundant header-subtittel) + **sjekkliste/index**. To designvalg: (1) **timer får IKKE global chip** — timer er firma-scopet/kryss-prosjekt mens chip er per aktivt prosjekt; «Gjelder timer» realiseres via **F4** (sedel defaulter fra global byggeplass når `sedel.projectId === valgtProsjektId`, D2) + eksisterende per-sedel-chip på `timer/[id].tsx` (B6). (2) **tegninger (lokasjoner)** har alt byggeplass-bytte i header (ActionSheet/Alert) — chip droppet der; **harmonisering** av native picker → delt bottom-sheet-velger = liten oppfølger (ikke gjort).
+  - **✅ F3 — GJORT 2026-06-24 (develop).** GPS-deteksjon i `ByggeplassKontekst` (`gpsByggeplassId`, `getForegroundPermissionsAsync` — prompter ikke fra provider). D1: auto-set kun når tom + GPS-treff i prosjektet (race-fri funksjonell map-oppdatering, rører aldri eksisterende valg). Chip-status «GPS · du er på plass»/«GPS foreslår: [navn]»; velger-badge «GPS foreslår — du er her». Kryss-prosjekt-GPS filtreres bort. **Begrensning:** GPS detekteres én gang per prosjekt-/firma-aktivering (ikke ved fokus/kontinuerlig) — kontinuerlig OS-geofence parkert til Fase 4.
+  - **✅ F4 — GJORT 2026-06-24 (develop).** Timer auto-utkast-default: `dag.byggeplassId` (GPS) → global kontekst → ingen (`StartSluttDagKort.genererForslag`). D2 håndhevet: kontekst-fallback kun når utkastets prosjekt = aktivt prosjekt. Per-sedel-velger (B6) overstyrer fritt; F4 rører kun ny-draft-default (idempotent).
+  - **✅ F6 (lokal) — GJORT 2026-06-24 (develop).** Favoritt-byggeplasser: `favorittIder` + `toggleFavoritt` i `ByggeplassKontekst` (persistert `sitedoc_byggeplass_favoritter`, enhets-lokalt, ingen server). Stjerne-toggle (egen trykk-flate) + sortering favoritter→GPS-forslag→resten + «Favoritt»-subtittel i `ByggeplassVelgerModal` (delt av chip + timer). Cross-device-favoritter = senere server-oppfølger.
+
+  **Beslutninger:**
+  - **D1** — GPS auto-setter global byggeplass **kun når ingen er valgt** for prosjektet; ellers soft-forslag (aldri stille bytte midt i økt).
+  - **D2** — timer defaulter fra global byggeplass **kun når `sedel.projectId === valgtProsjektId`** (to-produkt-grensen: timer org-scopet, paneler prosjekt-scopet — samme `byggeplassLocal`-entitet).
+  - **D3** — utsett navnerydding «bygning»→«byggeplass» i kontekst-internals (`valgtBygningId`/`settBygning`/`bygningMap`) — intern identifikator, egen churn-runde.
+
+  **Schema/server:** ingen (alt finnes: `byggeplassLocal`, `dagsseddelLocal.byggeplassId`). i18n: chip-label, GPS-status, «Favoritt», «Husker siste tegning», «Manuelt bytte» (nb+en+generate).
+
+  **Kryss-ref:** [byggeplass-strategi.md](byggeplass-strategi.md) (byggeplass på tvers av moduler) + Byggeplass/underprosjekt-timeregistrering-saken over (Beslutning 6 / per-rad-oppfølger).
 
 - **🟡 TestFlight for test-varianten (A.Markussen-distribusjon).** Test-bygget bruker bundle `com.kemyrhau.sitedoc.test` med `distribution: internal` (ad-hoc) → kun enheter med registrert UDID kan installere (i dag kun Kenneths). TestFlight (mange testere uten UDID-registrering) er **kun** satt opp for prod-profilen (bundle `com.kemyrhau.sitedoc`, ASC-app 6760205962). For å gi A.Markussen testtilgang uten UDID-registrering kreves enten (a) egen ASC-app for `.test`-bundlen + `submit.test`-profil i `eas.json`, eller (b) bruk prod-profil-bygg + `eas submit` til TestFlight. Avklares før bredere pilotering. Se [eas-build-veileder.md § App variants](eas-build-veileder.md).
 

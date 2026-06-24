@@ -39,6 +39,13 @@ const nextConfig = {
   async redirects() {
     return [
       {
+        // Del C: «Lokasjon» → «Byggeplass»-rename. Temporær redirect i
+        // overgangsperiode (bokmerker/lenker).
+        source: "/dashbord/oppsett/lokasjoner",
+        destination: "/dashbord/oppsett/byggeplasser",
+        permanent: false,
+      },
+      {
         source: "/dashbord/prosjekter/:id",
         destination: "/dashbord/:id",
         permanent: false,

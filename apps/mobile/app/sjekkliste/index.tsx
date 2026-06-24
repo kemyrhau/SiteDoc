@@ -16,6 +16,7 @@ import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
+import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 
 interface MalData {
   id: string;
@@ -112,6 +113,9 @@ export default function SjekklisteListe() {
           <Plus size={24} color="#ffffff" />
         </Pressable>
       </View>
+
+      {/* F2: global byggeplass-chip */}
+      <ByggeplassChip />
 
       {sjekklisteQuery.isLoading ? (
         <View className="flex-1 items-center justify-center">

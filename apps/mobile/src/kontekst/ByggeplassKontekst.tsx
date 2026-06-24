@@ -8,9 +8,22 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import { Platform } from "react-native";
+import * as Location from "expo-location";
 import { useProsjekt } from "./ProsjektKontekst";
+import { useFirma } from "./FirmaKontekst";
+import {
+  identifiserByggeplass,
+  hentByggeplasserForProsjektLokalt,
+} from "../services/byggeplassKatalog";
 
 const BYGGEPLASS_MAP_KEY = "sitedoc_bygning_per_prosjekt";
+// F1: per-byggeplass siste-tegning-minne. Erstatter de per-prosjekt-nøklede
+// `sitedoc_sist_tegning_{prosjektId}` i OpprettDokumentModal — flyttes hit så
+// ByggeplassKontekst er eneste kilde (mockup: «Husker siste tegning per byggeplass»).
+const SIST_TEGNING_MAP_KEY = "sitedoc_sist_tegning_per_byggeplass";
+// F6: favoritt-byggeplasser (lokalt sett, ingen server). Enhets-lokalt som de
+// øvrige nøklene (én bruker per enhet i praksis).
+const FAVORITT_KEY = "sitedoc_byggeplass_favoritter";
 
 async function lagreVerdi(key: string, value: string): Promise<void> {
   if (Platform.OS === "web") {
@@ -33,12 +46,28 @@ interface ByggeplassKontekstType {
   valgtBygningId: string | null;
   settBygning: (id: string) => void;
   lasterBygningId: boolean;
+  /** F1: siste brukte tegning for en gitt byggeplass (null hvis ingen). */
+  hentSistTegning: (byggeplassId: string) => string | null;
+  /** F1: husk siste brukte tegning per byggeplass (persistert). */
+  settSistTegning: (byggeplassId: string, tegningId: string) => void;
+  /** F3: GPS-identifisert byggeplass (org-vid, best-effort hvis posisjon
+   *  allerede er tillatt). null = ingen GPS / utenfor geofence. */
+  gpsByggeplassId: string | null;
+  /** F6: favoritt-byggeplass-IDer (lokalt). */
+  favorittIder: string[];
+  /** F6: veksle favoritt-status for en byggeplass (persistert). */
+  toggleFavoritt: (byggeplassId: string) => void;
 }
 
 const ByggeplassContext = createContext<ByggeplassKontekstType>({
   valgtBygningId: null,
   settBygning: () => {},
   lasterBygningId: true,
+  hentSistTegning: () => null,
+  settSistTegning: () => {},
+  gpsByggeplassId: null,
+  favorittIder: [],
+  toggleFavoritt: () => {},
 });
 
 export function useByggeplass() {
@@ -47,24 +76,32 @@ export function useByggeplass() {
 
 export function ByggeplassProvider({ children }: { children: ReactNode }) {
   const { valgtProsjektId } = useProsjekt();
+  const { valgtFirmaId } = useFirma();
   const [bygningMap, setBygningMap] = useState<Record<string, string>>({});
+  const [sistTegningMap, setSistTegningMap] = useState<Record<string, string>>({});
+  const [gpsByggeplassId, setGpsByggeplassId] = useState<string | null>(null);
+  const [favorittIder, setFavorittIder] = useState<string[]>([]);
   const [lasterBygningId, setLasterBygningId] = useState(true);
 
-  // Last lagret bygnings-map ved oppstart
+  // Last lagret bygnings-map + siste-tegning-map + favoritter ved oppstart
   useEffect(() => {
-    async function lastLagretBygninger() {
+    async function lastLagret() {
       try {
-        const lagret = await hentVerdi(BYGGEPLASS_MAP_KEY);
-        if (lagret) {
-          setBygningMap(JSON.parse(lagret));
-        }
+        const [lagretBygning, lagretTegning, lagretFavoritt] = await Promise.all([
+          hentVerdi(BYGGEPLASS_MAP_KEY),
+          hentVerdi(SIST_TEGNING_MAP_KEY),
+          hentVerdi(FAVORITT_KEY),
+        ]);
+        if (lagretBygning) setBygningMap(JSON.parse(lagretBygning));
+        if (lagretTegning) setSistTegningMap(JSON.parse(lagretTegning));
+        if (lagretFavoritt) setFavorittIder(JSON.parse(lagretFavoritt));
       } catch {
         // Ignorer feil
       } finally {
         setLasterBygningId(false);
       }
     }
-    lastLagretBygninger();
+    lastLagret();
   }, []);
 
   const valgtBygningId = useMemo(
@@ -84,8 +121,97 @@ export function ByggeplassProvider({ children }: { children: ReactNode }) {
     [valgtProsjektId],
   );
 
+  // F3: GPS-identifiser byggeplass (best-effort — kun hvis posisjon ALLEREDE er
+  // tillatt; prompter ikke fra provideren). D1: auto-set kun når ingen byggeplass
+  // er valgt for prosjektet OG GPS-treffet hører til prosjektet. Ellers kun
+  // forslag (gpsByggeplassId) — aldri stille bytte.
+  useEffect(() => {
+    if (!valgtProsjektId || !valgtFirmaId) {
+      setGpsByggeplassId(null);
+      return;
+    }
+    // Vent til persistert map er lastet — ellers kan auto-set overstyre et
+    // lagret valg (race mellom de to mount-effektene).
+    if (lasterBygningId) return;
+    let aktiv = true;
+    (async () => {
+      try {
+        const perm = await Location.getForegroundPermissionsAsync();
+        if (!aktiv || !perm.granted) return;
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        if (!aktiv) return;
+        const bygg = identifiserByggeplass(
+          pos.coords.latitude,
+          pos.coords.longitude,
+          valgtFirmaId,
+        );
+        if (!aktiv) return;
+        setGpsByggeplassId(bygg?.id ?? null);
+        // D1: auto-set kun når tom + GPS-treff i dette prosjektet. Funksjonell
+        // oppdatering leser NYESTE map (race-fri mot persistert lasting); rører
+        // ikke et eksisterende valg.
+        if (bygg) {
+          setBygningMap((prev) => {
+            if (prev[valgtProsjektId]) return prev;
+            const iProsjekt = hentByggeplasserForProsjektLokalt(
+              valgtProsjektId,
+            ).some((b) => b.id === bygg.id);
+            if (!iProsjekt) return prev;
+            const neste = { ...prev, [valgtProsjektId]: bygg.id };
+            lagreVerdi(BYGGEPLASS_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+            return neste;
+          });
+        }
+      } catch {
+        // GPS feilet stille — chip fungerer som manuell velger.
+      }
+    })();
+    return () => {
+      aktiv = false;
+    };
+  }, [valgtProsjektId, valgtFirmaId, lasterBygningId]);
+
+  const hentSistTegning = useCallback(
+    (byggeplassId: string) => sistTegningMap[byggeplassId] ?? null,
+    [sistTegningMap],
+  );
+
+  const settSistTegning = useCallback(
+    (byggeplassId: string, tegningId: string) => {
+      setSistTegningMap((prev) => {
+        const neste = { ...prev, [byggeplassId]: tegningId };
+        lagreVerdi(SIST_TEGNING_MAP_KEY, JSON.stringify(neste)).catch(() => {});
+        return neste;
+      });
+    },
+    [],
+  );
+
+  const toggleFavoritt = useCallback((byggeplassId: string) => {
+    setFavorittIder((prev) => {
+      const neste = prev.includes(byggeplassId)
+        ? prev.filter((id) => id !== byggeplassId)
+        : [...prev, byggeplassId];
+      lagreVerdi(FAVORITT_KEY, JSON.stringify(neste)).catch(() => {});
+      return neste;
+    });
+  }, []);
+
   return (
-    <ByggeplassContext.Provider value={{ valgtBygningId, settBygning, lasterBygningId }}>
+    <ByggeplassContext.Provider
+      value={{
+        valgtBygningId,
+        settBygning,
+        lasterBygningId,
+        hentSistTegning,
+        settSistTegning,
+        gpsByggeplassId,
+        favorittIder,
+        toggleFavoritt,
+      }}
+    >
       {children}
     </ByggeplassContext.Provider>
   );

@@ -135,7 +135,7 @@ export default function ProsjektOversikt() {
             {
               label: t("onboarding.lokasjoner"),
               ferdig: onboardingStatus.harLokasjon,
-              href: "/dashbord/oppsett/lokasjoner",
+              href: "/dashbord/oppsett/byggeplasser",
             },
             ...(onboardingStatus.timerAktiv
               ? [

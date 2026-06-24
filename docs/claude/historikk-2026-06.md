@@ -8,6 +8,21 @@ sist_verifisert_mot_kode: 2026-06-05
 
 Arkiv av ferdigstilt arbeid. Aktivt arbeid ligger i [STATUS-AKTUELT.md](STATUS-AKTUELT.md).
 
+## § Timer-bunke (UF-0…UF-4, fiks A, tre-veis-farge, U1–U3, T.11, Funn #2, tidshjul/keyboard/wording) — DEPLOYET TIL PROD 2026-06-23 (prod-merge `13dc110e`)
+
+Samlet deploy av all develop-akkumulering siden 06-21 (`32b88bd7 → 13dc110e`). Server (API+web) live på prod nå; mobil-UX distribueres via TestFlight prod-bygg #30 (validering pågår, ikke hos arbeidere ennå).
+
+**Server — live på prod (API+web):**
+- **Funn #2 — kvittering-vedlegg på tillegg-rader** (`6370d8d1`): mobil capture/offline-kø + web-visning + server-API + sync, ny tabell `SheetTilleggVedlegg` (svak FK). **Migrering `20260621140000_sheet_tillegg_vedlegg` anvendt på prod** (eneste ventende db-timer-migrering; `@sitedoc/db` hadde ingen).
+- **T.11 — maskinførerbevis soft-flagg** (`fcd15701`): kompetanse-informert maskin-registrering, rent avledet server-side (ingen migrering). Service `maskinforerbevis.ts` + `kompetanse.minMaskinstatus` + `manglerMaskinforerbevis` på attestering-queryene.
+- **UF-4 — recall** (`49251fd2`): `timer.dagsseddel.gjenaapneDagsseddel` (eier-only, kun `sent`, `accepted`→feil, `sent→draft` + nullstiller rad-attestasjoner til pending). Ingen migrering (eksisterende enum).
+- **Tre-veis topp-sum-farge — web** (`bc3804f9`, `dashbord/timer/[id]/page.tsx`) + **T.12 web-parity** (`8f92f0ea`, `TimerRadDialog` fritekst).
+
+**Mobil — når brukere via TestFlight prod-bygg #30 (IKKE prod-server):** UF-0 (delt `finnEllerOpprettDagsseddel` — fikser duplikat-dagsseddel/sync-stuck + konsoliderer opprettelses-inngangene) · UF-1 (multi-økt-append) · UF-2 (glemt-dag-cap, `kappGlemtDagSlutt`) · UF-3 (kladd-påminnelse) · UF-4 recall-knapp · **fiks A** (sync gift-isolasjon, `timerSync.ts` — per-item-fallback + transient/permanent-skille, fjernet `return`-abort) · tre-veis-farge · tidshjul-modal (`FraTilTidFelt.tsx`) + keyboard-«Ferdig» (`TastaturFerdig`) + grønn-boks-wording · U1–U3 (topp-sum/v2-layout · `VelgerFelt`-chevron · `TidFeltBoks`/finpuss) · build-footer · lønnsart-hint.
+- **EAS prod-bygg #30** (`404e1707`, commit `13dc110e`, SDK 54, build number 30), submission `8b3f8ec1` **Submitted/Success 2026-06-23 20:17** (etter Apple-avtale-signering + resubmit) — bygg #30 i App Store Connect, venter på Apple TestFlight-prosessering. **A.Markussen-validering starter når bygget er tilgjengelig i TestFlight.**
+
+**Verifisering (prod, 2026-06-23):** db-timer-migrering anvendt («All migrations successfully applied») + tabell bekreftet (`to_regclass('timer.sheet_tillegg_vedlegg')` → finnes) · `gjenaapneDagsseddel` → **405** (rute live) · **innlogget prod-dashboard data-intakt** (sitedoc.no laster prosjekter/faggrupper/maler/medlemmer som admin — ikke anonym).
+
 ## § Slice 1–4 + reisetid R1–R4 + byggeplass-GPS L1 — DEPLOYET TIL PROD 2026-06-21 (prod-merge `32b88bd7`)
 
 Stor samlet deploy av all develop-akkumulering siden 06-10 (`aed86d0f → 32b88bd7`). **SERVER (API+web) KUN** — se mobil-forbeholdet nederst.

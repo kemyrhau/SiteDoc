@@ -272,7 +272,7 @@ export function TegningerPanel() {
       />
 
       <div className="flex flex-col gap-0.5">
-        {/* Alle lokasjoner */}
+        {/* Alle byggeplasser */}
         <button
           onClick={() => velgByggeplass(null)}
           className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors ${
@@ -455,7 +455,7 @@ export function TegningerPanel() {
           <div className="flex flex-col items-center gap-2 py-6 text-center">
             <Building2 className="h-8 w-8 text-gray-300" />
             <p className="text-sm text-gray-400">
-              {sok ? "Ingen treff" : "Ingen lokasjoner"}
+              {sok ? "Ingen treff" : "Ingen byggeplasser"}
             </p>
           </div>
         )}

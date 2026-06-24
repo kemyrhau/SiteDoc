@@ -30,6 +30,7 @@ import {
   ChevronDown,
   ChevronRight,
   Info,
+  MapPin,
   X,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -54,10 +55,11 @@ import { MaskinSeksjon } from "../../src/components/timer-detalj/MaskinSeksjon";
 import { ArbeidstidSeksjon } from "../../src/components/timer-detalj/ArbeidstidSeksjon";
 import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBanner";
 import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektVelger";
+import { ByggeplassVelgerModal } from "../../src/components/timer-detalj/ByggeplassVelger";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
-import { formatNorskDato, formatTidspunkt } from "../../src/utils/dato";
+import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
 import type {
   Sedel,
   TimerRad,
@@ -90,6 +92,8 @@ export default function DagsseddelDetalj() {
   // Gruppen blir varig så snart første rad er lagt til i den.
   const [ekstraProsjektIder, setEkstraProsjektIder] = useState<string[]>([]);
   const [visLeggTilProsjekt, setVisLeggTilProsjekt] = useState(false);
+  // L1 / B6 sedel-nivå: byggeplass-velger for aktivt prosjekt.
+  const [visByggeplassVelger, setVisByggeplassVelger] = useState(false);
   // UF-0: find-or-open fra «+ Ny» — subtil notis om at dagen alt fantes.
   const [visAapnetNotis, setVisAapnetNotis] = useState(
     params.aapnetEksisterende === "1",
@@ -212,6 +216,81 @@ export default function DagsseddelDetalj() {
     for (const id of ekstraProsjektIder) ider.add(id);
     return Array.from(ider);
   }, [sedel, timerRader, tilleggRader, maskinRader, ekstraProsjektIder]);
+
+  // L1 / B6: aktivt prosjekt-navn (sedelens primærprosjekt) for blå topp-oversikt.
+  const sedelProsjektNavn = useMemo(() => {
+    if (!sedel) return "";
+    const p = finnProsjektLokalt(sedel.projectId);
+    if (!p) return sedel.projectId;
+    return `${p.projectNumber ? p.projectNumber + " — " : ""}${p.name}`;
+  }, [sedel]);
+
+  // L1 / B6 sedel-nivå byggeplass: navn til topp-oversikten + mismatch-deteksjon.
+  // 1) Eksplisitt sedel-byggeplass (GPS ved «Start dag», eller valgt i velgeren)
+  //    → navn via id. Mismatch = byggeplassens prosjekt ≠ sedelens prosjekt
+  //    (GPS plasserte arbeider på en byggeplass under et annet prosjekt enn valgt).
+  // 2) Ellers: entydig byggeplass for sedelens prosjekt (nøyaktig én i cache).
+  const byggeplassInfo = useMemo(() => {
+    const db = hentDatabase();
+    if (!db || !sedel) return { navn: null as string | null, mismatch: null as
+      | { byggeplass: string; gpsProsjekt: string; sedelProsjekt: string }
+      | null };
+    if (sedel.byggeplassId) {
+      const bp = db
+        .select({
+          navn: byggeplassLocal.navn,
+          projectId: byggeplassLocal.projectId,
+        })
+        .from(byggeplassLocal)
+        .where(eq(byggeplassLocal.id, sedel.byggeplassId))
+        .all()[0];
+      if (bp) {
+        const navn = bp.navn ?? null;
+        const mismatch =
+          bp.projectId !== sedel.projectId
+            ? {
+                byggeplass: navn ?? sedel.byggeplassId,
+                gpsProsjekt:
+                  finnProsjektLokalt(bp.projectId)?.name ?? bp.projectId,
+                sedelProsjekt:
+                  finnProsjektLokalt(sedel.projectId)?.name ?? sedel.projectId,
+              }
+            : null;
+        return { navn, mismatch };
+      }
+    }
+    const perProsjekt = db
+      .select({ navn: byggeplassLocal.navn })
+      .from(byggeplassLocal)
+      .where(eq(byggeplassLocal.projectId, sedel.projectId))
+      .all();
+    if (perProsjekt.length === 1 && perProsjekt[0].navn) {
+      return { navn: perProsjekt[0].navn, mismatch: null };
+    }
+    return { navn: null, mismatch: null };
+  }, [sedel]);
+
+  // L1 / B6: skriv valgt byggeplass på sedelen (sedel-nivå) + merk pending.
+  // Sync-laget sender byggeplassId på sedel-nivå; server propagerer til rader.
+  const velgByggeplass = useCallback(
+    (byggeplassId: string) => {
+      const db = hentDatabase();
+      if (!db || !sedel) return;
+      db.update(dagsseddelLocal)
+        .set({
+          byggeplassId,
+          sistEndretLokalt: Date.now(),
+          syncStatus: "pending",
+        })
+        .where(eq(dagsseddelLocal.id, sheetId))
+        .run();
+      setVisByggeplassVelger(false);
+      oppdaterTellere();
+      void triggerSync();
+      lesData();
+    },
+    [sedel, sheetId, oppdaterTellere, triggerSync, lesData],
+  );
 
   const markerEndretOgLes = useCallback(() => {
     const db = hentDatabase();
@@ -376,6 +455,46 @@ export default function DagsseddelDetalj() {
       </View>
 
       <ScrollView className="flex-1" contentContainerClassName="pb-24">
+        {/* L1 / B6 sedel-nivå: blå topp-oversikt — aktivt prosjekt + byggeplass.
+            Pil-til-høyre åpner byggeplass-velger (kun redigerbar). Byggeplass er
+            sedel-nivå (én/dag); per-rad/«splitt dagen» er Beslutning 6-oppfølger. */}
+        <Pressable
+          disabled={!erRedigerbar}
+          onPress={() => setVisByggeplassVelger(true)}
+          className="mx-4 mt-4 flex-row items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3"
+        >
+          <MapPin size={18} color="#1e40af" />
+          <View className="flex-1">
+            <Text className="text-sm font-semibold text-sitedoc-primary">
+              {sedelProsjektNavn}
+            </Text>
+            <Text className="text-xs text-gray-600">
+              {byggeplassInfo.navn ?? t("timer.byggeplass.velg")}
+            </Text>
+          </View>
+          {erRedigerbar && <ChevronRight size={18} color="#1e40af" />}
+        </Pressable>
+
+        {/* Del 3: myk, ikke-blokkerende advisory — GPS-byggeplassen tilhører et
+            annet prosjekt enn det valgte (G1: arbeider-valg er autoritativt). */}
+        {byggeplassInfo.mismatch && (
+          <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={16} color="#b45309" />
+              <Text className="text-sm font-semibold text-amber-900">
+                {t("timer.byggeplassMismatch.tittel")}
+              </Text>
+            </View>
+            <Text className="mt-1 text-xs text-amber-800">
+              {t("timer.byggeplassMismatch.tekst", {
+                byggeplass: byggeplassInfo.mismatch.byggeplass,
+                gpsProsjekt: byggeplassInfo.mismatch.gpsProsjekt,
+                sedelProsjekt: byggeplassInfo.mismatch.sedelProsjekt,
+              })}
+            </Text>
+          </View>
+        )}
+
         {/* UF-0: subtil notis — dagen fantes alt, find-or-open åpnet den. */}
         {visAapnetNotis && (
           <View className="mx-4 mt-4 flex-row items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
@@ -450,9 +569,28 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
-        {/* Slice 3: auto-fyll-banner — kun på auto-genererte drafts. Forsvinner
-            automatisk ved innsending (gated på status === "draft"). */}
-        {sedel.status === "draft" && sedel.autoGenerert && (
+        {/* F-A: glemt-dag (sluttTidKilde="system") — konkret estimat-banner så
+            arbeider ser gjettet slutt + total + antall rader. Ikke-blokkerende. */}
+        {sedel.status === "draft" &&
+        sedel.autoGenerert &&
+        sedel.sluttTidKilde === "system" ? (
+          <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={16} color="#b45309" />
+              <Text className="text-sm font-semibold text-amber-900">
+                {t("timer.glemtDag.tittel")}
+              </Text>
+            </View>
+            <Text className="mt-1 text-xs text-amber-800">
+              {t("timer.glemtDag.hjelp", {
+                sluttTid: isoTidspunktTilHHMM(sedel.endAt),
+                timer: totaltimer.toFixed(1),
+                antall: timerRader.length,
+              })}
+            </Text>
+          </View>
+        ) : sedel.status === "draft" && sedel.autoGenerert ? (
+          /* Slice 3: generisk auto-fyll-banner (bruker-bekreftet slutt). */
           <View className="mx-4 mt-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
             <View className="flex-row items-center gap-2">
               <Sparkles size={16} color="#1e40af" />
@@ -464,7 +602,7 @@ export default function DagsseddelDetalj() {
               {t("timer.autoFyll.hjelp")}
             </Text>
           </View>
-        )}
+        ) : null}
 
         {/* Slice 4a: «delt ved midnatt»-merking — sedelen er ett segment av et
             skift som krysset midnatt. Forklarer lave per-dag-timer som legitim
@@ -502,7 +640,6 @@ export default function DagsseddelDetalj() {
             sheetId={sheetId}
             organizationId={sedel.organizationId}
             sedelProjectId={sedel.projectId}
-            sedelByggeplassId={sedel.byggeplassId ?? null}
             dato={sedel.dato}
             defaultAktivitetId={sedel.aktivitetId ?? null}
             harEquipmentCache={harEquipmentCache}
@@ -595,6 +732,15 @@ export default function DagsseddelDetalj() {
           onLukk={() => setVisLeggTilProsjekt(false)}
         />
       )}
+
+      {visByggeplassVelger && (
+        <ByggeplassVelgerModal
+          projectId={sedel.projectId}
+          valgtId={sedel.byggeplassId ?? null}
+          onVelg={velgByggeplass}
+          onLukk={() => setVisByggeplassVelger(false)}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -605,7 +751,6 @@ function ProsjektGruppe({
   sheetId,
   organizationId,
   sedelProjectId,
-  sedelByggeplassId,
   dato,
   defaultAktivitetId,
   harEquipmentCache,
@@ -622,10 +767,6 @@ function ProsjektGruppe({
   organizationId: string;
   /** Fallback for rader uten per-rad-projectId (pre-T7-3b1-data). */
   sedelProjectId: string;
-  /** U1: GPS-fanget byggeplass-id på sedelen — fallback i gruppe-header for
-   *  sedelens primærprosjekt når byggeplassLocal ikke er entydig per prosjekt.
-   *  Navnet resolves via byggeplassLocal (id → navn). */
-  sedelByggeplassId: string | null;
   dato: string;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
@@ -641,13 +782,14 @@ function ProsjektGruppe({
   // U1: v2 gruppe-header kan kollapses (skjuler ECO-bukets, beholder sum).
   const [kollapset, setKollapset] = useState(false);
 
-  // U1: byggeplass i gruppe-header. Vis byggeplassLocal.navn KUN når prosjektet
-  // har nøyaktig én byggeplass i cache (unngå å vise feil ved flere). Fallback
-  // til sedelens GPS-fangede byggeplass på primærprosjektet.
+  // Byggeplass i gruppe-header. Primærprosjektets byggeplass vises i sedel-
+  // toppen (L1/B6 blå topp-oversikt) → ikke dupliser her. For SEKUNDÆR-grupper
+  // (rad-nivå multi-prosjekt) vises byggeplassLocal.navn KUN når prosjektet har
+  // nøyaktig én byggeplass i cache (unngå å vise feil ved flere).
   const byggeplassNavn = useMemo(() => {
     const db = hentDatabase();
     if (!db) return null;
-    // Primær: entydig byggeplass for prosjektet (nøyaktig én i cache).
+    if (projectId === sedelProjectId) return null;
     const perProsjekt = db
       .select({ navn: byggeplassLocal.navn })
       .from(byggeplassLocal)
@@ -656,17 +798,8 @@ function ProsjektGruppe({
     if (perProsjekt.length === 1 && perProsjekt[0].navn) {
       return perProsjekt[0].navn;
     }
-    // Fallback: GPS-fanget byggeplass på sedelens primærprosjekt (id → navn).
-    if (projectId === sedelProjectId && sedelByggeplassId) {
-      const treff = db
-        .select({ navn: byggeplassLocal.navn })
-        .from(byggeplassLocal)
-        .where(eq(byggeplassLocal.id, sedelByggeplassId))
-        .all()[0];
-      if (treff?.navn) return treff.navn;
-    }
     return null;
-  }, [projectId, sedelProjectId, sedelByggeplassId]);
+  }, [projectId, sedelProjectId]);
 
   // Subtotal i gruppe-header: sum av prosjektets arbeidstimer. Maskin holdes
   // utenfor (vises som «herav» i hver ECO-bucket).

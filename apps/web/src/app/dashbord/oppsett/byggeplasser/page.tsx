@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Select, Textarea, Modal, Spinner, EmptyState } from "@sitedoc/ui";
@@ -25,9 +26,16 @@ import {
   Loader2,
   MapPin,
   ExternalLink,
+  Search,
 } from "lucide-react";
 import { GeoReferanseEditor } from "@/components/GeoReferanseEditor";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+
+// Leaflet-kart må lastes klient-side (window-avhengig) — SSR av.
+const KartVelgerDynamic = dynamic(
+  () => import("@/components/KartVelger").then((m) => m.KartVelger),
+  { ssr: false },
+);
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                               */
@@ -815,6 +823,9 @@ export default function LokasjonerSide() {
   const [geoLng, setGeoLng] = useState("");
   const [geoRadius, setGeoRadius] = useState("");
   const [geoFeil, setGeoFeil] = useState<string | null>(null);
+  // Del B: adresse-søk (button-trigget geokoding, ikke autocomplete)
+  const [geoAdresse, setGeoAdresse] = useState("");
+  const [geokodMelding, setGeokodMelding] = useState<string | null>(null);
 
   const beregnGeofenceMutation = trpc.bygning.beregnGeofence.useMutation({
     onSuccess: (data: { lat: number; lng: number; radiusM: number }) => {
@@ -834,6 +845,28 @@ export default function LokasjonerSide() {
     },
     onError: (feil: { message: string }) => setGeoFeil(feil.message),
   });
+
+  // Del B: geokod adresse → koordinater via server-proxy (bygning.geokod).
+  const geokodMutation = trpc.bygning.geokod.useMutation({
+    onSuccess: (treff: { lat: number; lng: number } | null) => {
+      if (treff) {
+        setGeoLat(String(treff.lat));
+        setGeoLng(String(treff.lng));
+        // Gi nyplassert senter en brukbar default-radius (jf. 150 m ellers) så
+        // sirkelen vises straks. Rører ikke en allerede satt radius.
+        setGeoRadius((forrige) => (forrige.trim() === "" ? "150" : forrige));
+        setGeokodMelding(null);
+      } else {
+        setGeokodMelding(t("lokasjoner.geofence.geokodIngen"));
+      }
+    },
+    onError: (feil: { message: string }) => setGeokodMelding(feil.message),
+  });
+
+  // Parsing for kart-props (NaN→null) — påvirker ikke lagre-logikken under.
+  const geoLatNum = geoLat.trim() === "" ? NaN : Number(geoLat.replace(",", "."));
+  const geoLngNum = geoLng.trim() === "" ? NaN : Number(geoLng.replace(",", "."));
+  const geoRadiusNum = geoRadius.trim() === "" ? NaN : Number(geoRadius);
 
   const valgtLokasjon = lokasjoner?.find((b) => b.id === valgtId) ?? null;
   const upubliserte = lokasjoner?.filter((b) => b.status === "unpublished") ?? [];
@@ -876,6 +909,8 @@ export default function LokasjonerSide() {
     setGeoLng(lok.longitude != null ? String(lok.longitude) : "");
     setGeoRadius(lok.radiusM != null ? String(lok.radiusM) : "");
     setGeoFeil(null);
+    setGeoAdresse("");
+    setGeokodMelding(null);
     setVisEndreNavnModal(true);
     setVisMerMeny(false);
   }
@@ -1151,7 +1186,67 @@ export default function LokasjonerSide() {
           <p className="mb-3 text-xs text-gray-500">
             {t("lokasjoner.geofence.beskrivelse")}
           </p>
-          <div className="mb-3 grid grid-cols-3 gap-2">
+
+          {/* Del B: adresse-søk → geokoding (button-trigget, ikke autocomplete) */}
+          <div className="mb-3">
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <Input
+                  label={t("lokasjoner.geofence.adresse")}
+                  value={geoAdresse}
+                  onChange={(e) => {
+                    setGeoAdresse(e.target.value);
+                    setGeokodMelding(null);
+                  }}
+                  placeholder={t("lokasjoner.geofence.adressePlaceholder")}
+                />
+              </div>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() =>
+                  valgtId &&
+                  geokodMutation.mutate({
+                    byggeplassId: valgtId,
+                    adresse: geoAdresse.trim(),
+                  })
+                }
+                disabled={geoAdresse.trim().length === 0 || geokodMutation.isPending}
+              >
+                <Search className="mr-1.5 h-4 w-4" />
+                {geokodMutation.isPending
+                  ? t("lokasjoner.geofence.sokLaster")
+                  : t("lokasjoner.geofence.sok")}
+              </Button>
+            </div>
+            {geokodMelding && (
+              <p className="mt-1 text-xs text-sitedoc-error">{geokodMelding}</p>
+            )}
+            <p className="mt-1 text-xs text-gray-400">
+              {t("lokasjoner.geofence.attribusjon")}
+            </p>
+          </div>
+
+          {/* Del A: kart — klikk/dra markør for senter; sirkel = radius (live) */}
+          <div className="mb-3">
+            <KartVelgerDynamic
+              latitude={Number.isFinite(geoLatNum) ? geoLatNum : null}
+              longitude={Number.isFinite(geoLngNum) ? geoLngNum : null}
+              radiusM={Number.isFinite(geoRadiusNum) ? geoRadiusNum : null}
+              onVelgPosisjon={(nyLat, nyLng) => {
+                setGeoLat(String(nyLat));
+                setGeoLng(String(nyLng));
+                setGeoRadius((forrige) => (forrige.trim() === "" ? "150" : forrige));
+              }}
+              hoyde="260px"
+            />
+            <p className="mt-1 text-xs text-gray-400">
+              {t("lokasjoner.geofence.kartHjelp")}
+            </p>
+          </div>
+
+          {/* lat/lng — redigerbar for finjustering (driver kartet via props) */}
+          <div className="mb-3 grid grid-cols-2 gap-2">
             <Input
               label={t("lokasjoner.geofence.lat")}
               value={geoLat}
@@ -1164,12 +1259,32 @@ export default function LokasjonerSide() {
               onChange={(e) => setGeoLng(e.target.value)}
               placeholder="—"
             />
-            <Input
-              label={t("lokasjoner.geofence.radius")}
-              value={geoRadius}
-              onChange={(e) => setGeoRadius(e.target.value)}
-              placeholder="—"
-            />
+          </div>
+
+          {/* Radius — slider (25–500) + tall-felt (opp til 100000); sirkel live */}
+          <div className="mb-3">
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("lokasjoner.geofence.radius")}
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="range"
+                min={25}
+                max={500}
+                step={25}
+                value={Number.isFinite(geoRadiusNum) ? Math.min(geoRadiusNum, 500) : 150}
+                onChange={(e) => setGeoRadius(e.target.value)}
+                className="flex-1 accent-sitedoc-primary"
+              />
+              <div className="w-28">
+                <Input
+                  type="number"
+                  value={geoRadius}
+                  onChange={(e) => setGeoRadius(e.target.value)}
+                  placeholder="—"
+                />
+              </div>
+            </div>
           </div>
           {geoFeil && (
             <p className="mb-2 text-xs text-sitedoc-error">{geoFeil}</p>
