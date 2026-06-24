@@ -16,6 +16,16 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🔴 Auto-deploy til test rebuilder ikke web (feilaktig antakelse hele økta)
+
+Oppdaget 2026-06-24. Geofence-editor (A+B, `8deb3a4b`) + «Lokasjon»→«Byggeplass»-rename (C, `915400ac`) ble pushet til `develop` 2026-06-23/24, men **nådde aldri `test.sitedoc.no`**: navet viste fortsatt «Lokasjoner», `/dashbord/oppsett/byggeplasser` ga 404, `/lokasjoner` var urørt (verifisert via nettleser 2026-06-24). Antakelsen «testbart umiddelbart» for web-endringer — brukt gjennom hele økta — er **ugyldig**.
+
+**Undersøk rotårsak:** om auto-deploy-til-test (a) **ikke trigges** av push til `develop`, (b) **ikke rebuilder web-imaget** (Docker-cache — jf. [DOCKER-NOTES § rsync FØR build](../../docker/DOCKER-NOTES.md): cache-bygg ~6 s vs ekte ~268 s, og rsync må skje først), eller (c) **ikke finnes** i det hele tatt. Korriger CLAUDE.md «Auto-deploy til test» (+ infrastruktur.md) om antakelsen er feil.
+
+**Bidiagnose (2026-06-24):** manuell `rsync -a` (uten `--delete`) lar **slettede/omdøpte filer ligge igjen** på server — `apps/web/.../oppsett/lokasjoner/` ble ikke fjernet ved C-rename (ny `byggeplasser/` la seg ved siden av). Vurder `--delete` i deploy-mekanikken (men da må `.env`-bevaring sikres — `--delete` uten excludes ville slette server-`.env`). Hører til samme rotårsak-rydding.
+
+**Umiddelbar workaround brukt:** manuell rsync `develop` → `server-ny:~/stack/sitedoc` + `sudo docker compose -f docker/docker-compose.test.yml build/up` (Kenneth, ekte TTY).
+
 ### 🔴 SIKKERHETS-GAP: `SheetMachine.vehicleId` (maskindrift) er IKKE org-validert
 
 Oppdaget under Timer Fase 2-dual-review (2026-06-09). `SheetMachine.vehicleId` (drift/maskinfører-timer) skrives på `syncBatch` (`dagsseddel.ts` maskin-createMany), `redigerSedelRader` og `splittRad` **uten** å validere at maskinen tilhører firmaet. Samme cross-firma-lekkasje-klasse som §2.D dekket for det nye `SheetTimer.vehicleId` — men dette er **pre-eksisterende** (gjelder maskinbruk-raden, ikke kostnadsbæreren), og ble bevisst holdt utenfor Fase 2-scope.
