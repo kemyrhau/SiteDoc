@@ -18,7 +18,7 @@ Geofence-editoren gjort oppdagbar på `byggeplasser/page.tsx`: egen synlig **«G
 
 ### Mobil EAS-bunt — #31 BYGGET (uten F-G) · #32 (med F-G) KVOTE-BLOKKERT til 1. juli (2026-06-24)
 
-**#31** (`cc119d42`) er **bygget/finished** og er det shippable bygget: byggeplass-UX F1–F6 + F-A + F-B + B2+B6 — **mangler F-G**. Submit til TestFlight = Kenneths ASC-steg (`eas submit --platform ios --profile production --id cc119d42-e1ba-47a3-bfe9-c126ec367282`).
+**#31** (`cc119d42`) er **bygget + submittet til TestFlight** (App Store Connect bygg (31), status «Testing», 2026-06-24 18:54 — tilgjengelig for Sitedoc test team): byggeplass-UX F1–F6 + F-A + F-B + B2+B6 — **mangler F-G**. A.Markussen kan teste denne bunten via TestFlight nå. **Ikke** App Store-publisert (TestFlight = test-gate foran reell prod-release). F-G venter på #32.
 
 **#32** legger til **F-G** (glemt-dag 0-fiks, `c6babc44`, merget til `main` `73c30e02`) — men er **EAS-kvote-BLOKKERT** (fri-plan iOS-kvote brukt opp denne måneden, reset **onsdag 1. juli 2026**). **#32 er IKKE bygget.** Bygges fra `main` 1. juli (eller `eas build --local` på Mac m/ Xcode). **Device-verify (a/b) + F-G-distribusjon venter på #32.** Samlet innhold i bunten:
 
