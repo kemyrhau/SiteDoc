@@ -16,6 +16,10 @@ sist_verifisert_mot_kode: 2026-06-08
 
 Geofence-editoren gjort oppdagbar på `byggeplasser/page.tsx`: egen synlig **«Geofence»**-verktøylinje-knapp (MapPin) → egen modal (skilt ut fra «Endre navn», som nå er ren navne-endring). Ikon/label-fiks: «Endre navn» Copy→Pencil, «Rediger»→**«Tegninger»** (LayoutGrid). Opprett markerer ny byggeplass i lista (ikke auto-kast inn i tegnings-editor). Geofence-seksjon flyttet verbatim (settGeofence/beregnGeofence/geokod uendret). i18n: ingen nye nøkler (gjenbruk `lokasjoner.geofence.tittel` + `nav.tegninger`), hjelp-tips oppdatert (15 språk). **Test-verifisering krever manuell rebuild** (auto-deploy rebuilder ikke web). Prod-deploy avventer eksplisitt forespørsel — kreves før 999/A.Markussen-geofence kan settes lett i prod-UI.
 
+### «Opprett firma» (admin) erKunde-fiks (API+web) — PÅ DEVELOP 2026-06-25
+
+Rotårsak til at SiteDoc-admin → Firmaer → «Opprett firma» «ikke fungerte»: `admin.opprettOrganisasjon` satte ikke `erKunde`, falt til default `false`, og `hentAlleOrganisasjoner` filtrerer `erKunde: true` → opprettet firma ble usynlig (firmaet *ble* laget). **Fiks:** create setter `erKunde: true` (`admin.ts:156`). I tillegg `onError`+feilvisning på opprett-mutasjonen + `title`-tooltip på Brønnøysund-knapp (`brreg.hint`, 15 språk) — 1b var ikke bug, kun disabled-gate inntil 9-sifret org.nr. Begge typechecks rene. **Prod-deploy avventer eksplisitt forespørsel — batches med geofence-fiksen (én API+web-deploy).** Åpen oppfølger: prod-orphan-opprydding (read-SQL klar, Kenneths prod-DB-hånd) — se [BACKLOG § «Opprett firma»](BACKLOG.md).
+
 ### Mobil EAS-bunt — #31 BYGGET (uten F-G) · #32 (med F-G) KVOTE-BLOKKERT til 1. juli (2026-06-24)
 
 **#31** (`cc119d42`) er **bygget + submittet til TestFlight** (App Store Connect bygg (31), status «Testing», 2026-06-24 18:54 — tilgjengelig for Sitedoc test team): byggeplass-UX F1–F6 + F-A + F-B + B2+B6 — **mangler F-G**. A.Markussen kan teste denne bunten via TestFlight nå. **Ikke** App Store-publisert (TestFlight = test-gate foran reell prod-release). F-G venter på #32.

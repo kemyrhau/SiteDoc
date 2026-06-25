@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Інтеграції на рівні компанії ще не налаштовано. Reginn MREG (дані про обладнання) стає доступним тут, коли кінцеві точки API будуть готові.",
   "brreg.hent": "Привезти з Brønnøysund",
   "brreg.henter": "Отримання…",
+  "brreg.hint": "Введіть 9-значний номер організації. номер для отримання від Brønnøysund",
   "admin.integrasjoner.tittel": "Інтеграції",
   "admin.integrasjoner.beskrivelse": "Огляд інтеграції платформи та конфігурації шифрування.",
   "admin.integrasjoner.platformTittel": "Рівень платформи",

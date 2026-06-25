@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Nie skonfigurowano jeszcze żadnych integracji na poziomie firmy. Reginn MREG (dane o sprzęcie) stanie się dostępny tutaj, gdy punkty końcowe API będą gotowe.",
   "brreg.hent": "Sprowadzić z Brønnøysund",
   "brreg.henter": "Ujmujący…",
+  "brreg.hint": "Wpisz 9-cyfrową organizację. numer do odebrania w Brønnøysund",
   "admin.integrasjoner.tittel": "Integracje",
   "admin.integrasjoner.beskrivelse": "Omówienie integracji platform i konfiguracji szyfrowania.",
   "admin.integrasjoner.platformTittel": "Poziom platformy",

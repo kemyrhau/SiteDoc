@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Vēl nav konfigurēta neviena uzņēmuma līmeņa integrācija. Reginn MREG (iekārtu dati) kļūst pieejams šeit, kad API galapunkti ir gatavi.",
   "brreg.hent": "Atnesiet no Brønnøysund",
   "brreg.henter": "Notiek ienešana…",
+  "brreg.hint": "Ievadiet 9 ciparu organizāciju. numuru, kas jāatnes no Brønnøysund",
   "admin.integrasjoner.tittel": "Integrācijas",
   "admin.integrasjoner.beskrivelse": "Platformu integrāciju un šifrēšanas konfigurācijas pārskats.",
   "admin.integrasjoner.platformTittel": "Platformas līmenis",

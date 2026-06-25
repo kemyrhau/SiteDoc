@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Inga integrationer på företagsnivå har konfigurerats ännu. Reginn MREG (utrustningsdata) blir tillgänglig här när API-ändpunkterna är klara.",
   "brreg.hent": "Hämta från Brønnøysund",
   "brreg.henter": "Hämtar...",
+  "brreg.hint": "Ange en 9-siffrig organisation. nummer att hämta från Brønnøysund",
   "admin.integrasjoner.tittel": "Integrationer",
   "admin.integrasjoner.beskrivelse": "Översikt över plattformsintegrationer och krypteringskonfiguration.",
   "admin.integrasjoner.platformTittel": "Plattformsnivå",

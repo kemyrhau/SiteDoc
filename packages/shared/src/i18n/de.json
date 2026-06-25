@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Es sind noch keine Integrationen auf Unternehmensebene konfiguriert. Reginn MREG (Gerätedaten) wird hier verfügbar, sobald die API-Endpunkte bereit sind.",
   "brreg.hent": "Abholung von Brønnøysund",
   "brreg.henter": "Abrufen…",
+  "brreg.hint": "Geben Sie eine 9-stellige Organisation ein. Nummer zum Abholen aus Brønnøysund",
   "admin.integrasjoner.tittel": "Integrationen",
   "admin.integrasjoner.beskrivelse": "Übersicht über Plattformintegrationen und Verschlüsselungskonfiguration.",
   "admin.integrasjoner.platformTittel": "Plattformebene",

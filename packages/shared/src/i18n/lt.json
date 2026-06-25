@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Įmonės lygio integracijos dar nesukonfigūruotos. Reginn MREG (įrangos duomenys) tampa pasiekiami čia, kai API galiniai taškai yra paruošti.",
   "brreg.hent": "Atsineškite iš Brønnøysund",
   "brreg.henter": "Gaunama…",
+  "brreg.hint": "Įveskite 9 skaitmenų organizaciją. numerį, kurį reikia pasiimti iš Brønnøysund",
   "admin.integrasjoner.tittel": "Integracijos",
   "admin.integrasjoner.beskrivelse": "Platformos integravimo ir šifravimo konfigūracijos apžvalga.",
   "admin.integrasjoner.platformTittel": "Platformos lygis",

@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Ettevõtte tasemel integratsioone pole veel konfigureeritud. Reginn MREG (seadmete andmed) on siin saadaval, kui API lõpp-punktid on valmis.",
   "brreg.hent": "Tooge Brønnøysundist",
   "brreg.henter": "Tõmbamine…",
+  "brreg.hint": "Sisestage 9-kohaline org. number Brønnøysundist tooma",
   "admin.integrasjoner.tittel": "Integratsioonid",
   "admin.integrasjoner.beskrivelse": "Ülevaade platvormide integreerimisest ja krüptimise konfiguratsioonist.",
   "admin.integrasjoner.platformTittel": "Platvormi tase",

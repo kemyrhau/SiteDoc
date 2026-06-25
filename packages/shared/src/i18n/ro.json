@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Nu au fost încă configurate integrări la nivel de companie. Reginn MREG (datele echipamentelor) devin disponibile aici odată ce punctele finale API sunt gata.",
   "brreg.hent": "Preluați de la Brønnøysund",
   "brreg.henter": "Se preia…",
+  "brreg.hint": "Introduceți o organizație din 9 cifre. număr de luat de la Brønnøysund",
   "admin.integrasjoner.tittel": "Integrari",
   "admin.integrasjoner.beskrivelse": "Prezentare generală a integrărilor platformei și a configurației de criptare.",
   "admin.integrasjoner.platformTittel": "Nivelul platformei",

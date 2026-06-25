@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Zatím nejsou nakonfigurovány žádné integrace na úrovni společnosti. Reginn MREG (data o vybavení) zde bude k dispozici, jakmile budou připraveny koncové body API.",
   "brreg.hent": "Aport z Brønnøysundu",
   "brreg.henter": "Načítání…",
+  "brreg.hint": "Zadejte 9místnou organizaci. číslo k vyzvednutí z Brønnøysundu",
   "admin.integrasjoner.tittel": "Integrace",
   "admin.integrasjoner.beskrivelse": "Přehled integrací platformy a konfigurace šifrování.",
   "admin.integrasjoner.platformTittel": "Úroveň platformy",

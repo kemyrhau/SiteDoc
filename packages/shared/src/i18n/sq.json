@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Asnjë integrim në nivel kompanie nuk është konfiguruar ende. Reginn MREG (të dhënat e pajisjes) vihet në dispozicion këtu sapo të jenë gati pikat e fundit të API.",
   "brreg.hent": "Merr nga Brønnøysund",
   "brreg.henter": "Po merr…",
+  "brreg.hint": "Fut një org me 9 shifra. numër për të marrë nga Brønnøysund",
   "admin.integrasjoner.tittel": "Integrimet",
   "admin.integrasjoner.beskrivelse": "Pasqyrë e integrimeve të platformës dhe konfigurimit të kriptimit.",
   "admin.integrasjoner.platformTittel": "Niveli i platformës",

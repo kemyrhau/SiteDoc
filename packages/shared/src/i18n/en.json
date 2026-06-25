@@ -2307,6 +2307,7 @@
   "firma.integrasjoner.ingenAktive": "No company-level integrations configured yet. Reginn MREG (equipment data) becomes available here once the API endpoints are ready.",
   "brreg.hent": "Fetch from Brønnøysund",
   "brreg.henter": "Fetching…",
+  "brreg.hint": "Enter a 9-digit org. number to fetch from Brønnøysund",
   "admin.integrasjoner.tittel": "Integrations",
   "admin.integrasjoner.beskrivelse": "Overview of platform integrations and encryption configuration.",
   "admin.integrasjoner.platformTittel": "Platform level",

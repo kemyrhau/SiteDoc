@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Aucune intégration au niveau de l'entreprise n'est encore configurée. Reginn MREG (données d'équipement) devient disponible ici une fois que les points de terminaison de l'API sont prêts.",
   "brreg.hent": "Récupérer à Brønnøysund",
   "brreg.henter": "Récupération…",
+  "brreg.hint": "Saisissez une organisation à 9 chiffres. numéro à récupérer à Brønnøysund",
   "admin.integrasjoner.tittel": "Intégrations",
   "admin.integrasjoner.beskrivelse": "Présentation des intégrations de plateforme et de la configuration du chiffrement.",
   "admin.integrasjoner.platformTittel": "Niveau plateforme",

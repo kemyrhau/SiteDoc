@@ -2306,6 +2306,7 @@
   "firma.integrasjoner.ingenAktive": "Yritystason integraatioita ei ole vielä määritetty. Reginn MREG (laitetiedot) tulee saataville täällä, kun API-päätepisteet ovat valmiita.",
   "brreg.hent": "Hae Brønnøysundista",
   "brreg.henter": "Haetaan…",
+  "brreg.hint": "Anna 9-numeroinen organisaatio. numero noudettavaksi Brønnøysundista",
   "admin.integrasjoner.tittel": "Integraatiot",
   "admin.integrasjoner.beskrivelse": "Yleiskatsaus alustaintegraatioihin ja salauskokoonpanoon.",
   "admin.integrasjoner.platformTittel": "Alustan taso",

@@ -2307,6 +2307,7 @@
   "firma.integrasjoner.ingenAktive": "Ingen firma-nivå-integrasjoner er konfigurert ennå. Reginn MREG (maskindata) blir tilgjengelig her når API-endepunktene er klare.",
   "brreg.hent": "Hent fra Brønnøysund",
   "brreg.henter": "Henter…",
+  "brreg.hint": "Skriv 9-sifret org.nr for å hente fra Brønnøysund",
   "admin.integrasjoner.tittel": "Integrasjoner",
   "admin.integrasjoner.beskrivelse": "Oversikt over platform-integrasjoner og krypteringskonfigurasjon.",
   "admin.integrasjoner.platformTittel": "Platform-nivå",
