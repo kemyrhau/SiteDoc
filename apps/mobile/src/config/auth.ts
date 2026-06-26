@@ -8,6 +8,15 @@ export const AUTH_CONFIG = {
   apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3001",
 } as const;
 
+/**
+ * True når en ekte Microsoft client-id er konfigurert. "disabled" er
+ * placeholder-verdien i eas.json for profiler der MS ikke skal være på —
+ * MS-knappen skjules da, så ingen møter en død knapp.
+ */
+export const erMicrosoftKonfigurert =
+  AUTH_CONFIG.microsoftClientId !== "" &&
+  AUTH_CONFIG.microsoftClientId !== "disabled";
+
 /** Web-base URL for filnedlasting og mobil-viewer (uten /trpc, uten api-prefiks) */
 export function hentWebUrl(): string {
   const url = AUTH_CONFIG.apiUrl.replace("/trpc", "");

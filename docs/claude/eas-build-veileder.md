@@ -34,6 +34,14 @@ distribusjon eller TestFlight).
 «environment», **vinner build-profilens verdi**. (EAS skriver «Resolved 'preview' environment»
 selv for test-profilen — det er ufarlig, override-noten bekrefter at test-verdien brukes.)
 
+> **Microsoft-innlogging (mobil):** `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` = `234ca0e0-afd1-48e3-9736-b904d4b5a008`
+> (dedikert Entra public-client «SiteDoc Mobile») på alle fire profiler. Var `"disabled"` til 2026-06-26 →
+> mobil-MS feilet for alle (knappen vist, men client-id ugyldig). Client-id er offentlig (ikke secret).
+> MS-knappen skjules automatisk hvis verdien er `""`/`"disabled"` (`erMicrosoftKonfigurert`). Flyt =
+> authorization code + PKCE. Krever Azure-oppsett (redirect `sitedoc://auth`, public client flows,
+> Graph-scopes) — se [infrastruktur.md § Auth-konfigurasjon](infrastruktur.md). Mobil-MS virker først
+> etter et **nytt EAS-bygg** (env bakes inn ved byggetid); production-bygg lages fra `main`.
+
 ## Apple-auth — KRITISK: bruk API-nøkkel, ikke passord
 
 **2FA-fellen:** Med tofaktor (som alle utvikler-kontoer har) gir Apple-ID + passord-flyten

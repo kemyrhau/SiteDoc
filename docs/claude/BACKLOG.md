@@ -16,9 +16,11 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
-### 🔴 Mobil Microsoft-auth aldri implementert — implementer code+PKCE m/ dedikert Entra public-client
+### 🟢 Mobil Microsoft-auth — KODE IMPLEMENTERT PÅ DEVELOP 2026-06-26 (venter EAS production-bygg)
 
-**Status (2026-06-25):** Design ferdig + besluttet (Kenneth + kontroll-Claude). Read-only kartlegging gjort, **ingen kode skrevet**. Blokkert på Kenneths Azure-oppsett + ny client-id. Sekvens: **Azure (Kenneth) → client-id → kode (Opus, gate-verifisert) → EAS-bygg → TestFlight → Florian.**
+**Status (2026-06-26):** Kode implementert + gate-verifisert på develop. Ekte dedikert Entra public-client-id (`234ca0e0-…`) inn på alle fire eas.json-profiler. Code+PKCE-flyt, knapp-gating, typecheck rent (12 baseline-feil uendret, ingen i auth-filene). `mobilAuth.byttToken` + orphan-guard **urørt**. **Gjenstår:** (a) Kenneth kjører Azure-sjekklista under (dedikert «SiteDoc Mobile»-app, redirect `sitedoc://auth`, public client flows, Graph-scopes); (b) **EAS production-bygg** — fri-plan-kvote brukt opp til **1. juli 2026**, så Florians faktiske test venter på 1. juli-kvoten (kan batches med #32) eller `eas build --local`. Production-bygg lages fra `main`. **Sekvens: commit develop ✅ → merge main → EAS production (1. juli/local) → TestFlight → Florian.** Implementerende commit: se git-historikk (denne saken).
+
+**Design (referanse — implementert som beskrevet):**
 
 **Rotårsak (verifisert mot kode):** Mobil-MS har aldri vært funksjonell. `EXPO_PUBLIC_MICROSOFT_CLIENT_ID="disabled"` på alle EAS-profiler (`eas.json:21,34,48,63`, slik siden `a4aa8fd6` 2026-03-07 — ikke en regresjon). MS-knappen (`logg-inn.tsx:131-139`) rendres alltid, kaller `loggInnMedMicrosoft()` (`services/auth.ts:99`) som bygger `AuthRequest` med `clientId:"disabled"` → Microsoft avviser → `null` → stille feil. I tillegg bruker flyten implicit (`responseType:Token`, `usePKCE:false`) som Entra normalt avviser for public/native-klient. Florians koblede `microsoft-entra-id`-Account ble laget via **web** (Auth.js, virker), ikke mobil. Mobil-auth er egen flyt (`expo-auth-session` + `mobilAuth.byttToken` mot Fastify), **ikke** web-Auth.js — web-`signIn`-gaten er irrelevant for mobil. Mobil-sesjon = 30 dager (ikke web-ens 24t maxAge), så «sesjon utløp»-teorien gjelder ikke.
 

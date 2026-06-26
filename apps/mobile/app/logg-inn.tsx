@@ -6,6 +6,7 @@ import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../src/providers/AuthProvider";
+import { erMicrosoftKonfigurert } from "../src/config/auth";
 import { VersjonsFooter } from "../src/components/VersjonsFooter";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -128,15 +129,17 @@ export default function LoggInnSkjerm() {
             </Text>
           </Pressable>
 
-          <Pressable
-            onPress={loggInnMedMicrosoft}
-            disabled={laster}
-            className="flex-row items-center justify-center rounded-lg bg-[#2f2f2f] px-6 py-4 active:bg-[#1a1a1a]"
-          >
-            <Text className="text-base font-medium text-white">
-              {t("auth.loggInnMicrosoft")}
-            </Text>
-          </Pressable>
+          {erMicrosoftKonfigurert && (
+            <Pressable
+              onPress={loggInnMedMicrosoft}
+              disabled={laster}
+              className="flex-row items-center justify-center rounded-lg bg-[#2f2f2f] px-6 py-4 active:bg-[#1a1a1a]"
+            >
+              <Text className="text-base font-medium text-white">
+                {t("auth.loggInnMicrosoft")}
+              </Text>
+            </Pressable>
+          )}
 
           {/* Dev-bypass — kun synlig i development-bygg (__DEV__).
               Server-siden returnerer 404 i prod, så knappen er trygt nedlukket

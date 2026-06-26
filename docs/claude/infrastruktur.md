@@ -114,7 +114,13 @@ cloudflared (på host) treffer API-containeren over docker-nettet, så `req.ip` 
 - **Auth.js:** `trustHost: true` (bak Cloudflare). Klient-side `signIn()` (IKKE server actions — MissingCSRF bak tunnel). `allowDangerousEmailAccountLinking: true` (påkrevd for invitasjonsflyt — godkjent risiko)
 - **AUTH_URL / NEXTAUTH_URL = `https://sitedoc.no`** i `web.env` (cutover-lærdom): cloudflared sender `Host: localhost` internt, så uten eksplisitt AUTH_URL bygde Auth.js `redirect_uri=https://localhost:3100` → OAuth `redirect_uri_mismatch`. `AUTH_TRUST_HOST=true` settes også.
 - **Google OAuth:** Web + iOS client. Consent screen: SiteDoc
-- **Microsoft Entra ID:** Multitenant, `checks: ["state"]` (PKCE feiler bak tunnel). App ID: `d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`
+- **Microsoft Entra ID (web):** Multitenant, `checks: ["state"]` (PKCE feiler bak tunnel). App ID: `d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`
+- **Microsoft Entra ID (mobil) — DEDIKERT public-client-app** «SiteDoc Mobile», App ID `234ca0e0-afd1-48e3-9736-b904d4b5a008` (separat fra web for ren posture-isolasjon). Mobil bruker **authorization code + PKCE** (`expo-auth-session`, app-side `exchangeCodeAsync`), ikke web-Auth.js. Azure-oppsett (kjørt manuelt — ikke i kode):
+  - Supported account types: **Accounts in any organizational directory** (multitenant — så A.Markussens tenant virker).
+  - Authentication → plattform **«Mobile and desktop applications»** → custom redirect URI **`sitedoc://auth`** (eksakt; path-segment unngår trailing-slash-mismatch). IKKE «Web».
+  - Advanced → **«Allow public client flows» → Yes**. Ingen client-secret (public client).
+  - API permissions → Microsoft Graph (delegated): `openid`, `email`, `profile`, `User.Read`.
+  - Client-id er offentlig → ligger i `apps/mobile/eas.json` (ikke secret). Mobil-flyt leverer MS access token til `mobilAuth.byttToken` (Graph-verifisering + orphan-guard, uendret).
 
 ## Sikkerhet
 
