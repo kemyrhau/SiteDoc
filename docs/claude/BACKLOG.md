@@ -16,6 +16,37 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🔴 Mobil Microsoft-auth aldri implementert — implementer code+PKCE m/ dedikert Entra public-client
+
+**Status (2026-06-25):** Design ferdig + besluttet (Kenneth + kontroll-Claude). Read-only kartlegging gjort, **ingen kode skrevet**. Blokkert på Kenneths Azure-oppsett + ny client-id. Sekvens: **Azure (Kenneth) → client-id → kode (Opus, gate-verifisert) → EAS-bygg → TestFlight → Florian.**
+
+**Rotårsak (verifisert mot kode):** Mobil-MS har aldri vært funksjonell. `EXPO_PUBLIC_MICROSOFT_CLIENT_ID="disabled"` på alle EAS-profiler (`eas.json:21,34,48,63`, slik siden `a4aa8fd6` 2026-03-07 — ikke en regresjon). MS-knappen (`logg-inn.tsx:131-139`) rendres alltid, kaller `loggInnMedMicrosoft()` (`services/auth.ts:99`) som bygger `AuthRequest` med `clientId:"disabled"` → Microsoft avviser → `null` → stille feil. I tillegg bruker flyten implicit (`responseType:Token`, `usePKCE:false`) som Entra normalt avviser for public/native-klient. Florians koblede `microsoft-entra-id`-Account ble laget via **web** (Auth.js, virker), ikke mobil. Mobil-auth er egen flyt (`expo-auth-session` + `mobilAuth.byttToken` mot Fastify), **ikke** web-Auth.js — web-`signIn`-gaten er irrelevant for mobil. Mobil-sesjon = 30 dager (ikke web-ens 24t maxAge), så «sesjon utløp»-teorien gjelder ikke.
+
+**Vedtatt design:** authorization code + PKCE, **app-side** token-utveksling (public client = ingen secret i appen), resulterende MS access token → **uendret** `mobilAuth.byttToken` (Graph `/me`-verifisering + orphan-guard). **Sikkerhetsgaten bevares 100 %** — kun `canLogin` + invitert/eksisterende/koblet slipper inn (`91fa7867`), samme prinsipp som web. Implicit forkastes: Entra avviser for public client, ingen refresh, token i redirect-URL. `expo-crypto@15.0.8` (PKCE) + `expo-auth-session@7.0.10` (`exchangeCodeAsync`) finnes; `MICROSOFT_AUTH.tokenEndpoint` finnes allerede i `config/auth.ts`.
+
+**Entra-registrering — DEDIKERT public-client-app** (besluttet: ren separasjon, ingen posture-endring på prod-web-auth). Azure-sjekkliste (Kenneths hånd, verifisert mot Microsoft Learn `reply-url` oppdatert 2026-06-15):
+1. **App registrations → New registration** → navn «SiteDoc Mobile» → **Supported account types: Accounts in any organizational directory (multitenant)** — så A.Markussens tenant virker (samme som web).
+2. **Authentication → Add a platform → «Mobile and desktop applications»** (IKKE «Web»/«SPA»). Custom redirect URI — se redirect-note under.
+3. **Advanced settings → «Allow public client flows» → Yes** (i UI vist som «Enable the following mobile and desktop flows»). Trygt her — isolert public-app.
+4. **API permissions → Microsoft Graph (delegated): `openid`, `email`, `profile`, `User.Read`** → grant/consent.
+5. **Ingen client-secret** (public client).
+6. Kopier **Application (client) ID** → blir ekte `EXPO_PUBLIC_MICROSOFT_CLIENT_ID`.
+7. Florians første login (A.Markussen-tenant) kan trigge én consent (bruker-klikk, evt. IT-admin hvis tenanten låser app-consent). Engangs.
+
+**Redirect-URI — verifisert + forbehold:** `makeRedirectUri({scheme:"sitedoc"})` produserer eksakt **`sitedoc://`** i standalone EAS-bygg (sporet gjennom `expo-auth-session@7.0.10` → `expo-linking@8.0.11 createURL`: `getHostUri()→null`, `ensureLeadingSlash('',true)='/'` → `"sitedoc://"`). **MEN** Microsoft-docs (reply-url): URI-er *uten* path-segment returneres med trailing slash (response_mode query/fragment), og MS' egne mobil-eksempler bruker alltid path (`msauth.<bundle>://auth`). **Anbefaling fra docs-verifisering: bruk `sitedoc://auth` som PRIMÆR** (path-segment unngår trailing-slash-mismatch; app produserer det via `makeRedirectUri({scheme:"sitedoc",path:"auth"})`). Kenneths opprinnelige beslutning var `sitedoc://` først / `sitedoc://auth` fallback — docs taler for å snu rekkefølgen. Uansett valg: app-kode og Entra MÅ matche eksakt samme variant. Spesialtegn `! $ ' ( ) , ;` ikke tillatt (irrelevant her).
+
+**Kode-endringsliste (når Azure + client-id er klar):**
+| Fil | Endring |
+|---|---|
+| `apps/mobile/src/config/auth.ts` | Ny `erMicrosoftKonfigurert = microsoftClientId !== "" && !== "disabled"`. |
+| `apps/mobile/src/services/auth.ts` | `loggInnMedMicrosoft()`: `responseType:Code` + `usePKCE:true`; etter `promptAsync` → `exchangeCodeAsync({clientId,code,redirectUri,extraParams:{code_verifier:request.codeVerifier}},{tokenEndpoint})` → returner `accessToken`. Discovery `{authorizationEndpoint,tokenEndpoint}`. Redirect via `makeRedirectUri({scheme:"sitedoc",path:"auth"})` (eller uten path, jf. forbehold). |
+| `apps/mobile/app/logg-inn.tsx` | Gate MS-knappen på `erMicrosoftKonfigurert` (skjul når ikke konfigurert → ingen død knapp). |
+| `apps/mobile/eas.json` | `"disabled"` → ekte client-id på relevante profiler (Kenneths verdi). |
+| **Backend** | **INGEN endring** — `mobilAuth.byttToken`-kontrakt + orphan-guard urørt. |
+| `docs/claude/*` | Oppdater `infrastruktur.md`/`eas-build-veileder.md` med Azure-stegene, samme commit som koden. |
+
+Knapp-gatingen holder MS skjult til client-id er ekte → PKCE-koden er trygg å merge før Azure er ferdig hvis ønskelig. Koden alene fikser ingenting før Azure + ekte client-id + nytt EAS-bygg (env bakes inn ved byggetid).
+
 ### 🟡 Org uten standard-lønnsart → auto-timer kan ikke føres (rot-fiks: onboarding/validering)
 
 Avdekket via glemt-dag 0-bug (device-test 2026-06-24, prod #30). Mangler et firma standard-lønnsart, kan `genererForslag` ikke gjette lønnsart → arbeids-radene droppes (`StartSluttDagKort.tsx:723`-gate). Mobil **surfacer nå** rød banner «Mangler standard-lønnsart» på auto-utkast (F-G/(d), `c6babc44`) i stedet for stille 0 — men det er **sikkerhetsnettet, ikke rot-fiksen**. Rot: hvert firma bør GARANTERT ha en standard-lønnsart. Vurder: (a) onboarding-steg som krever standard-lønnsart, (b) server-seed/default ved firma-opprettelse, (c) admin-varsel i web. Til da fanger banneret feilen for arbeideren.
