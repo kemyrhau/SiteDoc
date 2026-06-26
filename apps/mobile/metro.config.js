@@ -7,8 +7,8 @@ const monorepoRoot = path.resolve(projectRoot, "../..");
 
 const config = getDefaultConfig(projectRoot);
 
-// Monorepo: la Metro overvåke hele repoet
-config.watchFolders = [monorepoRoot];
+// Monorepo: la Metro overvåke hele repoet (additivt — behold Expos defaults)
+config.watchFolders = [...(config.watchFolders ?? []), monorepoRoot];
 
 // Monorepo: løs node_modules fra både prosjektrot og monorepo-rot
 config.resolver.nodeModulesPaths = [
