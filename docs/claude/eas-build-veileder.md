@@ -184,6 +184,13 @@ Resultat: «SiteDoc TEST» installeres som **egen app** ved siden av prod-«Site
   ikke build — env-variabel-veien fungerer uansett.
 - **Apple-login er «optional», MEN intern distribusjon krever credential-tilgang** (API-nøkkel
   eller passord) for å lage/oppdatere ad-hoc-profilen med enheten.
+- **`Cannot find module 'babel-preset-expo'` ved lokalt bygg (pnpm-monorepo, lærdom 2026-06-26):**
+  Babel resolver preset-strenger via node-resolusjon fra `babel.config.js` (apps/mobile), IKKE via
+  Metros `nodeModulesPaths`. `babel-preset-expo` er kun transitiv under `expo` → ikke symlinket inn i
+  `apps/mobile/node_modules`, så lokal pnpm finner den ikke (sky-EAS har annen hoisting → virker der).
+  **Fiks:** (1) `babel-preset-expo: "~54.0.10"` (mirror expos egen pin) som direkte devDependency i
+  `apps/mobile/package.json` + `pnpm install`; (2) `require.resolve("babel-preset-expo")` i
+  `babel.config.js` (robust mot fremtidig hoisting). Ikke `.npmrc node-linker`-hammeren.
 
 ## Se også
 
