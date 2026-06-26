@@ -157,6 +157,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 
 **Auto-deploy:**
 - Push til `develop` → trigges auto-deploy til test.sitedoc.no
+  - ⚠️ **Under undersøkelse (2026-06-24):** auto-deploy rebuilder muligens **ikke web-imaget** — web-endringer nådde ikke test denne økta. Verifiser web-endringer med **manuell rebuild** til rotårsaken er bekreftet. Se [BACKLOG § Auto-deploy til test rebuilder ikke web](docs/claude/BACKLOG.md).
 - Push til feature-branch → INGEN auto-deploy
 - Push til `main` → manuell prod-deploy (eksplisitt forespørsel kreves)
 

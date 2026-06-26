@@ -81,7 +81,10 @@ function hentRedirectUri(): string {
     // På web: bruk origin + /logg-inn (der vi håndterer callback)
     return `${window.location.origin}/logg-inn`;
   }
-  return AuthSession.makeRedirectUri({ scheme: "sitedoc" });
+  // Native: sitedoc://auth. Path-segmentet ("auth") unngår trailing-slash-
+  // mismatch mot Entra (URI uten path returneres med trailing slash) —
+  // jf. låst redirect-design. Eneste native-konsument er Microsoft-flyten.
+  return AuthSession.makeRedirectUri({ scheme: "sitedoc", path: "auth" });
 }
 
 export function loggInnMedGoogleWeb(): void {
@@ -98,24 +101,42 @@ export function loggInnMedGoogleWeb(): void {
 
 export async function loggInnMedMicrosoft(): Promise<string | null> {
   const redirectUri = hentRedirectUri();
+  const discovery = {
+    authorizationEndpoint: MICROSOFT_AUTH.authorizationEndpoint,
+    tokenEndpoint: MICROSOFT_AUTH.tokenEndpoint,
+  };
 
+  // Authorization code + PKCE — standarden for public/native-klient.
+  // Public client = INGEN client-secret i appen; PKCE binder autorisasjons-
+  // koden til denne enheten. (Implicit forkastes: Entra avviser for public
+  // client, ingen refresh, token i redirect-URL.)
   const request = new AuthSession.AuthRequest({
     clientId: AUTH_CONFIG.microsoftClientId,
     redirectUri,
     scopes: ["openid", "email", "profile", "User.Read"],
-    responseType: AuthSession.ResponseType.Token,
-    usePKCE: false,
+    responseType: AuthSession.ResponseType.Code,
+    usePKCE: true,
   });
 
-  const result = await request.promptAsync({
-    authorizationEndpoint: MICROSOFT_AUTH.authorizationEndpoint,
-  });
+  const result = await request.promptAsync(discovery);
 
-  if (result.type === "success" && result.authentication?.accessToken) {
-    return result.authentication.accessToken;
+  if (result.type !== "success" || !result.params.code) {
+    return null;
   }
 
-  return null;
+  // Veksle koden → access token mot Entra token-endpoint. code_verifier er
+  // PKCE-hemmeligheten generert ved promptAsync; sendes som extraParam.
+  const tokenResultat = await AuthSession.exchangeCodeAsync(
+    {
+      clientId: AUTH_CONFIG.microsoftClientId,
+      code: result.params.code,
+      redirectUri,
+      extraParams: { code_verifier: request.codeVerifier ?? "" },
+    },
+    discovery,
+  );
+
+  return tokenResultat.accessToken ?? null;
 }
 
 /**

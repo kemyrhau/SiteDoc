@@ -760,7 +760,8 @@ function opprettDagsseddelForSegment(args: {
   }
 
   // Nyopprettet eller append → generer (og append) denne øktens rader.
-  // Arbeidstid = segment-brutto − pause (pause kun på start-dagen, 1a).
+  // Arbeidstid = segment-brutto − pause/reise (fordelt per segment, jf.
+  // fordelArbeidstidFradrag — pause→lengste, reise→start m/ overflyt).
   const bruttoTimer =
     (new Date(segment.sluttIso).getTime() -
       new Date(segment.startIso).getTime()) /

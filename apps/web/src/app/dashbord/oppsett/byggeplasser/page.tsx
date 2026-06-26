@@ -13,7 +13,6 @@ import {
 import {
   Plus,
   LayoutGrid,
-  Copy,
   Trash2,
   Pencil,
   MoreVertical,
@@ -779,6 +778,8 @@ export default function LokasjonerSide() {
   const utils = trpc.useUtils();
   const [visModal, setVisModal] = useState(false);
   const [visEndreNavnModal, setVisEndreNavnModal] = useState(false);
+  // Geofence skilt ut til egen, synlig inngang (discoverability) — egen modal.
+  const [visGeofenceModal, setVisGeofenceModal] = useState(false);
   const [nyNavn, setNyNavn] = useState("");
   const [endreNavn, setEndreNavn] = useState("");
   const [valgtId, setValgtId] = useState<string | null>(null);
@@ -795,7 +796,10 @@ export default function LokasjonerSide() {
       utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! }).then(() => {
         const oppdatert = utils.bygning.hentForProsjekt.getData({ projectId: prosjektId! });
         const nytt = oppdatert?.find((a) => a.name === variabler.name);
-        if (nytt) setRedigerLokasjonId(nytt.id);
+        // Marker den nye byggeplassen i lista → verktøylinje-handlingene
+        // (Geofence/Tegninger/…) gjelder den straks. Ikke auto-kast inn i
+        // tegnings-editoren — geofence er nå en synlig knapp.
+        if (nytt) setValgtId(nytt.id);
       });
       setVisModal(false);
       setNyNavn("");
@@ -842,6 +846,7 @@ export default function LokasjonerSide() {
     onSuccess: () => {
       utils.bygning.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setGeoFeil(null);
+      setVisGeofenceModal(false);
     },
     onError: (feil: { message: string }) => setGeoFeil(feil.message),
   });
@@ -900,6 +905,12 @@ export default function LokasjonerSide() {
   function apneEndreNavn() {
     if (!valgtLokasjon) return;
     setEndreNavn(valgtLokasjon.name);
+    setVisEndreNavnModal(true);
+    setVisMerMeny(false);
+  }
+
+  function apneGeofence() {
+    if (!valgtLokasjon) return;
     const lok = valgtLokasjon as typeof valgtLokasjon & {
       latitude?: number | null;
       longitude?: number | null;
@@ -911,7 +922,7 @@ export default function LokasjonerSide() {
     setGeoFeil(null);
     setGeoAdresse("");
     setGeokodMelding(null);
-    setVisEndreNavnModal(true);
+    setVisGeofenceModal(true);
     setVisMerMeny(false);
   }
 
@@ -955,16 +966,16 @@ export default function LokasjonerSide() {
           onClick={apneEndreNavn}
           className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Copy className="h-4 w-4" />
+          <Pencil className="h-4 w-4" />
           {t("lokasjoner.endreNavn")}
         </button>
         <button
           disabled={!harValgt}
-          onClick={handleSlettValgt}
+          onClick={apneGeofence}
           className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Trash2 className="h-4 w-4" />
-          {t("handling.slett")}
+          <MapPin className="h-4 w-4" />
+          {t("lokasjoner.geofence.tittel")}
         </button>
         <button
           disabled={!harValgt}
@@ -973,8 +984,16 @@ export default function LokasjonerSide() {
           }}
           className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
         >
-          <Pencil className="h-4 w-4" />
-          {t("handling.rediger")}
+          <LayoutGrid className="h-4 w-4" />
+          {t("nav.tegninger")}
+        </button>
+        <button
+          disabled={!harValgt}
+          onClick={handleSlettValgt}
+          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Trash2 className="h-4 w-4" />
+          {t("handling.slett")}
         </button>
         <div className="relative">
           <button
@@ -1174,15 +1193,15 @@ export default function LokasjonerSide() {
             </Button>
           </div>
         </form>
+      </Modal>
 
-        {/* Fase 1c: byggeplass-geofence (GPS-senter + radius for timer-deteksjon) */}
-        <div className="mt-5 border-t border-gray-200 pt-4">
-          <div className="mb-2 flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-gray-400" />
-            <span className="text-sm font-semibold text-gray-900">
-              {t("lokasjoner.geofence.tittel")}
-            </span>
-          </div>
+      {/* Geofence modal — egen, tydelig inngang (skilt fra navne-endring) */}
+      <Modal
+        open={visGeofenceModal}
+        onClose={() => setVisGeofenceModal(false)}
+        title={t("lokasjoner.geofence.tittel")}
+      >
+        <div className="flex flex-col">
           <p className="mb-3 text-xs text-gray-500">
             {t("lokasjoner.geofence.beskrivelse")}
           </p>

@@ -16,13 +16,60 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟢 Mobil Microsoft-auth — KODE IMPLEMENTERT PÅ DEVELOP 2026-06-26 (venter EAS production-bygg)
+
+**Status (2026-06-26):** Kode implementert + gate-verifisert på develop. Ekte dedikert Entra public-client-id (`234ca0e0-…`) inn på alle fire eas.json-profiler. Code+PKCE-flyt, knapp-gating, typecheck rent (12 baseline-feil uendret, ingen i auth-filene). `mobilAuth.byttToken` + orphan-guard **urørt**. **Gjenstår:** (a) Kenneth kjører Azure-sjekklista under (dedikert «SiteDoc Mobile»-app, redirect `sitedoc://auth`, public client flows, Graph-scopes); (b) **EAS production-bygg** — fri-plan-kvote brukt opp til **1. juli 2026**, så Florians faktiske test venter på 1. juli-kvoten (kan batches med #32) eller `eas build --local`. Production-bygg lages fra `main`. **Sekvens: commit develop ✅ → merge main → EAS production (1. juli/local) → TestFlight → Florian.** Implementerende commit: se git-historikk (denne saken).
+
+**Design (referanse — implementert som beskrevet):**
+
+**Rotårsak (verifisert mot kode):** Mobil-MS har aldri vært funksjonell. `EXPO_PUBLIC_MICROSOFT_CLIENT_ID="disabled"` på alle EAS-profiler (`eas.json:21,34,48,63`, slik siden `a4aa8fd6` 2026-03-07 — ikke en regresjon). MS-knappen (`logg-inn.tsx:131-139`) rendres alltid, kaller `loggInnMedMicrosoft()` (`services/auth.ts:99`) som bygger `AuthRequest` med `clientId:"disabled"` → Microsoft avviser → `null` → stille feil. I tillegg bruker flyten implicit (`responseType:Token`, `usePKCE:false`) som Entra normalt avviser for public/native-klient. Florians koblede `microsoft-entra-id`-Account ble laget via **web** (Auth.js, virker), ikke mobil. Mobil-auth er egen flyt (`expo-auth-session` + `mobilAuth.byttToken` mot Fastify), **ikke** web-Auth.js — web-`signIn`-gaten er irrelevant for mobil. Mobil-sesjon = 30 dager (ikke web-ens 24t maxAge), så «sesjon utløp»-teorien gjelder ikke.
+
+**Vedtatt design:** authorization code + PKCE, **app-side** token-utveksling (public client = ingen secret i appen), resulterende MS access token → **uendret** `mobilAuth.byttToken` (Graph `/me`-verifisering + orphan-guard). **Sikkerhetsgaten bevares 100 %** — kun `canLogin` + invitert/eksisterende/koblet slipper inn (`91fa7867`), samme prinsipp som web. Implicit forkastes: Entra avviser for public client, ingen refresh, token i redirect-URL. `expo-crypto@15.0.8` (PKCE) + `expo-auth-session@7.0.10` (`exchangeCodeAsync`) finnes; `MICROSOFT_AUTH.tokenEndpoint` finnes allerede i `config/auth.ts`.
+
+**Entra-registrering — DEDIKERT public-client-app** (besluttet: ren separasjon, ingen posture-endring på prod-web-auth). Azure-sjekkliste (Kenneths hånd, verifisert mot Microsoft Learn `reply-url` oppdatert 2026-06-15):
+1. **App registrations → New registration** → navn «SiteDoc Mobile» → **Supported account types: Accounts in any organizational directory (multitenant)** — så A.Markussens tenant virker (samme som web).
+2. **Authentication → Add a platform → «Mobile and desktop applications»** (IKKE «Web»/«SPA»). Custom redirect URI — se redirect-note under.
+3. **Advanced settings → «Allow public client flows» → Yes** (i UI vist som «Enable the following mobile and desktop flows»). Trygt her — isolert public-app.
+4. **API permissions → Microsoft Graph (delegated): `openid`, `email`, `profile`, `User.Read`** → grant/consent.
+5. **Ingen client-secret** (public client).
+6. Kopier **Application (client) ID** → blir ekte `EXPO_PUBLIC_MICROSOFT_CLIENT_ID`.
+7. Florians første login (A.Markussen-tenant) kan trigge én consent (bruker-klikk, evt. IT-admin hvis tenanten låser app-consent). Engangs.
+
+**Redirect-URI — LÅST: `sitedoc://auth`** (besluttet 2026-06-25, docs-verifisert). App-en produserer den via `makeRedirectUri({scheme:"sitedoc",path:"auth"})`, og **nøyaktig `sitedoc://auth`** registreres i Entra (steg 2 over). Begrunnelse: `makeRedirectUri({scheme:"sitedoc"})` *uten* path gir `sitedoc://` (sporet gjennom `expo-auth-session@7.0.10` → `expo-linking@8.0.11 createURL`: `getHostUri()→null`, `ensureLeadingSlash('',true)='/'`), men Microsoft-docs (reply-url, 2026-06-15) sier URI-er uten path-segment returneres med trailing slash (response_mode query/fragment) → eksakt-match-risiko; MS' egne mobil-eksempler bruker alltid path (`msauth.<bundle>://auth`). Path-varianten fjerner tvetydigheten. App-kode og Entra MÅ matche eksakt `sitedoc://auth`. Spesialtegn `! $ ' ( ) , ;` ikke tillatt (irrelevant her).
+
+**Kode-endringsliste (når Azure + client-id er klar):**
+| Fil | Endring |
+|---|---|
+| `apps/mobile/src/config/auth.ts` | Ny `erMicrosoftKonfigurert = microsoftClientId !== "" && !== "disabled"`. |
+| `apps/mobile/src/services/auth.ts` | `loggInnMedMicrosoft()`: `responseType:Code` + `usePKCE:true`; etter `promptAsync` → `exchangeCodeAsync({clientId,code,redirectUri,extraParams:{code_verifier:request.codeVerifier}},{tokenEndpoint})` → returner `accessToken`. Discovery `{authorizationEndpoint,tokenEndpoint}`. Redirect via `makeRedirectUri({scheme:"sitedoc",path:"auth"})` → `sitedoc://auth` (låst). |
+| `apps/mobile/app/logg-inn.tsx` | Gate MS-knappen på `erMicrosoftKonfigurert` (skjul når ikke konfigurert → ingen død knapp). |
+| `apps/mobile/eas.json` | `"disabled"` → ekte client-id på relevante profiler (Kenneths verdi). |
+| **Backend** | **INGEN endring** — `mobilAuth.byttToken`-kontrakt + orphan-guard urørt. |
+| `docs/claude/*` | Oppdater `infrastruktur.md`/`eas-build-veileder.md` med Azure-stegene, samme commit som koden. |
+
+Knapp-gatingen holder MS skjult til client-id er ekte → PKCE-koden er trygg å merge før Azure er ferdig hvis ønskelig. Koden alene fikser ingenting før Azure + ekte client-id + nytt EAS-bygg (env bakes inn ved byggetid).
+
 ### 🟡 Org uten standard-lønnsart → auto-timer kan ikke føres (rot-fiks: onboarding/validering)
 
 Avdekket via glemt-dag 0-bug (device-test 2026-06-24, prod #30). Mangler et firma standard-lønnsart, kan `genererForslag` ikke gjette lønnsart → arbeids-radene droppes (`StartSluttDagKort.tsx:723`-gate). Mobil **surfacer nå** rød banner «Mangler standard-lønnsart» på auto-utkast (F-G/(d), `c6babc44`) i stedet for stille 0 — men det er **sikkerhetsnettet, ikke rot-fiksen**. Rot: hvert firma bør GARANTERT ha en standard-lønnsart. Vurder: (a) onboarding-steg som krever standard-lønnsart, (b) server-seed/default ved firma-opprettelse, (c) admin-varsel i web. Til da fanger banneret feilen for arbeideren.
 
+### 🔴 Auto-overtid matcher feil lønnsart på navn (kan treffe «Overtid lærling 50%»)
+
+Avdekket ved gjennomgang av A.Markussens lønnsart-liste (2026-06-24). Auto-genereringen velger overtid-lønnsart via navne-match `/overtid/i.test(navn) && /50/.test(navn)` (`StartSluttDagKort.tsx:824`, MVP-kommentar: «Erstattes av `Lonnsart.overtidsnivaa`»). I et firma uten en ren «Overtid 50%» — men med **«Overtid lærling 50%»** (som A.Markussen) — treffer regex'en lærling-raden. En **normal arbeider** ville da fått *lærling*-overtid = feil lønn. Påvirker ikke glemt-dag-happy-path (kort dag < norm = ingen overtid), men er en reell felltype. **Rot-fiks:** erstatt navne-match med strukturert `Lonnsart.overtidsnivaa`-felt (allerede flagget i koden) — overtid skal aldri velges på fritekst-navn. Gjelder også 100%-matchen.
+
 ### 🟢 Glemt-dag 0-bug (sen start, midnatt-splitt) — FIKSET PÅ DEVELOP 2026-06-24 (`c6babc44`, i EAS #32)
 
 Glemt sent skift (start 21:33) ga 0.00t / ingen timer-rad. To rotårsaker fikset: **(c)** hele-dags pause+reise lå på start-segmentet → kort start-segment klampet arbeidstimer til 0 (`Math.max(0,…)`). Ny `fordelArbeidstidFradrag` (pause→lengste, reise→start m/ overflyt, kappet til kapasitet) bevarer dag-total-invariant, aldri kapp-og-mist. **(d)** manglende standard-lønnsart surfaces (se over). `splittVedMidnatt`/UF-2/F-A/F-B urørt. **Device-verifiseres på #32** (a: banner uten lønnsart, b: ~2.45t-rad m/ lønnsart + pause på lengste segment) før submit.
+
+### 🔴 Geofence-editor uoppdagbar — gjemt i «Endre navn»-modal (Copy-ikon)
+
+Fanget 2026-06-24: verken Kenneth eller kontroll-Claude fant geofence-editoren i web selv med steg-for-steg. Tre lag feil veivisning i `apps/web/src/app/dashbord/oppsett/byggeplasser/page.tsx`: (1) `bygning.opprett`-suksess kaster brukeren rett inn i fullskjerm tegnings-editor (`setRedigerLokasjonId`, :798) — ser ut som hovedflyten, men geofence er ikke der; (2) geofence-seksjonen ligger nederst i **«Endre navn»**-modalen (:1178–1309), åpnet av knapp med **Copy-ikon** + `t("lokasjoner.endreNavn")` — feil ikon + misvisende label; (3) modalen vises kun etter at en byggeplass er markert, og «Rediger» (blyant) åpner i stedet tegnings-editoren (motsatt av forventning). **Fix:** egen synlig «Geofence/Georeferanse»-handling på markert byggeplass, ikke auto-åpne tegnings-editor ved opprett, rett Copy-ikon/label. Liten fokusert UX-sesjon. Treffer også ekte kunder (samme vegg).
+
+### ✅ «Opprett firma» (sitedoc_admin) fungerer ikke — LØST på develop 2026-06-25 (venter prod-deploy)
+
+**Rotårsak (1a):** CREATE↔LISTE-mismatch på `erKunde`. `admin.opprettOrganisasjon` (`admin.ts:156`) satte kun `name`+`organizationNumber` → `erKunde` falt til schema-default `false`, og `hentAlleOrganisasjoner` filtrerer `where: { erKunde: true }` (`admin.ts:109`, bevisst — skiller kundefirma fra skall-/faggruppe-firma). Firmaet *ble* opprettet (DB-rad), men filtrert bort fra lista → så «ut som» det ikke skjedde. Ikke stille server-feil, ikke refetch-bug, ikke deploy-drift (prosedyren er fra 2026-03-07; invalidering verifisert korrekt wiret). **Fiks:** `opprettOrganisasjon` setter nå `erKunde: true`. **(1b) var IKKE bug:** Brønnøysund-knappen er korrekt `disabled` til org.nr er 9 siffer (`firmaer/page.tsx:309`+`:91`); server (`brreg.ts`) fullt wiret — kun dårlig synlighet, adressert med `title`-tooltip (`brreg.hint`). I tillegg lagt `onError`+feilvisning på opprett-mutasjonen (defensiv — stille feil var i seg selv en mangel). #2 «kan ikke opprette prosjekt uten eksisterende firma» er fortsatt **IKKE bug** (firma-påkrevd, låst 2026-05-20, anti-orphan).
+
+**Åpen oppfølger — prod-orphan-opprydding (Kenneths prod-DB-hånd):** Firma opprettet via modalen FØR fiksen er `erKunde: false` → forblir usynlige (fiksen gjelder kun nye). Blanket-backfill forbudt (ekte skall-firma *skal* være `false`). Read-only diagnose-SQL klar (teller `proj_orgs`/`primary_proj`/`avdelinger`/`moduler`/`members` per `erKunde=false`-firma; ekte orphans = alt 0, typisk navn «Sitedoc»). Kjøres mot prod `sitedoc` → Opus verifiserer trygge rader → Kenneth flipper smalt (`erKunde=true` på spesifikk id, blir synlig i UI) eller sletter.
 
 ### 🔴 Auto-deploy til test rebuilder ikke web (feilaktig antakelse hele økta)
 

@@ -153,10 +153,15 @@ export const adminRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
+      // erKunde: true — admin-vyen administrerer reelle kundefirma. Uten dette
+      // faller raden til schema-default false og filtreres bort av
+      // hentAlleOrganisasjoner (where: { erKunde: true }) → firmaet blir usynlig
+      // selv om create lykkes (rotårsak «Opprett firma fungerer ikke», 2026-06-25).
       return ctx.prisma.organization.create({
         data: {
           name: input.name,
           organizationNumber: input.organizationNumber,
+          erKunde: true,
         },
       });
     }),

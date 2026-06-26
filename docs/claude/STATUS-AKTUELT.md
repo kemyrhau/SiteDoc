@@ -12,9 +12,23 @@ sist_verifisert_mot_kode: 2026-06-08
 >
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 
-### Mobil EAS-bunt — byggeplass-UX F1–F6 + F-A + F-B + F-G — I EAS PROD-BYGG #32 (2026-06-24)
+### Geofence-discoverability (web) — PÅ DEVELOP 2026-06-24
 
-**#32 superseder #31** (`cc119d42`) — la til F-G (glemt-dag 0-fiks) på develop (`c6babc44`). #32 bygges fra `main` etter merge develop→main. **Når brukere via TestFlight når `eas submit` #32 er kjørt** (Kenneths ASC-steg). Device-test av hele bunten via TestFlight-intern. Samlet innhold:
+Geofence-editoren gjort oppdagbar på `byggeplasser/page.tsx`: egen synlig **«Geofence»**-verktøylinje-knapp (MapPin) → egen modal (skilt ut fra «Endre navn», som nå er ren navne-endring). Ikon/label-fiks: «Endre navn» Copy→Pencil, «Rediger»→**«Tegninger»** (LayoutGrid). Opprett markerer ny byggeplass i lista (ikke auto-kast inn i tegnings-editor). Geofence-seksjon flyttet verbatim (settGeofence/beregnGeofence/geokod uendret). i18n: ingen nye nøkler (gjenbruk `lokasjoner.geofence.tittel` + `nav.tegninger`), hjelp-tips oppdatert (15 språk). **Test-verifisering krever manuell rebuild** (auto-deploy rebuilder ikke web). Prod-deploy avventer eksplisitt forespørsel — kreves før 999/A.Markussen-geofence kan settes lett i prod-UI.
+
+### «Opprett firma» (admin) erKunde-fiks (API+web) — PÅ DEVELOP 2026-06-25
+
+Rotårsak til at SiteDoc-admin → Firmaer → «Opprett firma» «ikke fungerte»: `admin.opprettOrganisasjon` satte ikke `erKunde`, falt til default `false`, og `hentAlleOrganisasjoner` filtrerer `erKunde: true` → opprettet firma ble usynlig (firmaet *ble* laget). **Fiks:** create setter `erKunde: true` (`admin.ts:156`). I tillegg `onError`+feilvisning på opprett-mutasjonen + `title`-tooltip på Brønnøysund-knapp (`brreg.hint`, 15 språk) — 1b var ikke bug, kun disabled-gate inntil 9-sifret org.nr. Begge typechecks rene. **Prod-deploy avventer eksplisitt forespørsel — batches med geofence-fiksen (én API+web-deploy).** Åpen oppfølger: prod-orphan-opprydding (read-SQL klar, Kenneths prod-DB-hånd) — se [BACKLOG § «Opprett firma»](BACKLOG.md).
+
+### Mobil Microsoft-auth (code+PKCE) — KODE PÅ DEVELOP 2026-06-26 (venter EAS production-bygg)
+
+Mobil-MS var aldri funksjonell (`EXPO_PUBLIC_MICROSOFT_CLIENT_ID="disabled"` på alle EAS-profiler + implicit-flow). Nå: ekte dedikert Entra public-client-id på alle fire eas.json-profiler, flyt byttet til **authorization code + PKCE** med app-side `exchangeCodeAsync` (`services/auth.ts`), redirect `sitedoc://auth`, knapp-gating på `erMicrosoftKonfigurert` (`config/auth.ts`+`logg-inn.tsx`). Backend `mobilAuth.byttToken` + orphan-guard **urørt** — sikkerhetsgaten bevart. Typecheck rent (12 baseline-feil uendret, ingen i auth-filene). **Gjenstår (Kenneths hånd):** Azure-sjekkliste + **EAS production-bygg** (kvote brukt opp til 1. juli — batches med #32 eller `eas build --local`). Sekvens: commit develop → merge main → EAS production → TestFlight → Florian. Full design + Azure-steg: [BACKLOG § Mobil Microsoft-auth](BACKLOG.md).
+
+### Mobil EAS-bunt — #31 BYGGET (uten F-G) · #32 (med F-G) KVOTE-BLOKKERT til 1. juli (2026-06-24)
+
+**#31** (`cc119d42`) er **bygget + submittet til TestFlight** (App Store Connect bygg (31), status «Testing», 2026-06-24 18:54 — tilgjengelig for Sitedoc test team): byggeplass-UX F1–F6 + F-A + F-B + B2+B6 — **mangler F-G**. A.Markussen kan teste denne bunten via TestFlight nå. **Ikke** App Store-publisert (TestFlight = test-gate foran reell prod-release). F-G venter på #32.
+
+**#32** legger til **F-G** (glemt-dag 0-fiks, `c6babc44`, merget til `main` `73c30e02`) — men er **EAS-kvote-BLOKKERT** (fri-plan iOS-kvote brukt opp denne måneden, reset **onsdag 1. juli 2026**). **#32 er IKKE bygget.** Bygges fra `main` 1. juli (eller `eas build --local` på Mac m/ Xcode). **Device-verify (a/b) + F-G-distribusjon venter på #32.** Samlet innhold i bunten:
 
 - **Mobil global byggeplass-UX (F1–F6)** — `ByggeplassKontekst` eneste kilde, header-chip (hjem/sjekklister), GPS auto-set + override, timer-default fra global, favoritter. Detaljer: [BACKLOG.md § Mobil global byggeplass-UX](BACKLOG.md). Commits `a46d58e9`/`b2ee5fb4`/`0eb2c9ef`/`d7419e6b`/`7c3ae7e3`.
 - **F-A glemt-dag-transparens** (device-test-funn 2026-06-24) — `sluttTidKilde="system"`-utkast viser konkret banner: «Estimert slutt: HH:MM (gjettet) · X.X t på N rader — sjekk og rett» (`timer/[id].tsx`). Ikke-blokkerende.

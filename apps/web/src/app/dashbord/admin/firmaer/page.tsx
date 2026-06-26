@@ -87,6 +87,7 @@ export default function AdminFirmaer() {
   };
 
   const [brregFeil, setBrregFeil] = useState<string | null>(null);
+  const [opprettFeil, setOpprettFeil] = useState<string | null>(null);
   const nyttOrgNrRenset = nyttOrgNr.replace(/\s/g, "");
   const nyttOrgNrErNiSiffer = /^\d{9}$/.test(nyttOrgNrRenset);
   const brregOppslag = trpc.organisasjon.hentFraBrreg.useQuery(
@@ -112,7 +113,9 @@ export default function AdminFirmaer() {
       setVisOpprett(false);
       setNyttNavn("");
       setNyttOrgNr("");
+      setOpprettFeil(null);
     },
+    onError: (error) => setOpprettFeil(error.message),
   });
 
   const oppdaterOrgMutasjon = trpc.admin.oppdaterOrganisasjon.useMutation({
@@ -286,6 +289,7 @@ export default function AdminFirmaer() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
+            setOpprettFeil(null);
             opprettMutasjon.mutate({ name: nyttNavn, organizationNumber: nyttOrgNr || undefined });
           }}
           className="space-y-4"
@@ -307,6 +311,7 @@ export default function AdminFirmaer() {
                 type="button"
                 onClick={hentFraBrreg}
                 disabled={!nyttOrgNrErNiSiffer || brregOppslag.isFetching}
+                title={!nyttOrgNrErNiSiffer ? t("brreg.hint") : undefined}
                 className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Search className="h-4 w-4" />
@@ -316,6 +321,7 @@ export default function AdminFirmaer() {
             {brregFeil && <p className="mt-1 text-xs text-red-500">{brregFeil}</p>}
           </div>
           <Input label="Firmanavn" value={nyttNavn} onChange={(e) => setNyttNavn(e.target.value)} required />
+          {opprettFeil && <p className="text-xs text-red-500">{opprettFeil}</p>}
           <div className="flex justify-end gap-2">
             <Button type="button" variant="secondary" onClick={() => setVisOpprett(false)}>Avbryt</Button>
             <Button type="submit" disabled={!nyttNavn || opprettMutasjon.isPending}>Opprett</Button>
