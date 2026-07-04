@@ -96,7 +96,7 @@ Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). `DailySh
 - **❓ Byggeplass-velger deaktivert i web-timer:** verifiser tilsiktet (`useToppbarFiltre`) vs hull. Merk asymmetri: `DailySheet` har `byggeplassId` men ikke `projectId`.
 - **🔴 Advarsel ved 2+ byggeplasser:** ved oppsett av flere byggeplasser på et prosjekt, minn om at geolokasjon/geofence bør settes per byggeplass (ellers ingen GPS-auto-valg). Akseptert som OK: prosjekt-georef (Prosjektlokasjon) vs byggeplass-georef-konflikt der byggeplass-velger er deaktivert i prosjekt-innstillingen.
 
-### ✅ FIKSET PÅ DEVELOP 2026-07-04 (commit `27613725`): `SheetMachine.vehicleId` (maskindrift) er org-validert
+### ✅ FIKSET PÅ DEVELOP 2026-07-04 (commit `90469dc7`): `SheetMachine.vehicleId` (maskindrift) er org-validert
 
 Oppdaget under Timer Fase 2-dual-review (2026-06-09). `SheetMachine.vehicleId` (drift/maskinfører-timer) ble skrevet på `syncBatch` (`dagsseddel.ts` maskin-createMany), `redigerSedelRader` og `splittRad` **uten** å validere at maskinen tilhører firmaet. Samme cross-firma-lekkasje-klasse som §2.D dekket for det nye `SheetTimer.vehicleId` — men dette var **pre-eksisterende** (gjelder maskinbruk-raden, ikke kostnadsbæreren), og ble bevisst holdt utenfor Fase 2-scope.
 
