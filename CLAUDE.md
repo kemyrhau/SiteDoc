@@ -58,6 +58,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md) | **🟡 AKTIV:** Strukturert TODO-liste, 5 prioritets-nivåer |
 | [docs/claude/historikk-2026-05.md](docs/claude/historikk-2026-05.md) | Arkiv av deployete PR-er fra mai 2026 |
 | [docs/claude/historikk-2026-06.md](docs/claude/historikk-2026-06.md) | Arkiv av deployete PR-er/saker fra juni 2026 |
+| [docs/claude/historikk-2026-07.md](docs/claude/historikk-2026-07.md) | Arkiv av deployete PR-er/saker fra juli 2026 |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).

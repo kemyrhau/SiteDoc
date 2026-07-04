@@ -216,27 +216,21 @@ Funnet under Timer Fase 1b-data-sjekk (2026-06-09). `admin.ts:266` + `prosjekt.t
 
 **Foreslått fiks:** backfill-migrasjon som setter inn manglende `ProjectOrganization`-rader for alle `Project` med `primaryOrganizationId IS NOT NULL` som ikke allerede har en kobling for den orgen (idempotent `INSERT ... WHERE NOT EXISTS`). Da kan union-fallbacken på sikt forenkles til ren ProjectOrganization-sjekk. **Krever migrasjon → prod = LÅS + Kenneth.** Lav hast (1b-unionen holder timer trygg i mellomtiden).
 
-### Split-identitet MS-login (web↔mobil) — Fix A + gate-innstramming PÅ DEVELOP 2026-07-04
+### Split-identitet MS-login (web↔mobil) — ✅ DEPLOYET TIL PROD 2026-07-04 (`bb5aec05`)
 
-**Rot-årsak (DB-bevis mot prod 2026-07-04):** KMY (`KennethMyrhaug@…onmicrosoft.com`) fikk **to `users`-rader** for én Microsoft-konto → web viste tom prosjektliste mens mobil viste 999. Rad **A** `f2d473b9-a732-499b-ad5b-4d3ca7f60459` (blandet case, `provider_account_id=068af417…`, har ProjectMember 999 + OrganizationMember A.Markussen, mobil-sesjon 30d) vs. rad **B** `3a3c6272-60f8-4270-9e6d-9cb8f0a28faa` (lowercase, `o05acphT…`, tom, web-sesjon 24t). To samvirkende feil: (1) mobil bruker Graph `/me.id` (objekt-ID) mens web Auth.js bruker id-tokenets `sub` (pairwise) som `provider_account_id` → `getUserByAccount` matcher aldri på tvers; (2) `getUserByEmail` var case-sensitiv → e-post-kobling feilet på case-avvik → Auth.js opprettet duplikat B. Konkret manifestasjon av kjent risiko («User.email-normalisering», § Sikkerhets-audit-oppfølgere under).
+**Fix A (case-insensitiv `getUserByEmail`) + gate-innstramming (web+mobil) + sak #3 (KMY-duplikat B→A) er deployet og utført.** Full rot-årsak + implementasjon + datafiks arkivert til [historikk-2026-07.md § Prod-deploy 2026-07-04](historikk-2026-07.md). Kort: to `users`-rader for én MS-konto (mobil Graph-`/me.id` vs web id-token-`sub` → ulik `provider_account_id`; + case-sensitiv `getUserByEmail`). Konsolidering utført 2026-07-04 (begge MS-kontoer flyttet til A `f2d473b9`, e-post → `kenneth@sitedoc.no`, B `3a3c6272` arkivert `can_login=false`). Diagnostikk-SQL: `scripts/diag-kmy-web-bug.sql`.
 
-**✅ Kode PÅ DEVELOP 2026-07-04 (Fix A + sak #2):**
-- **Fix A** — `getUserByEmail`-overstyringen (`apps/web/src/auth.ts:15`) case-insensitiv (`mode: "insensitive"`), eldste-først beholdt.
-- **Gate-innstramming** — `signIn` (a) (`auth.ts`) + speilet i `mobilAuth.byttToken` (`apps/api/src/routes/mobilAuth.ts`): eksisterende canLogin-bruker slippes kun inn med `sitedoc_admin` / `OrganizationMember` / `ProjectMember` / ventende invitasjon / allerede koblet konto. Fjernet-fra-alt → avvist ved neste innlogging (ønsket). Rene typechecks.
-
-**🟠 PENDING — prod-datafiks KMY-duplikat (Kenneth kjører, prod-DB, eksplisitt godkjenning):** Fold B → A, ikke hard-slett. I transaksjon (re-bekreft begge id-er mot DB før kjøring):
-```sql
-UPDATE accounts SET user_id='f2d473b9-a732-499b-ad5b-4d3ca7f60459' WHERE user_id='3a3c6272-60f8-4270-9e6d-9cb8f0a28faa';
-DELETE FROM sessions WHERE user_id='3a3c6272-60f8-4270-9e6d-9cb8f0a28faa';
-UPDATE users SET can_login=false WHERE id='3a3c6272-60f8-4270-9e6d-9cb8f0a28faa';
-```
-Trygt: `accounts` har kun `@@unique([provider, providerAccountId])` (schema.prisma:344) — ingen kollisjon (`o05acphT…` ≠ `068af417…`). Etterpå peker `getUserByAccount(o05acphT)` på A → web ser 999. Gmail-admin urørt. Diagnostikk-SQL: `scripts/diag-kmy-web-bug.sql`.
+**Gjenstår (åpne oppfølgere):**
 
 **🟡 Sak #4 — normalisér e-post ved skriving (belt-and-suspenders):** Alle skrivestier bør lagre e-post lowercase (mobil `mobilAuth.ts:60` skriver rå Graph-case i dag; web PrismaAdapter likeså). Så lesestier ikke er avhengige av `mode: "insensitive"`. Krever backfill av eksisterende blandet-case-rader (migrering av `users.email`). Slår sammen med den eldre «User.email-normalisering»-oppfølgeren under.
 
 **🟡 Sak #5 — firma-velger admin-only:** `firma-kontekst.tsx:51` bruker admin-only `hentTilgjengelige` → firma-ansatte (role="user") ser ikke eget firma i velgeren. Fiks: bytt velger-kilden til `hentMineMedlemskap` (alle OrganizationMember-firmaer). Ikke bryt admin-gatingen — `erSitedocAdmin`/`erCompanyAdmin` kommer fra `bruker.hentMin` på rolle, ikke fra `tilgjengelige`. Verifiser alle konsumenter av `tilgjengelige` (Toppbar-velger + evt. admin-meny) før endring. Egen plan-runde etter #1 er lukket.
 
 **🟡 Gradert tidligere-ansatt-tilgang (framtidig, døra holdes åpen):** Gate-innstrammingen over betyr at en bruker fjernet fra *alle* firma/prosjekt fortsatt beholder **pålogging** via koblet konto (unntak (c)), men mister alt **innhold** (ingen medlemskap → tomme lister). Det er akseptabelt nå. Framtidig Timer-modul-funksjon: gi en org-løs *tidligere ansatt* **scoped** tilgang til egne timer (lønns-/dokumentasjonsbehov etter sluttdato), uten firma/prosjekt-innsyn. Henger på org-isolasjon + Proadm-lønnsflyt — ikke levert av denne PR. Merk: «avvis fjernet-fra-alt» gjelder fortsatt **aldri-innloggede** orphans (ingen koblet konto).
+
+### Brukere-lista viser ikke arvet firma_admin (kosmetisk UX) 🟢
+
+Observert 2026-07-04 (KMY/Florian-diagnose). ROLLE-kolonnen i `dashbord/oppsett/brukere/page.tsx` viser kun **ProjectMember-rollen/-flagget** (`admin`/`member`/`firmaansvarlig` via `erFirmaansvarlig`), ikke den **arvede** org-admin-statusen. En `company_admin` med `firmaRoller=["firma_admin"]` har full admin på firmaets prosjekter (via `verifiserAdminEllerFirmaansvarlig` → `erFirmaAdmin` når prosjektet har `ProjectOrganization`-kobling), men *leser* i lista som «Firmaansvarlig»/«Medlem». Konkret eksempel: Florian (`company_admin` + `firma_admin` på A.Markussen) er funksjonelt admin på 999, men vises som «Firmaansvarlig». **Ikke et tilgangsavvik** — tilgangen er korrekt; kun UI som ikke synliggjør arv. Mulig fiks: badge «Admin (via firma)» når `erFirmaAdmin` er sann for et prosjekt-koblet firma. Lav prioritet.
 
 ### H3 — `allowDangerousEmailAccountLinking` reversert + signIn-guard — ✅ DEPLOYET TIL PROD 2026-06-05
 
