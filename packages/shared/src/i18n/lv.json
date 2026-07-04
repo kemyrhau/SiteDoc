@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Importējiet aprīkojumu no SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Atgriezties uz aprīkojuma reģistru",
   "firma.maskin.import.velgFirma": "Pirms aprīkojuma reģistra importēšanas augšējā izvēlnē atlasiet klientu uzņēmumu.",
+  "firma.maskin.ingenTilgangOpprett": "Jums nav piekļuves aprīkojuma izveidei vai importēšanai. Sazinieties ar uzņēmuma administratoru.",
   "firma.maskin.import.fillinje": "{{totalt}} rindas, {{filtrert}} filtrētas (pārbaudes dati)",
   "firma.maskin.import.gruppe.sammendrag": "Kopsavilkums",
   "firma.maskin.import.gruppe.kategori": "Kategorija",

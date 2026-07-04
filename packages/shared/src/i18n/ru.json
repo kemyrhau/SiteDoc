@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Импорт оборудования из SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Вернуться к реестру оборудования",
   "firma.maskin.import.velgFirma": "Перед импортом реестра оборудования выберите компанию-клиента в верхнем меню.",
+  "firma.maskin.ingenTilgangOpprett": "У вас нет доступа к созданию или импорту оборудования. Свяжитесь с администратором компании.",
   "firma.maskin.import.fillinje": "{{totalt}} строк, {{filtrert}} отфильтровано (тестовые данные)",
   "firma.maskin.import.gruppe.sammendrag": "Краткое содержание",
   "firma.maskin.import.gruppe.kategori": "Категория",

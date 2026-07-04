@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Importuj sprzęt ze SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Powrót do rejestru sprzętu",
   "firma.maskin.import.velgFirma": "Przed zaimportowaniem rejestru sprzętu wybierz firmę klienta z górnego menu.",
+  "firma.maskin.ingenTilgangOpprett": "Nie masz dostępu do tworzenia ani importowania sprzętu. Skontaktuj się z administratorem firmy.",
   "firma.maskin.import.fillinje": "{{totalt}} wierszy, {{filtrert}} przefiltrowane (dane testowe)",
   "firma.maskin.import.gruppe.sammendrag": "Streszczenie",
   "firma.maskin.import.gruppe.kategori": "Kategoria",

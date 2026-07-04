@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Importați echipamente de la SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Înapoi la registrul echipamentelor",
   "firma.maskin.import.velgFirma": "Selectați o companie client din meniul de sus înainte de a importa registrul de echipamente.",
+  "firma.maskin.ingenTilgangOpprett": "Nu aveți acces pentru a crea sau a importa echipamente. Contactați un administrator al companiei.",
   "firma.maskin.import.fillinje": "{{totalt}} rânduri, {{filtrert}} filtrate (date de testare)",
   "firma.maskin.import.gruppe.sammendrag": "Rezumat",
   "firma.maskin.import.gruppe.kategori": "Categorie",

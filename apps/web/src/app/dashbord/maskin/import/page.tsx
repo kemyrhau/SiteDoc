@@ -52,7 +52,7 @@ type BekreftResultat = {
 export default function MaskinImportSide() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, kanAdministrereFirma } = useFirma();
   const orgId = valgtFirma?.id;
 
   const [steg, setSteg] = useState<ImportSteg>("opplastning");
@@ -131,6 +131,31 @@ export default function MaskinImportSide() {
     anleggsmaskin: t("maskin.kategoriAnleggsmaskin"),
     smautstyr: t("maskin.kategoriSmautstyr"),
   };
+
+  // Sak #5: import gates på admin-kapabilitet (server beskytter allerede via
+  // verifiserFirmaAdmin — dette gir grasiøs melding ved direkte-URL, ikke brutt
+  // skjema). Maskin-lista/-visning er fortsatt åpen for ansatte.
+  if (!kanAdministrereFirma) {
+    return (
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-5 flex items-center gap-3">
+          <Link
+            href="/dashbord/maskin"
+            className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600"
+            title={t("firma.maskin.import.tilbakeTilMaskin")}
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <h1 className="text-xl font-semibold text-gray-900">
+            {t("firma.maskin.import.tittel")}
+          </h1>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-sm text-gray-600">
+          {t("firma.maskin.ingenTilgangOpprett")}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-5xl">

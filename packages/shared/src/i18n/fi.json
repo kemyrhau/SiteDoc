@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Tuo laitteet SmartDokista",
   "firma.maskin.import.tilbakeTilMaskin": "Takaisin laiterekisteriin",
   "firma.maskin.import.velgFirma": "Valitse asiakasyritys ylävalikosta ennen laiterekisterin tuontia.",
+  "firma.maskin.ingenTilgangOpprett": "Sinulla ei ole oikeutta luoda tai tuoda laitteita. Ota yhteyttä yrityksen ylläpitäjään.",
   "firma.maskin.import.fillinje": "{{totalt}} riviä, {{filtrert}} suodatettua (testitiedot)",
   "firma.maskin.import.gruppe.sammendrag": "Yhteenveto",
   "firma.maskin.import.gruppe.kategori": "Luokka",

@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Importer des équipements depuis SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Retour au registre des équipements",
   "firma.maskin.import.velgFirma": "Sélectionnez une entreprise cliente dans le menu supérieur avant d'importer le registre des équipements.",
+  "firma.maskin.ingenTilgangOpprett": "Vous n'avez pas accès pour créer ou importer des équipements. Contactez un administrateur de l'entreprise.",
   "firma.maskin.import.fillinje": "{{totalt}} lignes, {{filtrert}} filtrées (données de test)",
   "firma.maskin.import.gruppe.sammendrag": "Résumé",
   "firma.maskin.import.gruppe.kategori": "Catégorie",

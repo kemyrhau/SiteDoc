@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Імпорт обладнання від SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Повернутися до реєстру обладнання",
   "firma.maskin.import.velgFirma": "Виберіть компанію-клієнта у верхньому меню перед імпортом реєстру обладнання.",
+  "firma.maskin.ingenTilgangOpprett": "Ви не маєте доступу до створення або імпорту обладнання. Зверніться до адміністратора компанії.",
   "firma.maskin.import.fillinje": "{{totalt}} рядків, {{filtrert}} відфільтровано (тестові дані)",
   "firma.maskin.import.gruppe.sammendrag": "Резюме",
   "firma.maskin.import.gruppe.kategori": "Категорія",
