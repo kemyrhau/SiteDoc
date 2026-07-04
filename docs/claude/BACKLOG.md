@@ -96,13 +96,13 @@ Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). `DailySh
 - **❓ Byggeplass-velger deaktivert i web-timer:** verifiser tilsiktet (`useToppbarFiltre`) vs hull. Merk asymmetri: `DailySheet` har `byggeplassId` men ikke `projectId`.
 - **🔴 Advarsel ved 2+ byggeplasser:** ved oppsett av flere byggeplasser på et prosjekt, minn om at geolokasjon/geofence bør settes per byggeplass (ellers ingen GPS-auto-valg). Akseptert som OK: prosjekt-georef (Prosjektlokasjon) vs byggeplass-georef-konflikt der byggeplass-velger er deaktivert i prosjekt-innstillingen.
 
-### 🔴 SIKKERHETS-GAP: `SheetMachine.vehicleId` (maskindrift) er IKKE org-validert
+### ✅ FIKSET PÅ DEVELOP 2026-07-04 (commit `27613725`): `SheetMachine.vehicleId` (maskindrift) er org-validert
 
-Oppdaget under Timer Fase 2-dual-review (2026-06-09). `SheetMachine.vehicleId` (drift/maskinfører-timer) skrives på `syncBatch` (`dagsseddel.ts` maskin-createMany), `redigerSedelRader` og `splittRad` **uten** å validere at maskinen tilhører firmaet. Samme cross-firma-lekkasje-klasse som §2.D dekket for det nye `SheetTimer.vehicleId` — men dette er **pre-eksisterende** (gjelder maskinbruk-raden, ikke kostnadsbæreren), og ble bevisst holdt utenfor Fase 2-scope.
+Oppdaget under Timer Fase 2-dual-review (2026-06-09). `SheetMachine.vehicleId` (drift/maskinfører-timer) ble skrevet på `syncBatch` (`dagsseddel.ts` maskin-createMany), `redigerSedelRader` og `splittRad` **uten** å validere at maskinen tilhører firmaet. Samme cross-firma-lekkasje-klasse som §2.D dekket for det nye `SheetTimer.vehicleId` — men dette var **pre-eksisterende** (gjelder maskinbruk-raden, ikke kostnadsbæreren), og ble bevisst holdt utenfor Fase 2-scope.
 
-**Konsekvens:** en klient kan teoretisk sende en `vehicleId` som peker på et annet firmas `Equipment`-rad. `Equipment` er svak FK (`db-maskin`, ingen `@relation`), så Prisma håndhever ingenting — org-isolasjon MÅ skje i app-lag. I dag mangler den på alle SheetMachine-skrive-stier.
+**Konsekvens (var):** en klient kunne teoretisk sende en `vehicleId` som peker på et annet firmas `Equipment`-rad. `Equipment` er svak FK (`db-maskin`, ingen `@relation`), så Prisma håndhever ingenting — org-isolasjon MÅ skje i app-lag.
 
-**Foreslått fiks:** gjenbruk `verifiserKjoretoyTilhørerFirma(vehicleId, organizationId)` (`dagsseddel.ts`, innført i Fase 2 §2.D) på maskin-radene i `tilfoyMaskinRad`/`oppdaterMaskinRad`/`syncBatch`/`redigerSedelRader`/`splittRad` — samlet pr. unik ID, samme mønster som timer-stiene allerede bruker. Rent additiv logikk, ingen schema/migrasjon. **Ikke fikset her** (egen PR for sporbarhet — Fase 2 holdt seg til §2.D-scope).
+**Fiks (PR 1, 2026-07-04):** `verifiserKjoretoyTilhørerFirma(vehicleId, organizationId)` (`dagsseddel.ts` §2.D) lagt på alle fem SheetMachine-skrive-stier med input-`vehicleId`: `maskin.tilfoy`, `maskin.oppdater`, `redigerSedelRader` (maskin-rad — dedup utvidet), `splittRad` (maskin-branch), `syncBatch` (dedup utvidet med `lokal.maskiner`). Completeness-søk bekreftet nøyaktig fem input-stier (øvrige 8 `update`/`updateMany` skriver kun status/attestert-felter). Rent additivt, ingen schema/migrasjon. Utdatert `:3462`-kommentar oppdatert. Typecheck rent. **Gjenstår: prod-deploy** (fiksen lever kun på develop/test — se egen forespørsel om prod).
 
 ### Pre-eksisterende typecheck-gjeld (mobil + web) 🟡
 

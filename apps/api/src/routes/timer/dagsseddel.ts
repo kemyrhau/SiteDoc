@@ -2150,13 +2150,15 @@ export const dagsseddelRouter = router({
         sheet.organizationId,
       );
 
-      // §2.D: org-valider timer-rad-vehicleId (maskinvedlikehold-kostnadsbærer)
-      // mot firmaets maskinregister — samme grense som de andre skrive-stiene.
+      // §2.D: org-valider alle rad-vehicleId (maskin-kostnadsbærer) mot firmaets
+      // maskinregister — timer-rad (nullable) + maskin-rad (påkrevd), samme
+      // grense som de andre skrive-stiene. Dedup pr. unik ID.
       const redigerVehicleIder = Array.from(
         new Set(
-          input.nyeRader.timer
-            .map((r) => r.vehicleId)
-            .filter((v): v is string => !!v),
+          [
+            ...input.nyeRader.timer.map((r) => r.vehicleId),
+            ...input.nyeRader.maskin.map((r) => r.vehicleId),
+          ].filter((v): v is string => !!v),
         ),
       );
       for (const vid of redigerVehicleIder) {
@@ -2531,6 +2533,18 @@ export const dagsseddelRouter = router({
         input.nyeRader.map((r) => r.projectId),
         sheet.organizationId,
       );
+
+      // 6b) §2.D: maskin-splitt tar nye vehicleId fra input — org-valider hver
+      // unik mot firmaets maskinregister. Timer-splitt arver original-radens
+      // vehicleId (allerede validert) og trenger ingen ny sjekk.
+      if (input.radType === "maskin") {
+        const splittVehicleIder = Array.from(
+          new Set(input.nyeRader.map((r) => r.vehicleId)),
+        );
+        for (const vid of splittVehicleIder) {
+          await verifiserKjoretoyTilhørerFirma(vid, sheet.organizationId);
+        }
+      }
 
       // 7) Sum-validering: nye rader må summere til originalens sum-felt.
       //    Timer- og maskin-rad: sum av "timer". Tillegg-rad: sum av "antall".
@@ -3260,16 +3274,18 @@ export const dagsseddelRouter = router({
             orgId,
           );
 
-          // §2.D: valider alle timer-rad-vehicleId (maskinvedlikehold-kostnadsbærer)
-          // mot firmaets maskinregister. Samlet pr. unik ID for å unngå N oppslag.
-          const timerVehicleIder = Array.from(
+          // §2.D: valider alle rad-vehicleId (maskin-kostnadsbærer) mot firmaets
+          // maskinregister — timer-rad (nullable) + maskin-rad (påkrevd). Samlet
+          // pr. unik ID for å unngå N oppslag.
+          const alleVehicleIder = Array.from(
             new Set(
-              lokal.timer
-                .map((t) => t.vehicleId)
-                .filter((v): v is string => !!v),
+              [
+                ...lokal.timer.map((t) => t.vehicleId),
+                ...lokal.maskiner.map((m) => m.vehicleId),
+              ].filter((v): v is string => !!v),
             ),
           );
-          for (const vid of timerVehicleIder) {
+          for (const vid of alleVehicleIder) {
             await verifiserKjoretoyTilhørerFirma(vid, orgId);
           }
 
@@ -3459,7 +3475,9 @@ export const dagsseddelRouter = router({
   //  Maskin-rader (C9 2026-05-02) — sheet_machines lever i db-timer fordi
   //  Timer eier dagsseddelen. Equipment-katalog leveres av Maskin-modul via
   //  service-lag (cross-modul-konvensjon per arkitektur-syntese § 6.1.1).
-  //  Vehicle-validering mot db-maskin gjøres ikke her — svak FK per A.20.
+  //  Equipment er svak FK (ingen @relation) → org-isolasjon MÅ håndheves i
+  //  app-lag: §2.D validerer vehicleId mot firmaets register på alle
+  //  SheetMachine-skrive-stier (verifiserKjoretoyTilhørerFirma).
   // ============================================================================
 
   maskin: router({
@@ -3491,6 +3509,10 @@ export const dagsseddelRouter = router({
           });
         }
         await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+        // §2.D: vehicleId (maskin-kostnadsbærer) må tilhøre firmaet. Svak FK
+        // mot Equipment (db-maskin) → org-isolasjon håndheves i app-lag.
+        await verifiserKjoretoyTilhørerFirma(input.vehicleId, sheet.organizationId);
 
         // T7-4b: valider post-state.
         const naa = await hentRaderForValidering(
@@ -3563,6 +3585,12 @@ export const dagsseddelRouter = router({
           });
         }
         await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+        // §2.D: valider ny vehicleId mot firmaets maskinregister når en ID
+        // settes. vehicleId er optional (ikke nullable) → if dekker undefined.
+        if (input.vehicleId) {
+          await verifiserKjoretoyTilhørerFirma(input.vehicleId, sheet.organizationId);
+        }
 
         const data: Prisma.SheetMachineUpdateInput = {};
         if (input.vehicleId !== undefined) data.vehicleId = input.vehicleId;
