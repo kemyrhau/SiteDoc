@@ -11,7 +11,7 @@ import { useFirma } from "@/kontekst/firma-kontekst";
 export default function NyttProsjektSide() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { valgtFirma, erSitedocAdmin } = useFirma();
+  const { valgtFirma, erSitedocAdmin, kanAdministrereFirma } = useFirma();
   const [navn, setNavn] = useState("");
   const [beskrivelse, setBeskrivelse] = useState("");
   const [adresse, setAdresse] = useState("");
@@ -31,6 +31,9 @@ export default function NyttProsjektSide() {
     // 2026-05-20: firma er nå påkrevd. Blokkér submit hvis ingen firma er valgt
     // i topbar-konteksten. Server-Zod avviser uansett, men UI gir tydelig signal.
     if (!valgtFirma?.id) return;
+    // Sak #5: kun firma-administratorer kan opprette prosjekt (server tillater
+    // OrganizationMember, men UI-en holdes admin-only).
+    if (!kanAdministrereFirma) return;
 
     opprettMutation.mutate({
       name: navn.trim(),
@@ -38,6 +41,20 @@ export default function NyttProsjektSide() {
       address: adresse.trim() || undefined,
       organizationId: valgtFirma.id,
     });
+  }
+
+  // Sak #5: firma-admin-gate. Vanlige ansatte kan ha valgtFirma populert for
+  // innsyn, men skal ikke kunne opprette prosjekt via UI.
+  if (!kanAdministrereFirma) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <h2 className="mb-6 text-2xl font-bold">Nytt prosjekt</h2>
+        <div className="flex items-start gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-500">
+          <Building2 className="mt-0.5 h-4 w-4 shrink-0" />
+          <div>Du har ikke tilgang til å opprette prosjekt.</div>
+        </div>
+      </div>
+    );
   }
 
   return (
