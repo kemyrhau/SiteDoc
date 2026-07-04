@@ -31,7 +31,8 @@ export default function KomIGangSide() {
   const { t } = useTranslation();
   const router = useRouter();
   const { data: session } = useSession();
-  const { valgtFirma, erSitedocAdmin, isLoading: firmaLaster } = useFirma();
+  const { valgtFirma, erSitedocAdmin, kanAdministrereFirma, isLoading: firmaLaster } =
+    useFirma();
 
   // Sitedoc_admin er ikke målgruppe for «kom-i-gang» (siden heter «kom i gang»
   // og prøveperiode-framing passer ikke for superadmin som onboarder kunder).
@@ -113,14 +114,22 @@ export default function KomIGangSide() {
           <Button
             onClick={() =>
               valgtFirma?.id &&
+              kanAdministrereFirma &&
               opprettMutation.mutate({ organizationId: valgtFirma.id })
             }
             loading={opprettMutation.isPending}
-            disabled={!valgtFirma?.id}
+            disabled={!valgtFirma?.id || !kanAdministrereFirma}
             className="w-full"
           >
             Start gratis prøveperiode
           </Button>
+          {/* Sak #5: opprett-evne holdes admin-only selv om valgtFirma er
+              populert for innsyn. */}
+          {valgtFirma && !kanAdministrereFirma && (
+            <p className="mt-2 text-sm text-gray-500">
+              Du har ikke tilgang til å opprette prosjekt.
+            </p>
+          )}
           {opprettMutation.error && (
             <p className="mt-2 text-sm text-sitedoc-error">
               {opprettMutation.error.message}

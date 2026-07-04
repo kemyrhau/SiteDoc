@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Importoni pajisje nga SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Kthehu te regjistri i pajisjeve",
   "firma.maskin.import.velgFirma": "Zgjidhni një kompani klienti nga menyja e sipërme përpara se të importoni regjistrin e pajisjeve.",
+  "firma.maskin.ingenTilgangOpprett": "Ju nuk keni akses për të krijuar ose importuar pajisje. Kontaktoni një administrator të kompanisë.",
   "firma.maskin.import.fillinje": "{{totalt}} rreshta, {{filtrert}} të filtruar (të dhënat e testimit)",
   "firma.maskin.import.gruppe.sammendrag": "Përmbledhje",
   "firma.maskin.import.gruppe.kategori": "Kategoria",

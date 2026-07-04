@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Import vybavení ze SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Zpět do registru zařízení",
   "firma.maskin.import.velgFirma": "Před importem registru zařízení vyberte z horní nabídky společnost zákazníka.",
+  "firma.maskin.ingenTilgangOpprett": "Nemáte přístup k vytváření nebo importu zařízení. Kontaktujte správce společnosti.",
   "firma.maskin.import.fillinje": "{{totalt}} řádků, {{filtrert}} filtrováno (testovací data)",
   "firma.maskin.import.gruppe.sammendrag": "Shrnutí",
   "firma.maskin.import.gruppe.kategori": "Kategorie",

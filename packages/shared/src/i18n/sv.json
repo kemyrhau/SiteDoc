@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Importera utrustning från SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Tillbaka till utrustningsregistret",
   "firma.maskin.import.velgFirma": "Välj ett kundföretag från toppmenyn innan du importerar utrustningsregistret.",
+  "firma.maskin.ingenTilgangOpprett": "Du har inte tillgång till att skapa eller importera utrustning. Kontakta en företagsadministratör.",
   "firma.maskin.import.fillinje": "{{totalt}} rader, {{filtrert}} filtrerade (testdata)",
   "firma.maskin.import.gruppe.sammendrag": "Sammanfattning",
   "firma.maskin.import.gruppe.kategori": "Kategori",

@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Importieren Sie Geräte aus SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Zurück zum Geräteregister",
   "firma.maskin.import.velgFirma": "Wählen Sie im oberen Menü ein Kundenunternehmen aus, bevor Sie das Geräteregister importieren.",
+  "firma.maskin.ingenTilgangOpprett": "Sie haben keinen Zugriff zum Erstellen oder Importieren von Geräten. Wenden Sie sich an einen Unternehmensadministrator.",
   "firma.maskin.import.fillinje": "{{totalt}} Zeilen, {{filtrert}} gefiltert (Testdaten)",
   "firma.maskin.import.gruppe.sammendrag": "Zusammenfassung",
   "firma.maskin.import.gruppe.kategori": "Kategorie",

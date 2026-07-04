@@ -2237,6 +2237,7 @@
   "firma.maskin.import.tittel": "Importer maskiner fra SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Tilbake til maskinregister",
   "firma.maskin.import.velgFirma": "Velg et kunde-firma fra toppmenyen før du kan importere maskinregister.",
+  "firma.maskin.ingenTilgangOpprett": "Du har ikke tilgang til å opprette eller importere maskiner. Kontakt en firma-administrator.",
   "firma.maskin.import.fillinje": "{{totalt}} rader, {{filtrert}} filtrert (testdata)",
   "firma.maskin.import.gruppe.sammendrag": "Sammendrag",
   "firma.maskin.import.gruppe.kategori": "Kategori",

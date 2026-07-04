@@ -128,10 +128,19 @@ export function KartVelger({
       });
     }
 
-    // Fix Leaflet size calc etter mount
+    // Fix Leaflet size calc etter mount (fallback).
     setTimeout(() => map.invalidateSize(), 100);
 
+    // Kartet ligger ofte i en native <dialog>-Modal som er display:none ved
+    // mount → L.map() initialiseres med 0×0-container, og timeout-en over
+    // fyrer mens dialogen fortsatt er skjult. Når modalen åpnes går
+    // containeren 0 → faktisk høyde; ResizeObserver fanger det og reberegner
+    // fliser. Fikser alle modal-hostede kart-bruk (rotårsak, ikke bare geofence).
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(kartRef.current);
+
     return () => {
+      observer.disconnect();
       map.remove();
       mapRef.current = null;
       markorRef.current = null;

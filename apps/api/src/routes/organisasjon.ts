@@ -33,6 +33,38 @@ async function verifiserFirmaAdmin(
   return inputOrgId;
 }
 
+/**
+ * Berik firma-liste med aktiveFirmamoduler (slug-array) fra OrganizationModule.
+ * Delt av `hentTilgjengelige` (admin-sett) og `hentMineMedlemskap` (alle
+ * medlemskap) så begge query-resultater har samme shape — firma-kontekst leser
+ * `aktiveFirmamoduler` for modul-gating (timer/maskin/varelager) uansett kilde.
+ * Steg 1e Fase B: aktiveFirmamoduler avledes fra OrganizationModule-tabellen.
+ */
+async function berikMedFirmamoduler(
+  db: typeof prisma,
+  orgs: { id: string; name: string; erKunde: boolean }[],
+): Promise<
+  Array<{ id: string; name: string; erKunde: boolean; aktiveFirmamoduler: string[] }>
+> {
+  const moduler = await db.organizationModule.findMany({
+    where: {
+      organizationId: { in: orgs.map((o) => o.id) },
+      status: "aktiv",
+    },
+    select: { organizationId: true, moduleSlug: true },
+  });
+  const perOrg = new Map<string, string[]>();
+  for (const m of moduler) {
+    const liste = perOrg.get(m.organizationId) ?? [];
+    liste.push(m.moduleSlug);
+    perOrg.set(m.organizationId, liste);
+  }
+  return orgs.map((o) => ({
+    ...o,
+    aktiveFirmamoduler: perOrg.get(o.id) ?? [],
+  }));
+}
+
 export const organisasjonRouter = router({
   // Hent alle organisasjoner (for firma-dropdown i admin)
   hentAlle: protectedProcedure.query(async ({ ctx }) => {
@@ -55,34 +87,13 @@ export const organisasjonRouter = router({
       select: { role: true },
     });
 
-    // Steg 1e Fase B: aktiveFirmamoduler avledes fra OrganizationModule-tabellen.
-    const beriker = async (orgs: { id: string; name: string; erKunde: boolean }[]) => {
-      const moduler = await ctx.prisma.organizationModule.findMany({
-        where: {
-          organizationId: { in: orgs.map((o) => o.id) },
-          status: "aktiv",
-        },
-        select: { organizationId: true, moduleSlug: true },
-      });
-      const perOrg = new Map<string, string[]>();
-      for (const m of moduler) {
-        const liste = perOrg.get(m.organizationId) ?? [];
-        liste.push(m.moduleSlug);
-        perOrg.set(m.organizationId, liste);
-      }
-      return orgs.map((o) => ({
-        ...o,
-        aktiveFirmamoduler: perOrg.get(o.id) ?? [],
-      }));
-    };
-
     if (bruker.role === "sitedoc_admin") {
       const orgs = await ctx.prisma.organization.findMany({
         where: { erKunde: true },
         select: { id: true, name: true, erKunde: true },
         orderBy: { name: "asc" },
       });
-      return beriker(orgs);
+      return berikMedFirmamoduler(ctx.prisma, orgs);
     }
 
     const adminMedlemskap = await ctx.prisma.organizationMember.findMany({
@@ -99,14 +110,15 @@ export const organisasjonRouter = router({
       select: { id: true, name: true, erKunde: true },
       orderBy: { name: "asc" },
     });
-    return beriker(orgs);
+    return berikMedFirmamoduler(ctx.prisma, orgs);
   }),
 
   /**
-   * Hent firmaer brukeren er medlem av — for mobil firma-velger.
-   * Speiler webens `hentTilgjengelige`-shape, men inkluderer alle medlemskap
-   * (ikke kun firma-admin). Tar ikke med `aktiveFirmamoduler` — velgeren
-   * trenger kun navn.
+   * Hent firmaer brukeren er medlem av — for mobil firma-velger og webens
+   * firma-kontekst (populerer `valgtFirma` for ikke-admin ansatte, sak #5).
+   * Speiler webens `hentTilgjengelige`-shape (inkl. `aktiveFirmamoduler` via
+   * berikMedFirmamoduler — så modul-gating ikke krasjer uansett kilde), men
+   * inkluderer alle medlemskap (ikke kun firma-admin).
    *
    * - sitedoc_admin: alle kunde-firmaer (erKunde: true) — speiler webens topbar
    * - vanlig bruker / firma-admin: alle OrganizationMember-rader
@@ -124,11 +136,12 @@ export const organisasjonRouter = router({
     });
 
     if (bruker.role === "sitedoc_admin") {
-      return ctx.prisma.organization.findMany({
+      const orgs = await ctx.prisma.organization.findMany({
         where: { erKunde: true },
         select: { id: true, name: true, erKunde: true },
         orderBy: { name: "asc" },
       });
+      return berikMedFirmamoduler(ctx.prisma, orgs);
     }
 
     const medlemskap = await ctx.prisma.organizationMember.findMany({
@@ -149,18 +162,20 @@ export const organisasjonRouter = router({
         .map((p) => p.primaryOrganizationId)
         .filter((id): id is string => id !== null);
       if (orgIder.length === 0) return [];
-      return ctx.prisma.organization.findMany({
+      const orgs = await ctx.prisma.organization.findMany({
         where: { id: { in: orgIder } },
         select: { id: true, name: true, erKunde: true },
         orderBy: { name: "asc" },
       });
+      return berikMedFirmamoduler(ctx.prisma, orgs);
     }
 
-    return ctx.prisma.organization.findMany({
+    const orgs = await ctx.prisma.organization.findMany({
       where: { id: { in: medlemskap.map((m) => m.organizationId) } },
       select: { id: true, name: true, erKunde: true },
       orderBy: { name: "asc" },
     });
+    return berikMedFirmamoduler(ctx.prisma, orgs);
   }),
 
   // Opprett ny organisasjon

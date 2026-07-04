@@ -12,27 +12,7 @@ sist_verifisert_mot_kode: 2026-06-08
 >
 > Eldre arkiv: [historikk-2026-06.md](historikk-2026-06.md) (SPOR 3 prod 06-10, OAuth, auto-select lønnsart, hentMineMedlemskap) · [historikk-2026-05.md](historikk-2026-05.md) (mai-deploys).
 
-### Split-identitet MS-login (web↔mobil) — Fix A + gate-innstramming PÅ DEVELOP 2026-07-04
-
-**Funn (DB-bevis mot prod 2026-07-04):** KMY (`@onmicrosoft`) fikk **to `users`-rader** for én Microsoft-konto → web tom prosjektliste mens mobil viste 999. Rad A `f2d473b9…` (blandet case, har ProjectMember 999 + OrganizationMember A.Markussen; mobil-sesjon 30d) vs. rad B `3a3c6272…` (lowercase, tom; web-sesjon 24t). **Rot:** to samvirkende feil — (1) mobil (Graph `/me.id`) og web (Auth.js id-token `sub`) bruker ulik `provider_account_id` → web `getUserByAccount` matcher aldri mobilens konto; (2) `getUserByEmail`-overstyringen (`auth.ts:13`) var **case-sensitiv** mens lagret e-post avvek i case → e-post-kobling feilet → Auth.js opprettet duplikat B. Konkret manifestasjon av kjent risiko (BACKLOG § User.email-normalisering).
-
-**Implementert på develop:**
-- **Fix A** (`auth.ts:15`): `getUserByEmail` → `{ equals: email, mode: "insensitive" }`. Fullfører herdingen som `signIn`-gaten + mobil alt hadde.
-- **Gate-innstramming** (`auth.ts` signIn (a) + speilet i `mobilAuth.ts byttToken`): eksisterende canLogin-bruker slippes kun inn med `sitedoc_admin` / `OrganizationMember` / `ProjectMember` / ventende invitasjon / allerede koblet konto. Bruker fjernet fra alle firma/prosjekt avvises ved neste innlogging (ønsket). `company_admin` dekkes av OrganizationMember.
-
-Rene typechecks (auth.ts + mobilAuth.ts). **Pending (Kenneths hånd):** prod-datafiks KMY-duplikat (fold B→A, ikke hard-slett) — se [BACKLOG § Split-identitet](BACKLOG.md). Ingen prod-deploy uten forespørsel.
-
-### Geofence-discoverability (web) — PÅ DEVELOP 2026-06-24
-
-Geofence-editoren gjort oppdagbar på `byggeplasser/page.tsx`: egen synlig **«Geofence»**-verktøylinje-knapp (MapPin) → egen modal (skilt ut fra «Endre navn», som nå er ren navne-endring). Ikon/label-fiks: «Endre navn» Copy→Pencil, «Rediger»→**«Tegninger»** (LayoutGrid). Opprett markerer ny byggeplass i lista (ikke auto-kast inn i tegnings-editor). Geofence-seksjon flyttet verbatim (settGeofence/beregnGeofence/geokod uendret). i18n: ingen nye nøkler (gjenbruk `lokasjoner.geofence.tittel` + `nav.tegninger`), hjelp-tips oppdatert (15 språk). **Test-verifisering krever manuell rebuild** (auto-deploy rebuilder ikke web). Prod-deploy avventer eksplisitt forespørsel — kreves før 999/A.Markussen-geofence kan settes lett i prod-UI.
-
-### «Opprett firma» (admin) erKunde-fiks (API+web) — PÅ MAIN, IKKE PROD-SERVER-DEPLOYET (2026-06-25)
-
-Rotårsak til at SiteDoc-admin → Firmaer → «Opprett firma» «ikke fungerte»: `admin.opprettOrganisasjon` satte ikke `erKunde`, falt til default `false`, og `hentAlleOrganisasjoner` filtrerer `erKunde: true` → opprettet firma ble usynlig (firmaet *ble* laget). **Fiks:** create setter `erKunde: true` (`admin.ts:156`). I tillegg `onError`+feilvisning på opprett-mutasjonen + `title`-tooltip på Brønnøysund-knapp (`brreg.hint`, 15 språk) — 1b var ikke bug, kun disabled-gate inntil 9-sifret org.nr. Begge typechecks rene.
-
-> ⚠️ **main-vs-prod (handoff 2026-07-01):** Denne fiksen (commit `6de25024`) ligger nå på **main** — den fulgte med `bc744f82`-mergen som ble gjort for å bygge mobil-bunt **#37**. **Men main er IKKE prod-server-deployet** (server-deploy = Docker rsync + rebuild på server-ny, egen handling — merge til main gjør ikke det). Neste API+web-prod-deploy fra main tar erKunde-fiksen (+ evt. annet udeployet på main). **Verifiser hva som ligger udeployet på main før neste prod-deploy.** Prod-deploy avventer fortsatt eksplisitt forespørsel.
-
-Åpen oppfølger: prod-orphan-opprydding (read-SQL klar, Kenneths prod-DB-hånd) — se [BACKLOG § «Opprett firma»](BACKLOG.md).
+> ✅ **DEPLOYET TIL PROD 2026-07-04 (prod-merge `bb5aec05`)** — arkivert til [historikk-2026-07.md § Prod-deploy 2026-07-04](historikk-2026-07.md). Bunt api+web: **split-identitet** MS-login (Fix A case-insensitiv `getUserByEmail` + gate-innstramming web+mobil, `42d41aa8`), **erKunde-fiks** «Opprett firma» (`6de25024`), **geofence-oppdagbarhet** (`b1c81629`). Ingen migrering (ren kode). Backup + lockout-query=0 før deploy. Sak #3 (KMY-duplikat B→A) utført. Åpent i BACKLOG: sak #4 (e-post-normalisering) + sak #5 (firma-velger).
 
 ### Mobil Microsoft-auth (code+PKCE) — BYGGET I EAS-SKY #37 2026-07-01 (venter Azure + Florian-test)
 

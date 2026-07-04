@@ -26,12 +26,20 @@ interface Firma {
 interface FirmaKontekstType {
   /** Aktivt valgt firma — null hvis sitedoc_admin uten valg, eller bruker uten firma-tilknytning. */
   valgtFirma: Firma | null;
-  /** Firmaer brukeren kan administrere. Tom liste for vanlige brukere. */
+  /** Firmaer brukeren kan administrere (admin-sett). Tom liste for vanlige brukere. */
   tilgjengelige: Firma[];
   /** Brukeren er sitedoc_admin — styrer om firma-velger vises i Toppbar. */
   erSitedocAdmin: boolean;
   /** Brukeren er company_admin — styrer om fast firma-link vises i Toppbar. */
   erCompanyAdmin: boolean;
+  /**
+   * Kan brukeren administrere det valgte firmaet? (sak #5) Sann for
+   * sitedoc_admin, eller når valgtFirma er i admin-settet (`tilgjengelige` =
+   * firma_admin-medlemskap). Vanlige ansatte får `valgtFirma` populert for
+   * innsyn (prosjekter/timer/maskin) men `kanAdministrereFirma = false` →
+   * firma-admin-flatene gates på denne, ikke på `valgtFirma`-eksistens.
+   */
+  kanAdministrereFirma: boolean;
   isLoading: boolean;
   velgFirma: (id: string) => void;
 }
@@ -48,9 +56,15 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
     if (lagret) setLagretFirmaId(lagret);
   }, []);
 
+  // Admin-sett: firmaer brukeren kan administrere (firma_admin/sitedoc_admin).
+  // Styrer FirmaVelger + kanAdministrereFirma.
   const tilgjengeligeQuery = trpc.organisasjon.hentTilgjengelige.useQuery();
   const tilgjengelige = (tilgjengeligeQuery.data ?? []) as Firma[];
-  const lasterTilgjengelige = tilgjengeligeQuery.isLoading;
+
+  // Alle medlemskap (sak #5): populerer valgtFirma for ikke-admin ansatte så
+  // de ser eget firma + prosjekter/timer/maskin uten å få admin-tilgang.
+  const mineMedlemskapQuery = trpc.organisasjon.hentMineMedlemskap.useQuery();
+  const mineMedlemskap = (mineMedlemskapQuery.data ?? []) as Firma[];
 
   const minBrukerQuery = trpc.bruker.hentMin.useQuery();
   const minBruker = minBrukerQuery.data as { role?: string } | null | undefined;
@@ -58,9 +72,9 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
   const erCompanyAdmin = minBruker?.role === "company_admin";
 
   // Bestem valgtFirma:
-  //  - sitedoc_admin: respekter localStorage; null hvis ikke valgt
-  //  - company_admin/andre: auto-velg eneste tilgjengelige firma (ignorer localStorage
-  //    siden de uansett ikke kan bytte)
+  //  - sitedoc_admin: respekter localStorage (mot admin-settet); null hvis ikke valgt
+  //  - andre: auto-velg eneste admin-firma (firma_admin) → ellers eneste
+  //    medlemskaps-firma (menig ansatt). Ignorer localStorage — de kan ikke bytte.
   let valgtFirma: Firma | null = null;
   if (erSitedocAdmin) {
     if (lagretFirmaId) {
@@ -68,7 +82,15 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
     }
   } else if (tilgjengelige.length === 1) {
     valgtFirma = tilgjengelige[0] ?? null;
+  } else if (mineMedlemskap.length === 1) {
+    valgtFirma = mineMedlemskap[0] ?? null;
   }
+
+  // Admin-kapabilitet: sitedoc_admin, eller valgtFirma i admin-settet. Vanlige
+  // ansatte (valgtFirma kun i mineMedlemskap) får false. Bevarer dagens regel:
+  // firma-admin-tilgang ≡ sitedoc_admin ∨ firma_admin-medlemskap.
+  const kanAdministrereFirma =
+    erSitedocAdmin || tilgjengelige.some((f) => f.id === valgtFirma?.id);
 
   function velgFirma(id: string) {
     setLagretFirmaId(id);
@@ -82,7 +104,11 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
         tilgjengelige,
         erSitedocAdmin,
         erCompanyAdmin,
-        isLoading: lasterTilgjengelige || minBrukerQuery.isLoading,
+        kanAdministrereFirma,
+        isLoading:
+          tilgjengeligeQuery.isLoading ||
+          mineMedlemskapQuery.isLoading ||
+          minBrukerQuery.isLoading,
         velgFirma,
       }}
     >

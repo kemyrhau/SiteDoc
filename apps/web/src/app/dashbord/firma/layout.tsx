@@ -105,7 +105,7 @@ export default function FirmaLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const { valgtFirma, erSitedocAdmin, isLoading } = useFirma();
+  const { valgtFirma, erSitedocAdmin, kanAdministrereFirma, isLoading } = useFirma();
   const harTimerModul = valgtFirma?.aktiveFirmamoduler.includes("timer") ?? false;
   const harVarelagerModul = valgtFirma?.aktiveFirmamoduler.includes("varelager") ?? false;
   const hmsTilgangQuery = trpc.organisasjon.harHmsTilgang.useQuery(
@@ -122,7 +122,9 @@ export default function FirmaLayout({
     );
   }
 
-  if (!valgtFirma) {
+  // Sak #5: gate på admin-kapabilitet, ikke bare valgtFirma-eksistens. Vanlige
+  // ansatte kan ha valgtFirma populert (innsyn) uten å administrere firmaet.
+  if (!kanAdministrereFirma || !valgtFirma) {
     return (
       <div className="flex flex-1 items-center justify-center">
         <p className="text-sm text-gray-500">

@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Importige seadmeid SmartDokist",
   "firma.maskin.import.tilbakeTilMaskin": "Tagasi seadmete registrisse",
   "firma.maskin.import.velgFirma": "Enne seadmete registri importimist valige ülemisest menüüst kliendifirma.",
+  "firma.maskin.ingenTilgangOpprett": "Teil pole juurdepääsu seadmete loomiseks või importimiseks. Võtke ühendust ettevõtte administraatoriga.",
   "firma.maskin.import.fillinje": "{{totalt}} rida, {{filtrert}} filtreeritud (testiandmed)",
   "firma.maskin.import.gruppe.sammendrag": "Kokkuvõte",
   "firma.maskin.import.gruppe.kategori": "Kategooria",

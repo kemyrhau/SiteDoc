@@ -41,7 +41,7 @@ interface Bruker {
 export default function MaskinPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, kanAdministrereFirma } = useFirma();
   const orgId = valgtFirma?.id;
 
   const [valgtKategori, setValgtKategori] = useState<MaskinKategori | null>(null);
@@ -120,22 +120,26 @@ export default function MaskinPage() {
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">{t("maskin.tittel")}</h1>
-        <div className="flex items-center gap-2">
-          <Link
-            href="/dashbord/maskin/import"
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            {t("maskin.importerFraSmartDok")}
-          </Link>
-          <Link
-            href="/dashbord/maskin/nytt"
-            className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90"
-          >
-            <Plus className="h-4 w-4" />
-            {t("maskin.leggTilUtstyr")}
-          </Link>
-        </div>
+        {/* Sak #5: opprett/import gates på admin-kapabilitet. Ansatte beholder
+            maskin-lista (de logger maskinbruk), men når ikke skjemaene. */}
+        {kanAdministrereFirma && (
+          <div className="flex items-center gap-2">
+            <Link
+              href="/dashbord/maskin/import"
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              {t("maskin.importerFraSmartDok")}
+            </Link>
+            <Link
+              href="/dashbord/maskin/nytt"
+              className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              {t("maskin.leggTilUtstyr")}
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Filter-bar */}
@@ -252,7 +256,7 @@ export default function MaskinPage() {
               ? t("maskin.filter.justerFilter")
               : t("maskin.ingenUtstyrBeskrivelse")}
           </p>
-          {!harAktivtFilter && (
+          {!harAktivtFilter && kanAdministrereFirma && (
             <Link
               href="/dashbord/maskin/nytt"
               className="mt-4 inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90"

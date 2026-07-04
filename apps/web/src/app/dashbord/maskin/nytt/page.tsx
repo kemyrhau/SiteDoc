@@ -66,7 +66,7 @@ type ForhandsvisningFelter = {
 export default function NyttUtstyrPage() {
   const { t } = useTranslation();
   const router = useRouter();
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, kanAdministrereFirma } = useFirma();
   const orgId = valgtFirma?.id;
 
   const [kategori, setKategori] = useState<MaskinKategori | null>(null);
@@ -216,6 +216,28 @@ export default function NyttUtstyrPage() {
         </div>
         <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-sm text-gray-600">
           {t("firma.maskin.import.velgFirma")}
+        </div>
+      </div>
+    );
+  }
+
+  // Sak #5: opprett gates på admin-kapabilitet (server beskytter allerede via
+  // verifiserFirmaAdmin — dette gir grasiøs melding ved direkte-URL, ikke brutt
+  // skjema). Maskin-lista/-visning er fortsatt åpen for ansatte.
+  if (!kanAdministrereFirma) {
+    return (
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-4">
+          <Link
+            href="/dashbord/maskin"
+            className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-gray-900"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            {t("maskin.tittel")}
+          </Link>
+        </div>
+        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center text-sm text-gray-600">
+          {t("firma.maskin.ingenTilgangOpprett")}
         </div>
       </div>
     );

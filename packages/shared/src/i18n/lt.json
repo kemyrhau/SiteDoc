@@ -2236,6 +2236,7 @@
   "firma.maskin.import.tittel": "Importuokite įrangą iš SmartDok",
   "firma.maskin.import.tilbakeTilMaskin": "Grįžti į įrangos registrą",
   "firma.maskin.import.velgFirma": "Prieš importuodami įrangos registrą, viršutiniame meniu pasirinkite kliento įmonę.",
+  "firma.maskin.ingenTilgangOpprett": "Neturite prieigos kurti ar importuoti įrangos. Susisiekite su įmonės administratoriumi.",
   "firma.maskin.import.fillinje": "{{totalt}} eilučių, {{filtrert}} filtruota (bandymo duomenys)",
   "firma.maskin.import.gruppe.sammendrag": "Santrauka",
   "firma.maskin.import.gruppe.kategori": "Kategorija",
