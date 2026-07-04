@@ -8,6 +8,22 @@ sist_verifisert_mot_kode: 2026-07-04
 
 Arkiv av arbeid deployet til prod i juli 2026. Flyttet hit fra [STATUS-AKTUELT.md](STATUS-AKTUELT.md) per arkiveringsplikten (deployet arbeid ligger aldri igjen i STATUS-AKTUELT).
 
+## Prod-deploy 2026-07-04 (kveld, prod-merge `0801af38`) — PR 1-4: org-isolasjon + Leaflet + sak #5 + maskin-gating
+
+Bunt-deploy av fire develop-fikser (api+web) fra `main` (`0801af38`, merge av develop). `-p docker up -d --build --no-deps sitedoc-api sitedoc-web`. **Ingen migrering** (ren kode). Backup før deploy (`~/sitedoc-prod-2026-07-04.dump`, ~95 tabeller). Lockout-query ikke nødvendig (ingen av de fire rører `signIn`-gaten). Markør-sjekk i bygg-konteksten bekreftet alle fire (9/2/5/3). Innlogget prod-verifisering: Leaflet-kart laster fullt, firma-ansatt ser eget firma uten admin-meny/maskin-innganger, admin uendret, maskin-føring happy-path OK.
+
+### PR 1 — org-isolasjon `SheetMachine.vehicleId` (§2.D) (`90469dc7`)
+Pre-eksisterende cross-firma-lekkasje-klasse (åpen siden 2026-06-09): `SheetMachine.vehicleId` (maskindrift) ble skrevet uten å verifisere at maskinen tilhører firmaet. `Equipment` er svak FK (`db-maskin`, ingen `@relation`) → org-isolasjon MÅ håndheves i app-lag. Fiks: `verifiserKjoretoyTilhørerFirma` lagt på alle fem input-baserte SheetMachine-skrive-stier (`maskin.tilfoy`, `maskin.oppdater`, `redigerSedelRader`, `splittRad`, `syncBatch`). Completeness-søk bekreftet nøyaktig fem input-stier (øvrige 8 `update`/`updateMany` skriver kun status/attestert-felter). Rent additivt, ingen migrering.
+
+### PR 2 — Leaflet geofence-kart (`6178034f`)
+Geofence-modalens kart lastet kun hjørne-fliser. Rotårsak i delt `KartVelger` (`apps/web/src/components/KartVelger.tsx`): `Modal` (`packages/ui/modal.tsx`, native `<dialog>`) monterer barna alltid men `display:none` når lukket → `L.map()` init med 0×0-container, `setTimeout(invalidateSize,100)` fyrer mens dialogen er skjult. Ikke ren regresjon fra `b1c81629` (den eksponerte pre-eksisterende KartVelger-bug). Fiks: `ResizeObserver` på kart-container → `invalidateSize()` når container går 0→høyde ved modal-open; `disconnect()` i cleanup; fallback-`setTimeout` beholdt. Fikser alle modal-hostede kart-bruk.
+
+### PR 3 — sak #5 firma-ansatt-innsyn (`6dbc884a`)
+Firma-ansatte (role="user") fikk ikke `valgtFirma` populert (så verken eget firma, prosjekter eller timer/maskin-flater). Dobbel-kilde-design (naivt kilde-bytte ville krasjet modul-gating + lekket firma-admin-skallet): `hentMineMedlemskap` (`organisasjon.ts`) beriket med `aktiveFirmamoduler` via delt `berikMedFirmamoduler`; `firma-kontekst` beholder `hentTilgjengelige` som admin-sett + `hentMineMedlemskap` populerer `valgtFirma` (auto-select `tilgjengelige.length===1` → ellers `mineMedlemskap.length===1`); nytt `kanAdministrereFirma = erSitedocAdmin || (valgtFirma ∈ tilgjengelige)`; re-gate firma-admin-flater (`firma/layout.tsx` choke-point for alle 22 `/dashbord/firma/*` + opprett-UI i `nytt-prosjekt`/`kom-i-gang`) på kapabilitet, ikke `valgtFirma`-eksistens. Prosjekt-lister (`prosjekt.hentAlle`) allerede medlemskaps-scoped server-side. Bevarer admin-regel bit-for-bit.
+
+### PR 4 — maskin opprett/import-gating (`179b86f9`)
+Kosmetisk oppfølger til sak #5: maskin «Nytt»/«Import»-innganger (`maskin/page.tsx`) + `maskin/nytt`/`maskin/import` page-guards gated på `kanAdministrereFirma` (server beskyttet allerede via `verifiserFirmaAdmin`/`autoriserAdminForFirma` — hindrer bare at ansatte når skjemaer som feiler). Maskin-lista/-visning åpen for ansatte (de logger maskinbruk). Ny i18n-nøkkel `firma.maskin.ingenTilgangOpprett` (nb+en, auto-oversatt 13 språk).
+
 ## Prod-deploy 2026-07-04 (prod-merge `bb5aec05`) — split-identitet + erKunde + geofence-oppdagbarhet
 
 Bunt-deploy av tre lav-risiko-endringer (api+web) fra `main` (`bb5aec05`, merge av develop `42d41aa8`). Build 97,8 s (ekte rebuild), `-p docker up -d --build --no-deps sitedoc-api sitedoc-web`. **Ingen migrering** (ren kode). Backup tatt før deploy (`~/backups/sitedoc-prod-2026-07-04-1929.dump`, 95 tabeller). Lockout-query = 0 rader (ingen bruker låst ute av gate-innstrammingen).
