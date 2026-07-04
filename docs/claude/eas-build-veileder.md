@@ -16,6 +16,21 @@ Mobil-endringer (React Native/Expo) kan ikke testes i web/test-stacken — de kr
 faktisk iOS-bygg på enhet. EAS bygger appen på skyen → installerbar på iPhone (ad-hoc/intern
 distribusjon eller TestFlight).
 
+## Bygg-økonomi (REGEL)
+
+Sky-bygg er **knappe**: ~15 iOS-bygg/mnd på fri plan, **reset den 1. i måneden**. Før **HVERT** sky-bygg:
+
+1. **Sjekk gjenstående kvote** — `eas build:list --platform ios` eller Expo-dashboard. ⚠️ Disse viser **antall brukte bygg, IKKE dager til reset** — regn dager selv fra bygg-loggen under (reset = 1. i mnd).
+2. **Bekreft med Kenneth** — et sky-bygg er en beslutning, ikke en refleks.
+3. **Kun TestFlight-leveranser**, aldri iterasjon — kode/Azure/docs skal være verifisert klar først.
+4. **Lokale bygg er blindvei** i dette monorepoet (se babel-noten under § Fallgruver) — ikke bruk dem for å spare kvote.
+
+### Bygg-logg (reset 1. i mnd — oppdateres ved HVERT sky-bygg)
+
+| Mnd | Brukt | Bygg |
+|-----|-------|------|
+| Juli 2026 | 1 av ~15 | #37 (bygg-ID `496b6a63`, commit `bc744f82`, 01.07, status `finished`) — mobil-MS + F-G → TestFlight |
+
 ## Profiler (`apps/mobile/eas.json`)
 
 | Profil | `EXPO_PUBLIC_API_URL` | Bruk |
@@ -184,13 +199,18 @@ Resultat: «SiteDoc TEST» installeres som **egen app** ved siden av prod-«Site
   ikke build — env-variabel-veien fungerer uansett.
 - **Apple-login er «optional», MEN intern distribusjon krever credential-tilgang** (API-nøkkel
   eller passord) for å lage/oppdatere ad-hoc-profilen med enheten.
-- **`Cannot find module 'babel-preset-expo'` ved lokalt bygg (pnpm-monorepo, lærdom 2026-06-26):**
-  Babel resolver preset-strenger via node-resolusjon fra `babel.config.js` (apps/mobile), IKKE via
-  Metros `nodeModulesPaths`. `babel-preset-expo` er kun transitiv under `expo` → ikke symlinket inn i
-  `apps/mobile/node_modules`, så lokal pnpm finner den ikke (sky-EAS har annen hoisting → virker der).
-  **Fiks:** (1) `babel-preset-expo: "~54.0.10"` (mirror expos egen pin) som direkte devDependency i
-  `apps/mobile/package.json` + `pnpm install`; (2) `require.resolve("babel-preset-expo")` i
-  `babel.config.js` (robust mot fremtidig hoisting). Ikke `.npmrc node-linker`-hammeren.
+- **Lokale iOS-bygg (`eas build --local`) er BLINDVEI i dette pnpm-monorepoet (lærdom 2026-06-26 → 2026-07-01).**
+  Symptomet starter som `Cannot find module 'babel-preset-expo'`: babel resolver preset-strenger via
+  node-resolusjon fra `babel.config.js` (apps/mobile), IKKE via Metros `nodeModulesPaths`; preset-en er
+  kun transitiv under `expo` → ikke symlinket i `apps/mobile/node_modules` (sky-EAS har annen hoisting →
+  virker der). **`babel-preset-expo`-fiksen** (direkte devDep `~54.0.10` + `require.resolve` i
+  `babel.config.js`, committet `458bc674`) løser **den ene** feilen — men lokale bygg **kaskader videre**:
+  neste feil er `@babel/plugin-transform-react-jsx`, deretter ~20 andre transitivt-hoistede pakker babel/
+  Metro ikke finner lokalt. Dette er **klassefeilen** ved lokal pnpm-hoisting, ikke enkeltpakker. Ekte
+  klasse-fiks ville vært `.npmrc node-linker=hoisted` (flat node_modules som npm) — men **uverifisert mot
+  sky-bygget** og en install-topologi-hammer som treffer hele workspacet. **Konklusjon: bruk SKY-bygg for
+  iOS.** Ikke jag lokale bygg videre — hver ny «fant ikke modul X» er samme klasse. (`babel-preset-expo`-
+  fiksen beholdes uansett — den er riktig for sky + dev og ufarlig.)
 
 ## Se også
 

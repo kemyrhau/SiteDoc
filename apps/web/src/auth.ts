@@ -9,10 +9,19 @@ import { prisma } from "@sitedoc/db";
 // rekkefølge. Merk: User.email er globalt unik (@unique) — den tidligere
 // composite-unikheten (@@unique([email, organizationId])) ble droppet i O-5c
 // 2026-05-13, så det er ikke lenger grunnen til overstyringen.
+//
+// Case-insensitivt (mode: "insensitive"): Fix A 2026-07-04 (split-identitet
+// mobil↔web). PrismaAdapters e-post-kobling skjer via denne metoden; et
+// case-sensitivt oppslag (default) fant IKKE en eksisterende User når
+// providers casing avvek (mobil lagret Graph-`userPrincipalName` med blandet
+// case, web fikk lowercase) → Auth.js opprettet en DUPLIKAT User i stedet for
+// å koble den nye kontoen til den eksisterende. Nå matcher denne metoden
+// signIn-guarden (:89) og mobil (mobilAuth.ts:104) som allerede er
+// case-insensitive + eldste-først.
 const baseAdapter = PrismaAdapter(prisma);
 baseAdapter.getUserByEmail = async (email: string) => {
   const bruker = await prisma.user.findFirst({
-    where: { email, canLogin: true },
+    where: { email: { equals: email, mode: "insensitive" }, canLogin: true },
     orderBy: { createdAt: "asc" },
   });
   // PrismaAdapter forventer AdapterUser med name/email/emailVerified/image-felter
@@ -82,15 +91,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (koblet) return true;
       }
 
-      // (a) Eksisterende canLogin-bruker på e-posten (case-insensitiv). Dekker
-      // inviterte firma-brukere (inviterBruker oppretter User-rad) og (d)
-      // sitedoc_admin (har alltid User-rad). Case-insensitiv er trygt her:
-      // tilbyderen har allerede verifisert eierskap til e-postadressen.
+      // (a) Eksisterende canLogin-bruker på e-posten (case-insensitiv).
+      // Innstramming (sak #2 2026-07-04): slipp KUN gjennom hvis brukeren
+      // faktisk har en tilknytning — (d) sitedoc_admin (org-løs, må slippe
+      // inn), OrganizationMember eller ProjectMember. En bruker fjernet fra
+      // alle firma/prosjekt avvises ved neste innlogging (ønsket bivirkning).
+      // company_admin dekkes av OrganizationMember (hentBrukersOrg leser kun
+      // derfra). En canLogin-bruker uten tilknytning faller gjennom til
+      // invitasjons-sjekken (b). Case-insensitiv er trygt: tilbyderen har
+      // verifisert eierskap til e-postadressen.
       const eksisterende = await prisma.user.findFirst({
         where: { email: { equals: email, mode: "insensitive" }, canLogin: true },
-        select: { id: true },
+        select: {
+          role: true,
+          _count: { select: { organizationMembers: true, projects: true } },
+        },
       });
-      if (eksisterende) return true;
+      if (
+        eksisterende &&
+        (eksisterende.role === "sitedoc_admin" ||
+          eksisterende._count.organizationMembers > 0 ||
+          eksisterende._count.projects > 0)
+      ) {
+        return true;
+      }
 
       // (b) Ventende invitasjon på e-posten. Streng lowercase-equals — samme
       // som events.signIn (invitasjoner normaliseres til lowercase ved

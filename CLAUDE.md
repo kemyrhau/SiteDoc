@@ -82,6 +82,7 @@ Utfør kun handlinger direkte knyttet til den uttrykkelige oppgaven. Hvis andre 
 - Sletter filer eller mapper
 - Endrer auth, permissions eller secrets
 - Installerer eller oppgraderer pakker som påvirker andre moduler
+- **Fyrer et EAS-sky-bygg** — kvote-begrenset (~15 iOS-bygg/mnd, fri plan, reset den 1.). Kun for faktiske TestFlight-leveranser etter at kode/Azure/docs er verifisert klar — ikke for iterasjon. Sjekk gjenstående kvote + dager til reset FØR hvert bygg (Expo-dashboard/`eas build:list` viser **antall, ikke dager** — bruk bygg-loggen i [eas-build-veileder.md § Bygg-økonomi](docs/claude/eas-build-veileder.md) + reset=1. i mnd for å regne dager). Lokale iOS-bygg er blindvei i dette monorepoet — se babel-noten samme sted.
 
 Merk: Denne regelen overstyrer IKKE indeks-regelen. Når en regel sier "oppdater CLAUDE.md", er det fortsatt riktig å oppdatere den relevante detalj-filen i docs/claude/ hvis innholdet ikke gjelder tech stack, struktur, kommandoer, kodestil eller overordnede regler. Tolk pragmatisk, men flagg tolkningen før handling hvis du er i tvil.
 

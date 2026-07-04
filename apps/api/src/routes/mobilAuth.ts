@@ -120,6 +120,40 @@ export const mobilAuthRouter = router({
         bruker = await ctx.prisma.user.findUnique({ where: { id: eksisterendeKonto.userId } });
       }
 
+      // Admission-gate (sak #2 2026-07-04): speiler web signIn-innstrammingen
+      // (apps/web/src/auth.ts). En eksisterende canLogin-bruker funnet på
+      // e-post — men uten allerede koblet konto — slippes bare inn hvis
+      // sitedoc_admin, OrganizationMember/ProjectMember, eller ventende
+      // invitasjon. Bruker fjernet fra alle firma/prosjekt avvises ved neste
+      // innlogging (ønsket). Allerede koblet konto (eksisterendeKonto != null)
+      // passerer alltid — samme unntak som web (c).
+      if (bruker && !eksisterendeKonto) {
+        const tilknytning = await ctx.prisma.user.findUnique({
+          where: { id: bruker.id },
+          select: {
+            role: true,
+            _count: { select: { organizationMembers: true, projects: true } },
+          },
+        });
+        const harTilknytning =
+          tilknytning?.role === "sitedoc_admin" ||
+          (tilknytning?._count.organizationMembers ?? 0) > 0 ||
+          (tilknytning?._count.projects ?? 0) > 0;
+        if (!harTilknytning) {
+          const invitasjon = await ctx.prisma.projectInvitation.findFirst({
+            where: { email: brukerinfo.email.toLowerCase(), status: "pending" },
+            select: { id: true },
+          });
+          if (!invitasjon) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message:
+                "Du har ikke tilgang. Kontakt administrator for å bli lagt til i et firma eller prosjekt.",
+            });
+          }
+        }
+      }
+
       if (!bruker) {
         // (b) Opprett ny bruker KUN hvis det finnes en ventende invitasjon på
         // e-posten. Streng lowercase-equals — invitasjoner normaliseres til
