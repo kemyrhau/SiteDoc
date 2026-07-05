@@ -25,6 +25,13 @@ export {
   beregnMaskinBrudd,
 } from "./maskinKapasitet";
 export type { MaskinKapasitetRad, MaskinBrudd } from "./maskinKapasitet";
+export {
+  OVERTID_NIVAA_50,
+  OVERTID_NIVAA_100,
+  klassifiserArbeidstid,
+  velgOvertidLonnsart,
+} from "./lonnsregel";
+export type { ArbeidstidSegment, OvertidLonnsartKandidat } from "./lonnsregel";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.

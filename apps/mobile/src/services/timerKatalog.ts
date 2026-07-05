@@ -83,6 +83,7 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
         rekkefolge: l.rekkefolge,
         aktiv: l.aktiv,
         erStandardvalg: l.erStandardvalg ?? false,
+        overtidsnivaa: l.overtidsnivaa ?? null,
         seedNivaa: l.seedNivaa,
         sistOppdatert: naa,
       })
@@ -188,6 +189,30 @@ export function hentStandardLonnsartLokalt(organizationId: string) {
     )
     .all();
   return rader[0] ?? null;
+}
+
+/**
+ * ③a: har firmaet minst én aktiv ordinær lønnsart med overtidsnivaa satt?
+ * Brukes til fallback-banner i [id].tsx — når auto-utkast produserer overtid
+ * men firmaet mangler overtid-lønnsart (aldri feil-match, aldri stille drop).
+ */
+export function harOvertidLonnsartLokalt(organizationId: string): boolean {
+  const db = hentDatabase();
+  if (!db) return false;
+  return (
+    db
+      .select()
+      .from(lonnsartLocal)
+      .where(
+        and(
+          eq(lonnsartLocal.organizationId, organizationId),
+          eq(lonnsartLocal.aktiv, true),
+          eq(lonnsartLocal.type, "ordinaer"),
+        ),
+      )
+      .all()
+      .some((l) => l.overtidsnivaa != null)
+  );
 }
 
 /**

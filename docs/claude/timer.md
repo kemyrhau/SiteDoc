@@ -246,7 +246,19 @@ Eksempel: 10t totalt → Timelønn 7,5t + Overtid 50% 2,5t. Bruker justerer til 
 
 Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger lønnsart manuelt.
 
-> **Status (2026-06-09):** Server-motoren er fortsatt ikke bygget. Eneste fordelings-logikk er klient-MVP i mobil `StartSluttDagKort.genererForslag` (navne-match «Overtid 50%», erstattes av `Lonnsart.overtidsnivaa`). **Reise-kobling (Fase 3 § B):** reise-andelen føres på egen lønnsart-rad og holdes utenfor normaltid/overtid-grunnlaget (`arbeidstimer = total − reisetid`, ingen dobbelttelling av brutto). `reisetidTellerOvertid` styrer terskelen: `false` (default) → dagsnorm gjelder kun arbeidstimene (reise utenfor overtid); `true` → reise spiser av dagsnorm (`dagsnorm − reisetid`), så mer arbeidstid havner i overtid. Når server-motoren bygges arver den samme kontrakt.
+> **Status (2026-06-09):** Server-motoren er fortsatt ikke bygget. Eneste fordelings-logikk er klient-MVP i mobil `StartSluttDagKort.genererForslag`. **Reise-kobling (Fase 3 § B):** reise-andelen føres på egen lønnsart-rad og holdes utenfor normaltid/overtid-grunnlaget (`arbeidstimer = total − reisetid`, ingen dobbelttelling av brutto). `reisetidTellerOvertid` styrer terskelen: `false` (default) → dagsnorm gjelder kun arbeidstimene (reise utenfor overtid); `true` → reise spiser av dagsnorm (`dagsnorm − reisetid`), så mer arbeidstid havner i overtid. Når server-motoren bygges arver den samme kontrakt.
+
+#### Overtid-klassifisering — strukturert felt + isolert regel (③, 2026-07-05)
+
+**`Lonnsart.overtidsnivaa Int?`** (db-timer, nullable): `null` = ikke overtid, `50`/`100` = tier. Erstatter fritekst-navne-match. Firma-admin setter feltet i web lønnsart-UI («Overtidsnivå»-select, kun for `type="ordinaer"`).
+
+**⭐ Regelen er isolert i `@sitedoc/shared` [lonnsregel.ts](../../packages/shared/src/utils/lonnsregel.ts)** — ALL «hvilken tid er overtid, hvilket nivå»-logikk bor der, ikke i `StartSluttDagKort`:
+- `klassifiserArbeidstid({ arbeidstimer, dagsnorm })` → segment-liste `[{overtidsnivaa: null, timer}, {overtidsnivaa: 50, timer}]`. Nivå 0-regel: alt over norm → 50 %. Bytt KUN denne kroppen for Nivå 1-2 (se [BACKLOG § Lønnsregel-konfig](BACKLOG.md)) — retur-kontrakten holder call-sites uendret.
+- `velgOvertidLonnsart(lonnsarter, nivaa)` → laveste-`rekkefolge` aktiv `type="ordinaer"` med matchende `overtidsnivaa`. **Aldri fritekst-navn.** Null ved ingen treff → banner, aldri feil-match.
+
+**Payroll-prinsipp:** lærling-varianter beholdes `overtidsnivaa=null` (backfill) → aldri auto-valgt for normal arbeider. Backfill setter kun eksakte seed-navn (`Overtid 50%`→50, `Overtid 100%`→100, seedNivaa=1); kunde-importerte (f.eks. A.Markussens 170/172/175/177) settes manuelt i admin-UI.
+
+**③b — garantert standard-lønnsart:** migreringen backfiller `erStandardvalg` for orgs med ≥1 ordinær men ingen standard (foretrekk `Timelønn` seedNivaa=1, ellers laveste-rekkefolge ordinær). Auto-gen gjetter aldri — normaltid-raden får firmaets `erStandardvalg`-lønnsart. Fallback-bannere i mobil `[id].tsx`: rød «Mangler standard-lønnsart» (null ordinære), amber «Overtid ikke ført» (dag nådde norm men ingen overtid-lønnsart) — aldri stille drop.
 
 ### Aktivitet-katalog (datadrevet, tre-nivå)
 

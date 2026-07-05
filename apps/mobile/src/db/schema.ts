@@ -220,6 +220,9 @@ export const lonnsartLocal = sqliteTable("lonnsart_local", {
   erStandardvalg: integer("er_standardvalg", { mode: "boolean" })
     .notNull()
     .default(false),
+  // ③a: strukturert overtid-nivå (50/100). null = ikke overtid. ALTER i
+  // migreringer.ts for eksisterende klienter; refreshKatalog skriver feltet.
+  overtidsnivaa: integer("overtidsnivaa"),
   seedNivaa: integer("seed_nivaa"),
   sistOppdatert: integer("sist_oppdatert").notNull(), // Unix ms — siste pull fra server
 });

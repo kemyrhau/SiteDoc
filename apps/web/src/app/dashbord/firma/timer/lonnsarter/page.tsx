@@ -27,8 +27,11 @@ type LonnsartRad = {
   rekkefolge: number;
   aktiv: boolean;
   erStandardvalg: boolean;
+  overtidsnivaa: number | null;
   seedNivaa: number | null;
 };
+
+const OVERTID_NIVAA_VERDIER = [50, 100] as const;
 
 function nivaaTekst(seedNivaa: number | null, t: (k: string) => string): string {
   if (seedNivaa === 1) return t("firma.timer.nivaa.1");
@@ -119,6 +122,7 @@ export default function LonnsarterSide() {
                 <th className="px-3 py-3">{t("firma.timer.felt.kode")}</th>
                 <th className="px-3 py-3">{t("firma.timer.felt.navn")}</th>
                 <th className="px-3 py-3">{t("firma.timer.felt.type")}</th>
+                <th className="px-3 py-3">{t("firma.timer.felt.overtidsnivaa")}</th>
                 <th className="px-3 py-3">{t("firma.timer.felt.nivaa")}</th>
                 <th className="px-3 py-3 text-right">{t("firma.timer.felt.sats")}</th>
                 <th className="px-3 py-3">{t("firma.timer.felt.eksport")}</th>
@@ -141,6 +145,11 @@ export default function LonnsarterSide() {
                   <td className="px-3 py-2 font-medium text-gray-900">{rad.navn}</td>
                   <td className="px-3 py-2 text-gray-600">
                     {t(`firma.timer.type.${rad.type}`)}
+                  </td>
+                  <td className="px-3 py-2 text-gray-600">
+                    {rad.overtidsnivaa
+                      ? t("firma.timer.overtid.nivaa", { nivaa: rad.overtidsnivaa })
+                      : "—"}
                   </td>
                   <td className="px-3 py-2 text-gray-600">
                     {nivaaTekst(rad.seedNivaa, t)}
@@ -275,6 +284,10 @@ function LonnsartDialog({
   );
   const [skalEksporteres, setSkalEksporteres] = useState(rad?.skalEksporteres ?? true);
   const [tvungenKommentar, setTvungenKommentar] = useState(rad?.tvungenKommentar ?? false);
+  // ③a: overtid-nivå — kun for type=ordinaer. null = ikke overtid.
+  const [overtidsnivaa, setOvertidsnivaa] = useState<50 | 100 | null>(
+    (rad?.overtidsnivaa as 50 | 100 | null) ?? null,
+  );
   const [feil, setFeil] = useState<string | null>(null);
 
   const opprett = trpc.timer.lonnsart.opprett.useMutation({
@@ -315,6 +328,8 @@ function LonnsartDialog({
       satsEnhet: satsEnhet || null,
       skalEksporteres,
       tvungenKommentar,
+      // Overtid-nivå gir kun mening for ordinær tid — tving null ellers.
+      overtidsnivaa: type === "ordinaer" ? overtidsnivaa : null,
       organizationId: orgId!,
     };
 
@@ -407,6 +422,29 @@ function LonnsartDialog({
               onChange={(e) => setInternkostnad(e.target.value)}
             />
           </Felt>
+          {type === "ordinaer" && (
+            <Felt
+              label={t("firma.timer.felt.overtidsnivaa")}
+              hint={t("firma.timer.felt.overtidsnivaaHint")}
+            >
+              <select
+                value={overtidsnivaa ?? ""}
+                onChange={(e) =>
+                  setOvertidsnivaa(
+                    e.target.value ? (Number(e.target.value) as 50 | 100) : null,
+                  )
+                }
+                className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">{t("firma.timer.overtid.ingen")}</option>
+                {OVERTID_NIVAA_VERDIER.map((v) => (
+                  <option key={v} value={v}>
+                    {t("firma.timer.overtid.nivaa", { nivaa: v })}
+                  </option>
+                ))}
+              </select>
+            </Felt>
+          )}
         </div>
 
         <div className="space-y-2 rounded border border-gray-200 bg-gray-50 p-3">
