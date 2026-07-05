@@ -20,6 +20,7 @@ const seksjonMap: Record<string, Seksjon> = {
   okonomi: "okonomi",
   sok: "sok",
   mannskap: "mannskap",
+  kontakter: "kontakter",
   timer: "timer",
   vareforbruk: "vareforbruk",
   oppsett: "oppsett",

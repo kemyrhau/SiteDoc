@@ -10,11 +10,79 @@ import { useFirma } from "@/kontekst/firma-kontekst";
  * Vises kun for sitedoc_admin (komponenten gates av Toppbar — ikke selv).
  * For company_admin med fast hjemfirma er ikke denne aktuell.
  */
-export function FirmaVelger() {
+
+/**
+ * Panel-innmaten (søk + firma-liste) uten den absolutt-posisjonerte
+ * dropdown-innpakningen. Gjenbrukes av både `FirmaVelger` (flagg av) og
+ * `KontekstChip` (flagg på, steg iii). `onValgt` lukker foreldrepopoveren.
+ */
+export function FirmaVelgerPanel({
+  onValgt,
+  autoFocus = true,
+}: {
+  onValgt?: () => void;
+  autoFocus?: boolean;
+}) {
   const { valgtFirma, tilgjengelige, velgFirma } = useFirma();
   const router = useRouter();
-  const [apen, setApen] = useState(false);
   const [sok, setSok] = useState("");
+
+  const filtrerte = tilgjengelige.filter((f) =>
+    f.name.toLowerCase().includes(sok.toLowerCase()),
+  );
+
+  return (
+    <>
+      <div className="border-b border-gray-100 p-2">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            value={sok}
+            onChange={(e) => setSok(e.target.value)}
+            placeholder="Søk firmaer..."
+            className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-sm text-gray-700 placeholder-gray-400 focus:border-blue-500 focus:outline-none"
+            autoFocus={autoFocus}
+          />
+        </div>
+      </div>
+      <div className="max-h-64 overflow-auto py-1">
+        {filtrerte.length === 0 ? (
+          <p className="px-3 py-2 text-sm text-gray-400">Ingen firmaer funnet</p>
+        ) : (
+          filtrerte.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => {
+                velgFirma(f.id);
+                setSok("");
+                onValgt?.();
+                router.push("/dashbord/firma");
+              }}
+              className={`flex w-full flex-col px-3 py-2 text-left transition-colors hover:bg-blue-50 ${
+                valgtFirma?.id === f.id ? "bg-blue-50" : ""
+              }`}
+            >
+              <span className="text-sm font-medium text-gray-900">{f.name}</span>
+              <span className="text-xs text-gray-500">
+                {[
+                  f.aktiveFirmamoduler.includes("maskin") ? "Maskin" : null,
+                  f.aktiveFirmamoduler.includes("timer") ? "Timer" : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ") || "Ingen moduler"}
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+    </>
+  );
+}
+
+export function FirmaVelger() {
+  const { valgtFirma } = useFirma();
+  const [apen, setApen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,10 +94,6 @@ export function FirmaVelger() {
     document.addEventListener("mousedown", handleKlikk);
     return () => document.removeEventListener("mousedown", handleKlikk);
   }, []);
-
-  const filtrerte = tilgjengelige.filter((f) =>
-    f.name.toLowerCase().includes(sok.toLowerCase()),
-  );
 
   return (
     <div ref={ref} className="relative">
@@ -47,53 +111,7 @@ export function FirmaVelger() {
 
       {apen && (
         <div className="absolute left-0 top-full z-50 mt-1 w-72 rounded-lg border border-gray-200 bg-white shadow-xl">
-          <div className="border-b border-gray-100 p-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
-                value={sok}
-                onChange={(e) => setSok(e.target.value)}
-                placeholder="Søk firmaer..."
-                className="w-full rounded-md border border-gray-200 py-1.5 pl-8 pr-3 text-sm text-gray-700 placeholder-gray-400 focus:border-blue-500 focus:outline-none"
-                autoFocus
-              />
-            </div>
-          </div>
-          <div className="max-h-64 overflow-auto py-1">
-            {filtrerte.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-gray-400">
-                Ingen firmaer funnet
-              </p>
-            ) : (
-              filtrerte.map((f) => (
-                <button
-                  key={f.id}
-                  onClick={() => {
-                    velgFirma(f.id);
-                    setApen(false);
-                    setSok("");
-                    router.push("/dashbord/firma");
-                  }}
-                  className={`flex w-full flex-col px-3 py-2 text-left transition-colors hover:bg-blue-50 ${
-                    valgtFirma?.id === f.id ? "bg-blue-50" : ""
-                  }`}
-                >
-                  <span className="text-sm font-medium text-gray-900">
-                    {f.name}
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    {[
-                      f.aktiveFirmamoduler.includes("maskin") ? "Maskin" : null,
-                      f.aktiveFirmamoduler.includes("timer") ? "Timer" : null,
-                    ]
-                      .filter(Boolean)
-                      .join(" · ") || "Ingen moduler"}
-                  </span>
-                </button>
-              ))
-            )}
-          </div>
+          <FirmaVelgerPanel onValgt={() => setApen(false)} />
         </div>
       )}
     </div>
