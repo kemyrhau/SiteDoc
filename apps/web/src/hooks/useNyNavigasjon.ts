@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSearchParams } from "next/navigation";
 
 // Feature-flagg for navigasjonsredesignet (redesign/navigasjon).
 //
@@ -28,14 +27,15 @@ function lesLagret(): boolean {
 }
 
 export function useNyNavigasjon(): boolean {
-  const searchParams = useSearchParams();
-  const queryVerdi = searchParams?.get("nyNav") ?? null;
-
   // Start alltid som «av» på server + første render (unngår hydrerings-avvik);
   // faktisk verdi settes i effekten under.
   const [nyNav, setNyNav] = useState(false);
 
+  // Leser ?nyNav via window.location.search i effekten (kun klient) i stedet
+  // for useSearchParams — sistnevnte tvinger <Suspense> rundt hver forbruker
+  // og brøt prerender av alle /dashbord/*-sider (dashbord/layout.tsx).
   useEffect(() => {
+    const queryVerdi = new URLSearchParams(window.location.search).get("nyNav");
     if (queryVerdi === "1") {
       window.localStorage.setItem(LAGRINGSNOKKEL, "1");
       setNyNav(true);
@@ -45,7 +45,7 @@ export function useNyNavigasjon(): boolean {
     } else {
       setNyNav(lesLagret());
     }
-  }, [queryVerdi]);
+  }, []);
 
   return nyNav;
 }
