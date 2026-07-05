@@ -101,16 +101,31 @@ export function NavSidebar() {
     { enabled: !!valgtFirma?.id && kanAdministrereFirma },
   );
   const harHmsTilgang = hmsTilgangQuery.data ?? false;
-  const visFirmaSone = kanAdministrereFirma && !!valgtFirma;
+  const visFirmaAdminNav = kanAdministrereFirma && !!valgtFirma;
+  const visFirmaSone = visFirmaAdminNav || harMaskinModul;
 
   const prosjektElementer = [...filtrertHovedelementer, kontakterElement];
-  const bunnMaskin = bunnelementer.filter(
-    (e) => e.kreverFirmaModul === "maskin" && harMaskinModul,
-  );
+  // Maskin er firmamodul (K1) — vises i FIRMA-sonen, gated på harMaskinModul
+  // (uavhengig av firma-admin). Beholder button/aksent-rendring via renderRad.
+  const maskinElement = harMaskinModul
+    ? bunnelementer.find((e) => e.id === "maskin") ?? null
+    : null;
+
+  // c2: maks én aktiv rad på tvers av sonene. Prosjekt-radene lyser aldri på
+  // firma-/hub-ruter (der eier en firma-lenke / footeren aktiv-tilstanden).
+  const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
+  const erHub = pathname?.startsWith("/dashbord/innstillinger") ?? false;
+
+  function erElementAktiv(element: SidebarElement): boolean {
+    // Maskin (FIRMA-sone) eier /dashbord/maskin uansett kontekst.
+    if (element.id === "maskin") return aktivSeksjon === "maskin";
+    if (erFirmaKontekst || erHub) return false;
+    return aktivSeksjon === element.id;
+  }
 
   function renderRad(element: SidebarElement): JSX.Element {
     const deaktivert = element.kreverProsjekt && !prosjektId;
-    const aktiv = aktivSeksjon === element.id;
+    const aktiv = erElementAktiv(element);
     const eiermodul = MODUL_EIERSKAP[element.id];
     const visAksent = aktiv && !!aksentFarge && eiermodul === aktivModul;
     const farge = visAksent ? aksentFarge : null;
@@ -140,21 +155,22 @@ export function NavSidebar() {
     );
   }
 
-  function erFirmaAktiv(href: string): boolean {
-    if (href === "/dashbord/firma") return pathname === href;
-    // Integrasjoner ligger under /innstillinger — hindre at Innstillinger også
-    // markeres aktiv på integrasjoner-ruten.
-    if (href === "/dashbord/firma/innstillinger") {
-      return (
-        pathname.startsWith(href) &&
-        !pathname.startsWith("/dashbord/firma/innstillinger/integrasjoner")
-      );
+  // c2: lengste-prefiks-vinner blant firma-lenkene → nøyaktig én aktiv rad
+  // (Timer vs Timer-rapport, Innstillinger vs Integrasjoner).
+  const aktivFirmaHref = (() => {
+    let best: string | null = null;
+    for (const e of firmaNavElementer) {
+      const treff =
+        e.href === "/dashbord/firma"
+          ? pathname === e.href
+          : (pathname ?? "").startsWith(e.href);
+      if (treff && (best === null || e.href.length > best.length)) best = e.href;
     }
-    return pathname.startsWith(href);
-  }
+    return best;
+  })();
 
   function renderFirmaRad(element: FirmaNavElement): JSX.Element {
-    const aktiv = erFirmaAktiv(element.href);
+    const aktiv = element.href === aktivFirmaHref;
     return (
       <Link
         key={element.href}
@@ -170,40 +186,39 @@ export function NavSidebar() {
     );
   }
 
-  const innstillingerAktiv = (pathname ?? "").startsWith("/dashbord/innstillinger");
-
   return (
-    <aside className="hidden min-w-[220px] flex-col overflow-y-auto bg-sitedoc-primary px-2 py-3 md:flex">
-      <nav className="flex flex-1 flex-col gap-0.5">
+    <aside className="hidden min-w-[220px] flex-col bg-sitedoc-primary px-2 py-3 md:flex">
+      <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
         {/* PROSJEKT-sone */}
         <SoneOverskrift>{t("nav.soneProsjekt")}</SoneOverskrift>
         {prosjektElementer.map(renderRad)}
-        {bunnMaskin.map(renderRad)}
 
-        {/* FIRMA-sone (admin-gated) */}
+        {/* FIRMA-sone (admin-nav admin-gated; Maskin gated på firmamodul) */}
         {visFirmaSone && (
           <>
             <SoneOverskrift>{t("nav.soneFirma")}</SoneOverskrift>
-            {firmaNavElementer
-              .filter((element) => {
-                if (element.kreverFirmaModul === "timer" && !harTimerModul) return false;
-                if (element.kreverFirmaModul === "varelager" && !harVarelagerModul) return false;
-                if (element.kreverSitedocAdmin && !erSitedocAdmin) return false;
-                if (element.kreverHmsTilgang && !harHmsTilgang) return false;
-                return true;
-              })
-              .map(renderFirmaRad)}
+            {visFirmaAdminNav &&
+              firmaNavElementer
+                .filter((element) => {
+                  if (element.kreverFirmaModul === "timer" && !harTimerModul) return false;
+                  if (element.kreverFirmaModul === "varelager" && !harVarelagerModul) return false;
+                  if (element.kreverSitedocAdmin && !erSitedocAdmin) return false;
+                  if (element.kreverHmsTilgang && !harHmsTilgang) return false;
+                  return true;
+                })
+                .map(renderFirmaRad)}
+            {maskinElement && renderRad(maskinElement)}
           </>
         )}
       </nav>
 
-      {/* Innstillinger fast nederst → huben */}
+      {/* Innstillinger fast nederst → huben (pinned, utenfor scroll-nav) */}
       <div className="flex flex-col gap-0.5 border-t border-white/10 pt-3">
         <Link
           href="/dashbord/innstillinger"
-          aria-current={innstillingerAktiv ? "page" : undefined}
+          aria-current={erHub ? "page" : undefined}
           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-            innstillingerAktiv ? "bg-white/15 text-white" : "text-blue-200 hover:bg-white/10 hover:text-white"
+            erHub ? "bg-white/15 text-white" : "text-blue-200 hover:bg-white/10 hover:text-white"
           }`}
         >
           <span className="flex h-5 w-5 shrink-0 items-center justify-center">
