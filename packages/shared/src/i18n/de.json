@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Unternehmen",
   "innstillinger.seksjonProsjekt": "Projekt",
   "innstillinger.gjelderFirma": "Gilt für ganz {{firma}}",
-  "innstillinger.gjelderProsjekt": "Gilt nur für das ausgewählte Projekt",
+  "innstillinger.gjelderProsjekt": "Gilt nur für {{prosjekt}}",
   "innstillinger.velgProsjekt": "Wählen Sie ein Projekt aus, um die Projekteinstellungen anzuzeigen.",
   "innstillinger.ingenTreff": "Keine Einstellungen entsprechen Ihrer Suche.",
   "innstillinger.hjelp.tittel": "Über Einstellungen",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Checklisten-Vorlagen",
   "innstillinger.lenke.oppgavemaler": "Aufgabenvorlagen",
   "innstillinger.lenke.dokumentflyt": "Dokumentenfluss",
-  "innstillinger.lenke.aiSok": "KI-Suche"
+  "innstillinger.lenke.aiSok": "KI-Suche",
+  "innstillinger.lenke.mappeoppsett": "Ordnereinrichtung",
+  "innstillinger.lenke.psiMal": "PSI-Vorlage"
 }

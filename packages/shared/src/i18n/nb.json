@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Firma",
   "innstillinger.seksjonProsjekt": "Prosjekt",
   "innstillinger.gjelderFirma": "Gjelder hele {{firma}}",
-  "innstillinger.gjelderProsjekt": "Gjelder kun valgt prosjekt",
+  "innstillinger.gjelderProsjekt": "Gjelder kun {{prosjekt}}",
   "innstillinger.velgProsjekt": "Velg et prosjekt for å se prosjektinnstillinger.",
   "innstillinger.ingenTreff": "Ingen innstillinger matcher søket.",
   "innstillinger.hjelp.tittel": "Om innstillinger",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Sjekklistemaler",
   "innstillinger.lenke.oppgavemaler": "Oppgavemaler",
   "innstillinger.lenke.dokumentflyt": "Dokumentflyt",
-  "innstillinger.lenke.aiSok": "AI-søk"
+  "innstillinger.lenke.aiSok": "AI-søk",
+  "innstillinger.lenke.mappeoppsett": "Mappeoppsett",
+  "innstillinger.lenke.psiMal": "PSI-mal"
 }

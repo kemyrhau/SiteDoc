@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Uzņēmums",
   "innstillinger.seksjonProsjekt": "Projekts",
   "innstillinger.gjelderFirma": "Attiecas uz visiem {{firma}}",
-  "innstillinger.gjelderProsjekt": "Attiecas tikai uz atlasīto projektu",
+  "innstillinger.gjelderProsjekt": "Attiecas tikai uz {{prosjekt}}",
   "innstillinger.velgProsjekt": "Atlasiet projektu, lai skatītu projekta iestatījumus.",
   "innstillinger.ingenTreff": "Neviens iestatījums neatbilst jūsu meklēšanas vaicājumam.",
   "innstillinger.hjelp.tittel": "Par iestatījumiem",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Kontrolsarakstu veidnes",
   "innstillinger.lenke.oppgavemaler": "Uzdevumu veidnes",
   "innstillinger.lenke.dokumentflyt": "Dokumentu plūsma",
-  "innstillinger.lenke.aiSok": "AI meklēšana"
+  "innstillinger.lenke.aiSok": "AI meklēšana",
+  "innstillinger.lenke.mappeoppsett": "Mapes iestatīšana",
+  "innstillinger.lenke.psiMal": "PSI veidne"
 }

@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Ettevõte",
   "innstillinger.seksjonProsjekt": "Projekt",
   "innstillinger.gjelderFirma": "Kehtib kõigile {{firma}}",
-  "innstillinger.gjelderProsjekt": "Kehtib ainult valitud projektile",
+  "innstillinger.gjelderProsjekt": "Kehtib ainult {{prosjekt}} jaoks",
   "innstillinger.velgProsjekt": "Projekti sätete vaatamiseks valige projekt.",
   "innstillinger.ingenTreff": "Ükski seade ei vasta teie otsingule.",
   "innstillinger.hjelp.tittel": "Seadete kohta",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Kontrollnimekirjade mallid",
   "innstillinger.lenke.oppgavemaler": "Ülesande mallid",
   "innstillinger.lenke.dokumentflyt": "Dokumendivoog",
-  "innstillinger.lenke.aiSok": "AI otsing"
+  "innstillinger.lenke.aiSok": "AI otsing",
+  "innstillinger.lenke.mappeoppsett": "Kausta seadistamine",
+  "innstillinger.lenke.psiMal": "PSI mall"
 }

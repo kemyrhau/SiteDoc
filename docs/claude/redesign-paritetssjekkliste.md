@@ -108,8 +108,8 @@ i et redesign som bare leser ankeret:
 | O6 | Oppgavemaler (+`/[id]`) | `/oppsett/produksjon/oppgavemaler` | 1a «Maler › Oppgavemaler» | `manage_field` | **Ja** | |
 | O7 | Sjekklistemaler (+`/[id]`) | `/oppsett/produksjon/sjekklistemaler` | 1a «Maler › Sjekklistemaler» | `manage_field` | **Ja** | |
 | O8 | Modul av/på (ProjectModule-toggle) | `/oppsett/produksjon/moduler` | 1a «Moduler» | `manage_field` | **Ja** | |
-| O9 | Mappeoppsett («Box») | `/oppsett/produksjon/box` | 1a «Prosjektoppsett»/«Søk og AI» | `manage_field` | **Ja** (rename box→mapper, tiltak 4) | |
-| O10 | PSI-mal-oppsett | `/oppsett/produksjon/psi` (skjult hvis PSI av) | 1a — gated psi | `moduleSlug="psi" aktiv` | **Ja** | |
+| O9 | Mappeoppsett («Box») | `/oppsett/produksjon/box` | **1a «Prosjektoppsett › Mappeoppsett»** (bygget) | `manage_field` (sublink-gated) | **Ja** (rename box→mapper, tiltak 4) | |
+| O10 | PSI-mal-oppsett | `/oppsett/produksjon/psi` (skjult hvis PSI av) | **1a «Maler › PSI-mal»** (bygget) | `manage_field` + PSI-modul aktiv (`modul.hentForProsjekt`) | **Ja** | |
 | O11 | AI-søk-config | oppsett-sidebar `ai-sok` / `/oppsett/ai-sok` | 1a «Søk og AI › AI-søk» | `kreverProsjekt` | **Ja** | |
 | O12 | Prosjekteier / «Firmainnstillinger» (read-only) | `/oppsett/firma` (Prosjekteier-barn) | 1a «Prosjektoppsett › Eier-firma» (lenke til firma) | `harFirmaTilgang` | **Ja** | |
 | O13 | Generelle prosjekt-innstillinger | `/oppsett/prosjektoppsett` | 1a «Prosjektoppsett › Generelt» | — | **Ja** | |
@@ -139,7 +139,7 @@ Hele firma-sidebaren gates på `kanAdministrereFirma && valgtFirma` (company_adm
 | F17 | Kalender | firma-sidebar `Kalender` / `/firma/kalender` | 1a FIRMA «Kalender» | company_admin/sitedoc_admin | Nei | |
 | F18 | Varelager (katalog) | firma-sidebar `Varelager` / `/firma/varelager` | 1a «Varelager › Katalog» | `kreverFirmaModul="varelager"` | Nei | |
 | F19 | Varelager-import | `/firma/varelager/import` | 1a «Varelager › Import» | do. | Nei | |
-| F20 | Fakturering | firma-sidebar `Fakturering` / `/firma/fakturering` | 1a «Firmaprofil › Fakturering» | `kreverSitedocAdmin` | Nei | |
+| F20 | Fakturering | firma-sidebar `Fakturering` / `/firma/fakturering` | 1a «Firmaprofil › Fakturering» (gated `erSitedocAdmin` — se K12) | `kreverSitedocAdmin` | Nei | |
 | F21 | Firma-innstillinger (master: navn/org.nr) | firma-sidebar `Innstillinger` / `/firma/innstillinger` | 1a «Firmaprofil › Firmainfo» | company_admin/sitedoc_admin | Nei | |
 | F22 | Integrasjoner (firma) | firma-sidebar / `/firma/innstillinger/integrasjoner` | 1a «Firmaprofil › Integrasjoner» | do. | Nei | |
 
@@ -272,6 +272,7 @@ plasserings-blokker):** K9.
 | K9 | Duplikat prosjekt-rutetre | **UTFØRT 2026-07-05 (Kenneth godkjente sletteplan):** `Toppmeny.tsx` (død kode) + legacy-layout slettet; de 7 legacy-sidene konvertert til server-side redirects → kanonisk `/dashbord/[prosjektId]/*`. **Redirect beholdes til redesignet er ferdig utrullet** (ikke 1-ukes-regelen — den gjelder mobil-API; nettleser-bokmerker lever lenger). Selve redirect-fjerningen = opprydding etter lansering. Se § K9-rapport | X4, P29 | 🟢 utført |
 | K10 | Ansatte vs Brukere | **UI-term «Ansatte»; hub-kort «Ansatte og roller».** Ikke hardkod «ansatt = bruker» (HR-Import kan gi ansatte uten konto) | F3, F4 | ✅ vedtatt |
 | K11 | Admin-redesign (abonnement/drill-down) | **UT AV SCOPE** — Lag 6 (sitedoc_admin) egen fase etter kunderettet nav | A1–A6 | 🟡 utsatt |
+| K12 | Fakturerings-tilgang: `erSitedocAdmin` (dagens firma-layout) vs company_admin (1a-design) | Hub gater Fakturering-chip på `erSitedocAdmin` for å **speile dagens atferd** (parity). 1a-designet la den under company_admin — å vise fakturerings-innsyn for firma-admin er en **atferdsendring**, ikke avgjort her | F20 | 🟠 krever Kenneth |
 
 > **K8-oppfølger (ikke blokkerende):** legg en linje i `onboarding-veileder.md` om at 1a-huben
 > er hjem for «Kom i gang»-innhold — gjøres når huben bygges (steg ii).
@@ -329,7 +330,7 @@ Toppbar (T) 9 · Sidebar-gating (G) 12 · Standarder (S) 6 · Mobil (M) 19 = **1
 | (i) Paritetssjekkliste | ✅ | Denne fila. Commit `69f36a21`. K1–K11 innarbeidet |
 | K9-opprydding | ✅ | `Toppmeny.tsx` + legacy-layout slettet; 7 legacy-sider → redirects |
 | Flagg-infra | ✅ | `useNyNavigasjon()` (`apps/web/src/hooks/`) — localStorage + `?nyNav=1`, eneste kilde. Flagg av = eksakt dagens UI. Plattform-abstraksjon (AsyncStorage) noteres for 2a |
-| (ii) 1a hub | ✅ bygget | `/dashbord/innstillinger` — FIRMA/PROSJEKT-seksjoner, kort m/ underlenke-chips, søk + segmentert filter, gating (kanAdministrereFirma / prosjektId / firmamoduler / manage_field), hjelpetekst, i18n (59 nøkler × 15 språk). **Direkte nåbar via URL uavhengig av flagget.** Skjermbilder → design-sammenligning før kunde |
+| (ii) 1a hub | ✅ bygget | `/dashbord/innstillinger` — FIRMA/PROSJEKT-seksjoner, kort m/ underlenke-chips, søk + segmentert filter, gating (kanAdministrereFirma / prosjektId / firmamoduler / manage_field), hjelpetekst, i18n (61 nøkler × 15 språk). **Direkte nåbar via URL uavhengig av flagget.** Justeringer a–e (2026-07-05): (a) seksjonsfarge-headere, (b) chip-dedup Kompetanse/HMS, (c) Mappeoppsett + PSI-mal-innganger (O9/O10), (d) prosjektnavn-interpolasjon, (e) Fakturering-gating-kommentar (K12). Skjermbilder → design-sammenligning før kunde |
 | (iii) 1b sidebar + kontekst-chip | ⏳ | Neste — gates via `useNyNavigasjon` |
 | (iv) 1b søkemodal | ⏳ | |
 | (v) 2b oversettelsespanel | ⏳ | |

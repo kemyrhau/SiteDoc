@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Entreprise",
   "innstillinger.seksjonProsjekt": "Projet",
   "innstillinger.gjelderFirma": "S'applique à l'ensemble de {{firma}}",
-  "innstillinger.gjelderProsjekt": "S'applique uniquement au projet sélectionné",
+  "innstillinger.gjelderProsjekt": "S'applique uniquement à {{prosjekt}}",
   "innstillinger.velgProsjekt": "Sélectionnez un projet pour voir les paramètres du projet.",
   "innstillinger.ingenTreff": "Aucun paramètre ne correspond à votre recherche.",
   "innstillinger.hjelp.tittel": "À propos des paramètres",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Modèles de liste de contrôle",
   "innstillinger.lenke.oppgavemaler": "Modèles de tâches",
   "innstillinger.lenke.dokumentflyt": "Flux de documents",
-  "innstillinger.lenke.aiSok": "Recherche IA"
+  "innstillinger.lenke.aiSok": "Recherche IA",
+  "innstillinger.lenke.mappeoppsett": "Configuration du dossier",
+  "innstillinger.lenke.psiMal": "Modèle PSI"
 }

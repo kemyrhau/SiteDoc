@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Yritys",
   "innstillinger.seksjonProsjekt": "Projekti",
   "innstillinger.gjelderFirma": "Koskee kaikkia {{firma}}",
-  "innstillinger.gjelderProsjekt": "Koskee vain valittua projektia",
+  "innstillinger.gjelderProsjekt": "Koskee vain {{prosjekt}}",
   "innstillinger.velgProsjekt": "Valitse projekti nähdäksesi projektin asetukset.",
   "innstillinger.ingenTreff": "Mikään asetus ei vastaa hakuasi.",
   "innstillinger.hjelp.tittel": "Tietoja asetuksista",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Tarkistuslistamallit",
   "innstillinger.lenke.oppgavemaler": "Tehtävämallit",
   "innstillinger.lenke.dokumentflyt": "Asiakirjan kulku",
-  "innstillinger.lenke.aiSok": "AI-haku"
+  "innstillinger.lenke.aiSok": "AI-haku",
+  "innstillinger.lenke.mappeoppsett": "Kansion asetukset",
+  "innstillinger.lenke.psiMal": "PSI-malli"
 }

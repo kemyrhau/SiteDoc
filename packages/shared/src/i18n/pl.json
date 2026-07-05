@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Firma",
   "innstillinger.seksjonProsjekt": "Projekt",
   "innstillinger.gjelderFirma": "Dotyczy wszystkich {{firma}}",
-  "innstillinger.gjelderProsjekt": "Dotyczy tylko wybranego projektu",
+  "innstillinger.gjelderProsjekt": "Dotyczy tylko {{prosjekt}}",
   "innstillinger.velgProsjekt": "Wybierz projekt, aby zobaczyć ustawienia projektu.",
   "innstillinger.ingenTreff": "Żadne ustawienia nie pasują do Twojego wyszukiwania.",
   "innstillinger.hjelp.tittel": "O ustawieniach",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Szablony list kontrolnych",
   "innstillinger.lenke.oppgavemaler": "Szablony zadań",
   "innstillinger.lenke.dokumentflyt": "Przepływ dokumentów",
-  "innstillinger.lenke.aiSok": "Wyszukiwanie AI"
+  "innstillinger.lenke.aiSok": "Wyszukiwanie AI",
+  "innstillinger.lenke.mappeoppsett": "Konfiguracja folderu",
+  "innstillinger.lenke.psiMal": "Szablon PSI"
 }

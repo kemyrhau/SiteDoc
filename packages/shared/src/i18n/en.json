@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Company",
   "innstillinger.seksjonProsjekt": "Project",
   "innstillinger.gjelderFirma": "Applies to all of {{firma}}",
-  "innstillinger.gjelderProsjekt": "Applies to the selected project only",
+  "innstillinger.gjelderProsjekt": "Applies to {{prosjekt}} only",
   "innstillinger.velgProsjekt": "Select a project to see project settings.",
   "innstillinger.ingenTreff": "No settings match your search.",
   "innstillinger.hjelp.tittel": "About settings",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Checklist templates",
   "innstillinger.lenke.oppgavemaler": "Task templates",
   "innstillinger.lenke.dokumentflyt": "Document flow",
-  "innstillinger.lenke.aiSok": "AI search"
+  "innstillinger.lenke.aiSok": "AI search",
+  "innstillinger.lenke.mappeoppsett": "Folder setup",
+  "innstillinger.lenke.psiMal": "PSI template"
 }

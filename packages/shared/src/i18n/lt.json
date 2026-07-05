@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Įmonė",
   "innstillinger.seksjonProsjekt": "Projektas",
   "innstillinger.gjelderFirma": "Taikoma visoms {{firma}}",
-  "innstillinger.gjelderProsjekt": "Taikoma tik pasirinktam projektui",
+  "innstillinger.gjelderProsjekt": "Taikoma tik {{prosjekt}}",
   "innstillinger.velgProsjekt": "Pasirinkite projektą, kad pamatytumėte projekto nustatymus.",
   "innstillinger.ingenTreff": "Jokie nustatymai neatitinka jūsų paieškos.",
   "innstillinger.hjelp.tittel": "Apie nustatymus",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Kontrolinio sąrašo šablonai",
   "innstillinger.lenke.oppgavemaler": "Užduočių šablonai",
   "innstillinger.lenke.dokumentflyt": "Dokumentų srautas",
-  "innstillinger.lenke.aiSok": "AI paieška"
+  "innstillinger.lenke.aiSok": "AI paieška",
+  "innstillinger.lenke.mappeoppsett": "Aplanko nustatymas",
+  "innstillinger.lenke.psiMal": "PSI šablonas"
 }

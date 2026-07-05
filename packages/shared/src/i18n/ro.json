@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Companie",
   "innstillinger.seksjonProsjekt": "Proiect",
   "innstillinger.gjelderFirma": "Se aplică tuturor {{firma}}",
-  "innstillinger.gjelderProsjekt": "Se aplică numai proiectului selectat",
+  "innstillinger.gjelderProsjekt": "Se aplică numai pentru {{prosjekt}}",
   "innstillinger.velgProsjekt": "Selectați un proiect pentru a vedea setările proiectului.",
   "innstillinger.ingenTreff": "Nicio setare nu corespunde căutării dvs.",
   "innstillinger.hjelp.tittel": "Despre setări",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Șabloane de liste de verificare",
   "innstillinger.lenke.oppgavemaler": "Șabloane de sarcini",
   "innstillinger.lenke.dokumentflyt": "Fluxul documentelor",
-  "innstillinger.lenke.aiSok": "Căutare AI"
+  "innstillinger.lenke.aiSok": "Căutare AI",
+  "innstillinger.lenke.mappeoppsett": "Configurarea folderului",
+  "innstillinger.lenke.psiMal": "șablon PSI"
 }

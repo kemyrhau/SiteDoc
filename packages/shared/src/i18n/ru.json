@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Компания",
   "innstillinger.seksjonProsjekt": "Проект",
   "innstillinger.gjelderFirma": "Применяется ко всей компании {{firma}}",
-  "innstillinger.gjelderProsjekt": "Применяется только к выбранному проекту",
+  "innstillinger.gjelderProsjekt": "Применяется только к {{prosjekt}}",
   "innstillinger.velgProsjekt": "Выберите проект, чтобы просмотреть настройки проекта.",
   "innstillinger.ingenTreff": "Нет настроек, соответствующих вашему запросу.",
   "innstillinger.hjelp.tittel": "О настройках",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Шаблоны контрольных списков",
   "innstillinger.lenke.oppgavemaler": "Шаблоны задач",
   "innstillinger.lenke.dokumentflyt": "Документооборот",
-  "innstillinger.lenke.aiSok": "AI-поиск"
+  "innstillinger.lenke.aiSok": "AI-поиск",
+  "innstillinger.lenke.mappeoppsett": "Настройка папки",
+  "innstillinger.lenke.psiMal": "PSI-шаблон"
 }

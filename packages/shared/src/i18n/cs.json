@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Společnost",
   "innstillinger.seksjonProsjekt": "Projekt",
   "innstillinger.gjelderFirma": "Platí pro všechny firmy {{firma}}",
-  "innstillinger.gjelderProsjekt": "Platí pouze pro vybraný projekt",
+  "innstillinger.gjelderProsjekt": "Platí pouze pro {{prosjekt}}",
   "innstillinger.velgProsjekt": "Chcete-li zobrazit nastavení projektu, vyberte projekt.",
   "innstillinger.ingenTreff": "Vašemu vyhledávání neodpovídají žádné nastavení.",
   "innstillinger.hjelp.tittel": "O nastavení",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Šablony kontrolního seznamu",
   "innstillinger.lenke.oppgavemaler": "Šablony úkolů",
   "innstillinger.lenke.dokumentflyt": "Tok dokumentů",
-  "innstillinger.lenke.aiSok": "AI vyhledávání"
+  "innstillinger.lenke.aiSok": "AI vyhledávání",
+  "innstillinger.lenke.mappeoppsett": "Nastavení složky",
+  "innstillinger.lenke.psiMal": "PSI šablona"
 }

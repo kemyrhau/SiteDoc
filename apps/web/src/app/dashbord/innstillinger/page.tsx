@@ -53,7 +53,7 @@ const SEKSJON_STIL: Record<Seksjon, { aksent: string; flis: string }> = {
 export default function InnstillingerHub() {
   const { t } = useTranslation();
   const { kanAdministrereFirma, valgtFirma, erSitedocAdmin } = useFirma();
-  const { prosjektId } = useProsjekt();
+  const { prosjektId, valgtProsjekt } = useProsjekt();
 
   const [sok, setSok] = useState("");
   const [filter, setFilter] = useState<"alt" | Seksjon>("alt");
@@ -65,6 +65,17 @@ export default function InnstillingerHub() {
     { enabled: !!prosjektId },
   );
   const kanManageField = !!tillatelser?.includes("manage_field");
+
+  // PSI-mal-oppsett (O10) gates på at PSI-modulen er aktiv på prosjektet —
+  // speiler oppsett-sidebarens skjulte PSI-barn.
+  const { data: aktiveModuler } = trpc.modul.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const psiAktiv = !!aktiveModuler?.some(
+    (m: { moduleSlug: string; status: string }) =>
+      m.moduleSlug === "psi" && m.status === "aktiv",
+  );
 
   const firmamoduler = valgtFirma?.aktiveFirmamoduler ?? [];
   const harTimer = firmamoduler.includes("timer");
@@ -81,6 +92,10 @@ export default function InnstillingerHub() {
         synlig: kanAdministrereFirma,
         underlenker: [
           { labelKey: "innstillinger.lenke.firmainfo", href: "/dashbord/firma/innstillinger" },
+          // (e) Fakturering gates på erSitedocAdmin for å SPEILE dagens firma-layout
+          // (firma-sidebar: Fakturering = kreverSitedocAdmin). 1a-designet plasserte den
+          // under company_admin — å vise den for firma-admin ville være en atferdsendring
+          // (fakturerings-innsyn). Ikke avgjort her; flagget som åpen beslutning til Kenneth.
           { labelKey: "innstillinger.lenke.fakturering", href: "/dashbord/firma/fakturering", synlig: erSitedocAdmin },
         ],
       },
@@ -104,8 +119,8 @@ export default function InnstillingerHub() {
         ikon: <GraduationCap className="h-5 w-5" />,
         synlig: kanAdministrereFirma,
         underlenker: [
+          // (b) dedup: Matrise + Import delte samme URL — import åpnes på matrise-siden.
           { labelKey: "innstillinger.lenke.matrise", href: "/dashbord/firma/kompetanse" },
-          { labelKey: "innstillinger.lenke.import", href: "/dashbord/firma/kompetanse" },
         ],
       },
       {
@@ -140,8 +155,9 @@ export default function InnstillingerHub() {
         ikon: <ShieldAlert className="h-5 w-5" />,
         synlig: kanAdministrereFirma,
         underlenker: [
+          // (b) dedup: Dashbord + Varsling delte samme URL; firma/hms har ingen egen
+          // varsling-fane (fanene er avvik/sja/ruh/statistikk). Beskrivelsen dekker begge.
           { labelKey: "innstillinger.lenke.hmsDashbord", href: "/dashbord/firma/hms" },
-          { labelKey: "innstillinger.lenke.hmsVarsling", href: "/dashbord/firma/hms" },
         ],
       },
     ],
@@ -162,6 +178,8 @@ export default function InnstillingerHub() {
         underlenker: [
           { labelKey: "innstillinger.lenke.generelt", href: "/dashbord/oppsett/prosjektoppsett" },
           { labelKey: "innstillinger.lenke.byggeplasser", href: "/dashbord/oppsett/byggeplasser" },
+          // (c) Mapper-oppsett (O9) — produksjons-barn, krever manage_field.
+          { labelKey: "innstillinger.lenke.mappeoppsett", href: "/dashbord/oppsett/produksjon/box", synlig: kanManageField },
         ],
       },
       {
@@ -197,6 +215,8 @@ export default function InnstillingerHub() {
         underlenker: [
           { labelKey: "innstillinger.lenke.sjekklistemaler", href: "/dashbord/oppsett/produksjon/sjekklistemaler" },
           { labelKey: "innstillinger.lenke.oppgavemaler", href: "/dashbord/oppsett/produksjon/oppgavemaler" },
+          // (c) PSI-mal-oppsett (O10) — kun når PSI-modulen er aktiv (som oppsett-sidebar).
+          { labelKey: "innstillinger.lenke.psiMal", href: "/dashbord/oppsett/produksjon/psi", synlig: psiAktiv },
         ],
       },
       {
@@ -222,7 +242,7 @@ export default function InnstillingerHub() {
         ],
       },
     ];
-  }, [prosjektId, kanManageField]);
+  }, [prosjektId, kanManageField, psiAktiv]);
 
   const sokLavere = sok.trim().toLowerCase();
 
@@ -334,7 +354,10 @@ export default function InnstillingerHub() {
       {visFirma && synligeFirma.length > 0 && (
         <section className="mb-8">
           <div className="mb-3">
-            <h2 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+            <h2
+              className="text-[12px] font-semibold uppercase tracking-[0.08em]"
+              style={{ color: SEKSJON_STIL.firma.aksent }}
+            >
               {t("innstillinger.seksjonFirma")}
             </h2>
             {valgtFirma && (
@@ -353,12 +376,15 @@ export default function InnstillingerHub() {
       {visProsjekt && (
         <section className="mb-8">
           <div className="mb-3">
-            <h2 className="text-[12px] font-semibold uppercase tracking-[0.08em] text-gray-500">
+            <h2
+              className="text-[12px] font-semibold uppercase tracking-[0.08em]"
+              style={{ color: SEKSJON_STIL.prosjekt.aksent }}
+            >
               {t("innstillinger.seksjonProsjekt")}
             </h2>
             <p className="text-[12px] text-gray-400">
               {prosjektId
-                ? t("innstillinger.gjelderProsjekt")
+                ? t("innstillinger.gjelderProsjekt", { prosjekt: valgtProsjekt?.name ?? "" })
                 : t("innstillinger.velgProsjekt")}
             </p>
           </div>

@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Kompania",
   "innstillinger.seksjonProsjekt": "Projekti",
   "innstillinger.gjelderFirma": "Zbatohet për të gjithë {{firma}}",
-  "innstillinger.gjelderProsjekt": "Zbatohet vetëm për projektin e zgjedhur",
+  "innstillinger.gjelderProsjekt": "Zbatohet vetëm për {{prosjekt}}",
   "innstillinger.velgProsjekt": "Zgjidhni një projekt për të parë cilësimet e projektit.",
   "innstillinger.ingenTreff": "Asnjë cilësim nuk përputhet me kërkimin tuaj.",
   "innstillinger.hjelp.tittel": "Rreth cilësimeve",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Modelet e listës së kontrollit",
   "innstillinger.lenke.oppgavemaler": "Modelet e detyrave",
   "innstillinger.lenke.dokumentflyt": "Rrjedha e dokumentit",
-  "innstillinger.lenke.aiSok": "Kërkimi i AI"
+  "innstillinger.lenke.aiSok": "Kërkimi i AI",
+  "innstillinger.lenke.mappeoppsett": "Konfigurimi i dosjes",
+  "innstillinger.lenke.psiMal": "Modeli PSI"
 }

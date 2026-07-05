@@ -2599,7 +2599,7 @@
   "innstillinger.seksjonFirma": "Företag",
   "innstillinger.seksjonProsjekt": "Projekt",
   "innstillinger.gjelderFirma": "Gäller alla {{firma}}",
-  "innstillinger.gjelderProsjekt": "Gäller endast det valda projektet",
+  "innstillinger.gjelderProsjekt": "Gäller endast {{prosjekt}}",
   "innstillinger.velgProsjekt": "Välj ett projekt för att se projektinställningar.",
   "innstillinger.ingenTreff": "Inga inställningar matchar din sökning.",
   "innstillinger.hjelp.tittel": "Om inställningar",
@@ -2648,5 +2648,7 @@
   "innstillinger.lenke.sjekklistemaler": "Checklista mallar",
   "innstillinger.lenke.oppgavemaler": "Uppgiftsmallar",
   "innstillinger.lenke.dokumentflyt": "Dokumentflöde",
-  "innstillinger.lenke.aiSok": "AI-sökning"
+  "innstillinger.lenke.aiSok": "AI-sökning",
+  "innstillinger.lenke.mappeoppsett": "Mappinställningar",
+  "innstillinger.lenke.psiMal": "PSI mall"
 }
