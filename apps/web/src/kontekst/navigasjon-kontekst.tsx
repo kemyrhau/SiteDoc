@@ -19,6 +19,7 @@ export type Seksjon =
   | "okonomi"
   | "sok"
   | "psi"
+  | "mannskap"
   | "kontrollplan"
   | "timer"
   | "timer-attestering"

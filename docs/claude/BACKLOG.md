@@ -110,6 +110,21 @@ Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-f
 
 - **🔴 Advarsel ved 2+ byggeplasser:** ved oppsett av flere byggeplasser på et prosjekt, minn om at geolokasjon/geofence bør settes per byggeplass (ellers ingen GPS-auto-valg). Akseptert som OK: prosjekt-georef (Prosjektlokasjon) vs byggeplass-georef-konflikt der byggeplass-velger er deaktivert i prosjekt-innstillingen.
 
+### 🟡 HMSREG-push — ekstern §15-rapportering (dedikert fase, IKKE bygg nå)
+
+Push av `PsiTilstedevarelse`-tilstedeværelse til **HMSREG** (`az-api.hmsreg.com`) så byggherre får lovpålagt §15-data. Ruting-nøkkelen `Byggeplass.hmsregNummer` (Int?, additiv) er lagt til i PSI Fase A-commiten (2026-07-05); selve push-en gjenstår. Full felt-mapping + push-event-modell + arkitektur-avklaring i [mannskap.md § HMSREG-integrasjon](mannskap.md).
+
+**Mønster (som SmartDok-eksporten — kø + ekstern API, ikke live):**
+- **Queue** til `az-api.hmsreg.com` — `/api/v2/registration` (inn/ut-events) + `/api/v2/course` (kurs/kompetanse).
+- **Item-queue-status-polling** (async — HMSREG kvitterer ikke synkront).
+- **Auth:** source/provider-ID + auth-header-secret (aldri til klient — nøkkelhåndterings-regelen). **Provider-registrering hos HMSREG er en forutsetning** før push kan skje.
+- **Idempotens:** `externalRef` = deterministisk UUID av `(rad-id + direction)` → to POST-er per rad (`In @ innsjekkTid`, `Out @ utsjekkTid`), retry-trygt.
+- **`cardType` default `"HMS"`.**
+- **🔴 Reell begrensning:** arbeidere med `harIkkeHmsKort=true` **kan ikke rapporteres** (HMSREG krever `cardNumber`) — de blir i intern §15-liste men faller ut av push; krever eksplisitt PL-varsel.
+- **GDPR:** push-kanalen sender full data (inkl. tidspunkt) til byggherre på grunnlag art. 6(1)(c) (byggherreforskriften §15). Kolliderer **ikke** med den strenge interne feltnivå-isolasjonen (byggherre leser aldri klokkeslett i SiteDoc-UI-et) — ulike flater, samme rettsgrunnlag.
+
+Forankring: [mannskap.md](mannskap.md) (Fase A live 2026-07-05), Fase B–E (QR/geofence/PDF/timer-hook) parkert; HMSREG-push er sideordnet Fase D-nivå (ekstern rapportering).
+
 ### 🔒 SheetMachine.vehicleId org-validert (§2.D) ✅ DEPLOYET TIL PROD 2026-07-04 (`90469dc7` i `0801af38`)
 
 Pre-eksisterende cross-firma-lekkasje-klasse (åpen siden 2026-06-09): `SheetMachine.vehicleId` (maskindrift) ble skrevet uten org-validering. Fiks: `verifiserKjoretoyTilhørerFirma` på alle fem input-baserte skrive-stier (`maskin.tilfoy`/`maskin.oppdater`/`redigerSedelRader`/`splittRad`/`syncBatch`). Full detalj: [historikk-2026-07.md § Prod-deploy 2026-07-04 (kveld) PR 1](historikk-2026-07.md).

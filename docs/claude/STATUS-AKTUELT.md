@@ -16,6 +16,16 @@ sist_verifisert_mot_kode: 2026-06-08
 
 > ✅ **DEPLOYET TIL PROD 2026-07-04 (kveld, prod-merge `0801af38`)** — arkivert til [historikk-2026-07.md § Prod-deploy 2026-07-04 (kveld) PR 1-4](historikk-2026-07.md). Bunt api+web (PR 1-4): **org-isolasjon** `SheetMachine.vehicleId` §2.D (`90469dc7`), **Leaflet** geofence-kart invalidateSize (`6178034f`), **sak #5** firma-ansatt-innsyn dobbel-kilde (`6dbc884a`), **maskin opprett/import-gating** (`179b86f9`). Ingen migrering (ren kode). Backup før deploy; lockout-query ikke nødvendig (rører ikke signIn-gaten). Markør-sjekk 9/2/5/3 + innlogget prod-verifisering (Leaflet fullt kart, ansatt ser firma uten admin-meny/maskin-innganger, admin uendret, maskin-føring OK). Lukker sak #5. Nye BACKLOG-poster: maskin-velger søk/filter + maskin≤arbeidstimer proaktiv.
 
+### PSI Mannskap Fase A (§15-innsjekk/utsjekk) — IMPLEMENTERT PÅ DEVELOP 2026-07-05 (web klar for prod, mobil venter EAS-batch)
+
+Første inkrement av Fase 4 Mannskap (vy i PSI-modulen). **Manuell presence, ingen GPS** — oppfyller byggherreforskriften §15 (listen, ikke automatikk) med null GDPR-bakgrunnslokasjon-risiko.
+
+- **Datamodell:** ny `PsiTilstedevarelse` (`packages/db`, migrasjon `20260705120000_add_psi_tilstedevarelse`, rent additiv CREATE TABLE — verifisert mot Prismas kanoniske output). Ingen User-endring (§15-felt finnes fra Fase 0). Event-tidsserie, ingen FK til timer (to-lags-grense: presence ≠ lønnstid).
+- **API:** `apps/api/src/routes/mannskap.ts` — `sjekkInn` (idempotent), `sjekkUt`, `minStatus`, `hentPaaPlassen`, `hentForProsjekt`. Modul-gated på `psi`. ⭐ **Feltnivå-isolasjon (lovkrav):** `innsjekkTid`/`utsjekkTid` strippes for kaller som ikke deler arbeidsgiver-org med arbeideren (byggherre ser §15-aggregat, aldri klokkeslett). 12t auto-utsjekk som lazy-close.
+- **Web:** `/dashbord/[prosjektId]/mannskap` §15-vy (på plass nå, firma-filter, søk, HMS-mangel-varsel, §15-eksport-klar) + nav-oppføring gated på psi.
+- **Mobil:** `MannskapInnsjekkKort` på hjem (online-only, tydelig «krever nett», ingen offline-kø i Fase A). Distribueres via neste EAS-batch.
+- i18n: 24 nøkler × 15 språk. Typecheck: api/web rene (fikset 1 router-vekst-TS2589 i `oppgaver/page.tsx` via eksplisitt returtype); mobil 12 pre-eksisterende (uendret fra HEAD). **DB-migrering til `sitedoc_test` gjenstår (gate).** Sannhetskilde: [mannskap.md § Fase A](mannskap.md). Senere faser (B QR / C geofence+juridisk sign-off / D §15-PDF+GDPR / E timer-hook) parkert.
+
 ### Maskin-dagsseddel Del 1+2 — IMPLEMENTERT PÅ DEVELOP 2026-07-05 (web klar for prod, mobil venter EAS-batch)
 
 Lukker de to BACKLOG-UX-postene fra `0801af38`. Begge funnene bor i dagsseddel-maskin-modalen (web + mobil).

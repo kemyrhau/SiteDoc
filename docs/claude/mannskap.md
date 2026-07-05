@@ -1,7 +1,7 @@
 ---
 status: under_arbeid
-sist_verifisert_mot_kode: 2026-04-28
-sist_endret: 2026-06-08
+sist_verifisert_mot_kode: 2026-07-05
+sist_endret: 2026-07-05
 gjelder_versjon: Fase 4
 avhenger_av:
   - arkitektur.md
@@ -14,7 +14,9 @@ påvirkes_av_beslutninger:
 
 # Mannskapsregistrering
 
-> **🟢 Vy i PSI-modulen, ikke separat modul** (per CLAUDE.md § Tre nivåer-anker, korrigert 2026-04-28). PSI utvides i Fase 4 med innsjekk/utsjekk-mekanikk; mannskaps-vyen aggregerer disse tilstedeværelses-dataene per byggeplass. Endelig datamodell designes som del av PSI-utvidelse i Fase 4.
+> **🟢 Vy i PSI-modulen, ikke separat modul** (per CLAUDE.md § Tre nivåer-anker, korrigert 2026-04-28). PSI utvides i Fase 4 med innsjekk/utsjekk-mekanikk; mannskaps-vyen aggregerer disse tilstedeværelses-dataene per byggeplass.
+
+> **🟢 FASE A IMPLEMENTERT PÅ DEVELOP 2026-07-05 (manuell presence, ingen GPS):** Datamodell `PsiTilstedevarelse` (`packages/db`, migrasjon `20260705120000_add_psi_tilstedevarelse`) + router `apps/api/src/routes/mannskap.ts` (`sjekkInn` idempotent / `sjekkUt` / `minStatus` / `hentPaaPlassen` / `hentForProsjekt`) + web §15-vy `/dashbord/[prosjektId]/mannskap` + mobil `MannskapInnsjekkKort` (online-only). **Feltnivå-isolasjon (lovkrav):** `innsjekkTid`/`utsjekkTid` strippes i serialiseringen (`serialiserMedIsolasjon`) når kaller ikke deler arbeidsgiver-org med arbeideren (byggherre ser §15-aggregat, aldri klokkeslett). **12t auto-utsjekk** som lazy-close ved hent-stiene (api mangler app-scheduler). Modul-gated på `psi`. **Ikke bygd i Fase A (senere faser):** QR-gjeste-innsjekk (Fase B), OS-geofence-region-monitoring (Fase C, krever juridisk sign-off), §15-PDF-eksport/historikk/GDPR-auto-sletting (Fase D), timer-prosjekt-hook (Fase E). To-lags-grense håndhevet: ingen FK til timer, presence ≠ lønnstid.
 
 ## Formål
 
@@ -99,9 +101,9 @@ Vy i PSI-modulen i hovedappen (`packages/db`) — ikke isolert app, ikke separat
 - **Nasjonalitet** (allmenngjort tariffavtale) — nytt felt på `User` per A.11
 - **Arbeidstillatelse + utløpsdato** (utenlandske arbeidere) — nytt felt på `User` per A.11
 
-### Tilstedeværelse-data (innsjekk/utsjekk)
+### Tilstedeværelse-data (innsjekk/utsjekk) — IMPLEMENTERT (Fase A, 2026-07-05)
 
-Designes i Fase 4 som del av PSI-modul-utvidelse. Forventet datapunkter: `medlem-referanse` (userId nullable + gjeste-felter per PsiSignatur-mønster), `byggeplass-referanse`, `innsjekkTid`, `utsjekkTid?` (null = fortsatt på plassen), `kilde` (geofence/qr/app/manuell), `autoUtlogget` (boolean for 12t-policy). Eksakt modell-plassering (utvid `PsiSignatur`, ny `PsiTilstedevarelse`-tabell, eller annet) vurderes når Fase 4 starter.
+Modell: **`PsiTilstedevarelse`** (`packages/db/prisma/schema.prisma`, egen tabell — ikke utvidelse av `PsiSignatur`, fordi presence er en event-tidsserie med mange rader per person/dag). Felter: `projectId`, `byggeplassId?` (null = prosjekt-nivå), `userId?` + gjeste-felter (`guestName/guestCompany/guestPhone`, PsiSignatur-mønster → Fase B QR), `hmsKortNr`/`harIkkeHmsKort` (snapshot ved innsjekk, A.7), `innsjekkTid`, `utsjekkTid?` (null = fortsatt på plassen), `kilde` (`manuell|qr|geofence|hmskort|app` — ingen CHECK, forward-compat), `autoUtlogget` (12t-policy), `registrertAvUserId?` (svak ref). Indekser: `(userId, innsjekkTid)` (timer-hook Fase E + auto-utsjekk-scan), `(byggeplassId, utsjekkTid)` («på plass nå»), `(projectId, innsjekkTid)` (§15-liste). **Ingen `@@unique`** — event-tidsserie. **Ingen FK til timer** (to-lags-grense).
 
 > **🔒 Fra/til feltnivå-isolasjon (anker, 2026-06-08 — § E i [OPPSUMMERING-timer-arkitektur.md](OPPSUMMERING-timer-arkitektur.md)):** Byggherres §15-behov (hvem er på plassen) dekkes av **PSI-tilstedeværelse — aldri av timer/fra-til**. Selv om PSI er prosjekt-scopet, er innsjekk/utsjekk-*tidspunkt* (`innsjekkTid`/`utsjekkTid`) **firma-isolert på feltnivå**: byggherre OG byggherres SHA-KU ser **aggregert §15-tilstedeværelse** (navn/arbeidsgiver/HMS-kort), **ikke klokkeslett**. Faren å unngå: at noen senere dekker byggherres mannskaps-behov ved å lekke timer/fra-til — svaret er alltid PSI-tilstedeværelse. Se også [arkitektur-syntese.md § 3.4](arkitektur-syntese.md) + [terminologi.md § 0](terminologi.md).
 
@@ -303,6 +305,36 @@ Location.startGeofencingAsync("BYGGEPLASS_GEOFENCE", [
 │  Oppbevares i 6 måneder etter prosjektslutt.                    │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+## HMSREG-integrasjon (ekstern §15-rapportering) — UBYGD (se BACKLOG)
+
+Byggherrer krever ofte at tilstedeværelse rapporteres til **HMSREG** (`az-api.hmsreg.com`). Dette er **push-kanalen** som gir byggherre full §15-data — parallelt med, ikke i konflikt med, den strenge interne SiteDoc-isolasjonen (se arkitektur-avklaring under). Ruting-nøkkelen er lagt til nå (`Byggeplass.hmsregNummer`); selve push-en er en dedikert fase (ikke bygd — se [BACKLOG § HMSREG-push](BACKLOG.md)).
+
+### Felt-mapping (SiteDoc → HMSREG `/api/v2/registration`)
+
+| SiteDoc-kilde | HMSREG-felt | Merknad |
+|---|---|---|
+| `PsiTilstedevarelse.hmsKortNr` | `cardNumber` | Påkrevd av HMSREG — se begrensning under |
+| (konstant `"HMS"`) | `cardType` | Default `"HMS"` (HMS-kort) |
+| `Byggeplass.hmsregNummer` | `location` | Lokasjon-ID = fysisk checkpoint/byggeplass |
+| `innsjekkTid` / `utsjekkTid` | `timestamp` | Én per retning |
+| (avledet retning) | `direction` | `In` for innsjekk, `Out` for utsjekk |
+| `UUID(rad-id + direction)` | `externalRef` | Deterministisk → idempotens ved retry |
+| `User.name` / `guestName` | person-navn | Om HMSREG-profilen krever det |
+| arbeidsgiver-org / `guestCompany` | company | Om påkrevd |
+
+### Push-event-modell
+
+Én `PsiTilstedevarelse`-rad → **to separate POST-er** til `/api/v2/registration`: `In @ innsjekkTid` (ved innsjekk) og `Out @ utsjekkTid` (ved utsjekk, inkl. 12t auto-utsjekk). `externalRef` = **deterministisk UUID av `(rad-id + direction)`** gjør hver POST idempotent — retry/re-push skaper ikke duplikater. Kurs/kompetanse rapporteres separat via `/api/v2/course`.
+
+**Reell begrensning:** arbeidere med `harIkkeHmsKort=true` **kan ikke rapporteres** — HMSREG krever `cardNumber`. Disse blir stående i den interne §15-lista, men faller ut av HMSREG-push-en. Må håndteres eksplisitt (varsel til PL) når push-fasen bygges.
+
+### Arkitektur-avklaring: to flater som ikke kolliderer
+
+- **Intern SiteDoc-flate:** streng feltnivå-isolasjon — byggherre-org ser §15-aggregat, **aldri klokkeslett** (`serialiserMedIsolasjon`). Uendret av HMSREG.
+- **HMSREG-push-flate:** full data (inkl. tidspunkt) sendes til byggherre via HMSREG. Behandlingsgrunnlag: **GDPR art. 6(1)(c)** (byggherreforskriften §15 — rettslig forpliktelse), samme grunnlag som selve registreringen.
+
+De kolliderer ikke: intern isolasjon beskytter mot at byggherre *leser klokkeslett direkte i SiteDoc-UI-et*; HMSREG-push er den *lovpålagte rapporteringskanalen* byggherre uansett har krav på. Ulike flater, ulike formål, samme rettsgrunnlag.
 
 ## Kobling til andre moduler
 
