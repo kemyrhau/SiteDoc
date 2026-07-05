@@ -1,297 +1,28 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import {
-  LayoutDashboard,
-  ClipboardCheck,
-  ClipboardList,
-  ListTodo,
-  FileText,
-  Map,
-  Box,
-  Image,
-  FolderOpen,
-  Settings,
-  Columns2,
-  BarChart3,
-  FileSearch,
-  ShieldCheck,
-  ShieldAlert,
-  HardHat,
-  Clock,
-  Truck,
-  CheckCircle2,
-  Package,
-} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
-import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
-import { trpc } from "@/lib/trpc";
-import type { Seksjon } from "@/kontekst/navigasjon-kontekst";
-import type { Permission } from "@sitedoc/shared";
-import { MODUL_FARGER, hentAktivModul, type ModulNavn } from "@/lib/modul-farger";
-
-// Modul-eierskap per sidebar-element (B3): kun disse får fargeaksent
-// når den tilsvarende modulen er aktiv. Andre elementer beholder default
-// hvit-stil selv på modul-rute.
-const MODUL_EIERSKAP: Partial<Record<Seksjon, ModulNavn>> = {
-  timer: "timer",
-  "timer-attestering": "timer",
-  "mine-timer": "timer",
-  maskin: "maskin",
-  vareforbruk: "varelager",
-};
-
-interface SidebarElement {
-  id: Seksjon;
-  labelKey: string;
-  ikon: JSX.Element;
-  kreverProsjekt: boolean;
-  tillatelse?: Permission;
-  kreverIfc?: boolean;
-  kreverModul?: string;
-  kreverGruppemodul?: string;
-  kreverFirmaModul?: "maskin" | "timer" | "varelager"; // Midlertidig flagg per Organization.har<X>Modul — erstattes av OrganizationModule i Fase 0
-  kreverTimerLeder?: boolean; // Vises kun for prosjektleder/admin (Runde 1C-attestering)
-}
-
-const hovedelementer: SidebarElement[] = [
-  {
-    id: "dashbord",
-    labelKey: "nav.dashbord",
-    ikon: <LayoutDashboard className="h-5 w-5" />,
-    kreverProsjekt: false,
-  },
-  {
-    id: "sjekklister",
-    labelKey: "nav.sjekklister",
-    ikon: <ClipboardCheck className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverGruppemodul: "sjekklister",
-  },
-  {
-    id: "oppgaver",
-    labelKey: "nav.oppgaver",
-    ikon: <ListTodo className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverGruppemodul: "oppgaver",
-  },
-  {
-    id: "hms",
-    labelKey: "nav.hms",
-    ikon: <ShieldAlert className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverModul: "hms-avvik",
-  },
-  // Maler er tilgjengelig via Innstillinger → Oppgavemaler / Sjekklistemaler
-  {
-    id: "tegninger",
-    labelKey: "nav.tegninger",
-    ikon: <Map className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverGruppemodul: "tegninger",
-  },
-  {
-    id: "3d-visning",
-    labelKey: "nav.3d",
-    ikon: <Box className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverIfc: true,
-    kreverGruppemodul: "3d",
-  },
-  {
-    id: "tegning-3d",
-    labelKey: "nav.tegning3d",
-    ikon: <Columns2 className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverIfc: true,
-  },
-  {
-    id: "bilder",
-    labelKey: "nav.bilder",
-    ikon: <Image className="h-5 w-5" />,
-    kreverProsjekt: true,
-  },
-  {
-    id: "mapper",
-    labelKey: "nav.mapper",
-    ikon: <FolderOpen className="h-5 w-5" />,
-    kreverProsjekt: true,
-  },
-  {
-    id: "kontrollplan",
-    labelKey: "nav.kontrollplan",
-    ikon: <ClipboardList className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverModul: "kontrollplan",
-  },
-  {
-    id: "okonomi",
-    labelKey: "nav.okonomi",
-    ikon: <BarChart3 className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverModul: "okonomi",
-  },
-  {
-    id: "sok",
-    labelKey: "nav.sok",
-    ikon: <FileSearch className="h-5 w-5" />,
-    kreverProsjekt: true,
-  },
-  {
-    id: "psi",
-    labelKey: "nav.psi",
-    ikon: <ShieldCheck className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverModul: "psi",
-  },
-  {
-    id: "mannskap",
-    labelKey: "nav.mannskap",
-    ikon: <HardHat className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverModul: "psi",
-  },
-  {
-    id: "mine-timer",
-    labelKey: "nav.timerMine",
-    ikon: <BarChart3 className="h-5 w-5" />,
-    kreverProsjekt: false,
-    kreverFirmaModul: "timer",
-  },
-  {
-    id: "timer",
-    labelKey: "nav.timer",
-    ikon: <Clock className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverFirmaModul: "timer",
-  },
-  {
-    id: "timer-attestering",
-    labelKey: "nav.timerAttestering",
-    ikon: <CheckCircle2 className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverFirmaModul: "timer",
-    kreverTimerLeder: true,
-  },
-  {
-    id: "vareforbruk",
-    labelKey: "nav.vareforbruk",
-    ikon: <Package className="h-5 w-5" />,
-    kreverProsjekt: true,
-    kreverFirmaModul: "varelager",
-  },
-];
-
-const bunnelementer: SidebarElement[] = [
-  {
-    id: "maskin",
-    labelKey: "nav.maskin",
-    ikon: <Truck className="h-5 w-5" />,
-    kreverProsjekt: false,
-    kreverFirmaModul: "maskin",
-  },
-  {
-    id: "oppsett",
-    labelKey: "nav.oppsett",
-    ikon: <Settings className="h-5 w-5" />,
-    kreverProsjekt: false,
-  },
-];
+import { MODUL_FARGER, hentAktivModul } from "@/lib/modul-farger";
+import {
+  bunnelementer,
+  MODUL_EIERSKAP,
+  navigerSidebar,
+  useSidebarElementer,
+  type SidebarElement,
+} from "./sidebar-elementer";
 
 export function HovedSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { prosjektId } = useProsjekt();
   const aktivSeksjon = useAktivSeksjon();
-  const { aktivByggeplass } = useByggeplass();
   const { t } = useTranslation();
   const aktivModul = hentAktivModul(pathname ?? "");
   const aksentFarge = aktivModul ? MODUL_FARGER[aktivModul] : null;
 
-  const { data: tillatelser } = trpc.gruppe.hentMineTillatelser.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-
-  const { data: aktiveModuler } = trpc.modul.hentForProsjekt.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-
-  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-
-  // Firma-flagg brukes for global maskin-bunnelement (peker til /dashbord/maskin).
-  // Timer-elementer i prosjekt-sidebar gates via ProjectModule (Steg 1c Fase B).
-  // Steg 1e Fase B: aktiveFirmamoduler erstatter har_*_modul-flagg.
-  const { data: minOrganisasjon } = trpc.organisasjon.hentMin.useQuery();
-  const aktiveFirmamoduler = (minOrganisasjon as { aktiveFirmamoduler?: string[] } | null | undefined)?.aktiveFirmamoduler ?? [];
-  const harMaskinModul = aktiveFirmamoduler.includes("maskin");
-
-  const harTimerModulPaaProsjekt = !!aktiveModuler?.some(
-    (m) => m.moduleSlug === "timer" && m.status === "aktiv",
-  );
-  const harVarelagerPaaProsjekt = !!aktiveModuler?.some(
-    (m) => m.moduleSlug === "varelager" && m.status === "aktiv",
-  );
-
-  // Sjekk timer-leder-tilgang for attesterings-fanen (kun hvis modul aktivert)
-  const { data: kanAttestereTimer } = trpc.timer.dagsseddel.kanAttestere.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId && harTimerModulPaaProsjekt },
-  );
-
-  // Hent bygninger med tegninger for å sjekke IFC-tilgjengelighet
-  const { data: _bygninger } = trpc.bygning.hentForProsjekt.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-  const harIfc = (() => {
-    if (!aktivByggeplass || !_bygninger) return false;
-    const bygning = (_bygninger as Array<{ id: string; drawings: Array<{ fileType: string | null }> }>)
-      .find((b) => b.id === aktivByggeplass.id);
-    return bygning?.drawings?.some((d) => d.fileType?.toLowerCase() === "ifc") ?? false;
-  })();
-
-  const mineModuler = (minFlytInfo as { moduler?: string[] } | undefined)?.moduler;
-  const erAdmin = (minFlytInfo as { erAdmin?: boolean } | undefined)?.erAdmin ?? false;
-
-  const filtrertHovedelementer = hovedelementer.filter((element) => {
-    if (element.tillatelse && (!tillatelser || !tillatelser.includes(element.tillatelse))) return false;
-    if (element.kreverIfc && !harIfc) return false;
-    if (element.kreverModul && (!aktiveModuler || !aktiveModuler.some(
-      (m) => m.moduleSlug === element.kreverModul && m.status === "aktiv",
-    ))) return false;
-    // Gruppemodulsjekk — admin/registrator ser alt
-    if (element.kreverGruppemodul && !erAdmin && mineModuler && !mineModuler.includes(element.kreverGruppemodul)) return false;
-    // Timer gates på ProjectModule (Steg 1c Fase B) — synlig kun når modulen
-    // er aktivert for det aktuelle prosjektet, ikke kun firma-bredt.
-    if (element.kreverFirmaModul === "timer" && !harTimerModulPaaProsjekt) return false;
-    if (element.kreverFirmaModul === "varelager" && !harVarelagerPaaProsjekt) return false;
-    // Timer-leder-sjekk (kun for attesterings-elementet)
-    if (element.kreverTimerLeder && !kanAttestereTimer) return false;
-    return true;
-  });
-
-  function naviger(element: SidebarElement) {
-    if (element.id === "dashbord") {
-      router.push(prosjektId ? `/dashbord/${prosjektId}` : "/dashbord");
-    } else if (element.id === "oppsett") {
-      router.push("/dashbord/oppsett");
-    } else if (element.id === "maskin") {
-      router.push("/dashbord/maskin");
-    } else if (element.id === "mine-timer") {
-      router.push("/dashbord/timer/mine");
-    } else if (element.id === "timer-attestering" && prosjektId) {
-      router.push(`/dashbord/${prosjektId}/timer/attestering`);
-    } else if (prosjektId) {
-      router.push(`/dashbord/${prosjektId}/${element.id}`);
-    }
-  }
+  const { filtrertHovedelementer, harMaskinModul } = useSidebarElementer();
 
   function renderRad(element: SidebarElement): JSX.Element {
     const deaktivert = element.kreverProsjekt && !prosjektId;
@@ -306,7 +37,7 @@ export function HovedSidebar() {
       <button
         key={element.id}
         type="button"
-        onClick={deaktivert ? undefined : () => naviger(element)}
+        onClick={deaktivert ? undefined : () => navigerSidebar(router, prosjektId, element)}
         disabled={deaktivert}
         aria-current={aktiv ? "page" : undefined}
         className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${

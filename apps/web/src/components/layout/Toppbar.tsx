@@ -8,6 +8,8 @@ import { ProsjektVelger } from "./ProsjektVelger";
 import { ByggeplassVelger } from "./ByggeplassVelger";
 import { FirmaVelger } from "./FirmaVelger";
 import { FirmaKontekstVelger } from "./FirmaKontekstVelger";
+import { KontekstChip } from "./KontekstChip";
+import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import Link from "next/link";
@@ -38,6 +40,7 @@ export function Toppbar() {
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
   const { erSitedocAdmin, erCompanyAdmin } = useFirma();
   const { byggeplassAktiv } = useToppbarFiltreKontekst();
+  const nyNav = useNyNavigasjon();
   const { t } = useTranslation();
 
   // Hent firma-info for company_admin (fast firma-link i header).
@@ -80,33 +83,49 @@ export function Toppbar() {
           - User (vanlig): Prosjekt | Byggeplass (ingen firma-element)
           Firma først for admin-roller speiler hierarkiet (Firma → Prosjekt).
         */}
-        {erSitedocAdmin && (
+        {nyNav ? (
+          /* Flagg på: samlet kontekst-chip (firma + prosjekt) erstatter
+             FirmaVelger + ProsjektVelger + FirmaKontekstVelger. */
           <>
-            <FirmaVelger />
-            <div className="mx-1 h-5 w-px bg-white/20" />
-          </>
-        )}
-        {erCompanyAdmin && organisasjon && (
-          <>
-            <Link
-              href="/dashbord/firma"
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-blue-100 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">{organisasjon.name}</span>
-            </Link>
-            <div className="mx-1 h-5 w-px bg-white/20" />
-          </>
-        )}
-        {erFirmaKontekst ? (
-          <FirmaKontekstVelger />
-        ) : (
-          <>
-            <ProsjektVelger />
+            <KontekstChip />
             {prosjektId && (
               <>
                 <div className="mx-1 h-5 w-px bg-white/20" />
                 <ByggeplassVelger disabled={!byggeplassAktiv} />
+              </>
+            )}
+          </>
+        ) : (
+          <>
+            {erSitedocAdmin && (
+              <>
+                <FirmaVelger />
+                <div className="mx-1 h-5 w-px bg-white/20" />
+              </>
+            )}
+            {erCompanyAdmin && organisasjon && (
+              <>
+                <Link
+                  href="/dashbord/firma"
+                  className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-blue-100 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <Building2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">{organisasjon.name}</span>
+                </Link>
+                <div className="mx-1 h-5 w-px bg-white/20" />
+              </>
+            )}
+            {erFirmaKontekst ? (
+              <FirmaKontekstVelger />
+            ) : (
+              <>
+                <ProsjektVelger />
+                {prosjektId && (
+                  <>
+                    <div className="mx-1 h-5 w-px bg-white/20" />
+                    <ByggeplassVelger disabled={!byggeplassAktiv} />
+                  </>
+                )}
               </>
             )}
           </>

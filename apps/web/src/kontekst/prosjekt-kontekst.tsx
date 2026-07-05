@@ -31,6 +31,8 @@ interface ProsjektKontekstType {
   prosjekter: Prosjekt[];
   mineProsjekter: Prosjekt[];
   isLoading: boolean;
+  /** True mens `hentMedId` resolver et persistert prosjektId (fersk økt, før valgtProsjekt finnes). Funn 1b. */
+  lasterValgtProsjekt: boolean;
   velgProsjekt: (id: string) => void;
   prosjektId: string | null;
   prosjektScope: ProsjektScope;
@@ -134,6 +136,7 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
         prosjekter: prosjekter ?? [],
         mineProsjekter: mineProsjekter ?? [],
         isLoading: lasterProsjekter || lasterValgt,
+        lasterValgtProsjekt: lasterValgt,
         velgProsjekt,
         prosjektId,
         prosjektScope,

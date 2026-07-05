@@ -53,7 +53,10 @@ const SEKSJON_STIL: Record<Seksjon, { aksent: string; flis: string }> = {
 export default function InnstillingerHub() {
   const { t } = useTranslation();
   const { kanAdministrereFirma, valgtFirma, erSitedocAdmin, erCompanyAdmin } = useFirma();
-  const { prosjektId, valgtProsjekt } = useProsjekt();
+  const { prosjektId, valgtProsjekt, lasterValgtProsjekt } = useProsjekt();
+  // Funn 1b: skill lastetilstand (persistert id, objekt ikke resolvet ennå) fra
+  // «ingen prosjekt»-hint, ellers blinker hintet ved hver fersk sidelasting.
+  const lasterProsjekt = !!prosjektId && !valgtProsjekt && lasterValgtProsjekt;
 
   const [sok, setSok] = useState("");
   const [filter, setFilter] = useState<"alt" | Seksjon>("alt");
@@ -393,12 +396,14 @@ export default function InnstillingerHub() {
               {t("innstillinger.seksjonProsjekt")}
             </h2>
             <p className="text-[12px] text-gray-400">
-              {prosjektId
-                ? t("innstillinger.gjelderProsjekt", { prosjekt: valgtProsjekt?.name ?? "" })
-                : t("innstillinger.velgProsjekt")}
+              {valgtProsjekt
+                ? t("innstillinger.gjelderProsjekt", { prosjekt: valgtProsjekt.name })
+                : lasterProsjekt
+                  ? t("innstillinger.lasterProsjekt")
+                  : t("innstillinger.velgProsjekt")}
             </p>
           </div>
-          {prosjektId && synligeProsjekt.length > 0 && (
+          {valgtProsjekt && synligeProsjekt.length > 0 && (
             <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-3">
               {synligeProsjekt.map(renderKort)}
             </div>

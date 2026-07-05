@@ -9,7 +9,9 @@ import { PresenceProvider } from "@/kontekst/presence-kontekst";
 import { ToppbarFiltreProvider } from "@/kontekst/toppbar-filtre-kontekst";
 import { Toppbar } from "@/components/layout/Toppbar";
 import { HovedSidebar } from "@/components/layout/HovedSidebar";
+import { NavSidebar } from "@/components/layout/NavSidebar";
 import { ImpersoneringBanner } from "@/components/layout/ImpersoneringBanner";
+import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
 
 export default function DashbordLayout({
   children,
@@ -18,6 +20,7 @@ export default function DashbordLayout({
 }) {
   const pathname = usePathname();
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
+  const nyNav = useNyNavigasjon();
 
   return (
     <NavigasjonProvider>
@@ -30,7 +33,11 @@ export default function DashbordLayout({
                   <Toppbar />
                   <ImpersoneringBanner />
                   <div className="flex flex-1 overflow-hidden">
-                    {!erFirmaKontekst && <HovedSidebar />}
+                    {nyNav ? (
+                      <NavSidebar />
+                    ) : (
+                      !erFirmaKontekst && <HovedSidebar />
+                    )}
                     <main className="flex-1 overflow-y-auto">{children}</main>
                   </div>
                 </div>
