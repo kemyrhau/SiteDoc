@@ -164,6 +164,10 @@ apps/api/src/services/maskin/
 > [dagsseddel-design.md § Modul-avhengigheter](dagsseddel-design.md).
 > Timer eier dagsseddelen; Maskin integreres som betinget kostnadskilde.
 
+**Equipment-velger UX (2026-07-05, develop):** velgeren på dagsseddel har nå fritekstsøk + **kategori-filter** (Alle/Kjøretøy/Anleggsmaskin/Småutstyr, speiler `/dashbord/maskin`) + sortering **brukt-på-seddelen → internNummer → navn**. Web bruker den delte komponenten `MaskinVelger` (`apps/web/src/components/timer/MaskinVelger.tsx`) på alle fire callsites; mobil `EquipmentVelgerModal` har chip-rad + sortering. `trpc.maskin.equipment.list` returnerer allerede `kategori` + `internNummer`. Detaljer: [timer.md § Maskin-velger](timer.md).
+
+**Maskin ≤ arbeidstimer (kapasitet-regel):** per `(projectId, ECO)`-bucket må `sum(maskin.timer) ≤ sum(arbeid.timer) + pauseMin/60`. Delt sannhetskilde **`packages/shared/src/utils/maskinKapasitet.ts`** brukes av BÅDE server (`validerMaskinUnderArbeid`) og klient (proaktiv Lagre-disable + kapasitet-linje i maskin-modalen, web + mobil). Full regel: [timer.md § Maskin ≤ arbeidstimer](timer.md).
+
 **Kompetanse-kobling (T.11, soft-flagg 2026-06-22):** Maskin-registrering på dagsseddel flagges (ikke blokkeres) når arbeider mangler gyldig maskinførerbevis. Gating-logikken leser **kompetanse** (kjernen, `packages/db` — kategori `TRUCK-/MASKINFØRERBEVIS`), ikke Maskin-data, via `apps/api/src/services/kompetanse/maskinforerbevis.ts`. Equipment-modellens `kobletTilEquipmentModell` (fritekst) er reservert for **Fase 6**-utvidelse: fin-matche hvilket bevis som kreves for hvilken maskinmodell (DO-kobling). I dag er flagget grovkornet («har minst ett gyldig bevis»). Full beslutning: [fase-0 § T.11](fase-0-beslutninger.md).
 
 **Avgrensning:** Service-laget eksponerer kun **lese-funksjoner** for cross-modul-tilgang. Skriving til Maskin-data skjer alltid via Maskin sine egne tRPC-ruter (`maskin.equipment.*`, `maskin.assignment.*` osv.) med full tilgangskontroll. Andre moduler skal ikke skrive til Maskin-data direkte.

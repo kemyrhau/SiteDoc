@@ -17,6 +17,11 @@ import {
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
+import { MaskinVelger } from "@/components/timer/MaskinVelger";
+import {
+  maskinBucketKapasitet,
+  overstigerMaskinTak,
+} from "@sitedoc/shared";
 
 const ENHETER = ["m", "m2", "m3", "kg", "tonn", "stk"] as const;
 
@@ -24,6 +29,10 @@ function tilTall(v: unknown): number {
   if (v === null || v === undefined) return 0;
   if (typeof v === "number") return v;
   return Number(v);
+}
+
+function formatTimer(n: number): string {
+  return (Math.round(n * 100) / 100).toLocaleString("nb-NO");
 }
 
 function formatDato(d: Date | string): string {
@@ -547,6 +556,11 @@ export default function DagsseddelDetaljSide() {
           defaultTilTid={aktivModal.defaultTilTid ?? null}
           tidsrundingMinutter={orgSetting?.tidsrundingMinutter ?? null}
           rad={aktivModal.rad}
+          // Del 2 (maskin ≤ arbeid): hele sedelen sendes inn så modalen kan
+          // beregne bucket-kapasitet reaktivt for gjeldende (projectId, ECO).
+          alleTimerRader={timerRader}
+          alleMaskinRader={maskinRader}
+          pauseMin={sheet.pauseMin}
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -1508,6 +1522,9 @@ function MaskinRadDialog({
   defaultTilTid,
   tidsrundingMinutter,
   rad,
+  alleTimerRader,
+  alleMaskinRader,
+  pauseMin,
   onLukk,
 }: {
   sheetId: string;
@@ -1520,6 +1537,11 @@ function MaskinRadDialog({
   defaultTilTid?: string | null;
   tidsrundingMinutter?: number | null;
   rad?: MaskinRad;
+  // Del 2 (maskin ≤ arbeid): hele sedelens rader + sedel-pause, for reaktiv
+  // bucket-kapasitet. Samme regel som server (validerMaskinUnderArbeid).
+  alleTimerRader: TimerRad[];
+  alleMaskinRader: MaskinRad[];
+  pauseMin: number;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -1532,6 +1554,7 @@ function MaskinRadDialog({
         modell: string;
         internNavn: string | null;
         internNummer: string | null;
+        kategori: string | null;
       }>
     | undefined;
   // T7-4c: ECO-katalog for prosjektet — maskin følger samme prosjekt+ECO-
@@ -1563,6 +1586,45 @@ function MaskinRadDialog({
   // selv om firmaet har tidsrunding på 60 min — Chrome skjuler minutter ved
   // step=3600. Default 15 min hvis ingen orgSetting.
   const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
+
+  // Del 2 (maskin ≤ arbeid): reaktiv bucket-kapasitet for gjeldende
+  // (projectId, ecoId). Bruker delt @sitedoc/shared-regel — identisk med
+  // serverens validerMaskinUnderArbeid (samme epsilon + pause-modell).
+  const kapasitet = useMemo(() => {
+    const iBucket = (r: {
+      projectId: string;
+      externalCostObjectId: string | null;
+    }) =>
+      r.projectId === projectId &&
+      (r.externalCostObjectId ?? null) === (ecoId ?? null);
+    const arbeidSum = alleTimerRader
+      .filter(iBucket)
+      .reduce((acc, r) => acc + tilTall(r.timer), 0);
+    const sumMaskinEksisterende = alleMaskinRader
+      .filter((r) => iBucket(r) && r.id !== rad?.id)
+      .reduce((acc, r) => acc + tilTall(r.timer), 0);
+    const { tak, ledig } = maskinBucketKapasitet({
+      arbeidSum,
+      sumMaskinEksisterende,
+      pauseMin,
+    });
+    const nyTimer = parseFloat(timer);
+    const nyBidrag = isNaN(nyTimer) ? 0 : nyTimer;
+    const overstiger = overstigerMaskinTak(
+      sumMaskinEksisterende + nyBidrag,
+      arbeidSum,
+      pauseMin,
+    );
+    return { arbeidSum, sumMaskinEksisterende, tak, ledig, overstiger };
+  }, [
+    alleTimerRader,
+    alleMaskinRader,
+    projectId,
+    ecoId,
+    rad?.id,
+    pauseMin,
+    timer,
+  ]);
 
   const tilfoy = trpc.timer.dagsseddel.maskin.tilfoy.useMutation({
     onSuccess: () => {
@@ -1625,21 +1687,12 @@ function MaskinRadDialog({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.utstyr")}
           </label>
-          <select
-            value={vehicleId}
-            onChange={(e) => setVehicleId(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-            required
-          >
-            <option value="">{t("timer.velgUtstyr")}</option>
-            {equipment?.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.merke} {e.modell}
-                {e.internNavn ? ` (${e.internNavn})` : ""}
-                {e.internNummer ? ` — #${e.internNummer}` : ""}
-              </option>
-            ))}
-          </select>
+          <MaskinVelger
+            utstyr={equipment ?? []}
+            valgtId={vehicleId}
+            onVelg={setVehicleId}
+            bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
+          />
         </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -1754,12 +1807,35 @@ function MaskinRadDialog({
             )}
           </div>
         </div>
+        {/* Del 2: inline kapasitet-linje — arbeid/maskin/ledig for bucketen.
+            Rød når inntastet verdi overstiger taket; Lagre disables da. */}
+        <div
+          className={`rounded border px-3 py-2 text-xs ${
+            kapasitet.overstiger
+              ? "border-sitedoc-error/40 bg-sitedoc-error/5 text-sitedoc-error"
+              : "border-gray-200 bg-gray-50 text-gray-500"
+          }`}
+        >
+          {t("timer.maskin.kapasitet", {
+            arbeid: formatTimer(kapasitet.arbeidSum),
+            maskin: formatTimer(kapasitet.sumMaskinEksisterende),
+            ledig: formatTimer(Math.max(0, kapasitet.ledig)),
+          })}
+          {kapasitet.overstiger && (
+            <span className="mt-0.5 block font-medium">
+              {t("timer.maskin.overstigerArbeid")}
+            </span>
+          )}
+        </div>
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onLukk}>
             {t("handling.avbryt")}
           </Button>
-          <Button type="submit" disabled={lagrer || !vehicleId || !timer}>
+          <Button
+            type="submit"
+            disabled={lagrer || !vehicleId || !timer || kapasitet.overstiger}
+          >
             {lagrer ? t("handling.lagrer") : t("handling.lagre")}
           </Button>
         </div>

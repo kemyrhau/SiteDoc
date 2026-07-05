@@ -17,6 +17,8 @@ import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
+import { overstigerMaskinTak } from "@sitedoc/shared";
+import { MaskinVelger } from "@/components/timer/MaskinVelger";
 
 function tilTall(v: unknown): number {
   if (v === null || v === undefined) return 0;
@@ -103,7 +105,14 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
   const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
   const equipment = equipmentRaw as unknown as
-    | Array<{ id: string; merke: string; modell: string; internNavn: string | null }>
+    | Array<{
+        id: string;
+        merke: string;
+        modell: string;
+        internNavn: string | null;
+        internNummer: string | null;
+        kategori: string | null;
+      }>
     | undefined;
   const { data: ecoListe } = trpc.eksternKostObjekt.list.useQuery(
     { projectId },
@@ -554,7 +563,6 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                         0,
                       );
                       const pauseMin = pauseMinutter(editPauseFra, editPauseTil);
-                      const pauseTimer = pauseMin / 60;
                       return editMaskin.map((rad) => (
                         <KompaktMaskinRad
                           key={rad.key}
@@ -562,7 +570,13 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
                           equipment={equipment}
                           timeStep={timeStep}
                           tidsrundingMinutter={tidsrundingMinutter}
-                          overstigerArbeid={rad.timer > sumArbeid + pauseTimer + 0.001}
+                          // Delt regel (@sitedoc/shared) — per-rad-advarsel, samme
+                          // epsilon + pause-modell som server. Ikke-blokkerende her.
+                          overstigerArbeid={overstigerMaskinTak(
+                            rad.timer,
+                            sumArbeid,
+                            pauseMin,
+                          )}
                           pauseMin={pauseMin}
                           onChange={(felt) =>
                             setEditMaskin((rader) =>
@@ -849,7 +863,14 @@ function KompaktMaskinRad({
 }: {
   rad: EditMaskin;
   equipment:
-    | Array<{ id: string; merke: string; modell: string; internNavn: string | null }>
+    | Array<{
+        id: string;
+        merke: string;
+        modell: string;
+        internNavn: string | null;
+        internNummer: string | null;
+        kategori: string | null;
+      }>
     | undefined;
   timeStep: number;
   tidsrundingMinutter: number | null;
@@ -863,17 +884,6 @@ function KompaktMaskinRad({
   useEffect(() => {
     setTimerStr(String(rad.timer));
   }, [rad.timer]);
-
-  const equipmentEtikett = (e: {
-    merke: string;
-    modell: string;
-    internNavn: string | null;
-  }): string => {
-    const navn = [e.merke, e.modell].filter(Boolean).join(" ").trim();
-    return navn
-      ? `${navn}${e.internNavn ? ` (${e.internNavn})` : ""}`
-      : e.internNavn ?? "—";
-  };
 
   return (
     <div className="space-y-1">
@@ -906,18 +916,11 @@ function KompaktMaskinRad({
           className="rounded border border-gray-300 px-1.5 py-1"
           placeholder="HH:MM"
         />
-        <select
-          value={rad.vehicleId}
-          onChange={(e) => onChange({ vehicleId: e.target.value })}
-          className="rounded border border-gray-300 px-1.5 py-1"
-        >
-          <option value="">{t("timer.rediger.maskinPlaceholder")}</option>
-          {equipment?.map((e) => (
-            <option key={e.id} value={e.id}>
-              {equipmentEtikett(e)}
-            </option>
-          ))}
-        </select>
+        <MaskinVelger
+          utstyr={equipment ?? []}
+          valgtId={rad.vehicleId}
+          onVelg={(id) => onChange({ vehicleId: id })}
+        />
         <input
           type="number"
           step="0.25"

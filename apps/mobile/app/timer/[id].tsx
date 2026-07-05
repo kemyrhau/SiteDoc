@@ -61,6 +61,7 @@ import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog"
 import { hentStandardLonnsartLokalt } from "../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
+import { overstigerMaskinTak } from "@sitedoc/shared";
 import type {
   Sedel,
   TimerRad,
@@ -668,6 +669,7 @@ export default function DagsseddelDetalj() {
             organizationId={sedel.organizationId}
             sedelProjectId={sedel.projectId}
             dato={sedel.dato}
+            pauseMin={sedel.pauseMin}
             defaultAktivitetId={sedel.aktivitetId ?? null}
             harEquipmentCache={harEquipmentCache}
             harMaskinforerbevis={harMaskinforerbevis}
@@ -779,6 +781,7 @@ function ProsjektGruppe({
   organizationId,
   sedelProjectId,
   dato,
+  pauseMin,
   defaultAktivitetId,
   harEquipmentCache,
   harMaskinforerbevis,
@@ -795,6 +798,8 @@ function ProsjektGruppe({
   /** Fallback for rader uten per-rad-projectId (pre-T7-3b1-data). */
   sedelProjectId: string;
   dato: string;
+  /** Sedel-nivå pause (min) — inngår i maskin-kapasitet per bucket (Del 2). */
+  pauseMin: number;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
   harMaskinforerbevis: boolean;
@@ -910,6 +915,7 @@ function ProsjektGruppe({
               projectId={projectId}
               ecoId={bucket.ecoId}
               dato={dato}
+              pauseMin={pauseMin}
               defaultAktivitetId={defaultAktivitetId}
               harEquipmentCache={harEquipmentCache}
               harMaskinforerbevis={harMaskinforerbevis}
@@ -950,6 +956,7 @@ function EcoBucket({
   projectId,
   ecoId,
   dato,
+  pauseMin,
   defaultAktivitetId,
   harEquipmentCache,
   harMaskinforerbevis,
@@ -963,6 +970,7 @@ function EcoBucket({
   projectId: string;
   ecoId: string | null;
   dato: string;
+  pauseMin: number;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
   harMaskinforerbevis: boolean;
@@ -980,7 +988,8 @@ function EcoBucket({
     () => maskinRader.reduce((acc, r) => acc + r.timer, 0),
     [maskinRader],
   );
-  const maskinOk = sumMaskin <= sumTimer + 0.001;
+  // Delt regel (@sitedoc/shared) — samme epsilon + pause-modell som server.
+  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, pauseMin);
 
   // ECO-navn fra lokal cache (én lookup per bucket).
   const ecoNavn = useMemo(() => {
@@ -1060,6 +1069,7 @@ function EcoBucket({
           defaultEcoId={ecoId}
           visHeader={false}
           dato={dato}
+          pauseMin={pauseMin}
           rader={maskinRader}
           harEquipmentCache={harEquipmentCache}
           harMaskinforerbevis={harMaskinforerbevis}

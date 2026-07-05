@@ -17,6 +17,14 @@ export type { IfcOpprinnelse } from "./koordinatBro";
 export { kompetanseStatus } from "./kompetanseStatus";
 export type { KompetanseStatus } from "./kompetanseStatus";
 export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
+export {
+  EPSILON_MASKIN_TIMER,
+  maskinBucketNokkel,
+  overstigerMaskinTak,
+  maskinBucketKapasitet,
+  beregnMaskinBrudd,
+} from "./maskinKapasitet";
+export type { MaskinKapasitetRad, MaskinBrudd } from "./maskinKapasitet";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.
