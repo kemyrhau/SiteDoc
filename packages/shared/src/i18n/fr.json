@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "S'applique à l'ensemble de {{firma}}",
   "innstillinger.gjelderProsjekt": "S'applique uniquement à {{prosjekt}}",
   "innstillinger.velgProsjekt": "Sélectionnez un projet pour voir les paramètres du projet.",
+  "innstillinger.lasterProsjekt": "Chargement du projet…",
   "innstillinger.ingenTreff": "Aucun paramètre ne correspond à votre recherche.",
   "innstillinger.hjelp.tittel": "À propos des paramètres",
   "innstillinger.hjelp.tekst": "Tous les paramètres sont rassemblés ici, divisés en Société (s'applique à l'ensemble de l'entreprise) et Projet (s'applique au projet sélectionné). Recherchez en haut pour trouver des choses rapidement. Les cartes auxquelles vous n'avez pas accès sont masquées.",

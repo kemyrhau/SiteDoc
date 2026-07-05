@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Platí pro všechny firmy {{firma}}",
   "innstillinger.gjelderProsjekt": "Platí pouze pro {{prosjekt}}",
   "innstillinger.velgProsjekt": "Chcete-li zobrazit nastavení projektu, vyberte projekt.",
+  "innstillinger.lasterProsjekt": "Načítání projektu…",
   "innstillinger.ingenTreff": "Vašemu vyhledávání neodpovídají žádné nastavení.",
   "innstillinger.hjelp.tittel": "O nastavení",
   "innstillinger.hjelp.tekst": "Zde jsou shromážděna všechna nastavení, rozdělená na Společnost (platí pro celou společnost) a Projekt (platí pro vybraný projekt). Chcete-li věci rychle najít, hledejte nahoře. Karty, ke kterým nemáte přístup, jsou skryté.",

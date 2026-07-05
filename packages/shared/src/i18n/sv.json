@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Gäller alla {{firma}}",
   "innstillinger.gjelderProsjekt": "Gäller endast {{prosjekt}}",
   "innstillinger.velgProsjekt": "Välj ett projekt för att se projektinställningar.",
+  "innstillinger.lasterProsjekt": "Laddar projekt …",
   "innstillinger.ingenTreff": "Inga inställningar matchar din sökning.",
   "innstillinger.hjelp.tittel": "Om inställningar",
   "innstillinger.hjelp.tekst": "Alla inställningar samlas här, uppdelade i Företag (gäller hela företaget) och Projekt (gäller valt projekt). Sök högst upp för att hitta saker snabbt. Kort som du inte har tillgång till är dolda.",

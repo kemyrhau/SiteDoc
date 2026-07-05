@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Koskee kaikkia {{firma}}",
   "innstillinger.gjelderProsjekt": "Koskee vain {{prosjekt}}",
   "innstillinger.velgProsjekt": "Valitse projekti nähdäksesi projektin asetukset.",
+  "innstillinger.lasterProsjekt": "Ladataan projektia…",
   "innstillinger.ingenTreff": "Mikään asetus ei vastaa hakuasi.",
   "innstillinger.hjelp.tittel": "Tietoja asetuksista",
   "innstillinger.hjelp.tekst": "Kaikki asetukset on koottu tähän, jaettu yhtiöön (koskee koko yritystä) ja Projektiin (koskee valittua projektia). Hae yläreunasta löytääksesi asioita nopeasti. Kortit, joihin sinulla ei ole pääsyä, on piilotettu.",

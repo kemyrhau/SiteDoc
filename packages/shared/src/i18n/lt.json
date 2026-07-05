@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Taikoma visoms {{firma}}",
   "innstillinger.gjelderProsjekt": "Taikoma tik {{prosjekt}}",
   "innstillinger.velgProsjekt": "Pasirinkite projektą, kad pamatytumėte projekto nustatymus.",
+  "innstillinger.lasterProsjekt": "Įkeliamas projektas…",
   "innstillinger.ingenTreff": "Jokie nustatymai neatitinka jūsų paieškos.",
   "innstillinger.hjelp.tittel": "Apie nustatymus",
   "innstillinger.hjelp.tekst": "Čia surenkami visi nustatymai, suskirstyti į įmonę (taikoma visai įmonei) ir projektą (taikoma pasirinktam projektui). Ieškokite viršuje, kad greitai rastumėte dalykų. Kortelės, prie kurių neturite prieigos, yra paslėptos.",

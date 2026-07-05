@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Применяется ко всей компании {{firma}}",
   "innstillinger.gjelderProsjekt": "Применяется только к {{prosjekt}}",
   "innstillinger.velgProsjekt": "Выберите проект, чтобы просмотреть настройки проекта.",
+  "innstillinger.lasterProsjekt": "Загрузка проекта…",
   "innstillinger.ingenTreff": "Нет настроек, соответствующих вашему запросу.",
   "innstillinger.hjelp.tittel": "О настройках",
   "innstillinger.hjelp.tekst": "Здесь собраны все настройки, разделенные на «Компания» (применяется ко всей компании) и «Проект» (применяется к выбранному проекту). Ищите вверху, чтобы быстро найти нужные вещи. Карты, к которым у вас нет доступа, скрыты.",

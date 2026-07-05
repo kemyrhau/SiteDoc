@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Zbatohet për të gjithë {{firma}}",
   "innstillinger.gjelderProsjekt": "Zbatohet vetëm për {{prosjekt}}",
   "innstillinger.velgProsjekt": "Zgjidhni një projekt për të parë cilësimet e projektit.",
+  "innstillinger.lasterProsjekt": "Projekti po ngarkohet…",
   "innstillinger.ingenTreff": "Asnjë cilësim nuk përputhet me kërkimin tuaj.",
   "innstillinger.hjelp.tittel": "Rreth cilësimeve",
   "innstillinger.hjelp.tekst": "Të gjitha cilësimet janë mbledhur këtu, të ndara në Kompani (zbatohet për të gjithë kompaninë) dhe Projekt (zbatohet për projektin e zgjedhur). Kërkoni në krye për të gjetur gjërat shpejt. Kartat në të cilat nuk keni akses janë të fshehura.",

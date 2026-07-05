@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Gilt für ganz {{firma}}",
   "innstillinger.gjelderProsjekt": "Gilt nur für {{prosjekt}}",
   "innstillinger.velgProsjekt": "Wählen Sie ein Projekt aus, um die Projekteinstellungen anzuzeigen.",
+  "innstillinger.lasterProsjekt": "Projekt wird geladen …",
   "innstillinger.ingenTreff": "Keine Einstellungen entsprechen Ihrer Suche.",
   "innstillinger.hjelp.tittel": "Über Einstellungen",
   "innstillinger.hjelp.tekst": "Hier werden alle Einstellungen gesammelt, aufgeteilt in Unternehmen (gilt für das gesamte Unternehmen) und Projekt (gilt für das ausgewählte Projekt). Suchen Sie oben, um Dinge schnell zu finden. Karten, auf die Sie keinen Zugriff haben, werden ausgeblendet.",

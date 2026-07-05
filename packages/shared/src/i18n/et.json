@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Kehtib kõigile {{firma}}",
   "innstillinger.gjelderProsjekt": "Kehtib ainult {{prosjekt}} jaoks",
   "innstillinger.velgProsjekt": "Projekti sätete vaatamiseks valige projekt.",
+  "innstillinger.lasterProsjekt": "Projekti laadimine …",
   "innstillinger.ingenTreff": "Ükski seade ei vasta teie otsingule.",
   "innstillinger.hjelp.tittel": "Seadete kohta",
   "innstillinger.hjelp.tekst": "Siia koondatakse kõik seaded, mis on jagatud ettevõtteks (kehtib kogu ettevõttele) ja projektiks (kehtib valitud projektile). Otsige ülaosas, et asju kiiresti leida. Kaardid, millele teil pole juurdepääsu, on peidetud.",

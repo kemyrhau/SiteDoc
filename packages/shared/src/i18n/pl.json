@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Dotyczy wszystkich {{firma}}",
   "innstillinger.gjelderProsjekt": "Dotyczy tylko {{prosjekt}}",
   "innstillinger.velgProsjekt": "Wybierz projekt, aby zobaczyć ustawienia projektu.",
+  "innstillinger.lasterProsjekt": "Ładowanie projektu…",
   "innstillinger.ingenTreff": "Żadne ustawienia nie pasują do Twojego wyszukiwania.",
   "innstillinger.hjelp.tittel": "O ustawieniach",
   "innstillinger.hjelp.tekst": "Tutaj zebrane są wszystkie ustawienia, podzielone na Firmę (dotyczy całej firmy) i Projekt (dotyczy wybranego projektu). Szukaj na górze, aby szybko znaleźć potrzebne rzeczy. Karty, do których nie masz dostępu, są ukryte.",

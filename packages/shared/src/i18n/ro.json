@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Se aplică tuturor {{firma}}",
   "innstillinger.gjelderProsjekt": "Se aplică numai pentru {{prosjekt}}",
   "innstillinger.velgProsjekt": "Selectați un proiect pentru a vedea setările proiectului.",
+  "innstillinger.lasterProsjekt": "Se încarcă proiectul...",
   "innstillinger.ingenTreff": "Nicio setare nu corespunde căutării dvs.",
   "innstillinger.hjelp.tittel": "Despre setări",
   "innstillinger.hjelp.tekst": "Toate setările sunt adunate aici, împărțite în Companie (se aplică întregii companii) și Proiect (se aplică proiectului selectat). Căutați în partea de sus pentru a găsi lucruri rapid. Cardurile la care nu aveți acces sunt ascunse.",

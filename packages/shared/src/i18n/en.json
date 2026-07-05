@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Applies to all of {{firma}}",
   "innstillinger.gjelderProsjekt": "Applies to {{prosjekt}} only",
   "innstillinger.velgProsjekt": "Select a project to see project settings.",
+  "innstillinger.lasterProsjekt": "Loading project …",
   "innstillinger.ingenTreff": "No settings match your search.",
   "innstillinger.hjelp.tittel": "About settings",
   "innstillinger.hjelp.tekst": "All settings are gathered here, split into Company (applies to the whole company) and Project (applies to the selected project). Search at the top to find things quickly. Cards you don't have access to are hidden.",

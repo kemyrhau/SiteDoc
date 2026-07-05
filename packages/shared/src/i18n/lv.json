@@ -2601,6 +2601,7 @@
   "innstillinger.gjelderFirma": "Attiecas uz visiem {{firma}}",
   "innstillinger.gjelderProsjekt": "Attiecas tikai uz {{prosjekt}}",
   "innstillinger.velgProsjekt": "Atlasiet projektu, lai skatītu projekta iestatījumus.",
+  "innstillinger.lasterProsjekt": "Notiek projekta ielāde…",
   "innstillinger.ingenTreff": "Neviens iestatījums neatbilst jūsu meklēšanas vaicājumam.",
   "innstillinger.hjelp.tittel": "Par iestatījumiem",
   "innstillinger.hjelp.tekst": "Šeit tiek apkopoti visi iestatījumi, kas sadalīti uzņēmumā (attiecas uz visu uzņēmumu) un Projektā (attiecas uz atlasīto projektu). Meklējiet augšpusē, lai ātri atrastu lietas. Kartes, kurām jums nav piekļuves, ir paslēptas.",
