@@ -52,7 +52,7 @@ const SEKSJON_STIL: Record<Seksjon, { aksent: string; flis: string }> = {
 
 export default function InnstillingerHub() {
   const { t } = useTranslation();
-  const { kanAdministrereFirma, valgtFirma, erSitedocAdmin } = useFirma();
+  const { kanAdministrereFirma, valgtFirma, erSitedocAdmin, erCompanyAdmin } = useFirma();
   const { prosjektId, valgtProsjekt } = useProsjekt();
 
   const [sok, setSok] = useState("");
@@ -64,7 +64,17 @@ export default function InnstillingerHub() {
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
-  const kanManageField = !!tillatelser?.includes("manage_field");
+  // Speiler sidebarens admin/registrator-bypass (HovedSidebar: «admin/registrator ser alt»):
+  // sitedoc_admin/company_admin + prosjekt-admin/registrator ser produksjons-kortene
+  // (Moduler/Maler/Dokumentflyt/Mappeoppsett/PSI-mal) selv uten eksplisitt manage_field.
+  // sitedoc_admin/company_admin har typisk ingen ProjectMember-tillatelse → falt utenfor før.
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const flytErAdmin = (minFlytInfo as { erAdmin?: boolean } | undefined)?.erAdmin ?? false;
+  const kanManageField =
+    erSitedocAdmin || erCompanyAdmin || flytErAdmin || !!tillatelser?.includes("manage_field");
 
   // PSI-mal-oppsett (O10) gates på at PSI-modulen er aktiv på prosjektet —
   // speiler oppsett-sidebarens skjulte PSI-barn.
