@@ -269,7 +269,7 @@ plasserings-blokker):** K9.
 | K6 | Kontakter/Dokumentflyt | **SPLITT:** «Dokumentflyt» forblir innstilling (hub-kort); NY lesevisning «Kontakter» (personkatalog, klikk-for-å-ringe) i sidebar-P + søk + mobil Mer-tab. Rename alt gjort i kode (kontakter → redirect) | O4, O5, **P31 (ny)**, M6 | ✅ vedtatt |
 | K7 | OrganizationModule-overgang | **UTSATT** — redesign leser dagens `har*Modul` via ett felles gating-abstraksjonslag (overgang = én endring senere) | G3, G4 | 🟡 utsatt |
 | K8 | Onboarding/pedagogisk lag | **UTSATT** — noter i onboarding-veileder at 1a-huben er naturlig hjem for «Kom i gang» | X2 | 🟡 utsatt |
-| K9 | Duplikat prosjekt-rutetre | **RAPPORT LEVERT 2026-07-05 → arbeidshypotesen bekreftet:** `/dashbord/[prosjektId]/*` er de facto kanonisk (all reell nav peker dit). `/dashbord/prosjekter/[id]/*` + `/dashbord/prosjekter`-listen er reelt foreldreløse — eneste inngang er `Toppmeny.tsx`, **en død komponent** (ikke importert noe sted). **Anbefaling:** merk legacy-treet + listen + `Toppmeny.tsx` for redirect (→ kanonisk) + sletting etter ≥1 uke. Se § K9-rapport. Kenneth bekrefter | X4, P29 | 🟢 rapport levert — venter Kenneths OK på sletteplan |
+| K9 | Duplikat prosjekt-rutetre | **UTFØRT 2026-07-05 (Kenneth godkjente sletteplan):** `Toppmeny.tsx` (død kode) + legacy-layout slettet; de 7 legacy-sidene konvertert til server-side redirects → kanonisk `/dashbord/[prosjektId]/*`. **Redirect beholdes til redesignet er ferdig utrullet** (ikke 1-ukes-regelen — den gjelder mobil-API; nettleser-bokmerker lever lenger). Selve redirect-fjerningen = opprydding etter lansering. Se § K9-rapport | X4, P29 | 🟢 utført |
 | K10 | Ansatte vs Brukere | **UI-term «Ansatte»; hub-kort «Ansatte og roller».** Ikke hardkod «ansatt = bruker» (HR-Import kan gi ansatte uten konto) | F3, F4 | ✅ vedtatt |
 | K11 | Admin-redesign (abonnement/drill-down) | **UT AV SCOPE** — Lag 6 (sitedoc_admin) egen fase etter kunderettet nav | A1–A6 | 🟡 utsatt |
 
@@ -321,6 +321,20 @@ Toppbar (T) 9 · Sidebar-gating (G) 12 · Standarder (S) 6 · Mobil (M) 19 = **1
 > sider). Bruk rad-tellingen for fremdrift under flagg-test.
 
 ---
+
+## Fremdrift (redesign/navigasjon)
+
+| Steg | Status | Detalj |
+|---|---|---|
+| (i) Paritetssjekkliste | ✅ | Denne fila. Commit `69f36a21`. K1–K11 innarbeidet |
+| K9-opprydding | ✅ | `Toppmeny.tsx` + legacy-layout slettet; 7 legacy-sider → redirects |
+| Flagg-infra | ✅ | `useNyNavigasjon()` (`apps/web/src/hooks/`) — localStorage + `?nyNav=1`, eneste kilde. Flagg av = eksakt dagens UI. Plattform-abstraksjon (AsyncStorage) noteres for 2a |
+| (ii) 1a hub | ✅ bygget | `/dashbord/innstillinger` — FIRMA/PROSJEKT-seksjoner, kort m/ underlenke-chips, søk + segmentert filter, gating (kanAdministrereFirma / prosjektId / firmamoduler / manage_field), hjelpetekst, i18n (59 nøkler × 15 språk). **Direkte nåbar via URL uavhengig av flagget.** Skjermbilder → design-sammenligning før kunde |
+| (iii) 1b sidebar + kontekst-chip | ⏳ | Neste — gates via `useNyNavigasjon` |
+| (iv) 1b søkemodal | ⏳ | |
+| (v) 2b oversettelsespanel | ⏳ | |
+| (vi) 2a mobil-tabs | ⏳ | RN-variant av `useNyNavigasjon` (AsyncStorage) |
+| (vii) 2c leser | ⏳ | |
 
 ## Neste steg
 
