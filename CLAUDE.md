@@ -163,7 +163,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - Push til feature-branch → INGEN auto-deploy
 - Push til `main` → manuell prod-deploy (eksplisitt forespørsel kreves)
 
-**Etter Prisma schema-endring (ufravikelig fra 2026-05-26):** Kjør alltid `pnpm --filter @sitedoc/db exec prisma generate` eksplisitt mellom `prisma migrate deploy` og `pnpm build`. `migrate deploy` regenererer ikke Prisma-klienten automatisk — uten dette steget bruker API-bygget gammel klient og typecheck feiler på nye/endrede felter (lærdom 2026-05-26: HMS-PR-prod-deploy feilet i build pga manglende generate).
+**Etter Prisma schema-endring — klienten må regenereres før build-typecheck (ufravikelig, lærdom 2026-05-26).** I Docker-deployen (gjeldende fra 2026-06-10) er `prisma generate` for alle fire db-pakker bakt inn i `Dockerfile.api`/`Dockerfile.web` (kjøres rett før `turbo build`) → ikke et eget steg, og rekkefølgen er **build → migrate deploy → up** (IKKE migrate→generate→build). Kjør **ALDRI** et frittstående `prisma generate` på server — det havner ikke i det kjørende imaget. Detaljer: [DOCKER-NOTES § Deploy-mekanikk](docker/DOCKER-NOTES.md). Den gamle formuleringen «generate eksplisitt mellom migrate og build» gjaldt legacy-PM2-serveren (rollback).
 
 **Deploy-sekvens:**
 
