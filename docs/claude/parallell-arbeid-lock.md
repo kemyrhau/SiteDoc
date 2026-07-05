@@ -18,7 +18,7 @@ sist_endret: 2026-07-05
 | `…/SiteDoc-deploy` | `main` | Prod-deploy (rsync-kilde). |
 | `…/sitedoc-server` | `ny-server` | Server-side arbeid. |
 
-## De 7 kjørereglene (ufravikelige i parallell modus)
+## De 8 kjørereglene (ufravikelige i parallell modus)
 
 1. **Ett worktree per rolle — aldri kryss-skriv.** Redesign-økta eier hovedtreet (`…/SiteDoc`, `redesign/navigasjon`). Develop-docs/feature skrives i `…/SiteDoc-develop`. Skriv ALDRI develop-arbeid i det delte/redesign-treet.
 2. **Verifiser branch før hver commit:** `git rev-parse --abbrev-ref HEAD` = forventet branch. Worktrees deler samme `.git` → feil tre committer på feil branch uten at det er åpenbart.
@@ -27,6 +27,7 @@ sist_endret: 2026-07-05
 5. **Commit eller stash før du forlater et tre.** Ukommittert arbeid i ett worktree blokkerer `git checkout` av samme branch i et annet — se lærdom (b). Ikke la ukommittert arbeid ligge og blokkere en annen økt.
 6. **`index.lock` — foreldreløs lås: diagnostisér før fjerning.** En `.git/index.lock` fra en krasjet/avbrutt git-prosess blokkerer alle git-operasjoner. Sjekk (a) om en git-prosess faktisk kjører, (b) låsens alder, (c) størrelse (0 byte = trygt foreldreløs) FØR du fjerner. Aldri blind-slett — se lærdom (a).
 7. **Dual-review-gate + kode+docs i samme commit gjelder uendret i parallell modus.** Hver økt gate-verifiserer eget arbeid mot koden før develop-commit; aldri push til `develop` uten diff + verifisering.
+8. **Løs merge-konflikter ved å REDIGERE fila, ikke bare `git add`.** `git add` på en fil med konflikt-markører stager `<<<<<<<`/`=======`/`>>>>>>>` rått → de havner i commiten. Rediger fila (behold begge sider der begge er gyldige), fjern alle markører, verifiser `grep -c '^<<<<<<<\|^=======\|^>>>>>>>' <fil>` = 0, DERETTER `git add` + commit. Ved parallell-arbeid oppstår konflikter i delte indeks-/status-filer (`STATUS.md`, `DOC-MAP.md`, `CLAUDE.md`) ved merge develop↔redesign — se lærdom (c).
 
 ## Frossen sone (redesign-økta eier — ikke rør fra andre økter)
 
@@ -44,6 +45,7 @@ Trenger en annen økt en endring i frossen sone: koordinér via Kenneth + denne 
 
 - **(a) Foreldreløs `index.lock`.** En `.git/index.lock` ble stående etter en avbrutt prosess og blokkerte git i et worktree. Rett håndtering: sjekk kjørende git-prosess + låsens alder + størrelse (0 byte = ingen aktiv skriver) FØR fjerning — ikke blind-slett, en aktiv prosess kan eie den. → regel 6.
 - **(b) Ukommittert arbeid blokkerte checkout på tvers.** Ukommittert i18n-arbeid i én økt blokkerte `git checkout` av samme branch i en annen økt (worktrees deler branch-tilstand). → dette er selve grunnen til worktree-oppdelingen + regel 1/5: hver økt har eget tre, og du committer/stasher før du forlater det.
+- **(c) `git add` på konflikt-fil committet markørene.** Under merge `develop → redesign/navigasjon` konfliktet `STATUS.md` (begge grener la til «Sist oppdatert»-entry + bumpet fil-tellingen). `git add` + commit ble kjørt UTEN å redigere bort markørene → markørene havnet i merge-commiten (`fd9bbfc0`). Rettet med redigering (behold begge entries + reconciliér 55+55→**56**) + `git commit --amend`. → regel 8. Semantisk merk: to «55»-tellinger fra hver sin nye fil er egentlig 56 samlet — konflikt-resolusjon krever forståelse, ikke blind «behold begge».
 
 ## Kjente kollisjoner (aktive)
 
