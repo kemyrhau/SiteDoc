@@ -16,6 +16,11 @@ sist_verifisert_mot_kode: 2026-06-08
 
 > ✅ **DEPLOYET TIL PROD 2026-07-04 (kveld, prod-merge `0801af38`)** — arkivert til [historikk-2026-07.md § Prod-deploy 2026-07-04 (kveld) PR 1-4](historikk-2026-07.md). Bunt api+web (PR 1-4): **org-isolasjon** `SheetMachine.vehicleId` §2.D (`90469dc7`), **Leaflet** geofence-kart invalidateSize (`6178034f`), **sak #5** firma-ansatt-innsyn dobbel-kilde (`6dbc884a`), **maskin opprett/import-gating** (`179b86f9`). Ingen migrering (ren kode). Backup før deploy; lockout-query ikke nødvendig (rører ikke signIn-gaten). Markør-sjekk 9/2/5/3 + innlogget prod-verifisering (Leaflet fullt kart, ansatt ser firma uten admin-meny/maskin-innganger, admin uendret, maskin-føring OK). Lukker sak #5. Nye BACKLOG-poster: maskin-velger søk/filter + maskin≤arbeidstimer proaktiv.
 
+> **🧵 Åpne tråder for neste økt (kontinuitet, 2026-07-05):**
+> 1. **PSI Fase A + ②③ prod-status:** web verifisert (rendrer). **Gjenstår:** DB-migreringer (`PsiTilstedevarelse`, `Byggeplass.hmsregNummer`, ②③) til `sitedoc_test` → prod; **mobil** (`MannskapInnsjekkKort` inn/ut + dagsseddel-registrering) via neste **EAS-batch**. **Dagsseddel-prod krever `aktiverNivaa1` på prod-firmaet** (lønnsart-katalog seedet) ellers mangler lønnsarter — jf. onboarding-wizard-BACKLOG-saken.
+> 2. **Redesign bak `nyNavigasjon`-flagg på develop:** redesign-arbeid er merget inn i develop (bak flagg = inert i prod). **Neste `develop→main` bærer det med (flagg-av)** — men **funn 1b (hub desync) bør fikses FØR** den mergen. **Fikset-status ikke verifiserbar fra develop** (redesign-økta eier `…/SiteDoc`-treet + har ukommittert arbeid der) — **bekreft med redesign-økta**: er 1b fikset, eller står den åpen i [redesign-paritetssjekkliste.md](redesign-paritetssjekkliste.md) steg (ii)/(iii)? Ikke la den forsvinne.
+> 3. **Skjermbilder (fabels steg-ii sluttgodkjenning)** gjenstår før paritet kan lukkes.
+
 ### PSI Mannskap Fase A (§15-innsjekk/utsjekk) — IMPLEMENTERT PÅ DEVELOP 2026-07-05 (web klar for prod, mobil venter EAS-batch)
 
 Første inkrement av Fase 4 Mannskap (vy i PSI-modulen). **Manuell presence, ingen GPS** — oppfyller byggherreforskriften §15 (listen, ikke automatikk) med null GDPR-bakgrunnslokasjon-risiko.
