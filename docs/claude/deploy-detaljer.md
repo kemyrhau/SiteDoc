@@ -12,6 +12,15 @@ CLAUDE.md har kort oversikt over miljøer + deploy-kommandoen. Denne fila har
 alle detaljene: branching-regler, modul-DB-pakke-lærdommer, mobil reload-typer,
 tRPC-mutations env-konsekvens og prod-lærdommer.
 
+## Worktree-deploy (parallell-arbeid)
+
+Flere git-worktrees deler samme repo (se [parallell-arbeid-lock.md](parallell-arbeid-lock.md)). **Prod-deploy kjøres ALLTID fra `../SiteDoc-deploy` (branch `main`)** — aldri fra det delte redesign-treet (`…/SiteDoc`, `redesign/navigasjon`) eller develop-treet. rsync-kilden må være riktig branch, ellers bygges feil kode (prod/test/redesign deler build-kontekst på server-ny).
+
+**Verifiser server-ny FØR `sudo`:**
+- Riktig server = **server-ny**. Bekreft compose-fila finnes: `ls ~/stack/sitedoc/docker/docker-compose.yml` (Kenneth, TTY).
+- **`ssh sitedoc` → Kenspill = GAMMEL/legacy server — feil server for deploy/verifisering.** Ikke kjør deploy-steg der.
+- Re-rsync riktig branch → `~/stack/sitedoc` FØR build; markør-grep på server bekrefter at koden landet. rsync ekskluderer `docker/env`. Aldri `--remove-orphans`.
+
 ## Branching
 
 - **`develop`** — aktiv utvikling. All ny kode commites hit.

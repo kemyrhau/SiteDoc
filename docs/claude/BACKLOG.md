@@ -16,6 +16,54 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟡 Dagsseddel: dobbel timeføring (total-tid + per-prosjekt) — strukturér om
+
+**Problem (Kenneth, 2026-07-05, prod-test):** Arbeideren fører først total
+arbeidstid på sedel-nivå («Arbeidstid i dag»: fra/til/pause), og må DERETTER
+føre timer per prosjekt på nytt. Oppleves som dobbelt arbeid og ustrukturert.
+
+**Retning:** Én strukturert inngang. Enten (a) prosjekt-radene er primær
+inngang og total arbeidstid utledes av sum(rader) + pause, eller (b) total-tid
+fordeles direkte på prosjekt uten separat re-registrering. Vei mot dagsseddel-
+redesign-prinsippene (arbeider-forståelig, enkelt, komplett).
+
+**Avhengighet:** overtid (③) trenger total arbeidstid som grunnlag — en UTLEDET
+total må fortsatt gi korrekt dagsnorm/overtid-split. Se dagsseddel-design.md,
+mobil-dagsseddel-ui-spec.md § U-flyt, timer.md. Del av dagsseddel-UX-
+overhalingen (etter TestFlight). Beslektet med tidligere funn: for mange steg +
+misforståelige etiketter.
+
+### 🟡 Modul-onboarding-veiledning (wizard ved modul-aktivering)
+
+**Idé (Kenneth, 2026-07-05):** Stegvis veiledning som viser ALLE steg som må
+gjennomføres for en modul, trigget automatisk NÅR modulen aktiveres. Bakgrunn:
+timer manglet lønnsarter på test fordi onboarding-seedingen (`aktiverNivaa1`)
+ikke var kjørt/synlig — veiledningen skal gjøre slike forutsetnings-steg tydelige.
+
+**Krav (Kenneth):**
+- Trigges automatisk ved modul-aktivering (der modulen slås på).
+- Dekker alle nødvendige steg (timer: aktiver Nivå 1 / seed lønnsarter,
+  aktiviteter, tillegg, interne prosjekter, ...).
+- Avbrytbar — bruker som ikke vil ha den stegvis kan lukke den.
+- Re-aktiverbar senere fra modulen (samme sted den slås på).
+
+**Generisk mønster:** gjenbrukbart per modul (timer, maskin, varelager, ...),
+ikke timer-spesifikt. Koble til eksisterende idé-docs: onboarding-veileder.md,
+prosjektoppsett-veileder.md.
+
+### 🟡 i18n-duplikat: `timer.glemtDag.tittel` (to nøkler, andre vinner)
+
+**Verifisert 2026-07-05 mot kode:** `timer.glemtDag.tittel` finnes **to ganger** i
+`packages/shared/src/i18n/nb.json` (linje 42 «Gjenopprettet dag — estimert» +
+linje 57 «Glemte du å avslutte?») og tilsvarende i `en.json` (grep-count 2). JSON
+lar den **siste** vinne → linje 42-verdien («Gjenopprettet dag — estimert») er
+**død** og vises aldri. De to er semantisk ulike (recall-badge vs glemt-dag-prompt)
+→ én må omdøpes (f.eks. `timer.gjenopprettetDag.tittel` for badge-varianten), ikke
+bare slettes. Sjekk kode-bruk (`grep timer.glemtDag.tittel apps/*/src`) FØR omdøping
+for å treffe riktig call-site. Gjelder alle 15 språkfiler (duplikatet er kopiert av
+`generate.ts`). Lav prio (kosmetisk feil tekst på recall-badge), men lønns-nær UI.
+
+
 ### 🟢 Mobil Microsoft-auth — BYGGET I EAS-SKY #37 2026-07-01 (venter Azure + Florian-test)
 
 **Status (2026-07-01):** Kode implementert + gate-verifisert (commit `f8594d1c` develop / merget til main via `bc744f82`). Ekte dedikert Entra public-client-id (`234ca0e0-…`) inn på alle fire eas.json-profiler. Code+PKCE-flyt, knapp-gating, typecheck rent (12 baseline-feil uendret, ingen i auth-filene). `mobilAuth.byttToken` + orphan-guard **urørt**. **Bygget i EAS-sky-bunt #37** (bygg-ID `496b6a63`, status `finished` m/ .ipa, 2026-07-01) → TestFlight. **Gjenstår (Kenneths hånd):** (a) Azure-sjekklista under (dedikert «SiteDoc Mobile»-app, redirect `sitedoc://auth`, public client flows, Graph-scopes) — **MÅ være kjørt før MS-login faktisk virker for Florian**; (b) Florians test i TestFlight-bygget. Lokale bygg forkastet som blindvei (se [eas-build-veileder.md § Fallgruver](eas-build-veileder.md)).
