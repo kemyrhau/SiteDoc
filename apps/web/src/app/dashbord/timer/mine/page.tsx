@@ -24,7 +24,8 @@ type ListeRad = {
   status: string;
   totaltimer: number;
   antallRader: number;
-  projectId: string;
+  // T.1: prosjekt(er) utledet fra radene — en sedel kan spenne flere prosjekter.
+  prosjektIder: string[];
   aktivitet: { id: string; navn: string; kode: string | null } | null;
 };
 
@@ -109,7 +110,7 @@ export default function MineTimerSide() {
   const oppsummering = useMemo(() => {
     const totalt = liste.reduce((s, r) => s + r.totaltimer, 0);
     const antallSedler = liste.length;
-    const prosjektIder = new Set(liste.map((r) => r.projectId));
+    const prosjektIder = new Set(liste.flatMap((r) => r.prosjektIder));
     const aktivitetIder = new Set(
       liste.map((r) => r.aktivitet?.id).filter((x): x is string => !!x),
     );
@@ -303,7 +304,10 @@ export default function MineTimerSide() {
                       {formatDato(rad.dato)}
                     </td>
                     <td className="px-2 py-1.5 text-gray-700">
-                      {prosjektNavnMap.get(rad.projectId) ?? "—"}
+                      {rad.prosjektIder
+                        .map((id) => prosjektNavnMap.get(id))
+                        .filter(Boolean)
+                        .join(", ") || "—"}
                     </td>
                     <td className="px-2 py-1.5 text-gray-600">
                       {rad.aktivitet?.navn ?? "—"}

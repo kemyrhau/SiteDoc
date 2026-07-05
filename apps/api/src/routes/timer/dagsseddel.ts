@@ -469,7 +469,10 @@ export const dagsseddelRouter = router({
       const where: Prisma.DailySheetWhereInput = {
         organizationId: orgId,
         userId,
-        ...(input?.projectId ? { projectId: input.projectId } : {}),
+        // T.1: DailySheet har ikke projectId — prosjekttilhørighet ligger på
+        // rad-nivå (SheetTimer/SheetMachine/SheetTillegg). Prosjekt-kontekst-
+        // filteret matcher sedler med ≥1 rad for prosjektet.
+        ...(input?.projectId ? { timer: { some: { projectId: input.projectId } } } : {}),
         ...(input?.status ? { status: input.status } : {}),
         ...(input?.fra || input?.til
           ? {
@@ -493,12 +496,26 @@ export const dagsseddelRouter = router({
         take: 200,
       });
 
-      // Berik med totaltimer (sum av alle SheetTimer-rader) for liste-visning
-      return sedler.map((s) => ({
-        ...s,
-        totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
-        antallRader: s.timer.length + s.tillegg.length + s.maskiner.length,
-      }));
+      // Berik med totaltimer (sum av alle SheetTimer-rader) for liste-visning.
+      // T.1: prosjekt(er) utledes fra radene (DailySheet har ikke projectId) —
+      // distinct projectId på tvers av timer-/maskin-/tillegg-rader.
+      return sedler.map((s) => {
+        const prosjektIder = [
+          ...new Set(
+            [
+              ...s.timer.map((t) => t.projectId),
+              ...s.maskiner.map((m) => m.projectId),
+              ...s.tillegg.map((t) => t.projectId),
+            ].filter((id): id is string => !!id),
+          ),
+        ];
+        return {
+          ...s,
+          prosjektIder,
+          totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
+          antallRader: s.timer.length + s.tillegg.length + s.maskiner.length,
+        };
+      });
     }),
 
   hentMedId: protectedProcedure
@@ -551,7 +568,6 @@ export const dagsseddelRouter = router({
       z.object({
         // Idempotens-nøkkel — klient genererer UUID, server upserter
         clientUuid: z.string().uuid(),
-        projectId: z.string().uuid(),
         aktivitetId: z.string().uuid(),
         avdelingId: z.string().uuid().nullable().optional(),
         byggeplassId: z.string().uuid().nullable().optional(),
@@ -567,8 +583,9 @@ export const dagsseddelRouter = router({
       const orgId = await krevBrukersOrg(ctx.userId);
       await krevTimerAktivert(orgId);
 
-      // Verifiser prosjekt-tilgang (kaster FORBIDDEN ved feil)
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // T.1: Web-opprett er dato-only — sedelen eies av arbeider/firma og har
+      // ingen prosjekttilhørighet. Org-tilgang (krevBrukersOrg + krevTimerAktivert)
+      // er tilstrekkelig auth; prosjekt legges per rad på detalj-siden.
 
       // Verifiser at aktiviteten tilhører firmaet
       const aktivitet = await ctx.prismaTimer.aktivitet.findFirst({
@@ -585,8 +602,8 @@ export const dagsseddelRouter = router({
 
       // Idempotent upsert via clientUuid
       // T.1 (2026-05-11): projectId lagres ikke på DailySheet — kun på rad-nivå.
-      // input.projectId brukes til auth-sjekk (verifiserProsjektmedlem ovenfor).
       // Klient sender projectId ved opprettelse av rader (leggTilTimerRad etc.).
+      // @@unique([userId, dato]): én sedel per arbeider per dato (P2002 = duplikat-dato).
       try {
         return await ctx.prismaTimer.dailySheet.upsert({
           where: { clientUuid: input.clientUuid },
