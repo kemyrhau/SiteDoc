@@ -58,9 +58,13 @@ import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektV
 import { ByggeplassVelgerModal } from "../../src/components/timer-detalj/ByggeplassVelger";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
-import { hentStandardLonnsartLokalt } from "../../src/services/timerKatalog";
+import {
+  hentStandardLonnsartLokalt,
+  harOvertidLonnsartLokalt,
+} from "../../src/services/timerKatalog";
 import { harMaskinforerbevisLokalt } from "../../src/services/maskinKatalog";
 import { formatNorskDato, formatTidspunkt, isoTidspunktTilHHMM } from "../../src/utils/dato";
+import { overstigerMaskinTak } from "@sitedoc/shared";
 import type {
   Sedel,
   TimerRad,
@@ -208,6 +212,15 @@ export default function DagsseddelDetalj() {
     () => timerRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
     [timerRader],
   );
+
+  // ③a fallback: auto-utkast der dagen nådde normaltid (overtid var aktuelt)
+  // men firmaet mangler overtid-lønnsart → auto-gen kunne ikke føre overtid.
+  // Surface (aldri feil-match, aldri stille drop) — arbeider fører manuelt.
+  const manglerOvertidLonnsart = useMemo(() => {
+    if (!sedel?.autoGenerert) return false;
+    if (normTimer == null || totaltimer < normTimer - 0.001) return false;
+    return !harOvertidLonnsartLokalt(sedel.organizationId);
+  }, [sedel?.autoGenerert, sedel?.organizationId, normTimer, totaltimer]);
 
   const totalMaskin = useMemo(
     () => maskinRader.reduce((sum, r) => sum + (r.timer ?? 0), 0),
@@ -631,6 +644,23 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
+        {/* ③a: firmaet mangler overtid-lønnsart → overtid utover normaltid ble
+            ikke ført automatisk (aldri feil-match). Amber = konfig-nudge, ikke
+            kritisk: normaltiden er ført; arbeider fører evt. overtid manuelt. */}
+        {manglerOvertidLonnsart && erRedigerbar && (
+          <View className="mx-4 mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={16} color="#b45309" />
+              <Text className="text-sm font-semibold text-amber-900">
+                {t("timer.manglerOvertid.tittel")}
+              </Text>
+            </View>
+            <Text className="mt-1 text-xs text-amber-800">
+              {t("timer.manglerOvertid.hjelp")}
+            </Text>
+          </View>
+        )}
+
         {/* Slice 4a: «delt ved midnatt»-merking — sedelen er ett segment av et
             skift som krysset midnatt. Forklarer lave per-dag-timer som legitim
             splitt. Vises uavhengig av status (fakta om sedelen). */}
@@ -668,6 +698,7 @@ export default function DagsseddelDetalj() {
             organizationId={sedel.organizationId}
             sedelProjectId={sedel.projectId}
             dato={sedel.dato}
+            pauseMin={sedel.pauseMin}
             defaultAktivitetId={sedel.aktivitetId ?? null}
             harEquipmentCache={harEquipmentCache}
             harMaskinforerbevis={harMaskinforerbevis}
@@ -779,6 +810,7 @@ function ProsjektGruppe({
   organizationId,
   sedelProjectId,
   dato,
+  pauseMin,
   defaultAktivitetId,
   harEquipmentCache,
   harMaskinforerbevis,
@@ -795,6 +827,8 @@ function ProsjektGruppe({
   /** Fallback for rader uten per-rad-projectId (pre-T7-3b1-data). */
   sedelProjectId: string;
   dato: string;
+  /** Sedel-nivå pause (min) — inngår i maskin-kapasitet per bucket (Del 2). */
+  pauseMin: number;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
   harMaskinforerbevis: boolean;
@@ -910,6 +944,7 @@ function ProsjektGruppe({
               projectId={projectId}
               ecoId={bucket.ecoId}
               dato={dato}
+              pauseMin={pauseMin}
               defaultAktivitetId={defaultAktivitetId}
               harEquipmentCache={harEquipmentCache}
               harMaskinforerbevis={harMaskinforerbevis}
@@ -950,6 +985,7 @@ function EcoBucket({
   projectId,
   ecoId,
   dato,
+  pauseMin,
   defaultAktivitetId,
   harEquipmentCache,
   harMaskinforerbevis,
@@ -963,6 +999,7 @@ function EcoBucket({
   projectId: string;
   ecoId: string | null;
   dato: string;
+  pauseMin: number;
   defaultAktivitetId: string | null;
   harEquipmentCache: boolean;
   harMaskinforerbevis: boolean;
@@ -980,7 +1017,8 @@ function EcoBucket({
     () => maskinRader.reduce((acc, r) => acc + r.timer, 0),
     [maskinRader],
   );
-  const maskinOk = sumMaskin <= sumTimer + 0.001;
+  // Delt regel (@sitedoc/shared) — samme epsilon + pause-modell som server.
+  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, pauseMin);
 
   // ECO-navn fra lokal cache (én lookup per bucket).
   const ecoNavn = useMemo(() => {
@@ -1060,6 +1098,7 @@ function EcoBucket({
           defaultEcoId={ecoId}
           visHeader={false}
           dato={dato}
+          pauseMin={pauseMin}
           rader={maskinRader}
           harEquipmentCache={harEquipmentCache}
           harMaskinforerbevis={harMaskinforerbevis}

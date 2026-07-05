@@ -15,6 +15,7 @@ import {
   harGyldigMaskinforerbevis,
   harGyldigMaskinforerbevisBatch,
 } from "../../services/kompetanse/maskinforerbevis";
+import { beregnMaskinBrudd, type MaskinBrudd } from "@sitedoc/shared";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
 type DagsseddelStatus = (typeof STATUS_VERDIER)[number];
@@ -302,56 +303,24 @@ type ValiderRad = {
   timer: number | Prisma.Decimal;
 };
 
-type ValiderBrytt = {
-  projectId: string;
-  externalCostObjectId: string | null;
-  maskinSum: number;
-  timerSum: number;
-};
-
+/**
+ * Delegerer til @sitedoc/shared `beregnMaskinBrudd` — samme bucket-regel,
+ * epsilon og pause-modell brukes av klient-disable (web + mobil). Serveren
+ * konverterer kun Decimal → number før den delte funksjonen kalles.
+ */
 function validerMaskinUnderArbeid(
   timer: ValiderRad[],
   maskin: ValiderRad[],
   pauseMin = 0,
-): ValiderBrytt[] {
-  const nokkel = (pid: string, eco: string | null) => `${pid}|${eco ?? ""}`;
-  const grupper = new Map<string, ValiderBrytt>();
+) {
   const tilNum = (v: ValiderRad["timer"]): number =>
     typeof v === "number" ? v : Number(v);
-
-  for (const t of timer) {
-    const k = nokkel(t.projectId, t.externalCostObjectId);
-    const g = grupper.get(k) ?? {
-      projectId: t.projectId,
-      externalCostObjectId: t.externalCostObjectId,
-      timerSum: 0,
-      maskinSum: 0,
-    };
-    g.timerSum += tilNum(t.timer);
-    grupper.set(k, g);
-  }
-  for (const m of maskin) {
-    const k = nokkel(m.projectId, m.externalCostObjectId);
-    const g = grupper.get(k) ?? {
-      projectId: m.projectId,
-      externalCostObjectId: m.externalCostObjectId,
-      timerSum: 0,
-      maskinSum: 0,
-    };
-    g.maskinSum += tilNum(m.timer);
-    grupper.set(k, g);
-  }
-
-  // Pause-modell (2026-05-18): maskin kan gå mens operatør pauser
-  // (døgn-utleie). Tillat maskin opp til timer + pause per bucket.
-  // Timer-utleie-maskiner (selges pr. time) vil naturlig være ≤ timer.
-  const pauseTimer = pauseMin / 60;
-  const brytt: ValiderBrytt[] = [];
-  for (const g of grupper.values()) {
-    // Epsilon for Decimal-runding (timer lagres med 2 desimaler).
-    if (g.maskinSum > g.timerSum + pauseTimer + 0.001) brytt.push(g);
-  }
-  return brytt;
+  const map = (rad: ValiderRad) => ({
+    projectId: rad.projectId,
+    externalCostObjectId: rad.externalCostObjectId,
+    timer: tilNum(rad.timer),
+  });
+  return beregnMaskinBrudd(timer.map(map), maskin.map(map), pauseMin);
 }
 
 /**
@@ -408,7 +377,7 @@ async function hentRaderForValidering(
  * gruppe som bryter invariant.
  */
 async function feilMeldingMaskinOverstiger(
-  brytt: ValiderBrytt[],
+  brytt: MaskinBrudd[],
 ): Promise<string> {
   const projectIds = Array.from(new Set(brytt.map((b) => b.projectId)));
   const ecoIds = Array.from(

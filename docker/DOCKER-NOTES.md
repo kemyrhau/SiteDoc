@@ -98,5 +98,9 @@ Denne deployen traff gjentatt friksjon som ikke var dokumentert → «gjenoppdag
 
 > ⚠️ **rsync MÅ skje FØR `docker compose build` (lærdom 2026-06-22).** Bygg-konteksten er server-fila i `~/stack/sitedoc` (`context: ..`), ikke Mac-en. Kjøres `build` uten fersk rsync, gjenbruker Docker cachede lag og imaget får IKKE den nye koden. **Diagnostisk fingerprint:** et ekte (cache-miss) bygg tar ~**268 s**; et tomt cache-bygg uten ny kode tar ~**6,1 s** — og nye tRPC-ruter svarer da **404** på edge fordi de aldri kom inn i imaget. Ser du et ~6 s «build» etter en kodeendring: du glemte rsync. Rekkefølge alltid: **rsync → build → (migrate) → up**.
 
+> ⚠️ **Delt build-kontekst prod↔test — re-rsync riktig branch før hver build (lærdom 2026-07-04).** Både prod (`docker-compose.yml`, `-p docker`) og test (`docker-compose.test.yml`, `sitedoc-test`) bygger fra **samme** `~/stack/sitedoc`. Konteksten holder koden fra **siste rsync** — så etter en test-deploy (develop) ligger develop-kode der, og et påfølgende prod-build ville bygget **develop inn i prod** uten en fersk `main`-rsync. **Regel:** re-rsync alltid riktig branch før build — **`main` for prod, `develop` for test**. Bekreft med markør-grep i konteksten (distinkt kode-streng fra branchen) FØR `up -d --build`.
+
+> ⚠️ **rsync ekskluderer `docker/env` (lærdom 2026-07-04).** Server-env-filene (`docker/env/{api,web,api-test,web-test}.env`) er **autoritative + gitignored**. Kanonisk rsync: `rsync -a --exclude node_modules --exclude .next --exclude .git --exclude docker/env`. Uten `--exclude docker/env` kan en lokal `docker/env`-mappe overskrive server-env (`DATABASE_URL` m.m.) → brutt miljø. (2026-07-04: prod-rsync droppet excluden — harmløst **kun** fordi Mac-kilden ikke hadde `docker/env`. Ikke stol på flaks.)
+
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.

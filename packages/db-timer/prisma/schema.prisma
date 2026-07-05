@@ -37,6 +37,10 @@ model Lonnsart {
   // er tom (ingen forrige rad å arve fra). Maks én true per organizationId —
   // håndheves i lonnsart.settStandard (nullstiller andre i samme transaksjon).
   erStandardvalg   Boolean  @default(false) @map("er_standardvalg")
+  // ③a (2026-07-05): strukturert overtid-klassifisering. null = ikke overtid;
+  // 50 = 50 %; 100 = 100 %. Erstatter fritekst-navne-match i mobil auto-gen.
+  // Regelen som bruker feltet er isolert i @sitedoc/shared lonnsregel.ts.
+  overtidsnivaa    Int?     @map("overtidsnivaa")
   seedNivaa        Int?     @map("seed_nivaa") // 1, 2 eller null (3 = egendefinert)
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")

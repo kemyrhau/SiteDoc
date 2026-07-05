@@ -284,6 +284,14 @@ export function kjorMigreringer() {
         `ALTER TABLE lonnsart_local ADD COLUMN er_standardvalg INTEGER NOT NULL DEFAULT 0`,
       );
     }
+    // ③a (2026-07-05) — strukturert overtid-nivå. Nullable INTEGER; backfill
+    // ikke nødvendig (refreshKatalog full-overskriver fra server ved pull).
+    if (!lonnsartInfo.find((k) => k.name === "overtidsnivaa")) {
+      console.log("[MIG] Legger til overtidsnivaa på lonnsart_local (③a)");
+      db.execSync(
+        `ALTER TABLE lonnsart_local ADD COLUMN overtidsnivaa INTEGER`,
+      );
+    }
   } catch (e) {
     console.warn("[MIG] Kunne ikke utvide lonnsart_local med er_standardvalg:", e);
   }

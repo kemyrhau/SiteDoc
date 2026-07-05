@@ -34,6 +34,7 @@ import { FirmaVelger } from "../../src/components/FirmaVelger";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
 import { StartSluttDagKort } from "../../src/components/StartSluttDagKort";
+import { MannskapInnsjekkKort } from "../../src/components/MannskapInnsjekkKort";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 
 const AKTIVE_STATUSER = ["sent", "received", "in_progress"];
@@ -321,6 +322,9 @@ export default function HjemSkjerm() {
 
         {/* «Start dag / Slutt dag» — worker-drevet arbeidsdag → dagsseddel-forslag */}
         <StartSluttDagKort />
+
+        {/* §15-innsjekk/utsjekk på byggeplass (online-only, vy i PSI-modulen) */}
+        {erPsiAktiv && <MannskapInnsjekkKort />}
 
         {firmaer.length > 1 && !valgtFirmaId && (
           <Pressable

@@ -51,6 +51,11 @@ export const lonnsartRouter = router({
         skalEksporteres: z.boolean().optional(),
         tvungenKommentar: z.boolean().optional(),
         rekkefolge: z.number().int().optional(),
+        // ③a: strukturert overtid-nivå (50/100). null = ikke overtid.
+        overtidsnivaa: z
+          .union([z.literal(50), z.literal(100)])
+          .nullable()
+          .optional(),
         organizationId: z.string().uuid(),
       }),
     )
@@ -72,6 +77,8 @@ export const lonnsartRouter = router({
             skalEksporteres: input.skalEksporteres ?? true,
             tvungenKommentar: input.tvungenKommentar ?? false,
             rekkefolge: input.rekkefolge ?? 0,
+            overtidsnivaa:
+              input.type === "ordinaer" ? input.overtidsnivaa ?? null : null,
             // seedNivaa = null → egendefinert (Nivå 3)
           },
         });
@@ -104,6 +111,10 @@ export const lonnsartRouter = router({
         tvungenKommentar: z.boolean().optional(),
         rekkefolge: z.number().int().optional(),
         aktiv: z.boolean().optional(),
+        overtidsnivaa: z
+          .union([z.literal(50), z.literal(100)])
+          .nullable()
+          .optional(),
         organizationId: z.string().uuid(),
       }),
     )
@@ -132,6 +143,14 @@ export const lonnsartRouter = router({
       if (input.tvungenKommentar !== undefined) data.tvungenKommentar = input.tvungenKommentar;
       if (input.rekkefolge !== undefined) data.rekkefolge = input.rekkefolge;
       if (input.aktiv !== undefined) data.aktiv = input.aktiv;
+      // Overtid-nivå gir kun mening for ordinær tid — null hvis effektiv type
+      // ikke er ordinaer (defense-in-depth; klienten sender allerede null da).
+      // Rører feltet KUN når det er eksplisitt sendt (unngår utilsiktet nulling).
+      if (input.overtidsnivaa !== undefined) {
+        const effektivType = input.type ?? eksisterende.type;
+        data.overtidsnivaa =
+          effektivType === "ordinaer" ? input.overtidsnivaa : null;
+      }
 
       try {
         return await ctx.prismaTimer.lonnsart.update({

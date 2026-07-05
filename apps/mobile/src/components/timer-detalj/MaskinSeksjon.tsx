@@ -11,12 +11,28 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Plus, Trash2, Pencil, X, Check, AlertTriangle } from "lucide-react-native";
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  X,
+  Check,
+  AlertTriangle,
+  Truck,
+  Wrench,
+  Hammer,
+} from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
-import { sheetMachineLocal, equipmentLocal, externalCostObjectLocal } from "../../db/schema";
+import {
+  sheetMachineLocal,
+  sheetTimerLocal,
+  equipmentLocal,
+  externalCostObjectLocal,
+} from "../../db/schema";
+import { maskinBucketKapasitet, overstigerMaskinTak } from "@sitedoc/shared";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
@@ -27,6 +43,29 @@ import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
+
+type MaskinKategori = "kjoretoy" | "anleggsmaskin" | "smautstyr";
+const MASKIN_KATEGORIER: MaskinKategori[] = [
+  "kjoretoy",
+  "anleggsmaskin",
+  "smautstyr",
+];
+const KATEGORI_IKON: Record<MaskinKategori, typeof Truck> = {
+  kjoretoy: Truck,
+  anleggsmaskin: Wrench,
+  smautstyr: Hammer,
+};
+
+/** Numerisk-aware sammenligning av internNummer (tomme sist). */
+function sammenlignInternNummer(a: string | null, b: string | null): number {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+  const na = Number(a);
+  const nb = Number(b);
+  if (!isNaN(na) && !isNaN(nb)) return na - nb;
+  return a.localeCompare(b, "nb");
+}
 
 interface MaskinSeksjonProps {
   sheetId: string;
@@ -42,6 +81,8 @@ interface MaskinSeksjonProps {
   visHeader?: boolean;
   /** ISO YYYY-MM-DD — dato på dagsseddelen. Brukes til kalender-utleting (T4-e). */
   dato: string;
+  /** Sedel-nivå pause (min) — inngår i maskin ≤ arbeid-kapasitet (Del 2). */
+  pauseMin: number;
   harEquipmentCache: boolean;
   /** T.11: false når innlogget bruker mangler gyldig maskinførerbevis i org.
    *  Styrer soft-varsel — påvirker ALDRI synlighet eller lagring. */
@@ -58,6 +99,7 @@ export function MaskinSeksjon({
   defaultEcoId = null,
   visHeader = true,
   dato,
+  pauseMin,
   harEquipmentCache,
   harMaskinforerbevis,
   redigerbar,
@@ -223,10 +265,12 @@ export function MaskinSeksjon({
 
       {visModal && (
         <MaskinRadModal
+          sheetId={sheetId}
           organizationId={organizationId}
           defaultProjectId={projectId}
           defaultEcoId={defaultEcoId}
           dato={dato}
+          pauseMin={pauseMin}
           eksisterendeRader={rader}
           eksisterendeRad={
             redigerRadId
@@ -358,19 +402,23 @@ function MaskinRadVis({
 }
 
 function MaskinRadModal({
+  sheetId,
   organizationId,
   defaultProjectId,
   defaultEcoId,
   dato,
+  pauseMin,
   eksisterendeRader,
   eksisterendeRad,
   onLagre,
   onLukk,
 }: {
+  sheetId: string;
   organizationId: string;
   defaultProjectId: string;
   defaultEcoId: string | null;
   dato: string;
+  pauseMin: number;
   eksisterendeRader: MaskinRad[];
   eksisterendeRad: MaskinRad | null;
   onLagre: (
@@ -464,6 +512,69 @@ function MaskinRadModal({
         .all()[0] ?? null
     );
   }, [valgtEcoId]);
+
+  // Del 1: maskiner allerede brukt på seddelen — løftes øverst i velgeren.
+  const bruktVehicleIds = useMemo(() => {
+    const db = hentDatabase();
+    if (!db) return [];
+    return db
+      .select()
+      .from(sheetMachineLocal)
+      .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
+      .all()
+      .map((r) => r.vehicleId);
+  }, [sheetId]);
+
+  // Del 2 (maskin ≤ arbeid): reaktiv bucket-kapasitet for gjeldende
+  // (valgtProjectId, valgtEcoId). Leser sedelens rader fra SQLite så den
+  // er korrekt også når bruker bytter prosjekt/ECO i modalen. Delt
+  // @sitedoc/shared-regel — identisk med serverens validerMaskinUnderArbeid.
+  const kapasitet = useMemo(() => {
+    const db = hentDatabase();
+    if (!db)
+      return { arbeidSum: 0, sumMaskinEksisterende: 0, ledig: 0, overstiger: false };
+    const iBucket = (r: {
+      projectId: string | null;
+      externalCostObjectId: string | null;
+    }) =>
+      (r.projectId ?? defaultProjectId) === valgtProjectId &&
+      (r.externalCostObjectId ?? null) === (valgtEcoId ?? null);
+    const arbeidSum = db
+      .select()
+      .from(sheetTimerLocal)
+      .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
+      .all()
+      .filter(iBucket)
+      .reduce((acc, r) => acc + (r.timer ?? 0), 0);
+    const sumMaskinEksisterende = db
+      .select()
+      .from(sheetMachineLocal)
+      .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
+      .all()
+      .filter((r) => iBucket(r) && r.id !== eksisterendeRad?.id)
+      .reduce((acc, r) => acc + (r.timer ?? 0), 0);
+    const { ledig } = maskinBucketKapasitet({
+      arbeidSum,
+      sumMaskinEksisterende,
+      pauseMin,
+    });
+    const nyTimer = parseFloat(timer.replace(",", "."));
+    const nyBidrag = isNaN(nyTimer) ? 0 : nyTimer;
+    const overstiger = overstigerMaskinTak(
+      sumMaskinEksisterende + nyBidrag,
+      arbeidSum,
+      pauseMin,
+    );
+    return { arbeidSum, sumMaskinEksisterende, ledig, overstiger };
+  }, [
+    sheetId,
+    valgtProjectId,
+    valgtEcoId,
+    timer,
+    pauseMin,
+    eksisterendeRad?.id,
+    defaultProjectId,
+  ]);
 
   function lagre() {
     setFeil(null);
@@ -626,13 +737,49 @@ function MaskinRadModal({
             />
           </View>
 
+          {/* Del 2: inline kapasitet-linje for bucketen. Rød ved overskridelse;
+              Lagre disables da (samme regel som server). */}
+          <View
+            className={`rounded-lg border px-3 py-2 ${
+              kapasitet.overstiger
+                ? "border-red-300 bg-red-50"
+                : "border-gray-200 bg-gray-50"
+            }`}
+          >
+            <Text
+              className={`text-xs ${
+                kapasitet.overstiger ? "text-red-800" : "text-gray-500"
+              }`}
+            >
+              {t("timer.maskin.kapasitet", {
+                arbeid: kapasitet.arbeidSum.toFixed(2),
+                maskin: kapasitet.sumMaskinEksisterende.toFixed(2),
+                ledig: Math.max(0, kapasitet.ledig).toFixed(2),
+              })}
+            </Text>
+            {kapasitet.overstiger && (
+              <Text className="mt-0.5 text-xs font-medium text-red-800">
+                {t("timer.maskin.overstigerArbeid")}
+              </Text>
+            )}
+          </View>
+
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
           <Pressable
             onPress={lagre}
-            className="mt-4 items-center rounded-lg bg-blue-600 px-6 py-4 active:bg-blue-700"
+            disabled={kapasitet.overstiger}
+            className={`mt-4 items-center rounded-lg px-6 py-4 ${
+              kapasitet.overstiger
+                ? "bg-gray-300"
+                : "bg-blue-600 active:bg-blue-700"
+            }`}
           >
-            <Text className="text-base font-semibold text-white">
+            <Text
+              className={`text-base font-semibold ${
+                kapasitet.overstiger ? "text-gray-500" : "text-white"
+              }`}
+            >
               {t("handling.lagre")}
             </Text>
           </Pressable>
@@ -644,6 +791,7 @@ function MaskinRadModal({
           <EquipmentVelgerModal
             organizationId={organizationId}
             valgtId={valgtVehicleId}
+            brukt={bruktVehicleIds}
             onVelg={(id) => {
               setValgtVehicleId(id);
               setVisEquipmentVelger(false);
@@ -693,19 +841,53 @@ function MaskinRadModal({
   );
 }
 
+function KategoriChip({
+  label,
+  ikon: Ikon,
+  aktiv,
+  onPress,
+}: {
+  label: string;
+  ikon?: typeof Truck;
+  aktiv: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      className={`flex-row items-center gap-1 rounded-full px-3 py-1.5 ${
+        aktiv ? "bg-sitedoc-primary" : "bg-gray-100"
+      }`}
+    >
+      {Ikon && <Ikon size={13} color={aktiv ? "#ffffff" : "#4b5563"} />}
+      <Text
+        className={`text-xs font-medium ${
+          aktiv ? "text-white" : "text-gray-600"
+        }`}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function EquipmentVelgerModal({
   organizationId,
   valgtId,
+  brukt = [],
   onVelg,
   onLukk,
 }: {
   organizationId: string;
   valgtId: string;
+  /** vehicleId-er allerede i bruk på seddelen — løftes øverst (Del 1). */
+  brukt?: string[];
   onVelg: (id: string) => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
   const [sok, setSok] = useState("");
+  const [kategori, setKategori] = useState<MaskinKategori | null>(null);
 
   const equipment = useMemo<Equipment[]>(() => {
     const db = hentDatabase();
@@ -722,18 +904,40 @@ function EquipmentVelgerModal({
       .filter((e) => e.status !== "utgaatt");
   }, [organizationId]);
 
+  const antallPerKategori = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of equipment)
+      if (e.kategori) m.set(e.kategori, (m.get(e.kategori) ?? 0) + 1);
+    return m;
+  }, [equipment]);
+
+  const bruktSet = useMemo(() => new Set(brukt), [brukt]);
+
   const filtrert = useMemo(() => {
-    if (!sok.trim()) return equipment;
-    const q = sok.toLowerCase();
-    return equipment.filter(
-      (e) =>
+    const q = sok.toLowerCase().trim();
+    const treff = equipment.filter((e) => {
+      if (kategori && e.kategori !== kategori) return false;
+      if (!q) return true;
+      return (
         (e.merke ?? "").toLowerCase().includes(q) ||
         (e.modell ?? "").toLowerCase().includes(q) ||
         (e.internNavn ?? "").toLowerCase().includes(q) ||
         (e.internNummer ?? "").toLowerCase().includes(q) ||
-        (e.registreringsnummer ?? "").toLowerCase().includes(q),
-    );
-  }, [equipment, sok]);
+        (e.registreringsnummer ?? "").toLowerCase().includes(q)
+      );
+    });
+    // Sortering: brukt-på-seddelen først → internNummer (numerisk) → navn.
+    return treff.sort((a, b) => {
+      const aB = bruktSet.has(a.id);
+      const bB = bruktSet.has(b.id);
+      if (aB !== bB) return aB ? -1 : 1;
+      const nr = sammenlignInternNummer(a.internNummer, b.internNummer);
+      if (nr !== 0) return nr;
+      return `${a.merke ?? ""} ${a.modell ?? ""}`
+        .trim()
+        .localeCompare(`${b.merke ?? ""} ${b.modell ?? ""}`.trim(), "nb");
+    });
+  }, [equipment, sok, kategori, bruktSet]);
 
   return (
     <Modal
@@ -759,6 +963,37 @@ function EquipmentVelgerModal({
               placeholder={t("handling.sok")}
               className="rounded bg-gray-100 px-3 py-2 text-base"
             />
+          </View>
+        )}
+        {/* Del 1: kategori-filter (enkel-select) — speiler /dashbord/maskin. */}
+        {equipment.length > 0 && (
+          <View className="border-b border-gray-200">
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerClassName="gap-2 px-4 py-2"
+            >
+              <KategoriChip
+                label={t("maskin.filter.alle")}
+                aktiv={kategori === null}
+                onPress={() => setKategori(null)}
+              />
+              {MASKIN_KATEGORIER.map((k) => {
+                const Ikon = KATEGORI_IKON[k];
+                return (
+                  <KategoriChip
+                    key={k}
+                    label={`${t(
+                      `maskin.kategori${k.charAt(0).toUpperCase() + k.slice(1)}`,
+                    )} (${antallPerKategori.get(k) ?? 0})`}
+                    ikon={Ikon}
+                    aktiv={kategori === k}
+                    onPress={() => setKategori(kategori === k ? null : k)}
+                  />
+                );
+              })}
+            </ScrollView>
           </View>
         )}
         <FlatList
@@ -787,6 +1022,11 @@ function EquipmentVelgerModal({
                 <View className="flex-1">
                   <Text className="text-base text-gray-900">{navn}</Text>
                   {meta && <Text className="text-xs text-gray-500">{meta}</Text>}
+                  {bruktSet.has(item.id) && (
+                    <Text className="text-xs text-sitedoc-primary">
+                      {t("timer.maskin.bruktPaaSeddel")}
+                    </Text>
+                  )}
                 </View>
                 {item.id === valgtId && <Check size={18} color="#1e40af" />}
               </Pressable>

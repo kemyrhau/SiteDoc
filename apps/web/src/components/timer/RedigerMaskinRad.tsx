@@ -7,6 +7,7 @@ import { Split, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
+import { MaskinVelger } from "./MaskinVelger";
 import type { RedigerMaskinRadData, ProsjektValg } from "./rediger-types";
 
 type Props = {
@@ -31,7 +32,14 @@ export function RedigerMaskinRad({
   const { t } = useTranslation();
   const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery();
   const equipment = equipmentRaw as unknown as
-    | Array<{ id: string; merke: string; modell: string; internNavn: string | null }>
+    | Array<{
+        id: string;
+        merke: string;
+        modell: string;
+        internNavn: string | null;
+        internNummer: string | null;
+        kategori: string | null;
+      }>
     | undefined;
 
   // T7-4d: ECO-katalog for prosjektet — maskin følger samme prosjekt+ECO-gruppe
@@ -66,19 +74,13 @@ export function RedigerMaskinRad({
         ))}
       </select>
 
-      <select
-        value={rad.vehicleId}
-        onChange={(e) => onChange({ vehicleId: e.target.value })}
-        className="col-span-6 rounded border border-gray-300 px-2 py-1 text-xs"
-      >
-        <option value="">{t("timer.rediger.maskinPlaceholder")}</option>
-        {equipment?.map((e) => (
-          <option key={e.id} value={e.id}>
-            {e.merke} {e.modell}
-            {e.internNavn ? ` (${e.internNavn})` : ""}
-          </option>
-        ))}
-      </select>
+      <div className="col-span-6">
+        <MaskinVelger
+          utstyr={equipment ?? []}
+          valgtId={rad.vehicleId}
+          onVelg={(id) => onChange({ vehicleId: id })}
+        />
+      </div>
 
       {/* T7-4f-splitt: rad 2 = Fra+Til+Timer+Mengde+Enhet (3+3+2+2+2) */}
       <input

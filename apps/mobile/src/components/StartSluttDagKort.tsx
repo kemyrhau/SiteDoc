@@ -19,7 +19,14 @@ import { useFirma } from "../kontekst/FirmaKontekst";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 import { useByggeplass } from "../kontekst/ByggeplassKontekst";
 import { useTimerSync } from "../providers/TimerSyncProvider";
-import { avstandMeter, estimerReisetidMin, klassifiserReise, type ReiseKategori } from "@sitedoc/shared";
+import {
+  avstandMeter,
+  estimerReisetidMin,
+  klassifiserReise,
+  klassifiserArbeidstid,
+  velgOvertidLonnsart,
+  type ReiseKategori,
+} from "@sitedoc/shared";
 import { haversineKm } from "../utils/geo";
 import { rundTimerTilNarmeste } from "../utils/tidsrunding";
 import {
@@ -781,7 +788,9 @@ function opprettDagsseddelForSegment(args: {
     new Date(`${segment.dato}T00:00:00`),
   );
 
-  // Auto-fordeling normaltid/overtid (per dag).
+  // Auto-fordeling normaltid/overtid (per dag). Klassifiserings-regelen er
+  // isolert i @sitedoc/shared lonnsregel.ts (forward-compat Nivå 1-2). Overtid
+  // velges strukturert på overtidsnivaa — ALDRI fritekst-navn (③a).
   if (arbeidstimer > 0) {
     const dagsnorm0 = effektiv.dagsnorm > 0 ? effektiv.dagsnorm : arbeidstimer;
     // Fase 3: når reisetid teller mot overtid, spiser reise-andelen av dagsnorm-
@@ -791,56 +800,38 @@ function opprettDagsseddelForSegment(args: {
       reisetidTellerOvertid && reisetidTimer > 0
         ? Math.max(0, dagsnorm0 - reisetidTimer)
         : dagsnorm0;
-    const timelonnTimer = Math.min(arbeidstimer, dagsnorm);
-    const overtidTimer = Math.round((arbeidstimer - timelonnTimer) * 100) / 100;
 
+    const alleLonnsarter = db
+      .select()
+      .from(lonnsartLocal)
+      .where(eq(lonnsartLocal.organizationId, orgId))
+      .all();
     const standard = hentStandardLonnsartLokalt(orgId);
-    if (standard && timelonnTimer > 0) {
+
+    for (const seg of klassifiserArbeidstid({ arbeidstimer, dagsnorm })) {
+      // Normaltid (overtidsnivaa=null) → firmaets standard-lønnsart.
+      // Overtid → velg strukturert på overtidsnivaa (type=ordinaer, aktiv).
+      const lonnsart =
+        seg.overtidsnivaa === null
+          ? standard
+          : velgOvertidLonnsart(alleLonnsarter, seg.overtidsnivaa);
+      // ③a/③b: aldri feil-match, aldri stille drop — uten treff hoppes raden
+      // over, og [id].tsx viser banner (manglerStandard/manglerOvertidLonnsart).
+      if (!lonnsart) continue;
       db.insert(sheetTimerLocal)
         .values({
           id: randomUUID(),
           dagsseddelId: sheetId,
           projectId: prosjektId,
-          lonnsartId: standard.id,
+          lonnsartId: lonnsart.id,
           aktivitetId,
           externalCostObjectId: null,
-          timer: timelonnTimer,
+          timer: seg.timer,
           fraTid: null,
           tilTid: null,
           sistEndretLokalt: Date.now(),
         })
         .run();
-    }
-
-    if (overtidTimer > 0) {
-      // MVP: navne-match «Overtid 50%». Erstattes av Lonnsart.overtidsnivaa.
-      const overtid = db
-        .select()
-        .from(lonnsartLocal)
-        .where(
-          and(
-            eq(lonnsartLocal.organizationId, orgId),
-            eq(lonnsartLocal.aktiv, true),
-          ),
-        )
-        .all()
-        .find((l) => /overtid/i.test(l.navn) && /50/.test(l.navn));
-      if (overtid) {
-        db.insert(sheetTimerLocal)
-          .values({
-            id: randomUUID(),
-            dagsseddelId: sheetId,
-            projectId: prosjektId,
-            lonnsartId: overtid.id,
-            aktivitetId,
-            externalCostObjectId: null,
-            timer: overtidTimer,
-            fraTid: null,
-            tilTid: null,
-            sistEndretLokalt: Date.now(),
-          })
-          .run();
-      }
     }
   }
 
