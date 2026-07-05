@@ -27,6 +27,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Terminologi/hierarki endres | `terminologi.md` |
 | Arkitektur-syntese endres | `arkitektur-syntese.md` |
 | Navigasjonsredesign — paritet/funksjon flyttes | `redesign-paritetssjekkliste.md` |
+| Redesign-handoff / designreferanse / strategi endres | `docs/redesign/redesign-handoff.md` |
 
 ## Regel
 

@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #e8eaee; font-family: 'IBM Plex Sans', sans-serif; }
+  </style>
+</helmet>
+
+<section style="padding: 40px; display: flex; flex-direction: column; gap: 24px;">
+  <div style="max-width: 900px;">
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Runde 2 — Mobil med tegninger/3D/mapper + oversettelse med f&aelig;rre klikk</div>
+    <div style="font-size: 15px; color: #374151; margin-top: 6px; line-height: 1.5;"><a href="#2a" style="color:#1e40af;">2a</a> gir mobilen ny tab-struktur der Tegninger (2D/3D) og Dokumenter (mapper) er f&oslash;rsteklasses faner. <a href="#2b" style="color:#1e40af;">2b</a> samler all spr&aring;k-/oversettelsesstyring i &eacute;tt panel p&aring; mappen — i dag er den spredt over prosjektoppsett, mappeinnstillinger og dokumentliste. <a href="#2c" style="color:#1e40af;">2c</a> viser dokumentleseren p&aring; mobil med spr&aring;kbytte og oversettelse i ett trykk.</div>
+  </div>
+
+  <div style="display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap;">
+
+    <!-- ============ 2a: Mobil v2 med Tegninger + Dokumenter ============ -->
+    <div id="2a" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">2a</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Mobil v2 — Tegninger, 3D og Dokumenter som egne faner</span>
+      </div>
+      <div style="display: flex; gap: 24px;">
+
+        <!-- Telefon 1: Dokumenter (mapper) -->
+        <div style="width: 390px; background: #f6f7f9; border-radius: 28px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2; display: flex; flex-direction: column;">
+          <div style="background: #1e40af; padding: 14px 18px; color: #fff;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #b9c8f2;"><span>09:41</span><span>&#9679;&#9679;&#9679;</span></div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;">
+              <div style="font-size: 21px; font-weight: 700;">Dokumenter</div>
+              <div style="font-size: 12.5px; color: #b9c8f2; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 5px 10px;">{{ prosjektNavnKort }} &#9662;</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 12px; font-size: 13px; color: #b9c8f2;">
+              <span>Alle mapper</span><span style="opacity:0.6;">&rsaquo;</span><span>HMS</span><span style="opacity:0.6;">&rsaquo;</span><span style="color:#fff; font-weight:600;">Datablader</span>
+            </div>
+          </div>
+          <div style="padding: 14px 16px 8px; flex: 1;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 0 4px;">
+              <div style="font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em; color: #6b7280;">MAPPER</div>
+              <div style="font-size: 11.5px; color: #1e40af; font-weight: 600;">Spr&aring;k: NB &rarr; PL LT &#183; arvet</div>
+            </div>
+            <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 12px; margin-top: 8px; overflow: hidden;">
+              <sc-for list="{{ mobilMapper }}" as="m" hint-placeholder-count="2">
+                <div style="display: flex; align-items: center; gap: 13px; padding: 13px 15px; min-height: 44px; box-sizing: border-box; border-bottom: 1px solid #eef1f5;">
+                  <div style="width: 32px; height: 32px; border-radius: 7px; background: #e7edfb; color: #1e40af; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{ m.tile }}</div>
+                  <div style="flex: 1;">
+                    <div style="font-size: 15px; font-weight: 600; color: #111827;">{{ m.navn }}</div>
+                    <div style="font-size: 12px; color: #8a93a3; margin-top: 1px;">{{ m.info }}</div>
+                  </div>
+                  <div style="color: #b6bdc9; font-size: 17px;">&rsaquo;</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em; color: #6b7280; padding: 0 4px; margin-top: 18px;">DOKUMENTER</div>
+            <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 12px; margin-top: 8px; overflow: hidden;">
+              <sc-for list="{{ mobilDok }}" as="d" hint-placeholder-count="3">
+                <div style="padding: 13px 15px; border-bottom: 1px solid #eef1f5;">
+                  <div style="display: flex; align-items: center; gap: 13px;">
+                    <div style="width: 32px; height: 32px; border-radius: 7px; background: #f1f3f7; color: #5b6472; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{ d.type }}</div>
+                    <div style="flex: 1;">
+                      <div style="font-size: 14.5px; font-weight: 600; color: #111827;">{{ d.navn }}</div>
+                      <div style="display: flex; align-items: center; gap: 6px; margin-top: 3px;">
+                        <span style="width: 7px; height: 7px; border-radius: 50%; background: {{ d.prikk }};"></span>
+                        <span style="font-size: 12px; color: {{ d.statusFarge }};">{{ d.status }}</span>
+                      </div>
+                    </div>
+                    <div style="font-size: 12px; color: #1e40af; font-weight: 600; padding: 8px 4px;">Les</div>
+                  </div>
+                </div>
+              </sc-for>
+              <!-- språkavvik-rad med ett-trykks handling -->
+              <div style="padding: 13px 15px; background: #fdf9ef;">
+                <div style="display: flex; align-items: center; gap: 13px;">
+                  <div style="width: 32px; height: 32px; border-radius: 7px; background: #fbf3e2; color: #92610a; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;">PDF</div>
+                  <div style="flex: 1;">
+                    <div style="font-size: 14.5px; font-weight: 600; color: #111827;">Sikkerhetsdatablad-fugeskum.pdf</div>
+                    <div style="font-size: 12px; color: #92610a; margin-top: 3px;">Ser ut til &aring; v&aelig;re p&aring; litauisk — ikke norsk</div>
+                  </div>
+                </div>
+                <div style="display: flex; gap: 8px; margin-top: 10px;">
+                  <div style="flex: 1; background: #1e40af; color: #fff; font-size: 13px; font-weight: 600; text-align: center; padding: 11px; border-radius: 8px;">Bekreft og oversett</div>
+                  <div style="background: #fff; border: 1px solid #d9ceac; color: #6b6046; font-size: 13px; font-weight: 600; text-align: center; padding: 11px 14px; border-radius: 8px;">Behold</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="display: flex; border-top: 1px solid #dde2ea; background: #fff; padding: 10px 8px 22px;">
+            <sc-for list="{{ tabbarDok }}" as="tab" hint-placeholder-count="5">
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; color: {{ tab.farge }};">
+                <div style="width: 20px; height: 20px; border: 2px solid currentColor; border-radius: 5px; opacity: 0.85;"></div>
+                <span style="font-size: 10px; font-weight: 600;">{{ tab.navn }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- Telefon 2: Tegninger med 2D/3D -->
+        <div style="width: 390px; background: #f6f7f9; border-radius: 28px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2; display: flex; flex-direction: column;">
+          <div style="background: #1e40af; padding: 14px 18px; color: #fff;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; color: #b9c8f2;"><span>09:41</span><span>&#9679;&#9679;&#9679;</span></div>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px;">
+              <div style="font-size: 21px; font-weight: 700;">Tegninger</div>
+              <div style="font-size: 12.5px; color: #b9c8f2; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 5px 10px;">{{ prosjektNavnKort }} &#9662;</div>
+            </div>
+            <div style="display: flex; background: rgba(255,255,255,0.14); border-radius: 8px; padding: 3px; margin-top: 12px;">
+              <div style="flex:1; text-align:center; padding: 8px 0; border-radius: 6px; background: #fff; color: #1e40af; font-size: 13px; font-weight: 700;">2D</div>
+              <div style="flex:1; text-align:center; padding: 8px 0; color: #dbe4ff; font-size: 13px; font-weight: 600;">3D</div>
+              <div style="flex:1; text-align:center; padding: 8px 0; color: #dbe4ff; font-size: 13px; font-weight: 600;">2D + 3D</div>
+            </div>
+          </div>
+          <div style="padding: 14px 16px 8px; flex: 1;">
+            <sc-for list="{{ mobilTegningGrupper }}" as="gruppe" hint-placeholder-count="2">
+              <div style="margin-bottom: 16px;">
+                <div style="font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em; color: #6b7280; padding: 0 4px;">{{ gruppe.navn }}</div>
+                <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 12px; margin-top: 8px; overflow: hidden;">
+                  <sc-for list="{{ gruppe.rader }}" as="rad" hint-placeholder-count="2">
+                    <div style="display: flex; align-items: center; gap: 13px; padding: 11px 15px; min-height: 44px; box-sizing: border-box; border-bottom: 1px solid #eef1f5;">
+                      <div style="width: 52px; height: 38px; border-radius: 6px; border: 1px solid #dde2ea; background: repeating-linear-gradient(45deg, #eef1f5, #eef1f5 6px, #e3e8ef 6px, #e3e8ef 12px); display: flex; align-items: center; justify-content: center;"><span style="font-family: monospace; font-size: 8px; color: #8a93a3;">{{ rad.thumb }}</span></div>
+                      <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                          <span style="font-size: 15px; font-weight: 600; color: #111827;">{{ rad.navn }}</span>
+                          <sc-if value="{{ rad.standard }}" hint-placeholder-val="{{ false }}"><span style="color: #f59e0b; font-size: 13px;">&#9733;</span></sc-if>
+                        </div>
+                        <div style="font-size: 12px; color: #8a93a3; margin-top: 1px;">{{ rad.info }}</div>
+                      </div>
+                      <div style="color: #b6bdc9; font-size: 17px;">&rsaquo;</div>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+            <div style="background: #eef3fd; border: 1px solid #d5e0f7; border-radius: 12px; padding: 13px 15px; display: flex; align-items: center; gap: 13px;">
+              <div style="width: 32px; height: 32px; border-radius: 7px; background: #1e40af; color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center;">3D</div>
+              <div style="flex: 1;">
+                <div style="font-size: 14.5px; font-weight: 600; color: #111827;">IFC-modell — Blokk A</div>
+                <div style="font-size: 12px; color: #5b6472; margin-top: 1px;">&Aring;pne punktsky / IFC-visning</div>
+              </div>
+              <div style="color: #1e40af; font-size: 17px;">&rsaquo;</div>
+            </div>
+          </div>
+          <div style="display: flex; border-top: 1px solid #dde2ea; background: #fff; padding: 10px 8px 22px;">
+            <sc-for list="{{ tabbarTegning }}" as="tab" hint-placeholder-count="5">
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; color: {{ tab.farge }};">
+                <div style="width: 20px; height: 20px; border: 2px solid currentColor; border-radius: 5px; opacity: 0.85;"></div>
+                <span style="font-size: 10px; font-weight: 600;">{{ tab.navn }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 2b: Oversettelse — ett panel ============ -->
+    <div id="2b" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">2b</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Oversettelse styres fra &eacute;tt panel p&aring; mappen (web)</span>
+      </div>
+      <div style="width: 1180px; background: #f6f7f9; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.12); border: 1px solid #d7dbe2;">
+        <div style="height: 48px; background: #1e40af; display: flex; align-items: center; padding: 0 16px; gap: 14px;">
+          <div style="color: #fff; font-weight: 700; font-size: 14px;">SiteDoc</div>
+          <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.25);"></div>
+          <div style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.12); border-radius: 5px; padding: 4px 10px; color: #dbe4ff; font-size: 13px;">Markussen Entrepren&oslash;r <span style="color:#93a8e8;">/</span> {{ prosjektNavn }} <span style="font-size:10px; color:#93a8e8;">&#9662;</span></div>
+          <div style="flex:1;"></div>
+          <div style="width: 26px; height: 26px; border-radius: 50%; background: #f59e0b; color: #1f2937; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;">KM</div>
+        </div>
+        <div style="display: flex; min-height: 620px;">
+          <!-- mappetre -->
+          <div style="width: 210px; background: #fff; border-right: 1px solid #e3e7ee; padding: 16px 10px;">
+            <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.09em; color: #8a93a3; padding: 0 10px 8px;">MAPPER</div>
+            <sc-for list="{{ mappeTre }}" as="m" hint-placeholder-count="6">
+              <div style="display: flex; align-items: center; gap: 8px; padding: 7px 10px; padding-left: {{ m.innrykk }}; border-radius: 6px; background: {{ m.bg }}; font-size: 13px; font-weight: {{ m.vekt }}; color: {{ m.farge }};">
+                <div style="width: 12px; height: 10px; border: 1.5px solid currentColor; border-radius: 2px; border-top-width: 3px; opacity: 0.5;"></div>{{ m.navn }}
+              </div>
+            </sc-for>
+          </div>
+          <!-- dokumentliste -->
+          <div style="flex: 1; padding: 22px 26px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <div style="font-size: 18px; font-weight: 700; color: #111827;">HMS <span style="color:#b6bdc9;">/</span> Datablader</div>
+              <div style="flex:1;"></div>
+              <div style="display: flex; align-items: center; gap: 7px; background: #eef3fd; border: 1px solid #d5e0f7; color: #1e40af; border-radius: 7px; padding: 7px 13px; font-size: 13px; font-weight: 600;">&#127760; Oversettelse: NB &rarr; PL LT</div>
+              <div style="background: #1e40af; color: #fff; border-radius: 7px; padding: 8px 15px; font-size: 13px; font-weight: 600;">Last opp</div>
+            </div>
+            <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 10px; margin-top: 16px; overflow: hidden;">
+              <div style="display: grid; grid-template-columns: 1fr 130px 190px 90px; padding: 9px 16px; background: #f2f4f8; border-bottom: 1px solid #e3e7ee; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #6b7280;">
+                <div>DOKUMENT</div><div>SPR&Aring;K</div><div>OVERSETTELSE</div><div></div>
+              </div>
+              <sc-for list="{{ dokTabell }}" as="d" hint-placeholder-count="5">
+                <div style="display: grid; grid-template-columns: 1fr 130px 190px 90px; padding: 12px 16px; border-bottom: 1px solid #eef1f5; align-items: center; background: {{ d.bg }};">
+                  <div style="display: flex; align-items: center; gap: 11px;">
+                    <div style="width: 28px; height: 28px; border-radius: 6px; background: #f1f3f7; color: #5b6472; font-size: 9.5px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{ d.type }}</div>
+                    <div>
+                      <div style="font-size: 13.5px; font-weight: 600; color: #111827;">{{ d.navn }}</div>
+                      <sc-if value="{{ d.varsel }}" hint-placeholder-val="{{ false }}"><div style="font-size: 12px; color: #92610a; margin-top: 2px;">{{ d.varsel }}</div></sc-if>
+                    </div>
+                  </div>
+                  <div style="font-size: 12.5px; color: #5b6472;">{{ d.sprak }}</div>
+                  <div style="display: flex; gap: 5px; align-items: center;">
+                    <sc-for list="{{ d.chips }}" as="c" hint-placeholder-count="2">
+                      <span style="font-size: 11px; font-weight: 700; color: {{ c.farge }}; background: {{ c.bg }}; border-radius: 4px; padding: 2px 7px;">{{ c.txt }}</span>
+                    </sc-for>
+                  </div>
+                  <div style="font-size: 12.5px; color: #1e40af; font-weight: 600; text-align: right;">{{ d.handling }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="font-size: 12.5px; color: #8a93a3; margin-top: 12px;">Nye dokumenter i denne mappen spr&aring;k-sjekkes og oversettes automatisk ved opplasting — ingen ekstra klikk.</div>
+          </div>
+          <!-- oversettelsespanel -->
+          <div style="width: 300px; background: #fff; border-left: 1px solid #e3e7ee; padding: 20px 20px;">
+            <div style="font-size: 15px; font-weight: 700; color: #111827;">Oversettelse</div>
+            <div style="font-size: 12.5px; color: #8a93a3; margin-top: 3px;">for HMS &rsaquo; Datablader</div>
+            <div style="margin-top: 18px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.07em; color: #6b7280;">KILDESPR&Aring;K</div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; background: #f6f7f9; border: 1px solid #e3e7ee; border-radius: 7px; padding: 9px 12px;">
+              <span style="font-size: 13.5px; font-weight: 600; color: #111827;">Norsk (bokm&aring;l)</span>
+              <span style="font-size: 11.5px; color: #8a93a3;">fra prosjektet</span>
+            </div>
+            <div style="margin-top: 18px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.07em; color: #6b7280;">M&Aring;LSPR&Aring;K</div>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+              <div style="display: flex; align-items: center; gap: 9px; border: 1.5px solid #1e40af; background: #f4f7fd; border-radius: 7px; padding: 10px 12px;">
+                <div style="width: 14px; height: 14px; border-radius: 50%; border: 4.5px solid #1e40af; box-sizing: border-box;"></div>
+                <div>
+                  <div style="font-size: 13px; font-weight: 600; color: #111827;">Arv fra prosjektet</div>
+                  <div style="font-size: 11.5px; color: #6b7280;">Polsk, Litauisk</div>
+                </div>
+              </div>
+              <div style="display: flex; align-items: center; gap: 9px; border: 1px solid #dde2ea; border-radius: 7px; padding: 10px 12px;">
+                <div style="width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid #b6bdc9; box-sizing: border-box;"></div>
+                <div style="font-size: 13px; color: #5b6472;">Egne spr&aring;k for denne mappen</div>
+              </div>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; opacity: 0.55;">
+              <sc-for list="{{ spraakChips }}" as="s" hint-placeholder-count="5">
+                <span style="font-size: 12px; font-weight: 600; color: {{ s.farge }}; background: {{ s.bg }}; border: 1px solid {{ s.kant }}; border-radius: 6px; padding: 4px 10px;">{{ s.txt }}</span>
+              </sc-for>
+            </div>
+            <div style="margin-top: 20px; background: #f6f7f9; border-radius: 8px; padding: 12px 14px; font-size: 12px; color: #5b6472; line-height: 1.5;">Gjelder <b style="color:#111827;">24 dokumenter</b> i denne mappen og undermapper som arver. Allerede oversatte dokumenter r&oslash;res ikke.</div>
+            <div style="margin-top: 14px; background: #1e40af; color: #fff; text-align: center; border-radius: 8px; padding: 11px; font-size: 13.5px; font-weight: 600;">Oversett 3 gjenst&aring;ende n&aring;</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 2c: Mobil dokumentleser ============ -->
+    <div id="2c" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">2c</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Dokumentleser p&aring; mobil — spr&aring;kbytte i ett trykk</span>
+      </div>
+      <div style="width: 390px; background: #fff; border-radius: 28px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2; display: flex; flex-direction: column;">
+        <div style="background: #1e40af; padding: 14px 18px 12px; color: #fff;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #b9c8f2;"><span>09:41</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div style="display: flex; align-items: center; gap: 12px; margin-top: 12px;">
+            <span style="font-size: 18px;">&larr;</span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Sikkerhetsdatablad-fugeskum.pdf</div>
+              <div style="font-size: 11.5px; color: #b9c8f2;">HMS &rsaquo; Datablader</div>
+            </div>
+          </div>
+        </div>
+        <!-- språkpiller -->
+        <div style="display: flex; gap: 8px; padding: 12px 16px; border-bottom: 1px solid #e8ebf0; background: #fafbfc; align-items: center;">
+          <sc-for list="{{ leserSprak }}" as="s" hint-placeholder-count="3">
+            <div style="font-size: 13px; font-weight: 700; padding: 8px 15px; border-radius: 999px; min-height: 20px; color: {{ s.farge }}; background: {{ s.bg }}; border: 1px solid {{ s.kant }};">{{ s.txt }}</div>
+          </sc-for>
+          <div style="flex:1;"></div>
+          <div style="font-size: 12.5px; color: #1e40af; font-weight: 600;">Sammenlign</div>
+        </div>
+        <div style="padding: 18px 20px 24px;">
+          <div style="display: flex; align-items: center; gap: 7px; background: #eef9f2; border: 1px solid #d3eede; border-radius: 7px; padding: 8px 12px; font-size: 12px; color: #0b7a4b; font-weight: 600;">Oversatt til polsk &#183; OPUS-MT &#183; <span style="font-weight: 400; color: #4a8b68;">vis original</span></div>
+          <div style="font-size: 19px; font-weight: 700; color: #111827; margin-top: 16px;">1. Identyfikacja substancji</div>
+          <div style="font-size: 14.5px; color: #374151; line-height: 1.65; margin-top: 8px;">Pianka monta&#380;owa poliuretanowa. Produkt przeznaczony do uszczelniania i monta&#380;u okien oraz drzwi. Zawiera diizocyjanian metylenodifenylu (MDI).</div>
+          <div style="font-size: 19px; font-weight: 700; color: #111827; margin-top: 18px;">2. Identyfikacja zagro&#380;e&#324;</div>
+          <div style="font-size: 14.5px; color: #374151; line-height: 1.65; margin-top: 8px;">Produkt sklasyfikowany jako niebezpieczny. Mo&#380;e powodowa&#263; podra&#380;nienie dr&oacute;g oddechowych. Stosowa&#263; wy&#322;&#261;cznie w dobrze wentylowanych pomieszczeniach.</div>
+          <div style="width: 100%; height: 150px; margin-top: 18px; border-radius: 8px; border: 1px solid #dde2ea; background: repeating-linear-gradient(45deg, #eef1f5, #eef1f5 6px, #e3e8ef 6px, #e3e8ef 12px); display: flex; align-items: center; justify-content: center;"><span style="font-family: monospace; font-size: 11px; color: #8a93a3;">pdf-side med illustrasjon</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section style="padding: 40px; display: flex; flex-direction: column; gap: 24px;">
+  <div style="max-width: 900px;">
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Runde 1 — Innstillinger og navigasjon</div>
+    <div style="font-size: 15px; color: #374151; margin-top: 6px; line-height: 1.5;">Tre retninger basert p&aring; vedtatt tre-niv&aring;-arkitektur (Firma &rarr; Prosjekt). <a href="#1a" style="color:#1e40af;">1a</a> samler alle innstillinger i &eacute;n hub med s&oslash;k. <a href="#1b" style="color:#1e40af;">1b</a> l&oslash;ser &laquo;hvor finner jeg X?&raquo; med globalt s&oslash;k (Ctrl+K) og en sidebar delt i Prosjekt/Firma. <a href="#1c" style="color:#1e40af;">1c</a> er mobilversjonen av huben.</div>
+  </div>
+
+  <div style="display: flex; gap: 40px; align-items: flex-start; flex-wrap: wrap;">
+
+    <!-- ============ 1a: Innstillinger-hub ============ -->
+    <div id="1a" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">1a</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Innstillinger-hub — alt p&aring; ett sted</span>
+      </div>
+      <div style="width: 1180px; background: #f6f7f9; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.12); border: 1px solid #d7dbe2;">
+        <!-- toppbar -->
+        <div style="height: 48px; background: #1e40af; display: flex; align-items: center; padding: 0 16px; gap: 14px;">
+          <div style="color: #fff; font-weight: 700; font-size: 14px; letter-spacing: 0.03em;">SiteDoc</div>
+          <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.25);"></div>
+          <div style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.12); border-radius: 5px; padding: 4px 10px; color: #dbe4ff; font-size: 13px;">Markussen Entrepren&oslash;r <span style="color:#93a8e8;">/</span> {{ prosjektNavn }} <span style="font-size:10px; color:#93a8e8;">&#9662;</span></div>
+          <div style="flex: 1;"></div>
+          <div style="width: 26px; height: 26px; border-radius: 50%; background: #f59e0b; color: #1f2937; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;">KM</div>
+        </div>
+        <!-- innhold -->
+        <div style="padding: 36px 48px 48px; max-width: 980px; margin: 0 auto;">
+          <div style="font-size: 24px; font-weight: 700; color: #111827;">Innstillinger</div>
+          <div style="font-size: 13.5px; color: #6b7280; margin-top: 4px;">Alle innstillinger for firma og prosjekt — samlet.</div>
+          <div style="display: flex; gap: 12px; margin-top: 20px; align-items: center;">
+            <div style="flex: 1; display: flex; align-items: center; gap: 10px; background: #fff; border: 1.5px solid #c9d0dc; border-radius: 8px; padding: 11px 14px;">
+              <div style="width: 14px; height: 14px; border: 2px solid #9aa3b2; border-radius: 50%; position: relative;"><div style="position:absolute; width:2px; height:7px; background:#9aa3b2; transform: rotate(-45deg); bottom:-5px; right:-3px; border-radius:2px;"></div></div>
+              <span style="color: #9aa3b2; font-size: 14px;">S&oslash;k i innstillinger&hellip; f.eks. &laquo;l&oslash;nnsart&raquo;, &laquo;moduler&raquo;, &laquo;brukere&raquo;</span>
+            </div>
+            <div style="display: flex; background: #e4e8ef; border-radius: 8px; padding: 3px;">
+              <div style="padding: 7px 16px; border-radius: 6px; background: #fff; font-size: 13px; font-weight: 600; color: #111827; box-shadow: 0 1px 2px rgba(0,0,0,0.08);">Alt</div>
+              <div style="padding: 7px 16px; font-size: 13px; color: #5b6472;">Firma</div>
+              <div style="padding: 7px 16px; font-size: 13px; color: #5b6472;">Prosjekt</div>
+            </div>
+          </div>
+
+          <!-- Firma-seksjon -->
+          <div style="display: flex; align-items: baseline; gap: 10px; margin-top: 34px;">
+            <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.09em; color: #1e40af; text-transform: uppercase;">Firma</div>
+            <div style="font-size: 12.5px; color: #8a93a3;">gjelder hele Markussen Entrepren&oslash;r AS</div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px;">
+            <sc-for list="{{ firmaKort }}" as="kort" hint-placeholder-count="6">
+              <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 9px; padding: 16px 18px;" style-hover="border-color:#1e40af;">
+                <div style="display: flex; align-items: center; gap: 11px;">
+                  <div style="width: 34px; height: 34px; border-radius: 7px; background: #e7edfb; color: #1e40af; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; letter-spacing: 0.03em;">{{ kort.tile }}</div>
+                  <div style="font-size: 14.5px; font-weight: 600; color: #111827;">{{ kort.navn }}</div>
+                </div>
+                <sc-if value="{{ visBeskrivelser }}" hint-placeholder-val="{{ true }}">
+                  <div style="font-size: 12.5px; color: #6b7280; margin-top: 9px; line-height: 1.45;">{{ kort.desc }}</div>
+                </sc-if>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px;">
+                  <sc-for list="{{ kort.lenker }}" as="lenke" hint-placeholder-count="2">
+                    <span style="font-size: 12px; color: #1e40af; background: #f2f5fb; border: 1px solid #dfe6f4; border-radius: 5px; padding: 3px 9px;">{{ lenke }}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <!-- Prosjekt-seksjon -->
+          <div style="display: flex; align-items: baseline; gap: 10px; margin-top: 34px;">
+            <div style="font-size: 12px; font-weight: 700; letter-spacing: 0.09em; color: #92610a; text-transform: uppercase;">Prosjekt</div>
+            <div style="font-size: 12.5px; color: #8a93a3;">gjelder kun {{ prosjektNavn }}</div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px;">
+            <sc-for list="{{ prosjektKort }}" as="kort" hint-placeholder-count="6">
+              <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 9px; padding: 16px 18px;" style-hover="border-color:#b8860b;">
+                <div style="display: flex; align-items: center; gap: 11px;">
+                  <div style="width: 34px; height: 34px; border-radius: 7px; background: #fbf3e2; color: #92610a; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center; letter-spacing: 0.03em;">{{ kort.tile }}</div>
+                  <div style="font-size: 14.5px; font-weight: 600; color: #111827;">{{ kort.navn }}</div>
+                </div>
+                <sc-if value="{{ visBeskrivelser }}" hint-placeholder-val="{{ true }}">
+                  <div style="font-size: 12.5px; color: #6b7280; margin-top: 9px; line-height: 1.45;">{{ kort.desc }}</div>
+                </sc-if>
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px;">
+                  <sc-for list="{{ kort.lenker }}" as="lenke" hint-placeholder-count="2">
+                    <span style="font-size: 12px; color: #92610a; background: #fdf9f0; border: 1px solid #f2e7cd; border-radius: 5px; padding: 3px 9px;">{{ lenke }}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 1b: Søk-først + ryddet sidebar ============ -->
+    <div id="1b" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">1b</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Globalt s&oslash;k (Ctrl+K) + sidebar delt i Prosjekt / Firma</span>
+      </div>
+      <div style="width: 1180px; height: 780px; background: #f6f7f9; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.12); border: 1px solid #d7dbe2; position: relative; display: flex; flex-direction: column;">
+        <!-- toppbar -->
+        <div style="height: 48px; background: #1e40af; display: flex; align-items: center; padding: 0 16px; gap: 14px; flex-shrink: 0;">
+          <div style="color: #fff; font-weight: 700; font-size: 14px;">SiteDoc</div>
+          <div style="width: 1px; height: 20px; background: rgba(255,255,255,0.25);"></div>
+          <div style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.12); border-radius: 5px; padding: 4px 10px; color: #dbe4ff; font-size: 13px;">Markussen Entrepren&oslash;r <span style="color:#93a8e8;">/</span> {{ prosjektNavn }} <span style="font-size:10px; color:#93a8e8;">&#9662;</span></div>
+          <div style="flex:1;"></div>
+          <div style="display: flex; align-items: center; gap: 8px; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 5px 12px; color: #b9c8f2; font-size: 12.5px;">S&oslash;k overalt <span style="background: rgba(255,255,255,0.15); border-radius: 4px; padding: 1px 6px; font-size: 11px;">Ctrl K</span></div>
+          <div style="width: 26px; height: 26px; border-radius: 50%; background: #f59e0b; color: #1f2937; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;">KM</div>
+        </div>
+        <div style="flex: 1; display: flex; min-height: 0;">
+          <!-- sidebar -->
+          <div style="width: 224px; background: #16233f; padding: 14px 10px; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;">
+            <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: #7285ad; padding: 6px 10px 4px;">PROSJEKT — {{ prosjektNavnKort }}</div>
+            <sc-for list="{{ sidebarProsjekt }}" as="el" hint-placeholder-count="8">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; color: {{ el.farge }}; background: {{ el.bg }}; font-size: 13px; font-weight: {{ el.vekt }};">
+                <div style="width: 7px; height: 7px; border-radius: 2px; background: currentColor; opacity: 0.55;"></div>{{ el.navn }}
+              </div>
+            </sc-for>
+            <div style="height: 1px; background: rgba(255,255,255,0.09); margin: 12px 8px;"></div>
+            <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: #7285ad; padding: 6px 10px 4px;">FIRMA</div>
+            <sc-for list="{{ sidebarFirma }}" as="el" hint-placeholder-count="4">
+              <div style="display: flex; align-items: center; gap: 10px; padding: 7px 10px; border-radius: 6px; color: #b6c2da; font-size: 13px;">
+                <div style="width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.55;"></div>{{ el }}
+              </div>
+            </sc-for>
+            <div style="flex: 1;"></div>
+            <div style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; color: #dbe4ff; background: rgba(255,255,255,0.07); font-size: 13px; font-weight: 600;">
+              <div style="width: 7px; height: 7px; border: 1.5px solid currentColor; border-radius: 50%;"></div>Innstillinger
+            </div>
+          </div>
+          <!-- dimmet innhold -->
+          <div style="flex: 1; padding: 30px 36px; filter: blur(1px); opacity: 0.45;">
+            <div style="font-size: 20px; font-weight: 700; color: #111827;">Dashbord</div>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 18px;">
+              <div style="height: 110px; background: #fff; border: 1px solid #dde2ea; border-radius: 9px;"></div>
+              <div style="height: 110px; background: #fff; border: 1px solid #dde2ea; border-radius: 9px;"></div>
+              <div style="height: 110px; background: #fff; border: 1px solid #dde2ea; border-radius: 9px;"></div>
+            </div>
+            <div style="height: 320px; background: #fff; border: 1px solid #dde2ea; border-radius: 9px; margin-top: 14px;"></div>
+          </div>
+        </div>
+        <!-- søk-overlay -->
+        <div style="position: absolute; inset: 0; background: rgba(15,23,42,0.42); display: flex; justify-content: center; padding-top: 90px;">
+          <div style="width: 620px; height: fit-content; background: #fff; border-radius: 12px; box-shadow: 0 24px 60px rgba(0,0,0,0.35); overflow: hidden;">
+            <div style="display: flex; align-items: center; gap: 12px; padding: 15px 18px; border-bottom: 1px solid #e8ebf0;">
+              <div style="width: 15px; height: 15px; border: 2px solid #6b7280; border-radius: 50%; position: relative;"><div style="position:absolute; width:2px; height:7px; background:#6b7280; transform: rotate(-45deg); bottom:-5px; right:-3px; border-radius:2px;"></div></div>
+              <span style="font-size: 15px; color: #111827;">l&oslash;nnsart<span style="border-left: 2px solid #1e40af; margin-left: 1px;"></span></span>
+              <div style="flex:1;"></div>
+              <span style="font-size: 11px; color: #9aa3b2; border: 1px solid #dde2ea; border-radius: 4px; padding: 2px 6px;">esc</span>
+            </div>
+            <div style="padding: 8px;">
+              <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; color: #8a93a3; padding: 8px 12px 4px;">INNSTILLINGER</div>
+              <sc-for list="{{ sokInnstillinger }}" as="r" hint-placeholder-count="3">
+                <div style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 7px; background: {{ r.bg }};">
+                  <div style="width: 28px; height: 28px; border-radius: 6px; background: #e7edfb; color: #1e40af; font-size: 10.5px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{ r.tile }}</div>
+                  <div>
+                    <div style="font-size: 13.5px; font-weight: 600; color: #111827;">{{ r.navn }}</div>
+                    <div style="font-size: 11.5px; color: #8a93a3;">{{ r.sti }}</div>
+                  </div>
+                  <div style="flex:1;"></div>
+                  <span style="font-size: 11px; color: #1e40af; font-weight: 600;">{{ r.hint }}</span>
+                </div>
+              </sc-for>
+              <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; color: #8a93a3; padding: 12px 12px 4px;">SIDER</div>
+              <sc-for list="{{ sokSider }}" as="r" hint-placeholder-count="2">
+                <div style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 7px;">
+                  <div style="width: 28px; height: 28px; border-radius: 6px; background: #fbf3e2; color: #92610a; font-size: 10.5px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{ r.tile }}</div>
+                  <div>
+                    <div style="font-size: 13.5px; font-weight: 600; color: #111827;">{{ r.navn }}</div>
+                    <div style="font-size: 11.5px; color: #8a93a3;">{{ r.sti }}</div>
+                  </div>
+                </div>
+              </sc-for>
+              <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; color: #8a93a3; padding: 12px 12px 4px;">HANDLINGER</div>
+              <div style="display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 7px;">
+                <div style="width: 28px; height: 28px; border-radius: 6px; background: #e6f7ef; color: #0b7a4b; font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: center;">+</div>
+                <div style="font-size: 13.5px; font-weight: 600; color: #111827;">Opprett ny l&oslash;nnsart</div>
+              </div>
+            </div>
+            <div style="display: flex; gap: 16px; padding: 10px 18px; border-top: 1px solid #e8ebf0; background: #fafbfc; font-size: 11px; color: #8a93a3;">
+              <span>&uarr;&darr; naviger</span><span>&crarr; &aring;pne</span><span>esc lukk</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ 1c: Mobil ============ -->
+    <div id="1c" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">1c</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Mobil — samme hub, touch-f&oslash;rst</span>
+      </div>
+      <div style="width: 390px; background: #f6f7f9; border-radius: 28px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2; display: flex; flex-direction: column;">
+        <!-- statusbar + header -->
+        <div style="background: #1e40af; padding: 14px 18px 14px; color: #fff;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #b9c8f2;"><span>09:41</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 14px;">
+            <div style="font-size: 21px; font-weight: 700;">Innstillinger</div>
+            <div style="font-size: 12.5px; color: #b9c8f2; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 5px 10px;">{{ prosjektNavnKort }} &#9662;</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,0.14); border-radius: 9px; padding: 12px 14px; margin-top: 14px;">
+            <div style="width: 13px; height: 13px; border: 2px solid #b9c8f2; border-radius: 50%; position: relative;"><div style="position:absolute; width:2px; height:6px; background:#b9c8f2; transform: rotate(-45deg); bottom:-4px; right:-3px; border-radius:2px;"></div></div>
+            <span style="font-size: 14px; color: #b9c8f2;">S&oslash;k i innstillinger&hellip;</span>
+          </div>
+        </div>
+        <!-- lister -->
+        <div style="padding: 18px 16px 8px;">
+          <div style="display: flex; align-items: baseline; gap: 8px; padding: 0 4px;">
+            <div style="font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em; color: #92610a;">PROSJEKT</div>
+            <div style="font-size: 11.5px; color: #9aa3b2;">{{ prosjektNavn }}</div>
+          </div>
+          <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 12px; margin-top: 8px; overflow: hidden;">
+            <sc-for list="{{ mobilProsjekt }}" as="rad" hint-placeholder-count="5">
+              <div style="display: flex; align-items: center; gap: 13px; padding: 13px 15px; min-height: 44px; box-sizing: border-box; border-bottom: 1px solid #eef1f5;">
+                <div style="width: 32px; height: 32px; border-radius: 7px; background: #fbf3e2; color: #92610a; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{ rad.tile }}</div>
+                <div style="flex: 1;">
+                  <div style="font-size: 15px; font-weight: 600; color: #111827;">{{ rad.navn }}</div>
+                  <div style="font-size: 12px; color: #8a93a3; margin-top: 1px;">{{ rad.desc }}</div>
+                </div>
+                <div style="color: #b6bdc9; font-size: 17px;">&rsaquo;</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display: flex; align-items: baseline; gap: 8px; padding: 0 4px; margin-top: 20px;">
+            <div style="font-size: 11.5px; font-weight: 700; letter-spacing: 0.09em; color: #1e40af;">FIRMA</div>
+            <div style="font-size: 11.5px; color: #9aa3b2;">Markussen Entrepren&oslash;r AS</div>
+          </div>
+          <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 12px; margin-top: 8px; overflow: hidden; margin-bottom: 16px;">
+            <sc-for list="{{ mobilFirma }}" as="rad" hint-placeholder-count="4">
+              <div style="display: flex; align-items: center; gap: 13px; padding: 13px 15px; min-height: 44px; box-sizing: border-box; border-bottom: 1px solid #eef1f5;">
+                <div style="width: 32px; height: 32px; border-radius: 7px; background: #e7edfb; color: #1e40af; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;">{{ rad.tile }}</div>
+                <div style="flex: 1;">
+                  <div style="font-size: 15px; font-weight: 600; color: #111827;">{{ rad.navn }}</div>
+                  <div style="font-size: 12px; color: #8a93a3; margin-top: 1px;">{{ rad.desc }}</div>
+                </div>
+                <div style="color: #b6bdc9; font-size: 17px;">&rsaquo;</div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <!-- tabbar -->
+        <div style="display: flex; border-top: 1px solid #dde2ea; background: #fff; padding: 10px 8px 22px;">
+          <sc-for list="{{ tabbar }}" as="tab" hint-placeholder-count="4">
+            <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 5px; color: {{ tab.farge }};">
+              <div style="width: 20px; height: 20px; border: 2px solid currentColor; border-radius: 5px; opacity: 0.85;"></div>
+              <span style="font-size: 10.5px; font-weight: 600;">{{ tab.navn }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{
+  &quot;$preview&quot;: {&quot;width&quot;: &quot;2900px&quot;},
+  &quot;prosjektNavn&quot;: {&quot;editor&quot;: &quot;text&quot;, &quot;default&quot;: &quot;Boligfelt B12&quot;, &quot;tsType&quot;: &quot;string&quot;, &quot;section&quot;: &quot;Innhold&quot;},
+  &quot;visBeskrivelser&quot;: {&quot;editor&quot;: &quot;boolean&quot;, &quot;default&quot;: true, &quot;tsType&quot;: &quot;boolean&quot;, &quot;section&quot;: &quot;Utseende&quot;}
+}">
+class Component extends DCLogic {
+  renderVals() {
+    const prosjektNavn = this.props.prosjektNavn ?? "Boligfelt B12";
+    return {
+      prosjektNavn,
+      prosjektNavnKort: prosjektNavn.length > 16 ? prosjektNavn.slice(0, 14) + "…" : prosjektNavn,
+      visBeskrivelser: this.props.visBeskrivelser ?? true,
+
+      firmaKort: [
+        { tile: "FI", navn: "Firmaprofil", desc: "Navn, org.nr, logo og fakturaadresse", lenker: ["Firmainfo", "Fakturering"] },
+        { tile: "AN", navn: "Ansatte og roller", desc: "Ansatte, tilganger og avdelinger", lenker: ["Ansatte", "Avdelinger"] },
+        { tile: "KO", navn: "Kompetanse", desc: "Kompetansematrise og sertifikater", lenker: ["Matrise", "Import"] },
+        { tile: "TI", navn: "Timer", desc: "Lønnsarter, aktiviteter og tillegg", lenker: ["Lønnsarter", "Aktiviteter", "Tillegg"] },
+        { tile: "MA", navn: "Maskin", desc: "Utstyrsregister, EU-kontroll og vedlikehold", lenker: ["Register", "Vedlikehold"] },
+        { tile: "HM", navn: "HMS", desc: "Firmaovergripende HMS-oversikt og varsling", lenker: ["Dashbord", "Varsling"] },
+      ],
+      prosjektKort: [
+        { tile: "PR", navn: "Prosjektoppsett", desc: "Navn, byggeplasser og grunninfo", lenker: ["Generelt", "Byggeplasser", "Lokasjoner"] },
+        { tile: "MO", navn: "Moduler", desc: "Slå prosjektmoduler av og på", lenker: ["Moduler av/på"] },
+        { tile: "ME", navn: "Medlemmer", desc: "Prosjektdeltakere og faggrupper", lenker: ["Medlemmer", "Faggrupper"] },
+        { tile: "ML", navn: "Maler", desc: "Sjekkliste- og oppgavemaler for prosjektet", lenker: ["Sjekklistemaler", "Oppgavemaler"] },
+        { tile: "DF", navn: "Dokumentflyt", desc: "Flytregler og mottakere mellom faggrupper", lenker: ["Dokumentflyt", "Flytregler"] },
+        { tile: "SØ", navn: "Søk og AI", desc: "Dokumentsøk og AI-innstillinger", lenker: ["AI-søk"] },
+      ],
+
+      sidebarProsjekt: [
+        { navn: "Dashbord", farge: "#dbe4ff", bg: "rgba(255,255,255,0.10)", vekt: 600 },
+        { navn: "Sjekklister", farge: "#b6c2da", bg: "transparent", vekt: 400 },
+        { navn: "Oppgaver", farge: "#b6c2da", bg: "transparent", vekt: 400 },
+        { navn: "HMS", farge: "#b6c2da", bg: "transparent", vekt: 400 },
+        { navn: "Tegninger", farge: "#b6c2da", bg: "transparent", vekt: 400 },
+        { navn: "Bilder", farge: "#b6c2da", bg: "transparent", vekt: 400 },
+        { navn: "Kontrollplan", farge: "#b6c2da", bg: "transparent", vekt: 400 },
+        { navn: "Timer", farge: "#b6c2da", bg: "transparent", vekt: 400 },
+        { navn: "Kontakter", farge: "#b6c2da", bg: "transparent", vekt: 400 },
+      ],
+      sidebarFirma: ["Brukere", "Kompetanse", "Maskin", "Timer-katalog"],
+
+      sokInnstillinger: [
+        { tile: "TI", navn: "Lønnsarter", sti: "Firma › Timer › Lønnsarter", hint: "↵", bg: "#eef3fd" },
+        { tile: "TI", navn: "Tillegg og satser", sti: "Firma › Timer › Tillegg", hint: "", bg: "transparent" },
+        { tile: "TI", navn: "Timer-onboarding", sti: "Firma › Timer › Onboarding", hint: "", bg: "transparent" },
+      ],
+      sokSider: [
+        { tile: "AT", navn: "Timer-attestering", sti: "Prosjekt › Timer › Attestering" },
+        { tile: "MT", navn: "Mine timer", sti: "Min side › Timer" },
+      ],
+
+      mobilProsjekt: [
+        { tile: "MO", navn: "Moduler", desc: "Av/på per prosjekt" },
+        { tile: "ME", navn: "Medlemmer", desc: "Deltakere og faggrupper" },
+        { tile: "ML", navn: "Maler", desc: "Sjekklister og oppgaver" },
+        { tile: "DF", navn: "Dokumentflyt", desc: "Flytregler og mottakere" },
+        { tile: "LO", navn: "Lokasjoner", desc: "Byggeplasser og soner" },
+      ],
+      mobilFirma: [
+        { tile: "FI", navn: "Firmaprofil", desc: "Navn, org.nr og faktura" },
+        { tile: "BR", navn: "Brukere", desc: "Ansatte og tilganger" },
+        { tile: "TI", navn: "Timer", desc: "Lønnsarter og tillegg" },
+        { tile: "MA", navn: "Maskin", desc: "Utstyrsregister" },
+      ],
+      mobilMapper: [
+        { tile: "MA", navn: "Verneutstyr", info: "8 dokumenter · arver språk" },
+        { tile: "MA", navn: "Kjemikalier", info: "12 dokumenter · egne språk: PL LT UK" },
+      ],
+      mobilDok: [
+        { type: "PDF", navn: "Sikkerhetsdatablad-lim.pdf", prikk: "#10b981", status: "Oversatt · PL LT", statusFarge: "#0b7a4b" },
+        { type: "PDF", navn: "Monteringsanvisning-vindu.pdf", prikk: "#f59e0b", status: "Oversetter til polsk…", statusFarge: "#92610a" },
+        { type: "DOC", navn: "Toolbox-talk-stillas.docx", prikk: "#10b981", status: "Oversatt · PL LT", statusFarge: "#0b7a4b" },
+      ],
+      tabbarDok: [
+        { navn: "Hjem", farge: "#9aa3b2" },
+        { navn: "Tegninger", farge: "#9aa3b2" },
+        { navn: "Dokumenter", farge: "#1e40af" },
+        { navn: "Timer", farge: "#9aa3b2" },
+        { navn: "Mer", farge: "#9aa3b2" },
+      ],
+      tabbarTegning: [
+        { navn: "Hjem", farge: "#9aa3b2" },
+        { navn: "Tegninger", farge: "#1e40af" },
+        { navn: "Dokumenter", farge: "#9aa3b2" },
+        { navn: "Timer", farge: "#9aa3b2" },
+        { navn: "Mer", farge: "#9aa3b2" },
+      ],
+      mobilTegningGrupper: [
+        { navn: "BLOKK A", rader: [
+          { navn: "Plan 1", info: "Rev. C · 14 punkter", thumb: "plan 1", standard: true },
+          { navn: "Plan 2", info: "Rev. B · 6 punkter", thumb: "plan 2", standard: false },
+          { navn: "Fasade nord", info: "Rev. A", thumb: "fasade", standard: false },
+        ]},
+        { navn: "BLOKK B", rader: [
+          { navn: "Plan 1", info: "Rev. A · 2 punkter", thumb: "plan 1", standard: false },
+        ]},
+      ],
+      mappeTre: [
+        { navn: "Kontrakter", innrykk: "10px", bg: "transparent", vekt: 400, farge: "#5b6472" },
+        { navn: "HMS", innrykk: "10px", bg: "transparent", vekt: 400, farge: "#5b6472" },
+        { navn: "Datablader", innrykk: "26px", bg: "#eef3fd", vekt: 600, farge: "#1e40af" },
+        { navn: "Verneutstyr", innrykk: "26px", bg: "transparent", vekt: 400, farge: "#5b6472" },
+        { navn: "Tegningsunderlag", innrykk: "10px", bg: "transparent", vekt: 400, farge: "#5b6472" },
+        { navn: "Kvalitet", innrykk: "10px", bg: "transparent", vekt: 400, farge: "#5b6472" },
+      ],
+      dokTabell: [
+        { type: "PDF", navn: "Sikkerhetsdatablad-lim.pdf", sprak: "Norsk", varsel: "", bg: "transparent", handling: "Les",
+          chips: [{ txt: "PL ✓", farge: "#0b7a4b", bg: "#e6f7ef" }, { txt: "LT ✓", farge: "#0b7a4b", bg: "#e6f7ef" }] },
+        { type: "PDF", navn: "Monteringsanvisning-vindu.pdf", sprak: "Norsk", varsel: "", bg: "transparent", handling: "Les",
+          chips: [{ txt: "PL …", farge: "#92610a", bg: "#fbf3e2" }, { txt: "LT ✓", farge: "#0b7a4b", bg: "#e6f7ef" }] },
+        { type: "PDF", navn: "Sikkerhetsdatablad-fugeskum.pdf", sprak: "Litauisk?", varsel: "Avviker fra prosjektspråk — bekreft med ett klikk", bg: "#fdf9ef", handling: "Bekreft",
+          chips: [{ txt: "venter", farge: "#92610a", bg: "#fbf3e2" }] },
+        { type: "DOC", navn: "Toolbox-talk-stillas.docx", sprak: "Norsk", varsel: "", bg: "transparent", handling: "Les",
+          chips: [{ txt: "PL ✓", farge: "#0b7a4b", bg: "#e6f7ef" }, { txt: "LT ✓", farge: "#0b7a4b", bg: "#e6f7ef" }] },
+        { type: "PDF", navn: "Bruksanvisning-lift.pdf", sprak: "Norsk", varsel: "", bg: "transparent", handling: "Oversett",
+          chips: [{ txt: "ikke oversatt", farge: "#5b6472", bg: "#f1f3f7" }] },
+      ],
+      spraakChips: [
+        { txt: "Polsk", farge: "#1e40af", bg: "#eef3fd", kant: "#d5e0f7" },
+        { txt: "Litauisk", farge: "#1e40af", bg: "#eef3fd", kant: "#d5e0f7" },
+        { txt: "Ukrainsk", farge: "#5b6472", bg: "#fff", kant: "#dde2ea" },
+        { txt: "Rumensk", farge: "#5b6472", bg: "#fff", kant: "#dde2ea" },
+        { txt: "+ flere", farge: "#8a93a3", bg: "#fff", kant: "#dde2ea" },
+      ],
+      leserSprak: [
+        { txt: "NB · kilde", farge: "#5b6472", bg: "#fff", kant: "#dde2ea" },
+        { txt: "PL", farge: "#fff", bg: "#1e40af", kant: "#1e40af" },
+        { txt: "LT", farge: "#5b6472", bg: "#fff", kant: "#dde2ea" },
+        { txt: "+ Oversett", farge: "#1e40af", bg: "#eef3fd", kant: "#d5e0f7" },
+      ],
+      tabbar: [
+        { navn: "Hjem", farge: "#9aa3b2" },
+        { navn: "Sjekklister", farge: "#9aa3b2" },
+        { navn: "Timer", farge: "#9aa3b2" },
+        { navn: "Innstillinger", farge: "#1e40af" },
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

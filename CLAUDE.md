@@ -21,6 +21,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/onboarding-veileder.md](docs/claude/onboarding-veileder.md) | **🟡 IDÉ:** Onboarding-veileder for firma (post-Fase 0) |
 | [docs/claude/prosjektoppsett-veileder.md](docs/claude/prosjektoppsett-veileder.md) | **🟡 PLAN:** Steg-for-steg ny bruker etter prosjektopprettelse |
 | [docs/claude/navigasjon-arkitektur-analyse-2026-05-03.md](docs/claude/navigasjon-arkitektur-analyse-2026-05-03.md) | **🟢 ANKER:** Komplett navigasjons-kartlegging mot tre-nivå-arkitektur |
+| [docs/redesign/redesign-handoff.md](docs/redesign/redesign-handoff.md) | **🟢 REDESIGN (branch `redesign/navigasjon`):** Designreferanse + spec + strategi (develop-bak-flagg, main-ren, eget stack senere). Følgefiler: HTML-prototyper 1a–2c, screenshots, K-BESLUTNINGER |
+| [docs/claude/redesign-paritetssjekkliste.md](docs/claude/redesign-paritetssjekkliste.md) | **🟢 REDESIGN-AKSEPTKRITERIUM:** Funksjonsparitet (130 rader), K1–K11, fremdrift. Fylles under `nyNavigasjon`-flagg-test |
 | [docs/claude/ux-arkitektur-agenda.md](docs/claude/ux-arkitektur-agenda.md) | **🟢 BESLUTNINGER (2026-05-06):** UX/arkitektur-gjennomgang, 2 vedtak + 5 åpne |
 | [docs/claude/admin-navigasjon-analyse-2026-05-03.md](docs/claude/admin-navigasjon-analyse-2026-05-03.md) | **🟡 AKTIV:** UX-funn admin/firma-kontekst, 6 prioriterte tiltak |
 | [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md) | **🟢 STYRENDE:** Virkelig arbeidsflyt — alle arkitektur-beslutninger skal forklares herfra |
