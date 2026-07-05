@@ -21,7 +21,7 @@ import { ProsjektVelgerPanel } from "./ProsjektVelger";
  */
 export function KontekstChip() {
   const { t } = useTranslation();
-  const { valgtFirma, erSitedocAdmin } = useFirma();
+  const { valgtFirma, erSitedocAdmin, tilgjengelige } = useFirma();
   const { valgtProsjekt, prosjektId, lasterValgtProsjekt, prosjektScope } = useProsjekt();
   const [apen, setApen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -36,10 +36,20 @@ export function KontekstChip() {
     return () => document.removeEventListener("mousedown", handleKlikk);
   }, []);
 
-  const firmaTekst = valgtFirma?.name ?? t("kontekstChip.velgFirma");
+  // c3: aldri «Velg firma / {konkret prosjekt}». Utled firma fra prosjektets
+  // primaryOrganization når det ikke er eksplisitt valgt (typisk sitedoc_admin
+  // som ikke har plukket firma). company_admin/vanlig bruker har valgtFirma
+  // auto-satt, så navnet vises direkte.
+  const firmaNavn =
+    valgtFirma?.name ??
+    (valgtProsjekt?.primaryOrganizationId
+      ? tilgjengelige.find((f) => f.id === valgtProsjekt.primaryOrganizationId)?.name ?? null
+      : null);
+
+  const laster = !!prosjektId && lasterValgtProsjekt && !valgtProsjekt;
 
   const prosjektTekst = valgtProsjekt?.name
-    ?? (prosjektId && lasterValgtProsjekt
+    ?? (laster
       ? t("kontekstChip.laster")
       : prosjektScope === "alle"
         ? t("prosjektVelger.alleProsjekter")
@@ -54,9 +64,19 @@ export function KontekstChip() {
         className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-1.5 text-sm text-white transition-colors hover:bg-white/20"
       >
         <Building2 className="h-4 w-4 shrink-0" />
-        <span className="max-w-[130px] truncate text-blue-100">{firmaTekst}</span>
-        <span className="text-blue-300">/</span>
-        <span className="max-w-[180px] truncate">{prosjektTekst}</span>
+        {firmaNavn ? (
+          <>
+            <span className="max-w-[130px] truncate text-blue-100">{firmaNavn}</span>
+            <span className="text-blue-300">/</span>
+            <span className="max-w-[180px] truncate">{prosjektTekst}</span>
+          </>
+        ) : valgtProsjekt || laster ? (
+          /* Frittstående prosjekt (ingen firma) eller under lasting: vis kun
+             prosjekt-delen — aldri «Velg firma / {prosjekt}». */
+          <span className="max-w-[220px] truncate">{prosjektTekst}</span>
+        ) : (
+          <span className="max-w-[220px] truncate text-blue-100">{t("kontekstChip.velgFirma")}</span>
+        )}
         <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${apen ? "rotate-180" : ""}`} />
       </button>
 
