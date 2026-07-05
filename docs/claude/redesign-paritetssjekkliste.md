@@ -184,15 +184,15 @@ Rollebasert rekkefølge per Kenneths spec 2026-05-04 beholdes.
 
 | # | Funksjon | Kilde | Ny inngang | Gating | Verifisert |
 |---|---|---|---|---|---|
-| T1 | FirmaVelger | `Toppbar.tsx:85` `FirmaVelger` | kontekst-chip (firma-del) | `erSitedocAdmin` | |
-| T2 | Firma-fastlenke → `/dashbord/firma` | `Toppbar.tsx:91` | chip / sidebar-F | `erCompanyAdmin` + organisasjon | |
-| T3 | ProsjektVelger + scope (Alle/Mine/enkelt, B1) | `ProsjektVelger` | kontekst-chip (prosjekt-del, hierarkisk) | scope kun admin-roller; `prosjektScope` persistert | |
-| T4 | ByggeplassVelger (m/ disabling) | `ByggeplassVelger` | chip / kontekst-linje | `useToppbarFiltre` → `disabled` når `!byggeplassAktiv` | |
-| T5 | FirmaKontekstVelger | `Toppbar.tsx:102` | chip i firma-kontekst | `erFirmaKontekst` (`/dashbord/firma*`) | |
-| T6 | SpråkVelger | `Toppbar.tsx:130` `SpraakVelger` | behold i toppbar (uendret) | alle | |
-| T7 | Brukermeny (avatar + logg ut) | `Toppbar.tsx:131-163` | behold i toppbar | innlogget | |
-| T8 | Admin-inngang | `Toppbar.tsx:117` | behold (amber) | `erSitedocAdmin` | |
-| T9 | Hamburger mobilmeny (web-viewport <md) | `Toppbar.tsx:63-68,166-209` | ny mobil-web-meny (paritet) | `kreverProsjekt`-disabling bevares | |
+| T1 | FirmaVelger | `Toppbar.tsx:85` `FirmaVelger` | kontekst-chip (firma-del) | `erSitedocAdmin` | ✓ |
+| T2 | Firma-fastlenke → `/dashbord/firma` | `Toppbar.tsx:91` | chip / sidebar-F | `erCompanyAdmin` + organisasjon | ✓ (c3: firma utledes fra prosjektets primaryOrganization når ikke valgt) |
+| T3 | ProsjektVelger + scope (Alle/Mine/enkelt, B1) | `ProsjektVelger` | kontekst-chip (prosjekt-del, hierarkisk) | scope kun admin-roller; `prosjektScope` persistert | ✓ |
+| T4 | ByggeplassVelger (m/ disabling) | `ByggeplassVelger` | chip / kontekst-linje | `useToppbarFiltre` → `disabled` når `!byggeplassAktiv` | ✓ (uendret) |
+| T5 | FirmaKontekstVelger | `Toppbar.tsx:102` | chip i firma-kontekst | `erFirmaKontekst` (`/dashbord/firma*`) | ✓ (chip gjelder også firma-ruter; FirmaKontekstVelger droppes m/flagg på) |
+| T6 | SpråkVelger | `Toppbar.tsx:130` `SpraakVelger` | behold i toppbar (uendret) | alle | ✓ |
+| T7 | Brukermeny (avatar + logg ut) | `Toppbar.tsx:131-163` | behold i toppbar | innlogget | ✓ |
+| T8 | Admin-inngang | `Toppbar.tsx:117` | behold (amber) | `erSitedocAdmin` | ✓ |
+| T9 | Hamburger mobilmeny (web-viewport <md) | `Toppbar.tsx:63-68,166-209` | ny mobil-web-meny (paritet) | `kreverProsjekt`-disabling bevares | ⏳ **restanse:** mobil-web-hamburger bruker fortsatt gammel nav m/flagg på — ikke bygget i steg iii |
 
 ## Seksjon (b) — Sidebar-gating + modul-fargeaksent som må overleve (README §4)
 
@@ -200,18 +200,18 @@ Kilde: `apps/web/src/components/layout/HovedSidebar.tsx` + `firma/layout.tsx` + 
 
 | # | Mekanisme | Hvor | Må bevares som | Verifisert |
 |---|---|---|---|---|
-| G1 | `kreverModul` (ProjectModule aktiv) | HovedSidebar `filtrertHovedelementer` | hms-avvik, kontrollplan, okonomi, psi | |
-| G2 | `kreverGruppemodul` (mineModuler; admin/registrator-bypass) | HovedSidebar:270 | sjekklister, oppgaver, tegninger, 3d | |
-| G3 | `kreverFirmaModul` timer/varelager (ProjectModule på prosjekt) | HovedSidebar:273-274 | timer, timer-attestering, vareforbruk — **K7: leses via felles gating-abstraksjonslag** | |
-| G4 | `kreverFirmaModul="maskin"` (aktiveFirmamoduler) | HovedSidebar bunnelement:347 | maskin — **K7: samme abstraksjonslag** (én endring ved OrganizationModule-overgang) | |
-| G5 | `kreverIfc` (avledet fra byggeplassens drawings) | HovedSidebar:253-258 | 3d-visning, tegning-3d | |
-| G6 | `kreverTimerLeder` (kanAttestere) | HovedSidebar:276 | timer-attestering | |
-| G7 | `tillatelse` (Permission) | HovedSidebar:264 / oppsett `manage_field` | generisk permission-gate | |
-| G8 | `kreverHmsTilgang` (harHmsTilgang / `hms_ansvarlig`) | firma/layout | firma-HMS | |
-| G9 | `kreverSitedocAdmin` | firma/layout (Fakturering) | fakturering | |
-| G10 | Modul-fargeaksent (border-left 3px + farget ikon) | `MODUL_EIERSKAP` + `MODUL_FARGER` (B3) | timer=grønn, maskin=amber, varelager=teal, prosjekt=blå | |
-| G11 | Deaktiverte ikoner uten valgt prosjekt | HovedSidebar:297 `opacity-40 cursor-not-allowed` | alle `kreverProsjekt`-elementer | |
-| G12 | «Aktivt element»-markering (aria-current) | HovedSidebar `aktivSeksjon` | ny sidebar må reprodusere aktiv-tilstand | |
+| G1 | `kreverModul` (ProjectModule aktiv) | HovedSidebar `filtrertHovedelementer` | hms-avvik, kontrollplan, okonomi, psi | ✓ (delt `useSidebarElementer`) |
+| G2 | `kreverGruppemodul` (mineModuler; admin/registrator-bypass) | HovedSidebar:270 | sjekklister, oppgaver, tegninger, 3d | ✓ (delt, verbatim) |
+| G3 | `kreverFirmaModul` timer/varelager (ProjectModule på prosjekt) | HovedSidebar:273-274 | timer, timer-attestering, vareforbruk — **K7: leses via felles gating-abstraksjonslag** | ✓ gating bevart (K7-abstraksjon fortsatt utsatt) |
+| G4 | `kreverFirmaModul="maskin"` (aktiveFirmamoduler) | HovedSidebar bunnelement:347 | maskin — **K7: samme abstraksjonslag** (én endring ved OrganizationModule-overgang) | ✓ gating bevart; Maskin nå i FIRMA-sone (K1) |
+| G5 | `kreverIfc` (avledet fra byggeplassens drawings) | HovedSidebar:253-258 | 3d-visning, tegning-3d | ✓ |
+| G6 | `kreverTimerLeder` (kanAttestere) | HovedSidebar:276 | timer-attestering | ✓ |
+| G7 | `tillatelse` (Permission) | HovedSidebar:264 / oppsett `manage_field` | generisk permission-gate | ✓ |
+| G8 | `kreverHmsTilgang` (harHmsTilgang / `hms_ansvarlig`) | firma/layout | firma-HMS | ✓ (FIRMA-sone) |
+| G9 | `kreverSitedocAdmin` | firma/layout (Fakturering) | fakturering | ✓ (FIRMA-sone) |
+| G10 | Modul-fargeaksent (border-left 3px + farget ikon) | `MODUL_EIERSKAP` + `MODUL_FARGER` (B3) | timer=grønn, maskin=amber, varelager=teal, prosjekt=blå | ✓ |
+| G11 | Deaktiverte ikoner uten valgt prosjekt | HovedSidebar:297 `opacity-40 cursor-not-allowed` | alle `kreverProsjekt`-elementer | ✓ |
+| G12 | «Aktivt element»-markering (aria-current) | HovedSidebar `aktivSeksjon` | ny sidebar må reprodusere aktiv-tilstand | ✓ (c2: maks én aktiv rad, lengste-prefiks-vinner) |
 
 ## Seksjon (c) — Tverrgående standarder (README §5–6, «lette å miste»)
 
@@ -331,8 +331,8 @@ Toppbar (T) 9 · Sidebar-gating (G) 12 · Standarder (S) 6 · Mobil (M) 19 = **1
 | K9-opprydding | ✅ | `Toppmeny.tsx` + legacy-layout slettet; 7 legacy-sider → redirects |
 | Flagg-infra | ✅ | `useNyNavigasjon()` (`apps/web/src/hooks/`) — localStorage + `?nyNav=1`, eneste kilde. Flagg av = eksakt dagens UI. Plattform-abstraksjon (AsyncStorage) noteres for 2a |
 | (ii) 1a hub | ✅ bygget | `/dashbord/innstillinger` — FIRMA/PROSJEKT-seksjoner, kort m/ underlenke-chips, søk + segmentert filter, gating (kanAdministrereFirma / prosjektId / firmamoduler / manage_field), hjelpetekst, i18n (61 nøkler × 15 språk). **Direkte nåbar via URL uavhengig av flagget.** Justeringer a–e (2026-07-05): (a) seksjonsfarge-headere, (b) chip-dedup Kompetanse/HMS, (c) Mappeoppsett + PSI-mal-innganger (O9/O10), (d) prosjektnavn-interpolasjon, (e) Fakturering-gating-kommentar (K12). **Test-verifisering mot 1a (2026-07-05):** (2) `manage_field`-gating fikk admin/registrator-bypass (`erSitedocAdmin`/`erCompanyAdmin`/`minFlytInfo.erAdmin`) — speiler HovedSidebar; sitedoc_admin så ikke Moduler/Maler/Dokumentflyt før. (1)+(3) var alt i `eca2e571`, ventet på test-deploy |
-| (ii) 1b hub-fix (funn 1b) | ✅ bygget | Commit `5b576d25`. Tre-tilstands prosjekt-resolving i huben: undertekst + PROSJEKT-kort + hint nøkles på resolvet `valgtProsjekt`, ikke rå `prosjektId`. Ny `lasterValgtProsjekt` eksponert fra prosjekt-kontekst → «Laster prosjekt …» mens persistert id resolves; feilet fetch → hint (ikke evig lasting). Hindrer tom navn-streng + hint-blink ved fersk økt. **Venter inkognito-verifisering på test.** |
-| (iii) 1b sidebar + kontekst-chip | 🔨 bygget | Bak `useNyNavigasjon`. **NavSidebar** (PROSJEKT-sone: dagens elementer + P31 Kontakter, uendret G1–G12 + fargeaksent · FIRMA-sone admin-gated, speiler alle 15 firma/layout-innganger · Innstillinger fast nederst → huben; gjelder overalt m/flagg på, firma-layout-sidebar + FirmaKontekstVelger droppes da — løser P4). **KontekstChip** «{Firma} / {Prosjekt} ▾» erstatter FirmaVelger+ProsjektVelger, gjenbruker panel-innmater (scope/favoritter/søk bevart), 1b-lastetilstand i teksten. **P31 Kontakter** read-only lesevisning (`/dashbord/[prosjektId]/kontakter`). Gating G1–G12 ekstrahert til delt `sidebar-elementer.tsx` (`useSidebarElementer`) — HovedSidebar (flagg av) konsumerer samme, verbatim. i18n 36 nøkler × 15 språk. **Polish (fabel-gjennomgang):** Maskin flyttet til FIRMA-sonen (K1); c2 dobbel-aktiv fikset (maks én aktiv rad, lengste-prefiks-vinner + prosjekt-rader lyser ikke på firma/hub-ruter); Innstillinger-footer pinned (scroll kun i nav); «Mine timer» interim i PROSJEKT-sone (FM5/K2 → brukermeny i steg iv). Godkjente avvik: brand-blå sidebar, PROSJEKT-etikett uten prosjektnavn. **Venter test-verifisering (T/G-rader).** |
+| (ii) 1b hub-fix (funn 1b) | ✅ bygget | Commit `5b576d25`. Tre-tilstands prosjekt-resolving i huben: undertekst + PROSJEKT-kort + hint nøkles på resolvet `valgtProsjekt`, ikke rå `prosjektId`. Ny `lasterValgtProsjekt` eksponert fra prosjekt-kontekst → «Laster prosjekt …» mens persistert id resolves; feilet fetch → hint (ikke evig lasting). Hindrer tom navn-streng + hint-blink ved fersk økt. **✅ Inkognito-verifisert på test (fabel, 2026-07-05):** nøytral chip+hint ved tom state, «Laster …»→navn uten blink (hard refresh ×3), `?nyNav=0` persistent av. |
+| (iii) 1b sidebar + kontekst-chip | ✅ | Bak `useNyNavigasjon`. **NavSidebar** (PROSJEKT-sone: dagens elementer + P31 Kontakter, uendret G1–G12 + fargeaksent · FIRMA-sone admin-gated, speiler alle 15 firma/layout-innganger · Innstillinger fast nederst → huben; gjelder overalt m/flagg på, firma-layout-sidebar + FirmaKontekstVelger droppes da — løser P4). **KontekstChip** «{Firma} / {Prosjekt} ▾» erstatter FirmaVelger+ProsjektVelger, gjenbruker panel-innmater (scope/favoritter/søk bevart), 1b-lastetilstand i teksten. **P31 Kontakter** read-only lesevisning (`/dashbord/[prosjektId]/kontakter`). Gating G1–G12 ekstrahert til delt `sidebar-elementer.tsx` (`useSidebarElementer`) — HovedSidebar (flagg av) konsumerer samme, verbatim. i18n 36 nøkler × 15 språk. **Polish (fabel-gjennomgang):** Maskin flyttet til FIRMA-sonen (K1); c2 dobbel-aktiv fikset (maks én aktiv rad, lengste-prefiks-vinner + prosjekt-rader lyser ikke på firma/hub-ruter); Innstillinger-footer pinned (scroll kun i nav); «Mine timer» interim i PROSJEKT-sone (FM5/K2 → brukermeny i steg iv). Godkjente avvik: brand-blå sidebar, PROSJEKT-etikett uten prosjektnavn. **c3:** chip viser aldri «Velg firma / {prosjekt}» — firma utledes fra prosjektets primaryOrganization når ikke eksplisitt valgt (frittstående prosjekt → kun prosjekt-del). **✅ DESIGNGODKJENT + T/G-verifisert på test (fabel, 2026-07-05).** Restanse: T9 mobil-web-hamburger bruker fortsatt gammel nav m/flagg på (ikke bygget i steg iii). |
 | (iv) 1b søkemodal | ⏳ | |
 | (v) 2b oversettelsespanel | ⏳ | |
 | (vi) 2a mobil-tabs | ⏳ | RN-variant av `useNyNavigasjon` (AsyncStorage) |
