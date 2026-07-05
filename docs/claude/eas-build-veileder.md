@@ -31,6 +31,8 @@ Sky-bygg er **knappe**: ~15 iOS-bygg/mnd på fri plan, **reset den 1. i måneden
 |-----|-------|------|
 | Juli 2026 | 1 av ~15 | #37 (bygg-ID `496b6a63`, commit `bc744f82`, 01.07, status `finished`) — mobil-MS + F-G → TestFlight |
 
+**Neste batch (kø, ikke bygget):** ② maskin-velger søk/filter + maskin≤arbeid-disable (mobil, `731770da`) · ③ strukturert overtid auto-gen (mobil, `c9cc40ef`). Sist bygget: #37 (mobil-MS + F-G). Fyres samlet ved neste TestFlight-leveranse (kvote-bevisst — ikke eget bygg per sak).
+
 ## Profiler (`apps/mobile/eas.json`)
 
 | Profil | `EXPO_PUBLIC_API_URL` | Bruk |
