@@ -18,7 +18,6 @@ import {
   AlertCircle,
   BookOpen,
   Globe,
-  Loader2 as Spinner2,
 } from "lucide-react";
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -26,10 +25,64 @@ import { beregnSynligeMapper } from "@sitedoc/shared/utils";
 import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils";
 import { useTranslation } from "react-i18next";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
+import { OversettelsePanel } from "./OversettelsePanel";
+
+/**
+ * Oversettelses-chips per målspråk (2b). Grønn `PL ✓` = oversatt, amber `PL …`
+ * = pågår (pending/processing slås sammen — systemtilstand, ikke brukerinfo;
+ * eksakt status i title), grå `PL` = ikke oversatt.
+ */
+function OversettelseChips({
+  rad,
+  malSprak,
+}: {
+  rad: {
+    sourceLanguage: string;
+    oversettelse?: {
+      tilgjengelig: string[];
+      jobber: Array<{ lang: string; status: string }>;
+    } | null;
+  };
+  malSprak: string[];
+}) {
+  const mål = malSprak.filter((l) => l !== rad.sourceLanguage);
+  if (mål.length === 0) return <span className="text-xs text-gray-300">—</span>;
+  const tilgjengelig = new Set(rad.oversettelse?.tilgjengelig ?? []);
+  const jobbStatus = new Map((rad.oversettelse?.jobber ?? []).map((j) => [j.lang, j.status]));
+  return (
+    <div className="flex flex-wrap gap-1">
+      {mål.map((l) => {
+        const kode = l.toUpperCase();
+        const done = tilgjengelig.has(l);
+        const status = jobbStatus.get(l);
+        const pågår = !done && (status === "pending" || status === "processing");
+        return (
+          <span
+            key={l}
+            title={status ?? undefined}
+            className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+              done
+                ? "bg-green-100 text-green-700"
+                : pågår
+                  ? "bg-amber-100 text-amber-700"
+                  : "bg-gray-100 text-gray-400"
+            }`}
+          >
+            {kode}
+            {done ? " ✓" : pågår ? " …" : ""}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function MapperSide() {
   useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
+  const nyNav = useNyNavigasjon();
+  const [visOversettelse, setVisOversettelse] = useState(false);
   const { prosjektId } = useProsjekt();
   const { data: session } = useSession();
   const searchParams = useSearchParams();
@@ -257,17 +310,42 @@ export default function MapperSide() {
     languageConfirmed: boolean;
     chunksTotalt: number;
     chunksEmbedded: number;
+    oversettelse?: {
+      tilgjengelig: string[];
+      pågår: boolean;
+      jobber: Array<{ lang: string; status: string }>;
+    } | null;
   };
 
+  const malListe = mappeSprak.filter((l) => l !== prosjektKildesprak);
+
   return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <FolderOpen className="h-5 w-5 text-amber-500" />
-          <h2 className="text-xl font-bold text-gray-900">
+    <div className="flex gap-0">
+      <div className="min-w-0 flex-1">
+      <div className="mb-6 flex items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2">
+          <FolderOpen className="h-5 w-5 shrink-0 text-amber-500" />
+          <h2 className="truncate text-xl font-bold text-gray-900">
             {valgtMappe?.name ?? "Mappe"}
           </h2>
         </div>
+        <div className="flex shrink-0 items-center gap-2">
+        {nyNav && valgtMappeId && (
+          <button
+            onClick={() => setVisOversettelse((v) => !v)}
+            className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            title={t("oversettelse.knapp")}
+          >
+            <Globe className="h-4 w-4 text-sitedoc-primary" />
+            <span className="hidden sm:inline">
+              {STOETTEDE_SPRAAK.find((s) => s.kode === prosjektKildesprak)?.flagg}
+              {" → "}
+              {malListe.length > 0
+                ? malListe.map((l) => STOETTEDE_SPRAAK.find((s) => s.kode === l)?.flagg ?? l).join(" ")
+                : t("oversettelse.ingenMal")}
+            </span>
+          </button>
+        )}
         <button
           onClick={() => filInputRef.current?.click()}
           disabled={lasterOpp}
@@ -297,6 +375,7 @@ export default function MapperSide() {
           className="hidden"
           onChange={handleFilValgt}
         />
+        </div>
       </div>
 
       {opplastingStatus && (
@@ -376,20 +455,33 @@ export default function MapperSide() {
                         >
                           {t("dokumentleser.bekreftOgOversett", { spraak: detInfo?.navn })}
                         </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: rad.detectedLanguage!, skipOversettelse: true }); }}
-                          disabled={bekreftSpraakMut.isPending}
-                          className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-200"
-                        >
-                          {t("dokumentleser.bekreftUtenOversettelse")}
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: prosjektKildesprak }); }}
-                          disabled={bekreftSpraakMut.isPending}
-                          className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-200"
-                        >
-                          {t("dokumentleser.brukForventet", { spraak: prosjektInfo?.navn })}
-                        </button>
+                        {nyNav ? (
+                          /* 2b: reduser 3-valg til «Bekreft {språk} og oversett» + «Behold». */
+                          <button
+                            onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: rad.detectedLanguage!, skipOversettelse: true }); }}
+                            disabled={bekreftSpraakMut.isPending}
+                            className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-200"
+                          >
+                            {t("oversettelse.behold")}
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: rad.detectedLanguage!, skipOversettelse: true }); }}
+                              disabled={bekreftSpraakMut.isPending}
+                              className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-200"
+                            >
+                              {t("dokumentleser.bekreftUtenOversettelse")}
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); bekreftSpraakMut.mutate({ documentId: rad.id, bekreftSpraak: prosjektKildesprak }); }}
+                              disabled={bekreftSpraakMut.isPending}
+                              className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-200"
+                            >
+                              {t("dokumentleser.brukForventet", { spraak: prosjektInfo?.navn })}
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -414,6 +506,14 @@ export default function MapperSide() {
               ),
               bredde: "120px",
             },
+            ...(nyNav && harOversettelse
+              ? [{
+                  id: "oversettelse",
+                  header: t("oversettelse.kolonne"),
+                  celle: (rad: DokumentRad) => <OversettelseChips rad={rad} malSprak={mappeSprak} />,
+                  bredde: "170px",
+                }]
+              : []),
             {
               id: "actions",
               header: "",
@@ -459,6 +559,14 @@ export default function MapperSide() {
           data={(dokumenter ?? []) as DokumentRad[]}
           radNokkel={(rad) => rad.id}
           onRadDobbeltklikk={(rad) => åpneFil(rad)}
+        />
+      )}
+      </div>
+      {nyNav && visOversettelse && valgtMappeId && (
+        <OversettelsePanel
+          folderId={valgtMappeId}
+          kildesprak={prosjektKildesprak}
+          onLukk={() => setVisOversettelse(false)}
         />
       )}
     </div>
