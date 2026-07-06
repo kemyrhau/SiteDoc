@@ -27,14 +27,20 @@ function lesLagret(): boolean {
 }
 
 /**
- * Setter flagget og laster siden på nytt så alle forbrukere (sidebar, toppbar,
- * søkemodal) plukker den nye verdien. Eneste skrive-inngang — call-sites skal
- * ikke røre localStorage direkte. Toggles fra brukermenyen (kun sitedoc_admin).
+ * Setter flagget og navigerer så alle forbrukere (sidebar, toppbar, søkemodal)
+ * plukker den nye verdien. Eneste skrive-inngang — call-sites skal ikke røre
+ * localStorage direkte. Toggles fra brukermenyen (kun sitedoc_admin).
+ *
+ * Funn c4: bruker `location.assign(målsti)` (ren sti, UTEN query) i stedet for
+ * `reload()`. Reload beholdt `?nyNav=1` i URL-en, som ved neste innlasting
+ * overstyrer localStorage → toggle-AV ble umiddelbart skrevet tilbake til «1».
+ * `målsti` lar toggle-AV lande trygt (f.eks. `/dashbord`) fra en side som kun
+ * er lenket i ny nav.
  */
-export function settNyNavigasjon(paa: boolean): void {
+export function settNyNavigasjon(paa: boolean, målsti?: string): void {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(LAGRINGSNOKKEL, paa ? "1" : "0");
-  window.location.reload();
+  window.location.assign(målsti ?? window.location.pathname);
 }
 
 export function useNyNavigasjon(): boolean {

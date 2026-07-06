@@ -191,7 +191,16 @@ export function Toppbar() {
                 pilotstart, etter at polish + steg iv er godkjent). */}
             {erSitedocAdmin && (
               <button
-                onClick={() => settNyNavigasjon(!nyNav)}
+                type="button"
+                role="switch"
+                aria-checked={nyNav}
+                aria-label={t("toppbar.nyNavigasjon")}
+                onClick={() => {
+                  const paa = !nyNav;
+                  // Ved avslag: land trygt på /dashbord — huben/kontakter er kun
+                  // lenket i ny nav. Ved påslag: bli på gjeldende side.
+                  settNyNavigasjon(paa, paa ? undefined : "/dashbord");
+                }}
                 className="flex w-full items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
                 <span className="flex items-center gap-2">
@@ -199,6 +208,7 @@ export function Toppbar() {
                   {t("toppbar.nyNavigasjon")}
                 </span>
                 <span
+                  aria-hidden="true"
                   className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
                     nyNav ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
                   }`}
