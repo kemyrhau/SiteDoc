@@ -931,7 +931,7 @@
   "oversettelse.panel.omfang": "Gjelder {{n}} dokumenter i denne mappen.",
   "oversettelse.panel.omfangMedUnder": "Gjelder {{n}} dokumenter i denne mappen + {{m}} i undermapper som arver.",
   "oversettelse.panel.roresIkke": "Allerede oversatte dokumenter røres ikke.",
-  "oversettelse.panel.oversettGjenstaaende": "Oversett {{n}} gjenstående nå",
+  "oversettelse.panel.oversettGjenstaaende": "Oversett {{n}} dokumenter nå",
   "oversettelse.panel.modulInaktiv": "Oversettelsesmodulen er ikke aktiv på prosjektet.",
   "tegninger.sokLokasjoner": "Søk byggeplasser...",
   "tegninger.alleLokasjoner": "Alle byggeplasser",
