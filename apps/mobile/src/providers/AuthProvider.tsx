@@ -28,7 +28,7 @@ interface AuthKontekst {
   loggInnMedGoogle: () => Promise<void>;
   loggInnMedMicrosoft: () => Promise<void>;
   haandterOAuthCallback: (provider: "google" | "microsoft", accessToken: string) => Promise<void>;
-  loggInnSomTestbruker: () => Promise<void>;
+  loggInnSomTestbruker: (email?: string) => Promise<void>;
   loggUt: () => Promise<void>;
 }
 
@@ -158,10 +158,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [byttOgLagre],
   );
 
-  const loggInnSomTestbruker = useCallback(async () => {
+  const loggInnSomTestbruker = useCallback(async (email?: string) => {
     setLaster(true);
     try {
-      const resultat = await testbrukerFlyt();
+      const resultat = await testbrukerFlyt(email);
       setBruker(resultat.user);
     } finally {
       setLaster(false);

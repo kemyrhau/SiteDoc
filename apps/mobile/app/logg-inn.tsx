@@ -6,7 +6,14 @@ import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "../src/providers/AuthProvider";
-import { erMicrosoftKonfigurert } from "../src/config/auth";
+import { erMicrosoftKonfigurert, erTestLoginAktiv } from "../src/config/auth";
+
+// Whitelistede testbrukere (må matche dev-login.ts + seed-testbrukere.ts).
+const TESTBRUKERE: Array<{ email: string; label: string }> = [
+  { email: "test-admin@sitedoc.test", label: "🧪 SiteDoc-admin" },
+  { email: "test-firma@sitedoc.test", label: "🧪 Firma-admin" },
+  { email: "test-arbeider@sitedoc.test", label: "🧪 Arbeider (uten manage_field)" },
+];
 import { VersjonsFooter } from "../src/components/VersjonsFooter";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -31,10 +38,10 @@ export default function LoggInnSkjerm() {
   const [feilmelding, setFeilmelding] = useState<string | null>(null);
   const harHaandtertResponse = useRef(false);
 
-  const handleTestbrukerLogin = async () => {
+  const handleTestbrukerLogin = async (email?: string) => {
     setFeilmelding(null);
     try {
-      await loggInnSomTestbruker();
+      await loggInnSomTestbruker(email);
     } catch (err) {
       const melding = err instanceof Error ? err.message : "Ukjent feil";
       setFeilmelding(melding);
@@ -141,19 +148,22 @@ export default function LoggInnSkjerm() {
             </Pressable>
           )}
 
-          {/* Dev-bypass — kun synlig i development-bygg (__DEV__).
-              Server-siden returnerer 404 i prod, så knappen er trygt nedlukket
-              både ved bygg-tid (denne flagg) og kjøretid (server). */}
-          {__DEV__ && (
-            <Pressable
-              onPress={handleTestbrukerLogin}
-              disabled={laster}
-              className="mt-4 flex-row items-center justify-center rounded-lg border border-dashed border-amber-400 bg-amber-50 px-6 py-3 active:bg-amber-100"
-            >
-              <Text className="text-sm font-medium text-amber-800">
-                🧪 Logg inn som testbruker (dev)
-              </Text>
-            </Pressable>
+          {/* Dev-login — synlig i test-/dev-bygg (erTestLoginAktiv fra EAS-profil,
+              eller __DEV__ lokalt). Fraværende i prod-profilen, og server-siden
+              returnerer 404 i prod. Rollevelger for paritetstesting. */}
+          {(erTestLoginAktiv || __DEV__) && (
+            <View className="mt-4 gap-2">
+              {TESTBRUKERE.map((tb) => (
+                <Pressable
+                  key={tb.email}
+                  onPress={() => handleTestbrukerLogin(tb.email)}
+                  disabled={laster}
+                  className="flex-row items-center justify-center rounded-lg border border-dashed border-amber-400 bg-amber-50 px-6 py-3 active:bg-amber-100"
+                >
+                  <Text className="text-sm font-medium text-amber-800">{tb.label}</Text>
+                </Pressable>
+              ))}
+            </View>
           )}
         </View>
 

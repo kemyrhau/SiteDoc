@@ -45,7 +45,8 @@
         "EXPO_PUBLIC_API_URL": "https://api-test.sitedoc.no",
         "EXPO_PUBLIC_GOOGLE_CLIENT_ID": "973406216782-3l2kr8b3qm2b6hl4udvdf2riirfsjn5b.apps.googleusercontent.com",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "973406216782-ej49ebntdrbba458480jholoq3ur04vs.apps.googleusercontent.com",
-        "EXPO_PUBLIC_MICROSOFT_CLIENT_ID": "234ca0e0-afd1-48e3-9736-b904d4b5a008"
+        "EXPO_PUBLIC_MICROSOFT_CLIENT_ID": "234ca0e0-afd1-48e3-9736-b904d4b5a008",
+        "EXPO_PUBLIC_ENABLE_TEST_LOGIN": "true"
       }
     },
     "production": {
