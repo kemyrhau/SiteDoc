@@ -62,18 +62,39 @@ ikke var kjørt/synlig — veiledningen skal gjøre slike forutsetnings-steg tyd
 ikke timer-spesifikt. Koble til eksisterende idé-docs: onboarding-veileder.md,
 prosjektoppsett-veileder.md.
 
-### 🟡 i18n-duplikat: `timer.glemtDag.tittel` (to nøkler, andre vinner)
+### ✅ i18n-duplikat: `timer.glemtDag.tittel` — RE-VERIFISERT IKKE-DUPLIKAT 2026-07-06
 
-**Verifisert 2026-07-05 mot kode:** `timer.glemtDag.tittel` finnes **to ganger** i
-`packages/shared/src/i18n/nb.json` (linje 42 «Gjenopprettet dag — estimert» +
-linje 57 «Glemte du å avslutte?») og tilsvarende i `en.json` (grep-count 2). JSON
-lar den **siste** vinne → linje 42-verdien («Gjenopprettet dag — estimert») er
-**død** og vises aldri. De to er semantisk ulike (recall-badge vs glemt-dag-prompt)
-→ én må omdøpes (f.eks. `timer.gjenopprettetDag.tittel` for badge-varianten), ikke
-bare slettes. Sjekk kode-bruk (`grep timer.glemtDag.tittel apps/*/src`) FØR omdøping
-for å treffe riktig call-site. Gjelder alle 15 språkfiler (duplikatet er kopiert av
-`generate.ts`). Lav prio (kosmetisk feil tekst på recall-badge), men lønns-nær UI.
+**Opprinnelig påstand (2026-07-05):** `timer.glemtDag.tittel` skulle finnes to ganger i
+`nb.json` (linje 42 «Gjenopprettet dag — estimert» + linje 57 «Glemte du å avslutte?»),
+med badge-varianten død.
 
+**Re-verifisert 2026-07-06 mot kode — påstanden er STALE, ingen duplikat:**
+`grep '"timer.glemtDag.tittel"' nb.json` gir **ett** treff (linje 87 «Glemte du å avslutte?»);
+`en.json` likeså (1 treff). Teksten «Gjenopprettet dag — estimert» finnes ikke lenger noe sted
+i språkfilene. Alle 5 `timer.glemtDag.*`-nøkler (`tittel`/`hjelp`/`melding`/`glemte`/`jobberFortsatt`)
+er unike og brukt i kode (`StartSluttDagKort.tsx:352`, `timer/[id].tsx:604` m.fl.). Duplikatet ble
+ryddet mellom 2026-07-05 og 2026-07-06 (badge-verdien fjernet). **Ingen handling nødvendig.**
+
+> **Sidefunn (egen sak under):** den eneste faktiske dupliserte JSON-nøkkelen i nb+en er
+> `sok.placeholder` (to ganger, ulike verdier) — se posten «i18n-duplikat: `sok.placeholder`» rett under.
+
+### 🟡 i18n-duplikat: `sok.placeholder` (to nøkler, andre vinner — reell bug)
+
+**Verifisert 2026-07-06 mot kode** (duplikat-skann `grep -oE '^\s*"[^"]+":' | sort | uniq -d`):
+`sok.placeholder` finnes **to ganger** i både `nb.json` og `en.json`:
+- linje 59 «Søk etter innstillinger og sider …» / «Search settings and pages …»
+- linje 827 «Søk i prosjektdokumenter...» / «Search project documents...»
+
+JSON lar den **siste** vinne → linje 827-verdien overstyrer. Begge er i bruk i kode:
+`SokModal.tsx:114` (global innstillinger/sider-søk — trenger linje 59-teksten) og
+`dashbord/[prosjektId]/sok/page.tsx:131` (prosjektdokument-søk — trenger linje 827-teksten).
+Resultat: den globale `SokModal` viser feil placeholder «Søk i prosjektdokumenter...».
+
+**Fiks (egen sak — ikke gjort i denne docs-runden fordi den rører kode + i18n-nøkler):** døp om
+den ene call-siten til distinkt nøkkel (f.eks. `sok.dokumenter.placeholder` på `sok/page.tsx`),
+behold `sok.placeholder` for global `SokModal`. Legg til i nb+en, kjør `generate.ts` for de 13
+øvrige (etter redesign-frysen — i18n-generate er frossen sone nå). Lav-medium prio (kosmetisk feil
+placeholder i global søk). Gjelder alle 15 språkfiler (duplikatet er speilet av `generate.ts`).
 
 ### 🟢 Mobil Microsoft-auth — BYGGET I EAS-SKY #37 2026-07-01 (venter Azure + Florian-test)
 
@@ -164,9 +185,9 @@ Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-f
 
 **Verifiserte funn (2026-07-05, mot kode — pre-fix; ①②③ fikset interim samme dag, se «Interim-status» over):**
 
-- **① 🔴 Prosjekt-kontekst-timer-lista (`[prosjektId]/timer/page.tsx:61`) er runtime-brutt.** BACKLOG antok tidligere «lista filtrerer for dette prosjektet» — virkeligheten er verre: `list`-query (`dagsseddel.ts:472`) legger `projectId` inn i `DailySheetWhereInput` via spread (omgår TS excess-property-sjekk → typechecker, men feiler i runtime). Prisma kaster `PrismaClientValidationError` (unknown arg — `DailySheet` har ingen `projectId` siden T.1) → React Query-feil → siden faller til tom-tilstand (`:161`). Så lista viser **alltid tomt for ALLE sedler**, ikke bare kryss-prosjekt. Live siden 2026-05-11, maskert som «ingen data». P2002-kollisjonen reproduseres slik: mobil lager `(bruker, dato)`-sedel på prosjekt A → web «Ny dagsseddel» velger prosjekt B (kun auth) samme dato → `upsert` treffer `@@unique([userId, dato])` → «Du har allerede en dagsseddel for denne datoen» (P2002, **`dagsseddel.ts:617-620`** — BACKLOG sa `:650`, driftet linjenr) for en sedel arbeideren ikke ser.
-- **② 🟡 «Mine timer» (`mine/page.tsx`) leser `rad.projectId` fra DailySheet (finnes ikke).** `list`-retur (`:497-501`) sprer `...s` (sedel uten projectId) → `rad.projectId === undefined` → prosjekt-kolonne (`:306`) alltid «—», «antall prosjekter» (`:112`) alltid 1. Riktig kilde = radenes `projectId` (sedelen har `timer[]`, men mappingen kaster dem).
-- **③ 🔴 «Ny dagsseddel» (web, `dashbord/timer/ny/page.tsx`) har misvisende prosjekt-velger + er P2002-kollisjonskilde.** `opprett` (`dagsseddel.ts:549`) tar `projectId` som påkrevd input, men bruker den **kun til auth** (`verifiserProsjektmedlem`, `:571`) — lagrer den aldri; sedelen opprettes tom. Prosjektvalget velger altså ingenting reelt.
+- **① ✅ (var 🔴) Prosjekt-kontekst-timer-lista (`[prosjektId]/timer/page.tsx:61`) VAR runtime-brutt — nå fikset (se «Interim-status» over).** BACKLOG antok tidligere «lista filtrerer for dette prosjektet» — virkeligheten var verre: `list`-query (`dagsseddel.ts:472`) la `projectId` inn i `DailySheetWhereInput` via spread (omgikk TS excess-property-sjekk → typechecker, men feilet i runtime). Prisma kastet `PrismaClientValidationError` (unknown arg — `DailySheet` har ingen `projectId` siden T.1) → React Query-feil → siden falt til tom-tilstand (`:161`). Så lista viste **alltid tomt for ALLE sedler**, ikke bare kryss-prosjekt. Var live 2026-05-11 → 2026-07-05, maskert som «ingen data». P2002-kollisjonen reproduserte seg slik: mobil lager `(bruker, dato)`-sedel på prosjekt A → web «Ny dagsseddel» valgte prosjekt B (kun auth) samme dato → `upsert` traff `@@unique([userId, dato])` → «Du har allerede en dagsseddel for denne datoen» (P2002, **`dagsseddel.ts:617-620`** — BACKLOG sa `:650`, driftet linjenr) for en sedel arbeideren ikke så. **Interim-fiks 2026-07-05:** rad-prosjekt-filter `timer: { some: { projectId } }`.
+- **② ✅ (var 🟡) «Mine timer» (`mine/page.tsx`) leste `rad.projectId` fra DailySheet (finnes ikke) — nå fikset (se «Interim-status» over).** `list`-retur (`:497-501`) spredte `...s` (sedel uten projectId) → `rad.projectId === undefined` → prosjekt-kolonne (`:306`) alltid «—», «antall prosjekter» (`:112`) alltid 1. Riktig kilde = radenes `projectId` (sedelen har `timer[]`, men mappingen kastet dem). **Interim-fiks 2026-07-05:** `list` beriker hver sedel med `prosjektIder`; `mine/page.tsx` utleder kolonnen fra det.
+- **③ ✅ (var 🔴) «Ny dagsseddel» (web, `dashbord/timer/ny/page.tsx`) hadde misvisende prosjekt-velger + var P2002-kollisjonskilde — nå fikset (se «Interim-status» over).** `opprett` (`dagsseddel.ts:549`) tok `projectId` som påkrevd input, men brukte den **kun til auth** (`verifiserProsjektmedlem`, `:571`) — lagret den aldri; sedelen ble opprettet tom. Prosjektvalget valgte altså ingenting reelt. **Interim-fiks 2026-07-05:** web-opprett er nå dato-only (org-tilgang i stedet for prosjektmedlem-sjekk).
 - **④ 🟡 Ingen forslag/auto-utkast i web:** «intelligent timeføring» (`genererForslag`) er mobil-only — bekreftet ingen web-motpart.
 - **⑤ ❓→✅ Byggeplass-velger deaktivert i web-timer — verifisert tilsiktet:** `[prosjektId]/timer/page.tsx:47` kaller eksplisitt `useToppbarFiltre({ byggeplass: false })`. Bevisst, ikke hull. Asymmetri består: `DailySheet` har `byggeplassId` men ikke `projectId`.
 
