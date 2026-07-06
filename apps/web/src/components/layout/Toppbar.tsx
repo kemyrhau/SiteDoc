@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X, Search } from "lucide-react";
+import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X, Search, Sparkles } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { ProsjektVelger } from "./ProsjektVelger";
@@ -9,7 +9,7 @@ import { ByggeplassVelger } from "./ByggeplassVelger";
 import { FirmaVelger } from "./FirmaVelger";
 import { FirmaKontekstVelger } from "./FirmaKontekstVelger";
 import { KontekstChip } from "./KontekstChip";
-import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
+import { useNyNavigasjon, settNyNavigasjon } from "@/hooks/useNyNavigasjon";
 import { useSokModal } from "@/kontekst/sok-modal-kontekst";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
@@ -187,6 +187,26 @@ export function Toppbar() {
                 {session?.user?.email}
               </p>
             </div>
+            {/* Redesign-flagg — kun sitedoc_admin (company_admin utvides ved
+                pilotstart, etter at polish + steg iv er godkjent). */}
+            {erSitedocAdmin && (
+              <button
+                onClick={() => settNyNavigasjon(!nyNav)}
+                className="flex w-full items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  {t("toppbar.nyNavigasjon")}
+                </span>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                    nyNav ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {nyNav ? t("toppbar.paa") : t("toppbar.av")}
+                </span>
+              </button>
+            )}
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
