@@ -20,22 +20,27 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 server-ny melder «System restart required» + ~36 ventende pakke-oppdateringer (observert 2026-07-05 under test-web-rebuild). Ikke akutt, men **bør gjøres før dere reiser den tredje redesign-stacken** (`-p redesign`, `sitedoc_redesign`) på samme maskin — en restart midt i tre kjørende stacks (prod + test + redesign) er mer risikabelt. Handling: planlagt vedlikeholdsvindu → `apt upgrade` + `reboot` (Kenneth, sudo), verifiser prod + test kommer opp igjen (innlogget) etterpå.
 
-### 🟡 Dagsseddel: dobbel timeføring (total-tid + per-prosjekt) — strukturér om
+### 🟢 Dagsseddel: dobbel timeføring (total-tid + per-prosjekt) — a2 LØST 2026-07-06 (a1 fremtidig)
 
-**Problem (Kenneth, 2026-07-05, prod-test):** Arbeideren fører først total
-arbeidstid på sedel-nivå («Arbeidstid i dag»: fra/til/pause), og må DERETTER
+**Problem (Kenneth, 2026-07-05, prod-test):** Arbeideren førte først total
+arbeidstid på sedel-nivå («Arbeidstid i dag»: fra/til/pause), og måtte DERETTER
 føre timer per prosjekt på nytt. Oppleves som dobbelt arbeid og ustrukturert.
 
-**Retning:** Én strukturert inngang. Enten (a) prosjekt-radene er primær
-inngang og total arbeidstid utledes av sum(rader) + pause, eller (b) total-tid
-fordeles direkte på prosjekt uten separat re-registrering. Vei mot dagsseddel-
-redesign-prinsippene (arbeider-forståelig, enkelt, komplett).
+**a2 LØST (2026-07-06, develop) — vinduet er ikke lenger et påkrevd steg.**
+`dagsseddel.opprett` prefyller arbeidstids-vinduet fra firma-kalenderen
+(`hentEffektivArbeidstid`, Oslo-anker) i stedet for tomt; UI degradert til
+sekundær/forhåndsutfylt/overstyrbar på begge detalj-sider (ny streng
+`timer.arbeidstidPrefyltHint` — «timene føres på radene»). Radene + topp-sum er
+primær-flaten → den brukervendte dobbel-føringen er borte. Bevart: pauseMin som
+maskin-buffer, auto-gen-stien, arbeidstids-varsel. Se [timer.md § Dagsseddel a2](timer.md).
 
-**Avhengighet:** overtid (③) trenger total arbeidstid som grunnlag — en UTLEDET
-total må fortsatt gi korrekt dagsnorm/overtid-split. Se dagsseddel-design.md,
-mobil-dagsseddel-ui-spec.md § U-flyt, timer.md. Del av dagsseddel-UX-
-overhalingen (etter TestFlight). Beslektet med tidligere funn: for mange steg +
-misforståelige etiketter.
+**Gjenstår (a1, fremtidig):** total arbeidstid **utledes** internt av sum(rader)
++ pause i stedet for et eget lagret vindu — full strukturell forening. Krever at
+overtid (③) fortsatt får korrekt dagsnorm/overtid-split fra en UTLEDET total
+(overtid bruker firma-dagsnorm, ikke vinduet, så a2 rører den ikke — men a1 må
+verifiseres mot ③). Beslektet: **web-norm-paritet** (separat oppfølger). Se
+dagsseddel-design.md, mobil-dagsseddel-ui-spec.md § U-flyt, timer.md. Del av
+dagsseddel-UX-overhalingen (etter TestFlight).
 
 ### 🟡 Modul-onboarding-veiledning (wizard ved modul-aktivering)
 

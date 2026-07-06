@@ -192,6 +192,7 @@
   "timer.felt.aktivitet": "Aktivitet",
   "timer.arbeidstidIDag": "Arbeidstid i dag",
   "timer.arbeidstidIDagBeskrivelse": "Angir total arbeidstid. Brukes for å beregne overtid.",
+  "timer.arbeidstidPrefyltHint": "Forhåndsutfylt fra firmaets standardtider — juster kun ved avvik (f.eks. glemt eller delt dag). Timene dine føres på radene under.",
   "timer.summering": "{{registrert}}t av {{total}}t registrert",
   "timer.summering.heravMaskin": "herav maskin {{maskin}} t",
   "timer.felt.startTid": "Fra kl.",

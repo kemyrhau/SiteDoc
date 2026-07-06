@@ -45,8 +45,8 @@ export function ArbeidstidSeksjon({
     <View className="mx-4 mt-4 rounded-lg border border-gray-200 bg-white p-4">
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-2">
-          <Clock size={16} color="#1f2937" />
-          <Text className="text-base font-semibold text-gray-900">
+          <Clock size={16} color="#6b7280" />
+          <Text className="text-sm font-medium text-gray-600">
             {t("timer.arbeidstidIDag")}
           </Text>
         </View>
@@ -62,7 +62,7 @@ export function ArbeidstidSeksjon({
         )}
       </View>
       <Text className="mt-1 text-xs text-gray-500">
-        {t("timer.arbeidstidIDagBeskrivelse")}
+        {t("timer.arbeidstidPrefyltHint")}
       </Text>
       <View className="mt-3 flex-row gap-3">
         <Felt label={t("timer.felt.startTid")} verdi={isoTidspunktTilHHMM(startAt) || "—"} />
