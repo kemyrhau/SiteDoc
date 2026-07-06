@@ -35,6 +35,38 @@ curl -sS https://api-test.sitedoc.no/trpc/prosjekt.hentMine \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+## Simulator/lokal dev — via localhost-port-forward (robust)
+
+**Anbefalt metode for simulator-testing.** Fra iOS-simulator feilet RN-fetch mot
+både `https://api-test.sitedoc.no` (Cloudflare) og `http://100.76.248.15:3301`
+(Tailscale-IP) med «Network request failed» på **forbindelsesnivå**, mens
+`https://example.com` → 200 fra samme app og Safari i samme simulator nådde alle
+tre. Isolert til **appens transportlag**, sitedoc-domene-spesifikt. Ledende
+rotårsak: **iOS Local Network-privacy** — begge sitedoc-målene løser til
+private/lokale adresser, som en fersk app blokkerer uten Local Network-tillatelse
+(Safari er systemunntatt; example.com er ekte offentlig IP).
+
+**Løsning (omgår hele klassen — loopback er unntatt både ATS og Local Network):**
+
+1. Kenneth åpner en SSH-port-forward på Mac-en (hold åpen):
+   ```
+   ssh -N -L 3301:localhost:3301 server-ny
+   ```
+   (test-API lytter på server-ny `127.0.0.1:3301` per `docker-compose.test.yml`.)
+2. `apps/mobile/.env` (gitignored, lokal): `EXPO_PUBLIC_API_URL=http://localhost:3301`.
+3. Native rebuild: `npx expo prebuild --clean -p ios && npx expo run:ios`.
+
+- **ATS:** `app.config.js` beholder `NSAllowsArbitraryLoads` gated til lokal dev
+  (`!process.env.EAS_BUILD`) som sikkerhetsnett for http mot loopback — aldri i
+  noe EAS-bygg (prod/test/preview bruker https-edge via `eas.json`, som overstyrer `.env`).
+- **TestFlight-bygg** (fysiske enheter) bruker fortsatt `https://api-test.sitedoc.no`
+  (test-profil) — edge-endepunktet øverst står ved lag.
+
+Diagnostikk-instrumentering (midlertidig) i `services/auth.ts` logger fullt
+feilobjekt + prober example.com/test.sitedoc.no/{apiUrl} (per-probe timeout) ved
+fetch-feil. **Forkastet:** direkte Tailscale-IP (`100.76.248.15:3301`) — feilet
+pga. Local Network-privacy; localhost er robust uansett.
+
 ## Testbrukere (seed)
 
 Kjør seed mot test-DB (idempotent):
@@ -72,3 +104,4 @@ Verdiene i (1) og (2) MÅ være identiske.
 - `packages/db/scripts/seed-testbrukere.ts` — testbrukere + org + prosjekt
 - `apps/mobile/app/logg-inn.tsx` + `src/services/auth.ts` + `src/config/auth.ts` — mobil-UI + flyt
 - `apps/mobile/eas.json` (`test`-profil) — `EXPO_PUBLIC_ENABLE_TEST_LOGIN`
+- `apps/mobile/.env` (gitignored) + `apps/mobile/app.config.js` (lokal-dev-ATS) — Tailscale-oppsett for simulator

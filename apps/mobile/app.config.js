@@ -10,6 +10,15 @@
 module.exports = ({ config }) => {
   const erTest = process.env.APP_VARIANT === "test";
 
+  // ATS-unntak KUN for lokal dev (expo start / expo run:ios). `EAS_BUILD` er satt
+  // på ALLE EAS-profiler (inkl. prod), så et EAS-bygg får aldri dette. Lar
+  // simulatoren nå test-API over http via localhost-port-forward (satt i .env:
+  // EXPO_PUBLIC_API_URL=http://localhost:3301, med `ssh -N -L 3301:localhost:3301
+  // server-ny`) — sikkerhetsnett for cleartext mot loopback. Krever native
+  // dev-client-rebuild for å tre i kraft — ikke Fast Refresh. Prod/test/preview
+  // beholder streng ATS (https-edge). Se docs/claude/dev-login-agent.md.
+  const erLokalDev = !process.env.EAS_BUILD;
+
   return {
     ...config,
     name: erTest ? "SiteDoc TEST" : config.name,
@@ -18,6 +27,12 @@ module.exports = ({ config }) => {
       bundleIdentifier: erTest
         ? "com.kemyrhau.sitedoc.test"
         : config.ios.bundleIdentifier,
+      infoPlist: {
+        ...config.ios.infoPlist,
+        ...(erLokalDev
+          ? { NSAppTransportSecurity: { NSAllowsArbitraryLoads: true } }
+          : {}),
+      },
     },
     extra: {
       // Bevarer router + eas.projectId fra app.json — ALDRI dropp disse.

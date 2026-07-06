@@ -97,6 +97,8 @@ for å treffe riktig call-site. Gjelder alle 15 språkfiler (duplikatet er kopie
 
 Knapp-gatingen holder MS skjult til client-id er ekte → PKCE-koden er trygg å merge før Azure er ferdig hvis ønskelig. Koden alene fikser ingenting før Azure + ekte client-id + nytt EAS-bygg (env bakes inn ved byggetid).
 
+**Lokal dev — ekte Entra client-ID for simulator (funn 2026-07-06) 🟡:** MS-login-flyten *virker* i iOS-simulator (systembrowser + Authenticator OK), men `apps/mobile`s lokale env har placeholder `din-microsoft-client-id-her` som `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` → Entra svarer **AADSTS700016** (app ikke funnet i katalogen). Distinkt fra Azure-sjekklista over (den gjelder EAS-profiler/TestFlight, ikke lokal `.env`). Fiks: registrer/konfigurer en ekte Entra client-ID for lokal dev — enten gjenbruk «SiteDoc Mobile»-appen med lokal redirect-URI lagt til, eller egen dev-app-registrering m/ riktig redirect-URI. **Ikke prioritert** — `dev-login` dekker simulator-testing uten MS.
+
 ### ✅ Org uten standard-lønnsart (③b) — IMPLEMENTERT PÅ DEVELOP 2026-07-05 (web klar for prod, mobil venter EAS-batch)
 
 Data-backfill garanterer nå at hvert firma med ≥1 ordinær lønnsart har en standard (migrering `20260705120000_lonnsart_overtidsnivaa`: foretrekk `Timelønn` seedNivaa=1, ellers laveste-rekkefolge ordinær; kun orgs som mangler standard, NOT EXISTS-guard). Auto-gen gjetter aldri (= B) — standard kommer fra `erStandardvalg`, korrigerbar i firma-konfig. F-G rød banner beholdes for null-ordinære-lønnsarter-tilfellet. Full detalj: [STATUS-AKTUELT § Timer auto-lønnsart ③](STATUS-AKTUELT.md) + [timer.md § Overtid-klassifisering](timer.md).
@@ -190,9 +192,13 @@ Fiks når noen rører de filene: synk hook-resultat-typene med faktisk retur, og
 
 `apps/mobile` har ingen test-runner (verken `test`-script, jest/vitest-config eller `*.test.ts`). Rene, logikk-tunge hjelpere er derfor udekket av automatiserte tester. Konkret fanget ved Slice 4a (2026-06-20): **`splittVedMidnatt`** (`apps/mobile/src/utils/dagsegment.ts`) ble kun manuelt verifisert (tsx-kjøring). Casene som bør dekkes når en test-beslutning tas: **nattskift 19→07 = 5t+7t=12t** (sum = reell total), **dagskift** (1 segment, uendret), **degenerert** (slutt ≤ start → ett 0-segment), **fler-døgn** (glemt-dag → N segmenter, sum = total). Vurder å **flytte den rene helperen til `@sitedoc/shared`** (web bruker allerede `vitest` — jf. `src/components/mengde/__tests__/`), evt. introdusere vitest i `apps/mobile`. Lav prio — ingen runtime-effekt, men midnatt-splitt er lønns-sensitiv logikk som fortjener regresjonsdekning.
 
-### Metro blockList — `.env.eas.local` knekker `expo run:ios` 🟡
+### Metro blockList — `.env.eas.local` knekker `expo run:ios` ✅ FIKSET 2026-07-06 (venter dual-review)
 
-`apps/mobile/.env.eas.local` (credential-fil, gitignored) ligger i prosjektroten og overvåkes av Metro (`metro.config.js` har `watchFolders` = hele monorepoet, men **ingen `resolver.blockList`**). Ved `expo run:ios` kan Metro forsøke å bundle/lese fila → bygg-brudd. Fiks: legg `config.resolver.blockList = [/\.env\.eas\.local$/, ...]` i `metro.config.js`. Ikke gjort — dukket opp i chat under dev-login-arbeidet 2026-07-06. Lav prio (rammer kun lokal `expo run:ios` med credential-fila til stede).
+`apps/mobile/.env.eas.local` (credential-fil, gitignored) ligger i prosjektroten og overvåkes av Metro (`metro.config.js` har `watchFolders` = hele monorepoet, men **ingen `resolver.blockList`**). Ved `expo run:ios` kan Metro forsøke å bundle/lese fila → bygg-brudd. **Fikset i web-runde s1 (2026-07-06):** `config.resolver.blockList += /\.env\.eas\.local$/` (additivt til Expos defaults) i `metro.config.js`. I arbeidstreet, venter dual-review/commit.
+
+### Test-web (:3300) mangler healthcheck + restart-policy i compose 🟡
+
+Under dev-login-feilsøkingen 2026-07-06 var `sitedoc-test-web` (:3300) død (connection reset) mens test-api (:3301) var frisk — Kenneth måtte restarte containeren manuelt. `docker/docker-compose.test.yml` har ingen `healthcheck` eller aktiv `restart`-policy som fanger en død web-prosess. Fiks: legg `healthcheck` (curl mot `/` eller en health-rute) + `restart: unless-stopped` (verifiser at web-tjenesten har det — api har det) i test-compose, så en død test-web auto-restartes i stedet for å stå og resette. Lav prio (kun test-miljø), men rammer agent-/simulator-testing når web-siden trengs.
 
 ### Navigasjonsredesign — dev-login secrets-oppsett (Kenneth) 🟡
 
@@ -335,7 +341,7 @@ Kenneths idé 2026-07-04. I dag er tilgang spredt over en **ad-hoc miks**: `User
 
 ### Test-miljø mangler web-MS-redirect i Entra 🟡
 
-Observert 2026-07-04: innlogging med Microsoft på `test.sitedoc.no` feiler med **AADSTS50011** — redirect-URI `https://test.sitedoc.no/api/auth/callback/microsoft-entra-id` er ikke registrert i Entra-app-en (`d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`). Test har aldri fått Microsoft-OAuth wiret i Azure (kun prod-callbacken finnes). **Fiks = Kenneths Azure-hånd:** legg til test-redirect-URI-en i app-registreringen (additivt, rører **ikke** prod-callbacken). Egen infra-oppgave på linje med mobil-MS-Azure-sjekklista. **I mellomtiden:** auth-gaten (sak #2) kan verifiseres på test via **Google** (`AUTH_GOOGLE_ID` er satt på test) — logg inn med Google-konto uten firma/prosjekt → skal avvises (`AccessDenied`); med medlemskap → slipper inn. Merk også: `dev-login` er **av** på test (`NODE_ENV=production`, ingen `ENABLE_DEV_LOGIN`).
+Observert 2026-07-04: innlogging med Microsoft på `test.sitedoc.no` feiler med **AADSTS50011** — redirect-URI `https://test.sitedoc.no/api/auth/callback/microsoft-entra-id` er ikke registrert i Entra-app-en (`d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`). Test har aldri fått Microsoft-OAuth wiret i Azure (kun prod-callbacken finnes). **Fiks = Kenneths Azure-hånd:** legg til test-redirect-URI-en i app-registreringen (additivt, rører **ikke** prod-callbacken). Egen infra-oppgave på linje med mobil-MS-Azure-sjekklista. **I mellomtiden:** auth-gaten (sak #2) kan verifiseres på test via **Google** (`AUTH_GOOGLE_ID` er satt på test) — logg inn med Google-konto uten firma/prosjekt → skal avvises (`AccessDenied`); med medlemskap → slipper inn. Merk også: `dev-login` er **av** på test (`NODE_ENV=production`, ingen `ENABLE_DEV_LOGIN`). **Også observert fra iOS-simulator 2026-07-06** (MS-login-flyten) — samme rotårsak (manglende test-redirect i Entra `d7735b7a`); uavhengig av dev-login-transporten (dev-login bruker localhost-port-forward, se [dev-login-agent.md](dev-login-agent.md)).
 
 ### H3 — `allowDangerousEmailAccountLinking` reversert + signIn-guard — ✅ DEPLOYET TIL PROD 2026-06-05
 
