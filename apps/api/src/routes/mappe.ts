@@ -410,6 +410,11 @@ export const mappeRouter = router({
         }
         for (const d of docs) {
           const har = språkPerDok.get(d.id) ?? new Set<string>();
+          // Kun OVERSETTBARE dokumenter teller: må ha kildespråk-blokker (parset).
+          // Uparsede filer (.xls/.pdf uten blokker) kan ikke oversettes — batchen
+          // (oversettGjenstaaende) hopper over dem (antallBlokker===0), så de skal
+          // heller ikke telles her. Ellers står N fast og «Oversett N» gjør ingenting.
+          if (!har.has(d.sourceLanguage)) continue;
           const mangler = malSprak.some((l) => l !== d.sourceLanguage && !har.has(l));
           if (mangler) gjenstaaende++;
         }

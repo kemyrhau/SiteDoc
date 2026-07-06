@@ -932,7 +932,7 @@
   "oversettelse.panel.omfang": "Applies to {{n}} documents in this folder.",
   "oversettelse.panel.omfangMedUnder": "Applies to {{n}} documents in this folder + {{m}} in inheriting subfolders.",
   "oversettelse.panel.roresIkke": "Already translated documents are left untouched.",
-  "oversettelse.panel.oversettGjenstaaende": "Translate {{n}} remaining now",
+  "oversettelse.panel.oversettGjenstaaende": "Translate {{n}} documents now",
   "oversettelse.panel.modulInaktiv": "The translation module is not active on this project.",
   "tegninger.sokLokasjoner": "Search building sites...",
   "tegninger.alleLokasjoner": "All building sites",

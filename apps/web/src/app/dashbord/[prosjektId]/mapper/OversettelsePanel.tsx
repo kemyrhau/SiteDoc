@@ -7,6 +7,21 @@ import { X, Loader2 } from "lucide-react";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 
+// Løs cache-form for optimistisk setData (unngår tRPC-ens dype dokument-type).
+type OptimistiskCache = {
+  mappeSprak?: string[];
+  dokumenter: Array<{
+    sourceLanguage: string;
+    oversettelse?: {
+      tilgjengelig: string[];
+      pågår: boolean;
+      jobber: Array<{ lang: string; status: string }>;
+    } | null;
+    [k: string]: unknown;
+  }>;
+  [k: string]: unknown;
+};
+
 /**
  * Oversettelsespanel på mappe (2b) — samler språkaktivering på mappenivå.
  * Ingen ny datamodell: bruker Folder.languageMode/languages via
@@ -50,7 +65,32 @@ export function OversettelsePanel({
 
   const arvMut = trpc.mappe.settSpraakArv.useMutation({ onSuccess: invalider });
   const egneMut = trpc.mappe.oppdaterSpraak.useMutation({ onSuccess: invalider });
-  const oversettMut = trpc.mappe.oversettGjenstaaende.useMutation({ onSuccess: invalider });
+  const oversettMut = trpc.mappe.oversettGjenstaaende.useMutation({
+    onSuccess: () => {
+      // v3b: optimistisk chip-overgang til amber «…» ved 200 OK — uavhengig av
+      // når jobb-løkka fullfører. Manglende målspråk på oversettbare dokumenter
+      // (de med kildespråk-blokker) markeres som pågår. Ekte data hentes rett etter.
+      // Løs-typet updater + cast for å unngå tRPC TS2589 (dyp dokument-type).
+      utils.mappe.hentDokumenter.setData({ folderId }, ((gammel: OptimistiskCache | undefined) => {
+        if (!gammel || Array.isArray(gammel)) return gammel;
+        const mål = gammel.mappeSprak ?? [];
+        return {
+          ...gammel,
+          dokumenter: gammel.dokumenter.map((d) => {
+            const har = new Set(d.oversettelse?.tilgjengelig ?? []);
+            if (!har.has(d.sourceLanguage)) return d; // uparset → ikke oversettbar
+            const jobber = [...(d.oversettelse?.jobber ?? [])];
+            for (const l of mål) {
+              if (l === d.sourceLanguage || har.has(l)) continue;
+              if (!jobber.some((j) => j.lang === l)) jobber.push({ lang: l, status: "pending" });
+            }
+            return { ...d, oversettelse: { tilgjengelig: [...har], pågår: jobber.length > 0, jobber } };
+          }),
+        };
+      }) as never);
+      invalider();
+    },
+  });
 
   const lagrer = arvMut.isPending || egneMut.isPending;
 
