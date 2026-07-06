@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X } from "lucide-react";
+import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X, Search } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { ProsjektVelger } from "./ProsjektVelger";
@@ -10,6 +10,7 @@ import { FirmaVelger } from "./FirmaVelger";
 import { FirmaKontekstVelger } from "./FirmaKontekstVelger";
 import { KontekstChip } from "./KontekstChip";
 import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
+import { useSokModal } from "@/kontekst/sok-modal-kontekst";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import Link from "next/link";
@@ -41,6 +42,7 @@ export function Toppbar() {
   const { erSitedocAdmin, erCompanyAdmin } = useFirma();
   const { byggeplassAktiv } = useToppbarFiltreKontekst();
   const nyNav = useNyNavigasjon();
+  const { aapne: aapneSok } = useSokModal();
   const { t } = useTranslation();
 
   // Hent firma-info for company_admin (fast firma-link i header).
@@ -128,6 +130,21 @@ export function Toppbar() {
                 )}
               </>
             )}
+          </>
+        )}
+        {nyNav && (
+          <>
+            <div className="mx-1 h-5 w-px bg-white/20" />
+            <button
+              type="button"
+              onClick={aapneSok}
+              className="flex items-center gap-2 rounded-md bg-white/10 px-2.5 py-1.5 text-[12.5px] text-blue-100 transition-colors hover:bg-white/20"
+              title={t("sok.overalt")}
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">{t("sok.overalt")}</span>
+              <kbd className="rounded bg-white/15 px-1.5 py-0.5 text-[11px] font-medium">Ctrl K</kbd>
+            </button>
           </>
         )}
         {erSitedocAdmin && (

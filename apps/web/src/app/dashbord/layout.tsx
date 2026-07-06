@@ -7,6 +7,7 @@ import { ProsjektProvider } from "@/kontekst/prosjekt-kontekst";
 import { ByggeplassProvider } from "@/kontekst/byggeplass-kontekst";
 import { PresenceProvider } from "@/kontekst/presence-kontekst";
 import { ToppbarFiltreProvider } from "@/kontekst/toppbar-filtre-kontekst";
+import { SokModalProvider } from "@/kontekst/sok-modal-kontekst";
 import { Toppbar } from "@/components/layout/Toppbar";
 import { HovedSidebar } from "@/components/layout/HovedSidebar";
 import { NavSidebar } from "@/components/layout/NavSidebar";
@@ -29,18 +30,20 @@ export default function DashbordLayout({
           <ByggeplassProvider>
             <ToppbarFiltreProvider>
               <PresenceProvider>
-                <div className="flex h-screen flex-col overflow-hidden">
-                  <Toppbar />
-                  <ImpersoneringBanner />
-                  <div className="flex flex-1 overflow-hidden">
-                    {nyNav ? (
-                      <NavSidebar />
-                    ) : (
-                      !erFirmaKontekst && <HovedSidebar />
-                    )}
-                    <main className="flex-1 overflow-y-auto">{children}</main>
+                <SokModalProvider>
+                  <div className="flex h-screen flex-col overflow-hidden">
+                    <Toppbar />
+                    <ImpersoneringBanner />
+                    <div className="flex flex-1 overflow-hidden">
+                      {nyNav ? (
+                        <NavSidebar />
+                      ) : (
+                        !erFirmaKontekst && <HovedSidebar />
+                      )}
+                      <main className="flex-1 overflow-y-auto">{children}</main>
+                    </div>
                   </div>
-                </div>
+                </SokModalProvider>
               </PresenceProvider>
             </ToppbarFiltreProvider>
           </ByggeplassProvider>

@@ -220,27 +220,40 @@ export const bunnelementer: SidebarElement[] = [
 ];
 
 /**
- * Delt navigasjons-handling for sidebar-elementer. Flyttet verbatim fra
- * HovedSidebar.naviger så begge sidebars ruter identisk.
+ * Rute-URL for et sidebar-element (eller null når elementet krever prosjekt
+ * og ingen er valgt). Ett sted for rutingen — brukes av `navigerSidebar`
+ * (klikk) og søkeregistret (`useSokRegistry`).
+ */
+export function hrefForSidebarElement(
+  element: SidebarElement,
+  prosjektId: string | null,
+): string | null {
+  switch (element.id) {
+    case "dashbord":
+      return prosjektId ? `/dashbord/${prosjektId}` : "/dashbord";
+    case "oppsett":
+      return "/dashbord/oppsett";
+    case "maskin":
+      return "/dashbord/maskin";
+    case "mine-timer":
+      return "/dashbord/timer/mine";
+    case "timer-attestering":
+      return prosjektId ? `/dashbord/${prosjektId}/timer/attestering` : null;
+    default:
+      return prosjektId ? `/dashbord/${prosjektId}/${element.id}` : null;
+  }
+}
+
+/**
+ * Delt navigasjons-handling for sidebar-elementer. Begge sidebars ruter likt.
  */
 export function navigerSidebar(
   router: ReturnType<typeof useRouter>,
   prosjektId: string | null,
   element: SidebarElement,
 ) {
-  if (element.id === "dashbord") {
-    router.push(prosjektId ? `/dashbord/${prosjektId}` : "/dashbord");
-  } else if (element.id === "oppsett") {
-    router.push("/dashbord/oppsett");
-  } else if (element.id === "maskin") {
-    router.push("/dashbord/maskin");
-  } else if (element.id === "mine-timer") {
-    router.push("/dashbord/timer/mine");
-  } else if (element.id === "timer-attestering" && prosjektId) {
-    router.push(`/dashbord/${prosjektId}/timer/attestering`);
-  } else if (prosjektId) {
-    router.push(`/dashbord/${prosjektId}/${element.id}`);
-  }
+  const href = hrefForSidebarElement(element, prosjektId);
+  if (href) router.push(href);
 }
 
 /**
