@@ -194,6 +194,7 @@
   "timer.felt.aktivitet": "Activity",
   "timer.arbeidstidIDag": "Working hours today",
   "timer.arbeidstidIDagBeskrivelse": "Sets total working hours. Used to calculate overtime.",
+  "timer.arbeidstidPrefyltHint": "Pre-filled from your company's standard hours — adjust only if needed (e.g. a forgotten or split day). Log your hours on the rows below.",
   "timer.summering": "{{registrert}}h of {{total}}h registered",
   "timer.summering.heravMaskin": "of which machine {{maskin}} h",
   "timer.felt.startTid": "From",

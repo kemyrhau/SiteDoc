@@ -15,6 +15,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Halvferdig feature parkeres | `BACKLOG.md` |
 | Ny prosess-/arbeidsregel | `CLAUDE.md` |
 | Parallell-arbeid / worktree-koordinering / frossen sone endres | `parallell-arbeid-lock.md` |
+| Tvil om hvem gjør hva / meldingsflyt | `SAMARBEIDSREGLER.md` |
 | Fil opprettet/arkivert/slettet | `STATUS.md` (fil-register) |
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |

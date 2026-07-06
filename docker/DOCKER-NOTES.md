@@ -107,6 +107,8 @@ Denne deployen traff gjentatt friksjon som ikke var dokumentert → «gjenoppdag
 > ⚠️ **Delt build-kontekst prod↔test — re-rsync riktig branch før hver build (lærdom 2026-07-04).** Både prod (`docker-compose.yml`, `-p docker`) og test (`docker-compose.test.yml`, `sitedoc-test`) bygger fra **samme** `~/stack/sitedoc`. Konteksten holder koden fra **siste rsync** — så etter en test-deploy (develop) ligger develop-kode der, og et påfølgende prod-build ville bygget **develop inn i prod** uten en fersk `main`-rsync. **Regel:** re-rsync alltid riktig branch før build — **`main` for prod, `develop` for test**. Bekreft med markør-grep i konteksten (distinkt kode-streng fra branchen) FØR `up -d --build`.
 
 > ⚠️ **rsync ekskluderer `docker/env` (lærdom 2026-07-04).** Server-env-filene (`docker/env/{api,web,api-test,web-test}.env`) er **autoritative + gitignored**. Kanonisk rsync: `rsync -a --exclude node_modules --exclude .next --exclude .git --exclude docker/env`. Uten `--exclude docker/env` kan en lokal `docker/env`-mappe overskrive server-env (`DATABASE_URL` m.m.) → brutt miljø. (2026-07-04: prod-rsync droppet excluden — harmløst **kun** fordi Mac-kilden ikke hadde `docker/env`. Ikke stol på flaks.)
+>
+> **Merk:** rsync ekskluderer KUN `docker/env`, ikke hele `docker/` — bevisst. Repoet er sannhetskilde for `docker-compose*.yml` + `Dockerfile.*`, så de SKAL overskrive serverens versjoner ved rsync (holdes i synk med koden). Kun `docker/env/*.env` er server-autoritativ (gitignored) og ekskluderes.
 
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.

@@ -16,22 +16,33 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
-### 🟡 Dagsseddel: dobbel timeføring (total-tid + per-prosjekt) — strukturér om
+### 🟡 Server-ny vedlikehold: OS-oppdateringer + restart (før redesign-stack)
 
-**Problem (Kenneth, 2026-07-05, prod-test):** Arbeideren fører først total
-arbeidstid på sedel-nivå («Arbeidstid i dag»: fra/til/pause), og må DERETTER
+server-ny melder «System restart required» + ~36 ventende pakke-oppdateringer (observert 2026-07-05 under test-web-rebuild). Ikke akutt, men **bør gjøres før dere reiser den tredje redesign-stacken** (`-p redesign`, `sitedoc_redesign`) på samme maskin — en restart midt i tre kjørende stacks (prod + test + redesign) er mer risikabelt. Handling: planlagt vedlikeholdsvindu → `apt upgrade` + `reboot` (Kenneth, sudo), verifiser prod + test kommer opp igjen (innlogget) etterpå.
+
+**Disk LØST 2026-07-06:** root-LV utvidet 100→500G (528G lå uallokert i VG — underallokert, ikke full disk). **Gjenstår:** OS-oppdateringer + restart (36 pending); `--exclude apps/mobile` i rsync (2,98GB kontekst-bloat); prune-rutine.
+
+### 🟢 Dagsseddel: dobbel timeføring (total-tid + per-prosjekt) — a2 LØST 2026-07-06 (a1 fremtidig)
+
+**Problem (Kenneth, 2026-07-05, prod-test):** Arbeideren førte først total
+arbeidstid på sedel-nivå («Arbeidstid i dag»: fra/til/pause), og måtte DERETTER
 føre timer per prosjekt på nytt. Oppleves som dobbelt arbeid og ustrukturert.
 
-**Retning:** Én strukturert inngang. Enten (a) prosjekt-radene er primær
-inngang og total arbeidstid utledes av sum(rader) + pause, eller (b) total-tid
-fordeles direkte på prosjekt uten separat re-registrering. Vei mot dagsseddel-
-redesign-prinsippene (arbeider-forståelig, enkelt, komplett).
+**a2 LØST (2026-07-06, develop) — vinduet er ikke lenger et påkrevd steg.**
+`dagsseddel.opprett` prefyller arbeidstids-vinduet fra firma-kalenderen
+(`hentEffektivArbeidstid`, Oslo-anker) i stedet for tomt; UI degradert til
+sekundær/forhåndsutfylt/overstyrbar på begge detalj-sider (ny streng
+`timer.arbeidstidPrefyltHint` — «timene føres på radene»). Radene + topp-sum er
+primær-flaten → den brukervendte dobbel-føringen er borte. Bevart: pauseMin som
+maskin-buffer, auto-gen-stien, arbeidstids-varsel. Se [timer.md § Dagsseddel a2](timer.md).
 
-**Avhengighet:** overtid (③) trenger total arbeidstid som grunnlag — en UTLEDET
-total må fortsatt gi korrekt dagsnorm/overtid-split. Se dagsseddel-design.md,
-mobil-dagsseddel-ui-spec.md § U-flyt, timer.md. Del av dagsseddel-UX-
-overhalingen (etter TestFlight). Beslektet med tidligere funn: for mange steg +
-misforståelige etiketter.
+**Gjenstår (a1, fremtidig):** total arbeidstid **utledes** internt av sum(rader)
++ pause i stedet for et eget lagret vindu — full strukturell forening. Krever at
+overtid (③) fortsatt får korrekt dagsnorm/overtid-split fra en UTLEDET total
+(overtid bruker firma-dagsnorm, ikke vinduet, så a2 rører den ikke — men a1 må
+verifiseres mot ③). Beslektet: **web-norm-paritet** (separat oppfølger). Se
+dagsseddel-design.md, mobil-dagsseddel-ui-spec.md § U-flyt, timer.md. Del av
+dagsseddel-UX-overhalingen (etter TestFlight).
 
 ### 🟡 Modul-onboarding-veiledning (wizard ved modul-aktivering)
 
@@ -137,13 +148,21 @@ Oppdaget 2026-06-24. Geofence-editor (A+B, `8deb3a4b`) + «Lokasjon»→«Byggep
 
 **Umiddelbar workaround brukt:** manuell rsync `develop` → `server-ny:~/stack/sitedoc` + `sudo docker compose -f docker/docker-compose.test.yml build/up` (Kenneth, ekte TTY).
 
-### 🟡 Web-timer-UI foreldet mot T.1-modell (dagsseddel ikke lenger prosjekt-eid) — PARKERT (Fase-4-forankret redesign)
+### 🟢 Web-timer-UI T.1-korrekthet — INTERIM GJORT 2026-07-05 (PSI-hook-delen forblir Fase 4/E)
 
-Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-først-verifisert mot kode 2026-07-05.** `DailySheet` har `@@unique([userId, dato])` (`db-timer/prisma/schema.prisma:176`) og **`projectId` ble droppet** (T.1, 2026-05-11, kommentar `schema.prisma:137-138`) — dagsseddel er firma/arbeider-eid, prosjekt ligger på rad (`SheetTimer.projectId`, `:201`). Verifisert også i generert klient: `DailySheetWhereInput` har **ingen** `projectId`-nøkkel. Web-UI behandler den fortsatt som prosjekt-eid → modell-mismatch. **Detalj-siden (`dashbord/timer/[id]/page.tsx`) er allerede T.1-korrekt** (grupperer rader per `(projectId, ECO)`, «+ Legg til prosjekt», per-rad prosjektvelger) — redesignen rører den ikke.
+Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-først-verifisert mot kode 2026-07-05.** `DailySheet` har `@@unique([userId, dato])` (`db-timer/prisma/schema.prisma:176`) og **`projectId` ble droppet** (T.1, 2026-05-11, kommentar `schema.prisma:137-138`) — dagsseddel er firma/arbeider-eid, prosjekt ligger på rad (`SheetTimer.projectId`, `:201`). Verifisert også i generert klient: `DailySheetWhereInput` har **ingen** `projectId`-nøkkel. Web-UI behandlet den fortsatt som prosjekt-eid → modell-mismatch. **Detalj-siden (`dashbord/timer/[id]/page.tsx`) er allerede T.1-korrekt** (grupperer rader per `(projectId, ECO)`, «+ Legg til prosjekt», per-rad prosjektvelger) — redesignen rører den ikke.
 
-**Beslutning 2026-07-05:** hele saken parkeres **holistisk** til Fase 4 Mannskap/PSI finnes (se «Retning» under). Bugene er lav-skade (stille-tom / kosmetisk «—», ubemerket i ~2 mnd), og opprett-flyten + prosjekt-fanen er sammenfiltret med den PSI-drevne web-UI-redesignen — derfor ikke piecemeal-fiks nå.
+**Beslutning 2026-07-05 → interim implementert 2026-07-05.** De tre korrekthets-buggene (①②③) er lav-skade men reelle modell-mismatch, og fiks er lokal til timer-sidene (ikke frossen sone, ikke sammenfiltret med PSI-redesignen). Derfor tatt som **interim T.1-korrekthets-fiks** nå (se «Interim-status» under). Den PSI-drevne delen — auto-forslag av prosjekt fra tilstedeværelse (④) + prosjekt-fane-redesign — forblir **Fase 4 Mannskap/PSI** (se «Retning» under); ⑤ er verifisert tilsiktet.
 
-**Verifiserte funn (2026-07-05, mot kode):**
+**Interim-status (implementert 2026-07-05, develop):**
+
+- **① ✅ GJORT** — `list`-query bruker eksplisitt `where` med rad-prosjekt-filter `timer: { some: { projectId } }` (ikke lenger spread av ugyldig `projectId` på `DailySheetWhereInput`). Prosjekt-kontekst-lista viser nå faktiske sedler med ≥1 rad for prosjektet.
+- **② ✅ GJORT** — `list`-retur beriker hver sedel med `prosjektIder` (distinct `projectId` på tvers av timer-/maskin-/tillegg-rader). `mine/page.tsx` utleder prosjekt-kolonne + «antall prosjekter» fra dette (ikke lenger `rad.projectId` som ikke finnes).
+- **③ ✅ GJORT** — web-opprett er nå **dato-only**: `opprett`-input droppet `projectId`, auth bruker org-tilgang (`krevBrukersOrg` + `krevTimerAktivert`) i stedet for `verifiserProsjektmedlem`; prosjekt-velgeren + geo-forslag fjernet fra `ny/page.tsx`. Prosjekt legges per rad på detalj-siden. Fjerner den misvisende velgeren og kilden til P2002-forvirringen (`@@unique([userId, dato])` består — én sedel per dato er korrekt).
+- **④ 🟡 FORBLIR FASE 4/E** — auto-forslag/auto-utkast av prosjekt i web (PSI-innsjekk + GPS-hook) er ikke bygd; avhenger av Fase 4 Mannskap/PSI (se «Retning»).
+- **⑤ ✅ verifisert tilsiktet** — byggeplass-velger bevisst deaktivert i web-timer.
+
+**Verifiserte funn (2026-07-05, mot kode — pre-fix; ①②③ fikset interim samme dag, se «Interim-status» over):**
 
 - **① 🔴 Prosjekt-kontekst-timer-lista (`[prosjektId]/timer/page.tsx:61`) er runtime-brutt.** BACKLOG antok tidligere «lista filtrerer for dette prosjektet» — virkeligheten er verre: `list`-query (`dagsseddel.ts:472`) legger `projectId` inn i `DailySheetWhereInput` via spread (omgår TS excess-property-sjekk → typechecker, men feiler i runtime). Prisma kaster `PrismaClientValidationError` (unknown arg — `DailySheet` har ingen `projectId` siden T.1) → React Query-feil → siden faller til tom-tilstand (`:161`). Så lista viser **alltid tomt for ALLE sedler**, ikke bare kryss-prosjekt. Live siden 2026-05-11, maskert som «ingen data». P2002-kollisjonen reproduseres slik: mobil lager `(bruker, dato)`-sedel på prosjekt A → web «Ny dagsseddel» velger prosjekt B (kun auth) samme dato → `upsert` treffer `@@unique([userId, dato])` → «Du har allerede en dagsseddel for denne datoen» (P2002, **`dagsseddel.ts:617-620`** — BACKLOG sa `:650`, driftet linjenr) for en sedel arbeideren ikke ser.
 - **② 🟡 «Mine timer» (`mine/page.tsx`) leser `rad.projectId` fra DailySheet (finnes ikke).** `list`-retur (`:497-501`) sprer `...s` (sedel uten projectId) → `rad.projectId === undefined` → prosjekt-kolonne (`:306`) alltid «—», «antall prosjekter» (`:112`) alltid 1. Riktig kilde = radenes `projectId` (sedelen har `timer[]`, men mappingen kaster dem).

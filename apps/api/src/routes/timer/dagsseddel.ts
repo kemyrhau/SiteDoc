@@ -10,7 +10,7 @@ import {
   hentBrukersOrg,
   krevBrukersOrg,
 } from "../../trpc/tilgangskontroll";
-import { krevTimerAktivert } from "../../services/timer";
+import { krevTimerAktivert, hentEffektivArbeidstid } from "../../services/timer";
 import {
   harGyldigMaskinforerbevis,
   harGyldigMaskinforerbevisBatch,
@@ -422,6 +422,35 @@ async function feilMeldingMaskinOverstiger(
     .join("\n");
 }
 
+/**
+ * a2 (2026-07-06): Bygg en absolutt instant som representerer et veggur-
+ * tidspunkt (HH:MM) på gitt dato i norsk tidssone (Europe/Oslo, DST-bevisst).
+ * Serveren kjører UTC i Docker, så en naiv `new Date(`${dato}T${hhmm}`)` ville
+ * lagret feil veggur-tid; vi anker eksplisitt til Oslo siden firma-kalenderens
+ * standardtider er norske veggur-tider. Kun brukt til prefyll av arbeidstids-
+ * vinduet — varsel/dagsnorm er varighetsbasert og dermed TZ-invariant.
+ */
+function osloVeggurTilInstant(dato: Date, hhmm: string): Date {
+  const [timer = 0, minutter = 0] = hhmm.split(":").map(Number);
+  const antattUtc = new Date(
+    Date.UTC(
+      dato.getUTCFullYear(),
+      dato.getUTCMonth(),
+      dato.getUTCDate(),
+      timer,
+      minutter,
+      0,
+    ),
+  );
+  // Mål Oslo-offset for datoen: hva viser Oslo-klokken for antattUtc?
+  const osloVeggur = new Date(
+    antattUtc.toLocaleString("sv-SE", { timeZone: "Europe/Oslo" }).replace(" ", "T") +
+      "Z",
+  );
+  const offsetMs = osloVeggur.getTime() - antattUtc.getTime();
+  return new Date(antattUtc.getTime() - offsetMs);
+}
+
 export const dagsseddelRouter = router({
   // List dagssedler for innlogget bruker, eller for et prosjekt (admin-perspektiv senere).
   list: protectedProcedure
@@ -469,7 +498,10 @@ export const dagsseddelRouter = router({
       const where: Prisma.DailySheetWhereInput = {
         organizationId: orgId,
         userId,
-        ...(input?.projectId ? { projectId: input.projectId } : {}),
+        // T.1: DailySheet har ikke projectId — prosjekttilhørighet ligger på
+        // rad-nivå (SheetTimer/SheetMachine/SheetTillegg). Prosjekt-kontekst-
+        // filteret matcher sedler med ≥1 rad for prosjektet.
+        ...(input?.projectId ? { timer: { some: { projectId: input.projectId } } } : {}),
         ...(input?.status ? { status: input.status } : {}),
         ...(input?.fra || input?.til
           ? {
@@ -493,12 +525,26 @@ export const dagsseddelRouter = router({
         take: 200,
       });
 
-      // Berik med totaltimer (sum av alle SheetTimer-rader) for liste-visning
-      return sedler.map((s) => ({
-        ...s,
-        totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
-        antallRader: s.timer.length + s.tillegg.length + s.maskiner.length,
-      }));
+      // Berik med totaltimer (sum av alle SheetTimer-rader) for liste-visning.
+      // T.1: prosjekt(er) utledes fra radene (DailySheet har ikke projectId) —
+      // distinct projectId på tvers av timer-/maskin-/tillegg-rader.
+      return sedler.map((s) => {
+        const prosjektIder = [
+          ...new Set(
+            [
+              ...s.timer.map((t) => t.projectId),
+              ...s.maskiner.map((m) => m.projectId),
+              ...s.tillegg.map((t) => t.projectId),
+            ].filter((id): id is string => !!id),
+          ),
+        ];
+        return {
+          ...s,
+          prosjektIder,
+          totaltimer: s.timer.reduce((acc, t) => acc + Number(t.timer), 0),
+          antallRader: s.timer.length + s.tillegg.length + s.maskiner.length,
+        };
+      });
     }),
 
   hentMedId: protectedProcedure
@@ -551,7 +597,6 @@ export const dagsseddelRouter = router({
       z.object({
         // Idempotens-nøkkel — klient genererer UUID, server upserter
         clientUuid: z.string().uuid(),
-        projectId: z.string().uuid(),
         aktivitetId: z.string().uuid(),
         avdelingId: z.string().uuid().nullable().optional(),
         byggeplassId: z.string().uuid().nullable().optional(),
@@ -567,8 +612,9 @@ export const dagsseddelRouter = router({
       const orgId = await krevBrukersOrg(ctx.userId);
       await krevTimerAktivert(orgId);
 
-      // Verifiser prosjekt-tilgang (kaster FORBIDDEN ved feil)
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // T.1: Web-opprett er dato-only — sedelen eies av arbeider/firma og har
+      // ingen prosjekttilhørighet. Org-tilgang (krevBrukersOrg + krevTimerAktivert)
+      // er tilstrekkelig auth; prosjekt legges per rad på detalj-siden.
 
       // Verifiser at aktiviteten tilhører firmaet
       const aktivitet = await ctx.prismaTimer.aktivitet.findFirst({
@@ -583,10 +629,25 @@ export const dagsseddelRouter = router({
 
       const dato = new Date(input.dato);
 
+      // a2 (2026-07-06): Prefyll arbeidstids-vinduet fra firma-kalenderen når
+      // klienten ikke sender et eksplisitt vindu. Vinduet er sekundært/
+      // overstyrbart (auto-gen/badge/varsel bruker det) — ikke lenger et
+      // påkrevd manuelt steg; radene + topp-sum er primær-flaten. pauseMin
+      // forblir sedel-felt (maskin ≤ arbeid-validering bruker den som buffer).
+      let startAtVerdi = input.startAt ? new Date(input.startAt) : null;
+      let endAtVerdi = input.endAt ? new Date(input.endAt) : null;
+      let pauseMinVerdi = input.pauseMin;
+      if (!startAtVerdi && !endAtVerdi) {
+        const norm = await hentEffektivArbeidstid(orgId, dato);
+        startAtVerdi = osloVeggurTilInstant(dato, norm.startTid);
+        endAtVerdi = osloVeggurTilInstant(dato, norm.sluttTid);
+        pauseMinVerdi = norm.pauseMin;
+      }
+
       // Idempotent upsert via clientUuid
       // T.1 (2026-05-11): projectId lagres ikke på DailySheet — kun på rad-nivå.
-      // input.projectId brukes til auth-sjekk (verifiserProsjektmedlem ovenfor).
       // Klient sender projectId ved opprettelse av rader (leggTilTimerRad etc.).
+      // @@unique([userId, dato]): én sedel per arbeider per dato (P2002 = duplikat-dato).
       try {
         return await ctx.prismaTimer.dailySheet.upsert({
           where: { clientUuid: input.clientUuid },
@@ -599,9 +660,9 @@ export const dagsseddelRouter = router({
             avdelingId: input.avdelingId ?? null,
             byggeplassId: input.byggeplassId ?? null,
             dato,
-            startAt: input.startAt ? new Date(input.startAt) : null,
-            endAt: input.endAt ? new Date(input.endAt) : null,
-            pauseMin: input.pauseMin,
+            startAt: startAtVerdi,
+            endAt: endAtVerdi,
+            pauseMin: pauseMinVerdi,
             sluttTidKilde: input.sluttTidKilde,
             beskrivelse: input.beskrivelse ?? null,
             status: "draft",

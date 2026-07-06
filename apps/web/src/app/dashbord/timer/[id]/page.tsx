@@ -353,11 +353,11 @@ export default function DagsseddelDetaljSide() {
           )}
         </dl>
         <div className="mt-5 border-t border-gray-100 pt-4">
-          <h3 className="text-sm font-semibold text-gray-900">
+          <h3 className="text-sm font-medium text-gray-600">
             {t("timer.arbeidstidIDag")}
           </h3>
           <p className="mb-3 text-xs text-gray-500">
-            {t("timer.arbeidstidIDagBeskrivelse")}
+            {t("timer.arbeidstidPrefyltHint")}
           </p>
           <dl className="grid grid-cols-3 gap-3 text-sm">
             <Definisjon
