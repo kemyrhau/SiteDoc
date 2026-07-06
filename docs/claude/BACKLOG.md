@@ -410,6 +410,16 @@ Alle 14 funn fra sikkerhets-audit 2026-05-27 er adressert i prod. Se [historikk-
 
 **Bi-funn:** «Ukjent bruker»-meldingen ved utlogging (`mer.tsx:248`, `bruker?.name ?? "Ukjent bruker"`) er forventet kortvarig fallback når `setBruker(null)` rendres før navigation. Ikke en bug.
 
+### 🟡 Mobil prosjektliste mangler sitedoc_admin-bypass (redesign-paritet, funn 2a-simulator 2026-07-06)
+
+**Funn (fabel, simulator-verifisering steg vi):** Mobilens prosjektvelger/Hjem viser **ingen prosjekter for `sitedoc_admin`** (test-admin), mens firma-velgeren i Mer viser alle org-er. Web fikk i redesign steg ii et admin-bypass (hub-funnet: «admin/registrator ser alt» — `erSitedocAdmin`/`erCompanyAdmin`-bypass som speiler HovedSidebar). Mobilen mangler tilsvarende: prosjekt-lista er medlemskaps-basert, og en `sitedoc_admin` uten `ProjectMember`-rad ser tomt.
+
+**Skiller seg fra build #29-fiksen (over):** den gjaldt `valgtFirmaId`-gating + `hentMineMedlemskap`-fallback for standalone/uvalgt-firma. Dette er selve prosjekt-lista som ikke honorerer sitedoc_admin-«ser alt».
+
+**Tiltak (ikke nå — ikke trivielt):** mobil prosjektliste bør speile webs admin-oppførsel (sitedoc_admin → alle prosjekter, ev. gated bak samme logikk som `HovedSidebar`/`useSidebarElementer`). Krever server-query som honorerer rolle-bypass + klient-konsum.
+
+**Testbehov er dekket uten fiks:** `kemyrhau@gmail.com` er whitelistet i dev-login (ekte admin med prosjektmedlemskap → ser data + toggle), og agentprosjekt-seeden gir `test-arbeider` innhold. Verifisering av steg vi bruker disse. Paritetsrad: se [redesign-paritetssjekkliste.md § Kode-diff-noter](redesign-paritetssjekkliste.md).
+
 ### Avklaring-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 
 > **Terminologi-rename 2026-05-28 (A.31):** Modul-konseptet tidligere kalt «Godkjenning» er omdøpt til **Avklaring** for å unngå kollisjon med status-verdien `"godkjent"` i `DocumentTransfer.toStatus`. Schema-rename (`model Godkjenning` → `model Avklaring`, `godkjenninger` → `avklaringer`) gjennomføres når modulen bygges. Se [fase-0-beslutninger.md § A.31](fase-0-beslutninger.md).
