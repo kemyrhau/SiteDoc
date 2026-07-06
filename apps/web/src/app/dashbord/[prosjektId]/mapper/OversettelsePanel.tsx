@@ -192,6 +192,10 @@ export function OversettelsePanel({
               ? t("oversettelse.panel.omfangMedUnder", { n: omfang.iMappe, m: omfang.iUndermapper })
               : t("oversettelse.panel.omfang", { n: omfang.iMappe })}
             {" "}
+            {/* v5: parentes-klausul med oversettbar-tellingen (samme som knappen)
+                → brukeren ser hvorfor «14 dokumenter» kan bli «0 oversettes». */}
+            {t("oversettelse.panel.kanOversettes", { g: gjenstaaende })}
+            {" "}
             {t("oversettelse.panel.roresIkke")}
           </div>
 

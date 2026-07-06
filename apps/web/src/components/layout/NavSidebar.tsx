@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { Settings } from "lucide-react";
+import { Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
@@ -28,6 +29,9 @@ import { useFirmaNavElementer, type FirmaNavElement } from "./firma-nav";
  * Flagg av = denne komponenten monteres ikke; HovedSidebar brukes uendret.
  */
 
+// s1: kollapset sidebar → 60px ikon-skinne. Tilstand persisteres per nettleser.
+const NAV_KOLLAPS_NOKKEL = "sitedoc-nav-kollaps";
+
 function SoneOverskrift({ children }: { children: React.ReactNode }) {
   return (
     <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-blue-300">
@@ -44,6 +48,20 @@ export function NavSidebar() {
   const { t } = useTranslation();
   const aktivModul = hentAktivModul(pathname ?? "");
   const aksentFarge = aktivModul ? MODUL_FARGER[aktivModul] : null;
+
+  // Kollaps-tilstand: start alltid utvidet på server + første render (unngår
+  // hydrerings-avvik); faktisk verdi settes i effekten under.
+  const [kollapset, setKollapset] = useState(false);
+  useEffect(() => {
+    setKollapset(window.localStorage.getItem(NAV_KOLLAPS_NOKKEL) === "1");
+  }, []);
+  function toggleKollaps() {
+    setKollapset((v) => {
+      const ny = !v;
+      window.localStorage.setItem(NAV_KOLLAPS_NOKKEL, ny ? "1" : "0");
+      return ny;
+    });
+  }
 
   const { filtrertHovedelementer, harMaskinModul } = useSidebarElementer();
   // Firma-nav + gating fra delt kilde (drift-fri; deles med søkemodalen).
@@ -83,12 +101,15 @@ export function NavSidebar() {
         onClick={deaktivert ? undefined : () => navigerSidebar(router, prosjektId, element)}
         disabled={deaktivert}
         aria-current={aktiv ? "page" : undefined}
+        title={kollapset ? t(element.labelKey) : undefined}
         className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+          kollapset ? "justify-center" : ""
+        } ${
           deaktivert ? "cursor-not-allowed opacity-40" : ""
         } ${
           aktiv ? "bg-white/15 text-white" : "text-blue-200 hover:bg-white/10 hover:text-white"
         }`}
-        style={farge ? { borderLeft: `3px solid ${farge}`, paddingLeft: "9px" } : undefined}
+        style={farge ? { borderLeft: `3px solid ${farge}`, paddingLeft: kollapset ? undefined : "9px" } : undefined}
       >
         <span
           className="flex h-5 w-5 shrink-0 items-center justify-center"
@@ -96,7 +117,7 @@ export function NavSidebar() {
         >
           {element.ikon}
         </span>
-        <span className="truncate">{t(element.labelKey)}</span>
+        {!kollapset && <span className="truncate">{t(element.labelKey)}</span>}
       </button>
     );
   }
@@ -122,27 +143,51 @@ export function NavSidebar() {
         key={element.href}
         href={element.href}
         aria-current={aktiv ? "page" : undefined}
+        title={kollapset ? t(element.labelKey) : undefined}
         className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+          kollapset ? "justify-center" : ""
+        } ${
           aktiv ? "bg-white/15 text-white" : "text-blue-200 hover:bg-white/10 hover:text-white"
         }`}
       >
         <span className="flex h-5 w-5 shrink-0 items-center justify-center">{element.ikon}</span>
-        <span className="truncate">{t(element.labelKey)}</span>
+        {!kollapset && <span className="truncate">{t(element.labelKey)}</span>}
       </Link>
     );
   }
 
   return (
-    <aside className="hidden min-w-[220px] flex-col bg-sitedoc-primary px-2 py-3 md:flex">
+    <aside
+      className={`hidden flex-col bg-sitedoc-primary px-2 py-3 md:flex ${
+        kollapset ? "w-[60px]" : "min-w-[220px]"
+      }`}
+    >
+      {/* Kollaps-knapp (chevron) — persisteres i localStorage */}
+      <div className={`mb-1 flex px-1 ${kollapset ? "justify-center" : "justify-end"}`}>
+        <button
+          type="button"
+          onClick={toggleKollaps}
+          title={kollapset ? t("nav.utvid") : t("nav.kollaps")}
+          aria-label={kollapset ? t("nav.utvid") : t("nav.kollaps")}
+          className="rounded-lg p-1.5 text-blue-200 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          {kollapset ? <PanelLeftOpen className="h-5 w-5" /> : <PanelLeftClose className="h-5 w-5" />}
+        </button>
+      </div>
+
       <nav className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
         {/* PROSJEKT-sone */}
-        <SoneOverskrift>{t("nav.soneProsjekt")}</SoneOverskrift>
+        {!kollapset && <SoneOverskrift>{t("nav.soneProsjekt")}</SoneOverskrift>}
         {prosjektElementer.map(renderRad)}
 
         {/* FIRMA-sone (admin-nav admin-gated; Maskin gated på firmamodul) */}
         {visFirmaSone && (
           <>
-            <SoneOverskrift>{t("nav.soneFirma")}</SoneOverskrift>
+            {kollapset ? (
+              <div className="my-1 border-t border-white/10" />
+            ) : (
+              <SoneOverskrift>{t("nav.soneFirma")}</SoneOverskrift>
+            )}
             {firmaNav.map(renderFirmaRad)}
             {maskinElement && renderRad(maskinElement)}
           </>
@@ -154,14 +199,17 @@ export function NavSidebar() {
         <Link
           href="/dashbord/innstillinger"
           aria-current={erHub ? "page" : undefined}
+          title={kollapset ? t("nav.innstillinger") : undefined}
           className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+            kollapset ? "justify-center" : ""
+          } ${
             erHub ? "bg-white/15 text-white" : "text-blue-200 hover:bg-white/10 hover:text-white"
           }`}
         >
           <span className="flex h-5 w-5 shrink-0 items-center justify-center">
             <Settings className="h-5 w-5" />
           </span>
-          <span className="truncate">{t("nav.innstillinger")}</span>
+          {!kollapset && <span className="truncate">{t("nav.innstillinger")}</span>}
         </Link>
       </div>
     </aside>
