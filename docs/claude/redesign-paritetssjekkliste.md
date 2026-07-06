@@ -338,6 +338,16 @@ Toppbar (T) 9 · Sidebar-gating (G) 12 · Standarder (S) 6 · Mobil (M) 19 = **1
 | (vi) 2a mobil-tabs | ⏳ | RN-variant av `useNyNavigasjon` (AsyncStorage) |
 | (vii) 2c leser | ⏳ | |
 
+## Status + åpne verifiseringer (2026-07-06)
+
+- **Steg ii, iii, iv: ✅ designgodkjent av fabel.** **c4** (flagg-toggle): ✅ lukket (5a/5b + a11y verifisert på test).
+- **Steg v: bygget + v1/v3a/v3b-fikser på develop** (`d2420b33`) — **IKKE lukket. Venter re-test:** Kenneth må rebuilde test (api+web) + kjøre `seed-oversettelse-test.ts`, deretter Opus web-runde (B7 grønn/amber-chips, B8 avvik-rad, v3b optimistisk amber).
+- **Godkjente avvik — ikke «rett» disse senere:** **B3** header-knapp «🇳🇴 → 🇬🇧» (fabel: bedre enn spec-teksten, beholdes). **B6** compound-telling (0 + 220). Brand-blå sidebar + PROSJEKT-etikett uten prosjektnavn (steg iii).
+- **Steg iv — åpen søke-gating-verifisering:** nå testbar via seedet `test-arbeider@sitedoc.test` (user uten manage_field) — se [dev-login-agent.md](dev-login-agent.md). Ctrl+K-snarveiskollisjon: **grep kjørt (kun wheel-zoom-listener i `bilder/page.tsx`, ingen konflikt).**
+- **Restanser iii/iv:** **T9** (mobil-web-hamburger bruker gammel nav m/flagg på) + **FM5/K2** («Mine timer» → brukermeny) — begge til steg vi eller egen liten runde.
+- **Pilot-plan for flagget (fabel-beslutning):** toggle utvides fra `sitedoc_admin` → `company_admin` ved pilotstart; på sikt vurderes ny UI som default med «bytt tilbake». Se [redesign-handoff.md § Pilot + test/deploy-strategi](../redesign/redesign-handoff.md).
+- **Neste milepæl:** steg vi (2a mobil-tabs) — ordre kommer fra fabel etter at steg v er lukket.
+
 ## Neste steg
 
 1. **Kenneth godkjenner den oppdaterte lista.** K1/K2/K4/K5/K6/K10 er innarbeidet; K3/K7/K8/K11

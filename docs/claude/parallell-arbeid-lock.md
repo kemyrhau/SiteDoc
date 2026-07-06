@@ -18,7 +18,7 @@ sist_endret: 2026-07-05
 | `…/SiteDoc-deploy` | `main` | Prod-deploy (rsync-kilde). |
 | `…/sitedoc-server` | `ny-server` | Server-side arbeid. |
 
-## De 7 kjørereglene (ufravikelige i parallell modus)
+## De 10 kjørereglene (ufravikelige i parallell modus)
 
 1. **Ett worktree per rolle — aldri kryss-skriv.** Redesign-økta eier hovedtreet (`…/SiteDoc`, `redesign/navigasjon`). Develop-docs/feature skrives i `…/SiteDoc-develop`. Skriv ALDRI develop-arbeid i det delte/redesign-treet.
 2. **Verifiser branch før hver commit:** `git rev-parse --abbrev-ref HEAD` = forventet branch. Worktrees deler samme `.git` → feil tre committer på feil branch uten at det er åpenbart.
@@ -27,6 +27,9 @@ sist_endret: 2026-07-05
 5. **Commit eller stash før du forlater et tre.** Ukommittert arbeid i ett worktree blokkerer `git checkout` av samme branch i et annet — se lærdom (b). Ikke la ukommittert arbeid ligge og blokkere en annen økt.
 6. **`index.lock` — foreldreløs lås: diagnostisér før fjerning.** En `.git/index.lock` fra en krasjet/avbrutt git-prosess blokkerer alle git-operasjoner. Sjekk (a) om en git-prosess faktisk kjører, (b) låsens alder, (c) størrelse (0 byte = trygt foreldreløs) FØR du fjerner. Aldri blind-slett — se lærdom (a).
 7. **Dual-review-gate + kode+docs i samme commit gjelder uendret i parallell modus.** Hver økt gate-verifiserer eget arbeid mot koden før develop-commit; aldri push til `develop` uten diff + verifisering.
+8. **i18n `generate.ts` kjøres KUN på redesign-branchen** mens redesignet pågår (utdyper regel 3). En annen økt som legger i18n-nøkler committer nb+en og lar redesign-økta kjøre generate — ellers kolliderer de 15 språkfilene.
+9. **Merge til `develop` med `--no-ff`** + melding `merge(redesign): <steg> → develop` (aldri fast-forward). Bevarer merge-grensene per steg/funn så historikken er reviewbar; utført fra `SiteDoc-develop`-treet (regel 1).
+10. **Build-gate — full lokal build FØR merge.** `pnpm --filter @sitedoc/web build` (eller berørt app: api/mobil-typecheck) skal være grønn før develop-merge. Fanger prerender-/typefeil før de treffer test (jf. `useNyNavigasjon`-Suspense-regresjonen 2026-07-05).
 
 ## Frossen sone (redesign-økta eier — ikke rør fra andre økter)
 
