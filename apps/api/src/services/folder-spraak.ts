@@ -72,6 +72,29 @@ export function resolverSpråk(
 }
 
 /**
+ * Finn undermapper som ARVER språk fra `rotId` (nedover-traversering).
+ * Stopper på undermapper med languageMode = "custom" (de starter sin egen
+ * språk-kjede). Returnerer ID-ene til de arvende undermappene (uten roten).
+ * Brukes av mappe-oversettelse: batch-jobben gjelder roten + disse.
+ */
+export function finnArvendeUndermapper(
+  rotId: string,
+  mapper: SpråkMappe[],
+): string[] {
+  const under: string[] = [];
+  const barnAv = (pid: string) => mapper.filter((m) => m.parentId === pid);
+  function traverser(id: string) {
+    for (const barn of barnAv(id)) {
+      if (barn.languageMode === "custom") continue; // egen språk-kjede
+      under.push(barn.id);
+      traverser(barn.id);
+    }
+  }
+  traverser(rotId);
+  return under;
+}
+
+/**
  * Beregn effektive målspråk for alle mapper i ett prosjekt (batch).
  */
 export function resolverAlleSpråk(

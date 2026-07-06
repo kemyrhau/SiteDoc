@@ -6,7 +6,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { settMappeTilgangSchema } from "@sitedoc/shared/validation";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { splittMalebrevPdf } from "../services/pdf-splitting";
-import { resolverSpråk, resolverAlleSpråk } from "../services/folder-spraak";
+import { resolverSpråk, resolverAlleSpråk, finnArvendeUndermapper } from "../services/folder-spraak";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 
 const GYLDIGE_SPRAAK = new Set<string>(STOETTEDE_SPRAAK.map((s) => s.kode));
@@ -351,6 +351,151 @@ export const mappeRouter = router({
       });
     }),
 
+  // Omfang for oversettelses-panelet (2b): dokumenter i mappen + arvende
+  // undermapper, og hvor mange som mangler minst ett målspråk («gjenstående»).
+  oversettelseOmfang: protectedProcedure
+    .input(z.object({ folderId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+
+      const alleMapper = (
+        await ctx.prisma.folder.findMany({
+          where: { projectId: mappe.projectId },
+          select: { id: true, parentId: true, languageMode: true, languages: true },
+        })
+      ).map((m) => ({
+        id: m.id,
+        parentId: m.parentId,
+        languageMode: m.languageMode,
+        languages: m.languages as string[],
+      }));
+
+      const effektiv = resolverSpråk(input.folderId, alleMapper);
+      const malSprak = effektiv.languages;
+      const undermappeIder = finnArvendeUndermapper(input.folderId, alleMapper);
+
+      const iMappe = await ctx.prisma.ftdDocument.count({
+        where: { folderId: input.folderId, isActive: true },
+      });
+      const iUndermapper =
+        undermappeIder.length > 0
+          ? await ctx.prisma.ftdDocument.count({
+              where: { folderId: { in: undermappeIder }, isActive: true },
+            })
+          : 0;
+
+      // Tell «gjenstående»: dokumenter (i omfanget) som mangler minst ett målspråk.
+      let gjenstaaende = 0;
+      const alleFolderIder = [input.folderId, ...undermappeIder];
+      const docs = await ctx.prisma.ftdDocument.findMany({
+        where: { folderId: { in: alleFolderIder }, isActive: true },
+        select: { id: true, sourceLanguage: true },
+      });
+      if (docs.length > 0 && malSprak.length > 1) {
+        const docIds = docs.map((d) => d.id);
+        const blokkSprak = await ctx.prisma.$queryRaw<
+          Array<{ document_id: string; language: string }>
+        >`
+          SELECT DISTINCT document_id, language FROM ftd_document_blocks
+          WHERE document_id IN (${Prisma.join(docIds)})
+        `;
+        const språkPerDok = new Map<string, Set<string>>();
+        for (const r of blokkSprak) {
+          if (!språkPerDok.has(r.document_id)) språkPerDok.set(r.document_id, new Set());
+          språkPerDok.get(r.document_id)!.add(r.language);
+        }
+        for (const d of docs) {
+          const har = språkPerDok.get(d.id) ?? new Set<string>();
+          const mangler = malSprak.some((l) => l !== d.sourceLanguage && !har.has(l));
+          if (mangler) gjenstaaende++;
+        }
+      }
+
+      return { iMappe, iUndermapper, gjenstaaende, malSprak, kildesprak: effektiv };
+    }),
+
+  // Batch-oversett gjenstående dokumenter i mappen + arvende undermapper (2b).
+  // Try/catch per dokument — én feil stopper ikke batchen.
+  oversettGjenstaaende: protectedProcedure
+    .input(z.object({ folderId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const mappe = await ctx.prisma.folder.findUniqueOrThrow({
+        where: { id: input.folderId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, mappe.projectId);
+
+      const modul = await ctx.prisma.projectModule.findUnique({
+        where: {
+          projectId_moduleSlug: { projectId: mappe.projectId, moduleSlug: "oversettelse" },
+        },
+      });
+      if (modul?.status !== "aktiv") {
+        return { opprettet: 0, feilet: 0, modulInaktiv: true };
+      }
+
+      const alleMapper = (
+        await ctx.prisma.folder.findMany({
+          where: { projectId: mappe.projectId },
+          select: { id: true, parentId: true, languageMode: true, languages: true },
+        })
+      ).map((m) => ({
+        id: m.id,
+        parentId: m.parentId,
+        languageMode: m.languageMode,
+        languages: m.languages as string[],
+      }));
+
+      const malSprak = resolverSpråk(input.folderId, alleMapper).languages;
+      const undermappeIder = finnArvendeUndermapper(input.folderId, alleMapper);
+      const alleFolderIder = [input.folderId, ...undermappeIder];
+
+      const docs = await ctx.prisma.ftdDocument.findMany({
+        where: { folderId: { in: alleFolderIder }, isActive: true },
+        select: { id: true, sourceLanguage: true },
+      });
+
+      let opprettet = 0;
+      let feilet = 0;
+      for (const d of docs) {
+        try {
+          const manglendeSpråk = malSprak.filter((l) => l !== d.sourceLanguage);
+          if (manglendeSpråk.length === 0) continue;
+          const antallBlokker = await ctx.prisma.ftdDocumentBlock.count({
+            where: { documentId: d.id, language: d.sourceLanguage },
+          });
+          if (antallBlokker === 0) continue;
+          for (const lang of manglendeSpråk) {
+            // Hopp over språk som allerede er oversatt (blokker finnes).
+            const finnes = await ctx.prisma.ftdDocumentBlock.count({
+              where: { documentId: d.id, language: lang },
+            });
+            if (finnes > 0) continue;
+            await ctx.prisma.ftdTranslationJob.upsert({
+              where: { documentId_targetLang: { documentId: d.id, targetLang: lang } },
+              create: {
+                id: `${d.id}-${lang}`,
+                documentId: d.id,
+                targetLang: lang,
+                blocksTotal: antallBlokker,
+                status: "pending",
+              },
+              update: { status: "pending", blocksTotal: antallBlokker, blocksDone: 0, error: null },
+            });
+            opprettet++;
+          }
+        } catch {
+          feilet++;
+        }
+      }
+
+      return { opprettet, feilet, modulInaktiv: false };
+    }),
+
   // Slett mappe (kaskaderer til undermapper)
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
@@ -413,7 +558,10 @@ export const mappeRouter = router({
       // Hent oversettelsestatus per dokument (kun for mapper med flere språk)
       const mappeSprak = effektiv.languages;
       const harOversettelse = mappeSprak.length > 1;
-      let oversettStatusMap = new Map<string, { tilgjengelig: string[]; pågår: boolean }>();
+      let oversettStatusMap = new Map<
+        string,
+        { tilgjengelig: string[]; pågår: boolean; jobber: Array<{ lang: string; status: string }> }
+      >();
 
       if (harOversettelse) {
         // Tilgjengelige språk per dokument
@@ -423,23 +571,30 @@ export const mappeRouter = router({
           SELECT DISTINCT document_id, language FROM ftd_document_blocks
           WHERE document_id IN (${Prisma.join(docIds)})
         `;
-        // Pågående oversettelser
-        const pågående = await ctx.prisma.ftdTranslationJob.findMany({
-          where: { documentId: { in: docIds }, status: { in: ["pending", "processing"] } },
-          select: { documentId: true },
+        // Jobb-status per dokument+språk (alle statuser — chip-presisjon).
+        const jobber = await ctx.prisma.ftdTranslationJob.findMany({
+          where: { documentId: { in: docIds } },
+          select: { documentId: true, targetLang: true, status: true },
         });
-        const pågåendeSet = new Set(pågående.map((p) => p.documentId));
 
         const språkPerDok = new Map<string, Set<string>>();
         for (const r of blokkSprak) {
           if (!språkPerDok.has(r.document_id)) språkPerDok.set(r.document_id, new Set());
           språkPerDok.get(r.document_id)!.add(r.language);
         }
+        const jobberPerDok = new Map<string, Array<{ lang: string; status: string }>>();
+        for (const j of jobber) {
+          if (!jobberPerDok.has(j.documentId)) jobberPerDok.set(j.documentId, []);
+          jobberPerDok.get(j.documentId)!.push({ lang: j.targetLang, status: j.status });
+        }
 
         oversettStatusMap = new Map(
           docIds.map((id) => [id, {
             tilgjengelig: [...(språkPerDok.get(id) ?? [])],
-            pågår: pågåendeSet.has(id),
+            pågår: (jobberPerDok.get(id) ?? []).some(
+              (j) => j.status === "pending" || j.status === "processing",
+            ),
+            jobber: jobberPerDok.get(id) ?? [],
           }]),
         );
       }
