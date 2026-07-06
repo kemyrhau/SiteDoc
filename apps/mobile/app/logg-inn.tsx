@@ -9,10 +9,14 @@ import { useAuth } from "../src/providers/AuthProvider";
 import { erMicrosoftKonfigurert, erTestLoginAktiv } from "../src/config/auth";
 
 // Whitelistede testbrukere (må matche dev-login.ts + seed-testbrukere.ts).
+// «Egen bruker» = ekte sitedoc_admin-konto med prosjektmedlemskap (whitelistet
+// i dev-login.ts) — brukes til å verifisere skjermer med reell data der de
+// seedede testbrukerne mangler prosjekttilknytning.
 const TESTBRUKERE: Array<{ email: string; label: string }> = [
   { email: "test-admin@sitedoc.test", label: "🧪 SiteDoc-admin" },
   { email: "test-firma@sitedoc.test", label: "🧪 Firma-admin" },
   { email: "test-arbeider@sitedoc.test", label: "🧪 Arbeider (uten manage_field)" },
+  { email: "kemyrhau@gmail.com", label: "👤 Egen bruker (kemyrhau)" },
 ];
 import { VersjonsFooter } from "../src/components/VersjonsFooter";
 
