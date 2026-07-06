@@ -4799,3 +4799,29 @@ peker hit. Beslutningsgrunnlag og arkitektur ligger i
 [fase-0-beslutninger.md](fase-0-beslutninger.md) og
 [arkitektur-syntese.md](arkitektur-syntese.md).
 
+
+_(Follow-up 2026-07-06: arkivert fra STATUS-AKTUELT § Pågående arbeid — dødt build-verifiserings-notat, superseded av EAS-bunt #37.)_
+
+### Pågående: TestFlight build #24 enhet-verifisering (build #23 superseded)
+
+Build #24 (`7d3952d2-3939-49fc-ae63-93fd1a10cfe5`, iOS buildNumber 27) bygd og submittert til TestFlight via submission `c57f9b1a-1b03-4a49-9b46-906a89a0a7ab` 2026-05-30. Apple-prosessering pågår (5-10 min). Erstatter build #23 som var inkompatibel med server etter sikkerhets-audit-deploy 2026-05-27.
+
+**Hvorfor build #23 sluttet å virke (diagnose 2026-05-30):**
+
+Build #23 ble bygd 2026-05-25 fra `91bc235f` eller tidligere. H1 mobil-token-rotasjon-fix på klient-siden (`apps/mobile/src/lib/trpc.ts` fetch-handler som leser `x-session-token`-respons-header) ble committet 2026-05-27 i `0c62231d` — to dager etter build #23 ble bygd. Da server begynte å rotere mobil-sessionTokens for sesjoner med `lastRotatedAt > 7d` etter prod-deploy 2026-05-27, sendte server ny token via X-Session-Token-header. Build #23 ignorerte headeren → påfølgende requests gikk med død token → 401 → «henter ikke data fra server».
+
+Migrasjonen `20260527200000_session_rotation_tracking` backfilte `last_rotated_at = expires - 30 days` for alle eksisterende sesjoner, slik at en hvilken som helst mobil-sesjon opprettet før 2026-05-20 (typisk) trigget rotasjon ved første mutation etter deploy.
+
+**Build #24 leverer (alt fra #23 + 2 nye mobil-commits):**
+- `0c62231d` H1 mobil token-rotasjon-håndtering (fix for rotårsak — leser `x-session-token` i fetch-handler og lagrer til SecureStore)
+- `32dd43ac` oppgave-detalj `rettighetInput` (speil av sjekkliste-fix fra 2026-05-08)
+- Alt build #23-innhold: boks-basert `DokumentHandlingsmeny`, ProsjektKontekst auto-reset ved firma-bytte, hele mai-bunken (T7-3a/b1/b2/d, T4-d/e, T.5, T7-4a/e, firma-velger)
+
+**Fokusområder for enhet-testing:**
+- Verifiser at innlogging holder over 7-dagers-grensen (eller trigge rotasjon manuelt ved å backdatere `Session.lastRotatedAt` i test-DB)
+- Verifiser fire kjente avvik fra spec dokumentert i [historikk-2026-05.md § Dokumentflyt send-modal redesign](historikk-2026-05.md): statusvalg-popup-mapping, auto-mottaker-landing, `erFirmaAdmin`-rolle-sjekk, approved/closed-tilstand
+- Bekreft firma-bytte clearer byggeplass + prosjektId korrekt
+- Generell regresjonssjekk på timer-flyt etter ny mobil-bunke
+- Oppgave-rettighet: bekreft at oppgave-detalj nå viser handlingsknapper korrekt for ulike roller
+
+**Lærdom:** Server-side sikkerhets-audit-fix kan introdusere protokoll-endring som krever koordinert mobil-bygg. Ved fremtidige X-Session-Token-lignende mekanismer: vurder en kort overgangsperiode der server logger «klient-mangler-rotasjon» uten å rotere, slik at vi kan oppdage mismatch FØR tokens roteres bort under føttene på utdaterte klienter.
