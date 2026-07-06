@@ -18,7 +18,7 @@ sist_endret: 2026-07-05
 | `…/SiteDoc-deploy` | `main` | Prod-deploy (rsync-kilde). |
 | `…/sitedoc-server` | `ny-server` | Server-side arbeid. |
 
-## De 9 kjørereglene (ufravikelige i parallell modus)
+## De 11 kjørereglene (ufravikelige i parallell modus)
 
 1. **Ett worktree per rolle — aldri kryss-skriv.** Redesign-økta eier hovedtreet (`…/SiteDoc`, `redesign/navigasjon`). Develop-docs/feature skrives i `…/SiteDoc-develop`. Skriv ALDRI develop-arbeid i det delte/redesign-treet.
 2. **Verifiser branch før hver commit:** `git rev-parse --abbrev-ref HEAD` = forventet branch. Worktrees deler samme `.git` → feil tre committer på feil branch uten at det er åpenbart.
@@ -28,7 +28,9 @@ sist_endret: 2026-07-05
 6. **`index.lock` — foreldreløs lås: diagnostisér før fjerning.** En `.git/index.lock` fra en krasjet/avbrutt git-prosess blokkerer alle git-operasjoner. Sjekk (a) om en git-prosess faktisk kjører, (b) låsens alder, (c) størrelse (0 byte = trygt foreldreløs) FØR du fjerner. Aldri blind-slett — se lærdom (a).
 7. **Dual-review-gate + kode+docs i samme commit gjelder uendret i parallell modus.** Hver økt gate-verifiserer eget arbeid mot koden før develop-commit; aldri push til `develop` uten diff + verifisering.
 8. **Løs merge-konflikter ved å REDIGERE fila, ikke bare `git add`.** `git add` på en fil med konflikt-markører stager `<<<<<<<`/`=======`/`>>>>>>>` rått → de havner i commiten. Rediger fila (behold begge sider der begge er gyldige), fjern alle markører, verifiser `grep -c '^<<<<<<<\|^=======\|^>>>>>>>' <fil>` = 0, DERETTER `git add` + commit. Ved parallell-arbeid oppstår konflikter i delte indeks-/status-filer (`STATUS.md`, `DOC-MAP.md`, `CLAUDE.md`) ved merge develop↔redesign — se lærdom (c).
-9. **`redesign/navigasjon → develop` merges med `--no-ff` (fra og med neste merge).** Hver redesign-inkrement får en «Merge redesign → develop»-grense-commit → redesignet er synlig som enhet i develop-historikken OG revertbar som enhet (`git revert -m 1 <merge>`). Gjelder **kun fremover** — den allerede innflettede FF-mergen (`b13797f8`) skrives IKKE om; ingen rebase/rewrite av develop for å «fikse» historikk. Hold `(redesign)`-commit-scope strengt. Ansvar: kontroll-Claude eier regelen (develop-doc); redesign-Opus følger den ved merge.
+9. **i18n `generate.ts` kjøres KUN på redesign-branchen** mens redesignet pågår (utdyper regel 3). En annen økt som legger i18n-nøkler committer nb+en og lar redesign-økta kjøre generate — ellers kolliderer de 15 språkfilene.
+10. **`redesign/navigasjon → develop` merges med `--no-ff`** + melding `merge(redesign): <steg> → develop` (fra og med neste merge, aldri fast-forward). Hver redesign-inkrement får en grense-commit → redesignet er synlig som enhet i develop-historikken OG revertbar som enhet (`git revert -m 1 <merge>`). Gjelder **kun fremover** — den allerede innflettede FF-mergen (`b13797f8`) skrives IKKE om; ingen rebase/rewrite av develop for å «fikse» historikk. Hold `(redesign)`-commit-scope strengt; utført fra `SiteDoc-develop`-treet (regel 1). Ansvar: kontroll-Claude eier regelen (develop-doc); redesign-Opus følger den ved merge.
+11. **Build-gate — full lokal build FØR merge.** `pnpm --filter @sitedoc/web build` (eller berørt app: api/mobil-typecheck) skal være grønn før develop-merge. Fanger prerender-/typefeil før de treffer test (jf. `useNyNavigasjon`-Suspense-regresjonen 2026-07-05).
 
 ## Frossen sone (redesign-økta eier — ikke rør fra andre økter)
 

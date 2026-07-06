@@ -209,6 +209,18 @@ Fiks når noen rører de filene: synk hook-resultat-typene med faktisk retur, og
 
 `apps/mobile` har ingen test-runner (verken `test`-script, jest/vitest-config eller `*.test.ts`). Rene, logikk-tunge hjelpere er derfor udekket av automatiserte tester. Konkret fanget ved Slice 4a (2026-06-20): **`splittVedMidnatt`** (`apps/mobile/src/utils/dagsegment.ts`) ble kun manuelt verifisert (tsx-kjøring). Casene som bør dekkes når en test-beslutning tas: **nattskift 19→07 = 5t+7t=12t** (sum = reell total), **dagskift** (1 segment, uendret), **degenerert** (slutt ≤ start → ett 0-segment), **fler-døgn** (glemt-dag → N segmenter, sum = total). Vurder å **flytte den rene helperen til `@sitedoc/shared`** (web bruker allerede `vitest` — jf. `src/components/mengde/__tests__/`), evt. introdusere vitest i `apps/mobile`. Lav prio — ingen runtime-effekt, men midnatt-splitt er lønns-sensitiv logikk som fortjener regresjonsdekning.
 
+### Metro blockList — `.env.eas.local` knekker `expo run:ios` 🟡
+
+`apps/mobile/.env.eas.local` (credential-fil, gitignored) ligger i prosjektroten og overvåkes av Metro (`metro.config.js` har `watchFolders` = hele monorepoet, men **ingen `resolver.blockList`**). Ved `expo run:ios` kan Metro forsøke å bundle/lese fila → bygg-brudd. Fiks: legg `config.resolver.blockList = [/\.env\.eas\.local$/, ...]` i `metro.config.js`. Ikke gjort — dukket opp i chat under dev-login-arbeidet 2026-07-06. Lav prio (rammer kun lokal `expo run:ios` med credential-fila til stede).
+
+### Navigasjonsredesign — dev-login secrets-oppsett (Kenneth) 🟡
+
+Dev-login (agent-testing, Nivå A+B) er på develop, men **virker ikke før Kenneth setter secrets** (aldri i git): (1) `ENABLE_DEV_LOGIN=true` + `DEV_LOGIN_SECRET=<hemmelig>` i `docker/env/api-test.env` → rebuild api-test; (2) seed testbrukere mot `sitedoc_test` (`seed-testbrukere.ts`); (3) EAS-secret `EXPO_PUBLIC_DEV_LOGIN_SECRET` (= samme verdi) for mobil-knappen. Detaljer: [dev-login-agent.md](dev-login-agent.md). Samme gjelder steg v-retesten (rebuild api+web + `seed-oversettelse-test.ts`).
+
+### CLAUDE.md over 40k-tegn-grensen (40373 tegn) 🟡
+
+CLAUDE.md er 40373 tegn — 373 over den ufravikelige 40k-grensen. Nye indeks-rader (f.eks. `dev-login-agent.md`) legges derfor i DOC-MAP i stedet (jf. presedens `parallell-arbeid-lock.md`). Trenger en dedikert trim-runde (kollaps redundante regel-blokker mot detalj-filer) for å komme under grensen igjen.
+
 ### Følgesaker etter prod-deploy 2026-06-21
 
 Fanget i avslutnings-auditen etter Slice 1–4 + reise + GPS L1 prod-deploy (`32b88bd7`).

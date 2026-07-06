@@ -168,3 +168,16 @@ Norsk bokmål i kode/kommentarer/commits; i18n-krav på alle UI-strenger; TypeSc
   - `04-design.png` = 2a Mobil v2: Dokumenter- og Tegninger-faner
   - `05-design.png` = 2b Oversettelsespanel på mappe (web)
   - `06-design.png` = 2c Dokumentleser mobil
+
+## Pilot + test/deploy-strategi (fabel/Kenneth-vedtak 2026-07-06)
+
+**Flagg-utrulling (pilot):**
+- `nyNavigasjon`-toggelen (brukermeny) er nå gated til `sitedoc_admin`. **Ved pilotstart** utvides den til `company_admin` (etter at polish + steg iv/v er godkjent).
+- **På sikt:** vurder ny UI som default med en «bytt tilbake»-vei.
+
+**Mobil-teststrategi (steg vi + vii):**
+- Steg vi (2a mobil-tabs) + vii (2c leser) **kodes ferdig FØR EAS-bygg**.
+- **Simulator-verifisering per steg:** `xcrun simctl`-skjermbilder + dev-login agent-flyt (se [dev-login-agent.md](../claude/dev-login-agent.md)).
+- **ETT batch-bygg per plattform** til slutt, deretter **OTA på egen kanal**.
+- **Miljøvelger i test-appen** (ikke en tredje app-variant).
+- **Microsoft-innlogging i simulator: utestet** — Kenneth tester.
