@@ -18,6 +18,7 @@ import {
   AlertCircle,
   BookOpen,
   Globe,
+  ChevronRight,
 } from "lucide-react";
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -27,6 +28,22 @@ import { useTranslation } from "react-i18next";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
 import { OversettelsePanel } from "./OversettelsePanel";
+
+/**
+ * v4: true når minst ett dokument har en pågående oversettelsesjobb
+ * (pending/processing). Brukes til å poll'e `hentDokumenter` mens amber-chips
+ * finnes, og stoppe polling når alt er ferdig. Løst-typet mot query-data for å
+ * unngå tRPC-ens dype dokument-type (TS2589).
+ */
+function harPågåendeJobb(d: unknown): boolean {
+  const arr = Array.isArray(d)
+    ? (d as unknown[])
+    : ((d as { dokumenter?: unknown[] } | undefined)?.dokumenter ?? []);
+  return arr.some((doc) => {
+    const jobber = (doc as { oversettelse?: { jobber?: Array<{ status: string }> } }).oversettelse?.jobber ?? [];
+    return jobber.some((j) => j.status === "pending" || j.status === "processing");
+  });
+}
 
 /**
  * Oversettelses-chips per målspråk (2b). Grønn `PL ✓` = oversatt, amber `PL …`
@@ -98,7 +115,14 @@ export default function MapperSide() {
   const { data: dokumentData, isLoading: lasterDokumenter } =
     trpc.mappe.hentDokumenter.useQuery(
       { folderId: valgtMappeId! },
-      { enabled: !!valgtMappeId },
+      {
+        enabled: !!valgtMappeId,
+        // v4: poll hvert 8. sek mens en jobb pågår → amber-chip blir grønn uten
+        // manuell refresh. Stopper (false) når ingen jobb er igjen. Eksplisitt
+        // grunn param-type kutter tRPC-ens dype query-type (unngår TS2589).
+        refetchInterval: (query: { state: { data: unknown } }) =>
+          harPågåendeJobb(query.state.data) ? 8000 : false,
+      },
     );
   const dokumenter = Array.isArray(dokumentData) ? dokumentData : dokumentData?.dokumenter;
   const mappeSprak = Array.isArray(dokumentData) ? ["nb"] : (dokumentData?.mappeSprak ?? ["nb"]);
@@ -117,6 +141,22 @@ export default function MapperSide() {
   ) as { data: Array<{ id: string; members: Array<{ projectMember: { user: { id: string } } }> }> | undefined };
 
   const valgtMappe = mapper?.find((m) => m.id === valgtMappeId);
+
+  // s1: brødsmulesti (mappe-ancestry) — vises i innholdsheaderen bak flagget,
+  // så skjul-av-mappetreet ikke blir et navigasjonstap. Sykel-vern via `sett`.
+  const mappeSti = useMemo(() => {
+    if (!mapper || !valgtMappeId) return [] as Array<{ id: string; name: string }>;
+    const byId = new Map(mapper.map((m) => [m.id, m]));
+    const kjede: Array<{ id: string; name: string }> = [];
+    const sett = new Set<string>();
+    let cur = byId.get(valgtMappeId);
+    while (cur && !sett.has(cur.id)) {
+      sett.add(cur.id);
+      kjede.unshift({ id: cur.id, name: cur.name });
+      cur = cur.parentId ? byId.get(cur.parentId) : undefined;
+    }
+    return kjede;
+  }, [mapper, valgtMappeId]);
 
   // Sjekk om bruker kun har sti-tilgang (ikke innholdstilgang)
   const erKunSti = useMemo(() => {
@@ -324,10 +364,42 @@ export default function MapperSide() {
       <div className="min-w-0 flex-1">
       <div className="mb-6 flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
-          <FolderOpen className="h-5 w-5 shrink-0 text-amber-500" />
-          <h2 className="truncate text-xl font-bold text-gray-900">
-            {valgtMappe?.name ?? "Mappe"}
-          </h2>
+          {nyNav && mappeSti.length > 0 ? (
+            <nav aria-label={t("mapper.tittel")} className="flex min-w-0 items-center gap-1.5">
+              <FolderOpen className="h-5 w-5 shrink-0 text-amber-500" />
+              <Link
+                href={`/dashbord/${prosjektId}/mapper`}
+                className="shrink-0 text-sm text-gray-400 hover:text-gray-600"
+              >
+                {t("mapper.alleMapper")}
+              </Link>
+              {mappeSti.map((m, i) => {
+                const sist = i === mappeSti.length - 1;
+                return (
+                  <span key={m.id} className="flex min-w-0 items-center gap-1.5">
+                    <ChevronRight className="h-4 w-4 shrink-0 text-gray-300" />
+                    {sist ? (
+                      <span className="truncate text-xl font-bold text-gray-900">{m.name}</span>
+                    ) : (
+                      <Link
+                        href={`/dashbord/${prosjektId}/mapper?mappe=${m.id}`}
+                        className="truncate text-sm text-gray-500 hover:text-gray-700"
+                      >
+                        {m.name}
+                      </Link>
+                    )}
+                  </span>
+                );
+              })}
+            </nav>
+          ) : (
+            <>
+              <FolderOpen className="h-5 w-5 shrink-0 text-amber-500" />
+              <h2 className="truncate text-xl font-bold text-gray-900">
+                {valgtMappe?.name ?? "Mappe"}
+              </h2>
+            </>
+          )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
         {nyNav && valgtMappeId && (
