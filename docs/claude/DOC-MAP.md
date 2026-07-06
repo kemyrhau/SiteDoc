@@ -26,6 +26,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Mobil-spec endres | `mobil.md` |
 | EAS-bygg/credentials-endring | `eas-build-veileder.md` |
 | Dev-login/agent-testing-endring (testbrukere, `/dev-login`, secrets) | `dev-login-agent.md` |
+| Simulator-oppstart/feilsøking (Metro, tunnel, brukerbytte, symptom→fiks) | `simulator-runbook.md` |
 | Web-spec endres | `web.md` |
 | Terminologi/hierarki endres | `terminologi.md` |
 | Arkitektur-syntese endres | `arkitektur-syntese.md` |

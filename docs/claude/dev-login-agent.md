@@ -35,6 +35,10 @@ curl -sS https://api-test.sitedoc.no/trpc/prosjekt.hentMine \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+> **Praktisk ende-til-ende-løype** (oppstart→innlogget, tastene, brukerbytte,
+> feilsøkingstabell): se [simulator-runbook.md](simulator-runbook.md). Dette
+> dokumentet er kilden for whitelist/secret/tunnel-teori; runbooken er løypa.
+
 ## Simulator/lokal dev — via localhost-port-forward (robust)
 
 **Anbefalt metode for simulator-testing.** Fra iOS-simulator feilet RN-fetch mot
