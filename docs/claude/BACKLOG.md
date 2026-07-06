@@ -219,9 +219,9 @@ Fiks når noen rører de filene: synk hook-resultat-typene med faktisk retur, og
 
 Under dev-login-feilsøkingen 2026-07-06 var `sitedoc-test-web` (:3300) død (connection reset) mens test-api (:3301) var frisk — Kenneth måtte restarte containeren manuelt. `docker/docker-compose.test.yml` har ingen `healthcheck` eller aktiv `restart`-policy som fanger en død web-prosess. Fiks: legg `healthcheck` (curl mot `/` eller en health-rute) + `restart: unless-stopped` (verifiser at web-tjenesten har det — api har det) i test-compose, så en død test-web auto-restartes i stedet for å stå og resette. Lav prio (kun test-miljø), men rammer agent-/simulator-testing når web-siden trengs.
 
-### Navigasjonsredesign — dev-login secrets-oppsett (Kenneth) 🟡
+### ✅ Navigasjonsredesign — dev-login secrets-oppsett (Kenneth) — UTFØRT 2026-07-06
 
-Dev-login (agent-testing, Nivå A+B) er på develop, men **virker ikke før Kenneth setter secrets** (aldri i git): (1) `ENABLE_DEV_LOGIN=true` + `DEV_LOGIN_SECRET=<hemmelig>` i `docker/env/api-test.env` → rebuild api-test; (2) seed testbrukere mot `sitedoc_test` (`seed-testbrukere.ts`); (3) EAS-secret `EXPO_PUBLIC_DEV_LOGIN_SECRET` (= samme verdi) for mobil-knappen. Detaljer: [dev-login-agent.md](dev-login-agent.md). Samme gjelder steg v-retesten (rebuild api+web + `seed-oversettelse-test.ts`).
+Dev-login (agent-testing, Nivå A+B) **verifisert grønn i iOS-simulator 2026-07-06**. Secrets satt (aldri i git): (1) `ENABLE_DEV_LOGIN=true` + `DEV_LOGIN_SECRET` i `docker/env/api-test.env`; (2) testbrukere seedet mot `sitedoc_test`; (3) `EXPO_PUBLIC_DEV_LOGIN_SECRET` i lokal `.env` for simulator (EAS-secret for TestFlight-knapp gjenstår, ikke blokkerende). **Simulator-transport:** localhost-port-forward (`ssh -N -L 3301:localhost:3301 server-ny` + `expo prebuild --clean`), IKKE Cloudflare-edge/Tailscale-IP. **Rotårsaks-kjede (3 ledd):** Cloudflare-kant droppet RN-fetch → iOS Local Network-privacy blokkerte private adresser → container kjørte **stale `DEV_LOGIN_SECRET`** (recreate api+web løste siste ledd). Full oppskrift: [dev-login-agent.md § Simulator/lokal dev](dev-login-agent.md) + [DOCKER-NOTES punkt 8](../../docker/DOCKER-NOTES.md). Steg v-retesten (rebuild api+web + `seed-oversettelse-test.ts`) gjenstår separat.
 
 ### CLAUDE.md over 40k-tegn-grensen (40373 tegn) 🟡
 
