@@ -26,6 +26,17 @@ function lesLagret(): boolean {
   return window.localStorage.getItem(LAGRINGSNOKKEL) === "1";
 }
 
+/**
+ * Setter flagget og laster siden på nytt så alle forbrukere (sidebar, toppbar,
+ * søkemodal) plukker den nye verdien. Eneste skrive-inngang — call-sites skal
+ * ikke røre localStorage direkte. Toggles fra brukermenyen (kun sitedoc_admin).
+ */
+export function settNyNavigasjon(paa: boolean): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(LAGRINGSNOKKEL, paa ? "1" : "0");
+  window.location.reload();
+}
+
 export function useNyNavigasjon(): boolean {
   // Start alltid som «av» på server + første render (unngår hydrerings-avvik);
   // faktisk verdi settes i effekten under.
