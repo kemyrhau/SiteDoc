@@ -23,6 +23,10 @@ sist_verifisert_mot_kode: 2026-06-08
 > 2. **Redesign bak `nyNavigasjon`-flagg på develop:** redesign-arbeid er merget inn i develop (bak flagg = inert i prod). **Neste `develop→main` bærer det med (flagg-av)** — men **funn 1b (hub desync) bør fikses FØR** den mergen. **Fikset-status ikke verifiserbar fra develop** (redesign-økta eier `…/SiteDoc`-treet + har ukommittert arbeid der) — **bekreft med redesign-økta**: er 1b fikset, eller står den åpen i [redesign-paritetssjekkliste.md](redesign-paritetssjekkliste.md) steg (ii)/(iii)? Ikke la den forsvinne.
 > 3. **Skjermbilder (fabels steg-ii sluttgodkjenning)** gjenstår før paritet kan lukkes.
 
+### Dagsseddel dobbel-timeføring LØST (a2) — IMPLEMENTERT PÅ DEVELOP 2026-07-06 (`f53de3e9`)
+
+Arbeidstid-vindu forhåndsutfylt fra firma-kalender (`hentEffektivArbeidstid`, Oslo-anker) + degradert til valgfritt/sekundært på begge detalj-sider; radene + topp-sum er primær-flaten. Fjerner den brukervendte dobbel-føringen (vinduet er ikke lenger et påkrevd steg). Bevart: pauseMin som maskin-buffer, auto-gen-stien, arbeidstids-varsel; rører ikke overtid/lønn. Auto-deploy til test. **Mobil (`ArbeidstidSeksjon`) via neste EAS-bygg.** **Åpen koord:** 13-språks `timer.arbeidstidPrefyltHint` faller tilbake til en til redesignets neste `generate.ts` dekker nøkkelen. a1 (utled total fra rader) + web-norm-paritet = fremtidig. Se [timer.md § Dagsseddel a2](timer.md) + [BACKLOG](BACKLOG.md).
+
 ### PSI Mannskap Fase A (§15-innsjekk/utsjekk) — IMPLEMENTERT PÅ DEVELOP 2026-07-05 (web klar for prod, mobil venter EAS-batch)
 
 Første inkrement av Fase 4 Mannskap (vy i PSI-modulen). **Manuell presence, ingen GPS** — oppfyller byggherreforskriften §15 (listen, ikke automatikk) med null GDPR-bakgrunnslokasjon-risiko.
