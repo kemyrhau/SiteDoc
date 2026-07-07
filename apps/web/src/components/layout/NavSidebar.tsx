@@ -68,7 +68,12 @@ export function NavSidebar() {
   const firmaNav = useFirmaNavElementer();
   const visFirmaSone = firmaNav.length > 0 || harMaskinModul;
 
-  const prosjektElementer = [...filtrertHovedelementer, kontakterElement];
+  // FM5/K2: «Mine timer» er brukerens egen flate → flyttet til brukermenyen
+  // (avatar) + søket («Min side»), ikke i PROSJEKT-sonen.
+  const prosjektElementer = [
+    ...filtrertHovedelementer.filter((e) => e.id !== "mine-timer"),
+    kontakterElement,
+  ];
   // Maskin er firmamodul (K1) — vises i FIRMA-sonen, gated på harMaskinModul
   // (uavhengig av firma-admin). Beholder button/aksent-rendring via renderRad.
   const maskinElement = harMaskinModul

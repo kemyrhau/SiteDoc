@@ -216,6 +216,10 @@ export default function DokumentLeser() {
                         : "border-gray-300 bg-white"
                   }`}
                 >
+                  {/* Punkt 4 (variant A): flagg foran koden på kilde-pillen forklarer språket */}
+                  {erKilde && info?.flagg && (
+                    <Text className="text-xs">{info.flagg}</Text>
+                  )}
                   <Text
                     className={`text-xs font-semibold ${
                       erAktiv ? "text-white" : laster ? "text-amber-700" : "text-gray-700"
