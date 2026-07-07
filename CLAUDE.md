@@ -157,13 +157,12 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - **`develop`** = aktiv utvikling. **`main`** = produksjon, oppdateres kun via merge fra develop.
 - **Test:** test.sitedoc.no, DB `sitedoc_test`, repo `~/programmering/sitedoc-test`. **Prod:** sitedoc.no, DB `sitedoc`, repo `~/programmering/sitedoc`. Databasene er SEPARATE.
 - **Test er primærmiljø** for verifisering — lokal-DB er typisk bak. Lokal brukes som sandkasse for risiko-DDL.
-- **Auto-deploy til test** etter push til develop. **ALDRI deploy til prod** uten eksplisitt forespørsel.
+- **Test-deploy er MANUELL** via `./deploy-test.sh` (rsync) + utskrevet `sudo docker compose … build/up` (Kenneths TTY). **Ingen auto-deploy finnes** — push til develop deployer IKKE til test av seg selv. **ALDRI deploy til prod** uten eksplisitt forespørsel.
 - **Etter HVER mobil-commit:** skriv eksplisitt «**Reload:** [metode]».
 
-**Auto-deploy:**
-- Push til `develop` → trigges auto-deploy til test.sitedoc.no
-  - ⚠️ **Under undersøkelse (2026-06-24):** auto-deploy rebuilder muligens **ikke web-imaget** — web-endringer nådde ikke test denne økta. Verifiser web-endringer med **manuell rebuild** til rotårsaken er bekreftet. Se [BACKLOG § Auto-deploy til test rebuilder ikke web](docs/claude/BACKLOG.md).
-- Push til feature-branch → INGEN auto-deploy
+**Deploy-triggere:**
+- Push til `develop` → **INGEN automatikk.** Test oppdateres kun ved at Kenneth kjører `./deploy-test.sh` (rsync `--delete` til `server-ny:stack/sitedoc`) + den utskrevne `sudo docker compose -f docker/docker-compose.test.yml up -d --build`. Bekreftet 2026-07-07: ingen CI/cron/hook/webhook finnes — «auto-deploy» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10. Se [BACKLOG § «Auto-deploy til test» finnes ikke](docs/claude/BACKLOG.md).
+- Push til feature-branch → ingen deploy
 - Push til `main` → manuell prod-deploy (eksplisitt forespørsel kreves)
 
 **Etter Prisma schema-endring — klienten må regenereres før build-typecheck (ufravikelig, lærdom 2026-05-26).** I Docker-deployen (gjeldende fra 2026-06-10) er `prisma generate` for alle fire db-pakker bakt inn i `Dockerfile.api`/`Dockerfile.web` (kjøres rett før `turbo build`) → ikke et eget steg, og rekkefølgen er **build → migrate deploy → up** (IKKE migrate→generate→build). Kjør **ALDRI** et frittstående `prisma generate` på server — det havner ikke i det kjørende imaget. Detaljer: [DOCKER-NOTES § Deploy-mekanikk](docker/DOCKER-NOTES.md). Den gamle formuleringen «generate eksplisitt mellom migrate og build» gjaldt legacy-PM2-serveren (rollback).
@@ -412,7 +411,7 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
 - **Lønnsart-grense — regnskap eier kobling og satser:** SiteDoc leverer default lønnsart-numre (redigerbare per firma); lønnsart-til-konto-mapping og faktiske satser tilhører regnskap, ikke SiteDoc.
 - **SmartDok maskin-eksport:** Format, navne-matching, 7600-konvensjon og Vegvesen-prioritet i [docs/claude/maskin.md § SmartDok-import](docs/claude/maskin.md). Implementasjon planlagt etter Blokk C.
 - **Commit + push til `develop`:** etter dual-review (Opus viser diff + kontroll-Claude verifiserer), ikke automatisk etter implementasjon. Kenneth koordinerer/relayer. Full rutine: [kontroll-claude-veileder.md § 10](docs/claude/kontroll-claude-veileder.md).
-- **Auto-deploy til test:** konsekvens ETTER godkjent push til `develop`.
+- **Test-deploy:** IKKE automatisk. Etter godkjent push til `develop` kjører Kenneth `./deploy-test.sh` + utskrevet docker-kommando manuelt (se § Auto-deploy over).
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
 - **Prod-verifisering må alltid gjøres som innlogget bruker** (vedtatt 2026-05-02): `curl -sI`/HTTP 200 bekrefter kun at serveren svarer, ikke at data er intakt. Etter prod-deploy: verifiser i nettleser som innlogget at prosjekter/moduler/kritiske ruter laster. Anonym «Ingen prosjekter» er IKKE godkjent verifisering.
 - **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer

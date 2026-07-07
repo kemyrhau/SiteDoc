@@ -178,6 +178,8 @@ Test-databasen `sitedoc_test` finnes i den delte Postgres-containeren (restoret 
 
 > ✅ **Denne (server-ny) er den autoritative test-stacken som serverer edge (bekreftet 2026-06-21).** `test.sitedoc.no`/`api-test.sitedoc.no` går hit (tunnel `sitedoc-ny`). Bevis: Funn #2-rutene ga 404 på edge før server-ny-deploy og 401/405 etter — så edge = server-ny. **Deploy/migrer test KUN her** (rsync + `docker-compose.test.yml`, se [`ny-server-veileder.md`](ny-server-veileder.md) → «Test-stack»). Kenspills test-PM2 (se «Gammel server»-blokken) er en stale legacy-levning som ikke serverer edge.
 
+> ⚠️ **Test-deploy er MANUELL — ingen auto-deploy finnes** (bekreftet 2026-07-07). Push til `develop` oppdaterer IKKE test av seg selv (ingen CI/cron/hook/webhook — «auto-deployen» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10). Kjør `./deploy-test.sh` fra Mac (rsync `--delete` til `server-ny:stack/sitedoc`, excludes `docker/env`+bloat, branch-guard develop) → den skriver ut `sudo docker compose -f docker/docker-compose.test.yml up -d --build` som Kenneth kjører i egen TTY. Se [BACKLOG § «Auto-deploy til test» finnes ikke](BACKLOG.md).
+
 > Gjenstår fortsatt: automatisert `prisma migrate deploy` (kjøres manuelt ved schema-endring — se TODO over).
 
 ## EAS Build og TestFlight
