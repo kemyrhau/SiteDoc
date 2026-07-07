@@ -86,7 +86,7 @@ Krever at Timer-firmamodulen er aktiv på firmaet (ellers vises ikke «Mine time
 ### B1. Sidebar UTEN «Mine timer» i PROSJEKT-sonen
 
 1. `resize_page` 1280 × 900.
-2. Naviger til `https://test.sitedoc.no/dashbord/f6dcb81f-802c-415b-a6c6-a8fdf7f9710f/dashbord?nyNav=1`. Bekreft flagg = `"1"`.
+2. Naviger til `https://test.sitedoc.no/dashbord/f6dcb81f-802c-415b-a6c6-a8fdf7f9710f?nyNav=1` (prosjekt-dashbord; `/dashbord/{id}` — IKKE `/dashbord/{id}/dashbord`, som gir 404). Bekreft flagg = `"1"`.
 3. 📸 **Skjermbilde B1** (venstre NavSidebar). Verifiser:
    - ✅ PROSJEKT-sonen har IKKE en «Mine timer»-rad (den lå der interimt før FM5).
    - ✅ Øvrige rader uendret (inkl. «Timer» og «Kontakter»).
