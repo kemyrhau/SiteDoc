@@ -367,18 +367,20 @@ Mannskap-oversikten er **mønstringslisten** ved brannøvelse eller ulykke:
 
 ## API-ruter
 
-| Rute | Type | Auth | Beskrivelse |
-|------|------|------|-------------|
-| `mannskap.registrer` | mutation | verifiserProsjektmedlem | Registrer ny person på prosjektet |
-| `mannskap.oppdater` | mutation | verifiserProsjektmedlem | Oppdater HMS-kort, kontaktinfo |
-| `mannskap.hentForProsjekt` | query | verifiserProsjektmedlem | Alle registrerte per prosjekt |
-| `mannskap.hentPåPlassen` | query | verifiserProsjektmedlem | Hvem er innsjekket nå (per byggeplass) |
-| `mannskap.sjekkInn` | mutation | protectedProcedure | Sjekk inn på byggeplass |
-| `mannskap.sjekkUt` | mutation | protectedProcedure | Sjekk ut fra byggeplass |
-| `mannskap.hentHistorikk` | query | verifiserProsjektmedlem | Innsjekk-historikk for periode |
-| `mannskap.eksporter15Liste` | query | verifiserProsjektmedlem | §15-liste som strukturert data (for PDF) |
-| `mannskap.guestSjekkInn` | mutation | public | Gjest sjekker inn via QR (etter PSI) |
-| `mannskap.guestSjekkUt` | mutation | public | Gjest sjekker ut |
+Alle Fase A-ruter gater på `verifiserProsjektmedlem` + `krevPsiModul` («psi» aktiv).
+
+| Rute | Type | Status | Beskrivelse |
+|------|------|--------|-------------|
+| `mannskap.sjekkInn` | mutation | ✅ Fase A | Sjekk inn på byggeplass (idempotent; lazy-close FØR findFirst; snapshot HMS-kort) |
+| `mannskap.sjekkUt` | mutation | ✅ Fase A | Sjekk ut egen åpen rad (nyeste hvis byggeplass utelatt) |
+| `mannskap.minStatus` | query | ✅ Fase A | Egen aktive innsjekk (mobil-kort: er jeg sjekket inn?) |
+| `mannskap.hentPaaPlassen` | query | ✅ Fase A | Hvem er innsjekket nå (feltnivå-isolert klokkeslett) |
+| `mannskap.hentForProsjekt` | query | ✅ Fase A | Historikk + §15-datakilde, periode-filter (feltnivå-isolert) |
+| `mannskap.registrer` / `oppdater` | mutation | 🔵 planlagt | PL registrerer/oppdaterer person manuelt (nødsituasjon/besøkende) |
+| `mannskap.eksporter15Liste` | query | 🔵 Fase D | §15-liste som strukturert data (for PDF) — data alt i `hentForProsjekt` |
+| `mannskap.guestSjekkInn` / `guestSjekkUt` | public | 🔵 Fase B | Gjest sjekker inn/ut via QR (etter PSI) |
+
+> **Doc-drift lukket 2026-07-05:** Fase A leverte `sjekkInn`/`sjekkUt`/`minStatus`/`hentPaaPlassen`/`hentForProsjekt` (ikke `hentPåPlassen`/`hentHistorikk` som eldre skisse antydet — historikk er foldet inn i `hentForProsjekt`). Resten av tabellen er forward-plan.
 
 ## Filstruktur
 
@@ -392,7 +394,7 @@ packages/pdf/src/mannskap.ts                          ← §15-liste PDF
 ## Implementeringsrekkefølge
 
 1. **PSI: ekstern system-felt** — `eksternSystem` på Psi-modellen, UI i PSI-innstillinger
-2. **DB-tabeller + modul-registrering** — Mannskapsmedlem, MannskapsInnsjekk + slug i PROSJEKT_MODULER
+2. **DB-tabell + modul-gate** — ✅ Fase A: `PsiTilstedevarelse` (ikke `Mannskapsmedlem`/`MannskapsInnsjekk` — forkastet, se § Datamodell); gates på eksisterende «psi»-modul (ingen ny slug)
 3. **Registrering + mannskap-oversikt** — liste over registrerte, HMS-kort-status, sanntid
 4. **PSI-kobling** — forutsetning-sjekk ved registrering (SiteDoc eller eksternt)
 5. **Innsjekk/ut via app og QR** — manuell innsjekk + gjest-innsjekk via QR
@@ -418,6 +420,7 @@ Anonymisering i stedet for full sletting — beholder aggregerte tall (antall pe
 
 ## Ikke avklart
 
+- **🟡 Feltnivå-isolasjon — hovedentreprenør ↔ UE-innsyn (ÅPEN, Fase A-valg).** Fase A-koden (`serialiserMedIsolasjon`) er **konservativ: kun samme arbeidsgiver-org (delt `OrganizationMember`) ser klokkeslett** — det betyr at hovedentreprenør IKKE ser UE-arbeideres inn/ut-tidspunkt, og gjeste-tidspunkt (userId null) er kun synlig for `sitedoc_admin`. Byggherre ser §15-aggregat (navn/arbeidsgiver/HMS-kort) uansett. **Å avklare:** skal hovedentreprenør ha innsyn i klokkeslett for sine egne UE-arbeidere (koordineringsbehov), eller er streng per-arbeidsgiver-isolasjon riktig? Bevisst streng default nå — endres i serialiserings-laget uten schema-endring. (HMSREG-push er en separat kanal med full data til byggherre, jf. § HMSREG-integrasjon.)
 - **NFC-støtte for HMS-kort** — fysisk scanning av kortet (krever NFC-hardware på terminal)
 - **Integrasjon mot Infobric/HMSREG** — import/eksport av mannskapslister, synkronisering
 - **Automatisk varsel ved utløpt HMS-kort** — push til prosjektleder

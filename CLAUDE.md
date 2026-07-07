@@ -8,6 +8,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 |-----|---------|
 | [docs/claude/SITEDOC-CLAUDE-VEILEDER.md](docs/claude/SITEDOC-CLAUDE-VEILEDER.md) | **Veileder Opus:** sesjonsoppstart-veileder — vis ved sesjon-start |
 | [docs/claude/kontroll-claude-veileder.md](docs/claude/kontroll-claude-veileder.md) | **Veileder kontroll-Claude:** arbeidsmåte for verifiseringslaget over Opus — les `parallell-arbeid-lock.md` først |
+| [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **STYRENDE:** rollekart + meldingsflyt + commit-orden-eierskap (cowork). Les før du instruerer en annen økt |
 | [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** pågående/pauset arbeid, planlagte faser, PR-historikk |
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
 | [docs/claude/BACKLOG.md](docs/claude/BACKLOG.md) | **Backlog:** teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet |
@@ -21,6 +22,8 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/onboarding-veileder.md](docs/claude/onboarding-veileder.md) | **🟡 IDÉ:** Onboarding-veileder for firma (post-Fase 0) |
 | [docs/claude/prosjektoppsett-veileder.md](docs/claude/prosjektoppsett-veileder.md) | **🟡 PLAN:** Steg-for-steg ny bruker etter prosjektopprettelse |
 | [docs/claude/navigasjon-arkitektur-analyse-2026-05-03.md](docs/claude/navigasjon-arkitektur-analyse-2026-05-03.md) | **🟢 ANKER:** Komplett navigasjons-kartlegging mot tre-nivå-arkitektur |
+| [docs/redesign/redesign-handoff.md](docs/redesign/redesign-handoff.md) | **🟢 REDESIGN (branch `redesign/navigasjon`):** Designreferanse + spec + strategi (develop-bak-flagg, main-ren, eget stack senere). Følgefiler: HTML-prototyper 1a–2c, screenshots, K-BESLUTNINGER |
+| [docs/claude/redesign-paritetssjekkliste.md](docs/claude/redesign-paritetssjekkliste.md) | **🟢 REDESIGN-AKSEPTKRITERIUM:** Funksjonsparitet (130 rader), K1–K11, fremdrift. Fylles under `nyNavigasjon`-flagg-test |
 | [docs/claude/ux-arkitektur-agenda.md](docs/claude/ux-arkitektur-agenda.md) | **🟢 BESLUTNINGER (2026-05-06):** UX/arkitektur-gjennomgang, 2 vedtak + 5 åpne |
 | [docs/claude/admin-navigasjon-analyse-2026-05-03.md](docs/claude/admin-navigasjon-analyse-2026-05-03.md) | **🟡 AKTIV:** UX-funn admin/firma-kontekst, 6 prioriterte tiltak |
 | [docs/claude/domene-arbeidsflyt.md](docs/claude/domene-arbeidsflyt.md) | **🟢 STYRENDE:** Virkelig arbeidsflyt — alle arkitektur-beslutninger skal forklares herfra |
@@ -95,7 +98,7 @@ Merk: Denne regelen overstyrer IKKE indeks-regelen. Når en regel sier "oppdater
 - **Backend API:** Node.js, Fastify, tRPC
 - **Database (server):** PostgreSQL med Prisma ORM (^6.3.0)
 - **Database (lokal):** SQLite via expo-sqlite, Drizzle ORM
-- **Fillagring:** S3-kompatibel (AWS S3 / Cloudflare R2 / MinIO)
+- **Fillagring:** server-lokal disk (S3-klar — AWS S3 / Cloudflare R2 / MinIO)
 - **Auth:** Auth.js v5 (next-auth) med Google og Microsoft Entra ID, database-sesjoner
 - **E-post:** Resend (invitasjoner)
 - **Styling:** Tailwind CSS (web), NativeWind (mobil)

@@ -1,80 +1,8 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import Link from "next/link";
-import { useTranslation } from "react-i18next";
-import { trpc } from "@/lib/trpc";
-import { Card, Button, StatusBadge, Spinner, EmptyState } from "@sitedoc/ui";
-import { useFirma } from "@/kontekst/firma-kontekst";
-
-export default function ProsjekterSide() {
-  const { t } = useTranslation();
-  const { valgtFirma } = useFirma();
-  const { data: prosjekter, isLoading } = trpc.prosjekt.hentAlle.useQuery({
-    organizationId: valgtFirma?.id,
-  });
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Prosjekter</h2>
-        <Link href="/dashbord/nytt-prosjekt">
-          <Button>Nytt prosjekt</Button>
-        </Link>
-      </div>
-
-      {!prosjekter?.length ? (
-        <EmptyState
-          title={t("dashbord.ingenProsjekter")}
-          description={
-            valgtFirma
-              ? t("dashbord.ingenProsjekterForFirmaBeskrivelse", {
-                  firma: valgtFirma.name,
-                })
-              : t("dashbord.ingenProsjekterBeskrivelse")
-          }
-          action={
-            <Link href="/dashbord/nytt-prosjekt">
-              <Button>{t("dashbord.opprettProsjekt")}</Button>
-            </Link>
-          }
-        />
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {prosjekter.map((prosjekt) => (
-            <Link key={prosjekt.id} href={`/dashbord/prosjekter/${prosjekt.id}`}>
-              <Card className="transition-shadow hover:shadow-md">
-                <div className="mb-3 flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold">{prosjekt.name}</h3>
-                    <p className="text-xs text-gray-500">{prosjekt.projectNumber}</p>
-                  </div>
-                  <StatusBadge status={prosjekt.status} />
-                </div>
-                {prosjekt.description && (
-                  <p className="mb-3 text-sm text-gray-600 line-clamp-2">
-                    {prosjekt.description}
-                  </p>
-                )}
-                {prosjekt.address && (
-                  <p className="text-xs text-gray-400">{prosjekt.address}</p>
-                )}
-                <div className="mt-3 flex gap-4 border-t border-gray-100 pt-3 text-xs text-gray-500">
-                  <span>{prosjekt.faggrupper.length} faggrupper</span>
-                  <span>{prosjekt._count.members} medlemmer</span>
-                </div>
-              </Card>
-            </Link>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+// K9-opprydding (redesign/navigasjon): legacy prosjektliste → kanonisk dashbord.
+// Redirect beholdes til redesignet er ferdig utrullet (nettleser-bokmerker lever
+// lenger enn 1-ukes mobil-API-regelen).
+export default function LegacyProsjekterListe() {
+  redirect("/dashbord");
 }

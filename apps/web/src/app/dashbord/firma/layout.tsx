@@ -6,6 +6,7 @@ import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, 
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
 
 interface NavElement {
   label: string;
@@ -105,6 +106,7 @@ export default function FirmaLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const nyNav = useNyNavigasjon();
   const { valgtFirma, erSitedocAdmin, kanAdministrereFirma, isLoading } = useFirma();
   const harTimerModul = valgtFirma?.aktiveFirmamoduler.includes("timer") ?? false;
   const harVarelagerModul = valgtFirma?.aktiveFirmamoduler.includes("varelager") ?? false;
@@ -134,6 +136,13 @@ export default function FirmaLayout({
         </p>
       </div>
     );
+  }
+
+  // Flagg på: NavSidebar (i dashbord/layout) leverer FIRMA-sonen — dropp
+  // firma-layoutens egen sidebar for å unngå dobbel navigasjon. Tilgangsgaten
+  // over beholdes uendret.
+  if (nyNav) {
+    return <main className="flex-1 overflow-auto bg-gray-50 p-6">{children}</main>;
   }
 
   function erAktiv(href: string) {

@@ -155,17 +155,24 @@ export async function loggInnMedMicrosoft(): Promise<string | null> {
  * MERK: Skal kun kalles fra UI som er gated bak `__DEV__`. Vi beskytter også
  * server-side, men UI-gate er førstelinjeforsvar mot å vise knappen i prod-bygg.
  */
-export async function loggInnSomTestbruker(): Promise<{ user: BrukerData; sessionToken: string }> {
+export async function loggInnSomTestbruker(
+  email?: string,
+): Promise<{ user: BrukerData; sessionToken: string }> {
   const url = `${AUTH_CONFIG.apiUrl}/dev-login`;
 
-  console.log("[DEV-LOGIN] Forsøker POST mot:", url);
+  console.log("[DEV-LOGIN] Forsøker POST mot:", url, email ?? "(standard)");
 
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
+      headers: {
+        "Content-Type": "application/json",
+        // Nivå B: delt hemmelighet (kun i test-bundelen) — hindrer åpen
+        // session-minting på test-nettet.
+        "x-dev-login-secret": AUTH_CONFIG.devLoginSecret,
+      },
+      body: JSON.stringify(email ? { email } : {}),
     });
   } catch (e) {
     const melding = e instanceof Error ? e.message : "ukjent fetch-feil";

@@ -1,13 +1,16 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X } from "lucide-react";
+import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X, Search, Sparkles } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { ProsjektVelger } from "./ProsjektVelger";
 import { ByggeplassVelger } from "./ByggeplassVelger";
 import { FirmaVelger } from "./FirmaVelger";
 import { FirmaKontekstVelger } from "./FirmaKontekstVelger";
+import { KontekstChip } from "./KontekstChip";
+import { useNyNavigasjon, settNyNavigasjon } from "@/hooks/useNyNavigasjon";
+import { useSokModal } from "@/kontekst/sok-modal-kontekst";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import Link from "next/link";
@@ -38,6 +41,8 @@ export function Toppbar() {
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
   const { erSitedocAdmin, erCompanyAdmin } = useFirma();
   const { byggeplassAktiv } = useToppbarFiltreKontekst();
+  const nyNav = useNyNavigasjon();
+  const { aapne: aapneSok } = useSokModal();
   const { t } = useTranslation();
 
   // Hent firma-info for company_admin (fast firma-link i header).
@@ -80,35 +85,66 @@ export function Toppbar() {
           - User (vanlig): Prosjekt | Byggeplass (ingen firma-element)
           Firma først for admin-roller speiler hierarkiet (Firma → Prosjekt).
         */}
-        {erSitedocAdmin && (
+        {nyNav ? (
+          /* Flagg på: samlet kontekst-chip (firma + prosjekt) erstatter
+             FirmaVelger + ProsjektVelger + FirmaKontekstVelger. */
           <>
-            <FirmaVelger />
-            <div className="mx-1 h-5 w-px bg-white/20" />
-          </>
-        )}
-        {erCompanyAdmin && organisasjon && (
-          <>
-            <Link
-              href="/dashbord/firma"
-              className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-blue-100 transition-colors hover:bg-white/10 hover:text-white"
-            >
-              <Building2 className="h-4 w-4" />
-              <span className="hidden sm:inline">{organisasjon.name}</span>
-            </Link>
-            <div className="mx-1 h-5 w-px bg-white/20" />
-          </>
-        )}
-        {erFirmaKontekst ? (
-          <FirmaKontekstVelger />
-        ) : (
-          <>
-            <ProsjektVelger />
+            <KontekstChip />
             {prosjektId && (
               <>
                 <div className="mx-1 h-5 w-px bg-white/20" />
                 <ByggeplassVelger disabled={!byggeplassAktiv} />
               </>
             )}
+          </>
+        ) : (
+          <>
+            {erSitedocAdmin && (
+              <>
+                <FirmaVelger />
+                <div className="mx-1 h-5 w-px bg-white/20" />
+              </>
+            )}
+            {erCompanyAdmin && organisasjon && (
+              <>
+                <Link
+                  href="/dashbord/firma"
+                  className="flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm text-blue-100 transition-colors hover:bg-white/10 hover:text-white"
+                >
+                  <Building2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">{organisasjon.name}</span>
+                </Link>
+                <div className="mx-1 h-5 w-px bg-white/20" />
+              </>
+            )}
+            {erFirmaKontekst ? (
+              <FirmaKontekstVelger />
+            ) : (
+              <>
+                <ProsjektVelger />
+                {prosjektId && (
+                  <>
+                    <div className="mx-1 h-5 w-px bg-white/20" />
+                    <ByggeplassVelger disabled={!byggeplassAktiv} />
+                  </>
+                )}
+              </>
+            )}
+          </>
+        )}
+        {nyNav && (
+          <>
+            <div className="mx-1 h-5 w-px bg-white/20" />
+            <button
+              type="button"
+              onClick={aapneSok}
+              className="flex items-center gap-2 rounded-md bg-white/10 px-2.5 py-1.5 text-[12.5px] text-blue-100 transition-colors hover:bg-white/20"
+              title={t("sok.overalt")}
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">{t("sok.overalt")}</span>
+              <kbd className="rounded bg-white/15 px-1.5 py-0.5 text-[11px] font-medium">Ctrl K</kbd>
+            </button>
           </>
         )}
         {erSitedocAdmin && (
@@ -151,6 +187,36 @@ export function Toppbar() {
                 {session?.user?.email}
               </p>
             </div>
+            {/* Redesign-flagg — kun sitedoc_admin (company_admin utvides ved
+                pilotstart, etter at polish + steg iv er godkjent). */}
+            {erSitedocAdmin && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={nyNav}
+                aria-label={t("toppbar.nyNavigasjon")}
+                onClick={() => {
+                  const paa = !nyNav;
+                  // Ved avslag: land trygt på /dashbord — huben/kontakter er kun
+                  // lenket i ny nav. Ved påslag: bli på gjeldende side.
+                  settNyNavigasjon(paa, paa ? undefined : "/dashbord");
+                }}
+                className="flex w-full items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <span className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  {t("toppbar.nyNavigasjon")}
+                </span>
+                <span
+                  aria-hidden="true"
+                  className={`rounded px-1.5 py-0.5 text-[11px] font-medium ${
+                    nyNav ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"
+                  }`}
+                >
+                  {nyNav ? t("toppbar.paa") : t("toppbar.av")}
+                </span>
+              </button>
+            )}
             <button
               onClick={() => signOut({ callbackUrl: "/" })}
               className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"

@@ -6,7 +6,17 @@ export const AUTH_CONFIG = {
     : (process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? ""),
   microsoftClientId: process.env.EXPO_PUBLIC_MICROSOFT_CLIENT_ID ?? "",
   apiUrl: process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3001",
+  // Dev-login (test-bygg): satt KUN i test/development EAS-profiler. Prod-profil
+  // setter ikke disse → knappen vises ikke og secret er ikke i prod-bundelen.
+  devLoginSecret: process.env.EXPO_PUBLIC_DEV_LOGIN_SECRET ?? "",
 } as const;
+
+/**
+ * True i test-/dev-bygg der dev-login skal være tilgjengelig. Gates på en
+ * EAS-profil-variabel (ikke `__DEV__`), så knappen finnes også i et `test`
+ * Release-bygg (SiteDoc TEST), men er fraværende i prod-profilen.
+ */
+export const erTestLoginAktiv = process.env.EXPO_PUBLIC_ENABLE_TEST_LOGIN === "true";
 
 /**
  * True når en ekte Microsoft client-id er konfigurert. "disabled" er

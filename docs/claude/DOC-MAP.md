@@ -14,6 +14,8 @@ sist_verifisert_mot_kode: 2026-05-16
 | Ny planlagt/deprioritert oppgave | `BACKLOG.md` (ikke STATUS-AKTUELT.md) |
 | Halvferdig feature parkeres | `BACKLOG.md` |
 | Ny prosess-/arbeidsregel | `CLAUDE.md` |
+| Parallell-arbeid / worktree-koordinering / frossen sone endres | `parallell-arbeid-lock.md` |
+| Tvil om hvem gjør hva / meldingsflyt | `SAMARBEIDSREGLER.md` |
 | Fil opprettet/arkivert/slettet | `STATUS.md` (fil-register) |
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |
@@ -23,9 +25,14 @@ sist_verifisert_mot_kode: 2026-05-16
 | Domeneflyt/arbeidsflyt endres | `domene-arbeidsflyt.md` |
 | Mobil-spec endres | `mobil.md` |
 | EAS-bygg/credentials-endring | `eas-build-veileder.md` |
+| Dev-login/agent-testing-endring (testbrukere, `/dev-login`, secrets) | `dev-login-agent.md` |
+| Server-drift/deploy-runbook (server-ny, Docker) | `ny-server-veileder.md` |
+| Simulator-oppstart/feilsøking (Metro, tunnel, brukerbytte, symptom→fiks) | `simulator-runbook.md` |
 | Web-spec endres | `web.md` |
 | Terminologi/hierarki endres | `terminologi.md` |
 | Arkitektur-syntese endres | `arkitektur-syntese.md` |
+| Navigasjonsredesign — paritet/funksjon flyttes | `redesign-paritetssjekkliste.md` |
+| Redesign-handoff / designreferanse / strategi endres | `docs/redesign/redesign-handoff.md` |
 
 ## Regel
 

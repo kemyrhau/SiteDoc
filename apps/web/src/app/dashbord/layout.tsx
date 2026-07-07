@@ -7,9 +7,12 @@ import { ProsjektProvider } from "@/kontekst/prosjekt-kontekst";
 import { ByggeplassProvider } from "@/kontekst/byggeplass-kontekst";
 import { PresenceProvider } from "@/kontekst/presence-kontekst";
 import { ToppbarFiltreProvider } from "@/kontekst/toppbar-filtre-kontekst";
+import { SokModalProvider } from "@/kontekst/sok-modal-kontekst";
 import { Toppbar } from "@/components/layout/Toppbar";
 import { HovedSidebar } from "@/components/layout/HovedSidebar";
+import { NavSidebar } from "@/components/layout/NavSidebar";
 import { ImpersoneringBanner } from "@/components/layout/ImpersoneringBanner";
+import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
 
 export default function DashbordLayout({
   children,
@@ -18,6 +21,7 @@ export default function DashbordLayout({
 }) {
   const pathname = usePathname();
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
+  const nyNav = useNyNavigasjon();
 
   return (
     <NavigasjonProvider>
@@ -26,14 +30,20 @@ export default function DashbordLayout({
           <ByggeplassProvider>
             <ToppbarFiltreProvider>
               <PresenceProvider>
-                <div className="flex h-screen flex-col overflow-hidden">
-                  <Toppbar />
-                  <ImpersoneringBanner />
-                  <div className="flex flex-1 overflow-hidden">
-                    {!erFirmaKontekst && <HovedSidebar />}
-                    <main className="flex-1 overflow-y-auto">{children}</main>
+                <SokModalProvider>
+                  <div className="flex h-screen flex-col overflow-hidden">
+                    <Toppbar />
+                    <ImpersoneringBanner />
+                    <div className="flex flex-1 overflow-hidden">
+                      {nyNav ? (
+                        <NavSidebar />
+                      ) : (
+                        !erFirmaKontekst && <HovedSidebar />
+                      )}
+                      <main className="flex-1 overflow-y-auto">{children}</main>
+                    </div>
                   </div>
-                </div>
+                </SokModalProvider>
               </PresenceProvider>
             </ToppbarFiltreProvider>
           </ByggeplassProvider>

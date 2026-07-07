@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Spinner } from "@sitedoc/ui";
-import { ArrowLeft, MapPin } from "lucide-react";
-import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
+import { ArrowLeft } from "lucide-react";
 
 function nyUuid(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -24,25 +23,12 @@ function iDag(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/** Haversine-avstand i meter mellom to GPS-punkter. */
-function avstandMeter(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6_371_000; // Jordens radius i meter
-  const toRad = (x: number) => (x * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
-
-const GEO_RADIUS_METER = 500;
-
+/**
+ * «Ny dagsseddel» (web) — T.1 (2026-07-05): dato-only opprettelse.
+ * Sedelen eies av arbeider/firma og har ingen prosjekttilhørighet på sedel-nivå.
+ * Prosjekt (og byggeplass) legges per rad på detalj-siden — der flyten allerede
+ * er T.1-korrekt. Web-opprett trenger derfor kun dato + default-aktivitet.
+ */
 export default function NyDagsseddelSide() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -55,83 +41,10 @@ export default function NyDagsseddelSide() {
   const [startAt, setStartAt] = useState("");
   const [endAt, setEndAt] = useState("");
   const [beskrivelse, setBeskrivelse] = useState("");
-  const [valgtProsjektId, setValgtProsjektId] = useState<string | null>(null);
   const [feil, setFeil] = useState<string | null>(null);
-  const [geoForslagId, setGeoForslagId] = useState<string | null>(null);
-  const [geoSjekket, setGeoSjekket] = useState(false);
 
   const { data: aktiviteter, isLoading: aktiviteterLaster } =
     trpc.timer.aktivitet.list.useQuery();
-  const { data: prosjekterRaw, isLoading: prosjekterLaster } =
-    trpc.prosjekt.hentForTimer.useQuery();
-
-  type ProsjektMedGps = {
-    id: string;
-    name: string;
-    projectNumber: string;
-    type: string;
-    latitude: number | null;
-    longitude: number | null;
-  };
-
-  // Cast til flat type for å unngå TS2589 (dyp tRPC-retur med faggrupper/_count).
-  const prosjekterFlat = (prosjekterRaw ?? []) as unknown as Array<{
-    id: string;
-    name: string;
-    projectNumber: string;
-    type: string;
-    latitude: number | null;
-    longitude: number | null;
-  }>;
-
-  const prosjekter = useMemo<ProsjektMedGps[]>(
-    () =>
-      prosjekterFlat.map((p) => ({
-        id: p.id,
-        name: p.name,
-        projectNumber: p.projectNumber,
-        type: p.type ?? "kunde",
-        latitude: p.latitude ?? null,
-        longitude: p.longitude ?? null,
-      })),
-    [prosjekterFlat],
-  );
-
-  // Geo-forslag: ved mount, spør om posisjon og finn nærmeste prosjekt
-  // innenfor GEO_RADIUS_METER. Forhåndsvelg hvis ingen valgt fra før.
-  useEffect(() => {
-    if (geoSjekket) return;
-    if (prosjekterLaster || prosjekter.length === 0) return;
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setGeoSjekket(true);
-      return;
-    }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        let beste: { id: string; avstand: number } | null = null;
-        for (const p of prosjekter) {
-          if (p.latitude === null || p.longitude === null) continue;
-          const a = avstandMeter(lat, lng, p.latitude, p.longitude);
-          if (a > GEO_RADIUS_METER) continue;
-          if (!beste || a < beste.avstand) {
-            beste = { id: p.id, avstand: a };
-          }
-        }
-        if (beste) {
-          setGeoForslagId(beste.id);
-          // Forhåndsvelg kun hvis brukeren ikke har valgt selv
-          setValgtProsjektId((v) => v ?? beste.id);
-        }
-        setGeoSjekket(true);
-      },
-      () => {
-        setGeoSjekket(true);
-      },
-      { enableHighAccuracy: true, timeout: 10_000 },
-    );
-  }, [prosjekter, prosjekterLaster, geoSjekket]);
 
   const opprett = trpc.timer.dagsseddel.opprett.useMutation({
     onSuccess: (sheet) => {
@@ -158,10 +71,6 @@ export default function NyDagsseddelSide() {
     e.preventDefault();
     setFeil(null);
 
-    if (!valgtProsjektId) {
-      setFeil(t("timer.feil.prosjektPaakrevd"));
-      return;
-    }
     if (!valgtAktivitetId) {
       setFeil(t("timer.feil.ingenAktivitet"));
       return;
@@ -174,7 +83,6 @@ export default function NyDagsseddelSide() {
 
     opprett.mutate({
       clientUuid,
-      projectId: valgtProsjektId,
       aktivitetId: valgtAktivitetId,
       dato,
       startAt: tilstartAt(startAt),
@@ -184,18 +92,13 @@ export default function NyDagsseddelSide() {
     });
   }
 
-  if (aktiviteterLaster || prosjekterLaster) {
+  if (aktiviteterLaster) {
     return (
       <div className="flex items-center justify-center py-12">
         <Spinner />
       </div>
     );
   }
-
-  const geoForslag = geoForslagId
-    ? prosjekter.find((p) => p.id === geoForslagId)
-    : null;
-  const visIngenGeoForslag = geoSjekket && !geoForslagId;
 
   return (
     <div className="mx-auto max-w-2xl p-6">
@@ -216,30 +119,6 @@ export default function NyDagsseddelSide() {
         onSubmit={handleSubmit}
         className="space-y-5 rounded-lg border border-gray-200 bg-white p-6"
       >
-        <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">
-            {t("timer.felt.prosjekt")}
-          </label>
-          <ProsjektRadVelger
-            valgtId={valgtProsjektId}
-            onVelg={setValgtProsjektId}
-            prosjekter={prosjekter}
-          />
-          {geoForslag && (
-            <p className="mt-1 inline-flex items-center gap-1 text-xs text-blue-700">
-              <MapPin className="h-3 w-3" />
-              {t("timer.geoForslag")}: {geoForslag.name}
-              {geoForslag.projectNumber ? ` (${geoForslag.projectNumber})` : ""}
-            </p>
-          )}
-          {visIngenGeoForslag && (
-            <p className="mt-1 inline-flex items-center gap-1 text-xs text-gray-500">
-              <MapPin className="h-3 w-3" />
-              {t("timer.ingenGeoForslag")}
-            </p>
-          )}
-        </div>
-
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.dato")}
@@ -340,7 +219,7 @@ export default function NyDagsseddelSide() {
             >
               {t("handling.avbryt")}
             </Button>
-            <Button type="submit" disabled={opprett.isPending || !valgtProsjektId}>
+            <Button type="submit" disabled={opprett.isPending}>
               {opprett.isPending ? t("handling.lagrer") : t("timer.opprett")}
             </Button>
           </div>

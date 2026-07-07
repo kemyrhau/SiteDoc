@@ -16,6 +16,82 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟡 Server-ny vedlikehold: OS-oppdateringer + restart (før redesign-stack)
+
+server-ny melder «System restart required» + ~36 ventende pakke-oppdateringer (observert 2026-07-05 under test-web-rebuild). Ikke akutt, men **bør gjøres før dere reiser den tredje redesign-stacken** (`-p redesign`, `sitedoc_redesign`) på samme maskin — en restart midt i tre kjørende stacks (prod + test + redesign) er mer risikabelt. Handling: planlagt vedlikeholdsvindu → `apt upgrade` + `reboot` (Kenneth, sudo), verifiser prod + test kommer opp igjen (innlogget) etterpå.
+
+**Disk LØST 2026-07-06:** root-LV utvidet 100→500G (528G lå uallokert i VG — underallokert, ikke full disk). **Gjenstår:** OS-oppdateringer + restart (36 pending); `--exclude apps/mobile` i rsync (2,98GB kontekst-bloat); prune-rutine.
+
+### 🟢 Dagsseddel: dobbel timeføring (total-tid + per-prosjekt) — a2 LØST 2026-07-06 (a1 fremtidig)
+
+**Problem (Kenneth, 2026-07-05, prod-test):** Arbeideren førte først total
+arbeidstid på sedel-nivå («Arbeidstid i dag»: fra/til/pause), og måtte DERETTER
+føre timer per prosjekt på nytt. Oppleves som dobbelt arbeid og ustrukturert.
+
+**a2 LØST (2026-07-06, develop) — vinduet er ikke lenger et påkrevd steg.**
+`dagsseddel.opprett` prefyller arbeidstids-vinduet fra firma-kalenderen
+(`hentEffektivArbeidstid`, Oslo-anker) i stedet for tomt; UI degradert til
+sekundær/forhåndsutfylt/overstyrbar på begge detalj-sider (ny streng
+`timer.arbeidstidPrefyltHint` — «timene føres på radene»). Radene + topp-sum er
+primær-flaten → den brukervendte dobbel-føringen er borte. Bevart: pauseMin som
+maskin-buffer, auto-gen-stien, arbeidstids-varsel. Se [timer.md § Dagsseddel a2](timer.md).
+
+**Gjenstår (a1, fremtidig):** total arbeidstid **utledes** internt av sum(rader)
++ pause i stedet for et eget lagret vindu — full strukturell forening. Krever at
+overtid (③) fortsatt får korrekt dagsnorm/overtid-split fra en UTLEDET total
+(overtid bruker firma-dagsnorm, ikke vinduet, så a2 rører den ikke — men a1 må
+verifiseres mot ③). Beslektet: **web-norm-paritet** (separat oppfølger). Se
+dagsseddel-design.md, mobil-dagsseddel-ui-spec.md § U-flyt, timer.md. Del av
+dagsseddel-UX-overhalingen (etter TestFlight).
+
+### 🟡 Modul-onboarding-veiledning (wizard ved modul-aktivering)
+
+**Idé (Kenneth, 2026-07-05):** Stegvis veiledning som viser ALLE steg som må
+gjennomføres for en modul, trigget automatisk NÅR modulen aktiveres. Bakgrunn:
+timer manglet lønnsarter på test fordi onboarding-seedingen (`aktiverNivaa1`)
+ikke var kjørt/synlig — veiledningen skal gjøre slike forutsetnings-steg tydelige.
+
+**Krav (Kenneth):**
+- Trigges automatisk ved modul-aktivering (der modulen slås på).
+- Dekker alle nødvendige steg (timer: aktiver Nivå 1 / seed lønnsarter,
+  aktiviteter, tillegg, interne prosjekter, ...).
+- Avbrytbar — bruker som ikke vil ha den stegvis kan lukke den.
+- Re-aktiverbar senere fra modulen (samme sted den slås på).
+
+**Generisk mønster:** gjenbrukbart per modul (timer, maskin, varelager, ...),
+ikke timer-spesifikt. Koble til eksisterende idé-docs: onboarding-veileder.md,
+prosjektoppsett-veileder.md.
+
+### ✅ i18n-duplikat: `timer.glemtDag.tittel` — RE-VERIFISERT IKKE-DUPLIKAT 2026-07-06
+
+**Opprinnelig påstand (2026-07-05):** `timer.glemtDag.tittel` skulle finnes to ganger i
+`nb.json` (linje 42 «Gjenopprettet dag — estimert» + linje 57 «Glemte du å avslutte?»),
+med badge-varianten død.
+
+**Re-verifisert 2026-07-06 mot kode — påstanden er STALE, ingen duplikat:**
+`grep '"timer.glemtDag.tittel"' nb.json` gir **ett** treff (linje 87 «Glemte du å avslutte?»);
+`en.json` likeså (1 treff). Teksten «Gjenopprettet dag — estimert» finnes ikke lenger noe sted
+i språkfilene. Alle 5 `timer.glemtDag.*`-nøkler (`tittel`/`hjelp`/`melding`/`glemte`/`jobberFortsatt`)
+er unike og brukt i kode (`StartSluttDagKort.tsx:352`, `timer/[id].tsx:604` m.fl.). Duplikatet ble
+ryddet mellom 2026-07-05 og 2026-07-06 (badge-verdien fjernet). **Ingen handling nødvendig.**
+
+> **Sidefunn (egen sak under):** den eneste faktiske dupliserte JSON-nøkkelen i nb+en er
+> `sok.placeholder` (to ganger, ulike verdier) — se posten «i18n-duplikat: `sok.placeholder`» rett under.
+
+### ✅ i18n-duplikat: `sok.placeholder` — FIKSET 2026-07-06 (develop)
+
+**Var:** `sok.placeholder` fantes to ganger i både `nb.json` og `en.json` (linje 59 «Søk etter
+innstillinger og sider …» + linje 827 «Søk i prosjektdokumenter...»). JSON lot den **siste**
+(827) vinne → global `SokModal.tsx:114` viste feil placeholder «Søk i prosjektdokumenter...»,
+mens doc-søk-siden `dashbord/[prosjektId]/sok/page.tsx:131` var korrekt (tilfeldigvis).
+
+**Fiks (nb+en + én kode-linje):** doc-søk-verdien på linje 827 omdøpt til distinkt nøkkel
+**`sok.dokumentPlaceholder`** (flat camelCase — matcher doc-søk-blokkens konvensjon `sok.aiSok`/
+`sok.tekstsok`/`sok.skrivInnSokeord`, ikke det nestede `sok.dokumenter.*` som ikke finnes ellers).
+`sok/page.tsx:131` peker nå på `sok.dokumentPlaceholder`; `sok.placeholder` (linje 59) beholdt for
+global `SokModal`. **`generate.ts` IKKE kjørt** (regel 3 — frossen sone under redesign): kun nb+en
+oppdatert, de 13 øvrige språkene faller tilbake til `en` til neste redesign-generate fyller dem.
+
 ### 🟢 Mobil Microsoft-auth — BYGGET I EAS-SKY #37 2026-07-01 (venter Azure + Florian-test)
 
 **Status (2026-07-01):** Kode implementert + gate-verifisert (commit `f8594d1c` develop / merget til main via `bc744f82`). Ekte dedikert Entra public-client-id (`234ca0e0-…`) inn på alle fire eas.json-profiler. Code+PKCE-flyt, knapp-gating, typecheck rent (12 baseline-feil uendret, ingen i auth-filene). `mobilAuth.byttToken` + orphan-guard **urørt**. **Bygget i EAS-sky-bunt #37** (bygg-ID `496b6a63`, status `finished` m/ .ipa, 2026-07-01) → TestFlight. **Gjenstår (Kenneths hånd):** (a) Azure-sjekklista under (dedikert «SiteDoc Mobile»-app, redirect `sitedoc://auth`, public client flows, Graph-scopes) — **MÅ være kjørt før MS-login faktisk virker for Florian**; (b) Florians test i TestFlight-bygget. Lokale bygg forkastet som blindvei (se [eas-build-veileder.md § Fallgruver](eas-build-veileder.md)).
@@ -48,6 +124,8 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 | `docs/claude/*` | Oppdater `infrastruktur.md`/`eas-build-veileder.md` med Azure-stegene, samme commit som koden. |
 
 Knapp-gatingen holder MS skjult til client-id er ekte → PKCE-koden er trygg å merge før Azure er ferdig hvis ønskelig. Koden alene fikser ingenting før Azure + ekte client-id + nytt EAS-bygg (env bakes inn ved byggetid).
+
+**Lokal dev — ekte Entra client-ID for simulator (funn 2026-07-06) 🟡:** MS-login-flyten *virker* i iOS-simulator (systembrowser + Authenticator OK), men `apps/mobile`s lokale env har placeholder `din-microsoft-client-id-her` som `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` → Entra svarer **AADSTS700016** (app ikke funnet i katalogen). Distinkt fra Azure-sjekklista over (den gjelder EAS-profiler/TestFlight, ikke lokal `.env`). Fiks: registrer/konfigurer en ekte Entra client-ID for lokal dev — enten gjenbruk «SiteDoc Mobile»-appen med lokal redirect-URI lagt til, eller egen dev-app-registrering m/ riktig redirect-URI. **Ikke prioritert** — `dev-login` dekker simulator-testing uten MS.
 
 ### ✅ Org uten standard-lønnsart (③b) — IMPLEMENTERT PÅ DEVELOP 2026-07-05 (web klar for prod, mobil venter EAS-batch)
 
@@ -87,17 +165,25 @@ Oppdaget 2026-06-24. Geofence-editor (A+B, `8deb3a4b`) + «Lokasjon»→«Byggep
 
 **Umiddelbar workaround brukt:** manuell rsync `develop` → `server-ny:~/stack/sitedoc` + `sudo docker compose -f docker/docker-compose.test.yml build/up` (Kenneth, ekte TTY).
 
-### 🟡 Web-timer-UI foreldet mot T.1-modell (dagsseddel ikke lenger prosjekt-eid) — PARKERT (Fase-4-forankret redesign)
+### 🟢 Web-timer-UI T.1-korrekthet — INTERIM GJORT 2026-07-05 (PSI-hook-delen forblir Fase 4/E)
 
-Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-først-verifisert mot kode 2026-07-05.** `DailySheet` har `@@unique([userId, dato])` (`db-timer/prisma/schema.prisma:176`) og **`projectId` ble droppet** (T.1, 2026-05-11, kommentar `schema.prisma:137-138`) — dagsseddel er firma/arbeider-eid, prosjekt ligger på rad (`SheetTimer.projectId`, `:201`). Verifisert også i generert klient: `DailySheetWhereInput` har **ingen** `projectId`-nøkkel. Web-UI behandler den fortsatt som prosjekt-eid → modell-mismatch. **Detalj-siden (`dashbord/timer/[id]/page.tsx`) er allerede T.1-korrekt** (grupperer rader per `(projectId, ECO)`, «+ Legg til prosjekt», per-rad prosjektvelger) — redesignen rører den ikke.
+Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-først-verifisert mot kode 2026-07-05.** `DailySheet` har `@@unique([userId, dato])` (`db-timer/prisma/schema.prisma:176`) og **`projectId` ble droppet** (T.1, 2026-05-11, kommentar `schema.prisma:137-138`) — dagsseddel er firma/arbeider-eid, prosjekt ligger på rad (`SheetTimer.projectId`, `:201`). Verifisert også i generert klient: `DailySheetWhereInput` har **ingen** `projectId`-nøkkel. Web-UI behandlet den fortsatt som prosjekt-eid → modell-mismatch. **Detalj-siden (`dashbord/timer/[id]/page.tsx`) er allerede T.1-korrekt** (grupperer rader per `(projectId, ECO)`, «+ Legg til prosjekt», per-rad prosjektvelger) — redesignen rører den ikke.
 
-**Beslutning 2026-07-05:** hele saken parkeres **holistisk** til Fase 4 Mannskap/PSI finnes (se «Retning» under). Bugene er lav-skade (stille-tom / kosmetisk «—», ubemerket i ~2 mnd), og opprett-flyten + prosjekt-fanen er sammenfiltret med den PSI-drevne web-UI-redesignen — derfor ikke piecemeal-fiks nå.
+**Beslutning 2026-07-05 → interim implementert 2026-07-05.** De tre korrekthets-buggene (①②③) er lav-skade men reelle modell-mismatch, og fiks er lokal til timer-sidene (ikke frossen sone, ikke sammenfiltret med PSI-redesignen). Derfor tatt som **interim T.1-korrekthets-fiks** nå (se «Interim-status» under). Den PSI-drevne delen — auto-forslag av prosjekt fra tilstedeværelse (④) + prosjekt-fane-redesign — forblir **Fase 4 Mannskap/PSI** (se «Retning» under); ⑤ er verifisert tilsiktet.
 
-**Verifiserte funn (2026-07-05, mot kode):**
+**Interim-status (implementert 2026-07-05, develop):**
 
-- **① 🔴 Prosjekt-kontekst-timer-lista (`[prosjektId]/timer/page.tsx:61`) er runtime-brutt.** BACKLOG antok tidligere «lista filtrerer for dette prosjektet» — virkeligheten er verre: `list`-query (`dagsseddel.ts:472`) legger `projectId` inn i `DailySheetWhereInput` via spread (omgår TS excess-property-sjekk → typechecker, men feiler i runtime). Prisma kaster `PrismaClientValidationError` (unknown arg — `DailySheet` har ingen `projectId` siden T.1) → React Query-feil → siden faller til tom-tilstand (`:161`). Så lista viser **alltid tomt for ALLE sedler**, ikke bare kryss-prosjekt. Live siden 2026-05-11, maskert som «ingen data». P2002-kollisjonen reproduseres slik: mobil lager `(bruker, dato)`-sedel på prosjekt A → web «Ny dagsseddel» velger prosjekt B (kun auth) samme dato → `upsert` treffer `@@unique([userId, dato])` → «Du har allerede en dagsseddel for denne datoen» (P2002, **`dagsseddel.ts:617-620`** — BACKLOG sa `:650`, driftet linjenr) for en sedel arbeideren ikke ser.
-- **② 🟡 «Mine timer» (`mine/page.tsx`) leser `rad.projectId` fra DailySheet (finnes ikke).** `list`-retur (`:497-501`) sprer `...s` (sedel uten projectId) → `rad.projectId === undefined` → prosjekt-kolonne (`:306`) alltid «—», «antall prosjekter» (`:112`) alltid 1. Riktig kilde = radenes `projectId` (sedelen har `timer[]`, men mappingen kaster dem).
-- **③ 🔴 «Ny dagsseddel» (web, `dashbord/timer/ny/page.tsx`) har misvisende prosjekt-velger + er P2002-kollisjonskilde.** `opprett` (`dagsseddel.ts:549`) tar `projectId` som påkrevd input, men bruker den **kun til auth** (`verifiserProsjektmedlem`, `:571`) — lagrer den aldri; sedelen opprettes tom. Prosjektvalget velger altså ingenting reelt.
+- **① ✅ GJORT** — `list`-query bruker eksplisitt `where` med rad-prosjekt-filter `timer: { some: { projectId } }` (ikke lenger spread av ugyldig `projectId` på `DailySheetWhereInput`). Prosjekt-kontekst-lista viser nå faktiske sedler med ≥1 rad for prosjektet.
+- **② ✅ GJORT** — `list`-retur beriker hver sedel med `prosjektIder` (distinct `projectId` på tvers av timer-/maskin-/tillegg-rader). `mine/page.tsx` utleder prosjekt-kolonne + «antall prosjekter» fra dette (ikke lenger `rad.projectId` som ikke finnes).
+- **③ ✅ GJORT** — web-opprett er nå **dato-only**: `opprett`-input droppet `projectId`, auth bruker org-tilgang (`krevBrukersOrg` + `krevTimerAktivert`) i stedet for `verifiserProsjektmedlem`; prosjekt-velgeren + geo-forslag fjernet fra `ny/page.tsx`. Prosjekt legges per rad på detalj-siden. Fjerner den misvisende velgeren og kilden til P2002-forvirringen (`@@unique([userId, dato])` består — én sedel per dato er korrekt).
+- **④ 🟡 FORBLIR FASE 4/E** — auto-forslag/auto-utkast av prosjekt i web (PSI-innsjekk + GPS-hook) er ikke bygd; avhenger av Fase 4 Mannskap/PSI (se «Retning»).
+- **⑤ ✅ verifisert tilsiktet** — byggeplass-velger bevisst deaktivert i web-timer.
+
+**Verifiserte funn (2026-07-05, mot kode — pre-fix; ①②③ fikset interim samme dag, se «Interim-status» over):**
+
+- **① ✅ (var 🔴) Prosjekt-kontekst-timer-lista (`[prosjektId]/timer/page.tsx:61`) VAR runtime-brutt — nå fikset (se «Interim-status» over).** BACKLOG antok tidligere «lista filtrerer for dette prosjektet» — virkeligheten var verre: `list`-query (`dagsseddel.ts:472`) la `projectId` inn i `DailySheetWhereInput` via spread (omgikk TS excess-property-sjekk → typechecker, men feilet i runtime). Prisma kastet `PrismaClientValidationError` (unknown arg — `DailySheet` har ingen `projectId` siden T.1) → React Query-feil → siden falt til tom-tilstand (`:161`). Så lista viste **alltid tomt for ALLE sedler**, ikke bare kryss-prosjekt. Var live 2026-05-11 → 2026-07-05, maskert som «ingen data». P2002-kollisjonen reproduserte seg slik: mobil lager `(bruker, dato)`-sedel på prosjekt A → web «Ny dagsseddel» valgte prosjekt B (kun auth) samme dato → `upsert` traff `@@unique([userId, dato])` → «Du har allerede en dagsseddel for denne datoen» (P2002, **`dagsseddel.ts:617-620`** — BACKLOG sa `:650`, driftet linjenr) for en sedel arbeideren ikke så. **Interim-fiks 2026-07-05:** rad-prosjekt-filter `timer: { some: { projectId } }`.
+- **② ✅ (var 🟡) «Mine timer» (`mine/page.tsx`) leste `rad.projectId` fra DailySheet (finnes ikke) — nå fikset (se «Interim-status» over).** `list`-retur (`:497-501`) spredte `...s` (sedel uten projectId) → `rad.projectId === undefined` → prosjekt-kolonne (`:306`) alltid «—», «antall prosjekter» (`:112`) alltid 1. Riktig kilde = radenes `projectId` (sedelen har `timer[]`, men mappingen kastet dem). **Interim-fiks 2026-07-05:** `list` beriker hver sedel med `prosjektIder`; `mine/page.tsx` utleder kolonnen fra det.
+- **③ ✅ (var 🔴) «Ny dagsseddel» (web, `dashbord/timer/ny/page.tsx`) hadde misvisende prosjekt-velger + var P2002-kollisjonskilde — nå fikset (se «Interim-status» over).** `opprett` (`dagsseddel.ts:549`) tok `projectId` som påkrevd input, men brukte den **kun til auth** (`verifiserProsjektmedlem`, `:571`) — lagret den aldri; sedelen ble opprettet tom. Prosjektvalget valgte altså ingenting reelt. **Interim-fiks 2026-07-05:** web-opprett er nå dato-only (org-tilgang i stedet for prosjektmedlem-sjekk).
 - **④ 🟡 Ingen forslag/auto-utkast i web:** «intelligent timeføring» (`genererForslag`) er mobil-only — bekreftet ingen web-motpart.
 - **⑤ ❓→✅ Byggeplass-velger deaktivert i web-timer — verifisert tilsiktet:** `[prosjektId]/timer/page.tsx:47` kaller eksplisitt `useToppbarFiltre({ byggeplass: false })`. Bevisst, ikke hull. Asymmetri består: `DailySheet` har `byggeplassId` men ikke `projectId`.
 
@@ -141,6 +227,22 @@ Fiks når noen rører de filene: synk hook-resultat-typene med faktisk retur, og
 ### `apps/mobile` mangler test-runner — rene utils udekket 🟡
 
 `apps/mobile` har ingen test-runner (verken `test`-script, jest/vitest-config eller `*.test.ts`). Rene, logikk-tunge hjelpere er derfor udekket av automatiserte tester. Konkret fanget ved Slice 4a (2026-06-20): **`splittVedMidnatt`** (`apps/mobile/src/utils/dagsegment.ts`) ble kun manuelt verifisert (tsx-kjøring). Casene som bør dekkes når en test-beslutning tas: **nattskift 19→07 = 5t+7t=12t** (sum = reell total), **dagskift** (1 segment, uendret), **degenerert** (slutt ≤ start → ett 0-segment), **fler-døgn** (glemt-dag → N segmenter, sum = total). Vurder å **flytte den rene helperen til `@sitedoc/shared`** (web bruker allerede `vitest` — jf. `src/components/mengde/__tests__/`), evt. introdusere vitest i `apps/mobile`. Lav prio — ingen runtime-effekt, men midnatt-splitt er lønns-sensitiv logikk som fortjener regresjonsdekning.
+
+### Metro blockList — `.env.eas.local` knekker `expo run:ios` ✅ FIKSET 2026-07-06 (venter dual-review)
+
+`apps/mobile/.env.eas.local` (credential-fil, gitignored) ligger i prosjektroten og overvåkes av Metro (`metro.config.js` har `watchFolders` = hele monorepoet, men **ingen `resolver.blockList`**). Ved `expo run:ios` kan Metro forsøke å bundle/lese fila → bygg-brudd. **Fikset i web-runde s1 (2026-07-06):** `config.resolver.blockList += /\.env\.eas\.local$/` (additivt til Expos defaults) i `metro.config.js`. I arbeidstreet, venter dual-review/commit.
+
+### Test-web (:3300) mangler healthcheck + restart-policy i compose 🟡
+
+Under dev-login-feilsøkingen 2026-07-06 var `sitedoc-test-web` (:3300) død (connection reset) mens test-api (:3301) var frisk — Kenneth måtte restarte containeren manuelt. `docker/docker-compose.test.yml` har ingen `healthcheck` eller aktiv `restart`-policy som fanger en død web-prosess. Fiks: legg `healthcheck` (curl mot `/` eller en health-rute) + `restart: unless-stopped` (verifiser at web-tjenesten har det — api har det) i test-compose, så en død test-web auto-restartes i stedet for å stå og resette. Lav prio (kun test-miljø), men rammer agent-/simulator-testing når web-siden trengs.
+
+### ✅ Navigasjonsredesign — dev-login secrets-oppsett (Kenneth) — UTFØRT 2026-07-06
+
+Dev-login (agent-testing, Nivå A+B) **verifisert grønn i iOS-simulator 2026-07-06**. Secrets satt (aldri i git): (1) `ENABLE_DEV_LOGIN=true` + `DEV_LOGIN_SECRET` i `docker/env/api-test.env`; (2) testbrukere seedet mot `sitedoc_test`; (3) `EXPO_PUBLIC_DEV_LOGIN_SECRET` i lokal `.env` for simulator (EAS-secret for TestFlight-knapp gjenstår, ikke blokkerende). **Simulator-transport:** localhost-port-forward (`ssh -N -L 3301:localhost:3301 server-ny` + `expo prebuild --clean`), IKKE Cloudflare-edge/Tailscale-IP. **Rotårsaks-kjede (3 ledd):** Cloudflare-kant droppet RN-fetch → iOS Local Network-privacy blokkerte private adresser → container kjørte **stale `DEV_LOGIN_SECRET`** (recreate api+web løste siste ledd). Full oppskrift: [dev-login-agent.md § Simulator/lokal dev](dev-login-agent.md) + [DOCKER-NOTES punkt 8](../../docker/DOCKER-NOTES.md). Steg v-retesten (rebuild api+web + `seed-oversettelse-test.ts`) gjenstår separat.
+
+### CLAUDE.md over 40k-tegn-grensen (40373 tegn) 🟡
+
+CLAUDE.md er 40373 tegn — 373 over den ufravikelige 40k-grensen. Nye indeks-rader (f.eks. `dev-login-agent.md`) legges derfor i DOC-MAP i stedet (jf. presedens `parallell-arbeid-lock.md`). Trenger en dedikert trim-runde (kollaps redundante regel-blokker mot detalj-filer) for å komme under grensen igjen.
 
 ### Følgesaker etter prod-deploy 2026-06-21
 
@@ -275,7 +377,7 @@ Kenneths idé 2026-07-04. I dag er tilgang spredt over en **ad-hoc miks**: `User
 
 ### Test-miljø mangler web-MS-redirect i Entra 🟡
 
-Observert 2026-07-04: innlogging med Microsoft på `test.sitedoc.no` feiler med **AADSTS50011** — redirect-URI `https://test.sitedoc.no/api/auth/callback/microsoft-entra-id` er ikke registrert i Entra-app-en (`d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`). Test har aldri fått Microsoft-OAuth wiret i Azure (kun prod-callbacken finnes). **Fiks = Kenneths Azure-hånd:** legg til test-redirect-URI-en i app-registreringen (additivt, rører **ikke** prod-callbacken). Egen infra-oppgave på linje med mobil-MS-Azure-sjekklista. **I mellomtiden:** auth-gaten (sak #2) kan verifiseres på test via **Google** (`AUTH_GOOGLE_ID` er satt på test) — logg inn med Google-konto uten firma/prosjekt → skal avvises (`AccessDenied`); med medlemskap → slipper inn. Merk også: `dev-login` er **av** på test (`NODE_ENV=production`, ingen `ENABLE_DEV_LOGIN`).
+Observert 2026-07-04: innlogging med Microsoft på `test.sitedoc.no` feiler med **AADSTS50011** — redirect-URI `https://test.sitedoc.no/api/auth/callback/microsoft-entra-id` er ikke registrert i Entra-app-en (`d7735b7a-c7fb-407c-9bf6-80048f6f3ac5`). Test har aldri fått Microsoft-OAuth wiret i Azure (kun prod-callbacken finnes). **Fiks = Kenneths Azure-hånd:** legg til test-redirect-URI-en i app-registreringen (additivt, rører **ikke** prod-callbacken). Egen infra-oppgave på linje med mobil-MS-Azure-sjekklista. **I mellomtiden:** auth-gaten (sak #2) kan verifiseres på test via **Google** (`AUTH_GOOGLE_ID` er satt på test) — logg inn med Google-konto uten firma/prosjekt → skal avvises (`AccessDenied`); med medlemskap → slipper inn. Merk også: `dev-login` er **av** på test (`NODE_ENV=production`, ingen `ENABLE_DEV_LOGIN`). **Også observert fra iOS-simulator 2026-07-06** (MS-login-flyten) — samme rotårsak (manglende test-redirect i Entra `d7735b7a`); uavhengig av dev-login-transporten (dev-login bruker localhost-port-forward, se [dev-login-agent.md](dev-login-agent.md)).
 
 ### H3 — `allowDangerousEmailAccountLinking` reversert + signIn-guard — ✅ DEPLOYET TIL PROD 2026-06-05
 
@@ -324,6 +426,25 @@ Alle 14 funn fra sikkerhets-audit 2026-05-27 er adressert i prod. Se [historikk-
 4. Etter rotårsak avdekket fra enhets-logger: konkret runtime-fiks i oppfølger-PR.
 
 **Bi-funn:** «Ukjent bruker»-meldingen ved utlogging (`mer.tsx:248`, `bruker?.name ?? "Ukjent bruker"`) er forventet kortvarig fallback når `setBruker(null)` rendres før navigation. Ikke en bug.
+
+### 🟡 Mobil prosjektliste mangler sitedoc_admin-bypass (redesign-paritet, funn 2a-simulator 2026-07-06)
+
+**Funn (fabel, simulator-verifisering steg vi):** Mobilens prosjektvelger/Hjem viser **ingen prosjekter for `sitedoc_admin`** (test-admin), mens firma-velgeren i Mer viser alle org-er. Web fikk i redesign steg ii et admin-bypass (hub-funnet: «admin/registrator ser alt» — `erSitedocAdmin`/`erCompanyAdmin`-bypass som speiler HovedSidebar). Mobilen mangler tilsvarende: prosjekt-lista er medlemskaps-basert, og en `sitedoc_admin` uten `ProjectMember`-rad ser tomt.
+
+**Skiller seg fra build #29-fiksen (over):** den gjaldt `valgtFirmaId`-gating + `hentMineMedlemskap`-fallback for standalone/uvalgt-firma. Dette er selve prosjekt-lista som ikke honorerer sitedoc_admin-«ser alt».
+
+**Tiltak (ikke nå — ikke trivielt):** mobil prosjektliste bør speile webs admin-oppførsel (sitedoc_admin → alle prosjekter, ev. gated bak samme logikk som `HovedSidebar`/`useSidebarElementer`). Krever server-query som honorerer rolle-bypass + klient-konsum.
+
+**Testbehov er dekket uten fiks (delvis):** `kemyrhau@gmail.com` er whitelistet i dev-login (ekte admin med prosjektmedlemskap → ser data + toggle) — dette dekket steg vi-verifiseringen via `Markussen Boligfelt B12`. Agentprosjekt-innholdsseed for `test-arbeider` **står derimot åpen** (se egen rad under — test-arbeider viste «ikke medlem av dette prosjektet» i 2a-runden). Paritetsrad: se [redesign-paritetssjekkliste.md § Kode-diff-noter](redesign-paritetssjekkliste.md).
+
+### 🟡 Redesign-mobil — oppfølgere fra 2a-simulator-runden (2026-07-07)
+
+Funn under steg vi-verifiseringen (2a mobil-tabs). Ingen blokkerer lukking av steg vi (designgodkjent), men samles her:
+
+- **(s3) Utlogging navigerer ikke til `/logg-inn`** 🟡 — «Logg ut» fra Mer setter `bruker=null` men appen blir stående på Mer med «Ukjent bruker» i stedet for å redirigere til innloggingsskjermen. Workaround: `xcrun simctl terminate/launch` (kaldstart lander på login) — dokumentert i [simulator-runbook.md § 3](simulator-runbook.md). **Git-blame-konklusjon: pre-eksisterende, IKKE steg-vi-regresjon** — `AuthProvider.tsx` + logout-flyten sist rørt av `09413d50`/`9fe55565` (dev-login), steg vi (`10cf64ae`) rørte kun `TESTBRUKERE`-arrayen. Rotårsak: mangler auth-guard som redirigerer til `/logg-inn` når `!erInnlogget` inne i `(tabs)`. BACKLOG omtaler «Ukjent bruker» som forventet *kortvarig* fallback før navigasjon — her uteble navigasjonen.
+- **(stale toggle) `Ny navigasjon`-toggle vises stale i utloggingsvinduet** 🟢 lav prio — `bruker.hentMin`-svaret ligger i React Query-cachen til det invalideres, så `erSitedocAdmin` er stale i det korte utloggingsvinduet (togglen vises for «Ukjent bruker»). Kosmetisk; tømmes ved kaldstart/ny innlogging. Fiks: invalider `bruker.hentMin` ved `loggUt`.
+- **(pilot-beslutning) `nyNavigasjon`-flagget er enhets-lagret, ikke bruker-knyttet** ❓ **krever Kenneth-beslutning FØR pilot** — flagget ligger i SecureStore per enhet (ikke per bruker). En arbeider på en **delt enhet** kan havne i ny nav uten å se togglen (togglen er `sitedoc_admin`-gated), og kan ikke skru tilbake selv. Før pilot må én av: (1) bruker-knyttet flagg (server/`bruker`-felt), ELLER (2) toggle synlig for alle roller. Speiler web-pilotplanen (`sitedoc_admin`→`company_admin` ved pilotstart) — men delt-enhet-scenariet er mobil-spesifikt.
+- **(agentprosjekt-innholdsseed) `test-arbeider` mangler prosjektinnhold** 🟡 — `test-arbeider@sitedoc.test` er ikke medlem av et prosjekt med tegninger/mapper/dagsedler, så data-verifisering som `test-arbeider` er ikke mulig (2a-runden brukte `kemyrhau`-kontoen i stedet). **Trengs for steg vii-verifisering** (2c-leser vil trolig verifiseres som arbeider). Handling: seed-script som gir `test-arbeider` medlemskap i et prosjekt med tegninger + FTD-mapper (m/ oversettelser) + dagsedler. Utvider `packages/db/scripts/seed-testbrukere.ts` eller ny `seed-agentprosjekt.ts`.
 
 ### Avklaring-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 
