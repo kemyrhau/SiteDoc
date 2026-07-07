@@ -824,7 +824,7 @@
   "3d.ikkeTolkeKoordinater": "Could not parse the coordinates",
   "status.feilet": "Failed",
   "sok.tittel": "Document search",
-  "sok.placeholder": "Search project documents...",
+  "sok.dokumentPlaceholder": "Search project documents...",
   "sok.aiSok": "AI search",
   "sok.tekstsok": "Text search",
   "sok.prosjektdokumenter": "Project documents",

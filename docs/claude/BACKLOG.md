@@ -62,18 +62,35 @@ ikke var kjørt/synlig — veiledningen skal gjøre slike forutsetnings-steg tyd
 ikke timer-spesifikt. Koble til eksisterende idé-docs: onboarding-veileder.md,
 prosjektoppsett-veileder.md.
 
-### 🟡 i18n-duplikat: `timer.glemtDag.tittel` (to nøkler, andre vinner)
+### ✅ i18n-duplikat: `timer.glemtDag.tittel` — RE-VERIFISERT IKKE-DUPLIKAT 2026-07-06
 
-**Verifisert 2026-07-05 mot kode:** `timer.glemtDag.tittel` finnes **to ganger** i
-`packages/shared/src/i18n/nb.json` (linje 42 «Gjenopprettet dag — estimert» +
-linje 57 «Glemte du å avslutte?») og tilsvarende i `en.json` (grep-count 2). JSON
-lar den **siste** vinne → linje 42-verdien («Gjenopprettet dag — estimert») er
-**død** og vises aldri. De to er semantisk ulike (recall-badge vs glemt-dag-prompt)
-→ én må omdøpes (f.eks. `timer.gjenopprettetDag.tittel` for badge-varianten), ikke
-bare slettes. Sjekk kode-bruk (`grep timer.glemtDag.tittel apps/*/src`) FØR omdøping
-for å treffe riktig call-site. Gjelder alle 15 språkfiler (duplikatet er kopiert av
-`generate.ts`). Lav prio (kosmetisk feil tekst på recall-badge), men lønns-nær UI.
+**Opprinnelig påstand (2026-07-05):** `timer.glemtDag.tittel` skulle finnes to ganger i
+`nb.json` (linje 42 «Gjenopprettet dag — estimert» + linje 57 «Glemte du å avslutte?»),
+med badge-varianten død.
 
+**Re-verifisert 2026-07-06 mot kode — påstanden er STALE, ingen duplikat:**
+`grep '"timer.glemtDag.tittel"' nb.json` gir **ett** treff (linje 87 «Glemte du å avslutte?»);
+`en.json` likeså (1 treff). Teksten «Gjenopprettet dag — estimert» finnes ikke lenger noe sted
+i språkfilene. Alle 5 `timer.glemtDag.*`-nøkler (`tittel`/`hjelp`/`melding`/`glemte`/`jobberFortsatt`)
+er unike og brukt i kode (`StartSluttDagKort.tsx:352`, `timer/[id].tsx:604` m.fl.). Duplikatet ble
+ryddet mellom 2026-07-05 og 2026-07-06 (badge-verdien fjernet). **Ingen handling nødvendig.**
+
+> **Sidefunn (egen sak under):** den eneste faktiske dupliserte JSON-nøkkelen i nb+en er
+> `sok.placeholder` (to ganger, ulike verdier) — se posten «i18n-duplikat: `sok.placeholder`» rett under.
+
+### ✅ i18n-duplikat: `sok.placeholder` — FIKSET 2026-07-06 (develop)
+
+**Var:** `sok.placeholder` fantes to ganger i både `nb.json` og `en.json` (linje 59 «Søk etter
+innstillinger og sider …» + linje 827 «Søk i prosjektdokumenter...»). JSON lot den **siste**
+(827) vinne → global `SokModal.tsx:114` viste feil placeholder «Søk i prosjektdokumenter...»,
+mens doc-søk-siden `dashbord/[prosjektId]/sok/page.tsx:131` var korrekt (tilfeldigvis).
+
+**Fiks (nb+en + én kode-linje):** doc-søk-verdien på linje 827 omdøpt til distinkt nøkkel
+**`sok.dokumentPlaceholder`** (flat camelCase — matcher doc-søk-blokkens konvensjon `sok.aiSok`/
+`sok.tekstsok`/`sok.skrivInnSokeord`, ikke det nestede `sok.dokumenter.*` som ikke finnes ellers).
+`sok/page.tsx:131` peker nå på `sok.dokumentPlaceholder`; `sok.placeholder` (linje 59) beholdt for
+global `SokModal`. **`generate.ts` IKKE kjørt** (regel 3 — frossen sone under redesign): kun nb+en
+oppdatert, de 13 øvrige språkene faller tilbake til `en` til neste redesign-generate fyller dem.
 
 ### 🟢 Mobil Microsoft-auth — BYGGET I EAS-SKY #37 2026-07-01 (venter Azure + Florian-test)
 
@@ -164,9 +181,9 @@ Fanget under web-testing på prod 2026-06-24 (A.Markussen / 999 / 998). **Plan-f
 
 **Verifiserte funn (2026-07-05, mot kode — pre-fix; ①②③ fikset interim samme dag, se «Interim-status» over):**
 
-- **① 🔴 Prosjekt-kontekst-timer-lista (`[prosjektId]/timer/page.tsx:61`) er runtime-brutt.** BACKLOG antok tidligere «lista filtrerer for dette prosjektet» — virkeligheten er verre: `list`-query (`dagsseddel.ts:472`) legger `projectId` inn i `DailySheetWhereInput` via spread (omgår TS excess-property-sjekk → typechecker, men feiler i runtime). Prisma kaster `PrismaClientValidationError` (unknown arg — `DailySheet` har ingen `projectId` siden T.1) → React Query-feil → siden faller til tom-tilstand (`:161`). Så lista viser **alltid tomt for ALLE sedler**, ikke bare kryss-prosjekt. Live siden 2026-05-11, maskert som «ingen data». P2002-kollisjonen reproduseres slik: mobil lager `(bruker, dato)`-sedel på prosjekt A → web «Ny dagsseddel» velger prosjekt B (kun auth) samme dato → `upsert` treffer `@@unique([userId, dato])` → «Du har allerede en dagsseddel for denne datoen» (P2002, **`dagsseddel.ts:617-620`** — BACKLOG sa `:650`, driftet linjenr) for en sedel arbeideren ikke ser.
-- **② 🟡 «Mine timer» (`mine/page.tsx`) leser `rad.projectId` fra DailySheet (finnes ikke).** `list`-retur (`:497-501`) sprer `...s` (sedel uten projectId) → `rad.projectId === undefined` → prosjekt-kolonne (`:306`) alltid «—», «antall prosjekter» (`:112`) alltid 1. Riktig kilde = radenes `projectId` (sedelen har `timer[]`, men mappingen kaster dem).
-- **③ 🔴 «Ny dagsseddel» (web, `dashbord/timer/ny/page.tsx`) har misvisende prosjekt-velger + er P2002-kollisjonskilde.** `opprett` (`dagsseddel.ts:549`) tar `projectId` som påkrevd input, men bruker den **kun til auth** (`verifiserProsjektmedlem`, `:571`) — lagrer den aldri; sedelen opprettes tom. Prosjektvalget velger altså ingenting reelt.
+- **① ✅ (var 🔴) Prosjekt-kontekst-timer-lista (`[prosjektId]/timer/page.tsx:61`) VAR runtime-brutt — nå fikset (se «Interim-status» over).** BACKLOG antok tidligere «lista filtrerer for dette prosjektet» — virkeligheten var verre: `list`-query (`dagsseddel.ts:472`) la `projectId` inn i `DailySheetWhereInput` via spread (omgikk TS excess-property-sjekk → typechecker, men feilet i runtime). Prisma kastet `PrismaClientValidationError` (unknown arg — `DailySheet` har ingen `projectId` siden T.1) → React Query-feil → siden falt til tom-tilstand (`:161`). Så lista viste **alltid tomt for ALLE sedler**, ikke bare kryss-prosjekt. Var live 2026-05-11 → 2026-07-05, maskert som «ingen data». P2002-kollisjonen reproduserte seg slik: mobil lager `(bruker, dato)`-sedel på prosjekt A → web «Ny dagsseddel» valgte prosjekt B (kun auth) samme dato → `upsert` traff `@@unique([userId, dato])` → «Du har allerede en dagsseddel for denne datoen» (P2002, **`dagsseddel.ts:617-620`** — BACKLOG sa `:650`, driftet linjenr) for en sedel arbeideren ikke så. **Interim-fiks 2026-07-05:** rad-prosjekt-filter `timer: { some: { projectId } }`.
+- **② ✅ (var 🟡) «Mine timer» (`mine/page.tsx`) leste `rad.projectId` fra DailySheet (finnes ikke) — nå fikset (se «Interim-status» over).** `list`-retur (`:497-501`) spredte `...s` (sedel uten projectId) → `rad.projectId === undefined` → prosjekt-kolonne (`:306`) alltid «—», «antall prosjekter» (`:112`) alltid 1. Riktig kilde = radenes `projectId` (sedelen har `timer[]`, men mappingen kastet dem). **Interim-fiks 2026-07-05:** `list` beriker hver sedel med `prosjektIder`; `mine/page.tsx` utleder kolonnen fra det.
+- **③ ✅ (var 🔴) «Ny dagsseddel» (web, `dashbord/timer/ny/page.tsx`) hadde misvisende prosjekt-velger + var P2002-kollisjonskilde — nå fikset (se «Interim-status» over).** `opprett` (`dagsseddel.ts:549`) tok `projectId` som påkrevd input, men brukte den **kun til auth** (`verifiserProsjektmedlem`, `:571`) — lagret den aldri; sedelen ble opprettet tom. Prosjektvalget valgte altså ingenting reelt. **Interim-fiks 2026-07-05:** web-opprett er nå dato-only (org-tilgang i stedet for prosjektmedlem-sjekk).
 - **④ 🟡 Ingen forslag/auto-utkast i web:** «intelligent timeføring» (`genererForslag`) er mobil-only — bekreftet ingen web-motpart.
 - **⑤ ❓→✅ Byggeplass-velger deaktivert i web-timer — verifisert tilsiktet:** `[prosjektId]/timer/page.tsx:47` kaller eksplisitt `useToppbarFiltre({ byggeplass: false })`. Bevisst, ikke hull. Asymmetri består: `DailySheet` har `byggeplassId` men ikke `projectId`.
 
@@ -418,7 +435,16 @@ Alle 14 funn fra sikkerhets-audit 2026-05-27 er adressert i prod. Se [historikk-
 
 **Tiltak (ikke nå — ikke trivielt):** mobil prosjektliste bør speile webs admin-oppførsel (sitedoc_admin → alle prosjekter, ev. gated bak samme logikk som `HovedSidebar`/`useSidebarElementer`). Krever server-query som honorerer rolle-bypass + klient-konsum.
 
-**Testbehov er dekket uten fiks:** `kemyrhau@gmail.com` er whitelistet i dev-login (ekte admin med prosjektmedlemskap → ser data + toggle), og agentprosjekt-seeden gir `test-arbeider` innhold. Verifisering av steg vi bruker disse. Paritetsrad: se [redesign-paritetssjekkliste.md § Kode-diff-noter](redesign-paritetssjekkliste.md).
+**Testbehov er dekket uten fiks (delvis):** `kemyrhau@gmail.com` er whitelistet i dev-login (ekte admin med prosjektmedlemskap → ser data + toggle) — dette dekket steg vi-verifiseringen via `Markussen Boligfelt B12`. Agentprosjekt-innholdsseed for `test-arbeider` **står derimot åpen** (se egen rad under — test-arbeider viste «ikke medlem av dette prosjektet» i 2a-runden). Paritetsrad: se [redesign-paritetssjekkliste.md § Kode-diff-noter](redesign-paritetssjekkliste.md).
+
+### 🟡 Redesign-mobil — oppfølgere fra 2a-simulator-runden (2026-07-07)
+
+Funn under steg vi-verifiseringen (2a mobil-tabs). Ingen blokkerer lukking av steg vi (designgodkjent), men samles her:
+
+- **(s3) Utlogging navigerer ikke til `/logg-inn`** 🟡 — «Logg ut» fra Mer setter `bruker=null` men appen blir stående på Mer med «Ukjent bruker» i stedet for å redirigere til innloggingsskjermen. Workaround: `xcrun simctl terminate/launch` (kaldstart lander på login) — dokumentert i [simulator-runbook.md § 3](simulator-runbook.md). **Git-blame-konklusjon: pre-eksisterende, IKKE steg-vi-regresjon** — `AuthProvider.tsx` + logout-flyten sist rørt av `09413d50`/`9fe55565` (dev-login), steg vi (`10cf64ae`) rørte kun `TESTBRUKERE`-arrayen. Rotårsak: mangler auth-guard som redirigerer til `/logg-inn` når `!erInnlogget` inne i `(tabs)`. BACKLOG omtaler «Ukjent bruker» som forventet *kortvarig* fallback før navigasjon — her uteble navigasjonen.
+- **(stale toggle) `Ny navigasjon`-toggle vises stale i utloggingsvinduet** 🟢 lav prio — `bruker.hentMin`-svaret ligger i React Query-cachen til det invalideres, så `erSitedocAdmin` er stale i det korte utloggingsvinduet (togglen vises for «Ukjent bruker»). Kosmetisk; tømmes ved kaldstart/ny innlogging. Fiks: invalider `bruker.hentMin` ved `loggUt`.
+- **(pilot-beslutning) `nyNavigasjon`-flagget er enhets-lagret, ikke bruker-knyttet** ❓ **krever Kenneth-beslutning FØR pilot** — flagget ligger i SecureStore per enhet (ikke per bruker). En arbeider på en **delt enhet** kan havne i ny nav uten å se togglen (togglen er `sitedoc_admin`-gated), og kan ikke skru tilbake selv. Før pilot må én av: (1) bruker-knyttet flagg (server/`bruker`-felt), ELLER (2) toggle synlig for alle roller. Speiler web-pilotplanen (`sitedoc_admin`→`company_admin` ved pilotstart) — men delt-enhet-scenariet er mobil-spesifikt.
+- **(agentprosjekt-innholdsseed) `test-arbeider` mangler prosjektinnhold** 🟡 — `test-arbeider@sitedoc.test` er ikke medlem av et prosjekt med tegninger/mapper/dagsedler, så data-verifisering som `test-arbeider` er ikke mulig (2a-runden brukte `kemyrhau`-kontoen i stedet). **Trengs for steg vii-verifisering** (2c-leser vil trolig verifiseres som arbeider). Handling: seed-script som gir `test-arbeider` medlemskap i et prosjekt med tegninger + FTD-mapper (m/ oversettelser) + dagsedler. Utvider `packages/db/scripts/seed-testbrukere.ts` eller ny `seed-agentprosjekt.ts`.
 
 ### Avklaring-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 

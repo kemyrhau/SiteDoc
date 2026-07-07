@@ -824,7 +824,7 @@
   "3d.ikkeTolkeKoordinater": "Kunne ikke tolke koordinatene",
   "status.feilet": "Feilet",
   "sok.tittel": "Dokumentsøk",
-  "sok.placeholder": "Søk i prosjektdokumenter...",
+  "sok.dokumentPlaceholder": "Søk i prosjektdokumenter...",
   "sok.aiSok": "AI-søk",
   "sok.tekstsok": "Tekstsøk",
   "sok.prosjektdokumenter": "Prosjektdokumenter",

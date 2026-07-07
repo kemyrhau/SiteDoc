@@ -98,7 +98,7 @@ Merk: Denne regelen overstyrer IKKE indeks-regelen. Når en regel sier "oppdater
 - **Backend API:** Node.js, Fastify, tRPC
 - **Database (server):** PostgreSQL med Prisma ORM (^6.3.0)
 - **Database (lokal):** SQLite via expo-sqlite, Drizzle ORM
-- **Fillagring:** S3-kompatibel (AWS S3 / Cloudflare R2 / MinIO)
+- **Fillagring:** server-lokal disk (S3-klar — AWS S3 / Cloudflare R2 / MinIO)
 - **Auth:** Auth.js v5 (next-auth) med Google og Microsoft Entra ID, database-sesjoner
 - **E-post:** Resend (invitasjoner)
 - **Styling:** Tailwind CSS (web), NativeWind (mobil)
