@@ -76,6 +76,17 @@ export type TimerOnboardingStatus = RouterOutputs["timer"]["onboarding"]["status
  * egen telling i status-queryen. Det er infrastruktur, ikke katalog, og er derfor
  * bevisst IKKE et eget wizard-steg (kan ikke gis et datadrevet ferdig-predikat).
  */
+/**
+ * Firmamoduler som har en onboarding-wizard, med URL til wizard-siden.
+ *
+ * Brukes av modul-aktiveringen (firma/moduler) til å avgjøre om det skal dukke
+ * opp en «sett opp nå?»-inngang. Moduler UTEN oppføring her får ingen modal.
+ * Maskin/varelager legges til her når de får egne wizard-sider.
+ */
+export const MODUL_WIZARD_URL: Partial<Record<string, string>> = {
+  timer: "/dashbord/firma/timer/oppsett",
+};
+
 export const timerOnboardingWizard: OnboardingWizardConfig<TimerOnboardingStatus> = {
   modulSlug: "timer",
   steg: [

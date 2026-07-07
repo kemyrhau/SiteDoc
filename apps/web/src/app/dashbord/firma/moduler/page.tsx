@@ -1,12 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
-import { Clock, Truck, Award, BarChart3, Package, Check, X } from "lucide-react";
+import { Clock, Truck, Award, BarChart3, Package, Check, X, ArrowRight } from "lucide-react";
 import type { JSX } from "react";
+import {
+  MODUL_WIZARD_URL,
+  timerOnboardingWizard,
+  antallGjenstår,
+  erOnboardingFullført,
+} from "@/lib/onboarding-wizard";
 
 type ModulSlug = "timer" | "maskin" | "kompetanse" | "fremdrift" | "varelager";
 type ModulStatus = "tilgjengelig" | "kommer-snart";
@@ -62,17 +69,32 @@ export default function FirmaModulerSide() {
   const { valgtFirma } = useFirma();
   const orgId = valgtFirma?.id;
   const utils = trpc.useUtils();
+  const router = useRouter();
 
   const [bekreftDeaktiver, setBekreftDeaktiver] = useState<ModulSlug | null>(null);
+  const [oppsettModal, setOppsettModal] = useState<ModulSlug | null>(null);
+
+  const timerAktiv = valgtFirma?.aktiveFirmamoduler.includes("timer") ?? false;
 
   const settModul = trpc.organisasjon.settFirmamodul.useMutation({
-    onSuccess: () => {
+    onSuccess: (_data: unknown, variables) => {
       utils.organisasjon.hentTilgjengelige.invalidate();
       utils.organisasjon.hentMin.invalidate();
       utils.organisasjon.hentMedId.invalidate();
+      utils.timer.onboarding.status.invalidate();
       setBekreftDeaktiver(null);
+      // Auto-trigger oppsett-inngang: kun ved aktivering av modul med wizard.
+      if (variables.aktiver && MODUL_WIZARD_URL[variables.slug]) {
+        setOppsettModal(variables.slug);
+      }
     },
   });
+
+  // Timer-onboarding-status for «Fullfør oppsett»-indikatoren (datadrevet).
+  const { data: timerStatus } = trpc.timer.onboarding.status.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId && timerAktiv },
+  );
 
   if (!valgtFirma || !orgId) {
     return (
@@ -147,6 +169,23 @@ export default function FirmaModulerSide() {
                   )}
                 </div>
                 <p className="text-xs text-gray-600">{t(m.beskrivelseNoekkel)}</p>
+
+                {m.slug === "timer" &&
+                  aktiv &&
+                  timerStatus &&
+                  !erOnboardingFullført(timerOnboardingWizard, timerStatus) && (
+                    <button
+                      type="button"
+                      onClick={() => router.push("/dashbord/firma/timer/oppsett")}
+                      className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 transition-colors hover:bg-amber-100"
+                    >
+                      {t("firma.moduler.fullforOppsett", {
+                        antall: antallGjenstår(timerOnboardingWizard, timerStatus),
+                        totalt: timerOnboardingWizard.steg.length,
+                      })}
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </button>
+                  )}
               </div>
 
               <div className="shrink-0">
@@ -211,6 +250,40 @@ export default function FirmaModulerSide() {
                 loading={settModul.isPending}
               >
                 {t("firma.moduler.bekreftDeaktiver")}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Auto-trigger: «{Modul} aktivert. Sett opp nå?» — kun moduler med wizard */}
+      <Modal
+        open={oppsettModal !== null}
+        onClose={() => setOppsettModal(null)}
+        title={t("firma.moduler.oppsettModal.tittel", {
+          modul: oppsettModal ? t(`firma.moduler.${oppsettModal}.navn`) : "",
+        })}
+      >
+        {oppsettModal && (
+          <div>
+            <p className="mb-4 text-sm text-gray-700">
+              {t("firma.moduler.oppsettModal.tekst", {
+                modul: t(`firma.moduler.${oppsettModal}.navn`),
+              })}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={() => setOppsettModal(null)}>
+                {t("firma.moduler.oppsettModal.senere")}
+              </Button>
+              <Button
+                onClick={() => {
+                  const url = MODUL_WIZARD_URL[oppsettModal];
+                  setOppsettModal(null);
+                  if (url) router.push(url);
+                }}
+              >
+                {t("firma.moduler.oppsettModal.start")}
+                <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
           </div>

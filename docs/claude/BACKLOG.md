@@ -66,6 +66,18 @@ ikke var kjørt/synlig — veiledningen skal gjøre slike forutsetnings-steg tyd
 ikke timer-spesifikt. Koble til eksisterende idé-docs: onboarding-veileder.md,
 prosjektoppsett-veileder.md.
 
+**Status 2026-07-07 — v1 implementert på develop (TASK 1–3):** generisk
+datadrevet modell (`apps/web/src/lib/onboarding-wizard.ts`) + timer-config,
+dedikert wizard-side (`/dashbord/firma/timer/oppsett`, URL-adresserbare steg),
+modal-inngang ved aktivering + «Fullfør oppsett»-indikator på modulkortet.
+
+**🟡 Onboarding-wizard konsolidering — utsatt fra v1 (2026-07-07):** redirect
+gammel `firma/timer/onboarding`-fane → wizarden (`oppsett`), + migrering
+(`aktiverTomKatalog`, «migrerer fra annet system») inn i wizardens steg 1.
+Wizarden og den gamle onboarding-siden sameksisterer i v1; onboarding-siden er
+byggekloss. v1 er web-only — mobil trenger senere kun vise «oppsett
+ufullstendig» pent (egen follow-up).
+
 ### ✅ i18n-duplikat: `timer.glemtDag.tittel` — RE-VERIFISERT IKKE-DUPLIKAT 2026-07-06
 
 **Opprinnelig påstand (2026-07-05):** `timer.glemtDag.tittel` skulle finnes to ganger i
