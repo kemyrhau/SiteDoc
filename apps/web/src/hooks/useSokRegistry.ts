@@ -89,10 +89,17 @@ export function useSokRegistry(): SokTreff[] {
     }
 
     // SIDER — prosjekt-sidebar (+ Kontakter) og firma-nav.
+    // FM5/K2: «Mine timer» hører til brukerens egen flate, ikke PROSJEKT-sonen
+    // → eget «Min side»-treff (fjernes fra prosjekt-lista under).
     for (const el of [...filtrertHovedelementer, kontakterElement]) {
+      if (el.id === "mine-timer") continue;
       const href = hrefForSidebarElement(el, prosjektId);
       if (!href) continue; // krever prosjekt, men ingen valgt → ikke navigerbar
       legg(`side:${el.id}`, "sider", t(el.labelKey), [soneLabel("prosjekt")], href);
+    }
+    const mineTimer = filtrertHovedelementer.find((el) => el.id === "mine-timer");
+    if (mineTimer) {
+      legg("side:mine-timer", "sider", t(mineTimer.labelKey), [t("sok.minSide")], "/dashbord/timer/mine");
     }
     for (const el of firmaNav) {
       legg(`side:${el.href}`, "sider", t(el.labelKey), [soneLabel("firma")], el.href);
