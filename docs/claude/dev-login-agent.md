@@ -10,6 +10,16 @@ metadata:
 Lar agent/simulator logge inn i SiteDoc **uten OAuth**, gated til test-miljø.
 Nivå A+B (seedet testbruker + delt hemmelighet + whitelist).
 
+## Hvorfor: automatisert Chrome avvises av OAuth (web-agent-læring, 2026-07-07)
+
+Google og Microsoft **avviser en automatisert/headless Chrome-instans ved siste OAuth-steg** («Denne nettleseren er ikke sikker»/blokkert redirect) — en web-agent kan derfor ikke logge inn via OAuth i sin egen Chrome. Tre gjenbrukbare veier for web-agent-økter:
+
+1. **Dev-login (test):** denne fila — agent minter session-token direkte mot `/dev-login` (whitelist + secret). Foretrukket for automatisert web-verifisering på test.
+2. **Attach til Kenneths ekte Chrome:** start Chrome med `--remote-debugging-port=9222` (gjerne egen profil/`--user-data-dir`), og la agenten koble seg til den kjørende instansen (chrome-devtools MCP mot 9222). OAuth-sesjonen er allerede etablert i Kenneths profil → ingen ny innlogging. Dette er «Opus web»-mønsteret for bevis på deployede miljøer (prod/test).
+3. **Kenneth logger inn manuelt** og relayer resultat (brukt for redesign-bevis a–d).
+
+Kort: **deployede miljøer (prod/test) verifiseres via attach-til-Kenneths-Chrome eller manuelt; lokal/test-automatisering via dev-login.** En frisk agent-Chrome + OAuth virker ikke.
+
 ## Endepunkt
 
 `POST https://api-test.sitedoc.no/dev-login`
