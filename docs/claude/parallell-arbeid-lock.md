@@ -1,8 +1,8 @@
 ---
 name: parallell-arbeid-lock
 status: styrende
-sist_verifisert_mot_kode: 2026-07-05
-sist_endret: 2026-07-05
+sist_verifisert_mot_kode: 2026-07-07
+sist_endret: 2026-07-07
 ---
 
 # Parallell-arbeid — lås og kjøreregler
@@ -20,7 +20,7 @@ sist_endret: 2026-07-05
 
 ## De 12 kjørereglene (ufravikelige i parallell modus)
 
-1. **Ett worktree per rolle — aldri kryss-skriv.** Redesign-økta eier hovedtreet (`…/SiteDoc`, `redesign/navigasjon`). Develop-docs/feature skrives i `…/SiteDoc-develop`. Skriv ALDRI develop-arbeid i det delte/redesign-treet.
+1. **Ett worktree per rolle — aldri kryss-skriv.** Redesign-økta eier hovedtreet (`…/SiteDoc`, `redesign/navigasjon`). Develop-docs/feature skrives i `…/SiteDoc-develop`. Skriv ALDRI develop-arbeid i det delte/redesign-treet. **Develop-spor bruker ALLTID eksplisitt `git -C ~/Documents/Programmering/SiteDoc-develop …`** (+ absolutte stier under samme tre) — stol ALDRI på gjeldende arbeidskatalog: primær-cwd er redesign-treet (`…/SiteDoc`), så et bart `git`-kall committer på `redesign/navigasjon` uten at det er åpenbart. Verifiser `git -C ~/Documents/Programmering/SiteDoc-develop rev-parse --abbrev-ref HEAD` = `develop` FØR du rører noe. Se lærdom (d).
 2. **Verifiser branch før hver commit:** `git rev-parse --abbrev-ref HEAD` = forventet branch. Worktrees deler samme `.git` → feil tre committer på feil branch uten at det er åpenbart.
 3. **Frossen sone koordineres via denne fila** (liste under). Filene redigeres ALDRI blindt fra to økter samtidig. `generate.ts` (i18n) kjøres KUN på redesign-branchen mens redesignet pågår.
 4. **/mannskap-kollisjonen (PSI ↔ redesign):** PSI Fase A (`6882aa02`) la til `/dashbord/[prosjektId]/mannskap` + **enkel** nav-registrering i `HovedSidebar.tsx`. Avtale: **PSI legger til siden + minimal nav-entry; redesignet eier nav-strukturen** og re-homer entryen. To økter redigerer aldri `HovedSidebar.tsx`/rutestrukturen blindt samtidig.
@@ -45,11 +45,12 @@ sist_endret: 2026-07-05
 
 Trenger en annen økt en endring i frossen sone: koordinér via Kenneth + denne fila FØR redigering (jf. regel 3–4).
 
-## Lærdommer (2026-07-05) — hvorfor reglene finnes
+## Lærdommer (2026-07-05, 2026-07-07) — hvorfor reglene finnes
 
 - **(a) Foreldreløs `index.lock`.** En `.git/index.lock` ble stående etter en avbrutt prosess og blokkerte git i et worktree. Rett håndtering: sjekk kjørende git-prosess + låsens alder + størrelse (0 byte = ingen aktiv skriver) FØR fjerning — ikke blind-slett, en aktiv prosess kan eie den. → regel 6.
 - **(b) Ukommittert arbeid blokkerte checkout på tvers.** Ukommittert i18n-arbeid i én økt blokkerte `git checkout` av samme branch i en annen økt (worktrees deler branch-tilstand). → dette er selve grunnen til worktree-oppdelingen + regel 1/5: hver økt har eget tre, og du committer/stasher før du forlater det.
 - **(c) `git add` på konflikt-fil committet markørene.** Under merge `develop → redesign/navigasjon` konfliktet `STATUS.md` (begge grener la til «Sist oppdatert»-entry + bumpet fil-tellingen). `git add` + commit ble kjørt UTEN å redigere bort markørene → markørene havnet i merge-commiten (`fd9bbfc0`). Rettet med redigering (behold begge entries + reconciliér 55+55→**56**) + `git commit --amend`. → regel 8. Semantisk merk: to «55»-tellinger fra hver sin nye fil er egentlig 56 samlet — konflikt-resolusjon krever forståelse, ikke blind «behold begge».
+- **(d) Worktree-forveksling — develop-docs committet på redesign-branchen (2026-07-07).** Rydde-runden (S3-tech-stack + `glemtDag`/`sok.placeholder`-docs, ment for `develop`) ble committet i `…/SiteDoc`-treet på `redesign/navigasjon` (`e31b2043`) i stedet for i `…/SiteDoc-develop` på `develop` — fordi et bart `git commit` traff primær-cwd (redesign-treet). Fanget da branch-/delta-sjekken viste commiten på feil branch. Rettet ved å rebase commiten på `origin/develop` (landet som ren develop-commit via FF) + rydde redesign-treet tilbake (`git reset --mixed` / `stash` for å ta branch-pekeren + indeksen av den fremmede commiten). → skjerpet regel 1: develop-spor bruker ALLTID eksplisitt `git -C ~/Documents/Programmering/SiteDoc-develop …` + branch-verifisering FØR commit.
 
 ## Kjente kollisjoner (aktive)
 
