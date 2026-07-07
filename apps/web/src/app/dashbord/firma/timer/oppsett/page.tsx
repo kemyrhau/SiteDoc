@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
@@ -35,8 +35,25 @@ const config = timerOnboardingWizard;
  *
  * Wizarden ORKESTRERER: den aktiverer Nivå 1 og lenker til de eksisterende
  * katalog-sidene. Den duplikerer ikke katalog-CRUD.
+ *
+ * `useSearchParams()` krever Suspense-boundary under `next build`-prerender
+ * (regel 10) — derfor er default-eksporten en wrapper rundt selve veiviseren.
  */
-export default function TimerOppsettVeiviser() {
+export default function TimerOppsettSide() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex items-center justify-center py-12">
+          <Spinner />
+        </div>
+      }
+    >
+      <OppsettVeiviser />
+    </Suspense>
+  );
+}
+
+function OppsettVeiviser() {
   const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
