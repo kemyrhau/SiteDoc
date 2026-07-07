@@ -21,7 +21,7 @@ import { useToppbarFiltreKontekst } from "@/kontekst/toppbar-filtre-kontekst";
 import { SpraakVelger } from "./SpraakVelger";
 import {
   bunnelementer,
-  kontakterElement,
+  prosjektSoneElementer,
   navigerSidebar,
   useSidebarElementer,
   type SidebarElement,
@@ -58,7 +58,8 @@ export function Toppbar() {
   // Samme delte kilder som NavSidebar (drift-fri gating G1–G12).
   const { filtrertHovedelementer, harMaskinModul } = useSidebarElementer();
   const firmaNav = useFirmaNavElementer();
-  const prosjektElementer = [...filtrertHovedelementer, kontakterElement];
+  // FM5-filteret må gjelde hamburgeren òg (T9-avvik 2026-07-07) — delt kilde.
+  const prosjektElementer = prosjektSoneElementer(filtrertHovedelementer);
   const maskinElement = harMaskinModul
     ? bunnelementer.find((e) => e.id === "maskin") ?? null
     : null;
