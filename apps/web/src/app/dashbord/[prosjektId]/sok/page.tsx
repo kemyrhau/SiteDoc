@@ -128,7 +128,7 @@ export default function DokumentsokSide() {
             <input
               type="text"
               className="w-full rounded border border-gray-300 py-2 pl-9 pr-3 text-sm focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-              placeholder={t("sok.placeholder")}
+              placeholder={t("sok.dokumentPlaceholder")}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleSok()}

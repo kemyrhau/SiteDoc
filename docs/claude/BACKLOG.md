@@ -78,23 +78,19 @@ ryddet mellom 2026-07-05 og 2026-07-06 (badge-verdien fjernet). **Ingen handling
 > **Sidefunn (egen sak under):** den eneste faktiske dupliserte JSON-nøkkelen i nb+en er
 > `sok.placeholder` (to ganger, ulike verdier) — se posten «i18n-duplikat: `sok.placeholder`» rett under.
 
-### 🟡 i18n-duplikat: `sok.placeholder` (to nøkler, andre vinner — reell bug)
+### ✅ i18n-duplikat: `sok.placeholder` — FIKSET 2026-07-06 (develop)
 
-**Verifisert 2026-07-06 mot kode** (duplikat-skann `grep -oE '^\s*"[^"]+":' | sort | uniq -d`):
-`sok.placeholder` finnes **to ganger** i både `nb.json` og `en.json`:
-- linje 59 «Søk etter innstillinger og sider …» / «Search settings and pages …»
-- linje 827 «Søk i prosjektdokumenter...» / «Search project documents...»
+**Var:** `sok.placeholder` fantes to ganger i både `nb.json` og `en.json` (linje 59 «Søk etter
+innstillinger og sider …» + linje 827 «Søk i prosjektdokumenter...»). JSON lot den **siste**
+(827) vinne → global `SokModal.tsx:114` viste feil placeholder «Søk i prosjektdokumenter...»,
+mens doc-søk-siden `dashbord/[prosjektId]/sok/page.tsx:131` var korrekt (tilfeldigvis).
 
-JSON lar den **siste** vinne → linje 827-verdien overstyrer. Begge er i bruk i kode:
-`SokModal.tsx:114` (global innstillinger/sider-søk — trenger linje 59-teksten) og
-`dashbord/[prosjektId]/sok/page.tsx:131` (prosjektdokument-søk — trenger linje 827-teksten).
-Resultat: den globale `SokModal` viser feil placeholder «Søk i prosjektdokumenter...».
-
-**Fiks (egen sak — ikke gjort i denne docs-runden fordi den rører kode + i18n-nøkler):** døp om
-den ene call-siten til distinkt nøkkel (f.eks. `sok.dokumenter.placeholder` på `sok/page.tsx`),
-behold `sok.placeholder` for global `SokModal`. Legg til i nb+en, kjør `generate.ts` for de 13
-øvrige (etter redesign-frysen — i18n-generate er frossen sone nå). Lav-medium prio (kosmetisk feil
-placeholder i global søk). Gjelder alle 15 språkfiler (duplikatet er speilet av `generate.ts`).
+**Fiks (nb+en + én kode-linje):** doc-søk-verdien på linje 827 omdøpt til distinkt nøkkel
+**`sok.dokumentPlaceholder`** (flat camelCase — matcher doc-søk-blokkens konvensjon `sok.aiSok`/
+`sok.tekstsok`/`sok.skrivInnSokeord`, ikke det nestede `sok.dokumenter.*` som ikke finnes ellers).
+`sok/page.tsx:131` peker nå på `sok.dokumentPlaceholder`; `sok.placeholder` (linje 59) beholdt for
+global `SokModal`. **`generate.ts` IKKE kjørt** (regel 3 — frossen sone under redesign): kun nb+en
+oppdatert, de 13 øvrige språkene faller tilbake til `en` til neste redesign-generate fyller dem.
 
 ### 🟢 Mobil Microsoft-auth — BYGGET I EAS-SKY #37 2026-07-01 (venter Azure + Florian-test)
 
