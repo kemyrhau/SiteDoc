@@ -168,7 +168,7 @@ Hele firma-sidebaren gates på `kanAdministrereFirma && valgtFirma` (company_adm
 | FM2 | Maskin-detalj (EU-kontroll, vedlikehold, Vegvesen) | `/dashbord/maskin/[id]` | (fra FM1) | do. | Nei | |
 | FM3 | Maskin — nytt utstyr | `/dashbord/maskin/nytt` | (fra FM1) + `søk` handling | do. + opprett-gating | Nei | |
 | FM4 | Maskin — import | `/dashbord/maskin/import` | 1a «Maskin › Import» | do. | Nei | |
-| FM5 | «Mine timer» (egen rapport) | sidebar `mine-timer` / `/dashbord/timer/mine`(+`/ny`,`/[id]`) | **K2 (vedtatt): brukermeny (avatar) + søketreff «Min side › Timer»; mobil = Timer-tab** — fjernes fra firma-sidebar. ⏳ **Interim (steg iii):** ligger fortsatt i NavSidebar PROSJEKT-sone m/flagg på — **flyttes til brukermeny i steg iv** | `kreverFirmaModul="timer"` | Nei | |
+| FM5 | «Mine timer» (egen rapport) | sidebar `mine-timer` / `/dashbord/timer/mine`(+`/ny`,`/[id]`) | **K2 (vedtatt): brukermeny (avatar) + søketreff «Min side»; mobil = Timer-tab** | `kreverFirmaModul="timer"` | Nei | 🔨 **bygget + merget develop `d68f7b00`** (restanse-runde): ut av NavSidebar PROSJEKT-sonen → brukermeny (avatar, gjenbruker `nav.timerMine` + timer-firmamodul-gating) + søketreff «Min side» (`useSokRegistry` reklassifisert). `hovedelementer` urørt (flagg-av HovedSidebar byte-identisk). **Venter test-fangst + fabel-godkjenning** |
 
 ## Seksjon ADMIN — sitedoc_admin (`/dashbord/admin/*`, utenfor brukerens arkitektur)
 
@@ -209,7 +209,7 @@ Rollebasert rekkefølge per Kenneths spec 2026-05-04 beholdes.
 | T6 | SpråkVelger | `Toppbar.tsx:130` `SpraakVelger` | behold i toppbar (uendret) | alle | ✓ |
 | T7 | Brukermeny (avatar + logg ut) | `Toppbar.tsx:131-163` | behold i toppbar | innlogget | ✓ |
 | T8 | Admin-inngang | `Toppbar.tsx:117` | behold (amber) | `erSitedocAdmin` | ✓ |
-| T9 | Hamburger mobilmeny (web-viewport <md) | `Toppbar.tsx:63-68,166-209` | ny mobil-web-meny (paritet) | `kreverProsjekt`-disabling bevares | ⏳ **restanse:** mobil-web-hamburger bruker fortsatt gammel nav m/flagg på — ikke bygget i steg iii |
+| T9 | Hamburger mobilmeny (web-viewport <md) | `Toppbar.tsx` | ny mobil-web-meny (paritet) | `kreverProsjekt`-disabling bevares | 🔨 **bygget + merget develop `d68f7b00`** (restanse-runde): flagg på → speiler NavSidebar-hierarkiet (PROSJEKT/FIRMA-soner + Innstillinger) via delte `useSidebarElementer`/`useFirmaNavElementer`; flagg av = uendret hardkodet array. **Venter test-fangst + fabel-godkjenning** |
 
 ## Seksjon (b) — Sidebar-gating + modul-fargeaksent som må overleve (README §4)
 
@@ -358,7 +358,7 @@ Toppbar (T) 9 · Sidebar-gating (G) 12 · Standarder (S) 6 · Mobil (M) 19 = **1
 ## Status + åpne verifiseringer (2026-07-06)
 
 - **Steg ii, iii, iv, v: ✅ designgodkjent/lukket av fabel** (steg v web-verifisert 2026-07-06, alt bestått; s1 designgodkjent). **c4** (flagg-toggle): ✅ lukket (5a/5b + a11y verifisert på test).
-- **Steg v: bygget + v1/v3a/v3b-fikser på develop** (`d2420b33`) — **IKKE lukket. Venter re-test:** Kenneth må rebuilde test (api+web) + kjøre `seed-oversettelse-test.ts`, deretter Opus web-runde (B7 grønn/amber-chips, B8 avvik-rad, v3b optimistisk amber).
+- **Steg v: ✅ LUKKET (2026-07-06)** — v1/v3a/v3b + v4/v5-fikser merget develop (`5e16987b`); Opus web-runde bestått (B7 grønn/amber-chips, B8 avvik-rad, v3b optimistisk amber, v4-refetch med seed) + s1 designgodkjent av fabel. Se fremdriftstabellen § (v).
 - **Godkjente avvik — ikke «rett» disse senere:** **B3** header-knapp «🇳🇴 → 🇬🇧» (fabel: bedre enn spec-teksten, beholdes). **B6** compound-telling (0 + 220). Brand-blå sidebar + PROSJEKT-etikett uten prosjektnavn (steg iii).
 - **Steg iv — åpen søke-gating-verifisering:** nå testbar via seedet `test-arbeider@sitedoc.test` (user uten manage_field) — se [dev-login-agent.md](dev-login-agent.md). Ctrl+K-snarveiskollisjon: **grep kjørt (kun wheel-zoom-listener i `bilder/page.tsx`, ingen konflikt).**
 - **Restanser iii/iv:** **T9** (mobil-web-hamburger bruker gammel nav m/flagg på) + **FM5/K2** («Mine timer» → brukermeny) — begge til steg vi eller egen liten runde.
@@ -369,8 +369,8 @@ Toppbar (T) 9 · Sidebar-gating (G) 12 · Standarder (S) 6 · Mobil (M) 19 = **1
 - **Polish-restanser (ikke-blokkerende):** (P-a) farget statusprikk (grønn/amber) foran «Oversatt …» i Dokumenter-tab per 2a-mock (fabel-notis 2026-07-07). (P-b) backend-oppfølgere Tegninger: `Drawing.erStandard` (★) + punkt-antall-aggregat + thumbnail (§ Kode-diff-noter).
 - **Kjent gap (funn 2a-simulator 2026-07-06, IKKE steg vi-scope):** mobil prosjektliste mangler `sitedoc_admin`-bypasset web fikk i steg ii → test-admin ser ingen prosjekter (firma-velger viser alle org-er). Ikke fikset nå — testbehovet dekkes av whitelistet `kemyrhau@gmail.com` (ekte admin m/medlemskap) + agentprosjekt-seed for test-arbeider. Se [BACKLOG § Mobil prosjektliste mangler sitedoc_admin-bypass](BACKLOG.md).
 - **Steg vii (2c leser): ✅ LUKKET (fabel-designgodkjent 2026-07-07, 8/8 fangster mot `06-design.png`, merget develop `8c774368`)** bak `useNyNavigasjon` (RN), kun `dokument/[id].tsx`. Språkpille-rad (kilde-merke + aktiv fylt blå + amber «…» m/ 8s-poll) + grønt banner (motor droppet v1) + `+ Oversett` (ny `mappe.oversettDokument`, isActive-guard, rører ikke motor-config) + bunn-ark-sammenlign (gjenbrukt web-logikk). Backend `hentDokumentBlokker` utvidet (sourceLanguage/projectId/jobber). Token-fiks sitedoc-blue. i18n 17 × 15. Flagg av = uendret. **Fangster:** 01–04, 07 (redesign-Opus) · 05/06/full-08 (Kenneth live post-deploy) · 09 tom-tilstand docD blå «Last ned PDF» (deep-link). **⚠️ Verifiseringsnote:** tom-tilstanden (docD) er **kun nåbar via direkte navigasjon** — uparsede dok (`processingState≠completed`) gates ut av Dokumenter-lista (pre-eksisterende `boks.tsx`-gating). Neste verifiseringsrunde skal ikke lete etter den i UI-lista.
-- **Restanse-runde (GO gitt 2026-07-07, rekkefølge P-a → T9 → FM5/K2):** P-a statusprikk (8px, grønn/amber, mobil Dokumenter-tab) · T9 mobil-web-hamburger speiler NavSidebar-hierarkiet via delte hooker · FM5/K2 «Mine timer» → brukermeny + søk («Min side › Timer»). Punkt 4 (kildespråk-forklaring i pillen) — 1–2 skisser til fabel, kodes ikke ennå. Alle bak `nyNavigasjon`, flagg av byte-identisk.
-- **Neste milepæl:** restanse-runde (P-a/T9/FM5) → fabel-designgodkjenning per punkt. Gjenstår i handoff: steg viii (sammenligningsrunde mot prod-kopi m/ kunde) + pilot-plan (flagg → company_admin).
+- **Restanse-runde (2026-07-07, merget develop `24083342`→`d68f7b00`):** **P-a** statusprikk (8px grønn/amber, mobil Dokumenter-tab) **✅ designgodkjent** (`restanse-2026-07-07/pa-statusprikk-gronn.png`) · **Punkt 4** kildeflagg (variant A «🇳🇴 NB · kilde») **✅ designgodkjent** (`punkt4-kildeflag.png`) · **T9** mobil-web-hamburger (speiler NavSidebar via delte hooker) + **FM5/K2** «Mine timer»→brukermeny+søk («Min side») **🔨 bygget + merget, venter test-fangst + fabel-godkjenning** (web — verifiseres på test etter web-rebuild). Alle bak `nyNavigasjon`, flagg av byte-identisk. i18n `sok.minSide` × 15.
+- **Neste milepæl:** **T9/FM5 web-fangst på test** (chrome-devtools, mobil-viewport `?nyNav=1`/`0`) → fabel-sluttgodkjenning lukker restanse-runden. Gjenstår i handoff: steg viii (sammenligningsrunde mot prod-kopi m/ kunde) + pilot-plan (flagg → company_admin).
 
 ## Neste steg
 
