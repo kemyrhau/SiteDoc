@@ -1,7 +1,8 @@
 # NY-SERVER — sitedoc REDESIGN-stack (steg viii: kunderunde mot prod-kopi).
 # Kjører ved siden av prod + test. Deler appnet + ML (embed/oversettelse) + postgres-containeren.
-# DB: sitedoc_redesign (KOPI av prod-DB, sessions nullstilt). Domener: redesign.sitedoc.no (web 3400)
-# + api-redesign.sitedoc.no (api 3401). Egne images (sitedoc-redesign-*) så prod/test-imagene står urørt.
+# DB: sitedoc_redesign (KOPI av prod-DB, sessions nullstilt). Domener: redesign.sitedoc.no (web 3500)
+# + api-redesign.sitedoc.no (api 3501). Egne images (sitedoc-redesign-*) så prod/test-imagene står urørt.
+# (Porter 3400/3401 unngås — sendfil.sitedoc.site lytter på 127.0.0.1:3400 på server-ny.)
 # Forutsetter at prod-stacken (embed/oversettelse/postgres) kjører på 'appnet'.
 #
 # ⚠️ Bygger fra DELT build-kontekst (~/stack/sitedoc). RE-RSYNC branch `redesign/navigasjon` FØR build
@@ -16,13 +17,13 @@ services:
     restart: unless-stopped
     env_file: ./env/api-redesign.env   # DATABASE_URL -> postgres:5432/sitedoc_redesign, AUTH_* (egen), APP_URL=https://redesign.sitedoc.no ...
     environment:
-      PORT: "3401"
+      PORT: "3501"
       HOST: "0.0.0.0"
       NORBERT_URL: "http://embed:3302"             # deler prod sin embed (statsløs modell-server)
       OVERSETTELSE_URL: "http://oversettelse:3303" # deler prod sin oversettelse
     ports:
-      - "127.0.0.1:3401:3401"
-      - "127.0.0.1:3400:3400"   # redesign-web lytter her (deler api sitt nett-namespace)
+      - "127.0.0.1:3501:3501"
+      - "127.0.0.1:3500:3500"   # redesign-web lytter her (deler api sitt nett-namespace)
     networks: [appnet]
     volumes:
       # Prod sine uploads MONTERT READ-ONLY (:ro) — DB er en prod-kopi, så vedlegg-referanser
@@ -36,14 +37,14 @@ services:
       context: ..
       dockerfile: docker/Dockerfile.web
       args:
-        API_PORT: "3401"                    # bakes inn i Next-rewrite ved build (redesign-api lytter 3401)
+        API_PORT: "3501"                    # bakes inn i Next-rewrite ved build (redesign-api lytter 3501)
         NEXT_PUBLIC_NY_NAV_DEFAULT: "1"     # ny nav default-PÅ i denne stacken (bakes inn ved build; prod/test usatt)
     image: sitedoc-redesign-web:latest
     container_name: sitedoc-redesign-web
     restart: unless-stopped
     env_file: ./env/web-redesign.env       # AUTH_* (egen), AUTH_URL/NEXTAUTH_URL=https://redesign.sitedoc.no, DATABASE_URL (sitedoc_redesign), NEXT_PUBLIC_NY_NAV_DEFAULT=1 ...
     environment:
-      PORT: "3400"
+      PORT: "3500"
     network_mode: "service:sitedoc-redesign-api"
     depends_on: [sitedoc-redesign-api]
     security_opt: ["no-new-privileges:true"]

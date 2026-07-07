@@ -86,12 +86,33 @@ tømmes ved kaldstart/ny innlogging.) Se [BACKLOG](BACKLOG.md).
 | `No script URL provided` (rød RN-skjerm) | Metro er ikke i gang | Start `npx expo start` i Terminal B → trykk `i` |
 | test-admin ser ingen prosjekter | Admin-bypass-gapet — mobil prosjektliste er medlemskaps-basert, `sitedoc_admin` uten `ProjectMember`-rad ser tomt (web fikk bypass i redesign steg ii) | **Forventet.** Bruk «Egen bruker (kemyrhau)» for data. Oppfølger: [BACKLOG § Mobil prosjektliste mangler sitedoc_admin-bypass](BACKLOG.md) |
 
-## 5. Agent-tap-lærdommer (idb/simctl — funn Plan 2-bevis 2026-07-07)
+## 5. Autonom styring med idb (agent-tap — funn Plan 2-bevis 2026-07-07)
 
-Fallgruver ved å drive simulatoren programmatisk via `idb ui tap`/`simctl` (agent uten manuell touch):
+Når agenten skal trykke i simulatoren selv (ikke bare lese), brukes Facebooks
+`idb` — den gir a11y-koordinater og tap/swipe uten museautomasjon.
+
+**Installasjon (to deler — begge kreves):**
+```
+pipx install fb-idb          # Python-klienten (idb-kommandoen)
+brew install idb-companion   # native companion som snakker med simulatoren
+```
+- **`fb-idb` MÅ installeres på Python 3.11.** Python 3.14 har en asyncio-inkompat
+  som får `idb` til å kræsje ved oppstart. Tving versjon: `pipx install fb-idb
+  --python python3.11`.
+
+**Bruk (`<U>` = simulator-UDID, hent med `xcrun simctl list devices booted`):**
+```
+idb ui describe-all --udid <U>          # dumper alle a11y-elementer + koordinater
+idb ui tap --udid <U> X Y               # trykk på punkt (X Y fra describe-all)
+idb ui tap --udid <U> X Y --duration 0.1  # RN-switcher krever eksplisitt varighet
+```
+- Koordinatene fra `describe-all` er senterpunkt for hvert element — tap direkte på dem.
+- Skjermbilde tas utenfor idb: `xcrun simctl io booted screenshot skjerm.png`.
+
+**Fallgruver (agent uten manuell touch):**
 
 1. **zsh ordsplitter IKKE uciterte variabler.** `COORD=$(... "215 837" ...); idb ui tap $COORD` sender `"215 837"` som ÉN posisjon → `error: invalid int value: '215 837'`. Bruk `read X Y <<< "$COORD"; idb ui tap "$X" "$Y"` (eller literal-tall). Literal `idb ui tap 388 683` virker; variabel-via-`$VAR` gjør det ikke.
-2. **RN-`Switch` trenger `--duration` på tappet.** Et momentant `idb ui tap x y` på en React Native-switch registreres ofte IKKE (verdi uendret). `idb ui tap x y --duration 0.12` (ekte trykk) flipper den. Gjelder trolig andre RN-gesture-komponenter også.
+2. **RN-`Switch` trenger `--duration` på tappet.** Et momentant `idb ui tap x y` på en React Native-switch registreres ofte IKKE (verdi uendret). `idb ui tap x y --duration 0.12` (ekte trykk) flipper den (f.eks. `Ny navigasjon`-togglen). Gjelder trolig andre RN-gesture-komponenter også.
 3. **`--udid`-flagget på `idb ui tap` kan feile** i noen idb-versjoner («usage»-feil) — sett `export IDB_UDID=<udid>` i stedet og dropp flagget.
 4. **SecureStore-nøkler forbyr `:`** (kun alfanumerisk + `. - _`). Per-bruker cachenøkler må bruke `.`/`_` som separator, ikke kolon — ellers `Invalid key provided to SecureStore` (uncaught). Fanget i Plan 2 nyNavigasjon-hooken; localStorage (web) tåler kolon, så web traff det ikke.
 5. **A11y-koordinater kan ligge utenfor synlig område** i en scrollview (frame-`y` > viewport) — swipe for å bringe elementet inn, og les koordinaten på nytt FØR tap (den flytter seg ved scroll).

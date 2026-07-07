@@ -17,9 +17,9 @@ Kenneths kommando.** Drift-steg (DB-kopi, stack-up, DNS, OAuth, reboot) kjøres 
 | Compose-fil | `docker/docker-compose.redesign.yml` |
 | Prosjektnavn | `sitedoc-redesign` (eksplisitt `name:`) |
 | Containere | `sitedoc-redesign-api`, `sitedoc-redesign-web` |
-| Porter | API **3401** / web **3400** (127.0.0.1-bundet). Unngår 3001/3100 (prod), 3301/3300 (test), 3302/3303 (ML) |
+| Porter | API **3501** / web **3500** (127.0.0.1-bundet). Unngår 3001/3100 (prod), 3301/3300 (test), 3302/3303 (ML), **3400/3401 (`sendfil.sitedoc.site` lytter på 127.0.0.1:3400 på server-ny — `ss` verifisert)** |
 | DB | `sitedoc_redesign` (KOPI av prod `sitedoc`, sessions nullstilt) |
-| Subdomener | `redesign.sitedoc.no` → :3400, `api-redesign.sitedoc.no` → :3401 |
+| Subdomener | `redesign.sitedoc.no` → :3500, `api-redesign.sitedoc.no` → :3501 |
 | Env-filer | `docker/env/{api-redesign,web-redesign}.env` (server-side, gitignored) |
 | Delt uendret | postgres-container, `appnet`, `embed` (3302), `oversettelse` (3303) |
 | Uploads | prod-uploads montert **read-only** (`:ro`) — vedlegg synlige, prod-filer beskyttet |
@@ -67,14 +67,18 @@ sudo reboot
 
 **Steg 1 — DB-kopi (prod → redesign, sessions nullstilt):**
 ```
-# på server-ny, mot delt postgres-container:
-createdb -U sitedoc sitedoc_redesign
-pg_dump -Fc -U sitedoc -d sitedoc | pg_restore --no-owner --no-privileges -U sitedoc -d sitedoc_redesign
-psql -U sitedoc -d sitedoc_redesign -c 'ALTER DATABASE sitedoc_redesign REFRESH COLLATION VERSION;'
-# nullstill sesjoner/tokens (ingen ekte prod-sesjon lever i demoen):
-psql -U sitedoc -d sitedoc_redesign -c 'TRUNCATE sessions, accounts CASCADE;'
-# bekreft vector-extension finnes:
-psql -U sitedoc -d sitedoc_redesign -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+# på server-ny, mot delt postgres-container — ALT via `sudo docker exec -i postgres …`.
+# 1) opprett DB som postgres-superbruker, med sitedoc som eier (createdb -U sitedoc feilet — mangler CREATEDB):
+sudo docker exec -i postgres createdb -U postgres -O sitedoc sitedoc_redesign
+# 2) vector-extension MÅ opprettes (som postgres) FØR restore — dumpen refererer vector-typer,
+#    så CREATE EXTENSION etter restore feiler. Rekkefølgen er kritisk (dagens funn):
+sudo docker exec -i postgres psql -U postgres -d sitedoc_redesign -c 'CREATE EXTENSION IF NOT EXISTS vector;'
+# 3) dump prod → restore inn i redesign (pipe kjøres inne i containeren via sh -c):
+sudo docker exec -i postgres sh -c 'pg_dump -Fc -U sitedoc -d sitedoc | pg_restore --no-owner --no-privileges -U sitedoc -d sitedoc_redesign'
+# 4) collation-refresh (som postgres):
+sudo docker exec -i postgres psql -U postgres -d sitedoc_redesign -c 'ALTER DATABASE sitedoc_redesign REFRESH COLLATION VERSION;'
+# 5) nullstill sesjoner/tokens (ingen ekte prod-sesjon lever i demoen):
+sudo docker exec -i postgres psql -U sitedoc -d sitedoc_redesign -c 'TRUNCATE sessions, accounts CASCADE;'
 ```
 
 **Steg 2 — env-filer:** legg `api-redesign.env` + `web-redesign.env` i `~/stack/sitedoc/docker/env/` (malene over).
@@ -83,9 +87,9 @@ psql -U sitedoc -d sitedoc_redesign -c 'CREATE EXTENSION IF NOT EXISTS vector;'
 ```
 # /etc/cloudflared/config.yml — legg over http_status:404-linja:
 #   - hostname: redesign.sitedoc.no
-#     service: http://127.0.0.1:3400
+#     service: http://127.0.0.1:3500
 #   - hostname: api-redesign.sitedoc.no
-#     service: http://127.0.0.1:3401
+#     service: http://127.0.0.1:3501
 sudo cloudflared --config /etc/cloudflared/config.yml tunnel ingress validate
 sudo systemctl restart cloudflared
 # Cloudflare dashboard: CNAME redesign + api-redesign → <tunnel-id>.cfargotunnel.com (proxied)
@@ -101,7 +105,7 @@ rsync -a --exclude node_modules --exclude .next --exclude .git --exclude docker/
   ~/Documents/Programmering/SiteDoc/ server-ny:~/stack/sitedoc/
 # på server:
 sudo docker compose -f docker/docker-compose.redesign.yml build \
-  --build-arg API_PORT=3401 --build-arg NEXT_PUBLIC_NY_NAV_DEFAULT=1
+  --build-arg API_PORT=3501 --build-arg NEXT_PUBLIC_NY_NAV_DEFAULT=1
 sudo docker compose -f docker/docker-compose.redesign.yml up -d
 # migrering trengs normalt IKKE (DB er prod-kopi, samme schema). Hvis kjørt: gate på $DATABASE_URL:
 #   echo "$DATABASE_URL" | grep -q sitedoc_redesign || { echo ABORT; exit 1; }
