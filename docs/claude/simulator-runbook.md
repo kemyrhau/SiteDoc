@@ -86,7 +86,37 @@ tømmes ved kaldstart/ny innlogging.) Se [BACKLOG](BACKLOG.md).
 | `No script URL provided` (rød RN-skjerm) | Metro er ikke i gang | Start `npx expo start` i Terminal B → trykk `i` |
 | test-admin ser ingen prosjekter | Admin-bypass-gapet — mobil prosjektliste er medlemskaps-basert, `sitedoc_admin` uten `ProjectMember`-rad ser tomt (web fikk bypass i redesign steg ii) | **Forventet.** Bruk «Egen bruker (kemyrhau)» for data. Oppfølger: [BACKLOG § Mobil prosjektliste mangler sitedoc_admin-bypass](BACKLOG.md) |
 
-## 5. Kryssreferanser
+## 5. Autonom styring med idb
+
+Når agenten skal trykke i simulatoren selv (ikke bare lese), brukes Facebooks
+`idb` — den gir a11y-koordinater og tap/swipe uten museautomasjon.
+
+**Installasjon (to deler — begge kreves):**
+```
+pipx install fb-idb          # Python-klienten (idb-kommandoen)
+brew install idb-companion   # native companion som snakker med simulatoren
+```
+- **`fb-idb` MÅ installeres på Python 3.11.** Python 3.14 har en asyncio-inkompat
+  som får `idb` til å kræsje ved oppstart. Tving versjon: `pipx install fb-idb
+  --python python3.11`.
+
+**Bruk (`<U>` = simulator-UDID, hent med `xcrun simctl list devices booted`):**
+```
+idb ui describe-all --udid <U>          # dumper alle a11y-elementer + koordinater
+idb ui tap --udid <U> X Y               # trykk på punkt (X Y fra describe-all)
+idb ui tap --udid <U> X Y --duration 0.1  # RN-switcher krever eksplisitt varighet
+```
+- **`--duration 0.1` er påkrevd på RN-switchere** (f.eks. `Ny navigasjon`-togglen).
+  Uten den registrerer RN ikke trykket som en toggle.
+- Koordinatene fra `describe-all` er senterpunkt for hvert element — tap direkte på dem.
+
+**Fellene:**
+| Felle | Løsning |
+|---|---|
+| `zsh` ordsplitter ikke uciterte variabler → `idb ui tap $KOORD` sender ett argument, ikke to | Les til to variabler: `read X Y <<< "$KOORD"` → `idb ui tap --udid <U> "$X" "$Y"` |
+| Trenger visuell bekreftelse på hva som skjedde | Skjermbilde tas utenfor idb: `xcrun simctl io booted screenshot skjerm.png` |
+
+## 6. Kryssreferanser
 
 - [dev-login-agent.md](dev-login-agent.md) — endepunkt, whitelist, secret-oppsett, tunnel-rotårsak (Local Network-privacy)
 - [DOCKER-NOTES.md punkt 8](../../docker/DOCKER-NOTES.md) — secret-endring krever recreate api + force-recreate web
