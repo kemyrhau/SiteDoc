@@ -9,7 +9,7 @@ import { ByggeplassVelger } from "./ByggeplassVelger";
 import { FirmaVelger } from "./FirmaVelger";
 import { FirmaKontekstVelger } from "./FirmaKontekstVelger";
 import { KontekstChip } from "./KontekstChip";
-import { useNyNavigasjon, settNyNavigasjon } from "@/hooks/useNyNavigasjon";
+import { useNyNavigasjon, useSettNyNavigasjon } from "@/hooks/useNyNavigasjon";
 import { useSokModal } from "@/kontekst/sok-modal-kontekst";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
@@ -51,6 +51,7 @@ export function Toppbar() {
   const { erSitedocAdmin, erCompanyAdmin } = useFirma();
   const { byggeplassAktiv } = useToppbarFiltreKontekst();
   const nyNav = useNyNavigasjon();
+  const settNyNav = useSettNyNavigasjon();
   const { aapne: aapneSok } = useSokModal();
   const { t } = useTranslation();
 
@@ -236,7 +237,7 @@ export function Toppbar() {
                   const paa = !nyNav;
                   // Ved avslag: land trygt på /dashbord — huben/kontakter er kun
                   // lenket i ny nav. Ved påslag: bli på gjeldende side.
-                  settNyNavigasjon(paa, paa ? undefined : "/dashbord");
+                  settNyNav(paa, paa ? undefined : "/dashbord");
                 }}
                 className="flex w-full items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >

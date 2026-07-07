@@ -55,3 +55,4 @@ Trenger en annen økt en endring i frossen sone: koordinér via Kenneth + denne 
 ## Kjente kollisjoner (aktive)
 
 - **PSI Fase A ↔ redesign/navigasjon:** se regel 4. PSI la `/mannskap` + minimal nav-entry på develop (`6882aa02`); redesignet re-homer nav-entryen. Status: PSI-siden levert, nav-eierskap hos redesign.
+- **⚠️ SCHEMA-VARSEL (redesign → develop, Plan 2 bruker-lagret nyNavigasjon-flagg, 2026-07-07):** redesign-branchen bærer en **additiv schema-endring** på vei gjennom develop: `User.nyNavigasjon Boolean?` (`packages/db`, migrering `20260707120000_user_ny_navigasjon`). **Rent additiv, én nullable kolonne, ingen backfill** — bryter unntaksvis «ingen schema på redesign-branch» (Kenneth-godkjent, vilkår a/b/c). Migrerings-gaten sjekker `$DATABASE_URL` som alltid. Andre økter som rører `packages/db`/`User` eller kjører migreringer bør vite at denne kolonnen kommer. Merge-rekkefølge koordineres via Kenneth.

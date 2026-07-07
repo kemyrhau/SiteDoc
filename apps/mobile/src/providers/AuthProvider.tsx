@@ -20,6 +20,7 @@ import {
 import type { BrukerData } from "../services/auth";
 import { trpc } from "../lib/trpc";
 import { AUTH_CONFIG } from "../config/auth";
+import { nullstillNyNavCache } from "../hooks/useNyNavigasjon";
 
 interface AuthKontekst {
   bruker: BrukerData | null;
@@ -171,6 +172,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loggUt = useCallback(async () => {
     await loggUtTjeneste();
     setBruker(null);
+    // Nullstill nyNavigasjon-modul-cachen så flagget ikke henger igjen fra
+    // forrige bruker i utloggingsvinduet (delt enhet). Rotårsak, ikke plaster.
+    nullstillNyNavCache();
   }, []);
 
   return (

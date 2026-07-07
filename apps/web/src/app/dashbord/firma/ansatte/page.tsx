@@ -2,7 +2,7 @@
 
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
-import { Shield, ShieldAlert, User, Pencil, Plus, X } from "lucide-react";
+import { Shield, ShieldAlert, User, Pencil, Plus, X, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -44,6 +44,7 @@ export default function FirmaBrukere() {
 
   const [inviterÅpen, setInviterÅpen] = useState(false);
   const [redigerBruker, setRedigerBruker] = useState<BrukerRad | null>(null);
+  const [nyNavPilotÅpen, setNyNavPilotÅpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -59,14 +60,25 @@ export default function FirmaBrukere() {
         <h1 className="text-lg font-semibold text-gray-900">
           {t("firma.ansatte.tittel")}
         </h1>
-        <button
-          onClick={() => setInviterÅpen(true)}
-          disabled={!orgId}
-          className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <Plus className="h-4 w-4" />
-          {t("firma.ansatte.inviter.knapp")}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setNyNavPilotÅpen(true)}
+            disabled={!orgId || !brukere || brukere.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            title={t("firma.ansatte.nyNavPilot.knapp")}
+          >
+            <Sparkles className="h-4 w-4" />
+            {t("firma.ansatte.nyNavPilot.knapp")}
+          </button>
+          <button
+            onClick={() => setInviterÅpen(true)}
+            disabled={!orgId}
+            className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <Plus className="h-4 w-4" />
+            {t("firma.ansatte.inviter.knapp")}
+          </button>
+        </div>
       </div>
 
       {!brukere || brukere.length === 0 ? (
@@ -191,6 +203,102 @@ export default function FirmaBrukere() {
           }}
         />
       )}
+
+      {nyNavPilotÅpen && orgId && (
+        <NyNavPilotModal
+          organizationId={orgId}
+          firmanavn={valgtFirma?.name ?? ""}
+          antall={brukere?.length ?? 0}
+          onLukk={() => setNyNavPilotÅpen(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+// Pilot-utrulling av ny navigasjon (steg viii/Plan 2). Bulk-setter flagget for
+// ALLE ansatte i firmaet via `organisasjon.settNyNavForFirma`. Bekreftelsesdialog
+// viser antall som påvirkes. Per-bruker overstyring finnes i API-et
+// (`settNyNavForBruker`) som nødventil, men bygges ikke som UI nå.
+function NyNavPilotModal({
+  organizationId,
+  firmanavn,
+  antall,
+  onLukk,
+}: {
+  organizationId: string;
+  firmanavn: string;
+  antall: number;
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const [resultat, setResultat] = useState<{ paa: boolean; antall: number } | null>(null);
+  const sett = trpc.organisasjon.settNyNavForFirma.useMutation({
+    onSuccess: (res, variabler) => {
+      setResultat({ paa: variabler.paa, antall: res.antall });
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+          <h2 className="flex items-center gap-2 text-base font-semibold text-gray-900">
+            <Sparkles className="h-4 w-4 text-sitedoc-primary" />
+            {t("firma.ansatte.nyNavPilot.tittel")}
+          </h2>
+          <button
+            onClick={onLukk}
+            className="rounded-md p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+            aria-label={t("handling.avbryt")}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="space-y-4 px-5 py-4">
+          {resultat ? (
+            <p className="text-sm text-gray-700">
+              {t(
+                resultat.paa
+                  ? "firma.ansatte.nyNavPilot.ferdigPaa"
+                  : "firma.ansatte.nyNavPilot.ferdigAv",
+                { antall: resultat.antall },
+              )}
+            </p>
+          ) : (
+            <p className="text-sm text-gray-500">
+              {t("firma.ansatte.nyNavPilot.beskrivelse", { antall, firmanavn })}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            {resultat ? (
+              <button
+                onClick={onLukk}
+                className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary"
+              >
+                {t("handling.lukk")}
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={() => sett.mutate({ organizationId, paa: false })}
+                  disabled={sett.isPending}
+                  className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                >
+                  {t("firma.ansatte.nyNavPilot.skruAv")}
+                </button>
+                <button
+                  onClick={() => sett.mutate({ organizationId, paa: true })}
+                  disabled={sett.isPending}
+                  className="rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:opacity-50"
+                >
+                  {t("firma.ansatte.nyNavPilot.skruPaa")}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
