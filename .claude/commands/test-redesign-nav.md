@@ -4,10 +4,17 @@ description: Verifiser redesign-navigasjonen (nyNavigasjon-flagg) på test.sited
 
 # Test redesign-navigasjon (nyNavigasjon) på web
 
-Du skal bruke `chrome-devtools`-MCP-verktøyene til å verifisere redesign-navigasjonen bak
-`nyNavigasjon`-flagget på **test.sitedoc.no**, og levere skjermbilder til fabel for
-designgodkjenning. Fokus nå: **T9** (mobil-web-hamburger) + **FM5/K2** («Mine timer» flyttet
-til brukermeny + søk). Kommandoen er gjenbrukbar for framtidige redesign-web-runder.
+Du skal verifisere redesign-navigasjonen bak `nyNavigasjon`-flagget på **test.sitedoc.no**
+og levere skjermbilder til fabel for designgodkjenning. Fokus nå: **T9** (mobil-web-hamburger)
++ **FM5/K2** («Mine timer» flyttet til brukermeny + søk). Kommandoen er gjenbrukbar for
+framtidige redesign-web-runder.
+
+**Executor:** enten `chrome-devtools`-MCP-verktøyene, eller **Opus web = Claude/Opus i Chrome**
+(kjører direkte i Kenneths innloggede nettleser). Stegene under er de samme uansett — der teksten
+sier `resize_page`/`evaluate_script`/`take_screenshot`, bruk tilsvarende i din nettleserkontekst:
+- **Mobil-viewport** settes via vindusbredde < 768px eller DevTools device-emulering (iPhone).
+- **Flagg-tilstand** leses/settes via `localStorage['sitedoc-ny-navigasjon']` i konsollen.
+- **Skjermbilde** tas med nettleserens skjermbilde-funksjon.
 
 ## Forutsetninger
 
