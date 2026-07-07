@@ -972,4 +972,59 @@ export const organisasjonRouter = router({
         throw e;
       }
     }),
+
+  // ---------------------------------------------------------------------------
+  // Redesign/navigasjon (Plan 2) — sentral tildeling av nyNavigasjon-flagget for pilot.
+  // Begge mutasjoner gates via verifiserFirmaAdmin: sitedoc_admin (hvilket som helst firma)
+  // eller company_admin (kun eget firma). Skriver User.nyNavigasjon (autoritativ konto-kilde
+  // i presedensen konto > lokal/query > env-default > av).
+  // ---------------------------------------------------------------------------
+
+  // Bulk: sett flagget for ALLE brukere i firmaet (pilot-utrulling: «alle i org X»).
+  settNyNavForFirma: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid(), paa: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      const members = await ctx.prisma.organizationMember.findMany({
+        where: { organizationId: orgId },
+        select: { userId: true },
+      });
+      const userIds = members.map((m) => m.userId);
+      const res = await ctx.prisma.user.updateMany({
+        where: { id: { in: userIds } },
+        data: { nyNavigasjon: input.paa },
+      });
+      return { ok: true, antall: res.count };
+    }),
+
+  // Per-bruker overstyring innen firmaet. `verdi=null` = nullstill til «ikke tildelt»
+  // (bruker faller da tilbake til egen lokal toggle / env-default). Nullable gjør pilot
+  // koherent: start med utvalgte brukere (per-bruker), utvid med bulk over.
+  settNyNavForBruker: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        userId: z.string().uuid(),
+        verdi: z.boolean().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      // Målbrukeren MÅ være medlem av samme firma (hindrer kryss-org-skriving).
+      const medlem = await ctx.prisma.organizationMember.findFirst({
+        where: { organizationId: orgId, userId: input.userId },
+        select: { id: true },
+      });
+      if (!medlem) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Brukeren er ikke medlem av dette firmaet.",
+        });
+      }
+      await ctx.prisma.user.update({
+        where: { id: input.userId },
+        data: { nyNavigasjon: input.verdi },
+      });
+      return { ok: true };
+    }),
 });

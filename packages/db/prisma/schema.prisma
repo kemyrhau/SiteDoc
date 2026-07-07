@@ -18,6 +18,12 @@ model User {
   language      String    @default("nb") // nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv
   tabelloppsett Json?     @map("tabelloppsett") // { [liste]: { kolonner, bredder, sortering } }
 
+  // Redesign/navigasjon — bruker-lagret nyNavigasjon-flagg (Plan 2, 2026-07-07).
+  // null = ikke tildelt (fall gjennom til lokal/env-default); true/false = eksplisitt
+  // (admin-tildeling eller brukerens egen toggle). Presedens i @sitedoc/shared
+  // resolverNyNavigasjon: konto > lokal/query > env-default > av. Additiv, ingen backfill.
+  nyNavigasjon Boolean? @map("ny_navigasjon")
+
   // Per A.10 — to bruksområder: data-mottaker uten innloggings-tilgang OG arkivert User-rad ved org-bytte
   canLogin Boolean @default(true) @map("can_login")
 

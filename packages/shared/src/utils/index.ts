@@ -17,6 +17,8 @@ export type { IfcOpprinnelse } from "./koordinatBro";
 export { kompetanseStatus } from "./kompetanseStatus";
 export type { KompetanseStatus } from "./kompetanseStatus";
 export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
+export { resolverNyNavigasjon } from "./nyNavigasjon";
+export type { NyNavigasjonKilde } from "./nyNavigasjon";
 export {
   EPSILON_MASKIN_TIMER,
   maskinBucketNokkel,
