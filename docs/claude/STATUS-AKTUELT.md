@@ -1,7 +1,7 @@
 ---
 name: STATUS-AKTUELT
 description: Løpende statusrapport for pågående arbeid, pauset arbeid og planlagte faser. Oppdateres ved hver vesentlig fremdrift.
-sist_verifisert_mot_kode: 2026-06-08
+sist_verifisert_mot_kode: 2026-07-07
 ---
 
 ## Pågående arbeid (PR-historikk)

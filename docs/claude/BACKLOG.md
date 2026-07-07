@@ -1,7 +1,7 @@
 ---
 name: BACKLOG
 description: Konsolidert backlog — alt planlagt men ikke ferdig, kategorisert. STATUS-AKTUELT.md eier kun aktivt arbeid (maks 3 PR).
-sist_verifisert_mot_kode: 2026-06-08
+sist_verifisert_mot_kode: 2026-07-07
 ---
 
 # Backlog
