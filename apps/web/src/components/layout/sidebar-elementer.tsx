@@ -203,6 +203,17 @@ export const kontakterElement: SidebarElement = {
   kreverProsjekt: true,
 };
 
+/**
+ * PROSJEKT-sonen i den nye navigasjonen (NavSidebar + mobil-web-hamburger).
+ * Delt kilde så filteret ikke kan divergere mellom de to (T9-avvik 2026-07-07:
+ * hamburgeren manglet FM5-filteret). FM5/K2: «Mine timer» hører til brukermenyen,
+ * ikke PROSJEKT-sonen. `hovedelementer` er urørt → flagg-av HovedSidebar
+ * byte-identisk; filteret gjelder kun flagg-på-flatene.
+ */
+export function prosjektSoneElementer(filtrertHovedelementer: SidebarElement[]): SidebarElement[] {
+  return [...filtrertHovedelementer.filter((e) => e.id !== "mine-timer"), kontakterElement];
+}
+
 export const bunnelementer: SidebarElement[] = [
   {
     id: "maskin",
