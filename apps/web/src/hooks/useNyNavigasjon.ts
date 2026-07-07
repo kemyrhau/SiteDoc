@@ -32,7 +32,9 @@ const SISTE_BRUKER_NOKKEL = "sitedoc-ny-nav-siste-bruker";
 const ENV_DEFAULT = process.env.NEXT_PUBLIC_NY_NAV_DEFAULT === "1";
 
 function nokkelFor(userId: string): string {
-  return `${BASE_NOKKEL}:${userId}`;
+  // Separator "." holdt likt med mobil (SecureStore godtar ikke ":") — samme
+  // nøkkel-skjema på begge plattformer selv om localStorage ville tålt kolon.
+  return `${BASE_NOKKEL}.${userId}`;
 }
 
 // Tre-tilstands lokal lesing: "1"/"0" = eksplisitt, null = usatt.

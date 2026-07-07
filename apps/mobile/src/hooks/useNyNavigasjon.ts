@@ -21,7 +21,9 @@ import { useAuth } from "../providers/AuthProvider";
 const BASE_NOKKEL = "sitedoc-ny-navigasjon";
 
 function nokkelFor(userId: string): string {
-  return `${BASE_NOKKEL}:${userId}`;
+  // Separator "." (ikke ":") — SecureStore godtar kun alfanumerisk + ". - _".
+  // Kolon kaster «Invalid key provided to SecureStore» (funn simulator-bevis 2026-07-07).
+  return `${BASE_NOKKEL}.${userId}`;
 }
 
 // Modul-cache for synkron/anti-blink retur, GUARDET på userId.
