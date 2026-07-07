@@ -185,7 +185,7 @@ export const mappeRouter = router({
     .query(async ({ ctx, input }) => {
       const dok = await ctx.prisma.ftdDocument.findUniqueOrThrow({
         where: { id: input.documentId },
-        select: { projectId: true, filename: true, fileUrl: true },
+        select: { projectId: true, filename: true, fileUrl: true, sourceLanguage: true },
       });
       await verifiserProsjektmedlem(ctx.userId, dok.projectId);
 
@@ -210,11 +210,21 @@ export const mappeRouter = router({
         distinct: ["language"],
       });
 
+      // Oversettelsesjobber per målspråk (for 2c-språkpiller: «…»-fremdrift
+      // på språk som er under oversettelse men ennå ikke har blokker).
+      const jobbRader = await ctx.prisma.ftdTranslationJob.findMany({
+        where: { documentId: input.documentId },
+        select: { targetLang: true, status: true, blocksDone: true, blocksTotal: true },
+      });
+
       return {
         blokker,
         tilgjengeligeSprak: språkRader.map((r) => r.language),
         filename: dok.filename,
         fileUrl: dok.fileUrl,
+        sourceLanguage: dok.sourceLanguage,
+        projectId: dok.projectId,
+        jobber: jobbRader,
       };
     }),
 
@@ -499,6 +509,68 @@ export const mappeRouter = router({
       }
 
       return { opprettet, feilet, modulInaktiv: false };
+    }),
+
+  // Oversett ett dokument til ett målspråk (2c «+ Oversett»-pille).
+  // Upserter en pending-jobb — worker plukker opp og bruker prosjektets
+  // gjeldende motor fra config.motor (rører ALDRI config her, i motsetning til
+  // reOversettDokument som eksplisitt setter motoren fra brukerens motorvalg).
+  oversettDokument: protectedProcedure
+    .input(
+      z.object({
+        documentId: z.string(),
+        targetLang: z.string().min(2).max(5),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const dok = await ctx.prisma.ftdDocument.findUniqueOrThrow({
+        where: { id: input.documentId },
+        select: { projectId: true, sourceLanguage: true, isActive: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, dok.projectId);
+
+      // Deaktiverte dokumenter oversettes ikke (speiler isActive-filteret i
+      // oversettGjenstaaende og resten av mappe.ts).
+      if (!dok.isActive) {
+        return { status: "inaktiv" as const, blokker: 0 };
+      }
+
+      if (input.targetLang === dok.sourceLanguage) {
+        return { status: "kilde" as const, blokker: 0 };
+      }
+
+      const modul = await ctx.prisma.projectModule.findUnique({
+        where: {
+          projectId_moduleSlug: { projectId: dok.projectId, moduleSlug: "oversettelse" },
+        },
+      });
+      if (modul?.status !== "aktiv") {
+        return { status: "modulInaktiv" as const, blokker: 0 };
+      }
+
+      // Krever at kildeblokker finnes (ellers er dokumentet ikke lesbart ennå).
+      const antallBlokker = await ctx.prisma.ftdDocumentBlock.count({
+        where: { documentId: input.documentId, language: dok.sourceLanguage },
+      });
+      if (antallBlokker === 0) {
+        return { status: "ingenKilde" as const, blokker: 0 };
+      }
+
+      await ctx.prisma.ftdTranslationJob.upsert({
+        where: {
+          documentId_targetLang: { documentId: input.documentId, targetLang: input.targetLang },
+        },
+        create: {
+          id: `${input.documentId}-${input.targetLang}`,
+          documentId: input.documentId,
+          targetLang: input.targetLang,
+          blocksTotal: antallBlokker,
+          status: "pending",
+        },
+        update: { status: "pending", blocksTotal: antallBlokker, blocksDone: 0, error: null },
+      });
+
+      return { status: "queued" as const, blokker: antallBlokker };
     }),
 
   // Slett mappe (kaskaderer til undermapper)
