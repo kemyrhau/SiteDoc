@@ -47,6 +47,12 @@ Web timer-flater divergerer fra mobil-appen (**app = fasit**). Systematisk felt-
 
 Develop-scope, flagg-uavhengig. Neste: full felt-for-felt-sammenligning → scope fikser.
 
+### 🟡 Maskin/bil på timer-rad — utledet tid + fler-maskin-modal (idé i kø)
+
+Kenneth-idé (2026-07-08, simulator-testing): i stedet for at maskinbruk er en **separat** registrering («Herav på maskin»-seksjon lenger ned på sedelen) — la bruker legge maskin/bil **rett på timer-raden** i `TimerRadModal`. Siden raden nå har et tidsrom (fra/til), kan **maskintiden utledes/arves** fra raden. Egen modal som lar deg legge til **flere** verktøy/maskiner (flere kan vært i bruk samme økt).
+
+**⚠️ Treffer dagsseddel-avhengighetsregelen** (CLAUDE.md § Modul-avhengighets-regelen): `sheet_timer` + `sheet_machines` er felles knutepunkt for Timer/Maskin/Varelager. Design krever først lesing av [maskin.md](maskin.md), [timer.md](timer.md) og [fase-0-beslutninger.md C.16](fase-0-beslutninger.md). Åpne spørsmål: per-rad-kobling vs dagens «herav»-relasjon; arves maskintid automatisk eller fri; kan én rad ha bil + maskin + flere verktøy. Egen design-runde før kode (beskriv modell → godkjenning). Ikke startet.
+
 ### 🟡 Rename dokument i mapper + `confirm()`→modal (develop, etter generalprøve)
 
 Ny mutasjon `mappe.giNyttNavnDokument { documentId, nyttNavn }`, `verifiserProsjektmedlem`, oppdaterer `FtdDocument.filename`. Håndter `@@unique([projectId, filename])` — avvis duplikat. Embedding/oversettelse nøkler på `documentId` → trygt. UI: «Gi nytt navn» per rad, ekte Modal, forhåndsutfylt + validering, i18n nb+en. Samtidig: slett-`confirm()` (`mapper/page.tsx:629`) → ekte Modal. Bygges PÅ TOPP av F1 etter generalprøve-mergen.
