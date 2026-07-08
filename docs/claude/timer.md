@@ -341,6 +341,23 @@ Utlegg           → kategori + beløp + valgfritt kvitteringsbilde
 
 **Selv-attestering vs send-til-leder:** To knapper — kunden velger via `OrganizationSetting.tillattSelvAttestering` om begge tillates, eller kun «Send til leder».
 
+### Pause-bevisst tid-synk på timer-rader (mobil) — implementert 2026-07-08 (develop `f385ba99`)
+
+Utility: `apps/mobile/src/utils/pauseBeregning.ts`. Brukes av `TimerRadModal` (`TimerSeksjon.tsx`).
+
+**Auto-synk «antall timer» ↔ «fra/til» (sist-rørte felt vinner):**
+- Endrer fra/til → `antall = effektiveTimerFraSpenn(...)` (spennvidde − pauseoverlapp).
+- Skriver antall → `til = tilFraAntall(fra, antall, ...)` (pausevinduet skjøvet inn når arbeidet krysser lunsj).
+- **Konsistens-validering** ved lagring: når begge tider er satt MÅ antall stemme med (spenn − pause), ellers blokkeres lagring (`timer.feil.timerAvvik`). Fjerner tidligere «stille avvik»-bug.
+
+**Pausevindu — skiftrelativt (erstatter fast klokkeslett):** `pauseVinduFra(skiftStart, standardPauseEtterTimer)`. Feltet **`OrganizationSetting.standardPauseEtterTimer`** (Float, default 4,0 t) erstattet `standardPauseFra` (to-stegs migrering, gammelt felt beholdt — migrering `20260708120000_...`). 07:00-start → pausevindu 11:00–11:30 (ingen regresjon); nattskift 21:00-start → 01:00–01:30. Varighet fra `standardPauseMin` (30). En rad som spenner over vinduet får overlappen trukket fra (10:00–12:00 → 1,50 t), vist som «−30 min lunsjpause trukket fra».
+
+**Skille mot `pauseMin`:** dette er en **rad-nivå** fradragsvisning i modalen. `pauseMin` forblir **sedel-nivå** (maskin ≤ arbeid-buffer, `validerMaskinUnderArbeid`) — de to lever side om side.
+
+**Web-speiling:** attestering (`RedigerRadModal.tsx`) og firma-innstillinger (`firma/innstillinger/page.tsx`) bruker samme skiftrelative modell.
+
+**Kjent begrensning + gjenstår:** midnatt-wrap på enkeltrad-nattskift ([BACKLOG § `pauseVinduFra` midnatt-wrap](BACKLOG.md)); **Piece 2 (1b)** — fyll fra/til på auto-utkastet (`genererForslag`) — ikke startet.
+
 ### UX-visning — dagsseddel (mobil, T.7-gruppert)
 
 ```

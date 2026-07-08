@@ -300,6 +300,8 @@ Lukker BACKLOG-entry «Vis som bruker (impersonering)» gjenstående punkt (audi
 
 ## standardPauseFra — firma-konfigurerbar pause-default — DEPLOYET TIL PROD 2026-05-28 (prod-merge `75a09ccf`, impl `fdd45949`)
 
+> **⏩ Erstattet 2026-07-08 (`f385ba99`, develop):** `standardPauseFra` (fast klokkeslett) er avløst av `standardPauseEtterTimer` (skiftrelativt, default 4,0 t) — to-stegs migrering, gammelt felt beholdt til det droppes. Gjeldende modell: [timer.md § Pause-bevisst tid-synk](timer.md). Innholdet under beskriver korrekt tilstanden i mai 2026 og omskrives ikke.
+
 Lukker BACKLOG-entry «Pause-vindu default er midtpunkt av rad-intervallet (oppdaget 2026-05-18)». Erstatter midtpunkt-fallback i `togglePause` med firma-konfigurerbar default som respekterer norsk lunsj-konvensjon.
 
 **Schema:** Nytt felt `OrganizationSetting.standardPauseFra String? @map("standard_pause_fra")` (nullable HH:MM, additivt). Migrasjon `20260528200000_add_standard_pause_fra` opprettet manuelt (shadow-DB krever pgvector som ikke er installert lokalt).

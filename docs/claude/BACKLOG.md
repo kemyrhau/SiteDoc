@@ -30,6 +30,18 @@ Oppdaget 2026-07-07 (Plan 2 nyNavigasjon-migrering). `prisma migrate status` mot
 
 `pauseVinduFra(skiftStart, etterTimer)` (`apps/mobile/src/utils/pauseBeregning.ts`) clamper via `minTilHhmm` til 23:59 samme dag. For nattskift som registreres **direkte** på en enkeltrad (Legg til/Rediger timer-rad) med skiftstart sent på kvelden vil pausevinduet regne feil: 21:00 + 4t = 25:00 → clampes til **23:59** i stedet for å wrappe til **01:00**. Gjelder **kun** enkeltrad-modalens pause-fradragsvisning; **1b auto-utkast er upåvirket** — det går klokka per segment med segmentets egen skiftstart, så nattskift-vinduet reconciler riktig der. Fiks: la `pauseVinduFra` wrappe over midnatt (mod 1440) i stedet for clamp, og la overlapp-beregningen håndtere døgn-kryssende vindu. Lav prioritet (arbeider på nattskift setter uansett tider manuelt). Flagget 2026-07-08 under pause-modell-omlegging (Piece 1).
 
+### 🔴 nyNav sticky-flag uten rollesjekk + admin-only AV-toggle — MÅ fikses før pilot
+
+`?nyNav=1` slår på flagget + persisterer i localStorage **uten rollesjekk** (`useNyNavigasjon.ts`), men AV-toggelen i brukermenyen finnes **kun for `sitedoc_admin`** (`Toppbar.tsx`/`mer.tsx`, `{erSitedocAdmin && …}`). Ikke-admin som havner på `?nyNav=1` (delt lenke, gammel test, tidligere admin-rolle) låses i redesignet uten synlig vei ut. Introdusert `7ee9d195` (2026-07-06), live prod via `0be103fa`. Lav kunde-risiko i dag (trigges kun av `?nyNav=1`), men MÅ fikses før pilot. Alternativer: (a) toggle for `company_admin`, (b) ikke-persistér for ikke-admin, (c) rolle-uavhengig «tilbake»-utvei.
+
+### 🟡 Web dagsseddel: auto-fyll Fra/Til (paritet mobil)
+
+`apps/web/src/app/dashbord/timer/ny/page.tsx` skal prefylle Fra/Til fra org `standardStartTid`/`standardSluttTid` (default 07:00/15:00), slik mobil gjør via `StartSluttDagKort.genererForslag`. Flagg-uavhengig. Bygges på branch `fix/web-dagsseddel-autofyll` (2026-07-08).
+
+### 🟡 Rename dokument i mapper + `confirm()`→modal (develop, etter generalprøve)
+
+Ny mutasjon `mappe.giNyttNavnDokument { documentId, nyttNavn }`, `verifiserProsjektmedlem`, oppdaterer `FtdDocument.filename`. Håndter `@@unique([projectId, filename])` — avvis duplikat. Embedding/oversettelse nøkler på `documentId` → trygt. UI: «Gi nytt navn» per rad, ekte Modal, forhåndsutfylt + validering, i18n nb+en. Samtidig: slett-`confirm()` (`mapper/page.tsx:629`) → ekte Modal. Bygges PÅ TOPP av F1 etter generalprøve-mergen.
+
 ### 🟢 Dagsseddel: dobbel timeføring (total-tid + per-prosjekt) — a2 LØST 2026-07-06 (a1 fremtidig)
 
 **Problem (Kenneth, 2026-07-05, prod-test):** Arbeideren førte først total
@@ -317,7 +329,7 @@ Fanget under enhetstest av timer-redesignet på fysisk enhet. Samles til en dedi
   1. **For mange bannere/signaler stablet** på dagsseddel-skjermen — topp-sum + «du har ført X» + «venter på sync» + arbeidstid-kort konkurrerer om oppmerksomheten. Vurder å slå sammen / nedprioritere / vise betinget.
   2. **Misforståelige etiketter** — «av 7.50t», «herav maskin», «Maskin/Arbeid» tolkes feil av arbeider. Gjennomgå ordlyd for felt-arbeider-forståelse.
   3. **For mange steg** — åpne sedel → modal → felter → lagre → tilbake. Vurder å redusere stegene (inline-redigering, færre modaler, hurtigregistrering).
-  4. **Smart fra/til-default** — ny timer-rad bør starte etter **siste registrerte `tilTid`** på sedelen, ikke alltid 07:00–15:00 (default sjekker ikke eksisterende rader → arbeider må re-justere hver rad i et fler-rads skift).
+  4. **Smart fra/til-default** — ny timer-rad bør starte etter **siste registrerte `tilTid`** på sedelen, ikke alltid 07:00–15:00 (default sjekker ikke eksisterende rader → arbeider må re-justere hver rad i et fler-rads skift). **Delvis adressert 2026-07-08 (`f385ba99`):** fra/til↔antall auto-synk med pause-fradrag er landet ([timer.md § Pause-bevisst tid-synk](timer.md)) og gir grunn-mekanikken. `defaultTider` starter alt ny rad etter forrige rads `tilTid` — men *auto-utkastets* rader (`genererForslag`) har ennå ikke fra/til (**Piece 2 / 1b**, ikke startet). Punktet gjenstår derfor for auto-utkast-stien.
   **Eksplisitt IKKE i scope:** antall felt per rad (det er ikke problemet). Egen UX-økt etter TestFlight-validering av gjeldende redesign.
 
 - **🟡 Byggeplass/underprosjekt-timeregistrering (mobil).** I dag kan man kun «Legg til prosjekt» på en sedel — ikke byggeplass eller underprosjekt. Separat fra forenkling-økta; hører til [byggeplass-strategi.md](byggeplass-strategi.md)-fasen + registrerings-forenkling-økta. Ønsket:
