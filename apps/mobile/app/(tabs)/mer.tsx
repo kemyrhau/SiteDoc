@@ -6,10 +6,9 @@ import {
   Settings,
   Printer,
   Download,
-  Users,
   Building2,
+  GitBranch,
   WifiOff,
-  QrCode,
   ChevronRight,
   LogOut,
   Globe,
@@ -167,8 +166,11 @@ export default function MerSkjerm() {
               {t("mer.generelt")}
             </Text>
           </View>
-          <MenyRad ikon={Users} tekst={t("nav.dokumentflyt")} />
-          <MenyRad ikon={Building2} tekst={t("nav.grupper")} />
+          <MenyRad
+            ikon={GitBranch}
+            tekst={t("nav.dokumentflyt")}
+            onPress={() => router.push("/dokumentflyt")}
+          />
           {/* 2a/K6: Kontakter-lesevisning — kun ny navigasjon (flagg AV = dagens UI) */}
           {nyNav && (
             <MenyRad
@@ -202,7 +204,6 @@ export default function MerSkjerm() {
             />
           )}
           <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} />
-          <MenyRad ikon={QrCode} tekst={t("mer.skannQR")} />
         </View>
 
         {/* Firma — kun synlig ved multi-firma-medlemskap */}

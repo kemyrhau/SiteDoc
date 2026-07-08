@@ -1,11 +1,13 @@
 import { useMemo } from "react";
-import { View, Text, ScrollView, Pressable, Linking, ActivityIndicator } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft, Phone, Mail, Contact } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../src/lib/trpc";
 import { useProsjekt } from "../src/kontekst/ProsjektKontekst";
+import { apnLenke } from "../src/lib/apnLenke";
+import { useMiniToast, MiniToast } from "../src/components/MiniToast";
 
 interface Faggruppe {
   id: string;
@@ -49,6 +51,12 @@ export default function KontakterSkjerm() {
   const router = useRouter();
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
+  const { melding, vis } = useMiniToast();
+
+  async function apnKontakt(url: string, verdi: string) {
+    const ok = await apnLenke(url);
+    if (!ok) vis(t("kontakt.kunneIkkeApne", { verdi }));
+  }
 
   const { data: faggrupper, isLoading: e1 } = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
@@ -143,7 +151,7 @@ export default function KontakterSkjerm() {
                   <View className="mt-1.5 flex-row flex-wrap gap-2">
                     {k.user.phone && (
                       <Pressable
-                        onPress={() => Linking.openURL(`tel:${k.user.phone}`)}
+                        onPress={() => apnKontakt(`tel:${k.user.phone}`, k.user.phone!)}
                         className="flex-row items-center gap-1.5 rounded-full bg-blue-50 px-3 py-1.5 active:bg-blue-100"
                       >
                         <Phone size={14} color="#1e40af" />
@@ -151,7 +159,7 @@ export default function KontakterSkjerm() {
                       </Pressable>
                     )}
                     <Pressable
-                      onPress={() => Linking.openURL(`mailto:${k.user.email}`)}
+                      onPress={() => apnKontakt(`mailto:${k.user.email}`, k.user.email)}
                       className="flex-row items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1.5 active:bg-gray-200"
                     >
                       <Mail size={14} color="#4b5563" />
@@ -164,6 +172,7 @@ export default function KontakterSkjerm() {
           ))}
         </ScrollView>
       )}
+      <MiniToast melding={melding} />
     </SafeAreaView>
   );
 }

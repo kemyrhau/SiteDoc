@@ -7,7 +7,7 @@ import {
   useEffect,
   type ReactNode,
 } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "./firma-kontekst";
 
@@ -50,6 +50,7 @@ function lesLagretScope(): "alle" | "mine" {
 export function ProsjektProvider({ children }: { children: ReactNode }) {
   const params = useParams<{ prosjektId?: string }>();
   const router = useRouter();
+  const pathname = usePathname();
   const { valgtFirma } = useFirma();
   const urlProsjektId = params.prosjektId ?? null;
 
@@ -107,18 +108,31 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
     if (valgtProsjekt.primaryOrganizationId === valgtFirma.id) return;
     setLagretProsjektId(null);
     localStorage.removeItem(STORAGE_KEY);
-    router.push("/dashbord");
+    // Kun tving tilbake til dashboard-roten når vi står på en prosjekt-scopet
+    // URL (`/dashbord/[prosjektId]/…`) som ikke lenger er gyldig. På globale
+    // ruter (innstillinger/firma/oppsett) beholdes ruten — kun konteksten nullstilles.
+    if (urlProsjektId) router.push("/dashbord");
   }, [
     valgtFirma,
     valgtProsjekt,
     lasterValgt,
+    urlProsjektId,
     router,
   ]);
 
   function velgProsjekt(id: string) {
     setLagretProsjektId(id);
     localStorage.setItem(STORAGE_KEY, id);
-    router.push(`/dashbord/${id}`);
+    // F4: behold nåværende rute ved prosjektbytte. På en prosjekt-scopet URL
+    // byttes kun `[prosjektId]`-segmentet (resten av ruten beholdes). På
+    // dashboard-roten går vi til prosjektets oversikt (uendret atferd). På
+    // globale ruter (f.eks. `/dashbord/innstillinger`) navigeres det IKKE —
+    // prosjektId leses fra `lagretProsjektId`, så konteksten byttes på stedet.
+    if (urlProsjektId) {
+      router.push(pathname.replace(`/dashbord/${urlProsjektId}`, `/dashbord/${id}`));
+    } else if (pathname === "/dashbord" || pathname === "/dashbord/") {
+      router.push(`/dashbord/${id}`);
+    }
   }
 
   function velgScope(scope: "alle" | "mine") {
@@ -126,7 +140,9 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
     localStorage.setItem(SCOPE_STORAGE_KEY, scope);
     setLagretProsjektId(null);
     localStorage.removeItem(STORAGE_KEY);
-    router.push("/dashbord");
+    // Samme prinsipp som velgProsjekt: forlat kun en prosjekt-scopet URL som
+    // ikke lenger gir mening uten valgt prosjekt. Globale ruter beholdes.
+    if (urlProsjektId) router.push("/dashbord");
   }
 
   return (

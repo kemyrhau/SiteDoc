@@ -176,3 +176,11 @@ kan-attestere-deploy.
 - `docs/claude/dagsseddel-design.md` — Timer-modul design
 - `docs/claude/dokumentflyt.md` — Dokumentflyt-arkitektur
 - `CLAUDE.md` — Regler og pågående arbeid (rotfil)
+
+## Verktøy: web- og simulator-styring (Playwright MCP + idb)
+For å styre Kenneths **ekte innloggede Chrome** (web-verifisering/seeding) og
+**iOS-simulatoren** (mobil-app-testing): se
+[docs/claude/mcp-playwright-simulator-oppsett.md](mcp-playwright-simulator-oppsett.md).
+Oppsettet (Playwright MCP + Chrome-utvidelse + idb/simctl) persisterer på maskinen —
+last verktøyene via `ToolSearch`, be Kenneth klikke Playwright-utvidelsen på riktig
+fane, driv simulatoren med `idb ui tap` (punkter = skjermbilde-px/3).
