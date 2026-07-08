@@ -45,6 +45,10 @@ felt-for-felt-sammenligning gjennomført 2026-07-08 (Opus, to parallelle
 kartlegginger av arbeider-vendte flater på begge plattformer). Divergens-listen
 D1–D9 under. **Develop-scope, flagg-uavhengig.**
 
+**Fremdrift:** Bolk (a) = D7 + D1 + D2 + D3 **implementert 2026-07-09** på branch
+`feature/timer-web-paritet-a` (venter cowork-gate + merge). Bolk (b) = D4 + D5 +
+D6. Bolk (c) = D8. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
+
 **Bekreftede kjente divergenser (Kenneth-testing 2026-07-08):**
 
 - **D1 — Ny dagsseddel på opptatt dato.** Mobil `finnEllerOpprettDagsseddel`
@@ -52,11 +56,15 @@ D1–D9 under. **Develop-scope, flagg-uavhengig.**
   prosjektvalget, subtil «dagen fantes alt»-notis (`dagsseddelOpprett.ts:59-131`,
   `ny.tsx:203-206`). Web har ingen duplikat-sjekk — rå server-P2002 vises i
   `onError` (`timer/ny/page.tsx:53,210`; server `dagsseddel.ts:617-620`). Skal
-  redirecte/åpne eksisterende.
+  redirecte/åpne eksisterende. **✅ Bolk (a):** `opprett` returnerer eksisterende
+  sedel (`eksisterte:true`) i stedet for P2002; web redirecter med
+  `?nyttProsjekt=&aapnetEksisterende=1` + subtil notis.
 - **D2 — Rediger timer-rad (arbeiderens modal).** Mobil `TimerRadModal`:
   Prosjekt\*, Lønnsart\*, Aktivitet\*, Antall\*, Fra/til-tid, ECO, beskrivelse
   (`TimerSeksjon.tsx:726-820`). Web `TimerRadDialog` mangler **Prosjekt + Fra/til**
-  (`timer/[id]/page.tsx:1100-1372`).
+  (`timer/[id]/page.tsx:1100-1372`). **✅ Bolk (a):** Prosjekt-velger (låst ved
+  redigering — server flytter ikke rad mellom prosjekter, egen oppfølger) +
+  Fra/til lagt til; server `oppdaterTimerRad` tar nå `fraTid`/`tilTid`.
 
 **Nye divergenser (web mangler ift. mobil):**
 
@@ -65,6 +73,10 @@ D1–D9 under. **Develop-scope, flagg-uavhengig.**
   `apps/mobile/src/utils/pauseBeregning.ts`) + validerer antall = spenn − pause.
   Web-arbeider skriver kun antall direkte. Logikken er i dag **mobil-only** —
   må løftes til `@sitedoc/shared` (som `utils/maskinKapasitet.ts`) for web-gjenbruk.
+  **✅ Bolk (a):** løftet til `@sitedoc/shared/utils/pauseBeregning.ts`; web
+  `TimerRadDialog` bruker fra/til↔antall-synk. Pausevindu-parametre hentes fra
+  `hentArbeidstidDefaults` (medlems-tilgjengelig, ikke admin-only `hentSetting`).
+  Mobil beholder foreløpig sin egen kopi — dedup er senere opprydning.
 - **D4 — Tillegg-rad: web kan ikke laste opp kvittering.** Mobil har kamera/galleri
   med offline-kø (`TilleggSeksjon.tsx:267-419,567-580`). Web `TilleggRadDialog` har
   ingen opplasting — vedlegg vises kun read-only (`timer/[id]/page.tsx:959-977`).
@@ -84,8 +96,12 @@ D1–D9 under. **Develop-scope, flagg-uavhengig.**
   Krever IKKE server-migrering: `DailySheet` forblir projectId-løst (T.1), prosjekt
   persisteres per rad på `SheetTimer.projectId`. «Sedel-prosjekt» er UI/session-konsept
   (default for rader + forhåndsåpnet prosjektgruppe via `?nyttProsjekt=`), akkurat som
-  mobils lokale `daily_sheets.projectId` (usynket bekvemmelighetsfelt). GPS-forslag +
-  dagstotal-banner tas som del av samme runde.
+  mobils lokale `daily_sheets.projectId` (usynket bekvemmelighetsfelt).
+  **✅ Bolk (a):** web `ny/page.tsx` krever Prosjekt\* + navigerer med
+  `?nyttProsjekt=`; detalj-siden forhåndsåpner gruppa. **Scope-justering
+  2026-07-09:** GPS-geoforslag splittet ut (egen rad — web mangler
+  geolocation/byggeplass-koordinat-infra); `DagstotalBanner` droppet (redundant —
+  én sedel per (bruker, dato) + D1-redirect dekker tilfellet).
 - **D8 — «Mine timer»-oversikt: opprett-inngang + kladd-påminnelse.** Mobil har
   samlet sedel-liste med FAB «ny», ukesum og kladd-påminnelse for gamle utkast
   (`DagsseddelListe.tsx:108-149,198-203`). Web `dashbord/timer/mine` er ren rapport
@@ -110,10 +126,22 @@ D1–D9 under. **Develop-scope, flagg-uavhengig.**
 Prosjekt-felt fordi web gikk til dato-only-sedler (prosjekt via gruppering), mens
 mobil har prosjekt i hver rad-modal.
 
-**Foreslått rekkefølge (fiks-plan gates av cowork før implementasjon):**
-D7 (prosjektmodell-fundament, ingen migrering) → D1 (bygger på naviger-med-prosjekt)
-→ D2 (rad-dialogene arver sedel-prosjekt + får Fra/til) → D3 (løft pauseBeregning til
-shared) → D4 → D5 → D6 → D8. D9 separat.
+**Bolk-struktur (kortlevde brancher, én bolk om gangen, fersk fra develop):**
+- **Bolk (a) — ✅ implementert (branch, venter gate/merge):** D7 + D1 + D2 + D3.
+  Prosjekt-per-sedel-fundament + hel rad-paritet (prosjekt + fra/til + pause-calc).
+- **Bolk (b):** D4 (tillegg-kvittering) + D5 (maskinførerbevis-varsel) + D6
+  (maskin-buffer). Uavhengige — kan gates enkeltvis.
+- **Bolk (c):** D8 («Mine timer»-inngang + kladd-påminnelse).
+- **Separat:** D9 (sesong-dagsnorm) + GPS-geoforslag (egen rad under).
+
+### 🟡 Timer web: GPS-geoforslag ved ny dagsseddel (splittet fra D7, 2026-07-09)
+
+Mobil foreslår byggeplass/prosjekt fra GPS-posisjon (≤500 m geofence-match) ved
+opprettelse. Web mangler infrastrukturen: ingen gjenbrukbar
+`navigator.geolocation`-flyt for timer (kun `GeoReferanseEditor.tsx` for 3D) og
+ingen org-byggeplass-koordinat-query til denne flaten. Krever: browser-geolocation
++ permission-UX + koordinat-query + match-logikk. Ikke-blokkerende bekvemmelighet;
+D7-fundamentet (krev Prosjekt) avhenger ikke av det. Egen runde.
 
 ### 🟡 Maskin/bil på timer-rad — utledet tid + fler-maskin-modal (idé i kø)
 

@@ -34,6 +34,15 @@ export {
   velgOvertidLonnsart,
 } from "./lonnsregel";
 export type { ArbeidstidSegment, OvertidLonnsartKandidat } from "./lonnsregel";
+export {
+  DEFAULT_PAUSE_ETTER_TIMER,
+  pauseVinduFra,
+  hhmmTilMin,
+  minTilHhmm,
+  pauseOverlappMin,
+  effektiveTimerFraSpenn,
+  tilFraAntall,
+} from "./pauseBeregning";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.

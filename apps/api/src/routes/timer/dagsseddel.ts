@@ -649,7 +649,7 @@ export const dagsseddelRouter = router({
       // Klient sender projectId ved opprettelse av rader (leggTilTimerRad etc.).
       // @@unique([userId, dato]): én sedel per arbeider per dato (P2002 = duplikat-dato).
       try {
-        return await ctx.prismaTimer.dailySheet.upsert({
+        const sheet = await ctx.prismaTimer.dailySheet.upsert({
           where: { clientUuid: input.clientUuid },
           create: {
             clientUuid: input.clientUuid,
@@ -670,15 +670,22 @@ export const dagsseddelRouter = router({
           // Re-send av samme clientUuid: returner eksisterende uten endring
           update: {},
         });
+        return { ...sheet, eksisterte: false };
       } catch (e) {
+        // D1 (web-paritet 2026-07-08): duplikat-dato er IKKE en feil — mobil
+        // (finnEllerOpprettDagsseddel) åpner eksisterende sedel. Speiler den
+        // atferden: hent sedelen for (userId, dato) og returner den urørt med
+        // `eksisterte: true` så klienten kan redirecte + vise notis. P2002 kan
+        // treffe enten @@unique([userId, dato]) eller clientUuid — findUnique på
+        // (userId, dato) dekker begge (samme dato = samme sedel).
         if (
           e instanceof Prisma.PrismaClientKnownRequestError &&
           e.code === "P2002"
         ) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "Du har allerede en dagsseddel for denne datoen",
+          const eksisterende = await ctx.prismaTimer.dailySheet.findUnique({
+            where: { userId_dato: { userId: ctx.userId, dato } },
           });
+          if (eksisterende) return { ...eksisterende, eksisterte: true };
         }
         throw e;
       }
@@ -851,6 +858,11 @@ export const dagsseddelRouter = router({
         externalCostObjectId: z.string().uuid().nullable().optional(),
         // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
         vehicleId: z.string().uuid().nullable().optional(),
+        // D2 (web-paritet 2026-07-08): per-rad fra/til (HH:MM). tilfoyTimerRad
+        // hadde disse fra før; oppdater manglet dem → web kunne ikke lagre
+        // tids-endringer. Nullable/optional — sendes kun når feltet er i bruk.
+        fraTid: z.string().nullable().optional(),
+        tilTid: z.string().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -887,6 +899,8 @@ export const dagsseddelRouter = router({
         }
         data.vehicleId = input.vehicleId;
       }
+      if (input.fraTid !== undefined) data.fraTid = input.fraTid;
+      if (input.tilTid !== undefined) data.tilTid = input.tilTid;
 
       // T7-4b: valider post-state. Reduksjon av timer eller flytting til
       // annen ECO kan få maskin-totalen til å overstige.

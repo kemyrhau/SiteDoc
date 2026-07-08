@@ -25,10 +25,13 @@ function iDag(): string {
 }
 
 /**
- * «Ny dagsseddel» (web) — T.1 (2026-07-05): dato-only opprettelse.
- * Sedelen eies av arbeider/firma og har ingen prosjekttilhørighet på sedel-nivå.
- * Prosjekt (og byggeplass) legges per rad på detalj-siden — der flyten allerede
- * er T.1-korrekt. Web-opprett trenger derfor kun dato + default-aktivitet.
+ * «Ny dagsseddel» (web) — T.1 (2026-07-05): sedelen er dato-only på server
+ * (DailySheet har ingen projectId; prosjekt persisteres per rad på
+ * SheetTimer.projectId). D7 (web-paritet 2026-07-08): match mobil — krev
+ * Prosjekt ved opprettelse. Prosjektet lagres IKKE på sedelen (ingen migrering);
+ * det bæres videre til detalj-siden via `?nyttProsjekt=` som forhåndsåpner
+ * prosjektgruppa og blir default for nye rader (UI/session-konsept, akkurat som
+ * mobils lokale, usynkede daily_sheets.projectId).
  */
 export default function NyDagsseddelSide() {
   const { t } = useTranslation();
@@ -37,6 +40,7 @@ export default function NyDagsseddelSide() {
   const [clientUuid] = useState(() => nyUuid());
 
   const [dato, setDato] = useState(iDag());
+  const [projectId, setProjectId] = useState<string>("");
   const [aktivitetId, setAktivitetId] = useState<string>("");
   const [pauseMin, setPauseMin] = useState(0);
   const [startAt, setStartAt] = useState("");
@@ -54,6 +58,15 @@ export default function NyDagsseddelSide() {
 
   const { data: aktiviteter, isLoading: aktiviteterLaster } =
     trpc.timer.aktivitet.list.useQuery();
+
+  // D7: prosjektliste for arbeider (inkluderer interne prosjekter). Cast for å
+  // unngå TS2589 (dyp Project-type) — samme mønster som detalj-siden.
+  const { data: prosjekterRaw } = trpc.prosjekt.hentForTimer.useQuery();
+  const prosjekter = (prosjekterRaw ?? []) as unknown as Array<{
+    id: string;
+    name: string;
+    projectNumber: string;
+  }>;
 
   // Kalender-effektiv arbeidstid for valgt dato. Re-fetcher når `dato` endres.
   const { data: effektiv } = trpc.organisasjon.hentEffektivArbeidstid.useQuery(
@@ -77,7 +90,13 @@ export default function NyDagsseddelSide() {
 
   const opprett = trpc.timer.dagsseddel.opprett.useMutation({
     onSuccess: (sheet) => {
-      router.push(`/dashbord/timer/${sheet.id}`);
+      // D7: bær prosjektvalget til detalj-siden (forhåndsåpner gruppa + default
+      // for rader). D1: hvis sedelen fantes fra før (eksisterte), signaliser det
+      // så detalj-siden viser «dagen fantes alt»-notis (mobil-atferd) i stedet
+      // for en feilmelding.
+      const params = new URLSearchParams({ nyttProsjekt: projectId });
+      if (sheet.eksisterte) params.set("aapnetEksisterende", "1");
+      router.push(`/dashbord/timer/${sheet.id}?${params.toString()}`);
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
@@ -99,6 +118,11 @@ export default function NyDagsseddelSide() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFeil(null);
+
+    if (!projectId) {
+      setFeil(t("timer.feil.ingenProsjekt"));
+      return;
+    }
 
     if (!valgtAktivitetId) {
       setFeil(t("timer.feil.ingenAktivitet"));
@@ -158,6 +182,25 @@ export default function NyDagsseddelSide() {
             onChange={(e) => setDato(e.target.value)}
             required
           />
+        </div>
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.prosjekt")}
+          </label>
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+            required
+          >
+            <option value="">{t("timer.velgProsjekt")}</option>
+            {prosjekter.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.projectNumber} — {p.name}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div>
@@ -257,7 +300,7 @@ export default function NyDagsseddelSide() {
             >
               {t("handling.avbryt")}
             </Button>
-            <Button type="submit" disabled={opprett.isPending}>
+            <Button type="submit" disabled={opprett.isPending || !projectId}>
               {opprett.isPending ? t("handling.lagrer") : t("timer.opprett")}
             </Button>
           </div>

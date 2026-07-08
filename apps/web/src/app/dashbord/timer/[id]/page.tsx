@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
@@ -21,6 +21,10 @@ import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import {
   maskinBucketKapasitet,
   overstigerMaskinTak,
+  DEFAULT_PAUSE_ETTER_TIMER,
+  pauseVinduFra,
+  effektiveTimerFraSpenn,
+  tilFraAntall,
 } from "@sitedoc/shared";
 
 const ENHETER = ["m", "m2", "m3", "kg", "tonn", "stk"] as const;
@@ -110,6 +114,12 @@ export default function DagsseddelDetaljSide() {
   const { t } = useTranslation();
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  // D7: prosjektet valgt ved opprettelse bæres hit for å forhåndsåpne gruppa
+  // (selv uten rader ennå) og bli default for nye rader. D1: `aapnetEksisterende`
+  // signaliserer at sedelen fantes fra før (duplikat-dato) → subtil notis.
+  const nyttProsjektParam = searchParams.get("nyttProsjekt");
+  const aapnetEksisterende = searchParams.get("aapnetEksisterende") === "1";
 
   const utils = trpc.useUtils();
   const { data: sheet, isLoading } = trpc.timer.dagsseddel.hentMedId.useQuery(
@@ -125,6 +135,16 @@ export default function DagsseddelDetaljSide() {
     { organizationId: sheet?.organizationId ?? "" },
     { enabled: !!sheet?.organizationId },
   );
+
+  // D3 (web-paritet 2026-07-08): pausevindu-parametre for timer-radens fra/til
+  // ↔ antall-synk. hentSetting krever firma-admin (utilgjengelig for vanlig
+  // arbeider) → bruk den medlems-tilgjengelige hentArbeidstidDefaults, som
+  // eksponerer nettopp standardStartTid/standardPauseMin/standardPauseEtterTimer.
+  const { data: arbeidstidDefaults } =
+    trpc.organisasjon.hentArbeidstidDefaults.useQuery(
+      { organizationId: sheet?.organizationId ?? "" },
+      { enabled: !!sheet?.organizationId },
+    );
 
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [aktivModal, setAktivModal] = useState<
@@ -143,7 +163,10 @@ export default function DagsseddelDetaljSide() {
     | { type: "nyProsjekt" }
     | null
   >(null);
-  const [ekstraProsjektIder, setEkstraProsjektIder] = useState<string[]>([]);
+  const [ekstraProsjektIder, setEkstraProsjektIder] = useState<string[]>(() =>
+    nyttProsjektParam ? [nyttProsjektParam] : [],
+  );
+  const [notisAvvist, setNotisAvvist] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
 
   const send = trpc.timer.dagsseddel.send.useMutation({
@@ -293,6 +316,23 @@ export default function DagsseddelDetaljSide() {
           )}
         </div>
       </div>
+
+      {/* D1: sedelen fantes fra før for denne datoen (åpnet i stedet for feil). */}
+      {aapnetEksisterende && !notisAvvist && (
+        <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <p className="text-sm text-blue-900">
+            {t("timer.detalj.aapnetEksisterende")}
+          </p>
+          <button
+            type="button"
+            onClick={() => setNotisAvvist(true)}
+            className="rounded p-1 text-blue-500 hover:bg-blue-100 hover:text-blue-700"
+            title={t("handling.lukk")}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
 
       {sheet.status === "returned" && sheet.lederKommentar && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
@@ -532,10 +572,18 @@ export default function DagsseddelDetaljSide() {
         <TimerRadDialog
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
-          prosjektType={prosjektNavnMap.get(aktivModal.projectId)?.type ?? "kunde"}
+          prosjekter={prosjekterForVelger}
           defaultAktivitetId={sheetAktivitetId}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
+          // D3: pausevindu = skiftstart + standardPauseEtterTimer, lengde
+          // standardPauseMin. Medlems-tilgjengelig kilde m/ trygge fallbacks.
+          skiftStart={arbeidstidDefaults?.standardStartTid ?? "07:00"}
+          standardPauseMin={arbeidstidDefaults?.standardPauseMin ?? 30}
+          standardPauseEtterTimer={
+            arbeidstidDefaults?.standardPauseEtterTimer ??
+            DEFAULT_PAUSE_ETTER_TIMER
+          }
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -1100,33 +1148,47 @@ function RaderMaskinKompakt({
 function TimerRadDialog({
   sheetId,
   projectId,
-  prosjektType,
+  prosjekter,
   defaultAktivitetId,
   defaultEcoId,
   rad,
+  skiftStart,
+  standardPauseMin,
+  standardPauseEtterTimer,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
-  // Fase 2 / T.10: "internt" → vis maskinvelger (vedlikehold-kostnadsbærer).
-  prosjektType?: string;
+  prosjekter: ProsjektRef[];
   defaultAktivitetId: string | null;
   defaultEcoId?: string | null;
   rad?: TimerRad;
+  // D3: pausevindu-parametre for fra/til ↔ antall-synk.
+  skiftStart: string;
+  standardPauseMin: number;
+  standardPauseEtterTimer: number;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
+
+  // D2 (web-paritet): prosjekt velges i modalen (som mobil). Ved NY rad kan den
+  // endres (raden opprettes under valgt prosjekt); ved redigering er den låst —
+  // server-oppdaterTimerRad flytter ikke rad mellom prosjekter (egen oppfølger).
+  const [valgtProjectId, setValgtProjectId] = useState<string>(
+    rad?.projectId ?? projectId,
+  );
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({
-    projectId,
+    projectId: valgtProjectId,
   });
 
   // T.10 / §2.D: maskinvelger for kostnadsbærer ved maskinvedlikehold. Hentes
   // kun for interne prosjekter (verksted). Tom liste / inaktiv maskin-modul →
   // feltet skjules. Org-validering håndheves uansett på server.
-  const erInternt = prosjektType === "internt";
+  const erInternt =
+    prosjekter.find((p) => p.id === valgtProjectId)?.type === "internt";
   const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(undefined, {
     enabled: erInternt,
   });
@@ -1155,7 +1217,35 @@ function TimerRadDialog({
   const [beskrivelse, setBeskrivelse] = useState<string>(
     rad?.beskrivelse ?? "",
   );
+  // D2/D3: per-rad fra/til med pause-bevisst auto-synk mot antall (som mobil).
+  const [fraTid, setFraTid] = useState<string>(rad?.fraTid ?? "");
+  const [tilTid, setTilTid] = useState<string>(rad?.tilTid ?? "");
   const [feil, setFeil] = useState<string | null>(null);
+
+  // Pausevindu = skiftstart + standardPauseEtterTimer, lengde standardPauseMin.
+  const pauseFra = pauseVinduFra(skiftStart, standardPauseEtterTimer);
+
+  // Sist-rørte felt vinner (mobil-atferd): endrer fra/til → regn antall;
+  // skriver antall → regn til (pausevinduet skyves inn ved lunsj-kryssing).
+  function endreFra(v: string) {
+    setFraTid(v);
+    if (v && tilTid) {
+      setTimer(String(effektiveTimerFraSpenn(v, tilTid, pauseFra, standardPauseMin)));
+    }
+  }
+  function endreTil(v: string) {
+    setTilTid(v);
+    if (fraTid && v) {
+      setTimer(String(effektiveTimerFraSpenn(fraTid, v, pauseFra, standardPauseMin)));
+    }
+  }
+  function endreTimer(v: string) {
+    setTimer(v);
+    const n = parseFloat(v);
+    if (fraTid && !isNaN(n) && n > 0) {
+      setTilTid(tilFraAntall(fraTid, n, pauseFra, standardPauseMin));
+    }
+  }
 
   const tilfoy = trpc.timer.dagsseddel.tilfoyTimerRad.useMutation({
     onSuccess: () => {
@@ -1191,17 +1281,21 @@ function TimerRadDialog({
         // Send alltid (kan nullstilles); ignoreres for ikke-interne prosjekter.
         vehicleId: erInternt ? vehicleId : null,
         beskrivelse: beskrivelse.trim() || null,
+        fraTid: fraTid || null,
+        tilTid: tilTid || null,
       });
     } else {
       tilfoy.mutate({
         sheetId,
-        projectId,
+        projectId: valgtProjectId,
         lonnsartId,
         aktivitetId,
         timer: tNum,
         externalCostObjectId: ecoId,
         vehicleId: erInternt ? vehicleId : null,
         beskrivelse: beskrivelse.trim() || null,
+        fraTid: fraTid || null,
+        tilTid: tilTid || null,
       });
     }
   }
@@ -1219,6 +1313,28 @@ function TimerRadDialog({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* D2: prosjekt i modalen (mobil-paritet). Låst ved redigering. */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.prosjekt")}
+          </label>
+          <select
+            value={valgtProjectId}
+            onChange={(e) => {
+              setValgtProjectId(e.target.value);
+              setEcoId(null); // ECO tilhører gammelt prosjekt
+            }}
+            disabled={!!rad}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+            required
+          >
+            {prosjekter.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.projectNumber} — {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.lonnsarter")}
@@ -1255,6 +1371,35 @@ function TimerRadDialog({
             ))}
           </select>
         </div>
+        {/* D2/D3: fra/til med pause-bevisst auto-synk mot antall (mobil-paritet). */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.felt.startTid")}{" "}
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            </label>
+            <Input
+              type="time"
+              value={fraTid}
+              onChange={(e) => endreFra(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.felt.sluttTid")}{" "}
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            </label>
+            <Input
+              type="time"
+              value={tilTid}
+              onChange={(e) => endreTil(e.target.value)}
+            />
+          </div>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.antallTimer")}
@@ -1265,7 +1410,7 @@ function TimerRadDialog({
             min={0}
             max={24}
             value={timer}
-            onChange={(e) => setTimer(e.target.value)}
+            onChange={(e) => endreTimer(e.target.value)}
             autoFocus
             required
           />
