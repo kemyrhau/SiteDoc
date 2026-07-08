@@ -27,6 +27,25 @@ Kenneths kommando.** Drift-steg (DB-kopi, stack-up, DNS, OAuth, reboot) kjøres 
 
 ## Env-maler (fyll inn verdier på server — ALDRI commit)
 
+### Nøkler & secrets — proveniens
+
+> **Ufravikelig:** ALDRI faktiske nøkkelverdier i denne tabellen eller noe annet sted i
+> repoet — kun plassholdere/proveniens. Ingen delvise verdier eller lengde-hint om
+> eksisterende secrets; kun genererings-oppskrift for NYE nøkler. Kenneth setter verdiene
+> på server (TTY); Opus rører dem aldri. Global regel: CLAUDE.md § SIKKERHET — NØKKELHÅNDTERING.
+
+| Nøkkel | Proveniens / hvordan skaffes | Fil |
+|---|---|---|
+| `DATABASE_URL`/`DIRECT_URL` (passord) | Delt `sitedoc`-postgres-bruker — **samme passord som prod/test-env-filene**, ikke nytt | begge |
+| `AUTH_SECRET` | **Ny**, generér `openssl rand -base64 33`. MÅ være **identisk api↔web** i redesign-stacken, men **ANNEN verdi enn prod/test** (sesjons-isolasjon mellom miljøer) | begge |
+| `AUTH_GOOGLE_*` + `AUTH_MICROSOFT_ENTRA_ID_ID`/`_SECRET` | **Prod-appene gjenbrukt** (Google Cloud Console + Entra-portalen) — **samme verdier som prod-`web.env`**. Kun to nye redirect-URIer lagt til (se Steg 4), verifisert 2026-07-07 | web |
+| `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | Samme tenant som prod: `https://login.microsoftonline.com/<tenant-id>/v2.0` | web |
+| `RESEND_API_KEY` | **Tom** i demo — ingen e-post til ekte kunder | api |
+| `RESEND_FROM_EMAIL` | Fast avsenderstreng (ikke hemmelig) | web |
+| `VEGVESEN_API_KEY` | Samme som prod ved behov, ellers tom | api |
+| `SITEDOC_INTEGRATION_KEY` | Hvis kryptering brukes: 64 hex (`openssl rand -hex 32`) og MÅ ligge i **både api og web** (lærdom 2026-05-07). **Tom OK for demo** | begge (hvis brukt) |
+| `ENABLE_DEV_LOGIN` + `DEV_LOGIN_SECRET` | **Manuelt aktivert** i `api-redesign.env` for simulator-mot-redesign — `DEV_LOGIN_SECRET` = **samme som api-test**. Dokumentert unntak: **skrus AV etter pilot** | api |
+
 ### `docker/env/api-redesign.env`
 ```
 DATABASE_URL=postgresql://sitedoc:<PASSORD>@postgres:5432/sitedoc_redesign
@@ -38,10 +57,10 @@ RESEND_API_KEY=
 VEGVESEN_API_KEY=<samme som prod ved behov>
 SITEDOC_INTEGRATION_KEY=<egen eller tom>
 # PORT/HOST/NORBERT_URL/OVERSETTELSE_URL settes i compose (environment:) — IKKE her.
-# Dev-login (valgfritt): kun hvis presentatøren trenger OAuth-fri innlogging under demoen.
-# Sikkerhetseksponering på kundevendt subdomene — la stå AV med mindre eksplisitt ønsket:
-# ENABLE_DEV_LOGIN=true
-# DEV_LOGIN_SECRET=<hemmelig, samme som evt. mobil-secret>
+# Dev-login: AKTIVERT for pilot (simulator-mot-redesign) — DEV_LOGIN_SECRET = samme som api-test.
+# Sikkerhetseksponering på kundevendt subdomene → dokumentert unntak, SKRUS AV etter pilot:
+ENABLE_DEV_LOGIN=true
+DEV_LOGIN_SECRET=<samme som api-test DEV_LOGIN_SECRET>
 ```
 
 ### `docker/env/web-redesign.env`
@@ -57,11 +76,12 @@ APP_URL=https://redesign.sitedoc.no
 DATABASE_URL=postgresql://sitedoc:<PASSORD>@postgres:5432/sitedoc_redesign
 DIRECT_URL=postgresql://sitedoc:<PASSORD>@postgres:5432/sitedoc_redesign
 RESEND_FROM_EMAIL=SiteDoc <noreply@sitedoc.no>
-# Egne OAuth-apper for redesign-subdomenet (egne client-id/secret):
-AUTH_GOOGLE_ID=<redesign google client id>
-AUTH_GOOGLE_SECRET=<redesign google secret>
-AUTH_MICROSOFT_ENTRA_ID_ID=<redesign entra client id>
-AUTH_MICROSOFT_ENTRA_ID_SECRET=<redesign entra secret>
+# PROD-appene gjenbrukt (ikke egne redesign-apper) — SAMME verdier som prod-web.env.
+# Kun to nye redirect-URIer lagt til i prod-appene (se Steg 4), verifisert 2026-07-07:
+AUTH_GOOGLE_ID=<samme som prod>
+AUTH_GOOGLE_SECRET=<samme som prod>
+AUTH_MICROSOFT_ENTRA_ID_ID=<samme som prod>
+AUTH_MICROSOFT_ENTRA_ID_SECRET=<samme som prod>
 AUTH_MICROSOFT_ENTRA_ID_ISSUER=https://login.microsoftonline.com/<tenant-id>/v2.0
 # NEXT_PUBLIC_NY_NAV_DEFAULT sendes som build-arg i compose (bakes inn). Runtime-env her er ikke nok.
 ```
@@ -120,8 +140,11 @@ sudo systemctl restart cloudflared
     ```
   - Evt. tøm Chrome-cachen: `chrome://net-internals/#dns` → «Clear host cache».
 
-**Steg 4 — OAuth-callbacks:** legg `https://redesign.sitedoc.no/api/auth/callback/{google,microsoft-entra-id}`
-i redesign-Google-appen + web-Entra-appen (samme AADSTS50011-felle som test).
+**Steg 4 — OAuth-callbacks (prod-appene GJENBRUKT — ikke egne redesign-apper):** de eksisterende
+prod-appene i Google Cloud Console + Entra-portalen fikk to nye redirect-URIer:
+`https://redesign.sitedoc.no/api/auth/callback/google` og `…/callback/microsoft-entra-id`.
+Verifisert fungerende 2026-07-07. Web-env bruker dermed samme `AUTH_GOOGLE_*`/`AUTH_MICROSOFT_ENTRA_ID_*`
+som prod. (Samme AADSTS50011-felle som test hvis en URI mangler.)
 
 **Steg 5 — rsync + build + up** (Opus kan kjøre native rsync; `sudo docker` = Kenneth):
 ```
