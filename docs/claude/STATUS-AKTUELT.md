@@ -12,6 +12,8 @@ sist_verifisert_mot_kode: 2026-07-08
 
 Pausevindu regnes relativt til skiftstart (`standardPauseEtterTimer`, default 4.0 t) i stedet for fast klokkeslett. Merget develop `f385ba99` (ff), deployet test + migrering kjørt (additiv `ADD COLUMN standard_pause_etter_timer`, to-stegs). **Verifisert:** DB (6 rader = 4.0) + simulator (innstilling + attestering skiftrelativ + 07:00→11:00). Berører api `organisasjon.ts`, mobil `TimerSeksjon`/ny `pauseBeregning.ts`, web `innstillinger`/`RedigerRadModal`, i18n. **Gjenstår: prod-deploy.** Sannhetskilde: [timer.md § Pause-bevisst tid-synk](timer.md). Åpne oppfølgere (Piece 2/1b, midnatt-wrap, sq-reoversetting, rydd duplikat i `redesign/navigasjon`): tråd 4 + BACKLOG.
 
+**Web dagsseddel auto-fyll Fra/Til (paritet mobil) — IMPLEMENTERT på branch `fix/web-dagsseddel-autofyll` (Option A, kalender-effektiv via ny `organisasjon.hentEffektivArbeidstid`-query; sommertid-aware).** Venter cowork-gate + UI + merge til develop. Se [BACKLOG § Web dagsseddel auto-fyll](BACKLOG.md).
+
 > **🆕 Generalprøve web-runde (F1/F3/F4/F5) — redesign/navigasjon, venter fabel + merge:** F1 «Administrer mapper» i tomt-state (`5ace3e3f`); F3 søk-hub, F4 prosjektbytte rute-bevart, F5 hub-kort Kalender+Varelager (`17ba8bb0`). Skjermbilder cowork-gatet (`docs/redesign/screenshots/F1-F5-web-2026-07-08/`). Venter fabels godkjenning → cowork merger via merge-tre. F2 (mobil) alt godkjent.
 
 > **🧵 Åpne tråder for neste økt (kontinuitet, oppdatert 2026-07-08):**

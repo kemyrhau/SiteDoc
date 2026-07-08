@@ -16,6 +16,7 @@ import {
   hentAktiveFirmamoduler,
 } from "../services/firmamodul";
 import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
+import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -822,6 +823,24 @@ export const organisasjonRouter = router({
           reiseLonnsartId: true,
         },
       });
+    }),
+
+  // Kalender-effektiv arbeidstid for en gitt dato (medlems-tilgjengelig).
+  // Wrapper service-funksjonen som a2-prefyllet + mobil (via lokal cache)
+  // bruker — respekterer sommertid/halvdag-overstyringer i ArbeidstidsKalender.
+  // Web-dagsseddel prefyller Fra/Til fra denne (paritet med mobil).
+  hentEffektivArbeidstid: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        dato: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Forventet YYYY-MM-DD"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+      // new Date("YYYY-MM-DD") = UTC-midnatt, samme som a2 (dagsseddel.ts) —
+      // service bruker getUTCFullYear + dato-sammenligning mot kalenderen.
+      return hentEffektivArbeidstidService(input.organizationId, new Date(input.dato));
     }),
 
   // Oppdater OrganizationSetting (alle felter valgfrie, gjør upsert).

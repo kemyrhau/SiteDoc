@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
+import { useFirma } from "@/kontekst/firma-kontekst";
 import { Button, Input, Spinner } from "@sitedoc/ui";
 import { ArrowLeft } from "lucide-react";
 
@@ -42,9 +43,37 @@ export default function NyDagsseddelSide() {
   const [endAt, setEndAt] = useState("");
   const [beskrivelse, setBeskrivelse] = useState("");
   const [feil, setFeil] = useState<string | null>(null);
+  // Prefyll Fra/Til/pause fra firmaets KALENDER-EFFEKTIVE arbeidstid (paritet
+  // med mobil, som speiler samme kilde via hentEffektivArbeidstidLokal —
+  // respekterer sommertid/halvdag). `manueltEndret` sikrer at bruker-redigering
+  // ikke overskrives; ellers re-prefylles ved dato-endring (sommertid-grense).
+  const [manueltEndret, setManueltEndret] = useState(false);
+
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id ?? null;
 
   const { data: aktiviteter, isLoading: aktiviteterLaster } =
     trpc.timer.aktivitet.list.useQuery();
+
+  // Kalender-effektiv arbeidstid for valgt dato. Re-fetcher når `dato` endres.
+  const { data: effektiv } = trpc.organisasjon.hentEffektivArbeidstid.useQuery(
+    { organizationId: orgId ?? "", dato },
+    { enabled: !!orgId },
+  );
+
+  useEffect(() => {
+    if (manueltEndret) return;
+    if (effektiv) {
+      setStartAt(effektiv.startTid);
+      setEndAt(effektiv.sluttTid);
+      setPauseMin(effektiv.pauseMin);
+    } else if (!orgId) {
+      // Ingen firma-kontekst → fall tilbake til default-vindu.
+      setStartAt("07:00");
+      setEndAt("15:00");
+      setPauseMin(30);
+    }
+  }, [effektiv, orgId, manueltEndret]);
 
   const opprett = trpc.timer.dagsseddel.opprett.useMutation({
     onSuccess: (sheet) => {
@@ -165,7 +194,10 @@ export default function NyDagsseddelSide() {
               <Input
                 type="time"
                 value={startAt}
-                onChange={(e) => setStartAt(e.target.value)}
+                onChange={(e) => {
+                  setStartAt(e.target.value);
+                  setManueltEndret(true);
+                }}
               />
             </div>
             <div>
@@ -175,7 +207,10 @@ export default function NyDagsseddelSide() {
               <Input
                 type="time"
                 value={endAt}
-                onChange={(e) => setEndAt(e.target.value)}
+                onChange={(e) => {
+                  setEndAt(e.target.value);
+                  setManueltEndret(true);
+                }}
               />
             </div>
             <div>
@@ -186,7 +221,10 @@ export default function NyDagsseddelSide() {
                 type="number"
                 min={0}
                 value={pauseMin}
-                onChange={(e) => setPauseMin(parseInt(e.target.value || "0"))}
+                onChange={(e) => {
+                  setPauseMin(parseInt(e.target.value || "0"));
+                  setManueltEndret(true);
+                }}
               />
             </div>
           </div>

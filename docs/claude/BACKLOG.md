@@ -34,9 +34,9 @@ Oppdaget 2026-07-07 (Plan 2 nyNavigasjon-migrering). `prisma migrate status` mot
 
 `?nyNav=1` slår på flagget + persisterer i localStorage **uten rollesjekk** (`useNyNavigasjon.ts`), men AV-toggelen i brukermenyen finnes **kun for `sitedoc_admin`** (`Toppbar.tsx`/`mer.tsx`, `{erSitedocAdmin && …}`). Ikke-admin som havner på `?nyNav=1` (delt lenke, gammel test, tidligere admin-rolle) låses i redesignet uten synlig vei ut. Introdusert `7ee9d195` (2026-07-06), live prod via `0be103fa`. Lav kunde-risiko i dag (trigges kun av `?nyNav=1`), men MÅ fikses før pilot. Alternativer: (a) toggle for `company_admin`, (b) ikke-persistér for ikke-admin, (c) rolle-uavhengig «tilbake»-utvei.
 
-### 🟡 Web dagsseddel: auto-fyll Fra/Til (paritet mobil)
+### 🟢 Web dagsseddel: auto-fyll Fra/Til (paritet mobil) — IMPLEMENTERT 2026-07-08 (branch, venter merge)
 
-`apps/web/src/app/dashbord/timer/ny/page.tsx` skal prefylle Fra/Til fra org `standardStartTid`/`standardSluttTid` (default 07:00/15:00), slik mobil gjør via `StartSluttDagKort.genererForslag`. Flagg-uavhengig. Bygges på branch `fix/web-dagsseddel-autofyll` (2026-07-08).
+`apps/web/src/app/dashbord/timer/ny/page.tsx` prefyller Fra/Til/pause fra firmaets **kalender-effektive** arbeidstid (**Option A**, ikke rå defaults) — ny medlems-tilgjengelig tRPC-query `organisasjon.hentEffektivArbeidstid` som wrapper service-helperen (samme kilde som a2-prefyllet + mobil via `hentEffektivArbeidstidLokal`; respekterer sommertid/halvdag). Nøklet på Dato → re-fetch ved dato-endring; `manueltEndret` bevarer bruker-redigering; fallback 07:00/15:00/30 uten firma-kontekst. Flagg-uavhengig. Branch `fix/web-dagsseddel-autofyll`, venter cowork-gate + UI + merge.
 
 ### 🟡 Rename dokument i mapper + `confirm()`→modal (develop, etter generalprøve)
 
