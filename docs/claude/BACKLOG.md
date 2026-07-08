@@ -34,9 +34,18 @@ Oppdaget 2026-07-07 (Plan 2 nyNavigasjon-migrering). `prisma migrate status` mot
 
 `?nyNav=1` slår på flagget + persisterer i localStorage **uten rollesjekk** (`useNyNavigasjon.ts`), men AV-toggelen i brukermenyen finnes **kun for `sitedoc_admin`** (`Toppbar.tsx`/`mer.tsx`, `{erSitedocAdmin && …}`). Ikke-admin som havner på `?nyNav=1` (delt lenke, gammel test, tidligere admin-rolle) låses i redesignet uten synlig vei ut. Introdusert `7ee9d195` (2026-07-06), live prod via `0be103fa`. Lav kunde-risiko i dag (trigges kun av `?nyNav=1`), men MÅ fikses før pilot. Alternativer: (a) toggle for `company_admin`, (b) ikke-persistér for ikke-admin, (c) rolle-uavhengig «tilbake»-utvei.
 
-### 🟢 Web dagsseddel: auto-fyll Fra/Til (paritet mobil) — IMPLEMENTERT 2026-07-08 (branch, venter merge)
+### 🟢 Web dagsseddel: auto-fyll Fra/Til (paritet mobil) — MERGET develop 2026-07-08 (`cd58853a`, venter UI-verifisering + prod)
 
-`apps/web/src/app/dashbord/timer/ny/page.tsx` prefyller Fra/Til/pause fra firmaets **kalender-effektive** arbeidstid (**Option A**, ikke rå defaults) — ny medlems-tilgjengelig tRPC-query `organisasjon.hentEffektivArbeidstid` som wrapper service-helperen (samme kilde som a2-prefyllet + mobil via `hentEffektivArbeidstidLokal`; respekterer sommertid/halvdag). Nøklet på Dato → re-fetch ved dato-endring; `manueltEndret` bevarer bruker-redigering; fallback 07:00/15:00/30 uten firma-kontekst. Flagg-uavhengig. Branch `fix/web-dagsseddel-autofyll`, venter cowork-gate + UI + merge.
+`apps/web/src/app/dashbord/timer/ny/page.tsx` prefyller Fra/Til/pause fra firmaets **kalender-effektive** arbeidstid (**Option A**, ikke rå defaults) — ny medlems-tilgjengelig tRPC-query `organisasjon.hentEffektivArbeidstid` som wrapper service-helperen (samme kilde som a2-prefyllet + mobil via `hentEffektivArbeidstidLokal`; respekterer sommertid/halvdag). Nøklet på Dato → re-fetch ved dato-endring; `manueltEndret` bevarer bruker-redigering; fallback 07:00/15:00/30 uten firma-kontekst. Flagg-uavhengig. Merget develop (`cd58853a`); venter UI-verifisering + prod-deploy.
+
+### 🟡 Timer web-vs-mobil paritet (app = fasit) — sammenligning + fiks
+
+Web timer-flater divergerer fra mobil-appen (**app = fasit**). Systematisk felt-for-felt-sammenligning gjenstår. Kjente divergenser (Kenneth-testing test 2026-07-08):
+
+- **Eksisterende dagsseddel:** web «Ny dagsseddel» gir kun feilmelding «Du har allerede en dagsseddel for denne datoen» (P2002, `dagsseddel.ts:617-620`) — leder IKKE til eksisterende sedel. Skal redirecte/lenke (mobil-atferd).
+- **Rediger timer-rad:** web-modal mangler Prosjekt + Fra kl./Til kl. som mobil har.
+
+Develop-scope, flagg-uavhengig. Neste: full felt-for-felt-sammenligning → scope fikser.
 
 ### 🟡 Rename dokument i mapper + `confirm()`→modal (develop, etter generalprøve)
 
