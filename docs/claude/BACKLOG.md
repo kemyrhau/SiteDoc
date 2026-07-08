@@ -40,12 +40,80 @@ Oppdaget 2026-07-07 (Plan 2 nyNavigasjon-migrering). `prisma migrate status` mot
 
 ### 🟡 Timer web-vs-mobil paritet (app = fasit) — sammenligning + fiks
 
-Web timer-flater divergerer fra mobil-appen (**app = fasit**). Systematisk felt-for-felt-sammenligning gjenstår. Kjente divergenser (Kenneth-testing test 2026-07-08):
+Web timer-flater divergerer fra mobil-appen (**app = fasit**). Systematisk
+felt-for-felt-sammenligning gjennomført 2026-07-08 (Opus, to parallelle
+kartlegginger av arbeider-vendte flater på begge plattformer). Divergens-listen
+D1–D9 under. **Develop-scope, flagg-uavhengig.**
 
-- **Eksisterende dagsseddel:** web «Ny dagsseddel» gir kun feilmelding «Du har allerede en dagsseddel for denne datoen» (P2002, `dagsseddel.ts:617-620`) — leder IKKE til eksisterende sedel. Skal redirecte/lenke (mobil-atferd).
-- **Rediger timer-rad:** web-modal mangler Prosjekt + Fra kl./Til kl. som mobil har.
+**Bekreftede kjente divergenser (Kenneth-testing 2026-07-08):**
 
-Develop-scope, flagg-uavhengig. Neste: full felt-for-felt-sammenligning → scope fikser.
+- **D1 — Ny dagsseddel på opptatt dato.** Mobil `finnEllerOpprettDagsseddel`
+  er idempotent på `(userId, dato)` → åpner eksisterende sedel, bærer
+  prosjektvalget, subtil «dagen fantes alt»-notis (`dagsseddelOpprett.ts:59-131`,
+  `ny.tsx:203-206`). Web har ingen duplikat-sjekk — rå server-P2002 vises i
+  `onError` (`timer/ny/page.tsx:53,210`; server `dagsseddel.ts:617-620`). Skal
+  redirecte/åpne eksisterende.
+- **D2 — Rediger timer-rad (arbeiderens modal).** Mobil `TimerRadModal`:
+  Prosjekt\*, Lønnsart\*, Aktivitet\*, Antall\*, Fra/til-tid, ECO, beskrivelse
+  (`TimerSeksjon.tsx:726-820`). Web `TimerRadDialog` mangler **Prosjekt + Fra/til**
+  (`timer/[id]/page.tsx:1100-1372`).
+
+**Nye divergenser (web mangler ift. mobil):**
+
+- **D3 — Ingen pause-bevisst tidsberegning på web timer-rad.** Mobil auto-synker
+  fra/til ↔ antall med pausefradrag (`effektiveTimerFraSpenn`/`tilFraAntall`,
+  `apps/mobile/src/utils/pauseBeregning.ts`) + validerer antall = spenn − pause.
+  Web-arbeider skriver kun antall direkte. Logikken er i dag **mobil-only** —
+  må løftes til `@sitedoc/shared` (som `utils/maskinKapasitet.ts`) for web-gjenbruk.
+- **D4 — Tillegg-rad: web kan ikke laste opp kvittering.** Mobil har kamera/galleri
+  med offline-kø (`TilleggSeksjon.tsx:267-419,567-580`). Web `TilleggRadDialog` har
+  ingen opplasting — vedlegg vises kun read-only (`timer/[id]/page.tsx:959-977`).
+- **D5 — Maskinførerbevis-varsel vises ikke til arbeider på web.** Mobil varsler
+  arbeideren (T.11, amber) i maskin-seksjonen (`MaskinSeksjon.tsx:199-208`). Web
+  viser det kun i attesterings-flaten (leder).
+- **D6 — Topp-sum «maskin ≤ arbeid» mangler pause-buffer på web arbeider-detalj.**
+  Mobil + web-attestering bruker delt `maskinKapasitet` (med pause-buffer). Web
+  arbeider-`EcoGruppe` bruker `sumMaskin <= sumTimer + 0.001` uten buffer
+  (`timer/[id]/page.tsx:728`) → samme sedel kan vise rød for arbeider, grønn for
+  attestør.
+- **D7 — Ny dagsseddel: web mangler prosjektvalg + GPS-forslag + dagstotal-banner.**
+  Mobil `ny.tsx` krever Prosjekt\* (m/ GPS-geoforslag ≤500 m) + `DagstotalBanner`
+  (`ny.tsx:104-156,229-301`). Web `ny/page.tsx` har kun Dato + Aktivitet + arbeidstid.
+  **D7 VEDTATT 2026-07-08 (Kenneth): match mobil — krev Prosjekt ved
+  dagsseddel-opprettelse (web fra dato-only → prosjekt-per-sedel, mobil-modell).**
+  Krever IKKE server-migrering: `DailySheet` forblir projectId-løst (T.1), prosjekt
+  persisteres per rad på `SheetTimer.projectId`. «Sedel-prosjekt» er UI/session-konsept
+  (default for rader + forhåndsåpnet prosjektgruppe via `?nyttProsjekt=`), akkurat som
+  mobils lokale `daily_sheets.projectId` (usynket bekvemmelighetsfelt). GPS-forslag +
+  dagstotal-banner tas som del av samme runde.
+- **D8 — «Mine timer»-oversikt: opprett-inngang + kladd-påminnelse.** Mobil har
+  samlet sedel-liste med FAB «ny», ukesum og kladd-påminnelse for gamle utkast
+  (`DagsseddelListe.tsx:108-149,198-203`). Web `dashbord/timer/mine` er ren rapport
+  uten «Ny»-knapp; sedel-lista med opprett bor i prosjekt-kontekst. Ingen
+  kladd-påminnelse. Samordnes med redesign-nav FM5.
+
+**Sporet separat:**
+
+- **D9 — Dagsnorm-sesongjustering.** Mobil: sesongjustert `effektiv.dagsnorm`
+  (kalender-cache m/ sommertid). Web: flat `OrganizationSetting.dagsnorm`. Krever
+  server-endepunkt for sesongjustert dagsnorm til web. **Tracket som egen rad** (se
+  «Topp-sum farge-paritet-gap web vs mobil» lenger ned). Ikke i denne runden.
+
+**Motsatt retning (mobil bak web — ikke web-fix, notert for bevissthet):**
+
+- Attestering: web har edit-modus, ECO-flytting, splitt-rad, «Attester gruppe»
+  (bulk) og read-only Attestert-fane. Mobil er ren checkbox-attestering uten
+  redigering. Mobil-gap.
+- Utlegg: finnes ikke på noen plattform — paritet, ingen handling.
+
+**Rot-årsak-klynge:** D2/D4/D5/D7 deler samme rot — web-rad-dialogene mangler
+Prosjekt-felt fordi web gikk til dato-only-sedler (prosjekt via gruppering), mens
+mobil har prosjekt i hver rad-modal.
+
+**Foreslått rekkefølge (fiks-plan gates av cowork før implementasjon):**
+D7 (prosjektmodell-fundament, ingen migrering) → D1 (bygger på naviger-med-prosjekt)
+→ D2 (rad-dialogene arver sedel-prosjekt + får Fra/til) → D3 (løft pauseBeregning til
+shared) → D4 → D5 → D6 → D8. D9 separat.
 
 ### 🟡 Maskin/bil på timer-rad — utledet tid + fler-maskin-modal (idé i kø)
 
