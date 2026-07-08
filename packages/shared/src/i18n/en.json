@@ -212,6 +212,7 @@
   "timer.vedlegg.venterOpplasting": "Waiting to upload",
   "timer.vedlegg.ingen": "No attachments",
   "timer.vedlegg.lagreForst": "Save the row first to attach a receipt.",
+  "timer.vedlegg.laster": "Uploading …",
   "timer.felt.maskin": "Machine (maintenance)",
   "timer.internt": "Internal",
   "timer.feil.ingenAktivitet": "Select an activity before creating the daily sheet.",

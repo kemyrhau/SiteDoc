@@ -362,6 +362,17 @@ export default function DagsseddelDetaljSide() {
         </div>
       )}
 
+      {/* D5: maskinførerbevis-varsel til arbeider (T.11-paritet med mobil).
+          Informativt, aldri blokkerende. Kun når sedelen har maskin-rader. */}
+      {maskinRader.length > 0 && sheet.manglerMaskinforerbevis && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <p className="text-sm text-amber-900">
+            {t("timer.maskinforerbevis.arbeider")}
+          </p>
+        </div>
+      )}
+
       {/* Header-info — sedel-nivå */}
       <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
         <div className="mb-3 flex items-center justify-between">
@@ -444,6 +455,7 @@ export default function DagsseddelDetaljSide() {
                 };
               })}
               erRedigerbar={erRedigerbar}
+              pauseMin={sheet.pauseMin}
               onTilfoyTimer={(ecoId) =>
                 setAktivModal({ type: "timer", projectId, defaultEcoId: ecoId })
               }
@@ -647,6 +659,7 @@ function ProsjektGruppe({
   tillegg,
   ecoBuckets,
   erRedigerbar,
+  pauseMin,
   onTilfoyTimer,
   onTilfoyTillegg,
   onTilfoyMaskin,
@@ -659,6 +672,8 @@ function ProsjektGruppe({
   tillegg: TilleggRad[];
   ecoBuckets: EcoBucket[];
   erRedigerbar: boolean;
+  // D6: sedel-nivå pauseMin → maskin ≤ arbeid-buffer per bucket.
+  pauseMin: number;
   onTilfoyTimer: (ecoId: string | null) => void;
   onTilfoyTillegg: () => void;
   // Maskin-fra-til (2026-05-17): sender med timer-radene i bucket slik
@@ -704,6 +719,7 @@ function ProsjektGruppe({
             timer={bucket.timer}
             maskin={bucket.maskin}
             erRedigerbar={erRedigerbar}
+            pauseMin={pauseMin}
             onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId)}
             onTilfoyMaskin={() => onTilfoyMaskin(bucket.ecoId, bucket.timer)}
             onRedigerTimer={onRedigerTimer}
@@ -755,6 +771,7 @@ function EcoGruppe({
   timer,
   maskin,
   erRedigerbar,
+  pauseMin,
   onTilfoyTimer,
   onTilfoyMaskin,
   onRedigerTimer,
@@ -765,6 +782,7 @@ function EcoGruppe({
   timer: TimerRad[];
   maskin: MaskinRad[];
   erRedigerbar: boolean;
+  pauseMin: number;
   onTilfoyTimer: () => void;
   onTilfoyMaskin: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
@@ -773,7 +791,10 @@ function EcoGruppe({
   const { t } = useTranslation();
   const sumTimer = timer.reduce((acc, r) => acc + tilTall(r.timer), 0);
   const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
-  const maskinOk = sumMaskin <= sumTimer + 0.001;
+  // D6 (web-paritet): bruk delt overstigerMaskinTak MED pause-buffer — identisk
+  // med attestering (`attestering-buckets.tsx`) og server. Fjerner det tidligere
+  // «+ 0.001 uten buffer» som kunne vise rød for arbeider men grønn for attestør.
+  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, pauseMin);
 
   return (
     <div
@@ -1541,6 +1562,9 @@ function TilleggRadDialog({
   );
   const [kommentar, setKommentar] = useState<string>(rad?.kommentar ?? "");
   const [feil, setFeil] = useState<string | null>(null);
+  // D4 (web-paritet): kvittering-opplasting (mobil har kamera/galleri).
+  const [vedleggFeil, setVedleggFeil] = useState<string | null>(null);
+  const [lasterOpp, setLasterOpp] = useState(false);
 
   const valgt = tilleggKatalog?.find((x) => x.id === tilleggId);
   const erAvhuking = valgt?.type === "avhuking";
@@ -1560,6 +1584,64 @@ function TilleggRadDialog({
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
+
+  // D4: kvittering-vedlegg. Kun for en LAGRET rad (som mobil — «lagre først»).
+  const { data: vedleggListe } =
+    trpc.timer.dagsseddel.listTilleggVedlegg.useQuery(
+      { sheetId },
+      { enabled: !!rad },
+    );
+  const radVedlegg = (
+    (vedleggListe ?? []) as unknown as Array<{
+      id: string;
+      fileUrl: string;
+      fileName: string;
+      sheetTilleggId: string;
+    }>
+  ).filter((v) => v.sheetTilleggId === rad?.id);
+
+  const invaliderVedlegg = () => {
+    utils.timer.dagsseddel.listTilleggVedlegg.invalidate({ sheetId });
+    utils.timer.dagsseddel.hentMedId.invalidate();
+  };
+  const tilfoyVedlegg = trpc.timer.dagsseddel.tilfoyTilleggVedlegg.useMutation({
+    onSuccess: invaliderVedlegg,
+    onError: (e: { message: string }) => setVedleggFeil(e.message),
+  });
+  const fjernVedlegg = trpc.timer.dagsseddel.fjernTilleggVedlegg.useMutation({
+    onSuccess: invaliderVedlegg,
+    onError: (e: { message: string }) => setVedleggFeil(e.message),
+  });
+
+  async function handleVedleggValgt(e: React.ChangeEvent<HTMLInputElement>) {
+    const fil = e.target.files?.[0];
+    e.target.value = "";
+    if (!fil || !rad) return;
+    setVedleggFeil(null);
+    setLasterOpp(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", fil);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setVedleggFeil(err.error ?? t("timer.feil.ugyldigInput"));
+        return;
+      }
+      const opplastet = await res.json();
+      await tilfoyVedlegg.mutateAsync({
+        sheetTilleggId: rad.id,
+        fileUrl: opplastet.fileUrl,
+        fileName: fil.name,
+        mimeType: fil.type || "application/octet-stream",
+        fileSize: opplastet.fileSize ?? fil.size,
+      });
+    } catch {
+      setVedleggFeil(t("timer.feil.ugyldigInput"));
+    } finally {
+      setLasterOpp(false);
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1640,6 +1722,61 @@ function TilleggRadDialog({
             value={kommentar}
             onChange={(e) => setKommentar(e.target.value)}
           />
+        </div>
+        {/* D4: kvittering-vedlegg (mobil-paritet). Kun på lagret rad. */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.vedlegg.tittel")}{" "}
+            <span className="text-xs text-gray-400">
+              ({t("label.valgfritt")})
+            </span>
+          </label>
+          {!rad ? (
+            <p className="text-xs text-gray-500">
+              {t("timer.vedlegg.lagreForst")}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {radVedlegg.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {radVedlegg.map((v) => (
+                    <div key={v.id} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api${v.fileUrl}`}
+                        alt={v.fileName}
+                        className="h-16 w-16 rounded border border-gray-200 object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fjernVedlegg.mutate({ id: v.id })}
+                        className="absolute -right-1.5 -top-1.5 rounded-full bg-white p-0.5 text-gray-500 shadow hover:text-red-600"
+                        title={t("handling.fjern")}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                <Plus className="h-4 w-4" />
+                {lasterOpp
+                  ? t("timer.vedlegg.laster")
+                  : t("timer.vedlegg.leggTil")}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={lasterOpp}
+                  onChange={handleVedleggValgt}
+                />
+              </label>
+              {vedleggFeil && (
+                <p className="text-sm text-red-600">{vedleggFeil}</p>
+              )}
+            </div>
+          )}
         </div>
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">

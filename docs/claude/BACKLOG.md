@@ -45,9 +45,10 @@ felt-for-felt-sammenligning gjennomført 2026-07-08 (Opus, to parallelle
 kartlegginger av arbeider-vendte flater på begge plattformer). Divergens-listen
 D1–D9 under. **Develop-scope, flagg-uavhengig.**
 
-**Fremdrift:** Bolk (a) = D7 + D1 + D2 + D3 **implementert 2026-07-09** på branch
-`feature/timer-web-paritet-a` (venter cowork-gate + merge). Bolk (b) = D4 + D5 +
-D6. Bolk (c) = D8. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
+**Fremdrift:** Bolk (a) = D7 + D1 + D2 + D3 **merget develop 2026-07-09**
+(`b3230944`, byggverifisert). Bolk (b) = D4 + D5 + D6 **implementert 2026-07-09**
+på branch `feature/timer-web-paritet-b` (venter cowork-gate + merge). Bolk (c) =
+D8. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
 
 **Bekreftede kjente divergenser (Kenneth-testing 2026-07-08):**
 
@@ -80,14 +81,20 @@ D6. Bolk (c) = D8. GPS-geoforslag splittet ut til egen rad (se under). D9 separa
 - **D4 — Tillegg-rad: web kan ikke laste opp kvittering.** Mobil har kamera/galleri
   med offline-kø (`TilleggSeksjon.tsx:267-419,567-580`). Web `TilleggRadDialog` har
   ingen opplasting — vedlegg vises kun read-only (`timer/[id]/page.tsx:959-977`).
+  **✅ Bolk (b):** kvittering-seksjon i `TilleggRadDialog` — `FormData` →
+  `/api/upload` → `tilfoyTilleggVedlegg`; thumbnails + fjern (`fjernTilleggVedlegg`).
+  Kun på lagret rad («lagre først»-hint ellers, som mobil).
 - **D5 — Maskinførerbevis-varsel vises ikke til arbeider på web.** Mobil varsler
   arbeideren (T.11, amber) i maskin-seksjonen (`MaskinSeksjon.tsx:199-208`). Web
-  viser det kun i attesterings-flaten (leder).
+  viser det kun i attesterings-flaten (leder). **✅ Bolk (b):** `hentMedId`
+  eksponerer `manglerMaskinforerbevis` (via `harGyldigMaskinforerbevis`); amber
+  info-banner i arbeider-detalj når sedelen har maskin-rader.
 - **D6 — Topp-sum «maskin ≤ arbeid» mangler pause-buffer på web arbeider-detalj.**
   Mobil + web-attestering bruker delt `maskinKapasitet` (med pause-buffer). Web
   arbeider-`EcoGruppe` bruker `sumMaskin <= sumTimer + 0.001` uten buffer
   (`timer/[id]/page.tsx:728`) → samme sedel kan vise rød for arbeider, grønn for
-  attestør.
+  attestør. **✅ Bolk (b):** `EcoGruppe` bruker delt `overstigerMaskinTak`
+  (m/ pause-buffer), `pauseMin` tres fra sedel; `+ 0.001`-uten-buffer fjernet.
 - **D7 — Ny dagsseddel: web mangler prosjektvalg + GPS-forslag + dagstotal-banner.**
   Mobil `ny.tsx` krever Prosjekt\* (m/ GPS-geoforslag ≤500 m) + `DagstotalBanner`
   (`ny.tsx:104-156,229-301`). Web `ny/page.tsx` har kun Dato + Aktivitet + arbeidstid.
@@ -129,8 +136,8 @@ mobil har prosjekt i hver rad-modal.
 **Bolk-struktur (kortlevde brancher, én bolk om gangen, fersk fra develop):**
 - **Bolk (a) — ✅ implementert (branch, venter gate/merge):** D7 + D1 + D2 + D3.
   Prosjekt-per-sedel-fundament + hel rad-paritet (prosjekt + fra/til + pause-calc).
-- **Bolk (b):** D4 (tillegg-kvittering) + D5 (maskinførerbevis-varsel) + D6
-  (maskin-buffer). Uavhengige — kan gates enkeltvis.
+- **Bolk (b) — ✅ implementert (branch `feature/timer-web-paritet-b`, venter gate/merge):**
+  D4 (tillegg-kvittering) + D5 (maskinførerbevis-varsel) + D6 (maskin-buffer).
 - **Bolk (c):** D8 («Mine timer»-inngang + kladd-påminnelse).
 - **Separat:** D9 (sesong-dagsnorm) + GPS-geoforslag (egen rad under).
 

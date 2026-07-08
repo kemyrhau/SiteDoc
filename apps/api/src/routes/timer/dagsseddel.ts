@@ -589,7 +589,21 @@ export const dagsseddelRouter = router({
         ...t,
         vedlegg: vedlegg.filter((v) => v.sheetTilleggId === t.id),
       }));
-      return { ...sheet, aktivitet, timer, tillegg: tilleggMedVedlegg, maskiner, prosjekt };
+      // D5 (web-paritet 2026-07-09): eksponer maskinførerbevis-status til
+      // arbeideren (mobil T.11 varsler arbeideren; web viste det kun i
+      // attestering). Informativt, aldri blokkerende. Kun relevant m/ maskin-rader.
+      const manglerMaskinforerbevis =
+        maskiner.length > 0 &&
+        !(await harGyldigMaskinforerbevis(sheet.userId, sheet.organizationId));
+      return {
+        ...sheet,
+        aktivitet,
+        timer,
+        tillegg: tilleggMedVedlegg,
+        maskiner,
+        prosjekt,
+        manglerMaskinforerbevis,
+      };
     }),
 
   opprett: protectedProcedure
