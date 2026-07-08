@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
+import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
 import { useInnstillingerKort } from "@/lib/innstillinger-kort";
 import {
   kontakterElement,
@@ -46,6 +47,7 @@ export function normaliserSok(s: string): string {
 export function useSokRegistry(): SokTreff[] {
   const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
+  const nyNav = useNyNavigasjon();
   const { firmaKort, prosjektKort } = useInnstillingerKort();
   const { filtrertHovedelementer } = useSidebarElementer();
   const firmaNav = useFirmaNavElementer();
@@ -71,6 +73,13 @@ export function useSokRegistry(): SokTreff[] {
         norm: normaliserSok([tittel, ...brodsmule].join(" ")),
       });
     };
+
+    // Hub-treff under flagg-på: søk på «innstillinger» skal lande på den nye
+    // innstillings-hubben — ikke den gamle firma-innstillinger-siden (F3). Alltid
+    // synlig (hubben er nåbar for alle), uavhengig av firma-admin-gating under.
+    if (nyNav) {
+      legg("inn:hub", "innstillinger", t("nav.innstillinger"), [], "/dashbord/innstillinger");
+    }
 
     // INNSTILLINGER — hver synlig underlenke er eget treff (chip-nivå).
     for (const kort of [...firmaKort, ...prosjektKort]) {
@@ -102,9 +111,13 @@ export function useSokRegistry(): SokTreff[] {
       legg("side:mine-timer", "sider", t(mineTimer.labelKey), [t("sok.minSide")], "/dashbord/timer/mine");
     }
     for (const el of firmaNav) {
+      // Under flagg-på erstatter hubben den gamle innstillinger-roten — dropp
+      // firma-nav-treffet dit, så «innstillinger» ikke lander på gammel side
+      // (hub-treffet over dekker den). Integrasjoner + øvrige firma-sider beholdes.
+      if (nyNav && el.href === "/dashbord/firma/innstillinger") continue;
       legg(`side:${el.href}`, "sider", t(el.labelKey), [soneLabel("firma")], el.href);
     }
 
     return treff;
-  }, [firmaKort, prosjektKort, filtrertHovedelementer, firmaNav, prosjektId, t]);
+  }, [firmaKort, prosjektKort, filtrertHovedelementer, firmaNav, prosjektId, nyNav, t]);
 }

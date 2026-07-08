@@ -66,6 +66,46 @@ ikke var kjørt/synlig — veiledningen skal gjøre slike forutsetnings-steg tyd
 ikke timer-spesifikt. Koble til eksisterende idé-docs: onboarding-veileder.md,
 prosjektoppsett-veileder.md.
 
+### 🟡 Dokumentflyt-redesign (mobil + web) — eget fremtidig designtema
+
+**Notat (Kenneth, 2026-07-08):** Kenneths begrepskrav — «faggrupper er en del av
+dokumentflyt, ikke egen funksjon» — er dokumentert i redesign-handoff-README.
+Den nye read-only mobil-skjermen (`apps/mobile/app/dokumentflyt.tsx`, F2-fiks fra
+generalprøven) er en **bro**, ikke et redesign: den viser prosjektets medlemsliste
+i to visninger (segmentkontroll) — «Etter faggruppe» (medlemmer per faggruppe med
+aggregert les/rediger + per-flyt-detalj ved trykk) og «Etter person» (navn/e-post/
+tlf) — uten CRUD. Full dokumentflyt-redesign (begrepsmodell, mobil-redigering,
+samkjøring web/mobil) er eget senere designtema — ikke startet.
+
+**Input til redesign-sesjonen:**
+- **Modell-uklarhet (viktig):** les/rediger (`kanRedigere`) er definert **per
+  dokumentflyt-medlemskap**, ikke per faggruppe — samme person kan være Redigerer
+  i én flyt og Leser i en annen innen samme faggruppe. Bro-skjermen aggregerer
+  «Redigerer hvis minst én flyt gir det» + per-flyt-detalj ved trykk. Tilgang via
+  brukergruppe (ikke direkte projectMember) ekspanderes ikke i broen. Redesignet
+  bør avklare hva «tilgang per faggruppe» egentlig skal bety.
+- **Konsolideringskandidat:** Kontakter-skjermen (`apps/mobile/app/kontakter.tsx`,
+  lenket fra `mer.tsx`, nyNav-gatet) overlapper med Dokumentflyt-skjermens
+  «Etter person»-visning (begge = read-only medlemsliste m/ tlf/e-post). Vurder å
+  slå dem sammen i redesignet. Ikke rørt nå (deployet kode rett før kunderunde).
+
+### 🟢 Kontakt-chip-fallback: kopier til utklippstavle (liten forbedring)
+
+**Notat (fabel, 2026-07-08):** Mobil kontakt-chips (`apnLenke` + `MiniToast` i
+`dokumentflyt.tsx`/`kontakter.tsx`) viser i dag en toast med verdien når `tel:`/
+`mailto:` ikke kan åpnes (f.eks. simulator uten Mail-app). Liten forbedring: kopier
+verdien til utklippstavlen og vis «Kopiert: {verdi}». Krever `expo install
+expo-clipboard` (Expo Go støtter det uten native rebuild). Utsatt bevisst — ny
+avhengighet rett før kunderunden er feil timing for marginal gevinst. Ikke prioritert.
+
+### ❓ QR-funksjon i mobilapp — uavklart bruksområde
+
+**Notat (Kenneth, 2026-07-08):** «Skann QR»-raden i `apps/mobile/app/(tabs)/mer.tsx`
+ble fjernet sammen med de døde «Dokumentflyt»/«Grupper»-radene (F2, generalprøve) —
+den var en placeholder uten handler. QR er ikke aktuelt nå. Mulige fremtidsscenarier
+(PSI-innlogging, QR på maskiner) er uavklarte og dekkes evt. av telefonkameraet.
+Ikke en planlagt oppgave — kun notert så idéen ikke går tapt.
+
 ### ✅ i18n-duplikat: `timer.glemtDag.tittel` — RE-VERIFISERT IKKE-DUPLIKAT 2026-07-06
 
 **Opprinnelig påstand (2026-07-05):** `timer.glemtDag.tittel` skulle finnes to ganger i

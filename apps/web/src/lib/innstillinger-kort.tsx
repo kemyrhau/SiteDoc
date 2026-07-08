@@ -25,10 +25,13 @@ import {
   FileText,
   GitBranch,
   Sparkles,
+  Calendar,
+  Package,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
+import { useKanManageField } from "@/hooks/useKanManageField";
 
 export type Seksjon = "firma" | "prosjekt";
 
@@ -52,26 +55,13 @@ export function useInnstillingerKort(): {
   firmaKort: HubKort[];
   prosjektKort: HubKort[];
 } {
-  const { kanAdministrereFirma, valgtFirma, erSitedocAdmin, erCompanyAdmin } = useFirma();
+  const { kanAdministrereFirma, valgtFirma, erSitedocAdmin } = useFirma();
   const { prosjektId } = useProsjekt();
 
-  // Prosjekt-tillatelser (manage_field) speiler oppsett-sidebarens gating på
-  // produksjons-avledede kort (moduler/maler/dokumentflyt).
-  const { data: tillatelser } = trpc.gruppe.hentMineTillatelser.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-  // Speiler sidebarens admin/registrator-bypass (HovedSidebar: «admin/registrator ser alt»):
-  // sitedoc_admin/company_admin + prosjekt-admin/registrator ser produksjons-kortene
-  // (Moduler/Maler/Dokumentflyt/Mappeoppsett/PSI-mal) selv uten eksplisitt manage_field.
-  // sitedoc_admin/company_admin har typisk ingen ProjectMember-tillatelse → falt utenfor før.
-  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-  const flytErAdmin = (minFlytInfo as { erAdmin?: boolean } | undefined)?.erAdmin ?? false;
-  const kanManageField =
-    erSitedocAdmin || erCompanyAdmin || flytErAdmin || !!tillatelser?.includes("manage_field");
+  // Prosjekt-tillatelser (manage_field) — delt gating-hook (speiler oppsett-
+  // sidebarens admin/registrator-bypass). Ekstrahert til `useKanManageField`
+  // for gjenbruk (Mapper-sidens «Administrer mapper»-inngang).
+  const kanManageField = useKanManageField();
 
   // PSI-mal-oppsett (O10) gates på at PSI-modulen er aktiv på prosjektet —
   // speiler oppsett-sidebarens skjulte PSI-barn.
@@ -87,6 +77,7 @@ export function useInnstillingerKort(): {
   const firmamoduler = valgtFirma?.aktiveFirmamoduler ?? [];
   const harTimer = firmamoduler.includes("timer");
   const harMaskin = firmamoduler.includes("maskin");
+  const harVarelager = firmamoduler.includes("varelager");
 
   const firmaKort: HubKort[] = useMemo(
     () => [
@@ -131,6 +122,29 @@ export function useInnstillingerKort(): {
         ],
       },
       {
+        id: "kalender",
+        seksjon: "firma",
+        tittelKey: "innstillinger.kalender.tittel",
+        beskrivelseKey: "innstillinger.kalender.beskrivelse",
+        ikon: <Calendar className="h-5 w-5" />,
+        synlig: kanAdministrereFirma,
+        underlenker: [
+          { labelKey: "innstillinger.lenke.kalender", href: "/dashbord/firma/kalender" },
+        ],
+      },
+      {
+        id: "varelager",
+        seksjon: "firma",
+        tittelKey: "innstillinger.varelager.tittel",
+        beskrivelseKey: "innstillinger.varelager.beskrivelse",
+        ikon: <Package className="h-5 w-5" />,
+        synlig: kanAdministrereFirma && harVarelager,
+        underlenker: [
+          { labelKey: "innstillinger.lenke.varelagerKatalog", href: "/dashbord/firma/varelager" },
+          { labelKey: "innstillinger.lenke.varelagerImport", href: "/dashbord/firma/varelager/import" },
+        ],
+      },
+      {
         id: "timer",
         seksjon: "firma",
         tittelKey: "innstillinger.timer.tittel",
@@ -168,7 +182,7 @@ export function useInnstillingerKort(): {
         ],
       },
     ],
-    [kanAdministrereFirma, erSitedocAdmin, harTimer, harMaskin],
+    [kanAdministrereFirma, erSitedocAdmin, harTimer, harMaskin, harVarelager],
   );
 
   const prosjektKort: HubKort[] = useMemo(() => {

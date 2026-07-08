@@ -19,6 +19,7 @@ import {
   BookOpen,
   Globe,
   ChevronRight,
+  FolderPlus,
 } from "lucide-react";
 import Link from "next/link";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
@@ -27,6 +28,7 @@ import type { MappeTilgangInput, BrukerTilgangInfo } from "@sitedoc/shared/utils
 import { useTranslation } from "react-i18next";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
+import { useKanManageField } from "@/hooks/useKanManageField";
 import { OversettelsePanel } from "./OversettelsePanel";
 
 /**
@@ -99,6 +101,7 @@ export default function MapperSide() {
   useToppbarFiltre({ byggeplass: false });
   const { t } = useTranslation();
   const nyNav = useNyNavigasjon();
+  const kanManageField = useKanManageField();
   const [visOversettelse, setVisOversettelse] = useState(false);
   const { prosjektId } = useProsjekt();
   const { data: session } = useSession();
@@ -402,6 +405,15 @@ export default function MapperSide() {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
+        {nyNav && kanManageField && (
+          <Link
+            href="/dashbord/oppsett/produksjon/box"
+            className="flex items-center gap-1.5 rounded border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            <FolderPlus className="h-4 w-4 text-sitedoc-primary" />
+            <span className="hidden sm:inline">{t("mapper.administrerMapper")}</span>
+          </Link>
+        )}
         {nyNav && valgtMappeId && (
           <button
             onClick={() => setVisOversettelse((v) => !v)}
