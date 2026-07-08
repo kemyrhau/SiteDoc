@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Rrjedha e dokumentit",
   "innstillinger.lenke.aiSok": "Kërkimi i AI",
   "innstillinger.lenke.mappeoppsett": "Konfigurimi i dosjes",
-  "innstillinger.lenke.psiMal": "Modeli PSI"
+  "innstillinger.lenke.psiMal": "Modeli PSI",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "Break starts after (hours)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "How many hours into the shift the break starts. E.g. 4 h → a 07:00 start puts the break at 11:00. Works for night shifts too (21:00 start → 01:00).",
+  "timer.feil.timerAvvik": "The number of hours does not match the time span (expected {{forventet}} h). Adjust from/to or the hours.",
+  "timer.pauseFradrag": "−{{min}} min lunch break deducted"
 }

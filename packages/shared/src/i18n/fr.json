@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Flux de documents",
   "innstillinger.lenke.aiSok": "Recherche IA",
   "innstillinger.lenke.mappeoppsett": "Configuration du dossier",
-  "innstillinger.lenke.psiMal": "Modèle PSI"
+  "innstillinger.lenke.psiMal": "Modèle PSI",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "La pause commence après (heures)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "Combien d'heures après le début du quart de travail commence la pause. Par ex. 4h → un départ à 07h00 met la pause à 11h00. Fonctionne également pour les équipes de nuit (début 21h00 → 01h00).",
+  "timer.feil.timerAvvik": "Le nombre d'heures ne correspond pas à la période (attendue {{forventet}} h). Ajustez de/à ou les heures.",
+  "timer.pauseFradrag": "−{{min}} min de pause déjeuner déduite"
 }

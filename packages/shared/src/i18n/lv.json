@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Dokumentu plūsma",
   "innstillinger.lenke.aiSok": "AI meklēšana",
   "innstillinger.lenke.mappeoppsett": "Mapes iestatīšana",
-  "innstillinger.lenke.psiMal": "PSI veidne"
+  "innstillinger.lenke.psiMal": "PSI veidne",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "Pārtraukums sākas pēc (stundas)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "Cik stundas pēc maiņas sākas pārtraukums. Piem. 4 h → sākums 07:00 liek pārtraukumu 11:00. Strādā arī nakts maiņās (21:00 sākums → 01:00).",
+  "timer.feil.timerAvvik": "Stundu skaits neatbilst laika posmam (paredzamā {{forventet}} h). Pielāgojiet no/līdz vai stundas.",
+  "timer.pauseFradrag": "− {{min}} min pusdienu pārtraukums"
 }

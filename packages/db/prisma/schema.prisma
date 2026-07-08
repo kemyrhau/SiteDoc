@@ -270,10 +270,13 @@ model OrganizationSetting {
   standardStartTid String @default("07:00") @map("standard_start_tid")
   standardSluttTid String @default("15:00") @map("standard_slutt_tid")
   standardPauseMin Int    @default(30)      @map("standard_pause_min")
-  // 2026-05-28: nullable HH:MM. Når satt brukes som default pause-start i
-  // RedigerRadModal.togglePause hvis vinduet [standardPauseFra,
-  // standardPauseFra+standardPauseMin] ligger innenfor rad-intervallet.
-  // Tom = eksisterende midtpunkt-fallback. Bakover-kompatibilitet bevart.
+  // 2026-07-08: pausevindu regnes nå relativt til skiftets start:
+  //   [skiftStart + standardPauseEtterTimer, + standardPauseMin].
+  // Default 4,0 t → 07:00-start gir 11:00–11:30 (ingen regresjon). Fungerer også
+  // for nattskift (21:00-start → 01:00–01:30) der et fast klokkeslett var meningsløst.
+  standardPauseEtterTimer Float @default(4.0) @map("standard_pause_etter_timer")
+  // DEPRECATED 2026-07-08 (to-stegs migrering): erstattet av standardPauseEtterTimer.
+  // Beholdes til data er migrert; droppes i senere release. Nullable HH:MM.
   standardPauseFra String? @map("standard_pause_fra")
 
   // Reise-regelsett (Fase 3 / T.10 § B) — firmainnstilling, ikke regelmotor.

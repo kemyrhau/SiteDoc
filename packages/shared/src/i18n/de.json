@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Dokumentenfluss",
   "innstillinger.lenke.aiSok": "KI-Suche",
   "innstillinger.lenke.mappeoppsett": "Ordnereinrichtung",
-  "innstillinger.lenke.psiMal": "PSI-Vorlage"
+  "innstillinger.lenke.psiMal": "PSI-Vorlage",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "Pause beginnt nach (Stunden)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "Wie viele Stunden nach Beginn der Schicht beginnt die Pause? Z.B. 4 Stunden → Bei einem Start um 07:00 Uhr ist die Pause um 11:00 Uhr. Funktioniert auch für Nachtschichten (Beginn 21:00 → 01:00).",
+  "timer.feil.timerAvvik": "Die Anzahl der Stunden stimmt nicht mit der Zeitspanne überein (erwartete {{forventet}} h). Passen Sie von/bis oder die Stunden an.",
+  "timer.pauseFradrag": "−{{min}} min Mittagspause abgezogen"
 }

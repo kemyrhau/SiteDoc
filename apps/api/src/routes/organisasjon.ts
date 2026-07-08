@@ -805,8 +805,9 @@ export const organisasjonRouter = router({
           standardStartTid: true,
           standardSluttTid: true,
           standardPauseMin: true,
-          // 2026-05-28: firma-default for pause-start (HH:MM, nullable).
-          // Brukes av RedigerRadModal.togglePause når vinduet ligger innenfor rad-intervallet.
+          // 2026-07-08: pausevindu = skiftstart + standardPauseEtterTimer (t).
+          standardPauseEtterTimer: true,
+          // DEPRECATED — beholdes til data er migrert (to-stegs). Brukes ikke lenger av klienten.
           standardPauseFra: true,
           tillattRedigerVedAttestering: true,
           // T.5 (2026-05-16): mobil-cache trenger feltet for å avrunde picker-input.
@@ -856,8 +857,11 @@ export const organisasjonRouter = router({
         // Slice 4b-2 (2026-06-21): arbeidstids-varsel-terskel (timer per
         // dagsseddel). 13 default (AML § 10-6), firma hever til 16 ved tariff.
         arbeidstidVarselTimer: z.number().int().min(1).max(24).optional(),
-        // 2026-05-28: firma-default for pause-start (HH:MM). null = nullstill,
-        // ingen verdi = uendret. Brukes av RedigerRadModal.togglePause.
+        // 2026-07-08: pausevindu starter etter X timer inn i skiftet (relativt
+        // til skiftstart). 0–12 t. Erstatter standardPauseFra.
+        standardPauseEtterTimer: z.number().min(0).max(12).optional(),
+        // DEPRECATED 2026-07-08 (to-stegs migrering) — skrives ikke lenger fra
+        // UI. Zod beholdt for bakover-kompat til feltet droppes.
         standardPauseFra: z
           .union([
             z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Forventet HH:MM (00:00–23:59)"),

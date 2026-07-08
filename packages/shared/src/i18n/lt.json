@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Dokumentų srautas",
   "innstillinger.lenke.aiSok": "AI paieška",
   "innstillinger.lenke.mappeoppsett": "Aplanko nustatymas",
-  "innstillinger.lenke.psiMal": "PSI šablonas"
+  "innstillinger.lenke.psiMal": "PSI šablonas",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "Pertrauka prasideda po (val.)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "Kiek valandų po pamainos prasideda pertrauka. Pvz. 4 val. → 07:00 pradžia pertrauka 11:00. Dirba ir naktinėse pamainose (21:00 pradžia → 01:00).",
+  "timer.feil.timerAvvik": "Valandų skaičius neatitinka laiko intervalo (numatoma {{forventet}} val.). Koreguokite nuo/į arba valandas.",
+  "timer.pauseFradrag": "− Atskaičiuota {{min}} min pietų pertrauka"
 }

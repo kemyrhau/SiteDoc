@@ -26,6 +26,10 @@ server-ny melder «System restart required» + ~36 ventende pakke-oppdateringer 
 
 Oppdaget 2026-07-07 (Plan 2 nyNavigasjon-migrering). `prisma migrate status` mot lokal `sitedoc` **feiler (exit 1)**: lokal-DB har to init-migreringer i historikken som **ikke finnes som mapper** i repoet — `20260424001754_init` + `20260501131546_blokk_a_schema_reconciliation` (lokal-DB ble seedet med squashed/andre init-migreringer enn repo-mappene). Konsekvens: `migrate deploy`/`migrate dev` kjører **ikke rent lokalt**; `migrate dev` kan foreslå reset. **Kun lokalt** — test/redesign-stacken restaureres fra prod-dump og har korrekt/komplett historikk, så additive migreringer `migrate deploy`-er rent der (det reelle deploy-beviset). **Workaround lokalt:** anvend additive kolonner via direkte `ALTER`/`db push` for isolert lokal-bevis; verifiser migrerings-kjeden på test ved merge. Full opprydding (baseline-resolve lokal historikk) er egen sak — ikke blokkerende.
 
+### 🟡 `pauseVinduFra` midnatt-wrap ved direkte nattskift-rad
+
+`pauseVinduFra(skiftStart, etterTimer)` (`apps/mobile/src/utils/pauseBeregning.ts`) clamper via `minTilHhmm` til 23:59 samme dag. For nattskift som registreres **direkte** på en enkeltrad (Legg til/Rediger timer-rad) med skiftstart sent på kvelden vil pausevinduet regne feil: 21:00 + 4t = 25:00 → clampes til **23:59** i stedet for å wrappe til **01:00**. Gjelder **kun** enkeltrad-modalens pause-fradragsvisning; **1b auto-utkast er upåvirket** — det går klokka per segment med segmentets egen skiftstart, så nattskift-vinduet reconciler riktig der. Fiks: la `pauseVinduFra` wrappe over midnatt (mod 1440) i stedet for clamp, og la overlapp-beregningen håndtere døgn-kryssende vindu. Lav prioritet (arbeider på nattskift setter uansett tider manuelt). Flagget 2026-07-08 under pause-modell-omlegging (Piece 1).
+
 ### 🟢 Dagsseddel: dobbel timeføring (total-tid + per-prosjekt) — a2 LØST 2026-07-06 (a1 fremtidig)
 
 **Problem (Kenneth, 2026-07-05, prod-test):** Arbeideren førte først total

@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Tok dokumentů",
   "innstillinger.lenke.aiSok": "AI vyhledávání",
   "innstillinger.lenke.mappeoppsett": "Nastavení složky",
-  "innstillinger.lenke.psiMal": "PSI šablona"
+  "innstillinger.lenke.psiMal": "PSI šablona",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "Přestávka začíná po (hodinách)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "V kolika hodinách směny začíná přestávka. Např. 4 h → začátek v 07:00 znamená přestávku v 11:00. Pracuje i na noční směny (začátek 21:00 → 01:00).",
+  "timer.feil.timerAvvik": "Počet hodin neodpovídá časovému rozpětí (očekávané {{forventet}} h). Upravte od/do nebo hodiny.",
+  "timer.pauseFradrag": "−{{min}} min přestávky na oběd odečtena"
 }

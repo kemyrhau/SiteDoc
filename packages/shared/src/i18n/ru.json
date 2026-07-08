@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Документооборот",
   "innstillinger.lenke.aiSok": "AI-поиск",
   "innstillinger.lenke.mappeoppsett": "Настройка папки",
-  "innstillinger.lenke.psiMal": "PSI-шаблон"
+  "innstillinger.lenke.psiMal": "PSI-шаблон",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "Перерыв начинается через (часов)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "Через сколько часов после начала смены начинается перерыв. Например. 4 часа → начало в 07:00 означает перерыв в 11:00. Работает и в ночные смены (начало 21:00 → 01:00).",
+  "timer.feil.timerAvvik": "Количество часов не соответствует временному интервалу (ожидаемый {{forventet}} ч). Отрегулируйте от/до или часы.",
+  "timer.pauseFradrag": "−{{min}} мин обеденного перерыва вычитается"
 }

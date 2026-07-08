@@ -35,6 +35,14 @@ import type {
   Aktivitet,
   Underprosjekt,
 } from "../../types/timer-detalj";
+import {
+  DEFAULT_PAUSE_ETTER_TIMER,
+  effektiveTimerFraSpenn,
+  hhmmTilMin,
+  pauseOverlappMin,
+  pauseVinduFra,
+  tilFraAntall,
+} from "../../utils/pauseBeregning";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
 import { VelgerFelt } from "./VelgerFelt";
@@ -456,11 +464,28 @@ function TimerRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
-  // T.5: Hent firma-tidsrunding fra lokal cache. null = ingen runding.
-  const tidsrundingMinutter = useMemo(
-    () => hentOrganizationSettingLokalt(organizationId)?.tidsrundingMinutter ?? null,
-    [organizationId],
-  );
+  // T.5 + pause-synk: hent firma-innstillinger fra lokal cache.
+  //   - tidsrundingMinutter: null = ingen runding
+  //   - pauseEtterTimer/pauseMin: obligatorisk lunsjvindu (default 4,0 t inn i
+  //     skiftet / 30 min), brukes til pause-bevisst auto-synk antall ↔ fra/til.
+  const { tidsrundingMinutter, pauseEtterTimer, pauseMin } = useMemo(() => {
+    const setting = hentOrganizationSettingLokalt(organizationId);
+    return {
+      tidsrundingMinutter: setting?.tidsrundingMinutter ?? null,
+      pauseEtterTimer: setting?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER,
+      pauseMin: setting?.standardPauseMin ?? 30,
+    };
+  }, [organizationId]);
+
+  // Pausevindu = skiftstart + pauseEtterTimer. Skiftstart = dagens effektive
+  // arbeidstid-start (kalender-overstyring eller firma-default).
+  const pauseFra = useMemo(() => {
+    const skiftStart = hentEffektivArbeidstidLokal(
+      organizationId,
+      new Date(`${dato}T00:00:00`),
+    ).startTid;
+    return pauseVinduFra(skiftStart, pauseEtterTimer);
+  }, [organizationId, dato, pauseEtterTimer]);
 
   // T4-e: Beregn defaults for fraTid/tilTid ved opprettelse av ny rad.
   //   - Ny rad uten eksisterende rader: fraTid = effektiv.startTid, tilTid = effektiv.sluttTid
@@ -533,6 +558,55 @@ function TimerRadModal({
   const [visAktivitetVelger, setVisAktivitetVelger] = useState(false);
   const [visEcoVelger, setVisEcoVelger] = useState(false);
 
+  // Full auto-synk (pause-bevisst). Sist-rørte felt vinner:
+  //   - endrer fra/til → antall beregnes (spenn − pauseoverlapp)
+  //   - skriver antall → til beregnes (fra + antall, lunsj skjøvet inn)
+  // Ingen loop: hver handler setter det/de ANDRE feltene direkte (ikke via
+  // samme onChange).
+  const handterFraEndret = useCallback(
+    (hhmm: string) => {
+      setFraTid(hhmm);
+      if (tilTid) {
+        setTimer(
+          effektiveTimerFraSpenn(hhmm, tilTid, pauseFra, pauseMin).toFixed(2),
+        );
+      }
+    },
+    [tilTid, pauseFra, pauseMin],
+  );
+
+  const handterTilEndret = useCallback(
+    (hhmm: string) => {
+      setTilTid(hhmm);
+      if (fraTid) {
+        setTimer(
+          effektiveTimerFraSpenn(fraTid, hhmm, pauseFra, pauseMin).toFixed(2),
+        );
+      }
+    },
+    [fraTid, pauseFra, pauseMin],
+  );
+
+  const handterTimerEndret = useCallback(
+    (tekst: string) => {
+      setTimer(tekst);
+      const n = parseFloat(tekst.replace(",", "."));
+      if (fraTid && !isNaN(n) && n > 0 && n <= 24) {
+        setTilTid(tilFraAntall(fraTid, n, pauseFra, pauseMin));
+      }
+    },
+    [fraTid, pauseFra, pauseMin],
+  );
+
+  // Transparens: hvor mange minutter pause raden faktisk absorberer (0 = ingen).
+  const pauseOverlapp = useMemo(() => {
+    if (!fraTid || !tilTid) return 0;
+    const fm = hhmmTilMin(fraTid);
+    const tm = hhmmTilMin(tilTid);
+    if (tm <= fm) return 0;
+    return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), pauseMin);
+  }, [fraTid, tilTid, pauseFra, pauseMin]);
+
   const valgtProsjekt = useMemo(() => {
     return valgtProjectId ? finnProsjektLokalt(valgtProjectId) : null;
   }, [valgtProjectId]);
@@ -599,6 +673,16 @@ function TimerRadModal({
     if (!fraErForTil(fraTid, tilTid)) {
       setFeil(t("timer.feil.sluttForStart"));
       return;
+    }
+    // Pause-synk: når begge tider er satt MÅ antall stemme med (spenn − pause).
+    // Auto-synken holder dem i takt; dette er sikkerhetsnettet mot manuell
+    // desync (fjerner dagens stille avvik-bug).
+    if (fraTid && tilTid) {
+      const forventet = effektiveTimerFraSpenn(fraTid, tilTid, pauseFra, pauseMin);
+      if (Math.abs(forventet - tall) > 0.01) {
+        setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
+        return;
+      }
     }
     onLagre(
       valgtProjectId,
@@ -678,7 +762,7 @@ function TimerRadModal({
             </Text>
             <TextInput
               value={timer}
-              onChangeText={setTimer}
+              onChangeText={handterTimerEndret}
               placeholder="0,00"
               keyboardType="decimal-pad"
               inputAccessoryViewID={TASTATUR_FERDIG_ID}
@@ -687,14 +771,22 @@ function TimerRadModal({
           </View>
 
           {/* T4-e: Fra-/til-tid per rad. Forhåndsutfylling fra kalender +
-              forrige rads tilTid. T.5: avrunding via firma-setting. */}
-          <FraTilTidFelt
-            fraTid={fraTid}
-            tilTid={tilTid}
-            tidsrundingMinutter={tidsrundingMinutter}
-            onFraEndret={setFraTid}
-            onTilEndret={setTilTid}
-          />
+              forrige rads tilTid. T.5: avrunding via firma-setting.
+              Pause-synk: fra/til ↔ antall holdes i takt, pause-bevisst. */}
+          <View>
+            <FraTilTidFelt
+              fraTid={fraTid}
+              tilTid={tilTid}
+              tidsrundingMinutter={tidsrundingMinutter}
+              onFraEndret={handterFraEndret}
+              onTilEndret={handterTilEndret}
+            />
+            {pauseOverlapp > 0 && (
+              <Text className="mt-1 text-xs text-gray-500">
+                {t("timer.pauseFradrag", { min: pauseOverlapp })}
+              </Text>
+            )}
+          </View>
 
           {/* Underprosjekt (valgfritt) — Tilleggsarbeid, Endring m.fl. */}
           <View>

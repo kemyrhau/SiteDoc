@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Przepływ dokumentów",
   "innstillinger.lenke.aiSok": "Wyszukiwanie AI",
   "innstillinger.lenke.mappeoppsett": "Konfiguracja folderu",
-  "innstillinger.lenke.psiMal": "Szablon PSI"
+  "innstillinger.lenke.psiMal": "Szablon PSI",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "Przerwa rozpoczyna się po (godzinach)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "Po ilu godzinach zmiany zaczyna się przerwa. Np. 4 h → start o godzinie 07:00 powoduje przerwę o godzinie 11:00. Działa również na nocne zmiany (start 21:00 → 01:00).",
+  "timer.feil.timerAvvik": "Liczba godzin nie odpowiada przedziałowi czasowemu (oczekiwane {{forventet}} godz.). Ustaw od/do lub godziny.",
+  "timer.pauseFradrag": "−{{min}} minut przerwy na lunch odjęta"
 }

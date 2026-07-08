@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Asiakirjan kulku",
   "innstillinger.lenke.aiSok": "AI-haku",
   "innstillinger.lenke.mappeoppsett": "Kansion asetukset",
-  "innstillinger.lenke.psiMal": "PSI-malli"
+  "innstillinger.lenke.psiMal": "PSI-malli",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "Tauko alkaa jälkeen (tuntia)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "Kuinka monta tuntia vuorossa tauko alkaa. Esim. 4 h → 07:00 aloitus asettaa tauon klo 11:00. Toimii myös yövuoroissa (21:00 aloitus → 01:00).",
+  "timer.feil.timerAvvik": "Tuntien määrä ei vastaa aikajännettä (odotettu {{forventet}} h). Säädä alkaen/to tai tuntia.",
+  "timer.pauseFradrag": "− {{min}} min lounastauko vähennetty"
 }

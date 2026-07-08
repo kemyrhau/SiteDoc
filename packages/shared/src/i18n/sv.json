@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Dokumentflöde",
   "innstillinger.lenke.aiSok": "AI-sökning",
   "innstillinger.lenke.mappeoppsett": "Mappinställningar",
-  "innstillinger.lenke.psiMal": "PSI mall"
+  "innstillinger.lenke.psiMal": "PSI mall",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "Paus börjar efter (timmar)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "Hur många timmar in i skiftet börjar rasten. Till exempel. 4 h → en 07:00-start sätter pausen 11:00. Arbetar även nattskift (start 21:00 → 01:00).",
+  "timer.feil.timerAvvik": "Antalet timmar stämmer inte överens med tidsspannet (förväntat {{forventet}} h). Justera från/till eller timmarna.",
+  "timer.pauseFradrag": "−{{min}} min lunchrast dras av"
 }

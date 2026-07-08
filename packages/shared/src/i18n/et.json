@@ -2761,5 +2761,9 @@
   "innstillinger.lenke.dokumentflyt": "Dokumendivoog",
   "innstillinger.lenke.aiSok": "AI otsing",
   "innstillinger.lenke.mappeoppsett": "Kausta seadistamine",
-  "innstillinger.lenke.psiMal": "PSI mall"
+  "innstillinger.lenke.psiMal": "PSI mall",
+  "firma.innstillinger.standardArbeidstid.pauseEtter": "Vaheaeg algab pärast (tundi)",
+  "firma.innstillinger.standardArbeidstid.pauseEtterHjelp": "Mitu tundi pärast vahetust algab vaheaeg. Nt. 4 h → 07:00 start paneb pausi kell 11:00. Töötab ka öövahetustes (21:00 algus → 01:00).",
+  "timer.feil.timerAvvik": "Tundide arv ei ühti ajavahemikuga (eeldatav {{forventet}} h). Reguleerige alates/kuni või tunde.",
+  "timer.pauseFradrag": "−{{min}} min lõunapaus maha arvatud"
 }
