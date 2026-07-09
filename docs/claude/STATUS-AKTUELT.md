@@ -10,7 +10,7 @@ sist_verifisert_mot_kode: 2026-07-08
 
 ### Timer pause-modell (skiftrelativt pausevindu) — MERGET DEVELOP + DEPLOYET TEST 2026-07-08 (venter prod)
 
-Pausevindu regnes relativt til skiftstart (`standardPauseEtterTimer`, default 4.0 t) i stedet for fast klokkeslett. Merget develop `f385ba99` (ff), deployet test + migrering kjørt (additiv `ADD COLUMN standard_pause_etter_timer`, to-stegs). **Verifisert:** DB (6 rader = 4.0) + simulator (innstilling + attestering skiftrelativ + 07:00→11:00). Berører api `organisasjon.ts`, mobil `TimerSeksjon`/ny `pauseBeregning.ts`, web `innstillinger`/`RedigerRadModal`, i18n. **Gjenstår: prod-deploy.** Sannhetskilde: [timer.md § Pause-bevisst tid-synk](timer.md). Åpne oppfølgere (Piece 2/1b, midnatt-wrap, sq-reoversetting, rydd duplikat i `redesign/navigasjon`): tråd 4 + BACKLOG.
+Pausevindu regnes relativt til skiftstart (`standardPauseEtterTimer`, default 4.0 t) i stedet for fast klokkeslett. Merget develop `f385ba99` (ff), deployet test + migrering kjørt (additiv `ADD COLUMN standard_pause_etter_timer`, to-stegs). **Verifisert:** DB (6 rader = 4.0) + simulator (innstilling + attestering skiftrelativ + 07:00→11:00). Berører api `organisasjon.ts`, mobil `TimerSeksjon`/ny `pauseBeregning.ts`, web `innstillinger`/`RedigerRadModal`, i18n. **Gjenstår: prod-deploy.** Sannhetskilde: [timer.md § Pause-bevisst tid-synk](timer.md). Åpne oppfølgere (Piece 2/1b, midnatt-wrap, rydd duplikat i `redesign/navigasjon`): tråd 4 + BACKLOG.
 
 **Web dagsseddel auto-fyll Fra/Til (paritet mobil) — MERGET develop `cd58853a` (Option A, kalender-effektiv via ny `organisasjon.hentEffektivArbeidstid`-query; sommertid-aware).** Venter UI-verifisering + prod. Se [BACKLOG § Web dagsseddel auto-fyll](BACKLOG.md).
 
@@ -20,7 +20,7 @@ Pausevindu regnes relativt til skiftstart (`standardPauseEtterTimer`, default 4.
 > 1. **PSI Fase A + Maskin + ③:** web + DB-migreringer nå i prod (via `80974276`/`0be103fa`). **Gjenstår kun mobil-delene** (`MannskapInnsjekkKort` inn/ut + dagsseddel-registrering + maskin/③-mobil) via neste **EAS-batch**. **Dagsseddel-prod krever `aktiverNivaa1` på prod-firmaet** (lønnsart-katalog seedet) ellers mangler lønnsarter — jf. onboarding-wizard-BACKLOG-saken.
 > 2. **Redesign:** steg ii–vii + restanse merget til prod bak `nyNavigasjon`-flagg (av-default, inert). **Steg viii (kunderunde mot prod-kopi):** infra reist + runbook klar (se redesign-blokk over) — **venter kunde-booking + Kenneth-drift** (demo-prosjekt, pre-flight-SQL, SDS-opplasting). Deretter pilot-plan (flagg → company_admin).
 > 3. **Skjermbilder:** steg ii–vii fabel-designgodkjent (07-06/07). Steg viii = ingen ny UI (demo mot prod-kopi).
-> 4. **Timer pause-tid-synk (`f385ba99`, develop):** landet + migrering test-verifisert. **Gjenstår:** funksjonell test-verifisering (web + mobil), Piece 2 (1b auto-utkast fra/til), midnatt-wrap-bug, sq-reoversetting, rydd duplikate pause-endringer fra `redesign/navigasjon`-hovedtre. Mobil-UI via neste EAS-batch (tråd 1).
+> 4. **Timer pause-tid-synk (`f385ba99`, develop):** landet + migrering test-verifisert. **Gjenstår:** funksjonell test-verifisering — mobil ✅ verifisert i simulator (innstilling + attestering + 07:00→11:00), web pågår nå (redesign-Opus tester D1–D8 på test); Piece 2 (1b auto-utkast fra/til), midnatt-wrap-bug, rydd duplikate pause-endringer fra `redesign/navigasjon`-hovedtre. Mobil-UI via neste EAS-batch (tråd 1).
 
 ### Mobil EAS-bunt #37 — BYGGET PÅ SKY 2026-07-01 → TestFlight (venter Azure + device-/Florian-test)
 

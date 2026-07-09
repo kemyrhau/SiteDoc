@@ -1,8 +1,8 @@
 ---
 name: parallell-arbeid-lock
 status: styrende
-sist_verifisert_mot_kode: 2026-07-08
-sist_endret: 2026-07-08
+sist_verifisert_mot_kode: 2026-07-09
+sist_endret: 2026-07-09
 ---
 
 # Parallell-arbeid — lås og kjøreregler
@@ -24,13 +24,13 @@ sist_endret: 2026-07-08
 1. **Ett worktree per rolle — aldri kryss-skriv.** Redesign-økta eier hovedtreet (`…/SiteDoc`, `redesign/navigasjon`). Develop-docs/feature skrives i `…/SiteDoc-develop`. Skriv ALDRI develop-arbeid i det delte/redesign-treet. **Develop-spor bruker ALLTID eksplisitt `git -C ~/Documents/Programmering/SiteDoc-develop …`** (+ absolutte stier under samme tre) — stol ALDRI på gjeldende arbeidskatalog: primær-cwd er redesign-treet (`…/SiteDoc`), så et bart `git`-kall committer på `redesign/navigasjon` uten at det er åpenbart. Verifiser `git -C ~/Documents/Programmering/SiteDoc-develop rev-parse --abbrev-ref HEAD` = `develop` FØR du rører noe. Se lærdom (d).
    **Redesign→develop-merger skjer ALDRI i `…/SiteDoc-develop`** — det treet eies eksklusivt av develop-sporet og kan bære u-gatede lokale commits, som en merge-push da drar med ut til origin (se lærdom (e) + regel 13). Merger utføres i et **dedikert merge-tre (`…/SiteDoc-merge`) som hard-resettes til `origin/develop` FØR hver bruk** (`git -C ~/Documents/Programmering/SiteDoc-merge fetch origin && git -C ~/Documents/Programmering/SiteDoc-merge reset --hard origin/develop`) — da kan merge-treet aldri bære fremmede lokale commits ut via merge-push.
 2. **Verifiser branch før hver commit:** `git rev-parse --abbrev-ref HEAD` = forventet branch. Worktrees deler samme `.git` → feil tre committer på feil branch uten at det er åpenbart.
-3. **Frossen sone koordineres via denne fila** (liste under). Filene redigeres ALDRI blindt fra to økter samtidig. `generate.ts` (i18n) kjøres KUN på redesign-branchen mens redesignet pågår.
+3. **Frossen sone koordineres via denne fila** (liste under). Filene redigeres ALDRI blindt fra to økter samtidig. ~~`generate.ts` (i18n) kjøres KUN på redesign-branchen mens redesignet pågår.~~ **i18n-frysen løftet 2026-07-09:** redesignet er fullt merget i develop (`origin/redesign/navigasjon` er ancestor av develop), så `generate.ts` kjøres nå på develop som normalt — ingen kryss-branch-kollisjon lenger.
 4. **/mannskap-kollisjonen (PSI ↔ redesign):** PSI Fase A (`6882aa02`) la til `/dashbord/[prosjektId]/mannskap` + **enkel** nav-registrering i `HovedSidebar.tsx`. Avtale: **PSI legger til siden + minimal nav-entry; redesignet eier nav-strukturen** og re-homer entryen. To økter redigerer aldri `HovedSidebar.tsx`/rutestrukturen blindt samtidig.
 5. **Commit eller stash før du forlater et tre.** Ukommittert arbeid i ett worktree blokkerer `git checkout` av samme branch i et annet — se lærdom (b). Ikke la ukommittert arbeid ligge og blokkere en annen økt.
 6. **`index.lock` — foreldreløs lås: diagnostisér før fjerning.** En `.git/index.lock` fra en krasjet/avbrutt git-prosess blokkerer alle git-operasjoner. Sjekk (a) om en git-prosess faktisk kjører, (b) låsens alder, (c) størrelse (0 byte = trygt foreldreløs) FØR du fjerner. Aldri blind-slett — se lærdom (a).
 7. **Dual-review-gate + kode+docs i samme commit gjelder uendret i parallell modus.** Hver økt gate-verifiserer eget arbeid mot koden før develop-commit; aldri push til `develop` uten diff + verifisering.
 8. **Løs merge-konflikter ved å REDIGERE fila, ikke bare `git add`.** `git add` på en fil med konflikt-markører stager `<<<<<<<`/`=======`/`>>>>>>>` rått → de havner i commiten. Rediger fila (behold begge sider der begge er gyldige), fjern alle markører, verifiser `grep -c '^<<<<<<<\|^=======\|^>>>>>>>' <fil>` = 0, DERETTER `git add` + commit. Ved parallell-arbeid oppstår konflikter i delte indeks-/status-filer (`STATUS.md`, `DOC-MAP.md`, `CLAUDE.md`) ved merge develop↔redesign — se lærdom (c).
-9. **i18n `generate.ts` kjøres KUN på redesign-branchen** mens redesignet pågår (utdyper regel 3). En annen økt som legger i18n-nøkler committer nb+en og lar redesign-økta kjøre generate — ellers kolliderer de 15 språkfilene.
+9. **i18n `generate.ts` — frysen LØFTET 2026-07-09** (utdyper regel 3). Mens redesignet pågikk ble generate kjørt KUN på redesign-branchen for å unngå kollisjon i de 15 språkfilene. Nå som redesignet er fullt merget i develop kjøres `generate.ts` på develop som normalt: en økt som legger i18n-nøkler committer nb+en og kjører deretter generate selv. (Regelen reaktiveres kun hvis en ny langlevd branch igjen redigerer i18n parallelt.)
 10. **`redesign/navigasjon → develop` merges med `--no-ff`** + melding `merge(redesign): <steg> → develop` (fra og med neste merge, aldri fast-forward). Hver redesign-inkrement får en grense-commit → redesignet er synlig som enhet i develop-historikken OG revertbar som enhet (`git revert -m 1 <merge>`). Gjelder **kun fremover** — den allerede innflettede FF-mergen (`b13797f8`) skrives IKKE om; ingen rebase/rewrite av develop for å «fikse» historikk. Hold `(redesign)`-commit-scope strengt; utført fra det dedikerte merge-treet `…/SiteDoc-merge` (regel 1) — **aldri fra `SiteDoc-develop`**, som kan bære u-gatede lokale commits. Ansvar: kontroll-Claude eier regelen (develop-doc); redesign-Opus følger den ved merge.
 11. **Build-gate — full lokal build FØR merge.** `pnpm --filter @sitedoc/web build` (eller berørt app: api/mobil-typecheck) skal være grønn før develop-merge. Fanger prerender-/typefeil før de treffer test (jf. `useNyNavigasjon`-Suspense-regresjonen 2026-07-05).
 12. **Pre-push u-gatet-commit-sjekk.** Før push til `develop` fra et delt worktre: kjør `git log origin/develop..HEAD --oneline` og bekreft at ALLE commits i deltaet er dine egne OG gate-verifiserte. Finnes en commit fra en annen økt/agent som ikke er gate-godkjent → **IKKE push**; koordiner med Kenneth/eier-økta først. En push drar ALLE lokale commits under HEAD ut, ikke bare dine. Bakgrunn: 2026-07-06 dro redesign-Opus' merge-push (`5e16987b`) develop-Opus' u-gatede slanke-commit (`e8347671`) ut til origin fordi begge delte `SiteDoc-develop`-worktreet — utfallet var rent, men en u-verifisert commit kan shippe utilsiktet slik. Primærprinsipp uendret (regel 1: helst én økt per worktre) — dette er sikkerhetsnettet når det brytes.
@@ -44,7 +44,7 @@ sist_endret: 2026-07-08
 - `apps/web/src/app/dashbord/oppsett/**`
 - `apps/web/src/app/dashbord/firma/**`
 - `apps/mobile/app/(tabs)/**`
-- i18n-filene (`packages/shared/src/i18n/*.json`) — `generate.ts` kjøres KUN på redesign-branchen mens redesignet pågår.
+- ~~i18n-filene (`packages/shared/src/i18n/*.json`) — `generate.ts` kjøres KUN på redesign-branchen mens redesignet pågår.~~ **Frysen løftet 2026-07-09** (redesign fullt merget) — i18n er ikke lenger frossen sone; `generate.ts` kjøres på develop (jf. regel 3/9).
 
 Trenger en annen økt en endring i frossen sone: koordinér via Kenneth + denne fila FØR redigering (jf. regel 3–4).
 

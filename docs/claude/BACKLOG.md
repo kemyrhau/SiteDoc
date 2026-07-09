@@ -284,8 +284,21 @@ mens doc-søk-siden `dashbord/[prosjektId]/sok/page.tsx:131` var korrekt (tilfel
 **`sok.dokumentPlaceholder`** (flat camelCase — matcher doc-søk-blokkens konvensjon `sok.aiSok`/
 `sok.tekstsok`/`sok.skrivInnSokeord`, ikke det nestede `sok.dokumenter.*` som ikke finnes ellers).
 `sok/page.tsx:131` peker nå på `sok.dokumentPlaceholder`; `sok.placeholder` (linje 59) beholdt for
-global `SokModal`. **`generate.ts` IKKE kjørt** (regel 3 — frossen sone under redesign): kun nb+en
-oppdatert, de 13 øvrige språkene faller tilbake til `en` til neste redesign-generate fyller dem.
+global `SokModal`. **`generate.ts` ✅ kjørt 2026-07-09 (`466a921e`)** — 13-språk-gapet lukket (se
+i18n-status-raden rett under).
+
+### ✅ i18n 13-språk-generering kjørt 2026-07-09 (`466a921e`) — sq-reoversetting + gap lukket
+
+`generate.ts` kjørt på develop etter at i18n-frysen ble løftet (redesign fullt merget —
+jf. [parallell-arbeid-lock.md regel 3/9](parallell-arbeid-lock.md)). Resultat: **alle 15 språk
+= 2811 nøkler**, 33 manglende nøkler fylt (28 pre-eksisterende gap + de nye timer-paritet-nøklene
+`timer.feil.ingenProsjekt`/`timer.detalj.aapnetEksisterende`/`timer.vedlegg.laster`), og
+**pauseFra-relikvier ryddet**. Lukker: **13-språk-gapet** (tidligere `generate.ts IKKE kjørt` over)
++ **sq-reoversetting** (sporet i STATUS-AKTUELT tråd 4 — `sq.json` regenerert i samme kjøring).
+
+- **🟡 Gjenstår: manuell QA av fagtermer** i de 13 maskinoversatte språkene — `generate.ts` sier
+  selv «kjør manuell QA på fagtermer». Sjekk særlig **dagsseddel, lønnsart, faggruppe, byggeplass**
+  (domene-spesifikke termer Google Translate ofte bommer på). Ikke-blokkerende.
 
 ### 🟢 Mobil Microsoft-auth — BYGGET I EAS-SKY #37 2026-07-01 (venter Azure + Florian-test)
 

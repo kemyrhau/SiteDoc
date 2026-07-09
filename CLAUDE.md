@@ -254,7 +254,7 @@ Integrasjon: `toppbar-filtre-kontekst.tsx` + `ByggeplassVelger.tsx` (`disabled`-
   4. Nøkkelformat: `seksjon.noekkel` (f.eks. `oppgaver.tittel`, `handling.lagre`)
   5. Gjenbruk eksisterende nøkler der mulig (`handling.lagre`, `handling.avbryt`, `tabell.navn` etc.)
   6. For data utenfor komponenter (arrays, configs): bruk `labelKey` i stedet for `label`, kall `t()` ved rendering
-  7. Kjør auto-oversetting til de 13 andre språkene: `pnpm --filter @sitedoc/shared exec tsx src/i18n/generate.ts`. Skriptet oversetter fra `en.json` (master) til 13 målspråk. Full arbeidsflyt + kjente quirks i [docs/claude/shared-pakker.md § i18n](docs/claude/shared-pakker.md).
+  7. Kjør auto-oversetting til de 13 andre språkene fra `packages/shared`: `pnpm dlx tsx src/i18n/generate.ts` (`tsx` er IKKE en dependency — `pnpm --filter … exec tsx …` feiler med «Command tsx not found»; `dlx` henter den ad hoc). Skriptet oversetter fra `en.json` (master) til 13 målspråk. Full arbeidsflyt + kjente quirks i [docs/claude/shared-pakker.md § i18n](docs/claude/shared-pakker.md).
 - **i18n-diagnostikk-regel:** Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Finnes nøkkelen ikke i `*.ts`/`*.tsx` er det en relikvi som skal slettes, ikke en bug som skal fylles (lærdom `hjelp.flyt.*` 2026-05-23).
 
 ## Terminologi og hierarki
