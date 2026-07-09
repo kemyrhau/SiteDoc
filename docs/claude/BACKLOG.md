@@ -269,6 +269,20 @@ samme hull:
   allerede; mobil trenger kun klient-side speiling for god UX. **Bundet til neste
   EAS-batch.**
 
+### 🟡 Maskin-vs-maskin-overlapp — utredning (rapportert under bolk (g), 2026-07-09)
+
+Bolk (g) overlapp-vakten (`sjekkTimerOverlapp`) gjelder **kun timer-rader**. Maskin-rader
+har i dag **ingen** overlapp-sjekk — kun bucket-sum-taket (`maskin ≤ arbeid`). To maskin-rader
+i samme bøtte kan altså overlappe i tid. Men gitt B1 (maskin = maskin+**fører**, én operatør
+per maskin) kan ikke samme arbeider kjøre to maskiner samtidig → overlappende maskin-rader
+er arguably like ugyldige som overlappende timer-rader. **Utredning for egen runde:** utvid
+vakten til maskin-vs-maskin (og evt. krav om at maskin-spenn ligger innenfor arbeidstimenes
+spenn på sedelen). Ikke kodet i bolk (g) per instruks — Kenneth avgjør semantikken først.
+
+**Verifiserings-note (sitedoc_test):** kjør self-join-audit på `timer.sheet_timer` for å se
+om test-DB har eksisterende overlappende timer-rader (vakten treffer kun ny/redigert rad, så
+eksisterende overlapp blokkeres først ved re-lagring). Query i økt-loggen 2026-07-09.
+
 ### 🟡 `sedel.pauseMin` er dekorativt — leses ikke av rad-beregning (avklar)
 
 Verifisert i bolk (e): både web og mobil bruker firma-`standardPauseMin`
