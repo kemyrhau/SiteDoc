@@ -663,6 +663,14 @@ export default function DagsseddelDetaljSide() {
           alleTimerRader={timerRader}
           alleMaskinRader={maskinRader}
           pauseMin={sheet.pauseMin}
+          // B1/B2 (bolk e): pausevindu-parametre for spenn↔antall-synk. Samme
+          // kilde som timer-modalen; standardPauseMin ≠ pauseMin (bucket-tak).
+          skiftStart={effektivStart}
+          standardPauseMin={arbeidstidDefaults?.standardPauseMin ?? 30}
+          standardPauseEtterTimer={
+            arbeidstidDefaults?.standardPauseEtterTimer ??
+            DEFAULT_PAUSE_ETTER_TIMER
+          }
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -1279,9 +1287,22 @@ function TimerRadDialog({
   const [aktivitetId, setAktivitetId] = useState<string>(
     rad?.aktivitetId ?? defaultAktivitetId ?? "",
   );
-  const [timer, setTimer] = useState<string>(
-    rad ? String(tilTall(rad.timer)) : "",
-  );
+  const [timer, setTimer] = useState<string>(() => {
+    if (rad) return String(tilTall(rad.timer));
+    // B3: init antall fra prefill-spennet (pause-bevisst) så «Lagre» er aktiv
+    // umiddelbart — ett-klikk-registrering. Tom hvis prefill mangler tider.
+    if (defaultFraTid && defaultTilTid) {
+      return String(
+        effektiveTimerFraSpenn(
+          defaultFraTid,
+          defaultTilTid,
+          pauseVinduFra(skiftStart, standardPauseEtterTimer),
+          standardPauseMin,
+        ),
+      );
+    }
+    return "";
+  });
   // T7-4c: defaultEcoId pre-selekteres når bruker klikker "+Legg til timer"
   // i en spesifikk ECO-gruppe (eks. ECO «Mur øst»). Ved redigering brukes
   // radens egen ECO.
@@ -1369,6 +1390,21 @@ function TimerRadDialog({
     if (!lonnsartId || !aktivitetId || isNaN(tNum) || tNum < 0 || tNum > 24) {
       setFeil(t("timer.feil.ugyldigInput"));
       return;
+    }
+    // Pause-synk-sikkerhetsnett (paritet m/ mobil TimerSeksjon.tsx:681): når
+    // begge tider er satt MÅ antall stemme med (spenn − pause). Auto-synken
+    // holder dem i takt; dette fanger manuell desync.
+    if (fraTid && tilTid) {
+      const forventet = effektiveTimerFraSpenn(
+        fraTid,
+        tilTid,
+        pauseFra,
+        standardPauseMin,
+      );
+      if (Math.abs(forventet - tNum) > 0.01) {
+        setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
+        return;
+      }
     }
     if (rad) {
       oppdater.mutate({
@@ -1893,6 +1929,9 @@ function MaskinRadDialog({
   alleTimerRader,
   alleMaskinRader,
   pauseMin,
+  skiftStart,
+  standardPauseMin,
+  standardPauseEtterTimer,
   onLukk,
 }: {
   sheetId: string;
@@ -1910,6 +1949,13 @@ function MaskinRadDialog({
   alleTimerRader: TimerRad[];
   alleMaskinRader: MaskinRad[];
   pauseMin: number;
+  // B1/B2 (bolk e): pause-bevisst spenn↔antall-synk + spenn-validering på
+  // maskin-rad. standardPauseMin = firma-default (samme kilde som timer-
+  // modalen, IKKE sheet.pauseMin som bucket-taket bruker) — maskin følger
+  // førerens økt, så fradraget må være identisk med timer-radens.
+  skiftStart: string;
+  standardPauseMin: number;
+  standardPauseEtterTimer: number;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -1930,9 +1976,22 @@ function MaskinRadDialog({
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
 
   const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
-  const [timer, setTimer] = useState<string>(
-    rad ? String(tilTall(rad.timer)) : "",
-  );
+  const [timer, setTimer] = useState<string>(() => {
+    if (rad) return String(tilTall(rad.timer));
+    // B3: init antall fra prefill-spennet (pause-bevisst). Tom hvis prefill
+    // mangler tider.
+    if (defaultFraTid && defaultTilTid) {
+      return String(
+        effektiveTimerFraSpenn(
+          defaultFraTid,
+          defaultTilTid,
+          pauseVinduFra(skiftStart, standardPauseEtterTimer),
+          standardPauseMin,
+        ),
+      );
+    }
+    return "";
+  });
   const [fraTid, setFraTid] = useState<string>(
     rad?.fraTid ?? defaultFraTid ?? "",
   );
@@ -1954,6 +2013,47 @@ function MaskinRadDialog({
   // selv om firmaet har tidsrunding på 60 min — Chrome skjuler minutter ved
   // step=3600. Default 15 min hvis ingen orgSetting.
   const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
+
+  // B1/B2 (bolk e): pausevindu + pause-bevisst spenn↔antall-synk, speiler
+  // TimerRadDialog. standardPauseMin (ikke pauseMin) — maskin følger føreren.
+  const pauseFra = pauseVinduFra(skiftStart, standardPauseEtterTimer);
+
+  // R3-transparens: hvor mange minutter lunsjpause maskin-raden trekker fra.
+  const pauseOverlapp = useMemo(() => {
+    if (!fraTid || !tilTid) return 0;
+    const fm = hhmmTilMin(fraTid);
+    const tm = hhmmTilMin(tilTid);
+    if (tm <= fm) return 0;
+    return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), standardPauseMin);
+  }, [fraTid, tilTid, pauseFra, standardPauseMin]);
+
+  // Sist-rørte felt vinner: fra/til → antall (spenn − pause); antall → til
+  // (pausevindu skjøvet inn ved lunsj-kryssing). R4: rund fra/til ved commit.
+  function endreFra(v: string) {
+    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
+    setFraTid(r);
+    if (r && tilTid) {
+      setTimer(
+        String(effektiveTimerFraSpenn(r, tilTid, pauseFra, standardPauseMin)),
+      );
+    }
+  }
+  function endreTil(v: string) {
+    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
+    setTilTid(r);
+    if (fraTid && r) {
+      setTimer(
+        String(effektiveTimerFraSpenn(fraTid, r, pauseFra, standardPauseMin)),
+      );
+    }
+  }
+  function endreTimer(v: string) {
+    setTimer(v);
+    const n = parseFloat(v);
+    if (fraTid && !isNaN(n) && n > 0) {
+      setTilTid(tilFraAntall(fraTid, n, pauseFra, standardPauseMin));
+    }
+  }
 
   // Del 2 (maskin ≤ arbeid): reaktiv bucket-kapasitet for gjeldende
   // (projectId, ecoId). Bruker delt @sitedoc/shared-regel — identisk med
@@ -2018,6 +2118,21 @@ function MaskinRadDialog({
       setFeil(t("timer.feil.ugyldigInput"));
       return;
     }
+    // B2 (bolk e): når begge tider er satt MÅ antall stemme med (spenn − pause).
+    // Standardvalget er «maskinen gikk hele økta»; kortere drift krever justert
+    // fra/til (tilsiktet — antall kan ikke lenger overstyres alene).
+    if (fraTid && tilTid) {
+      const forventet = effektiveTimerFraSpenn(
+        fraTid,
+        tilTid,
+        pauseFra,
+        standardPauseMin,
+      );
+      if (Math.abs(forventet - tNum) > 0.01) {
+        setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
+        return;
+      }
+    }
     const mengdeNum = mengde.trim() ? parseFloat(mengde) : null;
     if (mengdeNum !== null && (isNaN(mengdeNum) || mengdeNum < 0)) {
       setFeil(t("timer.feil.ugyldigInput"));
@@ -2072,13 +2187,13 @@ function MaskinRadDialog({
             min={0}
             max={24}
             value={timer}
-            onChange={(e) => setTimer(e.target.value)}
+            onChange={(e) => endreTimer(e.target.value)}
             required
           />
         </div>
-        {/* Maskin-fra-til (2026-05-17): valgfrie tidspunkter for maskinbruk.
-            Forslag fra første/siste timer-rad i samme bucket (Alt D).
-            Bruker kan justere — maskin kan ha overlapp/lenger enn arbeid. */}
+        {/* Maskin-fra-til = maskinens driftsvindu. B1/B2 (bolk e): antall er
+            pause-bevisst avledet av spennet og validert mot det. Prefill fra
+            bucketens arbeidsspenn (B4). Kortere drift → juster fra/til. */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -2091,7 +2206,7 @@ function MaskinRadDialog({
               type="time"
               step={timeStep}
               value={fraTid}
-              onChange={(e) => setFraTid(e.target.value)}
+              onChange={(e) => endreFra(e.target.value)}
             />
           </div>
           <div>
@@ -2105,10 +2220,16 @@ function MaskinRadDialog({
               type="time"
               step={timeStep}
               value={tilTid}
-              onChange={(e) => setTilTid(e.target.value)}
+              onChange={(e) => endreTil(e.target.value)}
             />
           </div>
         </div>
+        {/* R3-transparens: hvor mange minutter lunsjpause maskin-raden trekker. */}
+        {pauseOverlapp > 0 && (
+          <p className="-mt-2 text-xs text-gray-500">
+            {t("timer.pauseFradrag", { min: pauseOverlapp })}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">

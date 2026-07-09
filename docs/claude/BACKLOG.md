@@ -219,9 +219,10 @@ timerRaderIBucket[0]?.fraTid`, `defaultTilTid = timerRaderIBucket.at(-1)?.tilTid
 regel som timer-raden: `fra = [...eksisterendeRader].reverse().find(r => r.tilTid)?.tilTid
 ?? effektiv.startTid`, `til = effektiv.sluttTid`. Dvs. mobil bruker **siste rads
 `tilTid`** for fra (fortsett-der-du-slapp), web bruker **første rads `fraTid`**.
-Divergensen er kosmetisk (kun forhåndsvalg — bruker kan justere), men bør bringes i
-paritet i egen runde: la web maskin-prefill speile timer-R1-regelen. Ikke rørt i
-bolk (d) (out-of-scope: kun timer-rad-modalen). Lav prioritet.
+Divergensen er kosmetisk (kun forhåndsvalg — bruker kan justere). **B4 vedtatt
+(bolk (e), 2026-07-09): web-semantikken er kanonisk** — maskin arver bucketens
+arbeidsspenn (første rads `fraTid` → siste rads `tilTid`). Mobil skal løftes til
+denne regelen (ikke omvendt). **Bundet til neste EAS-batch** sammen med mobil B1–B3.
 
 ### 🟢 `pauseBeregning.ts` duplisert (mobil + shared) — mobil importerer sin egen kopi
 
@@ -229,10 +230,56 @@ Etter bolk (a) finnes pause-beregningen to steder: `packages/shared/src/utils/pa
 (kanonisk, web bruker den via `@sitedoc/shared`) og `apps/mobile/src/utils/pauseBeregning.ts`
 (mobil importerer fortsatt sin egen — `TimerSeksjon.tsx:45`, `MaskinSeksjon.tsx`).
 Samme funksjoner (`pauseVinduFra`/`hhmmTilMin`/`pauseOverlappMin`/`effektiveTimerFraSpenn`/
-`tilFraAntall`/`DEFAULT_PAUSE_ETTER_TIMER`). Risiko: framtidig divergens (samme klasse
-feil som autofyll-saken). Dedup: la mobil importere fra `@sitedoc/shared` og slett
-mobil-kopien (verifiser at Metro-bundleren tar shared-pakken). Ikke rørt i bolk (d)
-(mobil = fasit, null endringer). Lav prioritet, men gjør før neste pause-endring.
+`tilFraAntall`/`DEFAULT_PAUSE_ETTER_TIMER`). **Risiko realisert:** `tilFraAntall`-
+grensefeilen (rad starter ved/inne i pausevindu → pausen hoppes over, ikke lenger
+invers av `effektiveTimerFraSpenn`) ble fikset i shared (`10622ee3`, bolk (e)), men
+**mobil-kopien har fortsatt feilen** — divergens er nå faktum, ikke bare risiko.
+Dedup: la mobil importere fra `@sitedoc/shared` og slett mobil-kopien (verifiser at
+Metro-bundleren tar shared-pakken). **Bundet til neste EAS-batch** (mobil-endring).
+Bør gjøres før neste pause-endring.
+
+### 🟡 Mobil maskin/timer-rad: B1–B4 pause-paritet (bolk (e) mobil-halvdel) — neste EAS-batch
+
+Web fikk B1–B4 i bolk (e) (`apps/web/src/app/dashbord/timer/[id]/page.tsx`, 2026-07-09).
+Mobil gjenstår og er **bundet til neste EAS-batch** (kvotebegrenset — ikke fyr isolert bygg):
+- **`MaskinSeksjon.tsx`** mangler alt: importer `@sitedoc/shared`-pauseutils, legg til
+  `handterFra/Til/Timer` (pause-bevisst synk), pausefradrag-visning (`timer.pauseFradrag`)
+  og spenn-validering (`forventet == antall` når begge tider satt → `timer.feil.timerAvvik`).
+  Dekker B1 (maskin trekker lunsjpause) + B2 (hard sperre) + B4 (prefill = bucketens
+  arbeidsspenn, speil web).
+- **`TimerSeksjon.tsx`** har synk + validering, men mangler **B3**: init antall fra
+  prefill-spennet (i dag `""` → «Lagre» deaktivert til bruker skriver tallet). Samme B3
+  gjelder `MaskinSeksjon`.
+- Bruk `standardPauseMin` (setting), ikke `sheet.pauseMin`, for spennfradraget (som web).
+
+### 🟡 `sedel.pauseMin` er dekorativt — leses ikke av rad-beregning (avklar)
+
+Verifisert i bolk (e): både web og mobil bruker firma-`standardPauseMin`
+(`hentArbeidstidDefaults` / setting) i pause-fradraget, ikke `sheet.pauseMin`.
+Brukerens dags-justerte pause (Detaljer → Rediger, «Pause 30 min») påvirker altså
+**ingen** rad-beregning — kun bucket-taket (`overstigerMaskinTak`) bruker `sheet.pauseMin`.
+Inkonsistens: setter en bruker dagens pause til 45 min, får radene fortsatt 30-min-fradrag.
+**Avklar:** skal `sheet.pauseMin` styre spennfradraget (per-dag-justerbar pause), eller
+fjernes feltet fra Detaljer-visningen? Design-beslutning, ikke hastverk.
+
+### 🟡 Dagsnorm-overskridelse («8.00t av 7.50t») — varsel, ikke sperre (avklar mot B2)
+
+Sum av rad-timer kan overstige dagsnormen (summeringslinjen «X.XXt av Y.YYt registrert»
+er blå/info, ikke rød sperre). B2 (bolk (e)) innfører hard sperre på **rad-nivå**
+(antall == spenn − pause), men **dag-nivå** (sum > dagsnorm) forblir kun varsel — bevisst
+per Kenneth 2026-07-09. **Avklar** om det skal harmoniseres: skal dag-overskridelse også
+blokkere innsending, eller forblir det arbeiderens ansvar (delt/glemt dag er legitime
+grunner til > dagsnorm)?
+
+### 🟢 Seed-rader i `timer.sheet_machines` har `timer ≠ spenn` (11 rader per 2026-07-09)
+
+`sheet_machine`-audit (Kenneth, 2026-07-09): prod 2 rader, test 8 med spenn — kun **1 rad**
+følger pause-regelen. Historisk var `fra_tid`/`til_tid` = førerens vindu og `timer` =
+maskinens gangtid (frikoblet). Vedtatt betydning fremover (B2/B4): `fra_tid/til_tid` =
+maskinens driftsvindu, `timer = effektiveTimerFraSpenn(...)`. **Ingen migrering, ingen
+retro-validering** — sperren gjelder kun nye/redigerte rader med begge tider satt. De 11
+eksisterende radene rettes når noen redigerer dem (prod holder kun testdata — Kenneth
+bekreftet), eller ryddes før første ekte kunde.
 
 ### 🟡 Maskin/bil på timer-rad — utledet tid + fler-maskin-modal (idé i kø)
 
