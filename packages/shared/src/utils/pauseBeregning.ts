@@ -84,7 +84,9 @@ export function effektiveTimerFraSpenn(
  * arbeidet krysser lunsj. Speiler `effektiveTimerFraSpenn` (invers):
  *   fra 10:00 + 1,5 t → 12:00  (30 min lunsj legges til når vi passerer 11:00)
  *   fra 09:00 + 2,0 t → 11:00  (rekker akkurat frem til lunsj, ingen pause)
- * Starter raden i/etter pausevinduet, legges ingen (ny) pause inn.
+ *   fra 11:15 + 2,0 t → 13:30  (starter inne i vinduet — kun resterende pause
+ *                               11:15–11:30 skyves inn, ikke hele 30 min)
+ * Starter raden i/etter pauseslutt, legges ingen (ny) pause inn.
  */
 export function tilFraAntall(
   fra: string,
@@ -96,11 +98,14 @@ export function tilFraAntall(
   const antallMin = Math.round(antallTimer * 60);
   const pauseFraMin = hhmmTilMin(pauseFra);
   const pauseSlutt = pauseFraMin + pauseMin;
-  // Starter i eller etter pausevinduet → pausen ligger allerede før raden.
-  if (fraMin >= pauseFraMin) return minTilHhmm(fraMin + antallMin);
-  // Arbeidskapasitet før lunsj.
-  const forPause = pauseFraMin - fraMin;
+  // Starter raden i eller etter HELE pausevinduet → pausen ligger før raden.
+  // (Grensefiks 2026-07-09: tidligere `>= pauseFraMin` hoppet over pausen når
+  // raden startet nøyaktig ved pausestart eller inne i vinduet → ikke lenger
+  // invers av effektiveTimerFraSpenn ved fraMin i [pauseFraMin, pauseSlutt).)
+  if (fraMin >= pauseSlutt) return minTilHhmm(fraMin + antallMin);
+  // Arbeidskapasitet før lunsj — clampes til 0 når raden starter inne i vinduet.
+  const forPause = Math.max(0, pauseFraMin - fraMin);
   if (antallMin <= forPause) return minTilHhmm(fraMin + antallMin);
-  // Arbeidet krysser lunsj → skyv resten forbi pausevinduet.
+  // Krysser (eller starter inne i) lunsj → skyv resten forbi pausevinduet.
   return minTilHhmm(pauseSlutt + (antallMin - forPause));
 }
