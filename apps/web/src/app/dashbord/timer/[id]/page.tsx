@@ -25,7 +25,10 @@ import {
   pauseVinduFra,
   effektiveTimerFraSpenn,
   tilFraAntall,
+  hhmmTilMin,
+  pauseOverlappMin,
 } from "@sitedoc/shared";
+import { rundTilNarmeste } from "@/lib/tidsrunding";
 
 const ENHETER = ["m", "m2", "m3", "kg", "tonn", "stk"] as const;
 
@@ -148,7 +151,16 @@ export default function DagsseddelDetaljSide() {
 
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [aktivModal, setAktivModal] = useState<
-    | { type: "timer"; projectId: string; defaultEcoId?: string | null; rad?: TimerRad }
+    | {
+        type: "timer";
+        projectId: string;
+        defaultEcoId?: string | null;
+        // Bolk (d) R1: prefill fra/til på ny rad (siste rads tilTid ?? effektiv
+        // start; til = effektiv slutt). Undefined ved redigering (radens verdier).
+        defaultFraTid?: string | null;
+        defaultTilTid?: string | null;
+        rad?: TimerRad;
+      }
     | { type: "tillegg"; projectId: string; rad?: TilleggRad }
     | {
         type: "maskin";
@@ -223,6 +235,19 @@ export default function DagsseddelDetaljSide() {
   const tilleggRader = sheet.tillegg as unknown as TilleggRad[];
   const maskinRader = (sheet.maskiner ?? []) as unknown as MaskinRad[];
   const totaltimer = timerRader.reduce((acc, r) => acc + tilTall(r.timer), 0);
+
+  // Bolk (d) R1: dagens effektive arbeidstid-vindu — kilde til fra/til-prefill
+  // på nye timer-rader OG pausevindu-start (pauseFra), speiler mobilens
+  // hentEffektivArbeidstidLokal. sheet.startAt/endAt er kalender-effektiv for
+  // dagen (prefylt server-side, cd58853a); firma-default som fallback.
+  const effektivStart =
+    isoTidspunktTilHHMM(sheet.startAt as string | null) ||
+    arbeidstidDefaults?.standardStartTid ||
+    "07:00";
+  const effektivSlutt =
+    isoTidspunktTilHHMM(sheet.endAt as string | null) ||
+    arbeidstidDefaults?.standardSluttTid ||
+    "15:00";
 
   // T7-4c (2026-05-16): Grupper per (projectId, externalCostObjectId) for
   // arbeid + maskin. Tillegg holdes per-prosjekt (ingen ECO-felt på SheetTillegg).
@@ -456,9 +481,21 @@ export default function DagsseddelDetaljSide() {
               })}
               erRedigerbar={erRedigerbar}
               pauseMin={sheet.pauseMin}
-              onTilfoyTimer={(ecoId) =>
-                setAktivModal({ type: "timer", projectId, defaultEcoId: ecoId })
-              }
+              onTilfoyTimer={(ecoId, timerRaderIBucket) => {
+                // Bolk (d) R1: fra = siste rad med tilTid i bucket, ellers
+                // dagens effektive start; til = dagens effektive slutt
+                // (speiler mobil TimerRadModal.defaultTider).
+                const forrigeMedTil = [...timerRaderIBucket]
+                  .reverse()
+                  .find((r) => !!r.tilTid);
+                setAktivModal({
+                  type: "timer",
+                  projectId,
+                  defaultEcoId: ecoId,
+                  defaultFraTid: forrigeMedTil?.tilTid ?? effektivStart,
+                  defaultTilTid: effektivSlutt,
+                });
+              }}
               onTilfoyTillegg={() =>
                 setAktivModal({ type: "tillegg", projectId })
               }
@@ -588,9 +625,14 @@ export default function DagsseddelDetaljSide() {
           defaultAktivitetId={sheetAktivitetId}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
-          // D3: pausevindu = skiftstart + standardPauseEtterTimer, lengde
-          // standardPauseMin. Medlems-tilgjengelig kilde m/ trygge fallbacks.
-          skiftStart={arbeidstidDefaults?.standardStartTid ?? "07:00"}
+          // Bolk (d) R1: prefill fra/til på ny rad + T.5-runding, fra medlems-
+          // tilgjengelig arbeidstidDefaults (tidsrundingMinutter eksponert der).
+          defaultFraTid={aktivModal.defaultFraTid ?? null}
+          defaultTilTid={aktivModal.defaultTilTid ?? null}
+          tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
+          // D3/bolk (d): pausevindu = effektiv skiftstart + standardPauseEtterTimer,
+          // lengde standardPauseMin (effektivStart = dagens kalender-effektive start).
+          skiftStart={effektivStart}
           standardPauseMin={arbeidstidDefaults?.standardPauseMin ?? 30}
           standardPauseEtterTimer={
             arbeidstidDefaults?.standardPauseEtterTimer ??
@@ -674,7 +716,9 @@ function ProsjektGruppe({
   erRedigerbar: boolean;
   // D6: sedel-nivå pauseMin → maskin ≤ arbeid-buffer per bucket.
   pauseMin: number;
-  onTilfoyTimer: (ecoId: string | null) => void;
+  // Bolk (d) R1: sender timer-radene i bucket slik at parent kan avlede
+  // fra/til-prefill (siste rads tilTid). Speiler onTilfoyMaskin-mønsteret.
+  onTilfoyTimer: (ecoId: string | null, timerRaderIBucket: TimerRad[]) => void;
   onTilfoyTillegg: () => void;
   // Maskin-fra-til (2026-05-17): sender med timer-radene i bucket slik
   // at parent kan foreslå default fra/til (Alt D — sammenheng-prinsipp).
@@ -720,7 +764,7 @@ function ProsjektGruppe({
             maskin={bucket.maskin}
             erRedigerbar={erRedigerbar}
             pauseMin={pauseMin}
-            onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId)}
+            onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId, bucket.timer)}
             onTilfoyMaskin={() => onTilfoyMaskin(bucket.ecoId, bucket.timer)}
             onRedigerTimer={onRedigerTimer}
             onRedigerMaskin={onRedigerMaskin}
@@ -954,6 +998,13 @@ function RaderTimer({
                 {lonnsart?.navn ?? "—"}
               </p>
               <p className="text-xs text-gray-500">{aktivitet?.navn ?? "—"}</p>
+              {/* Bolk (d) R2: fra–til under aktiviteten når begge er satt
+                  (speiler mobil TimerRadVis). */}
+              {rad.fraTid && rad.tilTid && (
+                <p className="text-xs text-gray-500">
+                  {rad.fraTid}–{rad.tilTid}
+                </p>
+              )}
               {/* T.12: fritekst-beskrivelse av hva som ble gjort (speiler mobil) */}
               {rad.beskrivelse && (
                 <p className="mt-0.5 text-xs italic text-gray-600">
@@ -1173,6 +1224,9 @@ function TimerRadDialog({
   defaultAktivitetId,
   defaultEcoId,
   rad,
+  defaultFraTid,
+  defaultTilTid,
+  tidsrundingMinutter,
   skiftStart,
   standardPauseMin,
   standardPauseEtterTimer,
@@ -1184,6 +1238,10 @@ function TimerRadDialog({
   defaultAktivitetId: string | null;
   defaultEcoId?: string | null;
   rad?: TimerRad;
+  // Bolk (d) R1: prefill fra/til ved ny rad. R4: T.5-runding ved commit.
+  defaultFraTid?: string | null;
+  defaultTilTid?: string | null;
+  tidsrundingMinutter?: number | null;
   // D3: pausevindu-parametre for fra/til ↔ antall-synk.
   skiftStart: string;
   standardPauseMin: number;
@@ -1239,25 +1297,45 @@ function TimerRadDialog({
     rad?.beskrivelse ?? "",
   );
   // D2/D3: per-rad fra/til med pause-bevisst auto-synk mot antall (som mobil).
-  const [fraTid, setFraTid] = useState<string>(rad?.fraTid ?? "");
-  const [tilTid, setTilTid] = useState<string>(rad?.tilTid ?? "");
+  // Bolk (d) R1: ny rad prefylles fra defaultFraTid/Til; redigering bruker
+  // radens egne verdier.
+  const [fraTid, setFraTid] = useState<string>(rad?.fraTid ?? defaultFraTid ?? "");
+  const [tilTid, setTilTid] = useState<string>(rad?.tilTid ?? defaultTilTid ?? "");
   const [feil, setFeil] = useState<string | null>(null);
 
   // Pausevindu = skiftstart + standardPauseEtterTimer, lengde standardPauseMin.
   const pauseFra = pauseVinduFra(skiftStart, standardPauseEtterTimer);
 
+  // R4 (T.5): tving picker-steg ≤ 30 min så minutt-selektoren vises selv ved
+  // 60-min-runding (Chrome skjuler minutter ved step=3600). Default 15 min.
+  const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
+
+  // R3-transparens: hvor mange minutter pause raden faktisk absorberer
+  // (0 = ingen). Speiler mobilens pauseOverlapp.
+  const pauseOverlapp = useMemo(() => {
+    if (!fraTid || !tilTid) return 0;
+    const fm = hhmmTilMin(fraTid);
+    const tm = hhmmTilMin(tilTid);
+    if (tm <= fm) return 0;
+    return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), standardPauseMin);
+  }, [fraTid, tilTid, pauseFra, standardPauseMin]);
+
   // Sist-rørte felt vinner (mobil-atferd): endrer fra/til → regn antall;
   // skriver antall → regn til (pausevinduet skyves inn ved lunsj-kryssing).
+  // R4: rund fra/til via rundTilNarmeste ved commit (samme punkt som mobilens
+  // FraTilTidFelt.commit).
   function endreFra(v: string) {
-    setFraTid(v);
-    if (v && tilTid) {
-      setTimer(String(effektiveTimerFraSpenn(v, tilTid, pauseFra, standardPauseMin)));
+    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
+    setFraTid(r);
+    if (r && tilTid) {
+      setTimer(String(effektiveTimerFraSpenn(r, tilTid, pauseFra, standardPauseMin)));
     }
   }
   function endreTil(v: string) {
-    setTilTid(v);
-    if (fraTid && v) {
-      setTimer(String(effektiveTimerFraSpenn(fraTid, v, pauseFra, standardPauseMin)));
+    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
+    setTilTid(r);
+    if (fraTid && r) {
+      setTimer(String(effektiveTimerFraSpenn(fraTid, r, pauseFra, standardPauseMin)));
     }
   }
   function endreTimer(v: string) {
@@ -1403,6 +1481,7 @@ function TimerRadDialog({
             </label>
             <Input
               type="time"
+              step={timeStep}
               value={fraTid}
               onChange={(e) => endreFra(e.target.value)}
             />
@@ -1416,11 +1495,18 @@ function TimerRadDialog({
             </label>
             <Input
               type="time"
+              step={timeStep}
               value={tilTid}
               onChange={(e) => endreTil(e.target.value)}
             />
           </div>
         </div>
+        {/* R3-transparens: hvor mange minutter lunsjpause raden trekker fra. */}
+        {pauseOverlapp > 0 && (
+          <p className="-mt-2 text-xs text-gray-500">
+            {t("timer.pauseFradrag", { min: pauseOverlapp })}
+          </p>
+        )}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.antallTimer")}

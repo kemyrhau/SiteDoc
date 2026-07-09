@@ -88,9 +88,11 @@ D1–D9 under. **Develop-scope, flagg-uavhengig.**
 
 **Fremdrift:** Bolk (a) = D7 + D1 + D2 + D3 **merget develop 2026-07-09**
 (`b3230944`). Bolk (b) = D4 + D5 + D6 **merget develop 2026-07-09** (`0985d46e`).
-Bolk (c) = D8 **implementert 2026-07-09** på branch `feature/timer-web-paritet-c`
-(venter cowork-gate + merge). GPS-geoforslag splittet ut til egen rad (se under).
-D9 separat. **Alle D1–D8 dermed levert/på-branch — D9 + GPS gjenstår.**
+Bolk (c) = D8 **merget develop 2026-07-09** (`7797a9b5`).
+Bolk (d) = **reglene bak fra/til-feltene** (R1 prefill + R2 rad-visning + R3
+pauseOverlapp-transparens + R4 T.5-runding) **implementert 2026-07-09** direkte
+på develop. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
+**Alle D1–D8 + bolk (d) dermed levert — D9 + GPS + to opprydnings-rader (under) gjenstår.**
 
 **Bekreftede kjente divergenser (Kenneth-testing 2026-07-08):**
 
@@ -183,9 +185,17 @@ mobil har prosjekt i hver rad-modal.
   Prosjekt-per-sedel-fundament + hel rad-paritet (prosjekt + fra/til + pause-calc).
 - **Bolk (b) — ✅ implementert (branch `feature/timer-web-paritet-b`, venter gate/merge):**
   D4 (tillegg-kvittering) + D5 (maskinførerbevis-varsel) + D6 (maskin-buffer).
-- **Bolk (c) — ✅ implementert (branch `feature/timer-web-paritet-c`, venter gate/merge):**
+- **Bolk (c) — ✅ merget develop (`7797a9b5`):**
   D8 («Mine timer»-inngang + kladd-påminnelse).
-- **Separat:** D9 (sesong-dagsnorm) + GPS-geoforslag (egen rad under).
+- **Bolk (d) — ✅ implementert på develop 2026-07-09:** reglene bak fra/til-feltene
+  (feltene selv kom i bolk (a)). R1 prefill (`TimerRadDialog`: ny rad → fra =
+  siste bucket-rads `tilTid` ?? dagens effektive start, til = effektiv slutt;
+  `pauseFra` = effektiv skiftstart via `sheet.startAt`), R2 fra–til i `RaderTimer`,
+  R3 pauseOverlapp-transparenslinje (`timer.pauseFradrag`, eksisterende nøkkel),
+  R4 `rundTilNarmeste` (T.5) ved commit + picker-`step`. Kilde `hentArbeidstidDefaults`
+  (eksponerer alt inkl. `tidsrundingMinutter` — ingen ny query). Ingen ny i18n.
+- **Separat:** D9 (sesong-dagsnorm) + GPS-geoforslag (egen rad under) + to
+  opprydnings-rader (maskin-rad-prefill-avvik + pauseBeregning-duplikat, under).
 
 ### 🟡 Timer web: GPS-geoforslag ved ny dagsseddel (splittet fra D7, 2026-07-09)
 
@@ -195,6 +205,30 @@ opprettelse. Web mangler infrastrukturen: ingen gjenbrukbar
 ingen org-byggeplass-koordinat-query til denne flaten. Krever: browser-geolocation
 + permission-UX + koordinat-query + match-logikk. Ikke-blokkerende bekvemmelighet;
 D7-fundamentet (krev Prosjekt) avhenger ikke av det. Egen runde.
+
+### 🟢 Web maskin-rad-prefill avviker fra mobil (funn under bolk (d), 2026-07-09)
+
+Web `MaskinRadDialog` prefyller fra/til fra bucketen slik: `defaultFraTid =
+timerRaderIBucket[0]?.fraTid`, `defaultTilTid = timerRaderIBucket.at(-1)?.tilTid`
+(`timer/[id]/page.tsx` — parent `onTilfoyMaskin`). Mobil `MaskinSeksjon.defaultTider`
+(`apps/mobile/src/components/timer-detalj/MaskinSeksjon.tsx:443-458`) bruker samme
+regel som timer-raden: `fra = [...eksisterendeRader].reverse().find(r => r.tilTid)?.tilTid
+?? effektiv.startTid`, `til = effektiv.sluttTid`. Dvs. mobil bruker **siste rads
+`tilTid`** for fra (fortsett-der-du-slapp), web bruker **første rads `fraTid`**.
+Divergensen er kosmetisk (kun forhåndsvalg — bruker kan justere), men bør bringes i
+paritet i egen runde: la web maskin-prefill speile timer-R1-regelen. Ikke rørt i
+bolk (d) (out-of-scope: kun timer-rad-modalen). Lav prioritet.
+
+### 🟢 `pauseBeregning.ts` duplisert (mobil + shared) — mobil importerer sin egen kopi
+
+Etter bolk (a) finnes pause-beregningen to steder: `packages/shared/src/utils/pauseBeregning.ts`
+(kanonisk, web bruker den via `@sitedoc/shared`) og `apps/mobile/src/utils/pauseBeregning.ts`
+(mobil importerer fortsatt sin egen — `TimerSeksjon.tsx:45`, `MaskinSeksjon.tsx`).
+Samme funksjoner (`pauseVinduFra`/`hhmmTilMin`/`pauseOverlappMin`/`effektiveTimerFraSpenn`/
+`tilFraAntall`/`DEFAULT_PAUSE_ETTER_TIMER`). Risiko: framtidig divergens (samme klasse
+feil som autofyll-saken). Dedup: la mobil importere fra `@sitedoc/shared` og slett
+mobil-kopien (verifiser at Metro-bundleren tar shared-pakken). Ikke rørt i bolk (d)
+(mobil = fasit, null endringer). Lav prioritet, men gjør før neste pause-endring.
 
 ### 🟡 Maskin/bil på timer-rad — utledet tid + fler-maskin-modal (idé i kø)
 
