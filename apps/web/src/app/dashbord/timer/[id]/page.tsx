@@ -13,6 +13,7 @@ import {
   Trash2,
   Send,
   AlertCircle,
+  RotateCcw,
   X,
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
@@ -73,6 +74,9 @@ type TimerRad = {
   timer: unknown;
   // T.12 (2026-06-21): fritekst per rad — «hva gjorde du?». Speiler mobil.
   beskrivelse: string | null;
+  // Bolk (f): rad-attestering. Brukes til å deaktivere gjenåpne-knappen når leder
+  // alt har attestert (server-vakten er sannhetskilden; dette gater bare UI-et).
+  attestertStatus: string | null;
 };
 
 type TilleggVedlegg = {
@@ -91,6 +95,7 @@ type TilleggRad = {
   kommentar: string | null;
   // Funn #2 (2026-06-21): kvittering-vedlegg per tillegg-rad (fra hentMedId).
   vedlegg?: TilleggVedlegg[];
+  attestertStatus: string | null;
 };
 
 type MaskinRad = {
@@ -104,6 +109,7 @@ type MaskinRad = {
   timer: unknown;
   mengde: unknown;
   enhet: string | null;
+  attestertStatus: string | null;
 };
 
 type ProsjektRef = {
@@ -191,6 +197,27 @@ export default function DagsseddelDetaljSide() {
     onError: (e: { message: string }) => setFeil(e.message),
   });
 
+  // Bolk (f): gjenåpne en sendt sedel (arbeiderens egen). Server nullstiller
+  // lederens rad-attestering → ekte bekreftelsesmodal (CLAUDE.md § Slett-
+  // bekreftelse). Web er bevisst strengere enn mobil, som fyrer uten dialog.
+  const [visGjenaapneModal, setVisGjenaapneModal] = useState(false);
+  const [gjenaapneFeil, setGjenaapneFeil] = useState<string | null>(null);
+
+  const gjenaapne = trpc.timer.dagsseddel.gjenaapneDagsseddel.useMutation({
+    onSuccess: () => {
+      setVisGjenaapneModal(false);
+      utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
+    },
+    // Speil mobilens feilGodkjent for accepted (server-melding inneholder
+    // «godkjent»); ellers vis server-meldingen direkte.
+    onError: (e: { message: string }) =>
+      setGjenaapneFeil(
+        e.message.includes("godkjent")
+          ? t("timer.gjenaapne.feilGodkjent")
+          : e.message,
+      ),
+  });
+
   // Kaster tRPC-respons til en enklere type for å unngå TS2589 (excessively
   // deep instantiation). hentMine returnerer Project med faggrupper + _count
   // som gir dyp type-tre.
@@ -234,6 +261,13 @@ export default function DagsseddelDetaljSide() {
   const timerRader = sheet.timer as unknown as TimerRad[];
   const tilleggRader = sheet.tillegg as unknown as TilleggRad[];
   const maskinRader = (sheet.maskiner ?? []) as unknown as MaskinRad[];
+
+  // Bolk (f): har leder attestert minst én rad? Da blokkerer server-vakten
+  // gjenåpning — deaktiver knappen og be arbeideren kontakte leder for retur.
+  const harAttestertRad =
+    timerRader.some((r) => r.attestertStatus === "attestert") ||
+    tilleggRader.some((r) => r.attestertStatus === "attestert") ||
+    maskinRader.some((r) => r.attestertStatus === "attestert");
   const totaltimer = timerRader.reduce((acc, r) => acc + tilTall(r.timer), 0);
 
   // Bolk (d) R1: dagens effektive arbeidstid-vindu — kilde til fra/til-prefill
@@ -341,6 +375,29 @@ export default function DagsseddelDetaljSide() {
           )}
         </div>
       </div>
+
+      {/* Bolk (f): gjenåpning — kun på SENDT sedel (ikke draft/returned/accepted).
+          Speiler mobilens knapp + hjelpetekst; bekreftelse via modal under. */}
+      {sheet.status === "sent" && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <p className="text-sm text-blue-900">
+            {harAttestertRad
+              ? t("timer.gjenaapne.laastAttestert")
+              : t("timer.gjenaapne.hjelp")}
+          </p>
+          <Button
+            variant="secondary"
+            disabled={harAttestertRad}
+            onClick={() => {
+              setGjenaapneFeil(null);
+              setVisGjenaapneModal(true);
+            }}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            {t("timer.gjenaapne.knapp")}
+          </Button>
+        </div>
+      )}
 
       {/* D1: sedelen fantes fra før for denne datoen (åpnet i stedet for feil). */}
       {aapnetEksisterende && !notisAvvist && (
@@ -685,6 +742,39 @@ export default function DagsseddelDetaljSide() {
             setAktivModal(null);
           }}
         />
+      )}
+
+      {/* Bolk (f): gjenåpne-bekreftelse. Ekte modal (aldri confirm()). Teksten
+          sier eksplisitt at lederens rad-attestering nullstilles. */}
+      {visGjenaapneModal && (
+        <Modal
+          open={true}
+          onClose={() => setVisGjenaapneModal(false)}
+          title={t("timer.gjenaapne.bekreftTittel")}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {t("timer.gjenaapne.bekreftTekst")}
+            </p>
+            {gjenaapneFeil && (
+              <p className="text-sm text-sitedoc-error">{gjenaapneFeil}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setVisGjenaapneModal(false)}
+              >
+                {t("handling.avbryt")}
+              </Button>
+              <Button
+                onClick={() => gjenaapne.mutate({ id: params.id })}
+                loading={gjenaapne.isPending}
+              >
+                {t("timer.gjenaapne.bekreftKnapp")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );

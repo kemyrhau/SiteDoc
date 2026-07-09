@@ -1223,12 +1223,13 @@ export const dagsseddelRouter = router({
   // med tydelig melding (leder har godkjent → kontakt leder). draft/returned er alt
   // redigerbar → samme guard avviser.
   //
-  // Nullstiller ALLE rad-attestasjoner til pending: en "sent"-sedel kan ha delvis
-  // attesterte rader (leder rakk noen før alle var ferdige). Etter recall + redigering
-  // er de utdaterte og må re-vurderes rent. Speiler re-send-etter-retur-mønsteret over;
-  // permanent audit-spor hører hjemme i Activity-tabellen (T7-2b3), ikke status-feltene.
-  // Når leder forsvinner sedelen fra «Venter på attestering» automatisk (kø-query
-  // filtrerer på status="sent").
+  // Vakt (2026-07-09, Kenneth): har leder attestert minst én rad, BLOKKERES
+  // gjenåpning — arbeideren må be leder RETURNERE i stedet (attestertStatus=
+  // "returnert" → status "returned", som er redigerbar). Ellers ville arbeideren
+  // kastet lederens arbeid stille. Er ingen rad attestert, nullstilles rad-status
+  // til pending (defensivt) og sedelen går til draft. Permanent audit-spor hører
+  // hjemme i Activity-tabellen (T7-2b3). Leder-køen (status="sent") slipper
+  // sedelen automatisk når status endres.
   gjenaapneDagsseddel: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1241,6 +1242,31 @@ export const dagsseddelRouter = router({
             sheet.status === "accepted"
               ? "Dagsseddelen er allerede godkjent av leder — kontakt leder for endring"
               : `Kan ikke gjenåpne dagsseddel med status «${sheet.status}»`,
+        });
+      }
+
+      // Attestert-vakt (2026-07-09): har leder attestert minst én rad, kan ikke
+      // arbeideren gjenåpne selv — det ville kastet lederens arbeid uten varsel.
+      // Han må be leder RETURNERE sedelen (retur-flyten setter attestertStatus=
+      // "returnert" + status="returned", som er redigerbar).
+      const [attTimer, attTillegg, attMaskin] = await ctx.prismaTimer.$transaction(
+        [
+          ctx.prismaTimer.sheetTimer.count({
+            where: { sheetId: sheet.id, attestertStatus: "attestert" },
+          }),
+          ctx.prismaTimer.sheetTillegg.count({
+            where: { sheetId: sheet.id, attestertStatus: "attestert" },
+          }),
+          ctx.prismaTimer.sheetMachine.count({
+            where: { sheetId: sheet.id, attestertStatus: "attestert" },
+          }),
+        ],
+      );
+      if (attTimer + attTillegg + attMaskin > 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Leder har alt attestert minst én rad — be leder returnere dagsseddelen for endring",
         });
       }
 

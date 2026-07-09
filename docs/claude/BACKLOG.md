@@ -281,6 +281,41 @@ retro-validering** — sperren gjelder kun nye/redigerte rader med begge tider s
 eksisterende radene rettes når noen redigerer dem (prod holder kun testdata — Kenneth
 bekreftet), eller ryddes før første ekte kunde.
 
+### 🟡 Mobil `gjenaapne()` mangler bekreftelse — ett trykk kaster lederens rad-attestering
+
+`apps/mobile/app/timer/[id].tsx:358` — `gjenaapne()` kaller `gjenaapneMutation.mutate()`
+**direkte, uten dialog** (`onPress={gjenaapne}`, l. 751). `Alert.alert` i fila tilhører
+`slettSedel()`, ikke gjenåpning. Server nullstiller lederens `attestertStatus/
+attestertAvUserId/attestertVed` på alle rader. Web fikk ekte bekreftelsesmodal i bolk (f)
+(2026-07-09); mobil bør få samme (paritet i trygg retning). **Bundet til neste EAS-batch.**
+
+### 🟡 `timer.gjenaapne.hjelp` er misvisende — nevner ikke at attestering nullstilles
+
+Hjelpeteksten sier «lederen ser den ikke før du sender på nytt», men **ikke** at lederens
+rad-attestering faktisk *nullstilles* ved gjenåpning. Gjelder både web og mobil (samme
+i18n-nøkkel). Bolk (f)-modalen på web sier det eksplisitt (`bekreftTekst`), men den korte
+`hjelp`-linjen under knappen er fortsatt upresis. Vurder å skjerpe `hjelp`-teksten (rører
+15 språkfiler — kjør `generate.ts`).
+
+### 🟢 Attestert-vakt på gjenåpning — VEDTATT + implementert (web + api) 2026-07-09
+
+Kenneth vedtok: har leder attestert minst én rad, kan arbeideren **ikke** gjenåpne selv —
+han må be leder **returnere** (retur-flyten finnes: `attestertStatus="returnert"` →
+`status="returned"`, redigerbar). Begrunnelse: gjenåpning ville ellers kastet lederens
+arbeid uten varsel til lederen. Implementert i bolk (f): server-vakt i `gjenaapneDagsseddel`
+(`PRECONDITION_FAILED` når ≥1 rad `attestertStatus="attestert"`) + web deaktiverer knappen
+med «kontakt leder»-tekst (`timer.gjenaapne.laastAttestert`). **Mobil gjenstår**
+(knapp-gating + feil-mapping) → neste EAS-batch (raden under).
+
+### 🟡 Mobil: gjenåpne-feil mapper `PRECONDITION_FAILED` → «nettverksfeil» (misvisende)
+
+`apps/mobile/app/timer/[id].tsx:379` — `gjenaapne()` sin `onError`: `melding.includes(
+"godkjent") ? feilGodkjent : feilNett`. Den nye attestert-vakten (bolk (f)) kaster
+`PRECONDITION_FAILED` med melding «Leder har alt attestert minst én rad …» — inneholder
+ikke «godkjent», så appen viser `feilNett` («Krever nett») der grunnen er attestering, ikke
+nettverk. Fiks sammen med mobil knapp-gating: gate knappen på rad-`attestertStatus` (som web)
++ skjerp feil-mappingen. **Bundet til neste EAS-batch.**
+
 ### 🟡 Maskin/bil på timer-rad — utledet tid + fler-maskin-modal (idé i kø)
 
 Kenneth-idé (2026-07-08, simulator-testing): i stedet for at maskinbruk er en **separat** registrering («Herav på maskin»-seksjon lenger ned på sedelen) — la bruker legge maskin/bil **rett på timer-raden** i `TimerRadModal`. Siden raden nå har et tidsrom (fra/til), kan **maskintiden utledes/arves** fra raden. Egen modal som lar deg legge til **flere** verktøy/maskiner (flere kan vært i bruk samme økt).
