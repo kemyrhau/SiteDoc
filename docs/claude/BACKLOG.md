@@ -33,9 +33,13 @@ Delt postgres har `max_connections=100`; adskilte databaser deler samme tak (kly
 
 Verifisert 2026-07-09 via sha1-fingeravtrykk (aldri verdier): `AUTH_GOOGLE_ID`/`_SECRET` + `AUTH_MICROSOFT_ENTRA_ID_ID`/`_SECRET` er **identiske** i `web.env` og `web-redesign.env`; kun `AUTH_SECRET` er egen. Prod-appene har `redesign.sitedoc.no` som gyldig redirect-URI → tillits-kobling mellom demo og prod. **Fiks:** egne app-registreringer for redesign (egen redirect-URI, samtykkeskjerm «SiteDoc Demo») + **fjern de to redesign-redirect-URIene fra prod-appene etterpå** — ellers står tillits-koblingen. (fabel-godkjent 2026-07-09.)
 
-### 🟡 salsaklubb: eget nett + egen postgres FØR produksjon
+### ✅ salsaklubb: eget nett + egen postgres — UTFØRT 2026-07-09
 
-Container stoppet 2026-07-09 (ingen brukere ennå) → frigjorde 10 tilkoblinger + fjernet lateral nettverkstilgang til SiteDocs postgres/api/ML (lå på delt `appnet`). **Ikke migrer — bygg riktig fra start:** eget `salsanet`, egen `postgres-salsa`-container med eget volum + eget `max_connections`. `sendfil` (eget `sendfil_default`) er mønsteret.
+Egen `postgres:16` (`salsaklubb-postgres`, tjenestenavn `postgres` slik at `DATABASE_URL` traff uendret), eget nett `salsanet`, volum `salsa_pgdata`, ingen host-port. Ingress gikk allerede via host-port `127.0.0.1:3200` + cloudflared, ikke via `appnet` → null nedetid. Frigjorde 10 tilkoblinger og fjernet lateral tilgang til SiteDocs postgres/api/ML. `sendfil` var mønsteret.
+
+Sidefunn: salsaklubb hadde ingen volumer; `/app/public/uploads` lå i container-FS. Rebuilden under serverflyttingen 2026-06-10 slettet 68 MB opplastede filer (194 bilagsvedlegg + logo/hero/galleri). Gjenopprettet fra Kenspill, og bind-mount lagt inn. Dokumentert i salsaklubb-repoet (`4ecca74`). Kenspill skal ikke ryddes.
+
+Gjenstår: gammel `tromsosalsaklubb`-DB i den delte klyngen er fallback — droppes kun etter eksplisitt beslutning.
 
 ### 🟡 pgBouncer foran postgres
 
