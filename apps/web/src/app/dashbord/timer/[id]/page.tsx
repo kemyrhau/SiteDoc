@@ -541,18 +541,26 @@ export default function DagsseddelDetaljSide() {
               })}
               erRedigerbar={erRedigerbar}
               pauseMin={sheet.pauseMin}
-              onTilfoyTimer={(ecoId, timerRaderIBucket) => {
-                // Bolk (d) R1: fra = siste rad med tilTid i bucket, ellers
-                // dagens effektive start; til = dagens effektive slutt
-                // (speiler mobil TimerRadModal.defaultTider).
-                const forrigeMedTil = [...timerRaderIBucket]
-                  .reverse()
-                  .find((r) => !!r.tilTid);
+              onTilfoyTimer={(ecoId) => {
+                // Bolk (g): fra = SENESTE tilTid på HELE sedelen (alle bøtter),
+                // ellers dagens effektive start. «Fortsett der du slapp» på hele
+                // dagen — ikke bare bøtta. Seneste slutt hindrer at ny rad
+                // prefylles inn i et allerede registrert tidsrom (overlapp-vakt).
+                const sisteTil = timerRader
+                  .map((r) => r.tilTid)
+                  .filter((t): t is string => !!t)
+                  .reduce<string | null>(
+                    (senest, t) =>
+                      senest === null || hhmmTilMin(t) > hhmmTilMin(senest)
+                        ? t
+                        : senest,
+                    null,
+                  );
                 setAktivModal({
                   type: "timer",
                   projectId,
                   defaultEcoId: ecoId,
-                  defaultFraTid: forrigeMedTil?.tilTid ?? effektivStart,
+                  defaultFraTid: sisteTil ?? effektivStart,
                   defaultTilTid: effektivSlutt,
                 });
               }}
@@ -1407,15 +1415,22 @@ function TimerRadDialog({
   const [aktivitetId, setAktivitetId] = useState<string>(
     rad?.aktivitetId ?? defaultAktivitetId ?? "",
   );
+  // Bolk (g): prefill er kun gyldig når begge tider finnes OG fra < til. Er
+  // beregnet fra ≥ til (f.eks. forrige rad sluttet etter skiftslutt), forhånds-
+  // utfyller vi verken til eller antall — tomme felt slår en ugyldig rad.
+  const prefillGyldig =
+    !!defaultFraTid &&
+    !!defaultTilTid &&
+    hhmmTilMin(defaultFraTid) < hhmmTilMin(defaultTilTid);
   const [timer, setTimer] = useState<string>(() => {
     if (rad) return String(tilTall(rad.timer));
-    // B3: init antall fra prefill-spennet (pause-bevisst) så «Lagre» er aktiv
-    // umiddelbart — ett-klikk-registrering. Tom hvis prefill mangler tider.
-    if (defaultFraTid && defaultTilTid) {
+    // B3: init antall fra prefill-spennet (pause-bevisst) — kun ved gyldig
+    // prefill; ellers tom (ingen 0-rad).
+    if (prefillGyldig) {
       return String(
         effektiveTimerFraSpenn(
-          defaultFraTid,
-          defaultTilTid,
+          defaultFraTid!,
+          defaultTilTid!,
           pauseVinduFra(skiftStart, standardPauseEtterTimer),
           standardPauseMin,
         ),
@@ -1441,7 +1456,10 @@ function TimerRadDialog({
   // Bolk (d) R1: ny rad prefylles fra defaultFraTid/Til; redigering bruker
   // radens egne verdier.
   const [fraTid, setFraTid] = useState<string>(rad?.fraTid ?? defaultFraTid ?? "");
-  const [tilTid, setTilTid] = useState<string>(rad?.tilTid ?? defaultTilTid ?? "");
+  // Bolk (g): til prefylles kun ved gyldig prefill (fra < til). Ellers tom.
+  const [tilTid, setTilTid] = useState<string>(
+    rad?.tilTid ?? (prefillGyldig ? defaultTilTid! : ""),
+  );
   const [feil, setFeil] = useState<string | null>(null);
 
   // Pausevindu = skiftstart + standardPauseEtterTimer, lengde standardPauseMin.
@@ -1507,14 +1525,18 @@ function TimerRadDialog({
     e.preventDefault();
     setFeil(null);
     const tNum = parseFloat(timer);
-    if (!lonnsartId || !aktivitetId || isNaN(tNum) || tNum < 0 || tNum > 24) {
+    if (!lonnsartId || !aktivitetId || isNaN(tNum) || tNum <= 0 || tNum > 24) {
       setFeil(t("timer.feil.ugyldigInput"));
       return;
     }
-    // Pause-synk-sikkerhetsnett (paritet m/ mobil TimerSeksjon.tsx:681): når
-    // begge tider er satt MÅ antall stemme med (spenn − pause). Auto-synken
-    // holder dem i takt; dette fanger manuell desync.
+    // Pause-synk-sikkerhetsnett (paritet m/ mobil TimerSeksjon.tsx:681). Krev
+    // FØRST til > fra (bolk (g): lukker 0==0-hullet der fra≥til gir forventet=0
+    // og en 0-rad ellers slipper gjennom). Så: antall == spenn − pause.
     if (fraTid && tilTid) {
+      if (hhmmTilMin(tilTid) <= hhmmTilMin(fraTid)) {
+        setFeil(t("timer.feil.sluttForStart"));
+        return;
+      }
       const forventet = effektiveTimerFraSpenn(
         fraTid,
         tilTid,
@@ -2096,15 +2118,20 @@ function MaskinRadDialog({
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
 
   const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
+  // Bolk (g): prefill gyldig kun når begge tider finnes OG fra < til.
+  const prefillGyldig =
+    !!defaultFraTid &&
+    !!defaultTilTid &&
+    hhmmTilMin(defaultFraTid) < hhmmTilMin(defaultTilTid);
   const [timer, setTimer] = useState<string>(() => {
     if (rad) return String(tilTall(rad.timer));
-    // B3: init antall fra prefill-spennet (pause-bevisst). Tom hvis prefill
-    // mangler tider.
-    if (defaultFraTid && defaultTilTid) {
+    // B3: init antall fra prefill-spennet (pause-bevisst) — kun ved gyldig
+    // prefill; ellers tom (ingen 0-rad).
+    if (prefillGyldig) {
       return String(
         effektiveTimerFraSpenn(
-          defaultFraTid,
-          defaultTilTid,
+          defaultFraTid!,
+          defaultTilTid!,
           pauseVinduFra(skiftStart, standardPauseEtterTimer),
           standardPauseMin,
         ),
@@ -2115,8 +2142,9 @@ function MaskinRadDialog({
   const [fraTid, setFraTid] = useState<string>(
     rad?.fraTid ?? defaultFraTid ?? "",
   );
+  // Bolk (g): til prefylles kun ved gyldig prefill (fra < til).
   const [tilTid, setTilTid] = useState<string>(
-    rad?.tilTid ?? defaultTilTid ?? "",
+    rad?.tilTid ?? (prefillGyldig ? defaultTilTid! : ""),
   );
   const [mengde, setMengde] = useState<string>(
     rad?.mengde !== null && rad?.mengde !== undefined
@@ -2234,14 +2262,18 @@ function MaskinRadDialog({
     e.preventDefault();
     setFeil(null);
     const tNum = parseFloat(timer);
-    if (!vehicleId || isNaN(tNum) || tNum < 0 || tNum > 24) {
+    if (!vehicleId || isNaN(tNum) || tNum <= 0 || tNum > 24) {
       setFeil(t("timer.feil.ugyldigInput"));
       return;
     }
     // B2 (bolk e): når begge tider er satt MÅ antall stemme med (spenn − pause).
     // Standardvalget er «maskinen gikk hele økta»; kortere drift krever justert
-    // fra/til (tilsiktet — antall kan ikke lenger overstyres alene).
+    // fra/til. Bolk (g): krev FØRST til > fra (lukker 0==0-hullet).
     if (fraTid && tilTid) {
+      if (hhmmTilMin(tilTid) <= hhmmTilMin(fraTid)) {
+        setFeil(t("timer.feil.sluttForStart"));
+        return;
+      }
       const forventet = effektiveTimerFraSpenn(
         fraTid,
         tilTid,

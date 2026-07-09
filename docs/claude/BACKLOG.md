@@ -252,6 +252,23 @@ Mobil gjenstår og er **bundet til neste EAS-batch** (kvotebegrenset — ikke fy
   gjelder `MaskinSeksjon`.
 - Bruk `standardPauseMin` (setting), ikke `sheet.pauseMin`, for spennfradraget (som web).
 
+### 🟡 Mobil: bolk (g) — overlapp-vakt + `fra<til` + prefill-scope + 0==0 (neste EAS-batch)
+
+Web fikk bolk (g) 2026-07-09 (server-vakt + klient). Mobil gjenstår og har trolig
+samme hull:
+- **`fra<til`-gyldighet:** mobil har `fraErForTil`-sjekk i `TimerSeksjon` (l. ~673),
+  men verifiser at `MaskinSeksjon` også har den (bolk (e) mobil mangler uansett).
+  Server-superRefine (bolk (g)) fanger nå begge på tvers, så mobil får en tydelig
+  feil uansett — men klient-siden bør speile for UX.
+- **Prefill-scope:** mobil `defaultTider` er **bøtte-scopet** (`eksisterendeRader` =
+  bøttens rader). Bolk (g) løftet web-timer-prefill til **hele sedelen** (seneste
+  `tilTid`). Løft mobil til samme (unngår prefill inn i registrert tidsrom).
+- **0==0-hullet:** speil web — `forventet == antall`-sperren skal først kreve til > fra,
+  og antall = 0 avvises.
+- Overlapp-vakten er **server-side (hard sperre)** og gjelder mobil-innsending
+  allerede; mobil trenger kun klient-side speiling for god UX. **Bundet til neste
+  EAS-batch.**
+
 ### 🟡 `sedel.pauseMin` er dekorativt — leses ikke av rad-beregning (avklar)
 
 Verifisert i bolk (e): både web og mobil bruker firma-`standardPauseMin`
