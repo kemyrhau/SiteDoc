@@ -186,6 +186,9 @@ export default function DagsseddelDetaljSide() {
   );
   const [notisAvvist, setNotisAvvist] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
+  // Bytter native confirm() til ekte modal for slett-bekreftelse
+  // (CLAUDE.md § Slett-bekreftelse — confirm() blokkerer testing/automatisering).
+  const [visSlettModal, setVisSlettModal] = useState(false);
 
   const send = trpc.timer.dagsseddel.send.useMutation({
     onSuccess: () => utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id }),
@@ -639,11 +642,7 @@ export default function DagsseddelDetaljSide() {
           {sheet.status === "draft" && (
             <Button
               variant="secondary"
-              onClick={() => {
-                if (confirm(t("timer.detalj.slettBekreft"))) {
-                  slett.mutate({ id: sheet.id });
-                }
-              }}
+              onClick={() => setVisSlettModal(true)}
               disabled={slett.isPending}
             >
               <Trash2 className="mr-1 h-4 w-4" />
@@ -771,6 +770,37 @@ export default function DagsseddelDetaljSide() {
                 loading={gjenaapne.isPending}
               >
                 {t("timer.gjenaapne.bekreftKnapp")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Slett-bekreftelse — ekte modal (erstatter native confirm(),
+          CLAUDE.md § Slett-bekreftelse). */}
+      {visSlettModal && (
+        <Modal
+          open={true}
+          onClose={() => setVisSlettModal(false)}
+          title={t("timer.detalj.slett")}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {t("timer.detalj.slettBekreft")}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setVisSlettModal(false)}
+              >
+                {t("handling.avbryt")}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => slett.mutate({ id: sheet.id })}
+                loading={slett.isPending}
+              >
+                {t("handling.slett")}
               </Button>
             </div>
           </div>
