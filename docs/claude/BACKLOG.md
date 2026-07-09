@@ -547,9 +547,41 @@ Knapp-gatingen holder MS skjult til client-id er ekte → PKCE-koden er trygg å
 
 **Lokal dev — ekte Entra client-ID for simulator (funn 2026-07-06) 🟡:** MS-login-flyten *virker* i iOS-simulator (systembrowser + Authenticator OK), men `apps/mobile`s lokale env har placeholder `din-microsoft-client-id-her` som `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` → Entra svarer **AADSTS700016** (app ikke funnet i katalogen). Distinkt fra Azure-sjekklista over (den gjelder EAS-profiler/TestFlight, ikke lokal `.env`). Fiks: registrer/konfigurer en ekte Entra client-ID for lokal dev — enten gjenbruk «SiteDoc Mobile»-appen med lokal redirect-URI lagt til, eller egen dev-app-registrering m/ riktig redirect-URI. **Ikke prioritert** — `dev-login` dekker simulator-testing uten MS.
 
+### 🔴 Prod mangler nivå-1 lønnsart-seed (A.Markussen) — funn 2026-07-09
+
+`seedLonnsartNivaa1` (16 lønnsarter: grunnlønn + overtid + 12 fraværstyper) er aldri kjørt for A.Markussens org. Kun nivå 2 (25 rader) finnes i prod (`seed_nivaa=2`, 0 med `kode`). Ingen ordinær timelønn, ingen `Overtid 50%`/`100%` → arbeider kan ikke føre ordinære timer/overtid med riktig lønnsart, PowerOffice-eksport umulig.
+
+**Rekkefølge er kritisk** — `seedLonnsartNivaa1` setter `erStandardvalg: rad.navn === "Timelønn"` via `createMany` **uten å nullstille andre rader**. Kjøres den mens km har stjerna, får firmaet **to** rader med `er_standardvalg = true` («maks én per org» håndheves kun i `timer.lonnsart.settStandard`, ikke i seeden). Riktig sekvens: (1) fjern stjerna fra `Kilometergodtgjørelse (egen bil)`, (2) kjør nivå-1-seed, (3) sett stjerna på riktig ordinær lønnsart (`Timelønn`/`Fastlønn`). Implementeres via `seedAMarkussenKatalog(organizationId)` — idempotent på `kode`, tørrkjøring på `sitedoc_test` før prod.
+
+### 🔴 Lønnsart-koder mangler i prod → PowerOffice-eksport umulig — funn 2026-07-09
+
+`Lonnsart.kode` er koblingsnøkkelen mot lønnssystemet. Eksportformatet er `nr | lønnsart | timer` — **PowerOffice matcher på `nr`, ikke navnet.** Prod har 0 koder på 25 lønnsarter.
+
+**Koder er per firma**, aldri i seeden (`@@unique([organizationId, kode])`; A.Markussens katalog er IKKE startpakke for nye kunder). Bekreftet 2026-07-09 (Florian): numrene **eies av A.Markussen**, båret av SmartDok i dag og matchet av PowerOffice → A.Markussens SiteDoc-katalog skal speile SmartDok kode for kode, 1:1, ingen renumerering. Mappingen er ikke 1:1 på navn (`120 Timer`→`Timelønn`, `170 Overtid 50%`→`Overtid 50%`, `129 Timer innleid arbeidskraft`→`Innleid arbeidskraft` osv.). Kilde for de 26 kodene: [smartdok-undersokelse.md § 4.1](smartdok-undersokelse.md).
+
+**Aktiviteter (Del 3-verifisert prod 2026-07-09):** kun `ANL Anleggsarbeid` har referanser (6 `sheet_timer` + 8 `daily_sheets`, `RESTRICT`) → oppdater in-place `kode='11'`, aldri slett/erstatt. `Ekstra`→`15`, `Garanti/Reklamasjon`→`14` (0 referanser, trygg oppdatering). `GRA Graving`/`RYD Rydding`: **0 referanser**, ingen SmartDok-motpart — beholdes aktive (SiteDoc-spesifikke, blokkerer ikke lønnsfila). **Deaktivering er kostnadsfri hvis Kenneth senere vil ha en katalog identisk med SmartDok — åpent valg, ikke gjeld.**
+
+### 🔴 Ingen validering av at `kode` finnes før attestering/eksport — funn 2026-07-09
+
+`SheetTimer` peker på `lonnsartId`; eksporten må slå opp `kode`. Mangler den, skal det stoppes ved **attestering** — ikke oppdages ved lønnskjøring. `timer.md § Eksport-kode-krav` lover at «eksport-modulen kaster tydelig feilmelding ved eksport-tid» — **den modulen finnes ikke** (eksport-adaptere «❌ Ikke startet»), og valideringen finnes ikke i noen kodevei i dag.
+
+### 🔴 Standard-lønnsart plasseres deterministisk feil (③b-fallback velger posisjon, ikke betydning) — funn 2026-07-09
+
+③b-fallbacken (`20260705120000_lonnsart_overtidsnivaa` Steg 2) plasserer standard-lønnsart **deterministisk feil** for enhver org uten nivå-1-seed. Den velger laveste-`rekkefolge` aktive `type = 'ordinaer'`. Men `type = 'ordinaer'` er en **restkategori**: nivå-2-seeden gir den til kilometergodtgjørelse, reisetrinn, skifttillegg, smusstillegg og matpenger. **Verifisert i prod 2026-07-09:** A.Markussen fikk `Kilometergodtgjørelse (egen bil)` (`rekkefolge 5`, laveste aktive ordinaer siden reisetrinnene `rekkefolge 1–4` er `aktiv=false`) som auto-valgt lønnsart for arbeidstimer. Stjerna kom fra migreringen, ikke fra et klikk — fella er ikke latent, den er **utløst i produksjon**. Backfillen garanterer at feltet er *satt*, ikke at det er *riktig* — og både `timer.md:263` og ③b-raden under beskrev den som en garanti.
+
+Runtime-seeden navne-matcher (`seed/index.ts:64`, `rad.navn === "Timelønn"`), engangs-backfillen posisjons-matcher. Ingen av dem vet hva ordinær arbeidstid *er*. UI-en (`lonnsarter/page.tsx:168`) tegner klikkbar stjerne for **alle** `type === "ordinaer"`, og `sats`/`satsEnhet` settes aldri i seeden → km har heller ingen kilometersats. **Fiks:** semantisk felt på `Lonnsart` (samme grep som `overtidsnivaa`: null | tidbasert-ordinær) satt ved import/onboarding, og stjerne-knappen begrenset til rader som bærer det.
+
+### 🟡 Stjerna kan flyttes, aldri fjernes — funn 2026-07-09
+
+`lonnsarter/page.tsx:171`: `if (!rad.erStandardvalg)` — klikk på allerede valgt rad gjør ingenting. `timer.lonnsart.settStandard` har ingen unset-gren. Schemaet tillater at alle er `false`, men ingen kodevei kommer dit.
+
+### 🟡 `seedLonnsartNivaa1` nullstiller ikke eksisterende standardvalg — funn 2026-07-09
+
+Se rekkefølge-fella i «Prod mangler nivå-1 lønnsart-seed» over. Seeden bør enten nullstille andre `erStandardvalg` i samme transaksjon, eller nekte å sette `erStandardvalg` når en annen rad allerede har den.
+
 ### ✅ Org uten standard-lønnsart (③b) — IMPLEMENTERT PÅ DEVELOP 2026-07-05 (web klar for prod, mobil venter EAS-batch)
 
-Data-backfill garanterer nå at hvert firma med ≥1 ordinær lønnsart har en standard (migrering `20260705120000_lonnsart_overtidsnivaa`: foretrekk `Timelønn` seedNivaa=1, ellers laveste-rekkefolge ordinær; kun orgs som mangler standard, NOT EXISTS-guard). Auto-gen gjetter aldri (= B) — standard kommer fra `erStandardvalg`, korrigerbar i firma-konfig. F-G rød banner beholdes for null-ordinære-lønnsarter-tilfellet. Full detalj: [STATUS-AKTUELT § Timer auto-lønnsart ③](STATUS-AKTUELT.md) + [timer.md § Overtid-klassifisering](timer.md).
+Data-backfill garanterer nå at hvert firma med ≥1 ordinær lønnsart har en standard (migrering `20260705120000_lonnsart_overtidsnivaa`: foretrekk `Timelønn` seedNivaa=1, ellers laveste-rekkefolge ordinær; kun orgs som mangler standard, NOT EXISTS-guard). Auto-gen gjetter aldri (= B) — standard kommer fra `erStandardvalg`, korrigerbar i firma-konfig. F-G rød banner beholdes for null-ordinære-lønnsarter-tilfellet. Full detalj: [STATUS-AKTUELT § Timer auto-lønnsart ③](STATUS-AKTUELT.md) + [timer.md § Overtid-klassifisering](timer.md). ⚠️ **Presisering 2026-07-09:** backfillen garanterer at feltet er *satt*, ikke *riktig* — Steg 2 velger laveste-`rekkefolge` aktiv `type="ordinaer"` (posisjon, ikke betydning). I prod ga det A.Markussen `Kilometergodtgjørelse (egen bil)` som standard arbeidstime-lønnsart. Se § «Standard-lønnsart plasseres deterministisk feil» over.
 
 ### ✅ Auto-overtid matchet feil lønnsart på navn (③a) — IMPLEMENTERT PÅ DEVELOP 2026-07-05 (web klar for prod, mobil venter EAS-batch)
 

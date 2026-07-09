@@ -260,7 +260,7 @@ Hvis kunden ikke har importert Nivå 1: ingen auto-fordeling, bruker velger løn
 
 **Payroll-prinsipp:** lærling-varianter beholdes `overtidsnivaa=null` (backfill) → aldri auto-valgt for normal arbeider. Backfill setter kun eksakte seed-navn (`Overtid 50%`→50, `Overtid 100%`→100, seedNivaa=1); kunde-importerte (f.eks. A.Markussens 170/172/175/177) settes manuelt i admin-UI.
 
-**③b — garantert standard-lønnsart:** migreringen backfiller `erStandardvalg` for orgs med ≥1 ordinær men ingen standard (foretrekk `Timelønn` seedNivaa=1, ellers laveste-rekkefolge ordinær). Auto-gen gjetter aldri — normaltid-raden får firmaets `erStandardvalg`-lønnsart. Fallback-bannere i mobil `[id].tsx`: rød «Mangler standard-lønnsart» (null ordinære), amber «Overtid ikke ført» (dag nådde norm men ingen overtid-lønnsart) — aldri stille drop.
+**③b — «garantert» standard-lønnsart:** migreringen `20260705120000_lonnsart_overtidsnivaa` (Steg 2) backfiller `erStandardvalg` for orgs med ≥1 ordinær men ingen standard (foretrekk `Timelønn` seedNivaa=1, ellers laveste-`rekkefolge` aktiv `type="ordinaer"`). ⚠️ **Fallbacken garanterer at feltet er *satt*, ikke at det er *riktig*** — den velger posisjon (laveste `rekkefolge`), ikke betydning. `type="ordinaer"` er en restkategori (km, reise, skifttillegg, smusstillegg, matpenger), så fallbacken kan velge f.eks. kilometergodtgjørelse som auto-lønnsart for arbeidstimer — det skjedde for A.Markussen i prod 2026-07-09. Egentlig fiks: semantisk felt på `Lonnsart` (som `overtidsnivaa`), se [BACKLOG § standard-lønnsart plasseres deterministisk feil](BACKLOG.md). Auto-gen gjetter aldri — normaltid-raden får firmaets `erStandardvalg`-lønnsart. Fallback-bannere i mobil `[id].tsx`: rød «Mangler standard-lønnsart» (null ordinære), amber «Overtid ikke ført» (dag nådde norm men ingen overtid-lønnsart) — aldri stille drop.
 
 ### Aktivitet-katalog (datadrevet, tre-nivå)
 
@@ -516,7 +516,9 @@ Lønnssystem-eksport-adaptere bruker `kategori = "destinasjon"` med leverandør-
 
 ### Timer-eksport — kolonner
 
-Eksport joiner `sheet_timer`/`sheet_tillegg` med katalog-tabellene for å hente lønnsart-kode, navn og pris. Aldri slått sammen til faste kolonner — hver lønnsart-rad blir egen post i eksportfilen.
+> ⚠️ **Utkast — blokkert på PowerOffice-spec (funn 2026-07-09).** Kolonnelista under er en foreslått spec, ikke bekreftet mot mottakersystemet, og **ikke implementert**. Dagens `apps/web/src/lib/timer-rapport-eksport.ts` er en **lederrapport** (kolonner `Ansatt`/`Ansattnr`/`Dato`/`Timer`, ingen `kode`-join), ikke et lønnsuttrekk. Grunnlaget finnes (`SheetTimer.lonnsartId` → `lonnsarter.kode`, `users.ansattnummer`, prissnapshot per rad) — det er *formatet* som mangler. Åpen post «Poweroffice-eksportformat — må bekreftes»: [smartdok-undersokelse-2026-04-25.md](smartdok-undersokelse-2026-04-25.md).
+
+Mål-eksporten (utkast) joiner `sheet_timer`/`sheet_tillegg` med katalog-tabellene for å hente lønnsart-kode, navn og pris. Aldri slått sammen til faste kolonner — hver lønnsart-rad blir egen post i eksportfilen.
 
 | Kolonne | Kilde |
 |---------|-------|
@@ -531,9 +533,13 @@ Eksport joiner `sheet_timer`/`sheet_tillegg` med katalog-tabellene for å hente 
 
 **Pris-snapshot:** Eksport bruker `attestertSnapshot.prisMotKunde` fra hver rad — ikke gjeldende pris i katalogen. Sikrer at attesterte timer beholder sin opprinnelige pris selv om katalog-prisen endres senere (Fase 0 A.7).
 
-**Eksport-kode-krav:** `lonnsarter.kode`/`tillegg.kode`/`aktiviteter.kode` er nullable. Eksport-modulen kaster tydelig feilmelding ved eksport-tid hvis kode mangler — gir kunden mulighet til å sette opp katalogen før første lønnssystem-eksport.
+**Eksport-kode-krav (planlagt, ikke bygget):** `lonnsarter.kode`/`tillegg.kode`/`aktiviteter.kode` er nullable. ⚠️ Doc-en beskriver *ønsket* atferd: eksport-modulen skal kaste tydelig feilmelding hvis kode mangler. **Eksport-modulen finnes ikke ennå** (adaptere «❌ Ikke startet»), og valideringen finnes ikke i noen kodevei i dag. Når den bygges bør sjekken skje ved **attestering**, ikke først ved lønnskjøring — se [BACKLOG § validering av `kode`](BACKLOG.md). Merk: `GRA`/`RYD`-aktivitetene er nå akseptert uten kode (SiteDoc-spesifikke) — aktivitet-kode-kravet må revideres når modulen bygges.
 
-**Eksport-kode ved migrering:** Eksisterende koder fra kundens nåværende system (f.eks. SmartDok) kopieres direkte ved migrering — ingen renumerering. Hvis A.Markussen har lønnsart `127 Fakturerbar tid` og enhetstillegg `157 Kloakk tillegg`, beholdes nøyaktig samme koder i SiteDocs `lonnsarter.kode`/`tillegg.kode`. Lønns- og økonomi-systemet (Visma, Hogia, ProAdm) matcher uten rekonfigurasjon. Migrerings-skript leser kundens eksisterende eksport-fil og kopierer kode-feltet 1:1.
+**Eksport-kode ved migrering:** Eksisterende koder fra kundens nåværende system (f.eks. SmartDok) kopieres direkte ved migrering — ingen renumerering. Hvis A.Markussen har lønnsart `127 Fakturerbar tid` og enhetstillegg `157 Kloakk tillegg`, beholdes nøyaktig samme koder i SiteDocs `lonnsarter.kode`/`tillegg.kode`. **Kodene kopieres 1:1 fordi de tilhører *kunden*, ikke kildesystemet** — bekreftet for A.Markussen (Florian, 2026-07-09: numrene er firmaets egne, båret av SmartDok i dag og matchet av PowerOffice). Dette er **ikke** en generell garanti om at ethvert lønns-/økonomisystem matcher uten rekonfigurasjon — hver ny kunde krever egen kartlegging. Migrerings-skript leser kundens eksisterende eksport-fil og kopierer kode-feltet 1:1.
+
+**Prinsipp (låst): lønnsart-koder er per firma og settes ved onboarding eller import — aldri i seeden** (`@@unique([organizationId, kode])`; A.Markussens katalog er IKKE startpakke for nye kunder). Eksportformatet er `nr | lønnsart | timer`, og mottakersystemet (PowerOffice) matcher på `nr`, ikke på navnet.
+
+> **📌 Mønster (funn 2026-07-09):** fire steder over — `③b`-fallback (§ Overtid-klassifisering), `Timer-eksport — kolonner`, `Eksport-kode-krav` og `Eksport-kode ved migrering` — beskrev ubygget eller uverifisert atferd i presens uten utkast-markør. Ved neste gjennomgang av fila: skill **spesifikasjon** fra **intensjon**.
 
 **Filtrering per eksport-spor** (per [smartdok-undersokelse.md § 9](smartdok-undersokelse.md)):
 - **Lønn:** Kun arbeidskraft (lønnsart + tillegg). Filtrer ut maskiner/materialer
