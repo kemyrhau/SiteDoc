@@ -60,7 +60,8 @@ function lesBootLokal(): boolean | null {
 
 /**
  * Skriver et eksplisitt lokalt valg + markerer siste bruker (blink-fri neste boot).
- * Brukes av toggle-setteren og av `?nyNav`-håndteringen.
+ * Kalles KUN av toggle-setteren (`useSettNyNavigasjon`). `?nyNav`-håndteringen
+ * skriver ALDRI lokalt (Plan 2: URL-flagget er flyktig).
  */
 function skrivLokal(userId: string | null, verdi: boolean): void {
   if (typeof window === "undefined") return;
@@ -79,6 +80,12 @@ export function useNyNavigasjon(): boolean {
   });
   const userId = minBruker?.id ?? null;
   const konto = minBruker?.nyNavigasjon ?? null;
+  const rolle = minBruker?.role ?? null;
+  // Stale-lokal-guard (2026-07-09): persistert `lokal` honoreres kun for
+  // sitedoc_admin. Ikke-admin med gammel lokal="1" (pre-Plan-2 `?nyNav=1`-persist)
+  // skal ikke låses inne. Under boot (rolle=null) er den false → lokal ignoreres
+  // til rollen er kjent; konto/query er upåvirket. Ryddes i egen effekt under.
+  const lokalTillatt = rolle === "sitedoc_admin";
 
   // Flyktig ?nyNav-URL (demo/dev-override) + persistert lokal cache — separate innganger.
   // null (SSR-trygt) til effekten kjører.
@@ -103,9 +110,20 @@ export function useNyNavigasjon(): boolean {
     window.localStorage.setItem(SISTE_BRUKER_NOKKEL, userId);
   }, [userId, konto]);
 
+  // Stale-lokal-opprydning (2026-07-09): når rollen er kjent OG ikke er
+  // sitedoc_admin, fjern den persisterte lokal-nøkkelen så en gammel lokal="1"
+  // (pre-Plan-2) ikke ligger igjen og gjenoppstår ved neste boot. Self-healing —
+  // gates på `rolle !== null` (vent til rollen er lastet, ikke rydd blindt i boot).
+  useEffect(() => {
+    if (typeof window === "undefined" || !userId) return;
+    if (rolle !== null && rolle !== "sitedoc_admin") {
+      window.localStorage.removeItem(nokkelFor(userId));
+    }
+  }, [userId, rolle]);
+
   // Før mount: false (SSR-paritet, unngår hydrerings-avvik). Deretter delt resolver.
   if (!montert) return false;
-  return resolverNyNavigasjon({ query, konto, lokal, envDefault: ENV_DEFAULT });
+  return resolverNyNavigasjon({ query, konto, lokal, lokalTillatt, envDefault: ENV_DEFAULT });
 }
 
 /**

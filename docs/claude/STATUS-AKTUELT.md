@@ -1,7 +1,7 @@
 ---
 name: STATUS-AKTUELT
 description: Løpende statusrapport for pågående arbeid, pauset arbeid og planlagte faser. Oppdateres ved hver vesentlig fremdrift.
-sist_verifisert_mot_kode: 2026-07-08
+sist_verifisert_mot_kode: 2026-07-09
 ---
 
 ## Pågående arbeid (PR-historikk)
@@ -16,11 +16,13 @@ Pausevindu regnes relativt til skiftstart (`standardPauseEtterTimer`, default 4.
 
 > **✅ Generalprøve web-runde (F1/F3/F4/F5) — MERGET develop `6f1b5670` (--no-ff), fabel-godkjent + deployet test 2026-07-08.** Bak `nyNavigasjon`-flagg (inert prod). F1 `5ace3e3f` + F3/F4/F5 `17ba8bb0`. Skjermbilder `docs/redesign/screenshots/F1-F5-web-2026-07-08/`. F2 (mobil) godkjent. **Gjenstår: prod-deploy + pilot.**
 
-> **🧵 Åpne tråder for neste økt (kontinuitet, oppdatert 2026-07-08):**
+> **🧵 Åpne tråder for neste økt (kontinuitet, oppdatert 2026-07-09):**
 > 1. **PSI Fase A + Maskin + ③:** web + DB-migreringer nå i prod (via `80974276`/`0be103fa`). **Gjenstår kun mobil-delene** (`MannskapInnsjekkKort` inn/ut + dagsseddel-registrering + maskin/③-mobil) via neste **EAS-batch**. **Dagsseddel-prod krever `aktiverNivaa1` på prod-firmaet** (lønnsart-katalog seedet) ellers mangler lønnsarter — jf. onboarding-wizard-BACKLOG-saken.
 > 2. **Redesign:** steg ii–vii + restanse merget til prod bak `nyNavigasjon`-flagg (av-default, inert). **Steg viii (kunderunde mot prod-kopi):** infra reist + runbook klar (se redesign-blokk over) — **venter kunde-booking + Kenneth-drift** (demo-prosjekt, pre-flight-SQL, SDS-opplasting). Deretter pilot-plan (flagg → company_admin).
 > 3. **Skjermbilder:** steg ii–vii fabel-designgodkjent (07-06/07). Steg viii = ingen ny UI (demo mot prod-kopi).
 > 4. **Timer pause-tid-synk (`f385ba99`, develop):** landet + migrering test-verifisert. **Gjenstår:** funksjonell test-verifisering — mobil ✅ verifisert i simulator (innstilling + attestering + 07:00→11:00), web pågår nå (redesign-Opus tester D1–D8 på test); Piece 2 (1b auto-utkast fra/til), midnatt-wrap-bug, rydd duplikate pause-endringer fra `redesign/navigasjon`-hovedtre. Mobil-UI via neste EAS-batch (tråd 1).
+> 5. **Timer web-vs-mobil paritet D1–D8 — LANDET develop 2026-07-09** (bolk a `b3230944` = D7/D1/D2/D3, bolk b `0985d46e` = D4/D5/D6, bolk c `7797a9b5` = D8). Web arbeider-flate speiler nå mobil (app = fasit). **Venter prod-deploy** + funksjonell test-verifisering (web). **Gjenstår separat (BACKLOG):** D9 sesong-dagsnorm, GPS-geoforslag, D2-oppfølger (rad-flytting mellom prosjekter ved redigering — velger låst i dag). Full detalj: [BACKLOG § Timer web-vs-mobil paritet](BACKLOG.md).
+> 6. **nyNav sticky-flag stale-lokal-fiks (`3b975773`) — PÅ BRANCH `feature/nynav-sticky-flag-fix`, venter gate → ff-push develop.** `lokalTillatt`-guard i `resolverNyNavigasjon` + rolle-avledet opprydning i web/mobil-hookene (ikke-admin låses ikke inne av gammel `lokal="1"`). Shared 18/18, web build 59/59, mobil 0 nye typefeil. **En prod-deploy av develop vil fjerne sticky-flag-buggen i prod (prod mangler Plan 2 + denne fiksen) — reell sikkerhetsverdi. Ingen prod-deploy er planlagt — prod-deploy krever eksplisitt forespørsel fra Kenneth.** Mobil-del via neste EAS-batch. Detalj: [BACKLOG § nyNav sticky-flag](BACKLOG.md).
 
 ### Mobil EAS-bunt #37 — BYGGET PÅ SKY 2026-07-01 → TestFlight (venter Azure + device-/Florian-test)
 

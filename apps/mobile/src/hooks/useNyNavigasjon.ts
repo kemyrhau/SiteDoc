@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { resolverNyNavigasjon } from "@sitedoc/shared";
-import { hentVerdi, lagreVerdi } from "../services/auth";
+import { hentVerdi, lagreVerdi, slettVerdi } from "../services/auth";
 import { trpc } from "../lib/trpc";
 import { useAuth } from "../providers/AuthProvider";
 
@@ -70,6 +70,11 @@ export function useNyNavigasjon(): boolean {
   });
   // Gate konto på userId → ved logout faller nav tilbake til gammel (konto=null).
   const konto: boolean | null = userId ? minBruker?.nyNavigasjon ?? null : null;
+  // Stale-lokal-guard (2026-07-09): persistert `lokal` honoreres kun for
+  // sitedoc_admin. Ikke-admin med gammel lokal="1" skal ikke låses inne. Under
+  // boot (rolle=null) false → lokal ignoreres til rollen er kjent. Ryddes under.
+  const rolle: string | null = userId ? minBruker?.role ?? null : null;
+  const lokalTillatt = rolle === "sitedoc_admin";
 
   const [, tving] = useState(0);
 
@@ -88,9 +93,19 @@ export function useNyNavigasjon(): boolean {
     void lagreVerdi(nokkelFor(userId), konto ? "1" : "0");
   }, [userId, konto]);
 
+  // Stale-lokal-opprydning (2026-07-09): når rollen er kjent OG ikke er
+  // sitedoc_admin, slett den persisterte lokal-nøkkelen + nullstill modul-cachen
+  // så en gammel lokal="1" ikke gjenoppstår. Gates på `rolle !== null`.
+  useEffect(() => {
+    if (!userId || rolle === null || rolle === "sitedoc_admin") return;
+    void slettVerdi(nokkelFor(userId));
+    cache = { userId, lokal: null };
+    varsleLyttere();
+  }, [userId, rolle]);
+
   const lokal = cache.userId === userId ? cache.lokal : null;
   // Mobil har ingen URL-query og ingen redesign-stack → query/envDefault alltid av.
-  return resolverNyNavigasjon({ query: null, konto, lokal, envDefault: false });
+  return resolverNyNavigasjon({ query: null, konto, lokal, lokalTillatt, envDefault: false });
 }
 
 /**

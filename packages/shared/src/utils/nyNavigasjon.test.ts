@@ -105,3 +105,66 @@ describe("resolverNyNavigasjon — delt enhet (brukerbytte, samme lokal cache)",
     ).toBe(true);
   });
 });
+
+// Stale-lokal-guard (2026-07-09): `lokal` honoreres kun når `lokalTillatt` (rolle).
+// Fikser lock-in for ikke-admin med gammel lokal="1" fra pre-Plan-2 `?nyNav=1`-persist.
+describe("resolverNyNavigasjon — stale-lokal-guard (lokalTillatt)", () => {
+  it("lokalTillatt=false + konto=null + lokal=true → IGNORER lokal, fall til env (av)", () => {
+    // Kjernen i fiksen: ikke-admin (lokalTillatt=false) med stale lokal="1" og ingen
+    // konto låses IKKE inne — faller til env-default (false = gammel nav).
+    expect(
+      resolverNyNavigasjon({
+        query: null,
+        konto: null,
+        lokal: true,
+        lokalTillatt: false,
+        envDefault: false,
+      }),
+    ).toBe(false);
+  });
+
+  it("lokalTillatt=true + konto=null + lokal=true → honorer lokal (admin beholder egen toggle)", () => {
+    // Admin med konto=null + lokal="1" fra egen toggle skal fortsatt få ny nav.
+    expect(
+      resolverNyNavigasjon({
+        query: null,
+        konto: null,
+        lokal: true,
+        lokalTillatt: true,
+        envDefault: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("lokalTillatt=false rører IKKE konto — konto=true vinner uansett", () => {
+    // Guarden er kun for lokal-leddet: en pilot-bruker (konto=true) beholder ny nav
+    // selv om lokalTillatt=false.
+    expect(
+      resolverNyNavigasjon({
+        query: null,
+        konto: true,
+        lokal: null,
+        lokalTillatt: false,
+        envDefault: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("lokalTillatt=false rører IKKE flyktig query — query=true vinner", () => {
+    expect(
+      resolverNyNavigasjon({
+        query: true,
+        konto: null,
+        lokal: false,
+        lokalTillatt: false,
+        envDefault: false,
+      }),
+    ).toBe(true);
+  });
+
+  it("lokalTillatt utelatt → default true (bakoverkompat, honorer lokal som før)", () => {
+    expect(
+      resolverNyNavigasjon({ query: null, konto: null, lokal: true, envDefault: false }),
+    ).toBe(true);
+  });
+});

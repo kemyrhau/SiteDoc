@@ -25,26 +25,37 @@ export type NyNavigasjonKilde = {
   konto: boolean | null;
   /** Persistert lokal toggle (localStorage/SecureStore). null = usatt. */
   lokal: boolean | null;
+  /**
+   * Rolle-guard for persistert `lokal` (stale-lokal-fiks 2026-07-09). `lokal`
+   * honoreres KUN når denne er `true`. Callerne (web/mobil-hookene) setter den
+   * fra rollen (i dag: `sitedoc_admin`). Hindrer at en ikke-admin med en gammel
+   * `lokal="1"` (fra pre-Plan-2 `?nyNav=1`-persist) sitter fast i redesignet uten
+   * utvei — `konto` er da `null`, så uten guarden ville `lokal` vunnet.
+   * Valgfri (default `true`) for bakoverkompat: utelatt = honorer lokal som før
+   * (test-bekvemmelighet). Produksjons-callere SKAL sende den rolle-avledet.
+   */
+  lokalTillatt?: boolean;
   /** Build-tids env-default (NEXT_PUBLIC_NY_NAV_DEFAULT). false i prod/test. */
   envDefault: boolean;
 };
 
 /**
  * Beregner om ny navigasjon skal vises, etter presedensen
- * aktiv ?nyNav-URL > konto > persistert lokal > env-default > av.
+ * aktiv ?nyNav-URL > konto > (rolle-tillatt) persistert lokal > env-default > av.
  *
  * Ren funksjon — ingen sideeffekter, ingen plattform-API. Testes i
  * `nyNavigasjon.test.ts` (beviser hele kjeden inkl. delt-enhet-dominansen +
- * flyktig query-override + at query fjernet → konto-styrt).
+ * flyktig query-override + at query fjernet → konto-styrt + stale-lokal-guarden).
  */
 export function resolverNyNavigasjon({
   query,
   konto,
   lokal,
+  lokalTillatt = true,
   envDefault,
 }: NyNavigasjonKilde): boolean {
   if (query !== null) return query; // flyktig demo/dev-override (aldri persistert)
   if (konto !== null) return konto; // autoritativ per bruker (delt-enhet-sikker)
-  if (lokal !== null) return lokal; // persistert lokal toggle
+  if (lokalTillatt && lokal !== null) return lokal; // persistert lokal — kun rolle-tillatt
   return envDefault; // env-default (redesign-stack) — ellers false = «av»
 }
