@@ -22,6 +22,41 @@ server-ny melder «System restart required» + ~36 ventende pakke-oppdateringer 
 
 **Disk LØST 2026-07-06:** root-LV utvidet 100→500G (528G lå uallokert i VG — underallokert, ikke full disk). **Gjenstår:** OS-oppdateringer + restart (36 pending); `--exclude apps/mobile` i rsync (2,98GB kontekst-bloat); prune-rutine.
 
+### 🔴 Tilkoblings-utmattelse — DB-kvoter + app-side `connection_limit` (FØR steg viii)
+
+Delt postgres har `max_connections=100`; adskilte databaser deler samme tak (klynge-nivå). Da redesign-stacken ble reist 2026-07-09 sprakk taket → `psql` avvist, timer-test feilet (maskert på web som «Dagsseddelen finnes ikke»). Bakgrunn + mekanikk: [infrastruktur.md § Delt postgres — tilkoblingsbudsjett og isolasjon](infrastruktur.md).
+
+- **Kvoter (Kenneths hånd — SQL):** `ALTER DATABASE sitedoc CONNECTION LIMIT 40;` · `sitedoc_test 25;` · `sitedoc_redesign 20;`.
+- **App-side `connection_limit` (env-filer):** prod-api 7 (→28 med 4 klienter), prod-web 4, test-api 4 (→16), test-web 3, redesign-api 4 (→16), redesign-web 3 = **70 tak**. Kvoten er hardt tak (feiler), poolen køer under den. Ikke kode — SQL + env-filer.
+
+### 🔴 OAuth: redesign holder prods nøkler (FØR steg viii)
+
+Verifisert 2026-07-09 via sha1-fingeravtrykk (aldri verdier): `AUTH_GOOGLE_ID`/`_SECRET` + `AUTH_MICROSOFT_ENTRA_ID_ID`/`_SECRET` er **identiske** i `web.env` og `web-redesign.env`; kun `AUTH_SECRET` er egen. Prod-appene har `redesign.sitedoc.no` som gyldig redirect-URI → tillits-kobling mellom demo og prod. **Fiks:** egne app-registreringer for redesign (egen redirect-URI, samtykkeskjerm «SiteDoc Demo») + **fjern de to redesign-redirect-URIene fra prod-appene etterpå** — ellers står tillits-koblingen. (fabel-godkjent 2026-07-09.)
+
+### 🟡 salsaklubb: eget nett + egen postgres FØR produksjon
+
+Container stoppet 2026-07-09 (ingen brukere ennå) → frigjorde 10 tilkoblinger + fjernet lateral nettverkstilgang til SiteDocs postgres/api/ML (lå på delt `appnet`). **Ikke migrer — bygg riktig fra start:** eget `salsanet`, egen `postgres-salsa`-container med eget volum + eget `max_connections`. `sendfil` (eget `sendfil_default`) er mønsteret.
+
+### 🟡 pgBouncer foran postgres
+
+Ikke drop-in med Prisma: krever `directUrl` i alle fire `schema.prisma` (develop-arbeid), `?pgbouncer=true` (slår av prepared statements), `pool_mode=transaction`, gjennomgang av LISTEN/NOTIFY/advisory-lock-bruk (3 filtreff), utrulling test→redesign→prod. Gevinst: antall stacker slutter å påvirke taket.
+
+### 🟡 Egen `DATABASE_URL` per db-pakke (`_TIMER`/`_MASKIN`/`_VARELAGER`)
+
+I dag deler alle fire Prisma-klientene samme URL, så `connection_limit` kan ikke differensieres. Kun kjerne + timer er varme; maskin/varelager sløser halve api-ens tak. Egen URL per db-pakke → differensiert pooling (forutsetning for kvote-veikartet over).
+
+### 🟢 Postgres er utunet
+
+`shared_buffers=128MB` (default) på 16 GB-maskin; swap-bruk 18 %. Ingen `command:`-override i `~/stack/postgres/docker-compose.yml`. Tuning-runde krever restart — ikke i forbifarten.
+
+### 🟢 Prod-dumper ligger løst i `~`
+
+Seks `~/sitedoc-prod-*.dump`, noen root-eide. Ufarlig i dag (prod = testdata). Flytt til `~/backups/` med restriktive rettigheter. **Utløser:** første ekte kunde i prod.
+
+### 🟢 Flytt salsaklubb av prod-maskinen
+
+**Utløser:** første betalende kunde på SiteDoc. Begrunnelse: CPU, minne, reboot-vindu og backup-regime deles i dag.
+
 ### ⚠️ Lokal migreringshistorikk er divergent (felle for `migrate dev`/`migrate status` lokalt)
 
 Oppdaget 2026-07-07 (Plan 2 nyNavigasjon-migrering). `prisma migrate status` mot lokal `sitedoc` **feiler (exit 1)**: lokal-DB har to init-migreringer i historikken som **ikke finnes som mapper** i repoet — `20260424001754_init` + `20260501131546_blokk_a_schema_reconciliation` (lokal-DB ble seedet med squashed/andre init-migreringer enn repo-mappene). Konsekvens: `migrate deploy`/`migrate dev` kjører **ikke rent lokalt**; `migrate dev` kan foreslå reset. **Kun lokalt** — test/redesign-stacken restaureres fra prod-dump og har korrekt/komplett historikk, så additive migreringer `migrate deploy`-er rent der (det reelle deploy-beviset). **Workaround lokalt:** anvend additive kolonner via direkte `ALTER`/`db push` for isolert lokal-bevis; verifiser migrerings-kjeden på test ved merge. Full opprydding (baseline-resolve lokal historikk) er egen sak — ikke blokkerende.

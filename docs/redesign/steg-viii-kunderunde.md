@@ -38,13 +38,13 @@ Kenneths kommando.** Drift-steg (DB-kopi, stack-up, DNS, OAuth, reboot) kjøres 
 |---|---|---|
 | `DATABASE_URL`/`DIRECT_URL` (passord) | Delt `sitedoc`-postgres-bruker — **samme passord som prod/test-env-filene**, ikke nytt | begge |
 | `AUTH_SECRET` | **Ny**, generér `openssl rand -base64 33`. MÅ være **identisk api↔web** i redesign-stacken, men **ANNEN verdi enn prod/test** (sesjons-isolasjon mellom miljøer) | begge |
-| `AUTH_GOOGLE_*` + `AUTH_MICROSOFT_ENTRA_ID_ID`/`_SECRET` | **Prod-appene gjenbrukt** (Google Cloud Console + Entra-portalen) — **samme verdier som prod-`web.env`**. Kun to nye redirect-URIer lagt til (se Steg 4), verifisert 2026-07-07 | web |
+| `AUTH_GOOGLE_*` + `AUTH_MICROSOFT_ENTRA_ID_ID`/`_SECRET` | **Prod-appene gjenbrukt** (Google Cloud Console + Entra-portalen) — **samme verdier som prod-`web.env`**. Kun to nye redirect-URIer lagt til (se Steg 4), verifisert 2026-07-07. ⚠️ **Nå identifisert som 🔴** (verifisert identisk via sha1-fingeravtrykk 2026-07-09) — **skal reverseres før steg viii**: egne redesign-app-registreringer + fjern redesign-redirect-URIene fra prod-appene. Se [BACKLOG § OAuth: redesign holder prods nøkler](../claude/BACKLOG.md) | web |
 | `AUTH_MICROSOFT_ENTRA_ID_ISSUER` | Samme tenant som prod: `https://login.microsoftonline.com/<tenant-id>/v2.0` | web |
 | `RESEND_API_KEY` | **Tom** i demo — ingen e-post til ekte kunder | api |
 | `RESEND_FROM_EMAIL` | Fast avsenderstreng (ikke hemmelig) | web |
 | `VEGVESEN_API_KEY` | Samme som prod ved behov, ellers tom | api |
 | `SITEDOC_INTEGRATION_KEY` | Hvis kryptering brukes: 64 hex (`openssl rand -hex 32`) og MÅ ligge i **både api og web** (lærdom 2026-05-07). **Tom OK for demo** | begge (hvis brukt) |
-| `ENABLE_DEV_LOGIN` + `DEV_LOGIN_SECRET` | **Manuelt aktivert** i `api-redesign.env` for simulator-mot-redesign — `DEV_LOGIN_SECRET` = **samme som api-test**. Dokumentert unntak: **skrus AV etter pilot** | api |
+| `ENABLE_DEV_LOGIN` + `DEV_LOGIN_SECRET` | **IKKE aktiv på redesign** (verifisert 2026-07-09): `ENABLE_DEV_LOGIN` er ikke satt og `DEV_LOGIN_SECRET` er tom i `api-redesign.env` → `routeEnabled()` (`apps/api/src/routes/dev-login.ts:35–37`) returnerer `false` → routen monteres aldri (404). Bevisst utelatt på kundevendt subdomene; begge må settes for å aktivere | api |
 
 ### `docker/env/api-redesign.env`
 ```
@@ -57,10 +57,11 @@ RESEND_API_KEY=
 VEGVESEN_API_KEY=<samme som prod ved behov>
 SITEDOC_INTEGRATION_KEY=<egen eller tom>
 # PORT/HOST/NORBERT_URL/OVERSETTELSE_URL settes i compose (environment:) — IKKE her.
-# Dev-login: AKTIVERT for pilot (simulator-mot-redesign) — DEV_LOGIN_SECRET = samme som api-test.
-# Sikkerhetseksponering på kundevendt subdomene → dokumentert unntak, SKRUS AV etter pilot:
-ENABLE_DEV_LOGIN=true
-DEV_LOGIN_SECRET=<samme som api-test DEV_LOGIN_SECRET>
+# Dev-login: IKKE aktiv på redesign (verifisert 2026-07-09) — kundevendt subdomene.
+# ENABLE_DEV_LOGIN utelatt + DEV_LOGIN_SECRET tom → routeEnabled()=false → 404 (dev-login.ts:35-37).
+# Aktiver KUN midlertidig for simulator-testing (begge kreves), skru AV umiddelbart etterpå:
+# ENABLE_DEV_LOGIN=true
+# DEV_LOGIN_SECRET=<samme som api-test DEV_LOGIN_SECRET>
 ```
 
 ### `docker/env/web-redesign.env`
@@ -145,6 +146,12 @@ prod-appene i Google Cloud Console + Entra-portalen fikk to nye redirect-URIer:
 `https://redesign.sitedoc.no/api/auth/callback/google` og `…/callback/microsoft-entra-id`.
 Verifisert fungerende 2026-07-07. Web-env bruker dermed samme `AUTH_GOOGLE_*`/`AUTH_MICROSOFT_ENTRA_ID_*`
 som prod. (Samme AADSTS50011-felle som test hvis en URI mangler.)
+
+> ⚠️ **Gjenbruket er nå identifisert som 🔴 (2026-07-09) og skal reverseres FØR steg viii kjøres mot ekte kunder:**
+> redesign holder prods OAuth-nøkler, og prod-appene har `redesign.sitedoc.no` som gyldig redirect-URI →
+> tillits-kobling mellom demo og prod. Fiks: egne app-registreringer for redesign (egen redirect-URI,
+> samtykkeskjerm «SiteDoc Demo») + fjern de to redesign-redirect-URIene fra prod-appene etterpå.
+> Se [BACKLOG § OAuth: redesign holder prods nøkler](../claude/BACKLOG.md).
 
 **Steg 5 — rsync + build + up** (Opus kan kjøre native rsync; `sudo docker` = Kenneth):
 ```

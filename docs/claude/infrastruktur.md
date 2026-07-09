@@ -81,6 +81,24 @@ ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-com
 >
 > ℹ️ **Kenspill kjører fortsatt en STALE test-PM2 (avklart 2026-06-21).** `sitedoc-test-api`/`sitedoc-test-web` står online som PM2 på Kenspill (3301/3300) med et eget `sitedoc_test` + cloudflared-mapping `api-test → localhost:3301` i Kenspill-tunnelen `sitedoc`. **Men edge serveres IKKE herfra** — `test.sitedoc.no`/`api-test.sitedoc.no` går til **server-ny** (tunnel `sitedoc-ny`, bevist via Funn #2-deploy: 401/405 først etter server-ny-deploy). Kenspill-test-stacken er en legacy-levning (inkl. en harmløs Funn #2-migrering som ved uhell traff Kenspills `sitedoc_test`). **Ikke bruk Kenspill for noe; bør stoppes/avvikles.**
 
+## Delt postgres — tilkoblingsbudsjett og isolasjon
+
+Én Postgres-container (`~/stack/postgres`) betjener alle stackene på server-ny. Tilkoblingsbudsjettet er **klynge-nivå, ikke per database** — adskilte databaser (`sitedoc`, `sitedoc_test`, `sitedoc_redesign`, `tromsosalsaklubb`) deler samme tak.
+
+**Målt 2026-07-09 (redesign-stack stoppet):** `max_connections=100`, **81 i bruk** — `sitedoc_test` 46, `sitedoc` 19, `tromsosalsaklubb` 10, bakgrunn 6. Postgres kjører **utunet**: ingen `command:`-override i `~/stack/postgres/docker-compose.yml` → default `shared_buffers=128MB` på en 16 GB-maskin.
+
+**Hendelsen (2026-07-09):** da redesign-stacken ble startet sprakk taket. `psql` selv ble avvist (`FATAL: remaining connection slots are reserved for roles with the SUPERUSER attribute`). Timer-spørringer på test feilet med *Too many database connections opened*, og websiden **maskerte 500-feilen** som «Dagsseddelen finnes ikke eller du har ikke tilgang». **Ingen kode-bug** — timer-paritet bolk (a)/(b) ble frikjent.
+
+**Mekanikk — hvorfor taket sprekker fort:** `apps/api` instansierer **fire** Prisma-klienter (`db`, `db-timer`, `db-maskin`, `db-varelager`) som alle leser samme `DATABASE_URL` → `connection_limit` gjelder **per klient** (api: 4×N, web: 1×N). Prismas default (`cpu×2+1` per klient) er kraftig oversolgt med tre stacker på samme klynge.
+
+**Nettverk:** `appnet` (external) huser `postgres`, `sitedoc-api`, `sitedoc-test-api`, `sitedoc-embed`, `sitedoc-oversettelse` — **og salsaklubb, et urelatert prosjekt** (lateral tilgang til SiteDocs postgres/api/ML). `sendfil` ligger korrekt på eget nett (`sendfil_default`). Postgres eksponerer kun `127.0.0.1:5432` ✅.
+
+**Målbilde (veikart — detaljert i [BACKLOG § 1 Teknisk gjeld](BACKLOG.md)):**
+1. **DB-kvoter per database** som hardt tak + app-side `connection_limit` under kvoten (poolen køer, kvoten feiler).
+2. **Urelaterte prosjekter på eget nett + egen postgres-instans** (salsaklubb; `sendfil` er mønsteret).
+3. **pgBouncer** på sikt → antall stacker slutter å påvirke taket.
+4. **Egen `DATABASE_URL` per db-pakke** → differensiert pooling.
+
 ## Cloudflare Tunnel — viktig
 
 Gjelder tunnel `sitedoc-ny` på ny server (mekanikken er identisk med den gamle):
