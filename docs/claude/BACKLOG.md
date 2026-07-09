@@ -46,9 +46,10 @@ kartlegginger av arbeider-vendte flater på begge plattformer). Divergens-listen
 D1–D9 under. **Develop-scope, flagg-uavhengig.**
 
 **Fremdrift:** Bolk (a) = D7 + D1 + D2 + D3 **merget develop 2026-07-09**
-(`b3230944`, byggverifisert). Bolk (b) = D4 + D5 + D6 **implementert 2026-07-09**
-på branch `feature/timer-web-paritet-b` (venter cowork-gate + merge). Bolk (c) =
-D8. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
+(`b3230944`). Bolk (b) = D4 + D5 + D6 **merget develop 2026-07-09** (`0985d46e`).
+Bolk (c) = D8 **implementert 2026-07-09** på branch `feature/timer-web-paritet-c`
+(venter cowork-gate + merge). GPS-geoforslag splittet ut til egen rad (se under).
+D9 separat. **Alle D1–D8 dermed levert/på-branch — D9 + GPS gjenstår.**
 
 **Bekreftede kjente divergenser (Kenneth-testing 2026-07-08):**
 
@@ -113,7 +114,10 @@ D8. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
   samlet sedel-liste med FAB «ny», ukesum og kladd-påminnelse for gamle utkast
   (`DagsseddelListe.tsx:108-149,198-203`). Web `dashbord/timer/mine` er ren rapport
   uten «Ny»-knapp; sedel-lista med opprett bor i prosjekt-kontekst. Ingen
-  kladd-påminnelse. Samordnes med redesign-nav FM5.
+  kladd-påminnelse. **✅ Bolk (c):** «Ny dagsseddel»-knapp i headeren →
+  `/dashbord/timer/ny` (prosjekt velges der, D7) + amber kladd-påminnelse for
+  usendte drafts fra tidligere dager (egen periode-UAVHENGIG `list({status:draft})`
+  → lenker til eldste). FM5-uavhengig (side-innhold, ikke nav). Ingen ny i18n.
 
 **Sporet separat:**
 
@@ -138,7 +142,8 @@ mobil har prosjekt i hver rad-modal.
   Prosjekt-per-sedel-fundament + hel rad-paritet (prosjekt + fra/til + pause-calc).
 - **Bolk (b) — ✅ implementert (branch `feature/timer-web-paritet-b`, venter gate/merge):**
   D4 (tillegg-kvittering) + D5 (maskinførerbevis-varsel) + D6 (maskin-buffer).
-- **Bolk (c):** D8 («Mine timer»-inngang + kladd-påminnelse).
+- **Bolk (c) — ✅ implementert (branch `feature/timer-web-paritet-c`, venter gate/merge):**
+  D8 («Mine timer»-inngang + kladd-påminnelse).
 - **Separat:** D9 (sesong-dagsnorm) + GPS-geoforslag (egen rad under).
 
 ### 🟡 Timer web: GPS-geoforslag ved ny dagsseddel (splittet fra D7, 2026-07-09)

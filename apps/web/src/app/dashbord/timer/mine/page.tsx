@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Input } from "@sitedoc/ui";
-import { Clock, FileText, Briefcase, Activity } from "lucide-react";
+import { Clock, FileText, Briefcase, Activity, Plus, Info, ChevronRight } from "lucide-react";
 
 /**
  * «Mine timer» — personlig rapport-visning på tvers av prosjekter
@@ -107,6 +107,21 @@ export default function MineTimerSide() {
 
   const liste = (rader as unknown as ListeRad[] | undefined) ?? [];
 
+  // D8 (web-paritet 2026-07-09): kladd-påminnelse — usendte drafts MED innhold
+  // fra TIDLIGERE dager (mobil `DagsseddelListe` UF-3). Periode-UAVHENGIG: egen
+  // query uten fra/til så en glemt kladd utenfor valgt periode fortsatt fanges.
+  // Dagens egen draft maser ikke (kun dato < i dag). Lenker til eldste.
+  const { data: draftRader } = trpc.timer.dagsseddel.list.useQuery({
+    status: "draft",
+  });
+  const usendteKladder = useMemo(() => {
+    const iDag = tilIso(new Date());
+    return ((draftRader as unknown as ListeRad[] | undefined) ?? [])
+      .filter((r) => r.antallRader > 0 && tilIso(new Date(r.dato)) < iDag)
+      .sort((a, b) => tilIso(new Date(b.dato)).localeCompare(tilIso(new Date(a.dato))));
+  }, [draftRader]);
+  const eldsteKladd = usendteKladder[usendteKladder.length - 1];
+
   const oppsummering = useMemo(() => {
     const totalt = liste.reduce((s, r) => s + r.totaltimer, 0);
     const antallSedler = liste.length;
@@ -155,14 +170,38 @@ export default function MineTimerSide() {
 
   return (
     <div className="mx-auto max-w-6xl">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          {t("timer.mine.tittel")}
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">
-          {t("timer.mine.beskrivelse")}
-        </p>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            {t("timer.mine.tittel")}
+          </h1>
+          <p className="mt-1 text-sm text-gray-600">
+            {t("timer.mine.beskrivelse")}
+          </p>
+        </div>
+        {/* D8: «Ny»-inngang. Prosjekt velges på ny-siden (D7), ikke her. */}
+        <Link
+          href="/dashbord/timer/ny"
+          className="inline-flex shrink-0 items-center gap-1 rounded bg-sitedoc-primary px-3 py-2 text-sm font-medium text-white hover:bg-sitedoc-primary/90"
+        >
+          <Plus className="h-4 w-4" />
+          {t("timer.nyDagsseddel")}
+        </Link>
       </div>
+
+      {/* D8: kladd-påminnelse — usendte drafts fra tidligere dager (mobil UF-3). */}
+      {eldsteKladd && (
+        <Link
+          href={`/dashbord/timer/${eldsteKladd.id}`}
+          className="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 hover:bg-amber-100"
+        >
+          <Info className="h-4 w-4 shrink-0 text-amber-700" />
+          <span className="flex-1 text-sm text-amber-800">
+            {t("timer.kladdPaaminnelse", { antall: usendteKladder.length })}
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-amber-700" />
+        </Link>
+      )}
 
       {/* Periode-velger */}
       <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-gray-200 bg-white p-3">
