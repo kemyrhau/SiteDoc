@@ -85,7 +85,7 @@ ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-com
 
 Én Postgres-container (`~/stack/postgres`) betjener alle stackene på server-ny. Tilkoblingsbudsjettet er **klynge-nivå, ikke per database** — adskilte databaser (`sitedoc`, `sitedoc_test`, `sitedoc_redesign`, `tromsosalsaklubb`) deler samme tak.
 
-**Målt 2026-07-09 (redesign-stack stoppet):** `max_connections=100`, **81 i bruk** — `sitedoc_test` 46, `sitedoc` 19, `tromsosalsaklubb` 10, bakgrunn 6. Postgres kjører **utunet**: ingen `command:`-override i `~/stack/postgres/docker-compose.yml` → default `shared_buffers=128MB` på en 16 GB-maskin.
+**Målt 2026-07-09 (FØR tiltakene under — historikk, ikke nåtilstand):** `max_connections=100`, **81 i bruk** — `sitedoc_test` 46, `sitedoc` 19, `tromsosalsaklubb` 10, bakgrunn 6. Postgres kjører **utunet**: ingen `command:`-override i `~/stack/postgres/docker-compose.yml` → default `shared_buffers=128MB` på en 16 GB-maskin.
 
 **Endret 2026-07-09 (etter målingen over):** salsaklubb er flyttet ut av den delte klyngen til en egen `postgres:16`-container (`salsaklubb-postgres`, nett `salsanet`, volum `salsa_pgdata`, ingen host-port). De 10 tilkoblingene er permanent borte fra taket, og den laterale nettverksveien til SiteDocs postgres/api/ML er fjernet. Databasen `tromsosalsaklubb` ligger fortsatt urørt i den delte klyngen som fallback (0 tilkoblinger) — skal ikke droppes uten eksplisitt beslutning fra Kenneth. Dumper: `~/backup/` på server-ny og Kenspill.
 
@@ -93,10 +93,17 @@ ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-com
 
 **Mekanikk — hvorfor taket sprekker fort:** `apps/api` instansierer **fire** Prisma-klienter (`db`, `db-timer`, `db-maskin`, `db-varelager`) som alle leser samme `DATABASE_URL` → `connection_limit` gjelder **per klient** (api: 4×N, web: 1×N). Prismas default (`cpu×2+1` per klient) er kraftig oversolgt med tre stacker på samme klynge.
 
+**Utført 2026-07-09 — `connection_limit` + DB-kvoter + zombie-rydding (målbilde-punkt 1 lukket):**
+- **`connection_limit` i alle seks env-filer:** prod api **7** / web **4**, test api **4** / web **3**, redesign api **4** / web **3**. Api-tallet **ganges med fire** (fire Prisma-klienter) → app-tak **70** av **97** brukbare (`max_connections=100` − `superuser_reserved=3`).
+- **DB-kvoter (hardt tak per database):** `sitedoc` 40, `sitedoc_test` 25, `sitedoc_redesign` 20. `tromsosalsaklubb` uten kvote (fallback, 0 tilkoblinger). Kvoten ligger **bevisst over** app-taket: poolen **køer** (treg side) i stedet for at databasen **avviser** (side som ser ødelagt ut).
+- **Målt etter:** **24 av 97** i bruk (mot 81 før).
+
+**Rotårsak — zombie-backends (viktigst; `connection_limit` alene ville IKKE ha stoppet hendelsen):** Når en container drepes forsvinner prosessen, men **TCP-socketen mot postgres ryddes ikke**. Postgres oppdager ikke en død motpart før den prøver å skrive — og en idle-tilkobling skriver aldri. Med `tcp_keepalives_idle` på default (OS-ens **to timer**) blir de liggende. Hver rebuild av test etterlot **~20 døde tilkoblinger** (nå ~7, siden `connection_limit` gjør poolen mindre). Docker **gjenbruker IP-en**, så zombiene ser ut som den nye containerens. **Dette — ikke pool-størrelsen — er grunnen til at taket sprakk 2026-07-08.** **Etter hver rebuild:** terminer idle-backends med `backend_start` eldre enn containerens `Created` (kommando i [BACKLOG § Tilkoblings-utmattelse](BACKLOG.md)).
+
 **Nettverk:** `appnet` (external) huser `postgres`, `sitedoc-api`, `sitedoc-test-api`, `sitedoc-embed`, `sitedoc-oversettelse`. `sendfil` (`sendfil_default`) og salsaklubb (`salsanet`, fra 2026-07-09) ligger korrekt på egne nett. Postgres eksponerer kun `127.0.0.1:5432` ✅.
 
 **Målbilde (veikart — detaljert i [BACKLOG § 1 Teknisk gjeld](BACKLOG.md)):**
-1. **DB-kvoter per database** som hardt tak + app-side `connection_limit` under kvoten (poolen køer, kvoten feiler).
+1. **DB-kvoter per database** som hardt tak + app-side `connection_limit` under kvoten (poolen køer, kvoten feiler) → ✅ **utført 2026-07-09** (se «Utført»-blokken over). Gjenstår: `tcp_keepalives_idle=60` på postgres + zombie-rydding som fast deploy-steg (BACKLOG).
 2. **Urelaterte prosjekter på eget nett + egen postgres-instans** → ✅ **utført 2026-07-09 for salsaklubb** (`sendfil` var mønsteret). Gjelder framtidige urelaterte prosjekter.
 3. **pgBouncer** på sikt → antall stacker slutter å påvirke taket.
 4. **Egen `DATABASE_URL` per db-pakke** → differensiert pooling.

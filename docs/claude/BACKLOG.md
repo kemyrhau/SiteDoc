@@ -22,12 +22,32 @@ server-ny melder «System restart required» + ~36 ventende pakke-oppdateringer 
 
 **Disk LØST 2026-07-06:** root-LV utvidet 100→500G (528G lå uallokert i VG — underallokert, ikke full disk). **Gjenstår:** OS-oppdateringer + restart (36 pending); `--exclude apps/mobile` i rsync (2,98GB kontekst-bloat); prune-rutine.
 
-### 🔴 Tilkoblings-utmattelse — DB-kvoter + app-side `connection_limit` (FØR steg viii)
+### ✅ Tilkoblings-utmattelse — DB-kvoter + `connection_limit` UTFØRT 2026-07-09
 
-Delt postgres har `max_connections=100`; adskilte databaser deler samme tak (klynge-nivå). Da redesign-stacken ble reist 2026-07-09 sprakk taket → `psql` avvist, timer-test feilet (maskert på web som «Dagsseddelen finnes ikke»). Bakgrunn + mekanikk: [infrastruktur.md § Delt postgres — tilkoblingsbudsjett og isolasjon](infrastruktur.md).
+Delt postgres har `max_connections=100`; adskilte databaser deler samme tak (klynge-nivå). Da redesign-stacken ble reist 2026-07-09 sprakk taket → `psql` avvist, timer-test feilet (maskert på web som «Dagsseddelen finnes ikke»). Bakgrunn + mekanikk + **zombie-rotårsak**: [infrastruktur.md § Delt postgres](infrastruktur.md).
 
-- **Kvoter (Kenneths hånd — SQL):** `ALTER DATABASE sitedoc CONNECTION LIMIT 40;` · `sitedoc_test 25;` · `sitedoc_redesign 20;`.
-- **App-side `connection_limit` (env-filer):** prod-api 7 (→28 med 4 klienter), prod-web 4, test-api 4 (→16), test-web 3, redesign-api 4 (→16), redesign-web 3 = **70 tak**. Kvoten er hardt tak (feiler), poolen køer under den. Ikke kode — SQL + env-filer.
+- **Kvoter (utført — SQL):** `ALTER DATABASE sitedoc CONNECTION LIMIT 40;` · `sitedoc_test 25;` · `sitedoc_redesign 20;`. `tromsosalsaklubb` uten kvote (fallback, 0 tilkoblinger).
+- **App-side `connection_limit` (utført — seks env-filer):** prod-api 7 (→28 med 4 klienter), prod-web 4, test-api 4 (→16), test-web 3, redesign-api 4 (→16), redesign-web 3 = **70 tak** av 97 brukbare. Kvoten ligger bevisst over app-taket → poolen **køer** (treg) i stedet for at DB **avviser** (ser ødelagt ut).
+- **Målt etter:** 24 av 97 (mot 81 før).
+- **Rotårsaken var zombie-backends, ikke pool-størrelse** — `connection_limit` alene ville ikke ha stoppet hendelsen. Se de to radene under.
+
+### 🟡 `tcp_keepalives_idle=60` på delt postgres (må detektere døde motparter selv)
+
+Når en container drepes forsvinner prosessen, men TCP-socketen mot postgres ryddes ikke. Postgres oppdager ikke en død backend før den skriver; en idle-tilkobling skriver aldri → zombier blir liggende i **2 timer** (OS-default `tcp_keepalives_idle`). Hver test-rebuild etterlot ~20 (nå ~7 med mindre pool); Docker gjenbruker IP-en så de ser ut som ny container. **Fiks:** `command:`-override i `~/stack/postgres/docker-compose.yml`: `postgres -c tcp_keepalives_idle=60 -c tcp_keepalives_interval=10 -c tcp_keepalives_count=6` → død motpart luftes innen ~1–2 min. **Krever restart av postgres — tar ned prod, test OG redesign samtidig → egen planlagt operasjon**, ikke i forbifarten.
+
+### 🟡 Zombie-rydding som fast steg i `deploy-test.sh` (etter bygg)
+
+Inntil `tcp_keepalives_idle` er satt: etter hver container-rebuild, terminer idle-backends som er eldre enn den nye containeren (dens egne backends er sekunder gamle):
+```sql
+SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+WHERE datname = 'sitedoc_test' AND state = 'idle'
+  AND backend_start < now() - interval '5 minutes';
+```
+(Presist: `backend_start < <container Created>`; `now() - interval '5 min'` er den praktiske varianten som må kjøres i rebuild-vinduet.) Legg inn som fast steg rett etter `up -d --build` i `deploy-test.sh`. Samme mønster per DB ved prod/redesign-rebuild.
+
+### 🟡 `eas.json`: `development`- og `preview`-profilene peker på PROD-API
+
+Verifisert 2026-07-09: `development`- og `preview`-profilene i `apps/mobile/eas.json` har `EXPO_PUBLIC_API_URL=https://api.sitedoc.no` — **kun `test`-profilen** går mot `api-test.sitedoc.no`. **Et utviklings- eller preview-bygg via EAS skriver til produksjon.** Fiks: pek `development`/`preview` mot `api-test.sitedoc.no` (eller egen dev-api). Reell prod-forurensnings-risiko ved neste dev/preview-bygg.
 
 ### 🔴 OAuth: redesign holder prods nøkler (FØR steg viii)
 
