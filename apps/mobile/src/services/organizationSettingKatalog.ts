@@ -63,7 +63,10 @@ export async function refreshOrganizationSettingKatalog(
       // T.5: null betyr ingen avrunding. undefined fra server (eldre klient
       // mot ny server) tolkes også som ingen avrunding.
       tidsrundingMinutter: setting.tidsrundingMinutter ?? null,
-      // 2026-05-28: null = ingen firma-default (midtpunkt-fallback).
+      // 2026-07-08: pausevindu = skiftstart + standardPauseEtterTimer (t).
+      // Default 4,0 hvis server-feltet mangler (eldre server mot ny klient).
+      standardPauseEtterTimer: setting.standardPauseEtterTimer ?? 4.0,
+      // DEPRECATED 2026-07-08 — beholdes til data migrert; leses ikke lenger.
       standardPauseFra: setting.standardPauseFra ?? null,
       // Fase 3 (§ B): reise-regelsett. Defaultes hvis server-feltet mangler
       // (eldre server mot ny klient) — samme verdier som schema-default.

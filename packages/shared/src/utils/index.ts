@@ -17,6 +17,8 @@ export type { IfcOpprinnelse } from "./koordinatBro";
 export { kompetanseStatus } from "./kompetanseStatus";
 export type { KompetanseStatus } from "./kompetanseStatus";
 export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
+export { resolverNyNavigasjon } from "./nyNavigasjon";
+export type { NyNavigasjonKilde } from "./nyNavigasjon";
 export {
   EPSILON_MASKIN_TIMER,
   maskinBucketNokkel,
@@ -32,6 +34,15 @@ export {
   velgOvertidLonnsart,
 } from "./lonnsregel";
 export type { ArbeidstidSegment, OvertidLonnsartKandidat } from "./lonnsregel";
+export {
+  DEFAULT_PAUSE_ETTER_TIMER,
+  pauseVinduFra,
+  hhmmTilMin,
+  minTilHhmm,
+  pauseOverlappMin,
+  effektiveTimerFraSpenn,
+  tilFraAntall,
+} from "./pauseBeregning";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.

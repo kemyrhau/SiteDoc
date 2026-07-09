@@ -252,16 +252,29 @@ export default function BoksSkjerm() {
                     >
                       {dok.filename}
                     </Text>
-                    <Text className="mt-0.5 text-xs text-gray-400">
-                      {(dok.fileType ?? "").toUpperCase()}
-                      {dok.processingState === "processing" && ` — ${t("handling.prosesserer")}`}
-                      {dok.processingState === "pending" && ` — ${t("handling.laster")}`}
-                      {dok.processingState === "failed" && ` — ${t("feil.noeGikkGalt")}`}
-                      {/* 2a oversettelsesstatus (flagg PÅ) */}
-                      {paagaar && ` — ${t("dokumenter.oversetter")}`}
-                      {!paagaar && oversatte.length > 0 &&
-                        ` · ${t("dokumenter.oversatt")} ${oversatte.map((l) => l.toUpperCase()).join(" ")}`}
-                    </Text>
+                    <View className="mt-0.5 flex-row items-center gap-1.5">
+                      {/* P-a statusprikk (flagg PÅ): grønn = oversatt, amber = pågår */}
+                      {nyNav && (paagaar || oversatte.length > 0) && (
+                        <View
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 4,
+                            backgroundColor: paagaar ? "#f59e0b" : "#10b981",
+                          }}
+                        />
+                      )}
+                      <Text className="text-xs text-gray-400">
+                        {(dok.fileType ?? "").toUpperCase()}
+                        {dok.processingState === "processing" && ` — ${t("handling.prosesserer")}`}
+                        {dok.processingState === "pending" && ` — ${t("handling.laster")}`}
+                        {dok.processingState === "failed" && ` — ${t("feil.noeGikkGalt")}`}
+                        {/* 2a oversettelsesstatus (flagg PÅ) */}
+                        {paagaar && ` — ${t("dokumenter.oversetter")}`}
+                        {!paagaar && oversatte.length > 0 &&
+                          ` · ${t("dokumenter.oversatt")} ${oversatte.map((l) => l.toUpperCase()).join(" ")}`}
+                      </Text>
+                    </View>
                   </View>
                   {dok.processingState === "completed" && !paagaar && (
                     <ChevronRight size={16} color="#9ca3af" />

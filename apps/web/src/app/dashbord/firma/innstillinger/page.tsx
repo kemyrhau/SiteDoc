@@ -712,8 +712,8 @@ function StandardArbeidstidSeksjon() {
   const [startTid, setStartTid] = useState<string>("");
   const [sluttTid, setSluttTid] = useState<string>("");
   const [pauseMin, setPauseMin] = useState<string>("");
-  // 2026-05-28: tom streng = null = ingen firma-default, fallback til midtpunkt.
-  const [pauseFra, setPauseFra] = useState<string>("");
+  // 2026-07-08: pause starter X timer inn i skiftet (relativt til skiftstart). Default 4.
+  const [pauseEtter, setPauseEtter] = useState<string>("4");
   // T.5: "none" = null = ingen avrunding. Andre verdier er 15/30/60 (string i UI).
   const [tidsrunding, setTidsrunding] = useState<string>("15");
   // Slice 4b-2: arbeidstids-varsel-terskel (timer/dagsseddel). 13 default, 16 tariff.
@@ -725,7 +725,7 @@ function StandardArbeidstidSeksjon() {
       setStartTid(setting.standardStartTid);
       setSluttTid(setting.standardSluttTid);
       setPauseMin(String(setting.standardPauseMin));
-      setPauseFra(setting.standardPauseFra ?? "");
+      setPauseEtter(String(setting.standardPauseEtterTimer ?? 4));
       setTidsrunding(
         setting.tidsrundingMinutter === null ? "none" : String(setting.tidsrundingMinutter),
       );
@@ -741,6 +741,8 @@ function StandardArbeidstidSeksjon() {
     if (Number.isNaN(pause) || pause < 0 || pause > 480) return;
     const varsel = Number(arbeidstidVarsel);
     if (Number.isNaN(varsel) || varsel < 1 || varsel > 24) return;
+    const pauseEtterTimer = Number(pauseEtter);
+    if (Number.isNaN(pauseEtterTimer) || pauseEtterTimer < 0 || pauseEtterTimer > 12) return;
     if (startTid >= sluttTid) return;
     // T.5: konverter UI-state til API-format.
     const tidsrundingVerdi: 15 | 30 | 60 | null =
@@ -751,7 +753,7 @@ function StandardArbeidstidSeksjon() {
         standardStartTid: startTid,
         standardSluttTid: sluttTid,
         standardPauseMin: pause,
-        standardPauseFra: pauseFra.trim() === "" ? null : pauseFra,
+        standardPauseEtterTimer: pauseEtterTimer,
         tidsrundingMinutter: tidsrundingVerdi,
         arbeidstidVarselTimer: Number(arbeidstidVarsel),
       },
@@ -818,22 +820,25 @@ function StandardArbeidstidSeksjon() {
         </div>
       </div>
 
-      {/* 2026-05-28: firma-default for pause-start. Tom = midtpunkt-fallback. */}
+      {/* 2026-07-08: pause starter X timer inn i skiftet (relativt til skiftstart). */}
       <div className="mt-3 sm:max-w-xs">
         <label className="mb-1 block text-xs font-medium text-gray-700">
-          {t("firma.innstillinger.standardArbeidstid.pauseFra")}
+          {t("firma.innstillinger.standardArbeidstid.pauseEtter")}
         </label>
         <input
-          type="time"
-          value={pauseFra}
+          type="number"
+          min={0}
+          max={12}
+          step={0.5}
+          value={pauseEtter}
           onChange={(e) => {
-            setPauseFra(e.target.value);
+            setPauseEtter(e.target.value);
             setSkitten(true);
           }}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-sitedoc-primary focus:outline-none"
         />
         <p className="mt-1 text-xs text-gray-500">
-          {t("firma.innstillinger.standardArbeidstid.pauseFraHjelp")}
+          {t("firma.innstillinger.standardArbeidstid.pauseEtterHjelp")}
         </p>
       </div>
 

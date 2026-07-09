@@ -23,14 +23,15 @@ export default function FirmaTimerLayout({
 
   const sub = [
     { href: "/dashbord/firma/timer/onboarding", label: t("firma.timer.fane.onboarding") },
+    { href: "/dashbord/firma/timer/oppsett", label: t("firma.timer.fane.oppsett") },
     { href: "/dashbord/firma/timer/lonnsarter", label: t("firma.timer.fane.lonnsarter") },
     { href: "/dashbord/firma/timer/aktiviteter", label: t("firma.timer.fane.aktiviteter") },
     { href: "/dashbord/firma/timer/tillegg", label: t("firma.timer.fane.tillegg") },
     { href: "/dashbord/firma/timer/attestering", label: t("firma.timer.fane.attestering") },
   ];
 
-  // Før aktivering: vis kun onboarding-fanen
-  const filtrert = status?.harTimerModul ? sub : sub.slice(0, 1);
+  // Før aktivering: vis kun onboarding + oppsett-veiviseren (steg 1 aktiverer)
+  const filtrert = status?.harTimerModul ? sub : sub.slice(0, 2);
 
   if (isLoading) {
     return (

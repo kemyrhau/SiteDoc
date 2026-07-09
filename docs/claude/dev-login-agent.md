@@ -10,6 +10,16 @@ metadata:
 Lar agent/simulator logge inn i SiteDoc **uten OAuth**, gated til test-miljø.
 Nivå A+B (seedet testbruker + delt hemmelighet + whitelist).
 
+## Hvorfor: automatisert Chrome avvises av OAuth (web-agent-læring, 2026-07-07)
+
+Google og Microsoft **avviser en automatisert/headless Chrome-instans ved siste OAuth-steg** («Denne nettleseren er ikke sikker»/blokkert redirect) — en web-agent kan derfor ikke logge inn via OAuth i sin egen Chrome. Tre gjenbrukbare veier for web-agent-økter:
+
+1. **Dev-login (test):** denne fila — agent minter session-token direkte mot `/dev-login` (whitelist + secret). Foretrukket for automatisert web-verifisering på test.
+2. **Attach til Kenneths ekte Chrome:** start Chrome med `--remote-debugging-port=9222` (gjerne egen profil/`--user-data-dir`), og la agenten koble seg til den kjørende instansen (chrome-devtools MCP mot 9222). OAuth-sesjonen er allerede etablert i Kenneths profil → ingen ny innlogging. Dette er «Opus web»-mønsteret for bevis på deployede miljøer (prod/test).
+3. **Kenneth logger inn manuelt** og relayer resultat (brukt for redesign-bevis a–d).
+
+Kort: **deployede miljøer (prod/test) verifiseres via attach-til-Kenneths-Chrome eller manuelt; lokal/test-automatisering via dev-login.** En frisk agent-Chrome + OAuth virker ikke.
+
 ## Endepunkt
 
 `POST https://api-test.sitedoc.no/dev-login`
@@ -101,6 +111,36 @@ Whitelisten i `apps/api/src/routes/dev-login.ts` MÅ matche disse epostene.
 3. **Lokal Expo mot api-test:** eksporter `EXPO_PUBLIC_DEV_LOGIN_SECRET` i en gitignored `.env.local` (ikke commit).
 
 Verdiene i (1) og (2) MÅ være identiske.
+
+## Web-verifisering i Kenneths Chrome
+
+For web-verifisering som krever ekte OAuth-innlogging (prod, eller test-flyt der
+dev-login ikke dekker) kan agenten ikke logge inn selv: **en agent-styrt Chrome-instans
+blokkeres av Google/Microsoft-OAuth ved siste steg** (automasjonsdeteksjon). Løsningen
+er å attache til en Chrome Kenneth allerede har logget inn i.
+
+**Hovedspor: Opus web-utvidelsen** — foretrukket vei for web-verifisering når den er
+tilgjengelig; den kjører i Kenneths egen browserkontekst uten separat oppsett.
+
+**Alternativ 1 — attach til Kenneths debug-Chrome:**
+
+1. Kenneth starter én gang en Chrome med remote-debugging og en **permanent** profil:
+   ```
+   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+     --remote-debugging-port=9222 \
+     --user-data-dir="$HOME/chrome-claude-profil" &
+   ```
+2. Kenneth logger inn manuelt via OAuth **én gang** — profilen (`chrome-claude-profil`)
+   er permanent, så innloggingen overlever mellom økter.
+3. Agenten verifiserer at instansen kjører og **attacher via browser-url** — den skal
+   **aldri** launche sin egen instans (det utløser OAuth-blokkeringen på nytt):
+   ```
+   curl -s http://127.0.0.1:9222/json/version
+   ```
+   Bruk `webSocketDebuggerUrl` fra svaret til å koble til den kjørende profilen.
+
+**Alternativ 2 — dev-login på test:** omgår OAuth helt (se resten av dette dokumentet).
+Foretrekk denne når verifiseringen kan gjøres i test-miljøet.
 
 ## Relaterte filer
 

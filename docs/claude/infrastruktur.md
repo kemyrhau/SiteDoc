@@ -81,6 +81,33 @@ ssh -t server-ny 'cd ~/stack/sitedoc && sudo docker compose -f docker/docker-com
 >
 > ℹ️ **Kenspill kjører fortsatt en STALE test-PM2 (avklart 2026-06-21).** `sitedoc-test-api`/`sitedoc-test-web` står online som PM2 på Kenspill (3301/3300) med et eget `sitedoc_test` + cloudflared-mapping `api-test → localhost:3301` i Kenspill-tunnelen `sitedoc`. **Men edge serveres IKKE herfra** — `test.sitedoc.no`/`api-test.sitedoc.no` går til **server-ny** (tunnel `sitedoc-ny`, bevist via Funn #2-deploy: 401/405 først etter server-ny-deploy). Kenspill-test-stacken er en legacy-levning (inkl. en harmløs Funn #2-migrering som ved uhell traff Kenspills `sitedoc_test`). **Ikke bruk Kenspill for noe; bør stoppes/avvikles.**
 
+## Delt postgres — tilkoblingsbudsjett og isolasjon
+
+Én Postgres-container (`~/stack/postgres`) betjener alle stackene på server-ny. Tilkoblingsbudsjettet er **klynge-nivå, ikke per database** — adskilte databaser (`sitedoc`, `sitedoc_test`, `sitedoc_redesign`, `tromsosalsaklubb`) deler samme tak.
+
+**Målt 2026-07-09 (FØR tiltakene under — historikk, ikke nåtilstand):** `max_connections=100`, **81 i bruk** — `sitedoc_test` 46, `sitedoc` 19, `tromsosalsaklubb` 10, bakgrunn 6. Postgres kjører **utunet**: ingen `command:`-override i `~/stack/postgres/docker-compose.yml` → default `shared_buffers=128MB` på en 16 GB-maskin.
+
+**Endret 2026-07-09 (etter målingen over):** salsaklubb er flyttet ut av den delte klyngen til en egen `postgres:16`-container (`salsaklubb-postgres`, nett `salsanet`, volum `salsa_pgdata`, ingen host-port). De 10 tilkoblingene er permanent borte fra taket, og den laterale nettverksveien til SiteDocs postgres/api/ML er fjernet. Databasen `tromsosalsaklubb` ligger fortsatt urørt i den delte klyngen som fallback (0 tilkoblinger) — skal ikke droppes uten eksplisitt beslutning fra Kenneth. Dumper: `~/backup/` på server-ny og Kenspill.
+
+**Hendelsen (2026-07-09):** da redesign-stacken ble startet sprakk taket. `psql` selv ble avvist (`FATAL: remaining connection slots are reserved for roles with the SUPERUSER attribute`). Timer-spørringer på test feilet med *Too many database connections opened*, og websiden **maskerte 500-feilen** som «Dagsseddelen finnes ikke eller du har ikke tilgang». **Ingen kode-bug** — timer-paritet bolk (a)/(b) ble frikjent.
+
+**Mekanikk — hvorfor taket sprekker fort:** `apps/api` instansierer **fire** Prisma-klienter (`db`, `db-timer`, `db-maskin`, `db-varelager`) som alle leser samme `DATABASE_URL` → `connection_limit` gjelder **per klient** (api: 4×N, web: 1×N). Prismas default (`cpu×2+1` per klient) er kraftig oversolgt med tre stacker på samme klynge.
+
+**Utført 2026-07-09 — `connection_limit` + DB-kvoter + zombie-rydding (målbilde-punkt 1 lukket):**
+- **`connection_limit` i alle seks env-filer:** prod api **7** / web **4**, test api **4** / web **3**, redesign api **4** / web **3**. Api-tallet **ganges med fire** (fire Prisma-klienter) → app-tak **70** av **97** brukbare (`max_connections=100` − `superuser_reserved=3`).
+- **DB-kvoter (hardt tak per database):** `sitedoc` 40, `sitedoc_test` 25, `sitedoc_redesign` 20. `tromsosalsaklubb` uten kvote (fallback, 0 tilkoblinger). Kvoten ligger **bevisst over** app-taket: poolen **køer** (treg side) i stedet for at databasen **avviser** (side som ser ødelagt ut).
+- **Målt etter:** **24 av 97** i bruk (mot 81 før).
+
+**Rotårsak — zombie-backends (viktigst; `connection_limit` alene ville IKKE ha stoppet hendelsen):** Når en container drepes forsvinner prosessen, men **TCP-socketen mot postgres ryddes ikke**. Postgres oppdager ikke en død motpart før den prøver å skrive — og en idle-tilkobling skriver aldri. Med `tcp_keepalives_idle` på default (OS-ens **to timer**) blir de liggende. Hver rebuild av test etterlot **~20 døde tilkoblinger** (nå ~7, siden `connection_limit` gjør poolen mindre). Docker **gjenbruker IP-en**, så zombiene ser ut som den nye containerens. **Dette — ikke pool-størrelsen — er grunnen til at taket sprakk 2026-07-08.** **Etter hver rebuild:** terminer idle-backends med `backend_start` eldre enn containerens `Created` (kommando i [BACKLOG § Tilkoblings-utmattelse](BACKLOG.md)).
+
+**Nettverk:** `appnet` (external) huser `postgres`, `sitedoc-api`, `sitedoc-test-api`, `sitedoc-embed`, `sitedoc-oversettelse`. `sendfil` (`sendfil_default`) og salsaklubb (`salsanet`, fra 2026-07-09) ligger korrekt på egne nett. Postgres eksponerer kun `127.0.0.1:5432` ✅.
+
+**Målbilde (veikart — detaljert i [BACKLOG § 1 Teknisk gjeld](BACKLOG.md)):**
+1. **DB-kvoter per database** som hardt tak + app-side `connection_limit` under kvoten (poolen køer, kvoten feiler) → ✅ **utført 2026-07-09** (se «Utført»-blokken over). Gjenstår: `tcp_keepalives_idle=60` på postgres + zombie-rydding som fast deploy-steg (BACKLOG).
+2. **Urelaterte prosjekter på eget nett + egen postgres-instans** → ✅ **utført 2026-07-09 for salsaklubb** (`sendfil` var mønsteret). Gjelder framtidige urelaterte prosjekter.
+3. **pgBouncer** på sikt → antall stacker slutter å påvirke taket.
+4. **Egen `DATABASE_URL` per db-pakke** → differensiert pooling.
+
 ## Cloudflare Tunnel — viktig
 
 Gjelder tunnel `sitedoc-ny` på ny server (mekanikken er identisk med den gamle):
@@ -177,6 +204,8 @@ Test-databasen `sitedoc_test` finnes i den delte Postgres-containeren (restoret 
 **Test-stack på server-ny (etablert 2026-06-11):** egne containere `sitedoc-test-api` + `sitedoc-test-web` (prosjekt `sitedoc-test`) via `docker/docker-compose.test.yml`, mot `sitedoc_test`-DB, deler prod sin `embed`/`oversettelse`/`postgres`. Eksponert på `test.sitedoc.no` (3300) + `api-test.sitedoc.no` (3301) via tunnel `sitedoc-ny`. Env: `docker/env/{api-test,web-test}.env`. Verifisert HTTP 200 eksternt (2026-06-11). Deploy-prosedyre i [`ny-server-veileder.md`](ny-server-veileder.md) → «Test-stack».
 
 > ✅ **Denne (server-ny) er den autoritative test-stacken som serverer edge (bekreftet 2026-06-21).** `test.sitedoc.no`/`api-test.sitedoc.no` går hit (tunnel `sitedoc-ny`). Bevis: Funn #2-rutene ga 404 på edge før server-ny-deploy og 401/405 etter — så edge = server-ny. **Deploy/migrer test KUN her** (rsync + `docker-compose.test.yml`, se [`ny-server-veileder.md`](ny-server-veileder.md) → «Test-stack»). Kenspills test-PM2 (se «Gammel server»-blokken) er en stale legacy-levning som ikke serverer edge.
+
+> ⚠️ **Test-deploy er MANUELL — ingen auto-deploy finnes** (bekreftet 2026-07-07). Push til `develop` oppdaterer IKKE test av seg selv (ingen CI/cron/hook/webhook — «auto-deployen» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10). Kjør `./deploy-test.sh` fra Mac (rsync `--delete` til `server-ny:stack/sitedoc`, excludes `docker/env`+bloat, branch-guard develop) → den skriver ut `sudo docker compose -f docker/docker-compose.test.yml up -d --build` som Kenneth kjører i egen TTY. Se [BACKLOG § «Auto-deploy til test» finnes ikke](BACKLOG.md).
 
 > Gjenstår fortsatt: automatisert `prisma migrate deploy` (kjøres manuelt ved schema-endring — se TODO over).
 

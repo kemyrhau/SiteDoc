@@ -15,7 +15,7 @@ import {
   harGyldigMaskinforerbevis,
   harGyldigMaskinforerbevisBatch,
 } from "../../services/kompetanse/maskinforerbevis";
-import { beregnMaskinBrudd, type MaskinBrudd } from "@sitedoc/shared";
+import { beregnMaskinBrudd, hhmmTilMin, type MaskinBrudd } from "@sitedoc/shared";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
 type DagsseddelStatus = (typeof STATUS_VERDIER)[number];
@@ -372,6 +372,73 @@ async function hentRaderForValidering(
 }
 
 /**
+ * Bolk (g), 2026-07-09 — fra/til-gyldighet: når begge tider er satt, må til > fra.
+ * Delt superRefine for timer- og maskin-rad-inputene (tilfoy + oppdater).
+ */
+function refineFraForTil(
+  val: { fraTid?: string | null; tilTid?: string | null },
+  ctx: z.RefinementCtx,
+): void {
+  if (
+    val.fraTid &&
+    val.tilTid &&
+    hhmmTilMin(val.tilTid) <= hhmmTilMin(val.fraTid)
+  ) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Til-tid må være etter fra-tid",
+      path: ["tilTid"],
+    });
+  }
+}
+
+/**
+ * Bolk (g), 2026-07-09 — overlapp-vakt: en arbeider kan ikke være to steder. To
+ * TIMER-rader med begge tider satt kan ikke overlappe innen samme sheetId, PÅ
+ * TVERS av prosjekt og ECO/underprosjekt (hard sperre — Kenneth 2026-07-09).
+ * Berøring i endepunkt (12:00 slutt = 12:00 start) er IKKE overlapp. Rader uten
+ * tider hoppes over; egen rad ekskluderes ved oppdatering. Kun ny/redigert rad
+ * sjekkes — eksisterende overlapp retro-avvises ikke (samme scoping som B2).
+ * Maskin-rader hører til en timer-rad og overlapp-sjekkes IKKE her.
+ */
+async function sjekkTimerOverlapp(
+  prismaTimer:
+    | Prisma.TransactionClient
+    | typeof import("@sitedoc/db-timer").prismaTimer,
+  sheetId: string,
+  nyFra: string | null | undefined,
+  nyTil: string | null | undefined,
+  ekskluderRadId?: string,
+): Promise<void> {
+  if (!nyFra || !nyTil) return;
+  const tx = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
+  const nyF = hhmmTilMin(nyFra);
+  const nyT = hhmmTilMin(nyTil);
+  const andre = await tx.sheetTimer.findMany({
+    where: {
+      sheetId,
+      attestertStatus: { not: "erstattet" },
+      fraTid: { not: null },
+      tilTid: { not: null },
+      ...(ekskluderRadId ? { id: { not: ekskluderRadId } } : {}),
+    },
+    select: { fraTid: true, tilTid: true },
+  });
+  for (const r of andre) {
+    if (!r.fraTid || !r.tilTid) continue;
+    const f = hhmmTilMin(r.fraTid);
+    const t = hhmmTilMin(r.tilTid);
+    // Strengt overlapp: berøring i endepunkt teller ikke.
+    if (nyF < t && nyT > f) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: `Tidsrommet overlapper en annen rad (${r.fraTid}–${r.tilTid}) på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.`,
+      });
+    }
+  }
+}
+
+/**
  * Berik brytt-resultat med prosjekt- og ECO-navn fra kjernen-databasen og
  * formater til menneskelesbar feilmelding. Én linje per (projectId, ECO)-
  * gruppe som bryter invariant.
@@ -589,7 +656,21 @@ export const dagsseddelRouter = router({
         ...t,
         vedlegg: vedlegg.filter((v) => v.sheetTilleggId === t.id),
       }));
-      return { ...sheet, aktivitet, timer, tillegg: tilleggMedVedlegg, maskiner, prosjekt };
+      // D5 (web-paritet 2026-07-09): eksponer maskinførerbevis-status til
+      // arbeideren (mobil T.11 varsler arbeideren; web viste det kun i
+      // attestering). Informativt, aldri blokkerende. Kun relevant m/ maskin-rader.
+      const manglerMaskinforerbevis =
+        maskiner.length > 0 &&
+        !(await harGyldigMaskinforerbevis(sheet.userId, sheet.organizationId));
+      return {
+        ...sheet,
+        aktivitet,
+        timer,
+        tillegg: tilleggMedVedlegg,
+        maskiner,
+        prosjekt,
+        manglerMaskinforerbevis,
+      };
     }),
 
   opprett: protectedProcedure
@@ -649,7 +730,7 @@ export const dagsseddelRouter = router({
       // Klient sender projectId ved opprettelse av rader (leggTilTimerRad etc.).
       // @@unique([userId, dato]): én sedel per arbeider per dato (P2002 = duplikat-dato).
       try {
-        return await ctx.prismaTimer.dailySheet.upsert({
+        const sheet = await ctx.prismaTimer.dailySheet.upsert({
           where: { clientUuid: input.clientUuid },
           create: {
             clientUuid: input.clientUuid,
@@ -670,15 +751,22 @@ export const dagsseddelRouter = router({
           // Re-send av samme clientUuid: returner eksisterende uten endring
           update: {},
         });
+        return { ...sheet, eksisterte: false };
       } catch (e) {
+        // D1 (web-paritet 2026-07-08): duplikat-dato er IKKE en feil — mobil
+        // (finnEllerOpprettDagsseddel) åpner eksisterende sedel. Speiler den
+        // atferden: hent sedelen for (userId, dato) og returner den urørt med
+        // `eksisterte: true` så klienten kan redirecte + vise notis. P2002 kan
+        // treffe enten @@unique([userId, dato]) eller clientUuid — findUnique på
+        // (userId, dato) dekker begge (samme dato = samme sedel).
         if (
           e instanceof Prisma.PrismaClientKnownRequestError &&
           e.code === "P2002"
         ) {
-          throw new TRPCError({
-            code: "CONFLICT",
-            message: "Du har allerede en dagsseddel for denne datoen",
+          const eksisterende = await ctx.prismaTimer.dailySheet.findUnique({
+            where: { userId_dato: { userId: ctx.userId, dato } },
           });
+          if (eksisterende) return { ...eksisterende, eksisterte: true };
         }
         throw e;
       }
@@ -760,7 +848,7 @@ export const dagsseddelRouter = router({
         externalCostObjectId: z.string().uuid().nullable().optional(),
         // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
         vehicleId: z.string().uuid().nullable().optional(),
-      }),
+      }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
@@ -822,6 +910,15 @@ export const dagsseddelRouter = router({
         });
       }
 
+      // Bolk (g): overlapp-vakt — ny rads spenn kan ikke overlappe en annen
+      // timer-rad på sedelen (på tvers av prosjekt/ECO).
+      await sjekkTimerOverlapp(
+        ctx.prismaTimer,
+        input.sheetId,
+        input.fraTid,
+        input.tilTid,
+      );
+
       return ctx.prismaTimer.sheetTimer.create({
         data: {
           sheetId: input.sheetId,
@@ -851,7 +948,12 @@ export const dagsseddelRouter = router({
         externalCostObjectId: z.string().uuid().nullable().optional(),
         // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
         vehicleId: z.string().uuid().nullable().optional(),
-      }),
+        // D2 (web-paritet 2026-07-08): per-rad fra/til (HH:MM). tilfoyTimerRad
+        // hadde disse fra før; oppdater manglet dem → web kunne ikke lagre
+        // tids-endringer. Nullable/optional — sendes kun når feltet er i bruk.
+        fraTid: z.string().nullable().optional(),
+        tilTid: z.string().nullable().optional(),
+      }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
       const rad = await ctx.prismaTimer.sheetTimer.findUnique({
@@ -887,6 +989,8 @@ export const dagsseddelRouter = router({
         }
         data.vehicleId = input.vehicleId;
       }
+      if (input.fraTid !== undefined) data.fraTid = input.fraTid;
+      if (input.tilTid !== undefined) data.tilTid = input.tilTid;
 
       // T7-4b: valider post-state. Reduksjon av timer eller flytting til
       // annen ECO kan få maskin-totalen til å overstige.
@@ -910,6 +1014,16 @@ export const dagsseddelRouter = router({
           message: await feilMeldingMaskinOverstiger(brytt),
         });
       }
+
+      // Bolk (g): overlapp-vakt på post-state fra/til (delvis oppdatering →
+      // fall tilbake til radens eksisterende verdi). Egen rad ekskluderes.
+      await sjekkTimerOverlapp(
+        ctx.prismaTimer,
+        rad.sheetId,
+        input.fraTid !== undefined ? input.fraTid : rad.fraTid,
+        input.tilTid !== undefined ? input.tilTid : rad.tilTid,
+        input.id,
+      );
 
       return ctx.prismaTimer.sheetTimer.update({
         where: { id: input.id },
@@ -1195,12 +1309,13 @@ export const dagsseddelRouter = router({
   // med tydelig melding (leder har godkjent → kontakt leder). draft/returned er alt
   // redigerbar → samme guard avviser.
   //
-  // Nullstiller ALLE rad-attestasjoner til pending: en "sent"-sedel kan ha delvis
-  // attesterte rader (leder rakk noen før alle var ferdige). Etter recall + redigering
-  // er de utdaterte og må re-vurderes rent. Speiler re-send-etter-retur-mønsteret over;
-  // permanent audit-spor hører hjemme i Activity-tabellen (T7-2b3), ikke status-feltene.
-  // Når leder forsvinner sedelen fra «Venter på attestering» automatisk (kø-query
-  // filtrerer på status="sent").
+  // Vakt (2026-07-09, Kenneth): har leder attestert minst én rad, BLOKKERES
+  // gjenåpning — arbeideren må be leder RETURNERE i stedet (attestertStatus=
+  // "returnert" → status "returned", som er redigerbar). Ellers ville arbeideren
+  // kastet lederens arbeid stille. Er ingen rad attestert, nullstilles rad-status
+  // til pending (defensivt) og sedelen går til draft. Permanent audit-spor hører
+  // hjemme i Activity-tabellen (T7-2b3). Leder-køen (status="sent") slipper
+  // sedelen automatisk når status endres.
   gjenaapneDagsseddel: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1213,6 +1328,31 @@ export const dagsseddelRouter = router({
             sheet.status === "accepted"
               ? "Dagsseddelen er allerede godkjent av leder — kontakt leder for endring"
               : `Kan ikke gjenåpne dagsseddel med status «${sheet.status}»`,
+        });
+      }
+
+      // Attestert-vakt (2026-07-09): har leder attestert minst én rad, kan ikke
+      // arbeideren gjenåpne selv — det ville kastet lederens arbeid uten varsel.
+      // Han må be leder RETURNERE sedelen (retur-flyten setter attestertStatus=
+      // "returnert" + status="returned", som er redigerbar).
+      const [attTimer, attTillegg, attMaskin] = await ctx.prismaTimer.$transaction(
+        [
+          ctx.prismaTimer.sheetTimer.count({
+            where: { sheetId: sheet.id, attestertStatus: "attestert" },
+          }),
+          ctx.prismaTimer.sheetTillegg.count({
+            where: { sheetId: sheet.id, attestertStatus: "attestert" },
+          }),
+          ctx.prismaTimer.sheetMachine.count({
+            where: { sheetId: sheet.id, attestertStatus: "attestert" },
+          }),
+        ],
+      );
+      if (attTimer + attTillegg + attMaskin > 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message:
+            "Leder har alt attestert minst én rad — be leder returnere dagsseddelen for endring",
         });
       }
 
@@ -3524,7 +3664,7 @@ export const dagsseddelRouter = router({
           enhet: z.string().max(20).nullable().optional(),
           fraTid: z.string().nullable().optional(),
           tilTid: z.string().nullable().optional(),
-        }),
+        }).superRefine(refineFraForTil),
       )
       .mutation(async ({ ctx, input }) => {
         const sheet = await hentEgenDagsseddel(
@@ -3595,7 +3735,7 @@ export const dagsseddelRouter = router({
           // var glemt. Symmetri med SheetTimer.oppdater (T.4 PR 2).
           fraTid: z.string().nullable().optional(),
           tilTid: z.string().nullable().optional(),
-        }),
+        }).superRefine(refineFraForTil),
       )
       .mutation(async ({ ctx, input }) => {
         const rad = await ctx.prismaTimer.sheetMachine.findUnique({

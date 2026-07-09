@@ -19,6 +19,11 @@ RUN pnpm --filter @sitedoc/db exec prisma generate \
 # manifesten er allerede generert. Settes via build-arg fra compose.
 ARG API_PORT=3001
 ENV API_PORT=${API_PORT}
+# NEXT_PUBLIC_NY_NAV_DEFAULT bakes inn i klient-bundelen ved BUILD-tid (NEXT_PUBLIC → runtime-env
+# er for sent). Kun redesign-stacken setter "1" (via build-arg) → ny nav default-på der. Usatt
+# (prod/test) = "av". Se docker-compose.redesign.yml + docs/redesign/steg-viii-kunderunde.md.
+ARG NEXT_PUBLIC_NY_NAV_DEFAULT=
+ENV NEXT_PUBLIC_NY_NAV_DEFAULT=${NEXT_PUBLIC_NY_NAV_DEFAULT}
 RUN pnpm turbo build --filter @sitedoc/web
 
 ENV NODE_ENV=production

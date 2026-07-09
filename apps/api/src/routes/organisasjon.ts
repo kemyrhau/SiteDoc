@@ -16,6 +16,7 @@ import {
   hentAktiveFirmamoduler,
 } from "../services/firmamodul";
 import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
+import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
 
 /**
  * Verifiser at bruker er firmaadmin for et firma.
@@ -805,8 +806,9 @@ export const organisasjonRouter = router({
           standardStartTid: true,
           standardSluttTid: true,
           standardPauseMin: true,
-          // 2026-05-28: firma-default for pause-start (HH:MM, nullable).
-          // Brukes av RedigerRadModal.togglePause når vinduet ligger innenfor rad-intervallet.
+          // 2026-07-08: pausevindu = skiftstart + standardPauseEtterTimer (t).
+          standardPauseEtterTimer: true,
+          // DEPRECATED — beholdes til data er migrert (to-stegs). Brukes ikke lenger av klienten.
           standardPauseFra: true,
           tillattRedigerVedAttestering: true,
           // T.5 (2026-05-16): mobil-cache trenger feltet for å avrunde picker-input.
@@ -821,6 +823,24 @@ export const organisasjonRouter = router({
           reiseLonnsartId: true,
         },
       });
+    }),
+
+  // Kalender-effektiv arbeidstid for en gitt dato (medlems-tilgjengelig).
+  // Wrapper service-funksjonen som a2-prefyllet + mobil (via lokal cache)
+  // bruker — respekterer sommertid/halvdag-overstyringer i ArbeidstidsKalender.
+  // Web-dagsseddel prefyller Fra/Til fra denne (paritet med mobil).
+  hentEffektivArbeidstid: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        dato: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Forventet YYYY-MM-DD"),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserOrganisasjonTilgang(ctx.userId, input.organizationId);
+      // new Date("YYYY-MM-DD") = UTC-midnatt, samme som a2 (dagsseddel.ts) —
+      // service bruker getUTCFullYear + dato-sammenligning mot kalenderen.
+      return hentEffektivArbeidstidService(input.organizationId, new Date(input.dato));
     }),
 
   // Oppdater OrganizationSetting (alle felter valgfrie, gjør upsert).
@@ -856,8 +876,11 @@ export const organisasjonRouter = router({
         // Slice 4b-2 (2026-06-21): arbeidstids-varsel-terskel (timer per
         // dagsseddel). 13 default (AML § 10-6), firma hever til 16 ved tariff.
         arbeidstidVarselTimer: z.number().int().min(1).max(24).optional(),
-        // 2026-05-28: firma-default for pause-start (HH:MM). null = nullstill,
-        // ingen verdi = uendret. Brukes av RedigerRadModal.togglePause.
+        // 2026-07-08: pausevindu starter etter X timer inn i skiftet (relativt
+        // til skiftstart). 0–12 t. Erstatter standardPauseFra.
+        standardPauseEtterTimer: z.number().min(0).max(12).optional(),
+        // DEPRECATED 2026-07-08 (to-stegs migrering) — skrives ikke lenger fra
+        // UI. Zod beholdt for bakover-kompat til feltet droppes.
         standardPauseFra: z
           .union([
             z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Forventet HH:MM (00:00–23:59)"),
@@ -971,5 +994,60 @@ export const organisasjonRouter = router({
         }
         throw e;
       }
+    }),
+
+  // ---------------------------------------------------------------------------
+  // Redesign/navigasjon (Plan 2) — sentral tildeling av nyNavigasjon-flagget for pilot.
+  // Begge mutasjoner gates via verifiserFirmaAdmin: sitedoc_admin (hvilket som helst firma)
+  // eller company_admin (kun eget firma). Skriver User.nyNavigasjon (autoritativ konto-kilde
+  // i presedensen konto > lokal/query > env-default > av).
+  // ---------------------------------------------------------------------------
+
+  // Bulk: sett flagget for ALLE brukere i firmaet (pilot-utrulling: «alle i org X»).
+  settNyNavForFirma: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid(), paa: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      const members = await ctx.prisma.organizationMember.findMany({
+        where: { organizationId: orgId },
+        select: { userId: true },
+      });
+      const userIds = members.map((m) => m.userId);
+      const res = await ctx.prisma.user.updateMany({
+        where: { id: { in: userIds } },
+        data: { nyNavigasjon: input.paa },
+      });
+      return { ok: true, antall: res.count };
+    }),
+
+  // Per-bruker overstyring innen firmaet. `verdi=null` = nullstill til «ikke tildelt»
+  // (bruker faller da tilbake til egen lokal toggle / env-default). Nullable gjør pilot
+  // koherent: start med utvalgte brukere (per-bruker), utvid med bulk over.
+  settNyNavForBruker: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        userId: z.string().uuid(),
+        verdi: z.boolean().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const orgId = await verifiserFirmaAdmin(ctx.prisma, ctx.userId, input.organizationId);
+      // Målbrukeren MÅ være medlem av samme firma (hindrer kryss-org-skriving).
+      const medlem = await ctx.prisma.organizationMember.findFirst({
+        where: { organizationId: orgId, userId: input.userId },
+        select: { id: true },
+      });
+      if (!medlem) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Brukeren er ikke medlem av dette firmaet.",
+        });
+      }
+      await ctx.prisma.user.update({
+        where: { id: input.userId },
+        data: { nyNavigasjon: input.verdi },
+      });
+      return { ok: true };
     }),
 });

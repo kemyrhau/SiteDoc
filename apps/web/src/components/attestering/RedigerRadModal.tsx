@@ -124,9 +124,18 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
   );
   const tidsrundingMinutter = setting?.tidsrundingMinutter ?? null;
   const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
-  // 2026-05-28: firma-default for pause-start (togglePause-fallback).
-  const standardPauseFra = setting?.standardPauseFra ?? null;
+  // 2026-07-08: pausevindu-default = skiftstart + standardPauseEtterTimer (t).
+  // Erstatter det gamle faste standardPauseFra-klokkeslettet (togglePause-fallback).
   const standardPauseMin = setting?.standardPauseMin ?? 30;
+  const standardPauseFra = (() => {
+    const skiftStart = setting?.standardStartTid ?? "07:00";
+    const etterTimer = setting?.standardPauseEtterTimer ?? 4;
+    const m = Math.max(
+      0,
+      Math.min(hhmmTilMinutter(skiftStart) + Math.round(etterTimer * 60), 23 * 60 + 59),
+    );
+    return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  })();
 
   // Plukk pending-rader for denne bucken (projectId + ecoId).
   // Alle andre pending-rader sendes uendret i lagre-payloaden.

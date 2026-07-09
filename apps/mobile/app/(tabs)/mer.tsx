@@ -6,10 +6,9 @@ import {
   Settings,
   Printer,
   Download,
-  Users,
   Building2,
+  GitBranch,
   WifiOff,
-  QrCode,
   ChevronRight,
   LogOut,
   Globe,
@@ -32,7 +31,7 @@ import { VersjonsFooter } from "../../src/components/VersjonsFooter";
 import { trpc } from "../../src/lib/trpc";
 import { klargjørForOffline } from "../../src/services/offlineKlargjoring";
 import { byttSpraak } from "../../src/lib/i18n";
-import { useNyNavigasjon, settNyNavigasjon } from "../../src/hooks/useNyNavigasjon";
+import { useNyNavigasjon, useSettNyNavigasjon } from "../../src/hooks/useNyNavigasjon";
 import { STOETTEDE_SPRAAK } from "@sitedoc/shared";
 import type { SpraakKode } from "@sitedoc/shared";
 
@@ -48,11 +47,14 @@ export default function MerSkjerm() {
   const [visFirmaVelger, setVisFirmaVelger] = useState(false);
   const { valgtFirma, firmaer, valgtFirmaId } = useFirma();
   const nyNav = useNyNavigasjon();
+  const settNyNav = useSettNyNavigasjon();
 
   // Rolle for flagg-toggle-gating (kun sitedoc_admin kan skru på ny navigasjon,
   // speiler web-brukermenyen). Egen query — BrukerData bærer ikke role.
+  // Gates på `bruker` (auth) så togglen ikke vises stale for «Ukjent bruker» i
+  // utloggingsvinduet (React Query-cachen kan være stale der).
   const { data: minBruker } = trpc.bruker.hentMin.useQuery();
-  const erSitedocAdmin = minBruker?.role === "sitedoc_admin";
+  const erSitedocAdmin = !!bruker && minBruker?.role === "sitedoc_admin";
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
@@ -164,8 +166,11 @@ export default function MerSkjerm() {
               {t("mer.generelt")}
             </Text>
           </View>
-          <MenyRad ikon={Users} tekst={t("nav.dokumentflyt")} />
-          <MenyRad ikon={Building2} tekst={t("nav.grupper")} />
+          <MenyRad
+            ikon={GitBranch}
+            tekst={t("nav.dokumentflyt")}
+            onPress={() => router.push("/dokumentflyt")}
+          />
           {/* 2a/K6: Kontakter-lesevisning — kun ny navigasjon (flagg AV = dagens UI) */}
           {nyNav && (
             <MenyRad
@@ -199,7 +204,6 @@ export default function MerSkjerm() {
             />
           )}
           <MenyRad ikon={WifiOff} tekst={offlineTekst ?? t("mer.forberedOffline")} onPress={startOffline} />
-          <MenyRad ikon={QrCode} tekst={t("mer.skannQR")} />
         </View>
 
         {/* Firma — kun synlig ved multi-firma-medlemskap */}
@@ -294,7 +298,7 @@ export default function MerSkjerm() {
               <Switch
                 value={nyNav}
                 onValueChange={(paa) => {
-                  void settNyNavigasjon(paa);
+                  settNyNav(paa);
                 }}
                 trackColor={{ true: "#1e40af" }}
               />

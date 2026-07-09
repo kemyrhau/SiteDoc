@@ -10,7 +10,7 @@ import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { MODUL_FARGER, hentAktivModul } from "@/lib/modul-farger";
 import {
   bunnelementer,
-  kontakterElement,
+  prosjektSoneElementer,
   MODUL_EIERSKAP,
   navigerSidebar,
   useSidebarElementer,
@@ -68,7 +68,10 @@ export function NavSidebar() {
   const firmaNav = useFirmaNavElementer();
   const visFirmaSone = firmaNav.length > 0 || harMaskinModul;
 
-  const prosjektElementer = [...filtrertHovedelementer, kontakterElement];
+  // FM5/K2: «Mine timer» er brukerens egen flate → brukermeny + søk, ikke
+  // PROSJEKT-sonen. Delt filter (`prosjektSoneElementer`) så hamburgeren ikke
+  // kan divergere (T9-avvik 2026-07-07).
+  const prosjektElementer = prosjektSoneElementer(filtrertHovedelementer);
   // Maskin er firmamodul (K1) — vises i FIRMA-sonen, gated på harMaskinModul
   // (uavhengig av firma-admin). Beholder button/aksent-rendring via renderRad.
   const maskinElement = harMaskinModul

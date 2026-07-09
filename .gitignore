@@ -54,3 +54,6 @@ android/
 
 # Lokal arbeids-fil — ikke i versjonskontroll
 Lønnsarter til sortering.txt
+
+# Playwright MCP-artefakter (snapshots/logger)
+.playwright-mcp/

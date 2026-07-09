@@ -6,6 +6,7 @@
  *   A) grønn «✓» — fullført oversettelse (kildeblokker + målblokker)
  *   B) amber «…» — pågående jobb (kildeblokker + pending FtdTranslationJob)
  *   C) avvik-rad  — detektert språk ≠ kildespråk, ubekreftet (for B8-raden)
+ *   D) uparset    — fileUrl uten blokker (2c-leserens tom-tilstand + «Last ned PDF»-knapp)
  *
  * Kjør mot TEST-DB:
  *   DATABASE_URL=<sitedoc_test> pnpm --filter @sitedoc/db exec \
@@ -103,10 +104,20 @@ async function main() {
   });
   await lagBlokk(docC.id, avvikSprak, 0, "Tekstas kuris atrodo lietuviškas.");
 
+  // D) uparset — fileUrl satt, INGEN blokker → 2c-leserens tom-tilstand + «Last ned PDF»
+  const docD = await prisma.ftdDocument.create({
+    data: {
+      projectId: prosjekt.id, folderId: mappe.id, filename: "seed-uparset.pdf",
+      fileUrl: "/uploads/seed/seed-uparset.pdf", sourceLanguage: src,
+      processingState: "pending", languageConfirmed: false, wordCount: 0,
+    },
+  });
+
   console.log(`Ferdig. Mappe: ${SEED_NAVN} (${mappe.id})`);
   console.log(`  A grønn (${gronnMal}✓): ${docA.filename}`);
   console.log(`  B amber (${amberMal}…): ${docB.filename}`);
   console.log(`  C avvik (${avvikSprak}≠${src}): ${docC.filename}`);
+  console.log(`  D uparset (fileUrl, 0 blokker): ${docD.filename}`);
 }
 
 main()

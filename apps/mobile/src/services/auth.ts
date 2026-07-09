@@ -35,7 +35,7 @@ export async function hentVerdi(key: string): Promise<string | null> {
   return SecureStore.getItemAsync(key);
 }
 
-async function slettVerdi(key: string): Promise<void> {
+export async function slettVerdi(key: string): Promise<void> {
   if (Platform.OS === "web") {
     localStorage.removeItem(key);
   } else {

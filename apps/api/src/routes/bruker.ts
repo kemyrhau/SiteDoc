@@ -18,7 +18,7 @@ export const brukerRouter = router({
     if (!ctx.userId) return null;
     const user = await ctx.prisma.user.findUnique({
       where: { id: ctx.userId },
-      select: { id: true, name: true, email: true, role: true },
+      select: { id: true, name: true, email: true, role: true, nyNavigasjon: true },
     });
     if (!user) return null;
     const medlem = await ctx.prisma.organizationMember.findFirst({
@@ -42,6 +42,20 @@ export const brukerRouter = router({
       await ctx.prisma.user.update({
         where: { id: ctx.userId },
         data: { language: input.language },
+      });
+      return { ok: true };
+    }),
+
+  // Redesign/navigasjon (Plan 2) — brukerens egen nyNavigasjon-toggle (brukermeny/Mer-tab).
+  // Skriver til den bruker-lagrede kontoen (User.nyNavigasjon), som er autoritativ kilde i
+  // presedensen konto > lokal/query > env-default > av (@sitedoc/shared resolverNyNavigasjon).
+  // `paa=true/false` = eksplisitt valg; `null` = nullstill til «ikke tildelt» (fall gjennom).
+  settNyNavigasjon: protectedProcedure
+    .input(z.object({ paa: z.boolean().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      await ctx.prisma.user.update({
+        where: { id: ctx.userId },
+        data: { nyNavigasjon: input.paa },
       });
       return { ok: true };
     }),

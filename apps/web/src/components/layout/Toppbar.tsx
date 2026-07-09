@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X, Search, Sparkles } from "lucide-react";
+import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X, Search, Sparkles, BarChart3 } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { ProsjektVelger } from "./ProsjektVelger";
@@ -9,7 +9,7 @@ import { ByggeplassVelger } from "./ByggeplassVelger";
 import { FirmaVelger } from "./FirmaVelger";
 import { FirmaKontekstVelger } from "./FirmaKontekstVelger";
 import { KontekstChip } from "./KontekstChip";
-import { useNyNavigasjon, settNyNavigasjon } from "@/hooks/useNyNavigasjon";
+import { useNyNavigasjon, useSettNyNavigasjon } from "@/hooks/useNyNavigasjon";
 import { useSokModal } from "@/kontekst/sok-modal-kontekst";
 import { useState, useRef, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
@@ -19,6 +19,14 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useToppbarFiltreKontekst } from "@/kontekst/toppbar-filtre-kontekst";
 import { SpraakVelger } from "./SpraakVelger";
+import {
+  bunnelementer,
+  prosjektSoneElementer,
+  navigerSidebar,
+  useSidebarElementer,
+  type SidebarElement,
+} from "./sidebar-elementer";
+import { useFirmaNavElementer, type FirmaNavElement } from "./firma-nav";
 import {
   LayoutDashboard,
   ClipboardCheck,
@@ -39,11 +47,27 @@ export function Toppbar() {
   const aktivSeksjon = useAktivSeksjon();
   const { prosjektId } = useProsjekt();
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
+  const erHub = pathname?.startsWith("/dashbord/innstillinger") ?? false;
   const { erSitedocAdmin, erCompanyAdmin } = useFirma();
   const { byggeplassAktiv } = useToppbarFiltreKontekst();
   const nyNav = useNyNavigasjon();
+  const settNyNav = useSettNyNavigasjon();
   const { aapne: aapneSok } = useSokModal();
   const { t } = useTranslation();
+
+  // T9: mobil-web-hamburgeren speiler NavSidebar-hierarkiet når flagget er på.
+  // Samme delte kilder som NavSidebar (drift-fri gating G1–G12).
+  const { filtrertHovedelementer, harMaskinModul } = useSidebarElementer();
+  const firmaNav = useFirmaNavElementer();
+  // FM5-filteret må gjelde hamburgeren òg (T9-avvik 2026-07-07) — delt kilde.
+  const prosjektElementer = prosjektSoneElementer(filtrertHovedelementer);
+  const maskinElement = harMaskinModul
+    ? bunnelementer.find((e) => e.id === "maskin") ?? null
+    : null;
+  const visFirmaSone = firmaNav.length > 0 || harMaskinModul;
+  // FM5/K2: «Mine timer» hører til brukermenyen (avatar) når flagget er på —
+  // gjenbruker samme timer-firmamodul-gating som sidebaren.
+  const mineTimerElement = filtrertHovedelementer.find((e) => e.id === "mine-timer") ?? null;
 
   // Hent firma-info for company_admin (fast firma-link i header).
   // Sitedoc_admin bruker FirmaVelger i stedet — trenger ikke denne.
@@ -187,6 +211,20 @@ export function Toppbar() {
                 {session?.user?.email}
               </p>
             </div>
+            {/* FM5/K2: «Mine timer» i brukermenyen (flagg på + timer-firmamodul) */}
+            {nyNav && mineTimerElement && (
+              <button
+                type="button"
+                onClick={() => {
+                  setBrukerMeny(false);
+                  router.push("/dashbord/timer/mine");
+                }}
+                className="flex w-full items-center gap-2 border-b border-gray-100 px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                <BarChart3 className="h-4 w-4" />
+                {t(mineTimerElement.labelKey)}
+              </button>
+            )}
             {/* Redesign-flagg — kun sitedoc_admin (company_admin utvides ved
                 pilotstart, etter at polish + steg iv er godkjent). */}
             {erSitedocAdmin && (
@@ -199,7 +237,7 @@ export function Toppbar() {
                   const paa = !nyNav;
                   // Ved avslag: land trygt på /dashbord — huben/kontakter er kun
                   // lenket i ny nav. Ved påslag: bli på gjeldende side.
-                  settNyNavigasjon(paa, paa ? undefined : "/dashbord");
+                  settNyNav(paa, paa ? undefined : "/dashbord");
                 }}
                 className="flex w-full items-center justify-between gap-2 border-b border-gray-100 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
               >
@@ -231,48 +269,160 @@ export function Toppbar() {
       {/* Mobil-navigasjonsmeny */}
       {mobilMeny && (
         <div className="absolute left-0 top-12 z-50 w-full border-b border-gray-200 bg-white shadow-lg md:hidden">
-          <nav className="flex flex-col p-3 gap-1">
-            {[
-              { id: "dashbord", labelKey: "nav.dashbord", ikon: <LayoutDashboard className="h-5 w-5" /> },
-              { id: "sjekklister", labelKey: "nav.sjekklister", ikon: <ClipboardCheck className="h-5 w-5" />, kreverProsjekt: true },
-              { id: "oppgaver", labelKey: "nav.oppgaver", ikon: <ListTodo className="h-5 w-5" />, kreverProsjekt: true },
-              { id: "maler", labelKey: "nav.maler", ikon: <FileText className="h-5 w-5" />, kreverProsjekt: true },
-              { id: "tegninger", labelKey: "nav.tegninger", ikon: <Map className="h-5 w-5" />, kreverProsjekt: true },
-              { id: "mapper", labelKey: "nav.mapper", ikon: <FolderOpen className="h-5 w-5" />, kreverProsjekt: true },
-              { id: "oppsett", labelKey: "nav.innstillinger", ikon: <Settings className="h-5 w-5" /> },
-            ].map((element) => {
-              const deaktivert = element.kreverProsjekt && !prosjektId;
-              const aktiv = aktivSeksjon === element.id;
-              return (
-                <button
-                  key={element.id}
-                  disabled={deaktivert}
+          {nyNav ? (
+            // T9: speiler NavSidebar-hierarkiet (PROSJEKT + FIRMA + Innstillinger)
+            <nav className="flex max-h-[80vh] flex-col gap-0.5 overflow-y-auto p-3">
+              <MobilSoneOverskrift>{t("nav.soneProsjekt")}</MobilSoneOverskrift>
+              {prosjektElementer.map((element) => {
+                const deaktivert = !!element.kreverProsjekt && !prosjektId;
+                const aktiv = !erFirmaKontekst && !erHub && aktivSeksjon === element.id;
+                return (
+                  <MobilNavKnapp
+                    key={element.id}
+                    ikon={element.ikon}
+                    label={t(element.labelKey)}
+                    aktiv={aktiv}
+                    deaktivert={deaktivert}
+                    onClick={() => {
+                      navigerSidebar(router, prosjektId, element);
+                      setMobilMeny(false);
+                    }}
+                  />
+                );
+              })}
+
+              {visFirmaSone && (
+                <>
+                  <MobilSoneOverskrift>{t("nav.soneFirma")}</MobilSoneOverskrift>
+                  {firmaNav.map((element) => (
+                    <MobilNavKnapp
+                      key={element.href}
+                      ikon={element.ikon}
+                      label={t(element.labelKey)}
+                      aktiv={
+                        element.href === "/dashbord/firma"
+                          ? pathname === element.href
+                          : (pathname ?? "").startsWith(element.href)
+                      }
+                      onClick={() => {
+                        router.push(element.href);
+                        setMobilMeny(false);
+                      }}
+                    />
+                  ))}
+                  {maskinElement && (
+                    <MobilNavKnapp
+                      ikon={maskinElement.ikon}
+                      label={t(maskinElement.labelKey)}
+                      aktiv={aktivSeksjon === "maskin"}
+                      onClick={() => {
+                        navigerSidebar(router, prosjektId, maskinElement);
+                        setMobilMeny(false);
+                      }}
+                    />
+                  )}
+                </>
+              )}
+
+              <div className="mt-1 border-t border-gray-100 pt-1">
+                <MobilNavKnapp
+                  ikon={<Settings className="h-5 w-5" />}
+                  label={t("nav.innstillinger")}
+                  aktiv={erHub}
                   onClick={() => {
-                    if (element.id === "dashbord") {
-                      router.push(prosjektId ? `/dashbord/${prosjektId}` : "/dashbord");
-                    } else if (element.id === "oppsett") {
-                      router.push("/dashbord/oppsett");
-                    } else if (prosjektId) {
-                      router.push(`/dashbord/${prosjektId}/${element.id}`);
-                    }
+                    router.push("/dashbord/innstillinger");
                     setMobilMeny(false);
                   }}
-                  className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
-                    aktiv
-                      ? "bg-sitedoc-primary/10 text-sitedoc-primary"
-                      : deaktivert
-                        ? "text-gray-300 cursor-not-allowed"
-                        : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  {element.ikon}
-                  {t(element.labelKey)}
-                </button>
-              );
-            })}
-          </nav>
+                />
+              </div>
+            </nav>
+          ) : (
+            <nav className="flex flex-col p-3 gap-1">
+              {[
+                { id: "dashbord", labelKey: "nav.dashbord", ikon: <LayoutDashboard className="h-5 w-5" /> },
+                { id: "sjekklister", labelKey: "nav.sjekklister", ikon: <ClipboardCheck className="h-5 w-5" />, kreverProsjekt: true },
+                { id: "oppgaver", labelKey: "nav.oppgaver", ikon: <ListTodo className="h-5 w-5" />, kreverProsjekt: true },
+                { id: "maler", labelKey: "nav.maler", ikon: <FileText className="h-5 w-5" />, kreverProsjekt: true },
+                { id: "tegninger", labelKey: "nav.tegninger", ikon: <Map className="h-5 w-5" />, kreverProsjekt: true },
+                { id: "mapper", labelKey: "nav.mapper", ikon: <FolderOpen className="h-5 w-5" />, kreverProsjekt: true },
+                { id: "oppsett", labelKey: "nav.innstillinger", ikon: <Settings className="h-5 w-5" /> },
+              ].map((element) => {
+                const deaktivert = element.kreverProsjekt && !prosjektId;
+                const aktiv = aktivSeksjon === element.id;
+                return (
+                  <button
+                    key={element.id}
+                    disabled={deaktivert}
+                    onClick={() => {
+                      if (element.id === "dashbord") {
+                        router.push(prosjektId ? `/dashbord/${prosjektId}` : "/dashbord");
+                      } else if (element.id === "oppsett") {
+                        router.push("/dashbord/oppsett");
+                      } else if (prosjektId) {
+                        router.push(`/dashbord/${prosjektId}/${element.id}`);
+                      }
+                      setMobilMeny(false);
+                    }}
+                    className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-colors ${
+                      aktiv
+                        ? "bg-sitedoc-primary/10 text-sitedoc-primary"
+                        : deaktivert
+                          ? "text-gray-300 cursor-not-allowed"
+                          : "text-gray-700 hover:bg-gray-100"
+                    }`}
+                  >
+                    {element.ikon}
+                    {t(element.labelKey)}
+                  </button>
+                );
+              })}
+            </nav>
+          )}
         </div>
       )}
     </header>
+  );
+}
+
+/* ---- T9: hjelpekomponenter for mobil-hamburger (flagg på) ---- */
+
+function MobilSoneOverskrift({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">
+      {children}
+    </p>
+  );
+}
+
+function MobilNavKnapp({
+  ikon,
+  label,
+  aktiv,
+  deaktivert,
+  onClick,
+}: {
+  ikon: React.ReactNode;
+  label: string;
+  aktiv: boolean;
+  deaktivert?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={deaktivert}
+      onClick={deaktivert ? undefined : onClick}
+      aria-current={aktiv ? "page" : undefined}
+      className={`flex items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors ${
+        aktiv
+          ? "bg-sitedoc-primary/10 text-sitedoc-primary"
+          : deaktivert
+            ? "cursor-not-allowed text-gray-300"
+            : "text-gray-700 hover:bg-gray-100"
+      }`}
+    >
+      <span className="flex h-5 w-5 shrink-0 items-center justify-center">{ikon}</span>
+      {label}
+    </button>
   );
 }

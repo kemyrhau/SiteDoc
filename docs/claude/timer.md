@@ -341,6 +341,39 @@ Utlegg           → kategori + beløp + valgfritt kvitteringsbilde
 
 **Selv-attestering vs send-til-leder:** To knapper — kunden velger via `OrganizationSetting.tillattSelvAttestering` om begge tillates, eller kun «Send til leder».
 
+### Pause-bevisst tid-synk på timer-rader (mobil) — implementert 2026-07-08 (develop `f385ba99`)
+
+Utility: `apps/mobile/src/utils/pauseBeregning.ts`. Brukes av `TimerRadModal` (`TimerSeksjon.tsx`).
+
+**Auto-synk «antall timer» ↔ «fra/til» (sist-rørte felt vinner):**
+- Endrer fra/til → `antall = effektiveTimerFraSpenn(...)` (spennvidde − pauseoverlapp).
+- Skriver antall → `til = tilFraAntall(fra, antall, ...)` (pausevinduet skjøvet inn når arbeidet krysser lunsj).
+- **Konsistens-validering** ved lagring: når begge tider er satt MÅ antall stemme med (spenn − pause), ellers blokkeres lagring (`timer.feil.timerAvvik`). Fjerner tidligere «stille avvik»-bug.
+
+**Pausevindu — skiftrelativt (erstatter fast klokkeslett):** `pauseVinduFra(skiftStart, standardPauseEtterTimer)`. Feltet **`OrganizationSetting.standardPauseEtterTimer`** (Float, default 4,0 t) erstattet `standardPauseFra` (to-stegs migrering, gammelt felt beholdt — migrering `20260708120000_...`). 07:00-start → pausevindu 11:00–11:30 (ingen regresjon); nattskift 21:00-start → 01:00–01:30. Varighet fra `standardPauseMin` (30). En rad som spenner over vinduet får overlappen trukket fra (10:00–12:00 → 1,50 t), vist som «−30 min lunsjpause trukket fra».
+
+**Skille mot `pauseMin`:** dette er en **rad-nivå** fradragsvisning i modalen. `pauseMin` forblir **sedel-nivå** (maskin ≤ arbeid-buffer, `validerMaskinUnderArbeid`) — de to lever side om side.
+
+**Web-speiling:** attestering (`RedigerRadModal.tsx`) og firma-innstillinger (`firma/innstillinger/page.tsx`) bruker samme skiftrelative modell.
+
+**Web-paritet bolk (a) — implementert 2026-07-09 (branch `feature/timer-web-paritet-a`, D2/D3/D7/D1):** Pause-utilen er løftet fra mobil-only til **`@sitedoc/shared/utils/pauseBeregning.ts`** (delt av mobil + web, jf. `maskinKapasitet.ts`). Arbeiderens web-`TimerRadDialog` (`timer/[id]/page.tsx`) har nå **Prosjekt-velger** (låst ved redigering — server `oppdaterTimerRad` flytter ikke rad mellom prosjekter, egen oppfølger) + **Fra/til** med samme fra/til↔antall-synk. Pausevindu-parametre hentes fra `hentArbeidstidDefaults` (medlems-tilgjengelig; `hentSetting` krever firma-admin). **D7:** web `ny/page.tsx` krever nå Prosjekt\* og bærer valget via `?nyttProsjekt=` til detalj-siden (forhåndsåpner gruppa) — `DailySheet` forblir projectId-løst (T.1), sedel-prosjekt er UI/session-konsept. **D1:** `dagsseddel.opprett` returnerer eksisterende sedel (`eksisterte:true`) ved duplikat-dato i stedet for P2002 → web åpner eksisterende med notis (mobil-atferd). Server `oppdaterTimerRad` tar nå `fraTid`/`tilTid`. Se [BACKLOG § Timer web-vs-mobil paritet](BACKLOG.md).
+
+**Web-paritet bolk (b) — implementert 2026-07-09 (branch `feature/timer-web-paritet-b`, D4/D5/D6):** **D4** — kvittering-opplasting i web `TilleggRadDialog` (`FormData` → `/api/upload` → `tilfoyTilleggVedlegg`; thumbnails + fjern; kun på lagret rad, som mobil). **D5** — `hentMedId` eksponerer `manglerMaskinforerbevis` (via `harGyldigMaskinforerbevis`); amber info-banner til arbeideren i detalj-siden når sedelen har maskin-rader (T.11-paritet — web viste det før kun i attestering). **D6** — arbeider-`EcoGruppe` maskin ≤ arbeid-indikator bruker nå delt `overstigerMaskinTak` med pause-buffer (`pauseMin` fra sedel) — identisk med attestering + server; det gamle `+ 0.001`-uten-buffer er fjernet.
+
+**Web-paritet bolk (c) — implementert 2026-07-09 (branch `feature/timer-web-paritet-c`, D8):** «Mine timer» (`dashbord/timer/mine/page.tsx`) fikk **«Ny dagsseddel»-knapp** i headeren → `/dashbord/timer/ny` (prosjekt velges der, D7 — ikke på oversikten) + **kladd-påminnelse** (amber) for usendte drafts med innhold fra tidligere dager (mobil `DagsseddelListe` UF-3). Kladd-sjekken bruker en egen periode-UAVHENGIG `list({status:"draft"})` slik at en glemt kladd utenfor valgt periode fortsatt fanges; lenker til eldste. Flagg-uavhengig side-innhold (FM5 lever i nav-komponentene). Ingen ny i18n (`timer.nyDagsseddel`/`timer.kladdPaaminnelse` fantes). Dermed er D1–D8 alle levert/på-branch; D9 (sesong-dagsnorm) + GPS-geoforslag gjenstår som egne rader.
+
+**Web-paritet bolk (e)/(f)/(g) + vedtatte domeneregler — 2026-07-09 (develop).** Bolk (e) `f101890e` (pause-bevisst maskin-rad), (f) `f59a498c` (gjenåpne + attestert-vakt) + `1deaff6b` (slett-modal), (g) `79e786a3`/`c81c4eae` (gyldighet). Vedtatte regler (Kenneth 2026-07-09):
+
+- **B1 — maskin-rad trekker lunsjpause** som timer-rad. Begrunnelse: maskin selges som **maskin + fører**; en maskin uten fører er ikke fakturerbar → maskintimene følger førerens pause-justerte arbeidstid.
+- **B2 — spenn-validering (hard sperre):** når fra OG til er satt, MÅ `antall == effektiveTimerFraSpenn(fra, til, pauseFra, standardPauseMin)`. Server-superRefine + klient-sperre. **Kun nye/redigerte rader** — 11 seed-rader i `sheet_machines` avviker (per 2026-07-09; retro-avvises ikke, se BACKLOG).
+- **B3 — antall forhåndsutfylles** fra prefill-spennet i alle fire modaler (web timer/maskin + mobil timer/maskin — mobil gjenstår, BACKLOG). Er beregnet fra ≥ til, forhåndsutfylles verken til eller antall (ingen ugyldig rad).
+- **B4 — betydningsendring: `SheetMachine.fraTid/tilTid` = maskinens DRIFTSVINDU**, ikke førerens arbeidsvindu. En maskin som gikk 5 t registreres som **07:00–12:00**, ikke som 5 t i et 8-timers vindu. Vedtatt fordi feltene historisk har vært frikoblet, og fordi maskintimer skal kunne **eksporteres til SmartDok uten gjetting**. Web maskin-prefill (bucketens arbeidsspenn) er kanonisk; mobil løftes (BACKLOG).
+- **Overlapp (hard server-sperre):** en arbeider kan ikke registrere **overlappende timer-rader** på samme sedel, på tvers av prosjekt og underprosjekt (én arbeider kan ikke være to steder). `sjekkTimerOverlapp` i `tilfoyTimerRad`/`oppdaterTimerRad`. **Berøring i endepunkt** (12:00 slutt = 12:00 start) er tillatt. Maskin-rader overlapp-sjekkes ikke mot timer-rader (kun `fra<til`); maskin-vs-maskin ikke ennå (BACKLOG-utredning).
+- **Gjenåpning:** arbeideren kan gjenåpne **egen** sedel med status `sent` (`gjenaapneDagsseddel`). Har lederen **attestert minst én rad**, blokkeres gjenåpning — lederen må **returnere** sedelen i stedet (retur-flyten setter `attestertStatus="returnert"` + `status="returned"`). Server-vakt.
+- **Pause-kilde:** rad-modalenes fradrag bruker **`standardPauseMin`** fra firma-innstillingen (`hentArbeidstidDefaults`), IKKE `sheet.pauseMin`. `sheet.pauseMin` (brukers dags-justerte pause) leses **ikke** av noen rad-beregning — kun av bucket-taket. Inkonsistens flagget i [BACKLOG](BACKLOG.md).
+
+**Kjent begrensning + gjenstår:** midnatt-wrap på enkeltrad-nattskift ([BACKLOG § `pauseVinduFra` midnatt-wrap](BACKLOG.md)); **Piece 2 (1b)** — fyll fra/til på auto-utkastet (`genererForslag`) — ikke startet.
+
 ### UX-visning — dagsseddel (mobil, T.7-gruppert)
 
 ```

@@ -602,13 +602,23 @@ export function kjorMigreringer() {
         `ALTER TABLE organization_setting_local ADD COLUMN tidsrunding_minutter INTEGER`,
       );
     }
-    // 2026-05-28 — firma-default for pause-start (HH:MM, nullable).
+    // 2026-05-28 — firma-default for pause-start (HH:MM, nullable). DEPRECATED
+    // 2026-07-08 (erstattet av standard_pause_etter_timer) — beholdes til data migrert.
     if (!kolonner.find((k) => k.name === "standard_pause_fra")) {
       console.log(
         "[MIG] Legger til standard_pause_fra på organization_setting_local",
       );
       db.execSync(
         `ALTER TABLE organization_setting_local ADD COLUMN standard_pause_fra TEXT`,
+      );
+    }
+    // 2026-07-08 — pausevindu = skiftstart + standard_pause_etter_timer (t). Default 4,0.
+    if (!kolonner.find((k) => k.name === "standard_pause_etter_timer")) {
+      console.log(
+        "[MIG] Legger til standard_pause_etter_timer på organization_setting_local",
+      );
+      db.execSync(
+        `ALTER TABLE organization_setting_local ADD COLUMN standard_pause_etter_timer REAL NOT NULL DEFAULT 4.0`,
       );
     }
     // Fase 3 (§ B) — reise-regelsett-felt for offline reise-forslag i «Slutt dag».

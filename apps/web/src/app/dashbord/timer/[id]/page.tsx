@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
@@ -13,6 +13,7 @@ import {
   Trash2,
   Send,
   AlertCircle,
+  RotateCcw,
   X,
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
@@ -21,7 +22,14 @@ import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import {
   maskinBucketKapasitet,
   overstigerMaskinTak,
+  DEFAULT_PAUSE_ETTER_TIMER,
+  pauseVinduFra,
+  effektiveTimerFraSpenn,
+  tilFraAntall,
+  hhmmTilMin,
+  pauseOverlappMin,
 } from "@sitedoc/shared";
+import { rundTilNarmeste } from "@/lib/tidsrunding";
 
 const ENHETER = ["m", "m2", "m3", "kg", "tonn", "stk"] as const;
 
@@ -66,6 +74,9 @@ type TimerRad = {
   timer: unknown;
   // T.12 (2026-06-21): fritekst per rad — «hva gjorde du?». Speiler mobil.
   beskrivelse: string | null;
+  // Bolk (f): rad-attestering. Brukes til å deaktivere gjenåpne-knappen når leder
+  // alt har attestert (server-vakten er sannhetskilden; dette gater bare UI-et).
+  attestertStatus: string | null;
 };
 
 type TilleggVedlegg = {
@@ -84,6 +95,7 @@ type TilleggRad = {
   kommentar: string | null;
   // Funn #2 (2026-06-21): kvittering-vedlegg per tillegg-rad (fra hentMedId).
   vedlegg?: TilleggVedlegg[];
+  attestertStatus: string | null;
 };
 
 type MaskinRad = {
@@ -97,6 +109,7 @@ type MaskinRad = {
   timer: unknown;
   mengde: unknown;
   enhet: string | null;
+  attestertStatus: string | null;
 };
 
 type ProsjektRef = {
@@ -110,6 +123,12 @@ export default function DagsseddelDetaljSide() {
   const { t } = useTranslation();
   const router = useRouter();
   const params = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  // D7: prosjektet valgt ved opprettelse bæres hit for å forhåndsåpne gruppa
+  // (selv uten rader ennå) og bli default for nye rader. D1: `aapnetEksisterende`
+  // signaliserer at sedelen fantes fra før (duplikat-dato) → subtil notis.
+  const nyttProsjektParam = searchParams.get("nyttProsjekt");
+  const aapnetEksisterende = searchParams.get("aapnetEksisterende") === "1";
 
   const utils = trpc.useUtils();
   const { data: sheet, isLoading } = trpc.timer.dagsseddel.hentMedId.useQuery(
@@ -126,9 +145,28 @@ export default function DagsseddelDetaljSide() {
     { enabled: !!sheet?.organizationId },
   );
 
+  // D3 (web-paritet 2026-07-08): pausevindu-parametre for timer-radens fra/til
+  // ↔ antall-synk. hentSetting krever firma-admin (utilgjengelig for vanlig
+  // arbeider) → bruk den medlems-tilgjengelige hentArbeidstidDefaults, som
+  // eksponerer nettopp standardStartTid/standardPauseMin/standardPauseEtterTimer.
+  const { data: arbeidstidDefaults } =
+    trpc.organisasjon.hentArbeidstidDefaults.useQuery(
+      { organizationId: sheet?.organizationId ?? "" },
+      { enabled: !!sheet?.organizationId },
+    );
+
   const [redigerHeader, setRedigerHeader] = useState(false);
   const [aktivModal, setAktivModal] = useState<
-    | { type: "timer"; projectId: string; defaultEcoId?: string | null; rad?: TimerRad }
+    | {
+        type: "timer";
+        projectId: string;
+        defaultEcoId?: string | null;
+        // Bolk (d) R1: prefill fra/til på ny rad (siste rads tilTid ?? effektiv
+        // start; til = effektiv slutt). Undefined ved redigering (radens verdier).
+        defaultFraTid?: string | null;
+        defaultTilTid?: string | null;
+        rad?: TimerRad;
+      }
     | { type: "tillegg"; projectId: string; rad?: TilleggRad }
     | {
         type: "maskin";
@@ -143,8 +181,14 @@ export default function DagsseddelDetaljSide() {
     | { type: "nyProsjekt" }
     | null
   >(null);
-  const [ekstraProsjektIder, setEkstraProsjektIder] = useState<string[]>([]);
+  const [ekstraProsjektIder, setEkstraProsjektIder] = useState<string[]>(() =>
+    nyttProsjektParam ? [nyttProsjektParam] : [],
+  );
+  const [notisAvvist, setNotisAvvist] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
+  // Bytter native confirm() til ekte modal for slett-bekreftelse
+  // (CLAUDE.md § Slett-bekreftelse — confirm() blokkerer testing/automatisering).
+  const [visSlettModal, setVisSlettModal] = useState(false);
 
   const send = trpc.timer.dagsseddel.send.useMutation({
     onSuccess: () => utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id }),
@@ -154,6 +198,27 @@ export default function DagsseddelDetaljSide() {
   const slett = trpc.timer.dagsseddel.slett.useMutation({
     onSuccess: () => router.push("/dashbord/timer/mine"),
     onError: (e: { message: string }) => setFeil(e.message),
+  });
+
+  // Bolk (f): gjenåpne en sendt sedel (arbeiderens egen). Server nullstiller
+  // lederens rad-attestering → ekte bekreftelsesmodal (CLAUDE.md § Slett-
+  // bekreftelse). Web er bevisst strengere enn mobil, som fyrer uten dialog.
+  const [visGjenaapneModal, setVisGjenaapneModal] = useState(false);
+  const [gjenaapneFeil, setGjenaapneFeil] = useState<string | null>(null);
+
+  const gjenaapne = trpc.timer.dagsseddel.gjenaapneDagsseddel.useMutation({
+    onSuccess: () => {
+      setVisGjenaapneModal(false);
+      utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
+    },
+    // Speil mobilens feilGodkjent for accepted (server-melding inneholder
+    // «godkjent»); ellers vis server-meldingen direkte.
+    onError: (e: { message: string }) =>
+      setGjenaapneFeil(
+        e.message.includes("godkjent")
+          ? t("timer.gjenaapne.feilGodkjent")
+          : e.message,
+      ),
   });
 
   // Kaster tRPC-respons til en enklere type for å unngå TS2589 (excessively
@@ -199,7 +264,27 @@ export default function DagsseddelDetaljSide() {
   const timerRader = sheet.timer as unknown as TimerRad[];
   const tilleggRader = sheet.tillegg as unknown as TilleggRad[];
   const maskinRader = (sheet.maskiner ?? []) as unknown as MaskinRad[];
+
+  // Bolk (f): har leder attestert minst én rad? Da blokkerer server-vakten
+  // gjenåpning — deaktiver knappen og be arbeideren kontakte leder for retur.
+  const harAttestertRad =
+    timerRader.some((r) => r.attestertStatus === "attestert") ||
+    tilleggRader.some((r) => r.attestertStatus === "attestert") ||
+    maskinRader.some((r) => r.attestertStatus === "attestert");
   const totaltimer = timerRader.reduce((acc, r) => acc + tilTall(r.timer), 0);
+
+  // Bolk (d) R1: dagens effektive arbeidstid-vindu — kilde til fra/til-prefill
+  // på nye timer-rader OG pausevindu-start (pauseFra), speiler mobilens
+  // hentEffektivArbeidstidLokal. sheet.startAt/endAt er kalender-effektiv for
+  // dagen (prefylt server-side, cd58853a); firma-default som fallback.
+  const effektivStart =
+    isoTidspunktTilHHMM(sheet.startAt as string | null) ||
+    arbeidstidDefaults?.standardStartTid ||
+    "07:00";
+  const effektivSlutt =
+    isoTidspunktTilHHMM(sheet.endAt as string | null) ||
+    arbeidstidDefaults?.standardSluttTid ||
+    "15:00";
 
   // T7-4c (2026-05-16): Grupper per (projectId, externalCostObjectId) for
   // arbeid + maskin. Tillegg holdes per-prosjekt (ingen ECO-felt på SheetTillegg).
@@ -294,6 +379,46 @@ export default function DagsseddelDetaljSide() {
         </div>
       </div>
 
+      {/* Bolk (f): gjenåpning — kun på SENDT sedel (ikke draft/returned/accepted).
+          Speiler mobilens knapp + hjelpetekst; bekreftelse via modal under. */}
+      {sheet.status === "sent" && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-4">
+          <p className="text-sm text-blue-900">
+            {harAttestertRad
+              ? t("timer.gjenaapne.laastAttestert")
+              : t("timer.gjenaapne.hjelp")}
+          </p>
+          <Button
+            variant="secondary"
+            disabled={harAttestertRad}
+            onClick={() => {
+              setGjenaapneFeil(null);
+              setVisGjenaapneModal(true);
+            }}
+          >
+            <RotateCcw className="mr-2 h-4 w-4" />
+            {t("timer.gjenaapne.knapp")}
+          </Button>
+        </div>
+      )}
+
+      {/* D1: sedelen fantes fra før for denne datoen (åpnet i stedet for feil). */}
+      {aapnetEksisterende && !notisAvvist && (
+        <div className="mb-4 flex items-start justify-between gap-3 rounded-lg border border-blue-200 bg-blue-50 p-3">
+          <p className="text-sm text-blue-900">
+            {t("timer.detalj.aapnetEksisterende")}
+          </p>
+          <button
+            type="button"
+            onClick={() => setNotisAvvist(true)}
+            className="rounded p-1 text-blue-500 hover:bg-blue-100 hover:text-blue-700"
+            title={t("handling.lukk")}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {sheet.status === "returned" && sheet.lederKommentar && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
           <div className="mb-1 flex items-center gap-2 text-sm font-semibold text-amber-900">
@@ -319,6 +444,17 @@ export default function DagsseddelDetaljSide() {
               ),
             })}
           </div>
+        </div>
+      )}
+
+      {/* D5: maskinførerbevis-varsel til arbeider (T.11-paritet med mobil).
+          Informativt, aldri blokkerende. Kun når sedelen har maskin-rader. */}
+      {maskinRader.length > 0 && sheet.manglerMaskinforerbevis && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <p className="text-sm text-amber-900">
+            {t("timer.maskinforerbevis.arbeider")}
+          </p>
         </div>
       )}
 
@@ -404,9 +540,30 @@ export default function DagsseddelDetaljSide() {
                 };
               })}
               erRedigerbar={erRedigerbar}
-              onTilfoyTimer={(ecoId) =>
-                setAktivModal({ type: "timer", projectId, defaultEcoId: ecoId })
-              }
+              pauseMin={sheet.pauseMin}
+              onTilfoyTimer={(ecoId) => {
+                // Bolk (g): fra = SENESTE tilTid på HELE sedelen (alle bøtter),
+                // ellers dagens effektive start. «Fortsett der du slapp» på hele
+                // dagen — ikke bare bøtta. Seneste slutt hindrer at ny rad
+                // prefylles inn i et allerede registrert tidsrom (overlapp-vakt).
+                const sisteTil = timerRader
+                  .map((r) => r.tilTid)
+                  .filter((t): t is string => !!t)
+                  .reduce<string | null>(
+                    (senest, t) =>
+                      senest === null || hhmmTilMin(t) > hhmmTilMin(senest)
+                        ? t
+                        : senest,
+                    null,
+                  );
+                setAktivModal({
+                  type: "timer",
+                  projectId,
+                  defaultEcoId: ecoId,
+                  defaultFraTid: sisteTil ?? effektivStart,
+                  defaultTilTid: effektivSlutt,
+                });
+              }}
               onTilfoyTillegg={() =>
                 setAktivModal({ type: "tillegg", projectId })
               }
@@ -493,11 +650,7 @@ export default function DagsseddelDetaljSide() {
           {sheet.status === "draft" && (
             <Button
               variant="secondary"
-              onClick={() => {
-                if (confirm(t("timer.detalj.slettBekreft"))) {
-                  slett.mutate({ id: sheet.id });
-                }
-              }}
+              onClick={() => setVisSlettModal(true)}
               disabled={slett.isPending}
             >
               <Trash2 className="mr-1 h-4 w-4" />
@@ -532,10 +685,23 @@ export default function DagsseddelDetaljSide() {
         <TimerRadDialog
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
-          prosjektType={prosjektNavnMap.get(aktivModal.projectId)?.type ?? "kunde"}
+          prosjekter={prosjekterForVelger}
           defaultAktivitetId={sheetAktivitetId}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
+          // Bolk (d) R1: prefill fra/til på ny rad + T.5-runding, fra medlems-
+          // tilgjengelig arbeidstidDefaults (tidsrundingMinutter eksponert der).
+          defaultFraTid={aktivModal.defaultFraTid ?? null}
+          defaultTilTid={aktivModal.defaultTilTid ?? null}
+          tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
+          // D3/bolk (d): pausevindu = effektiv skiftstart + standardPauseEtterTimer,
+          // lengde standardPauseMin (effektivStart = dagens kalender-effektive start).
+          skiftStart={effektivStart}
+          standardPauseMin={arbeidstidDefaults?.standardPauseMin ?? 30}
+          standardPauseEtterTimer={
+            arbeidstidDefaults?.standardPauseEtterTimer ??
+            DEFAULT_PAUSE_ETTER_TIMER
+          }
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -561,6 +727,14 @@ export default function DagsseddelDetaljSide() {
           alleTimerRader={timerRader}
           alleMaskinRader={maskinRader}
           pauseMin={sheet.pauseMin}
+          // B1/B2 (bolk e): pausevindu-parametre for spenn↔antall-synk. Samme
+          // kilde som timer-modalen; standardPauseMin ≠ pauseMin (bucket-tak).
+          skiftStart={effektivStart}
+          standardPauseMin={arbeidstidDefaults?.standardPauseMin ?? 30}
+          standardPauseEtterTimer={
+            arbeidstidDefaults?.standardPauseEtterTimer ??
+            DEFAULT_PAUSE_ETTER_TIMER
+          }
           onLukk={() => setAktivModal(null)}
         />
       )}
@@ -575,6 +749,70 @@ export default function DagsseddelDetaljSide() {
             setAktivModal(null);
           }}
         />
+      )}
+
+      {/* Bolk (f): gjenåpne-bekreftelse. Ekte modal (aldri confirm()). Teksten
+          sier eksplisitt at lederens rad-attestering nullstilles. */}
+      {visGjenaapneModal && (
+        <Modal
+          open={true}
+          onClose={() => setVisGjenaapneModal(false)}
+          title={t("timer.gjenaapne.bekreftTittel")}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {t("timer.gjenaapne.bekreftTekst")}
+            </p>
+            {gjenaapneFeil && (
+              <p className="text-sm text-sitedoc-error">{gjenaapneFeil}</p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setVisGjenaapneModal(false)}
+              >
+                {t("handling.avbryt")}
+              </Button>
+              <Button
+                onClick={() => gjenaapne.mutate({ id: params.id })}
+                loading={gjenaapne.isPending}
+              >
+                {t("timer.gjenaapne.bekreftKnapp")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {/* Slett-bekreftelse — ekte modal (erstatter native confirm(),
+          CLAUDE.md § Slett-bekreftelse). */}
+      {visSlettModal && (
+        <Modal
+          open={true}
+          onClose={() => setVisSlettModal(false)}
+          title={t("timer.detalj.slett")}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-700">
+              {t("timer.detalj.slettBekreft")}
+            </p>
+            <div className="flex justify-end gap-2">
+              <Button
+                variant="secondary"
+                onClick={() => setVisSlettModal(false)}
+              >
+                {t("handling.avbryt")}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={() => slett.mutate({ id: sheet.id })}
+                loading={slett.isPending}
+              >
+                {t("handling.slett")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
@@ -599,6 +837,7 @@ function ProsjektGruppe({
   tillegg,
   ecoBuckets,
   erRedigerbar,
+  pauseMin,
   onTilfoyTimer,
   onTilfoyTillegg,
   onTilfoyMaskin,
@@ -611,7 +850,11 @@ function ProsjektGruppe({
   tillegg: TilleggRad[];
   ecoBuckets: EcoBucket[];
   erRedigerbar: boolean;
-  onTilfoyTimer: (ecoId: string | null) => void;
+  // D6: sedel-nivå pauseMin → maskin ≤ arbeid-buffer per bucket.
+  pauseMin: number;
+  // Bolk (d) R1: sender timer-radene i bucket slik at parent kan avlede
+  // fra/til-prefill (siste rads tilTid). Speiler onTilfoyMaskin-mønsteret.
+  onTilfoyTimer: (ecoId: string | null, timerRaderIBucket: TimerRad[]) => void;
   onTilfoyTillegg: () => void;
   // Maskin-fra-til (2026-05-17): sender med timer-radene i bucket slik
   // at parent kan foreslå default fra/til (Alt D — sammenheng-prinsipp).
@@ -656,7 +899,8 @@ function ProsjektGruppe({
             timer={bucket.timer}
             maskin={bucket.maskin}
             erRedigerbar={erRedigerbar}
-            onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId)}
+            pauseMin={pauseMin}
+            onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId, bucket.timer)}
             onTilfoyMaskin={() => onTilfoyMaskin(bucket.ecoId, bucket.timer)}
             onRedigerTimer={onRedigerTimer}
             onRedigerMaskin={onRedigerMaskin}
@@ -707,6 +951,7 @@ function EcoGruppe({
   timer,
   maskin,
   erRedigerbar,
+  pauseMin,
   onTilfoyTimer,
   onTilfoyMaskin,
   onRedigerTimer,
@@ -717,6 +962,7 @@ function EcoGruppe({
   timer: TimerRad[];
   maskin: MaskinRad[];
   erRedigerbar: boolean;
+  pauseMin: number;
   onTilfoyTimer: () => void;
   onTilfoyMaskin: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
@@ -725,7 +971,10 @@ function EcoGruppe({
   const { t } = useTranslation();
   const sumTimer = timer.reduce((acc, r) => acc + tilTall(r.timer), 0);
   const sumMaskin = maskin.reduce((acc, r) => acc + tilTall(r.timer), 0);
-  const maskinOk = sumMaskin <= sumTimer + 0.001;
+  // D6 (web-paritet): bruk delt overstigerMaskinTak MED pause-buffer — identisk
+  // med attestering (`attestering-buckets.tsx`) og server. Fjerner det tidligere
+  // «+ 0.001 uten buffer» som kunne vise rød for arbeider men grønn for attestør.
+  const maskinOk = !overstigerMaskinTak(sumMaskin, sumTimer, pauseMin);
 
   return (
     <div
@@ -885,6 +1134,13 @@ function RaderTimer({
                 {lonnsart?.navn ?? "—"}
               </p>
               <p className="text-xs text-gray-500">{aktivitet?.navn ?? "—"}</p>
+              {/* Bolk (d) R2: fra–til under aktiviteten når begge er satt
+                  (speiler mobil TimerRadVis). */}
+              {rad.fraTid && rad.tilTid && (
+                <p className="text-xs text-gray-500">
+                  {rad.fraTid}–{rad.tilTid}
+                </p>
+              )}
               {/* T.12: fritekst-beskrivelse av hva som ble gjort (speiler mobil) */}
               {rad.beskrivelse && (
                 <p className="mt-0.5 text-xs italic text-gray-600">
@@ -1100,33 +1356,54 @@ function RaderMaskinKompakt({
 function TimerRadDialog({
   sheetId,
   projectId,
-  prosjektType,
+  prosjekter,
   defaultAktivitetId,
   defaultEcoId,
   rad,
+  defaultFraTid,
+  defaultTilTid,
+  tidsrundingMinutter,
+  skiftStart,
+  standardPauseMin,
+  standardPauseEtterTimer,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
-  // Fase 2 / T.10: "internt" → vis maskinvelger (vedlikehold-kostnadsbærer).
-  prosjektType?: string;
+  prosjekter: ProsjektRef[];
   defaultAktivitetId: string | null;
   defaultEcoId?: string | null;
   rad?: TimerRad;
+  // Bolk (d) R1: prefill fra/til ved ny rad. R4: T.5-runding ved commit.
+  defaultFraTid?: string | null;
+  defaultTilTid?: string | null;
+  tidsrundingMinutter?: number | null;
+  // D3: pausevindu-parametre for fra/til ↔ antall-synk.
+  skiftStart: string;
+  standardPauseMin: number;
+  standardPauseEtterTimer: number;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const { data: lonnsarter } = trpc.timer.lonnsart.list.useQuery();
   const { data: aktiviteter } = trpc.timer.aktivitet.list.useQuery();
+
+  // D2 (web-paritet): prosjekt velges i modalen (som mobil). Ved NY rad kan den
+  // endres (raden opprettes under valgt prosjekt); ved redigering er den låst —
+  // server-oppdaterTimerRad flytter ikke rad mellom prosjekter (egen oppfølger).
+  const [valgtProjectId, setValgtProjectId] = useState<string>(
+    rad?.projectId ?? projectId,
+  );
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({
-    projectId,
+    projectId: valgtProjectId,
   });
 
   // T.10 / §2.D: maskinvelger for kostnadsbærer ved maskinvedlikehold. Hentes
   // kun for interne prosjekter (verksted). Tom liste / inaktiv maskin-modul →
   // feltet skjules. Org-validering håndheves uansett på server.
-  const erInternt = prosjektType === "internt";
+  const erInternt =
+    prosjekter.find((p) => p.id === valgtProjectId)?.type === "internt";
   const { data: equipmentRaw } = trpc.maskin.equipment.list.useQuery(undefined, {
     enabled: erInternt,
   });
@@ -1138,9 +1415,29 @@ function TimerRadDialog({
   const [aktivitetId, setAktivitetId] = useState<string>(
     rad?.aktivitetId ?? defaultAktivitetId ?? "",
   );
-  const [timer, setTimer] = useState<string>(
-    rad ? String(tilTall(rad.timer)) : "",
-  );
+  // Bolk (g): prefill er kun gyldig når begge tider finnes OG fra < til. Er
+  // beregnet fra ≥ til (f.eks. forrige rad sluttet etter skiftslutt), forhånds-
+  // utfyller vi verken til eller antall — tomme felt slår en ugyldig rad.
+  const prefillGyldig =
+    !!defaultFraTid &&
+    !!defaultTilTid &&
+    hhmmTilMin(defaultFraTid) < hhmmTilMin(defaultTilTid);
+  const [timer, setTimer] = useState<string>(() => {
+    if (rad) return String(tilTall(rad.timer));
+    // B3: init antall fra prefill-spennet (pause-bevisst) — kun ved gyldig
+    // prefill; ellers tom (ingen 0-rad).
+    if (prefillGyldig) {
+      return String(
+        effektiveTimerFraSpenn(
+          defaultFraTid!,
+          defaultTilTid!,
+          pauseVinduFra(skiftStart, standardPauseEtterTimer),
+          standardPauseMin,
+        ),
+      );
+    }
+    return "";
+  });
   // T7-4c: defaultEcoId pre-selekteres når bruker klikker "+Legg til timer"
   // i en spesifikk ECO-gruppe (eks. ECO «Mur øst»). Ved redigering brukes
   // radens egen ECO.
@@ -1155,7 +1452,58 @@ function TimerRadDialog({
   const [beskrivelse, setBeskrivelse] = useState<string>(
     rad?.beskrivelse ?? "",
   );
+  // D2/D3: per-rad fra/til med pause-bevisst auto-synk mot antall (som mobil).
+  // Bolk (d) R1: ny rad prefylles fra defaultFraTid/Til; redigering bruker
+  // radens egne verdier.
+  const [fraTid, setFraTid] = useState<string>(rad?.fraTid ?? defaultFraTid ?? "");
+  // Bolk (g): til prefylles kun ved gyldig prefill (fra < til). Ellers tom.
+  const [tilTid, setTilTid] = useState<string>(
+    rad?.tilTid ?? (prefillGyldig ? defaultTilTid! : ""),
+  );
   const [feil, setFeil] = useState<string | null>(null);
+
+  // Pausevindu = skiftstart + standardPauseEtterTimer, lengde standardPauseMin.
+  const pauseFra = pauseVinduFra(skiftStart, standardPauseEtterTimer);
+
+  // R4 (T.5): tving picker-steg ≤ 30 min så minutt-selektoren vises selv ved
+  // 60-min-runding (Chrome skjuler minutter ved step=3600). Default 15 min.
+  const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
+
+  // R3-transparens: hvor mange minutter pause raden faktisk absorberer
+  // (0 = ingen). Speiler mobilens pauseOverlapp.
+  const pauseOverlapp = useMemo(() => {
+    if (!fraTid || !tilTid) return 0;
+    const fm = hhmmTilMin(fraTid);
+    const tm = hhmmTilMin(tilTid);
+    if (tm <= fm) return 0;
+    return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), standardPauseMin);
+  }, [fraTid, tilTid, pauseFra, standardPauseMin]);
+
+  // Sist-rørte felt vinner (mobil-atferd): endrer fra/til → regn antall;
+  // skriver antall → regn til (pausevinduet skyves inn ved lunsj-kryssing).
+  // R4: rund fra/til via rundTilNarmeste ved commit (samme punkt som mobilens
+  // FraTilTidFelt.commit).
+  function endreFra(v: string) {
+    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
+    setFraTid(r);
+    if (r && tilTid) {
+      setTimer(String(effektiveTimerFraSpenn(r, tilTid, pauseFra, standardPauseMin)));
+    }
+  }
+  function endreTil(v: string) {
+    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
+    setTilTid(r);
+    if (fraTid && r) {
+      setTimer(String(effektiveTimerFraSpenn(fraTid, r, pauseFra, standardPauseMin)));
+    }
+  }
+  function endreTimer(v: string) {
+    setTimer(v);
+    const n = parseFloat(v);
+    if (fraTid && !isNaN(n) && n > 0) {
+      setTilTid(tilFraAntall(fraTid, n, pauseFra, standardPauseMin));
+    }
+  }
 
   const tilfoy = trpc.timer.dagsseddel.tilfoyTimerRad.useMutation({
     onSuccess: () => {
@@ -1177,9 +1525,28 @@ function TimerRadDialog({
     e.preventDefault();
     setFeil(null);
     const tNum = parseFloat(timer);
-    if (!lonnsartId || !aktivitetId || isNaN(tNum) || tNum < 0 || tNum > 24) {
+    if (!lonnsartId || !aktivitetId || isNaN(tNum) || tNum <= 0 || tNum > 24) {
       setFeil(t("timer.feil.ugyldigInput"));
       return;
+    }
+    // Pause-synk-sikkerhetsnett (paritet m/ mobil TimerSeksjon.tsx:681). Krev
+    // FØRST til > fra (bolk (g): lukker 0==0-hullet der fra≥til gir forventet=0
+    // og en 0-rad ellers slipper gjennom). Så: antall == spenn − pause.
+    if (fraTid && tilTid) {
+      if (hhmmTilMin(tilTid) <= hhmmTilMin(fraTid)) {
+        setFeil(t("timer.feil.sluttForStart"));
+        return;
+      }
+      const forventet = effektiveTimerFraSpenn(
+        fraTid,
+        tilTid,
+        pauseFra,
+        standardPauseMin,
+      );
+      if (Math.abs(forventet - tNum) > 0.01) {
+        setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
+        return;
+      }
     }
     if (rad) {
       oppdater.mutate({
@@ -1191,17 +1558,21 @@ function TimerRadDialog({
         // Send alltid (kan nullstilles); ignoreres for ikke-interne prosjekter.
         vehicleId: erInternt ? vehicleId : null,
         beskrivelse: beskrivelse.trim() || null,
+        fraTid: fraTid || null,
+        tilTid: tilTid || null,
       });
     } else {
       tilfoy.mutate({
         sheetId,
-        projectId,
+        projectId: valgtProjectId,
         lonnsartId,
         aktivitetId,
         timer: tNum,
         externalCostObjectId: ecoId,
         vehicleId: erInternt ? vehicleId : null,
         beskrivelse: beskrivelse.trim() || null,
+        fraTid: fraTid || null,
+        tilTid: tilTid || null,
       });
     }
   }
@@ -1219,6 +1590,28 @@ function TimerRadDialog({
       }
     >
       <form onSubmit={handleSubmit} className="space-y-4">
+        {/* D2: prosjekt i modalen (mobil-paritet). Låst ved redigering. */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.prosjekt")}
+          </label>
+          <select
+            value={valgtProjectId}
+            onChange={(e) => {
+              setValgtProjectId(e.target.value);
+              setEcoId(null); // ECO tilhører gammelt prosjekt
+            }}
+            disabled={!!rad}
+            className="w-full rounded border border-gray-300 px-3 py-2 text-sm disabled:bg-gray-100 disabled:text-gray-500"
+            required
+          >
+            {prosjekter.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.projectNumber} — {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.lonnsarter")}
@@ -1255,6 +1648,43 @@ function TimerRadDialog({
             ))}
           </select>
         </div>
+        {/* D2/D3: fra/til med pause-bevisst auto-synk mot antall (mobil-paritet). */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.felt.startTid")}{" "}
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            </label>
+            <Input
+              type="time"
+              step={timeStep}
+              value={fraTid}
+              onChange={(e) => endreFra(e.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.felt.sluttTid")}{" "}
+              <span className="text-xs text-gray-400">
+                ({t("label.valgfritt")})
+              </span>
+            </label>
+            <Input
+              type="time"
+              step={timeStep}
+              value={tilTid}
+              onChange={(e) => endreTil(e.target.value)}
+            />
+          </div>
+        </div>
+        {/* R3-transparens: hvor mange minutter lunsjpause raden trekker fra. */}
+        {pauseOverlapp > 0 && (
+          <p className="-mt-2 text-xs text-gray-500">
+            {t("timer.pauseFradrag", { min: pauseOverlapp })}
+          </p>
+        )}
         <div>
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("timer.felt.antallTimer")}
@@ -1265,7 +1695,7 @@ function TimerRadDialog({
             min={0}
             max={24}
             value={timer}
-            onChange={(e) => setTimer(e.target.value)}
+            onChange={(e) => endreTimer(e.target.value)}
             autoFocus
             required
           />
@@ -1396,6 +1826,9 @@ function TilleggRadDialog({
   );
   const [kommentar, setKommentar] = useState<string>(rad?.kommentar ?? "");
   const [feil, setFeil] = useState<string | null>(null);
+  // D4 (web-paritet): kvittering-opplasting (mobil har kamera/galleri).
+  const [vedleggFeil, setVedleggFeil] = useState<string | null>(null);
+  const [lasterOpp, setLasterOpp] = useState(false);
 
   const valgt = tilleggKatalog?.find((x) => x.id === tilleggId);
   const erAvhuking = valgt?.type === "avhuking";
@@ -1415,6 +1848,64 @@ function TilleggRadDialog({
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
+
+  // D4: kvittering-vedlegg. Kun for en LAGRET rad (som mobil — «lagre først»).
+  const { data: vedleggListe } =
+    trpc.timer.dagsseddel.listTilleggVedlegg.useQuery(
+      { sheetId },
+      { enabled: !!rad },
+    );
+  const radVedlegg = (
+    (vedleggListe ?? []) as unknown as Array<{
+      id: string;
+      fileUrl: string;
+      fileName: string;
+      sheetTilleggId: string;
+    }>
+  ).filter((v) => v.sheetTilleggId === rad?.id);
+
+  const invaliderVedlegg = () => {
+    utils.timer.dagsseddel.listTilleggVedlegg.invalidate({ sheetId });
+    utils.timer.dagsseddel.hentMedId.invalidate();
+  };
+  const tilfoyVedlegg = trpc.timer.dagsseddel.tilfoyTilleggVedlegg.useMutation({
+    onSuccess: invaliderVedlegg,
+    onError: (e: { message: string }) => setVedleggFeil(e.message),
+  });
+  const fjernVedlegg = trpc.timer.dagsseddel.fjernTilleggVedlegg.useMutation({
+    onSuccess: invaliderVedlegg,
+    onError: (e: { message: string }) => setVedleggFeil(e.message),
+  });
+
+  async function handleVedleggValgt(e: React.ChangeEvent<HTMLInputElement>) {
+    const fil = e.target.files?.[0];
+    e.target.value = "";
+    if (!fil || !rad) return;
+    setVedleggFeil(null);
+    setLasterOpp(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", fil);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setVedleggFeil(err.error ?? t("timer.feil.ugyldigInput"));
+        return;
+      }
+      const opplastet = await res.json();
+      await tilfoyVedlegg.mutateAsync({
+        sheetTilleggId: rad.id,
+        fileUrl: opplastet.fileUrl,
+        fileName: fil.name,
+        mimeType: fil.type || "application/octet-stream",
+        fileSize: opplastet.fileSize ?? fil.size,
+      });
+    } catch {
+      setVedleggFeil(t("timer.feil.ugyldigInput"));
+    } finally {
+      setLasterOpp(false);
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -1496,6 +1987,61 @@ function TilleggRadDialog({
             onChange={(e) => setKommentar(e.target.value)}
           />
         </div>
+        {/* D4: kvittering-vedlegg (mobil-paritet). Kun på lagret rad. */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.vedlegg.tittel")}{" "}
+            <span className="text-xs text-gray-400">
+              ({t("label.valgfritt")})
+            </span>
+          </label>
+          {!rad ? (
+            <p className="text-xs text-gray-500">
+              {t("timer.vedlegg.lagreForst")}
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {radVedlegg.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {radVedlegg.map((v) => (
+                    <div key={v.id} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api${v.fileUrl}`}
+                        alt={v.fileName}
+                        className="h-16 w-16 rounded border border-gray-200 object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fjernVedlegg.mutate({ id: v.id })}
+                        className="absolute -right-1.5 -top-1.5 rounded-full bg-white p-0.5 text-gray-500 shadow hover:text-red-600"
+                        title={t("handling.fjern")}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                <Plus className="h-4 w-4" />
+                {lasterOpp
+                  ? t("timer.vedlegg.laster")
+                  : t("timer.vedlegg.leggTil")}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={lasterOpp}
+                  onChange={handleVedleggValgt}
+                />
+              </label>
+              {vedleggFeil && (
+                <p className="text-sm text-red-600">{vedleggFeil}</p>
+              )}
+            </div>
+          )}
+        </div>
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onLukk}>
@@ -1525,6 +2071,9 @@ function MaskinRadDialog({
   alleTimerRader,
   alleMaskinRader,
   pauseMin,
+  skiftStart,
+  standardPauseMin,
+  standardPauseEtterTimer,
   onLukk,
 }: {
   sheetId: string;
@@ -1542,6 +2091,13 @@ function MaskinRadDialog({
   alleTimerRader: TimerRad[];
   alleMaskinRader: MaskinRad[];
   pauseMin: number;
+  // B1/B2 (bolk e): pause-bevisst spenn↔antall-synk + spenn-validering på
+  // maskin-rad. standardPauseMin = firma-default (samme kilde som timer-
+  // modalen, IKKE sheet.pauseMin som bucket-taket bruker) — maskin følger
+  // førerens økt, så fradraget må være identisk med timer-radens.
+  skiftStart: string;
+  standardPauseMin: number;
+  standardPauseEtterTimer: number;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -1562,14 +2118,33 @@ function MaskinRadDialog({
   const { data: ecoer } = trpc.eksternKostObjekt.list.useQuery({ projectId });
 
   const [vehicleId, setVehicleId] = useState<string>(rad?.vehicleId ?? "");
-  const [timer, setTimer] = useState<string>(
-    rad ? String(tilTall(rad.timer)) : "",
-  );
+  // Bolk (g): prefill gyldig kun når begge tider finnes OG fra < til.
+  const prefillGyldig =
+    !!defaultFraTid &&
+    !!defaultTilTid &&
+    hhmmTilMin(defaultFraTid) < hhmmTilMin(defaultTilTid);
+  const [timer, setTimer] = useState<string>(() => {
+    if (rad) return String(tilTall(rad.timer));
+    // B3: init antall fra prefill-spennet (pause-bevisst) — kun ved gyldig
+    // prefill; ellers tom (ingen 0-rad).
+    if (prefillGyldig) {
+      return String(
+        effektiveTimerFraSpenn(
+          defaultFraTid!,
+          defaultTilTid!,
+          pauseVinduFra(skiftStart, standardPauseEtterTimer),
+          standardPauseMin,
+        ),
+      );
+    }
+    return "";
+  });
   const [fraTid, setFraTid] = useState<string>(
     rad?.fraTid ?? defaultFraTid ?? "",
   );
+  // Bolk (g): til prefylles kun ved gyldig prefill (fra < til).
   const [tilTid, setTilTid] = useState<string>(
-    rad?.tilTid ?? defaultTilTid ?? "",
+    rad?.tilTid ?? (prefillGyldig ? defaultTilTid! : ""),
   );
   const [mengde, setMengde] = useState<string>(
     rad?.mengde !== null && rad?.mengde !== undefined
@@ -1586,6 +2161,47 @@ function MaskinRadDialog({
   // selv om firmaet har tidsrunding på 60 min — Chrome skjuler minutter ved
   // step=3600. Default 15 min hvis ingen orgSetting.
   const timeStep = Math.min((tidsrundingMinutter ?? 15) * 60, 1800);
+
+  // B1/B2 (bolk e): pausevindu + pause-bevisst spenn↔antall-synk, speiler
+  // TimerRadDialog. standardPauseMin (ikke pauseMin) — maskin følger føreren.
+  const pauseFra = pauseVinduFra(skiftStart, standardPauseEtterTimer);
+
+  // R3-transparens: hvor mange minutter lunsjpause maskin-raden trekker fra.
+  const pauseOverlapp = useMemo(() => {
+    if (!fraTid || !tilTid) return 0;
+    const fm = hhmmTilMin(fraTid);
+    const tm = hhmmTilMin(tilTid);
+    if (tm <= fm) return 0;
+    return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), standardPauseMin);
+  }, [fraTid, tilTid, pauseFra, standardPauseMin]);
+
+  // Sist-rørte felt vinner: fra/til → antall (spenn − pause); antall → til
+  // (pausevindu skjøvet inn ved lunsj-kryssing). R4: rund fra/til ved commit.
+  function endreFra(v: string) {
+    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
+    setFraTid(r);
+    if (r && tilTid) {
+      setTimer(
+        String(effektiveTimerFraSpenn(r, tilTid, pauseFra, standardPauseMin)),
+      );
+    }
+  }
+  function endreTil(v: string) {
+    const r = rundTilNarmeste(v, tidsrundingMinutter ?? null);
+    setTilTid(r);
+    if (fraTid && r) {
+      setTimer(
+        String(effektiveTimerFraSpenn(fraTid, r, pauseFra, standardPauseMin)),
+      );
+    }
+  }
+  function endreTimer(v: string) {
+    setTimer(v);
+    const n = parseFloat(v);
+    if (fraTid && !isNaN(n) && n > 0) {
+      setTilTid(tilFraAntall(fraTid, n, pauseFra, standardPauseMin));
+    }
+  }
 
   // Del 2 (maskin ≤ arbeid): reaktiv bucket-kapasitet for gjeldende
   // (projectId, ecoId). Bruker delt @sitedoc/shared-regel — identisk med
@@ -1646,9 +2262,28 @@ function MaskinRadDialog({
     e.preventDefault();
     setFeil(null);
     const tNum = parseFloat(timer);
-    if (!vehicleId || isNaN(tNum) || tNum < 0 || tNum > 24) {
+    if (!vehicleId || isNaN(tNum) || tNum <= 0 || tNum > 24) {
       setFeil(t("timer.feil.ugyldigInput"));
       return;
+    }
+    // B2 (bolk e): når begge tider er satt MÅ antall stemme med (spenn − pause).
+    // Standardvalget er «maskinen gikk hele økta»; kortere drift krever justert
+    // fra/til. Bolk (g): krev FØRST til > fra (lukker 0==0-hullet).
+    if (fraTid && tilTid) {
+      if (hhmmTilMin(tilTid) <= hhmmTilMin(fraTid)) {
+        setFeil(t("timer.feil.sluttForStart"));
+        return;
+      }
+      const forventet = effektiveTimerFraSpenn(
+        fraTid,
+        tilTid,
+        pauseFra,
+        standardPauseMin,
+      );
+      if (Math.abs(forventet - tNum) > 0.01) {
+        setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
+        return;
+      }
     }
     const mengdeNum = mengde.trim() ? parseFloat(mengde) : null;
     if (mengdeNum !== null && (isNaN(mengdeNum) || mengdeNum < 0)) {
@@ -1704,13 +2339,13 @@ function MaskinRadDialog({
             min={0}
             max={24}
             value={timer}
-            onChange={(e) => setTimer(e.target.value)}
+            onChange={(e) => endreTimer(e.target.value)}
             required
           />
         </div>
-        {/* Maskin-fra-til (2026-05-17): valgfrie tidspunkter for maskinbruk.
-            Forslag fra første/siste timer-rad i samme bucket (Alt D).
-            Bruker kan justere — maskin kan ha overlapp/lenger enn arbeid. */}
+        {/* Maskin-fra-til = maskinens driftsvindu. B1/B2 (bolk e): antall er
+            pause-bevisst avledet av spennet og validert mot det. Prefill fra
+            bucketens arbeidsspenn (B4). Kortere drift → juster fra/til. */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
@@ -1723,7 +2358,7 @@ function MaskinRadDialog({
               type="time"
               step={timeStep}
               value={fraTid}
-              onChange={(e) => setFraTid(e.target.value)}
+              onChange={(e) => endreFra(e.target.value)}
             />
           </div>
           <div>
@@ -1737,10 +2372,16 @@ function MaskinRadDialog({
               type="time"
               step={timeStep}
               value={tilTid}
-              onChange={(e) => setTilTid(e.target.value)}
+              onChange={(e) => endreTil(e.target.value)}
             />
           </div>
         </div>
+        {/* R3-transparens: hvor mange minutter lunsjpause maskin-raden trekker. */}
+        {pauseOverlapp > 0 && (
+          <p className="-mt-2 text-xs text-gray-500">
+            {t("timer.pauseFradrag", { min: pauseOverlapp })}
+          </p>
+        )}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
