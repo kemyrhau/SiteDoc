@@ -114,10 +114,15 @@ Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanel
 ## Utviklingsmiljø — Tunnel og nettverk
 
 **API-tilkobling og miljøseparasjon:**
-- `.env` → `https://api-test.sitedoc.no` (testdatabase, brukes under utvikling)
-- `.env.production` → `https://api.sitedoc.no` (produksjon, brukes av EAS builds)
+- Sporet i git (2026-07-10): **`.env.test`** → `https://api-test.sitedoc.no` og **`.env.production`** → `https://api.sitedoc.no`. Det finnes **ingen** committet `.env` på disk. Koden leser `process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3001"` (`apps/mobile/src/config/auth.ts`). Expo (dev-modus, `expo start`) laster `.env`/`.env.development`/`.env.local` — **ikke** `.env.test`/`.env.production` (de krever `NODE_ENV=test`/`production`). En simulator-kjøring trenger derfor en lokal `.env` (kopiér `.env.test` → `.env`, eller SSH-tunnel-varianten under). `eas.json`: **`development`- og `preview`-profilene peker på prod** (`api.sitedoc.no`) — kun én profil på api-test; overstyr env til test for utviklings-kjøring.
+- `.env.production` → `https://api.sitedoc.no` (produksjon, brukes av EAS `production`-bygg)
 - `hentWebUrl()` i `apps/mobile/src/lib/url.ts` erstatter alle `replace("api.", "")` / `replace("api-test.", "")` kall — gir korrekt web-URL uavhengig av miljø
 - Cloudflare Tunnel på PC. Fungerer fra ethvert nettverk.
+
+**SSH-tunnel dev-tilkobling (simulator mot api-test — brukt i Fase 4 2026-07-10):** Simulatoren nådde ikke `api-test.sitedoc.no` direkte pga. **IPv6/AAAA-stall** (samme rotårsak som [simulator-ipv6-nordvpn.md](simulator-ipv6-nordvpn.md) — simulatorens IPv6-oppslag henger). Løsning: SSH-port-forward til server-ny og pek mobil-`.env` på loopback:
+- `ssh -N -L 3301:localhost:3301 server-ny` (forward lokal `3301` → api-test på server-ny)
+- mobil-`.env`: `EXPO_PUBLIC_API_URL=http://localhost:3301`
+- `localhost` løser via IPv4-loopback → omgår AAAA-fella. Verifiser i Metro-loggen at timer-/prosjekt-kall går mot `localhost:3301`, aldri `api.sitedoc.no`.
 
 **Expo dev-server:**
 - `pnpm dev:tunnel` — Starter ngrok v3-tunnel + Expo. Telefon og Mac kan være på forskjellige nettverk.
