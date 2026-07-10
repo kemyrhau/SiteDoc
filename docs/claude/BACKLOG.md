@@ -53,6 +53,8 @@ Verifisert 2026-07-09: `development`- og `preview`-profilene i `apps/mobile/eas.
 
 Verifisert 2026-07-09 via sha1-fingeravtrykk (aldri verdier): `AUTH_GOOGLE_ID`/`_SECRET` + `AUTH_MICROSOFT_ENTRA_ID_ID`/`_SECRET` er **identiske** i `web.env` og `web-redesign.env`; kun `AUTH_SECRET` er egen. Prod-appene har `redesign.sitedoc.no` som gyldig redirect-URI → tillits-kobling mellom demo og prod. **Fiks:** egne app-registreringer for redesign (egen redirect-URI, samtykkeskjerm «SiteDoc Demo») + **fjern de to redesign-redirect-URIene fra prod-appene etterpå** — ellers står tillits-koblingen. (fabel-godkjent 2026-07-09.)
 
+**Konsekvens for kontokobling ved egne app-registreringer (verifisert 2026-07-10):** web-veien (Auth.js `MicrosoftEntraID`-provider i `apps/web/src/auth.ts`) setter `providerAccountId` fra ID-tokenets `sub` — **pairwise per app-registrering** (samme Entra-bruker får ulik `sub` per klient-ID). Mobil-veien (`apps/api/src/routes/mobilAuth.ts`, `MICROSOFT_USERINFO_URL` → `graph.microsoft.com/v1.0/me`, `providerAccountId: data.id`) bruker Graph `oid` (GUID) — **app-registrering-uavhengig**. Splitter du ut egne app-registreringer for redesign, får hver web-bruker en **ny `accounts`-rad** (nytt `sub`); «allerede koblet konto»-veien i adgangsvakten (`koblet`-oppslaget i `auth.ts`) treffer ikke, og innslippet faller tilbake på org-medlemskap (`role === "sitedoc_admin"` / `organizationMembers` / `projects`) — en kunde uten OrganizationMember/ProjectMember avvises ved første redesign-innlogging. **Mobil er upåvirket** (oid er stabil på tvers av registreringer).
+
 ### ✅ salsaklubb: eget nett + egen postgres — UTFØRT 2026-07-09
 
 Egen `postgres:16` (`salsaklubb-postgres`, tjenestenavn `postgres` slik at `DATABASE_URL` traff uendret), eget nett `salsanet`, volum `salsa_pgdata`, ingen host-port. Ingress gikk allerede via host-port `127.0.0.1:3200` + cloudflared, ikke via `appnet` → null nedetid. Frigjorde 10 tilkoblinger og fjernet lateral tilgang til SiteDocs postgres/api/ML. `sendfil` var mønsteret.
@@ -117,6 +119,12 @@ Bolk (d) = **reglene bak fra/til-feltene** (R1 prefill + R2 rad-visning + R3
 pauseOverlapp-transparens + R4 T.5-runding) **implementert 2026-07-09** direkte
 på develop. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
 **Alle D1–D8 + bolk (d) dermed levert — D9 + GPS + to opprydnings-rader (under) gjenstår.**
+
+**🔴 Prod-blokkere på mobilens offline-synkvei (verifisert 2026-07-10, lukkes i bolk (h)):**
+
+- **🔴 SYNC-1 — avvist offline-rad blir usynlig «venter på synk».** Når `syncBatch` (`apps/api/src/routes/timer/dagsseddel.ts`) returnerer `resultat: "feilet"` for en sedel, beholder else-grenen i `apps/mobile/src/services/timerSync.ts` (kommentaren `// "feilet" — behold pending`) `syncStatus = "pending"` uendret. `apps/mobile/app/timer/[id].tsx` viser feil-banneret (rødt, med `feilmelding`) **kun** ved `syncStatus === "conflict"` — en pending-rad viser bare `timer.sync.venterEn` uten feilteksten. `apps/mobile/src/components/TimerSyncStatusBar.tsx` viser pending som `bg-yellow-50` + `ActivityIndicator` (gul spinner). `push.feilet` leses **ingen steder** utenfor `timerSync.ts`. Resultat: arbeideren ser en gul spinner, timene når aldri lederen. Faktiske `"feilet"`-utløsere (ikke overlapp): P2002-duplikat (`"Duplisert dagsseddel for samme dato og prosjekt"`), katalog-mismatch (aktivitet/lønnsart/tillegg ikke i firmaets katalog), `validerMaskinUnderArbeid` (maskin-timer > arbeid-timer), og FORBIDDEN fra `verifiserProsjektmedlem`. **Fiks:** synliggjør `"feilet"` (eget banner + statusbar-tilstand), skill det fra transient nettverksfeil.
+
+- **🔴 SYNC-2 — `syncBatch` omgår overlapp- og `fra<til`-vakten.** `sjekkTimerOverlapp` (definert i `apps/api/src/routes/timer/dagsseddel.ts`) kalles fra **nøyaktig to** mutasjoner: `tilfoyTimerRad` og `oppdaterTimerRad`. `refineFraForTil` sitter som `.superRefine(refineFraForTil)` på **fire** input-skjemaer (tilfoy/oppdater timer-rad + maskin.tilfoy/maskin.oppdater) — **ingen av dem er `syncBatch`**. `syncBatch` skriver timer-rader med `tx.sheetTimer.createMany` uten noen av de to vaktene. Kandidatmengde: **13** `sheetTimer.(create|createMany|update|updateMany|upsert)`-treff i `apps/api`, hvorav **to** er dekket av overlapp-vakten (`sheetTimer.create` i `tilfoyTimerRad`, `sheetTimer.update` i `oppdaterTimerRad`). Siden mobilens eneste skrivevei er `syncBatch` (`timerSync.ts` kaller kun `klient.timer.dagsseddel.syncBatch.mutate`), lagres overlappende rader og `til < fra` fra mobil som gyldige og når lederen. **Implementasjons-merknad:** vakten i `syncBatch` må sjekke overlapp **innad i batchen**, ikke bare mot eksisterende server-rader — en offline-økt sender hele dagen i én `createMany`. **Avhengighet:** SYNC-2 må **ikke** landes før SYNC-1. Vakten gjør en overlappende rad til `"feilet"`, og `"feilet"` er i dag usynlig → vakt før synlighet = stille datatap.
 
 **Bekreftede kjente divergenser (Kenneth-testing 2026-07-08):**
 
@@ -285,9 +293,9 @@ samme hull:
   `tilTid`). Løft mobil til samme (unngår prefill inn i registrert tidsrom).
 - **0==0-hullet:** speil web — `forventet == antall`-sperren skal først kreve til > fra,
   og antall = 0 avvises.
-- Overlapp-vakten er **server-side (hard sperre)** og gjelder mobil-innsending
-  allerede; mobil trenger kun klient-side speiling for god UX. **Bundet til neste
-  EAS-batch.**
+- **Overlapp-vakten dekker IKKE mobilens skrivevei** (`syncBatch`) — se
+  🔴 SYNC-2 over. Klient-side speiling gjenstår også, men server-vakten må inn i
+  `syncBatch` (etter SYNC-1). **Bundet til neste EAS-batch.**
 
 ### 🟡 Maskin-vs-maskin-overlapp — utredning (rapportert under bolk (g), 2026-07-09)
 

@@ -86,6 +86,26 @@ uoppdaget (`prosjekt.ts:163/:246`, `admin.ts:229`, `MapperPanel.tsx:154` — tre
 pekte på feil/tom/meningsløs linje) og ble kopiert **verbatim** inn i api.md
 under trimmen. Rettet til fil + søkestreng i samme runde.
 
+### 8. Hukommelse er ikke kilde
+
+En påstand du «vet» er en **hypotese** til den er verifisert mot kode. Verifiser
+mot git-objektet (`git show origin/<branch>:<fil>`) **før** teksten går inn i en
+relé eller en commit — også kontroll-laget. Hukommelse og relé-tekst reflekterer
+det som var sant da de ble skrevet, ikke nødvendigvis nå.
+
+Eksplisitt: **positive påstander om vakter og sperrer krever enumerert
+kandidatmengde av alle skrivesteder.** Et grep på funksjonsnavnet beviser at
+vakten *finnes*, ikke at den *dekker* alle veier. «`sjekkTimerOverlapp` finnes»
+sier ingenting om at `syncBatch` (mobilens skrivevei) omgår den — det ser du
+først når du teller alle `sheetTimer`-skrivesteder og sjekker hvilke som ligger
+bak vakten (jf. regel 4). Bolk (g) ble gatet grønn på nettopp denne feilen:
+«overlapp-vakt gjelder mobil-innsending allerede» var usann fordi vakten aldri
+ble kalt fra `syncBatch`.
+
+**Funn 2026-07-10:** BACKLOG § Mobil Microsoft-auth hevdet i ni dager at en
+Azure-sjekkliste blokkerte MS-login. Påstanden var aldri verifisert og ble
+motbevist av én innlogging.
+
 ## Anvendt
 
 Rettingen `c875ee6f` (2026-07-09) er referanse-eksempelet: `:517`/`:534` fikk
