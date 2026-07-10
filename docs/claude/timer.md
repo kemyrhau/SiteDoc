@@ -1177,6 +1177,20 @@ Feltarbeider må kunne registrere maskinbruk på dagsseddel offline. Mobilen ved
 | Klient redigerer usynkronisert seddel | Oppdater lokalt, sync ved neste batch |
 | Klient redigerer godkjent seddel | `conflict` — godkjente sedler kan ikke endres |
 | Server har nyere versjon | `conflict` — bruker informeres |
+| Ny seddel for dato som allerede har en seddel (annen `clientUuid`) | `conflict`-**merge** — se Synk-identitet under |
+
+### Synk-identitet + kollisjonsforsoning (F4-1, develop 2026-07-11)
+
+**Invariant: `clientUuid` er den ene synk-identiteten.** Mobil-lokal `id` == `clientUuid` (`apps/mobile/src/db/schema.ts:84`); push nøkler på `clientUuid`, pull nøkler på samme identitet. Server setter derfor `DailySheet.id = clientUuid` ved create (`apps/api/src/routes/timer/dagsseddel.ts`, `opprett` + `syncBatch`-create). Eksisterende sedler med `id != clientUuid` beholdes urørt (kun nye får invarianten). Bakgrunn: server-generert `id` brøt antagelsen → pull-duplikat + «pull-så-redigert»-P2002.
+
+**Dato-kollisjon → `conflict`-merge, ikke `avvist`.** `@@unique([userId, dato])` (én sedel per arbeider per dato) betyr at en offline-opprettet mobil-sedel kan kollidere med en server-sedel for samme dato registrert på web/annen enhet (ulik `clientUuid`). Tidligere ble dette `avvist` (terminal) → arbeiderens offline-rader nådde aldri web. Nå:
+- **Server (S2):** P2002 på `userId_dato` → `syncBatch` slår opp eksisterende sedel og returnerer `resultat: "conflict"` med `serverData.clientUuid` (nytt valgfritt felt — #37-klient ignorerer det, bakoverkompat).
+- **Mobil (M1):** kollisjon-conflict (server-clientUuid ≠ lokal) → re-nøkle lokal sedel til server-identiteten (`forsonSedelIdentitet` i `timerSync.ts`), behold arbeiderens rader, sett `pending` → additiv re-push mot server-sedelen. Ingen datatap.
+- **Mobil (M2):** pull matcher `clientUuid` → server-id-fallback → `(userId, dato)`-forsoning, så en pullet server-sedel aldri lager duplikat mot en lokal offline-sedel.
+
+**Server bevarer web-rader ved synk (S3).** `syncBatch` sletter ikke lenger hele sedelens rader før gjenoppretting — den sletter kun rad-`id`-ene som er i payloaden (`deleteMany({ sheetId, id: { in: payloadIder } })` + `createMany`). Server-rader som ikke er i payloaden (typisk web-førte rader mobil aldri pullet) bevares → arbeiderens rader pushes additivt inn uten å stryke web-radene.
+
+> **⚠️ Akseptert begrensning (S3, ingen migrering):** Fordi server ikke kan skille «arbeider slettet raden» fra «web la til rad mobil aldri så» ut fra payloaden alene, propagerer **mobil rad-sletting ikke lenger automatisk** til server. «Aldri mist data» prioriteres over sletting-propagering. En origin-basert løsning krever ny kolonne (migrering) → utsatt.
 
 ### Synk-intervall
 

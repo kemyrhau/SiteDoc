@@ -154,6 +154,46 @@ export async function syncTimer(
     pull: { mottatt: 0 },
   };
 
+  // Forson lokal sedel-identitet mot server-identiteten (2026-07-11).
+  // Synk-identitet er clientUuid = lokal `id`. Når en lokal sedel har en ANNEN
+  // id enn den serveren bruker for samme (userId, dato) — offline-opprettet med
+  // egen clientUuid, eller kollisjon — flyttes arbeiderens rader til `tilId`
+  // (aldri mist data), og sedelhodet re-nøkles til `tilId`. Finnes `tilId`
+  // allerede lokalt (server-sedelen er pullet fra før), merges radene inn og
+  // dublett-hodet slettes. Brukes av M1 (conflict) og M2 (pull-guard).
+  const forsonSedelIdentitet = (fraId: string, tilId: string): void => {
+    if (fraId === tilId) return;
+    // Flytt arbeiderens rader til mål-identiteten. Rad-id er globalt unike
+    // (uuid) → ingen PK-kollisjon med målets egne rader.
+    db.update(sheetTimerLocal)
+      .set({ dagsseddelId: tilId })
+      .where(eq(sheetTimerLocal.dagsseddelId, fraId))
+      .run();
+    db.update(sheetTilleggLocal)
+      .set({ dagsseddelId: tilId })
+      .where(eq(sheetTilleggLocal.dagsseddelId, fraId))
+      .run();
+    db.update(sheetMachineLocal)
+      .set({ dagsseddelId: tilId })
+      .where(eq(sheetMachineLocal.dagsseddelId, fraId))
+      .run();
+    const maalFinnes = db
+      .select({ id: dagsseddelLocal.id })
+      .from(dagsseddelLocal)
+      .where(eq(dagsseddelLocal.id, tilId))
+      .all()[0];
+    if (maalFinnes) {
+      // Mål-sedelen finnes: radene er flyttet over — fjern dublett-hodet.
+      db.delete(dagsseddelLocal).where(eq(dagsseddelLocal.id, fraId)).run();
+    } else {
+      // Re-nøkle sedelhodet til mål-identiteten (behold alle felt).
+      db.update(dagsseddelLocal)
+        .set({ id: tilId })
+        .where(eq(dagsseddelLocal.id, fraId))
+        .run();
+    }
+  };
+
   // Anvend syncBatch-resultater på lokal DB + oppdater tellere. Delt mellom
   // normal batch-send og per-item-fallback (gift-isolering ved permanent feil).
   const anvendSvar = (
@@ -175,18 +215,46 @@ export async function syncTimer(
           .run();
         resultat.push.ok++;
       } else if (r.resultat === "conflict" && r.serverData) {
-        db.update(dagsseddelLocal)
-          .set({
-            syncStatus: "conflict",
-            status: r.serverData.status,
-            lederKommentar: r.serverData.lederKommentar,
-            attestertVed: r.serverData.attestertVed,
-            feilmelding: r.feilmelding ?? "Server-versjonen vinner",
-            sistSynkronisert: naa,
-          })
-          .where(eq(dagsseddelLocal.id, r.clientUuid))
-          .run();
-        resultat.push.conflict++;
+        // M1 (2026-07-11): dato-kollisjon (S2) — server har allerede en sedel
+        // for datoen under en ANNEN clientUuid. Merge i stedet for server-wins:
+        // re-nøkle lokal sedel til server-identiteten, behold arbeiderens rader,
+        // sett `pending` → additiv re-push mot server-sedelen (trygt pga. S3
+        // bevarer web-rader). Uten datatap. Skilles fra vanlig server-wins-
+        // conflict (låst/nyere server-sedel, samme identitet).
+        const serverClientUuid = r.serverData.clientUuid;
+        if (serverClientUuid && serverClientUuid !== r.clientUuid) {
+          forsonSedelIdentitet(r.clientUuid, serverClientUuid);
+          db.update(dagsseddelLocal)
+            .set({
+              // pending → radene sendes inn på server-sedelen neste tick.
+              syncStatus: "pending",
+              status: r.serverData.status,
+              lederKommentar: r.serverData.lederKommentar,
+              attestertVed: r.serverData.attestertVed,
+              feilmelding:
+                r.feilmelding ??
+                "Slått sammen med eksisterende dagsseddel for datoen.",
+              sistSynkronisert: naa,
+            })
+            .where(eq(dagsseddelLocal.id, serverClientUuid))
+            .run();
+          resultat.push.conflict++;
+        } else {
+          // Server-wins: låst (accepted) eller nyere server-versjon under samme
+          // identitet. Overskriv metadata, marker conflict for bruker-avklaring.
+          db.update(dagsseddelLocal)
+            .set({
+              syncStatus: "conflict",
+              status: r.serverData.status,
+              lederKommentar: r.serverData.lederKommentar,
+              attestertVed: r.serverData.attestertVed,
+              feilmelding: r.feilmelding ?? "Server-versjonen vinner",
+              sistSynkronisert: naa,
+            })
+            .where(eq(dagsseddelLocal.id, r.clientUuid))
+            .run();
+          resultat.push.conflict++;
+        }
       } else if (r.resultat === "avvist") {
         // SYNC-1: permanent avvisning — terminal. Raden forlater pending
         // (stopper retry) og settes til "avvist" så [id].tsx + statusbar viser
@@ -384,11 +452,60 @@ export async function syncTimer(
     void naa;
 
     for (const serverSedel of svar.sedler) {
-      const lokal = db
-        .select()
-        .from(dagsseddelLocal)
-        .where(eq(dagsseddelLocal.id, serverSedel.id))
-        .all()[0];
+      // Synk-identitet (2026-07-11): clientUuid er den ene identiteten. Match
+      // primært på clientUuid (invariant), fallback server-id for lokal data
+      // pullet før invarianten (der lokal id = server-id).
+      let lokal =
+        db
+          .select()
+          .from(dagsseddelLocal)
+          .where(eq(dagsseddelLocal.id, serverSedel.clientUuid))
+          .all()[0] ??
+        db
+          .select()
+          .from(dagsseddelLocal)
+          .where(eq(dagsseddelLocal.id, serverSedel.id))
+          .all()[0];
+
+      // M2 (pull-guard, 2026-07-11): ingen id-match, men finnes en lokal sedel
+      // for samme (userId, dato) under en annen id → forson mot server-
+      // identiteten i stedet for å lage duplikat. Pending/avvist offline-arbeid
+      // røres IKKE her (push + M1 forsoner det ved neste kollisjon-conflict);
+      // kun synced/conflict re-nøkles trygt.
+      if (!lokal) {
+        const kandidat = db
+          .select()
+          .from(dagsseddelLocal)
+          .where(
+            and(
+              eq(dagsseddelLocal.userId, serverSedel.userId),
+              eq(dagsseddelLocal.dato, serverSedel.dato),
+            ),
+          )
+          .all()
+          .find(
+            (s) => s.id !== serverSedel.clientUuid && s.id !== serverSedel.id,
+          );
+        if (kandidat) {
+          if (
+            kandidat.syncStatus === "pending" ||
+            kandidat.syncStatus === "avvist"
+          ) {
+            continue;
+          }
+          forsonSedelIdentitet(kandidat.id, serverSedel.clientUuid);
+          lokal = db
+            .select()
+            .from(dagsseddelLocal)
+            .where(eq(dagsseddelLocal.id, serverSedel.clientUuid))
+            .all()[0];
+        }
+      }
+
+      // Lokal identitet framover = clientUuid (invariant). Lokal data som
+      // matchet på server-id-fallback beholder eksisterende id (ikke bryt
+      // allerede synkede sedler der id != clientUuid).
+      const maalId = lokal ? lokal.id : serverSedel.clientUuid;
 
       // Hvis lokal har "pending"-endringer: ikke overskriv — pending vinner
       // og syncBatch håndterer push neste gang. (Hvis pending ble pushet,
@@ -413,10 +530,11 @@ export async function syncTimer(
       const sedelProjectId = serverSedel.projectId ?? "";
 
       if (!lokal) {
-        // Ny seddel fra server (typisk en seddel registrert på en annen enhet)
+        // Ny seddel fra server (typisk en seddel registrert på en annen enhet).
+        // Lokal id = clientUuid (invariant) så push/pull nøkler likt.
         db.insert(dagsseddelLocal)
           .values({
-            id: serverSedel.id,
+            id: maalId,
             userId: serverSedel.userId,
             organizationId: serverSedel.organizationId,
             projectId: sedelProjectId,
@@ -458,19 +576,21 @@ export async function syncTimer(
             feilmelding: null,
             sistSynkronisert: serverTidMs,
           })
-          .where(eq(dagsseddelLocal.id, serverSedel.id))
+          .where(eq(dagsseddelLocal.id, maalId))
           .run();
       }
 
-      // Erstatt rader (samme atom-policy som server)
+      // Erstatt rader (samme atom-policy som server). Trygt her: pending/avvist-
+      // sedler (upushet offline-arbeid) er allerede hoppet over via guarden over,
+      // så vi sletter kun rader på synced/conflict-sedler som stemmer med server.
       db.delete(sheetTimerLocal)
-        .where(eq(sheetTimerLocal.dagsseddelId, serverSedel.id))
+        .where(eq(sheetTimerLocal.dagsseddelId, maalId))
         .run();
       db.delete(sheetTilleggLocal)
-        .where(eq(sheetTilleggLocal.dagsseddelId, serverSedel.id))
+        .where(eq(sheetTilleggLocal.dagsseddelId, maalId))
         .run();
       db.delete(sheetMachineLocal)
-        .where(eq(sheetMachineLocal.dagsseddelId, serverSedel.id))
+        .where(eq(sheetMachineLocal.dagsseddelId, maalId))
         .run();
 
       // T7-3b1: server returnerer projectId per rad. Vi lagrer dette på rad-
@@ -482,7 +602,7 @@ export async function syncTimer(
         db.insert(sheetTimerLocal)
           .values({
             id: t.id,
-            dagsseddelId: serverSedel.id,
+            dagsseddelId: maalId,
             projectId: t.projectId ?? sedelProjectId,
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
@@ -500,7 +620,7 @@ export async function syncTimer(
         db.insert(sheetTilleggLocal)
           .values({
             id: tl.id,
-            dagsseddelId: serverSedel.id,
+            dagsseddelId: maalId,
             projectId: tl.projectId ?? sedelProjectId,
             tilleggId: tl.tilleggId,
             antall: tl.antall,
@@ -545,7 +665,7 @@ export async function syncTimer(
         db.insert(sheetMachineLocal)
           .values({
             id: m.id,
-            dagsseddelId: serverSedel.id,
+            dagsseddelId: maalId,
             projectId: m.projectId ?? sedelProjectId,
             // T7-4e: skriv ECO på maskin lokalt. Server (T7-4b hentEndringerSiden)
             // returnerer feltet i maskiner-mappingen.

@@ -734,6 +734,12 @@ export const dagsseddelRouter = router({
         const sheet = await ctx.prismaTimer.dailySheet.upsert({
           where: { clientUuid: input.clientUuid },
           create: {
+            // Synk-identitet (2026-07-11): id == clientUuid ved create. Mobil
+            // antar `id = clientUuid` (schema.ts:84) og pusher/puller på den ene
+            // identiteten; server-generert uuid brøt antagelsen (pull-duplikat +
+            // pull-så-redigert-P2002). Eksisterende sedler (id != clientUuid)
+            // beholdes urørt — kun nye får invarianten.
+            id: input.clientUuid,
             clientUuid: input.clientUuid,
             organizationId: orgId,
             userId: ctx.userId,
@@ -3293,6 +3299,10 @@ export const dagsseddelRouter = router({
         resultat: "ok" | "conflict" | "avvist" | "feilet";
         serverData?: {
           id: string;
+          // Synk-identitet (2026-07-11): server-sedelens clientUuid. Kun satt på
+          // kollisjon-conflict (S2) så mobil kan re-nøkle lokal sedel til den
+          // identiteten push treffer. Valgfritt → #37-klient ignorerer feltet.
+          clientUuid?: string;
           status: DagsseddelStatus;
           lederKommentar: string | null;
           attestertVed: string | null;
@@ -3563,6 +3573,10 @@ export const dagsseddelRouter = router({
             const sedel = await tx.dailySheet.upsert({
               where: { clientUuid: lokal.clientUuid },
               create: {
+                // Synk-identitet (2026-07-11): id == clientUuid ved create —
+                // se opprett-blokken over. Gjør server-id lik mobil-lokal-id
+                // (= clientUuid) så push/pull nøkler på samme identitet.
+                id: lokal.clientUuid,
                 clientUuid: lokal.clientUuid,
                 organizationId: orgId,
                 userId: ctx.userId,
@@ -3596,13 +3610,33 @@ export const dagsseddelRouter = router({
               },
             });
 
-            // Erstatt alle rader (deleteMany + createMany) — sedel er sync-atom.
-            // Cascade på sheetId-FK + Restrict på lonnsart/aktivitet/tillegg er
-            // allerede håndtert via relasjoner. Vi unngår å treffe accepted-rader
-            // fordi status="accepted" returnerer "conflict" tidligere i flyten.
-            await tx.sheetTimer.deleteMany({ where: { sheetId: sedel.id } });
-            await tx.sheetTillegg.deleteMany({ where: { sheetId: sedel.id } });
-            await tx.sheetMachine.deleteMany({ where: { sheetId: sedel.id } });
+            // S3 (2026-07-11): IKKE slett-og-gjenopprett hele sedelen. Slett kun
+            // radene mobil faktisk sender (som den gjenoppretter autoritativt
+            // under) og la server-rader som IKKE er i payloaden stå. Dette
+            // bevarer web-førte rader mobil aldri pullet — ved en dato-kollisjon
+            // (S2/M1) pushes mobilens rader additivt inn på server-sedelen uten
+            // å stryke web-radene. Konsekvens (akseptert beslutning): mobil rad-
+            // SLETTING propagerer ikke automatisk — «aldri mist data» prioriteres
+            // over sletting-propagering. Delte rad-id (samme rad på web og mobil)
+            // gjenoppbygges fra mobil-versjonen (mobil eier egne rader).
+            const timerIder = lokal.timer.map((t) => t.id);
+            const tilleggIder = lokal.tillegg.map((tl) => tl.id);
+            const maskinIder = lokal.maskiner.map((m) => m.id);
+            if (timerIder.length > 0) {
+              await tx.sheetTimer.deleteMany({
+                where: { sheetId: sedel.id, id: { in: timerIder } },
+              });
+            }
+            if (tilleggIder.length > 0) {
+              await tx.sheetTillegg.deleteMany({
+                where: { sheetId: sedel.id, id: { in: tilleggIder } },
+              });
+            }
+            if (maskinIder.length > 0) {
+              await tx.sheetMachine.deleteMany({
+                where: { sheetId: sedel.id, id: { in: maskinIder } },
+              });
+            }
 
             // T7-3b1: rad-nivå projectId overstyrer sedel-nivå hvis satt.
             // Faller tilbake til lokal.projectId (sedel-nivå) for pre-T7-3b1
@@ -3683,17 +3717,58 @@ export const dagsseddelRouter = router({
             continue;
           }
           if (e instanceof Prisma.PrismaClientKnownRequestError) {
-            // P2002: brudd på unique-constraint (typisk userId+projectId+dato)
-            // — klient har duplisert seddel under tidligere offline-økt. Permanent
-            // → `avvist` (SYNC-1). Andre Prisma-koder kan være transiente (DB-blip,
-            // deadlock) → `feilet` så de retries.
+            // S2 (2026-07-11): P2002 på @@unique([userId, dato]) er en
+            // identitetskollisjon — server har allerede en sedel for denne
+            // datoen under en ANNEN clientUuid (registrert på web/annen enhet).
+            // Speil `opprett` (findUnique userId_dato) og returner `conflict`
+            // med server-sedelens identitet i stedet for `avvist`, så mobil kan
+            // forsone (re-nøkle + additiv push) i stedet for å miste arbeiderens
+            // offline-rader. `dato` er ikke i scope her (block-scoped i try) —
+            // recompute fra lokal.
+            if (e.code === "P2002") {
+              const kollisjonDato = new Date(lokal.dato);
+              const eksisterende = await ctx.prismaTimer.dailySheet.findUnique({
+                where: {
+                  userId_dato: { userId: ctx.userId, dato: kollisjonDato },
+                },
+              });
+              // Kun ekte dato-kollisjon (annen clientUuid) blir conflict. Annen
+              // P2002 (f.eks. rad-id-PK) → behold `avvist` (permanent, klienten
+              // kan ikke rette via retry).
+              if (
+                eksisterende &&
+                eksisterende.clientUuid !== lokal.clientUuid
+              ) {
+                resultater.push({
+                  clientUuid: lokal.clientUuid,
+                  resultat: "conflict",
+                  serverData: {
+                    id: eksisterende.id,
+                    clientUuid: eksisterende.clientUuid,
+                    status: eksisterende.status as DagsseddelStatus,
+                    lederKommentar: eksisterende.lederKommentar,
+                    attestertVed:
+                      eksisterende.attestertVed?.toISOString() ?? null,
+                    updatedAt: eksisterende.updatedAt.toISOString(),
+                  },
+                  feilmelding:
+                    "Det finnes allerede en dagsseddel for denne datoen — dine timer slås sammen med den.",
+                });
+                continue;
+              }
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "avvist",
+                feilmelding: "Duplisert dagsseddel for samme dato",
+              });
+              continue;
+            }
+            // Andre Prisma-koder kan være transiente (DB-blip, deadlock) →
+            // `feilet` så de retries.
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: e.code === "P2002" ? "avvist" : "feilet",
-              feilmelding:
-                e.code === "P2002"
-                  ? "Duplisert dagsseddel for samme dato og prosjekt"
-                  : `DB-feil: ${e.code}`,
+              resultat: "feilet",
+              feilmelding: `DB-feil: ${e.code}`,
             });
             continue;
           }
