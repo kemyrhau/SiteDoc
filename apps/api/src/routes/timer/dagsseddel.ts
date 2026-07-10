@@ -15,7 +15,13 @@ import {
   harGyldigMaskinforerbevis,
   harGyldigMaskinforerbevisBatch,
 } from "../../services/kompetanse/maskinforerbevis";
-import { beregnMaskinBrudd, hhmmTilMin, type MaskinBrudd } from "@sitedoc/shared";
+import {
+  beregnMaskinBrudd,
+  type MaskinBrudd,
+  tilErEtterFra,
+  finnOverlappendeTidsrom,
+  finnTidsromKonflikt,
+} from "@sitedoc/shared";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
 type DagsseddelStatus = (typeof STATUS_VERDIER)[number];
@@ -379,11 +385,8 @@ function refineFraForTil(
   val: { fraTid?: string | null; tilTid?: string | null },
   ctx: z.RefinementCtx,
 ): void {
-  if (
-    val.fraTid &&
-    val.tilTid &&
-    hhmmTilMin(val.tilTid) <= hhmmTilMin(val.fraTid)
-  ) {
+  // Delt regel (@sitedoc/shared) — samme funksjon som syncBatch bruker (SYNC-2).
+  if (!tilErEtterFra(val.fraTid, val.tilTid)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Til-tid må være etter fra-tid",
@@ -412,8 +415,6 @@ async function sjekkTimerOverlapp(
 ): Promise<void> {
   if (!nyFra || !nyTil) return;
   const tx = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
-  const nyF = hhmmTilMin(nyFra);
-  const nyT = hhmmTilMin(nyTil);
   const andre = await tx.sheetTimer.findMany({
     where: {
       sheetId,
@@ -424,17 +425,13 @@ async function sjekkTimerOverlapp(
     },
     select: { fraTid: true, tilTid: true },
   });
-  for (const r of andre) {
-    if (!r.fraTid || !r.tilTid) continue;
-    const f = hhmmTilMin(r.fraTid);
-    const t = hhmmTilMin(r.tilTid);
-    // Strengt overlapp: berøring i endepunkt teller ikke.
-    if (nyF < t && nyT > f) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: `Tidsrommet overlapper en annen rad (${r.fraTid}–${r.tilTid}) på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.`,
-      });
-    }
+  // Delt regel (@sitedoc/shared) — samme overlapp-definisjon som syncBatch.
+  const overlapp = finnOverlappendeTidsrom(nyFra, nyTil, andre);
+  if (overlapp) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Tidsrommet overlapper en annen rad (${overlapp.fraTid}–${overlapp.tilTid}) på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.`,
+    });
   }
 }
 
@@ -3228,6 +3225,11 @@ export const dagsseddelRouter = router({
                 aktivitetId: z.string().uuid(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
                 timer: z.number().min(0).max(24),
+                // SYNC-2 (2026-07-10): fra/til per rad — MÅ deklareres her ellers
+                // stripper Zod dem (T4-d koblet kun lese-/online-siden, aldri
+                // sync-skrivesiden → tider ført på web ble slettet ved mobilsynk).
+                fraTid: z.string().nullable().optional(),
+                tilTid: z.string().nullable().optional(),
                 // T.12: fritekst per rad («hva jeg gjorde»).
                 beskrivelse: z.string().nullable().optional(),
                 // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
@@ -3253,6 +3255,9 @@ export const dagsseddelRouter = router({
                   timer: z.number().min(0).max(24),
                   mengde: z.number().min(0).nullable().optional(),
                   enhet: z.string().max(20).nullable().optional(),
+                  // SYNC-2: fra/til per maskin-rad (datatap-fiks, samme som timer).
+                  fraTid: z.string().nullable().optional(),
+                  tilTid: z.string().nullable().optional(),
                 }),
               )
               .default([]),
@@ -3472,6 +3477,25 @@ export const dagsseddelRouter = router({
           const innkommendeStatus =
             lokal.status === "accepted" ? "sent" : lokal.status;
 
+          // SYNC-2 (2026-07-10): fra<til + overlapp-vakt på timer-radene FØR
+          // createMany. Web-mutasjonene (tilfoyTimerRad/oppdaterTimerRad) hadde
+          // vakten; synkveien omgikk den. Overlapp sjekkes INNAD i settet —
+          // syncBatch erstatter alle rader (deleteMany+createMany), så
+          // post-state = eksakt lokal.timer og ingen rad finnes i basen ennå.
+          // Avvisning er permanent (arbeideren må rette) → "avvist" (SYNC-1).
+          const tidsromKonflikt = finnTidsromKonflikt(lokal.timer);
+          if (tidsromKonflikt) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding:
+                tidsromKonflikt.type === "fra_etter_til"
+                  ? `Til-tid må være etter fra-tid (${tidsromKonflikt.rad.fraTid}–${tidsromKonflikt.rad.tilTid}).`
+                  : `Tidsrommet ${tidsromKonflikt.rad.fraTid}–${tidsromKonflikt.rad.tilTid} overlapper ${tidsromKonflikt.annen.fraTid}–${tidsromKonflikt.annen.tilTid} på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.`,
+            });
+            continue;
+          }
+
           // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
           // syncBatch erstatter alle rader på sedelen — post-state = exakt
           // det som er i lokal.timer + lokal.maskiner. Feil per sedel
@@ -3564,6 +3588,9 @@ export const dagsseddelRouter = router({
                   externalCostObjectId: t.externalCostObjectId ?? null,
                   vehicleId: t.vehicleId ?? null,
                   timer: t.timer,
+                  // SYNC-2: persister fra/til (før: strippet + utelatt → datatap).
+                  fraTid: t.fraTid ?? null,
+                  tilTid: t.tilTid ?? null,
                   beskrivelse: t.beskrivelse ?? null,
                 })),
               });
@@ -3592,6 +3619,9 @@ export const dagsseddelRouter = router({
                   timer: m.timer,
                   mengde: m.mengde ?? null,
                   enhet: m.enhet ?? null,
+                  // SYNC-2: persister fra/til (datatap-fiks, samme som timer).
+                  fraTid: m.fraTid ?? null,
+                  tilTid: m.tilTid ?? null,
                 })),
               });
             }
