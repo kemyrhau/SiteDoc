@@ -567,6 +567,20 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
+        {sedel.syncStatus === "avvist" && (
+          <View className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={16} color="#b91c1c" />
+              <Text className="text-sm font-semibold text-red-900">
+                {t("timer.sync.avvist")}
+              </Text>
+            </View>
+            <Text className="mt-1 text-sm text-red-800">
+              {sedel.feilmelding ?? t("timer.sync.avvistBeskrivelse")}
+            </Text>
+          </View>
+        )}
+
         {sedel.syncStatus === "conflict" && (
           <View className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
             <View className="flex-row items-center gap-2">

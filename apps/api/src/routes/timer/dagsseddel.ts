@@ -3264,9 +3264,15 @@ export const dagsseddelRouter = router({
       const orgId = await krevBrukersOrg(ctx.userId);
       await krevTimerAktivert(orgId);
 
+      // SYNC-1 (2026-07-10): `avvist` = permanent avvisning klienten ikke kan
+      // rette via retry (P2002-duplikat, katalog-mismatch, maskin>arbeid,
+      // FORBIDDEN — og fra SYNC-2 overlapp/`fra<til`). Mobil gjør `avvist`
+      // terminal (forlater pending, rødt banner). `feilet` = transient (behold
+      // pending, retry neste tick). Bakoverkompat: eldre klient (#37) faller til
+      // else på ukjent `avvist` og beholder pending — samme som dagens oppførsel.
       type ResultatRad = {
         clientUuid: string;
-        resultat: "ok" | "conflict" | "feilet";
+        resultat: "ok" | "conflict" | "avvist" | "feilet";
         serverData?: {
           id: string;
           status: DagsseddelStatus;
@@ -3290,7 +3296,7 @@ export const dagsseddelRouter = router({
             if (eksisterende.userId !== ctx.userId) {
               resultater.push({
                 clientUuid: lokal.clientUuid,
-                resultat: "feilet",
+                resultat: "avvist",
                 feilmelding: "Dagsseddel eies av annen bruker",
               });
               continue;
@@ -3298,7 +3304,7 @@ export const dagsseddelRouter = router({
             if (eksisterende.organizationId !== orgId) {
               resultater.push({
                 clientUuid: lokal.clientUuid,
-                resultat: "feilet",
+                resultat: "avvist",
                 feilmelding: "Dagsseddel tilhører annet firma",
               });
               continue;
@@ -3351,7 +3357,7 @@ export const dagsseddelRouter = router({
           if (!aktivitet) {
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: "Aktivitet finnes ikke i firmaets katalog",
             });
             continue;
@@ -3390,7 +3396,7 @@ export const dagsseddelRouter = router({
           if (lonnsartTreff.length !== lonnsartIder.length) {
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: "En eller flere lønnsarter finnes ikke i firmaets katalog",
             });
             continue;
@@ -3398,7 +3404,7 @@ export const dagsseddelRouter = router({
           if (aktivitetIRaderTreff.length !== aktivitetIderIRader.length) {
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: "En eller flere aktiviteter finnes ikke i firmaets katalog",
             });
             continue;
@@ -3406,7 +3412,7 @@ export const dagsseddelRouter = router({
           if (tilleggTreff.length !== tilleggIder.length) {
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: "Et eller flere tillegg finnes ikke i firmaets katalog",
             });
             continue;
@@ -3488,7 +3494,7 @@ export const dagsseddelRouter = router({
           if (syncBrytt.length > 0) {
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: await feilMeldingMaskinOverstiger(syncBrytt),
             });
             continue;
@@ -3606,21 +3612,23 @@ export const dagsseddelRouter = router({
           });
         } catch (e) {
           if (e instanceof TRPCError) {
-            // Tilgangsfeil (FORBIDDEN fra verifiserProsjektmedlem) regnes som feilet,
-            // ikke conflict — klienten kan ikke fikse dette med ny pull.
+            // Tilgangsfeil (FORBIDDEN fra verifiserProsjektmedlem) er permanent
+            // — klienten kan ikke fikse dette med retry → `avvist` (SYNC-1).
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: e.message,
             });
             continue;
           }
           if (e instanceof Prisma.PrismaClientKnownRequestError) {
             // P2002: brudd på unique-constraint (typisk userId+projectId+dato)
-            // — klient har duplisert seddel under tidligere offline-økt
+            // — klient har duplisert seddel under tidligere offline-økt. Permanent
+            // → `avvist` (SYNC-1). Andre Prisma-koder kan være transiente (DB-blip,
+            // deadlock) → `feilet` så de retries.
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: e.code === "P2002" ? "avvist" : "feilet",
               feilmelding:
                 e.code === "P2002"
                   ? "Duplisert dagsseddel for samme dato og prosjekt"

@@ -15,6 +15,7 @@ import {
   syncTimer,
   tellPending,
   tellConflict,
+  tellAvvist,
 } from "../services/timerSync";
 import { refreshKatalog } from "../services/timerKatalog";
 import { refreshMaskinKatalog } from "../services/maskinKatalog";
@@ -31,6 +32,7 @@ import { refreshReisetidMatriseKatalog } from "../services/reisetidMatriseKatalo
 interface TimerSyncKontekst {
   pendingAntall: number;
   conflictAntall: number;
+  avvistAntall: number;
   sistSynkronisert: number | null; // Unix ms, null hvis aldri
   syncerNa: boolean;
   sisteFeil: string | null;
@@ -46,6 +48,7 @@ interface TimerSyncKontekst {
 const TimerSyncContext = createContext<TimerSyncKontekst>({
   pendingAntall: 0,
   conflictAntall: 0,
+  avvistAntall: 0,
   sistSynkronisert: null,
   syncerNa: false,
   sisteFeil: null,
@@ -68,6 +71,7 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
 
   const [pendingAntall, setPendingAntall] = useState(0);
   const [conflictAntall, setConflictAntall] = useState(0);
+  const [avvistAntall, setAvvistAntall] = useState(0);
   const [sistSynkronisert, setSistSynkronisert] = useState<number | null>(null);
   const [syncerNa, setSyncerNa] = useState(false);
   const [sisteFeil, setSisteFeil] = useState<string | null>(null);
@@ -81,10 +85,12 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
     if (!bruker?.id) {
       setPendingAntall(0);
       setConflictAntall(0);
+      setAvvistAntall(0);
       return;
     }
     setPendingAntall(tellPending(bruker.id));
     setConflictAntall(tellConflict(bruker.id));
+    setAvvistAntall(tellAvvist(bruker.id));
   }, [bruker?.id]);
 
   const triggerKatalogRefresh = useCallback(async () => {
@@ -139,6 +145,7 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
       // Refresh tellere fra DB etter sync
       setPendingAntall(tellPending(bruker.id));
       setConflictAntall(tellConflict(bruker.id));
+      setAvvistAntall(tellAvvist(bruker.id));
     } catch (e) {
       setSisteFeil(e instanceof Error ? e.message : "Sync feilet");
     } finally {
@@ -185,6 +192,7 @@ export function TimerSyncProvider({ children }: { children: ReactNode }) {
       value={{
         pendingAntall,
         conflictAntall,
+        avvistAntall,
         sistSynkronisert,
         syncerNa,
         sisteFeil,

@@ -62,7 +62,7 @@ export const opplastingsKo = sqliteTable("opplastings_ko", {
 /* ============================================================================
  *  Timer-modul Runde 2 — offline-first dagsseddel
  *
- *  Skrive-tabeller (mobil → server, syncStatus pending/synced/conflict):
+ *  Skrive-tabeller (mobil → server, syncStatus pending/synced/conflict/avvist):
  *    - dagsseddel_local      (id = clientUuid, sync-atom for hele sedlen)
  *    - sheet_timer_local     (rader, slettes/opprettes som del av sedel-sync)
  *    - sheet_tillegg_local   (rader)
@@ -114,7 +114,9 @@ export const dagsseddelLocal = sqliteTable("dagsseddel_local", {
   lederKommentar: text("leder_kommentar"),
   attestertVed: text("attestert_ved"), // ISO timestamp fra server
   syncStatus: text("sync_status", {
-    enum: ["pending", "synced", "conflict"],
+    // "avvist" (SYNC-1): permanent avvist av server — terminal, retry stopper.
+    // Ren TS-enum-utvidelse; SQLite-kolonnen er TEXT → ingen migrering nødvendig.
+    enum: ["pending", "synced", "conflict", "avvist"],
   })
     .notNull()
     .default("pending"),
