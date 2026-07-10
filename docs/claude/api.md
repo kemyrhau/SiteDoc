@@ -416,3 +416,10 @@ Alle prosjekt-opprettelse-mutasjoner MÅ kreve `organizationId` for å hindre or
 4. Klient-side: UI-knapp `disabled` uten valgt firma + amber-banner som gjenbruker `t("nyttProsjekt.ingenFirma")` der det er relevant
 
 Referanse-impl: `prosjekt.opprett`/`opprettTestprosjekt` (`prosjekt.ts:163`/`:246`), `admin.opprettProsjekt` (`admin.ts:229`). Standalone-prosjekter beholdes (schema nullable for bakover-kompat); kun opprettelse-flyten er strammet — speil mønsteret ved ny opprettelse-mutasjon. Bakgrunn: 5 prod-orphans 2026-05-20.
+
+## TS/tRPC-fallgruver
+
+Flyttet fra CLAUDE.md § Kodestil 2026-07-10. Kjerneregelen står som peker der.
+
+- **tRPC-include TS2589-fallgruve:** `user: { include: { organization } }` eller `user: true` triggrer «Type instantiation excessively deep» i tRPC-klient. Bruk alltid eksplisitt `user: { select: { id, name, ... } }`. Lærdom fra O-5c 2026-05-13 (`MapperPanel.tsx:154`).
+- **Prisma-felt-cleanup-verifikasjon:** grep alene er ikke pålitelig — filtrerer ut `where: { felt: ... }` med `-v "felt:"`. Kjør alltid `npx tsc --noEmit` etter schema-endring og bruk typecheck som sannhetskilde for gjenstående bruks-steder. Lærdom fra O-5b → O-5b-fix → O-5c (grep ga to oversette runder).

@@ -189,9 +189,7 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 - `eslint-config-next` MÅ matche Next.js-versjonen (v14)
 - Ikon-props: `JSX.Element` (ikke `React.ReactNode`) for å unngå `@types/react` v18/v19-kollisjon
 - tRPC mutation-callbacks: `_data: unknown` for å unngå TS2589
-- **tRPC-include TS2589-fallgruve:** `user: { include: { organization } }` eller `user: true` triggrer «Type instantiation excessively deep» i tRPC-klient. Bruk alltid eksplisitt `user: { select: { id, name, ... } }`. Lærdom fra O-5c 2026-05-13 (`MapperPanel.tsx:154`).
-- **Tailwind className-spesifisitet (max-w-* o.l.):** Wrapper som concatenerer en hardkodet utility FØR caller-s `className` taper i CSS-spesifisitet (f.eks. `max-w-[80vw]` mister mot intern `max-w-lg`). La caller overstyre via regex-fallback: `className={`w-full ${className}${/\bmax-w-/.test(className) ? "" : " max-w-lg"}`}` (Modal, `packages/ui/src/modal.tsx`, T7-5b-fix 2026-05-17).
-- **Prisma-felt-cleanup-verifikasjon:** grep alene er ikke pålitelig — filtrerer ut `where: { felt: ... }` med `-v "felt:"`. Kjør alltid `npx tsc --noEmit` etter schema-endring og bruk typecheck som sannhetskilde for gjenstående bruks-steder. Lærdom fra O-5b → O-5b-fix → O-5c (grep ga to oversette runder).
+- **Kjente TS/CSS-fallgruver:** tRPC-include TS2589 + Prisma-felt-cleanup-verifikasjon → [api.md § TS/tRPC-fallgruver](docs/claude/api.md); Tailwind className-spesifisitet (`max-w-*`, Modal) → [shared-pakker.md § @sitedoc/ui](docs/claude/shared-pakker.md).
 - Prisma-migreringer: `pnpm --filter @sitedoc/db exec prisma migrate dev`
 
 ## UI-designprinsipper
