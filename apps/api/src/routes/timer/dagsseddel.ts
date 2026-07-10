@@ -120,7 +120,11 @@ async function hentEgenDagsseddel(
   const sheet = await (prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer).dailySheet.findUnique({
     where: { id: sheetId },
   });
-  if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+  // M4 (2026-07-10): NOT_FOUND uten melding ga tom feiltekst hos klienten. Alle
+  // 14 kallesteder (hentMedId/oppdater/tilfoy*/oppdater*/fjern*/send/gjenaapne/
+  // slett) propagerer feilen til tRPC uten å mappe på tom melding (verifisert:
+  // eneste catch i fila på helper-veien er opprett-P2002, som ikke rører denne).
+  if (!sheet) throw new TRPCError({ code: "NOT_FOUND", message: "Dagsseddelen finnes ikke" });
 
   // Eierskap: kun den som sedelen tilhører, eller admin/firmaadmin
   if (sheet.userId !== ctxUserId) {
@@ -1318,13 +1322,22 @@ export const dagsseddelRouter = router({
     .mutation(async ({ ctx, input }) => {
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
 
+      // M4 (2026-07-10): distinkte koder for de tre avvisningene så klienten
+      // kan mappe på e.data.code i stedet for delstreng på meldingen. Meldingene
+      // er UENDRET (web-onError leser fortsatt e.message.includes("godkjent")).
+      // accepted → CONFLICT, annen ikke-sent-status → BAD_REQUEST, attestert
+      // rad → PRECONDITION_FAILED (under).
       if (sheet.status !== "sent") {
+        if (sheet.status === "accepted") {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "Dagsseddelen er allerede godkjent av leder — kontakt leder for endring",
+          });
+        }
         throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message:
-            sheet.status === "accepted"
-              ? "Dagsseddelen er allerede godkjent av leder — kontakt leder for endring"
-              : `Kan ikke gjenåpne dagsseddel med status «${sheet.status}»`,
+          code: "BAD_REQUEST",
+          message: `Kan ikke gjenåpne dagsseddel med status «${sheet.status}»`,
         });
       }
 

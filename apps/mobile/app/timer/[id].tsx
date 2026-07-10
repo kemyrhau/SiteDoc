@@ -377,11 +377,21 @@ export default function DagsseddelDetalj() {
           lesData();
         },
         onError: (e: unknown) => {
+          // M4 (2026-07-10): map på tRPC-feilkode, ikke delstreng på meldingen.
+          // To kjente koder får egne i18n-tekster; enhver ANNEN kode (BAD_REQUEST
+          // fra ikke-sent-status, FORBIDDEN/NOT_FOUND fra hentEgenDagsseddel, samt
+          // alt fremtidig) viser serverens egen melding. KUN når e.data.code helt
+          // mangler er det en ekte nettverksfeil → «Krever nett».
+          const code = (e as { data?: { code?: string } } | null)?.data?.code;
           const melding = e instanceof Error ? e.message : "";
           setFeil(
-            melding.includes("godkjent")
+            code === "CONFLICT"
               ? t("timer.gjenaapne.feilGodkjent")
-              : t("timer.gjenaapne.feilNett"),
+              : code === "PRECONDITION_FAILED"
+                ? t("timer.gjenaapne.laastAttestert")
+                : code != null
+                  ? melding
+                  : t("timer.gjenaapne.feilNett"),
           );
         },
       },
