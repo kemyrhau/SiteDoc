@@ -322,6 +322,7 @@
   "timer.feil.minstEnTimerRad": "Fleta e kohës duhet të ketë të paktën një rresht kohor përpara se të dërgohet.",
   "timer.feil.ugyldigPause": "Pushimi duhet të jetë një numër pozitiv (minuta).",
   "timer.feil.sluttForStart": "Koha e përfundimit duhet të jetë pas orës së fillimit.",
+  "timer.feil.overlapp": "Gama kohore {{fra}}–{{til}} mbivendoset {{annenFra}}–{{annenTil}} në të njëjtën fletë. Një punëtor nuk mund të jetë në dy vende njëherësh.",
   "timer.feil.timerAvvik": "The number of hours does not match the time span (expected {{forventet}} h). Adjust from/to or the hours.",
   "timer.pauseFradrag": "−{{min}} min lunch break deducted",
   "timer.attestering.tittel": "Miratoni orët",

@@ -322,6 +322,7 @@
   "timer.feil.minstEnTimerRad": "The time sheet must have at least one time row before it can be sent.",
   "timer.feil.ugyldigPause": "Break must be a positive number (minutes).",
   "timer.feil.sluttForStart": "End time must be after start time.",
+  "timer.feil.overlapp": "The time range {{fra}}–{{til}} overlaps {{annenFra}}–{{annenTil}} on the same sheet. One worker cannot be in two places at once.",
   "timer.feil.timerAvvik": "The number of hours does not match the time span (expected {{forventet}} h). Adjust from/to or the hours.",
   "timer.pauseFradrag": "−{{min}} min lunch break deducted",
   "timer.attestering.tittel": "Approve hours",

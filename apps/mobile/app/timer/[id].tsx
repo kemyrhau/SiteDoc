@@ -718,6 +718,7 @@ export default function DagsseddelDetalj() {
             harMaskinforerbevis={harMaskinforerbevis}
             redigerbar={erRedigerbar}
             timerRader={timerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
+            alleTimerRader={timerRader}
             tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             maskinRader={maskinRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             onEndret={markerEndretOgLes}
@@ -830,6 +831,7 @@ function ProsjektGruppe({
   harMaskinforerbevis,
   redigerbar,
   timerRader,
+  alleTimerRader,
   tilleggRader,
   maskinRader,
   onEndret,
@@ -847,7 +849,10 @@ function ProsjektGruppe({
   harEquipmentCache: boolean;
   harMaskinforerbevis: boolean;
   redigerbar: boolean;
+  /** Prosjekt-scopet (denne gruppens rader) — visning/bøtter. */
   timerRader: TimerRad[];
+  /** M3: sedelens fulle timer-rad-liste (alle prosjekter/ECO), kun overlapp-sjekk. */
+  alleTimerRader: TimerRad[];
   tilleggRader: TilleggRad[];
   maskinRader: MaskinRad[];
   onEndret: () => void;
@@ -964,6 +969,7 @@ function ProsjektGruppe({
               harMaskinforerbevis={harMaskinforerbevis}
               redigerbar={redigerbar}
               timerRader={bucket.timer}
+              alleTimerRader={alleTimerRader}
               maskinRader={bucket.maskin}
               onEndret={onEndret}
             />
@@ -1005,6 +1011,7 @@ function EcoBucket({
   harMaskinforerbevis,
   redigerbar,
   timerRader,
+  alleTimerRader,
   maskinRader,
   onEndret,
 }: {
@@ -1019,6 +1026,8 @@ function EcoBucket({
   harMaskinforerbevis: boolean;
   redigerbar: boolean;
   timerRader: TimerRad[];
+  /** M3: sedelens fulle timer-rad-liste (kryss-bøtte), kun til overlapp-sjekk. */
+  alleTimerRader: TimerRad[];
   maskinRader: MaskinRad[];
   onEndret: () => void;
 }) {
@@ -1091,6 +1100,7 @@ function EcoBucket({
         sheetId={sheetId}
         organizationId={organizationId}
         rader={timerRader}
+        alleTimerRader={alleTimerRader}
         projectId={projectId}
         defaultEcoId={ecoId}
         visHeader={false}

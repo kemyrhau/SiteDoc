@@ -322,6 +322,7 @@
   "timer.feil.minstEnTimerRad": "Ajalehes peab enne saatmist olema vähemalt üks ajarida.",
   "timer.feil.ugyldigPause": "Vaheaeg peab olema positiivne arv (minutid).",
   "timer.feil.sluttForStart": "Lõpuaeg peab olema pärast algusaega.",
+  "timer.feil.overlapp": "Ajavahemik {{fra}}–{{til}} kattub samal lehel {{annenFra}}–{{annenTil}}. Üks töötaja ei saa olla kahes kohas korraga.",
   "timer.feil.timerAvvik": "Tundide arv ei ühti ajavahemikuga (eeldatav {{forventet}} h). Reguleerige alates/kuni või tunde.",
   "timer.pauseFradrag": "−{{min}} min lõunapaus maha arvatud",
   "timer.attestering.tittel": "Kinnitage tunnid",

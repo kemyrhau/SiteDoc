@@ -177,19 +177,3 @@ function hhmmTilDate(hhmm: string | null): Date {
 function dateTilHhmm(d: Date): string {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
-
-/**
- * Sammenlign to HH:MM-strenger. Returnerer true hvis fra < til.
- * Brukes til validering i forelder før lagring.
- */
-export function fraErForTil(fra: string | null, til: string | null): boolean {
-  if (!fra || !til) return true; // null tolereres — kun lukke hvis begge er satt
-  return hhmmTilMinutter(fra) < hhmmTilMinutter(til);
-}
-
-function hhmmTilMinutter(hhmm: string): number {
-  const deler = hhmm.split(":");
-  const t = Number(deler[0] ?? 0);
-  const m = Number(deler[1] ?? 0);
-  return t * 60 + m;
-}

@@ -32,14 +32,18 @@ import {
   equipmentLocal,
   externalCostObjectLocal,
 } from "../../db/schema";
-import { maskinBucketKapasitet, overstigerMaskinTak } from "@sitedoc/shared";
+import {
+  maskinBucketKapasitet,
+  overstigerMaskinTak,
+  tilErEtterFra,
+} from "@sitedoc/shared";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
 import { hentOrganizationSettingLokalt } from "../../services/organizationSettingKatalog";
 import { ENHETER } from "../../lib/enheter";
 import type { MaskinRad, Equipment } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
-import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
+import { FraTilTidFelt } from "./FraTilTidFelt";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
@@ -599,8 +603,8 @@ function MaskinRadModal({
         return;
       }
     }
-    // T4-e: fraTid < tilTid hvis begge satt.
-    if (!fraErForTil(fraTid, tilTid)) {
+    // T4-e: fraTid < tilTid hvis begge satt. Delt regel (@sitedoc/shared).
+    if (!tilErEtterFra(fraTid, tilTid)) {
       setFeil(t("timer.feil.sluttForStart"));
       return;
     }

@@ -322,6 +322,7 @@
   "timer.feil.minstEnTimerRad": "Aikaraportissa on oltava vähintään yksi aikarivi, ennen kuin se voidaan lähettää.",
   "timer.feil.ugyldigPause": "Tauon on oltava positiivinen luku (minuutit).",
   "timer.feil.sluttForStart": "Päättymisajan on oltava alkamisajan jälkeen.",
+  "timer.feil.overlapp": "Aikaväli {{fra}}–{{til}} menee päällekkäin {{annenFra}}–{{annenTil}} samalla arkilla. Yksi työntekijä ei voi olla kahdessa paikassa yhtä aikaa.",
   "timer.feil.timerAvvik": "Tuntien määrä ei vastaa aikajännettä (odotettu {{forventet}} h). Säädä alkaen/to tai tuntia.",
   "timer.pauseFradrag": "− {{min}} min lounastauko vähennetty",
   "timer.attestering.tittel": "Hyväksy aukioloajat",

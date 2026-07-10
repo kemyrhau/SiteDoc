@@ -292,20 +292,24 @@ Mobil gjenstår og er **bundet til neste EAS-batch** (kvotebegrenset — ikke fy
 
 Web fikk bolk (g) 2026-07-09 (server-vakt + klient). Mobil gjenstår og har trolig
 samme hull:
-- **`fra<til`-gyldighet:** mobil har `fraErForTil`-sjekk i `TimerSeksjon` (l. ~673),
-  men verifiser at `MaskinSeksjon` også har den (bolk (e) mobil mangler uansett).
-  Server-superRefine (bolk (g)) fanger nå begge på tvers, så mobil får en tydelig
-  feil uansett — men klient-siden bør speile for UX.
+- **✅ `fra<til`-gyldighet (M3 2026-07-10):** både `TimerSeksjon` og `MaskinSeksjon`
+  blokkerer lagring via delt `tilErEtterFra` (`@sitedoc/shared`) i lagre-handleren
+  (`setFeil(t("timer.feil.sluttForStart"))`). Duplikat-helperen `fraErForTil` slettet.
 - **Prefill-scope:** mobil `defaultTider` er **bøtte-scopet** (`eksisterendeRader` =
   bøttens rader). Bolk (g) løftet web-timer-prefill til **hele sedelen** (seneste
   `tilTid`). Løft mobil til samme (unngår prefill inn i registrert tidsrom).
 - **0==0-hullet:** speil web — `forventet == antall`-sperren skal først kreve til > fra,
   og antall = 0 avvises.
-- **Server-overlapp-vakten dekker nå mobilens skrivevei** (`syncBatch` via
-  `finnTidsromKonflikt`, SYNC-2 ✅ 2026-07-10). **Gjenstår M3:** klient-side
-  speiling i mobil (`TimerSeksjon`/`MaskinSeksjon`) for umiddelbar UX før synk —
-  samme delte regel (`@sitedoc/shared/utils/tidsromValidering.ts`). **Bundet til
-  neste EAS-batch.**
+- **✅ Overlapp-speiling (M3 2026-07-10):** `TimerSeksjon`s lagre-handler kaller
+  `finnOverlappendeTidsrom` (`@sitedoc/shared`) mot **alle timer-rader på sedelen,
+  på tvers av (projectId, ECO)-bøtter** (egen prop `alleTimerRader` fra sedelens
+  fulle rad-liste i `[id].tsx`, ikke det bøtte-scopede `rader`/`eksisterendeRader`),
+  ekskl. raden som redigeres. Kryss-bøtte er regelen — «én arbeider kan ikke være to
+  steder». **Merk:** prefill/`defaultTider` (`eksisterendeRader`) er fortsatt
+  bøtte-scopet — de to scopene er nå ulike med hensikt (prefill-scope er egen rad,
+  ikke M3). Blokkerer lagring med `timer.feil.overlapp` (samme ordlyd som
+  `syncBatch`-avvisningen). Server-vakten (`syncBatch` via `finnTidsromKonflikt`,
+  SYNC-2) er nettet under. Kun timer-rader (maskin = egen 🟡). **Bundet til neste EAS-batch.**
 
 ### 🟡 Maskin-vs-maskin-overlapp — utredning (rapportert under bolk (g), 2026-07-09)
 

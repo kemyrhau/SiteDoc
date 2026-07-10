@@ -322,6 +322,7 @@
   "timer.feil.minstEnTimerRad": "Lai to varētu nosūtīt, laika uzskaites lapā ir jābūt vismaz vienai laika rindai.",
   "timer.feil.ugyldigPause": "Pārtraukumam jābūt pozitīvam skaitlim (minūtēm).",
   "timer.feil.sluttForStart": "Beigu laikam ir jābūt pēc sākuma laika.",
+  "timer.feil.overlapp": "Laika diapazons {{fra}}–{{til}} tajā pašā lapā pārklājas {{annenFra}}–{{annenTil}}. Viens strādnieks nevar atrasties divās vietās vienlaikus.",
   "timer.feil.timerAvvik": "Stundu skaits neatbilst laika posmam (paredzamā {{forventet}} h). Pielāgojiet no/līdz vai stundas.",
   "timer.pauseFradrag": "− {{min}} min pusdienu pārtraukums",
   "timer.attestering.tittel": "Apstiprināt stundas",

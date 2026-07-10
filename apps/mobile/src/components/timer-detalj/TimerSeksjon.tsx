@@ -42,9 +42,11 @@ import {
   pauseOverlappMin,
   pauseVinduFra,
   tilFraAntall,
+  tilErEtterFra,
+  finnOverlappendeTidsrom,
 } from "@sitedoc/shared";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
-import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
+import { FraTilTidFelt } from "./FraTilTidFelt";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 
@@ -52,6 +54,11 @@ interface TimerSeksjonProps {
   sheetId: string;
   organizationId: string;
   rader: TimerRad[];
+  /** M3: ALLE timer-rader på sedelen (på tvers av alle (projectId, ECO)-bøtter),
+   *  kun til overlapp-sjekken. `rader` er bøtte-scopet (prefill/visning); overlapp
+   *  er kryss-bøtte (én arbeider kan ikke være to steder). Kilde: sedelens fulle
+   *  rad-liste i [id].tsx, IKKE en re-flatning av bøttene. */
+  alleTimerRader: TimerRad[];
   projectId: string;
   /** T7-4e (2026-05-16): ECO-filter for å pre-selektere i Add-modal og holde
    *  nye rader i samme (projectId, ECO)-bucket som parent EcoBucket. null =
@@ -72,6 +79,7 @@ export function TimerSeksjon({
   sheetId,
   organizationId,
   rader,
+  alleTimerRader,
   projectId,
   defaultEcoId = null,
   visHeader = true,
@@ -255,6 +263,7 @@ export function TimerSeksjon({
           defaultEcoId={defaultEcoId}
           dato={dato}
           eksisterendeRader={rader}
+          alleTimerRader={alleTimerRader}
           defaultAktivitetId={defaultAktivitetId}
           eksisterendeRad={
             redigerRadId
@@ -439,6 +448,7 @@ function TimerRadModal({
   defaultEcoId,
   dato,
   eksisterendeRader,
+  alleTimerRader,
   defaultAktivitetId,
   eksisterendeRad,
   onLagre,
@@ -449,6 +459,7 @@ function TimerRadModal({
   defaultEcoId: string | null;
   dato: string;
   eksisterendeRader: TimerRad[];
+  alleTimerRader: TimerRad[];
   defaultAktivitetId: string | null;
   eksisterendeRad: TimerRad | null;
   onLagre: (
@@ -669,10 +680,34 @@ function TimerRadModal({
       setFeil(t("timer.feil.ugyldigTimer"));
       return;
     }
-    // T4-e: fraTid < tilTid hvis begge er satt. Null tolereres.
-    if (!fraErForTil(fraTid, tilTid)) {
+    // T4-e: fraTid < tilTid hvis begge er satt. Null tolereres. Delt regel
+    // (@sitedoc/shared) — samme som server-vakten (SYNC-2).
+    if (!tilErEtterFra(fraTid, tilTid)) {
       setFeil(t("timer.feil.sluttForStart"));
       return;
+    }
+    // M3: overlapp-speiling — stopp arbeideren lokalt før lagring i stedet for
+    // etter server-avvisning (SYNC-2). Kryss-bøtte: sjekk mot ALLE timer-rader på
+    // sedelen (`alleTimerRader`, ikke bøtte-scopet `eksisterendeRader`), på tvers
+    // av (projectId, ECO) — «én arbeider kan ikke være to steder». Ekskluderer
+    // raden som redigeres på tvers av hele sedelen (pre-eksisterende overlapp
+    // låser derfor ikke arbeideren ute — han kan åpne og rette den).
+    if (fraTid && tilTid) {
+      const andreRader = alleTimerRader.filter(
+        (r) => r.id !== eksisterendeRad?.id,
+      );
+      const overlapp = finnOverlappendeTidsrom(fraTid, tilTid, andreRader);
+      if (overlapp) {
+        setFeil(
+          t("timer.feil.overlapp", {
+            fra: fraTid,
+            til: tilTid,
+            annenFra: overlapp.fraTid,
+            annenTil: overlapp.tilTid,
+          }),
+        );
+        return;
+      }
     }
     // Pause-synk: når begge tider er satt MÅ antall stemme med (spenn − pause).
     // Auto-synken holder dem i takt; dette er sikkerhetsnettet mot manuell

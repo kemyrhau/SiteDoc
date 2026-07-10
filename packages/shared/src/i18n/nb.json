@@ -322,6 +322,7 @@
   "timer.feil.minstEnTimerRad": "Dagsseddelen må ha minst én timer-rad før den kan sendes.",
   "timer.feil.ugyldigPause": "Pause må være et positivt tall (minutter).",
   "timer.feil.sluttForStart": "Slutt-tid må være etter start-tid.",
+  "timer.feil.overlapp": "Tidsrommet {{fra}}–{{til}} overlapper {{annenFra}}–{{annenTil}} på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.",
   "timer.feil.timerAvvik": "Antall timer stemmer ikke med tidsrommet (forventet {{forventet}} t). Juster fra/til eller antall.",
   "timer.pauseFradrag": "−{{min}} min lunsjpause trukket fra",
   "timer.attestering.tittel": "Attester timer",
