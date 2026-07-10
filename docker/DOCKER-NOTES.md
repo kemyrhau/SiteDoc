@@ -67,11 +67,12 @@ Denne deployen traff gjentatt friksjon som ikke var dokumentert → «gjenoppdag
 
 1. **sudo/TTY-barriere.** `server-ny` `sudo` krever interaktivt passord (ingen NOPASSWD). Opus/kontroll-Claude kjører i ikke-interaktive skall → `ssh -t … sudo …` gir «Pseudo-terminal will not be allocated» + «sudo: a password is required», og `sudo -n` gir «a password is required». **Konklusjon:** Opus prøver ALDRI å kjøre `sudo` på server — Kenneth kjører alle `sudo docker`-steg via `!`-prefiks (ekte TTY). Opus kjører native `git`/`rsync` (uten sudo) selv.
 
-2. **Postgres-container heter `postgres`** (compose-tjeneste), IKKE `sitedoc-postgres`. Finn robust:
+2. **Postgres-container heter `postgres`** (compose-tjeneste), IKKE `sitedoc-postgres`. Finn robust med **`grep -x`** (eksakt linje-match):
    ```
-   PG=$(sudo docker ps --format '{{.Names}}' | grep -m1 postgres)
+   PG=$(sudo docker ps --format '{{.Names}}' | grep -x postgres)
    sudo docker exec "$PG" psql -U sitedoc -d <db> -c "…"
    ```
+   > ⚠️ **`grep -m1 postgres` / `grep postgres` er FEIL fra 2026-07-09.** Etter at salsaklubb ble isolert i egen container (`salsaklubb-postgres`, rolle `salsa`, se Tromsosalsaklubb-repo) matcher et løst `grep postgres` **begge** containerne — og `salsaklubb-postgres` listes først, så `grep -m1` tar den. Den har verken rollen `sitedoc` eller databasen `sitedoc` → `pg_dump`/`psql -U sitedoc` feiler med `role "sitedoc" does not exist`. Skjedde ved prod-backup 2026-07-10. **Bruk alltid `grep -x postgres`.** Den delte klyngen (container `postgres`) holder `sitedoc` (rolle `sitedoc`), `sitedoc_test`, `sitedoc_redesign` + `tromsosalsaklubb` (rolle `salsa`, gammel fallback). Prod-DB: rolle **`sitedoc`**, db **`sitedoc`**.
 
 3. **Compose-prosjektnavn-mismatch.** Kjørende prod-containere ble opprettet under prosjekt `docker` (mappe-avledet, før `name:`-linja fantes), men `docker-compose.yml` har nå `name: sitedoc`. `compose up` uten `-p` lager da et NYTT prosjekt → `Conflict. The container name "/sitedoc-api" is already in use`. **Workaround:** `-p docker` (matcher kjørende prosjekt). Diagnostiser med `docker inspect -f '{{index .Config.Labels "com.docker.compose.project"}}' sitedoc-api`. **Reconcile-følgesak:** bestem ett prosjektnavn permanent — gjøres når NorBERT-rebuild uansett gjenskaper embed/oversettelse. **`--force-recreate` løser IKKE cross-prosjekt-orphan (lærdom 2026-07-07):** når containeren finnes under ett compose-prosjekt (`docker`) og du kjører `up` under et annet (default `sitedoc`), lager `--force-recreate` fortsatt en ny/kolliderende container i feil prosjekt — den re-adopterer ikke den kjørende under riktig prosjekt. Løs med **`-p docker`** (matcher kjørende prosjekt) ELLER **`docker rm -f <container>` + `up`** (fjern orphan-en, la `up` gjenskape rent). Force-recreate alene = fortsatt navnekonflikt/orphan.
 
