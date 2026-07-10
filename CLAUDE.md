@@ -87,7 +87,7 @@ Utfør kun handlinger direkte knyttet til den uttrykkelige oppgaven. Hvis andre 
 - Sletter filer eller mapper
 - Endrer auth, permissions eller secrets
 - Installerer eller oppgraderer pakker som påvirker andre moduler
-- **Fyrer et EAS-sky-bygg** — kvote-begrenset (~15 iOS-bygg/mnd, fri plan, reset den 1.). Kun for faktiske TestFlight-leveranser etter at kode/Azure/docs er verifisert klar — ikke for iterasjon. Sjekk gjenstående kvote + dager til reset FØR hvert bygg (Expo-dashboard/`eas build:list` viser **antall, ikke dager** — bruk bygg-loggen i [eas-build-veileder.md § Bygg-økonomi](docs/claude/eas-build-veileder.md) + reset=1. i mnd for å regne dager). Lokale iOS-bygg er blindvei i dette monorepoet — se babel-noten samme sted.
+- **Fyrer et EAS-sky-bygg** — kvote-begrenset (~15 iOS-bygg/mnd, fri plan). **Spør alltid først.** Kun for faktiske TestFlight-leveranser etter at kode/Azure/docs er verifisert klar — ikke for iterasjon. Sjekk kvote + dager til reset FØR bygg; regnestykke, bygg-logg og at lokale iOS-bygg er blindvei: [eas-build-veileder.md § Bygg-økonomi](docs/claude/eas-build-veileder.md).
 
 Merk: Denne regelen overstyrer IKKE indeks-regelen. Når en regel sier "oppdater CLAUDE.md", er det fortsatt riktig å oppdatere den relevante detalj-filen i docs/claude/ hvis innholdet ikke gjelder tech stack, struktur, kommandoer, kodestil eller overordnede regler. Tolk pragmatisk, men flagg tolkningen før handling hvis du er i tvil.
 
@@ -267,13 +267,8 @@ Full anker-tre med tre nivåer (Firma → Firmaadministrasjon → Prosjekter), b
 - **Prosjektmoduler** (`ProjectModule`): slås av/på per prosjekt — Sjekklister, Oppgaver, Tegninger, Kontrollplan, PSI, 3D, AI-søk, HMS, Økonomi, Mapper.
 - **Firmamoduler** (planlagt): slås av/på for hele firmaet — Timer, Maskin, Kompetanse (live), Planlegger, Varelager. Datalag-isolasjon i `packages/db-<modul>/`.
 
-> **📌 Mini-Nivå 1D-presiseringer (2026-04-28):**
->
-> **Ansatt-objekt og HR-import:** Ansatte importeres fra eksternt HR-system. En egen **Import-modul** (planlagt fremtidig arbeid — ikke implementert) tar imot ansatt-data og mater Timer-modulen med ansattnummer, hmsKortNr og øvrige ansatt-felter. Import-modulen er datainfrastruktur (forutsetning for Timer-onboarding), ikke firmamodul i seg selv. Ansatt-objektet eies av `User` i kjernen (`packages/db`); ingen separat ansatt-tabell.
->
-> **Mannskapsliste = vy i PSI-modulen:** Mannskaps-listen er ikke separat modul. PSI utvides med innsjekk/utsjekk-mekanikk; mannskaps-listen er den vyen som aggregerer PSI-tilstedeværelses-data per byggeplass. Tidligere skisser («Mannskap som firmamodul», «Mannskap som separat prosjektmodul», «Mannskap/PSI slått sammen») er forkastet.
->
-> **Kompetansematrise = egen firma-funksjon (live i prod 2026-05-01).** Implementert som egne tabeller `Kompetansetype` + `AnsattKompetanse` i `packages/db` (kjernen) — ikke en del av Timer-modulen. Kompetansedata kan registreres manuelt i SiteDoc eller importeres via CSV/Excel; fremtidig HR-API-import er planlagt sammen med Import-modulen, men ikke en forutsetning for å bruke matrisen. Andre moduler (Timer, Maskin, Planlegger) leser kompetansedata via service-lag (`apps/api/src/services/kompetanse/`) — ikke direkte fra DB.
+> **📌 Mini-Nivå 1D-presiseringer (2026-04-28):** Ansatt-objektet eies av `User` i kjernen (HR-import via planlagt Import-modul), Mannskapsliste = vy i PSI-modulen (ikke egen modul), Kompetansematrise = egen firma-funksjon (live prod 2026-05-01, tabeller i `packages/db`).
+> Full utdyping: [terminologi.md § 0 → Mini-Nivå 1D-presiseringer](docs/claude/terminologi.md).
 
 ## Admin-arkitektur og roller
 
@@ -320,16 +315,7 @@ schema eller flyt verifiseres mot ALLE involverte modul-dokumenter
 før koding. Konflikter mellom modul-spec-er er forutsigbare når
 modulene utvikles isolert — bevisstheten må ligge i prosessen.
 
-**Konkret regel for dagsseddel:** Ingen endring i `daily_sheets`,
-`sheet_timer`, `sheet_tillegg` eller `sheet_machines` uten å først
-lese [timer.md](docs/claude/timer.md), [maskin.md](docs/claude/maskin.md)
-og [fase-0-beslutninger.md C.16](docs/claude/fase-0-beslutninger.md).
-Oppgavespesifikke avhengigheter dokumenteres i
-[dagsseddel-design.md § Modul-avhengigheter](docs/claude/dagsseddel-design.md).
-
-**Bakgrunn:** Aktivitet/maskinbruk/vareforbruk-konflikten 2026-05-02
-viste at modulgrenser er klare i isolerte spec-er men uklare når én
-entitet er felles knutepunkt.
+**Konkret regel for dagsseddel** (`daily_sheets`/`sheet_timer`/`sheet_tillegg`/`sheet_machines` — les timer.md + maskin.md + fase-0-beslutninger.md C.16 først) + bakgrunn (Aktivitet/maskinbruk/vareforbruk-konflikten 2026-05-02): [dagsseddel-design.md § Modul-avhengigheter](docs/claude/dagsseddel-design.md).
 
 ## SIKKERHET — NØKKELHÅNDTERING (UFRAVIKELIG)
 
@@ -387,13 +373,7 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
   - **Godkjenning** = entreprenør får byggherre til å godta kostnad → Dokumentflyt-modul
   - Eksisterende inkonsistens i timer-prototype + 14 i18n-filer rettes når Timer-modulen bygges (Fase 3)
   - `DokumentflytMedlem.rolle = "godkjenner"` er KORREKT bruk (dokumentflyt-rolle, ikke timer)
-- **Firma påkrevd ved prosjekt-opprettelse** (ufravikelig låst 2026-05-20): Alle prosjekt-opprettelse-mutasjoner MÅ kreve `organizationId` for å hindre orphan-prosjekter (`primaryOrganizationId = null`). Mønster:
-  1. Zod-input: `organizationId: z.string().uuid()` — **uten** `.optional()`
-  2. Project.create: `primaryOrganizationId: input.organizationId` (eller `valgtOrgId` etter tilgangs-sjekk)
-  3. Tilgangs-sjekk: `sitedoc_admin` → enhver org, vanlig bruker → kun egen org via `OrganizationMember`
-  4. Klient-side: UI-knapp `disabled` uten valgt firma + amber-banner som gjenbruker `t("nyttProsjekt.ingenFirma")` der det er relevant
-
-  Referanse-impl: `prosjekt.opprett`/`opprettTestprosjekt` (`prosjekt.ts:163`/`:246`), `admin.opprettProsjekt` (`admin.ts:229`). Standalone-prosjekter beholdes (schema nullable for bakover-kompat); kun opprettelse-flyten er strammet — speil mønsteret ved ny opprettelse-mutasjon. Bakgrunn: 5 prod-orphans 2026-05-20.
+- **Firma påkrevd ved prosjekt-opprettelse** (ufravikelig låst 2026-05-20): Alle prosjekt-opprettelse-mutasjoner MÅ kreve `organizationId` for å hindre orphan-prosjekter (`primaryOrganizationId = null`). **Fella (steg 1):** Zod-input `organizationId: z.string().uuid()` — **uten** `.optional()`. Fullt mønster (steg 2–4: Project.create, tilgangs-sjekk, klient-side) + referanse-impl + bakgrunn: [api.md § Firma påkrevd ved prosjekt-opprettelse](docs/claude/api.md).
 - **To-stegs migrations-policy** (ufravikelig fra 2026-04-26):
   1. Aldri slett kolonner i én migrering. Steg 1: legg til ny kolonne (nullable). Steg 2: migrer data. Steg 3: NEXT release setter NOT NULL eller dropper gammel
   2. Migrasjoner ALDRI redigeres etter merge til `main` — sikrer reproduserbarhet

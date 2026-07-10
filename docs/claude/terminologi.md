@@ -73,9 +73,19 @@ Rename gjennomført april 2026 (112 filer, feature/faggruppe-rename). Regler:
 **Firmamoduler** (planlagt):
 - Slås av/på **én gang for hele firmaet** i Firmaadministrasjon
 - Deler data på tvers av alle firmaets prosjekter
-- Eksempler: Timeregistrering, Maskinregistrering, Kompetanse (implementert), Fremdriftsplanlegging (planlagt). **Mannskap er ikke firmamodul** — det er en vy i PSI-modulen (Fase 4) per Mini-Nivå-1D-presisering i CLAUDE.md.
+- Eksempler: Timeregistrering, Maskinregistrering, Kompetanse (implementert), Fremdriftsplanlegging (planlagt). **Mannskap er ikke firmamodul** — det er en vy i PSI-modulen (Fase 4) per Mini-Nivå-1D-presisering (under).
 - Datalag-isolasjon via egne DB-skjemaer (`packages/db-timer/`, `packages/db-maskin/` osv.)
 - App-plassering valgfri: integrert i `apps/web/src/app/<modul>/` (default, enklest) eller isolert `apps/<modul>/` (for separat skalering/deploy)
+
+#### Mini-Nivå 1D-presiseringer (2026-04-28)
+
+Flyttet hit fra CLAUDE.md 2026-07-10 (anker-prinsippet — modul-typologi bor i terminologi.md § 0).
+
+**Ansatt-objekt og HR-import:** Ansatte importeres fra eksternt HR-system. En egen **Import-modul** (planlagt fremtidig arbeid — ikke implementert) tar imot ansatt-data og mater Timer-modulen med ansattnummer, hmsKortNr og øvrige ansatt-felter. Import-modulen er datainfrastruktur (forutsetning for Timer-onboarding), ikke firmamodul i seg selv. Ansatt-objektet eies av `User` i kjernen (`packages/db`); ingen separat ansatt-tabell.
+
+**Mannskapsliste = vy i PSI-modulen:** Mannskaps-listen er ikke separat modul. PSI utvides med innsjekk/utsjekk-mekanikk; mannskaps-listen er den vyen som aggregerer PSI-tilstedeværelses-data per byggeplass. Tidligere skisser («Mannskap som firmamodul», «Mannskap som separat prosjektmodul», «Mannskap/PSI slått sammen») er forkastet.
+
+**Kompetansematrise = egen firma-funksjon (live i prod 2026-05-01).** Implementert som egne tabeller `Kompetansetype` + `AnsattKompetanse` i `packages/db` (kjernen) — ikke en del av Timer-modulen. Kompetansedata kan registreres manuelt i SiteDoc eller importeres via CSV/Excel; fremtidig HR-API-import er planlagt sammen med Import-modulen, men ikke en forutsetning for å bruke matrisen. Andre moduler (Timer, Maskin, Planlegger) leser kompetansedata via service-lag (`apps/api/src/services/kompetanse/`) — ikke direkte fra DB.
 
 > **🟢 To isolasjonsmodeller — én plattform (anker, 2026-06-08):** SiteDoc er **to produkter på samme plattform**, og isolasjonen følger modul-typologien:
 > - **Prosjekthotell** (prosjektmoduler) — data eies av prosjekt, **isolasjon på `projectId`**, tilgang via `ProjectMember`. CLAUDE.md-regelen «alle queries MÅ filtrere på projectId» gjelder her.

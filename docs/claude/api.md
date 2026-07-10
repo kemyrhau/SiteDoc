@@ -405,3 +405,14 @@ Kjører asynkront (som DWG-konvertering) og lagrer i `Drawing.ifcMetadata` (Json
 **Commits:** `a70f03f`, `aa97c3e`, `dfc2da7`
 
 **Referanser:** React-feilkode #310 = "Rules of Hooks"-brudd (hooks i betingelser/løkker eller etter early return).
+
+## Firma påkrevd ved prosjekt-opprettelse (ufravikelig låst 2026-05-20)
+
+Alle prosjekt-opprettelse-mutasjoner MÅ kreve `organizationId` for å hindre orphan-prosjekter (`primaryOrganizationId = null`). Steg 1 (fella — `organizationId: z.string().uuid()` **uten** `.optional()`) står inline i [CLAUDE.md § Viktige regler](../../CLAUDE.md). Fullt mønster:
+
+1. Zod-input: `organizationId: z.string().uuid()` — **uten** `.optional()`
+2. Project.create: `primaryOrganizationId: input.organizationId` (eller `valgtOrgId` etter tilgangs-sjekk)
+3. Tilgangs-sjekk: `sitedoc_admin` → enhver org, vanlig bruker → kun egen org via `OrganizationMember`
+4. Klient-side: UI-knapp `disabled` uten valgt firma + amber-banner som gjenbruker `t("nyttProsjekt.ingenFirma")` der det er relevant
+
+Referanse-impl: `prosjekt.opprett`/`opprettTestprosjekt` (`prosjekt.ts:163`/`:246`), `admin.opprettProsjekt` (`admin.ts:229`). Standalone-prosjekter beholdes (schema nullable for bakover-kompat); kun opprettelse-flyten er strammet — speil mønsteret ved ny opprettelse-mutasjon. Bakgrunn: 5 prod-orphans 2026-05-20.
