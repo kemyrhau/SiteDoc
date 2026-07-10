@@ -355,7 +355,25 @@ export default function DagsseddelDetalj() {
   // UF-4: gjenåpne en sendt sedel for etter-registrering. Online-only — kaller
   // server-mutasjonen direkte (man kan ikke recalle uten å kjenne server-status).
   // Suksess → speil server lokalt (draft, synced). accepted/offline → melding.
+  //
+  // M7 (2026-07-10): bekreftelse før gjenåpning. `gjenaapne()` viser Alert
+  // (mobilens bekreftelses-idiom, samme som slettSedel), `utforGjenaapne()`
+  // kjører mutasjonen. IKKE style: "destructive" — gjenåpning er reversibel
+  // (sedelen sendes bare på nytt), ulikt slettSedel. Gjenbruker webs
+  // bekreft*-nøkler (M4 la dem, brukt kun av web til nå).
   function gjenaapne() {
+    if (!sedel) return;
+    Alert.alert(
+      t("timer.gjenaapne.bekreftTittel"),
+      t("timer.gjenaapne.bekreftTekst"),
+      [
+        { text: t("handling.avbryt"), style: "cancel" },
+        { text: t("timer.gjenaapne.bekreftKnapp"), onPress: utforGjenaapne },
+      ],
+    );
+  }
+
+  function utforGjenaapne() {
     if (!sedel) return;
     setFeil(null);
     gjenaapneMutation.mutate(
