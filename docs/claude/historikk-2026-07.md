@@ -8,6 +8,25 @@ sist_verifisert_mot_kode: 2026-07-04
 
 Arkiv av arbeid deployet til prod i juli 2026. Flyttet hit fra [STATUS-AKTUELT.md](STATUS-AKTUELT.md) per arkiveringsplikten (deployet arbeid ligger aldri igjen i STATUS-AKTUELT).
 
+## Prod-deploy 2026-07-09 (prod-merge `224c13f6`) — timer-paritet + pause-regler + overlapp/gjenåpne-vakt + nyNav sticky-flag
+
+Merge develop→main (`224c13f6`, 2026-07-09): «timer-paritet + pause-regler + overlapp-vakt + gjenåpne-vakt + salsaklubb-isolasjon + tilkoblingsbudsjett». Alle hashene under er verifisert med `git merge-base --is-ancestor <hash> origin/main`. Åpne **mobil**-oppfølgere er IKKE arkivert bort — de står i [STATUS-AKTUELT § PSI Fase A + Maskin + ③](STATUS-AKTUELT.md) + [BACKLOG § Timer web-vs-mobil paritet](BACKLOG.md).
+
+### Timer pause-modell (skiftrelativt pausevindu) — `f385ba99`
+Pausevindu regnes relativt til skiftstart (`standardPauseEtterTimer`, default 4.0 t) i stedet for fast klokkeslett; additiv migrering `ADD COLUMN standard_pause_etter_timer` (to-stegs). Verifisert: DB (6 rader = 4.0) + simulator + web 8/8 (D1–D8). Berører api `organisasjon.ts`, mobil `TimerSeksjon`/`pauseBeregning.ts`, web `innstillinger`/`RedigerRadModal`, i18n. Sannhetskilde: [timer.md § Pause-bevisst tid-synk](timer.md). **Mobil-UI via neste EAS-batch** (BACKLOG).
+
+### Web dagsseddel auto-fyll Fra/Til (paritet mobil) — `cd58853a`
+Option A, kalender-effektiv via ny `organisasjon.hentEffektivArbeidstid`-query, sommertid-aware. Se [BACKLOG § Web dagsseddel auto-fyll](BACKLOG.md).
+
+### Generalprøve web-runde F1/F3/F4/F5 — `6f1b5670` (F1 `5ace3e3f`, F3/F4/F5 `17ba8bb0`)
+Bak `nyNavigasjon`-flagg (inert i prod). Skjermbilder `docs/redesign/screenshots/F1-F5-web-2026-07-08/`. Fabel-godkjent.
+
+### Timer web-vs-mobil paritet + gyldighet (bolk a–g) — `224c13f6`
+Web arbeider-flate speiler nå mobil (app = fasit) + hard server-gyldighet. Bolkene: a `b3230944` (D7/D1/D2/D3), b `0985d46e` (D4/D5/D6), c `7797a9b5` (D8), d `bf78889c` (R1–R4 fra/til-regler), e `f101890e` (pause-bevisst maskin-rad B1–B4 + spenn↔antall-synk) + `10622ee3` (`tilFraAntall`-grensefiks + vitest), f `f59a498c` («Gjenåpne dagsseddel» web + attestert-vakt på server) + `1deaff6b` (`confirm()`→Modal), g `79e786a3` (`fra<til`-superRefine + overlapp-vakt: én arbeider kan ikke være to steder) + `c81c4eae` (hele-sedel-prefill + 0==0-lukking). Test-verifisert web 8/8. **Mobil bolk (e)/(f)/(g) via neste EAS-batch** ([BACKLOG § Timer web-vs-mobil paritet](BACKLOG.md)).
+
+### nyNav sticky-flag stale-lokal-fiks — `c77f2cb1`
+`lokalTillatt`-guard i `resolverNyNavigasjon` + rolle-avledet opprydning i web/mobil-hookene (ikke-admin låses ikke inne av gammel `lokal="1"`). Merk: STATUS-AKTUELT-tråden anga `3b975773` på branch `feature/nynav-sticky-flag-fix`; det som faktisk landet på main er `c77f2cb1` (verifisert `merge-base --is-ancestor`). Mobil-del via neste EAS-batch. Detalj: [BACKLOG § nyNav sticky-flag](BACKLOG.md).
+
 ## Prod-deploy 2026-07-07 (prod-merge `0be103fa`) — a2 (live) + PSI/maskin/③ web-live + redesign (K9/K6-P31, flagg-inert) + sok-fiks
 
 Merge develop→main (`0be103fa`, 2026-07-07 09:56). **Migrasjonsfri** — 0 migration-filer i selve diffen; PSI-/③-migreringene ble anvendt i den **tidligere** prod-mergen `80974276` (2026-07-05, 3 `migration.sql`). Web-image-rebuilden i denne deployen gjorde den `80974276`-merget web-koden (PSI/maskin/③) faktisk **live nå** — jf. kjent «auto-deploy rebuilder ikke web»-sak: web-flatene ble ikke live før denne manuelle rebuilden. **Verifisert innlogget prod:** data laster, redesign **av-default** (flagg-mekanismen live-bekreftet), `/dev-login` ikke montert (404 i prod), K9-redirects aktive.
