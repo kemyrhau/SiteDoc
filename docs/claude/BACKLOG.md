@@ -296,26 +296,31 @@ Mobil gjenstår og er **bundet til neste EAS-batch** (kvotebegrenset — ikke fy
   gjelder `MaskinSeksjon`.
 - Bruk `standardPauseMin` (setting), ikke `sheet.pauseMin`, for spennfradraget (som web).
 
-### 🟡 Mobil: bolk (g) — overlapp-vakt + `fra<til` + prefill-scope + 0==0 (neste EAS-batch)
+### 🟢 Mobil: bolk (g) — KOMPLETT (M3 + M6) — overlapp-vakt + `fra<til` + prefill-scope + 0==0 (neste EAS-batch)
 
-Web fikk bolk (g) 2026-07-09 (server-vakt + klient). Mobil gjenstår og har trolig
-samme hull:
+Web fikk bolk (g) 2026-07-09 (server-vakt + klient). Alle fire mobil-punkter dekket:
+`fra<til` (M3), overlapp (M3), prefill-scope (M6), 0==0 (allerede vernet). Detaljer under.
+**Verifiseringsnivå:** statisk (typecheck/vitest/web-build) — ikke eksekvert på enhet.
 - **✅ `fra<til`-gyldighet (M3 2026-07-10):** både `TimerSeksjon` og `MaskinSeksjon`
   blokkerer lagring via delt `tilErEtterFra` (`@sitedoc/shared`) i lagre-handleren
   (`setFeil(t("timer.feil.sluttForStart"))`). Duplikat-helperen `fraErForTil` slettet.
-- **Prefill-scope:** mobil `defaultTider` er **bøtte-scopet** (`eksisterendeRader` =
-  bøttens rader). Bolk (g) løftet web-timer-prefill til **hele sedelen** (seneste
-  `tilTid`). Løft mobil til samme (unngår prefill inn i registrert tidsrom).
-- **0==0-hullet:** speil web — `forventet == antall`-sperren skal først kreve til > fra,
-  og antall = 0 avvises.
+- **✅ Prefill-scope (M6 2026-07-10):** mobil `TimerSeksjon.defaultTider.fra` løftet fra
+  bøtte-scopet (`eksisterendeRader`) til **hele sedelen** — seneste `tilTid` over
+  `alleTimerRader`, beregnet som **maks** via `hhmmTilMin` (ikke array-rekkefølge; jf.
+  usortert-prefill-🟡 under). Fallback `effektiv.startTid`. `eksisterendeRader` beholdt
+  for lønnsart/aktivitet-prefill (`defaultValg`, bevisst bøtte-scopet). Samtidig B3-init.
+- **✅ 0==0-hullet:** allerede vernet i mobil — `lagre()` avviser `tall <= 0`
+  (`TimerSeksjon.tsx`, `timer.feil.ugyldigTimer`) FØR B2-sperren, og `tilErEtterFra`
+  krever til > fra. Kombinasjonen `antall=0 && til=fra` når derfor aldri B2.
 - **✅ Overlapp-speiling (M3 2026-07-10):** `TimerSeksjon`s lagre-handler kaller
   `finnOverlappendeTidsrom` (`@sitedoc/shared`) mot **alle timer-rader på sedelen,
   på tvers av (projectId, ECO)-bøtter** (egen prop `alleTimerRader` fra sedelens
   fulle rad-liste i `[id].tsx`, ikke det bøtte-scopede `rader`/`eksisterendeRader`),
   ekskl. raden som redigeres. Kryss-bøtte er regelen — «én arbeider kan ikke være to
-  steder». **Merk:** prefill/`defaultTider` (`eksisterendeRader`) er fortsatt
-  bøtte-scopet — de to scopene er nå ulike med hensikt (prefill-scope er egen rad,
-  ikke M3). Blokkerer lagring med `timer.feil.overlapp` (samme ordlyd som
+  steder». **Merk:** etter M6 er `defaultTider.fra` (fra-tid-prefill) også hele-sedel-
+  scopet (`alleTimerRader`, maks tilTid); kun lønnsart/aktivitet-prefill (`defaultValg`)
+  er fortsatt bøtte-scopet (`eksisterendeRader`) — bevisst (fag-kontinuitet per bøtte).
+  Blokkerer lagring med `timer.feil.overlapp` (samme ordlyd som
   `syncBatch`-avvisningen). Server-vakten (`syncBatch` via `finnTidsromKonflikt`,
   SYNC-2) er nettet under. Kun timer-rader (maskin = egen 🟡). **Bundet til neste EAS-batch.**
 
@@ -350,6 +355,9 @@ erstatter alle rader på sedelen (`deleteMany` + `createMany`), så en `antall =
 avvise sedler som inneholder **pre-eksisterende avvikende rader** — timer.md navngir **11** seed-rader
 i `sheet_machines` som avviker. Krever grandfathering (kun nye/endrede rader) eller per-rad
 endringssporing, ikke en flat vakt. Egen runde.
+
+**🟡 B4-prefill (maskin-modal) plukker første/siste bucket-rad uten sortering — begge flater.**
+Både mobil (`MaskinSeksjon.tsx` `defaultTider`: `bucketTimer[0]?.fraTid` / `bucketTimer[bucketTimer.length-1]?.tilTid`, M5 2026-07-10) og web (`page.tsx` `onTilfoyMaskin`: `timerRaderIBucket[0]?.fraTid` / `timerRaderIBucket.at(-1)?.tilTid`) leser første/siste **array-element**, ikke `min(fraTid)`/`max(tilTid)`. SQLite `.all()` (mobil) og Prisma (`include: { timer: true }` uten `orderBy`, web) garanterer **ikke** rekkefølge. Intensjonen i [timer.md § B4](timer.md) er bucketens **arbeidsspenn** → riktig er `min(fraTid)`/`max(tilTid)`. Fører arbeideren timer-radene i ikke-kronologisk rekkefølge, åpner maskin-modalen med fra > til (prefill blir ugyldig; B2/`sluttForStart`-sperren fanger det ved lagring, men UX-en starter feil). **Ikke innført av M5** — arvet fra webs bolk-(d)-prefill. Fiks samlet på begge flater: bytt til `min`/`max` over bucketens timer-rader. **Omfang etter M6 (2026-07-10):** gjelder nå **to** steder — maskin-B4 mobil + web. Et potensielt tredje sted, mobilens **timer**-prefill, brukte samme rekkefølge-avhengige `[...eksisterendeRader].reverse().find()` — **fjernet i M6**, som nå bruker `max`-reduce via `hhmmTilMin`. Kandidatmengde verifisert: `grep "reverse().find" apps/mobile/src apps/mobile/app` = 0 treff i timer-koden etter M6 (eneste gjenværende `.reverse()` er iOS-client-id-parsing i `logg-inn.tsx`, urelatert).
 
 **Verifiserings-note (sitedoc_test):** kjør self-join-audit på `timer.sheet_timer` for å se
 om test-DB har eksisterende overlappende timer-rader (vakten treffer kun ny/redigert rad, så

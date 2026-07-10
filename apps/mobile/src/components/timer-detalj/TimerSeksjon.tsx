@@ -498,9 +498,9 @@ function TimerRadModal({
     return pauseVinduFra(skiftStart, pauseEtterTimer);
   }, [organizationId, dato, pauseEtterTimer]);
 
-  // T4-e: Beregn defaults for fraTid/tilTid ved opprettelse av ny rad.
-  //   - Ny rad uten eksisterende rader: fraTid = effektiv.startTid, tilTid = effektiv.sluttTid
-  //   - Ny rad med eksisterende rader: fraTid = siste rads tilTid (hvis satt), ellers effektiv.startTid; tilTid = effektiv.sluttTid
+  // Beregn defaults for fraTid/tilTid ved opprettelse av ny rad.
+  //   - Ny rad: fraTid = SENESTE tilTid på HELE sedelen (M6 bolk (g) prefill-
+  //     scope), ellers effektiv.startTid; tilTid = effektiv.sluttTid
   //   - Rediger eksisterende rad: bruk radens egne verdier
   const defaultTider = useMemo(() => {
     if (eksisterendeRad) {
@@ -510,12 +510,25 @@ function TimerRadModal({
       };
     }
     const effektiv = hentEffektivArbeidstidLokal(organizationId, new Date(`${dato}T00:00:00`));
-    const forrigeMedTil = [...eksisterendeRader].reverse().find((r) => !!r.tilTid);
+    // Bolk (g) prefill-scope (M6, 2026-07-10): fra = seneste tilTid over HELE
+    // sedelen (alle bøtter, `alleTimerRader`), beregnet som MAKS via hhmmTilMin
+    // — ikke siste array-element (rekkefølge-uavhengig; speiler webs reduce i
+    // `page.tsx` `onTilfoyTimer`). «Fortsett der du slapp» på hele dagen;
+    // hindrer prefill inn i et allerede registrert tidsrom. `eksisterendeRader`
+    // (bøtte-scopet) beholdes for lønnsart/aktivitet-prefill (`defaultValg`).
+    const senesteTil = alleTimerRader
+      .map((r) => r.tilTid)
+      .filter((tid): tid is string => !!tid)
+      .reduce<string | null>(
+        (senest, tid) =>
+          senest === null || hhmmTilMin(tid) > hhmmTilMin(senest) ? tid : senest,
+        null,
+      );
     return {
-      fra: forrigeMedTil?.tilTid ?? effektiv.startTid,
+      fra: senesteTil ?? effektiv.startTid,
       til: effektiv.sluttTid,
     };
-  }, [eksisterendeRad, eksisterendeRader, organizationId, dato]);
+  }, [eksisterendeRad, alleTimerRader, organizationId, dato]);
 
   // Forhåndsvelg lønnsart + aktivitet på ny rad. Prioritetskjede:
   //   - Rediger eksisterende rad: bruk radens egne verdier
@@ -550,16 +563,37 @@ function TimerRadModal({
   const [valgtAktivitetId, setValgtAktivitetId] = useState<string>(
     defaultValg.aktivitetId,
   );
-  const [timer, setTimer] = useState<string>(
-    eksisterendeRad?.timer ? eksisterendeRad.timer.toFixed(2) : "",
-  );
+  // B3-prefill-gyldighet (M6): begge tider satt og fra < til. Speiler webs
+  // `prefillGyldig` i TimerRadDialog. Er spennet ugyldig (f.eks. seneste tilTid
+  // ≥ skiftslutt), forhåndsutfylles verken til eller antall — ingen 0-/fra>til-rad.
+  const prefillGyldig =
+    !!defaultTider.fra &&
+    !!defaultTider.til &&
+    hhmmTilMin(defaultTider.fra) < hhmmTilMin(defaultTider.til);
+  const [timer, setTimer] = useState<string>(() => {
+    if (eksisterendeRad?.timer) return eksisterendeRad.timer.toFixed(2);
+    // B3 (M6): init antall fra prefill-spennet (pause-bevisst) — kun ved gyldig
+    // prefill. `pauseMin` her = firma standardPauseMin (utledet over). Ellers tom.
+    if (prefillGyldig) {
+      return effektiveTimerFraSpenn(
+        defaultTider.fra!,
+        defaultTider.til!,
+        pauseFra,
+        pauseMin,
+      ).toFixed(2);
+    }
+    return "";
+  });
   // T7-4e: defaultEcoId pre-selekteres når bruker klikker "+Legg til timer"
   // i en spesifikk ECO-bucket. Ved redigering brukes radens egen ECO.
   const [valgtEcoId, setValgtEcoId] = useState<string | null>(
     eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
   );
   const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
-  const [tilTid, setTilTid] = useState<string | null>(defaultTider.til);
+  // Bolk (g)/web-speiling: til prefylles kun ved gyldig prefill (fra < til).
+  const [tilTid, setTilTid] = useState<string | null>(
+    prefillGyldig ? defaultTider.til : null,
+  );
   const [beskrivelse, setBeskrivelse] = useState<string>(
     eksisterendeRad?.beskrivelse ?? "",
   );
