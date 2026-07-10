@@ -15,6 +15,7 @@ function formatTid(ms: number): string {
  * Tynn statusbar over timer-listen.
  *  - Online + synced: grønt sjekkmerke + «Synkronisert kl XX:XX»
  *  - Online + pending: gul varsel + antall + spinner
+ *  - Online + avvist: rødt + antall avvist (permanent — må rettes/slettes)
  *  - Online + conflict: rødt + antall konflikter
  *  - Offline: grå sky + «Offline — synker når nett er tilbake»
  *  - Pågående sync: spinner
@@ -27,6 +28,7 @@ export function TimerSyncStatusBar() {
   const {
     pendingAntall,
     conflictAntall,
+    avvistAntall,
     sistSynkronisert,
     syncerNa,
     triggerSync,
@@ -47,6 +49,13 @@ export function TimerSyncStatusBar() {
     tekstFarge = "text-blue-800";
     ikon = <ActivityIndicator size="small" color="#1e40af" />;
     melding = t("timer.sync.synkroniserer");
+  } else if (avvistAntall > 0) {
+    // SYNC-1: permanent avvist — rødt, ikke gul spinner. Krever at arbeideren
+    // retter eller sletter sedelen (terminal).
+    bg = "bg-red-50";
+    tekstFarge = "text-red-800";
+    ikon = <AlertTriangle size={14} color="#b91c1c" />;
+    melding = t("timer.sync.avvistAntall", { antall: avvistAntall });
   } else if (conflictAntall > 0) {
     bg = "bg-red-50";
     tekstFarge = "text-red-800";

@@ -21,6 +21,10 @@
 | `Table<T>` | Generisk tabell med sortering, kolonnefiltre, velgbare rader |
 | `SearchInput` | Søkefelt med innebygd ikon |
 
+### Fallgruve: Tailwind className-spesifisitet (`max-w-*` o.l.)
+
+Flyttet fra CLAUDE.md § Kodestil 2026-07-10. Wrapper som concatenerer en hardkodet utility FØR caller-s `className` taper i CSS-spesifisitet (f.eks. `max-w-[80vw]` mister mot intern `max-w-lg`). La caller overstyre via regex-fallback: `` className={`w-full ${className}${/\bmax-w-/.test(className) ? "" : " max-w-lg"}`} `` (Modal, `packages/ui/src/modal.tsx`, T7-5b-fix 2026-05-17).
+
 ## @sitedoc/shared — Typer, validering og utils
 
 Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`

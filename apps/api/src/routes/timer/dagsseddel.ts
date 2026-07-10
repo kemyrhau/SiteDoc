@@ -15,7 +15,13 @@ import {
   harGyldigMaskinforerbevis,
   harGyldigMaskinforerbevisBatch,
 } from "../../services/kompetanse/maskinforerbevis";
-import { beregnMaskinBrudd, hhmmTilMin, type MaskinBrudd } from "@sitedoc/shared";
+import {
+  beregnMaskinBrudd,
+  type MaskinBrudd,
+  tilErEtterFra,
+  finnOverlappendeTidsrom,
+  finnTidsromKonflikt,
+} from "@sitedoc/shared";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
 type DagsseddelStatus = (typeof STATUS_VERDIER)[number];
@@ -114,7 +120,11 @@ async function hentEgenDagsseddel(
   const sheet = await (prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer).dailySheet.findUnique({
     where: { id: sheetId },
   });
-  if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+  // M4 (2026-07-10): NOT_FOUND uten melding ga tom feiltekst hos klienten. Alle
+  // 14 kallesteder (hentMedId/oppdater/tilfoy*/oppdater*/fjern*/send/gjenaapne/
+  // slett) propagerer feilen til tRPC uten å mappe på tom melding (verifisert:
+  // eneste catch i fila på helper-veien er opprett-P2002, som ikke rører denne).
+  if (!sheet) throw new TRPCError({ code: "NOT_FOUND", message: "Dagsseddelen finnes ikke" });
 
   // Eierskap: kun den som sedelen tilhører, eller admin/firmaadmin
   if (sheet.userId !== ctxUserId) {
@@ -379,11 +389,8 @@ function refineFraForTil(
   val: { fraTid?: string | null; tilTid?: string | null },
   ctx: z.RefinementCtx,
 ): void {
-  if (
-    val.fraTid &&
-    val.tilTid &&
-    hhmmTilMin(val.tilTid) <= hhmmTilMin(val.fraTid)
-  ) {
+  // Delt regel (@sitedoc/shared) — samme funksjon som syncBatch bruker (SYNC-2).
+  if (!tilErEtterFra(val.fraTid, val.tilTid)) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
       message: "Til-tid må være etter fra-tid",
@@ -412,8 +419,6 @@ async function sjekkTimerOverlapp(
 ): Promise<void> {
   if (!nyFra || !nyTil) return;
   const tx = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
-  const nyF = hhmmTilMin(nyFra);
-  const nyT = hhmmTilMin(nyTil);
   const andre = await tx.sheetTimer.findMany({
     where: {
       sheetId,
@@ -424,17 +429,13 @@ async function sjekkTimerOverlapp(
     },
     select: { fraTid: true, tilTid: true },
   });
-  for (const r of andre) {
-    if (!r.fraTid || !r.tilTid) continue;
-    const f = hhmmTilMin(r.fraTid);
-    const t = hhmmTilMin(r.tilTid);
-    // Strengt overlapp: berøring i endepunkt teller ikke.
-    if (nyF < t && nyT > f) {
-      throw new TRPCError({
-        code: "BAD_REQUEST",
-        message: `Tidsrommet overlapper en annen rad (${r.fraTid}–${r.tilTid}) på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.`,
-      });
-    }
+  // Delt regel (@sitedoc/shared) — samme overlapp-definisjon som syncBatch.
+  const overlapp = finnOverlappendeTidsrom(nyFra, nyTil, andre);
+  if (overlapp) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Tidsrommet overlapper en annen rad (${overlapp.fraTid}–${overlapp.tilTid}) på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.`,
+    });
   }
 }
 
@@ -1321,13 +1322,22 @@ export const dagsseddelRouter = router({
     .mutation(async ({ ctx, input }) => {
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
 
+      // M4 (2026-07-10): distinkte koder for de tre avvisningene så klienten
+      // kan mappe på e.data.code i stedet for delstreng på meldingen. Meldingene
+      // er UENDRET (web-onError leser fortsatt e.message.includes("godkjent")).
+      // accepted → CONFLICT, annen ikke-sent-status → BAD_REQUEST, attestert
+      // rad → PRECONDITION_FAILED (under).
       if (sheet.status !== "sent") {
+        if (sheet.status === "accepted") {
+          throw new TRPCError({
+            code: "CONFLICT",
+            message:
+              "Dagsseddelen er allerede godkjent av leder — kontakt leder for endring",
+          });
+        }
         throw new TRPCError({
-          code: "PRECONDITION_FAILED",
-          message:
-            sheet.status === "accepted"
-              ? "Dagsseddelen er allerede godkjent av leder — kontakt leder for endring"
-              : `Kan ikke gjenåpne dagsseddel med status «${sheet.status}»`,
+          code: "BAD_REQUEST",
+          message: `Kan ikke gjenåpne dagsseddel med status «${sheet.status}»`,
         });
       }
 
@@ -3228,6 +3238,11 @@ export const dagsseddelRouter = router({
                 aktivitetId: z.string().uuid(),
                 externalCostObjectId: z.string().uuid().nullable().optional(),
                 timer: z.number().min(0).max(24),
+                // SYNC-2 (2026-07-10): fra/til per rad — MÅ deklareres her ellers
+                // stripper Zod dem (T4-d koblet kun lese-/online-siden, aldri
+                // sync-skrivesiden → tider ført på web ble slettet ved mobilsynk).
+                fraTid: z.string().nullable().optional(),
+                tilTid: z.string().nullable().optional(),
                 // T.12: fritekst per rad («hva jeg gjorde»).
                 beskrivelse: z.string().nullable().optional(),
                 // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
@@ -3253,6 +3268,9 @@ export const dagsseddelRouter = router({
                   timer: z.number().min(0).max(24),
                   mengde: z.number().min(0).nullable().optional(),
                   enhet: z.string().max(20).nullable().optional(),
+                  // SYNC-2: fra/til per maskin-rad (datatap-fiks, samme som timer).
+                  fraTid: z.string().nullable().optional(),
+                  tilTid: z.string().nullable().optional(),
                 }),
               )
               .default([]),
@@ -3264,9 +3282,15 @@ export const dagsseddelRouter = router({
       const orgId = await krevBrukersOrg(ctx.userId);
       await krevTimerAktivert(orgId);
 
+      // SYNC-1 (2026-07-10): `avvist` = permanent avvisning klienten ikke kan
+      // rette via retry (P2002-duplikat, katalog-mismatch, maskin>arbeid,
+      // FORBIDDEN — og fra SYNC-2 overlapp/`fra<til`). Mobil gjør `avvist`
+      // terminal (forlater pending, rødt banner). `feilet` = transient (behold
+      // pending, retry neste tick). Bakoverkompat: eldre klient (#37) faller til
+      // else på ukjent `avvist` og beholder pending — samme som dagens oppførsel.
       type ResultatRad = {
         clientUuid: string;
-        resultat: "ok" | "conflict" | "feilet";
+        resultat: "ok" | "conflict" | "avvist" | "feilet";
         serverData?: {
           id: string;
           status: DagsseddelStatus;
@@ -3290,7 +3314,7 @@ export const dagsseddelRouter = router({
             if (eksisterende.userId !== ctx.userId) {
               resultater.push({
                 clientUuid: lokal.clientUuid,
-                resultat: "feilet",
+                resultat: "avvist",
                 feilmelding: "Dagsseddel eies av annen bruker",
               });
               continue;
@@ -3298,7 +3322,7 @@ export const dagsseddelRouter = router({
             if (eksisterende.organizationId !== orgId) {
               resultater.push({
                 clientUuid: lokal.clientUuid,
-                resultat: "feilet",
+                resultat: "avvist",
                 feilmelding: "Dagsseddel tilhører annet firma",
               });
               continue;
@@ -3351,7 +3375,7 @@ export const dagsseddelRouter = router({
           if (!aktivitet) {
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: "Aktivitet finnes ikke i firmaets katalog",
             });
             continue;
@@ -3390,7 +3414,7 @@ export const dagsseddelRouter = router({
           if (lonnsartTreff.length !== lonnsartIder.length) {
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: "En eller flere lønnsarter finnes ikke i firmaets katalog",
             });
             continue;
@@ -3398,7 +3422,7 @@ export const dagsseddelRouter = router({
           if (aktivitetIRaderTreff.length !== aktivitetIderIRader.length) {
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: "En eller flere aktiviteter finnes ikke i firmaets katalog",
             });
             continue;
@@ -3406,7 +3430,7 @@ export const dagsseddelRouter = router({
           if (tilleggTreff.length !== tilleggIder.length) {
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: "Et eller flere tillegg finnes ikke i firmaets katalog",
             });
             continue;
@@ -3466,6 +3490,43 @@ export const dagsseddelRouter = router({
           const innkommendeStatus =
             lokal.status === "accepted" ? "sent" : lokal.status;
 
+          // SYNC-2 (2026-07-10): fra<til + overlapp-vakt på timer-radene FØR
+          // createMany. Web-mutasjonene (tilfoyTimerRad/oppdaterTimerRad) hadde
+          // vakten; synkveien omgikk den. Overlapp sjekkes INNAD i settet —
+          // syncBatch erstatter alle rader (deleteMany+createMany), så
+          // post-state = eksakt lokal.timer og ingen rad finnes i basen ennå.
+          // Avvisning er permanent (arbeideren må rette) → "avvist" (SYNC-1).
+          const tidsromKonflikt = finnTidsromKonflikt(lokal.timer);
+          if (tidsromKonflikt) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding:
+                tidsromKonflikt.type === "fra_etter_til"
+                  ? `Til-tid må være etter fra-tid (${tidsromKonflikt.rad.fraTid}–${tidsromKonflikt.rad.tilTid}).`
+                  : `Tidsrommet ${tidsromKonflikt.rad.fraTid}–${tidsromKonflikt.rad.tilTid} overlapper ${tidsromKonflikt.annen.fraTid}–${tidsromKonflikt.annen.tilTid} på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.`,
+            });
+            continue;
+          }
+
+          // M5 (2026-07-10): fra<til-vakt på MASKIN-radene FØR createMany. Web-
+          // mutasjonene (maskin.tilfoy/oppdater) har `refineFraForTil`; synkveien
+          // omgikk den (SYNC-2 dekket kun timer-rader). Delt regel (tilErEtterFra,
+          // @sitedoc/shared). Kun fra<til — maskin-vs-maskin-overlapp er egen
+          // BACKLOG-utredning (maskin-rader hører til en timer-rad, overlapp-
+          // sjekkes ikke). Permanent (arbeideren må rette) → "avvist" (SYNC-1).
+          const maskinFraTilFeil = lokal.maskiner.find(
+            (m) => !tilErEtterFra(m.fraTid, m.tilTid),
+          );
+          if (maskinFraTilFeil) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding: `Maskin: til-tid må være etter fra-tid (${maskinFraTilFeil.fraTid}–${maskinFraTilFeil.tilTid}).`,
+            });
+            continue;
+          }
+
           // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
           // syncBatch erstatter alle rader på sedelen — post-state = exakt
           // det som er i lokal.timer + lokal.maskiner. Feil per sedel
@@ -3488,7 +3549,7 @@ export const dagsseddelRouter = router({
           if (syncBrytt.length > 0) {
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: await feilMeldingMaskinOverstiger(syncBrytt),
             });
             continue;
@@ -3558,6 +3619,9 @@ export const dagsseddelRouter = router({
                   externalCostObjectId: t.externalCostObjectId ?? null,
                   vehicleId: t.vehicleId ?? null,
                   timer: t.timer,
+                  // SYNC-2: persister fra/til (før: strippet + utelatt → datatap).
+                  fraTid: t.fraTid ?? null,
+                  tilTid: t.tilTid ?? null,
                   beskrivelse: t.beskrivelse ?? null,
                 })),
               });
@@ -3586,6 +3650,9 @@ export const dagsseddelRouter = router({
                   timer: m.timer,
                   mengde: m.mengde ?? null,
                   enhet: m.enhet ?? null,
+                  // SYNC-2: persister fra/til (datatap-fiks, samme som timer).
+                  fraTid: m.fraTid ?? null,
+                  tilTid: m.tilTid ?? null,
                 })),
               });
             }
@@ -3606,21 +3673,23 @@ export const dagsseddelRouter = router({
           });
         } catch (e) {
           if (e instanceof TRPCError) {
-            // Tilgangsfeil (FORBIDDEN fra verifiserProsjektmedlem) regnes som feilet,
-            // ikke conflict — klienten kan ikke fikse dette med ny pull.
+            // Tilgangsfeil (FORBIDDEN fra verifiserProsjektmedlem) er permanent
+            // — klienten kan ikke fikse dette med retry → `avvist` (SYNC-1).
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: "avvist",
               feilmelding: e.message,
             });
             continue;
           }
           if (e instanceof Prisma.PrismaClientKnownRequestError) {
             // P2002: brudd på unique-constraint (typisk userId+projectId+dato)
-            // — klient har duplisert seddel under tidligere offline-økt
+            // — klient har duplisert seddel under tidligere offline-økt. Permanent
+            // → `avvist` (SYNC-1). Andre Prisma-koder kan være transiente (DB-blip,
+            // deadlock) → `feilet` så de retries.
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: "feilet",
+              resultat: e.code === "P2002" ? "avvist" : "feilet",
               feilmelding:
                 e.code === "P2002"
                   ? "Duplisert dagsseddel for samme dato og prosjekt"

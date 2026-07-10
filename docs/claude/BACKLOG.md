@@ -53,6 +53,8 @@ Verifisert 2026-07-09: `development`- og `preview`-profilene i `apps/mobile/eas.
 
 Verifisert 2026-07-09 via sha1-fingeravtrykk (aldri verdier): `AUTH_GOOGLE_ID`/`_SECRET` + `AUTH_MICROSOFT_ENTRA_ID_ID`/`_SECRET` er **identiske** i `web.env` og `web-redesign.env`; kun `AUTH_SECRET` er egen. Prod-appene har `redesign.sitedoc.no` som gyldig redirect-URI → tillits-kobling mellom demo og prod. **Fiks:** egne app-registreringer for redesign (egen redirect-URI, samtykkeskjerm «SiteDoc Demo») + **fjern de to redesign-redirect-URIene fra prod-appene etterpå** — ellers står tillits-koblingen. (fabel-godkjent 2026-07-09.)
 
+**Konsekvens for kontokobling ved egne app-registreringer (verifisert 2026-07-10):** web-veien (Auth.js `MicrosoftEntraID`-provider i `apps/web/src/auth.ts`) setter `providerAccountId` fra ID-tokenets `sub` — **pairwise per app-registrering** (samme Entra-bruker får ulik `sub` per klient-ID). Mobil-veien (`apps/api/src/routes/mobilAuth.ts`, `MICROSOFT_USERINFO_URL` → `graph.microsoft.com/v1.0/me`, `providerAccountId: data.id`) bruker Graph `oid` (GUID) — **app-registrering-uavhengig**. Splitter du ut egne app-registreringer for redesign, får hver web-bruker en **ny `accounts`-rad** (nytt `sub`); «allerede koblet konto»-veien i adgangsvakten (`koblet`-oppslaget i `auth.ts`) treffer ikke, og innslippet faller tilbake på org-medlemskap (`role === "sitedoc_admin"` / `organizationMembers` / `projects`) — en kunde uten OrganizationMember/ProjectMember avvises ved første redesign-innlogging. **Mobil er upåvirket** (oid er stabil på tvers av registreringer).
+
 ### ✅ salsaklubb: eget nett + egen postgres — UTFØRT 2026-07-09
 
 Egen `postgres:16` (`salsaklubb-postgres`, tjenestenavn `postgres` slik at `DATABASE_URL` traff uendret), eget nett `salsanet`, volum `salsa_pgdata`, ingen host-port. Ingress gikk allerede via host-port `127.0.0.1:3200` + cloudflared, ikke via `appnet` → null nedetid. Frigjorde 10 tilkoblinger og fjernet lateral tilgang til SiteDocs postgres/api/ML. `sendfil` var mønsteret.
@@ -87,7 +89,7 @@ Oppdaget 2026-07-07 (Plan 2 nyNavigasjon-migrering). `prisma migrate status` mot
 
 ### 🟡 `pauseVinduFra` midnatt-wrap ved direkte nattskift-rad
 
-`pauseVinduFra(skiftStart, etterTimer)` (`apps/mobile/src/utils/pauseBeregning.ts`) clamper via `minTilHhmm` til 23:59 samme dag. For nattskift som registreres **direkte** på en enkeltrad (Legg til/Rediger timer-rad) med skiftstart sent på kvelden vil pausevinduet regne feil: 21:00 + 4t = 25:00 → clampes til **23:59** i stedet for å wrappe til **01:00**. Gjelder **kun** enkeltrad-modalens pause-fradragsvisning; **1b auto-utkast er upåvirket** — det går klokka per segment med segmentets egen skiftstart, så nattskift-vinduet reconciler riktig der. Fiks: la `pauseVinduFra` wrappe over midnatt (mod 1440) i stedet for clamp, og la overlapp-beregningen håndtere døgn-kryssende vindu. Lav prioritet (arbeider på nattskift setter uansett tider manuelt). Flagget 2026-07-08 under pause-modell-omlegging (Piece 1).
+`pauseVinduFra(skiftStart, etterTimer)` (`@sitedoc/shared/utils/pauseBeregning.ts`) clamper via `minTilHhmm` til 23:59 samme dag. For nattskift som registreres **direkte** på en enkeltrad (Legg til/Rediger timer-rad) med skiftstart sent på kvelden vil pausevinduet regne feil: 21:00 + 4t = 25:00 → clampes til **23:59** i stedet for å wrappe til **01:00**. Gjelder **kun** enkeltrad-modalens pause-fradragsvisning; **1b auto-utkast er upåvirket** — det går klokka per segment med segmentets egen skiftstart, så nattskift-vinduet reconciler riktig der. Fiks: la `pauseVinduFra` wrappe over midnatt (mod 1440) i stedet for clamp, og la overlapp-beregningen håndtere døgn-kryssende vindu. Lav prioritet (arbeider på nattskift setter uansett tider manuelt). Flagget 2026-07-08 under pause-modell-omlegging (Piece 1).
 
 ### 🟡 nyNav sticky-flag — develop-halvdel FIKSET 2026-07-09, prod venter deploy
 
@@ -118,6 +120,26 @@ pauseOverlapp-transparens + R4 T.5-runding) **implementert 2026-07-09** direkte
 på develop. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
 **Alle D1–D8 + bolk (d) dermed levert — D9 + GPS + to opprydnings-rader (under) gjenstår.**
 
+**Prod-blokkere på mobilens offline-synkvei (verifisert 2026-07-10, bolk (h) — SYNC-1/SYNC-2 ✅ på develop):**
+
+- **🔴 SYNC-1 — avvist offline-rad blir usynlig «venter på synk».** Når `syncBatch` (`apps/api/src/routes/timer/dagsseddel.ts`) returnerer `resultat: "feilet"` for en sedel, beholder else-grenen i `apps/mobile/src/services/timerSync.ts` (kommentaren `// "feilet" — behold pending`) `syncStatus = "pending"` uendret. `apps/mobile/app/timer/[id].tsx` viser feil-banneret (rødt, med `feilmelding`) **kun** ved `syncStatus === "conflict"` — en pending-rad viser bare `timer.sync.venterEn` uten feilteksten. `apps/mobile/src/components/TimerSyncStatusBar.tsx` viser pending som `bg-yellow-50` + `ActivityIndicator` (gul spinner). `push.feilet` leses **ingen steder** utenfor `timerSync.ts`. Resultat: arbeideren ser en gul spinner, timene når aldri lederen. Faktiske `"feilet"`-utløsere (ikke overlapp): P2002-duplikat (`"Duplisert dagsseddel for samme dato og prosjekt"`), katalog-mismatch (aktivitet/lønnsart/tillegg ikke i firmaets katalog), `validerMaskinUnderArbeid` (maskin-timer > arbeid-timer), og FORBIDDEN fra `verifiserProsjektmedlem`. **Fiks:** synliggjør `"feilet"` (eget banner + statusbar-tilstand), skill det fra transient nettverksfeil. **✅ LØST develop 2026-07-10 (`d806a367`):** `ResultatRad` utvidet med `"avvist"` (permanent) vs `"feilet"` (transient); mobil gjør `avvist` terminal (`syncStatus="avvist"`, forlater pending) med rødt banner + rødt statusbar-varsel (`tellAvvist`). Bakoverkompat: #37 faller til else → beholder pending.
+
+- **🔴 SYNC-2 — `syncBatch` omgår overlapp- og `fra<til`-vakten.** `sjekkTimerOverlapp` (definert i `apps/api/src/routes/timer/dagsseddel.ts`) kalles fra **nøyaktig to** mutasjoner: `tilfoyTimerRad` og `oppdaterTimerRad`. `refineFraForTil` sitter som `.superRefine(refineFraForTil)` på **fire** input-skjemaer (tilfoy/oppdater timer-rad + maskin.tilfoy/maskin.oppdater) — **ingen av dem er `syncBatch`**. `syncBatch` skriver timer-rader med `tx.sheetTimer.createMany` uten noen av de to vaktene. Kandidatmengde: **13** `sheetTimer.(create|createMany|update|updateMany|upsert)`-treff i `apps/api`, hvorav **to** er dekket av overlapp-vakten (`sheetTimer.create` i `tilfoyTimerRad`, `sheetTimer.update` i `oppdaterTimerRad`). Siden mobilens eneste skrivevei er `syncBatch` (`timerSync.ts` kaller kun `klient.timer.dagsseddel.syncBatch.mutate`), lagres overlappende rader og `til < fra` fra mobil som gyldige og når lederen. **Implementasjons-merknad:** vakten i `syncBatch` må sjekke overlapp **innad i batchen**, ikke bare mot eksisterende server-rader — en offline-økt sender hele dagen i én `createMany`. **Avhengighet:** SYNC-2 må **ikke** landes før SYNC-1. Vakten gjør en overlappende rad til `"feilet"`, og `"feilet"` er i dag usynlig → vakt før synlighet = stille datatap. **✅ LØST develop 2026-07-10 (SYNC-2, denne runden):** overlapp + `fra<til` løftet til `@sitedoc/shared/utils/tidsromValidering.ts` (ren + vitest, 44 tester); `refineFraForTil`/`sjekkTimerOverlapp` kaller den delte regelen. Vakt i `syncBatch` (`finnTidsromKonflikt` batch-intern) FØR `createMany` → avvisning via `"avvist"` (SYNC-1). Berøring i endepunkt tillatt. Vakten dekker kun timer-rader; maskin-vs-maskin forblir utredning under.
+
+- **🟡 FORBIDDEN klassifiseres nå permanent (`"avvist"`) — vurder tredje tilstand.** SYNC-1 flyttet FORBIDDEN fra `verifiserProsjektmedlem` fra stille retry til permanent `"avvist"`. Tidligere «helbredet» dette seg selv: retryen gikk til lederen la arbeideren inn i prosjektet igjen, så synket sedelen. Nå får arbeideren en rød melding som ber ham rette noe **han ikke kan rette selv** (prosjektmedlemskap styres av leder). Vurder en tredje tilstand: *synlig, men fortsatt retry-bar* (arbeideren ser at noe henger, men den løses uten hans handling når lederen fikser tilgangen). **NB — annet lag:** den eksisterende `403 transient`-raden (`krevTimerAktivert`, hele batchen kastes) er ikke samme sak; dette gjelder per-sedel FORBIDDEN på rad-tilgang.
+
+- **🟡 Timer-synk retry-er transiente feil uten backoff og uten tak.** `SYNC_INTERVAL_MS = 30 * 1000` i `TimerSyncProvider.tsx` — synken kjører mens appen er aktiv + online + innlogget, pluss ved foreground/online-overgang (init-`useEffect` + intervall). Samme fil har **0 treff** på `maxRetry`/`backoff`/`retryCount`. Til sammenligning har `OpplastingsKoProvider` eksponentiell backoff + maks 5 forsøk (dokumentert i `mobil.md`). En sedel som serveren returnerer `resultat: "feilet"` for, forblir `syncStatus = "pending"` og re-sendes hver 30s-tick i det uendelige — `"avvist"` (SYNC-1) forlater køen (terminal), `"feilet"` gjør det ikke. Ufarlig for data (idempotent upsert), men en permanent transient-årsak (f.eks. vedvarende 5xx) gir stille evig polling uten synlig «gir opp»-signal. **Avgrensning:** dette er **ikke** samme sak som § «Sync-gift-isolasjon → 403/hele-batch-stall»-raden under (`krevTimerAktivert` kaster FORBIDDEN **før** per-item-loopen, så hele batchen stopper); dette gjelder **per-item** `"feilet"` inne i `anvendSvar`. Fiks-forslag: backoff + tak, eller et «sync henger»-signal etter N mislykkede tick.
+
+- **🔴→✅ Deployet datatap: `syncBatch` slettet fra/til ført på web (T4-d halvkoblet).** `syncBatch` gjør `deleteMany({ where: { sheetId } })` + `createMany` per sedel (full erstatning). Samtidig **droppet** den `fraTid`/`tilTid`: input-Zod-skjemaet deklarerte dem ikke (strippet), og begge `createMany` utelot dem. En sedel der fra/til ble ført **på web** mistet derfor tidene i det øyeblikket arbeideren synket samme sedel fra telefonen. T4-d (2026-05-16) koblet kun lesesiden (`hentEndringerSiden`) + online-mutasjonene (`tilfoyTimerRad`/`oppdaterTimerRad`), aldri sync-skrivesiden. Kolonnene (`SheetTimer.fraTid`/`tilTid`, `SheetMachine.fraTid`/`tilTid`) fantes hele tiden. **✅ Fikset i SYNC-2 (denne runden):** `fraTid`/`tilTid` lagt i `syncBatch` input-skjema (timer + maskin) + begge `createMany` — ingen Prisma-migrering. Prod-data var testdata.
+
+- **🟡 Mobil mangler webs proaktive gjenåpne-guard (M4-oppfølger).** Web (`apps/web/src/app/dashbord/timer/[id]/page.tsx`) utleder `harAttestertRad` fra rad-data (`attestertStatus === "attestert"` på timer/tillegg/maskin) og **deaktiverer gjenåpne-knappen** (`disabled={harAttestertRad}`) + viser `timer.gjenaapne.laastAttestert` som hjelpetekst — arbeideren ser en låst knapp, ikke en feilmelding. Mobil kan ikke speile dette i dag: den lokale timer-tabellen har **ingen `attestertStatus`-kolonne** (kandidatmengde: grep på `attestertStatus` i hele `apps/mobile` — feltet finnes i **én** fil, `apps/mobile/src/components/timer-attestering/AttesteringDetaljMobil.tsx`, som leser server-data, ikke lokal SQLite). En proaktiv guard krever derfor **SQLite-migrering** (ny kolonne på `sheet_timer_local` m.fl.) + sync-utvidelse som pull-er `attestertStatus` ned. M4 (2026-07-10) løste feilmeldingen (distinkte koder + `laastAttestert`-tekst i `[id].tsx`), men arbeideren får fortsatt en feilmelding **etter** klikk der web viser en deaktivert knapp **før** klikk.
+
+- **🟡 `dagsseddel.ts` har 16 `NOT_FOUND` uten `message` — tRPC fyller da med kodestrengen «NOT_FOUND».** M4 innførte mønsteret «vis serverens `e.message`» på klienten. Da blir en meldingsløs `NOT_FOUND` vist som den rå koden «NOT_FOUND» til brukeren. Kandidatmengde (grep i `apps/api/src/routes/timer/dagsseddel.ts`): 24 treff på `code: "NOT_FOUND"` totalt — **1** enkeltlinje med melding (`gjenaapneDagsseddel`s helper, satt i M4), **7** multi-linje som alle har `message:` på neste linje, og **16** enkeltlinje `throw new TRPCError({ code: "NOT_FOUND" });` **uten** melding. Bør gi de 16 menneskelige meldinger (rad ikke funnet / vedlegg ikke funnet / sedel ikke funnet, avhengig av kontekst). Ikke-blokkerende. Tas i M5-commiten.
+
+- **🟡 `Alert.alert` er mobilens bekreftelses-idiom — bør samles i én delt RN-komponent hvis e2e innføres.** Kandidatmengde: `grep -rn "Alert.alert" apps/mobile --include=*.tsx | wc -l` = **33** treff over **12** filer (inkl. `slettSedel()` + `gjenaapne()` i `timer/[id].tsx`, M7 2026-07-10). *(Rettet fra 32 → 33: 32 ble talt i M7-Steg-0, FØR M7-commiten selv la til `gjenaapne()`-Alerten — pre-endrings-tallet ble bakt inn i den opprinnelige M7-commiten. Fil-tallet 12 uendret: `timer/[id].tsx` hadde alt `slettSedel`s Alert.)* CLAUDE.md § Slett-bekreftelse i UI forbyr `confirm()` i web fordi det blokkerer browser-automatisering; regelen er **ikke** skrevet for React Native, og `Alert.alert` er derfor tillatt på mobil i dag. **Men:** innfører vi e2e-testing på mobil (Detox/Maestro), får native `Alert.alert`-dialoger samme problem — de må drives via egne enhets-API-er og kan ikke inspiseres i JS. Da bør de 33 samles i én delt RN-bekreftelseskomponent (en `<Modal>`-basert, testbar via vanlige queries). **Ikke nå** — ingen kjent e2e-plan i dag. Egen opprydding.
+
+- **🟡 `apps/mobile/src/providers/index.tsx` forgrener på `message?.includes("UNAUTHORIZED")` — samme feilklasse M4 fikset.** Substring-matching på tRPC-feilmelding i stedet for `e.data?.code`. Kandidatmengde: `apps/mobile/app` + `apps/mobile/src`, `*.ts`/`*.tsx`, søkt på `.message`, `.includes(`, `instanceof Error`, `indexOf`, `startsWith`, `match` — **to** steder forgrener UI-logikk på meldingsinnhold: `timer/[id].tsx` (`"godkjent"`, fikset i M4) og dette (`"UNAUTHORIZED"`). Resten viser bare `e.message` eller setter generisk fallback. Bør mappe på `e.data?.code === "UNAUTHORIZED"` for robusthet mot meldingsendring/oversettelse.
+
 **Bekreftede kjente divergenser (Kenneth-testing 2026-07-08):**
 
 - **D1 — Ny dagsseddel på opptatt dato.** Mobil `finnEllerOpprettDagsseddel`
@@ -139,7 +161,7 @@ på develop. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
 
 - **D3 — Ingen pause-bevisst tidsberegning på web timer-rad.** Mobil auto-synker
   fra/til ↔ antall med pausefradrag (`effektiveTimerFraSpenn`/`tilFraAntall`,
-  `apps/mobile/src/utils/pauseBeregning.ts`) + validerer antall = spenn − pause.
+  `@sitedoc/shared/utils/pauseBeregning.ts`) + validerer antall = spenn − pause.
   Web-arbeider skriver kun antall direkte. Logikken er i dag **mobil-only** —
   må løftes til `@sitedoc/shared` (som `utils/maskinKapasitet.ts`) for web-gjenbruk.
   **✅ Bolk (a):** løftet til `@sitedoc/shared/utils/pauseBeregning.ts`; web
@@ -218,8 +240,9 @@ mobil har prosjekt i hver rad-modal.
   R3 pauseOverlapp-transparenslinje (`timer.pauseFradrag`, eksisterende nøkkel),
   R4 `rundTilNarmeste` (T.5) ved commit + picker-`step`. Kilde `hentArbeidstidDefaults`
   (eksponerer alt inkl. `tidsrundingMinutter` — ingen ny query). Ingen ny i18n.
-- **Separat:** D9 (sesong-dagsnorm) + GPS-geoforslag (egen rad under) + to
-  opprydnings-rader (maskin-rad-prefill-avvik + pauseBeregning-duplikat, under).
+- **Separat:** D9 (sesong-dagsnorm) + GPS-geoforslag (egen rad under) +
+  opprydnings-raden maskin-rad-prefill-avvik (under). (pauseBeregning-duplikat
+  ✅ M2 2026-07-10.)
 
 ### 🟡 Timer web: GPS-geoforslag ved ny dagsseddel (splittet fra D7, 2026-07-09)
 
@@ -244,19 +267,22 @@ Divergensen er kosmetisk (kun forhåndsvalg — bruker kan justere). **B4 vedtat
 arbeidsspenn (første rads `fraTid` → siste rads `tilTid`). Mobil skal løftes til
 denne regelen (ikke omvendt). **Bundet til neste EAS-batch** sammen med mobil B1–B3.
 
-### 🟢 `pauseBeregning.ts` duplisert (mobil + shared) — mobil importerer sin egen kopi
+### ✅ `pauseBeregning.ts` duplisert (mobil + shared) — DEDUP GJORT develop 2026-07-10 (M2)
 
-Etter bolk (a) finnes pause-beregningen to steder: `packages/shared/src/utils/pauseBeregning.ts`
-(kanonisk, web bruker den via `@sitedoc/shared`) og `apps/mobile/src/utils/pauseBeregning.ts`
-(mobil importerer fortsatt sin egen — `TimerSeksjon.tsx:45`, `MaskinSeksjon.tsx`).
-Samme funksjoner (`pauseVinduFra`/`hhmmTilMin`/`pauseOverlappMin`/`effektiveTimerFraSpenn`/
-`tilFraAntall`/`DEFAULT_PAUSE_ETTER_TIMER`). **Risiko realisert:** `tilFraAntall`-
-grensefeilen (rad starter ved/inne i pausevindu → pausen hoppes over, ikke lenger
-invers av `effektiveTimerFraSpenn`) ble fikset i shared (`10622ee3`, bolk (e)), men
-**mobil-kopien har fortsatt feilen** — divergens er nå faktum, ikke bare risiko.
-Dedup: la mobil importere fra `@sitedoc/shared` og slett mobil-kopien (verifiser at
-Metro-bundleren tar shared-pakken). **Bundet til neste EAS-batch** (mobil-endring).
-Bør gjøres før neste pause-endring.
+Etter bolk (a) fantes pause-beregningen to steder: `packages/shared/src/utils/pauseBeregning.ts`
+(kanonisk, web brukte den via `@sitedoc/shared`) og en egen mobil-kopi som `TimerSeksjon.tsx`
+importerte lokalt. `tilFraAntall`-grensefeilen (rad starter ved/inne i pausevindu → pausen
+hoppes over, ikke lenger invers av `effektiveTimerFraSpenn`) ble fikset i shared (`10622ee3`,
+bolk (e)), men mobil-kopien fikk aldri fiksen → reell, målt divergens.
+
+**✅ GJORT (M2, develop 2026-07-10):** Målt divergens først med `diff` — mobil-kopien hadde
+`fraMin >= pauseFraMin` der shared har `fraMin >= pauseSlutt`, og manglet
+`Math.max(0, pauseFraMin - fraMin)`. Konsekvens: feil pausefradrag når raden startet ved eller
+inne i pausevinduet. Eneste konsument var `TimerSeksjon.tsx` (`import { … } from "@sitedoc/shared"`
+etter fiksen); den tidligere antakelsen om at `MaskinSeksjon` også importerte kopien var feil —
+den henter bare `maskinBucketKapasitet`/`overstigerMaskinTak` fra shared. Importen redigert til
+`@sitedoc/shared`, mobil-kopien slettet (0 gjenværende referanser). Metro-oppløsning bevist
+(~9 andre `@sitedoc/shared`-importer i mobil). **Mobil-UI via neste EAS-batch.**
 
 ### 🟡 Mobil maskin/timer-rad: B1–B4 pause-paritet (bolk (e) mobil-halvdel) — neste EAS-batch
 
@@ -272,22 +298,33 @@ Mobil gjenstår og er **bundet til neste EAS-batch** (kvotebegrenset — ikke fy
   gjelder `MaskinSeksjon`.
 - Bruk `standardPauseMin` (setting), ikke `sheet.pauseMin`, for spennfradraget (som web).
 
-### 🟡 Mobil: bolk (g) — overlapp-vakt + `fra<til` + prefill-scope + 0==0 (neste EAS-batch)
+### 🟢 Mobil: bolk (g) — KOMPLETT (M3 + M6) — overlapp-vakt + `fra<til` + prefill-scope + 0==0 (neste EAS-batch)
 
-Web fikk bolk (g) 2026-07-09 (server-vakt + klient). Mobil gjenstår og har trolig
-samme hull:
-- **`fra<til`-gyldighet:** mobil har `fraErForTil`-sjekk i `TimerSeksjon` (l. ~673),
-  men verifiser at `MaskinSeksjon` også har den (bolk (e) mobil mangler uansett).
-  Server-superRefine (bolk (g)) fanger nå begge på tvers, så mobil får en tydelig
-  feil uansett — men klient-siden bør speile for UX.
-- **Prefill-scope:** mobil `defaultTider` er **bøtte-scopet** (`eksisterendeRader` =
-  bøttens rader). Bolk (g) løftet web-timer-prefill til **hele sedelen** (seneste
-  `tilTid`). Løft mobil til samme (unngår prefill inn i registrert tidsrom).
-- **0==0-hullet:** speil web — `forventet == antall`-sperren skal først kreve til > fra,
-  og antall = 0 avvises.
-- Overlapp-vakten er **server-side (hard sperre)** og gjelder mobil-innsending
-  allerede; mobil trenger kun klient-side speiling for god UX. **Bundet til neste
-  EAS-batch.**
+Web fikk bolk (g) 2026-07-09 (server-vakt + klient). Alle fire mobil-punkter dekket:
+`fra<til` (M3), overlapp (M3), prefill-scope (M6), 0==0 (allerede vernet). Detaljer under.
+**Verifiseringsnivå:** statisk (typecheck/vitest/web-build) — ikke eksekvert på enhet.
+- **✅ `fra<til`-gyldighet (M3 2026-07-10):** både `TimerSeksjon` og `MaskinSeksjon`
+  blokkerer lagring via delt `tilErEtterFra` (`@sitedoc/shared`) i lagre-handleren
+  (`setFeil(t("timer.feil.sluttForStart"))`). Duplikat-helperen `fraErForTil` slettet.
+- **✅ Prefill-scope (M6 2026-07-10):** mobil `TimerSeksjon.defaultTider.fra` løftet fra
+  bøtte-scopet (`eksisterendeRader`) til **hele sedelen** — seneste `tilTid` over
+  `alleTimerRader`, beregnet som **maks** via `hhmmTilMin` (ikke array-rekkefølge; jf.
+  usortert-prefill-🟡 under). Fallback `effektiv.startTid`. `eksisterendeRader` beholdt
+  for lønnsart/aktivitet-prefill (`defaultValg`, bevisst bøtte-scopet). Samtidig B3-init.
+- **✅ 0==0-hullet:** allerede vernet i mobil — `lagre()` avviser `tall <= 0`
+  (`TimerSeksjon.tsx`, `timer.feil.ugyldigTimer`) FØR B2-sperren, og `tilErEtterFra`
+  krever til > fra. Kombinasjonen `antall=0 && til=fra` når derfor aldri B2.
+- **✅ Overlapp-speiling (M3 2026-07-10):** `TimerSeksjon`s lagre-handler kaller
+  `finnOverlappendeTidsrom` (`@sitedoc/shared`) mot **alle timer-rader på sedelen,
+  på tvers av (projectId, ECO)-bøtter** (egen prop `alleTimerRader` fra sedelens
+  fulle rad-liste i `[id].tsx`, ikke det bøtte-scopede `rader`/`eksisterendeRader`),
+  ekskl. raden som redigeres. Kryss-bøtte er regelen — «én arbeider kan ikke være to
+  steder». **Merk:** etter M6 er `defaultTider.fra` (fra-tid-prefill) også hele-sedel-
+  scopet (`alleTimerRader`, maks tilTid); kun lønnsart/aktivitet-prefill (`defaultValg`)
+  er fortsatt bøtte-scopet (`eksisterendeRader`) — bevisst (fag-kontinuitet per bøtte).
+  Blokkerer lagring med `timer.feil.overlapp` (samme ordlyd som
+  `syncBatch`-avvisningen). Server-vakten (`syncBatch` via `finnTidsromKonflikt`,
+  SYNC-2) er nettet under. Kun timer-rader (maskin = egen 🟡). **Bundet til neste EAS-batch.**
 
 ### 🟡 Maskin-vs-maskin-overlapp — utredning (rapportert under bolk (g), 2026-07-09)
 
@@ -298,6 +335,31 @@ per maskin) kan ikke samme arbeider kjøre to maskiner samtidig → overlappende
 er arguably like ugyldige som overlappende timer-rader. **Utredning for egen runde:** utvid
 vakten til maskin-vs-maskin (og evt. krav om at maskin-spenn ligger innenfor arbeidstimenes
 spenn på sedelen). Ikke kodet i bolk (g) per instruks — Kenneth avgjør semantikken først.
+
+**🟡→✅ `syncBatch` validerte ikke `fra < til` på maskin-rader (funnet under SYNC-2-gaten).**
+SYNC-2 la fra<til + overlapp-vakt (`finnTidsromKonflikt`) på **timer**-radene i `syncBatch`,
+og persisterer nå `fraTid`/`tilTid` også på maskin-rader — men det fantes **ingen** `fra<til`-
+sjekk på maskin-radene på synkveien. Web har den (`maskin.tilfoy`/`maskin.oppdater` →
+`.superRefine(refineFraForTil)`). Før SYNC-2 landet maskin-tidene som NULL på synk; etterpå kunne
+`til < fra` persisteres via mobilsynk. **✅ LØST develop 2026-07-10 (M5):** `syncBatch` kjører nå
+`tilErEtterFra` på `lokal.maskiner` FØR `createMany` → `"avvist"` (SYNC-1). Kun fra<til; maskin-vs-
+maskin-overlapp forblir egen utredning (over).
+
+**🔴 B2 (spenn-validering, `antall == effektiveTimerFraSpenn`) er IKKE håndhevet på serveren.**
+Regelen er **klient-only** på begge flater: web (`MaskinRadDialog`/`TimerRadDialog` `handleSubmit`)
+og mobil (`MaskinSeksjon`/`TimerSeksjon` `lagre()`, maskin fra M5 2026-07-10). Kandidatmengde
+(grep i `apps/api/src`): `effektiveTimerFraSpenn` = **0** treff, `timerAvvik` = **0**, `pauseOverlappMin`
+= **0**. Serveren håndhever kun fra<til (`refineFraForTil`/`finnTidsromKonflikt`) og timer-overlapp —
+aldri antall==spenn. **Konsekvens:** enhver klient (eller en `syncBatch`-payload) kan skrive `antall`
+som ikke stemmer med fra/til-spennet; lønnsgrunnlaget blir feil uten at noe fanger det server-side.
+timer.md B2 er rettet (påstod tidligere «Server-superRefine»). **Hvorfor ikke fikset nå:** `syncBatch`
+erstatter alle rader på sedelen (`deleteMany` + `createMany`), så en `antall == spenn`-vakt der ville
+avvise sedler som inneholder **pre-eksisterende avvikende rader** — timer.md navngir **11** seed-rader
+i `sheet_machines` som avviker. Krever grandfathering (kun nye/endrede rader) eller per-rad
+endringssporing, ikke en flat vakt. Egen runde.
+
+**🟡 B4-prefill (maskin-modal) plukker første/siste bucket-rad uten sortering — begge flater.**
+Både mobil (`MaskinSeksjon.tsx` `defaultTider`: `bucketTimer[0]?.fraTid` / `bucketTimer[bucketTimer.length-1]?.tilTid`, M5 2026-07-10) og web (`page.tsx` `onTilfoyMaskin`: `timerRaderIBucket[0]?.fraTid` / `timerRaderIBucket.at(-1)?.tilTid`) leser første/siste **array-element**, ikke `min(fraTid)`/`max(tilTid)`. SQLite `.all()` (mobil) og Prisma (`include: { timer: true }` uten `orderBy`, web) garanterer **ikke** rekkefølge. Intensjonen i [timer.md § B4](timer.md) er bucketens **arbeidsspenn** → riktig er `min(fraTid)`/`max(tilTid)`. Fører arbeideren timer-radene i ikke-kronologisk rekkefølge, åpner maskin-modalen med fra > til (prefill blir ugyldig; B2/`sluttForStart`-sperren fanger det ved lagring, men UX-en starter feil). **Ikke innført av M5** — arvet fra webs bolk-(d)-prefill. Fiks samlet på begge flater: bytt til `min`/`max` over bucketens timer-rader. **Omfang etter M6 (2026-07-10):** gjelder nå **to** steder — maskin-B4 mobil + web. Et potensielt tredje sted, mobilens **timer**-prefill, brukte samme rekkefølge-avhengige `[...eksisterendeRader].reverse().find()` — **fjernet i M6**, som nå bruker `max`-reduce via `hhmmTilMin`. Kandidatmengde verifisert: `grep "reverse().find" apps/mobile/src apps/mobile/app` = 0 treff i timer-koden etter M6 (eneste gjenværende `.reverse()` er iOS-client-id-parsing i `logg-inn.tsx`, urelatert).
 
 **Verifiserings-note (sitedoc_test):** kjør self-join-audit på `timer.sheet_timer` for å se
 om test-DB har eksisterende overlappende timer-rader (vakten treffer kun ny/redigert rad, så
@@ -512,9 +574,9 @@ jf. [parallell-arbeid-lock.md regel 3/9](parallell-arbeid-lock.md)). Resultat: *
   selv «kjør manuell QA på fagtermer». Sjekk særlig **dagsseddel, lønnsart, faggruppe, byggeplass**
   (domene-spesifikke termer Google Translate ofte bommer på). Ikke-blokkerende.
 
-### 🟢 Mobil Microsoft-auth — BYGGET I EAS-SKY #37 2026-07-01 (venter Azure + Florian-test)
+### 🟢 Mobil Microsoft-auth — BYGGET #37 2026-07-01, AZURE VERIFISERT I DRIFT 2026-07-10 (venter kun Florians device-test)
 
-**Status (2026-07-01):** Kode implementert + gate-verifisert (commit `f8594d1c` develop / merget til main via `bc744f82`). Ekte dedikert Entra public-client-id (`234ca0e0-…`) inn på alle fire eas.json-profiler. Code+PKCE-flyt, knapp-gating, typecheck rent (12 baseline-feil uendret, ingen i auth-filene). `mobilAuth.byttToken` + orphan-guard **urørt**. **Bygget i EAS-sky-bunt #37** (bygg-ID `496b6a63`, status `finished` m/ .ipa, 2026-07-01) → TestFlight. **Gjenstår (Kenneths hånd):** (a) Azure-sjekklista under (dedikert «SiteDoc Mobile»-app, redirect `sitedoc://auth`, public client flows, Graph-scopes) — **MÅ være kjørt før MS-login faktisk virker for Florian**; (b) Florians test i TestFlight-bygget. Lokale bygg forkastet som blindvei (se [eas-build-veileder.md § Fallgruver](eas-build-veileder.md)).
+**Status (2026-07-01):** Kode implementert + gate-verifisert (commit `f8594d1c` develop / merget til main via `bc744f82`). Ekte dedikert Entra public-client-id (`234ca0e0-…`) inn på alle fire eas.json-profiler. Code+PKCE-flyt, knapp-gating, typecheck rent (baseline-feil uendret av auth-arbeidet, ingen i auth-filene; baseline var 12 ved denne målingen 2026-07-01, re-målt til **11** mot origin/develop via `git stash` i SYNC-1-gaten 2026-07-10). `mobilAuth.byttToken` + orphan-guard **urørt**. **Bygget i EAS-sky-bunt #37** (bygg-ID `496b6a63`, status `finished` m/ .ipa, 2026-07-01) → TestFlight. **Azure-appregistreringen er verifisert i drift 2026-07-10** (Kenneths måling: han logget inn i #37 mot **prod** via Microsoft-OAuth). **Florian har allerede logget inn på mobil** (Kenneths måling mot prod 2026-07-10: `florian@amarkussen.no` = `company_admin`, `can_login=true`, medlem A.Markussen AS; to `microsoft-entra-id`-rader i `public.accounts` — én 36-tegns GUID med bindestreker = Graph `oid` (mobil-veien), én 43-tegns uten bindestrek = `sub` (web-veien)). At mobil-veien bruker Graph `oid` **uavhengig av app-registrering** er verifisert i kode: `apps/api/src/routes/mobilAuth.ts` (`MICROSOFT_USERINFO_URL` → `graph.microsoft.com/v1.0/me`, `providerAccountId: data.id`) vs `apps/web/src/auth.ts` (Auth.js `MicrosoftEntraID`-provider → `providerAccountId` fra ID-tokenets `sub`, pairwise per app-registrering). **Gjenstår kun Florians funksjonelle device-test** — utsatt til #38 (etter bolk (h)), se STATUS-AKTUELT § Leveransekanal. Azure-sjekklista under er nå dokumentasjon av det utførte oppsettet, ikke en åpen oppgave. Lokale bygg forkastet som blindvei (se [eas-build-veileder.md § Fallgruver](eas-build-veileder.md)).
 
 **Design (referanse — implementert som beskrevet):**
 
@@ -547,9 +609,51 @@ Knapp-gatingen holder MS skjult til client-id er ekte → PKCE-koden er trygg å
 
 **Lokal dev — ekte Entra client-ID for simulator (funn 2026-07-06) 🟡:** MS-login-flyten *virker* i iOS-simulator (systembrowser + Authenticator OK), men `apps/mobile`s lokale env har placeholder `din-microsoft-client-id-her` som `EXPO_PUBLIC_MICROSOFT_CLIENT_ID` → Entra svarer **AADSTS700016** (app ikke funnet i katalogen). Distinkt fra Azure-sjekklista over (den gjelder EAS-profiler/TestFlight, ikke lokal `.env`). Fiks: registrer/konfigurer en ekte Entra client-ID for lokal dev — enten gjenbruk «SiteDoc Mobile»-appen med lokal redirect-URI lagt til, eller egen dev-app-registrering m/ riktig redirect-URI. **Ikke prioritert** — `dev-login` dekker simulator-testing uten MS.
 
+### 🔴 Prod mangler nivå-1 lønnsart-seed (A.Markussen) — funn 2026-07-09
+
+`seedLonnsartNivaa1` (16 lønnsarter: grunnlønn + overtid + 12 fraværstyper) er aldri kjørt for A.Markussens org. Kun nivå 2 (25 rader) finnes i prod (`seed_nivaa=2`, 0 med `kode`). Ingen ordinær timelønn, ingen `Overtid 50%`/`100%` → arbeider kan ikke føre ordinære timer/overtid med riktig lønnsart, PowerOffice-eksport umulig.
+
+**Rekkefølge er kritisk** — `seedLonnsartNivaa1` setter `erStandardvalg: rad.navn === "Timelønn"` via `createMany` **uten å nullstille andre rader**. Kjøres den mens km har stjerna, får firmaet **to** rader med `er_standardvalg = true` («maks én per org» håndheves kun i `timer.lonnsart.settStandard`, ikke i seeden). Riktig sekvens: (1) fjern stjerna fra `Kilometergodtgjørelse (egen bil)`, (2) opprett/oppdater rader, (3) sett stjerna på riktig ordinær lønnsart — for A.Markussen `120 Timer` (SmartDok-speiling; firmaet har ingen «Timelønn»), generisk «laveste tidbaserte ordinær» for andre firma. Implementeres via generisk `importerKatalog` (`apps/api/src/services/katalog/`) + kunde-fixture + tRPC `admin.importerTimerKatalog` (bak `verifiserSiteDocAdmin`) — idempotent på `kode`, tørrkjøring (`dryRun`) på `sitedoc_test` før prod. Prinsippet «koder aldri i seeden» beholdes: kundedata er fixture, ikke kode.
+
+### 🟡 `importerKatalog` — tre designvalg fra `92f15893` som må verifiseres
+
+Egne valg gjort under implementasjonen, ikke tidligere dokumentert:
+
+- **`matchNavn`-alias i fixture:** fester `kode` på en eksisterende kodeløs rad når SmartDok-navnet avviker fra prod-navnet (f.eks. prod «Innleid arbeidskraft» → SmartDok «Timer innleid arbeidskraft»). **Ikke verifisert mot faktiske prod-navn** — aliasene stammer fra funn-mappingen, ikke egen prod-spørring. Bommer et alias, oppretter importeren **duplikat** i stedet for å feste kode. `dryRun` mot `sitedoc_test` MÅ kjøres og **leses av Kenneth** før prod.
+- **Deaktivering avgrenset til `seedNivaa != null`:** umatchede rader settes `aktiv=false` kun hvis de er seedet — beskytter manuelt opprettede rader (`seedNivaa=null`) mot å bli deaktivert.
+- **⚠️ UTKAST — `type: "avhuking"` på de fem nye enhetstilleggene** (`248/149/153/154/155`) er en **antakelse** (speiler eksisterende `seedTillegg`-konvensjon). `Skifttillegg 30/40/50 %` kan reelt være `antall`. Avklares med Florian før prod-import.
+
+### 🔴 Lønnsart-koder mangler i prod → PowerOffice-eksport umulig — funn 2026-07-09
+
+`Lonnsart.kode` er koblingsnøkkelen mot lønnssystemet. Eksportformatet er `nr | lønnsart | timer` — **PowerOffice matcher på `nr`, ikke navnet.** Prod har 0 koder på 25 lønnsarter.
+
+**Koder er per firma**, aldri i seeden (`@@unique([organizationId, kode])`; A.Markussens katalog er IKKE startpakke for nye kunder). Bekreftet 2026-07-09 (Florian): numrene **eies av A.Markussen**, båret av SmartDok i dag og matchet av PowerOffice → A.Markussens SiteDoc-katalog skal speile SmartDok kode for kode, 1:1, ingen renumerering. Mappingen er ikke 1:1 på navn (`120 Timer`→`Timelønn`, `170 Overtid 50%`→`Overtid 50%`, `129 Timer innleid arbeidskraft`→`Innleid arbeidskraft` osv.). Kilde for de 26 kodene: [smartdok-undersokelse.md § 4.1](smartdok-undersokelse.md).
+
+**Aktiviteter (Del 3-verifisert prod 2026-07-09):** kun `ANL Anleggsarbeid` har referanser (6 `sheet_timer` + 8 `daily_sheets`, `RESTRICT`) → oppdater in-place `kode='11'`, aldri slett/erstatt. `Ekstra`→`15`, `Garanti/Reklamasjon`→`14` (0 referanser, trygg oppdatering). `GRA Graving`/`RYD Rydding`: **0 referanser**, ingen SmartDok-motpart — beholdes aktive (SiteDoc-spesifikke, blokkerer ikke lønnsfila). **Deaktivering er kostnadsfri hvis Kenneth senere vil ha en katalog identisk med SmartDok — åpent valg, ikke gjeld.**
+
+### 🔴 Ingen validering av at `kode` finnes før attestering/eksport — funn 2026-07-09
+
+`SheetTimer` peker på `lonnsartId`; eksporten må slå opp `kode`. Mangler den, skal det stoppes ved **attestering** — ikke oppdages ved lønnskjøring. `timer.md § Eksport-kode-krav` lover at «eksport-modulen kaster tydelig feilmelding ved eksport-tid» — **den modulen finnes ikke** (eksport-adaptere «❌ Ikke startet»), og valideringen finnes ikke i noen kodevei i dag.
+
+**Kandidatmengde bak «finnes ikke»** (per [dokumentasjons-standard.md](dokumentasjons-standard.md) regel 6): søkt gjennom `apps/api/src` — **0 tRPC-prosedyrer med «eksport» i navnet** (fire filer nevner ordet, men kun som felt `skalEksporteres`/kommentar: `mannskap.ts`, `timer/tillegg.ts`, `timer/lonnsart.ts`, `maskin/equipment.ts`); og `apps/web/src/lib` — `timer-rapport-eksport.ts` er **eneste** eksport-fil (en lederrapport, ingen `kode`-oppslag). Ingen eksport-modul med kode-validering finnes i noen av disse.
+
+### 🔴 Standard-lønnsart plasseres deterministisk feil (③b-fallback velger posisjon, ikke betydning) — funn 2026-07-09
+
+③b-fallbacken (`20260705120000_lonnsart_overtidsnivaa` Steg 2) plasserer standard-lønnsart **deterministisk feil** for enhver org uten nivå-1-seed. Den velger laveste-`rekkefolge` aktive `type = 'ordinaer'`. Men `type = 'ordinaer'` er en **restkategori**: nivå-2-seeden gir den til kilometergodtgjørelse, reisetrinn, skifttillegg, smusstillegg og matpenger. **Verifisert i prod 2026-07-09:** A.Markussen fikk `Kilometergodtgjørelse (egen bil)` (`rekkefolge 5`, laveste aktive ordinaer siden reisetrinnene `rekkefolge 1–4` er `aktiv=false`) som auto-valgt lønnsart for arbeidstimer. Stjerna kom fra migreringen, ikke fra et klikk — fella er ikke latent, den er **utløst i produksjon**. Backfillen garanterer at feltet er *satt*, ikke at det er *riktig* — og både `timer.md:263` og ③b-raden under beskrev den som en garanti.
+
+Runtime-seeden navne-matcher (`seed/index.ts:64`, `rad.navn === "Timelønn"`), engangs-backfillen posisjons-matcher. Ingen av dem vet hva ordinær arbeidstid *er*. UI-en (`lonnsarter/page.tsx:168`) tegner klikkbar stjerne for **alle** `type === "ordinaer"`, og `sats`/`satsEnhet` settes aldri i seeden → km har heller ingen kilometersats. **Fiks:** semantisk felt på `Lonnsart` (samme grep som `overtidsnivaa`: null | tidbasert-ordinær) satt ved import/onboarding, og stjerne-knappen begrenset til rader som bærer det.
+
+### 🟡 Stjerna kan flyttes, aldri fjernes — funn 2026-07-09
+
+`lonnsarter/page.tsx:171`: `if (!rad.erStandardvalg)` — klikk på allerede valgt rad gjør ingenting. `timer.lonnsart.settStandard` har ingen unset-gren. Schemaet tillater at alle er `false`, men ingen kodevei kommer dit.
+
+### 🟡 `seedLonnsartNivaa1` nullstiller ikke eksisterende standardvalg — funn 2026-07-09
+
+Se rekkefølge-fella i «Prod mangler nivå-1 lønnsart-seed» over. Seeden bør enten nullstille andre `erStandardvalg` i samme transaksjon, eller nekte å sette `erStandardvalg` når en annen rad allerede har den.
+
 ### ✅ Org uten standard-lønnsart (③b) — IMPLEMENTERT PÅ DEVELOP 2026-07-05 (web klar for prod, mobil venter EAS-batch)
 
-Data-backfill garanterer nå at hvert firma med ≥1 ordinær lønnsart har en standard (migrering `20260705120000_lonnsart_overtidsnivaa`: foretrekk `Timelønn` seedNivaa=1, ellers laveste-rekkefolge ordinær; kun orgs som mangler standard, NOT EXISTS-guard). Auto-gen gjetter aldri (= B) — standard kommer fra `erStandardvalg`, korrigerbar i firma-konfig. F-G rød banner beholdes for null-ordinære-lønnsarter-tilfellet. Full detalj: [STATUS-AKTUELT § Timer auto-lønnsart ③](STATUS-AKTUELT.md) + [timer.md § Overtid-klassifisering](timer.md).
+Data-backfill garanterer nå at hvert firma med ≥1 ordinær lønnsart har en standard (migrering `20260705120000_lonnsart_overtidsnivaa`: foretrekk `Timelønn` seedNivaa=1, ellers laveste-rekkefolge ordinær; kun orgs som mangler standard, NOT EXISTS-guard). Auto-gen gjetter aldri (= B) — standard kommer fra `erStandardvalg`, korrigerbar i firma-konfig. F-G rød banner beholdes for null-ordinære-lønnsarter-tilfellet. Full detalj: [STATUS-AKTUELT § Timer auto-lønnsart ③](STATUS-AKTUELT.md) + [timer.md § Overtid-klassifisering](timer.md). ⚠️ **Presisering 2026-07-09:** backfillen garanterer at feltet er *satt*, ikke *riktig* — Steg 2 velger laveste-`rekkefolge` aktiv `type="ordinaer"` (posisjon, ikke betydning). I prod ga det A.Markussen `Kilometergodtgjørelse (egen bil)` som standard arbeidstime-lønnsart. Se § «Standard-lønnsart plasseres deterministisk feil» over.
 
 ### ✅ Auto-overtid matchet feil lønnsart på navn (③a) — IMPLEMENTERT PÅ DEVELOP 2026-07-05 (web klar for prod, mobil venter EAS-batch)
 

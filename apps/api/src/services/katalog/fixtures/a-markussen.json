@@ -1,0 +1,54 @@
+{
+  "_meta": {
+    "organisasjon": "A.Markussen AS",
+    "organizationId": "4488fe17-7490-409f-9c1c-2827f257c54d",
+    "kilde": "smartdok-undersokelse.md § 4.1–4.3 + timer-lonnsart-funn-2026-07-09.md",
+    "advarsel": "Dette er A.Markussens EGNE koder. Gjelder KUN organizationId 4488fe17-7490-409f-9c1c-2827f257c54d. Skal ALDRI brukes som startpakke for andre firma — lønnsart-koder er per firma (timer.md § Eksport-kode ved migrering / Prinsipp).",
+    "note": "matchNavn = nåværende prod-navn på kodeløs rad, brukt til å feste kode på eksisterende rad når SmartDok-navnet avviker. Uten matchNavn matches det på navn direkte."
+  },
+  "standardKode": "120",
+  "lonnsarter": [
+    { "kode": "127", "navn": "Fakturerbar tid", "type": "ordinaer" },
+    { "kode": "128", "navn": "Praksistimer", "type": "ordinaer" },
+    { "kode": "129", "navn": "Timer innleid arbeidskraft", "type": "ordinaer", "matchNavn": ["Innleid arbeidskraft"] },
+    { "kode": "120", "navn": "Timer", "type": "ordinaer" },
+    { "kode": "122", "navn": "Reise/transport til/fra prosjekter", "type": "ordinaer", "matchNavn": ["Reise/transport til prosjekter"] },
+    { "kode": "170", "navn": "Overtid 50%", "type": "ordinaer" },
+    { "kode": "175", "navn": "Overtid 100%", "type": "ordinaer" },
+    { "kode": "172", "navn": "OT lærling 50%", "type": "ordinaer", "matchNavn": ["Overtid lærling 50%"] },
+    { "kode": "177", "navn": "OT lærling 100%", "type": "ordinaer", "matchNavn": ["Overtid lærling 100%"] },
+    { "kode": "142", "navn": "Skifttillegg lærling 30%", "type": "ordinaer" },
+    { "kode": "109", "navn": "Timer prosjektleder", "type": "ordinaer" },
+    { "kode": "223", "navn": "Barns sykdom - Fastlønn", "type": "fravaer" },
+    { "kode": "220", "navn": "Egenmelding inntil 3 dager - Fastlønn", "type": "fravaer" },
+    { "kode": "132", "navn": "Ferie m/lønn Fastlønn", "type": "fravaer" },
+    { "kode": "136", "navn": "Permittering u/lønn", "type": "fravaer" },
+    { "kode": "137", "navn": "Permittering m/lønn", "type": "fravaer" },
+    { "kode": "221", "navn": "Sykemelding 1-16 dag - Fastlønn", "type": "fravaer" },
+    { "kode": "130", "navn": "Fravær m/lønn timelønn", "type": "fravaer" },
+    { "kode": "240", "navn": "Bevegelig helligdag timelønn", "type": "fravaer" },
+    { "kode": "225", "navn": "Egenmelding inntil 3 dager Timelønn", "type": "fravaer" },
+    { "kode": "226", "navn": "Sykemelding 1.-16. dag Timelønn", "type": "fravaer" },
+    { "kode": "227", "navn": "Sykemelding fra 17. dag", "type": "fravaer" },
+    { "kode": "228", "navn": "Barns sykdom Timelønn", "type": "fravaer" },
+    { "kode": "135", "navn": "Fravær u/lønn", "type": "fravaer" },
+    { "kode": "131", "navn": "Ferie m/lønn Timelønn", "type": "fravaer" },
+    { "kode": "134", "navn": "Ferie u/lønn", "type": "fravaer" }
+  ],
+  "aktiviteter": [
+    { "kode": "11", "navn": "Anleggsarbeid", "matchNavn": ["ANL Anleggsarbeid", "Anleggsarbeid"] },
+    { "kode": "15", "navn": "Ekstra Arbeid", "matchNavn": ["Ekstra"] },
+    { "kode": "14", "navn": "Garanti/reklamasjon", "matchNavn": ["Garanti/Reklamasjon"] },
+    { "kode": "18", "navn": "Maskintimer" },
+    { "kode": "17", "navn": "Regulering lønn" }
+  ],
+  "tillegg": [
+    { "kode": "248", "navn": "Regulering Lønn", "type": "avhuking", "tvungenKommentar": false },
+    { "kode": "157", "navn": "Kloakk tillegg", "type": "avhuking", "tvungenKommentar": true, "matchNavn": ["Kloakktillegg"] },
+    { "kode": "148", "navn": "Brøyte-beredskap", "type": "avhuking", "tvungenKommentar": false, "matchNavn": ["Brøyteberedskap"] },
+    { "kode": "149", "navn": "Overordnet vakt/beredskap", "type": "avhuking", "tvungenKommentar": false },
+    { "kode": "153", "navn": "Skifttillegg 30%", "type": "avhuking", "tvungenKommentar": false },
+    { "kode": "154", "navn": "Skifttillegg 40%", "type": "avhuking", "tvungenKommentar": false },
+    { "kode": "155", "navn": "Skifttillegg 50%", "type": "avhuking", "tvungenKommentar": false }
+  ]
+}

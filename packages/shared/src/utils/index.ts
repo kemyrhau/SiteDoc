@@ -43,6 +43,13 @@ export {
   effektiveTimerFraSpenn,
   tilFraAntall,
 } from "./pauseBeregning";
+export {
+  tilErEtterFra,
+  tidsromOverlapper,
+  finnOverlappendeTidsrom,
+  finnTidsromKonflikt,
+} from "./tidsromValidering";
+export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.

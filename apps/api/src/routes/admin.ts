@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma, krypter } from "@sitedoc/db";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
 import { hentBrukersOrg } from "../trpc/tilgangskontroll";
+import { importerKatalog } from "../services/katalog/importerKatalog";
 
 /**
  * Verifiser at bruker er SiteDoc-administrator.
@@ -743,4 +744,59 @@ export const adminRouter = router({
 
     return { ok: true as const };
   }),
+
+  // Importer en firmaspesifikk timer-katalog (lønnsarter/aktiviteter/tillegg).
+  // Kun sitedoc_admin — koder er firmaegne og skal aldri i en delt seed.
+  // Kjør ALLTID dryRun=true mot sitedoc_test før prod. Kundedata leveres som
+  // `katalog` (se apps/api/src/services/katalog/fixtures/).
+  importerTimerKatalog: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        katalog: z.object({
+          standardKode: z.string().optional(),
+          lonnsarter: z.array(
+            z.object({
+              kode: z.string(),
+              navn: z.string(),
+              type: z.string(),
+              tvungenKommentar: z.boolean().optional(),
+              matchNavn: z.array(z.string()).optional(),
+            }),
+          ),
+          aktiviteter: z.array(
+            z.object({
+              kode: z.string(),
+              navn: z.string(),
+              matchNavn: z.array(z.string()).optional(),
+              internkostnad: z.number().optional(),
+              prisMotKunde: z.number().optional(),
+            }),
+          ),
+          tillegg: z.array(
+            z.object({
+              kode: z.string(),
+              navn: z.string(),
+              type: z.string(),
+              tvungenKommentar: z.boolean().optional(),
+              matchNavn: z.array(z.string()).optional(),
+            }),
+          ),
+        }),
+        dryRun: z.boolean().default(true),
+        deaktiverUmatchedeLonnsarter: z.boolean().default(true),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+      return importerKatalog(input.organizationId, input.katalog, {
+        dryRun: input.dryRun,
+        deaktiverUmatchede: {
+          lonnsarter: input.deaktiverUmatchedeLonnsarter,
+          aktiviteter: false,
+          tillegg: false,
+        },
+        standardKode: input.katalog.standardKode,
+      });
+    }),
 });

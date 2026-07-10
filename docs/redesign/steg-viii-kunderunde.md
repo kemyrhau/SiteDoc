@@ -152,6 +152,8 @@ som prod. (Samme AADSTS50011-felle som test hvis en URI mangler.)
 > tillits-kobling mellom demo og prod. Fiks: egne app-registreringer for redesign (egen redirect-URI,
 > samtykkeskjerm «SiteDoc Demo») + fjern de to redesign-redirect-URIene fra prod-appene etterpå.
 > Se [BACKLOG § OAuth: redesign holder prods nøkler](../claude/BACKLOG.md).
+>
+> **Kontokobling-konsekvens ved egne redesign-app-registreringer:** web-veien (`apps/web/src/auth.ts`, Auth.js `MicrosoftEntraID`) setter `providerAccountId` fra ID-tokenets `sub` (pairwise per app-registrering) → hver web-bruker får en ny `accounts`-rad på redesign, «allerede koblet konto»-veien treffer ikke, og innslippet faller tilbake på org-medlemskap (kunde uten OrganizationMember avvises ved første innlogging). Mobil-veien (`apps/api/src/routes/mobilAuth.ts`, Graph `oid` via `providerAccountId: data.id`) er upåvirket.
 
 **Steg 5 — rsync + build + up** (Opus kan kjøre native rsync; `sudo docker` = Kenneth):
 ```

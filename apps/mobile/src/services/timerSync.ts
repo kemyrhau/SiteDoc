@@ -25,7 +25,7 @@ import type { trpc } from "../lib/trpc";
  * ============================================================================ */
 
 type SyncResultat = {
-  push: { ok: number; conflict: number; feilet: number };
+  push: { ok: number; conflict: number; avvist: number; feilet: number };
   pull: { mottatt: number };
   feil?: string;
 };
@@ -101,6 +101,26 @@ export function tellConflict(userId: string): number {
 }
 
 /**
+ * Antall avviste dagssedler (SYNC-1) — permanent avvist av server, terminal.
+ * Eksponeres via TimerSyncProvider for rødt statusbar-varsel.
+ */
+export function tellAvvist(userId: string): number {
+  const db = hentDatabase();
+  if (!db) return 0;
+  const rader = db
+    .select({ id: dagsseddelLocal.id })
+    .from(dagsseddelLocal)
+    .where(
+      and(
+        eq(dagsseddelLocal.userId, userId),
+        eq(dagsseddelLocal.syncStatus, "avvist"),
+      ),
+    )
+    .all();
+  return rader.length;
+}
+
+/**
  * Klassifiser en kastet syncBatch-feil for gift-isolering (fiks A).
  * `400` (BAD_REQUEST/Zod) = ugyldig data klienten ikke kan rette via retry →
  * **permanent** (isoler + quarantine kun den giftige sedelen). Alt annet
@@ -126,11 +146,11 @@ export async function syncTimer(
 ): Promise<SyncResultat> {
   const db = hentDatabase();
   if (!db) {
-    return { push: { ok: 0, conflict: 0, feilet: 0 }, pull: { mottatt: 0 } };
+    return { push: { ok: 0, conflict: 0, avvist: 0, feilet: 0 }, pull: { mottatt: 0 } };
   }
 
   const resultat: SyncResultat = {
-    push: { ok: 0, conflict: 0, feilet: 0 },
+    push: { ok: 0, conflict: 0, avvist: 0, feilet: 0 },
     pull: { mottatt: 0 },
   };
 
@@ -167,8 +187,22 @@ export async function syncTimer(
           .where(eq(dagsseddelLocal.id, r.clientUuid))
           .run();
         resultat.push.conflict++;
+      } else if (r.resultat === "avvist") {
+        // SYNC-1: permanent avvisning — terminal. Raden forlater pending
+        // (stopper retry) og settes til "avvist" så [id].tsx + statusbar viser
+        // rødt banner med feilmeldingen. Arbeideren må rette (redigering setter
+        // syncStatus tilbake til "pending") eller slette sedelen.
+        db.update(dagsseddelLocal)
+          .set({
+            syncStatus: "avvist",
+            feilmelding: r.feilmelding ?? "Avvist av server",
+            sistSynkronisert: naa,
+          })
+          .where(eq(dagsseddelLocal.id, r.clientUuid))
+          .run();
+        resultat.push.avvist++;
       } else {
-        // "feilet" — behold pending, lagre feilmelding
+        // "feilet" — transient, behold pending, lagre feilmelding, retry neste tick
         db.update(dagsseddelLocal)
           .set({ feilmelding: r.feilmelding ?? "Ukjent feil" })
           .where(eq(dagsseddelLocal.id, r.clientUuid))
@@ -319,17 +353,18 @@ export async function syncTimer(
               resultat.push.feilet++;
               continue;
             }
-            // Giften isolert → quarantine så den slutter å blokkere køen og
-            // synliggjøres for arbeider (conflict-banneret viser feilmeldingen).
+            // Giften isolert (permanent 400/Zod) → terminal `avvist` (SYNC-1) så
+            // den slutter å blokkere køen og synliggjøres for arbeider med rødt
+            // banner + feilmelding.
             const melding = e2 instanceof Error ? e2.message : "Ugyldig data";
             db.update(dagsseddelLocal)
               .set({
-                syncStatus: "conflict",
+                syncStatus: "avvist",
                 feilmelding: `Kan ikke sendes (ugyldig data): ${melding}`,
               })
               .where(eq(dagsseddelLocal.id, item.clientUuid))
               .run();
-            resultat.push.conflict++;
+            resultat.push.avvist++;
           }
         }
       }
@@ -359,7 +394,9 @@ export async function syncTimer(
       // og syncBatch håndterer push neste gang. (Hvis pending ble pushet,
       // er sync-status nå "synced" eller "conflict" — i begge tilfeller OK
       // å oppdatere fra server.)
-      if (lokal && lokal.syncStatus === "pending") {
+      // SYNC-1: "avvist" er en lokal terminal-tilstand arbeideren må rette eller
+      // slette — pull skal ikke stille resette den til "synced".
+      if (lokal && (lokal.syncStatus === "pending" || lokal.syncStatus === "avvist")) {
         continue;
       }
 

@@ -14,6 +14,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Ny planlagt/deprioritert oppgave | `BACKLOG.md` (ikke STATUS-AKTUELT.md) |
 | Halvferdig feature parkeres | `BACKLOG.md` |
 | Ny prosess-/arbeidsregel | `CLAUDE.md` |
+| Presens-påstand skrives i docs (systemet «gjør» noe) / dokumentasjons-standard endres | `dokumentasjons-standard.md` (referanse eller markør kreves) |
 | Parallell-arbeid / worktree-koordinering / frossen sone endres | `parallell-arbeid-lock.md` |
 | Tvil om hvem gjør hva / meldingsflyt | `SAMARBEIDSREGLER.md` |
 | Ny Cowork-økt trenger arbeidsmåte (kontroll-laget) | `COWORK-KONTROLL-VEILEDER.md` (+ `kontroll-claude-veileder.md`) |

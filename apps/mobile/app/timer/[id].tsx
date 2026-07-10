@@ -355,7 +355,25 @@ export default function DagsseddelDetalj() {
   // UF-4: gjenåpne en sendt sedel for etter-registrering. Online-only — kaller
   // server-mutasjonen direkte (man kan ikke recalle uten å kjenne server-status).
   // Suksess → speil server lokalt (draft, synced). accepted/offline → melding.
+  //
+  // M7 (2026-07-10): bekreftelse før gjenåpning. `gjenaapne()` viser Alert
+  // (mobilens bekreftelses-idiom, samme som slettSedel), `utforGjenaapne()`
+  // kjører mutasjonen. IKKE style: "destructive" — gjenåpning er reversibel
+  // (sedelen sendes bare på nytt), ulikt slettSedel. Gjenbruker webs
+  // bekreft*-nøkler (M4 la dem, brukt kun av web til nå).
   function gjenaapne() {
+    if (!sedel) return;
+    Alert.alert(
+      t("timer.gjenaapne.bekreftTittel"),
+      t("timer.gjenaapne.bekreftTekst"),
+      [
+        { text: t("handling.avbryt"), style: "cancel" },
+        { text: t("timer.gjenaapne.bekreftKnapp"), onPress: utforGjenaapne },
+      ],
+    );
+  }
+
+  function utforGjenaapne() {
     if (!sedel) return;
     setFeil(null);
     gjenaapneMutation.mutate(
@@ -377,11 +395,21 @@ export default function DagsseddelDetalj() {
           lesData();
         },
         onError: (e: unknown) => {
+          // M4 (2026-07-10): map på tRPC-feilkode, ikke delstreng på meldingen.
+          // To kjente koder får egne i18n-tekster; enhver ANNEN kode (BAD_REQUEST
+          // fra ikke-sent-status, FORBIDDEN/NOT_FOUND fra hentEgenDagsseddel, samt
+          // alt fremtidig) viser serverens egen melding. KUN når e.data.code helt
+          // mangler er det en ekte nettverksfeil → «Krever nett».
+          const code = (e as { data?: { code?: string } } | null)?.data?.code;
           const melding = e instanceof Error ? e.message : "";
           setFeil(
-            melding.includes("godkjent")
+            code === "CONFLICT"
               ? t("timer.gjenaapne.feilGodkjent")
-              : t("timer.gjenaapne.feilNett"),
+              : code === "PRECONDITION_FAILED"
+                ? t("timer.gjenaapne.laastAttestert")
+                : code != null
+                  ? melding
+                  : t("timer.gjenaapne.feilNett"),
           );
         },
       },
@@ -567,6 +595,20 @@ export default function DagsseddelDetalj() {
           </View>
         )}
 
+        {sedel.syncStatus === "avvist" && (
+          <View className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
+            <View className="flex-row items-center gap-2">
+              <AlertTriangle size={16} color="#b91c1c" />
+              <Text className="text-sm font-semibold text-red-900">
+                {t("timer.sync.avvist")}
+              </Text>
+            </View>
+            <Text className="mt-1 text-sm text-red-800">
+              {sedel.feilmelding ?? t("timer.sync.avvistBeskrivelse")}
+            </Text>
+          </View>
+        )}
+
         {sedel.syncStatus === "conflict" && (
           <View className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
             <View className="flex-row items-center gap-2">
@@ -704,6 +746,7 @@ export default function DagsseddelDetalj() {
             harMaskinforerbevis={harMaskinforerbevis}
             redigerbar={erRedigerbar}
             timerRader={timerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
+            alleTimerRader={timerRader}
             tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             maskinRader={maskinRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             onEndret={markerEndretOgLes}
@@ -816,6 +859,7 @@ function ProsjektGruppe({
   harMaskinforerbevis,
   redigerbar,
   timerRader,
+  alleTimerRader,
   tilleggRader,
   maskinRader,
   onEndret,
@@ -833,7 +877,10 @@ function ProsjektGruppe({
   harEquipmentCache: boolean;
   harMaskinforerbevis: boolean;
   redigerbar: boolean;
+  /** Prosjekt-scopet (denne gruppens rader) — visning/bøtter. */
   timerRader: TimerRad[];
+  /** M3: sedelens fulle timer-rad-liste (alle prosjekter/ECO), kun overlapp-sjekk. */
+  alleTimerRader: TimerRad[];
   tilleggRader: TilleggRad[];
   maskinRader: MaskinRad[];
   onEndret: () => void;
@@ -950,6 +997,7 @@ function ProsjektGruppe({
               harMaskinforerbevis={harMaskinforerbevis}
               redigerbar={redigerbar}
               timerRader={bucket.timer}
+              alleTimerRader={alleTimerRader}
               maskinRader={bucket.maskin}
               onEndret={onEndret}
             />
@@ -991,6 +1039,7 @@ function EcoBucket({
   harMaskinforerbevis,
   redigerbar,
   timerRader,
+  alleTimerRader,
   maskinRader,
   onEndret,
 }: {
@@ -1005,6 +1054,8 @@ function EcoBucket({
   harMaskinforerbevis: boolean;
   redigerbar: boolean;
   timerRader: TimerRad[];
+  /** M3: sedelens fulle timer-rad-liste (kryss-bøtte), kun til overlapp-sjekk. */
+  alleTimerRader: TimerRad[];
   maskinRader: MaskinRad[];
   onEndret: () => void;
 }) {
@@ -1077,6 +1128,7 @@ function EcoBucket({
         sheetId={sheetId}
         organizationId={organizationId}
         rader={timerRader}
+        alleTimerRader={alleTimerRader}
         projectId={projectId}
         defaultEcoId={ecoId}
         visHeader={false}
