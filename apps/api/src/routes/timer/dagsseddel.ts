@@ -2220,6 +2220,90 @@ export const dagsseddelRouter = router({
       return { antallReturnert: alle.length, returnerSedler: uniqueSheetIds };
     }),
 
+  // F4-2 (2026-07-11): leder angrer en fullført attestering. `attesterRader`
+  // flipper sedelen til "accepted" når alle rader er attestert (:2112), og da
+  // forsvinner attesterings-/retur-handlingene på web (gated på status "sent").
+  // Denne mutasjonen er den rene inversen: reverser HELE attesteringen på
+  // sedel-nivå → status "sent" (tilbake i leder-køen for ny vurdering), alle
+  // rader tilbake til "pending". Adskilt fra rad-retur (`returnerRader`), som er
+  // for delvis flyt UNDER attestering. Speiler auth (unike projectId +
+  // krevProsjektLeder, som returnerRader) og rad-reset (som gjenaapneDagsseddel).
+  gjenaapneAttestering: protectedProcedure
+    .input(z.object({ sheetId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await ctx.prismaTimer.dailySheet.findUnique({
+        where: { id: input.sheetId },
+      });
+      if (!sheet) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Dagsseddelen finnes ikke" });
+      }
+
+      // Precondition: kun en fullført attestering kan gjenåpnes.
+      if (sheet.status !== "accepted") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Kun godkjente dagssedler kan gjenåpnes (status: ${sheet.status})`,
+        });
+      }
+
+      // Leder-auth: samme oppslag som returnerRader — unike projectId fra
+      // sedelens rader, krevProsjektLeder på hver. En accepted-sedel har alltid
+      // rader (ble accepted fordi alle ble attestert); tom sedel → kan ikke
+      // autorisere (speiler hentForAttestering).
+      const [timerRader, tilleggRader, maskinRader] = await Promise.all([
+        ctx.prismaTimer.sheetTimer.findMany({
+          where: { sheetId: sheet.id },
+          select: { projectId: true },
+        }),
+        ctx.prismaTimer.sheetTillegg.findMany({
+          where: { sheetId: sheet.id },
+          select: { projectId: true },
+        }),
+        ctx.prismaTimer.sheetMachine.findMany({
+          where: { sheetId: sheet.id },
+          select: { projectId: true },
+        }),
+      ]);
+      const uniqueProjectIds = Array.from(
+        new Set(
+          [...timerRader, ...tilleggRader, ...maskinRader].map((r) => r.projectId),
+        ),
+      );
+      if (uniqueProjectIds.length === 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Dagsseddel har ingen rader — kan ikke autorisere",
+        });
+      }
+      await Promise.all(
+        uniqueProjectIds.map((pid) => krevProsjektLeder(ctx.userId, pid)),
+      );
+
+      // Reverser attesteringen (samme rad-reset som gjenaapneDagsseddel): alle
+      // rader → "pending", nullstill attestertAvUserId/attestertVed; sedel →
+      // "sent" (tilbake i leder-køen), nullstill sedel-attestering.
+      await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.updateMany({
+          where: { sheetId: sheet.id },
+          data: { attestertStatus: "pending", attestertAvUserId: null, attestertVed: null },
+        }),
+        ctx.prismaTimer.sheetTillegg.updateMany({
+          where: { sheetId: sheet.id },
+          data: { attestertStatus: "pending", attestertAvUserId: null, attestertVed: null },
+        }),
+        ctx.prismaTimer.sheetMachine.updateMany({
+          where: { sheetId: sheet.id },
+          data: { attestertStatus: "pending", attestertAvUserId: null, attestertVed: null },
+        }),
+        ctx.prismaTimer.dailySheet.update({
+          where: { id: sheet.id },
+          data: { status: "sent", attestertVed: null, attestertAvUserId: null },
+        }),
+      ]);
+
+      return { sheetId: sheet.id, status: "sent" as const };
+    }),
+
   // ============================================================================
   //  T7-2b2 — Firma-admin rediger-modus (2026-05-14)
   //
