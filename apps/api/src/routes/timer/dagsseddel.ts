@@ -3509,6 +3509,24 @@ export const dagsseddelRouter = router({
             continue;
           }
 
+          // M5 (2026-07-10): fra<til-vakt på MASKIN-radene FØR createMany. Web-
+          // mutasjonene (maskin.tilfoy/oppdater) har `refineFraForTil`; synkveien
+          // omgikk den (SYNC-2 dekket kun timer-rader). Delt regel (tilErEtterFra,
+          // @sitedoc/shared). Kun fra<til — maskin-vs-maskin-overlapp er egen
+          // BACKLOG-utredning (maskin-rader hører til en timer-rad, overlapp-
+          // sjekkes ikke). Permanent (arbeideren må rette) → "avvist" (SYNC-1).
+          const maskinFraTilFeil = lokal.maskiner.find(
+            (m) => !tilErEtterFra(m.fraTid, m.tilTid),
+          );
+          if (maskinFraTilFeil) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding: `Maskin: til-tid må være etter fra-tid (${maskinFraTilFeil.fraTid}–${maskinFraTilFeil.tilTid}).`,
+            });
+            continue;
+          }
+
           // T7-4b: valider sum(maskin) ≤ sum(timer) per (projectId, ECO).
           // syncBatch erstatter alle rader på sedelen — post-state = exakt
           // det som er i lokal.timer + lokal.maskiner. Feil per sedel

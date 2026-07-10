@@ -134,6 +134,8 @@ på develop. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
 
 - **🟡 Mobil mangler webs proaktive gjenåpne-guard (M4-oppfølger).** Web (`apps/web/src/app/dashbord/timer/[id]/page.tsx`) utleder `harAttestertRad` fra rad-data (`attestertStatus === "attestert"` på timer/tillegg/maskin) og **deaktiverer gjenåpne-knappen** (`disabled={harAttestertRad}`) + viser `timer.gjenaapne.laastAttestert` som hjelpetekst — arbeideren ser en låst knapp, ikke en feilmelding. Mobil kan ikke speile dette i dag: den lokale timer-tabellen har **ingen `attestertStatus`-kolonne** (kandidatmengde: grep på `attestertStatus` i hele `apps/mobile` — feltet finnes i **én** fil, `apps/mobile/src/components/timer-attestering/AttesteringDetaljMobil.tsx`, som leser server-data, ikke lokal SQLite). En proaktiv guard krever derfor **SQLite-migrering** (ny kolonne på `sheet_timer_local` m.fl.) + sync-utvidelse som pull-er `attestertStatus` ned. M4 (2026-07-10) løste feilmeldingen (distinkte koder + `laastAttestert`-tekst i `[id].tsx`), men arbeideren får fortsatt en feilmelding **etter** klikk der web viser en deaktivert knapp **før** klikk.
 
+- **🟡 `dagsseddel.ts` har 16 `NOT_FOUND` uten `message` — tRPC fyller da med kodestrengen «NOT_FOUND».** M4 innførte mønsteret «vis serverens `e.message`» på klienten. Da blir en meldingsløs `NOT_FOUND` vist som den rå koden «NOT_FOUND» til brukeren. Kandidatmengde (grep i `apps/api/src/routes/timer/dagsseddel.ts`): 24 treff på `code: "NOT_FOUND"` totalt — **1** enkeltlinje med melding (`gjenaapneDagsseddel`s helper, satt i M4), **7** multi-linje som alle har `message:` på neste linje, og **16** enkeltlinje `throw new TRPCError({ code: "NOT_FOUND" });` **uten** melding. Bør gi de 16 menneskelige meldinger (rad ikke funnet / vedlegg ikke funnet / sedel ikke funnet, avhengig av kontekst). Ikke-blokkerende. Tas i M5-commiten.
+
 - **🟡 `apps/mobile/src/providers/index.tsx` forgrener på `message?.includes("UNAUTHORIZED")` — samme feilklasse M4 fikset.** Substring-matching på tRPC-feilmelding i stedet for `e.data?.code`. Kandidatmengde: `apps/mobile/app` + `apps/mobile/src`, `*.ts`/`*.tsx`, søkt på `.message`, `.includes(`, `instanceof Error`, `indexOf`, `startsWith`, `match` — **to** steder forgrener UI-logikk på meldingsinnhold: `timer/[id].tsx` (`"godkjent"`, fikset i M4) og dette (`"UNAUTHORIZED"`). Resten viser bare `e.message` eller setter generisk fallback. Bør mappe på `e.data?.code === "UNAUTHORIZED"` for robusthet mot meldingsendring/oversettelse.
 
 **Bekreftede kjente divergenser (Kenneth-testing 2026-07-08):**
@@ -327,14 +329,27 @@ er arguably like ugyldige som overlappende timer-rader. **Utredning for egen run
 vakten til maskin-vs-maskin (og evt. krav om at maskin-spenn ligger innenfor arbeidstimenes
 spenn på sedelen). Ikke kodet i bolk (g) per instruks — Kenneth avgjør semantikken først.
 
-**🟡 `syncBatch` validerer ikke `fra < til` på maskin-rader (funnet under SYNC-2-gaten).**
+**🟡→✅ `syncBatch` validerte ikke `fra < til` på maskin-rader (funnet under SYNC-2-gaten).**
 SYNC-2 la fra<til + overlapp-vakt (`finnTidsromKonflikt`) på **timer**-radene i `syncBatch`,
-og persisterer nå `fraTid`/`tilTid` også på maskin-rader — men det finnes **ingen** `fra<til`-
+og persisterer nå `fraTid`/`tilTid` også på maskin-rader — men det fantes **ingen** `fra<til`-
 sjekk på maskin-radene på synkveien. Web har den (`maskin.tilfoy`/`maskin.oppdater` →
-`.superRefine(refineFraForTil)`). Før SYNC-2 landet maskin-tidene som NULL på synk; nå kan
-`til < fra` persisteres via mobilsynk. **Samme form som SYNC-2:** vakt på web, ikke på sync.
-Fiks: kjør `tilErEtterFra` på `lokal.maskiner` i `syncBatch` (rutes via `"avvist"`). Egen
-runde sammen med maskin-vs-maskin-overlapp over.
+`.superRefine(refineFraForTil)`). Før SYNC-2 landet maskin-tidene som NULL på synk; etterpå kunne
+`til < fra` persisteres via mobilsynk. **✅ LØST develop 2026-07-10 (M5):** `syncBatch` kjører nå
+`tilErEtterFra` på `lokal.maskiner` FØR `createMany` → `"avvist"` (SYNC-1). Kun fra<til; maskin-vs-
+maskin-overlapp forblir egen utredning (over).
+
+**🔴 B2 (spenn-validering, `antall == effektiveTimerFraSpenn`) er IKKE håndhevet på serveren.**
+Regelen er **klient-only** på begge flater: web (`MaskinRadDialog`/`TimerRadDialog` `handleSubmit`)
+og mobil (`MaskinSeksjon`/`TimerSeksjon` `lagre()`, maskin fra M5 2026-07-10). Kandidatmengde
+(grep i `apps/api/src`): `effektiveTimerFraSpenn` = **0** treff, `timerAvvik` = **0**, `pauseOverlappMin`
+= **0**. Serveren håndhever kun fra<til (`refineFraForTil`/`finnTidsromKonflikt`) og timer-overlapp —
+aldri antall==spenn. **Konsekvens:** enhver klient (eller en `syncBatch`-payload) kan skrive `antall`
+som ikke stemmer med fra/til-spennet; lønnsgrunnlaget blir feil uten at noe fanger det server-side.
+timer.md B2 er rettet (påstod tidligere «Server-superRefine»). **Hvorfor ikke fikset nå:** `syncBatch`
+erstatter alle rader på sedelen (`deleteMany` + `createMany`), så en `antall == spenn`-vakt der ville
+avvise sedler som inneholder **pre-eksisterende avvikende rader** — timer.md navngir **11** seed-rader
+i `sheet_machines` som avviker. Krever grandfathering (kun nye/endrede rader) eller per-rad
+endringssporing, ikke en flat vakt. Egen runde.
 
 **Verifiserings-note (sitedoc_test):** kjør self-join-audit på `timer.sheet_timer` for å se
 om test-DB har eksisterende overlappende timer-rader (vakten treffer kun ny/redigert rad, så

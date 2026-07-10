@@ -33,8 +33,13 @@ import {
   externalCostObjectLocal,
 } from "../../db/schema";
 import {
+  DEFAULT_PAUSE_ETTER_TIMER,
+  effektiveTimerFraSpenn,
+  hhmmTilMin,
   maskinBucketKapasitet,
   overstigerMaskinTak,
+  pauseVinduFra,
+  tilFraAntall,
   tilErEtterFra,
 } from "@sitedoc/shared";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
@@ -275,7 +280,6 @@ export function MaskinSeksjon({
           defaultEcoId={defaultEcoId}
           dato={dato}
           pauseMin={pauseMin}
-          eksisterendeRader={rader}
           eksisterendeRad={
             redigerRadId
               ? rader.find((r) => r.id === redigerRadId) ?? null
@@ -412,7 +416,6 @@ function MaskinRadModal({
   defaultEcoId,
   dato,
   pauseMin,
-  eksisterendeRader,
   eksisterendeRad,
   onLagre,
   onLukk,
@@ -423,7 +426,6 @@ function MaskinRadModal({
   defaultEcoId: string | null;
   dato: string;
   pauseMin: number;
-  eksisterendeRader: MaskinRad[];
   eksisterendeRad: MaskinRad | null;
   onLagre: (
     projectId: string,
@@ -438,13 +440,33 @@ function MaskinRadModal({
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
-  // T.5: Hent firma-tidsrunding fra lokal cache. null = ingen runding.
-  const tidsrundingMinutter = useMemo(
-    () => hentOrganizationSettingLokalt(organizationId)?.tidsrundingMinutter ?? null,
-    [organizationId],
-  );
+  // T.5 + B1 (M5, 2026-07-10): firma-tidsrunding + pause-parametre fra lokal
+  // cache. Maskin følger FØRERENS pause (B1) → standardPauseMin (firma-default),
+  // IKKE sedel-`pauseMin` (som er Del 2 bucket-taket). Speiler TimerSeksjon.
+  const { tidsrundingMinutter, standardPauseMin, pauseEtterTimer } = useMemo(() => {
+    const setting = hentOrganizationSettingLokalt(organizationId);
+    return {
+      tidsrundingMinutter: setting?.tidsrundingMinutter ?? null,
+      standardPauseMin: setting?.standardPauseMin ?? 30,
+      pauseEtterTimer: setting?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER,
+    };
+  }, [organizationId]);
 
-  // T4-e: defaults for fraTid/tilTid (samme mønster som TimerRadModal).
+  // Pausevindu = skiftstart + pauseEtterTimer. Skiftstart = dagens effektive
+  // arbeidstid-start (kalender-overstyring eller firma-default).
+  const pauseFra = useMemo(() => {
+    const skiftStart = hentEffektivArbeidstidLokal(
+      organizationId,
+      new Date(`${dato}T00:00:00`),
+    ).startTid;
+    return pauseVinduFra(skiftStart, pauseEtterTimer);
+  }, [organizationId, dato, pauseEtterTimer]);
+
+  // B4-prefill (M5, 2026-07-10): for NY rad foreslå maskinens DRIFTSVINDU fra
+  // bucketens ARBEIDSSPENN — første timer-rads fraTid + siste timer-rads tilTid
+  // i (defaultProjectId, defaultEcoId)-bucketen (speiler webs MaskinRadDialog:
+  // timerRaderIBucket[0].fraTid / .at(-1).tilTid). Faller til kalenderens
+  // effektive start/slutt når bucketen er tom. Rediger bruker radens egne.
   const defaultTider = useMemo(() => {
     if (eksisterendeRad) {
       return {
@@ -452,13 +474,28 @@ function MaskinRadModal({
         til: eksisterendeRad.tilTid ?? null,
       };
     }
-    const effektiv = hentEffektivArbeidstidLokal(organizationId, new Date(`${dato}T00:00:00`));
-    const forrigeMedTil = [...eksisterendeRader].reverse().find((r) => !!r.tilTid);
+    const effektiv = hentEffektivArbeidstidLokal(
+      organizationId,
+      new Date(`${dato}T00:00:00`),
+    );
+    const db = hentDatabase();
+    const bucketTimer = db
+      ? db
+          .select()
+          .from(sheetTimerLocal)
+          .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
+          .all()
+          .filter(
+            (r) =>
+              (r.projectId ?? defaultProjectId) === defaultProjectId &&
+              (r.externalCostObjectId ?? null) === (defaultEcoId ?? null),
+          )
+      : [];
     return {
-      fra: forrigeMedTil?.tilTid ?? effektiv.startTid,
-      til: effektiv.sluttTid,
+      fra: bucketTimer[0]?.fraTid ?? effektiv.startTid,
+      til: bucketTimer[bucketTimer.length - 1]?.tilTid ?? effektiv.sluttTid,
     };
-  }, [eksisterendeRad, eksisterendeRader, organizationId, dato]);
+  }, [eksisterendeRad, organizationId, dato, sheetId, defaultProjectId, defaultEcoId]);
 
   const [valgtProjectId, setValgtProjectId] = useState<string>(
     eksisterendeRad?.projectId ?? defaultProjectId,
@@ -466,9 +503,24 @@ function MaskinRadModal({
   const [valgtVehicleId, setValgtVehicleId] = useState<string>(
     eksisterendeRad?.vehicleId ?? "",
   );
-  const [timer, setTimer] = useState<string>(
-    eksisterendeRad?.timer ? eksisterendeRad.timer.toFixed(2) : "",
-  );
+  const [timer, setTimer] = useState<string>(() => {
+    if (eksisterendeRad?.timer) return eksisterendeRad.timer.toFixed(2);
+    // B3 (M5): init antall fra prefill-spennet (pause-bevisst) når begge tider
+    // er gyldige (fra < til). Ellers tom — ingen 0-rad.
+    if (
+      defaultTider.fra &&
+      defaultTider.til &&
+      hhmmTilMin(defaultTider.fra) < hhmmTilMin(defaultTider.til)
+    ) {
+      return effektiveTimerFraSpenn(
+        defaultTider.fra,
+        defaultTider.til,
+        pauseFra,
+        standardPauseMin,
+      ).toFixed(2);
+    }
+    return "";
+  });
   const [mengde, setMengde] = useState<string>(
     eksisterendeRad?.mengde !== null && eksisterendeRad?.mengde !== undefined
       ? eksisterendeRad.mengde.toFixed(2)
@@ -486,6 +538,42 @@ function MaskinRadModal({
   const [visEquipmentVelger, setVisEquipmentVelger] = useState(false);
   const [visEnhetVelger, setVisEnhetVelger] = useState(false);
   const [visEcoVelger, setVisEcoVelger] = useState(false);
+
+  // B1/B2-synk (M5, 2026-07-10): pause-bevisst auto-synk antall ↔ fra/til, sist-
+  // rørte felt vinner. Bruker standardPauseMin (B1: maskin følger føreren).
+  // Speiler TimerSeksjons handtere*-mønster.
+  const handterFraEndret = useCallback(
+    (hhmm: string) => {
+      setFraTid(hhmm);
+      if (tilTid) {
+        setTimer(
+          effektiveTimerFraSpenn(hhmm, tilTid, pauseFra, standardPauseMin).toFixed(2),
+        );
+      }
+    },
+    [tilTid, pauseFra, standardPauseMin],
+  );
+  const handterTilEndret = useCallback(
+    (hhmm: string) => {
+      setTilTid(hhmm);
+      if (fraTid) {
+        setTimer(
+          effektiveTimerFraSpenn(fraTid, hhmm, pauseFra, standardPauseMin).toFixed(2),
+        );
+      }
+    },
+    [fraTid, pauseFra, standardPauseMin],
+  );
+  const handterTimerEndret = useCallback(
+    (tekst: string) => {
+      setTimer(tekst);
+      const n = parseFloat(tekst.replace(",", "."));
+      if (fraTid && !isNaN(n) && n > 0 && n <= 24) {
+        setTilTid(tilFraAntall(fraTid, n, pauseFra, standardPauseMin));
+      }
+    },
+    [fraTid, pauseFra, standardPauseMin],
+  );
 
   const valgtProsjekt = useMemo(() => {
     return valgtProjectId ? finnProsjektLokalt(valgtProjectId) : null;
@@ -608,6 +696,16 @@ function MaskinRadModal({
       setFeil(t("timer.feil.sluttForStart"));
       return;
     }
+    // B2 (M5, 2026-07-10): når begge tider er satt MÅ antall stemme med
+    // (spenn − pause). Auto-synken holder dem i takt; dette er sikkerhetsnettet
+    // mot manuell desync. Klient-only — serveren håndhever ikke B2 (se BACKLOG).
+    if (fraTid && tilTid) {
+      const forventet = effektiveTimerFraSpenn(fraTid, tilTid, pauseFra, standardPauseMin);
+      if (Math.abs(forventet - tall) > 0.01) {
+        setFeil(t("timer.feil.timerAvvik", { forventet: forventet.toFixed(2) }));
+        return;
+      }
+    }
     onLagre(
       valgtProjectId,
       valgtEcoId,
@@ -686,7 +784,7 @@ function MaskinRadModal({
             </Text>
             <TextInput
               value={timer}
-              onChangeText={setTimer}
+              onChangeText={handterTimerEndret}
               placeholder="0,00"
               keyboardType="decimal-pad"
               inputAccessoryViewID={TASTATUR_FERDIG_ID}
@@ -721,8 +819,8 @@ function MaskinRadModal({
             fraTid={fraTid}
             tilTid={tilTid}
             tidsrundingMinutter={tidsrundingMinutter}
-            onFraEndret={setFraTid}
-            onTilEndret={setTilTid}
+            onFraEndret={handterFraEndret}
+            onTilEndret={handterTilEndret}
           />
 
           {/* T7-4e: ECO (underprosjekt) — speil av TimerRadModals ECO-velger.
