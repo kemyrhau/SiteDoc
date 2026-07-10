@@ -584,7 +584,12 @@ export default function DagsseddelDetalj() {
             <View className="flex-row items-center gap-2">
               <CheckCircle size={16} color="#15803d" />
               <Text className="text-sm font-semibold text-green-900">
-                {t("timer.detalj.attestertTittel")}
+                {/* F4-3: bruk ren «Attestert»-nøkkel (uten {{dato}}) — mobil
+                    viser attestert-tidspunktet separat under (formatTidspunkt,
+                    linjen rett nedenfor). Den delte `attestertTittel`-nøkkelen
+                    har {{dato}} og brukes fortsatt av web (page.tsx:441), der
+                    tittelen er eneste dato-sted; endres derfor ikke. */}
+                {t("timer.status.attestert")}
               </Text>
             </View>
             {sedel.attestertVed && (
