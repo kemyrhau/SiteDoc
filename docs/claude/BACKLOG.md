@@ -553,6 +553,14 @@ Knapp-gatingen holder MS skjult til client-id er ekte → PKCE-koden er trygg å
 
 **Rekkefølge er kritisk** — `seedLonnsartNivaa1` setter `erStandardvalg: rad.navn === "Timelønn"` via `createMany` **uten å nullstille andre rader**. Kjøres den mens km har stjerna, får firmaet **to** rader med `er_standardvalg = true` («maks én per org» håndheves kun i `timer.lonnsart.settStandard`, ikke i seeden). Riktig sekvens: (1) fjern stjerna fra `Kilometergodtgjørelse (egen bil)`, (2) opprett/oppdater rader, (3) sett stjerna på riktig ordinær lønnsart — for A.Markussen `120 Timer` (SmartDok-speiling; firmaet har ingen «Timelønn»), generisk «laveste tidbaserte ordinær» for andre firma. Implementeres via generisk `importerKatalog` (`apps/api/src/services/katalog/`) + kunde-fixture + tRPC `admin.importerTimerKatalog` (bak `verifiserSiteDocAdmin`) — idempotent på `kode`, tørrkjøring (`dryRun`) på `sitedoc_test` før prod. Prinsippet «koder aldri i seeden» beholdes: kundedata er fixture, ikke kode.
 
+### 🟡 `importerKatalog` — tre designvalg fra `92f15893` som må verifiseres
+
+Egne valg gjort under implementasjonen, ikke tidligere dokumentert:
+
+- **`matchNavn`-alias i fixture:** fester `kode` på en eksisterende kodeløs rad når SmartDok-navnet avviker fra prod-navnet (f.eks. prod «Innleid arbeidskraft» → SmartDok «Timer innleid arbeidskraft»). **Ikke verifisert mot faktiske prod-navn** — aliasene stammer fra funn-mappingen, ikke egen prod-spørring. Bommer et alias, oppretter importeren **duplikat** i stedet for å feste kode. `dryRun` mot `sitedoc_test` MÅ kjøres og **leses av Kenneth** før prod.
+- **Deaktivering avgrenset til `seedNivaa != null`:** umatchede rader settes `aktiv=false` kun hvis de er seedet — beskytter manuelt opprettede rader (`seedNivaa=null`) mot å bli deaktivert.
+- **⚠️ UTKAST — `type: "avhuking"` på de fem nye enhetstilleggene** (`248/149/153/154/155`) er en **antakelse** (speiler eksisterende `seedTillegg`-konvensjon). `Skifttillegg 30/40/50 %` kan reelt være `antall`. Avklares med Florian før prod-import.
+
 ### 🔴 Lønnsart-koder mangler i prod → PowerOffice-eksport umulig — funn 2026-07-09
 
 `Lonnsart.kode` er koblingsnøkkelen mot lønnssystemet. Eksportformatet er `nr | lønnsart | timer` — **PowerOffice matcher på `nr`, ikke navnet.** Prod har 0 koder på 25 lønnsarter.
@@ -564,6 +572,8 @@ Knapp-gatingen holder MS skjult til client-id er ekte → PKCE-koden er trygg å
 ### 🔴 Ingen validering av at `kode` finnes før attestering/eksport — funn 2026-07-09
 
 `SheetTimer` peker på `lonnsartId`; eksporten må slå opp `kode`. Mangler den, skal det stoppes ved **attestering** — ikke oppdages ved lønnskjøring. `timer.md § Eksport-kode-krav` lover at «eksport-modulen kaster tydelig feilmelding ved eksport-tid» — **den modulen finnes ikke** (eksport-adaptere «❌ Ikke startet»), og valideringen finnes ikke i noen kodevei i dag.
+
+**Kandidatmengde bak «finnes ikke»** (per [dokumentasjons-standard.md](dokumentasjons-standard.md) regel 6): søkt gjennom `apps/api/src` — **0 tRPC-prosedyrer med «eksport» i navnet** (fire filer nevner ordet, men kun som felt `skalEksporteres`/kommentar: `mannskap.ts`, `timer/tillegg.ts`, `timer/lonnsart.ts`, `maskin/equipment.ts`); og `apps/web/src/lib` — `timer-rapport-eksport.ts` er **eneste** eksport-fil (en lederrapport, ingen `kode`-oppslag). Ingen eksport-modul med kode-validering finnes i noen av disse.
 
 ### 🔴 Standard-lønnsart plasseres deterministisk feil (③b-fallback velger posisjon, ikke betydning) — funn 2026-07-09
 

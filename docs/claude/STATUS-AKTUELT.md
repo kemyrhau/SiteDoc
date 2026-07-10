@@ -51,6 +51,16 @@ Gjør firmamodul-onboarding synlig + veiledet ved aktivering. Bakgrunn: `organis
 
 **v1 = web-only** (mobil «oppsett ufullstendig»-visning = egen follow-up). i18n nb+en (generate.ts frossen under redesign → 13 språk faller tilbake til nb). **Konsolidering utsatt** (redirect gammel `onboarding`-fane → wizard + migrering/`aktiverTomKatalog` inn i steg 1) → [BACKLOG § Onboarding-wizard konsolidering](BACKLOG.md). **Gjenstår: prod-deploy** (adresserer også Åpne tråder pkt 1 — tom lønnsart-katalog på prod-firma synliggjøres nå av wizarden).
 
+### Lønnsart/katalog-import (A.Markussen) — LANDET PÅ DEVELOP 2026-07-09/10 (venter manuelt test-bygg → dryRun → prod)
+
+Landet på `develop`:
+- `c875ee6f` — 6 BACKLOG-rader (lønnsart/kode-funn) + drift-rettinger i `timer.md` og `docker/DOCKER-NOTES.md`.
+- `92f15893` — generisk `importerKatalog` (`apps/api/src/services/katalog/`, søk `export async function importerKatalog`) + A.Markussen-fixture (`fixtures/a-markussen.json`) + tRPC `admin.importerTimerKatalog` bak `verifiserSiteDocAdmin`.
+
+**Gjenstår:** manuelt test-bygg (`./deploy-test.sh` — **ingen auto-deploy**, push til develop deployer ikke til test) → `dryRun`-tørrkjøring mot `sitedoc_test`, lest av Kenneth → Kenneths ja → prod-import. **Ingen kjøring har skjedd** (verken test eller prod); `dryRun`-steget er ikke utført.
+
+**Prod-tilstand** (målt 2026-07-09 av Kenneth, ikke egen-verifisert): A.Markussen har 25 lønnsarter, 0 med `kode`, `erStandardvalg` står på `Kilometergodtgjørelse (egen bil)`.
+
 ### Gjenstående (åpent, ikke sporet annet sted)
 
 - **EAS Android-bygg + Play Store** — Android-distribusjon står igjen (iOS går via TestFlight/EAS). Ikke sporet i BACKLOG/oppryddings-plan → beholdes her.
