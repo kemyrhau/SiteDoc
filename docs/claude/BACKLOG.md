@@ -89,7 +89,7 @@ Oppdaget 2026-07-07 (Plan 2 nyNavigasjon-migrering). `prisma migrate status` mot
 
 ### 🟡 `pauseVinduFra` midnatt-wrap ved direkte nattskift-rad
 
-`pauseVinduFra(skiftStart, etterTimer)` (`apps/mobile/src/utils/pauseBeregning.ts`) clamper via `minTilHhmm` til 23:59 samme dag. For nattskift som registreres **direkte** på en enkeltrad (Legg til/Rediger timer-rad) med skiftstart sent på kvelden vil pausevinduet regne feil: 21:00 + 4t = 25:00 → clampes til **23:59** i stedet for å wrappe til **01:00**. Gjelder **kun** enkeltrad-modalens pause-fradragsvisning; **1b auto-utkast er upåvirket** — det går klokka per segment med segmentets egen skiftstart, så nattskift-vinduet reconciler riktig der. Fiks: la `pauseVinduFra` wrappe over midnatt (mod 1440) i stedet for clamp, og la overlapp-beregningen håndtere døgn-kryssende vindu. Lav prioritet (arbeider på nattskift setter uansett tider manuelt). Flagget 2026-07-08 under pause-modell-omlegging (Piece 1).
+`pauseVinduFra(skiftStart, etterTimer)` (`@sitedoc/shared/utils/pauseBeregning.ts`) clamper via `minTilHhmm` til 23:59 samme dag. For nattskift som registreres **direkte** på en enkeltrad (Legg til/Rediger timer-rad) med skiftstart sent på kvelden vil pausevinduet regne feil: 21:00 + 4t = 25:00 → clampes til **23:59** i stedet for å wrappe til **01:00**. Gjelder **kun** enkeltrad-modalens pause-fradragsvisning; **1b auto-utkast er upåvirket** — det går klokka per segment med segmentets egen skiftstart, så nattskift-vinduet reconciler riktig der. Fiks: la `pauseVinduFra` wrappe over midnatt (mod 1440) i stedet for clamp, og la overlapp-beregningen håndtere døgn-kryssende vindu. Lav prioritet (arbeider på nattskift setter uansett tider manuelt). Flagget 2026-07-08 under pause-modell-omlegging (Piece 1).
 
 ### 🟡 nyNav sticky-flag — develop-halvdel FIKSET 2026-07-09, prod venter deploy
 
@@ -151,7 +151,7 @@ på develop. GPS-geoforslag splittet ut til egen rad (se under). D9 separat.
 
 - **D3 — Ingen pause-bevisst tidsberegning på web timer-rad.** Mobil auto-synker
   fra/til ↔ antall med pausefradrag (`effektiveTimerFraSpenn`/`tilFraAntall`,
-  `apps/mobile/src/utils/pauseBeregning.ts`) + validerer antall = spenn − pause.
+  `@sitedoc/shared/utils/pauseBeregning.ts`) + validerer antall = spenn − pause.
   Web-arbeider skriver kun antall direkte. Logikken er i dag **mobil-only** —
   må løftes til `@sitedoc/shared` (som `utils/maskinKapasitet.ts`) for web-gjenbruk.
   **✅ Bolk (a):** løftet til `@sitedoc/shared/utils/pauseBeregning.ts`; web
@@ -230,8 +230,9 @@ mobil har prosjekt i hver rad-modal.
   R3 pauseOverlapp-transparenslinje (`timer.pauseFradrag`, eksisterende nøkkel),
   R4 `rundTilNarmeste` (T.5) ved commit + picker-`step`. Kilde `hentArbeidstidDefaults`
   (eksponerer alt inkl. `tidsrundingMinutter` — ingen ny query). Ingen ny i18n.
-- **Separat:** D9 (sesong-dagsnorm) + GPS-geoforslag (egen rad under) + to
-  opprydnings-rader (maskin-rad-prefill-avvik + pauseBeregning-duplikat, under).
+- **Separat:** D9 (sesong-dagsnorm) + GPS-geoforslag (egen rad under) +
+  opprydnings-raden maskin-rad-prefill-avvik (under). (pauseBeregning-duplikat
+  ✅ M2 2026-07-10.)
 
 ### 🟡 Timer web: GPS-geoforslag ved ny dagsseddel (splittet fra D7, 2026-07-09)
 
@@ -256,19 +257,22 @@ Divergensen er kosmetisk (kun forhåndsvalg — bruker kan justere). **B4 vedtat
 arbeidsspenn (første rads `fraTid` → siste rads `tilTid`). Mobil skal løftes til
 denne regelen (ikke omvendt). **Bundet til neste EAS-batch** sammen med mobil B1–B3.
 
-### 🟢 `pauseBeregning.ts` duplisert (mobil + shared) — mobil importerer sin egen kopi
+### ✅ `pauseBeregning.ts` duplisert (mobil + shared) — DEDUP GJORT develop 2026-07-10 (M2)
 
-Etter bolk (a) finnes pause-beregningen to steder: `packages/shared/src/utils/pauseBeregning.ts`
-(kanonisk, web bruker den via `@sitedoc/shared`) og `apps/mobile/src/utils/pauseBeregning.ts`
-(mobil importerer fortsatt sin egen — `TimerSeksjon.tsx:45`, `MaskinSeksjon.tsx`).
-Samme funksjoner (`pauseVinduFra`/`hhmmTilMin`/`pauseOverlappMin`/`effektiveTimerFraSpenn`/
-`tilFraAntall`/`DEFAULT_PAUSE_ETTER_TIMER`). **Risiko realisert:** `tilFraAntall`-
-grensefeilen (rad starter ved/inne i pausevindu → pausen hoppes over, ikke lenger
-invers av `effektiveTimerFraSpenn`) ble fikset i shared (`10622ee3`, bolk (e)), men
-**mobil-kopien har fortsatt feilen** — divergens er nå faktum, ikke bare risiko.
-Dedup: la mobil importere fra `@sitedoc/shared` og slett mobil-kopien (verifiser at
-Metro-bundleren tar shared-pakken). **Bundet til neste EAS-batch** (mobil-endring).
-Bør gjøres før neste pause-endring.
+Etter bolk (a) fantes pause-beregningen to steder: `packages/shared/src/utils/pauseBeregning.ts`
+(kanonisk, web brukte den via `@sitedoc/shared`) og en egen mobil-kopi som `TimerSeksjon.tsx`
+importerte lokalt. `tilFraAntall`-grensefeilen (rad starter ved/inne i pausevindu → pausen
+hoppes over, ikke lenger invers av `effektiveTimerFraSpenn`) ble fikset i shared (`10622ee3`,
+bolk (e)), men mobil-kopien fikk aldri fiksen → reell, målt divergens.
+
+**✅ GJORT (M2, develop 2026-07-10):** Målt divergens først med `diff` — mobil-kopien hadde
+`fraMin >= pauseFraMin` der shared har `fraMin >= pauseSlutt`, og manglet
+`Math.max(0, pauseFraMin - fraMin)`. Konsekvens: feil pausefradrag når raden startet ved eller
+inne i pausevinduet. Eneste konsument var `TimerSeksjon.tsx` (`import { … } from "@sitedoc/shared"`
+etter fiksen); den tidligere antakelsen om at `MaskinSeksjon` også importerte kopien var feil —
+den henter bare `maskinBucketKapasitet`/`overstigerMaskinTak` fra shared. Importen redigert til
+`@sitedoc/shared`, mobil-kopien slettet (0 gjenværende referanser). Metro-oppløsning bevist
+(~9 andre `@sitedoc/shared`-importer i mobil). **Mobil-UI via neste EAS-batch.**
 
 ### 🟡 Mobil maskin/timer-rad: B1–B4 pause-paritet (bolk (e) mobil-halvdel) — neste EAS-batch
 
@@ -297,9 +301,11 @@ samme hull:
   `tilTid`). Løft mobil til samme (unngår prefill inn i registrert tidsrom).
 - **0==0-hullet:** speil web — `forventet == antall`-sperren skal først kreve til > fra,
   og antall = 0 avvises.
-- **Overlapp-vakten dekker IKKE mobilens skrivevei** (`syncBatch`) — se
-  🔴 SYNC-2 over. Klient-side speiling gjenstår også, men server-vakten må inn i
-  `syncBatch` (etter SYNC-1). **Bundet til neste EAS-batch.**
+- **Server-overlapp-vakten dekker nå mobilens skrivevei** (`syncBatch` via
+  `finnTidsromKonflikt`, SYNC-2 ✅ 2026-07-10). **Gjenstår M3:** klient-side
+  speiling i mobil (`TimerSeksjon`/`MaskinSeksjon`) for umiddelbar UX før synk —
+  samme delte regel (`@sitedoc/shared/utils/tidsromValidering.ts`). **Bundet til
+  neste EAS-batch.**
 
 ### 🟡 Maskin-vs-maskin-overlapp — utredning (rapportert under bolk (g), 2026-07-09)
 
@@ -310,6 +316,15 @@ per maskin) kan ikke samme arbeider kjøre to maskiner samtidig → overlappende
 er arguably like ugyldige som overlappende timer-rader. **Utredning for egen runde:** utvid
 vakten til maskin-vs-maskin (og evt. krav om at maskin-spenn ligger innenfor arbeidstimenes
 spenn på sedelen). Ikke kodet i bolk (g) per instruks — Kenneth avgjør semantikken først.
+
+**🟡 `syncBatch` validerer ikke `fra < til` på maskin-rader (funnet under SYNC-2-gaten).**
+SYNC-2 la fra<til + overlapp-vakt (`finnTidsromKonflikt`) på **timer**-radene i `syncBatch`,
+og persisterer nå `fraTid`/`tilTid` også på maskin-rader — men det finnes **ingen** `fra<til`-
+sjekk på maskin-radene på synkveien. Web har den (`maskin.tilfoy`/`maskin.oppdater` →
+`.superRefine(refineFraForTil)`). Før SYNC-2 landet maskin-tidene som NULL på synk; nå kan
+`til < fra` persisteres via mobilsynk. **Samme form som SYNC-2:** vakt på web, ikke på sync.
+Fiks: kjør `tilErEtterFra` på `lokal.maskiner` i `syncBatch` (rutes via `"avvist"`). Egen
+runde sammen med maskin-vs-maskin-overlapp over.
 
 **Verifiserings-note (sitedoc_test):** kjør self-join-audit på `timer.sheet_timer` for å se
 om test-DB har eksisterende overlappende timer-rader (vakten treffer kun ny/redigert rad, så

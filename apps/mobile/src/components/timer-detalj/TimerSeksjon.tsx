@@ -42,7 +42,7 @@ import {
   pauseOverlappMin,
   pauseVinduFra,
   tilFraAntall,
-} from "../../utils/pauseBeregning";
+} from "@sitedoc/shared";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt, fraErForTil } from "./FraTilTidFelt";
 import { VelgerFelt } from "./VelgerFelt";

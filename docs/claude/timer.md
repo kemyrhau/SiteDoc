@@ -343,7 +343,7 @@ Utlegg           → kategori + beløp + valgfritt kvitteringsbilde
 
 ### Pause-bevisst tid-synk på timer-rader (mobil) — implementert 2026-07-08 (develop `f385ba99`)
 
-Utility: `apps/mobile/src/utils/pauseBeregning.ts`. Brukes av `TimerRadModal` (`TimerSeksjon.tsx`).
+Utility: `@sitedoc/shared/utils/pauseBeregning.ts` (delt mobil + web; mobil-kopien slettet i M2 2026-07-10). Brukes av `TimerRadModal` (`TimerSeksjon.tsx`).
 
 **Auto-synk «antall timer» ↔ «fra/til» (sist-rørte felt vinner):**
 - Endrer fra/til → `antall = effektiveTimerFraSpenn(...)` (spennvidde − pauseoverlapp).
