@@ -19,9 +19,11 @@ Web + DB-migreringer i prod (`80974276`/`0be103fa`); timer-paritet + pause-regle
 
 **Dagsseddel-prod krever `aktiverNivaa1` på prod-firmaet** (lønnsart-katalog seedet) ellers mangler lønnsarter — jf. onboarding-wizard + lønnsart/katalog-import-trådene under. (Redesign steg viii-kontinuitet: se redesign-blokka øverst.)
 
-**Leveransekanal — EAS-bunt #37 / TestFlight (venter Azure + Florians device-test):**
+**Leveransekanal — EAS-bunt #37 / TestFlight (venter Florians funksjonelle device-test):**
 
 Gjeldende TestFlight-bunt (bygg-ID `496b6a63`, commit `bc744f82`, sky-bygget 2026-07-01 da juli-kvoten resatt, status `finished` m/ .ipa). **Kumulativt fra develop** → .ipa inneholder ALL tidligere merget mobil-kode (timer-UX UF-0…UF-4/U1–U3 fra #30-æraen, byggeplass-UX fra #31) + det nye under. Erstatter #30/#31 (juni-kvoten oppbrukt; lokalt bygg = blindvei, se [eas-build-veileder.md](eas-build-veileder.md)). **Ingen schema/server.** A.Markussen-validering av **full timer-UX** skjer via #37 når det er i TestFlight. **Neste bygg = #38, etter bolk (h) (mobil-paritet); #37 er gjeldende TestFlight-bunt til da.**
+
+**Kenneths beslutning (2026-07-10): Florian tester ikke #37 — han venter på #38 (etter bolk (h)).** Grunn (verifisert i kode): en rad serveren avviser blir stående `syncStatus="pending"` (`apps/mobile/src/services/timerSync.ts`, kommentar «"feilet" — behold pending»), og `apps/mobile/src/components/TimerSyncStatusBar.tsx` viser pending som gul varsel + spinner («Online + pending: gul varsel + antall + spinner», `bg-yellow-50`). En tester som ikke ser feilen, gir falsk trygghet. Se [BACKLOG § Timer web-vs-mobil paritet](BACKLOG.md).
 
 Nytt i #37 (vs #31): **Mobil Microsoft-auth** (code+PKCE, `f8594d1c`) → [BACKLOG § Mobil Microsoft-auth](BACKLOG.md) (Azure-sjekkliste + Florians test der; ikke duplisert her); **F-G glemt-dag 0-fiks** (`c6babc44`, bug — kort start-segment klampes aldri til 0) → [BACKLOG § Org uten standard-lønnsart](BACKLOG.md).
 
