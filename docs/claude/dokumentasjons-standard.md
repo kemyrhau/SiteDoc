@@ -72,6 +72,20 @@ verifiseres mot koden, og gate-rapporten oppgir hvilke som ble sjekket.
 «Docs-only, ingen secrets» er **ikke lenger tilstrekkelig** som gate for
 dokumentasjon.
 
+### 7. Linjenumre rotner — bruk fil + distinkt kodestreng
+
+En `fil:linje`-referanse er sann i **én commit**. `page.tsx` vokste 1 800 → 2 500
+linjer på én kveld (bolk e/f/g, 2026-07-09/10) — hver referanse inn i den fila
+drev. Skriv derfor **fil + distinkt kodestreng** å søke etter, ikke linjenr:
+`apps/api/src/routes/prosjekt.ts` + søk `opprett: opprettProsjektProcedure`.
+Migreringer refereres ved **mappenavn** (stabilt), f.eks.
+`20260705120000_lonnsart_overtidsnivaa`, ikke linjenr i `migration.sql`.
+
+**Funn 2026-07-10:** fire `fil:linje`-referanser i CLAUDE.md hadde drevet
+uoppdaget (`prosjekt.ts:163/:246`, `admin.ts:229`, `MapperPanel.tsx:154` — tre
+pekte på feil/tom/meningsløs linje) og ble kopiert **verbatim** inn i api.md
+under trimmen. Rettet til fil + søkestreng i samme runde.
+
 ## Anvendt
 
 Rettingen `c875ee6f` (2026-07-09) er referanse-eksempelet: `:517`/`:534` fikk

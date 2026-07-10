@@ -415,11 +415,15 @@ Alle prosjekt-opprettelse-mutasjoner MÅ kreve `organizationId` for å hindre or
 3. Tilgangs-sjekk: `sitedoc_admin` → enhver org, vanlig bruker → kun egen org via `OrganizationMember`
 4. Klient-side: UI-knapp `disabled` uten valgt firma + amber-banner som gjenbruker `t("nyttProsjekt.ingenFirma")` der det er relevant
 
-Referanse-impl: `prosjekt.opprett`/`opprettTestprosjekt` (`prosjekt.ts:163`/`:246`), `admin.opprettProsjekt` (`admin.ts:229`). Standalone-prosjekter beholdes (schema nullable for bakover-kompat); kun opprettelse-flyten er strammet — speil mønsteret ved ny opprettelse-mutasjon. Bakgrunn: 5 prod-orphans 2026-05-20.
+Referanse-impl (fil + søkestreng, ikke linjenr — jf. dokumentasjons-standard.md § 7):
+- `apps/api/src/routes/prosjekt.ts` — søk `opprett: opprettProsjektProcedure` og `opprettTestprosjekt: opprettProsjektProcedure` (begge setter `primaryOrganizationId: valgtOrgId` på `Project.create`).
+- `apps/api/src/routes/admin.ts` — søk `opprettProsjekt: opprettProsjektProcedure` (setter `primaryOrganizationId: input.organizationId`).
+
+Standalone-prosjekter beholdes (schema nullable for bakover-kompat); kun opprettelse-flyten er strammet — speil mønsteret ved ny opprettelse-mutasjon. Bakgrunn: 5 prod-orphans 2026-05-20.
 
 ## TS/tRPC-fallgruver
 
 Flyttet fra CLAUDE.md § Kodestil 2026-07-10. Kjerneregelen står som peker der.
 
-- **tRPC-include TS2589-fallgruve:** `user: { include: { organization } }` eller `user: true` triggrer «Type instantiation excessively deep» i tRPC-klient. Bruk alltid eksplisitt `user: { select: { id, name, ... } }`. Lærdom fra O-5c 2026-05-13 (`MapperPanel.tsx:154`).
+- **tRPC-include TS2589-fallgruve:** `user: { include: { organization } }` eller `user: true` triggrer «Type instantiation excessively deep» i tRPC-klient. Bruk alltid eksplisitt `user: { select: { id, name, ... } }`. Lærdom fra O-5c 2026-05-13. (Den opprinnelige `MapperPanel.tsx:154`-referansen lot seg **ikke** re-verifiseres 2026-07-10 — `user: {`-include-mønsteret finnes ikke i fila (søkt: hele fila) — så eksakt kildested er fjernet. Mønsteret er uansett generelt.)
 - **Prisma-felt-cleanup-verifikasjon:** grep alene er ikke pålitelig — filtrerer ut `where: { felt: ... }` med `-v "felt:"`. Kjør alltid `npx tsc --noEmit` etter schema-endring og bruk typecheck som sannhetskilde for gjenstående bruks-steder. Lærdom fra O-5b → O-5b-fix → O-5c (grep ga to oversette runder).
