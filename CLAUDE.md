@@ -11,6 +11,7 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/SAMARBEIDSREGLER.md](docs/claude/SAMARBEIDSREGLER.md) | **STYRENDE:** rollekart + meldingsflyt + commit-orden-eierskap (cowork). Les før du instruerer en annen økt |
 | [docs/claude/STATUS-AKTUELT.md](docs/claude/STATUS-AKTUELT.md) | **Løpende status:** pågående/pauset arbeid, planlagte faser, PR-historikk |
 | [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) | **Dokumentasjonskart:** hvilken fil oppdateres ved hvilken hendelse — sjekk ved tvil |
+| [docs/claude/dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md) | **STYRENDE:** presens krever kode-referanse eller status-markør (⚠️/🟡/❌); gate-plikt på docs-commits |
 | [docs/claude/BACKLOG.md](docs/claude/BACKLOG.md) | **Backlog:** teknisk gjeld, halvferdige features, Fase 0.5-7, kundeønsker ikke startet |
 | [docs/claude/deploy-detaljer.md](docs/claude/deploy-detaljer.md) | Deploy-bash, `.env`-krav, branching, mobil reload, prod-lærdommer |
 | [docs/claude/hjelpetekster.md](docs/claude/hjelpetekster.md) | Hjelpetekst-konvensjon (?-ikon) + sidestatus-tabell |
@@ -370,6 +371,7 @@ Dokumentasjon skal speile faktisk tilstand. Beslutninger som ikke er skrevet inn
 - **Hjemløse beslutninger fanges før arkivering:** Når en `docs/claude/`-fil arkiveres eller slettes, sjekkes den først for unikt innhold som mangler i aktive filer. Drift og hjemløse beslutninger overføres til aktive sannhetskilder FØR fila flyttes.
 - **Arkitektur-anker først:** Spørsmål om modul-typologi (prosjekt- vs firmamodul, hvilket nivå funksjonalitet hører til) sjekkes mot [terminologi.md § 0 Tre nivåer](docs/claude/terminologi.md) først. Andre dokumenter reconcileres mot anker, ikke omvendt.
 - **Sjekk DOC-MAP.md ved usikkerhet:** Når du er i tvil om hvilken fil som skal oppdateres ved en endring, slå opp i [docs/claude/DOC-MAP.md](docs/claude/DOC-MAP.md) først. Tabellen lister hendelse → fil som skal oppdateres. Ingen PR-commit uten at riktig doc er oppdatert i samme commit.
+- **Presens krever referanse:** En setning i `docs/claude/` som sier at systemet *gjør* noe, må bære enten en kode-referanse (`fil:linje`/migreringsnavn) eller en status-markør (⚠️ UTKAST / 🟡 PLANLAGT / ❌ IKKE IMPLEMENTERT) — ellers leses den som «bygget og verifisert». Vage referanser («migreringen») og negative påstander på ett grep er forbudt. Full regel + gate-plikt: [docs/claude/dokumentasjons-standard.md](docs/claude/dokumentasjons-standard.md).
 
 Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlikehold** og **YAML-header på docs/claude/-filer** — er konkrete uttrykk for dette prinsippet.
 
