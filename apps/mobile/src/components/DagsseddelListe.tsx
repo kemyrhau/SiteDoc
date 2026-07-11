@@ -2,11 +2,22 @@ import { useCallback, useMemo, useState } from "react";
 import { View, Text, FlatList, Pressable, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect, useRouter } from "expo-router";
-import { ArrowLeft, Plus, ChevronRight, Info } from "lucide-react-native";
+import {
+  ArrowLeft,
+  Plus,
+  ChevronRight,
+  Info,
+  AlertTriangle,
+} from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq, desc } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
-import { dagsseddelLocal, sheetTimerLocal } from "../db/schema";
+import {
+  dagsseddelLocal,
+  sheetTimerLocal,
+  sheetTilleggLocal,
+  sheetMachineLocal,
+} from "../db/schema";
 import { useAuth } from "../providers/AuthProvider";
 import { useTimerSync } from "../providers/TimerSyncProvider";
 import { TimerSyncStatusBar } from "./TimerSyncStatusBar";
@@ -21,6 +32,58 @@ interface DagsseddelRad {
   beskrivelse: string | null;
   totaltimer: number;
   antallRader: number;
+  // Bærer sedelen faktisk data? (timer- ELLER tillegg- ELLER maskin-rader).
+  // Brukes av visnings-dedupe: en tom plassholder (0 av alt) kan skjules trygt,
+  // en sedel med innhold aldri.
+  harInnhold: boolean;
+  // Settes kun ved ekte divergens (≥2 søsken med innhold for samme dato) —
+  // da vises begge kort MED denne markeringen i stedet for å skjule data stille.
+  divergens?: boolean;
+}
+
+/**
+ * Visnings-dedupe (2026-07-11): kollaps lokale sedel-hoder med samme dato til
+ * ett i lista. Rent display — ingen DB-skriving, ingen pull-endring. Duplikat
+ * kan oppstå som pre-F4-1-relikvi på enheter oppdatert fra gammel pull (som
+ * matchet kun på server-id og innsatte et ekstra tomt server-hode ved siden av
+ * en pending offline-sedel). Merge-autoriteten blir i M1 (push/`forsonSedel-
+ * Identitet`) — her skjuler vi kun den tomme plassholderen visuelt.
+ *
+ * Ufravikelig: kun tomme plassholdere skjules. Har begge søsken innhold (ekte
+ * divergens, sjelden) vises begge med `divergens`-markering — aldri stille tap.
+ */
+function dedupPerDato(rader: DagsseddelRad[]): DagsseddelRad[] {
+  const grupper = new Map<string, DagsseddelRad[]>();
+  for (const r of rader) {
+    const liste = grupper.get(r.dato);
+    if (liste) liste.push(r);
+    else grupper.set(r.dato, [r]);
+  }
+
+  const resultat: DagsseddelRad[] = [];
+  // Map bevarer innsettingsrekkefølge; input er dato desc → gruppe-rekkefølge
+  // forblir dato desc.
+  for (const gruppe of grupper.values()) {
+    if (gruppe.length === 1) {
+      resultat.push(gruppe[0]);
+      continue;
+    }
+    const medInnhold = gruppe.filter((r) => r.harInnhold);
+    if (medInnhold.length >= 2) {
+      // Ekte divergens: ALDRI skjul data stille. Vis alle innholds-søsken med
+      // markering; tomme plassholdere i samme gruppe skjules fortsatt.
+      for (const r of medInnhold) resultat.push({ ...r, divergens: true });
+      continue;
+    }
+    // 0–1 søsken med innhold → trygt å kollapse til ett hode. Foretrekk søsknet
+    // med innhold; ellers et ikke-avvist hode; ellers første.
+    const beholdt =
+      medInnhold[0] ??
+      gruppe.find((r) => r.syncStatus !== "avvist") ??
+      gruppe[0];
+    resultat.push(beholdt);
+  }
+  return resultat;
 }
 
 function lesDagssedlerLokalt(userId: string): DagsseddelRad[] {
@@ -34,12 +97,24 @@ function lesDagssedlerLokalt(userId: string): DagsseddelRad[] {
     .orderBy(desc(dagsseddelLocal.dato))
     .all();
 
-  return sedler.map((s) => {
+  const rader = sedler.map((s) => {
     const timer = db
       .select({ timer: sheetTimerLocal.timer })
       .from(sheetTimerLocal)
       .where(eq(sheetTimerLocal.dagsseddelId, s.id))
       .all();
+    // Innhold = timer- ELLER tillegg- ELLER maskin-rader. Tillegg/maskin telles
+    // for at en sedel som kun bærer tillegg/maskin ikke feilklassifiseres som tom.
+    const antallTillegg = db
+      .select({ id: sheetTilleggLocal.id })
+      .from(sheetTilleggLocal)
+      .where(eq(sheetTilleggLocal.dagsseddelId, s.id))
+      .all().length;
+    const antallMaskin = db
+      .select({ id: sheetMachineLocal.id })
+      .from(sheetMachineLocal)
+      .where(eq(sheetMachineLocal.dagsseddelId, s.id))
+      .all().length;
     return {
       id: s.id,
       dato: s.dato,
@@ -48,8 +123,11 @@ function lesDagssedlerLokalt(userId: string): DagsseddelRad[] {
       beskrivelse: s.beskrivelse,
       totaltimer: timer.reduce((acc, t) => acc + t.timer, 0),
       antallRader: timer.length,
+      harInnhold: timer.length > 0 || antallTillegg > 0 || antallMaskin > 0,
     };
   });
+
+  return dedupPerDato(rader);
 }
 
 function formatDato(iso: string): string {
@@ -168,6 +246,11 @@ export function DagsseddelListe({
             className="border-b border-gray-100 px-4 py-3 active:bg-gray-50"
           >
             <View className="flex-row items-center gap-2">
+              {item.divergens && (
+                // Ekte divergens: to sedler med innhold for samme dato. Vis
+                // begge + markering i stedet for å skjule data.
+                <AlertTriangle size={16} color="#b45309" />
+              )}
               <Text className="flex-1 text-base font-medium text-gray-900">
                 {formatDato(item.dato)}
               </Text>
