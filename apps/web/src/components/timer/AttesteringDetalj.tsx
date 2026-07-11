@@ -59,6 +59,7 @@ export function AttesteringDetalj({
   const utils = trpc.useUtils();
 
   const [returnerVises, setReturnerVises] = useState(false);
+  const [gjenaapneVises, setGjenaapneVises] = useState(false);
   const [redigerModus, setRedigerModus] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
   const [valgteTimer, setValgteTimer] = useState<Set<string>>(new Set());
@@ -87,6 +88,23 @@ export function AttesteringDetalj({
     },
     onError: (e: { message: string }) => setFeil(e.message),
   });
+
+  // F4-2 (2026-07-11): leder angrer en fullført attestering. Setter sedelen
+  // tilbake til "sent" (leder-køen) og alle rader til "pending".
+  const gjenaapneAttestering =
+    trpc.timer.dagsseddel.gjenaapneAttestering.useMutation({
+      onSuccess: () => {
+        void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: sheetId });
+        void utils.timer.dagsseddel.hentTilAttestering.invalidate();
+        void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
+        setGjenaapneVises(false);
+        router.push(tilbakeUrl);
+      },
+      onError: (e: { message: string }) => {
+        setGjenaapneVises(false);
+        setFeil(e.message);
+      },
+    });
 
   const timerRader = (sheet?.timer ?? []) as unknown as TimerRad[];
   const tilleggRader = (sheet?.tillegg ?? []) as unknown as TilleggRad[];
@@ -437,11 +455,60 @@ export function AttesteringDetalj({
           </div>
         </div>
       ) : (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
-          {t("timer.attestering.detalj.ikkeRedigerbar", {
-            status: t(`timer.statusType.${sheet.status}`),
-          })}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm text-gray-600">
+          <p>
+            {t("timer.attestering.detalj.ikkeRedigerbar", {
+              status: t(`timer.statusType.${sheet.status}`),
+            })}
+          </p>
+          {/* F4-2: leder kan angre en fullført attestering (accepted → sent). */}
+          {sheet.status === "accepted" && (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setFeil(null);
+                setGjenaapneVises(true);
+              }}
+              disabled={gjenaapneAttestering.isPending}
+            >
+              <RotateCcw className="mr-1 h-4 w-4" />
+              {t("timer.attestering.gjenaapne.knapp")}
+            </Button>
+          )}
         </div>
+      )}
+
+      {gjenaapneVises && (
+        <Modal
+          open={true}
+          onClose={() => setGjenaapneVises(false)}
+          title={t("timer.attestering.gjenaapne.tittel")}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              {t("timer.attestering.gjenaapne.beskrivelse")}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setGjenaapneVises(false)}
+                disabled={gjenaapneAttestering.isPending}
+              >
+                {t("handling.avbryt")}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => gjenaapneAttestering.mutate({ sheetId })}
+                disabled={gjenaapneAttestering.isPending}
+              >
+                {gjenaapneAttestering.isPending
+                  ? t("handling.lagrer")
+                  : t("timer.attestering.gjenaapne.bekreft")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {returnerVises && (

@@ -117,9 +117,18 @@ async function hentEgenDagsseddel(
   ctxUserId: string,
   sheetId: string,
 ) {
-  const sheet = await (prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer).dailySheet.findUnique({
-    where: { id: sheetId },
-  });
+  // F4-1b (2026-07-11): identitets-robust oppslag. Mobil sender lokal id
+  // (= clientUuid, jf. F4-1 pull-M2). For sedler laget FØR F4-1-invarianten
+  // (`id = clientUuid` ved create) er server-PK `id` ≠ `clientUuid` → et rent
+  // id-oppslag ga NOT_FOUND på alle ~14 arbeider-kallesteder (gjenåpne/rediger/
+  // send/slett). Slå opp på `id` FØRST (server-id: post-invariant + web-klient),
+  // fall tilbake til `clientUuid` (pre-invariant mobil-id). Begge @unique →
+  // ingen migrering. Bakoverkompat: gammel klient sender server-id → treffer id;
+  // ny mobil sender clientUuid → treffer clientUuid.
+  const pt = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
+  const sheet =
+    (await pt.dailySheet.findUnique({ where: { id: sheetId } })) ??
+    (await pt.dailySheet.findUnique({ where: { clientUuid: sheetId } }));
   // M4 (2026-07-10): NOT_FOUND uten melding ga tom feiltekst hos klienten. Alle
   // 14 kallesteder (hentMedId/oppdater/tilfoy*/oppdater*/fjern*/send/gjenaapne/
   // slett) propagerer feilen til tRPC uten å mappe på tom melding (verifisert:
@@ -154,6 +163,28 @@ async function hentEgenDagsseddel(
   }
 
   return sheet;
+}
+
+/**
+ * F4-1d (2026-07-11): bump `DailySheet.updatedAt` eksplisitt når en rad-mutasjon
+ * skriver barn-rader (SheetTimer/Tillegg/Machine/Vedlegg) uten selv å oppdatere
+ * sedelen. Prisma bumper `@updatedAt` KUN når selve DailySheet-raden skrives —
+ * en barn-`create/update/delete` gjør det ikke. `hentEndringerSiden` bruker
+ * `updatedAt > sistSynk` som delta-vindu → uten dette blir web-førte rader
+ * usynlige for mobil inkrementell pull (hodet vises, 0 rader; se F4-1d-diagnose).
+ * Kall INNI samme `$transaction` som rad-skrivingen der en tx finnes, ellers
+ * som eget element i en ny tx (atomisk med rad-writet). Returnerer PrismaPromise
+ * så den kan legges rett i en `$transaction([...])`-array.
+ */
+function touchSedel(
+  prismaTimer: Prisma.TransactionClient | typeof import("@sitedoc/db-timer").prismaTimer,
+  sheetId: string,
+) {
+  const pt = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
+  return pt.dailySheet.update({
+    where: { id: sheetId },
+    data: { updatedAt: new Date() },
+  });
 }
 
 async function sjekkAldersgrense(
@@ -734,6 +765,12 @@ export const dagsseddelRouter = router({
         const sheet = await ctx.prismaTimer.dailySheet.upsert({
           where: { clientUuid: input.clientUuid },
           create: {
+            // Synk-identitet (2026-07-11): id == clientUuid ved create. Mobil
+            // antar `id = clientUuid` (schema.ts:84) og pusher/puller på den ene
+            // identiteten; server-generert uuid brøt antagelsen (pull-duplikat +
+            // pull-så-redigert-P2002). Eksisterende sedler (id != clientUuid)
+            // beholdes urørt — kun nye får invarianten.
+            id: input.clientUuid,
             clientUuid: input.clientUuid,
             organizationId: orgId,
             userId: ctx.userId,
@@ -920,21 +957,26 @@ export const dagsseddelRouter = router({
         input.tilTid,
       );
 
-      return ctx.prismaTimer.sheetTimer.create({
-        data: {
-          sheetId: input.sheetId,
-          projectId: input.projectId,
-          byggeplassId: input.byggeplassId ?? null,
-          lonnsartId: input.lonnsartId,
-          aktivitetId: input.aktivitetId,
-          timer: input.timer,
-          fraTid: input.fraTid ?? null,
-          tilTid: input.tilTid ?? null,
-          beskrivelse: input.beskrivelse ?? null,
-          externalCostObjectId: input.externalCostObjectId ?? null,
-          vehicleId: input.vehicleId ?? null,
-        },
-      });
+      // F4-1d: rad-write + touchSedel atomisk så mobil pull ser den nye raden.
+      const [rad] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.create({
+          data: {
+            sheetId: input.sheetId,
+            projectId: input.projectId,
+            byggeplassId: input.byggeplassId ?? null,
+            lonnsartId: input.lonnsartId,
+            aktivitetId: input.aktivitetId,
+            timer: input.timer,
+            fraTid: input.fraTid ?? null,
+            tilTid: input.tilTid ?? null,
+            beskrivelse: input.beskrivelse ?? null,
+            externalCostObjectId: input.externalCostObjectId ?? null,
+            vehicleId: input.vehicleId ?? null,
+          },
+        }),
+        touchSedel(ctx.prismaTimer, input.sheetId),
+      ]);
+      return rad;
     }),
 
   oppdaterTimerRad: protectedProcedure
@@ -1026,10 +1068,15 @@ export const dagsseddelRouter = router({
         input.id,
       );
 
-      return ctx.prismaTimer.sheetTimer.update({
-        where: { id: input.id },
-        data,
-      });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [oppdatert] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.update({
+          where: { id: input.id },
+          data,
+        }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return oppdatert;
     }),
 
   fjernTimerRad: protectedProcedure
@@ -1048,7 +1095,12 @@ export const dagsseddelRouter = router({
         });
       }
 
-      return ctx.prismaTimer.sheetTimer.delete({ where: { id: input.id } });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [slettet] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.delete({ where: { id: input.id } }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return slettet;
     }),
 
   // ----- Tillegg-vedlegg (kvittering) — Funn #2 --------------------------
@@ -1087,14 +1139,24 @@ export const dagsseddelRouter = router({
         gpsLng: input.gpsLng ?? null,
       };
       // Idempotent upsert på klient-id (re-sync av samme vedlegg → ingen duplikat).
+      // F4-1d: touchSedel så mobil pull ser vedlegget (pull synk-er vedlegg per
+      // tillegg-rad). rad.sheetId er sedelen vedlegget hører til.
       if (input.id) {
-        return ctx.prismaTimer.sheetTilleggVedlegg.upsert({
-          where: { id: input.id },
-          create: { id: input.id, ...data },
-          update: { fileUrl: input.fileUrl },
-        });
+        const [vedlegg] = await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetTilleggVedlegg.upsert({
+            where: { id: input.id },
+            create: { id: input.id, ...data },
+            update: { fileUrl: input.fileUrl },
+          }),
+          touchSedel(ctx.prismaTimer, rad.sheetId),
+        ]);
+        return vedlegg;
       }
-      return ctx.prismaTimer.sheetTilleggVedlegg.create({ data });
+      const [vedlegg] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTilleggVedlegg.create({ data }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return vedlegg;
     }),
 
   listTilleggVedlegg: protectedProcedure
@@ -1132,9 +1194,14 @@ export const dagsseddelRouter = router({
           message: `Dagsseddel er låst (status: ${sheet.status})`,
         });
       }
-      return ctx.prismaTimer.sheetTilleggVedlegg.delete({
-        where: { id: input.id },
-      });
+      // F4-1d: rad-write + touchSedel atomisk (sheet = sedelen tillegg-raden ligger på).
+      const [slettet] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTilleggVedlegg.delete({
+          where: { id: input.id },
+        }),
+        touchSedel(ctx.prismaTimer, sheet.id),
+      ]);
+      return slettet;
     }),
 
   // ----- Tillegg-rader ---------------------------------------------------
@@ -1168,15 +1235,20 @@ export const dagsseddelRouter = router({
         });
       }
 
-      return ctx.prismaTimer.sheetTillegg.create({
-        data: {
-          sheetId: input.sheetId,
-          projectId: input.projectId,
-          tilleggId: input.tilleggId,
-          antall: input.antall,
-          kommentar: input.kommentar ?? null,
-        },
-      });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [rad] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTillegg.create({
+          data: {
+            sheetId: input.sheetId,
+            projectId: input.projectId,
+            tilleggId: input.tilleggId,
+            antall: input.antall,
+            kommentar: input.kommentar ?? null,
+          },
+        }),
+        touchSedel(ctx.prismaTimer, input.sheetId),
+      ]);
+      return rad;
     }),
 
   oppdaterTilleggRad: protectedProcedure
@@ -1210,10 +1282,15 @@ export const dagsseddelRouter = router({
       if (input.antall !== undefined) data.antall = input.antall;
       if (input.kommentar !== undefined) data.kommentar = input.kommentar;
 
-      return ctx.prismaTimer.sheetTillegg.update({
-        where: { id: input.id },
-        data,
-      });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [oppdatert] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTillegg.update({
+          where: { id: input.id },
+          data,
+        }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return oppdatert;
     }),
 
   fjernTilleggRad: protectedProcedure
@@ -1232,7 +1309,12 @@ export const dagsseddelRouter = router({
         });
       }
 
-      return ctx.prismaTimer.sheetTillegg.delete({ where: { id: input.id } });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [slettet] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTillegg.delete({ where: { id: input.id } }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return slettet;
     }),
 
   // ----- Status-overgang -------------------------------------------------
@@ -1914,10 +1996,14 @@ export const dagsseddelRouter = router({
       }
 
       const fraEcoId = rad.externalCostObjectId;
-      const oppdatert = await ctx.prismaTimer.sheetTimer.update({
-        where: { id: input.timerRadId },
-        data: { externalCostObjectId: input.externalCostObjectId },
-      });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [oppdatert] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.update({
+          where: { id: input.timerRadId },
+          data: { externalCostObjectId: input.externalCostObjectId },
+        }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
 
       // Activity-log (best-effort — ikke blokker ved skrivefeil)
       try {
@@ -2214,6 +2300,90 @@ export const dagsseddelRouter = router({
       return { antallReturnert: alle.length, returnerSedler: uniqueSheetIds };
     }),
 
+  // F4-2 (2026-07-11): leder angrer en fullført attestering. `attesterRader`
+  // flipper sedelen til "accepted" når alle rader er attestert (:2112), og da
+  // forsvinner attesterings-/retur-handlingene på web (gated på status "sent").
+  // Denne mutasjonen er den rene inversen: reverser HELE attesteringen på
+  // sedel-nivå → status "sent" (tilbake i leder-køen for ny vurdering), alle
+  // rader tilbake til "pending". Adskilt fra rad-retur (`returnerRader`), som er
+  // for delvis flyt UNDER attestering. Speiler auth (unike projectId +
+  // krevProsjektLeder, som returnerRader) og rad-reset (som gjenaapneDagsseddel).
+  gjenaapneAttestering: protectedProcedure
+    .input(z.object({ sheetId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await ctx.prismaTimer.dailySheet.findUnique({
+        where: { id: input.sheetId },
+      });
+      if (!sheet) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Dagsseddelen finnes ikke" });
+      }
+
+      // Precondition: kun en fullført attestering kan gjenåpnes.
+      if (sheet.status !== "accepted") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Kun godkjente dagssedler kan gjenåpnes (status: ${sheet.status})`,
+        });
+      }
+
+      // Leder-auth: samme oppslag som returnerRader — unike projectId fra
+      // sedelens rader, krevProsjektLeder på hver. En accepted-sedel har alltid
+      // rader (ble accepted fordi alle ble attestert); tom sedel → kan ikke
+      // autorisere (speiler hentForAttestering).
+      const [timerRader, tilleggRader, maskinRader] = await Promise.all([
+        ctx.prismaTimer.sheetTimer.findMany({
+          where: { sheetId: sheet.id },
+          select: { projectId: true },
+        }),
+        ctx.prismaTimer.sheetTillegg.findMany({
+          where: { sheetId: sheet.id },
+          select: { projectId: true },
+        }),
+        ctx.prismaTimer.sheetMachine.findMany({
+          where: { sheetId: sheet.id },
+          select: { projectId: true },
+        }),
+      ]);
+      const uniqueProjectIds = Array.from(
+        new Set(
+          [...timerRader, ...tilleggRader, ...maskinRader].map((r) => r.projectId),
+        ),
+      );
+      if (uniqueProjectIds.length === 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Dagsseddel har ingen rader — kan ikke autorisere",
+        });
+      }
+      await Promise.all(
+        uniqueProjectIds.map((pid) => krevProsjektLeder(ctx.userId, pid)),
+      );
+
+      // Reverser attesteringen (samme rad-reset som gjenaapneDagsseddel): alle
+      // rader → "pending", nullstill attestertAvUserId/attestertVed; sedel →
+      // "sent" (tilbake i leder-køen), nullstill sedel-attestering.
+      await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.updateMany({
+          where: { sheetId: sheet.id },
+          data: { attestertStatus: "pending", attestertAvUserId: null, attestertVed: null },
+        }),
+        ctx.prismaTimer.sheetTillegg.updateMany({
+          where: { sheetId: sheet.id },
+          data: { attestertStatus: "pending", attestertAvUserId: null, attestertVed: null },
+        }),
+        ctx.prismaTimer.sheetMachine.updateMany({
+          where: { sheetId: sheet.id },
+          data: { attestertStatus: "pending", attestertAvUserId: null, attestertVed: null },
+        }),
+        ctx.prismaTimer.dailySheet.update({
+          where: { id: sheet.id },
+          data: { status: "sent", attestertVed: null, attestertAvUserId: null },
+        }),
+      ]);
+
+      return { sheetId: sheet.id, status: "sent" as const };
+    }),
+
   // ============================================================================
   //  T7-2b2 — Firma-admin rediger-modus (2026-05-14)
   //
@@ -2463,14 +2633,13 @@ export const dagsseddelRouter = router({
 
       // Transaksjon: marker alle eksisterende pending som "erstattet" + opprett nye
       await ctx.prismaTimer.$transaction([
-        ...(pauseUpdate
-          ? [
-              ctx.prismaTimer.dailySheet.update({
-                where: { id: sheet.id },
-                data: pauseUpdate,
-              }),
-            ]
-          : []),
+        // F4-1d: oppdater sedelen ALLTID (ikke bare ved pause-endring) — ellers
+        // bumpes ikke updatedAt når leder kun redigerer rader, og de nye radene
+        // blir usynlige for mobil inkrementell pull (updatedAt > sistSynk).
+        ctx.prismaTimer.dailySheet.update({
+          where: { id: sheet.id },
+          data: { ...(pauseUpdate ?? {}), updatedAt: new Date() },
+        }),
         ctx.prismaTimer.sheetTimer.updateMany({
           where: { sheetId: sheet.id, attestertStatus: "pending" },
           data: {
@@ -2856,6 +3025,9 @@ export const dagsseddelRouter = router({
         ]);
       }
 
+      // F4-1d: bump sedelens updatedAt så de nye split-radene når mobil pull.
+      await touchSedel(ctx.prismaTimer, sheet.id);
+
       // 9) Activity-log med snapshots
       const originalSnapshot =
         input.radType === "timer"
@@ -3214,7 +3386,17 @@ export const dagsseddelRouter = router({
         sedler: z.array(
           z.object({
             clientUuid: z.string().uuid(),
-            projectId: z.string().uuid(),
+            // F4-4 (2026-07-11): sedel-nivå projectId er en fallback-shim (T.1:
+            // rad-nivå er kanon). Var påkrevd `.uuid()` → en tom/plassholder-
+            // sedel som sendte "" (pull-plassholder `serverSedel.projectId ?? ""`)
+            // fikk Zod til å avvise HELE batchen (poison) før prosedyren kjørte.
+            // Tåler "" (#37-klient), null (#38) og undefined → normaliser til
+            // null. Ekte ugyldig ikke-uuid-streng avvises fortsatt.
+            projectId: z
+              .union([z.string().uuid(), z.literal("")])
+              .nullable()
+              .optional()
+              .transform((v) => v || null),
             aktivitetId: z.string().uuid(),
             avdelingId: z.string().uuid().nullable().optional(),
             byggeplassId: z.string().uuid().nullable().optional(),
@@ -3293,6 +3475,10 @@ export const dagsseddelRouter = router({
         resultat: "ok" | "conflict" | "avvist" | "feilet";
         serverData?: {
           id: string;
+          // Synk-identitet (2026-07-11): server-sedelens clientUuid. Kun satt på
+          // kollisjon-conflict (S2) så mobil kan re-nøkle lokal sedel til den
+          // identiteten push treffer. Valgfritt → #37-klient ignorerer feltet.
+          clientUuid?: string;
           status: DagsseddelStatus;
           lederKommentar: string | null;
           attestertVed: string | null;
@@ -3363,8 +3549,12 @@ export const dagsseddelRouter = router({
               });
               continue;
             }
-          } else {
-            // Ny seddel — verifiser prosjekttilgang
+          } else if (lokal.projectId) {
+            // Ny seddel — verifiser prosjekttilgang. F4-4: sedel-nivå projectId
+            // kan nå være null (tom/plassholder-sedel). Rad-nivå-medlemskap
+            // sjekkes uansett under (radProjectIder); org-tilgang er allerede
+            // sikret (krevBrukersOrg + krevTimerAktivert). Konsistent med web
+            // `opprett` (T.1: dato-only, org-tilgang tilstrekkelig).
             await verifiserProsjektmedlem(ctx.userId, lokal.projectId);
           }
 
@@ -3453,18 +3643,38 @@ export const dagsseddelRouter = router({
             await verifiserProsjektmedlem(ctx.userId, pid);
           }
 
+          // F4-4 (2026-07-11): resolver rad-nivå projectId (kanon per T.1) med
+          // sedel-nivå fallback (nå nullbar). DB-feltet er NOT NULL — en rad
+          // uten noe prosjekt avvises synlig (SYNC-1) i stedet for en rå DB-feil
+          // + evig retry. En tom sedel (0 rader) passerer (ingen rad å resolvere)
+          // og lagres som bart sedelhode.
+          const radProsjekt = (radId: string | undefined): string | null =>
+            radId ?? lokal.projectId ?? null;
+          const alleRadProsjekt = [
+            ...lokal.timer.map((t) => radProsjekt(t.projectId)),
+            ...lokal.tillegg.map((tl) => radProsjekt(tl.projectId)),
+            ...lokal.maskiner.map((m) => radProsjekt(m.projectId)),
+          ];
+          if (alleRadProsjekt.some((p) => !p)) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding:
+                "En rad mangler prosjekt — velg prosjekt på hver rad før innsending",
+            });
+            continue;
+          }
+
           // Fase 1b: firma-grense på alle RESOLVERTE rad-projectIds (med
           // sedel-nivå fallback). Medlemskaps-løkka over filtrerer bort rad-IDer
           // == lokal.projectId og hopper sedel-nivå for eksisterende sedler —
           // firma-grensen dekker den luken (foreign projectId via re-sync av
           // egen eksisterende sedel). Delt helper, samme grense som de andre
           // skrive-stiene. Beholder medlemskaps-løkka (G1-policy utenfor 1b).
+          // F4-4: `.filter` narrower til string[] (guarden over garanterer
+          // ingen null; tom sedel gir tomt array → helper er no-op).
           await verifiserProsjekterTilhørerFirma(
-            [
-              ...lokal.timer.map((t) => t.projectId ?? lokal.projectId),
-              ...lokal.tillegg.map((t) => t.projectId ?? lokal.projectId),
-              ...lokal.maskiner.map((m) => m.projectId ?? lokal.projectId),
-            ],
+            alleRadProsjekt.filter((p): p is string => !!p),
             orgId,
           );
 
@@ -3532,12 +3742,12 @@ export const dagsseddelRouter = router({
           // det som er i lokal.timer + lokal.maskiner. Feil per sedel
           // resulterer i "feilet" for KUN den sedelen, ikke batchen.
           const syncPostTimer: ValiderRad[] = lokal.timer.map((t) => ({
-            projectId: t.projectId ?? lokal.projectId,
+            projectId: radProsjekt(t.projectId)!,
             externalCostObjectId: t.externalCostObjectId ?? null,
             timer: t.timer,
           }));
           const syncPostMaskin: ValiderRad[] = lokal.maskiner.map((m) => ({
-            projectId: m.projectId ?? lokal.projectId,
+            projectId: radProsjekt(m.projectId)!,
             externalCostObjectId: m.externalCostObjectId ?? null,
             timer: m.timer,
           }));
@@ -3563,6 +3773,10 @@ export const dagsseddelRouter = router({
             const sedel = await tx.dailySheet.upsert({
               where: { clientUuid: lokal.clientUuid },
               create: {
+                // Synk-identitet (2026-07-11): id == clientUuid ved create —
+                // se opprett-blokken over. Gjør server-id lik mobil-lokal-id
+                // (= clientUuid) så push/pull nøkler på samme identitet.
+                id: lokal.clientUuid,
                 clientUuid: lokal.clientUuid,
                 organizationId: orgId,
                 userId: ctx.userId,
@@ -3596,13 +3810,33 @@ export const dagsseddelRouter = router({
               },
             });
 
-            // Erstatt alle rader (deleteMany + createMany) — sedel er sync-atom.
-            // Cascade på sheetId-FK + Restrict på lonnsart/aktivitet/tillegg er
-            // allerede håndtert via relasjoner. Vi unngår å treffe accepted-rader
-            // fordi status="accepted" returnerer "conflict" tidligere i flyten.
-            await tx.sheetTimer.deleteMany({ where: { sheetId: sedel.id } });
-            await tx.sheetTillegg.deleteMany({ where: { sheetId: sedel.id } });
-            await tx.sheetMachine.deleteMany({ where: { sheetId: sedel.id } });
+            // S3 (2026-07-11): IKKE slett-og-gjenopprett hele sedelen. Slett kun
+            // radene mobil faktisk sender (som den gjenoppretter autoritativt
+            // under) og la server-rader som IKKE er i payloaden stå. Dette
+            // bevarer web-førte rader mobil aldri pullet — ved en dato-kollisjon
+            // (S2/M1) pushes mobilens rader additivt inn på server-sedelen uten
+            // å stryke web-radene. Konsekvens (akseptert beslutning): mobil rad-
+            // SLETTING propagerer ikke automatisk — «aldri mist data» prioriteres
+            // over sletting-propagering. Delte rad-id (samme rad på web og mobil)
+            // gjenoppbygges fra mobil-versjonen (mobil eier egne rader).
+            const timerIder = lokal.timer.map((t) => t.id);
+            const tilleggIder = lokal.tillegg.map((tl) => tl.id);
+            const maskinIder = lokal.maskiner.map((m) => m.id);
+            if (timerIder.length > 0) {
+              await tx.sheetTimer.deleteMany({
+                where: { sheetId: sedel.id, id: { in: timerIder } },
+              });
+            }
+            if (tilleggIder.length > 0) {
+              await tx.sheetTillegg.deleteMany({
+                where: { sheetId: sedel.id, id: { in: tilleggIder } },
+              });
+            }
+            if (maskinIder.length > 0) {
+              await tx.sheetMachine.deleteMany({
+                where: { sheetId: sedel.id, id: { in: maskinIder } },
+              });
+            }
 
             // T7-3b1: rad-nivå projectId overstyrer sedel-nivå hvis satt.
             // Faller tilbake til lokal.projectId (sedel-nivå) for pre-T7-3b1
@@ -3612,7 +3846,7 @@ export const dagsseddelRouter = router({
                 data: lokal.timer.map((t) => ({
                   id: t.id,
                   sheetId: sedel.id,
-                  projectId: t.projectId ?? lokal.projectId,
+                  projectId: radProsjekt(t.projectId)!,
                   byggeplassId: lokal.byggeplassId ?? null,
                   lonnsartId: t.lonnsartId,
                   aktivitetId: t.aktivitetId,
@@ -3631,7 +3865,7 @@ export const dagsseddelRouter = router({
                 data: lokal.tillegg.map((tl) => ({
                   id: tl.id,
                   sheetId: sedel.id,
-                  projectId: tl.projectId ?? lokal.projectId,
+                  projectId: radProsjekt(tl.projectId)!,
                   tilleggId: tl.tilleggId,
                   antall: tl.antall,
                   kommentar: tl.kommentar ?? null,
@@ -3643,7 +3877,7 @@ export const dagsseddelRouter = router({
                 data: lokal.maskiner.map((m) => ({
                   id: m.id,
                   sheetId: sedel.id,
-                  projectId: m.projectId ?? lokal.projectId,
+                  projectId: radProsjekt(m.projectId)!,
                   externalCostObjectId: m.externalCostObjectId ?? null,
                   byggeplassId: lokal.byggeplassId ?? null,
                   vehicleId: m.vehicleId,
@@ -3683,17 +3917,58 @@ export const dagsseddelRouter = router({
             continue;
           }
           if (e instanceof Prisma.PrismaClientKnownRequestError) {
-            // P2002: brudd på unique-constraint (typisk userId+projectId+dato)
-            // — klient har duplisert seddel under tidligere offline-økt. Permanent
-            // → `avvist` (SYNC-1). Andre Prisma-koder kan være transiente (DB-blip,
-            // deadlock) → `feilet` så de retries.
+            // S2 (2026-07-11): P2002 på @@unique([userId, dato]) er en
+            // identitetskollisjon — server har allerede en sedel for denne
+            // datoen under en ANNEN clientUuid (registrert på web/annen enhet).
+            // Speil `opprett` (findUnique userId_dato) og returner `conflict`
+            // med server-sedelens identitet i stedet for `avvist`, så mobil kan
+            // forsone (re-nøkle + additiv push) i stedet for å miste arbeiderens
+            // offline-rader. `dato` er ikke i scope her (block-scoped i try) —
+            // recompute fra lokal.
+            if (e.code === "P2002") {
+              const kollisjonDato = new Date(lokal.dato);
+              const eksisterende = await ctx.prismaTimer.dailySheet.findUnique({
+                where: {
+                  userId_dato: { userId: ctx.userId, dato: kollisjonDato },
+                },
+              });
+              // Kun ekte dato-kollisjon (annen clientUuid) blir conflict. Annen
+              // P2002 (f.eks. rad-id-PK) → behold `avvist` (permanent, klienten
+              // kan ikke rette via retry).
+              if (
+                eksisterende &&
+                eksisterende.clientUuid !== lokal.clientUuid
+              ) {
+                resultater.push({
+                  clientUuid: lokal.clientUuid,
+                  resultat: "conflict",
+                  serverData: {
+                    id: eksisterende.id,
+                    clientUuid: eksisterende.clientUuid,
+                    status: eksisterende.status as DagsseddelStatus,
+                    lederKommentar: eksisterende.lederKommentar,
+                    attestertVed:
+                      eksisterende.attestertVed?.toISOString() ?? null,
+                    updatedAt: eksisterende.updatedAt.toISOString(),
+                  },
+                  feilmelding:
+                    "Det finnes allerede en dagsseddel for denne datoen — dine timer slås sammen med den.",
+                });
+                continue;
+              }
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "avvist",
+                feilmelding: "Duplisert dagsseddel for samme dato",
+              });
+              continue;
+            }
+            // Andre Prisma-koder kan være transiente (DB-blip, deadlock) →
+            // `feilet` så de retries.
             resultater.push({
               clientUuid: lokal.clientUuid,
-              resultat: e.code === "P2002" ? "avvist" : "feilet",
-              feilmelding:
-                e.code === "P2002"
-                  ? "Duplisert dagsseddel for samme dato og prosjekt"
-                  : `DB-feil: ${e.code}`,
+              resultat: "feilet",
+              feilmelding: `DB-feil: ${e.code}`,
             });
             continue;
           }
@@ -3774,20 +4049,25 @@ export const dagsseddelRouter = router({
           });
         }
 
-        return ctx.prismaTimer.sheetMachine.create({
-          data: {
-            sheetId: input.sheetId,
-            projectId: input.projectId,
-            externalCostObjectId: input.externalCostObjectId ?? null,
-            byggeplassId: input.byggeplassId ?? null,
-            vehicleId: input.vehicleId,
-            timer: input.timer,
-            mengde: input.mengde ?? null,
-            enhet: input.enhet ?? null,
-            fraTid: input.fraTid ?? null,
-            tilTid: input.tilTid ?? null,
-          },
-        });
+        // F4-1d: rad-write + touchSedel atomisk.
+        const [rad] = await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetMachine.create({
+            data: {
+              sheetId: input.sheetId,
+              projectId: input.projectId,
+              externalCostObjectId: input.externalCostObjectId ?? null,
+              byggeplassId: input.byggeplassId ?? null,
+              vehicleId: input.vehicleId,
+              timer: input.timer,
+              mengde: input.mengde ?? null,
+              enhet: input.enhet ?? null,
+              fraTid: input.fraTid ?? null,
+              tilTid: input.tilTid ?? null,
+            },
+          }),
+          touchSedel(ctx.prismaTimer, input.sheetId),
+        ]);
+        return rad;
       }),
 
     oppdater: protectedProcedure
@@ -3865,10 +4145,15 @@ export const dagsseddelRouter = router({
           });
         }
 
-        return ctx.prismaTimer.sheetMachine.update({
-          where: { id: input.id },
-          data,
-        });
+        // F4-1d: rad-write + touchSedel atomisk.
+        const [oppdatert] = await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetMachine.update({
+            where: { id: input.id },
+            data,
+          }),
+          touchSedel(ctx.prismaTimer, rad.sheetId),
+        ]);
+        return oppdatert;
       }),
 
     fjern: protectedProcedure
@@ -3891,7 +4176,12 @@ export const dagsseddelRouter = router({
           });
         }
 
-        return ctx.prismaTimer.sheetMachine.delete({ where: { id: input.id } });
+        // F4-1d: rad-write + touchSedel atomisk.
+        const [slettet] = await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetMachine.delete({ where: { id: input.id } }),
+          touchSedel(ctx.prismaTimer, rad.sheetId),
+        ]);
+        return slettet;
       }),
   }),
 

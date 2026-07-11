@@ -8,6 +8,15 @@ sist_verifisert_mot_kode: 2026-07-04
 
 Arkiv av arbeid deployet til prod i juli 2026. Flyttet hit fra [STATUS-AKTUELT.md](STATUS-AKTUELT.md) per arkiveringsplikten (deployet arbeid ligger aldri igjen i STATUS-AKTUELT).
 
+## Prod-deploy 2026-07-10 (prod-merge `373a109f`) — bolk (h) offline-synk + M4/M5 + katalog-importer
+
+Develop→main-merge `373a109f`. Innhold: **bolk (h)** SYNC-1/SYNC-2 + M2–M7 (mobil offline-synk-blokkere + web/server-paritet) + **M4/M5 server-endringer i `apps/api/.../dagsseddel.ts`** (distinkte gjenåpne-koder `CONFLICT`/`BAD_REQUEST` + `NOT_FOUND`-melding; `syncBatch` maskin-`fra<til`-vakt) + **generisk katalog-importer** (`admin.importerTimerKatalog`).
+
+- Ekte Docker-bygg (442 s), migrerings-gate OK (0 ventende migreringer mot prod-DB `/sitedoc`), cutover uten nedetid, browser-verifisert som innlogget bruker.
+- **Server-siden (M4/M5/SYNC i `apps/api`) er dermed LIVE i prod.** Gammel klient (#37) mot ny server er trygg (leser uendret `e.message`).
+- **Mobil-siden når brukere først via EAS #38** — **blokkert** av de to 🔴 Fase-4-funnene (rader-forsvinner-etter-attestering + accepted-deadlock). Se [BACKLOG § Timer web-vs-mobil paritet → Fase 4 simulator-funn](BACKLOG.md).
+- Etter deploy: `admin.importerTimerKatalog` kjørt mot prod-org (A.Markussen) — 26 opprettet / 12 oppdatert / 0 deaktivert, km-stjerne→`120`. Lukker BACKLOG-blokkeren «nivå-1 lønnsart-seed».
+
 ## Prod-deploy 2026-07-09 (prod-merge `224c13f6`) — timer-paritet + pause-regler + overlapp/gjenåpne-vakt + nyNav sticky-flag
 
 Merge develop→main (`224c13f6`, 2026-07-09): «timer-paritet + pause-regler + overlapp-vakt + gjenåpne-vakt + salsaklubb-isolasjon + tilkoblingsbudsjett». Alle hashene under er verifisert med `git merge-base --is-ancestor <hash> origin/main`. Åpne **mobil**-oppfølgere er IKKE arkivert bort — de står i [STATUS-AKTUELT § PSI Fase A + Maskin + ③](STATUS-AKTUELT.md) + [BACKLOG § Timer web-vs-mobil paritet](BACKLOG.md).
