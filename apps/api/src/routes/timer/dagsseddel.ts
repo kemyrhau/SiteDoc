@@ -117,9 +117,18 @@ async function hentEgenDagsseddel(
   ctxUserId: string,
   sheetId: string,
 ) {
-  const sheet = await (prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer).dailySheet.findUnique({
-    where: { id: sheetId },
-  });
+  // F4-1b (2026-07-11): identitets-robust oppslag. Mobil sender lokal id
+  // (= clientUuid, jf. F4-1 pull-M2). For sedler laget FØR F4-1-invarianten
+  // (`id = clientUuid` ved create) er server-PK `id` ≠ `clientUuid` → et rent
+  // id-oppslag ga NOT_FOUND på alle ~14 arbeider-kallesteder (gjenåpne/rediger/
+  // send/slett). Slå opp på `id` FØRST (server-id: post-invariant + web-klient),
+  // fall tilbake til `clientUuid` (pre-invariant mobil-id). Begge @unique →
+  // ingen migrering. Bakoverkompat: gammel klient sender server-id → treffer id;
+  // ny mobil sender clientUuid → treffer clientUuid.
+  const pt = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
+  const sheet =
+    (await pt.dailySheet.findUnique({ where: { id: sheetId } })) ??
+    (await pt.dailySheet.findUnique({ where: { clientUuid: sheetId } }));
   // M4 (2026-07-10): NOT_FOUND uten melding ga tom feiltekst hos klienten. Alle
   // 14 kallesteder (hentMedId/oppdater/tilfoy*/oppdater*/fjern*/send/gjenaapne/
   // slett) propagerer feilen til tRPC uten å mappe på tom melding (verifisert:
