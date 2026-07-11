@@ -294,6 +294,38 @@ plasserings-blokker):** K9.
 > **K8-oppfølger (ikke blokkerende):** legg en linje i `onboarding-veileder.md` om at 1a-huben
 > er hjem for «Kom i gang»-innhold — gjøres når huben bygges (steg ii).
 
+> ✅ **K-nummer-kollisjon LØST (fabel 2026-07-11):** «Full sidedekning i globalt søk» =
+> **K13**. K-tabellens **K12** (fakturerings-tilgang, F20) beholdes uendret. Søkedekning-
+> beslutningene omtales som **K13-a…e**.
+
+## Seksjon SØK (K13) — søkedekning per rute
+
+**Akseptkriterium:** hver navigerbar `page.tsx` er søkbar (Ctrl+K via `useSokRegistry`)
+ELLER eksplisitt ekskludert. Håndhevet av `apps/web/src/hooks/__tests__/sok-dekning.test.ts`
+(F3-vern — ny side uten dekning/unntak feiler testen). Full analyse: `k13-sokdekning-rapport.md`.
+
+**Nytt i K13 (5 tidligere udekkede — implementert 2026-07-11):**
+
+| Paritet | Rute | Regel | Søkeinngang (kilde) |
+|---|---|---|---|
+| O12 | `/dashbord/oppsett/firma` (Eier-firma) | 1 | Hub-underlenke «Prosjektoppsett › Eier-firma» (dobbel gating: prosjekt + `harFirmaTilgang`) |
+| FM4 | `/dashbord/maskin/import` | 1 | Hub-underlenke «Maskin › Import» |
+| F14 | `/dashbord/firma/timer/onboarding` | 1 | Hub-underlenke «Timer › Onboarding» (K13-g) |
+| F14b | `/dashbord/firma/timer/oppsett` | 1 | Hub-underlenke «Timer › Oppsett» (K13-g — develop la til; gjenbruker `firma.timer.fane.oppsett`) |
+| P29 | `/dashbord/[pid]/maler` | 2 | `dypeSider` (arbeidsflate) |
+| F16 | `/dashbord/firma/timer/attestering` | 2 | `dypeSider` (arbeidsflate, `kreverFirmaModul="timer"`) |
+
+**Nye søketreff (dyp side, K13-a):** `kom-i-gang` — tittel «Kom i gang», INGEN sone-brødsmule.
+
+**Bevisst ekskludert (unntaksliste i testen, med grunn):** detaljsider `[id]` · opprett `/ny`,`/nytt`,
+`nytt-prosjekt` (K13 c) · redirects (kontakter/godkjenning/K9-legacy) · landing/parent
+(`oppsett`,`produksjon`) · utskrift · `modeller`/`punktskyer` (K4) · `dokumentleser` (K13 d,
+ryddesjekk i BACKLOG) · `admin/*` (K11).
+
+> **Øvrige P/O/F/FM-rader** som allerede hadde «+ søk» i «Ny inngang»-kolonnen dekkes av de
+> tre eksisterende kildene (hub/sidebar/firma-nav) — verifisert av dekningstesten. Denne
+> seksjonen er «Søkedekning»-kolonnen for lista (samlet, ikke spredt per rad).
+
 ### K9-rapport — duplikat prosjekt-rutetre (kartlagt 2026-07-05)
 
 **Metode:** grep av alle UI-lenker/navigasjon i `apps/web/src` mot begge rutetrær.

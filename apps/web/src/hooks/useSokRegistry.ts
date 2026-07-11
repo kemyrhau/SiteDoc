@@ -11,6 +11,7 @@ import {
   useSidebarElementer,
 } from "@/components/layout/sidebar-elementer";
 import { useFirmaNavElementer } from "@/components/layout/firma-nav";
+import { useDypeSider } from "@/components/layout/dype-sider";
 
 /**
  * Søkeregister for den globale søkemodalen (steg iv).
@@ -51,6 +52,7 @@ export function useSokRegistry(): SokTreff[] {
   const { firmaKort, prosjektKort } = useInnstillingerKort();
   const { filtrertHovedelementer } = useSidebarElementer();
   const firmaNav = useFirmaNavElementer();
+  const dypeSider = useDypeSider();
 
   return useMemo(() => {
     const treff: SokTreff[] = [];
@@ -118,6 +120,15 @@ export function useSokRegistry(): SokTreff[] {
       legg(`side:${el.href}`, "sider", t(el.labelKey), [soneLabel("firma")], el.href);
     }
 
+    // K13 — dype sider (arbeidsflater uten nav-hjem): maler, firma-attestering,
+    // kom-i-gang. Gating arvet fra useDypeSider. Brødsmula kan være tom
+    // (kom-i-gang har ingen sone — fabel-avgjørelse).
+    for (const s of dypeSider) {
+      const href = s.href(prosjektId);
+      if (!href) continue; // krever prosjekt, men ingen valgt → ikke navigerbar
+      legg(`dyp:${s.id}`, "sider", t(s.labelKey), s.brodsmuleKeys.map((k) => t(k)), href);
+    }
+
     return treff;
-  }, [firmaKort, prosjektKort, filtrertHovedelementer, firmaNav, prosjektId, nyNav, t]);
+  }, [firmaKort, prosjektKort, filtrertHovedelementer, firmaNav, dypeSider, prosjektId, nyNav, t]);
 }

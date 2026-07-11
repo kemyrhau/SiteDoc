@@ -2806,6 +2806,8 @@
   "innstillinger.lenke.aktiviteter": "Aktiviteetit",
   "innstillinger.lenke.tillegg": "Lisäravinteet",
   "innstillinger.lenke.maskinregister": "Rekisteröidy",
+  "innstillinger.lenke.maskinImport": "Tuoda",
+  "innstillinger.lenke.eierFirma": "Omistaja yritys",
   "innstillinger.lenke.kalender": "Kalenteri",
   "innstillinger.lenke.varelagerKatalog": "Luettelo",
   "innstillinger.lenke.varelagerImport": "Tuoda",

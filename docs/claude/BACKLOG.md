@@ -16,6 +16,19 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🔴 i18n fagterm-QA for K13-nøklene
+
+Auto-oversettelsen (generate.ts) ga svake fagtermer for de tre nye K13-nøklene i enkelte språk — særlig `innstillinger.lenke.timerOnboarding` («Oppsett»/«Setup») → pl «Organizować coś» o.l. Kjent generate.ts-quirk (kildene nb/en er korrekte). QA + manuell retting av fagtermene er egen sak, ikke-blokkerende.
+
+### 🔴 Ryddesjekk: `/dashbord/[prosjektId]/dokumentleser` — brukes den? (K13-d)
+
+Under K12-søkedekning (2026-07-11) ble `dokumentleser` (ekte 420-linjers side)
+funnet **uten nav-hjem og uten noen direkte UI-lenke** i `apps/web/src` — kun
+per-dok-readeren `/dokumenter/[dokumentId]/les` er lenket. Ekskludert fra globalt
+søk v1 (unntaksliste i `sok-dekning.test.ts`). **Sjekk:** er siden fortsatt i bruk
+(dyplenke/historisk), eller er den død kode som kan slettes? Hvis død → slett +
+fjern unntaks-raden. Ikke blokkerende.
+
 ### 🟡 Server-ny vedlikehold: OS-oppdateringer + restart (før redesign-stack)
 
 server-ny melder «System restart required» + ~36 ventende pakke-oppdateringer (observert 2026-07-05 under test-web-rebuild). Ikke akutt, men **bør gjøres før dere reiser den tredje redesign-stacken** (`-p redesign`, `sitedoc_redesign`) på samme maskin — en restart midt i tre kjørende stacks (prod + test + redesign) er mer risikabelt. Handling: planlagt vedlikeholdsvindu → `apt upgrade` + `reboot` (Kenneth, sudo), verifiser prod + test kommer opp igjen (innlogget) etterpå.

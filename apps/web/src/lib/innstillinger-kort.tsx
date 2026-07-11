@@ -32,6 +32,7 @@ import { useFirma } from "@/kontekst/firma-kontekst";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 import { useKanManageField } from "@/hooks/useKanManageField";
+import { HUB_LENKER } from "@/lib/hub-ruter";
 
 export type Seksjon = "firma" | "prosjekt";
 
@@ -57,6 +58,14 @@ export function useInnstillingerKort(): {
 } {
   const { kanAdministrereFirma, valgtFirma, erSitedocAdmin } = useFirma();
   const { prosjektId } = useProsjekt();
+
+  // O12 (Eier-firma) — samme gating som oppsett/layout.tsx: `!!prosjektFirma || erAdmin`.
+  // Dobbel gating (pålegg 1): prosjekt-kontekst (kortet er prosjekt-seksjon) OG firmatilgang.
+  const { data: prosjektFirma } = trpc.organisasjon.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
+  const harFirmaTilgang = !!prosjektFirma || erSitedocAdmin;
 
   // Prosjekt-tillatelser (manage_field) — delt gating-hook (speiler oppsett-
   // sidebarens admin/registrator-bypass). Ekstrahert til `useKanManageField`
@@ -89,12 +98,12 @@ export function useInnstillingerKort(): {
         ikon: <Building2 className="h-5 w-5" />,
         synlig: kanAdministrereFirma,
         underlenker: [
-          { labelKey: "innstillinger.lenke.firmainfo", href: "/dashbord/firma/innstillinger" },
+          { labelKey: "innstillinger.lenke.firmainfo", href: HUB_LENKER.firmainfo },
           // (e) Fakturering gates på erSitedocAdmin for å SPEILE dagens firma-layout
           // (firma-sidebar: Fakturering = kreverSitedocAdmin). 1a-designet plasserte den
           // under company_admin — å vise den for firma-admin ville være en atferdsendring
           // (fakturerings-innsyn). Ikke avgjort her; flagget som åpen beslutning til Kenneth.
-          { labelKey: "innstillinger.lenke.fakturering", href: "/dashbord/firma/fakturering", synlig: erSitedocAdmin },
+          { labelKey: "innstillinger.lenke.fakturering", href: HUB_LENKER.fakturering, synlig: erSitedocAdmin },
         ],
       },
       {
@@ -105,8 +114,8 @@ export function useInnstillingerKort(): {
         ikon: <Users className="h-5 w-5" />,
         synlig: kanAdministrereFirma,
         underlenker: [
-          { labelKey: "innstillinger.lenke.ansatte", href: "/dashbord/firma/ansatte" },
-          { labelKey: "innstillinger.lenke.avdelinger", href: "/dashbord/firma/avdelinger" },
+          { labelKey: "innstillinger.lenke.ansatte", href: HUB_LENKER.ansatte },
+          { labelKey: "innstillinger.lenke.avdelinger", href: HUB_LENKER.avdelinger },
         ],
       },
       {
@@ -118,7 +127,7 @@ export function useInnstillingerKort(): {
         synlig: kanAdministrereFirma,
         underlenker: [
           // (b) dedup: Matrise + Import delte samme URL — import åpnes på matrise-siden.
-          { labelKey: "innstillinger.lenke.matrise", href: "/dashbord/firma/kompetanse" },
+          { labelKey: "innstillinger.lenke.matrise", href: HUB_LENKER.matrise },
         ],
       },
       {
@@ -129,7 +138,7 @@ export function useInnstillingerKort(): {
         ikon: <Calendar className="h-5 w-5" />,
         synlig: kanAdministrereFirma,
         underlenker: [
-          { labelKey: "innstillinger.lenke.kalender", href: "/dashbord/firma/kalender" },
+          { labelKey: "innstillinger.lenke.kalender", href: HUB_LENKER.kalender },
         ],
       },
       {
@@ -140,8 +149,8 @@ export function useInnstillingerKort(): {
         ikon: <Package className="h-5 w-5" />,
         synlig: kanAdministrereFirma && harVarelager,
         underlenker: [
-          { labelKey: "innstillinger.lenke.varelagerKatalog", href: "/dashbord/firma/varelager" },
-          { labelKey: "innstillinger.lenke.varelagerImport", href: "/dashbord/firma/varelager/import" },
+          { labelKey: "innstillinger.lenke.varelagerKatalog", href: HUB_LENKER.varelagerKatalog },
+          { labelKey: "innstillinger.lenke.varelagerImport", href: HUB_LENKER.varelagerImport },
         ],
       },
       {
@@ -152,9 +161,13 @@ export function useInnstillingerKort(): {
         ikon: <Clock className="h-5 w-5" />,
         synlig: kanAdministrereFirma && harTimer,
         underlenker: [
-          { labelKey: "innstillinger.lenke.lonnsarter", href: "/dashbord/firma/timer/lonnsarter" },
-          { labelKey: "innstillinger.lenke.aktiviteter", href: "/dashbord/firma/timer/aktiviteter" },
-          { labelKey: "innstillinger.lenke.tillegg", href: "/dashbord/firma/timer/tillegg" },
+          { labelKey: "innstillinger.lenke.lonnsarter", href: HUB_LENKER.lonnsarter },
+          { labelKey: "innstillinger.lenke.aktiviteter", href: HUB_LENKER.aktiviteter },
+          { labelKey: "innstillinger.lenke.tillegg", href: HUB_LENKER.tillegg },
+          // K13 F14/K13-g — begge timer-setup-faner er konfig → hub-underlenker (regel 1).
+          // Gjenbruker develops fane-nøkler (fabel K13-g); labels: «Onboarding» + «Oppsett».
+          { labelKey: "firma.timer.fane.onboarding", href: HUB_LENKER.timerOnboarding },
+          { labelKey: "firma.timer.fane.oppsett", href: HUB_LENKER.timerOppsett },
         ],
       },
       {
@@ -165,7 +178,9 @@ export function useInnstillingerKort(): {
         ikon: <Truck className="h-5 w-5" />,
         synlig: kanAdministrereFirma && harMaskin,
         underlenker: [
-          { labelKey: "innstillinger.lenke.maskinregister", href: "/dashbord/maskin" },
+          { labelKey: "innstillinger.lenke.maskinregister", href: HUB_LENKER.maskinregister },
+          // K13 FM4 — maskin-import er konfig → hub-underlenke (regel 1), parallell til Varelager › Import
+          { labelKey: "innstillinger.lenke.maskinImport", href: HUB_LENKER.maskinImport },
         ],
       },
       {
@@ -178,7 +193,7 @@ export function useInnstillingerKort(): {
         underlenker: [
           // (b) dedup: Dashbord + Varsling delte samme URL; firma/hms har ingen egen
           // varsling-fane (fanene er avvik/sja/ruh/statistikk). Beskrivelsen dekker begge.
-          { labelKey: "innstillinger.lenke.hmsDashbord", href: "/dashbord/firma/hms" },
+          { labelKey: "innstillinger.lenke.hmsDashbord", href: HUB_LENKER.hmsDashbord },
         ],
       },
     ],
@@ -197,10 +212,14 @@ export function useInnstillingerKort(): {
         ikon: <Settings className="h-5 w-5" />,
         synlig: true,
         underlenker: [
-          { labelKey: "innstillinger.lenke.generelt", href: "/dashbord/oppsett/prosjektoppsett" },
-          { labelKey: "innstillinger.lenke.byggeplasser", href: "/dashbord/oppsett/byggeplasser" },
+          { labelKey: "innstillinger.lenke.generelt", href: HUB_LENKER.generelt },
+          { labelKey: "innstillinger.lenke.byggeplasser", href: HUB_LENKER.byggeplasser },
           // (c) Mapper-oppsett (O9) — produksjons-barn, krever manage_field.
-          { labelKey: "innstillinger.lenke.mappeoppsett", href: "/dashbord/oppsett/produksjon/box", synlig: kanManageField },
+          { labelKey: "innstillinger.lenke.mappeoppsett", href: HUB_LENKER.mappeoppsett, synlig: kanManageField },
+          // K13 O12 — Eier-firma (Prosjekteier). Dobbel gating (pålegg 1): prosjekt-
+          // kontekst (kortet er prosjekt-seksjon) OG harFirmaTilgang. Speiler
+          // oppsett/layout.tsx: `!!prosjektFirma || erAdmin`.
+          { labelKey: "innstillinger.lenke.eierFirma", href: HUB_LENKER.eierFirma, synlig: harFirmaTilgang },
         ],
       },
       {
@@ -211,7 +230,7 @@ export function useInnstillingerKort(): {
         ikon: <LayoutGrid className="h-5 w-5" />,
         synlig: kanManageField,
         underlenker: [
-          { labelKey: "innstillinger.lenke.moduler", href: "/dashbord/oppsett/produksjon/moduler" },
+          { labelKey: "innstillinger.lenke.moduler", href: HUB_LENKER.moduler },
         ],
       },
       {
@@ -222,8 +241,8 @@ export function useInnstillingerKort(): {
         ikon: <Users className="h-5 w-5" />,
         synlig: true,
         underlenker: [
-          { labelKey: "innstillinger.lenke.medlemmer", href: "/dashbord/oppsett/brukere" },
-          { labelKey: "innstillinger.lenke.faggrupper", href: `/dashbord/${p}/faggrupper` },
+          { labelKey: "innstillinger.lenke.medlemmer", href: HUB_LENKER.medlemmer },
+          { labelKey: "innstillinger.lenke.faggrupper", href: HUB_LENKER.faggrupper.replace("[prosjektId]", p) },
         ],
       },
       {
@@ -234,10 +253,10 @@ export function useInnstillingerKort(): {
         ikon: <FileText className="h-5 w-5" />,
         synlig: kanManageField,
         underlenker: [
-          { labelKey: "innstillinger.lenke.sjekklistemaler", href: "/dashbord/oppsett/produksjon/sjekklistemaler" },
-          { labelKey: "innstillinger.lenke.oppgavemaler", href: "/dashbord/oppsett/produksjon/oppgavemaler" },
+          { labelKey: "innstillinger.lenke.sjekklistemaler", href: HUB_LENKER.sjekklistemaler },
+          { labelKey: "innstillinger.lenke.oppgavemaler", href: HUB_LENKER.oppgavemaler },
           // (c) PSI-mal-oppsett (O10) — kun når PSI-modulen er aktiv (som oppsett-sidebar).
-          { labelKey: "innstillinger.lenke.psiMal", href: "/dashbord/oppsett/produksjon/psi", synlig: psiAktiv },
+          { labelKey: "innstillinger.lenke.psiMal", href: HUB_LENKER.psiMal, synlig: psiAktiv },
         ],
       },
       {
@@ -248,7 +267,7 @@ export function useInnstillingerKort(): {
         ikon: <GitBranch className="h-5 w-5" />,
         synlig: kanManageField,
         underlenker: [
-          { labelKey: "innstillinger.lenke.dokumentflyt", href: "/dashbord/oppsett/produksjon/dokumentflyt" },
+          { labelKey: "innstillinger.lenke.dokumentflyt", href: HUB_LENKER.dokumentflyt },
         ],
       },
       {
@@ -259,11 +278,11 @@ export function useInnstillingerKort(): {
         ikon: <Sparkles className="h-5 w-5" />,
         synlig: true,
         underlenker: [
-          { labelKey: "innstillinger.lenke.aiSok", href: "/dashbord/oppsett/ai-sok" },
+          { labelKey: "innstillinger.lenke.aiSok", href: HUB_LENKER.aiSok },
         ],
       },
     ];
-  }, [prosjektId, kanManageField, psiAktiv]);
+  }, [prosjektId, kanManageField, psiAktiv, harFirmaTilgang]);
 
   return { firmaKort, prosjektKort };
 }

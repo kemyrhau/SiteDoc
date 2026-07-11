@@ -2806,6 +2806,8 @@
   "innstillinger.lenke.aktiviteter": "Tegevused",
   "innstillinger.lenke.tillegg": "Toidulisandid",
   "innstillinger.lenke.maskinregister": "Registreeru",
+  "innstillinger.lenke.maskinImport": "Import",
+  "innstillinger.lenke.eierFirma": "Omanik firma",
   "innstillinger.lenke.kalender": "Kalender",
   "innstillinger.lenke.varelagerKatalog": "Kataloog",
   "innstillinger.lenke.varelagerImport": "Import",
