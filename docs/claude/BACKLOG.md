@@ -45,9 +45,9 @@ WHERE datname = 'sitedoc_test' AND state = 'idle'
 ```
 (Presist: `backend_start < <container Created>`; `now() - interval '5 min'` er den praktiske varianten som må kjøres i rebuild-vinduet.) Legg inn som fast steg rett etter `up -d --build` i `deploy-test.sh`. Samme mønster per DB ved prod/redesign-rebuild.
 
-### 🟡 Deploy-robusthet: `restart:`-policy + sekvensielt bygg (prod-nede-hendelse 2026-07-11)
+### 🟡 Deploy-robusthet: sekvensielt bygg + ressurs-headroom (prod-nede-hendelse 2026-07-11)
 
-`restart: unless-stopped` på alle compose-tjenester + bygg images sekvensielt (`build` per tjeneste, så `up -d`) i stedet for parallell `up -d --build` → hindrer OOM-kaskade + gir auto-recovery etter daemon-blip. Bakgrunn: en **test**-re-deploy (`docker-compose.test.yml up -d --build`) ga OOM (embed/oversettelse exit 137) + docker-daemon-blip som kaskaderte og tok ned **prod** (`postgres` er delt → `sitedoc-api`/`web` + salsaklubb + ml alle nede samtidig); ingen `restart:`-policy → kom ikke opp selv → prod nede ~24 min. Post-deploy-verifisering + recovery-rekkefølge: [DOCKER-NOTES § Post-deploy: verifiser at ALLE containere er oppe](../../docker/DOCKER-NOTES.md).
+Bygg images **sekvensielt** (`build` per tjeneste, så `up -d`) i stedet for parallell `up -d --build`, + ressurs-headroom → unngå OOM-toppen som utløser daemon-blip + container-kaskade. **`restart: unless-stopped` er allerede på plass på alle 10 tjenester (verifisert live 2026-07-11)** — den er IKKE oppfølgeren: `unless-stopped` restarter ikke containere som alt var exited da daemonen kom tilbake etter OOM/crash, så reell forebygging er å unngå OOM-toppen, ikke restart-policy. Den manuelle post-deploy-sjekken fanger tilfellet inntil videre. Bakgrunn: en **test**-re-deploy (`docker-compose.test.yml up -d --build`) ga OOM (embed/oversettelse exit 137) + docker-daemon-blip som kaskaderte og tok ned **prod** (`postgres` er delt → `sitedoc-api`/`web` + salsaklubb + ml alle nede samtidig) → prod nede ~24 min. Post-deploy-verifisering + recovery-rekkefølge: [DOCKER-NOTES § Post-deploy: verifiser at ALLE containere er oppe](../../docker/DOCKER-NOTES.md).
 
 ### 🟡 `eas.json`: `development`- og `preview`-profilene peker på PROD-API
 

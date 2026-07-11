@@ -73,7 +73,7 @@ Forventet `Up`: `postgres`, `sitedoc-api`, `sitedoc-web`, `sitedoc-test-api`, `s
 
 **Kritisk:** `postgres`-containeren er DELT mellom prod (`sitedoc`) og test (`sitedoc_test`). En **test**-deploy kan derfor ta ned **prod** (sitedoc.no + sitedoc.online). «Jeg rørte bare test» garanterer ikke at prod står.
 
-**Hvorfor det skjer:** `up -d --build` som bygger to tunge images samtidig gir minnepress → OOM (exit 137) + docker-daemon-blip («connection reset by peer» midt i bygg) → kaskade tar ned urelaterte containere. Ingen `restart:`-policy → de kommer IKKE opp igjen selv.
+**Hvorfor det skjer:** `up -d --build` som bygger to tunge images samtidig gir minnepress → OOM (exit 137) + docker-daemon-blip («connection reset by peer» midt i bygg) → kaskade tar ned urelaterte containere. Alle tjenester HAR `restart: unless-stopped` (verifisert live 2026-07-11) — men det redder ikke prod her: `unless-stopped` restarter ikke containere som allerede er exited når daemonen kommer tilbake etter en OOM/daemon-crash. Reell forebygging er derfor å unngå OOM-toppen (bygg sekvensielt — ikke to tunge images i samme `up -d --build`), ikke restart-policy (den er allerede på plass). Post-deploy-sjekken over fanger tilfellet manuelt.
 
 **Recovery ved stopp:** `sudo docker start <navn>` — DB-er FØRST (`postgres`, `salsaklubb-postgres`), vent ~5 s, så apper (`sitedoc-api`, `sitedoc-web`, `salsaklubb`, `sitedoc-embed`, `sitedoc-oversettelse`). Exit(1) på web skyldes typisk at postgres var nede → starter fint når DB er oppe.
 
