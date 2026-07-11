@@ -13,6 +13,7 @@
 import { Fragment, useMemo, useState } from "react";
 import Link from "next/link";
 import { useTranslation } from "react-i18next";
+import { Button, Modal } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import {
   AlertTriangle,
@@ -106,6 +107,19 @@ export function SeddelKort({
   const orgId = valgtFirma?.id;
   const utils = trpc.useUtils();
   const [menyApen, setMenyApen] = useState(false);
+  // F4-2b (2026-07-11): «Gjenåpne attestering» på Attestert-fanen (readOnly =
+  // accepted, jf. page.tsx:159). F4-2 la knappen i AttesteringDetalj, men
+  // Attestert-fanen rendrer read-only → detalj-lenken (⋯-menyen) er skjult, så
+  // knappen der nås aldri herfra. Handlingen lever derfor også på selve kortet.
+  const [gjenaapneModal, setGjenaapneModal] = useState(false);
+  const gjenaapneAttestering =
+    trpc.timer.dagsseddel.gjenaapneAttestering.useMutation({
+      onSuccess: () => {
+        void utils.timer.dagsseddel.hentTilAttesteringFirma.invalidate();
+        void utils.timer.dagsseddel.hentTilAttestering.invalidate();
+        setGjenaapneModal(false);
+      },
+    });
   const [splittAktiv, setSplittAktiv] = useState<SplittAktiv | null>(null);
   // T7-5d: penn-klikk åpner kun bucken (projectId + ecoId) raden tilhører,
   // ikke hele sedelen.
@@ -373,6 +387,25 @@ export function SeddelKort({
             </>
           )}
         </div>
+        )}
+
+        {/* ↺ gjenåpne attestering — F4-2b: vises kun på Attestert-fanen
+            (readOnly = accepted). Angrer attesteringen → sedel tilbake til
+            «Venter»-fanen (status "sent"), alle rader til pending. */}
+        {readOnly && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setGjenaapneModal(true);
+            }}
+            disabled={gjenaapneAttestering.isPending}
+            className="rounded p-1 text-sitedoc-primary hover:bg-blue-50 disabled:opacity-40"
+            title={t("timer.attestering.gjenaapne.knapp")}
+            aria-label={t("timer.attestering.gjenaapne.knapp")}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
         )}
 
         {/* ▾ expand-indikator */}
@@ -668,6 +701,43 @@ export function SeddelKort({
           ecoId={redigerBucket.ecoId}
           onLukk={() => setRedigerBucket(null)}
         />
+      )}
+
+      {/* F4-2b: bekreftelse før gjenåpning av attestering (ekte Modal, ikke
+          confirm()). Gjenbruker F4-2s i18n-nøkler timer.attestering.gjenaapne.*. */}
+      {gjenaapneModal && (
+        <Modal
+          open={true}
+          onClose={() => setGjenaapneModal(false)}
+          title={t("timer.attestering.gjenaapne.tittel")}
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">
+              {t("timer.attestering.gjenaapne.beskrivelse")}
+            </p>
+            <div className="flex justify-end gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setGjenaapneModal(false)}
+                disabled={gjenaapneAttestering.isPending}
+              >
+                {t("handling.avbryt")}
+              </Button>
+              <Button
+                type="button"
+                onClick={() =>
+                  gjenaapneAttestering.mutate({ sheetId: sedel.id })
+                }
+                disabled={gjenaapneAttestering.isPending}
+              >
+                {gjenaapneAttestering.isPending
+                  ? t("handling.lagrer")
+                  : t("timer.attestering.gjenaapne.bekreft")}
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
