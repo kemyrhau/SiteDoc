@@ -1193,6 +1193,8 @@ Feltarbeider må kunne registrere maskinbruk på dagsseddel offline. Mobilen ved
 
 > **⚠️ Akseptert begrensning (S3, ingen migrering):** Fordi server ikke kan skille «arbeider slettet raden» fra «web la til rad mobil aldri så» ut fra payloaden alene, propagerer **mobil rad-sletting ikke lenger automatisk** til server. «Aldri mist data» prioriteres over sletting-propagering. En origin-basert løsning krever ny kolonne (migrering) → utsatt.
 
+**Sedel-nivå projectId er nullbar (F4-4, 2026-07-11).** Rad-nivå `projectId` er kanon (T.1); sedel-nivå er kun en fallback-shim. `syncBatch`-input krevde før `projectId: z.string().uuid()` (påkrevd) → en tom/plassholder-sedel (mobil-lokal `""` fra pull-plassholderen `serverSedel.projectId ?? ""`) ga Zod 400 på **hele batchen** (poison) og sedelen ble gift-isolert til `avvist`. Nå: sedel-nivå `z.union([uuid, ""]).nullable().optional().transform(v => v || null)` (tåler `""` fra #37 + `null` fra #38, datatap-fri), en `radProsjekt`-resolver med `avvist`-guard for rader uten prosjekt (DB-feltet er NOT NULL), og mobil push sender `sedel.projectId || null` + rad-fallback `|| undefined`. **En tom sedel (0 rader) synker rent** som bart sedelhode. Gift-isoleringen (`timerSync.ts:406`) redder gode sedler ved en 400 uansett.
+
 ### Synk-intervall
 
 - **Aktiv app:** Sync hvert 30. sekund når nettdekning finnes

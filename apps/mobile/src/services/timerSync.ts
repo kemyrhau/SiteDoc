@@ -319,7 +319,11 @@ export async function syncTimer(
 
         return {
           clientUuid: sedel.id,
-          projectId: sedel.projectId,
+          // F4-4 (2026-07-11): sedel-nivå projectId er en fallback-shim (T.1:
+          // rad-nivå er kanon). Lokal kolonne er notNull-text og er "" for
+          // pull-plassholder-sedler (tom server-sedel) → send null, ikke "",
+          // så serverens uuid-validering ikke avviser hele batchen.
+          projectId: sedel.projectId || null,
           aktivitetId: sedel.aktivitetId,
           avdelingId: sedel.avdelingId ?? null,
           byggeplassId: sedel.byggeplassId ?? null,
@@ -341,7 +345,9 @@ export async function syncTimer(
           // T4-d (2026-05-16): send fraTid/tilTid per timer/maskin-rad.
           timer: timer.map((t) => ({
             id: t.id,
-            projectId: t.projectId ?? sedel.projectId,
+            // F4-4: rad-fallback må ikke bli "" (sedel.projectId kan være "").
+            // Tom → undefined (utelates; rad-nivå-input er .uuid().optional()).
+            projectId: t.projectId || sedel.projectId || undefined,
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId ?? null,
@@ -353,14 +359,16 @@ export async function syncTimer(
           })),
           tillegg: tillegg.map((tl) => ({
             id: tl.id,
-            projectId: tl.projectId ?? sedel.projectId,
+            // F4-4: samme fallback-normalisering som timer-rader.
+            projectId: tl.projectId || sedel.projectId || undefined,
             tilleggId: tl.tilleggId,
             antall: tl.antall,
             kommentar: tl.kommentar ?? null,
           })),
           maskiner: maskiner.map((m) => ({
             id: m.id,
-            projectId: m.projectId ?? sedel.projectId,
+            // F4-4: samme fallback-normalisering som timer-rader.
+            projectId: m.projectId || sedel.projectId || undefined,
             // T7-4e (2026-05-16): send ECO per maskin-rad. Server (T7-4b
             // syncBatch) tar imot feltet og kjører sum(maskin) ≤ sum(timer)-
             // validering per (projectId, ECO). Drizzle-kolonnen ble lagt til

@@ -3304,7 +3304,17 @@ export const dagsseddelRouter = router({
         sedler: z.array(
           z.object({
             clientUuid: z.string().uuid(),
-            projectId: z.string().uuid(),
+            // F4-4 (2026-07-11): sedel-nivå projectId er en fallback-shim (T.1:
+            // rad-nivå er kanon). Var påkrevd `.uuid()` → en tom/plassholder-
+            // sedel som sendte "" (pull-plassholder `serverSedel.projectId ?? ""`)
+            // fikk Zod til å avvise HELE batchen (poison) før prosedyren kjørte.
+            // Tåler "" (#37-klient), null (#38) og undefined → normaliser til
+            // null. Ekte ugyldig ikke-uuid-streng avvises fortsatt.
+            projectId: z
+              .union([z.string().uuid(), z.literal("")])
+              .nullable()
+              .optional()
+              .transform((v) => v || null),
             aktivitetId: z.string().uuid(),
             avdelingId: z.string().uuid().nullable().optional(),
             byggeplassId: z.string().uuid().nullable().optional(),
@@ -3457,8 +3467,12 @@ export const dagsseddelRouter = router({
               });
               continue;
             }
-          } else {
-            // Ny seddel — verifiser prosjekttilgang
+          } else if (lokal.projectId) {
+            // Ny seddel — verifiser prosjekttilgang. F4-4: sedel-nivå projectId
+            // kan nå være null (tom/plassholder-sedel). Rad-nivå-medlemskap
+            // sjekkes uansett under (radProjectIder); org-tilgang er allerede
+            // sikret (krevBrukersOrg + krevTimerAktivert). Konsistent med web
+            // `opprett` (T.1: dato-only, org-tilgang tilstrekkelig).
             await verifiserProsjektmedlem(ctx.userId, lokal.projectId);
           }
 
@@ -3547,18 +3561,38 @@ export const dagsseddelRouter = router({
             await verifiserProsjektmedlem(ctx.userId, pid);
           }
 
+          // F4-4 (2026-07-11): resolver rad-nivå projectId (kanon per T.1) med
+          // sedel-nivå fallback (nå nullbar). DB-feltet er NOT NULL — en rad
+          // uten noe prosjekt avvises synlig (SYNC-1) i stedet for en rå DB-feil
+          // + evig retry. En tom sedel (0 rader) passerer (ingen rad å resolvere)
+          // og lagres som bart sedelhode.
+          const radProsjekt = (radId: string | undefined): string | null =>
+            radId ?? lokal.projectId ?? null;
+          const alleRadProsjekt = [
+            ...lokal.timer.map((t) => radProsjekt(t.projectId)),
+            ...lokal.tillegg.map((tl) => radProsjekt(tl.projectId)),
+            ...lokal.maskiner.map((m) => radProsjekt(m.projectId)),
+          ];
+          if (alleRadProsjekt.some((p) => !p)) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding:
+                "En rad mangler prosjekt — velg prosjekt på hver rad før innsending",
+            });
+            continue;
+          }
+
           // Fase 1b: firma-grense på alle RESOLVERTE rad-projectIds (med
           // sedel-nivå fallback). Medlemskaps-løkka over filtrerer bort rad-IDer
           // == lokal.projectId og hopper sedel-nivå for eksisterende sedler —
           // firma-grensen dekker den luken (foreign projectId via re-sync av
           // egen eksisterende sedel). Delt helper, samme grense som de andre
           // skrive-stiene. Beholder medlemskaps-løkka (G1-policy utenfor 1b).
+          // F4-4: `.filter` narrower til string[] (guarden over garanterer
+          // ingen null; tom sedel gir tomt array → helper er no-op).
           await verifiserProsjekterTilhørerFirma(
-            [
-              ...lokal.timer.map((t) => t.projectId ?? lokal.projectId),
-              ...lokal.tillegg.map((t) => t.projectId ?? lokal.projectId),
-              ...lokal.maskiner.map((m) => m.projectId ?? lokal.projectId),
-            ],
+            alleRadProsjekt.filter((p): p is string => !!p),
             orgId,
           );
 
@@ -3626,12 +3660,12 @@ export const dagsseddelRouter = router({
           // det som er i lokal.timer + lokal.maskiner. Feil per sedel
           // resulterer i "feilet" for KUN den sedelen, ikke batchen.
           const syncPostTimer: ValiderRad[] = lokal.timer.map((t) => ({
-            projectId: t.projectId ?? lokal.projectId,
+            projectId: radProsjekt(t.projectId)!,
             externalCostObjectId: t.externalCostObjectId ?? null,
             timer: t.timer,
           }));
           const syncPostMaskin: ValiderRad[] = lokal.maskiner.map((m) => ({
-            projectId: m.projectId ?? lokal.projectId,
+            projectId: radProsjekt(m.projectId)!,
             externalCostObjectId: m.externalCostObjectId ?? null,
             timer: m.timer,
           }));
@@ -3730,7 +3764,7 @@ export const dagsseddelRouter = router({
                 data: lokal.timer.map((t) => ({
                   id: t.id,
                   sheetId: sedel.id,
-                  projectId: t.projectId ?? lokal.projectId,
+                  projectId: radProsjekt(t.projectId)!,
                   byggeplassId: lokal.byggeplassId ?? null,
                   lonnsartId: t.lonnsartId,
                   aktivitetId: t.aktivitetId,
@@ -3749,7 +3783,7 @@ export const dagsseddelRouter = router({
                 data: lokal.tillegg.map((tl) => ({
                   id: tl.id,
                   sheetId: sedel.id,
-                  projectId: tl.projectId ?? lokal.projectId,
+                  projectId: radProsjekt(tl.projectId)!,
                   tilleggId: tl.tilleggId,
                   antall: tl.antall,
                   kommentar: tl.kommentar ?? null,
@@ -3761,7 +3795,7 @@ export const dagsseddelRouter = router({
                 data: lokal.maskiner.map((m) => ({
                   id: m.id,
                   sheetId: sedel.id,
-                  projectId: m.projectId ?? lokal.projectId,
+                  projectId: radProsjekt(m.projectId)!,
                   externalCostObjectId: m.externalCostObjectId ?? null,
                   byggeplassId: lokal.byggeplassId ?? null,
                   vehicleId: m.vehicleId,
