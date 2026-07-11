@@ -61,6 +61,24 @@ anta det. Bruk eksplisitt `--build-arg` ved web-rebuild til dette evt. er verifi
 manifest etter build: `grep '/api/upload' apps/web/.next/routes-manifest.json` skal vise riktig
 port; live: `curl -X POST https://test.sitedoc.no/api/upload` skal gi `401 JSON` (ikke `500`).
 
+## ⚠️ Post-deploy: verifiser at ALLE containere er oppe (ufravikelig, lærdom 2026-07-11)
+
+Etter HVER deploy (test ELLER prod) — bekreft at alle relevante containere er `Up`, ikke bare de du deployet:
+
+```
+ssh -t server-ny 'sudo docker ps -a --format "{{.Names}} | {{.Status}}" | grep -E "postgres|sitedoc|salsa|embed|oversett" | grep -v redesign'
+```
+
+Forventet `Up`: `postgres`, `sitedoc-api`, `sitedoc-web`, `sitedoc-test-api`, `sitedoc-test-web`, `salsaklubb`, `salsaklubb-postgres`, `sitedoc-embed`, `sitedoc-oversettelse`. (`redesign-*` forventet nede.)
+
+**Kritisk:** `postgres`-containeren er DELT mellom prod (`sitedoc`) og test (`sitedoc_test`). En **test**-deploy kan derfor ta ned **prod** (sitedoc.no + sitedoc.online). «Jeg rørte bare test» garanterer ikke at prod står.
+
+**Hvorfor det skjer:** `up -d --build` som bygger to tunge images samtidig gir minnepress → OOM (exit 137) + docker-daemon-blip («connection reset by peer» midt i bygg) → kaskade tar ned urelaterte containere. Ingen `restart:`-policy → de kommer IKKE opp igjen selv.
+
+**Recovery ved stopp:** `sudo docker start <navn>` — DB-er FØRST (`postgres`, `salsaklubb-postgres`), vent ~5 s, så apper (`sitedoc-api`, `sitedoc-web`, `salsaklubb`, `sitedoc-embed`, `sitedoc-oversettelse`). Exit(1) på web skyldes typisk at postgres var nede → starter fint når DB er oppe.
+
+**Hendelse 2026-07-11:** test-re-deploy (`docker-compose.test.yml up -d --build`) → OOM (embed/oversettelse 137) + daemon-blip → `postgres` + prod (`sitedoc-api`/`web`) + `salsaklubb(-postgres)` + embed + oversettelse alle nede samtidig. Prod nede ~24 min til manuell recovery. Robusthets-oppfølger (`restart: unless-stopped` + sekvensielt bygg): [BACKLOG § Deploy-robusthet](../docs/claude/BACKLOG.md).
+
 ## Deploy-mekanikk (lærdommer fra Slice 1–4 prod-deploy 2026-06-21)
 
 Denne deployen traff gjentatt friksjon som ikke var dokumentert → «gjenoppdaget». Fanget her som fast prosedyre.
