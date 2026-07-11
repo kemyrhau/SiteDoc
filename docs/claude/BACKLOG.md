@@ -258,6 +258,10 @@ mobil har prosjekt i hver rad-modal.
   opprydnings-raden maskin-rad-prefill-avvik (under). (pauseBeregning-duplikat
   ✅ M2 2026-07-10.)
 
+### 🟡 Arbeider-side splitt av egen timerad ved feilregistrering (Fase C-funn 2026-07-11)
+
+Arbeideren kan i dag ikke dele opp sin egen timerad når han har ført feil (f.eks. 14:00–17:00 ført som Fastlønn skal rettes til Fastlønn 14:00–16:00 + Overtid 50 % 16:00–17:00). Splitt-korreksjonen **finnes** — `splittRad`-mutasjonen (T7-2c1, `dagsseddel.ts:2687`, discriminated union timer/tillegg/maskin, `nyeRader` med egen lønnsart + tidsrom, sum må == original) montert i lederens «Rediger arbeid» (`SplittRadModal` via `AttesteringDetalj_Edit` + `SeddelKort` ✂-ikon) — men **kun på leder-/attesterings-flaten**, gated på `tillattRedigerVedAttestering`. Arbeider-detalj (`apps/web/src/app/dashbord/timer/[id]`) har ingen splitt-UI (grep tom). Vedtak (Kenneth 2026-07-11): bygg arbeider-side selv-korreksjon (splitt egen rad før innsending / ved retur) — gjenbruk `splittRad`-mutasjonen + `SplittRadModal`-mønsteret, tilpasset arbeider-eierskap (egen `draft`/`returned`-sedel). Mobil-paritet vurderes samtidig. **Leder-siden er allerede dekket** — Kenneth enabler bare `tillattRedigerVedAttestering` (Firma → Innstillinger-toggle) per firma.
+
 ### 🟡 Timer web: GPS-geoforslag ved ny dagsseddel (splittet fra D7, 2026-07-09)
 
 Mobil foreslår byggeplass/prosjekt fra GPS-posisjon (≤500 m geofence-match) ved
