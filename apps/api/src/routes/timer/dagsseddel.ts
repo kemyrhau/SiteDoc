@@ -165,6 +165,28 @@ async function hentEgenDagsseddel(
   return sheet;
 }
 
+/**
+ * F4-1d (2026-07-11): bump `DailySheet.updatedAt` eksplisitt når en rad-mutasjon
+ * skriver barn-rader (SheetTimer/Tillegg/Machine/Vedlegg) uten selv å oppdatere
+ * sedelen. Prisma bumper `@updatedAt` KUN når selve DailySheet-raden skrives —
+ * en barn-`create/update/delete` gjør det ikke. `hentEndringerSiden` bruker
+ * `updatedAt > sistSynk` som delta-vindu → uten dette blir web-førte rader
+ * usynlige for mobil inkrementell pull (hodet vises, 0 rader; se F4-1d-diagnose).
+ * Kall INNI samme `$transaction` som rad-skrivingen der en tx finnes, ellers
+ * som eget element i en ny tx (atomisk med rad-writet). Returnerer PrismaPromise
+ * så den kan legges rett i en `$transaction([...])`-array.
+ */
+function touchSedel(
+  prismaTimer: Prisma.TransactionClient | typeof import("@sitedoc/db-timer").prismaTimer,
+  sheetId: string,
+) {
+  const pt = prismaTimer as typeof import("@sitedoc/db-timer").prismaTimer;
+  return pt.dailySheet.update({
+    where: { id: sheetId },
+    data: { updatedAt: new Date() },
+  });
+}
+
 async function sjekkAldersgrense(
   organizationId: string,
   status: string,
@@ -935,21 +957,26 @@ export const dagsseddelRouter = router({
         input.tilTid,
       );
 
-      return ctx.prismaTimer.sheetTimer.create({
-        data: {
-          sheetId: input.sheetId,
-          projectId: input.projectId,
-          byggeplassId: input.byggeplassId ?? null,
-          lonnsartId: input.lonnsartId,
-          aktivitetId: input.aktivitetId,
-          timer: input.timer,
-          fraTid: input.fraTid ?? null,
-          tilTid: input.tilTid ?? null,
-          beskrivelse: input.beskrivelse ?? null,
-          externalCostObjectId: input.externalCostObjectId ?? null,
-          vehicleId: input.vehicleId ?? null,
-        },
-      });
+      // F4-1d: rad-write + touchSedel atomisk så mobil pull ser den nye raden.
+      const [rad] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.create({
+          data: {
+            sheetId: input.sheetId,
+            projectId: input.projectId,
+            byggeplassId: input.byggeplassId ?? null,
+            lonnsartId: input.lonnsartId,
+            aktivitetId: input.aktivitetId,
+            timer: input.timer,
+            fraTid: input.fraTid ?? null,
+            tilTid: input.tilTid ?? null,
+            beskrivelse: input.beskrivelse ?? null,
+            externalCostObjectId: input.externalCostObjectId ?? null,
+            vehicleId: input.vehicleId ?? null,
+          },
+        }),
+        touchSedel(ctx.prismaTimer, input.sheetId),
+      ]);
+      return rad;
     }),
 
   oppdaterTimerRad: protectedProcedure
@@ -1041,10 +1068,15 @@ export const dagsseddelRouter = router({
         input.id,
       );
 
-      return ctx.prismaTimer.sheetTimer.update({
-        where: { id: input.id },
-        data,
-      });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [oppdatert] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.update({
+          where: { id: input.id },
+          data,
+        }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return oppdatert;
     }),
 
   fjernTimerRad: protectedProcedure
@@ -1063,7 +1095,12 @@ export const dagsseddelRouter = router({
         });
       }
 
-      return ctx.prismaTimer.sheetTimer.delete({ where: { id: input.id } });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [slettet] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.delete({ where: { id: input.id } }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return slettet;
     }),
 
   // ----- Tillegg-vedlegg (kvittering) — Funn #2 --------------------------
@@ -1102,14 +1139,24 @@ export const dagsseddelRouter = router({
         gpsLng: input.gpsLng ?? null,
       };
       // Idempotent upsert på klient-id (re-sync av samme vedlegg → ingen duplikat).
+      // F4-1d: touchSedel så mobil pull ser vedlegget (pull synk-er vedlegg per
+      // tillegg-rad). rad.sheetId er sedelen vedlegget hører til.
       if (input.id) {
-        return ctx.prismaTimer.sheetTilleggVedlegg.upsert({
-          where: { id: input.id },
-          create: { id: input.id, ...data },
-          update: { fileUrl: input.fileUrl },
-        });
+        const [vedlegg] = await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetTilleggVedlegg.upsert({
+            where: { id: input.id },
+            create: { id: input.id, ...data },
+            update: { fileUrl: input.fileUrl },
+          }),
+          touchSedel(ctx.prismaTimer, rad.sheetId),
+        ]);
+        return vedlegg;
       }
-      return ctx.prismaTimer.sheetTilleggVedlegg.create({ data });
+      const [vedlegg] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTilleggVedlegg.create({ data }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return vedlegg;
     }),
 
   listTilleggVedlegg: protectedProcedure
@@ -1147,9 +1194,14 @@ export const dagsseddelRouter = router({
           message: `Dagsseddel er låst (status: ${sheet.status})`,
         });
       }
-      return ctx.prismaTimer.sheetTilleggVedlegg.delete({
-        where: { id: input.id },
-      });
+      // F4-1d: rad-write + touchSedel atomisk (sheet = sedelen tillegg-raden ligger på).
+      const [slettet] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTilleggVedlegg.delete({
+          where: { id: input.id },
+        }),
+        touchSedel(ctx.prismaTimer, sheet.id),
+      ]);
+      return slettet;
     }),
 
   // ----- Tillegg-rader ---------------------------------------------------
@@ -1183,15 +1235,20 @@ export const dagsseddelRouter = router({
         });
       }
 
-      return ctx.prismaTimer.sheetTillegg.create({
-        data: {
-          sheetId: input.sheetId,
-          projectId: input.projectId,
-          tilleggId: input.tilleggId,
-          antall: input.antall,
-          kommentar: input.kommentar ?? null,
-        },
-      });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [rad] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTillegg.create({
+          data: {
+            sheetId: input.sheetId,
+            projectId: input.projectId,
+            tilleggId: input.tilleggId,
+            antall: input.antall,
+            kommentar: input.kommentar ?? null,
+          },
+        }),
+        touchSedel(ctx.prismaTimer, input.sheetId),
+      ]);
+      return rad;
     }),
 
   oppdaterTilleggRad: protectedProcedure
@@ -1225,10 +1282,15 @@ export const dagsseddelRouter = router({
       if (input.antall !== undefined) data.antall = input.antall;
       if (input.kommentar !== undefined) data.kommentar = input.kommentar;
 
-      return ctx.prismaTimer.sheetTillegg.update({
-        where: { id: input.id },
-        data,
-      });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [oppdatert] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTillegg.update({
+          where: { id: input.id },
+          data,
+        }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return oppdatert;
     }),
 
   fjernTilleggRad: protectedProcedure
@@ -1247,7 +1309,12 @@ export const dagsseddelRouter = router({
         });
       }
 
-      return ctx.prismaTimer.sheetTillegg.delete({ where: { id: input.id } });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [slettet] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTillegg.delete({ where: { id: input.id } }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return slettet;
     }),
 
   // ----- Status-overgang -------------------------------------------------
@@ -1929,10 +1996,14 @@ export const dagsseddelRouter = router({
       }
 
       const fraEcoId = rad.externalCostObjectId;
-      const oppdatert = await ctx.prismaTimer.sheetTimer.update({
-        where: { id: input.timerRadId },
-        data: { externalCostObjectId: input.externalCostObjectId },
-      });
+      // F4-1d: rad-write + touchSedel atomisk.
+      const [oppdatert] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetTimer.update({
+          where: { id: input.timerRadId },
+          data: { externalCostObjectId: input.externalCostObjectId },
+        }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
 
       // Activity-log (best-effort — ikke blokker ved skrivefeil)
       try {
@@ -2562,14 +2633,13 @@ export const dagsseddelRouter = router({
 
       // Transaksjon: marker alle eksisterende pending som "erstattet" + opprett nye
       await ctx.prismaTimer.$transaction([
-        ...(pauseUpdate
-          ? [
-              ctx.prismaTimer.dailySheet.update({
-                where: { id: sheet.id },
-                data: pauseUpdate,
-              }),
-            ]
-          : []),
+        // F4-1d: oppdater sedelen ALLTID (ikke bare ved pause-endring) — ellers
+        // bumpes ikke updatedAt når leder kun redigerer rader, og de nye radene
+        // blir usynlige for mobil inkrementell pull (updatedAt > sistSynk).
+        ctx.prismaTimer.dailySheet.update({
+          where: { id: sheet.id },
+          data: { ...(pauseUpdate ?? {}), updatedAt: new Date() },
+        }),
         ctx.prismaTimer.sheetTimer.updateMany({
           where: { sheetId: sheet.id, attestertStatus: "pending" },
           data: {
@@ -2954,6 +3024,9 @@ export const dagsseddelRouter = router({
           ),
         ]);
       }
+
+      // F4-1d: bump sedelens updatedAt så de nye split-radene når mobil pull.
+      await touchSedel(ctx.prismaTimer, sheet.id);
 
       // 9) Activity-log med snapshots
       const originalSnapshot =
@@ -3976,20 +4049,25 @@ export const dagsseddelRouter = router({
           });
         }
 
-        return ctx.prismaTimer.sheetMachine.create({
-          data: {
-            sheetId: input.sheetId,
-            projectId: input.projectId,
-            externalCostObjectId: input.externalCostObjectId ?? null,
-            byggeplassId: input.byggeplassId ?? null,
-            vehicleId: input.vehicleId,
-            timer: input.timer,
-            mengde: input.mengde ?? null,
-            enhet: input.enhet ?? null,
-            fraTid: input.fraTid ?? null,
-            tilTid: input.tilTid ?? null,
-          },
-        });
+        // F4-1d: rad-write + touchSedel atomisk.
+        const [rad] = await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetMachine.create({
+            data: {
+              sheetId: input.sheetId,
+              projectId: input.projectId,
+              externalCostObjectId: input.externalCostObjectId ?? null,
+              byggeplassId: input.byggeplassId ?? null,
+              vehicleId: input.vehicleId,
+              timer: input.timer,
+              mengde: input.mengde ?? null,
+              enhet: input.enhet ?? null,
+              fraTid: input.fraTid ?? null,
+              tilTid: input.tilTid ?? null,
+            },
+          }),
+          touchSedel(ctx.prismaTimer, input.sheetId),
+        ]);
+        return rad;
       }),
 
     oppdater: protectedProcedure
@@ -4067,10 +4145,15 @@ export const dagsseddelRouter = router({
           });
         }
 
-        return ctx.prismaTimer.sheetMachine.update({
-          where: { id: input.id },
-          data,
-        });
+        // F4-1d: rad-write + touchSedel atomisk.
+        const [oppdatert] = await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetMachine.update({
+            where: { id: input.id },
+            data,
+          }),
+          touchSedel(ctx.prismaTimer, rad.sheetId),
+        ]);
+        return oppdatert;
       }),
 
     fjern: protectedProcedure
@@ -4093,7 +4176,12 @@ export const dagsseddelRouter = router({
           });
         }
 
-        return ctx.prismaTimer.sheetMachine.delete({ where: { id: input.id } });
+        // F4-1d: rad-write + touchSedel atomisk.
+        const [slettet] = await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetMachine.delete({ where: { id: input.id } }),
+          touchSedel(ctx.prismaTimer, rad.sheetId),
+        ]);
+        return slettet;
       }),
   }),
 
