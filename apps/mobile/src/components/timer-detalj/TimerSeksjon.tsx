@@ -19,6 +19,7 @@ import {
   Check,
   Car,
   ChevronDown,
+  Split,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq, and } from "drizzle-orm";
@@ -61,6 +62,7 @@ import { FraTilTidFelt } from "./FraTilTidFelt";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
 import { EquipmentVelgerModal, EnhetVelgerModal } from "./MaskinSeksjon";
+import { SplittRadModal } from "./SplittRadModal";
 
 /** P1 (maskin-i-rad): valgfri maskin fra timerrad-modalens maskin-seksjon.
  *  null = ingen maskin valgt (ingen sheet_machine-rad skrives). */
@@ -119,6 +121,8 @@ export function TimerSeksjon({
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
   const [redigerRadId, setRedigerRadId] = useState<string | null>(null);
+  // P2 (arbeider-splitt): raden som splittes (kun draft/returned via redigerbar).
+  const [splittRadId, setSplittRadId] = useState<string | null>(null);
 
   const totaltimer = useMemo(
     () => rader.reduce((acc, r) => acc + r.timer, 0),
@@ -283,6 +287,7 @@ export function TimerSeksjon({
               setRedigerRadId(rad.id);
               setVisModal(true);
             }}
+            onSplitt={() => setSplittRadId(rad.id)}
             onSlett={() => fjern(rad.id)}
           />
         ))
@@ -368,6 +373,25 @@ export function TimerSeksjon({
           }}
         />
       )}
+
+      {/* P2 (arbeider-splitt): ren lokal Drizzle-splitt av valgt rad. */}
+      {splittRadId &&
+        (() => {
+          const rad = rader.find((r) => r.id === splittRadId);
+          if (!rad) return null;
+          return (
+            <SplittRadModal
+              radType="timer"
+              original={rad}
+              organizationId={organizationId}
+              onLagret={() => {
+                setSplittRadId(null);
+                onEndret();
+              }}
+              onLukk={() => setSplittRadId(null)}
+            />
+          );
+        })()}
     </View>
   );
 }
@@ -377,12 +401,14 @@ function TimerRadVis({
   erReise,
   redigerbar,
   onRediger,
+  onSplitt,
   onSlett,
 }: {
   rad: TimerRad;
   erReise: boolean;
   redigerbar: boolean;
   onRediger: () => void;
+  onSplitt: () => void;
   onSlett: () => void;
 }) {
   const { t } = useTranslation();
@@ -463,6 +489,13 @@ function TimerRadVis({
             className="rounded p-1.5 active:bg-gray-100"
           >
             <Pencil size={16} color="#6b7280" />
+          </Pressable>
+          <Pressable
+            onPress={onSplitt}
+            hitSlop={8}
+            className="rounded p-1.5 active:bg-gray-100"
+          >
+            <Split size={16} color="#6b7280" />
           </Pressable>
           <Pressable
             onPress={onSlett}
@@ -1216,7 +1249,9 @@ function TimerRadModal({
   );
 }
 
-function LonnsartVelgerModal({
+// P2 (arbeider-splitt): eksportert for gjenbruk i SplittRadModal (samme
+// lønnsart-velger som TimerRadModal).
+export function LonnsartVelgerModal({
   valgtId,
   onVelg,
   onLukk,
@@ -1307,7 +1342,9 @@ function LonnsartVelgerModal({
   );
 }
 
-function AktivitetVelgerModal({
+// P2 (arbeider-splitt): eksportert for gjenbruk i SplittRadModal (samme
+// aktivitet-velger som TimerRadModal).
+export function AktivitetVelgerModal({
   valgtId,
   onVelg,
   onLukk,

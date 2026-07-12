@@ -433,6 +433,7 @@
   "timer.splitt.gjenstaar": "{{antall}} gjenstår å fordele",
   "timer.splitt.foredelt": "{{antall}} for mye fordelt — reduser før lagring",
   "timer.splitt.mengde": "Mengde",
+  "timer.splitt.del": "Del {{nr}}",
   "timer.splitt.feil.minst2Rader": "Splitt krever minst 2 rader. Bruk avbryt hvis du ikke vil splitte.",
   "timer.splitt.feil.sumIkkeMatch": "Sum av split-rader matcher ikke original. Juster verdiene til indikatoren er grønn.",
   "toppbar.loggUt": "Logg ut",

@@ -433,6 +433,7 @@
   "timer.splitt.gjenstaar": "{{antall}} remaining to distribute",
   "timer.splitt.foredelt": "{{antall}} over-distributed — reduce before saving",
   "timer.splitt.mengde": "Quantity",
+  "timer.splitt.del": "Part {{nr}}",
   "timer.splitt.feil.minst2Rader": "Split requires at least 2 rows. Use cancel if you do not want to split.",
   "timer.splitt.feil.sumIkkeMatch": "Sum of split rows does not match original. Adjust values until the indicator is green.",
   "toppbar.loggUt": "Log out",

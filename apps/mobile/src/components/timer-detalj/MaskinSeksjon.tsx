@@ -21,6 +21,7 @@ import {
   Truck,
   Wrench,
   Hammer,
+  Split,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
@@ -52,6 +53,7 @@ import { FraTilTidFelt } from "./FraTilTidFelt";
 import { UnderprosjektVelgerModal } from "./TimerSeksjon";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
+import { SplittRadModal } from "./SplittRadModal";
 
 type MaskinKategori = "kjoretoy" | "anleggsmaskin" | "smautstyr";
 const MASKIN_KATEGORIER: MaskinKategori[] = [
@@ -117,6 +119,8 @@ export function MaskinSeksjon({
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
   const [redigerRadId, setRedigerRadId] = useState<string | null>(null);
+  // P2 (arbeider-splitt): raden som splittes (kun draft/returned via redigerbar).
+  const [splittRadId, setSplittRadId] = useState<string | null>(null);
 
   const leggTil = useCallback(
     (
@@ -244,6 +248,7 @@ export function MaskinSeksjon({
             setRedigerRadId(rad.id);
             setVisModal(true);
           }}
+          onSplitt={() => setSplittRadId(rad.id)}
           onSlett={() => fjern(rad.id)}
         />
       ))}
@@ -304,6 +309,25 @@ export function MaskinSeksjon({
           }}
         />
       )}
+
+      {/* P2 (arbeider-splitt): ren lokal Drizzle-splitt av valgt maskin-rad. */}
+      {splittRadId &&
+        (() => {
+          const rad = rader.find((r) => r.id === splittRadId);
+          if (!rad) return null;
+          return (
+            <SplittRadModal
+              radType="maskin"
+              original={rad}
+              organizationId={organizationId}
+              onLagret={() => {
+                setSplittRadId(null);
+                onEndret();
+              }}
+              onLukk={() => setSplittRadId(null)}
+            />
+          );
+        })()}
     </View>
   );
 }
@@ -312,11 +336,13 @@ function MaskinRadVis({
   rad,
   redigerbar,
   onRediger,
+  onSplitt,
   onSlett,
 }: {
   rad: MaskinRad;
   redigerbar: boolean;
   onRediger: () => void;
+  onSplitt: () => void;
   onSlett: () => void;
 }) {
   const { t } = useTranslation();
@@ -381,6 +407,13 @@ function MaskinRadVis({
             className="rounded p-1.5 active:bg-gray-100"
           >
             <Pencil size={16} color="#6b7280" />
+          </Pressable>
+          <Pressable
+            onPress={onSplitt}
+            hitSlop={8}
+            className="rounded p-1.5 active:bg-gray-100"
+          >
+            <Split size={16} color="#6b7280" />
           </Pressable>
           <Pressable
             onPress={onSlett}
