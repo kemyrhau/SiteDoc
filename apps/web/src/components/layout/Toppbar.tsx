@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession, signOut } from "next-auth/react";
-import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X, Search, Sparkles, BarChart3 } from "lucide-react";
+import { LogOut, User, HardHat, Building2, ShieldCheck, Menu, X, Search, Sparkles, BarChart3, PanelLeftOpen } from "lucide-react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAktivSeksjon } from "@/hooks/useAktivSeksjon";
 import { ProsjektVelger } from "./ProsjektVelger";
@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useToppbarFiltreKontekst } from "@/kontekst/toppbar-filtre-kontekst";
+import { useNavBredde } from "@/kontekst/nav-bredde-kontekst";
 import { SpraakVelger } from "./SpraakVelger";
 import {
   bunnelementer,
@@ -52,6 +53,8 @@ export function Toppbar() {
   const { byggeplassAktiv } = useToppbarFiltreKontekst();
   const nyNav = useNyNavigasjon();
   const settNyNav = useSettNyNavigasjon();
+  // D2: henteknapp for skjult sidebar (ny nav) — deler bredde-tilstand med NavSidebar.
+  const { bredde: navBredde, settBredde: settNavBredde } = useNavBredde();
   const { aapne: aapneSok } = useSokModal();
   const { t } = useTranslation();
 
@@ -96,7 +99,19 @@ export function Toppbar() {
           {mobilMeny ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
         <div className="hidden w-[60px] items-center justify-center md:flex">
-          <HardHat className="h-6 w-6 text-white" />
+          {nyNav && navBredde === "skjult" ? (
+            <button
+              type="button"
+              onClick={() => settNavBredde("full")}
+              title={t("nav.visMeny")}
+              aria-label={t("nav.visMeny")}
+              className="rounded-lg p-1.5 text-white transition-colors hover:bg-white/10"
+            >
+              <PanelLeftOpen className="h-6 w-6" />
+            </button>
+          ) : (
+            <HardHat className="h-6 w-6 text-white" />
+          )}
         </div>
         <Link href="/" className="text-sm font-bold tracking-wide text-white hover:text-blue-200 transition">
           SiteDoc
@@ -293,7 +308,7 @@ export function Toppbar() {
 
               {visFirmaSone && (
                 <>
-                  <MobilSoneOverskrift>{t("nav.soneFirma")}</MobilSoneOverskrift>
+                  <MobilSoneOverskrift sone="firma">{t("nav.soneFirma")}</MobilSoneOverskrift>
                   {firmaNav.map((element) => (
                     <MobilNavKnapp
                       key={element.href}
@@ -386,9 +401,18 @@ export function Toppbar() {
 
 /* ---- T9: hjelpekomponenter for mobil-hamburger (flagg på) ---- */
 
-function MobilSoneOverskrift({ children }: { children: React.ReactNode }) {
+function MobilSoneOverskrift({
+  sone = "prosjekt",
+  children,
+}: {
+  sone?: "prosjekt" | "firma";
+  children: React.ReactNode;
+}) {
+  // D4/T9-paritet: FIRMA-label i amber-600 (mot hvit meny). Kun sonefargen
+  // følger sidebaren — aktiv-markøren i hamburgeren endres ikke.
+  const farge = sone === "firma" ? "text-amber-600" : "text-gray-400";
   return (
-    <p className="px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] text-gray-400">
+    <p className={`px-3 pb-1 pt-3 text-[11px] font-semibold uppercase tracking-[0.08em] ${farge}`}>
       {children}
     </p>
   );
