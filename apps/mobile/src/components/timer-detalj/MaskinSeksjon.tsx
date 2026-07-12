@@ -196,10 +196,11 @@ export function MaskinSeksjon({
     [onEndret],
   );
 
-  // Soft-skjul: maskin-seksjonen vises kun hvis Equipment-cache er populert
-  // (Maskin-modul aktivert + firmaet har utstyr) eller hvis sedlen allerede
-  // har maskin-rader (gamle rader bevares).
-  if (!harEquipmentCache && rader.length === 0) return null;
+  // P1 (maskin-i-rad): soft-skjul gjelder nå kun fravær av rader. Ny maskin
+  // legges via timerrad-modalens valgfrie maskin-seksjon (ikke en egen add-knapp
+  // her), så seksjonen rendres utelukkende for å VISE + inline-redigere
+  // eksisterende maskin-rader. Ingen rader → ingenting å vise.
+  if (rader.length === 0) return null;
 
   return (
     <View className={visHeader ? "mt-4" : ""}>
@@ -234,43 +235,18 @@ export function MaskinSeksjon({
           )}
         </View>
       )}
-      {rader.length === 0 ? (
-        <View className="bg-white px-4 py-6">
-          <Text className="text-center text-sm text-gray-400">
-            {t("timer.ingenMaskinRader")}
-          </Text>
-        </View>
-      ) : (
-        rader.map((rad) => (
-          <MaskinRadVis
-            key={rad.id}
-            rad={rad}
-            redigerbar={redigerbar}
-            onRediger={() => {
-              setRedigerRadId(rad.id);
-              setVisModal(true);
-            }}
-            onSlett={() => fjern(rad.id)}
-          />
-        ))
-      )}
-
-      {/* T7-4e: når header er skjult (rendret i EcoBucket), eksponer
-          "+Legg til maskin"-knapp her så bruker fortsatt kan tilføye. */}
-      {!visHeader && redigerbar && harEquipmentCache && (
-        <Pressable
-          onPress={() => {
-            setRedigerRadId(null);
+      {rader.map((rad) => (
+        <MaskinRadVis
+          key={rad.id}
+          rad={rad}
+          redigerbar={redigerbar}
+          onRediger={() => {
+            setRedigerRadId(rad.id);
             setVisModal(true);
           }}
-          className="mt-2 flex-row items-center justify-center gap-1 rounded border border-dashed border-gray-300 bg-white py-2 active:bg-gray-50"
-        >
-          <Plus size={12} color="#1e40af" />
-          <Text className="text-xs font-medium text-sitedoc-primary">
-            {t("timer.tilfoy.maskin")}
-          </Text>
-        </Pressable>
-      )}
+          onSlett={() => fjern(rad.id)}
+        />
+      ))}
 
       {visModal && (
         <MaskinRadModal
@@ -343,6 +319,7 @@ function MaskinRadVis({
   onRediger: () => void;
   onSlett: () => void;
 }) {
+  const { t } = useTranslation();
   const equipment = useMemo(() => {
     const db = hentDatabase();
     if (!db) return null;
@@ -364,7 +341,16 @@ function MaskinRadVis({
   return (
     <View className="flex-row items-center gap-2 border-b border-gray-100 bg-white px-4 py-3">
       <View className="flex-1">
-        <Text className="text-base text-gray-900">{navn}</Text>
+        {/* P1 (maskin-i-rad): slate «MASKIN»-merke skiller maskin-rader fra
+            timer-rader når de står i samme rad-liste. */}
+        <View className="flex-row items-center gap-2">
+          <View className="rounded bg-slate-100 px-1.5 py-0.5">
+            <Text className="text-[10px] font-semibold uppercase text-slate-600">
+              {t("timer.maskinSeksjon.merke")}
+            </Text>
+          </View>
+          <Text className="flex-1 text-base text-gray-900">{navn}</Text>
+        </View>
         <View className="flex-row flex-wrap gap-2">
           {equipment?.internNummer && (
             <Text className="text-xs text-gray-500">#{equipment.internNummer}</Text>
@@ -973,7 +959,9 @@ function KategoriChip({
   );
 }
 
-function EquipmentVelgerModal({
+// P1 (maskin-i-rad): eksportert for gjenbruk i TimerRadModal (valgfri maskin-
+// seksjon på ny timer-rad — samme utstyrsvelger som MaskinRadModal).
+export function EquipmentVelgerModal({
   organizationId,
   valgtId,
   brukt = [],
@@ -1147,7 +1135,9 @@ function EquipmentVelgerModal({
   );
 }
 
-function EnhetVelgerModal({
+// P1 (maskin-i-rad): eksportert for gjenbruk i TimerRadModal (enhet på den
+// valgfrie maskin-seksjonen).
+export function EnhetVelgerModal({
   valgt,
   onVelg,
   onLukk,
