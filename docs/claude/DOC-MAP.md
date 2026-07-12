@@ -30,6 +30,8 @@ sist_verifisert_mot_kode: 2026-05-16
 | Dev-login/agent-testing-endring (testbrukere, `/dev-login`, secrets) | `dev-login-agent.md` |
 | Server-drift/deploy-runbook (server-ny, Docker) | `ny-server-veileder.md` |
 | Simulator-oppstart/feilsøking (Metro, tunnel, brukerbytte, symptom→fiks) | `simulator-runbook.md` |
+| Simulator-Opus-rolle (oppkobling, input-repertoar, auth, handoff/rapportering) | `simulator-opus-oppkobling.md` |
+| Redesign-arbeidstre (`redesign/navigasjon`) fil-klassifisering / isolering / re-base | `f1-f5-arbeidstre-manifest.md` |
 | Web-spec endres | `web.md` |
 | Terminologi/hierarki endres | `terminologi.md` |
 | Arkitektur-syntese endres | `arkitektur-syntese.md` |
