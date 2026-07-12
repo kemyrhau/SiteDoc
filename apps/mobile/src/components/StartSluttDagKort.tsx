@@ -4,8 +4,7 @@ import { useRouter } from "expo-router";
 import { Play, Square, Clock, AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { randomUUID } from "expo-crypto";
-import * as Location from "expo-location";
-import { eq, and, desc } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { hentDatabase } from "../db/database";
 import {
   arbeidsdagLocal,
@@ -34,9 +33,14 @@ import {
   kappGlemtDagSlutt,
   type Dagsegment,
 } from "../utils/dagsegment";
+import {
+  useArbeidsdag,
+  formatIsoDato,
+  tilHHMM,
+  fangGps,
+  type AktivDag,
+} from "../hooks/useArbeidsdag";
 import { hentProsjekterLokalt } from "../services/prosjektKatalog";
-import { hentOppmotederLokalt } from "../services/oppmotestedKatalog";
-import { identifiserByggeplass } from "../services/byggeplassKatalog";
 import { hentEffektivArbeidstidLokal } from "../services/kalenderKatalog";
 import { finnEllerOpprettDagsseddel } from "../services/dagsseddelOpprett";
 import {
@@ -49,66 +53,6 @@ import {
   resolverPrimaerByggeplass,
 } from "../services/reisetidMatriseKatalog";
 
-type AktivDag = {
-  id: string;
-  startAt: string;
-  startLat: number | null;
-  startLng: number | null;
-  oppmotestedId: string | null;
-  oppmotestedNavn: string | null;
-  byggeplassId: string | null;
-  byggeplassNavn: string | null;
-};
-
-/**
- * Fase 1: identifiser hvilket oppmøtested arbeider startet på via GPS.
- * Nærmeste oppmøtested innenfor sin geofence-radius. Returnerer null hvis
- * ingen treff (da brukes prosjekt-deteksjon / manuell flyt som før).
- * KUN dokumentasjon + forslag — aldri lønnsgrunnlag.
- */
-function identifiserOppmotested(
-  lat: number | null,
-  lng: number | null,
-  orgId: string,
-): { id: string; navn: string } | null {
-  if (lat == null || lng == null || !orgId) return null;
-  let beste: { id: string; navn: string } | null = null;
-  let besteM = Infinity;
-  for (const s of hentOppmotederLokalt(orgId)) {
-    const meter = haversineKm(lat, lng, s.lat, s.lng) * 1000;
-    if (meter <= s.radiusM && meter < besteM) {
-      besteM = meter;
-      beste = { id: s.id, navn: s.navn };
-    }
-  }
-  return beste;
-}
-
-function formatIsoDato(d: Date): string {
-  const aar = d.getFullYear();
-  const maaned = String(d.getMonth() + 1).padStart(2, "0");
-  const dag = String(d.getDate()).padStart(2, "0");
-  return `${aar}-${maaned}-${dag}`;
-}
-
-function tilHHMM(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-async function fangGps(): Promise<{ lat: number | null; lng: number | null }> {
-  try {
-    const perm = await Location.requestForegroundPermissionsAsync();
-    if (perm.status !== "granted") return { lat: null, lng: null };
-    const pos = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-    return { lat: pos.coords.latitude, lng: pos.coords.longitude };
-  } catch {
-    return { lat: null, lng: null };
-  }
-}
-
 export function StartSluttDagKort() {
   const { t } = useTranslation();
   const router = useRouter();
@@ -119,46 +63,15 @@ export function StartSluttDagKort() {
   const { valgtBygningId } = useByggeplass();
   const { triggerSync, oppdaterTellere } = useTimerSync();
 
-  const [aktivDag, setAktivDag] = useState<AktivDag | null>(null);
+  // Start-dag + aktivDag-lesing deles med hjem-chippen via useArbeidsdag —
+  // ingen duplisert GPS/Drizzle-logikk. Kortet eier fortsatt «Slutt dag»/
+  // genererForslag/glemt-dag (under).
+  const { aktivDag, startDag, behandler, setBehandler, refresh } =
+    useArbeidsdag();
   const [naa, setNaa] = useState<number>(Date.now());
-  const [behandler, setBehandler] = useState(false);
   // Lag 2: arbeider har bekreftet «jeg jobber fortsatt» på en gammel åpen dag
   // → skjul glemt-dag-prompten for denne økten og vis normal «Slutt dag».
   const [jobberFortsatt, setJobberFortsatt] = useState(false);
-
-  // Les pågående arbeidsdag ved montering.
-  const lesAktivDag = useCallback(() => {
-    if (!bruker?.id) return null;
-    const db = hentDatabase();
-    if (!db) return null;
-    const rad = db
-      .select()
-      .from(arbeidsdagLocal)
-      .where(
-        and(
-          eq(arbeidsdagLocal.userId, bruker.id),
-          eq(arbeidsdagLocal.status, "paagaar"),
-        ),
-      )
-      .orderBy(desc(arbeidsdagLocal.startAt))
-      .all()[0];
-    return rad
-      ? {
-          id: rad.id,
-          startAt: rad.startAt,
-          startLat: rad.startLat,
-          startLng: rad.startLng,
-          oppmotestedId: rad.oppmotestedId ?? null,
-          oppmotestedNavn: rad.oppmotestedNavn ?? null,
-          byggeplassId: rad.byggeplassId ?? null,
-          byggeplassNavn: rad.byggeplassNavn ?? null,
-        }
-      : null;
-  }, [bruker?.id]);
-
-  useEffect(() => {
-    setAktivDag(lesAktivDag());
-  }, [lesAktivDag]);
 
   // Tikk forløpt-tid hvert minutt mens dagen pågår.
   useEffect(() => {
@@ -167,54 +80,6 @@ export function StartSluttDagKort() {
     const id = setInterval(() => setNaa(Date.now()), 60_000);
     return () => clearInterval(id);
   }, [aktivDag]);
-
-  const startDag = useCallback(async () => {
-    if (!bruker?.id || behandler) return;
-    setBehandler(true);
-    try {
-      const { lat, lng } = await fangGps();
-      const db = hentDatabase();
-      if (!db) return;
-      // GPS-identifiser oppmøtested + byggeplass (dokumentasjon + forslag, aldri
-      // lønn/reise/prosjektvalg). L1: byggeplass speiler oppmøtested-mønsteret.
-      const oppm = identifiserOppmotested(lat, lng, valgtFirmaId ?? "");
-      const bygg = identifiserByggeplass(lat, lng, valgtFirmaId ?? "");
-      const naaIso = new Date().toISOString();
-      const id = randomUUID();
-      db.insert(arbeidsdagLocal)
-        .values({
-          id,
-          userId: bruker.id,
-          dato: formatIsoDato(new Date()),
-          startAt: naaIso,
-          startLat: lat,
-          startLng: lng,
-          endAt: null,
-          endLat: null,
-          endLng: null,
-          status: "paagaar",
-          generertDagsseddelId: null,
-          oppmotestedId: oppm?.id ?? null,
-          oppmotestedNavn: oppm?.navn ?? null,
-          byggeplassId: bygg?.id ?? null,
-          byggeplassNavn: bygg?.navn ?? null,
-          sistEndretLokalt: Date.now(),
-        })
-        .run();
-      setAktivDag({
-        id,
-        startAt: naaIso,
-        startLat: lat,
-        startLng: lng,
-        oppmotestedId: oppm?.id ?? null,
-        oppmotestedNavn: oppm?.navn ?? null,
-        byggeplassId: bygg?.id ?? null,
-        byggeplassNavn: bygg?.navn ?? null,
-      });
-    } finally {
-      setBehandler(false);
-    }
-  }, [bruker?.id, behandler, valgtFirmaId]);
 
   const utforSluttDag = useCallback(
     async (
@@ -255,7 +120,8 @@ export function StartSluttDagKort() {
         })
         .where(eq(arbeidsdagLocal.id, aktivDag.id))
         .run();
-      setAktivDag(null);
+      // Re-les fra DB (status nå "avsluttet" → aktivDag blir null i hooken).
+      refresh();
       oppdaterTellere();
       void triggerSync();
       if (dagsseddelId) {
@@ -274,7 +140,7 @@ export function StartSluttDagKort() {
     } finally {
       setBehandler(false);
     }
-  }, [aktivDag, bruker?.id, valgtFirmaId, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t]);
+  }, [aktivDag, bruker?.id, valgtFirmaId, valgtBygningId, valgtProsjektId, behandler, router, oppdaterTellere, triggerSync, t, refresh, setBehandler]);
 
   // Bekreft før avslutning — «Slutt dag» er irreversibel og genererer et
   // dagsseddel-forslag umiddelbart. Vis forløpt tid så brukeren ser hva som
