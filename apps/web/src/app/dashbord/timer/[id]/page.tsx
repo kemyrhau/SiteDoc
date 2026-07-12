@@ -28,6 +28,7 @@ import {
   tilFraAntall,
   hhmmTilMin,
   pauseOverlappMin,
+  finnOverlappendeTidsrom,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 
@@ -689,6 +690,9 @@ export default function DagsseddelDetaljSide() {
           defaultAktivitetId={sheetAktivitetId}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
+          // P4b: hele sedelens timer-rader sendes inn så dialogen kan kjøre samme
+          // kryss-bøtte overlapp-vakt som mobil (delt finnOverlappendeTidsrom).
+          alleTimerRader={timerRader}
           // Bolk (d) R1: prefill fra/til på ny rad + T.5-runding, fra medlems-
           // tilgjengelig arbeidstidDefaults (tidsrundingMinutter eksponert der).
           defaultFraTid={aktivModal.defaultFraTid ?? null}
@@ -1360,6 +1364,7 @@ function TimerRadDialog({
   defaultAktivitetId,
   defaultEcoId,
   rad,
+  alleTimerRader,
   defaultFraTid,
   defaultTilTid,
   tidsrundingMinutter,
@@ -1374,6 +1379,8 @@ function TimerRadDialog({
   defaultAktivitetId: string | null;
   defaultEcoId?: string | null;
   rad?: TimerRad;
+  // P4b: alle timer-rader på sedelen — for kryss-bøtte overlapp-vakt (delt regel).
+  alleTimerRader: TimerRad[];
   // Bolk (d) R1: prefill fra/til ved ny rad. R4: T.5-runding ved commit.
   defaultFraTid?: string | null;
   defaultTilTid?: string | null;
@@ -1535,6 +1542,22 @@ function TimerRadDialog({
     if (fraTid && tilTid) {
       if (hhmmTilMin(tilTid) <= hhmmTilMin(fraTid)) {
         setFeil(t("timer.feil.sluttForStart"));
+        return;
+      }
+      // P4b: kryss-bøtte overlapp-vakt (paritet m/ mobil TimerSeksjon + server).
+      // Én arbeider kan ikke være to steder samtidig — sjekk mot alle andre
+      // rader på sedelen (unntatt raden som redigeres). Delt @sitedoc/shared-regel.
+      const andreRader = alleTimerRader.filter((r) => r.id !== rad?.id);
+      const overlapp = finnOverlappendeTidsrom(fraTid, tilTid, andreRader);
+      if (overlapp) {
+        setFeil(
+          t("timer.feil.overlapp", {
+            fra: fraTid,
+            til: tilTid,
+            annenFra: overlapp.fraTid,
+            annenTil: overlapp.tilTid,
+          }),
+        );
         return;
       }
       const forventet = effektiveTimerFraSpenn(
