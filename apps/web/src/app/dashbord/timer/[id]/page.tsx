@@ -16,8 +16,10 @@ import {
   RotateCcw,
   X,
   ChevronDown,
+  Split,
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
+import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import {
@@ -69,6 +71,8 @@ type TimerRad = {
   // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment). Settes kun
   // på interne verksted-rader.
   vehicleId: string | null;
+  // P2 (arbeider-splitt): byggeplassId bæres videre til splittRadEier-originalen.
+  byggeplassId: string | null;
   // Maskin-fra-til (2026-05-17): brukes til å foreslå default for maskin-rad
   // i samme bucket (Alt D — sammenheng-prinsipp).
   fraTid: string | null;
@@ -105,6 +109,8 @@ type MaskinRad = {
   projectId: string;
   externalCostObjectId: string | null;
   vehicleId: string;
+  // P2 (arbeider-splitt): byggeplassId bæres videre til splittRadEier-originalen.
+  byggeplassId: string | null;
   // Maskin-fra-til (2026-05-17): valgfri tidsregistrering for maskinbruk.
   fraTid: string | null;
   tilTid: string | null;
@@ -181,6 +187,15 @@ export default function DagsseddelDetaljSide() {
         rad?: MaskinRad;
       }
     | { type: "nyProsjekt" }
+    | null
+  >(null);
+  // P2 (arbeider-splitt): egen rad splittes til N plain rader via splittRadEier.
+  // Kun tilgjengelig når erRedigerbar (draft/returned) — server håndhever eier
+  // + status uansett. Discriminated union speiler radens type.
+  const [splittModal, setSplittModal] = useState<
+    | { type: "timer"; rad: TimerRad }
+    | { type: "tillegg"; rad: TilleggRad }
+    | { type: "maskin"; rad: MaskinRad }
     | null
   >(null);
   const [ekstraProsjektIder, setEkstraProsjektIder] = useState<string[]>(() =>
@@ -578,6 +593,11 @@ export default function DagsseddelDetaljSide() {
               onRedigerMaskin={(rad) =>
                 setAktivModal({ type: "maskin", projectId, rad })
               }
+              onSplittTimer={(rad) => setSplittModal({ type: "timer", rad })}
+              onSplittTillegg={(rad) =>
+                setSplittModal({ type: "tillegg", rad })
+              }
+              onSplittMaskin={(rad) => setSplittModal({ type: "maskin", rad })}
             />
           );
         })
@@ -742,6 +762,82 @@ export default function DagsseddelDetaljSide() {
         />
       )}
 
+      {/* P2 (arbeider-splitt): arbeideren splitter egen rad i draft/returned.
+          Gjenbruker SplittRadModal i eierModus → splittRadEier. onLagret
+          invaliderer hentMedId (detalj-sidens datakilde). */}
+      {splittModal?.type === "timer" && (
+        <SplittRadModal
+          eierModus
+          radType="timer"
+          original={{
+            id: splittModal.rad.id,
+            lonnsartId: splittModal.rad.lonnsartId,
+            aktivitetId: splittModal.rad.aktivitetId,
+            externalCostObjectId: splittModal.rad.externalCostObjectId,
+            projectId: splittModal.rad.projectId,
+            byggeplassId: splittModal.rad.byggeplassId,
+            fraTid: splittModal.rad.fraTid,
+            tilTid: splittModal.rad.tilTid,
+            timer: splittModal.rad.timer,
+          }}
+          sheetId={sheet.id}
+          prosjekter={prosjekterForVelger}
+          tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
+          onLukk={() => setSplittModal(null)}
+          onLagret={() => {
+            setSplittModal(null);
+            utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
+          }}
+        />
+      )}
+      {splittModal?.type === "tillegg" && (
+        <SplittRadModal
+          eierModus
+          radType="tillegg"
+          original={{
+            id: splittModal.rad.id,
+            tilleggId: splittModal.rad.tilleggId,
+            projectId: splittModal.rad.projectId,
+            antall: splittModal.rad.antall,
+            kommentar: splittModal.rad.kommentar,
+          }}
+          sheetId={sheet.id}
+          prosjekter={prosjekterForVelger}
+          tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
+          onLukk={() => setSplittModal(null)}
+          onLagret={() => {
+            setSplittModal(null);
+            utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
+          }}
+        />
+      )}
+      {splittModal?.type === "maskin" && (
+        <SplittRadModal
+          eierModus
+          radType="maskin"
+          original={{
+            id: splittModal.rad.id,
+            vehicleId: splittModal.rad.vehicleId,
+            projectId: splittModal.rad.projectId,
+            externalCostObjectId: splittModal.rad.externalCostObjectId,
+            byggeplassId: splittModal.rad.byggeplassId,
+            fraTid: splittModal.rad.fraTid,
+            tilTid: splittModal.rad.tilTid,
+            timer: splittModal.rad.timer,
+            mengde: splittModal.rad.mengde,
+            enhet: splittModal.rad.enhet,
+          }}
+          sheetId={sheet.id}
+          prosjekter={prosjekterForVelger}
+          tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
+          onLukk={() => setSplittModal(null)}
+          onLagret={() => {
+            setSplittModal(null);
+            utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
+          }}
+        />
+      )}
+
       {/* Bolk (f): gjenåpne-bekreftelse. Ekte modal (aldri confirm()). Teksten
           sier eksplisitt at lederens rad-attestering nullstilles. */}
       {visGjenaapneModal && (
@@ -834,6 +930,9 @@ function ProsjektGruppe({
   onRedigerTimer,
   onRedigerTillegg,
   onRedigerMaskin,
+  onSplittTimer,
+  onSplittTillegg,
+  onSplittMaskin,
 }: {
   projectId: string;
   prosjektNavn: ProsjektRef | undefined;
@@ -849,6 +948,11 @@ function ProsjektGruppe({
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerTillegg: (rad: TilleggRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
+  // P2 (arbeider-splitt): kun kalt når erRedigerbar (knapp rendres i
+  // erRedigerbar-blokk på raden).
+  onSplittTimer: (rad: TimerRad) => void;
+  onSplittTillegg: (rad: TilleggRad) => void;
+  onSplittMaskin: (rad: MaskinRad) => void;
 }) {
   const { t } = useTranslation();
 
@@ -890,6 +994,8 @@ function ProsjektGruppe({
             onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId, bucket.timer)}
             onRedigerTimer={onRedigerTimer}
             onRedigerMaskin={onRedigerMaskin}
+            onSplittTimer={onSplittTimer}
+            onSplittMaskin={onSplittMaskin}
           />
         ))}
       </div>
@@ -916,6 +1022,7 @@ function ProsjektGruppe({
             rader={tillegg}
             erRedigerbar={erRedigerbar}
             onRediger={onRedigerTillegg}
+            onSplitt={onSplittTillegg}
           />
         )}
       </div>
@@ -941,6 +1048,8 @@ function EcoGruppe({
   onTilfoyTimer,
   onRedigerTimer,
   onRedigerMaskin,
+  onSplittTimer,
+  onSplittMaskin,
 }: {
   ecoId: string | null;
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
@@ -951,6 +1060,8 @@ function EcoGruppe({
   onTilfoyTimer: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
+  onSplittTimer: (rad: TimerRad) => void;
+  onSplittMaskin: (rad: MaskinRad) => void;
 }) {
   const { t } = useTranslation();
   const sumTimer = timer.reduce((acc, r) => acc + tilTall(r.timer), 0);
@@ -1010,6 +1121,7 @@ function EcoGruppe({
                 rader={timer}
                 erRedigerbar={erRedigerbar}
                 onRediger={onRedigerTimer}
+                onSplitt={onSplittTimer}
               />
             )}
             {/* P1 (maskin-i-rad): maskin-radene står inline i samme rad-liste
@@ -1020,6 +1132,7 @@ function EcoGruppe({
                 rader={maskin}
                 erRedigerbar={erRedigerbar}
                 onRediger={onRedigerMaskin}
+                onSplitt={onSplittMaskin}
               />
             )}
           </>
@@ -1076,10 +1189,12 @@ function RaderTimer({
   rader,
   erRedigerbar,
   onRediger,
+  onSplitt,
 }: {
   rader: TimerRad[];
   erRedigerbar: boolean;
   onRediger: (rad: TimerRad) => void;
+  onSplitt: (rad: TimerRad) => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -1131,6 +1246,13 @@ function RaderTimer({
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
+                    onClick={() => onSplitt(rad)}
+                    className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    title={t("timer.rediger.splittRad")}
+                  >
+                    <Split className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => fjern.mutate({ id: rad.id })}
                     disabled={fjern.isPending}
                     className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
@@ -1152,10 +1274,12 @@ function RaderTillegg({
   rader,
   erRedigerbar,
   onRediger,
+  onSplitt,
 }: {
   rader: TilleggRad[];
   erRedigerbar: boolean;
   onRediger: (rad: TilleggRad) => void;
+  onSplitt: (rad: TilleggRad) => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -1219,6 +1343,13 @@ function RaderTillegg({
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
+                    onClick={() => onSplitt(rad)}
+                    className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    title={t("timer.rediger.splittRad")}
+                  >
+                    <Split className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => fjern.mutate({ id: rad.id })}
                     disabled={fjern.isPending}
                     className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
@@ -1246,10 +1377,12 @@ function RaderMaskinKompakt({
   rader,
   erRedigerbar,
   onRediger,
+  onSplitt,
 }: {
   rader: MaskinRad[];
   erRedigerbar: boolean;
   onRediger: (rad: MaskinRad) => void;
+  onSplitt: (rad: MaskinRad) => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -1306,6 +1439,13 @@ function RaderMaskinKompakt({
                       title={t("handling.rediger")}
                     >
                       <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => onSplitt(rad)}
+                      className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                      title={t("timer.rediger.splittRad")}
+                    >
+                      <Split className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => fjern.mutate({ id: rad.id })}
