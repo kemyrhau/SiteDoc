@@ -11,6 +11,30 @@ Hvordan en Opus-økt kan (1) styre Kenneths **ekte, innloggede Chrome** for
 web-verifisering/seeding, og (2) styre **iOS-simulatoren** for mobil-app-testing.
 Oppsettet persisterer på maskinen — en ny økt trenger kun å kjenne til det.
 
+## 0. Hurtig-sjekkliste — hva Kenneth gjør for å få Opus på nettleser (verifisert 2026-07-11)
+
+For SiteDoc-web (test/prod) **bruk Playwright-utvidelsen, IKKE `claude-in-chrome`** (sistnevnte henger — se caveat under). Steg:
+
+1. **Har Playwright-økten startet på nytt?** Da har utvidelsen ny token. Kopier den fra
+   utvidelsen og lim til Opus (som kjører `claude mcp remove/add` — se § 4), eller kjør selv.
+   Er token uendret: hopp over.
+2. **Åpne fanen** på `test.sitedoc.no` og **logg inn** (firma-admin for de fleste verifiseringer;
+   lav-priv testkonto for negativ-/gating-tester).
+3. **Klikk «Playwright Extension»** på den fanen → relay-en attacher til akkurat den fanen.
+4. Si fra til Opus. Da driver Opus med `browser_snapshot`/`browser_navigate`/`browser_type`.
+
+**Caveat A — `claude-in-chrome` henger på SiteDoc (verifisert 2026-07-11):** dashbordet holder
+en vedvarende tilkobling (SSE/websocket) → `document_idle` fyrer aldri → alle
+`claude-in-chrome`-handlinger feiler «waited 45000ms for document_idle». **Bruk Playwright** for SiteDoc.
+
+**Caveat B — nyNav er en PER-FIRMA-toggle; sjekk den er PÅ før globalsøk (verifisert 2026-07-11):**
+`Ctrl+K` (globalsøk-paletten) trigget først ikke — årsaken var at **nyNav var avslått for firmaet**, ikke en
+relay-begrensning. nyNav slås av/på **per Organization/firma** (ikke per bruker, ikke bare `?nyNav=1`-param
+— den droppes ved redirect). Ved impersonering følger nyNav-tilstanden **det impersonerte firmaets** innstilling:
+bytter du til en bruker i et annet firma, endres nav-tilstanden. Da Kenneth slo nyNav på for firmaet fungerte
+`browser_press_key` med `Control+k` fint. **Lærdom:** verifiser i snapshot at topbar viser «Søk overalt Ctrl K»-knapp
++ Prosjekt/Firma-seksjonert sidebar (= nyNav på for gjeldende firma) FØR du feilsøker snarveien.
+
 ## 1. Playwright MCP → Kenneths ekte Chrome (anbefalt for web)
 
 **Allerede konfigurert (user scope — gjelder alle prosjekter, alle økter):**

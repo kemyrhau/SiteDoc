@@ -1,7 +1,7 @@
 ---
 name: k13-sokdekning-rapport
 description: K13 — Full sidedekning i globalt søk (Ctrl+K). Dekningsmatrise (rute → søkekilde/UDEKKET) + løsningsforslag (én ny «dype sider»-kilde) + dekningstest. K13 = søkedekning (fabel 2026-07-11, distinkt fra F20-K12 fakturering).
-status: godkjent — under implementasjon
+status: lukket 2026-07-11 — på develop (ffc703df), web-deployet test, 8/8 browser-verifisert + fabel-designgodkjent
 sist_verifisert_mot_kode: 2026-07-11
 branch: redesign/navigasjon
 k13_utfall: "a) kom-i-gang JA (dyp side, uten sone-brødsmule) · b) modeller/punktskyer NEI (vent K4) · c) opprett-handlinger egen sak · d) dokumentleser ekskludert v1 + ryddesjekk i BACKLOG · e) admin NEI (vent K11) · g) begge timer-setup-faner (onboarding+oppsett) som hub-underlenker, gjenbruk fane-nøkler (fabel, funnet ved rebase mot develop). Kenneth/fabel bekreftet 2026-07-11."
@@ -10,7 +10,7 @@ k13_utfall: "a) kom-i-gang JA (dyp side, uten sone-brødsmule) · b) modeller/pu
 > **STATUS 2026-07-11:** Godkjent av fabel med tre pålegg (innbakt i §4.0/§4.2b/§4.3).
 > **KODE KOMPLETT + verifisert:** typecheck rent, **vitest dekningstest grønn (2/2)** —
 > 94 disk-ruter, 0 udekket, 0 orphans. i18n nb+en + generate.ts (15 språk).
-> **Gjenstår:** browser Ctrl+K-skjermbilder (inkl. negativ-test) → fabel-designgodkjenning.
+> **Fullført (2026-07-11):** browser Ctrl+K-skjermbilder (inkl. negativ-test) tatt, 8/8 verifisert og fabel-designgodkjent.
 > **Fabel-avgjørelse:** kom-i-gang får INGEN sone-brødsmule — kun tittel «Kom i gang» i SIDER-gruppa.
 >
 > **Dev-deps (dev-only, additive):** `vitest` (finnes i monorepo via @sitedoc/shared) +
