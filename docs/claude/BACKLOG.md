@@ -1706,6 +1706,37 @@ Aktiv Fase: 0 (firma-fundament) er i hovedsak ferdig — gjenstående §-E-steg 
 
 **Lav prioritet:** Vurder etter dokumentflyt send-modal-redesignen er deployet og i bruk. Sjelden at kunder spør om dette — eksisterende standard-flyt dekker de fleste tilfeller.
 
+### Firma prosjektoppsett-motor + ansatt-sync til dokumentflyt (Sak B)
+
+🟡 **Parkert design, ikke startet — kodeverifisert 2026-07-12.** A.Markussen-drevet (~50 ansatte auto inn i dokumentflyt, minimalt etterarbeid ved nytt prosjekt).
+
+Firma vil ha ansatte auto-inn i aktive prosjekters dokumentflyt. Verifisert: ingen slik sync finnes i dag; nærmeste presedens `syncProjektModulerPaaAktiver` (modul-nivå, feil abstraksjon — melder inn moduler, ikke personer).
+
+**Mål:** firma prosjektoppsett-siden = auto-oppsett-motor for nye prosjekter.
+- **Auto ved opprett:** firma-faggruppe i dokumentflyt + default-funksjoner.
+- **Manuelt igjen:** prosjektnavn, byggeplassnavn, tegninger.
+- **Ingen config = dagens oppførsel** (additiv, ingen backfill).
+
+**Ansatt-sync — modell UAVKLART (A vs C re-åpnet, IKKE vedtatt):**
+- Krav: ~50 ansatte auto inn i firmaets **faggruppe** (dokumentflyt-utfører), men **IKKE** i prosjektets brukergruppe/kontaktliste (den skal være ren).
+- Alt C (ProjectGroup «Ansatte») = nettopp brukergruppe → flommer kontaktlista. Diskvalifisert med mindre dekoblet.
+- Alt A (direkte `FaggruppeKobling`-sync, ingen ProjectGroup) = trolig bedre fit.
+- **Kjerne-designproblem:** `FaggruppeKobling` krever `projectMemberId` (kobler `ProjectMember`→`Faggruppe`). Hvis kontaktlista bygges FRA `ProjectMember`, kan man ikke være faggruppe-utfører uten en ProjectMember-rad → uten kontakt-oppføring. **Verken A eller C løser dette trivielt — selve dekoblingen ER designproblemet.**
+
+**Kjerne-utredning FØR design (parkert):**
+1. Er faggruppe-medlemskap (`DokumentflytMedlem.faggruppeId` + `FaggruppeKobling`) frikoblet fra kontaktliste/`ProjectGroup` i datamodellen? Kan en person være faggruppe-utfører UTEN å stå i kontaktlista? (crux = hva kontaktlista bygges FRA).
+2. Hvis frikoblet → alt A. Hvis koblet → foreslå hvordan de dekobles.
+3. Hvordan `ProjectGroup` + `Faggruppe` sameksisterer i `DokumentflytMedlem` uten dobling/motstridende roller.
+4. Reconcilier prosjektoppsett-defaults-modellen mot `ProjectModule`/firma-moduler (unngå overlappende «default-per-firma»-mekanikk).
+
+**Vedtatt (Kenneth 2026-07-12):**
+- **Leder:** default = eksisterende prosjektleder; prosjektadmin overstyrer per enkelt-prosjekt (ikke firma-vidt).
+- **Offboarding:** `ProjectMember.periodeSlutt` (aldri slett — bevar historikk).
+
+**Hook-punkter:** `prosjekt.opprett` (`prosjekt.ts:242`) + reaktivering (`admin.forlengProsjekt:404` / `prosjekt.oppdater:520`, idempotent) + `OrganizationMember`-livssyklus.
+
+**Constraints (ankre-reconciliert):** Faggruppe≠Firma (`arkitektur.md:31`), firma-grense server-side (CLAUDE.md), `organizationId` påkrevd / standalone=no-op (CLAUDE.md:374/288), ingen dup personliste (mannskap-presedens), gyldig dokumentflyt (leder satt, `dokumentflyt.md:301`).
+
 ### Tverrgående
 
 - **Firma-nivå tilgangskontrolloversikt** 🔴 — firma-admin skal kunne se en samlet oversikt over hvem som har hvilke roller og tilganger i firmaet, i ett strukturert UI. I dag finnes data spredt (User.role, OrganizationMember.firmaRoller, ProjectMember.role + kapabiliteter, OrganizationMember.firmaansvarlig, ProjectGroup-medlemskap, modul-tilganger). Ingen sentralisert visning. Skal designes fra bunnen — IKKE kopiert eller portert fra Tromsø Salsaklubb-prosjektet (annet domene, annen tilgangsmodell). Del av planlagt UX-sesjon for firma-innstillinger + tilgangsoversikt (se rapport 2026-05-28). Krever: (1) skisse av visnings-struktur (matrise person × tilgang? person × rolle med expand? rolle × tildelte personer?), (2) avklaring av om dette skal være lese-bare oversikt eller redigerbart kontrollpanel, (3) hvilke roller/tilganger som er relevante å vise (kjerne-roller, kapabiliteter, firma-roller, prosjekt-roller, modul-tilganger). Estimat 6-10t etter spec-runde.
