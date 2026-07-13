@@ -100,6 +100,8 @@
   "timer.deltMidnatt.tittel": "Dela vid midnatt",
   "timer.deltMidnatt.hjelp": "En del av ett skifte som sträckte sig över två dagar.",
   "timer.dagFinnes.notis": "Du hade redan ett bidrag för denna dag – vi öppnade det. Ditt projekt är redo att logga in.",
+  "timer.forKort.tittel": "Sessionen är för kort",
+  "timer.forKort.melding": "Sessionen var för kort för att räknas som arbetstid (under 15 min efter avrundning). Inga timrader lades till.",
   "timer.appendSendt.tittel": "Dagen är redan inlämnad",
   "timer.appendSendt.melding": "Du har ett bidrag för denna dag som redan har skickats in för godkännande. Den nya sessionen lades inte till. För att ändra dag måste den öppnas igen (kommer senare).",
   "timer.gjenaapne.knapp": "Öppna för redigering igen",

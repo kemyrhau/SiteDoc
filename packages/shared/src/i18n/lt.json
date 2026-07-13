@@ -100,6 +100,8 @@
   "timer.deltMidnatt.tittel": "Pasidalijo vidurnaktį",
   "timer.deltMidnatt.hjelp": "Dalis pamainos, kuri truko dvi dienas.",
   "timer.dagFinnes.notis": "Jau turėjote šios dienos įrašą – mes jį atidarėme. Jūsų projektas paruoštas prisijungti.",
+  "timer.forKort.tittel": "Sesija per trumpa",
+  "timer.forKort.melding": "Sesija buvo per trumpa, kad būtų galima skaičiuoti kaip darbo laiką (mažiau nei 15 min. po apvalinimo). Valandų eilučių nepridėta.",
   "timer.appendSendt.tittel": "Diena jau pateikta",
   "timer.appendSendt.melding": "Turite šios dienos įrašą, kuris jau buvo pateiktas patvirtinti. Nauja sesija nebuvo pridėta. Norėdami pakeisti dieną, jį reikia vėl atidaryti (bus vėliau).",
   "timer.gjenaapne.knapp": "Iš naujo atidaryti redaguoti",

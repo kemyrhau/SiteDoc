@@ -100,6 +100,8 @@
   "timer.deltMidnatt.tittel": "Jaettu keskiyöllä",
   "timer.deltMidnatt.hjelp": "Osa vuorosta, joka kesti kaksi päivää.",
   "timer.dagFinnes.notis": "Sinulla oli jo merkintä tälle päivälle – avasimme sen. Projektisi on valmis kirjautumaan sisään.",
+  "timer.forKort.tittel": "Istunto liian lyhyt",
+  "timer.forKort.melding": "Istunto oli liian lyhyt työajaksi laskettavaksi (alle 15 min pyöristyksen jälkeen). Tuntirivejä ei lisätty.",
   "timer.appendSendt.tittel": "Päivä on jo lähetetty",
   "timer.appendSendt.melding": "Sinulla on tämän päivän merkintä, joka on jo lähetetty hyväksyttäväksi. Uutta istuntoa ei lisätty. Jos haluat muuttaa päivää, se on avattava uudelleen (tulossa myöhemmin).",
   "timer.gjenaapne.knapp": "Avaa uudelleen muokkausta varten",

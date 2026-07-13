@@ -100,6 +100,8 @@
   "timer.deltMidnatt.tittel": "Split la miezul nopții",
   "timer.deltMidnatt.hjelp": "Parte dintr-o tură care a durat două zile.",
   "timer.dagFinnes.notis": "Aveți deja o înregistrare pentru această zi - am deschis-o. Proiectul dvs. este gata de conectare.",
+  "timer.forKort.tittel": "Sesiune prea scurtă",
+  "timer.forKort.melding": "Sesiunea a fost prea scurtă pentru a fi considerată timp de lucru (sub 15 minute după rotunjire). Nu au fost adăugate rânduri de oră.",
   "timer.appendSendt.tittel": "Ziua este deja transmisă",
   "timer.appendSendt.melding": "Aveți o înregistrare pentru această zi care a fost deja trimisă spre aprobare. Noua sesiune nu a fost adăugată. Pentru a schimba ziua trebuie redeschis (vin mai târziu).",
   "timer.gjenaapne.knapp": "Redeschideți pentru editare",

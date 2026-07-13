@@ -100,6 +100,8 @@
   "timer.deltMidnatt.tittel": "Sadalās pusnaktī",
   "timer.deltMidnatt.hjelp": "Daļa no maiņas, kas ilga divas dienas.",
   "timer.dagFinnes.notis": "Jums jau bija ieraksts par šo dienu — mēs to atvērām. Jūsu projekts ir gatavs pieteikšanās laikam.",
+  "timer.forKort.tittel": "Sesija pārāk īsa",
+  "timer.forKort.melding": "Sesija bija pārāk īsa, lai to uzskatītu par darba laiku (mazāk par 15 minūtēm pēc noapaļošanas). Netika pievienota neviena stundu rinda.",
   "timer.appendSendt.tittel": "Diena jau ir iesniegta",
   "timer.appendSendt.melding": "Jums ir šīs dienas ieraksts, kas jau ir iesniegts apstiprināšanai. Jaunā sesija netika pievienota. Lai mainītu dienu, tas ir atkārtoti jāatver (nāks vēlāk).",
   "timer.gjenaapne.knapp": "Atkārtoti atvērt rediģēšanai",

@@ -100,6 +100,8 @@
   "timer.deltMidnatt.tittel": "Split à minuit",
   "timer.deltMidnatt.hjelp": "Une partie d'un quart de travail qui a duré deux jours.",
   "timer.dagFinnes.notis": "Vous aviez déjà une entrée pour cette journée, nous l'avons ouverte. Votre projet est prêt à enregistrer du temps.",
+  "timer.forKort.tittel": "Séance trop courte",
+  "timer.forKort.melding": "La séance était trop courte pour être comptabilisée comme temps de travail (moins de 15 min après arrondi). Aucune ligne horaire n’a été ajoutée.",
   "timer.appendSendt.tittel": "La journée est déjà soumise",
   "timer.appendSendt.melding": "Vous avez une entrée pour ce jour qui a déjà été soumise pour approbation. La nouvelle session n'a pas été ajoutée. Pour changer de jour, il faut le rouvrir (à venir plus tard).",
   "timer.gjenaapne.knapp": "Rouvrir pour modification",
