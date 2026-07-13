@@ -1699,6 +1699,12 @@ function TimerRadDialog({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFeil(null);
+    // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2. Sjekkes
+    // FØR de andre valideringene (tid-løse rader er ufullstendige lønnsdata).
+    if (!fraTid || !tilTid) {
+      setFeil(t("timer.feil.fraTilPaakrevd"));
+      return;
+    }
     const tNum = parseFloat(timer);
     if (!lonnsartId || !aktivitetId || isNaN(tNum) || tNum <= 0 || tNum > 24) {
       setFeil(t("timer.feil.ugyldigInput"));
@@ -1866,14 +1872,13 @@ function TimerRadDialog({
             ))}
           </select>
         </div>
-        {/* D2/D3: fra/til med pause-bevisst auto-synk mot antall (mobil-paritet). */}
+        {/* D2/D3: fra/til med pause-bevisst auto-synk mot antall (mobil-paritet).
+            Fra/til er obligatorisk på timer-rader (2026-07-13) — reverserer a2. */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {t("timer.felt.startTid")}{" "}
-              <span className="text-xs text-gray-400">
-                ({t("label.valgfritt")})
-              </span>
+              <span className="text-red-500">*</span>
             </label>
             <Input
               type="time"
@@ -1885,9 +1890,7 @@ function TimerRadDialog({
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {t("timer.felt.sluttTid")}{" "}
-              <span className="text-xs text-gray-400">
-                ({t("label.valgfritt")})
-              </span>
+              <span className="text-red-500">*</span>
             </label>
             <Input
               type="time"
@@ -2092,7 +2095,15 @@ function TimerRadDialog({
           </Button>
           <Button
             type="submit"
-            disabled={lagrer || !lonnsartId || !aktivitetId || !timer}
+            disabled={
+              lagrer ||
+              !lonnsartId ||
+              !aktivitetId ||
+              !timer ||
+              // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2.
+              !fraTid ||
+              !tilTid
+            }
           >
             {lagrer ? t("handling.lagrer") : t("handling.lagre")}
           </Button>

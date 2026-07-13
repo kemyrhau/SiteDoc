@@ -864,6 +864,17 @@ function TimerRadModal({
     return { arbeidSum, sumMaskin, ledig };
   }, [sheetId, valgtProjectId, valgtEcoId, sheetPauseMin, defaultProjectId]);
 
+  // Speiler web-TimerRadDialogs disabled-logikk: kjernefeltene + fra/til
+  // obligatorisk på timer-rader (2026-07-13, reverserer a2). Validering i lagre()
+  // beholdes (viser konkret feilmelding); dette er UI-hintet.
+  const kanLagre =
+    !!valgtProjectId &&
+    !!valgtLonnsartId &&
+    !!valgtAktivitetId &&
+    !!timer.trim() &&
+    !!fraTid &&
+    !!tilTid;
+
   function lagre() {
     setFeil(null);
     if (!valgtProjectId) {
@@ -876,6 +887,12 @@ function TimerRadModal({
     }
     if (!valgtAktivitetId) {
       setFeil(t("timer.feil.aktivitetPaakrevd"));
+      return;
+    }
+    // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2. Tid-løse
+    // rader er ufullstendige lønnsdata + usynlige for overlapp-vakten.
+    if (!fraTid || !tilTid) {
+      setFeil(t("timer.feil.fraTilPaakrevd"));
       return;
     }
     const tall = parseFloat(timer.replace(",", "."));
@@ -1032,6 +1049,7 @@ function TimerRadModal({
               tidsrundingMinutter={tidsrundingMinutter}
               onFraEndret={handterFraEndret}
               onTilEndret={handterTilEndret}
+              paakrevd
             />
             {pauseOverlapp > 0 && (
               <Text className="mt-1 text-xs text-gray-500">
@@ -1161,7 +1179,10 @@ function TimerRadModal({
 
           <Pressable
             onPress={lagre}
-            className="mt-4 items-center rounded-lg bg-blue-600 px-6 py-4 active:bg-blue-700"
+            disabled={!kanLagre}
+            className={`mt-4 items-center rounded-lg px-6 py-4 ${
+              kanLagre ? "bg-blue-600 active:bg-blue-700" : "bg-blue-300"
+            }`}
           >
             <Text className="text-base font-semibold text-white">
               {t("handling.lagre")}

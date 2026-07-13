@@ -628,6 +628,20 @@ async function validerSplittFelles(
   sheet: { id: string; organizationId: string; pauseMin: number },
   original: { id: string; sum: number },
 ): Promise<void> {
+  // Fra/til obligatorisk på timer-rader (2026-07-13). REVERSERER a2-
+  // degraderingen (2026-07-06). Nye split-rader er NYE rader → må ha begge
+  // tider (tid-løse rader er ufullstendige lønnsdata + usynlige for overlapp-
+  // vakten). Gjelder KUN timer-splitt; maskin/tillegg-rader er unntatt.
+  if (input.radType === "timer") {
+    const manglerTid = input.nyeRader.some((r) => !r.fraTid || !r.tilTid);
+    if (manglerTid) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: "Fra- og til-tid er påkrevd på timer-rader",
+      });
+    }
+  }
+
   // Firma-grense på alle nye projectId (delt helper).
   await verifiserProsjekterTilhørerFirma(
     input.nyeRader.map((r) => r.projectId),
@@ -1023,6 +1037,17 @@ export const dagsseddelRouter = router({
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
+      // Fra/til obligatorisk på timer-rader (2026-07-13). REVERSERER a2-
+      // degraderingen (2026-07-06) som gjorde per-rad fra/til valgfritt —
+      // bevisst reversering: tid-løse timer-rader er ufullstendige lønnsdata
+      // OG usynlige for overlapp-vakten (Kenneth-klassifisert bug, fabel-vedtak).
+      if (!input.fraTid || !input.tilTid) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fra- og til-tid er påkrevd på timer-rader",
+        });
+      }
+
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
       if (!erRedigerbar(sheet.status)) {
         throw new TRPCError({
@@ -1133,6 +1158,17 @@ export const dagsseddelRouter = router({
       }).superRefine(refineFraForTil),
     )
     .mutation(async ({ ctx, input }) => {
+      // Fra/til obligatorisk på timer-rader (2026-07-13). REVERSERER a2-
+      // degraderingen (2026-07-06) som gjorde per-rad fra/til valgfritt —
+      // bevisst reversering: tid-løse timer-rader er ufullstendige lønnsdata
+      // OG usynlige for overlapp-vakten (Kenneth-klassifisert bug, fabel-vedtak).
+      if (!input.fraTid || !input.tilTid) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fra- og til-tid er påkrevd på timer-rader",
+        });
+      }
+
       const rad = await ctx.prismaTimer.sheetTimer.findUnique({
         where: { id: input.id },
       });
@@ -4012,6 +4048,12 @@ export const dagsseddelRouter = router({
             // Faller tilbake til lokal.projectId (sedel-nivå) for pre-T7-3b1
             // klienter som ikke sender per-rad projectId.
             if (lokal.timer.length > 0) {
+              // LEGACY-VERN (2026-07-13): fra/til-obligatorisk-regelen fra de
+              // interaktive mutasjonene (tilfoyTimerRad/oppdaterTimerRad/splitt)
+              // håndheves BEVISST IKKE her. Eksisterende prod-rader OG GPS-auto-
+              // genererte rader kan mangle tider og round-trip'er via syncBatch —
+              // å avvise dem ville låst mobil-synk. Kun fra<til + overlapp
+              // (SYNC-2, over) håndheves på synkveien.
               await tx.sheetTimer.createMany({
                 data: lokal.timer.map((t) => ({
                   id: t.id,

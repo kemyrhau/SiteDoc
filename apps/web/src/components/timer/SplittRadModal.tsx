@@ -478,7 +478,7 @@ function OriginalRefVisning({
           <span className="font-medium">{prosjektNavn}</span>
         </div>
         <div>
-          <span className="text-gray-500">{t("timer.felt.timer")}: </span>
+          <span className="text-gray-500">{t("timer.felt.antallTimer")}: </span>
           <span className="font-mono font-medium">{tilTall(o.timer).toFixed(2)}t</span>
         </div>
         {(o.fraTid || o.tilTid) && (
@@ -522,7 +522,7 @@ function OriginalRefVisning({
         <span className="font-medium">{prosjektNavn}</span>
       </div>
       <div>
-        <span className="text-gray-500">{t("timer.felt.timer")}: </span>
+        <span className="text-gray-500">{t("timer.felt.antallTimer")}: </span>
         <span className="font-mono font-medium">{tilTall(o.timer).toFixed(2)}t</span>
       </div>
       {(o.fraTid || o.tilTid) && (
