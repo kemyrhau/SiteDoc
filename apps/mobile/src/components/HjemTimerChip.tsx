@@ -36,10 +36,14 @@ type DagskortInfo = {
 };
 
 /**
- * Dagens dagskort for brukeren (draft/returned) med innhold. Speiler
- * DagsseddelListe/UkeTotalBanner sin lokale Drizzle-spørring. Aggregerer
- * timer-rader på tvers av dagens sedler; velger sedelen med innhold for
- * navigering. En tom auto-plassholder (0 rader) regnes ikke som «påbegynt».
+ * Dagens dagskort for brukeren (draft/returned). Speiler DagsseddelListe/
+ * UkeTotalBanner sin lokale Drizzle-spørring.
+ *
+ * F-a (fabel-vedtak 2026-07-13): en TOM draft/returned-dag for i dag gir OGSÅ
+ * variant B («Dagskort påbegynt» + «Start GPS») — `antallRader > 0`-kravet er
+ * fjernet. Variant B-hensikten (åpne dagens dagskort / starte GPS-økt på den)
+ * gjelder like mye med 0 rader. Lokal-kun-kilde er BEHOLDT bevisst (fabel):
+ * server-sedler som ikke er pullet til lokal DB er fortsatt usynlige her.
  */
 function lesDagensDagskort(userId: string): DagskortInfo | null {
   const db = hentDatabase();
@@ -69,9 +73,9 @@ function lesDagensDagskort(userId: string): DagskortInfo | null {
     if (timer.length > 0 && valgtId === null) valgtId = s.id;
   }
 
-  // Ingen rader → tom plassholder, ikke «påbegynt» → fall til «Start dag».
-  if (antallRader === 0 || valgtId === null) return null;
-  return { sedelId: valgtId, antallRader, totalTimer };
+  // F-a: en tom dag teller også som «påbegynt» — naviger til første matchende
+  // sedel når ingen bærer rader ennå. Underteksten tåler 0 rader.
+  return { sedelId: valgtId ?? sedler[0].id, antallRader, totalTimer };
 }
 
 function forlopt(startAt: string, naa: number): string {

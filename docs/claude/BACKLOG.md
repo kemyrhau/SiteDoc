@@ -16,6 +16,26 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🔴 Mobil timer-rad-sletting propagerer ikke til server (S3) — ESKALERT COWORK 2026-07-13
+
+**Symptom (live-funn del 6):** Overtidsmat-tillegg slettet i UI (viste «Ingen tillegg»), men raden lå igjen i `sheet_tillegg_local` og kom tilbake ved reload.
+
+**Rotårsak (kodeverifisert):** `fjern` sletter lokalt korrekt (`.run()` finnes). Men (1) `syncBatch` S3 er payload-id-begrenset: `deleteMany({ id: { in: <lokale payload-id-er> } })` inkluderer ikke den slettede id-en → server beholder raden (`dagsseddel.ts:4025-4026`: «SLETTING propagerer ikke automatisk — aldri mist data»). (2) Pull-apply (`timerSync.ts:591-602`) sletter lokale rader på synced-sedler + re-innsetter fra server (`:609+`) → raden kommer tilbake.
+
+**Omfang:** IKKE tillegg-spesifikt — timer (`TimerSeksjon.tsx:231`), maskin (`MaskinSeksjon.tsx:195`) og tillegg (`TilleggSeksjon.tsx:114`) bruker samme plain-local-delete. **Kandidatmengde søkt:** hele `apps/mobile/src` + `apps/api/src/routes/timer` — **ingen tombstone/deleted-ids-mekanisme for sheet-rader** (soft-delete finnes kun for katalog-entiteter lønnsart/aktivitet/tillegg-katalog).
+
+**Fiks (cowork-eid, synk-mønster):** tombstone-/deleted-ids-propagering i syncBatch-payload, ELLER pull respekterer lokale slettinger. Bredt synk-arbeid — ikke punktfiks. S3 var coworks design.
+
+### 🟡 Del 6-oppfølgere-vedtak (2026-07-13, dokumentert her for sporbarhet)
+
+Beslutninger fra del-6-live-runden (kode i `fix/timer-fra-til-obligatorisk` + `fix/del6-oppfolgere`, docs i timer.md/U-spec):
+- **a2-reversering:** fra/til obligatorisk på timer-rader (`a0d510a5`) — reverserer a2-valgfritt. Se [timer.md](timer.md).
+- **Reise-unntak:** GPS-reise-rad beholder null-tider (matrise-mengde, dokumentert unntak, `62cee2dc`).
+- **GPS-carve:** auto-utkast tildeler faktiske fra/til via `carveArbeidstider` (@sitedoc/shared + vitest).
+- **F-a:** tom dagskort-dag gir også variant B i HjemTimerChip (`8515555c`).
+- **F-c:** «Økten var for kort»-melding ved 0 carve-rader (`9d6a8d82`).
+- **F-b (foreslått, design):** «Slutt dag» skriver faktiske økt-tider i «Arbeidstid i dag»-vinduet + `sluttTidKilde="bruker"`-skjerming. **Status: foreslått — skjermingen må implementeres** (`utvidArbeidstidsvindu` sjekker ikke `sluttTidKilde` i dag). Venter Kenneth-valg. Design: designfila RUNDE 5 + `docs/redesign/screenshots/runde5-tilkl-2026-07-13/`.
+
 ### 🔴 i18n fagterm-QA for K13-nøklene
 
 Auto-oversettelsen (generate.ts) ga svake fagtermer for de tre nye K13-nøklene i enkelte språk — særlig `innstillinger.lenke.timerOnboarding` («Oppsett»/«Setup») → pl «Organizować coś» o.l. Kjent generate.ts-quirk (kildene nb/en er korrekte). QA + manuell retting av fagtermene er egen sak, ikke-blokkerende.

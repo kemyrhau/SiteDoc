@@ -100,6 +100,8 @@
   "timer.deltMidnatt.tittel": "Split at midnight",
   "timer.deltMidnatt.hjelp": "Part of a shift that spanned two days.",
   "timer.dagFinnes.notis": "You already had an entry for this day — we opened it. Your project is ready to log time on.",
+  "timer.forKort.tittel": "Session too short",
+  "timer.forKort.melding": "The session was too short to count as work time (under 15 min after rounding). No hour rows were added.",
   "timer.appendSendt.tittel": "The day is already submitted",
   "timer.appendSendt.melding": "You have an entry for this day that has already been submitted for approval. The new session was not added. Open the sheet and tap “Reopen for editing” to change it.",
   "timer.gjenaapne.knapp": "Reopen for editing",
