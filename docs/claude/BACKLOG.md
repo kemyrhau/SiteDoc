@@ -59,17 +59,21 @@ I timer-detaljen rendres lønnsart/maskin/underprosjekt som rå UUID («48d06eba
 
 Hjul-velgeren for «Fra kl.» har ingen tøm-knapp → «tøm fra»-tilstanden er uoppnåelig på mobil når en verdi først er satt. UX-punkt, lav prioritet.
 
-### 🔴 F-e VEDTATT (alternativ C): pause trekkes kun over terskel — ikke kodet (2026-07-13)
+### 🟡 F-e: pause trekkes kun over terskel — CARVE IMPLEMENTERT (branch `fix/del6-fbefg`); interaktive edit-flater åpen (2026-07-13)
 
-**Vedtak (Kenneth):** pausefradrag betinges av terskel — pause trekkes KUN når arbeidet overstiger en grense (à la AML ≥ 5,5 t), erstatter dagens ubetingede fradrag. Kodes tidligst ETTER sync-saken (samme kodeområde som F-b). Berører pause-beregning (`pauseBeregning.ts` @sitedoc/shared). Carve-observasjonene fra simulator-runden = denne mekanikken.
+**Vedtak (Kenneth, godkjent 2026-07-13):** (1) **Fast konstant** `PAUSE_TERSKEL_TIMER = 5.5` i `pauseBeregning.ts` (AML §10-9 lovkonstant, IKKE per-firma — per-firma = egen BACKLOG-post ved faktisk kundebehov). (2) **Terskel-basis = dagstotal** (radspenn-basis avvist — ville gjeninnført 38-min-avviket avhengig av rad-splitt). Gaten ligger i ny helper `pauseMinForDag(dagsTotalBruttoTimer, standardPauseMin)` (returnerer 0 under terskel) — kalleren summerer sedelens rader, per-rad-helperne får `pauseMin=0` under terskel (ingen signatur-endring på `effektiveTimerFraSpenn`/`tilFraAntall`).
 
-### 🔴 F-f: `redigerSedelRader` håndhever ikke fra/til-obligatorisk (del-6-fiksrunde, 2026-07-13)
+**Implementert (branch `fix/del6-fbefg`):** helper + `carveArbeidstider` (auto-gen / «Slutt dag») — der 38-min-avviket faktisk oppstår (multi-segment rad-splitt). Shared-tester 14/14 grønne.
 
-`redigerSedelRader` (`dagsseddel.ts:2567`) mangler fra/til-obligatorisk-vakten de interaktive mutasjonene har: Zod `fraTid/tilTid: nullable().optional()` (`:2593-2594`, `:2617-2618`), ingen `manglerTid`-vakt i kroppen; klient `handleLagre` (`RedigerRadModal:315-329`) validerer heller ikke. **Fiks:** samme vakt som `validerSplittFelles` (`:631-636`) i mutasjonskroppen + klient-validering. Kø for del-6-fiksrunden (F-b/F-e/F-f/F-g).
+**🔴 GJENSTÅR — interaktive edit-flater (modelleringsproblem, flagget ved gate):** `TimerSeksjon`/`MaskinSeksjon` (mobil) + `page.tsx`/`RedigerRadModal` (web) beregner pause i ENKELTRAD-isolasjon (~30 kall-steder). Korrekt dagstotal-gating der krever reaktiv dag-kontekst (mobil har `alleTimerRader`-prop; web tilsvarende) — men en pause-vindu-spennende rad lagret FØR dagen krysset terskelen recomputer ikke ved senere tillegg (dag-nivå-recompute-problem). Anbefalt som fokusert oppfølger med eksplisitt dag-recompute-design, framfor å sprawle 30 steder i den mest brukte timer-stien i denne runden. **Formell oppfølger (fabel-betingelse OPSJON 1):** arver F-e-vedtaket (fast 5,5 / dagstotal); **design-gates hos fabel FØR koding** (dag-recompute-mekanikk: recompute alle radenes pausefradrag når dagstotalen krysser terskelen).
 
-### 🔴 F-g: «for kort»-melding fyrer misvisende på pre-fylt sedel (del-6-fiksrunde, 2026-07-13)
+### 🟡 F-f: `redigerSedelRader` fra/til-vakt — IMPLEMENTERT (branch `fix/del6-fbefg`), venter gate (2026-07-13)
 
-«For kort»-meldingen (`StartSluttDagKort.tsx:139-145`) teller kun øktas inserts (`:565`) → fyrer misvisende på en pre-fylt draft/returnert-sedel som allerede har rader fra før. **Fiks:** differensier copy når sedelen har N rader fra før. Kø for del-6-fiksrunden.
+`redigerSedelRader` manglet fra/til-obligatorisk-vakten de interaktive mutasjonene har (Zod `fraTid/tilTid` nullable). **Vedtak (fabel):** `validerSplittFelles` er FEIL helper (sum-invariant — nyeRader må summere til én original; feil for rediger som fritt endrer totaler). **Implementert:** `finnTidsromKonflikt` (@sitedoc/shared — fra<til + overlapp, SAMME delte helper som `syncBatch`) + mangler-tid-vakt i mutasjonskroppen, og klient-speiling i `RedigerRadModal.handleLagre` (validerer hele timer-settet: andre bøtter + edits). Ikke duplisert logikk. Nye i18n-nøkler `timer.rediger.feil.{manglerTid,fraEtterTil,overlapp}` (nb+en+13).
+
+### 🟡 F-g: «for kort»-melding på pre-fylt sedel — IMPLEMENTERT (branch `fix/del6-fbefg`), venter gate (2026-07-13)
+
+«For kort»-meldingen teller kun øktas inserts → fyrte misvisende på pre-fylt sedel. **Implementert:** `opprettDagsseddelForSegment` returnerer `haddeEksisterendeRader` (teller pre-eksisterende timer-rader ved append), aggregert til `harEksisterendeRader` i `genererForslag`; alerten viser differensiert copy (pre-fylt-variant) framfor «dagen ble for kort». Nye i18n-nøkler `timer.forKort.{preFyltTittel,preFyltMelding}` (nb+en+13). Fabel finpusser ordlyd ved live-fangst.
 
 ### 🟡 Del 6-oppfølgere-vedtak (2026-07-13, dokumentert her for sporbarhet)
 
@@ -79,7 +83,7 @@ Beslutninger fra del-6-live-runden (kode i `fix/timer-fra-til-obligatorisk` + `f
 - **GPS-carve:** auto-utkast tildeler faktiske fra/til via `carveArbeidstider` (@sitedoc/shared + vitest).
 - **F-a:** tom dagskort-dag gir også variant B i HjemTimerChip (`8515555c`).
 - **F-c:** «Økten var for kort»-melding ved 0 carve-rader (`9d6a8d82`).
-- **F-b (foreslått, design):** «Slutt dag» skriver faktiske økt-tider i «Arbeidstid i dag»-vinduet + `sluttTidKilde="bruker"`-skjerming. **Status: foreslått — skjermingen må implementeres** (`utvidArbeidstidsvindu` sjekker ikke `sluttTidKilde` i dag). Venter Kenneth-valg. Design: designfila RUNDE 5 + `docs/redesign/screenshots/runde5-tilkl-2026-07-13/`.
+- **F-b:** «Slutt dag» skriver faktiske økt-tider i «Arbeidstid i dag»-vinduet + `sluttTidKilde="bruker"`-skjerming. **Status: IMPLEMENTERT (branch `fix/del6-fbefg`), venter gate** — `utvidArbeidstidsvindu` tar nå `sluttTidKilde`-param og utvider `endAt` KUN når kilden er `"bruker"` (bekreftet); `"system"`/`"midnatt"`-gjettede slutt-tider skyver ikke vinduet ut med fabrikkerte tider. Design: designfila RUNDE 5 + `docs/redesign/screenshots/runde5-tilkl-2026-07-13/`.
 
 ### 🔴 i18n fagterm-QA for K13-nøklene
 

@@ -2757,6 +2757,32 @@ export const dagsseddelRouter = router({
         }
       }
 
+      // F-f (2026-07-13): fra/til-vakt på de nye TIMER-radene. redigerSedelRader
+      // erstatter alle pending og poster hele timer-settet på nytt — men Zod har
+      // fra/til nullable og manglet vakten de interaktive mutasjonene har. Samme
+      // DELTE helper som syncBatch (`finnTidsromKonflikt`: fra<til + overlapp
+      // innad i settet) + mangler-tid-vakt (gjenbruk fra validerSplittFelles,
+      // ikke duplisert regel-logikk). Maskin/tillegg unntatt (som splitt).
+      const manglerTid = input.nyeRader.timer.some(
+        (r) => !r.fraTid || !r.tilTid,
+      );
+      if (manglerTid) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Fra- og til-tid er påkrevd på timer-rader",
+        });
+      }
+      const tidsromKonflikt = finnTidsromKonflikt(input.nyeRader.timer);
+      if (tidsromKonflikt) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            tidsromKonflikt.type === "fra_etter_til"
+              ? `Til-tid må være etter fra-tid (${tidsromKonflikt.rad.fraTid}–${tidsromKonflikt.rad.tilTid}).`
+              : `Tidsrommet ${tidsromKonflikt.rad.fraTid}–${tidsromKonflikt.rad.tilTid} overlapper ${tidsromKonflikt.annen.fraTid}–${tidsromKonflikt.annen.tilTid} på samme dagsseddel. Én arbeider kan ikke være to steder samtidig.`,
+        });
+      }
+
       const naa = new Date();
       const antallErstattet =
         eksTimer.length + eksTillegg.length + eksMaskin.length;

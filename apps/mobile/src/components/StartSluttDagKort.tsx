@@ -138,9 +138,12 @@ export function StartSluttDagKort() {
         } else if (forslag.ingenRader) {
           // F-c: økta førte 0 rader (for kort etter pause/runding) — gi
           // tilbakemelding i stedet for et stille tomt dagskort.
+          // F-g: differensier copy — når sedelen alt HAR rader er «dagen ble
+          // for kort» misvisende (dagen er ikke tom); vis pre-fylt-varianten.
+          const preFylt = forslag.harEksisterendeRader;
           Alert.alert(
-            t("timer.forKort.tittel"),
-            t("timer.forKort.melding"),
+            t(preFylt ? "timer.forKort.preFyltTittel" : "timer.forKort.tittel"),
+            t(preFylt ? "timer.forKort.preFyltMelding" : "timer.forKort.melding"),
           );
         }
       } else {
@@ -394,13 +397,18 @@ function genererForslag(
   // (arbeider-handling); glemt-dag-gjenoppretting = "system" (estimert/gjettet).
   // Ikke-siste segmenter får alltid "midnatt" (automatisk dag-grense).
   sisteSegmentKilde: "bruker" | "system" = "bruker",
-): { id: string | null; blokkertSendt: boolean; ingenRader: boolean } {
+): {
+  id: string | null;
+  blokkertSendt: boolean;
+  ingenRader: boolean;
+  harEksisterendeRader: boolean;
+} {
   const db = hentDatabase();
-  if (!db) return { id: null, blokkertSendt: false, ingenRader: false };
+  if (!db) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false };
 
   // 1. Prosjekt via Haversine.
   const prosjekter = hentProsjekterLokalt(orgId);
-  if (prosjekter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false };
+  if (prosjekter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false };
   const lat = dag.startLat ?? endLat;
   const lng = dag.startLng ?? endLng;
   let valgtProsjekt = prosjekter[0];
@@ -422,7 +430,7 @@ function genererForslag(
     .from(aktivitetLocal)
     .where(eq(aktivitetLocal.aktiv, true))
     .all();
-  if (aktiviteter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false };
+  if (aktiviteter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false, harEksisterendeRader: false };
   const aktivitet =
     aktiviteter.find((a) => a.navn === "Anleggsarbeid") ?? aktiviteter[0];
 
@@ -532,6 +540,7 @@ function genererForslag(
   let startSheetId: string | null = null;
   let blokkertSendt = false;
   let totalRader = 0;
+  let harEksisterendeRader = false;
   segmenter.forEach((seg, i) => {
     // Ikke-siste segment ender på en automatisk midnatt-grense → "midnatt".
     // Siste segment ender på den faktiske/estimerte slutt-tiden → sisteSegmentKilde.
@@ -560,8 +569,15 @@ function genererForslag(
     if (res?.utfall === "blokkertSendt") blokkertSendt = true;
     if (seg.erStartSegment) startSheetId = res?.id ?? null;
     totalRader += res?.raderOpprettet ?? 0;
+    if (res?.haddeEksisterendeRader) harEksisterendeRader = true;
   });
-  return { id: startSheetId, blokkertSendt, ingenRader: totalRader === 0 };
+  return {
+    id: startSheetId,
+    blokkertSendt,
+    ingenRader: totalRader === 0,
+    // F-g: skiller pre-fylt sedel (økta bidro 0) fra reelt tom sedel.
+    harEksisterendeRader,
+  };
 }
 
 /**
@@ -595,7 +611,12 @@ function opprettDagsseddelForSegment(args: {
   sluttTidKilde: "bruker" | "midnatt" | "system";
   /** F-B: firmaets tidsrunding-grid (15/30/60 min) — null = ingen runding. */
   tidsrundingMinutter: number | null;
-}): { id: string; utfall: SegmentUtfall; raderOpprettet: number } | null {
+}): {
+  id: string;
+  utfall: SegmentUtfall;
+  raderOpprettet: number;
+  haddeEksisterendeRader: boolean;
+} | null {
   const {
     userId,
     orgId,
@@ -632,16 +653,38 @@ function opprettDagsseddelForSegment(args: {
   });
   const sheetId = resultat.id;
 
+  // F-g: hadde sedelen alt registreringer FØR denne økta? Brukes til å skille
+  // «reelt tom sedel» fra «pre-fylt sedel der økta bidro 0 rader» i «for kort»-
+  // meldingen (som ellers fyrer misvisende på en sedel full av rader).
+  let haddeEksisterendeRader = false;
+
   // UF-1: dagen finnes alt.
   if (resultat.eksisterte) {
     if (resultat.status !== "draft" && resultat.status !== "returned") {
       // Sendt/godkjent → kan ikke appende ny økt (ville gi server-konflikt).
       // Recall er UF-4 (egen server-runde).
-      return { id: sheetId, utfall: "blokkertSendt", raderOpprettet: 0 };
+      return {
+        id: sheetId,
+        utfall: "blokkertSendt",
+        raderOpprettet: 0,
+        haddeEksisterendeRader: false,
+      };
     }
+    haddeEksisterendeRader =
+      db
+        .select({ id: sheetTimerLocal.id })
+        .from(sheetTimerLocal)
+        .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
+        .all().length > 0;
     // Redigerbar draft/returned → append: utvid arbeidstid-vinduet til å dekke
     // den nye økten. Rad-genereringen under bruker sheetId → appender rader.
-    utvidArbeidstidsvindu(db, sheetId, segment.startIso, segment.sluttIso);
+    utvidArbeidstidsvindu(
+      db,
+      sheetId,
+      segment.startIso,
+      segment.sluttIso,
+      sluttTidKilde,
+    );
   }
 
   // Nyopprettet eller append → generer (og append) denne øktens rader.
@@ -768,6 +811,7 @@ function opprettDagsseddelForSegment(args: {
     id: sheetId,
     utfall: resultat.eksisterte ? "appendet" : "opprettet",
     raderOpprettet,
+    haddeEksisterendeRader,
   };
 }
 
@@ -780,6 +824,7 @@ function utvidArbeidstidsvindu(
   sheetId: string,
   nyStartIso: string,
   nySluttIso: string,
+  sluttTidKilde: "bruker" | "midnatt" | "system",
 ): void {
   const sedel = db
     .select({ startAt: dagsseddelLocal.startAt, endAt: dagsseddelLocal.endAt })
@@ -790,8 +835,17 @@ function utvidArbeidstidsvindu(
 
   const tidligste =
     sedel.startAt && sedel.startAt < nyStartIso ? sedel.startAt : nyStartIso;
+  // F-b (2026-07-13): utvid endAt KUN når slutt-tiden er bruker-BEKREFTET
+  // ("bruker"). "system"/"midnatt" er gjettede slutt-tider (glemt-dag / hard-cap
+  // / ikke-siste segment) — de skal IKKE skyve «Arbeidstid i dag»-vinduet ut med
+  // fabrikkerte tider. Behold da eksisterende endAt (fall til nySluttIso kun når
+  // sedelen ennå ikke har en endAt å bevare).
   const seneste =
-    sedel.endAt && sedel.endAt > nySluttIso ? sedel.endAt : nySluttIso;
+    sluttTidKilde === "bruker"
+      ? sedel.endAt && sedel.endAt > nySluttIso
+        ? sedel.endAt
+        : nySluttIso
+      : (sedel.endAt ?? nySluttIso);
 
   db.update(dagsseddelLocal)
     .set({

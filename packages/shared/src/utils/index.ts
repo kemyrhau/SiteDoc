@@ -42,6 +42,8 @@ export {
   pauseOverlappMin,
   effektiveTimerFraSpenn,
   tilFraAntall,
+  PAUSE_TERSKEL_TIMER,
+  pauseMinForDag,
 } from "./pauseBeregning";
 export {
   tilErEtterFra,
