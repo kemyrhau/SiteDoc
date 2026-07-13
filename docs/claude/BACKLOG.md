@@ -16,7 +16,9 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
-### 🔴 Mobil timer-rad-sletting propagerer ikke til server (S3) — ESKALERT COWORK 2026-07-13
+### 🔴 Mobil timer-rad-sletting propagerer ikke til server (S3) — BEKREFTET via M-3, venter fabels design-gate (2026-07-13)
+
+**M-3-SEAL 2026-07-13:** S-A bekreftet reell — kode-verifisert + empirisk forseglet. **Kode:** `fjern` (`TimerSeksjon.tsx:232`) persisterer den lokale slettingen (`db.delete().run()`) + `markerEndretOgLes` (`[id].tsx:318`) setter sedel `pending` + `triggerSync()`; syncBatch-push (S3) sender kun de gjenværende radenes id-er → `deleteMany({ id: { in: … } })` beholder den slettede raden på server → pull re-innsetter. **Empirisk:** simulator slettet rad `065dc8f4` på synket draft-sedel (server-id `664c1d3c` / client_uuid `dc59a75c`) → normal sync → raden kom tilbake; server-SQL viser `065dc8f4` FORTSATT på server (3 rader). Den opprinnelige del-6-eskaleringen VAR S-A (ikke erstattet-lekkasjen/fiks B, ikke en delete-persisterings-gap). **Tombstone-utredningen (design under) er klar for fabels design-gate.**
 
 **Symptom (live-funn del 6):** Overtidsmat-tillegg slettet i UI (viste «Ingen tillegg»), men raden lå igjen i `sheet_tillegg_local` og kom tilbake ved reload.
 
