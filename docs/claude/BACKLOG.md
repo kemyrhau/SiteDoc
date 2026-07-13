@@ -59,7 +59,7 @@ I timer-detaljen rendres lønnsart/maskin/underprosjekt som rå UUID («48d06eba
 
 Hjul-velgeren for «Fra kl.» har ingen tøm-knapp → «tøm fra»-tilstanden er uoppnåelig på mobil når en verdi først er satt. UX-punkt, lav prioritet.
 
-### 🟡 F-e: pause trekkes kun over terskel — CARVE IMPLEMENTERT (branch `fix/del6-fbefg`); interaktive edit-flater åpen (2026-07-13)
+### 🟢 F-e-carve: pause trekkes kun over terskel — RE-TEST PASS (kort dag full varighet / lang dag pause); interaktiv-sti egen oppfølger (2026-07-13)
 
 **Vedtak (Kenneth, godkjent 2026-07-13):** (1) **Fast konstant** `PAUSE_TERSKEL_TIMER = 5.5` i `pauseBeregning.ts` (AML §10-9 lovkonstant, IKKE per-firma — per-firma = egen BACKLOG-post ved faktisk kundebehov). (2) **Terskel-basis = dagstotal** (radspenn-basis avvist — ville gjeninnført 38-min-avviket avhengig av rad-splitt). Gaten ligger i ny helper `pauseMinForDag(dagsTotalBruttoTimer, standardPauseMin)` (returnerer 0 under terskel) — kalleren summerer sedelens rader, per-rad-helperne får `pauseMin=0` under terskel (ingen signatur-endring på `effektiveTimerFraSpenn`/`tilFraAntall`).
 
