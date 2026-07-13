@@ -550,6 +550,140 @@ function osloVeggurTilInstant(dato: Date, hhmm: string): Date {
   return new Date(antattUtc.getTime() - offsetMs);
 }
 
+// ============================================================================
+//  Splitt-rad — delt input-skjema + validerings-kjerne (P2)
+//  Delt av leder-`splittRad` (attestering, status=sent) og arbeider-
+//  `splittRadEier` (eier, draft/returned). VALIDERINGEN deles; AUTORISASJON +
+//  audit ligger per inngang (delte-kilder-prinsippet): leder markerer erstattet
+//  + parentRadId + Activity-snapshot; arbeider sletter original (draft har ingen
+//  attesterings-audit å bevare).
+// ============================================================================
+const splittRadInput = z.discriminatedUnion("radType", [
+  z.object({
+    radType: z.literal("timer"),
+    radId: z.string().uuid(),
+    nyeRader: z
+      .array(
+        z.object({
+          projectId: z.string().uuid(),
+          lonnsartId: z.string().uuid(),
+          aktivitetId: z.string().uuid(),
+          externalCostObjectId: z.string().uuid().nullable().optional(),
+          byggeplassId: z.string().uuid().nullable().optional(),
+          fraTid: z.string().nullable().optional(),
+          tilTid: z.string().nullable().optional(),
+          timer: z.number().positive(),
+        }),
+      )
+      .min(2, "Splitt krever minst 2 nye rader"),
+  }),
+  z.object({
+    radType: z.literal("tillegg"),
+    radId: z.string().uuid(),
+    nyeRader: z
+      .array(
+        z.object({
+          projectId: z.string().uuid(),
+          tilleggId: z.string().uuid(),
+          antall: z.number().positive(),
+          kommentar: z.string().nullable().optional(),
+        }),
+      )
+      .min(2, "Splitt krever minst 2 nye rader"),
+  }),
+  z.object({
+    radType: z.literal("maskin"),
+    radId: z.string().uuid(),
+    nyeRader: z
+      .array(
+        z.object({
+          projectId: z.string().uuid(),
+          externalCostObjectId: z.string().uuid().nullable().optional(),
+          vehicleId: z.string().uuid(),
+          byggeplassId: z.string().uuid().nullable().optional(),
+          fraTid: z.string().nullable().optional(),
+          tilTid: z.string().nullable().optional(),
+          timer: z.number().positive(),
+          mengde: z.number().nullable().optional(),
+          enhet: z.string().nullable().optional(),
+        }),
+      )
+      .min(2, "Splitt krever minst 2 nye rader"),
+  }),
+]);
+type SplittRadInput = z.infer<typeof splittRadInput>;
+
+/**
+ * Delt validerings-kjerne for splitt (P2). Kalles av begge splitt-innganger FØR
+ * transaksjonen: firma-grense på nye projectId, org-validering av nye maskin-
+ * vehicleId, sum-validering (nye rader summerer til original), og maskin ≤ arbeid
+ * post-state ved maskin-splitt. Kaster TRPCError ved brudd. Ren flytting fra
+ * leder-`splittRad`s steg 6/6b/7 + maskin-kapasitet — atferdsbevarende.
+ */
+async function validerSplittFelles(
+  prismaTimer:
+    | Prisma.TransactionClient
+    | typeof import("@sitedoc/db-timer").prismaTimer,
+  input: SplittRadInput,
+  sheet: { id: string; organizationId: string; pauseMin: number },
+  original: { id: string; sum: number },
+): Promise<void> {
+  // Firma-grense på alle nye projectId (delt helper).
+  await verifiserProsjekterTilhørerFirma(
+    input.nyeRader.map((r) => r.projectId),
+    sheet.organizationId,
+  );
+  // Maskin-splitt tar nye vehicleId fra input — org-valider hver unik mot
+  // firmaets maskinregister. Timer-splitt arver original-radens vehicleId.
+  if (input.radType === "maskin") {
+    const splittVehicleIder = Array.from(
+      new Set(input.nyeRader.map((r) => r.vehicleId)),
+    );
+    for (const vid of splittVehicleIder) {
+      await verifiserKjoretoyTilhørerFirma(vid, sheet.organizationId);
+    }
+  }
+  // Sum-validering: nye rader må summere til originalens sum-felt (timer/antall).
+  const nySum = input.nyeRader.reduce(
+    (acc, r) =>
+      acc +
+      (input.radType === "tillegg"
+        ? (r as { antall: number }).antall
+        : (r as { timer: number }).timer),
+    0,
+  );
+  if (Math.abs(nySum - original.sum) >= 0.001) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Sum av split-rader (${nySum}) matcher ikke original (${original.sum})`,
+    });
+  }
+  // Maskin-splitt: revalider post-state maskin ≤ arbeid (nye rader kan ha annet
+  // ECO/prosjekt → forskyve buckets).
+  if (input.radType === "maskin") {
+    const baseline = await hentRaderForValidering(prismaTimer, sheet.id);
+    const postMaskin: ValiderRad[] = [
+      ...baseline.maskin.filter((r) => r.id !== original.id),
+      ...input.nyeRader.map((rad) => ({
+        projectId: rad.projectId,
+        externalCostObjectId: rad.externalCostObjectId ?? null,
+        timer: rad.timer,
+      })),
+    ];
+    const brytt = validerMaskinUnderArbeid(
+      baseline.timer,
+      postMaskin,
+      sheet.pauseMin,
+    );
+    if (brytt.length > 0) {
+      throw new TRPCError({
+        code: "BAD_REQUEST",
+        message: await feilMeldingMaskinOverstiger(brytt),
+      });
+    }
+  }
+}
+
 export const dagsseddelRouter = router({
   // List dagssedler for innlogget bruker, eller for et prosjekt (admin-perspektiv senere).
   list: protectedProcedure
@@ -2764,61 +2898,7 @@ export const dagsseddelRouter = router({
   // ============================================================================
 
   splittRad: protectedProcedure
-    .input(
-      z.discriminatedUnion("radType", [
-        z.object({
-          radType: z.literal("timer"),
-          radId: z.string().uuid(),
-          nyeRader: z
-            .array(
-              z.object({
-                projectId: z.string().uuid(),
-                lonnsartId: z.string().uuid(),
-                aktivitetId: z.string().uuid(),
-                externalCostObjectId: z.string().uuid().nullable().optional(),
-                byggeplassId: z.string().uuid().nullable().optional(),
-                fraTid: z.string().nullable().optional(),
-                tilTid: z.string().nullable().optional(),
-                timer: z.number().positive(),
-              }),
-            )
-            .min(2, "Splitt krever minst 2 nye rader"),
-        }),
-        z.object({
-          radType: z.literal("tillegg"),
-          radId: z.string().uuid(),
-          nyeRader: z
-            .array(
-              z.object({
-                projectId: z.string().uuid(),
-                tilleggId: z.string().uuid(),
-                antall: z.number().positive(),
-                kommentar: z.string().nullable().optional(),
-              }),
-            )
-            .min(2, "Splitt krever minst 2 nye rader"),
-        }),
-        z.object({
-          radType: z.literal("maskin"),
-          radId: z.string().uuid(),
-          nyeRader: z
-            .array(
-              z.object({
-                projectId: z.string().uuid(),
-                externalCostObjectId: z.string().uuid().nullable().optional(),
-                vehicleId: z.string().uuid(),
-                byggeplassId: z.string().uuid().nullable().optional(),
-                fraTid: z.string().nullable().optional(),
-                tilTid: z.string().nullable().optional(),
-                timer: z.number().positive(),
-                mengde: z.number().nullable().optional(),
-                enhet: z.string().nullable().optional(),
-              }),
-            )
-            .min(2, "Splitt krever minst 2 nye rader"),
-        }),
-      ]),
-    )
+    .input(splittRadInput)
     .mutation(async ({ ctx, input }) => {
       // 1) Hent original rad ut fra radType
       const original =
@@ -2877,42 +2957,18 @@ export const dagsseddelRouter = router({
         });
       }
 
-      // 6) Fase 1b: firma-grense på alle nye projectId (delt helper).
-      await verifiserProsjekterTilhørerFirma(
-        input.nyeRader.map((r) => r.projectId),
-        sheet.organizationId,
-      );
-
-      // 6b) §2.D: maskin-splitt tar nye vehicleId fra input — org-valider hver
-      // unik mot firmaets maskinregister. Timer-splitt arver original-radens
-      // vehicleId (allerede validert) og trenger ingen ny sjekk.
-      if (input.radType === "maskin") {
-        const splittVehicleIder = Array.from(
-          new Set(input.nyeRader.map((r) => r.vehicleId)),
-        );
-        for (const vid of splittVehicleIder) {
-          await verifiserKjoretoyTilhørerFirma(vid, sheet.organizationId);
-        }
-      }
-
-      // 7) Sum-validering: nye rader må summere til originalens sum-felt.
-      //    Timer- og maskin-rad: sum av "timer". Tillegg-rad: sum av "antall".
-      //    Maskin "mengde" distribueres fritt — ikke sum-validert.
+      // 6) Delt validerings-kjerne (P2, atferdsbevarende — flyttet fra steg
+      //    6/6b/7 + maskin-kapasitet): firma-grense på nye projectId, org-
+      //    validering av nye maskin-vehicleId, sum-validering, og maskin ≤
+      //    arbeid post-state ved maskin-splitt.
       const originalSum =
         input.radType === "tillegg"
           ? Number((original as { antall: Prisma.Decimal }).antall)
           : Number((original as { timer: Prisma.Decimal }).timer);
-      const nySum = input.nyeRader.reduce(
-        (acc, r) =>
-          acc + (input.radType === "tillegg" ? (r as { antall: number }).antall : (r as { timer: number }).timer),
-        0,
-      );
-      if (Math.abs(nySum - originalSum) >= 0.001) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: `Sum av split-rader (${nySum}) matcher ikke original (${originalSum})`,
-        });
-      }
+      await validerSplittFelles(ctx.prismaTimer, input, sheet, {
+        id: original.id,
+        sum: originalSum,
+      });
 
       // 8) Transaksjon: marker original "erstattet" + opprett nye med parentRadId
       const naa = new Date();
@@ -2972,29 +3028,8 @@ export const dagsseddelRouter = router({
           ),
         ]);
       } else {
-        // T7-4b: valider post-state for maskin-splitt. Original maskin-rad
-        // erstattes med N nye rader som kan ha annet ECO/prosjekt — kan
-        // forskyve buckets og bryte sum(maskin) ≤ sum(timer)-invariant.
-        const baseline = await hentRaderForValidering(
-          ctx.prismaTimer,
-          sheet.id,
-        );
-        const postMaskin: ValiderRad[] = [
-          ...baseline.maskin.filter((r) => r.id !== original.id),
-          ...input.nyeRader.map((rad) => ({
-            projectId: rad.projectId,
-            externalCostObjectId: rad.externalCostObjectId ?? null,
-            timer: rad.timer,
-          })),
-        ];
-        const brytt = validerMaskinUnderArbeid(baseline.timer, postMaskin, sheet.pauseMin);
-        if (brytt.length > 0) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: await feilMeldingMaskinOverstiger(brytt),
-          });
-        }
-
+        // T7-4b maskin ≤ arbeid post-state er allerede validert i
+        // validerSplittFelles (steg 6) — går rett på transaksjonen.
         await ctx.prismaTimer.$transaction([
           ctx.prismaTimer.sheetMachine.update({
             where: { id: original.id },
@@ -3056,6 +3091,141 @@ export const dagsseddelRouter = router({
         radType: input.radType,
         antallNye: input.nyeRader.length,
       };
+    }),
+
+  // ============================================================================
+  //  splittRadEier — ARBEIDER splitter egen rad i draft/returned (P2).
+  //  Autorisasjon: sheet.userId === ctx.userId (eier, ALDRI rolle-basert).
+  //  Status: kun draft/returned — avvises server-side (ikke bare UI-skjuling).
+  //  Semantikk: ren utkast-redigering — SLETT original + opprett N plain rader
+  //  (ingen erstattet/parentRadId/Activity; en draft/returnert rad har ingen
+  //  attesterings-audit å bevare — speiler fjernTimerRad + tilfoyTimerRad).
+  //  Deler validerings-kjernen (validerSplittFelles) med leder-splittRad.
+  // ============================================================================
+  splittRadEier: protectedProcedure
+    .input(splittRadInput)
+    .mutation(async ({ ctx, input }) => {
+      // 1) Hent original rad ut fra radType
+      const original =
+        input.radType === "timer"
+          ? await ctx.prismaTimer.sheetTimer.findUnique({ where: { id: input.radId } })
+          : input.radType === "tillegg"
+            ? await ctx.prismaTimer.sheetTillegg.findUnique({ where: { id: input.radId } })
+            : await ctx.prismaTimer.sheetMachine.findUnique({ where: { id: input.radId } });
+      if (!original) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: `${input.radType}-rad ${input.radId} finnes ikke`,
+        });
+      }
+
+      // 2) Hent sedel for auth + status-sjekk
+      const sheet = await ctx.prismaTimer.dailySheet.findUnique({
+        where: { id: original.sheetId },
+        select: {
+          id: true,
+          organizationId: true,
+          status: true,
+          userId: true,
+          pauseMin: true,
+        },
+      });
+      if (!sheet) throw new TRPCError({ code: "NOT_FOUND" });
+
+      // 3) Auth: KUN eier av sedelen (aldri rolle-/admin-basert — arbeider
+      //    redigerer eget utkast).
+      if (sheet.userId !== ctx.userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Kun eier av dagsseddelen kan splitte egne rader",
+        });
+      }
+
+      // 4) Status: kun draft/returned. Server-side avvisning (ikke bare
+      //    UI-skjuling av knappen).
+      if (!erRedigerbar(sheet.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Kun utkast/returnerte dagssedler kan splittes av eier (status: ${sheet.status})`,
+        });
+      }
+
+      // 5) Delt validerings-kjerne (samme som leder-splittRad).
+      const originalSum =
+        input.radType === "tillegg"
+          ? Number((original as { antall: Prisma.Decimal }).antall)
+          : Number((original as { timer: Prisma.Decimal }).timer);
+      await validerSplittFelles(ctx.prismaTimer, input, sheet, {
+        id: original.id,
+        sum: originalSum,
+      });
+
+      // 6) Transaksjon: SLETT original + opprett N plain rader. Radene speiler
+      //    tilfoy*-radene (ingen attestertStatus/parentRadId satt → skjema-
+      //    default, identisk med normalt tillagte draft-rader).
+      if (input.radType === "timer") {
+        await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetTimer.delete({ where: { id: original.id } }),
+          ...input.nyeRader.map((rad) =>
+            ctx.prismaTimer.sheetTimer.create({
+              data: {
+                sheetId: sheet.id,
+                lonnsartId: rad.lonnsartId,
+                aktivitetId: rad.aktivitetId,
+                projectId: rad.projectId,
+                externalCostObjectId: rad.externalCostObjectId ?? null,
+                byggeplassId: rad.byggeplassId ?? null,
+                fraTid: rad.fraTid ?? null,
+                tilTid: rad.tilTid ?? null,
+                timer: rad.timer,
+                // Split = samme arbeid → arv original-radens kostnadsbærer.
+                vehicleId:
+                  (original as { vehicleId: string | null }).vehicleId ?? null,
+              },
+            }),
+          ),
+        ]);
+      } else if (input.radType === "tillegg") {
+        await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetTillegg.delete({ where: { id: original.id } }),
+          ...input.nyeRader.map((rad) =>
+            ctx.prismaTimer.sheetTillegg.create({
+              data: {
+                sheetId: sheet.id,
+                tilleggId: rad.tilleggId,
+                projectId: rad.projectId,
+                antall: rad.antall,
+                kommentar: rad.kommentar ?? null,
+              },
+            }),
+          ),
+        ]);
+      } else {
+        await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetMachine.delete({ where: { id: original.id } }),
+          ...input.nyeRader.map((rad) =>
+            ctx.prismaTimer.sheetMachine.create({
+              data: {
+                sheetId: sheet.id,
+                vehicleId: rad.vehicleId,
+                projectId: rad.projectId,
+                externalCostObjectId: rad.externalCostObjectId ?? null,
+                byggeplassId: rad.byggeplassId ?? null,
+                fraTid: rad.fraTid ?? null,
+                tilTid: rad.tilTid ?? null,
+                timer: rad.timer,
+                mengde: rad.mengde ?? null,
+                enhet: rad.enhet ?? null,
+              },
+            }),
+          ),
+        ]);
+      }
+
+      // F4-1d: bump sedelens updatedAt så de nye split-radene når mobil pull.
+      await touchSedel(ctx.prismaTimer, sheet.id);
+
+      return { radType: input.radType, antallNye: input.nyeRader.length };
     }),
 
   // @deprecated Thin wrapper — kaller attesterRader for alle pending-rader på sedelen.

@@ -54,6 +54,10 @@ type MaskinRadOriginal = {
   enhet: string | null;
 };
 
+// eierModus (P2 arbeider-splitt, 2026-07): når true kaller modalen
+// splittRadEier (arbeider splitter EGEN rad i draft/returned) i stedet for
+// leder-splittRad (attestering). Udefinert/false = leder-modus som før →
+// attestering-callsites er uberørt.
 type Props =
   | {
       radType: "timer";
@@ -61,6 +65,7 @@ type Props =
       sheetId: string;
       prosjekter: ProsjektValg[];
       tidsrundingMinutter: number | null;
+      eierModus?: boolean;
       onLukk: () => void;
       onLagret: () => void;
     }
@@ -70,6 +75,7 @@ type Props =
       sheetId: string;
       prosjekter: ProsjektValg[];
       tidsrundingMinutter: number | null;
+      eierModus?: boolean;
       onLukk: () => void;
       onLagret: () => void;
     }
@@ -79,6 +85,7 @@ type Props =
       sheetId: string;
       prosjekter: ProsjektValg[];
       tidsrundingMinutter: number | null;
+      eierModus?: boolean;
       onLukk: () => void;
       onLagret: () => void;
     };
@@ -174,8 +181,13 @@ export function SplittRadModal(props: Props) {
         ? splitTillegg.length
         : splitMaskin.length;
 
-  // Lokal lagring av mutation result
-  const lagre = trpc.timer.dagsseddel.splittRad.useMutation({
+  // Lokal lagring av mutation result. eierModus velger arbeider-prosedyren
+  // (splittRadEier) — identisk input/output som leder-splittRad. Nøyaktig én
+  // useMutation kalles per render (eierModus endres ikke i modalens levetid).
+  const splittProsedyre = props.eierModus
+    ? trpc.timer.dagsseddel.splittRadEier
+    : trpc.timer.dagsseddel.splittRad;
+  const lagre = splittProsedyre.useMutation({
     onSuccess: () => {
       void utils.timer.dagsseddel.hentForAttestering.invalidate({ id: props.sheetId });
       void utils.timer.dagsseddel.hentTilAttestering.invalidate();

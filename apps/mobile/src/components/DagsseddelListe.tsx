@@ -23,6 +23,7 @@ import { useTimerSync } from "../providers/TimerSyncProvider";
 import { TimerSyncStatusBar } from "./TimerSyncStatusBar";
 import { TimerStatusMerkelapp } from "./TimerStatusMerkelapp";
 import { UkeTotalBanner } from "./UkeTotalBanner";
+import { StartSluttDagKort } from "./StartSluttDagKort";
 
 interface DagsseddelRad {
   id: string;
@@ -205,6 +206,11 @@ export function DagsseddelListe({
       </View>
 
       <TimerSyncStatusBar />
+
+      {/* P3-hybrid: det fulle «Start dag/Slutt dag»-kortet bor nå øverst på
+          timer-flaten (Timer-tab + /timer-stack), ikke lenger på hjem. Hjem
+          viser i stedet den kompakte HjemTimerChip. */}
+      <StartSluttDagKort />
 
       {bruker?.id && <UkeTotalBanner userId={bruker.id} />}
 
