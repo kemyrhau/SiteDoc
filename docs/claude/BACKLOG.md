@@ -26,11 +26,19 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 **Fiks (cowork-eid, synk-mønster):** tombstone-/deleted-ids-propagering i syncBatch-payload, ELLER pull respekterer lokale slettinger. Bredt synk-arbeid — ikke punktfiks. S3 var coworks design.
 
-**Cowork-utredning konkludert 2026-07-13 (design foreslått, avventer fabel-gate):** (1) Egen persistent `slettede_rader_local`-tombstone-tabell (`sheetId, radId, radType, slettetVed`) — anbefalt over per-tabell soft-delete-flagg (én migrering, ingen filter-endring i lese-stedene). (2) `slettedeIder: {timer,tillegg,maskiner}` (optional) i syncBatch-input → per type `deleteMany({ sheetId, id: { in: slettedeIder.<type> } })` i tillegg til payload-replace. (3) Bakoverkompat: #37 sender ikke feltet → dagens ikke-propagering (legacy, trygt); #38+ propagerer. (4) Rydd tombstones etter server-bekreftet sync. **Forbehold:** server-rundturen (server beholder + pull re-innsetter) er kode-verifisert men **runtime-inferert** — ikke nettverksbevist; en simulator/nettverks-test gir end-to-end-beviset. **Sedel-nivå:** `[id].tsx:433` (forkast hele sedel) har samme gap for SYNKEDE sedler — egen beslutning: skal synket-sedel-forkast propagere?
+**Cowork-utredning konkludert 2026-07-13 (design foreslått, avventer fabel-gate):** (1) Egen persistent `slettede_rader_local`-tombstone-tabell (`sheetId, radId, radType, slettetVed`) — anbefalt over per-tabell soft-delete-flagg (én migrering, ingen filter-endring i lese-stedene). (2) `slettedeIder: {timer,tillegg,maskiner}` (optional) i syncBatch-input → per type `deleteMany({ sheetId, id: { in: slettedeIder.<type> } })` i tillegg til payload-replace. (3) Bakoverkompat: #37 sender ikke feltet → dagens ikke-propagering (legacy, trygt); #38+ propagerer. (4) Rydd tombstones etter server-bekreftet sync. **Forbehold:** server-rundturen (server beholder + pull re-innsetter) er kode-verifisert men **runtime-inferert** — ikke nettverksbevist; en simulator/nettverks-test gir end-to-end-beviset. **Sedel-nivå:** `[id].tsx:433` (forkast hele sedel) har samme gap for SYNKEDE sedler — egen beslutning: skal synket-sedel-forkast propagere? **Bidireksjonell:** utredningen dekker BEGGE retninger som ett reconcile-design med status-basert autoritet — utkast/returnert = arbeider-autoritativ → tombstone (S-A, mobil→server); sendt/attestert = server-autoritativ → pull-reconcile (S-B, server→mobil, se egen entry under).
 
-### 🟡 Samme-dato-kollisjon: fler-økt → én dagsseddel, carve appender ikke per økt (simulator-funn 2026-07-13)
+### 🟡 Server-redigert Sendt-seddel → mobil-lokal rad-duplisering (simulator-funn 2026-07-13, i sync-scope S-B)
 
-**Symptom (simulator-funn):** flere økter samme dato → én dagsseddel (`@@unique(userId,dato)`); carve/auto-arbeidstid ser ikke ut til å appende per økt. **Status: AVVENTER redesign-Opus' kodeverifisering før klassifisering (bug vs by-design)** — cowork klassifiserer ikke atferd uten kode. Berører carve-sonen (`carveArbeidstider` @sitedoc/shared + `utvidArbeidstidsvindu`), samme område som F-b. Relaterer til U-serie multi-økt-append (mobil-dagsseddel-ui-spec).
+**Symptom (DB-karakterisert av simulator, tor. 09):** en Sendt-seddel redigert server-side (rader redusert) reconciler ikke ned på mobil — Drizzle viste 9 rader/27t lokalt mot server 3 rader/9t. Mobil-pull er additiv (upsert, ingen fjerning) → server-slettede/redigerte rader blir liggende lokalt → duplikat-akkumulering. Server bekreftet intakt (feilen er mobil-lokal). **Rot: samme som sync-slette-saken — pull reconciler ikke til server-sannhet**, men retning server→mobil (motsatt av slette-saken). Foreslått fiks: pull blir server-autoritativ reconcile for sendte/låste sedler (fjern lokale rader ikke i server-payload). Carve-detaljer avventer redesign-Opus (d).
+
+### 🟡 B4: «Fra kl.»-hjul-velger mangler tøm-affordans (simulator-funn 2026-07-13, UX lav prio)
+
+Hjul-velgeren for «Fra kl.» har ingen tøm-knapp → «tøm fra»-tilstanden er uoppnåelig på mobil når en verdi først er satt. UX-punkt, lav prioritet.
+
+### 🔴 F-e VEDTATT (alternativ C): pause trekkes kun over terskel — ikke kodet (2026-07-13)
+
+**Vedtak (Kenneth):** pausefradrag betinges av terskel — pause trekkes KUN når arbeidet overstiger en grense (à la AML ≥ 5,5 t), erstatter dagens ubetingede fradrag. Kodes tidligst ETTER sync-saken (samme kodeområde som F-b). Berører pause-beregning (`pauseBeregning.ts` @sitedoc/shared). Carve-observasjonene fra simulator-runden = denne mekanikken.
 
 ### 🟡 Del 6-oppfølgere-vedtak (2026-07-13, dokumentert her for sporbarhet)
 
