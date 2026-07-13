@@ -252,11 +252,26 @@ export function SplittRadModal(props: Props) {
         }
       }
       const o = props.original;
-      // Ren lokal reconcile: slett original + sett inn delene. Insert-feltene
-      // speiler TimerSeksjon.leggTil nøyaktig; prosjekt/fra/til/beskrivelse
-      // arves fra originalen (kun lønnsart/aktivitet/ECO/timer varierer per del).
-      db.delete(sheetTimerLocal).where(eq(sheetTimerLocal.id, o.id)).run();
-      for (const d of timerDeler) {
+      // Lokal reconcile: GJENBRUK originalens id på del 1 (update), insert resten.
+      // Rasjonale (S3-fiks): syncBatch sletter kun rader hvis id er i payloaden
+      // (deleteMany id:{in:...}). Sletter vi originalen lokalt faller id-en ut av
+      // payloaden → server beholder originalen → duplikat (alltid på returnerte,
+      // synkede sedler). Ved å beholde original-id-en på del 1 forblir den i
+      // payloaden → server sletter+gjenoppretter samme id, ingen orphan.
+      // Insert-feltene speiler TimerSeksjon.leggTil; prosjekt/fra/til/beskrivelse
+      // arves (står allerede på originalen — kun lønnsart/aktivitet/ECO/timer varierer).
+      const [forsteTimer, ...restenTimer] = timerDeler;
+      db.update(sheetTimerLocal)
+        .set({
+          lonnsartId: forsteTimer.lonnsartId,
+          aktivitetId: forsteTimer.aktivitetId,
+          externalCostObjectId: forsteTimer.externalCostObjectId,
+          timer: tilTall(forsteTimer.timerTekst),
+          sistEndretLokalt: Date.now(),
+        })
+        .where(eq(sheetTimerLocal.id, o.id))
+        .run();
+      for (const d of restenTimer) {
         db.insert(sheetTimerLocal)
           .values({
             id: randomUUID(),
@@ -281,10 +296,26 @@ export function SplittRadModal(props: Props) {
         }
       }
       const o = props.original;
-      // Insert-feltene speiler MaskinSeksjon.leggTil nøyaktig; prosjekt/fra/til
-      // arves fra originalen (utstyr/mengde/enhet/ECO/timer varierer per del).
-      db.delete(sheetMachineLocal).where(eq(sheetMachineLocal.id, o.id)).run();
-      for (const d of maskinDeler) {
+      // S3-fiks (som timer): GJENBRUK original-id på del 1 (update) + insert resten,
+      // så original-id-en blir i syncBatch-payloaden og ikke etterlater en orphan.
+      // Insert-feltene speiler MaskinSeksjon.leggTil; prosjekt/fra/til arves
+      // (utstyr/mengde/enhet/ECO/timer varierer per del).
+      const [forsteMaskin, ...restenMaskin] = maskinDeler;
+      const forsteMengde = forsteMaskin.mengdeTekst.trim()
+        ? tilTall(forsteMaskin.mengdeTekst)
+        : null;
+      db.update(sheetMachineLocal)
+        .set({
+          externalCostObjectId: forsteMaskin.externalCostObjectId,
+          vehicleId: forsteMaskin.vehicleId,
+          timer: tilTall(forsteMaskin.timerTekst),
+          mengde: forsteMengde,
+          enhet: forsteMaskin.enhet,
+          sistEndretLokalt: Date.now(),
+        })
+        .where(eq(sheetMachineLocal.id, o.id))
+        .run();
+      for (const d of restenMaskin) {
         const mengdeNum = d.mengdeTekst.trim() ? tilTall(d.mengdeTekst) : null;
         db.insert(sheetMachineLocal)
           .values({
@@ -310,10 +341,18 @@ export function SplittRadModal(props: Props) {
         }
       }
       const o = props.original;
-      // Insert-feltene speiler TilleggSeksjon.leggTil nøyaktig; prosjekt/tillegg/
+      // S3-fiks (som timer/maskin): GJENBRUK original-id på del 1 (update) + insert
+      // resten. Insert-feltene speiler TilleggSeksjon.leggTil; prosjekt/tillegg/
       // kommentar arves fra originalen (kun antall varierer per del).
-      db.delete(sheetTilleggLocal).where(eq(sheetTilleggLocal.id, o.id)).run();
-      for (const d of tilleggDeler) {
+      const [forsteTillegg, ...restenTillegg] = tilleggDeler;
+      db.update(sheetTilleggLocal)
+        .set({
+          antall: tilTall(forsteTillegg.antallTekst),
+          sistEndretLokalt: Date.now(),
+        })
+        .where(eq(sheetTilleggLocal.id, o.id))
+        .run();
+      for (const d of restenTillegg) {
         db.insert(sheetTilleggLocal)
           .values({
             id: randomUUID(),
