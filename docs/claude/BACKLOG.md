@@ -16,7 +16,7 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
-### 🔴 Mobil timer-rad-sletting propagerer ikke til server (S3) — BEKREFTET via M-3, venter fabels design-gate (2026-07-13)
+### 🟡 Mobil timer-rad-sletting propagerer ikke til server (S3) — TOMBSTONE IMPLEMENTERT PÅ DEVELOP, venter gate + fabel + EAS (2026-07-13)
 
 **M-3-SEAL 2026-07-13:** S-A bekreftet reell — kode-verifisert + empirisk forseglet. **Kode:** `fjern` (`TimerSeksjon.tsx:232`) persisterer den lokale slettingen (`db.delete().run()`) + `markerEndretOgLes` (`[id].tsx:318`) setter sedel `pending` + `triggerSync()`; syncBatch-push (S3) sender kun de gjenværende radenes id-er → `deleteMany({ id: { in: … } })` beholder den slettede raden på server → pull re-innsetter. **Empirisk:** simulator slettet rad `065dc8f4` på synket draft-sedel (server-id `664c1d3c` / client_uuid `dc59a75c`) → normal sync → raden kom tilbake; server-SQL viser `065dc8f4` FORTSATT på server (3 rader). Den opprinnelige del-6-eskaleringen VAR S-A (ikke erstattet-lekkasjen/fiks B, ikke en delete-persisterings-gap). **Tombstone-utredningen (design under) er klar for fabels design-gate.**
 
@@ -29,6 +29,17 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 **Fiks (cowork-eid, synk-mønster):** tombstone-/deleted-ids-propagering i syncBatch-payload, ELLER pull respekterer lokale slettinger. Bredt synk-arbeid — ikke punktfiks. S3 var coworks design.
 
 **Cowork-utredning konkludert 2026-07-13 (design foreslått, avventer fabel-gate):** (1) Egen persistent `slettede_rader_local`-tombstone-tabell (`sheetId, radId, radType, slettetVed`) — anbefalt over per-tabell soft-delete-flagg (én migrering, ingen filter-endring i lese-stedene). (2) `slettedeIder: {timer,tillegg,maskiner}` (optional) i syncBatch-input → per type `deleteMany({ sheetId, id: { in: slettedeIder.<type> } })` i tillegg til payload-replace. (3) Bakoverkompat: #37 sender ikke feltet → dagens ikke-propagering (legacy, trygt); #38+ propagerer. (4) Rydd tombstones etter server-bekreftet sync. **Forbehold:** server-rundturen (server beholder + pull re-innsetter) er kode-verifisert men **runtime-inferert** — ikke nettverksbevist; en simulator/nettverks-test gir end-to-end-beviset. **Sedel-nivå:** `[id].tsx:433` (forkast hele sedel) har samme gap for SYNKEDE sedler — egen beslutning: skal synket-sedel-forkast propagere? (S-A gjelder KUN arbeider→server delete-propagering via tombstone. Den tidligere antatte «S-B server→mobil reconcile»-saken viste seg å være en HELT annen bug — se «hentEndringerSiden mangler erstattet-filter» under. S-A og den er urelaterte.)
+
+**IMPLEMENTERT PÅ DEVELOP 2026-07-13 (venter dual-review-gate + fabel-designgate + EAS-bygg for mobil-verifisering):**
+- **Ny lokal tabell `slettede_rader_local`** (`schema.ts` Drizzle + idempotent `CREATE TABLE` i `migreringer.ts`): `rad_id` PK (globalt unik uuid), `dagsseddel_id` (= server sheetId), `rad_type`, `slettet_ved`. KUN lokal.
+- **Fjern-handlerne** (`TimerSeksjon`/`TilleggSeksjon`/`MaskinSeksjon` `fjern`): `db.transaction` — lokal `delete` + tombstone-`insert` ATOMISK (`onConflictDoNothing`). Beholder pending+`onEndret`-flyten.
+- **Push** (`timerSync.ts`): fjerde select på tombstones per sedel → optional `slettedeIder: {timer,tillegg,maskiner}` på sedel-objektet i `syncBatch`-input.
+- **KRAV 1 pull-race-guard** (`timerSync.ts` pull-apply): før hver re-innsetting bygges `levendeTombstoneIder`-sett (rad-id unik på tvers av typer) → `continue` for rad med levende tombstone. Hindrer gjenoppståelse i push-vinduet + at en re-innsatt rad re-pushes og omgjør slettingen. Tombstones følger også `forsonSedelIdentitet` (M1 re-nøkling).
+- **KRAV 2 server-vakt** (`dagsseddel.ts syncBatch`): optional `slettedeIder`-Zod-felt + `deleteMany({ sheetId: sedel.id, id: { in } })` per type INNE i per-sedel-transaksjonen, etter samme inline-vakt (eierskap `ctx.userId` + status draft/returnert/sent-overgang) som payload-replace. Scopet på `sheetId` → aldri slette på annen sedel.
+- **KRAV 3 rydding** (`timerSync.ts anvendSvar`): tombstones for `r.clientUuid` slettes KUN i `resultat === "ok"`-grenen (ikke conflict/avvist/feilet). `deleteMany` idempotent → partiell batch-feil trygt (tombstone overlever + re-sendes).
+- **Bakoverkompat:** `slettedeIder` optional → #37 (uten feltet) beholder legacy-ikke-propagering; #38+ propagerer.
+- Typecheck: API `tsc` grønt; mobil `tsc` 0 nye feil (11 = 11 baseline, de 2 `timerSync`-baseline-feilene kun linje-forskjøvet).
+- **Aksept (gjenstår, EAS #38):** M-3-reprise — slett rad → sync → borte LOKALT OG på SERVER + pull re-innsetter ikke.
 
 ### 🟢 Mobil ser ×N rader: `hentEndringerSiden` mangler «erstattet»-filter — FIKS B TEST-VERIFISERT, venter prod (2026-07-13)
 

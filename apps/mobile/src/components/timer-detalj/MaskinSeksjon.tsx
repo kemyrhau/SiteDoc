@@ -30,6 +30,7 @@ import { hentDatabase } from "../../db/database";
 import {
   sheetMachineLocal,
   sheetTimerLocal,
+  slettedeRaderLocal,
   equipmentLocal,
   externalCostObjectLocal,
 } from "../../db/schema";
@@ -192,12 +193,24 @@ export function MaskinSeksjon({
     (radId: string) => {
       const db = hentDatabase();
       if (!db) return;
-      db.delete(sheetMachineLocal)
-        .where(eq(sheetMachineLocal.id, radId))
-        .run();
+      // S-A: slett lokalt + skriv tombstone ATOMISK (samme tx) — se TimerSeksjon.
+      db.transaction((tx) => {
+        tx.delete(sheetMachineLocal)
+          .where(eq(sheetMachineLocal.id, radId))
+          .run();
+        tx.insert(slettedeRaderLocal)
+          .values({
+            radId,
+            dagsseddelId: sheetId,
+            radType: "maskin",
+            slettetVed: Date.now(),
+          })
+          .onConflictDoNothing()
+          .run();
+      });
       onEndret();
     },
-    [onEndret],
+    [onEndret, sheetId],
   );
 
   // P1 (maskin-i-rad): soft-skjul gjelder nå kun fravær av rader. Ny maskin

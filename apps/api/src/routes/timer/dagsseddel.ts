@@ -3691,6 +3691,18 @@ export const dagsseddelRouter = router({
                 }),
               )
               .default([]),
+            // S-A (2026-07-13): rad-id-er arbeideren har slettet lokalt. Server
+            // kjører deleteMany({ sheetId, id: { in } }) per type I TILLEGG til
+            // payload-replace, så slettinger propagerer (S3-payload-policy sletter
+            // ellers kun sendte rader). Optional → #37-klienter uten feltet
+            // beholder dagens ikke-propagering (legacy, bakoverkompat).
+            slettedeIder: z
+              .object({
+                timer: z.array(z.string().uuid()).default([]),
+                tillegg: z.array(z.string().uuid()).default([]),
+                maskiner: z.array(z.string().uuid()).default([]),
+              })
+              .optional(),
           }),
         ).max(100), // Begrens batch-størrelse for å unngå tidsavbrudd
       }),
@@ -4071,6 +4083,35 @@ export const dagsseddelRouter = router({
               await tx.sheetMachine.deleteMany({
                 where: { sheetId: sedel.id, id: { in: maskinIder } },
               });
+            }
+
+            // S-A KRAV 2 (2026-07-13): propagér arbeiderens rad-slettinger. I
+            // TILLEGG til payload-replace over — ellers ville en slettet rad som
+            // IKKE er i payloaden overleve på server (S3-policy) og re-pull'es.
+            // Scopet på sheetId: sedel.id (arbeider kan aldri slette rader på en
+            // annen sedel). Ligger i SAMME transaksjon + etter samme inline-vakt
+            // (eierskap ctx.userId + status draft/returnert/sent-overgang) som
+            // payload-replace — hviler ikke på klient-låsen. Idempotent (trygt
+            // ved re-send etter partiell batch-feil).
+            if (lokal.slettedeIder) {
+              const slettTimer = lokal.slettedeIder.timer;
+              const slettTillegg = lokal.slettedeIder.tillegg;
+              const slettMaskin = lokal.slettedeIder.maskiner;
+              if (slettTimer.length > 0) {
+                await tx.sheetTimer.deleteMany({
+                  where: { sheetId: sedel.id, id: { in: slettTimer } },
+                });
+              }
+              if (slettTillegg.length > 0) {
+                await tx.sheetTillegg.deleteMany({
+                  where: { sheetId: sedel.id, id: { in: slettTillegg } },
+                });
+              }
+              if (slettMaskin.length > 0) {
+                await tx.sheetMachine.deleteMany({
+                  where: { sheetId: sedel.id, id: { in: slettMaskin } },
+                });
+              }
             }
 
             // T7-3b1: rad-nivå projectId overstyrer sedel-nivå hvis satt.

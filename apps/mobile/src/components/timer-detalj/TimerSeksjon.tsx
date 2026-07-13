@@ -28,6 +28,7 @@ import { hentDatabase } from "../../db/database";
 import {
   sheetTimerLocal,
   sheetMachineLocal,
+  slettedeRaderLocal,
   lonnsartLocal,
   aktivitetLocal,
   equipmentLocal,
@@ -228,10 +229,24 @@ export function TimerSeksjon({
     (radId: string) => {
       const db = hentDatabase();
       if (!db) return;
-      db.delete(sheetTimerLocal).where(eq(sheetTimerLocal.id, radId)).run();
+      // S-A: slett lokalt + skriv tombstone ATOMISK (samme tx). Rå local-delete
+      // alene propagerer ikke til server (S3 payload-id-policy) → tombstonen
+      // bærer slettingen frem til neste sync.
+      db.transaction((tx) => {
+        tx.delete(sheetTimerLocal).where(eq(sheetTimerLocal.id, radId)).run();
+        tx.insert(slettedeRaderLocal)
+          .values({
+            radId,
+            dagsseddelId: sheetId,
+            radType: "timer",
+            slettetVed: Date.now(),
+          })
+          .onConflictDoNothing()
+          .run();
+      });
       onEndret();
     },
-    [onEndret],
+    [onEndret, sheetId],
   );
 
   return (

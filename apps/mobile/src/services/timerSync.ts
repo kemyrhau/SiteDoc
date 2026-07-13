@@ -6,6 +6,7 @@ import {
   sheetTilleggLocal,
   sheetTilleggVedleggLocal,
   sheetMachineLocal,
+  slettedeRaderLocal,
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
 
@@ -177,6 +178,12 @@ export async function syncTimer(
       .set({ dagsseddelId: tilId })
       .where(eq(sheetMachineLocal.dagsseddelId, fraId))
       .run();
+    // S-A: flytt tombstones med, så slette-intensjonen følger den re-nøklede
+    // sedelen og propagerer på neste push (i stedet for å bli foreldreløs).
+    db.update(slettedeRaderLocal)
+      .set({ dagsseddelId: tilId })
+      .where(eq(slettedeRaderLocal.dagsseddelId, fraId))
+      .run();
     const maalFinnes = db
       .select({ id: dagsseddelLocal.id })
       .from(dagsseddelLocal)
@@ -212,6 +219,13 @@ export async function syncTimer(
             sistSynkronisert: naa,
           })
           .where(eq(dagsseddelLocal.id, r.clientUuid))
+          .run();
+        // S-A KRAV 3: sedelen er bekreftet synket — server har kjørt deleteMany
+        // på de sendte slettedeIder. Rydd tombstones for sedelen KUN her (ikke
+        // conflict/avvist/feilet). deleteMany er idempotent → en tapt rydding
+        // (partiell batch) er trygg, tombstonen re-sendes bare neste tick.
+        db.delete(slettedeRaderLocal)
+          .where(eq(slettedeRaderLocal.dagsseddelId, r.clientUuid))
           .run();
         resultat.push.ok++;
       } else if (r.resultat === "conflict" && r.serverData) {
@@ -316,6 +330,12 @@ export async function syncTimer(
           .from(sheetMachineLocal)
           .where(eq(sheetMachineLocal.dagsseddelId, sedel.id))
           .all();
+        // S-A: tombstones for lokalt slettede rader på denne sedelen.
+        const tombstones = db
+          .select()
+          .from(slettedeRaderLocal)
+          .where(eq(slettedeRaderLocal.dagsseddelId, sedel.id))
+          .all();
 
         return {
           clientUuid: sedel.id,
@@ -381,6 +401,23 @@ export async function syncTimer(
             fraTid: m.fraTid ?? null,
             tilTid: m.tilTid ?? null,
           })),
+          // S-A: propagér lokale rad-slettinger. Gruppert per radType → server
+          // kjører deleteMany({ sheetId, id: { in } }) i tillegg til payload-
+          // replace. Utelates når tomt (feltet er .optional() på server → #37-
+          // klienter uten feltet beholder dagens ikke-propagering / legacy).
+          slettedeIder: tombstones.length
+            ? {
+                timer: tombstones
+                  .filter((t) => t.radType === "timer")
+                  .map((t) => t.radId),
+                tillegg: tombstones
+                  .filter((t) => t.radType === "tillegg")
+                  .map((t) => t.radId),
+                maskiner: tombstones
+                  .filter((t) => t.radType === "maskin")
+                  .map((t) => t.radId),
+              }
+            : undefined,
         };
       });
 
@@ -601,12 +638,28 @@ export async function syncTimer(
         .where(eq(sheetMachineLocal.dagsseddelId, maalId))
         .run();
 
+      // S-A KRAV 1 pull-race-guard: sett med rad-id-er som har en LEVENDE
+      // tombstone på denne sedelen. Rad-id er globalt unik på tvers av de tre
+      // typene (uuid) → ett sett holder. Under-innsettingen hopper disse over,
+      // så en rad arbeideren nettopp slettet ikke gjenoppstår fra en pull som
+      // fortsatt bærer serverens kopi (og dermed ville re-pushet + omgjort
+      // slettingen server-side). Tombstonen lever til synken er bekreftet (KRAV 3).
+      const levendeTombstoneIder = new Set(
+        db
+          .select({ radId: slettedeRaderLocal.radId })
+          .from(slettedeRaderLocal)
+          .where(eq(slettedeRaderLocal.dagsseddelId, maalId))
+          .all()
+          .map((rad) => rad.radId),
+      );
+
       // T7-3b1: server returnerer projectId per rad. Vi lagrer dette på rad-
       // nivå lokalt. Faller tilbake til sedel-nivå for legacy server-respons
       // som mangler t.projectId (pre-T7-3b1 server).
       // T4-d (2026-05-16): server returnerer også fraTid/tilTid på timer-
       // og maskin-rader. Default null hvis ikke satt.
       for (const t of serverSedel.timer) {
+        if (levendeTombstoneIder.has(t.id)) continue; // S-A KRAV 1
         db.insert(sheetTimerLocal)
           .values({
             id: t.id,
@@ -625,6 +678,7 @@ export async function syncTimer(
           .run();
       }
       for (const tl of serverSedel.tillegg) {
+        if (levendeTombstoneIder.has(tl.id)) continue; // S-A KRAV 1 (+ vedlegg)
         db.insert(sheetTilleggLocal)
           .values({
             id: tl.id,
@@ -670,6 +724,7 @@ export async function syncTimer(
         }
       }
       for (const m of serverSedel.maskiner ?? []) {
+        if (levendeTombstoneIder.has(m.id)) continue; // S-A KRAV 1
         db.insert(sheetMachineLocal)
           .values({
             id: m.id,

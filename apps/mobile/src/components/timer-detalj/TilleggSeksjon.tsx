@@ -19,6 +19,7 @@ import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
 import {
   sheetTilleggLocal,
+  slettedeRaderLocal,
   tilleggLocal,
   sheetTilleggVedleggLocal,
 } from "../../db/schema";
@@ -111,12 +112,24 @@ export function TilleggSeksjon({
     (radId: string) => {
       const db = hentDatabase();
       if (!db) return;
-      db.delete(sheetTilleggLocal)
-        .where(eq(sheetTilleggLocal.id, radId))
-        .run();
+      // S-A: slett lokalt + skriv tombstone ATOMISK (samme tx) — se TimerSeksjon.
+      db.transaction((tx) => {
+        tx.delete(sheetTilleggLocal)
+          .where(eq(sheetTilleggLocal.id, radId))
+          .run();
+        tx.insert(slettedeRaderLocal)
+          .values({
+            radId,
+            dagsseddelId: sheetId,
+            radType: "tillegg",
+            slettetVed: Date.now(),
+          })
+          .onConflictDoNothing()
+          .run();
+      });
       onEndret();
     },
-    [onEndret],
+    [onEndret, sheetId],
   );
 
   return (
