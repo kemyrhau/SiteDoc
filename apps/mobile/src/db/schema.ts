@@ -186,6 +186,26 @@ export const sheetTilleggLocal = sqliteTable("sheet_tillegg_local", {
 });
 
 /**
+ * slettede_rader_local — tombstones for lokalt slettede dagsseddel-rader (S-A,
+ * 2026-07-13). Rå lokal delete + payload-id-begrenset server-`deleteMany`
+ * propagerer IKKE sletting (S3-policy) → server beholder raden → pull re-
+ * innsetter den. Denne tabellen bærer slette-intensjonen frem til server har
+ * bekreftet synken:
+ *  - push sender `radId`-ene som `slettedeIder` → server `deleteMany`,
+ *  - pull HOPPER OVER re-innsetting av rad med LEVENDE tombstone (race-guard),
+ *  - rydding sletter tombstonen KUN når sedelens sync er bekreftet "ok".
+ * `radId` er globalt unik (uuid) → naturlig PK. radType ∈ timer|tillegg|maskin.
+ */
+export const slettedeRaderLocal = sqliteTable("slettede_rader_local", {
+  radId: text("rad_id").primaryKey(),
+  dagsseddelId: text("dagsseddel_id").notNull(), // = server sheetId
+  radType: text("rad_type", {
+    enum: ["timer", "tillegg", "maskin"],
+  }).notNull(),
+  slettetVed: integer("slettet_ved").notNull(),
+});
+
+/**
  * sheet_tillegg_vedlegg_local — kvittering-/bilde-vedlegg på en tillegg-rad
  * (Funn #2). Offline-først: `lokalSti` peker på lokal fil til opplasting,
  * `serverUrl` settes når opplastings-køen har lastet opp (null = «venter»).

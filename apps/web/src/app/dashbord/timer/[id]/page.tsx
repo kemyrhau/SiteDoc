@@ -15,8 +15,11 @@ import {
   AlertCircle,
   RotateCcw,
   X,
+  ChevronDown,
+  Split,
 } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
+import { SplittRadModal } from "@/components/timer/SplittRadModal";
 import { ProsjektRadVelger } from "@/components/timer/ProsjektRadVelger";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 import {
@@ -28,6 +31,7 @@ import {
   tilFraAntall,
   hhmmTilMin,
   pauseOverlappMin,
+  finnOverlappendeTidsrom,
 } from "@sitedoc/shared";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
 
@@ -67,6 +71,8 @@ type TimerRad = {
   // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment). Settes kun
   // på interne verksted-rader.
   vehicleId: string | null;
+  // P2 (arbeider-splitt): byggeplassId bæres videre til splittRadEier-originalen.
+  byggeplassId: string | null;
   // Maskin-fra-til (2026-05-17): brukes til å foreslå default for maskin-rad
   // i samme bucket (Alt D — sammenheng-prinsipp).
   fraTid: string | null;
@@ -103,6 +109,8 @@ type MaskinRad = {
   projectId: string;
   externalCostObjectId: string | null;
   vehicleId: string;
+  // P2 (arbeider-splitt): byggeplassId bæres videre til splittRadEier-originalen.
+  byggeplassId: string | null;
   // Maskin-fra-til (2026-05-17): valgfri tidsregistrering for maskinbruk.
   fraTid: string | null;
   tilTid: string | null;
@@ -179,6 +187,15 @@ export default function DagsseddelDetaljSide() {
         rad?: MaskinRad;
       }
     | { type: "nyProsjekt" }
+    | null
+  >(null);
+  // P2 (arbeider-splitt): egen rad splittes til N plain rader via splittRadEier.
+  // Kun tilgjengelig når erRedigerbar (draft/returned) — server håndhever eier
+  // + status uansett. Discriminated union speiler radens type.
+  const [splittModal, setSplittModal] = useState<
+    | { type: "timer"; rad: TimerRad }
+    | { type: "tillegg"; rad: TilleggRad }
+    | { type: "maskin"; rad: MaskinRad }
     | null
   >(null);
   const [ekstraProsjektIder, setEkstraProsjektIder] = useState<string[]>(() =>
@@ -567,24 +584,6 @@ export default function DagsseddelDetaljSide() {
               onTilfoyTillegg={() =>
                 setAktivModal({ type: "tillegg", projectId })
               }
-              onTilfoyMaskin={(ecoId, timerRaderIBucket) =>
-                setAktivModal({
-                  type: "maskin",
-                  projectId,
-                  defaultEcoId: ecoId,
-                  // Maskin-fra-til (Alt D): foreslå fra første og siste
-                  // timer-rad i bucket. Faller tilbake til firma-default
-                  // hvis bucket er tom.
-                  defaultFraTid:
-                    timerRaderIBucket[0]?.fraTid ??
-                    orgSetting?.standardStartTid ??
-                    null,
-                  defaultTilTid:
-                    timerRaderIBucket.at(-1)?.tilTid ??
-                    orgSetting?.standardSluttTid ??
-                    null,
-                })
-              }
               onRedigerTimer={(rad) =>
                 setAktivModal({ type: "timer", projectId, rad })
               }
@@ -594,6 +593,11 @@ export default function DagsseddelDetaljSide() {
               onRedigerMaskin={(rad) =>
                 setAktivModal({ type: "maskin", projectId, rad })
               }
+              onSplittTimer={(rad) => setSplittModal({ type: "timer", rad })}
+              onSplittTillegg={(rad) =>
+                setSplittModal({ type: "tillegg", rad })
+              }
+              onSplittMaskin={(rad) => setSplittModal({ type: "maskin", rad })}
             />
           );
         })
@@ -689,6 +693,13 @@ export default function DagsseddelDetaljSide() {
           defaultAktivitetId={sheetAktivitetId}
           defaultEcoId={aktivModal.defaultEcoId ?? null}
           rad={aktivModal.rad}
+          // P4b: hele sedelens timer-rader sendes inn så dialogen kan kjøre samme
+          // kryss-bøtte overlapp-vakt som mobil (delt finnOverlappendeTidsrom).
+          alleTimerRader={timerRader}
+          // P1 (maskin-i-rad): sedelens maskin-rader + sedel-pause for den valgfrie
+          // maskin-seksjonen (bucket-kapasitet, samme regel som MaskinRadDialog).
+          alleMaskinRader={maskinRader}
+          pauseMin={sheet.pauseMin}
           // Bolk (d) R1: prefill fra/til på ny rad + T.5-runding, fra medlems-
           // tilgjengelig arbeidstidDefaults (tidsrundingMinutter eksponert der).
           defaultFraTid={aktivModal.defaultFraTid ?? null}
@@ -747,6 +758,82 @@ export default function DagsseddelDetaljSide() {
               prev.includes(id) ? prev : [...prev, id],
             );
             setAktivModal(null);
+          }}
+        />
+      )}
+
+      {/* P2 (arbeider-splitt): arbeideren splitter egen rad i draft/returned.
+          Gjenbruker SplittRadModal i eierModus → splittRadEier. onLagret
+          invaliderer hentMedId (detalj-sidens datakilde). */}
+      {splittModal?.type === "timer" && (
+        <SplittRadModal
+          eierModus
+          radType="timer"
+          original={{
+            id: splittModal.rad.id,
+            lonnsartId: splittModal.rad.lonnsartId,
+            aktivitetId: splittModal.rad.aktivitetId,
+            externalCostObjectId: splittModal.rad.externalCostObjectId,
+            projectId: splittModal.rad.projectId,
+            byggeplassId: splittModal.rad.byggeplassId,
+            fraTid: splittModal.rad.fraTid,
+            tilTid: splittModal.rad.tilTid,
+            timer: splittModal.rad.timer,
+          }}
+          sheetId={sheet.id}
+          prosjekter={prosjekterForVelger}
+          tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
+          onLukk={() => setSplittModal(null)}
+          onLagret={() => {
+            setSplittModal(null);
+            utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
+          }}
+        />
+      )}
+      {splittModal?.type === "tillegg" && (
+        <SplittRadModal
+          eierModus
+          radType="tillegg"
+          original={{
+            id: splittModal.rad.id,
+            tilleggId: splittModal.rad.tilleggId,
+            projectId: splittModal.rad.projectId,
+            antall: splittModal.rad.antall,
+            kommentar: splittModal.rad.kommentar,
+          }}
+          sheetId={sheet.id}
+          prosjekter={prosjekterForVelger}
+          tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
+          onLukk={() => setSplittModal(null)}
+          onLagret={() => {
+            setSplittModal(null);
+            utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
+          }}
+        />
+      )}
+      {splittModal?.type === "maskin" && (
+        <SplittRadModal
+          eierModus
+          radType="maskin"
+          original={{
+            id: splittModal.rad.id,
+            vehicleId: splittModal.rad.vehicleId,
+            projectId: splittModal.rad.projectId,
+            externalCostObjectId: splittModal.rad.externalCostObjectId,
+            byggeplassId: splittModal.rad.byggeplassId,
+            fraTid: splittModal.rad.fraTid,
+            tilTid: splittModal.rad.tilTid,
+            timer: splittModal.rad.timer,
+            mengde: splittModal.rad.mengde,
+            enhet: splittModal.rad.enhet,
+          }}
+          sheetId={sheet.id}
+          prosjekter={prosjekterForVelger}
+          tidsrundingMinutter={arbeidstidDefaults?.tidsrundingMinutter ?? null}
+          onLukk={() => setSplittModal(null)}
+          onLagret={() => {
+            setSplittModal(null);
+            utils.timer.dagsseddel.hentMedId.invalidate({ id: params.id });
           }}
         />
       )}
@@ -840,10 +927,12 @@ function ProsjektGruppe({
   pauseMin,
   onTilfoyTimer,
   onTilfoyTillegg,
-  onTilfoyMaskin,
   onRedigerTimer,
   onRedigerTillegg,
   onRedigerMaskin,
+  onSplittTimer,
+  onSplittTillegg,
+  onSplittMaskin,
 }: {
   projectId: string;
   prosjektNavn: ProsjektRef | undefined;
@@ -853,15 +942,17 @@ function ProsjektGruppe({
   // D6: sedel-nivå pauseMin → maskin ≤ arbeid-buffer per bucket.
   pauseMin: number;
   // Bolk (d) R1: sender timer-radene i bucket slik at parent kan avlede
-  // fra/til-prefill (siste rads tilTid). Speiler onTilfoyMaskin-mønsteret.
+  // fra/til-prefill (siste rads tilTid).
   onTilfoyTimer: (ecoId: string | null, timerRaderIBucket: TimerRad[]) => void;
   onTilfoyTillegg: () => void;
-  // Maskin-fra-til (2026-05-17): sender med timer-radene i bucket slik
-  // at parent kan foreslå default fra/til (Alt D — sammenheng-prinsipp).
-  onTilfoyMaskin: (ecoId: string | null, timerRaderIBucket: TimerRad[]) => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerTillegg: (rad: TilleggRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
+  // P2 (arbeider-splitt): kun kalt når erRedigerbar (knapp rendres i
+  // erRedigerbar-blokk på raden).
+  onSplittTimer: (rad: TimerRad) => void;
+  onSplittTillegg: (rad: TilleggRad) => void;
+  onSplittMaskin: (rad: MaskinRad) => void;
 }) {
   const { t } = useTranslation();
 
@@ -901,9 +992,10 @@ function ProsjektGruppe({
             erRedigerbar={erRedigerbar}
             pauseMin={pauseMin}
             onTilfoyTimer={() => onTilfoyTimer(bucket.ecoId, bucket.timer)}
-            onTilfoyMaskin={() => onTilfoyMaskin(bucket.ecoId, bucket.timer)}
             onRedigerTimer={onRedigerTimer}
             onRedigerMaskin={onRedigerMaskin}
+            onSplittTimer={onSplittTimer}
+            onSplittMaskin={onSplittMaskin}
           />
         ))}
       </div>
@@ -930,6 +1022,7 @@ function ProsjektGruppe({
             rader={tillegg}
             erRedigerbar={erRedigerbar}
             onRediger={onRedigerTillegg}
+            onSplitt={onSplittTillegg}
           />
         )}
       </div>
@@ -953,9 +1046,10 @@ function EcoGruppe({
   erRedigerbar,
   pauseMin,
   onTilfoyTimer,
-  onTilfoyMaskin,
   onRedigerTimer,
   onRedigerMaskin,
+  onSplittTimer,
+  onSplittMaskin,
 }: {
   ecoId: string | null;
   ecoNavn: { kortNavn: string; proAdmId: string } | null;
@@ -964,9 +1058,10 @@ function EcoGruppe({
   erRedigerbar: boolean;
   pauseMin: number;
   onTilfoyTimer: () => void;
-  onTilfoyMaskin: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
+  onSplittTimer: (rad: TimerRad) => void;
+  onSplittMaskin: (rad: MaskinRad) => void;
 }) {
   const { t } = useTranslation();
   const sumTimer = timer.reduce((acc, r) => acc + tilTall(r.timer), 0);
@@ -1015,45 +1110,32 @@ function EcoGruppe({
             </Button>
           )}
         </div>
-        {timer.length === 0 ? (
+        {timer.length === 0 && maskin.length === 0 ? (
           <p className="text-xs italic text-gray-500">
             {t("timer.detalj.ingenTimer")}
           </p>
         ) : (
-          <RaderTimer
-            rader={timer}
-            erRedigerbar={erRedigerbar}
-            onRediger={onRedigerTimer}
-          />
-        )}
-      </div>
-
-      {/* Maskintimer som underpost (indentert, mindre kontrast) */}
-      <div className="ml-3 border-l-2 border-gray-200 pl-3">
-        <div className="mb-1 flex items-center justify-between">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-600">
-            {t("timer.gruppe.maskintimer")}{" "}
-            <span className="font-mono font-normal text-gray-500">
-              ({sumMaskin.toFixed(2)} {t("timer.timerEnhet")})
-            </span>
-          </h4>
-          {erRedigerbar && (
-            <Button variant="secondary" size="sm" onClick={onTilfoyMaskin}>
-              <Plus className="mr-1 h-3 w-3" />
-              {t("timer.detalj.tilfoyMaskin")}
-            </Button>
-          )}
-        </div>
-        {maskin.length === 0 ? (
-          <p className="text-xs italic text-gray-500">
-            {t("timer.detalj.ingenMaskiner")}
-          </p>
-        ) : (
-          <RaderMaskinKompakt
-            rader={maskin}
-            erRedigerbar={erRedigerbar}
-            onRediger={onRedigerMaskin}
-          />
+          <>
+            {timer.length > 0 && (
+              <RaderTimer
+                rader={timer}
+                erRedigerbar={erRedigerbar}
+                onRediger={onRedigerTimer}
+                onSplitt={onSplittTimer}
+              />
+            )}
+            {/* P1 (maskin-i-rad): maskin-radene står inline i samme rad-liste
+                som timer-radene, med et slate «MASKIN»-merke per rad
+                (RaderMaskinKompakt). Egen «Maskintimer»-underpost er fjernet. */}
+            {maskin.length > 0 && (
+              <RaderMaskinKompakt
+                rader={maskin}
+                erRedigerbar={erRedigerbar}
+                onRediger={onRedigerMaskin}
+                onSplitt={onSplittMaskin}
+              />
+            )}
+          </>
         )}
       </div>
 
@@ -1107,10 +1189,12 @@ function RaderTimer({
   rader,
   erRedigerbar,
   onRediger,
+  onSplitt,
 }: {
   rader: TimerRad[];
   erRedigerbar: boolean;
   onRediger: (rad: TimerRad) => void;
+  onSplitt: (rad: TimerRad) => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -1162,6 +1246,13 @@ function RaderTimer({
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
+                    onClick={() => onSplitt(rad)}
+                    className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    title={t("timer.rediger.splittRad")}
+                  >
+                    <Split className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => fjern.mutate({ id: rad.id })}
                     disabled={fjern.isPending}
                     className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
@@ -1183,10 +1274,12 @@ function RaderTillegg({
   rader,
   erRedigerbar,
   onRediger,
+  onSplitt,
 }: {
   rader: TilleggRad[];
   erRedigerbar: boolean;
   onRediger: (rad: TilleggRad) => void;
+  onSplitt: (rad: TilleggRad) => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -1250,6 +1343,13 @@ function RaderTillegg({
                     <Pencil className="h-4 w-4" />
                   </button>
                   <button
+                    onClick={() => onSplitt(rad)}
+                    className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    title={t("timer.rediger.splittRad")}
+                  >
+                    <Split className="h-4 w-4" />
+                  </button>
+                  <button
                     onClick={() => fjern.mutate({ id: rad.id })}
                     disabled={fjern.isPending}
                     className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
@@ -1268,18 +1368,21 @@ function RaderTillegg({
 }
 
 /**
- * T7-4c (2026-05-16): RaderMaskinKompakt — kun rad-listen, ingen header.
- * Header (seksjonstittel + "+ Legg til maskin"-knapp) ligger nå i EcoGruppe
- * fordi maskintimer er underpost per (projectId, ECO)-bucket, ikke per prosjekt.
+ * RaderMaskinKompakt — maskin-rader vist inline i EcoGruppes rad-liste (P1
+ * maskin-i-rad, 2026-07): hver rad bærer et «MASKIN»-merke. Egen «Maskintimer»-
+ * seksjonstittel + «+ Legg til maskin»-knapp er fjernet — ny maskin legges via
+ * timerrad-dialogens valgfrie maskin-seksjon; eksisterende rader redigeres inline.
  */
 function RaderMaskinKompakt({
   rader,
   erRedigerbar,
   onRediger,
+  onSplitt,
 }: {
   rader: MaskinRad[];
   erRedigerbar: boolean;
   onRediger: (rad: MaskinRad) => void;
+  onSplitt: (rad: MaskinRad) => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
@@ -1311,6 +1414,11 @@ function RaderMaskinKompakt({
             <li key={rad.id} className="flex items-center justify-between py-2">
               <div>
                 <p className="text-sm font-medium text-gray-900">
+                  {/* P1 (maskin-i-rad): slate-merke skiller maskin-rader fra
+                      timer-rader når de står i samme liste. */}
+                  <span className="mr-2 inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                    {t("timer.maskinSeksjon.merke")}
+                  </span>
                   {equipmentMap.get(rad.vehicleId) ?? "—"}
                 </p>
                 {rad.mengde !== null && rad.mengde !== undefined && (
@@ -1331,6 +1439,13 @@ function RaderMaskinKompakt({
                       title={t("handling.rediger")}
                     >
                       <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      onClick={() => onSplitt(rad)}
+                      className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                      title={t("timer.rediger.splittRad")}
+                    >
+                      <Split className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => fjern.mutate({ id: rad.id })}
@@ -1360,6 +1475,9 @@ function TimerRadDialog({
   defaultAktivitetId,
   defaultEcoId,
   rad,
+  alleTimerRader,
+  alleMaskinRader,
+  pauseMin,
   defaultFraTid,
   defaultTilTid,
   tidsrundingMinutter,
@@ -1374,6 +1492,12 @@ function TimerRadDialog({
   defaultAktivitetId: string | null;
   defaultEcoId?: string | null;
   rad?: TimerRad;
+  // P4b: alle timer-rader på sedelen — for kryss-bøtte overlapp-vakt (delt regel).
+  alleTimerRader: TimerRad[];
+  // P1 (maskin-i-rad): sedelens maskin-rader + sedel-pause for den valgfrie
+  // maskin-seksjonen (bucket-kapasitet, speiler MaskinRadDialog).
+  alleMaskinRader: MaskinRad[];
+  pauseMin: number;
   // Bolk (d) R1: prefill fra/til ved ny rad. R4: T.5-runding ved commit.
   defaultFraTid?: string | null;
   defaultTilTid?: string | null;
@@ -1462,6 +1586,25 @@ function TimerRadDialog({
   );
   const [feil, setFeil] = useState<string | null>(null);
 
+  // P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon — kun ved NY rad.
+  // Utstyrslisten hentes ufiltrert (full shape m/ internNummer + kategori for
+  // MaskinVelger), speiler MaskinRadDialogs equipment-query.
+  const { data: maskinEquipmentRaw } = trpc.maskin.equipment.list.useQuery();
+  const maskinEquipment = maskinEquipmentRaw as unknown as
+    | Array<{
+        id: string;
+        merke: string;
+        modell: string;
+        internNavn: string | null;
+        internNummer: string | null;
+        kategori: string | null;
+      }>
+    | undefined;
+  const [visMaskin, setVisMaskin] = useState(false);
+  const [maskinVehicleId, setMaskinVehicleId] = useState<string>("");
+  const [maskinMengde, setMaskinMengde] = useState<string>("");
+  const [maskinEnhet, setMaskinEnhet] = useState<string>("");
+
   // Pausevindu = skiftstart + standardPauseEtterTimer, lengde standardPauseMin.
   const pauseFra = pauseVinduFra(skiftStart, standardPauseEtterTimer);
 
@@ -1478,6 +1621,30 @@ function TimerRadDialog({
     if (tm <= fm) return 0;
     return pauseOverlappMin(fm, tm, hhmmTilMin(pauseFra), standardPauseMin);
   }, [fraTid, tilTid, pauseFra, standardPauseMin]);
+
+  // P1 (maskin-i-rad): bucket-kapasitet for den valgfrie maskin-seksjonen.
+  // Samme (projectId, ECO)-bøtte-regel som MaskinRadDialog — arbeidSum og
+  // maskin-sum for gjeldende (valgtProjectId, ecoId), ledig via delt regel.
+  const maskinKapasitet = useMemo(() => {
+    const iBucket = (r: {
+      projectId: string;
+      externalCostObjectId: string | null;
+    }) =>
+      r.projectId === valgtProjectId &&
+      (r.externalCostObjectId ?? null) === (ecoId ?? null);
+    const arbeidSum = alleTimerRader
+      .filter(iBucket)
+      .reduce((acc, r) => acc + tilTall(r.timer), 0);
+    const sumMaskin = alleMaskinRader
+      .filter(iBucket)
+      .reduce((acc, r) => acc + tilTall(r.timer), 0);
+    const { ledig } = maskinBucketKapasitet({
+      arbeidSum,
+      sumMaskinEksisterende: sumMaskin,
+      pauseMin,
+    });
+    return { arbeidSum, sumMaskin, ledig };
+  }, [alleTimerRader, alleMaskinRader, valgtProjectId, ecoId, pauseMin]);
 
   // Sist-rørte felt vinner (mobil-atferd): endrer fra/til → regn antall;
   // skriver antall → regn til (pausevinduet skyves inn ved lunsj-kryssing).
@@ -1505,7 +1672,15 @@ function TimerRadDialog({
     }
   }
 
+  // P1 (maskin-i-rad): onSuccess håndteres per-kall i handleSubmit (dual-mutasjon
+  // fanger tNum + maskin-verdiene i closure). Hook-nivå gjør kun feilhåndtering.
   const tilfoy = trpc.timer.dagsseddel.tilfoyTimerRad.useMutation({
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+
+  // P1 (maskin-i-rad): valgfri maskin-rad lagres etter timer-raden. Speiler
+  // MaskinRadDialogs tilfoy — invalidér + lukk i onSuccess.
+  const maskinTilfoy = trpc.timer.dagsseddel.maskin.tilfoy.useMutation({
     onSuccess: () => {
       utils.timer.dagsseddel.hentMedId.invalidate();
       onLukk();
@@ -1524,6 +1699,12 @@ function TimerRadDialog({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setFeil(null);
+    // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2. Sjekkes
+    // FØR de andre valideringene (tid-løse rader er ufullstendige lønnsdata).
+    if (!fraTid || !tilTid) {
+      setFeil(t("timer.feil.fraTilPaakrevd"));
+      return;
+    }
     const tNum = parseFloat(timer);
     if (!lonnsartId || !aktivitetId || isNaN(tNum) || tNum <= 0 || tNum > 24) {
       setFeil(t("timer.feil.ugyldigInput"));
@@ -1535,6 +1716,22 @@ function TimerRadDialog({
     if (fraTid && tilTid) {
       if (hhmmTilMin(tilTid) <= hhmmTilMin(fraTid)) {
         setFeil(t("timer.feil.sluttForStart"));
+        return;
+      }
+      // P4b: kryss-bøtte overlapp-vakt (paritet m/ mobil TimerSeksjon + server).
+      // Én arbeider kan ikke være to steder samtidig — sjekk mot alle andre
+      // rader på sedelen (unntatt raden som redigeres). Delt @sitedoc/shared-regel.
+      const andreRader = alleTimerRader.filter((r) => r.id !== rad?.id);
+      const overlapp = finnOverlappendeTidsrom(fraTid, tilTid, andreRader);
+      if (overlapp) {
+        setFeil(
+          t("timer.feil.overlapp", {
+            fra: fraTid,
+            til: tilTid,
+            annenFra: overlapp.fraTid,
+            annenTil: overlapp.tilTid,
+          }),
+        );
         return;
       }
       const forventet = effektiveTimerFraSpenn(
@@ -1562,22 +1759,49 @@ function TimerRadDialog({
         tilTid: tilTid || null,
       });
     } else {
-      tilfoy.mutate({
-        sheetId,
-        projectId: valgtProjectId,
-        lonnsartId,
-        aktivitetId,
-        timer: tNum,
-        externalCostObjectId: ecoId,
-        vehicleId: erInternt ? vehicleId : null,
-        beskrivelse: beskrivelse.trim() || null,
-        fraTid: fraTid || null,
-        tilTid: tilTid || null,
-      });
+      // P1 (maskin-i-rad): dual-mutasjon. Per-kall onSuccess fanger tNum +
+      // maskin-verdiene i closure. Er maskin valgt: lagre maskin-rad med
+      // timer = timerradens tNum (herav-semantikk) og lukk i DENS onSuccess;
+      // ellers lukk direkte.
+      tilfoy.mutate(
+        {
+          sheetId,
+          projectId: valgtProjectId,
+          lonnsartId,
+          aktivitetId,
+          timer: tNum,
+          externalCostObjectId: ecoId,
+          vehicleId: erInternt ? vehicleId : null,
+          beskrivelse: beskrivelse.trim() || null,
+          fraTid: fraTid || null,
+          tilTid: tilTid || null,
+        },
+        {
+          onSuccess: () => {
+            utils.timer.dagsseddel.hentMedId.invalidate();
+            if (maskinVehicleId) {
+              maskinTilfoy.mutate({
+                sheetId,
+                projectId: valgtProjectId,
+                externalCostObjectId: ecoId,
+                vehicleId: maskinVehicleId,
+                timer: tNum,
+                mengde: maskinMengde ? parseFloat(maskinMengde) : null,
+                enhet: maskinEnhet || null,
+                fraTid: fraTid || null,
+                tilTid: tilTid || null,
+              });
+            } else {
+              onLukk();
+            }
+          },
+        },
+      );
     }
   }
 
-  const lagrer = tilfoy.isPending || oppdater.isPending;
+  const lagrer =
+    tilfoy.isPending || oppdater.isPending || maskinTilfoy.isPending;
 
   return (
     <Modal
@@ -1648,14 +1872,13 @@ function TimerRadDialog({
             ))}
           </select>
         </div>
-        {/* D2/D3: fra/til med pause-bevisst auto-synk mot antall (mobil-paritet). */}
+        {/* D2/D3: fra/til med pause-bevisst auto-synk mot antall (mobil-paritet).
+            Fra/til er obligatorisk på timer-rader (2026-07-13) — reverserer a2. */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {t("timer.felt.startTid")}{" "}
-              <span className="text-xs text-gray-400">
-                ({t("label.valgfritt")})
-              </span>
+              <span className="text-red-500">*</span>
             </label>
             <Input
               type="time"
@@ -1667,9 +1890,7 @@ function TimerRadDialog({
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700">
               {t("timer.felt.sluttTid")}{" "}
-              <span className="text-xs text-gray-400">
-                ({t("label.valgfritt")})
-              </span>
+              <span className="text-red-500">*</span>
             </label>
             <Input
               type="time"
@@ -1784,6 +2005,89 @@ function TimerRadDialog({
             className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
           />
         </div>
+        {/* P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon — kun ved NY rad.
+            Maskintimer settes lik timer-radens antall; kortere drift redigeres
+            på maskin-raden etterpå. */}
+        {!rad && (
+          <div className="rounded-lg border border-gray-200 bg-gray-50">
+            <button
+              type="button"
+              onClick={() => setVisMaskin((v) => !v)}
+              className="flex w-full items-center justify-between px-3 py-2 text-left text-sm font-medium text-gray-700"
+            >
+              <span className="inline-flex items-center gap-2">
+                <span className="inline-flex items-center rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600">
+                  {t("timer.maskinSeksjon.merke")}
+                </span>
+                {t("timer.maskinSeksjon.tittel")}
+              </span>
+              <ChevronDown
+                className={`h-4 w-4 flex-shrink-0 text-gray-400 transition-transform ${
+                  visMaskin ? "rotate-180" : ""
+                }`}
+              />
+            </button>
+            {visMaskin && (
+              <div className="space-y-3 border-t border-gray-200 p-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    {t("timer.felt.utstyr")}
+                  </label>
+                  <MaskinVelger
+                    utstyr={maskinEquipment ?? []}
+                    valgtId={maskinVehicleId}
+                    onVelg={setMaskinVehicleId}
+                    bruktPaaSeddel={alleMaskinRader.map((m) => m.vehicleId)}
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      {t("timer.felt.mengde")}{" "}
+                      <span className="text-xs text-gray-400">
+                        ({t("label.valgfritt")})
+                      </span>
+                    </label>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min={0}
+                      value={maskinMengde}
+                      onChange={(e) => setMaskinMengde(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-gray-700">
+                      {t("timer.felt.enhet")}
+                    </label>
+                    <select
+                      value={maskinEnhet}
+                      onChange={(e) => setMaskinEnhet(e.target.value)}
+                      className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+                    >
+                      <option value="">—</option>
+                      {ENHETER.map((e) => (
+                        <option key={e} value={e}>
+                          {e}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500">
+                  {t("timer.maskinSeksjon.kapasitet", {
+                    arbeid: maskinKapasitet.arbeidSum.toFixed(2),
+                    maskin: maskinKapasitet.sumMaskin.toFixed(2),
+                    ledig: maskinKapasitet.ledig.toFixed(2),
+                  })}
+                </p>
+                <p className="text-xs text-gray-400">
+                  {t("timer.maskinSeksjon.hint")}
+                </p>
+              </div>
+            )}
+          </div>
+        )}
         {feil && <p className="text-sm text-red-600">{feil}</p>}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onLukk}>
@@ -1791,7 +2095,15 @@ function TimerRadDialog({
           </Button>
           <Button
             type="submit"
-            disabled={lagrer || !lonnsartId || !aktivitetId || !timer}
+            disabled={
+              lagrer ||
+              !lonnsartId ||
+              !aktivitetId ||
+              !timer ||
+              // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2.
+              !fraTid ||
+              !tilTid
+            }
           >
             {lagrer ? t("handling.lagrer") : t("handling.lagre")}
           </Button>

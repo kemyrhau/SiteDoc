@@ -19,6 +19,24 @@ module.exports = ({ config }) => {
   // beholder streng ATS (https-edge). Se docs/claude/dev-login-agent.md.
   const erLokalDev = !process.env.EAS_BUILD;
 
+  // Build-identifiserende commit-hash (vises i VersjonsFooter):
+  //  1) EAS-bygg: EAS_BUILD_GIT_COMMIT_HASH (full hash, verifisert mot EAS-docs) → 7 tegn.
+  //  2) Lokal kjøring: `git rev-parse --short HEAD` (try/catch — kan mangle git/tre).
+  //  3) Fallback "dev".
+  let gitCommit = process.env.EAS_BUILD_GIT_COMMIT_HASH?.slice(0, 7);
+  if (!gitCommit) {
+    try {
+      gitCommit = require("child_process")
+        .execSync("git rev-parse --short HEAD", {
+          stdio: ["ignore", "pipe", "ignore"],
+        })
+        .toString()
+        .trim();
+    } catch {
+      gitCommit = "dev";
+    }
+  }
+
   return {
     ...config,
     name: erTest ? "SiteDoc TEST" : config.name,
@@ -37,10 +55,8 @@ module.exports = ({ config }) => {
     extra: {
       // Bevarer router + eas.projectId fra app.json — ALDRI dropp disse.
       ...config.extra,
-      // Synlig build-identifikator (vises i VersjonsFooter). EAS setter full
-      // git-hash i EAS_BUILD_GIT_COMMIT_HASH (verifisert mot EAS-docs) — kutt
-      // til 7 tegn. Lokal kjøring (ingen env) → "dev".
-      gitCommit: (process.env.EAS_BUILD_GIT_COMMIT_HASH || "dev").slice(0, 7),
+      // Synlig build-identifikator (vises i VersjonsFooter) — se utledning over.
+      gitCommit,
       // Build-dato settes ved config-evaluering (= build-tidspunkt på EAS).
       byggDato: new Date().toISOString().slice(0, 10),
     },

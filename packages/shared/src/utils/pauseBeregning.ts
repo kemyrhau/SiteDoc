@@ -22,6 +22,31 @@
 export const DEFAULT_PAUSE_ETTER_TIMER = 4.0;
 
 /**
+ * F-e (2026-07-13, AML §10-9): pausefradrag gjelder først når den DAGLIGE
+ * arbeidstiden overstiger 5,5 t. Under terskelen trekkes ingen pause. Fast
+ * lovkonstant (ikke per-firma) — kan promoteres til org-innstilling senere om en
+ * tariff-kunde krever det (jf. `arbeidstidVarselTimer`-mønsteret; BACKLOG-post).
+ */
+export const PAUSE_TERSKEL_TIMER = 5.5;
+
+/**
+ * Effektiv pause-lengde (min) for en dag, gitt dagens TOTALE brutto arbeidstimer
+ * (sum av rad-spenn FØR fradrag). Returnerer `standardPauseMin` over terskel,
+ * ellers 0 (ingen pause). Gaten ligger her fordi den er DAGSTOTAL-basert, ikke
+ * per rad — en dag splittet i flere rader skal verken miste eller få pause
+ * avhengig av rad-splitten (F-e; radspenn-basis avvist = 38-min-avviket).
+ * Kalleren summerer sedelens rader og sender totalen inn; de rene per-rad-
+ * helperne (`effektiveTimerFraSpenn`/`tilFraAntall`) får da `pauseMin=0` når
+ * terskelen ikke er nådd, og trekker dermed ingen pause.
+ */
+export function pauseMinForDag(
+  dagsTotalBruttoTimer: number,
+  standardPauseMin: number,
+): number {
+  return dagsTotalBruttoTimer > PAUSE_TERSKEL_TIMER ? standardPauseMin : 0;
+}
+
+/**
  * Pausevindu-start (HH:MM) = skiftstart + `etterTimer` timer. Erstatter det
  * gamle faste klokkeslettet (`standardPauseFra`) — pausen faller nå naturlig
  * innenfor skiftet uansett tid på døgnet (07:00-start → 11:00; nattskift

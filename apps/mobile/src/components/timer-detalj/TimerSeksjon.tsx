@@ -11,15 +11,27 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Plus, Trash2, Pencil, X, Check, Car } from "lucide-react-native";
+import {
+  Plus,
+  Trash2,
+  Pencil,
+  X,
+  Check,
+  Car,
+  ChevronDown,
+  Split,
+} from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq, and } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
 import {
   sheetTimerLocal,
+  sheetMachineLocal,
+  slettedeRaderLocal,
   lonnsartLocal,
   aktivitetLocal,
+  equipmentLocal,
   externalCostObjectLocal,
 } from "../../db/schema";
 import { finnProsjektLokalt } from "../../services/prosjektKatalog";
@@ -39,6 +51,7 @@ import {
   DEFAULT_PAUSE_ETTER_TIMER,
   effektiveTimerFraSpenn,
   hhmmTilMin,
+  maskinBucketKapasitet,
   pauseOverlappMin,
   pauseVinduFra,
   tilFraAntall,
@@ -49,6 +62,16 @@ import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt } from "./FraTilTidFelt";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
+import { EquipmentVelgerModal, EnhetVelgerModal } from "./MaskinSeksjon";
+import { SplittRadModal } from "./SplittRadModal";
+
+/** P1 (maskin-i-rad): valgfri maskin fra timerrad-modalens maskin-seksjon.
+ *  null = ingen maskin valgt (ingen sheet_machine-rad skrives). */
+type NyMaskin = {
+  vehicleId: string;
+  mengde: number | null;
+  enhet: string | null;
+};
 
 interface TimerSeksjonProps {
   sheetId: string;
@@ -70,6 +93,12 @@ interface TimerSeksjonProps {
   visHeader?: boolean;
   /** ISO YYYY-MM-DD — dato på dagsseddelen. Brukes til kalender-utleting (T4-e). */
   dato: string;
+  /** Sedel-nivå pause (min) — inngår i bucket-kapasitet for den valgfrie maskin-
+   *  seksjonen på ny timer-rad (P1 maskin-i-rad, samme regel som MaskinRadModal). */
+  pauseMin: number;
+  /** P1 (maskin-i-rad): equipment-cache populert (Maskin-modul aktiv + firmaet
+   *  har utstyr). Gater den valgfrie maskin-seksjonen på ny timer-rad. */
+  harEquipmentCache: boolean;
   defaultAktivitetId: string | null;
   redigerbar: boolean;
   onEndret: () => void;
@@ -84,6 +113,8 @@ export function TimerSeksjon({
   defaultEcoId = null,
   visHeader = true,
   dato,
+  pauseMin,
+  harEquipmentCache,
   defaultAktivitetId,
   redigerbar,
   onEndret,
@@ -91,6 +122,8 @@ export function TimerSeksjon({
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
   const [redigerRadId, setRedigerRadId] = useState<string | null>(null);
+  // P2 (arbeider-splitt): raden som splittes (kun draft/returned via redigerbar).
+  const [splittRadId, setSplittRadId] = useState<string | null>(null);
 
   const totaltimer = useMemo(
     () => rader.reduce((acc, r) => acc + r.timer, 0),
@@ -114,6 +147,7 @@ export function TimerSeksjon({
       fraTid: string | null,
       tilTid: string | null,
       beskrivelse: string | null,
+      maskin: NyMaskin | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
@@ -132,6 +166,27 @@ export function TimerSeksjon({
           sistEndretLokalt: Date.now(),
         })
         .run();
+      // P1 (maskin-i-rad): dual-innsetting. Er maskin valgt i timerrad-modalens
+      // maskin-seksjon, skriv en sheet_machine-rad med timer = timerradens antall
+      // (herav-semantikk) i SAMME bucket (projectId + ECO) og med samme fra/til.
+      // Feltene speiler MaskinSeksjons db.insert(sheetMachineLocal) nøyaktig.
+      if (maskin) {
+        db.insert(sheetMachineLocal)
+          .values({
+            id: randomUUID(),
+            dagsseddelId: sheetId,
+            projectId: radProjectId,
+            externalCostObjectId,
+            vehicleId: maskin.vehicleId,
+            timer,
+            mengde: maskin.mengde,
+            enhet: maskin.enhet,
+            fraTid,
+            tilTid,
+            sistEndretLokalt: Date.now(),
+          })
+          .run();
+      }
       onEndret();
     },
     [sheetId, onEndret],
@@ -174,10 +229,24 @@ export function TimerSeksjon({
     (radId: string) => {
       const db = hentDatabase();
       if (!db) return;
-      db.delete(sheetTimerLocal).where(eq(sheetTimerLocal.id, radId)).run();
+      // S-A: slett lokalt + skriv tombstone ATOMISK (samme tx). Rå local-delete
+      // alene propagerer ikke til server (S3 payload-id-policy) → tombstonen
+      // bærer slettingen frem til neste sync.
+      db.transaction((tx) => {
+        tx.delete(sheetTimerLocal).where(eq(sheetTimerLocal.id, radId)).run();
+        tx.insert(slettedeRaderLocal)
+          .values({
+            radId,
+            dagsseddelId: sheetId,
+            radType: "timer",
+            slettetVed: Date.now(),
+          })
+          .onConflictDoNothing()
+          .run();
+      });
       onEndret();
     },
-    [onEndret],
+    [onEndret, sheetId],
   );
 
   return (
@@ -233,6 +302,7 @@ export function TimerSeksjon({
               setRedigerRadId(rad.id);
               setVisModal(true);
             }}
+            onSplitt={() => setSplittRadId(rad.id)}
             onSlett={() => fjern(rad.id)}
           />
         ))
@@ -258,10 +328,13 @@ export function TimerSeksjon({
 
       {visModal && (
         <TimerRadModal
+          sheetId={sheetId}
           organizationId={organizationId}
           defaultProjectId={projectId}
           defaultEcoId={defaultEcoId}
           dato={dato}
+          sheetPauseMin={pauseMin}
+          harEquipmentCache={harEquipmentCache}
           eksisterendeRader={rader}
           alleTimerRader={alleTimerRader}
           defaultAktivitetId={defaultAktivitetId}
@@ -279,6 +352,7 @@ export function TimerSeksjon({
             fraTid,
             tilTid,
             beskrivelse,
+            maskin,
           ) => {
             if (redigerRadId) {
               oppdater(
@@ -302,6 +376,7 @@ export function TimerSeksjon({
                 fraTid,
                 tilTid,
                 beskrivelse,
+                maskin,
               );
             }
             setVisModal(false);
@@ -313,6 +388,25 @@ export function TimerSeksjon({
           }}
         />
       )}
+
+      {/* P2 (arbeider-splitt): ren lokal Drizzle-splitt av valgt rad. */}
+      {splittRadId &&
+        (() => {
+          const rad = rader.find((r) => r.id === splittRadId);
+          if (!rad) return null;
+          return (
+            <SplittRadModal
+              radType="timer"
+              original={rad}
+              organizationId={organizationId}
+              onLagret={() => {
+                setSplittRadId(null);
+                onEndret();
+              }}
+              onLukk={() => setSplittRadId(null)}
+            />
+          );
+        })()}
     </View>
   );
 }
@@ -322,12 +416,14 @@ function TimerRadVis({
   erReise,
   redigerbar,
   onRediger,
+  onSplitt,
   onSlett,
 }: {
   rad: TimerRad;
   erReise: boolean;
   redigerbar: boolean;
   onRediger: () => void;
+  onSplitt: () => void;
   onSlett: () => void;
 }) {
   const { t } = useTranslation();
@@ -410,6 +506,13 @@ function TimerRadVis({
             <Pencil size={16} color="#6b7280" />
           </Pressable>
           <Pressable
+            onPress={onSplitt}
+            hitSlop={8}
+            className="rounded p-1.5 active:bg-gray-100"
+          >
+            <Split size={16} color="#6b7280" />
+          </Pressable>
+          <Pressable
             onPress={onSlett}
             hitSlop={8}
             className="rounded p-1.5 active:bg-red-50"
@@ -443,10 +546,13 @@ function UnderprosjektEtikett({ ecoId }: { ecoId: string }) {
 }
 
 function TimerRadModal({
+  sheetId,
   organizationId,
   defaultProjectId,
   defaultEcoId,
   dato,
+  sheetPauseMin,
+  harEquipmentCache,
   eksisterendeRader,
   alleTimerRader,
   defaultAktivitetId,
@@ -454,10 +560,17 @@ function TimerRadModal({
   onLagre,
   onLukk,
 }: {
+  sheetId: string;
   organizationId: string;
   defaultProjectId: string;
   defaultEcoId: string | null;
   dato: string;
+  /** Sedel-nivå pause (min) — bucket-kapasitet i den valgfrie maskin-seksjonen.
+   *  Skilt fra den lokale `pauseMin` (firma standardPauseMin) som styrer fra/til-
+   *  synken; kapasitets-taket bruker sedel-pausen (D6), speiler MaskinRadModal. */
+  sheetPauseMin: number;
+  /** P1 (maskin-i-rad): gater den valgfrie maskin-seksjonen (kun ved ny rad). */
+  harEquipmentCache: boolean;
   eksisterendeRader: TimerRad[];
   alleTimerRader: TimerRad[];
   defaultAktivitetId: string | null;
@@ -471,6 +584,7 @@ function TimerRadModal({
     fraTid: string | null,
     tilTid: string | null,
     beskrivelse: string | null,
+    maskin: NyMaskin | null,
   ) => void;
   onLukk: () => void;
 }) {
@@ -602,6 +716,14 @@ function TimerRadModal({
   const [visLonnsartVelger, setVisLonnsartVelger] = useState(false);
   const [visAktivitetVelger, setVisAktivitetVelger] = useState(false);
   const [visEcoVelger, setVisEcoVelger] = useState(false);
+  // P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon — kun ved NY rad.
+  // Ingen eget maskin-timer-felt: maskintimer settes lik timer-radens antall.
+  const [visMaskin, setVisMaskin] = useState(false);
+  const [maskinVehicleId, setMaskinVehicleId] = useState<string>("");
+  const [maskinMengde, setMaskinMengde] = useState<string>("");
+  const [maskinEnhet, setMaskinEnhet] = useState<string>("");
+  const [visMaskinEquipmentVelger, setVisMaskinEquipmentVelger] = useState(false);
+  const [visMaskinEnhetVelger, setVisMaskinEnhetVelger] = useState(false);
 
   // Full auto-synk (pause-bevisst). Sist-rørte felt vinner:
   //   - endrer fra/til → antall beregnes (spenn − pauseoverlapp)
@@ -695,6 +817,79 @@ function TimerRadModal({
     );
   }, [valgtEcoId]);
 
+  // P1 (maskin-i-rad): valgt utstyr for VelgerFelt-visning i maskin-seksjonen.
+  const valgtMaskinEquipment = useMemo(() => {
+    if (!maskinVehicleId) return null;
+    const db = hentDatabase();
+    if (!db) return null;
+    return (
+      db
+        .select()
+        .from(equipmentLocal)
+        .where(eq(equipmentLocal.id, maskinVehicleId))
+        .all()[0] ?? null
+    );
+  }, [maskinVehicleId]);
+
+  // P1: maskiner allerede brukt på seddelen — løftes øverst i utstyrsvelgeren
+  // (samme Del 1-mønster som MaskinRadModal).
+  const bruktVehicleIds = useMemo(() => {
+    const db = hentDatabase();
+    if (!db) return [];
+    return db
+      .select()
+      .from(sheetMachineLocal)
+      .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
+      .all()
+      .map((r) => r.vehicleId);
+  }, [sheetId]);
+
+  // P1 (maskin-i-rad): proaktiv bucket-kapasitet for maskin-seksjonen. «Så langt»-
+  // visning: arbeidSum + eksisterende maskin i (valgtProjectId, valgtEcoId), ledig
+  // via delt @sitedoc/shared-regel. Sedel-pausen (`sheetPauseMin`) er kapasitets-
+  // taket (D6) — IKKE den lokale `pauseMin` (firma standardPauseMin, fra/til-synk).
+  const maskinKapasitet = useMemo(() => {
+    const db = hentDatabase();
+    if (!db) return { arbeidSum: 0, sumMaskin: 0, ledig: 0 };
+    const iBucket = (r: {
+      projectId: string | null;
+      externalCostObjectId: string | null;
+    }) =>
+      (r.projectId ?? defaultProjectId) === valgtProjectId &&
+      (r.externalCostObjectId ?? null) === (valgtEcoId ?? null);
+    const arbeidSum = db
+      .select()
+      .from(sheetTimerLocal)
+      .where(eq(sheetTimerLocal.dagsseddelId, sheetId))
+      .all()
+      .filter(iBucket)
+      .reduce((acc, r) => acc + (r.timer ?? 0), 0);
+    const sumMaskin = db
+      .select()
+      .from(sheetMachineLocal)
+      .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
+      .all()
+      .filter(iBucket)
+      .reduce((acc, r) => acc + (r.timer ?? 0), 0);
+    const { ledig } = maskinBucketKapasitet({
+      arbeidSum,
+      sumMaskinEksisterende: sumMaskin,
+      pauseMin: sheetPauseMin,
+    });
+    return { arbeidSum, sumMaskin, ledig };
+  }, [sheetId, valgtProjectId, valgtEcoId, sheetPauseMin, defaultProjectId]);
+
+  // Speiler web-TimerRadDialogs disabled-logikk: kjernefeltene + fra/til
+  // obligatorisk på timer-rader (2026-07-13, reverserer a2). Validering i lagre()
+  // beholdes (viser konkret feilmelding); dette er UI-hintet.
+  const kanLagre =
+    !!valgtProjectId &&
+    !!valgtLonnsartId &&
+    !!valgtAktivitetId &&
+    !!timer.trim() &&
+    !!fraTid &&
+    !!tilTid;
+
   function lagre() {
     setFeil(null);
     if (!valgtProjectId) {
@@ -707,6 +902,12 @@ function TimerRadModal({
     }
     if (!valgtAktivitetId) {
       setFeil(t("timer.feil.aktivitetPaakrevd"));
+      return;
+    }
+    // Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2. Tid-løse
+    // rader er ufullstendige lønnsdata + usynlige for overlapp-vakten.
+    if (!fraTid || !tilTid) {
+      setFeil(t("timer.feil.fraTilPaakrevd"));
       return;
     }
     const tall = parseFloat(timer.replace(",", "."));
@@ -753,6 +954,19 @@ function TimerRadModal({
         return;
       }
     }
+    // P1 (maskin-i-rad): bygg valgfri maskin. Ingen utstyr valgt → null (ingen
+    // sheet_machine-rad). Maskintimer settes i leggTil lik timer-radens antall.
+    const mengdeNum =
+      maskinVehicleId && maskinMengde.trim()
+        ? parseFloat(maskinMengde.replace(",", "."))
+        : NaN;
+    const maskin: NyMaskin | null = maskinVehicleId
+      ? {
+          vehicleId: maskinVehicleId,
+          mengde: isNaN(mengdeNum) ? null : mengdeNum,
+          enhet: maskinEnhet || null,
+        }
+      : null;
     onLagre(
       valgtProjectId,
       valgtLonnsartId,
@@ -762,6 +976,7 @@ function TimerRadModal({
       fraTid,
       tilTid,
       beskrivelse.trim() || null,
+      maskin,
     );
   }
 
@@ -849,6 +1064,7 @@ function TimerRadModal({
               tidsrundingMinutter={tidsrundingMinutter}
               onFraEndret={handterFraEndret}
               onTilEndret={handterTilEndret}
+              paakrevd
             />
             {pauseOverlapp > 0 && (
               <Text className="mt-1 text-xs text-gray-500">
@@ -888,11 +1104,100 @@ function TimerRadModal({
             />
           </View>
 
+          {/* P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon — kun ved NY
+              rad, og kun når equipment-cache er populert (samme gating som den
+              tidligere «+ Legg til maskin»-knappen). Maskintimer settes lik
+              timer-radens antall; kortere drift redigeres på maskin-raden etterpå. */}
+          {!eksisterendeRad && harEquipmentCache && (
+            <View className="rounded-lg border border-gray-200 bg-gray-50">
+              <Pressable
+                onPress={() => setVisMaskin((v) => !v)}
+                className="flex-row items-center justify-between px-3 py-2.5"
+              >
+                <View className="flex-row items-center gap-2">
+                  <View className="rounded bg-slate-100 px-1.5 py-0.5">
+                    <Text className="text-[10px] font-semibold uppercase text-slate-600">
+                      {t("timer.maskinSeksjon.merke")}
+                    </Text>
+                  </View>
+                  <Text className="text-sm font-medium text-gray-700">
+                    {t("timer.maskinSeksjon.tittel")}
+                  </Text>
+                </View>
+                <ChevronDown
+                  size={18}
+                  color="#9ca3af"
+                  style={{
+                    transform: [{ rotate: visMaskin ? "180deg" : "0deg" }],
+                  }}
+                />
+              </Pressable>
+              {visMaskin && (
+                <View className="gap-3 border-t border-gray-200 p-3">
+                  <View>
+                    <Text className="mb-1 text-sm font-medium text-gray-700">
+                      {t("timer.felt.utstyr")}
+                    </Text>
+                    <VelgerFelt
+                      verdi={
+                        valgtMaskinEquipment
+                          ? `${valgtMaskinEquipment.merke ?? ""} ${valgtMaskinEquipment.modell ?? ""}`.trim() ||
+                            valgtMaskinEquipment.internNavn ||
+                            null
+                          : null
+                      }
+                      placeholder={t("timer.velgUtstyr")}
+                      onPress={() => setVisMaskinEquipmentVelger(true)}
+                      underTekst={
+                        valgtMaskinEquipment?.internNummer
+                          ? `#${valgtMaskinEquipment.internNummer}`
+                          : null
+                      }
+                    />
+                  </View>
+                  <View>
+                    <Text className="mb-1 text-sm font-medium text-gray-700">
+                      {t("timer.felt.mengde")}
+                    </Text>
+                    <View className="flex-row items-center gap-2">
+                      <TextInput
+                        value={maskinMengde}
+                        onChangeText={setMaskinMengde}
+                        placeholder="0,00"
+                        keyboardType="decimal-pad"
+                        inputAccessoryViewID={TASTATUR_FERDIG_ID}
+                        className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-3 text-base text-gray-900"
+                      />
+                      <VelgerFelt
+                        verdi={maskinEnhet || null}
+                        placeholder={t("timer.felt.enhet")}
+                        onPress={() => setVisMaskinEnhetVelger(true)}
+                      />
+                    </View>
+                  </View>
+                  <Text className="text-xs text-gray-500">
+                    {t("timer.maskinSeksjon.kapasitet", {
+                      arbeid: maskinKapasitet.arbeidSum.toFixed(2),
+                      maskin: maskinKapasitet.sumMaskin.toFixed(2),
+                      ledig: Math.max(0, maskinKapasitet.ledig).toFixed(2),
+                    })}
+                  </Text>
+                  <Text className="text-xs text-gray-400">
+                    {t("timer.maskinSeksjon.hint")}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
+
           {feil && <Text className="text-sm text-red-600">{feil}</Text>}
 
           <Pressable
             onPress={lagre}
-            className="mt-4 items-center rounded-lg bg-blue-600 px-6 py-4 active:bg-blue-700"
+            disabled={!kanLagre}
+            className={`mt-4 items-center rounded-lg px-6 py-4 ${
+              kanLagre ? "bg-blue-600 active:bg-blue-700" : "bg-blue-300"
+            }`}
           >
             <Text className="text-base font-semibold text-white">
               {t("handling.lagre")}
@@ -949,12 +1254,40 @@ function TimerRadModal({
             onLukk={() => setVisProsjektVelger(false)}
           />
         )}
+
+        {/* P1 (maskin-i-rad): gjenbrukte velgere fra MaskinSeksjon for den
+            valgfrie maskin-seksjonen (utstyr + enhet). */}
+        {visMaskinEquipmentVelger && (
+          <EquipmentVelgerModal
+            organizationId={organizationId}
+            valgtId={maskinVehicleId}
+            brukt={bruktVehicleIds}
+            onVelg={(id) => {
+              setMaskinVehicleId(id);
+              setVisMaskinEquipmentVelger(false);
+            }}
+            onLukk={() => setVisMaskinEquipmentVelger(false)}
+          />
+        )}
+
+        {visMaskinEnhetVelger && (
+          <EnhetVelgerModal
+            valgt={maskinEnhet}
+            onVelg={(v) => {
+              setMaskinEnhet(v);
+              setVisMaskinEnhetVelger(false);
+            }}
+            onLukk={() => setVisMaskinEnhetVelger(false)}
+          />
+        )}
       </SafeAreaView>
     </Modal>
   );
 }
 
-function LonnsartVelgerModal({
+// P2 (arbeider-splitt): eksportert for gjenbruk i SplittRadModal (samme
+// lønnsart-velger som TimerRadModal).
+export function LonnsartVelgerModal({
   valgtId,
   onVelg,
   onLukk,
@@ -1045,7 +1378,9 @@ function LonnsartVelgerModal({
   );
 }
 
-function AktivitetVelgerModal({
+// P2 (arbeider-splitt): eksportert for gjenbruk i SplittRadModal (samme
+// aktivitet-velger som TimerRadModal).
+export function AktivitetVelgerModal({
   valgtId,
   onVelg,
   onLukk,

@@ -746,4 +746,21 @@ export function kjorMigreringer() {
   } catch (e) {
     console.warn("[MIG] Kunne ikke utvide opplastings_ko med sheet_tillegg_id:", e);
   }
+
+  // S-A (2026-07-13) — tombstones for lokalt slettede dagsseddel-rader.
+  // Bærer slette-intensjon frem til server bekrefter synken (push→deleteMany,
+  // pull-race-guard, rydding ved "ok"). rad_id er PK (globalt unik uuid).
+  // KUN lokal — synkes aldri opp som egen tabell; brukes til å bygge
+  // slettedeIder-feltet i syncBatch-pushen.
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS slettede_rader_local (
+      rad_id TEXT PRIMARY KEY NOT NULL,
+      dagsseddel_id TEXT NOT NULL,
+      rad_type TEXT NOT NULL,
+      slettet_ved INTEGER NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_slettede_rader_local_sheet
+      ON slettede_rader_local(dagsseddel_id);
+  `);
 }

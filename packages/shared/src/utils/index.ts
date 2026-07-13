@@ -42,6 +42,8 @@ export {
   pauseOverlappMin,
   effektiveTimerFraSpenn,
   tilFraAntall,
+  PAUSE_TERSKEL_TIMER,
+  pauseMinForDag,
 } from "./pauseBeregning";
 export {
   tilErEtterFra,
@@ -50,6 +52,8 @@ export {
   finnTidsromKonflikt,
 } from "./tidsromValidering";
 export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
+export { carveArbeidstider } from "./carveArbeidstid";
+export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.

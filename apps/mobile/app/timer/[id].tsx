@@ -1138,31 +1138,32 @@ function EcoBucket({
         defaultEcoId={ecoId}
         visHeader={false}
         dato={dato}
+        pauseMin={pauseMin}
+        harEquipmentCache={harEquipmentCache}
         defaultAktivitetId={defaultAktivitetId}
         redigerbar={redigerbar}
         onEndret={onEndret}
       />
 
-      {/* Maskintimer som underpost (indentert via ml-3 + border-l-2) */}
-      <View className="ml-3 mt-3 border-l-2 border-gray-200 pl-3">
-        <Text className="mb-1 text-xs font-medium text-gray-600">
-          {t("timer.gruppe.heravMaskin")} ({sumMaskin.toFixed(2)} {t("timer.tEnhet")})
-        </Text>
-        <MaskinSeksjon
-          sheetId={sheetId}
-          organizationId={organizationId}
-          projectId={projectId}
-          defaultEcoId={ecoId}
-          visHeader={false}
-          dato={dato}
-          pauseMin={pauseMin}
-          rader={maskinRader}
-          harEquipmentCache={harEquipmentCache}
-          harMaskinforerbevis={harMaskinforerbevis}
-          redigerbar={redigerbar}
-          onEndret={onEndret}
-        />
-      </View>
+      {/* P1 (maskin-i-rad): maskin-radene rendres inline rett etter timer-radene
+          i samme rad-liste, hver med et slate «MASKIN»-merke (MaskinRadVis). Den
+          separate «herav maskin»-underposten + «+ Legg til maskin»-knappen er
+          fjernet; ny maskin legges via timerrad-modalens valgfrie maskin-seksjon,
+          mens eksisterende maskin-rader fortsatt redigeres inline (trykk rad). */}
+      <MaskinSeksjon
+        sheetId={sheetId}
+        organizationId={organizationId}
+        projectId={projectId}
+        defaultEcoId={ecoId}
+        visHeader={false}
+        dato={dato}
+        pauseMin={pauseMin}
+        rader={maskinRader}
+        harEquipmentCache={harEquipmentCache}
+        harMaskinforerbevis={harMaskinforerbevis}
+        redigerbar={redigerbar}
+        onEndret={onEndret}
+      />
 
       {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers — speiler T7-4b */}
       {(sumTimer > 0 || sumMaskin > 0) && (

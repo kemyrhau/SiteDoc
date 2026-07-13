@@ -8,6 +8,7 @@ import { ByggeplassProvider } from "@/kontekst/byggeplass-kontekst";
 import { PresenceProvider } from "@/kontekst/presence-kontekst";
 import { ToppbarFiltreProvider } from "@/kontekst/toppbar-filtre-kontekst";
 import { SokModalProvider } from "@/kontekst/sok-modal-kontekst";
+import { NavBreddeProvider } from "@/kontekst/nav-bredde-kontekst";
 import { Toppbar } from "@/components/layout/Toppbar";
 import { HovedSidebar } from "@/components/layout/HovedSidebar";
 import { NavSidebar } from "@/components/layout/NavSidebar";
@@ -31,6 +32,7 @@ export default function DashbordLayout({
             <ToppbarFiltreProvider>
               <PresenceProvider>
                 <SokModalProvider>
+                  <NavBreddeProvider>
                   <div className="flex h-screen flex-col overflow-hidden">
                     <Toppbar />
                     <ImpersoneringBanner />
@@ -43,6 +45,7 @@ export default function DashbordLayout({
                       <main className="flex-1 overflow-y-auto">{children}</main>
                     </div>
                   </div>
+                  </NavBreddeProvider>
                 </SokModalProvider>
               </PresenceProvider>
             </ToppbarFiltreProvider>

@@ -16,6 +16,88 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟢 Mobil timer-rad-sletting propagerer ikke til server (S3) — LØST + TEST-VERIFISERT (M-3-reprise PASS), venter prod spor b (2026-07-13)
+
+**M-3-SEAL 2026-07-13:** S-A bekreftet reell — kode-verifisert + empirisk forseglet. **Kode:** `fjern` (`TimerSeksjon.tsx:232`) persisterer den lokale slettingen (`db.delete().run()`) + `markerEndretOgLes` (`[id].tsx:318`) setter sedel `pending` + `triggerSync()`; syncBatch-push (S3) sender kun de gjenværende radenes id-er → `deleteMany({ id: { in: … } })` beholder den slettede raden på server → pull re-innsetter. **Empirisk:** simulator slettet rad `065dc8f4` på synket draft-sedel (server-id `664c1d3c` / client_uuid `dc59a75c`) → normal sync → raden kom tilbake; server-SQL viser `065dc8f4` FORTSATT på server (3 rader). Den opprinnelige del-6-eskaleringen VAR S-A (ikke erstattet-lekkasjen/fiks B, ikke en delete-persisterings-gap). **Tombstone-utredningen (design under) er klar for fabels design-gate.**
+
+**Symptom (live-funn del 6):** Overtidsmat-tillegg slettet i UI (viste «Ingen tillegg»), men raden lå igjen i `sheet_tillegg_local` og kom tilbake ved reload.
+
+**Rotårsak (kodeverifisert):** `fjern` sletter lokalt korrekt (`.run()` finnes). Men (1) `syncBatch` S3 er payload-id-begrenset: `deleteMany({ id: { in: <lokale payload-id-er> } })` inkluderer ikke den slettede id-en → server beholder raden (`dagsseddel.ts:4025-4026`: «SLETTING propagerer ikke automatisk — aldri mist data»). (2) Pull-apply (`timerSync.ts:591-602`) sletter lokale rader på synced-sedler + re-innsetter fra server (`:609+`) → raden kommer tilbake.
+
+**Omfang:** IKKE tillegg-spesifikt — timer (`TimerSeksjon.tsx:231`), maskin (`MaskinSeksjon.tsx:195`) og tillegg (`TilleggSeksjon.tsx:114`) bruker samme plain-local-delete. **Kandidatmengde søkt:** hele `apps/mobile/src` + `apps/api/src/routes/timer` — **ingen tombstone/deleted-ids-mekanisme for sheet-rader** (soft-delete finnes kun for katalog-entiteter lønnsart/aktivitet/tillegg-katalog).
+
+**Fiks (cowork-eid, synk-mønster):** tombstone-/deleted-ids-propagering i syncBatch-payload, ELLER pull respekterer lokale slettinger. Bredt synk-arbeid — ikke punktfiks. S3 var coworks design.
+
+**Cowork-utredning konkludert 2026-07-13 (design foreslått, avventer fabel-gate):** (1) Egen persistent `slettede_rader_local`-tombstone-tabell (`sheetId, radId, radType, slettetVed`) — anbefalt over per-tabell soft-delete-flagg (én migrering, ingen filter-endring i lese-stedene). (2) `slettedeIder: {timer,tillegg,maskiner}` (optional) i syncBatch-input → per type `deleteMany({ sheetId, id: { in: slettedeIder.<type> } })` i tillegg til payload-replace. (3) Bakoverkompat: #37 sender ikke feltet → dagens ikke-propagering (legacy, trygt); #38+ propagerer. (4) Rydd tombstones etter server-bekreftet sync. **Forbehold:** server-rundturen (server beholder + pull re-innsetter) er kode-verifisert men **runtime-inferert** — ikke nettverksbevist; en simulator/nettverks-test gir end-to-end-beviset. **Sedel-nivå:** `[id].tsx:433` (forkast hele sedel) har samme gap for SYNKEDE sedler — egen beslutning: skal synket-sedel-forkast propagere? (S-A gjelder KUN arbeider→server delete-propagering via tombstone. Den tidligere antatte «S-B server→mobil reconcile»-saken viste seg å være en HELT annen bug — se «hentEndringerSiden mangler erstattet-filter» under. S-A og den er urelaterte.)
+
+**IMPLEMENTERT + TEST-VERIFISERT 2026-07-13 (dual-review-gatet `6bed19c3`, fabel-design-GRØNT m/ 3 krav, M-3-reprise PASS via simulator + server-SQL — EAS ikke nødvendig):**
+- **Ny lokal tabell `slettede_rader_local`** (`schema.ts` Drizzle + idempotent `CREATE TABLE` i `migreringer.ts`): `rad_id` PK (globalt unik uuid), `dagsseddel_id` (= server sheetId), `rad_type`, `slettet_ved`. KUN lokal.
+- **Fjern-handlerne** (`TimerSeksjon`/`TilleggSeksjon`/`MaskinSeksjon` `fjern`): `db.transaction` — lokal `delete` + tombstone-`insert` ATOMISK (`onConflictDoNothing`). Beholder pending+`onEndret`-flyten.
+- **Push** (`timerSync.ts`): fjerde select på tombstones per sedel → optional `slettedeIder: {timer,tillegg,maskiner}` på sedel-objektet i `syncBatch`-input.
+- **KRAV 1 pull-race-guard** (`timerSync.ts` pull-apply): før hver re-innsetting bygges `levendeTombstoneIder`-sett (rad-id unik på tvers av typer) → `continue` for rad med levende tombstone. Hindrer gjenoppståelse i push-vinduet + at en re-innsatt rad re-pushes og omgjør slettingen. Tombstones følger også `forsonSedelIdentitet` (M1 re-nøkling).
+- **KRAV 2 server-vakt** (`dagsseddel.ts syncBatch`): optional `slettedeIder`-Zod-felt + `deleteMany({ sheetId: sedel.id, id: { in } })` per type INNE i per-sedel-transaksjonen, etter samme inline-vakt (eierskap `ctx.userId` + status draft/returnert/sent-overgang) som payload-replace. Scopet på `sheetId` → aldri slette på annen sedel.
+- **KRAV 3 rydding** (`timerSync.ts anvendSvar`): tombstones for `r.clientUuid` slettes KUN i `resultat === "ok"`-grenen (ikke conflict/avvist/feilet). `deleteMany` idempotent → partiell batch-feil trygt (tombstone overlever + re-sendes).
+- **Bakoverkompat:** `slettedeIder` optional → #37 (uten feltet) beholder legacy-ikke-propagering; #38+ propagerer.
+- Typecheck: API `tsc` grønt; mobil `tsc` 0 nye feil (11 = 11 baseline, de 2 `timerSync`-baseline-feilene kun linje-forskjøvet).
+- **Aksept BESTÅTT (M-3-reprise, simulator + server-SQL, IKKE EAS):** slett rad `065dc8f4` på draft `dc59a75c` → sync → borte lokalt (2 rader) + **BORTE på server** (`rad_065dc8f4_paa_server=0`, `deleteMany` propagerte) + pull re-innsetter ikke; tombstone skrevet + ryddet. Kontrast M-3 (før fiks): 065dc8f4 lå igjen på server. **Venter kun prod (spor b).**
+
+### 🟢 Mobil ser ×N rader: `hentEndringerSiden` mangler «erstattet»-filter — FIKS B TEST-VERIFISERT, venter prod (2026-07-13)
+
+**STATUS 2026-07-13:** Fiks B implementert + test-verifisert. Commits: `5c9d2070` (filter + `sheet_rad_historikk`-tabell + MOVE-migrering) + `87af7e5b` (self-heal: bump `updated_at` på berørte sedler). **Test-bevis:** DB `49a7c839` = 3+2 live / 10 rader flyttet til historikk (ikke tapt); **M-1 PASS** (fresh full pull → 3/2) + **M-2 PASS** (stale enhet → normal delta-sync self-heal → 3/2 uten reinstall/wipe — self-heal-mekanikken bevist ende-til-ende); self-heal-bump bekreftet (`updated_at` = migreringstid). **Venter kun prod (begge migreringene) på Kenneths eksplisitte go.** Prod har trolig egne «erstattet»-rader som samme migrering rydder + self-healer.
+
+**Rot (kodeverifisert + DB-bekreftet):** rediger-mutasjoner (`dagsseddel.ts:2816`, `3016`) merker overskrevne rader `attestertStatus="erstattet"` (+ `parentRadId`) som audit-spor. HVER leser filtrerer dem bort (`{ not: "erstattet" }`: aktiv-helper `394/403/456`, web-attestering `1835-1837`, hentForAttestering `1974`) — MEN **`hentEndringerSiden` (mobil-pull, `3487`) har `include: { timer: true, tillegg: true, maskiner: true }` UTEN filteret** → mobil trekker live + audit-rader. **DB-bevis** (seddel `49a7c839`, test, `client_uuid 78c106bc`): timer 3 live/9t + 6 «erstattet»/18t; maskin 2 live + 4 «erstattet». Web viser korrekt 3+2 (filtrerer); mobil-fresh-pull viste 9+6 (×3-illusjon). **Ikke** server-korrupsjon, **ikke** pull-reconcile, **ikke** S3. «Erstattet»-radene er **write-only** (grep: aldri positivt lest — ubrukt audit).
+
+**Fare:** `syncBatch.createMany` setter ikke `attestertStatus` (default «pending») → hvis mobil pusher de lekkede radene tilbake, gjenoppstår audit-radene som LIVE → ekte server-korrupsjon + lønnsfeil. Latent (sedelen «sent» + web viser 3 → ikke rundtrippet). Potensielt prod-eksponert: en redigert sedel som delta-pulles til prod-mobil vil vise samme ×N.
+
+**Vedtatt fiks (forener Kenneth-prinsipp «lagre rett» + ufravikelig «ALDRI slett eksisterende data»): B — flytt erstattet-rad til historikk-tabell ved rediger** i `2816`/`3016` (i stedet for å merke «erstattet» og la den ligge i hovedtabellen) → hovedtabell kun live → ingen leser trenger filter, og audit bevares. Migrering FLYTTER eksisterende «erstattet»-rader fra hovedtabellene til historikk (rydder bl.a. denne sedelen til 3+2 live — uten å slette data). `hentEndringerSiden`-filteret legges i SAMME PR som rulleringsvern (no-op etter migrering). **A (hard-slett) forkastet:** bryter «aldri slett data» uten eksplisitt unntak. Test-sedel `49a7c839` beholdes som regresjons-fixtur.
+
+### 🟡 Mobil timer-detalj: rå UUID-etiketter når firma-katalog er tom (M-2-observasjon 2026-07-13, UX lav prio)
+
+I timer-detaljen rendres lønnsart/maskin/underprosjekt som rå UUID («48d06eba…», maskin «c22846f8…», «Ukjent underprosjekt») i stedet for navn når `lonnsart_local`/`equipment_local` er tomme — de tabellene er firma-scopede og pulles først ved firmavalg. **Pre-eksisterende, ikke fiks-B-regresjon** (verifisert under M-2, uavhengig av self-heal). Narrow (kun uvalgt firma / upullet katalog). Graceful degradering: vis generisk «Lønnsart»/«Maskin»/«Underprosjekt» i stedet for rå UUID når oppslaget mangler.
+
+### 🟡 B4: «Fra kl.»-hjul-velger mangler tøm-affordans (simulator-funn 2026-07-13, UX lav prio)
+
+Hjul-velgeren for «Fra kl.» har ingen tøm-knapp → «tøm fra»-tilstanden er uoppnåelig på mobil når en verdi først er satt. UX-punkt, lav prioritet.
+
+### 🟢 F-e-carve: pause trekkes kun over terskel — RE-TEST PASS (kort dag full varighet / lang dag pause); interaktiv-sti egen oppfølger (2026-07-13)
+
+**Vedtak (Kenneth, godkjent 2026-07-13):** (1) **Fast konstant** `PAUSE_TERSKEL_TIMER = 5.5` i `pauseBeregning.ts` (AML §10-9 lovkonstant, IKKE per-firma — per-firma = egen BACKLOG-post ved faktisk kundebehov). (2) **Terskel-basis = dagstotal** (radspenn-basis avvist — ville gjeninnført 38-min-avviket avhengig av rad-splitt). Gaten ligger i ny helper `pauseMinForDag(dagsTotalBruttoTimer, standardPauseMin)` (returnerer 0 under terskel) — kalleren summerer sedelens rader, per-rad-helperne får `pauseMin=0` under terskel (ingen signatur-endring på `effektiveTimerFraSpenn`/`tilFraAntall`).
+
+**Implementert (auto-gen / «Slutt dag»-stien):** helper `pauseMinForDag` + gate i **`fordelArbeidstidFradrag`** (`StartSluttDagKort.tsx`, dag-nivå pause-kilden der dagstotal-brutto finnes) — pausen nulles FØR fordeling per segment når dagen < 5,5t, så alle segmenters `pauseMin=0`. **Re-fiks 2026-07-13 (branch `fix/del6-fe-carve-refiks`):** gaten FLYTTET fra `carveArbeidstider`-vinduet til `fordelArbeidstidFradrag` (rett dag-kontekst-punkt; carve trekker bare den fordelte pausen). Shared-tester 14/14 grønne. (Fabel-bekreftet tilnærming — samme dag-kontekst-tema som F-e-interaktiv.)
+
+**🔴 GJENSTÅR — interaktive edit-flater (modelleringsproblem, flagget ved gate):** `TimerSeksjon`/`MaskinSeksjon` (mobil) + `page.tsx`/`RedigerRadModal` (web) beregner pause i ENKELTRAD-isolasjon (~30 kall-steder). Korrekt dagstotal-gating der krever reaktiv dag-kontekst (mobil har `alleTimerRader`-prop; web tilsvarende) — men en pause-vindu-spennende rad lagret FØR dagen krysset terskelen recomputer ikke ved senere tillegg (dag-nivå-recompute-problem). Anbefalt som fokusert oppfølger med eksplisitt dag-recompute-design, framfor å sprawle 30 steder i den mest brukte timer-stien i denne runden. **Formell oppfølger (fabel-betingelse OPSJON 1):** arver F-e-vedtaket (fast 5,5 / dagstotal); **design-gates hos fabel FØR koding** (dag-recompute-mekanikk: recompute alle radenes pausefradrag når dagstotalen krysser terskelen).
+
+### 🟡 F-f: `redigerSedelRader` fra/til-vakt — IMPLEMENTERT (branch `fix/del6-fbefg`), venter gate (2026-07-13)
+
+`redigerSedelRader` manglet fra/til-obligatorisk-vakten de interaktive mutasjonene har (Zod `fraTid/tilTid` nullable). **Vedtak (fabel):** `validerSplittFelles` er FEIL helper (sum-invariant — nyeRader må summere til én original; feil for rediger som fritt endrer totaler). **Implementert:** `finnTidsromKonflikt` (@sitedoc/shared — fra<til + overlapp, SAMME delte helper som `syncBatch`) + mangler-tid-vakt i mutasjonskroppen, og klient-speiling i `RedigerRadModal.handleLagre` (validerer hele timer-settet: andre bøtter + edits). Ikke duplisert logikk. Nye i18n-nøkler `timer.rediger.feil.{manglerTid,fraEtterTil,overlapp}` (nb+en+13).
+
+### 🟡 F-g: «for kort»-melding på pre-fylt sedel — IMPLEMENTERT (branch `fix/del6-fbefg`), venter gate (2026-07-13)
+
+«For kort»-meldingen teller kun øktas inserts → fyrte misvisende på pre-fylt sedel. **Implementert:** `opprettDagsseddelForSegment` returnerer `haddeEksisterendeRader` (teller pre-eksisterende timer-rader ved append), aggregert til `harEksisterendeRader` i `genererForslag`; alerten viser differensiert copy (pre-fylt-variant) framfor «dagen ble for kort». Nye i18n-nøkler `timer.forKort.{preFyltTittel,preFyltMelding}` (nb+en+13). Fabel finpusser ordlyd ved live-fangst.
+
+### 🟡 Del 6-oppfølgere-vedtak (2026-07-13, dokumentert her for sporbarhet)
+
+Beslutninger fra del-6-live-runden (kode i `fix/timer-fra-til-obligatorisk` + `fix/del6-oppfolgere`, docs i timer.md/U-spec):
+- **a2-reversering:** fra/til obligatorisk på timer-rader (`a0d510a5`) — reverserer a2-valgfritt. Se [timer.md](timer.md).
+- **Reise-unntak:** GPS-reise-rad beholder null-tider (matrise-mengde, dokumentert unntak, `62cee2dc`).
+- **GPS-carve:** auto-utkast tildeler faktiske fra/til via `carveArbeidstider` (@sitedoc/shared + vitest).
+- **F-a:** tom dagskort-dag gir også variant B i HjemTimerChip (`8515555c`).
+- **F-c:** «Økten var for kort»-melding ved 0 carve-rader (`9d6a8d82`).
+- **F-b:** «Slutt dag» skriver faktiske økt-tider i «Arbeidstid i dag»-vinduet + `sluttTidKilde="bruker"`-skjerming. **Status: IMPLEMENTERT (branch `fix/del6-fbefg`), venter gate** — `utvidArbeidstidsvindu` tar nå `sluttTidKilde`-param og utvider `endAt` KUN når kilden er `"bruker"` (bekreftet); `"system"`/`"midnatt"`-gjettede slutt-tider skyver ikke vinduet ut med fabrikkerte tider. Design: designfila RUNDE 5 + `docs/redesign/screenshots/runde5-tilkl-2026-07-13/`.
+
+### 🔴 i18n fagterm-QA for K13-nøklene
+
+Auto-oversettelsen (generate.ts) ga svake fagtermer for de tre nye K13-nøklene i enkelte språk — særlig `innstillinger.lenke.timerOnboarding` («Oppsett»/«Setup») → pl «Organizować coś» o.l. Kjent generate.ts-quirk (kildene nb/en er korrekte). QA + manuell retting av fagtermene er egen sak, ikke-blokkerende.
+
+### 🔴 Ryddesjekk: `/dashbord/[prosjektId]/dokumentleser` — brukes den? (K13-d)
+
+Under K12-søkedekning (2026-07-11) ble `dokumentleser` (ekte 420-linjers side)
+funnet **uten nav-hjem og uten noen direkte UI-lenke** i `apps/web/src` — kun
+per-dok-readeren `/dokumenter/[dokumentId]/les` er lenket. Ekskludert fra globalt
+søk v1 (unntaksliste i `sok-dekning.test.ts`). **Sjekk:** er siden fortsatt i bruk
+(dyplenke/historisk), eller er den død kode som kan slettes? Hvis død → slett +
+fjern unntaks-raden. Ikke blokkerende.
+
 ### 🟡 Server-ny vedlikehold: OS-oppdateringer + restart (før redesign-stack)
 
 server-ny melder «System restart required» + ~36 ventende pakke-oppdateringer (observert 2026-07-05 under test-web-rebuild). Ikke akutt, men **bør gjøres før dere reiser den tredje redesign-stacken** (`-p redesign`, `sitedoc_redesign`) på samme maskin — en restart midt i tre kjørende stacks (prod + test + redesign) er mer risikabelt. Handling: planlagt vedlikeholdsvindu → `apt upgrade` + `reboot` (Kenneth, sudo), verifiser prod + test kommer opp igjen (innlogget) etterpå.
@@ -48,6 +130,10 @@ WHERE datname = 'sitedoc_test' AND state = 'idle'
 ### 🟡 Deploy-robusthet: sekvensielt bygg + ressurs-headroom (prod-nede-hendelse 2026-07-11)
 
 Bygg images **sekvensielt** (`build` per tjeneste, så `up -d`) i stedet for parallell `up -d --build`, + ressurs-headroom → unngå OOM-toppen som utløser daemon-blip + container-kaskade. **`restart: unless-stopped` er allerede på plass på alle 10 tjenester (verifisert live 2026-07-11)** — den er IKKE oppfølgeren: `unless-stopped` restarter ikke containere som alt var exited da daemonen kom tilbake etter OOM/crash, så reell forebygging er å unngå OOM-toppen, ikke restart-policy. Den manuelle post-deploy-sjekken fanger tilfellet inntil videre. Bakgrunn: en **test**-re-deploy (`docker-compose.test.yml up -d --build`) ga OOM (embed/oversettelse exit 137) + docker-daemon-blip som kaskaderte og tok ned **prod** (`postgres` er delt → `sitedoc-api`/`web` + salsaklubb + ml alle nede samtidig) → prod nede ~24 min. Post-deploy-verifisering + recovery-rekkefølge: [DOCKER-NOTES § Post-deploy: verifiser at ALLE containere er oppe](../../docker/DOCKER-NOTES.md).
+
+### 🟡 `deploy-test.sh --exclude apps/mobile` bryter frozen-lockfile ved mobil-dep-endring (2026-07-13)
+
+`deploy-test.sh` ekskluderer HELE `apps/mobile` (for å slippe ~3 GB mobil-kontekst) men synker root `pnpm-lock.yaml`. Når en mobil-dep endres (`expo-application` i footer-commit `2bbf9169`) får serveren fersk lockfile + STALE `apps/mobile/package.json` → Docker-bygget `pnpm install --frozen-lockfile` feiler med `ERR_PNPM_OUTDATED_LOCKFILE` (workspace-sjekken validerer alle package.json mot lockfila, også mobil selv om api/web-bygget ikke bruker mobil-kilden). Rammet ORDRE-2-deployen 2026-07-13; workaround = targeted `rsync ~/…/apps/mobile/package.json server-ny:stack/sitedoc/apps/mobile/package.json` + rebuild. **Fiks:** ekskludér kun mobil-BLOATEN (`apps/mobile/node_modules`, `apps/mobile/.expo`, `apps/mobile/.turbo`) i stedet for hele `apps/mobile` — da synkes package.json + kilde (små), bloaten ikke. Sjekk samme mønster i prod-deploy-scriptet.
 
 ### 🟡 `eas.json`: `development`- og `preview`-profilene peker på PROD-API
 
@@ -1692,6 +1778,37 @@ Aktiv Fase: 0 (firma-fundament) er i hovedsak ferdig — gjenstående §-E-steg 
 **Avhengighet:** Krever migrering — ny `ReportTemplate.tilgjengeligeStatuser: Json` (eller `OrganizationTemplate.tilgjengeligeStatuser` når Fase 2 mal-promotering lander). Default = alle statuser aktive (bakover-kompat).
 
 **Lav prioritet:** Vurder etter dokumentflyt send-modal-redesignen er deployet og i bruk. Sjelden at kunder spør om dette — eksisterende standard-flyt dekker de fleste tilfeller.
+
+### Firma prosjektoppsett-motor + ansatt-sync til dokumentflyt (Sak B)
+
+🟡 **Parkert design, ikke startet — kodeverifisert 2026-07-12.** A.Markussen-drevet (~50 ansatte auto inn i dokumentflyt, minimalt etterarbeid ved nytt prosjekt).
+
+Firma vil ha ansatte auto-inn i aktive prosjekters dokumentflyt. Verifisert: ingen slik sync finnes i dag; nærmeste presedens `syncProjektModulerPaaAktiver` (modul-nivå, feil abstraksjon — melder inn moduler, ikke personer).
+
+**Mål:** firma prosjektoppsett-siden = auto-oppsett-motor for nye prosjekter.
+- **Auto ved opprett:** firma-faggruppe i dokumentflyt + default-funksjoner.
+- **Manuelt igjen:** prosjektnavn, byggeplassnavn, tegninger.
+- **Ingen config = dagens oppførsel** (additiv, ingen backfill).
+
+**Ansatt-sync — modell UAVKLART (A vs C re-åpnet, IKKE vedtatt):**
+- Krav: ~50 ansatte auto inn i firmaets **faggruppe** (dokumentflyt-utfører), men **IKKE** i prosjektets brukergruppe/kontaktliste (den skal være ren).
+- Alt C (ProjectGroup «Ansatte») = nettopp brukergruppe → flommer kontaktlista. Diskvalifisert med mindre dekoblet.
+- Alt A (direkte `FaggruppeKobling`-sync, ingen ProjectGroup) = trolig bedre fit.
+- **Kjerne-designproblem:** `FaggruppeKobling` krever `projectMemberId` (kobler `ProjectMember`→`Faggruppe`). Hvis kontaktlista bygges FRA `ProjectMember`, kan man ikke være faggruppe-utfører uten en ProjectMember-rad → uten kontakt-oppføring. **Verken A eller C løser dette trivielt — selve dekoblingen ER designproblemet.**
+
+**Kjerne-utredning FØR design (parkert):**
+1. Er faggruppe-medlemskap (`DokumentflytMedlem.faggruppeId` + `FaggruppeKobling`) frikoblet fra kontaktliste/`ProjectGroup` i datamodellen? Kan en person være faggruppe-utfører UTEN å stå i kontaktlista? (crux = hva kontaktlista bygges FRA).
+2. Hvis frikoblet → alt A. Hvis koblet → foreslå hvordan de dekobles.
+3. Hvordan `ProjectGroup` + `Faggruppe` sameksisterer i `DokumentflytMedlem` uten dobling/motstridende roller.
+4. Reconcilier prosjektoppsett-defaults-modellen mot `ProjectModule`/firma-moduler (unngå overlappende «default-per-firma»-mekanikk).
+
+**Vedtatt (Kenneth 2026-07-12):**
+- **Leder:** default = eksisterende prosjektleder; prosjektadmin overstyrer per enkelt-prosjekt (ikke firma-vidt).
+- **Offboarding:** `ProjectMember.periodeSlutt` (aldri slett — bevar historikk).
+
+**Hook-punkter:** `prosjekt.opprett` (`prosjekt.ts:242`) + reaktivering (`admin.forlengProsjekt:404` / `prosjekt.oppdater:520`, idempotent) + `OrganizationMember`-livssyklus.
+
+**Constraints (ankre-reconciliert):** Faggruppe≠Firma (`arkitektur.md:31`), firma-grense server-side (CLAUDE.md), `organizationId` påkrevd / standalone=no-op (CLAUDE.md:374/288), ingen dup personliste (mannskap-presedens), gyldig dokumentflyt (leder satt, `dokumentflyt.md:301`).
 
 ### Tverrgående
 

@@ -33,7 +33,7 @@ import { useFirma } from "../../src/kontekst/FirmaKontekst";
 import { FirmaVelger } from "../../src/components/FirmaVelger";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
-import { StartSluttDagKort } from "../../src/components/StartSluttDagKort";
+import { HjemTimerChip } from "../../src/components/HjemTimerChip";
 import { MannskapInnsjekkKort } from "../../src/components/MannskapInnsjekkKort";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
 
@@ -320,8 +320,9 @@ export default function HjemSkjerm() {
         {/* F2: global byggeplass-chip — synlig på alle relevante skjermer */}
         <ByggeplassChip />
 
-        {/* «Start dag / Slutt dag» — worker-drevet arbeidsdag → dagsseddel-forslag */}
-        <StartSluttDagKort />
+        {/* P3-hybrid: kompakt timer-chip (3 tilstander). Det fulle «Start dag/
+            Slutt dag»-kortet bor nå på timer-flaten (DagsseddelListe). */}
+        <HjemTimerChip />
 
         {/* §15-innsjekk/utsjekk på byggeplass (online-only, vy i PSI-modulen) */}
         {erPsiAktiv && <MannskapInnsjekkKort />}

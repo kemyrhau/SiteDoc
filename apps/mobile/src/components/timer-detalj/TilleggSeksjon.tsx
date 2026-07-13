@@ -12,13 +12,14 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Plus, Trash2, Pencil, X, Check, Camera, ImagePlus, Clock } from "lucide-react-native";
+import { Plus, Trash2, Pencil, X, Check, Camera, ImagePlus, Clock, Split } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq } from "drizzle-orm";
 import { randomUUID } from "expo-crypto";
 import { hentDatabase } from "../../db/database";
 import {
   sheetTilleggLocal,
+  slettedeRaderLocal,
   tilleggLocal,
   sheetTilleggVedleggLocal,
 } from "../../db/schema";
@@ -32,6 +33,7 @@ import type { TilleggRad, Tillegg } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
+import { SplittRadModal } from "./SplittRadModal";
 
 interface TilleggSeksjonProps {
   sheetId: string;
@@ -53,6 +55,8 @@ export function TilleggSeksjon({
   const { t } = useTranslation();
   const [visModal, setVisModal] = useState(false);
   const [redigerRadId, setRedigerRadId] = useState<string | null>(null);
+  // P2 (arbeider-splitt): raden som splittes (kun draft/returned via redigerbar).
+  const [splittRadId, setSplittRadId] = useState<string | null>(null);
 
   const leggTil = useCallback(
     (
@@ -108,12 +112,24 @@ export function TilleggSeksjon({
     (radId: string) => {
       const db = hentDatabase();
       if (!db) return;
-      db.delete(sheetTilleggLocal)
-        .where(eq(sheetTilleggLocal.id, radId))
-        .run();
+      // S-A: slett lokalt + skriv tombstone ATOMISK (samme tx) — se TimerSeksjon.
+      db.transaction((tx) => {
+        tx.delete(sheetTilleggLocal)
+          .where(eq(sheetTilleggLocal.id, radId))
+          .run();
+        tx.insert(slettedeRaderLocal)
+          .values({
+            radId,
+            dagsseddelId: sheetId,
+            radType: "tillegg",
+            slettetVed: Date.now(),
+          })
+          .onConflictDoNothing()
+          .run();
+      });
       onEndret();
     },
-    [onEndret],
+    [onEndret, sheetId],
   );
 
   return (
@@ -151,6 +167,7 @@ export function TilleggSeksjon({
               setRedigerRadId(rad.id);
               setVisModal(true);
             }}
+            onSplitt={() => setSplittRadId(rad.id)}
             onSlett={() => fjern(rad.id)}
           />
         ))
@@ -180,6 +197,25 @@ export function TilleggSeksjon({
           }}
         />
       )}
+
+      {/* P2 (arbeider-splitt): ren lokal Drizzle-splitt av valgt tillegg-rad. */}
+      {splittRadId &&
+        (() => {
+          const rad = rader.find((r) => r.id === splittRadId);
+          if (!rad) return null;
+          return (
+            <SplittRadModal
+              radType="tillegg"
+              original={rad}
+              organizationId={organizationId}
+              onLagret={() => {
+                setSplittRadId(null);
+                onEndret();
+              }}
+              onLukk={() => setSplittRadId(null)}
+            />
+          );
+        })()}
     </View>
   );
 }
@@ -188,11 +224,13 @@ function TilleggRadVis({
   rad,
   redigerbar,
   onRediger,
+  onSplitt,
   onSlett,
 }: {
   rad: TilleggRad;
   redigerbar: boolean;
   onRediger: () => void;
+  onSplitt: () => void;
   onSlett: () => void;
 }) {
   const tillegg = useMemo(() => {
@@ -242,6 +280,13 @@ function TilleggRadVis({
             className="rounded p-1.5 active:bg-gray-100"
           >
             <Pencil size={16} color="#6b7280" />
+          </Pressable>
+          <Pressable
+            onPress={onSplitt}
+            hitSlop={8}
+            className="rounded p-1.5 active:bg-gray-100"
+          >
+            <Split size={16} color="#6b7280" />
           </Pressable>
           <Pressable
             onPress={onSlett}
