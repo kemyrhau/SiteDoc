@@ -16,7 +16,7 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
-### 🟡 Mobil timer-rad-sletting propagerer ikke til server (S3) — TOMBSTONE IMPLEMENTERT PÅ DEVELOP, venter gate + fabel + EAS (2026-07-13)
+### 🟢 Mobil timer-rad-sletting propagerer ikke til server (S3) — LØST + TEST-VERIFISERT (M-3-reprise PASS), venter prod spor b (2026-07-13)
 
 **M-3-SEAL 2026-07-13:** S-A bekreftet reell — kode-verifisert + empirisk forseglet. **Kode:** `fjern` (`TimerSeksjon.tsx:232`) persisterer den lokale slettingen (`db.delete().run()`) + `markerEndretOgLes` (`[id].tsx:318`) setter sedel `pending` + `triggerSync()`; syncBatch-push (S3) sender kun de gjenværende radenes id-er → `deleteMany({ id: { in: … } })` beholder den slettede raden på server → pull re-innsetter. **Empirisk:** simulator slettet rad `065dc8f4` på synket draft-sedel (server-id `664c1d3c` / client_uuid `dc59a75c`) → normal sync → raden kom tilbake; server-SQL viser `065dc8f4` FORTSATT på server (3 rader). Den opprinnelige del-6-eskaleringen VAR S-A (ikke erstattet-lekkasjen/fiks B, ikke en delete-persisterings-gap). **Tombstone-utredningen (design under) er klar for fabels design-gate.**
 
@@ -30,7 +30,7 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 **Cowork-utredning konkludert 2026-07-13 (design foreslått, avventer fabel-gate):** (1) Egen persistent `slettede_rader_local`-tombstone-tabell (`sheetId, radId, radType, slettetVed`) — anbefalt over per-tabell soft-delete-flagg (én migrering, ingen filter-endring i lese-stedene). (2) `slettedeIder: {timer,tillegg,maskiner}` (optional) i syncBatch-input → per type `deleteMany({ sheetId, id: { in: slettedeIder.<type> } })` i tillegg til payload-replace. (3) Bakoverkompat: #37 sender ikke feltet → dagens ikke-propagering (legacy, trygt); #38+ propagerer. (4) Rydd tombstones etter server-bekreftet sync. **Forbehold:** server-rundturen (server beholder + pull re-innsetter) er kode-verifisert men **runtime-inferert** — ikke nettverksbevist; en simulator/nettverks-test gir end-to-end-beviset. **Sedel-nivå:** `[id].tsx:433` (forkast hele sedel) har samme gap for SYNKEDE sedler — egen beslutning: skal synket-sedel-forkast propagere? (S-A gjelder KUN arbeider→server delete-propagering via tombstone. Den tidligere antatte «S-B server→mobil reconcile»-saken viste seg å være en HELT annen bug — se «hentEndringerSiden mangler erstattet-filter» under. S-A og den er urelaterte.)
 
-**IMPLEMENTERT PÅ DEVELOP 2026-07-13 (venter dual-review-gate + fabel-designgate + EAS-bygg for mobil-verifisering):**
+**IMPLEMENTERT + TEST-VERIFISERT 2026-07-13 (dual-review-gatet `6bed19c3`, fabel-design-GRØNT m/ 3 krav, M-3-reprise PASS via simulator + server-SQL — EAS ikke nødvendig):**
 - **Ny lokal tabell `slettede_rader_local`** (`schema.ts` Drizzle + idempotent `CREATE TABLE` i `migreringer.ts`): `rad_id` PK (globalt unik uuid), `dagsseddel_id` (= server sheetId), `rad_type`, `slettet_ved`. KUN lokal.
 - **Fjern-handlerne** (`TimerSeksjon`/`TilleggSeksjon`/`MaskinSeksjon` `fjern`): `db.transaction` — lokal `delete` + tombstone-`insert` ATOMISK (`onConflictDoNothing`). Beholder pending+`onEndret`-flyten.
 - **Push** (`timerSync.ts`): fjerde select på tombstones per sedel → optional `slettedeIder: {timer,tillegg,maskiner}` på sedel-objektet i `syncBatch`-input.
@@ -39,7 +39,7 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 - **KRAV 3 rydding** (`timerSync.ts anvendSvar`): tombstones for `r.clientUuid` slettes KUN i `resultat === "ok"`-grenen (ikke conflict/avvist/feilet). `deleteMany` idempotent → partiell batch-feil trygt (tombstone overlever + re-sendes).
 - **Bakoverkompat:** `slettedeIder` optional → #37 (uten feltet) beholder legacy-ikke-propagering; #38+ propagerer.
 - Typecheck: API `tsc` grønt; mobil `tsc` 0 nye feil (11 = 11 baseline, de 2 `timerSync`-baseline-feilene kun linje-forskjøvet).
-- **Aksept (gjenstår, EAS #38):** M-3-reprise — slett rad → sync → borte LOKALT OG på SERVER + pull re-innsetter ikke.
+- **Aksept BESTÅTT (M-3-reprise, simulator + server-SQL, IKKE EAS):** slett rad `065dc8f4` på draft `dc59a75c` → sync → borte lokalt (2 rader) + **BORTE på server** (`rad_065dc8f4_paa_server=0`, `deleteMany` propagerte) + pull re-innsetter ikke; tombstone skrevet + ryddet. Kontrast M-3 (før fiks): 065dc8f4 lå igjen på server. **Venter kun prod (spor b).**
 
 ### 🟢 Mobil ser ×N rader: `hentEndringerSiden` mangler «erstattet»-filter — FIKS B TEST-VERIFISERT, venter prod (2026-07-13)
 
@@ -130,6 +130,10 @@ WHERE datname = 'sitedoc_test' AND state = 'idle'
 ### 🟡 Deploy-robusthet: sekvensielt bygg + ressurs-headroom (prod-nede-hendelse 2026-07-11)
 
 Bygg images **sekvensielt** (`build` per tjeneste, så `up -d`) i stedet for parallell `up -d --build`, + ressurs-headroom → unngå OOM-toppen som utløser daemon-blip + container-kaskade. **`restart: unless-stopped` er allerede på plass på alle 10 tjenester (verifisert live 2026-07-11)** — den er IKKE oppfølgeren: `unless-stopped` restarter ikke containere som alt var exited da daemonen kom tilbake etter OOM/crash, så reell forebygging er å unngå OOM-toppen, ikke restart-policy. Den manuelle post-deploy-sjekken fanger tilfellet inntil videre. Bakgrunn: en **test**-re-deploy (`docker-compose.test.yml up -d --build`) ga OOM (embed/oversettelse exit 137) + docker-daemon-blip som kaskaderte og tok ned **prod** (`postgres` er delt → `sitedoc-api`/`web` + salsaklubb + ml alle nede samtidig) → prod nede ~24 min. Post-deploy-verifisering + recovery-rekkefølge: [DOCKER-NOTES § Post-deploy: verifiser at ALLE containere er oppe](../../docker/DOCKER-NOTES.md).
+
+### 🟡 `deploy-test.sh --exclude apps/mobile` bryter frozen-lockfile ved mobil-dep-endring (2026-07-13)
+
+`deploy-test.sh` ekskluderer HELE `apps/mobile` (for å slippe ~3 GB mobil-kontekst) men synker root `pnpm-lock.yaml`. Når en mobil-dep endres (`expo-application` i footer-commit `2bbf9169`) får serveren fersk lockfile + STALE `apps/mobile/package.json` → Docker-bygget `pnpm install --frozen-lockfile` feiler med `ERR_PNPM_OUTDATED_LOCKFILE` (workspace-sjekken validerer alle package.json mot lockfila, også mobil selv om api/web-bygget ikke bruker mobil-kilden). Rammet ORDRE-2-deployen 2026-07-13; workaround = targeted `rsync ~/…/apps/mobile/package.json server-ny:stack/sitedoc/apps/mobile/package.json` + rebuild. **Fiks:** ekskludér kun mobil-BLOATEN (`apps/mobile/node_modules`, `apps/mobile/.expo`, `apps/mobile/.turbo`) i stedet for hele `apps/mobile` — da synkes package.json + kilde (små), bloaten ikke. Sjekk samme mønster i prod-deploy-scriptet.
 
 ### 🟡 `eas.json`: `development`- og `preview`-profilene peker på PROD-API
 
