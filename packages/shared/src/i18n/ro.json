@@ -331,6 +331,7 @@
   "timer.feil.minstEnTimerRad": "Foaia de pontaj trebuie să aibă cel puțin un rând de timp înainte de a putea fi trimisă.",
   "timer.feil.ugyldigPause": "Pauza trebuie să fie un număr pozitiv (minute).",
   "timer.feil.sluttForStart": "Ora de încheiere trebuie să fie după ora de începere.",
+  "timer.feil.fraTilPaakrevd": "Ora de început și de sfârșit sunt necesare pe rândurile de oră.",
   "timer.feil.overlapp": "Intervalul de timp {{fra}}–{{til}} se suprapune pe {{annenFra}}–{{annenTil}} pe aceeași foaie. Un lucrător nu poate fi în două locuri deodată.",
   "timer.feil.timerAvvik": "Numărul de ore nu se potrivește cu intervalul de timp (se așteaptă {{forventet}} h). Reglați orele de la/la sau.",
   "timer.pauseFradrag": "−{{min}} min pauză de prânz deduse",

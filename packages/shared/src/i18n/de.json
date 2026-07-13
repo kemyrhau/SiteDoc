@@ -331,6 +331,7 @@
   "timer.feil.minstEnTimerRad": "Das Arbeitszeitblatt muss mindestens eine Zeitzeile enthalten, bevor es gesendet werden kann.",
   "timer.feil.ugyldigPause": "Pause muss eine positive Zahl (Minuten) sein.",
   "timer.feil.sluttForStart": "Die Endzeit muss nach der Startzeit liegen.",
+  "timer.feil.fraTilPaakrevd": "In Stundenzeilen sind Start- und Endzeit erforderlich.",
   "timer.feil.overlapp": "Der Zeitbereich {{fra}}–{{til}} überlappt {{annenFra}}–{{annenTil}} auf demselben Blatt. Ein Arbeiter kann nicht an zwei Orten gleichzeitig sein.",
   "timer.feil.timerAvvik": "Die Anzahl der Stunden stimmt nicht mit der Zeitspanne überein (erwartete {{forventet}} h). Passen Sie von/bis oder die Stunden an.",
   "timer.pauseFradrag": "−{{min}} min Mittagspause abgezogen",

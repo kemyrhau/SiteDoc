@@ -331,6 +331,7 @@
   "timer.feil.minstEnTimerRad": "Arkusz czasu pracy musi zawierać co najmniej jeden wiersz czasu, zanim będzie można go wysłać.",
   "timer.feil.ugyldigPause": "Przerwa musi być liczbą dodatnią (minuty).",
   "timer.feil.sluttForStart": "Godzina zakończenia musi być późniejsza niż godzina rozpoczęcia.",
+  "timer.feil.fraTilPaakrevd": "W wierszach godzin wymagane są godziny rozpoczęcia i zakończenia.",
   "timer.feil.overlapp": "Zakres czasu {{fra}}–{{til}} pokrywa się z {{annenFra}}–{{annenTil}} na tym samym arkuszu. Jeden pracownik nie może być w dwóch miejscach jednocześnie.",
   "timer.feil.timerAvvik": "Liczba godzin nie odpowiada przedziałowi czasowemu (oczekiwane {{forventet}} godz.). Ustaw od/do lub godziny.",
   "timer.pauseFradrag": "−{{min}} minut przerwy na lunch odjęta",

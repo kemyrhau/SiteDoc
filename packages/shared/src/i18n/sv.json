@@ -331,6 +331,7 @@
   "timer.feil.minstEnTimerRad": "Tidrapporten måste ha minst en tidsrad innan den kan skickas.",
   "timer.feil.ugyldigPause": "Paus måste vara ett positivt tal (minuter).",
   "timer.feil.sluttForStart": "Sluttiden måste vara efter starttiden.",
+  "timer.feil.fraTilPaakrevd": "Start- och sluttid krävs på timraderna.",
   "timer.feil.overlapp": "Tidsintervallet {{fra}}–{{til}} överlappar {{annenFra}}–{{annenTil}} på samma ark. En arbetare kan inte vara på två ställen samtidigt.",
   "timer.feil.timerAvvik": "Antalet timmar stämmer inte överens med tidsspannet (förväntat {{forventet}} h). Justera från/till eller timmarna.",
   "timer.pauseFradrag": "−{{min}} min lunchrast dras av",

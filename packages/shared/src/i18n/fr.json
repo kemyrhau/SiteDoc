@@ -331,6 +331,7 @@
   "timer.feil.minstEnTimerRad": "La feuille de temps doit comporter au moins une ligne de temps avant de pouvoir être envoyée.",
   "timer.feil.ugyldigPause": "La pause doit être un nombre positif (minutes).",
   "timer.feil.sluttForStart": "L'heure de fin doit être postérieure à l'heure de début.",
+  "timer.feil.fraTilPaakrevd": "L’heure de début et de fin est requise sur les lignes d’heures.",
   "timer.feil.overlapp": "La plage horaire {{fra}}–{{til}} se chevauche {{annenFra}}–{{annenTil}} sur la même feuille. Un travailleur ne peut pas être à deux endroits à la fois.",
   "timer.feil.timerAvvik": "Le nombre d'heures ne correspond pas à la période (attendue {{forventet}} h). Ajustez de/à ou les heures.",
   "timer.pauseFradrag": "−{{min}} min de pause déjeuner déduite",
