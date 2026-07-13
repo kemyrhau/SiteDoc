@@ -20,12 +20,7 @@
  * overlapper derfor ALDRI (jf. `tidsromOverlapper` — endepunkt-berøring ≠ overlapp).
  */
 
-import {
-  hhmmTilMin,
-  minTilHhmm,
-  tilFraAntall,
-  pauseMinForDag,
-} from "./pauseBeregning";
+import { hhmmTilMin, minTilHhmm, tilFraAntall } from "./pauseBeregning";
 
 /** Klassifisert arbeidstid-segment (fra `klassifiserArbeidstid`). */
 export interface CarveSegment {
@@ -64,20 +59,15 @@ export function carveArbeidstider(args: {
     hhmmTilMin(args.startTid) + Math.round(Math.max(0, args.reisetidTimer) * 60);
   let posisjon = minTilHhmm(arbeidStartMin);
 
-  // F-e: pausefradrag gjelder kun når dagens totale arbeidstid > terskel. Summér
-  // segmentenes timer (= dagstotal for denne auto-genererte sedelen) og nulle ut
-  // pausen under terskel — ellers ville en kort dag fått urettmessig fradrag.
-  const dagsTotalTimer = args.segmenter.reduce(
-    (sum, seg) => sum + Math.max(0, seg.timer),
-    0,
-  );
-  const effektivPauseMin = pauseMinForDag(dagsTotalTimer, args.pauseMin);
-
+  // F-e-gaten ligger OPPSTRØMS i `fordelArbeidstidFradrag` (dag-nivå pause-kilden,
+  // der dagstotalen finnes): når dagen < terskel er `args.pauseMin` allerede 0 for
+  // alle segmenter. Carve trekker derfor bare den fordelte pausen — ingen egen
+  // terskel-logikk i vindus-carven (jf. re-fiks 2026-07-13).
   const vinduer: CarvetVindu[] = [];
   for (const seg of args.segmenter) {
     if (seg.timer <= 0) continue;
     const fraTid = posisjon;
-    const tilTid = tilFraAntall(fraTid, seg.timer, args.pauseFra, effektivPauseMin);
+    const tilTid = tilFraAntall(fraTid, seg.timer, args.pauseFra, args.pauseMin);
     vinduer.push({
       overtidsnivaa: seg.overtidsnivaa,
       timer: seg.timer,
