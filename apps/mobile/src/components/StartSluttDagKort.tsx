@@ -135,6 +135,13 @@ export function StartSluttDagKort() {
             t("timer.appendSendt.tittel"),
             t("timer.appendSendt.melding"),
           );
+        } else if (forslag.ingenRader) {
+          // F-c: økta førte 0 rader (for kort etter pause/runding) — gi
+          // tilbakemelding i stedet for et stille tomt dagskort.
+          Alert.alert(
+            t("timer.forKort.tittel"),
+            t("timer.forKort.melding"),
+          );
         }
       } else {
         // Kunne ikke utlede prosjekt/aktivitet offline → manuell opprettelse.
@@ -387,13 +394,13 @@ function genererForslag(
   // (arbeider-handling); glemt-dag-gjenoppretting = "system" (estimert/gjettet).
   // Ikke-siste segmenter får alltid "midnatt" (automatisk dag-grense).
   sisteSegmentKilde: "bruker" | "system" = "bruker",
-): { id: string | null; blokkertSendt: boolean } {
+): { id: string | null; blokkertSendt: boolean; ingenRader: boolean } {
   const db = hentDatabase();
-  if (!db) return { id: null, blokkertSendt: false };
+  if (!db) return { id: null, blokkertSendt: false, ingenRader: false };
 
   // 1. Prosjekt via Haversine.
   const prosjekter = hentProsjekterLokalt(orgId);
-  if (prosjekter.length === 0) return { id: null, blokkertSendt: false };
+  if (prosjekter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false };
   const lat = dag.startLat ?? endLat;
   const lng = dag.startLng ?? endLng;
   let valgtProsjekt = prosjekter[0];
@@ -415,7 +422,7 @@ function genererForslag(
     .from(aktivitetLocal)
     .where(eq(aktivitetLocal.aktiv, true))
     .all();
-  if (aktiviteter.length === 0) return { id: null, blokkertSendt: false };
+  if (aktiviteter.length === 0) return { id: null, blokkertSendt: false, ingenRader: false };
   const aktivitet =
     aktiviteter.find((a) => a.navn === "Anleggsarbeid") ?? aktiviteter[0];
 
@@ -524,6 +531,7 @@ function genererForslag(
     (valgtProsjekt.id === aktivtProsjektId ? kontekstByggeplassId : null);
   let startSheetId: string | null = null;
   let blokkertSendt = false;
+  let totalRader = 0;
   segmenter.forEach((seg, i) => {
     // Ikke-siste segment ender på en automatisk midnatt-grense → "midnatt".
     // Siste segment ender på den faktiske/estimerte slutt-tiden → sisteSegmentKilde.
@@ -551,8 +559,9 @@ function genererForslag(
     });
     if (res?.utfall === "blokkertSendt") blokkertSendt = true;
     if (seg.erStartSegment) startSheetId = res?.id ?? null;
+    totalRader += res?.raderOpprettet ?? 0;
   });
-  return { id: startSheetId, blokkertSendt };
+  return { id: startSheetId, blokkertSendt, ingenRader: totalRader === 0 };
 }
 
 /**
@@ -586,7 +595,7 @@ function opprettDagsseddelForSegment(args: {
   sluttTidKilde: "bruker" | "midnatt" | "system";
   /** F-B: firmaets tidsrunding-grid (15/30/60 min) — null = ingen runding. */
   tidsrundingMinutter: number | null;
-}): { id: string; utfall: SegmentUtfall } | null {
+}): { id: string; utfall: SegmentUtfall; raderOpprettet: number } | null {
   const {
     userId,
     orgId,
@@ -628,7 +637,7 @@ function opprettDagsseddelForSegment(args: {
     if (resultat.status !== "draft" && resultat.status !== "returned") {
       // Sendt/godkjent → kan ikke appende ny økt (ville gi server-konflikt).
       // Recall er UF-4 (egen server-runde).
-      return { id: sheetId, utfall: "blokkertSendt" };
+      return { id: sheetId, utfall: "blokkertSendt", raderOpprettet: 0 };
     }
     // Redigerbar draft/returned → append: utvid arbeidstid-vinduet til å dekke
     // den nye økten. Rad-genereringen under bruker sheetId → appender rader.
@@ -656,6 +665,11 @@ function opprettDagsseddelForSegment(args: {
     orgId,
     new Date(`${segment.dato}T00:00:00`),
   );
+
+  // F-c (fabel-vedtak 2026-07-13): tell rader denne økta faktisk fører (arbeid +
+  // reise). 0 rader = økta var for kort til å telle etter pause/runding →
+  // kalleren gir arbeideren en melding i stedet for et stille tomt dagskort.
+  let raderOpprettet = 0;
 
   // Auto-fordeling normaltid/overtid (per dag). Klassifiserings-regelen er
   // isolert i @sitedoc/shared lonnsregel.ts (forward-compat Nivå 1-2). Overtid
@@ -719,6 +733,7 @@ function opprettDagsseddelForSegment(args: {
           sistEndretLokalt: Date.now(),
         })
         .run();
+      raderOpprettet++;
     }
   }
 
@@ -746,9 +761,14 @@ function opprettDagsseddelForSegment(args: {
         sistEndretLokalt: Date.now(),
       })
       .run();
+    raderOpprettet++;
   }
 
-  return { id: sheetId, utfall: resultat.eksisterte ? "appendet" : "opprettet" };
+  return {
+    id: sheetId,
+    utfall: resultat.eksisterte ? "appendet" : "opprettet",
+    raderOpprettet,
+  };
 }
 
 /**

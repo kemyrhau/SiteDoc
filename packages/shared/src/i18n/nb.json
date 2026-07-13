@@ -100,6 +100,8 @@
   "timer.deltMidnatt.tittel": "Delt ved midnatt",
   "timer.deltMidnatt.hjelp": "Del av et skift som gikk over to dager.",
   "timer.dagFinnes.notis": "Du hadde allerede en registrering for denne dagen — vi åpnet den. Prosjektet ditt er klart til å føres.",
+  "timer.forKort.tittel": "Økten var for kort",
+  "timer.forKort.melding": "Økten var for kort til å telle som arbeidstid (under 15 min etter runding). Ingen timer-rader ble ført.",
   "timer.appendSendt.tittel": "Dagen er allerede sendt",
   "timer.appendSendt.melding": "Du har en registrering for denne dagen som alt er sendt til attestering. Den nye økten ble ikke lagt til. Åpne sedelen og trykk «Gjenåpne for redigering» for å endre den.",
   "timer.gjenaapne.knapp": "Gjenåpne for redigering",
