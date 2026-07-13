@@ -17,7 +17,7 @@ import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { Trash2 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { rundTilNarmeste } from "@/lib/tidsrunding";
-import { overstigerMaskinTak } from "@sitedoc/shared";
+import { overstigerMaskinTak, finnTidsromKonflikt } from "@sitedoc/shared";
 import { MaskinVelger } from "@/components/timer/MaskinVelger";
 
 function tilTall(v: unknown): number {
@@ -332,6 +332,36 @@ export function RedigerRadModal({ sheetId, projectId, ecoId, onLukk }: Props) {
     // Tillegg er per-prosjekt (ingen ECO) — alltid uendret her.
     const andreTimer = pendingTimer.filter((r) => !bucketPredikat(r));
     const andreMaskin = pendingMaskin.filter((r) => !bucketPredikat(r));
+
+    // F-f: speil server-vakten for umiddelbar tilbakemelding — fra/til påkrevd +
+    // fra<til + overlapp på HELE timer-settet (andre bøtter + denne bøttens
+    // edits). Delt helper `finnTidsromKonflikt` (@sitedoc/shared), samme regel
+    // som server (`redigerSedelRader`) + `syncBatch`. Ikke duplisert logikk.
+    const alleTimerTidsrom = [
+      ...andreTimer.map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid })),
+      ...editTimer.map((r) => ({ fraTid: r.fraTid, tilTid: r.tilTid })),
+    ];
+    if (alleTimerTidsrom.some((r) => !r.fraTid || !r.tilTid)) {
+      setFeil(t("timer.rediger.feil.manglerTid"));
+      return;
+    }
+    const tidsromKonflikt = finnTidsromKonflikt(alleTimerTidsrom);
+    if (tidsromKonflikt) {
+      setFeil(
+        tidsromKonflikt.type === "fra_etter_til"
+          ? t("timer.rediger.feil.fraEtterTil", {
+              fra: tidsromKonflikt.rad.fraTid,
+              til: tidsromKonflikt.rad.tilTid,
+            })
+          : t("timer.rediger.feil.overlapp", {
+              fra: tidsromKonflikt.rad.fraTid,
+              til: tidsromKonflikt.rad.tilTid,
+              aFra: tidsromKonflikt.annen.fraTid,
+              aTil: tidsromKonflikt.annen.tilTid,
+            }),
+      );
+      return;
+    }
 
     lagre.mutate({
       sheetId,

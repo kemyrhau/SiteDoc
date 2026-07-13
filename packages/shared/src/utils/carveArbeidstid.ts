@@ -20,7 +20,12 @@
  * overlapper derfor ALDRI (jf. `tidsromOverlapper` — endepunkt-berøring ≠ overlapp).
  */
 
-import { hhmmTilMin, minTilHhmm, tilFraAntall } from "./pauseBeregning";
+import {
+  hhmmTilMin,
+  minTilHhmm,
+  tilFraAntall,
+  pauseMinForDag,
+} from "./pauseBeregning";
 
 /** Klassifisert arbeidstid-segment (fra `klassifiserArbeidstid`). */
 export interface CarveSegment {
@@ -59,11 +64,20 @@ export function carveArbeidstider(args: {
     hhmmTilMin(args.startTid) + Math.round(Math.max(0, args.reisetidTimer) * 60);
   let posisjon = minTilHhmm(arbeidStartMin);
 
+  // F-e: pausefradrag gjelder kun når dagens totale arbeidstid > terskel. Summér
+  // segmentenes timer (= dagstotal for denne auto-genererte sedelen) og nulle ut
+  // pausen under terskel — ellers ville en kort dag fått urettmessig fradrag.
+  const dagsTotalTimer = args.segmenter.reduce(
+    (sum, seg) => sum + Math.max(0, seg.timer),
+    0,
+  );
+  const effektivPauseMin = pauseMinForDag(dagsTotalTimer, args.pauseMin);
+
   const vinduer: CarvetVindu[] = [];
   for (const seg of args.segmenter) {
     if (seg.timer <= 0) continue;
     const fraTid = posisjon;
-    const tilTid = tilFraAntall(fraTid, seg.timer, args.pauseFra, args.pauseMin);
+    const tilTid = tilFraAntall(fraTid, seg.timer, args.pauseFra, effektivPauseMin);
     vinduer.push({
       overtidsnivaa: seg.overtidsnivaa,
       timer: seg.timer,
