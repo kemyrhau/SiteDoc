@@ -26,6 +26,7 @@ import {
   velgOvertidLonnsart,
   carveArbeidstider,
   pauseVinduFra,
+  pauseMinForDag,
   DEFAULT_PAUSE_ETTER_TIMER,
   type ReiseKategori,
 } from "@sitedoc/shared";
@@ -336,6 +337,14 @@ function fordelArbeidstidFradrag(
   const reisePer = new Array<number>(n).fill(0);
   const pauseTimerPer = new Array<number>(n).fill(0);
 
+  // F-e (dag-nivå gate, re-fiks 2026-07-13): pausefradrag gjelder KUN når dagens
+  // totale brutto arbeidstid overstiger terskelen (AML §10-9, 5,5 t). Gaten ligger
+  // her — i dag-nivå pause-kilden der dagstotalen finnes — så pausen nulles FØR den
+  // fordeles per segment (alle segmenters pauseMin blir 0 under terskel). Erstatter
+  // carve-intern gating. dagsTotalBrutto = sum av segmentenes brutto-spenn.
+  const dagsTotalBrutto = bruttoTimer.reduce((s, b) => s + Math.max(0, b), 0);
+  const effektivPauseTotalMin = pauseMinForDag(dagsTotalBrutto, pauseTotalMin);
+
   const lengsteForst = bruttoTimer
     .map((b, i) => ({ b, i }))
     .sort((a, z) => z.b - a.b)
@@ -355,8 +364,9 @@ function fordelArbeidstidFradrag(
     restReise -= ta;
   }
 
-  // 2) Pause: lengste-først, i kapasiteten som er igjen etter reise.
-  let restPauseTimer = Math.max(0, pauseTotalMin) / 60;
+  // 2) Pause: lengste-først, i kapasiteten som er igjen etter reise. Bruker den
+  // terskel-gatede pausen (0 når dagen < 5,5t).
+  let restPauseTimer = Math.max(0, effektivPauseTotalMin) / 60;
   for (const i of lengsteForst) {
     if (restPauseTimer <= 0) break;
     const ta = Math.min(restPauseTimer, kapasitet[i]);
