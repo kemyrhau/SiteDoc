@@ -24,6 +24,9 @@ import {
   klassifiserReise,
   klassifiserArbeidstid,
   velgOvertidLonnsart,
+  carveArbeidstider,
+  pauseVinduFra,
+  DEFAULT_PAUSE_ETTER_TIMER,
   type ReiseKategori,
 } from "@sitedoc/shared";
 import { haversineKm } from "../utils/geo";
@@ -674,13 +677,31 @@ function opprettDagsseddelForSegment(args: {
       .all();
     const standard = hentStandardLonnsartLokalt(orgId);
 
-    for (const seg of klassifiserArbeidstid({ arbeidstimer, dagsnorm })) {
+    // GPS-carve (fabel-vedtak 2026-07-13): tildel FAKTISKE fra/til fra segmentets
+    // reelle vindu (delt carveArbeidstider) i stedet for null-tider. Fra/til er nå
+    // obligatorisk på timer-rader — auto-utkastet må følge samme regel. Tidene
+    // carves fra ekte GPS-start (segment.startIso) + hour-grensene klassifiseringen
+    // beregner, aldri fabrikkert. Reise-raden (under) unntas bevisst.
+    const orgSetting = hentOrganizationSettingLokalt(orgId);
+    const pauseEtterTimer =
+      orgSetting?.standardPauseEtterTimer ?? DEFAULT_PAUSE_ETTER_TIMER;
+    const startTidHHMM = tilHHMM(segment.startIso);
+    const carvet = carveArbeidstider({
+      startTid: startTidHHMM,
+      // Reise forskyver arbeids-start (fordelArbeidstidFradrag legger reise først);
+      // reise-raden selv får ingen tid (matrise-mengde, se under).
+      reisetidTimer,
+      pauseFra: pauseVinduFra(startTidHHMM, pauseEtterTimer),
+      pauseMin,
+      segmenter: klassifiserArbeidstid({ arbeidstimer, dagsnorm }),
+    });
+    for (const vindu of carvet) {
       // Normaltid (overtidsnivaa=null) → firmaets standard-lønnsart.
       // Overtid → velg strukturert på overtidsnivaa (type=ordinaer, aktiv).
       const lonnsart =
-        seg.overtidsnivaa === null
+        vindu.overtidsnivaa === null
           ? standard
-          : velgOvertidLonnsart(alleLonnsarter, seg.overtidsnivaa);
+          : velgOvertidLonnsart(alleLonnsarter, vindu.overtidsnivaa);
       // ③a/③b: aldri feil-match, aldri stille drop — uten treff hoppes raden
       // over, og [id].tsx viser banner (manglerStandard/manglerOvertidLonnsart).
       if (!lonnsart) continue;
@@ -692,9 +713,9 @@ function opprettDagsseddelForSegment(args: {
           lonnsartId: lonnsart.id,
           aktivitetId,
           externalCostObjectId: null,
-          timer: seg.timer,
-          fraTid: null,
-          tilTid: null,
+          timer: vindu.timer,
+          fraTid: vindu.fraTid,
+          tilTid: vindu.tilTid,
           sistEndretLokalt: Date.now(),
         })
         .run();
@@ -713,6 +734,13 @@ function opprettDagsseddelForSegment(args: {
         aktivitetId,
         externalCostObjectId: null,
         timer: reisetidTimer,
+        // REISE-UNNTAK (fabel-vedtak 2026-07-13): reise beholder null-tider —
+        // BEVISST unntatt fra fra/til-obligatorisk-regelen. Reisetiden er en
+        // matrise-/GPS-estimat-MENGDE (hentMatriseRadLokalt / estimerReisetidMin),
+        // ikke et målt klokke-vindu; et fabrikkert [start, start+reise] ville vært
+        // falske lønnsdata. Reise-rader round-tripper via syncBatch-legacy-veien
+        // (unntatt fra server-håndhevingen) — automatisk konsistent. Overlapp-
+        // vakten hopper uansett over tid-løse rader (finnOverlappendeTidsrom).
         fraTid: null,
         tilTid: null,
         sistEndretLokalt: Date.now(),

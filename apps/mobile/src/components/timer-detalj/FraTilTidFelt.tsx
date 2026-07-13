@@ -27,6 +27,11 @@ interface Props {
   tidsrundingMinutter: number | null;
   onFraEndret: (hhmm: string) => void;
   onTilEndret: (hhmm: string) => void;
+  /**
+   * Fra/til obligatorisk på timer-rader (2026-07-13) — reverserer a2. Viser «*»
+   * på etikettene. Maskin-rader utelater denne (fra/til er der valgfritt).
+   */
+  paakrevd?: boolean;
 }
 
 export function FraTilTidFelt({
@@ -35,6 +40,7 @@ export function FraTilTidFelt({
   tidsrundingMinutter,
   onFraEndret,
   onTilEndret,
+  paakrevd = false,
 }: Props) {
   const { t } = useTranslation();
   // Hvilket felt er åpent + utkast-verdien som scrolles (committes først ved
@@ -65,6 +71,7 @@ export function FraTilTidFelt({
       <View className="flex-1">
         <Text className="mb-1 text-sm font-medium text-gray-700">
           {t("timer.felt.startTid")}
+          {paakrevd ? " *" : ""}
         </Text>
         <TidFeltBoks verdi={fraTid} onPress={() => aapne("fra")} />
       </View>
@@ -72,6 +79,7 @@ export function FraTilTidFelt({
       <View className="flex-1">
         <Text className="mb-1 text-sm font-medium text-gray-700">
           {t("timer.felt.sluttTid")}
+          {paakrevd ? " *" : ""}
         </Text>
         <TidFeltBoks verdi={tilTid} onPress={() => aapne("til")} />
       </View>
