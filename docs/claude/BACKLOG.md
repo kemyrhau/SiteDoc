@@ -50,6 +50,14 @@ Hjul-velgeren for «Fra kl.» har ingen tøm-knapp → «tøm fra»-tilstanden e
 
 **Vedtak (Kenneth):** pausefradrag betinges av terskel — pause trekkes KUN når arbeidet overstiger en grense (à la AML ≥ 5,5 t), erstatter dagens ubetingede fradrag. Kodes tidligst ETTER sync-saken (samme kodeområde som F-b). Berører pause-beregning (`pauseBeregning.ts` @sitedoc/shared). Carve-observasjonene fra simulator-runden = denne mekanikken.
 
+### 🔴 F-f: `redigerSedelRader` håndhever ikke fra/til-obligatorisk (del-6-fiksrunde, 2026-07-13)
+
+`redigerSedelRader` (`dagsseddel.ts:2567`) mangler fra/til-obligatorisk-vakten de interaktive mutasjonene har: Zod `fraTid/tilTid: nullable().optional()` (`:2593-2594`, `:2617-2618`), ingen `manglerTid`-vakt i kroppen; klient `handleLagre` (`RedigerRadModal:315-329`) validerer heller ikke. **Fiks:** samme vakt som `validerSplittFelles` (`:631-636`) i mutasjonskroppen + klient-validering. Kø for del-6-fiksrunden (F-b/F-e/F-f/F-g).
+
+### 🔴 F-g: «for kort»-melding fyrer misvisende på pre-fylt sedel (del-6-fiksrunde, 2026-07-13)
+
+«For kort»-meldingen (`StartSluttDagKort.tsx:139-145`) teller kun øktas inserts (`:565`) → fyrer misvisende på en pre-fylt draft/returnert-sedel som allerede har rader fra før. **Fiks:** differensier copy når sedelen har N rader fra før. Kø for del-6-fiksrunden.
+
 ### 🟡 Del 6-oppfølgere-vedtak (2026-07-13, dokumentert her for sporbarhet)
 
 Beslutninger fra del-6-live-runden (kode i `fix/timer-fra-til-obligatorisk` + `fix/del6-oppfolgere`, docs i timer.md/U-spec):
