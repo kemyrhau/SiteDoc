@@ -884,6 +884,10 @@ Erstatter de tidligere faste kolonnene `normaltid/overtid50/overtid100`. Datadre
 - `(byggeplassId)` — **NY T.2** — byggeplass-aggregering
 - `(attestertStatus)` — **NY T.3** — leder-vy «hva venter attestering»
 
+> **🟢 Erstattede rader FLYTTES til historikk (T7-2b-oppfølger 2026-07-13, migrering `20260713120000_sheet_rad_historikk`).** Ved firma-admin rediger/splitt (`dagsseddel.ts` `rediger`/`splittRad`) settes originalraden IKKE lenger til `attestertStatus="erstattet"` i hovedtabellen. Den FLYTTES i stedet til den felles write-only audit-tabellen **`sheet_rad_historikk`** (INSERT JSON-snapshot + DELETE fra hovedtabell i samme tx — MOVE, aldri hard-delete), med `originalRadId` + bevart `parentRadId`. Hovedtabellene (`sheet_timer`/`sheet_tillegg`/`sheet_machines`) holder derfor kun **live** rader, så ingen leser trenger `erstattet`-filter («lagre rett»-prinsippet — filteret i aktiv-helper/`hentEndringerSiden` er nå rulleringsvern, no-op etter migrering). `attestertStatus`-kolonnen beholdes (pending/attestert/returnert brukes fortsatt).
+>
+> ⚠️ **Snapshot-form-divergens (ikke-blokkerende, kjent):** engangs-backfillen i migreringen bruker `to_jsonb(t.*)` → **snake_case** DB-kolonner; runtime-innflyttinger bruker `JSON.stringify(rad)` → **camelCase** Prisma-felt. Uskadelig i dag (write-only, aldri lest for beregning), men en fremtidig audit-leser må tåle begge nøkkelformene.
+
 ### `sheet_tillegg` (tillegg-rader per dagsseddel)
 
 Erstatter de tidligere faste boolean-kolonnene `overtidsmat/nattillegg/helgetillegg`. Datadrevet.

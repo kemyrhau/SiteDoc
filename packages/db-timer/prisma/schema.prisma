@@ -349,3 +349,39 @@ model SheetMachine {
   @@map("sheet_machines")
   @@schema("timer")
 }
+
+// ==========================================================================
+//  SheetRadHistorikk — write-only audit av erstattede rad-versjoner
+//  (T7-2b-oppfølger 2026-07-13). Ved firma-admin rediger/splitt FLYTTES
+//  originalraden hit (INSERT snapshot + DELETE fra hovedtabell i samme tx)
+//  i stedet for å settes attestertStatus="erstattet" i hovedtabellen — slik
+//  at lesere (særlig mobil-pull hentEndringerSiden) ikke kan lekke audit-
+//  rader (×N-duplikater). Felles tabell m/ JSON-snapshot: de tre kilde-
+//  tabellene har ulik kolonneform, og historikk leses aldri for beregning
+//  (kun revisjonsspor), så snapshot er robust mot fremtidig kolonne-drift.
+//  radType = "timer" | "tillegg" | "maskin". originalRadId + parentRadId
+//  bevarer lenke-kjeden (ny rad.parentRadId → historikk.originalRadId).
+//  Svake String-felt uten @relation (A.20 cross-modul-mønster).
+//  ⚠️ snapshot-form-divergens (ikke-blokkerende): engangs-backfill i migreringen
+//  bruker to_jsonb(t.*) → snake_case-nøkler; runtime bruker JSON.stringify(rad)
+//  → camelCase-nøkler. Uskadelig (write-only) — fremtidig audit-leser må tåle
+//  begge. Se timer.md § per-rad-attestering.
+// ==========================================================================
+
+model SheetRadHistorikk {
+  id                String    @id @default(uuid())
+  radType           String    @map("rad_type") // "timer" | "tillegg" | "maskin"
+  originalRadId     String    @map("original_rad_id") // id-en raden hadde i hovedtabellen
+  sheetId           String    @map("sheet_id") // for oppslag per dagsseddel
+  parentRadId       String?   @map("parent_rad_id") // bevart parent-lenke (null = original/helt ny)
+  snapshot          Json // full rad-tilstand ved flytting (Decimal→streng, Date→ISO)
+  erstattetAvUserId String?   @map("erstattet_av_user_id") // svak FK → users
+  erstattetVed      DateTime  @default(now()) @map("erstattet_ved") @db.Timestamptz()
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([sheetId])
+  @@index([originalRadId])
+  @@index([radType])
+  @@map("sheet_rad_historikk")
+  @@schema("timer")
+}

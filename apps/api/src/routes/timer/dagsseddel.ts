@@ -413,6 +413,31 @@ async function hentRaderForValidering(
 }
 
 /**
+ * T7-2b-oppfølger (2026-07-13): bygg en SheetRadHistorikk-post fra en
+ * hovedtabell-rad som FLYTTES ut ved firma-admin rediger/splitt. snapshot =
+ * full rad som JSON (Decimal→streng, Date→ISO via JSON-serialisering) —
+ * historikk leses aldri for beregning, kun revisjonsspor. Skrives i SAMME
+ * transaksjon som DELETE av originalen (MOVE, aldri hard-delete). Bevarer
+ * lenke-kjeden: ny rad.parentRadId → historikk.originalRadId.
+ */
+function byggHistorikkPost(
+  radType: "timer" | "tillegg" | "maskin",
+  rad: { id: string; sheetId: string; parentRadId: string | null },
+  erstattetAvUserId: string | null | undefined,
+  erstattetVed: Date,
+): Prisma.SheetRadHistorikkCreateManyInput {
+  return {
+    radType,
+    originalRadId: rad.id,
+    sheetId: rad.sheetId,
+    parentRadId: rad.parentRadId,
+    snapshot: JSON.parse(JSON.stringify(rad)) as Prisma.InputJsonValue,
+    erstattetAvUserId,
+    erstattetVed,
+  };
+}
+
+/**
  * Bolk (g), 2026-07-09 — fra/til-gyldighet: når begge tider er satt, må til > fra.
  * Delt superRefine for timer- og maskin-rad-inputene (tilfoy + oppdater).
  */
@@ -2810,29 +2835,31 @@ export const dagsseddelRouter = router({
           where: { id: sheet.id },
           data: { ...(pauseUpdate ?? {}), updatedAt: new Date() },
         }),
-        ctx.prismaTimer.sheetTimer.updateMany({
-          where: { sheetId: sheet.id, attestertStatus: "pending" },
-          data: {
-            attestertStatus: "erstattet",
-            attestertAvUserId: ctx.userId,
-            attestertVed: naa,
-          },
+        // T7-2b-oppfølger (2026-07-13): MOVE de pending originalene til historikk
+        // (INSERT snapshot) + SLETT dem fra hovedtabellene i SAMME transaksjon —
+        // i stedet for å sette attestertStatus="erstattet" (som lekket ×N til
+        // mobil-pull hentEndringerSiden). eksTimer/eksTillegg/eksMaskin er alt
+        // hentet som fulle pending-rader over; snapshot-settet === slette-settet
+        // (kun innleste id-er slettes, aldri noe utenfor).
+        ctx.prismaTimer.sheetRadHistorikk.createMany({
+          data: [
+            ...eksTimer.map((r) => byggHistorikkPost("timer", r, ctx.userId, naa)),
+            ...eksTillegg.map((r) =>
+              byggHistorikkPost("tillegg", r, ctx.userId, naa),
+            ),
+            ...eksMaskin.map((r) =>
+              byggHistorikkPost("maskin", r, ctx.userId, naa),
+            ),
+          ],
         }),
-        ctx.prismaTimer.sheetTillegg.updateMany({
-          where: { sheetId: sheet.id, attestertStatus: "pending" },
-          data: {
-            attestertStatus: "erstattet",
-            attestertAvUserId: ctx.userId,
-            attestertVed: naa,
-          },
+        ctx.prismaTimer.sheetTimer.deleteMany({
+          where: { id: { in: eksTimer.map((r) => r.id) } },
         }),
-        ctx.prismaTimer.sheetMachine.updateMany({
-          where: { sheetId: sheet.id, attestertStatus: "pending" },
-          data: {
-            attestertStatus: "erstattet",
-            attestertAvUserId: ctx.userId,
-            attestertVed: naa,
-          },
+        ctx.prismaTimer.sheetTillegg.deleteMany({
+          where: { id: { in: eksTillegg.map((r) => r.id) } },
+        }),
+        ctx.prismaTimer.sheetMachine.deleteMany({
+          where: { id: { in: eksMaskin.map((r) => r.id) } },
         }),
         ...input.nyeRader.timer.map((rad) =>
           ctx.prismaTimer.sheetTimer.create({
@@ -3010,14 +3037,12 @@ export const dagsseddelRouter = router({
       const naa = new Date();
       if (input.radType === "timer") {
         await ctx.prismaTimer.$transaction([
-          ctx.prismaTimer.sheetTimer.update({
-            where: { id: original.id },
-            data: {
-              attestertStatus: "erstattet",
-              attestertAvUserId: ctx.userId,
-              attestertVed: naa,
-            },
+          // T7-2b-oppfølger (2026-07-13): MOVE originalen til historikk (INSERT
+          // snapshot) + slett fra hovedtabellen i SAMME tx — ikke status="erstattet".
+          ctx.prismaTimer.sheetRadHistorikk.createMany({
+            data: [byggHistorikkPost("timer", original, ctx.userId, naa)],
           }),
+          ctx.prismaTimer.sheetTimer.delete({ where: { id: original.id } }),
           ...input.nyeRader.map((rad) =>
             ctx.prismaTimer.sheetTimer.create({
               data: {
@@ -3041,14 +3066,12 @@ export const dagsseddelRouter = router({
         ]);
       } else if (input.radType === "tillegg") {
         await ctx.prismaTimer.$transaction([
-          ctx.prismaTimer.sheetTillegg.update({
-            where: { id: original.id },
-            data: {
-              attestertStatus: "erstattet",
-              attestertAvUserId: ctx.userId,
-              attestertVed: naa,
-            },
+          // T7-2b-oppfølger (2026-07-13): MOVE originalen til historikk + slett
+          // fra hovedtabellen i SAMME tx — ikke status="erstattet".
+          ctx.prismaTimer.sheetRadHistorikk.createMany({
+            data: [byggHistorikkPost("tillegg", original, ctx.userId, naa)],
           }),
+          ctx.prismaTimer.sheetTillegg.delete({ where: { id: original.id } }),
           ...input.nyeRader.map((rad) =>
             ctx.prismaTimer.sheetTillegg.create({
               data: {
@@ -3067,14 +3090,12 @@ export const dagsseddelRouter = router({
         // T7-4b maskin ≤ arbeid post-state er allerede validert i
         // validerSplittFelles (steg 6) — går rett på transaksjonen.
         await ctx.prismaTimer.$transaction([
-          ctx.prismaTimer.sheetMachine.update({
-            where: { id: original.id },
-            data: {
-              attestertStatus: "erstattet",
-              attestertAvUserId: ctx.userId,
-              attestertVed: naa,
-            },
+          // T7-2b-oppfølger (2026-07-13): MOVE originalen til historikk + slett
+          // fra hovedtabellen i SAMME tx — ikke status="erstattet".
+          ctx.prismaTimer.sheetRadHistorikk.createMany({
+            data: [byggHistorikkPost("maskin", original, ctx.userId, naa)],
           }),
+          ctx.prismaTimer.sheetMachine.delete({ where: { id: original.id } }),
           ...input.nyeRader.map((rad) =>
             ctx.prismaTimer.sheetMachine.create({
               data: {
@@ -3484,7 +3505,15 @@ export const dagsseddelRouter = router({
 
       const sedler = await ctx.prismaTimer.dailySheet.findMany({
         where,
-        include: { timer: true, tillegg: true, maskiner: true },
+        include: {
+          // T7-2b-oppfølger (2026-07-13): rulleringsvern — filtrer bort
+          // "erstattet"-rader (samme filter som aktiv-helper 394/403 + web-
+          // attestering 1835-1837). No-op etter migreringen som FLYTTER dem til
+          // historikk, men hindrer at gamle rader lekker ×N til mobil-pull.
+          timer: { where: { attestertStatus: { not: "erstattet" } } },
+          tillegg: { where: { attestertStatus: { not: "erstattet" } } },
+          maskiner: { where: { attestertStatus: { not: "erstattet" } } },
+        },
         orderBy: { updatedAt: "desc" },
       });
 
