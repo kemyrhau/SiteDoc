@@ -26,6 +26,12 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 **Fiks (cowork-eid, synk-mønster):** tombstone-/deleted-ids-propagering i syncBatch-payload, ELLER pull respekterer lokale slettinger. Bredt synk-arbeid — ikke punktfiks. S3 var coworks design.
 
+**Cowork-utredning konkludert 2026-07-13 (design foreslått, avventer fabel-gate):** (1) Egen persistent `slettede_rader_local`-tombstone-tabell (`sheetId, radId, radType, slettetVed`) — anbefalt over per-tabell soft-delete-flagg (én migrering, ingen filter-endring i lese-stedene). (2) `slettedeIder: {timer,tillegg,maskiner}` (optional) i syncBatch-input → per type `deleteMany({ sheetId, id: { in: slettedeIder.<type> } })` i tillegg til payload-replace. (3) Bakoverkompat: #37 sender ikke feltet → dagens ikke-propagering (legacy, trygt); #38+ propagerer. (4) Rydd tombstones etter server-bekreftet sync. **Forbehold:** server-rundturen (server beholder + pull re-innsetter) er kode-verifisert men **runtime-inferert** — ikke nettverksbevist; en simulator/nettverks-test gir end-to-end-beviset. **Sedel-nivå:** `[id].tsx:433` (forkast hele sedel) har samme gap for SYNKEDE sedler — egen beslutning: skal synket-sedel-forkast propagere?
+
+### 🟡 Samme-dato-kollisjon: fler-økt → én dagsseddel, carve appender ikke per økt (simulator-funn 2026-07-13)
+
+**Symptom (simulator-funn):** flere økter samme dato → én dagsseddel (`@@unique(userId,dato)`); carve/auto-arbeidstid ser ikke ut til å appende per økt. **Status: AVVENTER redesign-Opus' kodeverifisering før klassifisering (bug vs by-design)** — cowork klassifiserer ikke atferd uten kode. Berører carve-sonen (`carveArbeidstider` @sitedoc/shared + `utvidArbeidstidsvindu`), samme område som F-b. Relaterer til U-serie multi-økt-append (mobil-dagsseddel-ui-spec).
+
 ### 🟡 Del 6-oppfølgere-vedtak (2026-07-13, dokumentert her for sporbarhet)
 
 Beslutninger fra del-6-live-runden (kode i `fix/timer-fra-til-obligatorisk` + `fix/del6-oppfolgere`, docs i timer.md/U-spec):
