@@ -118,7 +118,7 @@ i et redesign som bare leser ankeret:
 | # | Funksjon | Dagens inngang | Ny inngang | Gating som må overleve | Redirect? | Verifisert |
 |---|---|---|---|---|---|---|
 | O1 | Prosjektmedlemmer (ProjectMember) | oppsett-sidebar `brukere` / `/oppsett/brukere` | 1a «Medlemmer › Medlemmer» | `kreverProsjekt` | **Ja** (fra `/oppsett/brukere`) | |
-| O2 | Lokasjoner / Byggeplasser (CRUD, geofence) | oppsett-sidebar / `/oppsett/byggeplasser` | 1a «Prosjektoppsett › Byggeplasser» | `kreverProsjekt` | **Ja** | |
+| O2 | Lokasjoner / Byggeplasser (CRUD, geofence) | oppsett-sidebar / `/oppsett/byggeplasser` | **1a eget hub-kort «Byggeplasser»** (+ synonym-søk «lokasjoner/tegninger/kart/geofence») | `kreverProsjekt` | **Ja** | 🔨 eget kort 2026-07-14 (discoverability): flyttet fra anonym chip → eget MapPin-kort + `sokeordKey` |
 | O3 | Produksjon (parent-node) | oppsett-sidebar `produksjon` | 1a «Maler»/«Dokumentflyt»-kort | `tillatelse="manage_field"` + `kreverProsjekt` | — | |
 | O4 | Dokumentflyt-konfig | `/oppsett/produksjon/dokumentflyt` | 1a «Dokumentflyt › Dokumentflyt» | `manage_field` | **Ja** | |
 | O5 | Kontakter-ruten (flyt-parter) — **K6: rename alt gjort, nå redirect** til `…/dokumentflyt` | `/oppsett/produksjon/kontakter` | redirect → O4 (flyt-konfig forblir innstilling); personkatalog-visningen flyttet til P31 | `manage_field` | **Ja** (allerede) | |
@@ -303,6 +303,14 @@ plasserings-blokker):** K9.
 **Akseptkriterium:** hver navigerbar `page.tsx` er søkbar (Ctrl+K via `useSokRegistry`)
 ELLER eksplisitt ekskludert. Håndhevet av `apps/web/src/hooks/__tests__/sok-dekning.test.ts`
 (F3-vern — ny side uten dekning/unntak feiler testen). Full analyse: `k13-sokdekning-rapport.md`.
+
+**Finnbarhets-revisjon (2026-07-14):** søket er ikke lenger ren substring — `apps/web/src/lib/sok-match.ts`
+gir skrivefeil-toleranse (bounded Damerau-Levenshtein) + sentralt synonymlag (`KJERNE_SYNONYMER`,
+bygd på `sokeordKey`). «instill»/«admin»/«adm»/«oppsett» treffer nå Innstillinger-huben; regresjons-
++ falsk-positiv-vern i `sok-match.test.ts` (14/14). Begreps-kanonisering: «Firmaprofil» (var
+«Innstillinger» i firma-nav), «Dokumentsøk» (var «Søk»), «Kontrollplan» (var «Kontrollplaner»),
+PSI-snarvei «Administrer PSI-maler» (var to labels). Delt sidemeny `InnstillingerNav` (kilde
+`useInnstillingerKort`) på huben; `oppsett/layout.tsx`-samling venter frossen-sone-koordinering.
 
 **Nytt i K13 (5 tidligere udekkede — implementert 2026-07-11):**
 

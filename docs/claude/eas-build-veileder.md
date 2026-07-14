@@ -29,9 +29,9 @@ Sky-bygg er **knappe**: ~15 iOS-bygg/mnd på fri plan, **reset den 1. i måneden
 
 | Mnd | Brukt | Bygg |
 |-----|-------|------|
-| Juli 2026 | 1 av ~15 (**~14 igjen, reset 1. aug**) | #37 (bygg-ID `496b6a63`, commit `bc744f82`, 01.07, production, status `finished`) — mobil-MS + F-G → TestFlight |
+| Juli 2026 | 2 av ~15 (**~12 igjen, reset 1. aug**, bekreftet `eas build:list` 13 før #38) | #37 (`496b6a63`, `bc744f82`, 01.07, production, finished) — mobil-MS + F-G. **#38 (`47c22b1a`, `cd3efcb5`, 13.07, production, finished)** — S-A tombstone-klient + del 6 (F-b/F-e/F-f/F-g) + footer + alt på develop t.o.m. `cd3efcb5` → TestFlight |
 
-**Neste batch (kø, ikke bygget):** ② maskin-velger søk/filter + maskin≤arbeid-disable (mobil, `731770da`) · ③ strukturert overtid auto-gen (mobil, `c9cc40ef`). Sist bygget: #37 (mobil-MS + F-G). Fyres samlet ved neste TestFlight-leveranse (kvote-bevisst — ikke eget bygg per sak).
+**#38-merknad:** bygget fra **`SiteDoc-develop`** (ikke SiteDoc-deploy — deploy-worktreet mangler `node_modules`, som ga prompt-flom + `expo-modules-autolinking`-feil; lærdom: EAS-bygg må kjøres fra et worktree med installerte deps). `cd3efcb5` == main-innhold (prod-server deployet samme kode via `f888fecc` 13.07). Sveipet inn hele develop-batchen (inkl. evt. tidligere køede ②/③ hvis merget før `cd3efcb5`). **Neste batch (kø):** det som lander på develop ETTER `cd3efcb5`. Fyres samlet ved neste TestFlight-leveranse (kvote-bevisst).
 
 ## Profiler (`apps/mobile/eas.json`)
 

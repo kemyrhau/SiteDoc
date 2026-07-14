@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   FlatList,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -19,7 +20,11 @@ import {
   Check,
   Car,
   ChevronDown,
+  ChevronRight,
   Split,
+  Star,
+  CheckSquare,
+  Square,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq, and } from "drizzle-orm";
@@ -33,8 +38,24 @@ import {
   aktivitetLocal,
   equipmentLocal,
   externalCostObjectLocal,
+  byggeplassLocal,
 } from "../../db/schema";
-import { finnProsjektLokalt } from "../../services/prosjektKatalog";
+import {
+  finnProsjektLokalt,
+  hentProsjekterLokalt,
+} from "../../services/prosjektKatalog";
+import {
+  hentByggeplasserForProsjektLokalt,
+  refreshByggeplassKatalog,
+} from "../../services/byggeplassKatalog";
+import { useByggeplass } from "../../kontekst/ByggeplassKontekst";
+import { useNettverk } from "../../providers/NettverkProvider";
+import { trpc } from "../../lib/trpc";
+import {
+  matpauseKontekst,
+  matpauseRegelTrigget,
+  radKrysserPause,
+} from "../../services/matpause";
 import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
 import {
   hentStandardLonnsartLokalt,
@@ -46,6 +67,7 @@ import type {
   Lonnsart,
   Aktivitet,
   Underprosjekt,
+  Prosjekt,
 } from "../../types/timer-detalj";
 import {
   DEFAULT_PAUSE_ETTER_TIMER,
@@ -58,7 +80,7 @@ import {
   tilErEtterFra,
   finnOverlappendeTidsrom,
 } from "@sitedoc/shared";
-import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
+import { ProsjektFelt } from "./ProsjektVelger";
 import { FraTilTidFelt } from "./FraTilTidFelt";
 import { VelgerFelt } from "./VelgerFelt";
 import { TastaturFerdig, TASTATUR_FERDIG_ID } from "./TastaturFerdig";
@@ -93,6 +115,11 @@ interface TimerSeksjonProps {
   visHeader?: boolean;
   /** ISO YYYY-MM-DD — dato på dagsseddelen. Brukes til kalender-utleting (T4-e). */
   dato: string;
+  /** F3 (2026-07-14): sedel-nivå byggeplass (`dagsseddel_local.byggeplassId`).
+   *  Vises som arvet, nedtonet verdi på rader UTEN per-rad-override
+   *  (`rad.byggeplassId = null`) — kun når raden hører til sedelens primær-
+   *  prosjekt (arv gjelder ikke sekundær-prosjekt-rader). */
+  sedelByggeplassId: string | null;
   /** Sedel-nivå pause (min) — inngår i bucket-kapasitet for den valgfrie maskin-
    *  seksjonen på ny timer-rad (P1 maskin-i-rad, samme regel som MaskinRadModal). */
   pauseMin: number;
@@ -101,6 +128,9 @@ interface TimerSeksjonProps {
   harEquipmentCache: boolean;
   defaultAktivitetId: string | null;
   redigerbar: boolean;
+  /** F5 (2026-07-14): sedel-nivå matpause-toggle. radId + ønsket tilstand →
+   *  [id].tsx orkestrerer flytt/sett/fjern (kryss-bøtte, ekte modal, toast). */
+  onPauseToggle: (radId: string, vilHa: boolean) => void;
   onEndret: () => void;
 }
 
@@ -113,15 +143,37 @@ export function TimerSeksjon({
   defaultEcoId = null,
   visHeader = true,
   dato,
+  sedelByggeplassId,
   pauseMin,
   harEquipmentCache,
   defaultAktivitetId,
   redigerbar,
+  onPauseToggle,
   onEndret,
 }: TimerSeksjonProps) {
   const { t } = useTranslation();
+  // F5: matpause-kontekst (hvor lunsjen faller + lengde) + om regelen trigger for
+  // dagen (dagsbrutto > 5,5t). Trigget beregnes fra ALLE sedelens rader
+  // (`alleTimerRader`), ikke bøtte-scopet `rader` — pausen er dag-nivå.
+  const { pauseFra, standardPauseMin } = useMemo(
+    () => matpauseKontekst(organizationId, dato),
+    [organizationId, dato],
+  );
+  const pauseRegelTrigget = useMemo(
+    () => matpauseRegelTrigget(alleTimerRader, standardPauseMin),
+    [alleTimerRader, standardPauseMin],
+  );
   const [visModal, setVisModal] = useState(false);
   const [redigerRadId, setRedigerRadId] = useState<string | null>(null);
+  // F3: kombinert prosjekt+byggeplass-velger åpnet fra rad-sekundærlinja
+  // (hurtigsti). radId = raden som redigeres; separat fra full rad-modal.
+  const [hurtigRadId, setHurtigRadId] = useState<string | null>(null);
+  // F3: når hurtigsti-prosjektbytte ruter videre til full rad-modal, bæres det
+  // nye prosjekt+byggeplass-valget hit så avhengig-felt-validering kjører der.
+  const [tvungetValg, setTvungetValg] = useState<{
+    projectId: string;
+    byggeplassId: string | null;
+  } | null>(null);
   // P2 (arbeider-splitt): raden som splittes (kun draft/returned via redigerbar).
   const [splittRadId, setSplittRadId] = useState<string | null>(null);
 
@@ -140,6 +192,7 @@ export function TimerSeksjon({
   const leggTil = useCallback(
     (
       radProjectId: string,
+      byggeplassId: string | null,
       lonnsartId: string,
       aktivitetId: string,
       timer: number,
@@ -156,6 +209,9 @@ export function TimerSeksjon({
           id: randomUUID(),
           dagsseddelId: sheetId,
           projectId: radProjectId,
+          // F3: per-rad byggeplass. null = arv fra dagskortet (server propagerer
+          // sedel-verdien ved sync). Kolonnen tilføyd via idempotent ALTER (5be70d9a).
+          byggeplassId,
           lonnsartId,
           aktivitetId,
           externalCostObjectId,
@@ -196,6 +252,7 @@ export function TimerSeksjon({
     (
       radId: string,
       radProjectId: string,
+      byggeplassId: string | null,
       lonnsartId: string,
       aktivitetId: string,
       timer: number,
@@ -209,6 +266,8 @@ export function TimerSeksjon({
       db.update(sheetTimerLocal)
         .set({
           projectId: radProjectId,
+          // F3: per-rad byggeplass (null = arv fra dagskortet).
+          byggeplassId,
           lonnsartId,
           aktivitetId,
           timer,
@@ -223,6 +282,51 @@ export function TimerSeksjon({
       onEndret();
     },
     [onEndret],
+  );
+
+  // F3 hybrid-hurtigsti: sekundærlinja åpner den kombinerte velgeren direkte.
+  //  - Kun byggeplass endret (samme prosjekt): lagres direkte via `oppdater`
+  //    (samme lagre-kjede som rad-modalen — ingen egen write-sti). Byggeplass-
+  //    bytte rører ikke tider, så overlapp/pause-validering er upåvirket.
+  //  - Prosjekt endret: kan ugyldiggjøre prosjekt-scopede felt (underprosjekt,
+  //    lønnsart) → rut inn i full rad-modal med nytt prosjekt+byggeplass
+  //    forhåndsvalgt, så avhengig-felt-validering kjører før lagring. Ingen
+  //    stille nulling av felt.
+  const handterHurtigVelg = useCallback(
+    (radId: string, nyProjectId: string, nyByggeplassId: string | null) => {
+      const rad = rader.find((r) => r.id === radId);
+      if (!rad) {
+        setHurtigRadId(null);
+        return;
+      }
+      const gjeldendeProjectId = rad.projectId ?? projectId;
+      if (nyProjectId !== gjeldendeProjectId) {
+        // Prosjektbytte → full rad-modal med tvunget valg.
+        setHurtigRadId(null);
+        setTvungetValg({ projectId: nyProjectId, byggeplassId: nyByggeplassId });
+        setRedigerRadId(radId);
+        setVisModal(true);
+        return;
+      }
+      // Samme prosjekt: no-op hvis byggeplassen er uendret (unngår unødig
+      // pending-sync), ellers direkte lagring via delt lagre-kjede.
+      if ((nyByggeplassId ?? null) !== (rad.byggeplassId ?? null)) {
+        oppdater(
+          radId,
+          gjeldendeProjectId,
+          nyByggeplassId,
+          rad.lonnsartId,
+          rad.aktivitetId,
+          rad.timer,
+          rad.externalCostObjectId,
+          rad.fraTid,
+          rad.tilTid,
+          rad.beskrivelse,
+        );
+      }
+      setHurtigRadId(null);
+    },
+    [rader, projectId, oppdater],
   );
 
   const fjern = useCallback(
@@ -296,12 +400,19 @@ export function TimerSeksjon({
           <TimerRadVis
             key={rad.id}
             rad={rad}
+            gruppeProjectId={projectId}
+            sedelByggeplassId={sedelByggeplassId}
             erReise={reiseLonnsartId != null && rad.lonnsartId === reiseLonnsartId}
             redigerbar={redigerbar}
+            pauseFra={pauseFra}
+            standardPauseMin={standardPauseMin}
+            pauseRegelTrigget={pauseRegelTrigget}
+            onPauseToggle={onPauseToggle}
             onRediger={() => {
               setRedigerRadId(rad.id);
               setVisModal(true);
             }}
+            onByggeplassLinje={() => setHurtigRadId(rad.id)}
             onSplitt={() => setSplittRadId(rad.id)}
             onSlett={() => fjern(rad.id)}
           />
@@ -343,8 +454,10 @@ export function TimerSeksjon({
               ? rader.find((r) => r.id === redigerRadId) ?? null
               : null
           }
+          tvungetValg={tvungetValg}
           onLagre={(
             radProjectId,
+            byggeplassId,
             lonnsartId,
             aktivitetId,
             timer,
@@ -358,6 +471,7 @@ export function TimerSeksjon({
               oppdater(
                 redigerRadId,
                 radProjectId,
+                byggeplassId,
                 lonnsartId,
                 aktivitetId,
                 timer,
@@ -369,6 +483,7 @@ export function TimerSeksjon({
             } else {
               leggTil(
                 radProjectId,
+                byggeplassId,
                 lonnsartId,
                 aktivitetId,
                 timer,
@@ -381,13 +496,35 @@ export function TimerSeksjon({
             }
             setVisModal(false);
             setRedigerRadId(null);
+            setTvungetValg(null);
           }}
           onLukk={() => {
             setVisModal(false);
             setRedigerRadId(null);
+            setTvungetValg(null);
           }}
         />
       )}
+
+      {/* F3 hurtigsti: kombinert prosjekt+byggeplass-velger åpnet fra rad-
+          sekundærlinja. Byggeplass-bytte lagres direkte; prosjektbytte ruter
+          videre til full rad-modal (se `handterHurtigVelg`). */}
+      {hurtigRadId &&
+        (() => {
+          const rad = rader.find((r) => r.id === hurtigRadId);
+          if (!rad) return null;
+          return (
+            <ProsjektByggeplassVelgerModal
+              organizationId={organizationId}
+              valgtProjectId={rad.projectId ?? projectId}
+              valgtByggeplassId={rad.byggeplassId ?? null}
+              onVelg={(projId, byggId) =>
+                handterHurtigVelg(hurtigRadId, projId, byggId)
+              }
+              onLukk={() => setHurtigRadId(null)}
+            />
+          );
+        })()}
 
       {/* P2 (arbeider-splitt): ren lokal Drizzle-splitt av valgt rad. */}
       {splittRadId &&
@@ -413,20 +550,92 @@ export function TimerSeksjon({
 
 function TimerRadVis({
   rad,
+  gruppeProjectId,
+  sedelByggeplassId,
   erReise,
   redigerbar,
+  pauseFra,
+  standardPauseMin,
+  pauseRegelTrigget,
+  onPauseToggle,
   onRediger,
+  onByggeplassLinje,
   onSplitt,
   onSlett,
 }: {
   rad: TimerRad;
+  /** Prosjektet denne gruppa/bøtta hører til — fallback for rader uten per-rad
+   *  projectId (pre-T7-3b1-data). */
+  gruppeProjectId: string;
+  /** F3: sedel-nivå byggeplass — arvet verdi når raden mangler override. */
+  sedelByggeplassId: string | null;
   erReise: boolean;
   redigerbar: boolean;
+  /** F5: pausevindu-start (HH:MM) + lengde — avgjør om raden krysser lunsjen. */
+  pauseFra: string;
+  standardPauseMin: number;
+  /** F5: trigger matpause-regelen for dagen? (dagsbrutto > 5,5t). */
+  pauseRegelTrigget: boolean;
+  /** F5: huk matpause av/på på denne raden. */
+  onPauseToggle: (radId: string, vilHa: boolean) => void;
   onRediger: () => void;
+  /** F3: trykk på «Prosjekt · Byggeplass»-sekundærlinja (hurtigsti). */
+  onByggeplassLinje: () => void;
   onSplitt: () => void;
   onSlett: () => void;
 }) {
   const { t } = useTranslation();
+
+  // F5: vis matpause-avhukingen kun når regelen trigger (dag > 5,5t) OG raden
+  // krysser lunsjvinduet (kvalifisert bærer). Bæreren (pauseMin > 0) er avhuket;
+  // øvrige kvalifiserte rader viser en tom checkbox man kan hake for å flytte
+  // pausen dit. Redigerbar-gate: kun draft/returned kan endre.
+  const visPauseRad =
+    redigerbar &&
+    pauseRegelTrigget &&
+    radKrysserPause(rad, pauseFra, standardPauseMin);
+  const pauseAvhuket = rad.pauseMin > 0;
+  // F5 (fabel edge #1): etiketten viser de FAKTISK trukne minuttene for raden
+  // (spenn-overlapp mot lunsjvinduet gitt radens pauseMin) — ikke hardkodet 30.
+  // Full-spenn → 30 min; delvis overlapp → f.eks. 15 min. Kun visning; rører
+  // ikke pause-beregningen. visPauseRad garanterer fra/til er satt.
+  const pauseTrukketMin =
+    rad.fraTid && rad.tilTid
+      ? pauseOverlappMin(
+          hhmmTilMin(rad.fraTid),
+          hhmmTilMin(rad.tilTid),
+          hhmmTilMin(pauseFra),
+          rad.pauseMin,
+        )
+      : 0;
+
+  // F3: radens effektive prosjekt (per-rad override eller gruppe-fallback).
+  const effektivProjectId = rad.projectId ?? gruppeProjectId;
+  const prosjektNavn = useMemo(
+    () => finnProsjektLokalt(effektivProjectId)?.name ?? null,
+    [effektivProjectId],
+  );
+
+  // F3: byggeplass-visning på sekundærlinja. Override (`rad.byggeplassId`) i
+  // vanlig styrke; ellers arv fra dagskortet (`sedelByggeplassId`) nedtonet —
+  // men kun når den arvede byggeplassen faktisk hører til radens prosjekt (arv
+  // gjelder sedelens primærprosjekt; sekundær-prosjekt-rader arver ikke).
+  const byggeplassInfo = useMemo(() => {
+    const arvet = rad.byggeplassId == null;
+    const effektivId = rad.byggeplassId ?? sedelByggeplassId;
+    if (!effektivId) return null;
+    const db = hentDatabase();
+    if (!db) return null;
+    const bp = db
+      .select()
+      .from(byggeplassLocal)
+      .where(eq(byggeplassLocal.id, effektivId))
+      .all()[0];
+    if (!bp) return null;
+    if (arvet && bp.projectId !== effektivProjectId) return null;
+    return { navn: bp.navn ?? null, arvet };
+  }, [rad.byggeplassId, sedelByggeplassId, effektivProjectId]);
+
   const lonnsart = useMemo(() => {
     const db = hentDatabase();
     if (!db) return null;
@@ -451,7 +660,8 @@ function TimerRadVis({
   }, [rad.aktivitetId]);
 
   return (
-    <View className="flex-row items-center gap-2 border-b border-gray-100 bg-white px-4 py-3">
+    <View className="border-b border-gray-100 bg-white">
+      <View className="flex-row items-center gap-2 px-4 pb-1.5 pt-3">
       <View className="flex-1">
         {erReise ? (
           // Slice 3: reise-rad merkes distinkt (🚗 + «Reisetid») så den skiller
@@ -521,7 +731,84 @@ function TimerRadVis({
           </Pressable>
         </View>
       )}
+      </View>
+
+      {/* F3: sekundærlinje «Prosjekt · Byggeplass». Hele linja er trykkflate
+          (≥44px) → åpner den kombinerte prosjekt+byggeplass-velgeren direkte
+          (hurtigsti). Ingen egen «endre»-knapp. Override i vanlig tekststyrke;
+          arvet byggeplass nedtonet med «fra dagskortet»-hint. */}
+      {redigerbar ? (
+        <Pressable
+          onPress={onByggeplassLinje}
+          className="min-h-[44px] flex-row items-center gap-1 px-4 pb-2 active:bg-gray-50"
+        >
+          <ByggeplassLinjeTekst
+            prosjektNavn={prosjektNavn ?? effektivProjectId}
+            byggeplassInfo={byggeplassInfo}
+          />
+          <ChevronRight size={16} color="#9ca3af" />
+        </Pressable>
+      ) : (
+        <View className="min-h-[44px] flex-row items-center gap-1 px-4 pb-2">
+          <ByggeplassLinjeTekst
+            prosjektNavn={prosjektNavn ?? effektivProjectId}
+            byggeplassInfo={byggeplassInfo}
+          />
+        </View>
+      )}
+
+      {/* F5: kompakt matpause-avhuking nederst på det trigrede rad-kortet. Kun
+          synlig når dag > 5,5t OG raden krysser lunsjvinduet. Bæreren er avhuket;
+          å hake av flytter pausen (flytt-ikke-radio, orkestreres i [id].tsx). */}
+      {visPauseRad && (
+        <Pressable
+          onPress={() => onPauseToggle(rad.id, !pauseAvhuket)}
+          className="min-h-[40px] flex-row items-center gap-2 border-t border-gray-100 px-4 py-2 active:bg-gray-50"
+        >
+          {pauseAvhuket ? (
+            <CheckSquare size={18} color="#1e40af" />
+          ) : (
+            <Square size={18} color="#9ca3af" />
+          )}
+          <Text
+            className={`text-xs ${pauseAvhuket ? "text-gray-700" : "text-gray-400"}`}
+          >
+            {pauseAvhuket
+              ? t("timer.matpause.trukket", { min: pauseTrukketMin })
+              : t("timer.matpause.trukketUmerket")}
+          </Text>
+        </Pressable>
+      )}
     </View>
+  );
+}
+
+/** F3: felles render av «Prosjekt · Byggeplass»-sekundærlinja (grå, ~12px). */
+function ByggeplassLinjeTekst({
+  prosjektNavn,
+  byggeplassInfo,
+}: {
+  prosjektNavn: string;
+  byggeplassInfo: { navn: string | null; arvet: boolean } | null;
+}) {
+  const { t } = useTranslation();
+  return (
+    <Text className="flex-1 text-xs text-gray-500" numberOfLines={1}>
+      {prosjektNavn}
+      {" · "}
+      {byggeplassInfo ? (
+        <Text
+          className={byggeplassInfo.arvet ? "text-gray-400" : "text-gray-600"}
+        >
+          {byggeplassInfo.navn ?? t("byggeplassVelger.velg")}
+          {byggeplassInfo.arvet
+            ? ` (${t("timer.byggeplass.fraDagskort")})`
+            : ""}
+        </Text>
+      ) : (
+        <Text className="text-gray-400">{t("timer.byggeplass.ingenValgt")}</Text>
+      )}
+    </Text>
   );
 }
 
@@ -557,6 +844,7 @@ function TimerRadModal({
   alleTimerRader,
   defaultAktivitetId,
   eksisterendeRad,
+  tvungetValg,
   onLagre,
   onLukk,
 }: {
@@ -575,8 +863,13 @@ function TimerRadModal({
   alleTimerRader: TimerRad[];
   defaultAktivitetId: string | null;
   eksisterendeRad: TimerRad | null;
+  /** F3 hurtigsti-ruting: prosjektbytte fra rad-sekundærlinja forhåndsvelger
+   *  nytt prosjekt (+ byggeplass) her, så avhengig-felt-validering (underprosjekt,
+   *  lønnsart) kjører i full modal. null = vanlig åpning (rad/default styrer). */
+  tvungetValg: { projectId: string; byggeplassId: string | null } | null;
   onLagre: (
     projectId: string,
+    byggeplassId: string | null,
     lonnsartId: string,
     aktivitetId: string,
     timer: number,
@@ -668,8 +961,17 @@ function TimerRadModal({
     };
   }, [eksisterendeRad, eksisterendeRader, defaultAktivitetId, organizationId]);
 
+  // F3: tvungetValg (hurtigsti-prosjektbytte) vinner over radens/defaults ved
+  // init — så full modal åpner med det nye prosjektet forhåndsvalgt.
   const [valgtProjectId, setValgtProjectId] = useState<string>(
-    eksisterendeRad?.projectId ?? defaultProjectId,
+    tvungetValg?.projectId ?? eksisterendeRad?.projectId ?? defaultProjectId,
+  );
+  // F3: per-rad byggeplass. null = arv fra dagskortet (sedel-nivå). Byggeplass
+  // hører alltid til rad-prosjektet; nullstilles ved prosjektbytte i modalen.
+  const [valgtByggeplassId, setValgtByggeplassId] = useState<string | null>(
+    tvungetValg
+      ? tvungetValg.byggeplassId
+      : eksisterendeRad?.byggeplassId ?? null,
   );
   const [valgtLonnsartId, setValgtLonnsartId] = useState<string>(
     defaultValg.lonnsartId,
@@ -700,8 +1002,10 @@ function TimerRadModal({
   });
   // T7-4e: defaultEcoId pre-selekteres når bruker klikker "+Legg til timer"
   // i en spesifikk ECO-bucket. Ved redigering brukes radens egen ECO.
+  // F3: ved tvungetValg (prosjektbytte) nullstilles ECO — den er prosjekt-
+  // spesifikk og radens gamle ECO gjelder ikke det nye prosjektet.
   const [valgtEcoId, setValgtEcoId] = useState<string | null>(
-    eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
+    tvungetValg ? null : eksisterendeRad?.externalCostObjectId ?? defaultEcoId,
   );
   const [fraTid, setFraTid] = useState<string | null>(defaultTider.fra);
   // Bolk (g)/web-speiling: til prefylles kun ved gyldig prefill (fra < til).
@@ -712,7 +1016,9 @@ function TimerRadModal({
     eksisterendeRad?.beskrivelse ?? "",
   );
   const [feil, setFeil] = useState<string | null>(null);
-  const [visProsjektVelger, setVisProsjektVelger] = useState(false);
+  // F3: kombinert prosjekt+byggeplass-velger (erstatter ren prosjekt-velger her).
+  const [visProsjektByggeplassVelger, setVisProsjektByggeplassVelger] =
+    useState(false);
   const [visLonnsartVelger, setVisLonnsartVelger] = useState(false);
   const [visAktivitetVelger, setVisAktivitetVelger] = useState(false);
   const [visEcoVelger, setVisEcoVelger] = useState(false);
@@ -777,6 +1083,20 @@ function TimerRadModal({
   const valgtProsjekt = useMemo(() => {
     return valgtProjectId ? finnProsjektLokalt(valgtProjectId) : null;
   }, [valgtProjectId]);
+
+  // F3: navn på valgt byggeplass (til felt-visning). null = arv fra dagskortet.
+  const valgtByggeplassNavn = useMemo(() => {
+    if (!valgtByggeplassId) return null;
+    const db = hentDatabase();
+    if (!db) return null;
+    return (
+      db
+        .select()
+        .from(byggeplassLocal)
+        .where(eq(byggeplassLocal.id, valgtByggeplassId))
+        .all()[0]?.navn ?? null
+    );
+  }, [valgtByggeplassId]);
 
   const valgtLonnsart = useMemo(() => {
     if (!valgtLonnsartId) return null;
@@ -969,6 +1289,7 @@ function TimerRadModal({
       : null;
     onLagre(
       valgtProjectId,
+      valgtByggeplassId,
       valgtLonnsartId,
       valgtAktivitetId,
       tall,
@@ -1007,6 +1328,9 @@ function TimerRadModal({
           contentContainerClassName="p-4 gap-4"
           keyboardShouldPersistTaps="handled"
         >
+          {/* F3: kombinert prosjekt+byggeplass. Feltet åpner én velger der
+              begge velges (byggeplass innenfor valgt prosjekt). Byggeplass er
+              valgfri (null = arv fra dagskortet, server propagerer sedel-verdi). */}
           <View>
             <Text className="mb-1 text-sm font-medium text-gray-700">
               {t("timer.felt.prosjekt")} *
@@ -1014,8 +1338,29 @@ function TimerRadModal({
             <ProsjektFelt
               prosjektNavn={valgtProsjekt?.name ?? null}
               prosjektNummer={valgtProsjekt?.projectNumber ?? null}
-              onTrykk={() => setVisProsjektVelger(true)}
+              onTrykk={() => setVisProsjektByggeplassVelger(true)}
             />
+            <Pressable
+              onPress={() => setVisProsjektByggeplassVelger(true)}
+              className="mt-1 flex-row items-center gap-1 px-1 py-0.5"
+            >
+              <Text className="text-xs text-gray-500">
+                {t("timer.felt.byggeplass")}:{" "}
+              </Text>
+              <Text
+                className={
+                  valgtByggeplassId
+                    ? "flex-1 text-xs text-gray-700"
+                    : "flex-1 text-xs text-gray-400"
+                }
+                numberOfLines={1}
+              >
+                {valgtByggeplassNavn ??
+                  (valgtByggeplassId
+                    ? t("byggeplassVelger.velg")
+                    : t("timer.byggeplass.arvFraDagskort"))}
+              </Text>
+            </Pressable>
           </View>
 
           <View>
@@ -1241,17 +1586,21 @@ function TimerRadModal({
           />
         )}
 
-        {visProsjektVelger && (
-          <ProsjektVelgerModal
+        {visProsjektByggeplassVelger && (
+          <ProsjektByggeplassVelgerModal
             organizationId={organizationId}
-            valgtId={valgtProjectId}
-            onVelg={(id) => {
-              setValgtProjectId(id);
-              // Nullstill ECO ved prosjekt-bytte — ECO er prosjekt-spesifikk
-              setValgtEcoId(null);
-              setVisProsjektVelger(false);
+            valgtProjectId={valgtProjectId}
+            valgtByggeplassId={valgtByggeplassId}
+            onVelg={(projId, byggId) => {
+              if (projId !== valgtProjectId) {
+                setValgtProjectId(projId);
+                // Nullstill ECO ved prosjekt-bytte — ECO er prosjekt-spesifikk.
+                setValgtEcoId(null);
+              }
+              setValgtByggeplassId(byggId);
+              setVisProsjektByggeplassVelger(false);
             }}
-            onLukk={() => setVisProsjektVelger(false)}
+            onLukk={() => setVisProsjektByggeplassVelger(false)}
           />
         )}
 
@@ -1567,6 +1916,356 @@ export function UnderprosjektVelgerModal({
             </View>
           )}
         />
+      </SafeAreaView>
+    </Modal>
+  );
+}
+
+/**
+ * F3 (2026-07-14): kombinert prosjekt+byggeplass-velger for timer-rad-modalen +
+ * rad-sekundærlinjas hurtigsti. Én pageSheet: øverst en prosjekt-rad (trykk
+ * ekspanderer prosjektlista inline), under byggeplass-lista filtrert på valgt
+ * prosjekt. Prosjektbytte oppdaterer lista på stedet (ikke to-stegs wizard).
+ * Byggeplass er valgfri: «Arv fra dagskortet» velger null (sedel-nivå propagering).
+ *
+ * Gjenbruker ByggeplassVelgers list-logikk: F2s tri-tilstand tom-visning +
+ * auto-refresh (tom cache + online), søkefelt-terskel (>7). Sortering:
+ * favoritter → resten. INGEN GPS-tier — GPS-kontekst lever kun på sedel-nivå
+ * («Start dag»); rad-modalen har ingen GPS-kontekst → `gpsForeslagId` utelates.
+ */
+function ProsjektByggeplassVelgerModal({
+  organizationId,
+  valgtProjectId,
+  valgtByggeplassId,
+  onVelg,
+  onLukk,
+}: {
+  organizationId: string;
+  valgtProjectId: string;
+  valgtByggeplassId: string | null;
+  /** byggeplassId = null → «Arv fra dagskortet» (sedel-nivå propagering). */
+  onVelg: (projectId: string, byggeplassId: string | null) => void;
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const { favorittIder, toggleFavoritt } = useByggeplass();
+  const { erPaaNettet } = useNettverk();
+  const utils = trpc.useUtils();
+
+  const [lokaltProjectId, setLokaltProjectId] = useState(valgtProjectId);
+  const [visProsjektListe, setVisProsjektListe] = useState(false);
+  const [prosjektSok, setProsjektSok] = useState("");
+  const [sok, setSok] = useState("");
+  // F2 tri-tilstand: skill «henter» / «offline» / «bekreftet tomt».
+  const [laster, setLaster] = useState(false);
+  const [refreshFullført, setRefreshFullført] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+
+  const prosjekter = useMemo<Prosjekt[]>(() => {
+    if (!organizationId) return [];
+    return hentProsjekterLokalt(organizationId);
+  }, [organizationId]);
+
+  const filtrerteProsjekter = useMemo(() => {
+    if (!prosjektSok.trim()) return prosjekter;
+    const q = prosjektSok.toLowerCase();
+    return prosjekter.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.projectNumber ?? "").toLowerCase().includes(q),
+    );
+  }, [prosjekter, prosjektSok]);
+
+  const valgtProsjekt = useMemo(
+    () => finnProsjektLokalt(lokaltProjectId),
+    [lokaltProjectId],
+  );
+
+  const byggeplasser = useMemo(() => {
+    if (!lokaltProjectId) return [];
+    return hentByggeplasserForProsjektLokalt(lokaltProjectId);
+    // refreshNonce tvinger re-lesing etter at et byggeplass-refresh fullførte.
+  }, [lokaltProjectId, refreshNonce]);
+
+  // Reset-catch (fabels F3-catch): inline prosjektbytte endrer `lokaltProjectId`
+  // uten remount → nullstill refresh-tilstand + søk, ellers ville et nytt
+  // prosjekt vist «bekreftet tomt» basert på FORRIGE prosjekts fullførte refresh.
+  // Den eksisterende ByggeplassVelger dekker ikke dette nye komponentet.
+  useEffect(() => {
+    setLaster(false);
+    setRefreshFullført(false);
+    setSok("");
+  }, [lokaltProjectId]);
+
+  // F2: tom cache + online → hent byggeplasser ved åpning/prosjektbytte.
+  // «Bekreftet tomt» (tilstand 3) vises kun ETTER at et refresh har fullført
+  // tomt — aldri før.
+  useEffect(() => {
+    if (
+      !lokaltProjectId ||
+      byggeplasser.length > 0 ||
+      !erPaaNettet ||
+      laster ||
+      refreshFullført
+    ) {
+      return;
+    }
+    const orgId =
+      finnProsjektLokalt(lokaltProjectId)?.organizationId ?? organizationId;
+    if (!orgId) return;
+    let avbrutt = false;
+    setLaster(true);
+    refreshByggeplassKatalog(utils.client, orgId)
+      .catch(() => {
+        // Feil svelges (samme som TimerSyncProvider) — faller tilbake til
+        // «bekreftet tomt»/eksisterende cache; ikke kritisk sti.
+      })
+      .finally(() => {
+        if (avbrutt) return;
+        setLaster(false);
+        setRefreshFullført(true);
+        setRefreshNonce((n) => n + 1);
+      });
+    return () => {
+      avbrutt = true;
+    };
+  }, [
+    lokaltProjectId,
+    byggeplasser.length,
+    erPaaNettet,
+    laster,
+    refreshFullført,
+    organizationId,
+    utils.client,
+  ]);
+
+  const filtrerteByggeplasser = useMemo(() => {
+    const q = sok.trim().toLowerCase();
+    const treff = q
+      ? byggeplasser.filter(
+          (b) =>
+            (b.navn ?? "").toLowerCase().includes(q) ||
+            String(b.number ?? "").includes(q),
+        )
+      : byggeplasser;
+    // Sortering: favoritter → resten (stabil innen hver gruppe). Ingen GPS-tier
+    // i rad-velgeren — GPS lever kun på sedel-nivå.
+    const rang = (id: string) => (favorittIder.includes(id) ? 0 : 1);
+    return [...treff].sort((a, b) => rang(a.id) - rang(b.id));
+  }, [byggeplasser, sok, favorittIder]);
+
+  return (
+    <Modal
+      visible={true}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onRequestClose={onLukk}
+    >
+      <SafeAreaView className="flex-1 bg-white" edges={["top"]}>
+        <View className="flex-row items-center gap-2 border-b border-gray-200 px-4 py-3">
+          <Text className="flex-1 text-lg font-semibold text-gray-900">
+            {t("timer.velgProsjektByggeplass")}
+          </Text>
+          <Pressable onPress={onLukk} hitSlop={12}>
+            <X size={24} color="#1f2937" />
+          </Pressable>
+        </View>
+
+        {/* Prosjekt-rad — trykk ekspanderer prosjektlista inline. */}
+        <Pressable
+          onPress={() => setVisProsjektListe((v) => !v)}
+          className="flex-row items-center gap-2 border-b border-gray-200 bg-gray-50 px-4 py-3"
+        >
+          <View className="flex-1">
+            <Text className="text-xs font-medium uppercase tracking-wide text-gray-500">
+              {t("timer.felt.prosjekt")}
+            </Text>
+            <Text className="text-base text-gray-900">
+              {valgtProsjekt
+                ? `${valgtProsjekt.projectNumber ? valgtProsjekt.projectNumber + " — " : ""}${valgtProsjekt.name}`
+                : lokaltProjectId}
+            </Text>
+          </View>
+          <ChevronDown
+            size={20}
+            color="#6b7280"
+            style={{
+              transform: [{ rotate: visProsjektListe ? "180deg" : "0deg" }],
+            }}
+          />
+        </Pressable>
+
+        {visProsjektListe ? (
+          <>
+            {prosjekter.length > 7 && (
+              <View className="border-b border-gray-200 px-4 py-2">
+                <TextInput
+                  value={prosjektSok}
+                  onChangeText={setProsjektSok}
+                  placeholder={t("handling.sok")}
+                  className="rounded bg-gray-100 px-3 py-2 text-base"
+                />
+              </View>
+            )}
+            <FlatList
+              data={filtrerteProsjekter}
+              keyExtractor={(item) => item.id}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => {
+                    if (item.id !== lokaltProjectId) {
+                      setLokaltProjectId(item.id);
+                    }
+                    setVisProsjektListe(false);
+                    setProsjektSok("");
+                  }}
+                  className={`flex-row items-center border-b border-gray-100 px-4 py-3 ${
+                    item.id === lokaltProjectId ? "bg-blue-50" : ""
+                  }`}
+                >
+                  <View className="flex-1">
+                    <Text className="text-base text-gray-900">{item.name}</Text>
+                    {item.projectNumber && (
+                      <Text className="text-xs text-gray-500">
+                        {item.projectNumber}
+                      </Text>
+                    )}
+                  </View>
+                  {item.id === lokaltProjectId && (
+                    <Check size={18} color="#1e40af" />
+                  )}
+                </Pressable>
+              )}
+              ListEmptyComponent={() => (
+                <View className="px-4 py-8">
+                  <Text className="text-center text-gray-500">
+                    {t("timer.ingenTilgjengelige")}
+                  </Text>
+                </View>
+              )}
+            />
+          </>
+        ) : (
+          <>
+            {/* «Arv fra dagskortet» (byggeplass = null → sedel-nivå propagering). */}
+            <Pressable
+              onPress={() => onVelg(lokaltProjectId, null)}
+              className={`flex-row items-center border-b border-gray-100 px-4 py-3 ${
+                valgtByggeplassId == null ? "bg-blue-50" : ""
+              }`}
+            >
+              <Text className="flex-1 text-base text-gray-700">
+                {t("timer.byggeplass.arvFraDagskort")}
+              </Text>
+              {valgtByggeplassId == null && <Check size={18} color="#1e40af" />}
+            </Pressable>
+            {byggeplasser.length > 7 && (
+              <View className="border-b border-gray-200 px-4 py-2">
+                <TextInput
+                  value={sok}
+                  onChangeText={setSok}
+                  placeholder={t("byggeplassVelger.sok")}
+                  className="rounded bg-gray-100 px-3 py-2 text-base"
+                />
+              </View>
+            )}
+            <FlatList
+              data={filtrerteByggeplasser}
+              keyExtractor={(item) => item.id}
+              keyboardShouldPersistTaps="handled"
+              renderItem={({ item }) => (
+                <Pressable
+                  onPress={() => onVelg(lokaltProjectId, item.id)}
+                  className={`flex-row items-center border-b border-gray-100 px-4 py-3 ${
+                    item.id === valgtByggeplassId ? "bg-blue-50" : ""
+                  }`}
+                >
+                  <View className="flex-1">
+                    <Text className="text-base text-gray-900">
+                      {item.navn ?? item.id}
+                    </Text>
+                    {favorittIder.includes(item.id) ? (
+                      <Text className="text-xs text-amber-600">
+                        {t("byggeplassVelger.favoritt")}
+                      </Text>
+                    ) : (
+                      item.number != null && (
+                        <Text className="text-xs text-gray-500">
+                          #{item.number}
+                        </Text>
+                      )
+                    )}
+                  </View>
+                  {/* Stjerne-toggle (egen trykk-flate — velger ikke byggeplass). */}
+                  <Pressable
+                    onPress={() => toggleFavoritt(item.id)}
+                    hitSlop={10}
+                    className="px-1"
+                  >
+                    <Star
+                      size={18}
+                      color="#d97706"
+                      fill={favorittIder.includes(item.id) ? "#d97706" : "none"}
+                    />
+                  </Pressable>
+                  {item.id === valgtByggeplassId && (
+                    <Check size={18} color="#1e40af" />
+                  )}
+                </Pressable>
+              )}
+              ListEmptyComponent={() => {
+                // Søk uten treff (cachen HAR data) → egen tilstand, ikke tri-tilstand.
+                if (sok.trim() && byggeplasser.length > 0) {
+                  return (
+                    <View className="px-4 py-8">
+                      <Text className="text-center text-gray-500">
+                        {t("byggeplassVelger.ingenTreff")}
+                      </Text>
+                    </View>
+                  );
+                }
+                // Tom cache — F2 tri-tilstand.
+                if (laster) {
+                  return (
+                    <View className="items-center px-4 py-8">
+                      <ActivityIndicator color="#1e40af" />
+                      <Text className="mt-3 text-center text-gray-500">
+                        {t("byggeplassVelger.lastes")}
+                      </Text>
+                    </View>
+                  );
+                }
+                if (!erPaaNettet && !refreshFullført) {
+                  return (
+                    <View className="px-4 py-8">
+                      <Text className="text-center text-gray-500">
+                        {t("byggeplassVelger.offline")}
+                      </Text>
+                    </View>
+                  );
+                }
+                if (refreshFullført) {
+                  return (
+                    <View className="px-4 py-8">
+                      <Text className="text-center text-gray-500">
+                        {t("byggeplassVelger.prosjektMangler")}
+                      </Text>
+                    </View>
+                  );
+                }
+                // Initial (før effekten rakk å kjøre) — nøytral melding.
+                return (
+                  <View className="px-4 py-8">
+                    <Text className="text-center text-gray-500">
+                      {t("byggeplassVelger.ingen")}
+                    </Text>
+                  </View>
+                );
+              }}
+            />
+          </>
+        )}
       </SafeAreaView>
     </Modal>
   );

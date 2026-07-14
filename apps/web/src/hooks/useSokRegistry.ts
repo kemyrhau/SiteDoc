@@ -12,6 +12,11 @@ import {
 } from "@/components/layout/sidebar-elementer";
 import { useFirmaNavElementer } from "@/components/layout/firma-nav";
 import { useDypeSider } from "@/components/layout/dype-sider";
+import { normaliserSok, synonymerFor } from "@/lib/sok-match";
+
+// normaliserSok bor nå i @/lib/sok-match (én kilde) — re-eksporteres her for
+// bakoverkompatibilitet (SokModal m.fl. importerer den herfra).
+export { normaliserSok };
 
 /**
  * Søkeregister for den globale søkemodalen (steg iv).
@@ -35,16 +40,6 @@ export interface SokTreff {
   norm: string;
 }
 
-/** Normaliserer for diakritikk-tolerant match: «lonnsart» treffer «Lønnsarter». */
-export function normaliserSok(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // fjern kombinasjonstegn: å→a, ü→u, é→e …
-    .replace(/ø/g, "o")
-    .replace(/æ/g, "ae");
-}
-
 export function useSokRegistry(): SokTreff[] {
   const { t } = useTranslation();
   const { prosjektId } = useProsjekt();
@@ -65,14 +60,20 @@ export function useSokRegistry(): SokTreff[] {
       tittel: string,
       brodsmule: string[],
       href: string,
+      sokeord?: string,
     ) => {
+      // sokeord (per-kort synonymer) + sentrale kjerne-synonymer er med i
+      // match-normen, men ikke i det viste treffet. synonymerFor kjøres på den
+      // normaliserte basen slik at f.eks. «Innstillinger» også treffes av
+      // «oppsett/admin/instill», «Byggeplasser» av «lokasjon/tegning» osv.
+      const base = normaliserSok([tittel, ...brodsmule, sokeord ?? ""].join(" "));
       treff.push({
         id,
         gruppe,
         tittel,
         brodsmule,
         href,
-        norm: normaliserSok([tittel, ...brodsmule].join(" ")),
+        norm: `${base} ${synonymerFor(base)}`.trim(),
       });
     };
 
@@ -84,17 +85,26 @@ export function useSokRegistry(): SokTreff[] {
     }
 
     // INNSTILLINGER — hver synlig underlenke er eget treff (chip-nivå).
+    // Synonym-søk: kort- og lenke-nivå `sokeordKey` appendes til `norm` (usynlig
+    // i treffet) → «lokasjoner/tegninger/kart/geofence» finner Byggeplasser.
     for (const kort of [...firmaKort, ...prosjektKort]) {
       if (!kort.synlig) continue;
       const kortTittel = t(kort.tittelKey);
       for (const lenke of kort.underlenker) {
         if (lenke.synlig === false) continue;
+        const sokeord = [kort.sokeordKey, lenke.sokeordKey]
+          .filter((k): k is string => !!k)
+          .map((k) => t(k))
+          .join(" ");
         legg(
-          `inn:${lenke.href}`,
+          // id inkluderer labelKey — to underlenker kan dele href (Byggeplasser +
+          // Tegninger → samme side), så React-key/id må være unik.
+          `inn:${kort.id}:${lenke.labelKey}`,
           "innstillinger",
           t(lenke.labelKey),
           [soneLabel(kort.seksjon), kortTittel],
           lenke.href,
+          sokeord || undefined,
         );
       }
     }

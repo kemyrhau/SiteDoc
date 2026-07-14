@@ -5,6 +5,7 @@ import {
   Pressable,
   ScrollView,
   Alert,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Animated, {
@@ -57,6 +58,12 @@ import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBa
 import { ProsjektVelgerModal } from "../../src/components/timer-detalj/ProsjektVelger";
 import { ByggeplassVelgerModal } from "../../src/components/timer-detalj/ByggeplassVelger";
 import { finnProsjektLokalt } from "../../src/services/prosjektKatalog";
+import {
+  flyttMatpauseVedAvhuking,
+  settMatpauseBaerer,
+  fjernMatpause,
+} from "../../src/services/matpause";
+import { useMiniToast, MiniToast } from "../../src/components/MiniToast";
 import { hentEffektivArbeidstidLokal } from "../../src/services/kalenderKatalog";
 import {
   hentStandardLonnsartLokalt,
@@ -99,6 +106,9 @@ export default function DagsseddelDetalj() {
   const [visLeggTilProsjekt, setVisLeggTilProsjekt] = useState(false);
   // L1 / B6 sedel-nivå: byggeplass-velger for aktivt prosjekt.
   const [visByggeplassVelger, setVisByggeplassVelger] = useState(false);
+  // F5: matpause-toast + bekreftelsesmodal ved fjerning (ingen kvalifisert rad).
+  const { melding: pauseToast, vis: visPauseToast } = useMiniToast();
+  const [bekreftFjernRadId, setBekreftFjernRadId] = useState<string | null>(null);
   // UF-0: find-or-open fra «+ Ny» — subtil notis om at dagen alt fantes.
   const [visAapnetNotis, setVisAapnetNotis] = useState(
     params.aapnetEksisterende === "1",
@@ -329,6 +339,43 @@ export default function DagsseddelDetalj() {
     void triggerSync();
     lesData();
   }, [sedel, sheetId, oppdaterTellere, triggerSync, lesData]);
+
+  // F5: matpause-toggle (dag-nivå, kryss-bøtte via sheetId). Flytt-ikke-radio:
+  //  - PÅ på en rad → sett bæreren der (forrige nulles stille).
+  //  - AV på bæreren → flytt til neste kvalifiserte rad (+ toast); ingen
+  //    kvalifisert → ekte bekreftelsesmodal FØR fjerning (AML-varsel).
+  // Servicen skriver rad-pauseMin + recompute timer + dagsseddel.pauseMin=Σ i én
+  // tx; markerEndretOgLes marker pending + synk + les. (Ikke Alert/confirm.)
+  const handterPauseToggle = useCallback(
+    (radId: string, vilHa: boolean) => {
+      if (!sedel) return;
+      if (vilHa) {
+        settMatpauseBaerer(sheetId, radId, sedel.organizationId, sedel.dato);
+        markerEndretOgLes();
+        return;
+      }
+      const res = flyttMatpauseVedAvhuking(
+        sheetId,
+        radId,
+        sedel.organizationId,
+        sedel.dato,
+      );
+      if (res.utfall === "flyttet") {
+        markerEndretOgLes();
+        visPauseToast(t("timer.matpause.flyttet", { tidsrom: res.tilTidsrom }));
+      } else if (res.utfall === "ingenKvalifisert") {
+        setBekreftFjernRadId(radId);
+      }
+    },
+    [sedel, sheetId, markerEndretOgLes, visPauseToast, t],
+  );
+
+  const bekreftFjernMatpause = useCallback(() => {
+    if (!sedel) return;
+    fjernMatpause(sheetId, sedel.organizationId, sedel.dato);
+    setBekreftFjernRadId(null);
+    markerEndretOgLes();
+  }, [sedel, sheetId, markerEndretOgLes]);
 
   function sendTilAttestering() {
     if (!sedel) return;
@@ -744,12 +791,14 @@ export default function DagsseddelDetalj() {
             sheetId={sheetId}
             organizationId={sedel.organizationId}
             sedelProjectId={sedel.projectId}
+            sedelByggeplassId={sedel.byggeplassId ?? null}
             dato={sedel.dato}
             pauseMin={sedel.pauseMin}
             defaultAktivitetId={sedel.aktivitetId ?? null}
             harEquipmentCache={harEquipmentCache}
             harMaskinforerbevis={harMaskinforerbevis}
             redigerbar={erRedigerbar}
+            onPauseToggle={handterPauseToggle}
             timerRader={timerRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             alleTimerRader={timerRader}
             tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
@@ -847,6 +896,49 @@ export default function DagsseddelDetalj() {
           onLukk={() => setVisByggeplassVelger(false)}
         />
       )}
+
+      {/* F5: ekte bekreftelsesmodal (ikke confirm/Alert) når matpausen hukes av
+          uten kvalifisert rad å flytte til — AML-varsel, ikke-blokkerende. */}
+      <Modal
+        visible={bekreftFjernRadId !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setBekreftFjernRadId(null)}
+      >
+        <View className="flex-1 items-center justify-center bg-black/40 px-8">
+          <View className="w-full max-w-sm rounded-2xl bg-white p-5">
+            <View className="mb-2 flex-row items-center gap-2">
+              <AlertTriangle size={20} color="#d97706" />
+              <Text className="flex-1 text-base font-semibold text-gray-900">
+                {t("timer.matpause.fjernTittel")}
+              </Text>
+            </View>
+            <Text className="mb-4 text-sm text-gray-600">
+              {t("timer.matpause.fjernTekst")}
+            </Text>
+            <View className="flex-row justify-end gap-2">
+              <Pressable
+                onPress={() => setBekreftFjernRadId(null)}
+                className="rounded-lg px-4 py-2.5 active:bg-gray-100"
+              >
+                <Text className="text-base font-medium text-gray-700">
+                  {t("handling.avbryt")}
+                </Text>
+              </Pressable>
+              <Pressable
+                onPress={bekreftFjernMatpause}
+                className="rounded-lg bg-amber-600 px-4 py-2.5 active:bg-amber-700"
+              >
+                <Text className="text-base font-semibold text-white">
+                  {t("timer.matpause.fjernBekreft")}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <MiniToast melding={pauseToast} />
     </SafeAreaView>
   );
 }
@@ -857,12 +949,14 @@ function ProsjektGruppe({
   sheetId,
   organizationId,
   sedelProjectId,
+  sedelByggeplassId,
   dato,
   pauseMin,
   defaultAktivitetId,
   harEquipmentCache,
   harMaskinforerbevis,
   redigerbar,
+  onPauseToggle,
   timerRader,
   alleTimerRader,
   tilleggRader,
@@ -875,6 +969,10 @@ function ProsjektGruppe({
   organizationId: string;
   /** Fallback for rader uten per-rad-projectId (pre-T7-3b1-data). */
   sedelProjectId: string;
+  /** F3: sedel-nivå byggeplass — arvet verdi på rader uten per-rad-override. */
+  sedelByggeplassId: string | null;
+  /** F5: dag-nivå matpause-toggle (videreføres til TimerSeksjon). */
+  onPauseToggle: (radId: string, vilHa: boolean) => void;
   dato: string;
   /** Sedel-nivå pause (min) — inngår i maskin-kapasitet per bucket (Del 2). */
   pauseMin: number;
@@ -995,6 +1093,8 @@ function ProsjektGruppe({
               organizationId={organizationId}
               projectId={projectId}
               ecoId={bucket.ecoId}
+              sedelByggeplassId={sedelByggeplassId}
+              onPauseToggle={onPauseToggle}
               dato={dato}
               pauseMin={pauseMin}
               defaultAktivitetId={defaultAktivitetId}
@@ -1037,6 +1137,8 @@ function EcoBucket({
   organizationId,
   projectId,
   ecoId,
+  sedelByggeplassId,
+  onPauseToggle,
   dato,
   pauseMin,
   defaultAktivitetId,
@@ -1052,6 +1154,10 @@ function EcoBucket({
   organizationId: string;
   projectId: string;
   ecoId: string | null;
+  /** F3: sedel-nivå byggeplass — arvet verdi på rader uten per-rad-override. */
+  sedelByggeplassId: string | null;
+  /** F5: dag-nivå matpause-toggle (videreføres til TimerSeksjon). */
+  onPauseToggle: (radId: string, vilHa: boolean) => void;
   dato: string;
   pauseMin: number;
   defaultAktivitetId: string | null;
@@ -1138,10 +1244,12 @@ function EcoBucket({
         defaultEcoId={ecoId}
         visHeader={false}
         dato={dato}
+        sedelByggeplassId={sedelByggeplassId}
         pauseMin={pauseMin}
         harEquipmentCache={harEquipmentCache}
         defaultAktivitetId={defaultAktivitetId}
         redigerbar={redigerbar}
+        onPauseToggle={onPauseToggle}
         onEndret={onEndret}
       />
 

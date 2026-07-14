@@ -132,6 +132,11 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   // backfill fra parent dagsseddel_local.project_id. Nullable for legacy-
   // rader inntil to-stegs-policy fjerner dagsseddel_local.project_id.
   projectId: text("project_id"),
+  // F3 (2026-07-14) — per-rad byggeplass (override av sedel-nivå). Nullable;
+  // tilføyes idempotent via ALTER i migreringer.ts. null = arv fra dagskortet
+  // (sedel-nivå), server propagerer da sedel-verdien. Speil av server-skjema
+  // sheet_timer.byggeplass_id (T.2). Byggeplass hører alltid til rad-prosjektet.
+  byggeplassId: text("byggeplass_id"),
   lonnsartId: text("lonnsart_id").notNull(),
   // Per-rad aktivitet (C9 2026-05-02). Kolonnen tilføyes idempotent via
   // ALTER i migreringer.ts; eksisterende rader backfilles fra parent.
@@ -145,6 +150,14 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
   // T.12 — fritekst per rad («hva jeg gjorde»). Tilføyes idempotent via ALTER
   // i migreringer.ts. Nullable, speil av server-skjema (SheetTimer.beskrivelse).
   beskrivelse: text("beskrivelse"),
+  // F5 (2026-07-14) — matpause-bærer: minutter lunsjpause denne raden trekker
+  // (0 = ingen, >0 = raden bærer dagens pause). Additiv NOT NULL DEFAULT 0,
+  // tilføyes idempotent via ALTER. Kun ÉN rad per sedel har pauseMin > 0
+  // (kun-én-per-dag, håndhevet som flytt). Invariant: dagsseddel_local.pauseMin
+  // = Σ(sheet_timer_local.pauseMin) — bevarer maskin-kapasitetsregelen (sedel-
+  // nivå pauseMin). timer = effektiveTimerFraSpenn(fra, til, pauseFra, pauseMin).
+  // Speil av server sheet_timer.pause_min (F5). Bærer = lunsj-kryssende rad.
+  pauseMin: integer("pause_min").notNull().default(0),
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
 
