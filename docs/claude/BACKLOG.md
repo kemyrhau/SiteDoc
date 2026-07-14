@@ -16,6 +16,10 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟡 Sidebar aktiv-seksjon: utled fra sidebar-element-id-er (én kilde) — rotårsaks-oppfølger
+
+`useAktivSeksjon.ts` bruker et parallelt `seksjonMap` (rute-segment → `Seksjon`) med `?? "dashbord"`-fallback for ukjente segmenter. Klasse-bug: en ny seksjon uten map-oppføring lyser falskt «Dashbord» (rammet PSI/Kontrollplan, fikset punktvis i `7f75c654`, pre-eksisterende fra `b8d960547`). **Fiks:** utled `Seksjon` fra sidebar-elementenes `id`-er (samme kilde som navigasjonen selv) i stedet for parallelt map — nye seksjoner dekkes da automatisk, ingen fallback å glemme. Vurdert alternativ (`setAktivSeksjon` → `Seksjon | null` så ukjent segment gir INGEN aktiv) forkastet: type-utvidelse på delt `navigasjon-kontekst` + return-type, og erstattes uansett av single-source. Merk: `7f75c654` forbedret bevisst begge flagg-tilstander (ikke gated) — greit, ren bugfiks.
+
 ### 🔴 i18n fagterm-QA for K13-nøklene
 
 Auto-oversettelsen (generate.ts) ga svake fagtermer for de tre nye K13-nøklene i enkelte språk — særlig `innstillinger.lenke.timerOnboarding` («Oppsett»/«Setup») → pl «Organizować coś» o.l. Kjent generate.ts-quirk (kildene nb/en er korrekte). QA + manuell retting av fagtermene er egen sak, ikke-blokkerende.

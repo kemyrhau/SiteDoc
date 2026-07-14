@@ -18,7 +18,9 @@ const seksjonMap: Record<string, Seksjon> = {
   faggrupper: "faggrupper",
   mapper: "mapper",
   okonomi: "okonomi",
+  kontrollplan: "kontrollplan",
   sok: "sok",
+  psi: "psi",
   mannskap: "mannskap",
   kontakter: "kontakter",
   timer: "timer",
@@ -59,8 +61,15 @@ export function useAktivSeksjon(): Seksjon {
       setAktivSeksjon("timer-attestering");
       return;
     }
-    const seksjon = seksjonDel ? seksjonMap[seksjonDel] : undefined;
-    setAktivSeksjon(seksjon ?? "dashbord");
+    // Dashbord er aktiv KUN på prosjekt-/dashbord-roten (ingen seksjon-segment).
+    // Et segment som mangler i seksjonMap skal ikke lyse Dashbord falskt — det
+    // var rotårsaken til at PSI/Kontrollplan viste Dashbord som aktiv (begge
+    // manglet i mappet). Vakten gjør intensjonen eksplisitt.
+    if (!seksjonDel) {
+      setAktivSeksjon("dashbord");
+      return;
+    }
+    setAktivSeksjon(seksjonMap[seksjonDel] ?? "dashbord");
   }, [pathname, setAktivSeksjon]);
 
   return aktivSeksjon;
