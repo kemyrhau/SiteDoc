@@ -744,6 +744,7 @@ export default function DagsseddelDetalj() {
             sheetId={sheetId}
             organizationId={sedel.organizationId}
             sedelProjectId={sedel.projectId}
+            sedelByggeplassId={sedel.byggeplassId ?? null}
             dato={sedel.dato}
             pauseMin={sedel.pauseMin}
             defaultAktivitetId={sedel.aktivitetId ?? null}
@@ -857,6 +858,7 @@ function ProsjektGruppe({
   sheetId,
   organizationId,
   sedelProjectId,
+  sedelByggeplassId,
   dato,
   pauseMin,
   defaultAktivitetId,
@@ -875,6 +877,8 @@ function ProsjektGruppe({
   organizationId: string;
   /** Fallback for rader uten per-rad-projectId (pre-T7-3b1-data). */
   sedelProjectId: string;
+  /** F3: sedel-nivå byggeplass — arvet verdi på rader uten per-rad-override. */
+  sedelByggeplassId: string | null;
   dato: string;
   /** Sedel-nivå pause (min) — inngår i maskin-kapasitet per bucket (Del 2). */
   pauseMin: number;
@@ -995,6 +999,7 @@ function ProsjektGruppe({
               organizationId={organizationId}
               projectId={projectId}
               ecoId={bucket.ecoId}
+              sedelByggeplassId={sedelByggeplassId}
               dato={dato}
               pauseMin={pauseMin}
               defaultAktivitetId={defaultAktivitetId}
@@ -1037,6 +1042,7 @@ function EcoBucket({
   organizationId,
   projectId,
   ecoId,
+  sedelByggeplassId,
   dato,
   pauseMin,
   defaultAktivitetId,
@@ -1052,6 +1058,8 @@ function EcoBucket({
   organizationId: string;
   projectId: string;
   ecoId: string | null;
+  /** F3: sedel-nivå byggeplass — arvet verdi på rader uten per-rad-override. */
+  sedelByggeplassId: string | null;
   dato: string;
   pauseMin: number;
   defaultAktivitetId: string | null;
@@ -1138,6 +1146,7 @@ function EcoBucket({
         defaultEcoId={ecoId}
         visHeader={false}
         dato={dato}
+        sedelByggeplassId={sedelByggeplassId}
         pauseMin={pauseMin}
         harEquipmentCache={harEquipmentCache}
         defaultAktivitetId={defaultAktivitetId}
