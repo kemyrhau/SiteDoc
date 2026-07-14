@@ -4,6 +4,19 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-07-10
 ---
 
+## EAS-byggteller (kvote ~15/mnd, fri plan — nullstilles den 1.)
+
+> Ordre 1 ([SAMARBEIDSREGLER § Cowork leveranse-ansvar](SAMARBEIDSREGLER.md#cowork-leveranse-ansvar-ordre-2026-07-14)): cowork sporer EAS-bygg her. Ved **12 bygg/mnd** → stopp + sjekk klar-tilstand + flagg i status før nytt bygg fyres. Dato/# bekreftes mot `eas build:list`.
+
+**Juli 2026 — 2 bygg brukt (av ~15):**
+
+| # | Dato | Profil | Formål |
+|---|------|--------|--------|
+| 38 | 2026-07-11 | production | Del 6 + F-b/F-e/F-f/F-g — prod-leveranse |
+| 39 | 2026-07-11 | (test) | Testbygg |
+
+Neste planlagte = **#40** (timer F2/F3/F5 + edge #1, venter Kenneths go). Terskel 12 ikke nær.
+
 ## Pågående arbeid (PR-historikk)
 
 > **Maks 3 aktive PR-tråder.** `### Gjenstående` er en samlepost, ikke en tråd, og telles ikke.
