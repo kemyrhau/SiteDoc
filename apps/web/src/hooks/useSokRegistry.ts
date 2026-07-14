@@ -65,6 +65,7 @@ export function useSokRegistry(): SokTreff[] {
       tittel: string,
       brodsmule: string[],
       href: string,
+      sokeord?: string,
     ) => {
       treff.push({
         id,
@@ -72,7 +73,8 @@ export function useSokRegistry(): SokTreff[] {
         tittel,
         brodsmule,
         href,
-        norm: normaliserSok([tittel, ...brodsmule].join(" ")),
+        // sokeord (synonymer) er med i match-normen, men ikke i det viste treffet.
+        norm: normaliserSok([tittel, ...brodsmule, sokeord ?? ""].join(" ")),
       });
     };
 
@@ -84,17 +86,26 @@ export function useSokRegistry(): SokTreff[] {
     }
 
     // INNSTILLINGER — hver synlig underlenke er eget treff (chip-nivå).
+    // Synonym-søk: kort- og lenke-nivå `sokeordKey` appendes til `norm` (usynlig
+    // i treffet) → «lokasjoner/tegninger/kart/geofence» finner Byggeplasser.
     for (const kort of [...firmaKort, ...prosjektKort]) {
       if (!kort.synlig) continue;
       const kortTittel = t(kort.tittelKey);
       for (const lenke of kort.underlenker) {
         if (lenke.synlig === false) continue;
+        const sokeord = [kort.sokeordKey, lenke.sokeordKey]
+          .filter((k): k is string => !!k)
+          .map((k) => t(k))
+          .join(" ");
         legg(
-          `inn:${lenke.href}`,
+          // id inkluderer labelKey — to underlenker kan dele href (Byggeplasser +
+          // Tegninger → samme side), så React-key/id må være unik.
+          `inn:${kort.id}:${lenke.labelKey}`,
           "innstillinger",
           t(lenke.labelKey),
           [soneLabel(kort.seksjon), kortTittel],
           lenke.href,
+          sokeord || undefined,
         );
       }
     }
