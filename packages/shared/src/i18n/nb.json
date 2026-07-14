@@ -287,6 +287,7 @@
   "timer.byggeplass.fraDagskort": "fra dagskortet",
   "timer.byggeplass.ingenValgt": "Ingen byggeplass",
   "timer.matpause.trukket": "Matpause trukket ({{min}} min)",
+  "timer.matpause.trukketUmerket": "Matpause trukket",
   "timer.matpause.flyttet": "Pausen trekkes i {{tidsrom}}",
   "timer.matpause.fjernTittel": "Ingen pause trekkes",
   "timer.matpause.fjernTekst": "Ingen annen kvalifisert rad å flytte matpausen til. Ingen pause trekkes for dagen — er du sikker?",

@@ -287,6 +287,7 @@
   "timer.byggeplass.fraDagskort": "from the day card",
   "timer.byggeplass.ingenValgt": "No site",
   "timer.matpause.trukket": "Lunch break deducted ({{min}} min)",
+  "timer.matpause.trukketUmerket": "Lunch break deducted",
   "timer.matpause.flyttet": "The break is deducted from {{tidsrom}}",
   "timer.matpause.fjernTittel": "No break deducted",
   "timer.matpause.fjernTekst": "No other eligible row to move the lunch break to. No break will be deducted for the day — are you sure?",
