@@ -12,6 +12,11 @@ import {
 } from "@/components/layout/sidebar-elementer";
 import { useFirmaNavElementer } from "@/components/layout/firma-nav";
 import { useDypeSider } from "@/components/layout/dype-sider";
+import { normaliserSok, synonymerFor } from "@/lib/sok-match";
+
+// normaliserSok bor nå i @/lib/sok-match (én kilde) — re-eksporteres her for
+// bakoverkompatibilitet (SokModal m.fl. importerer den herfra).
+export { normaliserSok };
 
 /**
  * Søkeregister for den globale søkemodalen (steg iv).
@@ -33,16 +38,6 @@ export interface SokTreff {
   href: string;
   /** Diakritikk-normalisert søketekst (tittel + brødsmule). */
   norm: string;
-}
-
-/** Normaliserer for diakritikk-tolerant match: «lonnsart» treffer «Lønnsarter». */
-export function normaliserSok(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // fjern kombinasjonstegn: å→a, ü→u, é→e …
-    .replace(/ø/g, "o")
-    .replace(/æ/g, "ae");
 }
 
 export function useSokRegistry(): SokTreff[] {
@@ -67,14 +62,18 @@ export function useSokRegistry(): SokTreff[] {
       href: string,
       sokeord?: string,
     ) => {
+      // sokeord (per-kort synonymer) + sentrale kjerne-synonymer er med i
+      // match-normen, men ikke i det viste treffet. synonymerFor kjøres på den
+      // normaliserte basen slik at f.eks. «Innstillinger» også treffes av
+      // «oppsett/admin/instill», «Byggeplasser» av «lokasjon/tegning» osv.
+      const base = normaliserSok([tittel, ...brodsmule, sokeord ?? ""].join(" "));
       treff.push({
         id,
         gruppe,
         tittel,
         brodsmule,
         href,
-        // sokeord (synonymer) er med i match-normen, men ikke i det viste treffet.
-        norm: normaliserSok([tittel, ...brodsmule, sokeord ?? ""].join(" ")),
+        norm: `${base} ${synonymerFor(base)}`.trim(),
       });
     };
 

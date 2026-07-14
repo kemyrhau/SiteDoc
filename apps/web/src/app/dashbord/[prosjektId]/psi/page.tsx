@@ -53,7 +53,7 @@ export default function PsiDashboardSide() {
           href="/dashbord/oppsett/produksjon/psi"
           className="text-sm text-sitedoc-primary hover:underline"
         >
-          {t("psi.gaaTilOppsett")}
+          {t("psi.administrerMaler")}
         </a>
       </div>
     );
@@ -91,7 +91,7 @@ export default function PsiDashboardSide() {
             href="/dashbord/oppsett/produksjon/psi"
             className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
-            {t("nav.oppsett")}
+            {t("psi.administrerMaler")}
           </a>
         </div>
 
