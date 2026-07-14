@@ -17,6 +17,10 @@ sist_verifisert_mot_kode: 2026-07-10
 
 Neste planlagte = **#40** (timer F2/F3/F5 + edge #1, venter Kenneths go). Terskel 12 ikke nær.
 
+## 🔵 PROD-LIVE MERKNAD — sidebar-label byttet for ALLE (2026-07-14)
+
+`nav.sok` «Søk»→«Dokumentsøk» + `nav.kontrollplan` «Kontrollplaner»→«Kontrollplan» rendres i gammel `HovedSidebar` (`sidebar-elementer.tsx:131,145`) — **ikke** bak `nyNavigasjon`-flagg. Kilde: `73f88112` (finnbarhet i18n), live i prod via develop→main-deploy 2026-07-14. **Pilot-support:** etiketten byttet for ALLE brukere, ikke bare ny-nav — bevisst (unngår label-mismatch på tvers av flagg-tilstand, jf. Lokasjoner/Byggeplasser). `firmaNav.innstillinger`→«Firmaprofil» er derimot INERT i prod (gammel firma-nav hardkoder «Innstillinger»).
+
 ## Pågående arbeid (PR-historikk)
 
 > **Maks 3 aktive PR-tråder.** `### Gjenstående` er en samlepost, ikke en tråd, og telles ikke.
