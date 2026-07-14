@@ -773,7 +773,9 @@ function TimerRadVis({
           <Text
             className={`text-xs ${pauseAvhuket ? "text-gray-700" : "text-gray-400"}`}
           >
-            {t("timer.matpause.trukket", { min: pauseTrukketMin })}
+            {pauseAvhuket
+              ? t("timer.matpause.trukket", { min: pauseTrukketMin })
+              : t("timer.matpause.trukketUmerket")}
           </Text>
         </Pressable>
       )}
