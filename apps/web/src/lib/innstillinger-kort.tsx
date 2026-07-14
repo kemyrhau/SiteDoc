@@ -27,6 +27,7 @@ import {
   Sparkles,
   Calendar,
   Package,
+  MapPin,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
@@ -40,6 +41,8 @@ export interface Underlenke {
   labelKey: string;
   href: string;
   synlig?: boolean;
+  /** Synonymnøkkel (i18n) appendet til søkets `norm` — usynlig i UI. */
+  sokeordKey?: string;
 }
 
 export interface HubKort {
@@ -50,6 +53,13 @@ export interface HubKort {
   ikon: ReactNode;
   underlenker: Underlenke[];
   synlig: boolean;
+  /**
+   * Synonymnøkkel (i18n) hvis verdi (mellomrom-separert) appendes til søkets
+   * `norm` for hver av kortets underlenke-treff — usynlig i UI. Generell
+   * mekanisme: ethvert kort kan få synonymer (f.eks. Byggeplasser ← «lokasjoner
+   * tegninger kart geofence»).
+   */
+  sokeordKey?: string;
 }
 
 export function useInnstillingerKort(): {
@@ -213,13 +223,29 @@ export function useInnstillingerKort(): {
         synlig: true,
         underlenker: [
           { labelKey: "innstillinger.lenke.generelt", href: HUB_LENKER.generelt },
-          { labelKey: "innstillinger.lenke.byggeplasser", href: HUB_LENKER.byggeplasser },
           // (c) Mapper-oppsett (O9) — produksjons-barn, krever manage_field.
           { labelKey: "innstillinger.lenke.mappeoppsett", href: HUB_LENKER.mappeoppsett, synlig: kanManageField },
           // K13 O12 — Eier-firma (Prosjekteier). Dobbel gating (pålegg 1): prosjekt-
           // kontekst (kortet er prosjekt-seksjon) OG harFirmaTilgang. Speiler
           // oppsett/layout.tsx: `!!prosjektFirma || erAdmin`.
           { labelKey: "innstillinger.lenke.eierFirma", href: HUB_LENKER.eierFirma, synlig: harFirmaTilgang },
+        ],
+      },
+      {
+        // Eget kort (tidligere anonym chip under Prosjektoppsett → ingen fant det).
+        // Synonym-søk løfter «lokasjoner/tegninger/kart/geofence» hit.
+        id: "byggeplasser",
+        seksjon: "prosjekt",
+        tittelKey: "innstillinger.byggeplasser.tittel",
+        beskrivelseKey: "innstillinger.byggeplasser.beskrivelse",
+        ikon: <MapPin className="h-5 w-5" />,
+        synlig: true,
+        sokeordKey: "innstillinger.sokeord.byggeplasser",
+        underlenker: [
+          // Begge → samme side: tegning-visningen er ikke dyplenkbar
+          // (byggeplasser/page.tsx bruker `valgtTegningId=useState`, ingen searchParams).
+          { labelKey: "innstillinger.lenke.byggeplasser", href: HUB_LENKER.byggeplasser },
+          { labelKey: "innstillinger.lenke.tegninger", href: HUB_LENKER.byggeplasser },
         ],
       },
       {
