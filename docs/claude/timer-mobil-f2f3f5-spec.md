@@ -62,10 +62,14 @@ Bonus: når velgeren åpnes med tom cache + online, bør den **trigge en byggepl
 
 **i18n / begrep.** «Byggeplasser» i copy; gjenbruk eksisterende nøkler.
 
-**Design (fabel-OK 2026-07-14).**
-- Én `pageSheet` (gjenbruk dagens modal-skjelett): øverst prosjekt-rad (valgt prosjektnavn + chevron; trykk ekspanderer prosjektlisten **inline**), under byggeplass-lista filtrert på valgt prosjekt — dagens F6-sortering (favoritter → GPS-forslag → resten) + søkefelt-terskel (>7) intakt. **Ikke** to-stegs wizard; prosjektbytte oppdaterer lista på stedet.
-- Rad-felt: sekundærlinje på rad-kortet «Prosjekt · Byggeplass» (grå, 12–13px) + chevron høyre; hele linja er trykkflate, min 44px høy. **Ingen** egen «endre»-knapp.
-- **Begge lever.** Sedel-nivå (`[id].tsx:844`) forblir default + vanligste vei (server propagerer til rader); per-rad er override for multi-prosjekt-dager. Rad uten override viser arvet verdi **nedtonet** med «fra dagskortet»-hint; override i vanlig tekststyrke. Sedel-nivå-velgeren fjernes ikke.
+**Design (fabel-OK 2026-07-14 + F3-UI-svar 2026-07-14).**
+- **Kombinert velger** = én `pageSheet` (gjenbruk modal-skjelett): øverst prosjekt-rad (valgt navn + chevron; trykk ekspanderer prosjektlista **inline**), under byggeplass-lista filtrert på valgt prosjekt. **Sortering i rad-velgeren: favoritter → resten — INGEN GPS-tier** (GPS lever kun på sedel-nivå «Start dag»; rad-modalen har ingen GPS-kontekst → `gpsForeslagId` utelates). Søkefelt-terskel (>7) + F2-tri-tilstand intakt. Ikke to-stegs wizard; prosjektbytte oppdaterer lista på stedet. **Reset-catch:** `refreshFullført`/`laster` nullstilles ved `projectId`-endring — gjelder også denne nye kombinerte velgeren (levende modal-prosjektbytte).
+- **Rad-sekundærlinje** «Prosjekt · Byggeplass» (grå 12–13px, chevron høyre, hele linja trykkflate ≥44px, ingen egen «endre»-knapp). Rad uten override: arvet verdi **nedtonet** + «fra dagskortet»-hint; override i vanlig styrke.
+- **Sekundærlinje-interaksjon = hybrid, styrt av hva som endres:**
+  - Trykk åpner den kombinerte velgeren **direkte** (hurtigsti).
+  - **Kun byggeplass endret** (samme prosjekt): lagres direkte fra velgeren — byggeplassbytte rører ikke tider, så overlapp/pause-validering er upåvirket. **MEN** skriving går gjennom **samme lagre-kjede** som rad-modalen (delt kilde), aldri egen write-sti.
+  - **Prosjekt endret:** kan ugyldiggjøre prosjekt-scopede felt (underprosjekt, lønnsart) → rut brukeren inn i **full rad-modal** med nytt prosjekt forhåndsvalgt, så avhengig-felt-validering kjører før lagring. **Ingen stille nulling av felt.**
+- **Begge nivåer lever.** Sedel-nivå (`[id].tsx:844`) forblir default + vanligste vei (server propagerer til rader); per-rad er override for multi-prosjekt-dager. Sedel-nivå-velgeren fjernes ikke (beholder GPS-tieren uendret).
 
 ---
 
