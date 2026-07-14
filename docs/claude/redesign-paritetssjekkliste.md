@@ -304,6 +304,14 @@ plasserings-blokker):** K9.
 ELLER eksplisitt ekskludert. Håndhevet av `apps/web/src/hooks/__tests__/sok-dekning.test.ts`
 (F3-vern — ny side uten dekning/unntak feiler testen). Full analyse: `k13-sokdekning-rapport.md`.
 
+**Finnbarhets-revisjon (2026-07-14):** søket er ikke lenger ren substring — `apps/web/src/lib/sok-match.ts`
+gir skrivefeil-toleranse (bounded Damerau-Levenshtein) + sentralt synonymlag (`KJERNE_SYNONYMER`,
+bygd på `sokeordKey`). «instill»/«admin»/«adm»/«oppsett» treffer nå Innstillinger-huben; regresjons-
++ falsk-positiv-vern i `sok-match.test.ts` (14/14). Begreps-kanonisering: «Firmaprofil» (var
+«Innstillinger» i firma-nav), «Dokumentsøk» (var «Søk»), «Kontrollplan» (var «Kontrollplaner»),
+PSI-snarvei «Administrer PSI-maler» (var to labels). Delt sidemeny `InnstillingerNav` (kilde
+`useInnstillingerKort`) på huben; `oppsett/layout.tsx`-samling venter frossen-sone-koordinering.
+
 **Nytt i K13 (5 tidligere udekkede — implementert 2026-07-11):**
 
 | Paritet | Rute | Regel | Søkeinngang (kilde) |
