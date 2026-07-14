@@ -763,4 +763,22 @@ export function kjorMigreringer() {
     CREATE INDEX IF NOT EXISTS idx_slettede_rader_local_sheet
       ON slettede_rader_local(dagsseddel_id);
   `);
+
+  // F3 (2026-07-14) — per-rad byggeplass på sheet_timer_local. Nullable, ingen
+  // backfill (null = arv fra sedel-nivå; server propagerer sedel-verdien).
+  // Idempotent ALTER. Speil av server sheet_timer.byggeplass_id (T.2).
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(sheet_timer_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "byggeplass_id")) {
+      console.log("[MIG] Legger til byggeplass_id på sheet_timer_local (F3)");
+      db.execSync(`ALTER TABLE sheet_timer_local ADD COLUMN byggeplass_id TEXT`);
+    }
+  } catch (e) {
+    console.warn(
+      "[MIG] Kunne ikke utvide sheet_timer_local med byggeplass_id:",
+      e,
+    );
+  }
 }

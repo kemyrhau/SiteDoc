@@ -376,6 +376,8 @@ export async function syncTimer(
             tilTid: t.tilTid ?? null,
             // T.12: fritekst per rad («hva jeg gjorde»).
             beskrivelse: t.beskrivelse ?? null,
+            // F3: per-rad byggeplass (null = arv fra sedel-nivå på server).
+            byggeplassId: t.byggeplassId ?? null,
           })),
           tillegg: tillegg.map((tl) => ({
             id: tl.id,
@@ -673,6 +675,8 @@ export async function syncTimer(
             tilTid: t.tilTid ?? null,
             // T.12: fritekst per rad («hva jeg gjorde»).
             beskrivelse: t.beskrivelse ?? null,
+            // F3: per-rad byggeplass fra server-respons (null = arv fra sedel).
+            byggeplassId: t.byggeplassId ?? null,
             sistEndretLokalt: serverTidMs,
           })
           .run();
