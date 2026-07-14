@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Search, CornerDownLeft } from "lucide-react";
-import { useSokRegistry, normaliserSok, type SokTreff, type SokGruppe } from "@/hooks/useSokRegistry";
+import { useSokRegistry, type SokTreff, type SokGruppe } from "@/hooks/useSokRegistry";
+import { normaliserSok, matchScore } from "@/lib/sok-match";
 
 /**
  * Global søkemodal (steg iv, 1b) — Ctrl/Cmd+K. Grupperer treff i INNSTILLINGER
@@ -54,7 +55,13 @@ export function SokModal({ apen, onLukk }: { apen: boolean; onLukk: () => void }
       const rest = registry.filter((r) => !vanlige.includes(r)).slice(0, 5 - vanlige.length);
       return [...vanlige, ...rest].slice(0, 5);
     }
-    return registry.filter((r) => r.norm.includes(norm));
+    // Skrivefeil-tolerant + synonym-utvidet match (sok-match), score-sortert:
+    // eksakt > prefiks > substring > fuzzy. Erstatter bar substring-filter.
+    return registry
+      .map((r) => ({ r, s: matchScore(r.norm, norm) }))
+      .filter((x) => x.s > 0)
+      .sort((a, b) => b.s - a.s)
+      .map((x) => x.r);
   }, [norm, registry]);
 
   // Hold valgt-indeks innenfor grensene.
