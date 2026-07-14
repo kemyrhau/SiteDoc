@@ -3599,6 +3599,8 @@ export const dagsseddelRouter = router({
             fraTid: t.fraTid,
             tilTid: t.tilTid,
             beskrivelse: t.beskrivelse,
+            // F5: per-rad matpause-bærer i pull-respons så mobil kan speile den.
+            pauseMin: t.pauseMin,
           })),
           tillegg: s.tillegg.map((tl) => ({
             id: tl.id,
@@ -3693,6 +3695,9 @@ export const dagsseddelRouter = router({
                 // F3 (2026-07-14): per-rad byggeplass (override av sedel-nivå).
                 // Optional → eldre klienter uten feltet → arv fra sedel-nivå.
                 byggeplassId: z.string().uuid().nullable().optional(),
+                // F5 (2026-07-14): per-rad matpause-bærer (min). Optional →
+                // eldre klienter uten feltet → 0. Ingen sedel-arv (per-rad-eid).
+                pauseMin: z.number().int().min(0).optional(),
                 // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
                 vehicleId: z.string().uuid().nullable().optional(),
               }),
@@ -4173,6 +4178,10 @@ export const dagsseddelRouter = router({
                   fraTid: t.fraTid ?? null,
                   tilTid: t.tilTid ?? null,
                   beskrivelse: t.beskrivelse ?? null,
+                  // F5: per-rad matpause-bærer. Ingen sedel-arv (per-rad-eid);
+                  // eldre klient sender ikke feltet → 0. Maskin-regelen bruker
+                  // fortsatt sedel-nivå pauseMin (lokal.pauseMin), ikke denne.
+                  pauseMin: t.pauseMin ?? 0,
                 })),
               });
             }

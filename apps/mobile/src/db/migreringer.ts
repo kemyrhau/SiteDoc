@@ -781,4 +781,26 @@ export function kjorMigreringer() {
       e,
     );
   }
+
+  // F5 (2026-07-14) — matpause-bærer på sheet_timer_local. Additiv NOT NULL
+  // DEFAULT 0 (eksisterende rader → 0 = ingen pause på raden; sedelens pauseMin
+  // bæres da av carve-baket total inntil brukeren markerer en bærer). Idempotent
+  // ALTER. Speil av server sheet_timer.pause_min (F5). Ingen data-backfill —
+  // dagsseddel_local.pauseMin er allerede kilden for maskin-kapasitetsregelen.
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(sheet_timer_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "pause_min")) {
+      console.log("[MIG] Legger til pause_min på sheet_timer_local (F5)");
+      db.execSync(
+        `ALTER TABLE sheet_timer_local ADD COLUMN pause_min INTEGER NOT NULL DEFAULT 0`,
+      );
+    }
+  } catch (e) {
+    console.warn(
+      "[MIG] Kunne ikke utvide sheet_timer_local med pause_min:",
+      e,
+    );
+  }
 }

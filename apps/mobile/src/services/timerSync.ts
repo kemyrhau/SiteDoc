@@ -378,6 +378,8 @@ export async function syncTimer(
             beskrivelse: t.beskrivelse ?? null,
             // F3: per-rad byggeplass (null = arv fra sedel-nivå på server).
             byggeplassId: t.byggeplassId ?? null,
+            // F5: per-rad matpause-bærer (min). 0 = ingen pause på raden.
+            pauseMin: t.pauseMin ?? 0,
           })),
           tillegg: tillegg.map((tl) => ({
             id: tl.id,
@@ -677,6 +679,8 @@ export async function syncTimer(
             beskrivelse: t.beskrivelse ?? null,
             // F3: per-rad byggeplass fra server-respons (null = arv fra sedel).
             byggeplassId: t.byggeplassId ?? null,
+            // F5: per-rad matpause-bærer fra server-respons (min).
+            pauseMin: t.pauseMin ?? 0,
             sistEndretLokalt: serverTidMs,
           })
           .run();

@@ -23,6 +23,8 @@ import {
   ChevronRight,
   Split,
   Star,
+  CheckSquare,
+  Square,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { eq, and } from "drizzle-orm";
@@ -49,6 +51,11 @@ import {
 import { useByggeplass } from "../../kontekst/ByggeplassKontekst";
 import { useNettverk } from "../../providers/NettverkProvider";
 import { trpc } from "../../lib/trpc";
+import {
+  matpauseKontekst,
+  matpauseRegelTrigget,
+  radKrysserPause,
+} from "../../services/matpause";
 import { hentEffektivArbeidstidLokal } from "../../services/kalenderKatalog";
 import {
   hentStandardLonnsartLokalt,
@@ -121,6 +128,9 @@ interface TimerSeksjonProps {
   harEquipmentCache: boolean;
   defaultAktivitetId: string | null;
   redigerbar: boolean;
+  /** F5 (2026-07-14): sedel-nivå matpause-toggle. radId + ønsket tilstand →
+   *  [id].tsx orkestrerer flytt/sett/fjern (kryss-bøtte, ekte modal, toast). */
+  onPauseToggle: (radId: string, vilHa: boolean) => void;
   onEndret: () => void;
 }
 
@@ -138,9 +148,21 @@ export function TimerSeksjon({
   harEquipmentCache,
   defaultAktivitetId,
   redigerbar,
+  onPauseToggle,
   onEndret,
 }: TimerSeksjonProps) {
   const { t } = useTranslation();
+  // F5: matpause-kontekst (hvor lunsjen faller + lengde) + om regelen trigger for
+  // dagen (dagsbrutto > 5,5t). Trigget beregnes fra ALLE sedelens rader
+  // (`alleTimerRader`), ikke bøtte-scopet `rader` — pausen er dag-nivå.
+  const { pauseFra, standardPauseMin } = useMemo(
+    () => matpauseKontekst(organizationId, dato),
+    [organizationId, dato],
+  );
+  const pauseRegelTrigget = useMemo(
+    () => matpauseRegelTrigget(alleTimerRader, standardPauseMin),
+    [alleTimerRader, standardPauseMin],
+  );
   const [visModal, setVisModal] = useState(false);
   const [redigerRadId, setRedigerRadId] = useState<string | null>(null);
   // F3: kombinert prosjekt+byggeplass-velger åpnet fra rad-sekundærlinja
@@ -382,6 +404,10 @@ export function TimerSeksjon({
             sedelByggeplassId={sedelByggeplassId}
             erReise={reiseLonnsartId != null && rad.lonnsartId === reiseLonnsartId}
             redigerbar={redigerbar}
+            pauseFra={pauseFra}
+            standardPauseMin={standardPauseMin}
+            pauseRegelTrigget={pauseRegelTrigget}
+            onPauseToggle={onPauseToggle}
             onRediger={() => {
               setRedigerRadId(rad.id);
               setVisModal(true);
@@ -528,6 +554,10 @@ function TimerRadVis({
   sedelByggeplassId,
   erReise,
   redigerbar,
+  pauseFra,
+  standardPauseMin,
+  pauseRegelTrigget,
+  onPauseToggle,
   onRediger,
   onByggeplassLinje,
   onSplitt,
@@ -541,6 +571,13 @@ function TimerRadVis({
   sedelByggeplassId: string | null;
   erReise: boolean;
   redigerbar: boolean;
+  /** F5: pausevindu-start (HH:MM) + lengde — avgjør om raden krysser lunsjen. */
+  pauseFra: string;
+  standardPauseMin: number;
+  /** F5: trigger matpause-regelen for dagen? (dagsbrutto > 5,5t). */
+  pauseRegelTrigget: boolean;
+  /** F5: huk matpause av/på på denne raden. */
+  onPauseToggle: (radId: string, vilHa: boolean) => void;
   onRediger: () => void;
   /** F3: trykk på «Prosjekt · Byggeplass»-sekundærlinja (hurtigsti). */
   onByggeplassLinje: () => void;
@@ -548,6 +585,16 @@ function TimerRadVis({
   onSlett: () => void;
 }) {
   const { t } = useTranslation();
+
+  // F5: vis matpause-avhukingen kun når regelen trigger (dag > 5,5t) OG raden
+  // krysser lunsjvinduet (kvalifisert bærer). Bæreren (pauseMin > 0) er avhuket;
+  // øvrige kvalifiserte rader viser en tom checkbox man kan hake for å flytte
+  // pausen dit. Redigerbar-gate: kun draft/returned kan endre.
+  const visPauseRad =
+    redigerbar &&
+    pauseRegelTrigget &&
+    radKrysserPause(rad, pauseFra, standardPauseMin);
+  const pauseAvhuket = rad.pauseMin > 0;
 
   // F3: radens effektive prosjekt (per-rad override eller gruppe-fallback).
   const effektivProjectId = rad.projectId ?? gruppeProjectId;
@@ -695,6 +742,27 @@ function TimerRadVis({
             byggeplassInfo={byggeplassInfo}
           />
         </View>
+      )}
+
+      {/* F5: kompakt matpause-avhuking nederst på det trigrede rad-kortet. Kun
+          synlig når dag > 5,5t OG raden krysser lunsjvinduet. Bæreren er avhuket;
+          å hake av flytter pausen (flytt-ikke-radio, orkestreres i [id].tsx). */}
+      {visPauseRad && (
+        <Pressable
+          onPress={() => onPauseToggle(rad.id, !pauseAvhuket)}
+          className="min-h-[40px] flex-row items-center gap-2 border-t border-gray-100 px-4 py-2 active:bg-gray-50"
+        >
+          {pauseAvhuket ? (
+            <CheckSquare size={18} color="#1e40af" />
+          ) : (
+            <Square size={18} color="#9ca3af" />
+          )}
+          <Text
+            className={`text-xs ${pauseAvhuket ? "text-gray-700" : "text-gray-400"}`}
+          >
+            {t("timer.matpause.trukket", { min: standardPauseMin })}
+          </Text>
+        </Pressable>
       )}
     </View>
   );
