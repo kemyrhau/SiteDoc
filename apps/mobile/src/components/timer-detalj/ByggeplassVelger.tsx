@@ -1,10 +1,24 @@
-import { useMemo, useState } from "react";
-import { View, Text, Pressable, Modal, FlatList, TextInput } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  Modal,
+  FlatList,
+  TextInput,
+  ActivityIndicator,
+} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { X, Check, Star } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { hentByggeplasserForProsjektLokalt } from "../../services/byggeplassKatalog";
+import {
+  hentByggeplasserForProsjektLokalt,
+  refreshByggeplassKatalog,
+} from "../../services/byggeplassKatalog";
+import { finnProsjektLokalt } from "../../services/prosjektKatalog";
 import { useByggeplass } from "../../kontekst/ByggeplassKontekst";
+import { useNettverk } from "../../providers/NettverkProvider";
+import { trpc } from "../../lib/trpc";
 
 /**
  * Byggeplass-velger-modal for sedel-nivå byggeplass (L1, B6 sedel-nivå-runde).
@@ -28,12 +42,70 @@ export function ByggeplassVelgerModal({
 }) {
   const { t } = useTranslation();
   const { favorittIder, toggleFavoritt } = useByggeplass();
+  const { erPaaNettet } = useNettverk();
+  const utils = trpc.useUtils();
   const [sok, setSok] = useState("");
+  // F2 tri-tilstand: skill «henter» / «offline» / «bekreftet tomt» fra hverandre.
+  const [laster, setLaster] = useState(false);
+  const [refreshFullført, setRefreshFullført] = useState(false);
+  const [refreshNonce, setRefreshNonce] = useState(0);
 
   const byggeplasser = useMemo(() => {
     if (!projectId) return [];
     return hentByggeplasserForProsjektLokalt(projectId);
+    // refreshNonce tvinger re-lesing etter at et byggeplass-refresh fullførte.
+  }, [projectId, refreshNonce]);
+
+  // F3-forberedelse (fabels catch): når modalen tillater prosjektbytte inline
+  // endres `projectId` uten remount → nullstill refresh-tilstand + søk, ellers
+  // ville et nytt prosjekt vist «bekreftet tomt» basert på FORRIGE prosjekts
+  // fullførte refresh. Kjører også ved mount (verdiene er allerede default).
+  useEffect(() => {
+    setLaster(false);
+    setRefreshFullført(false);
+    setSok("");
   }, [projectId]);
+
+  // F2: tom cache + online → hent byggeplasser ved åpning. Rotårsak: sync er
+  // online-gated + async (TimerSyncProvider), så cachen kan være tom i et
+  // LEGITIMT vindu (offline / før første sync). «Bekreftet tomt» (tilstand 3)
+  // vises kun ETTER at et refresh har fullført tomt — aldri før.
+  useEffect(() => {
+    if (
+      !projectId ||
+      byggeplasser.length > 0 ||
+      !erPaaNettet ||
+      laster ||
+      refreshFullført
+    ) {
+      return;
+    }
+    const orgId = finnProsjektLokalt(projectId)?.organizationId;
+    if (!orgId) return;
+    let avbrutt = false;
+    setLaster(true);
+    refreshByggeplassKatalog(utils.client, orgId)
+      .catch(() => {
+        // Feil svelges (samme som TimerSyncProvider) — velgeren faller tilbake
+        // til «bekreftet tomt»/eksisterende cache; ikke kritisk sti.
+      })
+      .finally(() => {
+        if (avbrutt) return;
+        setLaster(false);
+        setRefreshFullført(true);
+        setRefreshNonce((n) => n + 1);
+      });
+    return () => {
+      avbrutt = true;
+    };
+  }, [
+    projectId,
+    byggeplasser.length,
+    erPaaNettet,
+    laster,
+    refreshFullført,
+    utils.client,
+  ]);
 
   const filtrert = useMemo(() => {
     const q = sok.trim().toLowerCase();
@@ -120,13 +192,55 @@ export function ByggeplassVelgerModal({
               {item.id === valgtId && <Check size={18} color="#1e40af" />}
             </Pressable>
           )}
-          ListEmptyComponent={() => (
-            <View className="px-4 py-8">
-              <Text className="text-center text-gray-500">
-                {t("byggeplassVelger.ingen")}
-              </Text>
-            </View>
-          )}
+          ListEmptyComponent={() => {
+            // Søk uten treff (cachen HAR data) → egen tilstand, ikke tri-tilstand.
+            if (sok.trim() && byggeplasser.length > 0) {
+              return (
+                <View className="px-4 py-8">
+                  <Text className="text-center text-gray-500">
+                    {t("byggeplassVelger.ingenTreff")}
+                  </Text>
+                </View>
+              );
+            }
+            // Tom cache — tri-tilstand (F2).
+            if (laster) {
+              return (
+                <View className="items-center px-4 py-8">
+                  <ActivityIndicator color="#1e40af" />
+                  <Text className="mt-3 text-center text-gray-500">
+                    {t("byggeplassVelger.lastes")}
+                  </Text>
+                </View>
+              );
+            }
+            if (!erPaaNettet && !refreshFullført) {
+              return (
+                <View className="px-4 py-8">
+                  <Text className="text-center text-gray-500">
+                    {t("byggeplassVelger.offline")}
+                  </Text>
+                </View>
+              );
+            }
+            if (refreshFullført) {
+              return (
+                <View className="px-4 py-8">
+                  <Text className="text-center text-gray-500">
+                    {t("byggeplassVelger.prosjektMangler")}
+                  </Text>
+                </View>
+              );
+            }
+            // Initial (før effekten rakk å kjøre) — nøytral melding.
+            return (
+              <View className="px-4 py-8">
+                <Text className="text-center text-gray-500">
+                  {t("byggeplassVelger.ingen")}
+                </Text>
+              </View>
+            );
+          }}
         />
       </SafeAreaView>
     </Modal>

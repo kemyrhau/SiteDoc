@@ -3589,6 +3589,8 @@ export const dagsseddelRouter = router({
           timer: s.timer.map((t) => ({
             id: t.id,
             projectId: t.projectId,
+            // F3: per-rad byggeplass i pull-respons så mobil kan speile override.
+            byggeplassId: t.byggeplassId,
             lonnsartId: t.lonnsartId,
             aktivitetId: t.aktivitetId,
             externalCostObjectId: t.externalCostObjectId,
@@ -3597,6 +3599,8 @@ export const dagsseddelRouter = router({
             fraTid: t.fraTid,
             tilTid: t.tilTid,
             beskrivelse: t.beskrivelse,
+            // F5: per-rad matpause-bærer i pull-respons så mobil kan speile den.
+            pauseMin: t.pauseMin,
           })),
           tillegg: s.tillegg.map((tl) => ({
             id: tl.id,
@@ -3688,6 +3692,12 @@ export const dagsseddelRouter = router({
                 tilTid: z.string().nullable().optional(),
                 // T.12: fritekst per rad («hva jeg gjorde»).
                 beskrivelse: z.string().nullable().optional(),
+                // F3 (2026-07-14): per-rad byggeplass (override av sedel-nivå).
+                // Optional → eldre klienter uten feltet → arv fra sedel-nivå.
+                byggeplassId: z.string().uuid().nullable().optional(),
+                // F5 (2026-07-14): per-rad matpause-bærer (min). Optional →
+                // eldre klienter uten feltet → 0. Ingen sedel-arv (per-rad-eid).
+                pauseMin: z.number().int().min(0).optional(),
                 // T.10: kostnadsbærer for maskinvedlikehold (svak FK → Equipment).
                 vehicleId: z.string().uuid().nullable().optional(),
               }),
@@ -4155,7 +4165,10 @@ export const dagsseddelRouter = router({
                   id: t.id,
                   sheetId: sedel.id,
                   projectId: radProsjekt(t.projectId)!,
-                  byggeplassId: lokal.byggeplassId ?? null,
+                  // F3: per-rad byggeplass overstyrer sedel-nivå; null → arv
+                  // fra dagskortet (sedel-verdien). Bakoverkompat: eldre klient
+                  // sender ikke feltet → t.byggeplassId undefined → sedel-nivå.
+                  byggeplassId: t.byggeplassId ?? lokal.byggeplassId ?? null,
                   lonnsartId: t.lonnsartId,
                   aktivitetId: t.aktivitetId,
                   externalCostObjectId: t.externalCostObjectId ?? null,
@@ -4165,6 +4178,10 @@ export const dagsseddelRouter = router({
                   fraTid: t.fraTid ?? null,
                   tilTid: t.tilTid ?? null,
                   beskrivelse: t.beskrivelse ?? null,
+                  // F5: per-rad matpause-bærer. Ingen sedel-arv (per-rad-eid);
+                  // eldre klient sender ikke feltet → 0. Maskin-regelen bruker
+                  // fortsatt sedel-nivå pauseMin (lokal.pauseMin), ikke denne.
+                  pauseMin: t.pauseMin ?? 0,
                 })),
               });
             }

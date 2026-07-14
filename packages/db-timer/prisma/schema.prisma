@@ -215,6 +215,12 @@ model SheetTimer {
   // settes kun på interne verksted-rader. Org-validering i app-lag (§2.D).
   vehicleId             String?  @map("vehicle_id")
   timer                 Decimal  @db.Decimal(6, 2)
+  // F5 (2026-07-14) — matpause-bærer: minutter lunsjpause denne raden trekker
+  // (0 = ingen). Kun ÉN rad per sedel har pauseMin > 0 (kun-én-per-dag, flytt).
+  // Klient-invariant: DailySheet.pauseMin = Σ(SheetTimer.pauseMin) — bevarer
+  // maskin-kapasitetsregelen (validerMaskinUnderArbeid bruker sedel-nivå pauseMin
+  // uendret). Additiv NOT NULL DEFAULT 0; eldre klient sender ikke feltet → 0.
+  pauseMin              Int      @default(0) @map("pause_min")
   attestertSnapshot     Json?    @map("attestert_snapshot") // Pris-snapshot ved attestering (Fase 0 A.7) — inkluderer aktivitet-snapshot post-C9
   // T.3 — Per-rad attestering. "pending" | "attestert" | "returnert" | "erstattet".
   // (Norsk-konvensjon: "attestert" — CLAUDE.md skiller attestering fra godkjenning.)

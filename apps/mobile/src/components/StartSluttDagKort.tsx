@@ -27,6 +27,7 @@ import {
   carveArbeidstider,
   pauseVinduFra,
   pauseMinForDag,
+  hhmmTilMin,
   DEFAULT_PAUSE_ETTER_TIMER,
   type ReiseKategori,
 } from "@sitedoc/shared";
@@ -772,6 +773,18 @@ function opprettDagsseddelForSegment(args: {
       // ③a/③b: aldri feil-match, aldri stille drop — uten treff hoppes raden
       // over, og [id].tsx viser banner (manglerStandard/manglerOvertidLonnsart).
       if (!lonnsart) continue;
+      // F5 (Valg A): bæreren = carve-vinduet som absorberer lunsjen. carve legger
+      // pausen på det ENE vinduet som krysser lunsjvinduet (tilFraAntall, «påføres
+      // én gang») → den raden har et klokke-gap (spenn − timer ≈ pauseMin). Den
+      // raden bærer sedelens pauseMin; øvrige rader får 0. Σ(rad.pauseMin) =
+      // segment-pausen = dagsseddel.pauseMin (invarianten for maskin-regelen).
+      // «Utledning avvist»: gap-en LOKALISERER kun bæreren; VERDIEN som lagres er
+      // den autoritative segment-pausen (`pauseMin`), ikke det avledede gapet.
+      const gapMin =
+        hhmmTilMin(vindu.tilTid) -
+        hhmmTilMin(vindu.fraTid) -
+        Math.round(vindu.timer * 60);
+      const radPauseMin = pauseMin > 0 && gapMin >= 1 ? pauseMin : 0;
       db.insert(sheetTimerLocal)
         .values({
           id: randomUUID(),
@@ -783,6 +796,7 @@ function opprettDagsseddelForSegment(args: {
           timer: vindu.timer,
           fraTid: vindu.fraTid,
           tilTid: vindu.tilTid,
+          pauseMin: radPauseMin,
           sistEndretLokalt: Date.now(),
         })
         .run();
