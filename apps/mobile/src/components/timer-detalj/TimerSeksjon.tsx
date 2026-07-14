@@ -595,6 +595,19 @@ function TimerRadVis({
     pauseRegelTrigget &&
     radKrysserPause(rad, pauseFra, standardPauseMin);
   const pauseAvhuket = rad.pauseMin > 0;
+  // F5 (fabel edge #1): etiketten viser de FAKTISK trukne minuttene for raden
+  // (spenn-overlapp mot lunsjvinduet gitt radens pauseMin) — ikke hardkodet 30.
+  // Full-spenn → 30 min; delvis overlapp → f.eks. 15 min. Kun visning; rører
+  // ikke pause-beregningen. visPauseRad garanterer fra/til er satt.
+  const pauseTrukketMin =
+    rad.fraTid && rad.tilTid
+      ? pauseOverlappMin(
+          hhmmTilMin(rad.fraTid),
+          hhmmTilMin(rad.tilTid),
+          hhmmTilMin(pauseFra),
+          rad.pauseMin,
+        )
+      : 0;
 
   // F3: radens effektive prosjekt (per-rad override eller gruppe-fallback).
   const effektivProjectId = rad.projectId ?? gruppeProjectId;
@@ -760,7 +773,7 @@ function TimerRadVis({
           <Text
             className={`text-xs ${pauseAvhuket ? "text-gray-700" : "text-gray-400"}`}
           >
-            {t("timer.matpause.trukket", { min: standardPauseMin })}
+            {t("timer.matpause.trukket", { min: pauseTrukketMin })}
           </Text>
         </Pressable>
       )}
