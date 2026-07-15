@@ -1030,6 +1030,8 @@
   "lokasjoner.endreNavn": "Endre navn",
   "lokasjoner.nyttNavn": "Nytt navn",
   "lokasjoner.geofence.tittel": "Geofence (GPS)",
+  "lokasjoner.geofence.satt": "Geofence satt — klikk for å endre",
+  "lokasjoner.geofence.ikkeSatt": "Geofence ikke satt — klikk for å sette",
   "lokasjoner.geofence.beskrivelse": "Senter og radius brukes til å kjenne igjen byggeplassen via GPS. Beregnes automatisk fra en georeferert tegning, eller overstyres manuelt.",
   "lokasjoner.geofence.lat": "Breddegrad",
   "lokasjoner.geofence.lng": "Lengdegrad",
