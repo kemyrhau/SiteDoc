@@ -78,6 +78,12 @@ Verifiser etterpå:
 psql -U kennethmyrhaug -d sitedoc -c "SELECT email, can_login FROM users WHERE email ILIKE '%kemyrhau%';"
 ```
 
+> ⚠️ **Dumpen tar IKKE med filer (funnet 2026-07-15).** `pg_dump` kopierer DB-rader; **opplastede filer** (tegninger, bilder, vedlegg) ligger på disk i `apps/api/uploads` (`upload.ts`: `UPLOADS_DIR = join(process.cwd(), "uploads")`) og følger **ikke** med. Etter restore peker tegningsrader på bilder som ikke finnes lokalt → 404, og alt som krever en fil (georef-editoren, bildevisning) er utestbart. Symptomet er lumsk: raden *finnes*, så det ser ut som en app-bug.
+>
+> **Trenger du en fil lokalt: last opp én via UI-en.** Sandkasse, ingen kundedata, og det utøver den ekte opplastings-stien — du får både fila og DB-raden i konsistent tilstand. En vilkårlig PNG duger som tegning (georef-editoren plasserer punkter på et bilde; motivet er likegyldig).
+>
+> **Ikke kopier serverens `uploads`** — den er **~1,4 GB ekte kundefiler**, delt mellom prod og test (test bind-mounter prods mappe, `docker-compose.test.yml`). Samme PII-innvending som gjør at vi restorer fra test-dumpen og ikke prod-dumpen.
+
 > ⚠️ **pgvector-forbehold.** `brew install pgvector` bygger mot Homebrews *standard* postgres, ikke `postgresql@16` → `vector.control` mangler i pg16-ens extension-katalog. Restoren feiler da på **21 kommandoer**, og alle 21 gjelder to tabeller: `ftd_document_blocks` + `ftd_document_chunks` (dokumentleser/AI-søk-embeddings). **Alt annet restores** — verifisert 2026-07-15: 31 brukere, prosjekter, timer, byggeplasser, dokumentflyt. Trenger du AI-søk lokalt:
 > ```
 > git clone --branch v0.8.5 https://github.com/pgvector/pgvector.git /tmp/pgvector
