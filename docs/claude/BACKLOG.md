@@ -16,15 +16,23 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
-### 🟠 Hardkodet `api_key` i klient-side satellitt-tile-URL (`GeoReferanseEditor.tsx:262`) — pre-eksisterende, nå i prod
+### 🟠 Norkart-kartnøkkel: ukjent eierskap + ingen konfigvei (`GeoReferanseEditor.tsx:262`) — i prod
 
-Satellitt-laget (Norkart/WebAtlas, `waapi.webatlas.no/maptiles/...`) bærer **`api_key` som URL-parameter i klient-koden**. Konsekvens: nøkkelen sendes til hver nettleser, er lesbar i DevTools' nettverksfane, ligger i repoet + git-historikken + på GitHub. Deployet prod `387d10a2` (2026-07-15).
+Satellitt-laget (Norkart/WebAtlas, `waapi.webatlas.no/maptiles/…`) bærer **`api_key` som URL-parameter hardkodet i klient-koden**. Deployet prod `387d10a2` (2026-07-15). **To distinkte saker — ikke slå dem sammen:**
 
-**Pre-eksisterende, ikke ny** — arvet fra gamle `KoordinatKart`; georef v2 flyttet den, innførte den ikke. Redesign-Opus observerte den under G2 og valgte bevisst å ikke fikse (riktig scope-disiplin), men førte den ikke — fanget i exit-runden 2026-07-15.
+**Sak 1 — eierskapet er ukjent (avklares FØRST).** Proveniens sporet 2026-07-15: nøkkelen kom inn i **`684b23a7` (2026-03-19)**, «Satellittbilder i minikart — bytter fra OSM-tiles til Norge i Bilder», co-authored av en Claude-økt. **Den er IKKE arvet fra gamle `KoordinatKart`** — den fila finnes ikke i git-historikken; det var en antakelse som ble motbevist. Kenneth kjenner ikke nøkkelens opphav. Norkarts modell: nøkler er **konto-tilknyttet**, bestilles via «Norkart Data and Analysis»; dokumentasjonen deres bruker `{{API_KEY}}`-plassholder — det finnes ingen offisiell fellesnøkkel. Samtidig finnes offentlige kilder med fungerende norske tile-URL-er inkl. nøkkel (JOSMs `Maps/Norway`-imagery-liste, Norkarts demo-repoer) — plausibel kilde for en økt som lette etter «Norge i Bilder»-tiles.
+→ **Ett spørsmål avgjør alt: har vi Norkart-avtale?** JA → mild sak (konto-nøkkel eksponert klient-side; sjekk om den er domene-begrenset — da er eksponeringen tilsiktet av leverandøren). NEI → **produktet kjører på en nøkkel vi ikke eier**: lisens-/ToS-sak før teknisk sak, og driftsrisiko (kan kuttes uten varsel).
 
-**Vurder før tiltak:** hvor alvorlig er dette *faktisk*? Kartleverandør-nøkler er ofte domene-/referer-begrenset og designet for klient-bruk — i så fall er eksponeringen tilsiktet av leverandøren og ikke en lekkasje. **Sjekk avtalen/konsollen hos Norkart før vi bygger en proxy.** Er nøkkelen derimot konto-bred og ubegrenset, kan den misbrukes på vår regning → da må den bak en server-proxy (samme mønster som `SITEDOC_INTEGRATION_KEY`: aldri til klient).
+**Sak 2 — det finnes ingen vei til å bytte nøkkelen** (uavhengig av sak 1, bør fikses uansett). Ikke env, ikke innstilling, ikke UI. **Blir nøkkelen kuttet, krever fiksen kodeendring + prod-deploy.** Alternativer, rangert:
+1. **`NEXT_PUBLIC_WEBATLAS_API_KEY`** i `web.env` — rotering = env + web-rebuild. **Anbefalt:** Norkarts egen modell er klient-side api_key, så nøkkelen *er* ment å være synlig; proxy er da overingeniørkunst.
+2. **Server-proxy** (api serverer tiles) — rotering = env + recreate. Kun hvis nøkkelen faktisk må skjules; koster api-båndbredde + latens.
+3. **UI/innstilling per firma** — kun hvis kart-tilgang blir per-firma abonnement.
 
-**Ikke gjør før avklart:** ingen rotering (bryter kartet i prod), ingen proxy-bygging. Første steg er å finne ut om nøkkelen er begrenset. **Merk:** nøkkelverdien skal aldri gjengis i docs, commits eller output — bruk fil:linje.
+**Ikke gjør før sak 1 er avklart:** ingen rotering (bryter kartet i prod), ingen proxy. Er nøkkelen ikke vår, er svaret ikke «gjør den konfigurerbar» — det er «skaff avtale, så gjør den konfigurerbar».
+
+**Merk:** nøkkelverdien skal aldri gjengis i docs, commits, søk eller output — bruk fil:linje. Den ble bevisst ikke søkt opp under undersøkelsen (ville lekket den til en søkemotor).
+
+**Metode-lærdom verdt å beholde:** en Claude-økt tok inn en ekstern leverandør-avhengighet i produktet uten at eieren visste det, og det ble oppdaget fire måneder senere ved en tilfeldighet under en exit-runde. Samme klasse som dagens doc-drift: gjort, aldri skrevet ned.
 
 ### 🟡 To geokodere sameksisterer — `oppmotested.geokod` bør adoptere `sokAdresser` (G2-gevinsten)
 
