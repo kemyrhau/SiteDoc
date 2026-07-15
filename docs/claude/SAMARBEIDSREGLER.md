@@ -45,6 +45,11 @@ Fire regler skjerper cowork sitt ansvar. Ved motstrid rapporteres de kolliderend
 3. **Bygg utenfor redesign.** cowork har hovedansvar for alle bygg/leveranser utenfor redesignets domene, samt all merge-timing og deploy. redesign-Opus eier sitt (`redesign/navigasjon`, fabels ordre). *(Skjerper eksisterende cowork-rad «eier resten + merge-timing + deploy».)*
 4. **Koden sjekkes alltid.** Gate skjer mot **faktisk kode / git-objekt** — aldri på beskrivelse alene. Verifiser mot koden før beslutning/gate. *(Presisering av en generell gate-regel cowork allerede følger — kode-sjekken er det som avdekker avvik; ikke en ny skjerping.)*
 
+   **Utvidet 2026-07-15 — regelen gjelder mer enn kode.** Fem brudd på én dag, alle samme form: *påstand uten måling*. Hver gang var det en kommando som rettet feilen, aldri resonnementet.
+   - **Miljø-påstander måles mot maskinen**, ikke mot docs eller hukommelse. Verktøyene er `lsof`, `ps`, `docker ps`, `git worktree list`, `git merge-base`. «Lokal DB finnes» (fra en stale doc-linje), «ingen postgres finnes» (fra manglende CLI) og «arbeidstreet er prunable» (sandkasse-artefakt) var alle feil — og alle ville kostet en runde hvis de ikke ble målt.
+   - **Kommandoer i docs kjøres minst én gang før de føres.** `pnpm dev --filter web` sto i CLAUDE.md § Kommandoer — fila hver økt leser først — og hadde aldri virket (pakken heter `@sitedoc/web`). Ingen hadde prøvd den.
+   - **En påstand arvet fra en annen økt er ikke verifisert før den er målt selv.** «Nøkkelen er arvet fra gamle `KoordinatKart`» gikk fra redesigns exit-rapport rett inn i BACKLOG; `git log` motbeviste den på ett sekund (fila finnes ikke i historikken — nøkkelen kom fra en Claude-økt i mars). **Relé, rapport og exit er input, ikke fasit.** Særlig når de er velskrevne.
+
 ## Gate-disiplin: docs-delta + lukking ved kilde (2026-07-14)
 
 Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: docs speiler tilstand i merge-øyeblikket, ikke «etterpå».

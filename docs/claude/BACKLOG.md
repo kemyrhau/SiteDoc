@@ -28,7 +28,11 @@ Satellitt-laget (Norkart/WebAtlas, `waapi.webatlas.no/maptiles/…`) bærer **`a
 2. **Server-proxy** (api serverer tiles) — rotering = env + recreate. Kun hvis nøkkelen faktisk må skjules; koster api-båndbredde + latens.
 3. **UI/innstilling per firma** — kun hvis kart-tilgang blir per-firma abonnement.
 
-**Ikke gjør før sak 1 er avklart:** ingen rotering (bryter kartet i prod), ingen proxy. Er nøkkelen ikke vår, er svaret ikke «gjør den konfigurerbar» — det er «skaff avtale, så gjør den konfigurerbar».
+**KENNETH-VEDTAK 2026-07-15:** (1) **skaffer Norkart-avtale** → egen nøkkel, eierskapet løst. (2) **Vil ha UI for å legge inn nøkler** — altså alternativ 3, ikke env-variabelen cowork anbefalte. Begrunnelse: bytte skal ikke kreve deploy i det hele tatt.
+
+**Åpen designbeslutning før bygging — scope:** skal nøkkelen være **global** (én plattform-nøkkel, `sitedoc_admin` setter den i `dashbord/admin/integrasjoner`) eller **per firma** (hver kunde med egen Norkart-avtale)? Kartet er i dag en plattform-funksjon, så global er enklest og trolig riktig — per-firma først når en kunde faktisk kommer med egen avtale. Mønsteret finnes alt: `firmaIntegrasjon.lagre` + `Innstilling`-tabellen + `krypter()`. **Merk:** en UI skjuler ikke nøkkelen (tile-URL-en bygges i klienten uansett) — den gjør den *konfigurerbar*. Det er også målet; Norkarts modell er klient-side nøkkel.
+
+**Ikke gjør før avtalen er på plass:** ingen rotering (bryter kartet i prod), ingen proxy.
 
 **Merk:** nøkkelverdien skal aldri gjengis i docs, commits, søk eller output — bruk fil:linje. Den ble bevisst ikke søkt opp under undersøkelsen (ville lekket den til en søkemotor).
 
