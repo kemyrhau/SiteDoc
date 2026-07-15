@@ -16,6 +16,16 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟡 GPS-felttest av byggeplass-geofence — krever fysisk oppmøte (2026-07-15)
+
+**Hva er verifisert:** georefereringen selv — å *sette* en geofence + per-rad-indikatoren (`f1a5318d`) er test-verifisert + Kenneth-godkjent 2026-07-15: pin-status stemmer med faktisk geofence, modal åpner forhåndsutfylt, lagring treffer riktig byggeplass.
+
+**Hva gjenstår:** om geofencen faktisk **treffer mot ekte GPS på stedet** — altså om deteksjonen slår inn når man fysisk er innenfor radiusen. Kan ikke gjøres fra kontoret; krever oppmøte på en byggeplass med satt geofence.
+
+**Berører eksisterende kode (ikke ny):** F3 GPS-deteksjon i `ByggeplassKontekst` (GJORT 2026-06-24) — auto-set kun når byggeplass er tom + GPS-treff i prosjektet; kryss-prosjekt-GPS filtreres bort. **Kjent begrensning å teste mot:** GPS detekteres **én gang per prosjekt-/firma-aktivering**, ikke ved fokus eller kontinuerlig — kontinuerlig OS-geofence er parkert til Fase 4. En felttest bør derfor skille «traff ikke» fra «detekterte ikke på nytt».
+
+**Avgrensning:** dette er **deteksjons**-verifisering av det som alt er bygget. PSI-geofence-**håndheving** (nivåmodell av/C/B/A, server-validering, §15-avvikslogg) er et separat, parkert spor → [psi-geofence-handhevning-utredning.md](psi-geofence-handhevning-utredning.md). Ikke bland dem.
+
 ### 🟢 Mobil timer-rad-sletting propagerer ikke til server (S3) — LØST + TEST-VERIFISERT (M-3-reprise PASS), venter prod spor b (2026-07-13)
 
 **M-3-SEAL 2026-07-13:** S-A bekreftet reell — kode-verifisert + empirisk forseglet. **Kode:** `fjern` (`TimerSeksjon.tsx:232`) persisterer den lokale slettingen (`db.delete().run()`) + `markerEndretOgLes` (`[id].tsx:318`) setter sedel `pending` + `triggerSync()`; syncBatch-push (S3) sender kun de gjenværende radenes id-er → `deleteMany({ id: { in: … } })` beholder den slettede raden på server → pull re-innsetter. **Empirisk:** simulator slettet rad `065dc8f4` på synket draft-sedel (server-id `664c1d3c` / client_uuid `dc59a75c`) → normal sync → raden kom tilbake; server-SQL viser `065dc8f4` FORTSATT på server (3 rader). Den opprinnelige del-6-eskaleringen VAR S-A (ikke erstattet-lekkasjen/fiks B, ikke en delete-persisterings-gap). **Tombstone-utredningen (design under) er klar for fabels design-gate.**
