@@ -16,6 +16,26 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟡 Prod og test deler byggekontekst — gi test sin egen (fjerner en hel feilklasse)
+
+**Rot:** både `docker-compose.yml` (prod) og `docker-compose.test.yml` (test) bygger fra **samme** `~/stack/sitedoc` på server-ny. Konteksten holder koden fra **siste rsync**. Glemmer noen rsyncen før et bygg, bygges feil branch inn i feil miljø.
+
+**Fellen er asymmetrisk — derfor skal konteksten hvile på `main`:**
+- Kontekst = `main`: glemt rsync → prod-bygg får `main` (**riktig**); test-bygg får `main` (harmløst — test er staging).
+- Kontekst = `develop`: glemt rsync → test får develop (riktig), men **prod-bygg får ugatet develop rett i produksjon**. Kun den ene retningen gjør skade.
+
+Konsekvens for dagens praksis: **la konteksten stå på `main` etter hver prod-deploy.** Å «rsynce develop tilbake med en gang for å slippe å glemme det» peker sikringen feil vei — vurdert og forkastet 2026-07-15.
+
+**Dagens vern (fungerer, men avhenger av disiplin):** rsync er ufravikelig før hvert bygg ([DOCKER-NOTES § Deploy-mekanikk](../../docker/DOCKER-NOTES.md)), og markør-grep i konteksten er beviset (f.eks. `ls .../InnstillingerNav.tsx` → «No such file» beviser main-kode, siden fila kun finnes i develop-historikk). Vi snublet i klassen **to ganger 2026-07-15** — én gang hver vei.
+
+**Fiks:** egen kontekst for test, `~/stack/sitedoc-test`. Da kan ingen bygge feil branch inn i feil miljø, uansett hvem som glemmer hva.
+- `deploy-test.sh`: `DST` → `server-ny:stack/sitedoc-test/` (branch-guarden på develop beholdes).
+- `docker/docker-compose.test.yml`: `context: ..` fungerer uendret når fila ligger i det nye treet.
+- ⚠️ **Uploads-mounten må IKKE flyttes:** test bind-mounter i dag `/home/kemyrhau/stack/sitedoc/uploads:/app/apps/api/uploads` (absolutt sti, delt med prod — «test ser ekte filer»). Den skal fortsatt peke på **prod**-mappa. Flyttes den utilsiktet, mister test filene.
+- **Engangskostnad:** ny kontekst = tom docker-cache → første test-bygg blir fullt cache-miss (~5–10 min). Diskbruk ~27 MB ekstra (rsync-målt 2026-07-15). Begge neglisjerbare.
+
+**Verdi:** fjerner behovet for å huske noe. Erstatter en disiplin-avhengig regel med en strukturell umulighet — som er den eneste varige måten å lukke en feilklasse på.
+
 ### 🔴 syncBatch kan stille nedgradere en attestert sedel (`accepted`→`sent`) og av-attestere radene — UVERIFISERT (develop-Opus exit 2026-07-15)
 
 **Påstand — kode-lest, IKKE runtime-bevist.** `syncBatch` (`apps/api/src/routes/timer/dagsseddel.ts`, søk `innkommendeStatus`) beregner `innkommendeStatus = lokal.status === "accepted" ? "sent" : lokal.status` og setter `status` i upsert-UPDATE. Pushes en **lokalt `pending`** sedel mens **server står `accepted`**, nedgraderes server-statusen til `sent` og radene gjenskapes som `pending` via `createMany` → **attesteringen forsvinner stille**.
