@@ -18,6 +18,10 @@ sist_verifisert_mot_kode: 2026-05-16
 | Parallell-arbeid / worktree-koordinering / frossen sone endres | `parallell-arbeid-lock.md` |
 | Tvil om hvem gjør hva / meldingsflyt | `SAMARBEIDSREGLER.md` |
 | Ny Cowork-økt trenger arbeidsmåte (kontroll-laget) | `COWORK-KONTROLL-VEILEDER.md` (+ `kontroll-claude-veileder.md`) |
+| **Skal se/teste en endring før test-deploy** (localhost) | `lokal-dev.md` |
+| **Localhost virker ikke** — `AccessDenied`, `psql: command not found`, tom lokal DB | `lokal-dev.md` § 2 Feilsøking |
+| **Lokal test-data må oppdateres** (DB bak test / etter migrering) | `lokal-dev.md` § 3 |
+| Lokal dev-oppsett endres (postgres-versjon, rolle, porter, pgvector) | `lokal-dev.md` |
 | Fil opprettet/arkivert/slettet | `STATUS.md` (fil-register) |
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |

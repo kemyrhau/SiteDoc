@@ -8,6 +8,20 @@ sist_verifisert_mot_kode: 2026-07-04
 
 Arkiv av arbeid deployet til prod i juli 2026. Flyttet hit fra [STATUS-AKTUELT.md](STATUS-AKTUELT.md) per arkiveringsplikten (deployet arbeid ligger aldri igjen i STATUS-AKTUELT).
 
+## Prod-deploy 2026-07-15 (prod-merge `43299d03` + EAS #40) — timer F2/F3/F5 (byggeplass per rad + matpause-bærer) + finnbarhets-revisjon
+
+Develop→main-merge `43299d03` (25 commits foran prod). **Server (api+web) LIVE; `db-timer`-migrering `20260714120000_sheet_timer_pause_min` applied på prod-DB `sitedoc` (prod-gate `/sitedoc` bekreftet, ingen ABORT); alle 9 containere Up etter deploy.** Mobil-delene når enheter via **EAS #40** (build `15a47804`, commit `43299d03` = main-innhold, TestFlight 15.07). Backup før deploy: `sitedoc-preF5-20260715-0016.dump`. Sekvensielt bygg (api → web separat) — unngikk OOM-kaskaden fra 11.07.
+
+**Timer-mobil F2/F3/F5 (feltfunn del-6)** — fabel design-OK, fasit [timer-mobil-f2f3f5-spec.md](timer-mobil-f2f3f5-spec.md):
+- **F2** — `ByggeplassVelger` tri-tilstand (henter/offline/bekreftet-tomt) + auto-refresh ved tom cache+online + `projectId`-reset-catch. Rotårsak til «Markussen har ingen byggeplasser» var sync-timing (`byggeplass_local` ikke populert), ikke manglende data.
+- **F3** — per-rad `byggeplassId`: `sheetTimerLocal`-kolonne + idempotent ALTER + sync begge veier + syncBatch input/createMany (`t.byggeplassId ?? lokal.byggeplassId ?? null`, sedel-fallback) + `hentEndringerSiden`. UI: kombinert prosjekt+byggeplass-`pageSheet` + rad-sekundærlinje «Prosjekt · Byggeplass» + hybrid-hurtigsti. Server-verifisert p6 (rad_bp ≠ sedel_bp).
+- **F5** — matpause-bærer per timer-rad. `pauseMin` INT NOT NULL DEFAULT 0 lokal + server `sheet_timer.pause_min`. Bærer = lunsj-kryssende carve-rad (Valg A); flytt-ikke-radio (`services/matpause.ts`) med toast + ekte bekreftelsesmodal ved fjern. **Kryss-modul-invariant:** `dagsseddel.pauseMin = Σ(rad.pauseMin)` ved hver endring → maskin-kapasitetsregelen (sedel-nivå pauseMin) urørt, `sheet_machines` INGEN pauseMin. **Edge #1:** dynamisk minutt-etikett (`pauseOverlappMin`) i stedet for hardkodet 30; uhaket rad = «Matpause trukket» uten parentes. Server-verifisert (pause_min=30, Σ=30).
+- i18n `timer.matpause.*` generert til 13 språk (`8cada21c`).
+
+**Finnbarhets-revisjon + byggeplasser-discoverability (redesign — flagg-gated unntatt labels).** Søkemotor `sok-match.ts` (skrivefeil-tolerant bounded Damerau-Levenshtein + `KJERNE_SYNONYMER`-lag), begrepsfikser, byggeplasser hub-kort. **Én bevisst ikke-flagget endring:** `nav.sok` «Søk»→«Dokumentsøk» + `nav.kontrollplan`→«Kontrollplan» rendres i gammel `HovedSidebar` (`sidebar-elementer.tsx:131,145`) → live for ALLE prod-brukere. Bevisst (unngår label-mismatch på tvers av flagg-tilstand, jf. Lokasjoner/Byggeplasser). `firmaNav.innstillinger`→«Firmaprofil» er INERT i prod (gammel firma-nav hardkoder labelen).
+
+**#40-lærdom:** første `eas submit` feilet på «build number 40 already used» — EAS autoIncrement teller mot EAS' egne byggrecords, ikke App Store Connect. Bygget var intakt; ingen byggkvote brent på oppfølgingen.
+
 ## Prod-deploy 2026-07-13 (prod-merge `f888fecc` + EAS #38) — timer-stabilisering: fiks B + S-A tombstone + del-6-fiksrunde + footer
 
 Develop→main-merge `f888fecc` (43 commits foran prod, main-tre == develop-tre). **Server (api+web) LIVE + innlogget-verifisert (test+prod på nett); 2 `db-timer`-migreringer kjørt på prod-DB `sitedoc` (prod-gate bekreftet); alle 9 containere Up.** Mobil-delene når enheter via **EAS #38** (`47c22b1a`, commit `cd3efcb5` = main-innhold, submitted TestFlight 13.07). #37-bakoverkompat bevart (server-endringer forbedrer/er inerte for #37). Backup før deploy: `sitedoc-preprod-20260713-1951.dump`. Full design + verifisering: BACKLOG (§ fiks B, § S-A, § F-e-carve) + `docs/claude/skjermbilder-del6-live/`.

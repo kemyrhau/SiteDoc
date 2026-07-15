@@ -102,6 +102,8 @@ ssh sitedoc "cd ~/programmering/sitedoc && git pull && pnpm install --frozen-loc
 
 **Lokal `prisma migrate dev` feiler på shadow-DB** (`P3006: extension "vector" is not available` — pgvector er ikke installert i lokal PostgreSQL, så shadow-DB-en kan ikke replaye `20260331120000_embedding_vector_pgvector`). **Workaround:** håndskriv migrasjonen i idempotent stil (`CREATE TABLE IF NOT EXISTS` + `DO $$ … EXCEPTION WHEN duplicate_object`-blokker for FK-er, se f.eks. `20260608120000_oppmotested_fase1`) + `prisma generate` separat for klienten. Den anvendes korrekt på test/prod via `migrate deploy` (de har pgvector). Aldri kjør `migrate dev`-reset lokalt. Lærdom Fase 1 2026-06-08.
 
+> 🖥️ **Lokal dev (Mac) bor i [lokal-dev.md](lokal-dev.md)** — koble til, feilsøke (`AccessDenied` = tom lokal DB, ikke OAuth), oppdatere test-data, teste nye funksjoner. **Merk:** `kemyr:kemyr@localhost`-linjene rett under gjelder den **utgåtte WSL-serveren** (`~/programmering/sitedoc*`), IKKE Mac-en — de er ikke lokal dev-oppsett. Den forvekslingen kostet en runde 2026-07-15.
+
 **Modul-DB-pakker krever `.env` på server** (gitignored, må opprettes manuelt ved første deploy av en ny db-pakke). Hver pakke leser `DATABASE_URL` fra sin egen `.env`-fil ved migrate/generate — symlink eller env-export fungerer ikke. Filinnhold er identisk for `db-maskin` og `db-timer`:
 
 ```
