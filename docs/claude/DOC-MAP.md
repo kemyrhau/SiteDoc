@@ -26,6 +26,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |
 | Timer/GPS/prosjekt-utredning (dag-flyt, T.8 m.fl.) | `timer-gps-prosjekt-utredning.md` |
+| PSI/§15-geofence-håndheving (nivåer, per firma/byggeplass) | `psi-geofence-handhevning-utredning.md` (🟡 parkert grunnlagsdok) |
 | Maskin-modul spec endres | `maskin.md` |
 | Dokumentflyt-regler endres | `dokumentflyt.md` |
 | Domeneflyt/arbeidsflyt endres | `domene-arbeidsflyt.md` |

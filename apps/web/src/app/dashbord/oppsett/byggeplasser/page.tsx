@@ -728,14 +728,57 @@ function RedigerLokasjon({
 }
 
 /* ------------------------------------------------------------------ */
+/*  Geofence-indikator (per rad)                                        */
+/* ------------------------------------------------------------------ */
+
+type GeofenceFelt = { latitude?: number | null; longitude?: number | null; radiusM?: number | null };
+
+/** Geofence er «satt» når alle tre feltene finnes. */
+function harGeofence(lok: GeofenceFelt): boolean {
+  return lok.latitude != null && lok.longitude != null && lok.radiusM != null;
+}
+
+/**
+ * Klikkbar MapPin-status per rad: blå fylt = geofence satt, grå omriss = ikke.
+ * Span med role=button → gyldig både i tabell-celle og inne i kort-knappen
+ * (unngår nøstet <button>). Klikk stopper propagering så rad-valg ikke trigges.
+ */
+function GeofenceKnapp({ satt, tittel, onClick }: { satt: boolean; tittel: string; onClick: () => void }) {
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      title={tittel}
+      aria-label={tittel}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          e.stopPropagation();
+          onClick();
+        }
+      }}
+      className="inline-flex cursor-pointer rounded p-1 transition-colors hover:bg-gray-100"
+    >
+      <MapPin className={`h-4 w-4 ${satt ? "fill-sitedoc-primary/20 text-sitedoc-primary" : "text-gray-300"}`} />
+    </span>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  PublisertLokasjonKort                                               */
 /* ------------------------------------------------------------------ */
 
 function PublisertLokasjonKort({
   lokasjon,
   erValgt,
+  geofenceSatt,
   onVelg,
   onRediger,
+  onGeofence,
 }: {
   lokasjon: {
     id: string;
@@ -743,9 +786,12 @@ function PublisertLokasjonKort({
     _count: { drawings: number };
   };
   erValgt: boolean;
+  geofenceSatt: boolean;
   onVelg: () => void;
   onRediger: () => void;
+  onGeofence: () => void;
 }) {
+  const { t } = useTranslation();
   return (
     <button
       onClick={onVelg}
@@ -759,10 +805,15 @@ function PublisertLokasjonKort({
       <div className="flex h-[140px] items-center justify-center bg-gray-50">
         <Building2 className="h-10 w-10 text-gray-300" />
       </div>
-      <div className="border-t border-gray-100 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2 border-t border-gray-100 px-3 py-2.5">
         <p className="truncate text-sm font-medium text-gray-900">
           {lokasjon.name}
         </p>
+        <GeofenceKnapp
+          satt={geofenceSatt}
+          tittel={geofenceSatt ? t("lokasjoner.geofence.satt") : t("lokasjoner.geofence.ikkeSatt")}
+          onClick={onGeofence}
+        />
       </div>
     </button>
   );
@@ -909,16 +960,14 @@ export default function LokasjonerSide() {
     setVisMerMeny(false);
   }
 
-  function apneGeofence() {
-    if (!valgtLokasjon) return;
-    const lok = valgtLokasjon as typeof valgtLokasjon & {
-      latitude?: number | null;
-      longitude?: number | null;
-      radiusM?: number | null;
-    };
-    setGeoLat(lok.latitude != null ? String(lok.latitude) : "");
-    setGeoLng(lok.longitude != null ? String(lok.longitude) : "");
-    setGeoRadius(lok.radiusM != null ? String(lok.radiusM) : "");
+  // Per-rad-inngang: åpner geofence-modalen med RADENS data (setter valgtId så
+  // handleLagreGeofence lagrer på riktig byggeplass). Erstatter den tidligere
+  // verktøylinje-knappen som leste valgtLokasjon.
+  function apneGeofence(lokasjon: GeofenceFelt & { id: string }) {
+    setValgtId(lokasjon.id);
+    setGeoLat(lokasjon.latitude != null ? String(lokasjon.latitude) : "");
+    setGeoLng(lokasjon.longitude != null ? String(lokasjon.longitude) : "");
+    setGeoRadius(lokasjon.radiusM != null ? String(lokasjon.radiusM) : "");
     setGeoFeil(null);
     setGeoAdresse("");
     setGeokodMelding(null);
@@ -968,14 +1017,6 @@ export default function LokasjonerSide() {
         >
           <Pencil className="h-4 w-4" />
           {t("lokasjoner.endreNavn")}
-        </button>
-        <button
-          disabled={!harValgt}
-          onClick={apneGeofence}
-          className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm text-gray-500 transition-colors hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <MapPin className="h-4 w-4" />
-          {t("lokasjoner.geofence.tittel")}
         </button>
         <button
           disabled={!harValgt}
@@ -1074,6 +1115,9 @@ export default function LokasjonerSide() {
                       <th className="px-4 py-2.5 text-left text-sm font-semibold text-gray-700">
                         {t("tabell.status")}
                       </th>
+                      <th className="px-4 py-2.5 text-left text-sm font-semibold text-gray-700">
+                        {t("lokasjoner.geofence.tittel")}
+                      </th>
                       <th className="px-4 py-2.5 text-right text-sm font-semibold text-gray-700">
                         Oppdatert av
                       </th>
@@ -1096,6 +1140,13 @@ export default function LokasjonerSide() {
                         </td>
                         <td className="px-4 py-2.5 text-sm text-gray-500">
                           {t("lokasjoner.upublisert")}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <GeofenceKnapp
+                            satt={harGeofence(lokasjon)}
+                            tittel={harGeofence(lokasjon) ? t("lokasjoner.geofence.satt") : t("lokasjoner.geofence.ikkeSatt")}
+                            onClick={() => apneGeofence(lokasjon)}
+                          />
                         </td>
                         <td className="px-4 py-2.5 text-right text-sm text-gray-500">
                           &mdash;
@@ -1125,8 +1176,10 @@ export default function LokasjonerSide() {
                     key={lokasjon.id}
                     lokasjon={lokasjon}
                     erValgt={valgtId === lokasjon.id}
+                    geofenceSatt={harGeofence(lokasjon)}
                     onVelg={() => setValgtId(valgtId === lokasjon.id ? null : lokasjon.id)}
                     onRediger={() => setRedigerLokasjonId(lokasjon.id)}
+                    onGeofence={() => apneGeofence(lokasjon)}
                   />
                 ))}
               </div>
