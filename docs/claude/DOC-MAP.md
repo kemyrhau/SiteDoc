@@ -23,6 +23,7 @@ sist_verifisert_mot_kode: 2026-05-16
 | **Lokal test-data må oppdateres** (DB bak test / etter migrering) | `lokal-dev.md` § 3 |
 | Lokal dev-oppsett endres (postgres-versjon, rolle, porter, pgvector) | `lokal-dev.md` |
 | Fil opprettet/arkivert/slettet | `STATUS.md` (fil-register) |
+| Gammel STATUS § Sist oppdatert-changelog-oppføring (docs-endring historikk) | `historikk-docs.md` (arkiv) — STATUS beholder kun de 3 nyeste |
 | Kundeønske-status endres | `STATUS-AKTUELT.md` § Kundeønsker |
 | Timer-modul spec endres | `timer.md` |
 | Timer/GPS/prosjekt-utredning (dag-flyt, T.8 m.fl.) | `timer-gps-prosjekt-utredning.md` |
