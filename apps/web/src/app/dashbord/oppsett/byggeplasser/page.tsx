@@ -544,6 +544,12 @@ function RedigerLokasjon({
             <GeoReferanseEditor
               tegningId={valgtTegningId}
               tegning={valgtTegning}
+              byggeplassId={lokasjonId}
+              startSenter={
+                lokasjon?.latitude != null && lokasjon?.longitude != null
+                  ? { lat: lokasjon.latitude, lng: lokasjon.longitude }
+                  : null
+              }
               onLagret={() => {
                 utils.bygning.hentMedId.invalidate({ id: lokasjonId });
               }}
@@ -732,6 +738,8 @@ function RedigerLokasjon({
 /* ------------------------------------------------------------------ */
 
 type GeofenceFelt = { latitude?: number | null; longitude?: number | null; radiusM?: number | null };
+/** Adressesøk-treff (speiler `bygning.geokod`-retur / rute-service AdresseTreff). */
+type AdresseTreff = { lat: number; lng: number; label: string };
 
 /** Geofence er «satt» når alle tre feltene finnes. */
 function harGeofence(lok: GeofenceFelt): boolean {
@@ -878,9 +886,10 @@ export default function LokasjonerSide() {
   const [geoLng, setGeoLng] = useState("");
   const [geoRadius, setGeoRadius] = useState("");
   const [geoFeil, setGeoFeil] = useState<string | null>(null);
-  // Del B: adresse-søk (button-trigget geokoding, ikke autocomplete)
+  // Del B: adresse-søk (button-trigget, Kartverket-treffliste — ikke autocomplete)
   const [geoAdresse, setGeoAdresse] = useState("");
   const [geokodMelding, setGeokodMelding] = useState<string | null>(null);
+  const [geoAdresseTreff, setGeoAdresseTreff] = useState<AdresseTreff[]>([]);
 
   const beregnGeofenceMutation = trpc.bygning.beregnGeofence.useMutation({
     onSuccess: (data: { lat: number; lng: number; radiusM: number }) => {
@@ -902,21 +911,33 @@ export default function LokasjonerSide() {
     onError: (feil: { message: string }) => setGeoFeil(feil.message),
   });
 
-  // Del B: geokod adresse → koordinater via server-proxy (bygning.geokod).
+  // Del B: adressesøk → inntil 5 treff (klikkbar liste) via server-proxy
+  // (bygning.geokod, Kartverket). Klikk et treff → setter senter.
+  const settGeoSenter = (treff: AdresseTreff) => {
+    setGeoLat(String(treff.lat));
+    setGeoLng(String(treff.lng));
+    // Gi nyplassert senter en brukbar default-radius (jf. 150 m ellers) så
+    // sirkelen vises straks. Rører ikke en allerede satt radius.
+    setGeoRadius((forrige) => (forrige.trim() === "" ? "150" : forrige));
+    setGeoAdresseTreff([]);
+    setGeokodMelding(null);
+  };
   const geokodMutation = trpc.bygning.geokod.useMutation({
-    onSuccess: (treff: { lat: number; lng: number } | null) => {
-      if (treff) {
-        setGeoLat(String(treff.lat));
-        setGeoLng(String(treff.lng));
-        // Gi nyplassert senter en brukbar default-radius (jf. 150 m ellers) så
-        // sirkelen vises straks. Rører ikke en allerede satt radius.
-        setGeoRadius((forrige) => (forrige.trim() === "" ? "150" : forrige));
-        setGeokodMelding(null);
-      } else {
+    onSuccess: (treff: AdresseTreff[]) => {
+      if (treff.length === 0) {
+        setGeoAdresseTreff([]);
         setGeokodMelding(t("lokasjoner.geofence.geokodIngen"));
+      } else if (treff.length === 1) {
+        settGeoSenter(treff[0]!); // ett treff → sett senter direkte
+      } else {
+        setGeoAdresseTreff(treff); // flere → klikkbar treffliste
+        setGeokodMelding(null);
       }
     },
-    onError: (feil: { message: string }) => setGeokodMelding(feil.message),
+    onError: (feil: { message: string }) => {
+      setGeoAdresseTreff([]);
+      setGeokodMelding(feil.message);
+    },
   });
 
   // Parsing for kart-props (NaN→null) — påvirker ikke lagre-logikken under.
@@ -1259,7 +1280,7 @@ export default function LokasjonerSide() {
             {t("lokasjoner.geofence.beskrivelse")}
           </p>
 
-          {/* Del B: adresse-søk → geokoding (button-trigget, ikke autocomplete) */}
+          {/* Del B: adressesøk → Kartverket-treffliste (button-trigget, ikke autocomplete) */}
           <div className="mb-3">
             <div className="flex items-end gap-2">
               <div className="flex-1">
@@ -1269,6 +1290,7 @@ export default function LokasjonerSide() {
                   onChange={(e) => {
                     setGeoAdresse(e.target.value);
                     setGeokodMelding(null);
+                    setGeoAdresseTreff([]);
                   }}
                   placeholder={t("lokasjoner.geofence.adressePlaceholder")}
                 />
@@ -1291,11 +1313,27 @@ export default function LokasjonerSide() {
                   : t("lokasjoner.geofence.sok")}
               </Button>
             </div>
+            {geoAdresseTreff.length > 0 && (
+              <ul className="mt-1 overflow-hidden rounded-md border border-gray-200">
+                {geoAdresseTreff.map((treff, i) => (
+                  <li key={`${treff.label}-${i}`}>
+                    <button
+                      type="button"
+                      onClick={() => settGeoSenter(treff)}
+                      className="flex w-full items-center gap-2 border-b border-gray-100 px-2.5 py-1.5 text-left text-xs text-gray-700 last:border-b-0 hover:bg-blue-50 hover:text-blue-700"
+                    >
+                      <MapPin className="h-3 w-3 flex-shrink-0 text-gray-400" />
+                      <span className="truncate">{treff.label}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             {geokodMelding && (
               <p className="mt-1 text-xs text-sitedoc-error">{geokodMelding}</p>
             )}
             <p className="mt-1 text-xs text-gray-400">
-              {t("lokasjoner.geofence.attribusjon")}
+              {t("georef.attribusjonKartverket")}
             </p>
           </div>
 
