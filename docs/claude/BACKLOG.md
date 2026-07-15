@@ -48,6 +48,14 @@ Fabel scopet oppmøtested bevisst ut av G2 — **riktig avgrensning, men gjelden
 
 G2 la 39 nye `georef.*`-nøkler (13 språk, `a2a8d5c7`), men **urørte strenger i editoren er fortsatt hardkodet norsk** — de var utenfor G2-scope. Bryter i18n-kravet (alle synlige UI-strenger via `t()`). Redesign-Opus førte den i designprosjekt-loggen, men **den nådde aldri repo-BACKLOG** (verifisert 0 treff, exit 2026-07-15) → var hjemløs i repoet til nå.
 
+### 🟡 Docs-lesbarhetsgjeld — 321 linjer over 600 tegn (ryddes ved berøring, ikke som egen runde)
+
+Målt 2026-07-16 etter at `STATUS-AKTUELT:30` ble brutt opp (`e2af1361`). Fordeling: `BACKLOG.md` 92 · `historikk-2026-05.md` 87 · `timer.md` 38 · `STATUS.md` 15 · `STATUS-AKTUELT.md` 15 · `historikk-2026-07.md` 13 · `redesign-paritetssjekkliste.md` 12 · `parallell-arbeid-lock.md` 7.
+
+**Hvorfor dette er gjeld og ikke en runde:** [dokumentasjons-standard.md § 10](dokumentasjons-standard.md) scoper regelen til **diffen** — nye/endrede linjer må være under ~600 tegn; eksisterende brudd ryddes når filen røres av annen grunn. En gate som feiler 321 ganger på dag én blir ignorert på dag to. Cowork spesifiserte opprinnelig regelen mot hele korpuset; målingen viste at den da ville vært uhåndhevbar — og at den motsa coworks egen plan, som slo fast at BACKLOG «fungerer faktisk» (strukturert + søkbar) og at arkivene er append-only ved design.
+
+**Bakgrunn (belegget for at dette er verdt noe):** `STATUS.md:14` var en changelog på **29 408 tegn i ett felt** — append-only, aldri lest, aldri korrigert. `STATUS-AKTUELT:30` var **12 036 tegn på én linje** og kostet **to merge-konflikter + én skjult stale status (K13)** på én dag. Ingen slurvet; ingen kunne lese dem. Prinsippet: **tunge dokumenter drifter mer** — når oppdatering koster og lesing er umulig, blir «docs senere» det rasjonelle valget.
+
 ### 🟡 Leaflet-markørikoner lastes fra unpkg-CDN ved runtime (`KartVelger.tsx`, `GeoReferanseEditor.tsx`)
 
 Begge kart-komponentene henter markørikoner fra `https://unpkg.com/leaflet@1.9.4/dist/images/...` ved kjøretid. **Konsekvens:** er unpkg nede eller blokkert (streng CSP, kunde-nett, offline), mister kartene markørene. Leaflet er allerede en npm-avhengighet — ikonene kan serveres lokalt fra `public/` i stedet. Lav risiko, men det er en unødvendig ekstern avhengighet i en flate kunder bruker på anlegg med dårlig nett. Pre-eksisterende (arvet); observert i redesign-Opus' exit 2026-07-15.
