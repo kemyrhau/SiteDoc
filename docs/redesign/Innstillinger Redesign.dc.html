@@ -16,6 +16,718 @@
   </style>
 </helmet>
 
+<!-- ================================================================= -->
+<!-- ================================================================= -->
+<!-- ==== RUNDE 5 — F-b «Til kl.»-fiks: arbeidstid-vindu ved Slutt dag = -->
+<!-- ================================================================= -->
+<section style="padding: 40px; display: flex; flex-direction: column; gap: 24px; background: #eef0f4;">
+  <div style="max-width: 980px;">
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Runde 5 &mdash; F-b: «Arbeidstid i dag»-vinduet ved «Slutt dag» p&aring; eksisterende sedel</div>
+    <div style="font-size: 15px; color: #374151; margin-top: 6px; line-height: 1.5;">Live-funn: «Til kl.» ble st&aring;ende p&aring; firma-default 15:00 etter «Slutt dag», selv om GPS-&oslash;kta sluttet 05:31. <b>Rotårsak (kodeverifisert):</b> dagen fantes alt som draft med <b>forh&aring;ndsutfylt</b> 07:00&ndash;15:00; <code>finnEllerOpprettDagsseddel</code> er idempotent (skriver tider kun p&aring; NY sedel), og append-stien <code>utvidArbeidstidsvindu</code> er <b>extend-only (max)</b> &mdash; en tidligere/kortere faktisk slutt trekker aldri vinduet inn. Designvalg: skal «Slutt dag» oppdatere vinduet til faktiske &oslash;kt-tider? Under: dagens vs. forslag. Ingen produksjonskode &mdash; designutkast for godkjenning.</div>
+  </div>
+
+  <div style="display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap;">
+
+    <!-- Skjerm A — Dagens atferd (default beholdt) -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #6b7280; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">A</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Dagens atferd &mdash; default beholdt</span>
+      </div>
+      <div style="width: 360px; background: #f6f7f9; border-radius: 26px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2;">
+        <div style="background: #1e40af; padding: 13px 16px; color: #fff;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #b9c8f2;"><span>05:31</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div style="font-size: 17px; font-weight: 700; margin-top: 8px;">Dagsseddel &mdash; i dag</div>
+        </div>
+        <div style="padding: 16px;">
+          <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 12px; padding: 14px;">
+            <div style="font-size: 13px; font-weight: 600; color: #111827;">Arbeidstid i dag</div>
+            <div style="font-size: 11.5px; color: #8a93a3; margin-top: 3px; line-height: 1.4;">Forh&aring;ndsutfylt fra firmaets standardtider &mdash; juster kun ved avvik.</div>
+            <div style="display: flex; gap: 10px; margin-top: 14px;">
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">FRA KL.</div><div style="font-size: 16px; font-weight: 600; color: #111827; margin-top: 3px;">07:00</div></div>
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">TIL KL.</div><div style="font-size: 16px; font-weight: 600; color: #111827; margin-top: 3px;">15:00</div></div>
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">PAUSE</div><div style="font-size: 16px; font-weight: 600; color: #111827; margin-top: 3px;">30 min</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="width: 360px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Nå:</b> &oslash;kta sluttet 05:31, men «Til» st&aring;r p&aring; prefylt 15:00 (extend-only: 05:31 &lt; 15:00 &rarr; default beholdt). Arbeideren m&aring; oppdage og rette manuelt.</div>
+    </div>
+
+    <!-- Skjerm B — Forslag (faktiske økt-tider + kilde-hint) -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #10b981; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">B</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Forslag &mdash; faktiske &oslash;kt-tider oppdaterer vinduet</span>
+      </div>
+      <div style="width: 360px; background: #f6f7f9; border-radius: 26px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2;">
+        <div style="background: #1e40af; padding: 13px 16px; color: #fff;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #b9c8f2;"><span>05:31</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div style="font-size: 17px; font-weight: 700; margin-top: 8px;">Dagsseddel &mdash; i dag</div>
+        </div>
+        <div style="padding: 16px;">
+          <div style="background: #fff; border: 1px solid #a7e3c6; border-radius: 12px; padding: 14px;">
+            <div style="font-size: 13px; font-weight: 600; color: #111827;">Arbeidstid i dag</div>
+            <!-- diskret kilde-hint -->
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 6px; background: #e9f9f1; border-radius: 7px; padding: 6px 9px;">
+              <span style="width: 14px; height: 14px; border-radius: 50%; background: #10b981; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 8px;">&#10003;</span>
+              <span style="font-size: 11px; color: #05603a;">Fra GPS-&oslash;kt 04:53&ndash;05:31 &#183; juster ved avvik</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 12px;">
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">FRA KL.</div><div style="font-size: 16px; font-weight: 600; color: #05603a; margin-top: 3px;">04:53</div></div>
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">TIL KL.</div><div style="font-size: 16px; font-weight: 600; color: #05603a; margin-top: 3px;">05:31</div></div>
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">PAUSE</div><div style="font-size: 16px; font-weight: 600; color: #111827; margin-top: 3px;">0 min</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="width: 360px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Forslag:</b> «Slutt dag» skriver faktiske &oslash;kt-tider inn i vinduet (grønt = fra GPS) med diskret kilde-hint. Arbeideren ser tydelig hvor tiden kom fra og kan overstyre.</div>
+    </div>
+
+    <!-- Skjerm C — Kanttilfeller (skjerming + multi-økt) -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #92610a; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">C</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Kanttilfeller &mdash; skjerming</span>
+      </div>
+      <div style="width: 360px; display: flex; flex-direction: column; gap: 12px;">
+        <!-- multi-økt -->
+        <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 12px; padding: 13px 15px;">
+          <div style="font-size: 12.5px; font-weight: 700; color: #111827;">Flere &oslash;kter samme dag</div>
+          <div style="font-size: 11.5px; color: #6b7280; margin-top: 4px; line-height: 1.5;">&Oslash;kt 1: 06:00&ndash;09:30 &#183; &Oslash;kt 2: 12:00&ndash;14:15 &rarr; vindu = <b>06:00&ndash;14:15</b> (min faktisk start / max faktisk slutt). Behold extend-only-logikken, men mot faktiske tider, ikke default.</div>
+        </div>
+        <!-- bruker-justert = skjermet -->
+        <div style="background: #fbf3e2; border: 1px solid #f0e2c2; border-radius: 12px; padding: 13px 15px;">
+          <div style="display: flex; align-items: center; gap: 7px;">
+            <span style="width: 15px; height: 15px; border: 1.6px solid #92610a; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 5px; height: 7px; border: 1.4px solid #92610a; border-top: none; border-left: none;"></span></span>
+            <span style="font-size: 12.5px; font-weight: 700; color: #7a4f08;">Bruker-justert vindu = l&aring;st</span>
+          </div>
+          <div style="font-size: 11.5px; color: #8a6a1e; margin-top: 4px; line-height: 1.5;">Har arbeideren <b>manuelt endret</b> Fra/Til, skal «Slutt dag» <b>aldri overskrive</b> det (`sluttTidKilde=&quot;bruker&quot;`-skjerming). GPS-forslag gjelder kun urørte/system-satte vinduer.</div>
+        </div>
+      </div>
+      <div style="width: 360px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Hva endres:</b> den prefylte defaulten slutter &aring; delta i min/max-sammenlikningen. F&oslash;rste GPS-&oslash;kt-slutt <b>ERSTATTER</b> det prefylte vinduet med faktiske tider; senere &oslash;kter utvider min/max mot <i>faktiske &oslash;kt-tider only</i>. <b>Unntak (foreslått skjerming):</b> manuelt justert vindu (<code>sluttTidKilde=&quot;bruker&quot;</code>) skal l&aring;ses &mdash; men <b>MÅ implementeres i fiksen</b>: <code>utvidArbeidstidsvindu</code> sjekker ikke <code>sluttTidKilde</code> i dag.</div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============ RUNDE 4 — Timeføring del 6 (fabel 2026-07-12) ======= -->
+<!-- ================================================================= -->
+<section style="padding: 40px; display: flex; flex-direction: column; gap: 24px; background: #f3f4f7;">
+  <div style="max-width: 980px;">
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Runde 4 &mdash; Timef&oslash;ring: maskin-i-rad, arbeider-splitt, hybrid start/stopp + nav</div>
+    <div style="font-size: 15px; color: #374151; margin-top: 6px; line-height: 1.5;">Fire designutkast for timef&oslash;ring, kodeverifisert mot <code>develop</code>. <b>P1</b> maskin flyttes inn i rad-lista + valgfri maskin-seksjon i «+ Legg til timer»-dialogen (web+mobil). <b>P2</b> arbeider-splitt som egen rad-handling i draft/returned. <b>P3</b> hybrid: full Start/Slutt-dag-kort &oslash;verst i Timer-fanen + &eacute;n-linjes chip p&aring; hjem i tre datadrevne tilstander. <b>P5</b> «Mine timer» uten prosjektkontekst. <b>K-a:</b> P1 er kun UI &mdash; datamodell (<code>SheetTimer</code>/<code>SheetMachine</code>) og kapasitetsvakten (<code>maskin &le; arbeid + pause</code>) er ur&oslash;rt. Ingen produksjonskode enn&aring;.</div>
+  </div>
+
+  <div style="display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap;">
+
+    <!-- ============ Skjerm P1: Maskin-i-rad (web + mobil) ============ -->
+    <div id="p1-maskin" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">P1</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Maskin-i-rad &mdash; &eacute;n rad-liste, maskin i samme dialog</span>
+      </div>
+      <div style="display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start;">
+
+        <!-- P1-A: Mobil dagsseddel — maskin-rad inline i lista -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="width: 340px; background: #f6f7f9; border-radius: 26px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2;">
+            <!-- header -->
+            <div style="background: #1e40af; padding: 13px 16px; color: #fff;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #b9c8f2;"><span>09:41</span><span>&#9679;&#9679;&#9679;</span></div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px;">
+                <div style="font-size: 18px; font-weight: 700;">Dagsseddel</div>
+                <div style="font-size: 12px; color: #b9c8f2;">tir 16. apr</div>
+              </div>
+              <!-- topp-sum (U1) -->
+              <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px; background: rgba(16,185,129,0.18); border: 1px solid rgba(16,185,129,0.4); border-radius: 8px; padding: 6px 10px;">
+                <span style="width: 8px; height: 8px; border-radius: 50%; background: #34d399;"></span>
+                <span style="font-size: 13px; font-weight: 600;">10,0 t</span><span style="font-size: 12px; color: #b9c8f2;">av 7,5 t norm</span>
+              </div>
+              <div style="font-size: 12px; color: #b9c8f2; margin-top: 8px;">Arbeidstid 07:00&ndash;17:00 &#183; pause 30 min</div>
+            </div>
+            <!-- prosjektgruppe -->
+            <div style="padding: 12px 14px 8px;">
+              <!-- gruppe-header nøytral/blå (prosjekt = blå per del 5-sidebarkonvensjon) -->
+              <div style="display: flex; align-items: center; justify-content: space-between; background: #eef3fd; border: 1px solid #d6e0f4; border-radius: 9px; padding: 9px 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span style="color: #1e40af; font-size: 11px;">&#9662;</span>
+                  <span style="font-size: 13.5px; font-weight: 600; color: #1e3a8a;">E6 Kv&aelig;nangsfjellet</span>
+                </div>
+                <span style="font-size: 12.5px; font-weight: 700; color: #1e3a8a;">10,0 t</span>
+              </div>
+              <!-- rad-liste: timer OG maskin i samme liste -->
+              <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 10px; margin-top: 8px; overflow: hidden;">
+                <!-- timer-rad -->
+                <div style="display: flex; align-items: center; gap: 10px; padding: 12px 13px; border-bottom: 1px solid #eef1f5; min-height: 44px; box-sizing: border-box;">
+                  <span style="width: 26px; height: 26px; border-radius: 6px; background: #eef2fb; color: #1e40af; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">&#9201;</span>
+                  <div style="flex: 1;">
+                    <div style="font-size: 14px; font-weight: 600; color: #111827;">Tim&oslash;mrer &#183; Anleggsarbeid</div>
+                    <div style="font-size: 12px; color: #8a93a3; margin-top: 1px;">07:00&ndash;11:00</div>
+                  </div>
+                  <span style="font-size: 13px; font-weight: 600; color: #374151;">4,0 t</span>
+                  <span style="color: #b6bdc9; font-size: 16px;">&rsaquo;</span>
+                </div>
+                <!-- timer-rad 2 -->
+                <div style="display: flex; align-items: center; gap: 10px; padding: 12px 13px; border-bottom: 1px solid #eef1f5;">
+                  <span style="width: 26px; height: 26px; border-radius: 6px; background: #eef2fb; color: #1e40af; display: inline-flex; align-items: center; justify-content: center; font-size: 12px;">&#9201;</span>
+                  <div style="flex: 1;">
+                    <div style="font-size: 14px; font-weight: 600; color: #111827;">Tim&oslash;mrer &#183; Anleggsarbeid</div>
+                    <div style="font-size: 12px; color: #8a93a3; margin-top: 1px;">11:30&ndash;17:00</div>
+                  </div>
+                  <span style="font-size: 13px; font-weight: 600; color: #374151;">6,0 t</span>
+                  <span style="color: #b6bdc9; font-size: 16px;">&rsaquo;</span>
+                </div>
+                <!-- MASKIN-rad inline (slate-aksent + maskin-ikon) — ikke egen blokk -->
+                <div style="display: flex; align-items: center; gap: 10px; padding: 12px 13px; background: #f8fafc;">
+                  <span style="width: 26px; height: 26px; border-radius: 6px; background: #e6ebf1; color: #475569; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 14px; height: 8px; border: 1.6px solid currentColor; border-radius: 2px; position: relative; display: inline-block;"><span style="position:absolute; left:1px; bottom:-3px; width:3px; height:3px; border-radius:50%; background: currentColor;"></span><span style="position:absolute; right:1px; bottom:-3px; width:3px; height:3px; border-radius:50%; background: currentColor;"></span></span></span>
+                  <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                      <span style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.06em; color: #475569; background: #e6ebf1; border-radius: 4px; padding: 1px 5px;">MASKIN</span>
+                      <span style="font-size: 14px; font-weight: 600; color: #111827;">Gravemaskin EQ-042</span>
+                    </div>
+                    <div style="font-size: 12px; color: #8a93a3; margin-top: 2px;">120 m&sup3;</div>
+                  </div>
+                  <span style="font-size: 13px; font-weight: 600; color: #374151;">5,0 t</span>
+                  <span style="color: #b6bdc9; font-size: 16px;">&rsaquo;</span>
+                </div>
+              </div>
+              <!-- én knapp legger til begge (dialog velger type) -->
+              <div style="border: 1.4px dashed #c3cad6; border-radius: 9px; margin-top: 8px; padding: 11px; text-align: center; color: #1e40af; font-size: 13px; font-weight: 600;">+ Legg til timer</div>
+              <div style="margin-top: 10px; padding: 9px 11px; text-align: center; color: #6b7280; font-size: 12.5px;">+ Legg til prosjekt</div>
+            </div>
+          </div>
+          <div style="width: 340px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Endring:</b> maskin-raden st&aring;r n&aring; <b>i samme liste</b> som timer-radene (slate «MASKIN»-merke + maskin-ikon), ikke som en «&#8627; herav maskin»-underblokk. Kapasitetsvakten er uendret bak kulissene.</div>
+        </div>
+
+        <!-- P1-B: Mobil dialog — «+ Legg til timer» med valgfri maskin-seksjon -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="width: 340px; background: #fff; border-radius: 26px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 16px; border-bottom: 1px solid #eef1f5;">
+              <span style="font-size: 16px; font-weight: 700; color: #111827;">Ny timerrad</span>
+              <span style="color: #9ca3af; font-size: 18px;">&times;</span>
+            </div>
+            <div style="padding: 14px 16px; display: flex; flex-direction: column; gap: 12px;">
+              <div><div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">L&oslash;nnsart *</div><div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #d5dae2; border-radius: 8px; padding: 11px 12px; color: #111827; font-size: 14px;">Tim&oslash;mrer<span style="color: #b6bdc9;">&rsaquo;</span></div></div>
+              <div><div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Aktivitet *</div><div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #d5dae2; border-radius: 8px; padding: 11px 12px; color: #111827; font-size: 14px;">Anleggsarbeid<span style="color: #b6bdc9;">&rsaquo;</span></div></div>
+              <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;"><div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Fra</div><div style="display: flex; align-items: center; gap: 6px; border: 1px solid #d5dae2; border-radius: 8px; padding: 11px 12px; font-size: 14px; color: #111827;"><span style="width:13px;height:13px;border:1.5px solid #9ca3af;border-radius:50%;"></span>07:00</div></div>
+                <div style="flex: 1;"><div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Til</div><div style="display: flex; align-items: center; gap: 6px; border: 1px solid #d5dae2; border-radius: 8px; padding: 11px 12px; font-size: 14px; color: #111827;"><span style="width:13px;height:13px;border:1.5px solid #9ca3af;border-radius:50%;"></span>11:00</div></div>
+                <div style="width: 74px;"><div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Timer</div><div style="border: 1px solid #d5dae2; border-radius: 8px; padding: 11px 10px; font-size: 14px; font-weight: 600; color: #111827; text-align: center;">4,0</div></div>
+              </div>
+              <div style="font-size: 11px; color: #8a93a3;">pausefradrag 0 min &#183; fra/til &harr; timer synkes automatisk</div>
+              <!-- valgfri MASKIN-seksjon, kollapsbar -->
+              <div style="border: 1px solid #e2e6ec; border-radius: 10px; overflow: hidden; margin-top: 2px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 11px 13px; background: #f8fafc;">
+                  <div style="display: flex; align-items: center; gap: 7px;">
+                    <span style="width: 18px; height: 18px; border-radius: 4px; background: #e6ebf1; color: #475569; display: inline-flex; align-items: center; justify-content: center; font-size: 11px;">+</span>
+                    <span style="font-size: 13.5px; font-weight: 600; color: #334155;">Maskin <span style="font-weight: 400; color: #8a93a3;">(valgfritt)</span></span>
+                  </div>
+                  <span style="color: #94a3b8; font-size: 11px;">&#9662;</span>
+                </div>
+                <div style="padding: 12px 13px; display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #eef1f5;">
+                  <div><div style="font-size: 11.5px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Utstyr</div><div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #d5dae2; border-radius: 8px; padding: 10px 12px; font-size: 13.5px; color: #111827;">Gravemaskin EQ-042<span style="color: #b6bdc9;">&rsaquo;</span></div></div>
+                  <div style="display: flex; gap: 10px;">
+                    <div style="flex: 1;"><div style="font-size: 11.5px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Mengde</div><div style="border: 1px solid #d5dae2; border-radius: 8px; padding: 10px 12px; font-size: 13.5px; color: #111827;">120</div></div>
+                    <div style="width: 92px;"><div style="font-size: 11.5px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Enhet</div><div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #d5dae2; border-radius: 8px; padding: 10px 11px; font-size: 13.5px; color: #111827;">m&sup3;<span style="color: #b6bdc9;">&rsaquo;</span></div></div>
+                  </div>
+                  <!-- kapasitetslinje (uendret regel, synlig proaktivt) -->
+                  <div style="font-size: 11.5px; color: #475569; background: #f1f5f9; border-radius: 7px; padding: 8px 10px;">Arbeid i gruppen: 10,0 t &#183; maskin s&aring; langt: 0 t &#183; <b>ledig: 10,0 t</b></div>
+                </div>
+              </div>
+              <div style="display: flex; gap: 10px; margin-top: 4px;">
+                <div style="flex: 1; text-align: center; border: 1px solid #d5dae2; border-radius: 9px; padding: 12px; font-size: 14px; font-weight: 600; color: #4b5563;">Avbryt</div>
+                <div style="flex: 1.4; text-align: center; background: #1e40af; color: #fff; border-radius: 9px; padding: 12px; font-size: 14px; font-weight: 600;">Lagre rad</div>
+              </div>
+            </div>
+          </div>
+          <div style="width: 340px; font-size: 11.5px; color: #6b7280; line-height: 1.5;">Samme dialog f&oslash;rer <b>b&aring;de timer og maskin</b>. Maskin-seksjonen er valgfri og kollapsbar &mdash; tom = ren timerrad (skriver kun <code>SheetTimer</code>), utfylt = ogs&aring; en <code>SheetMachine</code>-rad. Kapasitetslinjen er den eksisterende vakten, vist proaktivt.</div>
+        </div>
+
+        <!-- P1-C: Web-dialog (samme mønster) -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="width: 430px; background: rgba(15,23,42,0.32); border-radius: 12px; padding: 34px 30px; box-shadow: 0 8px 26px rgba(15,23,42,0.2);">
+            <div style="background: #fff; border-radius: 11px; overflow: hidden;">
+              <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 18px; border-bottom: 1px solid #eef1f5;">
+                <span style="font-size: 16px; font-weight: 700; color: #111827;">Ny timerrad &mdash; E6 Kv&aelig;nangsfjellet</span>
+                <span style="color: #9ca3af; font-size: 18px;">&times;</span>
+              </div>
+              <div style="padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+                <div style="display: flex; gap: 12px;">
+                  <div style="flex: 1;"><div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">L&oslash;nnsart *</div><div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #d5dae2; border-radius: 8px; padding: 9px 12px; font-size: 14px; color: #111827;">Tim&oslash;mrer <span style="color:#b6bdc9;">&#9662;</span></div></div>
+                  <div style="flex: 1;"><div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Aktivitet *</div><div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #d5dae2; border-radius: 8px; padding: 9px 12px; font-size: 14px; color: #111827;">Anleggsarbeid <span style="color:#b6bdc9;">&#9662;</span></div></div>
+                </div>
+                <div style="display: flex; gap: 12px; align-items: flex-end;">
+                  <div style="flex: 1;"><div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Fra</div><div style="border: 1px solid #d5dae2; border-radius: 8px; padding: 9px 12px; font-size: 14px; color: #111827;">07:00</div></div>
+                  <div style="flex: 1;"><div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Til</div><div style="border: 1px solid #d5dae2; border-radius: 8px; padding: 9px 12px; font-size: 14px; color: #111827;">11:00</div></div>
+                  <div style="width: 80px;"><div style="font-size: 12px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Timer</div><div style="border: 1px solid #d5dae2; border-radius: 8px; padding: 9px 12px; font-size: 14px; font-weight: 600; color: #111827; text-align: center;">4,0</div></div>
+                </div>
+                <!-- valgfri maskin-seksjon (åpen) -->
+                <div style="border: 1px solid #e2e6ec; border-radius: 10px; overflow: hidden;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 13px; background: #f8fafc;">
+                    <span style="font-size: 13.5px; font-weight: 600; color: #334155;">&#9207; Maskin <span style="font-weight: 400; color: #8a93a3;">(valgfritt)</span></span>
+                    <span style="color: #94a3b8; font-size: 11px;">&#9662;</span>
+                  </div>
+                  <div style="padding: 12px 13px; display: flex; gap: 12px; align-items: flex-end; border-top: 1px solid #eef1f5;">
+                    <div style="flex: 1.4;"><div style="font-size: 11.5px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Utstyr</div><div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #d5dae2; border-radius: 8px; padding: 8px 12px; font-size: 13.5px; color: #111827;">Gravemaskin EQ-042 <span style="color:#b6bdc9;">&#9662;</span></div></div>
+                    <div style="width: 74px;"><div style="font-size: 11.5px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Mengde</div><div style="border: 1px solid #d5dae2; border-radius: 8px; padding: 8px 10px; font-size: 13.5px; color: #111827;">120</div></div>
+                    <div style="width: 70px;"><div style="font-size: 11.5px; font-weight: 600; color: #6b7280; margin-bottom: 5px;">Enhet</div><div style="display: flex; align-items: center; justify-content: space-between; border: 1px solid #d5dae2; border-radius: 8px; padding: 8px 9px; font-size: 13.5px; color: #111827;">m&sup3; <span style="color:#b6bdc9;">&#9662;</span></div></div>
+                  </div>
+                  <div style="padding: 0 13px 12px;"><div style="font-size: 11.5px; color: #475569; background: #f1f5f9; border-radius: 7px; padding: 8px 10px;">Arbeid i gruppen: 10,0 t &#183; maskin s&aring; langt: 0 t &#183; <b>ledig: 10,0 t</b></div></div>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 4px;">
+                  <div style="border: 1px solid #d5dae2; border-radius: 8px; padding: 9px 20px; font-size: 14px; font-weight: 600; color: #4b5563;">Avbryt</div>
+                  <div style="background: #1e40af; color: #fff; border-radius: 8px; padding: 9px 22px; font-size: 14px; font-weight: 600;">Lagre rad</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="width: 430px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Web:</b> identisk m&oslash;nster i <code>TimerRadDialog</code>. Egen «+ Legg til maskin»-knapp forsvinner &mdash; maskin blir en valgfri seksjon i timerrad-dialogen, og maskin-rader vises inline i sedel-lista.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============ Skjerm P2: Arbeider-splitt ============ -->
+    <div id="p2-splitt" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">P2</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Arbeider-splitt &mdash; del &eacute;n rad i to (kun draft/returned)</span>
+      </div>
+      <div style="display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start;">
+
+        <!-- P2 web: rad-liste med splitt-handling -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="width: 560px; background: #fff; border-radius: 11px; overflow: hidden; box-shadow: 0 4px 16px rgba(15,23,42,0.12); border: 1px solid #dde2ea;">
+            <!-- draft-header -->
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 18px; border-bottom: 1px solid #eef1f5;">
+              <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-size: 15px; font-weight: 700; color: #111827;">Dagsseddel &mdash; 16. apr</span>
+                <span style="font-size: 11.5px; font-weight: 600; color: #6b7280; background: #f1f3f7; border-radius: 999px; padding: 2px 10px;">Utkast</span>
+              </div>
+              <span style="font-size: 12.5px; color: #6b7280;">Ola Nordmann</span>
+            </div>
+            <!-- rad m/ splitt-affordance (hover-handling vist) -->
+            <div style="display: flex; align-items: center; gap: 12px; padding: 13px 18px; border-bottom: 1px solid #eef1f5;">
+              <div style="flex: 1;">
+                <div style="font-size: 14px; font-weight: 600; color: #111827;">Tim&oslash;mrer &#183; Anleggsarbeid</div>
+                <div style="font-size: 12px; color: #8a93a3; margin-top: 1px;">07:00&ndash;15:00 &#183; E6 Kv&aelig;nangsfjellet</div>
+              </div>
+              <span style="font-size: 13px; font-weight: 600; color: #374151;">8,0 t</span>
+              <!-- splitt-knapp: kun i draft/returned -->
+              <div style="display: flex; align-items: center; gap: 5px; border: 1px solid #c7d0dd; border-radius: 7px; padding: 6px 11px; color: #1e40af; font-size: 12.5px; font-weight: 600;">
+                <span style="display: inline-block; width: 12px; height: 12px; border-left: 1.6px solid currentColor; border-right: 1.6px solid currentColor;"></span>
+                Splitt
+              </div>
+              <span style="color: #b6bdc9; font-size: 12px;">rediger</span>
+            </div>
+            <!-- resultat etter splitt: to rader fra én, andre rad ny ECO/lønnsart -->
+            <div style="background: #f8faff; border-bottom: 1px solid #eef1f5;">
+              <div style="display: flex; align-items: center; gap: 12px; padding: 12px 18px 8px 30px;">
+                <span style="width: 3px; align-self: stretch; background: #93c5fd; border-radius: 2px;"></span>
+                <div style="flex: 1;"><div style="font-size: 13.5px; font-weight: 600; color: #111827;">Tim&oslash;mrer &#183; Anleggsarbeid</div><div style="font-size: 11.5px; color: #8a93a3;">07:00&ndash;12:00</div></div>
+                <span style="font-size: 13px; font-weight: 600; color: #374151;">5,0 t</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 12px; padding: 8px 18px 12px 30px;">
+                <span style="width: 3px; align-self: stretch; background: #93c5fd; border-radius: 2px;"></span>
+                <div style="flex: 1;"><div style="font-size: 13.5px; font-weight: 600; color: #111827;">Tim&oslash;mrer &#183; <span style="color:#92610a;">Endring 04 (ECO)</span></div><div style="font-size: 11.5px; color: #8a93a3;">12:00&ndash;15:00</div></div>
+                <span style="font-size: 13px; font-weight: 600; color: #374151;">3,0 t</span>
+              </div>
+            </div>
+            <!-- kontrast: sendt rad UTEN splitt-knapp (gated) -->
+            <div style="display: flex; align-items: center; gap: 12px; padding: 13px 18px; opacity: 0.85;">
+              <div style="flex: 1;">
+                <div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 14px; font-weight: 600; color: #111827;">Grunnarbeider &#183; Anleggsarbeid</span><span style="font-size: 10.5px; font-weight: 600; color: #047857; background: #d1fae5; border-radius: 999px; padding: 1px 8px;">Attestert</span></div>
+                <div style="font-size: 12px; color: #8a93a3; margin-top: 1px;">07:00&ndash;15:00 &#183; l&aring;st &mdash; ingen splitt</div>
+              </div>
+              <span style="font-size: 13px; font-weight: 600; color: #374151;">8,0 t</span>
+            </div>
+          </div>
+          <div style="width: 560px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Gating:</b> «Splitt» vises kun n&aring;r <b>eier + status draft/returned</b> &mdash; ikke <code>tillattRedigerVedAttestering</code>. Attesterte/sendte rader har ingen splitt-affordance (nederst). Splitt beholder totaltimene; andre rad f&aring;r ny l&oslash;nnsart/ECO.</div>
+        </div>
+
+        <!-- P2 mobil-variant (kompakt) -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="width: 300px; background: #fff; border-radius: 22px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2;">
+            <div style="padding: 13px 15px; border-bottom: 1px solid #eef1f5; display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 14px; font-weight: 700; color: #111827;">Rad-handlinger</span>
+              <span style="font-size: 10.5px; font-weight: 600; color: #6b7280; background: #f1f3f7; border-radius: 999px; padding: 1px 8px;">Utkast</span>
+            </div>
+            <div style="padding: 14px 15px;">
+              <div style="border: 1px solid #dde2ea; border-radius: 10px; padding: 12px 13px;">
+                <div style="font-size: 13.5px; font-weight: 600; color: #111827;">Tim&oslash;mrer &#183; Anleggsarbeid</div>
+                <div style="font-size: 12px; color: #8a93a3; margin-top: 1px;">07:00&ndash;15:00 &#183; 8,0 t</div>
+              </div>
+              <!-- swipe/long-press-handlinger -->
+              <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <div style="flex: 1; text-align: center; border: 1px solid #c7d0dd; border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600; color: #1e40af;">&#9741; Splitt</div>
+                <div style="flex: 1; text-align: center; border: 1px solid #d5dae2; border-radius: 8px; padding: 10px; font-size: 13px; font-weight: 600; color: #4b5563;">Rediger</div>
+              </div>
+            </div>
+          </div>
+          <div style="width: 300px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Mobil-paritet:</b> «Splitt» som handling ved trykk p&aring; rad (samme gating). Vises kun i draft/returned.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============ Skjerm P3: Hybrid start/stopp + chip (tre tilstander) ============ -->
+    <div id="p3-hybrid" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">P3</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Hybrid &mdash; chip p&aring; hjem (tre tilstander) + fullt kort i Timer-fanen</span>
+      </div>
+      <div style="display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start;">
+
+        <!-- P3-A: chip tre tilstander (isolerte hjem-topper) -->
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <!-- tilstand 1: ingen dagskort, ingen økt → Start dag -->
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="width: 330px; background: #f6f7f9; border-radius: 16px 16px 12px 12px; border: 1px solid #d7dbe2; overflow: hidden;">
+              <div style="background: #1e40af; padding: 12px 15px; color: #fff;"><div style="font-size: 12px; color: #b9c8f2;">09:41</div><div style="font-size: 17px; font-weight: 700; margin-top: 4px;">Hjem</div></div>
+              <div style="padding: 12px 14px;">
+                <!-- chip: Start dag (amber = handling) -->
+                <div style="display: flex; align-items: center; gap: 10px; background: #fef6e6; border: 1px solid #f0d79b; border-radius: 10px; padding: 12px 14px;">
+                  <span style="width: 30px; height: 30px; border-radius: 50%; background: #f59e0b; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 13px;">&#9654;</span>
+                  <div style="flex: 1;"><div style="font-size: 14.5px; font-weight: 700; color: #7a4f08;">Start dag</div><div style="font-size: 11.5px; color: #a67c25;">GPS-registrer opp&oslash;te + start arbeidsdag</div></div>
+                  <span style="color: #c79a45; font-size: 16px;">&rsaquo;</span>
+                </div>
+              </div>
+            </div>
+            <div style="width: 330px; font-size: 11px; color: #6b7280; line-height: 1.45;"><b style="color:#374151;">1 &mdash; ingen dagskort, ingen &oslash;kt:</b> «Start dag» (ett trykk, GPS-veien som i dag).</div>
+          </div>
+          <!-- tilstand 2: aktiv økt → Pågår -->
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="width: 330px; background: #f6f7f9; border-radius: 16px 16px 12px 12px; border: 1px solid #d7dbe2; overflow: hidden;">
+              <div style="background: #1e40af; padding: 12px 15px; color: #fff;"><div style="font-size: 12px; color: #b9c8f2;">10:14</div><div style="font-size: 17px; font-weight: 700; margin-top: 4px;">Hjem</div></div>
+              <div style="padding: 12px 14px;">
+                <!-- chip: Pågår (grønn, live) -->
+                <div style="display: flex; align-items: center; gap: 10px; background: #e9f9f1; border: 1px solid #a7e3c6; border-radius: 10px; padding: 12px 14px;">
+                  <span style="width: 30px; height: 30px; border-radius: 50%; background: #10b981; color: #fff; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 9px; height: 9px; background: #fff; border-radius: 2px;"></span></span>
+                  <div style="flex: 1;"><div style="font-size: 14.5px; font-weight: 700; color: #05603a;">P&aring;g&aring;r 07:02 &#183; 3t 12m</div><div style="font-size: 11.5px; color: #0f7a4d;">Trykk for &aring; se dagen i Timer-fanen</div></div>
+                  <span style="color: #35a877; font-size: 16px;">&rsaquo;</span>
+                </div>
+              </div>
+            </div>
+            <div style="width: 330px; font-size: 11px; color: #6b7280; line-height: 1.45;"><b style="color:#374151;">2 &mdash; aktiv &oslash;kt</b> (<code>arbeidsdagLocal = paagaar</code>)<b>:</b> «P&aring;g&aring;r 07:02 &#183; 3t 12m» (minutt-tikk), trykk &rarr; Timer-fanen.</div>
+          </div>
+          <!-- tilstand 3: to varianter side ved side (Kenneth velger på bildene) -->
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="font-size: 11.5px; font-weight: 700; color: #374151;">3 &mdash; dagskort (draft/returned), ingen aktiv &oslash;kt (manuell vei) &mdash; to varianter:</div>
+            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+
+              <!-- Variant A: passiv (som tegnet) -->
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div style="width: 330px; background: #f6f7f9; border-radius: 16px 16px 12px 12px; border: 1px solid #d7dbe2; overflow: hidden;">
+                  <div style="background: #1e40af; padding: 12px 15px; color: #fff;"><div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #fff; background: rgba(255,255,255,0.16); border-radius: 4px; padding: 1px 7px;">A</span><span style="font-size: 12px; color: #b9c8f2;">13:20</span></div><div style="font-size: 17px; font-weight: 700; margin-top: 4px;">Hjem</div></div>
+                  <div style="padding: 12px 14px;">
+                    <!-- chip: passiv, grå, ingen klokke, hel chip → dagskort -->
+                    <div style="display: flex; align-items: center; gap: 10px; background: #f3f4f7; border: 1px solid #dde1e8; border-radius: 10px; padding: 12px 14px;">
+                      <span style="width: 30px; height: 30px; border-radius: 7px; background: #e6ebf1; color: #64748b; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 13px; height: 11px; border: 1.6px solid currentColor; border-radius: 2px;"></span></span>
+                      <div style="flex: 1;"><div style="font-size: 14.5px; font-weight: 700; color: #374151;">Dagskort p&aring;begynt</div><div style="font-size: 11.5px; color: #8a93a3;">3 rader &#183; 10,0 t &mdash; trykk for &aring; &aring;pne</div></div>
+                      <span style="color: #b6bdc9; font-size: 16px;">&rsaquo;</span>
+                    </div>
+                  </div>
+                </div>
+                <div style="width: 330px; font-size: 11px; color: #6b7280; line-height: 1.45;"><b style="color:#374151;">A (passiv):</b> hele chippen &rarr; dagskortet. <b>Ingen start-mulighet fra hjem</b> &mdash; GPS-&oslash;kt inviteres ikke oppp&aring; en manuelt f&oslash;rt dag. Renest, minst risiko for feil-tap.</div>
+              </div>
+
+              <!-- Variant B: delt chip m/ sekundær «Start dag» -->
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <div style="width: 330px; background: #f6f7f9; border-radius: 16px 16px 12px 12px; border: 1px solid #d7dbe2; overflow: hidden;">
+                  <div style="background: #1e40af; padding: 12px 15px; color: #fff;"><div style="display: flex; align-items: center; gap: 8px;"><span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: #1e3a8a; background: #cfe0ff; border-radius: 4px; padding: 1px 7px;">B</span><span style="font-size: 12px; color: #b9c8f2;">13:20</span></div><div style="font-size: 17px; font-weight: 700; margin-top: 4px;">Hjem</div></div>
+                  <div style="padding: 12px 14px;">
+                    <!-- delt chip: venstre = dagskort-info (→ dagskort), høyre = sekundær Start dag (amber) -->
+                    <div style="display: flex; align-items: stretch; background: #f3f4f7; border: 1px solid #dde1e8; border-radius: 10px; overflow: hidden;">
+                      <div style="flex: 1; display: flex; align-items: center; gap: 10px; padding: 12px 12px;">
+                        <span style="width: 30px; height: 30px; border-radius: 7px; background: #e6ebf1; color: #64748b; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 13px; height: 11px; border: 1.6px solid currentColor; border-radius: 2px;"></span></span>
+                        <div style="flex: 1;"><div style="font-size: 14px; font-weight: 700; color: #374151;">Dagskort p&aring;begynt</div><div style="font-size: 11.5px; color: #8a93a3;">3 rader &#183; 10,0 t</div></div>
+                      </div>
+                      <!-- sekundær handling: Start GPS (amber) — dagen finnes alt, så «GPS» ikke «dag» -->
+                      <div title="GPS-sporing p&aring; p&aring;g&aring;ende dag" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 0 14px; background: #fef6e6; border-left: 1px solid #f0d79b; color: #7a4f08;">
+                        <span style="width: 24px; height: 24px; border-radius: 50%; background: #f59e0b; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 10px;">&#9654;</span>
+                        <span style="font-size: 11px; font-weight: 700;">Start GPS</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style="width: 330px; font-size: 11px; color: #6b7280; line-height: 1.45;"><b style="color:#374151;">B (delt chip):</b> venstre &rarr; dagskortet; h&oslash;yre «Start GPS» (dagen finnes alt) starter GPS-&oslash;kt som <b>trygt appender til samme draft</b> (UF-0, ingen duplikat). Tooltip: «GPS-sporing p&aring; p&aring;g&aring;ende dag». <b>Nyttig n&aring;r:</b> arbeider f&oslash;rte inn &eacute;n rad manuelt om morgenen, men vil likevel GPS-spore resten av dagen.</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <!-- P3-B: Timer-fanen med fullt StartSluttDagKort øverst -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="width: 340px; background: #f6f7f9; border-radius: 26px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2;">
+            <div style="background: #1e40af; padding: 13px 16px; color: #fff;">
+              <div style="display: flex; justify-content: space-between; font-size: 12px; color: #b9c8f2;"><span>10:14</span><span>&#9679;&#9679;&#9679;</span></div>
+              <div style="font-size: 18px; font-weight: 700; margin-top: 8px;">Timer</div>
+            </div>
+            <div style="padding: 14px 15px; flex: 1;">
+              <!-- fullt Start/Slutt-dag-kort øverst -->
+              <div style="background: #fff; border: 1px solid #a7e3c6; border-radius: 13px; overflow: hidden;">
+                <div style="background: #e9f9f1; padding: 12px 15px; display: flex; align-items: center; gap: 10px;">
+                  <span style="width: 34px; height: 34px; border-radius: 50%; background: #10b981; color: #fff; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 10px; height: 10px; background: #fff; border-radius: 2px;"></span></span>
+                  <div style="flex: 1;"><div style="font-size: 15px; font-weight: 700; color: #05603a;">P&aring;g&aring;r siden 07:02</div><div style="font-size: 12px; color: #0f7a4d;">3t 12m &#183; Opp&oslash;te: Rigg B12</div></div>
+                </div>
+                <div style="padding: 12px 15px;">
+                  <div style="background: #ef4444; color: #fff; text-align: center; font-size: 14px; font-weight: 700; border-radius: 9px; padding: 12px;">Slutt dag</div>
+                  <div style="font-size: 11px; color: #8a93a3; text-align: center; margin-top: 7px;">Genererer et dagsseddel-utkast du kan korrigere</div>
+                </div>
+              </div>
+              <!-- dagsseddel-liste under -->
+              <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: #6b7280; margin: 16px 4px 8px;">DAGENS SEDDEL</div>
+              <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 11px; overflow: hidden;">
+                <div style="display: flex; align-items: center; gap: 11px; padding: 12px 14px; border-bottom: 1px solid #eef1f5;">
+                  <div style="flex: 1;"><div style="font-size: 14px; font-weight: 600; color: #111827;">E6 Kv&aelig;nangsfjellet</div><div style="font-size: 11.5px; color: #8a93a3;">2 rader</div></div>
+                  <span style="font-size: 12.5px; font-weight: 700; color: #374151;">10,0 t</span>
+                  <span style="color: #b6bdc9; font-size: 16px;">&rsaquo;</span>
+                </div>
+              </div>
+            </div>
+            <!-- tabbar -->
+            <div style="display: flex; border-top: 1px solid #dde2ea; background: #fff; padding: 9px 6px 20px;">
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #9ca3af;"><span style="width: 19px; height: 19px; border: 2px solid currentColor; border-radius: 5px; opacity: 0.85;"></span><span style="font-size: 10px; font-weight: 600;">Hjem</span></div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #9ca3af;"><span style="width: 19px; height: 19px; border: 2px solid currentColor; border-radius: 5px; opacity: 0.85;"></span><span style="font-size: 10px; font-weight: 600;">Tegninger</span></div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #1e40af;"><span style="width: 19px; height: 19px; border: 2px solid currentColor; border-radius: 5px;"></span><span style="font-size: 10px; font-weight: 700;">Timer</span></div>
+              <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; color: #9ca3af;"><span style="width: 19px; height: 19px; border: 2px solid currentColor; border-radius: 5px; opacity: 0.85;"></span><span style="font-size: 10px; font-weight: 600;">Mer</span></div>
+            </div>
+          </div>
+          <div style="width: 340px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Timer-fanen:</b> det fulle Start/Slutt-dag-kortet bor her (kontekst-riktig), ikke lenger som flytende element p&aring; hjem. Hjem beholder kun den diskrete chippen &mdash; forstyrrelsen borte, ett-trykks-tilgang bevart.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ============ Skjerm P5: Nav-skisse — Mine timer i avatarmeny ============ -->
+    <div id="p5-nav" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">P5</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Nav &mdash; «Mine timer» i avatarmeny (uten prosjektkontekst)</span>
+      </div>
+      <div style="display: flex; gap: 22px; flex-wrap: wrap; align-items: flex-start;">
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="width: 470px; background: #fff; border-radius: 11px; overflow: hidden; box-shadow: 0 4px 16px rgba(15,23,42,0.12); border: 1px solid #dde2ea;">
+            <!-- toppbar -->
+            <div style="display: flex; align-items: center; background: #1e40af; height: 46px; padding: 0 14px;">
+              <span style="color: #fff; font-weight: 700; font-size: 14px;">SiteDoc</span>
+              <span style="flex: 1;"></span>
+              <span style="display: flex; align-items: center; gap: 7px; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 10px; color: #b9c8f2; font-size: 12px; margin-right: 12px;">S&oslash;k overalt <span style="background: rgba(255,255,255,0.15); border-radius: 4px; padding: 1px 5px; font-size: 10.5px;">Ctrl K</span></span>
+              <span style="width: 26px; height: 26px; border-radius: 50%; background: #f59e0b; color: #1f2937; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center;">KM</span>
+            </div>
+            <!-- innhold m/ åpen avatarmeny -->
+            <div style="position: relative; height: 300px; background: #f6f7f9;">
+              <div style="padding: 22px 24px;"><div style="font-size: 18px; font-weight: 700; color: #111827;">Dashbord</div></div>
+              <!-- dropdown fra avatar (høyre) -->
+              <div style="position: absolute; top: 8px; right: 12px; width: 236px; background: #fff; border: 1px solid #dde2ea; border-radius: 11px; box-shadow: 0 10px 30px rgba(15,23,42,0.18); overflow: hidden;">
+                <div style="padding: 13px 15px; border-bottom: 1px solid #eef1f5;">
+                  <div style="font-size: 14px; font-weight: 700; color: #111827;">Kenneth Myrhaug</div>
+                  <div style="font-size: 11.5px; color: #8a93a3;">kemyrhau@gmail.com</div>
+                </div>
+                <div style="padding: 6px;">
+                  <div style="display: flex; align-items: center; gap: 11px; padding: 10px 11px; border-radius: 8px; color: #374151; font-size: 13.5px;"><span style="width: 17px; height: 17px; border: 1.6px solid #6b7280; border-radius: 50%;"></span>Min side</div>
+                  <!-- Mine timer — timervei uten prosjektkontekst -->
+                  <div style="display: flex; align-items: center; gap: 11px; padding: 10px 11px; border-radius: 8px; color: #1e40af; background: #eef3fd; font-size: 13.5px; font-weight: 600;"><span style="width: 17px; height: 17px; border: 1.7px solid currentColor; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 1.5px; height: 6px; background: currentColor;"></span></span>Mine timer</div>
+                  <div style="display: flex; align-items: center; gap: 11px; padding: 10px 11px; border-radius: 8px; color: #374151; font-size: 13.5px;"><span style="width: 17px; height: 17px; border: 1.6px solid #6b7280; border-radius: 4px;"></span>Spr&aring;k</div>
+                  <div style="height: 1px; background: #eef1f5; margin: 5px 8px;"></div>
+                  <div style="display: flex; align-items: center; gap: 11px; padding: 10px 11px; border-radius: 8px; color: #b91c1c; font-size: 13.5px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 4px;"></span>Logg ut</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="width: 470px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">«Mine timer»</b> ligger i avatarmenyen (person-nivn&aring;, ikke prosjekt) &mdash; arbeiderens egen timearbeidsflate n&aring;s uavhengig av valgt prosjekt. Speiler FM5/K2-vedtaket fra del 5 («Min side»-gruppe).</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ================================================================= -->
+<!-- ============ RUNDE 3 — Sidebar del 5 (fabel 2026-07-12) ========== -->
+<!-- ================================================================= -->
+<section style="padding: 40px; display: flex; flex-direction: column; gap: 24px; background: #eef0f4;">
+  <div style="max-width: 940px;">
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Runde 3 — Sidebar: h&oslash;ykontrast-mark&oslash;r, amber firma-sone, kollapsbare soner + tre-trinns bredde</div>
+    <div style="font-size: 15px; color: #374151; margin-top: 6px; line-height: 1.5;">Sidebaren har opptil 19 rader. Fire grep: <b>D3</b> aktiv rad f&aring;r hvit 3px venstrekant + <code>bg-white/20</code> (modul-fargekanten fjernes helt) — n&oslash;ytral og lik i begge soner. <b>D4</b> soneidentitet flyttes til <i>sonen</i>: FIRMA-overskrift/chevron i amber-300 + diskret 2px amber venstrestrek p&aring; blokken; PROSJEKT beholder blue-300. <b>D1</b> sonene kan kollapses (aktiv side vises alltid, selv i kollapset sone). <b>D2</b> bredden sykler full&nbsp;220px &rarr; slank&nbsp;60px &rarr; skjult&nbsp;0. Bakgrunn <code>#1e40af</code> i begge soner. Ingen produksjonskode enn&aring; — designutkast for godkjenning.</div>
+  </div>
+
+  <div style="display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap;">
+
+    <!-- ============ Skjerm 1: Full sidebar — ny markør + amber-sone ============ -->
+    <div id="3-full" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">1</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Full &mdash; ny mark&oslash;r + amber firma-sone</span>
+      </div>
+      <!-- SIDEBAR 240px -->
+      <div style="width: 240px; height: 620px; background: #1e40af; border-radius: 10px; padding: 8px 8px 10px; display: flex; flex-direction: column; box-shadow: 0 6px 20px rgba(15,23,42,0.22); box-sizing: border-box;">
+        <!-- tre-trinns toggle (top, høyre) -->
+        <div style="display: flex; justify-content: flex-end; padding: 2px 2px 4px;">
+          <span style="display: inline-flex; width: 26px; height: 24px; align-items: center; justify-content: center; border-radius: 6px; background: rgba(255,255,255,0.08);">
+            <span style="display: inline-flex; width: 17px; height: 14px; border: 1.6px solid #bfdbfe; border-radius: 3px; box-sizing: border-box; overflow: hidden;"><span style="width: 6px; background: #bfdbfe;"></span></span>
+          </span>
+        </div>
+        <div style="flex: 1; overflow: hidden; display: flex; flex-direction: column; gap: 1px;">
+          <!-- PROSJEKT-blokk (blue-300, transparent venstrestrek for alignment) -->
+          <div style="border-left: 2px solid transparent; padding-left: 5px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 8px 4px;">
+              <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: #93c5fd;">PROSJEKT</span>
+              <span style="color: #93c5fd; font-size: 10px;">&#9662;</span>
+            </div>
+            <!-- inaktive rader #bfdbfe -->
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 5px; opacity: 0.9; flex-shrink: 0;"></span>Dashbord</div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 5px; opacity: 0.9; flex-shrink: 0;"></span>Sjekklister</div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 5px; opacity: 0.9; flex-shrink: 0;"></span>Oppgaver</div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 5px; opacity: 0.9; flex-shrink: 0;"></span>HMS</div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 5px; opacity: 0.9; flex-shrink: 0;"></span>Tegninger</div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 5px; opacity: 0.9; flex-shrink: 0;"></span>Mapper</div>
+            <!-- AKTIV rad (D3): hvit 3px venstrekant + bg-white/20 + hvit tekst. INGEN modulfarge. -->
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; padding-left: 5px; border-radius: 7px; color: #ffffff; background: rgba(255,255,255,0.20); border-left: 3px solid #ffffff; font-size: 13px; font-weight: 600;"><span style="width: 17px; height: 17px; border: 1.8px solid currentColor; border-radius: 5px; flex-shrink: 0;"></span>Timer</div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 5px; opacity: 0.9; flex-shrink: 0;"></span>Kontakter</div>
+          </div>
+          <!-- FIRMA-blokk (amber-300 label/chevron + 2px amber venstrestrek på blokken) -->
+          <div style="border-left: 2px solid #fcd34d; padding-left: 5px; margin-top: 6px;">
+            <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 8px 4px;">
+              <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: #fcd34d;">FIRMA</span>
+              <span style="color: #fcd34d; font-size: 10px;">&#9662;</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 50%; opacity: 0.9; flex-shrink: 0;"></span>Oversikt</div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 50%; opacity: 0.9; flex-shrink: 0;"></span>Ansatte</div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 50%; opacity: 0.9; flex-shrink: 0;"></span>Moduler</div>
+            <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 50%; opacity: 0.9; flex-shrink: 0;"></span>Maskin</div>
+          </div>
+        </div>
+        <!-- Innstillinger pinned -->
+        <div style="border-top: 1px solid rgba(255,255,255,0.10); margin-top: 8px; padding-top: 8px;">
+          <div style="display: flex; align-items: center; gap: 11px; padding: 7px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.7px solid currentColor; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"><span style="width: 5px; height: 5px; border: 1.4px solid currentColor; border-radius: 50%;"></span></span>Innstillinger</div>
+        </div>
+      </div>
+      <div style="width: 240px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Aktiv «Timer»:</b> hvit 3px kant + <code>rgba(255,255,255,.20)</code> — den gamle m&oslash;rkegr&oslash;nne modulkanten er borte. FIRMA amber-300, PROSJEKT blue-300.</div>
+    </div>
+
+    <!-- ============ Skjerm 2: Kollapsede soner (to varianter) ============ -->
+    <div id="3-kollaps" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">2</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Kollapsede soner (D1)</span>
+      </div>
+      <div style="display: flex; gap: 20px;">
+        <!-- Variant A: FIRMA kollapset, aktiv i PROSJEKT -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="width: 240px; height: 430px; background: #1e40af; border-radius: 10px; padding: 8px; display: flex; flex-direction: column; box-shadow: 0 6px 20px rgba(15,23,42,0.22); box-sizing: border-box;">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 1px;">
+              <div style="border-left: 2px solid transparent; padding-left: 5px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 8px 4px;"><span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: #93c5fd;">PROSJEKT</span><span style="color: #93c5fd; font-size: 10px;">&#9662;</span></div>
+                <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 5px; opacity: 0.9;"></span>Dashbord</div>
+                <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 5px; opacity: 0.9;"></span>Sjekklister</div>
+                <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; padding-left: 5px; border-radius: 7px; color: #ffffff; background: rgba(255,255,255,0.20); border-left: 3px solid #ffffff; font-size: 13px; font-weight: 600;"><span style="width: 17px; height: 17px; border: 1.8px solid currentColor; border-radius: 5px;"></span>Timer</div>
+                <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.6px solid currentColor; border-radius: 5px; opacity: 0.9;"></span>Kontakter</div>
+              </div>
+              <!-- FIRMA kollapset: kun overskriftsrad m/ ▸ -->
+              <div style="border-left: 2px solid #fcd34d; padding-left: 5px; margin-top: 6px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 8px;"><span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: #fcd34d;">FIRMA</span><span style="color: #fcd34d; font-size: 10px;">&#9656;</span></div>
+              </div>
+            </div>
+            <div style="border-top: 1px solid rgba(255,255,255,0.10); margin-top: 8px; padding-top: 8px;"><div style="display: flex; align-items: center; gap: 11px; padding: 7px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.7px solid currentColor; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 5px; height: 5px; border: 1.4px solid currentColor; border-radius: 50%;"></span></span>Innstillinger</div></div>
+          </div>
+          <div style="width: 240px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">A:</b> FIRMA kollapset (&#9656;) &mdash; aktiv side ligger i PROSJEKT, s&aring; FIRMA vises som ren overskriftsrad.</div>
+        </div>
+        <!-- Variant B: begge kollapset, aktiv side ligger i FIRMA → vises likevel -->
+        <div style="display: flex; flex-direction: column; gap: 8px;">
+          <div style="width: 240px; height: 430px; background: #1e40af; border-radius: 10px; padding: 8px; display: flex; flex-direction: column; box-shadow: 0 6px 20px rgba(15,23,42,0.22); box-sizing: border-box;">
+            <div style="flex: 1; display: flex; flex-direction: column; gap: 1px;">
+              <!-- PROSJEKT kollapset, ingen aktiv → kun header -->
+              <div style="border-left: 2px solid transparent; padding-left: 5px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 8px;"><span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: #93c5fd;">PROSJEKT</span><span style="color: #93c5fd; font-size: 10px;">&#9656;</span></div>
+              </div>
+              <!-- FIRMA kollapset MEN inneholder aktiv side → aktiv rad vises under header -->
+              <div style="border-left: 2px solid #fcd34d; padding-left: 5px; margin-top: 6px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; padding: 7px 8px 4px;"><span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.1em; color: #fcd34d;">FIRMA</span><span style="color: #fcd34d; font-size: 10px;">&#9656;</span></div>
+                <div style="display: flex; align-items: center; gap: 11px; padding: 6px 8px; padding-left: 5px; border-radius: 7px; color: #ffffff; background: rgba(255,255,255,0.20); border-left: 3px solid #ffffff; font-size: 13px; font-weight: 600;"><span style="width: 17px; height: 17px; border: 1.8px solid currentColor; border-radius: 50%;"></span>Moduler</div>
+              </div>
+            </div>
+            <div style="border-top: 1px solid rgba(255,255,255,0.10); margin-top: 8px; padding-top: 8px;"><div style="display: flex; align-items: center; gap: 11px; padding: 7px 8px; border-radius: 7px; color: #bfdbfe; font-size: 13px;"><span style="width: 17px; height: 17px; border: 1.7px solid currentColor; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 5px; height: 5px; border: 1.4px solid currentColor; border-radius: 50%;"></span></span>Innstillinger</div></div>
+          </div>
+          <div style="width: 240px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">B (unntaket):</b> begge kollapset, men aktiv side ligger i FIRMA &rarr; <b>«Moduler» vises likevel</b> under overskriften. Aldri «usynlig hvor jeg er».</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ Skjerm 3: 3a slank (60px ikon-skinne) ============ -->
+    <div id="3a-slank" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">3a</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Slank &mdash; 60px ikon-skinne</span>
+      </div>
+      <div style="width: 60px; height: 620px; background: #1e40af; border-radius: 10px; padding: 8px 0 10px; display: flex; flex-direction: column; align-items: center; box-shadow: 0 6px 20px rgba(15,23,42,0.22); box-sizing: border-box;">
+        <!-- toggle sentrert -->
+        <span style="display: inline-flex; width: 30px; height: 26px; align-items: center; justify-content: center; border-radius: 6px; background: rgba(255,255,255,0.08); margin-bottom: 8px;"><span style="display: inline-flex; width: 17px; height: 14px; border: 1.6px solid #bfdbfe; border-radius: 3px; overflow: hidden;"><span style="width: 6px; background: #bfdbfe;"></span></span></span>
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; overflow: hidden;">
+          <!-- PROSJEKT-gruppe: 2px transparent venstrestrek for alignment med FIRMA -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; border-left: 2px solid transparent; padding-left: 6px;">
+            <span style="width: 20px; height: 20px; border: 1.6px solid #bfdbfe; border-radius: 5px; opacity: 0.9;"></span>
+            <span style="width: 20px; height: 20px; border: 1.6px solid #bfdbfe; border-radius: 5px; opacity: 0.9;"></span>
+            <span style="width: 20px; height: 20px; border: 1.6px solid #bfdbfe; border-radius: 5px; opacity: 0.9;"></span>
+            <!-- AKTIV ikon (D3): hvit venstrekant + bg-white/20, uten tekst -->
+            <div style="width: 44px; display: flex; align-items: center; justify-content: center; padding: 5px 0; border-radius: 7px; background: rgba(255,255,255,0.20); border-left: 3px solid #ffffff; box-sizing: border-box;"><span style="width: 20px; height: 20px; border: 1.8px solid #ffffff; border-radius: 5px;"></span></div>
+            <span style="width: 20px; height: 20px; border: 1.6px solid #bfdbfe; border-radius: 5px; opacity: 0.9;"></span>
+          </div>
+          <!-- soneskille = border-t -->
+          <div style="width: 30px; height: 1px; background: rgba(255,255,255,0.14); margin: 6px 0;"></div>
+          <!-- FIRMA-gruppe: 2px amber venstrestrek — eneste soneidentitet i slank (fabel-pålegg 2026-07-12) -->
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 3px; border-left: 2px solid #fcd34d; padding-left: 6px;">
+            <span style="width: 20px; height: 20px; border: 1.6px solid #bfdbfe; border-radius: 50%; opacity: 0.9;"></span>
+            <span style="width: 20px; height: 20px; border: 1.6px solid #bfdbfe; border-radius: 50%; opacity: 0.9;"></span>
+            <span style="width: 20px; height: 20px; border: 1.6px solid #bfdbfe; border-radius: 50%; opacity: 0.9;"></span>
+          </div>
+        </div>
+        <!-- Innstillinger pinned ikon -->
+        <div style="width: 100%; display: flex; justify-content: center; border-top: 1px solid rgba(255,255,255,0.10); margin-top: 8px; padding-top: 10px;"><span style="width: 20px; height: 20px; border: 1.7px solid #bfdbfe; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 6px; height: 6px; border: 1.4px solid #bfdbfe; border-radius: 50%;"></span></span></div>
+      </div>
+      <div style="width: 200px; font-size: 11.5px; color: #6b7280; line-height: 1.5;">Sentrerte ikoner, <code>title</code>-tooltip p&aring; hover. Soneskille = tynn <code>border-t</code> (ingen labels). Aktiv mark&oslash;r synlig <b>uten tekst</b>. Innstillinger pinned nederst.</div>
+    </div>
+
+    <!-- ============ Skjerm 4: Skjult modus — henteknapp i toppbar ============ -->
+    <div id="3-skjult" style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">4</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Skjult &mdash; hentes fra toppbar</span>
+      </div>
+      <div style="width: 460px; height: 620px; background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 6px 20px rgba(15,23,42,0.22); border: 1px solid #d7dbe2; display: flex; flex-direction: column;">
+        <!-- toppbar med 60px henteslot til venstre -->
+        <div style="display: flex; align-items: center; background: #1e40af; height: 46px;">
+          <!-- 60px-sporet der sidebaren pleide å stå: PanelLeftOpen-knapp -->
+          <div style="width: 60px; height: 100%; display: flex; align-items: center; justify-content: center; border-right: 1px solid rgba(255,255,255,0.12);">
+            <span style="display: inline-flex; width: 30px; height: 26px; align-items: center; justify-content: center; border-radius: 6px; background: rgba(255,255,255,0.14);"><span style="display: inline-flex; width: 17px; height: 14px; border: 1.6px solid #ffffff; border-radius: 3px; overflow: hidden;"><span style="width: 6px; background: #ffffff;"></span></span></span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 12px; padding: 0 14px; flex: 1;">
+            <span style="color: #fff; font-weight: 700; font-size: 14px;">SiteDoc</span>
+            <span style="display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.12); border-radius: 5px; padding: 4px 10px; color: #dbe4ff; font-size: 12.5px;">Markussen Entrepren&oslash;r <span style="color:#93a8e8;">/</span> Boligfelt&nbsp;B12 <span style="font-size:9px; color:#93a8e8;">&#9662;</span></span>
+            <span style="flex: 1;"></span>
+            <span style="display: flex; align-items: center; gap: 7px; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 4px 10px; color: #b9c8f2; font-size: 12px;">S&oslash;k overalt <span style="background: rgba(255,255,255,0.15); border-radius: 4px; padding: 1px 5px; font-size: 10.5px;">Ctrl K</span></span>
+            <span style="width: 24px; height: 24px; border-radius: 50%; background: #f59e0b; color: #1f2937; font-size: 10.5px; font-weight: 700; display: flex; align-items: center; justify-content: center;">KM</span>
+          </div>
+        </div>
+        <!-- innhold full bredde (ingen sidebar) -->
+        <div style="flex: 1; padding: 24px 28px; background: #f6f7f9;">
+          <div style="font-size: 19px; font-weight: 700; color: #111827;">Dashbord</div>
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px;">
+            <div style="height: 96px; background: #fff; border: 1px solid #dde2ea; border-radius: 9px;"></div>
+            <div style="height: 96px; background: #fff; border: 1px solid #dde2ea; border-radius: 9px;"></div>
+            <div style="height: 96px; background: #fff; border: 1px solid #dde2ea; border-radius: 9px;"></div>
+          </div>
+          <div style="height: 300px; background: #fff; border: 1px solid #dde2ea; border-radius: 9px; margin-top: 12px;"></div>
+        </div>
+      </div>
+      <div style="width: 460px; font-size: 11.5px; color: #6b7280; line-height: 1.5;">Sidebaren er helt skjult; innholdet f&aring;r full bredde. <b style="color:#374151;">PanelLeftOpen-knappen</b> lever i toppbarens 60px-spor (der skinnen pleide &aring; st&aring;) &mdash; klikk henter sidebaren tilbake. Tre-trinns-knappen sykler full &rarr; slank &rarr; skjult; tooltip viser neste trinn.</div>
+    </div>
+
+  </div>
+</section>
+
 <section style="padding: 40px; display: flex; flex-direction: column; gap: 24px;">
   <div style="max-width: 900px;">
     <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Runde 2 — Mobil med tegninger/3D/mapper + oversettelse med f&aelig;rre klikk</div>
