@@ -309,8 +309,15 @@ gir skrivefeil-toleranse (bounded Damerau-Levenshtein) + sentralt synonymlag (`K
 bygd på `sokeordKey`). «instill»/«admin»/«adm»/«oppsett» treffer nå Innstillinger-huben; regresjons-
 + falsk-positiv-vern i `sok-match.test.ts` (14/14). Begreps-kanonisering: «Firmaprofil» (var
 «Innstillinger» i firma-nav), «Dokumentsøk» (var «Søk»), «Kontrollplan» (var «Kontrollplaner»),
-PSI-snarvei «Administrer PSI-maler» (var to labels). Delt sidemeny `InnstillingerNav` (kilde
-`useInnstillingerKort`) på huben; `oppsett/layout.tsx`-samling venter frossen-sone-koordinering.
+PSI-snarvei «Administrer PSI-maler» (var to labels).
+
+**Oppfølgere (2026-07-15, Kenneth-godkjent mot mockup):** hub-en får den NATIVE sidemenyen —
+Del 3s kort-utledede `InnstillingerNav` slettet; native sidemeny trukket ut av `oppsett/layout.tsx`
+→ gjenbrukbar `OppsettSidemeny.tsx` (uendret utseende/logikk/gating), brukt av både undersidene
+(byte-identisk) og huben (`innstillinger/layout.tsx`, flagg-gated, skjult <md, ingen aktiv-markering
+på hub-roten). Divergens (hardkodet array vs hub-kort) → BACKLOG (delt DATAKILDE, ikke ny komponent).
+Byggeplasser-kort utvidet med «georeferanse» (beskrivelse + sokeord); Dokumentflyt-kort fikk underlenker
+Faggrupper/Medlemmer + gjensidig synonym-cluster (dokumentflyt↔faggruppe↔medlemmer).
 
 **Nytt i K13 (5 tidligere udekkede — implementert 2026-07-11):**
 

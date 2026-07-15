@@ -85,6 +85,10 @@ Beslutninger fra del-6-live-runden (kode i `fix/timer-fra-til-obligatorisk` + `f
 - **F-c:** «Økten var for kort»-melding ved 0 carve-rader (`9d6a8d82`).
 - **F-b:** «Slutt dag» skriver faktiske økt-tider i «Arbeidstid i dag»-vinduet + `sluttTidKilde="bruker"`-skjerming. **Status: IMPLEMENTERT (branch `fix/del6-fbefg`), venter gate** — `utvidArbeidstidsvindu` tar nå `sluttTidKilde`-param og utvider `endAt` KUN når kilden er `"bruker"` (bekreftet); `"system"`/`"midnatt"`-gjettede slutt-tider skyver ikke vinduet ut med fabrikkerte tider. Design: designfila RUNDE 5 + `docs/redesign/screenshots/runde5-tilkl-2026-07-13/`.
 
+### 🟡 Sidebar aktiv-seksjon: utled fra sidebar-element-id-er (én kilde) — rotårsaks-oppfølger
+
+`useAktivSeksjon.ts` bruker et parallelt `seksjonMap` (rute-segment → `Seksjon`) med `?? "dashbord"`-fallback for ukjente segmenter. Klasse-bug: en ny seksjon uten map-oppføring lyser falskt «Dashbord» (rammet PSI/Kontrollplan, fikset punktvis i `7f75c654`, pre-eksisterende fra `b8d960547`). **Fiks:** utled `Seksjon` fra sidebar-elementenes `id`-er (samme kilde som navigasjonen selv) i stedet for parallelt map — nye seksjoner dekkes da automatisk, ingen fallback å glemme. Vurdert alternativ (`setAktivSeksjon` → `Seksjon | null` så ukjent segment gir INGEN aktiv) forkastet: type-utvidelse på delt `navigasjon-kontekst` + return-type, og erstattes uansett av single-source. Merk: `7f75c654` forbedret bevisst begge flagg-tilstander (ikke gated) — greit, ren bugfiks.
+
 ### 🔴 i18n fagterm-QA for K13-nøklene
 
 Auto-oversettelsen (generate.ts) ga svake fagtermer for de tre nye K13-nøklene i enkelte språk — særlig `innstillinger.lenke.timerOnboarding` («Oppsett»/«Setup») → pl «Organizować coś» o.l. Kjent generate.ts-quirk (kildene nb/en er korrekte). QA + manuell retting av fagtermene er egen sak, ikke-blokkerende.
@@ -1098,6 +1102,12 @@ Uloggede funn fra 2c-leser-bygging + simulator-verifisering (cowork exitert — 
 - **(kildespråk≠prosjektspråk-gap) Dok med kildespråk ≠ prosjektspråk oversettes aldri TIL prosjektspråket** 🟡 — mappens automatiske målspråk-sett (`Folder.languages` / arv) inkluderer ikke prosjektspråket når dokumentets `sourceLanguage` avviker (f.eks. LT-kilde i nb-prosjekt). `oversettGjenstaaende` filtrerer bort kilde-språket, men legger aldri til prosjektspråket som mål. Konsekvens: en LT-kilde-fil får aldri auto-NB-oversettelse (kun manuell via 2c «+ Oversett»). Handling: la målspråk-utledningen alltid inkludere prosjektspråket når `sourceLanguage ≠ prosjektspråk`. Backend (`mappe.ts`/`resolverSpråk`). (Notert til cowork av fabel 2026-07-07.)
 - **(toast for stille feil) `oversettDokument` diskriminerte statuser er stille på klient** 🟢 lav prio — `mappe.oversettDokument` returnerer `kilde`/`modulInaktiv`/`ingenKilde`/`inaktiv` uten at 2c-leserens `oversettMut.onSuccess` viser noe (bare `refetch`). Bruker som trykker «+ Oversett» på et dok uten oversettelses-modul / uten kildeblokker får ingen tilbakemelding. Handling: vis liten toast/hint ved ikke-`queued`-status. Kosmetisk (normaltilfellet `queued` virker).
 - **(mappe-cache «Ikke funnet») Slettet/utilgjengelig mappe gir hard feil i stedet for tom-tilstand** 🟢 lav prio — når en mappe/dok er slettet eller utilgjengelig faller queries (`findUniqueOrThrow` i `mappe.ts`, f.eks. `hentDokumentBlokker`/`hentDokumenter`) tilbake på kastet feil → klienten kan vise «Ikke funnet»/rød skjerm i stedet for en ryddig tom-tilstand. Handling: vurder `findUnique` + eksplisitt tom-retur der en slettet mappe/dok er et normalt utfall (dyplenke til slettet innhold). Observert under 2c deep-link-testing.
+
+### 🟡 Innstillinger-sidemeny — native oppsett-sidebar bør få delt datakilde (2026-07-15)
+
+Den native innstillings-sidemenyen (nå `apps/web/src/components/layout/OppsettSidemeny.tsx`, uttrukket 2026-07-15 og gjenbrukt av både oppsett-undersidene og hub-en) bygges fra et **hardkodet `navigasjon`-array** — en parallell kilde til hub-kortene (`useInnstillingerKort`). De kan drifte fra hverandre (samme klasse som Byggeplasser-chip-funnet). Del 3s kort-utledede `InnstillingerNav`-variant ble forkastet; Kenneth valgte den native sidemenyen på huben. Selve komponenten er nå delt, men **datakilden er fortsatt to steder**.
+
+**Ønsket løsning (behold komponenten, bytt kilden):** gi `OppsettSidemeny` delt datakilde — enten ved å utlede `navigasjon`-arrayet fra `useInnstillingerKort`/`HUB_LENKER`, eller ved å løfte begge til én felles struktur. Behold dagens visuelle variant + collapse-oppførsel; bytt kun kilden. Da lukkes divergensen uten å endre UX-en Kenneth godkjente. Frossen sone (`oppsett/**`) → koordineres via `parallell-arbeid-lock.md`.
 
 ### Avklaring-modul — TE/Endring/Varsel statusflyt (høy prioritet)
 

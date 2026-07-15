@@ -2,7 +2,7 @@
 name: simulator-opus-oppkobling
 description: Autoritativ referanse for simulator-Opus — oppkobling (miljø fra null), fullt input-repertoar (simctl + idb, empirisk verifisert), auth/brukerbytte, hva som krever Kenneth-hånd, reset, og test-handoff/rapporterings-protokoll mot cowork.
 status: aktiv
-sist_verifisert_mot_kode: 2026-07-12
+sist_verifisert_mot_kode: 2026-07-13 — DELVIS. KUN idb/simctl-repertoaret (§2) + koordinat-mapping (§3) er empirisk verifisert mot binær/kode. SiteDoc-app-atferdspåstander merket ⚠️ (§4) er kopiert fra simulator-runbook.md / dev-login-agent.md UTEN kodeverifisering denne økta — verifiser mot kode før du stoler på dem.
 ---
 
 # Simulator-Opus — oppkobling + kapabilitet + handoff
@@ -67,7 +67,7 @@ Kenneths Chrome, ikke simulatoren — se [mcp-playwright-simulator-oppsett.md](m
 | **Reset keychain** | `idb clear-keychain` | Kandidat for programmatisk sesjon-reset (SecureStore er keychain-basert) — **verifiser før du stoler på den**; tømmer hele keychain |
 | **Livssyklus** | `xcrun simctl terminate booted <bundle>` / `launch booted <bundle>` | Reload/kaldstart (se § 4) |
 
-**Dev-app bundle-id:** `com.kemyrhau.sitedoc` (Expo Go: `host.exp.Exponent`).
+**Dev-app bundle-id:** test-bygg = `com.kemyrhau.sitedoc.test` (kilde `app.config.js:28`), base/prod = `com.kemyrhau.sitedoc` (`app.json:14`). **Dev via Expo Go = `host.exp.Exponent`** (verifisert 2026-07-13 via GPS-tillatelsesdialog + SQLite-DB-sti). ⚠️ `terminate/launch com.kemyrhau.sitedoc`-kommandoene lenger nede FEILER når appen kjører i Expo Go-dev — bruk `host.exp.Exponent` da.
 
 **idb-installasjon** (om binæren mangler — begge deler kreves): `pipx install fb-idb --python python3.11`
 (Python 3.14 har asyncio-inkompat) + `brew install idb-companion`.
@@ -95,8 +95,10 @@ iPhone 16 Plus: **430×932 punkter**, skjermbilde **1290×2796 px** (3× skala).
 ## 4. Auth / login + brukerbytte
 
 **Simulator-Opus logger inn selv** — ingen Kenneth-hånd, ingen OAuth. Innloggingsskjermen viser fire
-dev-login-knapper (kun test-/dev-bygg: `erTestLoginAktiv || __DEV__`; fraværende i prod). Kilde:
-`apps/mobile/app/logg-inn.tsx`. Tap knappen → innlogget.
+dev-login-knapper (kun test-/dev-bygg: `erTestLoginAktiv || __DEV__`; fraværende i prod). ✓ **Verifisert
+2026-07-13: `apps/mobile/app/logg-inn.tsx:158`** (`(erTestLoginAktiv || __DEV__) && …`). Tap knappen → innlogget.
+
+⚠️ **Testbruker-tabellen under (roller/data + «admin-bypass-gap») er kopiert fra [dev-login-agent.md](dev-login-agent.md), IKKE re-verifisert mot kode/seed denne økta.**
 
 | Knapp | Rolle | Data |
 |---|---|---|
@@ -108,9 +110,9 @@ dev-login-knapper (kun test-/dev-bygg: `erTestLoginAktiv || __DEV__`; fraværend
 **For data-verifisering: bruk «Egen bruker (kemyrhau)»** — de seedede har ikke alltid prosjekttilknytning.
 
 **Brukerbytte gjør agenten selv:** Mer → Logg ut → velg annen dev-login-knapp. To fallgruver:
-1. **Sesjonen ligger i iOS-nøkkelringen og OVERLEVER app-sletting** — reinstall bytter IKKE bruker.
+1. ⚠️ **(kopiert fra runbook, IKKE kodeverifisert denne økta — grep `SecureStore|Keychain` i `AuthProvider.tsx`+`config/auth.ts` ga tomt treff)** **Sesjonen skal ligge i iOS-nøkkelringen og OVERLEVE app-sletting** — reinstall bytter da IKKE bruker.
    Bytt via Logg ut (eller kandidat: `idb clear-keychain`, se § 2 — verifiser).
-2. **s3-bug:** etter «Logg ut» blir appen stående på Mer m/«Ukjent bruker». Workaround (fra Mac):
+2. ⚠️ **(kopiert fra runbook, IKKE verifisert denne økta)** **s3-bug:** etter «Logg ut» skal appen bli stående på Mer m/«Ukjent bruker». Workaround (fra Mac):
    `xcrun simctl terminate booted com.kemyrhau.sitedoc && xcrun simctl launch booted com.kemyrhau.sitedoc`
    → kaldstart uten token lander på innloggingsskjermen.
 

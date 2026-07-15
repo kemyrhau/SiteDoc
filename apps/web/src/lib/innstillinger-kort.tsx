@@ -294,6 +294,11 @@ export function useInnstillingerKort(): {
         synlig: kanManageField,
         underlenker: [
           { labelKey: "innstillinger.lenke.dokumentflyt", href: HUB_LENKER.dokumentflyt },
+          // Kryss-lenker: faggrupper + medlemmer er flyt-deltakerne — nås også
+          // herfra (eksisterende ruter, delt med Medlemmer-kortet). Gjensidig
+          // søkbarhet via KJERNE_SYNONYMER (dokumentflyt↔faggruppe↔medlemmer).
+          { labelKey: "innstillinger.lenke.faggrupper", href: HUB_LENKER.faggrupper.replace("[prosjektId]", p) },
+          { labelKey: "innstillinger.lenke.medlemmer", href: HUB_LENKER.medlemmer },
         ],
       },
       {

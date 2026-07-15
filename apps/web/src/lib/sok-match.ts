@@ -33,9 +33,10 @@ interface SynonymRegel {
 
 export const KJERNE_SYNONYMER: SynonymRegel[] = [
   { triggere: ["innstillinger", "oppsett"], synonymer: "oppsett admin administrer konfig konfigurasjon instillinger" },
-  { triggere: ["byggeplasser", "byggeplass"], synonymer: "lokasjon plass kart geofence omrade tegning" },
+  { triggere: ["byggeplasser", "byggeplass"], synonymer: "lokasjon plass kart geofence omrade tegning georeferanse georeferer kartfeste" },
   { triggere: ["mapper", "mappeoppsett"], synonymer: "mappe dokument arkiv box" },
   { triggere: ["ansatte", "medlemmer"], synonymer: "bruker folk roller admin medarbeider" },
+  { triggere: ["dokumentflyt", "faggrupper", "faggruppe", "medlemmer"], synonymer: "dokumentflyt faggruppe medlemmer flyt" },
   { triggere: ["firmaprofil", "firmainfo"], synonymer: "admin administrer firmainnstillinger firmaoppsett" },
   { triggere: ["dokumentsok", "sok"], synonymer: "sok ai-sok finn" },
   { triggere: ["timer", "attestering"], synonymer: "time dagsseddel lonn arbeidstid" },
