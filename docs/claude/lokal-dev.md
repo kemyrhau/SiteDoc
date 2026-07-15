@@ -28,8 +28,10 @@ echo 'export PATH="/opt/homebrew/opt/postgresql@16/bin:$PATH"' >> ~/.zshrc
 
 ```
 cd ~/Documents/Programmering/SiteDoc
-pnpm dev
+pnpm dev --filter @sitedoc/web --filter @sitedoc/api
 ```
+
+**Fullt pakkenavn kreves.** `--filter web` feiler med «No package found with name 'web' in workspace» — pakkene heter `@sitedoc/web`/`@sitedoc/api`/`@sitedoc/mobile` (CLAUDE.md var feil på dette til 2026-07-15). Filtrer alltid til web+api når du tester web: `pnpm dev` alene starter alle 10 pakker inkl. expo/Metro, som er tung og kolliderer på port 8081 med et Metro fra et annet arbeidstre.
 
 Åpne så `http://localhost:3100` i nettleseren. **Ikke lim URL-en i terminalen** — zsh tolker `?` som glob og gir `no matches found`. Vil du åpne fra terminal: `open "http://localhost:3100/..."` (anførselstegn påkrevd).
 
@@ -38,6 +40,7 @@ pnpm dev
 - **Naviger ved å KLIKKE** — `dashbord/layout.tsx` holder flagg-staten gjennom client-side-navigasjon.
 - **Hard reload uten parameteren dropper flagget** → legg `?nyNav=1` på igjen.
 - **Skal det overleve reload:** sett konto-flagget (`User.nyNavigasjon`) via admin-knappen på `/dashbord/firma/ansatte`.
+- **Merk:** konto-flagget **følger med test-dumpen** (§ 3). Har du satt ny nav på test, står den på lokalt også — da trenger du ingen parameter i det hele tatt. Verifisert 2026-07-15: ny nav rendret lokalt uten `?nyNav`.
 
 ## 2. Feilsøking — når localhost ikke virker
 
@@ -48,6 +51,8 @@ pnpm dev
 | **`column "canLogin" does not exist`** | DB-kolonner er snake_case (`can_login`); `canLogin` er Prisma-**feltnavnet**. `@map` oversetter. | Bruk DB-navnet i rå SQL |
 | **`zsh: no matches found: http://...`** | URL limt i terminalen; `?` er glob | Lim i nettleseren, eller `open "URL"` |
 | **`extension "vector" is not available`** | pgvector er ikke bygget mot `postgresql@16` | Se pgvector-forbeholdet i § 3 — blokkerer kun AI-søk |
+| **All CSS borte** — rå knapper, serif-overskrift, lilla lenker, ikoner i full SVG-størrelse | `next build` ble kjørt i **samme arbeidstre** mens `next dev` kjørte. De deler `apps/web/.next`, så produksjonsbygget klobber dev-serverens chunks + CSS-manifest → dev serverer referanser til filer som ikke finnes | Stopp dev → `rm -rf apps/web/.next` → start dev. **Kjør build-gaten (regel 10) i et annet tre** enn det dev bruker — f.eks. `SiteDoc-merge`. Skjedde 2026-07-15 |
+| **Dev føles tregere enn test/prod** | Forventet, ikke en feil. `next dev` kompilerer hver rute on-demand ved første treff, uten minifisering, med source maps + refresh-runtime. Server kjører ferdig `next build`-output | Ingen fiks. Filtrer bort expo (over). Turbopack (`next dev --turbo`) er et alternativ hvis det plager — egen vurdering, ikke gjort |
 
 ## 3. Oppdatere test-data
 
