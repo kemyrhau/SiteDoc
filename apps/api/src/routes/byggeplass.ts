@@ -9,7 +9,7 @@ import {
 } from "../trpc/tilgangskontroll";
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { recomputeRadForByggeplass } from "../services/reisetidMatrise";
-import { geokodAdresse } from "../services/rute-service";
+import { sokAdresser } from "../services/rute-service";
 
 export const byggeplassRouter = router({
   // R4: member-lesbar liste over firmaets byggeplasser (mobil-cache for
@@ -172,10 +172,11 @@ export const byggeplassRouter = router({
       return oppdatert;
     }),
 
-  // Geokod adresse → koordinater. Tynn proxy over delt rute-service (Nominatim
-  // med identifiserende User-Agent + timeout + null-ved-feil; policy-kontroll
-  // sentralt, ikke i browser). byggeplassId-scopet auth (speiler settGeofence) —
-  // adresse-søk i geofence-editoren. Lagrer ingenting; returnerer { lat, lng } | null.
+  // Adressesøk → inntil 5 treff (klikkbar treffliste). Tynn proxy over delt
+  // rute-service (Kartverket/Geonorge, fuzzy for upresis skriving; keyless +
+  // timeout + tom-liste-ved-feil; policy-kontroll sentralt, ikke i browser).
+  // byggeplassId-scopet auth (speiler settGeofence). Lagrer ingenting;
+  // returnerer AdresseTreff[] (0–5). Brukes av geofence-editor + geofence-modal.
   geokod: protectedProcedure
     .input(
       z.object({
@@ -189,7 +190,7 @@ export const byggeplassRouter = router({
         select: { projectId: true },
       });
       await verifiserProsjektmedlem(ctx.userId, byggeplass.projectId);
-      return geokodAdresse(input.adresse);
+      return sokAdresser(input.adresse);
     }),
 
   // Publiser byggeplass
