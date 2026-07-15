@@ -106,6 +106,85 @@ ble kalt fra `syncBatch`.
 Azure-sjekkliste blokkerte MS-login. Påstanden var aldri verifisert og ble
 motbevist av én innlogging.
 
+### 9. Én kilde eier status — alle andre peker
+
+Status på en tråd (lukket / verifisert / hvem godkjente / 8/8) bor i **ett**
+dokument: statuskilden (typisk verifiseringsloggen eller rapporten for den
+tråden). Alle andre dokumenter kan si **«lukket» og peke** til kilden — men
+gjengir **ikke detaljene** (dato, hvem godkjente, tellingen). Detaljer duplisert
+ut av kilden er frø til neste drift: kilden oppdateres, kopien blir liggende.
+
+To feiltilstander, ulik hastegrad:
+
+| Tilstand | Eksempel 2026-07-15 | Hastegrad |
+|---|---|---|
+| **Stale** | STATUS-AKTUELT bar «gjenstår 8 K13-skjermbilder» mens `k13-sokdekning-rapport.md` (kilden) sa LUKKET. Redesign-økta var i ferd med å fange åtte unødvendige skjermbilder på en tråd som var ferdig. | Akutt — skjult aktivt arbeid, konkret bortkastet innsats. |
+| **Duplikat** | En annen fil bar en **korrekt** K13-statuskopi. Ikke stale i dag — men samme detalj to steder betyr at neste oppdatering av kilden etterlater en stale kopi. | Lav nå, garantert drift senere. |
+
+Regelen: **hvem som helst kan si «lukket» + peke; ingen andre enn kilden gjengir
+detaljene.** En duplikat er ikke feil i dag, men den er en stale-drift som ennå
+ikke har skjedd — fjern den, eller reduser den til «lukket → [kilde]».
+
+**En peker skal navngi hvilket tre den løses i** — repo-sti eller designprosjekt.
+En bar sti som *ser ut som* en repo-sti, men bor et annet sted, er en peker til
+ingenting for den som leser. Og en peker til ingenting er verre enn en kopi:
+kopien kan i det minste leses, om enn stale. Belegg — første anvendelse av denne
+regelen brøt seg selv på nettopp dette: STATUS-AKTUELT pekte på
+`verifisering/K13-verifiseringslogg.md` som statuskilde. Filen finnes — men i
+designprosjektet «Sitedoc redesign tips», ikke i repoet (0 treff på
+«verifiseringslogg» i hele `origin/develop`). Skriv derfor
+«[designprosjekt: Sitedoc redesign tips] K13-verifiseringslogg.md», ikke en bar
+sti som løser seg i feil tre.
+
+### 10. Lesbarhet er anti-drift — ingen NY linje over ~600 tegn
+
+Ingen **ny eller endret** linje skal overstige **~600 tegn**. Eksisterende brudd
+ryddes når filen røres av annen grunn — **ikke** som egen runde. Skriver du en ny
+arkiv-oppføring, skal også den være lesbar; ingen unntaksliste trengs.
+
+Dette er ikke estetikk: **tunge dokumenter drifter mer.** Når en oppdatering
+koster å skrive og linja er umulig å lese, blir «docs senere» det rasjonelle
+valget — og driften gjemmer seg i massen.
+
+Belegg 2026-07-15:
+
+- `STATUS-AKTUELT:30` = **11 725 tegn** på én linje — kostet to merge-konflikter
+  og skjulte K13-stale-statusen (regel 9) på én dag. Ingen slurvet; ingen kunne
+  lese den. `STATUS.md:14` = **29 408 tegn** (changelog i ett felt, aldri lest).
+- **Scopet er diffen, ikke korpuset — og det er ikke en snarvei.** Samme awk mot
+  hele korpuset ga **321 brudd** (målt på `origin/develop` = `81ddd90f`,
+  2026-07-16, etter at STATUS-AKTUELT:30 og STATUS:14/15 ble brutt opp; tallet
+  var 322 før den oppryddingen — et øyeblikksbilde, ikke en konstant). Toppen av
+  **27 filer**, sum = 321: BACKLOG 92 · historikk-2026-05 87 · timer 38 ·
+  STATUS-AKTUELT 15 · historikk-2026-07 13 · STATUS 13 · redesign-paritetssjekk-
+  liste 12 · parallell-arbeid-lock 7 (resten fordelt på 19 filer til). En gate
+  som feiler 321 ganger blir ignorert dag to. Arkivene er dessuten append-only
+  ved design — korpus-rydding ville motsi det. Derfor: gaten ser bare det du
+  faktisk skriver.
+
+**Verbatim flytting er ikke forfatting.** Flytter du eksisterende innhold uendret
+til et arkiv, er det ikke en ny linje — det er den samme linja som bytter fil, og
+arkiverings-plikten («ingen omskriving av historikk») veier tyngre. Rasjonalet
+bak §10 er at tunge dokumenter drifter fordi oppdatering koster; et arkiv
+oppdateres aldri, så det drifter ikke. Grensen går ved **forfatting**: alt du
+formulerer nytt — også nye arkiv-oppføringer — skal være lesbart. Unntaket
+gjelder transport av eksisterende tekst, ikke skriving av ny.
+
+Belegg: `41abb325` (2026-07-16) flyttet 29 408 + 2 609 tegn verbatim til
+historikk-docs.md og utløste §10-sjekken. Commiten var korrekt; regelen manglet
+distinksjonen. Gate-rutinen: et treff som er ren transport av eksisterende arkiv-
+tekst passerer — men verifiser at det faktisk er verbatim, ikke ny prosa.
+
+**Mekanisk sjekk (gate-rutinen) — diff-basert, ikke korpus:**
+
+```sh
+git diff --cached -U0 -- docs/claude/ | awk '/^\+[^+]/ && length($0)-1 > 600 { print "  " length($0)-1 " tegn: " substr($0,2,70) "…" }'
+```
+
+Tom output = grønt. Treff = bryt linja/blokka opp før commit (ny linje per sak,
+egen overskrift per tråd). Kjøres som del av docs-gaten (§6), på linje med
+presens-uttrekket.
+
 ## Anvendt
 
 Rettingen `c875ee6f` (2026-07-09) er referanse-eksempelet: `:517`/`:534` fikk
