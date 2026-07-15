@@ -16,6 +16,30 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟠 Hardkodet `api_key` i klient-side satellitt-tile-URL (`GeoReferanseEditor.tsx:262`) — pre-eksisterende, nå i prod
+
+Satellitt-laget (Norkart/WebAtlas, `waapi.webatlas.no/maptiles/...`) bærer **`api_key` som URL-parameter i klient-koden**. Konsekvens: nøkkelen sendes til hver nettleser, er lesbar i DevTools' nettverksfane, ligger i repoet + git-historikken + på GitHub. Deployet prod `387d10a2` (2026-07-15).
+
+**Pre-eksisterende, ikke ny** — arvet fra gamle `KoordinatKart`; georef v2 flyttet den, innførte den ikke. Redesign-Opus observerte den under G2 og valgte bevisst å ikke fikse (riktig scope-disiplin), men førte den ikke — fanget i exit-runden 2026-07-15.
+
+**Vurder før tiltak:** hvor alvorlig er dette *faktisk*? Kartleverandør-nøkler er ofte domene-/referer-begrenset og designet for klient-bruk — i så fall er eksponeringen tilsiktet av leverandøren og ikke en lekkasje. **Sjekk avtalen/konsollen hos Norkart før vi bygger en proxy.** Er nøkkelen derimot konto-bred og ubegrenset, kan den misbrukes på vår regning → da må den bak en server-proxy (samme mønster som `SITEDOC_INTEGRATION_KEY`: aldri til klient).
+
+**Ikke gjør før avklart:** ingen rotering (bryter kartet i prod), ingen proxy-bygging. Første steg er å finne ut om nøkkelen er begrenset. **Merk:** nøkkelverdien skal aldri gjengis i docs, commits eller output — bruk fil:linje.
+
+### 🟡 To geokodere sameksisterer — `oppmotested.geokod` bør adoptere `sokAdresser` (G2-gevinsten)
+
+Etter G2 (`387d10a2`) bruker `bygning.geokod` **Kartverket** (`sokAdresser`, fuzzy, inntil 5 treff som klikkbar liste), mens **`oppmotested.geokod` + reisetid-matrisen fortsatt bruker Nominatim** (`geokodAdresse`, single-treff, krever presis staving). Oppmøtested-brukere får altså nøyaktig den dårligere opplevelsen G2 fjernet for byggeplasser.
+
+Fabel scopet oppmøtested bevisst ut av G2 — **riktig avgrensning, men gjelden er reell**. `sokAdresser` finnes allerede i `rute-service.ts`; adopsjonen er å bytte kaller + rendre trefflista (samme JSX som de to andre flatene). `geokodAdresse` (Nominatim) beholdes så lenge reisetid-matrisen trenger single-treff — eller vurderes samtidig. Funnet i redesign-Opus' exit 2026-07-15; cowork verifiserte 0 treff i BACKLOG.
+
+### 🟡 i18n-migrering av urørte hardkodede strenger i `GeoReferanseEditor.tsx`
+
+G2 la 39 nye `georef.*`-nøkler (13 språk, `a2a8d5c7`), men **urørte strenger i editoren er fortsatt hardkodet norsk** — de var utenfor G2-scope. Bryter i18n-kravet (alle synlige UI-strenger via `t()`). Redesign-Opus førte den i designprosjekt-loggen, men **den nådde aldri repo-BACKLOG** (verifisert 0 treff, exit 2026-07-15) → var hjemløs i repoet til nå.
+
+### 🟡 Leaflet-markørikoner lastes fra unpkg-CDN ved runtime (`KartVelger.tsx`, `GeoReferanseEditor.tsx`)
+
+Begge kart-komponentene henter markørikoner fra `https://unpkg.com/leaflet@1.9.4/dist/images/...` ved kjøretid. **Konsekvens:** er unpkg nede eller blokkert (streng CSP, kunde-nett, offline), mister kartene markørene. Leaflet er allerede en npm-avhengighet — ikonene kan serveres lokalt fra `public/` i stedet. Lav risiko, men det er en unødvendig ekstern avhengighet i en flate kunder bruker på anlegg med dårlig nett. Pre-eksisterende (arvet); observert i redesign-Opus' exit 2026-07-15.
+
 ### 🟡 Prod og test deler byggekontekst — gi test sin egen (fjerner en hel feilklasse)
 
 **Rot:** både `docker-compose.yml` (prod) og `docker-compose.test.yml` (test) bygger fra **samme** `~/stack/sitedoc` på server-ny. Konteksten holder koden fra **siste rsync**. Glemmer noen rsyncen før et bygg, bygges feil branch inn i feil miljø.

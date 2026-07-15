@@ -1,0 +1,23 @@
+F3 p6 + F5 server-bevis — synket setup mot FERSK test-api (2026-07-14, bundle ffac5b94)
+========================================================================================
+Persistens verifisert lokalt: stabilt over 15s (10 polls), sync_status=synced,
+INGEN clobber (fersk test-api kjenner rad.byggeplass_id + rad.pause_min).
+
+SEDEL:  id=66b34022-85d8-4cee-9c78-761396448382  dato=2026-07-15
+        byggeplass_id = 68c3004a-42ff-4584-8c23-cc27a5b57d30  (Bygg B12)
+        pause_min = 30
+
+RAD 1:  id=a99cb52b-8dff-4047-9fad-31d4b40af031  07:00–11:15
+        byggeplass_id = 5949ef6d-be86-483c-8f77-381641282a7b  (Meistervik)  ← OVERRIDE ≠ sedel
+        pause_min = 30   ← F5-bärer
+        timer = 4.0
+
+RAD 2:  id=b35cd76d-f9e0-46c0-8fd2-c794ad7efb84  11:15–15:00
+        byggeplass_id = 68c3004a...  (Bygg B12 = sedel_bp)  ← fallback, ikke override
+        pause_min = 0
+
+Σ-invariant: sedel.pause_min=30 = Σ(rad.pause_min)=30  ✓
+
+BEVIS cowork kjører server-SQL (sitedoc_test) på sedel 66b34022:
+  F3 p6: sheet_timer.byggeplass_id (rad a99cb52b) = Meistervik ≠ dagsseddel.byggeplass_id (Bygg B12)
+  F5:    sheet_timer.pause_min (rad a99cb52b) = 30 > 0  +  dagsseddel.pause_min = 30 = Σ
