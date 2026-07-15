@@ -19,10 +19,20 @@ export interface Coord {
   lng: number;
 }
 
+/** Ett adressesøk-treff til klikkbar treffliste (Kartverket/Geonorge). */
+export interface AdresseTreff {
+  lat: number;
+  lng: number;
+  label: string;
+}
+
 const NOMINATIM_BASE_URL =
   process.env.NOMINATIM_BASE_URL ?? "https://nominatim.openstreetmap.org";
 const OSRM_BASE_URL =
   process.env.OSRM_BASE_URL ?? "https://router.project-osrm.org";
+// Kartverket/Geonorge adressesøk — norsk, keyless, tolerant for upresis skriving.
+const GEONORGE_ADRESSE_URL =
+  process.env.GEONORGE_ADRESSE_URL ?? "https://ws.geonorge.no/adresser/v1/sok";
 
 // Nominatim-policy krever en identifiserende User-Agent.
 const USER_AGENT = "SiteDoc/1.0 (+https://sitedoc.no)";
@@ -112,6 +122,46 @@ export async function geokodAdresse(adresse: string): Promise<Coord | null> {
   const trimmet = adresse.trim();
   if (!trimmet) return null;
   return provider.geokod(trimmet);
+}
+
+/**
+ * Adressesøk mot Kartverket/Geonorge — tolerant for delvis/upresis skriving
+ * (`fuzzy=true`). Returnerer inntil `maks` treff med visningsetikett til en
+ * klikkbar treffliste. Kaster aldri; tom liste ved feil/timeout/0 treff.
+ * Åpne adressedata © Kartverket (Geonorge).
+ */
+export async function sokAdresser(adresse: string, maks = 5): Promise<AdresseTreff[]> {
+  const trimmet = adresse.trim();
+  if (!trimmet) return [];
+  const url = `${GEONORGE_ADRESSE_URL}?sok=${encodeURIComponent(
+    trimmet,
+  )}&fuzzy=true&treffPerSide=${maks}&side=0`;
+  const res = await fetchMedTimeout(url, GEOKOD_TIMEOUT_MS);
+  if (!res || !res.ok) return [];
+  try {
+    const data = (await res.json()) as {
+      adresser?: Array<{
+        adressetekst?: string;
+        postnummer?: string;
+        poststed?: string;
+        representasjonspunkt?: { lat?: number; lon?: number };
+      }>;
+    };
+    if (!Array.isArray(data.adresser)) return [];
+    const treff: AdresseTreff[] = [];
+    for (const a of data.adresser) {
+      const lat = Number(a.representasjonspunkt?.lat);
+      const lng = Number(a.representasjonspunkt?.lon);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const poststed = [a.postnummer, a.poststed].filter(Boolean).join(" ");
+      const label = [a.adressetekst, poststed].filter(Boolean).join(", ");
+      treff.push({ lat, lng, label: label || a.adressetekst || `${lat}, ${lng}` });
+      if (treff.length >= maks) break;
+    }
+    return treff;
+  } catch {
+    return [];
+  }
 }
 
 /**
