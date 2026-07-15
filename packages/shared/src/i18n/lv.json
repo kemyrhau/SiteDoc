@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Pārdēvēt",
   "lokasjoner.nyttNavn": "Jauns nosaukums",
   "lokasjoner.geofence.tittel": "Geofence (GPS)",
+  "lokasjoner.geofence.satt": "Ģeožogu komplekts — noklikšķiniet, lai rediģētu",
+  "lokasjoner.geofence.ikkeSatt": "Ģeožogs nav iestatīts — noklikšķiniet, lai iestatītu",
   "lokasjoner.geofence.beskrivelse": "The center and radius are used to recognise the site via GPS. Calculated automatically from a georeferenced drawing, or overridden manually.",
   "lokasjoner.geofence.lat": "Latitude",
   "lokasjoner.geofence.lng": "Longitude",

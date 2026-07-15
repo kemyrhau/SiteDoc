@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Rebaptiser",
   "lokasjoner.nyttNavn": "Nouveau nom",
   "lokasjoner.geofence.tittel": "Géoclôture (GPS)",
+  "lokasjoner.geofence.satt": "Ensemble de barrière géographique — cliquez pour modifier",
+  "lokasjoner.geofence.ikkeSatt": "Géolocalisation non définie – cliquez pour définir",
   "lokasjoner.geofence.beskrivelse": "Le centre et le rayon permettent de reconnaître le site via GPS. Calculé automatiquement à partir d'un dessin géoréférencé ou remplacé manuellement.",
   "lokasjoner.geofence.lat": "Latitude",
   "lokasjoner.geofence.lng": "Longitude",

@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Nimeä uudelleen",
   "lokasjoner.nyttNavn": "Uusi nimi",
   "lokasjoner.geofence.tittel": "Geofence (GPS)",
+  "lokasjoner.geofence.satt": "Geoaidat - napsauta muokataksesi",
+  "lokasjoner.geofence.ikkeSatt": "Geoaitaa ei ole asetettu – määritä napsauttamalla",
   "lokasjoner.geofence.beskrivelse": "Keskipistettä ja sädettä käytetään sivuston tunnistamiseen GPS:n avulla. Lasketaan automaattisesti georeferoidusta piirustuksesta tai ohitetaan manuaalisesti.",
   "lokasjoner.geofence.lat": "Leveysaste",
   "lokasjoner.geofence.lng": "Pituusaste",

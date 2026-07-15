@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Redenumiți",
   "lokasjoner.nyttNavn": "Nume nou",
   "lokasjoner.geofence.tittel": "Geofence (GPS)",
+  "lokasjoner.geofence.satt": "Set geofence — faceți clic pentru a edita",
+  "lokasjoner.geofence.ikkeSatt": "Geofence nu este setat — faceți clic pentru a seta",
   "lokasjoner.geofence.beskrivelse": "Centrul și raza sunt folosite pentru a recunoaște site-ul prin GPS. Calculat automat dintr-un desen georeferent sau suprascris manual.",
   "lokasjoner.geofence.lat": "Latitudine",
   "lokasjoner.geofence.lng": "Longitudine",

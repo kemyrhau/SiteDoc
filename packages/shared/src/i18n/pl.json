@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Przemianować",
   "lokasjoner.nyttNavn": "Nowa nazwa",
   "lokasjoner.geofence.tittel": "Geoogrodzenie (GPS)",
+  "lokasjoner.geofence.satt": "Zestaw geofence — kliknij, aby edytować",
+  "lokasjoner.geofence.ikkeSatt": "Geofence nie jest ustawione — kliknij, aby ustawić",
   "lokasjoner.geofence.beskrivelse": "Środek i promień służą do rozpoznawania miejsca za pomocą GPS. Obliczane automatycznie na podstawie rysunku z odniesieniami geograficznymi lub zastępowane ręcznie.",
   "lokasjoner.geofence.lat": "Szerokość",
   "lokasjoner.geofence.lng": "Długość geograficzna",

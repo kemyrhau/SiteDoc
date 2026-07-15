@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Pervardyti",
   "lokasjoner.nyttNavn": "Naujas vardas",
   "lokasjoner.geofence.tittel": "Geofence (GPS)",
+  "lokasjoner.geofence.satt": "Geotvoros rinkinys – spustelėkite norėdami redaguoti",
+  "lokasjoner.geofence.ikkeSatt": "Geotvora nenustatyta – spustelėkite, kad nustatytumėte",
   "lokasjoner.geofence.beskrivelse": "Centras ir spindulys naudojami svetainei atpažinti per GPS. Skaičiuojama automatiškai iš geografinės nuorodos brėžinio arba nepaisoma rankiniu būdu.",
   "lokasjoner.geofence.lat": "Platuma",
   "lokasjoner.geofence.lng": "Ilguma",
