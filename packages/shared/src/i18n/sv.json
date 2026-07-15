@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Döpa om",
   "lokasjoner.nyttNavn": "Nytt namn",
   "lokasjoner.geofence.tittel": "Geofence (GPS)",
+  "lokasjoner.geofence.satt": "Geofence set — klicka för att redigera",
+  "lokasjoner.geofence.ikkeSatt": "Geofence inte inställt — klicka för att ställa in",
   "lokasjoner.geofence.beskrivelse": "Centrum och radie används för att känna igen platsen via GPS. Beräknas automatiskt från en georefererad ritning, eller åsidosätts manuellt.",
   "lokasjoner.geofence.lat": "Latitud",
   "lokasjoner.geofence.lng": "Longitud",

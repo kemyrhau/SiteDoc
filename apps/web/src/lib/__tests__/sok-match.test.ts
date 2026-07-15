@@ -69,6 +69,23 @@ describe("sok-match — falsk-positiv-vern", () => {
   });
 });
 
+describe("sok-match — finnbarhets-oppfølgere (2026-07-15)", () => {
+  const DOKUMENTFLYT = byggNorm("Dokumentflyt", ["Prosjekt"]);
+  const MEDLEMMER = byggNorm("Medlemmer", ["Prosjekt"]);
+
+  it("«georeferanse» → Byggeplasser (utvidet synonym)", () => {
+    expect(matchScore(BYGGEPLASSER, q("georeferanse"))).toBeGreaterThan(0);
+    expect(matchScore(BYGGEPLASSER, q("kartfeste"))).toBeGreaterThan(0);
+  });
+  it("gjensidig cluster: «faggruppe»/«medlemmer» → Dokumentflyt", () => {
+    expect(matchScore(DOKUMENTFLYT, q("faggruppe"))).toBeGreaterThan(0);
+    expect(matchScore(DOKUMENTFLYT, q("medlemmer"))).toBeGreaterThan(0);
+  });
+  it("gjensidig cluster: «dokumentflyt» → Medlemmer", () => {
+    expect(matchScore(MEDLEMMER, q("dokumentflyt"))).toBeGreaterThan(0);
+  });
+});
+
 describe("sok-match — rangering + hjelpere", () => {
   it("eksakt token rangeres over fuzzy", () => {
     expect(matchScore(HUB, q("oppsett"))).toBeGreaterThan(matchScore(HUB, q("instill")));

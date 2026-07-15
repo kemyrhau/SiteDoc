@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Umbenennen",
   "lokasjoner.nyttNavn": "Neuer Name",
   "lokasjoner.geofence.tittel": "Geofence (GPS)",
+  "lokasjoner.geofence.satt": "Geofence-Set – zum Bearbeiten klicken",
+  "lokasjoner.geofence.ikkeSatt": "Geofence nicht eingestellt – zum Festlegen klicken",
   "lokasjoner.geofence.beskrivelse": "Mittels Mittelpunkt und Radius wird der Standort per GPS erkannt. Wird automatisch aus einer georeferenzierten Zeichnung berechnet oder manuell überschrieben.",
   "lokasjoner.geofence.lat": "Breite",
   "lokasjoner.geofence.lng": "Länge",

@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Nimeta ümber",
   "lokasjoner.nyttNavn": "Uus nimi",
   "lokasjoner.geofence.tittel": "Geofence (GPS)",
+  "lokasjoner.geofence.satt": "Geofence set – klõpsake muutmiseks",
+  "lokasjoner.geofence.ikkeSatt": "Geodara pole määratud – määramiseks klõpsake",
   "lokasjoner.geofence.beskrivelse": "Keskpunkti ja raadiust kasutatakse saidi tuvastamiseks GPS-i kaudu. Arvutatakse automaatselt geograafiliselt viidatud jooniselt või tühistatakse käsitsi.",
   "lokasjoner.geofence.lat": "Laiuskraad",
   "lokasjoner.geofence.lng": "Pikkuskraad",

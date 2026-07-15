@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Riemërto",
   "lokasjoner.nyttNavn": "Emri i ri",
   "lokasjoner.geofence.tittel": "Gjeofence (GPS)",
+  "lokasjoner.geofence.satt": "Seti i Geofence - klikoni për të modifikuar",
+  "lokasjoner.geofence.ikkeSatt": "Gjeofence nuk është caktuar - kliko për të vendosur",
   "lokasjoner.geofence.beskrivelse": "Qendra dhe rrezja përdoren për të njohur sitin nëpërmjet GPS. Llogaritur automatikisht nga një vizatim i gjeoreferencuar, ose anashkaluar manualisht.",
   "lokasjoner.geofence.lat": "Gjerësia gjeografike",
   "lokasjoner.geofence.lng": "Gjatësia gjeografike",

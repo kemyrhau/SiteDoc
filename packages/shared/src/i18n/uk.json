@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Перейменувати",
   "lokasjoner.nyttNavn": "Нова назва",
   "lokasjoner.geofence.tittel": "Геозона (GPS)",
+  "lokasjoner.geofence.satt": "Набір геозон — натисніть, щоб редагувати",
+  "lokasjoner.geofence.ikkeSatt": "Геозона не встановлена ​​— натисніть, щоб встановити",
   "lokasjoner.geofence.beskrivelse": "Центр і радіус використовуються для розпізнавання місця за допомогою GPS. Обчислюється автоматично на основі креслення з геоприв’язкою або змінюється вручну.",
   "lokasjoner.geofence.lat": "Широта",
   "lokasjoner.geofence.lng": "Довгота",

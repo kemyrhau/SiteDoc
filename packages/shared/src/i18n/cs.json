@@ -1058,6 +1058,8 @@
   "lokasjoner.endreNavn": "Přejmenovat",
   "lokasjoner.nyttNavn": "Nové jméno",
   "lokasjoner.geofence.tittel": "Geofence (GPS)",
+  "lokasjoner.geofence.satt": "Sada geofence – kliknutím upravte",
+  "lokasjoner.geofence.ikkeSatt": "Geofence není nastaven – kliknutím nastavíte",
   "lokasjoner.geofence.beskrivelse": "Střed a poloměr se používají k rozpoznání místa pomocí GPS. Vypočítá se automaticky z georeferenčního výkresu nebo se přepíše ručně.",
   "lokasjoner.geofence.lat": "Zeměpisná šířka",
   "lokasjoner.geofence.lng": "Zeměpisná délka",

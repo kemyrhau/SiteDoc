@@ -144,8 +144,8 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 ## Kommandoer
 
 - `pnpm dev` — Start alle apps i dev-modus
-- `pnpm dev --filter web` — Kun web (port 3100)
-- `pnpm dev --filter mobile` — Kun mobil (Expo)
+- `pnpm dev --filter @sitedoc/web --filter @sitedoc/api` — Kun web (3100) + api (3001). **Fullt pakkenavn kreves** — `--filter web` feiler med «No package found» (verifisert 2026-07-15)
+- `pnpm dev --filter @sitedoc/mobile` — Kun mobil (Expo)
 - `cd apps/mobile && pnpm dev:tunnel` — Mobil med ngrok v3-tunnel (fungerer på tvers av nettverk)
 - `cd apps/mobile && npx expo start --clear` — Mobil LAN-modus (Mac og telefon på samme nettverk)
 - `pnpm build` — Bygg alle apps
