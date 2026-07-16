@@ -72,11 +72,20 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 |---|---|---|
 | **1. ÅPNE** | Rad i tavla **før** økta åpnes: navn · arbeidstre · branch · filer den eier · dato. Ingen to rader deler arbeidstre eller fil. Branch-navn prefikses per spor → kollisjon umulig ved konstruksjon, ikke ved disiplin. **Kjør kollisjons-sjekken under.** | cowork skriver raden, Kenneth åpner |
 
-**Kollisjons-sjekk før hver tavle-rad — tre delte ressurser filoverlapp IKKE fanger** (2026-07-16, alle tre målt før de rakk å koste noe):
+**Kollisjons-sjekk før hver tavle-rad — fire delte ressurser filoverlapp IKKE fanger** (2026-07-16; de tre første målt før de rakk å koste noe, den fjerde etter at den kostet):
 
 1. **i18n-generatoren.** To økter som begge legger nøkler kjører `generate.ts` mot 13 språk. **Aldri parallelt** — det gir garantert konflikt i 15 filer, ikke i de to de redigerte. Fabel-krav.
 2. **`localhost:3100/3001`.** Dev-serveren er ÉN. Trenger to økter kjørende app samtidig, må den ene bruke test — eller vente. (Og en dev-server kan servere fra et helt ANNET tre enn økta tror den tester; sjekk `cwd` på pid-en.)
 3. **Delte komponenter bak ulike sider.** Filoverlapp på side-nivå fanger ikke at to sider rendrer samme komponent. Målt eksempel: `sjekklistemaler/[id]` og `oppgavemaler/[id]` bruker begge `MalBygger` — én økt eide sidene, en annen skulle bygge inn i komponenten. Sjekk hva sidene *importerer*, ikke bare hvilke filer de er.
+4. **Statusfilene: `STATUS-AKTUELT.md` · `STATUS.md` · `BACKLOG.md`.** Den mest forutsigbare kollisjonen som finnes, og den manglet på lista til den slo til. **Hver** funksjonsendring MÅ røre dem (CLAUDE.md § Funksjonsendrings-commits) — så to økter som leverer kode kolliderer der per definisjon. **Cowork redigerer dem ikke mens en økt er mid-leveranse.** Må det gjøres, eier cowork oppryddingen i merge-en, ikke Opus.
+
+> ⚠️ **En ren merge er ikke en riktig merge — git fletter tekst, ikke sannhet** (målt 2026-07-16, `2f014f6e`).
+>
+> Cowork redigerte `STATUS.md`/`BACKLOG.md` mens M-3a del 2 kjørte, og ordren cowork selv skrev sendte del 2 inn i de samme filene. Innholdet var en ekte motsigelse: del 2 skrev «antall uendret 67», cowork skrev «TALLET ER UPÅLITELIG — disk har 76».
+>
+> `STATUS.md` ga tekstkonflikt — **det var flaks**: begge punktlistene landet på samme linje. Hadde de ligget tre fra hverandre, ville git flettet plettfritt og sendt begge påstandene til `develop`. `BACKLOG.md` fikk nettopp den behandlingen: ren auto-merge, null varsel.
+>
+> **Konfliktmarkører er ikke gaten.** Les innholdet på begge sider av hver merge som rører en statusfil.
 | **2. LEVER** | Commit til feature-branch + `git push -u origin feat/x`. **Aldri push til `develop`.** Meld hash. | Opus |
 | **3. EXIT** | Fast spørsmålsrunde — **ikke valgfri**. Se § Exit-runde. | cowork spør, Opus svarer |
 
