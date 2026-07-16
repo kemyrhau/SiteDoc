@@ -2,7 +2,7 @@
 name: redesign-paritetssjekkliste
 description: Funksjonsparitets-sjekkliste for navigasjons-/innstillingsredesign (redesign/navigasjon). Akseptkriterium = ingen funksjon mistes. Hver rad krysses av under feature-flagg-testing (nyNavigasjon).
 status: aktiv
-sist_verifisert_mot_kode: 2026-07-06
+sist_verifisert_mot_kode: 2026-07-11
 ---
 
 # Paritetssjekkliste — navigasjons- og innstillingsredesign

@@ -40,8 +40,8 @@ utvikling som krever ny refaktor.
 | **Filter-logikk** | Duplisert mellom `sjekklister/page.tsx` (648 linjer) og `oppgaver/page.tsx` (830 linjer) |
 | **Tags** | Lagres som JSON i `data`-felt, ikke normalisert tabell |
 | **Sortering** | Default + manuell kolonne-sort. Ingen «nylig brukt øverst» |
-| **Delt komponent** | `<SearchInput>` finnes i `packages/ui` men er **ikke i bruk** noe sted |
-| **Inkonsistens** | Sjekklister bruker `recipientFaggruppe`, oppgaver bruker `utforerFaggruppe` — samme konsept, ulike nøkler |
+| **Delt komponent** | `<SearchInput>` (`packages/ui`) er i bruk i **12 filer** under `apps/web/src` (kontakter, hms, mannskap, MalListe + paneler). «Ikke i bruk» var korrekt ved plan-dato 2026-04-27; korrigert mot develop `d1c6b4c9` 2026-07-16 |
+| **Faggruppe-nøkkel** | Begge bruker `utforerFaggruppeId` (`schema.prisma` sjekkliste + oppgave). Påstått inkonsistens (`recipientFaggruppe`) stemmer ikke — `recipientFaggruppeName` finnes kun som visningsfelt i `DokumentTidslinje.tsx`. Korrigert mot develop `d1c6b4c9` 2026-07-16 |
 
 ---
 
