@@ -10,7 +10,7 @@ sist_verifisert_mot_kode: 2026-07-10
 
 | Økt | Arbeidstre | Branch | Eier filer | Status |
 |---|---|---|---|---|
-| *(ingen aktive)* | — | — | — | — |
+| redesign — del6b fase 1 (rydde/forene, web) | `SiteDoc-del6` | `feat/del6b-fase1` | `apps/web/src/app/dashbord/[prosjektId]/{sjekklister,oppgaver,hms,kontrollplan,maler}/` · `.../skriv-ut/` · `apps/web/src/components/paneler/{Sjekklister,Oppgaver}Panel.tsx` · ny `FilterPanel` i `apps/web/src/components/ui/` · `dashbord/firma/hms/page.tsx` · `apps/mobile/.../OppgaveModal.tsx` (KUN pkt 6-rename) · i18n `nb/en.json` | åpnes |
 
 **Doc-oppryddingen 2026-07-15/16 er lukket.** Syv økter, alle merget: statuskilde/lesbarhet-reglene (`8ae0a3ac`) · regel 11 + 11b (`d1c6b4c9`) · tre aktive doc-løgner (`be5307be`) · Type 1-rydding, 13 funn (`fc96fcee`) · negative påstander, F1/F3/F21/F22 (`eab9bb85`) · STATUS-changelog + STATUS-AKTUELT-oppbrudd. Auditens 23 funn: 20 lukket, F15 + F24 + F25 ført i [BACKLOG](BACKLOG.md).
 
