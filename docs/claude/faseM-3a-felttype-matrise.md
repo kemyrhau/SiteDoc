@@ -1,10 +1,10 @@
 ---
 tittel: Fase M-3a — felttype-matrise (MalBygger → utfylling web/mobil)
-status: 🟢 MÅLT (kode-avlesning, del 1)
+status: 🟢 MÅLT (del 1) + 🟢 BYGGET (del 2 — F1/F2/F4 + kollaps + kopiér-mal)
 sist_verifisert_mot_kode: 2026-07-16
-gjelder_branch: origin/develop (checkout docs/faseM-3a-matrise)
+gjelder_branch: feat/faseM-3a-del2
 eier: cowork/fabel
-scope: KUN DEL 1. Del 2 (runtime-verdisjekk + regel-produksjon) er sperret.
+scope: Del 1 = felttype-matrise (målt). Del 2 = gap-bygging levert (branch feat/faseM-3a-del2); F3 + F2-rest + F4-rest → BACKLOG.
 ---
 
 # Fase M-3a — felttype-matrise
@@ -41,14 +41,14 @@ Kilde-linjer:
 | `text_field` | ✅ | `multiline` ✅ (K:126) | ✅ | ✅ | app |
 | `list_single` | ✅ | `options` ✅ (K:119) | ✅ | ✅ | app |
 | `list_multi` | ✅ | `options` ✅ (K:119) | ✅ | ✅ | app |
-| `integer` | ✅ | `unit` ✅ (K:140); `min`/`max` kun default | ✅ | ✅ | app |
-| `decimal` | ✅ | `unit` ✅ (K:140); `min`/`max`/`decimals` kun default; `toleranse` finnes ikke | ✅ | ✅ | app |
+| `integer` | ✅ | `enhet`+`min`+`maks` ✅ (del 2, `FeltKonfigurasjon.tsx`) | ✅ | ✅ | app |
+| `decimal` | ✅ | `enhet`+`min`+`maks`+`toleranse`+`desimaler` ✅ (del 2) | ✅ | ✅ | app |
 | `calculation` | ✅ | `formula` ❌ kun default (K: ingen blokk) | ✅ (readonly) | ✅ (readonly) | app |
 | `traffic_light` | ✅ | `options` (4 lys) ❌ kun default (K: ingen blokk) | ✅ | ✅ | app |
 | `date` | ✅ | — (`{}`) | ✅ | ✅ | app |
 | `date_time` | ✅ | — (`{}`) | ✅ | ✅ | app |
 | `person` | ✅ | `role` ✅ (K:151) | ✅ | ✅ | app |
-| `persons` | ✅ | `role` ✅ (K:151); `max` kun default | ✅ | ✅ | app |
+| `persons` | ✅ | `role` ✅ + `max` ✅ (del 2, F4) | ✅ | ✅ | app |
 | `company` | ✅ | `role` ✅ (K:151) | ✅ | ✅ | app |
 | `attachments` | ✅ | `maxFiles` ✅ (K:160); `acceptedTypes` kun default | ✅ | ✅ | app |
 | `bim_property` | ✅ | `propertyName` ❌ kun default (K: ingen blokk) | ✅ | ✅ | app |
@@ -62,7 +62,7 @@ Kilde-linjer:
 | `info_text` | ✅ | `content` ✅ (K:194) | ❌ | ✅ | N/A web (visning), N/A mobil (DISPLAY, d:32) |
 | `info_image` | ✅ | `imageUrl` ✅ + `caption` ✅ (K:209) | ❌ | ✅ | N/A web, N/A mobil (DISPLAY, d:32) |
 | `video` | ✅ | `url` ✅ (K:256) | ❌ | ✅ | N/A — visning (avspilling), ingen verdi |
-| `quiz` | ✅ | `question`+`options`+`correctIndex` ✅ (K:269) | ❌ | ✅ | **blokkert-kode på web** — se F2 |
+| `quiz` | ✅ | `question`+`options`+`correctIndex` ✅ (K:269) | ✅ (del 2, F2) | ✅ | app |
 
 `K:` = `FeltKonfigurasjon.tsx`-linje. `web:`/`d:` = renderer-linje.
 
@@ -70,15 +70,19 @@ Kilde-linjer:
 
 - **Opprettbar (a):** 25/27 (2 skjult).
 - **Egen config-blokk (b):** 14 typer har minst én typespesifikk input (text_field, list_single, list_multi, integer, decimal, person, persons, company, attachments, drawing_position, info_text, info_image, video, quiz) — fordelt på 10 kodeblokker (list ×2 og int/dec ×2 og person/persons/company ×3 deler blokk). Forarbeidet oppga «11 av 25» (blokk-telling); målt her per **type** = 14, per **blokk** = 10. Uenigheten er kun tellemåte, ikke funn.
-- **Web-render (c):** 23/27 nøkler. Mangler: `info_text`, `info_image`, `video`, `quiz`.
+- **Web-render (c):** 24/27 nøkler etter del 2 (quiz lagt til). Mangler fortsatt: `info_text`, `info_image`, `video` (ren visning → BACKLOG).
 - **Mobil-render (d):** 27/27 nøkler. Ingen mangler.
 
 ---
 
 ## Funn-liste (styrer del 2 — prioritert)
 
-**F1 — `decimal`/`integer` grenseverdier har ingen editor. [MÅLT]**
-`FeltKonfigurasjon.tsx:140-149` redigerer KUN `unit` for begge typer. `min`/`max` (+ `decimals` for decimal) ligger i `defaultConfig` (`types:151,157`) uten UI. `toleranse` (brukt i NS3420-testmalene, forarbeid AVVIK 1) finnes verken i UI eller `defaultConfig` — ren fri-JSON. → NS3420-maler med grenseverdi/toleranse kan **ikke bygges eller redigeres i MalBygger**; verdiene bevares blindt via config-spread men er usynlige og uendrbare i verktøyet. **Kjerne-funn for del 2.**
+**F1 — `decimal`/`integer` grenseverdier har ingen editor. [MÅLT del 1 → LØST del 2]**
+Del 1-funnet: `FeltKonfigurasjon.tsx` redigerte KUN `unit`; `min`/`max`/`decimals`/`toleranse` var usynlige i verktøyet.
+**Del 2-løsning (branch feat/faseM-3a-del2):**
+- **Nytt premiss del 1 ikke fanget** (leste kode, ikke seed): NS3420-malene er seedet med NORSKE nøkler `enhet`/`min`/`maks`/`toleranse` (`seed-bibliotek.ts:30-31`), ikke `unit`/`max`. Nøkkel-mismatch avgjorde løsningen.
+- **Vedtak (Kenneth 2026-07-16):** norsk kanonisk skrives (`enhet`/`min`/`maks`/`toleranse`/`desimaler`), engelsk (`unit`/`max`/`decimals`) leses som fallback. Ett lesested: `@sitedoc/shared/utils/grenseSjekk.ts` (`normaliserGrense`/`grenseStatus`/`formaterGrense`, med test). defaultConfig oppdatert til norsk kanonisk.
+- Editor: `FeltKonfigurasjon.tsx` (min/maks/enhet + decimal: desimaler/toleranse). Render: web+mobil `Heltall/DesimaltallObjekt` viser grense (≥ ≤ ±) + amber-markering utenfor. **Blokkerer ikke innsending** (avvik = gyldig funn). NS3420-maler renderer nå korrekt uten at seed røres.
 
 **F2 — PSI-instruksjonstyper mangler på web. [MÅLT]**
 `info_text`, `info_image`, `video`, `quiz` er opprettbare (palett) og fullt konfigurerbare, men fraværende i web `KOMPONENT_MAP` (`RapportObjektRenderer.tsx:36-60`) → faller til `UkjentObjekt`. Mobil har alle fire (`d:61-64`). Konsekvens per type:
@@ -110,7 +114,7 @@ Begge er i `KOMPONENT_MAP` på både web (`web:53-54`) og mobil (`d:54-55`), men
 - **Trenger IKKE app (avgjort i kode):**
   - `heading`, `subtitle`, `location`, `video` — ingen brukerverdi (N/A).
   - `info_text`, `info_image` — DISPLAY-typer, ingen verdi (N/A).
-  - `quiz` på web — `blokkert-kode`: mangler i web-renderer → kan umulig lagre. Bevist, ikke gjettet.
+  - `quiz` på web — VAR `blokkert-kode` (manglet i web-renderer). **Løst i del 2** (F2): lagt til KOMPONENT_MAP → runtime-behov nå `app`.
   - `zone_property`, `room_property` — ikke opprettbare; runtime moot uten legacy-data.
 
 **Prinsipp anvendt (negativ kontroll):** en type som ikke rendres i (c)/(d) kan ikke lagre en verdi der — derfor er F2/quiz-web et bevisbart funn, ikke en uverifisert rad. Motsatt: ingen (e)-`app`-rad er merket ✅; det ville vært en gjettet ✅, som er verre enn ingen rad.
@@ -122,4 +126,21 @@ Begge er i `KOMPONENT_MAP` på både web (`web:53-54`) og mobil (`d:54-55`), men
 - Forarbeid: PSI-typer «mangler i KOMPONENT_MAP» — bekreftet, men presisert at det gjelder **kun web** (mobil har alle fire) og at **kun `quiz` gir datatap** (de tre andre er ren visning) (F2).
 - Alle øvrige forarbeid-flagg (`calculation.formula`, `traffic_light.options`, `integer/decimal.min/max/decimals`, `attachments.acceptedTypes`, `bim_property.propertyName`) bekreftet mot kode.
 
-*Del 1 slutt. Del 2 (runtime-verdisjekk + regel-produksjon) sperret til redesign melder pkt 1/4/5 ferdig. Ingen kode rørt; ingen i18n; ingen dev-server.*
+---
+
+## Del 2 — gap-bygging levert (branch feat/faseM-3a-del2, 2026-07-16)
+
+Sperren hevet (del6b fase 1 merget). Bygget mot del 1-matrisen + Kenneth-vedtak (norsk kanonisk grense-nøkkel):
+
+- **F1** grenseverdier: delt normaliser `grenseSjekk.ts` (norsk kanonisk + engelsk fallback) + editor-UI + web/mobil-render m/amber-markering. Se F1-funnet over.
+- **F2** quiz: `QuizObjekt.tsx` (web) + registrert i KOMPONENT_MAP → web-datatapet lukket. `info_text`/`info_image`/`video` (ren visning) → BACKLOG.
+- **F4** `persons.max`: input i person-blokken (kun `persons`).
+- **pkt 2** kollapsbare heading-seksjoner: `seksjoner.ts` (delt, `grupperMedOverskrift`) + `UtfyllingSeksjoner` web+mobil, utledet fra flat rekkefølge + rot-heading UTEN datamodell-endring. Nesting bevart; web print-trygt.
+- **pkt 4** kopiér-mal: `mal.kopier` (to-pass parentId-remap + dokumentflyt-koblinger) + aktivert `MalListe.tsx`-knapp.
+- **Config-editor-telling (nevner definert):** 10 typespesifikke blokker / 14 typer / nevner **25 opprettbare → 14/25**.
+
+**Restanse → BACKLOG:** F2-rest (info/video web-render), F3 (`calculation.formula` + `traffic_light.options`), F4-rest (`bim_property.propertyName`, `attachments.acceptedTypes`), pkt 2-rest (MalBygger-feltliste-kollaps — ikke billig, dnd-kit).
+
+**Verifikasjon:** `next build` grønn, shared-tester grønne, web+api typecheck rent, mobil-typecheck uendret (null nye feil). Runtime-verifisering (skjermbilder) på test etter deploy — kontroll-Claude, ikke Opus' egenrapport.
+
+*Del 1 slutt (kode-avlesning). Del 2 levert i kode; runtime-verifisering på test utestående.*

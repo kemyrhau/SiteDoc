@@ -65,7 +65,7 @@ Feltdefinisjon. Flat lagring med `parentId` for hierarki.
 | Felt | Rolle |
 |------|-------|
 | `type` | En av 23 felttyper (se under) |
-| `config` | JSON — type-spesifikk konfigurasjon (`options`, `min/max`, `multiline`, `zone`) |
+| `config` | JSON — type-spesifikk konfigurasjon (`options`, grenseverdier, `multiline`, `zone` — se Grenseverdier under) |
 | `sortOrder` | Global sorteringsrekkefølge innenfor malen |
 | `parentId` | Nesting under `repeater` eller betingede `list_single/list_multi` |
 | `required` | Påkrevd for utfylling |
@@ -86,6 +86,31 @@ Feltdefinisjon. Flat lagring med `parentId` for hierarki.
 | Signatur | `signature` |
 | Vær | `weather` |
 | Container | `repeater` (barn), `list_single/multi` (betinget) |
+
+### Grenseverdier på tall-felt (`integer`/`decimal`) — norsk kanonisk (fase M-3a del 2, 2026-07-16)
+
+`config`-nøklene for grenseverdier har **norsk kanonisk form** som skrives fra
+MalBygger-editoren (`FeltKonfigurasjon.tsx`), med **engelsk fallback-lesing** for
+eldre/seedede maler:
+
+| Semantikk | Kanonisk (skrives) | Fallback (leses også) | Validering |
+|-----------|--------------------|-----------------------|------------|
+| Nedre grense | `min` | — | verdi < `min` → «under» |
+| Øvre grense | `maks` | `max` | verdi > `maks` → «over» |
+| Toleransebånd | `toleranse` | — | `abs(verdi)` > `toleranse` → «utenfor_toleranse» |
+| Desimaler | `desimaler` | `decimals` | input-step |
+| Enhet | `enhet` | `unit` | visning |
+
+- **Hvorfor to nøkkelsett:** NS3420-testmalene ble seedet med norske nøkler
+  (`packages/db/prisma/seed-bibliotek.ts`: `{ enhet, min, maks, toleranse }`),
+  mens defaultConfig/renderne historisk brukte `unit`/`max`. Vedtak 2026-07-16
+  (Kenneth): norsk kanonisk + engelsk fallback-les — begge populasjoner rendrer,
+  seed røres ikke.
+- **Ett lesested:** normaliseringen bor i `@sitedoc/shared` (`utils/grenseSjekk.ts`:
+  `normaliserGrense`/`grenseStatus`/`formaterGrense`), gjenbrukt av editor,
+  web+mobil-render og validering — som `normaliserOpsjon` gjør for valg-opsjoner.
+- **Grenser blokkerer ikke innsending** — et avvik er et gyldig funn. Utfylling
+  viser grensen (språknøytralt: ≥ ≤ ±) og markerer verdi utenfor med amber-signal.
 
 ## Eksisterende ruter (API)
 

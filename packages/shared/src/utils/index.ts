@@ -55,6 +55,15 @@ export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
 export { carveArbeidstider } from "./carveArbeidstid";
 export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
 export { harFeltVerdi, beregnLaasteFelter } from "./feltLaasing";
+export {
+  normaliserGrense,
+  harGrense,
+  grenseStatus,
+  formaterGrense,
+} from "./grenseSjekk";
+export type { Grense, GrenseStatus } from "./grenseSjekk";
+export { grupperMedOverskrift } from "./seksjoner";
+export type { Seksjon } from "./seksjoner";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.

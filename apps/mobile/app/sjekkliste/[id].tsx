@@ -25,7 +25,7 @@ import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
-import { RapportObjektRenderer, DISPLAY_TYPER } from "../../src/components/rapportobjekter";
+import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
@@ -724,7 +724,9 @@ export default function SjekklisteUtfylling() {
           </View>
         </Pressable>
 
-        {objekter.map((objekt) => {
+        <UtfyllingSeksjoner
+          objekter={objekter}
+          render={(objekt) => {
           // Skip barn av repeatere — rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;
           // Sjekk synlighet (betinget felt)
@@ -811,7 +813,8 @@ export default function SjekklisteUtfylling() {
               />
             </FeltWrapper>
           );
-        })}
+          }}
+        />
 
         {/* Endringslogg */}
         {sjekklisteDetalj?.template?.enableChangeLog && (sjekklisteDetalj?.changeLog ?? []).length > 0 && (

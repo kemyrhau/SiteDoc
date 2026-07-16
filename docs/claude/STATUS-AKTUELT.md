@@ -41,6 +41,19 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 > **Maks 3 aktive PR-tråder.** `### Gjenstående` er en samlepost, ikke en tråd, og telles ikke.
 
+### Fase M-3a del 2 — MalBygger gap-bygging (branch `feat/faseM-3a-del2`) — PÅ BRANCH, venter merge + test-verifisering
+
+**Levert i kode 2026-07-16** (build grønn, shared-tester grønne, web+api typecheck rent, mobil-typecheck uendret). Bygget mot del 1-matrisen + Kenneth-vedtak «norsk kanonisk grense-nøkkel + engelsk fallback-les»:
+
+- **F1** grenseverdier (`min`/`maks`/`toleranse`/`enhet`/`desimaler`): delt `@sitedoc/shared/utils/grenseSjekk.ts` (normaliser + validering, m/test), editor-UI i `FeltKonfigurasjon.tsx`, web+mobil-render viser grense (≥ ≤ ±) + amber-markering utenfor (blokkerer ikke innsending). NS3420-seed rendrer nå uten å røres.
+- **F2** quiz web (`QuizObjekt.tsx` + KOMPONENT_MAP) — web-datatapet lukket.
+- **F4** `persons.max`-input.
+- **pkt 2** kollapsbare heading-seksjoner (`seksjoner.ts` delt + `UtfyllingSeksjoner` web+mobil), utledet uten datamodell-endring, print-trygt.
+- **pkt 4** `mal.kopier` (to-pass parentId + dokumentflyt-koblinger) + aktivert MalListe-knapp.
+- i18n: 11 nøkler × 14 språk (generate.ts kjørt). Restanser (F2-rest/F3/F4-rest/pkt 2-rest) → [BACKLOG § MalBygger felttype-restanser](BACKLOG.md).
+
+**Utestående:** skjermbilder/funksjonell verifisering på test.sitedoc.no etter deploy (kontroll-Claude, ikke Opus' egenrapport). Full detalj: [faseM-3a-felttype-matrise.md § Del 2](faseM-3a-felttype-matrise.md).
+
 ### 🎨 Redesign navigasjon (branch `redesign/navigasjon`, bak `nyNavigasjon`-flagg — av-default, inert i prod)
 
 **Aktiv front — steg viii (kunderunde mot prod-kopi) + pilot.** Infra reist + runbook komplett (2026-07-08); venter kunde-booking + Kenneth-drift: opprett demo-prosjekt m/ `oversettelse`-modul, kjør pre-flight-SQL, last opp SDS. Deretter pilot (flagg → `company_admin`).

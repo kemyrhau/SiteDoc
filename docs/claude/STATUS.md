@@ -12,7 +12,7 @@
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
 **Sist oppdatert:** 2026-07-16
-- 2026-07-16 — 2 filer ført (`fase-M-forarbeid-…`, `faseM-3a-felttype-matrise`). **Tellingen under er IKKE oppdatert — se ⚠️.** [detaljer](historikk-docs.md)
+- 2026-07-16 — 2 filer ført (`fase-M-forarbeid-…`, `faseM-3a-felttype-matrise`). Matrisen: status del 1 (målt) → del 2 (bygget: F1/F2/F4 + kollaps + kopiér-mal, `56cb0cfa`). **Tellingen under er IKKE oppdatert — se ⚠️.** [detaljer](historikk-docs.md)
 - 2026-07-15 — ny fil `lokal-dev.md`, lokal dev-flate dokumentert. Antall 66→67. [detaljer](historikk-docs.md)
 - 2026-07-12 — k13-rapport lukket + telling reconciliert 64→66. [detaljer](historikk-docs.md)
 - 2026-07-12 — Track B: 2 filer fra redesign-treet. Antall 62→64. [detaljer](historikk-docs.md)
