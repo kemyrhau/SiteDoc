@@ -2,7 +2,7 @@ import { View, Text } from "react-native";
 import type { RapportObjektProps } from "./typer";
 
 export function BeregningObjekt({ objekt, verdi }: RapportObjektProps) {
-  const enhet = (objekt.config.unit as string) ?? "";
+  const enhet = (objekt.config.enhet as string) ?? (objekt.config.unit as string) ?? "";
   const visVerdi = verdi != null ? String(verdi) : "—";
 
   return (

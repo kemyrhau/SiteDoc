@@ -54,6 +54,8 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 **Utestående:** skjermbilder/funksjonell verifisering på test.sitedoc.no etter deploy (kontroll-Claude, ikke Opus' egenrapport). Full detalj: [faseM-3a-felttype-matrise.md § Del 2](faseM-3a-felttype-matrise.md).
 
+**Oppfølger `fix/pdf-enhet-fallback` (2026-07-16):** Del 2-editoren skriver `enhet`/sletter `unit`, men PDF (`felt.ts:78`), `RapportObjektVisning.tsx` og `BeregningObjekt` (web+mobil) leste kun `unit` → mistet enhet ved redigering av int/decimal-mal. Alle lest om til `enhet ?? unit` (pdf beholder null-avhengigheter). Ekte regresjon funnet i exit-runden (fabel). Web+pdf typecheck rent, mobil uendret.
+
 ### 🎨 Redesign navigasjon (branch `redesign/navigasjon`, bak `nyNavigasjon`-flagg — av-default, inert i prod)
 
 **Aktiv front — steg viii (kunderunde mot prod-kopi) + pilot.** Infra reist + runbook komplett (2026-07-08); venter kunde-booking + Kenneth-drift: opprett demo-prosjekt m/ `oversettelse`-modul, kjør pre-flight-SQL, last opp SDS. Deretter pilot (flagg → `company_admin`).
