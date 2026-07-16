@@ -84,8 +84,8 @@ Kontroll-laget kjøres i Cowork med repo-tilgang: leser/verifiserer kode direkte
 2. **Opus implementerer** kode + docs i SAMME commit (working tree, ucommittet).
 3. **Opus viser diff** → kontroll-Claude verifiserer mot beslutningssett + kode, flagger drift.
 4. **Dual-review fullført** (Opus diff + kontroll-Claude verifisert) → commit+push er klarert. Kenneth koordinerer/relayer; **ingen auto-commit** rett etter implementasjon.
-5. **Opus committer + pusher** til `develop` → auto-deploy til test.
-6. **Kontroll-Claude verifiserer funksjonelt** på test.sitedoc.no (egne tester, ikke Opus' egenrapport).
+5. **Opus committer + pusher** til `develop`. **Test-deploy er MANUELL** — Kenneth kjører deploy-steget (CLAUDE.md § Deploy-triggere). Ingen auto-deploy finnes; test oppdaterer seg ikke av push alene.
+6. **Kontroll-Claude verifiserer funksjonelt** på test.sitedoc.no — først ETTER at Kenneth har deployet (egne tester, ikke Opus' egenrapport).
 7. **Prod kun ved eksplisitt Kenneth-forespørsel.**
 
 **Dok-disiplin:**
