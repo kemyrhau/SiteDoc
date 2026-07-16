@@ -16,6 +16,22 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟠 Append-only håndheves ikke server-side (`sjekkliste.oppdaterData` / `oppgave.oppdaterData`)
+
+Låsingen er **klient-lås**, ikke dataintegritet. Serveren gjør shallow merge (`{...eksisterende, ...input.data}`) og tar imot hva klienten enn sender — `flytRolle.ts` sier det selv: *«append-only — erFeltLåst() i hook håndhever dette»*. Etter `411e6f2d` (låsing i delt kilde, alle fire hooks) er UI-veien stengt, men **API-veien er åpen**: en determinert klient, et skript, eller **en gammel TestFlight-app** (EAS #40 kjører kode uten låsen) kan fortsatt overskrive et innsendt felt.
+
+Rotårsak-fiksen er precondition i `oppdaterData` — samme form som 2b-fiksen i `syncBatch` (`2791d0a9`). Funnet av develop-Opus under punkt 1; han flagget det i stedet for å utvide scope selv (server-routere lå utenfor fil-eierskapet hans). Dokumentert tre steder i koden: `flytRolle.ts`, `apps/mobile/src/hooks/CLAUDE.md`, `packages/shared/src/utils/CLAUDE.md`.
+
+### 🟡 Server-side samme-felt-konfliktdeteksjon for sjekkliste/oppgave-sync (fabel-vedtak 2026-07-16)
+
+**Erstatter «adoptér timer-mønsteret» fra del6b-ordren.** Den ordren tok timer som mal uten å måle om forutsetningen fantes på denne flaten. Målt: `sjekkliste.ts` og `oppgave.ts` har **`conflict` = 0 treff** — serveren kan ikke signalisere konflikt i det hele tatt. Timer kan, via `syncBatch`; **derfor** gir 4-tilstands `syncStatus` mening der.
+
+**Forbudt form (eksplisitt):** klient-kolonne alene. Å migrere `er_synkronisert` (boolean) → `sync_status` (TEXT) uten server-signal gir en **omdøpt boolean** på 10 000+ lokale databaser, pluss to tilstander som aldri fyres. Kostnad uten gevinst. **Premiss: server-signalet må komme først.**
+
+**Semantikken, avklart av fabel:** append-only per-felt-merge er *riktig* samarbeidsmodell — A fyller felt 1, B fyller felt 2, begge vinner. Det er ikke konflikt. Ekte konflikt er **samme felt, to skrivinger, én taper stille**. Etter at låsingen landet (`411e6f2d`) er vinduet krympet til: **to personer redigerer samme usendte felt offline samtidig.** Smalt, reelt, sjeldent.
+
+**Ikke pilot-blokkerende.** Vurderes mot faktisk pilot-erfaring: oppstår samme-felt-kollisjoner i praksis, løftes den. Henger sammen med 🟠-posten over (server-håndhevelse) — samme router, samme precondition-mønster; vurder dem samlet når en av dem tas.
+
 ### 🟠 Norkart-kartnøkkel: ukjent eierskap + ingen konfigvei (`GeoReferanseEditor.tsx:262`) — i prod
 
 Satellitt-laget (Norkart/WebAtlas, `waapi.webatlas.no/maptiles/…`) bærer **`api_key` som URL-parameter hardkodet i klient-koden**. Deployet prod `387d10a2` (2026-07-15). **To distinkte saker — ikke slå dem sammen:**
