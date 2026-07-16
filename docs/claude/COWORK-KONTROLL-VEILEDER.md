@@ -1,13 +1,28 @@
 ---
 name: COWORK-KONTROLL-VEILEDER
 status: styrende
-sist_verifisert_mot_kode: 2026-07-07
-sist_endret: 2026-07-07
+sist_verifisert_mot_kode: 2026-07-16
+sist_endret: 2026-07-16
 ---
 
 # Cowork kontroll-veileder — arbeidsmåte for en ny SiteDoc-økt
 
-> Formål: en ny Cowork-økt (f.eks. redesign-økta) skal jobbe på **samme måte** som den forrige kontroll-økta. Dette er *arbeidsmåten*, ikke oppgaven. Oppgaven (redesign) ligger i fabels `design_handoff_navigasjon_redesign/README.md`. Kodebase-reglene ligger i `CLAUDE.md`. Denne fila forklarer *hvordan du opererer*.
+> Formål: en ny Cowork-økt skal jobbe på **samme måte** som den forrige. Dette er *arbeidsmåten*, ikke oppgaven. Kodebase-reglene ligger i `CLAUDE.md`.
+
+---
+
+## KJERNEN — fire regler (les disse, slå opp resten)
+
+**Hvorfor en kjerne:** regelflaten er **45 KB / 24 nummererte regler**, og **22 KB av dem ble skrevet 2026-07-14/16 — av cowork, som brøt fire av dem på én time samme dag.** Det er nøyaktig sykdommen vi diagnostiserte i CLAUDE.md: tunge dokumenter drifter fordi ingen kan lese dem. Resten av fila er oppslagsverk. **Disse fire er det du faktisk må holde i hodet.**
+
+| # | Regel | Hva det koster å bryte den |
+|---|---|---|
+| **1** | **Målingen din er feilkilden — ikke resonnementet.** Gjentatt dårlig måling er ikke verifisering. Kjør negativ kontroll: mat sjekken noe du VET skal fanges. Tom output kan bety at sjekken er død. | 17 målefeil på to dager, alle i verktøyet. Regel 11s egen belegg-tabell fikk et umålt tall. |
+| **2** | **Én melding = det som skjer NÅ.** Skal noe skje senere, kommer det i meldingen når det er tid. Ingen «opprydding etterpå», ingen «til slutt». Blokker ER kommandoer — Kenneth kjører dem. | `DELETE` i samme melding som `INSERT` slettet demodata på tre sekunder. `awk ; git push` pushet forbi sin egen gate. |
+| **3** | **Premisset måles av den som utfører — også ditt eget.** Ordre, rapport og exit er input, ikke fasit. Skriv det inn i hver ordre. | Fire ganger på én uke fant en Opus et hull i en ordre ved å måle. Fire ganger tok ordre-skriveren feil. |
+| **4** | **Ikke utvid en løpende økt.** Nytt problem = ny økt. Rad i tavla FØR vinduet åpnes. | CLAUDE.md-rydding dyttet inn i en økt som bygde FilterPanel. To økter fikk samme arbeidstre. |
+
+**Og en gate er ikke en gate før den kan si nei.** `sjekk ; handling` er dekorasjon. Bruk `if sjekk; then STOPP; else handling; fi`.
 
 ---
 
