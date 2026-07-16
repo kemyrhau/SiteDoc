@@ -143,6 +143,30 @@ Listen er et **historisk øyeblikksbilde** («30+ kode-steder må oppdateres med
 
 **Regelen som følger av dette:** *et uttrykk som **peker på en navngitt kilde** (`STOETTEDE_SPRAAK`, `§ API-prosedyrer`) er tryggere enn ett som **reproduserer et tall via en konvensjon**.* Foretrekk peker. Vurderes inn i §11 ved neste berøring.
 
+### 🔴 CLAUDE.md-runden — fem funn i fila hver økt leser først (cowork eier, 2026-07-16)
+
+**Egen runde. Ikke påheng.** Cowork forsøkte å dytte funn 2 inn i redesigns FilterPanel-ordre; Kenneth stoppet det. Å be en økt rette en fil som er over sin harde grense — og samtidig si at den ikke skal løse grensen — er en umulig ordre.
+
+**Funn 1 — 40k-grensen er brutt, i stillhet.** `CLAUDE.md` er **40 056 B**. Grensen er 40 000: *«overskrides aldri»* (CLAUDE.md § Dokumentasjons-regler). **56 tegn over, og ingen har merket det** — fordi ingen mekanisme sjekker den. Funnet er sitt eget bevis.
+
+**Funn 2 — § Filter-standard kjenner ett paradigme; koden har to.** Standarden (vedtatt 2026-05-29) sier bare «Filterpaneler bruker `MultiComboks` + `SearchInput`». **0 treff** på `table.tsx`/`FilterDropdown`/«dynamisk kolonne» i hele fila. **Den produserte en gal ordre:** fabels del6b-ordre sa «migrér alle fem flater» — en migrering som ville drept per-kolonne-filtrering på dynamiske mal-kolonner.
+
+> **⚠️ INTERIM STATUSKILDE for to-paradigme-regelen (til rettingen lander i CLAUDE.md):**
+> **Fast, kjent dimensjonssett → `FilterPanel`** (bygges i del6b fase 1 fra firma-HMS-komposisjonen; brukes av firma-HMS, prosjekt-HMS, kontrollplan).
+> **Dynamiske mal-kolonner → `<Table>` med `filterAlternativer`** (sjekkliste- og oppgave-listene; alternativene bygges av en lokal `dynamiskFilter`-useMemo per side. `FilterDropdown` er Table-INTERN og importeres ingen steder — ikke bruk det navnet).
+> Vedtatt av fabel 2026-07-16 etter at redesign-Opus målte premisset. **Ført her fordi en chat-tråd ikke er en statuskilde** ([§5b](COWORK-KONTROLL-VEILEDER.md)).
+
+**Funn 3 — standarden er aldri anvendt.** `MultiComboks` brukes i **én fil** — referanse-implementasjonen selv (`dashbord/firma/hms/page.tsx`). Syv uker, null anvendelser utover eksempelet. Fabels ramme: *«En standard uten anvendelser er samme klasse som en regel uten mekanisme: et ønske.»*
+
+**Funn 4 — 🟡 MISTANKE, ikke bevist: § Toppbar-filtre kan feilklassifisere sjekklister/oppgaver.** Standarden lister dem som «bruker byggeplass aktivt» (→ velgeren skal være klikkbar). redesign-Opus målte at listene scopes via `template.projectId` (`sjekkliste.ts:46`), ikke `byggeplassId`, og at `aktivByggeplass` brukes til **verktøylinja** (hvilken byggeplass en *ny* sjekkliste får), ikke til filtrering. Standardens egen bakgrunn sier «velgeren viste seg uten effekt på 16/30 sider» — dette kan være en 17. **Skal reproduseres i runden, ikke rettes på lesning.**
+
+**Funn 5 — i18n-tallene** (`:112`): «14 brukervendte språk» → 15 · «~2500 nøkler» → 2909. Jf. D's F24/F25.
+
+**Fabels krav til runden (godkjent 2026-07-16):**
+1. **Timing:** funn 2 lander **tett på FilterPanel-mergen** — vinduet der standarden aktivt motsier ny kode måles i dager, ikke uker.
+2. **Funn 1 får mekanisme i samme runde** — gate-sjekk eller pre-commit-måling. **Og vurder om grensen er riktig virkemiddel:** vokser fila systematisk mot taket, skal innhold **UT** (til domene-docs med pekere), ikke taket opp.
+3. **Funn 4 merkes som mistanke** og reproduseres.
+
 ### 🟠 Uauditerte doc-flater — scopet bommet på fila med høyest lesefrekvens (Opus D exit 2026-07-16)
 
 Auditen 2026-07-16 dekket `docs/claude/` (72 filer, 23 funn) og **utelot `CLAUDE.md`** — fila hver økt leser først, og den som ga cowork `pnpm dev --filter web` og kostet en runde. Målt samme dag: `CLAUDE.md:112` bærer samme i18n-drift som de tre auditen fant («14 brukervendte språk» → 15, «~2500 nøkler» → 2909).
