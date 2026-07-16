@@ -70,7 +70,13 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 
 | Fase | Hva skjer | Hvem |
 |---|---|---|
-| **1. ÅPNE** | Rad i tavla **før** økta åpnes: navn · arbeidstre · branch · filer den eier · dato. Ingen to rader deler arbeidstre eller fil. Branch-navn prefikses per spor → kollisjon umulig ved konstruksjon, ikke ved disiplin. | cowork skriver raden, Kenneth åpner |
+| **1. ÅPNE** | Rad i tavla **før** økta åpnes: navn · arbeidstre · branch · filer den eier · dato. Ingen to rader deler arbeidstre eller fil. Branch-navn prefikses per spor → kollisjon umulig ved konstruksjon, ikke ved disiplin. **Kjør kollisjons-sjekken under.** | cowork skriver raden, Kenneth åpner |
+
+**Kollisjons-sjekk før hver tavle-rad — tre delte ressurser filoverlapp IKKE fanger** (2026-07-16, alle tre målt før de rakk å koste noe):
+
+1. **i18n-generatoren.** To økter som begge legger nøkler kjører `generate.ts` mot 13 språk. **Aldri parallelt** — det gir garantert konflikt i 15 filer, ikke i de to de redigerte. Fabel-krav.
+2. **`localhost:3100/3001`.** Dev-serveren er ÉN. Trenger to økter kjørende app samtidig, må den ene bruke test — eller vente. (Og en dev-server kan servere fra et helt ANNET tre enn økta tror den tester; sjekk `cwd` på pid-en.)
+3. **Delte komponenter bak ulike sider.** Filoverlapp på side-nivå fanger ikke at to sider rendrer samme komponent. Målt eksempel: `sjekklistemaler/[id]` og `oppgavemaler/[id]` bruker begge `MalBygger` — én økt eide sidene, en annen skulle bygge inn i komponenten. Sjekk hva sidene *importerer*, ikke bare hvilke filer de er.
 | **2. LEVER** | Commit til feature-branch (ikke push). Meld hash. | Opus |
 | **3. EXIT** | Fast spørsmålsrunde — **ikke valgfri**. Se § Exit-runde. | cowork spør, Opus svarer |
 
