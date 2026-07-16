@@ -244,7 +244,7 @@ function ObjektInnhold({
     case "integer":
     case "decimal": {
       const tall = verdi != null ? String(verdi) : "";
-      const enhet = (objekt.config.unit as string) ?? "";
+      const enhet = (objekt.config.enhet as string) ?? (objekt.config.unit as string) ?? "";
       return (
         <FeltRad label={label} tom={!tall}>
           <p className="text-sm text-gray-900">
@@ -257,7 +257,7 @@ function ObjektInnhold({
 
     case "calculation": {
       const resultat = verdi != null ? String(verdi) : "";
-      const enhet = (objekt.config.unit as string) ?? "";
+      const enhet = (objekt.config.enhet as string) ?? (objekt.config.unit as string) ?? "";
       return (
         <FeltRad label={label} tom={!resultat}>
           <p className="text-sm text-gray-900">

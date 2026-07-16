@@ -143,4 +143,6 @@ Sperren hevet (del6b fase 1 merget). Bygget mot del 1-matrisen + Kenneth-vedtak 
 
 **Verifikasjon:** `next build` grønn, shared-tester grønne, web+api typecheck rent, mobil-typecheck uendret (null nye feil). Runtime-verifisering (skjermbilder) på test etter deploy — kontroll-Claude, ikke Opus' egenrapport.
 
+**Oppfølger — enhet-fallback-regresjon (branch fix/pdf-enhet-fallback, 2026-07-16):** Del 2-editoren skriver `enhet` og sletter `unit`, men **flere lesere leste kun `config.unit`** og mistet dermed enheten så snart en integer/decimal-mal ble redigert + lagret. Ekte regresjon (rammet av editor-skrivingen): `packages/pdf/src/felt.ts:78` (utskrift) + `RapportObjektVisning.tsx:247` (int/decimal-visning). Samme klasse, defensivt fikset: `RapportObjektVisning.tsx:260` + web/mobil `BeregningObjekt` (calculation). Alle lest om til `enhet ?? unit`. `packages/pdf` beholder null-avhengigheter (duplisert `??`, ikke import). **Lærdom:** F1-render-verifiseringen dekket bare de to renderne jeg endret (Heltall/Desimaltall) — ikke søsken-lesere av samme nøkkel i andre visnings-/print-flater. Nøyaktig «✅ beviser kobling, ikke nøkkel-match» én etasje ned.
+
 *Del 1 slutt (kode-avlesning). Del 2 levert i kode; runtime-verifisering på test utestående.*
