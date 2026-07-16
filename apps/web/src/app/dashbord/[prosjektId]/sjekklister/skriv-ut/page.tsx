@@ -10,6 +10,7 @@ import { RapportObjektVisning } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
 import type { RapportObjekt } from "@sitedoc/pdf";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { useTranslation } from "react-i18next";
 
 interface SjekklisteData {
   [objektId: string]: {
@@ -41,6 +42,7 @@ interface SjekklistePrintData {
 
 export default function SkrivUtFlereSide() {
   useToppbarFiltre({ byggeplass: false });
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -64,13 +66,13 @@ export default function SkrivUtFlereSide() {
   if (ider.length === 0) {
     return (
       <div className="flex flex-col items-center gap-4 py-12">
-        <p className="text-gray-500">Ingen sjekklister valgt for utskrift.</p>
+        <p className="text-gray-500">{t("print.ingenValgt")}</p>
         <button
           onClick={() => router.back()}
           className="flex items-center gap-1.5 text-sm text-blue-600 hover:underline"
         >
           <ArrowLeft className="h-4 w-4" />
-          Tilbake
+          {t("handling.tilbake")}
         </button>
       </div>
     );
@@ -102,14 +104,14 @@ export default function SkrivUtFlereSide() {
               className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
             >
               <ArrowLeft className="h-4 w-4" />
-              Tilbake
+              {t("handling.tilbake")}
             </button>
             <button
               onClick={() => window.print()}
               className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
             >
               <Printer className="h-4 w-4" />
-              Skriv ut ({sjekklister.length} sjekklister)
+              {t("print.skrivUtAntall", { antall: sjekklister.length })}
             </button>
           </div>
 
@@ -167,6 +169,7 @@ function SjekklistePrint({
   } | null;
   erSiste: boolean;
 }) {
+  const { t } = useTranslation();
   const data = (sjekkliste.data ?? {}) as SjekklisteData;
 
   // Bygg objekttre
@@ -225,12 +228,12 @@ function SjekklistePrint({
         <div className="print-skjul mb-4 border-b border-gray-200 pb-3">
           <h3 className="text-lg font-bold text-gray-900">{sjekkliste.title}</h3>
           <p className="text-sm text-gray-500">
-            Mal: {sjekkliste.template.name}
+            {t("print.mal")}: {sjekkliste.template.name}
             {sjekkliste.bestillerFaggruppe && (
-              <> &middot; Bestiller: {sjekkliste.bestillerFaggruppe.name}</>
+              <> &middot; {t("tabell.bestiller")}: {sjekkliste.bestillerFaggruppe.name}</>
             )}
             {sjekkliste.utforerFaggruppe && (
-              <> &middot; Utfører: {sjekkliste.utforerFaggruppe.name}</>
+              <> &middot; {t("tabell.utforer")}: {sjekkliste.utforerFaggruppe.name}</>
             )}
           </p>
         </div>

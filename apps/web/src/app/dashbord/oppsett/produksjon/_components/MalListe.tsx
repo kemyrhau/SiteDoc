@@ -374,8 +374,18 @@ export function MalListe({
           <DropdownItem disabled>{t("handling.eksporter")}</DropdownItem>
         </Dropdown>
 
-        {/* Søk */}
+        {/* Søk + kryss-lenke til prosjekt-arbeidsflaten */}
         <div className="ml-auto flex items-center gap-2">
+          {prosjektId && (
+            <button
+              type="button"
+              onClick={() => router.push(`/dashbord/${prosjektId}/maler`)}
+              className="inline-flex items-center gap-1 text-xs text-sitedoc-primary hover:underline"
+            >
+              <Library className="h-3.5 w-3.5" />
+              {t("maler.brukIProsjekt")}
+            </button>
+          )}
           <SearchInput
             verdi={sok}
             onChange={setSok}

@@ -28,12 +28,13 @@ import { usePresence } from "@/hooks/usePresence";
 /* ------------------------------------------------------------------ */
 
 function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "feil" }) {
+  const { t } = useTranslation();
   if (status === "idle") return null;
   if (status === "lagrer") {
     return (
       <span className="flex items-center gap-1 text-xs text-gray-400">
         <Loader2 size={14} className="animate-spin" />
-        Lagrer...
+        {t("lagring.lagrer")}
       </span>
     );
   }
@@ -41,14 +42,14 @@ function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "fe
     return (
       <span className="flex items-center gap-1 text-xs text-green-600">
         <Check size={14} />
-        Lagret
+        {t("lagring.lagret")}
       </span>
     );
   }
   return (
     <span className="flex items-center gap-1 text-xs text-red-500">
       <AlertCircle size={14} />
-      Lagring feilet
+      {t("lagring.feil")}
     </span>
   );
 }

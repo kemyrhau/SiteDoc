@@ -173,8 +173,8 @@ export default function HmsSide() {
         router.push(`/dashbord/${params.prosjektId}/sjekklister/${resultat.id}`);
       }
     } catch (err) {
-      const melding = err instanceof Error ? err.message : "Ukjent feil";
-      alert(`Feil ved opprettelse: ${melding}`);
+      const melding = err instanceof Error ? err.message : t("felles.ukjentFeil");
+      alert(t("felles.feilOpprettelse", { melding }));
     }
   }
 

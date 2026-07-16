@@ -5,11 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Textarea, Modal, Spinner, EmptyState, Badge, Table } from "@sitedoc/ui";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
-import { Plus } from "lucide-react";
+import { Plus, Settings2 } from "lucide-react";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { useTranslation } from "react-i18next";
 
 export default function MalerSide() {
   useToppbarFiltre({ byggeplass: false });
+  const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -39,7 +41,7 @@ export default function MalerSide() {
   useVerktoylinje([
     {
       id: "ny-mal",
-      label: "Ny mal",
+      label: t("maler.nyMal"),
       ikon: <Plus className="h-4 w-4" />,
       onClick: () => setVisModal(true),
       variant: "primary",
@@ -67,8 +69,8 @@ export default function MalerSide() {
   if (!harTilgang) {
     return (
       <EmptyState
-        title="Ingen tilgang"
-        description="Du har ikke tilgang til denne siden. Kun produksjons-administratorer kan se maler."
+        title={t("maler.ingenTilgang")}
+        description={t("maler.ingenTilgangBeskrivelse")}
       />
     );
   }
@@ -81,26 +83,39 @@ export default function MalerSide() {
   };
 
   return (
-    <div>
+    <div className="space-y-4">
+      {/* Klargjør flate-rollen: prosjektets arbeidsflate + lenke til full malbygger */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-100 bg-gray-50/60 px-3 py-2">
+        <p className="text-sm text-gray-600">{t("maler.arbeidsflateIntro")}</p>
+        <button
+          type="button"
+          onClick={() => router.push("/dashbord/oppsett/produksjon/sjekklistemaler")}
+          className="inline-flex items-center gap-1 text-xs text-sitedoc-primary hover:underline"
+        >
+          <Settings2 className="h-3.5 w-3.5" />
+          {t("maler.administrerIMalbygger")}
+        </button>
+      </div>
+
       {!maler?.length ? (
         <EmptyState
-          title="Ingen maler"
-          description="Opprett en rapportmal for å bygge sjekklister."
-          action={<Button onClick={() => setVisModal(true)}>Opprett mal</Button>}
+          title={t("maler.ingenMaler")}
+          description={t("maler.ingenMalerBeskrivelse")}
+          action={<Button onClick={() => setVisModal(true)}>{t("maler.opprettMal")}</Button>}
         />
       ) : (
         <Table<MalRad>
           kolonner={[
             {
               id: "name",
-              header: "Malnavn",
+              header: t("tabell.navn"),
               celle: (rad) => (
                 <span className="font-medium text-gray-900">{rad.name}</span>
               ),
             },
             {
               id: "description",
-              header: "Beskrivelse",
+              header: t("tabell.beskrivelse"),
               celle: (rad) => (
                 <span className="text-gray-600 line-clamp-1">
                   {rad.description ?? "—"}
@@ -109,7 +124,7 @@ export default function MalerSide() {
             },
             {
               id: "objects",
-              header: "Objekter",
+              header: t("maler.objekter"),
               celle: (rad) => (
                 <Badge variant="default">{rad._count.objects}</Badge>
               ),
@@ -117,7 +132,7 @@ export default function MalerSide() {
             },
             {
               id: "checklists",
-              header: "Sjekklister",
+              header: t("maler.sjekklister"),
               celle: (rad) => (
                 <Badge variant="primary">{rad._count.checklists}</Badge>
               ),
@@ -132,27 +147,27 @@ export default function MalerSide() {
         />
       )}
 
-      <Modal open={visModal} onClose={() => setVisModal(false)} title="Ny rapportmal">
+      <Modal open={visModal} onClose={() => setVisModal(false)} title={t("maler.nyRapportmal")}>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <Input
-            label="Malnavn"
-            placeholder="F.eks. Kontrollsjekkliste - Elektro"
+            label={t("maler.malnavn")}
+            placeholder={t("maler.malnavnPlaceholder")}
             value={navn}
             onChange={(e) => setNavn(e.target.value)}
             required
           />
           <Textarea
-            label="Beskrivelse"
-            placeholder="Beskriv hva malen skal brukes til..."
+            label={t("tabell.beskrivelse")}
+            placeholder={t("maler.beskrivelsePlaceholder")}
             value={beskrivelse}
             onChange={(e) => setBeskrivelse(e.target.value)}
           />
           <div className="flex gap-3 pt-2">
             <Button type="submit" loading={opprettMutation.isPending}>
-              Opprett
+              {t("handling.opprett")}
             </Button>
             <Button type="button" variant="secondary" onClick={() => setVisModal(false)}>
-              Avbryt
+              {t("handling.avbryt")}
             </Button>
           </div>
         </form>

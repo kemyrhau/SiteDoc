@@ -340,7 +340,7 @@ export default function OppgaverSide() {
     },
     onError: (err) => {
       setVisModal(false);
-      alert(`Feil ved opprettelse: ${err.message}`);
+      alert(t("felles.feilOpprettelse", { melding: err.message }));
     },
   });
 
@@ -363,7 +363,7 @@ export default function OppgaverSide() {
     if (malMedDomain?.domain === "hms") {
       opprettMutation.mutate({
         templateId: malId,
-        title: malMedDomain.name ?? "HMS-avvik",
+        title: malMedDomain.name ?? t("oppgaver.hmsAvvikFallback"),
         priority: "medium",
       });
       return;
@@ -390,7 +390,7 @@ export default function OppgaverSide() {
       templateId: malId,
       bestillerFaggruppeId: oppretter.id,
       utforerFaggruppeId: svarerFaggruppeId,
-      title: malMedDomain?.name ?? "Ny oppgave",
+      title: malMedDomain?.name ?? t("oppgaver.nyOppgaveFallback"),
       priority: "medium",
       dokumentflytId: matchDf?.id,
     });
