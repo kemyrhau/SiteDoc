@@ -364,6 +364,7 @@ export default function SjekklisteUtfylling() {
     erstattVedlegg,
     flyttVedlegg,
     erSynlig,
+    erFeltLåst,
     valideringsfeil,
     valider,
     lagre,
@@ -762,6 +763,8 @@ export default function SjekklisteUtfylling() {
 
           // Utfyllbare felt med FeltWrapper
           const feltVerdi = hentFeltVerdi(objekt.id);
+          // Append-only: verdi-feltet er låst, men kommentar/vedlegg er redigerbare
+          const verdiLeseModus = leseModus || erFeltLåst(objekt.id);
 
           // Oppgave-kobling for dette feltet
           const feltOppgave = feltOppgaveMap.get(objekt.id);
@@ -802,7 +805,7 @@ export default function SjekklisteUtfylling() {
                 objekt={objekt}
                 verdi={feltVerdi.verdi}
                 onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                leseModus={leseModus}
+                leseModus={verdiLeseModus}
                 barneObjekter={barneObjekterMap.get(objekt.id)}
                 sjekklisteId={sjekkliste.id}
               />

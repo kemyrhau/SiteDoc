@@ -312,6 +312,7 @@ export default function OppgaveDetalj() {
     erstattVedlegg,
     flyttVedlegg,
     erSynlig,
+    erFeltLåst,
     valideringsfeil,
     valider,
     lagre,
@@ -629,6 +630,8 @@ export default function OppgaveDetalj() {
 
           // Utfyllbare felt med FeltWrapper
           const feltVerdi = hentFeltVerdi(objekt.id);
+          // Append-only: verdi-feltet er låst, men kommentar/vedlegg er redigerbare
+          const verdiLeseModus = leseModus || erFeltLåst(objekt.id);
 
           return (
             <FeltWrapper
@@ -655,7 +658,7 @@ export default function OppgaveDetalj() {
                 objekt={objekt}
                 verdi={feltVerdi.verdi}
                 onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                leseModus={leseModus}
+                leseModus={verdiLeseModus}
                 barneObjekter={barneObjekterMap.get(objekt.id)}
                 oppgaveIdForKo={oppgave.id}
               />

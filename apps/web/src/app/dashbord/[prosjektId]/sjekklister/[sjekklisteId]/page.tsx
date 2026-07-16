@@ -181,6 +181,7 @@ export default function SjekklisteDetaljSide() {
     leggTilVedlegg,
     fjernVedlegg,
     erSynlig,
+    erFeltLåst,
     valideringsfeil,
     erRedigerbar,
     lagreStatus,
@@ -568,6 +569,9 @@ export default function SjekklisteDetaljSide() {
           const erDisplay = DISPLAY_TYPER.has(objekt.type);
           const nestingNivå = hentNestingNivå(objekt, objekter);
           const feltVerdi = hentFeltVerdi(objekt.id);
+          // Append-only: verdi-feltet er låst, men kommentar/vedlegg er redigerbare
+          const feltLåst = erFeltLåst(objekt.id);
+          const verdiLeseModus = leseModus || feltLåst;
 
           // Display-typer rendres uten wrapper
           if (erDisplay) {
@@ -581,7 +585,7 @@ export default function SjekklisteDetaljSide() {
                   objekt={objekt}
                   verdi={feltVerdi.verdi}
                   onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                  leseModus={leseModus}
+                  leseModus={verdiLeseModus}
                   prosjektId={params.prosjektId}
                 />
               </div>
@@ -629,7 +633,7 @@ export default function SjekklisteDetaljSide() {
                   objekt={objekt}
                   verdi={feltVerdi.verdi}
                   onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                  leseModus={leseModus}
+                  leseModus={verdiLeseModus}
                   prosjektId={params.prosjektId}
                   barneObjekter={barneObjekterMap.get(objekt.id)}
                 />
