@@ -46,6 +46,33 @@ Dette er kjernen i kontroll-rollen. Konkret:
 - **Sandkasse-git mangler `origin`-ref** — `git rev-parse origin/develop` feiler ofte i workspace-bash; verifiser HEAD + arbeidstre lokalt, stol på Opus' push-output for origin.
 - **Distinkt kode-streng-markør slår i18n-grep** — Next inliner ikke i18n grep-bart i `.next`; bruk commit-dato vs image-byggetid + kode-streng i `apps/*/src` (se DOCKER-NOTES pkt 7).
 
+### 2b. Målingen din er feilkilden — ikke resonnementet (lærdom 2026-07-15/16)
+
+Over to dager tok cowork **fjorten** feil. **Alle fjorten var i verktøyet, ingen i planen.** «Verifiser selv» er ikke nok — cowork *verifiserte*, og målingen var ødelagt. Fire ble fanget av Opusene som utførte ordren, én av Kenneth som leste terminal-output. Konkret hva som gikk galt:
+
+| Feilen | Hva den kostet |
+|---|---|
+| `grep -c "protectedProcedure"` **talte importlinja** | §11s egen belegg-tabell fikk et umålt tall (14 → 13) og hånet en korrekt doc. Målt **to ganger**, samme ødelagte kommando. |
+| Grep-mønster `^[+-][^+-]` **utelukket markdown-bullets** | Trodde en diff var tom |
+| Negativ påstand søkt i **3 av 72 filer** | Ropte «8 hjemløse»; 5 hadde hjem |
+| `git branch \| tr -d ' *'` — worktree-brancher har **`+`**-prefiks | «7 umergede» som ikke fantes |
+| `git status --porcelain` lister **kataloger**, ikke filer | `cmp` sammenlignet mapper |
+| `awk … ; git push` | **Gaten kunne ikke si nei.** Fyrte to ganger på coworks egen commit og pushet uansett |
+
+**Reglene som følger, og de er ufravikelige:**
+
+1. **En gjentatt dårlig måling er ikke verifisering.** Kjører du samme kommando to ganger og får samme svar, har du bekreftet kommandoen — ikke faktumet.
+2. **Kjør negativ kontroll.** Mat sjekken noe du *vet* skal fange, og noe du *vet* skal slippe gjennom. **Tom output kan bety at sjekken er død.** Cowork skrev denne regelen og gikk i fella samme kveld.
+3. **En gate er ikke en gate før den kan si nei.** `sjekk ; handling` er dekorasjon. Bruk `if sjekk; then STOPP; else handling; fi`.
+4. **Negative påstander krever kandidatmengde.** «Finnes ikke» er sant først når du har søkt der det kunne finnes — og sagt hvor du søkte.
+5. **Sjekk om et banner/en markør alt dekker det** før du kaller noe drift. Cowork kalte tre korrekt merkede filer for løgner.
+
+### 2c. Din ordre er ikke fasit heller
+
+Tre ganger på to dager fant en Opus et hull i coworks ordre ved å **måle premisset**: låse-gapet var 3 hooks (ikke 2), tellingen motsa registerets egen regel, og eierskaps-lista dekket ikke oppgaven som ble gitt. **Skriv inn i hver ordre at premisset skal måles** — [SAMARBEIDSREGLER § Ordre-anatomi](SAMARBEIDSREGLER.md) har malen med de fire virksomme linjene ordrett.
+
+**Les også:** [§ Opus-livssyklus](SAMARBEIDSREGLER.md) (fire faser — ingen økt åpnes uten rad i statustavla; ingen økt er død før raden er borte) · [§ Exit-runde](SAMARBEIDSREGLER.md) (fire spørsmål, ufravikelig — den fanget 🔴 4c og Norkart-nøkkelen som hadde ligget i fire måneder) · [dokumentasjons-standard § 9–11b](dokumentasjons-standard.md).
+
 ---
 
 ## 3. Beslutninger til Kenneth
