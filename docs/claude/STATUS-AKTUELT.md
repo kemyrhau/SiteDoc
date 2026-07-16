@@ -10,7 +10,7 @@ sist_verifisert_mot_kode: 2026-07-10
 
 | Økt | Arbeidstre | Branch | Eier filer | Status |
 |---|---|---|---|---|
-| develop — skjema-låsing + sync | `SiteDoc-develop` | `fix/skjema-laasing-sync` | `packages/shared/src/utils/` (ny felles låse-kilde) · `apps/{web,mobile}/src/hooks/use{Oppgave,Sjekkliste}Skjema.ts` · `apps/mobile/src/db/schema.ts` + migrering · `apps/api/src/routes/timer/dagsseddel.ts` (2b) | åpnes |
+| *(ingen aktive)* | — | — | — | — |
 
 **Doc-oppryddingen 2026-07-15/16 er lukket.** Syv økter, alle merget: statuskilde/lesbarhet-reglene (`8ae0a3ac`) · regel 11 + 11b (`d1c6b4c9`) · tre aktive doc-løgner (`be5307be`) · Type 1-rydding, 13 funn (`fc96fcee`) · negative påstander, F1/F3/F21/F22 (`eab9bb85`) · STATUS-changelog + STATUS-AKTUELT-oppbrudd. Auditens 23 funn: 20 lukket, F15 + F24 + F25 ført i [BACKLOG](BACKLOG.md).
 
