@@ -1,7 +1,7 @@
 ---
 tittel: Dokumentasjons-standard — presens krever referanse
 status: STYRENDE
-sist_verifisert_mot_kode: 2026-07-09
+sist_verifisert_mot_kode: 2026-07-16
 gjelder: alle filer i docs/claude/
 ---
 
@@ -184,6 +184,38 @@ git diff --cached -U0 -- docs/claude/ | awk '/^\+[^+]/ && length($0)-1 > 600 { p
 Tom output = grønt. Treff = bryt linja/blokka opp før commit (ny linje per sak,
 egen overskrift per tråd). Kjøres som del av docs-gaten (§6), på linje med
 presens-uttrekket.
+
+### 11. Skriv ikke det koden kan svare på
+
+Testen: **«Kan koden svare på dette? Da skriv det ikke.»** Tall, stier,
+strukturer og «hva koden gjør» er utledbare. En doc som gjengir dem er en kopi
+av noe som endrer seg uten å røre kopien — den **vil** råtne. Bruk et
+`fil:linje` / distinkt kodestreng (§7) eller et grep-uttrykk leseren kan kjøre,
+ikke et tall. Fiksen på et feil tall er **aldri** «oppdater tallet» — det er å
+slette det eller gjøre det utledbart.
+
+Denne ene klassen er **8 av auditens 23 funn** (målt mot `origin/develop`
+2026-07-16, alle 72 docs).
+
+| Sted | Påstand | Virkelighet |
+|---|---|---|
+| `arkitektur.md:56` | «56 Prisma-modeller» | 76. `grep -c "^model " packages/db/prisma/schema.prisma` er ett sekund og alltid sann. Tallet var feil med 20 og hadde stått siden 2026-06-08. |
+| `shared-pakker.md:34` · `web.md:110` · `mobil.md:196` | «2 328» · «~600» · «~920» i18n-nøkler | 2 909. Ett tall, tre kopier, tre ulike gale verdier. Utledbart: nøkkeltelling av `packages/shared/src/i18n/nb.json`. |
+| `okonomi.md:41` | «mengde.ts (9 prosedyrer)» | 14 — og dokumentets **egen** tabell sier 13. To gale tall i samme fil, ingen enige med koden. |
+
+### 11b. Negative kode-påstander er §11 i forkledning
+
+«ikke bygget ennå», «finnes ingen produsent-kode», «ikke i bruk noe sted» er
+påstander om kodens **fravær**. Fravær er ikke stabilt: noen bygger tingen, og
+påstanden blir løgn uten at noen rørte dokumentet. Ingen slurvet i funnene under
+— koden gikk forbi dokumentet. Slike påstander krever ❌-markør **+ dato + hash**
+(jf. §8-funnet om Azure-sjekklista), aldri presens.
+
+| Sted | Påstand | Virkelighet |
+|---|---|---|
+| `terminologi.md` | 8× «vedtatt, ikke bygget» | Minst 5 er nå gale: `Activity`, `Avdeling`, `ExternalCostObject`, `canLogin`, `hmsKortUtloper` ligger alle i `schema.prisma` og skrives til. |
+| `aktivitetsfeed.md:48` | «Ingen produsent-kode finnes ennå — tabellen er et tomt skjelett» | 7 `activity.create(`-kall i `apps/api/src` skriver til den i dag. |
+| `adaptiv-sok-plan.md:43` | «`<SearchInput>` … ikke i bruk noe sted» | Brukt i 12 filer under `apps/web/src`. |
 
 ## Anvendt
 
