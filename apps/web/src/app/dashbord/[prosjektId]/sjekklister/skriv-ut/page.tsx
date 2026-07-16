@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useEffect, useState, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Printer, ArrowLeft } from "lucide-react";
@@ -53,26 +53,13 @@ export default function SkrivUtFlereSide() {
     { enabled: !!params.prosjektId },
   );
 
-  // Hent alle sjekklister parallelt
-  const q0 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[0] ?? "" }, { enabled: ider.length > 0 });
-  const q1 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[1] ?? "" }, { enabled: ider.length > 1 });
-  const q2 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[2] ?? "" }, { enabled: ider.length > 2 });
-  const q3 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[3] ?? "" }, { enabled: ider.length > 3 });
-  const q4 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[4] ?? "" }, { enabled: ider.length > 4 });
-  const q5 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[5] ?? "" }, { enabled: ider.length > 5 });
-  const q6 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[6] ?? "" }, { enabled: ider.length > 6 });
-  const q7 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[7] ?? "" }, { enabled: ider.length > 7 });
-  const q8 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[8] ?? "" }, { enabled: ider.length > 8 });
-  const q9 = trpc.sjekkliste.hentMedId.useQuery({ id: ider[9] ?? "" }, { enabled: ider.length > 9 });
-
-  const alleQueries = [q0, q1, q2, q3, q4, q5, q6, q7, q8, q9].slice(0, ider.length) as Array<{
-    isLoading: boolean;
-    data: SjekklistePrintData | undefined;
-  }>;
-  const erLaster = alleQueries.some((q) => q.isLoading);
-  const sjekklister: SjekklistePrintData[] = alleQueries
-    .map((q) => q.data)
-    .filter((d): d is SjekklistePrintData => d != null);
+  // Hver sjekkliste hentes av sin egen <SjekklistePrintLaster> (ett fast hook-kall
+  // per komponent) og rapporteres opp hit. Ingen øvre grense på antall — tidligere
+  // hardkodede q0–q9 kappet stille ved >10.
+  const [lastet, setLastet] = useState<Record<string, SjekklistePrintData | null>>({});
+  const rapporterLastet = useCallback((id: string, data: SjekklistePrintData | null) => {
+    setLastet((prev) => (id in prev && prev[id] === data ? prev : { ...prev, [id]: data }));
+  }, []);
 
   if (ider.length === 0) {
     return (
@@ -89,45 +76,76 @@ export default function SkrivUtFlereSide() {
     );
   }
 
-  if (erLaster) {
-    return (
-      <div className="flex justify-center py-12">
-        <Spinner size="lg" />
-      </div>
-    );
-  }
+  // Gate: vis print-innhold først når ALLE valgte er ferdig hentet (ingen print-før-klar)
+  const erLaster = ider.some((id) => !(id in lastet));
+  const sjekklister: SjekklistePrintData[] = ider
+    .map((id) => lastet[id])
+    .filter((d): d is SjekklistePrintData => d != null);
 
   return (
     <div>
-      {/* Verktøylinje: skjules ved print */}
-      <div className="print-skjul mb-6 flex items-center gap-3 border-b border-gray-200 pb-4">
-        <button
-          onClick={() => router.back()}
-          className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Tilbake
-        </button>
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
-        >
-          <Printer className="h-4 w-4" />
-          Skriv ut ({sjekklister.length} sjekklister)
-        </button>
-      </div>
-
-      {/* Sjekklister */}
-      {sjekklister.map((sjekkliste, indeks) => (
-        <SjekklistePrint
-          key={sjekkliste.id}
-          sjekkliste={sjekkliste}
-          prosjekt={prosjekt}
-          erSiste={indeks === sjekklister.length - 1}
-        />
+      {/* Skjulte lastere — holdes montert også under lasting så hentingen faktisk kjører */}
+      {ider.map((id) => (
+        <SjekklistePrintLaster key={id} id={id} onLastet={rapporterLastet} />
       ))}
+
+      {erLaster ? (
+        <div className="flex justify-center py-12">
+          <Spinner size="lg" />
+        </div>
+      ) : (
+        <>
+          {/* Verktøylinje: skjules ved print */}
+          <div className="print-skjul mb-6 flex items-center gap-3 border-b border-gray-200 pb-4">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Tilbake
+            </button>
+            <button
+              onClick={() => window.print()}
+              className="flex items-center gap-1.5 rounded-lg bg-blue-700 px-4 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
+            >
+              <Printer className="h-4 w-4" />
+              Skriv ut ({sjekklister.length} sjekklister)
+            </button>
+          </div>
+
+          {/* Sjekklister */}
+          {sjekklister.map((sjekkliste, indeks) => (
+            <SjekklistePrint
+              key={sjekkliste.id}
+              sjekkliste={sjekkliste}
+              prosjekt={prosjekt}
+              erSiste={indeks === sjekklister.length - 1}
+            />
+          ))}
+        </>
+      )}
     </div>
   );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Laster én sjekkliste og rapporterer resultatet opp                 */
+/* ------------------------------------------------------------------ */
+
+function SjekklistePrintLaster({
+  id,
+  onLastet,
+}: {
+  id: string;
+  onLastet: (id: string, data: SjekklistePrintData | null) => void;
+}) {
+  const q = trpc.sjekkliste.hentMedId.useQuery({ id }, { enabled: !!id });
+  const ferdig = !q.isLoading;
+  const data = q.data as SjekklistePrintData | undefined;
+  useEffect(() => {
+    if (ferdig) onLastet(id, data ?? null);
+  }, [ferdig, data, id, onLastet]);
+  return null;
 }
 
 /* ------------------------------------------------------------------ */

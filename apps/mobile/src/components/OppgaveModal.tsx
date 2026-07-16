@@ -21,7 +21,7 @@ interface FaggruppeData {
   name: string;
 }
 
-interface ArbeidsforlopData {
+interface DokumentflytData {
   id: string;
   name: string;
   faggruppeId: string;
@@ -93,13 +93,11 @@ export function OppgaveModal({
   const faggrupper = (faggruppeQuery.data ?? []) as FaggruppeData[];
 
   // Hent dokumentflyt for auto-utledning av svarer
-  // (renamed fra arbeidsforlop til dokumentflyt — denne ene callsite ble glemt
-  // under terminologi-rename april 2026)
-  const arbeidsforlopQuery = trpc.dokumentflyt.hentForProsjekt.useQuery(
+  const dokumentflytQuery = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
-  const alleArbeidsforlop = (arbeidsforlopQuery.data ?? []) as unknown as ArbeidsforlopData[];
+  const alleDokumentflyter = (dokumentflytQuery.data ?? []) as unknown as DokumentflytData[];
 
   // Auto-velg oppretter: brukerens første faggruppe
   useEffect(() => {
@@ -108,20 +106,20 @@ export function OppgaveModal({
     }
   }, [mineFaggrupper, oppretterFaggruppeId]);
 
-  // Auto-utled svarer fra arbeidsforløp
-  const matchendeArbeidsforlop = useMemo(() => {
+  // Auto-utled svarer fra dokumentflyt
+  const matchendeDokumentflyt = useMemo(() => {
     if (!oppretterFaggruppeId) return null;
-    const treff = alleArbeidsforlop.filter(
+    const treff = alleDokumentflyter.filter(
       (af) =>
         af.faggruppeId === oppretterFaggruppeId &&
         af.templates.some((t) => t.templateId === templateId),
     );
     return treff[0] ?? null;
-  }, [alleArbeidsforlop, oppretterFaggruppeId, templateId]);
+  }, [alleDokumentflyter, oppretterFaggruppeId, templateId]);
 
-  // Svarer: fra arbeidsforløp, eller samme som oppretter (standard)
-  const autoSvarerFaggruppeId = matchendeArbeidsforlop
-    ? matchendeArbeidsforlop.utforerFaggruppeId ?? matchendeArbeidsforlop.faggruppeId
+  // Svarer: fra dokumentflyt, eller samme som oppretter (standard)
+  const autoSvarerFaggruppeId = matchendeDokumentflyt
+    ? matchendeDokumentflyt.utforerFaggruppeId ?? matchendeDokumentflyt.faggruppeId
     : oppretterFaggruppeId;
 
   // Sett svarer automatisk når oppretter endres
@@ -188,7 +186,7 @@ export function OppgaveModal({
     tegningNavn,
     posisjonX,
     posisjonY,
-    matchendeArbeidsforlop,
+    matchendeDokumentflyt,
     opprettMutasjon,
   ]);
 

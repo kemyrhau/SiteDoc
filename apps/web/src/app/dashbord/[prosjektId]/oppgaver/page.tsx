@@ -110,7 +110,6 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "opprettetAv", navn: "Opprettet av", navnKey: "tabell.opprettetAv", gruppe: "kolonner" },
   { id: "bestillerFaggruppe", navn: "Bestiller-faggruppe", navnKey: "tabell.bestillerFaggruppe", gruppe: "kolonner" },
   { id: "utforerFaggruppe", navn: "Utfører-faggruppe", navnKey: "tabell.utforerFaggruppe", gruppe: "kolonner" },
-  { id: "dokumentflyt", navn: "Dokumentflyt", navnKey: "tabell.dokumentflyt", gruppe: "kolonner" },
   { id: "mal", navn: "Mal", navnKey: "tabell.mal", gruppe: "kolonner" },
   { id: "opprettet", navn: "Opprettelsesdato", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navn: "Endringsdato", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
@@ -300,6 +299,8 @@ export default function OppgaverSide() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const statusFilter = searchParams.get("status");
+  const prioritetFilter = searchParams.get("prioritet");
+  const sok = (searchParams.get("sok") ?? "").trim().toLowerCase();
   const utils = trpc.useUtils();
   const [visModal, setVisModal] = useState(false);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
@@ -505,6 +506,19 @@ export default function OppgaverSide() {
     } else if (statusFilter) {
       resultat = resultat.filter((o) => o.status === statusFilter);
     }
+    if (prioritetFilter) {
+      resultat = resultat.filter((o) => o.priority === prioritetFilter);
+    }
+    if (sok) {
+      resultat = resultat.filter((o) => {
+        const lopenummer = `${o.template?.prefix ?? ""}${o.number != null ? String(o.number).padStart(3, "0") : ""}`.toLowerCase();
+        return (
+          o.title.toLowerCase().includes(sok) ||
+          lopenummer.includes(sok) ||
+          (o.number != null && String(o.number).includes(sok))
+        );
+      });
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       const valgteSet = new Set(verdi.split(","));
@@ -542,7 +556,7 @@ export default function OppgaverSide() {
       });
     }
     return resultat;
-  }, [oppgaver, statusFilter, filterVerdier]);
+  }, [oppgaver, statusFilter, prioritetFilter, sok, filterVerdier]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
@@ -648,10 +662,6 @@ export default function OppgaverSide() {
           : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.template?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.mal ?? [],
-      },
-      dokumentflyt: {
-        id: "dokumentflyt", header: t("tabell.dokumentflyt"),
-        celle: () => <span className="text-gray-300">—</span>,
       },
       opprettet: {
         id: "opprettet", header: t("tabell.opprettelsesdato"),

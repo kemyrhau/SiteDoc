@@ -247,6 +247,7 @@ export default function SjekklisteSide() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const statusFilter = searchParams.get("status");
+  const sok = (searchParams.get("sok") ?? "").trim().toLowerCase();
   const utils = trpc.useUtils();
   const { aktivByggeplass, standardTegning } = useByggeplass();
   const [visModal, setVisModal] = useState(false);
@@ -461,6 +462,16 @@ export default function SjekklisteSide() {
     } else if (statusFilter) {
       resultat = resultat.filter((s) => s.status === statusFilter);
     }
+    if (sok) {
+      resultat = resultat.filter((s) => {
+        const lopenummer = `${s.template?.prefix ?? ""}${s.number != null ? String(s.number).padStart(3, "0") : ""}`.toLowerCase();
+        return (
+          s.title.toLowerCase().includes(sok) ||
+          lopenummer.includes(sok) ||
+          (s.number != null && String(s.number).includes(sok))
+        );
+      });
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       const valgteSet = new Set(verdi.split(","));
@@ -497,7 +508,7 @@ export default function SjekklisteSide() {
       });
     }
     return resultat;
-  }, [sjekklister, statusFilter, filterVerdier]);
+  }, [sjekklister, statusFilter, filterVerdier, sok]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));

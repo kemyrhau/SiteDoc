@@ -276,7 +276,6 @@ export default function FirmaHmsSide() {
             <StatistikkPanel
               statistikk={statistikk}
               prosjekter={prosjekter}
-              antallAvvik={antallAvvik}
               antallSja={antallSja}
               antallRuh={antallRuh}
             />
@@ -336,7 +335,6 @@ function TabKnapp({
 function StatistikkPanel({
   statistikk,
   prosjekter,
-  antallAvvik,
   antallSja,
   antallRuh,
 }: {
@@ -347,7 +345,6 @@ function StatistikkPanel({
     saksbehandlingstidMedianDager: number | null;
   };
   prosjekter: Array<{ id: string; name: string }>;
-  antallAvvik: number;
   antallSja: number;
   antallRuh: number;
 }) {
@@ -422,12 +419,6 @@ function StatistikkPanel({
       />
       <MånedSøyler data={sjaData} label={t("firma.hms.statistikk.sjaFrekvens")} />
       <MånedSøyler data={ruhData} label={t("firma.hms.statistikk.ruhRate")} />
-
-      {/* Stille reminder om antall avvik totalt (inkl. lukkede) */}
-      <p className="text-xs italic text-gray-500">
-        {/* Vises ikke i UI ellers — kun for sanitetssjekk i devtools */}
-        {antallAvvik === 0 ? "" : ""}
-      </p>
     </div>
   );
 }
