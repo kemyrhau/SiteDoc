@@ -48,6 +48,26 @@ Fabel scopet oppmøtested bevisst ut av G2 — **riktig avgrensning, men gjelden
 
 G2 la 39 nye `georef.*`-nøkler (13 språk, `a2a8d5c7`), men **urørte strenger i editoren er fortsatt hardkodet norsk** — de var utenfor G2-scope. Bryter i18n-kravet (alle synlige UI-strenger via `t()`). Redesign-Opus førte den i designprosjekt-loggen, men **den nådde aldri repo-BACKLOG** (verifisert 0 treff, exit 2026-07-15) → var hjemløs i repoet til nå.
 
+### 🟠 `fase-0-beslutninger.md:196–200` — «Verifiserte forekomster» er en død liste (spor 4 exit 2026-07-16)
+
+Auditen fant **én** råtten linjeref der (F18, `HovedSidebar.tsx:189`, rettet i `fc96fcee`). Spor 4 målte søsknene i samme liste: **alle er råtne.** `oppgave.ts:618-619` → `organizationId` har **0 treff** i fila i dag. `mappe.ts:589-590` → **0 treff**. `oppsett/layout.tsx:113` → **tom linje**.
+
+Listen er et **historisk øyeblikksbilde** («30+ kode-steder må oppdateres med organizationId») som leses som live pekere. Fiksen er ikke å oppdatere linjenumrene — det er å markere lista som historikk (❌ + dato) eller slette den. **Mistanke (uverifisert):** fila er ~2000 linjer, og den ene lista som ble åpnet var 100 % råtten. Linjeref gjennom hele fila bør antas råtne til noen måler dem.
+
+### 🟡 `api.md § API-prosedyrer` — håndført enumerering av kode (spor 4 exit 2026-07-16)
+
+`ftdSok`-raden hadde driftet (F23, manglet `nsStandardSok`/`nsKoderMedDok`) — direkte bevis for at hele den håndførte prosedyretabellen drifter. Samme klasse: `timer` (nestet router, ~40 prosedyrenavn), `kontrollplan` (~17), `maskin` (nestet). **Type 1 i sin helhet** — en tabell som enumererer kode råtner stille. Kun `ftdSok` ble rettet fordi det var funnet; resten er uverifisert mistanke.
+
+### 🟡 Skjøre grep-uttrykk — utledbart som *ser* trygt ut, men lyver stille (spor 4 exit 2026-07-16)
+
+[§11](dokumentasjons-standard.md) sier «gjør det utledbart». Spor 4s selvvurdering av sine egne åtte uttrykk avdekker en **underklasse §11 ikke skiller**: et uttrykk som utleder et tall fra en **konvensjon** kan under-rapportere uten å feile.
+
+- `grep -rl "HjelpKnapp" --include=page.tsx` (`hjelpetekster.md`) — **mest skjør.** Rendres knappen via delt header/wrapper eller `layout.tsx`, telles siden ikke. Gir et rent tall (13) som kan være for lavt etter en komponent-refaktor.
+- `grep "^model Ftd"` (`okonomi.md`) — navnekonvensjonsavhengig. En FTD-domenemodell uten `Ftd`-prefiks blir usynlig.
+- `grep -c "^model " packages/db/prisma/schema.prisma` (`arkitektur.md`) — teller **kun kjerne-db (76)**. `db-timer` (10), `db-maskin` (6), `db-varelager` (3) har egne schemaer. Matcher hva «56» opprinnelig mente, men en leser som tror det er alle modeller på tvers av pakker får for lavt tall.
+
+**Regelen som følger av dette:** *et uttrykk som **peker på en navngitt kilde** (`STOETTEDE_SPRAAK`, `§ API-prosedyrer`) er tryggere enn ett som **reproduserer et tall via en konvensjon**.* Foretrekk peker. Vurderes inn i §11 ved neste berøring.
+
 ### 🟠 Uauditerte doc-flater — scopet bommet på fila med høyest lesefrekvens (Opus D exit 2026-07-16)
 
 Auditen 2026-07-16 dekket `docs/claude/` (72 filer, 23 funn) og **utelot `CLAUDE.md`** — fila hver økt leser først, og den som ga cowork `pnpm dev --filter web` og kostet en runde. Målt samme dag: `CLAUDE.md:112` bærer samme i18n-drift som de tre auditen fant («14 brukervendte språk» → 15, «~2500 nøkler» → 2909).

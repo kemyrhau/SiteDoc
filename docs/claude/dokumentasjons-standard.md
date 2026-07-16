@@ -201,7 +201,11 @@ Denne ene klassen er **8 av auditens 23 funn** (målt mot `origin/develop`
 |---|---|---|
 | `arkitektur.md:56` | «56 Prisma-modeller» | 76. `grep -c "^model " packages/db/prisma/schema.prisma` er ett sekund og alltid sann. Tallet var feil med 20 og hadde stått siden 2026-06-08. |
 | `shared-pakker.md:34` · `web.md:110` · `mobil.md:196` | «2 328» · «~600» · «~920» i18n-nøkler | 2 909. Ett tall, tre kopier, tre ulike gale verdier. Utledbart: nøkkeltelling av `packages/shared/src/i18n/nb.json`. |
-| `okonomi.md:41` | «mengde.ts (9 prosedyrer)» | 14 — og dokumentets **egen** tabell sier 13. To gale tall i samme fil, ingen enige med koden. |
+| `okonomi.md:41` | «mengde.ts (9 prosedyrer)» | 13. Dokumentets egen §-tabell sa også 13 og hadde **rett** — ett galt tall, ikke to. |
+
+> ⚠️ **Denne raden bar selv et umålt tall til 2026-07-16.** Den sa «14 … dokumentets egen tabell sier 13» og hånet en korrekt tabell. Årsak: `grep -c "protectedProcedure"` teller **importlinja** (`import { router, protectedProcedure }`), så hver router ble +1. Cowork kjørte målingen **to ganger** — ved ordreskriving og ved gate — og fikk 14 begge ganger, fordi det var samme ødelagte kommando. Samme feil rammet søsken-sjekken: ftdSok/nota-import/kontrakt så ut som 7/3/5 (feil) mens de faktisk var 6/2/4 (korrekte i doc-en).
+>
+> **Lærdommen §4 ikke dekker:** «mål, ikke anta» er ikke nok — cowork *målte*. **En gjentatt dårlig måling er ikke verifisering.** Et uttrykk som ikke kan feile synlig, er ikke en måling: kjør negativ kontroll (mat den noe du *vet* skal fange/ikke fange) før du stoler på tallet. Fanget av spor 4s exit, som testet en påstand i stedet for å arve den.
 
 ### 11b. Negative kode-påstander er §11 i forkledning
 
