@@ -1,0 +1,92 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>body{margin:0;background:#e8eaee;font-family:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;}</style></head><body>
+<section style="padding: 40px; display: flex; flex-direction: column; gap: 24px; background: #eef0f4;">
+  <div style="max-width: 980px;">
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Runde 5 &mdash; F-b: «Arbeidstid i dag»-vinduet ved «Slutt dag» p&aring; eksisterende sedel</div>
+    <div style="font-size: 15px; color: #374151; margin-top: 6px; line-height: 1.5;">Live-funn: «Til kl.» ble st&aring;ende p&aring; firma-default 15:00 etter «Slutt dag», selv om GPS-&oslash;kta sluttet 05:31. <b>Rotårsak (kodeverifisert):</b> dagen fantes alt som draft med <b>forh&aring;ndsutfylt</b> 07:00&ndash;15:00; <code>finnEllerOpprettDagsseddel</code> er idempotent (skriver tider kun p&aring; NY sedel), og append-stien <code>utvidArbeidstidsvindu</code> er <b>extend-only (max)</b> &mdash; en tidligere/kortere faktisk slutt trekker aldri vinduet inn. Designvalg: skal «Slutt dag» oppdatere vinduet til faktiske &oslash;kt-tider? Under: dagens vs. forslag. Ingen produksjonskode &mdash; designutkast for godkjenning.</div>
+  </div>
+
+  <div style="display: flex; gap: 30px; align-items: flex-start; flex-wrap: wrap;">
+
+    <!-- Skjerm A — Dagens atferd (default beholdt) -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #6b7280; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">A</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Dagens atferd &mdash; default beholdt</span>
+      </div>
+      <div style="width: 360px; background: #f6f7f9; border-radius: 26px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2;">
+        <div style="background: #1e40af; padding: 13px 16px; color: #fff;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #b9c8f2;"><span>05:31</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div style="font-size: 17px; font-weight: 700; margin-top: 8px;">Dagsseddel &mdash; i dag</div>
+        </div>
+        <div style="padding: 16px;">
+          <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 12px; padding: 14px;">
+            <div style="font-size: 13px; font-weight: 600; color: #111827;">Arbeidstid i dag</div>
+            <div style="font-size: 11.5px; color: #8a93a3; margin-top: 3px; line-height: 1.4;">Forh&aring;ndsutfylt fra firmaets standardtider &mdash; juster kun ved avvik.</div>
+            <div style="display: flex; gap: 10px; margin-top: 14px;">
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">FRA KL.</div><div style="font-size: 16px; font-weight: 600; color: #111827; margin-top: 3px;">07:00</div></div>
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">TIL KL.</div><div style="font-size: 16px; font-weight: 600; color: #111827; margin-top: 3px;">15:00</div></div>
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">PAUSE</div><div style="font-size: 16px; font-weight: 600; color: #111827; margin-top: 3px;">30 min</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="width: 360px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Nå:</b> &oslash;kta sluttet 05:31, men «Til» st&aring;r p&aring; prefylt 15:00 (extend-only: 05:31 &lt; 15:00 &rarr; default beholdt). Arbeideren m&aring; oppdage og rette manuelt.</div>
+    </div>
+
+    <!-- Skjerm B — Forslag (faktiske økt-tider + kilde-hint) -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #10b981; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">B</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Forslag &mdash; faktiske &oslash;kt-tider oppdaterer vinduet</span>
+      </div>
+      <div style="width: 360px; background: #f6f7f9; border-radius: 26px; overflow: hidden; box-shadow: 0 2px 12px rgba(15,23,42,0.14); border: 1px solid #d7dbe2;">
+        <div style="background: #1e40af; padding: 13px 16px; color: #fff;">
+          <div style="display: flex; justify-content: space-between; font-size: 12px; color: #b9c8f2;"><span>05:31</span><span>&#9679;&#9679;&#9679;</span></div>
+          <div style="font-size: 17px; font-weight: 700; margin-top: 8px;">Dagsseddel &mdash; i dag</div>
+        </div>
+        <div style="padding: 16px;">
+          <div style="background: #fff; border: 1px solid #a7e3c6; border-radius: 12px; padding: 14px;">
+            <div style="font-size: 13px; font-weight: 600; color: #111827;">Arbeidstid i dag</div>
+            <!-- diskret kilde-hint -->
+            <div style="display: flex; align-items: center; gap: 6px; margin-top: 6px; background: #e9f9f1; border-radius: 7px; padding: 6px 9px;">
+              <span style="width: 14px; height: 14px; border-radius: 50%; background: #10b981; color: #fff; display: inline-flex; align-items: center; justify-content: center; font-size: 8px;">&#10003;</span>
+              <span style="font-size: 11px; color: #05603a;">Fra GPS-&oslash;kt 04:53&ndash;05:31 &#183; juster ved avvik</span>
+            </div>
+            <div style="display: flex; gap: 10px; margin-top: 12px;">
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">FRA KL.</div><div style="font-size: 16px; font-weight: 600; color: #05603a; margin-top: 3px;">04:53</div></div>
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">TIL KL.</div><div style="font-size: 16px; font-weight: 600; color: #05603a; margin-top: 3px;">05:31</div></div>
+              <div style="flex: 1;"><div style="font-size: 10px; font-weight: 700; letter-spacing: 0.06em; color: #9ca3af;">PAUSE</div><div style="font-size: 16px; font-weight: 600; color: #111827; margin-top: 3px;">0 min</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="width: 360px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Forslag:</b> «Slutt dag» skriver faktiske &oslash;kt-tider inn i vinduet (grønt = fra GPS) med diskret kilde-hint. Arbeideren ser tydelig hvor tiden kom fra og kan overstyre.</div>
+    </div>
+
+    <!-- Skjerm C — Kanttilfeller (skjerming + multi-økt) -->
+    <div style="display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #92610a; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">C</span>
+        <span style="font-size: 14px; font-weight: 600; color: #111827;">Kanttilfeller &mdash; skjerming</span>
+      </div>
+      <div style="width: 360px; display: flex; flex-direction: column; gap: 12px;">
+        <!-- multi-økt -->
+        <div style="background: #fff; border: 1px solid #dde2ea; border-radius: 12px; padding: 13px 15px;">
+          <div style="font-size: 12.5px; font-weight: 700; color: #111827;">Flere &oslash;kter samme dag</div>
+          <div style="font-size: 11.5px; color: #6b7280; margin-top: 4px; line-height: 1.5;">&Oslash;kt 1: 06:00&ndash;09:30 &#183; &Oslash;kt 2: 12:00&ndash;14:15 &rarr; vindu = <b>06:00&ndash;14:15</b> (min faktisk start / max faktisk slutt). Behold extend-only-logikken, men mot faktiske tider, ikke default.</div>
+        </div>
+        <!-- bruker-justert = skjermet -->
+        <div style="background: #fbf3e2; border: 1px solid #f0e2c2; border-radius: 12px; padding: 13px 15px;">
+          <div style="display: flex; align-items: center; gap: 7px;">
+            <span style="width: 15px; height: 15px; border: 1.6px solid #92610a; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center;"><span style="width: 5px; height: 7px; border: 1.4px solid #92610a; border-top: none; border-left: none;"></span></span>
+            <span style="font-size: 12.5px; font-weight: 700; color: #7a4f08;">Bruker-justert vindu = l&aring;st</span>
+          </div>
+          <div style="font-size: 11.5px; color: #8a6a1e; margin-top: 4px; line-height: 1.5;">Har arbeideren <b>manuelt endret</b> Fra/Til, skal «Slutt dag» <b>aldri overskrive</b> det (`sluttTidKilde=&quot;bruker&quot;`-skjerming). GPS-forslag gjelder kun urørte/system-satte vinduer.</div>
+        </div>
+      </div>
+      <div style="width: 360px; font-size: 11.5px; color: #6b7280; line-height: 1.5;"><b style="color:#374151;">Hva endres:</b> den prefylte defaulten slutter &aring; delta i min/max-sammenlikningen. F&oslash;rste GPS-&oslash;kt-slutt <b>ERSTATTER</b> det prefylte vinduet med faktiske tider; senere &oslash;kter utvider min/max mot <i>faktiske &oslash;kt-tider only</i>. <b>Unntak (foreslått skjerming):</b> manuelt justert vindu (<code>sluttTidKilde=&quot;bruker&quot;</code>) skal l&aring;ses &mdash; men <b>MÅ implementeres i fiksen</b>: <code>utvidArbeidstidsvindu</code> sjekker ikke <code>sluttTidKilde</code> i dag.</div>
+    </div>
+
+  </div>
+</section>
+</body></html>
