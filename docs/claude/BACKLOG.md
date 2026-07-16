@@ -48,11 +48,17 @@ Vurder å avvise `accepted` i input-skjemaet (egen input-type for sync vs. serve
 
 2b beviste TOCTOU i `syncBatch` (lesning `:3778`, tx-start `:4055` — 8+ `await` imellom). **Mistanke, ikke målt:** de andre skrive-prosedyrene i samme fil (`maskin.tilfoy` `:4322`, attester-/retur-stiene) har trolig samme «les-status → N await → skriv»-vindu. Kun `syncBatch` er verifisert og fikset. Selve filstørrelsen er lukta.
 
-### 🟠 Append-only håndheves ikke server-side (`sjekkliste.oppdaterData` / `oppgave.oppdaterData`)
+### 🟠 Append-only håndheves ikke server-side (`oppgave.oppdaterData`) — KUN oppgave
 
-Låsingen er **klient-lås**, ikke dataintegritet. Serveren gjør shallow merge (`{...eksisterende, ...input.data}`) og tar imot hva klienten enn sender — `flytRolle.ts` sier det selv: *«append-only — erFeltLåst() i hook håndhever dette»*. Etter `411e6f2d` (låsing i delt kilde, alle fire hooks) er UI-veien stengt, men **API-veien er åpen**: en determinert klient, et skript, eller **en gammel TestFlight-app** (EAS #40 kjører kode uten låsen) kan fortsatt overskrive et innsendt felt.
+**Scopet til oppgave 2026-07-16** (`fix/sjekkliste-ikke-append-only`): append-only-låsen er fjernet fra sjekkliste (spec `dokumentflyt.md § 2` — sjekkliste er redigerbar, ikke append-only). Sjekkliste har derfor ingen klient-lås å håndheve server-side; denne posten gjelder bare oppgave.
 
-Rotårsak-fiksen er precondition i `oppdaterData` — samme form som 2b-fiksen i `syncBatch` (`2791d0a9`). Funnet av develop-Opus under punkt 1; han flagget det i stedet for å utvide scope selv (server-routere lå utenfor fil-eierskapet hans). Dokumentert tre steder i koden: `flytRolle.ts`, `apps/mobile/src/hooks/CLAUDE.md`, `packages/shared/src/utils/CLAUDE.md`.
+For **oppgave** er låsingen **klient-lås**, ikke dataintegritet. Serveren gjør shallow merge (`{...eksisterende, ...input.data}`) og tar imot hva klienten enn sender — `flytRolle.ts` sier det selv: *«append-only — erFeltLåst() i oppgave-hooken håndhever dette»*. Etter `411e6f2d`/`04f6d295` (låsing i delt kilde, oppgave-hookene) er UI-veien stengt for oppgave, men **API-veien er åpen**: en determinert klient, et skript, eller **en gammel TestFlight-app** kan fortsatt overskrive et innsendt oppgave-felt.
+
+Rotårsak-fiksen er precondition i `oppgave.oppdaterData` — samme form som 2b-fiksen i `syncBatch` (`2791d0a9`). Dokumentert i koden: `flytRolle.ts`, `apps/mobile/src/hooks/CLAUDE.md`, `packages/shared/src/utils/CLAUDE.md` (alle scopet til oppgave 2026-07-16).
+
+### 🟡 Oppgave-låsen konsulterer ikke rettighet/harBallen (separat funn 2026-07-16)
+
+Funnet under `fix/sjekkliste-ikke-append-only`. `erFeltLåst` i oppgave-hookene er `(id) => låsteFelterRef.current.has(id)` — den sjekker **ikke** rettighet, `harBallen` eller dokument-status i det hele tatt. Låsen sitter dermed **under** tilgangssystemet og overstyrer det ubetinget: et innsendt oppgave-felt er låst selv for admin/registrator, uansett status. For oppgave er append-only spec-riktig (felt skal ikke endres etter opprettelse), så konsekvensen er mildere enn sjekkliste-regresjonen — men låsen bør uansett være betinget av rettighet, ikke stå over den (admin/registrator bør kunne rette et feilført felt). **Ikke fikset her** (utenfor ordrens scope — sjekkliste-fjerning). Vurder sammen med server-side-håndhevelsen over: samme flate, samme spørsmål om hvem som får overstyre.
 
 ### 🟡 Server-side samme-felt-konfliktdeteksjon for sjekkliste/oppgave-sync (fabel-vedtak 2026-07-16)
 
@@ -60,7 +66,7 @@ Rotårsak-fiksen er precondition i `oppdaterData` — samme form som 2b-fiksen i
 
 **Forbudt form (eksplisitt):** klient-kolonne alene. Å migrere `er_synkronisert` (boolean) → `sync_status` (TEXT) uten server-signal gir en **omdøpt boolean** på 10 000+ lokale databaser, pluss to tilstander som aldri fyres. Kostnad uten gevinst. **Premiss: server-signalet må komme først.**
 
-**Semantikken, avklart av fabel:** append-only per-felt-merge er *riktig* samarbeidsmodell — A fyller felt 1, B fyller felt 2, begge vinner. Det er ikke konflikt. Ekte konflikt er **samme felt, to skrivinger, én taper stille**. Etter at låsingen landet (`411e6f2d`) er vinduet krympet til: **to personer redigerer samme usendte felt offline samtidig.** Smalt, reelt, sjeldent.
+**Semantikken, avklart av fabel:** append-only per-felt-merge er *riktig* samarbeidsmodell — A fyller felt 1, B fyller felt 2, begge vinner. Det er ikke konflikt. Ekte konflikt er **samme felt, to skrivinger, én taper stille**. For **oppgave** krympet låsen (`411e6f2d`) vinduet til: to personer redigerer samme usendte felt offline samtidig. For **sjekkliste** (append-only fjernet 2026-07-16) finnes ingen felt-lås — samme-felt-overskriving er mulig så snart to redigerer samme felt; server-side konfliktdeteksjon er derfor mer relevant der. Begge smalt/sjeldent; vurderes mot pilot-erfaring.
 
 **Ikke pilot-blokkerende.** Vurderes mot faktisk pilot-erfaring: oppstår samme-felt-kollisjoner i praksis, løftes den. Henger sammen med 🟠-posten over (server-håndhevelse) — samme router, samme precondition-mønster; vurder dem samlet når en av dem tas.
 

@@ -1,17 +1,21 @@
 /**
- * Append-only felt-låsing — delt kilde for web + mobil, sjekkliste + oppgave.
+ * Append-only felt-låsing — delt kilde for OPPGAVE-hookene (web + mobil).
+ *
+ * Scope (vedtatt 2026-07-16): append-only gjelder KUN oppgave. Spec
+ * (`dokumentflyt.md § 2`): oppgave = «Aldri redigerbar — append-only fra
+ * opprettelse»; sjekkliste = «Redigerbar — den som har ballen + admin/registrator
+ * alltid». `04f6d295` slo på låsen for alle fire hooks; det var riktig for
+ * oppgave (mobil manglet den) men feil for sjekkliste (låste innsendte felt
+ * permanent, også for admin). Sjekkliste-hookene bruker den derfor IKKE lenger.
  *
  * Bakgrunn: append-only redigering («felt med eksisterende verdi er låst, nye
  * felt kan fylles ut») ble opprinnelig bygget kun i web `useOppgaveSkjema`
- * (commit eb984d91). De tre andre skjema-hookene manglet den → et innsendt
- * felt kunne endres fra web-sjekkliste og fra mobil. For å unngå en fjerde
- * kopi bor predikatet + lås-utledningen her, og alle fire hooks importerer den.
+ * (commit eb984d91). For å unngå kopi bor predikatet + lås-utledningen her, og
+ * begge oppgave-hookene importerer den.
  *
  * VIKTIG (mobil): lås-settet skal ALLTID beregnes fra server-bekreftet data
- * (`Checklist.data`/`Task.data` fra query), ALDRI fra lokal usynkronisert
- * SQLite-verdi. Ellers låses et felt brukeren nettopp fylte offline og ikke har
- * sendt. Da forblir egen usendt kladd redigerbar; et felt serveren alt har blir
- * låst ved neste åpning — samme semantikk som web.
+ * (`Task.data` fra query), ALDRI fra lokal usynkronisert SQLite-verdi. Ellers
+ * låses et felt brukeren nettopp fylte offline og ikke har sendt.
  *
  * Merk: dette er en klient-lås (UI-håndhevelse). Server `oppdaterData` gjør i
  * dag shallow merge og håndhever IKKE append-only — se flytRolle.ts.

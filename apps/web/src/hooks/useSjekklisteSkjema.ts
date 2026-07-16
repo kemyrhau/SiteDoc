@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet, beregnLaasteFelter } from "@sitedoc/shared";
+import { utledDokumentRettighet } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -37,8 +37,6 @@ export interface UseSjekklisteSkjemaResultat {
   leggTilVedlegg: (objektId: string, vedlegg: Vedlegg) => void;
   fjernVedlegg: (objektId: string, vedleggId: string) => void;
   erSynlig: (objekt: RapportObjekt) => boolean;
-  /** Append-only: felt med eksisterende verdi er låst for verdi-endring */
-  erFeltLåst: (objektId: string) => boolean;
   valideringsfeil: Record<string, string>;
   valider: () => boolean;
   lagre: () => Promise<void>;
@@ -58,9 +56,6 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   // Ref for å unngå stale closure i lagreIntern
   const feltVerdierRef = useRef(feltVerdier);
   feltVerdierRef.current = feltVerdier;
-
-  // Append-only: felt som hadde server-bekreftet verdi ved init er låst
-  const låsteFelterRef = useRef<Set<string>>(new Set());
 
   const utils = trpc.useUtils();
   const slettBildeMutation = trpc.bilde.slettMedUrl.useMutation();
@@ -104,8 +99,6 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
       }
     }
 
-    // Append-only: lås felt som allerede har server-bekreftet verdi (delt kilde)
-    låsteFelterRef.current = beregnLaasteFelter(eksisterendeData);
     settFeltVerdier(initialisert);
     settErInitialisert(true);
   }, [sjekkliste, alleObjekter, erInitialisert]);
@@ -171,18 +164,8 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     [planleggLagring],
   );
 
-  // Append-only: sjekk om felt er låst for verdi-endring
-  const erFeltLåst = useCallback(
-    (objektId: string): boolean => låsteFelterRef.current.has(objektId),
-    [],
-  );
-
   const settVerdi = useCallback(
-    (objektId: string, verdi: unknown) => {
-      // Append-only: blokker endring av felt som allerede har verdi
-      if (låsteFelterRef.current.has(objektId)) return;
-      oppdaterFelt(objektId, { verdi });
-    },
+    (objektId: string, verdi: unknown) => oppdaterFelt(objektId, { verdi }),
     [oppdaterFelt],
   );
 
@@ -346,7 +329,6 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     leggTilVedlegg,
     fjernVedlegg,
     erSynlig,
-    erFeltLåst,
     valideringsfeil,
     valider,
     lagre,
