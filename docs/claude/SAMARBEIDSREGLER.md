@@ -60,6 +60,30 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 
 **Håndhevelse:** cowork sjekker 1–3 i hver merge-gate (fast punkt i gate-rapporten). fabels exit-protokoll kjører dokumentasjonssync ved hver Opus-exit og verifiserer at 1–2 er fulgt i rundene siden sist — ikke bare at innholdet stemmer.
 
+## Opus-livssyklus — fire faser (vedtatt 2026-07-16)
+
+**Bakgrunn:** regelen om statustavle sto her fra 2026-07-06 og ble aldri utført. 2026-07-16 kostet det nesten en økts arbeid: to økter fikk samme branch-navn (`docs/status-aktuelt-oppbrudd`), og den ene slettet den mens den andre skulle bruke den — ren flaks at rekkefølgen reddet det. Samme kveld fikk to økter samme arbeidstre (`SiteDoc-oppfolgere`), så auditens tre flyttet seg under den mens den kjørte. **En regel uten mekanisme utføres ikke. Tavla er mekanismen — den virker fordi Kenneth ser den, ikke fordi den er en regel.**
+
+| Fase | Hva skjer | Hvem |
+|---|---|---|
+| **1. ÅPNE** | Rad i tavla **før** økta åpnes: navn · arbeidstre · branch · filer den eier · dato. Ingen to rader deler arbeidstre eller fil. Branch-navn prefikses per spor → kollisjon umulig ved konstruksjon, ikke ved disiplin. | cowork skriver raden, Kenneth åpner |
+| **2. LEVER** | Commit til feature-branch (ikke push). Meld hash. | Opus |
+| **3. EXIT** | Fast spørsmålsrunde — **ikke valgfri**. Se § Exit-runde. | cowork spør, Opus svarer |
+| **4. LUKK** | Merge → **slett branchen** → fjern raden → lukk vinduet. **En økt er ikke død før raden er borte.** | cowork, så Kenneth |
+
+**Er tavla tom, lever ingen økter.** Det er hele poenget: kontrollflaten er lesbar for Kenneth uten å spørre noen.
+
+### Exit-runde — fire spørsmål (ufravikelig)
+
+En Opus' rapport svarer på det den **lette etter**. Exit-runden henter det som ikke hadde en kategori. 2026-07-15/16 fanget den fire funn ingenting annet fant — inkludert 🔴 4c (lønns-nært) og Norkart-nøkkelens ukjente eierskap, som hadde ligget uoppdaget i fire måneder.
+
+1. **Hva så du som ikke passet i noen kategori?** Alt utenfor bøttene dine er usynlig i rapporten.
+2. **Hva forkastet du som støy?** Særlig hvis du strammet en heuristikk underveis — hva røk med?
+3. **Hvilke filer/flater føltes feil uten at du kunne bevise det?** Merk som mistanke, ikke funn.
+4. **Hvilke av funnene dine mistenker du har søsken du ikke rakk?**
+
+Svar merket som usikkerhet er nyttige. En gjetning ført som funn er ikke.
+
 ## Statustavle (vedlikeholdes av cowork)
 
-Øverst i STATUS-AKTUELT: kort tavle over aktive økter — hvilken branch hver eier + hva som er in-flight mot develop. Billigste forsikring mot at to økter skriver i samme fil.
+Øverst i STATUS-AKTUELT: rad per aktiv økt. Oppdateres ved rundestart (alle rader) og rundeslutt (tøm) — to commits per runde, ikke per økt.

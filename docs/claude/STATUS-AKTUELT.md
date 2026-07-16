@@ -4,6 +4,18 @@ description: Løpende statusrapport for pågående arbeid, pauset arbeid og plan
 sist_verifisert_mot_kode: 2026-07-10
 ---
 
+## Statustavle — aktive økter
+
+> Kontrollflate for Kenneth ([SAMARBEIDSREGLER § Opus-livssyklus](SAMARBEIDSREGLER.md#opus-livssyklus--fire-faser-vedtatt-2026-07-16)). Rad skrives **før** økta åpnes; fjernes når branchen er merget + slettet. **Tom tavle = ingen aktive økter.** Ingen to rader deler arbeidstre eller fil.
+
+| Økt | Arbeidstre | Branch | Eier filer | Status |
+|---|---|---|---|---|
+| spor 3 — negative påstander | `SiteDoc-oppfolgere` | `docs/negative-pastander` | terminologi · aktivitetsfeed · adaptiv-sok-plan · redesign-paritetssjekkliste | leverer |
+| spor 4 — Type 1-rydding | `SiteDoc-fratil` | `docs/type1-rydding` | arkitektur · shared-pakker · web · mobil · okonomi · maskin · timer · api · fase-0-beslutninger · hjelpetekster | levert `9dd3b66b` — venter gate |
+| Opus D — audit | *(ren lesing)* | — | ingen | exit-runde |
+
+⚠️ **Kjent avvik (2026-07-16):** spor 3 og Opus D fikk samme arbeidstre (`SiteDoc-oppfolgere`) — coworks feil ved ordreskriving. D er read-only og rapporten var levert, så ingenting gikk tapt, men treet står nå på `docs/negative-pastander` og linjenumrene i D's audit matcher ikke lenger treet han sitter i. Presedensen tavla skal hindre.
+
 ## EAS-byggteller (kvote ~15/mnd, fri plan — nullstilles den 1.)
 
 > Ordre 1 ([SAMARBEIDSREGLER § Cowork leveranse-ansvar](SAMARBEIDSREGLER.md#cowork-leveranse-ansvar-ordre-2026-07-14)): cowork sporer EAS-bygg her. Ved **12 bygg/mnd** → stopp + sjekk klar-tilstand + flagg i status før nytt bygg fyres. Dato/# bekreftes mot `eas build:list`.
