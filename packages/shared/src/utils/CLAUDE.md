@@ -83,6 +83,17 @@ interface SynligeMapperResultat {
 
 **Cache:** `tilgangCache` Map forhindrer gjentatt rekursjon. Sirkulær-referanse håndtert med tidlig `false`-markør.
 
+### Append-only felt-låsing (`feltLaasing.ts`)
+
+Delt kilde for append-only-låsing i skjema-hookene (web + mobil, sjekkliste + oppgave). Bygget for å unngå en fjerde kopi etter at låsingen manglet i 3/4 hooks.
+
+| Funksjon | Input | Output | Beskrivelse |
+|----------|-------|--------|-------------|
+| `harFeltVerdi(verdi)` | `unknown` | `boolean` | Har feltet en reell (ikke-tom) verdi? Tom streng/null/tom array → false |
+| `beregnLaasteFelter(serverData)` | `Checklist.data`/`Task.data` | `Set<string>` | Objekt-IDer med server-bekreftet verdi → låst |
+
+**Kritisk (mobil):** kall `beregnLaasteFelter` med SERVER-data, aldri lokal usynket SQLite — ellers låses egen offline-kladd. Klient-lås; server håndhever ikke append-only. Se `apps/mobile/src/hooks/CLAUDE.md`.
+
 ## Fallgruver
 
 - `gpsTilTegning` clamper til 0-100 — bruk `erInnenforTegning` for å sjekke gyldighet først

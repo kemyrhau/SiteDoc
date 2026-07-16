@@ -2,7 +2,15 @@
 
 ## useSjekklisteSkjema / useOppgaveSkjema
 
-To parallelle hooks (~500 linjer hver) som implementerer Dalux-stil utfylling med offline-first sync. Identisk interface, ulik datakilde.
+To parallelle hooks (~500 linjer hver) som implementerer Dalux-stil utfylling med offline-first sync. Nær-identisk interface, ulik datakilde — men de er IKKE garantert like: append-only felt-låsing manglet i tre av fire hooks til 2026-07-16 fordi speiling sviktet. Deler logikk skal ligge i `@sitedoc/shared`, ikke kopieres per hook.
+
+### Append-only felt-låsing (delt kilde)
+
+Felt med server-bekreftet verdi er låst for verdi-endring; nye felt, kommentar og vedlegg forblir redigerbare. Lås-settet beregnes av `beregnLaasteFelter(serverData)` i `@sitedoc/shared` (`utils/feltLaasing.ts`) — samme kilde i alle fire hooks + web-versjonene. `erFeltLåst(objektId)` eksponeres av hooken; detaljsiden bruker `verdiLeseModus = leseModus || erFeltLåst(id)` på verdi-rendereren.
+
+**Mobil-regel:** lås-settet beregnes ALLTID fra server-data (`Task.data`/`Checklist.data`), ALDRI fra lokal usynkronisert SQLite. Ellers låses et felt brukeren nettopp fylte offline. `settVerdi` har en guard som blokkerer låste felt (forsvar-i-dybde bak UI-en).
+
+Merk: dette er klient-lås. Server `oppdaterData` shallow-merger og håndhever IKKE append-only.
 
 ### Dual lagringslag
 
@@ -46,7 +54,7 @@ Bruker endrer felt
 
 ## Fallgruver
 
-- Endringer i useSjekklisteSkjema bør ALLTID speiles i useOppgaveSkjema
+- Speiling mellom hookene er bevist utilstrekkelig (append-only manglet i 3/4 til 2026-07-16). Deler logikk skal LØFTES til `@sitedoc/shared`, ikke kopieres. Endringer i én hook må aktivt verifiseres mot de tre andre + web-versjonene.
 - `feltVerdierRef` MÅ brukes i debounced save — ellers stale closure
 - Auto-fill kun for nye dokumenter uten eksisterende data
 - Callback-filter (`dokumentType`) er kritisk — uten den kan sjekkliste-hook reagere på oppgave-opplastinger

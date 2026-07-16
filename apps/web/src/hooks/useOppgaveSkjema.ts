@@ -4,7 +4,7 @@ import { useState, useCallback, useRef, useMemo, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import type { FeltVerdi, Vedlegg, RapportObjekt } from "@/components/rapportobjekter/typer";
 import { TOM_FELTVERDI } from "@/components/rapportobjekter/typer";
-import { utledDokumentRettighet } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter } from "@sitedoc/shared";
 import type { DokumentRettighet, DokumentflytRolle } from "@sitedoc/shared";
 
 type LagreStatus = "idle" | "lagrer" | "lagret" | "feil";
@@ -95,7 +95,6 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
 
     const eksisterendeData = (oppgave.data ?? {}) as Record<string, Record<string, unknown>>;
     const initialisert: Record<string, FeltVerdi> = {};
-    const låste = new Set<string>();
 
     for (const objekt of alleObjekter) {
       if (DISPLAY_TYPER.has(objekt.type)) continue;
@@ -107,18 +106,13 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           kommentar: (lagret.kommentar as string) ?? "",
           vedlegg: (lagret.vedlegg as Vedlegg[]) ?? [],
         };
-
-        // Append-only: lås felt som allerede har verdi (ikke tom/null)
-        const v = lagret.verdi;
-        if (v !== null && v !== undefined && v !== "" && !(Array.isArray(v) && v.length === 0)) {
-          låste.add(objekt.id);
-        }
       } else {
         initialisert[objekt.id] = { ...TOM_FELTVERDI };
       }
     }
 
-    låsteFelterRef.current = låste;
+    // Append-only: lås felt som allerede har server-bekreftet verdi (delt kilde)
+    låsteFelterRef.current = beregnLaasteFelter(eksisterendeData);
     settFeltVerdier(initialisert);
     settErInitialisert(true);
   }, [oppgave, alleObjekter, erInitialisert]);

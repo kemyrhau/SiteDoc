@@ -6,7 +6,7 @@ import { hentDatabase } from "../db/database";
 import { sjekklisteFeltdata } from "../db/schema";
 import { useNettverk } from "../providers/NettverkProvider";
 import { useOpplastingsKo } from "../providers/OpplastingsKoProvider";
-import { utledDokumentRettighet } from "@sitedoc/shared";
+import { utledDokumentRettighet, beregnLaasteFelter } from "@sitedoc/shared";
 import type { DokumentRettighet } from "@sitedoc/shared";
 import type { RettighetInput } from "./useOppgaveSkjema";
 
@@ -67,6 +67,8 @@ export interface UseSjekklisteSkjemaResultat {
   fjernVedlegg: (objektId: string, vedleggId: string) => void;
   flyttVedlegg: (objektId: string, vedleggId: string, retning: "opp" | "ned") => void;
   erSynlig: (objekt: RapportObjekt) => boolean;
+  /** Append-only: felt med server-bekreftet verdi er låst for verdi-endring */
+  erFeltLåst: (objektId: string) => boolean;
   valideringsfeil: Record<string, string>;
   valider: () => boolean;
   lagre: () => Promise<void>;
@@ -170,6 +172,10 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
   const feltVerdierRef = useRef(feltVerdier);
   feltVerdierRef.current = feltVerdier;
 
+  // Append-only: felt som hadde server-bekreftet verdi ved init er låst.
+  // Beregnes ALLTID fra server-data, aldri fra lokal usynkronisert SQLite-verdi.
+  const låsteFelterRef = useRef<Set<string>>(new Set());
+
   const { erPaaNettet } = useNettverk();
   const { registrerCallback } = useOpplastingsKo();
 
@@ -197,6 +203,10 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     if (!sjekkliste || erInitialisert) return;
 
     const eksisterendeData = (sjekkliste.data ?? {}) as Record<string, Record<string, unknown>>;
+
+    // Append-only: lås felt som allerede har server-bekreftet verdi (delt kilde).
+    // Alltid fra server-data — usynket lokal kladd forblir redigerbar.
+    låsteFelterRef.current = beregnLaasteFelter(eksisterendeData);
 
     // Prøv SQLite først (instant, <10ms)
     const sqliteData = lesSQLiteFeltdata(sjekklisteId);
@@ -412,8 +422,18 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     [planleggLagring],
   );
 
+  // Append-only: sjekk om felt er låst for verdi-endring
+  const erFeltLåst = useCallback(
+    (objektId: string): boolean => låsteFelterRef.current.has(objektId),
+    [],
+  );
+
   const settVerdi = useCallback(
-    (objektId: string, verdi: unknown) => oppdaterFelt(objektId, { verdi }),
+    (objektId: string, verdi: unknown) => {
+      // Append-only: blokker endring av felt som allerede har verdi
+      if (låsteFelterRef.current.has(objektId)) return;
+      oppdaterFelt(objektId, { verdi });
+    },
     [oppdaterFelt],
   );
 
@@ -594,6 +614,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
     erstattVedlegg,
     flyttVedlegg,
     erSynlig,
+    erFeltLåst,
     valideringsfeil,
     valider,
     lagre,
