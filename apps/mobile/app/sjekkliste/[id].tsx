@@ -364,7 +364,6 @@ export default function SjekklisteUtfylling() {
     erstattVedlegg,
     flyttVedlegg,
     erSynlig,
-    erFeltLåst,
     valideringsfeil,
     valider,
     lagre,
@@ -765,8 +764,10 @@ export default function SjekklisteUtfylling() {
 
           // Utfyllbare felt med FeltWrapper
           const feltVerdi = hentFeltVerdi(objekt.id);
-          // Append-only: verdi-feltet er låst, men kommentar/vedlegg er redigerbare
-          const verdiLeseModus = leseModus || erFeltLåst(objekt.id);
+          // Sjekkliste er redigerbar for den som har ballen + admin/registrator
+          // (dokumentflyt.md § 2) — ikke append-only. Kun dokument-status styrer
+          // lesemodus; enkeltfelt låses ikke etter innsending.
+          const verdiLeseModus = leseModus;
 
           // Oppgave-kobling for dette feltet
           const feltOppgave = feltOppgaveMap.get(objekt.id);

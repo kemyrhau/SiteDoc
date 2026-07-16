@@ -183,7 +183,6 @@ export default function SjekklisteDetaljSide() {
     leggTilVedlegg,
     fjernVedlegg,
     erSynlig,
-    erFeltLåst,
     valideringsfeil,
     erRedigerbar,
     lagreStatus,
@@ -572,9 +571,10 @@ export default function SjekklisteDetaljSide() {
           const erDisplay = DISPLAY_TYPER.has(objekt.type);
           const nestingNivå = hentNestingNivå(objekt, objekter);
           const feltVerdi = hentFeltVerdi(objekt.id);
-          // Append-only: verdi-feltet er låst, men kommentar/vedlegg er redigerbare
-          const feltLåst = erFeltLåst(objekt.id);
-          const verdiLeseModus = leseModus || feltLåst;
+          // Sjekkliste er redigerbar for den som har ballen + admin/registrator
+          // (dokumentflyt.md § 2) — ikke append-only. Kun dokument-status styrer
+          // lesemodus; enkeltfelt låses ikke etter innsending.
+          const verdiLeseModus = leseModus;
 
           // Display-typer rendres uten wrapper
           if (erDisplay) {

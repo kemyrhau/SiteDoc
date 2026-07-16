@@ -41,6 +41,14 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 > **Maks 3 aktive PR-tråder.** `### Gjenstående` er en samlepost, ikke en tråd, og telles ikke.
 
+### Sjekkliste ikke append-only (branch `fix/sjekkliste-ikke-append-only`) — PÅ BRANCH, venter merge
+
+**Regresjonsfiks fra `04f6d295`** (kun develop/test, prod ikke rammet). `04f6d295` slo på append-only felt-låsing i alle fire skjema-hooks. Riktig for oppgave (mobil manglet den), **feil for sjekkliste** (spec `dokumentflyt.md § 2`: sjekkliste er redigerbar for den som har ballen + admin/registrator) — et innsendt tallfelt ble permanent låst, også for admin.
+
+Fjernet felt-låsen fra begge sjekkliste-hooks (`useSjekklisteSkjema` web+mobil: import, `låsteFelterRef`, init-lås, `erFeltLåst`, settVerdi-guard, interface, retur) + `verdiLeseModus = leseModus` i begge sjekkliste-sidene. **Oppgave urørt** (låsen beholdt). Docs oppgave-only i 4 steder (`feltLaasing.ts`, `flytRolle.ts`, `mobile/hooks/CLAUDE.md`, `shared/utils/CLAUDE.md`) + BACKLOG § server-side scopet til oppgave. Separat funn (oppgave-låsen konsulterer ikke rettighet) → BACKLOG, ikke fikset her.
+
+**Verifikasjon:** `next build` grønn, shared-tester grønne, mobil-typecheck uendret (11 baseline). **Flagg:** pre-eksisterende TS2589 i `sjekklister/[sjekklisteId]/page.tsx:117` finnes på origin/develop uten denne diffen (dukket opp etter del-2-mergen med samtidig arbeid) — feiler ikke `next build`, men bør ryddes separat. Runtime-verifisering på test etter deploy.
+
 ### Fase M-3a del 2 — MalBygger gap-bygging (branch `feat/faseM-3a-del2`) — PÅ BRANCH, venter merge + test-verifisering
 
 **Levert i kode 2026-07-16** (build grønn, shared-tester grønne, web+api typecheck rent, mobil-typecheck uendret). Bygget mot del 1-matrisen + Kenneth-vedtak «norsk kanonisk grense-nøkkel + engelsk fallback-les»:
