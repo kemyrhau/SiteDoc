@@ -44,20 +44,9 @@ Alle større operasjoner startes på en feature-branch — aldri direkte på dev
 - Nye moduler
 - Tilgangskontroll-endringer
 
-## Timer-prototype — midlertidig plassering
+## Timer-prototype — midlertidig plassering ❌ FORKASTET (2026-04-27)
 
-Filen `apps/web/src/app/dashbord/[prosjektId]/timer/` er en **demo-prototype** laget for kundepresentasjon. Den skal IKKE videreutvikles til produksjonskode.
-
-Når timer-modulen bygges ordentlig (Fase 3):
-- Flyttes til `apps/timer/` — egen Next.js-app
-- DB flyttes til `packages/db-timer/` — eget Prisma-skjema
-- Eksisterende prototype-filer slettes fra `apps/web`
-
-Regler frem til da:
-- Ikke legg til nye API-kall i prototype-siden
-- Ikke koble prototype til eksisterende tRPC-ruter
-- Ikke bruk prototype som mal for andre sider
-- Alt i prototype er hardkodet demodata
+Planen om egen `apps/timer/`-app (og at timer-sidene var en hardkodet demo som skulle slettes) er **forkastet**. Timer er bygget integrert som firmamodul — api-ruter, `packages/db-timer` og web-sider under `dashbord/`. Vedtak, begrunnelse og faktisk plassering: [timer.md](timer.md).
 
 ## Miljøer
 

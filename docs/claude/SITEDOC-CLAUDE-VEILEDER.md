@@ -23,16 +23,10 @@ Opus = implementasjon.
 | test | test.sitedoc.no | Alltid test her først |
 | prod | sitedoc.no | Kun etter verifisert test |
 
-Branching: feature-branch → develop (auto-deploy til test) →
-main (manuell deploy til prod).
+Branching: feature-branch → develop → main (manuell deploy til prod).
 **Aldri deploy til prod uten Kenneths eksplisitte godkjenning.**
 
-**Auto-deploy til test:** Polling-cron på server (`*/2 * * * *`).
-- Script: `~/programmering/deploy-test-cron.sh`
-- Logg: `~/programmering/logs/deploy-test.log`
-- Trigger: Push til `develop` → deploy innen 0-2 min
-- Sekvens: `git fetch + reset --hard origin/develop` → `pnpm install` → `prisma generate` → `prisma migrate deploy` → `pnpm build --filter @sitedoc/web` → `pm2 restart sitedoc-test-web sitedoc-test-api`
-- Idempotent: kjører kun deploy hvis `HEAD ≠ origin/develop`
+**Test-deploy er manuell.** Ingen auto-deploy/cron/hook finnes — push til `develop` deployer ikke til test av seg selv. Kilde + faktisk sekvens: CLAUDE.md § Deploy-triggere.
 
 ---
 

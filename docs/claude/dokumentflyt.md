@@ -267,18 +267,9 @@ Sentrale modell-felter som styrer flyt-mekanikken. Full feltliste i [arkitektur.
 
 ### `Dokumentflyt.roller` — JSONB-konfigurerbare labels
 
-Per dokumentflyt kan rolle-labels overstyres for prosjekt-spesifikk terminologi. Standard-rollene er fortsatt `registrator` / `bestiller` / `utforer` / `godkjenner`, men UI viser kunde-spesifikke labels:
+Per dokumentflyt kan rolle-labels overstyres for prosjekt-spesifikk terminologi. Standard-rollene er `registrator` / `bestiller` / `utforer` / `godkjenner`, men UI viser kunde-spesifikke labels.
 
-```json
-{
-  "registrator": { "label": "RUH-melder" },
-  "bestiller":   { "label": "Byggherre" },
-  "utforer":     { "label": "HMS-koordinator" },
-  "godkjenner":  { "label": "BHF-leder" }
-}
-```
-
-Alle fire rolle-noklene er valgfrie. Manglende nøkler bruker default-rolle-navnet.
+Feltet er et **array** av rolle-objekter (`{ rolle, label? }`) — ikke et objekt nøklet på rolle-navn. Se `schema.prisma:1192` (typen) og bruken i `dokumentflyt.ts:120`. Hver rolle er valgfri; mangler `label`, brukes default-rolle-navnet.
 
 ### `DokumentflytMedlem` — flytsteg-medlemskap
 
