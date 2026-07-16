@@ -143,6 +143,34 @@ Listen er et **historisk øyeblikksbilde** («30+ kode-steder må oppdateres med
 
 **Regelen som følger av dette:** *et uttrykk som **peker på en navngitt kilde** (`STOETTEDE_SPRAAK`, `§ API-prosedyrer`) er tryggere enn ett som **reproduserer et tall via en konvensjon**.* Foretrekk peker. Vurderes inn i §11 ved neste berøring.
 
+### 🟡 Mal-dualiteten er redundans, ikke to roller (redesign-Opus exit 2026-07-16)
+
+**Mistanke fra den eneste som har sett begge flatene innenfra.** Del6b pkt 4 antok «arbeidsflate vs konfig» og leverte copy + kryss-lenker (`297f5670`). Hans vurdering etter å ha bygget dem: *«et plaster over redundansen, ikke en oppløsning»*.
+
+Begge er prosjekt-scopet `ReportTemplate`-CRUD mot samme `trpc.mal.*`. `[prosjektId]/maler` er en **fattig** CRUD (kun navn + beskrivelse); `oppsett/produksjon/*maler` er den **fulle** (kategori-splittet, MalBygger, bibliotek, faggruppe).
+
+**Cowork korrigerte én del av funnet.** Han antok at maler fra `[prosjektId]/maler` blir **kategoriløse** og faller utenfor de kategori-filtrerte oppsett-visningene. Målt: `category String @default("sjekkliste")` i `schema.prisma` — **ikke nullable**. Prisma påfører defaulten, så de vises i `sjekklistemaler`.
+
+**Reell effekt i stedet:** flata **tvinger stille** `category="sjekkliste"` — den sender `{projectId, name, description}`, ingen category. Vil du lage en oppgavemal der, kan du ikke, og du får ingen tilbakemelding om hvorfor. `MalListe:293` filtrerer på `m.category === kategori`.
+
+**Ekte fiks (ikke gjort — datamodell-/router-nært, utenfor «kun copy»):** (a) rendyrk `[prosjektId]/maler` til lese-og-bruk, fjern CRUD, pek til oppsett — eller (b) fjern flata og fold inn i oppsett. **Mistanke, ikke funn.** `MalBygger.tsx` (stalest kode, 2026-04-17) sitter under alle tre flatene; har redundansen en rot, ligger den trolig der.
+
+### 🟡 Prosjekt-tilhørighet er avledet via `template.projectId`, ikke egen på instansen (redesign-Opus exit 2026-07-16)
+
+En `Checklist`/`Task` hører til et prosjekt **gjennom malen sin** — instansen har ingen egen `projectId`. Oppdaget under seeding: en sjekkliste med `byggeplassId = NULL` vises likevel i prosjektlista fordi `template.projectId` binder den (`sjekkliste.ts:46`).
+
+**Konsekvens:** bytter en mal prosjekt — eller deles på tvers — **flytter dokumentene med.** Prosjekt-tilhørighet er en avledet egenskap, ikke en egen. Ingen kjent skade i dag, men koblingen er implisitt og udokumentert. **Relevant for M-3b** (bibliotek/`OrganizationTemplate`/firma-lån): deling av maler på tvers av prosjekt treffer denne koblingen direkte.
+
+### 🟡 FilterPanel: hybrid-state er skjør, forhåndsvalg har en usynlig felle (redesign-Opus exit 2026-07-16)
+
+Tre flater bruker `FilterPanel` med tre state-modeller. Byggerens egen vurdering av hvilken som brekker:
+
+- **Skjørest — firma-HMS' hybrid:** multi-select i URL, fritekst i lokal `useState`. **To sannhetskilder for én filter-blokk.** «Tøm» må nullstille begge separat (`tomFilter(); setTekstSok("")` inline). Legger noen til en dimensjon og glemmer én tråd, desynker den stille.
+- **Mest felle-utsatt — forhåndsvalg (prosjekt-HMS):** chips krever at `options` er et **fast supersett**. Han måtte fikse nettopp det under verifisering — chips brakk da `options` var data-utledet. **Koblingen «preselect ⊆ options» er usynlig for neste redigerer** og fortjener en kommentar i komponenten.
+- **Robuste:** de to rene lokal-modellene (prosjekt-HMS, kontrollplan).
+
+**Og tolinjen er prinsipiell, ikke midlertidig:** sjekkliste/oppgave skal aldri konverteres — de filtrerer på dynamiske mal-kolonner (`felt:*`) som varierer per mal. **Men de kan en dag få begge:** FilterPanel over tabellen for faste dimensjoner + Table for dynamiske kolonner. Det er lagdeling, ikke enten/eller. Den koblede søkeboksen (`?sok=`, `f9416424`) er første steg i den retningen.
+
 ### 🔴 CLAUDE.md-runden — fem funn i fila hver økt leser først (cowork eier, 2026-07-16)
 
 **Egen runde. Ikke påheng.** Cowork forsøkte å dytte funn 2 inn i redesigns FilterPanel-ordre; Kenneth stoppet det. Å be en økt rette en fil som er over sin harde grense — og samtidig si at den ikke skal løse grensen — er en umulig ordre.
