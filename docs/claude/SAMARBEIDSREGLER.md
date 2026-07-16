@@ -58,7 +58,9 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 2. **Lukking skjer der saken står.** Den som lukker en sak (gate PASS, grønn fangst, DoD) fører lukkingen i BACKLOG/STATUS i SAMME melding/commit — aldri «etterpå». En fiks som berører en kjent BACKLOG-post MÅ referere posten; coworks gate sjekker det. (Blocker #2-driften oppsto nettopp fordi F4-2 løste den uten å røre BACKLOG-posten.)
 3. **Status-påstander har kilde.** Linjer i STATUS som hevder tilstand («pushet», «deployet», «klar for X») skal bære commit-hash eller dato. En påstand uten kilde behandles som mistenkt stale — det gjør re-utledning billig og drift synlig ved lesing. *(Anvendelse av «presens krever referanse» ([dokumentasjons-standard.md](dokumentasjons-standard.md)) på deploy-tilstand — samme prinsipp, spisset mot STATUS-påstander.)*
 
-**Håndhevelse:** cowork sjekker 1–3 i hver merge-gate (fast punkt i gate-rapporten). fabels exit-protokoll kjører dokumentasjonssync ved hver Opus-exit og verifiserer at 1–2 er fulgt i rundene siden sist — ikke bare at innholdet stemmer.
+4. **Fravær-påstander re-verifiseres ved berøring** (fabel-presisering 2026-07-16). Berører diffen et område som er navngitt i en ❌-markør, skal markøren re-verifiseres eller strykes i SAMME commit-sett. ❌ + dato + hash gjør råten detekterbar, ikke detektert — uten trigger blir rettelsen en stale linje med tidsstempel. Full regel + de fem påstandene dette gjelder i dag: [dokumentasjons-standard.md § 11b](dokumentasjons-standard.md).
+
+**Håndhevelse:** cowork sjekker 1–4 i hver merge-gate (fast punkt i gate-rapporten). fabels exit-protokoll kjører dokumentasjonssync ved hver Opus-exit og verifiserer at 1–2 er fulgt i rundene siden sist — ikke bare at innholdet stemmer.
 
 ## Opus-livssyklus — fire faser (vedtatt 2026-07-16)
 

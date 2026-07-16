@@ -221,6 +221,12 @@ påstanden blir løgn uten at noen rørte dokumentet. Ingen slurvet i funnene un
 | `aktivitetsfeed.md:48` | «Ingen produsent-kode finnes ennå — tabellen er et tomt skjelett» | 7 `activity.create(`-kall i `apps/api/src` skriver til den i dag. |
 | `adaptiv-sok-plan.md:43` | «`<SearchInput>` … ikke i bruk noe sted» | Brukt i 12 filer under `apps/web/src`. |
 
+**Også fravær-påstander råtner — ❌ + dato + hash er et øyeblikksbilde, ikke en sannhet** (fabel-presisering 2026-07-16). «Ingen auto-deploy, verifisert 2026-07-07» er sann helt til noen bygger auto-deploy. Datoen gjør råten **detekterbar**, ikke **detektert** — uten en trigger blir dagens rettelse neste kvartals stale linje, bare med tidsstempel.
+
+**Triggeren: den commiten som bygger tingen, dreper ❌-en.** Rører du området en fravær-påstand dekker, skal påstanden re-verifiseres eller strykes i SAMME commit. Dette er ikke en ny regel — det er «kode + docs i samme commit» ([CLAUDE.md](../../CLAUDE.md) § Dokumentasjons-disiplin) anvendt på fravær. Coworks merge-gate sjekker det: berører diffen et område som er navngitt i en ❌-markør, må markøren være med i commit-settet.
+
+Vi skrev **fem** slike påstander 2026-07-15/16, alle sanne i dag, alle fremtidige stale linjer uten trigger: `terminologi.md:124` (`erUnderentreprenor()` ikke bygget) · `:131` (HMS-varsling ikke bygget) · `:168` (Godkjenning-flate ikke bygget) · `infrastruktur.md:208` + `BACKLOG.md:971` (ingen auto-deploy). Bygger noen `erUnderentreprenor()`, er `terminologi:124` løgn samme dag — og den er arkitektur-ankeret.
+
 ## Anvendt
 
 Rettingen `c875ee6f` (2026-07-09) er referanse-eksempelet: `:517`/`:534` fikk
