@@ -3,7 +3,9 @@
 > Fabel-ordre 2026-07-16. **Kun lesing** — ingen skriving i kode/DB/testdata, ingen commits/branch. Levert av redesign-Opus. **Ingen regelforslag** (fabels M-2-steg).
 > Rå-vedlegg (maskinlesbart, `docs/claude/` — samme mappe som dette dokumentet): `ns3420-mal-dump-raw.json` (5 fulle NS3420-maler + 17 metadata), `ns3420-dok-inventar.json` (10 dokumenter), `ns3420-dok-inventar-raw.json`.
 >
-> **Versjonert 2026-07-16 (cowork).** Dokumentet + de tre vedleggene levde fem dager utenfor git, i repo-rota på én maskin, mens matrisen bygget på dem (`fd0ee7a2`) lå i `develop`. Konklusjonen var versjonert, beviset ikke. Stien over sa `repo-rot` og er rettet i samme flytt.
+> **Vedleggene versjonert 2026-07-16 (cowork, `d54b8f80`).** Dette dokumentet kom inn med `5146f26c` samme dag; de tre rå-vedleggene var derimot aldri i git — de lå untracked i repo-rota mens både dokumentet og matrisen (`fd0ee7a2`) lå i `develop`. Stien over sa `repo-rot` og er rettet i samme flytt.
+>
+> **Rettelse (cowork, 2026-07-16):** `d54b8f80` påstod i commit-meldingen at dokumentet «levde fem dager utenfor git». Det er usant — det var i git fra 15:59 samme dag. Feilen: eksistens ble målt på stien fila ble *funnet* på (repo-rot), ikke stien den *bor* på; kandidatmengden var én sti. «Fem dager» tilhørte `plan-testflight-38.md` og ble overført uten måling. Commit-meldingen er historikk og står; denne linjen er korreksjonen.
 
 ## Metode og tilgang
 
