@@ -14,6 +14,23 @@ import { ListeVisning } from "@/components/kontrollplan/ListeVisning";
 import { OpprettPunktDialog } from "@/components/kontrollplan/OpprettPunktDialog";
 import { RedigerPunktDialog } from "@/components/kontrollplan/RedigerPunktDialog";
 import { ImportFremdriftsplanDialog } from "@/components/kontrollplan/ImportFremdriftsplanDialog";
+import { FilterPanel } from "@/components/ui/FilterPanel";
+
+// Faste filter-alternativer (labelKey → i18n)
+const STATUS_ALT = [
+  { id: "planlagt", labelKey: "kontrollplan.statusPlanlagt" },
+  { id: "pagar", labelKey: "kontrollplan.statusPagar" },
+  { id: "utfort", labelKey: "kontrollplan.statusUtfort" },
+  { id: "godkjent", labelKey: "kontrollplan.statusGodkjent" },
+];
+const OMRADE_ALT = [
+  { id: "fukt", labelKey: "kontrollplan.omrade.fukt" },
+  { id: "brann", labelKey: "kontrollplan.omrade.brann" },
+  { id: "konstruksjon", labelKey: "kontrollplan.omrade.konstruksjon" },
+  { id: "geo", labelKey: "kontrollplan.omrade.geo" },
+  { id: "grunnarbeid", labelKey: "kontrollplan.omrade.grunnarbeid" },
+  { id: "sha", labelKey: "kontrollplan.omrade.sha" },
+];
 
 interface PunktType {
   id: string;
@@ -42,9 +59,14 @@ export default function KontrollplanSide() {
   const [visImportDialog, setVisImportDialog] = useState(false);
   const [visKopierDialog, setVisKopierDialog] = useState(false);
   const [valgtPunkt, setValgtPunkt] = useState<PunktType | null>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [faggruppeFilter, setFaggruppeFilter] = useState<string>("");
-  const [kontrollomradeFilter, setKontrollomradeFilter] = useState<string>("");
+  const [statusValg, setStatusValg] = useState<string[]>([]);
+  const [faggruppeValg, setFaggruppeValg] = useState<string[]>([]);
+  const [kontrollomradeValg, setKontrollomradeValg] = useState<string[]>([]);
+  const [tekstSok, setTekstSok] = useState("");
+
+  const lagToggle =
+    (setter: React.Dispatch<React.SetStateAction<string[]>>) => (id: string) =>
+      setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const utils = trpc.useUtils();
 
@@ -82,13 +104,19 @@ export default function KontrollplanSide() {
   // Filtrerte punkter
   const filteredPunkter = useMemo(() => {
     if (!kontrollplan?.punkter) return [];
+    const q = tekstSok.trim().toLowerCase();
     return kontrollplan.punkter.filter((p) => {
-      if (statusFilter && p.status !== statusFilter) return false;
-      if (faggruppeFilter && p.faggruppeId !== faggruppeFilter) return false;
-      if (kontrollomradeFilter && (p.sjekklisteMal.kontrollomrade ?? "") !== kontrollomradeFilter) return false;
+      if (statusValg.length > 0 && !statusValg.includes(p.status)) return false;
+      if (faggruppeValg.length > 0 && !faggruppeValg.includes(p.faggruppeId)) return false;
+      if (kontrollomradeValg.length > 0 && !kontrollomradeValg.includes(p.sjekklisteMal.kontrollomrade ?? "")) return false;
+      if (q) {
+        const navn = (p.sjekklisteMal?.name ?? "").toLowerCase();
+        const omr = (p.omrade?.navn ?? "").toLowerCase();
+        if (!navn.includes(q) && !omr.includes(q)) return false;
+      }
       return true;
     });
-  }, [kontrollplan?.punkter, statusFilter, faggruppeFilter]);
+  }, [kontrollplan?.punkter, statusValg, faggruppeValg, kontrollomradeValg, tekstSok]);
 
   // Fremdrift
   const fremdrift = useMemo(() => {
@@ -129,7 +157,9 @@ export default function KontrollplanSide() {
     try {
       const data = await utils.client.kontrollplan.hentSluttrapportData.query({
         kontrollplanId: kontrollplan.id,
-        kontrollomrade: kontrollomradeFilter || null,
+        // Sluttrapport tar ett kontrollområde: bruk det valgte kun når nøyaktig
+        // ett er filtrert, ellers full rapport (uendret router-kontrakt)
+        kontrollomrade: kontrollomradeValg.length === 1 ? (kontrollomradeValg[0] ?? null) : null,
       });
       const naa = new Date();
       const dd = String(naa.getDate()).padStart(2, "0");
@@ -148,7 +178,7 @@ export default function KontrollplanSide() {
     } catch (_e) {
       // Feil håndteres av tRPC
     }
-  }, [kontrollplan, kontrollomradeFilter, utils]);
+  }, [kontrollplan, kontrollomradeValg, utils]);
 
   if (!aktivByggeplass) {
     return (
@@ -242,42 +272,42 @@ export default function KontrollplanSide() {
         </div>
       </div>
 
-      {/* Filter */}
-      <div className="flex items-center gap-3 mb-4">
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="text-xs border rounded px-2 py-1.5 text-gray-600 bg-white"
-        >
-          <option value="">{t("kontrollplan.filterStatus")}</option>
-          <option value="planlagt">{t("kontrollplan.statusPlanlagt")}</option>
-          <option value="pagar">{t("kontrollplan.statusPagar")}</option>
-          <option value="utfort">{t("kontrollplan.statusUtfort")}</option>
-          <option value="godkjent">{t("kontrollplan.statusGodkjent")}</option>
-        </select>
-        <select
-          value={faggruppeFilter}
-          onChange={(e) => setFaggruppeFilter(e.target.value)}
-          className="text-xs border rounded px-2 py-1.5 text-gray-600 bg-white"
-        >
-          <option value="">{t("kontrollplan.filterFaggruppe")}</option>
-          {faggrupper?.map((fg: { id: string; name: string }) => (
-            <option key={fg.id} value={fg.id}>{fg.name}</option>
-          ))}
-        </select>
-        <select
-          value={kontrollomradeFilter}
-          onChange={(e) => setKontrollomradeFilter(e.target.value)}
-          className="text-xs border rounded px-2 py-1.5 text-gray-600 bg-white"
-        >
-          <option value="">Kontrollomr. — {t("status.alle")}</option>
-          <option value="fukt">Fukt</option>
-          <option value="brann">Brann</option>
-          <option value="konstruksjon">Konstruksjon</option>
-          <option value="geo">Geoteknikk</option>
-          <option value="grunnarbeid">Grunnarbeid</option>
-          <option value="sha">SHA</option>
-        </select>
+      {/* Delt filter-panel: fritekst + status/faggruppe/kontrollområde (multi-select) */}
+      <div className="mb-4">
+        <FilterPanel
+          sok={{
+            verdi: tekstSok,
+            onChange: setTekstSok,
+            placeholder: t("kontrollplan.sokPlaceholder"),
+          }}
+          dimensjoner={[
+            {
+              id: "status",
+              label: t("kontrollplan.filterStatus"),
+              options: STATUS_ALT.map((s) => ({ id: s.id, name: t(s.labelKey) })),
+              valgte: statusValg,
+              onToggle: lagToggle(setStatusValg),
+            },
+            {
+              id: "faggruppe",
+              label: t("kontrollplan.filterFaggruppe"),
+              options: (faggrupper ?? []).map((fg: { id: string; name: string }) => ({ id: fg.id, name: fg.name })),
+              valgte: faggruppeValg,
+              onToggle: lagToggle(setFaggruppeValg),
+            },
+            {
+              id: "omrade",
+              label: t("kontrollplan.filterOmrade"),
+              options: OMRADE_ALT.map((o) => ({ id: o.id, name: t(o.labelKey) })),
+              valgte: kontrollomradeValg,
+              onToggle: lagToggle(setKontrollomradeValg),
+            },
+          ]}
+          tomLabel={t("filter.tom")}
+          onTom={() => { setStatusValg([]); setFaggruppeValg([]); setKontrollomradeValg([]); setTekstSok(""); }}
+          visTom={statusValg.length > 0 || faggruppeValg.length > 0 || kontrollomradeValg.length > 0 || tekstSok.length > 0}
+          kolonner={3}
+        />
       </div>
 
       {/* Innhold */}
