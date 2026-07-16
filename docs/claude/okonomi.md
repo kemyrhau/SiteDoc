@@ -38,10 +38,10 @@ apps/web/src/
 
 apps/api/src/
 ├── routes/
-│   ├── mengde.ts                         # Hoveddokument-router (9 prosedyrer)
-│   ├── ftdSok.ts                         # Dokumentsøk + NS-kode-router (6 prosedyrer)
-│   ├── nota-import-router.ts             # Nota-import (2 prosedyrer)
-│   └── kontrakt.ts                       # Kontrakt-CRUD (4 prosedyrer)
+│   ├── mengde.ts                         # Hoveddokument-router (prosedyrer: § API-prosedyrer under)
+│   ├── ftdSok.ts                         # Dokumentsøk + NS-kode-router (prosedyrer: § API-prosedyrer under)
+│   ├── nota-import-router.ts             # Nota-import (prosedyrer: § API-prosedyrer under)
+│   └── kontrakt.ts                       # Kontrakt-CRUD (prosedyrer: § API-prosedyrer under)
 ├── services/
 │   ├── ftd-prosessering.ts               # Hovedprosessor: PDF, Excel, GAB, XML, CSV + budsjettoppdatering (~2800 linjer)
 │   ├── nota-import.ts                    # Scenariodeteksjon + akkumuleringsvalidering (~500 linjer)
@@ -51,7 +51,7 @@ apps/api/src/
 │   └── spraak-deteksjon.ts               # Automatisk språkdeteksjon
 
 packages/shared/src/types/ftd.ts          # AvviksRad, AvviksOppsummering, AvviksanalyseResultat
-packages/db/prisma/schema.prisma          # 11 FTD-modeller (se "Database" under)
+packages/db/prisma/schema.prisma          # FTD-modeller: `grep "^model Ftd" schema.prisma` (se "Database" under)
 ```
 
 ## Database-modeller

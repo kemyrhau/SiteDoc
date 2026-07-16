@@ -105,9 +105,9 @@ Tre-kolonne layout (skjules på mobil < 768px, hamburger-meny i Toppbar):
 
 **Teknologi:** `i18next` + `react-i18next`, initialisert i `apps/web/src/lib/i18n.ts`
 
-**Språk:** 14 støttet (nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, fr). Norsk (nb) er kilde, engelsk (en) har manuell oversettelse. Andre språk genereres via `packages/shared/src/i18n/generate.ts` med Google Translate.
+**Språk:** støttes per `STOETTEDE_SPRAAK` i `packages/shared/src/i18n/index.ts` (kanon-liste med flagg). Norsk (nb) er kilde, engelsk (en) har manuell oversettelse. Andre språk genereres via `packages/shared/src/i18n/generate.ts` med Google Translate.
 
-**Oversettelserfiler:** `packages/shared/src/i18n/nb.json` og `en.json` (~600 nøkler)
+**Oversettelserfiler:** `packages/shared/src/i18n/nb.json` og `en.json`
 
 **Arkitektur:**
 - `SpraakVelger` i Toppbar — dropdown med flagg + språknavn

@@ -1511,9 +1511,7 @@ model TimerRapportKonfig {
 
 ### UI-side
 
-**Lokasjon:**
-- Prosjekt-kontekst: `apps/web/src/app/dashbord/[prosjektId]/timer/rapport/page.tsx`
-- Firma-kontekst: `apps/web/src/app/dashbord/timer/rapport/page.tsx`
+**Lokasjon:** `apps/web/src/app/dashbord/firma/timer/rapport/page.tsx` (firma-kontekst). Utledbart: `find apps/web/src/app -path "*timer*rapport*" -name page.tsx`.
 
 **Mønster:** Én dedikert rapport-side (ikke modal). Filter-panel + forhåndsvisning som faktisk HTML-rendering. Brukeren ser hva som genereres FØR de bestiller PDF.
 
