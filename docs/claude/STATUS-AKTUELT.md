@@ -10,7 +10,9 @@ sist_verifisert_mot_kode: 2026-07-10
 
 | Økt | Arbeidstre | Branch | Eier filer | Status |
 |---|---|---|---|---|
-| redesign — del6b fase 1 (rydde/forene, web) | `SiteDoc-develop` | `feat/del6b-fase1` | `apps/web/src/app/dashbord/[prosjektId]/{sjekklister,oppgaver,hms,kontrollplan,maler}/` · `.../skriv-ut/` · `apps/web/src/components/paneler/{Sjekklister,Oppgaver}Panel.tsx` · ny `FilterPanel` i `apps/web/src/components/ui/` · `dashbord/firma/hms/page.tsx` · `apps/mobile/.../OppgaveModal.tsx` (KUN pkt 6-rename) · i18n `nb/en.json` | åpnes |
+| *(ingen aktive)* | — | — | — | — |
+
+**Del6b fase 1 lukket 2026-07-16** — fabel-designgodkjent, alle punkter. Merget `f9416424` (pkt 2/3/6) + `297f5670` (pkt 1/4/5). Levert: print-fella borte (`q0–q9` droppet stille 7 av 17) · døde søkebokser koblet · prioritet-rader klikkbare · 4 filter-paradigmer → 2 delte kilder, null regresjon · prosjekt-HMS-defaulten synlig som chips · 35 i18n-nøkler × 14 språk. Statuskilde: `verifisering/del6b-verifiseringslogg.md` (designprosjekt «Sitedoc redesign tips»). Exit-funn i [BACKLOG](BACKLOG.md).
 
 **Doc-oppryddingen 2026-07-15/16 er lukket.** Syv økter, alle merget: statuskilde/lesbarhet-reglene (`8ae0a3ac`) · regel 11 + 11b (`d1c6b4c9`) · tre aktive doc-løgner (`be5307be`) · Type 1-rydding, 13 funn (`fc96fcee`) · negative påstander, F1/F3/F21/F22 (`eab9bb85`) · STATUS-changelog + STATUS-AKTUELT-oppbrudd. Auditens 23 funn: 20 lukket, F15 + F24 + F25 ført i [BACKLOG](BACKLOG.md).
 

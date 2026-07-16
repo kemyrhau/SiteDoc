@@ -143,6 +143,23 @@ Listen er et **historisk øyeblikksbilde** («30+ kode-steder må oppdateres med
 
 **Regelen som følger av dette:** *et uttrykk som **peker på en navngitt kilde** (`STOETTEDE_SPRAAK`, `§ API-prosedyrer`) er tryggere enn ett som **reproduserer et tall via en konvensjon**.* Foretrekk peker. Vurderes inn i §11 ved neste berøring.
 
+### 🟡 i18n-restanse — gjenværende hardkodet norsk etter del6b fase 1 (redesign-Opus 2026-07-16)
+
+Pkt 5-sveipet dekket print · save-indikator · alerts · fallbacks · de 6 kontrollområdene. **Bevisst avgrenset** — cowork sa nei til «mens jeg er her»-utvidelse midt i runden. Verifisert mot kode, ikke gjort:
+
+- `[prosjektId]/sjekklister/[sjekklisteId]/page.tsx` — «Endringslogg» (~`:713`) · «Sjekklisten ble ikke funnet» (~`:405`) · `title="Skriv ut"` (~`:530`)
+- `[prosjektId]/oppgaver/[oppgaveId]/page.tsx` — status-feil-fallback (~`:299`)
+- `[prosjektId]/kontrollplan/page.tsx` — KopierDialog, delvise strenger (~`:223/231/391/397/409/421`)
+- `oppsett/produksjon/_components/MalListe.tsx` — «Ingen maler funnet for «{sok}»» (~`:406`)
+
+Etter fylling: kjør `pnpm dlx tsx src/i18n/generate.ts` fra `packages/shared`. **Kollisjon:** kan ikke kjøre parallelt med noen annen økt som rører i18n-generatoren.
+
+### 🟡 i18n-restanse — OppgaveModal (MOBIL, hører i fase 2)
+
+`apps/mobile/src/components/OppgaveModal.tsx` har 4 `t()` og mange hardkodede strenger (prioritet, «Ny oppgave», «Opprett», «Tegning», «Faggruppe», «Fra/Til», Alert-tekster).
+
+**Ordre-feil, ikke utfører-feil:** del6b pkt 5 listet fila i et web-punkt, mens pkt 6 + kjerneregelen sier «ingen mobil-filer, mobil er fase 2». redesign-Opus valgte regelen fremfor lista og flagget motsigelsen. Fabel: *«han valgte riktig — regelen slår lista når de motsier hverandre, og motsigelsen var min.»* Ført som ordre-feil i del6b-verifiseringsloggen. **Hører i fase 2 (mobil-løftet).**
+
 ### 🟡 Mal-dualiteten er redundans, ikke to roller (redesign-Opus exit 2026-07-16)
 
 **Mistanke fra den eneste som har sett begge flatene innenfra.** Del6b pkt 4 antok «arbeidsflate vs konfig» og leverte copy + kryss-lenker (`297f5670`). Hans vurdering etter å ha bygget dem: *«et plaster over redundansen, ikke en oppløsning»*.
