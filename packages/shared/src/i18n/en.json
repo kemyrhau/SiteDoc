@@ -2907,5 +2907,19 @@
   "georef.fjerner": "Removing …",
   "georef.fjernKalibrering": "Remove calibration",
   "georef.hjelpetekst": "1. Place a point on the drawing. 2. Select the point below the map and click the matching position on the map. Repeat for point 2.",
-  "georef.attribusjonKartverket": "Address data © Kartverket (Norway)"
+  "georef.attribusjonKartverket": "Address data © Kartverket (Norway)",
+  "filter.tom": "Clear filters",
+  "hms.sok.placeholder": "Search by title or number …",
+  "hms.filter.status": "Status",
+  "kontrollplan.sokPlaceholder": "Search by control point or area …",
+  "kontrollplan.filterOmrade": "Control area",
+  "kontrollplan.omrade.fukt": "Moisture",
+  "kontrollplan.omrade.brann": "Fire",
+  "kontrollplan.omrade.konstruksjon": "Structure",
+  "kontrollplan.omrade.geo": "Geotechnics",
+  "kontrollplan.omrade.grunnarbeid": "Groundwork",
+  "kontrollplan.omrade.sha": "SHA",
+  "firma.hms.kpi.apneAvvik": "Open deviations",
+  "firma.hms.kpi.sjaTotalt": "SJA total",
+  "firma.hms.kpi.ruhTotalt": "RUH total"
 }

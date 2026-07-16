@@ -9,6 +9,7 @@ import { Spinner, EmptyState } from "@sitedoc/ui";
 import { Plus, ChevronDown, ShieldAlert, AlertTriangle, ClipboardList, FileWarning } from "lucide-react";
 import { KpiKort, MånedSøyler, FaggruppeBars, formaterDato, hentDataVerdi } from "@/components/hms/visning";
 import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
+import { FilterPanel } from "@/components/ui/FilterPanel";
 import type { DokumentRad } from "@/components/hms/types";
 
 type Tab = "avvik" | "sja" | "ruh" | "statistikk";
@@ -20,6 +21,19 @@ type Subdomain = "avvik" | "sja" | "ruh";
 // DokumentRad + format-helpers + tabeller importeres fra @/components/hms.
 
 const ÅPEN_STATUSER = new Set(["draft", "sent", "received", "in_progress", "responded", "rejected"]);
+
+// Status → i18n-etikett-nøkkel (gjenbruker delte status.*-nøkler)
+const STATUS_LABEL: Record<string, string> = {
+  draft: "status.utkast",
+  sent: "status.sendt",
+  received: "status.mottatt",
+  in_progress: "status.underArbeid",
+  responded: "status.besvart",
+  approved: "status.godkjent",
+  rejected: "status.avvist",
+  cancelled: "status.avbrutt",
+  closed: "status.lukket",
+};
 const LUKKET_STATUSER = new Set(["approved", "closed", "cancelled"]);
 
 function NyDropdown({
@@ -115,7 +129,10 @@ export default function HmsSide() {
   const { aktivByggeplass } = useByggeplass();
 
   const [aktivTab, setAktivTab] = useState<Tab>("avvik");
-  const [visAlle, setVisAlle] = useState(false);
+  // Status-filter: forhåndsvelger åpne statuser (bevarer «åpne først»-default,
+  // men gjør den synlig via chips i stedet for en skjult «Vis alle»-checkbox)
+  const [statusValg, setStatusValg] = useState<string[]>([...ÅPEN_STATUSER]);
+  const [tekstSok, setTekstSok] = useState("");
 
   const dokumenterQuery = trpc.hms.hentDokumenter.useQuery(
     { projectId: params.prosjektId, byggeplassId: aktivByggeplass?.id ?? undefined },
@@ -162,13 +179,38 @@ export default function HmsSide() {
   }
 
   const filtrer = (rader: DokumentRad[]) => {
-    if (visAlle) return rader;
-    return rader.filter((r) => ÅPEN_STATUSER.has(r.status));
+    let r = rader;
+    // Tomt status-valg = vis alle (etter «Tøm filter»); ellers filtrer på valgte
+    if (statusValg.length > 0) r = r.filter((rad) => statusValg.includes(rad.status));
+    const q = tekstSok.trim().toLowerCase();
+    if (q) {
+      r = r.filter((rad) => {
+        const tittel = (rad.title ?? "").toLowerCase();
+        const lopenr = rad.number != null ? String(rad.number) : "";
+        const full = `${(rad.template?.prefix ?? "").toLowerCase()}-${lopenr}`;
+        return tittel.includes(q) || lopenr.includes(q) || full.includes(q);
+      });
+    }
+    return r;
   };
 
   const avvik = dokumenter?.avvik ?? [];
   const sja = dokumenter?.sja ?? [];
   const ruh = dokumenter?.ruh ?? [];
+
+  // Status-alternativer for aktiv fane. Fast rekkefølge fra STATUS_LABEL slik at
+  // forhåndsvalgte (åpne) statuser alltid har en etikett i chip-visningen, selv
+  // om de mangler i akkurat denne fanens data (antall = 0).
+  const aktivFaneData = aktivTab === "avvik" ? avvik : aktivTab === "sja" ? sja : aktivTab === "ruh" ? ruh : [];
+  const statusAlternativer = useMemo(() => {
+    const antall = new Map<string, number>();
+    for (const rad of aktivFaneData) antall.set(rad.status, (antall.get(rad.status) ?? 0) + 1);
+    return Object.entries(STATUS_LABEL).map(([id, labelKey]) => ({
+      id,
+      name: t(labelKey),
+      antall: antall.get(id) ?? 0,
+    }));
+  }, [aktivFaneData, t]);
 
   // KPI: åpne avvik totalt + SJA siste 30 dager + RUH siste 30 dager
   const naa = Date.now();
@@ -307,19 +349,31 @@ export default function HmsSide() {
         })}
       </div>
 
-      {/* Filter-toggle (skjult på statistikk-fanen) */}
+      {/* Delt filter-panel (skjult på statistikk-fanen) */}
       {aktivTab !== "statistikk" && (
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 cursor-pointer text-sm">
-            <input
-              type="checkbox"
-              checked={visAlle}
-              onChange={(e) => setVisAlle(e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary"
-            />
-            <span className="text-gray-700">{t("hms.filter.visAlle")}</span>
-          </label>
-        </div>
+        <FilterPanel
+          sok={{
+            verdi: tekstSok,
+            onChange: setTekstSok,
+            placeholder: t("hms.sok.placeholder"),
+          }}
+          dimensjoner={[
+            {
+              id: "status",
+              label: t("hms.filter.status"),
+              options: statusAlternativer,
+              valgte: statusValg,
+              onToggle: (id) =>
+                setStatusValg((prev) =>
+                  prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
+                ),
+            },
+          ]}
+          tomLabel={t("filter.tom")}
+          onTom={() => { setStatusValg([]); setTekstSok(""); }}
+          visTom={statusValg.length > 0 || tekstSok.length > 0}
+          kolonner={1}
+        />
       )}
 
       {/* Tab-innhold */}

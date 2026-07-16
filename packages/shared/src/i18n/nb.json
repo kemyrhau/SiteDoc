@@ -2907,5 +2907,19 @@
   "georef.fjerner": "Fjerner …",
   "georef.fjernKalibrering": "Fjern kalibrering",
   "georef.hjelpetekst": "1. Plasser punkt på tegningen. 2. Velg punktet under kartet og klikk tilsvarende posisjon i kartet. Gjenta for punkt 2.",
-  "georef.attribusjonKartverket": "Adressedata © Kartverket"
+  "georef.attribusjonKartverket": "Adressedata © Kartverket",
+  "filter.tom": "Tøm filter",
+  "hms.sok.placeholder": "Søk etter tittel eller løpenummer …",
+  "hms.filter.status": "Status",
+  "kontrollplan.sokPlaceholder": "Søk etter kontrollpunkt eller område …",
+  "kontrollplan.filterOmrade": "Kontrollområde",
+  "kontrollplan.omrade.fukt": "Fukt",
+  "kontrollplan.omrade.brann": "Brann",
+  "kontrollplan.omrade.konstruksjon": "Konstruksjon",
+  "kontrollplan.omrade.geo": "Geoteknikk",
+  "kontrollplan.omrade.grunnarbeid": "Grunnarbeid",
+  "kontrollplan.omrade.sha": "SHA",
+  "firma.hms.kpi.apneAvvik": "Åpne avvik",
+  "firma.hms.kpi.sjaTotalt": "SJA totalt",
+  "firma.hms.kpi.ruhTotalt": "RUH totalt"
 }
