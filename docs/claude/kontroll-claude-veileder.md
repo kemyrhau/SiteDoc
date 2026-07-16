@@ -83,8 +83,10 @@ Kontroll-laget kjøres i Cowork med repo-tilgang: leser/verifiserer kode direkte
 1. **Plan med ord** → Kenneth godkjenner.
 2. **Opus implementerer** kode + docs i SAMME commit (working tree, ucommittet).
 3. **Opus viser diff** → kontroll-Claude verifiserer mot beslutningssett + kode, flagger drift.
-4. **Dual-review fullført** (Opus diff + kontroll-Claude verifisert) → commit+push er klarert. Kenneth koordinerer/relayer; **ingen auto-commit** rett etter implementasjon.
-5. **Opus committer + pusher** til `develop`. **Test-deploy er MANUELL** — Kenneth kjører deploy-steget (CLAUDE.md § Deploy-triggere). Ingen auto-deploy finnes; test oppdaterer seg ikke av push alene.
+4. **Dual-review fullført** (Opus diff + kontroll-Claude verifisert) → commit er klarert. Kenneth koordinerer/relayer; **ingen auto-commit** rett etter implementasjon.
+5. **Opus committer + pusher sin egen feature-branch** (`git push -u origin feat/x`). **Opus pusher ALDRI `develop`** — merge-orden eies av kontroll-Claude, og en direkte push til `develop` tar rekkefølgen ut av hendene på gaten før noen ser det. **Test-deploy er MANUELL** — Kenneth kjører deploy-steget (CLAUDE.md § Deploy-triggere). Ingen auto-deploy finnes; test oppdaterer seg ikke av push alene.
+
+> **Hvorfor feature-branch SKAL pushes (2026-07-16):** regelen het en periode «commit, ikke push». Den skapte et hull: `feat/faseM-3a-del2` fantes **kun** i ett arbeidstre uten backup — dør treet, er jobben borte. Grensen går ikke ved *push*, den går ved *hvilken branch*. Feature-branch på origin gir backup og lar kontroll-Claude inspisere arbeidet fra et hvilket som helst tre uten å be om hash.
 6. **Kontroll-Claude verifiserer funksjonelt** på test.sitedoc.no — først ETTER at Kenneth har deployet (egne tester, ikke Opus' egenrapport).
 7. **Prod kun ved eksplisitt Kenneth-forespørsel.**
 

@@ -188,6 +188,14 @@ Tre flater bruker `FilterPanel` med tre state-modeller. Byggerens egen vurdering
 
 **Og tolinjen er prinsipiell, ikke midlertidig:** sjekkliste/oppgave skal aldri konverteres — de filtrerer på dynamiske mal-kolonner (`felt:*`) som varierer per mal. **Men de kan en dag få begge:** FilterPanel over tabellen for faste dimensjoner + Table for dynamiske kolonner. Det er lagdeling, ikke enten/eller. Den koblede søkeboksen (`?sok=`, `f9416424`) er første steg i den retningen.
 
+### 🟡 86 merged feature-branches ligger på origin — fase 4 hadde aldri et remote-steg (cowork eier, 2026-07-16)
+
+Målt 2026-07-16: `git branch -r` → **86 `origin/feature/*`** (t7-serien, org-member-serien, timer-serien m.fl.). Alle er verifisert merget inn i `develop` (86/86, kontrollert under branch-oppryddingen samme dag) — de er **støy, ikke risiko**.
+
+**To ting å være ærlig om:** (1) oppryddingen som ble rapportert som «120 → 3» var **lokal**; remote ble verifisert, ikke ryddet — rapporten leste som om jobben var gjort. (2) Hullet var strukturelt: fase 4 LUKK i [SAMARBEIDSREGLER.md](SAMARBEIDSREGLER.md) hadde `git branch -d` men **ikke** `git push origin --delete`. Steget er lagt inn nå, så mengden vokser ikke videre — men de 86 som allerede ligger der, er ikke berørt av fiksen.
+
+Sletting er en **destruktiv git-operasjon** (CLAUDE.md § Task boundary) og krever eksplisitt beslutning fra Kenneth. Ikke hastende. Gjøres det, er negativ kontroll obligatorisk: bekreft at hver branch er merget **før** sletting (`git branch -r --merged origin/develop`), ikke etterpå.
+
 ### 🔴 CLAUDE.md-runden — fem funn i fila hver økt leser først (cowork eier, 2026-07-16)
 
 **Egen runde. Ikke påheng.** Cowork forsøkte å dytte funn 2 inn i redesigns FilterPanel-ordre; Kenneth stoppet det. Å be en økt rette en fil som er over sin harde grense — og samtidig si at den ikke skal løse grensen — er en umulig ordre.

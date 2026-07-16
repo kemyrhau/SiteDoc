@@ -77,19 +77,22 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 1. **i18n-generatoren.** To økter som begge legger nøkler kjører `generate.ts` mot 13 språk. **Aldri parallelt** — det gir garantert konflikt i 15 filer, ikke i de to de redigerte. Fabel-krav.
 2. **`localhost:3100/3001`.** Dev-serveren er ÉN. Trenger to økter kjørende app samtidig, må den ene bruke test — eller vente. (Og en dev-server kan servere fra et helt ANNET tre enn økta tror den tester; sjekk `cwd` på pid-en.)
 3. **Delte komponenter bak ulike sider.** Filoverlapp på side-nivå fanger ikke at to sider rendrer samme komponent. Målt eksempel: `sjekklistemaler/[id]` og `oppgavemaler/[id]` bruker begge `MalBygger` — én økt eide sidene, en annen skulle bygge inn i komponenten. Sjekk hva sidene *importerer*, ikke bare hvilke filer de er.
-| **2. LEVER** | Commit til feature-branch (ikke push). Meld hash. | Opus |
+| **2. LEVER** | Commit til feature-branch + `git push -u origin feat/x`. **Aldri push til `develop`.** Meld hash. | Opus |
 | **3. EXIT** | Fast spørsmålsrunde — **ikke valgfri**. Se § Exit-runde. | cowork spør, Opus svarer |
 
 > ⚠️ **«Exit» er tvetydig — skriv aldri «exit X» i en aksjonsblokk.** Her betyr EXIT *fase 3* (spørsmålsrunden). I dagligtale betyr det *fase 4* (lukk vinduet). 2026-07-16 skrev cowork «Så exit develop-Opus» øverst med selve exit-teksten nederst; Kenneth var i ferd med å lukke økta **uten** å kjøre runden — og fanget det selv. Bruk «**send exit-runden til X**» (fase 3) og «**lukk X**» (fase 4). Mister vi runden, mister vi det som har gitt mest: den fanget 🔴 4c, Norkart-nøkkelen og tre hull i coworks egne ordrer.
-| **4. LUKK** | Merge → **park treet detached** → slett branchen → fjern raden → lukk vinduet. **En økt er ikke død før raden er borte.** | cowork, så Kenneth |
+| **4. LUKK** | Merge → **park treet detached** → slett branchen **lokalt OG på origin** → fjern raden → lukk vinduet. **En økt er ikke død før raden er borte.** | cowork, så Kenneth |
 
 **Fase 4-mekanikk (lærdom 2026-07-16 — regelen feilet på første anvendelse):** `git branch -d` **nekter** å slette en branch et arbeidstre holder («cannot delete branch … used by worktree at …»). Treet må frigjøres først, og det kan **ikke** sjekke ut `develop` — `SiteDoc-merge` holder den, og git nekter samme branch i to trær. Riktig sekvens:
 
 ```sh
-cd <arbeidstre> && git checkout --detach origin/develop   # frigjør branchen
+cd <arbeidstre> && git checkout --detach origin/develop
 cd ~/Documents/Programmering/SiteDoc-merge
-git branch -d <branch>                                    # -d, aldri -D: nekter umerget
+git branch -d <branch>
+git push origin --delete <branch>
 ```
+
+Første linje frigjør branchen. `git branch -d` er **-d, aldri -D** — den skal nekte hvis noe er umerget. Siste linje er **remote-steget**, og det er nytt: fase 4 hadde det aldri, og resultatet var **86 merged feature-branches liggende på origin** da hullet ble målt 2026-07-16. Uten linje 4 vokser de videre.
 
 **Et ledig arbeidstre skal stå detached på `origin/develop`.** Da er branchen fri, treet er klart for neste økt uten oppsett, og fase 1 trenger kun `git checkout -B <ny-branch> origin/develop`.
 
