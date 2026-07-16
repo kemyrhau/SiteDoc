@@ -108,6 +108,18 @@ Dokumentasjon skal speile faktisk tilstand. Konkret:
 - **DEPLOYET TIL PROD → flytt til `historikk-YYYY-MM.md`** i samme commit. STATUS-AKTUELT holder maks aktivt arbeid (den er nå oppblåst — en slanking er en egen hygiene-runde og en reell session-reducer).
 - **Lukk BACKLOG-poster** som er levert; **fang nye funn** samme commit. Verifiser at det faktisk landet (grep) — Opus glemmer av og til én (STATUS.md, en BACKLOG-post).
 
+### 5b. «Jeg fører det etterpå» ER «docs senere» (lærdom 2026-07-16)
+
+Regelen over sto allerede. Cowork brøt den likevel, fordi **«jeg fører det når merge er inne» ikke ble lest som «docs senere»**. Det er det samme.
+
+**Hendelsen:** develop-Opus fant at append-only ikke håndheves server-side, og flagget det i stedet for å utvide scope selv. Cowork skrev: *«Jeg fører server-restansen i BACKLOG når merge er inne — den ville forsvunnet med økta hans.»* Så tok branch-ryddingen over. Målt en time senere: **0 treff i BACKLOG.** Funnet ville dødd med økta hans — nøyaktig det cowork lovet å hindre, i samme setning som lovnaden.
+
+**En BACKLOG-post er ALDRI avhengig av en merge.** Det finnes ingen grunn til å vente. Kan du føre den, før den nå.
+
+**Fabels ramme (2026-07-16), og den generaliserer §11b:** *«Jeg lovet å føre det» er en fravær-påstand om fremtiden* — X skal finnes, gjør det ikke ennå. En uført lovnad som bare finnes i samtalen er samme råte-klasse som Norkart-nøkkelen: kanalen finnes, ingen brukte den. **Chatten dør. Repoet gjør ikke.**
+
+**Mekanismen:** lovnader føres som rad **når de gis**, ikke når de innfris — i første påfølgende commit. Må noe genuint vente (f.eks. på et hash), før stubben nå med hva den venter på. Da blir «les egne lovnader tilbake» en **gate-sjekk** (finnes åpne rader?) i stedet for samvittighet — og samvittighet var det eneste som fanget den denne gangen.
+
 ---
 
 ## 6. Deploy-disiplin (careful, aldri prod uten forespørsel)
