@@ -10,11 +10,11 @@ sist_verifisert_mot_kode: 2026-07-10
 
 | Økt | Arbeidstre | Branch | Eier filer | Status |
 |---|---|---|---|---|
-| spor 3 — negative påstander | `SiteDoc-oppfolgere` | `docs/negative-pastander` | terminologi · aktivitetsfeed · adaptiv-sok-plan · redesign-paritetssjekkliste | leverer |
-| spor 4 — Type 1-rydding | `SiteDoc-fratil` | `docs/type1-rydding` | arkitektur · shared-pakker · web · mobil · okonomi · maskin · timer · api · fase-0-beslutninger · hjelpetekster | levert `9dd3b66b` — venter gate |
-| Opus D — audit | *(ren lesing)* | — | ingen | exit-runde |
+| *(ingen aktive)* | — | — | — | — |
 
-⚠️ **Kjent avvik (2026-07-16):** spor 3 og Opus D fikk samme arbeidstre (`SiteDoc-oppfolgere`) — coworks feil ved ordreskriving. D er read-only og rapporten var levert, så ingenting gikk tapt, men treet står nå på `docs/negative-pastander` og linjenumrene i D's audit matcher ikke lenger treet han sitter i. Presedensen tavla skal hindre.
+**Doc-oppryddingen 2026-07-15/16 er lukket.** Syv økter, alle merget: statuskilde/lesbarhet-reglene (`8ae0a3ac`) · regel 11 + 11b (`d1c6b4c9`) · tre aktive doc-løgner (`be5307be`) · Type 1-rydding, 13 funn (`fc96fcee`) · negative påstander, F1/F3/F21/F22 (`eab9bb85`) · STATUS-changelog + STATUS-AKTUELT-oppbrudd. Auditens 23 funn: 20 lukket, F15 + F24 + F25 ført i [BACKLOG](BACKLOG.md).
+
+⚠️ **Presedens verdt å beholde (2026-07-16):** to økter fikk samme branch-navn (`docs/status-aktuelt-oppbrudd`) — den ene slettet den mens den andre skulle bruke den; ren flaks at rekkefølgen reddet arbeidet. Og to økter fikk samme arbeidstre (`SiteDoc-oppfolgere`), så auditens tre flyttet seg under den mens den kjørte. Begge var coworks feil ved ordreskriving, og begge er nøyaktig det denne tavla finnes for.
 
 ## EAS-byggteller (kvote ~15/mnd, fri plan — nullstilles den 1.)
 

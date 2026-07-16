@@ -48,6 +48,36 @@ Fabel scopet oppmøtested bevisst ut av G2 — **riktig avgrensning, men gjelden
 
 G2 la 39 nye `georef.*`-nøkler (13 språk, `a2a8d5c7`), men **urørte strenger i editoren er fortsatt hardkodet norsk** — de var utenfor G2-scope. Bryter i18n-kravet (alle synlige UI-strenger via `t()`). Redesign-Opus førte den i designprosjekt-loggen, men **den nådde aldri repo-BACKLOG** (verifisert 0 treff, exit 2026-07-15) → var hjemløs i repoet til nå.
 
+### 🟠 Uauditerte doc-flater — scopet bommet på fila med høyest lesefrekvens (Opus D exit 2026-07-16)
+
+Auditen 2026-07-16 dekket `docs/claude/` (72 filer, 23 funn) og **utelot `CLAUDE.md`** — fila hver økt leser først, og den som ga cowork `pnpm dev --filter web` og kostet en runde. Målt samme dag: `CLAUDE.md:112` bærer samme i18n-drift som de tre auditen fant («14 brukervendte språk» → 15, «~2500 nøkler» → 2909).
+
+**Scope-designfunnet er større enn funnet:** at CLAUDE.md falt utenfor et docs-scope mens 72 mindre filer var inne. **Neste audit scopes etter lesefrekvens × drift-risiko, ikke etter mappe.** Uauditerte flater, rangert av D: `CLAUDE.md` (rot) → `docker/DOCKER-NOTES.md` (siteres som deploy-autoritet; deploy-docs var de mest driftede) → `docs/redesign/redesign-handoff.md` (tung på status/hasher) → README-er → rot-`.md` (`MALBYGGER.md`, `parallell-arbeid-lock.md`, `ny-server-*.md`) → `docs/arkiv/` (lav) → **`schema.prisma`-kommentarer** (f.eks. `har_*_modul`-kommentarene som overlevde kolonne-droppet — påstander som drifter uten at noen doc-audit ser dem).
+
+### 🟡 Tre drift-klasser ingen bøtte fanger (Opus D exit 2026-07-16)
+
+Auditens fem kategorier (statuskopier · presens · døde referanser · kommandoer · fil:linje) ser ikke disse:
+
+1. **Indeks-status vs fil-status.** `CLAUDE.md`-tabellen og `DOC-MAP.md` gir hver doc en markør (🟡/🟢/❌), og fila har sin egen. Begge kan være internt konsistente og likevel motsi hverandre — usynlig for alle fem bøttene.
+2. **§-ankere råtner som linjenumre.** «Se [fil § C.18]» peker like lett på feil seksjon som `:189` gjorde. D droppet §-refs eksplisitt i skanningen → **blindsone han selv skapte**.
+3. **Samme setning i tre indeksfiler.** `CLAUDE.md`-tabellen, `DOC-MAP` og `STATUS.md` gjentar de samme én-linjes doc-beskrivelsene. Tre kopier drifter uavhengig — [§9](dokumentasjons-standard.md) gjelder, men ingen har målt omfanget.
+
+### 🟡 «Uverifiserbar fra repo» ≠ «ikke en påstand» (Opus D exit-lærdom 2026-07-16)
+
+D filtrerte mekanisk bort alle `~/`-prefiksede stier i sti-skanningen — de kan ikke sjekkes mot repoet. **`~/programmering/deploy-test-cron.sh` var nøyaktig en slik sti — og den var auto-deploy-løgnens artefakt** (F4, rettet i `be5307be`). Sti-skanningen gikk rett forbi; funnet ble bare fanget fordi en semantisk agent leste påstanden rundt.
+
+En `~/`-sti som hevder at et server-script finnes er ikke støy — **det er en infrastruktur-påstand som kan være falsk.** Neste audit må behandle uverifiserbar-fra-repo som «krever annen verifiseringsmetode», ikke som «ikke en påstand».
+
+### 🟡 Mass-fix på repeterte tall er en drift-generator (Opus D exit-felle 2026-07-16)
+
+**Et tall som gjentas er ikke automatisk samme påstand.** Før en «rett alle N»-runde må hver forekomst klassifiseres: **aktiv påstand om nåtilstand** (rett) · **historisk changelog** (frys — arkiv omskrives ikke, jf. [§10 verbatim-carve-out](dokumentasjons-standard.md)) · **annen referent med annet sant tall** (ikke rør).
+
+Beviste feller fra 2026-07-16, alle nær-treff:
+- **«14 språk»** i `terminologi.md` + `web.md` gjelder `spraak-deteksjon.ts`, som **faktisk har 14** (`sq` mangler der) — mens UI har 15. Cowork var på nippet til å «rette» dem til 15 og innføre drift.
+- **`harTimerModul`** som lokalt variabelnavn er korrekt (`layout.tsx` leser fra `OrganizationModule`) — grep-og-erstatt hadde ødelagt riktig kode.
+- **`--filter @sitedoc/web`** er korrekt; kun bar `--filter web` er feil.
+- **`exec tsx`** i historikk-filene er frosne fakta (ble kjørt den gang); kun forekomsten i `shared-pakker.md` var aktiv og feil.
+
 ### 🟡 Docs-lesbarhetsgjeld — 321 linjer over 600 tegn (ryddes ved berøring, ikke som egen runde)
 
 Målt 2026-07-16 etter at `STATUS-AKTUELT:30` ble brutt opp (`e2af1361`). Fordeling: `BACKLOG.md` 92 · `historikk-2026-05.md` 87 · `timer.md` 38 · `STATUS.md` 15 · `STATUS-AKTUELT.md` 15 · `historikk-2026-07.md` 13 · `redesign-paritetssjekkliste.md` 12 · `parallell-arbeid-lock.md` 7.
