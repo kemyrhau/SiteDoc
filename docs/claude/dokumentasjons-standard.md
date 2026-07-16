@@ -244,6 +244,24 @@ påstanden blir løgn uten at noen rørte dokumentet. Ingen slurvet i funnene un
 
 Vi skrev **fem** slike påstander 2026-07-15/16, alle sanne i dag, alle fremtidige stale linjer uten trigger: `terminologi.md:124` (`erUnderentreprenor()` ikke bygget) · `:131` (HMS-varsling ikke bygget) · `:168` (Godkjenning-flate ikke bygget) · `infrastruktur.md:208` + `BACKLOG.md:971` (ingen auto-deploy). Bygger noen `erUnderentreprenor()`, er `terminologi:124` løgn samme dag — og den er arkitektur-ankeret.
 
+### 11d. En ✅ i en kode-kolonne beviser kobling, ikke nøkkel-match (M-3a del 2-regel 2026-07-16)
+
+**Formulert av M-3a del 2 i exit-runden, bedre enn kontroll-lagets egen:**
+
+> En ✅ i en renderer-kolonne beviser at komponenten er koblet i `KOMPONENT_MAP`, ikke at den leser nøklene dataen faktisk bærer.
+
+**Rotfeilen er å konkludere fra kode om data koden aldri åpnet.** Felttype-matrisen (`fd0ee7a2`) målte hvilken nøkkel koden *skriver/leser* — ikke hvilken nøkkel dataen *bærer*. Hver ✅ i en data-bærende kolonne betydde egentlig «✅ for den populasjonen koden antar». Det er §11c én etasje ned: to populasjoner, én kolonne, ingen nevner.
+
+**Belegg — to hendelser, samme dag, samme rot:**
+
+1. Matrisen sa `decimal: unit ✅ konfigurerbar`. Sant for MalBygger-bygde maler, **usant for NS3420** — de er seedet med `enhet` (`seed-bibliotek.ts`). Rendereren leste `unit`. Enhetene lå i databasen og ble aldri vist. Kode-avlesning kunne ikke se det.
+2. Del 2 fikset det ved å skrive `enhet` og **slette** `unit` — og verifiserte de to renderne oppdraget nevnte. Fire andre lesere leste kun `unit`: `packages/pdf/src/felt.ts` (utskrift), `RapportObjektVisning.tsx` ×2, `BeregningObjekt` (web+mobil). Et statisk hull ble en **aktiv regresjon**: enhver PDF-fungerende mal mistet enheten ved neste redigering. Merget før exit-runden fanget den (`1da3b473`).
+
+**To krav følger:**
+
+- **Verifisering av en data-bærende kolonne krever å åpne minst én seed-rad OG én verktøy-bygd rad per type**, og sammenligne nøkkelsettene. Kode alene kan ikke gi den kolonnen. Det er den negative kontrollen matrisen manglet — den ville avslørt `enhet`/`unit` i del 1, før noen skrev kode.
+- **Endrer du kanonisk nøkkel, grep repo-vidt etter ALLE lesere av den gamle** før commit — ikke bare rendrerne oppdraget nevner. Skriv-siden er halve endringen; les-siden er den andre.
+
 ## Anvendt
 
 Rettingen `c875ee6f` (2026-07-09) er referanse-eksempelet: `:517`/`:534` fikk

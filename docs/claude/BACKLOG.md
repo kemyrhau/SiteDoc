@@ -188,6 +188,34 @@ Tre flater bruker `FilterPanel` med tre state-modeller. Byggerens egen vurdering
 
 **Og tolinjen er prinsipiell, ikke midlertidig:** sjekkliste/oppgave skal aldri konverteres — de filtrerer på dynamiske mal-kolonner (`felt:*`) som varierer per mal. **Men de kan en dag få begge:** FilterPanel over tabellen for faste dimensjoner + Table for dynamiske kolonner. Det er lagdeling, ikke enten/eller. Den koblede søkeboksen (`?sok=`, `f9416424`) er første steg i den retningen.
 
+### 🟠 `TrafikklysObjekt` leser aldri `config` — F3 er feil-scopet (M-3a del 2 exit, målt 2026-07-16)
+
+`apps/web/src/components/rapportobjekter/TrafikklysObjekt.tsx` destrukturerer ikke `objekt` i det hele tatt — kun `verdi`/`onEndreVerdi`/`leseModus`. De fire fargene er hardkodet i en modul-konstant `FARGER`. **`traffic_light.options` i `defaultConfig` er helt inert: ingen leser den.**
+
+Matrisen sier «`options` (4 lys) ❌ kun default (K: ingen blokk)», som antyder at en editor ville løst det. **Den ville produsert en config ingen leser** — nøyaktig F1-bugklassen (skriv en nøkkel ingen leser). Rekkefølgen er: rendereren må lese `config` FØR en editor har mening. Målt samtidig: seeden authorer ikke `options` for trafikklys (`seed-bibliotek.ts` gir `{}`/`{helpText}`), så defaultene er de eneste verdiene som finnes i dag.
+
+**Bonus-funn i samme fil:** labelene «Godkjent»/«Anmerkning»/«Avvik»/«Ikke relevant» er hardkodet norsk i `title=` — synlig UI uten `t()` (CLAUDE.md § Språk).
+
+### 🟡 Overskrifter oversettes aldri i utfylling — pre-eksisterende, ikke fra del 2 (M-3a del 2 exit, målt 2026-07-16)
+
+`heading` er DISPLAY_TYPE (`RapportObjektRenderer.tsx:29`) → wrappes aldri i `FeltWrapper`, som er stedet `oversattLabel` beregnes (`FeltWrapper.tsx:64`). `OverskriftObjekt.tsx:4` rendrer `{objekt.label}` rått. **Har alltid gjort det.**
+
+Del 2 flagget dette som «oversettelses-gap jeg innførte» — **det stemmer ikke.** `UtfyllingSeksjoner:61` bruker `seksjon.overskrift.label`, identisk med atferden før. Han tok skylden for noe han arvet. Konsekvens i dag: har en heading en oversettelse, vises feltene under oversatt mens seksjonstittelen står på norsk.
+
+### 🟡 PDF viser ikke grenseverdier — F1 dekket web+mobil utfylling, ikke print (M-3a del 2 exit, 2026-07-16)
+
+`packages/pdf/src/felt.ts` viser `enhet` (etter fiksen `1da3b473`: `enhet ?? unit`), men leser **ingen** av `min`/`maks`/`toleranse`/`desimaler`. En utskrevet NS3420-sjekkliste viser verdien og enheten, men ikke grensen den skulle måles mot — og heller ikke om verdien er utenfor. En NS3420-mal ender ofte som PDF; hullet er reelt.
+
+Merk avhengigheten: `packages/pdf` har **ingen `dependencies`-blokk** (dokumentert null-avhengigheter, CLAUDE.md § Prosjektstruktur), så `formaterGrense`/`grenseStatus` fra `@sitedoc/shared` kan ikke importeres uten at Kenneth endrer den arkitekturegenskapen. Alternativet er duplisering — og `enhet ?? unit`-dupliseringen divergerer allerede fra `normaliserGrense` på `enhet: null` (ikke nåbar via editoren i dag, men driften er reell).
+
+### 🟡 Fire av fem handlinger i mal-verktøylinja er døde stubs (M-3a del 2 exit, 2026-07-16)
+
+`MalListe.tsx`: `importerFraProsjekt`/`importerFraFirma`/`opprettFraPdf` (`:330-332`) er `disabled`. «Aktiver oppretting av nye sjekklister» (`:685-699`) er `disabled` + «kommer snart». «Klikk for å låse maler» (`:494`) har **ingen `onClick`** — knappen ser levende ut og gjør ingenting. Etter at del 2 aktiverte kopiér-mal er den den ene levende av fem.
+
+### 🟡 `AppRouter` ligger på TS2589-dybdegrensen — latent, ikke isolert (M-3a del 2 exit, 2026-07-16)
+
+`mal.kopier` **alene** tippet `AppRouter` over dybdegrensen; feilen slo ut i `oppgaver/page.tsx`, en fil del 2 ikke rørte (bevist med stash-test mot `origin/develop`). Fikset med lean returtype (`select: { id }` + eksplisitt `{ id }`-retur). **Men det betyr at routeren allerede lå på kanten:** neste prosedyre med fet inferert `$transaction`-retur uten `select` tipper den igjen — og symptomet dukker opp i en tilfeldig annen fil. Se [api.md § TS/tRPC-fallgruver](api.md).
+
 ### 🟠 STATUS.md er mønsteret prosjektet forkastet 2026-04-28 — avvikles, ikke avstemmes (Kenneth 2026-07-16)
 
 **Kenneths spørsmål 2026-07-16: «har denne en hensikt? er det kanskje bedre å spørre git ved behov?»** Svaret lå allerede i repoet. [oppryddings-plan-2026-04-28.md:766](oppryddings-plan-2026-04-28.md) vedtok:

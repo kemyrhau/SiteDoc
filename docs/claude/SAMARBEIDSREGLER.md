@@ -107,6 +107,12 @@ Første linje frigjør branchen. `git branch -d` er **-d, aldri -D** — den ska
 
 **Er tavla tom, lever ingen økter.** Det er hele poenget: kontrollflaten er lesbar for Kenneth uten å spørre noen.
 
+> ⚠️ **Regelen feilet på første anvendelse — cowork laget aldri raden** (2026-07-16). M-3a del 2 kjørte en hel kveld, bygde 42 filer og ble merget to ganger mens tavla sa «*(ingen aktive)*». Kenneth kunne lest kontrollflaten sin og konkludert at ingenting kjørte.
+>
+> **Fase 1 er ikke «lag raden når du rekker det» — den er før vinduet åpnes.** Raden er billigst å skrive i det ordren formuleres; da har cowork allerede arbeidstre, branch og fil-eierskap i hodet. Skrives den ikke da, skrives den aldri: økta leverer, og en tavle-rad for noe som er ferdig føles overflødig — så hullet lukker seg selv uten at noen merker at kontrollflaten var blind imens.
+>
+> Dette er tredje regel cowork skrev og selv brøt innen 48 timer (STATUS-vedlikehold på egen merge `fd0ee7a2`; kollisjons-sjekken uten statusfilene; tavla). **Mønsteret er ikke at reglene er dårlige — det er at de skrives raskere enn de internaliseres.** En regel uten et sted den tvinges fram er en intensjon.
+
 ### Ordre-anatomi — mal, ikke hensikt (vedtatt 2026-07-16)
 
 **Bakgrunn:** ordre-formatet som fanget **fire av coworks ti feil** 2026-07-15/16 fantes kun i coworks hode. Det er Norkart-mønsteret: kanalen finnes, den ble ikke brukt, og kunnskapen dør med økta. En gate kan sjekke en **mal**; den kan ikke sjekke «skriv gode ordrer».
