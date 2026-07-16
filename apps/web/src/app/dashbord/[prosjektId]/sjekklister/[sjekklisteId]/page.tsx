@@ -10,6 +10,7 @@ import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
+import { UtfyllingSeksjoner } from "@/components/rapportobjekter/UtfyllingSeksjoner";
 import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
@@ -560,8 +561,9 @@ export default function SjekklisteDetaljSide() {
       </div>
 
       {/* Rapportobjekter */}
-      <div className="flex flex-col gap-3">
-        {objekter.map((objekt) => {
+      <UtfyllingSeksjoner
+        objekter={objekter}
+        render={(objekt) => {
           // Skip barn av repeatere — de rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;
           if (!erSynlig(objekt)) return null;
@@ -641,8 +643,8 @@ export default function SjekklisteDetaljSide() {
               </FeltWrapper>
             </div>
           );
-        })}
-      </div>
+        }}
+      />
 
       {/* Endringslogg */}
       {sjekkliste?.template && (

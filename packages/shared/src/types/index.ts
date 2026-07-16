@@ -148,13 +148,15 @@ export const REPORT_OBJECT_TYPE_META: Record<ReportObjectType, ReportObjectTypeM
     label: "Heltall",
     icon: "Hash",
     category: "tall",
-    defaultConfig: { min: null, max: null, unit: "" },
+    // Norsk kanonisk (fase M-3a del 2). Renderne leser via normaliserGrense()
+    // som faller tilbake på engelsk (max/unit) for eldre MalBygger-data.
+    defaultConfig: { min: null, maks: null, enhet: "" },
   },
   decimal: {
     label: "Desimaltall",
     icon: "Percent",
     category: "tall",
-    defaultConfig: { min: null, max: null, decimals: 2, unit: "" },
+    defaultConfig: { min: null, maks: null, desimaler: 2, toleranse: null, enhet: "" },
   },
   calculation: {
     label: "Beregning",

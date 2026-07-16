@@ -11,7 +11,8 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-07-15
+**Sist oppdatert:** 2026-07-16
+- 2026-07-16 — `faseM-3a-felttype-matrise.md` status del 1 (målt) → del 2 (bygget: F1/F2/F4 + kollaps + kopiér-mal, branch `feat/faseM-3a-del2`). Ingen ny/slettet fil, antall uendret 67.
 - 2026-07-15 — ny fil `lokal-dev.md`, lokal dev-flate dokumentert. Antall 66→67. [detaljer](historikk-docs.md)
 - 2026-07-12 — k13-rapport lukket + telling reconciliert 64→66. [detaljer](historikk-docs.md)
 - 2026-07-12 — Track B: 2 filer fra redesign-treet. Antall 62→64. [detaljer](historikk-docs.md)

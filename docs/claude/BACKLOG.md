@@ -1811,6 +1811,15 @@ Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arb
 
 ## 2. Halvferdige features
 
+### MalBygger felttype-restanser — fase M-3a del 2 (2026-07-16) 🟡
+
+Del 2 lukket F1 (grenseverdier), F2-quiz, F4-`persons.max`, kollapsbare seksjoner og kopiér-mal (branch `feat/faseM-3a-del2`, se [faseM-3a-felttype-matrise.md](faseM-3a-felttype-matrise.md) § Del 2). Følgende del 1-funn ble bevisst deferrert:
+
+- **F2-rest — `info_text`/`info_image`/`video` mangler web-render.** Opprettbare + konfigurerbare, men fraværende i web `RapportObjektRenderer.KOMPONENT_MAP` → faller til `UkjentObjekt`. Ren visning (ingen brukerverdi/datatap, i motsetning til quiz som ble fikset). Mobil har alle tre. Behov: port til web + registrer i map.
+- **F3 — `calculation.formula` + `traffic_light.options` har ingen editor.** Begge har defaultConfig men ingen blokk i `FeltKonfigurasjon.tsx`. Beregningsfelt ubrukelig uten formel-input; trafikklys låst til 4 default-farger. Krever formel-editor (validering av uttrykk) + fargevelger.
+- **F4-rest — `bim_property.propertyName` + `attachments.acceptedTypes` uten UI.** Kun default-config; BIM-egenskap kan ikke navngis, filtype-begrensning kan ikke settes i verktøyet.
+- **pkt 2-rest — kollaps i MalByggers feltliste (ikke bare utfylling).** Målt: MalBygger-feltlista er et dnd-kit sortable-tre (DropSone/RekursivtFelt); kollaps der bryter drag-targets → **ikke billig**. Utfylling (web+mobil) fikk kollaps i del 2; byggeren ikke.
+
 ### Tilbake-pil i kommentar-modal (mobil `oppgave/[id].tsx`) 🟡
 
 `ArrowLeft`-knapp i headeren på kommentar-dialogen for å lukke den. Ucommittet WIP fra 2026-06-01 (forkastet 2026-06-05 — endringen lå ucommittet lokalt gjennom flere sesjoner uten å bli fullført). Skal vurderes på nytt: om kommentar-dialogen trenger en eksplisitt tilbake-/lukk-pil i tillegg til eksisterende lukking.

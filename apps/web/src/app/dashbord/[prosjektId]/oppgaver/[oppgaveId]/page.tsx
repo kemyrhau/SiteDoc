@@ -13,6 +13,7 @@ import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
+import { UtfyllingSeksjoner } from "@/components/rapportobjekter/UtfyllingSeksjoner";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useOversettelse } from "@/hooks/useOversettelse";
 import { DokumentTidslinje } from "@/components/DokumentTidslinje";
@@ -555,8 +556,9 @@ export default function OppgaveDetaljSide() {
 
       {/* Rapportobjekter */}
       {objekter.length > 0 && (
-        <div className="flex flex-col gap-3">
-          {objekter.map((objekt) => {
+        <UtfyllingSeksjoner
+          objekter={objekter}
+          render={(objekt) => {
             if (repeaterBarnIder.has(objekt.id)) return null;
             if (!erSynlig(objekt)) return null;
             if (!leseModus && SKJULT_I_UTFYLLING.has(objekt.type)) return null;
@@ -615,8 +617,8 @@ export default function OppgaveDetaljSide() {
                 </FeltWrapper>
               </div>
             );
-          })}
-        </div>
+          }}
+        />
       )}
 
       {/* Dialog */}

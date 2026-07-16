@@ -208,6 +208,13 @@ export function MalListe({
     },
   });
 
+  const kopierMutation = trpc.mal.kopier.useMutation({
+    onSuccess: (nyMal: { id: string }) => {
+      utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setValgtId(nyMal.id);
+    },
+  });
+
   function handlePrefiksEndring(verdi: string) {
     setPrefiks(verdi);
     setPrefiksFeil(null);
@@ -370,7 +377,12 @@ export function MalListe({
             </button>
           }
         >
-          <DropdownItem disabled>{t("maler.kopierMal")}</DropdownItem>
+          <DropdownItem
+            disabled={!harValg || kopierMutation.isPending}
+            onClick={() => valgtId && kopierMutation.mutate({ id: valgtId })}
+          >
+            {t("maler.kopierMal")}
+          </DropdownItem>
           <DropdownItem disabled>{t("handling.eksporter")}</DropdownItem>
         </Dropdown>
 

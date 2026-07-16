@@ -41,7 +41,7 @@ import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
-import { RapportObjektRenderer, DISPLAY_TYPER } from "../../src/components/rapportobjekter";
+import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
@@ -593,7 +593,9 @@ export default function OppgaveDetalj() {
         )}
 
         {/* Malobjekter */}
-        {objekter.map((objekt) => {
+        <UtfyllingSeksjoner
+          objekter={objekter}
+          render={(objekt) => {
           // Skip barn av repeatere — rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;
           // Sjekk synlighet (betinget felt)
@@ -664,7 +666,8 @@ export default function OppgaveDetalj() {
               />
             </FeltWrapper>
           );
-        })}
+          }}
+        />
 
         {/* Dialog */}
         <View className="mt-4">
