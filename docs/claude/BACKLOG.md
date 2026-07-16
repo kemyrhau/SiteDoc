@@ -16,6 +16,38 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟠 Mobil-typecheck er RØD på develop — gaten har aldri spurt (develop-Opus exit 2026-07-16)
+
+`pnpm --filter @sitedoc/mobile typecheck` **passerer ikke på ren develop** — 11 feil. Bl.a.: `erstattVedlegg` returneres av **begge** mobil-hookene og destruktureres i begge detaljsidene, men står **ikke** i `UseOppgaveSkjemaResultat`/`UseSjekklisteSkjemaResultat` (verifisert: returneres 1×, deklarert 0× i begge).
+
+**Rotårsaken er prosess, ikke typer:** [regel 10](SAMARBEIDSREGLER.md) krevde grønt `@sitedoc/web build` — **web only**. Mobil har aldri vært gatet, så gjelden vokste usett. Regelen er utvidet 2026-07-16; **den kan ikke blokkere før denne posten er ryddet.** Inntil da: baseline-sammenligning (diffen skal ikke ØKE feiltallet).
+
+Funnet av develop-Opus, som kjørte negativ kontroll uoppfordret for å skille sine egne feil fra baseline. Uten den ville de 11 vært usynlige videre.
+
+### 🟠 Ingen navigasjonsvakt i HELE web-appen — «ulagrede endringer tapes» er app-vidt (develop-Opus exit 2026-07-16)
+
+Målt: **`beforeunload`/route-guard finnes i 0 filer** i hele `apps/web/src`. Del6b-ordrens punkt 3 rammet dette som en bug i de to skjema-hookene (2s-debounce kan tape siste tastetrykk). **Det er ett synlig utslag av en app-vid mangel.**
+
+Debounce-varianten har ingen søsken — `planleggLagring` finnes kun i de to skjema-hookene. Men minst **5 andre flater** sporer dirty/`harEndringer` uten noen vakt: `oppsett/ai-sok` · `oppsett/prosjektoppsett` · `firma/innstillinger` · `malbygger/FeltKonfigurasjon` · `attestering/RedigerRadModal`. Mobil har mønsteret; web har det ingen steder.
+
+**Reproduser før fiks** (ordren står). Men fiksen bør vurderes app-vidt — én delt vakt-hook, ikke seks kopier. Jf. punkt 1-lærdommen: speiling er bevist utilstrekkelig.
+
+### 🟡 `lagrerNaaRef`-guarden finnes i 1 av 4 hooks (develop-Opus exit 2026-07-16)
+
+`useSjekklisteSkjema` (mobil) har en `lagrerNaaRef`-guard mot overlappende lagringer (4 treff). **`useOppgaveSkjema` (mobil) og begge web-hookene mangler den.** Nøyaktig samme klasse ikke-speilet divergens som ga punkt 1 (append-only-låsingen i 1 av 4) — bare på concurrent-save i stedet for låsing.
+
+Uprøvd: effekten av overlappende debounce-lagringer er ikke reprodusert. **Men mønsteret er nå bekreftet to ganger:** «to parallelle hooks … Identisk» i `hooks/CLAUDE.md` var en aspirasjon, og den har sviktet på to ulike mekanismer. Deles logikken, deles den i `@sitedoc/shared`.
+
+### 🟡 Klienten kan påstå `accepted` — 2b-fiksen behandler symptomet (develop-Opus exit 2026-07-16)
+
+`STATUS_VERDIER` (`dagsseddel.ts:26`) er `["draft","sent","returned","accepted"]` — **Zod tillater at klienten sender `accepted`**, og `:3984` må derfor mappe `accepted→sent` som plaster. 2b-fiksen (`2791d0a9`) stopper racet, men **rotårsaken er at klienten kan påstå attestert i det hele tatt.** Attestering er en server-handling; klienten har ingen legitim grunn til å sende den statusen.
+
+Vurder å avvise `accepted` i input-skjemaet (egen input-type for sync vs. server-intern status). Ikke hastende — 2b-preconditionen dekker den reelle skaden.
+
+### 🟡 `dagsseddel.ts` er 185 KB i én fil — andre skrive-stier er usjekket for TOCTOU (develop-Opus exit 2026-07-16)
+
+2b beviste TOCTOU i `syncBatch` (lesning `:3778`, tx-start `:4055` — 8+ `await` imellom). **Mistanke, ikke målt:** de andre skrive-prosedyrene i samme fil (`maskin.tilfoy` `:4322`, attester-/retur-stiene) har trolig samme «les-status → N await → skriv»-vindu. Kun `syncBatch` er verifisert og fikset. Selve filstørrelsen er lukta.
+
 ### 🟠 Append-only håndheves ikke server-side (`sjekkliste.oppdaterData` / `oppgave.oppdaterData`)
 
 Låsingen er **klient-lås**, ikke dataintegritet. Serveren gjør shallow merge (`{...eksisterende, ...input.data}`) og tar imot hva klienten enn sender — `flytRolle.ts` sier det selv: *«append-only — erFeltLåst() i hook håndhever dette»*. Etter `411e6f2d` (låsing i delt kilde, alle fire hooks) er UI-veien stengt, men **API-veien er åpen**: en determinert klient, et skript, eller **en gammel TestFlight-app** (EAS #40 kjører kode uten låsen) kan fortsatt overskrive et innsendt felt.

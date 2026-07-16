@@ -28,7 +28,9 @@
 All merge-koreografi går gjennom cowork:
 - **Rekkefølge:** timer og redesign treffer ikke develop samtidig uten build-gate mellom — én verifisert ting om gangen.
 - **Regel 9:** `redesign/navigasjon → develop` alltid `--no-ff` (synlige, revertbare grenser).
-- **Regel 10:** ingen merge til develop uten grønt `pnpm --filter @sitedoc/web build` (ikke bare typecheck).
+- **Regel 10:** ingen merge til develop uten grønt `pnpm --filter @sitedoc/web build` (ikke bare typecheck). **Rører diffen `apps/mobile/`: også `pnpm --filter @sitedoc/mobile typecheck`** — se advarselen under.
+
+  > ⚠️ **Regelen gatet KUN web til 2026-07-16, og mobil råtnet i skyggen.** develop-Opus kjørte negativ kontroll uoppfordret og fant at `@sitedoc/mobile typecheck` er **rød på ren develop** (11 feil, bl.a. `erstattVedlegg` returneres av begge mobil-hookene men er ikke deklarert i interfacene). **Ingen visste**, fordi gaten aldri spurte. Mobil-gjelden må ryddes før gaten kan blokkere på den (🟠 i [BACKLOG](BACKLOG.md)) — inntil da: krev at diffen ikke ØKER feiltallet (baseline-sammenligning, som han gjorde).
 - **Worktree per spor:** aldri to økter i samme arbeidstre.
 - **Prod:** aldri uten Kenneths eksplisitte ordre; rett branch rsynca; migreringer gated.
 
