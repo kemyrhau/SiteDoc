@@ -214,6 +214,16 @@ Denne ene klassen er **8 av auditens 23 funn** (målt mot `origin/develop`
 >
 > **Lærdommen §4 ikke dekker:** «mål, ikke anta» er ikke nok — cowork *målte*. **En gjentatt dårlig måling er ikke verifisering.** Et uttrykk som ikke kan feile synlig, er ikke en måling: kjør negativ kontroll (mat den noe du *vet* skal fange/ikke fange) før du stoler på tallet. Fanget av spor 4s exit, som testet en påstand i stedet for å arve den.
 
+### 11c. Må du skrive et tall, skriv nevneren (fabel-regel 2026-07-16)
+
+**To sanne tall uten nevner produserer én falsk konklusjon.** Formen er obligatorisk: **«X av Y ⟨nevner-definisjon⟩»**.
+
+**Belegg — hendelsen som ga regelen:** fabels ordre sa «alle **25** opprettbare typer». M-3as matrise sa «**27** typer». Cowork sammenlignet dem, erklærte at fabel telte feil, og skrev at forarbeidet hennes var «kode-lest, ikke kode-målt». Målt: `REPORT_OBJECT_TYPES` = 27 totalt, `SKJULTE_TYPER` = 2 → **25 opprettbare**. **Begge tallene var sanne.** Forarbeidet oppga til og med begge, med nevner og fil:linje (`:92` — «25 av 27, 2 skjult»). Feilen var sammenligning uten nevner-sjekk. Fabel aksepterte skylden for en feil hun ikke hadde gjort, fordi cowork fremsto sikker.
+
+**Distinksjonen mot §11:** §11 sier *skriv ikke tallet* — bruk et grep-uttrykk. Denne gjelder når tallet **må** skrives (en ordre, en rapport, et vedtak): da bærer det nevneren sin, eller det er ubrukelig for den neste.
+
+**Ekte uklarhet dette avdekket, uløst:** config-editorer i `FeltKonfigurasjon.tsx` telles til **7** (type-grener, coworks metode), **10** (per blokk) eller **14** (per type, M-3as metode). Tre metoder, tre tall, ingen nevner-definisjon. Løses ved **måling med oppgitt metode** i fase M del 2 — ikke ved vedtak.
+
 ### 11b. Negative kode-påstander er §11 i forkledning
 
 «ikke bygget ennå», «finnes ingen produsent-kode», «ikke i bruk noe sted» er
