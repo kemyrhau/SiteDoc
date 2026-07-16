@@ -48,6 +48,33 @@ Fabel scopet oppmøtested bevisst ut av G2 — **riktig avgrensning, men gjelden
 
 G2 la 39 nye `georef.*`-nøkler (13 språk, `a2a8d5c7`), men **urørte strenger i editoren er fortsatt hardkodet norsk** — de var utenfor G2-scope. Bryter i18n-kravet (alle synlige UI-strenger via `t()`). Redesign-Opus førte den i designprosjekt-loggen, men **den nådde aldri repo-BACKLOG** (verifisert 0 treff, exit 2026-07-15) → var hjemløs i repoet til nå.
 
+### 🔴 Statusmarkøren har feil datatype + ingen form — rotårsaken bak 5 av 8 råtne markører (spor 3 exit 2026-07-16)
+
+**Dette må løses FØR noen re-verifiserer statuskolonner.** Re-verifiserer vi innholdet inn i samme formløse fritekst, råtner det igjen — og da har vi brukt en runde på å utsette problemet.
+
+**Funn 1 — feil datatype.** Tre av dagens funn hadde samme form, og ingen så mønsteret før spor 3s exit: `Godkjenning` (modell bygget, UI/API ikke) · `hmsKortUtloper` (felt bygget, varsling ikke) · `Activity` (produsent bygget, feed-konsument ikke). **En binær «bygget / ikke bygget» kan ikke uttrykke delvis bygget — som er den vanligste tilstanden under faset bygg.** Markøren tvinger et valg mellom to svar som begge er feil, og den som velger «bygget» innfører drift.
+
+**Funn 2 — ingen enhetlig form.** Målt i `terminologi.md` alene (2026-07-16): `:53` tabellcelle `(planlagt)` · `:73` overskrift `(planlagt)` · `:76` inline `(implementert)` · `:84` prosa `(planlagt fremtidig arbeid — ikke implementert)` · `:88` prosa `(live i prod 2026-05-01)` · `:105` `**Status: bygget**` + kode-ref. **Seks former i én fil. En gate kan ikke sjekke fritekst** — det er grunnen til at [§11b](dokumentasjons-standard.md) ikke fanget dem: de bar ikke frasen den leter etter.
+
+**Malen finnes allerede:** `terminologi.md:88` (Kompetansematrise) er den ene raden gjort riktig — *«live i prod 2026-05-01»* + konkrete tabeller `Kompetansetype` + `AnsattKompetanse` i `packages/db`. Dato + kode-ref. Den burde vært formen for resten.
+
+**Spor 3s forslag til todelt regel** (hans vurdering, han har sett den nærmest):
+- **«ikke bygget» som faktum om koden** → ❌ + dato + hash. Datoen gjør råten detekterbar.
+- **«planlagt» som veikart-intensjon** → spec-referanse (`fase-0:xxxx`) + dato. Ikke tving ❌+hash på noe som bevisst ikke er bygget ennå.
+- Skillet konvensjonen bommet på: den blandet faktum og intensjon i én binær etikett.
+
+**Omfang:** **22 docs** bærer `ikke bygget`/`ikke implementert`/`finnes ingen`/`ikke i bruk`/`tomt skjelett` (målt mot develop `347d643e`). Kun **én** er frossen arkiv (`historikk-2026-05.md` — omskrives ikke). Aktive specs med reell råtnefare: `timer.md` · `dagsseddel-design.md` · `dokumentflyt.md` · `domene-arbeidsflyt.md` · `kontrollplan.md` · `fase-0-beslutninger.md` · `aktivitetsfeed.md` · `byggeplass-strategi.md` m.fl.
+
+### 🟠 Anker ↔ schema divergerer uten kryssjekk (spor 3 exit 2026-07-16)
+
+UE-saken: `terminologi.md:124` sa UE **kan ha** `role = "underentreprenor"`. `schema.prisma:490` sa **IKKE** `"underentreprenor"` (per A.9). **Ingen av dem pekte på den andre**, og ingen kryssjekk finnes. Rettet i `eab9bb85`, men **mekanismen er generisk**: A.9 endret tilnærming → schema-kommentaren ble oppdatert → anker-prosaen ikke. Ingenting hindrer at andre anker↔schema-par divergerer på samme måte. Uverifisert mistanke — men fraværet av kryssjekk er et faktum, ikke en mistanke.
+
+### 🟡 Fase-0-statuskolonnen er kun punktfikset — 8 rader, ikke hele (spor 3 exit 2026-07-16)
+
+Spor 3 rettet de 8 radene ordren pekte på (coworks scoping fra auditens funn), **ikke hele kolonnen**. D's påstand — «trenger full re-verifisering, ikke punktfiks» — er bekreftet av spor 3 selv. Urørt i samme anker, samme sykdom: `:84` Import-modul («planlagt fremtidig arbeid — ikke implementert» — §11b-klasse uten ❌/dato/hash; gikk under radaren fordi den ikke bar frasen «vedtatt, ikke bygget») · `:76` · `:53` · `:73` (status-etiketter uten kode-/spec-referanse).
+
+**Gjør ikke dette før formen er avklart** (se 🔴-posten over). Merk også: A.x-nummereringen har hull — ankeret refererer A.1/A.2/A.3/A.8–A.11 + 0.5, men A.4–A.7 finnes ikke i `terminologi.md`. Uverifisert om de bor kun i `fase-0-beslutninger.md` eller mangler.
+
 ### 🟠 `fase-0-beslutninger.md:196–200` — «Verifiserte forekomster» er en død liste (spor 4 exit 2026-07-16)
 
 Auditen fant **én** råtten linjeref der (F18, `HovedSidebar.tsx:189`, rettet i `fc96fcee`). Spor 4 målte søsknene i samme liste: **alle er råtne.** `oppgave.ts:618-619` → `organizationId` har **0 treff** i fila i dag. `mappe.ts:589-590` → **0 treff**. `oppsett/layout.tsx:113` → **tom linje**.
