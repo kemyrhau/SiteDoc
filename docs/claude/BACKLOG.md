@@ -99,7 +99,16 @@ Listen er et **historisk øyeblikksbilde** («30+ kode-steder må oppdateres med
 
 Auditen 2026-07-16 dekket `docs/claude/` (72 filer, 23 funn) og **utelot `CLAUDE.md`** — fila hver økt leser først, og den som ga cowork `pnpm dev --filter web` og kostet en runde. Målt samme dag: `CLAUDE.md:112` bærer samme i18n-drift som de tre auditen fant («14 brukervendte språk» → 15, «~2500 nøkler» → 2909).
 
-**Scope-designfunnet er større enn funnet:** at CLAUDE.md falt utenfor et docs-scope mens 72 mindre filer var inne. **Neste audit scopes etter lesefrekvens × drift-risiko, ikke etter mappe.** Uauditerte flater, rangert av D: `CLAUDE.md` (rot) → `docker/DOCKER-NOTES.md` (siteres som deploy-autoritet; deploy-docs var de mest driftede) → `docs/redesign/redesign-handoff.md` (tung på status/hasher) → README-er → rot-`.md` (`MALBYGGER.md`, `parallell-arbeid-lock.md`, `ny-server-*.md`) → `docs/arkiv/` (lav) → **`schema.prisma`-kommentarer** (f.eks. `har_*_modul`-kommentarene som overlevde kolonne-droppet — påstander som drifter uten at noen doc-audit ser dem).
+**Scope-designfunnet er større enn funnet:** at CLAUDE.md falt utenfor et docs-scope mens 72 mindre filer var inne. **Neste audit scopes etter lesefrekvens × drift-risiko, ikke etter mappe.**
+
+Uauditerte flater, rangert av D:
+
+1. `CLAUDE.md` (rot) — høyest lesefrekvens i repoet
+2. `docker/DOCKER-NOTES.md` — siteres som deploy-autoritet, og deploy-docs var de mest driftede
+3. `docs/redesign/redesign-handoff.md` — tung på status/hasher
+4. README-er · rot-`.md` (`MALBYGGER.md`, `parallell-arbeid-lock.md`, `ny-server-*.md`)
+5. `docs/arkiv/` (lav prioritet)
+6. **`schema.prisma`-kommentarer** — f.eks. `har_*_modul`-kommentarene som overlevde kolonne-droppet. Påstander som drifter uten at noen doc-audit ser dem.
 
 ### 🟡 Tre drift-klasser ingen bøtte fanger (Opus D exit 2026-07-16)
 

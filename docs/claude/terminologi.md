@@ -121,7 +121,9 @@ Flyttet hit fra CLAUDE.md 2026-07-10 (anker-prinsippet — modul-typologi bor i 
 - **Flerforetagsbruker:** Bruker som tilhører flere faggrupper i samme prosjekt via `FaggruppeKobling(projectMemberId, faggruppeId)`
 - **Godkjenner:** Dokumentflyt-rolle som tar endelig beslutning på et dokument. Brukes f.eks. for byggherre-godkjenning av endringsmelding
 - **Registrator:** Dokumentflyt-rolle som først registrerer hendelsen (typisk på vegne av andre). Beholder admin-rettigheter på dokumentet selv etter videresending
-- **UE (Underentreprenør):** Innleid arbeidskraft fra annet firma — ser kun egne timer + tildelte prosjekter, ikke katalog-priser. **UE er IKKE en `ProjectMember.role`-verdi.** A.9 vedtok at status **utledes deterministisk** via `erUnderentreprenor()`; `role` forblir `"admin" | "member"` (se kommentaren på `ProjectMember.role` i `schema.prisma` + migreringen `20260501000010_member_periode_slutt`). ❌ **Utlederen er ikke bygget** — `erUnderentreprenor()` finnes kun som spesifikasjon i [fase-0-beslutninger.md](fase-0-beslutninger.md) § A.9/B.5, ingen forekomst i `apps/` eller `packages/` (verifisert 2026-07-16 mot develop `eab9bb85`). Signatur + kallsteder: samme § A.9. (Fase 0 A.9)
+- **UE (Underentreprenør):** Innleid arbeidskraft fra annet firma — ser kun egne timer + tildelte prosjekter, ikke katalog-priser. (Fase 0 A.9)
+  - **UE er IKKE en `ProjectMember.role`-verdi.** A.9 vedtok at status **utledes deterministisk** via `erUnderentreprenor()`; `role` forblir `"admin" | "member"`. Kilde: kommentaren på `ProjectMember.role` i `schema.prisma` + migreringen `20260501000010_member_periode_slutt`.
+  - ❌ **Utlederen er ikke bygget** — `erUnderentreprenor()` finnes kun som spesifikasjon i [fase-0-beslutninger.md](fase-0-beslutninger.md) § A.9/B.5; ingen forekomst i `apps/` eller `packages/` (verifisert 2026-07-16 mot develop `eab9bb85`). Signatur + kallsteder: samme §.
 - **Utfører (responder):** Faggruppen som mottar og besvarer en sjekkliste/oppgave (renamet fra «Svarer»)
 
 ## 4. Brukere

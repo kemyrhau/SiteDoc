@@ -175,6 +175,13 @@ historikk-docs.md og utløste §10-sjekken. Commiten var korrekt; regelen mangle
 distinksjonen. Gate-rutinen: et treff som er ren transport av eksisterende arkiv-
 tekst passerer — men verifiser at det faktisk er verbatim, ikke ny prosa.
 
+**Sjekken må BLOKKERE, ikke rapportere** (lærdom 2026-07-16). Coworks første kommandoblokk kjørte `awk … ; git push` — awk skrev ut «BRUDD: 679 / BRUDD: 698», og pushen gikk **uansett**, fordi den sto på neste linje. Gaten var dekorativ ved konstruksjon. Den fyrte på coworks egen commit `ab5af5c5` og stoppet ingenting: `terminologi.md:124` (arkitektur-ankeret, 688 tegn) landet på develop i strid med regelen forfatteren selv gatet andre mot. **Bruk den blokkerende formen:**
+
+```sh
+if git diff --cached -U0 -- docs/claude/ | awk '/^\+[^+]/ && length($0)-1 > 600 {f=1} END{exit !f}'; then
+  echo "❌ §10-BRUDD — commit ikke kjørt"; else git commit -m "…"; fi
+```
+
 **Mekanisk sjekk (gate-rutinen) — diff-basert, ikke korpus:**
 
 ```sh
