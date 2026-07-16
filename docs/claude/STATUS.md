@@ -11,11 +11,18 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-07-15
+**Sist oppdatert:** 2026-07-16
+- 2026-07-16 — 2 filer ført (`fase-M-forarbeid-…`, `faseM-3a-felttype-matrise`). **Tellingen under er IKKE oppdatert — se ⚠️.** [detaljer](historikk-docs.md)
 - 2026-07-15 — ny fil `lokal-dev.md`, lokal dev-flate dokumentert. Antall 66→67. [detaljer](historikk-docs.md)
 - 2026-07-12 — k13-rapport lukket + telling reconciliert 64→66. [detaljer](historikk-docs.md)
 - 2026-07-12 — Track B: 2 filer fra redesign-treet. Antall 62→64. [detaljer](historikk-docs.md)
-**Antall filer dekket:** 67 (61 i `docs/claude/` + 6 i `docs/arkiv/`). Regnestykke (prøvbart): 71 rå `docs/claude/*.md` − 10 eksplisitt ekskluderte + 6 `docs/arkiv/` = **67**. Endrings-historikk (hvem tilføyd/slettet når): [historikk-docs.md](historikk-docs.md).
+**Antall filer dekket:** ⚠️ **TALLET ER UPÅLITELIG (målt 2026-07-16) — ikke bruk det som fasit.**
+
+Registeret påstår 67 (61 i `docs/claude/` + 6 i `docs/arkiv/`), regnestykke: 71 rå `docs/claude/*.md` − 10 ekskluderte + 6 arkiv = 67.
+
+**Faktisk på disk: 76 rå `*.md`.** Og 11 filer står verken som oppført eller ekskludert — blant dem `dokumentasjons-standard.md`, som bærer vedlikeholdsregelen selv.
+
+Tallet bumpes bevisst IKKE her: et delvis rettet tall ser vedlikeholdt ut og lyver hardere enn et som er merket. Full avstemming: [BACKLOG.md](BACKLOG.md). Endrings-historikk: [historikk-docs.md](historikk-docs.md).
 
 **Ekskluderings-liste (10 — meta/levende-indeks + historikk + arbeidsdok, ikke verifiserings-sporede sannhetskilder):**
 - `STATUS.md` (registeret selv)
@@ -244,6 +251,8 @@ T7-3a/b1/b2 er deployet til prod (`223afc17` på main, server-route-endringer ak
 
 | Fil | Sist verifisert | Kommentar |
 |---|---|---|
+| fase-M-forarbeid-testmaler-ns3420-malbygger-2026-07-16.md | 2026-07-16 | **Beviskilde fase M.** Måling av testmaler + NS3420-inventar + MalBygger-kapabilitet (redesign-Opus, kun lesing). Rå-vedlegg i samme mappe: `ns3420-mal-dump-raw.json`, `ns3420-dok-inventar.json`, `ns3420-dok-inventar-raw.json`. Levde 5 dager utenfor git i repo-rota; versjonert 2026-07-16 |
+| faseM-3a-felttype-matrise.md | 2026-07-16 | **Arbeidsanker fase M-3a.** 27 felttyper målt langs (a)-(d) + 6 funn (`fd0ee7a2`). ⚠️ **Delvis foreldet av del 2:** F1/F2/F4 er bygget — `:44–45` og `:80` beskriver tilstand før fiksen. Oppdateres i del 2s commit |
 | onboarding-veileder.md | ikke aktuelt | Idé-stadium, planlagt ~1 måned frem (post-Fase 0). Etablert 2026-04-28 |
 | redesign-paritetssjekkliste.md | 2026-07-05 | **Arbeidsanker:** Akseptkriterium for `redesign/navigasjon` (flag `nyNavigasjon`). 130 rader / 109 funksjoner, verifisert mot faktiske ruter. K1–K11 innarbeidet (6 vedtatt / 4 utsatt / K9-rapport levert). Fylles i «Verifisert»-kolonnen under flagg-testing. Godkjent av Kenneth 2026-07-05 |
 | docs/redesign/redesign-handoff.md | 2026-07-05 | **Redesignreferanse (branch `redesign/navigasjon`):** Designspec + strategi (develop-bak-flagg, main-ren, eget stack senere) + følgefiler (HTML-prototyper 1a–2c, 6 designscreenshots, K-BESLUTNINGER). Reiser med redesign-mergen — indeksrad + DOC-MAP lagt på branchen |

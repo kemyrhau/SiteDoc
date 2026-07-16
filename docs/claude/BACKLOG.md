@@ -188,6 +188,36 @@ Tre flater bruker `FilterPanel` med tre state-modeller. Byggerens egen vurdering
 
 **Og tolinjen er prinsipiell, ikke midlertidig:** sjekkliste/oppgave skal aldri konverteres — de filtrerer på dynamiske mal-kolonner (`felt:*`) som varierer per mal. **Men de kan en dag få begge:** FilterPanel over tabellen for faste dimensjoner + Table for dynamiske kolonner. Det er lagdeling, ikke enten/eller. Den koblede søkeboksen (`?sok=`, `f9416424`) er første steg i den retningen.
 
+### 🟠 STATUS.md er mønsteret prosjektet forkastet 2026-04-28 — avvikles, ikke avstemmes (Kenneth 2026-07-16)
+
+**Kenneths spørsmål 2026-07-16: «har denne en hensikt? er det kanskje bedre å spørre git ved behov?»** Svaret lå allerede i repoet. [oppryddings-plan-2026-04-28.md:766](oppryddings-plan-2026-04-28.md) vedtok:
+
+> Sentralisert matrise-fil — **VURDERT OG FORKASTET 2026-04-28.** Begrunnelse: header-feltene gir samme funksjon distribuert, uten sentralisert vedlikeholds-byrde. […] Hvis sentralisert oversikt savnes senere — vurder script som genererer matrise fra header-data automatisk; **aldri manuelt vedlikeholdt fil**.
+
+STATUS.md **er** en manuelt vedlikeholdt sentralisert fil. Den overlevde beslutningen og råtnet nøyaktig slik begrunnelsen forutsa.
+
+**Del registeret i to (§11 — ikke skriv det koden kan svare på):**
+
+| Innhold | Utledbart? |
+|---|---|
+| Filliste, antall, «71 rå `*.md`» | **Ja** — `ls docs/claude/*.md \| wc -l`. Skulle aldri vært skrevet |
+| Sist endret | **Ja** — `git log -1 -- fil` |
+| `sist_verifisert_mot_kode` + drift-dom | **Nei** — menneskelig dom. Dette er hele verdien |
+
+**Og den ikke-utledbare delen finnes allerede distribuert:** 44 av 76 filer bærer `sist_verifisert_mot_kode` i YAML-frontmatter (målt 2026-07-16). To kilder for ett faktum = §9-brudd ([dokumentasjons-standard.md](dokumentasjons-standard.md)).
+
+**Oppgaven er derfor avvikling, ikke avstemming:** (1) fullfør YAML-header på de 32 gjenstående, (2) flytt `:40–190` (prod-deploys/A.Markussen-onboarding — ikke docs-register-materiale) til `historikk-YYYY-MM.md`, (3) slett STATUS.md, (4) fjern STATUS-vedlikeholdsregelen fra [CLAUDE.md](../../CLAUDE.md) og [SAMARBEIDSREGLER.md](SAMARBEIDSREGLER.md), (5) trenger vi oversikt: grep headerne.
+
+**Målt råte som gjorde spørsmålet påkrevd** (registeret er merket ⚠️ inntil det avvikles):
+
+1. **Tellingen:** registeret påstår **71** rå `docs/claude/*.md`. Faktisk på disk: **76**. Regnestykket «71 − 10 ekskluderte + 6 arkiv = 67» er dermed falskt i første ledd.
+2. **10 filer står verken som oppført eller ekskludert:** `COWORK-KONTROLL-VEILEDER.md`, `dokumentasjons-standard.md`, `f1-f5-arbeidstre-manifest.md`, `k13-sokdekning-rapport.md`, `mcp-playwright-simulator-oppsett.md`, `naa-rapport-del6b-sjekklister-oppgaver-hms-2026-07-16.md`, `psi-geofence-handhevning-utredning.md`, `simulator-opus-oppkobling.md`, `simulator-runbook.md`, `timer-mobil-f2f3f5-spec.md`. **`dokumentasjons-standard.md` er selv fila som bærer vedlikeholdsregelen.**
+3. **~150 av 317 linjer hører ikke hjemme:** `:40–190` er prod-deploys, develop-merges og A.Markussen-onboarding — `STATUS-AKTUELT`/`historikk-YYYY-MM`-materiale i en fil som heter «STATUS — docs/claude/-filer». Arkiveringsplikten (CLAUDE.md § Dokumentasjons-regler) sier deployet arbeid skal til `historikk-YYYY-MM.md`.
+
+**Cowork eier funn 2 delvis selv:** `faseM-3a-felttype-matrise.md` (`fd0ee7a2`) og `COWORK-KONTROLL-VEILEDER.md` ble merget/skrevet av cowork uten STATUS-rad. Regelen sier eksplisitt *«Gjelder også når nye filer opprettes.»* Matrisen + fase-M-forarbeidet er ført 2026-07-16; de ti gjenstår.
+
+**Tallet er bevisst IKKE bumpet** ved føringen av de to — et delvis rettet tall ser vedlikeholdt ut og lyver hardere enn et som er merket ⚠️. Avstemmingen skal gjøres i én runde, med negativ kontroll (list disk → list register → diff begge veier), ikke inkrementelt.
+
 ### 🟡 86 merged feature-branches ligger på origin — fase 4 hadde aldri et remote-steg (cowork eier, 2026-07-16)
 
 Målt 2026-07-16: `git branch -r` → **86 `origin/feature/*`** (t7-serien, org-member-serien, timer-serien m.fl.). Alle er verifisert merget inn i `develop` (86/86, kontrollert under branch-oppryddingen samme dag) — de er **støy, ikke risiko**.

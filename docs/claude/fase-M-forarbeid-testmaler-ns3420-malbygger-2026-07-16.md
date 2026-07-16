@@ -1,7 +1,9 @@
 # FASE M FORARBEID — testmaler + NS3420-inventar + MalBygger-kapabilitet
 
 > Fabel-ordre 2026-07-16. **Kun lesing** — ingen skriving i kode/DB/testdata, ingen commits/branch. Levert av redesign-Opus. **Ingen regelforslag** (fabels M-2-steg).
-> Rå-vedlegg (maskinlesbart, repo-rot): `ns3420-mal-dump-raw.json` (5 fulle NS3420-maler + 17 metadata), `ns3420-dok-inventar.json` (10 dokumenter).
+> Rå-vedlegg (maskinlesbart, `docs/claude/` — samme mappe som dette dokumentet): `ns3420-mal-dump-raw.json` (5 fulle NS3420-maler + 17 metadata), `ns3420-dok-inventar.json` (10 dokumenter), `ns3420-dok-inventar-raw.json`.
+>
+> **Versjonert 2026-07-16 (cowork).** Dokumentet + de tre vedleggene levde fem dager utenfor git, i repo-rota på én maskin, mens matrisen bygget på dem (`fd0ee7a2`) lå i `develop`. Konklusjonen var versjonert, beviset ikke. Stien over sa `repo-rot` og er rettet i samme flytt.
 
 ## Metode og tilgang
 

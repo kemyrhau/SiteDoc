@@ -1,0 +1,108 @@
+{
+  "rårespons_er_array": false,
+  "shapeKeys": [
+    "id",
+    "projectId",
+    "folderId",
+    "kontraktId",
+    "filename",
+    "fileUrl",
+    "filetype",
+    "docType",
+    "isActive",
+    "sourceLanguage",
+    "detectedLanguage",
+    "languageConfirmed",
+    "processingState",
+    "processingError",
+    "fileHash",
+    "standardNumber",
+    "fileSize",
+    "version",
+    "kontraktNavn",
+    "notaType",
+    "notaNr",
+    "entreprenor",
+    "pageCount",
+    "wordCount",
+    "splitSources",
+    "utfortPr",
+    "utfortTotalt",
+    "utfortForrige",
+    "utfortDenne",
+    "innestaaende",
+    "innestaaendeForrige",
+    "innestaaendeDenne",
+    "nettoDenne",
+    "mva",
+    "sumInkMva",
+    "uploadedAt",
+    "updatedAt",
+    "chunksTotalt",
+    "chunksEmbedded",
+    "oversettelse"
+  ],
+  "antall": 10,
+  "inventar": [
+    {
+      "id": "cmndssqr2000loen1ho1lsq3h",
+      "storrelse": 8752852,
+      "sider": 98,
+      "status": null
+    },
+    {
+      "id": "cmndsshg9000joen18co0hsg0",
+      "storrelse": 14088702,
+      "sider": 168,
+      "status": null
+    },
+    {
+      "id": "cmndsrxoe000hoen12y4yb7sn",
+      "storrelse": 7556855,
+      "sider": 88,
+      "status": null
+    },
+    {
+      "id": "cmndsrn83000foen1hjxnu2w0",
+      "storrelse": 4891651,
+      "sider": 54,
+      "status": null
+    },
+    {
+      "id": "cmndsrh6l000doen1jigfwv08",
+      "storrelse": 5142528,
+      "sider": 64,
+      "status": null
+    },
+    {
+      "id": "cmndsrat6000boen1byy63wbj",
+      "storrelse": 6773658,
+      "sider": 76,
+      "status": null
+    },
+    {
+      "id": "cmndsr5l00009oen1wwdjfuw2",
+      "storrelse": 4504614,
+      "sider": 56,
+      "status": null
+    },
+    {
+      "id": "cmndsr27c0007oen1c60y8rdw",
+      "storrelse": 5766897,
+      "sider": 54,
+      "status": null
+    },
+    {
+      "id": "cmndsq7b90005oen1zsk64nse",
+      "storrelse": 5685748,
+      "sider": 170,
+      "status": null
+    },
+    {
+      "id": "cmndru9au0001oen1unh173q9",
+      "storrelse": 30063131,
+      "sider": 328,
+      "status": null
+    }
+  ]
+}
