@@ -39,18 +39,18 @@ Hver side i SiteDoc skal ha en hjelpetekst tilgjengelig via hjelp-ikonet (?) øv
 
 ## Sidestatus ?-ikon
 
-| Side | URL | Har ? | Prioritet |
-|------|-----|-------|-----------|
-| Brukere | /oppsett/brukere | ✅ | OK — oppdatert til faggruppe-terminologi |
-| Mappeoppsett | /oppsett/produksjon/box | ✅ | Sjekk konsistens |
-| Lokasjoner | /oppsett/lokasjoner | ❌ | Legg til |
-| Dokumentflyt | /oppsett/produksjon/kontakter | ❌ | Legg til |
-| Oppgavemaler | /oppsett/produksjon/oppgavemaler | ❌ | Legg til |
-| Sjekklistemaler | /oppsett/produksjon/sjekklistemaler | ❌ | Legg til |
-| Moduler | /oppsett/produksjon/moduler | ❌ | Legg til |
-| PSI | /oppsett/produksjon/psi | ❌ | Legg til |
-| AI-søk | /oppsett/ai-sok | ❌ | Legg til |
-| Admin/Firmaer | /admin/firmaer | ❌ | Legg til |
-| Kontrollplan | /dashbord/[prosjektId]/kontrollplan | ✅ | OK — matrise/liste, polygon-tegning, sluttrapport, kaskade-flytt |
-| Oppmøtesteder | /dashbord/firma/oppmotesteder | ✅ | Fase 1 2026-06-08 — hva/GPS/personvern (lokal-only, ikke lønnsgrunnlag) |
-| Timer oppsett-veiviser | /dashbord/firma/timer/oppsett | ✅ | TASK 2 modul-onboarding-wizard — datadrevet gjenopptak |
+Hvilke sider som har `?`-hjelp er utledbart fra koden — en håndført tabell råtner
+(sto med 7 sider feilmerket ❌ mens de faktisk hadde `HjelpKnapp`). Kjør i stedet:
+
+```bash
+# Sider MED ?-hjelp:
+grep -rl "HjelpKnapp" apps/web/src/app --include=page.tsx | sort
+
+# Sider UTEN (kandidater for å legge til):
+comm -23 \
+  <(find apps/web/src/app -name page.tsx | sort) \
+  <(grep -rl "HjelpKnapp" apps/web/src/app --include=page.tsx | sort)
+```
+
+`HjelpKnapp` (eksportert fra `apps/web/src/components/hjelp/HjelpModal.tsx`) er
+kilden — er den importert og rendret på siden, har siden `?`-hjelp.

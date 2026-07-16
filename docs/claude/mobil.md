@@ -116,7 +116,7 @@ Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanel
 **API-tilkobling og miljøseparasjon:**
 - Sporet i git (2026-07-10): **`.env.test`** → `https://api-test.sitedoc.no` og **`.env.production`** → `https://api.sitedoc.no`. Det finnes **ingen** committet `.env` på disk. Koden leser `process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3001"` (`apps/mobile/src/config/auth.ts`). Expo (dev-modus, `expo start`) laster `.env`/`.env.development`/`.env.local` — **ikke** `.env.test`/`.env.production` (de krever `NODE_ENV=test`/`production`). En simulator-kjøring trenger derfor en lokal `.env` (kopiér `.env.test` → `.env`, eller SSH-tunnel-varianten under). `eas.json`: **`development`- og `preview`-profilene peker på prod** (`api.sitedoc.no`) — kun én profil på api-test; overstyr env til test for utviklings-kjøring.
 - `.env.production` → `https://api.sitedoc.no` (produksjon, brukes av EAS `production`-bygg)
-- `hentWebUrl()` i `apps/mobile/src/lib/url.ts` erstatter alle `replace("api.", "")` / `replace("api-test.", "")` kall — gir korrekt web-URL uavhengig av miljø
+- `hentWebUrl()` i `apps/mobile/src/config/auth.ts` erstatter alle `replace("api.", "")` / `replace("api-test.", "")` kall — gir korrekt web-URL uavhengig av miljø
 - Cloudflare Tunnel på PC. Fungerer fra ethvert nettverk.
 
 **SSH-tunnel dev-tilkobling (simulator mot api-test — brukt i Fase 4 2026-07-10):** Simulatoren nådde ikke `api-test.sitedoc.no` direkte pga. **IPv6/AAAA-stall** (samme rotårsak som [simulator-ipv6-nordvpn.md](simulator-ipv6-nordvpn.md) — simulatorens IPv6-oppslag henger). Løsning: SSH-port-forward til server-ny og pek mobil-`.env` på loopback:
@@ -193,10 +193,10 @@ Timeregistrering for feltarbeider. Skjermene ligger i `apps/mobile/app/timer/` (
 
 ## Flerspråklig (i18n)
 
-**Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (14 språk, ~920 nøkler).
+**Oppsett:** i18next + react-i18next, gjenbruker JSON-filer fra `packages/shared/src/i18n/` (samme språk og nøkler som web — kanon-liste i `STOETTEDE_SPRAAK`).
 
 **Filer:**
-- `apps/mobile/src/lib/i18n.ts` — Config, statisk import av alle 14 språk, SecureStore-lagring
+- `apps/mobile/src/lib/i18n.ts` — Config, statisk import av alle språk fra `packages/shared/src/i18n/`, SecureStore-lagring
 - `apps/mobile/src/providers/SpraakProvider.tsx` — Synkroniserer brukerens språk
 
 **Provider-plassering:** `AuthProvider → SpraakProvider → ProsjektProvider`

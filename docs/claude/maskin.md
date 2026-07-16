@@ -32,7 +32,7 @@ Alt annet (GPS, telematikk, QR, daglig kontroll, timer/økonomi-kobling) er uten
 
 ### Arkitektur
 
-- **Firmamodul som undermappe i web-appen**: `apps/web/src/app/maskin/` (rute `/maskin`), tRPC-ruter i `apps/api/src/routes/maskin/`, egen `packages/db-maskin/` med separat Prisma-klient. Ingen ny DNS, port eller deploy-entry
+- **Firmamodul som undermappe i web-appen**: `apps/web/src/app/dashbord/maskin/` (rute `/dashbord/maskin`), tRPC-ruter i `apps/api/src/routes/maskin/`, egen `packages/db-maskin/` med separat Prisma-klient. Ingen ny DNS, port eller deploy-entry
 - **Isolasjon i datalaget, ikke på app-nivå**: `packages/db-maskin` har ingen FK-relasjoner til `packages/db`. Brukes via egen `prismaMaskin`-klient mot samme PostgreSQL-instans
 - **Tre kategorier** i én `equipment`-tabell: `kjoretoy`, `anleggsmaskin`, `smautstyr`. Kategori-feltet styrer hvilke kolonner/UI-felter som er relevante
 - **Sporingsnivå**: per enkeltenhet (én rad per fysisk stk med eget internummer) — også for 3 identiske borhammere
@@ -239,7 +239,7 @@ Sjekken bor i `apps/api/src/trpc/tilgangskontroll.ts` og kalles fra `maskin.equi
 **Konsekvens:** Når `EquipmentChecklistTemplate` bygges (Fase 1):
 - `struktur Json` følger samme schema som `ReportTemplate.struktur`
 - Felt-typer (traffic_light, decimal, text_field, info_text osv.) er samme enum
-- Renderer-komponenter i `apps/web/src/components/sjekkliste/` kan gjenbrukes uten gaffel
+- Renderer-komponenten `apps/web/src/components/paneler/SjekklisterPanel.tsx` kan gjenbrukes uten gaffel
 
 **Avgrensning:** Datamodell-isolasjonen mellom `db` og `db-maskin` opprettholdes — kun jsonb-format-kompatibilitet, ikke FK-deling.
 
@@ -315,7 +315,7 @@ Alle tre deler: **merke, modell, serienummer/internummer, plassering, ansvarlig,
 
 | Komponent | Plassering | Beskrivelse |
 |-----------|------------|-------------|
-| **Web** | `apps/web/src/app/maskin/` | Undermappe i hovedappen, rute `/maskin`. Ingen egen DNS, port eller PM2-prosess |
+| **Web** | `apps/web/src/app/dashbord/maskin/` | Undermappe i hovedappen, rute `/dashbord/maskin`. Ingen egen DNS, port eller PM2-prosess |
 | **API-ruter** | `apps/api/src/routes/maskin/` | Egen tRPC-subrouter `trpc.maskin.*` |
 | **Database** | `packages/db-maskin` | Eget Prisma-skjema, egen klient. Aldri inn i `packages/db` |
 
