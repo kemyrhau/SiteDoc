@@ -75,6 +75,32 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 
 **Er tavla tom, lever ingen økter.** Det er hele poenget: kontrollflaten er lesbar for Kenneth uten å spørre noen.
 
+### Ordre-anatomi — mal, ikke hensikt (vedtatt 2026-07-16)
+
+**Bakgrunn:** ordre-formatet som fanget **fire av coworks ti feil** 2026-07-15/16 fantes kun i coworks hode. Det er Norkart-mønsteret: kanalen finnes, den ble ikke brukt, og kunnskapen dør med økta. En gate kan sjekke en **mal**; den kan ikke sjekke «skriv gode ordrer».
+
+**Coworks ordre-mal — seks blokker, kopierbar:**
+
+```
+[1. HVA SOM ER GJORT]      Hasher + hva de gjorde. Hindrer at økta gjentar landet arbeid.
+[2. HVA SOM GJENSTÅR]      Den faktiske oppgaven + åpne tråder uten eier.
+[3. OPPGAVE / SPØRSMÅL]    Ved exit: de fire spørsmålene ORDRETT (se under), ikke omskrevet.
+[4. UFRAVIKELIG]           Arbeidstre + branch + filer den eier (ingen deling!) + de fire linjene under.
+[5. FORVENTET OUTPUT]      Per funn: hva, hvordan målt, alvorlighet. Mistanker merket separat.
+[6. OPPRYDDING]            Hvem sletter branchen. Vanligvis cowork — økta gjør ingenting.
+```
+
+**De fire virksomme linjene — skal stå ORDRETT i ufravikelig-blokka:**
+
+| Linje | Hva den fanget 2026-07-15/16 |
+|---|---|
+| «Din rapport/ordre er **input, ikke fasit** — mål premisset selv.» | Spor 4 motbeviste D's «mengde er neppe alene» ved måling. Spor A fanget at coworks telling motsa registerets egen regel. |
+| «**Sjekk om et banner alt dekker det** før du kaller noe drift.» | Hindret at tre korrekt merkede filer ble «rettet» (`deploy-detaljer:9`, `VEILEDER:125`). |
+| «**Kjør negativ kontroll** — tom output kan bety at sjekken er død, ikke at den er grønn.» | Spor 1 og 4 gjorde det uoppfordret. Cowork gikk selv i fella samme kveld. |
+| «Er du usikker: **SI DET, ikke gjett.**» | Spor 3 lot UE stå → avdekket at arkitektur-ankeret motsa `schema.prisma:490`. |
+
+**Fabels ordre-mal (redesign-spor)** har samme anatomi og var like udokumentert: *bakgrunn · kodeverifisert · endringer · krav · DoD · eksplisitt utenfor scope*. Fungerende eksempel: **designprosjekt «Sitedoc redesign tips»: `delplaner/georef-panel-v2-ordre.md`** (peker navngir treet per §9 — fila bor ikke i repoet; cowork har ikke lest den, referansen er fabels). Rører fabel formen, oppdateres denne raden.
+
 ### Exit-runde — fire spørsmål (ufravikelig)
 
 En Opus' rapport svarer på det den **lette etter**. Exit-runden henter det som ikke hadde en kategori. 2026-07-15/16 fanget den fire funn ingenting annet fant — inkludert 🔴 4c (lønns-nært) og Norkart-nøkkelens ukjente eierskap, som hadde ligget uoppdaget i fire måneder.
