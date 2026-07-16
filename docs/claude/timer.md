@@ -77,7 +77,7 @@ Verifisert mot kodebase 2026-05-01. Hver påstand i resten av dette dokumentet r
 | Sidebar-element «Timer» i firma-layout (gates på `harTimerModul`) | ✅ Implementert 2026-05-01 (Runde 1A) |
 | `seedArbeidstidskalender(organizationId, year)` | ❌ Ikke implementert — Runde 2/3 | Samme |
 | Eksport-adaptere (Proadm, Tripletex, Visma, Poweroffice) | ❌ Ikke implementert | «Eksport til lønnssystem» |
-| Mobil offline-sync-mekanikk for dagsseddel | ❌ Ikke implementert — Runde 2 (mobil) | «Offline-first arkitektur» |
+| Mobil offline-sync-mekanikk for dagsseddel | ✅ Implementert (Runde 2) — `apps/mobile/src/services/timerSync.ts` (32 KB: push/pull mot `timer.dagsseddel.syncBatch`, 4-tilstands `syncStatus` pending/synced/conflict/avvist, conflict + gift-isolering) + `dagsseddel_local`-schema (`apps/mobile/src/db/schema.ts:83`). Server: `syncBatch` (`apps/api/src/routes/timer/dagsseddel.ts:3655`). Betinget skriving mot samtidig attestering (2b TOCTOU-fiks 2026-07-16). | «Offline-first arkitektur» |
 | Forenklet godkjenningsflyt mot ansatt | ❌ Ikke implementert — Runde 1C | «Forenklet godkjenningsflyt (mot ansatt)» |
 
 ### Eksisterende prototype (skal slettes)

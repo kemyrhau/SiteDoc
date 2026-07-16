@@ -27,6 +27,14 @@ const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
 type DagsseddelStatus = (typeof STATUS_VERDIER)[number];
 
 /**
+ * Sentinel: syncBatch prøvde å skrive en sedel som ble `accepted` (attestert av
+ * leder) i vinduet mellom den utenfor-tx-lesningen (accepted-vakten) og den
+ * betingede skrivingen inne i tx. Kastes fra tx-callbacken (ruller den tilbake)
+ * og fanges i loop-catchen → `conflict`-resultat med server-tilstanden.
+ */
+class SedelAttestertConflict extends Error {}
+
+/**
  * §2.D (ufravikelig, Fase 2 / T.10): valider at vehicleId (kostnadsbærer for
  * maskinvedlikehold på SheetTimer) tilhører firmaet. Equipment er svak FK
  * (db-maskin, ingen @relation), så org-isolasjon MÅ håndheves i app-lag — ellers
@@ -4053,45 +4061,75 @@ export const dagsseddelRouter = router({
           // Mobil sender fortsatt lokal.projectId på sedel-nivå inntil mobil-PR
           // er ute — vi propagerer den til alle rader her.
           const oppdatert = await ctx.prismaTimer.$transaction(async (tx) => {
-            const sedel = await tx.dailySheet.upsert({
+            // 2b (2026-07-16, TOCTOU-fiks): accepted-vakten (over) leser
+            // `eksisterende` 277 linjer / 8+ await FØR denne tx. En leder som
+            // attesterer i det vinduet ble ellers stille overskrevet
+            // (accepted→sent + av-attesterte rader) fordi upsert matchet KUN på
+            // clientUuid uten status-betingelse. Her: create for ny sedel, ellers
+            // betinget updateMany(status notIn accepted). updateMany er atomisk
+            // selv om attesteringen committer mellom lesning og skriving — WHERE
+            // matcher da ikke → count 0 → conflict (rull tilbake, meld server).
+            const eksisterendeITx = await tx.dailySheet.findUnique({
               where: { clientUuid: lokal.clientUuid },
-              create: {
-                // Synk-identitet (2026-07-11): id == clientUuid ved create —
-                // se opprett-blokken over. Gjør server-id lik mobil-lokal-id
-                // (= clientUuid) så push/pull nøkler på samme identitet.
-                id: lokal.clientUuid,
-                clientUuid: lokal.clientUuid,
-                organizationId: orgId,
-                userId: ctx.userId,
-                registrertAvUserId: ctx.userId,
-                aktivitetId: lokal.aktivitetId,
-                avdelingId: lokal.avdelingId ?? null,
-                byggeplassId: lokal.byggeplassId ?? null,
-                dato,
-                startAt: lokal.startAt ? new Date(lokal.startAt) : null,
-                endAt: lokal.endAt ? new Date(lokal.endAt) : null,
-                pauseMin: lokal.pauseMin,
-                sluttTidKilde: lokal.sluttTidKilde,
-                status: innkommendeStatus,
-                beskrivelse: lokal.beskrivelse ?? null,
-                syncStatus: "synced",
-                syncedAt: new Date(),
-              },
-              update: {
-                aktivitetId: lokal.aktivitetId,
-                avdelingId: lokal.avdelingId ?? null,
-                byggeplassId: lokal.byggeplassId ?? null,
-                dato,
-                startAt: lokal.startAt ? new Date(lokal.startAt) : null,
-                endAt: lokal.endAt ? new Date(lokal.endAt) : null,
-                pauseMin: lokal.pauseMin,
-                sluttTidKilde: lokal.sluttTidKilde,
-                status: innkommendeStatus,
-                beskrivelse: lokal.beskrivelse ?? null,
-                syncStatus: "synced",
-                syncedAt: new Date(),
-              },
+              select: { id: true },
             });
+
+            let sedel;
+            if (!eksisterendeITx) {
+              sedel = await tx.dailySheet.create({
+                data: {
+                  // Synk-identitet (2026-07-11): id == clientUuid ved create —
+                  // se opprett-blokken over. Gjør server-id lik mobil-lokal-id
+                  // (= clientUuid) så push/pull nøkler på samme identitet.
+                  id: lokal.clientUuid,
+                  clientUuid: lokal.clientUuid,
+                  organizationId: orgId,
+                  userId: ctx.userId,
+                  registrertAvUserId: ctx.userId,
+                  aktivitetId: lokal.aktivitetId,
+                  avdelingId: lokal.avdelingId ?? null,
+                  byggeplassId: lokal.byggeplassId ?? null,
+                  dato,
+                  startAt: lokal.startAt ? new Date(lokal.startAt) : null,
+                  endAt: lokal.endAt ? new Date(lokal.endAt) : null,
+                  pauseMin: lokal.pauseMin,
+                  sluttTidKilde: lokal.sluttTidKilde,
+                  status: innkommendeStatus,
+                  beskrivelse: lokal.beskrivelse ?? null,
+                  syncStatus: "synced",
+                  syncedAt: new Date(),
+                },
+              });
+            } else {
+              const oppdatertAntall = await tx.dailySheet.updateMany({
+                where: {
+                  clientUuid: lokal.clientUuid,
+                  status: { notIn: ["accepted"] },
+                },
+                data: {
+                  aktivitetId: lokal.aktivitetId,
+                  avdelingId: lokal.avdelingId ?? null,
+                  byggeplassId: lokal.byggeplassId ?? null,
+                  dato,
+                  startAt: lokal.startAt ? new Date(lokal.startAt) : null,
+                  endAt: lokal.endAt ? new Date(lokal.endAt) : null,
+                  pauseMin: lokal.pauseMin,
+                  sluttTidKilde: lokal.sluttTidKilde,
+                  status: innkommendeStatus,
+                  beskrivelse: lokal.beskrivelse ?? null,
+                  syncStatus: "synced",
+                  syncedAt: new Date(),
+                },
+              });
+              if (oppdatertAntall.count === 0) {
+                // Sedelen ble attestert i vinduet → konflikt. Kastes → tx rulles
+                // tilbake, ingenting skrevet; fanges i loop-catchen under.
+                throw new SedelAttestertConflict();
+              }
+              sedel = await tx.dailySheet.findUniqueOrThrow({
+                where: { clientUuid: lokal.clientUuid },
+              });
+            }
 
             // S3 (2026-07-11): IKKE slett-og-gjenopprett hele sedelen. Slett kun
             // radene mobil faktisk sender (som den gjenoppretter autoritativt
@@ -4231,6 +4269,39 @@ export const dagsseddelRouter = router({
             },
           });
         } catch (e) {
+          if (e instanceof SedelAttestertConflict) {
+            // 2b: sedelen ble attestert av leder i skrive-vinduet. Returner
+            // server-tilstanden som `conflict` (samme form som accepted-vakten
+            // over). Klienten overskriver lokal med serverData og setter
+            // syncStatus="conflict" (timerSync.ts) — den skal PULLE server-
+            // tilstand, ikke retry blindt (en retry ville få samme conflict).
+            const attestert = await ctx.prismaTimer.dailySheet.findUnique({
+              where: { clientUuid: lokal.clientUuid },
+            });
+            if (attestert) {
+              resultater.push({
+                clientUuid: lokal.clientUuid,
+                resultat: "conflict",
+                serverData: {
+                  id: attestert.id,
+                  status: attestert.status as DagsseddelStatus,
+                  lederKommentar: attestert.lederKommentar,
+                  attestertVed: attestert.attestertVed?.toISOString() ?? null,
+                  updatedAt: attestert.updatedAt.toISOString(),
+                },
+                feilmelding: "Sedlen ble attestert av leder og kan ikke endres",
+              });
+              continue;
+            }
+            // Falt bort mellom tx-rollback og re-lesning (svært sjelden) → la
+            // klient retry (transient).
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "feilet",
+              feilmelding: "Sedelen endret tilstand under synk",
+            });
+            continue;
+          }
           if (e instanceof TRPCError) {
             // Tilgangsfeil (FORBIDDEN fra verifiserProsjektmedlem) er permanent
             // — klienten kan ikke fikse dette med retry → `avvist` (SYNC-1).
