@@ -47,7 +47,17 @@ sist_endret: 2026-07-09
 12. **Pre-push u-gatet-commit-sjekk.** Før push til `develop` fra et delt worktre: kjør `git log origin/develop..HEAD --oneline` og bekreft at ALLE commits i deltaet er dine egne OG gate-verifiserte. Finnes en commit fra en annen økt/agent som ikke er gate-godkjent → **IKKE push**; koordiner med Kenneth/eier-økta først. En push drar ALLE lokale commits under HEAD ut, ikke bare dine. Bakgrunn: 2026-07-06 dro redesign-Opus' merge-push (`5e16987b`) develop-Opus' u-gatede slanke-commit (`e8347671`) ut til origin fordi begge delte `SiteDoc-develop`-worktreet — utfallet var rent, men en u-verifisert commit kan shippe utilsiktet slik. Primærprinsipp uendret (regel 1: helst én økt per worktre) — dette er sikkerhetsnettet når det brytes.
 13. **Pre-push-abort ved fremmed commit (gjelder ENHVER økt som pusher `develop`).** Regel 12 er den *positive* sjekken (bekreft at deltaet er ditt); **dette er abort-kravet ved brudd.** Før hver push: `git log origin/develop..HEAD --oneline` skal inneholde KUN dine egne, gate-verifiserte commits. Finnes én fremmed commit (annen økt/agent, ikke re-gate-godkjent) → **ABORT, IKKE push**, eskalér til Kenneth — push ALDRI «som autorisert» når deltaet er urent. En push drar HELE deltaet under HEAD ut til origin, ikke bare dine commits. Bakgrunn: 2026-07-07 dro tre `redesign→develop`-merger i det delte `SiteDoc-develop`-treet develop-Opus' u-gatede onboarding-commits (`97a2912f`/`34ae939f`) ut til origin FØR re-gate; task-2-piggybacken bar dessuten et Suspense-bygg-brudd ut (fanget + fikset i `1730263b`). Alle tre ville stoppet av merge-tre-guarden (regel 1) + denne abort-regelen.
 
-## Frossen sone (redesign-økta eier — ikke rør fra andre økter)
+## ~~Frossen sone~~ — LØFTET 2026-07-17 (samme form som i18n-frysen)
+
+> **Nav-frysen er løftet.** Målt 2026-07-17: `origin/redesign/navigasjon` er **0 commits foran develop** (fullt merget, siste aktivitet 15. juli = en docs-commit). Det som gjenstår av redesignet er **steg viii** (kunderunde mot prod-kopi) og **pilot** (flagg → `company_admin`) — ingen av dem redigerer disse filene.
+>
+> **Sonen var de facto død før den ble løftet:** develop har **9 commits inn i den siden 2026-07-09** — `oppsett/` ×5, `firma/` ×2, `Toppbar.tsx` ×1, `(tabs)/` ×1. Null kollisjoner, fordi økta sonen beskyttet mot ikke lenger redigerer kode. Frysen ble glemt i samme omgang som i18n-frysen ble løftet (regel 3/9) — samme begrunnelse gjaldt begge.
+>
+> **Reaktiveres kun hvis en ny langlevd branch igjen redigerer nav-strukturen parallelt** — da føres sonen inn her på nytt, med eier navngitt og en tavle-rad.
+
+**Sonen som var frossen (historikk):** `Toppbar.tsx` · `HovedSidebar.tsx` · `SekundaertPanel.tsx` · `dashbord/oppsett/**` · `dashbord/firma/**` · `apps/mobile/app/(tabs)/**`
+
+<details><summary>Original tekst (redesign-perioden)</summary>
 
 - `apps/web/src/components/layout/Toppbar.tsx`
 - `apps/web/src/components/layout/HovedSidebar.tsx`
@@ -58,6 +68,8 @@ sist_endret: 2026-07-09
 - ~~i18n-filene (`packages/shared/src/i18n/*.json`) — `generate.ts` kjøres KUN på redesign-branchen mens redesignet pågår.~~ **Frysen løftet 2026-07-09** (redesign fullt merget) — i18n er ikke lenger frossen sone; `generate.ts` kjøres på develop (jf. regel 3/9).
 
 Trenger en annen økt en endring i frossen sone: koordinér via Kenneth + denne fila FØR redigering (jf. regel 3–4).
+
+</details>
 
 ## Lærdommer (2026-07-05, 2026-07-07, 2026-07-08) — hvorfor reglene finnes
 
