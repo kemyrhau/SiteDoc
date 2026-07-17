@@ -1,15 +1,26 @@
 "use client";
 
-// TODO: Implementer samme kompakte handlingsmeny-mønster i mobilappen (React Native)
-// Mobilappen bruker hentStatusHandlinger() direkte — bør migreres til
-// posisjon-basert logikk med utledMinRolle() for konsistent rollebasert UI.
+// Kilde-drevet handlingsmeny (A-3a, 2026-07-17).
+// Handlingssettet utledes fra `statusHandlinger.ts` (samme kilde som mobil),
+// IKKE fra en lokal if-kjede. Primærhandlingen (`erPrimaer`) rendres som knapp;
+// resten i nedtrekk. Handlinger brukeren ikke kan gjøre nå vises deaktivert med
+// begrunnelse utledet fra kilden. Bekreftelse kreves kun for irreversible
+// overganger (`closed`/`deleted`); alt annet er 1 klikk. Kommentar er en
+// valgfri utvider, aldri et påkrevd steg.
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { ChevronDown } from "lucide-react";
-import type { DokumentflytRolle } from "@sitedoc/shared";
-import { byggVideresendValg } from "./StatusHandlinger";
-import type { DokumentflytData, FaggruppeData, VideresendValg } from "./StatusHandlinger";
+import { ChevronDown, Plus } from "lucide-react";
+import {
+  hentStatusHandlinger,
+  hentRolleFiltrertHandlinger,
+  hentHandlingEierRoller,
+  isValidStatusTransition,
+  type StatusHandling,
+  type DokumentflytRolle,
+} from "@sitedoc/shared";
+import { byggVideresendValg } from "@/lib/videresend-valg";
+import type { DokumentflytData, FaggruppeData } from "@/lib/videresend-valg";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -24,10 +35,16 @@ interface FlytMedlem {
   group: { id: string; name: string } | null;
 }
 
+interface Mottaker {
+  userId?: string;
+  groupId?: string;
+  dokumentflytId?: string;
+}
+
 interface DokumentHandlingsmenyProps {
   status: string;
   erLaster: boolean;
-  onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: { userId?: string; groupId?: string; dokumentflytId?: string }) => void;
+  onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: Mottaker) => void;
   onSlett?: () => void;
   alleFaggrupper?: FaggruppeData[];
   dokumentflyter?: DokumentflytData[];
@@ -89,31 +106,6 @@ function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
     });
 }
 
-/** Finn index for brukerens posisjon i flyten basert på flytinfo */
-function finnBrukerBoksIndex(
-  ledd: Ledd[],
-  brukerFaggruppeIder: string[],
-  brukerGruppeIder: string[],
-  brukerUserId?: string,
-): number {
-  // Prøv direkte person-match
-  if (brukerUserId) {
-    const idx = ledd.findIndex((l) => l.brukerIder.has(brukerUserId));
-    if (idx !== -1) return idx;
-  }
-  // Prøv gruppe-match
-  for (const gid of brukerGruppeIder) {
-    const idx = ledd.findIndex((l) => l.gruppeIder.has(gid));
-    if (idx !== -1) return idx;
-  }
-  // Prøv faggruppe-match
-  for (const eid of brukerFaggruppeIder) {
-    const idx = ledd.findIndex((l) => l.faggruppeIder.has(eid));
-    if (idx !== -1) return idx;
-  }
-  return -1;
-}
-
 /** Finn aktiv boks (hvor dokumentet er nå) */
 function finnAktivtIndex(
   ledd: Ledd[],
@@ -143,18 +135,33 @@ function finnAktivtIndex(
 }
 
 /* ------------------------------------------------------------------ */
-/*  Dropdown-element                                                    */
+/*  Meny-oppføring                                                     */
 /* ------------------------------------------------------------------ */
 
-interface MenyElement {
+type Plassering = "sekundær" | "send" | "overflow" | "deaktivert";
+
+interface MenyOppforing {
   key: string;
   label: string;
   nyStatus: string;
-  mottaker?: { userId?: string; groupId?: string; dokumentflytId?: string };
-  erSeparator?: boolean;
-  erAdmin?: boolean;
+  mottaker?: Mottaker;
+  plassering: Plassering;
+  begrunnelse?: string;
   erDestruktiv?: boolean;
 }
+
+/** Statusverdier som hører til admin/⋯-seksjonen når de IKKE er primærhandling */
+const ADMIN_NY = new Set(["closed", "cancelled", "draft"]);
+
+/** Primær-knappens fargeklasse basert på kildens `farge` */
+const FARGE_KLASSE: Record<string, string> = {
+  "bg-blue-600": "bg-sitedoc-primary hover:bg-blue-700",
+  "bg-red-600": "bg-red-600 hover:bg-red-700",
+  "bg-purple-600": "bg-purple-600 hover:bg-purple-700",
+  "bg-green-600": "bg-green-600 hover:bg-green-700",
+  "bg-amber-500": "bg-amber-500 hover:bg-amber-600",
+  "bg-gray-500": "bg-gray-500 hover:bg-gray-600",
+};
 
 /* ------------------------------------------------------------------ */
 /*  Hovedkomponent                                                      */
@@ -178,309 +185,220 @@ export function DokumentHandlingsmeny({
 }: DokumentHandlingsmenyProps) {
   const { t } = useTranslation();
   const [åpenMeny, setÅpenMeny] = useState(false);
-  const [bekreftHandling, setBekreftHandling] = useState<{ nyStatus: string; mottaker?: { userId?: string; groupId?: string; dokumentflytId?: string }; label?: string } | null>(null);
+  const [bekreft, setBekreft] = useState<{ nyStatus: string; mottaker?: Mottaker; label: string } | null>(null);
+  const [visKommentar, setVisKommentar] = useState(false);
   const [kommentar, setKommentar] = useState("");
   const menyRef = useRef<HTMLDivElement>(null);
 
-  // Lukk meny ved klikk utenfor
+  // Lukk nedtrekk ved klikk utenfor
   useEffect(() => {
     if (!åpenMeny) return;
     const lukk = (e: MouseEvent) => {
-      if (menyRef.current && !menyRef.current.contains(e.target as Node)) {
-        setÅpenMeny(false);
-      }
+      if (menyRef.current && !menyRef.current.contains(e.target as Node)) setÅpenMeny(false);
     };
     document.addEventListener("mousedown", lukk);
     return () => document.removeEventListener("mousedown", lukk);
   }, [åpenMeny]);
 
-  // Videresend-valg fra byggVideresendValg
   const videresendValg = useMemo(
     () => byggVideresendValg(alleFaggrupper ?? [], dokumentflyter ?? [], templateId),
     [alleFaggrupper, dokumentflyter, templateId],
   );
 
-  // Bygg flytledd
   const ledd = useMemo(() => byggLedd(flytMedlemmer ?? []), [flytMedlemmer]);
   const aktivtIndex = useMemo(
     () => finnAktivtIndex(ledd, status, recipientUserId, recipientGroupId, bestillerUserId),
     [ledd, status, recipientUserId, recipientGroupId, bestillerUserId],
   );
-  const erAdmin = minRolle === "registrator";
-  const erSisteBoks = ledd.length > 0 && aktivtIndex === ledd.length - 1;
-  const erFørsteBoks = aktivtIndex === 0;
   const harFlyt = ledd.length > 0;
+  const erSisteBoks = harFlyt && aktivtIndex === ledd.length - 1;
 
-  // Lesevisning
-  if (minRolle === null && harFlyt) {
-    return (
-      <span className="text-xs text-gray-400 italic">
-        {t("bunnbar.lesevisning")}
-      </span>
-    );
-  }
+  // Kilde: aktive handlinger + hele universet (for deaktiverte).
+  // Uten dokumentflyt finnes ingen rollestruktur — serveren bypasser `verifiserFlytRolle`
+  // for dokumenter uten `dokumentflytId`, så klienten tilbyr da hele (statusmaskin-lovlige) settet.
+  const alle = useMemo(() => hentStatusHandlinger(status), [status]);
+  const aktive = useMemo(
+    () => (harFlyt ? hentRolleFiltrertHandlinger(status, minRolle ?? null) : alle),
+    [harFlyt, status, minRolle, alle],
+  );
 
-  /* ------------------------------------------------------------------ */
-  /*  Bygg meny-elementer basert på status og posisjon                   */
-  /* ------------------------------------------------------------------ */
-
-  const byggSendDropdown = (): MenyElement[] => {
-    const elementer: MenyElement[] = [];
-
-    if (status === "draft") {
-      // Kladd: vis alle faggrupper som mottaker
-      for (const v of videresendValg) {
-        elementer.push({
-          key: v.key,
-          label: v.visningsnavn,
-          nyStatus: "sent",
-          mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined,
-        });
-      }
-      return elementer;
-    }
-
-    if (["received", "in_progress", "rejected"].includes(status)) {
-      if (erSisteBoks) {
-        // Siste boks — "Svar avsender" + andre faggrupper
-        elementer.push({
-          key: "svar-avsender",
-          label: t("statushandling.svarAvsender"),
-          nyStatus: "responded",
-        });
-        if (videresendValg.length > 0) {
-          elementer.push({ key: "sep-videresend", label: "", nyStatus: "", erSeparator: true });
-          for (const v of videresendValg) {
-            elementer.push({
-              key: `fwd-${v.key}`,
-              label: v.visningsnavn,
-              nyStatus: "forwarded",
-              mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined,
-            });
-          }
-        }
-      } else {
-        // Første/midtre boks — besvar (send til bestiller) + "Send tilbake" + videresend
-        // Primærmottaker: standardFaggruppe (utfører/bestiller)
-        const primærValg = standardFaggruppeId
-          ? videresendValg.find((v) => v.faggruppeId === standardFaggruppeId)
-          : undefined;
-
-        if (primærValg) {
-          elementer.push({
-            key: "besvar",
-            label: primærValg.visningsnavn,
-            nyStatus: "responded",
-            mottaker: primærValg.mottaker ? { ...primærValg.mottaker, dokumentflytId: primærValg.dokumentflytId } : undefined,
-          });
-        }
-
-        // Send tilbake — kun hvis ikke første boks
-        if (!erFørsteBoks && status === "in_progress") {
-          elementer.push({ key: "sep-tilbake", label: "", nyStatus: "", erSeparator: true });
-          elementer.push({
-            key: "send-tilbake",
-            label: t("statushandling.sendTilbake"),
-            nyStatus: "sent",
-          });
-        }
-
-        // Videresend til andre faggrupper
-        const andreValg = videresendValg.filter((v) => !primærValg || v.key !== primærValg.key);
-        if (andreValg.length > 0) {
-          elementer.push({ key: "sep-videresend", label: "", nyStatus: "", erSeparator: true });
-          for (const v of andreValg) {
-            elementer.push({
-              key: `fwd-${v.key}`,
-              label: v.visningsnavn,
-              nyStatus: "forwarded",
-              mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined,
-            });
-          }
-        }
-      }
-    }
-
-    if (status === "responded") {
-      // Godkjenner-posisjon — "Svar avsender" + videresend
-      elementer.push({
-        key: "svar-avsender",
-        label: t("statushandling.svarAvsender"),
-        nyStatus: "rejected",
-      });
-      if (videresendValg.length > 0) {
-        elementer.push({ key: "sep-videresend", label: "", nyStatus: "", erSeparator: true });
-        for (const v of videresendValg) {
-          elementer.push({
-            key: `fwd-${v.key}`,
-            label: v.visningsnavn,
-            nyStatus: "forwarded",
-            mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined,
-          });
-        }
-      }
-    }
-
-    if (status === "approved" || status === "closed") {
-      for (const v of videresendValg) {
-        elementer.push({
-          key: `fwd-${v.key}`,
-          label: v.visningsnavn,
-          nyStatus: "forwarded",
-          mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined,
-        });
-      }
-    }
-
-    // Admin-seksjon: ekstra valg for registrator/admin
-    if (erAdmin && !["draft", "cancelled"].includes(status)) {
-      const adminValg: MenyElement[] = [];
-
-      // Kan sende til alle flytbokser
-      for (const l of ledd) {
-        // Hopp over bokser som allerede er i standard-listen
-        const alleredeVist = elementer.some((e) =>
-          !e.erSeparator && !e.erAdmin && e.mottaker && [...l.faggruppeIder].some((eid) => {
-            const v = videresendValg.find((vv) => vv.faggruppeId === eid);
-            return v && e.key.includes(v.key);
-          }),
-        );
-        if (alleredeVist) continue;
-
-        // Finn mottaker for denne boksen
-        const faggruppeId = [...l.faggruppeIder][0];
-        const matchValg = videresendValg.find((v) => v.faggruppeId === faggruppeId);
-        if (matchValg) {
-          adminValg.push({
-            key: `admin-${matchValg.key}`,
-            label: matchValg.visningsnavn,
-            nyStatus: "forwarded",
-            mottaker: matchValg.mottaker ? { ...matchValg.mottaker, dokumentflytId: matchValg.dokumentflytId } : undefined,
-            erAdmin: true,
-          });
-        }
-      }
-
-      // Manuelle statusendringer
-      const statusOverganger: Array<{ status: string; label: string }> = [];
-      if (!["approved"].includes(status)) statusOverganger.push({ status: "approved", label: t("handling.godkjenn") });
-      if (!["closed"].includes(status)) statusOverganger.push({ status: "closed", label: t("handling.lukk") });
-      if (!["cancelled"].includes(status)) statusOverganger.push({ status: "cancelled", label: t("statushandling.trekkTilbake") });
-      if (!["draft"].includes(status)) statusOverganger.push({ status: "draft", label: t("statushandling.gjenapne") });
-
-      if (adminValg.length > 0 || statusOverganger.length > 0) {
-        elementer.push({ key: "sep-admin", label: "", nyStatus: "", erSeparator: true });
-        elementer.push({ key: "admin-header", label: t("statushandling.admin"), nyStatus: "", erSeparator: true, erAdmin: true });
-
-        for (const a of adminValg) elementer.push(a);
-
-        if (statusOverganger.length > 0 && adminValg.length > 0) {
-          elementer.push({ key: "sep-admin-status", label: "", nyStatus: "", erSeparator: true });
-        }
-        for (const s of statusOverganger) {
-          elementer.push({
-            key: `admin-status-${s.status}`,
-            label: s.label,
-            nyStatus: s.status,
-            erAdmin: true,
-            erDestruktiv: s.status === "cancelled",
-          });
-        }
-      }
-    }
-
-    return elementer;
+  // Standard-mottaker (utfører-faggruppen) for «besvar»-overgangen
+  const mottakerForStandard = (): Mottaker | undefined => {
+    const std = standardFaggruppeId
+      ? videresendValg.find((v) => v.faggruppeId === standardFaggruppeId)
+      : undefined;
+    return std?.mottaker ? { ...std.mottaker, dokumentflytId: std.dokumentflytId } : undefined;
   };
 
-  const sendElementer = useMemo(byggSendDropdown, [
-    status, erSisteBoks, erFørsteBoks, erAdmin, videresendValg,
-    standardFaggruppeId, ledd, t,
-  ]);
+  /* --- Begrunnelse for en deaktivert handling (utledet fra kilden) --- */
+  const begrunnelseFor = (h: StatusHandling): string => {
+    if (status === "closed") return t("statushandling.laast.lukket");
+    const erMeta = h.nyStatus === "forwarded" || h.nyStatus === "deleted";
+    if (!erMeta && !isValidStatusTransition(status, h.nyStatus)) return t("statushandling.laast.ugyldig");
+    const eiere = hentHandlingEierRoller(status, h.nyStatus);
+    if (eiere.length === 0) return t("statushandling.laast.admin");
+    const r = eiere[0];
+    return t(
+      r === "bestiller"
+        ? "statushandling.laast.avsender"
+        : r === "utforer"
+          ? "statushandling.laast.utforer"
+          : "statushandling.laast.godkjenner",
+    );
+  };
+
+  /* ------------------------------------------------------------------ */
+  /*  Bygg oppføringer fra kilden                                        */
+  /* ------------------------------------------------------------------ */
+
+  const primærHandling = aktive.find((h) => h.erPrimaer) ?? null;
+
+  // Recipient-oppføringer (draft-send eller videresend) fra videresendValg
+  const recipientOppforinger = (nyStatus: string, prefix: string): MenyOppforing[] =>
+    videresendValg.map((v) => ({
+      key: `${prefix}-${v.key}`,
+      label: v.visningsnavn,
+      nyStatus,
+      mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined,
+      plassering: "send" as const,
+    }));
+
+  // Send-seksjon: draft → send til faggruppe; ellers → videresend (forwarded)
+  const draftSend = status === "draft" && primærHandling?.nyStatus === "sent";
+  const harForwarded = aktive.some((h) => h.nyStatus === "forwarded");
+  const sendOppforinger: MenyOppforing[] = draftSend
+    ? recipientOppforinger("sent", "send")
+    : harForwarded
+      ? recipientOppforinger("forwarded", "fwd")
+      : [];
+
+  // Sekundær-knapper: aktive (minus primær), ikke forwarded, ikke admin-status
+  const sekundærKnapper: MenyOppforing[] = aktive
+    .filter((h) => h !== primærHandling && h.nyStatus !== "forwarded" && !ADMIN_NY.has(h.nyStatus))
+    .map((h) => ({
+      key: `sek-${h.nyStatus}`,
+      label: t(h.tekstNoekkel),
+      nyStatus: h.nyStatus,
+      plassering: "sekundær" as const,
+      erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "rejected",
+    }));
+
+  // Overflow (⋯): aktive admin-status som IKKE er primær (lukk/trekk tilbake/gjenåpne når sekundær)
+  const overflowOppforinger: MenyOppforing[] = aktive
+    .filter((h) => h !== primærHandling && ADMIN_NY.has(h.nyStatus) && h.nyStatus !== "forwarded")
+    .map((h) => ({
+      key: `adm-${h.nyStatus}`,
+      label: t(h.tekstNoekkel),
+      nyStatus: h.nyStatus,
+      plassering: "overflow" as const,
+      erDestruktiv: h.nyStatus === "cancelled",
+    }));
+
+  // Deaktiverte: finnes i universet, men ikke tilgjengelig for denne rollen/statusen
+  const aktiveNy = new Set(aktive.map((h) => h.nyStatus));
+  const deaktiverteOppforinger: MenyOppforing[] = alle
+    .filter((h) => !aktiveNy.has(h.nyStatus))
+    .map((h) => ({
+      key: `deakt-${h.nyStatus}`,
+      label: t(h.tekstNoekkel),
+      nyStatus: h.nyStatus,
+      plassering: "deaktivert" as const,
+      begrunnelse: begrunnelseFor(h),
+    }));
+
+  const dropdownHarInnhold =
+    sendOppforinger.length > 0 || overflowOppforinger.length > 0 || deaktiverteOppforinger.length > 0;
 
   /* ------------------------------------------------------------------ */
   /*  Handlinger                                                         */
   /* ------------------------------------------------------------------ */
 
-  const utførHandling = (nyStatus: string, mottaker?: { userId?: string; groupId?: string; dokumentflytId?: string }) => {
+  const trengerBekreft = (nyStatus: string) => nyStatus === "closed" || nyStatus === "deleted";
+
+  const utfor = (nyStatus: string, mottaker?: Mottaker) => {
     if (nyStatus === "deleted") {
-      if (bekreftHandling?.nyStatus === "deleted") {
-        onSlett?.();
-        setBekreftHandling(null);
+      onSlett?.();
+    } else {
+      onEndreStatus(nyStatus, kommentar.trim() || undefined, mottaker);
+    }
+    setBekreft(null);
+    setKommentar("");
+    setVisKommentar(false);
+    setÅpenMeny(false);
+  };
+
+  const klikk = (o: { nyStatus: string; mottaker?: Mottaker; label: string }) => {
+    setÅpenMeny(false);
+    if (trengerBekreft(o.nyStatus)) {
+      setBekreft({ nyStatus: o.nyStatus, mottaker: o.mottaker, label: o.label });
+      return;
+    }
+    utfor(o.nyStatus, o.mottaker);
+  };
+
+  // Primærknapp-klikk: draft-send med flere mottakere → åpne nedtrekk; ellers utfør
+  const klikkPrimær = () => {
+    if (!primærHandling) return;
+    if (draftSend) {
+      const v = videresendValg[0];
+      if (videresendValg.length === 1 && v) {
+        utfor("sent", v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined);
+      } else if (videresendValg.length === 0) {
+        utfor("sent"); // ingen flyt → server utleder
       } else {
-        setBekreftHandling({ nyStatus: "deleted", label: t("handling.slett") });
-        setÅpenMeny(false);
+        setÅpenMeny((å) => !å);
       }
       return;
     }
-
-    if (bekreftHandling?.nyStatus === nyStatus) {
-      onEndreStatus(nyStatus, kommentar.trim() || undefined, bekreftHandling.mottaker ?? mottaker);
-      setBekreftHandling(null);
-      setKommentar("");
-      setÅpenMeny(false);
-    } else {
-      setBekreftHandling({ nyStatus, mottaker, label: "" });
-      setKommentar("");
-      setÅpenMeny(false);
-    }
-  };
-
-  const velgMenyElement = (element: MenyElement) => {
-    setÅpenMeny(false);
-    setBekreftHandling({ nyStatus: element.nyStatus, mottaker: element.mottaker, label: element.label });
-    setKommentar("");
-  };
-
-  const avbrytBekreft = () => {
-    setBekreftHandling(null);
-    setKommentar("");
+    const mottaker = primærHandling.nyStatus === "responded" ? (erSisteBoks ? undefined : mottakerForStandard()) : undefined;
+    klikk({ nyStatus: primærHandling.nyStatus, mottaker, label: t(primærHandling.tekstNoekkel) });
   };
 
   /* ------------------------------------------------------------------ */
   /*  Render                                                             */
   /* ------------------------------------------------------------------ */
 
-  // Terminal-statuser uten handlinger
-  if (["closed"].includes(status) && sendElementer.length === 0 && !erAdmin) {
+  // Lesevisning — bruker uten rolle i en flyt
+  if (minRolle === null && harFlyt) {
+    return <span className="text-xs text-gray-400 italic">{t("bunnbar.lesevisning")}</span>;
+  }
+
+  // Ingenting å vise (f.eks. terminal `closed` uten deaktiverte)
+  if (!primærHandling && sekundærKnapper.length === 0 && !dropdownHarInnhold) {
     return null;
   }
 
-  // Bekreftelse-modus — responsiv: stacker vertikalt på mobil
-  if (bekreftHandling) {
-    const erTilbaketrekking = bekreftHandling.nyStatus === "cancelled";
-    const mottakerHarLest = erTilbaketrekking && lestAvMottakerVed != null;
-
+  // Bekreftelse-modus (kun closed/deleted)
+  if (bekreft) {
+    const erTrekkTilbake = bekreft.nyStatus === "cancelled";
+    const mottakerHarLest = erTrekkTilbake && lestAvMottakerVed != null;
     return (
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
         {mottakerHarLest && (
-          <span className="text-xs text-amber-600 font-medium shrink-0">
-            {t("statushandling.mottakerHarLest")}
-          </span>
+          <span className="text-xs text-amber-600 font-medium shrink-0">{t("statushandling.mottakerHarLest")}</span>
         )}
         <span className="text-sm text-gray-500 shrink-0">
-          {t("statushandling.bekreftHandling", { handling: bekreftHandling.label || bekreftHandling.nyStatus })}
+          {t("statushandling.bekreftHandling", { handling: bekreft.label })}
         </span>
-
         <input
           type="text"
           value={kommentar}
           onChange={(e) => setKommentar(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") utførHandling(bekreftHandling.nyStatus, bekreftHandling.mottaker); }}
+          onKeyDown={(e) => { if (e.key === "Enter") utfor(bekreft.nyStatus, bekreft.mottaker); }}
           placeholder={t("statushandling.valgfriKommentar")}
           className="rounded-lg border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none w-full sm:w-48"
           autoFocus
         />
-
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => utførHandling(bekreftHandling.nyStatus, bekreftHandling.mottaker)}
+            onClick={() => utfor(bekreft.nyStatus, bekreft.mottaker)}
             disabled={erLaster}
             className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
             {erLaster ? t("statushandling.endrer") : t("handling.bekreft")}
           </button>
           <button
-            onClick={avbrytBekreft}
+            onClick={() => { setBekreft(null); setKommentar(""); }}
             className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
           >
             {t("handling.avbryt")}
@@ -490,245 +408,161 @@ export function DokumentHandlingsmeny({
     );
   }
 
-  /* ---- Knapper ---- */
+  const primærFarge = primærHandling ? FARGE_KLASSE[primærHandling.farge] ?? "bg-sitedoc-primary hover:bg-blue-700" : "";
 
-  // Kladd: Send ▾ + Slett
-  if (status === "draft") {
-    const harFlereMottakere = sendElementer.length > 1;
-    const enesteMottaker = sendElementer.length === 1 ? sendElementer[0] : undefined;
-
-    return (
-      <div className="flex items-center gap-2" ref={menyRef}>
-        <div className="relative">
-          <div className="flex">
+  return (
+    <div className="flex flex-wrap items-center gap-2" ref={menyRef}>
+      {/* Primærhandling som knapp (+ split-▾ ved draft-send med flere mottakere) */}
+      {primærHandling && (
+        <div className="relative flex">
+          <button
+            onClick={klikkPrimær}
+            disabled={erLaster}
+            className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
+              draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
+            } ${primærFarge}`}
+          >
+            {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
+          </button>
+          {draftSend && videresendValg.length > 1 && (
             <button
-              onClick={() => {
-                if (enesteMottaker) {
-                  velgMenyElement(enesteMottaker);
-                } else if (!harFlereMottakere) {
-                  // Ingen flyt — send direkte
-                  setBekreftHandling({ nyStatus: "sent", label: t("handling.send") });
-                } else {
-                  setÅpenMeny(!åpenMeny);
-                }
-              }}
+              onClick={() => setÅpenMeny((å) => !å)}
               disabled={erLaster}
-              className="rounded-l-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+              className={`rounded-r-lg border-l border-blue-500 px-1.5 py-1.5 text-white disabled:opacity-50 ${primærFarge}`}
             >
-              {erLaster ? t("statushandling.endrer") : t("handling.send")}
+              <ChevronDown className="h-4 w-4" />
             </button>
-            {harFlereMottakere && (
-              <button
-                onClick={() => setÅpenMeny(!åpenMeny)}
-                disabled={erLaster}
-                className="rounded-r-lg border-l border-blue-500 bg-sitedoc-primary px-1.5 py-1.5 text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            )}
-            {!harFlereMottakere && (
-              <span /> // Avrunding
-            )}
-          </div>
-          {åpenMeny && <DropdownMeny elementer={sendElementer} onVelg={velgMenyElement} />}
+          )}
         </div>
-        {onSlett && (
-          <button
-            onClick={() => setBekreftHandling({ nyStatus: "deleted", label: t("handling.slett") })}
-            disabled={erLaster}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {t("handling.slett")}
-          </button>
-        )}
-      </div>
-    );
-  }
+      )}
 
-  // Sendt: Trekk tilbake-knapp for avsender
-  if (status === "sent") {
-    return (
-      <div className="flex items-center gap-2">
+      {/* Sekundær-knapper */}
+      {sekundærKnapper.map((o) => (
         <button
-          onClick={() => setBekreftHandling({ nyStatus: "cancelled", label: t("statushandling.trekkTilbake") })}
+          key={o.key}
+          onClick={() => klikk(o)}
           disabled={erLaster}
-          className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+          className={`rounded-lg border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
+            o.erDestruktiv
+              ? "border-red-300 text-red-600 hover:bg-red-50"
+              : "border-gray-300 text-gray-700 hover:bg-gray-50"
+          }`}
         >
-          {erLaster ? t("statushandling.endrer") : t("statushandling.trekkTilbake")}
+          {o.label}
         </button>
-      </div>
-    );
-  }
+      ))}
 
-  // Avbrutt: Gjenåpne + Slett
-  if (status === "cancelled") {
-    return (
-      <div className="flex items-center gap-2">
-        <button
-          onClick={() => setBekreftHandling({ nyStatus: "draft", label: t("statushandling.gjenapne") })}
-          disabled={erLaster}
-          className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-        >
-          {t("statushandling.gjenapne")}
-        </button>
-        {onSlett && (
-          <button
-            onClick={() => setBekreftHandling({ nyStatus: "deleted", label: t("handling.slett") })}
-            disabled={erLaster}
-            className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {t("handling.slett")}
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  // Responded (godkjenner-posisjon / siste boks): Godkjenn + Avvis + Send ▾
-  if (status === "responded") {
-    return (
-      <div className="flex items-center gap-2" ref={menyRef}>
-        <button
-          onClick={() => setBekreftHandling({ nyStatus: "approved", label: t("handling.godkjenn") })}
-          disabled={erLaster}
-          className="rounded-lg bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50"
-        >
-          {t("handling.godkjenn")}
-        </button>
-        <button
-          onClick={() => setBekreftHandling({ nyStatus: "rejected", label: t("handling.avvis") })}
-          disabled={erLaster}
-          className="rounded-lg border border-red-300 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-        >
-          {t("handling.avvis")}
-        </button>
-        {sendElementer.length > 0 && (
-          <div className="relative">
-            <button
-              onClick={() => setÅpenMeny(!åpenMeny)}
-              disabled={erLaster}
-              className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {t("handling.send")}
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-            {åpenMeny && <DropdownMeny elementer={sendElementer} onVelg={velgMenyElement} />}
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  // Received / In_progress / Rejected: Send ▾ (+ Avbryt for admin)
-  if (["received", "in_progress", "rejected"].includes(status)) {
-    const harFlereMottakere = sendElementer.filter((e) => !e.erSeparator).length > 1;
-    const enesteMottaker = sendElementer.filter((e) => !e.erSeparator).length === 1
-      ? sendElementer.find((e) => !e.erSeparator)
-      : undefined;
-
-    return (
-      <div className="flex items-center gap-2" ref={menyRef}>
+      {/* Nedtrekk: send-mottakere + admin + deaktiverte */}
+      {dropdownHarInnhold && !(draftSend && videresendValg.length > 1) && (
         <div className="relative">
-          <div className="flex">
-            <button
-              onClick={() => {
-                if (enesteMottaker && !erAdmin) {
-                  velgMenyElement(enesteMottaker);
-                } else {
-                  setÅpenMeny(!åpenMeny);
-                }
-              }}
-              disabled={erLaster}
-              className={`${harFlereMottakere || erAdmin ? "rounded-l-lg" : "rounded-lg"} bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50`}
-            >
-              {erLaster ? t("statushandling.endrer") : t("handling.send")}
-            </button>
-            {(harFlereMottakere || erAdmin) && (
-              <button
-                onClick={() => setÅpenMeny(!åpenMeny)}
-                disabled={erLaster}
-                className="rounded-r-lg border-l border-blue-500 bg-sitedoc-primary px-1.5 py-1.5 text-white hover:bg-blue-700 disabled:opacity-50"
-              >
-                <ChevronDown className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-          {åpenMeny && <DropdownMeny elementer={sendElementer} onVelg={velgMenyElement} />}
-        </div>
-      </div>
-    );
-  }
-
-  // Approved / Closed: Lukk + Videresend
-  if (["approved", "closed"].includes(status)) {
-    return (
-      <div className="flex items-center gap-2" ref={menyRef}>
-        {status === "approved" && (
           <button
-            onClick={() => setBekreftHandling({ nyStatus: "closed", label: t("handling.lukk") })}
+            onClick={() => setÅpenMeny((å) => !å)}
             disabled={erLaster}
-            className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
           >
-            {t("handling.lukk")}
+            {harForwarded && !draftSend ? t("handling.send") : t("statushandling.admin")}
+            <ChevronDown className="h-3.5 w-3.5" />
           </button>
-        )}
-        {sendElementer.length > 0 && (
-          <div className="relative">
-            <button
-              onClick={() => setÅpenMeny(!åpenMeny)}
-              disabled={erLaster}
-              className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {t("statushandling.videresend")}
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-            {åpenMeny && <DropdownMeny elementer={sendElementer} onVelg={velgMenyElement} />}
-          </div>
-        )}
-      </div>
-    );
-  }
+        </div>
+      )}
 
-  return null;
+      {åpenMeny && dropdownHarInnhold && (
+        <DropdownMeny
+          send={sendOppforinger}
+          overflow={overflowOppforinger}
+          deaktivert={deaktiverteOppforinger}
+          onVelg={klikk}
+          adminLabel={t("statushandling.admin")}
+        />
+      )}
+
+      {/* Kommentar-utvider — alltid tilgjengelig, aldri påkrevd */}
+      {(primærHandling || sekundærKnapper.length > 0) && (
+        visKommentar ? (
+          <input
+            type="text"
+            value={kommentar}
+            onChange={(e) => setKommentar(e.target.value)}
+            placeholder={t("statushandling.valgfriKommentar")}
+            className="rounded-lg border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none w-40"
+            autoFocus
+          />
+        ) : (
+          <button
+            onClick={() => setVisKommentar(true)}
+            className="flex items-center gap-0.5 rounded-lg px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600"
+          >
+            <Plus className="h-3 w-3" />
+            {t("statushandling.leggTilKommentar")}
+          </button>
+        )
+      )}
+    </div>
+  );
 }
 
 /* ------------------------------------------------------------------ */
-/*  Dropdown-meny                                                       */
+/*  Nedtrekk                                                            */
 /* ------------------------------------------------------------------ */
 
 function DropdownMeny({
-  elementer,
+  send,
+  overflow,
+  deaktivert,
   onVelg,
+  adminLabel,
 }: {
-  elementer: MenyElement[];
-  onVelg: (element: MenyElement) => void;
+  send: MenyOppforing[];
+  overflow: MenyOppforing[];
+  deaktivert: MenyOppforing[];
+  onVelg: (o: MenyOppforing) => void;
+  adminLabel: string;
 }) {
   return (
     <div className="absolute right-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-      {elementer.map((e) => {
-        if (e.erSeparator && e.erAdmin) {
-          // Admin header
-          return (
-            <div key={e.key} className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
-              {e.label}
+      {send.map((o) => (
+        <button
+          key={o.key}
+          onClick={() => onVelg(o)}
+          className="flex w-full items-center px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+        >
+          {o.label}
+        </button>
+      ))}
+
+      {overflow.length > 0 && (
+        <>
+          {send.length > 0 && <div className="my-1 border-t border-gray-100" />}
+          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{adminLabel}</div>
+          {overflow.map((o) => (
+            <button
+              key={o.key}
+              onClick={() => onVelg(o)}
+              className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                o.erDestruktiv ? "text-red-600" : "text-gray-700"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </>
+      )}
+
+      {deaktivert.length > 0 && (
+        <>
+          {(send.length > 0 || overflow.length > 0) && <div className="my-1 border-t border-gray-100" />}
+          {deaktivert.map((o) => (
+            <div
+              key={o.key}
+              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-sm text-gray-300"
+              title={o.begrunnelse}
+            >
+              <span className="line-through">{o.label}</span>
+              <span className="shrink-0 text-[10px] uppercase tracking-wide text-gray-400">{o.begrunnelse}</span>
             </div>
-          );
-        }
-        if (e.erSeparator) {
-          return <div key={e.key} className="my-1 border-t border-gray-100" />;
-        }
-        return (
-          <button
-            key={e.key}
-            onClick={() => onVelg(e)}
-            className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-              e.erDestruktiv ? "text-red-600" : e.erAdmin ? "text-gray-500" : "text-gray-700"
-            }`}
-          >
-            {e.label}
-          </button>
-        );
-      })}
+          ))}
+        </>
+      )}
     </div>
   );
 }

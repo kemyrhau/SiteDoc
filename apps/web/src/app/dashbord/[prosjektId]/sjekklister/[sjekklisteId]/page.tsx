@@ -101,7 +101,7 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.prosjektId },
   );
   const alleFaggrupper = (alleFaggrupperRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
-  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
+  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/lib/videresend-valg").DokumentflytData[];
 
   // Hent full sjekklistedata for tidslinje/recipient/creator
   const { data: fullSjekklisteRå } = trpc.sjekkliste.hentMedId.useQuery(

@@ -148,7 +148,9 @@ Kun én mottaker → send direkte uten dropdown.
 ```
 
 **Admin-seksjon i dropdown:**
-Registrator/admin ser alltid en egen seksjon med alle flytbokser og manuelle statusendringer.
+Registrator/admin ser alltid en egen seksjon med flytbokser og manuelle statusendringer. **Manuelle statusendringer er innenfor statusmaskinen** — ikke frie hopp. (A-3a 2026-07-17: web-menyen `DokumentHandlingsmeny.tsx` utleder handlingssettet fra `statusHandlinger.ts` (`hentRolleFiltrertHandlinger` + `ADMIN_NY`-splitt), samme kilde som mobil. De tidligere frie hoppene — `approved`/`closed`/`cancelled`/`draft` fra enhver status — som serveren avviste, er fjernet.)
+
+**«Hva sier den når nei»** (A-3a): handlinger som finnes i statusen men ikke er tilgjengelige for brukerens rolle vises **deaktivert med begrunnelse** utledet fra kilden («Kun avsender/utfører/godkjenner», «Kun administrator», «Dokumentet er lukket», «Ugyldig fra denne statusen») — ikke skjult, ikke feilende mot `BAD_REQUEST`. Primærhandlingen (`StatusHandling.erPrimaer`) rendres som knapp; resten i nedtrekk. Bekreftelse kreves kun for irreversible overganger (`closed`/`deleted`); alt annet er 1 klikk (`DocumentTransfer` logger uansett). Kommentar er en valgfri utvider.
 
 **Implementert: kanRedigere per flytledd**
 - `DokumentflytMedlem.kanRedigere` (boolean, default `true`) styrer om et flytmedlem kan redigere dokumenter
@@ -212,7 +214,9 @@ Flytmal-strukturen må støtte per-ledd-konfigurasjon fra start for alle dokumen
 
 ### Status-overgangstabell
 
-Validert via `isValidStatusTransition()` i `packages/shared/src/utils/index.ts`. Server (tRPC) og klient (knapp-visning) bruker samme funksjon — hold synkronisert.
+Validert via `isValidStatusTransition()` i `packages/shared/src/utils/index.ts`. Server (tRPC) og klient (knapp-visning) bruker samme funksjon — hold synkronisert. **A-3a 2026-07-17: web-menyen validerer nå mot tabellen** (utleder fra `hentRolleFiltrertHandlinger`, deaktiverer det statusmaskinen avviser) — tidligere fant den opp egne overganger.
+
+**A-i 2026-07-17 (`rejected`-desync lukket):** `ROLLE_HANDLINGER.utforer.rejected` og `hentStatusHandlinger("rejected")` ga tidligere `rejected → responded`, som er **ulovlig** i tabellen under (→ server-`BAD_REQUEST`). Rettet til `rejected → in_progress` (i18n `statushandling.gjenoppta` = «Gjenoppta»). Veien er nå `rejected → in_progress → responded`, i tråd med tabellen. Merk: `in_progress` har to lovlige innganger — `received → in_progress` og `rejected → in_progress` — og førstnevnte tilbys fortsatt ikke i UI (åpent exit-funn, ikke bygget i A-3a).
 
 | Fra | Lovlige overganger til |
 |---|---|
