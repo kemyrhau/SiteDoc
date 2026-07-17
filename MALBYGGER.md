@@ -97,7 +97,7 @@ eldre/seedede maler:
 |-----------|--------------------|-----------------------|------------|
 | Nedre grense | `min` | — | verdi < `min` → «under» |
 | Øvre grense | `maks` | `max` | verdi > `maks` → «over» |
-| Toleransebånd | `toleranse` | — | `abs(verdi)` > `toleranse` → «utenfor_toleranse» |
+| Toleransebånd | `toleranse` | — | ⚠️ **BUG:** `abs(verdi)` > `toleranse` → «utenfor_toleranse». Se vedtaket under |
 | Desimaler | `desimaler` | `decimals` | input-step |
 | Enhet | `enhet` | `unit` | visning |
 
@@ -111,6 +111,29 @@ eldre/seedede maler:
   web+mobil-render og validering — som `normaliserOpsjon` gjør for valg-opsjoner.
 - **Grenser blokkerer ikke innsending** — et avvik er et gyldig funn. Utfylling
   viser grensen (språknøytralt: ≥ ≤ ±) og markerer verdi utenfor med amber-signal.
+
+### 🟡 VEDTATT, IKKE BYGGET — to grense-typer, gjensidig utelukkende (Kenneth 2026-07-16)
+
+**Buggen som utløste vedtaket:** `grenseSjekk.ts` gjør `Math.abs(verdi) > toleranse`. Målt på test: verdi 10, min 8, maks 12, toleranse 2 → amber på en verdi midt i det gyldige området. Toleranse er et ± **rundt noe**, og referansen finnes ikke i config. Del 2 gjettet at feltet bærer et avvik (da er `abs(verdi) > toleranse` riktig — det er nominell 0). Kenneth bruker det som en måling.
+
+**Kenneths tre begreper** (hans ordlyd, 2026-07-16):
+
+- **Målt verdi** — det den ansatte kontrollerer på byggeplass. Bor i feltet.
+- **Nominell verdi** — middelverdi fra NS, med tilhørende toleranser. Følger standarden → malen.
+- **Prosjektert verdi** — verdi fra tegning/beskrivelse. **Bygges ikke.**
+
+**Vedtatt modell — et tallfelt er ENTEN område ELLER toleranse:**
+
+- **Område-felt:** config `min` + `maks`. Regel: `verdi < min || verdi > maks`. NS3420: smågatestein **8/12**.
+- **Toleranse-felt:** config `nominell` + `toleranse`. Regel: `abs(verdi − nominell) > toleranse`. NS3420: planhet **± 30 mm**.
+
+**Hvorfor gjensidig utelukkende:** Kenneth — *«8/12 beskriver størrelsen på en stein med medium 10 cm; avvik ± blir meningsløst å kombinere»*. **10 ± 2 = 8–12.** De er to notasjoner for én regel, ikke to regler. Kombinert sier de enten det samme to ganger, eller to ting som motsier hverandre.
+
+**`nominell` defaulter til 0** → NS3420-maler seedet med `{enhet: "mm", toleranse: 30}` virker uendret. Seeden røres ikke.
+
+**Prosjektert verdi bygges IKKE.** Malene lages utelukkende på NS3420; avvik fra tegning skrives som tekst og går gjennom avviksbehandling. Bygget vi `prosjektert ?? nominell`, ville `prosjektert` blitt en nøkkel ingen skriver — samme klasse som `traffic_light.options` og `enhet` før del 2.
+
+**Gjenstår å bygge:** ett config-felt (`nominell`), én linje i `grenseSjekk.ts` (`abs(verdi − (nominell ?? 0))`), XOR-bryter i editoren, `formaterGrense` som viser «10 ± 2 cm» mot «8–12 cm». Kenneth valgte «la stå» på test inntil ordren rutes.
 
 ## Eksisterende ruter (API)
 

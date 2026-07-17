@@ -194,6 +194,34 @@ Tre flater bruker `FilterPanel` med tre state-modeller. Byggerens egen vurdering
 
 **Og tolinjen er prinsipiell, ikke midlertidig:** sjekkliste/oppgave skal aldri konverteres — de filtrerer på dynamiske mal-kolonner (`felt:*`) som varierer per mal. **Men de kan en dag få begge:** FilterPanel over tabellen for faste dimensjoner + Table for dynamiske kolonner. Det er lagdeling, ikke enten/eller. Den koblede søkeboksen (`?sok=`, `f9416424`) er første steg i den retningen.
 
+### 🔴 Det delte substratet visker ut type-skillet specen hviler på (sjekkliste-fix exit, målt 2026-07-17)
+
+**Den lastbærende innsikten, formulert av økta som ryddet `04f6d295`:**
+
+> Faren er ikke manglende features — det er å behandle de to dokumenttypene som **én**. Laget er bygget på et delt substrat (`utledDokumentRettighet`, delte Set-konstanter, felles hook-form) som **strukturelt visker ut type-skillet specen hviler på.** Append-only-bugen var én instans. Hvert sted sjekkliste og oppgave deler kode er et §11e-spørsmål, ikke en bekreftelse: grep beviser at de *deler*; bare [dokumentflyt.md § 2](dokumentflyt.md) sier om de *skal*.
+
+**Målt duplisering (cowork-verifisert 2026-07-17):**
+
+- **`DISPLAY_TYPER` — 6 definisjoner, 3 ulike innhold.** 4× `{heading, subtitle}` (hookene) · 1× `+location` (web-renderer `:29`) · 1× `+location, info_text, info_image` (mobil-renderer `:32`). Legger noen en ny visnings-type i en renderer, hopper ikke hookenes init/validering over den.
+- **`erSynlig`** (rekursiv synlighet, ~30 linjer) — **4 nær-ordrette kopier, 0 i `@sitedoc/shared`.** Dette er den **inverse** av append-only-saken: her ER koden identisk og burde vært løftet. «Deler logikk skal løftes» fanget den ikke.
+- **`REDIGERBARE_STATUSER`** — **4 identiske kopier**, ingen i shared, **ingen type-skille**. Uverifisert: har oppgave og sjekkliste ulik redigerbar-status-semantikk i spec? Er svaret ja, er den delte konstanten et falskt-symmetri-fravær.
+
+**Høyest blast-radius (økta rangerte selv):** `sjekkliste.oppdaterData` og `oppgave.oppdaterData` shallow-merger begge og håndhever ingen append-only. **Identisk kode-form, motsatt dom** — for oppgave er fraværet defekt, for sjekkliste er det specen. Når server-håndhevelsen tas (posten under), må den treffe **kun oppgave**. «Harmoniser for symmetri» re-brekker sjekkliste server-side — og server-fravær rammer alle klienter samtidig, inkl. gamle TestFlight-apper som UI-fiksen ikke når.
+
+**Videre kandidater økta pekte ut, umålt:** `utledDokumentRettighet` bruker `dokumentType` kun på `flytRolle.ts:185/197` (edit-perm-navnet) — alt annet behandler typene likt · `AUTO_FILL_TYPER` finnes i mobil-hookene, ikke web (defekt eller spec?) · kapabilitets-flaggene (`kanAttestere`, `erFirmaansvarlig`) mot flyt-vaktene.
+
+### 🟠 Oppgave-siden av `04f6d295` er aldri verifisert mot spec (sjekkliste-fix exit, 2026-07-17)
+
+Økta som fjernet låsen fra sjekkliste sier det selv, uoppfordret:
+
+> Jeg verifiserte ikke oppgave-siden. Jeg tok ordrens ramme — «låsen er riktig for oppgave, mobil manglet den» — på ordet. Jeg åpnet ikke oppgave-spec-en for å sjekke at låsen `04f6d295` la på oppgave-mobil faktisk matcher «append-only fra opprettelse». Sannsynlig riktig, men uverifisert av meg.
+
+**Coworks ordre bar rammen; ingen målte den.** §11e ble anvendt på det ene fraværet (sjekkliste) og ikke på det andre (oppgave-mobil). Sannsynligheten er høy for at låsen er riktig der — `dokumentflyt.md § 2` sier oppgave = «Aldri redigerbar — append-only fra opprettelse». Men ingen har åpnet den setningen mot koden `04f6d295` la inn på mobil. Billig å lukke.
+
+### 🟡 `obj.parentId ?? obj.config.conditionParentId` — halvferdig migrering? (sjekkliste-fix exit, mistanke 2026-07-17)
+
+Fallbacken «ny DB-kolonne med gammel config» står i både `erSynlig` og sidenes `hentNestingNivå`. **Enten** er migreringen ferdig og fallbacken er død forsvarskode, **eller** så lener noen objekter seg fortsatt på `config`. Økta kunne ikke se hvilken. Samme sjanger som `harBetingelse`-som-deprecated-men-brukt. Avgjøres med én DB-spørring: finnes rader med `config.conditionParentId` og `parentId = null`?
+
 ### 🟠 `TrafikklysObjekt` leser aldri `config` — F3 er feil-scopet (M-3a del 2 exit, målt 2026-07-16)
 
 `apps/web/src/components/rapportobjekter/TrafikklysObjekt.tsx` destrukturerer ikke `objekt` i det hele tatt — kun `verdi`/`onEndreVerdi`/`leseModus`. De fire fargene er hardkodet i en modul-konstant `FARGER`. **`traffic_light.options` i `defaultConfig` er helt inert: ingen leser den.**

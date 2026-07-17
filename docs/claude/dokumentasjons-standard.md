@@ -262,6 +262,23 @@ Vi skrev **fem** slike påstander 2026-07-15/16, alle sanne i dag, alle fremtidi
 - **Verifisering av en data-bærende kolonne krever å åpne minst én seed-rad OG én verktøy-bygd rad per type**, og sammenligne nøkkelsettene. Kode alene kan ikke gi den kolonnen. Det er den negative kontrollen matrisen manglet — den ville avslørt `enhet`/`unit` i del 1, før noen skrev kode.
 - **Endrer du kanonisk nøkkel, grep repo-vidt etter ALLE lesere av den gamle** før commit — ikke bare rendrerne oppdraget nevner. Skriv-siden er halve endringen; les-siden er den andre.
 
+### 11e. Et målt fravær har to hypoteser (fabel-regel 2026-07-16)
+
+**«Koden mangler X» er ikke et funn. Det er to hypoteser:**
+
+1. **Alltid ødelagt** — X skulle vært der, og fraværet er en defekt.
+2. **Aldri ment** — fraværet *er* designet, og X hører ikke hjemme her.
+
+**Spec/docs skal konsulteres før hypotese 1 velges.** Finner du ikke setningen som sier at hullet er et hull, har du ikke et funn — du har en gjetning med et grep bak seg.
+
+**Distinksjonen mot [§4](#4-negative-påstander-krever-uttømmende-søk):** §4 spør om målingen er **sann**. §11e spør hva en sann måling **betyr**. Begge er nødvendige, og §4 gir falsk trygghet uten §11e — en negativ kontroll som bekrefter «har aldri hatt X» føles som bevis, men den beviser bare fravær.
+
+**Belegg — `04f6d295` (cowork, 2026-07-16):** append-only felt-låsing fantes i **1 av 4** skjema-hooks. Målingen var riktig; `git -S` bekreftet at sjekkliste-hookene **aldri** hadde hatt den. Ført som rotårsak-fiks: «de tre andre manglet den → et innsendt felt kunne endres».
+
+[dokumentflyt.md § 2](dokumentflyt.md) hadde svaret hele tiden — **sjekkliste:** «Redigerbar — den som har ballen + admin/registrator **alltid**»; **oppgave:** «Redigerbar — **aldri**, append-only fra opprettelse». **Fraværet var specen.** Fiksen låste et innsendt tallfelt i en befaringsrapport permanent, også for admin. Kenneth fant det ved å klikke i to minutter; gate, dual-review og exit-runde fanget det ikke — alle tre leste kode, ingen åpnet dokumentet som sier hva koden **skal** gjøre. Reversert i `87dc15db`.
+
+**Symmetri er ikke et argument.** «N av M nær-identiske flater mangler X» *ser* ut som drift, men M ulike varianter er like ofte to bevisste design som M drifter. En rotårsak-fiks som utvider atferd til flere flater er en **atferdsendring** — den gates mot spec, ikke mot symmetri.
+
 ## Anvendt
 
 Rettingen `c875ee6f` (2026-07-09) er referanse-eksempelet: `:517`/`:534` fikk
