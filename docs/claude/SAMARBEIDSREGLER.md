@@ -90,7 +90,28 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 | **3. EXIT** | Fast spørsmålsrunde — **ikke valgfri**. Se § Exit-runde. | cowork spør, Opus svarer |
 
 > ⚠️ **«Exit» er tvetydig — skriv aldri «exit X» i en aksjonsblokk.** Her betyr EXIT *fase 3* (spørsmålsrunden). I dagligtale betyr det *fase 4* (lukk vinduet). 2026-07-16 skrev cowork «Så exit develop-Opus» øverst med selve exit-teksten nederst; Kenneth var i ferd med å lukke økta **uten** å kjøre runden — og fanget det selv. Bruk «**send exit-runden til X**» (fase 3) og «**lukk X**» (fase 4). Mister vi runden, mister vi det som har gitt mest: den fanget 🔴 4c, Norkart-nøkkelen og tre hull i coworks egne ordrer.
-| **4. LUKK** | Merge → **park treet detached** → slett branchen **lokalt OG på origin** → **fjern treet hvis det er utenfor det faste settet** → fjern raden → lukk vinduet. **En økt er ikke død før raden er borte.** | cowork, så Kenneth |
+| **4. LUKK** | Merge → **park treet detached** → slett branchen **lokalt OG på origin** → **fjern treet hvis det er utenfor det faste settet** → **kjør inventaret (under)** → fjern raden → lukk vinduet. **En økt er ikke død før raden er borte.** | cowork, så Kenneth |
+
+**Inventaret — én kommando, kjøres ved HVER økt-lukking:**
+
+```sh
+cd ~/Documents/Programmering
+for d in SiteDoc SiteDoc-deploy SiteDoc-develop SiteDoc-merge; do
+  printf "%-18s" "$d"
+  printf " branch=%-14s endret=%-4s ikke-i-develop=%s\n" \
+    "$(git -C "$d" rev-parse --abbrev-ref HEAD 2>/dev/null)" \
+    "$(git -C "$d" status --porcelain 2>/dev/null | wc -l | tr -d ' ')" \
+    "$(git -C "$d" log --oneline origin/develop..HEAD 2>/dev/null | wc -l | tr -d ' ')"
+done
+git -C SiteDoc worktree list
+git -C SiteDoc stash list
+```
+
+**Forventet:** fire trær · `endret=0` overalt · ingen stash. **Alt annet er et funn.** Et femte tre, en untracked fil, eller en stash betyr at noe ble opprettet uten at noen vet hva det er.
+
+> ⚠️ **Hvorfor steget finnes: opprettelse er ugatet, sletting er det ikke** (målt 2026-07-17). `CLAUDE.md` sier «spør alltid før du sletter filer eller mapper», og den håndheves strukturelt — Kenneth kjører hver kommando. **Ingen regel finnes for å opprette.** Resultat: åtte arbeidstrær vokste fram, og tre leveranser lå foreldreløse i 5 uker, 6 dager og 5 uker.
+>
+> **Alle tre ble funnet ved tilfeldighet** — én fordi `git worktree remove` nektet på et dirty tre, én fordi Kenneth spurte hvorfor den ikke var søkbar i Finder, én fordi cowork lette etter noe annet. **Ingen prosess fant noen av dem.** Inventaret er billig og svarer selv; det hadde fanget trærne ved to og en foreldreløs fil etter én økt.
 
 > ⚠️ **«Ingen commits» gjelder kode — aldri leveranser** (fabel-regel 2026-07-17). **Hver økt som produserer en fil, får en git-vei for den i ordren** — docs-branch eller Kenneth-relay. En lese-økt skriver ikke kode; den skriver rapporter, og en rapport som ikke committes finnes ikke for noen andre enn maskinen den ligger på.
 >
