@@ -10,7 +10,7 @@ sist_verifisert_mot_kode: 2026-07-10
 
 | Økt | Arbeidstre | Branch | Eier filer | Status |
 |---|---|---|---|---|
-| *(ingen aktive)* | — | — | — | — |
+| **A-3a handlingsmeny** | `~/Documents/Programmering/SiteDoc-develop` | `feat/a3a-handlingsmeny-kilde` | `DokumentHandlingsmeny.tsx` · `StatusHandlinger.tsx` · `statusHandlinger.ts` · i18n `nb`/`en` + `generate.ts` | Åpnes ved relay. **Eier generatoren** → B-2 og CLAUDE.md-runden må vente |
 
 **Del6b fase 1 lukket 2026-07-16** — fabel-designgodkjent, alle punkter. Merget `f9416424` (pkt 2/3/6) + `297f5670` (pkt 1/4/5). Levert: print-fella borte (`q0–q9` droppet stille 7 av 17) · døde søkebokser koblet · prioritet-rader klikkbare · 4 filter-paradigmer → 2 delte kilder, null regresjon · prosjekt-HMS-defaulten synlig som chips · 35 i18n-nøkler × 14 språk. Statuskilde: `verifisering/del6b-verifiseringslogg.md` (designprosjekt «Sitedoc redesign tips»). Exit-funn i [BACKLOG](BACKLOG.md).
 
