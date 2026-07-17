@@ -11,7 +11,17 @@ sist_endret: 2026-07-16
 
 ---
 
-## KJERNEN — fire regler (les disse, slå opp resten)
+## KJERNEN — fem regler (les disse, slå opp resten)
+
+> **REGEL 0 — spør «finnes det allerede et styrende dokument for dette?» FØR du måler noe som helst.**
+>
+> Den er nummer null fordi de fire under er verdiløse hvis du rekonstruerer noe som står ferdig skrevet.
+>
+> **Belegg (2026-07-17):** [parallell-arbeid-lock.md](parallell-arbeid-lock.md) har `status: styrende`, 13 kjøreregler og fem daterte lærdommer. `CLAUDE.md` sier at kontroll-laget skal lese den **først**. Cowork leste den aldri — og brukte en time på å grep-rekonstruere tre ting som sto der: tre-rollene, merge-treets eksistensberettigelse, og `index.lock`-prosedyren. Fabel planla i samme blinde og foreslo å slette sikkerhetsnettet fila beskriver som ufravikelig.
+>
+> **Fabels formulering, som er bedre enn min:** *«jeg planla mot mappelisten (magefølelse) uten å spørre om det fantes et styringsdokument. Statuskilde-spørsmålet skal stilles FØR enhver struktur-plan.»* Se [delplaner/opprydding-arbeidstraer-2026-07-17.md](delplaner/opprydding-arbeidstraer-2026-07-17.md).
+>
+> **Vi la til fire nye regler ved siden av regler som allerede fantes og ikke ble lest.** Det var aldri papiret som sviktet.
 
 **Hvorfor en kjerne:** regelflaten er **45 KB / 24 nummererte regler**, og **22 KB av dem ble skrevet 2026-07-14/16 — av cowork, som brøt fire av dem på én time samme dag.** Det er nøyaktig sykdommen vi diagnostiserte i CLAUDE.md: tunge dokumenter drifter fordi ingen kan lese dem. Resten av fila er oppslagsverk. **Disse fire er det du faktisk må holde i hodet.**
 
