@@ -194,6 +194,16 @@ Tre flater bruker `FilterPanel` med tre state-modeller. Byggerens egen vurdering
 
 **Og tolinjen er prinsipiell, ikke midlertidig:** sjekkliste/oppgave skal aldri konverteres — de filtrerer på dynamiske mal-kolonner (`felt:*`) som varierer per mal. **Men de kan en dag få begge:** FilterPanel over tabellen for faste dimensjoner + Table for dynamiske kolonner. Det er lagdeling, ikke enten/eller. Den koblede søkeboksen (`?sok=`, `f9416424`) er første steg i den retningen.
 
+### 🟡 Re-verifiser de 13 kode↔doc-avvikene fra Docker-cutoveren (funnet 2026-07-17, skrevet 2026-06-10)
+
+[kode-doc-avvik-sitedoc-server-2026-06-10.md](kode-doc-avvik-sitedoc-server-2026-06-10.md) — 18 KB systematisk revisjon av dokumentasjon mot kode/konfig, skrevet under Docker-cutoveren. **13 avvik: 4 høy, 5 middels, 4 lav.** Hovedfunnet: *«`docker/`-mappen er IKKE dokumentert i hovedfilene (CLAUDE.md, README.md)»*; de fire høye gjelder `infrastruktur.md`, `deploy.sh` og `deploy-test.sh`.
+
+**Ingenting er re-verifisert.** Dokumentet er ført som 🟡 HISTORISK — serveren er migrert og isolert siden (`server-ny`, cutover 2026-06-10 → salsaklubb-isolasjon 2026-07-09), så flere premisser har flyttet seg. Avvikene kan være rettet, råtnet videre, eller byttet form. **Les det som en tilstandsrapport fra 10. juni, ikke som en funnliste.**
+
+Egen liten lese-sak: gå de 13 gjennom mot dagens kode, marker rettet/står/foreldet. Billig, og den treffer `deploy-test.sh` + `infrastruktur.md` — filer vi rører hver eneste deploy.
+
+**Hvordan den ble funnet er halve poenget:** den lå untracked i `sitedoc-server`-arbeidstreet i fem uker og ble reddet 2026-07-17 kun fordi `git worktree remove` **nektet** på et dirty tre. Ingen prosess fant den. Se [SAMARBEIDSREGLER § Opus-livssyklus](SAMARBEIDSREGLER.md) — «ingen commits» gjelder kode, aldri leveranser.
+
 ### 🔴 Det delte substratet visker ut type-skillet specen hviler på (sjekkliste-fix exit, målt 2026-07-17)
 
 **Den lastbærende innsikten, formulert av økta som ryddet `04f6d295`:**

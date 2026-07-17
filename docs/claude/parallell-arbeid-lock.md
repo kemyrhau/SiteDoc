@@ -13,15 +13,26 @@ sist_endret: 2026-07-09
 
 | Worktree | Branch | Rolle |
 |----------|--------|-------|
-| `…/SiteDoc` | `redesign/navigasjon` | **Redesign-økta eier dette treet.** Nav-/UX-omlegging. |
-| `…/SiteDoc-develop` | `develop` | Develop-docs + feature-arbeid (ikke-redesign). Kan bære u-gatede lokale commits → **aldri merge-kilde**. |
-| `…/SiteDoc-merge` | (transient, = `origin/develop`) | **Redesign→develop-merger utføres KUN her.** Hard-resettes til `origin/develop` før hver bruk → bærer aldri egne commits (regel 1 + 13). |
+| `…/SiteDoc` | **`develop`** | **Kenneths dev-tre.** Hovedklonen (eier `.git`). Kjører appen, eier `develop`-branchen, og er **deploy-kilden** — `deploy-test.sh` krever `git branch --show-current` = `develop`, som kun et tre som *eier* branchen kan svare på. Docs-commits skjer her. |
+| `…/SiteDoc-develop` | **detached, parkeres på `origin/develop`** | **Økt-treet.** Én Opus om gangen, via tavle-rad. Kan bære u-gatede lokale commits → **aldri merge-kilde**. |
+| `…/SiteDoc-merge` | **detached på `origin/develop`** | **Merger utføres KUN her.** Hard-resettes til `origin/develop` før hver bruk → bærer aldri egne commits (regel 1 + 13). Pusher med `git push origin HEAD:develop` — den skal **ikke** eie `develop`-branchen; `SiteDoc` gjør det. |
 | `…/SiteDoc-deploy` | `main` | Prod-deploy (rsync-kilde). |
-| `…/sitedoc-server` | `ny-server` | Server-side arbeid. |
+
+**Fire trær. Et femte krever en tavle-rad for å eksistere** ([SAMARBEIDSREGLER § Statustavle](SAMARBEIDSREGLER.md)) — raden bærer tre-stien.
+
+> ⚠️ **Rolle-omskriving 2026-07-17 (Kenneth-vedtak K-a/K-b).** `SiteDoc` sto som *«redesign-økta eier dette treet»* fra da redesign og develop gikk parallelt. **Redesignet ble fullmerget 2026-07-09** (regel 3) — rollen døde da, men fila ble ikke oppdatert, og treet ble stående detached 39 commits bak develop. `sitedoc-server`-raden er fjernet: `ny-server` har 0 commits utenfor develop siden 2026-06-10, Docker-cutoveren er ferdig, og treet er fjernet.
+>
+> **Bakgrunn verdt å beholde:** 2026-07-17 hadde åtte SiteDoc-mapper vokst fram. Tre (`-del6`, `-fratil`, `-oppfolgere`) sto ikke i denne fila i det hele tatt — de var rester fra døde økter. En oppryddingsplan foreslo først å slette **merge-treet** (sikkerhetsnettet i lærdom (e)), fordi verken fabel eller cowork hadde lest dette dokumentet. **Kenneth spurte «hvor skal vi lete etter filer for å koordinere» — svaret var denne fila, som `CLAUDE.md` sier at kontroll-laget skal lese først.**
 
 ## De 13 kjørereglene (ufravikelige i parallell modus)
 
-1. **Ett worktree per rolle — aldri kryss-skriv.** Redesign-økta eier hovedtreet (`…/SiteDoc`, `redesign/navigasjon`). Develop-docs/feature skrives i `…/SiteDoc-develop`. Skriv ALDRI develop-arbeid i det delte/redesign-treet. **Develop-spor bruker ALLTID eksplisitt `git -C ~/Documents/Programmering/SiteDoc-develop …`** (+ absolutte stier under samme tre) — stol ALDRI på gjeldende arbeidskatalog: primær-cwd er redesign-treet (`…/SiteDoc`), så et bart `git`-kall committer på `redesign/navigasjon` uten at det er åpenbart. Verifiser `git -C ~/Documents/Programmering/SiteDoc-develop rev-parse --abbrev-ref HEAD` = `develop` FØR du rører noe. Se lærdom (d).
+1. **Ett worktree per rolle — aldri kryss-skriv.**
+
+   *Omskrevet 2026-07-17 — redesign-rollen er død, se rolle-tabellen.* `…/SiteDoc` eier `develop`: Kenneths dev-tre, docs-commits, deploy-kilde. Opus-arbeid skjer i `…/SiteDoc-develop` på egen feature-branch. Merger KUN i `…/SiteDoc-merge`.
+
+   **Bruk ALLTID eksplisitt `git -C <tre> …`** + absolutte stier. **Stol aldri på gjeldende arbeidskatalog** — worktrees deler samme `.git`, så et bart `git commit` treffer det treet cwd tilfeldigvis står i, og committer på feil branch uten at det er synlig. Verifiser `git -C <tre> rev-parse --abbrev-ref HEAD` FØR du rører noe. Se lærdom (d).
+
+   **Historikken under gjaldt redesign-perioden, men lærdommene (b)/(d)/(e) er beholdt:** de handler om delte worktrees, ikke om redesign. De gjelder like fullt for én Opus + én cowork.
    **Redesign→develop-merger skjer ALDRI i `…/SiteDoc-develop`** — det treet eies eksklusivt av develop-sporet og kan bære u-gatede lokale commits, som en merge-push da drar med ut til origin (se lærdom (e) + regel 13). Merger utføres i et **dedikert merge-tre (`…/SiteDoc-merge`) som hard-resettes til `origin/develop` FØR hver bruk** (`git -C ~/Documents/Programmering/SiteDoc-merge fetch origin && git -C ~/Documents/Programmering/SiteDoc-merge reset --hard origin/develop`) — da kan merge-treet aldri bære fremmede lokale commits ut via merge-push.
 2. **Verifiser branch før hver commit:** `git rev-parse --abbrev-ref HEAD` = forventet branch. Worktrees deler samme `.git` → feil tre committer på feil branch uten at det er åpenbart.
 3. **Frossen sone koordineres via denne fila** (liste under). Filene redigeres ALDRI blindt fra to økter samtidig. ~~`generate.ts` (i18n) kjøres KUN på redesign-branchen mens redesignet pågår.~~ **i18n-frysen løftet 2026-07-09:** redesignet er fullt merget i develop (`origin/redesign/navigasjon` er ancestor av develop), så `generate.ts` kjøres nå på develop som normalt — ingen kryss-branch-kollisjon lenger.

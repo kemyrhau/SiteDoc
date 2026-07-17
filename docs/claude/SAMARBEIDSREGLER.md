@@ -90,7 +90,13 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 | **3. EXIT** | Fast spørsmålsrunde — **ikke valgfri**. Se § Exit-runde. | cowork spør, Opus svarer |
 
 > ⚠️ **«Exit» er tvetydig — skriv aldri «exit X» i en aksjonsblokk.** Her betyr EXIT *fase 3* (spørsmålsrunden). I dagligtale betyr det *fase 4* (lukk vinduet). 2026-07-16 skrev cowork «Så exit develop-Opus» øverst med selve exit-teksten nederst; Kenneth var i ferd med å lukke økta **uten** å kjøre runden — og fanget det selv. Bruk «**send exit-runden til X**» (fase 3) og «**lukk X**» (fase 4). Mister vi runden, mister vi det som har gitt mest: den fanget 🔴 4c, Norkart-nøkkelen og tre hull i coworks egne ordrer.
-| **4. LUKK** | Merge → **park treet detached** → slett branchen **lokalt OG på origin** → fjern raden → lukk vinduet. **En økt er ikke død før raden er borte.** | cowork, så Kenneth |
+| **4. LUKK** | Merge → **park treet detached** → slett branchen **lokalt OG på origin** → **fjern treet hvis det er utenfor det faste settet** → fjern raden → lukk vinduet. **En økt er ikke død før raden er borte.** | cowork, så Kenneth |
+
+> ⚠️ **«Ingen commits» gjelder kode — aldri leveranser** (fabel-regel 2026-07-17). **Hver økt som produserer en fil, får en git-vei for den i ordren** — docs-branch eller Kenneth-relay. En lese-økt skriver ikke kode; den skriver rapporter, og en rapport som ikke committes finnes ikke for noen andre enn maskinen den ligger på.
+>
+> **Belegg — tre foreldreløse leveranser funnet på tolv timer, alle fra samme klausul:** fase-M-forarbeidets tre rå-vedlegg (beviskilden matrisen `fd0ee7a2` sto på — untracked i repo-rota) · `plan-testflight-38.md` (22 KB, seks dager, Kenneth spurte selv hvorfor den ikke var søkbar) · `kode-doc-avvik.md` (18 KB, fem uker, funnet **kun** fordi `git worktree remove` nektet på et dirty tre). Ingen av dem gikk tapt — alle tre ble funnet ved tilfeldighet.
+>
+> **Fase 4 har nå feilet på samme måte to ganger:** 86 merged branches på origin (remote-steget manglet) og seks arbeidstrær utenfor det faste settet (tre-steget manglet). Begge fordi steget var en intensjon i stedet for en linje i sjekklisten. **Det faste tre-settet står i [parallell-arbeid-lock.md](parallell-arbeid-lock.md)** — et femte tre krever en tavle-rad for å eksistere.
 
 **Fase 4-mekanikk (lærdom 2026-07-16 — regelen feilet på første anvendelse):** `git branch -d` **nekter** å slette en branch et arbeidstre holder («cannot delete branch … used by worktree at …»). Treet må frigjøres først, og det kan **ikke** sjekke ut `develop` — `SiteDoc-merge` holder den, og git nekter samme branch i to trær. Riktig sekvens:
 
