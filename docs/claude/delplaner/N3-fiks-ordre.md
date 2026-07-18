@@ -44,6 +44,16 @@ sist_verifisert_mot_kode: 2026-07-18
 
 Kode → `next build` grønn → testplan-kjøring med kmy: (1) kmy SER flytens dokumenter, (2) kmy kan opprette KB2/SJA, (3) kmy får rollefiltrert meny → **Del E kjøres ferdig i samme runde** (deaktiverte handlinger m/ rollebegrunnelser — lukker A-3a), (4) **negativ kontroll:** bruker UTEN flyt-medlemskap ser fortsatt ingenting, (5) admin-visning uendret → Kenneth klikker selv → fabel-gate → dok-sync (`dokumentflyt.md § 3` presiseres: synlighetsaksen navngis) → «klar for commit».
 
+## Ledd 3-gate — kode-Opus' tre spørsmål (cowork-avgjort 2026-07-18)
+
+**Premiss-korreksjon:** kode-Opus meldte «dokumentflytId har ALDRI blitt bundet» — **feildiagnose.** dokumentflytId bindes ved **send** (`videresend-valg.ts:93`, `df.id`), ikke opprett; Del A–D beviste at dokumenter får flyt. Faggruppe-medlemmer oppretter fint (`bestillerId = mineFaggrupper[0]`). Den døde `"oppretter"`-rolle-matchen er kun en fallback som svikter for person-direkte. **Ingen «aldri bundet»-bug — dokumentflytId-binding er UTENFOR scope.**
+
+- **Q1 (utvid scope?):** Nei. Smal luke: person-direkte kan ikke utlede bestiller-faggruppe ved opprett. Bli i ordrens scope.
+- **Q2 (enhver flyt-medlem oppretter, § 2?):** Ja.
+- **Q3 (fallback `steg-faggruppe ?? Dokumentflyt.faggruppeId`):** **GRØNT.** `Dokumentflyt.faggruppeId` er nullbar, men DB-målt (prod 2026-07-18): «A.Markussen Ansatte» HAR `faggruppe_id = a94e9411…`. Fallback-kilden finnes. **Edge:** håndter grasiøst hvis en flyt likevel har `faggruppeId = NULL` (klar feilmelding, ikke krasj). **Test-flagg:** verifiser at *test*-flyten har `faggruppe_id` før ledd 5, ellers feiler kmy-testen på null-fallback (ikke en kode-feil).
+
+Serveren krever bestiller+utfører-faggruppe for ikke-HMS (`sjekkliste.ts:188`) — fallbacken tilfredsstiller det.
+
 ## 5. Opprydding
 
 Cowork eier merge + fase 4. **Prod-omfangets forfinede spørring (gruppe-veien) kjøres ETTER fiks** — da måler den rest-blinde, ikke kandidater.
