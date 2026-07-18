@@ -64,6 +64,23 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 
 **Håndhevelse:** cowork sjekker 1–4 i hver merge-gate (fast punkt i gate-rapporten). fabels exit-protokoll kjører dokumentasjonssync ved hver Opus-exit og verifiserer at 1–2 er fulgt i rundene siden sist — ikke bare at innholdet stemmer.
 
+## Seks-leddssløyfen — vedtatt arbeidsmetode (Kenneth 2026-07-18)
+
+**Kenneth-vedtatt standard for kommende saker.** Kom ut av A-3a/A-3b-runden, som endte i «svært sterke forbedringer» — og belegget er at **de tyngste funnene (N1 perspektiv-status, N3 tre-node-grafen, de syv designbeslutningene) kom fra test-leddene, ikke fra planleggingen.** En plan overlever ikke møtet med kjørende kode og en bruker som klikker; sløyfen fanger det planen ikke kunne vite.
+
+| Ledd | Hvem | Hva |
+|---|---|---|
+| 1. Plan | fabel | Design/ordre med mål |
+| 2. Gate mot kode | **cowork** | Verifiser planens premisser mot kode; ved avvik korrigér planen FØR bygging (REGEL 0 + §11-familien) |
+| 3. Kode | Opus | Bygg mot den gatede planen |
+| 4. Testplan | **cowork (eierskap)** | Lag testplan med **forventet utfall per steg** utledet fra kode — så avvik kan måles, ikke gjettes |
+| 5. Test | web-Opus | Utfør på test, kaptrer skjermbilder + logg, rapportér ordrett |
+| 6. Utbedring | fabel + cowork | Funn → korriger kode OG plan; nye funn mater neste sak |
+
+**Testplan-leddet (4) eies av cowork** (fabel-krav): forventet-kolonnen må komme fra kodemåling, ellers har man ingenting å måle observasjonen mot. Se [test-veileder-dokumentflyt-2026-07-18.md](delplaner/test-veileder-dokumentflyt-2026-07-18.md) som referanse-form.
+
+**B-2 og A-3b kjøres etter denne sløyfen** når N3-valget er tatt.
+
 ## Opus-livssyklus — fire faser (vedtatt 2026-07-16)
 
 **Bakgrunn:** regelen om statustavle sto her fra 2026-07-06 og ble aldri utført. 2026-07-16 kostet det nesten en økts arbeid: to økter fikk samme branch-navn (`docs/status-aktuelt-oppbrudd`), og den ene slettet den mens den andre skulle bruke den — ren flaks at rekkefølgen reddet det. Samme kveld fikk to økter samme arbeidstre (`SiteDoc-oppfolgere`), så auditens tre flyttet seg under den mens den kjørte. **En regel uten mekanisme utføres ikke. Tavla er mekanismen — den virker fordi Kenneth ser den, ikke fordi den er en regel.**

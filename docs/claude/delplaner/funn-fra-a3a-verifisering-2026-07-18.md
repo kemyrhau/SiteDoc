@@ -124,6 +124,53 @@ Bevarer det som virker (klikk på gruppe = send til gruppe), legger person-nivå
 
 **§11e — er dette defekt eller spec?** Bør flyt-medlemskap gi synlighet? Intuitivt ja (du er i flyten, du bør se flytens dokumenter). Men `dokumentflyt.md § 3` (tilgang) må konsulteres før fiks-retning velges: **(a)** `addDokumentflytMedlem` oppretter også `FaggruppeKobling` (sync ved skriving), eller **(b)** `byggTilgangsFilter` konsulterer også `DokumentflytMedlem` (sync ved lesing). Fabel/Kenneth avgjør; ikke A-3b.
 
+### N3 bekreftet på TRE fronter — samme rot (web-Opus Alt.1 + cowork-målt 2026-07-18)
+
+kmy er blind på tre måter, alle med samme rotårsak (**runtime leser `FaggruppeKobling`, config skriver `DokumentflytMedlem`**):
+
+1. **Lese:** 0 dokumenter (`byggTilgangsFilter` → `faggruppeKoblinger`).
+2. **Opprette:** blanket rød feil på KB2 OG SJA — *«Du er ikke medlem av noen faggruppe…»*. Målt: `sjekklister/page.tsx:316` `const oppretter = mineFaggrupper?.[0]` — leser `medlem.hentMineFaggrupper` (= `FaggruppeKobling`), ikke `DokumentflytMedlem`. Tom → `oppretter` undefined → feil. **Klartekst-motsigelse:** feilmeldingen sier «ikke medlem av noen faggruppe» om en bruker som står som **Registrator i flyten**.
+3. **Handle:** aldri nåbart (følger av 1).
+
+**Opprettelses-feilen er det beste beviset** (fabel): de to aksene motsier hverandre i klartekst i UI-en.
+
+### § 3-lesning (cowork, REGEL 0 — spec før valg)
+
+**§ 3 sier ikke eksplisitt hvilken akse styrer synlighet** — den handler om *rettigheter i et dokument du allerede ser* (Leser/Redigerer/Admin), ikke om *hvilke dokumenter som vises i lista*. `FaggruppeKobling` er **ikke nevnt** i § 3.
+
+**Men orienteringen er entydig:** § 3s access-entitet er **`DokumentflytMedlem`** — «flytmedlem», `kanRedigere`, roller. Specen organiserer tilgang rundt flyt-medlemskap. Koden bruker `FaggruppeKobling` for synlighet/opprettelse — en **udokumentert implementasjonsakse specen ikke omtaler.**
+
+**Konsekvens for valget:** orienteringen støtter **(b)** — runtime skal konsultere `DokumentflytMedlem`, det aligner koden med specens flyt-medlem-sentriske modell, og reparerer alle eksisterende flyt-medlemmer retroaktivt. **(a)** beholder `FaggruppeKobling` som styrende (som specen ikke støtter) OG dobbeltskriver samme sannhet i to tabeller — **det er N3 om igjen med motsatt fortegn.** Fabels innstilling (b) er spec-alignet. **Advarsel:** § 3 gir ikke svart-på-hvitt-svar på synlighet; (b) er en slutning fra orientering, ikke en paragraf. Kenneth bekrefter.
+
+**Prod-omfang (rute 1, cowork eier — men kan IKKE måles herfra):** antall `DokumentflytMedlem` uten tilsvarende `FaggruppeKobling` + berørte dokumenter krever DB-spørring på prod. Avgjør hastegrad. Kenneth kjører, eller relé til DB-økt.
+
+### N3 REFRAMET — skrivevei-kart (fabels §11e-korreksjon 2026-07-18): ikke to akser, en GRAF
+
+**Fabel stoppet (b) med rett spørsmål:** mål skrive-veiene, ikke bare radene. Kenneth: «`DokumentflytMedlem` uten `FaggruppeKobling` skal i praksis ikke være mulig.» Skriver én vei begge akser og config-skjermen ikke, er config-skjermen **bugget**, ikke modellen — da er fiksen (a), ikke (b).
+
+**Målt — alle skrive-veier:**
+
+| Oppretter `DokumentflytMedlem` | Oppretter `FaggruppeKobling` |
+|---|---|
+| `modul.ts:60/64` (HMS-flyt via `faggruppeId`) | `faggruppe.ts:70/129` |
+| `dokumentflyt.ts:157` (config-skjerm) | `prosjekt.ts:420` |
+| `prosjekt.ts:443/457` (via `faggruppeId`) | `seed.ts:111` |
+
+**Nøkkelfunn — de er IKKE to akser av samme medlemskap. De er tre kanter i en graf:**
+- `FaggruppeKobling` = **person ↔ faggruppe** (`projectMemberId` + `faggruppeId`)
+- `DokumentflytMedlem` (prosjekt/modul) = **faggruppe ↔ flyt-rolle** (`faggruppeId`, ingen person)
+- `addDokumentflytMedlem`-skjemaet tar **`faggruppeId` ELLER `projectMemberId` ELLER `groupId`** — kan binde flyt-rolle til en **person direkte**, som hopper over faggruppe-noden.
+
+**Leseren (`byggTilgangsFilter` + `mineFaggrupper`) traverserer kun Person → Faggruppe → Flyt.** En person lagt *direkte* i flyten (`projectMemberId`), eller bundet via en faggruppe personen ikke har `FaggruppeKobling` til, er en **bypass-kant leseren ikke ser.** Det er kmy.
+
+**Det ekte valget er ikke (a) vs (b) — det er:** *skal direkte person-i-flyt (`projectMemberId` på `DokumentflytMedlem`) være en gyldig tilgangsvei?*
+- **JA** → leseren MÅ også traversere `DokumentflytMedlem.projectMemberId` → (b)-variant.
+- **NEI, alle skal i flyt via faggruppen sin** → config-skjermen skal ikke tillate bar person / faggruppe-du-ikke-er-i → fiks skrive-veien → (a)-variant.
+
+**Én DB-måling avgjør (kan ikke leses herfra):** kmys faktiske `DokumentflytMedlem`-rad — er `projectMemberId`, `faggruppeId` eller `groupId` satt? Det sier hvilken bypass-kant Kenneth faktisk lagde, og dermed hvilken fiks som treffer. **Prod-spørringen utvides (fabel):** per foreldreløs rad — hvilken vei skapte den (`createdAt`/felt-mønster), så Kenneth får «for hvilke tilfeller» med belegg.
+
+**Fabels (b)-innstilling på vent til skrivevei-kartet + DB-raden foreligger.** §11e i renform: kmy kan være en bugget skrivevei (bypass-kant) ELLER en manglende lese-regel — motsatt fiks. Mål før valg.
+
 ## N4 / BESLUTNING — byggeplass er filter, ikke scope (Kenneth 2026-07-18)
 
 **Kenneth-vedtak:** byggeplass skal IKKE være hardt scope for **sjekklister, HMS, oppgaver**. Disse skilles kun på **prosjekt**. Byggeplass degraderes til et valgfritt **søkefilter** (på linje med andre filtre), ikke en toppbar-velger som avgrenser hva du ser. **Bakgrunn:** det finnes ingen «vis alle byggeplasser» i dag, så toppbar-velgeren skjuler data uten vei tilbake.
