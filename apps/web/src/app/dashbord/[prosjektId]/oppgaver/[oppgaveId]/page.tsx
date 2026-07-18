@@ -183,7 +183,7 @@ export default function OppgaveDetaljSide() {
     { enabled: !!params.prosjektId },
   );
   const alleFaggrupper = (alleFaggrupperRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
-  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
+  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/lib/videresend-valg").DokumentflytData[];
 
   // Hent full oppgavedata for tidslinje/recipient/creator (cast for TS2589)
   const { data: fullOppgaveRå } = trpc.oppgave.hentMedId.useQuery(

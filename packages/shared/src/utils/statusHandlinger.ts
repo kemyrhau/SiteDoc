@@ -41,7 +41,9 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
     rejected: [
-      { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
+      // A-i (2026-07-17): rejected→responded var ULOVLIG i isValidStatusTransition (server-BAD_REQUEST).
+      // Veien går nå rejected → in_progress → responded. Se dokumentflyt.md § 6.
+      { tekstNoekkel: "statushandling.gjenoppta", nyStatus: "in_progress", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
       { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
@@ -67,7 +69,7 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * | received     | Besvar, Videres.     | —           | Besvar, Videresend                | —                                 |
  * | in_progress  | Besvar, Tilbake, V   | —           | Besvar, Send tilbake, Videresend  | —                                 |
  * | responded    | Godkjenn, Tilbake, V | —           | —                                 | Godkjenn, Send tilbake, Videresend|
- * | rejected     | Besvar, V, Lukk      | —           | Besvar, Videresend                | —                                 |
+ * | rejected     | Gjenoppta, V, Lukk   | —           | Gjenoppta, Videresend             | —                                 |
  * | approved     | Lukk, Videresend     | Lukk        | —                                 | —                                 |
  * | cancelled    | Gjenåpne, Slett      | Gjenåpne    | —                                 | —                                 |
  */
@@ -106,6 +108,19 @@ export function erTillattForRolle(
   return tillatt.has(nyStatus);
 }
 
+/**
+ * Hvilke flyt-roller eier en gitt statusovergang (utenom registrator, som eier alt).
+ * Brukes av UI for å begrunne deaktiverte handlinger («Kun utfører» osv.) uten
+ * å duplisere rollematrisen. Tom liste = kun registrator/admin (eierløs handling).
+ */
+export function hentHandlingEierRoller(status: string, nyStatus: string): DokumentflytRolle[] {
+  const roller: DokumentflytRolle[] = [];
+  for (const rolle of ["bestiller", "utforer", "godkjenner"] as const) {
+    if (ROLLE_HANDLINGER[rolle]?.[status]?.has(nyStatus)) roller.push(rolle);
+  }
+  return roller;
+}
+
 /** Roller → status → tillatte nyStatus-verdier */
 const ROLLE_HANDLINGER: Record<string, Record<string, Set<string>>> = {
   bestiller: {
@@ -117,7 +132,8 @@ const ROLLE_HANDLINGER: Record<string, Record<string, Set<string>>> = {
   utforer: {
     received: new Set(["responded", "forwarded"]),
     in_progress: new Set(["responded", "sent", "forwarded"]),
-    rejected: new Set(["responded", "forwarded"]),
+    // A-i: rejected → in_progress (gjenoppta), ikke responded (ulovlig i statusmaskinen)
+    rejected: new Set(["in_progress", "forwarded"]),
   },
   godkjenner: {
     responded: new Set(["approved", "rejected", "forwarded"]),

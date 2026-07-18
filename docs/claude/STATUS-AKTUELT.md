@@ -41,6 +41,20 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 > **Maks 3 aktive PR-tråder.** `### Gjenstående` er en samlepost, ikke en tråd, og telles ikke.
 
+### A-3a handlingsmeny på kilden (branch `feat/a3a-handlingsmeny-kilde`) — PÅ BRANCH, venter merge + skjermbilder
+
+**Levert i kode 2026-07-17** (`next build` grønn, web+shared-typecheck rent; gjenværende shared-test-feil er pre-eksisterende i urørte test-filer). Fabel-ordre A-3a, gate PASS (Kenneth). Bygget mot lese-økt-rapporten + A2-B2-innstillingen + handlingsmatrisen:
+
+- **2.1** web `DokumentHandlingsmeny.tsx` skrevet om kilde-drevet — handlingssettet utledes fra `statusHandlinger.ts` (`hentRolleFiltrertHandlinger` + `ADMIN_NY`-splitt, identisk mobils `ADMIN_STATUSER`). If-kjeden + de frie admin-hoppene (som serveren avviste) er borte.
+- **2.2** «hva sier den når nei» — utilgjengelige handlinger vises deaktivert med begrunnelse utledet fra kilden (`hentHandlingEierRoller`): «Kun avsender/utfører/godkjenner» · «Kun administrator» · «Dokumentet er lukket» · «Ugyldig fra denne statusen».
+- **2.3/2.5 (A-i)** `rejected→responded` (ulovlig → server-BAD_REQUEST) rettet til `rejected→in_progress` i `hentStatusHandlinger` + `ROLLE_HANDLINGER`. Veien er nå `rejected → in_progress → responded`. **Delt kilde → mobil re-verifiseres i skjermbilde-runden.**
+- **2.4** `StatusHandlinger.tsx` slettet; `byggVideresendValg` + typer flyttet til `lib/videresend-valg.ts` (fire importører rettet: menyen + oppgave-/sjekkliste-sidenes inline type-import). `EntrepriseData`-aliaset drept.
+- **2.6** `erPrimaer` leses — primærhandling som knapp, resten i nedtrekk. «Trekk tilbake» fra `sent` er nå knapp, ikke begravd (Kenneths funn).
+- **2.7** 1 klikk unntatt `closed`/`deleted` (2 klikk); kommentar = «+ kommentar»-utvider, aldri påkrevd.
+- i18n: 8 nøkler × 15 språk (generate.ts kjørt). Dok-sync `dokumentflyt.md` § 3/§ 6.
+
+**Utestående:** skjermbilder på test etter deploy (web normal+admin med deaktiverte synlige, primær som knapp, 1-klikk + `DocumentTransfer`-rad, mobil re-verifisert, rejected-vei). **Exit-funn:** `received→in_progress` ikke bygget (andre lovlige in_progress-inngang, «start arbeid» ≠ «gjenoppta») · `statushandling.startArbeid*` ubrukte i18n-relikvier · no-flyt er eneste flate hvor «eierløs» = «alle» (serveren tillater det der). Full ordre: [delplaner/A3a-ordre.md](delplaner/A3a-ordre.md).
+
 ### Sjekkliste ikke append-only (branch `fix/sjekkliste-ikke-append-only`) — PÅ BRANCH, venter merge
 
 **Regresjonsfiks fra `04f6d295`** (kun develop/test, prod ikke rammet). `04f6d295` slo på append-only felt-låsing i alle fire skjema-hooks. Riktig for oppgave (mobil manglet den), **feil for sjekkliste** (spec `dokumentflyt.md § 2`: sjekkliste er redigerbar for den som har ballen + admin/registrator) — et innsendt tallfelt ble permanent låst, også for admin.
