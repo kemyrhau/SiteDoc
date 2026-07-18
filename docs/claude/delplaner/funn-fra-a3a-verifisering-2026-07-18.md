@@ -108,6 +108,32 @@ Bevarer det som virker (klikk på gruppe = send til gruppe), legger person-nivå
 
 **Uansett utfall er retningen den samme:** teksten er ikke prominent nok. **Bekrefter funn 1-vedtaket** — løsningen er å gjøre «hvem har ballen» synlig, ikke å jage en treghet vi ikke klarte å reprodusere.
 
-## Del E ikke kjørt — krever ikke-admin-bruker
+## N3 — dokumentflyt-synlighet: to medlemskapsakser, én konsultert (web-Opus Del E, cowork-målt 2026-07-18)
+
+**Observasjon (web-Opus):** `kmy` — Registrator i dokumentflyt «A.Markussen Ansatte» under faggruppe A.Markussen AS — ser **0 sjekklister** på Bygg B12, enda KB2-005 ble sendt/videresendt gjennom A.Markussen AS på samme bygg. Web-Opus gjettet «synlighet følger aktiv mottaker» — **markert ubekreftet.**
+
+**Cowork-målt — gjetningen er feil:** `byggTilgangsFilter` (`tilgangskontroll.ts`) bygger OR-filter på `bestillerFaggruppeId` / `utforerFaggruppeId` **i brukerens `ProjectMember.faggruppeKoblinger`** — faggruppe-medlemskap, ikke aktiv mottaker. (`recipientUserId in firmaUserIder` er én OR-gren, men keyet på firma, ikke individet.)
+
+**Det ekte funnet:** filteret konsulterer `ProjectMember.faggruppeKoblinger`. kmys rolle er via `DokumentflytMedlem` (registrator i flyt) — en **annen medlemskapsakse som filteret ikke sjekker.** En registrator i en dokumentflyt uten matchende `faggruppeKobling` ser null. **To medlemskapsbegreper, ett konsultert** — samme substrat-mønster som append-only/`DISPLAY_TYPER` (se 🔴-posten i BACKLOG).
+
+**BEKREFTET PÅ KODENIVÅ — ikke lenger bare mekanisme (cowork-målt 2026-07-18):** `addDokumentflytMedlem` (`dokumentflyt.ts:157`) oppretter **KUN** en `DokumentflytMedlem`-rad — **ingen `FaggruppeKobling`** ved siden av. Lese-siden (`byggTilgangsFilter`) leser `FaggruppeKobling` (binder `projectMemberId ↔ faggruppeId`). **De to aksene synkroniseres ikke.**
+
+**Kenneths kontekst (2026-07-18):** han registrerte kmy **direkte inn i dokumentflyten** og forutsatte at prosjektets kontaktside/tilgang oppdaterte automatisk. Den gjorde ikke. **Å legge noen i en dokumentflyt gjør dem IKKE synlige for flytens dokumenter** — skrive-siden fyller én akse, lese-siden leser den andre, ingen sync.
+
+**Eneste gjenstående DB-forbehold:** om kmy har en `FaggruppeKobling` fra en *annen* vei. Kenneths «la inn direkte i flyten + forutsatte auto-oppdatering» tilsier nei. Mekanismen (add-flyt skaper ikke kobling) er uansett bekreftet.
+
+**§11e — er dette defekt eller spec?** Bør flyt-medlemskap gi synlighet? Intuitivt ja (du er i flyten, du bør se flytens dokumenter). Men `dokumentflyt.md § 3` (tilgang) må konsulteres før fiks-retning velges: **(a)** `addDokumentflytMedlem` oppretter også `FaggruppeKobling` (sync ved skriving), eller **(b)** `byggTilgangsFilter` konsulterer også `DokumentflytMedlem` (sync ved lesing). Fabel/Kenneth avgjør; ikke A-3b.
+
+## N4 / BESLUTNING — byggeplass er filter, ikke scope (Kenneth 2026-07-18)
+
+**Kenneth-vedtak:** byggeplass skal IKKE være hardt scope for **sjekklister, HMS, oppgaver**. Disse skilles kun på **prosjekt**. Byggeplass degraderes til et valgfritt **søkefilter** (på linje med andre filtre), ikke en toppbar-velger som avgrenser hva du ser. **Bakgrunn:** det finnes ingen «vis alle byggeplasser» i dag, så toppbar-velgeren skjuler data uten vei tilbake.
+
+**⚠️ MOTSIER gjeldende CLAUDE.md § Toppbar-filtre-standard** (cowork-flagg): den lister eksplisitt `bilder, hms, kontrollplan, oppgaver/sjekklister, tegninger, …` som sider der byggeplass-velgeren er **aktiv avgrensning** (`useToppbarFiltre` default aktiv). Vedtaket reverserer dette for sjekklister/HMS/oppgaver. **Kode + doc-endring:** `useToppbarFiltre`-oppsettet på de tre sidene + CLAUDE.md-standarden må reconciles. Egen sak — ikke A-3b, ikke Del E.
+
+## Del E — delvis blokkert av N3
+
+`kmy` (registrator) ser ingen dokumenter → E1/E2 kan ikke treffes på eksisterende dokumenter. **Fabel-vedtak 2026-07-18:** web-Opus kjører **Alt. 1** (kmy oppretter + sender eget dokument, fanger egen rollefiltrert meny med begrunnelser) — gir utfører-perspektivet uten koordinering. **E2 (godkjenner-siden) venter til N3-synlighetssaken er avklart** — blokkeres av samme regel.
+
+## Del E (opprinnelig) — krever ikke-admin-bruker
 
 Rollefiltrering (deaktiverte handlinger med begrunnelse) kunne ikke observeres — kun admin innlogget, som ser alt. På `closed` var handlingsraden helt tom (ingen deaktiverte knapper med tooltip, bare fravær). **Åpent:** logg inn som utfører/godkjenner for å verifisere «Kun administrator»/«Kun godkjenner»-begrunnelsene A-3a bygde.
