@@ -171,6 +171,21 @@ kmy er blind på tre måter, alle med samme rotårsak (**runtime leser `Faggrupp
 
 **Fabels (b)-innstilling på vent til skrivevei-kartet + DB-raden foreligger.** §11e i renform: kmy kan være en bugget skrivevei (bypass-kant) ELLER en manglende lese-regel — motsatt fiks. Mål før valg.
 
+### N3 AVGJORT — (b), data-bekreftet (DB-måling 2026-07-18, Kenneth kjørte)
+
+**DB-fasit, flyt «A.Markussen Ansatte» (test):** 6 medlemmer, **ingen** med `faggruppe_id` satt. 2 bundet via `group_id`, 4 via `project_member_id` (person). kmy er en person-rad (registrator, `project_member_id` satt, `faggruppe_id` + `group_id` NULL).
+
+**Det avgjør valget:** person-direkte binding er ikke et uhell — hele flyten er bygget på person/gruppe-bindinger, null faggruppe-bindinger. Direkte person-i-flyt er en **aktivt brukt, gyldig tilgangsvei.** Derfor:
+- **(a) «forby bar person»** ville brutt den eksisterende modellen. Utelukket.
+- **(a) «synk til FaggruppeKobling»** gir ikke mening — medlemmet ER en person, ingen faggruppe å koble til.
+- **(b) leseren må konsultere `DokumentflytMedlem` (person + gruppe), ikke bare `FaggruppeKobling`.** ✅ Fabels innstilling, nå data-bekreftet. Skrivevei-omveien bekreftet den i stedet for å velte den.
+
+**Prod-omfang (DB-måling 2026-07-18):** 4 person-direkte flyt-medlemmer uten `FaggruppeKobling` (mai 2026 — godkjenner ×1, registrator ×3). **Ekte prod-brukere, ikke test-anomali.**
+
+**⚠️ «Blind» er øvre grense:** prod-spørringen sjekket ikke `groupMemberships`-veien i `byggTilgangsFilter` (person i en gruppe med faggrupper kan reddes). Eksakt blind-tall krever forfinet spørring: person-direkte flyt-medlem SOM verken har `FaggruppeKobling` ELLER `groupMembership` mot en gruppe med matchende faggruppe. Cowork skriver den ved behov.
+
+**Konsekvens for A-3b Del 1d («mine oppgaver»):** blokkeringen står — (b) må bygges (leseren konsulterer `DokumentflytMedlem`) FØR «mine oppgaver» kan filtrere på hvem som har ballen. **N3-fiksen (b) er nå en egen ordre, forutsetning for A-3b Del 1d.**
+
 ## N4 / BESLUTNING — byggeplass er filter, ikke scope (Kenneth 2026-07-18)
 
 **Kenneth-vedtak:** byggeplass skal IKKE være hardt scope for **sjekklister, HMS, oppgaver**. Disse skilles kun på **prosjekt**. Byggeplass degraderes til et valgfritt **søkefilter** (på linje med andre filtre), ikke en toppbar-velger som avgrenser hva du ser. **Bakgrunn:** det finnes ingen «vis alle byggeplasser» i dag, så toppbar-velgeren skjuler data uten vei tilbake.
