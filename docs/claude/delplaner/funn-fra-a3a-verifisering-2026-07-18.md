@@ -100,11 +100,13 @@ Bevarer det som virker (klikk på gruppe = send til gruppe), legger person-nivå
 
 **Binder sammen alt:** funn 1 («vis hvem som har ballen»), N2 («Venter på» virker men er ikke synlig), N1 (perspektiv-status) — **samme sak fra tre vinkler.** Dette er fabels ramme for dokumentflyt, ikke en enkeltfiks. Ikke en tabell cowork skriver — utarbeides per dokumenttype, tilpasset meningen (Kenneth: *«ikke et fasitsvar for alle statuser»*).
 
-### N2 — «Venter på» oppdaterer FAKTISK, men er ikke synlig nok
+### N2 — «Venter på»-treghet IKKE REPRODUSERT (ikke det samme som løst)
 
 **Målt (web-Opus, ren sekvens):** ved videresend A.Markussen → Byggherre → A.Markussen oppdaterte «Venter på»-teksten korrekt ved *begge* steg. Kenneths tidligere manuelle test (rask fram-og-tilbake) opplevde den som fast.
 
-**Reconciliation:** teksten oppdateres, men er ikke prominent — Kenneth så på statusbadgen (som korrekt ikke endres) og oppfattet «ingenting skjedde». **Dette bekrefter funn 1-vedtaket:** løsningen er ikke å fikse en «fast» tekst (den virker), men å gjøre «hvem har ballen» synlig nok til at forwarded føles som en handling.
+**Status: IKKE REPRODUSERT — ikke løst** (§11e). To ekte observasjoner: web-Opus (ren, langsom sekvens) så oppdatering; Kenneth (rask klikking) så treghet. Mulig race under hurtig-klikking, eller Kenneth så på statusbadgen (som korrekt ikke endres). Vi kan ikke påstå den er fikset — kun at den ikke slo til i den strukturerte testen.
+
+**Uansett utfall er retningen den samme:** teksten er ikke prominent nok. **Bekrefter funn 1-vedtaket** — løsningen er å gjøre «hvem har ballen» synlig, ikke å jage en treghet vi ikke klarte å reprodusere.
 
 ## Del E ikke kjørt — krever ikke-admin-bruker
 
