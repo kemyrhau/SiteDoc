@@ -102,6 +102,15 @@ Dokumenter kan refereres som vedlegg på tvers (f.eks. en ferdig Teknisk avklari
 
 ## 3. Rettigheter
 
+### Synlighetsaksen (N3, 2026-07-18)
+
+**Å være medlem av en dokumentflyt gir synlighet til flytens dokumenter** — uavhengig av bindingsform. `DokumentflytMedlem` binder et medlem på én av tre måter: `faggruppe_id`, `group_id` eller `project_member_id` (person-direkte). Alle tre er gyldige tilgangsveier.
+
+- **Server:** `byggTilgangsFilter` (`apps/api/src/trpc/tilgangskontroll.ts`) legger til `{ dokumentflytId: { in: <flyter brukeren er medlem av> } }` via `hentBrukersFlytMedlemskap` (alle tre bindinger, kun aktive medlemskap `periodeSlutt = null`). Tidligere fanget filteret kun faggruppe-/gruppe-veiene → person-direkte medlemmer (`project_member_id`) så ingenting. Fire lesere: `oppgave.ts` · `sjekkliste.ts` · `hms.ts` · `bilde.ts` (nested på checklist/task).
+- **Opprett:** de fire opprett-flatene (sjekklister/oppgaver/tegninger/`OpprettOppgaveModal`) utleder bestiller/utfører-faggruppe fra `tRPC medlem.hentMineFlyter`; person-/gruppe-direkte medlem uten egen faggruppe bruker flytens eier-faggruppe (`Dokumentflyt.faggruppeId`) som fallback. Mangler flyten faggruppe → klar feil (`dokumentflyt.feil.ingenFaggruppe`), ikke krasj. **`dokumentflytId` bindes ved send, ikke ved opprett** (uendret).
+
+Flyt-medlemskap gir **synlighet + flytrolle-handlinger**, ikke admin eller redigering utover § 2.
+
 ### Rettighetsbasert UI
 
 | | Leser | Redigerer | Admin/Registrator |

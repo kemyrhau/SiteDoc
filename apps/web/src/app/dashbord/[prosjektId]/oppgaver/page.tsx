@@ -327,6 +327,9 @@ export default function OppgaverSide() {
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: params.prosjektId },
   );
+  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery(
+    { projectId: params.prosjektId },
+  );
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
   );
@@ -370,25 +373,38 @@ export default function OppgaverSide() {
     }
 
     const oppretter = mineFaggrupper?.[0];
-    if (!oppretter) return;
 
     const alleDf = (dokumentflyter ?? []) as Array<{
       id: string;
+      faggruppeId: string | null;
       medlemmer: Array<{ faggruppe?: { id: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
       maler: Array<{ template: { id: string } }>;
     }>;
     const matchDf = alleDf.find((df) =>
       df.maler.some((m) => m.template.id === malId) &&
       df.medlemmer.some((m) =>
-        m.rolle === "oppretter" && (m.faggruppe?.id === oppretter.id || m.group || m.projectMember),
+        m.rolle === "oppretter" && (m.faggruppe?.id === oppretter?.id || m.group || m.projectMember),
       ),
     );
+
+    // Bestiller-faggruppe: egen faggruppe, ellers eier-faggruppen (Dokumentflyt.faggruppeId)
+    // til flyten brukeren er medlem av (person-/gruppe-direkte medlem uten egen faggruppe).
+    let bestillerId = oppretter?.id;
+    if (!bestillerId) {
+      const mineFlytIder = new Set(mineFlyter ?? []);
+      const minFlyt = alleDf.find((df) => df.maler.some((m) => m.template.id === malId) && mineFlytIder.has(df.id));
+      bestillerId = minFlyt?.faggruppeId ?? undefined;
+    }
+    if (!bestillerId) {
+      alert(t("dokumentflyt.feil.ingenFaggruppe"));
+      return;
+    }
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
-    const svarerFaggruppeId = svarer?.faggruppe?.id ?? oppretter.id;
+    const svarerFaggruppeId = svarer?.faggruppe?.id ?? bestillerId;
 
     opprettMutation.mutate({
       templateId: malId,
-      bestillerFaggruppeId: oppretter.id,
+      bestillerFaggruppeId: bestillerId,
       utforerFaggruppeId: svarerFaggruppeId,
       title: malMedDomain?.name ?? t("oppgaver.nyOppgaveFallback"),
       priority: "medium",

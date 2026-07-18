@@ -473,6 +473,7 @@
   "oppsett.giAttestering": "Myönnä aikahyväksyntä",
   "oppsett.attesteringImplisittAdmin": "Järjestelmänvalvojalla on implisiittisen aikaisen hyväksynnän käyttöoikeus roolin kautta",
   "oppsett.faggrupper": "Urakoitsijat ja asiakirjavirta",
+  "dokumentflyt.feil.ingenFaggruppe": "Alle luotavaa kaupparyhmää ei löytynyt. Asiakirjakululla, johon kuulut, ei ole omistajan kaupparyhmää – ota yhteyttä projektin järjestelmänvalvojaan.",
   "dokumentflyt.tittel": "Asiakirjan kulku",
   "dokumentflyt.velgProsjekt": "Valitse projekti nähdäksesi asiakirjan kulun.",
   "dokumentflyt.etterFaggruppe": "Kurinalaryhmän mukaan",

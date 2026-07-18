@@ -473,6 +473,7 @@
   "oppsett.giAttestering": "Zatwierdzenie czasu przyznania",
   "oppsett.attesteringImplisittAdmin": "Administrator ma ukryty dostęp do zatwierdzania czasu poprzez rolę",
   "oppsett.faggrupper": "Kontrahenci i obieg dokumentów",
+  "dokumentflyt.feil.ingenFaggruppe": "Nie znaleziono grupy handlowej, którą można utworzyć w ramach. Obieg dokumentów, do którego należysz, nie ma grupy branżowej właściciela — skontaktuj się z administratorem projektu.",
   "dokumentflyt.tittel": "Przepływ dokumentów",
   "dokumentflyt.velgProsjekt": "Wybierz projekt, aby zobaczyć obieg dokumentów.",
   "dokumentflyt.etterFaggruppe": "Według grupy dyscyplin",

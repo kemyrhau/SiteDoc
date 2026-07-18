@@ -473,6 +473,7 @@
   "oppsett.giAttestering": "Udělit časový souhlas",
   "oppsett.attesteringImplisittAdmin": "Admin má implicitní časový souhlas prostřednictvím role",
   "oppsett.faggrupper": "Dodavatelé a tok dokumentů",
+  "dokumentflyt.feil.ingenFaggruppe": "Nebyla nalezena žádná obchodní skupina k vytvoření pod. Tok dokumentů, do kterého patříte, nemá žádnou obchodní skupinu vlastníka – kontaktujte administrátora projektu.",
   "dokumentflyt.tittel": "Tok dokumentů",
   "dokumentflyt.velgProsjekt": "Chcete-li zobrazit tok dokumentů, vyberte projekt.",
   "dokumentflyt.etterFaggruppe": "Podle skupiny disciplín",
