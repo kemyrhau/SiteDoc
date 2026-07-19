@@ -473,6 +473,7 @@
   "oppsett.giAttestering": "Zeitgenehmigung erteilen",
   "oppsett.attesteringImplisittAdmin": "Der Administrator verfügt über impliziten Zeitgenehmigungszugriff über die Rolle",
   "oppsett.faggrupper": "Auftragnehmer und Dokumentenfluss",
+  "dokumentflyt.feil.ingenFaggruppe": "Es wurde keine Handelsgruppe zum Erstellen unter gefunden. Der Dokumentenfluss, dem Sie angehören, hat keine Eigentümer-Handelsgruppe – wenden Sie sich an den Projektadministrator.",
   "dokumentflyt.tittel": "Dokumentenfluss",
   "dokumentflyt.velgProsjekt": "Wählen Sie ein Projekt aus, um den Dokumentenfluss anzuzeigen.",
   "dokumentflyt.etterFaggruppe": "Nach Disziplingruppe",

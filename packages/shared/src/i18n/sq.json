@@ -473,6 +473,7 @@
   "oppsett.giAttestering": "Jep miratimin e kohës",
   "oppsett.attesteringImplisittAdmin": "Administratori ka qasje të nënkuptuar për miratimin e kohës nëpërmjet rolit",
   "oppsett.faggrupper": "Grupet tregtare dhe rrjedha e dokumenteve",
+  "dokumentflyt.feil.ingenFaggruppe": "Nuk u gjet asnjë grup tregtar për të krijuar nën. Rrjedha e dokumenteve të cilës i përkisni nuk ka asnjë grup tregtar pronari — kontaktoni administratorin e projektit.",
   "dokumentflyt.tittel": "Rrjedha e dokumentit",
   "dokumentflyt.velgProsjekt": "Zgjidhni një projekt për të parë rrjedhën e dokumentit.",
   "dokumentflyt.etterFaggruppe": "Sipas grupit të disiplinës",

@@ -473,6 +473,7 @@
   "oppsett.giAttestering": "Accorder l’approbation du temps",
   "oppsett.attesteringImplisittAdmin": "L'administrateur dispose d'un accès implicite à l'approbation du temps via son rôle",
   "oppsett.faggrupper": "Entrepreneurs et flux de documents",
+  "dokumentflyt.feil.ingenFaggruppe": "Aucun groupement commercial trouvé pour créer sous. Le flux de documents auquel vous appartenez n'a pas de groupe professionnel propriétaire : contactez l'administrateur du projet.",
   "dokumentflyt.tittel": "Flux de documents",
   "dokumentflyt.velgProsjekt": "Sélectionnez un projet pour voir le flux de documents.",
   "dokumentflyt.etterFaggruppe": "Par groupe disciplinaire",

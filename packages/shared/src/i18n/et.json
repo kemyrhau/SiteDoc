@@ -473,6 +473,7 @@
   "oppsett.giAttestering": "Andke aja heakskiit",
   "oppsett.attesteringImplisittAdmin": "Administraatoril on rolli kaudu kaudne aeg heakskiitmiseks juurdepääs",
   "oppsett.faggrupper": "Töövõtjad ja dokumendivoog",
+  "dokumentflyt.feil.ingenFaggruppe": "Ei leitud ühtegi kaubandusgruppi, mille alusel luua. Dokumendivool, kuhu kuulute, pole omanike kaubandusgruppi — võtke ühendust projekti administraatoriga.",
   "dokumentflyt.tittel": "Dokumendivoog",
   "dokumentflyt.velgProsjekt": "Dokumendivoo vaatamiseks valige projekt.",
   "dokumentflyt.etterFaggruppe": "Distsipliinirühma järgi",

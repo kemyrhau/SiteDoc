@@ -180,6 +180,10 @@ export default function TegningerSide() {
     { projectId: params.prosjektId },
     { enabled: visOpprettModal },
   );
+  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: visOpprettModal },
+  );
   const { data: arbeidsforlop } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
     { enabled: visOpprettModal },
@@ -451,20 +455,27 @@ export default function TegningerSide() {
 
   // Finn matchende arbeidsforløp for valgt oppretter + mal
   const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as DokumentflytRad[];
+  // Person-/gruppe-direkte medlem uten egen faggruppe: bruk eier-faggruppen (Dokumentflyt.faggruppeId)
+  // til flyten brukeren er medlem av og som har valgt mal.
+  const mineFlytIder = new Set(mineFlyter ?? []);
+  const flytFallbackFaggruppe = valgtMal
+    ? alleArbeidsforlop.find((af) => mineFlytIder.has(af.id) && af.maler.some((wt) => wt.template.id === valgtMal))?.faggruppeId ?? null
+    : null;
+  const effektivOppretter = valgtOppretter || flytFallbackFaggruppe || "";
   const matchendeArbeidsforlop = alleArbeidsforlop.find((af) =>
-    af.faggruppeId === valgtOppretter &&
+    af.faggruppeId === effektivOppretter &&
     af.maler.some((wt) => wt.template.id === valgtMal),
   );
-  const utledetSvarer = valgtOppretter;
+  const utledetSvarer = effektivOppretter;
 
   function handleOpprett(e: React.FormEvent) {
     e.preventDefault();
-    if (!valgtMal || !valgtOppretter) return;
+    if (!valgtMal || !effektivOppretter) return;
 
     if (opprettType === "oppgave") {
       opprettOppgaveMutation.mutate({
         templateId: valgtMal,
-        bestillerFaggruppeId: valgtOppretter,
+        bestillerFaggruppeId: effektivOppretter,
         utforerFaggruppeId: utledetSvarer,
         title: "Ny oppgave",
         drawingId: aktivTegning?.id,
@@ -474,7 +485,7 @@ export default function TegningerSide() {
     } else {
       opprettSjekklisteMutation.mutate({
         templateId: valgtMal,
-        bestillerFaggruppeId: valgtOppretter,
+        bestillerFaggruppeId: effektivOppretter,
         utforerFaggruppeId: utledetSvarer,
         byggeplassId: aktivByggeplass?.id,
         drawingId: aktivTegning?.id,
@@ -514,7 +525,9 @@ export default function TegningerSide() {
   // 2. Faggruppe-arbeidsforløp → maler knyttet via dokumentflyt + HMS (alle kan opprette HMS)
   // 3. Domene-grupper (HMS, Bygg) → maler med matchende domain
   const filtrerMaler = (() => {
-    if (!valgtOppretter) return [];
+    // Person-/gruppe-direkte medlem har ingen faggruppe å velge, men kan opprette via
+    // flyt-medlemskap — blokkér kun når det verken finnes faggruppe eller flyt-medlemskap.
+    if (!valgtOppretter && mineFlytIder.size === 0) return [];
     const alleMalerTypet = (alleMaler ?? []) as Array<{ id: string; name: string; category: string; domain: string | null }>;
     const kategoriMaler = alleMalerTypet.filter((m) => m.category === opprettType);
 
@@ -525,9 +538,10 @@ export default function TegningerSide() {
 
     const synligeMalIder = new Set<string>();
 
-    // Faggruppe-arbeidsforløp: maler knyttet til valgt oppretter via dokumentflyt
+    // Faggruppe-arbeidsforløp: maler knyttet til valgt oppretter via dokumentflyt,
+    // eller til en flyt brukeren er direkte medlem av (person-/gruppe-binding).
     for (const af of alleArbeidsforlop) {
-      if (af.faggruppeId !== valgtOppretter) continue;
+      if (af.faggruppeId !== valgtOppretter && !mineFlytIder.has(af.id)) continue;
       for (const wt of af.maler) {
         if (wt.template.category === opprettType) {
           synligeMalIder.add(wt.template.id);
@@ -1004,7 +1018,7 @@ export default function TegningerSide() {
           />
 
           <div className="flex gap-3 pt-2">
-            <Button type="submit" loading={erLaster} disabled={!valgtMal || !valgtOppretter}>
+            <Button type="submit" loading={erLaster} disabled={!valgtMal || !effektivOppretter}>
               <Plus className="mr-1.5 h-4 w-4" />
               Opprett {opprettType === "oppgave" ? "oppgave" : "sjekkliste"}
             </Button>

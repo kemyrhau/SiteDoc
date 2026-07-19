@@ -41,6 +41,17 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 > **Maks 3 aktive PR-tråder.** `### Gjenstående` er en samlepost, ikke en tråd, og telles ikke.
 
+### N3-fiks: dokumentflyt-synlighet leser DokumentflytMedlem (branch `fix/n3-flytmedlem-synlighet`) — PÅ BRANCH, venter testplan (kmy)
+
+**Levert i kode 2026-07-18** (`next build` grønn — exit 0; web/api-typecheck rent bortsett fra pre-eksisterende TS2589 i `oppgaver/page.tsx:337` som IKKE feiler build). Fabel-ordre N3, retning (b) cowork-gatet. Grunnlag: [funn-fra-a3a-verifisering-2026-07-18.md](delplaner/funn-fra-a3a-verifisering-2026-07-18.md) + DB-fasit (6 flytmedlemmer, 0 med faggruppe_id — person/gruppe-direkte er gyldig tilgangsvei).
+
+- **Server-synlighet:** `byggTilgangsFilter` fikk OR-gren `{ dokumentflytId: { in: <mine flyter> } }` via ny delt kilde `hentBrukersFlytMedlemskap(userId, projectId)` (alle tre bindinger, kun aktive `periodeSlutt = null`, én indeksert `findMany`). Fanger `project_member_id`-bindingen fire lesere var blinde for (`oppgave`/`sjekkliste`/`hms`/`bilde`). N+1-vakt: gjenbruker allerede-hentet `medlem`.
+- **tRPC `hentMineFlyter`** (`medlem.ts`) — `string[]` av flyt-ID-er (trivial retur mot TS2589), delt kjerne med filteret.
+- **Opprett-fiks, 4 flater** (sjekklister/oppgaver/tegninger/`OpprettOppgaveModal`): bestiller/utfører-faggruppe utledes fra flyt-medlemskap; person-/gruppe-direkte uten egen faggruppe bruker `Dokumentflyt.faggruppeId`-fallback. Grasiøs feil (`dokumentflyt.feil.ingenFaggruppe`) hvis flyten mangler faggruppe. **`dokumentflytId`-binding urørt** (skjer ved send). Tegninger/modal: mal-listen (`filtrerMaler`) inkluderer nå flyt-medlemskap.
+- i18n: 1 nøkkel × 15 språk (generate.ts). Dok-sync `dokumentflyt.md § 3` (synlighetsaksen navngitt).
+
+**Utestående:** cowork lager testplan (ledd 4) → web-Opus verifiserer med kmy: (1) ser flytens dokumenter, (2) kan opprette KB2/SJA, (3) rollefiltrert meny (Del E lukker A-3a), (4) negativ kontroll: bruker uten flyt-medlemskap ser fortsatt ingenting, (5) admin uendret. **Exit-funn:** `sjekklister.feil.ingenFaggruppe` er nå orphan-relikvi; opprett-flatenes døde `"oppretter"`/`"svarer"`-rollematch (treffer aldri — `dokumentflytId` bindes uansett ved send) står urørt per scope; pre-eksisterende TS2589 `oppgaver/page.tsx:337`. Full ordre: [delplaner/N3-fiks-ordre.md](delplaner/N3-fiks-ordre.md).
+
 ### A-3a handlingsmeny på kilden (branch `feat/a3a-handlingsmeny-kilde`) — PÅ BRANCH, venter merge + skjermbilder
 
 **Levert i kode 2026-07-17** (`next build` grønn, web+shared-typecheck rent; gjenværende shared-test-feil er pre-eksisterende i urørte test-filer). Fabel-ordre A-3a, gate PASS (Kenneth). Bygget mot lese-økt-rapporten + A2-B2-innstillingen + handlingsmatrisen:

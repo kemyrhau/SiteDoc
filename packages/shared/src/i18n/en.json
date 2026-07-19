@@ -473,6 +473,7 @@
   "oppsett.giAttestering": "Grant time approval",
   "oppsett.attesteringImplisittAdmin": "Admin has implicit time approval access via role",
   "oppsett.faggrupper": "Trade groups and document flow",
+  "dokumentflyt.feil.ingenFaggruppe": "No trade group found to create under. The document flow you belong to has no owner trade group — contact the project admin.",
   "dokumentflyt.tittel": "Document flow",
   "dokumentflyt.velgProsjekt": "Select a project to see the document flow.",
   "dokumentflyt.etterFaggruppe": "By discipline group",

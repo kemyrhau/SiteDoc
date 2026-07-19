@@ -10,6 +10,7 @@ import {
   verifiserProsjektmedlem,
   hentBrukerTillatelser,
   hentBrukersOrg,
+  hentBrukersFlytMedlemskap,
 } from "../trpc/tilgangskontroll";
 
 export const medlemRouter = router({
@@ -77,6 +78,18 @@ export const medlemRouter = router({
       }
 
       return medlem.faggruppeKoblinger.map((me) => me.faggruppe);
+    }),
+
+  // Hent flytene innlogget bruker er medlem av (alle tre bindinger: person/faggruppe/gruppe).
+  // Brukes av de fire klient-opprett-flatene for å utlede bestiller/utfører-faggruppe når
+  // brukeren er person-/gruppe-direkte medlem (uten egen faggruppe).
+  hentMineFlyter: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    // Eksplisitt `string[]`-retur: klienten trenger kun flyt-ID-ene, og en trivial
+    // returtype holder tRPC-router-typen liten (unngår TS2589 på tunge tRPC-sider).
+    .query(async ({ ctx, input }): Promise<string[]> => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      return hentBrukersFlytMedlemskap(ctx.userId, input.projectId);
     }),
 
   // Hent mine tillatelser i et prosjekt

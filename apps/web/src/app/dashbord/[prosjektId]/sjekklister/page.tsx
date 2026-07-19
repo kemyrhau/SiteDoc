@@ -277,6 +277,7 @@ export default function SjekklisteSide() {
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string }>).filter((m) => m.category === "sjekkliste");
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery({ projectId: params.prosjektId });
+  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery({ projectId: params.prosjektId });
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: params.prosjektId });
 
   const slettMutation = trpc.sjekkliste.slett.useMutation({
@@ -310,6 +311,7 @@ export default function SjekklisteSide() {
     setOpprettFeil(null);
     const alleDf = (dokumentflyter ?? []) as Array<{
       id: string;
+      faggruppeId: string | null;
       medlemmer: Array<{ faggruppe?: { id: string; name?: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
       maler: Array<{ template: { id: string } }>;
     }>;
@@ -321,9 +323,16 @@ export default function SjekklisteSide() {
         : df.medlemmer.some((m) => m.rolle === "oppretter")),
     );
     const dfOppretterFg = matchDf?.medlemmer.find((m) => m.rolle === "oppretter")?.faggruppe?.id;
-    const bestillerId = oppretter?.id ?? dfOppretterFg;
+    let bestillerId = oppretter?.id ?? dfOppretterFg;
+    // Person-/gruppe-direkte medlem uten egen faggruppe: bruk eier-faggruppen (Dokumentflyt.faggruppeId)
+    // til flyten brukeren er medlem av og som har denne malen.
     if (!bestillerId) {
-      setOpprettFeil(t("sjekklister.feil.ingenFaggruppe"));
+      const mineFlytIder = new Set(mineFlyter ?? []);
+      const minFlyt = alleDf.find((df) => df.maler.some((m) => m.template.id === malId) && mineFlytIder.has(df.id));
+      bestillerId = minFlyt?.faggruppeId ?? undefined;
+    }
+    if (!bestillerId) {
+      setOpprettFeil(t("dokumentflyt.feil.ingenFaggruppe"));
       return;
     }
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
