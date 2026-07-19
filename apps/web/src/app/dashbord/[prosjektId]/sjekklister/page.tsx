@@ -326,13 +326,20 @@ export default function SjekklisteSide() {
     let bestillerId = oppretter?.id ?? dfOppretterFg;
     // Person-/gruppe-direkte medlem uten egen faggruppe: bruk eier-faggruppen (Dokumentflyt.faggruppeId)
     // til flyten brukeren er medlem av og som har denne malen.
+    const mineFlytIder = new Set(mineFlyter ?? []);
+    const minFlyt = alleDf.find((df) => df.maler.some((m) => m.template.id === malId) && mineFlytIder.has(df.id));
     if (!bestillerId) {
-      const mineFlytIder = new Set(mineFlyter ?? []);
-      const minFlyt = alleDf.find((df) => df.maler.some((m) => m.template.id === malId) && mineFlytIder.has(df.id));
       bestillerId = minFlyt?.faggruppeId ?? undefined;
     }
     if (!bestillerId) {
-      setOpprettFeil(t("dokumentflyt.feil.ingenFaggruppe"));
+      // G3 (2026-07-19): skill de to årsakene. Fant vi en flyt m/ malen brukeren er
+      // medlem av, men uten eier-faggruppe → «flyt mangler faggruppe». Ellers → ingen
+      // flyt med malen. Ingen rettighetsutvidelse — kun feilmelding-skillet.
+      setOpprettFeil(
+        minFlyt
+          ? t("dokumentflyt.feil.flytManglerFaggruppe")
+          : t("dokumentflyt.feil.ingenFlytMedMal"),
+      );
       return;
     }
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");

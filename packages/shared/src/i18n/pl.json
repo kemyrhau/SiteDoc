@@ -474,6 +474,8 @@
   "oppsett.attesteringImplisittAdmin": "Administrator ma ukryty dostęp do zatwierdzania czasu poprzez rolę",
   "oppsett.faggrupper": "Kontrahenci i obieg dokumentów",
   "dokumentflyt.feil.ingenFaggruppe": "Nie znaleziono grupy handlowej, którą można utworzyć w ramach. Obieg dokumentów, do którego należysz, nie ma grupy branżowej właściciela — skontaktuj się z administratorem projektu.",
+  "dokumentflyt.feil.ingenFlytMedMal": "Żaden z Twoich przepływów dokumentów nie zawiera tego szablonu. Poproś administratora projektu o dodanie szablonu do Twojego przepływu lub przypisanie Cię do grupy branżowej.",
+  "dokumentflyt.feil.flytManglerFaggruppe": "Przepływ nie ma grupy handlowej właściciela. Obieg dokumentów, do którego należysz, nie ma grupy handlowej właściciela, w której mógłby zostać utworzony — skontaktuj się z administratorem projektu.",
   "dokumentflyt.tittel": "Przepływ dokumentów",
   "dokumentflyt.velgProsjekt": "Wybierz projekt, aby zobaczyć obieg dokumentów.",
   "dokumentflyt.etterFaggruppe": "Według grupy dyscyplin",

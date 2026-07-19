@@ -474,6 +474,8 @@
   "oppsett.attesteringImplisittAdmin": "Admin has implicit time approval access via role",
   "oppsett.faggrupper": "Trade groups and document flow",
   "dokumentflyt.feil.ingenFaggruppe": "No trade group found to create under. The document flow you belong to has no owner trade group — contact the project admin.",
+  "dokumentflyt.feil.ingenFlytMedMal": "None of your document flows include this template. Ask a project admin to add the template to your flow, or assign you to a trade group.",
+  "dokumentflyt.feil.flytManglerFaggruppe": "The flow has no owner trade group. The document flow you belong to has no owner trade group to create under — contact the project admin.",
   "dokumentflyt.tittel": "Document flow",
   "dokumentflyt.velgProsjekt": "Select a project to see the document flow.",
   "dokumentflyt.etterFaggruppe": "By discipline group",

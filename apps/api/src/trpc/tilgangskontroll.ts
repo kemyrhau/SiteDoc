@@ -84,6 +84,20 @@ export async function verifiserFaggruppeTilhorighet(
         },
       });
       if (medlem?.role === "admin") return;
+
+      // Dokumentflyt-medlemskap som alternativ tilhørighet: er bruker medlem av en
+      // flyt der DENNE faggruppen er eier-faggruppe, får de opprette på faggruppens
+      // vegne. Gjenbruker hentBrukersFlytMedlemskap (eneste medlemskaps-kilde) og
+      // det index-ede `dokumentflyt.faggruppeId` (schema @@index) — ingen faggruppe
+      // legges i helperen (R2: index-only bevart).
+      const flytIder = await hentBrukersFlytMedlemskap(userId, faggruppe.projectId);
+      if (flytIder.length > 0) {
+        const treff = await prisma.dokumentflyt.findFirst({
+          where: { id: { in: flytIder }, faggruppeId },
+          select: { id: true },
+        });
+        if (treff) return;
+      }
     }
 
     throw new TRPCError({
@@ -472,6 +486,10 @@ export async function verifiserDokumentTilgang(
   dokumentId?: string,
   dokumentType?: "task" | "checklist",
   templateHmsSynlighet?: string | null,
+  // Kun lese-stier (hentMedId, hentKommentarer, hentForSjekkliste,
+  // hentTilgjengeligeFlyter) sender true → aktiverer dokumentflyt-medlemskap som
+  // tilgangsvei. Mutasjoner kaller uendret (false) og beholder streng faggruppe/gruppe-gate.
+  tillatFlytMedlemskap = false,
 ): Promise<void> {
   // sitedoc_admin ser alt
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
@@ -504,16 +522,18 @@ export async function verifiserDokumentTilgang(
   if (medlem.role === "admin") return;
 
   // Last dokumentpartene én gang — gjenbrukes av firmaansvarlig + innsender-grenen.
-  let dokumentParter: { bestillerUserId: string | null; recipientUserId: string | null } | null = null;
+  let dokumentParter:
+    | { bestillerUserId: string | null; recipientUserId: string | null; dokumentflytId: string | null }
+    | null = null;
   if (dokumentId && dokumentType) {
     dokumentParter = dokumentType === "task"
       ? await prisma.task.findUnique({
           where: { id: dokumentId },
-          select: { bestillerUserId: true, recipientUserId: true },
+          select: { bestillerUserId: true, recipientUserId: true, dokumentflytId: true },
         })
       : await prisma.checklist.findUnique({
           where: { id: dokumentId },
-          select: { bestillerUserId: true, recipientUserId: true },
+          select: { bestillerUserId: true, recipientUserId: true, dokumentflytId: true },
         });
   }
 
@@ -594,6 +614,25 @@ export async function verifiserDokumentTilgang(
   // sendes inn fra lese-routes (hentMedId, hentKommentarer); mutations beholder
   // streng tilgang via faggruppe/gruppe-domain.
   if (templateDomain === "hms" && templateHmsSynlighet === "apen") return;
+
+  // Dokumentflyt-medlemskap (kun lese-stier via flagget): bruker som er medlem av
+  // dokumentets flyt får innsyn — fanger person-direkte binding som faggruppe-/gruppe-
+  // veiene over er blinde for. Gjenbruker allerede-hentet `medlem` og den delte
+  // hentFlytIderForMedlem (ingen ekstra medlems-oppslag — N+1-vakt, samme som byggTilgangsFilter).
+  // F1-A: respekterer HMS-synlighet — fyrer IKKE for private HMS-dokumenter, så
+  // flyt-medlemskap ikke utvider innsyn i konfidensielle HMS-dok (ingen rettighetsutvidelse).
+  if (
+    tillatFlytMedlemskap &&
+    dokumentParter?.dokumentflytId &&
+    !(templateDomain === "hms" && templateHmsSynlighet !== "apen")
+  ) {
+    const flytIder = await hentFlytIderForMedlem(
+      medlem.id,
+      direkteFaggruppeIder,
+      medlem.groupMemberships.map((gm) => gm.groupId),
+    );
+    if (flytIder.includes(dokumentParter.dokumentflytId)) return;
+  }
 
   throw new TRPCError({
     code: "FORBIDDEN",

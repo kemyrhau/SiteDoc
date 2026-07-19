@@ -390,13 +390,19 @@ export default function OppgaverSide() {
     // Bestiller-faggruppe: egen faggruppe, ellers eier-faggruppen (Dokumentflyt.faggruppeId)
     // til flyten brukeren er medlem av (person-/gruppe-direkte medlem uten egen faggruppe).
     let bestillerId = oppretter?.id;
+    const mineFlytIder = new Set(mineFlyter ?? []);
+    const minFlyt = alleDf.find((df) => df.maler.some((m) => m.template.id === malId) && mineFlytIder.has(df.id));
     if (!bestillerId) {
-      const mineFlytIder = new Set(mineFlyter ?? []);
-      const minFlyt = alleDf.find((df) => df.maler.some((m) => m.template.id === malId) && mineFlytIder.has(df.id));
       bestillerId = minFlyt?.faggruppeId ?? undefined;
     }
     if (!bestillerId) {
-      alert(t("dokumentflyt.feil.ingenFaggruppe"));
+      // G3 (2026-07-19): skill de to årsakene (flyt m/ malen men uten eier-faggruppe
+      // vs. ingen flyt med malen). Ingen rettighetsutvidelse — kun feilmelding-skillet.
+      alert(
+        minFlyt
+          ? t("dokumentflyt.feil.flytManglerFaggruppe")
+          : t("dokumentflyt.feil.ingenFlytMedMal"),
+      );
       return;
     }
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");

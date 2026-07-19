@@ -474,6 +474,8 @@
   "oppsett.attesteringImplisittAdmin": "Der Administrator verfügt über impliziten Zeitgenehmigungszugriff über die Rolle",
   "oppsett.faggrupper": "Auftragnehmer und Dokumentenfluss",
   "dokumentflyt.feil.ingenFaggruppe": "Es wurde keine Handelsgruppe zum Erstellen unter gefunden. Der Dokumentenfluss, dem Sie angehören, hat keine Eigentümer-Handelsgruppe – wenden Sie sich an den Projektadministrator.",
+  "dokumentflyt.feil.ingenFlytMedMal": "Keiner Ihrer Dokumentenflüsse enthält diese Vorlage. Bitten Sie einen Projektadministrator, die Vorlage zu Ihrem Ablauf hinzuzufügen, oder weisen Sie Sie einer Handelsgruppe zu.",
+  "dokumentflyt.feil.flytManglerFaggruppe": "Der Fluss hat keine Eigentümerhandelsgruppe. Für den Dokumentenfluss, zu dem Sie gehören, gibt es keine Eigentümerhandelsgruppe, unter der Sie erstellen können. Wenden Sie sich an den Projektadministrator.",
   "dokumentflyt.tittel": "Dokumentenfluss",
   "dokumentflyt.velgProsjekt": "Wählen Sie ein Projekt aus, um den Dokumentenfluss anzuzeigen.",
   "dokumentflyt.etterFaggruppe": "Nach Disziplingruppe",

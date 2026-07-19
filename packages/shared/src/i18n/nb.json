@@ -474,6 +474,8 @@
   "oppsett.attesteringImplisittAdmin": "Admin har implisitt attestering-tilgang via rolle",
   "oppsett.faggrupper": "Faggrupper og dokumentflyt",
   "dokumentflyt.feil.ingenFaggruppe": "Fant ingen faggruppe å opprette under. Dokumentflyten du er medlem av mangler en eier-faggruppe — kontakt prosjektadmin.",
+  "dokumentflyt.feil.ingenFlytMedMal": "Ingen av dine dokumentflyter har denne malen. Be en prosjektadmin legge malen til flyten din, eller koble deg til en faggruppe.",
+  "dokumentflyt.feil.flytManglerFaggruppe": "Flyten mangler eier-faggruppe. Dokumentflyten du er medlem av har ingen eier-faggruppe å opprette under — kontakt prosjektadmin.",
   "dokumentflyt.tittel": "Dokumentflyt",
   "dokumentflyt.velgProsjekt": "Velg et prosjekt for å se dokumentflyt.",
   "dokumentflyt.etterFaggruppe": "Etter faggruppe",

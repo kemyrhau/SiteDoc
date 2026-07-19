@@ -122,6 +122,7 @@ export const sjekklisteRouter = router({
         sjekkliste.id,
         "checklist",
         sjekkliste.template.hmsSynlighet,
+        true, // lese-sti → dokumentflyt-medlemskap som tilgangsvei
       );
 
       // Sett lestAvMottakerVed når mottaker åpner mens status er «sent»
@@ -575,7 +576,7 @@ export const sjekklisteRouter = router({
           recipientGroupId: true,
           bestillerFaggruppeId: true,
           utforerFaggruppeId: true,
-          template: { select: { domain: true, projectId: true } },
+          template: { select: { domain: true, projectId: true, hmsSynlighet: true } },
         },
       });
 
@@ -589,6 +590,8 @@ export const sjekklisteRouter = router({
         sjekkliste.template.domain,
         input.id,
         "checklist",
+        sjekkliste.template.hmsSynlighet,
+        true, // lese-sti → dokumentflyt-medlemskap som tilgangsvei
       );
 
       const tilgang = await hentBrukerProsjektTilgang(ctx.userId, projectId);

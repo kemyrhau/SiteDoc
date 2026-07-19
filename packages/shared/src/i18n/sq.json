@@ -474,6 +474,8 @@
   "oppsett.attesteringImplisittAdmin": "Administratori ka qasje të nënkuptuar për miratimin e kohës nëpërmjet rolit",
   "oppsett.faggrupper": "Grupet tregtare dhe rrjedha e dokumenteve",
   "dokumentflyt.feil.ingenFaggruppe": "Nuk u gjet asnjë grup tregtar për të krijuar nën. Rrjedha e dokumenteve të cilës i përkisni nuk ka asnjë grup tregtar pronari — kontaktoni administratorin e projektit.",
+  "dokumentflyt.feil.ingenFlytMedMal": "Asnjë nga flukset e dokumenteve tuaja nuk e përfshin këtë shabllon. Kërkojini një administratori të projektit të shtojë shabllonin në rrjedhën tuaj ose t'ju caktojë në një grup tregtar.",
+  "dokumentflyt.feil.flytManglerFaggruppe": "Fluksi nuk ka asnjë grup tregtar pronar. Rrjedha e dokumenteve të cilës i përkisni nuk ka asnjë grup tregtar pronari për të krijuar - kontaktoni administratorin e projektit.",
   "dokumentflyt.tittel": "Rrjedha e dokumentit",
   "dokumentflyt.velgProsjekt": "Zgjidhni një projekt për të parë rrjedhën e dokumentit.",
   "dokumentflyt.etterFaggruppe": "Sipas grupit të disiplinës",
