@@ -473,7 +473,6 @@
   "oppsett.giAttestering": "Bevilja tidsgodkännande",
   "oppsett.attesteringImplisittAdmin": "Admin har implicit åtkomst till tidsgodkännande via roll",
   "oppsett.faggrupper": "Entreprenörer och dokumentflöde",
-  "dokumentflyt.feil.ingenFaggruppe": "Ingen handelsgrupp hittades att skapa under. Dokumentflödet du tillhör har ingen ägarhandelsgrupp – kontakta projektadministratören.",
   "dokumentflyt.feil.ingenFlytMedMal": "Inget av dina dokumentflöden innehåller denna mall. Be en projektadministratör att lägga till mallen i ditt flöde, eller tilldela dig en handelsgrupp.",
   "dokumentflyt.feil.flytManglerFaggruppe": "Flödet har ingen ägarhandelsgrupp. Dokumentflödet du tillhör har ingen ägarhandelsgrupp att skapa under — kontakta projektadministratören.",
   "dokumentflyt.tittel": "Dokumentflöde",

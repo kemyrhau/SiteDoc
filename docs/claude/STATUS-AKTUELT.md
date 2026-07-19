@@ -41,7 +41,7 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 > **Maks 3 aktive PR-tråder.** `### Gjenstående` er en samlepost, ikke en tråd, og telles ikke.
 
-### N3-fiks: dokumentflyt-synlighet leser DokumentflytMedlem (branch `fix/n3-flytmedlem-synlighet`) — PÅ BRANCH, venter testplan (kmy)
+### N3-fiks: dokumentflyt-synlighet leser DokumentflytMedlem (del 1 + del 2) — MERGET DEVELOP + VERIFISERT PÅ TEST (2026-07-19)
 
 **Levert i kode 2026-07-18** (`next build` grønn — exit 0; web/api-typecheck rent bortsett fra pre-eksisterende TS2589 i `oppgaver/page.tsx:337` som IKKE feiler build). Fabel-ordre N3, retning (b) cowork-gatet. Grunnlag: [funn-fra-a3a-verifisering-2026-07-18.md](delplaner/funn-fra-a3a-verifisering-2026-07-18.md) + DB-fasit (6 flytmedlemmer, 0 med faggruppe_id — person/gruppe-direkte er gyldig tilgangsvei).
 
@@ -50,7 +50,17 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 - **Opprett-fiks, 4 flater** (sjekklister/oppgaver/tegninger/`OpprettOppgaveModal`): bestiller/utfører-faggruppe utledes fra flyt-medlemskap; person-/gruppe-direkte uten egen faggruppe bruker `Dokumentflyt.faggruppeId`-fallback. Grasiøs feil (`dokumentflyt.feil.ingenFaggruppe`) hvis flyten mangler faggruppe. **`dokumentflytId`-binding urørt** (skjer ved send). Tegninger/modal: mal-listen (`filtrerMaler`) inkluderer nå flyt-medlemskap.
 - i18n: 1 nøkkel × 15 språk (generate.ts). Dok-sync `dokumentflyt.md § 3` (synlighetsaksen navngitt).
 
-**Utestående:** cowork lager testplan (ledd 4) → web-Opus verifiserer med kmy: (1) ser flytens dokumenter, (2) kan opprette KB2/SJA, (3) rollefiltrert meny (Del E lukker A-3a), (4) negativ kontroll: bruker uten flyt-medlemskap ser fortsatt ingenting, (5) admin uendret. **Exit-funn:** `sjekklister.feil.ingenFaggruppe` er nå orphan-relikvi; opprett-flatenes døde `"oppretter"`/`"svarer"`-rollematch (treffer aldri — `dokumentflytId` bindes uansett ved send) står urørt per scope; pre-eksisterende TS2589 `oppgaver/page.tsx:337`. Full ordre: [delplaner/N3-fiks-ordre.md](delplaner/N3-fiks-ordre.md).
+**Del 1 merget `96d5d2c0` — men PARTIELL** (ledd 5, 2026-07-18): liste-synlighet ✅ uten lekkasje/admin-regresjon, men detalj ga «ikke funnet» og opprett feilet. Rot: to andre tilgangsfunksjoner var urørt. Funn: [delplaner/N3-fiks-funn-ledd5-2026-07-19.md](delplaner/N3-fiks-funn-ledd5-2026-07-19.md).
+
+**Del 2 merget `d2863dd5` (2026-07-19)** — lukker de to hullene. Ordre: [delplaner/N3-fiks-del2-ordre.md](delplaner/N3-fiks-del2-ordre.md).
+- **Detalj-lese:** `verifiserDokumentTilgang` fikk flyt-gren bak trailing-flagget `tillatFlytMedlemskap` (default `false`). **Kun 6 lese-stier** (`hentMedId` ×2, `hentKommentarer`, `hentForSjekkliste`, `hentTilgjengeligeFlyter` ×2) sender `true`; de **11 mutasjonene kaller uendret** — bevisst lese/skrive-splitt.
+- **F1-A:** flyt-grenen fyrer ikke for private HMS-dok (`hms && synlighet !== "apen"`) — flyt-medlemskap overstyrer ikke HMS-personvern.
+- **Opprett:** `verifiserFaggruppeTilhorighet` godtar flyt-medlemskap (faggruppen er eier-faggruppe i en flyt du er medlem av); `projectId` utledes fra faggruppen. Helperen forblir `string[]` (index-only bevart).
+- **G3:** feilmelding-skille — `ingenFlytMedMal` vs `flytManglerFaggruppe` (2 nøkler × 15 språk). Gammel `dokumentflyt.feil.ingenFaggruppe` slettet som relikvi.
+
+**Ledd 5-verifisering på test (web-Opus, 8 tester):** D1 detalj + alle 6 lese-stier ✅ · D2 opprett KB2 ✅ · D3 SJA riktig skilt melding ✅ · D5 mutasjon blokkert ✅ (lese≠skrive holder) · D6 toggle av/på ✅ (periode-vindu respekteres) · D7 admin uendret ✅ · D4 privat HMS ⏭️ kode-verifisert (kmys HMS-liste tom) · D8 🟡 ingen HTTP-N+1, DB-plan krever postgres-logg. Testplan: [delplaner/N3-fiks-del2-testplan.md](delplaner/N3-fiks-del2-testplan.md).
+
+**Åpne saker (til fabel):** (1) **G1-mutere** — de 11 mutasjonene mangler flyt-grenen (bevisst utsatt); krever flytrolle-håndheving per mutasjon først. UX: rollemenyen tilbyr Besvar/Send/Avvis til person-direkte medlem uten deaktivering, men klikk gir «ikke tilgang». (2) **Opprett→usynlig** — dokument opprettet av person-direkte medlem får ingen `dokumentflytId` før send → vises ikke i lista, men åpnes via direkte URL (bestiller-grenen). (3) [hms-synlighet-regel.md](delplaner/hms-synlighet-regel.md) — firma-default-tabell; F1-A-betingelsen må da til `=== "privat"`. **Ikke deployet prod.**
 
 ### A-3a handlingsmeny på kilden (branch `feat/a3a-handlingsmeny-kilde`) — PÅ BRANCH, venter merge + skjermbilder
 

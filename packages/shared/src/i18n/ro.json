@@ -473,7 +473,6 @@
   "oppsett.giAttestering": "Acordați aprobarea timpului",
   "oppsett.attesteringImplisittAdmin": "Administratorul are acces implicit la aprobarea timpului prin rol",
   "oppsett.faggrupper": "Antreprenori și fluxul de documente",
-  "dokumentflyt.feil.ingenFaggruppe": "Nu s-a găsit niciun grup comercial pentru a crea sub. Fluxul de documente din care faceți parte nu are grup comercial de proprietar - contactați administratorul proiectului.",
   "dokumentflyt.feil.ingenFlytMedMal": "Niciunul dintre fluxurile dvs. de documente nu include acest șablon. Cereți unui administrator de proiect să adauge șablonul în fluxul dvs. sau să vă atribuie unui grup comercial.",
   "dokumentflyt.feil.flytManglerFaggruppe": "Fluxul nu are grup comercial de proprietar. Fluxul de documente din care faceți parte nu are niciun grup comercial de proprietar în care să creați — contactați administratorul proiectului.",
   "dokumentflyt.tittel": "Fluxul documentelor",

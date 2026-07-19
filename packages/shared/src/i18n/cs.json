@@ -473,7 +473,6 @@
   "oppsett.giAttestering": "Udělit časový souhlas",
   "oppsett.attesteringImplisittAdmin": "Admin má implicitní časový souhlas prostřednictvím role",
   "oppsett.faggrupper": "Dodavatelé a tok dokumentů",
-  "dokumentflyt.feil.ingenFaggruppe": "Nebyla nalezena žádná obchodní skupina k vytvoření pod. Tok dokumentů, do kterého patříte, nemá žádnou obchodní skupinu vlastníka – kontaktujte administrátora projektu.",
   "dokumentflyt.feil.ingenFlytMedMal": "Žádný z vašich toků dokumentů neobsahuje tuto šablonu. Požádejte správce projektu, aby šablonu přidal do vašeho toku, nebo vás přiřadí do obchodní skupiny.",
   "dokumentflyt.feil.flytManglerFaggruppe": "Tok nemá žádnou obchodní skupinu vlastníka. Tok dokumentů, do kterého patříte, nemá žádnou obchodní skupinu vlastníka, kterou by bylo možné vytvořit – obraťte se na správce projektu.",
   "dokumentflyt.tittel": "Tok dokumentů",

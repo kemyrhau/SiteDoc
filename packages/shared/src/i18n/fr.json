@@ -473,7 +473,6 @@
   "oppsett.giAttestering": "Accorder l’approbation du temps",
   "oppsett.attesteringImplisittAdmin": "L'administrateur dispose d'un accès implicite à l'approbation du temps via son rôle",
   "oppsett.faggrupper": "Entrepreneurs et flux de documents",
-  "dokumentflyt.feil.ingenFaggruppe": "Aucun groupement commercial trouvé pour créer sous. Le flux de documents auquel vous appartenez n'a pas de groupe professionnel propriétaire : contactez l'administrateur du projet.",
   "dokumentflyt.feil.ingenFlytMedMal": "Aucun de vos flux de documents n'inclut ce modèle. Demandez à un administrateur de projet d'ajouter le modèle à votre flux ou de vous affecter à un groupe professionnel.",
   "dokumentflyt.feil.flytManglerFaggruppe": "Le flux n’a pas de groupement de métiers propriétaire. Le flux de documents auquel vous appartenez n'a pas de groupe professionnel propriétaire sous lequel créer : contactez l'administrateur du projet.",
   "dokumentflyt.tittel": "Flux de documents",

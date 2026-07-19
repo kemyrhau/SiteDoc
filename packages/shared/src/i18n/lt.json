@@ -473,7 +473,6 @@
   "oppsett.giAttestering": "Suteikite laiko patvirtinimą",
   "oppsett.attesteringImplisittAdmin": "Administratorius turi numanomą laiko patvirtinimo prieigą per vaidmenį",
   "oppsett.faggrupper": "Rangovai ir dokumentų srautas",
-  "dokumentflyt.feil.ingenFaggruppe": "Nerasta prekybos grupės, kurią būtų galima sukurti. Dokumentų srautas, kuriam priklausote, neturi savininko prekybos grupės – susisiekite su projekto administratoriumi.",
   "dokumentflyt.feil.ingenFlytMedMal": "Nė vienas iš jūsų dokumentų srautų neapima šio šablono. Paprašykite projekto administratoriaus pridėti šabloną prie jūsų srauto arba priskirti jus prekybos grupei.",
   "dokumentflyt.feil.flytManglerFaggruppe": "Srautas neturi savininko prekybos grupės. Dokumentų srautas, kuriam priklausote, neturi savininko prekybos grupės, kurią būtų galima sukurti – susisiekite su projekto administratoriumi.",
   "dokumentflyt.tittel": "Dokumentų srautas",
