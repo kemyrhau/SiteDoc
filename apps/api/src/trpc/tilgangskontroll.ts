@@ -675,45 +675,36 @@ export async function verifiserFlytRolle(
  * Returnerer null for admin (ingen filtrering nødvendig).
  */
 /**
- * Kjerne: flytene et prosjektmedlem er bundet til, via alle tre bindinger
+ * Kjerne: flyt-ID-ene et prosjektmedlem er bundet til, via alle tre bindinger
  * (person-direkte / faggruppe / gruppe). Kun aktive medlemskap (`periodeSlutt = null`).
- * Én indeksert `findMany` på `dokumentflyt_medlemmer` (indeks på alle tre binding-feltene).
+ * Ett rent enkelt-tabell-oppslag på `dokumentflyt_medlemmer` (indeks på alle tre binding-feltene),
+ * ingen join — begge konsumenter (filter + tRPC) bruker kun `dokumentflytId`.
  * N+1-vakt: kalleren sender allerede-hentede id-er så `byggTilgangsFilter` ikke dobbelt-henter medlemmet.
  */
-async function hentFlytMedlemskapForMedlem(
+async function hentFlytIderForMedlem(
   projectMemberId: string,
   faggruppeIder: string[],
   groupIder: string[],
-): Promise<{ dokumentflytId: string; faggruppeId: string | null; rolle: string; steg: number }[]> {
+): Promise<string[]> {
   const orBindinger: Record<string, unknown>[] = [{ projectMemberId }];
   if (faggruppeIder.length > 0) orBindinger.push({ faggruppeId: { in: faggruppeIder } });
   if (groupIder.length > 0) orBindinger.push({ groupId: { in: groupIder } });
 
   const medlemskap = await prisma.dokumentflytMedlem.findMany({
     where: { periodeSlutt: null, OR: orBindinger },
-    select: {
-      dokumentflytId: true,
-      rolle: true,
-      steg: true,
-      dokumentflyt: { select: { faggruppeId: true } },
-    },
+    select: { dokumentflytId: true },
   });
-  return medlemskap.map((m) => ({
-    dokumentflytId: m.dokumentflytId,
-    faggruppeId: m.dokumentflyt.faggruppeId,
-    rolle: m.rolle,
-    steg: m.steg,
-  }));
+  return [...new Set(medlemskap.map((m) => m.dokumentflytId))];
 }
 
 /**
- * Flytene innlogget bruker er medlem av i et prosjekt (alle tre bindinger).
+ * Flyt-ID-ene innlogget bruker er medlem av i et prosjekt (alle tre bindinger).
  * Delt kilde: `byggTilgangsFilter` (synlighet) + tRPC `hentMineFlyter` (klient-opprett).
  */
 export async function hentBrukersFlytMedlemskap(
   userId: string,
   projectId: string,
-): Promise<{ dokumentflytId: string; faggruppeId: string | null; rolle: string; steg: number }[]> {
+): Promise<string[]> {
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
     select: {
@@ -723,7 +714,7 @@ export async function hentBrukersFlytMedlemskap(
     },
   });
   if (!medlem) return [];
-  return hentFlytMedlemskapForMedlem(
+  return hentFlytIderForMedlem(
     medlem.id,
     medlem.faggruppeKoblinger.map((k) => k.faggruppeId),
     medlem.groupMemberships.map((g) => g.groupId),
@@ -828,12 +819,11 @@ export async function byggTilgangsFilter(
   // Dokumentflyt-medlemskap: dokumenter i flyter brukeren er medlem av.
   // Fanger person-direkte (project_member_id) binding som faggruppe-/gruppe-veiene over
   // er blinde for. Gjenbruker allerede-hentet `medlem` (ingen ekstra medlems-oppslag).
-  const flytMedlemskap = await hentFlytMedlemskapForMedlem(
+  const flytIder = await hentFlytIderForMedlem(
     medlem.id,
     direkteFaggruppeIder,
     medlem.groupMemberships.map((gm) => gm.groupId),
   );
-  const flytIder = [...new Set(flytMedlemskap.map((m) => m.dokumentflytId))];
   if (flytIder.length > 0) {
     orBetingelser.push({ dokumentflytId: { in: flytIder } });
   }

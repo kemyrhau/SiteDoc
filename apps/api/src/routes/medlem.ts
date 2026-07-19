@@ -89,8 +89,7 @@ export const medlemRouter = router({
     // returtype holder tRPC-router-typen liten (unngår TS2589 på tunge tRPC-sider).
     .query(async ({ ctx, input }): Promise<string[]> => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      const medlemskap = await hentBrukersFlytMedlemskap(ctx.userId, input.projectId);
-      return [...new Set(medlemskap.map((m) => m.dokumentflytId))];
+      return hentBrukersFlytMedlemskap(ctx.userId, input.projectId);
     }),
 
   // Hent mine tillatelser i et prosjekt
