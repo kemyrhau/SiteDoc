@@ -474,6 +474,8 @@
   "oppsett.attesteringImplisittAdmin": "Administratoram ir netieša laika apstiprināšanas piekļuve, izmantojot lomu",
   "oppsett.faggrupper": "Darbuzņēmēji un dokumentu plūsma",
   "dokumentflyt.feil.ingenFaggruppe": "Netika atrasta neviena tirdzniecības grupa, ko izveidot. Dokumentu plūsmai, kurai piederat, nav īpašnieku tirdzniecības grupas — sazinieties ar projekta administratoru.",
+  "dokumentflyt.feil.ingenFlytMedMal": "Nevienā no jūsu dokumentu plūsmām nav iekļauta šī veidne. Lūdziet projekta administratoram pievienot veidni jūsu plūsmai vai piešķirt jūs tirdzniecības grupai.",
+  "dokumentflyt.feil.flytManglerFaggruppe": "Plūsmai nav īpašnieku tirdzniecības grupas. Dokumentu plūsmai, kurai piederat, nav īpašnieku tirdzniecības grupas, ko izveidot — sazinieties ar projekta administratoru.",
   "dokumentflyt.tittel": "Dokumentu plūsma",
   "dokumentflyt.velgProsjekt": "Atlasiet projektu, lai skatītu dokumentu plūsmu.",
   "dokumentflyt.etterFaggruppe": "Pēc disciplīnas grupas",

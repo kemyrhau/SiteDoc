@@ -474,6 +474,8 @@
   "oppsett.attesteringImplisittAdmin": "Järjestelmänvalvojalla on implisiittisen aikaisen hyväksynnän käyttöoikeus roolin kautta",
   "oppsett.faggrupper": "Urakoitsijat ja asiakirjavirta",
   "dokumentflyt.feil.ingenFaggruppe": "Alle luotavaa kaupparyhmää ei löytynyt. Asiakirjakululla, johon kuulut, ei ole omistajan kaupparyhmää – ota yhteyttä projektin järjestelmänvalvojaan.",
+  "dokumentflyt.feil.ingenFlytMedMal": "Tämä malli ei sisällä mitään asiakirjavirroistasi. Pyydä projektin järjestelmänvalvojaa lisäämään malli kulkuusi tai määrittämään sinut kaupparyhmään.",
+  "dokumentflyt.feil.flytManglerFaggruppe": "Virolla ei ole omistajan kaupparyhmää. Asiakirjakululla, johon kuulut, ei ole omistajan kaupparyhmää luotavaksi – ota yhteyttä projektin järjestelmänvalvojaan.",
   "dokumentflyt.tittel": "Asiakirjan kulku",
   "dokumentflyt.velgProsjekt": "Valitse projekti nähdäksesi asiakirjan kulun.",
   "dokumentflyt.etterFaggruppe": "Kurinalaryhmän mukaan",

@@ -474,6 +474,8 @@
   "oppsett.attesteringImplisittAdmin": "Administraatoril on rolli kaudu kaudne aeg heakskiitmiseks juurdepääs",
   "oppsett.faggrupper": "Töövõtjad ja dokumendivoog",
   "dokumentflyt.feil.ingenFaggruppe": "Ei leitud ühtegi kaubandusgruppi, mille alusel luua. Dokumendivool, kuhu kuulute, pole omanike kaubandusgruppi — võtke ühendust projekti administraatoriga.",
+  "dokumentflyt.feil.ingenFlytMedMal": "Ükski teie dokumendivoog ei sisalda seda malli. Paluge projekti administraatoril mall teie voogu lisada või määrata teid kaubandusgruppi.",
+  "dokumentflyt.feil.flytManglerFaggruppe": "Vool pole omanike kaubandusgruppi. Dokumendivool, kuhu kuulute, pole omanike kaubandusgruppi, mille alusel luua – võtke ühendust projekti administraatoriga.",
   "dokumentflyt.tittel": "Dokumendivoog",
   "dokumentflyt.velgProsjekt": "Dokumendivoo vaatamiseks valige projekt.",
   "dokumentflyt.etterFaggruppe": "Distsipliinirühma järgi",
