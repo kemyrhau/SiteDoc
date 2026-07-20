@@ -227,6 +227,52 @@ export const MATRISE: MatriseRad[] = [
     forventet: { tillat: false, grunn: "ingen-tilgang" },
   },
 
+  // — Sak 2: liste↔detalj-paritet (bestiller/mottaker) ——————————————
+  // VIKTIG OM DEKNING: disse radene tester `avgjorDokumentTilgang` — DETALJ-gaten.
+  // Sak-2-FIKSEN ligger i `byggTilgangsFilter` (liste-filteret), som IKKE testes
+  // her og fortsatt mangler testdekning. Radene beviser altså BARE den delte
+  // beslutningen (bestiller/mottaker → tillat) som liste-filteret nå er ment å
+  // speile — de er ikke bevis på at liste-filteret faktisk gjør det. Ytterkanten
+  // (at byggTilgangsFilter bygger riktig OR) dekkes av cowork-review + browser-DoD.
+  //
+  // Radene pinner beslutningen: oppretter/mottaker UTEN egen faggruppe-binding ser
+  // sitt eget selv når dokumentet bærer en fremmed faggruppe (person-basert gren,
+  // uavhengig av faggruppe) — nettopp brukergruppen sak 2 rammet.
+  {
+    navn: "sak 2: oppretter uten faggruppe, usendt dok (dokumentflytId=null) med fremmed faggruppe → tillat via bestiller",
+    fakta: fakta({
+      harDokument: true,
+      bestillerUserId: "u-selv",
+      dokumentflytId: null,
+      bestillerFaggruppeId: "fg-fremmed",
+      direkteFaggruppeIder: [],
+    }),
+    forventet: { tillat: true, grunn: "innsender-mottaker" },
+  },
+  {
+    navn: "sak 2: personlig mottaker uten faggruppe, dok med fremmed faggruppe → tillat via mottaker",
+    fakta: fakta({
+      harDokument: true,
+      recipientUserId: "u-selv",
+      bestillerFaggruppeId: "fg-fremmed",
+      direkteFaggruppeIder: [],
+    }),
+    forventet: { tillat: true, grunn: "innsender-mottaker" },
+  },
+  {
+    navn: "sak 2 negativ kontroll: verken bestiller/mottaker/faggruppe/flyt (dok m/ fremmed faggruppe + flyt) → avvis",
+    fakta: fakta({
+      harDokument: true,
+      bestillerUserId: "u-annen",
+      recipientUserId: "u-tredje",
+      bestillerFaggruppeId: "fg-fremmed",
+      direkteFaggruppeIder: [],
+      dokumentflytId: "flyt-fremmed",
+      flytIder: [],
+    }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+
   // — Direkte faggruppe ——————————————————————————————————————————
   {
     navn: "direkte faggruppe: bestiller-faggruppe matcher → tillat",

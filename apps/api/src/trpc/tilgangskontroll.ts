@@ -800,6 +800,16 @@ export async function byggTilgangsFilter(
     }
   }
 
+  // Innsender/mottaker: brukerens egne dokumenter — speiler bestiller/mottaker-
+  // grenen i verifiserDokumentTilgang (avgjorDokumentTilgang, grunn
+  // "innsender-mottaker"). Uten denne så oppretteren/mottakeren dokumentet via
+  // detalj-URL, men ikke i lista (sak 2, kode-målt 2026-07-19). Ingen
+  // rettighetsutvidelse — begge grupper kan allerede åpne dokumentet via detalj-
+  // gaten; dette gjør bare lista konsistent. HMS-lista AND-er dessuten
+  // byggHmsSynlighetsFilter på toppen (uendret).
+  orBetingelser.push({ bestillerUserId: userId });
+  orBetingelser.push({ recipientUserId: userId });
+
   // Direkte faggruppe-tilgang (alle domener)
   const direkteFaggruppeIder = medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
   if (direkteFaggruppeIder.length > 0) {
@@ -849,7 +859,12 @@ export async function byggTilgangsFilter(
   }
 
   if (orBetingelser.length === 0) {
-    // Bruker har ingen tilganger — returner et filter som aldri matcher
+    // UOPPNÅELIG i dag: bestiller/mottaker-grenene over pushes ubetinget, så
+    // orBetingelser har alltid ≥ 2 elementer. Beholdt bevisst som forsvar mot en
+    // fremtidig refaktor som gjør noen grener betingede — uten den ville et tomt
+    // orBetingelser gi `{ OR: [] }`, som i Prisma matcher INGENTING (riktig her,
+    // men en subtil semantikk å stole på). Denne sentinellen gjør intensjonen
+    // eksplisitt. Bruker har ingen tilganger — filter som aldri matcher.
     return { id: "__ingen_tilgang__" };
   }
 
