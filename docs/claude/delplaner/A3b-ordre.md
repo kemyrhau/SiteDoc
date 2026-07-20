@@ -53,6 +53,22 @@ d. **«Mine oppgaver»:** liste-/søkefilter på `harBallen` (mottaker finner do
 
 > ⚠️ **Pkt 7 KREVER statusmaskin-/rollematrise-endring (cowork-målt 2026-07-18):** `ROLLE_HANDLINGER.bestiller` har ingen `received:`-oppføring — avsender har i dag INGEN handling på `received`. Å gi avsender «Trekk tilbake» der er en rollematrise-utvidelse. **Egen beslutning FØR bygging** (fabels flagg-krav). Ikke bygg pkt 7 i samme sveip som resten — flagg og vent.
 
+## 2b. Global fargeendring — `rejected` (fabel-gate 2026-07-20, Kenneth-vedtak 2)
+
+**Skilt ut av perspektiv-tabellen fordi den ikke er perspektiv-avhengig.** I dag er `rejected: "danger"` (rød) globalt for alle brukere (`packages/ui/src/status-badge.tsx`). Vedtak 2 endrer den til «Til revisjon» / «Til utbedring» med warning/primary. **Det er en synlig endring for enhver bruker** — også faggruppe-bundne som aldri får perspektiv-logikk.
+
+**Godkjent, men med to krav:**
+1. **Testplanen verifiserer endringen også for en faggruppe-bundet bruker uten perspektiv-logikk** — ikke bare for flyt-medlemmer med seer-kontekst.
+2. **Endringen føres i pilot-endringsloggen.** «Avvist er ikke lenger rød» er noe brukere som har lært seg fargespråket vil legge merke til. Ikke-additiv ≠ ikke riktig — men den skal være synlig som det den er.
+
+## 2c. «Lest» — TATT UT av A-3b (fabel-gate 2026-07-20)
+
+Cowork-måling avdekket at «Lest» er **død kode i begge retninger**: status persisteres aldri som `sent` (auto-mottak), `lestAvMottakerVed` skrives kun når `status === "sent"` → alltid NULL, og badge-grenen sjekker begge. Funksjonen har aldri kjørt.
+
+**Derfor er «Lest» ikke en fiks, men en ny funksjon** — lesekvittering — med en personvern-/arbeidsmiljøside (piloten er ~50 ansatte; arbeidsgiver ville kunne se når den enkelte åpnet et dokument). Den krever Kenneths eksplisitte vedtak og er ført som egen sak: [lesekvittering.md](lesekvittering.md).
+
+**Konsekvens for A-3b:** «Lest» fjernes fra perspektiv-tabellen. Ordrens prinsipp — **alt er visningslag, lagret tilstand endres ALDRI** — står dermed intakt.
+
 ## 3. Ufravikelig
 
 - `sjekkliste.ts:923` (auto-mottak) **RØRES IKKE.** Statusmaskinen røres ikke uten flagg (pkt 7-unntaket). **Lagret tilstand endres ALDRI** — alt er visningslag + filter.
