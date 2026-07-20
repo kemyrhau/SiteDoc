@@ -51,12 +51,22 @@ Config-hullet skjulte **19 ekte react-hooks-funn**. Mest alvorlig: `rules-of-hoo
 
 **Ikke rettet** (per ordre — retting er egne runder): de 19 react-hooks-funnene + de 9 `no-unused-vars`. Rapportert her som ærlig baseline.
 
-## Foreslått rekkefølge (fabel prioriterer)
+## FABEL-VEDTAK 2026-07-20: lint-ryddingen STOPPER etter trinn 1
+
+**Kun ett unntak: `@sitedoc/shared` typecheck (2 feil i testfiler)** — den har forvirret to økter og koster nesten ingenting.
+
+Resten (`api` 57, `mobile` 28, `pdf` 7, `web` 2+, `mobile` typecheck 8) **ryddes ikke nå**. Begrunnelse: kosmetisk gjeld har lavere verdi enn køen (spor 2 regresjonsvern, sak 2, A-3b). En økt som rydder `prefer-const` mens tilgangslaget mangler varig testdekning, jobber på feil sted. Gjelden er **målt og dokumentert** — den er ikke glemt, den er nedprioritert bevisst, og tallene her er gyldig utgangspunkt når den tas opp igjen.
+
+**Konsekvens:** CI trinn 2 (lint + typecheck som gater) er utsatt på ubestemt tid. CI trinn 1 (`pnpm test` på PR + push til develop) står.
+
+**Unntaket som ble skilt ut som egen sak:** `rules-of-hooks`-erroren er **ikke** lint-gjeld — se [tegningscapture-hooks-bug.md](tegningscapture-hooks-bug.md) (pilot-kritisk, mobil-økt med simulator-DoD).
+
+## Opprinnelig foreslått rekkefølge (arkivert — kun trinn 1 utført)
 1. ~~**Mobil eslint-config**~~ — ✅ utført (se over). Ga riktig tall: mobil lint 12 → 28.
-2. **`@sitedoc/pdf` (7)** — minste flate, null avhengigheter (pakken er bevisst dependency-fri). Rask gevinst.
-3. **`@sitedoc/shared` typecheck (2)** — kun i to testfiler. Liten, og fjerner den som har forvirret to økter.
-4. **`@sitedoc/web` (2+)** og **`@sitedoc/mobile` typecheck (8)**.
-5. **`@sitedoc/api` (57)** — størst. Bør deles i egne runder per feilkategori, ikke én stor PR.
+2. ~~`@sitedoc/pdf` (7)~~ — stoppet per vedtak.
+3. **`@sitedoc/shared` typecheck (2)** — ✅ eneste unntak, skal gjøres.
+4. ~~`@sitedoc/web` (2+) og `@sitedoc/mobile` typecheck (8)~~ — stoppet.
+5. ~~`@sitedoc/api` (57)~~ — stoppet.
 
 **Etter hvert trinn:** legg den nå-grønne kommandoen inn som CI-gate for den pakken, slik at gjelden ikke gjenoppstår. Målet er `pnpm lint` + `pnpm typecheck` som fulle gater i CI trinn 2.
 

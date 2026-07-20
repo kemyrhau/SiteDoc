@@ -37,7 +37,7 @@ Regelen gjelder KUN `domain="hms"`. «Avvik» er tvetydig og må alltid kvalifis
 
 ## Åpne design-punkter (for fabel)
 1. **Tredje kategori:** i dag er `hmsSynlighet` 2-verdi (`privat`|`apen`). «Normal dokumentflyt» krever en tredje tilstand — sannsynligvis `hmsSynlighet = null` (ingen overlay), men schema/enum-valg tas i design.
-   - **⚠️ Avhengighet til N3-del2 F1-A:** flyt-grenen i `verifiserDokumentTilgang` bruker i dag `!(domain==="hms" && synlighet !== "apen")` (fail-safe: HMS privat med mindre åpen). Når null=normal-flyt innføres, MÅ betingelsen endres til `synlighet === "privat"` (kun eksplisitt privat blokkerer flyt-grenen; null → normal flyt, synlig for flyt-medlem). Uten den endringen behandles null-HMS feilaktig som privat.
+   - **🔴 UFRAVIKELIG (fabel-vedtak 2026-07-20) — F1-A-endringen skal i SAMME COMMIT som `null = normal flyt`:** flyt-grenen i `verifiserDokumentTilgang` bruker i dag `!(domain==="hms" && synlighet !== "apen")` (fail-safe: HMS privat med mindre åpen). Innføres null=normal-flyt uten at betingelsen samtidig endres til `synlighet === "privat"`, blir hver null-HMS feilaktig behandlet som privat — og flyt-medlemmer mister tilgang de skal ha. **De to endringene er én endring; splittes de over to commits finnes det et vindu der modellen er intern-inkonsistent.**
 2. **Hvor bor firma-config-tabellen:** firmamodul/company-settings — samordnes med `migrering-reporttemplate.md` (ReportTemplate → OrganizationTemplate, firma-nivå-maler).
 3. **Arv vs live-kobling:** kopieres defaultene ved opprettelse (snapshot) eller leses live fra firma? (Kenneth: «kan endres senere» tilsier per-mal-override etter kopi.)
 

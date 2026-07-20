@@ -82,7 +82,12 @@ Trenger en annen økt en endring i frossen sone: koordinér via Kenneth + denne 
 ## Kjente kollisjoner (aktive)
 
 - **PSI Fase A ↔ redesign/navigasjon:** se regel 4. PSI la `/mannskap` + minimal nav-entry på develop (`6882aa02`); redesignet re-homer nav-entryen. Status: PSI-siden levert, nav-eierskap hos redesign.
-- **🔀 SPOR 1 ↔ SPOR 2 (parallelle kode-Opuser, 2026-07-20):** to økter kjører samtidig etter fabel-vedtak.
+- **🔀 TRE PARALLELLE ØKTER (fabel-vedtak 2026-07-20) — fil-disjunkte:**
+  - **Spor 2** (`refactor/tilgang-ren-funksjon`, tre: `SiteDoc-develop`): `apps/api/src/trpc/tilgangskontroll.ts` + `packages/shared/src/utils/`. Gate godkjent, startet.
+  - **A-3b Fase A** (ingen branch, ingen tre): perspektiv-tabellen er **ikke-kode** — leses fra hovedtreet, leveres som tekst til fabels designgate. Fase B (koding) starter først etter spor 2-merge, fordi begge rører `packages/shared`.
+  - **TegningsCapture-bug** (`fix/tegningscapture-hooks`, eget tre): kun `apps/mobile/src/components/TegningsCapture.tsx`. Pilot-kritisk, krever simulator.
+  - **Kollisjonspunkt å vokte:** spor 2 og A-3b Fase B rører begge `packages/shared` → **må ikke kjøre samtidig**. Derfor er A-3b delt i to faser.
+- **🔀 SPOR 1 ↔ SPOR 2 (historikk — spor 1 fullført 2026-07-20, PR #1 + #2 merget):**
   - **Spor 1 — CI trinn 1** (`chore/ci-trinn1`): rører **kun** `.github/workflows/` + evt. `test`-script. Ordre: [delplaner/spor1-ci-ordre.md](delplaner/spor1-ci-ordre.md). **Merges FØRST**, så spor 2 får CI fra første PR.
   - **Spor 2 — matrise-test → ekstraksjon** (`refactor/tilgang-ren-funksjon`): rører `apps/api/src/trpc/tilgangskontroll.ts` + `packages/shared/src/utils/`. Ordre: [delplaner/spor2-matrise-ekstraksjon-ordre.md](delplaner/spor2-matrise-ekstraksjon-ordre.md). **Venter fabel-gate før start.**
   - **⚠️ Fil-disjunkte, men IKKE worktree-disjunkte.** `SiteDoc-develop` tar én Opus om gangen (se worktree-tabellen). To parallelle kode-Opuser krever **to trær** — spor 2 blir i `SiteDoc-develop`, spor 1 trenger et eget (`SiteDoc-ci`). Uten det kolliderer de på arbeidstreet uansett hvor disjunkte filene er.
