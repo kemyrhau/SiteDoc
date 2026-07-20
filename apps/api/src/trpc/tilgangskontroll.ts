@@ -800,6 +800,16 @@ export async function byggTilgangsFilter(
     }
   }
 
+  // Innsender/mottaker: brukerens egne dokumenter — speiler bestiller/mottaker-
+  // grenen i verifiserDokumentTilgang (avgjorDokumentTilgang, grunn
+  // "innsender-mottaker"). Uten denne så oppretteren/mottakeren dokumentet via
+  // detalj-URL, men ikke i lista (sak 2, kode-målt 2026-07-19). Ingen
+  // rettighetsutvidelse — begge grupper kan allerede åpne dokumentet via detalj-
+  // gaten; dette gjør bare lista konsistent. HMS-lista AND-er dessuten
+  // byggHmsSynlighetsFilter på toppen (uendret).
+  orBetingelser.push({ bestillerUserId: userId });
+  orBetingelser.push({ recipientUserId: userId });
+
   // Direkte faggruppe-tilgang (alle domener)
   const direkteFaggruppeIder = medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
   if (direkteFaggruppeIder.length > 0) {

@@ -227,6 +227,47 @@ export const MATRISE: MatriseRad[] = [
     forventet: { tillat: false, grunn: "ingen-tilgang" },
   },
 
+  // — Sak 2: liste↔detalj-paritet (bestiller/mottaker) ——————————————
+  // byggTilgangsFilter fikk bestiller/mottaker-OR-grenene (fix/sak2-oppretter-ser-
+  // eget) så lista speiler detalj-gaten. Disse radene pinner beslutningen begge
+  // gater nå deler: oppretter/mottaker UTEN egen faggruppe-binding ser sitt eget,
+  // selv når dokumentet bærer en fremmed faggruppe (person-basert gren, uavhengig
+  // av faggruppe). Det er nettopp brukergruppen sak 2 rammet.
+  {
+    navn: "sak 2: oppretter uten faggruppe, usendt dok (dokumentflytId=null) med fremmed faggruppe → tillat via bestiller",
+    fakta: fakta({
+      harDokument: true,
+      bestillerUserId: "u-selv",
+      dokumentflytId: null,
+      bestillerFaggruppeId: "fg-fremmed",
+      direkteFaggruppeIder: [],
+    }),
+    forventet: { tillat: true, grunn: "innsender-mottaker" },
+  },
+  {
+    navn: "sak 2: personlig mottaker uten faggruppe, dok med fremmed faggruppe → tillat via mottaker",
+    fakta: fakta({
+      harDokument: true,
+      recipientUserId: "u-selv",
+      bestillerFaggruppeId: "fg-fremmed",
+      direkteFaggruppeIder: [],
+    }),
+    forventet: { tillat: true, grunn: "innsender-mottaker" },
+  },
+  {
+    navn: "sak 2 negativ kontroll: verken bestiller/mottaker/faggruppe/flyt (dok m/ fremmed faggruppe + flyt) → avvis",
+    fakta: fakta({
+      harDokument: true,
+      bestillerUserId: "u-annen",
+      recipientUserId: "u-tredje",
+      bestillerFaggruppeId: "fg-fremmed",
+      direkteFaggruppeIder: [],
+      dokumentflytId: "flyt-fremmed",
+      flytIder: [],
+    }),
+    forventet: { tillat: false, grunn: "ingen-tilgang" },
+  },
+
   // — Direkte faggruppe ——————————————————————————————————————————
   {
     navn: "direkte faggruppe: bestiller-faggruppe matcher → tillat",
