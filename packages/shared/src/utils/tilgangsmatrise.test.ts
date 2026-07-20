@@ -1,18 +1,26 @@
 import { describe, it, expect } from "vitest";
+import {
+  avgjorDokumentTilgang,
+  type TilgangsFakta,
+  type TilgangsResultat,
+} from "./avgjorDokumentTilgang";
 
 /**
  * Tilgangsmatrise — varig håndhevelse av dokument-tilgangsbeslutningen.
  *
- * Fase A (denne fila, spor 2-ordre 2026-07-20): tabelldrevet matrise mot DAGENS
- * oppførsel i `verifiserDokumentTilgang` (apps/api/src/trpc/tilgangskontroll.ts
- * :480–639). Ingen produksjonskode er endret. Beslutningsgrenene er transkribert
- * linje-for-linje til referansefunksjonen `avgjorDokumentTilgangReferanse` under,
- * med samme rekkefølge og semantikk. Matrisen kjøres mot referansen og er grønn.
+ * Fase A (spor 2-ordre 2026-07-20): tabelldrevet matrise mot DAGENS oppførsel i
+ * `verifiserDokumentTilgang` (apps/api/src/trpc/tilgangskontroll.ts:490–638).
+ * Beslutningsgrenene ble transkribert linje-for-linje til den frosne referansen
+ * `avgjorDokumentTilgangReferanse` under, med samme rekkefølge og semantikk.
  *
- * Dette er sikkerhetsnettet for ekstraksjonen: i Fase B trekkes beslutningen ut
- * som ren funksjon `avgjorDokumentTilgang(fakta)` i produksjonskoden, og SAMME
- * MATRISE (konstanten under) kjøres mot BÅDE referansen og den nye funksjonen.
- * Identisk utfall på hver rad beviser at ekstraksjonen ikke endret oppførsel.
+ * Fase B: beslutningen er ekstrahert som ren funksjon `avgjorDokumentTilgang` i
+ * produksjonskoden (packages/shared/src/utils/avgjorDokumentTilgang.ts).
+ * `verifiserDokumentTilgang` beholder alle Prisma-oppslag og kaller den.
+ *
+ * SAMME MATRISE (konstanten under) kjøres mot BEGGE sider — den frosne referansen
+ * OG den ekstraherte produksjonsfunksjonen. Identisk utfall på hver rad = beviset
+ * på at ekstraksjonen ikke endret oppførsel. Divergens mellom referansen (dagens
+ * oppførsel) og produksjonsfunksjonen ved en senere endring = test-feil.
  *
  * Utvidbar: sak 2 (bestiller/mottaker-grener), sak 3 (HMS-synlighet) og sak1b
  * (rollestyring) legger til RADER i MATRISE, ikke nye testfiler.
@@ -23,66 +31,12 @@ import { describe, it, expect } from "vitest";
  */
 
 /**
- * `fakta` = de allerede-hentede verdiene som beslutningen tar. I produksjon
- * fylles disse av Prisma-oppslagene i `verifiserDokumentTilgang`; her fylles de
- * direkte per matrise-rad. Modellen er identisk med `avgjorDokumentTilgang`-
- * signaturen som Fase B ekstraherer.
+ * FROSSET referanse: transkripsjon av dagens `verifiserDokumentTilgang`-beslutning
+ * (tilgangskontroll.ts:490–638), gjort i Fase A og cowork-godkjent gren for gren.
+ * Endres ALDRI ved refaktor — den er «dagens oppførsel» som produksjonsfunksjonen
+ * måles mot. `throw FORBIDDEN` → `{ tillat: false }`; `return` → `{ tillat: true }`.
  */
-export interface TilgangsFakta {
-  /** User.role — "sitedoc_admin" gir full bypass. */
-  brukerRolle: string | null;
-  /** Finnes en ProjectMember-rad? false → «ikke medlem av prosjektet». */
-  erMedlem: boolean;
-  /** ProjectMember.role — "admin" = prosjektadmin (ser alt). */
-  prosjektmedlemRolle: string | null;
-  /** ProjectMember.erFirmaansvarlig. */
-  erFirmaansvarlig: boolean;
-  /** Innlogget brukers id (for innsender/mottaker-sammenligning). */
-  userId: string;
-
-  // Dokument-attributter (dokumentParter + mal-felt)
-  /** dokumentId && dokumentType satt → dokumentParter er lastet. */
-  harDokument: boolean;
-  bestillerUserId: string | null;
-  recipientUserId: string | null;
-  dokumentflytId: string | null;
-  bestillerFaggruppeId: string | null;
-  utforerFaggruppeId: string | null;
-  templateDomain: string | null;
-  templateHmsSynlighet: string | null;
-
-  // Bindinger (allerede-hentet fra medlem)
-  /** FaggruppeKobling.faggruppeId[] — direkte faggruppe-tilgang. */
-  direkteFaggruppeIder: string[];
-  /** Gruppemedlemskap med domener + evt. faggruppe-begrensning. */
-  gruppeMedlemskap: Array<{ domener: string[]; faggruppeIder: string[] }>;
-  /**
-   * Flyt-IDer medlemmet er bundet til via person/faggruppe/gruppe.
-   * KUN aktive medlemskap (`periodeSlutt = null`) — periode-filteret bor i
-   * `hentFlytIderForMedlem` (blir i Prisma-laget). Utløpt medlemskap er derfor
-   * fraværende i denne lista; det er slik periode-vindu-radene modelleres.
-   */
-  flytIder: string[];
-
-  // Firmaansvarlig-oppslag (Prisma-resultat, forhåndsberegnet av kalleren)
-  /** OrganizationMember.userId[] for brukerens firma ([] hvis ingen org). */
-  firmaUserIder: string[];
-  /** Fant DocumentTransfer med senderId i firmaets brukere? */
-  harFirmaTransfer: boolean;
-}
-
-export interface TilgangsResultat {
-  tillat: boolean;
-  grunn: string;
-}
-
-/**
- * Referanse: transkripsjon av dagens `verifiserDokumentTilgang`-beslutning
- * (tilgangskontroll.ts:490–638). BARE beslutningsgrenene — Prisma-oppslagene er
- * erstattet av forhåndsberegnede `fakta`. Rekkefølge og semantikk er identisk.
- * `throw FORBIDDEN` → `{ tillat: false }`; `return` → `{ tillat: true }`.
- */
-export function avgjorDokumentTilgangReferanse(f: TilgangsFakta): TilgangsResultat {
+function avgjorDokumentTilgangReferanse(f: TilgangsFakta): TilgangsResultat {
   // :492 — sitedoc_admin ser alt
   if (f.brukerRolle === "sitedoc_admin") return { tillat: true, grunn: "admin" };
 
@@ -392,8 +346,20 @@ export const MATRISE: MatriseRad[] = [
   },
 ];
 
-describe("tilgangsmatrise — mot dagens beslutning (Fase A: referanse-transkripsjon)", () => {
+describe("tilgangsmatrise — frossen referanse (dagens oppførsel)", () => {
   it.each(MATRISE)("$navn", ({ fakta, forventet }) => {
     expect(avgjorDokumentTilgangReferanse(fakta)).toEqual(forventet);
+  });
+});
+
+describe("tilgangsmatrise — ekstrahert produksjonsfunksjon (avgjorDokumentTilgang)", () => {
+  it.each(MATRISE)("$navn", ({ fakta, forventet }) => {
+    expect(avgjorDokumentTilgang(fakta)).toEqual(forventet);
+  });
+});
+
+describe("tilgangsmatrise — begge sider identiske på hver rad", () => {
+  it.each(MATRISE)("$navn", ({ fakta }) => {
+    expect(avgjorDokumentTilgang(fakta)).toEqual(avgjorDokumentTilgangReferanse(fakta));
   });
 });

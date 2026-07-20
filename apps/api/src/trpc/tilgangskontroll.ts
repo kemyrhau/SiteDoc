@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
-import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle } from "@sitedoc/shared";
+import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle, avgjorDokumentTilgang } from "@sitedoc/shared";
 import type { FlytMedlemInfo } from "@sitedoc/shared";
 
 /**
@@ -487,7 +487,13 @@ export async function verifiserDokumentTilgang(
   dokumentType?: "task" | "checklist",
   templateHmsSynlighet?: string | null,
 ): Promise<void> {
-  // sitedoc_admin ser alt
+  // Datahenting (Prisma) her; beslutningen tas av den rene funksjonen
+  // `avgjorDokumentTilgang` (@sitedoc/shared) — samme grener, uendret rekkefølge
+  // og semantikk (spor 2-ekstraksjon 2026-07-20). Matrisen i
+  // packages/shared/src/utils/tilgangsmatrise.test.ts håndhever oppførselen.
+  //
+  // sitedoc_admin ser alt — early return bevart så admin ikke utløser medlem-
+  // oppslaget (admin har ikke nødvendigvis en ProjectMember-rad).
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
   if (bruker?.role === "sitedoc_admin") return;
 
@@ -507,6 +513,7 @@ export async function verifiserDokumentTilgang(
     },
   });
 
+  // Ikke medlem — data-eksistens-guard bevart inline (gater dokumentpart-oppslaget).
   if (!medlem) {
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -514,10 +521,12 @@ export async function verifiserDokumentTilgang(
     });
   }
 
-  // Prosjektadmin ser alt
+  // Prosjektadmin ser alt — early return bevart så prosjektadmin ikke utløser
+  // dokumentpart-/firma-/flyt-oppslagene under.
   if (medlem.role === "admin") return;
 
-  // Last dokumentpartene én gang — gjenbrukes av firmaansvarlig + innsender-grenen.
+  // Last dokumentpartene én gang — brukes av firmaansvarlig-, innsender- og
+  // flyt-grenen i beslutningsfunksjonen.
   let dokumentParter:
     | { bestillerUserId: string | null; recipientUserId: string | null; dokumentflytId: string | null }
     | null = null;
@@ -533,27 +542,25 @@ export async function verifiserDokumentTilgang(
         });
   }
 
-  // Firmaansvarlig: ser dokumenter der firmamedlemmer er direkte involvert
+  const direkteFaggruppeIder = medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
+
+  // Firmaansvarlig-oppslag: firmaets brukere + evt. transfer-avsender-treff.
+  // Gate uendret (erFirmaansvarlig && dokument && org). MERK: transfer-spørringen
+  // kjøres nå ubetinget innenfor gaten — den gamle kortslutningen (hopp over
+  // transfer-oppslag når en firma-part allerede matchet) er droppet, fordi
+  // gjeninnføring av den ville krevd å kopiere part-beslutningen inn i data-laget
+  // (drift-farlig). Utfallet er identisk (part-treffet vinner uansett i den rene
+  // funksjonen); kun én ekstra read i det sjeldne part-treff-tilfellet. FLAGGET.
+  let firmaUserIder: string[] = [];
+  let harFirmaTransfer = false;
   if (medlem.erFirmaansvarlig && dokumentId && dokumentType) {
     const brukerOrgId = await hentBrukersOrg(userId);
     if (brukerOrgId) {
-      const firmaUserIder = (await prisma.organizationMember.findMany({
+      firmaUserIder = (await prisma.organizationMember.findMany({
         where: { organizationId: brukerOrgId },
         select: { userId: true },
       })).map((m) => m.userId);
 
-      // Sjekk bestillerUserId og recipientUserId
-      if (dokumentParter) {
-        const involverteUserIder = new Set(firmaUserIder);
-        if (
-          (dokumentParter.bestillerUserId && involverteUserIder.has(dokumentParter.bestillerUserId)) ||
-          (dokumentParter.recipientUserId && involverteUserIder.has(dokumentParter.recipientUserId))
-        ) {
-          return;
-        }
-      }
-
-      // Sjekk DocumentTransfer.senderId
       const transferMatch = await prisma.documentTransfer.findFirst({
         where: {
           senderId: { in: firmaUserIder },
@@ -563,79 +570,55 @@ export async function verifiserDokumentTilgang(
         },
         select: { id: true },
       });
-      if (transferMatch) return;
+      harFirmaTransfer = Boolean(transferMatch);
     }
   }
 
-  // Innsender/mottaker: bruker som er bestiller eller direkte mottaker av dokumentet
-  // får tilgang. Status-baserte begrensninger (f.eks. slett kun i utkast) håndheves
-  // av kallenes egne sjekker etter denne funksjonen.
-  if (dokumentParter) {
-    if (
-      (dokumentParter.bestillerUserId && dokumentParter.bestillerUserId === userId) ||
-      (dokumentParter.recipientUserId && dokumentParter.recipientUserId === userId)
-    ) {
-      return;
-    }
-  }
-
-  // Direkte faggruppe-tilgang
-  const direkteFaggruppeIder = medlem.faggruppeKoblinger.map((e) => e.faggruppeId);
-  const harDirekteTilgang =
-    (bestillerFaggruppeId && direkteFaggruppeIder.includes(bestillerFaggruppeId)) ||
-    (utforerFaggruppeId && direkteFaggruppeIder.includes(utforerFaggruppeId));
-
-  if (harDirekteTilgang) return;
-
-  // Fagområde-tilgang via grupper
-  if (templateDomain) {
-    for (const gm of medlem.groupMemberships) {
-      const gruppeDomener = gm.group.domains as string[];
-      if (!gruppeDomener.includes(templateDomain)) continue;
-
-      // Tverrgående tilgang: gruppe uten faggrupper
-      if (gm.group.groupFaggrupper.length === 0) return;
-
-      // Faggruppe-begrenset: sjekk om dokumentets faggrupper matcher gruppens
-      const gruppeFaggruppeIder = gm.group.groupFaggrupper.map((ge) => ge.faggruppeId);
-      const matcherFaggruppe =
-        (bestillerFaggruppeId && gruppeFaggruppeIder.includes(bestillerFaggruppeId)) ||
-        (utforerFaggruppeId && gruppeFaggruppeIder.includes(utforerFaggruppeId));
-      if (matcherFaggruppe) return;
-    }
-  }
-
-  // HMS åpen-synlighet: alle prosjektmedlemmer kan lese dokumentet.
-  // Bruker er verifisert som prosjektmedlem ovenfor (linje 395-400). Skal kun
-  // sendes inn fra lese-routes (hentMedId, hentKommentarer); mutations beholder
-  // streng tilgang via faggruppe/gruppe-domain.
-  if (templateDomain === "hms" && templateHmsSynlighet === "apen") return;
-
-  // Dokumentflyt-medlemskap (paritet med faggruppe-medlemskap, sak1 2026-07-19):
-  // bruker som er medlem av dokumentets flyt får tilgang — fanger person-direkte
-  // binding som faggruppe-/gruppe-veiene over er blinde for. Ubetinget: gjelder
-  // alle 17 call-sites (lese + mutasjon), på lik linje med et faggruppe-medlem.
-  // Status-vaktene i mutasjonene styrer fortsatt *når*, og verifiserFlytRolle
-  // (endreStatus) styrer *hvilken overgang*. Gjenbruker allerede-hentet `medlem`
-  // og den delte hentFlytIderForMedlem (ingen ekstra medlems-oppslag — N+1-vakt).
-  // F1-A: respekterer HMS-synlighet — fyrer IKKE for private HMS-dokumenter, så
-  // flyt-medlemskap ikke utvider innsyn i konfidensielle HMS-dok.
-  if (
-    dokumentParter?.dokumentflytId &&
-    !(templateDomain === "hms" && templateHmsSynlighet !== "apen")
-  ) {
-    const flytIder = await hentFlytIderForMedlem(
+  // Flyt-medlemskap: allerede-hentet `medlem` + den delte hentFlytIderForMedlem
+  // (eneste medlemskaps-kilde, ingen kopi; N+1-vakt via forhåndshentede id-er).
+  // Fetch gates kun på data-eksistens (dokumentflytId) — F1-A-avvisningen (privat
+  // HMS) eies av den rene funksjonen, ikke data-laget (drift-sikkert). MERK: én
+  // ekstra read i privat-HMS-med-flyt-tilfellet der gammel kode gatet bort
+  // oppslaget; utfallet er identisk (F1-A avviser uansett). FLAGGET.
+  let flytIder: string[] = [];
+  if (dokumentParter?.dokumentflytId) {
+    flytIder = await hentFlytIderForMedlem(
       medlem.id,
       direkteFaggruppeIder,
       medlem.groupMemberships.map((gm) => gm.groupId),
     );
-    if (flytIder.includes(dokumentParter.dokumentflytId)) return;
   }
 
-  throw new TRPCError({
-    code: "FORBIDDEN",
-    message: "Du har ikke tilgang til dette dokumentet",
+  const resultat = avgjorDokumentTilgang({
+    brukerRolle: bruker?.role ?? null,
+    erMedlem: true,
+    prosjektmedlemRolle: medlem.role,
+    erFirmaansvarlig: medlem.erFirmaansvarlig,
+    userId,
+    harDokument: Boolean(dokumentId && dokumentType),
+    bestillerUserId: dokumentParter?.bestillerUserId ?? null,
+    recipientUserId: dokumentParter?.recipientUserId ?? null,
+    dokumentflytId: dokumentParter?.dokumentflytId ?? null,
+    bestillerFaggruppeId,
+    utforerFaggruppeId,
+    templateDomain: templateDomain ?? null,
+    templateHmsSynlighet: templateHmsSynlighet ?? null,
+    direkteFaggruppeIder,
+    gruppeMedlemskap: medlem.groupMemberships.map((gm) => ({
+      domener: gm.group.domains as string[],
+      faggruppeIder: gm.group.groupFaggrupper.map((ge) => ge.faggruppeId),
+    })),
+    flytIder,
+    firmaUserIder,
+    harFirmaTransfer,
   });
+
+  if (!resultat.tillat) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Du har ikke tilgang til dette dokumentet",
+    });
+  }
 }
 
 /**
