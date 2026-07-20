@@ -69,6 +69,7 @@
     "@sitedoc/api": "workspace:*",
     "@types/react": "^19.1.17",
     "babel-preset-expo": "~54.0.10",
+    "eslint-plugin-react-hooks": "^4.6.2",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.7.0"
   }
