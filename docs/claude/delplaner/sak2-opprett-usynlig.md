@@ -13,7 +13,13 @@ sist_verifisert_mot_kode: 2026-07-19
 
 **Hvem du er:** kode-Opus, **ledd 3 (koding)**. Cowork har reprodusert og gatet (denne ordren). **Du koder — kun det.** Du gater ikke, tester ikke med brukere, merger ikke, deployer ikke.
 
-**Branch:** `fix/sak2-oppretter-ser-eget` fra develop (`68f3ddaf`). Du pusher kun denne.
+**Branch:** `fix/sak2-oppretter-ser-eget` fra develop (**bruk gjeldende tipp** — spor 2 er merget inn siden ordren ble skrevet). Du pusher kun denne.
+
+**⚠️ Spor 2 endret grunnen du bygger på (merget `cf76d81d`):** `byggTilgangsFilter` er uendret, men **beslutningen i `verifiserDokumentTilgang` er nå en ren funksjon** (`avgjorDokumentTilgang` i `@sitedoc/shared`), håndhevet av `packages/shared/src/utils/tilgangsmatrise.test.ts`. Det betyr:
+- **Legg til RADER i `MATRISE`** for de to nye grenene (bestiller/mottaker i liste-filteret) — ikke en ny testfil. Matrisen er bygget for å utvides slik.
+- Rører du beslutningslogikk, må **både** den frosne referansen og produksjonsfunksjonen forbli enige — testen sjekker det per rad.
+
+**Verifiseringsmønster (fabel 2026-07-20 — gjenbruk fra spor 2):** matrisen dekker **midten** (beslutningen). Cowork dekker **ytterkantene** i review: at koden er strukturelt det den utgir seg for, og at kalleren bygger faktaene korrekt. En grønn matrise er ikke bevis alene — den tester det den får inn.
 
 **Leveranse (én fase — omfanget er to OR-grener):** implementer § Fiks-retning → `next build` grønn → push → vis diff til cowork. Avdekker du at endringen treffer bredere enn de to grenene, **stopp og flagg** i stedet for å utvide.
 

@@ -113,7 +113,20 @@ Dokumenter kan refereres som vedlegg på tvers (f.eks. en ferdig Teknisk avklari
 - **Opprett:** de fire opprett-flatene (sjekklister/oppgaver/tegninger/`OpprettOppgaveModal`) utleder bestiller/utfører-faggruppe fra `tRPC medlem.hentMineFlyter`; person-/gruppe-direkte medlem uten egen faggruppe bruker flytens eier-faggruppe (`Dokumentflyt.faggruppeId`) som fallback. Server-siden: `verifiserFaggruppeTilhorighet` godtar flyt-medlemskap som alternativ til `FaggruppeKobling` når faggruppen er eier-faggruppe i en flyt brukeren er medlem av. Feilmeldingene skiller de to årsakene: `dokumentflyt.feil.ingenFlytMedMal` (ingen av dine flyter har malen) vs. `dokumentflyt.feil.flytManglerFaggruppe` (flyten mangler eier-faggruppe). **`dokumentflytId` bindes ved send, ikke ved opprett** (uendret).
   - ⚠️ **Konsekvens (verifisert 2026-07-19):** et dokument opprettet av et person-direkte medlem får ingen `dokumentflytId` før det sendes → det vises **ikke i lista** (matcher ingen filter-gren), men **åpnes via direkte URL** (bestiller-grenen i `verifiserDokumentTilgang`). Åpen sak.
 
-Flyt-medlemskap gir i dag **synlighet (lese) + opprett**, ikke mutasjoner, ikke admin, ikke redigering utover § 2.
+Flyt-medlemskap gir i dag **synlighet (lese) + opprett + mutasjoner på lik linje med faggruppe-medlemskap** (sak 1, paritetsvedtak 2026-07-19) — ikke admin, ikke redigering utover § 2. Status-vaktene styrer fortsatt *når*, og `verifiserFlytRolle` styrer *hvilken statusovergang*.
+
+### Beslutningslaget (spor 2, 2026-07-20)
+
+Dokument-tilgang avgjøres nå av en **ren funksjon**, adskilt fra datahentingen:
+
+- **`avgjorDokumentTilgang(fakta) → { tillat, grunn }`** (`packages/shared/src/utils/avgjorDokumentTilgang.ts`) — all beslutningslogikk, ingen avhengigheter, ingen Prisma.
+- **`verifiserDokumentTilgang`** (`apps/api/src/trpc/tilgangskontroll.ts`) beholder alle Prisma-oppslag, bygger `TilgangsFakta` og kaller den rene funksjonen.
+
+**Grenene i fast rekkefølge:** admin → ikke-medlem → prosjektadmin → firmaansvarlig → bestiller/mottaker → faggruppe-direkte → gruppe-domain → HMS-åpen → flyt-medlemskap → avvis.
+
+**Håndhevet av `packages/shared/src/utils/tilgangsmatrise.test.ts`** — tabelldrevet matrise (bindingstype × status × dokument-attributter → forventet utfall), kjørt mot både en **frossen referanse** (dagens oppførsel, endres aldri) og produksjonsfunksjonen. Divergens = test-feil. **Nye tilgangsregler legges til som RADER i matrisen, ikke som nye testfiler.**
+
+**Prinsipp ved ytelsespress (fabel 2026-07-20):** blir oppslagene dyre, er riktig fiks **caching bak samme kilde** — ikke å gjeninnføre kortslutninger som duplisererer beslutningslogikk inn i datalaget. Duplikatet gir feil avvisning den dagen lagene glir fra hverandre.
 
 ### Rettighetsbasert UI
 
