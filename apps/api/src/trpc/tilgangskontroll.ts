@@ -859,7 +859,12 @@ export async function byggTilgangsFilter(
   }
 
   if (orBetingelser.length === 0) {
-    // Bruker har ingen tilganger — returner et filter som aldri matcher
+    // UOPPNÅELIG i dag: bestiller/mottaker-grenene over pushes ubetinget, så
+    // orBetingelser har alltid ≥ 2 elementer. Beholdt bevisst som forsvar mot en
+    // fremtidig refaktor som gjør noen grener betingede — uten den ville et tomt
+    // orBetingelser gi `{ OR: [] }`, som i Prisma matcher INGENTING (riktig her,
+    // men en subtil semantikk å stole på). Denne sentinellen gjør intensjonen
+    // eksplisitt. Bruker har ingen tilganger — filter som aldri matcher.
     return { id: "__ingen_tilgang__" };
   }
 

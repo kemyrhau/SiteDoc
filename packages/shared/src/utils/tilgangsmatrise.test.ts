@@ -228,11 +228,16 @@ export const MATRISE: MatriseRad[] = [
   },
 
   // — Sak 2: liste↔detalj-paritet (bestiller/mottaker) ——————————————
-  // byggTilgangsFilter fikk bestiller/mottaker-OR-grenene (fix/sak2-oppretter-ser-
-  // eget) så lista speiler detalj-gaten. Disse radene pinner beslutningen begge
-  // gater nå deler: oppretter/mottaker UTEN egen faggruppe-binding ser sitt eget,
-  // selv når dokumentet bærer en fremmed faggruppe (person-basert gren, uavhengig
-  // av faggruppe). Det er nettopp brukergruppen sak 2 rammet.
+  // VIKTIG OM DEKNING: disse radene tester `avgjorDokumentTilgang` — DETALJ-gaten.
+  // Sak-2-FIKSEN ligger i `byggTilgangsFilter` (liste-filteret), som IKKE testes
+  // her og fortsatt mangler testdekning. Radene beviser altså BARE den delte
+  // beslutningen (bestiller/mottaker → tillat) som liste-filteret nå er ment å
+  // speile — de er ikke bevis på at liste-filteret faktisk gjør det. Ytterkanten
+  // (at byggTilgangsFilter bygger riktig OR) dekkes av cowork-review + browser-DoD.
+  //
+  // Radene pinner beslutningen: oppretter/mottaker UTEN egen faggruppe-binding ser
+  // sitt eget selv når dokumentet bærer en fremmed faggruppe (person-basert gren,
+  // uavhengig av faggruppe) — nettopp brukergruppen sak 2 rammet.
   {
     navn: "sak 2: oppretter uten faggruppe, usendt dok (dokumentflytId=null) med fremmed faggruppe → tillat via bestiller",
     fakta: fakta({
