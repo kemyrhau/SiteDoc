@@ -1,0 +1,44 @@
+---
+name: lint-typecheck-gjeld
+status: 🔴 GJELD — målt 2026-07-20 (CI-Opus Steg 0). Blokkerer CI trinn 2. Ikke startet
+eier: fabel (prioritering) · kode-Opus (rydding)
+sist_verifisert_mot_kode: 2026-07-20
+---
+
+# Lint- og typecheck-gjeld — blokkerer CI trinn 2
+
+> Målt av CI-Opus i spor 1s Steg 0 (2026-07-20). **Grunnen til at CI trinn 1 kun kjører `test`:** lint og typecheck er bredt røde, og en rød CI dag én blir ignorert. Denne saken rydder gjelden slik at de kan legges inn som gater.
+
+## Målt tilstand
+
+| Kommando | Resultat | Fordeling |
+|---|---|---|
+| `pnpm test` | 🟢 GRØNN | shared 77 tester (7 filer) + web 37 (3 filer) — **er nå CI-gate** |
+| `pnpm lint` | 🔴 RØD | `@sitedoc/api` **57** · `@sitedoc/mobile` **12** · `@sitedoc/pdf` **7** · `@sitedoc/web` **2+** |
+| `pnpm typecheck` | 🔴 RØD | `@sitedoc/shared` **2** · `@sitedoc/mobile` **8** |
+
+**Viktig avklaring:** `carveArbeidstid.test.ts` og `feltLaasing.test.ts` feiler **typecheck** (TS2532, TS2345) men kjører **grønt i test** — vitest transpilerer uten å typesjekke. Det forklarer kode-Opus' gjentatte «pre-eksisterende testfeil»: han så typecheck-siden, ikke test-siden. Feilene er ekte og ligger i testfilene selv.
+
+**Miljø-felle (ikke gjeld):** uten `prisma generate` for de fire db-pakkene «false-failer» typecheck i tillegg i web/api/db-timer (`.prisma/*-client` mangler). Db-pakkene har **ingen build-script**, så turbos `^build`-avhengighet genererer dem aldri. CI trinn 1 løser dette med et eksplisitt generate-steg — men en fersk lokal checkout treffer samme felle.
+
+## Feilkategorier (fra CI-Opus' måling)
+- `@typescript-eslint/no-unused-vars` — ubrukte variabler/imports (må prefikses `_` per kodestilen)
+- `@typescript-eslint/no-require-imports` — `require()`-stil import
+- `prefer-const`
+- `no-control-regex`
+- `@typescript-eslint/ban-ts-comment`
+- **`@sitedoc/mobile`: 12 «rule not found»** — eslint-configen mangler `react-hooks`-pluginen. Dette er et **konfigurasjonshull**, ikke kodefeil, og bør ryddes først (kan endre tallene).
+
+## Foreslått rekkefølge (fabel prioriterer)
+1. **Mobil eslint-config** — legg til manglende plugin. Konfigurasjonsfeil, ikke kodegjeld; fjerner 12 falske treff og gir riktig tall for resten.
+2. **`@sitedoc/pdf` (7)** — minste flate, null avhengigheter (pakken er bevisst dependency-fri). Rask gevinst.
+3. **`@sitedoc/shared` typecheck (2)** — kun i to testfiler. Liten, og fjerner den som har forvirret to økter.
+4. **`@sitedoc/web` (2+)** og **`@sitedoc/mobile` typecheck (8)**.
+5. **`@sitedoc/api` (57)** — størst. Bør deles i egne runder per feilkategori, ikke én stor PR.
+
+**Etter hvert trinn:** legg den nå-grønne kommandoen inn som CI-gate for den pakken, slik at gjelden ikke gjenoppstår. Målet er `pnpm lint` + `pnpm typecheck` som fulle gater i CI trinn 2.
+
+## Ufravikelig
+- **Én pakke om gangen, egen branch.** 57 api-feil i én PR er ikke reviewbart.
+- **Ingen atferdsendring.** Lint-rydding som «forbedrer» logikk underveis er en skjult refaktor — stopp og flagg.
+- Koordineres mot aktive spor i [parallell-arbeid-lock.md](../parallell-arbeid-lock.md) — `apps/api/src` er berørt av spor 2 og sak 2.
