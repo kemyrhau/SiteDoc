@@ -20,7 +20,7 @@ describe("harFeltVerdi", () => {
 
 describe("beregnLaasteFelter", () => {
   it("låser kun felt med reell server-verdi", () => {
-    const data = {
+    const data: Record<string, { verdi?: unknown; kommentar?: string }> = {
       a: { verdi: "OK" },
       b: { verdi: "" }, // tom → ikke låst
       c: { verdi: null }, // null → ikke låst

@@ -25,12 +25,12 @@ describe("carveArbeidstider", () => {
       ],
     });
     expect(v).toHaveLength(2);
-    expect(v[0].fraTid).toBe("07:00");
+    expect(v[0]!.fraTid).toBe("07:00");
     // Normaltid 7.5 t krysser lunsj (11:00) → 07:00 + 7.5 t + 30 min = 15:00.
-    expect(v[0].tilTid).toBe("15:00");
+    expect(v[0]!.tilTid).toBe("15:00");
     // OT starter der normaltid slutter, ingen (ny) pause → 15:00 + 2 t = 17:00.
-    expect(v[1].fraTid).toBe("15:00");
-    expect(v[1].tilTid).toBe("17:00");
+    expect(v[1]!.fraTid).toBe("15:00");
+    expect(v[1]!.tilTid).toBe("17:00");
   });
 
   it("reise>0 forskyver arbeids-start (reise føres på egen rad uten tid)", () => {
@@ -41,9 +41,9 @@ describe("carveArbeidstider", () => {
       pauseMin: 30,
       segmenter: [{ overtidsnivaa: null, timer: 6.5 }],
     });
-    expect(v[0].fraTid).toBe("08:00");
+    expect(v[0]!.fraTid).toBe("08:00");
     // 08:00 + 6.5 t, krysser 11:00-pause → +30 min = 15:00.
-    expect(v[0].tilTid).toBe("15:00");
+    expect(v[0]!.tilTid).toBe("15:00");
   });
 
   it("hopper over 0-segmenter", () => {
@@ -58,7 +58,7 @@ describe("carveArbeidstider", () => {
       ],
     });
     expect(v).toHaveLength(1);
-    expect(v[0].overtidsnivaa).toBe(50);
+    expect(v[0]!.overtidsnivaa).toBe(50);
   });
 
   it("hvert vindu har effektive timer == segmentets timer (pause trukket ut)", () => {
@@ -125,7 +125,7 @@ describe("carveArbeidstider", () => {
       }
       // Sekvensiell: hvert vindus fra == forrige vindus til (endepunkt-berøring).
       for (let i = 1; i < v.length; i++) {
-        expect(v[i].fraTid).toBe(v[i - 1].tilTid);
+        expect(v[i]!.fraTid).toBe(v[i - 1]!.tilTid);
       }
     }
   });

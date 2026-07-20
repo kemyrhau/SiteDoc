@@ -55,6 +55,8 @@ export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
 export { carveArbeidstider } from "./carveArbeidstid";
 export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
 export { harFeltVerdi, beregnLaasteFelter } from "./feltLaasing";
+export { avgjorDokumentTilgang } from "./avgjorDokumentTilgang";
+export type { TilgangsFakta, TilgangsResultat } from "./avgjorDokumentTilgang";
 export {
   normaliserGrense,
   harGrense,
