@@ -486,10 +486,6 @@ export async function verifiserDokumentTilgang(
   dokumentId?: string,
   dokumentType?: "task" | "checklist",
   templateHmsSynlighet?: string | null,
-  // Kun lese-stier (hentMedId, hentKommentarer, hentForSjekkliste,
-  // hentTilgjengeligeFlyter) sender true → aktiverer dokumentflyt-medlemskap som
-  // tilgangsvei. Mutasjoner kaller uendret (false) og beholder streng faggruppe/gruppe-gate.
-  tillatFlytMedlemskap = false,
 ): Promise<void> {
   // sitedoc_admin ser alt
   const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
@@ -615,14 +611,16 @@ export async function verifiserDokumentTilgang(
   // streng tilgang via faggruppe/gruppe-domain.
   if (templateDomain === "hms" && templateHmsSynlighet === "apen") return;
 
-  // Dokumentflyt-medlemskap (kun lese-stier via flagget): bruker som er medlem av
-  // dokumentets flyt får innsyn — fanger person-direkte binding som faggruppe-/gruppe-
-  // veiene over er blinde for. Gjenbruker allerede-hentet `medlem` og den delte
-  // hentFlytIderForMedlem (ingen ekstra medlems-oppslag — N+1-vakt, samme som byggTilgangsFilter).
+  // Dokumentflyt-medlemskap (paritet med faggruppe-medlemskap, sak1 2026-07-19):
+  // bruker som er medlem av dokumentets flyt får tilgang — fanger person-direkte
+  // binding som faggruppe-/gruppe-veiene over er blinde for. Ubetinget: gjelder
+  // alle 17 call-sites (lese + mutasjon), på lik linje med et faggruppe-medlem.
+  // Status-vaktene i mutasjonene styrer fortsatt *når*, og verifiserFlytRolle
+  // (endreStatus) styrer *hvilken overgang*. Gjenbruker allerede-hentet `medlem`
+  // og den delte hentFlytIderForMedlem (ingen ekstra medlems-oppslag — N+1-vakt).
   // F1-A: respekterer HMS-synlighet — fyrer IKKE for private HMS-dokumenter, så
-  // flyt-medlemskap ikke utvider innsyn i konfidensielle HMS-dok (ingen rettighetsutvidelse).
+  // flyt-medlemskap ikke utvider innsyn i konfidensielle HMS-dok.
   if (
-    tillatFlytMedlemskap &&
     dokumentParter?.dokumentflytId &&
     !(templateDomain === "hms" && templateHmsSynlighet !== "apen")
   ) {

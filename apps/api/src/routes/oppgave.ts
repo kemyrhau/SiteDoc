@@ -183,7 +183,6 @@ export const oppgaveRouter = router({
         oppgave.id,
         "task",
         oppgave.template?.hmsSynlighet,
-        true, // lese-sti → dokumentflyt-medlemskap som tilgangsvei
       );
 
       // Sett lestAvMottakerVed når mottaker åpner mens status er «sent»
@@ -222,7 +221,6 @@ export const oppgaveRouter = router({
         oppgave.id,
         "task",
         oppgave.template?.hmsSynlighet,
-        true, // lese-sti → dokumentflyt-medlemskap som tilgangsvei
       );
 
       return ctx.prisma.taskComment.findMany({
@@ -286,7 +284,6 @@ export const oppgaveRouter = router({
         sjekkliste.id,
         "checklist",
         undefined,
-        true, // lese-sti → dokumentflyt-medlemskap som tilgangsvei
       );
 
       return ctx.prisma.task.findMany({
@@ -787,7 +784,6 @@ export const oppgaveRouter = router({
         input.id,
         "task",
         oppgave.template?.hmsSynlighet,
-        true, // lese-sti → dokumentflyt-medlemskap som tilgangsvei
       );
 
       const tilgang = await hentBrukerProsjektTilgang(ctx.userId, projectId);
