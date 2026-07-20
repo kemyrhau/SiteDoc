@@ -1,6 +1,6 @@
 ---
 name: lint-typecheck-gjeld
-status: 🔴 GJELD — målt 2026-07-20 (CI-Opus Steg 0). Blokkerer CI trinn 2. Ikke startet
+status: 🟡 GJELD — målt 2026-07-20 (CI-Opus Steg 0). Trinn 1 (mobil eslint-config) UTFØRT 2026-07-20. Resten blokkerer CI trinn 2
 eier: fabel (prioritering) · kode-Opus (rydding)
 sist_verifisert_mot_kode: 2026-07-20
 ---
@@ -14,7 +14,7 @@ sist_verifisert_mot_kode: 2026-07-20
 | Kommando | Resultat | Fordeling |
 |---|---|---|
 | `pnpm test` | 🟢 GRØNN | shared 77 tester (7 filer) + web 37 (3 filer) — **er nå CI-gate** |
-| `pnpm lint` | 🔴 RØD | `@sitedoc/api` **57** · `@sitedoc/mobile` **12** · `@sitedoc/pdf` **7** · `@sitedoc/web` **2+** |
+| `pnpm lint` | 🔴 RØD | `@sitedoc/api` **57** · `@sitedoc/mobile` **28** (var 12 — se trinn 1 under) · `@sitedoc/pdf` **7** · `@sitedoc/web` **2+** |
 | `pnpm typecheck` | 🔴 RØD | `@sitedoc/shared` **2** · `@sitedoc/mobile` **8** |
 
 **Viktig avklaring:** `carveArbeidstid.test.ts` og `feltLaasing.test.ts` feiler **typecheck** (TS2532, TS2345) men kjører **grønt i test** — vitest transpilerer uten å typesjekke. Det forklarer kode-Opus' gjentatte «pre-eksisterende testfeil»: han så typecheck-siden, ikke test-siden. Feilene er ekte og ligger i testfilene selv.
@@ -27,10 +27,32 @@ sist_verifisert_mot_kode: 2026-07-20
 - `prefer-const`
 - `no-control-regex`
 - `@typescript-eslint/ban-ts-comment`
-- **`@sitedoc/mobile`: 12 «rule not found»** — eslint-configen mangler `react-hooks`-pluginen. Dette er et **konfigurasjonshull**, ikke kodefeil, og bør ryddes først (kan endre tallene).
+- **`@sitedoc/mobile`: konfigurasjonshull — RYDDET (trinn 1, se under).**
+
+## Trinn 1 — mobil eslint-config (UTFØRT 2026-07-20, branch `chore/ci-harding`)
+
+Config-hullet var: root `.eslintrc.json` (`root: true`) laster aldri `eslint-plugin-react-hooks`, men tre mobil-filer har `// eslint-disable-next-line react-hooks/exhaustive-deps`. Ikke-eksisterende regel → «rule not found». Pluginen fantes ikke installert (kun transitivt under `eslint-config-next` i web, ikke resolverbar fra mobil).
+
+**Fiks (kun config, scoped til mobil — rører ikke root/api/shared):**
+- `apps/mobile/.eslintrc.json` (ny): `extends` root + `plugin:react-hooks/recommended`, `plugins: ["react-hooks"]`
+- `eslint-plugin-react-hooks@^4.6.2` lagt til `apps/mobile` devDependencies (eslint 8 / React 18-kompatibel)
+
+**Ærlig tall — før → etter:**
+
+| | Før (phantom-config) | Etter (regel aktiv) |
+|---|---|---|
+| «rule not found» | 3 (feil rapportert som errors) | **0** |
+| `@typescript-eslint/no-unused-vars` | 9 errors | 9 errors (uendret) |
+| `react-hooks/exhaustive-deps` | 0 synlige | **18 warnings** (ekte, var usynlige) |
+| `react-hooks/rules-of-hooks` | 0 synlige | **1 error** (ekte) |
+| **Sum** | 12 problems | **28 problems (10 errors, 18 warnings)** |
+
+Config-hullet skjulte **19 ekte react-hooks-funn**. Mest alvorlig: `rules-of-hooks`-error i `apps/mobile/src/components/TegningsCapture.tsx:38` — `useCallback` kalt betinget etter en tidlig return. Det er en reell React-korrekthetsbug, ikke stil.
+
+**Ikke rettet** (per ordre — retting er egne runder): de 19 react-hooks-funnene + de 9 `no-unused-vars`. Rapportert her som ærlig baseline.
 
 ## Foreslått rekkefølge (fabel prioriterer)
-1. **Mobil eslint-config** — legg til manglende plugin. Konfigurasjonsfeil, ikke kodegjeld; fjerner 12 falske treff og gir riktig tall for resten.
+1. ~~**Mobil eslint-config**~~ — ✅ utført (se over). Ga riktig tall: mobil lint 12 → 28.
 2. **`@sitedoc/pdf` (7)** — minste flate, null avhengigheter (pakken er bevisst dependency-fri). Rask gevinst.
 3. **`@sitedoc/shared` typecheck (2)** — kun i to testfiler. Liten, og fjerner den som har forvirret to økter.
 4. **`@sitedoc/web` (2+)** og **`@sitedoc/mobile` typecheck (8)**.
