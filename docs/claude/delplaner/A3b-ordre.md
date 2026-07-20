@@ -1,8 +1,8 @@
 ---
 name: A3b-ordre
-status: 🟡 KLAR — venter Del E-lukking + tavle-rad (åpnes IKKE før A-3a er lukket)
-eier: fabel (ordre) · cowork (gate + pkt 7-flagg bekreftet)
-sist_verifisert_mot_kode: 2026-07-18
+status: 🟢 ÅPEN — cowork ledd 2-gate GRØNT 2026-07-19 (Del E lukket, alle premisser kode-verifisert). Pkt 7 venter Kenneth-vedtak
+eier: fabel (ordre) · cowork (gate) · kode-Opus (ledd 3)
+sist_verifisert_mot_kode: 2026-07-19
 ---
 
 # Ordre — A-3b: perspektiv-prinsippet i dokumentflyt (omrammet)
@@ -10,6 +10,18 @@ sist_verifisert_mot_kode: 2026-07-18
 > **Fabel-ordre 2026-07-18.** Relayes av Kenneth; cowork gir tre + branch + tavle-rad. **Kan ikke kjøre parallelt med B-2 eller CLAUDE.md-runden (generate.ts).** Grunnlag: [funn-fra-a3a-verifisering-2026-07-18.md](funn-fra-a3a-verifisering-2026-07-18.md) (N1-vedtaket + Kenneths syv beslutninger) + testrapportene 2026-07-18.
 >
 > **Forutsetning: Del E (rollefiltrering, ikke-admin) er kjørt og A-3a lukket FØR denne åpnes** — begge rører samme meny/badge-flater.
+
+## 0. For deg som koder (les først)
+
+**Hvem du er:** kode-Opus, **ledd 3 (koding)**. Fabel planla, cowork gatet mot kode (§ 6 — grønt). **Du koder — kun det.** Du gater ikke, tester ikke med brukere, merger ikke, deployer ikke.
+
+**Branch:** `feat/a3b-perspektiv` fra develop (`68f3ddaf`). Du pusher kun denne.
+
+**Leveranse i to faser — STOPP mellom:**
+1. **Fase A — perspektiv-tabellen (ikke kode).** Lever tabellen `status × perspektiv → etikett + farge` for alle fire dokumenttyper (§ 2 Del 1a krever fabel-designgate FØR implementering). **Stopp. Gi tabellen til fabel via Kenneth.**
+2. **Fase B — koding.** Etter fabel-godkjenning: Del 1a–d + Del 2 pkt 1–5. **Pkt 6 er rutet til spor C** (ikke din). **Pkt 7 kodes IKKE før Kenneth har vedtatt rollematrise-endringen** (se § 6).
+
+**Ditt neste svar:** perspektiv-tabellen — ikke kode.
 
 ## 1. Fundamentet (Kenneth-vedtatt N1 — rammen, ikke en fiks)
 
@@ -54,3 +66,20 @@ Kode → `next build` grønn → bevis til fabel: samme dokument sett som avsend
 ## 5. Opprydding
 
 Cowork eier merge + fase 4.
+
+## 6. Ledd 2-gate (cowork, kode-målt 2026-07-19) — GRØNT
+
+**Forutsetningen er oppfylt:** A-3a er merget i develop (branch slettet etter merge; `StatusHandlinger.tsx` borte, kilde-markørene til stede). **Del E lukket 2026-07-19** — rollefiltreringen bor i nedtrekket (Send▾/Admin▾), ikke inline-raden, og er verifisert i begge retninger med kmy = utforer: `received` → Avvis deaktivert «KUN ADMINISTRATOR» · `responded` → Godkjenn/Send tilbake/Videresend deaktivert «KUN GODKJENNER». *(Tidligere «meny identisk med admin» var registrator-regelen `statusHandlinger.ts:85` som virker, ikke en bug.)*
+
+**Premisser verifisert mot kode:**
+
+| Ordrens påstand | Kode | Dom |
+|---|---|---|
+| `sjekkliste.ts:923` auto-mottak `sent→received` ubetinget — RØRES IKKE | `const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus` | ✅ |
+| `status-badge.tsx:43` har kontekst-frø | `packages/ui/src/status-badge.tsx:44` — `status === "sent" && lestAvMottakerVed != null` → «Lest» | ✅ |
+| `harBallen`-data finnes | `beregnHarBallen`, `packages/shared/src/utils/flytRolle.ts:123` | ✅ |
+| Pkt 7 krever rollematrise-endring | `ROLLE_HANDLINGER.bestiller = {draft, sent, approved, cancelled}` — **ingen `received`** | ✅ flagget står |
+
+**Cowork-tillegg — hvorfor 1a MÅ i `@sitedoc/shared` (mekanisk, ikke stilistisk):** mobil importerer **ikke** `@sitedoc/ui` (0 treff i `apps/mobile/package.json`) men **importerer** `@sitedoc/shared`. Etikett-funksjonen `(lagretStatus, seerKontekst) → etikett+farge` må derfor bo i shared (rammeverk-fri); `packages/ui/src/status-badge.tsx` konsumerer den. Legges den i `ui` blir mobil avskåret — samme feilen som ville rammet N3-helperen.
+
+**Pkt 7 — Kenneth-beslutning kreves FØR koding:** «Trekk tilbake» ligger på `bestiller.sent → cancelled`, men auto-mottak gjør hvert sendt dokument `received` umiddelbart, og `bestiller` har ingen `received`-oppføring. Å gi avsender «Trekk tilbake» på `received` er en **utvidelse av rollematrisen**, ikke en visningsendring. Ordrens § 3 sier statusmaskinen ikke røres uten flagg — dette er flagget.

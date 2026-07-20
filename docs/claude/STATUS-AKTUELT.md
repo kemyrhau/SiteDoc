@@ -62,7 +62,9 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 **Åpne saker (til fabel):** (1) **G1-mutere** — de 11 mutasjonene mangler flyt-grenen (bevisst utsatt); krever flytrolle-håndheving per mutasjon først. UX: rollemenyen tilbyr Besvar/Send/Avvis til person-direkte medlem uten deaktivering, men klikk gir «ikke tilgang». (2) **Opprett→usynlig** — dokument opprettet av person-direkte medlem får ingen `dokumentflytId` før send → vises ikke i lista, men åpnes via direkte URL (bestiller-grenen). (3) [hms-synlighet-regel.md](delplaner/hms-synlighet-regel.md) — firma-default-tabell; F1-A-betingelsen må da til `=== "privat"`. **Ikke deployet prod.**
 
-### A-3a handlingsmeny på kilden (branch `feat/a3a-handlingsmeny-kilde`) — PÅ BRANCH, venter merge + skjermbilder
+### A-3a handlingsmeny på kilden — ✅ MERGET DEVELOP + DEL E LUKKET (2026-07-19)
+
+> **Del E lukket 2026-07-19** (web-Opus, test): rollefiltreringen bor i **nedtrekket** (Send▾/Admin▾), ikke inline-raden — derfor så den tidligere ut som «ingen deaktivering». Verifisert med kmy = **utforer**: `received` → Avvis deaktivert «KUN ADMINISTRATOR» · `responded` → Godkjenn/Send tilbake/Videresend deaktivert «KUN GODKJENNER». Den første testrunden brukte **registrator**, som per `statusHandlinger.ts:85` ser alle handlinger — derfor var funksjonen ikke observerbar. Branchen er slettet etter merge (koden ligger i develop: `StatusHandlinger.tsx` borte, kilde-markørene til stede).
 
 **Levert i kode 2026-07-17** (`next build` grønn, web+shared-typecheck rent; gjenværende shared-test-feil er pre-eksisterende i urørte test-filer). Fabel-ordre A-3a, gate PASS (Kenneth). Bygget mot lese-økt-rapporten + A2-B2-innstillingen + handlingsmatrisen:
 
