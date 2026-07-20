@@ -19,12 +19,16 @@ gjelder: fix/sak1-flytmedlem-paritet (fd573b61) — review godkjent av cowork
 ## 1. Testtilfeller
 
 ### S1 — D5-snu: skrive-tilgang virker nå (kjernen)
-`leggTilKommentar` har **ingen status- eller rolle-vakt** — kun tilgangssjekken. Reneste test av selve paritetsendringen.
+> **Rettet 2026-07-20:** opprinnelig pekte denne på `leggTilKommentar` — men den bor på **oppgave.ts** (`taskComment.create`), ikke sjekkliste. «Valgfri kommentar»-feltet på sjekkliste-detaljen er status-handlingens kommentar, ikke en frittstående tråd.
 
-Som kmy: åpne et dokument i kmys flyt som kmy **ikke** er bestiller av (KB2-005) → legg til kommentar.
+**Bruk `sjekkliste.oppdaterData`** — kode-målt: **ingen status-vakt, ingen rolle-vakt**, kun `verifiserDokumentTilgang`. Reneste test av selve paritetsendringen som finnes.
 
-**Forventet:** kommentaren lagres. I N3-del-2-testen ga samme handling «Du har ikke tilgang til dette dokumentet».
+Som kmy: åpne KB2-005 (dokument i kmys flyt som kmy **ikke** er bestiller av) → **fyll ut et kontrollpunkt** (svar-feltet, ikke «Valgfri kommentar»-feltet i handlingsraden).
+
+**Forventet:** verdien lagres. Samme skriveoperasjon ga «Du har ikke tilgang til dette dokumentet» i N3-del-2-testen.
 **Avvik:** «ikke tilgang» står → flyt-grenen traff ikke mutasjons-stien.
+
+*Alternativ, like ren:* kommentar på en **oppgave** i kmys flyt (`leggTilKommentar` — heller ingen status-/rollevakt). Bruk den hvis en oppgave er lettere tilgjengelig.
 
 ### S2 — Rolle-styrt overgang + klient/server-samsvar (ny risiko)
 Som kmy: forsøk en **statusendring** fra menyen på KB2-005.
