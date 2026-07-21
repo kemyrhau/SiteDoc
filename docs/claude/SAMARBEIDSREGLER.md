@@ -81,6 +81,33 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 
 **B-2 og A-3b kjøres etter denne sløyfen** når N3-valget er tatt.
 
+## Tavle-binding — commit-gaten (vedtatt 2026-07-21, etter andre svikt)
+
+> **Livssyklusen under er riktig og beholdes uendret. Dette avsnittet er det som mangler: en mekanisme som gjør at den faktisk kjøres.**
+>
+> **Andre svikt, samme form (2026-07-21):** fem Opus-økter kjørte samme dag (kode/sak1+spor2+sak2 · mobil/TegningsCapture · web/testing · CI · A-3b). **Null tavle-rader ble skrevet.** Cowork produserte 18 delplan-dokumenter og rørte ikke tavla én gang. Kenneth måtte selv avslutte to økter fordi ingen fulgte opp status, og en exit-synk avdekket sju dokumenter som påsto at merget arbeid var «ikke startet». Dokumentet forutsa nøyaktig dette 2026-07-16: *«En regel uten mekanisme utføres ikke.»* Tavla var mekanismen for fase 1–4, men **ingenting var mekanismen for tavla.**
+
+**Rotårsak:** tavla avhenger av at cowork *husker*. Alt annet som virker i dette repoet er bundet til en commit, der git gjør bruddet synlig.
+
+### De to bindingene
+
+| Binding | Regel | Hvorfor den holder |
+|---|---|---|
+| **B1 — Ordre ⇒ rad** | En ordrefil i `docs/claude/delplaner/` og dens tavle-rad committes **i SAMME commit**. Ordre uten rad = ufullstendig commit, samme klasse som kode uten docs. | Cowork kan ikke skrive en ordre uten å passere gaten. Ingen ordre = ingen økt. |
+| **B2 — Merge ⇒ rad-fjerning + status** | Merge-commiten som lander en økts branch fjerner **i SAMME commit** øktas tavle-rad og oppdaterer ordrefilens `status:`-linje. | Merge er det eneste tidspunktet der en økt beviselig er ferdig, og cowork er alltid den som gjør den. |
+
+**Konsekvens av B2:** de sju stale statusene 2026-07-21 var umulige å produsere. Hver av dem oppsto fordi merge og status-oppdatering var to hendelser, og bare den første skjedde.
+
+### Kenneths kontrollflate — ett ord
+
+Kenneth skriver **«tavla»**. Cowork svarer med aktive rader, hver med: økt · branch · alder i dager · hva den venter på · hvem ballen ligger hos. **Ingen aktive rader = svar «tavla er tom».**
+
+Dette er tiltenkt Kenneths sikkerhetsnett når B1/B2 svikter en tredje gang — ikke hans ansvar å huske. Svikter tavla igjen **med** disse bindingene på plass, er ikke svaret en tredje regel: da er det formen som er feil, og mekanismen skal erstattes, ikke forsterkes.
+
+### Én ting til — økter uten branch
+
+Test-økter (web-Opus, simulator-Opus) leverer rapporter, ikke commits, så B2 utløses aldri for dem. **De lukkes når testplanen de kjører får status «KJØRT»** — samme commit-binding, annen utløser. En testplan uten utfall er en åpen økt.
+
 ## Opus-livssyklus — fire faser (vedtatt 2026-07-16)
 
 **Bakgrunn:** regelen om statustavle sto her fra 2026-07-06 og ble aldri utført. 2026-07-16 kostet det nesten en økts arbeid: to økter fikk samme branch-navn (`docs/status-aktuelt-oppbrudd`), og den ene slettet den mens den andre skulle bruke den — ren flaks at rekkefølgen reddet det. Samme kveld fikk to økter samme arbeidstre (`SiteDoc-oppfolgere`), så auditens tre flyttet seg under den mens den kjørte. **En regel uten mekanisme utføres ikke. Tavla er mekanismen — den virker fordi Kenneth ser den, ikke fordi den er en regel.**

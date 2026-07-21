@@ -8,9 +8,13 @@ sist_verifisert_mot_kode: 2026-07-10
 
 > Kontrollflate for Kenneth ([SAMARBEIDSREGLER § Opus-livssyklus](SAMARBEIDSREGLER.md#opus-livssyklus--fire-faser-vedtatt-2026-07-16)). Rad skrives **før** økta åpnes; fjernes når branchen er merget + slettet. **Tom tavle = ingen aktive økter.** Ingen to rader deler arbeidstre eller fil.
 
-| Økt | Arbeidstre | Branch | Eier filer | Status |
-|---|---|---|---|---|
-| **N3-fiks synlighet** | `~/Documents/Programmering/SiteDoc-develop` | `fix/n3-flytmedlem-synlighet` | `tilgangskontroll.ts` · `medlem.ts` · `sjekkliste.ts`/`oppgave.ts`/`hms.ts`/`bilde.ts` · 4 opprett-flater · i18n + `generate.ts` | Åpnes ved relay. **Eier generatoren** → B-2/A-3b/CLAUDE.md-runden venter. Del E rir med + lukker A-3a |
+| Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
+|---|---|---|---|---|---|
+| **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny-flater · i18n | 2026-07-18 | **AKTIV** — Fase A lukket (fabel-designgate godkjent 2026-07-20). Fase B pågår: Del 1a–d + Del 2 pkt 1–5. Pkt 6 = spor C, pkt 7 venter Kenneth-vedtak |
+
+**Lukket 2026-07-20/21 (seks økter):** N3-fiks synlighet (`fix/n3-flytmedlem-synlighet`) · kode-Opus sak 1 (`fd573b61`) · kode-Opus spor 2 + sak 2 (`cf76d81d`, `ecedb7eb`) · mobil-Opus TegningsCapture (`b15dfe56`) · CI-Opus spor 1 (PR #1+#2) · web-Opus testrunder (sak 1 + sak 2, testplaner merket KJØRT). Alle merget til develop; tilgangslaget deployet prod.
+
+> ⚠️ **Tavla var tom for alle seks mens de kjørte.** Rader ble aldri skrevet, og Kenneth måtte avslutte to økter uten oppfølging. Rettet ved [SAMARBEIDSREGLER § Tavle-binding](SAMARBEIDSREGLER.md#tavle-binding--commit-gaten-vedtatt-2026-07-21): ordre ⇒ rad og merge ⇒ rad-fjerning skjer nå i samme commit.
 
 **Del6b fase 1 lukket 2026-07-16** — fabel-designgodkjent, alle punkter. Merget `f9416424` (pkt 2/3/6) + `297f5670` (pkt 1/4/5). Levert: print-fella borte (`q0–q9` droppet stille 7 av 17) · døde søkebokser koblet · prioritet-rader klikkbare · 4 filter-paradigmer → 2 delte kilder, null regresjon · prosjekt-HMS-defaulten synlig som chips · 35 i18n-nøkler × 14 språk. Statuskilde: `verifisering/del6b-verifiseringslogg.md` (designprosjekt «Sitedoc redesign tips»). Exit-funn i [BACKLOG](BACKLOG.md).
 
