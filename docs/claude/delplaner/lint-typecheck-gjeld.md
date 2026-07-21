@@ -19,6 +19,12 @@ sist_verifisert_mot_kode: 2026-07-20
 
 **Viktig avklaring:** `carveArbeidstid.test.ts` og `feltLaasing.test.ts` feiler **typecheck** (TS2532, TS2345) men kjører **grønt i test** — vitest transpilerer uten å typesjekke. Det forklarer kode-Opus' gjentatte «pre-eksisterende testfeil»: han så typecheck-siden, ikke test-siden. Feilene er ekte og ligger i testfilene selv.
 
+**Presisering 2026-07-21 (cowork, stash-kontrollert):** `@sitedoc/web typecheck` er **rød med nøyaktig 1 feil** — `TS2589` i `apps/web/src/app/dashbord/[prosjektId]/oppgaver/page.tsx:337` (`trpc.oppgave.opprett.useMutation`). Verifisert med `git stash` → identisk feil uten arbeidsendringer. Linje 18 nevnte tidligere kun `shared` og `mobile`, som fikk en økt til å tvile på om den selv hadde brutt noe.
+
+> ⚠️ **Den dokumenterte omgåelsen holder ikke lenger.** CLAUDE.md § Kodestil sier «tRPC mutation-callbacks: `_data: unknown` for å unngå TS2589» — call-siten på linje 338 **har** allerede `_data: unknown`, og feiler likevel. Omgåelsen må enten utdypes eller erstattes når denne ryddes. Skriv resultatet tilbake til CLAUDE.md, ellers sender regelen neste økt i sirkel.
+
+**Praktisk konsekvens:** `pnpm --filter @sitedoc/web typecheck` kan **ikke** brukes som grønn gate før dette er ryddet. Bruk den i stedet differensielt: kjør før og etter endringen, og se om **antall** feil endrer seg. Står tallet på 1, er endringen typeren.
+
 **Miljø-felle (ikke gjeld):** uten `prisma generate` for de fire db-pakkene «false-failer» typecheck i tillegg i web/api/db-timer (`.prisma/*-client` mangler). Db-pakkene har **ingen build-script**, så turbos `^build`-avhengighet genererer dem aldri. CI trinn 1 løser dette med et eksplisitt generate-steg — men en fersk lokal checkout treffer samme felle.
 
 ## Feilkategorier (fra CI-Opus' måling)
