@@ -1,7 +1,7 @@
 ---
 tittel: Dokumentasjons-standard — presens krever referanse
 status: STYRENDE
-sist_verifisert_mot_kode: 2026-07-09
+sist_verifisert_mot_kode: 2026-07-16
 gjelder: alle filer i docs/claude/
 ---
 
@@ -105,6 +105,179 @@ ble kalt fra `syncBatch`.
 **Funn 2026-07-10:** BACKLOG § Mobil Microsoft-auth hevdet i ni dager at en
 Azure-sjekkliste blokkerte MS-login. Påstanden var aldri verifisert og ble
 motbevist av én innlogging.
+
+### 9. Én kilde eier status — alle andre peker
+
+Status på en tråd (lukket / verifisert / hvem godkjente / 8/8) bor i **ett**
+dokument: statuskilden (typisk verifiseringsloggen eller rapporten for den
+tråden). Alle andre dokumenter kan si **«lukket» og peke** til kilden — men
+gjengir **ikke detaljene** (dato, hvem godkjente, tellingen). Detaljer duplisert
+ut av kilden er frø til neste drift: kilden oppdateres, kopien blir liggende.
+
+To feiltilstander, ulik hastegrad:
+
+| Tilstand | Eksempel 2026-07-15 | Hastegrad |
+|---|---|---|
+| **Stale** | STATUS-AKTUELT bar «gjenstår 8 K13-skjermbilder» mens `k13-sokdekning-rapport.md` (kilden) sa LUKKET. Redesign-økta var i ferd med å fange åtte unødvendige skjermbilder på en tråd som var ferdig. | Akutt — skjult aktivt arbeid, konkret bortkastet innsats. |
+| **Duplikat** | En annen fil bar en **korrekt** K13-statuskopi. Ikke stale i dag — men samme detalj to steder betyr at neste oppdatering av kilden etterlater en stale kopi. | Lav nå, garantert drift senere. |
+
+Regelen: **hvem som helst kan si «lukket» + peke; ingen andre enn kilden gjengir
+detaljene.** En duplikat er ikke feil i dag, men den er en stale-drift som ennå
+ikke har skjedd — fjern den, eller reduser den til «lukket → [kilde]».
+
+**En peker skal navngi hvilket tre den løses i** — repo-sti eller designprosjekt.
+En bar sti som *ser ut som* en repo-sti, men bor et annet sted, er en peker til
+ingenting for den som leser. Og en peker til ingenting er verre enn en kopi:
+kopien kan i det minste leses, om enn stale. Belegg — første anvendelse av denne
+regelen brøt seg selv på nettopp dette: STATUS-AKTUELT pekte på
+`verifisering/K13-verifiseringslogg.md` som statuskilde. Filen finnes — men i
+designprosjektet «Sitedoc redesign tips», ikke i repoet (0 treff på
+«verifiseringslogg» i hele `origin/develop`). Skriv derfor
+«[designprosjekt: Sitedoc redesign tips] K13-verifiseringslogg.md», ikke en bar
+sti som løser seg i feil tre.
+
+### 10. Lesbarhet er anti-drift — ingen NY linje over ~600 tegn
+
+Ingen **ny eller endret** linje skal overstige **~600 tegn**. Eksisterende brudd
+ryddes når filen røres av annen grunn — **ikke** som egen runde. Skriver du en ny
+arkiv-oppføring, skal også den være lesbar; ingen unntaksliste trengs.
+
+Dette er ikke estetikk: **tunge dokumenter drifter mer.** Når en oppdatering
+koster å skrive og linja er umulig å lese, blir «docs senere» det rasjonelle
+valget — og driften gjemmer seg i massen.
+
+Belegg 2026-07-15:
+
+- `STATUS-AKTUELT:30` = **11 725 tegn** på én linje — kostet to merge-konflikter
+  og skjulte K13-stale-statusen (regel 9) på én dag. Ingen slurvet; ingen kunne
+  lese den. `STATUS.md:14` = **29 408 tegn** (changelog i ett felt, aldri lest).
+- **Scopet er diffen, ikke korpuset — og det er ikke en snarvei.** Samme awk mot
+  hele korpuset ga **321 brudd** (målt på `origin/develop` = `81ddd90f`,
+  2026-07-16, etter at STATUS-AKTUELT:30 og STATUS:14/15 ble brutt opp; tallet
+  var 322 før den oppryddingen — et øyeblikksbilde, ikke en konstant). Toppen av
+  **27 filer**, sum = 321: BACKLOG 92 · historikk-2026-05 87 · timer 38 ·
+  STATUS-AKTUELT 15 · historikk-2026-07 13 · STATUS 13 · redesign-paritetssjekk-
+  liste 12 · parallell-arbeid-lock 7 (resten fordelt på 19 filer til). En gate
+  som feiler 321 ganger blir ignorert dag to. Arkivene er dessuten append-only
+  ved design — korpus-rydding ville motsi det. Derfor: gaten ser bare det du
+  faktisk skriver.
+
+**Verbatim flytting er ikke forfatting.** Flytter du eksisterende innhold uendret
+til et arkiv, er det ikke en ny linje — det er den samme linja som bytter fil, og
+arkiverings-plikten («ingen omskriving av historikk») veier tyngre. Rasjonalet
+bak §10 er at tunge dokumenter drifter fordi oppdatering koster; et arkiv
+oppdateres aldri, så det drifter ikke. Grensen går ved **forfatting**: alt du
+formulerer nytt — også nye arkiv-oppføringer — skal være lesbart. Unntaket
+gjelder transport av eksisterende tekst, ikke skriving av ny.
+
+Belegg: `41abb325` (2026-07-16) flyttet 29 408 + 2 609 tegn verbatim til
+historikk-docs.md og utløste §10-sjekken. Commiten var korrekt; regelen manglet
+distinksjonen. Gate-rutinen: et treff som er ren transport av eksisterende arkiv-
+tekst passerer — men verifiser at det faktisk er verbatim, ikke ny prosa.
+
+**Sjekken må BLOKKERE, ikke rapportere** (lærdom 2026-07-16). Coworks første kommandoblokk kjørte `awk … ; git push` — awk skrev ut «BRUDD: 679 / BRUDD: 698», og pushen gikk **uansett**, fordi den sto på neste linje. Gaten var dekorativ ved konstruksjon. Den fyrte på coworks egen commit `ab5af5c5` og stoppet ingenting: `terminologi.md:124` (arkitektur-ankeret, 688 tegn) landet på develop i strid med regelen forfatteren selv gatet andre mot. **Bruk den blokkerende formen:**
+
+```sh
+if git diff --cached -U0 -- docs/claude/ | awk '/^\+[^+]/ && length($0)-1 > 600 {f=1} END{exit !f}'; then
+  echo "❌ §10-BRUDD — commit ikke kjørt"; else git commit -m "…"; fi
+```
+
+**Mekanisk sjekk (gate-rutinen) — diff-basert, ikke korpus:**
+
+```sh
+git diff --cached -U0 -- docs/claude/ | awk '/^\+[^+]/ && length($0)-1 > 600 { print "  " length($0)-1 " tegn: " substr($0,2,70) "…" }'
+```
+
+Tom output = grønt. Treff = bryt linja/blokka opp før commit (ny linje per sak,
+egen overskrift per tråd). Kjøres som del av docs-gaten (§6), på linje med
+presens-uttrekket.
+
+### 11. Skriv ikke det koden kan svare på
+
+Testen: **«Kan koden svare på dette? Da skriv det ikke.»** Tall, stier,
+strukturer og «hva koden gjør» er utledbare. En doc som gjengir dem er en kopi
+av noe som endrer seg uten å røre kopien — den **vil** råtne. Bruk et
+`fil:linje` / distinkt kodestreng (§7) eller et grep-uttrykk leseren kan kjøre,
+ikke et tall. Fiksen på et feil tall er **aldri** «oppdater tallet» — det er å
+slette det eller gjøre det utledbart.
+
+Denne ene klassen er **8 av auditens 23 funn** (målt mot `origin/develop`
+2026-07-16, alle 72 docs).
+
+| Sted | Påstand | Virkelighet |
+|---|---|---|
+| `arkitektur.md:56` | «56 Prisma-modeller» | 76. `grep -c "^model " packages/db/prisma/schema.prisma` er ett sekund og alltid sann. Tallet var feil med 20 og hadde stått siden 2026-06-08. |
+| `shared-pakker.md:34` · `web.md:110` · `mobil.md:196` | «2 328» · «~600» · «~920» i18n-nøkler | 2 909. Ett tall, tre kopier, tre ulike gale verdier. Utledbart: nøkkeltelling av `packages/shared/src/i18n/nb.json`. |
+| `okonomi.md:41` | «mengde.ts (9 prosedyrer)» | 13. Dokumentets egen §-tabell sa også 13 og hadde **rett** — ett galt tall, ikke to. |
+
+> ⚠️ **Denne raden bar selv et umålt tall til 2026-07-16.** Den sa «14 … dokumentets egen tabell sier 13» og hånet en korrekt tabell. Årsak: `grep -c "protectedProcedure"` teller **importlinja** (`import { router, protectedProcedure }`), så hver router ble +1. Cowork kjørte målingen **to ganger** — ved ordreskriving og ved gate — og fikk 14 begge ganger, fordi det var samme ødelagte kommando. Samme feil rammet søsken-sjekken: ftdSok/nota-import/kontrakt så ut som 7/3/5 (feil) mens de faktisk var 6/2/4 (korrekte i doc-en).
+>
+> **Lærdommen §4 ikke dekker:** «mål, ikke anta» er ikke nok — cowork *målte*. **En gjentatt dårlig måling er ikke verifisering.** Et uttrykk som ikke kan feile synlig, er ikke en måling: kjør negativ kontroll (mat den noe du *vet* skal fange/ikke fange) før du stoler på tallet. Fanget av spor 4s exit, som testet en påstand i stedet for å arve den.
+
+### 11c. Må du skrive et tall, skriv nevneren (fabel-regel 2026-07-16)
+
+**To sanne tall uten nevner produserer én falsk konklusjon.** Formen er obligatorisk: **«X av Y ⟨nevner-definisjon⟩»**.
+
+**Belegg — hendelsen som ga regelen:** fabels ordre sa «alle **25** opprettbare typer». M-3as matrise sa «**27** typer». Cowork sammenlignet dem, erklærte at fabel telte feil, og skrev at forarbeidet hennes var «kode-lest, ikke kode-målt». Målt: `REPORT_OBJECT_TYPES` = 27 totalt, `SKJULTE_TYPER` = 2 → **25 opprettbare**. **Begge tallene var sanne.** Forarbeidet oppga til og med begge, med nevner og fil:linje (`:92` — «25 av 27, 2 skjult»). Feilen var sammenligning uten nevner-sjekk. Fabel aksepterte skylden for en feil hun ikke hadde gjort, fordi cowork fremsto sikker.
+
+**Distinksjonen mot §11:** §11 sier *skriv ikke tallet* — bruk et grep-uttrykk. Denne gjelder når tallet **må** skrives (en ordre, en rapport, et vedtak): da bærer det nevneren sin, eller det er ubrukelig for den neste.
+
+**Ekte uklarhet dette avdekket, uløst:** config-editorer i `FeltKonfigurasjon.tsx` telles til **7** (type-grener, coworks metode), **10** (per blokk) eller **14** (per type, M-3as metode). Tre metoder, tre tall, ingen nevner-definisjon. Løses ved **måling med oppgitt metode** i fase M del 2 — ikke ved vedtak.
+
+### 11b. Negative kode-påstander er §11 i forkledning
+
+«ikke bygget ennå», «finnes ingen produsent-kode», «ikke i bruk noe sted» er
+påstander om kodens **fravær**. Fravær er ikke stabilt: noen bygger tingen, og
+påstanden blir løgn uten at noen rørte dokumentet. Ingen slurvet i funnene under
+— koden gikk forbi dokumentet. Slike påstander krever ❌-markør **+ dato + hash**
+(jf. §8-funnet om Azure-sjekklista), aldri presens.
+
+| Sted | Påstand | Virkelighet |
+|---|---|---|
+| `terminologi.md` | 8× «vedtatt, ikke bygget» | Minst 5 er nå gale: `Activity`, `Avdeling`, `ExternalCostObject`, `canLogin`, `hmsKortUtloper` ligger alle i `schema.prisma` og skrives til. |
+| `aktivitetsfeed.md:48` | «Ingen produsent-kode finnes ennå — tabellen er et tomt skjelett» | 7 `activity.create(`-kall i `apps/api/src` skriver til den i dag. |
+| `adaptiv-sok-plan.md:43` | «`<SearchInput>` … ikke i bruk noe sted» | Brukt i 12 filer under `apps/web/src`. |
+
+**Også fravær-påstander råtner — ❌ + dato + hash er et øyeblikksbilde, ikke en sannhet** (fabel-presisering 2026-07-16). «Ingen auto-deploy, verifisert 2026-07-07» er sann helt til noen bygger auto-deploy. Datoen gjør råten **detekterbar**, ikke **detektert** — uten en trigger blir dagens rettelse neste kvartals stale linje, bare med tidsstempel.
+
+**Triggeren: den commiten som bygger tingen, dreper ❌-en.** Rører du området en fravær-påstand dekker, skal påstanden re-verifiseres eller strykes i SAMME commit. Dette er ikke en ny regel — det er «kode + docs i samme commit» ([CLAUDE.md](../../CLAUDE.md) § Dokumentasjons-disiplin) anvendt på fravær. Coworks merge-gate sjekker det: berører diffen et område som er navngitt i en ❌-markør, må markøren være med i commit-settet.
+
+Vi skrev **fem** slike påstander 2026-07-15/16, alle sanne i dag, alle fremtidige stale linjer uten trigger: `terminologi.md:124` (`erUnderentreprenor()` ikke bygget) · `:131` (HMS-varsling ikke bygget) · `:168` (Godkjenning-flate ikke bygget) · `infrastruktur.md:208` + `BACKLOG.md:971` (ingen auto-deploy). Bygger noen `erUnderentreprenor()`, er `terminologi:124` løgn samme dag — og den er arkitektur-ankeret.
+
+### 11d. En ✅ i en kode-kolonne beviser kobling, ikke nøkkel-match (M-3a del 2-regel 2026-07-16)
+
+**Formulert av M-3a del 2 i exit-runden, bedre enn kontroll-lagets egen:**
+
+> En ✅ i en renderer-kolonne beviser at komponenten er koblet i `KOMPONENT_MAP`, ikke at den leser nøklene dataen faktisk bærer.
+
+**Rotfeilen er å konkludere fra kode om data koden aldri åpnet.** Felttype-matrisen (`fd0ee7a2`) målte hvilken nøkkel koden *skriver/leser* — ikke hvilken nøkkel dataen *bærer*. Hver ✅ i en data-bærende kolonne betydde egentlig «✅ for den populasjonen koden antar». Det er §11c én etasje ned: to populasjoner, én kolonne, ingen nevner.
+
+**Belegg — to hendelser, samme dag, samme rot:**
+
+1. Matrisen sa `decimal: unit ✅ konfigurerbar`. Sant for MalBygger-bygde maler, **usant for NS3420** — de er seedet med `enhet` (`seed-bibliotek.ts`). Rendereren leste `unit`. Enhetene lå i databasen og ble aldri vist. Kode-avlesning kunne ikke se det.
+2. Del 2 fikset det ved å skrive `enhet` og **slette** `unit` — og verifiserte de to renderne oppdraget nevnte. Fire andre lesere leste kun `unit`: `packages/pdf/src/felt.ts` (utskrift), `RapportObjektVisning.tsx` ×2, `BeregningObjekt` (web+mobil). Et statisk hull ble en **aktiv regresjon**: enhver PDF-fungerende mal mistet enheten ved neste redigering. Merget før exit-runden fanget den (`1da3b473`).
+
+**To krav følger:**
+
+- **Verifisering av en data-bærende kolonne krever å åpne minst én seed-rad OG én verktøy-bygd rad per type**, og sammenligne nøkkelsettene. Kode alene kan ikke gi den kolonnen. Det er den negative kontrollen matrisen manglet — den ville avslørt `enhet`/`unit` i del 1, før noen skrev kode.
+- **Endrer du kanonisk nøkkel, grep repo-vidt etter ALLE lesere av den gamle** før commit — ikke bare rendrerne oppdraget nevner. Skriv-siden er halve endringen; les-siden er den andre.
+
+### 11e. Et målt fravær har to hypoteser (fabel-regel 2026-07-16)
+
+**«Koden mangler X» er ikke et funn. Det er to hypoteser:**
+
+1. **Alltid ødelagt** — X skulle vært der, og fraværet er en defekt.
+2. **Aldri ment** — fraværet *er* designet, og X hører ikke hjemme her.
+
+**Spec/docs skal konsulteres før hypotese 1 velges.** Finner du ikke setningen som sier at hullet er et hull, har du ikke et funn — du har en gjetning med et grep bak seg.
+
+**Distinksjonen mot [§4](#4-negative-påstander-krever-uttømmende-søk):** §4 spør om målingen er **sann**. §11e spør hva en sann måling **betyr**. Begge er nødvendige, og §4 gir falsk trygghet uten §11e — en negativ kontroll som bekrefter «har aldri hatt X» føles som bevis, men den beviser bare fravær.
+
+**Belegg — `04f6d295` (cowork, 2026-07-16):** append-only felt-låsing fantes i **1 av 4** skjema-hooks. Målingen var riktig; `git -S` bekreftet at sjekkliste-hookene **aldri** hadde hatt den. Ført som rotårsak-fiks: «de tre andre manglet den → et innsendt felt kunne endres».
+
+[dokumentflyt.md § 2](dokumentflyt.md) hadde svaret hele tiden — **sjekkliste:** «Redigerbar — den som har ballen + admin/registrator **alltid**»; **oppgave:** «Redigerbar — **aldri**, append-only fra opprettelse». **Fraværet var specen.** Fiksen låste et innsendt tallfelt i en befaringsrapport permanent, også for admin. Kenneth fant det ved å klikke i to minutter; gate, dual-review og exit-runde fanget det ikke — alle tre leste kode, ingen åpnet dokumentet som sier hva koden **skal** gjøre. Reversert i `87dc15db`.
+
+**Symmetri er ikke et argument.** «N av M nær-identiske flater mangler X» *ser* ut som drift, men M ulike varianter er like ofte to bevisste design som M drifter. En rotårsak-fiks som utvider atferd til flere flater er en **atferdsendring** — den gates mot spec, ikke mot symmetri.
 
 ## Anvendt
 

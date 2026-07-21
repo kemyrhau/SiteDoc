@@ -5,13 +5,13 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useFirma } from "@/kontekst/firma-kontekst";
-import { Spinner, EmptyState, SearchInput } from "@sitedoc/ui";
+import { Spinner, EmptyState } from "@sitedoc/ui";
 import { ShieldAlert, AlertTriangle, ClipboardList, FileWarning, Clock } from "lucide-react";
 import { KpiKort, MånedSøyler, FaggruppeBars } from "@/components/hms/visning";
 import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
 import { FirmaHurtigModal } from "@/components/hms/firma-hurtig-modal";
 import type { DokumentRad } from "@/components/hms/types";
-import { MultiComboks } from "@/components/ui/MultiComboks";
+import { FilterPanel } from "@/components/ui/FilterPanel";
 
 type Tab = "avvik" | "sja" | "ruh" | "statistikk";
 
@@ -176,49 +176,44 @@ export default function FirmaHmsSide() {
         <p className="mt-1 text-sm text-gray-600">{t("firma.hms.beskrivelse")}</p>
       </div>
 
-      {/* Fritekst-søk på tvers av faner */}
-      <SearchInput
-        verdi={tekstSok}
-        onChange={setTekstSok}
-        placeholder={t("firma.hms.sok.placeholder")}
+      {/* Delt filter-panel: fritekst på tvers av faner + combobox-er + tøm */}
+      <FilterPanel
+        sok={{
+          verdi: tekstSok,
+          onChange: setTekstSok,
+          placeholder: t("firma.hms.sok.placeholder"),
+        }}
+        dimensjoner={[
+          {
+            id: "prosjekt",
+            label: t("firma.hms.filter.prosjekt"),
+            options: prosjekter.map((p) => ({
+              id: p.id,
+              name: p.name,
+              antall: statistikk?.apneAvvikPerProsjekt[p.id] ?? 0,
+            })),
+            valgte: prosjektIder,
+            onToggle: toggleProsjekt,
+            placeholderSok: t("firma.hms.sok.prosjekt"),
+          },
+          {
+            id: "byggeplass",
+            label: t("firma.hms.filter.byggeplass"),
+            options: tilgjengeligeByggeplasser.map((b) => ({
+              id: b.id,
+              name: b.name,
+              antall: apneAvvikPerByggeplass[b.id] ?? 0,
+              underTekst: b.prosjektNavn,
+            })),
+            valgte: byggeplassIder,
+            onToggle: toggleByggeplass,
+            placeholderSok: t("firma.hms.sok.byggeplass"),
+          },
+        ]}
+        tomLabel={t("firma.hms.filter.tom")}
+        onTom={() => { tomFilter(); setTekstSok(""); }}
+        visTom={prosjektIder.length > 0 || byggeplassIder.length > 0 || tekstSok.length > 0}
       />
-
-      {/* Filter-panel med combobox-er */}
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <MultiComboks
-          label={t("firma.hms.filter.prosjekt")}
-          options={prosjekter.map((p) => ({
-            id: p.id,
-            name: p.name,
-            antall: statistikk?.apneAvvikPerProsjekt[p.id] ?? 0,
-          }))}
-          valgte={prosjektIder}
-          onToggle={toggleProsjekt}
-          placeholderSok={t("firma.hms.sok.prosjekt")}
-        />
-        <MultiComboks
-          label={t("firma.hms.filter.byggeplass")}
-          options={tilgjengeligeByggeplasser.map((b) => ({
-            id: b.id,
-            name: b.name,
-            antall: apneAvvikPerByggeplass[b.id] ?? 0,
-            underTekst: b.prosjektNavn,
-          }))}
-          valgte={byggeplassIder}
-          onToggle={toggleByggeplass}
-          placeholderSok={t("firma.hms.sok.byggeplass")}
-        />
-      </div>
-
-      {(prosjektIder.length > 0 || byggeplassIder.length > 0 || tekstSok.length > 0) && (
-        <button
-          type="button"
-          onClick={() => { tomFilter(); setTekstSok(""); }}
-          className="text-xs text-sitedoc-primary hover:underline"
-        >
-          {t("firma.hms.filter.tom")}
-        </button>
-      )}
 
       {/* Tab-bar */}
       <div className="flex gap-1 border-b border-gray-200">
@@ -276,7 +271,6 @@ export default function FirmaHmsSide() {
             <StatistikkPanel
               statistikk={statistikk}
               prosjekter={prosjekter}
-              antallAvvik={antallAvvik}
               antallSja={antallSja}
               antallRuh={antallRuh}
             />
@@ -336,7 +330,6 @@ function TabKnapp({
 function StatistikkPanel({
   statistikk,
   prosjekter,
-  antallAvvik,
   antallSja,
   antallRuh,
 }: {
@@ -347,7 +340,6 @@ function StatistikkPanel({
     saksbehandlingstidMedianDager: number | null;
   };
   prosjekter: Array<{ id: string; name: string }>;
-  antallAvvik: number;
   antallSja: number;
   antallRuh: number;
 }) {
@@ -393,18 +385,18 @@ function StatistikkPanel({
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <KpiKort
           ikon={<AlertTriangle className="h-6 w-6" />}
-          tittel={t("hms.tab.avvik")}
+          tittel={t("firma.hms.kpi.apneAvvik")}
           verdi={apneTotalt}
           variant={apneTotalt > 0 ? "warning" : "neutral"}
         />
         <KpiKort
           ikon={<ClipboardList className="h-6 w-6" />}
-          tittel={t("hms.tab.sja")}
+          tittel={t("firma.hms.kpi.sjaTotalt")}
           verdi={antallSja}
         />
         <KpiKort
           ikon={<FileWarning className="h-6 w-6" />}
-          tittel={t("hms.tab.ruh")}
+          tittel={t("firma.hms.kpi.ruhTotalt")}
           verdi={antallRuh}
         />
         <KpiKort
@@ -422,12 +414,6 @@ function StatistikkPanel({
       />
       <MånedSøyler data={sjaData} label={t("firma.hms.statistikk.sjaFrekvens")} />
       <MånedSøyler data={ruhData} label={t("firma.hms.statistikk.ruhRate")} />
-
-      {/* Stille reminder om antall avvik totalt (inkl. lukkede) */}
-      <p className="text-xs italic text-gray-500">
-        {/* Vises ikke i UI ellers — kun for sanitetssjekk i devtools */}
-        {antallAvvik === 0 ? "" : ""}
-      </p>
     </div>
   );
 }

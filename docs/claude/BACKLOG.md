@@ -16,6 +16,363 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟠 Mobil-typecheck er RØD på develop — gaten har aldri spurt (develop-Opus exit 2026-07-16)
+
+`pnpm --filter @sitedoc/mobile typecheck` **passerer ikke på ren develop** — 11 feil. Bl.a.: `erstattVedlegg` returneres av **begge** mobil-hookene og destruktureres i begge detaljsidene, men står **ikke** i `UseOppgaveSkjemaResultat`/`UseSjekklisteSkjemaResultat` (verifisert: returneres 1×, deklarert 0× i begge).
+
+**Rotårsaken er prosess, ikke typer:** [regel 10](SAMARBEIDSREGLER.md) krevde grønt `@sitedoc/web build` — **web only**. Mobil har aldri vært gatet, så gjelden vokste usett. Regelen er utvidet 2026-07-16; **den kan ikke blokkere før denne posten er ryddet.** Inntil da: baseline-sammenligning (diffen skal ikke ØKE feiltallet).
+
+Funnet av develop-Opus, som kjørte negativ kontroll uoppfordret for å skille sine egne feil fra baseline. Uten den ville de 11 vært usynlige videre.
+
+### 🟠 Ingen navigasjonsvakt i HELE web-appen — «ulagrede endringer tapes» er app-vidt (develop-Opus exit 2026-07-16)
+
+Målt: **`beforeunload`/route-guard finnes i 0 filer** i hele `apps/web/src`. Del6b-ordrens punkt 3 rammet dette som en bug i de to skjema-hookene (2s-debounce kan tape siste tastetrykk). **Det er ett synlig utslag av en app-vid mangel.**
+
+Debounce-varianten har ingen søsken — `planleggLagring` finnes kun i de to skjema-hookene. Men minst **5 andre flater** sporer dirty/`harEndringer` uten noen vakt: `oppsett/ai-sok` · `oppsett/prosjektoppsett` · `firma/innstillinger` · `malbygger/FeltKonfigurasjon` · `attestering/RedigerRadModal`. Mobil har mønsteret; web har det ingen steder.
+
+**Reproduser før fiks** (ordren står). Men fiksen bør vurderes app-vidt — én delt vakt-hook, ikke seks kopier. Jf. punkt 1-lærdommen: speiling er bevist utilstrekkelig.
+
+### 🟡 `lagrerNaaRef`-guarden finnes i 1 av 4 hooks (develop-Opus exit 2026-07-16)
+
+`useSjekklisteSkjema` (mobil) har en `lagrerNaaRef`-guard mot overlappende lagringer (4 treff). **`useOppgaveSkjema` (mobil) og begge web-hookene mangler den.** Nøyaktig samme klasse ikke-speilet divergens som ga punkt 1 (append-only-låsingen i 1 av 4) — bare på concurrent-save i stedet for låsing.
+
+Uprøvd: effekten av overlappende debounce-lagringer er ikke reprodusert. **Men mønsteret er nå bekreftet to ganger:** «to parallelle hooks … Identisk» i `hooks/CLAUDE.md` var en aspirasjon, og den har sviktet på to ulike mekanismer. Deles logikken, deles den i `@sitedoc/shared`.
+
+### 🟡 Klienten kan påstå `accepted` — 2b-fiksen behandler symptomet (develop-Opus exit 2026-07-16)
+
+`STATUS_VERDIER` (`dagsseddel.ts:26`) er `["draft","sent","returned","accepted"]` — **Zod tillater at klienten sender `accepted`**, og `:3984` må derfor mappe `accepted→sent` som plaster. 2b-fiksen (`2791d0a9`) stopper racet, men **rotårsaken er at klienten kan påstå attestert i det hele tatt.** Attestering er en server-handling; klienten har ingen legitim grunn til å sende den statusen.
+
+Vurder å avvise `accepted` i input-skjemaet (egen input-type for sync vs. server-intern status). Ikke hastende — 2b-preconditionen dekker den reelle skaden.
+
+### 🟡 `dagsseddel.ts` er 185 KB i én fil — andre skrive-stier er usjekket for TOCTOU (develop-Opus exit 2026-07-16)
+
+2b beviste TOCTOU i `syncBatch` (lesning `:3778`, tx-start `:4055` — 8+ `await` imellom). **Mistanke, ikke målt:** de andre skrive-prosedyrene i samme fil (`maskin.tilfoy` `:4322`, attester-/retur-stiene) har trolig samme «les-status → N await → skriv»-vindu. Kun `syncBatch` er verifisert og fikset. Selve filstørrelsen er lukta.
+
+### 🟠 Append-only håndheves ikke server-side (`oppgave.oppdaterData`) — KUN oppgave
+
+**Scopet til oppgave 2026-07-16** (`fix/sjekkliste-ikke-append-only`): append-only-låsen er fjernet fra sjekkliste (spec `dokumentflyt.md § 2` — sjekkliste er redigerbar, ikke append-only). Sjekkliste har derfor ingen klient-lås å håndheve server-side; denne posten gjelder bare oppgave.
+
+For **oppgave** er låsingen **klient-lås**, ikke dataintegritet. Serveren gjør shallow merge (`{...eksisterende, ...input.data}`) og tar imot hva klienten enn sender — `flytRolle.ts` sier det selv: *«append-only — erFeltLåst() i oppgave-hooken håndhever dette»*. Etter `411e6f2d`/`04f6d295` (låsing i delt kilde, oppgave-hookene) er UI-veien stengt for oppgave, men **API-veien er åpen**: en determinert klient, et skript, eller **en gammel TestFlight-app** kan fortsatt overskrive et innsendt oppgave-felt.
+
+Rotårsak-fiksen er precondition i `oppgave.oppdaterData` — samme form som 2b-fiksen i `syncBatch` (`2791d0a9`). Dokumentert i koden: `flytRolle.ts`, `apps/mobile/src/hooks/CLAUDE.md`, `packages/shared/src/utils/CLAUDE.md` (alle scopet til oppgave 2026-07-16).
+
+### 🟡 Oppgave-låsen konsulterer ikke rettighet/harBallen (separat funn 2026-07-16)
+
+Funnet under `fix/sjekkliste-ikke-append-only`. `erFeltLåst` i oppgave-hookene er `(id) => låsteFelterRef.current.has(id)` — den sjekker **ikke** rettighet, `harBallen` eller dokument-status i det hele tatt. Låsen sitter dermed **under** tilgangssystemet og overstyrer det ubetinget: et innsendt oppgave-felt er låst selv for admin/registrator, uansett status. For oppgave er append-only spec-riktig (felt skal ikke endres etter opprettelse), så konsekvensen er mildere enn sjekkliste-regresjonen — men låsen bør uansett være betinget av rettighet, ikke stå over den (admin/registrator bør kunne rette et feilført felt). **Ikke fikset her** (utenfor ordrens scope — sjekkliste-fjerning). Vurder sammen med server-side-håndhevelsen over: samme flate, samme spørsmål om hvem som får overstyre.
+
+### 🟡 Server-side samme-felt-konfliktdeteksjon for sjekkliste/oppgave-sync (fabel-vedtak 2026-07-16)
+
+**Erstatter «adoptér timer-mønsteret» fra del6b-ordren.** Den ordren tok timer som mal uten å måle om forutsetningen fantes på denne flaten. Målt: `sjekkliste.ts` og `oppgave.ts` har **`conflict` = 0 treff** — serveren kan ikke signalisere konflikt i det hele tatt. Timer kan, via `syncBatch`; **derfor** gir 4-tilstands `syncStatus` mening der.
+
+**Forbudt form (eksplisitt):** klient-kolonne alene. Å migrere `er_synkronisert` (boolean) → `sync_status` (TEXT) uten server-signal gir en **omdøpt boolean** på 10 000+ lokale databaser, pluss to tilstander som aldri fyres. Kostnad uten gevinst. **Premiss: server-signalet må komme først.**
+
+**Semantikken, avklart av fabel:** append-only per-felt-merge er *riktig* samarbeidsmodell — A fyller felt 1, B fyller felt 2, begge vinner. Det er ikke konflikt. Ekte konflikt er **samme felt, to skrivinger, én taper stille**. For **oppgave** krympet låsen (`411e6f2d`) vinduet til: to personer redigerer samme usendte felt offline samtidig. For **sjekkliste** (append-only fjernet 2026-07-16) finnes ingen felt-lås — samme-felt-overskriving er mulig så snart to redigerer samme felt; server-side konfliktdeteksjon er derfor mer relevant der. Begge smalt/sjeldent; vurderes mot pilot-erfaring.
+
+**Ikke pilot-blokkerende.** Vurderes mot faktisk pilot-erfaring: oppstår samme-felt-kollisjoner i praksis, løftes den. Henger sammen med 🟠-posten over (server-håndhevelse) — samme router, samme precondition-mønster; vurder dem samlet når en av dem tas.
+
+### 🟠 Norkart-kartnøkkel: ukjent eierskap + ingen konfigvei (`GeoReferanseEditor.tsx:262`) — i prod
+
+Satellitt-laget (Norkart/WebAtlas, `waapi.webatlas.no/maptiles/…`) bærer **`api_key` som URL-parameter hardkodet i klient-koden**. Deployet prod `387d10a2` (2026-07-15). **To distinkte saker — ikke slå dem sammen:**
+
+**Sak 1 — eierskapet er ukjent (avklares FØRST).** Proveniens sporet 2026-07-15: nøkkelen kom inn i **`684b23a7` (2026-03-19)**, «Satellittbilder i minikart — bytter fra OSM-tiles til Norge i Bilder», co-authored av en Claude-økt. **Den er IKKE arvet fra gamle `KoordinatKart`** — den fila finnes ikke i git-historikken; det var en antakelse som ble motbevist. Kenneth kjenner ikke nøkkelens opphav. Norkarts modell: nøkler er **konto-tilknyttet**, bestilles via «Norkart Data and Analysis»; dokumentasjonen deres bruker `{{API_KEY}}`-plassholder — det finnes ingen offisiell fellesnøkkel. Samtidig finnes offentlige kilder med fungerende norske tile-URL-er inkl. nøkkel (JOSMs `Maps/Norway`-imagery-liste, Norkarts demo-repoer) — plausibel kilde for en økt som lette etter «Norge i Bilder»-tiles.
+→ **Ett spørsmål avgjør alt: har vi Norkart-avtale?** JA → mild sak (konto-nøkkel eksponert klient-side; sjekk om den er domene-begrenset — da er eksponeringen tilsiktet av leverandøren). NEI → **produktet kjører på en nøkkel vi ikke eier**: lisens-/ToS-sak før teknisk sak, og driftsrisiko (kan kuttes uten varsel).
+
+**Sak 2 — det finnes ingen vei til å bytte nøkkelen** (uavhengig av sak 1, bør fikses uansett). Ikke env, ikke innstilling, ikke UI. **Blir nøkkelen kuttet, krever fiksen kodeendring + prod-deploy.** Alternativer, rangert:
+1. **`NEXT_PUBLIC_WEBATLAS_API_KEY`** i `web.env` — rotering = env + web-rebuild. **Anbefalt:** Norkarts egen modell er klient-side api_key, så nøkkelen *er* ment å være synlig; proxy er da overingeniørkunst.
+2. **Server-proxy** (api serverer tiles) — rotering = env + recreate. Kun hvis nøkkelen faktisk må skjules; koster api-båndbredde + latens.
+3. **UI/innstilling per firma** — kun hvis kart-tilgang blir per-firma abonnement.
+
+**KENNETH-VEDTAK 2026-07-15:** (1) **skaffer Norkart-avtale** → egen nøkkel, eierskapet løst. (2) **Vil ha UI for å legge inn nøkler** — altså alternativ 3, ikke env-variabelen cowork anbefalte. Begrunnelse: bytte skal ikke kreve deploy i det hele tatt.
+
+**Åpen designbeslutning før bygging — scope:** skal nøkkelen være **global** (én plattform-nøkkel, `sitedoc_admin` setter den i `dashbord/admin/integrasjoner`) eller **per firma** (hver kunde med egen Norkart-avtale)? Kartet er i dag en plattform-funksjon, så global er enklest og trolig riktig — per-firma først når en kunde faktisk kommer med egen avtale. Mønsteret finnes alt: `firmaIntegrasjon.lagre` + `Innstilling`-tabellen + `krypter()`. **Merk:** en UI skjuler ikke nøkkelen (tile-URL-en bygges i klienten uansett) — den gjør den *konfigurerbar*. Det er også målet; Norkarts modell er klient-side nøkkel.
+
+**Ikke gjør før avtalen er på plass:** ingen rotering (bryter kartet i prod), ingen proxy.
+
+**Merk:** nøkkelverdien skal aldri gjengis i docs, commits, søk eller output — bruk fil:linje. Den ble bevisst ikke søkt opp under undersøkelsen (ville lekket den til en søkemotor).
+
+**Metode-lærdom verdt å beholde:** en Claude-økt tok inn en ekstern leverandør-avhengighet i produktet uten at eieren visste det, og det ble oppdaget fire måneder senere ved en tilfeldighet under en exit-runde. Samme klasse som dagens doc-drift: gjort, aldri skrevet ned.
+
+### 🟡 To geokodere sameksisterer — `oppmotested.geokod` bør adoptere `sokAdresser` (G2-gevinsten)
+
+Etter G2 (`387d10a2`) bruker `bygning.geokod` **Kartverket** (`sokAdresser`, fuzzy, inntil 5 treff som klikkbar liste), mens **`oppmotested.geokod` + reisetid-matrisen fortsatt bruker Nominatim** (`geokodAdresse`, single-treff, krever presis staving). Oppmøtested-brukere får altså nøyaktig den dårligere opplevelsen G2 fjernet for byggeplasser.
+
+Fabel scopet oppmøtested bevisst ut av G2 — **riktig avgrensning, men gjelden er reell**. `sokAdresser` finnes allerede i `rute-service.ts`; adopsjonen er å bytte kaller + rendre trefflista (samme JSX som de to andre flatene). `geokodAdresse` (Nominatim) beholdes så lenge reisetid-matrisen trenger single-treff — eller vurderes samtidig. Funnet i redesign-Opus' exit 2026-07-15; cowork verifiserte 0 treff i BACKLOG.
+
+### 🟡 i18n-migrering av urørte hardkodede strenger i `GeoReferanseEditor.tsx`
+
+G2 la 39 nye `georef.*`-nøkler (13 språk, `a2a8d5c7`), men **urørte strenger i editoren er fortsatt hardkodet norsk** — de var utenfor G2-scope. Bryter i18n-kravet (alle synlige UI-strenger via `t()`). Redesign-Opus førte den i designprosjekt-loggen, men **den nådde aldri repo-BACKLOG** (verifisert 0 treff, exit 2026-07-15) → var hjemløs i repoet til nå.
+
+### 🔴 Statusmarkøren har feil datatype + ingen form — rotårsaken bak 5 av 8 råtne markører (spor 3 exit 2026-07-16)
+
+**Dette må løses FØR noen re-verifiserer statuskolonner.** Re-verifiserer vi innholdet inn i samme formløse fritekst, råtner det igjen — og da har vi brukt en runde på å utsette problemet.
+
+**Funn 1 — feil datatype.** Tre av dagens funn hadde samme form, og ingen så mønsteret før spor 3s exit: `Godkjenning` (modell bygget, UI/API ikke) · `hmsKortUtloper` (felt bygget, varsling ikke) · `Activity` (produsent bygget, feed-konsument ikke). **En binær «bygget / ikke bygget» kan ikke uttrykke delvis bygget — som er den vanligste tilstanden under faset bygg.** Markøren tvinger et valg mellom to svar som begge er feil, og den som velger «bygget» innfører drift.
+
+**Funn 2 — ingen enhetlig form.** Målt i `terminologi.md` alene (2026-07-16): `:53` tabellcelle `(planlagt)` · `:73` overskrift `(planlagt)` · `:76` inline `(implementert)` · `:84` prosa `(planlagt fremtidig arbeid — ikke implementert)` · `:88` prosa `(live i prod 2026-05-01)` · `:105` `**Status: bygget**` + kode-ref. **Seks former i én fil. En gate kan ikke sjekke fritekst** — det er grunnen til at [§11b](dokumentasjons-standard.md) ikke fanget dem: de bar ikke frasen den leter etter.
+
+**Malen finnes allerede:** `terminologi.md:88` (Kompetansematrise) er den ene raden gjort riktig — *«live i prod 2026-05-01»* + konkrete tabeller `Kompetansetype` + `AnsattKompetanse` i `packages/db`. Dato + kode-ref. Den burde vært formen for resten.
+
+**Spor 3s forslag til todelt regel** (hans vurdering, han har sett den nærmest):
+- **«ikke bygget» som faktum om koden** → ❌ + dato + hash. Datoen gjør råten detekterbar.
+- **«planlagt» som veikart-intensjon** → spec-referanse (`fase-0:xxxx`) + dato. Ikke tving ❌+hash på noe som bevisst ikke er bygget ennå.
+- Skillet konvensjonen bommet på: den blandet faktum og intensjon i én binær etikett.
+
+**Omfang:** **22 docs** bærer `ikke bygget`/`ikke implementert`/`finnes ingen`/`ikke i bruk`/`tomt skjelett` (målt mot develop `347d643e`). Kun **én** er frossen arkiv (`historikk-2026-05.md` — omskrives ikke). Aktive specs med reell råtnefare: `timer.md` · `dagsseddel-design.md` · `dokumentflyt.md` · `domene-arbeidsflyt.md` · `kontrollplan.md` · `fase-0-beslutninger.md` · `aktivitetsfeed.md` · `byggeplass-strategi.md` m.fl.
+
+### 🟠 Anker ↔ schema divergerer uten kryssjekk (spor 3 exit 2026-07-16)
+
+UE-saken: `terminologi.md:124` sa UE **kan ha** `role = "underentreprenor"`. `schema.prisma:490` sa **IKKE** `"underentreprenor"` (per A.9). **Ingen av dem pekte på den andre**, og ingen kryssjekk finnes. Rettet i `eab9bb85`, men **mekanismen er generisk**: A.9 endret tilnærming → schema-kommentaren ble oppdatert → anker-prosaen ikke. Ingenting hindrer at andre anker↔schema-par divergerer på samme måte. Uverifisert mistanke — men fraværet av kryssjekk er et faktum, ikke en mistanke.
+
+### 🟡 Fase-0-statuskolonnen er kun punktfikset — 8 rader, ikke hele (spor 3 exit 2026-07-16)
+
+Spor 3 rettet de 8 radene ordren pekte på (coworks scoping fra auditens funn), **ikke hele kolonnen**. D's påstand — «trenger full re-verifisering, ikke punktfiks» — er bekreftet av spor 3 selv. Urørt i samme anker, samme sykdom: `:84` Import-modul («planlagt fremtidig arbeid — ikke implementert» — §11b-klasse uten ❌/dato/hash; gikk under radaren fordi den ikke bar frasen «vedtatt, ikke bygget») · `:76` · `:53` · `:73` (status-etiketter uten kode-/spec-referanse).
+
+**Gjør ikke dette før formen er avklart** (se 🔴-posten over). Merk også: A.x-nummereringen har hull — ankeret refererer A.1/A.2/A.3/A.8–A.11 + 0.5, men A.4–A.7 finnes ikke i `terminologi.md`. Uverifisert om de bor kun i `fase-0-beslutninger.md` eller mangler.
+
+### 🟠 `fase-0-beslutninger.md:196–200` — «Verifiserte forekomster» er en død liste (spor 4 exit 2026-07-16)
+
+Auditen fant **én** råtten linjeref der (F18, `HovedSidebar.tsx:189`, rettet i `fc96fcee`). Spor 4 målte søsknene i samme liste: **alle er råtne.** `oppgave.ts:618-619` → `organizationId` har **0 treff** i fila i dag. `mappe.ts:589-590` → **0 treff**. `oppsett/layout.tsx:113` → **tom linje**.
+
+Listen er et **historisk øyeblikksbilde** («30+ kode-steder må oppdateres med organizationId») som leses som live pekere. Fiksen er ikke å oppdatere linjenumrene — det er å markere lista som historikk (❌ + dato) eller slette den. **Mistanke (uverifisert):** fila er ~2000 linjer, og den ene lista som ble åpnet var 100 % råtten. Linjeref gjennom hele fila bør antas råtne til noen måler dem.
+
+### 🟡 `api.md § API-prosedyrer` — håndført enumerering av kode (spor 4 exit 2026-07-16)
+
+`ftdSok`-raden hadde driftet (F23, manglet `nsStandardSok`/`nsKoderMedDok`) — direkte bevis for at hele den håndførte prosedyretabellen drifter. Samme klasse: `timer` (nestet router, ~40 prosedyrenavn), `kontrollplan` (~17), `maskin` (nestet). **Type 1 i sin helhet** — en tabell som enumererer kode råtner stille. Kun `ftdSok` ble rettet fordi det var funnet; resten er uverifisert mistanke.
+
+### 🟡 Skjøre grep-uttrykk — utledbart som *ser* trygt ut, men lyver stille (spor 4 exit 2026-07-16)
+
+[§11](dokumentasjons-standard.md) sier «gjør det utledbart». Spor 4s selvvurdering av sine egne åtte uttrykk avdekker en **underklasse §11 ikke skiller**: et uttrykk som utleder et tall fra en **konvensjon** kan under-rapportere uten å feile.
+
+- `grep -rl "HjelpKnapp" --include=page.tsx` (`hjelpetekster.md`) — **mest skjør.** Rendres knappen via delt header/wrapper eller `layout.tsx`, telles siden ikke. Gir et rent tall (13) som kan være for lavt etter en komponent-refaktor.
+- `grep "^model Ftd"` (`okonomi.md`) — navnekonvensjonsavhengig. En FTD-domenemodell uten `Ftd`-prefiks blir usynlig.
+- `grep -c "^model " packages/db/prisma/schema.prisma` (`arkitektur.md`) — teller **kun kjerne-db (76)**. `db-timer` (10), `db-maskin` (6), `db-varelager` (3) har egne schemaer. Matcher hva «56» opprinnelig mente, men en leser som tror det er alle modeller på tvers av pakker får for lavt tall.
+
+**Regelen som følger av dette:** *et uttrykk som **peker på en navngitt kilde** (`STOETTEDE_SPRAAK`, `§ API-prosedyrer`) er tryggere enn ett som **reproduserer et tall via en konvensjon**.* Foretrekk peker. Vurderes inn i §11 ved neste berøring.
+
+### 🟡 i18n-restanse — gjenværende hardkodet norsk etter del6b fase 1 (redesign-Opus 2026-07-16)
+
+Pkt 5-sveipet dekket print · save-indikator · alerts · fallbacks · de 6 kontrollområdene. **Bevisst avgrenset** — cowork sa nei til «mens jeg er her»-utvidelse midt i runden. Verifisert mot kode, ikke gjort:
+
+- `[prosjektId]/sjekklister/[sjekklisteId]/page.tsx` — «Endringslogg» (~`:713`) · «Sjekklisten ble ikke funnet» (~`:405`) · `title="Skriv ut"` (~`:530`)
+- `[prosjektId]/oppgaver/[oppgaveId]/page.tsx` — status-feil-fallback (~`:299`)
+- `[prosjektId]/kontrollplan/page.tsx` — KopierDialog, delvise strenger (~`:223/231/391/397/409/421`)
+- `oppsett/produksjon/_components/MalListe.tsx` — «Ingen maler funnet for «{sok}»» (~`:406`)
+
+Etter fylling: kjør `pnpm dlx tsx src/i18n/generate.ts` fra `packages/shared`. **Kollisjon:** kan ikke kjøre parallelt med noen annen økt som rører i18n-generatoren.
+
+### 🟡 i18n-restanse — OppgaveModal (MOBIL, hører i fase 2)
+
+`apps/mobile/src/components/OppgaveModal.tsx` har 4 `t()` og mange hardkodede strenger (prioritet, «Ny oppgave», «Opprett», «Tegning», «Faggruppe», «Fra/Til», Alert-tekster).
+
+**Ordre-feil, ikke utfører-feil:** del6b pkt 5 listet fila i et web-punkt, mens pkt 6 + kjerneregelen sier «ingen mobil-filer, mobil er fase 2». redesign-Opus valgte regelen fremfor lista og flagget motsigelsen. Fabel: *«han valgte riktig — regelen slår lista når de motsier hverandre, og motsigelsen var min.»* Ført som ordre-feil i del6b-verifiseringsloggen. **Hører i fase 2 (mobil-løftet).**
+
+### 🟡 Mal-dualiteten er redundans, ikke to roller (redesign-Opus exit 2026-07-16)
+
+**Mistanke fra den eneste som har sett begge flatene innenfra.** Del6b pkt 4 antok «arbeidsflate vs konfig» og leverte copy + kryss-lenker (`297f5670`). Hans vurdering etter å ha bygget dem: *«et plaster over redundansen, ikke en oppløsning»*.
+
+Begge er prosjekt-scopet `ReportTemplate`-CRUD mot samme `trpc.mal.*`. `[prosjektId]/maler` er en **fattig** CRUD (kun navn + beskrivelse); `oppsett/produksjon/*maler` er den **fulle** (kategori-splittet, MalBygger, bibliotek, faggruppe).
+
+**Cowork korrigerte én del av funnet.** Han antok at maler fra `[prosjektId]/maler` blir **kategoriløse** og faller utenfor de kategori-filtrerte oppsett-visningene. Målt: `category String @default("sjekkliste")` i `schema.prisma` — **ikke nullable**. Prisma påfører defaulten, så de vises i `sjekklistemaler`.
+
+**Reell effekt i stedet:** flata **tvinger stille** `category="sjekkliste"` — den sender `{projectId, name, description}`, ingen category. Vil du lage en oppgavemal der, kan du ikke, og du får ingen tilbakemelding om hvorfor. `MalListe:293` filtrerer på `m.category === kategori`.
+
+**Ekte fiks (ikke gjort — datamodell-/router-nært, utenfor «kun copy»):** (a) rendyrk `[prosjektId]/maler` til lese-og-bruk, fjern CRUD, pek til oppsett — eller (b) fjern flata og fold inn i oppsett. **Mistanke, ikke funn.** `MalBygger.tsx` (stalest kode, 2026-04-17) sitter under alle tre flatene; har redundansen en rot, ligger den trolig der.
+
+### 🟡 Prosjekt-tilhørighet er avledet via `template.projectId`, ikke egen på instansen (redesign-Opus exit 2026-07-16)
+
+En `Checklist`/`Task` hører til et prosjekt **gjennom malen sin** — instansen har ingen egen `projectId`. Oppdaget under seeding: en sjekkliste med `byggeplassId = NULL` vises likevel i prosjektlista fordi `template.projectId` binder den (`sjekkliste.ts:46`).
+
+**Konsekvens:** bytter en mal prosjekt — eller deles på tvers — **flytter dokumentene med.** Prosjekt-tilhørighet er en avledet egenskap, ikke en egen. Ingen kjent skade i dag, men koblingen er implisitt og udokumentert. **Relevant for M-3b** (bibliotek/`OrganizationTemplate`/firma-lån): deling av maler på tvers av prosjekt treffer denne koblingen direkte.
+
+### 🟡 FilterPanel: hybrid-state er skjør, forhåndsvalg har en usynlig felle (redesign-Opus exit 2026-07-16)
+
+Tre flater bruker `FilterPanel` med tre state-modeller. Byggerens egen vurdering av hvilken som brekker:
+
+- **Skjørest — firma-HMS' hybrid:** multi-select i URL, fritekst i lokal `useState`. **To sannhetskilder for én filter-blokk.** «Tøm» må nullstille begge separat (`tomFilter(); setTekstSok("")` inline). Legger noen til en dimensjon og glemmer én tråd, desynker den stille.
+- **Mest felle-utsatt — forhåndsvalg (prosjekt-HMS):** chips krever at `options` er et **fast supersett**. Han måtte fikse nettopp det under verifisering — chips brakk da `options` var data-utledet. **Koblingen «preselect ⊆ options» er usynlig for neste redigerer** og fortjener en kommentar i komponenten.
+- **Robuste:** de to rene lokal-modellene (prosjekt-HMS, kontrollplan).
+
+**Og tolinjen er prinsipiell, ikke midlertidig:** sjekkliste/oppgave skal aldri konverteres — de filtrerer på dynamiske mal-kolonner (`felt:*`) som varierer per mal. **Men de kan en dag få begge:** FilterPanel over tabellen for faste dimensjoner + Table for dynamiske kolonner. Det er lagdeling, ikke enten/eller. Den koblede søkeboksen (`?sok=`, `f9416424`) er første steg i den retningen.
+
+### 🟡 Re-verifiser de 13 kode↔doc-avvikene fra Docker-cutoveren (funnet 2026-07-17, skrevet 2026-06-10)
+
+[kode-doc-avvik-sitedoc-server-2026-06-10.md](kode-doc-avvik-sitedoc-server-2026-06-10.md) — 18 KB systematisk revisjon av dokumentasjon mot kode/konfig, skrevet under Docker-cutoveren. **13 avvik: 4 høy, 5 middels, 4 lav.** Hovedfunnet: *«`docker/`-mappen er IKKE dokumentert i hovedfilene (CLAUDE.md, README.md)»*; de fire høye gjelder `infrastruktur.md`, `deploy.sh` og `deploy-test.sh`.
+
+**Ingenting er re-verifisert.** Dokumentet er ført som 🟡 HISTORISK — serveren er migrert og isolert siden (`server-ny`, cutover 2026-06-10 → salsaklubb-isolasjon 2026-07-09), så flere premisser har flyttet seg. Avvikene kan være rettet, råtnet videre, eller byttet form. **Les det som en tilstandsrapport fra 10. juni, ikke som en funnliste.**
+
+Egen liten lese-sak: gå de 13 gjennom mot dagens kode, marker rettet/står/foreldet. Billig, og den treffer `deploy-test.sh` + `infrastruktur.md` — filer vi rører hver eneste deploy.
+
+**Hvordan den ble funnet er halve poenget:** den lå untracked i `sitedoc-server`-arbeidstreet i fem uker og ble reddet 2026-07-17 kun fordi `git worktree remove` **nektet** på et dirty tre. Ingen prosess fant den. Se [SAMARBEIDSREGLER § Opus-livssyklus](SAMARBEIDSREGLER.md) — «ingen commits» gjelder kode, aldri leveranser.
+
+### 🔴 Det delte substratet visker ut type-skillet specen hviler på (sjekkliste-fix exit, målt 2026-07-17)
+
+**Den lastbærende innsikten, formulert av økta som ryddet `04f6d295`:**
+
+> Faren er ikke manglende features — det er å behandle de to dokumenttypene som **én**. Laget er bygget på et delt substrat (`utledDokumentRettighet`, delte Set-konstanter, felles hook-form) som **strukturelt visker ut type-skillet specen hviler på.** Append-only-bugen var én instans. Hvert sted sjekkliste og oppgave deler kode er et §11e-spørsmål, ikke en bekreftelse: grep beviser at de *deler*; bare [dokumentflyt.md § 2](dokumentflyt.md) sier om de *skal*.
+
+**Målt duplisering (cowork-verifisert 2026-07-17):**
+
+- **`DISPLAY_TYPER` — 6 definisjoner, 3 ulike innhold.** 4× `{heading, subtitle}` (hookene) · 1× `+location` (web-renderer `:29`) · 1× `+location, info_text, info_image` (mobil-renderer `:32`). Legger noen en ny visnings-type i en renderer, hopper ikke hookenes init/validering over den.
+- **`erSynlig`** (rekursiv synlighet, ~30 linjer) — **4 nær-ordrette kopier, 0 i `@sitedoc/shared`.** Dette er den **inverse** av append-only-saken: her ER koden identisk og burde vært løftet. «Deler logikk skal løftes» fanget den ikke.
+- **`REDIGERBARE_STATUSER`** — **4 identiske kopier**, ingen i shared, **ingen type-skille**. Uverifisert: har oppgave og sjekkliste ulik redigerbar-status-semantikk i spec? Er svaret ja, er den delte konstanten et falskt-symmetri-fravær.
+
+**Høyest blast-radius (økta rangerte selv):** `sjekkliste.oppdaterData` og `oppgave.oppdaterData` shallow-merger begge og håndhever ingen append-only. **Identisk kode-form, motsatt dom** — for oppgave er fraværet defekt, for sjekkliste er det specen. Når server-håndhevelsen tas (posten under), må den treffe **kun oppgave**. «Harmoniser for symmetri» re-brekker sjekkliste server-side — og server-fravær rammer alle klienter samtidig, inkl. gamle TestFlight-apper som UI-fiksen ikke når.
+
+**Videre kandidater økta pekte ut, umålt:** `utledDokumentRettighet` bruker `dokumentType` kun på `flytRolle.ts:185/197` (edit-perm-navnet) — alt annet behandler typene likt · `AUTO_FILL_TYPER` finnes i mobil-hookene, ikke web (defekt eller spec?) · kapabilitets-flaggene (`kanAttestere`, `erFirmaansvarlig`) mot flyt-vaktene.
+
+### 🟠 Oppgave-siden av `04f6d295` er aldri verifisert mot spec (sjekkliste-fix exit, 2026-07-17)
+
+Økta som fjernet låsen fra sjekkliste sier det selv, uoppfordret:
+
+> Jeg verifiserte ikke oppgave-siden. Jeg tok ordrens ramme — «låsen er riktig for oppgave, mobil manglet den» — på ordet. Jeg åpnet ikke oppgave-spec-en for å sjekke at låsen `04f6d295` la på oppgave-mobil faktisk matcher «append-only fra opprettelse». Sannsynlig riktig, men uverifisert av meg.
+
+**Coworks ordre bar rammen; ingen målte den.** §11e ble anvendt på det ene fraværet (sjekkliste) og ikke på det andre (oppgave-mobil). Sannsynligheten er høy for at låsen er riktig der — `dokumentflyt.md § 2` sier oppgave = «Aldri redigerbar — append-only fra opprettelse». Men ingen har åpnet den setningen mot koden `04f6d295` la inn på mobil. Billig å lukke.
+
+### 🟡 `obj.parentId ?? obj.config.conditionParentId` — halvferdig migrering? (sjekkliste-fix exit, mistanke 2026-07-17)
+
+Fallbacken «ny DB-kolonne med gammel config» står i både `erSynlig` og sidenes `hentNestingNivå`. **Enten** er migreringen ferdig og fallbacken er død forsvarskode, **eller** så lener noen objekter seg fortsatt på `config`. Økta kunne ikke se hvilken. Samme sjanger som `harBetingelse`-som-deprecated-men-brukt. Avgjøres med én DB-spørring: finnes rader med `config.conditionParentId` og `parentId = null`?
+
+### 🟠 `TrafikklysObjekt` leser aldri `config` — F3 er feil-scopet (M-3a del 2 exit, målt 2026-07-16)
+
+`apps/web/src/components/rapportobjekter/TrafikklysObjekt.tsx` destrukturerer ikke `objekt` i det hele tatt — kun `verdi`/`onEndreVerdi`/`leseModus`. De fire fargene er hardkodet i en modul-konstant `FARGER`. **`traffic_light.options` i `defaultConfig` er helt inert: ingen leser den.**
+
+Matrisen sier «`options` (4 lys) ❌ kun default (K: ingen blokk)», som antyder at en editor ville løst det. **Den ville produsert en config ingen leser** — nøyaktig F1-bugklassen (skriv en nøkkel ingen leser). Rekkefølgen er: rendereren må lese `config` FØR en editor har mening. Målt samtidig: seeden authorer ikke `options` for trafikklys (`seed-bibliotek.ts` gir `{}`/`{helpText}`), så defaultene er de eneste verdiene som finnes i dag.
+
+**Bonus-funn i samme fil:** labelene «Godkjent»/«Anmerkning»/«Avvik»/«Ikke relevant» er hardkodet norsk i `title=` — synlig UI uten `t()` (CLAUDE.md § Språk).
+
+### 🟡 Overskrifter oversettes aldri i utfylling — pre-eksisterende, ikke fra del 2 (M-3a del 2 exit, målt 2026-07-16)
+
+`heading` er DISPLAY_TYPE (`RapportObjektRenderer.tsx:29`) → wrappes aldri i `FeltWrapper`, som er stedet `oversattLabel` beregnes (`FeltWrapper.tsx:64`). `OverskriftObjekt.tsx:4` rendrer `{objekt.label}` rått. **Har alltid gjort det.**
+
+Del 2 flagget dette som «oversettelses-gap jeg innførte» — **det stemmer ikke.** `UtfyllingSeksjoner:61` bruker `seksjon.overskrift.label`, identisk med atferden før. Han tok skylden for noe han arvet. Konsekvens i dag: har en heading en oversettelse, vises feltene under oversatt mens seksjonstittelen står på norsk.
+
+### 🟡 PDF viser ikke grenseverdier — F1 dekket web+mobil utfylling, ikke print (M-3a del 2 exit, 2026-07-16)
+
+`packages/pdf/src/felt.ts` viser `enhet` (etter fiksen `1da3b473`: `enhet ?? unit`), men leser **ingen** av `min`/`maks`/`toleranse`/`desimaler`. En utskrevet NS3420-sjekkliste viser verdien og enheten, men ikke grensen den skulle måles mot — og heller ikke om verdien er utenfor. En NS3420-mal ender ofte som PDF; hullet er reelt.
+
+Merk avhengigheten: `packages/pdf` har **ingen `dependencies`-blokk** (dokumentert null-avhengigheter, CLAUDE.md § Prosjektstruktur), så `formaterGrense`/`grenseStatus` fra `@sitedoc/shared` kan ikke importeres uten at Kenneth endrer den arkitekturegenskapen. Alternativet er duplisering — og `enhet ?? unit`-dupliseringen divergerer allerede fra `normaliserGrense` på `enhet: null` (ikke nåbar via editoren i dag, men driften er reell).
+
+### 🟡 Fire av fem handlinger i mal-verktøylinja er døde stubs (M-3a del 2 exit, 2026-07-16)
+
+`MalListe.tsx`: `importerFraProsjekt`/`importerFraFirma`/`opprettFraPdf` (`:330-332`) er `disabled`. «Aktiver oppretting av nye sjekklister» (`:685-699`) er `disabled` + «kommer snart». «Klikk for å låse maler» (`:494`) har **ingen `onClick`** — knappen ser levende ut og gjør ingenting. Etter at del 2 aktiverte kopiér-mal er den den ene levende av fem.
+
+### 🟡 `AppRouter` ligger på TS2589-dybdegrensen — latent, ikke isolert (M-3a del 2 exit, 2026-07-16)
+
+`mal.kopier` **alene** tippet `AppRouter` over dybdegrensen; feilen slo ut i `oppgaver/page.tsx`, en fil del 2 ikke rørte (bevist med stash-test mot `origin/develop`). Fikset med lean returtype (`select: { id }` + eksplisitt `{ id }`-retur). **Men det betyr at routeren allerede lå på kanten:** neste prosedyre med fet inferert `$transaction`-retur uten `select` tipper den igjen — og symptomet dukker opp i en tilfeldig annen fil. Se [api.md § TS/tRPC-fallgruver](api.md).
+
+### 🟠 STATUS.md er mønsteret prosjektet forkastet 2026-04-28 — avvikles, ikke avstemmes (Kenneth 2026-07-16)
+
+**Kenneths spørsmål 2026-07-16: «har denne en hensikt? er det kanskje bedre å spørre git ved behov?»** Svaret lå allerede i repoet. [oppryddings-plan-2026-04-28.md:766](oppryddings-plan-2026-04-28.md) vedtok:
+
+> Sentralisert matrise-fil — **VURDERT OG FORKASTET 2026-04-28.** Begrunnelse: header-feltene gir samme funksjon distribuert, uten sentralisert vedlikeholds-byrde. […] Hvis sentralisert oversikt savnes senere — vurder script som genererer matrise fra header-data automatisk; **aldri manuelt vedlikeholdt fil**.
+
+STATUS.md **er** en manuelt vedlikeholdt sentralisert fil. Den overlevde beslutningen og råtnet nøyaktig slik begrunnelsen forutsa.
+
+**Del registeret i to (§11 — ikke skriv det koden kan svare på):**
+
+| Innhold | Utledbart? |
+|---|---|
+| Filliste, antall, «71 rå `*.md`» | **Ja** — `ls docs/claude/*.md \| wc -l`. Skulle aldri vært skrevet |
+| Sist endret | **Ja** — `git log -1 -- fil` |
+| `sist_verifisert_mot_kode` + drift-dom | **Nei** — menneskelig dom. Dette er hele verdien |
+
+**Og den ikke-utledbare delen finnes allerede distribuert:** 44 av 76 filer bærer `sist_verifisert_mot_kode` i YAML-frontmatter (målt 2026-07-16). To kilder for ett faktum = §9-brudd ([dokumentasjons-standard.md](dokumentasjons-standard.md)).
+
+**Oppgaven er derfor avvikling, ikke avstemming:** (1) fullfør YAML-header på de 32 gjenstående, (2) flytt `:40–190` (prod-deploys/A.Markussen-onboarding — ikke docs-register-materiale) til `historikk-YYYY-MM.md`, (3) slett STATUS.md, (4) fjern STATUS-vedlikeholdsregelen fra [CLAUDE.md](../../CLAUDE.md) og [SAMARBEIDSREGLER.md](SAMARBEIDSREGLER.md), (5) trenger vi oversikt: grep headerne.
+
+**Målt råte som gjorde spørsmålet påkrevd** (registeret er merket ⚠️ inntil det avvikles):
+
+1. **Tellingen:** registeret påstår **71** rå `docs/claude/*.md`. Faktisk på disk: **76**. Regnestykket «71 − 10 ekskluderte + 6 arkiv = 67» er dermed falskt i første ledd.
+2. **10 filer står verken som oppført eller ekskludert:** `COWORK-KONTROLL-VEILEDER.md`, `dokumentasjons-standard.md`, `f1-f5-arbeidstre-manifest.md`, `k13-sokdekning-rapport.md`, `mcp-playwright-simulator-oppsett.md`, `naa-rapport-del6b-sjekklister-oppgaver-hms-2026-07-16.md`, `psi-geofence-handhevning-utredning.md`, `simulator-opus-oppkobling.md`, `simulator-runbook.md`, `timer-mobil-f2f3f5-spec.md`. **`dokumentasjons-standard.md` er selv fila som bærer vedlikeholdsregelen.**
+3. **~150 av 317 linjer hører ikke hjemme:** `:40–190` er prod-deploys, develop-merges og A.Markussen-onboarding — `STATUS-AKTUELT`/`historikk-YYYY-MM`-materiale i en fil som heter «STATUS — docs/claude/-filer». Arkiveringsplikten (CLAUDE.md § Dokumentasjons-regler) sier deployet arbeid skal til `historikk-YYYY-MM.md`.
+
+**Cowork eier funn 2 delvis selv:** `faseM-3a-felttype-matrise.md` (`fd0ee7a2`) og `COWORK-KONTROLL-VEILEDER.md` ble merget/skrevet av cowork uten STATUS-rad. Regelen sier eksplisitt *«Gjelder også når nye filer opprettes.»* Matrisen + fase-M-forarbeidet er ført 2026-07-16; de ti gjenstår.
+
+**Tallet er bevisst IKKE bumpet** ved føringen av de to — et delvis rettet tall ser vedlikeholdt ut og lyver hardere enn et som er merket ⚠️. Avstemmingen skal gjøres i én runde, med negativ kontroll (list disk → list register → diff begge veier), ikke inkrementelt.
+
+### 🟡 86 merged feature-branches ligger på origin — fase 4 hadde aldri et remote-steg (cowork eier, 2026-07-16)
+
+Målt 2026-07-16: `git branch -r` → **86 `origin/feature/*`** (t7-serien, org-member-serien, timer-serien m.fl.). Alle er verifisert merget inn i `develop` (86/86, kontrollert under branch-oppryddingen samme dag) — de er **støy, ikke risiko**.
+
+**To ting å være ærlig om:** (1) oppryddingen som ble rapportert som «120 → 3» var **lokal**; remote ble verifisert, ikke ryddet — rapporten leste som om jobben var gjort. (2) Hullet var strukturelt: fase 4 LUKK i [SAMARBEIDSREGLER.md](SAMARBEIDSREGLER.md) hadde `git branch -d` men **ikke** `git push origin --delete`. Steget er lagt inn nå, så mengden vokser ikke videre — men de 86 som allerede ligger der, er ikke berørt av fiksen.
+
+Sletting er en **destruktiv git-operasjon** (CLAUDE.md § Task boundary) og krever eksplisitt beslutning fra Kenneth. Ikke hastende. Gjøres det, er negativ kontroll obligatorisk: bekreft at hver branch er merget **før** sletting (`git branch -r --merged origin/develop`), ikke etterpå.
+
+### 🔴 CLAUDE.md-runden — fem funn i fila hver økt leser først (cowork eier, 2026-07-16)
+
+**Egen runde. Ikke påheng.** Cowork forsøkte å dytte funn 2 inn i redesigns FilterPanel-ordre; Kenneth stoppet det. Å be en økt rette en fil som er over sin harde grense — og samtidig si at den ikke skal løse grensen — er en umulig ordre.
+
+**Funn 1 — 40k-grensen er brutt, i stillhet.** `CLAUDE.md` er **40 056 B**. Grensen er 40 000: *«overskrides aldri»* (CLAUDE.md § Dokumentasjons-regler). **56 tegn over, og ingen har merket det** — fordi ingen mekanisme sjekker den. Funnet er sitt eget bevis.
+
+**Funn 2 — § Filter-standard kjenner ett paradigme; koden har to.** Standarden (vedtatt 2026-05-29) sier bare «Filterpaneler bruker `MultiComboks` + `SearchInput`». **0 treff** på `table.tsx`/`FilterDropdown`/«dynamisk kolonne» i hele fila. **Den produserte en gal ordre:** fabels del6b-ordre sa «migrér alle fem flater» — en migrering som ville drept per-kolonne-filtrering på dynamiske mal-kolonner.
+
+> **⚠️ INTERIM STATUSKILDE for to-paradigme-regelen (til rettingen lander i CLAUDE.md):**
+> **Fast, kjent dimensjonssett → `FilterPanel`** (bygges i del6b fase 1 fra firma-HMS-komposisjonen; brukes av firma-HMS, prosjekt-HMS, kontrollplan).
+> **Dynamiske mal-kolonner → `<Table>` med `filterAlternativer`** (sjekkliste- og oppgave-listene; alternativene bygges av en lokal `dynamiskFilter`-useMemo per side. `FilterDropdown` er Table-INTERN og importeres ingen steder — ikke bruk det navnet).
+> Vedtatt av fabel 2026-07-16 etter at redesign-Opus målte premisset. **Ført her fordi en chat-tråd ikke er en statuskilde** ([§5b](COWORK-KONTROLL-VEILEDER.md)).
+
+**Funn 3 — standarden er aldri anvendt.** `MultiComboks` brukes i **én fil** — referanse-implementasjonen selv (`dashbord/firma/hms/page.tsx`). Syv uker, null anvendelser utover eksempelet. Fabels ramme: *«En standard uten anvendelser er samme klasse som en regel uten mekanisme: et ønske.»*
+
+**Funn 4 — 🟡 MISTANKE, ikke bevist: § Toppbar-filtre kan feilklassifisere sjekklister/oppgaver.** Standarden lister dem som «bruker byggeplass aktivt» (→ velgeren skal være klikkbar). redesign-Opus målte at listene scopes via `template.projectId` (`sjekkliste.ts:46`), ikke `byggeplassId`, og at `aktivByggeplass` brukes til **verktøylinja** (hvilken byggeplass en *ny* sjekkliste får), ikke til filtrering. Standardens egen bakgrunn sier «velgeren viste seg uten effekt på 16/30 sider» — dette kan være en 17. **Skal reproduseres i runden, ikke rettes på lesning.**
+
+**Funn 5 — i18n-tallene** (`:112`): «14 brukervendte språk» → 15 · «~2500 nøkler» → 2909. Jf. D's F24/F25.
+
+**Fabels krav til runden (godkjent 2026-07-16):**
+1. **Timing:** funn 2 lander **tett på FilterPanel-mergen** — vinduet der standarden aktivt motsier ny kode måles i dager, ikke uker.
+2. **Funn 1 får mekanisme i samme runde** — gate-sjekk eller pre-commit-måling. **Og vurder om grensen er riktig virkemiddel:** vokser fila systematisk mot taket, skal innhold **UT** (til domene-docs med pekere), ikke taket opp.
+3. **Funn 4 merkes som mistanke** og reproduseres.
+
+### 🟠 Uauditerte doc-flater — scopet bommet på fila med høyest lesefrekvens (Opus D exit 2026-07-16)
+
+Auditen 2026-07-16 dekket `docs/claude/` (72 filer, 23 funn) og **utelot `CLAUDE.md`** — fila hver økt leser først, og den som ga cowork `pnpm dev --filter web` og kostet en runde. Målt samme dag: `CLAUDE.md:112` bærer samme i18n-drift som de tre auditen fant («14 brukervendte språk» → 15, «~2500 nøkler» → 2909).
+
+**Scope-designfunnet er større enn funnet:** at CLAUDE.md falt utenfor et docs-scope mens 72 mindre filer var inne. **Neste audit scopes etter lesefrekvens × drift-risiko, ikke etter mappe.**
+
+Uauditerte flater, rangert av D:
+
+1. `CLAUDE.md` (rot) — høyest lesefrekvens i repoet
+2. `docker/DOCKER-NOTES.md` — siteres som deploy-autoritet, og deploy-docs var de mest driftede
+3. `docs/redesign/redesign-handoff.md` — tung på status/hasher
+4. README-er · rot-`.md` (`MALBYGGER.md`, `parallell-arbeid-lock.md`, `ny-server-*.md`)
+5. `docs/arkiv/` (lav prioritet)
+6. **`schema.prisma`-kommentarer** — f.eks. `har_*_modul`-kommentarene som overlevde kolonne-droppet. Påstander som drifter uten at noen doc-audit ser dem.
+
+### 🟡 Tre drift-klasser ingen bøtte fanger (Opus D exit 2026-07-16)
+
+Auditens fem kategorier (statuskopier · presens · døde referanser · kommandoer · fil:linje) ser ikke disse:
+
+1. **Indeks-status vs fil-status.** `CLAUDE.md`-tabellen og `DOC-MAP.md` gir hver doc en markør (🟡/🟢/❌), og fila har sin egen. Begge kan være internt konsistente og likevel motsi hverandre — usynlig for alle fem bøttene.
+2. **§-ankere råtner som linjenumre.** «Se [fil § C.18]» peker like lett på feil seksjon som `:189` gjorde. D droppet §-refs eksplisitt i skanningen → **blindsone han selv skapte**.
+3. **Samme setning i tre indeksfiler.** `CLAUDE.md`-tabellen, `DOC-MAP` og `STATUS.md` gjentar de samme én-linjes doc-beskrivelsene. Tre kopier drifter uavhengig — [§9](dokumentasjons-standard.md) gjelder, men ingen har målt omfanget.
+
+### 🟡 «Uverifiserbar fra repo» ≠ «ikke en påstand» (Opus D exit-lærdom 2026-07-16)
+
+D filtrerte mekanisk bort alle `~/`-prefiksede stier i sti-skanningen — de kan ikke sjekkes mot repoet. **`~/programmering/deploy-test-cron.sh` var nøyaktig en slik sti — og den var auto-deploy-løgnens artefakt** (F4, rettet i `be5307be`). Sti-skanningen gikk rett forbi; funnet ble bare fanget fordi en semantisk agent leste påstanden rundt.
+
+En `~/`-sti som hevder at et server-script finnes er ikke støy — **det er en infrastruktur-påstand som kan være falsk.** Neste audit må behandle uverifiserbar-fra-repo som «krever annen verifiseringsmetode», ikke som «ikke en påstand».
+
+### 🟡 Mass-fix på repeterte tall er en drift-generator (Opus D exit-felle 2026-07-16)
+
+**Et tall som gjentas er ikke automatisk samme påstand.** Før en «rett alle N»-runde må hver forekomst klassifiseres: **aktiv påstand om nåtilstand** (rett) · **historisk changelog** (frys — arkiv omskrives ikke, jf. [§10 verbatim-carve-out](dokumentasjons-standard.md)) · **annen referent med annet sant tall** (ikke rør).
+
+Beviste feller fra 2026-07-16, alle nær-treff:
+- **«14 språk»** i `terminologi.md` + `web.md` gjelder `spraak-deteksjon.ts`, som **faktisk har 14** (`sq` mangler der) — mens UI har 15. Cowork var på nippet til å «rette» dem til 15 og innføre drift.
+- **`harTimerModul`** som lokalt variabelnavn er korrekt (`layout.tsx` leser fra `OrganizationModule`) — grep-og-erstatt hadde ødelagt riktig kode.
+- **`--filter @sitedoc/web`** er korrekt; kun bar `--filter web` er feil.
+- **`exec tsx`** i historikk-filene er frosne fakta (ble kjørt den gang); kun forekomsten i `shared-pakker.md` var aktiv og feil.
+
+### 🟡 Docs-lesbarhetsgjeld — 321 linjer over 600 tegn (ryddes ved berøring, ikke som egen runde)
+
+Målt 2026-07-16 etter at `STATUS-AKTUELT:30` ble brutt opp (`e2af1361`). Fordeling: `BACKLOG.md` 92 · `historikk-2026-05.md` 87 · `timer.md` 38 · `STATUS.md` 15 · `STATUS-AKTUELT.md` 15 · `historikk-2026-07.md` 13 · `redesign-paritetssjekkliste.md` 12 · `parallell-arbeid-lock.md` 7.
+
+**Hvorfor dette er gjeld og ikke en runde:** [dokumentasjons-standard.md § 10](dokumentasjons-standard.md) scoper regelen til **diffen** — nye/endrede linjer må være under ~600 tegn; eksisterende brudd ryddes når filen røres av annen grunn. En gate som feiler 321 ganger på dag én blir ignorert på dag to. Cowork spesifiserte opprinnelig regelen mot hele korpuset; målingen viste at den da ville vært uhåndhevbar — og at den motsa coworks egen plan, som slo fast at BACKLOG «fungerer faktisk» (strukturert + søkbar) og at arkivene er append-only ved design.
+
+**Bakgrunn (belegget for at dette er verdt noe):** `STATUS.md:14` var en changelog på **29 408 tegn i ett felt** — append-only, aldri lest, aldri korrigert. `STATUS-AKTUELT:30` var **12 036 tegn på én linje** og kostet **to merge-konflikter + én skjult stale status (K13)** på én dag. Ingen slurvet; ingen kunne lese dem. Prinsippet: **tunge dokumenter drifter mer** — når oppdatering koster og lesing er umulig, blir «docs senere» det rasjonelle valget.
+
+### 🟡 Leaflet-markørikoner lastes fra unpkg-CDN ved runtime (`KartVelger.tsx`, `GeoReferanseEditor.tsx`)
+
+Begge kart-komponentene henter markørikoner fra `https://unpkg.com/leaflet@1.9.4/dist/images/...` ved kjøretid. **Konsekvens:** er unpkg nede eller blokkert (streng CSP, kunde-nett, offline), mister kartene markørene. Leaflet er allerede en npm-avhengighet — ikonene kan serveres lokalt fra `public/` i stedet. Lav risiko, men det er en unødvendig ekstern avhengighet i en flate kunder bruker på anlegg med dårlig nett. Pre-eksisterende (arvet); observert i redesign-Opus' exit 2026-07-15.
+
 ### 🟡 Prod og test deler byggekontekst — gi test sin egen (fjerner en hel feilklasse)
 
 **Rot:** både `docker-compose.yml` (prod) og `docker-compose.test.yml` (test) bygger fra **samme** `~/stack/sitedoc` på server-ny. Konteksten holder koden fra **siste rsync**. Glemmer noen rsyncen før et bygg, bygges feil branch inn i feil miljø.
@@ -1563,6 +1920,15 @@ Auto-oversettings-skriptet forvekslet engelsk «break» (pause) med «break» (k
 Engelsk kildetekst forenklet fra «Machine hours {{maskin}}h of work hours {{arbeid}}h» til «Machine {{maskin}}h / Work {{arbeid}}h» (kort, klar struktur med universell slash-separator). Norsk speilet: «Maskin {{maskin}}t / Arbeid {{arbeid}}t». Nøkkelen slettet i 12 språk og re-generert via `generate.ts` — alle oversettelser nå gramatisk korrekte. ro fikset manuelt (Google Translate hoppet over «Work»; satt til «Lucru»). fr beholdt sin manuelle verdi fra `baa462e1`.
 
 ## 2. Halvferdige features
+
+### MalBygger felttype-restanser — fase M-3a del 2 (2026-07-16) 🟡
+
+Del 2 lukket F1 (grenseverdier), F2-quiz, F4-`persons.max`, kollapsbare seksjoner og kopiér-mal (branch `feat/faseM-3a-del2`, se [faseM-3a-felttype-matrise.md](faseM-3a-felttype-matrise.md) § Del 2). Følgende del 1-funn ble bevisst deferrert:
+
+- **F2-rest — `info_text`/`info_image`/`video` mangler web-render.** Opprettbare + konfigurerbare, men fraværende i web `RapportObjektRenderer.KOMPONENT_MAP` → faller til `UkjentObjekt`. Ren visning (ingen brukerverdi/datatap, i motsetning til quiz som ble fikset). Mobil har alle tre. Behov: port til web + registrer i map.
+- **F3 — `calculation.formula` + `traffic_light.options` har ingen editor.** Begge har defaultConfig men ingen blokk i `FeltKonfigurasjon.tsx`. Beregningsfelt ubrukelig uten formel-input; trafikklys låst til 4 default-farger. Krever formel-editor (validering av uttrykk) + fargevelger.
+- **F4-rest — `bim_property.propertyName` + `attachments.acceptedTypes` uten UI.** Kun default-config; BIM-egenskap kan ikke navngis, filtype-begrensning kan ikke settes i verktøyet.
+- **pkt 2-rest — kollaps i MalByggers feltliste (ikke bare utfylling).** Målt: MalBygger-feltlista er et dnd-kit sortable-tre (DropSone/RekursivtFelt); kollaps der bryter drag-targets → **ikke billig**. Utfylling (web+mobil) fikk kollaps i del 2; byggeren ikke.
 
 ### Tilbake-pil i kommentar-modal (mobil `oppgave/[id].tsx`) 🟡
 

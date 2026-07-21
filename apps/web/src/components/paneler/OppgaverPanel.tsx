@@ -30,7 +30,8 @@ export function OppgaverPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const aktivStatus = searchParams.get("status") ?? "alle";
-  const [sok, setSok] = useState("");
+  const aktivPrioritet = searchParams.get("prioritet");
+  const [sok, setSok] = useState(searchParams.get("sok") ?? "");
   const { t } = useTranslation();
 
   const { data: oppgaver, isLoading } =
@@ -53,9 +54,29 @@ export function OppgaverPanel() {
     return oppgaver.filter((o) => o.priority === prioritetId).length;
   }
 
+  // Bygger liste-URL med status + prioritet + fritekst-søk; liste-siden leser alle tre fra searchParams
+  function byggUrl(statusId: string, prioritetId: string | null, sokTekst: string) {
+    const p = new URLSearchParams();
+    if (statusId !== "alle") p.set("status", statusId);
+    if (prioritetId) p.set("prioritet", prioritetId);
+    if (sokTekst) p.set("sok", sokTekst);
+    const qs = p.toString();
+    return `/dashbord/${params.prosjektId}/oppgaver${qs ? `?${qs}` : ""}`;
+  }
+
   function velgStatus(statusId: string) {
-    const url = `/dashbord/${params.prosjektId}/oppgaver${statusId !== "alle" ? `?status=${statusId}` : ""}`;
-    router.push(url);
+    router.push(byggUrl(statusId, aktivPrioritet, sok));
+  }
+
+  function velgPrioritet(prioritetId: string) {
+    // Toggle: klikk på aktiv prioritet nullstiller den
+    const ny = aktivPrioritet === prioritetId ? null : prioritetId;
+    router.push(byggUrl(aktivStatus, ny, sok));
+  }
+
+  function endreSok(verdi: string) {
+    setSok(verdi);
+    router.replace(byggUrl(aktivStatus, aktivPrioritet, verdi));
   }
 
   if (isLoading) {
@@ -70,7 +91,7 @@ export function OppgaverPanel() {
     <div className="flex flex-col gap-4">
       <SearchInput
         verdi={sok}
-        onChange={setSok}
+        onChange={endreSok}
         placeholder={t("oppgaver.sokPlaceholder")}
       />
 
@@ -112,16 +133,21 @@ export function OppgaverPanel() {
           {prioritetsGrupper.map((gruppe) => {
             const antall = tellForPrioritet(gruppe.id);
             return (
-              <div
+              <button
                 key={gruppe.id}
-                className="flex items-center justify-between rounded-md px-2 py-1.5 text-sm text-gray-700"
+                onClick={() => velgPrioritet(gruppe.id)}
+                className={`flex items-center justify-between rounded-md px-2 py-1.5 text-sm transition-colors ${
+                  aktivPrioritet === gruppe.id
+                    ? "bg-blue-50 text-blue-700"
+                    : "text-gray-700 hover:bg-gray-50"
+                }`}
               >
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 rounded-full ${gruppe.farge}`} />
                   <span>{t(gruppe.labelKey)}</span>
                 </div>
                 <span className="text-xs text-gray-400">{antall}</span>
-              </div>
+              </button>
             );
           })}
         </div>

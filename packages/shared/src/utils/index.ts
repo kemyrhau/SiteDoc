@@ -1,6 +1,6 @@
 export { utledMinRolle, utledDokumentRettighet, beregnHarBallen } from "./flytRolle";
 export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput, HarBallenDokument, HarBallenBruker } from "./flytRolle";
-export { hentRolleFiltrertHandlinger, erTillattForRolle } from "./statusHandlinger";
+export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller } from "./statusHandlinger";
 export { vaerkodeTilTekst } from "./vaer";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
@@ -54,6 +54,18 @@ export {
 export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
 export { carveArbeidstider } from "./carveArbeidstid";
 export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
+export { harFeltVerdi, beregnLaasteFelter } from "./feltLaasing";
+export { avgjorDokumentTilgang } from "./avgjorDokumentTilgang";
+export type { TilgangsFakta, TilgangsResultat } from "./avgjorDokumentTilgang";
+export {
+  normaliserGrense,
+  harGrense,
+  grenseStatus,
+  formaterGrense,
+} from "./grenseSjekk";
+export type { Grense, GrenseStatus } from "./grenseSjekk";
+export { grupperMedOverskrift } from "./seksjoner";
+export type { Seksjon } from "./seksjoner";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.

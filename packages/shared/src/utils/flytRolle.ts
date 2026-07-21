@@ -166,7 +166,11 @@ export interface DokumentRettighetInput {
  * - "redigerer": kan fylle ut felter (har ballen + edit-tillatelse)
  * - "leser": kun forhåndsvisning
  *
- * For oppgaver: "redigerer" betyr append-only — erFeltLåst() i hook håndhever dette.
+ * For OPPGAVE: "redigerer" betyr append-only — erFeltLåst() i oppgave-hooken
+ * håndhever dette (delt kilde: beregnLaasteFelter i feltLaasing.ts). For
+ * SJEKKLISTE er "redigerer" full felt-redigering (den som har ballen +
+ * admin/registrator) — IKKE append-only (vedtatt 2026-07-16, dokumentflyt.md § 2).
+ * Merk: klient-lås — server oppdaterData håndhever ikke append-only i dag.
  */
 export function utledDokumentRettighet(input: DokumentRettighetInput): DokumentRettighet {
   const { erAdmin, minRolle, tillatelser, status, dokumentType, harBallen, flytRettighet } = input;

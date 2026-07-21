@@ -31,7 +31,7 @@ export function SjekklisterPanel() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const aktivStatus = searchParams.get("status") ?? "alle";
-  const [sok, setSok] = useState("");
+  const [sok, setSok] = useState(searchParams.get("sok") ?? "");
   const { aktivByggeplass, standardTegning, settStandardTegning } = useByggeplass();
   const { t } = useTranslation();
 
@@ -51,9 +51,22 @@ export function SjekklisterPanel() {
     return sjekklister.filter((s: { status: string }) => s.status === statusId).length;
   }
 
+  // Bygger liste-URL med status + fritekst-søk; liste-siden leser begge fra searchParams
+  function byggUrl(statusId: string, sokTekst: string) {
+    const p = new URLSearchParams();
+    if (statusId !== "alle") p.set("status", statusId);
+    if (sokTekst) p.set("sok", sokTekst);
+    const qs = p.toString();
+    return `/dashbord/${params.prosjektId}/sjekklister${qs ? `?${qs}` : ""}`;
+  }
+
   function velgStatus(statusId: string) {
-    const url = `/dashbord/${params.prosjektId}/sjekklister${statusId !== "alle" ? `?status=${statusId}` : ""}`;
-    router.push(url);
+    router.push(byggUrl(statusId, sok));
+  }
+
+  function endreSok(verdi: string) {
+    setSok(verdi);
+    router.replace(byggUrl(aktivStatus, verdi));
   }
 
   if (isLoading) {
@@ -68,7 +81,7 @@ export function SjekklisterPanel() {
     <div className="flex flex-col gap-3">
       <SearchInput
         verdi={sok}
-        onChange={setSok}
+        onChange={endreSok}
         placeholder={t("sjekklister.sokPlaceholder")}
       />
 

@@ -247,6 +247,7 @@ export default function SjekklisteSide() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const statusFilter = searchParams.get("status");
+  const sok = (searchParams.get("sok") ?? "").trim().toLowerCase();
   const utils = trpc.useUtils();
   const { aktivByggeplass, standardTegning } = useByggeplass();
   const [visModal, setVisModal] = useState(false);
@@ -276,6 +277,7 @@ export default function SjekklisteSide() {
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string }>).filter((m) => m.category === "sjekkliste");
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery({ projectId: params.prosjektId });
+  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery({ projectId: params.prosjektId });
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: params.prosjektId });
 
   const slettMutation = trpc.sjekkliste.slett.useMutation({
@@ -309,6 +311,7 @@ export default function SjekklisteSide() {
     setOpprettFeil(null);
     const alleDf = (dokumentflyter ?? []) as Array<{
       id: string;
+      faggruppeId: string | null;
       medlemmer: Array<{ faggruppe?: { id: string; name?: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
       maler: Array<{ template: { id: string } }>;
     }>;
@@ -320,9 +323,23 @@ export default function SjekklisteSide() {
         : df.medlemmer.some((m) => m.rolle === "oppretter")),
     );
     const dfOppretterFg = matchDf?.medlemmer.find((m) => m.rolle === "oppretter")?.faggruppe?.id;
-    const bestillerId = oppretter?.id ?? dfOppretterFg;
+    let bestillerId = oppretter?.id ?? dfOppretterFg;
+    // Person-/gruppe-direkte medlem uten egen faggruppe: bruk eier-faggruppen (Dokumentflyt.faggruppeId)
+    // til flyten brukeren er medlem av og som har denne malen.
+    const mineFlytIder = new Set(mineFlyter ?? []);
+    const minFlyt = alleDf.find((df) => df.maler.some((m) => m.template.id === malId) && mineFlytIder.has(df.id));
     if (!bestillerId) {
-      setOpprettFeil(t("sjekklister.feil.ingenFaggruppe"));
+      bestillerId = minFlyt?.faggruppeId ?? undefined;
+    }
+    if (!bestillerId) {
+      // G3 (2026-07-19): skill de to årsakene. Fant vi en flyt m/ malen brukeren er
+      // medlem av, men uten eier-faggruppe → «flyt mangler faggruppe». Ellers → ingen
+      // flyt med malen. Ingen rettighetsutvidelse — kun feilmelding-skillet.
+      setOpprettFeil(
+        minFlyt
+          ? t("dokumentflyt.feil.flytManglerFaggruppe")
+          : t("dokumentflyt.feil.ingenFlytMedMal"),
+      );
       return;
     }
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
@@ -461,6 +478,16 @@ export default function SjekklisteSide() {
     } else if (statusFilter) {
       resultat = resultat.filter((s) => s.status === statusFilter);
     }
+    if (sok) {
+      resultat = resultat.filter((s) => {
+        const lopenummer = `${s.template?.prefix ?? ""}${s.number != null ? String(s.number).padStart(3, "0") : ""}`.toLowerCase();
+        return (
+          s.title.toLowerCase().includes(sok) ||
+          lopenummer.includes(sok) ||
+          (s.number != null && String(s.number).includes(sok))
+        );
+      });
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       const valgteSet = new Set(verdi.split(","));
@@ -497,7 +524,7 @@ export default function SjekklisteSide() {
       });
     }
     return resultat;
-  }, [sjekklister, statusFilter, filterVerdier]);
+  }, [sjekklister, statusFilter, filterVerdier, sok]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));

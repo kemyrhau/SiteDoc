@@ -1,0 +1,21 @@
+F5 matpause — lokal-SQLite-poll (bundle ffac5b94, sedel 2026-07-15, 2026-07-14)
+==============================================================================
+Metode: rask-poll av sheet_timer_local.pause_min + dagsseddel_local.pause_min rett
+etter hver toggle (mot develop-api-tunnel → sync clobber ~0.4s, poll 1 fanger skriving).
+
+SETT (huk PÅ bærer 11:00–15:00):
+  poll 1: rader[07:00|0|4.0 ; 11:00|30|3.5] | sedel.pause=30 | Σrad=30  ✓Σ-OK
+          → pauseMin=30 på bærer, timer recompute 3.5 (=4t−0.5t), Σ-invariant holdt.
+  poll 2+: clobbet (rad.pauseMin→0; sedel.pause=30 består = kjent kolonne server re-asserter).
+
+SETT (nabo-oppsett, huk PÅ 07:00–11:15):
+  poll 1: 07:00|30 ; 11:15|0  → bærer satt på rad 1.
+
+FLYTT (huk AV 07:00–11:15 → neste kvalifiserte 11:15–15:00):
+  UI: toast «Pausen trekkes i 11:15–15:00»; rad 1 umerket, rad 2 avhuket.
+  (poll fanget ikke rad2=30 pga burst-latens; UI+toast autoritative for interaksjonen.)
+
+Σ-invariant: kun stabilt observerbar i skrive-øyeblikket mot develop (sedel.pause_min = kjent
+kolonne, server=30, re-asserteres hver sync). Konsistent sluttstate (sedel=Σ) er kode-bekreftet
+(skrivPauseTilstand: én tx setter per-rad pauseMin+timer OG sedel.pauseMin=Σ) + SETT poll 1.
+Full server-side Σ-persistens verifiseres ved test-deploy (fix-branch-api kjenner rad.pauseMin).

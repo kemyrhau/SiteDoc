@@ -25,7 +25,7 @@ import { useOversettelse } from "../../src/hooks/useOversettelse";
 import { useOpplastingsKo } from "../../src/providers/OpplastingsKoProvider";
 import { useAuth } from "../../src/providers/AuthProvider";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
-import { RapportObjektRenderer, DISPLAY_TYPER } from "../../src/components/rapportobjekter";
+import { RapportObjektRenderer, DISPLAY_TYPER, UtfyllingSeksjoner } from "../../src/components/rapportobjekter";
 import { FeltWrapper } from "../../src/components/rapportobjekter/FeltWrapper";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
@@ -723,7 +723,9 @@ export default function SjekklisteUtfylling() {
           </View>
         </Pressable>
 
-        {objekter.map((objekt) => {
+        <UtfyllingSeksjoner
+          objekter={objekter}
+          render={(objekt) => {
           // Skip barn av repeatere — rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;
           // Sjekk synlighet (betinget felt)
@@ -762,6 +764,10 @@ export default function SjekklisteUtfylling() {
 
           // Utfyllbare felt med FeltWrapper
           const feltVerdi = hentFeltVerdi(objekt.id);
+          // Sjekkliste er redigerbar for den som har ballen + admin/registrator
+          // (dokumentflyt.md § 2) — ikke append-only. Kun dokument-status styrer
+          // lesemodus; enkeltfelt låses ikke etter innsending.
+          const verdiLeseModus = leseModus;
 
           // Oppgave-kobling for dette feltet
           const feltOppgave = feltOppgaveMap.get(objekt.id);
@@ -802,13 +808,14 @@ export default function SjekklisteUtfylling() {
                 objekt={objekt}
                 verdi={feltVerdi.verdi}
                 onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                leseModus={leseModus}
+                leseModus={verdiLeseModus}
                 barneObjekter={barneObjekterMap.get(objekt.id)}
                 sjekklisteId={sjekkliste.id}
               />
             </FeltWrapper>
           );
-        })}
+          }}
+        />
 
         {/* Endringslogg */}
         {sjekklisteDetalj?.template?.enableChangeLog && (sjekklisteDetalj?.changeLog ?? []).length > 0 && (

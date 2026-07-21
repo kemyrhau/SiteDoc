@@ -10,6 +10,7 @@ import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
+import { UtfyllingSeksjoner } from "@/components/rapportobjekter/UtfyllingSeksjoner";
 import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
@@ -28,12 +29,13 @@ import { usePresence } from "@/hooks/usePresence";
 /* ------------------------------------------------------------------ */
 
 function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "feil" }) {
+  const { t } = useTranslation();
   if (status === "idle") return null;
   if (status === "lagrer") {
     return (
       <span className="flex items-center gap-1 text-xs text-gray-400">
         <Loader2 size={14} className="animate-spin" />
-        Lagrer...
+        {t("lagring.lagrer")}
       </span>
     );
   }
@@ -41,14 +43,14 @@ function LagreIndikator({ status }: { status: "idle" | "lagrer" | "lagret" | "fe
     return (
       <span className="flex items-center gap-1 text-xs text-green-600">
         <Check size={14} />
-        Lagret
+        {t("lagring.lagret")}
       </span>
     );
   }
   return (
     <span className="flex items-center gap-1 text-xs text-red-500">
       <AlertCircle size={14} />
-      Lagring feilet
+      {t("lagring.feil")}
     </span>
   );
 }
@@ -99,7 +101,7 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.prosjektId },
   );
   const alleFaggrupper = (alleFaggrupperRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
-  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/components/StatusHandlinger").DokumentflytData[];
+  const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/lib/videresend-valg").DokumentflytData[];
 
   // Hent full sjekklistedata for tidslinje/recipient/creator
   const { data: fullSjekklisteRå } = trpc.sjekkliste.hentMedId.useQuery(
@@ -558,8 +560,9 @@ export default function SjekklisteDetaljSide() {
       </div>
 
       {/* Rapportobjekter */}
-      <div className="flex flex-col gap-3">
-        {objekter.map((objekt) => {
+      <UtfyllingSeksjoner
+        objekter={objekter}
+        render={(objekt) => {
           // Skip barn av repeatere — de rendres inne i RepeaterObjekt
           if (repeaterBarnIder.has(objekt.id)) return null;
           if (!erSynlig(objekt)) return null;
@@ -568,6 +571,10 @@ export default function SjekklisteDetaljSide() {
           const erDisplay = DISPLAY_TYPER.has(objekt.type);
           const nestingNivå = hentNestingNivå(objekt, objekter);
           const feltVerdi = hentFeltVerdi(objekt.id);
+          // Sjekkliste er redigerbar for den som har ballen + admin/registrator
+          // (dokumentflyt.md § 2) — ikke append-only. Kun dokument-status styrer
+          // lesemodus; enkeltfelt låses ikke etter innsending.
+          const verdiLeseModus = leseModus;
 
           // Display-typer rendres uten wrapper
           if (erDisplay) {
@@ -581,7 +588,7 @@ export default function SjekklisteDetaljSide() {
                   objekt={objekt}
                   verdi={feltVerdi.verdi}
                   onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                  leseModus={leseModus}
+                  leseModus={verdiLeseModus}
                   prosjektId={params.prosjektId}
                 />
               </div>
@@ -629,15 +636,15 @@ export default function SjekklisteDetaljSide() {
                   objekt={objekt}
                   verdi={feltVerdi.verdi}
                   onEndreVerdi={(v) => settVerdi(objekt.id, v)}
-                  leseModus={leseModus}
+                  leseModus={verdiLeseModus}
                   prosjektId={params.prosjektId}
                   barneObjekter={barneObjekterMap.get(objekt.id)}
                 />
               </FeltWrapper>
             </div>
           );
-        })}
-      </div>
+        }}
+      />
 
       {/* Endringslogg */}
       {sjekkliste?.template && (

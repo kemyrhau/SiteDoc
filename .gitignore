@@ -57,3 +57,5 @@ Lønnsarter til sortering.txt
 
 # Playwright MCP-artefakter (snapshots/logger)
 .playwright-mcp/
+
+.claude/settings.local.json

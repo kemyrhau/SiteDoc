@@ -22,6 +22,7 @@ import { SignaturObjekt } from "./SignaturObjekt";
 import { RepeaterObjekt } from "./RepeaterObjekt";
 import { LokasjonObjekt } from "./LokasjonObjekt";
 import { TegningPosisjonObjekt } from "./TegningPosisjonObjekt";
+import { QuizObjekt } from "./QuizObjekt";
 import { UkjentObjekt } from "./UkjentObjekt";
 
 // Display-only typer som ikke wrappes med FeltWrapper/FeltDokumentasjon
@@ -57,6 +58,7 @@ const KOMPONENT_MAP: Record<string, React.ComponentType<RapportObjektProps>> = {
   repeater: RepeaterObjekt,
   location: LokasjonObjekt,
   drawing_position: TegningPosisjonObjekt,
+  quiz: QuizObjekt,
 };
 
 export function RapportObjektRenderer(props: RapportObjektProps) {

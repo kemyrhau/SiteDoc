@@ -1,0 +1,44 @@
+name: CI
+
+# Trinn 1 (bevisst smalt): kjør tester på PR mot develop.
+# Lint og typecheck er IKKE med — de har bred pre-eksisterende gjeld
+# og føres som egen sak. En rød CI dag én blir ignorert.
+#
+# Kjører både på pull_request og ved push til develop: merge-konvensjonen
+# er `git push origin HEAD:develop` fra et merge-tre (uten PR), så uten
+# push-triggeren ville kode som lander direkte aldri testes.
+on:
+  pull_request:
+    branches: [develop]
+  push:
+    branches: [develop]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      # Leser pnpm-versjon fra "packageManager"-feltet i package.json (9.15.4)
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Db-pakkene har ingen build-script, så turbos ^build genererer aldri
+      # Prisma-klientene. Fersk checkout mangler dem → generer eksplisitt
+      # før test, ellers feiler import av @sitedoc/db* i vitest.
+      - name: Generer Prisma-klienter
+        run: |
+          pnpm --filter @sitedoc/db exec prisma generate
+          pnpm --filter @sitedoc/db-timer exec prisma generate
+          pnpm --filter @sitedoc/db-maskin exec prisma generate
+          pnpm --filter @sitedoc/db-varelager exec prisma generate
+
+      - run: pnpm test

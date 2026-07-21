@@ -17,6 +17,41 @@ status: aktiv
 > **Fiks:** `sudo networksetup -setv6off Wi-Fi` → `npx expo start --clear` → ved vedvarende spinner,
 > logg ut/inn i appen for å nullstille SecureStore. Detaljer i [Løsninger](#løsninger-rangert).
 
+## ⚠️ Variant 2026-07-20 — rammer også Claude Code selv, og `dig A` lurer deg
+
+**Symptom:** Opus-økter faller ut med `API Error: Unable to connect to API (ConnectionRefused)`, gjentatte ganger, i flere økter samtidig, uten mønster i hva de gjorde. `curl https://api.anthropic.com/v1/messages` → `Immediate connect fail ... No route to host`.
+
+**Tellet i curl-output:**
+```
+IPv6: 2607:6bc0::10
+IPv4: (none)          ← curl fikk KUN IPv6
+```
+
+**Fella — `dig` og `curl` gir ulike svar:**
+```
+dig +short api.anthropic.com A     → 160.79.104.10     (IPv4 finnes!)
+scutil --nwi                       → No IPv6 states found
+curl                               → prøver kun IPv6, feiler
+```
+`dig` spør DNS **direkte**; `curl` går via macOS' `getaddrinfo`, som tar hensyn til grensesnittets IPv6-tilstand og eventuell DNS64. **Derfor utelukker IKKE et vellykket `dig +short A` dette problemet** — doc-ens opprinnelige inngangsspørsmål («har host ekte AAAA?») peker feil vei her.
+
+**Kontekst som forklarer det:** `en0` hadde adresse `172.20.10.7` = **iPhone Personal Hotspot**. Mobilnett er ofte IPv6-only med **DNS64/NAT64**, som *syntetiserer* AAAA-poster for IPv4-only-tjenester. Mac-en får en IPv6-adresse den ikke kan rute, mens `dig`s eksplisitte A-spørring går utenom hele mekanismen.
+
+**Fiks — samme som ellers:**
+```bash
+sudo networksetup -setv6off Wi-Fi     # angre: sudo networksetup -setv6automatic Wi-Fi
+```
+Verifiser:
+```bash
+curl -sS -o /dev/null -w "%{http_code} via %{remote_ip}\n" https://api.anthropic.com/v1/messages
+# → 405 via 160.79.104.10   (405 er forventet på GET; poenget er at den gikk via IPv4)
+```
+Alternativt: gå av hotspot og på vanlig Wi-Fi — DNS64 forsvinner med operatørnettet.
+
+**Lærdom å ta med:** «flere Opus-økter mister forbindelsen samtidig» er et **nettverkssymptom, ikke et øktsymptom**. Sjekk `curl` + `scutil --nwi` før du feilsøker økter, verktøy eller MCP-oppsett.
+
+*(Åpent, ikke avgjørende for fiksen: `dig +short @1.1.1.1 api.anthropic.com AAAA` skiller ekte AAAA fra DNS64-syntese. Tom = syntese.)*
+
 ## Symptom
 
 - App henger på **evig spinner** i iOS-simulator (aldri forbi auth-fasen).

@@ -53,7 +53,7 @@ Disse mellom-tabellene har ofte:
 
 ## Database (PostgreSQL)
 
-56 Prisma-modeller. Kjernetabeller:
+Modell-antall er utledbart (`grep -c "^model " packages/db/prisma/schema.prisma`). Kjernetabeller:
 
 | Tabell | Beskrivelse |
 |--------|-------------|

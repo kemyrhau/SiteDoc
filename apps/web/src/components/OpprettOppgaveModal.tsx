@@ -42,6 +42,10 @@ export function OpprettOppgaveModal({
     { projectId: prosjektId },
     { enabled: open },
   );
+  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery(
+    { projectId: prosjektId },
+    { enabled: open },
+  );
   const { data: arbeidsforlop } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: prosjektId },
     { enabled: open },
@@ -73,14 +77,24 @@ export function OpprettOppgaveModal({
   }, [open]);
 
   const alleArbeidsforlop = (arbeidsforlop ?? []) as unknown as DokumentflytRad[];
+  const mineFlytIder = new Set(mineFlyter ?? []);
 
-  // Finn matchende dokumentflyt for utfører-utledning
+  // Person-/gruppe-direkte medlem uten egen faggruppe: bruk eier-faggruppen
+  // (Dokumentflyt.faggruppeId) til flyten brukeren er medlem av og som har valgt mal.
+  const flytFallbackFaggruppe = valgtMal
+    ? alleArbeidsforlop.find((af) => mineFlytIder.has(af.id) && af.maler.some((wt) => wt.template.id === valgtMal))?.faggruppeId ?? null
+    : null;
+  const effektivBestiller = valgtBestiller || flytFallbackFaggruppe || "";
+
+  // Finn matchende dokumentflyt for utfører-utledning.
+  // Merk: dokumentflytId-bindingen (linje under) holdes på valgtBestiller — flyten bindes
+  // ellers ved send (N3-scope: ikke utvid create-tids binding til person-direkte).
   const matchendeArbeidsforlop = alleArbeidsforlop.find(
     (af) =>
       af.faggruppeId === valgtBestiller &&
       af.maler.some((wt) => wt.template.id === valgtMal),
   );
-  const utledetUtforer = valgtBestiller;
+  const utledetUtforer = effektivBestiller;
 
   // Filtrer maler (samme logikk som tegninger-siden)
   const filtrerMaler = useMemo(() => {
@@ -100,7 +114,7 @@ export function OpprettOppgaveModal({
     const synligeMalIder = new Set<string>();
 
     for (const af of alleArbeidsforlop) {
-      if (af.faggruppeId !== valgtBestiller) continue;
+      if (af.faggruppeId !== valgtBestiller && !mineFlytIder.has(af.id)) continue;
       for (const wt of af.maler) {
         if (wt.template.category === "oppgave") {
           synligeMalIder.add(wt.template.id);
@@ -125,7 +139,7 @@ export function OpprettOppgaveModal({
     return kategoriMaler
       .filter((m) => synligeMalIder.has(m.id))
       .map((m) => ({ id: m.id, name: m.name }));
-  }, [valgtBestiller, alleMaler, minTilgang, alleArbeidsforlop]);
+  }, [valgtBestiller, alleMaler, minTilgang, alleArbeidsforlop, mineFlyter]);
 
   // Auto-tittel
   const tittel = useMemo(() => {
@@ -152,14 +166,14 @@ export function OpprettOppgaveModal({
   function handleOpprett(e: React.FormEvent) {
     e.preventDefault();
     if (!valgtMal) return;
-    if (!erHms && !valgtBestiller) return;
+    if (!erHms && !effektivBestiller) return;
 
     opprettMutation.mutate({
       templateId: valgtMal,
       ...(erHms
         ? {}
         : {
-            bestillerFaggruppeId: valgtBestiller,
+            bestillerFaggruppeId: effektivBestiller,
             utforerFaggruppeId: utledetUtforer,
           }),
       title: tittel,
@@ -204,7 +218,7 @@ export function OpprettOppgaveModal({
 
         <Button
           type="submit"
-          disabled={!valgtMal || (!erHms && !valgtBestiller)}
+          disabled={!valgtMal || (!erHms && !effektivBestiller)}
           loading={opprettMutation.isPending}
         >
           Opprett oppgave

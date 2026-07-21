@@ -75,7 +75,10 @@ export function renderFelt(
     case "integer":
     case "decimal":
     case "calculation": {
-      const enhet = (objekt.config.unit as string) ?? "";
+      // Norsk kanonisk `enhet` (fase M-3a del 2) med engelsk `unit`-fallback for
+      // eldre maler. Duplisert `??` — IKKE importér @sitedoc/shared: packages/pdf
+      // er dokumentert null-avhengigheter (CLAUDE.md § Prosjektstruktur).
+      const enhet = (objekt.config.enhet as string) ?? (objekt.config.unit as string) ?? "";
       verdiHtml = tom
         ? `<span class="tom">Ikke utfylt</span>`
         : esc(`${verdi}${enhet ? ` ${enhet}` : ""}`);

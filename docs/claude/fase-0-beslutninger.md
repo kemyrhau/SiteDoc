@@ -195,7 +195,7 @@ ALTER TABLE project_modules ALTER COLUMN status SET NOT NULL;
 
 **Konsekvens:** 30+ kode-steder må oppdateres med organizationId i where-klausul. Verifiserte forekomster:
 - `apps/api/src/routes/oppgave.ts:618-619`, `mappe.ts:589-590`, `modul.ts` (full router)
-- `apps/web/src/components/layout/HovedSidebar.tsx:189`
+- `apps/web/src/components/layout/sidebar-elementer.tsx` (`trpc.modul.hentForProsjekt`-kallet)
 - `apps/web/src/app/dashbord/oppsett/produksjon/moduler/page.tsx`
 - `apps/web/src/app/dashbord/oppsett/layout.tsx:113`
 
@@ -2056,7 +2056,7 @@ IKKE av antall timer. Mertid uten tilleggskrav = normal grå sedel.
 **T7-4f-2 — Refaktor: ekstraher `ProsjektSectionAttest` + `EcoBucketAttest`** (~30 min)
 - Flytt blokk `AttesteringDetalj.tsx:892–1119` til ny `apps/web/src/components/timer/attestering-buckets.tsx`.
 - Eksporter komponenter + delte typer (`TimerRad`, `MaskinRad`, `TilleggRad`, `RadProsjekt`, `EcoBucketAttestProps`).
-- `AttesteringDetalj.tsx` importerer fra ny fil — ingen funksjonell endring. Verifiser med `pnpm typecheck --filter web` + åpne én sedel på test.
+- `AttesteringDetalj.tsx` importerer fra ny fil — ingen funksjonell endring. Verifiser med `pnpm typecheck --filter @sitedoc/web` (`--filter web` matcher ingen pakke) + åpne én sedel på test.
 
 **T7-4f-3 — Web: expanded inline + uke-nav + filter-pills** (~90 min)
 - `apps/web/src/app/dashbord/firma/timer/attestering/page.tsx` — fullstendig redesign per mockup v7.

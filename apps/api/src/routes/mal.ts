@@ -179,6 +179,97 @@ export const malRouter = router({
       return ctx.prisma.reportTemplate.delete({ where: { id: input.id } });
     }),
 
+  // Kopier mal (dyp kopi av mal + alle rapportobjekter) innen samme prosjekt.
+  // Bevarer objekt-treet (parentId) via to-pass id-mapping: pass 1 oppretter
+  // alle objekter uten parentId, pass 2 setter parentId fra mappingen. To-pass
+  // (ikke ett-pass som psi.ts) unngår at et barn med lavere sortOrder enn sin
+  // forelder stille mister koblingen. Firma-lenker (organizationTemplateId,
+  // promotedToFirma) kopieres IKKE — kopien er en fersk lokal mal.
+  kopier: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const kilde = await ctx.prisma.reportTemplate.findUniqueOrThrow({
+        where: { id: input.id },
+        include: {
+          objects: { orderBy: { sortOrder: "asc" } },
+          dokumentflytMaler: { select: { dokumentflytId: true } },
+        },
+      });
+      await verifiserProsjektmedlem(ctx.userId, kilde.projectId);
+
+      // Lean returtype (select: { id }) + eksplisitt { id }-retur holder
+      // tRPC-inferensen grunn — full reportTemplate-retur her tipper AppRouter
+      // over TS2589-dybdegrensen (kjent fallgruve, se CLAUDE.md § Kodestil).
+      const nyMalId = await ctx.prisma.$transaction(async (tx) => {
+        const nyMal = await tx.reportTemplate.create({
+          data: {
+            projectId: kilde.projectId,
+            name: `${kilde.name} (kopi)`,
+            description: kilde.description,
+            prefix: kilde.prefix,
+            category: kilde.category,
+            domain: kilde.domain,
+            subdomain: kilde.subdomain,
+            hmsSynlighet: kilde.hmsSynlighet,
+            subjects: (kilde.subjects ?? []) as Prisma.InputJsonValue,
+            showSubject: kilde.showSubject,
+            showFaggruppe: kilde.showFaggruppe,
+            showLocation: kilde.showLocation,
+            showPriority: kilde.showPriority,
+            enableChangeLog: kilde.enableChangeLog,
+            kontrollomrade: kilde.kontrollomrade,
+            version: 1,
+          },
+          select: { id: true },
+        });
+
+        // Pass 1: opprett alle objekter uten parentId, bygg gammel→ny id-mapping
+        const idMapping = new Map<string, string>();
+        for (const obj of kilde.objects) {
+          const nyttObj = await tx.reportObject.create({
+            data: {
+              templateId: nyMal.id,
+              type: obj.type,
+              label: obj.label,
+              config: (obj.config ?? {}) as Prisma.InputJsonValue,
+              translations: (obj.translations ?? {}) as Prisma.InputJsonValue,
+              required: obj.required,
+              sortOrder: obj.sortOrder,
+            },
+          });
+          idMapping.set(obj.id, nyttObj.id);
+        }
+
+        // Pass 2: sett parentId fra mappingen (bevarer treet uansett rekkefølge)
+        for (const obj of kilde.objects) {
+          if (!obj.parentId) continue;
+          const nyId = idMapping.get(obj.id);
+          const nyParentId = idMapping.get(obj.parentId);
+          if (nyId && nyParentId) {
+            await tx.reportObject.update({
+              where: { id: nyId },
+              data: { parentId: nyParentId },
+            });
+          }
+        }
+
+        // Kopier dokumentflyt-koblinger
+        if (kilde.dokumentflytMaler.length > 0) {
+          await tx.dokumentflytMal.createMany({
+            data: kilde.dokumentflytMaler.map((k) => ({
+              dokumentflytId: k.dokumentflytId,
+              templateId: nyMal.id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+
+        return nyMal.id;
+      });
+
+      return { id: nyMalId };
+    }),
+
   // Legg til rapportobjekt i mal
   leggTilObjekt: protectedProcedure
     .input(

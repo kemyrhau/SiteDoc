@@ -33,12 +33,22 @@ COMPOSE="docker/docker-compose.test.yml"
 #   docker/env  = server-.env — KRITISK, må aldri slettes/overskrives
 #   uploads     = server-only brukerdata (~1,4G) + bind-mount — MÅ aldri slettes, som docker/env
 #   node_modules/.next/.git/apps/mobile/.turbo/.pnpm-store = bloat (apps/mobile ~3 GB kontekst)
+#
+# ⚠️ apps/mobile: innholdet ekskluderes (bloat), MEN package.json MÅ synkes.
+# `pnpm install --frozen-lockfile` i Docker-bygget validerer pnpm-lock.yaml mot
+# ALLE workspace-pakker — også de vi ikke deployer. Uten mobils package.json ser
+# serveren en lockfil som lover pakker package.json-en ikke ber om → bygget feiler
+# med ERR_PNPM_OUTDATED_LOCKFILE. (Traff oss 2026-07-20 da eslint-plugin-react-hooks
+# ble lagt til i mobil: lockfila synket, package.json ikke.) Include-reglene må stå
+# FØR exclude — rsync tar første treff.
 echo "→ rsync (develop) til $DST ..."
 rsync -a --delete \
   --exclude node_modules \
   --exclude .next \
   --exclude .git \
-  --exclude apps/mobile \
+  --include 'apps/mobile/' \
+  --include 'apps/mobile/package.json' \
+  --exclude 'apps/mobile/**' \
   --exclude .turbo \
   --exclude .pnpm-store \
   --exclude docker/env \

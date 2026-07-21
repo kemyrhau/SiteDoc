@@ -1,13 +1,38 @@
 ---
 name: COWORK-KONTROLL-VEILEDER
 status: styrende
-sist_verifisert_mot_kode: 2026-07-07
-sist_endret: 2026-07-07
+sist_verifisert_mot_kode: 2026-07-16
+sist_endret: 2026-07-16
 ---
 
 # Cowork kontroll-veileder — arbeidsmåte for en ny SiteDoc-økt
 
-> Formål: en ny Cowork-økt (f.eks. redesign-økta) skal jobbe på **samme måte** som den forrige kontroll-økta. Dette er *arbeidsmåten*, ikke oppgaven. Oppgaven (redesign) ligger i fabels `design_handoff_navigasjon_redesign/README.md`. Kodebase-reglene ligger i `CLAUDE.md`. Denne fila forklarer *hvordan du opererer*.
+> Formål: en ny Cowork-økt skal jobbe på **samme måte** som den forrige. Dette er *arbeidsmåten*, ikke oppgaven. Kodebase-reglene ligger i `CLAUDE.md`.
+
+---
+
+## KJERNEN — fem regler (les disse, slå opp resten)
+
+> **REGEL 0 — spør «finnes det allerede et styrende dokument for dette?» FØR du måler noe som helst.**
+>
+> Den er nummer null fordi de fire under er verdiløse hvis du rekonstruerer noe som står ferdig skrevet.
+>
+> **Belegg (2026-07-17):** [parallell-arbeid-lock.md](parallell-arbeid-lock.md) har `status: styrende`, 13 kjøreregler og fem daterte lærdommer. `CLAUDE.md` sier at kontroll-laget skal lese den **først**. Cowork leste den aldri — og brukte en time på å grep-rekonstruere tre ting som sto der: tre-rollene, merge-treets eksistensberettigelse, og `index.lock`-prosedyren. Fabel planla i samme blinde og foreslo å slette sikkerhetsnettet fila beskriver som ufravikelig.
+>
+> **Fabels formulering, som er bedre enn min:** *«jeg planla mot mappelisten (magefølelse) uten å spørre om det fantes et styringsdokument. Statuskilde-spørsmålet skal stilles FØR enhver struktur-plan.»* Se [delplaner/opprydding-arbeidstraer-2026-07-17.md](delplaner/opprydding-arbeidstraer-2026-07-17.md).
+>
+> **Vi la til fire nye regler ved siden av regler som allerede fantes og ikke ble lest.** Det var aldri papiret som sviktet.
+
+**Hvorfor en kjerne:** regelflaten er **45 KB / 24 nummererte regler**, og **22 KB av dem ble skrevet 2026-07-14/16 — av cowork, som brøt fire av dem på én time samme dag.** Det er nøyaktig sykdommen vi diagnostiserte i CLAUDE.md: tunge dokumenter drifter fordi ingen kan lese dem. Resten av fila er oppslagsverk. **Disse fire er det du faktisk må holde i hodet.**
+
+| # | Regel | Hva det koster å bryte den |
+|---|---|---|
+| **1** | **Målingen din er feilkilden — ikke resonnementet.** Gjentatt dårlig måling er ikke verifisering. Kjør negativ kontroll: mat sjekken noe du VET skal fanges. Tom output kan bety at sjekken er død. | 17 målefeil på to dager, alle i verktøyet. Regel 11s egen belegg-tabell fikk et umålt tall. |
+| **2** | **Én melding = det som skjer NÅ.** Skal noe skje senere, kommer det i meldingen når det er tid. Ingen «opprydding etterpå», ingen «til slutt». Blokker ER kommandoer — Kenneth kjører dem. | `DELETE` i samme melding som `INSERT` slettet demodata på tre sekunder. `awk ; git push` pushet forbi sin egen gate. |
+| **3** | **Premisset måles av den som utfører — også ditt eget.** Ordre, rapport og exit er input, ikke fasit. Skriv det inn i hver ordre. | Fire ganger på én uke fant en Opus et hull i en ordre ved å måle. Fire ganger tok ordre-skriveren feil. |
+| **4** | **Ikke utvid en løpende økt.** Nytt problem = ny økt. Rad i tavla FØR vinduet åpnes. | CLAUDE.md-rydding dyttet inn i en økt som bygde FilterPanel. To økter fikk samme arbeidstre. |
+
+**Og en gate er ikke en gate før den kan si nei.** `sjekk ; handling` er dekorasjon. Bruk `if sjekk; then STOPP; else handling; fi`.
 
 ---
 
@@ -46,6 +71,33 @@ Dette er kjernen i kontroll-rollen. Konkret:
 - **Sandkasse-git mangler `origin`-ref** — `git rev-parse origin/develop` feiler ofte i workspace-bash; verifiser HEAD + arbeidstre lokalt, stol på Opus' push-output for origin.
 - **Distinkt kode-streng-markør slår i18n-grep** — Next inliner ikke i18n grep-bart i `.next`; bruk commit-dato vs image-byggetid + kode-streng i `apps/*/src` (se DOCKER-NOTES pkt 7).
 
+### 2b. Målingen din er feilkilden — ikke resonnementet (lærdom 2026-07-15/16)
+
+Over to dager tok cowork **fjorten** feil. **Alle fjorten var i verktøyet, ingen i planen.** «Verifiser selv» er ikke nok — cowork *verifiserte*, og målingen var ødelagt. Fire ble fanget av Opusene som utførte ordren, én av Kenneth som leste terminal-output. Konkret hva som gikk galt:
+
+| Feilen | Hva den kostet |
+|---|---|
+| `grep -c "protectedProcedure"` **talte importlinja** | §11s egen belegg-tabell fikk et umålt tall (14 → 13) og hånet en korrekt doc. Målt **to ganger**, samme ødelagte kommando. |
+| Grep-mønster `^[+-][^+-]` **utelukket markdown-bullets** | Trodde en diff var tom |
+| Negativ påstand søkt i **3 av 72 filer** | Ropte «8 hjemløse»; 5 hadde hjem |
+| `git branch \| tr -d ' *'` — worktree-brancher har **`+`**-prefiks | «7 umergede» som ikke fantes |
+| `git status --porcelain` lister **kataloger**, ikke filer | `cmp` sammenlignet mapper |
+| `awk … ; git push` | **Gaten kunne ikke si nei.** Fyrte to ganger på coworks egen commit og pushet uansett |
+
+**Reglene som følger, og de er ufravikelige:**
+
+1. **En gjentatt dårlig måling er ikke verifisering.** Kjører du samme kommando to ganger og får samme svar, har du bekreftet kommandoen — ikke faktumet.
+2. **Kjør negativ kontroll.** Mat sjekken noe du *vet* skal fange, og noe du *vet* skal slippe gjennom. **Tom output kan bety at sjekken er død.** Cowork skrev denne regelen og gikk i fella samme kveld.
+3. **En gate er ikke en gate før den kan si nei.** `sjekk ; handling` er dekorasjon. Bruk `if sjekk; then STOPP; else handling; fi`.
+4. **Negative påstander krever kandidatmengde.** «Finnes ikke» er sant først når du har søkt der det kunne finnes — og sagt hvor du søkte.
+5. **Sjekk om et banner/en markør alt dekker det** før du kaller noe drift. Cowork kalte tre korrekt merkede filer for løgner.
+
+### 2c. Din ordre er ikke fasit heller
+
+Tre ganger på to dager fant en Opus et hull i coworks ordre ved å **måle premisset**: låse-gapet var 3 hooks (ikke 2), tellingen motsa registerets egen regel, og eierskaps-lista dekket ikke oppgaven som ble gitt. **Skriv inn i hver ordre at premisset skal måles** — [SAMARBEIDSREGLER § Ordre-anatomi](SAMARBEIDSREGLER.md) har malen med de fire virksomme linjene ordrett.
+
+**Les også:** [§ Opus-livssyklus](SAMARBEIDSREGLER.md) (fire faser — ingen økt åpnes uten rad i statustavla; ingen økt er død før raden er borte) · [§ Exit-runde](SAMARBEIDSREGLER.md) (fire spørsmål, ufravikelig — den fanget 🔴 4c og Norkart-nøkkelen som hadde ligget i fire måneder) · [dokumentasjons-standard § 9–11b](dokumentasjons-standard.md).
+
 ---
 
 ## 3. Beslutninger til Kenneth
@@ -80,6 +132,18 @@ Dokumentasjon skal speile faktisk tilstand. Konkret:
 - **STATUS.md vedlikeholdes** i samme commit ved status-endring / ny/slettet docs-fil (dato + tellinger + rad-markører). Lett å glemme — sjekk den eksplisitt.
 - **DEPLOYET TIL PROD → flytt til `historikk-YYYY-MM.md`** i samme commit. STATUS-AKTUELT holder maks aktivt arbeid (den er nå oppblåst — en slanking er en egen hygiene-runde og en reell session-reducer).
 - **Lukk BACKLOG-poster** som er levert; **fang nye funn** samme commit. Verifiser at det faktisk landet (grep) — Opus glemmer av og til én (STATUS.md, en BACKLOG-post).
+
+### 5b. «Jeg fører det etterpå» ER «docs senere» (lærdom 2026-07-16)
+
+Regelen over sto allerede. Cowork brøt den likevel, fordi **«jeg fører det når merge er inne» ikke ble lest som «docs senere»**. Det er det samme.
+
+**Hendelsen:** develop-Opus fant at append-only ikke håndheves server-side, og flagget det i stedet for å utvide scope selv. Cowork skrev: *«Jeg fører server-restansen i BACKLOG når merge er inne — den ville forsvunnet med økta hans.»* Så tok branch-ryddingen over. Målt en time senere: **0 treff i BACKLOG.** Funnet ville dødd med økta hans — nøyaktig det cowork lovet å hindre, i samme setning som lovnaden.
+
+**En BACKLOG-post er ALDRI avhengig av en merge.** Det finnes ingen grunn til å vente. Kan du føre den, før den nå.
+
+**Fabels ramme (2026-07-16), og den generaliserer §11b:** *«Jeg lovet å føre det» er en fravær-påstand om fremtiden* — X skal finnes, gjør det ikke ennå. En uført lovnad som bare finnes i samtalen er samme råte-klasse som Norkart-nøkkelen: kanalen finnes, ingen brukte den. **Chatten dør. Repoet gjør ikke.**
+
+**Mekanismen:** lovnader føres som rad **når de gis**, ikke når de innfris — i første påfølgende commit. Må noe genuint vente (f.eks. på et hash), før stubben nå med hva den venter på. Da blir «les egne lovnader tilbake» en **gate-sjekk** (finnes åpne rader?) i stedet for samvittighet — og samvittighet var det eneste som fanget den denne gangen.
 
 ---
 

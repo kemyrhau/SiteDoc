@@ -1,0 +1,201 @@
+---
+name: funn-fra-a3a-verifisering-2026-07-18
+status: 🟢 FUNN — mater neste plan (fabel folder inn i A-3b / spor C)
+sist_verifisert_mot_kode: 2026-07-18
+kilde: Kenneths skjermbilde-verifisering av A-3a på test
+---
+
+# Funn fra A-3a-verifisering (Kenneth, test, 2026-07-18)
+
+> A-3a verifisert grønn på test: primærhandling som knapp, ADMIN-seksjon kilde-drevet, «Avvis» korrekt plassert som eierløs handling. Disse tre funnene kom ut av testingen — de er **input til neste plan**, ikke A-3a-restanse. Planen utvikler seg; A-3a er nådd, dette er neste mål.
+
+## 1. Tooltip-forklaring på felttyper (→ spor C, MalBygger-UX)
+
+**Kenneths funn:** «overskrift» bærer en usynlig egenskap — den starter en kollaps-seksjon. Kenneth visste det ikke selv før han så det på test. Ønske: hover-forklaring (etter ~1 s) på hver felttype i paletten.
+
+**Målt — kollaps-oppførselen er korrekt og forklarbar:** `seksjoner.ts` `grupperMedOverskrift` — en **rot-overskrift** (`type === "heading" && !parentId`) starter en seksjon som løper **til neste rot-overskrift**. Nestet overskrift (i repeater) bryter ikke. Så egenskapen er «overskrift = kollaps-grense til neste overskrift».
+
+Hører i **spor C** ved siden av betingelse-flyt og kontrast. Ren visning/interaksjon, ingen datamodell-endring.
+
+## 2. «Venter på: X» oppdateres ikke etter videresend (→ A-3b)
+
+**Kenneths funn:** han sendte A.Markussen → Byggherre → A.Markussen om hverandre. Loggen viste alle stegene, men statusbadgen og «Venter på: X» rørte seg ikke. Som admin kunne han sende flere ganger uten å bli varslet om dokumentets faktiske tilstand.
+
+**Målt — delvis by-design:** `forwarded` er **ikke en status** (står ikke i `isValidStatusTransition`). Server-grenen (`sjekkliste.ts:781`) bytter **flyt/faggruppe/mottaker** — ikke status. Så dokumentet blir stående på samme status; kun *mottakeren* endres. Det er derfor statusbadgen ikke rørte seg.
+
+**Men mottaker-visningen SKAL da oppdateres**, og gjør det ikke: «Venter på: X» viste fast verdi mens mottaker faktisk endret seg (loggen beviste det). **Ikke en A-3a-regresjon** — A-3a gjorde bare videresending lettere å nå (1 klikk), så den avdekket at mottaker-badgen ikke refreshes etter `forwarded`.
+
+**Liten fiks:** invalidér spørringen etter videresend så «Venter på»/mottaker-badgen oppdateres. A-3b (mottaker-visning).
+
+## 3. Person-videresending — kollaps per faggruppe (→ A-3b, Kenneths idé)
+
+**Kenneths ønske:** videresende til en **person i en faggruppe**, ikke bare faggruppen som helhet. Foreslått form: kollapset meny per faggruppe som ekspanderer til personene.
+
+**Målt — datamodellen bærer det allerede, ingen schema-endring:**
+- `recipientUserId` finnes i schema ved siden av `recipientGroupId` — mottaker *kan* være en person i dag.
+- `VideresendValg.mottaker` har `userId` — API-veien er åpen.
+- `DokumentflytMedlem` kjenner personene per steg: `projectMemberId`, `faggruppeId`, `steg`, `hovedansvarligPersonId`. Menyen har allerede `flytMedlemmer` som prop → personene er tilgjengelige klient-side.
+
+**Form (Kenneths):**
+```
+Send ▾
+  ▸ A.Markussen AS          ← klikk = hele faggruppen (dagens oppførsel, uendret)
+     └ Kenneth Myrhaug       ← ekspander = velg person
+  ▸ Byggherre Boligfelt B12
+  ADMIN → Avvis
+```
+Bevarer det som virker (klikk på gruppe = send til gruppe), legger person-nivå oppå.
+
+**Selve den visuelle løsningen er fabels** (mockup → Kenneth-gate, som georef). Cowork bekrefter kun at fundamentet er der.
+
+**Henger sammen med funn 2:** bygger vi person-nivå uten mottaker-refresh, blir det verre — da sender du til en person og ser fortsatt ikke hvem som har ballen. **Ta funn 2 + 3 i samme sak.**
+
+---
+
+## Kenneth-beslutninger 2026-07-18 (etter strukturell test)
+
+| Funn | Vedtak |
+|---|---|
+| **1** «Venter på»/badge etter videresend | Statusbadgen endrer seg ikke (korrekt — `forwarded` er ikke status). **Gi feedback:** endre badge-utseende (farget → ufarget) som signal, og **vis hvem som fikk ballen** prominent. Best: hvem har ballen, ikke bare «Venter på»-tekst |
+| **2** «Send tilbake» → «Avvist» | **Badge «Til revisjon»** for denne bruken (godkjenner sender tilbake). For utfører som mottar: **«Under arbeid»/pågående** |
+| B1 admin sender gjentatte uten feedback | Løses av funn 1-fiksen |
+| B2 Send-nedtrekk blander videresend-mål + admin | **Enig — tydeligere skille** (f.eks. «Send videre til:» over faggruppene, «ADMIN» for overstyring) |
+| B3 overskrift = usynlig kollaps-egenskap | **Enig** — tooltip på felttyper (spor C) |
+| **3/C1** person-videresending | **Bekreftet form:** faggruppe vist kollapset → åpner viser medlemmer. Enig |
+| C2 kommentar-nudge kun ved Send tilbake/Avvis | **Enig** |
+
+## To NYE funn fra strukturell test (web-Opus, cowork-målt) — trenger Kenneth-beslutning
+
+### N1 — `sent` er en fantom-status (ubetinget auto-mottak)
+
+**Målt:** `sjekkliste.ts:923` — `const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus`. **Ubetinget.** Når *hvem som helst* sender, blir dokumentet `received` umiddelbart. Tidslinjen skriver «Sendt → Mottatt» som to rader, men dokumentets faktiske status hviler aldri på `sent`. Samme i `oppgave.ts:1107`.
+
+**Konsekvens — treffer Kenneths opprinnelige A-3a-funn:** «Trekk tilbake» ligger i matrisen på `sent` (`bestiller.sent = [cancelled]`). Men siden `sent` er uoppnåelig, er **«Trekk tilbake» aldri synlig** — og A-3as primærknapp-forbedring for `sent` vises aldri. Verre: i `received` har **avsender (bestiller) ingen handlinger** (received tilhører utforer). Så **avsender kan ikke trekke tilbake et sendt dokument** — det er `received` og eid av mottaker i samme øyeblikk.
+
+**Beslutning trengs:** (a) skal `sent` beholdes som hvilestatus (fjern auto-mottak, mottaker «åpner» eksplisitt)? eller (b) er auto-mottak riktig, og «Trekk tilbake» skal flyttes til `received` for avsender? Dette er statusmodell-arkitektur, ikke A-3a.
+
+### N1-VEDTAK (Kenneth 2026-07-18) — status er PERSPEKTIV-AVHENGIG, ikke global
+
+**Verken (a) eller (b). En tredje modell, og den er fundamentet for hele dokumentflyt:**
+
+> **Status er relativ til den som ser. Det finnes ikke ett fasit-svar per status — etiketten tilpasses dokumentets mening og betrakterens rolle.** «Sendt» gjelder KUN brukeren som sender, som en kvittering. Andre brukere får status som gir mening for dem.
+
+**Kenneths illustrasjon (gjelder alle steg, ikke bare send):**
+- Admin sender → admin ser momentant **«Sendt»** (kvittering på egen handling).
+- Mottaker ser **«Til behandling»** (eller tilsvarende), og dokumentet dukker opp i mottakers **«mine oppgaver»**.
+- Når admin *senere* ser status i sin oversikt → **«Til behandling»** (dokumentets sanne tilstand), IKKE «Sendt».
+
+**Målt — halve modellen er allerede bygget:**
+
+| Lag | I dag | Kenneths modell |
+|---|---|---|
+| Lagret tilstand | `sent → received` ubetinget (`sjekkliste.ts:923`, `oppgave.ts:1107`) | ✅ **Allerede mottaker-perspektiv** — dokumentet lagres som «hos mottaker» |
+| Badge | Global, én etikett for alle (`status-badge.tsx:40`) | ❌ skal være perspektiv-avhengig |
+| «Hvem har ballen»-data | `recipientUserId` + `beregnHarBallen` (bygget i natt) | ✅ grunnlaget finnes |
+| Perspektiv-visning | Finnes ikke for dokumentflyt | ❌ nytt |
+
+**Frø som alt finnes:** `status-badge.tsx:43` — *«sent + mottaker har lest → vis «Lest»»*. En kontekst-avhengig etikett; bare ikke *seer*-avhengig ennå. Mønsteret skal utvides til å være betrakter-relativt.
+
+**Det auto-mottak-koden så ut som en bug (fantom-`sent`) er FUNDAMENTET halvbygget:** den lagrede tilstanden er allerede mottaker-perspektiv. Det som mangler er visningslaget som gjør etiketten seer-avhengig, pluss «mine oppgaver»-listen filtrert på hvem som har ballen.
+
+**Binder sammen alt:** funn 1 («vis hvem som har ballen»), N2 («Venter på» virker men er ikke synlig), N1 (perspektiv-status) — **samme sak fra tre vinkler.** Dette er fabels ramme for dokumentflyt, ikke en enkeltfiks. Ikke en tabell cowork skriver — utarbeides per dokumenttype, tilpasset meningen (Kenneth: *«ikke et fasitsvar for alle statuser»*).
+
+### N2 — «Venter på»-treghet IKKE REPRODUSERT (ikke det samme som løst)
+
+**Målt (web-Opus, ren sekvens):** ved videresend A.Markussen → Byggherre → A.Markussen oppdaterte «Venter på»-teksten korrekt ved *begge* steg. Kenneths tidligere manuelle test (rask fram-og-tilbake) opplevde den som fast.
+
+**Status: IKKE REPRODUSERT — ikke løst** (§11e). To ekte observasjoner: web-Opus (ren, langsom sekvens) så oppdatering; Kenneth (rask klikking) så treghet. Mulig race under hurtig-klikking, eller Kenneth så på statusbadgen (som korrekt ikke endres). Vi kan ikke påstå den er fikset — kun at den ikke slo til i den strukturerte testen.
+
+**Uansett utfall er retningen den samme:** teksten er ikke prominent nok. **Bekrefter funn 1-vedtaket** — løsningen er å gjøre «hvem har ballen» synlig, ikke å jage en treghet vi ikke klarte å reprodusere.
+
+## N3 — dokumentflyt-synlighet: to medlemskapsakser, én konsultert (web-Opus Del E, cowork-målt 2026-07-18)
+
+**Observasjon (web-Opus):** `kmy` — Registrator i dokumentflyt «A.Markussen Ansatte» under faggruppe A.Markussen AS — ser **0 sjekklister** på Bygg B12, enda KB2-005 ble sendt/videresendt gjennom A.Markussen AS på samme bygg. Web-Opus gjettet «synlighet følger aktiv mottaker» — **markert ubekreftet.**
+
+**Cowork-målt — gjetningen er feil:** `byggTilgangsFilter` (`tilgangskontroll.ts`) bygger OR-filter på `bestillerFaggruppeId` / `utforerFaggruppeId` **i brukerens `ProjectMember.faggruppeKoblinger`** — faggruppe-medlemskap, ikke aktiv mottaker. (`recipientUserId in firmaUserIder` er én OR-gren, men keyet på firma, ikke individet.)
+
+**Det ekte funnet:** filteret konsulterer `ProjectMember.faggruppeKoblinger`. kmys rolle er via `DokumentflytMedlem` (registrator i flyt) — en **annen medlemskapsakse som filteret ikke sjekker.** En registrator i en dokumentflyt uten matchende `faggruppeKobling` ser null. **To medlemskapsbegreper, ett konsultert** — samme substrat-mønster som append-only/`DISPLAY_TYPER` (se 🔴-posten i BACKLOG).
+
+**BEKREFTET PÅ KODENIVÅ — ikke lenger bare mekanisme (cowork-målt 2026-07-18):** `addDokumentflytMedlem` (`dokumentflyt.ts:157`) oppretter **KUN** en `DokumentflytMedlem`-rad — **ingen `FaggruppeKobling`** ved siden av. Lese-siden (`byggTilgangsFilter`) leser `FaggruppeKobling` (binder `projectMemberId ↔ faggruppeId`). **De to aksene synkroniseres ikke.**
+
+**Kenneths kontekst (2026-07-18):** han registrerte kmy **direkte inn i dokumentflyten** og forutsatte at prosjektets kontaktside/tilgang oppdaterte automatisk. Den gjorde ikke. **Å legge noen i en dokumentflyt gjør dem IKKE synlige for flytens dokumenter** — skrive-siden fyller én akse, lese-siden leser den andre, ingen sync.
+
+**Eneste gjenstående DB-forbehold:** om kmy har en `FaggruppeKobling` fra en *annen* vei. Kenneths «la inn direkte i flyten + forutsatte auto-oppdatering» tilsier nei. Mekanismen (add-flyt skaper ikke kobling) er uansett bekreftet.
+
+**§11e — er dette defekt eller spec?** Bør flyt-medlemskap gi synlighet? Intuitivt ja (du er i flyten, du bør se flytens dokumenter). Men `dokumentflyt.md § 3` (tilgang) må konsulteres før fiks-retning velges: **(a)** `addDokumentflytMedlem` oppretter også `FaggruppeKobling` (sync ved skriving), eller **(b)** `byggTilgangsFilter` konsulterer også `DokumentflytMedlem` (sync ved lesing). Fabel/Kenneth avgjør; ikke A-3b.
+
+### N3 bekreftet på TRE fronter — samme rot (web-Opus Alt.1 + cowork-målt 2026-07-18)
+
+kmy er blind på tre måter, alle med samme rotårsak (**runtime leser `FaggruppeKobling`, config skriver `DokumentflytMedlem`**):
+
+1. **Lese:** 0 dokumenter (`byggTilgangsFilter` → `faggruppeKoblinger`).
+2. **Opprette:** blanket rød feil på KB2 OG SJA — *«Du er ikke medlem av noen faggruppe…»*. Målt: `sjekklister/page.tsx:316` `const oppretter = mineFaggrupper?.[0]` — leser `medlem.hentMineFaggrupper` (= `FaggruppeKobling`), ikke `DokumentflytMedlem`. Tom → `oppretter` undefined → feil. **Klartekst-motsigelse:** feilmeldingen sier «ikke medlem av noen faggruppe» om en bruker som står som **Registrator i flyten**.
+3. **Handle:** aldri nåbart (følger av 1).
+
+**Opprettelses-feilen er det beste beviset** (fabel): de to aksene motsier hverandre i klartekst i UI-en.
+
+### § 3-lesning (cowork, REGEL 0 — spec før valg)
+
+**§ 3 sier ikke eksplisitt hvilken akse styrer synlighet** — den handler om *rettigheter i et dokument du allerede ser* (Leser/Redigerer/Admin), ikke om *hvilke dokumenter som vises i lista*. `FaggruppeKobling` er **ikke nevnt** i § 3.
+
+**Men orienteringen er entydig:** § 3s access-entitet er **`DokumentflytMedlem`** — «flytmedlem», `kanRedigere`, roller. Specen organiserer tilgang rundt flyt-medlemskap. Koden bruker `FaggruppeKobling` for synlighet/opprettelse — en **udokumentert implementasjonsakse specen ikke omtaler.**
+
+**Konsekvens for valget:** orienteringen støtter **(b)** — runtime skal konsultere `DokumentflytMedlem`, det aligner koden med specens flyt-medlem-sentriske modell, og reparerer alle eksisterende flyt-medlemmer retroaktivt. **(a)** beholder `FaggruppeKobling` som styrende (som specen ikke støtter) OG dobbeltskriver samme sannhet i to tabeller — **det er N3 om igjen med motsatt fortegn.** Fabels innstilling (b) er spec-alignet. **Advarsel:** § 3 gir ikke svart-på-hvitt-svar på synlighet; (b) er en slutning fra orientering, ikke en paragraf. Kenneth bekrefter.
+
+**Prod-omfang (rute 1, cowork eier — men kan IKKE måles herfra):** antall `DokumentflytMedlem` uten tilsvarende `FaggruppeKobling` + berørte dokumenter krever DB-spørring på prod. Avgjør hastegrad. Kenneth kjører, eller relé til DB-økt.
+
+### N3 REFRAMET — skrivevei-kart (fabels §11e-korreksjon 2026-07-18): ikke to akser, en GRAF
+
+**Fabel stoppet (b) med rett spørsmål:** mål skrive-veiene, ikke bare radene. Kenneth: «`DokumentflytMedlem` uten `FaggruppeKobling` skal i praksis ikke være mulig.» Skriver én vei begge akser og config-skjermen ikke, er config-skjermen **bugget**, ikke modellen — da er fiksen (a), ikke (b).
+
+**Målt — alle skrive-veier:**
+
+| Oppretter `DokumentflytMedlem` | Oppretter `FaggruppeKobling` |
+|---|---|
+| `modul.ts:60/64` (HMS-flyt via `faggruppeId`) | `faggruppe.ts:70/129` |
+| `dokumentflyt.ts:157` (config-skjerm) | `prosjekt.ts:420` |
+| `prosjekt.ts:443/457` (via `faggruppeId`) | `seed.ts:111` |
+
+**Nøkkelfunn — de er IKKE to akser av samme medlemskap. De er tre kanter i en graf:**
+- `FaggruppeKobling` = **person ↔ faggruppe** (`projectMemberId` + `faggruppeId`)
+- `DokumentflytMedlem` (prosjekt/modul) = **faggruppe ↔ flyt-rolle** (`faggruppeId`, ingen person)
+- `addDokumentflytMedlem`-skjemaet tar **`faggruppeId` ELLER `projectMemberId` ELLER `groupId`** — kan binde flyt-rolle til en **person direkte**, som hopper over faggruppe-noden.
+
+**Leseren (`byggTilgangsFilter` + `mineFaggrupper`) traverserer kun Person → Faggruppe → Flyt.** En person lagt *direkte* i flyten (`projectMemberId`), eller bundet via en faggruppe personen ikke har `FaggruppeKobling` til, er en **bypass-kant leseren ikke ser.** Det er kmy.
+
+**Det ekte valget er ikke (a) vs (b) — det er:** *skal direkte person-i-flyt (`projectMemberId` på `DokumentflytMedlem`) være en gyldig tilgangsvei?*
+- **JA** → leseren MÅ også traversere `DokumentflytMedlem.projectMemberId` → (b)-variant.
+- **NEI, alle skal i flyt via faggruppen sin** → config-skjermen skal ikke tillate bar person / faggruppe-du-ikke-er-i → fiks skrive-veien → (a)-variant.
+
+**Én DB-måling avgjør (kan ikke leses herfra):** kmys faktiske `DokumentflytMedlem`-rad — er `projectMemberId`, `faggruppeId` eller `groupId` satt? Det sier hvilken bypass-kant Kenneth faktisk lagde, og dermed hvilken fiks som treffer. **Prod-spørringen utvides (fabel):** per foreldreløs rad — hvilken vei skapte den (`createdAt`/felt-mønster), så Kenneth får «for hvilke tilfeller» med belegg.
+
+**Fabels (b)-innstilling på vent til skrivevei-kartet + DB-raden foreligger.** §11e i renform: kmy kan være en bugget skrivevei (bypass-kant) ELLER en manglende lese-regel — motsatt fiks. Mål før valg.
+
+### N3 AVGJORT — (b), data-bekreftet (DB-måling 2026-07-18, Kenneth kjørte)
+
+**DB-fasit, flyt «A.Markussen Ansatte» (test):** 6 medlemmer, **ingen** med `faggruppe_id` satt. 2 bundet via `group_id`, 4 via `project_member_id` (person). kmy er en person-rad (registrator, `project_member_id` satt, `faggruppe_id` + `group_id` NULL).
+
+**Det avgjør valget:** person-direkte binding er ikke et uhell — hele flyten er bygget på person/gruppe-bindinger, null faggruppe-bindinger. Direkte person-i-flyt er en **aktivt brukt, gyldig tilgangsvei.** Derfor:
+- **(a) «forby bar person»** ville brutt den eksisterende modellen. Utelukket.
+- **(a) «synk til FaggruppeKobling»** gir ikke mening — medlemmet ER en person, ingen faggruppe å koble til.
+- **(b) leseren må konsultere `DokumentflytMedlem` (person + gruppe), ikke bare `FaggruppeKobling`.** ✅ Fabels innstilling, nå data-bekreftet. Skrivevei-omveien bekreftet den i stedet for å velte den.
+
+**Prod-omfang (DB-måling 2026-07-18):** 4 person-direkte flyt-medlemmer uten `FaggruppeKobling` (mai 2026 — godkjenner ×1, registrator ×3). **Ekte prod-brukere, ikke test-anomali.**
+
+**⚠️ «Blind» er øvre grense:** prod-spørringen sjekket ikke `groupMemberships`-veien i `byggTilgangsFilter` (person i en gruppe med faggrupper kan reddes). Eksakt blind-tall krever forfinet spørring: person-direkte flyt-medlem SOM verken har `FaggruppeKobling` ELLER `groupMembership` mot en gruppe med matchende faggruppe. Cowork skriver den ved behov.
+
+**Konsekvens for A-3b Del 1d («mine oppgaver»):** blokkeringen står — (b) må bygges (leseren konsulterer `DokumentflytMedlem`) FØR «mine oppgaver» kan filtrere på hvem som har ballen. **N3-fiksen (b) er nå en egen ordre, forutsetning for A-3b Del 1d.**
+
+## N4 / BESLUTNING — byggeplass er filter, ikke scope (Kenneth 2026-07-18)
+
+**Kenneth-vedtak:** byggeplass skal IKKE være hardt scope for **sjekklister, HMS, oppgaver**. Disse skilles kun på **prosjekt**. Byggeplass degraderes til et valgfritt **søkefilter** (på linje med andre filtre), ikke en toppbar-velger som avgrenser hva du ser. **Bakgrunn:** det finnes ingen «vis alle byggeplasser» i dag, så toppbar-velgeren skjuler data uten vei tilbake.
+
+**⚠️ MOTSIER gjeldende CLAUDE.md § Toppbar-filtre-standard** (cowork-flagg): den lister eksplisitt `bilder, hms, kontrollplan, oppgaver/sjekklister, tegninger, …` som sider der byggeplass-velgeren er **aktiv avgrensning** (`useToppbarFiltre` default aktiv). Vedtaket reverserer dette for sjekklister/HMS/oppgaver. **Kode + doc-endring:** `useToppbarFiltre`-oppsettet på de tre sidene + CLAUDE.md-standarden må reconciles. Egen sak — ikke A-3b, ikke Del E.
+
+## Del E — delvis blokkert av N3
+
+`kmy` (registrator) ser ingen dokumenter → E1/E2 kan ikke treffes på eksisterende dokumenter. **Fabel-vedtak 2026-07-18:** web-Opus kjører **Alt. 1** (kmy oppretter + sender eget dokument, fanger egen rollefiltrert meny med begrunnelser) — gir utfører-perspektivet uten koordinering. **E2 (godkjenner-siden) venter til N3-synlighetssaken er avklart** — blokkeres av samme regel.
+
+## Del E (opprinnelig) — krever ikke-admin-bruker
+
+Rollefiltrering (deaktiverte handlinger med begrunnelse) kunne ikke observeres — kun admin innlogget, som ser alt. På `closed` var handlingsraden helt tom (ingen deaktiverte knapper med tooltip, bare fravær). **Åpent:** logg inn som utfører/godkjenner for å verifisere «Kun administrator»/«Kun godkjenner»-begrunnelsene A-3a bygde.

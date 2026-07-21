@@ -31,14 +31,14 @@ Fire eksportpunkter: `types`, `validation`, `utils`, `i18n`
 
 ### i18n (`packages/shared/src/i18n/`)
 
-- 15 språkfiler, 2 328 nøkler hver. `en.json` er **master** (`generate.ts` oversetter fra engelsk for bedre presisjon på fagtermer). `nb.json` brukes for nøkkelrekkefølge.
+- 15 språkfiler, like mange nøkler hver (tell `nb.json` ved behov). `en.json` er **master** (`generate.ts` oversetter fra engelsk for bedre presisjon på fagtermer). `nb.json` brukes for nøkkelrekkefølge.
 - `index.ts` — `STOETTEDE_SPRAAK` (15 språk med flagg: nb, en, sv, lt, pl, uk, ro, et, fi, cs, de, ru, lv, fr, sq), `SpraakKode` type, `STANDARD_SPRAAK = "nb"`
 - `generate.ts` — CLI-script for auto-oversettelse via Google Translate (`google-translate-api-x`)
 
 #### Arbeidsflyt for ny i18n-nøkkel
 
 1. Legg til nøkkel i **både** `nb.json` og `en.json`. `en.json` er master — generate.ts oversetter fra engelsk, så engelsk fagterm må være presis.
-2. Kjør auto-oversetting: `pnpm --filter @sitedoc/shared exec tsx src/i18n/generate.ts` (default = kun manglende nøkler. `--force` regenererer alle).
+2. Kjør auto-oversetting fra `packages/shared/`: `pnpm dlx tsx src/i18n/generate.ts` (`tsx` er ikke en dependency i shared — `pnpm --filter @sitedoc/shared exec tsx …` feiler med «Command tsx not found»; `dlx` henter den ad hoc). Default = kun manglende nøkler. `--force` regenererer alle.
 3. Verifiser at alle 15 språkfiler har samme antall nøkler etterpå.
 4. Stikkprøve-QA på fagtermer for noen utvalgte språk (de/fr/sv/pl typisk) — Google Translate kan ta feil i kontekst. Kjente quirks logget i [BACKLOG.md § i18n](BACKLOG.md): fransk «pause» kan bli oversatt til «saut» (hopp), klønete kildetekst gir klønete oversettelser på alle språk.
 5. Mobil + web henter automatisk fra `@sitedoc/shared` ved neste build — ingen separat distribusjon.

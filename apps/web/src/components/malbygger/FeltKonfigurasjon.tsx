@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { REPORT_OBJECT_TYPE_META, type ReportObjectType } from "@sitedoc/shared";
+import { REPORT_OBJECT_TYPE_META, type ReportObjectType, normaliserGrense } from "@sitedoc/shared";
 import { Input, Button, Badge } from "@sitedoc/ui";
 import { useTranslation } from "react-i18next";
 import type { MalObjekt } from "./DraggbartFelt";
@@ -53,6 +53,21 @@ export function FeltKonfigurasjon({
   function handleLagre() {
     onLagre({ label, required: påkrevd, config });
   }
+
+  // Skriv norsk kanonisk grense-nøkkel, fjern engelsk alias (unit/max/decimals)
+  // så eldre data ikke etterlater to konkurrerende nøkler. Tom → fjern nøkkel.
+  function settGrenseTall(norskKey: string, engelskAlias: string | null, raa: string) {
+    const neste = { ...config };
+    delete neste[norskKey];
+    if (engelskAlias) delete neste[engelskAlias];
+    if (raa.trim() !== "") {
+      const n = parseFloat(raa);
+      if (Number.isFinite(n)) neste[norskKey] = n;
+    }
+    setConfig(neste);
+  }
+
+  const grense = normaliserGrense(config);
 
   const harEndringer =
     label !== objekt.label ||
@@ -142,19 +157,82 @@ export function FeltKonfigurasjon({
             <Input
               label={t("malbygger.enhet")}
               placeholder={t("malbygger.enhetPlaceholder")}
-              value={(config.unit as string) ?? ""}
-              onChange={(e) => setConfig({ ...config, unit: e.target.value })}
+              value={grense.enhet}
+              onChange={(e) => {
+                const neste = { ...config };
+                delete neste.unit;
+                if (e.target.value) neste.enhet = e.target.value;
+                else delete neste.enhet;
+                setConfig(neste);
+              }}
             />
+            <div className="grid grid-cols-2 gap-2">
+              <Input
+                label={t("malbygger.minVerdi")}
+                type="number"
+                placeholder={t("malbygger.grensePlaceholder")}
+                value={grense.min ?? ""}
+                onChange={(e) => settGrenseTall("min", null, e.target.value)}
+              />
+              <Input
+                label={t("malbygger.maksVerdi")}
+                type="number"
+                placeholder={t("malbygger.grensePlaceholder")}
+                value={grense.maks ?? ""}
+                onChange={(e) => settGrenseTall("maks", "max", e.target.value)}
+              />
+            </div>
+            {objekt.type === "decimal" && (
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  label={t("malbygger.toleranse")}
+                  type="number"
+                  placeholder={t("malbygger.grensePlaceholder")}
+                  value={grense.toleranse ?? ""}
+                  onChange={(e) => settGrenseTall("toleranse", null, e.target.value)}
+                />
+                <Input
+                  label={t("malbygger.desimaler")}
+                  type="number"
+                  min={0}
+                  max={6}
+                  value={grense.desimaler ?? ""}
+                  onChange={(e) => settGrenseTall("desimaler", "decimals", e.target.value)}
+                />
+              </div>
+            )}
+            <p className="text-[10px] text-gray-400">{t("malbygger.grenseHjelp")}</p>
           </div>
         )}
 
         {(objekt.type === "person" || objekt.type === "persons" || objekt.type === "company") && (
-          <Input
-            label={t("malbygger.rolle")}
-            placeholder={t("malbygger.rollePlaceholder")}
-            value={(config.role as string) ?? ""}
-            onChange={(e) => setConfig({ ...config, role: e.target.value })}
-          />
+          <div className="flex flex-col gap-2">
+            <Input
+              label={t("malbygger.rolle")}
+              placeholder={t("malbygger.rollePlaceholder")}
+              value={(config.role as string) ?? ""}
+              onChange={(e) => setConfig({ ...config, role: e.target.value })}
+            />
+            {objekt.type === "persons" && (
+              <Input
+                label={t("malbygger.maksAntallPersoner")}
+                type="number"
+                min={1}
+                placeholder={t("malbygger.ubegrensetPlaceholder")}
+                value={(config.max as number) ?? ""}
+                onChange={(e) => {
+                  const neste = { ...config };
+                  const n = parseInt(e.target.value, 10);
+                  if (e.target.value.trim() !== "" && Number.isFinite(n) && n > 0) {
+                    neste.max = n;
+                  } else {
+                    delete neste.max;
+                  }
+                  setConfig(neste);
+                }}
+              />
+            )}
+          </div>
         )}
 
         {objekt.type === "attachments" && (

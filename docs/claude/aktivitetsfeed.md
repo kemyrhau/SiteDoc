@@ -45,7 +45,7 @@ Hendelsestekst (f.eks. «Lukket sjekkliste «Daglig sjekk maskin 308»»)
 
 ## Datamodell — bruk eksisterende `Activity`-tabell
 
-`Activity`-tabellen finnes allerede i prod (opprettet i Fase 0 § E.1, commit `13a746a7`). **Ingen produsent-kode finnes ennå** — tabellen er et tomt skjelett klart til bruk.
+`Activity`-tabellen finnes allerede i prod (opprettet i Fase 0 § E.1, commit `13a746a7`). **Produsent-kode finnes** — 7 `activity.create()`-kall i `apps/api/src/routes/` (`timer/dagsseddel.ts`, `vareforbruk.ts`, `vareImport.ts`) skriver til tabellen (verifisert 2026-07-16 mot develop `d1c6b4c9`). ❌ Feed-KONSUMENTEN — dashboard-feed som leser `Activity` — er ikke bygget ennå; det er feed-UI-et denne planen dekker.
 
 **Schema-felter** (allerede dekkende for feed-formålet):
 

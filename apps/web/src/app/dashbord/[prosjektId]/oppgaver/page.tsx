@@ -110,7 +110,6 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "opprettetAv", navn: "Opprettet av", navnKey: "tabell.opprettetAv", gruppe: "kolonner" },
   { id: "bestillerFaggruppe", navn: "Bestiller-faggruppe", navnKey: "tabell.bestillerFaggruppe", gruppe: "kolonner" },
   { id: "utforerFaggruppe", navn: "Utfører-faggruppe", navnKey: "tabell.utforerFaggruppe", gruppe: "kolonner" },
-  { id: "dokumentflyt", navn: "Dokumentflyt", navnKey: "tabell.dokumentflyt", gruppe: "kolonner" },
   { id: "mal", navn: "Mal", navnKey: "tabell.mal", gruppe: "kolonner" },
   { id: "opprettet", navn: "Opprettelsesdato", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navn: "Endringsdato", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
@@ -300,6 +299,8 @@ export default function OppgaverSide() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const statusFilter = searchParams.get("status");
+  const prioritetFilter = searchParams.get("prioritet");
+  const sok = (searchParams.get("sok") ?? "").trim().toLowerCase();
   const utils = trpc.useUtils();
   const [visModal, setVisModal] = useState(false);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
@@ -326,6 +327,9 @@ export default function OppgaverSide() {
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: params.prosjektId },
   );
+  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery(
+    { projectId: params.prosjektId },
+  );
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
   );
@@ -339,7 +343,7 @@ export default function OppgaverSide() {
     },
     onError: (err) => {
       setVisModal(false);
-      alert(`Feil ved opprettelse: ${err.message}`);
+      alert(t("felles.feilOpprettelse", { melding: err.message }));
     },
   });
 
@@ -362,34 +366,53 @@ export default function OppgaverSide() {
     if (malMedDomain?.domain === "hms") {
       opprettMutation.mutate({
         templateId: malId,
-        title: malMedDomain.name ?? "HMS-avvik",
+        title: malMedDomain.name ?? t("oppgaver.hmsAvvikFallback"),
         priority: "medium",
       });
       return;
     }
 
     const oppretter = mineFaggrupper?.[0];
-    if (!oppretter) return;
 
     const alleDf = (dokumentflyter ?? []) as Array<{
       id: string;
+      faggruppeId: string | null;
       medlemmer: Array<{ faggruppe?: { id: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
       maler: Array<{ template: { id: string } }>;
     }>;
     const matchDf = alleDf.find((df) =>
       df.maler.some((m) => m.template.id === malId) &&
       df.medlemmer.some((m) =>
-        m.rolle === "oppretter" && (m.faggruppe?.id === oppretter.id || m.group || m.projectMember),
+        m.rolle === "oppretter" && (m.faggruppe?.id === oppretter?.id || m.group || m.projectMember),
       ),
     );
+
+    // Bestiller-faggruppe: egen faggruppe, ellers eier-faggruppen (Dokumentflyt.faggruppeId)
+    // til flyten brukeren er medlem av (person-/gruppe-direkte medlem uten egen faggruppe).
+    let bestillerId = oppretter?.id;
+    const mineFlytIder = new Set(mineFlyter ?? []);
+    const minFlyt = alleDf.find((df) => df.maler.some((m) => m.template.id === malId) && mineFlytIder.has(df.id));
+    if (!bestillerId) {
+      bestillerId = minFlyt?.faggruppeId ?? undefined;
+    }
+    if (!bestillerId) {
+      // G3 (2026-07-19): skill de to årsakene (flyt m/ malen men uten eier-faggruppe
+      // vs. ingen flyt med malen). Ingen rettighetsutvidelse — kun feilmelding-skillet.
+      alert(
+        minFlyt
+          ? t("dokumentflyt.feil.flytManglerFaggruppe")
+          : t("dokumentflyt.feil.ingenFlytMedMal"),
+      );
+      return;
+    }
     const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
-    const svarerFaggruppeId = svarer?.faggruppe?.id ?? oppretter.id;
+    const svarerFaggruppeId = svarer?.faggruppe?.id ?? bestillerId;
 
     opprettMutation.mutate({
       templateId: malId,
-      bestillerFaggruppeId: oppretter.id,
+      bestillerFaggruppeId: bestillerId,
       utforerFaggruppeId: svarerFaggruppeId,
-      title: malMedDomain?.name ?? "Ny oppgave",
+      title: malMedDomain?.name ?? t("oppgaver.nyOppgaveFallback"),
       priority: "medium",
       dokumentflytId: matchDf?.id,
     });
@@ -505,6 +528,19 @@ export default function OppgaverSide() {
     } else if (statusFilter) {
       resultat = resultat.filter((o) => o.status === statusFilter);
     }
+    if (prioritetFilter) {
+      resultat = resultat.filter((o) => o.priority === prioritetFilter);
+    }
+    if (sok) {
+      resultat = resultat.filter((o) => {
+        const lopenummer = `${o.template?.prefix ?? ""}${o.number != null ? String(o.number).padStart(3, "0") : ""}`.toLowerCase();
+        return (
+          o.title.toLowerCase().includes(sok) ||
+          lopenummer.includes(sok) ||
+          (o.number != null && String(o.number).includes(sok))
+        );
+      });
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       const valgteSet = new Set(verdi.split(","));
@@ -542,7 +578,7 @@ export default function OppgaverSide() {
       });
     }
     return resultat;
-  }, [oppgaver, statusFilter, filterVerdier]);
+  }, [oppgaver, statusFilter, prioritetFilter, sok, filterVerdier]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
@@ -648,10 +684,6 @@ export default function OppgaverSide() {
           : <span className="text-gray-300">—</span>,
         sorterbar: true, sorterVerdi: (rad) => rad.template?.name ?? "",
         filtrerbar: true, filterAlternativer: dynamiskFilter.mal ?? [],
-      },
-      dokumentflyt: {
-        id: "dokumentflyt", header: t("tabell.dokumentflyt"),
-        celle: () => <span className="text-gray-300">—</span>,
       },
       opprettet: {
         id: "opprettet", header: t("tabell.opprettelsesdato"),

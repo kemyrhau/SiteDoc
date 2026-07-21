@@ -1,0 +1,13 @@
+F3 punkt 2 — persistens-isolasjon (bundle 6d50e72a, 2026-07-14)
+================================================================
+Metode: valgte Meistervik som rad-override, pollet sheet_timer_local.byggeplass_id
+tett rett etterpå (0.4s intervall).
+
+poll 1 [17:54:10]: 5949ef6d-be86-483c-8f77-381641282a7b  <-- MEISTERVIK SATT (klient-skriving OK)
+poll 2 [17:54:11]: <tom>   <-- nullstilt av sync
+poll 3-12        : <tom>
+
+KONKLUSJON: Klient-skrivingen persisterer byggeplass_id korrekt på RADEN (poll 1).
+Innen ~1s clobber-er sync-pull mot develop-api (test-api, uten F3-datalag 5be70d9a)
+kolonnen tilbake til tom. => IKKE klient-bug. Samme backend-confound som punkt 6.
+Krever fix-branch-api for at F3-skrivinger skal overleve.

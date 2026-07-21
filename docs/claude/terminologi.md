@@ -102,8 +102,8 @@ Flyttet hit fra CLAUDE.md 2026-07-10 (anker-prinsippet — modul-typologi bor i 
 
 ## 2. Prosjekt og struktur
 
-- **Aktivitet (Activity):** Sentral audit-tabell for alle handlinger som påvirker timer, kostnad eller dokumentflyt-status. **Status: vedtatt, ikke bygget** (Fase 0 A.3)
-- **Avdeling:** Firma-intern organisatorisk inndeling — kobles til User, EquipmentAnsvarlig og DailySheet. Distinkt dimensjon fra Byggeplass. **Status: vedtatt, ikke bygget** (Fase 0.5)
+- **Aktivitet (Activity):** Sentral audit-tabell for alle handlinger som påvirker timer, kostnad eller dokumentflyt-status. **Status: bygget** — `model Activity` i `schema.prisma`, produsent-kode: 7 `activity.create()`-kall i `apps/api/src/routes/` (`timer/dagsseddel.ts` ×3, `vareforbruk.ts` ×3, `vareImport.ts` ×1). Feed-konsument (dashboard-feed) gjenstår — se [aktivitetsfeed.md](aktivitetsfeed.md). (Fase 0 A.3)
+- **Avdeling:** Firma-intern organisatorisk inndeling — kobles til User, EquipmentAnsvarlig og DailySheet. Distinkt dimensjon fra Byggeplass. **Status: bygget** — `model Avdeling` i `schema.prisma`, egen `apps/api/src/routes/avdeling.ts` + UI `dashbord/firma/avdelinger/`. (Fase 0.5)
 - **Byggeplass:** Lokasjon/anlegg i prosjektet. DB: `Byggeplass` (renamet fra `Building`/`Bygning`). Har `number`, `type` (deprecated, default `"bygg"`), `status`
 - **Eksternt prosjektnummer:** Kundens/byggeherrens referanse på prosjektet
 - **Firmalogo:** Prosjektets logo i print-header (`Project.logo_url`)
@@ -112,7 +112,7 @@ Flyttet hit fra CLAUDE.md 2026-07-10 (anker-prinsippet — modul-typologi bor i 
 - **Prosjektgruppe:** Kategori + tillatelser + fagområder + valgfri faggruppe-tilknytning. DB: `ProjectGroup`
 - **Prosjektlokasjon:** Valgfri GPS (`Project.latitude`/`longitude`) for kartvisning og værhenting
 - **Prosjektnummer:** Format `SD-YYYYMMDD-XXXX` (autogenerert)
-- **Underprosjekt:** UI-term for ekstern kostnadsbærer-referanse innenfor et prosjekt — typisk endringsmelding, regningsarbeid eller delkontrakt fra ProAdm. DB-modell: `ExternalCostObject` (presist navn). Samme mønster som `proAdmId` (UI-vennlig) vs UUID (FK). **Status: vedtatt, ikke bygget** (Fase 0 A.1)
+- **Underprosjekt:** UI-term for ekstern kostnadsbærer-referanse innenfor et prosjekt — typisk endringsmelding, regningsarbeid eller delkontrakt fra ProAdm. DB-modell: `ExternalCostObject` (presist navn). Samme mønster som `proAdmId` (UI-vennlig) vs UUID (FK). **Status: bygget** — `model ExternalCostObject` i `schema.prisma`, `apps/api/src/routes/eksternKostObjekt.ts` + brukt i timer-attestering (`vareforbruk.ts`, `timer/dagsseddel.ts`, `components/timer/`). (Fase 0 A.1)
 
 ## 3. Roller
 
@@ -121,14 +121,16 @@ Flyttet hit fra CLAUDE.md 2026-07-10 (anker-prinsippet — modul-typologi bor i 
 - **Flerforetagsbruker:** Bruker som tilhører flere faggrupper i samme prosjekt via `FaggruppeKobling(projectMemberId, faggruppeId)`
 - **Godkjenner:** Dokumentflyt-rolle som tar endelig beslutning på et dokument. Brukes f.eks. for byggherre-godkjenning av endringsmelding
 - **Registrator:** Dokumentflyt-rolle som først registrerer hendelsen (typisk på vegne av andre). Beholder admin-rettigheter på dokumentet selv etter videresending
-- **UE (Underentreprenør):** Innleid arbeidskraft fra annet firma. Kan ha `ProjectMember.role = "underentreprenor"` for å skille tilgang fra ordinære medlemmer (ser kun egne timer + tildelte prosjekter, ikke katalog-priser). **Rolle-utvidelse: vedtatt, ikke bygget** (Fase 0 A.9)
+- **UE (Underentreprenør):** Innleid arbeidskraft fra annet firma — ser kun egne timer + tildelte prosjekter, ikke katalog-priser. (Fase 0 A.9)
+  - **UE er IKKE en `ProjectMember.role`-verdi.** A.9 vedtok at status **utledes deterministisk** via `erUnderentreprenor()`; `role` forblir `"admin" | "member"`. Kilde: kommentaren på `ProjectMember.role` i `schema.prisma` + migreringen `20260501000010_member_periode_slutt`.
+  - ❌ **Utlederen er ikke bygget** — `erUnderentreprenor()` finnes kun som spesifikasjon i [fase-0-beslutninger.md](fase-0-beslutninger.md) § A.9/B.5; ingen forekomst i `apps/` eller `packages/` (verifisert 2026-07-16 mot develop `eab9bb85`). Signatur + kallsteder: samme §.
 - **Utfører (responder):** Faggruppen som mottar og besvarer en sjekkliste/oppgave (renamet fra «Svarer»)
 
 ## 4. Brukere
 
-- **canLogin:** `User.canLogin Boolean default true`. False = data-mottaker uten innloggings-tilgang (eldre arbeidere uten smarttelefon, registreres av andre). NextAuth signIn-callback sjekker `canLogin === true`. **Status: vedtatt, ikke bygget** (Fase 0 A.10)
+- **canLogin:** `User.canLogin Boolean default true`. False = data-mottaker uten innloggings-tilgang (eldre arbeidere uten smarttelefon, registreres av andre). NextAuth signIn-callback sjekker `canLogin === true`. **Status: bygget** — `User.canLogin` i `schema.prisma`, håndhevet i `apps/web/src/auth.ts` (getUserByEmail-overstyring filtrerer `canLogin: true`) + `admin.ts`/`gruppe.ts`. (Fase 0 A.10)
 - **HMS-kort:** Obligatorisk identitetskort for alle som jobber på bygge- og anleggsplasser i Norge. Utstedes av Arbeidstilsynet. Kortnummer registreres ved PSI-gjennomføring (`PsiSignatur.hmsKortNr`). «Har ikke HMS-kort»-avkrysning for gjester/besøkende
-- **HMS-kort utløpsdato:** `User.hmsKortUtloper date?` — utløpsdato fra HMS-kortet. Tverrgående varsling 90/30/7 dager før utløp. Lovgrunnlag: byggherreforskriften § 15. Utløpt kort blokkerer ikke innlogging — kun varsling. **Status: vedtatt, ikke bygget** (Fase 0 A.11)
+- **HMS-kort utløpsdato:** `User.hmsKortUtloper date?` — utløpsdato fra HMS-kortet. Tverrgående varsling 90/30/7 dager før utløp. Lovgrunnlag: byggherreforskriften § 15. Utløpt kort blokkerer ikke innlogging — kun varsling. **Feltet er bygget** (`User.hmsKortUtloper` i `schema.prisma`, lest i `apps/api/src/routes/medlem.ts`). ❌ Tverrgående varsling 90/30/7 dager før utløp er ikke bygget — ingen varslings-produsent i `apps/` (verifisert 2026-07-16 mot develop `d1c6b4c9`). (Fase 0 A.11)
 - **Invitasjon:** E-post med token (7 dagers utløp), status `pending`/`accepted`/`expired`. DB: `ProjectInvitation`
 
 ## 5. Dokumenter og maler
@@ -165,7 +167,7 @@ Flyttet hit fra CLAUDE.md 2026-07-10 (anker-prinsippet — modul-typologi bor i 
 ## 7. Status og handlinger
 
 - **Attestering:** Arbeider får lønn for registrert tid. Hører til **Timer-modulen** — mobil-UI, lønnseksport. Felter: `attestertAvUserId`, `attestertVed`, `attestertSnapshot`. **Aldri bland med Godkjenning.** (Fase 0 A.8 — ufravikelig terminologi)
-- **Godkjenning:** Entreprenør får byggherre til å godta kostnad. Hører til **Dokumentflyt-modulen** — utvidet dokumenttype med `bestillerFaggruppeId`/`utforerFaggruppeId`/`status`/`dokumentflytId`. **Status: modell vedtatt, ikke bygget** (Fase 0 A.2 og A.8)
+- **Godkjenning:** Entreprenør får byggherre til å godta kostnad. Hører til **Dokumentflyt-modulen** — utvidet dokumenttype med `bestillerFaggruppeId`/`utforerFaggruppeId`/`status`/`dokumentflytId`. **Status:** modellen finnes (`Godkjenning` + `bestillerFaggruppeId`/`utforerFaggruppeId`/`dokumentflytId` i `schema.prisma`). ❌ UI/API ikke bygget — ingen `apps/api/src/routes/godkjenning.ts`, kun redirect-stub (verifisert 2026-05-28, jf. [fase-0-beslutninger.md](fase-0-beslutninger.md) A.2/A.8; bekreftet 2026-07-16 mot develop `d1c6b4c9`). (Fase 0 A.2 og A.8)
 - **Statusovergang:** Validert via `isValidStatusTransition()` i `@sitedoc/shared`. Sekvens: `draft → sent → received → in_progress → responded → approved | rejected → closed`. `cancelled` er irreversibel terminal status
 
 ## 8. PSI og opplæring

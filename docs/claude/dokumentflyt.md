@@ -102,6 +102,32 @@ Dokumenter kan refereres som vedlegg på tvers (f.eks. en ferdig Teknisk avklari
 
 ## 3. Rettigheter
 
+### Synlighetsaksen (N3, 2026-07-18)
+
+**Å være medlem av en dokumentflyt gir synlighet til flytens dokumenter** — uavhengig av bindingsform. `DokumentflytMedlem` binder et medlem på én av tre måter: `faggruppe_id`, `group_id` eller `project_member_id` (person-direkte). Alle tre er gyldige tilgangsveier.
+
+- **Server:** `byggTilgangsFilter` (`apps/api/src/trpc/tilgangskontroll.ts`) legger til `{ dokumentflytId: { in: <flyter brukeren er medlem av> } }` via `hentBrukersFlytMedlemskap` (alle tre bindinger, kun aktive medlemskap `periodeSlutt = null`). Tidligere fanget filteret kun faggruppe-/gruppe-veiene → person-direkte medlemmer (`project_member_id`) så ingenting. Fire lesere: `oppgave.ts` · `sjekkliste.ts` · `hms.ts` · `bilde.ts` (nested på checklist/task).
+- **Detalj + øvrige lese-stier (del 2, 2026-07-19):** `verifiserDokumentTilgang` (samme fil) har en flyt-gren aktivert av trailing-parameteren `tillatFlytMedlemskap` (default `false`). **Kun de seks lese-stiene sender `true`:** `sjekkliste.hentMedId`/`hentTilgjengeligeFlyter` · `oppgave.hentMedId`/`hentKommentarer`/`hentForSjekkliste`/`hentTilgjengeligeFlyter`. Uten dette så et person-direkte medlem dokumentet i lista, men fikk «ikke funnet» på detalj.
+  - **F1-A (HMS-personvern):** grenen fyrer **ikke** for private HMS-dok (`domain="hms" && hmsSynlighet !== "apen"`). Flyt-medlemskap overstyrer ikke HMS-synlighet. Se [hms-synlighet-regel.md](delplaner/hms-synlighet-regel.md) for planlagt regel + betingelsens forward-avhengighet.
+- **Skrive (mutasjoner) — IKKE åpnet:** de 11 mutasjons-guardene kaller `verifiserDokumentTilgang` **uten** flagget og beholder streng faggruppe/gruppe-gate. Et person-direkte flyt-medlem kan derfor **lese, men ikke endre**. Egen sak: «G1-mutere» (krever flytrolle-håndheving per mutasjon først).
+- **Opprett:** de fire opprett-flatene (sjekklister/oppgaver/tegninger/`OpprettOppgaveModal`) utleder bestiller/utfører-faggruppe fra `tRPC medlem.hentMineFlyter`; person-/gruppe-direkte medlem uten egen faggruppe bruker flytens eier-faggruppe (`Dokumentflyt.faggruppeId`) som fallback. Server-siden: `verifiserFaggruppeTilhorighet` godtar flyt-medlemskap som alternativ til `FaggruppeKobling` når faggruppen er eier-faggruppe i en flyt brukeren er medlem av. Feilmeldingene skiller de to årsakene: `dokumentflyt.feil.ingenFlytMedMal` (ingen av dine flyter har malen) vs. `dokumentflyt.feil.flytManglerFaggruppe` (flyten mangler eier-faggruppe). **`dokumentflytId` bindes ved send, ikke ved opprett** (uendret).
+  - ⚠️ **Konsekvens (verifisert 2026-07-19):** et dokument opprettet av et person-direkte medlem får ingen `dokumentflytId` før det sendes → det vises **ikke i lista** (matcher ingen filter-gren), men **åpnes via direkte URL** (bestiller-grenen i `verifiserDokumentTilgang`). Åpen sak.
+
+Flyt-medlemskap gir i dag **synlighet (lese) + opprett + mutasjoner på lik linje med faggruppe-medlemskap** (sak 1, paritetsvedtak 2026-07-19) — ikke admin, ikke redigering utover § 2. Status-vaktene styrer fortsatt *når*, og `verifiserFlytRolle` styrer *hvilken statusovergang*.
+
+### Beslutningslaget (spor 2, 2026-07-20)
+
+Dokument-tilgang avgjøres nå av en **ren funksjon**, adskilt fra datahentingen:
+
+- **`avgjorDokumentTilgang(fakta) → { tillat, grunn }`** (`packages/shared/src/utils/avgjorDokumentTilgang.ts`) — all beslutningslogikk, ingen avhengigheter, ingen Prisma.
+- **`verifiserDokumentTilgang`** (`apps/api/src/trpc/tilgangskontroll.ts`) beholder alle Prisma-oppslag, bygger `TilgangsFakta` og kaller den rene funksjonen.
+
+**Grenene i fast rekkefølge:** admin → ikke-medlem → prosjektadmin → firmaansvarlig → bestiller/mottaker → faggruppe-direkte → gruppe-domain → HMS-åpen → flyt-medlemskap → avvis.
+
+**Håndhevet av `packages/shared/src/utils/tilgangsmatrise.test.ts`** — tabelldrevet matrise (bindingstype × status × dokument-attributter → forventet utfall), kjørt mot både en **frossen referanse** (dagens oppførsel, endres aldri) og produksjonsfunksjonen. Divergens = test-feil. **Nye tilgangsregler legges til som RADER i matrisen, ikke som nye testfiler.**
+
+**Prinsipp ved ytelsespress (fabel 2026-07-20):** blir oppslagene dyre, er riktig fiks **caching bak samme kilde** — ikke å gjeninnføre kortslutninger som duplisererer beslutningslogikk inn i datalaget. Duplikatet gir feil avvisning den dagen lagene glir fra hverandre.
+
 ### Rettighetsbasert UI
 
 | | Leser | Redigerer | Admin/Registrator |
@@ -148,7 +174,9 @@ Kun én mottaker → send direkte uten dropdown.
 ```
 
 **Admin-seksjon i dropdown:**
-Registrator/admin ser alltid en egen seksjon med alle flytbokser og manuelle statusendringer.
+Registrator/admin ser alltid en egen seksjon med flytbokser og manuelle statusendringer. **Manuelle statusendringer er innenfor statusmaskinen** — ikke frie hopp. (A-3a 2026-07-17: web-menyen `DokumentHandlingsmeny.tsx` utleder handlingssettet fra `statusHandlinger.ts` (`hentRolleFiltrertHandlinger` + `ADMIN_NY`-splitt), samme kilde som mobil. De tidligere frie hoppene — `approved`/`closed`/`cancelled`/`draft` fra enhver status — som serveren avviste, er fjernet.)
+
+**«Hva sier den når nei»** (A-3a): handlinger som finnes i statusen men ikke er tilgjengelige for brukerens rolle vises **deaktivert med begrunnelse** utledet fra kilden («Kun avsender/utfører/godkjenner», «Kun administrator», «Dokumentet er lukket», «Ugyldig fra denne statusen») — ikke skjult, ikke feilende mot `BAD_REQUEST`. Primærhandlingen (`StatusHandling.erPrimaer`) rendres som knapp; resten i nedtrekk. Bekreftelse kreves kun for irreversible overganger (`closed`/`deleted`); alt annet er 1 klikk (`DocumentTransfer` logger uansett). Kommentar er en valgfri utvider.
 
 **Implementert: kanRedigere per flytledd**
 - `DokumentflytMedlem.kanRedigere` (boolean, default `true`) styrer om et flytmedlem kan redigere dokumenter
@@ -212,7 +240,9 @@ Flytmal-strukturen må støtte per-ledd-konfigurasjon fra start for alle dokumen
 
 ### Status-overgangstabell
 
-Validert via `isValidStatusTransition()` i `packages/shared/src/utils/index.ts`. Server (tRPC) og klient (knapp-visning) bruker samme funksjon — hold synkronisert.
+Validert via `isValidStatusTransition()` i `packages/shared/src/utils/index.ts`. Server (tRPC) og klient (knapp-visning) bruker samme funksjon — hold synkronisert. **A-3a 2026-07-17: web-menyen validerer nå mot tabellen** (utleder fra `hentRolleFiltrertHandlinger`, deaktiverer det statusmaskinen avviser) — tidligere fant den opp egne overganger.
+
+**A-i 2026-07-17 (`rejected`-desync lukket):** `ROLLE_HANDLINGER.utforer.rejected` og `hentStatusHandlinger("rejected")` ga tidligere `rejected → responded`, som er **ulovlig** i tabellen under (→ server-`BAD_REQUEST`). Rettet til `rejected → in_progress` (i18n `statushandling.gjenoppta` = «Gjenoppta»). Veien er nå `rejected → in_progress → responded`, i tråd med tabellen. Merk: `in_progress` har to lovlige innganger — `received → in_progress` og `rejected → in_progress` — og førstnevnte tilbys fortsatt ikke i UI (åpent exit-funn, ikke bygget i A-3a).
 
 | Fra | Lovlige overganger til |
 |---|---|
@@ -267,18 +297,9 @@ Sentrale modell-felter som styrer flyt-mekanikken. Full feltliste i [arkitektur.
 
 ### `Dokumentflyt.roller` — JSONB-konfigurerbare labels
 
-Per dokumentflyt kan rolle-labels overstyres for prosjekt-spesifikk terminologi. Standard-rollene er fortsatt `registrator` / `bestiller` / `utforer` / `godkjenner`, men UI viser kunde-spesifikke labels:
+Per dokumentflyt kan rolle-labels overstyres for prosjekt-spesifikk terminologi. Standard-rollene er `registrator` / `bestiller` / `utforer` / `godkjenner`, men UI viser kunde-spesifikke labels.
 
-```json
-{
-  "registrator": { "label": "RUH-melder" },
-  "bestiller":   { "label": "Byggherre" },
-  "utforer":     { "label": "HMS-koordinator" },
-  "godkjenner":  { "label": "BHF-leder" }
-}
-```
-
-Alle fire rolle-noklene er valgfrie. Manglende nøkler bruker default-rolle-navnet.
+Feltet er et **array** av rolle-objekter (`{ rolle, label? }`) — ikke et objekt nøklet på rolle-navn. Se `schema.prisma:1192` (typen) og bruken i `dokumentflyt.ts:120`. Hver rolle er valgfri; mangler `label`, brukes default-rolle-navnet.
 
 ### `DokumentflytMedlem` — flytsteg-medlemskap
 

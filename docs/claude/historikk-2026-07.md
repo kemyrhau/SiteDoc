@@ -8,7 +8,27 @@ sist_verifisert_mot_kode: 2026-07-04
 
 Arkiv av arbeid deployet til prod i juli 2026. Flyttet hit fra [STATUS-AKTUELT.md](STATUS-AKTUELT.md) per arkiveringsplikten (deployet arbeid ligger aldri igjen i STATUS-AKTUELT).
 
-## Prod-deploy 2026-07-15 (prod-merge `43299d03` + EAS #40) — timer F2/F3/F5 (byggeplass per rad + matpause-bærer) + finnbarhets-revisjon
+## Prod-deploy 2026-07-15, runde 3 (prod-merge `387d10a2`) — georeferanse-panel v2 + Kartverket-adressesøk
+
+Develop→main-merge `387d10a2` (7 commits). **Ingen migreringer.** Api + web rebuilt (sekvensielt), alle containere Up etter deploy. **Innlogget prod-verifisert:** panelet (ett kart · chips · kollapsede rader m/ ✓+koordinat · sticky footer), `storgata`-søk → treffliste + «Adressedata © Kartverket» i **begge** flater (georef-editor + geofence-modal), timer-attestering laster (api sunn etter rebuild).
+
+- **Georef-panel v2** (`e91f10c4`) — omskrevet `GeoReferanseEditor.tsx`: ett felles kart (delt markørfabrikk + smart startsenter), punktvelger-chips (aktivt punkt nullstilles etter hvert kartklikk — bevisst avvik fra mockup, hindrer utilsiktet flytting; Kenneth-godkjent), kollapsede rader m/ ✓+koordinat-bekreftelse, koordinatsystem-velger flyttet inn i «Lim inn», lås-steg fjernet, `kanLagre` strammet (pixel+gps+ikke-identiske), sticky footer. Ny prop `byggeplassId`+`startSenter` fra `byggeplasser/page.tsx`.
+- **G2-funn 1: adressesøk Nominatim → Kartverket/Geonorge** — ny `sokAdresser()` (`rute-service.ts`, `fuzzy=true`, keyless, inntil 5 treff). `bygning.geokod` returnerer nå `AdresseTreff[]`. **Brytende retur-type, men verifisert web-only** (0 treff på `geokod` i `apps/mobile`) → EAS #40-klientene i TestFlight er urørt. `geokodAdresse` (single, Nominatim) beholdt urørt for oppmøtested/matrise → **to geokodere sameksisterer bevisst**; scope ikke utvidet.
+- **i18n** (`a2a8d5c7`) — 39 `georef.*`-nøkler + Kartverket-attribusjon → 13 språk (40 av 2909).
+- **Docs i samme runde:** K13-rapporten peker nå til verifiseringsloggen (statuskilde-regel, `992a45eb`); BACKLOG § egen byggekontekst for test; `lokal-dev.md` § dumpen tar ikke med filer.
+
+**Fabel-designgodkjent** (hovedordre + tillegg A) — status eies av `verifisering/georef-panel-verifiseringslogg.md` (designprosjektet), ikke duplisert her.
+
+## Prod-deploy 2026-07-15, runde 2 (prod-merge `e5859440`) — sidebar aktiv-seksjon + delt OppsettSidemeny + geofence-indikator (LIVE)
+
+Develop→main-merge `e5859440` (13 commits). **Ingen migreringer, ingen api-endring** → kun `sitedoc-web` rebuilt; api urørt. Alle containere Up. **Innlogget prod-verifisert:** dashboard + prosjekter laster, PSI/Kontrollplan lyser riktig, geofence-pinner i byggeplasser-kolonnen (blå/grå stemmer), timer-attestering laster.
+
+- **`b5aaa27d` sidebar aktiv-seksjon (LIVE)** — PSI/Kontrollplan lyste falskt «Dashbord» (manglet i `seksjonMap`, pre-eksisterende fra `b8d960547`) + «Dashbord kun på rot» gjort eksplisitt. Ikke flagg-gated — forbedrer bevisst begge flagg-tilstander. Rotårsaks-oppfølger (utled `Seksjon` fra sidebar-element-id-er i stedet for parallelt map) i BACKLOG.
+- **`54bef0b5` delt `OppsettSidemeny`** — native sidemeny trukket ut av `oppsett/layout.tsx` → gjenbrukt av BÅDE oppsett-undersidene og innstillinger-huben. Cowork-gatet **byte-identisk** mot gammel layout (kun skall-flytt, null logikk-drift); `InnstillingerNav` slettet. Flagg-gated på huben, byte-identisk flagg-av.
+- **`f1a5318d` per-rad geofence-indikator (LIVE)** — MapPin-kolonne i begge byggeplasser-tabeller, blå fylt = geofence satt / grå omriss = ikke. Klikk → eksisterende modal med radens data (`apneGeofence(byggeplass)`-refaktor); verktøylinje-knappen fjernet. **Ikke flagg-gated** — `byggeplasser/page.tsx` rendres uten `nyNavigasjon`-gate. Cowork-gate: `harGeofence` krever alle tre feltene (`latitude && longitude && radiusM`) → halvsatt geofence viser grå.
+- **PSI-geofence-HÅNDHEVING parkert** (Kenneth-vedtak) → grunnlagsdok `psi-geofence-handhevning-utredning.md` for kommende innstillings-sesjon.
+
+## Prod-deploy 2026-07-15, runde 1 (prod-merge `43299d03` + EAS #40) — timer F2/F3/F5 (byggeplass per rad + matpause-bærer) + finnbarhets-revisjon
 
 Develop→main-merge `43299d03` (25 commits foran prod). **Server (api+web) LIVE; `db-timer`-migrering `20260714120000_sheet_timer_pause_min` applied på prod-DB `sitedoc` (prod-gate `/sitedoc` bekreftet, ingen ABORT); alle 9 containere Up etter deploy.** Mobil-delene når enheter via **EAS #40** (build `15a47804`, commit `43299d03` = main-innhold, TestFlight 15.07). Backup før deploy: `sitedoc-preF5-20260715-0016.dump`. Sekvensielt bygg (api → web separat) — unngikk OOM-kaskaden fra 11.07.
 

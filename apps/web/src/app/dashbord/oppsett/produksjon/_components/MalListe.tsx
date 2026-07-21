@@ -208,6 +208,13 @@ export function MalListe({
     },
   });
 
+  const kopierMutation = trpc.mal.kopier.useMutation({
+    onSuccess: (nyMal: { id: string }) => {
+      utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId! });
+      setValgtId(nyMal.id);
+    },
+  });
+
   function handlePrefiksEndring(verdi: string) {
     setPrefiks(verdi);
     setPrefiksFeil(null);
@@ -370,12 +377,27 @@ export function MalListe({
             </button>
           }
         >
-          <DropdownItem disabled>{t("maler.kopierMal")}</DropdownItem>
+          <DropdownItem
+            disabled={!harValg || kopierMutation.isPending}
+            onClick={() => valgtId && kopierMutation.mutate({ id: valgtId })}
+          >
+            {t("maler.kopierMal")}
+          </DropdownItem>
           <DropdownItem disabled>{t("handling.eksporter")}</DropdownItem>
         </Dropdown>
 
-        {/* Søk */}
+        {/* Søk + kryss-lenke til prosjekt-arbeidsflaten */}
         <div className="ml-auto flex items-center gap-2">
+          {prosjektId && (
+            <button
+              type="button"
+              onClick={() => router.push(`/dashbord/${prosjektId}/maler`)}
+              className="inline-flex items-center gap-1 text-xs text-sitedoc-primary hover:underline"
+            >
+              <Library className="h-3.5 w-3.5" />
+              {t("maler.brukIProsjekt")}
+            </button>
+          )}
           <SearchInput
             verdi={sok}
             onChange={setSok}

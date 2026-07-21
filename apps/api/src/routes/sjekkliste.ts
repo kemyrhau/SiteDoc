@@ -575,7 +575,7 @@ export const sjekklisteRouter = router({
           recipientGroupId: true,
           bestillerFaggruppeId: true,
           utforerFaggruppeId: true,
-          template: { select: { domain: true, projectId: true } },
+          template: { select: { domain: true, projectId: true, hmsSynlighet: true } },
         },
       });
 
@@ -589,6 +589,7 @@ export const sjekklisteRouter = router({
         sjekkliste.template.domain,
         input.id,
         "checklist",
+        sjekkliste.template.hmsSynlighet,
       );
 
       const tilgang = await hentBrukerProsjektTilgang(ctx.userId, projectId);

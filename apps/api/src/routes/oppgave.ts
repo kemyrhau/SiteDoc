@@ -283,6 +283,7 @@ export const oppgaveRouter = router({
         undefined,
         sjekkliste.id,
         "checklist",
+        undefined,
       );
 
       return ctx.prisma.task.findMany({
@@ -768,7 +769,7 @@ export const oppgaveRouter = router({
           bestillerFaggruppeId: true,
           utforerFaggruppeId: true,
           bestillerFaggruppe: { select: { projectId: true } },
-          template: { select: { domain: true, projectId: true } },
+          template: { select: { domain: true, projectId: true, hmsSynlighet: true } },
         },
       });
 
@@ -782,6 +783,7 @@ export const oppgaveRouter = router({
         oppgave.template?.domain,
         input.id,
         "task",
+        oppgave.template?.hmsSynlighet,
       );
 
       const tilgang = await hentBrukerProsjektTilgang(ctx.userId, projectId);
