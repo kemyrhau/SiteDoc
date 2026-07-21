@@ -55,7 +55,7 @@ Deler rolle-vokabular. `—` = perspektivet finnes ikke i statusen.
 
 | Lagret status | A · Avsender/venter | B · Mottaker/Utfører | C · Godkjenner | D · Registrator |
 |---|---|---|---|---|
-| `draft` | — | **Kladd** · default | — | **Kladd** · default |
+| `draft` | — | **Utkast** · default | — | **Utkast** · default |
 | `received` *(sent→received)* | **Til behandling** · primary | **Til behandling** · warning | — | **Mottatt** · primary |
 | `in_progress` | **Under arbeid** · primary | **Under arbeid** · warning | — | **Pågår** · primary |
 | `responded` | **Besvart – til godkjenning** · primary | — | **Til godkjenning** · warning | **Besvart** · primary |
@@ -84,7 +84,7 @@ Perspektivene omdøpes: Avsender = **Innsender**, Mottaker + Godkjenner = **HMS-
 
 | Lagret status | Innsender | HMS-gruppe | Registrator |
 |---|---|---|---|
-| `draft` | **Kladd** · default | — | **Kladd** · default |
+| `draft` | **Utkast** · default | — | **Utkast** · default |
 | `received` | **Til behandling hos HMS** · primary | **Til behandling** · warning | **Mottatt** · primary |
 | `in_progress` | **Under behandling** · primary | **Under behandling** · warning | **Pågår** · primary |
 | `approved` *(auto-retur)* | **Godkjent – returnert** · success | **Godkjent** · success | **Godkjent** · success |
@@ -104,7 +104,7 @@ Momentan kvittering rett etter egen handling (toast/optimistisk badge), erstatte
 | Godkjenn | **Godkjent ✓** | success | Godkjent |
 | Send tilbake / Avvis | **Sendt tilbake ✓** | warning | Til revisjon |
 | Videresend | **Videresendt ✓** | primary | Til behandling hos [ny mottaker] |
-| Trekk tilbake *(pkt 7 — FLAGGET, bygges ikke uten Kenneth-vedtak)* | **Trukket tilbake ✓** | default | Kladd |
+| Trekk tilbake *(pkt 7 — FLAGGET, bygges ikke uten Kenneth-vedtak)* | **Trukket tilbake ✓** | default | Utkast |
 
 ## 7. Åpne designspørsmål til fabel
 
