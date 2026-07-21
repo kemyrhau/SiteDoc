@@ -1,14 +1,14 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Send, Printer, Pencil } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
-import { utledMinRolle, beregnHarBallen, perspektivEtikett } from "@sitedoc/shared";
+import { utledMinRolle, beregnHarBallen, perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
@@ -291,10 +291,26 @@ export default function OppgaveDetaljSide() {
   );
 
   const [statusFeil, setStatusFeil] = useState<string | null>(null);
+  // Kvitterings-øyeblikket (A-3b Del 1b): momentan bekreftelse etter egen handling,
+  // vist optimistisk i badgen og erstattet av sann perspektiv-tilstand når den ryddes.
+  // Klient-only — ALDRI lagret tilstand. Nøklet på HANDLING (tekstNoekkel, ikke
+  // nyStatus — nyStatus er ikke injektiv over handlinger, se kvitteringEtikett).
+  // handlingRef fanger tekstNoekkel ved klikk, siden mutate-input-typen (Zod-schema)
+  // ikke bærer den — å legge den til der ville gitt en TS excess-property-feil.
+  const [kvittering, setKvittering] = useState<ReturnType<typeof kvitteringEtikett>>(null);
+  const kvitteringTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const handlingRef = useRef<string | undefined>(undefined);
+  useEffect(() => () => clearTimeout(kvitteringTimer.current), []);
 
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
       setStatusFeil(null);
+      const k = handlingRef.current ? kvitteringEtikett(handlingRef.current) : null;
+      if (k) {
+        setKvittering(k);
+        clearTimeout(kvitteringTimer.current);
+        kvitteringTimer.current = setTimeout(() => setKvittering(null), 2200);
+      }
       utils.oppgave.hentForProsjekt.invalidate();
       utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
     },
@@ -444,7 +460,7 @@ export default function OppgaveDetaljSide() {
             <StatusBadge
               status={oppgave.status}
               lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
-              perspektiv={perspektivEtikett(oppgave.status, { rolle: minRolle ?? null, harBallen }, "oppgave")}
+              perspektiv={kvittering ?? perspektivEtikett(oppgave.status, { rolle: minRolle ?? null, harBallen }, "oppgave")}
             />
             {(() => {
               const recipientGroup = (fullOppgaveRå as { recipientGroup?: { id: string; name: string } | null })?.recipientGroup;
@@ -498,7 +514,8 @@ export default function OppgaveDetaljSide() {
           <DokumentHandlingsmeny
             status={oppgave.status}
             erLaster={endreStatusMutasjon.isPending}
-            onEndreStatus={(nyStatus, kommentar, mottaker) => {
+            onEndreStatus={(nyStatus, handlingNoekkel, kommentar, mottaker) => {
+              handlingRef.current = handlingNoekkel;
               endreStatusMutasjon.mutate({
                 id: params.oppgaveId,
                 nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",

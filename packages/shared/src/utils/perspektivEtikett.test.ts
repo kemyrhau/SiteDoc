@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   perspektivEtikett,
   utledPerspektiv,
+  kvitteringEtikett,
   type PerspektivDokumentType,
   type PerspektivSeerKontekst,
   type BadgeVariant,
@@ -135,6 +136,44 @@ describe("perspektivEtikett — oppgave og godkjenning deler base-matrisen", () 
     const annen = perspektivEtikett("received", aktiv, type);
     expect(annen.etikettKey).toBe(sjekk.etikettKey);
     expect(annen.variant).toBe(sjekk.variant);
+  });
+});
+
+describe("kvitteringEtikett — nøklet på HANDLING, én rad per tekstNoekkel (Del 1b)", () => {
+  // Alle distinkte tekstNoekkel i statusHandlinger.ts som går via onEndreStatus
+  // (handling.slett går via onSlett → ingen kvittering).
+  const rader: Array<[string, string, BadgeVariant]> = [
+    ["handling.send", "kvittering.sendt", "primary"],
+    ["statushandling.besvar", "kvittering.besvart", "primary"],
+    ["handling.godkjenn", "kvittering.godkjent", "success"],
+    ["statushandling.sendTilbake", "kvittering.sendtTilbake", "warning"],
+    ["statushandling.sendTilbakeUtforer", "kvittering.sendtTilbake", "warning"],
+    ["statushandling.videresend", "kvittering.videresendt", "primary"],
+    ["handling.avvis", "kvittering.avvist", "danger"],
+    ["statushandling.trekkTilbake", "kvittering.trukketTilbake", "default"],
+    ["statushandling.gjenoppta", "kvittering.gjenopptatt", "primary"],
+    ["statushandling.gjenapne", "kvittering.gjenapnet", "primary"],
+    ["handling.lukk", "kvittering.lukket", "success"],
+  ];
+  it.each(rader)("%s → %s / %s", (handling, etikettKey, variant) => {
+    expect(kvitteringEtikett(handling)).toEqual({ etikettKey, variant });
+  });
+
+  // Kollisjonene som var mulige ved status-nøkling — nå umulige:
+  it("«Send» og «Send tilbake» (begge nyStatus=sent) gir ULIK kvittering", () => {
+    expect(kvitteringEtikett("handling.send")?.etikettKey).toBe("kvittering.sendt");
+    expect(kvitteringEtikett("statushandling.sendTilbake")?.etikettKey).toBe("kvittering.sendtTilbake");
+    expect(kvitteringEtikett("handling.send")).not.toEqual(kvitteringEtikett("statushandling.sendTilbake"));
+  });
+  it("«Avvis» og «Trekk tilbake» (begge nyStatus=cancelled) gir ULIK kvittering", () => {
+    expect(kvitteringEtikett("handling.avvis")?.etikettKey).toBe("kvittering.avvist");
+    expect(kvitteringEtikett("statushandling.trekkTilbake")?.etikettKey).toBe("kvittering.trukketTilbake");
+    expect(kvitteringEtikett("handling.avvis")).not.toEqual(kvitteringEtikett("statushandling.trekkTilbake"));
+  });
+
+  it("handling.slett (→ onSlett) og ukjent handling → null", () => {
+    expect(kvitteringEtikett("handling.slett")).toBeNull();
+    expect(kvitteringEtikett("noe_annet")).toBeNull();
   });
 });
 

@@ -67,7 +67,7 @@ export {
 export type { Grense, GrenseStatus } from "./grenseSjekk";
 export { grupperMedOverskrift } from "./seksjoner";
 export type { Seksjon } from "./seksjoner";
-export { perspektivEtikett, utledPerspektiv } from "./perspektivEtikett";
+export { perspektivEtikett, utledPerspektiv, kvitteringEtikett } from "./perspektivEtikett";
 export type {
   BadgeVariant,
   Perspektiv,

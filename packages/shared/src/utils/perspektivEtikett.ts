@@ -160,3 +160,38 @@ export function perspektivEtikett(
   const løst = celle ?? REGISTRATOR[status] ?? { etikettKey: status, variant: "default" as BadgeVariant };
   return { etikettKey: løst.etikettKey, variant: løst.variant, perspektiv };
 }
+
+/**
+ * Kvitterings-øyeblikket (Del 1b): momentan bekreftelse rett etter egen handling,
+ * nøklet på HANDLINGEN (`StatusHandling.tekstNoekkel`), ikke på `nyStatus`.
+ * Vises optimistisk i badgen og erstattes av dokumentets sanne perspektiv-tilstand
+ * ved neste visning. **Klient-only, ALDRI lagret tilstand.** Kilde:
+ * a3b-perspektiv-tabell.md § 6 + statusHandlinger.ts.
+ *
+ * HVORFOR handling og ikke status: `nyStatus` er ikke injektiv over handlinger —
+ * `handling.send` og `statushandling.sendTilbake` gir begge `sent`, `handling.avvis`
+ * og `statushandling.trekkTilbake` gir begge `cancelled`. Nøkling på status ga «Sendt ✓»
+ * på en «Send tilbake»-handling. Statusen er utfallet; handlingen er det brukeren gjorde.
+ *
+ * Én rad per distinkt `tekstNoekkel` i statusHandlinger.ts. `handling.slett` er utelatt
+ * (går via `onSlett`, ikke `onEndreStatus`). Returnerer `null` for ukjent handling.
+ */
+const KVITTERING: Record<string, Celle> = {
+  "handling.send": { etikettKey: "kvittering.sendt", variant: "primary" },
+  "statushandling.besvar": { etikettKey: "kvittering.besvart", variant: "primary" },
+  "handling.godkjenn": { etikettKey: "kvittering.godkjent", variant: "success" },
+  // To distinkte «send tilbake»-handlinger (in_progress→sent og responded→rejected)
+  // — samme kvittering er korrekt, begge ER en tilbakesending.
+  "statushandling.sendTilbake": { etikettKey: "kvittering.sendtTilbake", variant: "warning" },
+  "statushandling.sendTilbakeUtforer": { etikettKey: "kvittering.sendtTilbake", variant: "warning" },
+  "statushandling.videresend": { etikettKey: "kvittering.videresendt", variant: "primary" },
+  "handling.avvis": { etikettKey: "kvittering.avvist", variant: "danger" },
+  "statushandling.trekkTilbake": { etikettKey: "kvittering.trukketTilbake", variant: "default" },
+  "statushandling.gjenoppta": { etikettKey: "kvittering.gjenopptatt", variant: "primary" },
+  "statushandling.gjenapne": { etikettKey: "kvittering.gjenapnet", variant: "primary" },
+  "handling.lukk": { etikettKey: "kvittering.lukket", variant: "success" },
+};
+
+export function kvitteringEtikett(handlingNoekkel: string): { etikettKey: string; variant: BadgeVariant } | null {
+  return KVITTERING[handlingNoekkel] ?? null;
+}

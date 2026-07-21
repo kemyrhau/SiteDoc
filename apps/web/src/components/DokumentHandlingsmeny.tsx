@@ -45,7 +45,14 @@ interface Mottaker {
 interface DokumentHandlingsmenyProps {
   status: string;
   erLaster: boolean;
-  onEndreStatus: (nyStatus: string, kommentar?: string, mottaker?: Mottaker) => void;
+  /**
+   * `handlingNoekkel` (StatusHandling.tekstNoekkel) er PÅKREVD, ikke valgfri (A-3b,
+   * cowork-vedtak: valgfri = glemmelig, og glemmes den forsvinner kvitteringen
+   * stille — samme feilmodus som `tillatFlytMedlemskap` i sak 1, unngått med
+   * kompileringsfeil i stedet). `nyStatus` er utfallet; handlingen er hva
+   * brukeren gjorde — de to er ikke det samme (send/sendTilbake gir begge "sent").
+   */
+  onEndreStatus: (nyStatus: string, handlingNoekkel: string, kommentar?: string, mottaker?: Mottaker) => void;
   onSlett?: () => void;
   alleFaggrupper?: FaggruppeData[];
   dokumentflyter?: DokumentflytData[];
@@ -152,6 +159,8 @@ interface MenyOppforing {
   key: string;
   label: string;
   nyStatus: string;
+  /** Handlingens kilde-nøkkel (StatusHandling.tekstNoekkel) — sendes til onEndreStatus. */
+  tekstNoekkel: string;
   mottaker?: Mottaker;
   plassering: Plassering;
   begrunnelse?: string;
@@ -194,7 +203,7 @@ export function DokumentHandlingsmeny({
 }: DokumentHandlingsmenyProps) {
   const { t } = useTranslation();
   const [åpenMeny, setÅpenMeny] = useState(false);
-  const [bekreft, setBekreft] = useState<{ nyStatus: string; mottaker?: Mottaker; label: string } | null>(null);
+  const [bekreft, setBekreft] = useState<{ nyStatus: string; tekstNoekkel: string; mottaker?: Mottaker; label: string } | null>(null);
   const [visKommentar, setVisKommentar] = useState(false);
   const [kommentar, setKommentar] = useState("");
   const menyRef = useRef<HTMLDivElement>(null);
@@ -263,22 +272,24 @@ export function DokumentHandlingsmeny({
   const primærHandling = aktive.find((h) => h.erPrimaer) ?? null;
 
   // Recipient-oppføringer (draft-send eller videresend) fra videresendValg
-  const recipientOppforinger = (nyStatus: string, prefix: string): MenyOppforing[] =>
+  const recipientOppforinger = (nyStatus: string, prefix: string, tekstNoekkel: string): MenyOppforing[] =>
     videresendValg.map((v) => ({
       key: `${prefix}-${v.key}`,
       label: v.visningsnavn,
       nyStatus,
+      tekstNoekkel,
       mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined,
       plassering: "send" as const,
     }));
 
   // Send-seksjon: draft → send til faggruppe; ellers → videresend (forwarded)
   const draftSend = status === "draft" && primærHandling?.nyStatus === "sent";
-  const harForwarded = aktive.some((h) => h.nyStatus === "forwarded");
+  const forwardedHandling = aktive.find((h) => h.nyStatus === "forwarded");
+  const harForwarded = forwardedHandling != null;
   const sendOppforinger: MenyOppforing[] = draftSend
-    ? recipientOppforinger("sent", "send")
+    ? recipientOppforinger("sent", "send", primærHandling!.tekstNoekkel)
     : harForwarded
-      ? recipientOppforinger("forwarded", "fwd")
+      ? recipientOppforinger("forwarded", "fwd", forwardedHandling.tekstNoekkel)
       : [];
 
   // Sekundær-knapper: aktive (minus primær), ikke forwarded, ikke admin-status
@@ -288,6 +299,7 @@ export function DokumentHandlingsmeny({
       key: `sek-${h.nyStatus}`,
       label: t(h.tekstNoekkel),
       nyStatus: h.nyStatus,
+      tekstNoekkel: h.tekstNoekkel,
       plassering: "sekundær" as const,
       erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "rejected",
     }));
@@ -299,6 +311,7 @@ export function DokumentHandlingsmeny({
       key: `adm-${h.nyStatus}`,
       label: t(h.tekstNoekkel),
       nyStatus: h.nyStatus,
+      tekstNoekkel: h.tekstNoekkel,
       plassering: "overflow" as const,
       erDestruktiv: h.nyStatus === "cancelled",
     }));
@@ -311,6 +324,7 @@ export function DokumentHandlingsmeny({
       key: `deakt-${h.nyStatus}`,
       label: t(h.tekstNoekkel),
       nyStatus: h.nyStatus,
+      tekstNoekkel: h.tekstNoekkel,
       plassering: "deaktivert" as const,
       begrunnelse: begrunnelseFor(h),
     }));
@@ -324,11 +338,11 @@ export function DokumentHandlingsmeny({
 
   const trengerBekreft = (nyStatus: string) => nyStatus === "closed" || nyStatus === "deleted";
 
-  const utfor = (nyStatus: string, mottaker?: Mottaker) => {
+  const utfor = (nyStatus: string, tekstNoekkel: string, mottaker?: Mottaker) => {
     if (nyStatus === "deleted") {
       onSlett?.();
     } else {
-      onEndreStatus(nyStatus, kommentar.trim() || undefined, mottaker);
+      onEndreStatus(nyStatus, tekstNoekkel, kommentar.trim() || undefined, mottaker);
     }
     setBekreft(null);
     setKommentar("");
@@ -336,13 +350,13 @@ export function DokumentHandlingsmeny({
     setÅpenMeny(false);
   };
 
-  const klikk = (o: { nyStatus: string; mottaker?: Mottaker; label: string }) => {
+  const klikk = (o: { nyStatus: string; tekstNoekkel: string; mottaker?: Mottaker; label: string }) => {
     setÅpenMeny(false);
     if (trengerBekreft(o.nyStatus)) {
-      setBekreft({ nyStatus: o.nyStatus, mottaker: o.mottaker, label: o.label });
+      setBekreft({ nyStatus: o.nyStatus, tekstNoekkel: o.tekstNoekkel, mottaker: o.mottaker, label: o.label });
       return;
     }
-    utfor(o.nyStatus, o.mottaker);
+    utfor(o.nyStatus, o.tekstNoekkel, o.mottaker);
   };
 
   // Primærknapp-klikk: draft-send med flere mottakere → åpne nedtrekk; ellers utfør
@@ -351,16 +365,16 @@ export function DokumentHandlingsmeny({
     if (draftSend) {
       const v = videresendValg[0];
       if (videresendValg.length === 1 && v) {
-        utfor("sent", v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined);
+        utfor("sent", primærHandling.tekstNoekkel, v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined);
       } else if (videresendValg.length === 0) {
-        utfor("sent"); // ingen flyt → server utleder
+        utfor("sent", primærHandling.tekstNoekkel); // ingen flyt → server utleder
       } else {
         setÅpenMeny((å) => !å);
       }
       return;
     }
     const mottaker = primærHandling.nyStatus === "responded" ? (erSisteBoks ? undefined : mottakerForStandard()) : undefined;
-    klikk({ nyStatus: primærHandling.nyStatus, mottaker, label: t(primærHandling.tekstNoekkel) });
+    klikk({ nyStatus: primærHandling.nyStatus, tekstNoekkel: primærHandling.tekstNoekkel, mottaker, label: t(primærHandling.tekstNoekkel) });
   };
 
   /* ------------------------------------------------------------------ */
@@ -393,14 +407,14 @@ export function DokumentHandlingsmeny({
           type="text"
           value={kommentar}
           onChange={(e) => setKommentar(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") utfor(bekreft.nyStatus, bekreft.mottaker); }}
+          onKeyDown={(e) => { if (e.key === "Enter") utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker); }}
           placeholder={t("statushandling.valgfriKommentar")}
           className="rounded-lg border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none w-full sm:w-48"
           autoFocus
         />
         <div className="flex items-center gap-2 shrink-0">
           <button
-            onClick={() => utfor(bekreft.nyStatus, bekreft.mottaker)}
+            onClick={() => utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker)}
             disabled={erLaster}
             className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
