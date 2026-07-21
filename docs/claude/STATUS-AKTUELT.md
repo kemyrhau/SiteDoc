@@ -11,7 +11,7 @@ sist_verifisert_mot_kode: 2026-07-10
 | Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
 |---|---|---|---|---|---|
 | **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny-flater · **`generate.ts` (i18n — blokkerer andre økter)** | 2026-07-18 | **AKTIV** — Fase B. Del 1a merget-klar (`d46e481e`); badge-konsum HOLDT av cowork: «Lest»-regresjon skal rettes før commit |
-| **P1 nivåsignal** | `~/Documents/Programmering/SiteDoc-develop` | `feat/p1-nivasignal` (ledd 2) | `KontekstChip.tsx` · HMS-parets to side-skall (sidehode) | 2026-07-21 | **LEDD 2 ÅPEN** — ledd 1 levert + fabel-gatet. Scope snevret til `KontekstChip` (rotårsak kun bak `nyNavigasjon`). § 2D (suffiks) ute — Kenneth vedtok (b) |
+| **P1 nivåsignal** | `~/Documents/Programmering/SiteDoc-develop` | `feat/p1-nivasignal` (ledd 2) | `KontekstChip.tsx` · HMS-parets to side-skall (sidehode) | 2026-07-21 | **MERGET + PÅ TEST** (`9383233b`). A+B+C levert. Gjenstår: skjermbilder på test + fabels designgate mot fasit-bildene → så lukkes P1. § 2D (suffiks) ute — Kenneth vedtok (b), egen sak |
 
 | **Registrator-fiks** | `~/Documents/Programmering/SiteDoc-registrator` | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` + kallsteder | 2026-07-21 | **ÅPEN — start nå** (fabel 2026-07-21). Specen rettet (10 steder i `dokumentflyt.md`). Ordre: [registrator-fiks-ordre.md](delplaner/registrator-fiks-ordre.md) |
 
