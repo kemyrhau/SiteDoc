@@ -14,7 +14,7 @@ sist_verifisert_mot_kode: 2026-07-20
 | Kommando | Resultat | Fordeling |
 |---|---|---|
 | `pnpm test` | 🟢 GRØNN | shared 77 tester (7 filer) + web 37 (3 filer) — **er nå CI-gate** |
-| `pnpm lint` | 🔴 RØD | `@sitedoc/api` **57** · `@sitedoc/mobile` **28** (var 12 — se trinn 1 under) · `@sitedoc/pdf` **7** · `@sitedoc/web` **2+** |
+| `pnpm lint` | 🔴 RØD | `@sitedoc/api` **57** · `@sitedoc/mobile` **27** (12 → 28 etter trinn 1 → 27 etter `rules-of-hooks`-fiks) · `@sitedoc/pdf` **7** · `@sitedoc/web` **2+** |
 | `pnpm typecheck` | 🔴 RØD | `@sitedoc/shared` **2** · `@sitedoc/mobile` **8** |
 
 **Viktig avklaring:** `carveArbeidstid.test.ts` og `feltLaasing.test.ts` feiler **typecheck** (TS2532, TS2345) men kjører **grønt i test** — vitest transpilerer uten å typesjekke. Det forklarer kode-Opus' gjentatte «pre-eksisterende testfeil»: han så typecheck-siden, ikke test-siden. Feilene er ekte og ligger i testfilene selv.
@@ -44,12 +44,12 @@ Config-hullet var: root `.eslintrc.json` (`root: true`) laster aldri `eslint-plu
 | «rule not found» | 3 (feil rapportert som errors) | **0** |
 | `@typescript-eslint/no-unused-vars` | 9 errors | 9 errors (uendret) |
 | `react-hooks/exhaustive-deps` | 0 synlige | **18 warnings** (ekte, var usynlige) |
-| `react-hooks/rules-of-hooks` | 0 synlige | **1 error** (ekte) |
-| **Sum** | 12 problems | **28 problems (10 errors, 18 warnings)** |
+| `react-hooks/rules-of-hooks` | 0 synlige | ~~**1 error**~~ → **0** (RETTET 2026-07-20, branch `fix/tegningscapture-hooks`) |
+| **Sum** | 12 problems | ~~28 (10 errors)~~ → **27 problems (9 errors, 18 warnings)** |
 
-Config-hullet skjulte **19 ekte react-hooks-funn**. Mest alvorlig: `rules-of-hooks`-error i `apps/mobile/src/components/TegningsCapture.tsx:38` — `useCallback` kalt betinget etter en tidlig return. Det er en reell React-korrekthetsbug, ikke stil.
+Config-hullet skjulte **19 ekte react-hooks-funn**. Mest alvorlig: `rules-of-hooks`-error i `apps/mobile/src/components/TegningsCapture.tsx:38` — `useCallback` kalt betinget etter en tidlig return. Det er en reell React-korrekthetsbug, ikke stil. **RETTET 2026-07-20** (branch `fix/tegningscapture-hooks`): tidlig return flyttet etter alle hooks, null atferdsendring. Bugen var **latent**, ikke aktiv — forelder-bruken nådde aldri 1→2-overgangen naturlig (se [tegningscapture-hooks-bug.md](tegningscapture-hooks-bug.md) § 3).
 
-**Ikke rettet** (per ordre — retting er egne runder): de 19 react-hooks-funnene + de 9 `no-unused-vars`. Rapportert her som ærlig baseline.
+**Ikke rettet** (per ordre — retting er egne runder): de 18 gjenværende react-hooks-funnene (`exhaustive-deps`) + de 9 `no-unused-vars`. `rules-of-hooks`-erroren er rettet som egen sak (se over). Rapportert her som ærlig baseline.
 
 ## FABEL-VEDTAK 2026-07-20: lint-ryddingen STOPPER etter trinn 1
 
@@ -59,7 +59,7 @@ Resten (`api` 57, `mobile` 28, `pdf` 7, `web` 2+, `mobile` typecheck 8) **ryddes
 
 **Konsekvens:** CI trinn 2 (lint + typecheck som gater) er utsatt på ubestemt tid. CI trinn 1 (`pnpm test` på PR + push til develop) står.
 
-**Unntaket som ble skilt ut som egen sak:** `rules-of-hooks`-erroren er **ikke** lint-gjeld — se [tegningscapture-hooks-bug.md](tegningscapture-hooks-bug.md) (pilot-kritisk, mobil-økt med simulator-DoD).
+**Unntaket som ble skilt ut som egen sak:** `rules-of-hooks`-erroren er **ikke** lint-gjeld — se [tegningscapture-hooks-bug.md](tegningscapture-hooks-bug.md) (pilot-kritisk, mobil-økt med simulator-DoD). **RETTET 2026-07-20** på branch `fix/tegningscapture-hooks` (Fase B). Bugen var latent, ikke aktiv.
 
 ## Opprinnelig foreslått rekkefølge (arkivert — kun trinn 1 utført)
 1. ~~**Mobil eslint-config**~~ — ✅ utført (se over). Ga riktig tall: mobil lint 12 → 28.

@@ -33,8 +33,6 @@ export function TegningsCapture({
 }: TegningsCaptureProps) {
   const harLevert = useRef(false);
 
-  if (positionX <= 0 && positionY <= 0) return null;
-
   const håndterMelding = useCallback((e: WebViewMessageEvent) => {
     if (harLevert.current) return;
 
@@ -48,6 +46,10 @@ export function TegningsCapture({
       // Ikke JSON — ignorer
     }
   }, [onCapture]);
+
+  // Tidlig return MÅ ligge etter alle hooks (rules-of-hooks) — ellers varierer
+  // hook-antallet mellom 0,0 (1 hook) og ekte posisjon (2 hooks) → React-krasj.
+  if (positionX <= 0 && positionY <= 0) return null;
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
