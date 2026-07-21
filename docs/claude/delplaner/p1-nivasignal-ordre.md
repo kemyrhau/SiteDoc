@@ -58,6 +58,29 @@ Vedtak: [p1-nivasignal-vedtak.md](p1-nivasignal-vedtak.md). Mockup (fasit for ut
 - **DoD:** build grønn → skjermbilder begge nivåer + bytte begge veier → fabel-designgate → dok-sync → cowork-merge.
 - Statuskilde: `verifisering/p1-nivasignal-verifiseringslogg.md` (opprettes ved ledd 2).
 
+## 3a. LAPP — nivåordet inn i chippen (fabel-vedtak 2026-07-21)
+
+> **Cowork-funn mot fasit** (`docs/redesign/fasit/01-`/`02-p1-fasit-r2-final.png`): implementasjonen la **navnet inne i chippen** og utelot nivåordet. Fasit har motsatt fordeling.
+
+**Fabels begrunnelse for å rette nå, ikke i K3:** *«nivåordet ER nivåsignalet — P1s formål. Uten det bæres signalet av farge alene, som svikter for fargeblinde; å lukke P1 med det avviket er å lukke saken uten leveransen.»*
+
+| | Fasit | Bygget i dag |
+|---|---|---|
+| Firmakontekst | `A.Markussen AS` (ren tekst) + chip **`FIRMA ▾ \| ⇄`** | Chip: `A.Markussen AS ▾ \| ⇄` |
+| Prosjektkontekst | `998 Instinniforbotn · Narvik` (ren tekst) + chip **`PROSJEKT ▾ \| ⇄`** | Chip: `{prosjekt} ▾ \| ⇄` |
+
+**Oppdraget — ren markup i `KontekstChip.tsx`, ingen ny logikk:**
+
+1. Entitetsnavnet flyttes **ut** av chippen, til ren tekst **venstre for** den. Firmakontekst: firmanavn. Prosjektkontekst: prosjekt + bygning (`998 Instinniforbotn · Narvik`).
+2. Chippen bærer **nivåordet** — «FIRMA» / «PROSJEKT» — i versaler, med dagens sonefarger.
+3. ⇄, popover-oppførsel, sonefarger og gradient er **uendret**.
+
+**i18n:** nivåordene finnes allerede som `kontekstChip.firma` / `kontekstChip.prosjekt`. **Ingen nye nøkler** — generatoren forblir urørt.
+
+**Verifikasjon:** nytt skjermbilde av begge nivåer, sammenlignet mot fasit-bildene i repoet. Denne gangen har du dem — les dem selv før du koder.
+
+**Med denne lappen lukkes P1 på fasit.** K3 er oppfølger etter K1+K2, ikke en gjenstående P1-revisjon.
+
 ## 3b. Gjenstående fra ledd 2 (må ikke tapes)
 
 - **`kontekstChip.byttTil`-nøkkel når generatoren frigis — a11y, ikke kosmetikk.** ⇄-knappens aria-label er i dag kun mål-nivåets navn («Prosjekt»/«Firma») fordi i18n-sperren (§ 4) sto; det sier ikke at det er en byttehandling → meningsløst for skjermleser. Legg inn dedikert nøkkel («Bytt til prosjektvisning» / «Bytt til firmavisning») så snart A-3b frigir `generate.ts`.
