@@ -72,8 +72,37 @@ A-3bs perspektivmatrise har en egen **REGISTRATOR-kolonne** bygget på premisset
 
 **Endres rollemodellen, må matrisen revideres.** Rekkefølge må avklares: enten lukkes A-3b først på dagens modell og revideres etterpå, eller så stanses A-3b til rollemodellen er avgjort. **Fabel eier den avveiningen.**
 
-## Åpne spørsmål til fabel
+## ✅ Rollesemantikken — Kenneth 2026-07-21 (besvarer spørsmål 1)
 
-1. Hva **skal** en registrator kunne gjøre? Kun opprette, eller også følge dokumentet videre?
-2. Hvor plasseres registrator i `ROLLE_PRIORITET` når den ikke lenger er superbruker?
-3. A-3b: lukk først eller stans nå?
+Full definisjon av alle fire roller: [dokumentflyt.md § Rollesemantikk](../dokumentflyt.md#rollesemantikk--kenneth-2026-07-21).
+
+**Registrator skal:**
+- opprette en oppgave/sjekkliste
+- sende den videre til behandling
+- se om mottaker har besvart, og hva statusen er
+- **alltid kunne lese nåværende besvarelse** på oppgaver i dokumentflyten
+
+**Dette er en reell rettighet, ikke ingenting.** Registrator trenger **vedvarende leseadgang** til flytens dokumenter — også etter at hun har sendt dem fra seg og ikke lenger har ballen. Fiksen kan derfor ikke bare stryke registrator-grenene; den må erstatte dem med en leserett.
+
+**Det registrator IKKE skal ha:** skrive- og statusendringsmakt forbi egen tur. Dagens `erTillattForRolle:105` gir henne alle statusoverganger server-side. Det er det som er feil.
+
+| Rettighet | I dag | Skal være |
+|---|---|---|
+| Lese dokumenter i egen flyt, alltid | ✅ (via admin) | ✅ (via egen leserett) |
+| Se status og besvarelse etter oversending | ✅ (via admin) | ✅ |
+| Alle statusoverganger server-side | ✅ | ❌ |
+| Full dokumentrettighet forbi ballinnehav | ✅ | ❌ |
+
+## Revidert fikse-skisse
+
+1. `hentRolleFiltrertHandlinger` / `erTillattForRolle` tar `erAdmin: boolean` eksplisitt; `rolle === "registrator"`-grenene byttes til `erAdmin`.
+2. `flytRolle.ts:179` → `if (erAdmin) return "admin"`.
+3. **Ny gren:** registrator får `"leser"` (ikke `"admin"`, ikke `null`) på dokumenter i flyten hun er medlem av — uavhengig av ballinnehav og terminal status. Det er punkt 4 i Kenneths definisjon.
+4. `ROLLE_PRIORITET.registrator` flyttes **ned**. En oppretter skal ikke slå `godkjenner` ved flertreff. *(Spørsmål 2 besvart i prinsipp; eksakt plassering gates av fabel.)*
+5. `utledMinRolle:62` (admin → registrator) beholdes — Kenneth: *«dette er ok, dette er ikke feil»*.
+
+**Testkrav:** matrisen i `tilgangsmatrise.test.ts` må ha rader for ikke-admin registrator som beviser **både** at leseretten består **og** at skrivemakten er borte. Begge retninger — ellers bytter vi én feil mot en annen.
+
+## Gjenstående spørsmål til fabel
+
+**A-3b: lukk først eller stans nå?** Perspektivmatrisens REGISTRATOR-kolonne bygger på at registrator er superbruker. Kenneths definisjon gjør henne til en *følger med leserett* — et perspektiv som fortsatt er meningsfullt, men med andre etiketter. Fabel eier avveiningen.

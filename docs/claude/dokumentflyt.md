@@ -347,3 +347,69 @@ Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 - [arkitektur.md](arkitektur.md) — full datamodell for `Dokumentflyt`, `DokumentflytMedlem`, `Checklist`, `Task`, `DocumentTransfer` og tilgangskontroll-funksjoner
 - [forretningslogikk.md](forretningslogikk.md) — handlingsknapper, rollefiltrering og operative regler
 - [fase-0-beslutninger.md](fase-0-beslutninger.md) — A.2 Godkjenning som utvidet dokumentflyt-type, A.7 hybrid logg + snapshot ved attestering
+
+## Rollematrisen — enkelt forklart (Kenneth 2026-07-21)
+
+> **Dette er hovedregelen. Alt annet i denne fila er utdyping.** Les denne først.
+
+**Slik leser du tabellen:** finn raden med din egen rolle. Gå bortover til den delen av dokumentet du vil røre. Der står det hva du får lov til.
+
+| Jeg er ↓ / Delen tilhører → | Registrator | Utfører | Bestiller | Godkjenner |
+|---|---|---|---|---|
+| **Registrator** | **Oppretter** | Leser | Leser | Leser |
+| **Utfører** | Leser | **Redigerer** | Leser | Leser |
+| **Bestiller** | Leser | Leser | **Redigerer** | Leser |
+| **Godkjenner** | Leser | Leser | Leser | **Redigerer** |
+| **Administrator** | **Oppretter** | **Redigerer** | **Redigerer** | **Redigerer** |
+
+**To regler er alt du trenger å huske:**
+
+1. **Du redigerer bare din egen del.** Din del er din — ingen andre skriver i den.
+2. **Alle leser alt.** Ingen i flyten er blind for hva de andre har gjort. Det er det som gjør at en registrator alltid kan se svaret hun venter på.
+
+**Administrator er unntaket** — han kan skrive i alle delene. Det er derfor han er administrator.
+
+> **Hva dette betyr for koden:** lesetilgang er **felles for hele flyten**, ikke noe hver rolle må tildeles. Bare skrivetilgang er delt opp. Det forenkler tilgangsmodellen betydelig — og det er motsatt av hvordan § 2 og § 3 under er skrevet.
+>
+> **Hva matrisen ikke sier:** *når* du kan redigere din egen del. Det styres av om du har ballen. Matrisen sier **hvem** som eier hvilken del, ikke **når** turen er din.
+
+## Rollesemantikk — Kenneth 2026-07-21
+
+> Kenneths definisjon av hva hver rolle **skal** gjøre. Dette er domenesannheten; koden avviker i dag på registrator — se [delplaner/registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md).
+
+> 🔴 **Denne seksjonen motsier § 2 og § 3 i samme fil — og det er § 2/§ 3 som er feil.**
+>
+> Begrepet **«admin/registrator» opptrer seks steder over** (linje 41, 42, 45, 54, 58, 73) som ett **koblet** begrep, og gir registrator admins makt: redigere alltid, slette alltid, arbeide på tvers av faggrupper, legge til info, lese alle HMS-dokumenter.
+>
+> **Koden har altså ikke gjort en feil — den implementerte denne spesifikasjonen korrekt.** Feilen oppsto i specen og forplantet seg trofast til `flytRolle.ts`, `statusHandlinger.ts` og dokumentflyt-oppsettet.
+>
+> **Konsekvens:** de seks linjene må omskrives som del av [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md) — **før** koden røres. Rettes koden først, står specen igjen og sier det motsatte, og neste økt «retter» den tilbake.
+>
+> Inntil de er omskrevet: **les «admin/registrator» i § 2 og § 3 som «admin».**
+
+| Rolle | Skal gjøre | Merknad |
+|---|---|---|
+| **Registrator** | Oppretter oppgave/sjekkliste · sender videre til behandling · ser om mottaker har besvart og hva statusen er · **skal alltid kunne lese nåværende besvarelse** på oppgaver i flyten | Vedvarende leserett også etter oversending. ❌ **Ikke** en administrator |
+| **Utfører** | Svarer ut en opprettet oppgave · sender tilbake med spørsmål, eller fyller ut og videresender | **Ikke alltid nødvendig** — en flyt trenger ikke dette steget |
+| **Bestiller** | Bestiller en oppgave · sender tilbake med spørsmål eller videresender — oppgaven anses da som **bestilt utført** | **Ikke alltid del av flyten** |
+| **Godkjenner** | Godkjenner en bestilling eller en utført oppgave · godkjenner **eller** sender tilbake for utbedring **med kommentar** | Kommentarkravet understøtter [P2-vedtaket](delplaner/p2-inndata-validering-vedtak.md) |
+
+**To roller er valgfrie i en flyt** (utfører, bestiller). Registrator og godkjenner er bærebjelkene: noen oppretter, noen godkjenner.
+
+## 🟡 Kjent begrensning — flytsteg kan ikke bygges ut videre
+
+**Observert av Kenneth 2026-07-21** (skjermbilde, `oppsett/produksjon/dokumentflyt`): etter hvert som en dokumentflyt får steg, **forsvinner steget som valg for videre utbygging**. En flyt kan altså ikke utvides forbi et visst punkt.
+
+**Skal løses senere — ikke nå.** Målet på sikt er å kunne bygge **linjeflyter** med forgreninger, f.eks. en godkjenningsflyt for krav om tillegg/endringsmelding:
+
+```
+entreprenør varsler problem
+  → byggherre svarer
+  → entreprenør fyller på økonomisk konsekvens + dokumentasjon
+  → videresender til byggherre for behandling
+  → byggherre behandler
+      → beløp over ramme → byggherres sjef behandler
+          → godkjent, eller tilbake til entreprenør med avslag
+```
+
+En enkel godkjenningsflyt er påbegynt. **Den skal ikke bygges ut nå** — dette er nedtegnet så mønsteret er kjent når saken tas, og så ingen designer flytmodellen i en retning som utelukker forgreninger.
