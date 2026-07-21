@@ -24,6 +24,14 @@ Firma-HMS og prosjekt-HMS var i prod visuelt nesten identiske: samme topplinje (
 5. **Gjennomgående mønster** for alle firma-/prosjekt-par — egen plan lages ETTER at vedtatt delplan er ferdig.
 6. **Sidebar-funksjon a)** (Kenneth 2026-07-21): chip = **kun snarvei** til motpart-flaten; sidebaren forblir uendret strukturkilde (K5 bevares).
 
+7. **Sidehodet (§ 2C) er flagg-nøytralt** — vises for **alle** brukere, ikke bare de med `nyNavigasjon`. *(Fabel 2026-07-21, som bekreftelse av eksisterende prinsipp — ikke et nytt valg.)*
+
+   **Følger av flagg-prinsippet (Kenneth 2026-07-12):** funksjonalitet på felles sider bygges flagg-nøytralt; **kun nav-skallet** ligger bak `nyNavigasjon`. Sidehodet bor på siden, ikke i skallet. At chip og topplinje (§ 2A/2B) *er* bak flagget skyldes utelukkende at `KontekstChip` tilfeldigvis bor i skallet.
+
+   **Og det er ønsket virkning:** gammel-nav-brukere mangler chippen og trenger sonesignalet mest. Gates sidehodet bak flagget, får de som allerede har nivåsignal enda ett, mens de som mangler det får ingenting.
+
+   > Cowork løftet dette som et åpent valg 2026-07-21. Det var det ikke — svaret sto allerede i [p1-nivasignal-ordre.md § 2E](p1-nivasignal-ordre.md). Ført her så neste økt ikke stiller spørsmålet på nytt.
+
 ## Åpent
 
 - Nå-rapport før ordre: topplinje-komponenten (én delt kilde?), flater uten motpart, prosjektvalg ved firma→prosjekt-bytte (sist besøkte?).
