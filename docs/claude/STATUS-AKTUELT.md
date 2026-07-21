@@ -10,7 +10,8 @@ sist_verifisert_mot_kode: 2026-07-10
 
 | Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
 |---|---|---|---|---|---|
-| **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny-flater · i18n | 2026-07-18 | **AKTIV** — Fase A lukket (fabel-designgate godkjent 2026-07-20). Fase B pågår: Del 1a–d + Del 2 pkt 1–5. Pkt 6 = spor C, pkt 7 venter Kenneth-vedtak |
+| **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny-flater · **`generate.ts` (i18n — blokkerer andre økter)** | 2026-07-18 | **AKTIV** — Fase B. Del 1a merget-klar (`d46e481e`); badge-konsum HOLDT av cowork: «Lest»-regresjon skal rettes før commit |
+| **P1 nivåsignal** | *(tildeles ved åpning)* | *(tildeles)* | **Ledd 1: ingen — kun måling** | 2026-07-21 | **KLAR FOR RELAY** — ledd 1 (nå-rapport) kan kjøre parallelt med A-3b. Ledd 2 venter til `generate.ts` er fri |
 
 **Lukket 2026-07-20/21 (seks økter):** N3-fiks synlighet (`fix/n3-flytmedlem-synlighet`) · kode-Opus sak 1 (`fd573b61`) · kode-Opus spor 2 + sak 2 (`cf76d81d`, `ecedb7eb`) · mobil-Opus TegningsCapture (`b15dfe56`) · CI-Opus spor 1 (PR #1+#2) · web-Opus testrunder (sak 1 + sak 2, testplaner merket KJØRT). Alle merget til develop; tilgangslaget deployet prod.
 

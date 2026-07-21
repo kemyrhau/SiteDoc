@@ -67,7 +67,7 @@ Oppgave skilles fra sjekkliste ved opprettelse — de to konverteres ikke til hv
 | Oppretter | Alle brukere |
 | Flyt | Enveis med automatisk retur: Innsender → HMS-gruppe → (Godkjent) → Innsender |
 | Behandling | Kun HMS-gruppen (uendret) |
-| Godkjenning | HMS-gruppe godkjenner, rapport returneres automatisk til innsender |
+| Godkjenning | HMS-gruppe godkjenner. ❌ **IKKE IMPLEMENTERT:** «rapport returneres automatisk til innsender» finnes ikke i koden (målt av A-3b-Opus 2026-07-21: `erHms` opptrer kun i opprett-mutasjonene `oppgave.ts:329` / `sjekkliste.ts:164`; `endreStatus` har ingen HMS-gren, og ingen auto-retur-logikk finnes noe sted). Modellen er fabel-bekreftet som *intensjon* ([a3b-perspektiv-tabell.md § 7 pkt 3](delplaner/a3b-perspektiv-tabell.md)), ikke som kodefaktum. **Bygges ikke på eget initiativ** — krever egen sak |
 | Redigerbar | Innsender i kladd/sendt, HMS-gruppe når de har ballen |
 | Sletting | Kun i kladd av innsender |
 | Lese | HMS-gruppe + admin/registrator + **firma-HMS-ansvarlig** (kontrolloppgave — per fase-0-beslutninger A.27) |
