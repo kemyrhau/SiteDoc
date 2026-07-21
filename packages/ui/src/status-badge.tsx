@@ -31,16 +31,28 @@ const statusVariant: Record<string, "default" | "primary" | "success" | "warning
   completed: "success",
 };
 
+type BadgeVariant = "default" | "primary" | "success" | "warning" | "danger";
+
 interface StatusBadgeProps {
   status: string;
   className?: string;
   lestAvMottakerVed?: Date | string | null;
+  /**
+   * Perspektiv-avhengig etikett + farge, ferdig utledet av kallstedet via
+   * `perspektivEtikett` (@sitedoc/shared). Valg B (A-3b): logikken bor i shared
+   * — komponenten er presentasjonell. Når satt, overstyrer det det flate
+   * status-oppslaget. `etikettKey` er en i18n-nøkkel; komponenten kaller `t()`.
+   */
+  perspektiv?: { etikettKey: string; variant: BadgeVariant };
 }
 
-export function StatusBadge({ status, className, lestAvMottakerVed }: StatusBadgeProps) {
+export function StatusBadge({ status, className, lestAvMottakerVed, perspektiv }: StatusBadgeProps) {
   const { t } = useTranslation();
 
-  // «sent» + mottaker har lest → vis «Lest» med tooltip
+  // «sent» + mottaker har lest → «Lest» med tooltip. Dette er kontekst-frøet
+  // A-3b utvider, ikke kobler fra: det fyrer FØR perspektiv-grenen fordi
+  // perspektivEtikett aldri får lest-tidspunktet inn. «Lest som perspektiv-
+  // tilstand» er rutet til fabel som egen designsak — ikke lagt inn her.
   if (status === "sent" && lestAvMottakerVed != null) {
     const dato = new Date(lestAvMottakerVed).toLocaleDateString("nb-NO", {
       day: "numeric",
@@ -51,6 +63,15 @@ export function StatusBadge({ status, className, lestAvMottakerVed }: StatusBadg
     return (
       <Badge variant="primary" className={className} title={dato}>
         {t("status.lest")}
+      </Badge>
+    );
+  }
+
+  // A-3b: perspektiv-avhengig etikett (kallstedet har kalt perspektivEtikett).
+  if (perspektiv) {
+    return (
+      <Badge variant={perspektiv.variant} className={className}>
+        {t(perspektiv.etikettKey)}
       </Badge>
     );
   }

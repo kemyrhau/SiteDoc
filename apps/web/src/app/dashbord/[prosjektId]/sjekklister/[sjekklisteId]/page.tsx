@@ -15,7 +15,7 @@ import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { utledMinRolle, beregnHarBallen } from "@sitedoc/shared";
+import { utledMinRolle, beregnHarBallen, perspektivEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
@@ -459,6 +459,7 @@ export default function SjekklisteDetaljSide() {
             <StatusBadge
               status={sjekkliste.status}
               lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
+              perspektiv={perspektivEtikett(sjekkliste.status, { rolle: minRolle ?? null, harBallen }, "sjekkliste")}
             />
             {["sent", "received", "in_progress"].includes(sjekkliste.status) && fullSjekkliste?.recipientGroup?.name && (
               <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">

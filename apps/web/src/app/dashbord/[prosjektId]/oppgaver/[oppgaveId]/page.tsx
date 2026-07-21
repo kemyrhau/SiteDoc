@@ -8,7 +8,7 @@ import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
-import { utledMinRolle, beregnHarBallen } from "@sitedoc/shared";
+import { utledMinRolle, beregnHarBallen, perspektivEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
@@ -444,6 +444,7 @@ export default function OppgaveDetaljSide() {
             <StatusBadge
               status={oppgave.status}
               lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
+              perspektiv={perspektivEtikett(oppgave.status, { rolle: minRolle ?? null, harBallen }, "oppgave")}
             />
             {(() => {
               const recipientGroup = (fullOppgaveRå as { recipientGroup?: { id: string; name: string } | null })?.recipientGroup;
