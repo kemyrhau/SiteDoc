@@ -29,17 +29,27 @@ Vedtak: [p1-nivasignal-vedtak.md](p1-nivasignal-vedtak.md). Mockup (fasit for ut
 4. **Firmainnstillinger:** hvor legges en ny valgfri innstilling (suffiks-flagget)? Bruk **eksisterende** innstillingsstruktur, ikke ny.
 5. **Flater uten motpart:** hvilke firma-/prosjekt-flater mangler par? (Chip vises da UTEN bytte, kun signal — bekreft at det ikke er teknisk hindring.)
 
-## 2. Ledd 2 — koding (etter fabel-gate av rapporten)
+## 1b. Ledd 1 — LEVERT og fabel-gatet 2026-07-21
 
-**A. Topplinje.** Firmakontekst viser kun firmanavn; prosjektkontekst kun prosjekt + bygning. Endres i **den delte kilden** — aldri per-flate.
+**Funnet som endret scope:** forvekslingen finnes **kun bak `nyNavigasjon`**. `KontekstChip` rendres uten kontekst-gren (`Toppbar.tsx:127`), mens gammel nav bruker `FirmaKontekstVelger` (`Toppbar.tsx:158`) og **har ikke problemet**. Målt av redesign-Opus, verifisert uavhengig av cowork. Kenneths prod-skjermbilde bekrefter det dobbelt: sidemenyen viste «FIRMA» i amber, som også bor bak flagget.
+
+**Øvrige svar:** Toppbar er én delt kilde (montert én gang, `dashbord/layout.tsx:37`) · HMS-parets presentasjonslag er allerede delt, kun side-skallet er duplisert · «sist besøkte prosjekt» finnes som sticky-verdi (`prosjekt-kontekst.tsx:14`, localStorage `sitedoc-valgt-prosjekt`) · ingen teknisk hindring for chip uten motpart.
+
+**Ledd 1 var i18n-fritt** — generatoren ble ikke rørt, sekvenseringen holdt.
+
+## 2. Ledd 2 — koding (fabel-gatet scope 2026-07-21)
+
+**A. `KontekstChip.tsx` KUN.** Fabel-beslutning 2026-07-21: **gammel-nav-stien røres ikke.** `FirmaKontekstVelger` har ikke problemet og er på vei ut — å røre den er plaster på frisk hud. Firmakontekst viser kun firmanavn; prosjektkontekst kun prosjekt + bygning.
 
 **B. Chip.** FIRMA (amber `#fef3e2` / `#92400e` / kant `#f5c97b`) · PROSJEKT (blå `#e8effc` / `#1e40af` / kant `#a9c4f5`). Klikkbar ⇄ → navigerer til motpart-flaten (**vanlig navigasjon, ingen ny mekanisme**; sidebaren uendret — K5). Firma→prosjekt: sist besøkte prosjekt, eller det mønsteret rapporten viser er etablert. Uten motpart: chip uten klikk.
 
 **C. Tonet sidehode.** Svak sonetone (gradient mot hvit à la mockup) + 4px sonefarget h1-markør. **Tonen skal ikke konkurrere med status-farger i tabellen.**
 
-**D. Suffiks** «— hele firmaet» på firma-h1, valgfri per firma (firmainnstillinger). Default PÅ? — Opus foreslår, fabel gater.
+**D. Suffiks «— hele firmaet» — ✅ UTE AV P1-SCOPE (Kenneth-vedtak 2026-07-21: alternativ b).** Innstillingen hører hjemme på `OrganizationSetting` (`schema.prisma:224`, som allerede bærer tre boolean-toggles i samme form) — altså en **Prisma-migrering**, som per CLAUDE.md krever Kenneths eksplisitte godkjenning.
 
-**E. Flagg-nøytralt** (funksjonen bor på felles sider). Kun hvis signalet viser seg å bo i nav-skallet vurderes `nyNavigasjon` eksplisitt.
+**Vedtatt:** skilles ut som egen sak. **P1 leverer A–C uten suffiks** — rene visningsendringer som kan leveres og verifiseres uten DDL-risiko. Egen sak opprettes når P1 er levert; da med egen migrerings-gate. **Ikke bygg § 2D i denne runden.**
+
+**E. Flagg-spørsmålet er løst av seg selv.** Siden rotårsaken bor i `KontekstChip` — som allerede lever bak `nyNavigasjon` — havner fiksen naturlig bak flagget. Ingen egen flagg-vurdering nødvendig.
 
 ## 3. Krav (kvalitet > tempo)
 

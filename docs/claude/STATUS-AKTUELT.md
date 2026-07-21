@@ -11,7 +11,7 @@ sist_verifisert_mot_kode: 2026-07-10
 | Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
 |---|---|---|---|---|---|
 | **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny-flater · **`generate.ts` (i18n — blokkerer andre økter)** | 2026-07-18 | **AKTIV** — Fase B. Del 1a merget-klar (`d46e481e`); badge-konsum HOLDT av cowork: «Lest»-regresjon skal rettes før commit |
-| **P1 nivåsignal** | `~/Documents/Programmering/SiteDoc-develop` | *(ingen — ledd 1 er lesende)* | **Ledd 1: ingen — kun måling** | 2026-07-21 | **ÅPEN** — ledd 1 (nå-rapport) kjører parallelt med A-3b. Ingen commits i ledd 1. Ledd 2 får egen branch når `generate.ts` er fri |
+| **P1 nivåsignal** | `~/Documents/Programmering/SiteDoc-develop` | `feat/p1-nivasignal` (ledd 2) | `KontekstChip.tsx` · HMS-parets to side-skall (sidehode) | 2026-07-21 | **LEDD 2 ÅPEN** — ledd 1 levert + fabel-gatet. Scope snevret til `KontekstChip` (rotårsak kun bak `nyNavigasjon`). § 2D (suffiks) ute — Kenneth vedtok (b) |
 
 **Lukket 2026-07-20/21 (seks økter):** N3-fiks synlighet (`fix/n3-flytmedlem-synlighet`) · kode-Opus sak 1 (`fd573b61`) · kode-Opus spor 2 + sak 2 (`cf76d81d`, `ecedb7eb`) · mobil-Opus TegningsCapture (`b15dfe56`) · CI-Opus spor 1 (PR #1+#2) · web-Opus testrunder (sak 1 + sak 2, testplaner merket KJØRT). Alle merget til develop; tilgangslaget deployet prod.
 
