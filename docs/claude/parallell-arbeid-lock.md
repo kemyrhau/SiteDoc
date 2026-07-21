@@ -82,7 +82,11 @@ Trenger en annen økt en endring i frossen sone: koordinér via Kenneth + denne 
 ## Kjente kollisjoner (aktive)
 
 - **PSI Fase A ↔ redesign/navigasjon:** se regel 4. PSI la `/mannskap` + minimal nav-entry på develop (`6882aa02`); redesignet re-homer nav-entryen. Status: PSI-siden levert, nav-eierskap hos redesign.
-- **🔀 TRE PARALLELLE ØKTER (fabel-vedtak 2026-07-20) — fil-disjunkte:**
+- **⚠️ LÆRDOM 2026-07-20 — én økt, ett tre, uten unntak.** A-3b Fase A var ikke-kode («les fra hovedtreet»), men da Fase B startet ble det ikke satt opp worktree — og økta branchet i **hovedtreet**, som er develop-eier og deploy-kilde. Følgen: en docs-commit havnet på en feature-branch, pushen til develop ble avvist, og `deploy-test.sh` var blokkert (den krever `branch == develop`). **Regel:** en økt som skal skrive filer får eget tre **før** den skriver noe — også når forrige fase var ren lesing. Cowork setter det opp ved fase-overgang, ikke ved behov.
+
+- **🔀 PARALLELLE ØKTER (fabel-vedtak 2026-07-20) — fil-disjunkte, ett tre hver:**
+  - **A-3b Fase B** (`feat/a3b-perspektiv`, tre: `SiteDoc-a3b`): `packages/shared/src/utils/perspektivEtikett*`, `packages/ui/src/status-badge.tsx`, web/mobil visning. Del 1a levert + cowork-godkjent; 1b–d pågår.
+  - **TegningsCapture** (`fix/tegningscapture-hooks`, tre: `SiteDoc-mobil`): kun `apps/mobile/src/components/TegningsCapture.tsx`. Levert, venter merge.
   - **Spor 2** (`refactor/tilgang-ren-funksjon`, tre: `SiteDoc-develop`): `apps/api/src/trpc/tilgangskontroll.ts` + `packages/shared/src/utils/`. Gate godkjent, startet.
   - **A-3b Fase A** (ingen branch, ingen tre): perspektiv-tabellen er **ikke-kode** — leses fra hovedtreet, leveres som tekst til fabels designgate. Fase B (koding) starter først etter spor 2-merge, fordi begge rører `packages/shared`.
   - **TegningsCapture-bug** (`fix/tegningscapture-hooks`, eget tre): kun `apps/mobile/src/components/TegningsCapture.tsx`. Pilot-kritisk, krever simulator.
