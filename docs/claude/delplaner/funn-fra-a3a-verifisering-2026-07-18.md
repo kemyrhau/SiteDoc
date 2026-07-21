@@ -182,7 +182,9 @@ kmy er blind på tre måter, alle med samme rotårsak (**runtime leser `Faggrupp
 
 **Prod-omfang (DB-måling 2026-07-18):** 4 person-direkte flyt-medlemmer uten `FaggruppeKobling` (mai 2026 — godkjenner ×1, registrator ×3). **Ekte prod-brukere, ikke test-anomali.**
 
-**⚠️ «Blind» er øvre grense:** prod-spørringen sjekket ikke `groupMemberships`-veien i `byggTilgangsFilter` (person i en gruppe med faggrupper kan reddes). Eksakt blind-tall krever forfinet spørring: person-direkte flyt-medlem SOM verken har `FaggruppeKobling` ELLER `groupMembership` mot en gruppe med matchende faggruppe. Cowork skriver den ved behov.
+**⚠️ «Blind» var øvre grense — og den forfinede målingen ga NULL.** Den opprinnelige spørringen sjekket ikke `groupMemberships`-veien. **Forfinet spørring kjørt mot prod 2026-07-21** (person-direkte flyt-medlem uten `FaggruppeKobling` **og** uten aktivt `ProjectGroupMember`): **0 rader.** Alle fire nås via gruppe-veien.
+
+**Konsekvens:** ingen prod-bruker var faktisk blind. N3-fiksen og sak 1/2 var **forebyggende, ikke reparerende**, i produksjon. Ikke siter «fire rammede brukere» — tallet var kandidater, ikke ofre. Lærdom: et øvre estimat som er flagget som upresist, skal ikke brukes som hastverksargument før det er forfinet (cowork gjorde nettopp det 2026-07-21 og tok feil).
 
 **Konsekvens for A-3b Del 1d («mine oppgaver»):** blokkeringen står — (b) må bygges (leseren konsulterer `DokumentflytMedlem`) FØR «mine oppgaver» kan filtrere på hvem som har ballen. **N3-fiksen (b) er nå en egen ordre, forutsetning for A-3b Del 1d.**
 
