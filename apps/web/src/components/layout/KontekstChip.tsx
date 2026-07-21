@@ -87,51 +87,47 @@ export function KontekstChip() {
           : t("kontekstChip.velgProsjekt"));
 
   // P1-B: sonefarger (§ 2B, eksakte tokens). Amber = FIRMA, blå = PROSJEKT
-  // (låst grammatikk, del 5). Farge + kant på pillen; hover ligger på de indre
-  // klikkmålene så velger og ⇄ gir hver sin feedback.
+  // (låst grammatikk, del 5).
   const soneKlasse = erFirmaKontekst
     ? "border-[#f5c97b] bg-[#fef3e2] text-[#92400e]"
     : "border-[#a9c4f5] bg-[#e8effc] text-[#1e40af]";
-  const kantKlasse = erFirmaKontekst ? "border-[#f5c97b]" : "border-[#a9c4f5]";
   // ⇄-aria/title: mål-nivået. Gjenbruker eksisterende nøkler (ingen generator).
   const byttLabel = erFirmaKontekst ? t("kontekstChip.prosjekt") : t("kontekstChip.firma");
 
   return (
-    <div ref={ref} className="relative">
-      {/* R2 (fabel-vedtak): chip = velger (popover), ⇄ = eget klikkmål for
-          flatebytte. To knapper i samme pill; ⇄ vises kun med motpart.
-          ⚠️ Plassering (⇄ i høyre pill-segment) er PROVISORISK til mockup § 2a
-          er relayet — justeres til fasit da. */}
-      <div className={`flex items-center overflow-hidden rounded-lg border ${soneKlasse}`}>
-        <button
-          onClick={() => setApen(!apen)}
-          className={`flex items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-black/[0.06] ${motpartUrl ? "" : "rounded-lg"}`}
-        >
-          <Building2 className="h-4 w-4 shrink-0" />
-          {/* P1-A: topplinja viser KUN eget nivå. Firmakontekst → kun firmanavn;
-              prosjektkontekst → kun prosjekt (firmaprefiks ut). */}
-          {erFirmaKontekst ? (
-            <span className="max-w-[220px] truncate">
-              {firmaNavn ?? t("kontekstChip.velgFirma")}
-            </span>
-          ) : (
-            /* Prosjektkontekst: kun prosjekt-/scope-tekst — aldri firmaprefiks. */
-            <span className="max-w-[220px] truncate">{prosjektTekst}</span>
-          )}
-          <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${apen ? "rotate-180" : ""}`} />
-        </button>
-        {motpartUrl && (
-          <button
-            type="button"
-            onClick={() => router.push(motpartUrl)}
-            title={byttLabel}
-            aria-label={byttLabel}
-            className={`flex items-center border-l px-2 py-1.5 transition-colors hover:bg-black/[0.06] ${kantKlasse}`}
-          >
-            <ArrowLeftRight className="h-4 w-4 shrink-0" />
-          </button>
+    <div ref={ref} className="relative flex items-center">
+      {/* R2 (fabel-fasit § 2a): split-chip «FIRMA ▾ | ⇄». Venstre = velger
+          (popover), ⇄ = eget sonefarget klikkmål for flatebytte, med −12px
+          overlapp mot chippens avrundede høyrekant (z-10 tucker det over
+          hjørnet). ⇄ vises kun med motpart. Vanlig navigasjon, sidebar urørt. */}
+      <button
+        onClick={() => setApen(!apen)}
+        className={`relative z-0 flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-black/[0.06] ${soneKlasse}`}
+      >
+        <Building2 className="h-4 w-4 shrink-0" />
+        {/* P1-A: topplinja viser KUN eget nivå. Firmakontekst → kun firmanavn;
+            prosjektkontekst → kun prosjekt (firmaprefiks ut). */}
+        {erFirmaKontekst ? (
+          <span className="max-w-[220px] truncate">
+            {firmaNavn ?? t("kontekstChip.velgFirma")}
+          </span>
+        ) : (
+          /* Prosjektkontekst: kun prosjekt-/scope-tekst — aldri firmaprefiks. */
+          <span className="max-w-[220px] truncate">{prosjektTekst}</span>
         )}
-      </div>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${apen ? "rotate-180" : ""}`} />
+      </button>
+      {motpartUrl && (
+        <button
+          type="button"
+          onClick={() => router.push(motpartUrl)}
+          title={byttLabel}
+          aria-label={byttLabel}
+          className={`relative z-10 -ml-3 flex items-center rounded-lg border py-1.5 pl-4 pr-2.5 transition-colors hover:bg-black/[0.06] ${soneKlasse}`}
+        >
+          <ArrowLeftRight className="h-4 w-4 shrink-0" />
+        </button>
+      )}
 
       {apen && (
         <div className="absolute left-0 top-full z-50 mt-1 w-72 rounded-lg border border-gray-200 bg-white shadow-xl">
