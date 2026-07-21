@@ -96,9 +96,38 @@ Dette endrer skissen over. Cowork antydet først at signaturlisten burde ligge u
 
 **Arbeiderens rolle er å signere** — ikke å initiere. En arbeider som selv må oppdage at en SJA mangler, er allerede et symptom på at planleggingen sviktet.
 
-**Kan arbeideren likevel be om åpning?** Ja, og det bør være mulig — men som **sikkerhetsnett**, ikke som hovedvei. Møter han opp og SJA-en er lukket, skal han ha en vei til å si fra i stedet for å signere ingenting eller la være.
+**Prioritering:** lederflyten (prosjektleder → HMS-ansvarlig → åpning) er hovedveien og bygges først.
 
-**Prioritering følger av dette:** bygg lederflyten først (prosjektleder → HMS-ansvarlig → åpning). Arbeider-forespørselen er en kantsituasjon og kan komme senere.
+## Når planleggingen glipper — arbeiderne gjør SJA-en selv (Kenneth 2026-07-21)
+
+> **Kenneth:** *«I et byggeprosjekt jobber alle sammen for et sikkert arbeidsmiljø — vi hjelper hverandre. Men det er slik at lederne planlegger og skal fange opp farlig arbeid, og planlegge SJA i henhold til det. Noen ganger glipper det, og arbeiderne utfører SJA på egen hånd.»*
+>
+> Og: *«Arbeid er farlig dersom han selv opplever det slik.»*
+
+**Ansvaret ligger hos lederne** — de skal fange opp farlig arbeid og planlegge SJA deretter. Glipper det, tar arbeiderne det selv. Det er ikke en konflikt mellom nivåene, det er at alle drar i samme retning.
+
+**Arbeiderens vurdering er likevel avgjørende:** opplever han arbeidet som farlig, er det farlig. Terskelen for å ta en SJA skal derfor være lav — ingen skal måtte argumentere seg til den.
+
+### ✅ Dette er allerede bygget
+
+Cowork antok først at dette krevde en ny «krev SJA»-funksjon. **Det gjør det ikke** — måling på to nivåer:
+
+```
+dokumentflyt.md § HMS   Oppretter | Alle brukere
+modul.ts:59             Boks 1: bestiller — null-medlem (åpen for alle prosjektmedlemmer)
+```
+
+**En arbeider kan opprette en SJA selv i dag.** HMS-flytens steg 1 har ingen medlemsbinding, så alle prosjektmedlemmer slipper inn — uavhengig av faggruppe. Det er samme egenskap som gjør SJA tverrgående (§ over), og den dekker dette tilfellet gratis.
+
+### Det som gjenstår er ikke tilgang, men synlighet
+
+Spørsmålet er ikke *om* arbeideren kan, men **om han vet at han kan**. En funksjon som finnes, men som ingen finner, er ikke i bruk.
+
+**Til vurdering (fabel, ikke avgjort):**
+- Er «Ny HMS-rapport → SJA» nåbar og forståelig fra mobil, der feltarbeideren står?
+- Kommer terskelen i veien — antall felter, påkrevde felt, mal-valg?
+
+**Ikke bygg en ny inngang før dette er målt.** Det finnes allerede én; problemet kan være at den er for godt gjemt.
 
 **Kodemåling:** `leggTilKommentar` (`apps/api/src/routes/oppgave.ts:234`) har **kun** `verifiserDokumentTilgang` — ingen status-vakt, ingen rolle-vakt. **Serveren tillater altså kommentar på et lukket dokument allerede i dag.**
 
