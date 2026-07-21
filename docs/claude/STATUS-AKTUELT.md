@@ -13,6 +13,8 @@ sist_verifisert_mot_kode: 2026-07-10
 | **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny-flater · **`generate.ts` (i18n — blokkerer andre økter)** | 2026-07-18 | **AKTIV** — Fase B. Del 1a merget-klar (`d46e481e`); badge-konsum HOLDT av cowork: «Lest»-regresjon skal rettes før commit |
 | **P1 nivåsignal** | `~/Documents/Programmering/SiteDoc-develop` | `feat/p1-nivasignal` (ledd 2) | `KontekstChip.tsx` · HMS-parets to side-skall (sidehode) | 2026-07-21 | **LEDD 2 ÅPEN** — ledd 1 levert + fabel-gatet. Scope snevret til `KontekstChip` (rotårsak kun bak `nyNavigasjon`). § 2D (suffiks) ute — Kenneth vedtok (b) |
 
+| **Registrator-fiks** | *(tildeles ved åpning)* | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` + kallsteder | 2026-07-21 | **KLAR FOR RELAY** — specen rettet (10 steder i `dokumentflyt.md`). Sekvenseres etter A-3b Del 1b. Ordre: [registrator-fiks-ordre.md](delplaner/registrator-fiks-ordre.md) |
+
 **Lukket 2026-07-20/21 (seks økter):** N3-fiks synlighet (`fix/n3-flytmedlem-synlighet`) · kode-Opus sak 1 (`fd573b61`) · kode-Opus spor 2 + sak 2 (`cf76d81d`, `ecedb7eb`) · mobil-Opus TegningsCapture (`b15dfe56`) · CI-Opus spor 1 (PR #1+#2) · web-Opus testrunder (sak 1 + sak 2, testplaner merket KJØRT). Alle merget til develop; tilgangslaget deployet prod.
 
 > ⚠️ **Tavla var tom for alle seks mens de kjørte.** Rader ble aldri skrevet, og Kenneth måtte avslutte to økter uten oppfølging. Rettet ved [SAMARBEIDSREGLER § Tavle-binding](SAMARBEIDSREGLER.md#tavle-binding--commit-gaten-vedtatt-2026-07-21): ordre ⇒ rad og merge ⇒ rad-fjerning skjer nå i samme commit.
