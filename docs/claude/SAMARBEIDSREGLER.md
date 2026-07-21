@@ -121,6 +121,8 @@ Test-økter (web-Opus, simulator-Opus) leverer rapporter, ikke commits, så B2 u
 1. **i18n-generatoren.** To økter som begge legger nøkler kjører `generate.ts` mot 13 språk. **Aldri parallelt** — det gir garantert konflikt i 15 filer, ikke i de to de redigerte. Fabel-krav.
 2. **`localhost:3100/3001`.** Dev-serveren er ÉN. Trenger to økter kjørende app samtidig, må den ene bruke test — eller vente. (Og en dev-server kan servere fra et helt ANNET tre enn økta tror den tester; sjekk `cwd` på pid-en.)
 3. **Delte komponenter bak ulike sider.** Filoverlapp på side-nivå fanger ikke at to sider rendrer samme komponent. Målt eksempel: `sjekklistemaler/[id]` og `oppgavemaler/[id]` bruker begge `MalBygger` — én økt eide sidene, en annen skulle bygge inn i komponenten. Sjekk hva sidene *importerer*, ikke bare hvilke filer de er.
+> 📸 **Ber du Kenneth om skjermbilder eller klikk-testing:** følg [skjermbilde-forespoersel.md](skjermbilde-forespoersel.md). Limbar URL · nummererte steg · nøyaktig hva som klikkes · hva som forventes i hvert bilde. Uten forventning er han kamera-operatør, ikke verifisør — og uten URL bruker han tid på å lete.
+
 5. **🔴 Kenneths nettleser.** `chrome-devtools-mcp` kjører med `--isolated=false --channel=stable` og `playwright-mcp` med `--extension` — **begge styrer Kenneths faktiske Chrome, ikke en skjult sandkasse.** Navigeringer, cookie-injisering og klikk skjer synlig i vinduet han sitter i.
 
    **Målt 2026-07-21:** A-3b-Opus kjørte browser-verifisering i den tro at den var isolert. Kenneth meldte «siden blinker veldig fort» — det var Fast Refresh + «Throttling navigation»-loop fra automatiseringen, i hans eget vindu. Økta stoppet, drepte dev-serveren, fant rotårsaken selv og ryddet all testdata.
