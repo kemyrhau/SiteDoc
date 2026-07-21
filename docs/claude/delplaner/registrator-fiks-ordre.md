@@ -82,6 +82,31 @@ erTillattForRolle(rolle, gjeldendStatus, nyStatus)  ← ingen erAdmin
 
 **Uten den siste raden er ikke fiksen verifisert** — den er hele poenget med tofase-oppdelingen.
 
+## 5b. Registrators redigeringsrett når ballen kommer TILBAKE (Kenneth 2026-07-21)
+
+> Kontrollspørsmål fra Kenneth: *«Hvis en oppgave kommer tilbake til registrator — kan de redigere?»* Svaret er ulikt for oppgave og sjekkliste, og fiksen må bevare begge.
+
+**Regelen (Kenneth):**
+- **Oppgave:** en utfylt oppgave skal **ikke redigeres etter sending** — kun **tilføye** ny info/kommentar. (Append-only.)
+- **Sjekkliste:** skal **alltid kunne redigeres der den er, helt til den er godkjent** — da låst, og må **låses opp** for videre redigering.
+
+**Kode-status (cowork-målt 2026-07-21) — begge regler intakte, men merk:**
+- Sjekkliste-låsen: `utledDokumentRettighet` steg 2 (`flytRolle.ts:182`) — `approved` → `leser` for alle. Opplåsing = statusovergang tilbake fra `approved`. ✅
+- Oppgave append-only: håndheves **kun klient-side** (`erFeltLåst()` i oppgave-hooken; `flytRolle.ts:173`: *«server oppdaterData håndhever ikke append-only i dag»*). Regelen er strengere enn serveren garanterer. **Ikke registrator-fiksens ansvar — men ikke bygg noe som stoler på server-håndhevet append-only.**
+
+**Hvorfor dette treffer fiksen:** i dag gir steg 1 registrator `"admin"`, som **hopper over** append-only- og ball-sjekkene. En registrator kan derfor i UI redigere en sendt oppgave — **brudd på Kenneths regel.** Etter fiksen faller registrator til steg 3–7, der `dokumentType` styrer henne inn i append-only for oppgave og full redigering for sjekkliste, **når hun har ballen.** Fiksen bringer altså registrator *i tråd* med regelen.
+
+**Testkrav (legges til § 5-matrisen):**
+
+| Skal bevises | Rad |
+|---|---|
+| Registrator med ballen på **sjekkliste** (ikke godkjent) → `redigerer` | full felt-redigering, som før |
+| Registrator med ballen på **oppgave** → `redigerer` = **append-only** (ikke overskriv) | `dokumentType="oppgave"`-grenen |
+| Registrator på **godkjent sjekkliste** (`approved`) → `leser` | låst til opplåsing |
+| Registrator **uten** ballen → `leser` (begge typer) | eier del, men ikke tur |
+
+**Avvik-plikt:** faller noen av disse ut som `null` (ingen tilgang) i stedet for `leser`/`redigerer`, har fiksen tatt for mye. Registrator beholder **alltid** minst leserett i egen flyt (§ 5b i [dokumentflyt.md § Rollematrisen](../dokumentflyt.md)).
+
 ## 6. Ufravikelig
 
 - **Ikke rør `utledMinRolle:62`** (admin → registrator). Kenneth har uttrykkelig godkjent den.
