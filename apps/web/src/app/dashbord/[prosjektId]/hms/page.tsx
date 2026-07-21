@@ -10,6 +10,7 @@ import { Plus, ChevronDown, ShieldAlert, AlertTriangle, ClipboardList, FileWarni
 import { KpiKort, MånedSøyler, FaggruppeBars, formaterDato, hentDataVerdi } from "@/components/hms/visning";
 import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
 import { FilterPanel } from "@/components/ui/FilterPanel";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import type { DokumentRad } from "@/components/hms/types";
 
 type Tab = "avvik" | "sja" | "ruh" | "statistikk";
@@ -292,14 +293,16 @@ export default function HmsSide() {
 
   return (
     <div className="flex flex-col gap-4 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <ShieldAlert className="h-6 w-6 text-sitedoc-primary" />
-          <h1 className="text-2xl font-semibold text-gray-900">{t("hms.tittel")}</h1>
+      {/* Header — P1-C sonetonet sidehode (PROSJEKT = blå) */}
+      <SonetonetSidehode sone="prosjekt">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="h-6 w-6 text-sitedoc-primary" />
+            <h1 className="text-2xl font-semibold text-gray-900">{t("hms.tittel")}</h1>
+          </div>
+          <NyDropdown alternativer={opprettAlternativer} onClick={handleOpprett} />
         </div>
-        <NyDropdown alternativer={opprettAlternativer} onClick={handleOpprett} />
-      </div>
+      </SonetonetSidehode>
 
       {/* KPI-bånd */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
