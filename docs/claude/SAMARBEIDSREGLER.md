@@ -81,6 +81,24 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 
 **B-2 og A-3b kjøres etter denne sløyfen** når N3-valget er tatt.
 
+## Dokument-eierskap: fabel leverer, cowork plasserer (vedtatt 2026-07-21)
+
+**Problemet:** fire ganger 2026-07-21 skrev fabel «ført i `delplaner/…`» om dokumenter som ikke fantes i repoet. Fabel har **kun lesetilgang** til repo-mappen — han kan verifisere plassering, ikke utføre den. Konsekvensen var at repoet lå ett relay bak, og at ordrer viste til stier ingen Opus kunne lese.
+
+| Flate | Rolle |
+|---|---|
+| **Designprosjektet** | Fabels arbeidsflate + mockup-kilde (`.dc.html`, `verifisering/*`-logger) |
+| **Repoet** | **Kanonisk for alt en Opus skal lese.** Én sannhet |
+
+**Regelen:**
+
+1. Fabel leverer innhold merket **`TIL REPO: <sti>`**.
+2. **Cowork plasserer og eier stien.**
+3. Fabel skriver **aldri** «ført i repo» — kun **«levert til plassering»**.
+4. Fabel **leser repoet etterpå** for å verifisere. Det gjør ordningen selvkontrollerende.
+
+**Praktisk:** finnes fabels fil på disk, be Kenneth om stien og bruk `cp` i stedet for avskrift. **Avskrift kan drifte; en filkopi kan ikke.**
+
 ## Tavle-binding — commit-gaten (vedtatt 2026-07-21, etter andre svikt)
 
 > **Livssyklusen under er riktig og beholdes uendret. Dette avsnittet er det som mangler: en mekanisme som gjør at den faktisk kjøres.**

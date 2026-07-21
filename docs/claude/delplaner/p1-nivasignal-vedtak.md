@@ -24,6 +24,10 @@ Firma-HMS og prosjekt-HMS var i prod visuelt nesten identiske: samme topplinje (
 5. **Gjennomgående mønster** for alle firma-/prosjekt-par — egen plan lages ETTER at vedtatt delplan er ferdig.
 6. **Sidebar-funksjon a)** (Kenneth 2026-07-21): chip = **kun snarvei** til motpart-flaten; sidebaren forblir uendret strukturkilde (K5 bevares).
 
+   **Presisert R2 (fabel 2026-07-21):** `KontekstChip` er **eneste** firma-/prosjektvelger i ny nav (ledd 1-funn) — **velger-popoveren BEHOLDES** (paritet = akseptkriterium); **⇄ legges til som eget bytte-affordance** på chippen. Chip-klikk = velger, ⇄ = flatebytte.
+
+   **Admin-konsekvens bevisst akseptert:** firmanavnet er borte fra topplinja i prosjektkontekst. **Vilkår:** popover-headeren viser prosjektets firma. Pilot-friksjon → egen sak.
+
 7. **Sidehodet (§ 2C) er flagg-nøytralt** — vises for **alle** brukere, ikke bare de med `nyNavigasjon`. *(Fabel 2026-07-21, som bekreftelse av eksisterende prinsipp — ikke et nytt valg.)*
 
    **Følger av flagg-prinsippet (Kenneth 2026-07-12):** funksjonalitet på felles sider bygges flagg-nøytralt; **kun nav-skallet** ligger bak `nyNavigasjon`. Sidehodet bor på siden, ikke i skallet. At chip og topplinje (§ 2A/2B) *er* bak flagget skyldes utelukkende at `KontekstChip` tilfeldigvis bor i skallet.
