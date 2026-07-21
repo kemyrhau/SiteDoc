@@ -65,7 +65,27 @@ Deltakerne signerer heller ikke i dag: `persons` er en navneliste, `signature` e
 - **Gjelder dette kun SJA?** Signaturfeltet brukes også i andre maler (`types/index.ts:515`, `:549`, `:622`). Endres felttypen, treffer det dem. Piloten bør være SJA alene.
 - **Utskrift:** en SJA med signaturer avgitt over tid må vise dem med dato i print/PDF.
 
+## ✅ SJA hører i HMS-flyten — ikke standard dokumentflyt (Kenneth 2026-07-21)
+
+> **Kenneth:** *«En kranbil utfører løft over en hovedinngang til byggeplass → SJA utføres → dette involverer arbeidere på tvers av forskjellige dokumentflyter → oppgaven må derfor ligge som HMS-flyt, ikke som standard dokumentflyt. Den hører også til i HMS-arbeidet.»*
+
+**Dette omgjør en tidligere cowork-gate.** Cowork svarte først at SJA *kunne* gå i standard dokumentflyt forutsatt at signeringen ble løst. **Den vurderingen var feil akse** — den gatet på signeringsmekanikk, ikke på hvem som deltar.
+
+**Argumentet som avgjør:** en SJA for et kranløft samler folk fra flere faggrupper og flere dokumentflyter samtidig. Standard dokumentflyt er bundet til faggruppe- og flytmedlemskap og kan per definisjon ikke romme en gruppe som går på tvers.
+
+**HMS-flyten er allerede bygget for det** (cowork-målt, `apps/api/src/routes/modul.ts:60`):
+
+```
+steg 1:  rolle "bestiller",  null-medlem  → åpen for ALLE prosjektmedlemmer
+steg 2:  rolle "utforer",    groupId      → HMS-gruppen
+```
+
+Null-medlemmet på steg 1 er nettopp den tverrgående egenskapen et kranløft krever. **Ingen strukturendring trengs for å plassere SJA riktig** — SJA-malen ligger allerede i HMS-domenet (`subdomain: "sja"`).
+
+**Deltakersignatur-kravet står uendret.** Det er uavhengig av hvilken flyt SJA lever i — listen skal bygges av signaturene uansett.
+
 ## Relatert
 
-- Gaten som utløste saken: SJA i standard dokumentflyt — **ja**, med denne mekanismen på plass. HMS-avvik og RUH følger egen modell ([hms-domenemodell.md](../hms-domenemodell.md), [hms-synlighet-regel.md](hms-synlighet-regel.md)).
+- **Synlighet:** SJA er **åpen** (Kenneth 2026-07-21); RUH og HMS-avvik er private. Se [hms-synlighet-regel.md](hms-synlighet-regel.md) — SJA som åpen HMS-type er nettopp det som gjør tverrgående deltakelse mulig.
+- HMS-domenemodell (to akser, arbeidsgiver-ruting): [hms-domenemodell.md](../hms-domenemodell.md).
 - Rollematrisen ([dokumentflyt.md](../dokumentflyt.md)) gjelder dokumentet. **Signering er ikke redigering** i denne modellen — det er en egen handling med egen adgangsregel (spørsmål 1).
