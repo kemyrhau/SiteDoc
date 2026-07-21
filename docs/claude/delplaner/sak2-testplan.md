@@ -1,10 +1,22 @@
 ---
 name: sak2-testplan
-status: 🟡 KLAR — ledd 4 (cowork). Venter merge→test-deploy før ledd 5
+status: 🟢 KJØRT + GRØNN (ledd 5, 2026-07-21) — T1 ✅ · T2 ✅ (beviset) · T3/T4/T5 kode-verifisert. Sak 2 lukket
 eier: cowork (testplan) · web-Opus (ledd 5) · Kenneth (klikk-gate)
-sist_verifisert_mot_kode: 2026-07-20
-gjelder: fix/sak2-oppretter-ser-eget (d418f100) — review godkjent
+sist_verifisert_mot_kode: 2026-07-21
+gjelder: fix/sak2-oppretter-ser-eget (d418f100) → merget develop
 ---
+
+> **Resultat (web-Opus, test, 2026-07-21):**
+>
+> | Dokument | Før toggle (T1) | Etter toggle (T2) | Tilgangsvei |
+> |---|---|---|---|
+> | KB2-005 (Godkjent) | synlig | **forsvant** | flyt-medlemskap |
+> | KB2-001 (Avvist) | synlig | **forsvant** | flyt-medlemskap |
+> | KB2-006 (Utkast) | synlig | **ble stående** | oppretter (uavhengig) |
+>
+> **T1 ✅** — KB2-006, dokumentet som forsvant i N3-testen, sto i lista med **tom flyt-kolonne**: synlig via oppretter-grenen, uten flyt-binding. **T2 ✅** — da flyt-medlemskapet ble deaktivert forsvant de to flyt-scopede dokumentene mens KB2-006 ble stående (sidebar: Alle 1). **To uavhengige tilgangsveier, slått av hver for seg, i samme liste for samme bruker.**
+>
+> **T3/T4/T5 kansellert og kode-verifisert:** ingen nøytral bruker på B12 (T3) · admin-grenen returnerer `null` før OR-bygging, verifisert 3× samme dag (T4) · kmys HMS-liste tom, og `byggHmsSynlighetsFilter` har allerede person-grenene (T5). Kansellert bevisst for å spare nettleser-runder på ustabilt nett.
 
 # Testplan — Sak 2: oppretter/mottaker ser sitt eget i lista (ledd 4)
 

@@ -39,6 +39,23 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 ## Pågående arbeid (PR-historikk)
 
+### ✅ Tilgangslaget ferdigstilt — fire saker merget + verifisert (2026-07-20/21). IKKE deployet prod
+
+Dokumentflyt-tilgang er nå konsistent på tvers av alle gater, med varig testdekning på beslutningen.
+
+| Sak | Merget | Verifisert |
+|---|---|---|
+| **N3 del 1+2** — synlighet leser `DokumentflytMedlem` | `96d5d2c0`, `d2863dd5` | 8 tester, Del E lukket |
+| **Sak 1** — flyt-medlemskap likestilt med faggruppe (paritet); `tillatFlytMedlemskap`-flagget fjernet, grenen ubetinget på alle 17 call-sites | `fd573b61` | S1/S2/S7 ✅, øvrige kode-verifisert |
+| **Spor 2** — beslutningen ekstrahert som ren funksjon `avgjorDokumentTilgang` + tabelldrevet `tilgangsmatrise.test.ts` (frossen referanse + produksjon, 30 rader) | `cf76d81d` | 90/90, test skrevet FØR refaktor |
+| **Sak 2** — `byggTilgangsFilter` fikk bestiller/mottaker-grenen; lista speiler detalj-gaten | `ecedb7eb` | **T1+T2 ✅** — to tilgangsveier slått av hver for seg |
+
+**Alle tre gatene er nå enige** om bestiller/mottaker: `byggTilgangsFilter` (liste) · `verifiserDokumentTilgang` (detalj) · `byggHmsSynlighetsFilter` (HMS). Beslutningslaget er navngitt i [dokumentflyt.md § 3](dokumentflyt.md).
+
+**Infrastruktur samme runde:** CI finnes nå ([spor1-ci-ordre.md](delplaner/spor1-ci-ordre.md)) — `pnpm test` på PR **og** push til develop, `permissions: contents: read`. Mobil eslint-config rettet, som avdekket 19 skjulte react-hooks-funn inkl. én reell bug ([tegningscapture-hooks-bug.md](delplaner/tegningscapture-hooks-bug.md), merget `b15dfe56`, latent ikke aktiv). `deploy-test.sh` rettet: mobils `package.json` må synkes selv om resten av `apps/mobile` ekskluderes — `--frozen-lockfile` validerer hele workspacet.
+
+**Åpne saker herfra:** [sak1b-mutasjoner-rollestyring.md](delplaner/sak1b-mutasjoner-rollestyring.md) (bør mutasjoner rollestyres?) · [lesekvittering.md](delplaner/lesekvittering.md) (Kenneth-vedtak, personvern) · [hms-synlighet-regel.md](delplaner/hms-synlighet-regel.md) · [lint-typecheck-gjeld.md](delplaner/lint-typecheck-gjeld.md) (stoppet etter trinn 1). **Neste store:** A-3b Fase B (Del 1a levert + godkjent).
+
 > **Maks 3 aktive PR-tråder.** `### Gjenstående` er en samlepost, ikke en tråd, og telles ikke.
 
 ### N3-fiks: dokumentflyt-synlighet leser DokumentflytMedlem (del 1 + del 2) — MERGET DEVELOP + VERIFISERT PÅ TEST (2026-07-19)

@@ -1,6 +1,6 @@
 ---
 name: sak2-opprett-usynlig
-status: 🔴 REPRODUSERT (cowork, kode-målt 2026-07-19) — klar for fabel-planlegging. Ikke startet
+status: 🟢 LØST + VERIFISERT (2026-07-21) — merget develop, T1/T2 grønn på test. Se [sak2-testplan.md](sak2-testplan.md)
 eier: cowork (reproduksjon) · fabel (ordre) · kode-Opus (bygg)
 sist_verifisert_mot_kode: 2026-07-19
 ---
