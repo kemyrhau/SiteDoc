@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { ChevronDown, Building2, ArrowLeftRight } from "lucide-react";
+import { ChevronDown, ArrowLeftRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -94,27 +94,31 @@ export function KontekstChip() {
   // ⇄-aria/title: mål-nivået. Gjenbruker eksisterende nøkler (ingen generator).
   const byttLabel = erFirmaKontekst ? t("kontekstChip.prosjekt") : t("kontekstChip.firma");
 
+  // P1 lapp (fabel-fasit § 3a, 2026-07-21): entitetsnavnet er nivå-derivert,
+  // samme kilde som før — kun flyttet ut av chippen til ren tekst.
+  const entitetTekst = erFirmaKontekst ? (firmaNavn ?? t("kontekstChip.velgFirma")) : prosjektTekst;
+
   return (
-    <div ref={ref} className="relative flex items-center">
-      {/* R2 (fabel-fasit § 2a): split-chip «FIRMA ▾ | ⇄». Venstre = velger
-          (popover), ⇄ = eget sonefarget klikkmål for flatebytte, med −12px
-          overlapp mot chippens avrundede høyrekant (z-10 tucker det over
-          hjørnet). ⇄ vises kun med motpart. Vanlig navigasjon, sidebar urørt. */}
+    <div ref={ref} className="relative flex items-center gap-2">
+      {/* P1-A + lapp § 3a: topplinja viser KUN eget nivå, som ren tekst UTENFOR
+          chippen. Firmakontekst → kun firmanavn; prosjektkontekst → kun
+          prosjekt (firmaprefiks ut). Fabels begrunnelse: nivåordet ER
+          nivåsignalet — uten det (§ 3a under) bæres signalet av farge alene,
+          som svikter for fargeblinde. */}
+      <span className="max-w-[220px] truncate text-sm font-medium text-blue-100">
+        {entitetTekst}
+      </span>
+      {/* R2 (fabel-fasit § 2a) + lapp § 3a: split-chip «FIRMA ▾ | ⇄». Chippen
+          bærer NIVÅORDET (ikke navnet — det står til venstre over). Venstre
+          segment = velger (popover), ⇄ = eget sonefarget klikkmål for
+          flatebytte, med −12px overlapp mot chippens avrundede høyrekant
+          (z-10 tucker det over hjørnet). ⇄ vises kun med motpart. Vanlig
+          navigasjon, sidebar urørt. */}
       <button
         onClick={() => setApen(!apen)}
-        className={`relative z-0 flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm transition-colors hover:bg-black/[0.06] ${soneKlasse}`}
+        className={`relative z-0 flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold uppercase tracking-wide transition-colors hover:bg-black/[0.06] ${soneKlasse}`}
       >
-        <Building2 className="h-4 w-4 shrink-0" />
-        {/* P1-A: topplinja viser KUN eget nivå. Firmakontekst → kun firmanavn;
-            prosjektkontekst → kun prosjekt (firmaprefiks ut). */}
-        {erFirmaKontekst ? (
-          <span className="max-w-[220px] truncate">
-            {firmaNavn ?? t("kontekstChip.velgFirma")}
-          </span>
-        ) : (
-          /* Prosjektkontekst: kun prosjekt-/scope-tekst — aldri firmaprefiks. */
-          <span className="max-w-[220px] truncate">{prosjektTekst}</span>
-        )}
+        {erFirmaKontekst ? t("kontekstChip.firma") : t("kontekstChip.prosjekt")}
         <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${apen ? "rotate-180" : ""}`} />
       </button>
       {motpartUrl && (
