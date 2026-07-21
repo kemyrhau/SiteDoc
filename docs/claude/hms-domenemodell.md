@@ -62,12 +62,19 @@ De to aksene er dermed ikke to visninger av bekvemmelighet — de speiler to ree
 
 > ⚠️ **Krysningspunkt som må presiseres før bygging — RUH er «privat».** Kenneth vedtok 2026-07-21 (samme dag) at **RUH og HMS-avvik er de eneste dokumenttypene som skal være private**; SJA er åpen, øvrige HMS-typer følger normal dokumentflyt ([delplaner/hms-synlighet-regel.md](delplaner/hms-synlighet-regel.md)).
 >
-> «Hovedentreprenøren skal vite hva som skjer» og «RUH er privat» er **ikke** i konflikt — men de avgrenser hverandre, og grensen er ikke trukket:
+> **✅ Presisert av Kenneth 2026-07-21: «privat» betyr ikke privat for administrasjonen.**
 >
-> - «Privat» betyr i dagens kode at flyt-medlemskaps-grenen **ikke** gir tilgang (F1-A: `domain === "hms" && hmsSynlighet !== "apen"`). Prosjekt-HMS og firma-HMS er derimot **egne gatede flater** (`harHmsTilgang` / `harFirmaHmsTilgang`).
-> - **Åpent:** hvem hos hovedentreprenøren ser en underentreprenørs RUH? Alle med HMS-tilgang på prosjektet, eller kun HMS-ansvarlig? Og ser de innholdet, eller kun at saken finnes?
+> *«Hvis helt privat, da dør jo bare RUH og ingen beslutter en løsning.»*
 >
-> **Må avklares før noen bygger akse-endringen** — ellers avgjøres et personvernspørsmål av en implementasjonsdetalj.
+> **Hva «privat» beskytter mot:** at melderen eksponeres for kolleger og øvrige prosjektdeltakere gjennom vanlig dokumentflyt-synlighet. Terskelen for å melde en uønsket hendelse skal være lav, og den blir ikke lav hvis hele prosjektet leser den.
+>
+> **Hva «privat» IKKE beskytter mot:** administrasjonen. HMS-ansvarlige og administrativt ansvarlige må se innholdet — de er de eneste som kan beslutte og gjennomføre et tiltak. En RUH ingen med myndighet leser, er en RUH som ikke virker.
+>
+> **Konsekvens i koden:** F1-A-konjunktet (`domain === "hms" && hmsSynlighet !== "apen"` blokkerer flyt-medlemskaps-grenen) er **riktig som det står** — det er nettopp den generelle prosjektdeltaker-tilgangen som skal stenges. De administrative flatene er egne gater (`harHmsTilgang` / `harFirmaHmsTilgang`) og skal fortsatt gi full tilgang.
+>
+> **Fra begge akser:** både hovedentreprenørens administrasjon (prosjekt-aksen — de har ansvar for arbeidsplassen) og arbeidsgiverens administrasjon (firma-aksen — de har oppfølgingsansvar for den ansatte) ser innholdet. Det følger direkte av at begge ansvarsforhold er reelle.
+>
+> **Gjenstår å presisere ved bygging:** den nøyaktige avgrensningen av «administrasjon» — er det prosjektadmin, HMS-tilgang, `erFirmaansvarlig`, eller en kombinasjon? Kapabilitets-feltene på `ProjectMember` finnes allerede og er sannsynlig mekanisme. **Dette er en implementasjonsavgrensning, ikke lenger et åpent personvernspørsmål** — prinsippet er avgjort.
 
 **Blokkert av avvik 2.** Regelen kan ikke implementeres før det finnes en måte å avgjøre hvilket firma en person er **ansatt** i, uavhengig av prosjektmedlemskap. Se under.
 
