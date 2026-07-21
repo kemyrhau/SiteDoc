@@ -67,6 +67,14 @@ export {
 export type { Grense, GrenseStatus } from "./grenseSjekk";
 export { grupperMedOverskrift } from "./seksjoner";
 export type { Seksjon } from "./seksjoner";
+export { perspektivEtikett, utledPerspektiv } from "./perspektivEtikett";
+export type {
+  BadgeVariant,
+  Perspektiv,
+  PerspektivDokumentType,
+  PerspektivSeerKontekst,
+  PerspektivEtikett,
+} from "./perspektivEtikett";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.
