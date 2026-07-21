@@ -58,6 +58,11 @@ Vedtak: [p1-nivasignal-vedtak.md](p1-nivasignal-vedtak.md). Mockup (fasit for ut
 - **DoD:** build grønn → skjermbilder begge nivåer + bytte begge veier → fabel-designgate → dok-sync → cowork-merge.
 - Statuskilde: `verifisering/p1-nivasignal-verifiseringslogg.md` (opprettes ved ledd 2).
 
+## 3b. Gjenstående fra ledd 2 (må ikke tapes)
+
+- **`kontekstChip.byttTil`-nøkkel når generatoren frigis — a11y, ikke kosmetikk.** ⇄-knappens aria-label er i dag kun mål-nivåets navn («Prosjekt»/«Firma») fordi i18n-sperren (§ 4) sto; det sier ikke at det er en byttehandling → meningsløst for skjermleser. Legg inn dedikert nøkkel («Bytt til prosjektvisning» / «Bytt til firmavisning») så snart A-3b frigir `generate.ts`.
+- **⇄-plassering PROVISORISK til mockup § 2a er relayet** — markert i `KontekstChip.tsx`; justeres til fasit + skjermbilder da.
+
 ## 4. Sekvensering (cowork-avgjort 2026-07-21)
 
 **Bindingen er `generate.ts`, ikke sidene.** A-3b Fase B eier i18n-generatoren (Del 2 legger nøkler) og `packages/ui/src/status-badge.tsx`. Per [parallell-arbeid-lock.md](../parallell-arbeid-lock.md) regel 9 + kollisjonssjekk pkt 1 kan ingen annen økt kjøre generatoren samtidig — det gir konflikt i 15 språkfiler, ikke i de to som faktisk ble redigert.
