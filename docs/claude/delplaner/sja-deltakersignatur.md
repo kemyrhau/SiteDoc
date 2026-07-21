@@ -1,6 +1,6 @@
 ---
 name: sja-deltakersignatur
-status: 🟡 VEDTATT RETNING (Kenneth 2026-07-21) — ikke bygget. To åpne spørsmål før ordre
+status: 🟡 VEDTATT RETNING (Kenneth 2026-07-21) — ikke bygget. Begge hovedspørsmål besvart; én liten presisering igjen (relukking)
 eier: Kenneth (domenesannhet) · fabel (design + malbygger-konsekvens) · cowork (måling)
 sist_verifisert_mot_kode: 2026-07-21
 ---
@@ -54,10 +54,68 @@ Deltakerne signerer heller ikke i dag: `persons` er en navneliste, `signature` e
 
 **Gjenbruk mønsteret, ikke tabellen** — `PsiSignatur` er bundet til PSI-domenet. Cross-package-FK håndteres som svakt String-felt per CLAUDE.md § To-stegs migrations-policy.
 
-## Åpne spørsmål før ordre
+## ✅ Besvart av Kenneth 2026-07-21
 
-1. **Hvem får signere senere?** Et nytt gruppemedlem tre uker etter — men hva avgjør at han hører til? Gruppemedlemskap på signeringstidspunktet, eller eksplisitt invitasjon? **Uten en regel kan hvem som helst signere seg inn på en gammel SJA.**
-2. **Endrer en sen signatur SJA-ens status?** Cowork-innstilling: **nei** — signaturen dokumenterer at han har lest den, den gjenåpner ikke saken. Men det bør sies eksplisitt, ellers avgjøres det av en implementasjonsdetalj.
+**1. Hvem får signere senere?** → **Er SJA-en lukket: be om åpning. Deretter kan alle signere.**
+
+Åpningen er kontrollpunktet — ikke en tillatelsesliste per person. Ett sted å gate, i stedet for en rettighetsmatrise som må vedlikeholdes. Er dokumentet åpent, er signering fritt.
+
+**2. Endrer en sen signatur SJA-ens status?** → **Nei.** Signaturen dokumenterer at personen har gjennomgått SJA-en. Den flytter ikke dokumentet.
+
+### Arkitektonisk konsekvens — statuslåsen respekteres, den omgås ikke
+
+Dette endrer skissen over. Cowork antydet først at signaturlisten burde ligge utenfor dokumentdataen **for å unngå** statuslåsen. Kenneths modell er bedre: låsen **gjelder**, og en bevisst åpning kreves for å signere på et lukket dokument.
+
+**Gevinsten er sporbarhet.** «Hvem åpnet en lukket SJA, og når» blir en registrert handling i stedet for noe som skjer stille i bakgrunnen. På et HMS-dokument er det verdt mer enn bekvemmeligheten.
+
+**Signaturlisten kan dermed leve i dokumentets data** — hindret var aldri lagringsstedet, det var at ingen hadde bestemt hvordan man kommer forbi låsen. Nå er det bestemt.
+
+## Hvem åpner — arbeidsflyten (Kenneth 2026-07-21)
+
+> **Kenneth:** *«Prosjektleder vet at nye mennesker tilkommer og gir beskjed om at SJA må oppdateres. HMS-ansvarlig får beskjed om å åpne SJA.»*
+
+**Sekvensen:**
+
+```
+1. Prosjektleder ser at nye folk kommer på arbeidet
+2. → varsler at SJA må oppdateres
+3. HMS-ansvarlig åpner den lukkede SJA-en
+4. De nye signerer (alle kan — åpningen var kontrollpunktet)
+5. HMS-ansvarlig lukker igjen
+```
+
+**Steg 5 følger av steg 3:** den som åpnet et lukket HMS-dokument avslutter handlingen. Det holder sporet helt — «hvem åpnet, hvem signerte, hvem lukket» er en sammenhengende kjede. *(Cowork-utledning fra Kenneths flyt, ikke eksplisitt uttalt — bekreftes ved ordreskriving.)*
+
+**Merk at åpningen dermed ikke er en systemtillatelse, men en HMS-faglig handling.** HMS-ansvarlig vurderer om SJA-en fortsatt er dekkende for arbeidet, eller om den må oppdateres før nye signerer. Det er poenget med at det er *han* som åpner, og ikke hvem som helst.
+
+### SJA er lederdrevet — ikke arbeiderdrevet (Kenneth 2026-07-21)
+
+> **Kenneth:** *«I praksis er det slik at arbeideren ikke selv oppdager at han må gjøre en SJA — det er lederne som vet at farlig arbeid skal utføres og planlegger deretter.»*
+
+**Dette er hovedflyten, og den er planlagt ovenfra:** ledelsen vet at farlig arbeid kommer, planlegger SJA-en, vet hvem som skal delta, og sørger for at den er åpnet før folk møter.
+
+**Arbeiderens rolle er å signere** — ikke å initiere. En arbeider som selv må oppdage at en SJA mangler, er allerede et symptom på at planleggingen sviktet.
+
+**Kan arbeideren likevel be om åpning?** Ja, og det bør være mulig — men som **sikkerhetsnett**, ikke som hovedvei. Møter han opp og SJA-en er lukket, skal han ha en vei til å si fra i stedet for å signere ingenting eller la være.
+
+**Prioritering følger av dette:** bygg lederflyten først (prosjektleder → HMS-ansvarlig → åpning). Arbeider-forespørselen er en kantsituasjon og kan komme senere.
+
+**Kodemåling:** `leggTilKommentar` (`apps/api/src/routes/oppgave.ts:234`) har **kun** `verifiserDokumentTilgang` — ingen status-vakt, ingen rolle-vakt. **Serveren tillater altså kommentar på et lukket dokument allerede i dag.**
+
+> ⚠️ **Klienten skjuler det sannsynligvis.** `utledDokumentRettighet:182` gir `"leser"` for `closed/approved/cancelled`, og kommentarfeltet er trolig skjult for lesere. Samme klient/server-divergens som er truffet flere ganger 2026-07-21. **Må verifiseres i UI, ikke antas.**
+
+### Kommentar duger — men handling er riktig form
+
+| | Fritekstkommentar | «Be om åpning»-handling |
+|---|---|---|
+| Varsler HMS-ansvarlig | ❌ Han må tilfeldigvis åpne dokumentet — og han har ingen grunn til å åpne en lukket SJA | ✅ |
+| Søkbar tilstand («hvilke SJA-er venter på åpning?») | ❌ Ligger som tekst i en tråd | ✅ |
+| Lukkes når den er besvart | ❌ Ingen vet om den er håndtert uten å lese tråden | ✅ |
+| Byggekostnad | ✅ Null — finnes | Krever bygging |
+
+**Anbefaling:** kommentaren er en gyldig nødløsning hvis UI-et viser den på lukkede dokumenter. Målet er en egen handling — **men først for lederflyten**, som er hovedveien. Arbeider-forespørselen er sikkerhetsnettet.
+
+**Steg 2 trenger uansett et varsel.** «Prosjektleder gir beskjed» er i dag utenfor systemet — en melding på telefon eller i forbifarten. Tverrgående varsling er eget spor ([varsling.md](../varsling.md)); **åpningsforespørselen bør vurderes sammen med den saken**, ikke bygges isolert her.
 
 ## Konsekvenser å ta med i designet
 
