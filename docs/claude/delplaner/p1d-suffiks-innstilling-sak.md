@@ -29,11 +29,15 @@ Modellen bærer allerede tre boolean-toggles i nøyaktig samme form: `tillattSel
 
 Additiv boolean med default er lav risiko i seg selv. Begrunnelsen er ikke risiko, men **verifiserbarhet**: P1 A–C er rene visningsendringer som kan bekreftes med skjermbilder alene. Blandes en skjemaendring inn, må DoD-runden dekke både UI og database samtidig, og en visuell designgate blir da også en migrerings-gate. To gater i én runde gjør begge svakere.
 
-## Åpne spørsmål før ordre skrives
+## Besvarte spørsmål (fabel 2026-07-21) — saken er komplett
 
-1. **Default PÅ eller AV?** Fabels ordre stilte spørsmålet uten å svare det. PÅ gir signalet til alle uten konfigurasjon; AV er konservativt for eksisterende kunder.
-2. **Gjelder suffikset alle firma-flater eller kun HMS?** P1 piloterer HMS-paret; det gjennomgående mønsteret er egen sak.
-3. **Er teksten «— hele firmaet» i18n-nøkkel?** Ja, forventet — og den treffer da `generate.ts`, som må sekvenseres mot andre i18n-eiende økter.
+| # | Spørsmål | Svar |
+|---|---|---|
+| 1 | **Default PÅ eller AV?** | **Opus foreslår, fabel gater.** Ikke et åpent Kenneth-spørsmål alene — utførende Opus begrunner et forslag ut fra koden, fabel avgjør |
+| 2 | **Rekkevidde: alle firma-flater eller kun HMS?** | **Alle firma-flater.** Suffikset er del av det gjennomgående nivåsignal-mønsteret, ikke HMS-spesifikt |
+| 3 | **i18n-nøkkel?** | **Ja, ny nøkkel.** Sekvenseres av cowork mot A-3b/generatoren, som alt annet i18n-rørende |
+
+> ⚠️ **Cowork-merknad til svar 2:** «alle firma-flater» gjør dette bredere enn P1-piloten. [p1-nivasignal-vedtak.md](p1-nivasignal-vedtak.md) punkt 5 sier at det gjennomgående mønsteret får **egen plan etter at vedtatt delplan er ferdig**. Suffikset er teknisk uavhengig av chip-mønsteret (det er ren tekst på firma-h1), så det kan bygges før den planen foreligger — men **inventaret over firma-flater må da måles først**, ellers treffer man ikke alle. Nå-rapportens § 5 har listen: prosjekter-liste, ansatte, avdelinger, oppmøtesteder, kompetanse, moduler, kalender, fakturering, innstillinger, integrasjoner, HMS. Verifiseres mot kode når ordren skrives.
 
 ## Ufravikelig ved utførelse
 
@@ -43,4 +47,8 @@ Additiv boolean med default er lav risiko i seg selv. Begrunnelsen er ikke risik
 
 ## Prioritet
 
-**Ikke satt.** Køes av fabel/Kenneth etter at P1 A–C er levert og verifisert.
+**Ikke satt.** Egnet som **liten sak rett etter P1-verifisering** — omfanget er én kolonne, én toggle og én tekstlinje, og kodemålingen er allerede gjort. Køes av fabel/Kenneth.
+
+## Kilde-notat
+
+Fabels arbeidskopi i designprosjektet er **slettet og erstattet av en peker hit** (2026-07-21). **Denne fila er kanonisk.** P1-ordrens § 2D-referanse går via pekeren, så ingen spor er brutt.
