@@ -1,6 +1,6 @@
 ---
 name: spor2-matrise-ekstraksjon-ordre
-status: 🟡 SKREVET (cowork 2026-07-20) — venter fabel-gate før start. Starter etter S1-testrunden
+status: 🟢 BYGGET + MERGET — `cf76d81d`. Fase A (test før refaktor) + Fase B (ekstraksjon), matrise 90/90 mot begge sider
 eier: cowork (ordre) · fabel (gate før start) · kode-Opus (ledd 3)
 sist_verifisert_mot_kode: 2026-07-20
 ---

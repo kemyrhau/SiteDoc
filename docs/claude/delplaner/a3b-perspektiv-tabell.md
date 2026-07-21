@@ -1,6 +1,6 @@
 ---
 name: a3b-perspektiv-tabell
-status: 🟢 FASE A-LEVERANSE — til fabels designgate. Revidert etter cowork-funn (2026-07-20): «Lest» fjernet (død kode / lesekvittering → egen sak), rejected-fargeskift flyttet til ordrens § 2b
+status: 🟢 FASE A LUKKET — fabel-designgate godkjent 2026-07-20 (tre designsvar + rejected-korreksjon inne). Fase B pågår
 eier: a3b-opus (ledd 3, tabell) · fabel (designgate) · cowork (kode-måling)
 sist_verifisert_mot_kode: 2026-07-20
 ---

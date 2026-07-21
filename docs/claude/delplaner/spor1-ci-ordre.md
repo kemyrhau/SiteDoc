@@ -1,6 +1,6 @@
 ---
 name: spor1-ci-ordre
-status: 🟢 KLAR — fabel-godkjent 2026-07-20, cowork-skrevet. Fil-disjunkt fra spor 2
+status: 🟢 LEVERT — CI live på develop (PR #1 + #2 merget 2026-07-20). Trinn 2 blokkert av lint-gjeld
 eier: fabel (vedtak) · cowork (ordre + merge-rekkefølge) · kode-Opus «CI» (ledd 3)
 sist_verifisert_mot_kode: 2026-07-20
 ---

@@ -1,6 +1,6 @@
 ---
 name: tilgangsmatrise-test
-status: 🟡 SAK — cowork-gatet 2026-07-20. Fabels intensjon beholdt, form omskrevet (to premisser målt usanne). Ikke startet
+status: 🟢 BYGGET — omskrevet form levert i spor 2 (`tilgangsmatrise.test.ts`). CI-delen: [spor1-ci-ordre.md](spor1-ci-ordre.md)
 eier: fabel (beslutning om form) · cowork (måling + gate) · kode-Opus (bygg)
 sist_verifisert_mot_kode: 2026-07-20
 ---
