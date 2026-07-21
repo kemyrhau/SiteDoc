@@ -5,7 +5,22 @@ eier: fabel (vedtak) · cowork (ordre + merge-rekkefølge) · kode-Opus «CI» (
 sist_verifisert_mot_kode: 2026-07-20
 ---
 
-# Ordre — Spor 1: CI trinn 1 (lint + typecheck + tester på PR mot develop)
+# Ordre — Spor 1: CI trinn 1 (PR mot develop)
+
+## 0b. LEVERT — hva CI faktisk kjører (cowork, kode-målt 2026-07-20)
+
+> Tittelen lovet opprinnelig «lint + typecheck + tester». **Kun `pnpm test` kjører.** Det er Steg 0-forgreningens vei **(a)**, valgt med vilje: lint og typecheck var røde ved baseline, og en rød CI dag én blir ignorert.
+
+`.github/workflows/ci.yml` (merget via PR #1 + #2):
+
+| Element | Faktisk |
+|---|---|
+| Trigger | `pull_request` **og** `push` mot `develop` (bredere enn ordren ba om — bevisst) |
+| Runner / node / pnpm | ubuntu-latest · node 20 · pnpm fra `packageManager` |
+| Kjører | `pnpm install --frozen-lockfile` → prisma generate (alle fire db-pakker) → **`pnpm test`** |
+| Kjører IKKE | `pnpm lint`, `pnpm typecheck` |
+
+**Trinn 2** (legg til lint + typecheck) er blokkert av [lint-typecheck-gjeld.md](lint-typecheck-gjeld.md) — egen sak, eid av fabel/kode-Opus. **CI-Opus' oppdrag er lukket.**
 
 ## 0. For deg som koder (les først)
 
