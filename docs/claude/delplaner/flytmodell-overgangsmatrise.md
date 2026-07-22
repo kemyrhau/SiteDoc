@@ -77,9 +77,17 @@ Første utkast sa «11 eierløse overganger». **Feil — bestiller eier flere e
 
 **Prosjektadministrator har i tillegg alle ▶◀↻■↺-overganger** (via `erAdmin` → full tilgang), men det er *overstyring*, ikke linjebevegelse. I admin-UI-matrisen er PROSJ.ADMIN-kolonnen tom default (vedtak 1) — admin arver alt uten eksplisitte celler.
 
-## Åpne spørsmål — RELAYET TIL FABEL 2026-07-22
+## ✅ Alle tre spørsmål BESVART (Kenneth-vedtak 2026-07-22 kveld)
 
-> **Kenneth-krav:** *«vi må tilpasse UI. Jeg avgjør ikke uten et UI-vurdert svar.»* Fabel svarer med **UI-forankrede forslag** (hvordan cellene ser ut / oppfører seg i handlingsmenyen + admin-matrisen), ikke abstrakte vedtak. Kenneth beslutter mot forslaget.
+Se [flytmodell-vedtak-2026-07-22.md § Restvedtak](flytmodell-vedtak-2026-07-22.md) + [terminologi.md § Flytspråket](../terminologi.md).
+
+1. **Kun-admin-cellene:** `draft/received/in_progress → cancelled` = **bestiller + admin**, alltid med kommentar + bekreftelsesdialog («Farlig sone»). `rejected → closed` forblir **kun admin**. Verbet er **«Lukk»** (badge bærer årsak «Lukket · trukket»), ikke «avbryt».
+2. **Klient/server-divergensen:** løses av matrise-kilden + ordboken samlet. Menytekstene «avvis»/«trekk tilbake» var dobbelt feil (server avviser + ordene reservert til annet). Ordboken låser verbene.
+3. **Død overgang `received → in_progress`:** **GJENOPPLIVES som automatikk** — «Pågår» settes automatisk når utfører først åpner dokumentet, drevet av lesekvittering-mekanismen. Ingen «Start arbeid»-knapp. Overgangen beholdes, ingen manuell rolle-oppføring.
+
+**Ny overgang vedtatt i tillegg:** `closed → draft` («Gjenåpne» fra fullført-lukket) — landes sammen med `rejected → sent`.
+
+## Historikk — spørsmålene (relayet til fabel 2026-07-22, nå besvart)
 
 1. **4 kun-admin-celler** (draft/received/in_progress → cancelled, rejected → closed): skal noen ikke-admin-rolle eie dem i admin-UI-defaulten, eller er «kun admin avbryter/lukker mid-flow» det ønskede? Cowork-anbefaling: bestiller bør eie `* → cancelled` (hun kan alt trekke tilbake fra `sent`) — men det er et designvalg.
 2. **Klient/server-divergensen** på «avvis»/«trekk tilbake»: menyen viser handlingene på received/in_progress, men serveren avviser for ikke-admin. Skal menyen skjule dem (matche serveren), eller skal rollene få dem? Løses av admin-UI-matrisen uansett.
