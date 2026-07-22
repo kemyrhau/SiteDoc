@@ -77,7 +77,9 @@ Første utkast sa «11 eierløse overganger». **Feil — bestiller eier flere e
 
 **Prosjektadministrator har i tillegg alle ▶◀↻■↺-overganger** (via `erAdmin` → full tilgang), men det er *overstyring*, ikke linjebevegelse. I admin-UI-matrisen er PROSJ.ADMIN-kolonnen tom default (vedtak 1) — admin arver alt uten eksplisitte celler.
 
-## Åpne spørsmål til fabel/Kenneth
+## Åpne spørsmål — RELAYET TIL FABEL 2026-07-22
+
+> **Kenneth-krav:** *«vi må tilpasse UI. Jeg avgjør ikke uten et UI-vurdert svar.»* Fabel svarer med **UI-forankrede forslag** (hvordan cellene ser ut / oppfører seg i handlingsmenyen + admin-matrisen), ikke abstrakte vedtak. Kenneth beslutter mot forslaget.
 
 1. **4 kun-admin-celler** (draft/received/in_progress → cancelled, rejected → closed): skal noen ikke-admin-rolle eie dem i admin-UI-defaulten, eller er «kun admin avbryter/lukker mid-flow» det ønskede? Cowork-anbefaling: bestiller bør eie `* → cancelled` (hun kan alt trekke tilbake fra `sent`) — men det er et designvalg.
 2. **Klient/server-divergensen** på «avvis»/«trekk tilbake»: menyen viser handlingene på received/in_progress, men serveren avviser for ikke-admin. Skal menyen skjule dem (matche serveren), eller skal rollene få dem? Løses av admin-UI-matrisen uansett.
