@@ -14,7 +14,8 @@ sist_verifisert_mot_kode: 2026-07-10
 | **P1 nivåsignal** | `~/Documents/Programmering/SiteDoc-develop` | `feat/p1-nivasignal` (ledd 2) | `KontekstChip.tsx` · HMS-parets to side-skall (sidehode) | 2026-07-21 | **MERGET + PÅ TEST** (`9383233b`). A+B+C levert. Gjenstår: skjermbilder på test + fabels designgate mot fasit-bildene → så lukkes P1. § 2D (suffiks) ute — Kenneth vedtok (b), egen sak |
 
 | **Registrator-fiks** | *(økt kan exit)* | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` · `tilgangskontroll.ts` · `DokumentHandlingsmeny` | 2026-07-21 | **✅ MERGET develop (`cb3ce3d1`).** Fase A+B — registrator ikke lenger superbruker. ⚠️ Åpen rest: `rejected→sent` → handlingsmeny-arbeidet ([registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md)) |
-| **K1+K2 kontekst** | *(økt kan exit)* | `fix/k1k2-kontekst` (`f28aecfd`) | `Toppbar.tsx` · `prosjekt-kontekst.tsx` | 2026-07-21 | **✅ MERGET develop (`31c831a8`).** K1 (byggeplass-lekkasje) + K2 (prosjektvalg-navigasjon) ferdig. Klar for test-deploy. Neste: K3 (trakten) etter dette |
+| **K1+K2 kontekst** | *(lukket)* | `fix/k1k2-kontekst` (`f28aecfd`) | — | 2026-07-21 | **✅ MERGET (`31c831a8`) + på test.** Lukket |
+| **K3 kontekst-fullføring** | `~/Documents/Programmering/SiteDoc-kontekst` | `feat/k3-kontekstvelger` | `KontekstChip.tsx` · `Toppbar.tsx` · `SonetonetSidehode`-monteringer (36 sider) · i18n | 2026-07-22 | **KLAR FOR RELAY.** Tre klosser: trakt → HMS-referanse → utrulling. Prøvestein: kundetelefon. Ordre: [k3-ordre.md](delplaner/k3-ordre.md) |
 
 > ✅ **Avgjort (fabel 2026-07-21, alternativ c): A-3b HOLDES til registrator-fiksen har landet.**
 >
