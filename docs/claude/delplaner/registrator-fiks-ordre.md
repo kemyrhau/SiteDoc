@@ -68,6 +68,10 @@ erTillattForRolle(rolle, gjeldendStatus, nyStatus)  ← ingen erAdmin
 5. `ROLLE_PRIORITET.registrator` flyttes **ned**, under `godkjenner`. En oppretter skal ikke slå en godkjenner ved flertreff. **Foreslå eksakt verdi og begrunn — fabel gater tallet.**
 
    ⚠️ **KOBLET FUNN (registrator-Opus 2026-07-21, cowork-verifisert) — ordren manglet dette:** `flytRolle.ts:92` har en short-circuit `if (rolle === "registrator") return "registrator"` som returnerer på første treff og **ignorerer prioritet helt.** Uten å fjerne den er punkt 5 **effektløs.** Fjern short-circuiten i steg 2. Loop-logikken (`prioritet <= bestePrioritet → continue`, streng `>`) gir da rekkefølge-uavhengig, korrekt resultat. Verdien må være **≥ 1** (`bestePrioritet` starter på 0 → `registrator: 0` ville aldri registrert). Kommentarene :51-54 og :91 må omskrives — de påstår «registrator er høyest».
+
+   ✅ **FABEL-GATET TALL 2026-07-21:** `registrator: 1, bestiller: 2, utforer: 3, godkjenner: 4`.
+   **Begrunnelse (fabel, ført):** ved flertreff skal brukeren se dokumentet fra sin **mest ansvarstunge posisjon** i flyten. Godkjenner er siste kontrollpunkt og vinner over utfører, som vinner over bestiller (som alt har levert sin handling ved send). Matcher perspektivmatrisens logikk: etiketten svarer på «hva venter på MEG», og ansvaret ligger tyngst hos den som ennå skal handle sent i flyten.
+   **Verifiseringsvilkår (fabel):** flertreff-testene må dekke **begge** retninger av tabellen — `registrator+utfører → utfører` OG `bestiller+godkjenner → godkjenner` — ikke bare det ene eksempelet i forslaget.
 6. `utledMinRolle:62` (admin → registrator) **beholdes uendret.**
 
 ## 5. Testkrav — begge retninger, ellers bytter vi én feil mot en annen

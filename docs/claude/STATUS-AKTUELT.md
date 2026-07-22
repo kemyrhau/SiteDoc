@@ -13,7 +13,8 @@ sist_verifisert_mot_kode: 2026-07-10
 | **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` (`535f8d8a`) | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny · `generate.ts` | 2026-07-18 | **🟡 PAUSET — økt kan exit.** Del 1a+1b levert+pushet, IKKE merget. Del 1c venter registrator-fiksen (fabel c). Gjenopptas som NY økt fra branchen når matrisen er re-gatet |
 | **P1 nivåsignal** | `~/Documents/Programmering/SiteDoc-develop` | `feat/p1-nivasignal` (ledd 2) | `KontekstChip.tsx` · HMS-parets to side-skall (sidehode) | 2026-07-21 | **MERGET + PÅ TEST** (`9383233b`). A+B+C levert. Gjenstår: skjermbilder på test + fabels designgate mot fasit-bildene → så lukkes P1. § 2D (suffiks) ute — Kenneth vedtok (b), egen sak |
 
-| **Registrator-fiks** | `~/Documents/Programmering/SiteDoc-registrator` | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` + kallsteder | 2026-07-21 | **ÅPEN — start nå** (fabel 2026-07-21). Specen rettet (10 steder i `dokumentflyt.md`). Ordre: [registrator-fiks-ordre.md](delplaner/registrator-fiks-ordre.md) |
+| **Registrator-fiks** | `~/Documents/Programmering/SiteDoc-registrator` | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` · `tilgangskontroll.ts` · `DokumentHandlingsmeny` (web+mobil) | 2026-07-21 | **AKTIV — Fase B steg 2.** Fase A godkjent, karakteriserings-test grønn (214/214). Bygger logikkendringen |
+| **K1+K2 kontekst** | `~/Documents/Programmering/SiteDoc-kontekst` | `fix/k1k2-kontekst` | `Toppbar.tsx` (K1) · `prosjekt-kontekst.tsx` (K2) | 2026-07-21 | **KLAR FOR RELAY.** Fildisjunkt fra registrator + A-3b + K3. Ordre: [k1k2-fiks-ordre.md](delplaner/k1k2-fiks-ordre.md) |
 
 > ✅ **Avgjort (fabel 2026-07-21, alternativ c): A-3b HOLDES til registrator-fiksen har landet.**
 >
