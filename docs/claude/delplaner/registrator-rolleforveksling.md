@@ -1,11 +1,24 @@
 ---
 name: registrator-rolleforveksling
-status: 🟢 FIKSET — steg 2 levert + cowork-gatet 2026-07-21. Registrator: oppretter+redigerer+sender egen del, ingen admin-makt. 229/229 test. Ikke merget enda
+status: 🟢 SIKKERHETSFIKS FERDIG (Fase A+B, `8a1de1a9`) — registrator ikke lenger superbruker. ⚠️ ÉN ÅPEN REST: rejected→sent (se under)
 eier: Kenneth (domenesannhet) · fabel (modell + A-3b-konsekvens) · cowork (måling)
 sist_verifisert_mot_kode: 2026-07-21
 ---
 
 # `registrator` — rettigheten går motsatt vei av domenemodellen
+
+## ⚠️ ÅPEN REST — IKKE lukket av Fase A+B-mergen (Kenneth-vilkår 2026-07-22)
+
+**Kjent regresjon, akseptert midlertidig:** en ren registrator kan **ikke resende et returnert dokument** (`rejected → sent`) i UI før den overgangen lander. Fase A+B (`8a1de1a9`) merges nå som **sikkerhetsfiks alene** — den fjerner registrators admin-overmakt. Regresjonen lukkes IKKE av denne mergen.
+
+**Hvorfor det er trygt å akseptere midlertidig:** capabiliteten fantes aldri i UI — `hentStatusHandlinger("rejected")` har aldri hatt en «sent»-handling, heller ikke da registrator var admin (cowork-målt 2026-07-22). Så ingen brukersynlig funksjon går tapt; det som mangler er en *ny* funksjon fra linjemodellen.
+
+**Hvor den lukkes:** `rejected → sent` er re-gruppert til **handlingsmeny-/matrise-arbeidet** (fabel 2026-07-22) — den skal re-etiketteres «Send på nytt» ([terminologi.md § Flytspråket](../terminologi.md)) og eies via matrise-defaults, ikke som ledd i sikkerhetsfiksen. Krever tre lag: statusmaskin + ROLLE_HANDLINGER + handlingsmeny-handling med forward-routing. Se [flytmodell-overgangsmatrise.md](flytmodell-overgangsmatrise.md) + [flytmodell-vedtak-2026-07-22.md § Restvedtak](flytmodell-vedtak-2026-07-22.md).
+
+**Registrator-Opus' uncommittede lag 1+2** (statusmaskin + ROLLE_HANDLINGER + tester) i `SiteDoc-registrator`-treet: **forkastes** — de bygges på nytt som del av handlingsmeny-arbeidet, der routingen og re-etiketteringen designes samlet. Innsikten (tre lag kreves) er fanget i overgangsmatrisen.
+
+---
+
 
 > **Kenneth 2026-07-21:** *«registrator: den som registrerer en oppgave ute på byggeplass. Admin på kontoret er noe annet — han må også kunne være registrator i den forstand at han oppretter et dokument i en dokumentflyt slik at ansatte kan utføre oppgaven.»*
 >
