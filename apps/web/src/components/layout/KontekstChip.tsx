@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect, type ReactNode } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import { ChevronDown, ArrowLeftRight, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
@@ -21,6 +22,15 @@ interface Byggeplass {
   id: string;
   name: string;
   number: number | null;
+}
+
+/** Relativ path etter kontekst-prefikset ("/dashbord/firma" eller
+ * "/dashbord/{prosjektId}"). Brukes til å pare firma- og prosjekt-nav-elementer
+ * på felles seksjon (timer, hms) uavhengig av prefiks. Kontekst-roten → "". */
+function relativPath(href: string, prefiks: string): string {
+  if (href === prefiks) return "";
+  if (href.startsWith(`${prefiks}/`)) return href.slice(prefiks.length + 1);
+  return href;
 }
 
 /**
@@ -61,37 +71,43 @@ export function KontekstChip() {
   const firmaNav = useFirmaNavElementer();
   const { filtrertHovedelementer } = useSidebarElementer();
   const pathname = usePathname();
-  const router = useRouter();
   // P1-A: samme kontekst-derivat som Toppbar (`Toppbar.tsx:50`). Chippen var
   // kontekst-blind — det var rotårsaken til firma/prosjekt-forvekslingen.
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
 
-  // P1-B (⇄): motpart-flate for gjeldende seksjon. Både firma- og prosjektruter
-  // bærer seksjons-sluggen på indeks 3 (`/dashbord/firma/hms` og
-  // `/dashbord/{id}/hms` → deler[3] = "hms").
-  const seksjon = (pathname ?? "").split("/")[3] ?? "";
-  // Motpart UTLEDES av navet (ingen hardkodet par-tabell, K3-korreksjon): den
-  // finnes kun når seksjonen ligger i BÅDE firma-navet OG prosjekt-navet — begge
-  // allerede tilgangs-/modul-filtrert. Da håndteres hms, timer og fremtidige
-  // felles firmamoduler automatisk; en prosjekt-only-org får ingen ⇄; kryss-
-  // konsept-par (ulik slug) matcher aldri. Chip uten motpart = rent nivåsignal
-  // uten klikk.
-  const firmaSeksjoner = new Set(
-    firmaNav.map((e) => e.href.split("/")[3]).filter(Boolean),
-  );
-  const prosjektSeksjoner = new Set(
-    prosjektSoneElementer(filtrertHovedelementer)
-      .map((e) => hrefForSidebarElement(e, "_")?.split("/")[3])
-      .filter(Boolean),
-  );
-  const harMotpart = !!seksjon && firmaSeksjoner.has(seksjon) && prosjektSeksjoner.has(seksjon);
-  const motpartUrl = !harMotpart
-    ? null
-    : erFirmaKontekst
-      ? prosjektId
-        ? `/dashbord/${prosjektId}/${seksjon}`
-        : null
-      : `/dashbord/firma/${seksjon}`;
+  // P1-B (⇄): motpart-flate — streng én-til-én-paring på det EIENDE nav-elementet
+  // (lengste href-prefiks av pathname), ikke deler[3]. Motpart finnes kun når et
+  // nav-element med SAMME relative path finnes i den ANDRE kontekstens nav (begge
+  // tilgangs-/modul-filtrert). Slik: timer↔timer, hms↔hms; men firma/timer/rapport
+  // (relpath timer/rapport, kun firma) og prosjekt/timer/attestering (relpath
+  // timer/attestering, kun prosjekt) → chip UTEN ⇄. Undersider uten eget
+  // nav-element (onboarding/oppsett/aktiviteter) eies av «timer» via prefiks →
+  // ⇄ vises der (det ER timer-flaten). Kontekst-roten (relpath "") parer aldri.
+  const pathnameNaa = pathname ?? "";
+  const firmaPar = firmaNav.map((e) => ({
+    relpath: relativPath(e.href, "/dashbord/firma"),
+    href: e.href,
+  }));
+  const prosjektPrefiks = prosjektId ? `/dashbord/${prosjektId}` : null;
+  const prosjektPar = prosjektPrefiks
+    ? prosjektSoneElementer(filtrertHovedelementer)
+        .map((e) => {
+          const href = hrefForSidebarElement(e, prosjektId);
+          return href ? { relpath: relativPath(href, prosjektPrefiks), href } : null;
+        })
+        .filter((p): p is { relpath: string; href: string } => p !== null)
+    : [];
+  const gjeldendePar = erFirmaKontekst ? firmaPar : prosjektPar;
+  const annenPar = erFirmaKontekst ? prosjektPar : firmaPar;
+  // Eiende element = lengste href som er prefiks av pathname (nøyaktig eller
+  // på «/»-grense).
+  const eiende = [...gjeldendePar]
+    .filter((p) => pathnameNaa === p.href || pathnameNaa.startsWith(`${p.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0];
+  const motpartUrl =
+    eiende && eiende.relpath !== ""
+      ? annenPar.find((p) => p.relpath === eiende.relpath)?.href ?? null
+      : null;
 
   const [apen, setApen] = useState(false);
   const [åpentNivå, setÅpentNivå] = useState<Nivå>("prosjekt");
@@ -291,15 +307,14 @@ export function KontekstChip() {
         <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${apen ? "rotate-180" : ""}`} />
       </button>
       {motpartUrl && (
-        <button
-          type="button"
-          onClick={() => router.push(motpartUrl)}
+        <Link
+          href={motpartUrl}
           title={byttLabel}
           aria-label={byttLabel}
           className={`relative z-10 -ml-3 flex items-center rounded-lg border py-1.5 pl-4 pr-2.5 transition-colors hover:bg-black/[0.06] ${soneKlasse}`}
         >
           <ArrowLeftRight className="h-4 w-4 shrink-0" />
-        </button>
+        </Link>
       )}
     </>
   );
@@ -326,7 +341,9 @@ export function KontekstChip() {
         // Prosjektkontekst: to linjer — firma (dempet grå) over prosjekt · byggeplass.
         <div className="flex flex-col gap-0.5">
           {firmaNavn && (
-            <span className="max-w-[240px] truncate text-[11px] font-medium leading-none text-slate-300">
+            // Eyebrow (firma-linja): ingen bredde-cap — den har plassen på egen
+            // linje; medium vekt for lesbarhet.
+            <span className="text-[11px] font-medium leading-none text-slate-300">
               {firmaNavn}
             </span>
           )}
