@@ -6,6 +6,7 @@ import { FolderKanban } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 export default function FirmaProsjekter() {
   const router = useRouter();
@@ -29,7 +30,9 @@ export default function FirmaProsjekter() {
   if (!prosjekter || prosjekter.length === 0) {
     return (
       <div>
-        <h1 className="mb-4 text-lg font-semibold text-gray-900">Prosjekter</h1>
+        <SonetonetSidehode sone="firma" className="mb-4">
+          <h1 className="text-lg font-semibold text-gray-900">Prosjekter</h1>
+        </SonetonetSidehode>
         <EmptyState
           title="Ingen prosjekter"
           description="Organisasjonen har ingen tilknyttede prosjekter ennå."
@@ -40,7 +43,9 @@ export default function FirmaProsjekter() {
 
   return (
     <div>
-      <h1 className="mb-4 text-lg font-semibold text-gray-900">Prosjekter</h1>
+      <SonetonetSidehode sone="firma" className="mb-4">
+        <h1 className="text-lg font-semibold text-gray-900">Prosjekter</h1>
+      </SonetonetSidehode>
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
         <table className="w-full text-sm">

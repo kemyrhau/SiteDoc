@@ -15,6 +15,7 @@ import { OpprettPunktDialog } from "@/components/kontrollplan/OpprettPunktDialog
 import { RedigerPunktDialog } from "@/components/kontrollplan/RedigerPunktDialog";
 import { ImportFremdriftsplanDialog } from "@/components/kontrollplan/ImportFremdriftsplanDialog";
 import { FilterPanel } from "@/components/ui/FilterPanel";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 // Faste filter-alternativer (labelKey → i18n)
 const STATUS_ALT = [
@@ -199,7 +200,8 @@ export default function KontrollplanSide() {
   return (
     <div className="p-4 max-w-[1400px] mx-auto">
       {/* Topplinje */}
-      <div className="flex items-center justify-between mb-4">
+      <SonetonetSidehode sone="prosjekt" className="mb-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <h1 className="text-lg font-semibold text-gray-900">{t("kontrollplan.tittel")}</h1>
           {fremdrift.total > 0 && (
@@ -271,6 +273,7 @@ export default function KontrollplanSide() {
           </button>
         </div>
       </div>
+      </SonetonetSidehode>
 
       {/* Delt filter-panel: fritekst + status/faggruppe/kontrollområde (multi-select) */}
       <div className="mb-4">

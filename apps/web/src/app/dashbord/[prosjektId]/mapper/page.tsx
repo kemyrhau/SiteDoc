@@ -30,6 +30,7 @@ import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { useNyNavigasjon } from "@/hooks/useNyNavigasjon";
 import { useKanManageField } from "@/hooks/useKanManageField";
 import { OversettelsePanel } from "./OversettelsePanel";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 /**
  * v4: true når minst ett dokument har en pågående oversettelsesjobb
@@ -380,7 +381,8 @@ export default function MapperSide() {
   return (
     <div className="flex gap-0">
       <div className="min-w-0 flex-1">
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <SonetonetSidehode sone="prosjekt" className="mb-6">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           {nyNav && mappeSti.length > 0 ? (
             <nav aria-label={t("mapper.tittel")} className="flex min-w-0 items-center gap-1.5">
@@ -468,6 +470,7 @@ export default function MapperSide() {
         />
         </div>
       </div>
+      </SonetonetSidehode>
 
       {opplastingStatus && (
         <div className="mb-2 rounded border bg-gray-50 px-3 py-2">

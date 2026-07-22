@@ -8,14 +8,12 @@ import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
-
-// P1-B (⇄): kun seksjoner med et ekte firma↔prosjekt-par får flatebytte.
-// Ledd 1-måling: HMS er eneste rene par (piloten). Utvides seksjon for seksjon
-// i den gjennomgående planen (vedtak § 5) — legg til slug her når paret finnes.
-// ⚠️ MÅ utvides SAMTIDIG som et nytt par bygges: bygger du en ny firma/prosjekt-
-// flate uten å legge sluggen inn her, mangler ⇄ på den flaten uten at noe
-// feiler — et usynlig hull, ikke en synlig feil.
-const PARBARE_SEKSJONER = new Set(["hms"]);
+import { useFirmaNavElementer } from "./firma-nav";
+import {
+  useSidebarElementer,
+  prosjektSoneElementer,
+  hrefForSidebarElement,
+} from "./sidebar-elementer";
 
 type Nivå = "firma" | "prosjekt" | "byggeplass";
 
@@ -59,6 +57,9 @@ export function KontekstChip() {
     velgProsjekt,
   } = useProsjekt();
   const { aktivByggeplass, velgByggeplass } = useByggeplass();
+  // ⇄-utledning: nav-elementene (begge tilgangs-/modul-filtrert i sine hooks).
+  const firmaNav = useFirmaNavElementer();
+  const { filtrertHovedelementer } = useSidebarElementer();
   const pathname = usePathname();
   const router = useRouter();
   // P1-A: samme kontekst-derivat som Toppbar (`Toppbar.tsx:50`). Chippen var
@@ -66,12 +67,25 @@ export function KontekstChip() {
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
 
   // P1-B (⇄): motpart-flate for gjeldende seksjon. Både firma- og prosjektruter
-  // har seksjons-sluggen på indeks 3 (`/dashbord/firma/hms` og
-  // `/dashbord/{id}/hms` → deler[3] = "hms"). Vanlig navigasjon, ingen ny
-  // mekanisme (§ 2B, K5). Null → chip uten bytte (ingen motpart, eller firma→
-  // prosjekt uten et sticky prosjekt å bytte til).
+  // bærer seksjons-sluggen på indeks 3 (`/dashbord/firma/hms` og
+  // `/dashbord/{id}/hms` → deler[3] = "hms").
   const seksjon = (pathname ?? "").split("/")[3] ?? "";
-  const motpartUrl = !PARBARE_SEKSJONER.has(seksjon)
+  // Motpart UTLEDES av navet (ingen hardkodet par-tabell, K3-korreksjon): den
+  // finnes kun når seksjonen ligger i BÅDE firma-navet OG prosjekt-navet — begge
+  // allerede tilgangs-/modul-filtrert. Da håndteres hms, timer og fremtidige
+  // felles firmamoduler automatisk; en prosjekt-only-org får ingen ⇄; kryss-
+  // konsept-par (ulik slug) matcher aldri. Chip uten motpart = rent nivåsignal
+  // uten klikk.
+  const firmaSeksjoner = new Set(
+    firmaNav.map((e) => e.href.split("/")[3]).filter(Boolean),
+  );
+  const prosjektSeksjoner = new Set(
+    prosjektSoneElementer(filtrertHovedelementer)
+      .map((e) => hrefForSidebarElement(e, "_")?.split("/")[3])
+      .filter(Boolean),
+  );
+  const harMotpart = !!seksjon && firmaSeksjoner.has(seksjon) && prosjektSeksjoner.has(seksjon);
+  const motpartUrl = !harMotpart
     ? null
     : erFirmaKontekst
       ? prosjektId
@@ -128,17 +142,12 @@ export function KontekstChip() {
 
   const laster = !!prosjektId && lasterValgtProsjekt && !valgtProsjekt;
 
-  // P1-vedtak 3: prosjektkontekst = «prosjekt + bygning». Topplinja VISER aktiv
-  // byggeplass som ren tekst — trakten er der man ENDRER den (ingen kontroll her).
-  // Kloss 2 fjernet den frittstående ByggeplassVelger, som var eneste
-  // byggeplass-visning; her kommer den tilbake i topplinja per fabel-fasit
-  // («998 Instinniforbotn · Bygg B12» = prosjektnummer + navn + byggeplass).
-  // Uten aktiv byggeplass: prosjektnummer + navn, uten suffiks.
-  const prosjektMedBygg = valgtProsjekt
-    ? `${valgtProsjekt.projectNumber} ${valgtProsjekt.name}${aktivByggeplass ? ` · ${aktivByggeplass.name}` : ""}`
-    : null;
+  // Prosjektnavnet (eller scope-/lastetilstand) til topplinjas prosjekt-linje.
+  // Kloss 2c: SD-nummeret er ute av topplinja (det bor i trakt-radene,
+  // `prosjektEtikett`); byggeplass rendres som egen `shrink-0`-span ved siden av
+  // (så den overlever truncate av lange prosjektnavn — se render under).
   const prosjektTekst =
-    prosjektMedBygg ??
+    valgtProsjekt?.name ??
     (laster
       ? t("kontekstChip.laster")
       : prosjektScope === "alle"
@@ -154,10 +163,6 @@ export function KontekstChip() {
     : "border-[#a9c4f5] bg-[#e8effc] text-[#1e40af]";
   // ⇄-aria/title: mål-nivået. Gjenbruker eksisterende nøkler (ingen generator).
   const byttLabel = erFirmaKontekst ? t("kontekstChip.prosjekt") : t("kontekstChip.firma");
-
-  // P1 lapp (fabel-fasit § 3a, 2026-07-21): entitetsnavnet er nivå-derivert,
-  // samme kilde som før — kun flyttet ut av chippen til ren tekst.
-  const entitetTekst = erFirmaKontekst ? (firmaNavn ?? t("kontekstChip.velgFirma")) : prosjektTekst;
 
   // --- Trakt-derivat (K3) --------------------------------------------------
   // Firma-raden vises for ALLE roller (R2: popover skal vise prosjektets firma).
@@ -271,22 +276,13 @@ export function KontekstChip() {
     />
   );
 
-  return (
-    <div ref={ref} className="relative flex items-center gap-2">
-      {/* P1-A + lapp § 3a: topplinja viser KUN eget nivå, som ren tekst UTENFOR
-          chippen. Firmakontekst → kun firmanavn; prosjektkontekst → kun
-          prosjekt (firmaprefiks ut). Fabels begrunnelse: nivåordet ER
-          nivåsignalet — uten det (§ 3a under) bæres signalet av farge alene,
-          som svikter for fargeblinde. */}
-      <span className="max-w-[220px] truncate text-sm font-medium text-blue-100">
-        {entitetTekst}
-      </span>
-      {/* R2 (fabel-fasit § 2a) + lapp § 3a: split-chip «FIRMA ▾ | ⇄». Chippen
-          bærer NIVÅORDET (ikke navnet — det står til venstre over). Venstre
-          segment = velger (popover), ⇄ = eget sonefarget klikkmål for
-          flatebytte, med −12px overlapp mot chippens avrundede høyrekant
-          (z-10 tucker det over hjørnet). ⇄ vises kun med motpart. Vanlig
-          navigasjon, sidebar urørt. */}
+  // Split-chip «NIVÅORD ▾ | ⇄» (P1/R2, fabel-fasit § 2a) — ligger på den AKTIVE
+  // linja (kloss 2c-grammatikk b): linje 2 i prosjektkontekst, linje 1 i
+  // firmakontekst. Venstre segment = velger (popover), ⇄ = sonefarget klikkmål
+  // for flatebytte (−12px overlapp, z-10 tucker over hjørnet), vises kun med
+  // motpart. Delt markup så begge kontekster bruker samme chip.
+  const velgerKnapper = (
+    <>
       <button
         onClick={() => (apen ? setApen(false) : åpne())}
         className={`relative z-0 flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold uppercase tracking-wide transition-colors hover:bg-black/[0.06] ${soneKlasse}`}
@@ -304,6 +300,46 @@ export function KontekstChip() {
         >
           <ArrowLeftRight className="h-4 w-4 shrink-0" />
         </button>
+      )}
+    </>
+  );
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Kloss 2c: to-linjers topplinje. Grammatikk (fabel-gate, ufravikelig):
+          (a) sonetonen følger AKTIV kontekst — kun ÉN tone om gangen (to toner
+              samtidig = intet signal). Prosjektkontekst: firma-linja er dempet
+              grå brødtekst (IKKE amber); amber kun i firmakontekst.
+          (b) split-chippen (▾ + ⇄) ligger på den aktive linja; firma-linja i
+              prosjektkontekst er ren tekst uten klikkmekanisme.
+          Byggeplass-suffikset er `shrink-0` så det overlever truncate av lange
+          prosjektnavn (rotårsaken kloss 2b måtte rette). */}
+      {erFirmaKontekst ? (
+        // Firmakontekst: én linje — firma + amber split-chip.
+        <div className="flex items-center gap-2">
+          <span className="max-w-[220px] truncate text-sm font-medium text-blue-100">
+            {firmaNavn ?? t("kontekstChip.velgFirma")}
+          </span>
+          {velgerKnapper}
+        </div>
+      ) : (
+        // Prosjektkontekst: to linjer — firma (dempet grå) over prosjekt · byggeplass.
+        <div className="flex flex-col gap-0.5">
+          {firmaNavn && (
+            <span className="max-w-[240px] truncate text-[11px] font-medium leading-none text-slate-300">
+              {firmaNavn}
+            </span>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="flex min-w-0 max-w-[300px] items-center text-sm font-medium text-blue-100">
+              <span className="min-w-0 truncate">{prosjektTekst}</span>
+              {valgtProsjekt && aktivByggeplass && (
+                <span className="ml-1 shrink-0 whitespace-nowrap">· {aktivByggeplass.name}</span>
+              )}
+            </span>
+            {velgerKnapper}
+          </div>
+        </div>
       )}
 
       {apen && (

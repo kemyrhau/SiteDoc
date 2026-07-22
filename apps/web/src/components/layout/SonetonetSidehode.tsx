@@ -1,31 +1,35 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { SONE_GRADIENT, SONE_MARKOR, type Sone } from "./sone-farger";
 
 /**
  * P1-C: sonetonet sidehode — svak sonetone (gradient mot hvit) + 4px sonefarget
  * markør på venstre kant. Nivåsignal på selve siden, i tillegg til chippen i
  * topplinja (`KontekstChip`). Amber = FIRMA, blå = PROSJEKT (låst grammatikk,
- * vedtak del 5). Delt kilde så begge HMS-skall (og senere par) ikke dupliserer
- * tone-/markør-logikken (§ 3-krav: ingen duplisert topplinje-logikk).
+ * vedtak del 5). Farger fra delt kilde (`sone-farger.ts`) så verktøylinje-
+ * markøren (`Verktoylinje.tsx`) ikke dupliserer verdiene.
  *
- * Gradient = fabel-fasit § 2a: linear-gradient(sonetone → hvit ved 85%), toner
- * #fdf6ea (firma) / #eef4fd (prosjekt). Bevisst svak — statusfargene i tabellen
- * skal vinne (§ 2C).
+ * Gradient = fabel-fasit § 2a: linear-gradient(sonetone → hvit ved 85%). Bevisst
+ * svak — statusfargene i tabellen skal vinne (§ 2C).
  */
 export function SonetonetSidehode({
   sone,
   children,
+  className = "",
 }: {
-  sone: "firma" | "prosjekt";
+  sone: Sone;
   children: ReactNode;
+  /** Ytre klasser (typisk `mb-*`). Boksen har egen px/py; ytre marg mot innholdet
+   * under hører hjemme her, ikke som `mb-*` på det innpakkede hode-innholdet
+   * (der ville margen ligge INNE i den tonede boksen). */
+  className?: string;
 }) {
-  const bakgrunn =
-    sone === "firma"
-      ? "bg-[linear-gradient(90deg,#fdf6ea_0%,#ffffff_85%)] border-l-[#f5c97b]"
-      : "bg-[linear-gradient(90deg,#eef4fd_0%,#ffffff_85%)] border-l-[#a9c4f5]";
-
   return (
-    <div className={`rounded-lg border-l-4 px-4 py-3 ${bakgrunn}`}>{children}</div>
+    <div
+      className={`rounded-lg border-l-4 px-4 py-3 ${SONE_GRADIENT[sone]} ${SONE_MARKOR[sone]} ${className}`}
+    >
+      {children}
+    </div>
   );
 }

@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Power, Trash2, Upload } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 const ENHET_FORSLAG = ["m", "m2", "m3", "kg", "tonn", "stk", "sekk", "liter", "doegn", "timer"];
 
@@ -67,9 +68,11 @@ export default function VarelagerSide() {
 
   return (
     <div>
-      <h1 className="mb-4 text-xl font-semibold text-gray-900">
-        {t("firma.varelager.tittel")}
-      </h1>
+      <SonetonetSidehode sone="firma" className="mb-4">
+        <h1 className="text-xl font-semibold text-gray-900">
+          {t("firma.varelager.tittel")}
+        </h1>
+      </SonetonetSidehode>
 
       <div className="mb-4 border-b border-gray-200">
         <div className="flex gap-1">

@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Save, HelpCircle, X, Search } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 export default function FirmaInnstillinger() {
   const { t } = useTranslation();
@@ -108,16 +109,18 @@ export default function FirmaInnstillinger() {
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">Innstillinger</h1>
-        <button
-          onClick={() => setHjelpÅpen(true)}
-          className="inline-flex items-center justify-center rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-          title="Hjelp"
-        >
-          <HelpCircle className="h-5 w-5" />
-        </button>
-      </div>
+      <SonetonetSidehode sone="firma" className="mb-6">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-gray-900">Innstillinger</h1>
+          <button
+            onClick={() => setHjelpÅpen(true)}
+            className="inline-flex items-center justify-center rounded-full p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            title="Hjelp"
+          >
+            <HelpCircle className="h-5 w-5" />
+          </button>
+        </div>
+      </SonetonetSidehode>
 
       <div className="rounded-lg border border-gray-200 bg-white p-6">
         <h2 className="mb-4 text-sm font-semibold text-gray-700">
