@@ -79,6 +79,7 @@ Cowork sammenlignet implementasjonen mot fasit-bildene (`docs/redesign/fasit/01-
 | **Firmabytte** | **Nullstiller nedover** — prosjekt og byggeplass tømmes |
 | **«Hele prosjektet»** | Er default. **Bygg-steget vises kun når byggeplasser finnes** |
 | **Lange lister** | Over 6 elementer: søkefelt + rulling + **«Sist brukt»**-seksjon |
+| **«Sist brukt» = mest brukt siste 30 dager** | Kenneth 2026-07-22: arbeider veksler mellom 4-5 prosjekter → frekvens-sortert liste per bruker, ikke sticky «sist besøkte». Kilde: `Activity`-tabellen (spørring, ikke ny logging) |
 | **Hierarkiet** | **Absolutt.** Gruppeetiketten navngir prosjektet |
 
 ## Sekvensering (cowork eier — bekreftet av fabel)

@@ -30,7 +30,16 @@ C. **ByggeplassVelger ut av toppbaren**: fjernes helt i ny nav (K1 skjulte den i
 ## Krav
 - Flagg-status: trakt + velgerfjerning bak `nyNavigasjon` (bor i nav-skallet); sidehode-utrullingen flagg-nøytral (vedtak 7-prinsippet: funksjon på felles sider).
 - i18n: nye nøkler er ventet (nivåetiketter, søkeplaceholder, «Sist brukt», «Alle på …») — flagg nøklene FØR generator-kjøring; cowork koordinerer (A-3b pauset, men sperre-disiplinen står).
-- Enkeltmålte premisser: side-inventaret (13+23) er cowork-målt — verifiser ved montering; «sist besøkte prosjekt» sticky (prosjekt-kontekst.tsx:14) gjenbrukes for «Sist brukt».
+- Enkeltmålte premisser: side-inventaret (13+23) er cowork-målt — verifiser ved montering.
+- 🔴 **RETTET KILDE for «Sist brukt» (Kenneth 2026-07-22):** IKKE sticky «sist besøkte» (én verdi). Kenneth: *«hver arbeider har 4-5 prosjekter de veksler mellom»*. **Cowork-måling: `Activity`-tabellen (`schema.prisma:1913`) har `actorUserId` + `projectId` + `createdAt` + indeks `[projectId, createdAt]` — dette er en spørring på eksisterende data, ikke ny logging.**
+
+  **Sorterings-algoritme (Kenneth 2026-07-22) — vektet recency+frekvens per bruker:**
+  1. **Nyeste bruk** (sist brukte prosjekt) → **høyest vekt** (floater øverst).
+  2. **Antall bruk siste 10 dager** → **medium vekt**.
+  3. **Antall bruk siste 30 dager** → **lavest vekt**.
+  4. **Resten** (ingen Activity siste 30 dager) → nedadgående liste til slutt.
+
+  Score = `w_nylig·(nyeste bruk) + w_10·(antall siste 10d) + w_30·(antall siste 30d)`, `w_nylig > w_10 > w_30`. **Eksakte vekter foreslås av utfører-Opus og gates av fabel** (samme mønster som `ROLLE_PRIORITET`). Sticky beholdes kun som fallback når Activity er tom. Gjelder både prosjekt- og byggeplass-steget. **Ny tRPC-prosedyre** — cowork skriver testplan mot algoritmen (ledd 4).
 - Popover-headeren skal vise prosjektets firma (R2-vilkåret, admin-konsekvensen).
 - DoD: build grønn → skjermbilder: trakt alle steg + minst 3 firma- og 3 prosjekt-sider m/ tonet sidehode + kundetelefon-gjennomklikk → fabel-designgate → dok-sync → cowork-merge. Statuskilde: verifisering/k3-verifiseringslogg.md (opprettes).
 
