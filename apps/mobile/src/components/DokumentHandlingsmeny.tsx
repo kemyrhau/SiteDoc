@@ -101,12 +101,13 @@ export function DokumentHandlingsmeny({
     return ledd.findIndex((l) => l.steg === steg);
   }, [ledd, tilgjengeligeFlyter]);
 
-  const erAdmin = minRolle === "registrator" || erFirmaAdmin === true;
+  // Kun ekte admin — ikke registrator (Fase B: registrator er ikke lenger superbruker).
+  const erAdmin = erFirmaAdmin === true;
 
   // Tilgjengelige statushandlinger for brukerens rolle + nåværende status
   const statusHandlinger = useMemo(
-    () => hentRolleFiltrertHandlinger(status, minRolle),
-    [status, minRolle],
+    () => hentRolleFiltrertHandlinger(status, minRolle, erFirmaAdmin === true),
+    [status, minRolle, erFirmaAdmin],
   );
 
   // Filtrer statushandlinger til de som er meningsfulle for "tap på boks":

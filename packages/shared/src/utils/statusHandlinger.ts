@@ -76,13 +76,15 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
 export function hentRolleFiltrertHandlinger(
   status: string,
   rolle: DokumentflytRolle | null,
+  erAdmin: boolean,
 ): StatusHandling[] {
   if (!rolle) return [];
 
   const alle = hentStatusHandlinger(status);
 
-  // Registrator ser alle handlinger
-  if (rolle === "registrator") return alle;
+  // Kun admin ser alle handlinger. Registrator er ikke lenger superbruker (Fase B):
+  // hun faller gjennom til ROLLE_HANDLINGER.registrator (kun send/slett på egen kladd).
+  if (erAdmin) return alle;
 
   // Definer tillatte nyStatus-verdier per rolle per status
   const tillatt = ROLLE_HANDLINGER[rolle]?.[status];
@@ -94,24 +96,27 @@ export function hentRolleFiltrertHandlinger(
 /**
  * Sjekk om en rolle har lov til å utføre en statusovergang.
  * Brukes av backend for API-rollevalidering.
- * Registrator har alltid lov. null-rolle har aldri lov.
+ * Kun admin har alltid lov. null-rolle har aldri lov. Registrator har IKKE lenger
+ * generell status-makt (Fase B) — kun overgangene ROLLE_HANDLINGER gir rollen
+ * (send/slett på egen kladd); redigering/lesing håndteres i utledDokumentRettighet.
  */
 export function erTillattForRolle(
   rolle: DokumentflytRolle | null,
   gjeldendStatus: string,
   nyStatus: string,
+  erAdmin: boolean,
 ): boolean {
   if (!rolle) return false;
-  if (rolle === "registrator") return true;
+  if (erAdmin) return true;
   const tillatt = ROLLE_HANDLINGER[rolle]?.[gjeldendStatus];
   if (!tillatt) return false;
   return tillatt.has(nyStatus);
 }
 
 /**
- * Hvilke flyt-roller eier en gitt statusovergang (utenom registrator, som eier alt).
+ * Hvilke flyt-roller eier en gitt statusovergang (utenom admin, som eier alt).
  * Brukes av UI for å begrunne deaktiverte handlinger («Kun utfører» osv.) uten
- * å duplisere rollematrisen. Tom liste = kun registrator/admin (eierløs handling).
+ * å duplisere rollematrisen. Tom liste = kun admin (eierløs handling).
  */
 export function hentHandlingEierRoller(status: string, nyStatus: string): DokumentflytRolle[] {
   const roller: DokumentflytRolle[] = [];
@@ -123,6 +128,11 @@ export function hentHandlingEierRoller(status: string, nyStatus: string): Dokume
 
 /** Roller → status → tillatte nyStatus-verdier */
 const ROLLE_HANDLINGER: Record<string, Record<string, Set<string>>> = {
+  // Registrator: oppretter → kan sende + slette EGEN kladd, ingen andre overganger
+  // (Kenneths matrise 2026-07-21: registrator redigerer + sender sin egen del).
+  registrator: {
+    draft: new Set(["sent", "deleted"]),
+  },
   bestiller: {
     draft: new Set(["sent", "deleted"]),
     sent: new Set(["cancelled"]),

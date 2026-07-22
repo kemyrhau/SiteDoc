@@ -669,19 +669,21 @@ export async function verifiserFlytRolle(
     groupId: m.groupId,
   }));
 
+  const erAdmin = medlem.role === "admin";
+
   const rolle = utledMinRolle(
     {
       userId,
       projectMemberId: medlem.id,
       faggruppeIder: medlem.faggruppeKoblinger.map((e) => e.faggruppeId),
       gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
-      erAdmin: medlem.role === "admin",
+      erAdmin,
     },
     medlemmerInfo,
     { bestillerFaggruppeId, utforerFaggruppeId },
   );
 
-  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus)) {
+  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus, erAdmin)) {
     const rolleNavn = rolle ?? "ingen";
     throw new TRPCError({
       code: "FORBIDDEN",
