@@ -109,8 +109,8 @@ export default function FirmaInnstillinger() {
 
   return (
     <div>
-      <SonetonetSidehode sone="firma">
-        <div className="mb-6 flex items-center justify-between">
+      <SonetonetSidehode sone="firma" className="mb-6">
+        <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-gray-900">Innstillinger</h1>
           <button
             onClick={() => setHjelpÅpen(true)}

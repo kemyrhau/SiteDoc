@@ -130,8 +130,8 @@ export default function VareforbrukSide() {
 
   return (
     <div className="p-6">
-      <SonetonetSidehode sone="prosjekt">
-        <div className="mb-4 flex items-start justify-between">
+      <SonetonetSidehode sone="prosjekt" className="mb-4">
+        <div className="flex items-start justify-between">
           <h1 className="text-xl font-semibold text-gray-900">
             {t("vareforbruk.tittel")}
           </h1>

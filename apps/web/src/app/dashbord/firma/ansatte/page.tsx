@@ -57,8 +57,8 @@ export default function FirmaBrukere() {
 
   return (
     <div>
-      <SonetonetSidehode sone="firma">
-        <div className="mb-4 flex items-center justify-between">
+      <SonetonetSidehode sone="firma" className="mb-4">
+        <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold text-gray-900">
             {t("firma.ansatte.tittel")}
           </h1>

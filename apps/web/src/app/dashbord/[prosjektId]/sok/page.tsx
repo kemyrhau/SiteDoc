@@ -116,8 +116,8 @@ export default function DokumentsokSide() {
   return (
     <div className="flex h-full flex-col">
       {/* Toppseksjon */}
-      <SonetonetSidehode sone="prosjekt">
-        <div className="flex items-center gap-2 border-b px-4 py-3">
+      <SonetonetSidehode sone="prosjekt" className="mb-4">
+        <div className="flex items-center gap-2">
           <FileSearch className="h-5 w-5 text-sitedoc-primary" />
           <h1 className="text-lg font-semibold">{t("sok.tittel")}</h1>
         </div>

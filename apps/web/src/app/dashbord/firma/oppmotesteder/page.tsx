@@ -62,8 +62,8 @@ export default function OppmotesterSide() {
 
   return (
     <div>
-      <SonetonetSidehode sone="firma">
-        <div className="mb-4 flex items-start justify-between gap-4">
+      <SonetonetSidehode sone="firma" className="mb-4">
+        <div className="flex items-start justify-between gap-4">
           <p className="text-sm text-gray-600">
             {t("firma.oppmotested.beskrivelse")}
           </p>

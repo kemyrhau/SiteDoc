@@ -196,8 +196,8 @@ export default function ProsjektOversikt() {
             </div>
           );
         })()}
-        <SonetonetSidehode sone="prosjekt">
-        <div className="mb-6 flex items-center gap-3">
+        <SonetonetSidehode sone="prosjekt" className="mb-6">
+        <div className="flex items-center gap-3">
           <h2 className="text-xl font-bold">{prosjekt.name}</h2>
           <StatusBadge status={prosjekt.status} />
           <div className="ml-auto" ref={merRef}>

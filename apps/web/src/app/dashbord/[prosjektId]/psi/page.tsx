@@ -80,8 +80,8 @@ export default function PsiDashboardSide() {
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-4xl px-4 py-8">
         {/* Header */}
-        <SonetonetSidehode sone="prosjekt">
-          <div className="mb-6 flex items-center justify-between">
+        <SonetonetSidehode sone="prosjekt" className="mb-6">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <ShieldCheck className="h-7 w-7 text-sitedoc-primary" />
               <div>

@@ -68,8 +68,8 @@ export default function VarelagerSide() {
 
   return (
     <div>
-      <SonetonetSidehode sone="firma">
-        <h1 className="mb-4 text-xl font-semibold text-gray-900">
+      <SonetonetSidehode sone="firma" className="mb-4">
+        <h1 className="text-xl font-semibold text-gray-900">
           {t("firma.varelager.tittel")}
         </h1>
       </SonetonetSidehode>

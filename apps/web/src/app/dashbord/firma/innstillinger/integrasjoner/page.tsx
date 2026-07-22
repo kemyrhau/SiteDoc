@@ -28,8 +28,8 @@ export default function FirmaIntegrasjonerSide() {
 
   return (
     <main className="flex-1 overflow-auto bg-gray-50 p-6">
-      <SonetonetSidehode sone="firma">
-        <div className="mb-6">
+      <SonetonetSidehode sone="firma" className="mb-6">
+        <div>
           <h1 className="text-xl font-bold text-gray-900">
             {t("firma.integrasjoner.tittel")}
           </h1>

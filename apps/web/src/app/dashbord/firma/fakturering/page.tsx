@@ -7,8 +7,8 @@ import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 export default function FirmaFakturering() {
   return (
     <div>
-      <SonetonetSidehode sone="firma">
-        <h1 className="mb-4 text-lg font-semibold text-gray-900">Fakturering</h1>
+      <SonetonetSidehode sone="firma" className="mb-4">
+        <h1 className="text-lg font-semibold text-gray-900">Fakturering</h1>
       </SonetonetSidehode>
       <EmptyState
         title="Kommer snart"

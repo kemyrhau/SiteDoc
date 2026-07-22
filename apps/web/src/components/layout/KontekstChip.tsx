@@ -8,15 +8,12 @@ import { trpc } from "@/lib/trpc";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
-
-// P1-B (⇄): kun seksjoner med et ekte firma↔prosjekt-par (samme slug på både
-// `/dashbord/firma/<slug>` og `/dashbord/{id}/<slug>`) får flatebytte.
-// Kloss 3: HMS (piloten) + timer — de to eneste rene samme-slug-parene.
-// Kryss-konsept-par (ulik slug/betydning firma↔prosjekt) hører IKKE hit.
-// ⚠️ MÅ utvides SAMTIDIG som et nytt par bygges: bygger du en ny firma/prosjekt-
-// flate uten å legge sluggen inn her, mangler ⇄ på den flaten uten at noe
-// feiler — et usynlig hull, ikke en synlig feil.
-const PARBARE_SEKSJONER = new Set(["hms", "timer"]);
+import { useFirmaNavElementer } from "./firma-nav";
+import {
+  useSidebarElementer,
+  prosjektSoneElementer,
+  hrefForSidebarElement,
+} from "./sidebar-elementer";
 
 type Nivå = "firma" | "prosjekt" | "byggeplass";
 
@@ -60,6 +57,9 @@ export function KontekstChip() {
     velgProsjekt,
   } = useProsjekt();
   const { aktivByggeplass, velgByggeplass } = useByggeplass();
+  // ⇄-utledning: nav-elementene (begge tilgangs-/modul-filtrert i sine hooks).
+  const firmaNav = useFirmaNavElementer();
+  const { filtrertHovedelementer } = useSidebarElementer();
   const pathname = usePathname();
   const router = useRouter();
   // P1-A: samme kontekst-derivat som Toppbar (`Toppbar.tsx:50`). Chippen var
@@ -67,12 +67,25 @@ export function KontekstChip() {
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
 
   // P1-B (⇄): motpart-flate for gjeldende seksjon. Både firma- og prosjektruter
-  // har seksjons-sluggen på indeks 3 (`/dashbord/firma/hms` og
-  // `/dashbord/{id}/hms` → deler[3] = "hms"). Vanlig navigasjon, ingen ny
-  // mekanisme (§ 2B, K5). Null → chip uten bytte (ingen motpart, eller firma→
-  // prosjekt uten et sticky prosjekt å bytte til).
+  // bærer seksjons-sluggen på indeks 3 (`/dashbord/firma/hms` og
+  // `/dashbord/{id}/hms` → deler[3] = "hms").
   const seksjon = (pathname ?? "").split("/")[3] ?? "";
-  const motpartUrl = !PARBARE_SEKSJONER.has(seksjon)
+  // Motpart UTLEDES av navet (ingen hardkodet par-tabell, K3-korreksjon): den
+  // finnes kun når seksjonen ligger i BÅDE firma-navet OG prosjekt-navet — begge
+  // allerede tilgangs-/modul-filtrert. Da håndteres hms, timer og fremtidige
+  // felles firmamoduler automatisk; en prosjekt-only-org får ingen ⇄; kryss-
+  // konsept-par (ulik slug) matcher aldri. Chip uten motpart = rent nivåsignal
+  // uten klikk.
+  const firmaSeksjoner = new Set(
+    firmaNav.map((e) => e.href.split("/")[3]).filter(Boolean),
+  );
+  const prosjektSeksjoner = new Set(
+    prosjektSoneElementer(filtrertHovedelementer)
+      .map((e) => hrefForSidebarElement(e, "_")?.split("/")[3])
+      .filter(Boolean),
+  );
+  const harMotpart = !!seksjon && firmaSeksjoner.has(seksjon) && prosjektSeksjoner.has(seksjon);
+  const motpartUrl = !harMotpart
     ? null
     : erFirmaKontekst
       ? prosjektId

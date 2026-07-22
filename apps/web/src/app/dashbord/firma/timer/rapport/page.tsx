@@ -231,8 +231,8 @@ export default function TimerRapportSide() {
 
   return (
     <div>
-      <SonetonetSidehode sone="firma">
-        <div className="mb-4 flex items-center justify-between gap-3">
+      <SonetonetSidehode sone="firma" className="mb-4">
+        <div className="flex items-center justify-between gap-3">
           <h1 className="text-xl font-semibold text-gray-900">
             {t("firma.timer.rapport.tittel")}
           </h1>

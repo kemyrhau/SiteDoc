@@ -30,8 +30,8 @@ export default function FirmaProsjekter() {
   if (!prosjekter || prosjekter.length === 0) {
     return (
       <div>
-        <SonetonetSidehode sone="firma">
-          <h1 className="mb-4 text-lg font-semibold text-gray-900">Prosjekter</h1>
+        <SonetonetSidehode sone="firma" className="mb-4">
+          <h1 className="text-lg font-semibold text-gray-900">Prosjekter</h1>
         </SonetonetSidehode>
         <EmptyState
           title="Ingen prosjekter"
@@ -43,8 +43,8 @@ export default function FirmaProsjekter() {
 
   return (
     <div>
-      <SonetonetSidehode sone="firma">
-        <h1 className="mb-4 text-lg font-semibold text-gray-900">Prosjekter</h1>
+      <SonetonetSidehode sone="firma" className="mb-4">
+        <h1 className="text-lg font-semibold text-gray-900">Prosjekter</h1>
       </SonetonetSidehode>
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">

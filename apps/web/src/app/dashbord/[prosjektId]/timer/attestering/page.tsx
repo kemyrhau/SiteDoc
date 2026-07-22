@@ -76,8 +76,8 @@ export default function AttesteringSide() {
 
   return (
     <div className="mx-auto max-w-5xl p-6">
-      <SonetonetSidehode sone="prosjekt">
-        <div className="mb-6">
+      <SonetonetSidehode sone="prosjekt" className="mb-6">
+        <div>
           <h1 className="text-2xl font-semibold text-gray-900">
             {t("timer.attestering.tittel")}
           </h1>

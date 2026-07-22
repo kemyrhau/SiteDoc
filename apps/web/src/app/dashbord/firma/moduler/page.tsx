@@ -126,11 +126,11 @@ export default function FirmaModulerSide() {
 
   return (
     <div>
-      <SonetonetSidehode sone="firma">
+      <SonetonetSidehode sone="firma" className="mb-6">
         <h1 className="mb-2 text-lg font-semibold text-gray-900">
           {t("firma.moduler.tittel")}
         </h1>
-        <p className="mb-6 text-sm text-gray-600">
+        <p className="text-sm text-gray-600">
           {t("firma.moduler.beskrivelse")}
         </p>
       </SonetonetSidehode>

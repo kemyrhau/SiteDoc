@@ -46,8 +46,8 @@ export default function FirmaOversikt() {
 
   return (
     <div>
-      <SonetonetSidehode sone="firma">
-        <h1 className="mb-6 text-lg font-semibold text-gray-900">Oversikt</h1>
+      <SonetonetSidehode sone="firma" className="mb-6">
+        <h1 className="text-lg font-semibold text-gray-900">Oversikt</h1>
       </SonetonetSidehode>
 
       {/* Statistikk-kort */}

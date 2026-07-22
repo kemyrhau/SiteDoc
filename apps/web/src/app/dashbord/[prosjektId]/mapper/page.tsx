@@ -381,8 +381,8 @@ export default function MapperSide() {
   return (
     <div className="flex gap-0">
       <div className="min-w-0 flex-1">
-      <SonetonetSidehode sone="prosjekt">
-      <div className="mb-6 flex items-center justify-between gap-3">
+      <SonetonetSidehode sone="prosjekt" className="mb-6">
+      <div className="flex items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           {nyNav && mappeSti.length > 0 ? (
             <nav aria-label={t("mapper.tittel")} className="flex min-w-0 items-center gap-1.5">

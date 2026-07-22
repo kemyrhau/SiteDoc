@@ -82,8 +82,8 @@ export default function KompetanseSide() {
 
   return (
     <div className="mx-auto max-w-7xl">
-      <SonetonetSidehode sone="firma">
-        <div className="mb-6">
+      <SonetonetSidehode sone="firma" className="mb-6">
+        <div>
           <h1 className="text-2xl font-semibold text-gray-900">
             {t("firma.kompetanse.tittel")}
           </h1>

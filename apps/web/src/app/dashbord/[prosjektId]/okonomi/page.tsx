@@ -202,8 +202,8 @@ export default function OkonomiSide() {
   return (
     <div className="flex h-full flex-col">
       {/* Toppseksjon */}
-      <SonetonetSidehode sone="prosjekt">
-      <div className="flex items-center justify-between border-b px-4 py-3">
+      <SonetonetSidehode sone="prosjekt" className="mb-4">
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-sitedoc-primary" />
           <h1 className="text-lg font-semibold">{t("okonomi.tittel")}</h1>

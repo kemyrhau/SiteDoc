@@ -80,8 +80,8 @@ export default function MannskapSide() {
 
   return (
     <div className="mx-auto max-w-5xl p-6">
-      <SonetonetSidehode sone="prosjekt">
-        <div className="mb-6 flex items-start justify-between gap-4">
+      <SonetonetSidehode sone="prosjekt" className="mb-6">
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="flex items-center gap-2 text-2xl font-semibold text-gray-900">
               <HardHat className="h-6 w-6 text-sitedoc-primary" />
