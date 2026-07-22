@@ -1,12 +1,23 @@
 ---
 name: k3-kontekstvelger-vedtak
-status: 🟢 DESIGN LÅST (fabel 2026-07-21) — ordre skrives etter P1-lukking. K1+K2 lander først
+status: 🔴 PRIORITERT (Kenneth test 2026-07-22) — halvtilstanden er inkonsistent, K3 gjør kontekstvelgeren ferdig. K1+K2 landet, ordre kan skrives nå
 eier: fabel (design) · Kenneth (retning) · cowork (sekvensering + gate)
 sist_verifisert_mot_kode: 2026-07-21
 kilde: ført av cowork fra fabel-relay. Fabels arbeidskopi i designprosjektet — denne er kanonisk
 ---
 
 # K3 — Kontekstvelgeren som trakt (firma → prosjekt → byggeplass)
+
+## 🔴 PRØVESTEIN — kundetelefon-scenariet (Kenneth, test 2026-07-22)
+
+> **Kenneth etter å ha sett P1+K1+K2 på test:** *«plassholderen til firmanavnet bytter mellom firmanavn og prosjekt → det oppleves som vanskelig å orientere seg. Når en kunde ringer og sier han er i det prosjektet → slå opp firma → deretter prosjekt og til slutt byggeplass → en kan ikke drive gjettelek med fremmede navn som en personlig ikke jobber med.»*
+
+**Dette er akseptkriteriet K3 måles mot.** Trakten skal støtte et **oppslag ovenfra og ned** — firma → prosjekt → byggeplass — der hvert nivå er synlig og søkbart, slik at en som IKKE jobber i prosjektet daglig kan finne fram uten å kjenne navnene på forhånd. Dagens chip (P1-A: «topplinja viser kun eget nivå») gjør det motsatte: den skjuler de andre nivåene, så du må vite hvor du er for å forstå hva du ser.
+
+**Halvtilstand-dommen (Kenneth, samme test):** *«funksjoner er delvis bygget og ikke sammenhengende, inkonsistent mellom HMS og andre sider».* P1-chippen + tonet sidehode (kun på HMS) + løs byggeplass-velger = inkonsistent. **Testing pauses til K3 lukker helheten.** K3 er ikke en oppfølger lenger — den er det som gjør kontekstvelgeren ferdig.
+
+---
+
 
 > 🔴 **LIVE-BEVIS 2026-07-21 (Kenneth, test):** P1-chippen deployet til test, og Kenneth reagerte: *«strukturelt er dette endret fra fabel sin plan. Funksjon er heller ikke komplett. Dette var ikke det jeg sa ja til fabel om. Nå står firma mellom prosjekt og byggeplass. Dette føles ikke ferdig slik det står nå.»*
 >
