@@ -66,6 +66,8 @@ erTillattForRolle(rolle, gjeldendStatus, nyStatus)  ← ingen erAdmin
 3. `statusHandlinger.ts:105` → `if (erAdmin) return true;`
 4. **Ny gren i `utledDokumentRettighet`:** registrator som er medlem av flyten får **`"leser"`** — ikke `"admin"`, ikke `null`. Kenneth: *«skal alltid kunne lese nåværende besvarelse på oppgaver i dokumentflyten»*. Leseretten gjelder **uavhengig av ballinnehav og terminal status** — den er ikke betinget av tur.
 5. `ROLLE_PRIORITET.registrator` flyttes **ned**, under `godkjenner`. En oppretter skal ikke slå en godkjenner ved flertreff. **Foreslå eksakt verdi og begrunn — fabel gater tallet.**
+
+   ⚠️ **KOBLET FUNN (registrator-Opus 2026-07-21, cowork-verifisert) — ordren manglet dette:** `flytRolle.ts:92` har en short-circuit `if (rolle === "registrator") return "registrator"` som returnerer på første treff og **ignorerer prioritet helt.** Uten å fjerne den er punkt 5 **effektløs.** Fjern short-circuiten i steg 2. Loop-logikken (`prioritet <= bestePrioritet → continue`, streng `>`) gir da rekkefølge-uavhengig, korrekt resultat. Verdien må være **≥ 1** (`bestePrioritet` starter på 0 → `registrator: 0` ville aldri registrert). Kommentarene :51-54 og :91 må omskrives — de påstår «registrator er høyest».
 6. `utledMinRolle:62` (admin → registrator) **beholdes uendret.**
 
 ## 5. Testkrav — begge retninger, ellers bytter vi én feil mot en annen
