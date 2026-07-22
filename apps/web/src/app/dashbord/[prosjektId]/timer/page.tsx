@@ -9,6 +9,7 @@ import { Button, Spinner } from "@sitedoc/ui";
 import { Plus, ChevronLeft, ChevronRight } from "lucide-react";
 import { StatusBadge } from "@/components/timer/StatusBadge";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 const STATUSER = ["draft", "sent", "returned", "accepted"] as const;
 type StatusFilter = (typeof STATUSER)[number] | "alle";
@@ -91,22 +92,24 @@ export default function TimerListSide() {
 
   return (
     <div className="mx-auto max-w-5xl p-6">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {t("timer.tittel")}
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">
-            {t("timer.beskrivelse")}
-          </p>
+      <SonetonetSidehode sone="prosjekt">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {t("timer.tittel")}
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">
+              {t("timer.beskrivelse")}
+            </p>
+          </div>
+          <Link href={`/dashbord/${prosjektId}/timer/ny`}>
+            <Button>
+              <Plus className="mr-1.5 h-4 w-4" />
+              {t("timer.nyDagsseddel")}
+            </Button>
+          </Link>
         </div>
-        <Link href={`/dashbord/${prosjektId}/timer/ny`}>
-          <Button>
-            <Plus className="mr-1.5 h-4 w-4" />
-            {t("timer.nyDagsseddel")}
-          </Button>
-        </Link>
-      </div>
+      </SonetonetSidehode>
 
       <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-white p-3">
         <button

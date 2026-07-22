@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Trash2 } from "lucide-react";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type VareforbrukRad = {
   id: string;
@@ -129,15 +130,17 @@ export default function VareforbrukSide() {
 
   return (
     <div className="p-6">
-      <div className="mb-4 flex items-start justify-between">
-        <h1 className="text-xl font-semibold text-gray-900">
-          {t("vareforbruk.tittel")}
-        </h1>
-        <Button onClick={() => setVisOpprett(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          {t("vareforbruk.knapp.registrer")}
-        </Button>
-      </div>
+      <SonetonetSidehode sone="prosjekt">
+        <div className="mb-4 flex items-start justify-between">
+          <h1 className="text-xl font-semibold text-gray-900">
+            {t("vareforbruk.tittel")}
+          </h1>
+          <Button onClick={() => setVisOpprett(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t("vareforbruk.knapp.registrer")}
+          </Button>
+        </div>
+      </SonetonetSidehode>
 
       <div className="mb-4 flex flex-wrap gap-3 rounded-md border border-gray-200 bg-white p-3">
         <div>

@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Trash2, MapPin, HelpCircle, Search } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 // Leaflet krever window — laster dynamisk uten SSR
 const KartVelgerDynamic = dynamic(
@@ -61,24 +62,26 @@ export default function OppmotesterSide() {
 
   return (
     <div>
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <p className="text-sm text-gray-600">
-          {t("firma.oppmotested.beskrivelse")}
-        </p>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setVisHjelp(true)}
-            className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-            title={t("hjelp.tittel")}
-          >
-            <HelpCircle className="h-5 w-5" />
-          </button>
-          <Button onClick={() => setVisOpprett(true)}>
-            <Plus className="mr-1.5 h-4 w-4" />
-            {t("firma.oppmotested.leggTil")}
-          </Button>
+      <SonetonetSidehode sone="firma">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <p className="text-sm text-gray-600">
+            {t("firma.oppmotested.beskrivelse")}
+          </p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setVisHjelp(true)}
+              className="rounded p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
+              title={t("hjelp.tittel")}
+            >
+              <HelpCircle className="h-5 w-5" />
+            </button>
+            <Button onClick={() => setVisOpprett(true)}>
+              <Plus className="mr-1.5 h-4 w-4" />
+              {t("firma.oppmotested.leggTil")}
+            </Button>
+          </div>
         </div>
-      </div>
+      </SonetonetSidehode>
 
       <Modal
         open={visHjelp}

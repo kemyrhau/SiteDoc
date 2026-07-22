@@ -9,6 +9,7 @@ import { MoreVertical, Settings, Printer, Download, Check } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Card, Spinner, StatusBadge } from "@sitedoc/ui";
 import { SekundaertPanel } from "@/components/layout/SekundaertPanel";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { DashbordPanel } from "@/components/paneler/DashbordPanel";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 
@@ -195,6 +196,7 @@ export default function ProsjektOversikt() {
             </div>
           );
         })()}
+        <SonetonetSidehode sone="prosjekt">
         <div className="mb-6 flex items-center gap-3">
           <h2 className="text-xl font-bold">{prosjekt.name}</h2>
           <StatusBadge status={prosjekt.status} />
@@ -249,6 +251,7 @@ export default function ProsjektOversikt() {
         {prosjekt.address && (
           <p className="mb-6 text-sm text-gray-400">{prosjekt.address}</p>
         )}
+        </SonetonetSidehode>
 
         <div className="mb-6 grid gap-4 sm:grid-cols-3">
           {kort.map((k) => (

@@ -7,6 +7,7 @@ import { trpc } from "@/lib/trpc";
 import { Spinner, Card } from "@sitedoc/ui";
 import { ShieldCheck, CheckCircle, Clock, AlertTriangle, Users, Building2, Globe } from "lucide-react";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type Filter = "alle" | "fullfort" | "paagaar" | "utdatert";
 
@@ -79,21 +80,23 @@ export default function PsiDashboardSide() {
     <div className="flex-1 overflow-y-auto">
       <div className="mx-auto max-w-4xl px-4 py-8">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <ShieldCheck className="h-7 w-7 text-sitedoc-primary" />
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{t("psi.signaturoversikt")}</h1>
-              {aktivPsiId && <p className="text-sm text-gray-500">{t("psi.versjon")} {versjon}</p>}
+        <SonetonetSidehode sone="prosjekt">
+          <div className="mb-6 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ShieldCheck className="h-7 w-7 text-sitedoc-primary" />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">{t("psi.signaturoversikt")}</h1>
+                {aktivPsiId && <p className="text-sm text-gray-500">{t("psi.versjon")} {versjon}</p>}
+              </div>
             </div>
+            <a
+              href="/dashbord/oppsett/produksjon/psi"
+              className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+            >
+              {t("psi.administrerMaler")}
+            </a>
           </div>
-          <a
-            href="/dashbord/oppsett/produksjon/psi"
-            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-          >
-            {t("psi.administrerMaler")}
-          </a>
-        </div>
+        </SonetonetSidehode>
 
         {/* Bygnings-tabs (kun hvis flere PSI) */}
         {harFlerePsi && (

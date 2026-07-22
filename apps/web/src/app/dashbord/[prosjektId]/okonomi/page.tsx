@@ -15,6 +15,7 @@ import { ImportDialog } from "@/components/mengde/import-dialog";
 import { DebugErrorBoundary } from "@/components/error-boundary";
 import { trpc } from "@/lib/trpc";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type Fane = "oversikt" | "avviksanalyse" | "rapport" | "dokumenter";
 type DokType = "a_nota" | "t_nota";
@@ -201,6 +202,7 @@ export default function OkonomiSide() {
   return (
     <div className="flex h-full flex-col">
       {/* Toppseksjon */}
+      <SonetonetSidehode sone="prosjekt">
       <div className="flex items-center justify-between border-b px-4 py-3">
         <div className="flex items-center gap-2">
           <BarChart3 className="h-5 w-5 text-sitedoc-primary" />
@@ -214,6 +216,7 @@ export default function OkonomiSide() {
           {t("handling.importer")}
         </button>
       </div>
+      </SonetonetSidehode>
 
       {/* Velgere + Nota-oppsummering */}
       <div className="flex items-start justify-between border-b px-4 py-2">

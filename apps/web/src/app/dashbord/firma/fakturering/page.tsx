@@ -2,11 +2,14 @@
 
 import { EmptyState } from "@sitedoc/ui";
 import { CreditCard } from "lucide-react";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 export default function FirmaFakturering() {
   return (
     <div>
-      <h1 className="mb-4 text-lg font-semibold text-gray-900">Fakturering</h1>
+      <SonetonetSidehode sone="firma">
+        <h1 className="mb-4 text-lg font-semibold text-gray-900">Fakturering</h1>
+      </SonetonetSidehode>
       <EmptyState
         title="Kommer snart"
         description="Faktureringssiden er under utvikling. Her vil du kunne administrere abonnement, se fakturahistorikk og oppdatere betalingsinformasjon."

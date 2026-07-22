@@ -9,13 +9,14 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 
-// P1-B (⇄): kun seksjoner med et ekte firma↔prosjekt-par får flatebytte.
-// Ledd 1-måling: HMS er eneste rene par (piloten). Utvides seksjon for seksjon
-// i den gjennomgående planen (vedtak § 5) — legg til slug her når paret finnes.
+// P1-B (⇄): kun seksjoner med et ekte firma↔prosjekt-par (samme slug på både
+// `/dashbord/firma/<slug>` og `/dashbord/{id}/<slug>`) får flatebytte.
+// Kloss 3: HMS (piloten) + timer — de to eneste rene samme-slug-parene.
+// Kryss-konsept-par (ulik slug/betydning firma↔prosjekt) hører IKKE hit.
 // ⚠️ MÅ utvides SAMTIDIG som et nytt par bygges: bygger du en ny firma/prosjekt-
 // flate uten å legge sluggen inn her, mangler ⇄ på den flaten uten at noe
 // feiler — et usynlig hull, ikke en synlig feil.
-const PARBARE_SEKSJONER = new Set(["hms"]);
+const PARBARE_SEKSJONER = new Set(["hms", "timer"]);
 
 type Nivå = "firma" | "prosjekt" | "byggeplass";
 

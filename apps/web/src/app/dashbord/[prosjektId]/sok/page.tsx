@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { TreffListe } from "@/components/ftd-sok/treff-liste";
 import { Fulltekst } from "@/components/ftd-sok/fulltekst";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type SokModus = "ai" | "leksikalsk";
 
@@ -115,10 +116,12 @@ export default function DokumentsokSide() {
   return (
     <div className="flex h-full flex-col">
       {/* Toppseksjon */}
-      <div className="flex items-center gap-2 border-b px-4 py-3">
-        <FileSearch className="h-5 w-5 text-sitedoc-primary" />
-        <h1 className="text-lg font-semibold">{t("sok.tittel")}</h1>
-      </div>
+      <SonetonetSidehode sone="prosjekt">
+        <div className="flex items-center gap-2 border-b px-4 py-3">
+          <FileSearch className="h-5 w-5 text-sitedoc-primary" />
+          <h1 className="text-lg font-semibold">{t("sok.tittel")}</h1>
+        </div>
+      </SonetonetSidehode>
 
       {/* Søkefelt + modusveksler */}
       <div className="border-b px-4 py-3">

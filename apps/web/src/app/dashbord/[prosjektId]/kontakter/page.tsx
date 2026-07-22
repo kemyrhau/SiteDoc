@@ -8,6 +8,7 @@ import { Spinner, SearchInput } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 /**
  * P31 Kontakter — read-only lesevisning (K6-splitt). Personkatalog gruppert
@@ -124,20 +125,22 @@ export default function KontakterLesevisning() {
 
   return (
     <div className="mx-auto max-w-4xl p-6">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-gray-900">
-            <Contact className="h-6 w-6 text-sitedoc-primary" />
-            {t("kontakter.tittel")}
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">{t("kontakter.beskrivelse")}</p>
+      <SonetonetSidehode sone="prosjekt">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl font-semibold text-gray-900">
+              <Contact className="h-6 w-6 text-sitedoc-primary" />
+              {t("kontakter.tittel")}
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">{t("kontakter.beskrivelse")}</p>
+          </div>
+          <HjelpKnapp>
+            <HjelpFane tittel={t("hjelp.kontakter.tittel")}>
+              <p>{t("hjelp.kontakter.tekst")}</p>
+            </HjelpFane>
+          </HjelpKnapp>
         </div>
-        <HjelpKnapp>
-          <HjelpFane tittel={t("hjelp.kontakter.tittel")}>
-            <p>{t("hjelp.kontakter.tekst")}</p>
-          </HjelpFane>
-        </HjelpKnapp>
-      </div>
+      </SonetonetSidehode>
 
       <div className="mb-4 max-w-md">
         <SearchInput verdi={sok} onChange={setSok} placeholder={t("kontakter.sokPlaceholder")} />
