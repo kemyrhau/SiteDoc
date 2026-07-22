@@ -128,8 +128,18 @@ export function KontekstChip() {
 
   const laster = !!prosjektId && lasterValgtProsjekt && !valgtProsjekt;
 
-  const prosjektTekst = valgtProsjekt?.name
-    ?? (laster
+  // P1-vedtak 3: prosjektkontekst = «prosjekt + bygning». Topplinja VISER aktiv
+  // byggeplass som ren tekst — trakten er der man ENDRER den (ingen kontroll her).
+  // Kloss 2 fjernet den frittstående ByggeplassVelger, som var eneste
+  // byggeplass-visning; her kommer den tilbake i topplinja per fabel-fasit
+  // («998 Instinniforbotn · Bygg B12» = prosjektnummer + navn + byggeplass).
+  // Uten aktiv byggeplass: prosjektnummer + navn, uten suffiks.
+  const prosjektMedBygg = valgtProsjekt
+    ? `${valgtProsjekt.projectNumber} ${valgtProsjekt.name}${aktivByggeplass ? ` · ${aktivByggeplass.name}` : ""}`
+    : null;
+  const prosjektTekst =
+    prosjektMedBygg ??
+    (laster
       ? t("kontekstChip.laster")
       : prosjektScope === "alle"
         ? t("prosjektVelger.alleProsjekter")
