@@ -16,6 +16,14 @@ kilde: ført av cowork fra fabel-relay. Fabels arbeidskopi i designprosjektet �
 
 **Halvtilstand-dommen (Kenneth, samme test):** *«funksjoner er delvis bygget og ikke sammenhengende, inkonsistent mellom HMS og andre sider».* P1-chippen + tonet sidehode (kun på HMS) + løs byggeplass-velger = inkonsistent. **Testing pauses til K3 lukker helheten.** K3 er ikke en oppfølger lenger — den er det som gjør kontekstvelgeren ferdig.
 
+### 🔴 MANGEL BEKREFTET — tonet sidehode skal på ALLE sider (Kenneth 2026-07-22)
+
+**Kenneth:** *«skal det tonede sidehodet rulles ut på alle sider samtidig med K3 → ja → allerede skal dette ligge i plan → hvis ikke → da er det en mangel».*
+
+**Cowork-måling: det lå IKKE i planen.** `SonetonetSidehode` er brukt på nøyaktig to filer i dag (`[prosjektId]/hms/page.tsx` + `firma/hms/page.tsx`) — HMS var pilot, og utrulling til øvrige sider stod ingen steder. Det er mangelen.
+
+**Krav lagt til K3-leveransen:** `SonetonetSidehode` rulles ut på **alle firma- og prosjektsider samtidig med K3**, ikke bare HMS. Sonetonen (amber=firma/blå=prosjekt) blir da et konsistent nivåsignal på hver side, ikke en HMS-særegenhet. Sideinventar: [MASTERPLAN § Flate-inventar](../../redesign/MASTERPLAN.md) — cowork måler eksakt liste ved ordreskriving.
+
 ---
 
 
