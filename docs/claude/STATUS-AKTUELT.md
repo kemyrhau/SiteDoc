@@ -14,7 +14,7 @@ sist_verifisert_mot_kode: 2026-07-10
 | **P1 nivåsignal** | `~/Documents/Programmering/SiteDoc-develop` | `feat/p1-nivasignal` (ledd 2) | `KontekstChip.tsx` · HMS-parets to side-skall (sidehode) | 2026-07-21 | **MERGET + PÅ TEST** (`9383233b`). A+B+C levert. Gjenstår: skjermbilder på test + fabels designgate mot fasit-bildene → så lukkes P1. § 2D (suffiks) ute — Kenneth vedtok (b), egen sak |
 
 | **Registrator-fiks** | `~/Documents/Programmering/SiteDoc-registrator` | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` · `tilgangskontroll.ts` · `DokumentHandlingsmeny` (web+mobil) | 2026-07-21 | **AKTIV — Fase B steg 2.** Fase A godkjent, karakteriserings-test grønn (214/214). Bygger logikkendringen |
-| **K1+K2 kontekst** | `~/Documents/Programmering/SiteDoc-kontekst` | `fix/k1k2-kontekst` | `Toppbar.tsx` (K1) · `prosjekt-kontekst.tsx` (K2) | 2026-07-21 | **KLAR FOR RELAY.** Fildisjunkt fra registrator + A-3b + K3. Ordre: [k1k2-fiks-ordre.md](delplaner/k1k2-fiks-ordre.md) |
+| **K1+K2 kontekst** | *(økt kan exit)* | `fix/k1k2-kontekst` (`f28aecfd`) | `Toppbar.tsx` · `prosjekt-kontekst.tsx` | 2026-07-21 | **✅ MERGET develop (`31c831a8`).** K1 (byggeplass-lekkasje) + K2 (prosjektvalg-navigasjon) ferdig. Klar for test-deploy. Neste: K3 (trakten) etter dette |
 
 > ✅ **Avgjort (fabel 2026-07-21, alternativ c): A-3b HOLDES til registrator-fiksen har landet.**
 >
