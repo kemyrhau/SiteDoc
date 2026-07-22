@@ -89,6 +89,68 @@ export const prosjektRouter = router({
       });
     }),
 
+  // K3 «Sist brukt» (v1, 2026-07-22): distinkte prosjekter fra brukerens
+  // Activity, nyeste createdAt først, topp N. Løser Kenneths «4-5 prosjekter
+  // de veksler mellom» — sticky (én verdi) viste bare det siste ene. Ren
+  // spørring på eksisterende audit-data (`activity_log`, indeks
+  // [actorUserId, createdAt]) — INGEN ny logging. Ingen vekting (v2 er egen
+  // sak, ordre § 38). Filtrerer til prosjekter brukeren FORTSATT har tilgang
+  // til, samme scope som hentAlle. Tom Activity → klient faller tilbake på sticky.
+  hentSistBrukte: protectedProcedure
+    .input(
+      z
+        .object({
+          organizationId: z.string().uuid().optional(),
+          antall: z.number().int().min(1).max(10).default(5),
+        })
+        .optional(),
+    )
+    .query(async ({ ctx, input }) => {
+      const antall = input?.antall ?? 5;
+
+      // Nyeste Activity-rader for brukeren med projectId. Tak på 200 rader for å
+      // finne nok distinkte prosjekter uten å skanne hele sporet.
+      const aktiviteter = await ctx.prisma.activity.findMany({
+        where: { actorUserId: ctx.userId, projectId: { not: null } },
+        orderBy: { createdAt: "desc" },
+        select: { projectId: true },
+        take: 200,
+      });
+
+      const distinkte: string[] = [];
+      for (const a of aktiviteter) {
+        if (a.projectId && !distinkte.includes(a.projectId)) {
+          distinkte.push(a.projectId);
+          if (distinkte.length >= antall) break;
+        }
+      }
+      if (distinkte.length === 0) return [];
+
+      // Samme tilgangs-/scope-regel som hentAlle: kunde-prosjekter, sitedoc_admin
+      // ser alle (valgfritt firma-filter), øvrige kun der de er medlem.
+      const bruker = await ctx.prisma.user.findUniqueOrThrow({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      const erSitedocAdmin = bruker.role === "sitedoc_admin";
+      const where: Prisma.ProjectWhereInput = {
+        id: { in: distinkte },
+        type: "kunde",
+        ...(input?.organizationId ? { primaryOrganizationId: input.organizationId } : {}),
+        ...(erSitedocAdmin ? {} : { members: { some: { userId: ctx.userId } } }),
+      };
+      // Kun id-ene trengs (klienten mapper mot allerede-lastet prosjektliste).
+      // Flat `string[]`-retur unngår tRPC-include-TS2589 på klientsiden.
+      const prosjekter = await ctx.prisma.project.findMany({
+        where,
+        select: { id: true },
+      });
+      const tilgjengelige = new Set(prosjekter.map((p) => p.id));
+
+      // Behold Activity-rekkefølgen (nyeste først), kun tilgjengelige prosjekter.
+      return distinkte.filter((id) => tilgjengelige.has(id));
+    }),
+
   // Hent ett prosjekt med ID
   hentMedId: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
