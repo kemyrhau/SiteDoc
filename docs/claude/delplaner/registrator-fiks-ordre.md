@@ -67,6 +67,16 @@ erTillattForRolle(rolle, gjeldendStatus, nyStatus)  ← ingen erAdmin
    ```
    Registrator kan da **sende og slette sin egen kladd** (matrisens «oppretter» + Kenneths «sletting kun i kladd av bruker»), men **ingen andre overganger** — kan ikke godkjenne, besvare eller avvise. Nøyaktig «oppretter + sender, resten leser».
 
+0b. **🟢 KOMPLETTERING (fabel-vedtak 2 · [flytmodell-vedtak-2026-07-22.md](flytmodell-vedtak-2026-07-22.md)) — «Send på nytt» lukker regresjonen.** Linjemodellen: registrator er venstre ende; et returnert dokument lander hos henne, og hun skal rette opp + sende mot høyre igjen. Cowork-måling viste at **statusmaskinen mangler overgangen** — det er ikke bare en ROLLE_HANDLINGER-oppføring. **To endringer:**
+
+   1. **Statusmaskin** (`packages/shared/src/utils/index.ts`, `validTransitions`): `rejected: ["in_progress", "closed"]` → `rejected: ["in_progress", "closed", "sent"]`. Ny gyldig overgang «Send på nytt».
+   2. **ROLLE_HANDLINGER** — gi `rejected → sent` til **venstre-ende-rollene** (vedtakets default `registrator/bestiller/admin`; admin får den via `erAdmin`):
+      ```
+      registrator: { draft: new Set(["sent", "deleted"]), rejected: new Set(["sent"]) }
+      bestiller:   { …eksisterende…,                     rejected: new Set(["sent"]) }
+      ```
+   **Verifiser:** `erTillattForRolle(registrator, "rejected", "sent")` → `true`, `(bestiller, "rejected", "sent")` → `true`. Andre roller uendret. `isValidStatusTransition("rejected", "sent")` → `true`. Statusmaskinen forblir ellers fast — matrisen kan aldri *skape* overganger, kun slå av/på (vedtak 1).
+
 1. `flytRolle.ts:179` → `if (erAdmin) return "admin";` *(registrator-disjunktet strykes)*
 2. `statusHandlinger.ts:85` → `if (erAdmin) return alle;`
 3. `statusHandlinger.ts:105` → `if (erAdmin) return true;`
