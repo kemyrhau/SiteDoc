@@ -19,7 +19,7 @@ Firma-HMS og prosjekt-HMS var i prod visuelt nesten identiske: samme topplinje (
 
 1. **Variant 1c**: chip i topplinja + svakt sonetonet sidehode + sonefarget h1-markør. **Amber = FIRMA / blå = PROSJEKT** (låst grammatikk, del 5).
 2. **Chip er klikkbar** — bytter mellom firma- og prosjektvisning av samme flate.
-3. **Topplinja viser kun eget nivå**: firmakontekst = kun firmanavn; prosjektkontekst = kun prosjekt + bygning (firmaprefiks ut).
+3. ~~**Topplinja viser kun eget nivå**: firmakontekst = kun firmanavn; prosjektkontekst = kun prosjekt + bygning (firmaprefiks ut).~~ **🔄 REVERSERT av K3 kloss 2c (Kenneth-forslag + fabel-gate 2026-07-22).** Ny regel: **prosjektkontekst** viser to linjer — linje 1 = Firma (dempet grå brødtekst, informasjon), linje 2 = Prosjekt · Byggeplass (blå chip + sonetone, aktiv kontekst). **Firmakontekst** viser fortsatt kun firma. Begrunnelse: kundetelefon-prøvesteinen er ny fakta — hierarkiet må kunne leses i topplinja uten å åpne trakten. Sonetonen følger **aktiv** kontekst, aldri alle synlige nivåer (to soneToner samtidig = intet signal). Full grammatikk: [k3-ordre § Kloss 2c](k3-ordre.md).
 4. **«— hele firmaet»-suffiks valgfri per firma** — innstilling i firmainnstillinger.
 5. **Gjennomgående mønster** for alle firma-/prosjekt-par — egen plan lages ETTER at vedtatt delplan er ferdig.
 6. **Sidebar-funksjon a)** (Kenneth 2026-07-21): chip = **kun snarvei** til motpart-flaten; sidebaren forblir uendret strukturkilde (K5 bevares).

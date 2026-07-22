@@ -41,5 +41,22 @@ C. **ByggeplassVelger ut av toppbaren**: fjernes helt i ny nav (K1 skjulte den i
 - Popover-headeren skal vise prosjektets firma (R2-vilkåret, admin-konsekvensen).
 - DoD: build grønn → skjermbilder: trakt alle steg + minst 3 firma- og 3 prosjekt-sider m/ tonet sidehode + kundetelefon-gjennomklikk → fabel-designgate → dok-sync → cowork-merge. Statuskilde: verifisering/k3-verifiseringslogg.md (opprettes).
 
+## Kloss 2c — to-linjers topplinje (Kenneth-forslag + fabel-gate 2026-07-22)
+
+**Bakgrunn (K3-test, [verifiseringslogg Funn 1](verifisering/k3-verifiseringslogg.md)):** `KontekstChip.tsx:281` har `max-w-[220px] truncate`. Topplinja `{projectNumber} {name} · {byggeplass}` trunkerer byggeplass-suffikset bort for reelle numre («SD-ÅÅÅÅMMDD-NNNN», 16 tegn) → byggeplass-fiksen (kloss 2b) beseires i praksis. #9 var ikke feil byggeplass — prosjektet HETER «…Kenneth Myrhaug», og Røstbakken ble kuttet.
+
+**Løsning — to-linjers topplinje, SD-nummer droppet (bor i trakt-radene + dokumentvisning):**
+- **Prosjektkontekst:** linje 1 = **Firma**, linje 2 = **Prosjekt · Byggeplass**.
+- **Firmakontekst:** kun linje 1 = **Firma** (ingen linje 2).
+
+**Grammatikk (fabel-gate, ufravikelig):**
+- **(a) Sonetonen følger AKTIV kontekst, aldri alle synlige nivåer.** Prosjektkontekst: linje 2 bærer **blå** chip + sonetone; linje 1 (Firma) er **dempet grå brødtekst — IKKE amber**. Amber finnes kun når firmakontekst er aktiv. To soneToner samtidig = intet signal. Firma-linja i prosjektkontekst er *informasjon* (kundetelefon-oppslaget), ikke et kontekst-claim.
+- **(b) Split-chippen beholdes, ligger på den AKTIVE linja.** Prosjektkontekst: chip (▾ åpner trakten) + ⇄ (bytt nivå) på **linje 2**. Firmakontekst: chip + ⇄ på **linje 1**. Firma-linja i prosjektkontekst er **ren tekst — ingen tredje klikkmekanisme**.
+- **Reverserer P1-vedtak 3** («prosjektkontekst viser kun eget nivå») — ført eksplisitt i [p1-nivasignal-vedtak § Vedtatt pkt 3](p1-nivasignal-vedtak.md). Prøvesteinen er ny fakta.
+
+**Fil:** kun `KontekstChip.tsx` (topplinje-renderingen rundt l.281 + `entitetTekst`/`prosjektMedBygg`). SD-nummer ut av topplinje-strengen; behold i trakt-radene (`prosjektEtikett`) urørt.
+
+**DoD kloss 2c:** build grønn + skjermbilde av begge kontekster (prosjekt: to linjer, blå på linje 2; firma: én linje, amber) med et LANGT prosjektnavn så byggeplassen beviselig overlever.
+
 ## Kloss-deling (stopp-punkter)
-Kloss 1: A (trakten). Kloss 2: C + B på HMS-parets 2 sider (referansemontering). Kloss 3: B resten (mekanisk utrulling). Rapportér etter hver kloss; fabel gater kloss 1+2 før kloss 3 ruller.
+Kloss 1: A (trakten). Kloss 2: C + B på HMS-parets 2 sider (referansemontering). **Kloss 2c: to-linjers topplinje (over) — gate-korreksjon fra test.** Kloss 3: B resten (mekanisk utrulling) + **#6: utvid `PARBARE_SEKSJONER` med `timer`** (eneste øvrige samme-slug-par; kryss-konsept-par som ansatte↔mannskap = egen fabel-beslutning, ikke her). Rapportér etter hver kloss; fabel gater kloss 1+2+2c før kloss 3 ruller. **Kloss 2c + kloss 3 lander sammen i én test-deploy.**
