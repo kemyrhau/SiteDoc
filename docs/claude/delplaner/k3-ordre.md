@@ -60,3 +60,32 @@ C. **ByggeplassVelger ut av toppbaren**: fjernes helt i ny nav (K1 skjulte den i
 
 ## Kloss-deling (stopp-punkter)
 Kloss 1: A (trakten). Kloss 2: C + B på HMS-parets 2 sider (referansemontering). **Kloss 2c: to-linjers topplinje (over) — gate-korreksjon fra test.** Kloss 3: B resten (mekanisk utrulling) + **#6: utvid `PARBARE_SEKSJONER` med `timer`** (eneste øvrige samme-slug-par; kryss-konsept-par som ansatte↔mannskap = egen fabel-beslutning, ikke her). Rapportér etter hver kloss; fabel gater kloss 1+2+2c før kloss 3 ruller. **Kloss 2c + kloss 3 lander sammen i én test-deploy.**
+
+### 🔴 Kloss 3-KRAV — ⇄ utledes fra navet, ikke fra hardkodet liste (Kenneth 2026-07-22)
+
+**Funn:** dagens ⇄ gater **kun** på seksjon-paret (`PARBARE_SEKSJONER.has(seksjon)`), ikke på om brukeren har tilgang til motpart-flaten. `timer` er rollestyrt → et medlem uten timeradgang ville fått en ⇄ til `firma/timer` de ikke kan bruke. **Kenneth generaliserer:** timer er kun ett eksempel — enhver firmatilknyttet modul kan være parbar, og bruker/org som kjører **kun prosjektdelen** har ingen firma-motpart (da er ⇄ *og* firma-sidebaren unødvendig).
+
+**Krav (må inn SAMMEN med timer, erstatter `PARBARE_SEKSJONER`):** ⇄ vises når **samme seksjon finnes i både brukerens firma-nav OG prosjekt-nav** (begge tilgangs-filtrert). Utled fra `useFirmaNavElementer()` + prosjekt-navet — samme kilde som sidebaren (cowork-verifisert: filtrerer på `aktiveFirmamoduler` + rolle + `kreverModul`). Ingen hardkodet liste, ingen ny tilgangsmodell.
+
+**Konsekvenser (alle ønsket):**
+- Enhver firmatilknyttet modul håndteres automatisk — ingen liste å vedlikeholde.
+- Org som kun bruker prosjektdelen → seksjon mangler i firma-navet → ingen ⇄, ingen firma-sidebar-rad (samme kilde = konsistent).
+- Kryss-konsept-par (ansatte↔mannskap, ulik slug) matcher ikke av seg selv → forblir fabels eksplisitte beslutning, ikke et utilsiktet treff.
+- Fjerner «usynlig hull»-risikoen koden selv advarte mot (ny parbar flate uten slug i settet = manglende ⇄ uten feil).
+
+**DoD-tillegg:** verifiser at ⇄ (a) vises på både `hms` og `timer` for bruker med begge sider i navet, (b) forsvinner for medlem uten firma-motpart i navet.
+
+**Fabels to presiseringer (design-gate 2026-07-22):**
+- **Ingen alias-tabell «for senere».** Kryss-konsept-par (ulik slug) finnes ikke i dag og innføres IKKE via utledning. Ønskes et slikt par noen gang, er det en fabel-beslutning **per par**, ført i vedtaksfil.
+- **Chip uten ⇄ består som rent signal** (P1-ordrens «uten motpart: chip uten klikk»). Prosjekt-only-org mister *byttet*, ikke *nivåsignalet*.
+
+## Konsolidert korreksjonsordre — kloss 3 siste pass (fabel-gate 2026-07-22)
+
+Fire ting i ETT pass på `feat/k3-kontekstvelger` (over `02a0ad6f`):
+
+1. **⇄ utledes fra navet — fjern `PARBARE_SEKSJONER`.** Erstatt `Set(["hms","timer"])`-sjekken med: motpart finnes når `deler[3]`-seksjonen ligger i BÅDE `useFirmaNavElementer()` OG prosjekt-navet (begge tilgangs-filtrert). `motpartUrl` bygges kun da. Kloss 3 sendte den ugatede formen (redesign hadde ikke revisjonen) → dette er korreksjonen.
+2. **Sjekklister + oppgaver skal ha nivåsignal — `useVerktoylinje` får en minimal sone-variant.** IKKE en tonet flate i toppbaren (brand-blå — sonetone der bryter grammatikken). I stedet: **4px sonefarget tittelmarkør** (`border-l-4` i sonefarge, prosjekt = `#a9c4f5`) foran verktøylinje-tittelen, **uten gradient**. **Delt kilde:** trekk sone→markørfarge-mappingen ut av `SonetonetSidehode.tsx` (i dag inline: `#f5c97b`/`#a9c4f5`) til én delt konstant/helper som BÅDE sidehodet og verktøylinje-varianten bruker — ingen duplisert farge. Fil: `Verktoylinje.tsx` + `SonetonetSidehode.tsx` + delt kilde.
+3. **oppmotesteder-wrappingen godkjent** — mønsteret er «sidehodet omslutter sidens hode-innhold»; uten `<h1>` er beskrivelse+handlinger hodet. Ingen endring.
+4. **Polish:** fjern indre `mb-*`/`border-b` som ble stående inne i sidehode-wrapperen (dobbel kant/marg). Samme pass.
+
+**DoD siste pass:** typecheck + build grønn + skjermbilder: (a) ⇄ på/av mot nav-tilgang, (b) sjekklister + oppgaver med 4px sonemarkør på verktøylinje-tittelen, (c) en polert side uten dobbel kant. Så cowork diff-gate → merge hele K3 → test-deploy.

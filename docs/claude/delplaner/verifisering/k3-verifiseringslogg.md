@@ -32,6 +32,14 @@ sist_verifisert_mot_kode: 2026-07-22
 2. **Eyebrow godkjent** (dempet lys grå på brand-blå = informasjon uten kontekst-claim). **Test-deploy-sjekk:** 11px-teksten skal holde AA-kontrast (≥4.5:1) mot baren — måles på test.
 3. **Chip flyter med navnelengden** (etter byggeplass ved langt navn, inntil navnet ved kort) — akseptert som naturlig inline-flyt.
 
+### ✅ Korreksjonspass kode-gatet (cowork 2026-07-22, `51e8cc8f`)
+
+Fire ting verifisert mot koden: (1) `PARBARE_SEKSJONER` fjernet — `harMotpart = firmaSeksjoner ∩ prosjektSeksjoner` (begge tilgangs-filtrerte nav). (2) delt kilde `sone-farger.ts` (SONE_MARKOR + SONE_GRADIENT); SonetonetSidehode + Verktoylinje importerer begge; Verktoylinje har `border-l-4 SONE_MARKOR.prosjekt` uten gradient. (3) oppmotesteder urørt. (4) polish: 28 filer, indre marg relokert.
+
+**To flagg til fabels test-gate (ikke blokkerende):**
+1. **Chip-ens `soneKlasse` (KontekstChip:162–163) hardkoder fortsatt `#f5c97b`/`#a9c4f5`** — pre-eksisterende P1-B (develop har samme 2), utenfor ordre-scope. Delt kilde forener sidehode+verktøylinje; full forening ville folde chip-border inn også. Chip er en border+bg+text-pill, større konstrukt — egen sak om ønsket.
+2. **Polish-tolkning:** redesign fjernet ikke indre `mb-*` rått, men **relokerte margen ut** via ny `className`-prop på SonetonetSidehode (foreldrene mangler ofte `gap`/`space-y` → ren fjerning ville kollapset ytre spacing). Cowork-vurdering: trofast mot intensjonen (ren boks + bevart spacing), riktig kall. Fabel bekrefter det visuelle på test.
+
 ### 🟡 Funn 2 (#6) — ⇄ hurtigbytte kun på HMS
 **Cowork-måling:** `PARBARE_SEKSJONER = new Set(["hms"])`. Mekanismen matcher samme slug på indeks 3. Slugs som finnes som BÅDE firma- og prosjekt-flate med samme navn: **kun `hms` og `timer`.** Timer = triviell utvidelse (én linje). Øvrige seksjoner har ikke samme-slug-motpart (firma/ansatte ↔ prosjekt/mannskap = kryss-konsept, krever eksplisitt mapping + design). → fabel avgjør hvilke kryss-par som fortjener ⇄.
 
