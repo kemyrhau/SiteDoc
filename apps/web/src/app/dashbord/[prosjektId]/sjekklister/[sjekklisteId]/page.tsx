@@ -520,6 +520,7 @@ export default function SjekklisteDetaljSide() {
             templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
             standardFaggruppeId={sjekkliste.utforerFaggruppe?.id}
             minRolle={minRolle}
+            erAdmin={minFlytInfo?.erAdmin === true}
             flytMedlemmer={flytMedlemmer}
             recipientUserId={fullSjekkliste?.recipientUserId}
             recipientGroupId={fullSjekkliste?.recipientGroupId}

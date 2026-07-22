@@ -51,6 +51,8 @@ interface DokumentHandlingsmenyProps {
   templateId?: string | null;
   standardFaggruppeId?: string;
   minRolle?: DokumentflytRolle | null;
+  /** Prosjektadmin / sitedoc_admin / firma-admin (fra hentMinFlytInfo.erAdmin) */
+  erAdmin?: boolean;
   /** Dokumentflyt-medlemmer for posisjon-utledning */
   flytMedlemmer?: FlytMedlem[];
   /** Nåværende mottaker (bruker-ID) */
@@ -177,6 +179,7 @@ export function DokumentHandlingsmeny({
   templateId,
   standardFaggruppeId,
   minRolle,
+  erAdmin,
   flytMedlemmer,
   recipientUserId,
   recipientGroupId,
@@ -218,8 +221,8 @@ export function DokumentHandlingsmeny({
   // for dokumenter uten `dokumentflytId`, så klienten tilbyr da hele (statusmaskin-lovlige) settet.
   const alle = useMemo(() => hentStatusHandlinger(status), [status]);
   const aktive = useMemo(
-    () => (harFlyt ? hentRolleFiltrertHandlinger(status, minRolle ?? null) : alle),
-    [harFlyt, status, minRolle, alle],
+    () => (harFlyt ? hentRolleFiltrertHandlinger(status, minRolle ?? null, erAdmin ?? false) : alle),
+    [harFlyt, status, minRolle, erAdmin, alle],
   );
 
   // Standard-mottaker (utfører-faggruppen) for «besvar»-overgangen
