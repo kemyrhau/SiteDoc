@@ -34,36 +34,42 @@ sist_verifisert_mot_kode: 2026-07-22
 | draft | cancelled | ■ | ⚠️ **ingen rolle** — kun admin (`erAdmin`) |
 | **sent** | received | ▶ | ⚠️ **ingen rolle** — antatt automatisk ved mottak (verifiser) |
 | sent | cancelled | ■ | bestiller |
-| **received** | responded | ▶ | utfører |
-| received | in_progress | ↻ | ⚠️ **ingen rolle** i ROLLE_HANDLINGER — hvordan startes arbeid? (verifiser) |
-| received | cancelled | ■ | ⚠️ **ingen rolle** — kun admin |
+| **received** | responded | ▶ | utfører *(«besvar»)* |
+| received | ~~in_progress~~ | ↻ | 💀 **DØD** — ingen handler setter `in_progress` fra received. Vestigiell overgang i statusmaskinen |
+| received | cancelled | ■ | ⚠️ kun admin *(«avvis» i menyen, men ingen rolle i ROLLE_HANDLINGER)* |
 | received | forwarded | ⇅ | utfører *(→ skal bli admin-only, vedtak 3)* |
 | **in_progress** | responded | ▶ | utfører |
 | in_progress | sent | ◀ | utfører *(send tilbake til avsender)* |
-| in_progress | cancelled | ■ | ⚠️ **ingen rolle** — kun admin |
+| in_progress | cancelled | ■ | ⚠️ kun admin |
 | in_progress | forwarded | ⇅ | utfører *(→ admin-only, vedtak 3)* |
 | **responded** | approved | ▶ | godkjenner |
 | responded | rejected | ◀ | godkjenner *(send tilbake)* |
 | responded | forwarded | ⇅ | godkjenner *(→ admin-only, vedtak 3)* |
-| **approved** | closed | ▶ | ⚠️ **ingen rolle** — kun admin (matrisen sier «administrator lukker») |
+| **approved** | closed | ▶ | **bestiller** *(+ admin)* — matrisen § 2 «administrator lukker», men bestiller eier den også i dag |
 | **rejected** | in_progress | ↻ | utfører *(gjenoppta)* |
 | rejected | **sent** | ▶ | **registrator · bestiller** *(«Send på nytt» — vedtak 2, IKKE landet ennå)* |
-| rejected | closed | ■ | ⚠️ **ingen rolle** — kun admin |
-| **cancelled** | draft | ↺ | ⚠️ **ingen rolle** — kun admin *(gjenåpne)* |
+| rejected | closed | ■ | ⚠️ kun admin |
+| **cancelled** | draft | ↺ | **bestiller** *(+ admin)* — gjenåpne |
 | **closed** | — | | terminal, ingen utgang |
 
-## 🔴 Sprik funnet — må avgjøres i admin-UI-designet
+## Sprik funnet — dybdemåling 2026-07-22 (mye mindre enn først antatt)
 
-Statusmaskinen tillater **11 overganger som ingen rolle har i `ROLLE_HANDLINGER`** — de fungerer i dag kun fordi admin (`erAdmin`) omgår tabellen. Når matrisen blir config, må hver av disse få en eksplisitt eier, ellers blir de utilgjengelige for ikke-admin:
+Første utkast sa «11 eierløse overganger». **Feil — bestiller eier flere enn jeg fanget.** Rettet bilde:
 
-1. **`sent → received`** — antatt automatisk (systemet, ikke en rolle). Bekreft at det ikke går via `endreStatus`/rollegate.
-2. **`received → in_progress`** («start arbeid») — ingen rolle eier den. Hvordan blir et mottatt dokument «under arbeid» i dag? Egen mekanisme eller hull?
-3. **`* → cancelled`** (draft/received/in_progress) — kun bestiller på `sent→cancelled`. Hvem kan avbryte fra de andre? *(«trekk tilbake» = cancelled — mål hvem som har den handlingen.)*
-4. **`approved → closed`** — «administrator lukker» (matrisen § 2 sier admin). Bekreft at det ER admin-only med vilje.
-5. **`rejected → closed`** — gi opp en avvist sak. Admin-only?
-6. **`cancelled → draft`** (gjenåpne) — admin-only?
+**Automatisk / systemet (ikke en rolle, korrekt):**
+- **`sent → received`** — kollapser automatisk ved send (`sjekkliste.ts:924`: `nyStatus === "sent" ? "received"`). «sent» er momentan. Ikke et hull.
 
-**Ingenting av dette er en bug å fikse nå** — det er kartleggingen admin-UI-matrisen trenger for å ha en default-eier per celle. Fakta-først: dette er dagens tilstand, ikke en anbefaling.
+**💀 Død overgang (verdt å rydde, ikke nå):**
+- **`received → in_progress`** — i statusmaskinen, men **ingen handler setter `in_progress` fra received**, og menyen tilbyr ingen «start arbeid». `in_progress` nås kun via `rejected→in_progress`. Vestigiell. Egen opprydnings-sak (samme død-kode-mønster som resten av dagen).
+
+**Genuint kun-admin i dag (4 celler — trenger default-eier i admin-UI):**
+- `draft → cancelled` · `received → cancelled` · `in_progress → cancelled` — mid-flow avbryt. «Avvis»/«trekk tilbake» vises i menyen, men ingen ikke-admin-rolle har dem i `ROLLE_HANDLINGER`. **Klient/server-divergens:** menyen tilbyr, serveren avviser for ikke-admin.
+- `rejected → closed` — gi opp en avvist sak.
+
+**Eid av bestiller (IKKE admin-only — første utkast tok feil):**
+- `approved → closed` (lukk) · `cancelled → draft` (gjenåpne) · `sent → cancelled` (trekk tilbake) — alle på bestiller.
+
+**Konklusjon:** ikke 11 hull, men **4 kun-admin-celler + 1 død overgang.** Det er kartet admin-UI-matrisen trenger. Fakta-først: dagens tilstand, ikke anbefaling.
 
 ## Prosjektadministrator (opp/ned)
 
@@ -73,6 +79,7 @@ Statusmaskinen tillater **11 overganger som ingen rolle har i `ROLLE_HANDLINGER`
 
 ## Åpne spørsmål til fabel/Kenneth
 
-1. **De 11 eierløse overgangene** (§ Sprik) — hver trenger en default-eier i admin-UI-matrisen. Skal cowork måle «trekk tilbake»/«start arbeid»-mekanismene så vi vet om de går utenom rollegaten, før matrisen designes?
-2. **`rejected → sent`** (vedtak 2) er ikke landet ennå — registrator-fiksens komplettering (ordre § 0b) legger den inn. Matrisen over antar den kommer.
-3. **`received → in_progress`** uten rolle-eier er det mest mistenkelige — hvis «start arbeid» ikke finnes som handling, mangler flyten et steg. Verdt en dedikert måling.
+1. **4 kun-admin-celler** (draft/received/in_progress → cancelled, rejected → closed): skal noen ikke-admin-rolle eie dem i admin-UI-defaulten, eller er «kun admin avbryter/lukker mid-flow» det ønskede? Cowork-anbefaling: bestiller bør eie `* → cancelled` (hun kan alt trekke tilbake fra `sent`) — men det er et designvalg.
+2. **Klient/server-divergensen** på «avvis»/«trekk tilbake»: menyen viser handlingene på received/in_progress, men serveren avviser for ikke-admin. Skal menyen skjule dem (matche serveren), eller skal rollene få dem? Løses av admin-UI-matrisen uansett.
+3. **`received → in_progress` (død):** rydd bort fra statusmaskinen, eller gjenoppliv med en «start arbeid»-handling? Hvis flyten skal ha et eksplisitt «utfører har begynt»-steg, mangler det i dag.
+4. **`rejected → sent`** (vedtak 2): ikke landet — registrator-fiksens komplettering (ordre § 0b) legger den inn. Matrisen antar den kommer.
