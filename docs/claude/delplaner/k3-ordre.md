@@ -89,3 +89,13 @@ Fire ting i ETT pass på `feat/k3-kontekstvelger` (over `02a0ad6f`):
 4. **Polish:** fjern indre `mb-*`/`border-b` som ble stående inne i sidehode-wrapperen (dobbel kant/marg). Samme pass.
 
 **DoD siste pass:** typecheck + build grønn + skjermbilder: (a) ⇄ på/av mot nav-tilgang, (b) sjekklister + oppgaver med 4px sonemarkør på verktøylinje-tittelen, (c) en polert side uten dobbel kant. Så cowork diff-gate → merge hele K3 → test-deploy.
+
+## Follow-up-hotfix — ⇄-krasj + streng paring + eyebrow (Kenneth-test + fabel-gate 2026-07-22)
+
+K3 er merget + på test. Kenneth-testen fant ⇄-krasj på timer (#6/#8/#10). Ny branch fra develop (`feat/k3-kryssbytte-fiks`). Tre ting i ett pass:
+
+1. **⇄ navigerer via `<Link href={motpartUrl}>`, ikke `router.push`.** Rotårsak (cowork-målt): ⇄ gjorde `router.push("/dashbord/firma/timer")`, og den ruta er en `redirect()`-stub (→ onboarding). `router.push` til en redirect-rute kaster i App Router; firma-**sidebaren** bruker `<Link>` (håndterer redirecten) — derfor funker sidebar, krasjer ⇄. Fiks = samme mekanisme som sidebaren.
+2. **Streng én-til-én-paring på EIENDE nav-element (lengste href-prefiks), ikke `deler[3]`.** Grunn: firma/timer redirecter → du er aldri på rå `/timer`, men på en fane; `deler[3]` ville gi ⇄ på hele timer-familien. Regel: finn nav-elementet i gjeldende kontekst hvis href er lengste prefiks av `pathname`; ⇄ vises kun når et nav-element med SAMME relative path finnes i den andre kontekstens nav (begge tilgangs-filtrert); `motpartUrl` = motpart-elementets href. Resultat (fabel-vedtak): ⇄ kun på `timer↔timer`; **attestering** (kun prosjekt) + **rapport** (kun firma) får chip UTEN ⇄ — kryss-konsept-tilfellet fabel reserverte, beslutning = nei.
+3. **Eyebrow (#2):** fjern bredde-cappen på firma-linja (linje 1) + vekt → medium. Den har plassen.
+
+**DoD:** build grønn + skjermbilder: ⇄ funker (ingen krasj) på hms + timer begge veier; ⇄ **borte** på prosjekt/timer/attestering + firma/timer/rapport; eyebrow bredere/medium. **+ (fabel-QC):** vis chip-tilstanden UTEN ⇄ i BEGGE topplinje-temaer — prosjekt (blå) og firma (amber) — det er den nye visuelle tilstanden ingen fasit dekker; fabel gater den. Cowork diff-gate → merge → re-deploy test → fabel gater test-skjermbildene.
