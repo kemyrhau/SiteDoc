@@ -25,7 +25,12 @@ sist_verifisert_mot_kode: 2026-07-22
 
 **Konsekvens:** byggeplass-fiksen fabel krevde (kloss 2b) beseires i praksis for lange navn. Reell regresjon.
 
-**✅ LØST (Kenneth-forslag + fabel-gate 2026-07-22) → kloss 2c:** to-linjers topplinje (prosjektkontekst: Firma / Prosjekt · Byggeplass; firmakontekst: kun Firma), SD-nummer droppet. Grammatikk + reverserings-føring i [k3-ordre § Kloss 2c](../k3-ordre.md). Lander med kloss 3.
+**✅ LØST (Kenneth-forslag + fabel-gate 2026-07-22) → kloss 2c:** to-linjers topplinje (prosjektkontekst: Firma / Prosjekt · Byggeplass; firmakontekst: kun Firma), SD-nummer droppet. Grammatikk + reverserings-føring i [k3-ordre § Kloss 2c](../k3-ordre.md). Kode-gatet cowork (`fdc4a168`) + designgatet fabel.
+
+**Fabels tre merknader (2c designgate, ufravikelige føringer):**
+1. **Toppbar-blå = brand-farge, IKKE sonetone.** Tonen bæres av chip + sidehode, aldri av baren. **Ingen skal senere «rette» firmakontekstens bar til amber** — baren er merkevare-blå i begge kontekster; kun chip/sidehode skifter tone. Ført her så det ikke revideres i vill misforståelse.
+2. **Eyebrow godkjent** (dempet lys grå på brand-blå = informasjon uten kontekst-claim). **Test-deploy-sjekk:** 11px-teksten skal holde AA-kontrast (≥4.5:1) mot baren — måles på test.
+3. **Chip flyter med navnelengden** (etter byggeplass ved langt navn, inntil navnet ved kort) — akseptert som naturlig inline-flyt.
 
 ### 🟡 Funn 2 (#6) — ⇄ hurtigbytte kun på HMS
 **Cowork-måling:** `PARBARE_SEKSJONER = new Set(["hms"])`. Mekanismen matcher samme slug på indeks 3. Slugs som finnes som BÅDE firma- og prosjekt-flate med samme navn: **kun `hms` og `timer`.** Timer = triviell utvidelse (én linje). Øvrige seksjoner har ikke samme-slug-motpart (firma/ansatte ↔ prosjekt/mannskap = kryss-konsept, krever eksplisitt mapping + design). → fabel avgjør hvilke kryss-par som fortjener ⇄.
