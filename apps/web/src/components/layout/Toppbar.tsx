@@ -129,7 +129,9 @@ export function Toppbar() {
              FirmaVelger + ProsjektVelger + FirmaKontekstVelger. */
           <>
             <KontekstChip />
-            {prosjektId && (
+            {/* K1: byggeplass er et rent prosjekt-begrep — skjul velgeren i
+                firmakontekst (`/dashbord/firma/*`) selv om et sticky prosjekt finnes. */}
+            {prosjektId && !erFirmaKontekst && (
               <>
                 <div className="mx-1 h-5 w-px bg-white/20" />
                 <ByggeplassVelger disabled={!byggeplassAktiv} />

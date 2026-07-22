@@ -132,6 +132,12 @@ export function ProsjektProvider({ children }: { children: ReactNode }) {
       router.push(pathname.replace(`/dashbord/${urlProsjektId}`, `/dashbord/${id}`));
     } else if (pathname === "/dashbord" || pathname === "/dashbord/") {
       router.push(`/dashbord/${id}`);
+    } else if (pathname.startsWith("/dashbord/firma")) {
+      // K2: firma og prosjekt er gjensidig utelukkende visninger. Velger du et
+      // prosjekt fra firmasiden skal du navigere ut til prosjektvisningen
+      // (speiler gammel nav, FirmaKontekstVelger.handleVelg). Kun firma-grenen —
+      // øvrige globale ruter (oppsett/innstillinger) beholder «bli stående».
+      router.push(`/dashbord/${id}`);
     }
   }
 
