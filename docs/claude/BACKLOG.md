@@ -2283,3 +2283,9 @@ til `historikk-YYYY-MM.md`. Se også [DOC-MAP.md](DOC-MAP.md) og
 - **(b) Server-side (byggeplass-logging over):** enabler også recency-liste + kryss-enhet. Tyngre.
 
 **Endrer vedtaket «byggeplass = valgfritt ettervalg» minimalt:** byggeplass får en **smart default** (sist brukte per prosjekt) i stedet for tom. Fortsatt endrbar, «lukk ved prosjektvalg» står. Egen sak — ikke i K3 nå.
+
+### Valgfri firma/prosjekt-forkortelse i innstillinger (Kenneth 2026-07-22, K3-test)
+
+**Bakgrunn:** topplinja i prosjektkontekst viser `{projectNumber} {name} · {byggeplass}`. Reelle prosjektnumre er «SD-ÅÅÅÅMMDD-NNNN» (16 tegn) + fullt navn → fyller `max-w-[220px]` og trunkerer byggeplassen bort ([k3-verifiseringslogg § Funn 1](delplaner/verifisering/k3-verifiseringslogg.md)). Kenneth: *«det er behov for valgfri forkortelse i firmainformasjon-innstillinger».*
+
+**Forbedring:** valgfritt kortnavn-felt per firma/prosjekt i innstillinger, brukt i topplinja når satt. Generisk fallback = fullt navn. Feature: DB-felt + innstillings-UI + wiring i KontekstChip. **NB:** løser ikke alene at byggeplass må overleve trunkering — se den umiddelbare topplinje-fiksen (fabel design-call, K3). Denne er den pene, varige varianten; ikke i K3-kritisk sti.
