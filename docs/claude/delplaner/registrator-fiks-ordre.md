@@ -61,10 +61,27 @@ erTillattForRolle(rolle, gjeldendStatus, nyStatus)  ← ingen erAdmin
 
 ## 4. Fase B — registrators admin-makt fjernes
 
+0. **🔴 KRITISK (cowork-funn 2026-07-21) — registrator MÅ kunne sende sitt eget dokument.** `ROLLE_HANDLINGER` har i dag **ingen** `registrator`-nøkkel. Fjernes admin-disjunktet uten å legge til en, kan en ren registrator **ikke** gjøre `draft → sent` — brudd på Kenneths modell «oppretter → sender». **Legg til i `ROLLE_HANDLINGER`:**
+   ```
+   registrator: { draft: new Set(["sent", "deleted"]) }
+   ```
+   Registrator kan da **sende og slette sin egen kladd** (matrisens «oppretter» + Kenneths «sletting kun i kladd av bruker»), men **ingen andre overganger** — kan ikke godkjenne, besvare eller avvise. Nøyaktig «oppretter + sender, resten leser».
+
 1. `flytRolle.ts:179` → `if (erAdmin) return "admin";` *(registrator-disjunktet strykes)*
 2. `statusHandlinger.ts:85` → `if (erAdmin) return alle;`
 3. `statusHandlinger.ts:105` → `if (erAdmin) return true;`
-4. **Ny gren i `utledDokumentRettighet`:** registrator som er medlem av flyten får **`"leser"`** — ikke `"admin"`, ikke `null`. Kenneth: *«skal alltid kunne lese nåværende besvarelse på oppgaver i dokumentflyten»*. Leseretten gjelder **uavhengig av ballinnehav og terminal status** — den er ikke betinget av tur.
+4. **INGEN spesial-gren i `utledDokumentRettighet`.** ⚠️ **RETTET 2026-07-21 (cowork + Kenneth) — den opprinnelige teksten sa «registrator → `leser`, uavhengig av ballinnehav», og den MOTSA § 5b + Kenneths matrise.**
+
+   **Kenneth 2026-07-21:** *«holder vi oss langs matrisen — eneste [er at] registrator må få rediger i tillegg til opprett sjekkliste/oppgave».* Registrator skal altså **redigere sin egen sjekkliste/oppgave, ikke bare lese.**
+
+   Etter at admin-disjunktet er fjernet fra steg 1, **faller registrator gjennom den eksisterende steg 2–7-logikken**, som gir nøyaktig dette av seg selv:
+   - med ball + sjekkliste → steg 6-7 → **`redigerer`** (Kenneths tilføyelse)
+   - med ball + oppgave → **`redigerer`** (append håndheves av `erFeltLåst`)
+   - egen kladd med ball → steg 3 → **`redigerer`**
+   - uten ball → steg 4 → `leser` (matrisens «les» for andres del)
+   - approved/closed/cancelled → steg 2 → `leser`
+
+   **En egen leserett-gren over-restringerer** (registrator-med-ball ville feilaktig få `leser`) og skal **ikke** legges til. «Minst leserett»-gulvet er allerede garantert — `utledDokumentRettighet` returnerer aldri `null`.
 5. `ROLLE_PRIORITET.registrator` flyttes **ned**, under `godkjenner`. En oppretter skal ikke slå en godkjenner ved flertreff. **Foreslå eksakt verdi og begrunn — fabel gater tallet.**
 
    ⚠️ **KOBLET FUNN (registrator-Opus 2026-07-21, cowork-verifisert) — ordren manglet dette:** `flytRolle.ts:92` har en short-circuit `if (rolle === "registrator") return "registrator"` som returnerer på første treff og **ignorerer prioritet helt.** Uten å fjerne den er punkt 5 **effektløs.** Fjern short-circuiten i steg 2. Loop-logikken (`prioritet <= bestePrioritet → continue`, streng `>`) gir da rekkefølge-uavhengig, korrekt resultat. Verdien må være **≥ 1** (`bestePrioritet` starter på 0 → `registrator: 0` ville aldri registrert). Kommentarene :51-54 og :91 må omskrives — de påstår «registrator er høyest».
@@ -80,10 +97,12 @@ erTillattForRolle(rolle, gjeldendStatus, nyStatus)  ← ingen erAdmin
 
 | Skal bevises | Rad |
 |---|---|
-| Leseretten består | Registrator uten ballen, dokument i hans flyt → `leser` (ikke `null`) |
-| Leseretten overlever terminal status | Registrator, status `closed`/`approved` → `leser` |
-| Skrivemakten er borte | Registrator uten ballen → **ikke** `redigerer`, **ikke** `admin` |
-| Server-gaten er stengt | `erTillattForRolle(registrator, …)` → `false` der rollen ikke har overgangen |
+| **Registrator REDIGERER egen del** (Kenneth-tilføyelse) | Registrator **med ball** + sjekkliste (ikke godkjent) → **`redigerer`** |
+| Registrator redigerer egen oppgave | Registrator **med ball** + oppgave → **`redigerer`** (append via erFeltLåst) |
+| Leseretten er gulvet | Registrator **uten** ball → `leser` (ikke `null`, ikke `redigerer`) |
+| Leseretten overlever terminal status | Registrator, `approved`/`closed` → `leser` |
+| Admin-makten er borte | Registrator har **ikke** `admin`-rettighet lenger (kun edit-when-ball, ikke overstyring) |
+| Server-gaten stengt for statusovergang | `erTillattForRolle(registrator, …)` → `false` der `ROLLE_HANDLINGER` ikke gir rollen overgangen |
 | Admin er uendret | Admin på hver rad → identisk med før fiksen |
 
 **Uten den siste raden er ikke fiksen verifisert** — den er hele poenget med tofase-oppdelingen.
