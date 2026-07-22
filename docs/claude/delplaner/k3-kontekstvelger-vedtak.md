@@ -79,7 +79,7 @@ Cowork sammenlignet implementasjonen mot fasit-bildene (`docs/redesign/fasit/01-
 | **Firmabytte** | **Nullstiller nedover** — prosjekt og byggeplass tømmes |
 | **«Hele prosjektet»** | Er default. **Bygg-steget vises kun når byggeplasser finnes** |
 | **Lange lister** | Over 6 elementer: søkefelt + rulling + **«Sist brukt»**-seksjon |
-| **«Sist brukt» = mest brukt siste 30 dager** | Kenneth 2026-07-22: arbeider veksler mellom 4-5 prosjekter → frekvens-sortert liste per bruker, ikke sticky «sist besøkte». Kilde: `Activity`-tabellen (spørring, ikke ny logging) |
+| **«Sist brukt» (v1)** | Kenneth 2026-07-22: distinkte prosjekter fra brukerens `Activity`, nyeste `createdAt` øverst. Ingen vekting i K3. Løser at arbeider veksler mellom 4-5 prosjekter. Vektet v2 = egen oppfølger |
 | **Hierarkiet** | **Absolutt.** Gruppeetiketten navngir prosjektet |
 
 ## Sekvensering (cowork eier — bekreftet av fabel)
