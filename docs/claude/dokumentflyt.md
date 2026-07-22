@@ -357,7 +357,7 @@ Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 
 | Jeg er ↓ / Delen tilhører → | Registrator | Utfører | Bestiller | Godkjenner |
 |---|---|---|---|---|
-| **Registrator** | **Oppretter** | Leser | Leser | Leser |
+| **Registrator** | **Oppretter + redigerer** | Leser | Leser | Leser |
 | **Utfører** | Leser | **Redigerer** | Leser | Leser |
 | **Bestiller** | Leser | Leser | **Redigerer** | Leser |
 | **Godkjenner** | Leser | Leser | Leser | **Redigerer** |
@@ -390,7 +390,7 @@ Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 
 | Rolle | Skal gjøre | Merknad |
 |---|---|---|
-| **Registrator** | Oppretter oppgave/sjekkliste · sender videre til behandling · ser om mottaker har besvart og hva statusen er · **skal alltid kunne lese nåværende besvarelse** på oppgaver i flyten | Vedvarende leserett også etter oversending. ❌ **Ikke** en administrator |
+| **Registrator** | Oppretter oppgave/sjekkliste · **redigerer sin egen del når hun har ballen** (append for oppgave, full for sjekkliste til godkjent) · sender den videre til behandling · **kan sende + slette egen kladd** · ser om mottaker har besvart og hva statusen er · **skal alltid kunne lese nåværende besvarelse** på oppgaver i flyten | Vedvarende leserett etter oversending. ❌ **Ikke** en administrator — ingen skrive-/statusmakt forbi egen tur (kan ikke godkjenne, besvare, avvise) |
 | **Utfører** | Svarer ut en opprettet oppgave · sender tilbake med spørsmål, eller fyller ut og videresender | **Ikke alltid nødvendig** — en flyt trenger ikke dette steget |
 | **Bestiller** | Bestiller en oppgave · sender tilbake med spørsmål eller videresender — oppgaven anses da som **bestilt utført** | **Ikke alltid del av flyten** |
 | **Godkjenner** | Godkjenner en bestilling eller en utført oppgave · godkjenner **eller** sender tilbake for utbedring **med kommentar** | Kommentarkravet understøtter [P2-vedtaket](delplaner/p2-inndata-validering-vedtak.md) |

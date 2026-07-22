@@ -1,6 +1,6 @@
 ---
 name: registrator-rolleforveksling
-status: 🔴 MODELLFEIL — sikkerhetsnær. Kenneth-presisert 2026-07-21. Ikke rettet, krever fabel-gate
+status: 🟢 FIKSET — steg 2 levert + cowork-gatet 2026-07-21. Registrator: oppretter+redigerer+sender egen del, ingen admin-makt. 229/229 test. Ikke merget enda
 eier: Kenneth (domenesannhet) · fabel (modell + A-3b-konsekvens) · cowork (måling)
 sist_verifisert_mot_kode: 2026-07-21
 ---
