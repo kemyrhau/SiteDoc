@@ -1,9 +1,13 @@
 ---
 name: k3-verifiseringslogg
-status: 🟡 KLOSS 1+2 TESTET (Kenneth, test 2026-07-22) — kjerne bestod, én reell regresjon (trunkering) + to oppfølgere
+status: 🟢 K3 VERIFISERT SUNN (2026-07-23) — trakt/topplinje/sidehode/⇄ korrekt. Timer-#310 skilt ut som egen sak (ikke K3-regresjon, ikke på prod)
 eier: Kenneth (test) · cowork (måling + triage) · fabel (design-call)
-sist_verifisert_mot_kode: 2026-07-22
+sist_verifisert_mot_kode: 2026-07-23
 ---
+
+## ✅ Timer-#310 avklart som IKKE-K3 (2026-07-23)
+
+⇄-«krasjen» var ikke ⇄ og ikke K3: React #310 (betinget hook) i timer-**hovedvisningen**, trigget av test-databasens datashape. K3 rørte ingen timer-hooks (kun JSX-wrap); timer-hooks identiske prod↔develop; **prod-timer fungerer** (verifisert sitedoc.no 2026-07-23). Skilt ut → [timer-310-hooks-bug.md](../timer-310-hooks-bug.md). ⇄-hotfixen (`acea2c27`: streng paring + eyebrow + Link) er korrekt og kan merges — den reduserer ⇄-flatene (attestering/rapport mister ⇄) og er bedre enn dagens ungatede ⇄ på test.
 
 # K3 verifiseringslogg
 
