@@ -8,7 +8,19 @@ kilde: ført av cowork fra fabel-relay. Fabels arbeidskopi i designprosjektet �
 
 # K3 — Kontekstvelgeren som trakt (firma → prosjekt → byggeplass)
 
-> ⚠️ **UAVKLART — venter fabel: er K3 P1s siste revisjon, eller en egen sak?**
+> 🔴 **LIVE-BEVIS 2026-07-21 (Kenneth, test):** P1-chippen deployet til test, og Kenneth reagerte: *«strukturelt er dette endret fra fabel sin plan. Funksjon er heller ikke komplett. Dette var ikke det jeg sa ja til fabel om. Nå står firma mellom prosjekt og byggeplass. Dette føles ikke ferdig slik det står nå.»*
+>
+> **Cowork-måling:** den deployete `KontekstChip` har **ingen** byggeplass-trakt (grep tom, 167 linjer). Det Kenneth så som «fabels plan» (firma→prosjekt→byggeplass-trakt med «Endre»/«Sist brukt»/«Hele prosjektet») er **fabels K3-mockup, ikke deployet kode.** Deployet popover = gammel flat firma+prosjekt-liste; byggeplass-velgeren henger fortsatt løst i toppbaren (K1, ikke fikset).
+>
+> **Konsekvens:** live-tilstanden bekrefter at chippen ALENE — uten K1-fiks og K3-trakt — er en halvtilstand. Kenneths opprinnelige «K3 er P1s siste revisjon» var riktig vurdert; chip-lappen løste kun chip-innhold-avviket, ikke helheten Kenneth sa ja til.
+>
+> ✅ **AVKLART (Kenneth 2026-07-21):** P1 chip-nivå leverte bra — **beholdes.** Det som gjenstår er velger-trakten (mockupen). Kenneths ord: *«P1 har levert bra — unntatt mockupen. Jeg er ikke helt overbevist at fabels plan er svaret — men verdt et forsøk — for den gamle likte jeg helt ærlig ikke.»*
+>
+> **To føringer dette gir:**
+> 1. **Trakten (K3) bygges — men som et forsøk, ikke som låst fasit.** Fabels plan er utgangspunktet fordi den gamle flate velgeren var utilfredsstillende, ikke fordi trakten er bevist riktig. Bygges den, verifiseres den mot Kenneths faktiske bruk før den låses — samme «fasit er brukeropplevelsen, ikke koden»-prinsipp.
+> 2. **P1 chip-arbeidet står** (navn ute, nivåord inne, ⇄, tonet sidehode). K3 rører velgeren/popoveren, ikke chip-signalet.
+>
+> **Sekvensering uendret:** K1+K2 lander før K3 (K3 bygger på K2s navigasjonssemantikk). Om «P1 lukkes formelt nå» eller «forblir åpen til trakten er inne» er nå et bokføringsspørsmål, ikke et reelt veiskille — arbeidet fortsetter uansett gjennom K1→K2→K3.
 >
 > **Kenneth 2026-07-21:** *«K3 er den siste revisjonen av P1»* → P1 lukkes først når K3 er bygget, og designgaten på A+B+C er en **delgate**.
 >
