@@ -82,6 +82,17 @@ Cowork sammenlignet implementasjonen mot fasit-bildene (`docs/redesign/fasit/01-
 | **«Sist brukt» (v1)** | Kenneth 2026-07-22: distinkte prosjekter fra brukerens `Activity`, nyeste `createdAt` øverst. Ingen vekting i K3. Løser at arbeider veksler mellom 4-5 prosjekter. Vektet v2 = egen oppfølger |
 | **Hierarkiet** | **Absolutt.** Gruppeetiketten navngir prosjektet |
 
+## ✅ Designgate kloss 1 (fabel 2026-07-22) — to VEDTATTE AVVIK fra fasit-PNG-ene
+
+Trakten er kode-gatet (cowork) + designgatet (fabel). Fem tolkninger klarert. To av dem avviker bevisst fra fasit-bildene `01-03-k3-fasit-3a.png` — **ført her så ingen senere økt «retter» dem mot PNG-en:**
+
+1. **Firma-raden vises sammenfoldet for ALLE roller, men «Endre» kun ved flere firmaer.** Vedtaket sa «firma-steget kun ved flere firmaer» — fabel-lesning: det gjelder *valgsteget* (Endre), ikke *synligheten*. Raden vises alltid (prøvesteinen: alle tre nivåer synlige + R2: firmaet synlig i popoveren); «Endre» kun når det finnes flere firmaer å bytte til. **Bedre enn vedtakets bokstav.**
+2. **Byggeplass-etikett er GRÅ, ikke sonefarget.** Fasit-PNG-en viste en grågrønn tone — den var **aldri låst grammatikk.** Amber/blå er de eneste sonefargene (del 5). Byggeplass er et **filter innen prosjektet**, ikke en tredje sone → grå etikett er riktig. **Ikke rett dette mot PNG-en.**
+
+De tre øvrige (sticky-byggeplass-fallback, default-åpent = grunneste uavklarte steg, byggeplass-query alltid montert) er ren bekreftelse av implementasjonen.
+
+**Ved test-deploy:** fabel gater skjermbildene fra test mot § 3a **med punkt 1 og 2 over som vedtatte avvik.**
+
 ## Sekvensering (cowork eier — bekreftet av fabel)
 
 **K1 + K2 lander FØR K3.** Begrunnelse: K3 bygger på K2s navigasjonssemantikk. Bygges K3 først, bygges den på en semantikk som er i ferd med å endres.

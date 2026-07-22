@@ -36,6 +36,8 @@ C. **ByggeplassVelger ut av toppbaren**: fjernes helt i ny nav (K1 skjulte den i
   **✅ v1 (Kenneth 2026-07-22, alternativ b): ENKEL «Sist brukt» — ingen vekting.** Liste over **distinkte prosjekter fra brukerens `Activity`, sortert på nyeste `createdAt` synkende, topp N.** Det er alt — «disse har du rørt sist, nyeste øverst». Løser 4-5-prosjekt-problemet (de dukker alle opp) uten scoring. Sticky beholdes som fallback når Activity er tom. Gjelder prosjekt- og byggeplass-steget. Ny tRPC-prosedyre; cowork skriver testplan (ledd 4).
 
   **v2 (oppfølger, IKKE i K3):** vektet recency+frekvens (nyeste høyest · 10d medium · 30d lavest · resten nedadgående). Finjusterer kun rekkefølgen i «Sist brukt»-seksjonen — trakten virker fullt ut med v1. Egen sak, egne vekter fabel-gates. **Bygg IKKE dette nå.**
+
+  **🟡 OPPFØLGER — byggeplass-logging (Kenneth 2026-07-22):** `Activity` logger i dag `projectId`, ikke byggeplass, så byggeplass-«Sist brukt» er sticky (én verdi) i v1. **Kenneth: «senere må vi logge byggeplass også».** Når byggeplass-tilgang logges (targetType `bygning`/`byggeplass` i Activity, eller eget felt), kan byggeplass-«Sist brukt» bli en recency-liste som prosjekt-nivået. Egen sak — ført i [BACKLOG](BACKLOG.md) ved neste rens. Ikke i K3.
 - Popover-headeren skal vise prosjektets firma (R2-vilkåret, admin-konsekvensen).
 - DoD: build grønn → skjermbilder: trakt alle steg + minst 3 firma- og 3 prosjekt-sider m/ tonet sidehode + kundetelefon-gjennomklikk → fabel-designgate → dok-sync → cowork-merge. Statuskilde: verifisering/k3-verifiseringslogg.md (opprettes).
 

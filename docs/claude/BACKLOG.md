@@ -2267,3 +2267,7 @@ Når en oppgave startes: flytt linje til [STATUS-AKTUELT.md § Pågående
 arbeid](STATUS-AKTUELT.md). Når oppgaven er prod-deployet: flytt videre
 til `historikk-YYYY-MM.md`. Se også [DOC-MAP.md](DOC-MAP.md) og
 [CLAUDE.md § Dokumentasjons-regler](../../CLAUDE.md).
+
+## Byggeplass-logging for «Sist brukt»-recency (Kenneth 2026-07-22)
+
+`Activity`-tabellen logger `projectId`, ikke byggeplass. Derfor er byggeplass-«Sist brukt» i K3-trakten en sticky enkeltverdi (`aktivByggeplass`), mens prosjekt-nivået har en Activity-basert recency-liste. Kenneth: «senere må vi logge byggeplass også». Når byggeplass-tilgang logges (eget felt eller `targetType`-verdi i Activity), kan byggeplass-«Sist brukt» bli en flerverdis recency-liste som prosjekt-nivået. Grunnlag: [k3-ordre.md](delplaner/k3-ordre.md) § A.
