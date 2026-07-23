@@ -352,7 +352,14 @@ export function KontekstChip() {
       {erFirmaKontekst ? (
         // Firmakontekst: én linje — firma + amber split-chip.
         <div className="flex items-center gap-2">
-          <span className="max-w-[220px] truncate text-sm font-medium text-blue-100">
+          {/* Ankret bredde: navn-området har FAST 240px (w-60) i begge kontekster
+              så chip+⇄ alltid står på samme x — de hopper ikke sidevegs ved
+              firma↔prosjekt-bytte. Navn venstrejusteres og trunkeres; title gir
+              fullt navn. */}
+          <span
+            className="w-60 truncate text-sm font-medium text-blue-100"
+            title={firmaNavn ?? ""}
+          >
             {firmaNavn ?? t("kontekstChip.velgFirma")}
           </span>
           {velgerKnapper}
@@ -368,7 +375,18 @@ export function KontekstChip() {
             </span>
           )}
           <div className="flex items-center gap-2">
-            <span className="flex min-w-0 max-w-[300px] items-center text-sm font-medium text-blue-100">
+            {/* Ankret bredde: fast 240px (w-60) — matcher firma-grenen så chip+⇄
+                står på samme x i begge kontekster. Prosjektnavnet (min-w-0
+                truncate) og byggeplass-suffikset (shrink-0) deler de 240px:
+                navnet trunkerer, byggeplass overlever. title gir fullt navn. */}
+            <span
+              className="flex w-60 items-center text-sm font-medium text-blue-100"
+              title={
+                valgtProsjekt && aktivByggeplass
+                  ? `${prosjektTekst} · ${aktivByggeplass.name}`
+                  : prosjektTekst
+              }
+            >
               <span className="min-w-0 truncate">{prosjektTekst}</span>
               {valgtProsjekt && aktivByggeplass && (
                 <span className="ml-1 shrink-0 whitespace-nowrap">· {aktivByggeplass.name}</span>
