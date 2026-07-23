@@ -23,6 +23,16 @@ Navigasjon til timer-**hovedvisningen** krasjer med «Application error: a clien
 ## Rene komponenter (utelukket, hook-rekkefølge OK)
 `[prosjektId]/timer/page.tsx` (alle hooks før return; l.85-return er i IIFE `ukenummer`), `StatusBadge`, `SonetonetSidehode` (ingen hooks), `firma/timer/onboarding`, `timer/layout.tsx`, `useToppbarFiltre` (kun useEffect), `KontekstChip`/`useSidebarElementer` (unconditional, rendrer overalt).
 
+## Stack (minifisert, prod-build på test — kan ikke dekodes uten dev/sourcemaps)
+```
+at t.useMemo (2749-...js:2:31871)
+at D (2749-...js:1:11481)          ← synder-komponenten, chunk 2749 (delt), bruker useMemo
+at rE/l$/iZ/ia (react-dom-reconciler, chunk 5b8f0dd8)
+```
+Skjer under en scheduled/concurrent render (`unstable_scheduleCallback` i bunn).
+
+**K3 endelig frikjent (cowork 2026-07-23):** ingen K3-komponent har `useMemo` — KontekstChip, SonetonetSidehode, Verktoylinje, Toppbar = 0. «D» er altså IKKE en K3-komponent. Next prod serverer ikke `.map`, så «D» krever dev-bygg for å navngis.
+
 ## Hypotese
 En **delt komponent med et betinget `useMemo`** (hook kalt bak en data-avhengig gren) i timer-hovedvisningens tre. En datashape i test (ugyldig/manglende felt på en dagsseddel-rad?) flipper grenen → hook-antallet endres → #310. Cache-avhengig intermittens (varm cache = ingen loading-render = ingen mismatch).
 
