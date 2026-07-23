@@ -1,4 +1,4 @@
-# Rettighetsmatrise — config-modell + admin-UI-design (fabel-vurdering 2026-07-23, rev. 3 etter cowork-måling § 1b)
+# Rettighetsmatrise — config-modell + admin-UI-design (fabel-vurdering 2026-07-23, rev. 2 etter Kenneth-svar)
 
 TIL REPO: docs/claude/delplaner/rettighetsmatrise-config-design.md (cowork plasserer; fabel etterleser).
 Grunnlag: `flytmodell-overgangsmatrise.md` (§ FUNDAMENT-GAP) · flytmodell-vedtak § 1–6 + restvedtak · UI-fasit `P1 Nivåsignal Beslutningskart.dc.html` § 5a. Sekvens: A (statusmaskin-kode, cowork) ∥ dette designet → B build → A-3b oppå.
@@ -39,26 +39,24 @@ FlytRettighetLogg                # append-only, vedtak 4
 
 ## 1b. Admin-nivå-modellen (Kenneth-bestilt 2026-07-23)
 
-**Fakta (cowork-målt 2026-07-23, korrigert):** premisset «company_admin ikke i erAdmin» er **DELT sant** — det finnes TO erAdmin-beregninger: **flyt-erAdmin** (`hentMinFlytInfo`) = `sitedoc_admin` ELLER prosjektadmin, firma-admin IKKE med; **general-erAdmin** (`verifiserAdminEllerFirmaansvarlig`) inkluderer firma-admin. Konsekvens: FIRMA-ADMIN-kolonnen er en **NY flyt-kapabilitet** — firma-admin har null flyt-admin-rett i dag; «default full» UTVIDER makten (Kenneth-intensjonen bak skillet, men ført som utvidelse, ikke synliggjøring). Firma-admin bor i `OrganizationMember.firmaRoller = "firma_admin"` — matrisens `rolle="firmaadmin"` mapper dit.
-
-**Scope-vedtak på adminNiva (fabel tiltrer cowork-anbefalingen 2026-07-23):** `erAdmin` = 272 forekomster i 61 filer — global boolean→enum-swap er høyrisiko og UT. `adminNiva: "sitedoc" | "firma" | "prosjekt" | null` innføres KUN i flyt-rettighets-funksjonene (`utledMinRolle` / `hentRolleFiltrertHandlinger` / `erTillattForRolle` / perspektiv); `erAdmin: boolean` består overalt ellers. Endringen er containet til dokumentflyt-laget — rotårsaksfiks der skillet trengs, ingen plaster-refaktor der det ikke gjør.
+**Fakta (cowork-målt, verifiseres videre under design):** dagens `erAdmin` kollapser `sitedoc_admin` + prosjektadmin til ETT flagg; `company_admin` er ikke i beregningen — firma-admin har i dag ingen admin-makt i flyten. Å skille nivåene betyr at delt-kilde-funksjonene bytter `erAdmin: boolean` → `adminNiva: "sitedoc" | "firma" | "prosjekt" | null`. **Cowork måler omfanget:** alle `erAdmin`-kallsteder + hvor `company_admin` faktisk lever i modellen.
 
 Tre nivåer, tre ulike plasser i matrisen (fabels innstilling):
 
 | Nivå | Kilde | I matrisen | Redigerbar? |
 |---|---|---|---|
 | **SITEDOC-ADMIN** | `sitedoc_admin` (cross-tenant, Kenneth) | **IKKE en kolonne** — fulltilgang er kode, står som fotnote/header-merke i UI-et. Å vise den i hvert firmas matrise er støy og inviterer til å tro den kan endres | Nei (kode) |
-| **FIRMA-ADMIN** | `OrganizationMember.firmaRoller="firma_admin"` | **Egen kolonne**, konfigurerbar celle for celle — **default: full** (alle statusmaskin-lovlige celler på). Kundens org-admin skal eie flyten sin uten Kenneth. NB: ny flyt-kapabilitet (utvidelse, jf. fakta over) | Ja |
+| **FIRMA-ADMIN** | `company_admin` | **Egen kolonne**, konfigurerbar celle for celle — **default: full** (alle statusmaskin-lovlige celler på). Kundens org-admin skal eie flyten sin uten Kenneth | Ja |
 | **PROSJ.ADMIN** | `ProjectMember.role=admin` | Egen kolonne, **tom default** (vedtak 1, uendret) | Ja |
 
 **(b) Hvem redigerer matrisen** — config-retten er IKKE en matrise-celle (matrisen styrer dokument-handlinger, ikke config; dermed kan ingen låse seg selv ute via egne celler). Egen kapabilitet i kode, `kanRedigereFlytMatrise(user, org)`:
 - `sitedoc_admin`: alltid, alle firmaer (vedtak 1) + «tilbakestill firma til standard».
-- `company_admin`: **✅ KENNETH-VEDTAK 2026-07-23: KUN sitedoc_admin i fase 1** — company_admin får redigeringsrett i fase 2. Fabels innstilling var «ja fra start» (pilot ~50 ansatte, unngå Kenneth-flaskehals, logg+tilbakestill som sikkerhetsnett), men Kenneth valgte nedskaleringen: tryggere/enklere start, sitedoc_admin konfigurerer alle firmaers matriser i fase 1. `kanRedigereFlytMatrise` = sitedoc_admin only nå. FIRMA-ADMIN-kolonnen består (modelleres, redigeres av sitedoc_admin).
+- `company_admin`: eget firmas matrise, under sitedoc-tak (sitedoc_admin ser endringsloggen og kan tilbakestille). **Innstilling: ja fra start** — pilot ~50 ansatte, Kenneth skal ikke være flaskehals for kunde-tilpasning; loggen + tilbakestill er sikkerhetsnettet. Minste-bygg-alternativ (kun sitedoc_admin i fase 1, firma-admin i fase 2) står som nedskalering hvis A-laget vokser.
 - prosjektadmin: nei.
 
 **(c) Låst per nivå:** SITEDOC-ADMIN helt (kode, ikke vist). FIRMA-ADMIN/PROSJ.ADMIN: cellene frie innenfor statusmaskin-snittet + lov-cellene (P2, invarianten, Auto) som for alle roller. Redigeringsretten selv er låst kode per over.
 
-**Datamodell-konsekvens:** `rolle`-feltet i `FlytRettighetOverride`/`FlytRettighetLogg` utvides: `DokumentflytRolle | "prosjektadmin" | "firmaadmin"`. Defaults-laget i kode får tilsvarende to nye nøkler (firmaadmin = full, prosjektadmin = tom). adminNiva-scopet: se § 1b fakta-blokken.
+**Datamodell-konsekvens:** `rolle`-feltet i `FlytRettighetOverride`/`FlytRettighetLogg` utvides: `DokumentflytRolle | "prosjektadmin" | "firmaadmin"`. Defaults-laget i kode får tilsvarende to nye nøkler (firmaadmin = full, prosjektadmin = tom).
 
 ## 2. UI (fasit § 5a — kun deltaer her)
 Matrise rolle × status per § 5a-mockupen. Nytt fra config-modellen — **celle-tilstander:**
@@ -80,4 +78,4 @@ Matrise rolle × status per § 5a-mockupen. Nytt fra config-modellen — **celle
 - Alternativet (kun `cancelled→draft`) er konsistent, men gjør `rejected→closed` til en felle.
 
 ## Sekvens (oppdatert)
-Cowork lander A-laget: `rejected→sent` + `closed→draft` + ROLLE_HANDLINGER-endringene (FUNDAMENT-GAP § A.3) + adminNiva i flyt-laget (§ 1b-scopet) → B-ordre skrives på dette designet. ~~Enkeltmålt premiss~~ — erAdmin-premisset er nå dybdemålt av cowork (to beregninger funnet); flyt-erAdmin-delen bekreftet.
+Cowork lander A-laget: `rejected→sent` + `closed→draft` + ROLLE_HANDLINGER-endringene (FUNDAMENT-GAP § A.3) **+ måler erAdmin-splitten (§ 1b) og company_admins flyt-status** → B-ordre skrives på dette designet. Enkeltmålt premiss flagges: «company_admin er ikke i erAdmin-beregningen» er cowork-målt én gang — bekreftes i A-lagets måling.

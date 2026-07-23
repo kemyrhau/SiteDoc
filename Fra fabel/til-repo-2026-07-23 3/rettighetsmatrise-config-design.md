@@ -53,7 +53,7 @@ Tre nivåer, tre ulike plasser i matrisen (fabels innstilling):
 
 **(b) Hvem redigerer matrisen** — config-retten er IKKE en matrise-celle (matrisen styrer dokument-handlinger, ikke config; dermed kan ingen låse seg selv ute via egne celler). Egen kapabilitet i kode, `kanRedigereFlytMatrise(user, org)`:
 - `sitedoc_admin`: alltid, alle firmaer (vedtak 1) + «tilbakestill firma til standard».
-- `company_admin`: **✅ KENNETH-VEDTAK 2026-07-23: KUN sitedoc_admin i fase 1** — company_admin får redigeringsrett i fase 2. Fabels innstilling var «ja fra start» (pilot ~50 ansatte, unngå Kenneth-flaskehals, logg+tilbakestill som sikkerhetsnett), men Kenneth valgte nedskaleringen: tryggere/enklere start, sitedoc_admin konfigurerer alle firmaers matriser i fase 1. `kanRedigereFlytMatrise` = sitedoc_admin only nå. FIRMA-ADMIN-kolonnen består (modelleres, redigeres av sitedoc_admin).
+- `company_admin`: eget firmas matrise, under sitedoc-tak (sitedoc_admin ser endringsloggen og kan tilbakestille). **Innstilling: ja fra start** — pilot ~50 ansatte, Kenneth skal ikke være flaskehals for kunde-tilpasning; loggen + tilbakestill er sikkerhetsnettet. Minste-bygg-alternativ (kun sitedoc_admin i fase 1, firma-admin i fase 2) står som nedskalering hvis A-laget vokser.
 - prosjektadmin: nei.
 
 **(c) Låst per nivå:** SITEDOC-ADMIN helt (kode, ikke vist). FIRMA-ADMIN/PROSJ.ADMIN: cellene frie innenfor statusmaskin-snittet + lov-cellene (P2, invarianten, Auto) som for alle roller. Redigeringsretten selv er låst kode per over.
