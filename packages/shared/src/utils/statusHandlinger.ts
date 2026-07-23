@@ -1,4 +1,5 @@
 import type { DocumentStatus, DokumentflytRolle } from "../types";
+import { isValidStatusTransition } from "./index";
 
 export interface StatusHandling {
   tekstNoekkel: string;
@@ -80,20 +81,18 @@ export function hentRolleFiltrertHandlinger(
   status: string,
   rolle: DokumentflytRolle | null,
   erAdmin: boolean,
+  overrides?: RettighetsOverrides,
 ): StatusHandling[] {
   if (!rolle) return [];
 
   const alle = hentStatusHandlinger(status);
 
   // Kun admin ser alle handlinger. Registrator er ikke lenger superbruker (Fase B):
-  // hun faller gjennom til ROLLE_HANDLINGER.registrator (kun send/slett på egen kladd).
+  // hun faller gjennom til ROLLE_HANDLINGER_DEFAULTS.registrator (kun send/slett på egen kladd).
   if (erAdmin) return alle;
 
-  // Definer tillatte nyStatus-verdier per rolle per status
-  const tillatt = ROLLE_HANDLINGER[rolle]?.[status];
-  if (!tillatt) return [];
-
-  return alle.filter((h) => tillatt.has(h.nyStatus));
+  // Per celle: override → default (celleTillatt). Uten overrides = default-laget = bit-identisk.
+  return alle.filter((h) => celleTillatt(rolle, status, h.nyStatus, overrides));
 }
 
 /**
@@ -108,12 +107,11 @@ export function erTillattForRolle(
   gjeldendStatus: string,
   nyStatus: string,
   erAdmin: boolean,
+  overrides?: RettighetsOverrides,
 ): boolean {
   if (!rolle) return false;
   if (erAdmin) return true;
-  const tillatt = ROLLE_HANDLINGER[rolle]?.[gjeldendStatus];
-  if (!tillatt) return false;
-  return tillatt.has(nyStatus);
+  return celleTillatt(rolle, gjeldendStatus, nyStatus, overrides);
 }
 
 /**
@@ -124,13 +122,51 @@ export function erTillattForRolle(
 export function hentHandlingEierRoller(status: string, nyStatus: string): DokumentflytRolle[] {
   const roller: DokumentflytRolle[] = [];
   for (const rolle of ["bestiller", "utforer", "godkjenner"] as const) {
-    if (ROLLE_HANDLINGER[rolle]?.[status]?.has(nyStatus)) roller.push(rolle);
+    if (ROLLE_HANDLINGER_DEFAULTS[rolle]?.[status]?.has(nyStatus)) roller.push(rolle);
   }
   return roller;
 }
 
-/** Roller → status → tillatte nyStatus-verdier */
-const ROLLE_HANDLINGER: Record<string, Record<string, Set<string>>> = {
+/**
+ * Per-firma rettighets-overstyringer (delta-modellen, config-design § 1).
+ * Nøkkel: `${rolle}:${fraStatus}:${tilStatus}` → tillatt (true/false).
+ * Kun firmaets AVVIK fra ROLLE_HANDLINGER_DEFAULTS lagres; tom map = default-laget.
+ * Bygges av API-loaderen fra FlytRettighetOverride-radene, konsulteres av web/mobil/server.
+ */
+export type RettighetsOverrides = Record<string, boolean>;
+
+/** Nøkkelform for én matrise-celle i overrides-mappen. */
+export function flytRettighetNoekkel(rolle: string, fraStatus: string, tilStatus: string): string {
+  return `${rolle}:${fraStatus}:${tilStatus}`;
+}
+
+/**
+ * Effektiv rettighet for én celle: override-laget ⊕ default-laget.
+ *
+ * Oppslagsrekkefølge: override (hvis firmaet har en rad for cellen) → default
+ * (ROLLE_HANDLINGER_DEFAULTS). **Invariant (config-design § runtime-lesing):** en positiv
+ * override snittes ALLTID mot statusmaskinen (`isValidStatusTransition`) — en override kan
+ * aldri skape en overgang statusmaskinen ikke har. Snittet gjelder KUN override-stien:
+ * default-laget har pseudo-status-overganger (draft→deleted) som ikke ligger i validTransitions,
+ * og skal bevares. Uten override-rad for cellen = ren default = bit-identisk med før config-laget.
+ */
+function celleTillatt(
+  rolle: DokumentflytRolle,
+  fraStatus: string,
+  tilStatus: string,
+  overrides?: RettighetsOverrides,
+): boolean {
+  const noekkel = flytRettighetNoekkel(rolle, fraStatus, tilStatus);
+  if (overrides && noekkel in overrides) {
+    // Override-laget: honorér kun hvis statusmaskinen faktisk har overgangen (invariant).
+    return overrides[noekkel] === true && isValidStatusTransition(fraStatus, tilStatus);
+  }
+  // Default-laget (sikkerhetsrammen) — identisk med dagens oppførsel.
+  return ROLLE_HANDLINGER_DEFAULTS[rolle]?.[fraStatus]?.has(tilStatus) ?? false;
+}
+
+/** Roller → status → tillatte nyStatus-verdier (default-laget; per-firma avvik i RettighetsOverrides) */
+export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string>>> = {
   // Registrator: oppretter → sender/sletter EGEN kladd. Venstre ende av linja
   // (flytmodell-vedtak-2026-07-22): et returnert (rejected) dokument lander hos henne,
   // hun retter opp og sender mot høyre igjen.
