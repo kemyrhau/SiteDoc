@@ -278,6 +278,9 @@ export default function FirmaInnstillinger() {
       {/* Kompetansematrise — registreringspolicy */}
       <KompetansePolicySeksjon />
 
+      {/* Auto-prosjektadmin (B Kloss 2b) */}
+      <AutoProsjektAdminSeksjon />
+
       {/* Rediger ved attestering (T7-2b3) */}
       <RedigerVedAttesteringSeksjon />
 
@@ -612,6 +615,79 @@ function TilgangPolicySeksjon({ felt, tittelNoekkel, beskrivelseNoekkel }: Tilga
       {oppdater.isError && (
         <p className="mt-3 text-sm text-red-500">
           Kunne ikke lagre: {oppdater.error.message}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  AutoProsjektAdminSeksjon — B Kloss 2b (2026-07-24)                 */
+/*  Toggle for OrganizationSetting.autoProsjektAdmin. På =            */
+/*  "alle_firma_admins" → firmaets firma-admins legges auto som       */
+/*  ProjectMember.role=admin ved oppretting av NYE prosjekter.        */
+/* ------------------------------------------------------------------ */
+
+function AutoProsjektAdminSeksjon() {
+  const { t } = useTranslation();
+  const { valgtFirma } = useFirma();
+  const orgId = valgtFirma?.id;
+
+  const { data: setting } = trpc.organisasjon.hentSetting.useQuery(
+    { organizationId: orgId! },
+    { enabled: !!orgId },
+  );
+  const utils = trpc.useUtils();
+
+  const oppdater = trpc.organisasjon.oppdaterSetting.useMutation({
+    onSuccess: () => {
+      utils.organisasjon.hentSetting.invalidate();
+    },
+  });
+
+  if (!setting || !orgId) return null;
+
+  const aktiv = setting.autoProsjektAdmin === "alle_firma_admins";
+
+  function endre(nyVerdi: boolean) {
+    oppdater.mutate({
+      organizationId: orgId!,
+      autoProsjektAdmin: nyVerdi ? "alle_firma_admins" : "av",
+    });
+  }
+
+  return (
+    <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
+      <h2 className="mb-1 text-sm font-semibold text-gray-700">
+        {t("firma.innstillinger.autoProsjektAdmin.tittel")}
+      </h2>
+      <p className="mb-3 text-xs text-gray-500">
+        {t("firma.innstillinger.autoProsjektAdmin.beskrivelse")}
+      </p>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-md border border-gray-200 p-3 hover:bg-gray-50">
+        <input
+          type="checkbox"
+          checked={aktiv}
+          onChange={(e) => endre(e.target.checked)}
+          disabled={oppdater.isPending}
+          className="mt-0.5"
+        />
+        <div>
+          <div className="text-sm font-medium text-gray-900">
+            {t("firma.innstillinger.autoProsjektAdmin.toggle")}
+          </div>
+          <div className="mt-1 text-xs text-gray-600">
+            {t("firma.innstillinger.autoProsjektAdmin.hjelp")}
+          </div>
+        </div>
+      </label>
+
+      {oppdater.isError && (
+        <p className="mt-3 text-sm text-red-500">
+          {t("firma.innstillinger.autoProsjektAdmin.feil", {
+            melding: oppdater.error.message,
+          })}
         </p>
       )}
     </div>

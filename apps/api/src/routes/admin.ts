@@ -2,7 +2,7 @@ import { z } from "zod";
 import { router, protectedProcedure, opprettProsjektProcedure } from "../trpc/trpc";
 import { TRPCError } from "@trpc/server";
 import { Prisma, krypter } from "@sitedoc/db";
-import { hentAktiveFirmamoduler } from "../services/firmamodul";
+import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
 import { hentBrukersOrg } from "../trpc/tilgangskontroll";
 import { importerKatalog } from "../services/katalog/importerKatalog";
 
@@ -254,29 +254,35 @@ export const adminRouter = router({
       const sekv = String(antall + 1).padStart(4, "0");
       const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
-      const prosjekt = await ctx.prisma.project.create({
-        data: {
-          name: input.name,
-          description: input.description,
-          projectNumber: prosjektnummer,
-          primaryOrganizationId: input.organizationId,
-          members: {
-            create: {
-              userId: ctx.userId!,
-              role: "admin",
+      return ctx.prisma.$transaction(async (tx) => {
+        const prosjekt = await tx.project.create({
+          data: {
+            name: input.name,
+            description: input.description,
+            projectNumber: prosjektnummer,
+            primaryOrganizationId: input.organizationId,
+            members: {
+              create: {
+                userId: ctx.userId!,
+                role: "admin",
+              },
             },
           },
-        },
-      });
+        });
 
-      await ctx.prisma.projectOrganization.create({
-        data: {
-          organizationId: input.organizationId,
-          projectId: prosjekt.id,
-        },
-      });
+        await tx.projectOrganization.create({
+          data: {
+            organizationId: input.organizationId,
+            projectId: prosjekt.id,
+          },
+        });
 
-      return prosjekt;
+        // B Kloss 2b: auto-legg firma-admins som prosjektadmin hvis firmaet
+        // har slått på innstillingen. Dedup mot oppretteren (laget over).
+        await autoLeggFirmaAdmins(tx, prosjekt.id, input.organizationId);
+
+        return prosjekt;
+      });
     }),
 
   // Hent prosjektdata-statistikk for slettevarsel (kun sitedoc_admin)
