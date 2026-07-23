@@ -2978,6 +2978,8 @@
   "flytmatrise.tittel": "Flödesbehörigheter",
   "flytmatrise.beskrivelse": "Konfigurera vilka roller som får utföra vilka statusövergångar i dokumentflödet. Företaget börjar på standardvärdena; ändringar lagras som åsidosättningar per cell.",
   "flytmatrise.velgFirma": "Välj ett företag för att se behörighetsmatrisen.",
+  "flytmatrise.firmaLabel": "Företag",
+  "flytmatrise.firmaVelger": "Välj företag...",
   "flytmatrise.kunLesing": "Du har läsbehörighet. Endast SiteDoc-administratörer kan redigera matrisen i denna fas.",
   "flytmatrise.fane.matrise": "Matris",
   "flytmatrise.fane.logg": "Ändringslogg",

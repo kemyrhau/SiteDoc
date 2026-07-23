@@ -2978,6 +2978,8 @@
   "flytmatrise.tittel": "Autorisations de flux",
   "flytmatrise.beskrivelse": "Configurez quels rôles peuvent effectuer quelles transitions de statut dans le flux de documents. L'entreprise part des valeurs par défaut ; les modifications sont stockées sous forme de remplacements par cellule.",
   "flytmatrise.velgFirma": "Sélectionnez une entreprise pour afficher la matrice des autorisations.",
+  "flytmatrise.firmaLabel": "Entreprise",
+  "flytmatrise.firmaVelger": "Sélectionnez une entreprise…",
   "flytmatrise.kunLesing": "Vous disposez d'un accès en lecture. Seuls les administrateurs SiteDoc peuvent modifier la matrice au cours de cette phase.",
   "flytmatrise.fane.matrise": "Matrice",
   "flytmatrise.fane.logg": "Journal des modifications",

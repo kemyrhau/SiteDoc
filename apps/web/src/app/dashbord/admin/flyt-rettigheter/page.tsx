@@ -1,18 +1,20 @@
 "use client";
 
-// Flyt-rettighetsmatrise — admin-UI (Kloss 2, config-design § 2).
+// Flyt-rettighetsmatrise — admin-UI (Kloss 2, config-design § 2; flyttet til Admin-flaten i Kloss 2c § 1c).
 // Matrise rolle × status. Prosjektadmin-kolonnen er redigerbar; sitedoc-admin er kode-bypass
 // (fotnote, ikke kolonne); firma-admin er IKKE et flyt-admin-nivå (droppet, Kenneth-vedtak).
 // Skriving = KUN sitedoc_admin i fase 1. Lagring per celle-klikk med server-validering
 // (statusmaskin-snittet); FlytRettighetLogg føres append-only ved hver endring.
+//
+// Kloss 2c: siden bor nå på Admin-flaten (cross-tenant), ikke i firma-kontekst.
+// Firma velges via egen dropdown (admin-firmaliste), ikke via useFirma().
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Lock, RotateCcw, Check } from "lucide-react";
-import { useFirma } from "@/kontekst/firma-kontekst";
-import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { CELLE } from "@/lib/flytmatrise-farger";
 import { flytRettighetNoekkel, type RettighetsOverrides } from "@sitedoc/shared";
 import {
   MATRISE_ROLLER,
@@ -30,9 +32,13 @@ type Fane = "matrise" | "logg" | "lesrediger";
 export default function FlytRettigheterSide() {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const { valgtFirma } = useFirma();
-  const orgId = valgtFirma?.id;
   const [fane, setFane] = useState<Fane>("matrise");
+
+  // Admin-flate: eget firma-valg (cross-tenant), ikke useFirma().
+  const orgQuery = trpc.admin.hentAlleOrganisasjoner.useQuery();
+  const organisasjoner = orgQuery.data as Array<{ id: string; name: string }> | undefined;
+  const [valgtOrgId, setValgtOrgId] = useState<string | null>(null);
+  const orgId = valgtOrgId ?? undefined;
 
   const { data, isLoading, error } = trpc.flytMatrise.hentMatrise.useQuery(
     { orgId: orgId! },
@@ -74,12 +80,29 @@ export default function FlytRettigheterSide() {
 
   return (
     <div className="max-w-6xl">
-      <SonetonetSidehode sone="firma" className="mb-6">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">{t("flytmatrise.tittel")}</h1>
-          <p className="mt-1 text-sm text-gray-600">{t("flytmatrise.beskrivelse")}</p>
-        </div>
-      </SonetonetSidehode>
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-gray-900">{t("flytmatrise.tittel")}</h1>
+        <p className="mt-1 text-sm text-gray-600">{t("flytmatrise.beskrivelse")}</p>
+      </div>
+
+      {/* Firma-velger (Admin-flate, cross-tenant) */}
+      <div className="mb-4 flex items-center gap-2">
+        <label htmlFor="flytmatrise-firma" className="text-sm font-medium text-gray-700">
+          {t("flytmatrise.firmaLabel")}
+        </label>
+        <select
+          id="flytmatrise-firma"
+          value={valgtOrgId ?? ""}
+          onChange={(e) => setValgtOrgId(e.target.value || null)}
+          disabled={orgQuery.isLoading}
+          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
+        >
+          <option value="">{t("flytmatrise.firmaVelger")}</option>
+          {(organisasjoner ?? []).map((o) => (
+            <option key={o.id} value={o.id}>{o.name}</option>
+          ))}
+        </select>
+      </div>
 
       {/* Faner */}
       <div className="mb-4 flex gap-1 border-b border-gray-200">
@@ -174,8 +197,11 @@ function MatriseFane({
                 <td className="px-3 py-2 text-gray-700">
                   {t(STATUS_LABEL_NOEKKEL[a.fra] ?? a.fra)} → {t(STATUS_LABEL_NOEKKEL[a.til] ?? a.til)}
                 </td>
-                <td colSpan={MATRISE_ROLLER.length} className="px-3 py-2 text-center text-xs text-gray-400">
-                  {t("flytmatrise.auto.merke")}
+                <td colSpan={MATRISE_ROLLER.length} className="px-3 py-2 text-center">
+                  <span className="inline-flex items-center gap-2 text-xs text-gray-400">
+                    <span className={`flex h-6 w-6 items-center justify-center rounded text-[11px] font-semibold ${CELLE.auto}`} aria-hidden>A</span>
+                    {t("flytmatrise.auto.merke")}
+                  </span>
                 </td>
               </tr>
             ))}
@@ -248,8 +274,13 @@ function Celle({
   onTilbakestill: () => void;
   tilbakestillTekst: string;
 }) {
+  // Låst — hengelås på lys bakgrunn (fabel-cellespec).
   if (tilstand === "laast") {
-    return <Lock className="mx-auto h-3.5 w-3.5 text-gray-300" aria-hidden />;
+    return (
+      <div className={`mx-auto flex h-6 w-6 items-center justify-center rounded ${CELLE.laastBg}`}>
+        <Lock className={`h-3.5 w-3.5 ${CELLE.laastIkon}`} aria-hidden />
+      </div>
+    );
   }
   const paa = tilstand === "standard-pa" || tilstand === "overstyrt-pa";
   const overstyrt = tilstand === "overstyrt-pa" || tilstand === "overstyrt-av";
@@ -261,13 +292,14 @@ function Celle({
         onClick={onKlikk}
         title={metaTekst}
         className={`flex h-6 w-6 items-center justify-center rounded ${
-          paa ? "bg-sitedoc-success/15 text-sitedoc-success" : "bg-gray-100 text-gray-300"
-        } ${kanRedigere ? "hover:ring-1 hover:ring-sitedoc-primary/40 cursor-pointer" : "cursor-default"}`}
+          paa ? CELLE.paa : CELLE.av
+        } ${kanRedigere ? `cursor-pointer ${CELLE.hover}` : "cursor-default"}`}
       >
-        {paa ? <Check className="h-3.5 w-3.5" /> : <span className="text-[10px]">—</span>}
+        {/* På = hvit hake; av = tom ramme (ingen strek/dash). */}
+        {paa && <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />}
       </button>
       {overstyrt && (
-        <span className="absolute -right-0.5 -top-0.5 h-1.5 w-1.5 rounded-full bg-sitedoc-accent" title={metaTekst} />
+        <span className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-1 ring-white ${CELLE.overstyrtPrikk}`} title={metaTekst} />
       )}
       {overstyrt && kanRedigere && (
         <button

@@ -2978,6 +2978,8 @@
   "flytmatrise.tittel": "Srauto leidimai",
   "flytmatrise.beskrivelse": "Konfigūruokite, kurie vaidmenys gali atlikti kokius būsenos perėjimus dokumentų sraute. Įmonė pradeda veikti nuo įsipareigojimų neįvykdymo; pakeitimai išsaugomi kaip vieno langelio nepaisymas.",
   "flytmatrise.velgFirma": "Norėdami peržiūrėti leidimų matricą, pasirinkite įmonę.",
+  "flytmatrise.firmaLabel": "Įmonė",
+  "flytmatrise.firmaVelger": "Pasirinkite įmonę…",
   "flytmatrise.kunLesing": "Turite skaitymo prieigą. Šiame etape matricą gali redaguoti tik „SiteDoc“ administratoriai.",
   "flytmatrise.fane.matrise": "Matrica",
   "flytmatrise.fane.logg": "Keisti žurnalą",

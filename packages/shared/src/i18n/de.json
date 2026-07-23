@@ -2978,6 +2978,8 @@
   "flytmatrise.tittel": "Flow-Berechtigungen",
   "flytmatrise.beskrivelse": "Konfigurieren Sie, welche Rollen welche Statusübergänge im Dokumentenfluss durchführen dürfen. Das Unternehmen beginnt mit den Standardwerten; Änderungen werden als Überschreibungen pro Zelle gespeichert.",
   "flytmatrise.velgFirma": "Wählen Sie ein Unternehmen aus, um die Berechtigungsmatrix anzuzeigen.",
+  "flytmatrise.firmaLabel": "Unternehmen",
+  "flytmatrise.firmaVelger": "Unternehmen auswählen …",
   "flytmatrise.kunLesing": "Sie haben Lesezugriff. Nur SiteDoc-Administratoren können die Matrix in dieser Phase bearbeiten.",
   "flytmatrise.fane.matrise": "Matrix",
   "flytmatrise.fane.logg": "Änderungsprotokoll",

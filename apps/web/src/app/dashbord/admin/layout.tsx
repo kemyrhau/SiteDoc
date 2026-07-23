@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Building2, Shield, FlaskConical, Database } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Building2, Shield, FlaskConical, Database, SlidersHorizontal } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 
@@ -36,6 +36,11 @@ const navigasjon = [
     label: "Tillatelser",
     href: "/dashbord/admin/tillatelser",
     ikon: <Shield className="h-4 w-4" />,
+  },
+  {
+    label: "Flyt-rettigheter",
+    href: "/dashbord/admin/flyt-rettigheter",
+    ikon: <SlidersHorizontal className="h-4 w-4" />,
   },
 ];
 

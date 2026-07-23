@@ -2978,6 +2978,8 @@
   "flytmatrise.tittel": "Voo load",
   "flytmatrise.beskrivelse": "Konfigureerige, millised rollid võivad dokumendivoos milliseid olekuüleminekuid sooritada. Ettevõte alustab vaikimisi; muudatused salvestatakse lahtri alistamisena.",
   "flytmatrise.velgFirma": "Valige lubade maatriksi vaatamiseks ettevõte.",
+  "flytmatrise.firmaLabel": "Ettevõte",
+  "flytmatrise.firmaVelger": "Vali firma…",
   "flytmatrise.kunLesing": "Teil on lugemisõigus. Selles faasis saavad maatriksit redigeerida ainult SiteDoci administraatorid.",
   "flytmatrise.fane.matrise": "Maatriks",
   "flytmatrise.fane.logg": "Muuda logi",

@@ -2978,6 +2978,8 @@
   "flytmatrise.tittel": "Дозволи потоку",
   "flytmatrise.beskrivelse": "Налаштуйте, які ролі можуть виконувати зміни статусу в документообігу. Компанія починає роботу за умовчанням; зміни зберігаються як перевизначення клітинок.",
   "flytmatrise.velgFirma": "Виберіть компанію, щоб переглянути матрицю дозволів.",
+  "flytmatrise.firmaLabel": "Компанія",
+  "flytmatrise.firmaVelger": "Виберіть компанію…",
   "flytmatrise.kunLesing": "Ви маєте доступ на читання. Лише адміністратори SiteDoc можуть редагувати матрицю на цьому етапі.",
   "flytmatrise.fane.matrise": "Матриця",
   "flytmatrise.fane.logg": "Журнал змін",

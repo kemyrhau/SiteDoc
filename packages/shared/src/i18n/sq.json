@@ -2978,6 +2978,8 @@
   "flytmatrise.tittel": "Lejet e rrjedhës",
   "flytmatrise.beskrivelse": "Konfiguro cilat role mund të kryejnë cilat kalime statusi në rrjedhën e dokumentit. Kompania fillon me standardet; ndryshimet ruhen si anulime për qelizë.",
   "flytmatrise.velgFirma": "Zgjidhni një kompani për të parë matricën e lejeve.",
+  "flytmatrise.firmaLabel": "Kompania",
+  "flytmatrise.firmaVelger": "Zgjidhni kompaninë…",
   "flytmatrise.kunLesing": "Ju keni akses për lexim. Vetëm administratorët e SiteDoc mund ta modifikojnë matricën në këtë fazë.",
   "flytmatrise.fane.matrise": "Matricë",
   "flytmatrise.fane.logg": "Ndrysho regjistrin",

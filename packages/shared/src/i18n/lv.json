@@ -2978,6 +2978,8 @@
   "flytmatrise.tittel": "Plūsmas atļaujas",
   "flytmatrise.beskrivelse": "Konfigurējiet, kuras lomas var veikt kādas statusa pārejas dokumenta plūsmā. Uzņēmums sāk darboties pēc noklusējuma; izmaiņas tiek saglabātas kā katras šūnas ignorēšana.",
   "flytmatrise.velgFirma": "Atlasiet uzņēmumu, lai skatītu atļauju matricu.",
+  "flytmatrise.firmaLabel": "Uzņēmums",
+  "flytmatrise.firmaVelger": "Izvēlieties uzņēmumu…",
   "flytmatrise.kunLesing": "Jums ir lasīšanas piekļuve. Šajā fāzē matricu var rediģēt tikai SiteDoc administratori.",
   "flytmatrise.fane.matrise": "Matrica",
   "flytmatrise.fane.logg": "Izmaiņu žurnāls",
