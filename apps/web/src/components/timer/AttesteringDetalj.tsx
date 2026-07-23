@@ -135,7 +135,7 @@ export function AttesteringDetalj({
 
   if (!sheet) {
     return (
-      <div className={`mx-auto max-w-3xl p-6`}>
+      <div className={`max-w-3xl p-6`}>
         <p className="text-sm text-red-600">{t("timer.detalj.ikkeFunnet")}</p>
         <Link
           href={tilbakeUrl}
@@ -178,7 +178,7 @@ export function AttesteringDetalj({
   }
 
   return (
-    <div className={`mx-auto max-w-3xl p-6`}>
+    <div className={`max-w-3xl p-6`}>
       <Link
         href={tilbakeUrl}
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"
