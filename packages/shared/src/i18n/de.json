@@ -2999,7 +2999,7 @@
   "flytmatrise.auto.overskrift": "Automatische Übergänge",
   "flytmatrise.auto.merke": "Automatisch (keine Rollenauswahl)",
   "flytmatrise.tegn.overskrift": "Legende",
-  "flytmatrise.tegn.forklaring": "Häkchen = erlaubt, Bindestrich = nicht erlaubt, orangefarbener Punkt = vom Standardwert überschrieben, Vorhängeschloss = gesperrt (legal/invariant).",
+  "flytmatrise.tegn.forklaring": "Grünes Häkchen = erlaubt, leerer Rahmen = nicht erlaubt, gelber Punkt = vom Standard überschrieben, „A“ = automatischer Übergang, Vorhängeschloss = gesperrt (legal/invariant).",
   "flytmatrise.fotnote.sitedoc": "Der SiteDoc-Administrator hat immer vollen Zugriff (Code-Umgehung) und wird nicht als Spalte angezeigt.",
   "flytmatrise.fotnote.firmaadmin": "Der Unternehmensadministrator hat keine Flow-Administratorebene und folgt seiner normalen Flow-Rolle.",
   "flytmatrise.overstyrt.tooltip": "Überschrieben durch {navn} – {naar}",

@@ -2999,7 +2999,7 @@
   "flytmatrise.auto.overskrift": "Automatiniai perėjimai",
   "flytmatrise.auto.merke": "Automatinis (nepasirenkamas vaidmuo)",
   "flytmatrise.tegn.overskrift": "Legenda",
-  "flytmatrise.tegn.forklaring": "Pažymėti = leidžiama, brūkšnys = neleidžiama, oranžinis taškas = nepaisytas nuo numatytojo, spynelė = užrakinta (teisėta / nekintama).",
+  "flytmatrise.tegn.forklaring": "Žalia varnelė = leidžiama, tuščias rėmelis = neleidžiamas, geltonas taškas = nepaisytas nuo numatytojo, «A» = automatinis perėjimas, pakabinama spyna = užrakinta (teisėta / nekintama).",
   "flytmatrise.fotnote.sitedoc": "„SiteDoc“ administratorius visada turi visišką prieigą (kodo apėjimas) ir nėra rodomas kaip stulpelis.",
   "flytmatrise.fotnote.firmaadmin": "Įmonės administratorius nėra srauto administratoriaus lygis ir atlieka įprastą srauto vaidmenį.",
   "flytmatrise.overstyrt.tooltip": "Nepaisė {navn} – {naar}",

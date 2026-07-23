@@ -2999,7 +2999,7 @@
   "flytmatrise.auto.overskrift": "Automatyczne przejścia",
   "flytmatrise.auto.merke": "Automatycznie (bez wyboru roli)",
   "flytmatrise.tegn.overskrift": "Legenda",
-  "flytmatrise.tegn.forklaring": "Zaznacz = dozwolone, myślnik = niedozwolone, pomarańczowa kropka = zastąpiona wartością domyślną, kłódka = zablokowana (legalna/niezmienna).",
+  "flytmatrise.tegn.forklaring": "Zielony znak = dozwolone, pusta ramka = niedozwolone, bursztynowa kropka = zastąpiona wartością domyślną, «A» = automatyczne przejście, kłódka = zablokowana (legalna/niezmienna).",
   "flytmatrise.fotnote.sitedoc": "Administrator SiteDoc zawsze ma pełny dostęp (pominięcie kodu) i nie jest wyświetlany w postaci kolumny.",
   "flytmatrise.fotnote.firmaadmin": "Administrator firmy nie jest administratorem przepływu i pełni swoją normalną rolę w zakresie przepływu.",
   "flytmatrise.overstyrt.tooltip": "Zastąpiony przez {navn} — {naar}",

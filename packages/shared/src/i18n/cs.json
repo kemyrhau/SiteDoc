@@ -2999,7 +2999,7 @@
   "flytmatrise.auto.overskrift": "Automatické přechody",
   "flytmatrise.auto.merke": "Auto (bez výběru role)",
   "flytmatrise.tegn.overskrift": "Legenda",
-  "flytmatrise.tegn.forklaring": "Kontrola = povoleno, pomlčka = nepovoleno, oranžová tečka = přepsáno z výchozího nastavení, visací zámek = zamčeno (legální/neměnné).",
+  "flytmatrise.tegn.forklaring": "Zelené zaškrtnutí = povoleno, prázdný rámeček = nepovoleno, oranžová tečka = přepsáno z výchozího nastavení, «A» = automatický přechod, visací zámek = uzamčen (legální/neměnný).",
   "flytmatrise.fotnote.sitedoc": "Správce SiteDoc má vždy plný přístup (vynechání kódu) a nezobrazuje se jako sloupec.",
   "flytmatrise.fotnote.firmaadmin": "Správce společnosti není úrovní správce toku a řídí se svou normální rolí v toku.",
   "flytmatrise.overstyrt.tooltip": "Přepsáno {navn} — {naar}",

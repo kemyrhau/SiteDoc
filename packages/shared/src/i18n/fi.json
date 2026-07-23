@@ -2999,7 +2999,7 @@
   "flytmatrise.auto.overskrift": "Automaattiset siirtymät",
   "flytmatrise.auto.merke": "Automaattinen (ei roolivalintaa)",
   "flytmatrise.tegn.overskrift": "Legenda",
-  "flytmatrise.tegn.forklaring": "Tarkistus = sallittu, viiva = ei sallittu, oranssi piste = ohitettu oletusarvosta, riippulukko = lukittu (laillinen/muuttumaton).",
+  "flytmatrise.tegn.forklaring": "Vihreä valintamerkki = sallittu, tyhjä kehys = ei sallittu, keltainen piste = ohitettu oletusarvosta, «A» = automaattinen siirtyminen, riippulukko = lukittu (laki/muuttumaton).",
   "flytmatrise.fotnote.sitedoc": "SiteDoc-järjestelmänvalvojalla on aina täydet käyttöoikeudet (koodin ohitus), eikä sitä näytetä sarakkeena.",
   "flytmatrise.fotnote.firmaadmin": "Yrityksen järjestelmänvalvoja ei ole Flow-admin-taso ja noudattaa normaalia kulkurooliaan.",
   "flytmatrise.overstyrt.tooltip": "Ohittanut {navn} – {naar}",

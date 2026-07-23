@@ -2999,7 +2999,7 @@
   "flytmatrise.auto.overskrift": "Transitions automatiques",
   "flytmatrise.auto.merke": "Auto (pas de choix de rôle)",
   "flytmatrise.tegn.overskrift": "Légende",
-  "flytmatrise.tegn.forklaring": "Coche = autorisé, tiret = non autorisé, point orange = remplacé par défaut, cadenas = verrouillé (légal/invariant).",
+  "flytmatrise.tegn.forklaring": "Coche verte = autorisé, cadre vide = non autorisé, point orange = remplacé par défaut, « A » = transition automatique, cadenas = verrouillé (légal/invariant).",
   "flytmatrise.fotnote.sitedoc": "L'administrateur de SiteDoc dispose toujours d'un accès complet (contournement de code) et n'est pas affiché sous forme de colonne.",
   "flytmatrise.fotnote.firmaadmin": "L’administrateur de l’entreprise n’est pas un niveau d’administrateur de flux et suit son rôle de flux normal.",
   "flytmatrise.overstyrt.tooltip": "Remplacé par {navn} — {naar}",

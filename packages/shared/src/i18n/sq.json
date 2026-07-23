@@ -2999,7 +2999,7 @@
   "flytmatrise.auto.overskrift": "Kalimet automatike",
   "flytmatrise.auto.merke": "Auto (pa zgjedhje roli)",
   "flytmatrise.tegn.overskrift": "Legjenda",
-  "flytmatrise.tegn.forklaring": "Check = lejohet, vizë = nuk lejohet, pika portokalli = anashkalohet nga parazgjedhja, dry = i kyçur (ligjor/i pandryshueshëm).",
+  "flytmatrise.tegn.forklaring": "Çeku jeshil = lejohet, korniza e zbrazët = nuk lejohet, pika e qelibarit = anashkalohet nga parazgjedhja, «A» = kalim automatik, dry = i kyçur (ligjor/i pandryshueshëm).",
   "flytmatrise.fotnote.sitedoc": "Administratori i SiteDoc ka gjithmonë akses të plotë (anashkalim i kodit) dhe nuk shfaqet si kolonë.",
   "flytmatrise.fotnote.firmaadmin": "Administratori i kompanisë nuk është një nivel i administrimit të rrjedhës dhe ndjek rolin e tyre normal të rrjedhës.",
   "flytmatrise.overstyrt.tooltip": "E anashkaluar nga {navn} — {naar}",

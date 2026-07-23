@@ -2999,7 +2999,7 @@
   "flytmatrise.auto.overskrift": "Automatiska övergångar",
   "flytmatrise.auto.merke": "Auto (inget rollval)",
   "flytmatrise.tegn.overskrift": "Legend",
-  "flytmatrise.tegn.forklaring": "Markera = tillåtet, streck = ej tillåtet, orange prick = åsidosatt från standard, hänglås = låst (lagligt/invariant).",
+  "flytmatrise.tegn.forklaring": "Grön bock = tillåten, tom ram = ej tillåtet, gul prick = åsidosatt från standard, «A» = automatisk övergång, hänglås = låst (lagligt/invariant).",
   "flytmatrise.fotnote.sitedoc": "SiteDoc admin har alltid full åtkomst (kodbypass) och visas inte som en kolumn.",
   "flytmatrise.fotnote.firmaadmin": "Företagsadministratören är inte en flödesadminnivå och följer deras normala flödesroll.",
   "flytmatrise.overstyrt.tooltip": "Åsidosatt av {namn} — {naar}",
