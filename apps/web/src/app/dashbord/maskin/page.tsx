@@ -117,7 +117,7 @@ export default function MaskinPage() {
   }
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <div className="max-w-6xl">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-gray-900">{t("maskin.tittel")}</h1>
         {/* Sak #5: opprett/import gates på admin-kapabilitet. Ansatte beholder

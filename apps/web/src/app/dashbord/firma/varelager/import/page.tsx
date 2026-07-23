@@ -150,7 +150,7 @@ export default function VareImportSide() {
   const ugyldigeUtelatt = forhandsvisning?.utelatte.filter((u) => u.grunn === "ugyldig-navn") ?? [];
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="max-w-5xl">
       <div className="mb-5 flex items-center gap-3">
         <Link
           href="/dashbord/firma/varelager"

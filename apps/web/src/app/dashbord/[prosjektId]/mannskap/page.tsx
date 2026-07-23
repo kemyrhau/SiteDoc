@@ -79,7 +79,7 @@ export default function MannskapSide() {
   const antallUtenHms = filtrert.filter((r) => !r.hmsKortNr).length;
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="max-w-5xl p-6">
       <SonetonetSidehode sone="prosjekt" className="mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>

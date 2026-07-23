@@ -247,7 +247,7 @@ export default function NyttUtstyrPage() {
   const erVegvesenFlyt = forhandsvisning !== null;
 
   return (
-    <div className="mx-auto max-w-3xl">
+    <div className="max-w-3xl">
       <div className="mb-4">
         <Link
           href="/dashbord/maskin"
