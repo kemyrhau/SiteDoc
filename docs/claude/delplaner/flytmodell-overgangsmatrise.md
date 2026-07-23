@@ -73,6 +73,8 @@ Første utkast sa «11 eierløse overganger». **Feil — bestiller eier flere e
 
 Registrator-fiksen er landet (verifisert: `ROLLE_HANDLINGER.registrator = {draft: [sent,deleted]}`). Gapet mellom kode og flytmodell-vedtaket, i to lag:
 
+> ✅ **A-LAGET LANDET (merge `7571e968`, develop, 2026-07-23):** `rejected→sent` + `closed→draft` (inert) i validTransitions · registrator+bestiller `rejected:[sent]` · `hentStatusHandlinger` «Send på nytt» + i18n × 15. **Registrator-regresjonen lukket.** Gjenstår i A→B: mid-flow-avbryt, `forwarded→admin`, closed→draft-handlingen+Farlig sone — alle rutet til B (config-matrisen).
+
 **A. Statusmaskin + `ROLLE_HANDLINGER` (kode — forutsetning, per vedtak-linje 35):**
 1. `validTransitions.rejected` += `"sent"` — **rejected→sent** «Send på nytt» (vedtak 2). Default-eiere: registrator · bestiller · admin.
 2. `validTransitions.closed` += `"draft"` — **closed→draft** gjenåpne. 🔴 **DOK-DRIFT RETTET (fabel 2026-07-23):** closed→draft er **ALDRI vedtatt i noen paragraf** — kun nevnt i restvedtakets kø-linje, og cowork førte den feilaktig som «vedtatt» her. Spørsmålet er reelt åpent. Fabels innstilling: **JA til closed→draft, men kun-admin default + «Farlig sone»** (kommentar + bekreftelse, Lukk·trukket-mønsteret) — uten den blir `closed` irreversibel og admins egen `rejected→closed` en felle; men gjenåpning reverserer en godkjenningskjede → strengere enn `cancelled→draft` (bestiller+admin). **Krever Kenneth-vedtak** ([rettighetsmatrise-config-design.md § 3](rettighetsmatrise-config-design.md)).
