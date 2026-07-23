@@ -2084,6 +2084,7 @@
   "statushandling.valgfriKommentar": "Optional comment...",
   "statushandling.sendTilbake": "Send back",
   "statushandling.sendTilbakeUtforer": "Send back",
+  "statushandling.sendPaaNytt": "Resend",
   "statushandling.svarAvsender": "Reply to sender",
   "statushandling.trekkTilbake": "Withdraw",
   "statushandling.mottakerHarLest": "The recipient has already read this document. Do you still want to withdraw it?",

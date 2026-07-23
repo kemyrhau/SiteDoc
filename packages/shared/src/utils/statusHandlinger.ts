@@ -44,6 +44,9 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       // A-i (2026-07-17): rejected→responded var ULOVLIG i isValidStatusTransition (server-BAD_REQUEST).
       // Veien går nå rejected → in_progress → responded. Se dokumentflyt.md § 6.
       { tekstNoekkel: "statushandling.gjenoppta", nyStatus: "in_progress", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
+      // Venstre ende (flytmodell-vedtak-2026-07-22): registrator/bestiller retter opp
+      // et returnert dokument og sender det mot høyre igjen. Uten denne var rejected→sent inert.
+      { tekstNoekkel: "statushandling.sendPaaNytt", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
       { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
@@ -69,7 +72,7 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * | received     | Besvar, Videres.     | —           | Besvar, Videresend                | —                                 |
  * | in_progress  | Besvar, Tilbake, V   | —           | Besvar, Send tilbake, Videresend  | —                                 |
  * | responded    | Godkjenn, Tilbake, V | —           | —                                 | Godkjenn, Send tilbake, Videresend|
- * | rejected     | Gjenoppta, V, Lukk   | —           | Gjenoppta, Videresend             | —                                 |
+ * | rejected     | Send på nytt         | Send på nytt| Gjenoppta, Videresend             | —                                 |
  * | approved     | Lukk, Videresend     | Lukk        | —                                 | —                                 |
  * | cancelled    | Gjenåpne, Slett      | Gjenåpne    | —                                 | —                                 |
  */
@@ -128,16 +131,20 @@ export function hentHandlingEierRoller(status: string, nyStatus: string): Dokume
 
 /** Roller → status → tillatte nyStatus-verdier */
 const ROLLE_HANDLINGER: Record<string, Record<string, Set<string>>> = {
-  // Registrator: oppretter → kan sende + slette EGEN kladd, ingen andre overganger
-  // (Kenneths matrise 2026-07-21: registrator redigerer + sender sin egen del).
+  // Registrator: oppretter → sender/sletter EGEN kladd. Venstre ende av linja
+  // (flytmodell-vedtak-2026-07-22): et returnert (rejected) dokument lander hos henne,
+  // hun retter opp og sender mot høyre igjen.
   registrator: {
     draft: new Set(["sent", "deleted"]),
+    rejected: new Set(["sent"]),
   },
   bestiller: {
     draft: new Set(["sent", "deleted"]),
     sent: new Set(["cancelled"]),
     approved: new Set(["closed"]),
     cancelled: new Set(["draft"]),
+    // Venstre ende (flytmodell-vedtak-2026-07-22): kan sende returnert dokument videre.
+    rejected: new Set(["sent"]),
   },
   utforer: {
     received: new Set(["responded", "forwarded"]),

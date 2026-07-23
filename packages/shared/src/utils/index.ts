@@ -92,8 +92,8 @@ export function isValidStatusTransition(
     in_progress: ["responded", "sent", "cancelled"],
     responded: ["approved", "rejected"],
     approved: ["closed"],
-    rejected: ["in_progress", "closed"],
-    closed: [],
+    rejected: ["in_progress", "closed", "sent"],
+    closed: ["draft"],
     cancelled: ["draft"],
   };
 

@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import {
   hentRolleFiltrertHandlinger,
+  hentStatusHandlinger,
   erTillattForRolle,
   type StatusHandling,
 } from "./statusHandlinger";
+import { isValidStatusTransition } from "./index";
 import type { DokumentflytRolle } from "../types";
 
 /**
@@ -55,7 +57,7 @@ const HANDLING_MATRISE: HandlingRad[] = [
   { navn: "[REGISTRATOR] received → tom (fikset)", status: "received", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] in_progress → tom (fikset)", status: "in_progress", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] responded → tom (fikset: kan ikke lenger godkjenne)", status: "responded", rolle: "registrator", erAdmin: false, forventet: [] },
-  { navn: "[REGISTRATOR] rejected → tom (fikset)", status: "rejected", rolle: "registrator", erAdmin: false, forventet: [] },
+  { navn: "[REGISTRATOR] rejected → send på nytt (venstre ende: retter opp returnert)", status: "rejected", rolle: "registrator", erAdmin: false, forventet: ["sent"] },
   { navn: "[REGISTRATOR] approved → tom (fikset)", status: "approved", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] cancelled → tom (fikset)", status: "cancelled", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] closed → tom (uendret)", status: "closed", rolle: "registrator", erAdmin: false, forventet: [] },
@@ -66,6 +68,7 @@ const HANDLING_MATRISE: HandlingRad[] = [
   { navn: "[ROLLE] bestiller, approved → lukk (ikke videresend)", status: "approved", rolle: "bestiller", erAdmin: false, forventet: ["closed"] },
   { navn: "[ROLLE] bestiller, cancelled → gjenåpne (ikke slett)", status: "cancelled", rolle: "bestiller", erAdmin: false, forventet: ["draft"] },
   { navn: "[ROLLE] bestiller, received → tom (ingen eierskap)", status: "received", rolle: "bestiller", erAdmin: false, forventet: [] },
+  { navn: "[ROLLE] bestiller, rejected → send på nytt (venstre ende)", status: "rejected", rolle: "bestiller", erAdmin: false, forventet: ["sent"] },
   { navn: "[ROLLE] utforer, received → besvar+videresend (ikke avvis)", status: "received", rolle: "utforer", erAdmin: false, forventet: ["responded", "forwarded"] },
   { navn: "[ROLLE] utforer, in_progress → besvar+tilbake+videresend", status: "in_progress", rolle: "utforer", erAdmin: false, forventet: ["responded", "sent", "forwarded"] },
   { navn: "[ROLLE] utforer, rejected → gjenoppta+videresend (ikke lukk)", status: "rejected", rolle: "utforer", erAdmin: false, forventet: ["in_progress", "forwarded"] },
@@ -107,6 +110,7 @@ const TILLATT_MATRISE: TillattRad[] = [
   // — [REGISTRATOR — VENDT] Fase B: kun send/slett egen kladd; ingen andre overganger —
   { navn: "[REGISTRATOR] draft→sent → true (sender det hun opprettet)", rolle: "registrator", fra: "draft", til: "sent", erAdmin: false, forventet: true },
   { navn: "[REGISTRATOR] draft→deleted → true (sletter egen kladd)", rolle: "registrator", fra: "draft", til: "deleted", erAdmin: false, forventet: true },
+  { navn: "[REGISTRATOR] rejected→sent → true (venstre ende: retter opp returnert, sender mot høyre)", rolle: "registrator", fra: "rejected", til: "sent", erAdmin: false, forventet: true },
   { navn: "[REGISTRATOR] responded→approved → false (kan ikke godkjenne)", rolle: "registrator", fra: "responded", til: "approved", erAdmin: false, forventet: false },
   { navn: "[REGISTRATOR] received→responded → false", rolle: "registrator", fra: "received", til: "responded", erAdmin: false, forventet: false },
   { navn: "[REGISTRATOR] ulovlig draft→closed → false (kun sent/deleted i kladd)", rolle: "registrator", fra: "draft", til: "closed", erAdmin: false, forventet: false },
@@ -117,6 +121,8 @@ const TILLATT_MATRISE: TillattRad[] = [
   { navn: "[ROLLE] bestiller, draft→deleted → true", rolle: "bestiller", fra: "draft", til: "deleted", erAdmin: false, forventet: true },
   { navn: "[ROLLE] bestiller, responded→approved → false (ikke eid)", rolle: "bestiller", fra: "responded", til: "approved", erAdmin: false, forventet: false },
   { navn: "[ROLLE] bestiller, closed→draft → false (ingen oppføring)", rolle: "bestiller", fra: "closed", til: "draft", erAdmin: false, forventet: false },
+  { navn: "[ROLLE] bestiller, rejected→sent → true (venstre ende)", rolle: "bestiller", fra: "rejected", til: "sent", erAdmin: false, forventet: true },
+  { navn: "[ROLLE] utforer, rejected→sent → false (ikke venstre ende)", rolle: "utforer", fra: "rejected", til: "sent", erAdmin: false, forventet: false },
   { navn: "[ROLLE] utforer, received→responded → true", rolle: "utforer", fra: "received", til: "responded", erAdmin: false, forventet: true },
   { navn: "[ROLLE] utforer, received→cancelled → false (avvis ikke eid)", rolle: "utforer", fra: "received", til: "cancelled", erAdmin: false, forventet: false },
   { navn: "[ROLLE] utforer, in_progress→sent → true (send tilbake)", rolle: "utforer", fra: "in_progress", til: "sent", erAdmin: false, forventet: true },
@@ -129,5 +135,48 @@ const TILLATT_MATRISE: TillattRad[] = [
 describe("erTillattForRolle — karakterisering av dagens oppførsel", () => {
   it.each(TILLATT_MATRISE)("$navn", ({ rolle, fra, til, erAdmin, forventet }) => {
     expect(erTillattForRolle(rolle, fra, til, erAdmin)).toBe(forventet);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  isValidStatusTransition — statusmaskinen (linjemodell-vedtak)       */
+/* ------------------------------------------------------------------ */
+
+describe("isValidStatusTransition — rejected → sent (flytmodell-vedtak-2026-07-22)", () => {
+  it("rejected → sent er lovlig (returnert dokument sendes mot høyre igjen)", () => {
+    expect(isValidStatusTransition("rejected", "sent")).toBe(true);
+  });
+  it("rejected → in_progress fortsatt lovlig (gjenoppta — uendret)", () => {
+    expect(isValidStatusTransition("rejected", "in_progress")).toBe(true);
+  });
+  it("rejected → closed fortsatt lovlig (uendret)", () => {
+    expect(isValidStatusTransition("rejected", "closed")).toBe(true);
+  });
+  it("rejected → approved ulovlig (kontroll — ingen snarvei til godkjent)", () => {
+    expect(isValidStatusTransition("rejected", "approved")).toBe(false);
+  });
+});
+
+describe("isValidStatusTransition — closed → draft (inert i A, wires i B med Farlig sone)", () => {
+  it("closed → draft er lovlig i statusmaskinen (ingen handling utløser den ennå)", () => {
+    expect(isValidStatusTransition("closed", "draft")).toBe(true);
+  });
+  it("closed → sent fortsatt ulovlig (kun draft er åpnet fra closed)", () => {
+    expect(isValidStatusTransition("closed", "sent")).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  hentStatusHandlinger — rejected tilbyr «Send på nytt» (sent)        */
+/* ------------------------------------------------------------------ */
+
+describe("hentStatusHandlinger — rejected → sent («Send på nytt»)", () => {
+  it("rejected-universet inneholder en sent-handling", () => {
+    const nyStatuser = hentStatusHandlinger("rejected").map((h) => h.nyStatus);
+    expect(nyStatuser).toContain("sent");
+  });
+  it("sent-handlingen bruker flytspråk-etiketten «Send på nytt»", () => {
+    const sendPaaNytt = hentStatusHandlinger("rejected").find((h) => h.nyStatus === "sent");
+    expect(sendPaaNytt?.tekstNoekkel).toBe("statushandling.sendPaaNytt");
   });
 });

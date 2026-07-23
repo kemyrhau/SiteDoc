@@ -2084,6 +2084,7 @@
   "statushandling.valgfriKommentar": "Valinnainen kommentti...",
   "statushandling.sendTilbake": "Lähetä takaisin",
   "statushandling.sendTilbakeUtforer": "Lähetä takaisin",
+  "statushandling.sendPaaNytt": "Lähetä uudelleen",
   "statushandling.svarAvsender": "Vastaa lähettäjälle",
   "statushandling.trekkTilbake": "Peruuttaa",
   "statushandling.mottakerHarLest": "Vastaanottaja on jo lukenut tämän asiakirjan. Haluatko silti peruuttaa sen?",
