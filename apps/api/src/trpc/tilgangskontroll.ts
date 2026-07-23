@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle, avgjorDokumentTilgang } from "@sitedoc/shared";
 import type { FlytMedlemInfo } from "@sitedoc/shared";
+import { hentFlytRettighetOverrides } from "../services/flytRettighet";
 
 /**
  * Hent brukerens faggruppe-IDer i et prosjekt.
@@ -683,7 +684,15 @@ export async function verifiserFlytRolle(
     { bestillerFaggruppeId, utforerFaggruppeId },
   );
 
-  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus, erAdmin)) {
+  // Per-firma rettighets-overstyringer (config-design § 1). Tom tabell → tom map →
+  // bit-identisk med default-laget. Firmaet resolves via prosjektets primærorg.
+  const prosjekt = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { primaryOrganizationId: true },
+  });
+  const overrides = await hentFlytRettighetOverrides(prosjekt?.primaryOrganizationId);
+
+  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus, erAdmin, overrides)) {
     const rolleNavn = rolle ?? "ingen";
     throw new TRPCError({
       code: "FORBIDDEN",

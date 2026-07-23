@@ -3,7 +3,9 @@ import {
   hentRolleFiltrertHandlinger,
   hentStatusHandlinger,
   erTillattForRolle,
+  flytRettighetNoekkel,
   type StatusHandling,
+  type RettighetsOverrides,
 } from "./statusHandlinger";
 import { isValidStatusTransition } from "./index";
 import type { DokumentflytRolle } from "../types";
@@ -178,5 +180,66 @@ describe("hentStatusHandlinger — rejected → sent («Send på nytt»)", () =>
   it("sent-handlingen bruker flytspråk-etiketten «Send på nytt»", () => {
     const sendPaaNytt = hentStatusHandlinger("rejected").find((h) => h.nyStatus === "sent");
     expect(sendPaaNytt?.tekstNoekkel).toBe("statushandling.sendPaaNytt");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  RettighetsOverrides — config-laget (Kloss 1 plumbing)              */
+/* ------------------------------------------------------------------ */
+
+describe("overrides — tom map == uten overrides (bit-identisk-bevis for config-substratet)", () => {
+  // Kloss 1-invariant: config-laget skal ikke endre atferd før et firma faktisk
+  // registrerer et avvik. Undefined og en tom map må gi nøyaktig default-laget.
+  const tom: RettighetsOverrides = {};
+
+  it("erTillattForRolle: tom map lik undefined for hele TILLATT_MATRISE", () => {
+    for (const { rolle, fra, til, erAdmin } of TILLATT_MATRISE) {
+      const uten = erTillattForRolle(rolle, fra, til, erAdmin);
+      const med = erTillattForRolle(rolle, fra, til, erAdmin, tom);
+      expect(med).toBe(uten);
+    }
+  });
+
+  it("hentRolleFiltrertHandlinger: tom map lik undefined for hele HANDLING_MATRISE", () => {
+    for (const { status, rolle, erAdmin } of HANDLING_MATRISE) {
+      const uten = hentRolleFiltrertHandlinger(status, rolle, erAdmin).map((h) => h.nyStatus);
+      const med = hentRolleFiltrertHandlinger(status, rolle, erAdmin, tom).map((h) => h.nyStatus);
+      expect(med).toEqual(uten);
+    }
+  });
+});
+
+describe("overrides — invariant: en override kan aldri skape en overgang statusmaskinen ikke har", () => {
+  it("positiv override på ulovlig overgang (godkjenner draft→closed) snittes bort", () => {
+    // draft→closed finnes ikke i validTransitions — en admin-override kan ikke innføre den.
+    expect(isValidStatusTransition("draft", "closed")).toBe(false);
+    const override: RettighetsOverrides = {
+      [flytRettighetNoekkel("godkjenner", "draft", "closed")]: true,
+    };
+    expect(erTillattForRolle("godkjenner", "draft", "closed", false, override)).toBe(false);
+  });
+
+  it("positiv override på lovlig, ikke-default overgang (godkjenner draft→sent) honoreres", () => {
+    // draft→sent ER i validTransitions men ikke i godkjenners default → override slår den på.
+    expect(isValidStatusTransition("draft", "sent")).toBe(true);
+    const override: RettighetsOverrides = {
+      [flytRettighetNoekkel("godkjenner", "draft", "sent")]: true,
+    };
+    expect(erTillattForRolle("godkjenner", "draft", "sent", false, override)).toBe(true);
+  });
+
+  it("negativ override slår av en default-celle (bestiller draft→sent → av)", () => {
+    const override: RettighetsOverrides = {
+      [flytRettighetNoekkel("bestiller", "draft", "sent")]: false,
+    };
+    expect(erTillattForRolle("bestiller", "draft", "sent", false)).toBe(true);
+    expect(erTillattForRolle("bestiller", "draft", "sent", false, override)).toBe(false);
+  });
+
+  it("erAdmin-bypass er upåvirket av overrides (negativ override kan ikke låse ute admin)", () => {
+    const override: RettighetsOverrides = {
+      [flytRettighetNoekkel("bestiller", "draft", "sent")]: false,
+    };
+    expect(erTillattForRolle("bestiller", "draft", "sent", true, override)).toBe(true);
   });
 });

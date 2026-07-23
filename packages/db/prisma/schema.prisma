@@ -68,6 +68,8 @@ model User {
   // 2026-05-28 — impersonering audit (Variant B: isolert tabell).
   impersonertSomAdmin     ImpersonationAudit[]    @relation("ImpersonationAdmin")
   impersonertSomTarget    ImpersonationAudit[]    @relation("ImpersonationTarget")
+  flytRettighetOverrides  FlytRettighetOverride[] @relation("FlytRettighetOverrideEndretAv")
+  flytRettighetLogg       FlytRettighetLogg[]     @relation("FlytRettighetLoggEndretAv")
 
   @@map("users")
 }
@@ -101,6 +103,8 @@ model Organization {
   oppmotesteder       Oppmotested[]
   kompetansetyper     Kompetansetype[]
   arbeidstidsKalender ArbeidstidsKalender[]
+  flytRettighetOverrides FlytRettighetOverride[]
+  flytRettighetLogg      FlytRettighetLogg[]
 
   @@map("organizations")
 }
@@ -1248,6 +1252,55 @@ model DokumentflytMal {
 
   @@unique([dokumentflytId, templateId])
   @@map("dokumentflyt_maler")
+}
+
+// ---------------------------------------------------------------------------
+// Flyt-rettighetsmatrise (config-design § 1, delta-modellen).
+// Per firma lagres KUN avviket fra ROLLE_HANDLINGER_DEFAULTS (@sitedoc/shared);
+// effektiv rettighet = default ⊕ override. Tom tabell = ren default = bit-identisk.
+//
+// fraStatus/tilStatus er String (DocumentStatus er ikke DB-enum). Sentinel for
+// Opprett-raden (opprett er ingen statusovergang): fraStatus="nytt", tilStatus="opprett".
+// «rolle» er DokumentflytRolle | "prosjektadmin" (admin-aksen wires i Kloss 2).
+// Invarianten (en override kan aldri skape en overgang statusmaskinen ikke har)
+// håndheves i den delte funksjonen celleTillatt, ikke i DB.
+// ---------------------------------------------------------------------------
+model FlytRettighetOverride {
+  id             String   @id @default(uuid())
+  orgId          String   @map("org_id")
+  rolle          String
+  fraStatus      String   @map("fra_status")
+  tilStatus      String   @map("til_status")
+  tillatt        Boolean
+  endretAvUserId String   @map("endret_av_user_id")
+  endretAt       DateTime @default(now()) @map("endret_at")
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  endretAv     User         @relation("FlytRettighetOverrideEndretAv", fields: [endretAvUserId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, rolle, fraStatus, tilStatus])
+  @@index([orgId])
+  @@map("flyt_rettighet_overrides")
+}
+
+// Append-only endringslogg (config-design vedtak 4). Opprettes nå; SKRIVES i Kloss 2.
+model FlytRettighetLogg {
+  id             String   @id @default(uuid())
+  orgId          String   @map("org_id")
+  rolle          String
+  fraStatus      String   @map("fra_status")
+  tilStatus      String   @map("til_status")
+  fraVerdi       String   @map("fra_verdi") // "default" | "på" | "av"
+  tilVerdi       String   @map("til_verdi")
+  endretAvUserId String   @map("endret_av_user_id")
+  endretAt       DateTime @default(now()) @map("endret_at")
+  kilde          String // "admin-ui" | "migrering"
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  endretAv     User         @relation("FlytRettighetLoggEndretAv", fields: [endretAvUserId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@map("flyt_rettighet_logg")
 }
 
 // ---------------------------------------------------------------------------

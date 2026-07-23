@@ -1,6 +1,7 @@
 export { utledMinRolle, utledDokumentRettighet, beregnHarBallen } from "./flytRolle";
 export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput, HarBallenDokument, HarBallenBruker } from "./flytRolle";
-export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller } from "./statusHandlinger";
+export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller, flytRettighetNoekkel, ROLLE_HANDLINGER_DEFAULTS } from "./statusHandlinger";
+export type { RettighetsOverrides } from "./statusHandlinger";
 export { vaerkodeTilTekst } from "./vaer";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
