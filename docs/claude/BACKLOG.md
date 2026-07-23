@@ -2206,6 +2206,24 @@ Aktiv Fase: 0 (firma-fundament) er i hovedsak ferdig — gjenstående §-E-steg 
 
 **Lav prioritet:** Vurder etter dokumentflyt send-modal-redesignen er deployet og i bruk. Sjelden at kunder spør om dette — eksisterende standard-flyt dekker de fleste tilfeller.
 
+### Ett-klikks prosjektoppsett — firma-mal per kontorsted/avdeling (visjon, Kenneth 2026-07-24)
+
+🟡 **Visjon, ikke startet.** Paraply over Sak B (ansatt-sync, under) — det fulle bildet Sak B og Kloss 2b er de første frøene av.
+
+**Mål:** firmaet konfigurerer faste innstillinger som gjelder ved oppretting av NYE prosjekter, slik at et prosjekt kan opprettes med **ett klikk** — da gjenstår kun kontrollplan, tegninger og PSI.
+
+**Innstillinger firmaet velger (bør kunne differensieres per kontorsted/avdeling, ikke bare firma-vidt):**
+- Faste prosjektledere (jf. Sak B «Leder default»).
+- Ansatte som automatisk skal inn i dokumentflyt (jf. Sak B ansatt-sync — modell UAVKLART).
+- Ferdige maler auto-tilknyttet: sjekklister, HMS, oppgaver.
+- Automatisk oppretting av standard brukergrupper (dersom firmaet har slike).
+
+**Sentralt utviklet (mulig):** fast PSI-veileder per firma — utvikles sentralt, gjenbrukes ved oppretting.
+
+**Første frø som lander nå:** **Kloss 2b** — opt-in firma-innstilling som auto-legger firma-admin som `ProjectMember.role=admin` ved prosjektoppretting (`OrganizationSetting`-flagg + hook i prosjekt-opprettelses-stiene, se [rettighetsmatrise-config-design.md § 1b](delplaner/rettighetsmatrise-config-design.md)). Samme hook (`prosjekt.opprett`) + samme innstillings-tabell (`OrganizationSetting`) er infrastrukturen resten av visjonen bygger på.
+
+**Åpne spørsmål (arver Sak B + nye):** ansatt-sync-modell (A vs C, faggruppe↔kontaktliste-dekobling); mal-tilknytning ved opprett (jf. `ReportTemplate→OrganizationTemplate`-migrering); brukergruppe-auto-opprett; per-avdeling- vs firma-vidt-differensiering; sentralisert PSI-veileder.
+
 ### Firma prosjektoppsett-motor + ansatt-sync til dokumentflyt (Sak B)
 
 🟡 **Parkert design, ikke startet — kodeverifisert 2026-07-12.** A.Markussen-drevet (~50 ansatte auto inn i dokumentflyt, minimalt etterarbeid ved nytt prosjekt).
