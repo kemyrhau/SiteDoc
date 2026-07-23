@@ -143,7 +143,7 @@ export default function ProsjektOversikt() {
                   {
                     label: t("onboarding.timerOppsett"),
                     ferdig: onboardingStatus.harTimerOppsett,
-                    href: "/dashbord/firma/timer/onboarding",
+                    href: "/dashbord/firma/timer",
                   },
                 ]
               : []),

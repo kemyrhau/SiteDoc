@@ -1332,6 +1332,7 @@
   "firma.timer.tittel": "Timesheets",
   "firma.timer.beskrivelse": "Wage type catalog, activities and supplements for time tracking. Used in daily sheets and payroll export.",
   "firma.timer.fane.onboarding": "Onboarding",
+  "firma.timer.fane.oversikt": "Overview",
   "firma.timer.fane.oppsett": "Setup",
   "firma.timer.fane.lonnsarter": "Wage types",
   "firma.timer.fane.aktiviteter": "Activities",
