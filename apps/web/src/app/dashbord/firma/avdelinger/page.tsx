@@ -58,7 +58,7 @@ export default function AvdelingerSide() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="max-w-5xl">
       <SonetonetSidehode sone="firma" className="mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>

@@ -189,7 +189,7 @@ export default function MaskinDetaljSide() {
     utstyr.type;
 
   return (
-    <div className="mx-auto max-w-4xl">
+    <div className="max-w-4xl">
       {/* Header */}
       <div className="mb-4">
         <Link

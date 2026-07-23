@@ -58,7 +58,7 @@ export default function NyttProsjektSide() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl">
+    <div className="max-w-2xl">
       <h2 className="mb-6 text-2xl font-bold">Nytt prosjekt</h2>
 
       {erSitedocAdmin && valgtFirma && (

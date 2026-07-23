@@ -91,7 +91,7 @@ export default function TimerListSide() {
   }, [rader]);
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="max-w-5xl p-6">
       <SonetonetSidehode sone="prosjekt" className="mb-6">
         <div className="flex items-start justify-between gap-4">
           <div>

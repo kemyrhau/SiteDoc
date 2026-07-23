@@ -416,7 +416,7 @@ export default function OppgaveDetaljSide() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl pb-12">
+    <div className="max-w-3xl pb-12">
       {/* Skjerm-header: sticky ved scrolling */}
       <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-4 sm:px-6 py-3 mb-3">
         {/* Rad 1: Nummer + Tittel + Dato + Status */}

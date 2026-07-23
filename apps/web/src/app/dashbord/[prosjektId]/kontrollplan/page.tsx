@@ -198,7 +198,7 @@ export default function KontrollplanSide() {
   }
 
   return (
-    <div className="p-4 max-w-[1400px] mx-auto">
+    <div className="p-4 max-w-[1400px]">
       {/* Topplinje */}
       <SonetonetSidehode sone="prosjekt" className="mb-4">
       <div className="flex items-center justify-between">

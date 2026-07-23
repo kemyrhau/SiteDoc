@@ -142,7 +142,7 @@ export default function FirmakalenderSide() {
     sommertidStatus === "bare_start" || sommertidStatus === "bare_slutt";
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="max-w-5xl">
       {/* Topp: tittel + år-velger + import-knapp */}
       <SonetonetSidehode sone="firma" className="mb-6">
         <div className="flex items-start justify-between gap-4">

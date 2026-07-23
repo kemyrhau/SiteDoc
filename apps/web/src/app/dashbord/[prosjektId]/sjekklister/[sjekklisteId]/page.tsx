@@ -410,7 +410,7 @@ export default function SjekklisteDetaljSide() {
   const oppretterBruker = fullSjekkliste?.bestiller?.name;
 
   return (
-    <div className="mx-auto max-w-3xl pb-12">
+    <div className="max-w-3xl pb-12">
       {/* Print-header: skjult på skjerm, synlig ved print */}
       <PrintHeader
         prosjektnavn={prosjekt?.name ?? ""}
