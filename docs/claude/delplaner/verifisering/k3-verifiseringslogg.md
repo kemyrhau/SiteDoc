@@ -1,6 +1,6 @@
 ---
 name: k3-verifiseringslogg
-status: 🟢 K3 VERIFISERT SUNN (2026-07-23) — trakt/topplinje/sidehode/⇄ korrekt. Timer-#310 skilt ut som egen sak (ikke K3-regresjon, ikke på prod)
+status: ✅ DEPLOYET TIL PROD (2026-07-23, develop→main) — hele K3 + polish live og innlogget-verifisert. Arkivert i [historikk-2026-07.md](../../historikk-2026-07.md). Timer-#310 løst (timer-hjem-rute)
 eier: Kenneth (test) · cowork (måling + triage) · fabel (design-call)
 sist_verifisert_mot_kode: 2026-07-23
 ---
