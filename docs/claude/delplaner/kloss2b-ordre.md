@@ -1,6 +1,6 @@
 ---
 name: kloss2b-ordre
-status: 🟢 AKTIV — byggeordre B Kloss 2b (firma-innstilling auto-prosjektadmin). Design: rettighetsmatrise-config-design rev.6 § 1b. Kode på branch; cowork gater (INGEN merge autonomt)
+status: ✅ MERGET develop (`cca3f471`, 2026-07-24). Cowork-gate bestått (auto-add-logikk, 3 hooks, dedup, no-op-safety, flyt-laget urørt) + re-gate etter re-base (0 konflikt, 2c bevart). Kenneth kjører `migrate deploy` for `20260724120000` ved test-deploy
 eier: cowork (ordre + gate) · kode-Opus «B Kloss 2b» (ledd 3)
 sist_verifisert_mot_kode: 2026-07-24
 ---
