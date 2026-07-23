@@ -158,7 +158,7 @@ export default function MaskinImportSide() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="max-w-5xl">
       {/* Header — tilbake-pil og tittel på samme linje */}
       <div className="mb-5 flex items-center gap-3">
         <Link

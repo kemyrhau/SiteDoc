@@ -97,7 +97,7 @@ export default function InnstillingerHub() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[980px] px-4 py-6">
+    <div className="w-full max-w-[980px] px-4 py-6">
       {/* Header */}
       <div className="mb-5 flex items-start justify-between gap-3">
         <div>

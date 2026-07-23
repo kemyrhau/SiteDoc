@@ -111,7 +111,7 @@ export default function PsiOppsettSide() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
+    <div className="max-w-4xl px-4 py-8">
       <div className="mb-6 flex items-center gap-3">
         <ShieldCheck className="h-7 w-7 text-sitedoc-primary" />
         <h1 className="text-xl font-bold text-gray-900">{t("psi.tittel")}</h1>

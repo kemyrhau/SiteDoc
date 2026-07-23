@@ -370,7 +370,7 @@ export default function DagsseddelDetaljSide() {
   );
 
   return (
-    <div className="mx-auto max-w-3xl p-6">
+    <div className="max-w-3xl p-6">
       <Link
         href="/dashbord/timer/mine"
         className="mb-3 inline-flex items-center gap-1 text-sm text-sitedoc-primary hover:underline"

@@ -60,7 +60,7 @@ export default function KomIGangSide() {
 
   return (
     <main className="flex-1 overflow-auto bg-gray-50">
-      <div className="mx-auto max-w-2xl px-6 py-12">
+      <div className="max-w-2xl px-6 py-12">
         <div className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-gray-900">
             Velkommen til SiteDoc
