@@ -301,6 +301,15 @@ model OrganizationSetting {
   // — ligger i db-timer). NULL → fallback til navne-match ("reise/transport").
   reiseLonnsartId       String?                         @map("reise_lonnsart_id")
 
+  // Auto-prosjektadmin (B Kloss 2b, 2026-07-24) — løser hierarki-invarianten
+  // (firma-admin ≥ prosjektadmin i eget firma) via MEDLEMSKAP, ikke flyt-nivå.
+  // Når "alle_firma_admins": ved oppretting av NYE prosjekter legges firmaets
+  // firma-admin(er) automatisk som ProjectMember.role=admin (dedup mot oppretter).
+  // Kun nye prosjekter — ingen backfill. Firma-admin utnevnt etter oppretting
+  // dekkes ikke (omvei: manuell tildeling via medlem.leggTil).
+  // Verdier: 'av' | 'alle_firma_admins'  (fremtidig: 'utvalg' + relasjonstabell)
+  autoProsjektAdmin String @default("av") @map("auto_prosjekt_admin")
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
