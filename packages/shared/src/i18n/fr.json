@@ -2084,6 +2084,7 @@
   "statushandling.valgfriKommentar": "Commentaire facultatif...",
   "statushandling.sendTilbake": "Renvoyer",
   "statushandling.sendTilbakeUtforer": "Renvoyer",
+  "statushandling.sendPaaNytt": "Renvoyer",
   "statushandling.svarAvsender": "Répondre à l'expéditeur",
   "statushandling.trekkTilbake": "Retirer",
   "statushandling.mottakerHarLest": "Le destinataire a déjà lu ce document. Voulez-vous toujours le retirer ?",

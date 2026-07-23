@@ -2084,6 +2084,7 @@
   "statushandling.valgfriKommentar": "Необов'язковий коментар...",
   "statushandling.sendTilbake": "Надіслати назад",
   "statushandling.sendTilbakeUtforer": "Надіслати назад",
+  "statushandling.sendPaaNytt": "Надіслати повторно",
   "statushandling.svarAvsender": "Відповісти відправнику",
   "statushandling.trekkTilbake": "Вилучити",
   "statushandling.mottakerHarLest": "Одержувач уже прочитав цей документ. Ви все ще хочете відкликати його?",

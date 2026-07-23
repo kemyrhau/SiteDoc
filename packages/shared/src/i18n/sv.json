@@ -2084,6 +2084,7 @@
   "statushandling.valgfriKommentar": "Valfri kommentar...",
   "statushandling.sendTilbake": "Skicka tillbaka",
   "statushandling.sendTilbakeUtforer": "Skicka tillbaka",
+  "statushandling.sendPaaNytt": "Skicka igen",
   "statushandling.svarAvsender": "Svara till avsändaren",
   "statushandling.trekkTilbake": "Dra tillbaka",
   "statushandling.mottakerHarLest": "Mottagaren har redan läst detta dokument. Vill du fortfarande dra tillbaka den?",

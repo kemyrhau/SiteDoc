@@ -2084,6 +2084,7 @@
   "statushandling.valgfriKommentar": "Необязательный комментарий...",
   "statushandling.sendTilbake": "Отправить обратно",
   "statushandling.sendTilbakeUtforer": "Отправить обратно",
+  "statushandling.sendPaaNytt": "Отправить повторно",
   "statushandling.svarAvsender": "Ответ отправителю",
   "statushandling.trekkTilbake": "Отзывать",
   "statushandling.mottakerHarLest": "Получатель уже прочитал этот документ. Вы все еще хотите отозвать его?",
