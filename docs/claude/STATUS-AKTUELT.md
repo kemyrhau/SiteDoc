@@ -11,6 +11,8 @@ sist_verifisert_mot_kode: 2026-07-10
 | Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
 |---|---|---|---|---|---|
 | **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` (`535f8d8a`) | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny · `generate.ts` | 2026-07-18 | **🟡 PAUSET — økt kan exit.** Del 1a+1b levert+pushet, IKKE merget. Del 1c venter registrator-fiksen (fabel c). Gjenopptas som NY økt fra branchen når matrisen er re-gatet |
+| **B Kloss 2b** auto-prosjektadmin | *(velg fritt tre)* | `feat/flytmatrise-autoprosjektadmin` (fra develop) | `OrganizationSetting` schema+migrering · `prosjekt.ts`/`admin.ts` opprettelses-hooks · firma-innstilling-UI + tRPC | 2026-07-24 | **🟢 ORDRE KLAR** ([kloss2b-ordre.md](delplaner/kloss2b-ordre.md)). Firma-innstilling `autoProsjektAdmin` enum auto-legger firma-admin som prosjektadmin ved nye prosjekter. Ingen flyt-lag-endring. Cowork gater |
+| **B Kloss 2c** Admin-flate+kontrast | *(velg fritt tre)* | `feat/flytmatrise-adminflate` (fra develop) | matrise-side + `firma-nav.tsx`/`firma/layout.tsx` (fjern) + Admin-flate-rute + celle-styling | 2026-07-24 | **🟢 ORDRE KLAR** ([kloss2c-ordre.md](delplaner/kloss2c-ordre.md)). Del A: flytt til Admin-flate + firma-velger. Del B: cellespec-kontrast (venter Kenneth-godkjent mockup). Uavhengig av 2b — kan kjøre parallelt |
 
 | **Registrator-fiks** | *(økt kan exit)* | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` · `tilgangskontroll.ts` · `DokumentHandlingsmeny` | 2026-07-21 | **✅ MERGET develop (`cb3ce3d1`).** Fase A+B — registrator ikke lenger superbruker. ⚠️ Åpen rest: `rejected→sent` → handlingsmeny-arbeidet ([registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md)) |
 | **K1+K2 kontekst** | *(lukket)* | `fix/k1k2-kontekst` (`f28aecfd`) | — | 2026-07-21 | **✅ MERGET (`31c831a8`) + på test.** Lukket |
@@ -37,8 +39,12 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 | **A-laget** — statusmaskin (`rejected→sent` + `closed→draft` inert + i18n) | ✅ MERGET develop | `7571e968` |
 | **B Kloss 1** — config-plumbing (`FlytRettighetOverride`/`Logg` + `ROLLE_HANDLINGER_DEFAULTS` + `celleTillatt` override-only-snitt + loader). **Bit-identisk.** | ✅ MERGET develop | `33c32f1f` |
 | **B Kloss 2** — adminNiva (**kun sitedoc+prosjekt**, firma-admin droppet — Kenneth-vedtak) + PROSJ.ADMIN-kolonne + matrise-UI (`dashbord/firma/flyt-rettigheter`, sitedoc-gatet) + logg-skriving | ✅ MERGET develop (PR #3) | `a3e2cc66` |
-| **B Kloss 3** — endringslogg-fane + les/rediger-fane (les/rediger-fanen er allerede levert som ren visning i Kloss 2 — Kloss 3 er dermed i praksis dekket; verifiseres ved neste berøring) | 🟡 stort sett dekket av Kloss 2 | — |
+| **B Kloss 2b** — firma-innstilling `autoProsjektAdmin` (medlemskap, ikke flyt-nivå — Kenneth-vedtak). Løser firma-admin ⊇ prosjektadmin via auto-medlemskap ved nye prosjekter | 🟢 ordre klar ([kloss2b-ordre.md](delplaner/kloss2b-ordre.md)) | — |
+| **B Kloss 2c** — matrisen til Admin-flaten (§ 1c) + cellespec-kontrast (§ 2) | 🟢 ordre klar ([kloss2c-ordre.md](delplaner/kloss2c-ordre.md)) | — |
+| **B Kloss 3** — endringslogg-fane + les/rediger-fane (levert som ren visning i Kloss 2 — i praksis dekket) | 🟢 dekket av Kloss 2 | — |
 | **A-3b perspektiv-visning** (oppå ferdig fundament) | 🟡 PAUSET — fundament nå komplett, kan gjenopptas | — |
+
+**Ett-klikks-prosjektoppsett-visjonen** (firma-mal per kontorsted/avdeling) er ført i [BACKLOG](BACKLOG.md) — Kloss 2b er første konkrete skive (samme `prosjekt.opprett`-hook + `OrganizationSetting`).
 
 🔴 **Migrerings-avhengighet (Kloss 1+2):** neste test-deploy av develop MÅ kjøre `migrate deploy` mot `sitedoc_test` (`20260723120000_flyt_rettighetsmatrise_config`) FØR koden — matrise-API-et + loaderen spør `FlytRettighetOverride`/`Logg`; uten tabellene krasjer både flyt-sjekken og matrise-siden. Idempotent + additiv.
 
