@@ -82,6 +82,9 @@ Registrator-fiksen er landet (verifisert: `ROLLE_HANDLINGER.registrator = {draft
 4. `received → in_progress` beholdes i statusmaskinen (gjenopplives som **automatikk** via lesekvittering, restvedtak 2 — ingen manuell rolle).
 
 **B. Admin-UI-matrise (fabel designer — «hvert stegs rettigheter» i UI, Kenneths spørsmål):**
+
+> ✅ **B KLOSS 1 LANDET (config-plumbing, merge `33c32f1f`, develop, 2026-07-23).** Delta-substratet bygget: `FlytRettighetOverride`/`FlytRettighetLogg` + `ROLLE_HANDLINGER_DEFAULTS` + `celleTillatt` (override-only-snitt) + loader trådd inn i `verifiserFlytRolle`. **Bit-identisk** (tom override = default). Detaljer + Kloss 2/3-plan: [rettighetsmatrise-config-design.md § B-klosser](rettighetsmatrise-config-design.md). Gjenstår: Kloss 2 (adminNiva + kolonner + matrise-UI — **her endres admin-atferden**) → Kloss 3 (logg-/les-rediger-faner).
+
 - **Config-modell:** rettighetene blir **per-firma config** (vedtak 4), seedet fra defaults over, lest i runtime — men **bundet av statusmaskinen** (matrisen kan aldri skape overganger, vedtak 1). Ny arkitektur: `ROLLE_HANDLINGER` fra hardkodet → config-tabell m/ defaults + firma-override.
 - **UI:** handlingsmatrise per rolle × status, rad «(nytt)·Opprett», kolonner PROSJ.ADMIN (tom default) + ADMINISTRATOR (vedtak 1). **Les/rediger-fane** som VISER eksisterende egenskaper (vedtak 5). Endringslogg (vedtak 4). HMS = eget synlighets-UI, ikke her (vedtak 6).
 

@@ -28,6 +28,20 @@ sist_verifisert_mot_kode: 2026-07-10
 >
 > ⚠️ **Presisering:** Del 1a+1b **er pushet** til `feat/a3b-perspektiv` (`535f8d8a`) — det er riktig og trygt, en feature-branch når ingen brukere. Det som holdes tilbake er **mergen til develop**. Arbeidet skal ikke un-pushes.
 
+### 🟢 Flytmatrise-fundament — B-sporet (rettighetsmatrise som config)
+
+Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspektiv-visningen bygges oppå. Kilde: [rettighetsmatrise-config-design.md](delplaner/rettighetsmatrise-config-design.md) + [flytmodell-overgangsmatrise.md § FUNDAMENT-GAP](delplaner/flytmodell-overgangsmatrise.md).
+
+| Kloss | Status | Merge |
+|---|---|---|
+| **A-laget** — statusmaskin (`rejected→sent` + `closed→draft` inert + i18n) | ✅ MERGET develop | `7571e968` |
+| **B Kloss 1** — config-plumbing (`FlytRettighetOverride`/`Logg` + `ROLLE_HANDLINGER_DEFAULTS` + `celleTillatt` override-only-snitt + loader). **Bit-identisk.** | ✅ MERGET develop | `33c32f1f` |
+| **B Kloss 2** — adminNiva + firmaadmin/prosjektadmin-kolonner + matrise-UI + logg-skriving (**endrer admin-atferd**) | ⬜ ordre skrives | — |
+| **B Kloss 3** — endringslogg-fane + les/rediger-fane | ⬜ | — |
+| **A-3b perspektiv-visning** (oppå ferdig fundament) | 🟡 PAUSET (rad over) | — |
+
+🔴 **Migrerings-avhengighet (Kloss 1):** neste test-deploy av develop MÅ kjøre `migrate deploy` mot `sitedoc_test` (`20260723120000_flyt_rettighetsmatrise_config`) — tabellene må eksistere før loaderen spør, ellers krasjer flyt-rettighets-sjekken. Idempotent + additiv.
+
 **Lukket 2026-07-20/21 (seks økter):** N3-fiks synlighet (`fix/n3-flytmedlem-synlighet`) · kode-Opus sak 1 (`fd573b61`) · kode-Opus spor 2 + sak 2 (`cf76d81d`, `ecedb7eb`) · mobil-Opus TegningsCapture (`b15dfe56`) · CI-Opus spor 1 (PR #1+#2) · web-Opus testrunder (sak 1 + sak 2, testplaner merket KJØRT). Alle merget til develop; tilgangslaget deployet prod.
 
 > ⚠️ **Tavla var tom for alle seks mens de kjørte.** Rader ble aldri skrevet, og Kenneth måtte avslutte to økter uten oppfølging. Rettet ved [SAMARBEIDSREGLER § Tavle-binding](SAMARBEIDSREGLER.md#tavle-binding--commit-gaten-vedtatt-2026-07-21): ordre ⇒ rad og merge ⇒ rad-fjerning skjer nå i samme commit.

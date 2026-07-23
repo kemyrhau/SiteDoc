@@ -81,3 +81,11 @@ Matrise rolle × status per § 5a-mockupen. Nytt fra config-modellen — **celle
 
 ## Sekvens (oppdatert)
 Cowork lander A-laget: `rejected→sent` + `closed→draft` + ROLLE_HANDLINGER-endringene (FUNDAMENT-GAP § A.3) + adminNiva i flyt-laget (§ 1b-scopet) → B-ordre skrives på dette designet. ~~Enkeltmålt premiss~~ — erAdmin-premisset er nå dybdemålt av cowork (to beregninger funnet); flyt-erAdmin-delen bekreftet.
+
+### B-klosser — status (2026-07-23)
+
+B-ordren er splittet i tre klosser for å isolere den bit-identiske substrat-byggingen fra atferds- og UI-endringene:
+
+- **✅ Kloss 1 — config-plumbing (LANDET, merge `33c32f1f`, develop, kode-økt «B Kloss» i SiteDoc-registrator).** Delta-substratet fra § 1 realisert: `FlytRettighetOverride` + `FlytRettighetLogg` (append-only, skrives i Kloss 2), `ROLLE_HANDLINGER`→eksportert `ROLLE_HANDLINGER_DEFAULTS`, `RettighetsOverrides`-type + `flytRettighetNoekkel()` + `celleTillatt()` med **override-only-snitt** mot `validTransitions` (default-stien urørt — `draft→deleted` bevart), valgfri `overrides?`-param på `hentRolleFiltrertHandlinger`/`erTillattForRolle`, loader `hentFlytRettighetOverrides(orgId)` (tom tabell/null-org → `{}`) trådd inn i `verifiserFlytRolle` via `project.primaryOrganizationId`. **Bit-identisk:** eksisterende `statusHandlinger.test.ts` uendret grønn + nye invariant-tester (tom map == uten, ulovlig override snittes bort, admin-bypass upåvirket). `erAdmin`-bypass uendret. **Migrering `20260723120000` idempotent** (IF NOT EXISTS + `DO $$`-FK-guard) — additiv, ingen backfill. 🔴 **Migrerings-avhengighet:** neste test-deploy av develop MÅ kjøre `migrate deploy` mot `sitedoc_test` (tabellene må eksistere før loaderen spør) — ellers krasjer flyt-rettighets-sjekken.
+- **⬜ Kloss 2 — adminNiva + admin-nivå-kolonner + matrise-UI + logg-skriving.** `adminNiva`-enum (containet til flyt-funksjonene, § 1b-scopet), `firmaadmin`/`prosjektadmin`-defaults + kolonner (§ 1b), celle-tilstander (§ 2), `kanRedigereFlytMatrise` = sitedoc_admin only (fase 1), `FlytRettighetLogg`-skriving. **Her endres admin-atferden** (bypass → matrise-lest) — gates nøye.
+- **⬜ Kloss 3 — endringslogg-fane + les/rediger-fane** (§ 2, vedtak 4+5).
