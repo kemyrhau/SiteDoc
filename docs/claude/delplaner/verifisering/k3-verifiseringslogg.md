@@ -34,7 +34,7 @@ sist_verifisert_mot_kode: 2026-07-23
 **Fabels tre merknader (2c designgate, ufravikelige føringer):**
 1. **Toppbar-blå = brand-farge, IKKE sonetone.** Tonen bæres av chip + sidehode, aldri av baren. **Ingen skal senere «rette» firmakontekstens bar til amber** — baren er merkevare-blå i begge kontekster; kun chip/sidehode skifter tone. Ført her så det ikke revideres i vill misforståelse.
 2. **Eyebrow godkjent** (dempet lys grå på brand-blå = informasjon uten kontekst-claim). **Test-deploy-sjekk:** 11px-teksten skal holde AA-kontrast (≥4.5:1) mot baren — måles på test.
-3. **Chip flyter med navnelengden** (etter byggeplass ved langt navn, inntil navnet ved kort) — akseptert som naturlig inline-flyt.
+3. ~~**Chip flyter med navnelengden**~~ **🔄 REVERSERT (Kenneth test-funn + fabel-gate 2026-07-23):** inline-flyten oppleves forstyrrende — chip+⇄ hopper sidevegs ved firma↔prosjekt-bytte, musa må flyttes. Ny regel: **ankre chippen** — navn-området får fast bredde (240px, min-w = max-w), venstrejustert, trunkert m/ ellipsis + `title`-tooltip. Klikk-mål slår inline-estetikk. Fulle navn lever i eyebrow/trakt/sidehode. Egen branch `fix/chip-ankret-bredde`.
 
 ### ✅ Korreksjonspass kode-gatet (cowork 2026-07-22, `51e8cc8f`)
 
