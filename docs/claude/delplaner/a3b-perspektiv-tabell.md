@@ -119,3 +119,21 @@ Alle tre anbefalinger **godkjent som anbefalt**. Fase A er dermed lukket.
 **Ufravikelig på pkt 3:** finner Fase B at retursteget ikke finnes i koden, er det et **funn som flagges** — ikke et hull som fylles på eget initiativ. Enveis-modellen tilsier retur, men avstanden mellom modell og kode skal måles og rapporteres før noen bygger den.
 
 Egen korreksjon ført samtidig: `rejected` → **«Sendt tilbake ✓» / «Til revisjon»** (§ 6), og «Kladd» → **«Utkast»** gjennomgående (terminologi).
+
+## 8. NÅ-RAPPORT — REGISTRATOR-kolonnen revideres etter registrator-fiksen (cowork-måling 2026-07-23)
+
+Per fabel-c-vedtaket: registrator-fiksen har landet (live på prod, `cb3ce3d1`), så perspektivmatrisen leveres på nytt mot **ny semantikk** — fabel gater FØR 1c-wiring gjenopptas.
+
+**Målt semantikk-endring (develop/prod, post-fiks):**
+- `flytRolle.ts`: admin → `"registrator"`-rolle beholdt, men **admin-makten kommer nå fra `erAdmin`-flagget, ikke rollen**. `ROLLE_PRIORITET.registrator = 1` (lavest — «en oppretter/leser skal ikke slå en skrive-rolle»).
+- `statusHandlinger.ts`: `ROLLE_HANDLINGER.registrator = { draft: {sent, deleted} }` — registrator **oppretter + sender sin egen del**, deretter leser status. Ikke global makt.
+- Kenneths definisjon: registrator «oppretter oppgave/sjekkliste, sender den videre, ser om mottaker har besvart» = nøyaktig **Avsender-perspektivet (Kolonne A)**.
+
+**Konsekvensen for tabellen:** Kolonne D («Registrator / Admin — nøytral global sannhet», `erAdmin | rolle=registrator`) og `perspektivEtikett.ts` («Registrator/admin ser alltid nøytral sannhet») er bygget på **gammel superbruker-semantikk**. En registrator som opprettet + sendte et dokument er **avsender** — hun skal se «Til behandling» (Kolonne A: avsenderskap/venter), ikke den nøytrale D-en. Å kollapse registrator til D **skjuler avsenderskapet hennes**.
+
+**Foreslått revisjon (fabel gater):**
+- **Admin** beholder Kolonne D («nøytral global sannhet») — admin har globalt tilsyn, ikke flyt-deltaker. Kun `erAdmin` → D ubetinget.
+- **Registrator (ikke-admin)** utleder perspektiv fra ballinnehav/avsenderskap som andre deltakere: **A** (avsender/venter) når hun opprettet+sendte, B/C hvis hun holder utforer/godkjenner-rolle, og **D (nøytral leser) kun som fallback** når hun leser et dokument hun ikke er part i (leserett uten avsenderskap/ball).
+- Dvs. **registrator er ikke lenger en egen perspektiv-kolonne** — hun flyter gjennom A/B/C med D som leser-fallback. Perspektiv-tabellens rader er uendret; det er **utledningen til kolonne** som endres.
+
+**Kode-konsekvens (etter fabel-gate):** `perspektivEtikett.ts` (a3b-branch, Del 1a): `Perspektiv`-typen + utledningen endres fra «registrator|admin → nøytral» til «erAdmin → nøytral; registrator → deltaker-utledning med nøytral-fallback». `perspektivEtikett.test.ts` frosne rader oppdateres. Del 1c-wiring gjenopptas etter gaten.
