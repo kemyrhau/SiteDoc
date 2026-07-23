@@ -1,6 +1,6 @@
 ---
 name: tegningscapture-hooks-bug
-status: 🔴 BUG — pilot-kritisk (fabel 2026-07-20). Krever mobil-økt m/ simulator-DoD. Ikke startet
+status: 🟢 LØST + MERGET (2026-07-20, `b15dfe56`) — bugen var LATENT, ikke aktiv. Prioritet nedjustert fra pilot-kritisk
 eier: fabel (prioritet) · cowork (måling + ordre) · mobil-Opus (fiks + simulator-verifisering)
 sist_verifisert_mot_kode: 2026-07-20
 ---

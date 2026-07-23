@@ -2267,3 +2267,25 @@ Når en oppgave startes: flytt linje til [STATUS-AKTUELT.md § Pågående
 arbeid](STATUS-AKTUELT.md). Når oppgaven er prod-deployet: flytt videre
 til `historikk-YYYY-MM.md`. Se også [DOC-MAP.md](DOC-MAP.md) og
 [CLAUDE.md § Dokumentasjons-regler](../../CLAUDE.md).
+
+## Byggeplass-logging for «Sist brukt»-recency (Kenneth 2026-07-22)
+
+`Activity`-tabellen logger `projectId`, ikke byggeplass. Derfor er byggeplass-«Sist brukt» i K3-trakten en sticky enkeltverdi (`aktivByggeplass`), mens prosjekt-nivået har en Activity-basert recency-liste. Kenneth: «senere må vi logge byggeplass også». Når byggeplass-tilgang logges (eget felt eller `targetType`-verdi i Activity), kan byggeplass-«Sist brukt» bli en flerverdis recency-liste som prosjekt-nivået. Grunnlag: [k3-ordre.md](delplaner/k3-ordre.md) § A.
+
+### Auto-valg av sist brukte byggeplass ved prosjektvalg (Kenneth 2026-07-22)
+
+**Friksjon i K3-trakten i dag:** velger du prosjekt → popover lukkes → byggeplass er tom («Hele prosjektet») → du må åpne chippen på nytt og klikke byggeplass-steget for å velge byggeplass. To handlinger for noe som burde vært én.
+
+**Kenneths forbedring:** ved prosjektvalg → **auto-velg sist brukte byggeplass for DET prosjektet**, med mulighet å endre. «Dette valget i stedet for tom og klikk en gang til.»
+
+**Avhengighet — kobler til byggeplass-logging over:** «sist brukte byggeplass for dette prosjektet» krever **per-prosjekt byggeplass-minne**. Dagens sticky `aktivByggeplass` er global (én verdi på tvers av prosjekter) — å auto-velge den ved prosjektbytte ville plukket byggeplass fra feil prosjekt (samme K2-klasse kryssprosjekt-lekkasje). To veier:
+- **(a) Lett interim — klient-side:** localStorage-map `{projectId → sistByggeplassId}`. Ingen server-logging. Auto-velg fra mappen ved prosjektvalg. Løser friksjonen uten Activity-endring.
+- **(b) Server-side (byggeplass-logging over):** enabler også recency-liste + kryss-enhet. Tyngre.
+
+**Endrer vedtaket «byggeplass = valgfritt ettervalg» minimalt:** byggeplass får en **smart default** (sist brukte per prosjekt) i stedet for tom. Fortsatt endrbar, «lukk ved prosjektvalg» står. Egen sak — ikke i K3 nå.
+
+### Valgfri firma/prosjekt-forkortelse i innstillinger (Kenneth 2026-07-22, K3-test)
+
+**Bakgrunn:** topplinja i prosjektkontekst viser `{projectNumber} {name} · {byggeplass}`. Reelle prosjektnumre er «SD-ÅÅÅÅMMDD-NNNN» (16 tegn) + fullt navn → fyller `max-w-[220px]` og trunkerer byggeplassen bort ([k3-verifiseringslogg § Funn 1](delplaner/verifisering/k3-verifiseringslogg.md)). Kenneth: *«det er behov for valgfri forkortelse i firmainformasjon-innstillinger».*
+
+**Forbedring:** valgfritt kortnavn-felt per firma/prosjekt i innstillinger, brukt i topplinja når satt. Generisk fallback = fullt navn. Feature: DB-felt + innstillings-UI + wiring i KontekstChip. **NB:** løser ikke alene at byggeplass må overleve trunkering — se den umiddelbare topplinje-fiksen (fabel design-call, K3). Denne er den pene, varige varianten; ikke i K3-kritisk sti.

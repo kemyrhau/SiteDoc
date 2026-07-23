@@ -1,6 +1,6 @@
 ---
 name: a3b-perspektiv-tabell
-status: 🟢 FASE A-LEVERANSE — til fabels designgate. Revidert etter cowork-funn (2026-07-20): «Lest» fjernet (død kode / lesekvittering → egen sak), rejected-fargeskift flyttet til ordrens § 2b
+status: 🟢 FASE A LUKKET — fabel-designgate godkjent 2026-07-20 (tre designsvar + rejected-korreksjon inne). Fase B pågår
 eier: a3b-opus (ledd 3, tabell) · fabel (designgate) · cowork (kode-måling)
 sist_verifisert_mot_kode: 2026-07-20
 ---
@@ -106,8 +106,16 @@ Momentan kvittering rett etter egen handling (toast/optimistisk badge), erstatte
 | Videresend | **Videresendt ✓** | primary | Til behandling hos [ny mottaker] |
 | Trekk tilbake *(pkt 7 — FLAGGET, bygges ikke uten Kenneth-vedtak)* | **Trukket tilbake ✓** | default | Utkast |
 
-## 7. Åpne designspørsmål til fabel
+## 7. Designspørsmål — BESVART (fabel 2026-07-20, relayet av Kenneth)
 
-1. **`approved`-farge for bestiller:** anbefaler `success` (hviletilstand). Alternativ `warning` («du kan lukke»). Anbefaler success — badgen skal si tilstand, ikke rope om valgfri opprydding.
-2. **`received`/avsender-ordlyd:** «Til behandling» vs. «Hos mottaker» / «Venter på svar». Anbefaler **«Til behandling»** — «hvem har ballen»-chippen (Del 1c) navngir mottakeren separat.
-3. **HMS `rejected`-retur:** bekreft at HMS-avvisning returnerer til innsender som «Til utbedring». Enveis-modellen tilsier det, men koden har ikke egen HMS-retur-gren i dag — verifiseres i Fase B.
+Alle tre anbefalinger **godkjent som anbefalt**. Fase A er dermed lukket.
+
+| # | Spørsmål | Fabel-vedtak |
+|---|---|---|
+| 1 | `approved`-farge for bestiller | ✅ **`success`** — hviletilstand. Badgen sier tilstand, ikke valgfri opprydding. Lukke-handlingen bor i handlingsmenyen |
+| 2 | `received`/avsender-ordlyd | ✅ **«Til behandling»** — «hvem har ballen»-chippen (Del 1c) navngir mottakeren separat |
+| 3 | HMS `rejected`-retur til innsender | ✅ **Bekreftet som modell.** Men koden har **ingen egen HMS-retur-gren i dag** — dette er en **påstand som skal verifiseres i Fase B**, ikke et bekreftet kodefaktum |
+
+**Ufravikelig på pkt 3:** finner Fase B at retursteget ikke finnes i koden, er det et **funn som flagges** — ikke et hull som fylles på eget initiativ. Enveis-modellen tilsier retur, men avstanden mellom modell og kode skal måles og rapporteres før noen bygger den.
+
+Egen korreksjon ført samtidig: `rejected` → **«Sendt tilbake ✓» / «Til revisjon»** (§ 6), og «Kladd» → **«Utkast»** gjennomgående (terminologi).

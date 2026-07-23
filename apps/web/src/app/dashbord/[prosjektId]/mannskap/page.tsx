@@ -8,6 +8,7 @@ import { Spinner } from "@sitedoc/ui";
 import { SearchInput } from "@sitedoc/ui";
 import { Users, AlertTriangle, Printer, HardHat } from "lucide-react";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 /**
  * Mannskap — §15-vy (byggherreforskriften): hvem er på plassen nå.
@@ -79,22 +80,24 @@ export default function MannskapSide() {
 
   return (
     <div className="mx-auto max-w-5xl p-6">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="flex items-center gap-2 text-2xl font-semibold text-gray-900">
-            <HardHat className="h-6 w-6 text-sitedoc-primary" />
-            {t("mannskap.tittel")}
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">{t("mannskap.beskrivelse")}</p>
+      <SonetonetSidehode sone="prosjekt" className="mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="flex items-center gap-2 text-2xl font-semibold text-gray-900">
+              <HardHat className="h-6 w-6 text-sitedoc-primary" />
+              {t("mannskap.tittel")}
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">{t("mannskap.beskrivelse")}</p>
+          </div>
+          <button
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
+          >
+            <Printer className="h-4 w-4" />
+            {t("mannskap.eksporter15")}
+          </button>
         </div>
-        <button
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
-        >
-          <Printer className="h-4 w-4" />
-          {t("mannskap.eksporter15")}
-        </button>
-      </div>
+      </SonetonetSidehode>
 
       {/* På plass nå + filtre */}
       <div className="mb-4 rounded-lg border border-gray-200 bg-white p-3">

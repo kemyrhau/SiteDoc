@@ -1396,11 +1396,19 @@ function RaderMaskinKompakt({
         internNummer: string | null;
       }>
     | undefined;
+  // Null-vakt (2026-07-21): merke/modell er nullbare i praksis (jf. typen på
+  // linje ~1535). Uten filtrering rendret raden «null null (7648 CAT 311F)» i
+  // prod. Samme mønster som utstyrs-nedtrekket lenger ned i fila.
   const equipmentMap = new Map<string, string>(
-    (equipment ?? []).map((e) => [
-      e.id,
-      `${e.merke} ${e.modell}${e.internNavn ? ` (${e.internNavn})` : ""}`,
-    ]),
+    (equipment ?? []).map((e) => {
+      const merkeModell = [e.merke, e.modell].filter(Boolean).join(" ");
+      return [
+        e.id,
+        merkeModell
+          ? `${merkeModell}${e.internNavn ? ` (${e.internNavn})` : ""}`
+          : e.internNavn ?? "—",
+      ];
+    }),
   );
 
   const fjern = trpc.timer.dagsseddel.maskin.fjern.useMutation({

@@ -1,0 +1,101 @@
+---
+name: k3-ordre
+status: 🟢 KLAR FOR RELAY — ledd 2, tre klosser. Kloss 1+2 gates før kloss 3
+eier: fabel (design + gate) · cowork (måling + testplan + merge) · redesign-Opus (ledd 3)
+sist_verifisert_mot_kode: 2026-07-22
+---
+
+
+
+## 0. For deg som koder (les først)
+
+**Hvem du er:** redesign-Opus, **ledd 3**. Kenneth ga prøvesteinen, fabel designet trakten, cowork målte inventaret. **Du koder — kun det.** Du gater ikke, tester ikke med brukere, merger ikke, deployer ikke.
+
+**Arbeidstre/branch:** `feat/k3-kontekstvelger` fra develop.
+
+**Fildisjunkt:** rør `KontekstChip.tsx` (trakten), `Toppbar.tsx` (fjern ByggeplassVelger), `SonetonetSidehode`-monteringer på 36 sider. **Ikke rør** flyt-/registrator-filer (`flytRolle.ts`, `statusHandlinger.ts`, `DokumentHandlingsmeny`) eller A-3bs `status-badge.tsx`/`perspektivEtikett.ts`.
+
+**Tre klosser med STOPP mellom** (§ Kloss-deling nederst). **Ditt neste svar etter hver kloss: rapport + build-status, så vent på gate.** Kloss 1+2 gates av fabel før kloss 3 ruller.
+
+**Mockupen** `P1 Nivåsignal Beslutningskart.dc.html` § 3a er fasit for trakten — du trenger den. Si fra til Kenneth om du ikke har den.
+
+## Prøvestein (akseptkriterium, Kenneths scenario)
+Kundetelefon: «jeg er i det prosjektet» → slå opp firma → prosjekt → byggeplass, i den rekkefølgen, uten å måtte vite hvor du står. Alle tre nivåer skal være synlige i trakten samtidig (valgte som sammenfoldede rader, aktivt som åpen liste) — ingen nivåer skjult.
+
+## Leveranse (ÉN samlet runde — Kenneth-dømt: halvtilstand er feilen, ikke løsningen)
+A. **Trakten** (erstatter dagens popover-innhold i KontekstChip): firma → prosjekt → byggeplass per § 3a. Låste prinsipper: ett nivå åpent om gangen; valgt nivå = sammenfoldet rad m/ «Endre»; Alle/Mine = filter-pille; firma-steg kun ved flere firmaer; firmabytte nullstiller nedover; «Hele prosjektet» default, bygg-steg kun når byggeplasser finnes; lister >6 = søk + rulleliste m/ «Sist brukt» øverst; gruppeetikett navngir prosjektet («Alle på 998 …»). Lukk ved prosjektvalg; byggeplass = valgfritt ettervalg.
+B. **Tonet sidehode på ALLE sider**: SonetonetSidehode (eksisterende delt komponent, generisk sone-prop) monteres på cowork-målt inventar — 13 firma-sider + ~23 prosjekt-sider. Amber=firma / blå=prosjekt overalt. INGEN duplisering: kun montering av den delte komponenten; trengs varianter, endres komponenten, ikke kopier.
+C. **ByggeplassVelger ut av toppbaren**: fjernes helt i ny nav (K1 skjulte den i firmakontekst; nå bor byggeplass i trakten). Gammel nav røres ikke.
+
+## Krav
+- Flagg-status: trakt + velgerfjerning bak `nyNavigasjon` (bor i nav-skallet); sidehode-utrullingen flagg-nøytral (vedtak 7-prinsippet: funksjon på felles sider).
+- i18n: nye nøkler er ventet (nivåetiketter, søkeplaceholder, «Sist brukt», «Alle på …») — flagg nøklene FØR generator-kjøring; cowork koordinerer (A-3b pauset, men sperre-disiplinen står).
+- Enkeltmålte premisser: side-inventaret (13+23) er cowork-målt — verifiser ved montering.
+- 🔴 **RETTET KILDE for «Sist brukt» (Kenneth 2026-07-22):** IKKE sticky «sist besøkte» (én verdi). Kenneth: *«hver arbeider har 4-5 prosjekter de veksler mellom»*. **Cowork-måling: `Activity`-tabellen (`schema.prisma:1913`) har `actorUserId` + `projectId` + `createdAt` + indeks `[projectId, createdAt]` — dette er en spørring på eksisterende data, ikke ny logging.**
+
+  **✅ v1 (Kenneth 2026-07-22, alternativ b): ENKEL «Sist brukt» — ingen vekting.** Liste over **distinkte prosjekter fra brukerens `Activity`, sortert på nyeste `createdAt` synkende, topp N.** Det er alt — «disse har du rørt sist, nyeste øverst». Løser 4-5-prosjekt-problemet (de dukker alle opp) uten scoring. Sticky beholdes som fallback når Activity er tom. Gjelder prosjekt- og byggeplass-steget. Ny tRPC-prosedyre; cowork skriver testplan (ledd 4).
+
+  **v2 (oppfølger, IKKE i K3):** vektet recency+frekvens (nyeste høyest · 10d medium · 30d lavest · resten nedadgående). Finjusterer kun rekkefølgen i «Sist brukt»-seksjonen — trakten virker fullt ut med v1. Egen sak, egne vekter fabel-gates. **Bygg IKKE dette nå.**
+
+  **🟡 OPPFØLGER — byggeplass-logging (Kenneth 2026-07-22):** `Activity` logger i dag `projectId`, ikke byggeplass, så byggeplass-«Sist brukt» er sticky (én verdi) i v1. **Kenneth: «senere må vi logge byggeplass også».** Når byggeplass-tilgang logges (targetType `bygning`/`byggeplass` i Activity, eller eget felt), kan byggeplass-«Sist brukt» bli en recency-liste som prosjekt-nivået. Egen sak — ført i [BACKLOG](BACKLOG.md) ved neste rens. Ikke i K3.
+- Popover-headeren skal vise prosjektets firma (R2-vilkåret, admin-konsekvensen).
+- DoD: build grønn → skjermbilder: trakt alle steg + minst 3 firma- og 3 prosjekt-sider m/ tonet sidehode + kundetelefon-gjennomklikk → fabel-designgate → dok-sync → cowork-merge. Statuskilde: verifisering/k3-verifiseringslogg.md (opprettes).
+
+## Kloss 2c — to-linjers topplinje (Kenneth-forslag + fabel-gate 2026-07-22)
+
+**Bakgrunn (K3-test, [verifiseringslogg Funn 1](verifisering/k3-verifiseringslogg.md)):** `KontekstChip.tsx:281` har `max-w-[220px] truncate`. Topplinja `{projectNumber} {name} · {byggeplass}` trunkerer byggeplass-suffikset bort for reelle numre («SD-ÅÅÅÅMMDD-NNNN», 16 tegn) → byggeplass-fiksen (kloss 2b) beseires i praksis. #9 var ikke feil byggeplass — prosjektet HETER «…Kenneth Myrhaug», og Røstbakken ble kuttet.
+
+**Løsning — to-linjers topplinje, SD-nummer droppet (bor i trakt-radene + dokumentvisning):**
+- **Prosjektkontekst:** linje 1 = **Firma**, linje 2 = **Prosjekt · Byggeplass**.
+- **Firmakontekst:** kun linje 1 = **Firma** (ingen linje 2).
+
+**Grammatikk (fabel-gate, ufravikelig):**
+- **(a) Sonetonen følger AKTIV kontekst, aldri alle synlige nivåer.** Prosjektkontekst: linje 2 bærer **blå** chip + sonetone; linje 1 (Firma) er **dempet grå brødtekst — IKKE amber**. Amber finnes kun når firmakontekst er aktiv. To soneToner samtidig = intet signal. Firma-linja i prosjektkontekst er *informasjon* (kundetelefon-oppslaget), ikke et kontekst-claim.
+- **(b) Split-chippen beholdes, ligger på den AKTIVE linja.** Prosjektkontekst: chip (▾ åpner trakten) + ⇄ (bytt nivå) på **linje 2**. Firmakontekst: chip + ⇄ på **linje 1**. Firma-linja i prosjektkontekst er **ren tekst — ingen tredje klikkmekanisme**.
+- **Reverserer P1-vedtak 3** («prosjektkontekst viser kun eget nivå») — ført eksplisitt i [p1-nivasignal-vedtak § Vedtatt pkt 3](p1-nivasignal-vedtak.md). Prøvesteinen er ny fakta.
+
+**Fil:** kun `KontekstChip.tsx` (topplinje-renderingen rundt l.281 + `entitetTekst`/`prosjektMedBygg`). SD-nummer ut av topplinje-strengen; behold i trakt-radene (`prosjektEtikett`) urørt.
+
+**DoD kloss 2c:** build grønn + skjermbilde av begge kontekster (prosjekt: to linjer, blå på linje 2; firma: én linje, amber) med et LANGT prosjektnavn så byggeplassen beviselig overlever.
+
+## Kloss-deling (stopp-punkter)
+Kloss 1: A (trakten). Kloss 2: C + B på HMS-parets 2 sider (referansemontering). **Kloss 2c: to-linjers topplinje (over) — gate-korreksjon fra test.** Kloss 3: B resten (mekanisk utrulling) + **#6: utvid `PARBARE_SEKSJONER` med `timer`** (eneste øvrige samme-slug-par; kryss-konsept-par som ansatte↔mannskap = egen fabel-beslutning, ikke her). Rapportér etter hver kloss; fabel gater kloss 1+2+2c før kloss 3 ruller. **Kloss 2c + kloss 3 lander sammen i én test-deploy.**
+
+### 🔴 Kloss 3-KRAV — ⇄ utledes fra navet, ikke fra hardkodet liste (Kenneth 2026-07-22)
+
+**Funn:** dagens ⇄ gater **kun** på seksjon-paret (`PARBARE_SEKSJONER.has(seksjon)`), ikke på om brukeren har tilgang til motpart-flaten. `timer` er rollestyrt → et medlem uten timeradgang ville fått en ⇄ til `firma/timer` de ikke kan bruke. **Kenneth generaliserer:** timer er kun ett eksempel — enhver firmatilknyttet modul kan være parbar, og bruker/org som kjører **kun prosjektdelen** har ingen firma-motpart (da er ⇄ *og* firma-sidebaren unødvendig).
+
+**Krav (må inn SAMMEN med timer, erstatter `PARBARE_SEKSJONER`):** ⇄ vises når **samme seksjon finnes i både brukerens firma-nav OG prosjekt-nav** (begge tilgangs-filtrert). Utled fra `useFirmaNavElementer()` + prosjekt-navet — samme kilde som sidebaren (cowork-verifisert: filtrerer på `aktiveFirmamoduler` + rolle + `kreverModul`). Ingen hardkodet liste, ingen ny tilgangsmodell.
+
+**Konsekvenser (alle ønsket):**
+- Enhver firmatilknyttet modul håndteres automatisk — ingen liste å vedlikeholde.
+- Org som kun bruker prosjektdelen → seksjon mangler i firma-navet → ingen ⇄, ingen firma-sidebar-rad (samme kilde = konsistent).
+- Kryss-konsept-par (ansatte↔mannskap, ulik slug) matcher ikke av seg selv → forblir fabels eksplisitte beslutning, ikke et utilsiktet treff.
+- Fjerner «usynlig hull»-risikoen koden selv advarte mot (ny parbar flate uten slug i settet = manglende ⇄ uten feil).
+
+**DoD-tillegg:** verifiser at ⇄ (a) vises på både `hms` og `timer` for bruker med begge sider i navet, (b) forsvinner for medlem uten firma-motpart i navet.
+
+**Fabels to presiseringer (design-gate 2026-07-22):**
+- **Ingen alias-tabell «for senere».** Kryss-konsept-par (ulik slug) finnes ikke i dag og innføres IKKE via utledning. Ønskes et slikt par noen gang, er det en fabel-beslutning **per par**, ført i vedtaksfil.
+- **Chip uten ⇄ består som rent signal** (P1-ordrens «uten motpart: chip uten klikk»). Prosjekt-only-org mister *byttet*, ikke *nivåsignalet*.
+
+## Konsolidert korreksjonsordre — kloss 3 siste pass (fabel-gate 2026-07-22)
+
+Fire ting i ETT pass på `feat/k3-kontekstvelger` (over `02a0ad6f`):
+
+1. **⇄ utledes fra navet — fjern `PARBARE_SEKSJONER`.** Erstatt `Set(["hms","timer"])`-sjekken med: motpart finnes når `deler[3]`-seksjonen ligger i BÅDE `useFirmaNavElementer()` OG prosjekt-navet (begge tilgangs-filtrert). `motpartUrl` bygges kun da. Kloss 3 sendte den ugatede formen (redesign hadde ikke revisjonen) → dette er korreksjonen.
+2. **Sjekklister + oppgaver skal ha nivåsignal — `useVerktoylinje` får en minimal sone-variant.** IKKE en tonet flate i toppbaren (brand-blå — sonetone der bryter grammatikken). I stedet: **4px sonefarget tittelmarkør** (`border-l-4` i sonefarge, prosjekt = `#a9c4f5`) foran verktøylinje-tittelen, **uten gradient**. **Delt kilde:** trekk sone→markørfarge-mappingen ut av `SonetonetSidehode.tsx` (i dag inline: `#f5c97b`/`#a9c4f5`) til én delt konstant/helper som BÅDE sidehodet og verktøylinje-varianten bruker — ingen duplisert farge. Fil: `Verktoylinje.tsx` + `SonetonetSidehode.tsx` + delt kilde.
+3. **oppmotesteder-wrappingen godkjent** — mønsteret er «sidehodet omslutter sidens hode-innhold»; uten `<h1>` er beskrivelse+handlinger hodet. Ingen endring.
+4. **Polish:** fjern indre `mb-*`/`border-b` som ble stående inne i sidehode-wrapperen (dobbel kant/marg). Samme pass.
+
+**DoD siste pass:** typecheck + build grønn + skjermbilder: (a) ⇄ på/av mot nav-tilgang, (b) sjekklister + oppgaver med 4px sonemarkør på verktøylinje-tittelen, (c) en polert side uten dobbel kant. Så cowork diff-gate → merge hele K3 → test-deploy.
+
+## Follow-up-hotfix — ⇄-krasj + streng paring + eyebrow (Kenneth-test + fabel-gate 2026-07-22)
+
+K3 er merget + på test. Kenneth-testen fant ⇄-krasj på timer (#6/#8/#10). Ny branch fra develop (`feat/k3-kryssbytte-fiks`). Tre ting i ett pass:
+
+1. **⇄ navigerer via `<Link href={motpartUrl}>`, ikke `router.push`.** Rotårsak (cowork-målt): ⇄ gjorde `router.push("/dashbord/firma/timer")`, og den ruta er en `redirect()`-stub (→ onboarding). `router.push` til en redirect-rute kaster i App Router; firma-**sidebaren** bruker `<Link>` (håndterer redirecten) — derfor funker sidebar, krasjer ⇄. Fiks = samme mekanisme som sidebaren.
+2. **Streng én-til-én-paring på EIENDE nav-element (lengste href-prefiks), ikke `deler[3]`.** Grunn: firma/timer redirecter → du er aldri på rå `/timer`, men på en fane; `deler[3]` ville gi ⇄ på hele timer-familien. Regel: finn nav-elementet i gjeldende kontekst hvis href er lengste prefiks av `pathname`; ⇄ vises kun når et nav-element med SAMME relative path finnes i den andre kontekstens nav (begge tilgangs-filtrert); `motpartUrl` = motpart-elementets href. Resultat (fabel-vedtak): ⇄ kun på `timer↔timer`; **attestering** (kun prosjekt) + **rapport** (kun firma) får chip UTEN ⇄ — kryss-konsept-tilfellet fabel reserverte, beslutning = nei.
+3. **Eyebrow (#2):** fjern bredde-cappen på firma-linja (linje 1) + vekt → medium. Den har plassen.
+
+**DoD:** build grønn + skjermbilder: ⇄ funker (ingen krasj) på hms + timer begge veier; ⇄ **borte** på prosjekt/timer/attestering + firma/timer/rapport; eyebrow bredere/medium. **+ (fabel-QC):** vis chip-tilstanden UTEN ⇄ i BEGGE topplinje-temaer — prosjekt (blå) og firma (amber) — det er den nye visuelle tilstanden ingen fasit dekker; fabel gater den. Cowork diff-gate → merge → re-deploy test → fabel gater test-skjermbildene.

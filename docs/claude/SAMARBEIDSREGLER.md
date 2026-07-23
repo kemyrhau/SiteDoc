@@ -81,6 +81,51 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 
 **B-2 og A-3b kjøres etter denne sløyfen** når N3-valget er tatt.
 
+## Dokument-eierskap: fabel leverer, cowork plasserer (vedtatt 2026-07-21)
+
+**Problemet:** fire ganger 2026-07-21 skrev fabel «ført i `delplaner/…`» om dokumenter som ikke fantes i repoet. Fabel har **kun lesetilgang** til repo-mappen — han kan verifisere plassering, ikke utføre den. Konsekvensen var at repoet lå ett relay bak, og at ordrer viste til stier ingen Opus kunne lese.
+
+| Flate | Rolle |
+|---|---|
+| **Designprosjektet** | Fabels arbeidsflate + mockup-kilde (`.dc.html`, `verifisering/*`-logger) |
+| **Repoet** | **Kanonisk for alt en Opus skal lese.** Én sannhet |
+
+**Regelen:**
+
+1. Fabel leverer innhold merket **`TIL REPO: <sti>`**.
+2. **Cowork plasserer og eier stien.**
+3. Fabel skriver **aldri** «ført i repo» — kun **«levert til plassering»**.
+4. Fabel **leser repoet etterpå** for å verifisere. Det gjør ordningen selvkontrollerende.
+
+**Praktisk:** finnes fabels fil på disk, be Kenneth om stien og bruk `cp` i stedet for avskrift. **Avskrift kan drifte; en filkopi kan ikke.**
+
+## Tavle-binding — commit-gaten (vedtatt 2026-07-21, etter andre svikt)
+
+> **Livssyklusen under er riktig og beholdes uendret. Dette avsnittet er det som mangler: en mekanisme som gjør at den faktisk kjøres.**
+>
+> **Andre svikt, samme form (2026-07-21):** fem Opus-økter kjørte samme dag (kode/sak1+spor2+sak2 · mobil/TegningsCapture · web/testing · CI · A-3b). **Null tavle-rader ble skrevet.** Cowork produserte 18 delplan-dokumenter og rørte ikke tavla én gang. Kenneth måtte selv avslutte to økter fordi ingen fulgte opp status, og en exit-synk avdekket sju dokumenter som påsto at merget arbeid var «ikke startet». Dokumentet forutsa nøyaktig dette 2026-07-16: *«En regel uten mekanisme utføres ikke.»* Tavla var mekanismen for fase 1–4, men **ingenting var mekanismen for tavla.**
+
+**Rotårsak:** tavla avhenger av at cowork *husker*. Alt annet som virker i dette repoet er bundet til en commit, der git gjør bruddet synlig.
+
+### De to bindingene
+
+| Binding | Regel | Hvorfor den holder |
+|---|---|---|
+| **B1 — Ordre ⇒ rad** | En ordrefil i `docs/claude/delplaner/` og dens tavle-rad committes **i SAMME commit**. Ordre uten rad = ufullstendig commit, samme klasse som kode uten docs. | Cowork kan ikke skrive en ordre uten å passere gaten. Ingen ordre = ingen økt. |
+| **B2 — Merge ⇒ rad-fjerning + status** | Merge-commiten som lander en økts branch fjerner **i SAMME commit** øktas tavle-rad og oppdaterer ordrefilens `status:`-linje. | Merge er det eneste tidspunktet der en økt beviselig er ferdig, og cowork er alltid den som gjør den. |
+
+**Konsekvens av B2:** de sju stale statusene 2026-07-21 var umulige å produsere. Hver av dem oppsto fordi merge og status-oppdatering var to hendelser, og bare den første skjedde.
+
+### Kenneths kontrollflate — ett ord
+
+Kenneth skriver **«tavla»**. Cowork svarer med aktive rader, hver med: økt · branch · alder i dager · hva den venter på · hvem ballen ligger hos. **Ingen aktive rader = svar «tavla er tom».**
+
+Dette er tiltenkt Kenneths sikkerhetsnett når B1/B2 svikter en tredje gang — ikke hans ansvar å huske. Svikter tavla igjen **med** disse bindingene på plass, er ikke svaret en tredje regel: da er det formen som er feil, og mekanismen skal erstattes, ikke forsterkes.
+
+### Én ting til — økter uten branch
+
+Test-økter (web-Opus, simulator-Opus) leverer rapporter, ikke commits, så B2 utløses aldri for dem. **De lukkes når testplanen de kjører får status «KJØRT»** — samme commit-binding, annen utløser. En testplan uten utfall er en åpen økt.
+
 ## Opus-livssyklus — fire faser (vedtatt 2026-07-16)
 
 **Bakgrunn:** regelen om statustavle sto her fra 2026-07-06 og ble aldri utført. 2026-07-16 kostet det nesten en økts arbeid: to økter fikk samme branch-navn (`docs/status-aktuelt-oppbrudd`), og den ene slettet den mens den andre skulle bruke den — ren flaks at rekkefølgen reddet det. Samme kveld fikk to økter samme arbeidstre (`SiteDoc-oppfolgere`), så auditens tre flyttet seg under den mens den kjørte. **En regel uten mekanisme utføres ikke. Tavla er mekanismen — den virker fordi Kenneth ser den, ikke fordi den er en regel.**
@@ -94,6 +139,16 @@ Tre regler mot dokumentasjons-drift (fabel-relay, Kenneth-godkjent). Formål: do
 1. **i18n-generatoren.** To økter som begge legger nøkler kjører `generate.ts` mot 13 språk. **Aldri parallelt** — det gir garantert konflikt i 15 filer, ikke i de to de redigerte. Fabel-krav.
 2. **`localhost:3100/3001`.** Dev-serveren er ÉN. Trenger to økter kjørende app samtidig, må den ene bruke test — eller vente. (Og en dev-server kan servere fra et helt ANNET tre enn økta tror den tester; sjekk `cwd` på pid-en.)
 3. **Delte komponenter bak ulike sider.** Filoverlapp på side-nivå fanger ikke at to sider rendrer samme komponent. Målt eksempel: `sjekklistemaler/[id]` og `oppgavemaler/[id]` bruker begge `MalBygger` — én økt eide sidene, en annen skulle bygge inn i komponenten. Sjekk hva sidene *importerer*, ikke bare hvilke filer de er.
+> 📸 **Ber du Kenneth om skjermbilder eller klikk-testing:** følg [skjermbilde-forespoersel.md](skjermbilde-forespoersel.md). Limbar URL · nummererte steg · nøyaktig hva som klikkes · hva som forventes i hvert bilde. Uten forventning er han kamera-operatør, ikke verifisør — og uten URL bruker han tid på å lete.
+
+5. **🔴 Kenneths nettleser.** `chrome-devtools-mcp` kjører med `--isolated=false --channel=stable` og `playwright-mcp` med `--extension` — **begge styrer Kenneths faktiske Chrome, ikke en skjult sandkasse.** Navigeringer, cookie-injisering og klikk skjer synlig i vinduet han sitter i.
+
+   **Målt 2026-07-21:** A-3b-Opus kjørte browser-verifisering i den tro at den var isolert. Kenneth meldte «siden blinker veldig fort» — det var Fast Refresh + «Throttling navigation»-loop fra automatiseringen, i hans eget vindu. Økta stoppet, drepte dev-serveren, fant rotårsaken selv og ryddet all testdata.
+
+   **Regel:** en Opus som vil verifisere i nettleser skal **spørre Kenneth først**, og oppgi hvilken URL og hvor mange steg. Foretrekk alltid en isolert render-test (jsdom) når den kan bevise det samme. **To økter kan aldri kjøre browser-automatisering samtidig** — det er én nettleser.
+
+6. **Lokal dev-server (`localhost:3100`/`3001`).** Én instans. Starter en økt den fra sitt worktre, kan Kenneth ha en fane pekt mot en helt annen kodebase enn han tror. Drep alltid serveren etter bruk og meld fra at den er drept.
+
 4. **Statusfilene: `STATUS-AKTUELT.md` · `STATUS.md` · `BACKLOG.md`.** Den mest forutsigbare kollisjonen som finnes, og den manglet på lista til den slo til. **Hver** funksjonsendring MÅ røre dem (CLAUDE.md § Funksjonsendrings-commits) — så to økter som leverer kode kolliderer der per definisjon. **Cowork redigerer dem ikke mens en økt er mid-leveranse.** Må det gjøres, eier cowork oppryddingen i merge-en, ikke Opus.
 
 > ⚠️ **En ren merge er ikke en riktig merge — git fletter tekst, ikke sannhet** (målt 2026-07-16, `2f014f6e`).

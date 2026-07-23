@@ -32,12 +32,19 @@ export interface DokumentKontekst {
   utforerFaggruppeId: string | null;
 }
 
-/** Rolle-prioritet: høyere tall = høyere prioritet */
+/**
+ * Rolle-prioritet: høyere tall = høyere prioritet.
+ *
+ * Registrator er LAVEST (arbeidsverdi 1 — fabel gater endelig tallsetting): en
+ * oppretter/leser skal ikke slå en skrive-rolle brukeren også innehar, ellers mister
+ * hun sin legitime tur ved flertreff. Verdien må være ≥ 1 fordi `bestePrioritet` starter
+ * på 0 og `prioritet <= bestePrioritet`-testen ellers ville hoppe registrator over.
+ */
 const ROLLE_PRIORITET: Record<string, number> = {
-  bestiller: 1,
-  utforer: 2,
-  godkjenner: 3,
-  registrator: 4,
+  registrator: 1,
+  bestiller: 2,
+  utforer: 3,
+  godkjenner: 4,
 };
 
 /**
@@ -49,9 +56,13 @@ const ROLLE_PRIORITET: Record<string, number> = {
  * 3. Faggruppe-match (faggruppeId) — kun hvis faggruppen er bestiller ELLER utfører på dokumentet
  *
  * Ved flertreff returneres rollen med høyest prioritet:
- * registrator > godkjenner > utforer > bestiller
+ * godkjenner > utforer > bestiller > registrator
+ * (registrator er lavest — en oppretter/leser skal ikke slå en skrive-rolle brukeren
+ *  også innehar. Se dokumentflyt.md § Rollematrisen.)
  *
- * Admin (prosjektadmin / sitedoc_admin) returnerer alltid "registrator".
+ * Admin (prosjektadmin / sitedoc_admin) returnerer alltid "registrator"; selve
+ * admin-makten kommer fra erAdmin-flagget i utledDokumentRettighet / erTillattForRolle,
+ * ikke fra registrator-rollen.
  */
 export function utledMinRolle(
   bruker: FlytBrukerInfo,
@@ -89,8 +100,6 @@ export function utledMinRolle(
     if (erMatch) {
       besteRolle = rolle;
       bestePrioritet = prioritet;
-      // Registrator er høyeste — kan avslutte tidlig
-      if (rolle === "registrator") return "registrator";
     }
   }
 
@@ -162,21 +171,27 @@ export interface DokumentRettighetInput {
 /**
  * Utled brukerens rettighet for et dokument.
  *
- * - "admin": full tilgang, kan overstyre alt (prosjektadmin / registrator)
+ * - "admin": full tilgang, kan overstyre alt (prosjektadmin / sitedoc_admin)
  * - "redigerer": kan fylle ut felter (har ballen + edit-tillatelse)
  * - "leser": kun forhåndsvisning
  *
  * For OPPGAVE: "redigerer" betyr append-only — erFeltLåst() i oppgave-hooken
  * håndhever dette (delt kilde: beregnLaasteFelter i feltLaasing.ts). For
  * SJEKKLISTE er "redigerer" full felt-redigering (den som har ballen +
- * admin/registrator) — IKKE append-only (vedtatt 2026-07-16, dokumentflyt.md § 2).
+ * admin) — IKKE append-only (vedtatt 2026-07-16, dokumentflyt.md § 2).
  * Merk: klient-lås — server oppdaterData håndhever ikke append-only i dag.
+ *
+ * Registrator har ingen særbehandling her: hun følger samme logikk som øvrige roller —
+ * med ballen redigerer hun sin egen del (Kenneths matrise: oppretter + redigerer
+ * sjekkliste/oppgave), uten ballen leser hun. «Minst leser»-gulvet er iboende
+ * (returnerer aldri null). Skrive-/statusmakt forbi egen tur ligger ikke her — se
+ * erTillattForRolle + ROLLE_HANDLINGER.registrator. dokumentflyt.md § Rollematrisen.
  */
 export function utledDokumentRettighet(input: DokumentRettighetInput): DokumentRettighet {
-  const { erAdmin, minRolle, tillatelser, status, dokumentType, harBallen, flytRettighet } = input;
+  const { erAdmin, tillatelser, status, dokumentType, harBallen, flytRettighet } = input;
 
-  // 1. Prosjektadmin eller flytregistrator → alltid admin
-  if (erAdmin || minRolle === "registrator") return "admin";
+  // 1. Prosjektadmin / sitedoc_admin → alltid admin
+  if (erAdmin) return "admin";
 
   // 2. Terminale statuser → alltid leser
   if (["closed", "approved", "cancelled"].includes(status)) return "leser";

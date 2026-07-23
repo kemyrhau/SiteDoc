@@ -1,6 +1,6 @@
 ---
 name: sak1-testplan
-status: 🟡 KLAR — ledd 4 (cowork). Venter merge→test-deploy før ledd 5
+status: 🟢 KJØRT (ledd 5, 2026-07-20) — S1/S2/S7 ✅, S3/S4/S5/S6 kode-verifisert. Sak 1 lukket
 eier: cowork (testplan) · web-Opus (ledd 5) · Kenneth (klikk-gate)
 sist_verifisert_mot_kode: 2026-07-19
 gjelder: fix/sak1-flytmedlem-paritet (fd573b61) — review godkjent av cowork

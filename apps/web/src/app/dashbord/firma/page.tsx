@@ -5,6 +5,7 @@ import { Spinner } from "@sitedoc/ui";
 import { FolderKanban, Users, Building2, Plug, Check, XCircle } from "lucide-react";
 import Link from "next/link";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 export default function FirmaOversikt() {
   const { valgtFirma } = useFirma();
@@ -45,7 +46,9 @@ export default function FirmaOversikt() {
 
   return (
     <div>
-      <h1 className="mb-6 text-lg font-semibold text-gray-900">Oversikt</h1>
+      <SonetonetSidehode sone="firma" className="mb-6">
+        <h1 className="text-lg font-semibold text-gray-900">Oversikt</h1>
+      </SonetonetSidehode>
 
       {/* Statistikk-kort */}
       <div className="mb-8 grid grid-cols-3 gap-4">

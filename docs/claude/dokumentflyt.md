@@ -38,11 +38,11 @@ Representerer nåværende mottaker visuelt. Er dynamisk — viser dokumentets be
 | Regel | Verdi |
 |-------|-------|
 | Oppretter | Alle med redigeringsrettigheter |
-| Redigerbar | Den som har ballen + admin/registrator alltid |
-| Sletting | Kun i kladd av bruker, alltid av admin/registrator |
+| Redigerbar | Den som har ballen + **administrator** |
+| Sletting | Kun i kladd av bruker, alltid av **administrator** |
 | Låses | Etter godkjenning — kan gjenåpnes |
 | Flyt | Toveis |
-| På tvers av faggrupper | Kun admin/registrator/prosjekteier |
+| På tvers av faggrupper | Kun **administrator**/prosjekteier |
 | Fremtidig | Per-ledd konfigurasjon, per-medlem rettighet |
 
 ### Oppgave
@@ -51,11 +51,11 @@ Representerer nåværende mottaker visuelt. Er dynamisk — viser dokumentets be
 |-------|-------|
 | Oppretter | Alle med redigeringsrettigheter |
 | Redigerbar | Aldri — append-only fra opprettelse |
-| Legg til info | Den som har ballen + admin/registrator |
+| Legg til info | Den som har ballen + **administrator** |
 | Sletting | Kun i kladd av bruker |
-| Godkjenning/lukk | Admin/registrator i alle flyter kan sette `closed`. Ikke-admin kan kun gå til `responded` (se § 6 Statusoverganger) |
+| Godkjenning/lukk | **Administrator** i alle flyter kan sette `closed`. Ikke-admin kan kun gå til `responded` (se § 6 Statusoverganger) |
 | Flyt | Toveis |
-| På tvers av faggrupper | Kun admin/registrator/prosjekteier |
+| På tvers av faggrupper | Kun **administrator**/prosjekteier |
 | Fremtidig | Per-ledd konfigurasjon, per-medlem rettighet |
 
 Oppgave skilles fra sjekkliste ved opprettelse — de to konverteres ikke til hverandre.
@@ -67,11 +67,12 @@ Oppgave skilles fra sjekkliste ved opprettelse — de to konverteres ikke til hv
 | Oppretter | Alle brukere |
 | Flyt | Enveis med automatisk retur: Innsender → HMS-gruppe → (Godkjent) → Innsender |
 | Behandling | Kun HMS-gruppen (uendret) |
-| Godkjenning | HMS-gruppe godkjenner, rapport returneres automatisk til innsender |
+| Godkjenning | HMS-gruppe godkjenner. ❌ **IKKE IMPLEMENTERT:** «rapport returneres automatisk til innsender» finnes ikke i koden (målt av A-3b-Opus 2026-07-21: `erHms` opptrer kun i opprett-mutasjonene `oppgave.ts:329` / `sjekkliste.ts:164`; `endreStatus` har ingen HMS-gren, og ingen auto-retur-logikk finnes noe sted). Modellen er fabel-bekreftet som *intensjon* ([a3b-perspektiv-tabell.md § 7 pkt 3](delplaner/a3b-perspektiv-tabell.md)), ikke som kodefaktum. **Bygges ikke på eget initiativ** — krever egen sak |
 | Redigerbar | Innsender i kladd/sendt, HMS-gruppe når de har ballen |
 | Sletting | Kun i kladd av innsender |
-| Lese | HMS-gruppe + admin/registrator + **firma-HMS-ansvarlig** (kontrolloppgave — per fase-0-beslutninger A.27) |
-| Admin/registrator | Kan lese alltid, kan legge seg til i HMS-gruppen |
+| Lese | HMS-gruppe + **administrator** + registrator i flyten + **firma-HMS-ansvarlig** (kontrolloppgave — per fase-0-beslutninger A.27). **Privat HMS (RUH/HMS-avvik): kun administrasjonen** — se [hms-domenemodell.md](hms-domenemodell.md) |
+| Administrator | Kan lese alltid, **og kan legge seg til i HMS-gruppen** |
+| Registrator | Kan lese alltid. **Kan IKKE legge seg til i HMS-gruppen** — det er skrivemakt |
 | Fremtidig | Per-ledd konfigurasjon, flere HMS-grupper per prosjekt |
 
 Retursteget til innsender ved godkjenning er automatisk — ikke en manuell sending.
@@ -182,7 +183,7 @@ Registrator/admin ser alltid en egen seksjon med flytbokser og manuelle statusen
 - `DokumentflytMedlem.kanRedigere` (boolean, default `true`) styrer om et flytmedlem kan redigere dokumenter
 - Toggle i dokumentflyt-oppsettet: "Redigerer" (default) / "Leser" (amber badge)
 - `utledDokumentRettighet()` sjekker `kanRedigere` — `false` → bruker får kun lesevisning selv med ballen
-- Admin/registrator upåvirket (alltid full tilgang)
+- **Administrator** upåvirket (alltid full tilgang). Registrator er **ikke** unntatt — han leser, men redigerer kun sin egen del
 
 **Fremtidig:**
 - Per-person overstyring innad i en gruppe (nå gjelder hele gruppen)
@@ -313,7 +314,7 @@ Feltet er et **array** av rolle-objekter (`{ rolle, label? }`) — ikke et objek
 | `hovedansvarligPersonId` | `String?` | FK til spesifikk User som hovedansvarlig |
 | `faggruppeId` / `projectMemberId` / `groupId` | `String?` | Ett av disse settes per medlem (faggruppe ELLER konkret person ELLER prosjektgruppe) |
 
-`kanRedigere`-toggelen sjekkes av `utledDokumentRettighet()` i `packages/shared/src/utils/flytRolle.ts`. Admin/registrator er upåvirket (alltid full tilgang).
+`kanRedigere`-toggelen sjekkes av `utledDokumentRettighet()` i `packages/shared/src/utils/flytRolle.ts`. **Administrator** er upåvirket (alltid full tilgang). ⚠️ Koden gir i dag også registrator full tilgang — det er defektet i [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md).
 
 ---
 
@@ -347,3 +348,69 @@ Systemet skal advare brukeren når dokumentflyt-oppsett er ugyldig:
 - [arkitektur.md](arkitektur.md) — full datamodell for `Dokumentflyt`, `DokumentflytMedlem`, `Checklist`, `Task`, `DocumentTransfer` og tilgangskontroll-funksjoner
 - [forretningslogikk.md](forretningslogikk.md) — handlingsknapper, rollefiltrering og operative regler
 - [fase-0-beslutninger.md](fase-0-beslutninger.md) — A.2 Godkjenning som utvidet dokumentflyt-type, A.7 hybrid logg + snapshot ved attestering
+
+## Rollematrisen — enkelt forklart (Kenneth 2026-07-21)
+
+> **Dette er hovedregelen. Alt annet i denne fila er utdyping.** Les denne først.
+
+**Slik leser du tabellen:** finn raden med din egen rolle. Gå bortover til den delen av dokumentet du vil røre. Der står det hva du får lov til.
+
+| Jeg er ↓ / Delen tilhører → | Registrator | Utfører | Bestiller | Godkjenner |
+|---|---|---|---|---|
+| **Registrator** | **Oppretter + redigerer** | Leser | Leser | Leser |
+| **Utfører** | Leser | **Redigerer** | Leser | Leser |
+| **Bestiller** | Leser | Leser | **Redigerer** | Leser |
+| **Godkjenner** | Leser | Leser | Leser | **Redigerer** |
+| **Administrator** | **Oppretter** | **Redigerer** | **Redigerer** | **Redigerer** |
+
+**To regler er alt du trenger å huske:**
+
+1. **Du redigerer bare din egen del.** Din del er din — ingen andre skriver i den.
+2. **Alle leser alt.** Ingen i flyten er blind for hva de andre har gjort. Det er det som gjør at en registrator alltid kan se svaret hun venter på.
+
+**Administrator er unntaket** — han kan skrive i alle delene. Det er derfor han er administrator.
+
+> **Hva dette betyr for koden:** lesetilgang er **felles for hele flyten**, ikke noe hver rolle må tildeles. Bare skrivetilgang er delt opp. Det forenkler tilgangsmodellen betydelig — og det er motsatt av hvordan § 2 og § 3 under er skrevet.
+>
+> **Hva matrisen ikke sier:** *når* du kan redigere din egen del. Det styres av om du har ballen. Matrisen sier **hvem** som eier hvilken del, ikke **når** turen er din.
+
+## Rollesemantikk — Kenneth 2026-07-21
+
+> Kenneths definisjon av hva hver rolle **skal** gjøre. Dette er domenesannheten; koden avviker i dag på registrator — se [delplaner/registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md).
+
+> 🔴 **Denne seksjonen motsier § 2 og § 3 i samme fil — og det er § 2/§ 3 som er feil.**
+>
+> **✅ Omskrevet 2026-07-21.** Begrepet «admin/registrator» sto **ti steder** i denne fila som ett **koblet** begrep og ga registrator admins makt: redigere alltid, slette alltid, lukke dokumenter, arbeide på tvers av faggrupper, legge til info, legge seg selv i HMS-gruppen. Alle ti er nå skilt: **administrator** beholder makten, **registrator** beholder lesingen.
+>
+> **Koden har altså ikke gjort en feil — den implementerte denne spesifikasjonen korrekt.** Feilen oppsto i specen og forplantet seg trofast til `flytRolle.ts`, `statusHandlinger.ts` og dokumentflyt-oppsettet.
+>
+> **Konsekvens:** de seks linjene må omskrives som del av [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md) — **før** koden røres. Rettes koden først, står specen igjen og sier det motsatte, og neste økt «retter» den tilbake.
+>
+> **Koden er IKKE rettet ennå.** `flytRolle.ts` og `statusHandlinger.ts` gir fortsatt registrator admin-rettigheter. Specen er nå fasit; koden følger etter via [registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md).
+
+| Rolle | Skal gjøre | Merknad |
+|---|---|---|
+| **Registrator** | Oppretter oppgave/sjekkliste · **redigerer sin egen del når hun har ballen** (append for oppgave, full for sjekkliste til godkjent) · sender den videre til behandling · **kan sende + slette egen kladd** · ser om mottaker har besvart og hva statusen er · **skal alltid kunne lese nåværende besvarelse** på oppgaver i flyten | Vedvarende leserett etter oversending. ❌ **Ikke** en administrator — ingen skrive-/statusmakt forbi egen tur (kan ikke godkjenne, besvare, avvise) |
+| **Utfører** | Svarer ut en opprettet oppgave · sender tilbake med spørsmål, eller fyller ut og videresender | **Ikke alltid nødvendig** — en flyt trenger ikke dette steget |
+| **Bestiller** | Bestiller en oppgave · sender tilbake med spørsmål eller videresender — oppgaven anses da som **bestilt utført** | **Ikke alltid del av flyten** |
+| **Godkjenner** | Godkjenner en bestilling eller en utført oppgave · godkjenner **eller** sender tilbake for utbedring **med kommentar** | Kommentarkravet understøtter [P2-vedtaket](delplaner/p2-inndata-validering-vedtak.md) |
+
+**To roller er valgfrie i en flyt** (utfører, bestiller). Registrator og godkjenner er bærebjelkene: noen oppretter, noen godkjenner.
+
+## 🟡 Kjent begrensning — flytsteg kan ikke bygges ut videre
+
+**Observert av Kenneth 2026-07-21** (skjermbilde, `oppsett/produksjon/dokumentflyt`): etter hvert som en dokumentflyt får steg, **forsvinner steget som valg for videre utbygging**. En flyt kan altså ikke utvides forbi et visst punkt.
+
+**Skal løses senere — ikke nå.** Målet på sikt er å kunne bygge **linjeflyter** med forgreninger, f.eks. en godkjenningsflyt for krav om tillegg/endringsmelding:
+
+```
+entreprenør varsler problem
+  → byggherre svarer
+  → entreprenør fyller på økonomisk konsekvens + dokumentasjon
+  → videresender til byggherre for behandling
+  → byggherre behandler
+      → beløp over ramme → byggherres sjef behandler
+          → godkjent, eller tilbake til entreprenør med avslag
+```
+
+En enkel godkjenningsflyt er påbegynt. **Den skal ikke bygges ut nå** — dette er nedtegnet så mønsteret er kjent når saken tas, og så ingen designer flytmodellen i en retning som utelukker forgreninger.

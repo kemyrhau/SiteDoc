@@ -12,6 +12,7 @@ import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
 import { FirmaHurtigModal } from "@/components/hms/firma-hurtig-modal";
 import type { DokumentRad } from "@/components/hms/types";
 import { FilterPanel } from "@/components/ui/FilterPanel";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type Tab = "avvik" | "sja" | "ruh" | "statistikk";
 
@@ -170,11 +171,11 @@ export default function FirmaHmsSide() {
 
   return (
     <div className="space-y-4">
-      {/* Header */}
-      <div>
+      {/* Header — P1-C sonetonet sidehode (FIRMA = amber) */}
+      <SonetonetSidehode sone="firma">
         <h1 className="text-2xl font-semibold text-gray-900">{t("firma.hms.tittel")}</h1>
         <p className="mt-1 text-sm text-gray-600">{t("firma.hms.beskrivelse")}</p>
-      </div>
+      </SonetonetSidehode>
 
       {/* Delt filter-panel: fritekst på tvers av faner + combobox-er + tøm */}
       <FilterPanel
@@ -219,19 +220,19 @@ export default function FirmaHmsSide() {
       <div className="flex gap-1 border-b border-gray-200">
         <TabKnapp aktiv={aktivTab === "avvik"} onClick={() => settUrl({ tab: "avvik" })}>
           <AlertTriangle className="h-4 w-4" />
-          {t("hms.tab.avvik")} ({antallAvvik})
+          {t("hms.tabs.avvik")} ({antallAvvik})
         </TabKnapp>
         <TabKnapp aktiv={aktivTab === "sja"} onClick={() => settUrl({ tab: "sja" })}>
           <ClipboardList className="h-4 w-4" />
-          {t("hms.tab.sja")} ({antallSja})
+          {t("hms.tabs.sja")} ({antallSja})
         </TabKnapp>
         <TabKnapp aktiv={aktivTab === "ruh"} onClick={() => settUrl({ tab: "ruh" })}>
           <FileWarning className="h-4 w-4" />
-          {t("hms.tab.ruh")} ({antallRuh})
+          {t("hms.tabs.ruh")} ({antallRuh})
         </TabKnapp>
         <TabKnapp aktiv={aktivTab === "statistikk"} onClick={() => settUrl({ tab: "statistikk" })}>
           <ShieldAlert className="h-4 w-4" />
-          {t("hms.tab.statistikk")}
+          {t("hms.tabs.statistikk")}
         </TabKnapp>
       </div>
 

@@ -14,6 +14,7 @@ import {
   antallGjenstår,
   erOnboardingFullført,
 } from "@/lib/onboarding-wizard";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type ModulSlug = "timer" | "maskin" | "kompetanse" | "fremdrift" | "varelager";
 type ModulStatus = "tilgjengelig" | "kommer-snart";
@@ -125,12 +126,14 @@ export default function FirmaModulerSide() {
 
   return (
     <div>
-      <h1 className="mb-2 text-lg font-semibold text-gray-900">
-        {t("firma.moduler.tittel")}
-      </h1>
-      <p className="mb-6 text-sm text-gray-600">
-        {t("firma.moduler.beskrivelse")}
-      </p>
+      <SonetonetSidehode sone="firma" className="mb-6">
+        <h1 className="mb-2 text-lg font-semibold text-gray-900">
+          {t("firma.moduler.tittel")}
+        </h1>
+        <p className="text-sm text-gray-600">
+          {t("firma.moduler.beskrivelse")}
+        </p>
+      </SonetonetSidehode>
 
       <div className="space-y-3">
         {MODULER.map((m) => {

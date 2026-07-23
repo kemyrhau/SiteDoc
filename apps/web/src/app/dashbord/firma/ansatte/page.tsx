@@ -6,6 +6,7 @@ import { Shield, ShieldAlert, User, Pencil, Plus, X, Sparkles } from "lucide-rea
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 const ANSATT_ROLLER = ["ansatt", "bas", "prosjektleder", "daglig_leder"] as const;
 type AnsattRolle = (typeof ANSATT_ROLLER)[number];
@@ -56,30 +57,32 @@ export default function FirmaBrukere() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-lg font-semibold text-gray-900">
-          {t("firma.ansatte.tittel")}
-        </h1>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setNyNavPilotÅpen(true)}
-            disabled={!orgId || !brukere || brukere.length === 0}
-            className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-            title={t("firma.ansatte.nyNavPilot.knapp")}
-          >
-            <Sparkles className="h-4 w-4" />
-            {t("firma.ansatte.nyNavPilot.knapp")}
-          </button>
-          <button
-            onClick={() => setInviterÅpen(true)}
-            disabled={!orgId}
-            className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <Plus className="h-4 w-4" />
-            {t("firma.ansatte.inviter.knapp")}
-          </button>
+      <SonetonetSidehode sone="firma" className="mb-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-gray-900">
+            {t("firma.ansatte.tittel")}
+          </h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setNyNavPilotÅpen(true)}
+              disabled={!orgId || !brukere || brukere.length === 0}
+              className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+              title={t("firma.ansatte.nyNavPilot.knapp")}
+            >
+              <Sparkles className="h-4 w-4" />
+              {t("firma.ansatte.nyNavPilot.knapp")}
+            </button>
+            <button
+              onClick={() => setInviterÅpen(true)}
+              disabled={!orgId}
+              className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-secondary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Plus className="h-4 w-4" />
+              {t("firma.ansatte.inviter.knapp")}
+            </button>
+          </div>
         </div>
-      </div>
+      </SonetonetSidehode>
 
       {!brukere || brukere.length === 0 ? (
         <EmptyState

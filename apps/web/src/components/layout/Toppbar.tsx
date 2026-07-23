@@ -125,17 +125,12 @@ export function Toppbar() {
           Firma først for admin-roller speiler hierarkiet (Firma → Prosjekt).
         */}
         {nyNav ? (
-          /* Flagg på: samlet kontekst-chip (firma + prosjekt) erstatter
-             FirmaVelger + ProsjektVelger + FirmaKontekstVelger. */
-          <>
-            <KontekstChip />
-            {prosjektId && (
-              <>
-                <div className="mx-1 h-5 w-px bg-white/20" />
-                <ByggeplassVelger disabled={!byggeplassAktiv} />
-              </>
-            )}
-          </>
+          /* Flagg på: samlet kontekst-chip (firma + prosjekt + byggeplass-trakt)
+             erstatter FirmaVelger + ProsjektVelger + FirmaKontekstVelger.
+             K3 kloss 2: den frittstående ByggeplassVelger er FJERNET i ny nav —
+             byggeplass bor nå i trakten (KontekstChip). Gammel nav beholder
+             velgeren (K1 skjulte den kun i firmakontekst). */
+          <KontekstChip />
         ) : (
           <>
             {erSitedocAdmin && (

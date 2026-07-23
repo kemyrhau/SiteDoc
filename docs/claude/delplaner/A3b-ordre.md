@@ -1,6 +1,6 @@
 ---
 name: A3b-ordre
-status: 🟢 ÅPEN — cowork ledd 2-gate GRØNT 2026-07-19 (Del E lukket, alle premisser kode-verifisert). Pkt 7 venter Kenneth-vedtak
+status: 🟡 PAUSET etter Del 1b — Del 1a+1b levert+pushet (`535f8d8a`, IKKE merget). Del 1c HOLDT til registrator-fiksen lander (fabel c). Pkt 7 venter Kenneth-vedtak
 eier: fabel (ordre) · cowork (gate) · kode-Opus (ledd 3)
 sist_verifisert_mot_kode: 2026-07-19
 ---

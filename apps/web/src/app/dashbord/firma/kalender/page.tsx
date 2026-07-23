@@ -14,6 +14,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type KalenderType =
   | "helligdag"
@@ -143,51 +144,53 @@ export default function FirmakalenderSide() {
   return (
     <div className="mx-auto max-w-5xl">
       {/* Topp: tittel + år-velger + import-knapp */}
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {t("firma.kalender.tittel")}
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">
-            {t("firma.kalender.beskrivelse")}
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white">
-            <button
-              type="button"
-              onClick={() => setAar((a) => a - 1)}
-              className="rounded-l-md px-2 py-1.5 text-gray-600 hover:bg-gray-50"
-              aria-label={t("firma.kalender.forrigeAar")}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <span className="min-w-[4rem] text-center text-sm font-semibold text-gray-900">
-              {aar}
-            </span>
-            <button
-              type="button"
-              onClick={() => setAar((a) => a + 1)}
-              className="rounded-r-md px-2 py-1.5 text-gray-600 hover:bg-gray-50"
-              aria-label={t("firma.kalender.nesteAar")}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+      <SonetonetSidehode sone="firma" className="mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {t("firma.kalender.tittel")}
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">
+              {t("firma.kalender.beskrivelse")}
+            </p>
           </div>
 
-          <Button
-            variant="secondary"
-            onClick={() =>
-              importerMutation.mutate({ organizationId: orgId, aar })
-            }
-            disabled={importerMutation.isPending}
-          >
-            <Download className="mr-1.5 h-4 w-4" />
-            {t("firma.kalender.importerNorskStandard", { aar })}
-          </Button>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1 rounded-md border border-gray-200 bg-white">
+              <button
+                type="button"
+                onClick={() => setAar((a) => a - 1)}
+                className="rounded-l-md px-2 py-1.5 text-gray-600 hover:bg-gray-50"
+                aria-label={t("firma.kalender.forrigeAar")}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="min-w-[4rem] text-center text-sm font-semibold text-gray-900">
+                {aar}
+              </span>
+              <button
+                type="button"
+                onClick={() => setAar((a) => a + 1)}
+                className="rounded-r-md px-2 py-1.5 text-gray-600 hover:bg-gray-50"
+                aria-label={t("firma.kalender.nesteAar")}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
+            <Button
+              variant="secondary"
+              onClick={() =>
+                importerMutation.mutate({ organizationId: orgId, aar })
+              }
+              disabled={importerMutation.isPending}
+            >
+              <Download className="mr-1.5 h-4 w-4" />
+              {t("firma.kalender.importerNorskStandard", { aar })}
+            </Button>
+          </div>
         </div>
-      </div>
+      </SonetonetSidehode>
 
       {/* Sommertid-banner */}
       {visSommertidVarsel && (

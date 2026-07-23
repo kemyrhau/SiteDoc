@@ -8,9 +8,30 @@ sist_verifisert_mot_kode: 2026-07-10
 
 > Kontrollflate for Kenneth ([SAMARBEIDSREGLER § Opus-livssyklus](SAMARBEIDSREGLER.md#opus-livssyklus--fire-faser-vedtatt-2026-07-16)). Rad skrives **før** økta åpnes; fjernes når branchen er merget + slettet. **Tom tavle = ingen aktive økter.** Ingen to rader deler arbeidstre eller fil.
 
-| Økt | Arbeidstre | Branch | Eier filer | Status |
-|---|---|---|---|---|
-| **N3-fiks synlighet** | `~/Documents/Programmering/SiteDoc-develop` | `fix/n3-flytmedlem-synlighet` | `tilgangskontroll.ts` · `medlem.ts` · `sjekkliste.ts`/`oppgave.ts`/`hms.ts`/`bilde.ts` · 4 opprett-flater · i18n + `generate.ts` | Åpnes ved relay. **Eier generatoren** → B-2/A-3b/CLAUDE.md-runden venter. Del E rir med + lukker A-3a |
+| Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
+|---|---|---|---|---|---|
+| **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` (`535f8d8a`) | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny · `generate.ts` | 2026-07-18 | **🟡 PAUSET — økt kan exit.** Del 1a+1b levert+pushet, IKKE merget. Del 1c venter registrator-fiksen (fabel c). Gjenopptas som NY økt fra branchen når matrisen er re-gatet |
+| **P1 nivåsignal** | `~/Documents/Programmering/SiteDoc-develop` | `feat/p1-nivasignal` (ledd 2) | `KontekstChip.tsx` · HMS-parets to side-skall (sidehode) | 2026-07-21 | **MERGET + PÅ TEST** (`9383233b`). A+B+C levert. Gjenstår: skjermbilder på test + fabels designgate mot fasit-bildene → så lukkes P1. § 2D (suffiks) ute — Kenneth vedtok (b), egen sak |
+
+| **Registrator-fiks** | *(økt kan exit)* | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` · `tilgangskontroll.ts` · `DokumentHandlingsmeny` | 2026-07-21 | **✅ MERGET develop (`cb3ce3d1`).** Fase A+B — registrator ikke lenger superbruker. ⚠️ Åpen rest: `rejected→sent` → handlingsmeny-arbeidet ([registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md)) |
+| **K1+K2 kontekst** | *(lukket)* | `fix/k1k2-kontekst` (`f28aecfd`) | — | 2026-07-21 | **✅ MERGET (`31c831a8`) + på test.** Lukket |
+| **K3 kontekst-fullføring** | `~/Documents/Programmering/SiteDoc-kontekst` | `feat/k3-kontekstvelger` | `KontekstChip.tsx` · `Toppbar.tsx` · `SonetonetSidehode`-monteringer (36 sider) · i18n | 2026-07-22 | **KLAR FOR RELAY.** Tre klosser: trakt → HMS-referanse → utrulling. Prøvestein: kundetelefon. Ordre: [k3-ordre.md](delplaner/k3-ordre.md) |
+
+> ✅ **Avgjort (fabel 2026-07-21, alternativ c): A-3b HOLDES til registrator-fiksen har landet.**
+>
+> **Premisset:** perspektivmatrisens REGISTRATOR-kolonne (`utledPerspektiv` — registrator dominerer ballinnehav) bygger på **dagens** semantikk, der registrator er superbruker. Etter [registrator-fiksen](delplaner/registrator-fiks-ordre.md) er registrator en *deltaker med leserett*.
+>
+> **Hvorfor (c) og ikke (a)/(b):** (a) ville revidert matrisen mot en semantikk som ikke finnes i kode ennå — brudd på fakta-først. (b) ville deployet en etikett-modell vi **vet** skal endres, til alle pilotbrukere — to deploys og forvirring for null gevinst.
+>
+> **To føringer:**
+> 1. Når registrator-fiksen er landet og verifisert, leverer utførende Opus **oppdatert perspektivmatrise som nå-rapport** (REGISTRATOR-kolonnen mot ny semantikk). **Fabel gater den FØR 1c-wiring starter.** Perspektivet består — «oppretter-som-venter» er et reelt syn — det er **etikettene** som måles på nytt.
+> 2. **Del 1a+1b merges ikke til develop** i mellomtiden. Ingen perspektiv-etiketter ut til brukere før matrisen er gatet.
+>
+> ⚠️ **Presisering:** Del 1a+1b **er pushet** til `feat/a3b-perspektiv` (`535f8d8a`) — det er riktig og trygt, en feature-branch når ingen brukere. Det som holdes tilbake er **mergen til develop**. Arbeidet skal ikke un-pushes.
+
+**Lukket 2026-07-20/21 (seks økter):** N3-fiks synlighet (`fix/n3-flytmedlem-synlighet`) · kode-Opus sak 1 (`fd573b61`) · kode-Opus spor 2 + sak 2 (`cf76d81d`, `ecedb7eb`) · mobil-Opus TegningsCapture (`b15dfe56`) · CI-Opus spor 1 (PR #1+#2) · web-Opus testrunder (sak 1 + sak 2, testplaner merket KJØRT). Alle merget til develop; tilgangslaget deployet prod.
+
+> ⚠️ **Tavla var tom for alle seks mens de kjørte.** Rader ble aldri skrevet, og Kenneth måtte avslutte to økter uten oppfølging. Rettet ved [SAMARBEIDSREGLER § Tavle-binding](SAMARBEIDSREGLER.md#tavle-binding--commit-gaten-vedtatt-2026-07-21): ordre ⇒ rad og merge ⇒ rad-fjerning skjer nå i samme commit.
 
 **Del6b fase 1 lukket 2026-07-16** — fabel-designgodkjent, alle punkter. Merget `f9416424` (pkt 2/3/6) + `297f5670` (pkt 1/4/5). Levert: print-fella borte (`q0–q9` droppet stille 7 av 17) · døde søkebokser koblet · prioritet-rader klikkbare · 4 filter-paradigmer → 2 delte kilder, null regresjon · prosjekt-HMS-defaulten synlig som chips · 35 i18n-nøkler × 14 språk. Statuskilde: `verifisering/del6b-verifiseringslogg.md` (designprosjekt «Sitedoc redesign tips»). Exit-funn i [BACKLOG](BACKLOG.md).
 

@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type AvdelingRad = {
   id: string;
@@ -58,20 +59,22 @@ export default function AvdelingerSide() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {t("firma.avdelinger.tittel")}
-          </h1>
-          <p className="mt-1 text-sm text-gray-600">
-            {t("firma.avdelinger.beskrivelse")}
-          </p>
+      <SonetonetSidehode sone="firma" className="mb-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">
+              {t("firma.avdelinger.tittel")}
+            </h1>
+            <p className="mt-1 text-sm text-gray-600">
+              {t("firma.avdelinger.beskrivelse")}
+            </p>
+          </div>
+          <Button onClick={() => setVisOpprett(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t("firma.avdelinger.leggTil")}
+          </Button>
         </div>
-        <Button onClick={() => setVisOpprett(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          {t("firma.avdelinger.leggTil")}
-        </Button>
-      </div>
+      </SonetonetSidehode>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">

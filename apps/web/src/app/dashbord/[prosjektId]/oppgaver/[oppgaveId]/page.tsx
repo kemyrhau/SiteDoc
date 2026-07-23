@@ -511,6 +511,7 @@ export default function OppgaveDetaljSide() {
             templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
             standardFaggruppeId={oppgave.utforerFaggruppe?.id}
             minRolle={minRolle}
+            erAdmin={minFlytInfo?.erAdmin === true}
             flytMedlemmer={flytMedlemmer}
             recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
             recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}

@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner } from "@sitedoc/ui";
 import { Check, RotateCcw, ChevronRight, AlertCircle } from "lucide-react";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type AttesteringRad = {
   id: string;
@@ -75,14 +76,16 @@ export default function AttesteringSide() {
 
   return (
     <div className="mx-auto max-w-5xl p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-semibold text-gray-900">
-          {t("timer.attestering.tittel")}
-        </h1>
-        <p className="mt-1 text-sm text-gray-600">
-          {t("timer.attestering.beskrivelse")}
-        </p>
-      </div>
+      <SonetonetSidehode sone="prosjekt" className="mb-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-gray-900">
+            {t("timer.attestering.tittel")}
+          </h1>
+          <p className="mt-1 text-sm text-gray-600">
+            {t("timer.attestering.beskrivelse")}
+          </p>
+        </div>
+      </SonetonetSidehode>
 
       {feil && <p className="mb-4 text-sm text-red-600">{feil}</p>}
 

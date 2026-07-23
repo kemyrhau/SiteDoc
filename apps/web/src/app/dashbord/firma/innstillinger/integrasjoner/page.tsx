@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Card, Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 export default function FirmaIntegrasjonerSide() {
   const { t } = useTranslation();
@@ -27,14 +28,16 @@ export default function FirmaIntegrasjonerSide() {
 
   return (
     <main className="flex-1 overflow-auto bg-gray-50 p-6">
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-gray-900">
-          {t("firma.integrasjoner.tittel")}
-        </h1>
-        <p className="mt-1 text-sm text-gray-500">
-          {t("firma.integrasjoner.beskrivelse")}
-        </p>
-      </div>
+      <SonetonetSidehode sone="firma" className="mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">
+            {t("firma.integrasjoner.tittel")}
+          </h1>
+          <p className="mt-1 text-sm text-gray-500">
+            {t("firma.integrasjoner.beskrivelse")}
+          </p>
+        </div>
+      </SonetonetSidehode>
 
       {isLoading ? (
         <div className="flex justify-center py-12">

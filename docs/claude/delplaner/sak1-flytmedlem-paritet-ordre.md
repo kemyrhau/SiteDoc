@@ -1,6 +1,6 @@
 ---
 name: sak1-flytmedlem-paritet-ordre
-status: 🟡 SKREVET (cowork 2026-07-19) — venter fabel-gate før kode-Opus starter
+status: 🟢 BYGGET + MERGET + VERIFISERT — `fd573b61` → develop. Se [sak1-testplan.md](sak1-testplan.md)
 eier: cowork (måling + ordre) · fabel (gate) · kode-Opus (ledd 3)
 sist_verifisert_mot_kode: 2026-07-19
 ---

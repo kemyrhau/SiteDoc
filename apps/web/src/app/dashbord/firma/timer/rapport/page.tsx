@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 type StatusFordeling = { kladd: number; sent: number; attestert: number };
 
@@ -230,46 +231,48 @@ export default function TimerRapportSide() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold text-gray-900">
-          {t("firma.timer.rapport.tittel")}
-        </h1>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setEksportÅpen(!eksportÅpen)}
-            disabled={!harData || eksporterer}
-            className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {eksporterer ? <Spinner size="sm" /> : <Download className="h-4 w-4" />}
-            {t("firma.timer.rapport.eksport.knapp")}
-          </button>
-          {eksportÅpen && (
-            <>
-              <div
-                className="fixed inset-0 z-10"
-                onClick={() => setEksportÅpen(false)}
-              />
-              <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg">
-                <button
-                  type="button"
-                  onClick={() => håndterEksport("csv")}
-                  className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  {t("firma.timer.rapport.eksport.csv")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => håndterEksport("xlsx")}
-                  className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
-                >
-                  {t("firma.timer.rapport.eksport.excel")}
-                </button>
-              </div>
-            </>
-          )}
+      <SonetonetSidehode sone="firma" className="mb-4">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-xl font-semibold text-gray-900">
+            {t("firma.timer.rapport.tittel")}
+          </h1>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setEksportÅpen(!eksportÅpen)}
+              disabled={!harData || eksporterer}
+              className="inline-flex items-center gap-2 rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {eksporterer ? <Spinner size="sm" /> : <Download className="h-4 w-4" />}
+              {t("firma.timer.rapport.eksport.knapp")}
+            </button>
+            {eksportÅpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setEksportÅpen(false)}
+                />
+                <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] rounded-md border border-gray-200 bg-white py-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => håndterEksport("csv")}
+                    className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    {t("firma.timer.rapport.eksport.csv")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => håndterEksport("xlsx")}
+                    className="block w-full px-3 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    {t("firma.timer.rapport.eksport.excel")}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      </SonetonetSidehode>
 
       {/* Filter-rad */}
       <div className="mb-4 rounded-lg border border-gray-200 bg-white p-4">
