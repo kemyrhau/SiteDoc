@@ -44,6 +44,9 @@ Fire ting verifisert mot koden: (1) `PARBARE_SEKSJONER` fjernet — `harMotpart 
 1. **Chip-ens `soneKlasse` (KontekstChip:162–163) hardkoder fortsatt `#f5c97b`/`#a9c4f5`** — pre-eksisterende P1-B (develop har samme 2), utenfor ordre-scope. Delt kilde forener sidehode+verktøylinje; full forening ville folde chip-border inn også. Chip er en border+bg+text-pill, større konstrukt — egen sak om ønsket.
 2. **Polish-tolkning:** redesign fjernet ikke indre `mb-*` rått, men **relokerte margen ut** via ny `className`-prop på SonetonetSidehode (foreldrene mangler ofte `gap`/`space-y` → ren fjerning ville kollapset ytre spacing). Cowork-vurdering: trofast mot intensjonen (ren boks + bevart spacing), riktig kall. Fabel bekrefter det visuelle på test.
 
+### 🟡 Funn (maskin-kontekst) — chip viser PROSJEKT på firma-modul-side (Kenneth 2026-07-23)
+`/dashbord/maskin` (firmamodul, «bunnelement» `kreverFirmaModul: "maskin"`) viser PROSJEKT-kontekst i chippen. Rotårsak: `erFirmaKontekst = pathname.startsWith("/dashbord/firma")` (KontekstChip:76) — maskin ligger utenfor prefikset. Pre-eksisterende (gammel Toppbar:50 har samme sjekk), men K3s to-linjers gjør den synlig. **Maskin er eneste firmamodul-avviker** (kompetanse/varelager er under `/dashbord/firma/*`). Fiks: `erFirmaKontekst` gjenkjenner `/dashbord/maskin`. Egen branch `fix/maskin-firmakontekst`, batches med timer-hjem-fiksen.
+
 ### 🟡 Funn 2 (#6) — ⇄ hurtigbytte kun på HMS
 **Cowork-måling:** `PARBARE_SEKSJONER = new Set(["hms"])`. Mekanismen matcher samme slug på indeks 3. Slugs som finnes som BÅDE firma- og prosjekt-flate med samme navn: **kun `hms` og `timer`.** Timer = triviell utvidelse (én linje). Øvrige seksjoner har ikke samme-slug-motpart (firma/ansatte ↔ prosjekt/mannskap = kryss-konsept, krever eksplisitt mapping + design). → fabel avgjør hvilke kryss-par som fortjener ⇄.
 
