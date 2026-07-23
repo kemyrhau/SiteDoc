@@ -11,7 +11,6 @@ sist_verifisert_mot_kode: 2026-07-10
 | Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
 |---|---|---|---|---|---|
 | **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` (`535f8d8a`) | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny · `generate.ts` | 2026-07-18 | **🟡 PAUSET — økt kan exit.** Del 1a+1b levert+pushet, IKKE merget. Del 1c venter registrator-fiksen (fabel c). Gjenopptas som NY økt fra branchen når matrisen er re-gatet |
-| **B Kloss 2** adminNiva | `~/Documents/Programmering/SiteDoc-registrator` | `feat/flytmatrise-adminniva` (fra `33c32f1f`) | `statusHandlinger.ts` · `tilgangskontroll.ts` · `gruppe.ts` · matrise-UI · mobil+web DokumentHandlingsmeny · `FlytRettighetLogg` | 2026-07-23 | **🟢 ORDRE SKREVET** ([kloss2-ordre.md](delplaner/kloss2-ordre.md)). Alt-i-ett: adminNiva (sitedoc+prosjekt) + matrise-UI + logg. Firma-admin droppet som flyt-admin (Kenneth-vedtak). Koder på branch mens Kenneth borte; **cowork gater ved retur, INGEN merge autonomt** |
 
 | **Registrator-fiks** | *(økt kan exit)* | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` · `tilgangskontroll.ts` · `DokumentHandlingsmeny` | 2026-07-21 | **✅ MERGET develop (`cb3ce3d1`).** Fase A+B — registrator ikke lenger superbruker. ⚠️ Åpen rest: `rejected→sent` → handlingsmeny-arbeidet ([registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md)) |
 | **K1+K2 kontekst** | *(lukket)* | `fix/k1k2-kontekst` (`f28aecfd`) | — | 2026-07-21 | **✅ MERGET (`31c831a8`) + på test.** Lukket |
@@ -37,11 +36,13 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 |---|---|---|
 | **A-laget** — statusmaskin (`rejected→sent` + `closed→draft` inert + i18n) | ✅ MERGET develop | `7571e968` |
 | **B Kloss 1** — config-plumbing (`FlytRettighetOverride`/`Logg` + `ROLLE_HANDLINGER_DEFAULTS` + `celleTillatt` override-only-snitt + loader). **Bit-identisk.** | ✅ MERGET develop | `33c32f1f` |
-| **B Kloss 2** — adminNiva (**kun sitedoc+prosjekt**, firma-admin droppet — Kenneth-vedtak) + PROSJ.ADMIN-kolonne + matrise-UI + logg-skriving | 🟢 ordre skrevet ([kloss2-ordre.md](delplaner/kloss2-ordre.md)) | — |
-| **B Kloss 3** — endringslogg-fane + les/rediger-fane | ⬜ | — |
-| **A-3b perspektiv-visning** (oppå ferdig fundament) | 🟡 PAUSET (rad over) | — |
+| **B Kloss 2** — adminNiva (**kun sitedoc+prosjekt**, firma-admin droppet — Kenneth-vedtak) + PROSJ.ADMIN-kolonne + matrise-UI (`dashbord/firma/flyt-rettigheter`, sitedoc-gatet) + logg-skriving | ✅ MERGET develop (PR #3) | `a3e2cc66` |
+| **B Kloss 3** — endringslogg-fane + les/rediger-fane (les/rediger-fanen er allerede levert som ren visning i Kloss 2 — Kloss 3 er dermed i praksis dekket; verifiseres ved neste berøring) | 🟡 stort sett dekket av Kloss 2 | — |
+| **A-3b perspektiv-visning** (oppå ferdig fundament) | 🟡 PAUSET — fundament nå komplett, kan gjenopptas | — |
 
-🔴 **Migrerings-avhengighet (Kloss 1):** neste test-deploy av develop MÅ kjøre `migrate deploy` mot `sitedoc_test` (`20260723120000_flyt_rettighetsmatrise_config`) — tabellene må eksistere før loaderen spør, ellers krasjer flyt-rettighets-sjekken. Idempotent + additiv.
+🔴 **Migrerings-avhengighet (Kloss 1+2):** neste test-deploy av develop MÅ kjøre `migrate deploy` mot `sitedoc_test` (`20260723120000_flyt_rettighetsmatrise_config`) FØR koden — matrise-API-et + loaderen spør `FlytRettighetOverride`/`Logg`; uten tabellene krasjer både flyt-sjekken og matrise-siden. Idempotent + additiv.
+
+🔵 **Pilot-synlig endring ved neste deploy (Kloss 2):** firma-admin ser ikke lenger admin-handlinger i flyt-menyen (web+mobil). **Ikke kapabilitetstap** — serveren (`verifiserFlytRolle`) avviste dem uansett med «Ikke medlem av prosjektet»; menyen viste et fantom. Føres i pilot-endringsloggen når Kloss 2 deployes.
 
 **Lukket 2026-07-20/21 (seks økter):** N3-fiks synlighet (`fix/n3-flytmedlem-synlighet`) · kode-Opus sak 1 (`fd573b61`) · kode-Opus spor 2 + sak 2 (`cf76d81d`, `ecedb7eb`) · mobil-Opus TegningsCapture (`b15dfe56`) · CI-Opus spor 1 (PR #1+#2) · web-Opus testrunder (sak 1 + sak 2, testplaner merket KJØRT). Alle merget til develop; tilgangslaget deployet prod.
 

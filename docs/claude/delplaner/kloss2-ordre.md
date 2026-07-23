@@ -1,6 +1,6 @@
 ---
 name: kloss2-ordre
-status: 🟢 AKTIV — byggeordre for B Kloss 2 (adminNiva + matrise-UI, alt-i-ett). Kenneth-vedtak 2026-07-23. Kode på branch mens Kenneth borte; cowork gater ved retur (INGEN merge autonomt)
+status: ✅ LEVERT + MERGET develop (`a3e2cc66`, PR #3, 2026-07-23). Cowork-gate bestått (8 punkter, tilgangskontroll verifisert). Ordren beholdt som referanse for Fase A-målingen + non-regresjons-beviset
 eier: cowork (ordre + gate) · kode-Opus «B Kloss 2» (ledd 3)
 sist_verifisert_mot_kode: 2026-07-23
 ---
