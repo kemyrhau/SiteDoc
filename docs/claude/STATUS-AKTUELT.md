@@ -11,6 +11,7 @@ sist_verifisert_mot_kode: 2026-07-10
 | Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
 |---|---|---|---|---|---|
 | **A-3b perspektiv** | `~/Documents/Programmering/SiteDoc-a3b` | `feat/a3b-perspektiv` (`535f8d8a`) | `status-badge.tsx` · `perspektivEtikett.ts` · handlingsmeny · `generate.ts` | 2026-07-18 | **🟡 PAUSET — økt kan exit.** Del 1a+1b levert+pushet, IKKE merget. Del 1c venter registrator-fiksen (fabel c). Gjenopptas som NY økt fra branchen når matrisen er re-gatet |
+| **B Kloss 2** adminNiva | `~/Documents/Programmering/SiteDoc-registrator` | `feat/flytmatrise-adminniva` (fra `33c32f1f`) | `statusHandlinger.ts` · `tilgangskontroll.ts` · `gruppe.ts` · matrise-UI · mobil+web DokumentHandlingsmeny · `FlytRettighetLogg` | 2026-07-23 | **🟢 ORDRE SKREVET** ([kloss2-ordre.md](delplaner/kloss2-ordre.md)). Alt-i-ett: adminNiva (sitedoc+prosjekt) + matrise-UI + logg. Firma-admin droppet som flyt-admin (Kenneth-vedtak). Koder på branch mens Kenneth borte; **cowork gater ved retur, INGEN merge autonomt** |
 
 | **Registrator-fiks** | *(økt kan exit)* | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` · `tilgangskontroll.ts` · `DokumentHandlingsmeny` | 2026-07-21 | **✅ MERGET develop (`cb3ce3d1`).** Fase A+B — registrator ikke lenger superbruker. ⚠️ Åpen rest: `rejected→sent` → handlingsmeny-arbeidet ([registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md)) |
 | **K1+K2 kontekst** | *(lukket)* | `fix/k1k2-kontekst` (`f28aecfd`) | — | 2026-07-21 | **✅ MERGET (`31c831a8`) + på test.** Lukket |
@@ -36,7 +37,7 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 |---|---|---|
 | **A-laget** — statusmaskin (`rejected→sent` + `closed→draft` inert + i18n) | ✅ MERGET develop | `7571e968` |
 | **B Kloss 1** — config-plumbing (`FlytRettighetOverride`/`Logg` + `ROLLE_HANDLINGER_DEFAULTS` + `celleTillatt` override-only-snitt + loader). **Bit-identisk.** | ✅ MERGET develop | `33c32f1f` |
-| **B Kloss 2** — adminNiva + firmaadmin/prosjektadmin-kolonner + matrise-UI + logg-skriving (**endrer admin-atferd**) | ⬜ ordre skrives | — |
+| **B Kloss 2** — adminNiva (**kun sitedoc+prosjekt**, firma-admin droppet — Kenneth-vedtak) + PROSJ.ADMIN-kolonne + matrise-UI + logg-skriving | 🟢 ordre skrevet ([kloss2-ordre.md](delplaner/kloss2-ordre.md)) | — |
 | **B Kloss 3** — endringslogg-fane + les/rediger-fane | ⬜ | — |
 | **A-3b perspektiv-visning** (oppå ferdig fundament) | 🟡 PAUSET (rad over) | — |
 
