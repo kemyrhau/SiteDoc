@@ -321,7 +321,11 @@ export function KontekstChip() {
     <>
       <button
         onClick={() => (apen ? setApen(false) : åpne())}
-        className={`relative z-0 flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold uppercase tracking-wide transition-colors hover:bg-black/[0.06] ${soneKlasse}`}
+        // Fast min-bredde = PROSJEKT-knappens bredde (127px, målt) + justify-center:
+        // «FIRMA» (kortere) og «PROSJEKT» får samme knappebredde, så ⇄ (som følger
+        // knappens høyrekant) står pixel-fast ved firma↔prosjekt-bytte. FIRMA-chippen
+        // får luft rundt sentrert nivåord — fabel-godkjent pris for stabil ⇄.
+        className={`relative z-0 flex min-w-[127px] items-center justify-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold uppercase tracking-wide transition-colors hover:bg-black/[0.06] ${soneKlasse}`}
       >
         {erFirmaKontekst ? t("kontekstChip.firma") : t("kontekstChip.prosjekt")}
         <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${apen ? "rotate-180" : ""}`} />
