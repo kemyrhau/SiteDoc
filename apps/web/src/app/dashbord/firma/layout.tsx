@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3, Boxes, Package, Database, ArrowLeft, Calendar, ShieldAlert, MapPin } from "lucide-react";
+import { LayoutDashboard, FolderKanban, Users, CreditCard, Settings, Building2, Award, Clock, BarChart3, Boxes, Package, Database, ArrowLeft, Calendar, ShieldAlert, MapPin, SlidersHorizontal } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { useFirma } from "@/kontekst/firma-kontekst";
@@ -86,6 +86,12 @@ const navigasjon: NavElement[] = [
     label: "Fakturering",
     href: "/dashbord/firma/fakturering",
     ikon: <CreditCard className="h-4 w-4" />,
+    kreverSitedocAdmin: true,
+  },
+  {
+    label: "Flyt-rettigheter",
+    href: "/dashbord/firma/flyt-rettigheter",
+    ikon: <SlidersHorizontal className="h-4 w-4" />,
     kreverSitedocAdmin: true,
   },
   {

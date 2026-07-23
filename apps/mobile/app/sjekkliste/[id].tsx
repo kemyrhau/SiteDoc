@@ -930,7 +930,7 @@ export default function SjekklisteUtfylling() {
           onSlett={["draft", "cancelled"].includes(sjekkliste.status) ? håndterSlett : undefined}
           tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["tilgjengeligeFlyter"]}
           minRolle={minRolle ?? null}
-          erFirmaAdmin={minFlytInfo?.erAdmin === true}
+          adminNiva={minFlytInfo?.adminNiva ?? null}
         />
 
         {erRedigerbar && (

@@ -80,18 +80,24 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
 export function hentRolleFiltrertHandlinger(
   status: string,
   rolle: DokumentflytRolle | null,
-  erAdmin: boolean,
+  adminNiva: AdminNiva | boolean,
   overrides?: RettighetsOverrides,
 ): StatusHandling[] {
   if (!rolle) return [];
 
   const alle = hentStatusHandlinger(status);
+  const niva = normaliserAdminNiva(adminNiva);
 
-  // Kun admin ser alle handlinger. Registrator er ikke lenger superbruker (Fase B):
-  // hun faller gjennom til ROLLE_HANDLINGER_DEFAULTS.registrator (kun send/slett på egen kladd).
-  if (erAdmin) return alle;
+  // sitedoc = kode-bypass: ser hele universet (uendret fra gammel erAdmin=true).
+  if (niva === "sitedoc") return alle;
 
-  // Per celle: override → default (celleTillatt). Uten overrides = default-laget = bit-identisk.
+  // prosjektadmin: full INNENFOR statusmaskinen (bevarer dagens bypass), konfigurerbar nedover.
+  if (niva === "prosjekt") {
+    return alle.filter((h) => prosjektadminCelle(status, h.nyStatus, overrides));
+  }
+
+  // null (vanlig flyt-rolle, inkl. firma-admin): per celle override → default (celleTillatt).
+  // Uten overrides = default-laget = bit-identisk med Kloss 1.
   return alle.filter((h) => celleTillatt(rolle, status, h.nyStatus, overrides));
 }
 
@@ -106,11 +112,18 @@ export function erTillattForRolle(
   rolle: DokumentflytRolle | null,
   gjeldendStatus: string,
   nyStatus: string,
-  erAdmin: boolean,
+  adminNiva: AdminNiva | boolean,
   overrides?: RettighetsOverrides,
 ): boolean {
+  // null-rolle aldri — sjekkes FØR admin-nivå (uendret fra Kloss 1: også sitedoc-admin
+  // uten rolle får false).
   if (!rolle) return false;
-  if (erAdmin) return true;
+  const niva = normaliserAdminNiva(adminNiva);
+  // sitedoc = kode-bypass, uendret semantikk fra gammel erAdmin=true (også ulovlige overganger).
+  if (niva === "sitedoc") return true;
+  // prosjektadmin: full innenfor statusmaskinen, konfigurerbar nedover.
+  if (niva === "prosjekt") return prosjektadminCelle(gjeldendStatus, nyStatus, overrides);
+  // null (vanlig flyt-rolle, inkl. firma-admin): Kloss 1-stien (bit-identisk uten overrides).
   return celleTillatt(rolle, gjeldendStatus, nyStatus, overrides);
 }
 
@@ -163,6 +176,51 @@ function celleTillatt(
   }
   // Default-laget (sikkerhetsrammen) — identisk med dagens oppførsel.
   return ROLLE_HANDLINGER_DEFAULTS[rolle]?.[fraStatus]?.has(tilStatus) ?? false;
+}
+
+/**
+ * Admin-nivå i flyt-rettighetslaget (Kloss 2, kun sitedoc + prosjektadmin — Kenneth-vedtak 2026-07-23).
+ *
+ * - `"sitedoc"`  → `User.role="sitedoc_admin"`. Kode-bypass (full tilgang, også ulovlige
+ *                  overganger) — semantisk identisk med gammel `erAdmin=true`. Ingen matrise-kolonne.
+ * - `"prosjekt"` → `ProjectMember.role="admin"`. Egen redigerbar matrise-kolonne. Default (tom
+ *                  override) = full INNENFOR statusmaskinen (bevarer dagens bypass), konfigurerbar nedover.
+ * - `null`       → vanlig flyt-rolle (inkl. **firma-admin** — får INGEN flyt-admin-rett, som server i dag).
+ *
+ * `boolean` godtas som bakoverkompatibel snarvei (Kloss 1: `true`→"sitedoc", `false`→null),
+ * så Kloss 1-testene forblir uendret grønne. Nye kall bør sende AdminNiva-strengen eksplisitt.
+ */
+export type AdminNiva = "sitedoc" | "prosjekt" | null;
+
+/** Sentinel-rollenavnet for prosjektadmin-kolonnen i overrides/logg (ikke en DokumentflytRolle). */
+export const PROSJEKTADMIN_ROLLE = "prosjektadmin";
+
+function normaliserAdminNiva(a: AdminNiva | boolean): AdminNiva {
+  if (typeof a === "boolean") return a ? "sitedoc" : null;
+  return a;
+}
+
+/**
+ * Effektiv rett for prosjektadmin-kolonnen (adminNiva="prosjekt").
+ *
+ * Tom override = full innenfor statusmaskinen (arver dagens bypass, ikke-regresserende).
+ * «Innenfor statusmaskinen» inkluderer pseudo-handlingene `deleted`/`forwarded` som
+ * `hentStatusHandlinger` legitimt eksponerer (ellers ville prosjektadmin mistet Slett/Videresend
+ * mot dagens fulle bypass). Override kan slå av (nedover) eller på, men en positiv override
+ * kan ALDRI skape en overgang statusmaskinen ikke har (Kloss 1-invarianten, § 5.4).
+ */
+function erStruktureltGyldig(fraStatus: string, tilStatus: string): boolean {
+  return isValidStatusTransition(fraStatus, tilStatus) || tilStatus === "deleted" || tilStatus === "forwarded";
+}
+
+function prosjektadminCelle(fraStatus: string, tilStatus: string, overrides?: RettighetsOverrides): boolean {
+  const noekkel = flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, fraStatus, tilStatus);
+  if (overrides && noekkel in overrides) {
+    // Override-laget: honorér kun hvis strukturelt gyldig (invarianten — også for prosjektadmin).
+    return overrides[noekkel] === true && erStruktureltGyldig(fraStatus, tilStatus);
+  }
+  // Tom override = arv full innenfor statusmaskinen.
+  return erStruktureltGyldig(fraStatus, tilStatus);
 }
 
 /** Roller → status → tillatte nyStatus-verdier (default-laget; per-firma avvik i RettighetsOverrides) */

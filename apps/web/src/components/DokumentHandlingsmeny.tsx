@@ -18,6 +18,7 @@ import {
   isValidStatusTransition,
   type StatusHandling,
   type DokumentflytRolle,
+  type AdminNiva,
 } from "@sitedoc/shared";
 import { byggVideresendValg } from "@/lib/videresend-valg";
 import type { DokumentflytData, FaggruppeData } from "@/lib/videresend-valg";
@@ -51,8 +52,13 @@ interface DokumentHandlingsmenyProps {
   templateId?: string | null;
   standardFaggruppeId?: string;
   minRolle?: DokumentflytRolle | null;
-  /** Prosjektadmin / sitedoc_admin / firma-admin (fra hentMinFlytInfo.erAdmin) */
-  erAdmin?: boolean;
+  /**
+   * Admin-nivå i flyt-laget (Kloss 2): "sitedoc" (kode-bypass), "prosjekt" (full innenfor
+   * statusmaskinen, konfigurerbar), null (vanlig rolle — inkl. firma-admin). Fra
+   * hentMinFlytInfo.adminNiva. Erstatter det gamle `erAdmin`-flagget som viste firma-admin
+   * et fantom-menyvalg serveren avviste.
+   */
+  adminNiva?: AdminNiva;
   /** Dokumentflyt-medlemmer for posisjon-utledning */
   flytMedlemmer?: FlytMedlem[];
   /** Nåværende mottaker (bruker-ID) */
@@ -179,7 +185,7 @@ export function DokumentHandlingsmeny({
   templateId,
   standardFaggruppeId,
   minRolle,
-  erAdmin,
+  adminNiva,
   flytMedlemmer,
   recipientUserId,
   recipientGroupId,
@@ -221,8 +227,8 @@ export function DokumentHandlingsmeny({
   // for dokumenter uten `dokumentflytId`, så klienten tilbyr da hele (statusmaskin-lovlige) settet.
   const alle = useMemo(() => hentStatusHandlinger(status), [status]);
   const aktive = useMemo(
-    () => (harFlyt ? hentRolleFiltrertHandlinger(status, minRolle ?? null, erAdmin ?? false) : alle),
-    [harFlyt, status, minRolle, erAdmin, alle],
+    () => (harFlyt ? hentRolleFiltrertHandlinger(status, minRolle ?? null, adminNiva ?? null) : alle),
+    [harFlyt, status, minRolle, adminNiva, alle],
   );
 
   // Standard-mottaker (utfører-faggruppen) for «besvar»-overgangen

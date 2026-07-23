@@ -213,7 +213,9 @@ export default function OppgaveDetaljSide() {
       groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      // Kloss 2: rolle-utledning følger adminNiva (firma-admin = adminNiva:null → vanlig
+      // rolle/lesevisning). sitedoc/prosjekt → admin.
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.adminNiva !== null },
       medlemmer,
       { bestillerFaggruppeId: op.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: op.utforerFaggruppe?.id ?? "" },
     );
@@ -511,7 +513,7 @@ export default function OppgaveDetaljSide() {
             templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
             standardFaggruppeId={oppgave.utforerFaggruppe?.id}
             minRolle={minRolle}
-            erAdmin={minFlytInfo?.erAdmin === true}
+            adminNiva={minFlytInfo?.adminNiva ?? null}
             flytMedlemmer={flytMedlemmer}
             recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
             recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}

@@ -130,7 +130,9 @@ export default function SjekklisteDetaljSide() {
       groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      // Kloss 2: rolle-utledning følger adminNiva (firma-admin = adminNiva:null → vanlig
+      // rolle/lesevisning, ikke lenger implisitt "registrator"). sitedoc/prosjekt → admin.
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.adminNiva !== null },
       medlemmer,
       { bestillerFaggruppeId: sj.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: sj.utforerFaggruppe?.id ?? "" },
     );
@@ -520,7 +522,7 @@ export default function SjekklisteDetaljSide() {
             templateId={sjekkliste.template?.id ?? (sjekkliste as unknown as { templateId?: string }).templateId}
             standardFaggruppeId={sjekkliste.utforerFaggruppe?.id}
             minRolle={minRolle}
-            erAdmin={minFlytInfo?.erAdmin === true}
+            adminNiva={minFlytInfo?.adminNiva ?? null}
             flytMedlemmer={flytMedlemmer}
             recipientUserId={fullSjekkliste?.recipientUserId}
             recipientGroupId={fullSjekkliste?.recipientGroupId}

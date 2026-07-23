@@ -9,6 +9,7 @@ import {
   addGroupMemberByEmailSchema,
   utvidTillatelser,
 } from "@sitedoc/shared";
+import type { AdminNiva } from "@sitedoc/shared";
 import { sendInvitasjonsEpost } from "../services/epost";
 import { TRPCError } from "@trpc/server";
 import {
@@ -31,7 +32,7 @@ export const gruppeRouter = router({
         select: { role: true },
       });
       if (bruker?.role === "sitedoc_admin") {
-        return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
+        return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, adminNiva: "sitedoc" as const, moduler: alleGruppeModuler };
       }
 
       const medlem = await ctx.prisma.projectMember.findUnique({
@@ -60,7 +61,10 @@ export const gruppeRouter = router({
               select: { firmaRoller: true },
             });
             if (member?.firmaRoller.includes("firma_admin")) {
-              return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, moduler: alleGruppeModuler };
+              // Kloss 2 (Kenneth-vedtak 2026-07-23): firma-admin er IKKE et flyt-admin-nivå →
+              // adminNiva:null (flyt-menyen behandler dem som vanlig deltaker, fjerner fantom-
+              // menyvalget). erAdmin beholdes true for prosjekt-synlighet/redigering (uendret).
+              return { userId: ctx.userId, projectMemberId: "", faggruppeIder: [], gruppeIder: [], erAdmin: true, adminNiva: null, moduler: alleGruppeModuler };
             }
           }
         }
@@ -83,6 +87,9 @@ export const gruppeRouter = router({
         faggruppeIder: medlem.faggruppeKoblinger.map((e) => e.faggruppeId),
         gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
         erAdmin,
+        // Kloss 2: prosjektadmin (ProjectMember.role="admin") = egen matrise-kolonne "prosjekt";
+        // vanlig medlem = null. sitedoc håndteres i egen gren over.
+        adminNiva: (erAdmin ? "prosjekt" : null) as AdminNiva,
         moduler,
       };
     }),
