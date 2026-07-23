@@ -34,6 +34,26 @@ function relativPath(href: string, prefiks: string): string {
 }
 
 /**
+ * Er ruta i FIRMA-kontekst? Alle `/dashbord/firma/*` + firmamodul-ruter som
+ * ligger på TOPP-nivå utenfor det prefikset. I dag er `/dashbord/maskin` den
+ * eneste (bunnelement med `kreverFirmaModul: "maskin"`, vises i FIRMA-seksjonen)
+ * — cowork-verifisert; kompetanse/varelager ligger under `/dashbord/firma/*` og
+ * dekkes av prefikset. Grense-sikker match (ikke løs `startsWith`) så
+ * `/dashbord/maskinXYZ` ikke feilaktig treffer.
+ *
+ * ⚠️ FRAMTID: nye topp-nivå-firmamoduler må legges til her, ellers viser chippen
+ * feil (prosjekt-)kontekst på den ruta.
+ */
+function ruteErFirmaKontekst(pathname: string | null): boolean {
+  const p = pathname ?? "";
+  return (
+    p.startsWith("/dashbord/firma") ||
+    p === "/dashbord/maskin" ||
+    p.startsWith("/dashbord/maskin/")
+  );
+}
+
+/**
  * KontekstChip (steg iii + K3-trakt) — samlet «{Firma} / {Prosjekt} ▾»-velger
  * bak `nyNavigasjon`-flagget. Erstatter FirmaVelger + ProsjektVelger i Toppbar.
  *
@@ -73,7 +93,7 @@ export function KontekstChip() {
   const pathname = usePathname();
   // P1-A: samme kontekst-derivat som Toppbar (`Toppbar.tsx:50`). Chippen var
   // kontekst-blind — det var rotårsaken til firma/prosjekt-forvekslingen.
-  const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
+  const erFirmaKontekst = ruteErFirmaKontekst(pathname);
 
   // P1-B (⇄): motpart-flate — streng én-til-én-paring på det EIENDE nav-elementet
   // (lengste href-prefiks av pathname), ikke deler[3]. Motpart finnes kun når et
