@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle, avgjorDokumentTilgang } from "@sitedoc/shared";
-import type { FlytMedlemInfo } from "@sitedoc/shared";
+import type { FlytMedlemInfo, AdminNiva } from "@sitedoc/shared";
 import { hentFlytRettighetOverrides } from "../services/flytRettighet";
 
 /**
@@ -670,7 +670,12 @@ export async function verifiserFlytRolle(
     groupId: m.groupId,
   }));
 
-  const erAdmin = medlem.role === "admin";
+  // adminNiva (Kloss 2): sitedoc_admin bypasset allerede over (linje 646, full return).
+  // Prosjektadmin = "prosjekt" (egen matrise-kolonne, full innenfor statusmaskinen ved tom
+  // override, konfigurerbar nedover). Firma-admin er IKKE et flyt-admin-nivå (Kenneth-vedtak
+  // 2026-07-23) — og har uansett ingen ProjectMember-rad, så den kaster FORBIDDEN over (linje
+  // 655). Ingen firmaRoller-sjekk her: firma-admin får ingen bypass server-side (uendret).
+  const adminNiva: AdminNiva = medlem.role === "admin" ? "prosjekt" : null;
 
   const rolle = utledMinRolle(
     {
@@ -678,7 +683,7 @@ export async function verifiserFlytRolle(
       projectMemberId: medlem.id,
       faggruppeIder: medlem.faggruppeKoblinger.map((e) => e.faggruppeId),
       gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
-      erAdmin,
+      erAdmin: adminNiva !== null,
     },
     medlemmerInfo,
     { bestillerFaggruppeId, utforerFaggruppeId },
@@ -692,7 +697,7 @@ export async function verifiserFlytRolle(
   });
   const overrides = await hentFlytRettighetOverrides(prosjekt?.primaryOrganizationId);
 
-  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus, erAdmin, overrides)) {
+  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus, adminNiva, overrides)) {
     const rolleNavn = rolle ?? "ingen";
     throw new TRPCError({
       code: "FORBIDDEN",

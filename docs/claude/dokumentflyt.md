@@ -188,6 +188,38 @@ Registrator/admin ser alltid en egen seksjon med flytbokser og manuelle statusen
 **Fremtidig:**
 - Per-person overstyring innad i en gruppe (nå gjelder hele gruppen)
 
+### Admin-nivå i flyt-laget (`adminNiva` — Kloss 2, 2026-07-23)
+
+`adminNiva: "sitedoc" | "prosjekt" | null` innføres KUN i flyt-rettighets-funksjonene
+(`erTillattForRolle`/`hentRolleFiltrertHandlinger`/`celleTillatt` i `statusHandlinger.ts`);
+`erAdmin: boolean` består overalt ellers. Kilde: `hentMinFlytInfo` (`gruppe.ts`) returnerer
+`adminNiva` — `sitedoc` (`User.role="sitedoc_admin"`), `prosjekt` (`ProjectMember.role="admin"`),
+`null` (vanlig rolle, **inkl. firma-admin**).
+
+- **sitedoc** → kode-bypass (full, også ulovlige overganger). Ikke en matrise-kolonne.
+- **prosjekt** → egen redigerbar matrise-kolonne. Default (tom override) = full INNENFOR
+  statusmaskinen (`isValidStatusTransition` + pseudo `deleted`/`forwarded`), konfigurerbar nedover.
+- **null** → Kloss 1-defaults (`ROLLE_HANDLINGER_DEFAULTS`), bit-identisk. Firma-admin får INGEN
+  flyt-admin-rett (som server allerede: `verifiserFlytRolle` har ingen firmaRoller-sjekk).
+
+**Fase A-måling (2026-07-23, mot koden i branchen — korrigerer ordrens hypotese):**
+
+| Nivå | Server (`verifiserFlytRolle`) | Web-meny (`hentMinFlytInfo.erAdmin`) | Mobil-meny (`erFirmaAdmin=minFlytInfo.erAdmin`) |
+|---|---|---|---|
+| sitedoc_admin | bypass (`role==="sitedoc_admin"`, early return `:647`) | admin (`:34`) | admin (samme `erAdmin`) |
+| firma-admin | **ingen bypass** (kaster «Ikke medlem» `:655`) | admin (`gruppe.ts:62-63`) | admin (`:63`) |
+| prosjektadmin | bypass (`medlem.role==="admin"`) | admin (`:85`) | admin (`:85`) |
+
+Mobil-menyen rendres i `apps/mobile/app/{sjekkliste,oppgave}/[id].tsx` og mates av
+`minFlytInfo.erAdmin` (ikke en firma-only-sjekk) → **prosjektadmin har allerede menyparitet** med
+server (ordrens divergens 2 finnes ikke). Eneste reelle divergens: firma-admin **fantom** —
+menyen viste admin-handlinger serveren avviste (web + mobil). Kloss 2 fjerner fantomet:
+`adminNiva=null` for firma-admin → vanlig rolle/lesevisning. `erAdmin` beholdes uendret for
+redigering/synlighet (ingen kapabilitetstap utover det flaggede fantomet).
+
+Matrise-admin-UI: `dashbord/firma/flyt-rettigheter` (`kanRedigereFlytMatrise = KUN sitedoc_admin`
+i fase 1). Datamodell + delt runtime: se [rettighetsmatrise-config-design.md](delplaner/rettighetsmatrise-config-design.md).
+
 ---
 
 ## 4. Flytregler

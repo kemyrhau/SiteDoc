@@ -25,6 +25,7 @@ import {
   Calendar,
   ShieldAlert,
   MapPin,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { trpc } from "@/lib/trpc";
@@ -52,6 +53,7 @@ export const firmaNavElementer: FirmaNavElement[] = [
   { labelKey: "firmaNav.kalender", href: "/dashbord/firma/kalender", ikon: <Calendar className="h-5 w-5" /> },
   { labelKey: "firmaNav.varelager", href: "/dashbord/firma/varelager", ikon: <Package className="h-5 w-5" />, kreverFirmaModul: "varelager" },
   { labelKey: "firmaNav.fakturering", href: "/dashbord/firma/fakturering", ikon: <CreditCard className="h-5 w-5" />, kreverSitedocAdmin: true },
+  { labelKey: "firmaNav.flytRettigheter", href: "/dashbord/firma/flyt-rettigheter", ikon: <SlidersHorizontal className="h-5 w-5" />, kreverSitedocAdmin: true },
   { labelKey: "firmaNav.innstillinger", href: "/dashbord/firma/innstillinger", ikon: <Settings className="h-5 w-5" /> },
   { labelKey: "firmaNav.integrasjoner", href: "/dashbord/firma/innstillinger/integrasjoner", ikon: <Database className="h-5 w-5" /> },
 ];

@@ -4,6 +4,7 @@ import {
   hentStatusHandlinger,
   erTillattForRolle,
   flytRettighetNoekkel,
+  PROSJEKTADMIN_ROLLE,
   type StatusHandling,
   type RettighetsOverrides,
 } from "./statusHandlinger";
@@ -241,5 +242,81 @@ describe("overrides — invariant: en override kan aldri skape en overgang statu
       [flytRettighetNoekkel("bestiller", "draft", "sent")]: false,
     };
     expect(erTillattForRolle("bestiller", "draft", "sent", true, override)).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  adminNiva (Kloss 2) — sitedoc / prosjekt / null                    */
+/* ------------------------------------------------------------------ */
+
+describe("adminNiva — boolean-shim er bit-identisk (Kloss 1-kompatibilitet)", () => {
+  it("true == 'sitedoc' og false == null over hele TILLATT_MATRISE", () => {
+    for (const { rolle, fra, til } of TILLATT_MATRISE) {
+      if (!rolle) continue;
+      expect(erTillattForRolle(rolle, fra, til, true)).toBe(erTillattForRolle(rolle, fra, til, "sitedoc"));
+      expect(erTillattForRolle(rolle, fra, til, false)).toBe(erTillattForRolle(rolle, fra, til, null));
+    }
+  });
+  it("hentRolleFiltrertHandlinger: true=='sitedoc', false==null over HANDLING_MATRISE", () => {
+    for (const { status, rolle } of HANDLING_MATRISE) {
+      const a = hentRolleFiltrertHandlinger(status, rolle, true).map((h) => h.nyStatus);
+      const b = hentRolleFiltrertHandlinger(status, rolle, "sitedoc").map((h) => h.nyStatus);
+      expect(a).toEqual(b);
+      const c = hentRolleFiltrertHandlinger(status, rolle, false).map((h) => h.nyStatus);
+      const d = hentRolleFiltrertHandlinger(status, rolle, null).map((h) => h.nyStatus);
+      expect(c).toEqual(d);
+    }
+  });
+});
+
+describe("adminNiva='sitedoc' — kode-bypass (full, også ulovlige overganger)", () => {
+  it("erTillattForRolle: true for enhver overgang, inkl. ulovlig draft→closed", () => {
+    expect(erTillattForRolle("registrator", "draft", "sent", "sitedoc")).toBe(true);
+    expect(erTillattForRolle("registrator", "draft", "closed", "sitedoc")).toBe(true);
+    expect(erTillattForRolle("godkjenner", "closed", "approved", "sitedoc")).toBe(true);
+  });
+  it("null-rolle er false selv med sitedoc (rolle sjekkes først — uendret)", () => {
+    expect(erTillattForRolle(null, "draft", "sent", "sitedoc")).toBe(false);
+  });
+  it("hentRolleFiltrertHandlinger: hele universet", () => {
+    expect(hentRolleFiltrertHandlinger("draft", "registrator", "sitedoc").map((h) => h.nyStatus)).toEqual(["sent", "deleted"]);
+    expect(hentRolleFiltrertHandlinger("responded", "bestiller", "sitedoc").map((h) => h.nyStatus)).toEqual(["approved", "rejected", "forwarded"]);
+  });
+});
+
+describe("adminNiva='prosjekt' — full INNENFOR statusmaskinen (tom override)", () => {
+  it("lovlig overgang tillates (draft→sent), ulovlig nektes (draft→closed)", () => {
+    expect(erTillattForRolle("registrator", "draft", "sent", "prosjekt")).toBe(true);
+    expect(isValidStatusTransition("draft", "closed")).toBe(false);
+    expect(erTillattForRolle("registrator", "draft", "closed", "prosjekt")).toBe(false);
+  });
+  it("pseudo-handlinger (deleted/forwarded) bevares — som dagens fulle bypass", () => {
+    expect(erTillattForRolle("registrator", "draft", "deleted", "prosjekt")).toBe(true);
+    expect(erTillattForRolle("registrator", "received", "forwarded", "prosjekt")).toBe(true);
+  });
+  it("hentRolleFiltrertHandlinger: hele det statusmaskin-lovlige universet for status", () => {
+    // received-universet: responded (lovlig), forwarded (pseudo), cancelled (lovlig) → alle
+    expect(hentRolleFiltrertHandlinger("received", "registrator", "prosjekt").map((h) => h.nyStatus))
+      .toEqual(["responded", "forwarded", "cancelled"]);
+  });
+  it("konfigurerbar NEDOVER: negativ prosjektadmin-override slår av en celle", () => {
+    const override: RettighetsOverrides = { [flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, "draft", "sent")]: false };
+    expect(erTillattForRolle("registrator", "draft", "sent", "prosjekt")).toBe(true);
+    expect(erTillattForRolle("registrator", "draft", "sent", "prosjekt", override)).toBe(false);
+  });
+  it("invariant: positiv prosjektadmin-override på ulovlig overgang snittes bort", () => {
+    const override: RettighetsOverrides = { [flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, "draft", "closed")]: true };
+    expect(erTillattForRolle("registrator", "draft", "closed", "prosjekt", override)).toBe(false);
+  });
+});
+
+describe("adminNiva=null (vanlig rolle, inkl. firma-admin) — Kloss 1-sti bevart", () => {
+  it("bestiller draft→sent tillatt, responded→approved ikke (bit-identisk med Kloss 1)", () => {
+    expect(erTillattForRolle("bestiller", "draft", "sent", null)).toBe(true);
+    expect(erTillattForRolle("bestiller", "responded", "approved", null)).toBe(false);
+  });
+  it("prosjektadmin-override påvirker IKKE null-nivået (kun 'prosjekt'-stien leser den)", () => {
+    const override: RettighetsOverrides = { [flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, "draft", "sent")]: false };
+    expect(erTillattForRolle("bestiller", "draft", "sent", null, override)).toBe(true);
   });
 });

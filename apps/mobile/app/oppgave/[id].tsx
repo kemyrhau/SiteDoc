@@ -802,7 +802,7 @@ export default function OppgaveDetalj() {
           onSlett={["draft", "cancelled"].includes(oppgave.status) ? håndterSlett : undefined}
           tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["tilgjengeligeFlyter"]}
           minRolle={minRolle ?? null}
-          erFirmaAdmin={minFlytInfo?.erAdmin === true}
+          adminNiva={minFlytInfo?.adminNiva ?? null}
         />
 
         {/* Lagre-knapp */}
