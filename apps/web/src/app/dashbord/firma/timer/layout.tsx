@@ -22,7 +22,7 @@ export default function FirmaTimerLayout({
   );
 
   const sub = [
-    { href: "/dashbord/firma/timer/onboarding", label: t("firma.timer.fane.onboarding") },
+    { href: "/dashbord/firma/timer", label: t("firma.timer.fane.oversikt") },
     { href: "/dashbord/firma/timer/oppsett", label: t("firma.timer.fane.oppsett") },
     { href: "/dashbord/firma/timer/lonnsarter", label: t("firma.timer.fane.lonnsarter") },
     { href: "/dashbord/firma/timer/aktiviteter", label: t("firma.timer.fane.aktiviteter") },
@@ -55,7 +55,12 @@ export default function FirmaTimerLayout({
       <div className="mb-4 border-b border-gray-200">
         <nav className="-mb-px flex gap-6">
           {filtrert.map((fane) => {
-            const aktiv = pathname === fane.href || pathname.startsWith(fane.href + "/");
+            // Hjem-fanen (base-ruta) matcher KUN eksakt — ellers ville
+            // startsWith("/dashbord/firma/timer/") slått til på alle undersider.
+            const aktiv =
+              fane.href === "/dashbord/firma/timer"
+                ? pathname === fane.href
+                : pathname === fane.href || pathname.startsWith(fane.href + "/");
             return (
               <Link
                 key={fane.href}
