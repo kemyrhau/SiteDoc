@@ -7,7 +7,7 @@ import { Button, Modal, Spinner, EmptyState, StatusBadge, Table } from "@sitedoc
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
-import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight, User, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
@@ -98,6 +98,7 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "opprettet", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
   { id: "frist", navnKey: "tabell.tidsfrist", gruppe: "kolonner" },
+  { id: "dokumentflyt", navnKey: "tabell.dokumentflyt", gruppe: "kolonner" },
   { id: "flyt", navnKey: "tabell.flyt", gruppe: "kolonner" },
 ];
 
@@ -107,7 +108,7 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "flyt", "bygning", "frist"]);
+const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "dokumentflyt", "flyt", "bygning", "frist"]);
 
 // --- Hjelpefunksjoner ---
 
@@ -264,7 +265,7 @@ export default function SjekklisteSide() {
   } = useTabelloppsett({
     liste: "sjekklister",
     standardKolonner: STANDARD_AKTIVE,
-    migrerNokkel: "sitedoc-sjekkliste-kolonner-v5",
+    migrerNokkel: "sitedoc-sjekkliste-kolonner-v6",
     migrerBreddeNokkel: "sitedoc-sjekkliste-bredder-v1",
   });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
@@ -458,6 +459,7 @@ export default function SjekklisteSide() {
       bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
       tegning: bygg(data.map((s) => s.drawing?.name)),
+      dokumentflyt: bygg(data.map((s) => s.dokumentflyt?.name)),
       flyt: bygg(data.map((s) => hentFlytLedd(s))),
       frist: [
         { value: "har_frist", label: t("kontrollplan.frist") },
@@ -527,6 +529,7 @@ export default function SjekklisteSide() {
           case "bygning": return valgteSet.has(s.byggeplass?.name ?? "");
           case "etasje": return valgteSet.has(s.drawing?.floor ?? "");
           case "tegning": return valgteSet.has(s.drawing?.name ?? "");
+          case "dokumentflyt": return valgteSet.has(s.dokumentflyt?.name ?? "");
           case "flyt": return valgteSet.has(hentFlytLedd(s));
           case "frist": {
             const harFrist = !!s.dueDate;
@@ -586,7 +589,19 @@ export default function SjekklisteSide() {
         ),
         bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
         filterSnarveier: [{ label: t("status.alleApne"), verdier: ["draft", "sent", "received", "in_progress", "responded"] }] },
-      ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"), celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
+      ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"),
+        celle: (rad) => {
+          // Person → User-ikon; gruppe/faggruppe → Users-ikon (lite, dempet).
+          // Speil formaterAnsvarlig: person kun når recipientUser har navn.
+          const erPerson = !!rad.recipientUser?.name;
+          const Ikon = erPerson ? User : Users;
+          return (
+            <span className="inline-flex items-center text-gray-600">
+              <Ikon className="mr-1 h-3 w-3 text-gray-400" />
+              {formaterAnsvarlig(rad)}
+            </span>
+          );
+        },
         sorterbar: true, sorterVerdi: (rad) => formaterAnsvarlig(rad), filtrerbar: true, filterAlternativer: dynamiskFilter.ansvarlig ?? [] },
       opprettetAv: { id: "opprettetAv", header: t("tabell.opprettetAv"), celle: (rad) => rad.bestiller?.name
         ? <span className="text-gray-600">{rad.bestiller.name}</span> : <span className="text-gray-300">—</span>,
@@ -607,6 +622,11 @@ export default function SjekklisteSide() {
         ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span> : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
         filtrerbar: true, filterAlternativer: dynamiskFilter.frist },
+      dokumentflyt: { id: "dokumentflyt", header: t("tabell.dokumentflyt"),
+        celle: (rad) => rad.dokumentflyt?.name
+          ? <span className="text-xs text-gray-600">{rad.dokumentflyt.name}</span> : <span className="text-gray-300">—</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.dokumentflyt?.name ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.dokumentflyt ?? [] },
       flyt: { id: "flyt", header: t("tabell.flyt"),
         celle: (rad) => <FlytIndikator
           medlemmer={rad.dokumentflyt?.medlemmer ?? []}
