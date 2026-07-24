@@ -85,6 +85,9 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
             const erSiste = i === overforinger.length - 1;
             const harMottaker = ovf.recipientUser || ovf.recipientGroup;
             const erVideresending = ovf.comment?.startsWith("Videresendt") ?? false;
+            // Append uten statusendring (HMS «Tilføy informasjon», Ordre B):
+            // fromStatus === toStatus. Vises som egen etikett, ikke to like badges.
+            const erTilfoyelse = ovf.fromStatus === ovf.toStatus && !erVideresending;
             const visKommentar = erVideresending
               ? ovf.comment?.replace(/^Videresendt:\s*/, "").trim() || null
               : ovf.comment;
@@ -107,6 +110,10 @@ export function DokumentTidslinje({ overforinger, opprettetAv, opprettetDato }: 
                     {erVideresending ? (
                       <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
                         {t("statushandling.videresend")}
+                      </span>
+                    ) : erTilfoyelse ? (
+                      <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-600">
+                        {t("tidslinje.tilfoydInformasjon")}
                       </span>
                     ) : (
                       <>
