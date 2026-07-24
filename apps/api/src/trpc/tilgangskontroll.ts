@@ -220,6 +220,120 @@ export async function harFirmaHmsTilgang(
 }
 
 /**
+ * HMS-admin = prosjekt-admin ∪ HMS-gruppe-medlem ∪ firma-`hms_ansvarlig`.
+ *
+ * Delt kilde for privat-lesefilteret (`byggHmsSynlighetsFilter` i hms.ts) og
+ * HMS-handlingsguarden (`verifiserHmsHandling`). Én definisjon — aldri duplisert
+ * (dedikert HMS-løp, D2).
+ *
+ * MERK: sitedoc_admin dekkes ikke eksplisitt her — kallerne håndterer den som
+ * egen bypass før dette kallet. `harFirmaHmsTilgang` returnerer riktignok true
+ * for sitedoc_admin på firma-bundne prosjekter, men det er en ufarlig delmengde.
+ */
+export async function erHmsAdmin(
+  userId: string,
+  projectId: string,
+): Promise<boolean> {
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    select: {
+      role: true,
+      groupMemberships: {
+        select: { group: { select: { domains: true } } },
+      },
+    },
+  });
+
+  if (medlem) {
+    if (medlem.role === "admin") return true;
+    const erHmsGruppe = medlem.groupMemberships.some((gm) => {
+      const domains = gm.group.domains;
+      return Array.isArray(domains) && (domains as unknown[]).includes("hms");
+    });
+    if (erHmsGruppe) return true;
+  }
+
+  // Firma-HMS-tilgang: bruker med "hms_ansvarlig" i firmaRoller på prosjektets
+  // firma behandler alle HMS-dokumenter. Standalone-prosjekter
+  // (primaryOrganizationId = null) er upåvirket — kun firma-bundne dekkes.
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { primaryOrganizationId: true },
+  });
+  if (project?.primaryOrganizationId) {
+    return harFirmaHmsTilgang(userId, project.primaryOrganizationId);
+  }
+  return false;
+}
+
+/** Handlinger i det dedikerte HMS-løpet (D2). */
+export type HmsHandling = "tilfoyInformasjon" | "besvar" | "lukk" | "gjenapne";
+
+/**
+ * HMS-egen autorisasjonsguard (tilstand × handling × hvem) — dedikert HMS-løp,
+ * D2. Rører ALDRI `verifiserFlytRolle`/rolle-matrisen. sitedoc_admin bypasser.
+ *
+ * | Handling         | Hvem      | Tilstand        |
+ * |------------------|-----------|-----------------|
+ * | tilfoyInformasjon| oppretter | sent · responded|
+ * | besvar           | HMS-admin | sent · responded|
+ * | lukk             | HMS-admin | responded       |
+ * | gjenapne         | HMS-admin | closed          |
+ *
+ * Kaster FORBIDDEN (feil hvem) eller BAD_REQUEST (feil tilstand) ellers.
+ */
+export async function verifiserHmsHandling(
+  userId: string,
+  sjekkliste: { bestillerUserId: string | null; status: string; projectId: string },
+  handling: HmsHandling,
+): Promise<void> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (bruker?.role === "sitedoc_admin") return;
+
+  const { bestillerUserId, status, projectId } = sjekkliste;
+
+  if (handling === "tilfoyInformasjon") {
+    if (bestillerUserId === userId && (status === "sent" || status === "responded")) {
+      return;
+    }
+    if (bestillerUserId !== userId) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Kun oppretteren kan tilføye informasjon til HMS-saken",
+      });
+    }
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Kan ikke tilføye informasjon i tilstanden «${status}»`,
+    });
+  }
+
+  // besvar / lukk / gjenapne krever HMS-admin
+  const admin = await erHmsAdmin(userId, projectId);
+  if (!admin) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Kun HMS-ansvarlig kan behandle HMS-saker",
+    });
+  }
+
+  const tillatt =
+    (handling === "besvar" && (status === "sent" || status === "responded")) ||
+    (handling === "lukk" && status === "responded") ||
+    (handling === "gjenapne" && status === "closed");
+
+  if (!tillatt) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `HMS-handlingen «${handling}» er ikke tillatt i tilstanden «${status}»`,
+    });
+  }
+}
+
+/**
  * Verifiser at bruker er admin i prosjektet.
  * company_admin med riktig org arver admin-rettigheter uten ProjectMember-rad.
  */
