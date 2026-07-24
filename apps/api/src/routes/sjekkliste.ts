@@ -10,7 +10,7 @@ import {
   verifiserDokumentTilgang,
   verifiserFlytRolle,
   verifiserProsjektmedlem,
-  hentBrukersFlytMedlemskap,
+  hentBrukersOpprettFlytMedlemskap,
   hentBrukerTillatelser,
   hentBrukerProsjektTilgang,
   finnBrukersBoks,
@@ -216,8 +216,10 @@ export const sjekklisteRouter = router({
         });
 
         // F1/B2: server stoler ikke på klienten. Valider at (a) flyten har den valgte
-        // malen og (b) brukeren er oppretter-medlem av flyten. Samme håndhevingsprinsipp
-        // som verifiserFlytRolle — sitedoc_admin/prosjektadmin bypasser medlemskravet.
+        // malen og (b) brukeren er oppretter-medlem av flyten — dvs. medlem med
+        // oppretter-rollen (lagret som "registrator"), ikke enhver rolle (Kenneth-vedtak
+        // 2026-07-24). Samme håndhevingsprinsipp som verifiserFlytRolle —
+        // sitedoc_admin/prosjektadmin bypasser medlemskravet.
         const flytHarMal = await ctx.prisma.dokumentflytMal.findFirst({
           where: { dokumentflytId: input.dokumentflytId, templateId: input.templateId },
           select: { id: true },
@@ -234,7 +236,7 @@ export const sjekklisteRouter = router({
             select: { role: true },
           });
           if (medlem?.role !== "admin") {
-            const flytIder = await hentBrukersFlytMedlemskap(ctx.userId, malForDomain.projectId);
+            const flytIder = await hentBrukersOpprettFlytMedlemskap(ctx.userId, malForDomain.projectId);
             if (!flytIder.includes(input.dokumentflytId)) {
               throw new TRPCError({
                 code: "FORBIDDEN",

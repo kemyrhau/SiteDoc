@@ -754,6 +754,43 @@ export async function hentBrukersFlytMedlemskap(
   );
 }
 
+/**
+ * Flyt-ID-ene der brukeren er OPPRETTER-medlem (rolle "registrator") i et prosjekt.
+ * Skiller seg fra `hentBrukersFlytMedlemskap` (any-rolle, brukt til SYNLIGHET i
+ * `byggTilgangsFilter`) ved rolle-filteret: kun oppretter-rollen — som lagres som
+ * "registrator" i DB (`Dokumentflyt.opprett`-default + hele rolle-vokabularet;
+ * "oppretter" er ingen lagret rolleverdi) — gir rett til å opprette dokumenter fra
+ * malen (Kenneth-vedtak F1/B2(b) 2026-07-24). Binding via person/faggruppe/gruppe
+ * som ellers. Bevisst egen spørring (ikke `hentFlytIderForMedlem`, som SKAL være
+ * any-rolle for synlighet).
+ */
+export async function hentBrukersOpprettFlytMedlemskap(
+  userId: string,
+  projectId: string,
+): Promise<string[]> {
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    select: {
+      id: true,
+      faggruppeKoblinger: { select: { faggruppeId: true } },
+      groupMemberships: { select: { groupId: true } },
+    },
+  });
+  if (!medlem) return [];
+
+  const orBindinger: Record<string, unknown>[] = [{ projectMemberId: medlem.id }];
+  const faggruppeIder = medlem.faggruppeKoblinger.map((k) => k.faggruppeId);
+  const gruppeIder = medlem.groupMemberships.map((g) => g.groupId);
+  if (faggruppeIder.length > 0) orBindinger.push({ faggruppeId: { in: faggruppeIder } });
+  if (gruppeIder.length > 0) orBindinger.push({ groupId: { in: gruppeIder } });
+
+  const medlemskap = await prisma.dokumentflytMedlem.findMany({
+    where: { periodeSlutt: null, rolle: "registrator", OR: orBindinger },
+    select: { dokumentflytId: true },
+  });
+  return [...new Set(medlemskap.map((m) => m.dokumentflytId))];
+}
+
 export async function byggTilgangsFilter(
   userId: string,
   projectId: string,

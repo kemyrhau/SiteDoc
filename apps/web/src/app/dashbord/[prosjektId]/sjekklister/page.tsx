@@ -299,7 +299,9 @@ export default function SjekklisteSide() {
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string; domain?: string }>).filter((m) => m.category === "sjekkliste");
-  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery({ projectId: params.prosjektId });
+  // Opprett-kandidater: kun flyter der bruker er oppretter-medlem (rolle "registrator"),
+  // ikke any-rolle. Samme kilde som server-B2(b) (F1, Kenneth-vedtak 2026-07-24).
+  const { data: mineOpprettFlyter } = trpc.medlem.hentMineOpprettFlyter.useQuery({ projectId: params.prosjektId });
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // «Mine oppgaver»-filter (Del 1d): trenger userId + gruppeIder for beregnHarBallen.
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
@@ -332,8 +334,8 @@ export default function SjekklisteSide() {
   });
 
   // F1: flyt-status per mal FØR klikk. Kandidatmengde = flyter som har malen OG der
-  // brukeren er oppretter-medlem (mineFlyter). Beregnes med .filter() (ikke .find(),
-  // som valgte vilkårlig). HMS-maler er flyt-løse — egen status.
+  // brukeren er oppretter-medlem (rolle "registrator" — mineOpprettFlyter, ikke any-rolle).
+  // Beregnes med .filter() (ikke .find(), som valgte vilkårlig). HMS-maler er flyt-løse.
   const malFlytStatus = useMemo(() => {
     const alleDf = (dokumentflyter ?? []) as Array<{
       id: string;
@@ -343,7 +345,7 @@ export default function SjekklisteSide() {
       medlemmer: Array<{ faggruppe?: { id: string; name?: string } | null; rolle: string }>;
       maler: Array<{ template: { id: string } }>;
     }>;
-    const mineFlytIder = new Set(mineFlyter ?? []);
+    const mineFlytIder = new Set(mineOpprettFlyter ?? []);
     const map = new Map<string, MalFlytStatus>();
     for (const mal of sjekklisteMaler) {
       if (mal.domain === "hms") {
@@ -383,7 +385,7 @@ export default function SjekklisteSide() {
     }
     return map;
     // eslint-disable-next-line
-  }, [dokumentflyter, mineFlyter, sjekklisteMaler]);
+  }, [dokumentflyter, mineOpprettFlyter, sjekklisteMaler]);
 
   function opprettMedKandidat(malId: string, k: FlytKandidat) {
     opprettMutation.mutate({
