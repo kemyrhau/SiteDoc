@@ -122,12 +122,6 @@ export function OpprettOppgaveModal({
       }
     }
 
-    for (const mal of kategoriMaler) {
-      if (mal.domain === "hms") {
-        synligeMalIder.add(mal.id);
-      }
-    }
-
     if (minTilgang?.domener) {
       for (const mal of kategoriMaler) {
         if (mal.domain && minTilgang.domener.includes(mal.domain)) {
@@ -156,30 +150,21 @@ export function OpprettOppgaveModal({
     },
   });
 
-  // Sjekk om valgt mal er HMS
-  const erHms = useMemo(() => {
-    if (!valgtMal || !alleMaler) return false;
-    const mal = (alleMaler as Array<{ id: string; domain: string | null }>).find((m) => m.id === valgtMal);
-    return mal?.domain === "hms";
-  }, [valgtMal, alleMaler]);
+  // HMS-maler er egen topp-nivå-type (category="hms") og filtreres ut av
+  // category==="oppgave"-listen over — de opprettes via «Meld HMS», ikke her.
 
   function handleOpprett(e: React.FormEvent) {
     e.preventDefault();
-    if (!valgtMal) return;
-    if (!erHms && !effektivBestiller) return;
+    if (!valgtMal || !effektivBestiller) return;
 
     opprettMutation.mutate({
       templateId: valgtMal,
-      ...(erHms
-        ? {}
-        : {
-            bestillerFaggruppeId: effektivBestiller,
-            utforerFaggruppeId: utledetUtforer,
-          }),
+      bestillerFaggruppeId: effektivBestiller,
+      utforerFaggruppeId: utledetUtforer,
       title: tittel,
       checklistId: sjekklisteId,
       checklistFieldId: sjekklisteFeltId,
-      dokumentflytId: erHms ? undefined : matchendeArbeidsforlop?.id,
+      dokumentflytId: matchendeArbeidsforlop?.id,
     });
   }
 
@@ -191,18 +176,16 @@ export function OpprettOppgaveModal({
   return (
     <Modal open={open} onClose={onClose} title="Opprett oppgave fra felt">
       <form onSubmit={handleOpprett} className="flex flex-col gap-4">
-        {!erHms && (
-          <Select
-            label="Bestiller-faggruppe"
-            value={valgtBestiller}
-            onChange={(e) => {
-              setValgtOppretter(e.target.value);
-              setValgtMal("");
-            }}
-            options={bestillerAlternativer}
-            placeholder="Velg faggruppe"
-          />
-        )}
+        <Select
+          label="Bestiller-faggruppe"
+          value={valgtBestiller}
+          onChange={(e) => {
+            setValgtOppretter(e.target.value);
+            setValgtMal("");
+          }}
+          options={bestillerAlternativer}
+          placeholder="Velg faggruppe"
+        />
 
         <Select
           label="Oppgavemal"
@@ -218,7 +201,7 @@ export function OpprettOppgaveModal({
 
         <Button
           type="submit"
-          disabled={!valgtMal || (!erHms && !effektivBestiller)}
+          disabled={!valgtMal || !effektivBestiller}
           loading={opprettMutation.isPending}
         >
           Opprett oppgave

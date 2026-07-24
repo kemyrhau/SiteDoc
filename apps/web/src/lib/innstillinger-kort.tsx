@@ -281,6 +281,7 @@ export function useInnstillingerKort(): {
         underlenker: [
           { labelKey: "innstillinger.lenke.sjekklistemaler", href: HUB_LENKER.sjekklistemaler },
           { labelKey: "innstillinger.lenke.oppgavemaler", href: HUB_LENKER.oppgavemaler },
+          { labelKey: "innstillinger.lenke.hmsmaler", href: HUB_LENKER.hmsmaler },
           // (c) PSI-mal-oppsett (O10) — kun når PSI-modulen er aktiv (som oppsett-sidebar).
           { labelKey: "innstillinger.lenke.psiMal", href: HUB_LENKER.psiMal, synlig: psiAktiv },
         ],

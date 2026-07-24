@@ -824,8 +824,8 @@ model ReportTemplate {
   name            String
   description     String?
   prefix          String?
-  category        String   @default("sjekkliste") // "oppgave" | "sjekkliste"
-  domain          String   @default("bygg") // "bygg" | "hms" | "kvalitet"
+  category        String   @default("sjekkliste") // "oppgave" | "sjekkliste" | "hms" — malbygger-organisering (hvilken side malen bor på)
+  domain          String   @default("bygg") // "bygg" | "hms" | "kvalitet" — runtime-identifisering (KPI/guarder/flyt). Invariant: category="hms" ⇒ domain="hms"
   subdomain       String?  @map("subdomain") // "avvik" | "sja" | "ruh" — kun ved domain="hms"
   hmsSynlighet    String?  @map("hms_synlighet") // "privat" | "apen" — kun ved domain="hms"
   subjects        Json?    @default("[]") // Forhåndsdefinerte emnetekster ["3. etasje", "Kjeller", ...]

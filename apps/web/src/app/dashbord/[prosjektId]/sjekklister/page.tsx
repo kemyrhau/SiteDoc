@@ -27,7 +27,6 @@ interface FlytKandidat {
 
 // Flyt-status for en mal FØR klikk (styrer mal-kortet + klikk-oppførsel).
 type MalFlytStatus =
-  | { type: "hms" }
   | { type: "en"; kandidat: FlytKandidat }
   | { type: "flere"; kandidater: FlytKandidat[] }
   | { type: "ingen"; grunn: "ingenFlytMedMal" | "flytManglerFaggruppe" };
@@ -298,7 +297,7 @@ export default function SjekklisteSide() {
   const isLoading = sjekklisteQuery.isLoading;
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
-  const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string; domain?: string }>).filter((m) => m.category === "sjekkliste");
+  const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string }>).filter((m) => m.category === "sjekkliste");
   // Opprett-kandidater: kun flyter der bruker er oppretter-medlem (rolle "registrator"),
   // ikke any-rolle. Samme kilde som server-B2(b) (F1, Kenneth-vedtak 2026-07-24).
   const { data: mineOpprettFlyter } = trpc.medlem.hentMineOpprettFlyter.useQuery({ projectId: params.prosjektId });
@@ -348,10 +347,8 @@ export default function SjekklisteSide() {
     const mineFlytIder = new Set(mineOpprettFlyter ?? []);
     const map = new Map<string, MalFlytStatus>();
     for (const mal of sjekklisteMaler) {
-      if (mal.domain === "hms") {
-        map.set(mal.id, { type: "hms" });
-        continue;
-      }
+      // HMS-maler er egen type (category="hms") og forsvinner fra denne lista;
+      // de meldes via HMS-modulen («Meld HMS»), ikke sjekkliste-velgeren.
       // Flyter der brukeren er oppretter-medlem OG som har malen.
       const flyterMedMal = alleDf.filter(
         (df) => df.maler.some((m) => m.template.id === mal.id) && mineFlytIder.has(df.id),
@@ -400,10 +397,7 @@ export default function SjekklisteSide() {
     setOpprettFeil(null);
     const status = malFlytStatus.get(malId);
     if (!status || status.type === "ingen") return; // dempet/uklikkbart — ingen handling
-    if (status.type === "hms") {
-      // HMS auto-rutes til HMS-gruppen — ingen flyt, ingen faggruppe.
-      opprettMutation.mutate({ templateId: malId });
-    } else if (status.type === "en") {
+    if (status.type === "en") {
       opprettMedKandidat(malId, status.kandidat);
     } else {
       // Flere kandidater → steg 2: flyt-velger.
@@ -827,7 +821,7 @@ export default function SjekklisteSide() {
             </div>
           </div>
         ) : (
-          // Steg 1: mal-velger med flyt-status per kort (grønn/gul/HMS/dempet).
+          // Steg 1: mal-velger med flyt-status per kort (grønn/gul/dempet).
           <div className="space-y-1">
             {opprettFeil && <p className="text-sm text-red-600 bg-red-50 rounded p-3 mb-2">{opprettFeil}</p>}
             {sjekklisteMaler.length === 0 ? (
@@ -848,9 +842,6 @@ export default function SjekklisteSide() {
                   )}
                   {status?.type === "flere" && (
                     <span className="text-xs text-amber-600">{t("sjekklister.flereFlyter", { antall: status.kandidater.length })}</span>
-                  )}
-                  {status?.type === "hms" && (
-                    <span className="text-xs text-gray-500">{t("sjekklister.hmsAutoRuting")}</span>
                   )}
                   {status?.type === "ingen" && (
                     <span className="text-xs text-gray-400">{t(`dokumentflyt.feil.${status.grunn}`)}</span>
