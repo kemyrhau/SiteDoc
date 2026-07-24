@@ -1,38 +1,33 @@
-# Rettighetsmatrise — config-modell + admin-UI-design (rev. 6, 2026-07-24 — kant 4 firma-styrt; Kloss 2b respec)
+# Rettighetsmatrise — config-modell + admin-UI-design (rev. 7, 2026-07-24 — Kenneth-vedtak: GLOBAL konfig, ikke per-firma)
 
 TIL REPO: docs/claude/delplaner/rettighetsmatrise-config-design.md (erstatter a7e69d20; cowork plasserer; fabel etterleser).
 Grunnlag: `flytmodell-overgangsmatrise.md` (§ FUNDAMENT-GAP) · flytmodell-vedtak § 1–6 + restvedtak · UI-fasit `P1 Nivåsignal Beslutningskart.dc.html` § 5a + cellespec `Flyt-rettigheter Cellespec.dc.html`. Kloss 1+2 LANDET (se B-klosser nederst).
 
 ## 0. Formål — REFRAMET (Kenneth-vedtak 2026-07-24)
 
-Matrisen er et **sentralisert operatør-verktøy**: sitedoc-admin justerer flyt-regler uten omkoding. Den er IKKE kunde-selvbetjening — Kenneth vil ikke ha ti firmaer med ti divergerende flyter (feilsøkings-mareritt). Per-firma-override finnes i modellen (vedtak 4), men styres sentralt av sitedoc-admin.
+Matrisen er et **sentralisert operatør-verktøy**: sitedoc-admin justerer flyt-regler uten omkoding. Den er IKKE kunde-selvbetjening — Kenneth vil ikke ha ti firmaer med ti divergerende flyter (feilsøkings-mareritt). **KENNETH-VEDTAK 2026-07-24 (sett på test): ÉN GLOBAL konfig — ikke per-firma.** Per-firma-dimensjonen reverseres: orgId-nøklingen (Kloss 1) og firma-dropdownen (2c) var konsekvensen av vedtak 4s ordlyd; vedtak 4 revideres til: rettighetene er global sitedoc-config (kode-defaults + globale overstyringer), lest i runtime, bundet av statusmaskinen (vedtak 1 står).
 
-## 1. Config-modell: DELTA, ikke materialisert kopi (fabels innstilling — realisert i Kloss 1)
+## 1. Config-modell: DELTA, global (rev. 7)
 
-Vedtak 4 sier «per-firma config, seedet fra defaults». To måter å realisere «seedet» på:
+Delta-modellen består (fabels opprinnelige begrunnelse — kode-defaults + DB-avvik, «tilbakestill» = slett rad, ren endringslogg, ett substrat med Sets-fallbacken): defaults i `ROLLE_HANDLINGER_DEFAULTS` (`@sitedoc/shared`); DB lagrer KUN avvik. Effektiv rettighet = default ⊕ override. **Rev. 7: overstyringene er GLOBALE.**
 
-**(a) Materialisert:** kopiér hele default-matrisen inn som rader per firma ved opprettelse/migrering.
-**(b) Delta (valgt, bygget):** defaults forblir kode (`ROLLE_HANDLINGER_DEFAULTS` i `@sitedoc/shared`); DB lagrer KUN firmaets avvik. Effektiv rettighet = default ⊕ override.
-
-Hvorfor (b): (1) default-forbedringer (som vedtak 2/3 selv!) når alle firmaer uten migrering av N kopier — med (a) fryses hvert firma på seed-øyeblikkets defaults og drifter; (2) «Tilbakestill til standard» = slett override-raden, trivielt; (3) endringsloggen blir semantisk ren — hver rad ER en admin-beslutning, ikke seed-støy; (4) dagens Sets-fallback (sikkerhetsrammen) er identisk med default-laget — ett substrat, ingen duplisert logikk. Avvik fra vedtakets ordlyd «seedet» flagget eksplisitt; intensjonen (firma starter på defaults, admin overstyrer) er oppfylt.
-
-### Datamodell (bygget i Kloss 1, migrering `20260723120000`)
+### Datamodell (rev. 7 — revisjons-ordre på merget Kloss 1)
 ```
-FlytRettighetOverride            # gjeldende tilstand, unik (orgId, rolle, fraStatus, tilStatus)
-  orgId · rolle (DokumentflytRolle | "prosjektadmin") · fraStatus ("nytt" | DocumentStatus)
+FlytRettighetOverride            # gjeldende tilstand, unik (rolle, fraStatus, tilStatus) — GLOBAL
+  rolle (DokumentflytRolle | "prosjektadmin") · fraStatus ("nytt" | DocumentStatus)
   tilStatus (DocumentStatus | "opprett") · tillatt boolean
   endretAvUserId · endretAt
 
-FlytRettighetLogg                # append-only, vedtak 4
-  orgId · rolle · fraStatus · tilStatus · fraVerdi (default/på/av) · tilVerdi
+FlytRettighetLogg                # append-only
+  rolle · fraStatus · tilStatus · fraVerdi (default/på/av) · tilVerdi
   endretAvUserId · endretAt · kilde ("admin-ui" | "migrering")
 ```
-- **Rad «(nytt)·Opprett»** (vedtak 1): opprett er ingen statusovergang — modelleres som sentinel `fraStatus="nytt"`, `tilStatus="opprett"`. Samme tabell, ingen egen modell.
-- **Per firma nå, per flyt senere** (vedtak 4): nullable `dokumentflytId` reserveres IKKE nå — legges til den dagen behovet vedtas (YAGNI; unik-nøkkelen må uansett endres da).
-- Presedens: `OrganizationSetting` er 1:1-bred-tabell — feil form for en matrise; egen tabell er riktig her.
+- **orgId DROPPES** (fabel tiltrer cowork-anbefalingen): schema-endring framfor sentinel-org — vestigial kolonne er permanent forvirring; ingenting på prod, test-data kastbart. Ny migrering; unik-nøkkel = (rolle, fraStatus, tilStatus). tRPC dropper orgId-param.
+- **Rad «(nytt)·Opprett»** (vedtak 1): sentinel `fraStatus="nytt"`, `tilStatus="opprett"`. Samme tabell.
+- **Per flyt senere:** `dokumentflytId` reserveres IKKE (YAGNI, som før). Gjenoppstår per-firma-behovet, er det ny nullable kolonne + nøkkelendring — samme kostnad da som nå.
 
-### Runtime-lesing (delt kilde, server håndhever — bygget i Kloss 1)
-`hentRolleFiltrertHandlinger` / `erTillattForRolle` med valgfri `overrides`-param (loader `hentFlytRettighetOverrides(orgId)`, trådd via `verifiserFlytRolle`). Oppslagsrekkefølge per celle: override → default. **Deretter statusmaskin-snittet:** override-only-snitt mot `validTransitions` — en override kan aldri skape en overgang (vedtak 1); håndhevet i delt funksjon, ikke UI. Tom map = bit-identisk med i dag (bevist av uendrede tester + invariant-tester). Web + mobil + server konsulterer samme funksjon (A-3a-mønsteret).
+### Runtime-lesing (delt kilde, server håndhever)
+`hentRolleFiltrertHandlinger` / `erTillattForRolle` med valgfri `overrides`-param — loader `hentFlytRettighetOverrides()` (uten orgId; returnerer global konfig for alle; cache trivielt global), fortsatt trådd via `verifiserFlytRolle`. Oppslagsrekkefølge per celle: override → default. **Deretter statusmaskin-snittet:** override-only-snitt mot `validTransitions` — en override kan aldri skape en overgang (vedtak 1); håndhevet i delt funksjon, ikke UI. Tom map = bit-identisk med i dag (bevist av uendrede tester + invariant-tester). Web + mobil + server konsulterer samme funksjon (A-3a-mønsteret).
 
 ### Ikke-konfigurerbart (låst i kode, vises låst i UI)
 - P2-kommentarkrav (◀ og Lukk·trukket) — lov, ikke config.
@@ -65,7 +60,7 @@ FlytRettighetLogg                # append-only, vedtak 4
 
 ## 1c. Plassering — KENNETH-VEDTAK 2026-07-24: Admin-flaten
 
-Siden flyttes fra FIRMA-sidemenyen (`dashbord/firma/flyt-rettigheter`, brøt K5: sidebar = arbeidsflater, konfig ikke der) til **Admin-flaten** (topbar Admin-shield). Fabels hub-innstilling var betinget av firma-admin-eierskap; med config-rett permanent sitedoc-only er Admin-flaten riktig hjem (fabels egen betingelse). Firma-velger i Admin-konteksten avgjør hvilket firmas matrise som vises.
+Siden flyttes fra FIRMA-sidemenyen (`dashbord/firma/flyt-rettigheter`, brøt K5: sidebar = arbeidsflater, konfig ikke der) til **Admin-flaten** (topbar Admin-shield). Med config-rett permanent sitedoc-only OG global modell er Admin-flaten riktig hjem. ~~Firma-velger i Admin-konteksten~~ — UTGÅR (rev. 7): én global matrise, ingen dropdown.
 
 ## 2. UI (fasit § 5a + cellespec — deltaer)
 Matrise rolle × status per § 5a-mockupen. **Celle-tilstander (visuell spec: `Flyt-rettigheter Cellespec.dc.html`, fabel 2026-07-23 — svar på Kenneths kontrast-funn):**
@@ -81,13 +76,13 @@ Matrise rolle × status per § 5a-mockupen. **Celle-tilstander (visuell spec: `F
 
 Historikk (drøftingen): restvedtakets kø-linje nevnte `closed→draft` uten vedtaksparagraf (dok-drift). Begrunnelse for JA: uten den er `closed` irreversibel — feillukking (inkl. `rejected→closed`) kan bare repareres ved duplisering, som knekker sporbarhet; men gjenåpning reverserer en godkjenningskjede → strengere default enn `cancelled→draft` (bestiller+admin).
 
-## Sekvens (rev. 4)
-Gjenstår: **Kloss 2c** — plassering til Admin-flaten (§ 1c) + cellespec-kontrasten (§ 2) — liten, isolert runde, cowork gater. **Kloss 2b (omdefinert)** — firma-innstilling auto-prosjektadmin (§ 1b). A-lag-resten (rejected→sent, closed→draft, ROLLE_HANDLINGER-endringer per FUNDAMENT-GAP § A.3) der de ikke alt er landet. Deretter A-3b perspektiv-visning oppå komplett fundament.
+## Sekvens (rev. 7)
+Gjenstår: **Revisjons-ordre global modell** (§ 0/§ 1 — berører merget Kloss 1/2/2c: orgId-dropp, loader/tRPC uten orgId, UI uten firma-dropdown; cowork skriver ordren på denne respec-en). **Kloss 2b** — firma-innstilling auto-prosjektadmin (§ 1b; UBERØRT av rev. 7 — medlemskaps-løsningen er per-firma per design og har ingenting med matrisens orgId å gjøre). A-lag-resten (rejected→sent, closed→draft, ROLLE_HANDLINGER-endringer per FUNDAMENT-GAP § A.3) der de ikke alt er landet. Deretter A-3b perspektiv-visning oppå komplett fundament.
 
 ### B-klosser — status (2026-07-24)
 
-- **✅ Kloss 1 — config-plumbing (LANDET, merge `33c32f1f`, develop).** Delta-substratet fra § 1: tabellene, `ROLLE_HANDLINGER_DEFAULTS`, `celleTillatt()` m/ override-only-snitt, `overrides?`-param, loader trådd via `verifiserFlytRolle`. Bit-identisk bevist (uendrede tester grønne + invariant-tester). Migrering `20260723120000` idempotent, additiv. 🔴 **Migrerings-avhengighet:** neste test-deploy av develop MÅ kjøre `migrate deploy` mot `sitedoc_test` — ellers krasjer flyt-rettighets-sjekken.
+- **✅ Kloss 1 — config-plumbing (LANDET, merge `33c32f1f`, develop).** Delta-substratet: tabellene, `ROLLE_HANDLINGER_DEFAULTS`, `celleTillatt()` m/ override-only-snitt, `overrides?`-param, loader trådd via `verifiserFlytRolle`. Bit-identisk bevist. 🔴 Rev. 7-revisjon: orgId droppes (ny migrering), loader/tRPC uten orgId.
 - **✅ Kloss 2 — adminNiva + matrise-UI (LANDET, merge `a3e2cc66`, develop, PR #3).** `adminNiva: "sitedoc"|"prosjekt"|null` containet til flyt-funksjonene (boolean-shim). Prosjektadmin = redigerbar kolonne, full innenfor statusmaskinen (isValid-arv). Matrise-UI (sitedoc-gatet), 5 celle-tilstander, logg-skriving, `kanRedigereFlytMatrise = sitedoc_admin only`. Fase A-korreksjon: «mobil prosjektadmin under-servert» var feil hypotese; eneste reelle divergens var firma-admin-fantomet — fjernet. Non-regresjon bevist (mutasjonene validerer `isValidStatusTransition` uavhengig).
-- **✅ Kloss 2b — firma-innstilling «auto-prosjektadmin» (LANDET, merge `cca3f471`, develop, 2026-07-24).** `OrganizationSetting.autoProsjektAdmin` enum (`"av"|"alle_firma_admins"`, utvidbar til `"utvalg"`) + migrering `20260724120000` (idempotent, additiv); service `autoLeggFirmaAdmins(tx, projectId, orgId)` kalt i alle tre opprettelses-stier (`prosjekt.opprett`/`opprettTestprosjekt` + `admin.opprettProsjekt` — sistnevnte pakket i `$transaction`), dedup mot eksisterende `ProjectMember` + `skipDuplicates`; firma-oppslag via `OrganizationMember.firmaRoller has "firma_admin"` på prosjektets egen org (standalone = no-op). Firma-UI-toggle (firma-gatet via `verifiserFirmaAdmin`) + i18n × 14. **`"av"`/ingen innstilling = bit-identisk** (helper no-op'er før skriv). **Ingen adminNiva/`verifiserFlytRolle`/matrise-endring** — cowork-gatet. Automatiserer omveien (firma-admin kan alt selv-tildele seg prosjektadmin).
-- **🟡 Kloss 2c — plassering (Admin-flaten, § 1c) + cellespec-kontrast (§ 2)** — liten, isolert; cowork gater.
+- **🟡 Kloss 2b (respec rev. 6) — firma-innstilling «auto-prosjektadmin»** (§ 1b): opt-in `OrganizationSetting`, enum `autoProsjektAdmin: "av"|"alle_firma_admins"` (utvidbar til utvalg i umbrella-delplanen); prosjektoppretting (prosjekt.opprett + de to andre stiene — cowork-målt hook-punkt) legger valgte til som `ProjectMember.role=admin`. Ingen adminNiva-endring, ingen firmaadmin-rolle, verifiserFlytRolle røres ikke. Kanter 1–4 i § 1b.
+- **🟡 Kloss 2c — plassering (Admin-flaten, § 1c) + cellespec-kontrast (§ 2):** rev. 7: firma-dropdownen UTGÅR (global matrise). Slås sammen med revisjons-ordren om cowork vil.
 - **✅ Kloss 3 — endringslogg-fane + les/rediger-fane:** levert i Kloss 2; egen runde kun ved utvidelse.
