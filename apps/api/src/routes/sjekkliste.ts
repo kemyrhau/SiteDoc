@@ -306,8 +306,9 @@ export const sjekklisteRouter = router({
         // F1/B2: server stoler ikke på klienten. Valider at (a) flyten har den valgte
         // malen og (b) brukeren er oppretter-medlem av flyten — dvs. medlem med
         // oppretter-rollen (lagret som "registrator"), ikke enhver rolle (Kenneth-vedtak
-        // 2026-07-24). Samme håndhevingsprinsipp som verifiserFlytRolle —
-        // sitedoc_admin/prosjektadmin bypasser medlemskravet.
+        // 2026-07-24). Ingen bypass: også sitedoc_admin og prosjektadmin må være
+        // registrator-medlem av flyten for å opprette (F1-oppfølger, Kenneth-vedtak
+        // 2026-07-24) — admin legger seg selv i en flyt som registrator ved behov.
         const flytHarMal = await ctx.prisma.dokumentflytMal.findFirst({
           where: { dokumentflytId: input.dokumentflytId, templateId: input.templateId },
           select: { id: true },
@@ -318,20 +319,12 @@ export const sjekklisteRouter = router({
             message: "Valgt dokumentflyt bruker ikke denne malen",
           });
         }
-        if (bruker.role !== "sitedoc_admin") {
-          const medlem = await ctx.prisma.projectMember.findUnique({
-            where: { userId_projectId: { userId: ctx.userId, projectId: malForDomain.projectId } },
-            select: { role: true },
+        const flytIder = await hentBrukersOpprettFlytMedlemskap(ctx.userId, malForDomain.projectId);
+        if (!flytIder.includes(input.dokumentflytId)) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Du er ikke oppretter-medlem av valgt dokumentflyt",
           });
-          if (medlem?.role !== "admin") {
-            const flytIder = await hentBrukersOpprettFlytMedlemskap(ctx.userId, malForDomain.projectId);
-            if (!flytIder.includes(input.dokumentflytId)) {
-              throw new TRPCError({
-                code: "FORBIDDEN",
-                message: "Du er ikke oppretter-medlem av valgt dokumentflyt",
-              });
-            }
-          }
         }
 
         // Sjekk grense for gratisbrukere (10 sjekklister per prosjekt)
