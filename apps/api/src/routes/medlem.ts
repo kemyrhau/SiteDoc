@@ -11,6 +11,7 @@ import {
   hentBrukerTillatelser,
   hentBrukersOrg,
   hentBrukersFlytMedlemskap,
+  hentBrukersOpprettFlytMedlemskap,
 } from "../trpc/tilgangskontroll";
 
 export const medlemRouter = router({
@@ -87,9 +88,19 @@ export const medlemRouter = router({
     .input(z.object({ projectId: z.string().uuid() }))
     // Eksplisitt `string[]`-retur: klienten trenger kun flyt-ID-ene, og en trivial
     // returtype holder tRPC-router-typen liten (unngår TS2589 på tunge tRPC-sider).
+    // Any-rolle (synlighet) — IKKE for opprett-kandidater (bruk hentMineOpprettFlyter).
     .query(async ({ ctx, input }): Promise<string[]> => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
       return hentBrukersFlytMedlemskap(ctx.userId, input.projectId);
+    }),
+
+  // Flyt-ID-ene der bruker er OPPRETTER-medlem (rolle "registrator") — kilde for
+  // opprett-kandidater i sjekkliste-mal-modalen. Speiler server-B2(b) (F1).
+  hentMineOpprettFlyter: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }): Promise<string[]> => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      return hentBrukersOpprettFlytMedlemskap(ctx.userId, input.projectId);
     }),
 
   // Hent mine tillatelser i et prosjekt
