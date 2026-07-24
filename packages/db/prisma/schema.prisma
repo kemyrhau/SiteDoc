@@ -103,8 +103,6 @@ model Organization {
   oppmotesteder       Oppmotested[]
   kompetansetyper     Kompetansetype[]
   arbeidstidsKalender ArbeidstidsKalender[]
-  flytRettighetOverrides FlytRettighetOverride[]
-  flytRettighetLogg      FlytRettighetLogg[]
 
   @@map("organizations")
 }
@@ -1276,7 +1274,6 @@ model DokumentflytMal {
 // ---------------------------------------------------------------------------
 model FlytRettighetOverride {
   id             String   @id @default(uuid())
-  orgId          String   @map("org_id")
   rolle          String
   fraStatus      String   @map("fra_status")
   tilStatus      String   @map("til_status")
@@ -1284,18 +1281,15 @@ model FlytRettighetOverride {
   endretAvUserId String   @map("endret_av_user_id")
   endretAt       DateTime @default(now()) @map("endret_at")
 
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  endretAv     User         @relation("FlytRettighetOverrideEndretAv", fields: [endretAvUserId], references: [id], onDelete: Cascade)
+  endretAv User @relation("FlytRettighetOverrideEndretAv", fields: [endretAvUserId], references: [id], onDelete: Cascade)
 
-  @@unique([orgId, rolle, fraStatus, tilStatus])
-  @@index([orgId])
+  @@unique([rolle, fraStatus, tilStatus])
   @@map("flyt_rettighet_overrides")
 }
 
 // Append-only endringslogg (config-design vedtak 4). Opprettes nå; SKRIVES i Kloss 2.
 model FlytRettighetLogg {
   id             String   @id @default(uuid())
-  orgId          String   @map("org_id")
   rolle          String
   fraStatus      String   @map("fra_status")
   tilStatus      String   @map("til_status")
@@ -1305,10 +1299,8 @@ model FlytRettighetLogg {
   endretAt       DateTime @default(now()) @map("endret_at")
   kilde          String // "admin-ui" | "migrering"
 
-  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  endretAv     User         @relation("FlytRettighetLoggEndretAv", fields: [endretAvUserId], references: [id], onDelete: Cascade)
+  endretAv User @relation("FlytRettighetLoggEndretAv", fields: [endretAvUserId], references: [id], onDelete: Cascade)
 
-  @@index([orgId])
   @@map("flyt_rettighet_logg")
 }
 

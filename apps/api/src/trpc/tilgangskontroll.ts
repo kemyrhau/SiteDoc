@@ -689,13 +689,10 @@ export async function verifiserFlytRolle(
     { bestillerFaggruppeId, utforerFaggruppeId },
   );
 
-  // Per-firma rettighets-overstyringer (config-design § 1). Tom tabell → tom map →
-  // bit-identisk med default-laget. Firmaet resolves via prosjektets primærorg.
-  const prosjekt = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { primaryOrganizationId: true },
-  });
-  const overrides = await hentFlytRettighetOverrides(prosjekt?.primaryOrganizationId);
+  // Globale rettighets-overstyringer (config-design rev.7 § 1). Tom tabell → tom map →
+  // bit-identisk med default-laget. Kloss 2d: matrisen er global, ikke per-firma —
+  // ingen org-resolving via prosjektet.
+  const overrides = await hentFlytRettighetOverrides();
 
   if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus, adminNiva, overrides)) {
     const rolleNavn = rolle ?? "ingen";

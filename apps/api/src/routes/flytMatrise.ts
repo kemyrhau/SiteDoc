@@ -40,17 +40,15 @@ async function verifiserSiteDocAdmin(userId: string): Promise<void> {
 }
 
 const celleInput = z.object({
-  orgId: z.string().uuid(),
   rolle: z.string().min(1),
   fraStatus: z.string().min(1),
   tilStatus: z.string().min(1),
 });
 
 export const flytMatriseRouter = router({
-  // Les gjeldende overrides + om innlogget bruker kan redigere.
+  // Les gjeldende (globale) overrides + om innlogget bruker kan redigere.
   hentMatrise: protectedProcedure
-    .input(z.object({ orgId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx }) => {
       const bruker = await ctx.prisma.user.findUnique({ where: { id: ctx.userId }, select: { role: true } });
       const kanRedigere = bruker?.role === "sitedoc_admin";
       if (!kanRedigere) {
@@ -58,19 +56,16 @@ export const flytMatriseRouter = router({
         throw new TRPCError({ code: "FORBIDDEN", message: "Ingen tilgang til flyt-rettighetsmatrisen" });
       }
       const overrides = await ctx.prisma.flytRettighetOverride.findMany({
-        where: { orgId: input.orgId },
         select: { rolle: true, fraStatus: true, tilStatus: true, tillatt: true, endretAt: true, endretAv: { select: { name: true, email: true } } },
       });
       return { overrides, kanRedigere };
     }),
 
-  // Append-only endringslogg for firmaet (flat, nyeste først).
+  // Append-only endringslogg (global, flat, nyeste først).
   hentLogg: protectedProcedure
-    .input(z.object({ orgId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx }) => {
       await verifiserSiteDocAdmin(ctx.userId);
       return ctx.prisma.flytRettighetLogg.findMany({
-        where: { orgId: input.orgId },
         orderBy: { endretAt: "desc" },
         take: 200,
         select: {
@@ -95,7 +90,7 @@ export const flytMatriseRouter = router({
 
       // Nåværende verdi (for logg): override-rad? på/av : default.
       const eksisterende = await ctx.prisma.flytRettighetOverride.findUnique({
-        where: { orgId_rolle_fraStatus_tilStatus: { orgId: input.orgId, rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus } },
+        where: { rolle_fraStatus_tilStatus: { rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus } },
         select: { tillatt: true },
       });
       const fraVerdi = eksisterende ? (eksisterende.tillatt ? "på" : "av") : "default";
@@ -103,12 +98,12 @@ export const flytMatriseRouter = router({
 
       await ctx.prisma.$transaction([
         ctx.prisma.flytRettighetOverride.upsert({
-          where: { orgId_rolle_fraStatus_tilStatus: { orgId: input.orgId, rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus } },
-          create: { orgId: input.orgId, rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus, tillatt: input.tillatt, endretAvUserId: ctx.userId },
+          where: { rolle_fraStatus_tilStatus: { rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus } },
+          create: { rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus, tillatt: input.tillatt, endretAvUserId: ctx.userId },
           update: { tillatt: input.tillatt, endretAvUserId: ctx.userId, endretAt: new Date() },
         }),
         ctx.prisma.flytRettighetLogg.create({
-          data: { orgId: input.orgId, rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus, fraVerdi, tilVerdi, endretAvUserId: ctx.userId, kilde: "admin-ui" },
+          data: { rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus, fraVerdi, tilVerdi, endretAvUserId: ctx.userId, kilde: "admin-ui" },
         }),
       ]);
       return { ok: true };
@@ -121,17 +116,17 @@ export const flytMatriseRouter = router({
       await verifiserSiteDocAdmin(ctx.userId);
 
       const eksisterende = await ctx.prisma.flytRettighetOverride.findUnique({
-        where: { orgId_rolle_fraStatus_tilStatus: { orgId: input.orgId, rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus } },
+        where: { rolle_fraStatus_tilStatus: { rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus } },
         select: { tillatt: true },
       });
       if (!eksisterende) return { ok: true }; // allerede standard — ingen endring, ingen logg
 
       await ctx.prisma.$transaction([
         ctx.prisma.flytRettighetOverride.delete({
-          where: { orgId_rolle_fraStatus_tilStatus: { orgId: input.orgId, rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus } },
+          where: { rolle_fraStatus_tilStatus: { rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus } },
         }),
         ctx.prisma.flytRettighetLogg.create({
-          data: { orgId: input.orgId, rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus, fraVerdi: eksisterende.tillatt ? "på" : "av", tilVerdi: "default", endretAvUserId: ctx.userId, kilde: "admin-ui" },
+          data: { rolle: input.rolle, fraStatus: input.fraStatus, tilStatus: input.tilStatus, fraVerdi: eksisterende.tillatt ? "på" : "av", tilVerdi: "default", endretAvUserId: ctx.userId, kilde: "admin-ui" },
         }),
       ]);
       return { ok: true };
