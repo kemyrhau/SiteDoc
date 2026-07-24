@@ -255,6 +255,7 @@ Integrasjon: `toppbar-filtre-kontekst.tsx` + `ByggeplassVelger.tsx` (`disabled`-
   6. For data utenfor komponenter (arrays, configs): bruk `labelKey` i stedet for `label`, kall `t()` ved rendering
   7. Kjør auto-oversetting til de 13 andre språkene fra `packages/shared`: `pnpm dlx tsx src/i18n/generate.ts` (`tsx` er IKKE en dependency — `pnpm --filter … exec tsx …` feiler med «Command tsx not found»; `dlx` henter den ad hoc). Skriptet oversetter fra `en.json` (master) til 13 målspråk. Full arbeidsflyt + kjente quirks i [docs/claude/shared-pakker.md § i18n](docs/claude/shared-pakker.md).
 - **i18n-diagnostikk-regel:** Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Finnes nøkkelen ikke i `*.ts`/`*.tsx` er det en relikvi som skal slettes, ikke en bug som skal fylles (lærdom `hjelp.flyt.*` 2026-05-23).
+- **Mikrotekst-standard for handlingstekst (STYRENDE, 2026-07-24):** All handlingstekst (menyer, bekreftelsesdialoger, toasts/kvitteringer, knapper, varsler — web+mobil) følger [docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md § 3/§ 3a](docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md): svar på **hvor dokumentet flytter · hvem får ballen · hva ser motparten**, med **relasjonelle benevnelser** («den som sendte det», «neste mottaker») — aldri faste rollenavn som kan mangle i en gitt flyt. Nye handlingstekster følger den (ordre-DoD); eksisterende oppgraderes opportunistisk når flaten røres.
 
 ## Terminologi og hierarki
 
