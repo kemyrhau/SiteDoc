@@ -1,6 +1,6 @@
 ---
 name: kloss2d-ordre
-status: 🟢 AKTIV — byggeordre B Kloss 2d (global konfig, dropper orgId). Design: rettighetsmatrise-config-design rev.7 (Kenneth-vedtak 2026-07-24). Kode på branch; cowork gater (INGEN merge autonomt)
+status: ✅ MERGET develop (`42b77e0c`, 2026-07-24). Cowork-gate bestått (schema orgId-fri, loader/tRPC/UI orgId-frie, migrering idempotent+TRUNCATE, shared statusHandlinger + Kloss 2b urørt, 259 tester grønne). Kenneth kjører `migrate deploy` for `20260724130000` (bekrefter TRUNCATE)
 eier: cowork (ordre + gate) · kode-Opus «B Kloss 2d» (ledd 3)
 sist_verifisert_mot_kode: 2026-07-24
 ---
