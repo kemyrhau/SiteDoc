@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
+import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
 import { utledMinRolle, beregnHarBallen, perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
@@ -320,6 +321,55 @@ export default function OppgaveDetaljSide() {
     },
   });
 
+  // HMS-oppgaver (domain="hms") får en egen handlingsflate i stedet for den
+  // generelle statusmaskinen (Ordre D). Domenet leses fra malen på full-queryen.
+  const erHms =
+    (fullOppgaveRå as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
+
+  const { data: erHmsAdmin = false } = trpc.hms.erHmsAdmin.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: erHms && !!params.prosjektId },
+  );
+
+  // Delt suksess/feil-håndtering for de fire HMS-mutasjonene.
+  const hmsMutasjonOpts = {
+    onSuccess: () => {
+      setStatusFeil(null);
+      utils.oppgave.hentForProsjekt.invalidate();
+      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
+    },
+    onError: (error: { message?: string }) => {
+      setStatusFeil(error.message ?? "Kunne ikke utføre HMS-handlingen. Prøv igjen.");
+    },
+  };
+
+  const hmsBesvarMutasjon = trpc.oppgave.hmsBesvar.useMutation(hmsMutasjonOpts);
+  const hmsLukkMutasjon = trpc.oppgave.hmsLukk.useMutation(hmsMutasjonOpts);
+  const hmsGjenapneMutasjon = trpc.oppgave.hmsGjenapne.useMutation(hmsMutasjonOpts);
+  const hmsTilfoyMutasjon = trpc.oppgave.hmsTilfoyInformasjon.useMutation(hmsMutasjonOpts);
+
+  const hmsLaster =
+    hmsBesvarMutasjon.isPending ||
+    hmsLukkMutasjon.isPending ||
+    hmsGjenapneMutasjon.isPending ||
+    hmsTilfoyMutasjon.isPending;
+
+  const utforHmsHandling = useCallback(
+    (type: HmsHandlingType, tekst: string | undefined) => {
+      const id = params.oppgaveId;
+      if (type === "tilfoyInformasjon") {
+        hmsTilfoyMutasjon.mutate({ id, kommentar: tekst ?? "" });
+      } else if (type === "besvar") {
+        hmsBesvarMutasjon.mutate({ id, begrunnelse: tekst ?? "" });
+      } else if (type === "lukk") {
+        hmsLukkMutasjon.mutate({ id, kommentar: tekst });
+      } else if (type === "gjenapne") {
+        hmsGjenapneMutasjon.mutate({ id, kommentar: tekst });
+      }
+    },
+    [params.oppgaveId, hmsTilfoyMutasjon, hmsBesvarMutasjon, hmsLukkMutasjon, hmsGjenapneMutasjon],
+  );
+
   // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
   // Bruker dokumentflyterRå (ucastet) for å beholde steg + faggruppe-objekter
   const flytMedlemmer = useMemo(() => {
@@ -510,8 +560,8 @@ export default function OppgaveDetaljSide() {
           </div>
         )}
 
-        {/* Feilmelding fra endreStatus-mutasjon */}
-        {statusFeil && (
+        {/* Feilmelding fra endreStatus-mutasjon (HMS viser sin egen i handlingsflaten) */}
+        {statusFeil && !erHms && (
           <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {statusFeil}
           </div>
@@ -519,6 +569,19 @@ export default function OppgaveDetaljSide() {
 
         {/* Rad 3: Handlingsknapper (full bredde på mobil) */}
         <div className="mt-2 flex items-center gap-2">
+          {erHms ? (
+            <HmsHandlingsflate
+              status={oppgave.status}
+              erOppretter={
+                !!(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId &&
+                (fullOppgaveRå as { bestillerUserId?: string }).bestillerUserId === minFlytInfo?.userId
+              }
+              erHmsAdmin={erHmsAdmin}
+              erLaster={hmsLaster}
+              feilmelding={statusFeil}
+              onUtfor={utforHmsHandling}
+            />
+          ) : (
           <DokumentHandlingsmeny
             status={oppgave.status}
             erLaster={endreStatusMutasjon.isPending}
@@ -546,6 +609,7 @@ export default function OppgaveDetaljSide() {
             bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
             lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
           />
+          )}
           <button
             onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank")}
             className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
