@@ -34,6 +34,7 @@ export const HUB_LENKER = {
   faggrupper: "/dashbord/[prosjektId]/faggrupper",
   sjekklistemaler: "/dashbord/oppsett/produksjon/sjekklistemaler",
   oppgavemaler: "/dashbord/oppsett/produksjon/oppgavemaler",
+  hmsmaler: "/dashbord/oppsett/produksjon/hmsmaler",
   psiMal: "/dashbord/oppsett/produksjon/psi",
   dokumentflyt: "/dashbord/oppsett/produksjon/dokumentflyt",
   aiSok: "/dashbord/oppsett/ai-sok",

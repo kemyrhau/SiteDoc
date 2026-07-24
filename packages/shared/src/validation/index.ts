@@ -90,8 +90,9 @@ export const createByggeplassSchema = z.object({
 });
 
 
-// Malkategori-validering
-export const templateCategorySchema = z.enum(["oppgave", "sjekkliste"]);
+// Malkategori-validering. "hms" er egen topp-nivå-type (malbygger-organisering);
+// HMS-maler har alltid også domain="hms" (invariant satt i MalListe).
+export const templateCategorySchema = z.enum(["oppgave", "sjekkliste", "hms"]);
 
 // Fagområde-validering
 export const templateDomainSchema = z.enum(["bygg", "hms", "kvalitet"]);

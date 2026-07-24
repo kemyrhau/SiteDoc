@@ -11,6 +11,7 @@ import {
   Camera,
   BookOpen,
   HardHat,
+  ShieldAlert,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -118,6 +119,14 @@ export default function FieldSide() {
         { label: t("produksjon.sjekklisteHoldepunkt"), href: "/dashbord/oppsett/produksjon/sjekklistemaler-holdepunkt" },
         { label: t("produksjon.slettedeSjekklister"), href: "/dashbord/oppsett/produksjon/slettede-sjekklister" },
         { label: t("produksjon.faggruppetilknytning"), href: "/dashbord/oppsett/produksjon/sjekkliste-faggrupper" },
+      ],
+    },
+    {
+      tittel: t("hms.tittel"),
+      ikon: <ShieldAlert className="h-12 w-12 text-gray-400" />,
+      aktiv: true,
+      lenker: [
+        { label: t("oppsett.hmsmaler"), href: "/dashbord/oppsett/produksjon/hmsmaler" },
       ],
     },
     {
