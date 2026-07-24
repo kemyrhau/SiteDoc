@@ -1,8 +1,8 @@
 ---
 name: a3b-perspektiv-tabell
-status: 🟢 FASE A LUKKET — fabel-designgate godkjent 2026-07-20 (tre designsvar + rejected-korreksjon inne). Fase B pågår
-eier: a3b-opus (ledd 3, tabell) · fabel (designgate) · cowork (kode-måling)
-sist_verifisert_mot_kode: 2026-07-20
+status: 🟡 NÅ-RAPPORT komplett (§ 8 registrator-kolonne + § 9 rejected-rad, cowork 2026-07-24) — VENTER FABEL-GATE før Fase B (Del 1a-revisjon + 1c) gjenopptas. Fase A-tabellen låst 2026-07-20
+eier: cowork (nå-rapport-måling) · fabel (gater § 8+§ 9) · a3b-opus (ledd 3, kode etter gate)
+sist_verifisert_mot_kode: 2026-07-24
 ---
 
 # A-3b Fase A — perspektiv-tabellen (status × perspektiv → etikett + farge)
@@ -137,3 +137,26 @@ Per fabel-c-vedtaket: registrator-fiksen har landet (live på prod, `cb3ce3d1`),
 - Dvs. **registrator er ikke lenger en egen perspektiv-kolonne** — hun flyter gjennom A/B/C med D som leser-fallback. Perspektiv-tabellens rader er uendret; det er **utledningen til kolonne** som endres.
 
 **Kode-konsekvens (etter fabel-gate):** `perspektivEtikett.ts` (a3b-branch, Del 1a): `Perspektiv`-typen + utledningen endres fra «registrator|admin → nøytral» til «erAdmin → nøytral; registrator → deltaker-utledning med nøytral-fallback». `perspektivEtikett.test.ts` frosne rader oppdateres. Del 1c-wiring gjenopptas etter gaten.
+
+## 9. NÅ-RAPPORT komplettering — A-laget endrer `rejected`-raden (cowork-måling 2026-07-24)
+
+§ 8 fanget registrator-fiksen, men **siden landet A-laget (`7571e968`) + hele flyt-fundamentet (Kloss 1→2d)**. Én transisjon påvirker perspektiv-tabellen direkte. Målt mot develop (`ROLLE_HANDLINGER_DEFAULTS` + `validTransitions`):
+
+**`rejected` — hvem har ballen nå:**
+- **registrator:** `rejected → {sent}` (Send på nytt) — **NY (A-laget)**
+- **bestiller:** `rejected → {sent}` (Send på nytt) — **NY (A-laget)**
+- **utforer:** `rejected → {in_progress, forwarded}` (gjenoppta/videresend)
+- **godkjenner:** ingen (sendte tilbake, venter)
+
+**Konsekvens for `rejected`-raden (base-matrise § 3):** dagens rad har A(avsender) = «—». **Utdatert** — registrator/bestiller (avsender) kan nå Send på nytt → de har ballen → «din tur» (warning), ikke fravær. Foreslått revidert rad (fabel gater):
+
+| `rejected` | A · Avsender (registrator/bestiller) | B · Utfører | C · Godkjenner (sendte tilbake) | D · Registrator-leser/Admin |
+|---|---|---|---|---|
+| **Ny** | **Til utbedring** · warning (din tur — kan sende på nytt) | **Til utbedring** · warning (kan gjenoppta) | **Til revisjon** · primary (venter) | **Til revisjon** · primary (nøytral) |
+| *(var)* | *«—»* | *Til utbedring* | *Til revisjon* | *Til revisjon* |
+
+**`closed → draft`:** `validTransitions` har den, men den er **INERT** (ingen menyhandling ennå — 2b-matrisen kan slå den på). `closed`-raden står uendret («Lukket» · default) inntil gjenåpne-handlingen bygges.
+
+**adminNiva (Kloss 2):** perspektiv-D-kolonnen bruker `erAdmin`, som er **uendret** av Kloss 2 (adminNiva er containet til flyt-rettighets-funksjonene). § 8-revisjonen (erAdmin → D; registrator → deltaker) står. Verifiseres i Fase B mot `perspektivEtikett.ts`.
+
+**Til fabel-gate:** § 8 (registrator-kolonne) + § 9 (`rejected`-rad) = den komplette nå-rapporten mot post-fundament-semantikk. **Fabel gater begge FØR** Del 1a-revisjon + Del 1c-wiring. A-3b-Opus må dessuten re-base `feat/a3b-perspektiv` (`535f8d8a`, 3+ commits bak) på develop før koding.
