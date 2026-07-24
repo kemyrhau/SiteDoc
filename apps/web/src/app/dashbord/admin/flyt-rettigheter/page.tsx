@@ -1,13 +1,13 @@
 "use client";
 
-// Flyt-rettighetsmatrise — admin-UI (Kloss 2, config-design § 2; flyttet til Admin-flaten i Kloss 2c § 1c).
+// Flyt-rettighetsmatrise — admin-UI (config-design rev.7 § 2; på Admin-flaten fra Kloss 2c § 1c).
 // Matrise rolle × status. Prosjektadmin-kolonnen er redigerbar; sitedoc-admin er kode-bypass
 // (fotnote, ikke kolonne); firma-admin er IKKE et flyt-admin-nivå (droppet, Kenneth-vedtak).
 // Skriving = KUN sitedoc_admin i fase 1. Lagring per celle-klikk med server-validering
 // (statusmaskin-snittet); FlytRettighetLogg føres append-only ved hver endring.
 //
-// Kloss 2c: siden bor nå på Admin-flaten (cross-tenant), ikke i firma-kontekst.
-// Firma velges via egen dropdown (admin-firmaliste), ikke via useFirma().
+// Kloss 2d (Kenneth-vedtak 2026-07-24): matrisen er ÉN global sitedoc-konfig — ikke per-firma.
+// Ingen firma-velger; matrisen lastes direkte.
 
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -34,16 +34,8 @@ export default function FlytRettigheterSide() {
   const utils = trpc.useUtils();
   const [fane, setFane] = useState<Fane>("matrise");
 
-  // Admin-flate: eget firma-valg (cross-tenant), ikke useFirma().
-  const orgQuery = trpc.admin.hentAlleOrganisasjoner.useQuery();
-  const organisasjoner = orgQuery.data as Array<{ id: string; name: string }> | undefined;
-  const [valgtOrgId, setValgtOrgId] = useState<string | null>(null);
-  const orgId = valgtOrgId ?? undefined;
-
-  const { data, isLoading, error } = trpc.flytMatrise.hentMatrise.useQuery(
-    { orgId: orgId! },
-    { enabled: !!orgId },
-  );
+  // Global konfig (Kloss 2d): matrisen lastes direkte, ingen firma-valg.
+  const { data, isLoading, error } = trpc.flytMatrise.hentMatrise.useQuery();
   const kanRedigere = data?.kanRedigere === true;
 
   // Bygg overrides-map + metadata-map (hvem/når) fra radene.
@@ -68,14 +60,13 @@ export default function FlytRettigheterSide() {
   });
 
   const klikkCelle = (rolle: MatriseRolle, fra: string, til: string, tilstand: CelleTilstand) => {
-    if (!kanRedigere || tilstand === "laast" || !orgId) return;
+    if (!kanRedigere || tilstand === "laast") return;
     const effektivPaa = tilstand === "standard-pa" || tilstand === "overstyrt-pa";
-    settMutasjon.mutate({ orgId, rolle, fraStatus: fra, tilStatus: til, tillatt: !effektivPaa });
+    settMutasjon.mutate({ rolle, fraStatus: fra, tilStatus: til, tillatt: !effektivPaa });
   };
 
   const tilbakestillCelle = (rolle: MatriseRolle, fra: string, til: string) => {
-    if (!orgId) return;
-    tilbakestillMutasjon.mutate({ orgId, rolle, fraStatus: fra, tilStatus: til });
+    tilbakestillMutasjon.mutate({ rolle, fraStatus: fra, tilStatus: til });
   };
 
   return (
@@ -83,25 +74,6 @@ export default function FlytRettigheterSide() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold text-gray-900">{t("flytmatrise.tittel")}</h1>
         <p className="mt-1 text-sm text-gray-600">{t("flytmatrise.beskrivelse")}</p>
-      </div>
-
-      {/* Firma-velger (Admin-flate, cross-tenant) */}
-      <div className="mb-4 flex items-center gap-2">
-        <label htmlFor="flytmatrise-firma" className="text-sm font-medium text-gray-700">
-          {t("flytmatrise.firmaLabel")}
-        </label>
-        <select
-          id="flytmatrise-firma"
-          value={valgtOrgId ?? ""}
-          onChange={(e) => setValgtOrgId(e.target.value || null)}
-          disabled={orgQuery.isLoading}
-          className="rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-900 focus:border-sitedoc-primary focus:outline-none focus:ring-1 focus:ring-sitedoc-primary"
-        >
-          <option value="">{t("flytmatrise.firmaVelger")}</option>
-          {(organisasjoner ?? []).map((o) => (
-            <option key={o.id} value={o.id}>{o.name}</option>
-          ))}
-        </select>
       </div>
 
       {/* Faner */}
@@ -119,9 +91,7 @@ export default function FlytRettigheterSide() {
         ))}
       </div>
 
-      {!orgId ? (
-        <p className="py-12 text-center text-sm text-gray-500">{t("flytmatrise.velgFirma")}</p>
-      ) : isLoading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center py-12"><Spinner /></div>
       ) : error ? (
         <p className="py-12 text-center text-sm text-red-600">{error.message}</p>
@@ -135,7 +105,7 @@ export default function FlytRettigheterSide() {
           t={t}
         />
       ) : fane === "logg" ? (
-        <LoggFane orgId={orgId} t={t} />
+        <LoggFane t={t} />
       ) : (
         <LesRedigerFane t={t} />
       )}
@@ -319,8 +289,8 @@ function Celle({
 /*  Endringslogg-fane                                                  */
 /* ------------------------------------------------------------------ */
 
-function LoggFane({ orgId, t }: { orgId: string; t: (k: string) => string }) {
-  const { data, isLoading } = trpc.flytMatrise.hentLogg.useQuery({ orgId });
+function LoggFane({ t }: { t: (k: string) => string }) {
+  const { data, isLoading } = trpc.flytMatrise.hentLogg.useQuery();
   if (isLoading) return <div className="flex items-center justify-center py-12"><Spinner /></div>;
   if (!data || data.length === 0) return <p className="py-12 text-center text-sm text-gray-500">{t("flytmatrise.logg.tom")}</p>;
   return (
