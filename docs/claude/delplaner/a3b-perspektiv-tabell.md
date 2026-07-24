@@ -1,7 +1,7 @@
 ---
 name: a3b-perspektiv-tabell
-status: 🟡 NÅ-RAPPORT komplett (§ 8 registrator-kolonne + § 9 rejected-rad, cowork 2026-07-24) — VENTER FABEL-GATE før Fase B (Del 1a-revisjon + 1c) gjenopptas. Fase A-tabellen låst 2026-07-20
-eier: cowork (nå-rapport-måling) · fabel (gater § 8+§ 9) · a3b-opus (ledd 3, kode etter gate)
+status: 🟢 § 8 + § 9 FABEL-GATET 2026-07-24 (se [a3b-gate-2026-07-24.md](a3b-gate-2026-07-24.md)) — A-3b-Opus dispatched: rebase `feat/a3b-perspektiv` på develop + Del 1a-revisjon + 1c. Fase A-tabellen låst 2026-07-20
+eier: cowork (nå-rapport + gate) · fabel (design) · a3b-opus (ledd 3, kode)
 sist_verifisert_mot_kode: 2026-07-24
 ---
 
@@ -160,3 +160,13 @@ Per fabel-c-vedtaket: registrator-fiksen har landet (live på prod, `cb3ce3d1`),
 **adminNiva (Kloss 2):** perspektiv-D-kolonnen bruker `erAdmin`, som er **uendret** av Kloss 2 (adminNiva er containet til flyt-rettighets-funksjonene). § 8-revisjonen (erAdmin → D; registrator → deltaker) står. Verifiseres i Fase B mot `perspektivEtikett.ts`.
 
 **Til fabel-gate:** § 8 (registrator-kolonne) + § 9 (`rejected`-rad) = den komplette nå-rapporten mot post-fundament-semantikk. **Fabel gater begge FØR** Del 1a-revisjon + Del 1c-wiring. A-3b-Opus må dessuten re-base `feat/a3b-perspektiv` (`535f8d8a`, 3+ commits bak) på develop før koding.
+
+### ✅ FABEL-GATE (2026-07-24) — § 8 + § 9 godkjent som foreslått + konsolidering
+
+- **§ 8:** `erAdmin → D` ubetinget; registrator flyter A/B/C med D kun som leser-fallback.
+- **§ 9:** A/B «Til utbedring · warning», C/D «Til revisjon · primary»; closed-raden uendret (inert transisjon får IKKE badge).
+- **🔴 Konsolidering Opus tar i Del 1a-revisjonen:** § 9 gjør `rejected`-**fargen perspektiv-avhengig** — samme grammatikk som `received`/`in_progress` (warning til den med ballen, primary til den som venter). Dermed:
+  - **Fotnote ¹** (base § 3 + HMS § 5: «fargen er IKKE perspektiv-avhengig, § 2b global») er **foreldet → strykes/omskrives.**
+  - **Ordrens § 2b-punkt** (global `rejected`-fargeendring) er **konsumert av § 9** — ingen separat global baseline-endring lenger; fargen følger perspektiv.
+  - **HMS-matrisen (§ 5) synkes:** Innsender = warning (din tur), HMS-gruppe = primary (venter) på `rejected`.
+- **Ufravikelige står:** HMS-retur-grenen **måles og flagges** (fylles ikke på eget initiativ), `sent→received` (`sjekkliste.ts:923`) røres ikke, lesekvittering («Lest») er egen sak, pkt 7 «Trekk tilbake» bygges ikke uten Kenneth-vedtak.
