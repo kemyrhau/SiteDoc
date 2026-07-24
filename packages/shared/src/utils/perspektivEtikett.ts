@@ -21,23 +21,38 @@ export type BadgeVariant = "default" | "primary" | "success" | "warning" | "dang
 export type PerspektivDokumentType = "sjekkliste" | "oppgave" | "godkjenning" | "hms";
 
 /**
- * Seerens perspektiv, utledet av rolle + ballinnehav:
- * - `registrator` — nøytral global sannhet (prosjektadmin / flytregistrator).
+ * Seerens perspektiv, utledet av admin-flagg + ballinnehav:
+ * - `noeytral` — nøytral global sannhet (kolonne D). Nås KUN av admin (globalt
+ *   tilsyn) + som celle-fallback for udefinerte (perspektiv, status)-par.
  * - `aktiv` — dokumentet er på seerens bord nå (har ballen), krever handling.
  * - `venter` — seeren sendte forrige ledd / venter; ballen er hos andre.
  *
- * De fire kolonnene i perspektiv-tabellen (Avsender/Mottaker/Godkjenner/Registrator)
- * kollapser til disse tre: godkjenner-kolonnen = `aktiv` ved `responded`
- * (har ballen → «Til godkjenning») og `venter` ved `rejected` (sendte tilbake,
- * venter → «Til revisjon»). Mottaker-kolonnen = `aktiv`; avsender-kolonnen = `venter`.
+ * § 8-revisjon (fabel-gate 2026-07-24): registrator er IKKE lenger en egen
+ * kolonne. En matchet registrator er per Kenneths definisjon avsender-parten
+ * (oppretter + sender), så hun flyter A/B/C som øvrige deltakere — `venter` (A,
+ * avsender) uten ballen, `aktiv` (B) med ballen. En bruker som ikke er part får
+ * `rolle=null` fra `utledMinRolle` (ikke «registrator») og følger samme ball-
+ * baserte utledning. Kun `erAdmin` gir den nøytrale D-kolonnen ubetinget.
+ *
+ * De fire tabell-kolonnene (Avsender/Mottaker/Godkjenner/Registrator) kollapser
+ * til disse tre: godkjenner-kolonnen = `aktiv` ved `responded` (har ballen →
+ * «Til godkjenning») og `venter` ved `rejected` (sendte tilbake, venter →
+ * «Til revisjon»). Mottaker-kolonnen = `aktiv`; avsender-kolonnen = `venter`.
  */
-export type Perspektiv = "aktiv" | "venter" | "registrator";
+export type Perspektiv = "aktiv" | "venter" | "noeytral";
 
 export interface PerspektivSeerKontekst {
   /** Brukerens utledede flytrolle for dokumentet (`utledMinRolle`). null = ingen rolle. */
   rolle: DokumentflytRolle | null;
   /** Har brukeren ballen nå? (`beregnHarBallen`) */
   harBallen: boolean;
+  /**
+   * Prosjekt-/firma-/sitedoc-admin (globalt tilsyn). § 8-gate: `erAdmin → D`
+   * ubetinget — admin ser alltid nøytral sannhet uansett ball/rolle. Bruker
+   * `minFlytInfo.erAdmin` (uendret av Kloss 2 `adminNiva`; adminNiva er containet
+   * til flyt-rettighets-funksjonene, ikke perspektiv-D). Default false.
+   */
+  erAdmin?: boolean;
 }
 
 export interface PerspektivEtikett {
@@ -49,22 +64,25 @@ export interface PerspektivEtikett {
 }
 
 /**
- * Utled seerperspektiv. Registrator/admin ser alltid nøytral sannhet uansett
- * ballinnehav; ellers avgjør ballen om du er den aktive parten eller venter.
+ * Utled seerperspektiv. Admin (globalt tilsyn) ser alltid nøytral D-sannhet
+ * uansett ball/rolle (§ 8-gate 2026-07-24: `erAdmin → D` ubetinget). Alle andre
+ * — inkludert registrator, som nå er en ordinær avsender-part — avgjøres av
+ * ballen: har den → aktiv part (B), ellers venter/avsender (A).
  */
 export function utledPerspektiv(kontekst: PerspektivSeerKontekst): Perspektiv {
-  if (kontekst.rolle === "registrator") return "registrator";
+  if (kontekst.erAdmin) return "noeytral";
   return kontekst.harBallen ? "aktiv" : "venter";
 }
 
 type Celle = { etikettKey: string; variant: BadgeVariant };
 
 /**
- * Kolonne D — nøytral global sannhet. Dekker ALLE statuser og fungerer som
- * fallback når en (perspektiv, status)-celle ikke er definert. `sent` tas med
- * defensivt selv om `sjekkliste.ts:923` konverterer sent→received ved lagring.
+ * Kolonne D — nøytral global sannhet (admin + celle-fallback). Dekker ALLE
+ * statuser og fungerer som fallback når en (perspektiv, status)-celle ikke er
+ * definert. `sent` tas med defensivt selv om `sjekkliste.ts:923` konverterer
+ * sent→received ved lagring.
  */
-const REGISTRATOR: Record<string, Celle> = {
+const NOEYTRAL: Record<string, Celle> = {
   draft: { etikettKey: "status.utkast", variant: "default" },
   // UOPPNÅELIG i dag: `sjekkliste.ts:923` konverterer sent→received ubetinget ved
   // lagring, så ingen rad persisteres som `sent`. Beholdes rent defensivt (f.eks.
@@ -74,7 +92,10 @@ const REGISTRATOR: Record<string, Celle> = {
   in_progress: { etikettKey: "status.paagaar", variant: "primary" },
   responded: { etikettKey: "status.besvart", variant: "primary" },
   approved: { etikettKey: "status.godkjent", variant: "success" },
-  // § 2b-fallback: rejected er `danger` globalt i dag → `primary` for nøytral seer.
+  // § 9-konsolidering (fabel-gate 2026-07-24): `rejected`-fargen er nå perspektiv-
+  // avhengig (samme grammatikk som received/in_progress) — warning til ballinnehaver
+  // (aktiv/venter-utbedrer), primary til den som venter og til nøytral D. Den gamle
+  // § 2b globale danger→farge-endringen er KONSUMERT av dette; ingen egen baseline.
   rejected: { etikettKey: "status.tilRevisjon", variant: "primary" },
   closed: { etikettKey: "status.lukket", variant: "default" },
   cancelled: { etikettKey: "status.avbrutt", variant: "danger" },
@@ -86,7 +107,9 @@ const BASE_AKTIV: Record<string, Celle> = {
   received: { etikettKey: "status.tilBehandling", variant: "warning" },
   in_progress: { etikettKey: "status.underArbeid", variant: "warning" },
   responded: { etikettKey: "status.tilGodkjenning", variant: "warning" }, // godkjenner har ballen
-  rejected: { etikettKey: "status.tilUtbedring", variant: "warning" }, // utfører har ballen
+  // § 9 (A-laget): ballinnehaver på rejected = utfører (gjenoppta) ELLER avsender
+  // (registrator/bestiller «Send på nytt») — begge «din tur» → warning.
+  rejected: { etikettKey: "status.tilUtbedring", variant: "warning" },
   approved: { etikettKey: "status.godkjent", variant: "success" },
   closed: { etikettKey: "status.lukket", variant: "default" },
   cancelled: { etikettKey: "status.avbrutt", variant: "danger" },
@@ -96,7 +119,7 @@ const BASE_VENTER: Record<string, Celle> = {
   received: { etikettKey: "status.tilBehandling", variant: "primary" },
   in_progress: { etikettKey: "status.underArbeid", variant: "primary" },
   responded: { etikettKey: "status.besvartTilGodkjenning", variant: "primary" }, // utfører har besvart
-  rejected: { etikettKey: "status.tilRevisjon", variant: "primary" }, // godkjenner sendte tilbake
+  rejected: { etikettKey: "status.tilRevisjon", variant: "primary" }, // godkjenner sendte tilbake, venter
   approved: { etikettKey: "status.godkjent", variant: "success" },
   closed: { etikettKey: "status.lukket", variant: "default" },
   cancelled: { etikettKey: "status.avbrutt", variant: "danger" },
@@ -104,6 +127,9 @@ const BASE_VENTER: Record<string, Celle> = {
 
 /**
  * HMS — enveis med auto-retur. Innsender = `venter`, HMS-gruppe = `aktiv`.
+ * § 9-konsolidering: på `rejected` speiler HMS base-grammatikken — innsender får
+ * ballen tilbake for utbedring (`aktiv` → warning), HMS-gruppen sendte tilbake og
+ * venter (`venter` → primary).
  *
  * ⚠️ HMS-retur-avhengighet (fabel-svar 3, A-3b): «Godkjent – returnert» krever
  * at seer-konteksten identifiserer innsender som `aktiv` ved `approved` (ballen
@@ -147,17 +173,17 @@ export function perspektivEtikett(
   const erHms = dokumentType === "hms";
 
   let celle: Celle | undefined;
-  if (perspektiv === "registrator") {
-    celle = REGISTRATOR[status];
+  if (perspektiv === "noeytral") {
+    celle = NOEYTRAL[status];
   } else if (perspektiv === "aktiv") {
     celle = (erHms ? HMS_AKTIV : BASE_AKTIV)[status];
   } else {
     celle = (erHms ? HMS_VENTER : BASE_VENTER)[status];
   }
 
-  // Fallback: udefinert celle → nøytral registrator-sannhet (kolonne D).
+  // Fallback: udefinert celle → nøytral D-sannhet (kolonne D).
   // Ukjent status → returner status-strengen selv (samme kontrakt som StatusBadge).
-  const løst = celle ?? REGISTRATOR[status] ?? { etikettKey: status, variant: "default" as BadgeVariant };
+  const løst = celle ?? NOEYTRAL[status] ?? { etikettKey: status, variant: "default" as BadgeVariant };
   return { etikettKey: løst.etikettKey, variant: løst.variant, perspektiv };
 }
 

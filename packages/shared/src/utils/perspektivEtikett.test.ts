@@ -22,10 +22,14 @@ import {
  * oppdateres → testen faller. Det er meningen.
  */
 
-// Seer-kontekst-byggere: perspektiv utledes av rolle + ballinnehav.
+// Seer-kontekst-byggere: perspektiv utledes av admin-flagg + ballinnehav.
 const aktiv: PerspektivSeerKontekst = { rolle: "utforer", harBallen: true };
 const venter: PerspektivSeerKontekst = { rolle: "bestiller", harBallen: false };
-const registrator: PerspektivSeerKontekst = { rolle: "registrator", harBallen: false };
+// § 8-gate 2026-07-24: registrator er en ordinær avsender-part — uten ballen →
+// venter (A, avsender), med ballen → aktiv (B). Ikke lenger nøytral D-kolonne.
+const registratorVenter: PerspektivSeerKontekst = { rolle: "registrator", harBallen: false };
+// Admin (globalt tilsyn) → nøytral D-kolonne ubetinget, uansett ball/rolle.
+const admin: PerspektivSeerKontekst = { rolle: "registrator", harBallen: false, erAdmin: true };
 // Godkjenner er ikke et eget perspektiv: med ballen → aktiv, uten → venter.
 const godkjennerMedBall: PerspektivSeerKontekst = { rolle: "godkjenner", harBallen: true };
 const godkjennerUtenBall: PerspektivSeerKontekst = { rolle: "godkjenner", harBallen: false };
@@ -37,7 +41,7 @@ interface Rad {
   type: PerspektivDokumentType;
   etikettKey: string;
   variant: BadgeVariant;
-  perspektiv: "aktiv" | "venter" | "registrator";
+  perspektiv: "aktiv" | "venter" | "noeytral";
 }
 
 const MATRISE: Rad[] = [
@@ -47,6 +51,8 @@ const MATRISE: Rad[] = [
   { navn: "base/aktiv/in_progress", status: "in_progress", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.underArbeid", variant: "warning", perspektiv: "aktiv" },
   { navn: "base/aktiv/responded (godkjenner har ballen)", status: "responded", kontekst: godkjennerMedBall, type: "sjekkliste", etikettKey: "status.tilGodkjenning", variant: "warning", perspektiv: "aktiv" },
   { navn: "base/aktiv/rejected (utfører utbedrer)", status: "rejected", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.tilUtbedring", variant: "warning", perspektiv: "aktiv" },
+  // § 9 (A-laget): avsender/bestiller kan «Send på nytt» → har ballen → «din tur» (warning), ikke lenger «—».
+  { navn: "base/aktiv/rejected (avsender Send på nytt)", status: "rejected", kontekst: { rolle: "bestiller", harBallen: true }, type: "sjekkliste", etikettKey: "status.tilUtbedring", variant: "warning", perspektiv: "aktiv" },
   { navn: "base/aktiv/approved", status: "approved", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.godkjent", variant: "success", perspektiv: "aktiv" },
   { navn: "base/aktiv/closed", status: "closed", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.lukket", variant: "default", perspektiv: "aktiv" },
   { navn: "base/aktiv/cancelled", status: "cancelled", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.avbrutt", variant: "danger", perspektiv: "aktiv" },
@@ -59,16 +65,26 @@ const MATRISE: Rad[] = [
   { navn: "base/venter/approved", status: "approved", kontekst: venter, type: "sjekkliste", etikettKey: "status.godkjent", variant: "success", perspektiv: "venter" },
   { navn: "base/venter/cancelled", status: "cancelled", kontekst: venter, type: "sjekkliste", etikettKey: "status.avbrutt", variant: "danger", perspektiv: "venter" },
 
-  // ── Base — REGISTRATOR (nøytral, kolonne D) ─────────────────────────────
-  { navn: "reg/draft", status: "draft", kontekst: registrator, type: "sjekkliste", etikettKey: "status.utkast", variant: "default", perspektiv: "registrator" },
-  { navn: "reg/received", status: "received", kontekst: registrator, type: "sjekkliste", etikettKey: "status.mottatt", variant: "primary", perspektiv: "registrator" },
-  { navn: "reg/in_progress", status: "in_progress", kontekst: registrator, type: "sjekkliste", etikettKey: "status.paagaar", variant: "primary", perspektiv: "registrator" },
-  { navn: "reg/responded", status: "responded", kontekst: registrator, type: "sjekkliste", etikettKey: "status.besvart", variant: "primary", perspektiv: "registrator" },
-  { navn: "reg/rejected (§2b: danger→primary)", status: "rejected", kontekst: registrator, type: "sjekkliste", etikettKey: "status.tilRevisjon", variant: "primary", perspektiv: "registrator" },
-  { navn: "reg/approved", status: "approved", kontekst: registrator, type: "sjekkliste", etikettKey: "status.godkjent", variant: "success", perspektiv: "registrator" },
-  { navn: "reg/closed", status: "closed", kontekst: registrator, type: "sjekkliste", etikettKey: "status.lukket", variant: "default", perspektiv: "registrator" },
-  { navn: "reg/cancelled", status: "cancelled", kontekst: registrator, type: "sjekkliste", etikettKey: "status.avbrutt", variant: "danger", perspektiv: "registrator" },
-  { navn: "reg/sent (defensiv — ikke lagret)", status: "sent", kontekst: registrator, type: "sjekkliste", etikettKey: "status.sendt", variant: "primary", perspektiv: "registrator" },
+  // ── Registrator = avsender-part (§ 8-gate): flyter som VENTER (A), IKKE nøytral ──
+  // Kjernen i § 8: en registrator som opprettet+sendte ser dokumentets sanne
+  // avsender-tilstand («Til behandling»), ikke den nøytrale D-en («Mottatt»).
+  { navn: "reg/venter/received (§8: «Til behandling», ikke «Mottatt»)", status: "received", kontekst: registratorVenter, type: "sjekkliste", etikettKey: "status.tilBehandling", variant: "primary", perspektiv: "venter" },
+  { navn: "reg/venter/in_progress", status: "in_progress", kontekst: registratorVenter, type: "sjekkliste", etikettKey: "status.underArbeid", variant: "primary", perspektiv: "venter" },
+  { navn: "reg/venter/responded", status: "responded", kontekst: registratorVenter, type: "sjekkliste", etikettKey: "status.besvartTilGodkjenning", variant: "primary", perspektiv: "venter" },
+  { navn: "reg/venter/rejected", status: "rejected", kontekst: registratorVenter, type: "sjekkliste", etikettKey: "status.tilRevisjon", variant: "primary", perspektiv: "venter" },
+
+  // ── Admin = nøytral kolonne D (§ 8-gate: erAdmin → D ubetinget) ──────────
+  { navn: "admin/draft", status: "draft", kontekst: admin, type: "sjekkliste", etikettKey: "status.utkast", variant: "default", perspektiv: "noeytral" },
+  { navn: "admin/received (nøytral «Mottatt»)", status: "received", kontekst: admin, type: "sjekkliste", etikettKey: "status.mottatt", variant: "primary", perspektiv: "noeytral" },
+  { navn: "admin/in_progress", status: "in_progress", kontekst: admin, type: "sjekkliste", etikettKey: "status.paagaar", variant: "primary", perspektiv: "noeytral" },
+  { navn: "admin/responded", status: "responded", kontekst: admin, type: "sjekkliste", etikettKey: "status.besvart", variant: "primary", perspektiv: "noeytral" },
+  { navn: "admin/rejected", status: "rejected", kontekst: admin, type: "sjekkliste", etikettKey: "status.tilRevisjon", variant: "primary", perspektiv: "noeytral" },
+  { navn: "admin/approved", status: "approved", kontekst: admin, type: "sjekkliste", etikettKey: "status.godkjent", variant: "success", perspektiv: "noeytral" },
+  { navn: "admin/closed", status: "closed", kontekst: admin, type: "sjekkliste", etikettKey: "status.lukket", variant: "default", perspektiv: "noeytral" },
+  { navn: "admin/cancelled", status: "cancelled", kontekst: admin, type: "sjekkliste", etikettKey: "status.avbrutt", variant: "danger", perspektiv: "noeytral" },
+  { navn: "admin/sent (defensiv — ikke lagret)", status: "sent", kontekst: admin, type: "sjekkliste", etikettKey: "status.sendt", variant: "primary", perspektiv: "noeytral" },
+  // erAdmin dominerer ballinnehav: admin med ballen ser fortsatt nøytral D.
+  { navn: "admin/received med ball → fortsatt nøytral", status: "received", kontekst: { rolle: "utforer", harBallen: true, erAdmin: true }, type: "sjekkliste", etikettKey: "status.mottatt", variant: "primary", perspektiv: "noeytral" },
 
   // ── HMS — AKTIV (HMS-gruppe, eller innsender ved retur/kladd) ────────────
   { navn: "hms/aktiv/draft (innsender)", status: "draft", kontekst: aktiv, type: "hms", etikettKey: "status.utkast", variant: "default", perspektiv: "aktiv" },
@@ -84,8 +100,8 @@ const MATRISE: Rad[] = [
   { navn: "hms/venter/approved (HMS-gruppe ferdig)", status: "approved", kontekst: venter, type: "hms", etikettKey: "status.godkjent", variant: "success", perspektiv: "venter" },
   { navn: "hms/venter/rejected (HMS-gruppe sendte tilbake)", status: "rejected", kontekst: venter, type: "hms", etikettKey: "status.tilRevisjon", variant: "primary", perspektiv: "venter" },
 
-  // ── HMS — REGISTRATOR (samme nøytrale sannhet som base) ─────────────────
-  { navn: "hms/reg/in_progress (Pågår, ikke Under behandling)", status: "in_progress", kontekst: registrator, type: "hms", etikettKey: "status.paagaar", variant: "primary", perspektiv: "registrator" },
+  // ── HMS — ADMIN (nøytral D, samme sannhet som base — ikke HMS-kolonnene) ─
+  { navn: "hms/admin/in_progress (Pågår, ikke Under behandling)", status: "in_progress", kontekst: admin, type: "hms", etikettKey: "status.paagaar", variant: "primary", perspektiv: "noeytral" },
 
   // ── Fallback: udefinert (perspektiv, status)-celle → registrator-sannhet ─
   // Aktiv seer på en status uten aktiv-celle (f.eks. utfører ser 'sent') → kolonne D.
@@ -177,9 +193,15 @@ describe("kvitteringEtikett — nøklet på HANDLING, én rad per tekstNoekkel (
   });
 });
 
-describe("utledPerspektiv — registrator dominerer ballinnehav", () => {
-  it("registrator med ballen → registrator (ikke aktiv)", () => {
-    expect(utledPerspektiv({ rolle: "registrator", harBallen: true })).toBe("registrator");
+describe("utledPerspektiv — admin dominerer, registrator er ordinær deltaker (§ 8)", () => {
+  it("admin → noeytral uansett ball/rolle", () => {
+    expect(utledPerspektiv({ rolle: "registrator", harBallen: true, erAdmin: true })).toBe("noeytral");
+    expect(utledPerspektiv({ rolle: "utforer", harBallen: true, erAdmin: true })).toBe("noeytral");
+    expect(utledPerspektiv({ rolle: null, harBallen: false, erAdmin: true })).toBe("noeytral");
+  });
+  it("registrator (ikke-admin) uten ball → venter (avsender), med ball → aktiv (mottaker)", () => {
+    expect(utledPerspektiv({ rolle: "registrator", harBallen: false })).toBe("venter");
+    expect(utledPerspektiv({ rolle: "registrator", harBallen: true })).toBe("aktiv");
   });
   it("null rolle uten ball → venter", () => {
     expect(utledPerspektiv({ rolle: null, harBallen: false })).toBe("venter");

@@ -1,6 +1,6 @@
 ---
 name: a3b-perspektiv-tabell
-status: 🟢 § 8 + § 9 FABEL-GATET 2026-07-24 (se [a3b-gate-2026-07-24.md](a3b-gate-2026-07-24.md)) — A-3b-Opus dispatched: rebase `feat/a3b-perspektiv` på develop + Del 1a-revisjon + 1c. Fase A-tabellen låst 2026-07-20
+status: 🟢 § 8 + § 9 IMPLEMENTERT 2026-07-24 (fabel-gate [a3b-gate-2026-07-24.md](a3b-gate-2026-07-24.md)) — `feat/a3b-perspektiv` rebaset på develop, Del 1a-revisjon (`perspektivEtikett.ts`: erAdmin→D, registrator→deltaker, rejected perspektiv-farge) + Del 1c/1d/2 kodet, `next build` grønn. Venter fabel-gate + Kenneths klikktest. Fase A-tabellen låst 2026-07-20
 eier: cowork (nå-rapport + gate) · fabel (design) · a3b-opus (ledd 3, kode)
 sist_verifisert_mot_kode: 2026-07-24
 ---
@@ -20,7 +20,7 @@ Leveranse for [A3b-ordre.md](A3b-ordre.md) § 2 Del 1a. **Ikke kode** — design
 ## To ting løftet UT av denne tabellen (cowork-funn 2026-07-20)
 
 1. **«Lest» er fjernet.** Cowork målte den som død kode i begge retninger: status persisteres aldri som `sent` (auto-mottak konverterer), så `lestAvMottakerVed` er alltid NULL og badge-grenen (`status === "sent" && lestAvMottakerVed != null`) har aldri fyrt. Å vekke den er **lesekvittering** — en ny funksjon med personvern-side (~50 ansatte; arbeidsgiver ser når den enkelte åpnet et dokument) + skrive-side + badge-vilkårsbytte. **Egen sak, krever Kenneth-vedtak.** Ikke del av A-3b. `received`/avsender er derfor bare «Til behandling · primary» — ingen `→ Lest`-overgang.
-2. **`rejected`-fargeskiftet er ikke perspektiv-avhengig.** Dagens `rejected = danger` (rød, alle ser den) → warning/primary er en **global baseline-endring** som treffer enhver bruker, også faggruppe-bundne uten seer-kontekst. Fabel har flyttet fargevedtaket til ordrens **§ 2b** som eget punkt. Etikettene (Til utbedring / Til revisjon) er perspektiv-avhengige og står i tabellen; **fargevalget er det ikke** og presenteres ikke her som en perspektiv-konsekvens.
+2. ~~**`rejected`-fargeskiftet er ikke perspektiv-avhengig.**~~ **FORELDET (§ 9-konsolidering 2026-07-24).** Da A-laget ga avsender (registrator/bestiller) «Send på nytt» på `rejected`, ble fargen perspektiv-avhengig som enhver annen aktiv status: warning til ballinnehaveren, primary til den som venter (se § 3 rejected-rad + fotnote ¹). Det finnes derfor **ingen egen ikke-perspektiv-avhengig baseline-endring** — ordrens **§ 2b er konsumert av § 9**. (Testplanen skal fortsatt verifisere at en faggruppe-bundet bruker uten seer-kontekst ser en fornuftig `rejected`-farge — hun faller til D/nøytral = «Til revisjon · primary».)
 
 ---
 
@@ -45,26 +45,28 @@ Kjernegrepet mot i dag: `received` og `in_progress` er `primary`/`warning` **glo
 | A | **Avsender / venter** — jeg sendte forrige ledd, eller er bestiller som venter | `harBallen=false` + avsenderskap/tidligere ledd |
 | B | **Mottaker / Utfører** — dokumentet er på mitt bord | `harBallen=true`, rolle=utforer |
 | C | **Godkjenner** — venter på min godkjenning | `harBallen=true`, rolle=godkjenner (kun `responded`) |
-| D | **Registrator / Admin** — nøytral, global sannhet | `erAdmin` \| rolle=registrator |
+| D | **Admin / nøytral** — global sannhet | `erAdmin` (ubetinget) |
 
-**Fallback:** en bruker uten utledet perspektiv (typisk faggruppe-bundet) faller tilbake til **kolonne D** (nøytral sannhet). Ingen mister informasjon; perspektiv-splittene A/B/C er additive overlegg over D.
+**§ 8-revisjon (fabel-gate 2026-07-24):** D nås nå **kun av `erAdmin`** (globalt tilsyn), ikke av registrator-rollen. En **registrator er en ordinær avsender-part** — hun flyter A (uten ball, avsender/venter), B/C (ballinnehav/rolle), fordi en matchet registrator per Kenneths definisjon er den som opprettet + sendte. En som ikke er part i dokumentet får `rolle=null` fra `utledMinRolle` (ikke «registrator») og følger samme ball-baserte utledning. Koden: `utledPerspektiv` = `erAdmin → noeytral; ellers harBallen ? aktiv : venter` (`perspektivEtikett.ts`).
+
+**Fallback:** udefinerte (perspektiv, status)-celler faller tilbake til **kolonne D** (nøytral sannhet) i mapping-laget. Ingen mister informasjon; perspektiv-splittene A/B/C er additive overlegg over D.
 
 ## 3. Base-matrise — Sjekkliste · Oppgave · Godkjenning
 
 Deler rolle-vokabular. `—` = perspektivet finnes ikke i statusen.
 
-| Lagret status | A · Avsender/venter | B · Mottaker/Utfører | C · Godkjenner | D · Registrator |
+| Lagret status | A · Avsender/venter (inkl. registrator) | B · Mottaker/Utfører | C · Godkjenner | D · Admin/nøytral |
 |---|---|---|---|---|
 | `draft` | — | **Utkast** · default | — | **Utkast** · default |
 | `received` *(sent→received)* | **Til behandling** · primary | **Til behandling** · warning | — | **Mottatt** · primary |
 | `in_progress` | **Under arbeid** · primary | **Under arbeid** · warning | — | **Pågår** · primary |
 | `responded` | **Besvart – til godkjenning** · primary | — | **Til godkjenning** · warning | **Besvart** · primary |
 | `approved` | **Godkjent** · success | **Godkjent** · success | **Godkjent** · success | **Godkjent** · success |
-| `rejected` ¹ | — | **Til utbedring** | **Til revisjon** | **Til revisjon** |
+| `rejected` ¹ | **Til utbedring** · warning | **Til utbedring** · warning | **Til revisjon** · primary | **Til revisjon** · primary |
 | `closed` | **Lukket** · default | **Lukket** · default | **Lukket** · default | **Lukket** · default |
 | `cancelled` | **Avbrutt** · danger | **Avbrutt** · danger | — | **Avbrutt** · danger |
 
-¹ **`rejected`-etikettene er perspektiv-avhengige; fargen er det ikke.** Dagens `danger`→ny farge er en global baseline-endring behandlet i ordrens § 2b — se punkt 2 over. Etikettene implementerer Kenneths vedtak 2: utfører = «Til utbedring» (din tur), godkjenner-som-sendte-tilbake = «Til revisjon» (venter).
+¹ **`rejected` følger nå den vanlige fargegrammatikken (§ 1) — også fargen er perspektiv-avhengig.** § 9-konsolidering (fabel-gate 2026-07-24): A-laget ga avsender (registrator/bestiller) «Send på nytt» på `rejected`, så ballinnehaveren — avsender-som-utbedrer (A) *eller* utfører (B) — får **warning** («din tur»), mens den som sendte tilbake (C, godkjenner) og nøytral D venter → **primary**. Nøyaktig samme mønster som `received`/`in_progress`. Den gamle § 2b-endringen (global `danger`→ny farge for alle) er dermed **konsumert av § 9** — det finnes ingen egen ikke-perspektiv-avhengig baseline-endring lenger.
 
 Merknader:
 - **`received`** er N1-kjernen: samme lagrede rad, ulik etikett per seer. Avsender ser dokumentets *sanne* tilstand («Til behandling»), aldri sin gamle «Sendt»-handling. «Sendt» lever kun som kvittering-øyeblikk (§ 6).
@@ -88,10 +90,10 @@ Perspektivene omdøpes: Avsender = **Innsender**, Mottaker + Godkjenner = **HMS-
 | `received` | **Til behandling hos HMS** · primary | **Til behandling** · warning | **Mottatt** · primary |
 | `in_progress` | **Under behandling** · primary | **Under behandling** · warning | **Pågår** · primary |
 | `approved` *(auto-retur)* | **Godkjent – returnert** · success | **Godkjent** · success | **Godkjent** · success |
-| `rejected` ¹ | **Til utbedring** | **Til revisjon** | **Til revisjon** |
+| `rejected` ¹ | **Til utbedring** · warning | **Til revisjon** · primary | **Til revisjon** · primary |
 | `cancelled` | **Avbrutt** · danger | **Avbrutt** · danger | **Avbrutt** · danger |
 
-¹ Samme farge-forbehold som base-matrisen. HMS har ingen egen `responded/godkjenner`-node — retursteget til innsender er automatisk (§ 2). *(Se åpent spørsmål 3.)*
+¹ Speiler base-matrisen (§ 9-konsolidering): innsender får ballen tilbake for utbedring → **warning** («din tur»); HMS-gruppen sendte tilbake og venter → **primary**; nøytral D → **primary**. HMS har ingen egen `responded/godkjenner`-node — retursteget til innsender er automatisk (§ 2), **men koden har ingen egen HMS-retur-gren i dag: dette MÅLES og flagges i Fase B, det fylles ikke på eget initiativ** (fabel-svar 3 + § 7). *(Se åpent spørsmål 3.)*
 
 ## 6. Kvitterings-øyeblikket (Del 1b — overlay, IKKE lagret tilstand)
 
