@@ -76,10 +76,14 @@ describe("Ende-til-ende: DokumentHandlingsmeny-klikk → StatusBadge-kvittering"
     expect(screen.getByText("Under arbeid")).toBeTruthy();
   });
 
-  it("klikk «Send tilbake» → badge viser «Sendt tilbake ✓», IKKE «Sendt ✓»", () => {
+  it("klikk «Send tilbake» → nudge → bekreft → badge viser «Sendt tilbake ✓», IKKE «Sendt ✓»", () => {
+    // Del 2.5: «Send tilbake» ber om begrunnelse (nudge) før den utføres. Første klikk
+    // åpner nudge-prompten (menyen erstattes av bekreft-visningen), bekreft-knappen
+    // bærer handlingslabelen «Send tilbake» → andre klikk utfører → kvittering vises.
     render(<I18nextProvider i18n={i18n}><Harness /></I18nextProvider>);
-    const knapp = screen.getByText("Send tilbake");
-    fireEvent.click(knapp);
+    fireEvent.click(screen.getByText("Send tilbake")); // åpner nudge
+    expect(screen.queryByText("Sendt tilbake ✓")).toBeNull(); // ikke utført ennå
+    fireEvent.click(screen.getByText("Send tilbake")); // bekreft i nudge → utfør
     expect(screen.getByText("Sendt tilbake ✓")).toBeTruthy();
     expect(screen.queryByText("Sendt ✓")).toBeNull();
   });

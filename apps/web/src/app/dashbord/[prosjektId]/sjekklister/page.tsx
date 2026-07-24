@@ -11,6 +11,7 @@ import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight } from "lucide
 import { useTranslation } from "react-i18next";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
+import { beregnHarBallen } from "@sitedoc/shared";
 
 // --- Typer ---
 
@@ -251,6 +252,7 @@ export default function SjekklisteSide() {
   const utils = trpc.useUtils();
   const { aktivByggeplass, standardTegning } = useByggeplass();
   const [visModal, setVisModal] = useState(false);
+  const [mineOppgaver, setMineOppgaver] = useState(false);
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettModal, setVisSlettModal] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
@@ -279,6 +281,8 @@ export default function SjekklisteSide() {
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery({ projectId: params.prosjektId });
   const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery({ projectId: params.prosjektId });
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: params.prosjektId });
+  // «Mine oppgaver»-filter (Del 1d): trenger userId + gruppeIder for beregnHarBallen.
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
 
   const slettMutation = trpc.sjekkliste.slett.useMutation({
     onSuccess: () => { utils.sjekkliste.hentForProsjekt.invalidate({ projectId: params.prosjektId }); },
@@ -488,6 +492,20 @@ export default function SjekklisteSide() {
         );
       });
     }
+    // «Mine oppgaver» (Del 1d): behold kun dokumenter der innlogget bruker har ballen.
+    if (mineOppgaver && minFlytInfo) {
+      resultat = resultat.filter((s) =>
+        beregnHarBallen(
+          {
+            status: s.status,
+            bestillerUserId: s.bestillerUserId,
+            recipientUserId: s.recipientUser?.id,
+            recipientGroupId: s.recipientGroup?.id,
+          },
+          { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder },
+        ),
+      );
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       const valgteSet = new Set(verdi.split(","));
@@ -524,7 +542,7 @@ export default function SjekklisteSide() {
       });
     }
     return resultat;
-  }, [sjekklister, statusFilter, filterVerdier, sok]);
+  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
@@ -558,11 +576,12 @@ export default function SjekklisteSide() {
       status: { id: "status", header: t("tabell.status"), celle: (rad) => (
           <div className="flex items-center gap-1.5">
             <StatusBadge status={rad.status} />
-            {["sent", "received", "in_progress"].includes(rad.status) && rad.recipientGroup?.name && (
-              <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                {t("tabell.venterPaa")}: {rad.recipientGroup.name}
-              </span>
-            )}
+            {["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
+              (rad.recipientUser?.name || rad.recipientGroup?.name) && (
+                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                  {t("tabell.venterPaa")}: {rad.recipientUser?.name ?? rad.recipientGroup?.name}
+                </span>
+              )}
           </div>
         ),
         bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
@@ -641,6 +660,18 @@ export default function SjekklisteSide() {
             <KolonneVelger apen={visKolonneVelger} onLukk={() => setVisKolonneVelger(false)}
               aktive={aktiveKolonner} onToggle={handleToggleKolonne} verdiFelter={verdiFelter} />
           </div>
+          {/* «Mine oppgaver»-toggle (Del 1d): kun dokumenter der jeg har ballen */}
+          <button
+            onClick={() => setMineOppgaver((v) => !v)}
+            aria-pressed={mineOppgaver}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium ${
+              mineOppgaver
+                ? "border-amber-300 bg-amber-50 text-amber-700"
+                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            {t("filter.mineOppgaver")}
+          </button>
           {aktiveFilter.map(([kolId, verdi]) => {
             const kol = alleKolonner.find((k) => k.id === kolId);
             const kolNavn = kol?.navnKey ? t(kol.navnKey) : (kol?.navn ?? kolId);

@@ -21,7 +21,7 @@ import {
   type AdminNiva,
 } from "@sitedoc/shared";
 import { byggVideresendValg } from "@/lib/videresend-valg";
-import type { DokumentflytData, FaggruppeData } from "@/lib/videresend-valg";
+import type { DokumentflytData, FaggruppeData, VideresendMedlem } from "@/lib/videresend-valg";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -165,7 +165,21 @@ interface MenyOppforing {
   plassering: Plassering;
   begrunnelse?: string;
   erDestruktiv?: boolean;
+  /** Person-videresending (Del 2.4): flytens medlemmer, vist når faggruppe-raden ekspanderes. */
+  medlemmer?: VideresendMedlem[];
 }
+
+/**
+ * Kommentar-nudge KUN ved tilbakesending (Del 2.5, Kenneths vedtak 5): «Send tilbake»
+ * / «Avvis» ber om en begrunnelse før utsending — ikke universelt. Nøklet på HANDLING
+ * (tekstNoekkel), ikke nyStatus, av samme grunn som kvitteringen (ikke-injektiv).
+ * Begrunnelsen forblir valgfri (fritekst = valgfritt, CLAUDE.md) — nudgen oppfordrer.
+ */
+const NUDGE_TEKSTNOEKLER = new Set([
+  "statushandling.sendTilbake",
+  "statushandling.sendTilbakeUtforer",
+  "handling.avvis",
+]);
 
 /** Statusverdier som hører til admin/⋯-seksjonen når de IKKE er primærhandling */
 const ADMIN_NY = new Set(["closed", "cancelled", "draft"]);
@@ -203,7 +217,7 @@ export function DokumentHandlingsmeny({
 }: DokumentHandlingsmenyProps) {
   const { t } = useTranslation();
   const [åpenMeny, setÅpenMeny] = useState(false);
-  const [bekreft, setBekreft] = useState<{ nyStatus: string; tekstNoekkel: string; mottaker?: Mottaker; label: string } | null>(null);
+  const [bekreft, setBekreft] = useState<{ nyStatus: string; tekstNoekkel: string; mottaker?: Mottaker; label: string; nudge?: boolean } | null>(null);
   const [visKommentar, setVisKommentar] = useState(false);
   const [kommentar, setKommentar] = useState("");
   const menyRef = useRef<HTMLDivElement>(null);
@@ -278,8 +292,9 @@ export function DokumentHandlingsmeny({
       label: v.visningsnavn,
       nyStatus,
       tekstNoekkel,
-      mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : undefined,
+      mottaker: v.mottaker ? { ...v.mottaker, dokumentflytId: v.dokumentflytId } : { dokumentflytId: v.dokumentflytId },
       plassering: "send" as const,
+      medlemmer: v.medlemmer,
     }));
 
   // Send-seksjon: draft → send til faggruppe; ellers → videresend (forwarded)
@@ -352,8 +367,10 @@ export function DokumentHandlingsmeny({
 
   const klikk = (o: { nyStatus: string; tekstNoekkel: string; mottaker?: Mottaker; label: string }) => {
     setÅpenMeny(false);
-    if (trengerBekreft(o.nyStatus)) {
-      setBekreft({ nyStatus: o.nyStatus, tekstNoekkel: o.tekstNoekkel, mottaker: o.mottaker, label: o.label });
+    const erBekreft = trengerBekreft(o.nyStatus);
+    const erNudge = NUDGE_TEKSTNOEKLER.has(o.tekstNoekkel);
+    if (erBekreft || erNudge) {
+      setBekreft({ nyStatus: o.nyStatus, tekstNoekkel: o.tekstNoekkel, mottaker: o.mottaker, label: o.label, nudge: erNudge && !erBekreft });
       return;
     }
     utfor(o.nyStatus, o.tekstNoekkel, o.mottaker);
@@ -395,21 +412,25 @@ export function DokumentHandlingsmeny({
   if (bekreft) {
     const erTrekkTilbake = bekreft.nyStatus === "cancelled";
     const mottakerHarLest = erTrekkTilbake && lestAvMottakerVed != null;
+    // Nudge (Del 2.5): oppfordrer til begrunnelse ved retur, men krever den ikke.
+    const overskrift = bekreft.nudge
+      ? t("statushandling.begrunnelseRetur")
+      : t("statushandling.bekreftHandling", { handling: bekreft.label });
     return (
       <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
         {mottakerHarLest && (
           <span className="text-xs text-amber-600 font-medium shrink-0">{t("statushandling.mottakerHarLest")}</span>
         )}
-        <span className="text-sm text-gray-500 shrink-0">
-          {t("statushandling.bekreftHandling", { handling: bekreft.label })}
+        <span className={`text-sm shrink-0 ${bekreft.nudge ? "text-amber-700 font-medium" : "text-gray-500"}`}>
+          {overskrift}
         </span>
         <input
           type="text"
           value={kommentar}
           onChange={(e) => setKommentar(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker); }}
-          placeholder={t("statushandling.valgfriKommentar")}
-          className="rounded-lg border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none w-full sm:w-48"
+          placeholder={bekreft.nudge ? t("statushandling.begrunnelsePlaceholder") : t("statushandling.valgfriKommentar")}
+          className="rounded-lg border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none w-full sm:w-56"
           autoFocus
         />
         <div className="flex items-center gap-2 shrink-0">
@@ -418,7 +439,7 @@ export function DokumentHandlingsmeny({
             disabled={erLaster}
             className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {erLaster ? t("statushandling.endrer") : t("handling.bekreft")}
+            {erLaster ? t("statushandling.endrer") : bekreft.nudge ? bekreft.label : t("handling.bekreft")}
           </button>
           <button
             onClick={() => { setBekreft(null); setKommentar(""); }}
@@ -496,6 +517,7 @@ export function DokumentHandlingsmeny({
           deaktivert={deaktiverteOppforinger}
           onVelg={klikk}
           adminLabel={t("statushandling.admin")}
+          sendLabel={t("statushandling.sendVidereTil")}
         />
       )}
 
@@ -534,24 +556,79 @@ function DropdownMeny({
   deaktivert,
   onVelg,
   adminLabel,
+  sendLabel,
 }: {
   send: MenyOppforing[];
   overflow: MenyOppforing[];
   deaktivert: MenyOppforing[];
   onVelg: (o: MenyOppforing) => void;
   adminLabel: string;
+  sendLabel: string;
 }) {
+  const { t } = useTranslation();
+  // Person-videresending (Del 2.4): hvilke faggruppe-rader er ekspandert.
+  const [ekspandert, setEkspandert] = useState<Set<string>>(new Set());
+  const veksle = (key: string) =>
+    setEkspandert((s) => {
+      const n = new Set(s);
+      if (n.has(key)) n.delete(key);
+      else n.add(key);
+      return n;
+    });
+
   return (
-    <div className="absolute right-0 top-full z-20 mt-1 min-w-[200px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-      {send.map((o) => (
-        <button
-          key={o.key}
-          onClick={() => onVelg(o)}
-          className="flex w-full items-center px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-        >
-          {o.label}
-        </button>
-      ))}
+    <div className="absolute right-0 top-full z-20 mt-1 min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+      {/* Send-skille (Del 2.3): tydelig «Send videre til:»-overskrift over faggruppene */}
+      {send.length > 0 && (
+        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{sendLabel}</div>
+      )}
+      {send.map((o) => {
+        const harMedlemmer = (o.medlemmer?.length ?? 0) > 0;
+        const erÅpen = ekspandert.has(o.key);
+        return (
+          <div key={o.key}>
+            <div className="flex w-full items-center">
+              <button
+                onClick={() => onVelg(o)}
+                className="flex flex-1 items-center px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+              >
+                {o.label}
+              </button>
+              {harMedlemmer && (
+                <button
+                  onClick={() => veksle(o.key)}
+                  aria-label={t("statushandling.velgPerson")}
+                  className="px-2 py-2 text-gray-400 hover:text-gray-600"
+                >
+                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${erÅpen ? "rotate-180" : ""}`} />
+                </button>
+              )}
+            </div>
+            {/* Kollapset person-liste: send til spesifikk person i mottaker-flyten */}
+            {harMedlemmer && erÅpen && (
+              <div className="bg-gray-50/60">
+                {o.medlemmer!.map((m) => (
+                  <button
+                    key={`${o.key}-${m.key}`}
+                    onClick={() =>
+                      onVelg({
+                        ...o,
+                        key: `${o.key}-${m.key}`,
+                        label: m.navn,
+                        mottaker: { ...m.mottaker, dokumentflytId: o.mottaker?.dokumentflytId },
+                        medlemmer: undefined,
+                      })
+                    }
+                    className="flex w-full items-center gap-2 py-1.5 pl-7 pr-3 text-left text-sm text-gray-600 hover:bg-gray-100"
+                  >
+                    <span className="truncate">{m.navn}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {overflow.length > 0 && (
         <>

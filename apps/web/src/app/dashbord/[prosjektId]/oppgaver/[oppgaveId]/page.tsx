@@ -6,6 +6,7 @@ import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Send, Printer, Pencil } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
+import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { utledMinRolle, beregnHarBallen, perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
@@ -460,15 +461,22 @@ export default function OppgaveDetaljSide() {
             <StatusBadge
               status={oppgave.status}
               lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
-              perspektiv={kvittering ?? perspektivEtikett(oppgave.status, { rolle: minRolle ?? null, harBallen }, "oppgave")}
+              perspektiv={kvittering ?? perspektivEtikett(oppgave.status, { rolle: minRolle ?? null, harBallen, erAdmin: minFlytInfo?.erAdmin ?? false }, "oppgave")}
             />
+            {/* Ball-holder-chip (Del 1c): person foran faggruppe, synlig når ballen er i spill. */}
             {(() => {
-              const recipientGroup = (fullOppgaveRå as { recipientGroup?: { id: string; name: string } | null })?.recipientGroup;
-              if (!["sent", "received", "in_progress"].includes(oppgave.status)) return null;
-              if (!recipientGroup?.name) return null;
+              if (!["sent", "received", "in_progress", "responded", "rejected"].includes(oppgave.status)) return null;
+              const o = fullOppgaveRå as {
+                recipientGroup?: { id: string; name: string } | null;
+                recipientUserId?: string | null;
+                recipientGroupId?: string | null;
+              } | undefined;
+              const navn =
+                finnMottakerNavn(flytMedlemmer, o?.recipientUserId, o?.recipientGroupId) ?? o?.recipientGroup?.name;
+              if (!navn) return null;
               return (
                 <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                  {t("tabell.venterPaa")}: {recipientGroup.name}
+                  {t("tabell.venterPaa")}: {navn}
                 </span>
               );
             })()}

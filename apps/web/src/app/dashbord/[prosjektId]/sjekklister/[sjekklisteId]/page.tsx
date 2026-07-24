@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Printer, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
@@ -475,13 +476,21 @@ export default function SjekklisteDetaljSide() {
             <StatusBadge
               status={sjekkliste.status}
               lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
-              perspektiv={kvittering ?? perspektivEtikett(sjekkliste.status, { rolle: minRolle ?? null, harBallen }, "sjekkliste")}
+              perspektiv={kvittering ?? perspektivEtikett(sjekkliste.status, { rolle: minRolle ?? null, harBallen, erAdmin: minFlytInfo?.erAdmin ?? false }, "sjekkliste")}
             />
-            {["sent", "received", "in_progress"].includes(sjekkliste.status) && fullSjekkliste?.recipientGroup?.name && (
-              <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                {t("tabell.venterPaa")}: {fullSjekkliste.recipientGroup.name}
-              </span>
-            )}
+            {/* Ball-holder-chip (Del 1c): person foran faggruppe, synlig når ballen er i spill. */}
+            {(() => {
+              if (!["sent", "received", "in_progress", "responded", "rejected"].includes(sjekkliste.status)) return null;
+              const navn =
+                finnMottakerNavn(flytMedlemmer, fullSjekkliste?.recipientUserId, fullSjekkliste?.recipientGroupId) ??
+                fullSjekkliste?.recipientGroup?.name;
+              if (!navn) return null;
+              return (
+                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                  {t("tabell.venterPaa")}: {navn}
+                </span>
+              );
+            })()}
           </div>
         </div>
 

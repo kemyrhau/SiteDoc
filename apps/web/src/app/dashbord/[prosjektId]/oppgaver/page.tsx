@@ -5,6 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@sitedoc/ui";
+import { beregnHarBallen } from "@sitedoc/shared";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
@@ -314,6 +315,7 @@ export default function OppgaverSide() {
     migrerBreddeNokkel: "sitedoc-oppgave-bredder-v1",
   });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
+  const [mineOppgaver, setMineOppgaver] = useState(false);
   const { aktivByggeplass } = useByggeplass();
 
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
@@ -333,6 +335,8 @@ export default function OppgaverSide() {
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
   );
+  // «Mine oppgaver»-filter (Del 1d): trenger userId + gruppeIder for beregnHarBallen.
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
 
   const opprettMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown) => {
@@ -541,6 +545,20 @@ export default function OppgaverSide() {
         );
       });
     }
+    // «Mine oppgaver» (Del 1d): behold kun dokumenter der innlogget bruker har ballen.
+    if (mineOppgaver && minFlytInfo) {
+      resultat = resultat.filter((o) =>
+        beregnHarBallen(
+          {
+            status: o.status,
+            bestillerUserId: o.bestillerUserId,
+            recipientUserId: o.recipientUser?.id,
+            recipientGroupId: o.recipientGroup?.id,
+          },
+          { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder },
+        ),
+      );
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       const valgteSet = new Set(verdi.split(","));
@@ -578,7 +596,7 @@ export default function OppgaverSide() {
       });
     }
     return resultat;
-  }, [oppgaver, statusFilter, prioritetFilter, sok, filterVerdier]);
+  }, [oppgaver, statusFilter, prioritetFilter, sok, filterVerdier, mineOppgaver, minFlytInfo]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
@@ -629,11 +647,12 @@ export default function OppgaverSide() {
         celle: (rad) => (
           <div className="flex items-center gap-1.5">
             <StatusBadge status={rad.status} />
-            {["sent", "received", "in_progress"].includes(rad.status) && rad.recipientGroup?.name && (
-              <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                {t("tabell.venterPaa")}: {rad.recipientGroup.name}
-              </span>
-            )}
+            {["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
+              (rad.recipientUser?.name || rad.recipientGroup?.name) && (
+                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                  {t("tabell.venterPaa")}: {rad.recipientUser?.name ?? rad.recipientGroup?.name}
+                </span>
+              )}
           </div>
         ),
         bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status,
@@ -802,6 +821,19 @@ export default function OppgaverSide() {
               verdiFelter={verdiFelter}
             />
           </div>
+
+          {/* «Mine oppgaver»-toggle (Del 1d): kun dokumenter der jeg har ballen */}
+          <button
+            onClick={() => setMineOppgaver((v) => !v)}
+            aria-pressed={mineOppgaver}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium ${
+              mineOppgaver
+                ? "border-amber-300 bg-amber-50 text-amber-700"
+                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            {t("filter.mineOppgaver")}
+          </button>
 
           {/* Aktive filter-tags */}
           {aktiveFilter.map(([kolId, verdi]) => {
