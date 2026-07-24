@@ -103,6 +103,11 @@ const MATRISE: Rad[] = [
   // ── HMS — ADMIN (nøytral D, samme sannhet som base — ikke HMS-kolonnene) ─
   { navn: "hms/admin/in_progress (Pågår, ikke Under behandling)", status: "in_progress", kontekst: admin, type: "hms", etikettKey: "status.paagaar", variant: "primary", perspektiv: "noeytral" },
 
+  // ── Ikke-part (rolle=null, ikke admin): § 2-fallback → nøytral D ─────────
+  // En leser uten flytrolle sendte aldri noe → ser nøytral «Mottatt», IKKE
+  // avsender-etiketten «Til behandling» (fabel pre-merge-fiks 2026-07-24).
+  { navn: "ikke-part/received (rolle=null → nøytral D)", status: "received", kontekst: { rolle: null, harBallen: false }, type: "sjekkliste", etikettKey: "status.mottatt", variant: "primary", perspektiv: "noeytral" },
+
   // ── Fallback: udefinert (perspektiv, status)-celle → registrator-sannhet ─
   // Aktiv seer på en status uten aktiv-celle (f.eks. utfører ser 'sent') → kolonne D.
   { navn: "fallback/aktiv/sent → registrator", status: "sent", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.sendt", variant: "primary", perspektiv: "aktiv" },
@@ -203,10 +208,9 @@ describe("utledPerspektiv — admin dominerer, registrator er ordinær deltaker 
     expect(utledPerspektiv({ rolle: "registrator", harBallen: false })).toBe("venter");
     expect(utledPerspektiv({ rolle: "registrator", harBallen: true })).toBe("aktiv");
   });
-  it("null rolle uten ball → venter", () => {
-    expect(utledPerspektiv({ rolle: null, harBallen: false })).toBe("venter");
-  });
-  it("null rolle med ball → aktiv", () => {
-    expect(utledPerspektiv({ rolle: null, harBallen: true })).toBe("aktiv");
+  it("ikke-part (rolle=null) → noeytral D uansett ball (§ 2-fallback)", () => {
+    // Ballen er irrelevant for en uten flytrolle — A/B/C-splittet finnes ikke.
+    expect(utledPerspektiv({ rolle: null, harBallen: false })).toBe("noeytral");
+    expect(utledPerspektiv({ rolle: null, harBallen: true })).toBe("noeytral");
   });
 });

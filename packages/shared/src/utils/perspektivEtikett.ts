@@ -22,8 +22,9 @@ export type PerspektivDokumentType = "sjekkliste" | "oppgave" | "godkjenning" | 
 
 /**
  * Seerens perspektiv, utledet av admin-flagg + ballinnehav:
- * - `noeytral` — nøytral global sannhet (kolonne D). Nås KUN av admin (globalt
- *   tilsyn) + som celle-fallback for udefinerte (perspektiv, status)-par.
+ * - `noeytral` — nøytral global sannhet (kolonne D). Nås av admin (globalt tilsyn),
+ *   av ikke-parter uten flytrolle (§ 2-fallback), og som celle-fallback for
+ *   udefinerte (perspektiv, status)-par.
  * - `aktiv` — dokumentet er på seerens bord nå (har ballen), krever handling.
  * - `venter` — seeren sendte forrige ledd / venter; ballen er hos andre.
  *
@@ -64,13 +65,19 @@ export interface PerspektivEtikett {
 }
 
 /**
- * Utled seerperspektiv. Admin (globalt tilsyn) ser alltid nøytral D-sannhet
- * uansett ball/rolle (§ 8-gate 2026-07-24: `erAdmin → D` ubetinget). Alle andre
- * — inkludert registrator, som nå er en ordinær avsender-part — avgjøres av
- * ballen: har den → aktiv part (B), ellers venter/avsender (A).
+ * Utled seerperspektiv.
+ * 1. Admin (globalt tilsyn) → nøytral D uansett ball/rolle (§ 8-gate: `erAdmin → D`).
+ * 2. **Ikke-part** (ingen flytrolle) → nøytral D (§ 2-fallback, fabel-gate 2026-07-24):
+ *    en leser uten rolle sendte aldri noe og har ingen perspektiv-split — hun ser
+ *    dokumentets nøytrale sannhet, ikke avsender-etiketten «Til behandling». Sjekkes
+ *    FØR ballen: mangler du en rolle finnes ikke A/B/C-splittet, uansett ballinnehav
+ *    (en recipient uten registrert flytmedlemskap er fortsatt ikke en flyt-part).
+ * 3. Ellers — inkludert registrator, som nå er en ordinær avsender-part — avgjør
+ *    ballen: har den → aktiv part (B), ellers venter/avsender (A).
  */
 export function utledPerspektiv(kontekst: PerspektivSeerKontekst): Perspektiv {
   if (kontekst.erAdmin) return "noeytral";
+  if (!kontekst.rolle) return "noeytral";
   return kontekst.harBallen ? "aktiv" : "venter";
 }
 
