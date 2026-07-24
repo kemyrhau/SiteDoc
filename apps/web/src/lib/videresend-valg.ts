@@ -7,6 +7,15 @@
  * oppgave-/sjekkliste-sidenes inline type-import.
  */
 
+/** Én person/gruppe i en dokumentflyt som kan motta et videresendt dokument. */
+export interface VideresendMedlem {
+  /** Unik nøkkel for React-lister (userId eller groupId). */
+  key: string;
+  navn: string;
+  rolle: string;
+  mottaker: { userId?: string; groupId?: string };
+}
+
 export interface VideresendValg {
   /** Unik nøkkel: faggruppeId eller faggruppeId__dokumentflytId ved flere flyter */
   key: string;
@@ -18,6 +27,12 @@ export interface VideresendValg {
   visningsnavn: string;
   farge?: string | null;
   mottaker?: { userId?: string; groupId?: string };
+  /**
+   * Person-videresending (A-3b Del 2.4): flytens medlemmer, vist når faggruppe-raden
+   * ekspanderes. Lar brukeren sende til en spesifikk person i mottaker-flyten i stedet
+   * for standard-mottakeren. Datamodellen bærer dette allerede — ingen schema-endring.
+   */
+  medlemmer: VideresendMedlem[];
 }
 
 export interface DokumentflytData {
@@ -95,11 +110,73 @@ export function byggVideresendValg(
         visningsnavn,
         farge: fg.color,
         mottaker,
+        medlemmer: finnMedlemmer(df),
       });
     }
   }
 
   return valg;
+}
+
+/**
+ * Finn flytens medlemmer som konkrete mottakere (person eller gruppe), dedup på
+ * mottaker-ID. Brukes til person-videresending (Del 2.4): ekspandér faggruppe →
+ * velg spesifikk person. Hovedansvarlig person telles med; rolle beholdes for
+ * eventuell visning/rekkefølge.
+ */
+function finnMedlemmer(df: DokumentflytData): VideresendMedlem[] {
+  const medlemmer: VideresendMedlem[] = [];
+  const settIder = new Set<string>();
+  for (const m of df.medlemmer) {
+    const person = m.projectMember?.user ?? m.hovedansvarligPerson?.user ?? null;
+    if (person) {
+      if (settIder.has(`u:${person.id}`)) continue;
+      settIder.add(`u:${person.id}`);
+      medlemmer.push({
+        key: `u:${person.id}`,
+        navn: person.name ?? "?",
+        rolle: m.rolle,
+        mottaker: { userId: person.id },
+      });
+    } else if (m.group) {
+      if (settIder.has(`g:${m.group.id}`)) continue;
+      settIder.add(`g:${m.group.id}`);
+      medlemmer.push({
+        key: `g:${m.group.id}`,
+        navn: m.group.name,
+        rolle: m.rolle,
+        mottaker: { groupId: m.group.id },
+      });
+    }
+  }
+  return medlemmer;
+}
+
+/**
+ * Ball-holder-navn (A-3b Del 1c): resolv navnet på den som har ballen fra
+ * recipient-ID mot flytens medlemmer — **person foran faggruppe/gruppe**.
+ * Detaljsidene har kun `recipientGroup`-relasjonen fra API-et, ikke `recipientUser`,
+ * så person-navnet resolves klient-side fra flytmedlemmene (ingen API-endring).
+ * Returnerer null når verken person eller gruppe kan navngis (kall-stedet faller
+ * da til `recipientGroup.name` hvis det finnes).
+ */
+export function finnMottakerNavn(
+  medlemmer: Array<{
+    projectMember?: { user: { id: string; name: string | null } } | null;
+    group?: { id: string; name: string } | null;
+  }>,
+  recipientUserId?: string | null,
+  recipientGroupId?: string | null,
+): string | null {
+  if (recipientUserId) {
+    const m = medlemmer.find((x) => x.projectMember?.user?.id === recipientUserId);
+    if (m?.projectMember?.user?.name) return m.projectMember.user.name;
+  }
+  if (recipientGroupId) {
+    const m = medlemmer.find((x) => x.group?.id === recipientGroupId);
+    if (m?.group?.name) return m.group.name;
+  }
+  return null;
 }
 
 /** Finn mottaker fra dokumentflyt: utfører → bestiller → godkjenner */

@@ -1,11 +1,12 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Printer, Pencil } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "@/hooks/useAutoVaer";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
@@ -15,7 +16,7 @@ import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { utledMinRolle, beregnHarBallen } from "@sitedoc/shared";
+import { utledMinRolle, beregnHarBallen, perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
@@ -207,10 +208,26 @@ export default function SjekklisteDetaljSide() {
   });
 
   const [statusFeil, setStatusFeil] = useState<string | null>(null);
+  // Kvitterings-øyeblikket (A-3b Del 1b): momentan bekreftelse etter egen handling,
+  // vist optimistisk i badgen og erstattet av sann perspektiv-tilstand når den ryddes.
+  // Klient-only — ALDRI lagret tilstand. Nøklet på HANDLING (tekstNoekkel, ikke
+  // nyStatus — nyStatus er ikke injektiv over handlinger, se kvitteringEtikett).
+  // handlingRef fanger tekstNoekkel ved klikk, siden mutate-input-typen (Zod-schema)
+  // ikke bærer den — å legge den til der ville gitt en TS excess-property-feil.
+  const [kvittering, setKvittering] = useState<ReturnType<typeof kvitteringEtikett>>(null);
+  const kvitteringTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const handlingRef = useRef<string | undefined>(undefined);
+  useEffect(() => () => clearTimeout(kvitteringTimer.current), []);
 
   const endreStatusMutasjon = trpc.sjekkliste.endreStatus.useMutation({
     onSuccess: () => {
       setStatusFeil(null);
+      const k = handlingRef.current ? kvitteringEtikett(handlingRef.current) : null;
+      if (k) {
+        setKvittering(k);
+        clearTimeout(kvitteringTimer.current);
+        kvitteringTimer.current = setTimeout(() => setKvittering(null), 2200);
+      }
       utils.sjekkliste.hentForProsjekt.invalidate();
       utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
     },
@@ -459,12 +476,21 @@ export default function SjekklisteDetaljSide() {
             <StatusBadge
               status={sjekkliste.status}
               lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
+              perspektiv={kvittering ?? perspektivEtikett(sjekkliste.status, { rolle: minRolle ?? null, harBallen, erAdmin: minFlytInfo?.erAdmin ?? false }, "sjekkliste")}
             />
-            {["sent", "received", "in_progress"].includes(sjekkliste.status) && fullSjekkliste?.recipientGroup?.name && (
-              <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                {t("tabell.venterPaa")}: {fullSjekkliste.recipientGroup.name}
-              </span>
-            )}
+            {/* Ball-holder-chip (Del 1c): person foran faggruppe, synlig når ballen er i spill. */}
+            {(() => {
+              if (!["sent", "received", "in_progress", "responded", "rejected"].includes(sjekkliste.status)) return null;
+              const navn =
+                finnMottakerNavn(flytMedlemmer, fullSjekkliste?.recipientUserId, fullSjekkliste?.recipientGroupId) ??
+                fullSjekkliste?.recipientGroup?.name;
+              if (!navn) return null;
+              return (
+                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                  {t("tabell.venterPaa")}: {navn}
+                </span>
+              );
+            })()}
           </div>
         </div>
 
@@ -505,7 +531,8 @@ export default function SjekklisteDetaljSide() {
           <DokumentHandlingsmeny
             status={sjekkliste.status}
             erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
-            onEndreStatus={(nyStatus, kommentar, mottaker) => {
+            onEndreStatus={(nyStatus, handlingNoekkel, kommentar, mottaker) => {
+              handlingRef.current = handlingNoekkel;
               endreStatusMutasjon.mutate({
                 id: params.sjekklisteId,
                 nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
