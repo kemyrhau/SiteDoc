@@ -277,6 +277,16 @@ Validert via `isValidStatusTransition()` i `packages/shared/src/utils/index.ts`.
 
 **A-i 2026-07-17 (`rejected`-desync lukket):** `ROLLE_HANDLINGER.utforer.rejected` og `hentStatusHandlinger("rejected")` ga tidligere `rejected → responded`, som er **ulovlig** i tabellen under (→ server-`BAD_REQUEST`). Rettet til `rejected → in_progress` (i18n `statushandling.gjenoppta` = «Gjenoppta»). Veien er nå `rejected → in_progress → responded`, i tråd med tabellen. Merk: `in_progress` har to lovlige innganger — `received → in_progress` og `rejected → in_progress` — og førstnevnte tilbys fortsatt ikke i UI (åpent exit-funn, ikke bygget i A-3a).
 
+### Perspektiv-avhengig statusvisning (A-3b, merget `9cdd4096`)
+
+**Lagret status er én rad; ETIKETTEN er perspektiv-avhengig.** Samme dokument viser ulik etikett + farge per seer, utledet av `perspektivEtikett.ts` (`@sitedoc/shared`, `utledPerspektiv`) fra admin-flagg + ballinnehav + flytrolle:
+- **Admin** (`erAdmin`) → nøytral D-sannhet ubetinget («Mottatt»/«Til revisjon»).
+- **Ikke-part** (`rolle=null`, leser uten avsenderskap/ball) → nøytral D (§ 2-fallback).
+- **Part** → `harBallen ? aktiv (B, «din tur» · warning) : venter (A, avsender/venter · primary)`. Registrator er en ordinær avsender-part (ikke lenger egen kolonne — § 8).
+- `rejected`-fargen er perspektiv-avhengig (ballinnehaver warning, venter/nøytral primary) — samme grammatikk som `received`/`in_progress` (§ 9).
+
+**Lagret tilstand endres ALDRI av dette — ren visning.** Kvitterings-øyeblikket (§ 6-overlay) er optimistisk badge, ikke lagret. Full matrise: [a3b-perspektiv-tabell.md](a3b-perspektiv-tabell.md). **Web-only i dag; mobil-wiring er backlog (før pilot).** HMS-retur-grenen finnes ikke i kode (flagget aspirasjonelt, ikke bygget — egen beslutning kreves). `sent→received`-konverteringen (`sjekkliste.ts:923`) og statusmaskinen er urørt.
+
 | Fra | Lovlige overganger til |
 |---|---|
 | `draft` | `sent`, `cancelled` |
