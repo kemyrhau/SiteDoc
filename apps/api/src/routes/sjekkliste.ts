@@ -10,6 +10,7 @@ import {
   verifiserDokumentTilgang,
   verifiserFlytRolle,
   verifiserProsjektmedlem,
+  hentBrukersFlytMedlemskap,
   hentBrukerTillatelser,
   hentBrukerProsjektTilgang,
   finnBrukersBoks,
@@ -167,6 +168,14 @@ export const sjekklisteRouter = router({
       // Speiler oppgave.opprett-mønsteret for HMS.
       let recipientGroupId: string | undefined;
       if (erHms) {
+        // Guard 1 (F1/B1 vedtak A): HMS-maler er flyt-løse by design — auto-rutes til
+        // HMS-gruppen. En innsendt dokumentflytId er en config-feil; fail loud.
+        if (input.dokumentflytId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "HMS-sjekklister rutes automatisk til HMS-gruppen og kan ikke bindes til en dokumentflyt",
+          });
+        }
         await verifiserProsjektmedlem(ctx.userId, malForDomain.projectId);
 
         const hmsGruppe = await ctx.prisma.projectGroup.findFirst({
@@ -184,6 +193,14 @@ export const sjekklisteRouter = router({
         }
         recipientGroupId = hmsGruppe.id;
       } else {
+        // Standard-gren (F1/B1): et dokument tilhører ALLTID nøyaktig én flyt.
+        // dokumentflytId påkrevd her (ikke i Zod — HMS-grenen utelater den legitimt).
+        if (!input.dokumentflytId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Dokumentflyt er påkrevd for denne sjekklistetypen. Velg en flyt som bruker malen.",
+          });
+        }
         // Standard: faggrupper påkrevd
         if (!input.bestillerFaggruppeId || !input.utforerFaggruppeId) {
           throw new TRPCError({
@@ -193,11 +210,41 @@ export const sjekklisteRouter = router({
         }
         await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
 
-        // Sjekk grense for gratisbrukere (10 sjekklister per prosjekt)
         const bruker = await ctx.prisma.user.findUniqueOrThrow({
           where: { id: ctx.userId },
           select: { role: true },
         });
+
+        // F1/B2: server stoler ikke på klienten. Valider at (a) flyten har den valgte
+        // malen og (b) brukeren er oppretter-medlem av flyten. Samme håndhevingsprinsipp
+        // som verifiserFlytRolle — sitedoc_admin/prosjektadmin bypasser medlemskravet.
+        const flytHarMal = await ctx.prisma.dokumentflytMal.findFirst({
+          where: { dokumentflytId: input.dokumentflytId, templateId: input.templateId },
+          select: { id: true },
+        });
+        if (!flytHarMal) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Valgt dokumentflyt bruker ikke denne malen",
+          });
+        }
+        if (bruker.role !== "sitedoc_admin") {
+          const medlem = await ctx.prisma.projectMember.findUnique({
+            where: { userId_projectId: { userId: ctx.userId, projectId: malForDomain.projectId } },
+            select: { role: true },
+          });
+          if (medlem?.role !== "admin") {
+            const flytIder = await hentBrukersFlytMedlemskap(ctx.userId, malForDomain.projectId);
+            if (!flytIder.includes(input.dokumentflytId)) {
+              throw new TRPCError({
+                code: "FORBIDDEN",
+                message: "Du er ikke oppretter-medlem av valgt dokumentflyt",
+              });
+            }
+          }
+        }
+
+        // Sjekk grense for gratisbrukere (10 sjekklister per prosjekt)
         if (bruker.role !== "sitedoc_admin") {
           const faggruppe = await ctx.prisma.faggruppe.findUniqueOrThrow({
             where: { id: input.bestillerFaggruppeId },

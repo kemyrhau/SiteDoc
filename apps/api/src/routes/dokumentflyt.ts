@@ -10,6 +10,7 @@ import {
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 
 const dokumentflytInclude = {
+  faggruppe: { select: { id: true, name: true, color: true } },
   medlemmer: {
     include: {
       faggruppe: { select: { id: true, name: true, color: true } },
