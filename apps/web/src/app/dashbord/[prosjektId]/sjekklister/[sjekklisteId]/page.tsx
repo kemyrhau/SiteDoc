@@ -15,6 +15,7 @@ import { UtfyllingSeksjoner } from "@/components/rapportobjekter/UtfyllingSeksjo
 import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
+import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { utledMinRolle, beregnHarBallen, perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
@@ -235,6 +236,59 @@ export default function SjekklisteDetaljSide() {
       setStatusFeil(error.message ?? "Kunne ikke endre status. Prøv igjen.");
     },
   });
+
+  /* ---------------------------------------------------------------- */
+  /*  Dedikert HMS-løp (Ordre B)                                       */
+  /* ---------------------------------------------------------------- */
+
+  // HMS-dokumenter (domain="hms") får en egen handlingsflate i stedet for den
+  // generelle statusmaskinen. Domenet leses fra malen på full-queryen.
+  const erHms =
+    (fullSjekklisteRå as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
+
+  const { data: erHmsAdmin = false } = trpc.hms.erHmsAdmin.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: erHms && !!params.prosjektId },
+  );
+
+  // Delt suksess/feil-håndtering for de fire HMS-mutasjonene.
+  const hmsMutasjonOpts = {
+    onSuccess: () => {
+      setStatusFeil(null);
+      utils.sjekkliste.hentForProsjekt.invalidate();
+      utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
+    },
+    onError: (error: { message?: string }) => {
+      setStatusFeil(error.message ?? "Kunne ikke utføre HMS-handlingen. Prøv igjen.");
+    },
+  };
+
+  const hmsBesvarMutasjon = trpc.sjekkliste.hmsBesvar.useMutation(hmsMutasjonOpts);
+  const hmsLukkMutasjon = trpc.sjekkliste.hmsLukk.useMutation(hmsMutasjonOpts);
+  const hmsGjenapneMutasjon = trpc.sjekkliste.hmsGjenapne.useMutation(hmsMutasjonOpts);
+  const hmsTilfoyMutasjon = trpc.sjekkliste.hmsTilfoyInformasjon.useMutation(hmsMutasjonOpts);
+
+  const hmsLaster =
+    hmsBesvarMutasjon.isPending ||
+    hmsLukkMutasjon.isPending ||
+    hmsGjenapneMutasjon.isPending ||
+    hmsTilfoyMutasjon.isPending;
+
+  const utforHmsHandling = useCallback(
+    (type: HmsHandlingType, tekst: string | undefined) => {
+      const id = params.sjekklisteId;
+      if (type === "tilfoyInformasjon") {
+        hmsTilfoyMutasjon.mutate({ id, kommentar: tekst ?? "" });
+      } else if (type === "besvar") {
+        hmsBesvarMutasjon.mutate({ id, begrunnelse: tekst ?? "" });
+      } else if (type === "lukk") {
+        hmsLukkMutasjon.mutate({ id, kommentar: tekst });
+      } else if (type === "gjenapne") {
+        hmsGjenapneMutasjon.mutate({ id, kommentar: tekst });
+      }
+    },
+    [params.sjekklisteId, hmsTilfoyMutasjon, hmsBesvarMutasjon, hmsLukkMutasjon, hmsGjenapneMutasjon],
+  );
 
   // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
   const flytMedlemmer = useMemo(() => {
@@ -476,10 +530,14 @@ export default function SjekklisteDetaljSide() {
             <StatusBadge
               status={sjekkliste.status}
               lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
-              perspektiv={kvittering ?? perspektivEtikett(sjekkliste.status, { rolle: minRolle ?? null, harBallen, erAdmin: minFlytInfo?.erAdmin ?? false }, "sjekkliste")}
+              // HMS bruker sin egen tilstandsmaskin (Sendt/Besvart/Lukket, D1) —
+              // flat status-mapping, ikke dokumentflyt-perspektivet.
+              perspektiv={erHms ? undefined : (kvittering ?? perspektivEtikett(sjekkliste.status, { rolle: minRolle ?? null, harBallen, erAdmin: minFlytInfo?.erAdmin ?? false }, "sjekkliste"))}
             />
-            {/* Ball-holder-chip (Del 1c): person foran faggruppe, synlig når ballen er i spill. */}
+            {/* Ball-holder-chip (Del 1c): person foran faggruppe, synlig når ballen er i spill.
+                Skjules for HMS — der finnes ingen dokumentflyt-mottaker (HMS-løpet, Ordre B). */}
             {(() => {
+              if (erHms) return null;
               if (!["sent", "received", "in_progress", "responded", "rejected"].includes(sjekkliste.status)) return null;
               const navn =
                 finnMottakerNavn(flytMedlemmer, fullSjekkliste?.recipientUserId, fullSjekkliste?.recipientGroupId) ??
@@ -519,8 +577,8 @@ export default function SjekklisteDetaljSide() {
           </div>
         )}
 
-        {/* Feilmelding fra endreStatus-mutasjon */}
-        {statusFeil && (
+        {/* Feilmelding fra endreStatus-mutasjon (HMS viser sin egen i handlingsflaten) */}
+        {statusFeil && !erHms && (
           <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {statusFeil}
           </div>
@@ -528,6 +586,19 @@ export default function SjekklisteDetaljSide() {
 
         {/* Rad 3: Handlingsknapper (full bredde på mobil) */}
         <div className="mt-2 flex items-center gap-2">
+          {erHms ? (
+            <HmsHandlingsflate
+              status={sjekkliste.status}
+              erOppretter={
+                !!fullSjekkliste?.bestillerUserId &&
+                fullSjekkliste.bestillerUserId === minFlytInfo?.userId
+              }
+              erHmsAdmin={erHmsAdmin}
+              erLaster={hmsLaster}
+              feilmelding={statusFeil}
+              onUtfor={utforHmsHandling}
+            />
+          ) : (
           <DokumentHandlingsmeny
             status={sjekkliste.status}
             erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
@@ -556,6 +627,7 @@ export default function SjekklisteDetaljSide() {
             bestillerUserId={fullSjekkliste?.bestillerUserId}
             lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
           />
+          )}
           <button
             onClick={() => window.open(`/utskrift/sjekkliste/${params.sjekklisteId}?print=true`, "_blank")}
             className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"

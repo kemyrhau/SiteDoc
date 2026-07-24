@@ -120,6 +120,25 @@ const CHECKLIST_SELECT = {
 
 export const hmsRouter = router({
   /**
+   * Er innlogget bruker HMS-admin på prosjektet? Tynn eksponering av
+   * `erHmsAdmin` (tilgangskontroll.ts) slik at web-klienten kan vise/skjule
+   * HMS-admin-handlingene («Besvar»/«Lukk»/«Gjenåpne») i det dedikerte
+   * HMS-løpet (Ordre B) — logikken forblir server-eid, aldri duplisert på
+   * klienten. sitedoc_admin behandles som HMS-admin (matcher guard-bypass i
+   * verifiserHmsHandling).
+   */
+  erHmsAdmin: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      if (bruker?.role === "sitedoc_admin") return true;
+      return erHmsAdmin(ctx.userId, input.projectId);
+    }),
+
+  /**
    * Hent alle HMS-dokumenter på et prosjekt, kategorisert på subdomain.
    * Filtrerer på privat-synlighet (innsender + HMS-ansvarlige + admin ser alt).
    */
