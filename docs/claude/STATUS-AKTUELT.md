@@ -90,7 +90,8 @@ Kenneth-gjennomgang av mikrotekst-hoveren på test avdekket flyt-design-probleme
 
 - **F1 Avvist (`dismissed`)** — ✅ MERGET DEVELOP `88beef7f`. Egen «Avvist»-status (ikke lenger avvis→cancelled), påkrevd begrunnelse (delt `statusKreverBegrunnelse`), terminal til F4. Ren kode, ingen migrering. Åpent: Avvis flyttet til synlig rød knapp (utfører, Opus-initiativ) — Kenneth verifiserer konsekvensen på test.
 - **F0 Soft-delete/papirkurv** — ✅ MERGET DEVELOP `9e99d2c6`. `deletedAt`/`deletedById` på Checklist+Task, guard (`IKKE_SLETTET`) på 20 liste-/tellepunkter inkl. HMS, papirkurv (prosjektadmin prosjekt-bredt + oppretter), Gjenopprett/Slett endelig, 90-dagers sweep. **Migrering (additiv, `20260725120000_softdelete_checklist_task`) IKKE kjørt — kjøres ved test-deploy med Kenneths go.** Merge med F1 auto-koherent (begge endringer verifisert intakt).
-- **F2** trekk tilbake→kladd · **F3** merge «Under arbeid» (fjern rejected/in_progress-split) · **F4** samlet gjenåpne · **F5** Send/Videresend-paring — ikke startet.
+- **F2 Trekk tilbake → kladd** — ✅ MERGET DEVELOP `50c7b544`. `received→draft` (D-1-fiks: trekk tilbake lå på død `sent`-status), ren kode, mottakerDin-fallback.
+- **F3 Merge «Under arbeid»** — neste. Send tilbake → direkte til in_progress, fjern `rejected`-split + Gjenoppta + fantom-rad. **Data-migrering `rejected→in_progress` = egen godkjenningsgate.** · **F4** samlet gjenåpne · **F5** Send/Videresend-paring — ikke startet.
 
 § 0 delt-kilde-refaktoren tas som egen fase (holdt ute av F0/F1 for å unngå parallell-konflikt). Ikke deployet prod.
 
