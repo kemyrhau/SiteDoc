@@ -25,6 +25,11 @@ received → dismissed (Avvis, begrunnelse påkrevd) · received → draft (Trek
 (responded→in_progress) ruter direkte til Under arbeid, ingen Gjenoppta. `rejected`-rader
 migreres til `in_progress` (`20260725130000_merge_underarbeid_rejected`).
 
+**F5 Send/Videresend-paring (beslutning 6):** Send (`handling.send`→`sent`, fram i flyten)
+aktiveres overalt der Videresend finnes — `received→sent`, `responded→sent` (for-staget i F3),
+`approved→sent`. Rett: received→sent = utfører + P-adm; responded/approved→sent = godkjenner + P-adm.
+Ren kode, ingen migrering, ingen ny mikrotekst-nøkkel (`flythjelp.handling.send` gjenbrukt).
+
 ### `hentStatusHandlinger(status)` → `StatusHandling[]`
 
 **Fil:** `statusHandlinger.ts` — Mapper status til handlingsknapper for mobil-UI.
@@ -38,7 +43,7 @@ interface StatusHandling {
 }
 ```
 
-Returnerer tom array for terminale statuser (`closed`, `cancelled`). `responded` gir Godkjenn + Send tilbake (→ in_progress) + Videresend.
+Returnerer tom array for terminale statuser (`closed`, `cancelled`). `responded` gir Godkjenn + Send tilbake (→ in_progress) + Send (→ sent, F5) + Videresend.
 
 ### Georeferanse (`georeferanse.ts`)
 
