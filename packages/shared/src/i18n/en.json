@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Happens automatically the moment the document is sent: it is immediately registered as Received for the recipient. That is why there is no role to choose.",
   "flythjelp.fallback.nesteMottaker": "the next recipient in the flow",
   "flythjelp.fallback.avsender": "whoever sent it to you",
+  "flythjelp.fallback.mottakerDin": "the one you sent it to",
   "flythjelp.fallback.utforer": "whoever responded",
   "flythjelp.fallback.videresendMottaker": "a person/discipline group in another flow",
   "dokument.oppretter": "Ordered by {{navn}}",

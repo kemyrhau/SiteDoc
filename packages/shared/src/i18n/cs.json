@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Proběhne automaticky v okamžiku odeslání dokumentu: okamžitě je pro příjemce zaregistrován jako Přijatý. Proto není role na výběr.",
   "flythjelp.fallback.nesteMottaker": "dalším příjemcem v toku",
   "flythjelp.fallback.avsender": "kdo ti to poslal",
+  "flythjelp.fallback.mottakerDin": "ten, kterému jsi to poslal",
   "flythjelp.fallback.utforer": "kdo odpověděl",
   "flythjelp.fallback.videresendMottaker": "osoba/disciplinární skupina v jiném toku",
   "dokument.oppretter": "Objednal {{navn}}",

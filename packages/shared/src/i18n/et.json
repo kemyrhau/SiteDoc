@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Toimub automaatselt dokumendi saatmise hetkel: see registreeritakse adressaadi jaoks kohe kui Saabunud. Seetõttu pole rolli valida.",
   "flythjelp.fallback.nesteMottaker": "voos järgmine adressaat",
   "flythjelp.fallback.avsender": "kes selle sulle saatis",
+  "flythjelp.fallback.mottakerDin": "kellele sa selle saatsid",
   "flythjelp.fallback.utforer": "kes iganes vastas",
   "flythjelp.fallback.videresendMottaker": "isik/distsipliini rühm teises voolus",
   "dokument.oppretter": "Tellis {{navn}}",

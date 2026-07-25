@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Dies geschieht automatisch in dem Moment, in dem das Dokument gesendet wird: Es wird sofort für den Empfänger als „Empfangen“ registriert. Deshalb gibt es keine Rollenwahl.",
   "flythjelp.fallback.nesteMottaker": "der nächste Empfänger im Fluss",
   "flythjelp.fallback.avsender": "wer auch immer es dir geschickt hat",
+  "flythjelp.fallback.mottakerDin": "derjenige, an den Sie es gesendet haben",
   "flythjelp.fallback.utforer": "wer auch immer geantwortet hat",
   "flythjelp.fallback.videresendMottaker": "eine Personen-/Disziplinengruppe in einem anderen Fluss",
   "dokument.oppretter": "Bestellt von {{navn}}",

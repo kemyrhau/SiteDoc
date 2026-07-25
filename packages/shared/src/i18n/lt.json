@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Nutinka automatiškai, kai dokumentas išsiunčiamas: gavėjui jis iš karto užregistruojamas kaip Gautas. Štai kodėl nėra pasirinkimo vaidmens.",
   "flythjelp.fallback.nesteMottaker": "sekantis gavėjas sraute",
   "flythjelp.fallback.avsender": "kas tau jį atsiuntė",
+  "flythjelp.fallback.mottakerDin": "tą, kuriam išsiuntėte",
   "flythjelp.fallback.utforer": "kas atsiliepė",
   "flythjelp.fallback.videresendMottaker": "asmuo/disciplinos grupė kitame sraute",
   "dokument.oppretter": "Užsakė {{navn}}",

@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Tapahtuu automaattisesti, kun asiakirja lähetetään: se rekisteröidään välittömästi vastaanottajalle vastaanotetuksi. Siksi roolia ei ole valittavissa.",
   "flythjelp.fallback.nesteMottaker": "virran seuraava vastaanottaja",
   "flythjelp.fallback.avsender": "kuka tahansa sen sinulle lähetti",
+  "flythjelp.fallback.mottakerDin": "jolle lähetit sen",
   "flythjelp.fallback.utforer": "kuka tahansa vastasi",
   "flythjelp.fallback.videresendMottaker": "henkilö/kuriryhmä toisessa virtauksessa",
   "dokument.oppretter": "Tilannut {{navn}}",

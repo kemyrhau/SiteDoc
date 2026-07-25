@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Dzieje się to automatycznie w momencie wysłania dokumentu: zostaje on natychmiast zarejestrowany przez odbiorcę jako Odebrany. Dlatego nie ma roli do wyboru.",
   "flythjelp.fallback.nesteMottaker": "kolejnym odbiorcą w przepływie",
   "flythjelp.fallback.avsender": "ktokolwiek ci to wysłał",
+  "flythjelp.fallback.mottakerDin": "ten, do którego to wysłałeś",
   "flythjelp.fallback.utforer": "ktokolwiek odpowiedział",
   "flythjelp.fallback.videresendMottaker": "osoba/grupa dyscyplin w innym przepływie",
   "dokument.oppretter": "Zamówione przez {{navn}}",

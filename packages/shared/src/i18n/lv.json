@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Tas notiek automātiski brīdī, kad dokuments tiek nosūtīts: tas nekavējoties tiek reģistrēts kā Saņemts adresātam. Tāpēc nav nekādas lomas, ko izvēlēties.",
   "flythjelp.fallback.nesteMottaker": "nākamais adresāts plūsmā",
   "flythjelp.fallback.avsender": "kurš tev to sūtīja",
+  "flythjelp.fallback.mottakerDin": "tas, kuram to nosūtījāt",
   "flythjelp.fallback.utforer": "kurš atbildēja",
   "flythjelp.fallback.videresendMottaker": "persona/disciplīna grupa citā plūsmā",
   "dokument.oppretter": "Pasūtīja {{navn}}",

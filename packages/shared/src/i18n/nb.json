@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Skjer automatisk i det dokumentet sendes: hos mottakeren registreres det straks som Mottatt. Derfor finnes ingen rolle å velge.",
   "flythjelp.fallback.nesteMottaker": "neste mottaker i flyten",
   "flythjelp.fallback.avsender": "den som sendte det til deg",
+  "flythjelp.fallback.mottakerDin": "den du sendte det til",
   "flythjelp.fallback.utforer": "den som svarte",
   "flythjelp.fallback.videresendMottaker": "en person/faggruppe i en annen flyt",
   "dokument.oppretter": "Bestilt av {{navn}}",

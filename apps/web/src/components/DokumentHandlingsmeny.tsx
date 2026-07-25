@@ -286,9 +286,10 @@ export function DokumentHandlingsmeny({
       case "handling.slett":
         return { noekkel: status === "cancelled" ? "flythjelp.handling.slettTrukket" : "flythjelp.handling.slettKladd" };
       case "statushandling.trekkTilbake":
+        // Retning: henter dokumentet FRA den du sendte til (ikke avsenderen) → mottakerDin.
         return {
           noekkel: "flythjelp.handling.trekkTilbake",
-          mottaker: finnMottakerNavn(flytMedlemmer ?? [], recipientUserId, recipientGroupId) ?? fb("flythjelp.fallback.avsender"),
+          mottaker: finnMottakerNavn(flytMedlemmer ?? [], recipientUserId, recipientGroupId) ?? fb("flythjelp.fallback.mottakerDin"),
         };
       case "statushandling.besvar":
         return erSisteBoks

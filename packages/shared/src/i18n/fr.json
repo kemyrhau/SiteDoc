@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Cela se produit automatiquement au moment de l'envoi du document : il est immédiatement enregistré comme Reçu pour le destinataire. C'est pourquoi il n'y a pas de rôle à choisir.",
   "flythjelp.fallback.nesteMottaker": "le prochain destinataire dans le flux",
   "flythjelp.fallback.avsender": "celui qui te l'a envoyé",
+  "flythjelp.fallback.mottakerDin": "celui à qui tu l'as envoyé",
   "flythjelp.fallback.utforer": "celui qui a répondu",
   "flythjelp.fallback.videresendMottaker": "une personne/un groupe de discipline dans un autre flux",
   "dokument.oppretter": "Commandé par {{navn}}",

@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Ndodh automatikisht në momentin që dokumenti dërgohet: ai regjistrohet menjëherë si Marrë për marrësin. Kjo është arsyeja pse nuk ka asnjë rol për të zgjedhur.",
   "flythjelp.fallback.nesteMottaker": "marrësi i radhës në rrjedhë",
   "flythjelp.fallback.avsender": "kushdo që ju dërgoi",
+  "flythjelp.fallback.mottakerDin": "atij të cilit e keni dërguar",
   "flythjelp.fallback.utforer": "kushdo që përgjigjej",
   "flythjelp.fallback.videresendMottaker": "një person/grup disipline në një rrjedhë tjetër",
   "dokument.oppretter": "Porositur nga {{navn}}",

@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Händer automatiskt i samma ögonblick som dokumentet skickas: det registreras omedelbart som Mottaget för mottagaren. Det är därför det inte finns någon roll att välja.",
   "flythjelp.fallback.nesteMottaker": "nästa mottagare i flödet",
   "flythjelp.fallback.avsender": "vem som har skickat det till dig",
+  "flythjelp.fallback.mottakerDin": "den du skickade den till",
   "flythjelp.fallback.utforer": "den som svarade",
   "flythjelp.fallback.videresendMottaker": "en person/disciplingrupp i ett annat flöde",
   "dokument.oppretter": "Beställd av {{namn}}",

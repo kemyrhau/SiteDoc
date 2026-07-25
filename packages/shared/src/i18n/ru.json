@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Происходит автоматически в момент отправки документа: для получателя он сразу регистрируется как Полученный. Вот почему нет выбора роли.",
   "flythjelp.fallback.nesteMottaker": "следующий получатель в потоке",
   "flythjelp.fallback.avsender": "тот, кто отправил это тебе",
+  "flythjelp.fallback.mottakerDin": "тот, кому ты это отправил",
   "flythjelp.fallback.utforer": "тот, кто ответил",
   "flythjelp.fallback.videresendMottaker": "группа человек/дисциплины в другом потоке",
   "dokument.oppretter": "Заказал {{navn}}",

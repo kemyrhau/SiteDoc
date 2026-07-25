@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Se întâmplă automat în momentul în care documentul este trimis: este imediat înregistrat ca Primit pentru destinatar. De aceea nu există nici un rol de ales.",
   "flythjelp.fallback.nesteMottaker": "următorul destinatar din flux",
   "flythjelp.fallback.avsender": "oricine ti-a trimis-o",
+  "flythjelp.fallback.mottakerDin": "cel căruia i-ai trimis-o",
   "flythjelp.fallback.utforer": "oricine a răspuns",
   "flythjelp.fallback.videresendMottaker": "o persoană/grup de disciplină într-un alt flux",
   "dokument.oppretter": "Comandat de {{navn}}",

@@ -2161,6 +2161,7 @@
   "flythjelp.handling.autoMottatt": "Відбувається автоматично в момент надсилання документа: він одразу реєструється як Отримано для одержувача. Тому роль вибирати не доводиться.",
   "flythjelp.fallback.nesteMottaker": "наступний одержувач у потоці",
   "flythjelp.fallback.avsender": "хто б це вам не надіслав",
+  "flythjelp.fallback.mottakerDin": "той, кому ви його надіслали",
   "flythjelp.fallback.utforer": "хто б не відгукнувся",
   "flythjelp.fallback.videresendMottaker": "особа/дисциплінарна група в іншому потоці",
   "dokument.oppretter": "Впорядковано за {{navn}}",
