@@ -3,6 +3,7 @@ import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { IKKE_SLETTET } from "../utils/softDelete";
 import { oversettMedMotor, hashTekst } from "../services/oversettelse-service";
 import type { OversettelsesMotor } from "../services/oversettelse-service";
 
@@ -47,7 +48,7 @@ export const malRouter = router({
       return ctx.prisma.reportTemplate.findMany({
         where: { projectId: input.projectId },
         include: {
-          _count: { select: { objects: true, checklists: true, tasks: true } },
+          _count: { select: { objects: true, checklists: { where: IKKE_SLETTET }, tasks: { where: IKKE_SLETTET } } },
           dokumentflytMaler: { select: { dokumentflytId: true } },
         },
         orderBy: { updatedAt: "desc" },
@@ -144,8 +145,8 @@ export const malRouter = router({
         input.domain !== undefined && input.domain !== mal.domain;
       if (skifterCategory || skifterDomain) {
         const [taskAntall, checklistAntall] = await Promise.all([
-          ctx.prisma.task.count({ where: { templateId: id } }),
-          ctx.prisma.checklist.count({ where: { templateId: id } }),
+          ctx.prisma.task.count({ where: { ...IKKE_SLETTET, templateId: id } }),
+          ctx.prisma.checklist.count({ where: { ...IKKE_SLETTET, templateId: id } }),
         ]);
         const totalt = taskAntall + checklistAntall;
         if (totalt > 0) {
@@ -415,6 +416,7 @@ export const malRouter = router({
       const sjekklisteIder = await ctx.prisma.$queryRaw<{ id: string }[]>`
         SELECT id FROM checklists
         WHERE template_id = ${objekt.templateId}
+        AND deleted_at IS NULL
         AND data IS NOT NULL
         AND data ?| ${sletteIder}
       `;
@@ -423,6 +425,7 @@ export const malRouter = router({
       const oppgaveIder = await ctx.prisma.$queryRaw<{ id: string }[]>`
         SELECT id FROM tasks
         WHERE template_id = ${objekt.templateId}
+        AND deleted_at IS NULL
         AND data IS NOT NULL
         AND data ?| ${sletteIder}
       `;
@@ -430,7 +433,7 @@ export const malRouter = router({
       // Hent detaljer for berørte sjekklister
       const sjekklister = sjekklisteIder.length > 0
         ? await ctx.prisma.checklist.findMany({
-            where: { id: { in: sjekklisteIder.map((r) => r.id) } },
+            where: { ...IKKE_SLETTET, id: { in: sjekklisteIder.map((r) => r.id) } },
             select: {
               id: true,
               title: true,
@@ -444,7 +447,7 @@ export const malRouter = router({
       // Hent detaljer for berørte oppgaver
       const oppgaver = oppgaveIder.length > 0
         ? await ctx.prisma.task.findMany({
-            where: { id: { in: oppgaveIder.map((r) => r.id) } },
+            where: { ...IKKE_SLETTET, id: { in: oppgaveIder.map((r) => r.id) } },
             select: {
               id: true,
               title: true,

@@ -17,6 +17,7 @@ import {
   kanByttFlyt,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
+import { IKKE_SLETTET } from "../utils/softDelete";
 
 /**
  * Send HMS-varsel for en oppgave via delt e-postmekanikk
@@ -140,6 +141,7 @@ export const oppgaveRouter = router({
 
       return ctx.prisma.task.findMany({
         where: {
+          ...IKKE_SLETTET,
           AND: [
             {
               OR: [
@@ -199,6 +201,7 @@ export const oppgaveRouter = router({
 
       return ctx.prisma.task.findMany({
         where: {
+          ...IKKE_SLETTET,
           drawingId: input.drawingId,
           positionX: { not: null },
           positionY: { not: null },
@@ -375,7 +378,7 @@ export const oppgaveRouter = router({
       );
 
       return ctx.prisma.task.findMany({
-        where: { checklistId: input.checklistId },
+        where: { ...IKKE_SLETTET, checklistId: input.checklistId },
         select: {
           id: true,
           number: true,
@@ -461,7 +464,7 @@ export const oppgaveRouter = router({
       });
       if (bruker.role !== "sitedoc_admin") {
         const antall = await ctx.prisma.task.count({
-          where: { template: { projectId: mal.projectId } },
+          where: { ...IKKE_SLETTET, template: { projectId: mal.projectId } },
         });
         if (antall >= 10) {
           throw new TRPCError({
@@ -475,6 +478,7 @@ export const oppgaveRouter = router({
         let nummer: number | undefined;
 
         if (mal.prefix) {
+          // Bevisst UTEN deletedAt-guard: nummer-monotoni (se sjekkliste.opprett).
           const maks = await tx.task.aggregate({
             where: {
               templateId: input.templateId,
@@ -1532,7 +1536,7 @@ export const oppgaveRouter = router({
       return transfer;
     }),
 
-  // Slett oppgave (kun i utkast-status)
+  // Slett oppgave (myk — legges i papirkurv, kan gjenopprettes i 90 dager). Kun utkast/avbrutt.
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1561,12 +1565,13 @@ export const oppgaveRouter = router({
         });
       }
 
-      return ctx.prisma.$transaction(async (tx) => {
-        await tx.documentTransfer.deleteMany({ where: { taskId: input.id } });
-        await tx.image.deleteMany({ where: { taskId: input.id } });
-        await tx.task.delete({ where: { id: input.id } });
-        return { success: true };
+      // Myk slett: behold relasjoner intakt for Gjenopprett. Ekte delete() kun via
+      // «Slett endelig» (papirkurv-routeren) eller 90-dagers sweep.
+      await ctx.prisma.task.update({
+        where: { id: input.id },
+        data: { deletedAt: new Date(), deletedById: ctx.userId },
       });
+      return { success: true };
     }),
 
   // Bytt eier av oppgave — kun prosjekteier eller registrator/admin

@@ -150,6 +150,10 @@ async function start() {
       // Start oversettelsesløkke (prosesserer FtdTranslationJob-køen)
       const { startOversettelsesløkke } = await import("./services/oversettelse-service");
       startOversettelsesløkke(prisma);
+
+      // Start papirkurv-sweep (90-dagers auto-hardslett av soft-slettede dokumenter)
+      const { startPapirkurvSweep } = await import("./services/papirkurv-sweep");
+      startPapirkurvSweep(prisma);
     } catch (_e) {
       // Ikke kritisk — ignorer hvis tabellen ikke finnes ennå
     }

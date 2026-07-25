@@ -232,6 +232,8 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
   registrator: {
     draft: new Set(["sent", "deleted"]),
     rejected: new Set(["sent"]),
+    // F0 soft-delete: oppretteren kan gjenopprette egne slettede dokumenter (spec § 3–4).
+    slettet: new Set(["gjenopprett"]),
   },
   bestiller: {
     draft: new Set(["sent", "deleted"]),

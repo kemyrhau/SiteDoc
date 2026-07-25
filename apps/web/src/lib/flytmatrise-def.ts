@@ -61,7 +61,7 @@ export interface MatriseRad {
 export const MATRISE_RADER: MatriseRad[] = [
   { fra: SENTINEL_FRA, til: SENTINEL_TIL, labelNoekkel: "flytmatrise.opprett", flythjelpNoekkel: "flythjelp.handling.opprett" },
   { fra: "draft", til: "sent", labelNoekkel: "handling.send", flythjelpNoekkel: "flythjelp.handling.send", fallbackNoekkel: "flythjelp.fallback.nesteMottaker" },
-  { fra: "draft", til: "deleted", labelNoekkel: "handling.slett", flythjelpNoekkel: "flythjelp.handling.slettKladd" },
+  { fra: "draft", til: "deleted", labelNoekkel: "handling.slett", flythjelpNoekkel: "flythjelp.handling.slett" },
   { fra: "sent", til: "cancelled", labelNoekkel: "statushandling.trekkTilbake", flythjelpNoekkel: "flythjelp.handling.trekkTilbake", fallbackNoekkel: "flythjelp.fallback.mottakerDin" },
   { fra: "received", til: "responded", labelNoekkel: "statushandling.besvar", flythjelpNoekkel: "flythjelp.handling.besvar", fallbackNoekkel: "flythjelp.fallback.avsender" },
   { fra: "received", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
@@ -81,6 +81,9 @@ export const MATRISE_RADER: MatriseRad[] = [
   { fra: "approved", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
   { fra: "cancelled", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
   { fra: "cancelled", til: "deleted", labelNoekkel: "handling.slett", flythjelpNoekkel: "flythjelp.handling.slettTrukket" },
+  // F0 soft-delete — papirkurv-handlinger fra visningsstatus «Slettet» (deletedAt).
+  { fra: "slettet", til: "gjenopprett", labelNoekkel: "statushandling.gjenopprett", flythjelpNoekkel: "flythjelp.handling.gjenopprett" },
+  { fra: "slettet", til: "slett_endelig", labelNoekkel: "statushandling.slettEndelig", flythjelpNoekkel: "flythjelp.handling.slettEndelig" },
 ];
 
 /**
@@ -103,6 +106,9 @@ export const STATUS_LABEL_NOEKKEL: Record<string, string> = {
   dismissed: "flytmatrise.status.dismissed",
   closed: "flytmatrise.status.closed",
   deleted: "flytmatrise.status.deleted",
+  slettet: "flytmatrise.status.slettet",
+  gjenopprett: "flytmatrise.status.gjenopprett",
+  slett_endelig: "flytmatrise.status.slett_endelig",
   forwarded: "flytmatrise.status.forwarded",
 };
 
@@ -127,7 +133,7 @@ export function flythjelpTekst(flythjelpNoekkel: string, mottaker: string | unde
 
 export type CelleTilstand = "standard-pa" | "standard-av" | "overstyrt-pa" | "overstyrt-av" | "laast";
 
-const PSEUDO_TIL = new Set(["deleted", "forwarded"]);
+const PSEUDO_TIL = new Set(["deleted", "forwarded", "gjenopprett", "slett_endelig"]);
 
 /** Er en positiv override strukturelt gyldig? (Opprett-sentinel + pseudo + statusmaskin.) */
 export function erStruktureltGyldig(fra: string, til: string): boolean {
