@@ -16,6 +16,10 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟡 Prosjektvelgeren viser «SD-{dato}-{nummer}»-prefiks — meningsløst for bruker (Kenneth 2026-07-25)
+
+Topplinje-prosjektvelgeren (nedtrekk) viser intern ID «SD-20260506-0008» foran prosjektnavnet — gir brukeren ingen mening. Fjern prefikset (vis kun navn + lokasjon). Del av en «smårusk»-UX-oppryddingssveip — samle med annet visuelt rusk, evt. fold inn i en større UX-rydde-oppgave.
+
 ### 🟡 HMS-dokument har både «Tilføy informasjon»-knapp og «Dialog»-kommentarfelt — UX-tvetydighet (HMS-klikktest 2026-07-25)
 
 På HMS-dokumenter (RUH/avvik/SJA) finnes **både** HMS-handlingen «Tilføy informasjon» (append via `hmsTilfoyInformasjon` → `DocumentTransfer`, vises i Tidslinjen) OG det generelle «Dialog»-kommentarfeltet (egen visning, ikke i Tidslinjen). Klikktesten viste at det forvirrer — agenten brukte Dialog i stedet for Tilføy. Bør konsolideres til én kommentar-vei for HMS.
