@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Przenosi dokument do kosza. Można go przywrócić w ciągu 90 dni — po tym czasie zostaje trwale usunięty.",
   "flythjelp.handling.slettEndelig": "Trwale usuwa dokument przed upływem 90 dni. Nie można tego cofnąć.",
   "flythjelp.handling.gjenopprett": "Umieszcza dokument z powrotem na swoim miejscu, z takim samym statusem jak przed usunięciem.",
-  "flythjelp.handling.trekkTilbake": "Pobiera dokument od {{mottaker}} przed ich rozpoczęciem. Przepływ zatrzymuje się; dokument zostaje zamknięty jako Wycofany dla obu stron.",
+  "flythjelp.handling.trekkTilbake": "Pobiera dokument od {{mottaker}} przed ich rozpoczęciem. Staje się on edytowalną wersją roboczą — popraw ją i wyślij ponownie.",
   "flythjelp.handling.besvar": "Przesuwa dokument o krok wstecz: od Ciebie do {{mottaker}}, który przegląda odpowiedź. Uważają to za odpowiedź.",
   "flythjelp.handling.besvarSisteLedd": "Oznacza dokument jako Odebrany i odsyła go do osoby, która go wysłała — przepływ nie obejmuje dalszych etapów.",
   "flythjelp.handling.avvis": "Odrzuca dokument podając powód. Przepływ zatrzymuje się; {{mottaker}} uważa to za Odrzucone z Twojego powodu. Można ponownie otworzyć.",

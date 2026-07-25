@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Přesune dokument do koše. Lze jej obnovit do 90 dnů — poté je trvale smazán.",
   "flythjelp.handling.slettEndelig": "Trvale odstraní dokument před uplynutím 90denní lhůty. Nelze vrátit zpět.",
   "flythjelp.handling.gjenopprett": "Vrátí dokument tam, kde byl, se stejným stavem jako před odstraněním.",
-  "flythjelp.handling.trekkTilbake": "Načte dokument od {{mottaker}} předtím, než začnou. Tok se zastaví; dokument je uzavřen jako Stažený pro obě strany.",
+  "flythjelp.handling.trekkTilbake": "Načte dokument od {{mottaker}} předtím, než začnou. Stane se s vámi upravitelným konceptem – opravte jej a odešlete znovu.",
   "flythjelp.handling.besvar": "Přesune dokument o krok zpět: od vás k {{mottaker}}, který zkontroluje odpověď. Vidí to jako Odpovězeno.",
   "flythjelp.handling.besvarSisteLedd": "Označí dokument jako zodpovězený a odešle jej zpět tomu, kdo vám jej poslal – tok nemá žádné další kroky.",
   "flythjelp.handling.avvis": "Odmítne dokument s uvedením důvodu. Tok se zastaví; {{mottaker}} to vidí jako odmítnuté s vaším důvodem. Lze znovu otevřít.",

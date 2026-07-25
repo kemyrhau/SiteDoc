@@ -22,11 +22,12 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
       { tekstNoekkel: "handling.slett", nyStatus: "deleted", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
-    sent: [
-      { tekstNoekkel: "statushandling.trekkTilbake", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400", erPrimaer: true },
-    ],
+    // F2 (D-1): `sent` er transient (auto→received) — ingen handlinger bor her.
     received: [
       { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
+      // F2: Trekk tilbake henter en sendt hendelse tilbake til avsender FØR mottaker har
+      // svart, og lander som redigerbar kladd (received→draft, D-1-fiks).
+      { tekstNoekkel: "statushandling.trekkTilbake", nyStatus: "draft", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
       // F1: Avvis ruter nå til egen «Avvist»-status (dismissed), ikke lenger cancelled.
       { tekstNoekkel: "handling.avvis", nyStatus: "dismissed", farge: "bg-red-600", aktivFarge: "bg-red-400" },
@@ -67,11 +68,11 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
 /**
  * Rollefiltrert handlingsliste.
  *
- * | Status       | registrator          | bestiller   | utfører                           | godkjenner                        |
- * |--------------|----------------------|-------------|-----------------------------------|-----------------------------------|
- * | draft        | Send, Slett          | Send, Slett | —                                 | —                                 |
- * | sent         | Avbryt               | Avbryt      | —                                 | —                                 |
- * | received     | Besvar, Videres.     | —           | Besvar, Videresend, Avvis         | —                                 |
+ * | Status       | registrator          | bestiller       | utfører                           | godkjenner                        |
+ * |--------------|----------------------|-----------------|-----------------------------------|-----------------------------------|
+ * | draft        | Send, Slett          | Send, Slett     | —                                 | —                                 |
+ * | sent         | — (transient)        | — (transient)   | —                                 | —                                 |
+ * | received     | Trekk tilbake        | Trekk tilbake   | Besvar, Videresend, Avvis         | —                                 |
  * | in_progress  | Besvar, Tilbake, V   | —           | Besvar, Send tilbake, Videresend  | —                                 |
  * | responded    | Godkjenn, Tilbake, V | —           | —                                 | Godkjenn, Send tilbake, Videresend|
  * | rejected     | Send på nytt         | Send på nytt| Gjenoppta, Videresend             | —                                 |
@@ -232,12 +233,15 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
   registrator: {
     draft: new Set(["sent", "deleted"]),
     rejected: new Set(["sent"]),
+    // F2 (spec § 3): avsender-siden trekker en sendt hendelse tilbake til kladd før svar.
+    received: new Set(["draft"]),
     // F0 soft-delete: oppretteren kan gjenopprette egne slettede dokumenter (spec § 3–4).
     slettet: new Set(["gjenopprett"]),
   },
   bestiller: {
     draft: new Set(["sent", "deleted"]),
-    sent: new Set(["cancelled"]),
+    // F2 (spec § 3): Trekk tilbake flyttet fra sent→cancelled til received→draft (D-1).
+    received: new Set(["draft"]),
     approved: new Set(["closed"]),
     cancelled: new Set(["draft"]),
     // Venstre ende (flytmodell-vedtak-2026-07-22): kan sende returnert dokument videre.

@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Legger dokumentet i slettede. Det kan gjenopprettes i 90 dager — deretter slettes det endelig.",
   "flythjelp.handling.slettEndelig": "Sletter dokumentet permanent, før 90-dagersfristen. Kan ikke angres.",
   "flythjelp.handling.gjenopprett": "Legger dokumentet tilbake der det var, med samme status som før slettingen.",
-  "flythjelp.handling.trekkTilbake": "Henter dokumentet tilbake fra {{mottaker}} før de har begynt. Flyten stopper; dokumentet avsluttes som Trukket tilbake hos begge.",
+  "flythjelp.handling.trekkTilbake": "Henter dokumentet tilbake fra {{mottaker}} før de har begynt. Det blir redigerbar kladd hos deg — rett og send på nytt.",
   "flythjelp.handling.besvar": "Flytter dokumentet ett ledd tilbake: fra deg til {{mottaker}}, som vurderer svaret. Hos dem står det som Besvart.",
   "flythjelp.handling.besvarSisteLedd": "Markerer dokumentet som Besvart og sender det tilbake til den som sendte det til deg — flyten har ingen videre ledd.",
   "flythjelp.handling.avvis": "Avviser dokumentet med begrunnelse. Flyten stopper; {{mottaker}} ser det som Avvist med begrunnelsen din. Kan gjenåpnes.",

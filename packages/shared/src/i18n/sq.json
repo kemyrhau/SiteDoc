@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Zhvendos dokumentin në kosh. Mund të rikthehet brenda 90 ditëve - pas kësaj ai fshihet përgjithmonë.",
   "flythjelp.handling.slettEndelig": "Fshin përgjithmonë dokumentin, përpara afatit 90-ditor. Nuk mund të zhbëhet.",
   "flythjelp.handling.gjenopprett": "E kthen dokumentin aty ku ishte, me të njëjtin status si përpara fshirjes.",
-  "flythjelp.handling.trekkTilbake": "Merr dokumentin nga {{mottaker}} përpara se të kenë filluar. Rrjedha ndalon; dokumenti mbyllet si i tërhequr për të dyja palët.",
+  "flythjelp.handling.trekkTilbake": "Merr dokumentin nga {{mottaker}} përpara se të kenë filluar. Ai bëhet një draft i modifikueshëm me ju — rregullojeni dhe dërgojeni sërish.",
   "flythjelp.handling.besvar": "E zhvendos dokumentin një hap prapa: nga ju te {{mottaker}}, i cili shqyrton përgjigjen. Ata e shohin atë si të Përgjigjur.",
   "flythjelp.handling.besvarSisteLedd": "Shënon dokumentin si të Përgjigjur dhe ia dërgon atij që ju ka dërguar - rrjedha nuk ka hapa të mëtejshëm.",
   "flythjelp.handling.avvis": "Refuzon dokumentin me një arsye. Rrjedha ndalon; {{mottaker}} e sheh atë si të Refuzuar me arsyen tuaj. Mund të rihapet.",

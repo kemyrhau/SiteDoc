@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Perkelia dokumentą į šiukšliadėžę. Jį galima atkurti per 90 dienų – po to jis ištrinamas visam laikui.",
   "flythjelp.handling.slettEndelig": "Visam laikui ištrina dokumentą, nepasibaigus 90 dienų terminui. Negalima anuliuoti.",
   "flythjelp.handling.gjenopprett": "Sugrąžina dokumentą ten, kur jis buvo, su tokia pačia būsena kaip ir prieš ištrynimą.",
-  "flythjelp.handling.trekkTilbake": "Nuskaito dokumentą iš {{mottaker}} jiems dar neprasidėjus. Srautas sustoja; abiem šalims dokumentas uždaromas kaip Atšauktas.",
+  "flythjelp.handling.trekkTilbake": "Nuskaito dokumentą iš {{mottaker}} jiems dar neprasidėjus. Su jumis jis tampa redaguojamu juodraščiu – pataisykite ir išsiųskite dar kartą.",
   "flythjelp.handling.besvar": "Perkelia dokumentą vienu žingsniu atgal: nuo jūsų iki {{mottaker}}, kuris peržiūri atsakymą. Jie mato tai kaip atsakyta.",
   "flythjelp.handling.besvarSisteLedd": "Pažymi dokumentą kaip atsakytą ir siunčia jį atgal tam, kas jį jums atsiuntė.",
   "flythjelp.handling.avvis": "Rejects the document with a reason. Srautas sustoja; {{mottaker}} mano, kad jis buvo atmestas dėl jūsų priežasties. Galima atidaryti iš naujo.",

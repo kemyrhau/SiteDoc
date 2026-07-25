@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Déplace le document vers la corbeille. Il peut être restauré dans les 90 jours, après quoi il est définitivement supprimé.",
   "flythjelp.handling.slettEndelig": "Supprime définitivement le document, avant le délai de 90 jours. Ne peut pas être annulé.",
   "flythjelp.handling.gjenopprett": "Remet le document là où il se trouvait, avec le même statut qu'avant la suppression.",
-  "flythjelp.handling.trekkTilbake": "Récupère le document de {{mottaker}} avant qu'il ne démarre. Le flux s'arrête ; le document est clôturé comme Retiré pour les deux parties.",
+  "flythjelp.handling.trekkTilbake": "Récupère le document de {{mottaker}} avant qu'il ne démarre. Il devient un brouillon modifiable avec vous : corrigez-le et renvoyez-le.",
   "flythjelp.handling.besvar": "Déplace le document d'un pas en arrière : de vous à {{mottaker}}, qui examine la réponse. Ils voient cela comme une réponse.",
   "flythjelp.handling.besvarSisteLedd": "Marque le document comme répondu et le renvoie à celui qui vous l'a envoyé – le flux ne comporte aucune autre étape.",
   "flythjelp.handling.avvis": "Rejette le document avec un motif. Le flux s'arrête ; {{mottaker}} le considère comme Rejeté avec votre raison. Peut être rouvert.",

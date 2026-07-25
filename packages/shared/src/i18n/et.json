@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Teisaldab dokumendi prügikasti. Seda saab taastada 90 päeva jooksul – pärast seda kustutatakse see jäädavalt.",
   "flythjelp.handling.slettEndelig": "Kustutab dokumendi jäädavalt enne 90-päevast tähtaega. Seda ei saa tagasi võtta.",
   "flythjelp.handling.gjenopprett": "Asetab dokumendi tagasi samasse olekusse, kus see oli enne kustutamist.",
-  "flythjelp.handling.trekkTilbake": "Toob dokumendi aadressilt {{mottaker}}, enne kui nad on alustanud. Vool peatub; dokument suletakse mõlema poole jaoks tühistatud kujul.",
+  "flythjelp.handling.trekkTilbake": "Toob dokumendi aadressilt {{mottaker}}, enne kui nad on alustanud. Sellest saab teiega koos muudetav mustand – parandage see ja saatke uuesti.",
   "flythjelp.handling.besvar": "Liigutab dokumendi ühe sammu tagasi: teilt {{mottaker}}-le, kes vastuse üle vaatab. Nad näevad seda vastatuna.",
   "flythjelp.handling.besvarSisteLedd": "Märgib dokumendi vastatuks ja saadab selle tagasi sellele, kes selle teile saatis – voos pole edasisi samme.",
   "flythjelp.handling.avvis": "Lükkab dokumendi põhjusega tagasi. Vool peatub; {{mottaker}} peab seda teie põhjusega tagasi lükatuks. Saab uuesti avada.",
