@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
-import { isValidStatusTransition } from "@sitedoc/shared";
+import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
@@ -1070,6 +1070,14 @@ export const sjekklisteRouter = router({
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: `Ugyldig statusovergang fra "${sjekkliste.status}" til "${input.nyStatus}"`,
+        });
+      }
+
+      // F1 (gate-JA #2): Avvis krever påkrevd begrunnelse — bryter bevisst «fritekst = valgfritt».
+      if (statusKreverBegrunnelse(input.nyStatus) && !input.kommentar?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Begrunnelse er påkrevd ved avvisning",
         });
       }
 

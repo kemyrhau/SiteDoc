@@ -6,7 +6,8 @@
 // resten i nedtrekk. Handlinger brukeren ikke kan gjøre nå vises deaktivert med
 // begrunnelse utledet fra kilden. Bekreftelse kreves kun for irreversible
 // overganger (`closed`/`deleted`); alt annet er 1 klikk. Kommentar er en
-// valgfri utvider, aldri et påkrevd steg.
+// valgfri utvider — MED ett unntak (F1): Avvis (dismissed) krever en ikke-tom
+// begrunnelse (statusKreverBegrunnelse), håndhevet både her og på serveren.
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -17,6 +18,7 @@ import {
   hentRolleFiltrertHandlinger,
   hentHandlingEierRoller,
   isValidStatusTransition,
+  statusKreverBegrunnelse,
   type StatusHandling,
   type DokumentflytRolle,
   type AdminNiva,
@@ -382,7 +384,8 @@ export function DokumentHandlingsmeny({
       nyStatus: h.nyStatus,
       tekstNoekkel: h.tekstNoekkel,
       plassering: "sekundær" as const,
-      erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "rejected",
+      // F1: Avvis (dismissed) er en danger-handling → rød sekundærknapp, som deleted/rejected.
+      erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "rejected" || h.nyStatus === "dismissed",
       mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
     }));
 
@@ -480,8 +483,15 @@ export function DokumentHandlingsmeny({
   if (bekreft) {
     const erTrekkTilbake = bekreft.nyStatus === "cancelled";
     const mottakerHarLest = erTrekkTilbake && lestAvMottakerVed != null;
+    // F1 (gate-JA #2): Avvis (dismissed) krever en ikke-tom begrunnelse — blokker send til
+    // feltet er fylt. Speiler server-Zod-gaten (statusKreverBegrunnelse), samme delte kilde.
+    const paakrevd = statusKreverBegrunnelse(bekreft.nyStatus);
+    const manglerBegrunnelse = paakrevd && kommentar.trim().length === 0;
     // Nudge (Del 2.5): oppfordrer til begrunnelse ved retur, men krever den ikke.
-    const overskrift = bekreft.nudge
+    // Påkrevd (F1): egen overskrift som gjør tvangen tydelig.
+    const overskrift = paakrevd
+      ? t("statushandling.begrunnelsePaakrevd")
+      : bekreft.nudge
       ? t("statushandling.begrunnelseRetur")
       : t("statushandling.bekreftHandling", { handling: bekreft.label });
     // Konsekvensen vises INLINE i bekreft/nudge-modus (§ 3a: skal ikke gjemmes bak hover).
@@ -493,25 +503,25 @@ export function DokumentHandlingsmeny({
         {mottakerHarLest && (
           <span className="text-xs text-amber-600 font-medium shrink-0">{t("statushandling.mottakerHarLest")}</span>
         )}
-        <span className={`text-sm shrink-0 ${bekreft.nudge ? "text-amber-700 font-medium" : "text-gray-500"}`}>
+        <span className={`text-sm shrink-0 ${bekreft.nudge || paakrevd ? "text-amber-700 font-medium" : "text-gray-500"}`}>
           {overskrift}
         </span>
         <input
           type="text"
           value={kommentar}
           onChange={(e) => setKommentar(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker); }}
-          placeholder={bekreft.nudge ? t("statushandling.begrunnelsePlaceholder") : t("statushandling.valgfriKommentar")}
+          onKeyDown={(e) => { if (e.key === "Enter" && !manglerBegrunnelse) utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker); }}
+          placeholder={bekreft.nudge || paakrevd ? t("statushandling.begrunnelsePlaceholder") : t("statushandling.valgfriKommentar")}
           className="rounded-lg border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none w-full sm:w-56"
           autoFocus
         />
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker)}
-            disabled={erLaster}
+            disabled={erLaster || manglerBegrunnelse}
             className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {erLaster ? t("statushandling.endrer") : bekreft.nudge ? bekreft.label : t("handling.bekreft")}
+            {erLaster ? t("statushandling.endrer") : bekreft.nudge || paakrevd ? bekreft.label : t("handling.bekreft")}
           </button>
           <button
             onClick={() => { setBekreft(null); setKommentar(""); }}

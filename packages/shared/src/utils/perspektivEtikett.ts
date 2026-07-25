@@ -106,6 +106,10 @@ const NOEYTRAL: Record<string, Celle> = {
   rejected: { etikettKey: "status.tilRevisjon", variant: "primary" },
   closed: { etikettKey: "status.lukket", variant: "default" },
   cancelled: { etikettKey: "status.avbrutt", variant: "danger" },
+  // F1 (spec § 7): «Avvist» er perspektiv-FLAT — ingen ball, ingen aktiv/venter-split.
+  // Kun denne NOEYTRAL-cellen + fallback; BASE_AKTIV/BASE_VENTER har med vilje ingen
+  // dismissed-rad, så alle seere lander her (danger).
+  dismissed: { etikettKey: "status.avvist", variant: "danger" },
 };
 
 /** Base = sjekkliste / oppgave / godkjenning (felles rolle-vokabular). */
