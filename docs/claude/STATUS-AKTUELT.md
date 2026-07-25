@@ -84,6 +84,12 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 ## Pågående arbeid (PR-historikk)
 
+### ✅ Tooltip v2 + mikrotekst-wiring på flyt-flatene — MERGET DEVELOP (2026-07-25). IKKE deployet prod
+
+**Tooltip v2** (`packages/ui/src/tooltip.tsx`, merge `4887d601`): bakoverkompatibelt superset — flerlinje (max-w 280, bryter), fet tittel, 300 ms-delay, `:focus-visible`-tastatur, touch (tap/utenfor/Escape uten `onClick`-kollisjon), auto-flip, alltid montert (stabil `aria-describedby`). SidebarIkon arver uendret; NavSidebars fire `title=` urørt (→ `title=→Tooltip` § 4-sweep). 4 renderToString-vakter.
+
+**Mikrotekst-wiring** (merge `9b434029`, spec [mikrotekst-flyt-flater-spec-2026-07-25.md](delplaner/mikrotekst-flyt-flater-spec-2026-07-25.md)): hover som sier **hvem** handlingen går til, på to flater via én delt `flythjelp.*`-i18n-familie (17 handling + 5 fallback + 3 `flytmatrise.status.*`, 15 språk). **Flate 1 matrise** (`flyt-rettigheter/page.tsx` + `flytmatrise-def.ts`): hover på handlingsetiketten (tittel «Handling → Ny status» + brødtekst m/ relasjonell fallback-benevnelse), auto `sent→received`; **`received→in_progress` er fantom** i `AUTO_OVERGANGER` (ingen auto-fyring — kun `sent→received` via `effektivStatus`; se BACKLOG livssyklus) → står urørt uten hover. **Flate 2 knapper** (`DokumentHandlingsmeny`, web): resolvert mottakernavn, `besvar` → `ledd[aktivtIndex-1]`/`avsender` (server ruter til `sisteTransfer.senderId`, ikke `mottakerForStandard()`), `trekkTilbake` → `mottakerDin` (retning verifisert), bekreft-modus inline, nedtrekk-`title=` → Tooltip v2. **Display-only** — server/ruting/mutasjon urørt. Mobil-flate utsatt (cowork måler layout). Åpen opprydding: død klient-`mottakerForStandard()` på besvar (BACKLOG).
+
 ### ✅ Tilgangslaget ferdigstilt — fire saker merget + verifisert (2026-07-20/21). IKKE deployet prod
 
 Dokumentflyt-tilgang er nå konsistent på tvers av alle gater, med varig testdekning på beslutningen.
