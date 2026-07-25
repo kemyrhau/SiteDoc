@@ -16,6 +16,14 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟠 Livssyklus-overgangs-design — hvilke handlinger fra hvilke statuser × roller + terminal-ruting/gjenåpning (Kenneth 2026-07-25)
+
+Statusmaskinen (`VALID_TRANSITIONS`) låser hver livssyklus-handling til få kilde-statuser: **godkjenn** kun fra responded · **slett** kun fra draft · **lukk** fra approved+rejected · **gjenoppta** kun `rejected→in_progress` · **gjenåpne** (closed/cancelled)→**draft** (alltid til start, ikke midt i løpet) · **avbryt** (cancelled) fra draft/sent/received/in_progress. Åpne designspørsmål (Kenneth): bør lukk/slett/gjenåpne/godkjenn være tilgjengelig fra **flere** stadier (admin savner bl.a. godkjenn/lukk uansett status)? Hvor rutes en gjenåpnet approved/closed — til draft, eller tilbake dit den var? Hvem får ballen etter terminaltilstand? Krever **fabel-design-gjennomgang** med statusmaskin-kartet som utgangspunkt → definerer ønsket flyt → mater matrise-rader + statusmaskin. **Rekkefølge:** tas ETTER matrise-hoveren (så matrisen er lesbar først). Relatert: admin «enkel godkjenn/lukk»-override var det opprinnelige symptomet.
+
+### 🟠 Flyt-handlingsknapper (Besvar/Send/Videresend) sier ikke HVEM — bruker vet ikke hvem hen besvarer/sender til (Kenneth, prod 2026-07-25)
+
+På den generelle dokumentdetaljsiden (`DokumentHandlingsmeny`) mangler `Besvar`/`Send` tekst/hover som sier hvem handlingen går til (hvem får ballen / neste mottaker). **Dataene finnes** i komponenten (`recipientUserId`/`recipientGroupId`, `mottakerForStandard`, `recipientOppforinger`) — kun å surface dem per mikrotekst-standarden ([tooltip-hjelpetekst-veileder § 3a](retningslinjer/tooltip-hjelpetekst-veileder.md): relasjonelle benevnelser «den som sendte det»/«neste mottaker»). Konkret høyverdi-instans av Tooltip v2. Krever fabel-mikrotekst-spec (hover vs inline + ordlyd) → liten kode-ordre. Kenneth traff den på prod.
+
 ### 🟡 Prosjektvelgeren viser «SD-{dato}-{nummer}»-prefiks — meningsløst for bruker (Kenneth 2026-07-25)
 
 Topplinje-prosjektvelgeren (nedtrekk) viser intern ID «SD-20260506-0008» foran prosjektnavnet — gir brukeren ingen mening. Fjern prefikset (vis kun navn + lokasjon). Del av en «smårusk»-UX-oppryddingssveip — samle med annet visuelt rusk, evt. fold inn i en større UX-rydde-oppgave.
