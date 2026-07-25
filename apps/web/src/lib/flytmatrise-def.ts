@@ -32,12 +32,11 @@ export const SENTINEL_TIL = "opprett";
 /**
  * Auto-overganger (ingen rolle-celler) — rendres med «A»-merke, ikke klikkbare.
  * `flythjelpNoekkel` (valgfri): kun sent→received får mikrotekst-hover (autoMottatt).
- * received→in_progress er en fantom (serveren auto-fyrer aldri den — in_progress nås
- * kun via gjenoppta) og skal stå urørt uten hover; se mikrotekst-spec ⚠2.
+ * F3: fantom-raden received→in_progress er fjernet — in_progress nås nå kun via
+ * responded→in_progress (Send tilbake), aldri via en auto-overgang.
  */
 export const AUTO_OVERGANGER: Array<{ fra: string; til: string; flythjelpNoekkel?: string }> = [
   { fra: "sent", til: "received", flythjelpNoekkel: "flythjelp.handling.autoMottatt" },
-  { fra: "received", til: "in_progress" },
 ];
 
 export interface MatriseRad {
@@ -67,17 +66,18 @@ export const MATRISE_RADER: MatriseRad[] = [
   { fra: "received", til: "draft", labelNoekkel: "statushandling.trekkTilbake", flythjelpNoekkel: "flythjelp.handling.trekkTilbake", fallbackNoekkel: "flythjelp.fallback.mottakerDin" },
   { fra: "received", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
   { fra: "received", til: "dismissed", labelNoekkel: "handling.avvis", flythjelpNoekkel: "flythjelp.handling.avvis", fallbackNoekkel: "flythjelp.fallback.avsender" },
+  // F3 (Under arbeid): merget in_progress-seksjon (dagens in_progress + rejected). Besvar /
+  // Send på nytt / Lukk / Videresend. Gammel `sendTilbake` (in_progress→sent uten svar) er nå
+  // «Send på nytt» (fram igjen etter retting), og `avvis` (→cancelled) utgår.
   { fra: "in_progress", til: "responded", labelNoekkel: "statushandling.besvar", flythjelpNoekkel: "flythjelp.handling.besvar", fallbackNoekkel: "flythjelp.fallback.avsender" },
-  { fra: "in_progress", til: "sent", labelNoekkel: "statushandling.sendTilbake", flythjelpNoekkel: "flythjelp.handling.sendTilbake", fallbackNoekkel: "flythjelp.fallback.avsender" },
+  { fra: "in_progress", til: "sent", labelNoekkel: "statushandling.sendPaaNytt", flythjelpNoekkel: "flythjelp.handling.sendPaaNytt", fallbackNoekkel: "flythjelp.fallback.nesteMottaker" },
+  { fra: "in_progress", til: "closed", labelNoekkel: "handling.lukk", flythjelpNoekkel: "flythjelp.handling.lukk" },
   { fra: "in_progress", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
-  { fra: "in_progress", til: "cancelled", labelNoekkel: "handling.avvis", flythjelpNoekkel: "flythjelp.handling.avvis", fallbackNoekkel: "flythjelp.fallback.avsender" },
   { fra: "responded", til: "approved", labelNoekkel: "handling.godkjenn", flythjelpNoekkel: "flythjelp.handling.godkjenn" },
-  { fra: "responded", til: "rejected", labelNoekkel: "statushandling.sendTilbakeUtforer", flythjelpNoekkel: "flythjelp.handling.sendTilbakeUtforer", fallbackNoekkel: "flythjelp.fallback.utforer" },
+  // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
+  { fra: "responded", til: "in_progress", labelNoekkel: "statushandling.sendTilbakeUtforer", flythjelpNoekkel: "flythjelp.handling.sendTilbakeUtforer", fallbackNoekkel: "flythjelp.fallback.utforer" },
   { fra: "responded", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
-  { fra: "rejected", til: "in_progress", labelNoekkel: "statushandling.gjenoppta", flythjelpNoekkel: "flythjelp.handling.gjenoppta" },
-  { fra: "rejected", til: "sent", labelNoekkel: "statushandling.sendPaaNytt", flythjelpNoekkel: "flythjelp.handling.sendPaaNytt", fallbackNoekkel: "flythjelp.fallback.nesteMottaker" },
-  { fra: "rejected", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
-  { fra: "rejected", til: "closed", labelNoekkel: "handling.lukk", flythjelpNoekkel: "flythjelp.handling.lukk" },
+  // F3: `rejected`-seksjonen utgår (merget inn i in_progress over).
   { fra: "approved", til: "closed", labelNoekkel: "handling.lukk", flythjelpNoekkel: "flythjelp.handling.lukk" },
   { fra: "approved", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
   { fra: "cancelled", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },

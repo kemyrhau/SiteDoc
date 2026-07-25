@@ -15,10 +15,15 @@ Format: `SD-YYYYMMDD-XXXX`. Brukes ved prosjektopprettelse. 4-sifret padded løp
 Tilstandsmaskin for dokumentstatus. Brukes på server (API-validering) og klient (knapp-visning).
 
 ```
-draft → sent → received → in_progress → responded → approved/rejected → closed
-                                                      rejected → in_progress
-draft/sent/received/in_progress → cancelled (irreversibel)
+draft → sent → received → responded → approved → closed
+                                       responded → in_progress (Send tilbake, F3)
+in_progress → responded / sent (Send på nytt) / closed (Lukk)
+received → dismissed (Avvis, begrunnelse påkrevd) · received → draft (Trekk tilbake, F2)
 ```
+
+**F3 Merge «Under arbeid»:** `rejected` er merget inn i `in_progress` — Send tilbake
+(responded→in_progress) ruter direkte til Under arbeid, ingen Gjenoppta. `rejected`-rader
+migreres til `in_progress` (`20260725130000_merge_underarbeid_rejected`).
 
 ### `hentStatusHandlinger(status)` → `StatusHandling[]`
 
@@ -33,7 +38,7 @@ interface StatusHandling {
 }
 ```
 
-Returnerer tom array for terminale statuser (`closed`, `cancelled`). `responded` gir to knapper (Godkjenn + Avvis).
+Returnerer tom array for terminale statuser (`closed`, `cancelled`). `responded` gir Godkjenn + Send tilbake (→ in_progress) + Videresend.
 
 ### Georeferanse (`georeferanse.ts`)
 

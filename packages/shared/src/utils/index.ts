@@ -102,10 +102,14 @@ export function isValidStatusTransition(
     sent: ["received"],
     // F2: Trekk tilbake → received→draft (redigerbar kladd hos avsender, før mottaker har svart).
     received: ["in_progress", "responded", "cancelled", "dismissed", "draft"],
-    in_progress: ["responded", "sent", "cancelled"],
-    responded: ["approved", "rejected"],
+    // F3 (Under arbeid): `rejected` og `in_progress` er merget. in_progress-handlingene er
+    // Besvar (→responded), Send på nytt (→sent) og Lukk (→closed, arver dagens rejected→closed).
+    in_progress: ["responded", "sent", "closed"],
+    // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
+    responded: ["approved", "in_progress", "sent"],
     approved: ["closed"],
-    rejected: ["in_progress", "closed", "sent"],
+    // F3: `rejected`-oppføringen utgår (merget inn i in_progress). `status` er String —
+    // eksisterende `rejected`-rader migreres til `in_progress` ved deploy (se migrering).
     closed: ["draft"],
     cancelled: ["draft"],
     // F1 (Avvist): terminal i denne fasen. Gjenåpne dismissed→draft wires i F4;

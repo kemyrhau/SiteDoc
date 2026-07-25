@@ -25,16 +25,18 @@ beforeAll(async () => {
     resources: {
       nb: {
         translation: {
-          "statushandling.besvar": "Besvar",
-          "statushandling.sendTilbake": "Send tilbake",
+          "handling.godkjenn": "Godkjenn",
+          // F3: «Send tilbake» er nå responded→in_progress (sendTilbakeUtforer) — den eneste
+          // tilbakesendingen. Gammel in_progress→sent «Send tilbake» er blitt «Send på nytt».
+          "statushandling.sendTilbakeUtforer": "Send tilbake",
           "statushandling.videresend": "Videresend",
-          "handling.avvis": "Avvis",
           "statushandling.admin": "Admin",
           "statushandling.leggTilKommentar": "+ kommentar",
           "statushandling.endrer": "Endrer...",
-          "status.underArbeid": "Under arbeid",
+          "status.tilGodkjenning": "Til godkjenning",
           "kvittering.sendt": "Sendt ✓",
           "kvittering.sendtTilbake": "Sendt tilbake ✓",
+          "kvittering.godkjent": "Godkjent ✓",
         },
       },
     },
@@ -56,11 +58,11 @@ function Harness() {
 
   return (
     <div>
-      <StatusBadge status="in_progress" perspektiv={kvittering ?? { etikettKey: "status.underArbeid", variant: "warning" }} />
+      <StatusBadge status="responded" perspektiv={kvittering ?? { etikettKey: "status.tilGodkjenning", variant: "warning" }} />
       <DokumentHandlingsmeny
-        status="in_progress"
+        status="responded"
         erLaster={false}
-        minRolle="utforer"
+        minRolle="godkjenner"
         onEndreStatus={(_nyStatus, handlingNoekkel) => {
           handlingRef.current = handlingNoekkel;
           simulertOnSuccess();
@@ -71,12 +73,12 @@ function Harness() {
 }
 
 describe("Ende-til-ende: DokumentHandlingsmeny-klikk → StatusBadge-kvittering", () => {
-  it("før klikk: badge viser perspektiv-tilstand «Under arbeid»", () => {
+  it("før klikk: badge viser perspektiv-tilstand «Til godkjenning»", () => {
     render(<I18nextProvider i18n={i18n}><Harness /></I18nextProvider>);
-    expect(screen.getByText("Under arbeid")).toBeTruthy();
+    expect(screen.getByText("Til godkjenning")).toBeTruthy();
   });
 
-  it("klikk «Send tilbake» → nudge → bekreft → badge viser «Sendt tilbake ✓», IKKE «Sendt ✓»", () => {
+  it("klikk «Send tilbake» (F3: responded→in_progress) → nudge → bekreft → badge viser «Sendt tilbake ✓», IKKE «Sendt ✓»", () => {
     // Del 2.5: «Send tilbake» ber om begrunnelse (nudge) før den utføres. Første klikk
     // åpner nudge-prompten (menyen erstattes av bekreft-visningen), bekreft-knappen
     // bærer handlingslabelen «Send tilbake» → andre klikk utfører → kvittering vises.
@@ -88,13 +90,12 @@ describe("Ende-til-ende: DokumentHandlingsmeny-klikk → StatusBadge-kvittering"
     expect(screen.queryByText("Sendt ✓")).toBeNull();
   });
 
-  it("kontroll: klikk «Besvar» (primær, ulik handling) → badge viser «Besvart ✓», ikke «Sendt tilbake ✓»", () => {
+  it("kontroll: klikk «Godkjenn» (primær, ulik handling) → badge viser «Godkjent ✓», ikke «Sendt tilbake ✓»", () => {
     // Utvider bekreftelsen: verifiserer at forskjellige handlinger fortsatt gir
     // forskjellige kvitteringer gjennom den faktiske menyen, ikke bare "sendTilbake".
-    i18n.addResource("nb", "translation", "kvittering.besvart", "Besvart ✓");
     render(<I18nextProvider i18n={i18n}><Harness /></I18nextProvider>);
-    fireEvent.click(screen.getByText("Besvar"));
-    expect(screen.getByText("Besvart ✓")).toBeTruthy();
+    fireEvent.click(screen.getByText("Godkjenn"));
+    expect(screen.getByText("Godkjent ✓")).toBeTruthy();
     expect(screen.queryByText("Sendt tilbake ✓")).toBeNull();
   });
 });
