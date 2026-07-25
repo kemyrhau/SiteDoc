@@ -16,6 +16,8 @@ type TabellProps = {
   visProsjektKolonne?: boolean;
   visByggeplassKolonne?: boolean;
   onHurtigBehandle?: (rad: DokumentRad) => void;
+  // Bruker-/faggruppe-ID → navn, for person-/firma-felt (RUH: Innmelder m.m.)
+  navneLookup?: Map<string, string>;
 };
 
 type KolDef = {
@@ -344,6 +346,7 @@ export function RuhTabell({
   onKlikk,
   visProsjektKolonne = false,
   visByggeplassKolonne = false,
+  navneLookup,
 }: TabellProps) {
   const { t } = useTranslation();
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
@@ -355,9 +358,9 @@ export function RuhTabell({
 
   const hentProsjekt = (r: DokumentRad) => r.template.project?.name ?? "—";
   const hentTypeObservasjon = (r: DokumentRad) =>
-    hentDataVerdi(r, (l) => l.toLowerCase().includes("type"));
+    hentDataVerdi(r, (l) => l.toLowerCase().includes("type"), navneLookup);
   const hentInnmelder = (r: DokumentRad) =>
-    hentDataVerdi(r, (l) => l.toLowerCase().includes("innmelder"));
+    hentDataVerdi(r, (l) => l.toLowerCase().includes("innmelder"), navneLookup);
 
   const feltMapping: Record<string, (r: DokumentRad) => string> = {
     prosjekt: hentProsjekt,
@@ -443,7 +446,7 @@ export function RuhTabell({
     });
     return k;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rader, visProsjektKolonne, visByggeplassKolonne, t]);
+  }, [rader, visProsjektKolonne, visByggeplassKolonne, navneLookup, t]);
 
   return (
     <Table<DokumentRad>

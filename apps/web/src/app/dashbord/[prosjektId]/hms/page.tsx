@@ -143,6 +143,20 @@ export default function HmsSide() {
     | { avvik: DokumentRad[]; sja: DokumentRad[]; ruh: DokumentRad[] }
     | undefined;
 
+  // Navne-lookup for person-/firma-felt (f.eks. RUH «Innmelder») — speiler
+  // mønsteret i oppgave-/sjekkliste-lista: bruker-ID → navn.
+  const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const navneLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of (medlemmer as { user?: { id: string; name: string | null; email: string } }[] | undefined) ?? []) {
+      if (m.user?.id) map.set(m.user.id, m.user.name ?? m.user.email);
+    }
+    return map;
+  }, [medlemmer]);
+
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // «Meld HMS»-velger nøkles på category="hms" (opprett-organisering). subdomain
   // beholdes for å rute den nye til riktig tabell (avvik/ruh=oppgave, sja=sjekkliste).
@@ -397,7 +411,8 @@ export default function HmsSide() {
       {aktivTab === "ruh" && (
         <RuhTabell
           rader={filtrer(ruh)}
-          onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
+          onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
+          navneLookup={navneLookup}
         />
       )}
       {aktivTab === "statistikk" && (

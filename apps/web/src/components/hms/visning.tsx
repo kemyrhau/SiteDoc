@@ -15,36 +15,81 @@ export function formaterLopenummer(rad: DokumentRad): string {
   return rad.number ? String(rad.number).padStart(3, "0") : "—";
 }
 
+// Felt-verdier lagres nestet som { verdi, kommentar, vedlegg } (se
+// useSjekklisteSkjema/useOppgaveSkjema + endringslogg i oppgave.oppdaterData).
+// Pakk ut selve verdien; tåler også flat legacy-lagring (verdi direkte).
+function pakkUtVerdi(raw: unknown): unknown {
+  if (raw && typeof raw === "object" && !Array.isArray(raw) && "verdi" in raw) {
+    return (raw as { verdi: unknown }).verdi;
+  }
+  return raw;
+}
+
+// Trekk ut lesbar tekst fra et objekt-lagret felt (person/liste kan lagres som
+// { navn/label/... }) — unngår at cellen rendrer «[object Object]».
+function lesbarObjekt(o: Record<string, unknown>): string {
+  for (const key of ["navn", "name", "label", "tittel", "title", "value"]) {
+    const v = o[key];
+    if (typeof v === "string" && v) return v;
+  }
+  return "—";
+}
+
+function lesbarVerdi(v: unknown): string {
+  if (v == null || v === "") return "—";
+  if (typeof v === "string") return v;
+  if (typeof v === "number") return String(v);
+  if (typeof v === "boolean") return v ? "Ja" : "Nei";
+  if (Array.isArray(v)) {
+    const deler = v.map(lesbarVerdi).filter((s) => s !== "—");
+    return deler.length ? deler.join(", ") : "—";
+  }
+  if (typeof v === "object") return lesbarObjekt(v as Record<string, unknown>);
+  return String(v);
+}
+
 /**
  * Bygger felt-oppslag basert på template.objects og rad.data.
  * Returnerer første matchende objekts verdi (typisk én rad per objekt-label på HMS-malene).
+ *
+ * `navneLookup` (bruker-/faggruppe-ID → navn) speiler mønsteret i oppgave-/
+ * sjekkliste-lista slik at person-/firma-felt viser navn i stedet for rå ID.
  */
 export function hentDataVerdi(
   rad: DokumentRad,
   labelMatch: (label: string) => boolean,
+  navneLookup?: Map<string, string>,
 ): string {
   if (!rad.data || !rad.template?.objects) return "—";
   for (const obj of rad.template.objects) {
-    if (labelMatch(obj.label)) {
-      const verdi = rad.data[obj.id];
-      if (verdi == null || verdi === "") continue;
-      if (obj.type === "date" || obj.type === "date_time") {
-        if (typeof verdi === "string") {
-          try {
-            return new Date(verdi).toLocaleDateString("nb-NO", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            });
-          } catch {
-            return verdi;
-          }
-        }
+    if (!labelMatch(obj.label)) continue;
+    const verdi = pakkUtVerdi(rad.data[obj.id]);
+    if (verdi == null || verdi === "") continue;
+
+    if ((obj.type === "date" || obj.type === "date_time") && typeof verdi === "string") {
+      try {
+        return new Date(verdi).toLocaleDateString("nb-NO", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        });
+      } catch {
+        return verdi;
       }
-      if (typeof verdi === "string") return verdi;
-      if (Array.isArray(verdi)) return verdi.map(String).join(", ");
-      return String(verdi);
     }
+
+    // Person/firma lagres som ID → slå opp navn når lookup er tilgjengelig.
+    if ((obj.type === "person" || obj.type === "company") && typeof verdi === "string") {
+      return navneLookup?.get(verdi) ?? lesbarVerdi(verdi);
+    }
+    if (obj.type === "persons" && Array.isArray(verdi)) {
+      const navn = verdi
+        .map((v) => navneLookup?.get(String(v)) ?? lesbarVerdi(v))
+        .filter((s) => s !== "—");
+      return navn.length ? navn.join(", ") : "—";
+    }
+
+    return lesbarVerdi(verdi);
   }
   return "—";
 }
