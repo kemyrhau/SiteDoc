@@ -51,7 +51,7 @@ const HANDLING_MATRISE: HandlingRad[] = [
   // — [ADMIN — står] erAdmin=true gir alle handlinger ————————————————
   { navn: "[ADMIN] registrator+erAdmin, draft → alle", status: "draft", rolle: "registrator", erAdmin: true, forventet: ["sent", "deleted"] },
   { navn: "[ADMIN] registrator+erAdmin, responded → alle (F3: Send tilbake → in_progress)", status: "responded", rolle: "registrator", erAdmin: true, forventet: ["approved", "in_progress", "forwarded"] },
-  { navn: "[ADMIN] registrator+erAdmin, closed → tom (universet er tomt)", status: "closed", rolle: "registrator", erAdmin: true, forventet: [] },
+  { navn: "[ADMIN] registrator+erAdmin, closed → gjenåpne (F4: universet har Gjenåpne)", status: "closed", rolle: "registrator", erAdmin: true, forventet: ["draft"] },
   { navn: "[ADMIN] erAdmin overstyrer rolle-filter: bestiller+erAdmin, responded → alle", status: "responded", rolle: "bestiller", erAdmin: true, forventet: ["approved", "in_progress", "forwarded"] },
 
   // — [REGISTRATOR — VENDT] Fase B: registrator sender/sletter EGEN kladd, ellers tom —
@@ -62,14 +62,16 @@ const HANDLING_MATRISE: HandlingRad[] = [
   { navn: "[REGISTRATOR] responded → tom (fikset: kan ikke lenger godkjenne)", status: "responded", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] rejected → tom (F3: rejected merget inn i in_progress, universet er tomt)", status: "rejected", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] approved → tom (fikset)", status: "approved", rolle: "registrator", erAdmin: false, forventet: [] },
-  { navn: "[REGISTRATOR] cancelled → tom (fikset)", status: "cancelled", rolle: "registrator", erAdmin: false, forventet: [] },
-  { navn: "[REGISTRATOR] closed → tom (uendret)", status: "closed", rolle: "registrator", erAdmin: false, forventet: [] },
+  // F4 (spec § 3–4): Gjenåpne fra alle avsluttede statuser eies av registrator (oppretter).
+  { navn: "[REGISTRATOR] cancelled → gjenåpne (F4: Reg eier gjenåpne, legacy)", status: "cancelled", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
+  { navn: "[REGISTRATOR] closed → gjenåpne (F4)", status: "closed", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
+  { navn: "[REGISTRATOR] dismissed → gjenåpne (F4: åpner F1s terminal-status)", status: "dismissed", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
 
   // — [ROLLE — står] øvrige roller filtreres per ROLLE_HANDLINGER ————
   { navn: "[ROLLE] bestiller, draft → send+slett", status: "draft", rolle: "bestiller", erAdmin: false, forventet: ["sent", "deleted"] },
   { navn: "[ROLLE] bestiller, sent → tom (F2: transient, trekk tilbake flyttet til received)", status: "sent", rolle: "bestiller", erAdmin: false, forventet: [] },
   { navn: "[ROLLE] bestiller, approved → lukk (ikke videresend)", status: "approved", rolle: "bestiller", erAdmin: false, forventet: ["closed"] },
-  { navn: "[ROLLE] bestiller, cancelled → gjenåpne (ikke slett)", status: "cancelled", rolle: "bestiller", erAdmin: false, forventet: ["draft"] },
+  { navn: "[ROLLE] bestiller, cancelled → tom (F4: gjenåpne flyttet til registrator, ikke bestiller)", status: "cancelled", rolle: "bestiller", erAdmin: false, forventet: [] },
   { navn: "[ROLLE] bestiller, received → trekk tilbake (F2: henter sendt hendelse til kladd)", status: "received", rolle: "bestiller", erAdmin: false, forventet: ["draft"] },
   { navn: "[ROLLE] bestiller, rejected → tom (F3: rejected merget inn i in_progress)", status: "rejected", rolle: "bestiller", erAdmin: false, forventet: [] },
   // F3 (matrise § 3): bestiller eier Lukk fra Under arbeid (in_progress→closed).
@@ -122,7 +124,8 @@ const TILLATT_MATRISE: TillattRad[] = [
   { navn: "[REGISTRATOR] responded→approved → false (kan ikke godkjenne)", rolle: "registrator", fra: "responded", til: "approved", erAdmin: false, forventet: false },
   { navn: "[REGISTRATOR] received→responded → false", rolle: "registrator", fra: "received", til: "responded", erAdmin: false, forventet: false },
   { navn: "[REGISTRATOR] ulovlig draft→closed → false (kun sent/deleted i kladd)", rolle: "registrator", fra: "draft", til: "closed", erAdmin: false, forventet: false },
-  { navn: "[REGISTRATOR] terminal closed→draft → false", rolle: "registrator", fra: "closed", til: "draft", erAdmin: false, forventet: false },
+  { navn: "[REGISTRATOR] closed→draft → true (F4: Gjenåpne eid av oppretteren)", rolle: "registrator", fra: "closed", til: "draft", erAdmin: false, forventet: true },
+  { navn: "[REGISTRATOR] dismissed→draft → true (F4: Gjenåpne fra Avvist)", rolle: "registrator", fra: "dismissed", til: "draft", erAdmin: false, forventet: true },
 
   // — [ROLLE — står] øvrige roller per ROLLE_HANDLINGER ——————————————
   { navn: "[ROLLE] bestiller, draft→sent → true", rolle: "bestiller", fra: "draft", til: "sent", erAdmin: false, forventet: true },
@@ -185,12 +188,16 @@ describe("isValidStatusTransition — F3 Merge «Under arbeid» (rejected merget
   });
 });
 
-describe("isValidStatusTransition — closed → draft (inert i A, wires i B med Farlig sone)", () => {
-  it("closed → draft er lovlig i statusmaskinen (ingen handling utløser den ennå)", () => {
+describe("isValidStatusTransition — closed → draft (F4: Gjenåpne-handlingen utløser den)", () => {
+  it("closed → draft er lovlig i statusmaskinen (Gjenåpne)", () => {
     expect(isValidStatusTransition("closed", "draft")).toBe(true);
   });
   it("closed → sent fortsatt ulovlig (kun draft er åpnet fra closed)", () => {
     expect(isValidStatusTransition("closed", "sent")).toBe(false);
+  });
+  it("closed-universet: Gjenåpne-handlingen ruter til draft", () => {
+    const gjenapne = hentStatusHandlinger("closed").find((h) => h.tekstNoekkel === "statushandling.gjenapne");
+    expect(gjenapne?.nyStatus).toBe("draft");
   });
 });
 
@@ -206,8 +213,8 @@ describe("F1 Avvist — statusmaskin + handling + begrunnelse-gate", () => {
   it("received → dismissed er lovlig (Avvis ruter hit, ikke lenger cancelled)", () => {
     expect(isValidStatusTransition("received", "dismissed")).toBe(true);
   });
-  it("dismissed er terminal i F1 (gjenåpne wires i F4)", () => {
-    expect(isValidStatusTransition("dismissed", "draft")).toBe(false);
+  it("dismissed → draft er lovlig (F4: Gjenåpne åpner Avvist), men kun draft", () => {
+    expect(isValidStatusTransition("dismissed", "draft")).toBe(true);
     expect(isValidStatusTransition("dismissed", "sent")).toBe(false);
   });
   it("received-universet: Avvis-handlingen ruter til dismissed", () => {

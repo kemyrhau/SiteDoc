@@ -2176,7 +2176,7 @@
   "flythjelp.handling.sendTilbakeUtforer": "E zhvendos dokumentin një hap prapa: nga ju te {{mottaker}}, për korrigjim. Tek ata shfaqet si Në vazhdim.",
   "flythjelp.handling.sendPaaNytt": "E zhvendos dokumentin përsëri përpara: nga ju te {{mottaker}}, pas korrigjimit.",
   "flythjelp.handling.lukk": "Përfundon rrjedhën: dokumenti arkivohet si i mbyllur për të gjithë dhe nuk vazhdon. Rihapja kërkon një leje të veçantë.",
-  "flythjelp.handling.gjenapne": "Rimerr një dokument të tërhequr përsëri në fillim: ai bëhet një draft me krijuesin e tij, gati për modifikim dhe ridërgim.",
+  "flythjelp.handling.gjenapne": "Rimerr një dokument të mbyllur në fillim: ai bëhet një draft me krijuesin e tij, gati për modifikim dhe ridërgim.",
   "flythjelp.handling.videresend": "Lëviz dokumentin anash: jashtë kësaj rrjedhe, te {{mottaker}} (vegël administruese për rrjedhën e tërthortë).",
   "flythjelp.handling.slettTrukket": "Fshin përgjithmonë dokumentin e tërhequr. Rrjedha tashmë është ndalur - asnjë palë tjetër nuk preket.",
   "flythjelp.handling.autoMottatt": "Ndodh automatikisht në momentin që dokumenti dërgohet: ai regjistrohet menjëherë si Marrë për marrësin. Kjo është arsyeja pse nuk ka asnjë rol për të zgjedhur.",

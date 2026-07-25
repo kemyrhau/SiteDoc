@@ -2176,7 +2176,7 @@
   "flythjelp.handling.sendTilbakeUtforer": "Pārvieto dokumentu vienu soli atpakaļ: no jums {{mottaker}}, labošanai. Viņiem tas tiek rādīts kā Notiek.",
   "flythjelp.handling.sendPaaNytt": "Pēc labošanas atkal pārvieto dokumentu uz priekšu: no jums uz {{mottaker}}.",
   "flythjelp.handling.lukk": "Pabeidz plūsmu: dokuments tiek arhivēts kā Slēgts visiem un netiek turpināts. Atkārtotai atvēršanai nepieciešama atsevišķa atļauja.",
-  "flythjelp.handling.gjenapne": "Izgūst izņemto dokumentu atpakaļ uz sākumu: tas kļūst par melnrakstu ar tā veidotāju un ir gatavs rediģēšanai un atkārtotai nosūtīšanai.",
+  "flythjelp.handling.gjenapne": "Izgūst slēgtu dokumentu atpakaļ uz sākumu: tas kļūst par melnrakstu ar tā veidotāju un ir gatavs rediģēšanai un atkārtotai nosūtīšanai.",
   "flythjelp.handling.videresend": "Pārvieto dokumentu uz sāniem: ārpus šīs plūsmas uz {{mottaker}} (administratora rīks šķērsplūsmai).",
   "flythjelp.handling.slettTrukket": "Neatgriezeniski dzēš izņemto dokumentu. Plūsma jau ir apturēta — citas puses netiek ietekmētas.",
   "flythjelp.handling.autoMottatt": "Tas notiek automātiski brīdī, kad dokuments tiek nosūtīts: tas nekavējoties tiek reģistrēts kā Saņemts adresātam. Tāpēc nav nekādas lomas, ko izvēlēties.",

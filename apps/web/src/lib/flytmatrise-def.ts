@@ -80,6 +80,11 @@ export const MATRISE_RADER: MatriseRad[] = [
   // F3: `rejected`-seksjonen utgår (merget inn i in_progress over).
   { fra: "approved", til: "closed", labelNoekkel: "handling.lukk", flythjelpNoekkel: "flythjelp.handling.lukk" },
   { fra: "approved", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
+  // F4 (Gjenåpne-samling, spec § 3): closed/dismissed/cancelled → draft er ÉN handling
+  // (Gjenåpne) — henter et avsluttet dokument tilbake til kladd hos oppretteren. Default-
+  // roller: registrator + prosjektadmin (avledes fra ROLLE_HANDLINGER_DEFAULTS). cancelled er legacy.
+  { fra: "closed", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
+  { fra: "dismissed", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
   { fra: "cancelled", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
   { fra: "cancelled", til: "deleted", labelNoekkel: "handling.slett", flythjelpNoekkel: "flythjelp.handling.slettTrukket" },
   // F0 soft-delete — papirkurv-handlinger fra visningsstatus «Slettet» (deletedAt).

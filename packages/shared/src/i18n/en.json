@@ -2176,7 +2176,7 @@
   "flythjelp.handling.sendTilbakeUtforer": "Moves the document one step back: from you to {{mottaker}}, for correction. On their side it shows as In progress.",
   "flythjelp.handling.sendPaaNytt": "Moves the document forward again: from you to {{mottaker}}, after correction.",
   "flythjelp.handling.lukk": "Ends the flow: the document is archived as Closed for everyone and does not move on. Reopening requires a separate permission.",
-  "flythjelp.handling.gjenapne": "Retrieves a withdrawn document back to the start: it becomes a draft with its creator, ready for editing and resending.",
+  "flythjelp.handling.gjenapne": "Retrieves a closed document back to the start: it becomes a draft with its creator, ready for editing and resending.",
   "flythjelp.handling.videresend": "Moves the document sideways: out of this flow, to {{mottaker}} (admin tool for cross-flow).",
   "flythjelp.handling.slettTrukket": "Permanently deletes the withdrawn document. The flow is already stopped — no other parties are affected.",
   "flythjelp.handling.autoMottatt": "Happens automatically the moment the document is sent: it is immediately registered as Received for the recipient. That is why there is no role to choose.",

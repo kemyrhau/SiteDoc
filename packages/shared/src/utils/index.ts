@@ -110,11 +110,12 @@ export function isValidStatusTransition(
     approved: ["closed"],
     // F3: `rejected`-oppføringen utgår (merget inn i in_progress). `status` er String —
     // eksisterende `rejected`-rader migreres til `in_progress` ved deploy (se migrering).
+    // F4 (Gjenåpne-samling): closed/dismissed/cancelled → draft er ÉN handling (Gjenåpne) —
+    // henter et avsluttet dokument tilbake til kladd hos oppretteren. cancelled er legacy.
     closed: ["draft"],
     cancelled: ["draft"],
-    // F1 (Avvist): terminal i denne fasen. Gjenåpne dismissed→draft wires i F4;
-    // fram til da når admin/sitedoc-bypass den ved behov.
-    dismissed: [],
+    // F4: Avvist er ikke lenger terminal — dismissed→draft åpner F1s terminal-status (Gjenåpne).
+    dismissed: ["draft"],
   };
 
   return validTransitions[current]?.includes(next) ?? false;

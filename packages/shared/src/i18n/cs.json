@@ -2176,7 +2176,7 @@
   "flythjelp.handling.sendTilbakeUtforer": "Přesune dokument o krok zpět: od vás k {{mottaker}} za účelem opravy. U nich se zobrazuje jako Probíhá.",
   "flythjelp.handling.sendPaaNytt": "Po opravě posune dokument znovu vpřed: od vás k {{mottaker}}.",
   "flythjelp.handling.lukk": "Ukončí tok: dokument je archivován jako Uzavřený pro všechny a nepokračuje. Opětovné otevření vyžaduje samostatné povolení.",
-  "flythjelp.handling.gjenapne": "Načte stažený dokument zpět na začátek: stane se konceptem s jeho tvůrcem, připraveným k úpravám a opětovnému odeslání.",
+  "flythjelp.handling.gjenapne": "Načte uzavřený dokument zpět na začátek: stane se konceptem s jeho tvůrcem, připraveným k úpravám a opětovnému odeslání.",
   "flythjelp.handling.videresend": "Přesune dokument do strany: mimo tento tok do {{mottaker}} (administrátorský nástroj pro křížový tok).",
   "flythjelp.handling.slettTrukket": "Trvale odstraní stažený dokument. Tok je již zastaven — žádné další strany nejsou ovlivněny.",
   "flythjelp.handling.autoMottatt": "Proběhne automaticky v okamžiku odeslání dokumentu: okamžitě je pro příjemce zaregistrován jako Přijatý. Proto není role na výběr.",
