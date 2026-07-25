@@ -182,7 +182,8 @@ interface MenyOppforing {
  * Begrunnelsen forblir valgfri (fritekst = valgfritt, CLAUDE.md) — nudgen oppfordrer.
  */
 const NUDGE_TEKSTNOEKLER = new Set([
-  "statushandling.sendTilbake",
+  // F3: «Send tilbake» (responded→in_progress) er nå den eneste tilbakesendingen som nudger.
+  // «Send på nytt» (in_progress→sent) er en fram-sending og nudger ikke.
   "statushandling.sendTilbakeUtforer",
   "handling.avvis",
 ]);
@@ -299,14 +300,10 @@ export function DokumentHandlingsmeny({
           : { noekkel: "flythjelp.handling.besvar", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.avsender") };
       case "handling.avvis":
         return { noekkel: "flythjelp.handling.avvis", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.avsender") };
-      case "statushandling.sendTilbake":
-        return { noekkel: "flythjelp.handling.sendTilbake", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.avsender") };
       case "handling.godkjenn":
         return { noekkel: "flythjelp.handling.godkjenn" };
       case "statushandling.sendTilbakeUtforer":
         return { noekkel: "flythjelp.handling.sendTilbakeUtforer", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.utforer") };
-      case "statushandling.gjenoppta":
-        return { noekkel: "flythjelp.handling.gjenoppta" };
       case "statushandling.sendPaaNytt":
         return { noekkel: "flythjelp.handling.sendPaaNytt", mottaker: leddNavn(aktivtIndex + 1) ?? fb("flythjelp.fallback.nesteMottaker") };
       case "handling.lukk":
@@ -384,8 +381,8 @@ export function DokumentHandlingsmeny({
       nyStatus: h.nyStatus,
       tekstNoekkel: h.tekstNoekkel,
       plassering: "sekundær" as const,
-      // F1: Avvis (dismissed) er en danger-handling → rød sekundærknapp, som deleted/rejected.
-      erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "rejected" || h.nyStatus === "dismissed",
+      // F1: Avvis (dismissed) er en danger-handling → rød sekundærknapp, som deleted.
+      erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "dismissed",
       mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
     }));
 
