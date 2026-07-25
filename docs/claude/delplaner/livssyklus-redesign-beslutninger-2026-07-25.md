@@ -35,6 +35,14 @@ Kenneth gikk gjennom mikrotekst-hoveren på test og fant at flere tekster avdekk
 - Datamodell for soft delete (beslutning 4) — status-enum «deleted» vs `deletedAt`-felt. Teknisk; cowork/kode gater.
 - Konsekvens av å fjerne `in_progress` for eksisterende data (migrering av rader som står i in_progress i dag — test/prod).
 
+## Kenneth-gate runde 2 (2026-07-25, etter fabel-spec)
+
+- **Trekk tilbake beholdes (fabels innstilling):** en *sendt* hendelse trekkes tilbake til avsender **før mottaker har svart**, lander som redigerbar kladd (`received→draft`). (Kenneth vurderte «før lest»-gate men valgte fabels enklere «før svart».) Handlingen består i matrisen.
+- **De 3 fabel-gate-punktene: JA** — (1) cancelled utfases som produserbar, (2) påkrevd begrunnelse ved Avvis, (3) hard delete kun prosjektadmin (+ sitedoc-bypass).
+- **Soft delete = 90-dagers papirkurv:** `deletedAt` + **auto-hardslett etter 90 dager**; «slett endelig» kan kjøres manuelt før det (prosjektadmin). Mikrotekst reflekterer 90-dagers-vinduet.
+- **`in_progress` («Under arbeid») BEHOLDES (Kenneth-vedtak, snur beslutning 1):** «Under arbeid» overlever som utbedrings-tilstanden. **Send tilbake går direkte til «Under arbeid»** hos utfører — den manuelle **Gjenoppta forsvinner**. «Returnert» (`rejected`) og «Under arbeid» (`in_progress`) **smelter til én tilstand** (label «Under arbeid»; fabel velger enum). Fantom-raden `received→in_progress` fjernes fortsatt. Migrerings-nyansen (in_progress-rader) bortfaller siden statusen består.
+- **STYRENDE PRIORITET (Kenneth):** matrisen og hoveren skal stemme **overens som én sammenhengende beskrivelse** av mål-statusmaskinen. Dagens SiteDoc-UI/kode er IKKE føringen — redesignet definerer målet; koden bringes til det. Gate måler intern koherens (matrise-rader ↔ hover-tekster ↔ statusmaskin), ikke samsvar med dagens oppførsel.
+
 ## Rekkefølge
 
 Statusmaskin-endring er inngripende (ny status, fjernet status, endret ruting, myk delete, migreringer). Tas som **fabel-design → cowork-gate → kode-Opus i faser**, ikke direkte koding. Dagens mikrotekst-hover (på develop/test) beskriver dagens flyt og står til redesignet lander.
