@@ -24,6 +24,10 @@ Statusmaskinen (`VALID_TRANSITIONS`) låser hver livssyklus-handling til få kil
 
 På den generelle dokumentdetaljsiden (`DokumentHandlingsmeny`) mangler `Besvar`/`Send` tekst/hover som sier hvem handlingen går til (hvem får ballen / neste mottaker). **Dataene finnes** i komponenten (`recipientUserId`/`recipientGroupId`, `mottakerForStandard`, `recipientOppforinger`) — kun å surface dem per mikrotekst-standarden ([tooltip-hjelpetekst-veileder § 3a](retningslinjer/tooltip-hjelpetekst-veileder.md): relasjonelle benevnelser «den som sendte det»/«neste mottaker»). Konkret høyverdi-instans av Tooltip v2. Krever fabel-mikrotekst-spec (hover vs inline + ordlyd) → liten kode-ordre. Kenneth traff den på prod.
 
+### 🟡 Klientens `mottakerForStandard()` sendes på besvar men ignoreres av serveren — død/villedende parameter (cowork-gating 2026-07-25)
+
+`DokumentHandlingsmeny` (linje 393) beregner + sender `mottaker = mottakerForStandard()` (utfører-faggruppen) på `responded` (besvar). Men serverens besvar-gren (`sjekkliste.ts`) ruter besvar utelukkende til `sisteTransfer.senderId` (den som sist sendte) og **bruker aldri klient-`mottaker` for responded** — kun for `sent`. Klient-parameteren er dermed inert/død. Ingen synlig bug i dag (serveren ruter riktig uansett), men villedende kode + kan gi feil hover om en fremtidig flate leser `mottakerForStandard()` som besvar-mottaker. Fiks: verifiser at serveren ignorerer den i ALLE besvar-baner, så fjern beregningen+parameteren for responded (eller avstem klient↔server). **Mikrotekst-hoveren nøytraliserer symptomet** (viser `ledd[aktivtIndex-1]` = server-sannheten), så dette er ren opprydding — haster ikke. Funnet under gating av mikrotekst-spec rev.2.
+
 ### 🟡 Prosjektvelgeren viser «SD-{dato}-{nummer}»-prefiks — meningsløst for bruker (Kenneth 2026-07-25)
 
 Topplinje-prosjektvelgeren (nedtrekk) viser intern ID «SD-20260506-0008» foran prosjektnavnet — gir brukeren ingen mening. Fjern prefikset (vis kun navn + lokasjon). Del av en «smårusk»-UX-oppryddingssveip — samle med annet visuelt rusk, evt. fold inn i en større UX-rydde-oppgave.
