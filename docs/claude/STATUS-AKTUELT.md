@@ -92,7 +92,10 @@ Kenneth-gjennomgang av mikrotekst-hoveren på test avdekket flyt-design-probleme
 - **F0 Soft-delete/papirkurv** — ✅ MERGET DEVELOP `9e99d2c6`. `deletedAt`/`deletedById` på Checklist+Task, guard (`IKKE_SLETTET`) på 20 liste-/tellepunkter inkl. HMS, papirkurv (prosjektadmin prosjekt-bredt + oppretter), Gjenopprett/Slett endelig, 90-dagers sweep. **Migrering (additiv, `20260725120000_softdelete_checklist_task`) IKKE kjørt — kjøres ved test-deploy med Kenneths go.** Merge med F1 auto-koherent (begge endringer verifisert intakt).
 - **F2 Trekk tilbake → kladd** — ✅ MERGET DEVELOP `50c7b544`. `received→draft` (D-1-fiks: trekk tilbake lå på død `sent`-status), ren kode, mottakerDin-fallback.
 - **F3 Merge «Under arbeid»** — ✅ MERGET DEVELOP `cac9473e`. `rejected`+`in_progress` → én tilstand, Send tilbake → `responded→in_progress` direkte, Gjenoppta + fantom-rad fjernet. **Data-migrering `20260725130000_merge_underarbeid_rejected` (rejected→in_progress) IKKE kjørt — venter Kenneths go ved deploy.** Latent for-staging: `responded→sent` i VALID_TRANSITIONS uten UI-celle (F5 plukker den opp).
-- **F4 Samlet gjenåpne** — neste. `closed/dismissed/cancelled → draft`, rett registrator + prosjektadmin, ruting → kladd hos oppretter. · **F5** Send/Videresend-paring — ikke startet.
+- **F4 Samlet gjenåpne** — ✅ MERGET DEVELOP `4227d0a2`. `closed/dismissed/cancelled → draft` (én handling), rett registrator + prosjektadmin, ruting → kladd hos oppretter. Ren kode. Test-verifiser: kun Reg+P-adm ser Gjenåpne (#9).
+- **F5 Send/Videresend-paring** — SISTE FASE. Send aktiveres der Videresend er (received/responded/approved → sent), plukker opp F3s `responded→sent`-for-staging. Ren kode.
+
+Etter F5: hele redesignet på develop → test-deploy med F0-skjema + F3-data-migrering (Kenneths go på hver).
 
 § 0 delt-kilde-refaktoren tas som egen fase (holdt ute av F0/F1 for å unngå parallell-konflikt). Ikke deployet prod.
 
