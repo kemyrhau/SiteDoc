@@ -97,14 +97,28 @@ export function isValidStatusTransition(
   const validTransitions: Record<string, string[]> = {
     draft: ["sent", "cancelled"],
     sent: ["received", "cancelled"],
-    received: ["in_progress", "responded", "cancelled"],
+    received: ["in_progress", "responded", "cancelled", "dismissed"],
     in_progress: ["responded", "sent", "cancelled"],
     responded: ["approved", "rejected"],
     approved: ["closed"],
     rejected: ["in_progress", "closed", "sent"],
     closed: ["draft"],
     cancelled: ["draft"],
+    // F1 (Avvist): terminal i denne fasen. Gjenåpne dismissed→draft wires i F4;
+    // fram til da når admin/sitedoc-bypass den ved behov.
+    dismissed: [],
   };
 
   return validTransitions[current]?.includes(next) ?? false;
+}
+
+/**
+ * Statusoverganger som krever en ikke-tom begrunnelse (F1, gate-JA #2).
+ * Bryter bevisst «fritekst = valgfritt»-presedensen — Kenneth-vedtatt: en avvisning
+ * skal alltid bære en begrunnelse. Delt kilde for server-validering (Zod-gate i
+ * endreStatus) og klient-validering (web + mobil handlingsmeny), så regelen ikke
+ * kan divergere mellom lagene.
+ */
+export function statusKreverBegrunnelse(nyStatus: string): boolean {
+  return nyStatus === "dismissed";
 }

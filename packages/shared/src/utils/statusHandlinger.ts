@@ -28,7 +28,8 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
     received: [
       { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
-      { tekstNoekkel: "handling.avvis", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
+      // F1: Avvis ruter nå til egen «Avvist»-status (dismissed), ikke lenger cancelled.
+      { tekstNoekkel: "handling.avvis", nyStatus: "dismissed", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
     in_progress: [
       { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
@@ -70,7 +71,7 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * |--------------|----------------------|-------------|-----------------------------------|-----------------------------------|
  * | draft        | Send, Slett          | Send, Slett | —                                 | —                                 |
  * | sent         | Avbryt               | Avbryt      | —                                 | —                                 |
- * | received     | Besvar, Videres.     | —           | Besvar, Videresend                | —                                 |
+ * | received     | Besvar, Videres.     | —           | Besvar, Videresend, Avvis         | —                                 |
  * | in_progress  | Besvar, Tilbake, V   | —           | Besvar, Send tilbake, Videresend  | —                                 |
  * | responded    | Godkjenn, Tilbake, V | —           | —                                 | Godkjenn, Send tilbake, Videresend|
  * | rejected     | Send på nytt         | Send på nytt| Gjenoppta, Videresend             | —                                 |
@@ -241,7 +242,8 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
     rejected: new Set(["sent"]),
   },
   utforer: {
-    received: new Set(["responded", "forwarded"]),
+    // F1 (matrise § 3): utfører eier Avvis (received→dismissed) sammen med prosjektadmin.
+    received: new Set(["responded", "forwarded", "dismissed"]),
     in_progress: new Set(["responded", "sent", "forwarded"]),
     // A-i: rejected → in_progress (gjenoppta), ikke responded (ulovlig i statusmaskinen)
     rejected: new Set(["in_progress", "forwarded"]),

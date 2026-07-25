@@ -57,6 +57,13 @@ const MATRISE: Rad[] = [
   { navn: "base/aktiv/closed", status: "closed", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.lukket", variant: "default", perspektiv: "aktiv" },
   { navn: "base/aktiv/cancelled", status: "cancelled", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.avbrutt", variant: "danger", perspektiv: "aktiv" },
 
+  // ── F1 Avvist (dismissed): perspektiv-FLAT — «Avvist» danger for ALLE seere ──
+  // Ingen BASE_AKTIV/BASE_VENTER-rad → alle perspektiv faller til NOEYTRAL-cellen.
+  // Verifiserer flatheten: samme etikett/variant uansett aktiv/venter/nøytral.
+  { navn: "dismissed/aktiv → Avvist (flat)", status: "dismissed", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.avvist", variant: "danger", perspektiv: "aktiv" },
+  { navn: "dismissed/venter → Avvist (flat)", status: "dismissed", kontekst: venter, type: "sjekkliste", etikettKey: "status.avvist", variant: "danger", perspektiv: "venter" },
+  { navn: "dismissed/admin → Avvist (flat)", status: "dismissed", kontekst: admin, type: "sjekkliste", etikettKey: "status.avvist", variant: "danger", perspektiv: "noeytral" },
+
   // ── Base — VENTER (ballen hos andre) ────────────────────────────────────
   { navn: "base/venter/received", status: "received", kontekst: venter, type: "sjekkliste", etikettKey: "status.tilBehandling", variant: "primary", perspektiv: "venter" },
   { navn: "base/venter/in_progress", status: "in_progress", kontekst: venter, type: "sjekkliste", etikettKey: "status.underArbeid", variant: "primary", perspektiv: "venter" },
@@ -186,7 +193,9 @@ describe("kvitteringEtikett — nøklet på HANDLING, én rad per tekstNoekkel (
     expect(kvitteringEtikett("statushandling.sendTilbake")?.etikettKey).toBe("kvittering.sendtTilbake");
     expect(kvitteringEtikett("handling.send")).not.toEqual(kvitteringEtikett("statushandling.sendTilbake"));
   });
-  it("«Avvis» og «Trekk tilbake» (begge nyStatus=cancelled) gir ULIK kvittering", () => {
+  // F1: Avvis ruter nå til dismissed, Trekk tilbake til cancelled — men kvitteringen er
+  // uansett nøklet på HANDLING (ikke nyStatus), så de to forblir distinkte.
+  it("«Avvis» (→dismissed) og «Trekk tilbake» (→cancelled) gir ULIK kvittering", () => {
     expect(kvitteringEtikett("handling.avvis")?.etikettKey).toBe("kvittering.avvist");
     expect(kvitteringEtikett("statushandling.trekkTilbake")?.etikettKey).toBe("kvittering.trukketTilbake");
     expect(kvitteringEtikett("handling.avvis")).not.toEqual(kvitteringEtikett("statushandling.trekkTilbake"));

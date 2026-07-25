@@ -8,7 +8,7 @@ import {
   type StatusHandling,
   type RettighetsOverrides,
 } from "./statusHandlinger";
-import { isValidStatusTransition } from "./index";
+import { isValidStatusTransition, statusKreverBegrunnelse } from "./index";
 import type { DokumentflytRolle } from "../types";
 
 /**
@@ -72,7 +72,8 @@ const HANDLING_MATRISE: HandlingRad[] = [
   { navn: "[ROLLE] bestiller, cancelled → gjenåpne (ikke slett)", status: "cancelled", rolle: "bestiller", erAdmin: false, forventet: ["draft"] },
   { navn: "[ROLLE] bestiller, received → tom (ingen eierskap)", status: "received", rolle: "bestiller", erAdmin: false, forventet: [] },
   { navn: "[ROLLE] bestiller, rejected → send på nytt (venstre ende)", status: "rejected", rolle: "bestiller", erAdmin: false, forventet: ["sent"] },
-  { navn: "[ROLLE] utforer, received → besvar+videresend (ikke avvis)", status: "received", rolle: "utforer", erAdmin: false, forventet: ["responded", "forwarded"] },
+  // F1: utfører eier nå Avvis (received→dismissed) — universet gir responded/forwarded/dismissed.
+  { navn: "[ROLLE] utforer, received → besvar+videresend+avvis", status: "received", rolle: "utforer", erAdmin: false, forventet: ["responded", "forwarded", "dismissed"] },
   { navn: "[ROLLE] utforer, in_progress → besvar+tilbake+videresend", status: "in_progress", rolle: "utforer", erAdmin: false, forventet: ["responded", "sent", "forwarded"] },
   { navn: "[ROLLE] utforer, rejected → gjenoppta+videresend (ikke lukk)", status: "rejected", rolle: "utforer", erAdmin: false, forventet: ["in_progress", "forwarded"] },
   { navn: "[ROLLE] utforer, draft → tom", status: "draft", rolle: "utforer", erAdmin: false, forventet: [] },
@@ -127,7 +128,9 @@ const TILLATT_MATRISE: TillattRad[] = [
   { navn: "[ROLLE] bestiller, rejected→sent → true (venstre ende)", rolle: "bestiller", fra: "rejected", til: "sent", erAdmin: false, forventet: true },
   { navn: "[ROLLE] utforer, rejected→sent → false (ikke venstre ende)", rolle: "utforer", fra: "rejected", til: "sent", erAdmin: false, forventet: false },
   { navn: "[ROLLE] utforer, received→responded → true", rolle: "utforer", fra: "received", til: "responded", erAdmin: false, forventet: true },
-  { navn: "[ROLLE] utforer, received→cancelled → false (avvis ikke eid)", rolle: "utforer", fra: "received", til: "cancelled", erAdmin: false, forventet: false },
+  // F1: Avvis ruter til dismissed (eid av utfører), IKKE lenger cancelled.
+  { navn: "[ROLLE] utforer, received→dismissed → true (avvis nå eid)", rolle: "utforer", fra: "received", til: "dismissed", erAdmin: false, forventet: true },
+  { navn: "[ROLLE] utforer, received→cancelled → false (avvis ruter ikke lenger hit)", rolle: "utforer", fra: "received", til: "cancelled", erAdmin: false, forventet: false },
   { navn: "[ROLLE] utforer, in_progress→sent → true (send tilbake)", rolle: "utforer", fra: "in_progress", til: "sent", erAdmin: false, forventet: true },
   { navn: "[ROLLE] utforer, rejected→in_progress → true (gjenoppta)", rolle: "utforer", fra: "rejected", til: "in_progress", erAdmin: false, forventet: true },
   { navn: "[ROLLE] godkjenner, responded→approved → true", rolle: "godkjenner", fra: "responded", til: "approved", erAdmin: false, forventet: true },
@@ -172,6 +175,31 @@ describe("isValidStatusTransition — closed → draft (inert i A, wires i B med
 /* ------------------------------------------------------------------ */
 /*  hentStatusHandlinger — rejected tilbyr «Send på nytt» (sent)        */
 /* ------------------------------------------------------------------ */
+
+/* ------------------------------------------------------------------ */
+/*  F1 — Avvist (dismissed): egen status, påkrevd begrunnelse           */
+/* ------------------------------------------------------------------ */
+
+describe("F1 Avvist — statusmaskin + handling + begrunnelse-gate", () => {
+  it("received → dismissed er lovlig (Avvis ruter hit, ikke lenger cancelled)", () => {
+    expect(isValidStatusTransition("received", "dismissed")).toBe(true);
+  });
+  it("dismissed er terminal i F1 (gjenåpne wires i F4)", () => {
+    expect(isValidStatusTransition("dismissed", "draft")).toBe(false);
+    expect(isValidStatusTransition("dismissed", "sent")).toBe(false);
+  });
+  it("received-universet: Avvis-handlingen ruter til dismissed", () => {
+    const avvis = hentStatusHandlinger("received").find((h) => h.tekstNoekkel === "handling.avvis");
+    expect(avvis?.nyStatus).toBe("dismissed");
+  });
+  it("statusKreverBegrunnelse: kun dismissed krever begrunnelse", () => {
+    expect(statusKreverBegrunnelse("dismissed")).toBe(true);
+    expect(statusKreverBegrunnelse("cancelled")).toBe(false);
+    expect(statusKreverBegrunnelse("responded")).toBe(false);
+    expect(statusKreverBegrunnelse("sent")).toBe(false);
+    expect(statusKreverBegrunnelse("closed")).toBe(false);
+  });
+});
 
 describe("hentStatusHandlinger — rejected → sent («Send på nytt»)", () => {
   it("rejected-universet inneholder en sent-handling", () => {
@@ -295,9 +323,9 @@ describe("adminNiva='prosjekt' — full INNENFOR statusmaskinen (tom override)",
     expect(erTillattForRolle("registrator", "received", "forwarded", "prosjekt")).toBe(true);
   });
   it("hentRolleFiltrertHandlinger: hele det statusmaskin-lovlige universet for status", () => {
-    // received-universet: responded (lovlig), forwarded (pseudo), cancelled (lovlig) → alle
+    // received-universet (F1): responded (lovlig), forwarded (pseudo), dismissed (lovlig) → alle
     expect(hentRolleFiltrertHandlinger("received", "registrator", "prosjekt").map((h) => h.nyStatus))
-      .toEqual(["responded", "forwarded", "cancelled"]);
+      .toEqual(["responded", "forwarded", "dismissed"]);
   });
   it("konfigurerbar NEDOVER: negativ prosjektadmin-override slår av en celle", () => {
     const override: RettighetsOverrides = { [flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, "draft", "sent")]: false };
