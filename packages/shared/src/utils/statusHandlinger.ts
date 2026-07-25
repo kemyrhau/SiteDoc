@@ -25,6 +25,8 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
     // F2 (D-1): `sent` er transient (auto→received) — ingen handlinger bor her.
     received: [
       { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
+      // F5 (Send/Videresend-paring, beslutning 6): Send fram i flyten — gjenbruker handling.send.
+      { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       // F2: Trekk tilbake henter en sendt hendelse tilbake til avsender FØR mottaker har
       // svart, og lander som redigerbar kladd (received→draft, D-1-fiks).
       { tekstNoekkel: "statushandling.trekkTilbake", nyStatus: "draft", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
@@ -46,10 +48,14 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       { tekstNoekkel: "handling.godkjenn", nyStatus: "approved", farge: "bg-green-600", aktivFarge: "bg-green-400", erPrimaer: true },
       // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
       { tekstNoekkel: "statushandling.sendTilbakeUtforer", nyStatus: "in_progress", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
+      // F5 (Send/Videresend-paring): Send fram fra svar-leddet — gjenbruker handling.send.
+      { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
     approved: [
       { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400", erPrimaer: true },
+      // F5 (Send/Videresend-paring): Send fram fra godkjent — gjenbruker handling.send.
+      { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
     // F4 (Gjenåpne-samling): closed/dismissed/cancelled er avsluttede statuser. Gjenåpne
@@ -76,10 +82,10 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * |--------------|----------------------|-----------------|-----------------------------------|-----------------------------------|
  * | draft        | Send, Slett          | Send, Slett     | —                                 | —                                 |
  * | sent         | — (transient)        | — (transient)   | —                                 | —                                 |
- * | received     | Trekk tilbake        | Trekk tilbake   | Besvar, Videresend, Avvis         | —                                 |
+ * | received     | Trekk tilbake        | Trekk tilbake   | Besvar, Send, Videresend, Avvis   | —                                 |
  * | in_progress  | —                    | Lukk        | Besvar, Send på nytt, Videresend  | Lukk                              |
- * | responded    | —                    | —           | —                                 | Godkjenn, Send tilbake, Videresend|
- * | approved     | Lukk, Videresend     | Lukk        | —                                 | —                                 |
+ * | responded    | —                    | —           | —                                 | Godkjenn, Send tilbake, Send, Videresend|
+ * | approved     | Lukk, Videresend     | Lukk        | —                                 | Send                              |
  * | closed       | Gjenåpne             | —           | —                                 | —                                 |
  * | dismissed    | Gjenåpne             | —           | —                                 | —                                 |
  * | cancelled    | Gjenåpne             | —           | —                                 | —                                 |
@@ -263,14 +269,18 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
   },
   utforer: {
     // F1 (matrise § 3): utfører eier Avvis (received→dismissed) sammen med prosjektadmin.
-    received: new Set(["responded", "forwarded", "dismissed"]),
+    // F5 (matrise § 3): Send fram (received→sent) eies av utfører + prosjektadmin.
+    received: new Set(["responded", "sent", "forwarded", "dismissed"]),
     // F3 (matrise § 3): Besvar (→responded), Send på nytt (→sent), Videresend fra Under arbeid.
     in_progress: new Set(["responded", "sent", "forwarded"]),
   },
   godkjenner: {
     // F3: Send tilbake ruter direkte til Under arbeid (responded→in_progress), ikke rejected.
-    responded: new Set(["approved", "in_progress", "forwarded"]),
+    // F5 (matrise § 3): Send fram (responded→sent) eies av godkjenner + prosjektadmin.
+    responded: new Set(["approved", "in_progress", "sent", "forwarded"]),
     // F3 (matrise § 3): Lukk fra Under arbeid eies av godkjenner + bestiller.
     in_progress: new Set(["closed"]),
+    // F5 (matrise § 3): Send fram (approved→sent) eies av godkjenner + prosjektadmin.
+    approved: new Set(["sent"]),
   },
 };
