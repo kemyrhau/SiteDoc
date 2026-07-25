@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Moves the document to trash. It can be restored within 90 days — after that it is permanently deleted.",
   "flythjelp.handling.slettEndelig": "Permanently deletes the document, before the 90-day deadline. Cannot be undone.",
   "flythjelp.handling.gjenopprett": "Puts the document back where it was, with the same status as before deletion.",
-  "flythjelp.handling.trekkTilbake": "Retrieves the document from {{mottaker}} before they have started. The flow stops; the document is closed as Withdrawn for both parties.",
+  "flythjelp.handling.trekkTilbake": "Retrieves the document from {{mottaker}} before they have started. It becomes an editable draft with you — fix it and send again.",
   "flythjelp.handling.besvar": "Moves the document one step back: from you to {{mottaker}}, who reviews the response. They see it as Answered.",
   "flythjelp.handling.besvarSisteLedd": "Marks the document as Answered and sends it back to whoever sent it to you — the flow has no further steps.",
   "flythjelp.handling.avvis": "Rejects the document with a reason. The flow stops; {{mottaker}} sees it as Rejected with your reason. Can be reopened.",

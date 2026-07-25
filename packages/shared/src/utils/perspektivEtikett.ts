@@ -206,9 +206,9 @@ export function perspektivEtikett(
  * a3b-perspektiv-tabell.md § 6 + statusHandlinger.ts.
  *
  * HVORFOR handling og ikke status: `nyStatus` er ikke injektiv over handlinger —
- * `handling.send` og `statushandling.sendTilbake` gir begge `sent`, `handling.avvis`
- * og `statushandling.trekkTilbake` gir begge `cancelled`. Nøkling på status ga «Sendt ✓»
- * på en «Send tilbake»-handling. Statusen er utfallet; handlingen er det brukeren gjorde.
+ * `handling.send` og `statushandling.sendTilbake` gir begge `sent` (og `statushandling.sendPaaNytt`
+ * likeså). Nøkling på status ga «Sendt ✓» på en «Send tilbake»-handling.
+ * Statusen er utfallet; handlingen er det brukeren gjorde.
  *
  * Én rad per distinkt `tekstNoekkel` i statusHandlinger.ts. `handling.slett` er utelatt
  * (går via `onSlett`, ikke `onEndreStatus`). Returnerer `null` for ukjent handling.

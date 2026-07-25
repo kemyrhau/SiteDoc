@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Mută ​​documentul în coșul de gunoi. Poate fi restabilit în 90 de zile - după aceea este șters definitiv.",
   "flythjelp.handling.slettEndelig": "Șterge definitiv documentul, înainte de termenul limită de 90 de zile. Nu poate fi anulat.",
   "flythjelp.handling.gjenopprett": "Repune documentul unde era, cu aceeași stare ca înainte de ștergere.",
-  "flythjelp.handling.trekkTilbake": "Preia documentul de la {{mottaker}} înainte ca acesta să înceapă. Curgerea se oprește; documentul este închis ca Retras pentru ambele părți.",
+  "flythjelp.handling.trekkTilbake": "Preia documentul de la {{mottaker}} înainte ca acesta să înceapă. Devine o schiță editabilă cu dvs. - remediați-o și trimiteți din nou.",
   "flythjelp.handling.besvar": "Mută ​​documentul cu un pas înapoi: de la dvs. la {{mottaker}}, care examinează răspunsul. Ei îl văd ca fiind Răspuns.",
   "flythjelp.handling.besvarSisteLedd": "Marchează documentul ca Răspuns și îl trimite înapoi celui care ți l-a trimis — fluxul nu mai are pași.",
   "flythjelp.handling.avvis": "Respinge documentul cu un motiv. Curgerea se oprește; {{mottaker}} îl vede ca Respins cu motivul dvs. Poate fi redeschis.",

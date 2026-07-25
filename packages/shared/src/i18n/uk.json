@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Moves the document to trash. It can be restored within 90 days — after that it is permanently deleted.",
   "flythjelp.handling.slettEndelig": "Permanently deletes the document, before the 90-day deadline. Cannot be undone.",
   "flythjelp.handling.gjenopprett": "Puts the document back where it was, with the same status as before deletion.",
-  "flythjelp.handling.trekkTilbake": "Отримує документ від {{mottaker}} до того, як вони почали. Потік припиняється; документ закрито як відкликаний для обох сторін.",
+  "flythjelp.handling.trekkTilbake": "Отримує документ від {{mottaker}} до того, як вони почали. З вами він стане чернеткою, яку можна редагувати — виправте її та надішліть знову.",
   "flythjelp.handling.besvar": "Переміщує документ на один крок назад: від вас до {{mottaker}}, який переглядає відповідь. Вони сприймають це як відповідь.",
   "flythjelp.handling.besvarSisteLedd": "Позначає документ як відповідний і надсилає його назад тому, хто його вам надіслав — потік не має подальших кроків.",
   "flythjelp.handling.avvis": "Відхиляє документ з обґрунтуванням. Потік припиняється; {{mottaker}} бачить, що це відхилено з вашої причини. Можна знову відкрити.",

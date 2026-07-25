@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Siirtää asiakirjan roskakoriin. Se voidaan palauttaa 90 päivän kuluessa – sen jälkeen se poistetaan pysyvästi.",
   "flythjelp.handling.slettEndelig": "Poistaa asiakirjan pysyvästi ennen 90 päivän määräaikaa. Ei voi kumota.",
   "flythjelp.handling.gjenopprett": "Siirtää asiakirjan takaisin paikoilleen samaan tilaan kuin ennen poistamista.",
-  "flythjelp.handling.trekkTilbake": "Hakee asiakirjan käyttäjältä {{mottaker}} ennen kuin ne ovat alkaneet. Virtaus pysähtyy; asiakirja on suljettu molemmille osapuolille peruutettuna.",
+  "flythjelp.handling.trekkTilbake": "Hakee asiakirjan käyttäjältä {{mottaker}} ennen kuin ne ovat alkaneet. Siitä tulee muokattava luonnos kanssasi – korjaa se ja lähetä uudelleen.",
   "flythjelp.handling.besvar": "Siirtää asiakirjan askeleen taaksepäin: sinulta {{mottaker}}:lle, joka tarkistaa vastauksen. He näkevät sen vastauksena.",
   "flythjelp.handling.besvarSisteLedd": "Merkitsee asiakirjan vastatuksi ja lähettää sen takaisin sinulle, joka on sen lähettänyt – kululla ei ole muita vaiheita.",
   "flythjelp.handling.avvis": "Hylkää asiakirjan perustellusti. Virtaus pysähtyy; {{mottaker}} näkee sen hylätyksi syylläsi. Voidaan avata uudelleen.",

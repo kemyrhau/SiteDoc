@@ -97,8 +97,11 @@ export function isValidStatusTransition(
 ): boolean {
   const validTransitions: Record<string, string[]> = {
     draft: ["sent", "cancelled"],
-    sent: ["received", "cancelled"],
-    received: ["in_progress", "responded", "cancelled", "dismissed"],
+    // F2 (D-1): `sent` er transient (auto→received) og har ingen produserbare handlinger.
+    // Trekk tilbake flyttet til received→draft; sent→cancelled utgår.
+    sent: ["received"],
+    // F2: Trekk tilbake → received→draft (redigerbar kladd hos avsender, før mottaker har svart).
+    received: ["in_progress", "responded", "cancelled", "dismissed", "draft"],
     in_progress: ["responded", "sent", "cancelled"],
     responded: ["approved", "rejected"],
     approved: ["closed"],

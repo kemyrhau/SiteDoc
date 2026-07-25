@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Verschiebt das Dokument in den Papierkorb. Es kann innerhalb von 90 Tagen wiederhergestellt werden – danach wird es endgültig gelöscht.",
   "flythjelp.handling.slettEndelig": "Löscht das Dokument dauerhaft vor Ablauf der 90-Tage-Frist. Kann nicht rückgängig gemacht werden.",
   "flythjelp.handling.gjenopprett": "Setzt das Dokument wieder an die Stelle, an der es war, mit dem gleichen Status wie vor dem Löschen.",
-  "flythjelp.handling.trekkTilbake": "Ruft das Dokument von {{mottaker}} ab, bevor es begonnen hat. Der Fluss stoppt; Das Dokument wird für beide Parteien als „Zurückgezogen“ geschlossen.",
+  "flythjelp.handling.trekkTilbake": "Ruft das Dokument von {{mottaker}} ab, bevor es begonnen hat. Es wird mit Ihnen zu einem bearbeitbaren Entwurf – korrigieren Sie ihn und senden Sie ihn erneut.",
   "flythjelp.handling.besvar": "Verschiebt das Dokument einen Schritt zurück: von Ihnen zu {{mottaker}}, der die Antwort überprüft. Sie sehen es als beantwortet an.",
   "flythjelp.handling.besvarSisteLedd": "Markiert das Dokument als „Beantwortet“ und sendet es an denjenigen zurück, der es Ihnen gesendet hat – der Ablauf umfasst keine weiteren Schritte.",
   "flythjelp.handling.avvis": "Lehnt das Dokument mit einem Grund ab. Der Fluss stoppt; {{mottaker}} sieht es mit Ihrem Grund als „Abgelehnt“ an. Kann wieder geöffnet werden.",

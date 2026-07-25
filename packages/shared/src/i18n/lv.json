@@ -2168,7 +2168,7 @@
   "flythjelp.handling.slett": "Pārvieto dokumentu uz miskasti. To var atjaunot 90 dienu laikā — pēc tam tas tiek neatgriezeniski izdzēsts.",
   "flythjelp.handling.slettEndelig": "Neatgriezeniski dzēš dokumentu pirms 90 dienu termiņa beigām. Nevar atsaukt.",
   "flythjelp.handling.gjenopprett": "Novieto dokumentu atpakaļ vietā, kur tas bija, ar tādu pašu statusu kā pirms dzēšanas.",
-  "flythjelp.handling.trekkTilbake": "Izgūst dokumentu no {{mottaker}}, pirms tas ir sākts. Plūsma apstājas; abām pusēm dokuments ir aizvērts kā atsaukts.",
+  "flythjelp.handling.trekkTilbake": "Izgūst dokumentu no {{mottaker}}, pirms tas ir sākts. Kopā ar jums tas kļūst par rediģējamu melnrakstu — izlabojiet to un nosūtiet vēlreiz.",
   "flythjelp.handling.besvar": "Pārvieto dokumentu vienu soli atpakaļ: no jums {{mottaker}}, kurš izskata atbildi. Viņi to redz kā atbildi.",
   "flythjelp.handling.besvarSisteLedd": "Atzīmē dokumentu kā Atbildētu un nosūta atpakaļ personai, kas to jums nosūtīja — plūsmai nav papildu darbību.",
   "flythjelp.handling.avvis": "Noraida dokumentu ar iemeslu. Plūsma apstājas; {{mottaker}} uzskata, ka tas ir noraidīts jūsu iemesla dēļ. Var atvērt atkārtoti.",
