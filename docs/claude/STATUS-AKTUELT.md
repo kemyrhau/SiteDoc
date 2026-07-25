@@ -84,6 +84,16 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟠 Statusmaskin-redesign (livssyklus) — FASEVIS PÅ DEVELOP. F1 merget 2026-07-25, F0 under bygging
+
+Kenneth-gjennomgang av mikrotekst-hoveren på test avdekket flyt-design-problemer (11 punkter) → full statusmaskin-redesign. Beslutninger + spec: [livssyklus-redesign-beslutninger](delplaner/livssyklus-redesign-beslutninger-2026-07-25.md) + [statusmaskin-redesign-spec rev.2](delplaner/statusmaskin-redesign-spec-2026-07-25.md). **Koherens-garanti (§ 0):** matrise + hover avledes fra delt kilde — trippelen matrise↔hover↔overgang kan ikke divergere; cowork gater trippelen per fase.
+
+- **F1 Avvist (`dismissed`)** — ✅ MERGET DEVELOP `88beef7f`. Egen «Avvist»-status (ikke lenger avvis→cancelled), påkrevd begrunnelse (delt `statusKreverBegrunnelse`), terminal til F4. Ren kode, ingen migrering. Åpent: Avvis flyttet til synlig rød knapp (utfører, Opus-initiativ) — Kenneth verifiserer konsekvensen på test.
+- **F0 Soft-delete/papirkurv** — 🔨 under bygging (`feat/f0-softdelete`). `deletedAt`/`deletedById` + 90-dagers papirkurv + Gjenopprett/Slett endelig. **Migrering venter Kenneth-godkjenning.**
+- **F2** trekk tilbake→kladd · **F3** merge «Under arbeid» (fjern rejected/in_progress-split) · **F4** samlet gjenåpne · **F5** Send/Videresend-paring — ikke startet.
+
+§ 0 delt-kilde-refaktoren tas som egen fase (holdt ute av F0/F1 for å unngå parallell-konflikt). Ikke deployet prod.
+
 ### ✅ Tooltip v2 + mikrotekst-wiring på flyt-flatene — MERGET DEVELOP (2026-07-25). IKKE deployet prod
 
 **Tooltip v2** (`packages/ui/src/tooltip.tsx`, merge `4887d601`): bakoverkompatibelt superset — flerlinje (max-w 280, bryter), fet tittel, 300 ms-delay, `:focus-visible`-tastatur, touch (tap/utenfor/Escape uten `onClick`-kollisjon), auto-flip, alltid montert (stabil `aria-describedby`). SidebarIkon arver uendret; NavSidebars fire `title=` urørt (→ `title=→Tooltip` § 4-sweep). 4 renderToString-vakter.
