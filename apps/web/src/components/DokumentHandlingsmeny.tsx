@@ -11,6 +11,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Plus } from "lucide-react";
+import { Tooltip } from "@sitedoc/ui";
 import {
   hentStatusHandlinger,
   hentRolleFiltrertHandlinger,
@@ -20,8 +21,9 @@ import {
   type DokumentflytRolle,
   type AdminNiva,
 } from "@sitedoc/shared";
-import { byggVideresendValg } from "@/lib/videresend-valg";
+import { byggVideresendValg, finnMottakerNavn } from "@/lib/videresend-valg";
 import type { DokumentflytData, FaggruppeData, VideresendMedlem } from "@/lib/videresend-valg";
+import { STATUS_LABEL_NOEKKEL, flythjelpTekst } from "@/lib/flytmatrise-def";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
@@ -167,6 +169,8 @@ interface MenyOppforing {
   erDestruktiv?: boolean;
   /** Person-videresending (Del 2.4): flytens medlemmer, vist når faggruppe-raden ekspanderes. */
   medlemmer?: VideresendMedlem[];
+  /** Mikrotekst-hover (flyt-flater-ordre 2026-07-25): fet tittel + brødtekst med resolvert mottaker. */
+  mikro?: { tittel: string; tekst: string };
 }
 
 /**
@@ -262,6 +266,68 @@ export function DokumentHandlingsmeny({
     return std?.mottaker ? { ...std.mottaker, dokumentflytId: std.dokumentflytId } : undefined;
   };
 
+  /* ------------------------------------------------------------------ */
+  /*  Mikrotekst-hover (flyt-flater-ordre 2026-07-25)                    */
+  /* ------------------------------------------------------------------ */
+
+  // Delt tekstkilde med matrisen (flythjelp.*). Kartlegger tekstNoekkel → flythjelp.handling.*
+  // og fyller {{mottaker}} med resolvert navn, ellers den relasjonelle fallback-benevnelsen.
+  // besvar bruker ledd[aktivtIndex-1]/avsender (server ruter til forrige avsender via
+  // sisteTransfer.senderId) — ALDRI mottakerForStandard(), som kun styrer selve mutasjonen.
+  const flythjelpFor = (tekstNoekkel: string): { noekkel: string; mottaker?: string } | null => {
+    const leddNavn = (i: number): string | undefined => ledd[i]?.navn;
+    const fb = (k: string) => t(k);
+    switch (tekstNoekkel) {
+      case "handling.send":
+        return {
+          noekkel: "flythjelp.handling.send",
+          mottaker: videresendValg.length === 1 ? videresendValg[0]?.visningsnavn : fb("flythjelp.fallback.nesteMottaker"),
+        };
+      case "handling.slett":
+        return { noekkel: status === "cancelled" ? "flythjelp.handling.slettTrukket" : "flythjelp.handling.slettKladd" };
+      case "statushandling.trekkTilbake":
+        // Retning: henter dokumentet FRA den du sendte til (ikke avsenderen) → mottakerDin.
+        return {
+          noekkel: "flythjelp.handling.trekkTilbake",
+          mottaker: finnMottakerNavn(flytMedlemmer ?? [], recipientUserId, recipientGroupId) ?? fb("flythjelp.fallback.mottakerDin"),
+        };
+      case "statushandling.besvar":
+        return erSisteBoks
+          ? { noekkel: "flythjelp.handling.besvarSisteLedd" }
+          : { noekkel: "flythjelp.handling.besvar", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.avsender") };
+      case "handling.avvis":
+        return { noekkel: "flythjelp.handling.avvis", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.avsender") };
+      case "statushandling.sendTilbake":
+        return { noekkel: "flythjelp.handling.sendTilbake", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.avsender") };
+      case "handling.godkjenn":
+        return { noekkel: "flythjelp.handling.godkjenn" };
+      case "statushandling.sendTilbakeUtforer":
+        return { noekkel: "flythjelp.handling.sendTilbakeUtforer", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.utforer") };
+      case "statushandling.gjenoppta":
+        return { noekkel: "flythjelp.handling.gjenoppta" };
+      case "statushandling.sendPaaNytt":
+        return { noekkel: "flythjelp.handling.sendPaaNytt", mottaker: leddNavn(aktivtIndex + 1) ?? fb("flythjelp.fallback.nesteMottaker") };
+      case "handling.lukk":
+        return { noekkel: "flythjelp.handling.lukk" };
+      case "statushandling.gjenapne":
+        return { noekkel: "flythjelp.handling.gjenapne" };
+      case "statushandling.videresend":
+        return { noekkel: "flythjelp.handling.videresend", mottaker: fb("flythjelp.fallback.videresendMottaker") };
+      default:
+        return null;
+    }
+  };
+
+  // Bygger { tittel, tekst } for hover/inline. Tittel = «Handling → Ny status» (delt mønster med matrisen).
+  const mikrotekst = (tekstNoekkel: string, nyStatus: string, label: string): { tittel: string; tekst: string } | undefined => {
+    const f = flythjelpFor(tekstNoekkel);
+    if (!f) return undefined;
+    return {
+      tittel: `${label} → ${t(STATUS_LABEL_NOEKKEL[nyStatus] ?? nyStatus)}`,
+      tekst: flythjelpTekst(f.noekkel, f.mottaker, t),
+    };
+  };
+
   /* --- Begrunnelse for en deaktivert handling (utledet fra kilden) --- */
   const begrunnelseFor = (h: StatusHandling): string => {
     if (status === "closed") return t("statushandling.laast.lukket");
@@ -317,6 +383,7 @@ export function DokumentHandlingsmeny({
       tekstNoekkel: h.tekstNoekkel,
       plassering: "sekundær" as const,
       erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "rejected",
+      mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
     }));
 
   // Overflow (⋯): aktive admin-status som IKKE er primær (lukk/trekk tilbake/gjenåpne når sekundær)
@@ -329,6 +396,7 @@ export function DokumentHandlingsmeny({
       tekstNoekkel: h.tekstNoekkel,
       plassering: "overflow" as const,
       erDestruktiv: h.nyStatus === "cancelled",
+      mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
     }));
 
   // Deaktiverte: finnes i universet, men ikke tilgjengelig for denne rollen/statusen
@@ -416,8 +484,12 @@ export function DokumentHandlingsmeny({
     const overskrift = bekreft.nudge
       ? t("statushandling.begrunnelseRetur")
       : t("statushandling.bekreftHandling", { handling: bekreft.label });
+    // Konsekvensen vises INLINE i bekreft/nudge-modus (§ 3a: skal ikke gjemmes bak hover).
+    const bekreftMikro = mikrotekst(bekreft.tekstNoekkel, bekreft.nyStatus, bekreft.label);
     return (
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+      <div className="flex w-full flex-col gap-1">
+        {bekreftMikro && <span className="text-xs text-gray-500">{bekreftMikro.tekst}</span>}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
         {mottakerHarLest && (
           <span className="text-xs text-amber-600 font-medium shrink-0">{t("statushandling.mottakerHarLest")}</span>
         )}
@@ -448,26 +520,42 @@ export function DokumentHandlingsmeny({
             {t("handling.avbryt")}
           </button>
         </div>
+        </div>
       </div>
     );
   }
 
   const primærFarge = primærHandling ? FARGE_KLASSE[primærHandling.farge] ?? "bg-sitedoc-primary hover:bg-blue-700" : "";
+  const primærMikro = primærHandling ? mikrotekst(primærHandling.tekstNoekkel, primærHandling.nyStatus, t(primærHandling.tekstNoekkel)) : undefined;
 
   return (
     <div className="flex flex-wrap items-center gap-2" ref={menyRef}>
       {/* Primærhandling som knapp (+ split-▾ ved draft-send med flere mottakere) */}
       {primærHandling && (
         <div className="relative flex">
-          <button
-            onClick={klikkPrimær}
-            disabled={erLaster}
-            className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
-              draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
-            } ${primærFarge}`}
-          >
-            {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
-          </button>
+          {primærMikro ? (
+            <Tooltip tittel={primærMikro.tittel} tekst={primærMikro.tekst} side="top">
+              <button
+                onClick={klikkPrimær}
+                disabled={erLaster}
+                className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
+                  draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
+                } ${primærFarge}`}
+              >
+                {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
+              </button>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={klikkPrimær}
+              disabled={erLaster}
+              className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
+                draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
+              } ${primærFarge}`}
+            >
+              {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
+            </button>
+          )}
           {draftSend && videresendValg.length > 1 && (
             <button
               onClick={() => setÅpenMeny((å) => !å)}
@@ -481,20 +569,29 @@ export function DokumentHandlingsmeny({
       )}
 
       {/* Sekundær-knapper */}
-      {sekundærKnapper.map((o) => (
-        <button
-          key={o.key}
-          onClick={() => klikk(o)}
-          disabled={erLaster}
-          className={`rounded-lg border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
-            o.erDestruktiv
-              ? "border-red-300 text-red-600 hover:bg-red-50"
-              : "border-gray-300 text-gray-700 hover:bg-gray-50"
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
+      {sekundærKnapper.map((o) => {
+        const knapp = (
+          <button
+            key={o.key}
+            onClick={() => klikk(o)}
+            disabled={erLaster}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
+              o.erDestruktiv
+                ? "border-red-300 text-red-600 hover:bg-red-50"
+                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+        return o.mikro ? (
+          <Tooltip key={o.key} tittel={o.mikro.tittel} tekst={o.mikro.tekst} side="top">
+            {knapp}
+          </Tooltip>
+        ) : (
+          knapp
+        );
+      })}
 
       {/* Nedtrekk: send-mottakere + admin + deaktiverte */}
       {dropdownHarInnhold && !(draftSend && videresendValg.length > 1) && (
@@ -634,17 +731,26 @@ function DropdownMeny({
         <>
           {send.length > 0 && <div className="my-1 border-t border-gray-100" />}
           <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{adminLabel}</div>
-          {overflow.map((o) => (
-            <button
-              key={o.key}
-              onClick={() => onVelg(o)}
-              className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-                o.erDestruktiv ? "text-red-600" : "text-gray-700"
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
+          {overflow.map((o) => {
+            const knapp = (
+              <button
+                key={o.key}
+                onClick={() => onVelg(o)}
+                className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                  o.erDestruktiv ? "text-red-600" : "text-gray-700"
+                }`}
+              >
+                {o.label}
+              </button>
+            );
+            return o.mikro ? (
+              <Tooltip key={o.key} tittel={o.mikro.tittel} tekst={o.mikro.tekst} side="left" wrapperClassName="relative block w-full">
+                {knapp}
+              </Tooltip>
+            ) : (
+              knapp
+            );
+          })}
         </>
       )}
 
@@ -652,14 +758,13 @@ function DropdownMeny({
         <>
           {(send.length > 0 || overflow.length > 0) && <div className="my-1 border-t border-gray-100" />}
           {deaktivert.map((o) => (
-            <div
-              key={o.key}
-              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-sm text-gray-300"
-              title={o.begrunnelse}
-            >
-              <span className="line-through">{o.label}</span>
-              <span className="shrink-0 text-[10px] uppercase tracking-wide text-gray-400">{o.begrunnelse}</span>
-            </div>
+            // Begrunnelsen flyttet fra nativ title= til Tooltip v2 (usynlig på mobil ellers — § 2-sweep).
+            <Tooltip key={o.key} tekst={o.begrunnelse ?? ""} side="left" wrapperClassName="relative block w-full">
+              <div className="flex w-full items-center justify-between gap-3 px-3 py-2 text-sm text-gray-300">
+                <span className="line-through">{o.label}</span>
+                <span className="shrink-0 text-[10px] uppercase tracking-wide text-gray-400">{o.begrunnelse}</span>
+              </div>
+            </Tooltip>
           ))}
         </>
       )}
