@@ -38,12 +38,12 @@ Erstatnings-hjelper: lag en liten ren funksjon (f.eks. i `packages/shared` eller
 
 For hver `MATRISE_RADER`-rad:
 - Wrap etikett-teksten i `<Tooltip tittel={…} tekst={…} side="right">`.
-- **Tittel** = `` `${t(rad.labelNoekkel)} → ${t(STATUS_LABEL_NOEKKEL[rad.til] ?? rad.til)}` `` (f.eks. «Send → Mottatt»). Ingen nye tittel-nøkler.
+- **Tittel** = `` `${t(rad.labelNoekkel)} → ${t(STATUS_LABEL_NOEKKEL[rad.til])}` `` (f.eks. «Send → Mottatt»). **KONFLIKT-AVKLARING (cowork):** `STATUS_LABEL_NOEKKEL` dekker kun fra-statusene — til-statusene `closed`/`deleted`/`forwarded` mangler. Legg til `flytmatrise.status.{closed,deleted,forwarded}` = «Lukket»/«Slettet»/«Videresendt» (nb; en Closed/Deleted/Forwarded, auto-oversett) + tilsvarende i `STATUS_LABEL_NOEKKEL`. For `opprett`-raden: bruk kladd-etiketten (`flytmatrise.status.draft`) som «ny status» → «Opprett → Kladd», ingen egen opprett-status-nøkkel. Rå engelsk-fallback (`?? rad.til`) er FJERNET — ingen engelsk skal lekke.
 - **Brødtekst** = `flythjelp.handling.<key>` med `{{mottaker}}` fylt av den relasjonelle **fallback-benevnelsen** (matrisen kjenner ingen konkret person). Fallback per handling: se spec § «Fallback-benevnelser» kolonne «Brukes av».
 - **rad → key-mapping:** se spec § «Rad → nøkkel-mapping» (linje 64–81). Implementér mappingen der den hører hjemme — helst som et felt/oppslag knyttet til `MATRISE_RADER` i `flytmatrise-def.ts` (f.eks. `flythjelpNoekkel` + `fallbackNoekkel` per rad), så matrise og definisjon ikke drifter. `received/in_progress → responded` bruker alltid `besvar` (ikke siste-ledd-varianten — det er en knappe-flate-sak).
 - **Trigger-styling:** handlingsordet får prikket understrek (`underline decoration-dotted underline-offset-[3px] decoration-gray-400/40`) + `cursor-help`. Tooltip v2 gir `tabindex`/`aria-describedby` automatisk.
 
-Auto-raden (sent→received, «A»-merket, linje 165–177): samme hover med `flythjelp.handling.autoMottatt`. Ingen `{{mottaker}}`-fylling nødvendig (teksten har ingen). **Ingen** received→in_progress-rad legges til (finnes ikke — ⚠2 lukket i spec).
+Auto-raden **sent→received** («A»-merket, i `AUTO_OVERGANGER`): samme hover med `flythjelp.handling.autoMottatt`. Ingen `{{mottaker}}`-fylling nødvendig (teksten har ingen). **KONFLIKT-AVKLARING (cowork):** `AUTO_OVERGANGER` inneholder OGSÅ `received→in_progress`, men den er en **fantom** — cowork-verifisert at serveren kun auto-fyrer `sent→received` (effektivStatus sjekkliste.ts:1077 + oppgave.ts:1222); `received→in_progress` fyres aldri. **La received→in_progress-raden stå helt urørt — ingen hover, ingen fjerning.** Om den bør auto-nås er et design-spørsmål (livssyklus-backlog), ikke denne ordren.
 
 ## Steg 3 — Flate 2: dokumenthandlingsknapper (`apps/web/src/components/DokumentHandlingsmeny.tsx`)
 
