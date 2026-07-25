@@ -2176,7 +2176,7 @@
   "flythjelp.handling.sendTilbakeUtforer": "Flyttar dokumentet ett steg tillbaka: från dig till {{mottaker}}, för korrigering. Hos dem visas det som Pågår.",
   "flythjelp.handling.sendPaaNytt": "Flyttar dokumentet framåt igen: från dig till {{mottaker}}, efter korrigering.",
   "flythjelp.handling.lukk": "Avslutar flödet: dokumentet arkiveras som Stängt för alla och går inte vidare. Återöppning kräver ett separat tillstånd.",
-  "flythjelp.handling.gjenapne": "Hämtar ett tillbakadraget dokument tillbaka till början: det blir ett utkast med dess skapare, redo för redigering och återsändning.",
+  "flythjelp.handling.gjenapne": "Hämtar ett stängt dokument tillbaka till början: det blir ett utkast med dess skapare, redo för redigering och återsändning.",
   "flythjelp.handling.videresend": "Flyttar dokumentet i sidled: ut ur detta flöde, till {{mottaker}} (adminverktyg för korsflöde).",
   "flythjelp.handling.slettTrukket": "Raderar det återkallade dokumentet permanent. Flödet är redan stoppat — inga andra parter påverkas.",
   "flythjelp.handling.autoMottatt": "Händer automatiskt i samma ögonblick som dokumentet skickas: det registreras omedelbart som Mottaget för mottagaren. Det är därför det inte finns någon roll att välja.",

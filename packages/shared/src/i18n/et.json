@@ -2176,7 +2176,7 @@
   "flythjelp.handling.sendTilbakeUtforer": "Liigutab dokumendi ühe sammu tagasi: teilt {{mottaker}}-le, parandamiseks. Neil kuvatakse see kui Pooleli.",
   "flythjelp.handling.sendPaaNytt": "Liigutab dokumendi pärast parandamist uuesti edasi: teilt kasutajale {{mottaker}}.",
   "flythjelp.handling.lukk": "Lõpetab voo: dokument arhiveeritakse kõigi jaoks suletud kujul ja see ei liigu edasi. Taasavamiseks on vaja eraldi luba.",
-  "flythjelp.handling.gjenapne": "Toob tagasi võetud dokumendi algusesse: sellest saab koos loojaga mustand, mis on redigeerimiseks ja uuesti saatmiseks valmis.",
+  "flythjelp.handling.gjenapne": "Toob suletud dokumendi algusesse: sellest saab koos loojaga mustand, mis on redigeerimiseks ja uuesti saatmiseks valmis.",
   "flythjelp.handling.videresend": "Liigutab dokumendi külili: sellest voost välja, asukohta {{mottaker}} (administraatori tööriist ristvoo jaoks).",
   "flythjelp.handling.slettTrukket": "Kustutab tagasi võetud dokumendi jäädavalt. Voog on juba peatatud – see ei mõjuta teisi osapooli.",
   "flythjelp.handling.autoMottatt": "Toimub automaatselt dokumendi saatmise hetkel: see registreeritakse adressaadi jaoks kohe kui Saabunud. Seetõttu pole rolli valida.",

@@ -2176,7 +2176,7 @@
   "flythjelp.handling.sendTilbakeUtforer": "Siirtää asiakirjan askeleen taaksepäin: sinulta {{mottaker}}:lle korjausta varten. Heillä se näkyy tilassa Käynnissä.",
   "flythjelp.handling.sendPaaNytt": "Siirtää asiakirjan uudelleen eteenpäin: sinulta {{mottaker}} korjauksen jälkeen.",
   "flythjelp.handling.lukk": "Lopettaa kulun: asiakirja arkistoidaan Suljetuksi kaikille eikä siirry eteenpäin. Uudelleen avaaminen vaatii erillisen luvan.",
-  "flythjelp.handling.gjenapne": "Hakee pois vedetyn asiakirjan takaisin alkuun: siitä tulee luonnos luojansa kanssa, joka on valmis muokattavaksi ja uudelleenlähetettäväksi.",
+  "flythjelp.handling.gjenapne": "Hakee suljetun asiakirjan takaisin alkuun: siitä tulee luonnos luojansa kanssa, joka on valmis muokattavaksi ja uudelleenlähetettäväksi.",
   "flythjelp.handling.videresend": "Siirtää asiakirjan sivusuunnassa: pois tästä virrasta, kohtaan {{mottaker}} (hallintatyökalu ristiin).",
   "flythjelp.handling.slettTrukket": "Poistaa poistetun asiakirjan pysyvästi. Virtaus on jo pysäytetty – se ei vaikuta muihin osapuoliin.",
   "flythjelp.handling.autoMottatt": "Tapahtuu automaattisesti, kun asiakirja lähetetään: se rekisteröidään välittömästi vastaanottajalle vastaanotetuksi. Siksi roolia ei ole valittavissa.",

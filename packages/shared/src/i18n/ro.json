@@ -2176,7 +2176,7 @@
   "flythjelp.handling.sendTilbakeUtforer": "Mută documentul cu un pas înapoi: de la dvs. la {{mottaker}}, pentru corectare. La ei apare ca În curs.",
   "flythjelp.handling.sendPaaNytt": "Mută ​​din nou documentul înainte: de la dvs. la {{mottaker}}, după corectare.",
   "flythjelp.handling.lukk": "Încheie fluxul: documentul este arhivat ca Închis pentru toată lumea și nu trece mai departe. Redeschiderea necesită o permisiune separată.",
-  "flythjelp.handling.gjenapne": "Preia un document retras la început: devine o ciornă împreună cu creatorul său, gata pentru editare și retrimitere.",
+  "flythjelp.handling.gjenapne": "Preia un document închis la început: devine o schiță împreună cu creatorul său, gata pentru editare și retrimitere.",
   "flythjelp.handling.videresend": "Mută ​​documentul în lateral: din acest flux, la {{mottaker}} (instrument de administrare pentru flux încrucișat).",
   "flythjelp.handling.slettTrukket": "Șterge definitiv documentul retras. Fluxul este deja oprit - nicio altă parte nu este afectată.",
   "flythjelp.handling.autoMottatt": "Se întâmplă automat în momentul în care documentul este trimis: este imediat înregistrat ca Primit pentru destinatar. De aceea nu există nici un rol de ales.",

@@ -52,6 +52,15 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400", erPrimaer: true },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
+    // F4 (Gjenåpne-samling): closed/dismissed/cancelled er avsluttede statuser. Gjenåpne
+    // (→draft) henter dokumentet tilbake til kladd hos oppretteren — samme handling overalt.
+    closed: [
+      { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
+    ],
+    // F4: Avvist gjenåpnes med valgfri begrunnelse (nudge, ikke påkrevd — motsatt av selve Avvis).
+    dismissed: [
+      { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
+    ],
     cancelled: [
       { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
       { tekstNoekkel: "handling.slett", nyStatus: "deleted", farge: "bg-red-600", aktivFarge: "bg-red-400" },
@@ -71,11 +80,15 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * | in_progress  | —                    | Lukk        | Besvar, Send på nytt, Videresend  | Lukk                              |
  * | responded    | —                    | —           | —                                 | Godkjenn, Send tilbake, Videresend|
  * | approved     | Lukk, Videresend     | Lukk        | —                                 | —                                 |
- * | cancelled    | Gjenåpne, Slett      | Gjenåpne    | —                                 | —                                 |
+ * | closed       | Gjenåpne             | —           | —                                 | —                                 |
+ * | dismissed    | Gjenåpne             | —           | —                                 | —                                 |
+ * | cancelled    | Gjenåpne             | —           | —                                 | —                                 |
  *
  * F3 (Under arbeid): `rejected` er merget inn i `in_progress`. Send tilbake
  * (responded→in_progress) eies av godkjenner; Send på nytt (in_progress→sent)
  * av utfører; Lukk (in_progress→closed) av bestiller + godkjenner.
+ * F4 (Gjenåpne-samling): closed/dismissed/cancelled → draft eies av registrator
+ * (oppretter) + prosjektadmin (spec § 4). Bestiller mister gjenåpne (var legacy cancelled).
  */
 export function hentRolleFiltrertHandlinger(
   status: string,
@@ -230,6 +243,11 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
     draft: new Set(["sent", "deleted"]),
     // F2 (spec § 3): avsender-siden trekker en sendt hendelse tilbake til kladd før svar.
     received: new Set(["draft"]),
+    // F4 (spec § 3–4): Gjenåpne fra alle avsluttede statuser → kladd hos oppretteren.
+    // Rett: registrator (oppretter) + prosjektadmin; godkjenner-ledd kan mangle.
+    closed: new Set(["draft"]),
+    dismissed: new Set(["draft"]),
+    cancelled: new Set(["draft"]),
     // F0 soft-delete: oppretteren kan gjenopprette egne slettede dokumenter (spec § 3–4).
     slettet: new Set(["gjenopprett"]),
   },
@@ -240,7 +258,8 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
     // F3 (matrise § 3): Lukk fra Under arbeid (in_progress→closed) eies av bestiller + godkjenner.
     in_progress: new Set(["closed"]),
     approved: new Set(["closed"]),
-    cancelled: new Set(["draft"]),
+    // F4: Gjenåpne eies IKKE av bestiller (spec § 3 — kun Reg + P-adm). Legacy cancelled→draft
+    // flyttet til registrator; bestiller mister gjenåpne.
   },
   utforer: {
     // F1 (matrise § 3): utfører eier Avvis (received→dismissed) sammen med prosjektadmin.

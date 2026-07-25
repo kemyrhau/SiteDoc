@@ -2176,7 +2176,7 @@
   "flythjelp.handling.sendTilbakeUtforer": "Przesuwa dokument o krok wstecz: od Ciebie do {{mottaker}}, w celu poprawienia. U nich wyświetla się to jako W toku.",
   "flythjelp.handling.sendPaaNytt": "Przenosi dokument ponownie do przodu: od Ciebie do {{mottaker}}, po poprawieniu.",
   "flythjelp.handling.lukk": "Kończy przepływ: dokument zostaje zarchiwizowany jako Zamknięty dla wszystkich i nie jest kontynuowany. Ponowne otwarcie wymaga osobnego pozwolenia.",
-  "flythjelp.handling.gjenapne": "Przywraca wycofany dokument z powrotem na początek: staje się wersją roboczą u swojego twórcy, gotową do edycji i ponownego wysłania.",
+  "flythjelp.handling.gjenapne": "Przywraca zamknięty dokument z powrotem na początek: staje się wersją roboczą u swojego twórcy, gotową do edycji i ponownego wysłania.",
   "flythjelp.handling.videresend": "Przesuwa dokument na bok: poza ten przepływ, do {{mottaker}} (narzędzie administracyjne do przepływu krzyżowego).",
   "flythjelp.handling.slettTrukket": "Trwale usuwa wycofany dokument. Przepływ został już zatrzymany — nie ma to wpływu na inne strony.",
   "flythjelp.handling.autoMottatt": "Dzieje się to automatycznie w momencie wysłania dokumentu: zostaje on natychmiast zarejestrowany przez odbiorcę jako Odebrany. Dlatego nie ma roli do wyboru.",
