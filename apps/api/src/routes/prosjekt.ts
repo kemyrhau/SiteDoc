@@ -10,6 +10,7 @@ import {
   hentBrukersOrg,
 } from "../trpc/tilgangskontroll";
 import { hentAktiveFirmamoduler } from "../services/firmamodul";
+import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
 
 export const prosjektRouter = router({
   // Hent prosjekter der innlogget bruker er medlem — uavhengig av rolle.
@@ -331,6 +332,10 @@ export const prosjektRouter = router({
           }
         }
 
+        // B Kloss 2b: auto-legg firma-admins som prosjektadmin hvis firmaet
+        // har slått på innstillingen. Dedup mot oppretteren (laget over).
+        await autoLeggFirmaAdmins(tx, prosjekt.id, valgtOrgId);
+
         return prosjekt;
       });
     }),
@@ -537,6 +542,10 @@ export const prosjektRouter = router({
             }
           }
         }
+
+        // B Kloss 2b: auto-legg firma-admins som prosjektadmin hvis firmaet
+        // har slått på innstillingen. Dedup mot oppretteren (laget over).
+        await autoLeggFirmaAdmins(tx, prosjekt.id, valgtOrgId);
 
         return prosjekt;
       });

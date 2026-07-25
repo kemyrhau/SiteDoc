@@ -1,6 +1,6 @@
 ---
 name: timer-310-hooks-bug
-status: 🟡 EGEN SAK (skilt ut fra K3 2026-07-23) — latent, trigges av test-data, IKKE K3-regresjon, IKKE på prod
+status: ✅ LØST + DEPLOYET TIL PROD (2026-07-23) — timer-hjem-rute (fjernet redirect-stub) fjernet kryss-kontekst-#310 ved kilden. Arkivert i [historikk-2026-07.md](../historikk-2026-07.md)
 eier: cowork (måling) · Kenneth (prioritet)
 sist_verifisert_mot_kode: 2026-07-23
 ---

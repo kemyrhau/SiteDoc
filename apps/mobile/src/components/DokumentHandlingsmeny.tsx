@@ -25,7 +25,7 @@ import {
 } from "react-native";
 import { Star, MoreHorizontal, ChevronDown } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { hentRolleFiltrertHandlinger, type StatusHandling, type DokumentflytRolle } from "@sitedoc/shared";
+import { hentRolleFiltrertHandlinger, type StatusHandling, type DokumentflytRolle, type AdminNiva } from "@sitedoc/shared";
 import { byggLedd, type FlytMedlem, type Ledd } from "../utils/dokumentflyt-ledd";
 
 interface TilgjengeligeFlyter {
@@ -59,7 +59,12 @@ interface Props {
   onSlett?: () => void;
   tilgjengeligeFlyter: TilgjengeligeFlyter | null;
   minRolle: DokumentflytRolle | null;
-  erFirmaAdmin?: boolean;
+  /**
+   * Admin-nivå i flyt-laget (Kloss 2): "sitedoc"/"prosjekt"/null. Fra hentMinFlytInfo.adminNiva.
+   * Erstatter det gamle `erFirmaAdmin`-flagget — firma-admin (null) mister fantom-admin-menyen
+   * serveren uansett avviste; prosjektadmin (server ga full) beholder paritet.
+   */
+  adminNiva?: AdminNiva;
 }
 
 const BOKS_WIDTH = 36;
@@ -73,7 +78,7 @@ export function DokumentHandlingsmeny({
   onSlett,
   tilgjengeligeFlyter,
   minRolle,
-  erFirmaAdmin,
+  adminNiva,
 }: Props) {
   const { t } = useTranslation();
   const [valgtBoksIdx, setValgtBoksIdx] = useState<number | null>(null);
@@ -101,13 +106,14 @@ export function DokumentHandlingsmeny({
     return ledd.findIndex((l) => l.steg === steg);
   }, [ledd, tilgjengeligeFlyter]);
 
-  // Kun ekte admin — ikke registrator (Fase B: registrator er ikke lenger superbruker).
-  const erAdmin = erFirmaAdmin === true;
+  // ⋯-admin-menyens synlighet: kun sitedoc/prosjekt-admin (adminNiva != null). Firma-admin
+  // (null) mister fantom-menyen (Kloss 2); vanlige roller uendret.
+  const erAdmin = adminNiva != null;
 
   // Tilgjengelige statushandlinger for brukerens rolle + nåværende status
   const statusHandlinger = useMemo(
-    () => hentRolleFiltrertHandlinger(status, minRolle, erFirmaAdmin === true),
-    [status, minRolle, erFirmaAdmin],
+    () => hentRolleFiltrertHandlinger(status, minRolle, adminNiva ?? null),
+    [status, minRolle, adminNiva],
   );
 
   // Filtrer statushandlinger til de som er meningsfulle for "tap på boks":

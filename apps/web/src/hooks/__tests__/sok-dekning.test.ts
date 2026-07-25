@@ -70,6 +70,7 @@ const UNNTAK: { test: (r: string) => boolean; grunn: string }[] = [
   { test: (r) => r === "/dashbord/oppsett/produksjon", grunn: "parent-node (O3)" },
   { test: (r) => r === "/dashbord/oppsett/produksjon/kontakter", grunn: "redirect → dokumentflyt (K6/O5)" },
   { test: (r) => r === "/dashbord/[prosjektId]/timer/godkjenning", grunn: "redirect → attestering (P27)" },
+  { test: (r) => r === "/dashbord/firma/timer/onboarding", grunn: "redirect → firma/timer (innhold flyttet til timer-hjem)" },
   { test: (r) => r === "/dashbord/[prosjektId]/dokumentleser", grunn: "reader uten nav-hjem — ekskludert v1 (K13-d)" },
   { test: (r) => r === "/dashbord/[prosjektId]/dokumenter/[dokumentId]/les", grunn: "per-dok reader (detalj)" },
   { test: (r) => r === "/dashbord/[prosjektId]/modeller" || r === "/dashbord/[prosjektId]/punktskyer", grunn: "K4 3D-konsolidering (utsatt)" },

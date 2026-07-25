@@ -20,9 +20,12 @@ const configSchema = z.preprocess(
 // ekskluderer fordi domain="hms" filtreres bort der).
 function valideerSubdomainCategory(
   subdomain: "avvik" | "sja" | "ruh" | null | undefined,
-  category: "oppgave" | "sjekkliste" | undefined,
+  category: "oppgave" | "sjekkliste" | "hms" | undefined,
 ): void {
   if (!subdomain || !category) return;
+  // HMS er egen topp-nivå-type; subdomain (avvik/sja/ruh) bestemmer datatabellen
+  // (task vs checklist), ikke category. Ingen shape-sjekk mot category nødvendig.
+  if (category === "hms") return;
   const forventet: Record<"avvik" | "sja" | "ruh", "oppgave" | "sjekkliste"> = {
     avvik: "oppgave",
     ruh: "oppgave",
@@ -98,7 +101,7 @@ export const malRouter = router({
         name: z.string().min(1).max(255).optional(),
         description: z.string().optional(),
         prefix: z.string().max(20).optional(),
-        category: z.enum(["oppgave", "sjekkliste"]).optional(),
+        category: z.enum(["oppgave", "sjekkliste", "hms"]).optional(),
         domain: z.enum(["bygg", "hms", "kvalitet"]).optional(),
         subdomain: z.enum(["avvik", "sja", "ruh"]).nullable().optional(),
         hmsSynlighet: z.enum(["privat", "apen"]).nullable().optional(),
@@ -128,7 +131,7 @@ export const malRouter = router({
       const effektivCategory =
         input.category !== undefined
           ? input.category
-          : (mal.category as "oppgave" | "sjekkliste");
+          : (mal.category as "oppgave" | "sjekkliste" | "hms");
       valideerSubdomainCategory(effektivSubdomain, effektivCategory);
 
       // Konverterings-validering: type (category) eller domain kan ikke

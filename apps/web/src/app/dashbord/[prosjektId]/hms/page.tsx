@@ -15,7 +15,7 @@ import type { DokumentRad } from "@/components/hms/types";
 
 type Tab = "avvik" | "sja" | "ruh" | "statistikk";
 
-interface MalRef { id: string; name: string; prefix: string | null; subdomain: string | null; }
+interface MalRef { id: string; name: string; prefix: string | null; subdomain: string | null; category?: string; }
 
 type Subdomain = "avvik" | "sja" | "ruh";
 
@@ -62,7 +62,7 @@ function NyDropdown({
         className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
       >
         <Plus className="h-4 w-4" />
-        {t("hms.handling.ny")}
+        {t("hms.handling.meld")}
         <ChevronDown className="h-3 w-3" />
       </button>
       {open && (
@@ -143,8 +143,24 @@ export default function HmsSide() {
     | { avvik: DokumentRad[]; sja: DokumentRad[]; ruh: DokumentRad[] }
     | undefined;
 
+  // Navne-lookup for person-/firma-felt (f.eks. RUH «Innmelder») — speiler
+  // mønsteret i oppgave-/sjekkliste-lista: bruker-ID → navn.
+  const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const navneLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const m of (medlemmer as { user?: { id: string; name: string | null; email: string } }[] | undefined) ?? []) {
+      if (m.user?.id) map.set(m.user.id, m.user.name ?? m.user.email);
+    }
+    return map;
+  }, [medlemmer]);
+
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
-  const hmsMaler = ((maler ?? []) as Array<MalRef & { domain?: string }>).filter((m) => m.subdomain != null);
+  // «Meld HMS»-velger nøkles på category="hms" (opprett-organisering). subdomain
+  // beholdes for å rute den nye til riktig tabell (avvik/ruh=oppgave, sja=sjekkliste).
+  const hmsMaler = ((maler ?? []) as Array<MalRef>).filter((m) => m.category === "hms");
 
   const opprettAlternativer = useMemo(() => {
     return hmsMaler
@@ -395,7 +411,8 @@ export default function HmsSide() {
       {aktivTab === "ruh" && (
         <RuhTabell
           rader={filtrer(ruh)}
-          onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
+          onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
+          navneLookup={navneLookup}
         />
       )}
       {aktivTab === "statistikk" && (

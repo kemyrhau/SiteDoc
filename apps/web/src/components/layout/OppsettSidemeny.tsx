@@ -69,6 +69,7 @@ const navigasjon: NavElement[] = [
       { labelKey: "oppsett.dokumentflyt", href: "/dashbord/oppsett/produksjon/dokumentflyt" },
       { labelKey: "oppsett.oppgavemaler", href: "/dashbord/oppsett/produksjon/oppgavemaler" },
       { labelKey: "oppsett.sjekklistemaler", href: "/dashbord/oppsett/produksjon/sjekklistemaler" },
+      { labelKey: "oppsett.hmsmaler", href: "/dashbord/oppsett/produksjon/hmsmaler" },
       { labelKey: "oppsett.moduler", href: "/dashbord/oppsett/produksjon/moduler" },
       { labelKey: "oppsett.mappeoppsett", href: "/dashbord/oppsett/produksjon/box" },
       { labelKey: "nav.psi", href: "/dashbord/oppsett/produksjon/psi", skjult: true },

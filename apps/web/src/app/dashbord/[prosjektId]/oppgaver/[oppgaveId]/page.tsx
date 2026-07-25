@@ -1,14 +1,16 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Send, Printer, Pencil } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
+import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
-import { utledMinRolle, beregnHarBallen } from "@sitedoc/shared";
+import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
+import { utledMinRolle, beregnHarBallen, perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
@@ -213,7 +215,9 @@ export default function OppgaveDetaljSide() {
       groupId: m.groupId ?? null,
     }));
     return utledMinRolle(
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.erAdmin },
+      // Kloss 2: rolle-utledning følger adminNiva (firma-admin = adminNiva:null → vanlig
+      // rolle/lesevisning). sitedoc/prosjekt → admin.
+      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.adminNiva !== null },
       medlemmer,
       { bestillerFaggruppeId: op.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: op.utforerFaggruppe?.id ?? "" },
     );
@@ -289,10 +293,26 @@ export default function OppgaveDetaljSide() {
   );
 
   const [statusFeil, setStatusFeil] = useState<string | null>(null);
+  // Kvitterings-øyeblikket (A-3b Del 1b): momentan bekreftelse etter egen handling,
+  // vist optimistisk i badgen og erstattet av sann perspektiv-tilstand når den ryddes.
+  // Klient-only — ALDRI lagret tilstand. Nøklet på HANDLING (tekstNoekkel, ikke
+  // nyStatus — nyStatus er ikke injektiv over handlinger, se kvitteringEtikett).
+  // handlingRef fanger tekstNoekkel ved klikk, siden mutate-input-typen (Zod-schema)
+  // ikke bærer den — å legge den til der ville gitt en TS excess-property-feil.
+  const [kvittering, setKvittering] = useState<ReturnType<typeof kvitteringEtikett>>(null);
+  const kvitteringTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const handlingRef = useRef<string | undefined>(undefined);
+  useEffect(() => () => clearTimeout(kvitteringTimer.current), []);
 
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
       setStatusFeil(null);
+      const k = handlingRef.current ? kvitteringEtikett(handlingRef.current) : null;
+      if (k) {
+        setKvittering(k);
+        clearTimeout(kvitteringTimer.current);
+        kvitteringTimer.current = setTimeout(() => setKvittering(null), 2200);
+      }
       utils.oppgave.hentForProsjekt.invalidate();
       utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
     },
@@ -300,6 +320,55 @@ export default function OppgaveDetaljSide() {
       setStatusFeil(error.message ?? "Kunne ikke endre status. Prøv igjen.");
     },
   });
+
+  // HMS-oppgaver (domain="hms") får en egen handlingsflate i stedet for den
+  // generelle statusmaskinen (Ordre D). Domenet leses fra malen på full-queryen.
+  const erHms =
+    (fullOppgaveRå as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
+
+  const { data: erHmsAdmin = false } = trpc.hms.erHmsAdmin.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: erHms && !!params.prosjektId },
+  );
+
+  // Delt suksess/feil-håndtering for de fire HMS-mutasjonene.
+  const hmsMutasjonOpts = {
+    onSuccess: () => {
+      setStatusFeil(null);
+      utils.oppgave.hentForProsjekt.invalidate();
+      utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
+    },
+    onError: (error: { message?: string }) => {
+      setStatusFeil(error.message ?? "Kunne ikke utføre HMS-handlingen. Prøv igjen.");
+    },
+  };
+
+  const hmsBesvarMutasjon = trpc.oppgave.hmsBesvar.useMutation(hmsMutasjonOpts);
+  const hmsLukkMutasjon = trpc.oppgave.hmsLukk.useMutation(hmsMutasjonOpts);
+  const hmsGjenapneMutasjon = trpc.oppgave.hmsGjenapne.useMutation(hmsMutasjonOpts);
+  const hmsTilfoyMutasjon = trpc.oppgave.hmsTilfoyInformasjon.useMutation(hmsMutasjonOpts);
+
+  const hmsLaster =
+    hmsBesvarMutasjon.isPending ||
+    hmsLukkMutasjon.isPending ||
+    hmsGjenapneMutasjon.isPending ||
+    hmsTilfoyMutasjon.isPending;
+
+  const utforHmsHandling = useCallback(
+    (type: HmsHandlingType, tekst: string | undefined) => {
+      const id = params.oppgaveId;
+      if (type === "tilfoyInformasjon") {
+        hmsTilfoyMutasjon.mutate({ id, kommentar: tekst ?? "" });
+      } else if (type === "besvar") {
+        hmsBesvarMutasjon.mutate({ id, begrunnelse: tekst ?? "" });
+      } else if (type === "lukk") {
+        hmsLukkMutasjon.mutate({ id, kommentar: tekst });
+      } else if (type === "gjenapne") {
+        hmsGjenapneMutasjon.mutate({ id, kommentar: tekst });
+      }
+    },
+    [params.oppgaveId, hmsTilfoyMutasjon, hmsBesvarMutasjon, hmsLukkMutasjon, hmsGjenapneMutasjon],
+  );
 
   // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
   // Bruker dokumentflyterRå (ucastet) for å beholde steg + faggruppe-objekter
@@ -442,14 +511,22 @@ export default function OppgaveDetaljSide() {
             <StatusBadge
               status={oppgave.status}
               lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
+              perspektiv={kvittering ?? perspektivEtikett(oppgave.status, { rolle: minRolle ?? null, harBallen, erAdmin: minFlytInfo?.erAdmin ?? false }, "oppgave")}
             />
+            {/* Ball-holder-chip (Del 1c): person foran faggruppe, synlig når ballen er i spill. */}
             {(() => {
-              const recipientGroup = (fullOppgaveRå as { recipientGroup?: { id: string; name: string } | null })?.recipientGroup;
-              if (!["sent", "received", "in_progress"].includes(oppgave.status)) return null;
-              if (!recipientGroup?.name) return null;
+              if (!["sent", "received", "in_progress", "responded", "rejected"].includes(oppgave.status)) return null;
+              const o = fullOppgaveRå as {
+                recipientGroup?: { id: string; name: string } | null;
+                recipientUserId?: string | null;
+                recipientGroupId?: string | null;
+              } | undefined;
+              const navn =
+                finnMottakerNavn(flytMedlemmer, o?.recipientUserId, o?.recipientGroupId) ?? o?.recipientGroup?.name;
+              if (!navn) return null;
               return (
                 <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                  {t("tabell.venterPaa")}: {recipientGroup.name}
+                  {t("tabell.venterPaa")}: {navn}
                 </span>
               );
             })()}
@@ -483,8 +560,8 @@ export default function OppgaveDetaljSide() {
           </div>
         )}
 
-        {/* Feilmelding fra endreStatus-mutasjon */}
-        {statusFeil && (
+        {/* Feilmelding fra endreStatus-mutasjon (HMS viser sin egen i handlingsflaten) */}
+        {statusFeil && !erHms && (
           <div className="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {statusFeil}
           </div>
@@ -492,10 +569,24 @@ export default function OppgaveDetaljSide() {
 
         {/* Rad 3: Handlingsknapper (full bredde på mobil) */}
         <div className="mt-2 flex items-center gap-2">
+          {erHms ? (
+            <HmsHandlingsflate
+              status={oppgave.status}
+              erOppretter={
+                !!(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId &&
+                (fullOppgaveRå as { bestillerUserId?: string }).bestillerUserId === minFlytInfo?.userId
+              }
+              erHmsAdmin={erHmsAdmin}
+              erLaster={hmsLaster}
+              feilmelding={statusFeil}
+              onUtfor={utforHmsHandling}
+            />
+          ) : (
           <DokumentHandlingsmeny
             status={oppgave.status}
             erLaster={endreStatusMutasjon.isPending}
-            onEndreStatus={(nyStatus, kommentar, mottaker) => {
+            onEndreStatus={(nyStatus, handlingNoekkel, kommentar, mottaker) => {
+              handlingRef.current = handlingNoekkel;
               endreStatusMutasjon.mutate({
                 id: params.oppgaveId,
                 nyStatus: nyStatus as "draft" | "sent" | "received" | "in_progress" | "responded" | "approved" | "rejected" | "closed" | "cancelled",
@@ -511,13 +602,14 @@ export default function OppgaveDetaljSide() {
             templateId={(oppgave as unknown as { templateId?: string }).templateId ?? oppgave.template?.id}
             standardFaggruppeId={oppgave.utforerFaggruppe?.id}
             minRolle={minRolle}
-            erAdmin={minFlytInfo?.erAdmin === true}
+            adminNiva={minFlytInfo?.adminNiva ?? null}
             flytMedlemmer={flytMedlemmer}
             recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
             recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
             bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
             lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
           />
+          )}
           <button
             onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank")}
             className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"

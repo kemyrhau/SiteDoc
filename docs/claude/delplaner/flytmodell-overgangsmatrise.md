@@ -69,6 +69,27 @@ Første utkast sa «11 eierløse overganger». **Feil — bestiller eier flere e
 **Eid av bestiller (IKKE admin-only — første utkast tok feil):**
 - `approved → closed` (lukk) · `cancelled → draft` (gjenåpne) · `sent → cancelled` (trekk tilbake) — alle på bestiller.
 
+## FUNDAMENT-GAP (nå-rapport 2026-07-23 — hva som gjenstår å bygge)
+
+Registrator-fiksen er landet (verifisert: `ROLLE_HANDLINGER.registrator = {draft: [sent,deleted]}`). Gapet mellom kode og flytmodell-vedtaket, i to lag:
+
+> ✅ **A-LAGET LANDET (merge `7571e968`, develop, 2026-07-23):** `rejected→sent` + `closed→draft` (inert) i validTransitions · registrator+bestiller `rejected:[sent]` · `hentStatusHandlinger` «Send på nytt» + i18n × 15. **Registrator-regresjonen lukket.** Gjenstår i A→B: mid-flow-avbryt, `forwarded→admin`, closed→draft-handlingen+Farlig sone — alle rutet til B (config-matrisen).
+
+**A. Statusmaskin + `ROLLE_HANDLINGER` (kode — forutsetning, per vedtak-linje 35):**
+1. `validTransitions.rejected` += `"sent"` — **rejected→sent** «Send på nytt» (vedtak 2). Default-eiere: registrator · bestiller · admin.
+2. `validTransitions.closed` += `"draft"` — **closed→draft** gjenåpne. 🔴 **DOK-DRIFT RETTET (fabel 2026-07-23):** closed→draft er **ALDRI vedtatt i noen paragraf** — kun nevnt i restvedtakets kø-linje, og cowork førte den feilaktig som «vedtatt» her. Spørsmålet er reelt åpent. Fabels innstilling: **JA til closed→draft, men kun-admin default + «Farlig sone»** (kommentar + bekreftelse, Lukk·trukket-mønsteret) — uten den blir `closed` irreversibel og admins egen `rejected→closed` en felle; men gjenåpning reverserer en godkjenningskjede → strengere enn `cancelled→draft` (bestiller+admin). **Krever Kenneth-vedtak** ([rettighetsmatrise-config-design.md § 3](rettighetsmatrise-config-design.md)).
+3. `ROLLE_HANDLINGER`: `registrator` + `bestiller` får `rejected: [sent]`. `bestiller` får mid-flow-avbryt (`draft`/`received`/`in_progress` → `cancelled`, restvedtak). `forwarded` flyttes AV `utforer`/`godkjenner` → admin (vedtak 3).
+4. `received → in_progress` beholdes i statusmaskinen (gjenopplives som **automatikk** via lesekvittering, restvedtak 2 — ingen manuell rolle).
+
+**B. Admin-UI-matrise (fabel designer — «hvert stegs rettigheter» i UI, Kenneths spørsmål):**
+
+> ✅ **B KLOSS 1 LANDET (config-plumbing, merge `33c32f1f`, develop, 2026-07-23).** Delta-substratet bygget: `FlytRettighetOverride`/`FlytRettighetLogg` + `ROLLE_HANDLINGER_DEFAULTS` + `celleTillatt` (override-only-snitt) + loader trådd inn i `verifiserFlytRolle`. **Bit-identisk** (tom override = default). Detaljer + Kloss 2/3-plan: [rettighetsmatrise-config-design.md § B-klosser](rettighetsmatrise-config-design.md). Gjenstår: Kloss 2 (adminNiva + kolonner + matrise-UI — **her endres admin-atferden**) → Kloss 3 (logg-/les-rediger-faner).
+
+- **Config-modell:** rettighetene blir **per-firma config** (vedtak 4), seedet fra defaults over, lest i runtime — men **bundet av statusmaskinen** (matrisen kan aldri skape overganger, vedtak 1). Ny arkitektur: `ROLLE_HANDLINGER` fra hardkodet → config-tabell m/ defaults + firma-override.
+- **UI:** handlingsmatrise per rolle × status, rad «(nytt)·Opprett», kolonner PROSJ.ADMIN (tom default) + ADMINISTRATOR (vedtak 1). **Les/rediger-fane** som VISER eksisterende egenskaper (vedtak 5). Endringslogg (vedtak 4). HMS = eget synlighets-UI, ikke her (vedtak 6).
+
+**Sekvens:** A (kode, liten) → B design (fabel: config-modell + UI) → B build → **så A-3b perspektiv-visning** oppå det komplette fundamentet.
+
 **Konklusjon:** ikke 11 hull, men **4 kun-admin-celler + 1 død overgang.** Det er kartet admin-UI-matrisen trenger. Fakta-først: dagens tilstand, ikke anbefaling.
 
 ## Prosjektadministrator (opp/ned)

@@ -68,6 +68,8 @@ model User {
   // 2026-05-28 — impersonering audit (Variant B: isolert tabell).
   impersonertSomAdmin     ImpersonationAudit[]    @relation("ImpersonationAdmin")
   impersonertSomTarget    ImpersonationAudit[]    @relation("ImpersonationTarget")
+  flytRettighetOverrides  FlytRettighetOverride[] @relation("FlytRettighetOverrideEndretAv")
+  flytRettighetLogg       FlytRettighetLogg[]     @relation("FlytRettighetLoggEndretAv")
 
   @@map("users")
 }
@@ -296,6 +298,15 @@ model OrganizationSetting {
   // Konkret reise-lønnsart (svak FK → timer.Lonnsart, A.20-mønster, ingen @relation
   // — ligger i db-timer). NULL → fallback til navne-match ("reise/transport").
   reiseLonnsartId       String?                         @map("reise_lonnsart_id")
+
+  // Auto-prosjektadmin (B Kloss 2b, 2026-07-24) — løser hierarki-invarianten
+  // (firma-admin ≥ prosjektadmin i eget firma) via MEDLEMSKAP, ikke flyt-nivå.
+  // Når "alle_firma_admins": ved oppretting av NYE prosjekter legges firmaets
+  // firma-admin(er) automatisk som ProjectMember.role=admin (dedup mot oppretter).
+  // Kun nye prosjekter — ingen backfill. Firma-admin utnevnt etter oppretting
+  // dekkes ikke (omvei: manuell tildeling via medlem.leggTil).
+  // Verdier: 'av' | 'alle_firma_admins'  (fremtidig: 'utvalg' + relasjonstabell)
+  autoProsjektAdmin String @default("av") @map("auto_prosjekt_admin")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -813,8 +824,8 @@ model ReportTemplate {
   name            String
   description     String?
   prefix          String?
-  category        String   @default("sjekkliste") // "oppgave" | "sjekkliste"
-  domain          String   @default("bygg") // "bygg" | "hms" | "kvalitet"
+  category        String   @default("sjekkliste") // "oppgave" | "sjekkliste" | "hms" — malbygger-organisering (hvilken side malen bor på)
+  domain          String   @default("bygg") // "bygg" | "hms" | "kvalitet" — runtime-identifisering (KPI/guarder/flyt). Invariant: category="hms" ⇒ domain="hms"
   subdomain       String?  @map("subdomain") // "avvik" | "sja" | "ruh" — kun ved domain="hms"
   hmsSynlighet    String?  @map("hms_synlighet") // "privat" | "apen" — kun ved domain="hms"
   subjects        Json?    @default("[]") // Forhåndsdefinerte emnetekster ["3. etasje", "Kjeller", ...]
@@ -1248,6 +1259,49 @@ model DokumentflytMal {
 
   @@unique([dokumentflytId, templateId])
   @@map("dokumentflyt_maler")
+}
+
+// ---------------------------------------------------------------------------
+// Flyt-rettighetsmatrise (config-design § 1, delta-modellen).
+// Per firma lagres KUN avviket fra ROLLE_HANDLINGER_DEFAULTS (@sitedoc/shared);
+// effektiv rettighet = default ⊕ override. Tom tabell = ren default = bit-identisk.
+//
+// fraStatus/tilStatus er String (DocumentStatus er ikke DB-enum). Sentinel for
+// Opprett-raden (opprett er ingen statusovergang): fraStatus="nytt", tilStatus="opprett".
+// «rolle» er DokumentflytRolle | "prosjektadmin" (admin-aksen wires i Kloss 2).
+// Invarianten (en override kan aldri skape en overgang statusmaskinen ikke har)
+// håndheves i den delte funksjonen celleTillatt, ikke i DB.
+// ---------------------------------------------------------------------------
+model FlytRettighetOverride {
+  id             String   @id @default(uuid())
+  rolle          String
+  fraStatus      String   @map("fra_status")
+  tilStatus      String   @map("til_status")
+  tillatt        Boolean
+  endretAvUserId String   @map("endret_av_user_id")
+  endretAt       DateTime @default(now()) @map("endret_at")
+
+  endretAv User @relation("FlytRettighetOverrideEndretAv", fields: [endretAvUserId], references: [id], onDelete: Cascade)
+
+  @@unique([rolle, fraStatus, tilStatus])
+  @@map("flyt_rettighet_overrides")
+}
+
+// Append-only endringslogg (config-design vedtak 4). Opprettes nå; SKRIVES i Kloss 2.
+model FlytRettighetLogg {
+  id             String   @id @default(uuid())
+  rolle          String
+  fraStatus      String   @map("fra_status")
+  tilStatus      String   @map("til_status")
+  fraVerdi       String   @map("fra_verdi") // "default" | "på" | "av"
+  tilVerdi       String   @map("til_verdi")
+  endretAvUserId String   @map("endret_av_user_id")
+  endretAt       DateTime @default(now()) @map("endret_at")
+  kilde          String // "admin-ui" | "migrering"
+
+  endretAv User @relation("FlytRettighetLoggEndretAv", fields: [endretAvUserId], references: [id], onDelete: Cascade)
+
+  @@map("flyt_rettighet_logg")
 }
 
 // ---------------------------------------------------------------------------

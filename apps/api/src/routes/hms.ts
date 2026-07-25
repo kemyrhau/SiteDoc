@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { byggTilgangsFilter, harFirmaHmsTilgang, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { documentStatusSchema, isValidStatusTransition } from "@sitedoc/shared";
 import { prisma } from "@sitedoc/db";
 
@@ -9,9 +9,12 @@ import { prisma } from "@sitedoc/db";
  * Bygger Prisma WHERE-fragment for HMS-synlighet (privat/åpen) på Task/Checklist.
  *
  * Regler:
- * - sitedoc_admin og prosjekt-admin: ser alt (returnerer null)
- * - Medlem av HMS-`ProjectGroup` (domains=["hms"]): ser alt HMS
+ * - sitedoc_admin og ikke-medlem: ser alt / defensiv null (returnerer null)
+ * - HMS-admin (prosjekt-admin ∪ HMS-gruppe ∪ firma-`hms_ansvarlig`): ser alt HMS
  * - Vanlig bruker: ser kun dokumenter der mal er "apen", ELLER de selv er innsender/mottaker
+ *
+ * HMS-admin-mengden er delt med `verifiserHmsHandling` via `erHmsAdmin` — én
+ * definisjon, aldri duplisert (dedikert HMS-løp, D2).
  *
  * Returneres som AND-fragment som komponeres med byggTilgangsFilter.
  */
@@ -28,40 +31,17 @@ async function byggHmsSynlighetsFilter(
 
   const medlem = await prisma.projectMember.findUnique({
     where: { userId_projectId: { userId, projectId } },
-    select: {
-      role: true,
-      groupMemberships: {
-        select: { group: { select: { domains: true } } },
-      },
-    },
+    select: { id: true },
   });
   if (!medlem) {
     // byggTilgangsFilter kaster allerede FORBIDDEN — defensiv null her hindrer
     // duplikatkast; kalleren har allerede verifisert via tilgangsFilter.
     return null;
   }
-  if (medlem.role === "admin") return null;
 
-  // HMS-gruppe-medlem ser alt
-  const erHmsAnsvarlig = medlem.groupMemberships.some((gm) => {
-    const domains = gm.group.domains;
-    if (!Array.isArray(domains)) return false;
-    return (domains as unknown[]).includes("hms");
-  });
-  if (erHmsAnsvarlig) return null;
-
-  // Firma-HMS-tilgang (Trinn 1, 2026-05-29) — bruker med "hms_ansvarlig"
-  // i firmaRoller ser alt inkl. private HMS-dokumenter på alle prosjekter
-  // i samme firma. Standalone-prosjekter (primaryOrganizationId = null) er
-  // upåvirket — kun firma-bundne prosjekter dekkes.
-  const project = await prisma.project.findUnique({
-    where: { id: projectId },
-    select: { primaryOrganizationId: true },
-  });
-  if (project?.primaryOrganizationId) {
-    const erFirmaHms = await harFirmaHmsTilgang(userId, project.primaryOrganizationId);
-    if (erFirmaHms) return null;
-  }
+  // HMS-admin ser alt HMS (prosjekt-admin ∪ HMS-gruppe ∪ firma-hms_ansvarlig) —
+  // delt kilde med verifiserHmsHandling.
+  if (await erHmsAdmin(userId, projectId)) return null;
 
   // Vanlig bruker: "apen" ELLER innsender/mottaker
   return {
@@ -139,6 +119,25 @@ const CHECKLIST_SELECT = {
 } as const;
 
 export const hmsRouter = router({
+  /**
+   * Er innlogget bruker HMS-admin på prosjektet? Tynn eksponering av
+   * `erHmsAdmin` (tilgangskontroll.ts) slik at web-klienten kan vise/skjule
+   * HMS-admin-handlingene («Besvar»/«Lukk»/«Gjenåpne») i det dedikerte
+   * HMS-løpet (Ordre B) — logikken forblir server-eid, aldri duplisert på
+   * klienten. sitedoc_admin behandles som HMS-admin (matcher guard-bypass i
+   * verifiserHmsHandling).
+   */
+  erHmsAdmin: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const bruker = await ctx.prisma.user.findUnique({
+        where: { id: ctx.userId },
+        select: { role: true },
+      });
+      if (bruker?.role === "sitedoc_admin") return true;
+      return erHmsAdmin(ctx.userId, input.projectId);
+    }),
+
   /**
    * Hent alle HMS-dokumenter på et prosjekt, kategorisert på subdomain.
    * Filtrerer på privat-synlighet (innsender + HMS-ansvarlige + admin ser alt).

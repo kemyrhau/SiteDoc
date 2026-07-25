@@ -10,12 +10,100 @@ import {
   verifiserDokumentTilgang,
   verifiserFlytRolle,
   verifiserProsjektmedlem,
+  verifiserHmsHandling,
   hentBrukerTillatelser,
   hentBrukerProsjektTilgang,
   finnBrukersBoks,
   kanByttFlyt,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
+
+/**
+ * Send HMS-varsel for en oppgave via delt e-postmekanikk
+ * (`sendDokumentVarsling`/`hentMottakerEposter`). Speiler `sendHmsVarsel` i
+ * sjekkliste.ts, men med dokumentType "oppgave". Brann-og-glem — kaster aldri
+ * (varsling skal ikke blokkere handlingen).
+ */
+async function sendHmsVarsel(
+  prisma: Parameters<typeof hentMottakerEposter>[0],
+  opts: {
+    dokumentId: string;
+    tittel: string | null;
+    nummer: number | null;
+    prefix: string | null;
+    projectId: string;
+    prosjektNavn: string;
+    avsenderId: string;
+    recipientUserId?: string | null;
+    recipientGroupId?: string | null;
+    kommentar?: string;
+  },
+): Promise<void> {
+  const eposter = await hentMottakerEposter(prisma, {
+    recipientUserId: opts.recipientUserId ?? undefined,
+    recipientGroupId: opts.recipientGroupId ?? undefined,
+    ekskluderUserId: opts.avsenderId,
+  });
+  if (eposter.length === 0) return;
+  const avsender = await prisma.user.findUnique({
+    where: { id: opts.avsenderId },
+    select: { name: true },
+  });
+  const nummer =
+    opts.prefix && opts.nummer
+      ? `${opts.prefix}-${String(opts.nummer).padStart(3, "0")}`
+      : undefined;
+  void sendDokumentVarsling({
+    til: eposter,
+    dokumentType: "oppgave",
+    dokumentTittel: opts.tittel ?? "Uten tittel",
+    dokumentNummer: nummer,
+    prosjektNavn: opts.prosjektNavn,
+    prosjektId: opts.projectId,
+    dokumentId: opts.dokumentId,
+    avsenderNavn: avsender?.name ?? "Ukjent",
+    kommentar: opts.kommentar,
+    erVideresending: false,
+  });
+}
+
+/**
+ * Hent HMS-oppgaven med feltene HMS-mutasjonene trenger, og verifiser at
+ * dokumentet faktisk er HMS (`domain="hms"`) — ellers hører det hjemme i den
+ * generelle statusmaskinen (`endreStatus`), ikke i HMS-løpet. Speiler
+ * `hentHmsSjekkliste` i sjekkliste.ts.
+ */
+async function hentHmsOppgave(
+  prisma: Parameters<typeof hentMottakerEposter>[0],
+  id: string,
+) {
+  const oppgave = await prisma.task.findUniqueOrThrow({
+    where: { id },
+    select: {
+      id: true,
+      status: true,
+      title: true,
+      number: true,
+      bestillerUserId: true,
+      recipientGroupId: true,
+      template: {
+        select: {
+          domain: true,
+          projectId: true,
+          prefix: true,
+          project: { select: { name: true } },
+        },
+      },
+    },
+  });
+  if (oppgave.template?.domain !== "hms") {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Dette er ikke et HMS-dokument",
+    });
+  }
+  return oppgave;
+}
 
 /** Hent projectId fra faggruppe (standard) eller template (HMS uten faggruppe) */
 function hentProjectId(oppgave: {
@@ -323,7 +411,12 @@ export const oppgaveRouter = router({
       // Hent malen for å sjekke domain (HMS vs standard)
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({
         where: { id: input.templateId },
-        select: { prefix: true, domain: true, projectId: true },
+        select: {
+          prefix: true,
+          domain: true,
+          projectId: true,
+          project: { select: { name: true } },
+        },
       });
 
       const erHms = mal.domain === "hms";
@@ -378,7 +471,7 @@ export const oppgaveRouter = router({
         }
       }
 
-      return ctx.prisma.$transaction(async (tx) => {
+      const opprettet = await ctx.prisma.$transaction(async (tx) => {
         let nummer: number | undefined;
 
         if (mal.prefix) {
@@ -430,12 +523,31 @@ export const oppgaveRouter = router({
             dokumentflytId: input.dokumentflytId,
             checklistId: input.checklistId,
             checklistFieldId: input.checklistFieldId,
-            status: "draft",
+            // HMS har ingen kladd — opprett = send (D1). Standard starter i draft.
+            status: erHms ? "sent" : "draft",
             recipientUserId,
             recipientGroupId,
           },
         });
       });
+
+      // Meld (opprett = send): varsle HMS-gruppen. Saken er live idet den
+      // opprettes (D2). HMS har aldri dokumentflyt, så recipientGroupId er
+      // alltid HMS-gruppen her.
+      if (erHms && recipientGroupId) {
+        await sendHmsVarsel(ctx.prisma, {
+          dokumentId: opprettet.id,
+          tittel: opprettet.title,
+          nummer: opprettet.number,
+          prefix: mal.prefix,
+          projectId: mal.projectId,
+          prosjektNavn: mal.project?.name ?? "",
+          avsenderId: ctx.userId,
+          recipientGroupId,
+        });
+      }
+
+      return opprettet;
     }),
 
   // Oppdater oppgave
@@ -1186,6 +1298,230 @@ export const oppgaveRouter = router({
       }
 
       return resultat;
+    }),
+
+  // ---------- Dedikert HMS-løp (D1/D2, Ordre D) ----------
+  // HMS-oppgaver (domain="hms", subdomain RUH/avvik) er et selvstendig løp ved
+  // siden av dokumentflyten — egen tilstandsmaskin (sent → responded → closed,
+  // + gjenåpne) og egen autorisasjon (verifiserHmsHandling). Rører ALDRI
+  // verifiserFlytRolle/rolle-matrisen. Speiler checklist-versjonene i
+  // sjekkliste.ts, men på task-tabellen (documentTransfer.taskId).
+
+  /**
+   * Besvar HMS-oppgave med obligatorisk begrunnelse (HMS-admin).
+   * Tilstand: sent | responded → responded.
+   */
+  hmsBesvar: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        begrunnelse: z.string().trim().min(1, "Begrunnelse er påkrevd"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const oppgave = await hentHmsOppgave(ctx.prisma, input.id);
+      await verifiserHmsHandling(
+        ctx.userId,
+        {
+          bestillerUserId: oppgave.bestillerUserId,
+          status: oppgave.status,
+          projectId: oppgave.template!.projectId,
+        },
+        "besvar",
+      );
+
+      const resultat = await ctx.prisma.$transaction(async (tx) => {
+        const oppdatert = await tx.task.update({
+          where: { id: input.id },
+          data: { status: "responded" },
+        });
+        await tx.documentTransfer.create({
+          data: {
+            taskId: input.id,
+            senderId: ctx.userId,
+            fromStatus: oppgave.status,
+            toStatus: "responded",
+            comment: input.begrunnelse,
+          },
+        });
+        return oppdatert;
+      });
+
+      // Varsle oppretteren om svaret.
+      await sendHmsVarsel(ctx.prisma, {
+        dokumentId: oppgave.id,
+        tittel: oppgave.title,
+        nummer: oppgave.number,
+        prefix: oppgave.template!.prefix,
+        projectId: oppgave.template!.projectId,
+        prosjektNavn: oppgave.template!.project?.name ?? "",
+        avsenderId: ctx.userId,
+        recipientUserId: oppgave.bestillerUserId,
+        kommentar: input.begrunnelse,
+      });
+
+      return resultat;
+    }),
+
+  /**
+   * Lukk besvart HMS-oppgave (HMS-admin). Tilstand: responded → closed (terminal).
+   */
+  hmsLukk: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        kommentar: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const oppgave = await hentHmsOppgave(ctx.prisma, input.id);
+      await verifiserHmsHandling(
+        ctx.userId,
+        {
+          bestillerUserId: oppgave.bestillerUserId,
+          status: oppgave.status,
+          projectId: oppgave.template!.projectId,
+        },
+        "lukk",
+      );
+
+      const resultat = await ctx.prisma.$transaction(async (tx) => {
+        const oppdatert = await tx.task.update({
+          where: { id: input.id },
+          data: { status: "closed" },
+        });
+        await tx.documentTransfer.create({
+          data: {
+            taskId: input.id,
+            senderId: ctx.userId,
+            fromStatus: oppgave.status,
+            toStatus: "closed",
+            comment: input.kommentar?.trim() || undefined,
+          },
+        });
+        return oppdatert;
+      });
+
+      await sendHmsVarsel(ctx.prisma, {
+        dokumentId: oppgave.id,
+        tittel: oppgave.title,
+        nummer: oppgave.number,
+        prefix: oppgave.template!.prefix,
+        projectId: oppgave.template!.projectId,
+        prosjektNavn: oppgave.template!.project?.name ?? "",
+        avsenderId: ctx.userId,
+        recipientUserId: oppgave.bestillerUserId,
+        kommentar: input.kommentar?.trim() || undefined,
+      });
+
+      return resultat;
+    }),
+
+  /**
+   * Gjenåpne lukket HMS-oppgave (HMS-admin). Tilstand: closed → responded.
+   */
+  hmsGjenapne: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        kommentar: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const oppgave = await hentHmsOppgave(ctx.prisma, input.id);
+      await verifiserHmsHandling(
+        ctx.userId,
+        {
+          bestillerUserId: oppgave.bestillerUserId,
+          status: oppgave.status,
+          projectId: oppgave.template!.projectId,
+        },
+        "gjenapne",
+      );
+
+      const resultat = await ctx.prisma.$transaction(async (tx) => {
+        const oppdatert = await tx.task.update({
+          where: { id: input.id },
+          data: { status: "responded" },
+        });
+        await tx.documentTransfer.create({
+          data: {
+            taskId: input.id,
+            senderId: ctx.userId,
+            fromStatus: oppgave.status,
+            toStatus: "responded",
+            comment: input.kommentar?.trim() || "Gjenåpnet",
+          },
+        });
+        return oppdatert;
+      });
+
+      await sendHmsVarsel(ctx.prisma, {
+        dokumentId: oppgave.id,
+        tittel: oppgave.title,
+        nummer: oppgave.number,
+        prefix: oppgave.template!.prefix,
+        projectId: oppgave.template!.projectId,
+        prosjektNavn: oppgave.template!.project?.name ?? "",
+        avsenderId: ctx.userId,
+        recipientUserId: oppgave.bestillerUserId,
+        kommentar: input.kommentar?.trim() || undefined,
+      });
+
+      return resultat;
+    }),
+
+  /**
+   * Tilføy informasjon til HMS-oppgave (kun oppretter). Alltid append — det
+   * sendte redigeres aldri. Endrer IKKE tilstand (dialog fortsetter der den er).
+   * Tilstand: sent | responded. Varsler HMS-gruppen.
+   */
+  hmsTilfoyInformasjon: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        kommentar: z.string().trim().min(1, "Skriv en melding"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const oppgave = await hentHmsOppgave(ctx.prisma, input.id);
+      await verifiserHmsHandling(
+        ctx.userId,
+        {
+          bestillerUserId: oppgave.bestillerUserId,
+          status: oppgave.status,
+          projectId: oppgave.template!.projectId,
+        },
+        "tilfoyInformasjon",
+      );
+
+      // Append som transfer-rad uten statusendring (fromStatus === toStatus).
+      const transfer = await ctx.prisma.documentTransfer.create({
+        data: {
+          taskId: input.id,
+          senderId: ctx.userId,
+          fromStatus: oppgave.status,
+          toStatus: oppgave.status,
+          comment: input.kommentar,
+        },
+      });
+
+      // Varsle HMS-gruppen (HMS-admin). recipientGroupId settes ved opprett.
+      if (oppgave.recipientGroupId) {
+        await sendHmsVarsel(ctx.prisma, {
+          dokumentId: oppgave.id,
+          tittel: oppgave.title,
+          nummer: oppgave.number,
+          prefix: oppgave.template!.prefix,
+          projectId: oppgave.template!.projectId,
+          prosjektNavn: oppgave.template!.project?.name ?? "",
+          avsenderId: ctx.userId,
+          recipientGroupId: oppgave.recipientGroupId,
+          kommentar: input.kommentar,
+        });
+      }
+
+      return transfer;
     }),
 
   // Slett oppgave (kun i utkast-status)

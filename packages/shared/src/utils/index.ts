@@ -1,6 +1,7 @@
 export { utledMinRolle, utledDokumentRettighet, beregnHarBallen } from "./flytRolle";
 export type { FlytBrukerInfo, FlytMedlemInfo, DokumentKontekst, DokumentRettighet, DokumentRettighetInput, HarBallenDokument, HarBallenBruker } from "./flytRolle";
-export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller } from "./statusHandlinger";
+export { hentRolleFiltrertHandlinger, erTillattForRolle, hentHandlingEierRoller, flytRettighetNoekkel, ROLLE_HANDLINGER_DEFAULTS, PROSJEKTADMIN_ROLLE } from "./statusHandlinger";
+export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
 export { vaerkodeTilTekst } from "./vaer";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
@@ -66,6 +67,14 @@ export {
 export type { Grense, GrenseStatus } from "./grenseSjekk";
 export { grupperMedOverskrift } from "./seksjoner";
 export type { Seksjon } from "./seksjoner";
+export { perspektivEtikett, utledPerspektiv, kvitteringEtikett } from "./perspektivEtikett";
+export type {
+  BadgeVariant,
+  Perspektiv,
+  PerspektivDokumentType,
+  PerspektivSeerKontekst,
+  PerspektivEtikett,
+} from "./perspektivEtikett";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.
@@ -92,8 +101,8 @@ export function isValidStatusTransition(
     in_progress: ["responded", "sent", "cancelled"],
     responded: ["approved", "rejected"],
     approved: ["closed"],
-    rejected: ["in_progress", "closed"],
-    closed: [],
+    rejected: ["in_progress", "closed", "sent"],
+    closed: ["draft"],
     cancelled: ["draft"],
   };
 

@@ -16,6 +16,14 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟡 HMS-dokument har både «Tilføy informasjon»-knapp og «Dialog»-kommentarfelt — UX-tvetydighet (HMS-klikktest 2026-07-25)
+
+På HMS-dokumenter (RUH/avvik/SJA) finnes **både** HMS-handlingen «Tilføy informasjon» (append via `hmsTilfoyInformasjon` → `DocumentTransfer`, vises i Tidslinjen) OG det generelle «Dialog»-kommentarfeltet (egen visning, ikke i Tidslinjen). Klikktesten viste at det forvirrer — agenten brukte Dialog i stedet for Tilføy. Bør konsolideres til én kommentar-vei for HMS.
+
+### 🟡 Legacy HMS-dokumenter i «Utkast» fra før den dedikerte flyten (HMS-klikktest 2026-07-25)
+
+HMS-001 (HMS-avvik) + RUH-001 står i status «Utkast» — opprettet før Ordre A–D innførte opprett=sent. HMS-flyten har ingen Utkast-tilstand, så de er strandet. Data-opprydning: sett dem «sent» (eller lukk/slett); vurder engangs-backfill hvis prod har tilsvarende.
+
 ### 🟠 Mobil-typecheck er RØD på develop — gaten har aldri spurt (develop-Opus exit 2026-07-16)
 
 `pnpm --filter @sitedoc/mobile typecheck` **passerer ikke på ren develop** — 11 feil. Bl.a.: `erstattVedlegg` returneres av **begge** mobil-hookene og destruktureres i begge detaljsidene, men står **ikke** i `UseOppgaveSkjemaResultat`/`UseSjekklisteSkjemaResultat` (verifisert: returneres 1×, deklarert 0× i begge).
@@ -2206,6 +2214,24 @@ Aktiv Fase: 0 (firma-fundament) er i hovedsak ferdig — gjenstående §-E-steg 
 
 **Lav prioritet:** Vurder etter dokumentflyt send-modal-redesignen er deployet og i bruk. Sjelden at kunder spør om dette — eksisterende standard-flyt dekker de fleste tilfeller.
 
+### Ett-klikks prosjektoppsett — firma-mal per kontorsted/avdeling (visjon, Kenneth 2026-07-24)
+
+🟡 **Visjon, ikke startet.** Paraply over Sak B (ansatt-sync, under) — det fulle bildet Sak B og Kloss 2b er de første frøene av.
+
+**Mål:** firmaet konfigurerer faste innstillinger som gjelder ved oppretting av NYE prosjekter, slik at et prosjekt kan opprettes med **ett klikk** — da gjenstår kun kontrollplan, tegninger og PSI.
+
+**Innstillinger firmaet velger (bør kunne differensieres per kontorsted/avdeling, ikke bare firma-vidt):**
+- Faste prosjektledere (jf. Sak B «Leder default»).
+- Ansatte som automatisk skal inn i dokumentflyt (jf. Sak B ansatt-sync — modell UAVKLART).
+- Ferdige maler auto-tilknyttet: sjekklister, HMS, oppgaver.
+- Automatisk oppretting av standard brukergrupper (dersom firmaet har slike).
+
+**Sentralt utviklet (mulig):** fast PSI-veileder per firma — utvikles sentralt, gjenbrukes ved oppretting.
+
+**Første frø som lander nå:** **Kloss 2b** — opt-in firma-innstilling som auto-legger firma-admin som `ProjectMember.role=admin` ved prosjektoppretting (`OrganizationSetting`-flagg + hook i prosjekt-opprettelses-stiene, se [rettighetsmatrise-config-design.md § 1b](delplaner/rettighetsmatrise-config-design.md)). Samme hook (`prosjekt.opprett`) + samme innstillings-tabell (`OrganizationSetting`) er infrastrukturen resten av visjonen bygger på.
+
+**Åpne spørsmål (arver Sak B + nye):** ansatt-sync-modell (A vs C, faggruppe↔kontaktliste-dekobling); mal-tilknytning ved opprett (jf. `ReportTemplate→OrganizationTemplate`-migrering); brukergruppe-auto-opprett; per-avdeling- vs firma-vidt-differensiering; sentralisert PSI-veileder.
+
 ### Firma prosjektoppsett-motor + ansatt-sync til dokumentflyt (Sak B)
 
 🟡 **Parkert design, ikke startet — kodeverifisert 2026-07-12.** A.Markussen-drevet (~50 ansatte auto inn i dokumentflyt, minimalt etterarbeid ved nytt prosjekt).
@@ -2239,6 +2265,10 @@ Firma vil ha ansatte auto-inn i aktive prosjekters dokumentflyt. Verifisert: ing
 
 ### Tverrgående
 
+- **Mobil-wiring av `perspektivEtikett` (A-3b-oppfølger)** 🟠 — **FØR pilot** (fabel 2026-07-24). A-3b leverte perspektiv-visningen web-only: `perspektivEtikett`/`utledPerspektiv` bor i `@sitedoc/shared` (rammeverk-fri, klar for mobil), og `packages/ui/status-badge.tsx` (web) konsumerer den — men **mobil-badgen er ikke wiret**. Mobil er hovedflaten; gapet skal ikke ligge stille. Oppgave: mobilens statusbadge/kort/detalj konsumerer `utledPerspektiv` + `perspektivEtikettFor*` fra shared (samme seer-kontekst: `minFlytInfo.erAdmin`, `rolle`, `beregnHarBallen`), + ball-holder-chip + «Mine oppgaver»-filter på mobil der relevant. Ingen ny delt logikk — kun mobil-konsum. Liten-middels. Se [a3b-perspektiv-tabell.md](delplaner/a3b-perspektiv-tabell.md) + A3b-ordre.
+- **Tooltip v2 + universell mikrotekst-standard (§ 3a)** 🟡 — fabel-gjennomgang 2026-07-24 ([tooltip-hjelpetekst-veileder.md](retningslinjer/tooltip-hjelpetekst-veileder.md), rev.2). **Verdikt: FORBEDRE.** Dagens `packages/ui/src/tooltip.tsx` er for svak (nowrap én linje, ingen delay, hover-only → usynlig på touch/mobil = pilotens hovedflate); `title=` brukes ustyrt i **92 filer**. **Tre-nivå-standard:** (1) felt = inline mikrotekst (som i dag), (2) ord/handling/celle = **Tooltip v2** (flerlinje ≤280px, 300 ms delay, auto-flip, `:focus-visible` + tap på touch, valgfri tittel — dekker også flyt-matrisens celle-tooltips + handlings-tekstene), (3) side = HjelpModal (som i dag). **`title=` forbys** (sweep av de 92). **Estimat: Tooltip v2 + sweep ≈ 1 liten kloss;** handlings-tekstene (14 fabel-omskrevne, relasjonelle benevnelser «den som sendte det»/«neste mottaker») en liten runde etterpå — første konsument = flyt-matrisens «Handling»-kolonne. **Cowork-verifisering ved bygg:** «Besvar»-teksten må dekke MÅLT fallback når flyten mangler godkjenner-ledd (responded krever godkjenner for approved — verifiseres mot faktisk flyt-config, ikke antas). **§ 3a mikrotekst-standard** (hvor flytter dokumentet / hvem får ballen / hva ser motparten, med relasjonelle benevnelser) gjelder ALL handlingstekst i SiteDoc — menyer/dialoger/toasts/knapper/varsler, web+mobil: **ingen egen kloss** — håndheves i ordre-DoD for nye tekster + opportunistisk oppgradering flate-for-flate.
+- **`ListeKontroll` — gjenbrukbar filter+sort-motor (dynamisk)** 🟡 — Kenneth 2026-07-24. **Fabel-design ferdig + cowork-gatet (premisser kode-forankret):** [filter-sort-komponent-design.md](filter-sort-komponent-design.md) + mockup `Tabellhode Filterspec.dc.html`. **Ikke en fjerde widget** — én deklarativ def + hook `useListeKontroll` som binder de tre eksisterende mønstrene (`MultiComboks`/FilterPanel · `useToppbarFiltre` · tabell-kolonnefiltre `hms/tabeller.tsx`) til én motor: filtrering, sortering, fritekst + **URL-state** (eneste nye — «spore én instans» + delbare lenker krever det). Én def per flate → alle tre visningene. **Veileder følger ordren.** Første konsument: **endringslogg-fanen** (panel-visning, dimensjoner celle/hvem/kilde, sort på tid; `?celle=utforer:sent→received` = lenke til én celles historikk gratis). **Estimat: ≈ 1 middels kloss** (mest flytting av eksisterende logikk; URL-state er det eneste nye) + liten endringslogg-konsument etterpå. **Blokkerer ikke A-3b.**
+  - **Delsak — liten CSS-runde på tabellhodet (uavhengig, kan gå straks):** fabel-funn fra skjermbilde (alt i mockupen): (1) filterikon = egen `flex-shrink:0`-item (aldri treffer teksten); aktivt filter = blått ikon + prikk; (2) tittelemne = én tekstblokk, prefiks+strek `nowrap` («KB2 –» aldri alene); (3) FLYT/Opprettet av = `min-width` + ellipsis + tooltip (tekst bevares); (4) «—» i lysere grå; (5) fast synlig `SearchInput` + aktive filtre som chips m/ ×. Kan fremskyndes som egen liten runde uten å vente på motoren.
 - **Firma-nivå tilgangskontrolloversikt** 🔴 — firma-admin skal kunne se en samlet oversikt over hvem som har hvilke roller og tilganger i firmaet, i ett strukturert UI. I dag finnes data spredt (User.role, OrganizationMember.firmaRoller, ProjectMember.role + kapabiliteter, OrganizationMember.firmaansvarlig, ProjectGroup-medlemskap, modul-tilganger). Ingen sentralisert visning. Skal designes fra bunnen — IKKE kopiert eller portert fra Tromsø Salsaklubb-prosjektet (annet domene, annen tilgangsmodell). Del av planlagt UX-sesjon for firma-innstillinger + tilgangsoversikt (se rapport 2026-05-28). Krever: (1) skisse av visnings-struktur (matrise person × tilgang? person × rolle med expand? rolle × tildelte personer?), (2) avklaring av om dette skal være lese-bare oversikt eller redigerbart kontrollpanel, (3) hvilke roller/tilganger som er relevante å vise (kjerne-roller, kapabiliteter, firma-roller, prosjekt-roller, modul-tilganger). Estimat 6-10t etter spec-runde.
 - **Superadmin-oversikt over firma-moduler** 🔴 — fakturerings-orientert. Egen feature-sesjon.
 - **Vis som bruker (impersonering)** 🟡 — DEPLOYET TIL PROD 2026-05-28 (audit-log prod-merge `30467d74`). Schema, 3 server-prosedyrer, context-håndtering, UI, i18n, `utloperVed`-fix, persistent `ImpersonationAudit`-spor (Variant B) — alt på plass. **Gjenstående:** Lese-prosedyre + UI for audit-loggen — venter på tilgangs-oversikt-UX-sesjon. Audit-log-PR arkivert til [historikk-2026-05.md § Impersonering audit-log](historikk-2026-05.md).

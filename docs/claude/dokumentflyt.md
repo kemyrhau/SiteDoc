@@ -188,6 +188,38 @@ Registrator/admin ser alltid en egen seksjon med flytbokser og manuelle statusen
 **Fremtidig:**
 - Per-person overstyring innad i en gruppe (nå gjelder hele gruppen)
 
+### Admin-nivå i flyt-laget (`adminNiva` — Kloss 2, 2026-07-23)
+
+`adminNiva: "sitedoc" | "prosjekt" | null` innføres KUN i flyt-rettighets-funksjonene
+(`erTillattForRolle`/`hentRolleFiltrertHandlinger`/`celleTillatt` i `statusHandlinger.ts`);
+`erAdmin: boolean` består overalt ellers. Kilde: `hentMinFlytInfo` (`gruppe.ts`) returnerer
+`adminNiva` — `sitedoc` (`User.role="sitedoc_admin"`), `prosjekt` (`ProjectMember.role="admin"`),
+`null` (vanlig rolle, **inkl. firma-admin**).
+
+- **sitedoc** → kode-bypass (full, også ulovlige overganger). Ikke en matrise-kolonne.
+- **prosjekt** → egen redigerbar matrise-kolonne. Default (tom override) = full INNENFOR
+  statusmaskinen (`isValidStatusTransition` + pseudo `deleted`/`forwarded`), konfigurerbar nedover.
+- **null** → Kloss 1-defaults (`ROLLE_HANDLINGER_DEFAULTS`), bit-identisk. Firma-admin får INGEN
+  flyt-admin-rett (som server allerede: `verifiserFlytRolle` har ingen firmaRoller-sjekk).
+
+**Fase A-måling (2026-07-23, mot koden i branchen — korrigerer ordrens hypotese):**
+
+| Nivå | Server (`verifiserFlytRolle`) | Web-meny (`hentMinFlytInfo.erAdmin`) | Mobil-meny (`erFirmaAdmin=minFlytInfo.erAdmin`) |
+|---|---|---|---|
+| sitedoc_admin | bypass (`role==="sitedoc_admin"`, early return `:647`) | admin (`:34`) | admin (samme `erAdmin`) |
+| firma-admin | **ingen bypass** (kaster «Ikke medlem» `:655`) | admin (`gruppe.ts:62-63`) | admin (`:63`) |
+| prosjektadmin | bypass (`medlem.role==="admin"`) | admin (`:85`) | admin (`:85`) |
+
+Mobil-menyen rendres i `apps/mobile/app/{sjekkliste,oppgave}/[id].tsx` og mates av
+`minFlytInfo.erAdmin` (ikke en firma-only-sjekk) → **prosjektadmin har allerede menyparitet** med
+server (ordrens divergens 2 finnes ikke). Eneste reelle divergens: firma-admin **fantom** —
+menyen viste admin-handlinger serveren avviste (web + mobil). Kloss 2 fjerner fantomet:
+`adminNiva=null` for firma-admin → vanlig rolle/lesevisning. `erAdmin` beholdes uendret for
+redigering/synlighet (ingen kapabilitetstap utover det flaggede fantomet).
+
+Matrise-admin-UI: `dashbord/firma/flyt-rettigheter` (`kanRedigereFlytMatrise = KUN sitedoc_admin`
+i fase 1). Datamodell + delt runtime: se [rettighetsmatrise-config-design.md](delplaner/rettighetsmatrise-config-design.md).
+
 ---
 
 ## 4. Flytregler
@@ -244,6 +276,16 @@ Flytmal-strukturen må støtte per-ledd-konfigurasjon fra start for alle dokumen
 Validert via `isValidStatusTransition()` i `packages/shared/src/utils/index.ts`. Server (tRPC) og klient (knapp-visning) bruker samme funksjon — hold synkronisert. **A-3a 2026-07-17: web-menyen validerer nå mot tabellen** (utleder fra `hentRolleFiltrertHandlinger`, deaktiverer det statusmaskinen avviser) — tidligere fant den opp egne overganger.
 
 **A-i 2026-07-17 (`rejected`-desync lukket):** `ROLLE_HANDLINGER.utforer.rejected` og `hentStatusHandlinger("rejected")` ga tidligere `rejected → responded`, som er **ulovlig** i tabellen under (→ server-`BAD_REQUEST`). Rettet til `rejected → in_progress` (i18n `statushandling.gjenoppta` = «Gjenoppta»). Veien er nå `rejected → in_progress → responded`, i tråd med tabellen. Merk: `in_progress` har to lovlige innganger — `received → in_progress` og `rejected → in_progress` — og førstnevnte tilbys fortsatt ikke i UI (åpent exit-funn, ikke bygget i A-3a).
+
+### Perspektiv-avhengig statusvisning (A-3b, merget `9cdd4096`)
+
+**Lagret status er én rad; ETIKETTEN er perspektiv-avhengig.** Samme dokument viser ulik etikett + farge per seer, utledet av `perspektivEtikett.ts` (`@sitedoc/shared`, `utledPerspektiv`) fra admin-flagg + ballinnehav + flytrolle:
+- **Admin** (`erAdmin`) → nøytral D-sannhet ubetinget («Mottatt»/«Til revisjon»).
+- **Ikke-part** (`rolle=null`, leser uten avsenderskap/ball) → nøytral D (§ 2-fallback).
+- **Part** → `harBallen ? aktiv (B, «din tur» · warning) : venter (A, avsender/venter · primary)`. Registrator er en ordinær avsender-part (ikke lenger egen kolonne — § 8).
+- `rejected`-fargen er perspektiv-avhengig (ballinnehaver warning, venter/nøytral primary) — samme grammatikk som `received`/`in_progress` (§ 9).
+
+**Lagret tilstand endres ALDRI av dette — ren visning.** Kvitterings-øyeblikket (§ 6-overlay) er optimistisk badge, ikke lagret. Full matrise: [a3b-perspektiv-tabell.md](a3b-perspektiv-tabell.md). **Web-only i dag; mobil-wiring er backlog (før pilot).** HMS-retur-grenen finnes ikke i kode (flagget aspirasjonelt, ikke bygget — egen beslutning kreves). `sent→received`-konverteringen (`sjekkliste.ts:923`) og statusmaskinen er urørt.
 
 | Fra | Lovlige overganger til |
 |---|---|

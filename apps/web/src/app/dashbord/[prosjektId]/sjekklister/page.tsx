@@ -7,12 +7,29 @@ import { Button, Modal, Spinner, EmptyState, StatusBadge, Table } from "@sitedoc
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
-import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight } from "lucide-react";
+import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight, User, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
+import { beregnHarBallen } from "@sitedoc/shared";
 
 // --- Typer ---
+
+// F1: én kandidatflyt for en mal — flyt brukeren er oppretter-medlem av og som har malen.
+interface FlytKandidat {
+  flytId: string;
+  flytNavn: string;
+  bestillerFaggruppeId: string;
+  utforerFaggruppeId: string;
+  oppretterNavn: string;
+  utforerNavn: string;
+}
+
+// Flyt-status for en mal FØR klikk (styrer mal-kortet + klikk-oppførsel).
+type MalFlytStatus =
+  | { type: "en"; kandidat: FlytKandidat }
+  | { type: "flere"; kandidater: FlytKandidat[] }
+  | { type: "ingen"; grunn: "ingenFlytMedMal" | "flytManglerFaggruppe" };
 
 interface MalObjekt {
   id: string;
@@ -97,6 +114,7 @@ const SYSTEM_KOLONNER: KolonneParam[] = [
   { id: "opprettet", navnKey: "tabell.opprettelsesdato", gruppe: "kolonner" },
   { id: "endret", navnKey: "tabell.endringsdato", gruppe: "kolonner" },
   { id: "frist", navnKey: "tabell.tidsfrist", gruppe: "kolonner" },
+  { id: "dokumentflyt", navnKey: "tabell.dokumentflyt", gruppe: "kolonner" },
   { id: "flyt", navnKey: "tabell.flyt", gruppe: "kolonner" },
 ];
 
@@ -106,7 +124,7 @@ const POSISJON_KOLONNER: KolonneParam[] = [
   { id: "tegning", navnKey: "tabell.tegning", gruppe: "posisjon" },
 ];
 
-const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "flyt", "bygning", "frist"]);
+const STANDARD_AKTIVE = new Set(["prefix", "nr", "emne", "status", "ansvarlig", "dokumentflyt", "flyt", "bygning", "frist"]);
 
 // --- Hjelpefunksjoner ---
 
@@ -251,10 +269,14 @@ export default function SjekklisteSide() {
   const utils = trpc.useUtils();
   const { aktivByggeplass, standardTegning } = useByggeplass();
   const [visModal, setVisModal] = useState(false);
+  const [mineOppgaver, setMineOppgaver] = useState(false);
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettModal, setVisSlettModal] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
   const [opprettFeil, setOpprettFeil] = useState<string | null>(null);
+  // Flyt-velger-steg (F1/B2): satt når en mal har flere kandidatflyter.
+  const [flytSteg, setFlytSteg] = useState<{ malId: string; kandidater: FlytKandidat[] } | null>(null);
+  const [valgtFlytId, setValgtFlytId] = useState<string | null>(null);
   const [visKolonneVelger, setVisKolonneVelger] = useState(false);
   const {
     aktiveKolonner, kolonneBredder,
@@ -262,7 +284,7 @@ export default function SjekklisteSide() {
   } = useTabelloppsett({
     liste: "sjekklister",
     standardKolonner: STANDARD_AKTIVE,
-    migrerNokkel: "sitedoc-sjekkliste-kolonner-v5",
+    migrerNokkel: "sitedoc-sjekkliste-kolonner-v6",
     migrerBreddeNokkel: "sitedoc-sjekkliste-bredder-v1",
   });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
@@ -276,9 +298,12 @@ export default function SjekklisteSide() {
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string }>).filter((m) => m.category === "sjekkliste");
-  const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery({ projectId: params.prosjektId });
-  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery({ projectId: params.prosjektId });
+  // Opprett-kandidater: kun flyter der bruker er oppretter-medlem (rolle "registrator"),
+  // ikke any-rolle. Samme kilde som server-B2(b) (F1, Kenneth-vedtak 2026-07-24).
+  const { data: mineOpprettFlyter } = trpc.medlem.hentMineOpprettFlyter.useQuery({ projectId: params.prosjektId });
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: params.prosjektId });
+  // «Mine oppgaver»-filter (Del 1d): trenger userId + gruppeIder for beregnHarBallen.
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
 
   const slettMutation = trpc.sjekkliste.slett.useMutation({
     onSuccess: () => { utils.sjekkliste.hentForProsjekt.invalidate({ projectId: params.prosjektId }); },
@@ -307,48 +332,85 @@ export default function SjekklisteSide() {
     },
   });
 
-  function handleOpprettFraMal(malId: string) {
-    setOpprettFeil(null);
+  // F1: flyt-status per mal FØR klikk. Kandidatmengde = flyter som har malen OG der
+  // brukeren er oppretter-medlem (rolle "registrator" — mineOpprettFlyter, ikke any-rolle).
+  // Beregnes med .filter() (ikke .find(), som valgte vilkårlig). HMS-maler er flyt-løse.
+  const malFlytStatus = useMemo(() => {
     const alleDf = (dokumentflyter ?? []) as Array<{
       id: string;
+      name: string;
       faggruppeId: string | null;
-      medlemmer: Array<{ faggruppe?: { id: string; name?: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
+      faggruppe?: { id: string; name: string } | null;
+      medlemmer: Array<{ faggruppe?: { id: string; name?: string } | null; rolle: string }>;
       maler: Array<{ template: { id: string } }>;
     }>;
-    const oppretter = mineFaggrupper?.[0];
-    const matchDf = alleDf.find((df) =>
-      df.maler.some((m) => m.template.id === malId) &&
-      (oppretter
-        ? df.medlemmer.some((m) => m.rolle === "oppretter" && (m.faggruppe?.id === oppretter.id || m.group || m.projectMember))
-        : df.medlemmer.some((m) => m.rolle === "oppretter")),
-    );
-    const dfOppretterFg = matchDf?.medlemmer.find((m) => m.rolle === "oppretter")?.faggruppe?.id;
-    let bestillerId = oppretter?.id ?? dfOppretterFg;
-    // Person-/gruppe-direkte medlem uten egen faggruppe: bruk eier-faggruppen (Dokumentflyt.faggruppeId)
-    // til flyten brukeren er medlem av og som har denne malen.
-    const mineFlytIder = new Set(mineFlyter ?? []);
-    const minFlyt = alleDf.find((df) => df.maler.some((m) => m.template.id === malId) && mineFlytIder.has(df.id));
-    if (!bestillerId) {
-      bestillerId = minFlyt?.faggruppeId ?? undefined;
-    }
-    if (!bestillerId) {
-      // G3 (2026-07-19): skill de to årsakene. Fant vi en flyt m/ malen brukeren er
-      // medlem av, men uten eier-faggruppe → «flyt mangler faggruppe». Ellers → ingen
-      // flyt med malen. Ingen rettighetsutvidelse — kun feilmelding-skillet.
-      setOpprettFeil(
-        minFlyt
-          ? t("dokumentflyt.feil.flytManglerFaggruppe")
-          : t("dokumentflyt.feil.ingenFlytMedMal"),
+    const mineFlytIder = new Set(mineOpprettFlyter ?? []);
+    const map = new Map<string, MalFlytStatus>();
+    for (const mal of sjekklisteMaler) {
+      // HMS-maler er egen type (category="hms") og forsvinner fra denne lista;
+      // de meldes via HMS-modulen («Meld HMS»), ikke sjekkliste-velgeren.
+      // Flyter der brukeren er oppretter-medlem OG som har malen.
+      const flyterMedMal = alleDf.filter(
+        (df) => df.maler.some((m) => m.template.id === mal.id) && mineFlytIder.has(df.id),
       );
-      return;
+      if (flyterMedMal.length === 0) {
+        map.set(mal.id, { type: "ingen", grunn: "ingenFlytMedMal" });
+        continue;
+      }
+      // Kun flyter med eier-faggruppe kan opprette under (bestillerFaggruppe kreves).
+      const kandidater: FlytKandidat[] = flyterMedMal
+        .filter((df) => df.faggruppeId != null)
+        .map((df) => {
+          const utforer = df.medlemmer.find((m) => m.rolle === "utforer");
+          return {
+            flytId: df.id,
+            flytNavn: df.name,
+            bestillerFaggruppeId: df.faggruppeId!,
+            utforerFaggruppeId: utforer?.faggruppe?.id ?? df.faggruppeId!,
+            oppretterNavn: df.faggruppe?.name ?? "—",
+            utforerNavn: utforer?.faggruppe?.name ?? df.faggruppe?.name ?? "—",
+          };
+        });
+      if (kandidater.length === 0) {
+        // G3-skille beholdt: flyt(er) fantes m/ malen, men uten eier-faggruppe.
+        map.set(mal.id, { type: "ingen", grunn: "flytManglerFaggruppe" });
+      } else if (kandidater.length === 1) {
+        map.set(mal.id, { type: "en", kandidat: kandidater[0]! });
+      } else {
+        map.set(mal.id, { type: "flere", kandidater });
+      }
     }
-    const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
+    return map;
+    // eslint-disable-next-line
+  }, [dokumentflyter, mineOpprettFlyter, sjekklisteMaler]);
+
+  function opprettMedKandidat(malId: string, k: FlytKandidat) {
     opprettMutation.mutate({
       templateId: malId,
-      bestillerFaggruppeId: bestillerId,
-      utforerFaggruppeId: svarer?.faggruppe?.id ?? bestillerId,
-      dokumentflytId: matchDf?.id,
+      bestillerFaggruppeId: k.bestillerFaggruppeId,
+      utforerFaggruppeId: k.utforerFaggruppeId,
+      dokumentflytId: k.flytId,
     });
+  }
+
+  function handleMalKlikk(malId: string) {
+    setOpprettFeil(null);
+    const status = malFlytStatus.get(malId);
+    if (!status || status.type === "ingen") return; // dempet/uklikkbart — ingen handling
+    if (status.type === "en") {
+      opprettMedKandidat(malId, status.kandidat);
+    } else {
+      // Flere kandidater → steg 2: flyt-velger.
+      setFlytSteg({ malId, kandidater: status.kandidater });
+      setValgtFlytId(status.kandidater[0]?.flytId ?? null);
+    }
+  }
+
+  function lukkOpprettModal() {
+    setOpprettFeil(null);
+    setVisModal(false);
+    setFlytSteg(null);
+    setValgtFlytId(null);
   }
 
   const verktoylinjeHandlinger = useMemo((): VerktoylinjeHandling[] => {
@@ -454,6 +516,7 @@ export default function SjekklisteSide() {
       bygning: bygg(data.map((s) => s.byggeplass?.name)),
       etasje: bygg(data.map((s) => s.drawing?.floor)),
       tegning: bygg(data.map((s) => s.drawing?.name)),
+      dokumentflyt: bygg(data.map((s) => s.dokumentflyt?.name)),
       flyt: bygg(data.map((s) => hentFlytLedd(s))),
       frist: [
         { value: "har_frist", label: t("kontrollplan.frist") },
@@ -488,6 +551,20 @@ export default function SjekklisteSide() {
         );
       });
     }
+    // «Mine oppgaver» (Del 1d): behold kun dokumenter der innlogget bruker har ballen.
+    if (mineOppgaver && minFlytInfo) {
+      resultat = resultat.filter((s) =>
+        beregnHarBallen(
+          {
+            status: s.status,
+            bestillerUserId: s.bestillerUserId,
+            recipientUserId: s.recipientUser?.id,
+            recipientGroupId: s.recipientGroup?.id,
+          },
+          { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder },
+        ),
+      );
+    }
     for (const [kolId, verdi] of Object.entries(filterVerdier)) {
       if (!verdi) continue;
       const valgteSet = new Set(verdi.split(","));
@@ -509,6 +586,7 @@ export default function SjekklisteSide() {
           case "bygning": return valgteSet.has(s.byggeplass?.name ?? "");
           case "etasje": return valgteSet.has(s.drawing?.floor ?? "");
           case "tegning": return valgteSet.has(s.drawing?.name ?? "");
+          case "dokumentflyt": return valgteSet.has(s.dokumentflyt?.name ?? "");
           case "flyt": return valgteSet.has(hentFlytLedd(s));
           case "frist": {
             const harFrist = !!s.dueDate;
@@ -524,7 +602,7 @@ export default function SjekklisteSide() {
       });
     }
     return resultat;
-  }, [sjekklister, statusFilter, filterVerdier, sok]);
+  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
@@ -558,16 +636,29 @@ export default function SjekklisteSide() {
       status: { id: "status", header: t("tabell.status"), celle: (rad) => (
           <div className="flex items-center gap-1.5">
             <StatusBadge status={rad.status} />
-            {["sent", "received", "in_progress"].includes(rad.status) && rad.recipientGroup?.name && (
-              <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                {t("tabell.venterPaa")}: {rad.recipientGroup.name}
-              </span>
-            )}
+            {["sent", "received", "in_progress", "responded", "rejected"].includes(rad.status) &&
+              (rad.recipientUser?.name || rad.recipientGroup?.name) && (
+                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                  {t("tabell.venterPaa")}: {rad.recipientUser?.name ?? rad.recipientGroup?.name}
+                </span>
+              )}
           </div>
         ),
         bredde: "260px", sorterbar: true, sorterVerdi: (rad) => rad.status, filtrerbar: true, filterAlternativer: dynamiskFilter.status ?? [],
         filterSnarveier: [{ label: t("status.alleApne"), verdier: ["draft", "sent", "received", "in_progress", "responded"] }] },
-      ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"), celle: (rad) => <span className="text-gray-600">{formaterAnsvarlig(rad)}</span>,
+      ansvarlig: { id: "ansvarlig", header: t("tabell.ansvarlig"),
+        celle: (rad) => {
+          // Person → User-ikon; gruppe/faggruppe → Users-ikon (lite, dempet).
+          // Speil formaterAnsvarlig: person kun når recipientUser har navn.
+          const erPerson = !!rad.recipientUser?.name;
+          const Ikon = erPerson ? User : Users;
+          return (
+            <span className="inline-flex items-center text-gray-600">
+              <Ikon className="mr-1 h-3 w-3 text-gray-400" />
+              {formaterAnsvarlig(rad)}
+            </span>
+          );
+        },
         sorterbar: true, sorterVerdi: (rad) => formaterAnsvarlig(rad), filtrerbar: true, filterAlternativer: dynamiskFilter.ansvarlig ?? [] },
       opprettetAv: { id: "opprettetAv", header: t("tabell.opprettetAv"), celle: (rad) => rad.bestiller?.name
         ? <span className="text-gray-600">{rad.bestiller.name}</span> : <span className="text-gray-300">—</span>,
@@ -588,6 +679,11 @@ export default function SjekklisteSide() {
         ? <span className="text-xs text-gray-500">{formaterDato(rad.dueDate)}</span> : <span className="text-gray-300">—</span>,
         bredde: "120px", sorterbar: true, sorterVerdi: (rad) => rad.dueDate ? new Date(rad.dueDate).getTime() : null,
         filtrerbar: true, filterAlternativer: dynamiskFilter.frist },
+      dokumentflyt: { id: "dokumentflyt", header: t("tabell.dokumentflyt"),
+        celle: (rad) => rad.dokumentflyt?.name
+          ? <span className="text-xs text-gray-600">{rad.dokumentflyt.name}</span> : <span className="text-gray-300">—</span>,
+        sorterbar: true, sorterVerdi: (rad) => rad.dokumentflyt?.name ?? "",
+        filtrerbar: true, filterAlternativer: dynamiskFilter.dokumentflyt ?? [] },
       flyt: { id: "flyt", header: t("tabell.flyt"),
         celle: (rad) => <FlytIndikator
           medlemmer={rad.dokumentflyt?.medlemmer ?? []}
@@ -641,6 +737,18 @@ export default function SjekklisteSide() {
             <KolonneVelger apen={visKolonneVelger} onLukk={() => setVisKolonneVelger(false)}
               aktive={aktiveKolonner} onToggle={handleToggleKolonne} verdiFelter={verdiFelter} />
           </div>
+          {/* «Mine oppgaver»-toggle (Del 1d): kun dokumenter der jeg har ballen */}
+          <button
+            onClick={() => setMineOppgaver((v) => !v)}
+            aria-pressed={mineOppgaver}
+            className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium ${
+              mineOppgaver
+                ? "border-amber-300 bg-amber-50 text-amber-700"
+                : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+            }`}
+          >
+            {t("filter.mineOppgaver")}
+          </button>
           {aktiveFilter.map(([kolId, verdi]) => {
             const kol = alleKolonner.find((k) => k.id === kolId);
             const kolNavn = kol?.navnKey ? t(kol.navnKey) : (kol?.navn ?? kolId);
@@ -681,19 +789,68 @@ export default function SjekklisteSide() {
         </div>
       </Modal>
 
-      <Modal open={visModal} onClose={() => { setOpprettFeil(null); setVisModal(false); }} title={t("sjekklister.velgMal")}>
-        <div className="space-y-1">
-          {opprettFeil && <p className="text-sm text-red-600 bg-red-50 rounded p-3 mb-2">{opprettFeil}</p>}
-          {sjekklisteMaler.length === 0 ? (
-            <p className="py-4 text-center text-sm text-gray-400">{t("sjekklister.ingenMaler")}</p>
-          ) : sjekklisteMaler.map((m: { id: string; name: string; prefix?: string }) => (
-            <button key={m.id} onClick={() => handleOpprettFraMal(m.id)} disabled={opprettMutation.isPending}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50">
-              <span className="text-sm font-medium text-gray-800">{m.name}</span>
-              {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>}
-            </button>
-          ))}
-        </div>
+      <Modal open={visModal} onClose={lukkOpprettModal}
+        title={flytSteg ? t("sjekklister.velgFlyt") : t("sjekklister.velgMal")}>
+        {flytSteg ? (
+          // Steg 2 (F1/B2): flyt-velger når malen har flere kandidatflyter.
+          <div className="space-y-3">
+            {opprettFeil && <p className="text-sm text-red-600 bg-red-50 rounded p-3">{opprettFeil}</p>}
+            <div className="space-y-1">
+              {flytSteg.kandidater.map((k) => (
+                <label key={k.flytId}
+                  className="flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 hover:bg-gray-50">
+                  <input type="radio" name="flytvelger" className="mt-1"
+                    checked={valgtFlytId === k.flytId} onChange={() => setValgtFlytId(k.flytId)} />
+                  <div>
+                    <div className="text-sm font-medium text-gray-800">{k.flytNavn}</div>
+                    <div className="text-xs text-gray-500">
+                      {t("sjekklister.flytOppretter")}: {k.oppretterNavn} · {t("sjekklister.flytUtforer")}: {k.utforerNavn}
+                    </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3 pt-1">
+              <Button loading={opprettMutation.isPending} onClick={() => {
+                const k = flytSteg.kandidater.find((x) => x.flytId === valgtFlytId);
+                if (k) opprettMedKandidat(flytSteg.malId, k);
+              }}>{t("handling.opprett")}</Button>
+              <Button variant="secondary" onClick={() => { setFlytSteg(null); setValgtFlytId(null); setOpprettFeil(null); }}>
+                {t("handling.tilbake")}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          // Steg 1: mal-velger med flyt-status per kort (grønn/gul/dempet).
+          <div className="space-y-1">
+            {opprettFeil && <p className="text-sm text-red-600 bg-red-50 rounded p-3 mb-2">{opprettFeil}</p>}
+            {sjekklisteMaler.length === 0 ? (
+              <p className="py-4 text-center text-sm text-gray-400">{t("sjekklister.ingenMaler")}</p>
+            ) : sjekklisteMaler.map((m: { id: string; name: string; prefix?: string }) => {
+              const status = malFlytStatus.get(m.id);
+              const uklikkbar = !status || status.type === "ingen";
+              return (
+                <button key={m.id} onClick={() => handleMalKlikk(m.id)}
+                  disabled={uklikkbar || opprettMutation.isPending}
+                  className="flex w-full flex-col items-start gap-0.5 rounded-lg px-3 py-2.5 text-left enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60">
+                  <span className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-800">{m.name}</span>
+                    {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>}
+                  </span>
+                  {status?.type === "en" && (
+                    <span className="text-xs text-green-700">{t("sjekklister.flyt")}: {status.kandidat.flytNavn}</span>
+                  )}
+                  {status?.type === "flere" && (
+                    <span className="text-xs text-amber-600">{t("sjekklister.flereFlyter", { antall: status.kandidater.length })}</span>
+                  )}
+                  {status?.type === "ingen" && (
+                    <span className="text-xs text-gray-400">{t(`dokumentflyt.feil.${status.grunn}`)}</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </Modal>
     </div>
   );

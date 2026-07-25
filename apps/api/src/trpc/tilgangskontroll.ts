@@ -1,7 +1,8 @@
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
 import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle, avgjorDokumentTilgang } from "@sitedoc/shared";
-import type { FlytMedlemInfo } from "@sitedoc/shared";
+import type { FlytMedlemInfo, AdminNiva } from "@sitedoc/shared";
+import { hentFlytRettighetOverrides } from "../services/flytRettighet";
 
 /**
  * Hent brukerens faggruppe-IDer i et prosjekt.
@@ -216,6 +217,120 @@ export async function harFirmaHmsTilgang(
     member.firmaRoller.includes("firma_admin") ||
     member.firmaRoller.includes("hms_ansvarlig")
   );
+}
+
+/**
+ * HMS-admin = prosjekt-admin ∪ HMS-gruppe-medlem ∪ firma-`hms_ansvarlig`.
+ *
+ * Delt kilde for privat-lesefilteret (`byggHmsSynlighetsFilter` i hms.ts) og
+ * HMS-handlingsguarden (`verifiserHmsHandling`). Én definisjon — aldri duplisert
+ * (dedikert HMS-løp, D2).
+ *
+ * MERK: sitedoc_admin dekkes ikke eksplisitt her — kallerne håndterer den som
+ * egen bypass før dette kallet. `harFirmaHmsTilgang` returnerer riktignok true
+ * for sitedoc_admin på firma-bundne prosjekter, men det er en ufarlig delmengde.
+ */
+export async function erHmsAdmin(
+  userId: string,
+  projectId: string,
+): Promise<boolean> {
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    select: {
+      role: true,
+      groupMemberships: {
+        select: { group: { select: { domains: true } } },
+      },
+    },
+  });
+
+  if (medlem) {
+    if (medlem.role === "admin") return true;
+    const erHmsGruppe = medlem.groupMemberships.some((gm) => {
+      const domains = gm.group.domains;
+      return Array.isArray(domains) && (domains as unknown[]).includes("hms");
+    });
+    if (erHmsGruppe) return true;
+  }
+
+  // Firma-HMS-tilgang: bruker med "hms_ansvarlig" i firmaRoller på prosjektets
+  // firma behandler alle HMS-dokumenter. Standalone-prosjekter
+  // (primaryOrganizationId = null) er upåvirket — kun firma-bundne dekkes.
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { primaryOrganizationId: true },
+  });
+  if (project?.primaryOrganizationId) {
+    return harFirmaHmsTilgang(userId, project.primaryOrganizationId);
+  }
+  return false;
+}
+
+/** Handlinger i det dedikerte HMS-løpet (D2). */
+export type HmsHandling = "tilfoyInformasjon" | "besvar" | "lukk" | "gjenapne";
+
+/**
+ * HMS-egen autorisasjonsguard (tilstand × handling × hvem) — dedikert HMS-løp,
+ * D2. Rører ALDRI `verifiserFlytRolle`/rolle-matrisen. sitedoc_admin bypasser.
+ *
+ * | Handling         | Hvem      | Tilstand        |
+ * |------------------|-----------|-----------------|
+ * | tilfoyInformasjon| oppretter | sent · responded|
+ * | besvar           | HMS-admin | sent · responded|
+ * | lukk             | HMS-admin | responded       |
+ * | gjenapne         | HMS-admin | closed          |
+ *
+ * Kaster FORBIDDEN (feil hvem) eller BAD_REQUEST (feil tilstand) ellers.
+ */
+export async function verifiserHmsHandling(
+  userId: string,
+  sjekkliste: { bestillerUserId: string | null; status: string; projectId: string },
+  handling: HmsHandling,
+): Promise<void> {
+  const bruker = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { role: true },
+  });
+  if (bruker?.role === "sitedoc_admin") return;
+
+  const { bestillerUserId, status, projectId } = sjekkliste;
+
+  if (handling === "tilfoyInformasjon") {
+    if (bestillerUserId === userId && (status === "sent" || status === "responded")) {
+      return;
+    }
+    if (bestillerUserId !== userId) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Kun oppretteren kan tilføye informasjon til HMS-saken",
+      });
+    }
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Kan ikke tilføye informasjon i tilstanden «${status}»`,
+    });
+  }
+
+  // besvar / lukk / gjenapne krever HMS-admin
+  const admin = await erHmsAdmin(userId, projectId);
+  if (!admin) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Kun HMS-ansvarlig kan behandle HMS-saker",
+    });
+  }
+
+  const tillatt =
+    (handling === "besvar" && (status === "sent" || status === "responded")) ||
+    (handling === "lukk" && status === "responded") ||
+    (handling === "gjenapne" && status === "closed");
+
+  if (!tillatt) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `HMS-handlingen «${handling}» er ikke tillatt i tilstanden «${status}»`,
+    });
+  }
 }
 
 /**
@@ -669,7 +784,12 @@ export async function verifiserFlytRolle(
     groupId: m.groupId,
   }));
 
-  const erAdmin = medlem.role === "admin";
+  // adminNiva (Kloss 2): sitedoc_admin bypasset allerede over (linje 646, full return).
+  // Prosjektadmin = "prosjekt" (egen matrise-kolonne, full innenfor statusmaskinen ved tom
+  // override, konfigurerbar nedover). Firma-admin er IKKE et flyt-admin-nivå (Kenneth-vedtak
+  // 2026-07-23) — og har uansett ingen ProjectMember-rad, så den kaster FORBIDDEN over (linje
+  // 655). Ingen firmaRoller-sjekk her: firma-admin får ingen bypass server-side (uendret).
+  const adminNiva: AdminNiva = medlem.role === "admin" ? "prosjekt" : null;
 
   const rolle = utledMinRolle(
     {
@@ -677,13 +797,18 @@ export async function verifiserFlytRolle(
       projectMemberId: medlem.id,
       faggruppeIder: medlem.faggruppeKoblinger.map((e) => e.faggruppeId),
       gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
-      erAdmin,
+      erAdmin: adminNiva !== null,
     },
     medlemmerInfo,
     { bestillerFaggruppeId, utforerFaggruppeId },
   );
 
-  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus, erAdmin)) {
+  // Globale rettighets-overstyringer (config-design rev.7 § 1). Tom tabell → tom map →
+  // bit-identisk med default-laget. Kloss 2d: matrisen er global, ikke per-firma —
+  // ingen org-resolving via prosjektet.
+  const overrides = await hentFlytRettighetOverrides();
+
+  if (!erTillattForRolle(rolle, gjeldendStatus, nyStatus, adminNiva, overrides)) {
     const rolleNavn = rolle ?? "ingen";
     throw new TRPCError({
       code: "FORBIDDEN",
@@ -741,6 +866,43 @@ export async function hentBrukersFlytMedlemskap(
     medlem.faggruppeKoblinger.map((k) => k.faggruppeId),
     medlem.groupMemberships.map((g) => g.groupId),
   );
+}
+
+/**
+ * Flyt-ID-ene der brukeren er OPPRETTER-medlem (rolle "registrator") i et prosjekt.
+ * Skiller seg fra `hentBrukersFlytMedlemskap` (any-rolle, brukt til SYNLIGHET i
+ * `byggTilgangsFilter`) ved rolle-filteret: kun oppretter-rollen — som lagres som
+ * "registrator" i DB (`Dokumentflyt.opprett`-default + hele rolle-vokabularet;
+ * "oppretter" er ingen lagret rolleverdi) — gir rett til å opprette dokumenter fra
+ * malen (Kenneth-vedtak F1/B2(b) 2026-07-24). Binding via person/faggruppe/gruppe
+ * som ellers. Bevisst egen spørring (ikke `hentFlytIderForMedlem`, som SKAL være
+ * any-rolle for synlighet).
+ */
+export async function hentBrukersOpprettFlytMedlemskap(
+  userId: string,
+  projectId: string,
+): Promise<string[]> {
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    select: {
+      id: true,
+      faggruppeKoblinger: { select: { faggruppeId: true } },
+      groupMemberships: { select: { groupId: true } },
+    },
+  });
+  if (!medlem) return [];
+
+  const orBindinger: Record<string, unknown>[] = [{ projectMemberId: medlem.id }];
+  const faggruppeIder = medlem.faggruppeKoblinger.map((k) => k.faggruppeId);
+  const gruppeIder = medlem.groupMemberships.map((g) => g.groupId);
+  if (faggruppeIder.length > 0) orBindinger.push({ faggruppeId: { in: faggruppeIder } });
+  if (gruppeIder.length > 0) orBindinger.push({ groupId: { in: gruppeIder } });
+
+  const medlemskap = await prisma.dokumentflytMedlem.findMany({
+    where: { periodeSlutt: null, rolle: "registrator", OR: orBindinger },
+    select: { dokumentflytId: true },
+  });
+  return [...new Set(medlemskap.map((m) => m.dokumentflytId))];
 }
 
 export async function byggTilgangsFilter(

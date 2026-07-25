@@ -10,7 +10,7 @@ import { Plus, Pencil, Trash2, MoreVertical, ChevronDown, Lock, Building2, Libra
 import { FaggruppeTilknytningModal } from "./FaggruppeTilknytningModal";
 import { BibliotekPanel } from "@/components/bibliotek/BibliotekPanel";
 
-type MalKategori = "oppgave" | "sjekkliste";
+type MalKategori = "oppgave" | "sjekkliste" | "hms";
 
 interface MalListeProps {
   kategori: MalKategori;
@@ -46,8 +46,9 @@ function defaultSynlighet(subdomain: HmsSubdomain): HmsSynlighet {
 
 // Prefiks-mønster som matcher reserverte HMS-typer. Case-insensitiv.
 // Brukes til amber-hint når brukeren skriver «SJA», «RUH» eller «AVVIK»
-// uten å krysse av HMS-haken — stille feilklassifisering ellers (dokumenter
-// havner i Oppgaver-fanen og telles ikke i HMS-KPI).
+// på oppgave-/sjekkliste-siden i stedet for HMS-malbyggeren — stille
+// feilklassifisering ellers (malen havner i feil fane, får ikke domain="hms"
+// og teller derfor ikke i HMS-KPI).
 function seerUtSomHmsPrefiks(prefiks: string): boolean {
   const trimmed = prefiks.trim().toUpperCase();
   return trimmed === "SJA" || trimmed === "RUH" || trimmed === "AVVIK";
@@ -142,7 +143,8 @@ export function MalListe({
   const [prefiks, setPrefiks] = useState("");
   const [beskrivelse, setBeskrivelse] = useState("");
   const [prefiksFeil, setPrefiksFeil] = useState<string | null>(null);
-  const [erHms, setErHms] = useState(false);
+  // HMS er egen topp-nivå-type: erHms utledes av sidens kategori, ikke en egen hake.
+  const erHms = kategori === "hms";
   const [subdomain, setSubdomain] = useState<HmsSubdomain>("avvik");
   const [hmsSynlighet, setHmsSynlighet] = useState<HmsSynlighet>("privat");
   const [valgteWorkflowIds, setValgteWorkflowIds] = useState<Set<string>>(new Set());
@@ -158,7 +160,8 @@ export function MalListe({
   const [redigerWorkflowIds, setRedigerWorkflowIds] = useState<Set<string>>(new Set());
   const [visRedigerFlytModal, setVisRedigerFlytModal] = useState(false);
   const [redigerCategory, setRedigerCategory] = useState<MalKategori>("sjekkliste");
-  const [redigerErHms, setRedigerErHms] = useState(false);
+  // HMS utledes av valgt type (tredje radio), ikke en egen hake.
+  const redigerErHms = redigerCategory === "hms";
   const [redigerOpprinneligErHms, setRedigerOpprinneligErHms] = useState(false);
   const [redigerSubdomain, setRedigerSubdomain] = useState<HmsSubdomain>("avvik");
   const [redigerHmsSynlighet, setRedigerHmsSynlighet] = useState<HmsSynlighet>("privat");
@@ -169,14 +172,6 @@ export function MalListe({
     { enabled: !!prosjektId },
   );
 
-  const { data: moduler } = trpc.modul.hentForProsjekt.useQuery(
-    { projectId: prosjektId! },
-    { enabled: !!prosjektId },
-  );
-  const hmsModulAktiv = moduler?.some(
-    (m) => m.moduleSlug === "hms-avvik" && m.status === "aktiv",
-  ) ?? false;
-
   const opprettMutation = trpc.mal.opprett.useMutation({
     onSuccess: () => {
       utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId! });
@@ -186,7 +181,6 @@ export function MalListe({
       setPrefiks("");
       setBeskrivelse("");
       setPrefiksFeil(null);
-      setErHms(false);
       setSubdomain("avvik");
       setHmsSynlighet("privat");
       setValgteWorkflowIds(new Set());
@@ -269,9 +263,10 @@ export function MalListe({
     const subjects = Array.isArray(mal.subjects) ? (mal.subjects as string[]) : [];
     setRedigerSubjects(subjects);
     setRedigerEnableChangeLog(mal.enableChangeLog);
-    setRedigerCategory(mal.category as MalKategori);
+    // domain="hms" er den robuste HMS-markøren (bevares av migreringen). Tvinger
+    // type til "hms" selv for evt. gammel data der category ikke er migrert ennå.
     const erHmsNa = mal.domain === "hms";
-    setRedigerErHms(erHmsNa);
+    setRedigerCategory(erHmsNa ? "hms" : (mal.category as MalKategori));
     setRedigerOpprinneligErHms(erHmsNa);
     const radSubdomain: HmsSubdomain = (mal.subdomain ?? "avvik");
     const radSynlighet: HmsSynlighet = mal.hmsSynlighet ?? defaultSynlighet(radSubdomain);
@@ -284,7 +279,13 @@ export function MalListe({
   }
 
   function handleDobbeltklikk(mal: MalRad) {
-    router.push(`/dashbord/oppsett/produksjon/${kategori === "sjekkliste" ? "sjekklistemaler" : "oppgavemaler"}/${mal.id}`);
+    const rute =
+      kategori === "hms"
+        ? "hmsmaler"
+        : kategori === "sjekkliste"
+          ? "sjekklistemaler"
+          : "oppgavemaler";
+    router.push(`/dashbord/oppsett/produksjon/${rute}/${mal.id}`);
   }
 
   if (isLoading) {
@@ -536,7 +537,8 @@ export function MalListe({
             error={prefiksFeil ?? undefined}
           />
 
-          {/* Dokumentflyt-kobling */}
+          {/* Dokumentflyt-kobling — HMS er flyt-løs, skjules for HMS-maler */}
+          {kategori !== "hms" && (
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-gray-700">
               {t("maler.dokumentflyt")}
@@ -562,6 +564,7 @@ export function MalListe({
               </p>
             )}
           </div>
+          )}
 
           {/* Type (låst basert på mal-builder-side) */}
           <div className="flex flex-col gap-1">
@@ -593,47 +596,32 @@ export function MalListe({
                 />
                 <span className="text-sm text-gray-700">{t("maler.type.sjekkliste")}</span>
               </label>
+              <label className="flex items-center gap-2 opacity-60 cursor-not-allowed">
+                <input
+                  type="radio"
+                  name="opprett-type"
+                  value="hms"
+                  checked={kategori === "hms"}
+                  disabled
+                  readOnly
+                  className="h-4 w-4 text-sitedoc-primary"
+                />
+                <span className="text-sm text-gray-700">{t("maler.type.hms")}</span>
+              </label>
             </div>
           </div>
 
-          {/* HMS-prefiks-hint: vises uavhengig av hmsModulAktiv slik at
-              brukeren ikke stille feilklassifiserer en HMS-mal som vanlig.
-              Hvis modulen ikke er aktiv, hjelper hintet brukeren skjønne at
-              modulen må aktiveres først. */}
+          {/* HMS-prefiks-hint: nudger brukeren til HMS-malbyggeren når prefikset
+              ser ut som en HMS-type, men malen lages på oppgave-/sjekkliste-siden. */}
           {seerUtSomHmsPrefiks(prefiks) && !erHms && (
             <p className="text-xs text-amber-600">
               {t("maler.hms.prefiksHint")}
             </p>
           )}
 
-          {/* HMS-hake (gated på ProjectModule hms-avvik) */}
-          {hmsModulAktiv && (
-            <div className="flex flex-col gap-1">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
-                  checked={erHms}
-                  onChange={(e) => {
-                    setErHms(e.target.checked);
-                    if (e.target.checked) {
-                      setHmsSynlighet(defaultSynlighet(subdomain));
-                    }
-                  }}
-                />
-                <span className="text-sm font-medium text-gray-700">
-                  {t("maler.hms.hake")}
-                </span>
-              </label>
-              <p className="text-xs text-gray-500 ml-6">
-                {t("maler.hms.beskrivelse")}
-              </p>
-            </div>
-          )}
-
-          {/* HMS-subdomain + synlighet (kun når HMS er valgt) */}
-          {hmsModulAktiv && erHms && (
-            <div className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-3 ml-6">
+          {/* HMS-subdomain + synlighet (kun på HMS-malbyggeren) */}
+          {erHms && (
+            <div className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-3">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">
                   {t("hms.subdomain.label")}
@@ -726,8 +714,8 @@ export function MalListe({
         </form>
       </Modal>
 
-      {/* Dokumentflyt-velger for opprett-modal */}
-      {prosjektId && (
+      {/* Dokumentflyt-velger for opprett-modal (ikke for HMS — flyt-løs) */}
+      {prosjektId && kategori !== "hms" && (
         <FaggruppeTilknytningModal
           open={visFaggruppeTilknytning}
           onClose={() => setVisFaggruppeTilknytning(false)}
@@ -741,8 +729,8 @@ export function MalListe({
         />
       )}
 
-      {/* Dokumentflyt-velger for rediger-modal */}
-      {prosjektId && (
+      {/* Dokumentflyt-velger for rediger-modal (ikke for HMS — flyt-løs) */}
+      {prosjektId && kategori !== "hms" && (
         <FaggruppeTilknytningModal
           open={visRedigerFlytModal}
           onClose={() => setVisRedigerFlytModal(false)}
@@ -823,6 +811,27 @@ export function MalListe({
                     />
                     <span className="text-sm text-gray-700">{t("maler.type.sjekkliste")}</span>
                   </label>
+                  <label
+                    className={`flex items-center gap-2 ${
+                      harDokumenter ? "opacity-60 cursor-not-allowed" : "cursor-pointer"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="rediger-type"
+                      value="hms"
+                      checked={redigerCategory === "hms"}
+                      disabled={harDokumenter}
+                      onChange={() => {
+                        setRedigerCategory("hms");
+                        if (redigerOpprinneligSynlighet === null) {
+                          setRedigerHmsSynlighet(defaultSynlighet(redigerSubdomain));
+                        }
+                      }}
+                      className="h-4 w-4 text-sitedoc-primary"
+                    />
+                    <span className="text-sm text-gray-700">{t("maler.type.hms")}</span>
+                  </label>
                 </div>
                 {harDokumenter && (
                   <p className="mt-1 text-xs text-gray-500">
@@ -831,6 +840,11 @@ export function MalListe({
                       defaultValue:
                         "Kan ikke endre type — det finnes eksisterende dokumenter knyttet til denne malen.",
                     })}
+                  </p>
+                )}
+                {redigerErHms !== redigerOpprinneligErHms && (
+                  <p className="mt-1 text-xs text-amber-600">
+                    {t("maler.hms.endringAdvarsel")}
                   </p>
                 )}
               </div>
@@ -844,40 +858,9 @@ export function MalListe({
             </p>
           )}
 
-          {/* HMS-hake (redigerbar) — vises alltid i rediger-modal slik at
-              eksisterende ikke-HMS-mal kan konverteres uten at HMS-modulen
-              må aktiveres på prosjektet først. Server blokkerer domain-skift
-              hvis dokumenter finnes. */}
-          <div className="flex flex-col gap-1">
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
-                checked={redigerErHms}
-                onChange={(e) => {
-                  setRedigerErHms(e.target.checked);
-                  if (e.target.checked && redigerOpprinneligSynlighet === null) {
-                    setRedigerHmsSynlighet(defaultSynlighet(redigerSubdomain));
-                  }
-                }}
-              />
-              <span className="text-sm font-medium text-gray-700">
-                {t("maler.hms.hake")}
-              </span>
-            </label>
-            <p className="text-xs text-gray-500 ml-6">
-              {t("maler.hms.beskrivelse")}
-            </p>
-            {redigerErHms !== redigerOpprinneligErHms && (
-              <p className="mt-1 text-xs text-amber-600 ml-6">
-                {t("maler.hms.endringAdvarsel")}
-              </p>
-            )}
-          </div>
-
-          {/* HMS-subdomain + synlighet i rediger-modus */}
+          {/* HMS-subdomain + synlighet i rediger-modus (kun for HMS-type) */}
           {redigerErHms && (
-            <div className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-3 ml-6">
+            <div className="flex flex-col gap-3 rounded-md border border-gray-200 bg-gray-50 p-3">
               <div className="flex flex-col gap-1">
                 <label className="text-sm font-medium text-gray-700">
                   {t("hms.subdomain.label")}

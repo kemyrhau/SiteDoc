@@ -1,9 +1,14 @@
 import { describe, it, expect } from "vitest";
 import {
   hentRolleFiltrertHandlinger,
+  hentStatusHandlinger,
   erTillattForRolle,
+  flytRettighetNoekkel,
+  PROSJEKTADMIN_ROLLE,
   type StatusHandling,
+  type RettighetsOverrides,
 } from "./statusHandlinger";
+import { isValidStatusTransition } from "./index";
 import type { DokumentflytRolle } from "../types";
 
 /**
@@ -55,7 +60,7 @@ const HANDLING_MATRISE: HandlingRad[] = [
   { navn: "[REGISTRATOR] received → tom (fikset)", status: "received", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] in_progress → tom (fikset)", status: "in_progress", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] responded → tom (fikset: kan ikke lenger godkjenne)", status: "responded", rolle: "registrator", erAdmin: false, forventet: [] },
-  { navn: "[REGISTRATOR] rejected → tom (fikset)", status: "rejected", rolle: "registrator", erAdmin: false, forventet: [] },
+  { navn: "[REGISTRATOR] rejected → send på nytt (venstre ende: retter opp returnert)", status: "rejected", rolle: "registrator", erAdmin: false, forventet: ["sent"] },
   { navn: "[REGISTRATOR] approved → tom (fikset)", status: "approved", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] cancelled → tom (fikset)", status: "cancelled", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] closed → tom (uendret)", status: "closed", rolle: "registrator", erAdmin: false, forventet: [] },
@@ -66,6 +71,7 @@ const HANDLING_MATRISE: HandlingRad[] = [
   { navn: "[ROLLE] bestiller, approved → lukk (ikke videresend)", status: "approved", rolle: "bestiller", erAdmin: false, forventet: ["closed"] },
   { navn: "[ROLLE] bestiller, cancelled → gjenåpne (ikke slett)", status: "cancelled", rolle: "bestiller", erAdmin: false, forventet: ["draft"] },
   { navn: "[ROLLE] bestiller, received → tom (ingen eierskap)", status: "received", rolle: "bestiller", erAdmin: false, forventet: [] },
+  { navn: "[ROLLE] bestiller, rejected → send på nytt (venstre ende)", status: "rejected", rolle: "bestiller", erAdmin: false, forventet: ["sent"] },
   { navn: "[ROLLE] utforer, received → besvar+videresend (ikke avvis)", status: "received", rolle: "utforer", erAdmin: false, forventet: ["responded", "forwarded"] },
   { navn: "[ROLLE] utforer, in_progress → besvar+tilbake+videresend", status: "in_progress", rolle: "utforer", erAdmin: false, forventet: ["responded", "sent", "forwarded"] },
   { navn: "[ROLLE] utforer, rejected → gjenoppta+videresend (ikke lukk)", status: "rejected", rolle: "utforer", erAdmin: false, forventet: ["in_progress", "forwarded"] },
@@ -107,6 +113,7 @@ const TILLATT_MATRISE: TillattRad[] = [
   // — [REGISTRATOR — VENDT] Fase B: kun send/slett egen kladd; ingen andre overganger —
   { navn: "[REGISTRATOR] draft→sent → true (sender det hun opprettet)", rolle: "registrator", fra: "draft", til: "sent", erAdmin: false, forventet: true },
   { navn: "[REGISTRATOR] draft→deleted → true (sletter egen kladd)", rolle: "registrator", fra: "draft", til: "deleted", erAdmin: false, forventet: true },
+  { navn: "[REGISTRATOR] rejected→sent → true (venstre ende: retter opp returnert, sender mot høyre)", rolle: "registrator", fra: "rejected", til: "sent", erAdmin: false, forventet: true },
   { navn: "[REGISTRATOR] responded→approved → false (kan ikke godkjenne)", rolle: "registrator", fra: "responded", til: "approved", erAdmin: false, forventet: false },
   { navn: "[REGISTRATOR] received→responded → false", rolle: "registrator", fra: "received", til: "responded", erAdmin: false, forventet: false },
   { navn: "[REGISTRATOR] ulovlig draft→closed → false (kun sent/deleted i kladd)", rolle: "registrator", fra: "draft", til: "closed", erAdmin: false, forventet: false },
@@ -117,6 +124,8 @@ const TILLATT_MATRISE: TillattRad[] = [
   { navn: "[ROLLE] bestiller, draft→deleted → true", rolle: "bestiller", fra: "draft", til: "deleted", erAdmin: false, forventet: true },
   { navn: "[ROLLE] bestiller, responded→approved → false (ikke eid)", rolle: "bestiller", fra: "responded", til: "approved", erAdmin: false, forventet: false },
   { navn: "[ROLLE] bestiller, closed→draft → false (ingen oppføring)", rolle: "bestiller", fra: "closed", til: "draft", erAdmin: false, forventet: false },
+  { navn: "[ROLLE] bestiller, rejected→sent → true (venstre ende)", rolle: "bestiller", fra: "rejected", til: "sent", erAdmin: false, forventet: true },
+  { navn: "[ROLLE] utforer, rejected→sent → false (ikke venstre ende)", rolle: "utforer", fra: "rejected", til: "sent", erAdmin: false, forventet: false },
   { navn: "[ROLLE] utforer, received→responded → true", rolle: "utforer", fra: "received", til: "responded", erAdmin: false, forventet: true },
   { navn: "[ROLLE] utforer, received→cancelled → false (avvis ikke eid)", rolle: "utforer", fra: "received", til: "cancelled", erAdmin: false, forventet: false },
   { navn: "[ROLLE] utforer, in_progress→sent → true (send tilbake)", rolle: "utforer", fra: "in_progress", til: "sent", erAdmin: false, forventet: true },
@@ -129,5 +138,185 @@ const TILLATT_MATRISE: TillattRad[] = [
 describe("erTillattForRolle — karakterisering av dagens oppførsel", () => {
   it.each(TILLATT_MATRISE)("$navn", ({ rolle, fra, til, erAdmin, forventet }) => {
     expect(erTillattForRolle(rolle, fra, til, erAdmin)).toBe(forventet);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  isValidStatusTransition — statusmaskinen (linjemodell-vedtak)       */
+/* ------------------------------------------------------------------ */
+
+describe("isValidStatusTransition — rejected → sent (flytmodell-vedtak-2026-07-22)", () => {
+  it("rejected → sent er lovlig (returnert dokument sendes mot høyre igjen)", () => {
+    expect(isValidStatusTransition("rejected", "sent")).toBe(true);
+  });
+  it("rejected → in_progress fortsatt lovlig (gjenoppta — uendret)", () => {
+    expect(isValidStatusTransition("rejected", "in_progress")).toBe(true);
+  });
+  it("rejected → closed fortsatt lovlig (uendret)", () => {
+    expect(isValidStatusTransition("rejected", "closed")).toBe(true);
+  });
+  it("rejected → approved ulovlig (kontroll — ingen snarvei til godkjent)", () => {
+    expect(isValidStatusTransition("rejected", "approved")).toBe(false);
+  });
+});
+
+describe("isValidStatusTransition — closed → draft (inert i A, wires i B med Farlig sone)", () => {
+  it("closed → draft er lovlig i statusmaskinen (ingen handling utløser den ennå)", () => {
+    expect(isValidStatusTransition("closed", "draft")).toBe(true);
+  });
+  it("closed → sent fortsatt ulovlig (kun draft er åpnet fra closed)", () => {
+    expect(isValidStatusTransition("closed", "sent")).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  hentStatusHandlinger — rejected tilbyr «Send på nytt» (sent)        */
+/* ------------------------------------------------------------------ */
+
+describe("hentStatusHandlinger — rejected → sent («Send på nytt»)", () => {
+  it("rejected-universet inneholder en sent-handling", () => {
+    const nyStatuser = hentStatusHandlinger("rejected").map((h) => h.nyStatus);
+    expect(nyStatuser).toContain("sent");
+  });
+  it("sent-handlingen bruker flytspråk-etiketten «Send på nytt»", () => {
+    const sendPaaNytt = hentStatusHandlinger("rejected").find((h) => h.nyStatus === "sent");
+    expect(sendPaaNytt?.tekstNoekkel).toBe("statushandling.sendPaaNytt");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  RettighetsOverrides — config-laget (Kloss 1 plumbing)              */
+/* ------------------------------------------------------------------ */
+
+describe("overrides — tom map == uten overrides (bit-identisk-bevis for config-substratet)", () => {
+  // Kloss 1-invariant: config-laget skal ikke endre atferd før et firma faktisk
+  // registrerer et avvik. Undefined og en tom map må gi nøyaktig default-laget.
+  const tom: RettighetsOverrides = {};
+
+  it("erTillattForRolle: tom map lik undefined for hele TILLATT_MATRISE", () => {
+    for (const { rolle, fra, til, erAdmin } of TILLATT_MATRISE) {
+      const uten = erTillattForRolle(rolle, fra, til, erAdmin);
+      const med = erTillattForRolle(rolle, fra, til, erAdmin, tom);
+      expect(med).toBe(uten);
+    }
+  });
+
+  it("hentRolleFiltrertHandlinger: tom map lik undefined for hele HANDLING_MATRISE", () => {
+    for (const { status, rolle, erAdmin } of HANDLING_MATRISE) {
+      const uten = hentRolleFiltrertHandlinger(status, rolle, erAdmin).map((h) => h.nyStatus);
+      const med = hentRolleFiltrertHandlinger(status, rolle, erAdmin, tom).map((h) => h.nyStatus);
+      expect(med).toEqual(uten);
+    }
+  });
+});
+
+describe("overrides — invariant: en override kan aldri skape en overgang statusmaskinen ikke har", () => {
+  it("positiv override på ulovlig overgang (godkjenner draft→closed) snittes bort", () => {
+    // draft→closed finnes ikke i validTransitions — en admin-override kan ikke innføre den.
+    expect(isValidStatusTransition("draft", "closed")).toBe(false);
+    const override: RettighetsOverrides = {
+      [flytRettighetNoekkel("godkjenner", "draft", "closed")]: true,
+    };
+    expect(erTillattForRolle("godkjenner", "draft", "closed", false, override)).toBe(false);
+  });
+
+  it("positiv override på lovlig, ikke-default overgang (godkjenner draft→sent) honoreres", () => {
+    // draft→sent ER i validTransitions men ikke i godkjenners default → override slår den på.
+    expect(isValidStatusTransition("draft", "sent")).toBe(true);
+    const override: RettighetsOverrides = {
+      [flytRettighetNoekkel("godkjenner", "draft", "sent")]: true,
+    };
+    expect(erTillattForRolle("godkjenner", "draft", "sent", false, override)).toBe(true);
+  });
+
+  it("negativ override slår av en default-celle (bestiller draft→sent → av)", () => {
+    const override: RettighetsOverrides = {
+      [flytRettighetNoekkel("bestiller", "draft", "sent")]: false,
+    };
+    expect(erTillattForRolle("bestiller", "draft", "sent", false)).toBe(true);
+    expect(erTillattForRolle("bestiller", "draft", "sent", false, override)).toBe(false);
+  });
+
+  it("erAdmin-bypass er upåvirket av overrides (negativ override kan ikke låse ute admin)", () => {
+    const override: RettighetsOverrides = {
+      [flytRettighetNoekkel("bestiller", "draft", "sent")]: false,
+    };
+    expect(erTillattForRolle("bestiller", "draft", "sent", true, override)).toBe(true);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  adminNiva (Kloss 2) — sitedoc / prosjekt / null                    */
+/* ------------------------------------------------------------------ */
+
+describe("adminNiva — boolean-shim er bit-identisk (Kloss 1-kompatibilitet)", () => {
+  it("true == 'sitedoc' og false == null over hele TILLATT_MATRISE", () => {
+    for (const { rolle, fra, til } of TILLATT_MATRISE) {
+      if (!rolle) continue;
+      expect(erTillattForRolle(rolle, fra, til, true)).toBe(erTillattForRolle(rolle, fra, til, "sitedoc"));
+      expect(erTillattForRolle(rolle, fra, til, false)).toBe(erTillattForRolle(rolle, fra, til, null));
+    }
+  });
+  it("hentRolleFiltrertHandlinger: true=='sitedoc', false==null over HANDLING_MATRISE", () => {
+    for (const { status, rolle } of HANDLING_MATRISE) {
+      const a = hentRolleFiltrertHandlinger(status, rolle, true).map((h) => h.nyStatus);
+      const b = hentRolleFiltrertHandlinger(status, rolle, "sitedoc").map((h) => h.nyStatus);
+      expect(a).toEqual(b);
+      const c = hentRolleFiltrertHandlinger(status, rolle, false).map((h) => h.nyStatus);
+      const d = hentRolleFiltrertHandlinger(status, rolle, null).map((h) => h.nyStatus);
+      expect(c).toEqual(d);
+    }
+  });
+});
+
+describe("adminNiva='sitedoc' — kode-bypass (full, også ulovlige overganger)", () => {
+  it("erTillattForRolle: true for enhver overgang, inkl. ulovlig draft→closed", () => {
+    expect(erTillattForRolle("registrator", "draft", "sent", "sitedoc")).toBe(true);
+    expect(erTillattForRolle("registrator", "draft", "closed", "sitedoc")).toBe(true);
+    expect(erTillattForRolle("godkjenner", "closed", "approved", "sitedoc")).toBe(true);
+  });
+  it("null-rolle er false selv med sitedoc (rolle sjekkes først — uendret)", () => {
+    expect(erTillattForRolle(null, "draft", "sent", "sitedoc")).toBe(false);
+  });
+  it("hentRolleFiltrertHandlinger: hele universet", () => {
+    expect(hentRolleFiltrertHandlinger("draft", "registrator", "sitedoc").map((h) => h.nyStatus)).toEqual(["sent", "deleted"]);
+    expect(hentRolleFiltrertHandlinger("responded", "bestiller", "sitedoc").map((h) => h.nyStatus)).toEqual(["approved", "rejected", "forwarded"]);
+  });
+});
+
+describe("adminNiva='prosjekt' — full INNENFOR statusmaskinen (tom override)", () => {
+  it("lovlig overgang tillates (draft→sent), ulovlig nektes (draft→closed)", () => {
+    expect(erTillattForRolle("registrator", "draft", "sent", "prosjekt")).toBe(true);
+    expect(isValidStatusTransition("draft", "closed")).toBe(false);
+    expect(erTillattForRolle("registrator", "draft", "closed", "prosjekt")).toBe(false);
+  });
+  it("pseudo-handlinger (deleted/forwarded) bevares — som dagens fulle bypass", () => {
+    expect(erTillattForRolle("registrator", "draft", "deleted", "prosjekt")).toBe(true);
+    expect(erTillattForRolle("registrator", "received", "forwarded", "prosjekt")).toBe(true);
+  });
+  it("hentRolleFiltrertHandlinger: hele det statusmaskin-lovlige universet for status", () => {
+    // received-universet: responded (lovlig), forwarded (pseudo), cancelled (lovlig) → alle
+    expect(hentRolleFiltrertHandlinger("received", "registrator", "prosjekt").map((h) => h.nyStatus))
+      .toEqual(["responded", "forwarded", "cancelled"]);
+  });
+  it("konfigurerbar NEDOVER: negativ prosjektadmin-override slår av en celle", () => {
+    const override: RettighetsOverrides = { [flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, "draft", "sent")]: false };
+    expect(erTillattForRolle("registrator", "draft", "sent", "prosjekt")).toBe(true);
+    expect(erTillattForRolle("registrator", "draft", "sent", "prosjekt", override)).toBe(false);
+  });
+  it("invariant: positiv prosjektadmin-override på ulovlig overgang snittes bort", () => {
+    const override: RettighetsOverrides = { [flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, "draft", "closed")]: true };
+    expect(erTillattForRolle("registrator", "draft", "closed", "prosjekt", override)).toBe(false);
+  });
+});
+
+describe("adminNiva=null (vanlig rolle, inkl. firma-admin) — Kloss 1-sti bevart", () => {
+  it("bestiller draft→sent tillatt, responded→approved ikke (bit-identisk med Kloss 1)", () => {
+    expect(erTillattForRolle("bestiller", "draft", "sent", null)).toBe(true);
+    expect(erTillattForRolle("bestiller", "responded", "approved", null)).toBe(false);
+  });
+  it("prosjektadmin-override påvirker IKKE null-nivået (kun 'prosjekt'-stien leser den)", () => {
+    const override: RettighetsOverrides = { [flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, "draft", "sent")]: false };
+    expect(erTillattForRolle("bestiller", "draft", "sent", null, override)).toBe(true);
   });
 });

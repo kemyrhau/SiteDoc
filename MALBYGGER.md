@@ -6,9 +6,13 @@
 
 **Oppgave og Sjekkliste er fundamentalt forskjellige dokumenttyper** med separate tabeller (`Task` vs `Checklist`), ulike låseregler og ulike workflow-mønstre. De skal aldri slås sammen til én liste eller blandes i UI.
 
-**HMS og Godkjenning er modifikatorer** på en mal-type — ikke typer i seg selv. En HMS-mal er enten en HMS-oppgave eller en HMS-sjekkliste. Tilsvarende for Godkjenning når den modulen designes.
+**HMS er egen topp-nivå-type** (`category="hms"`, D3-vedtak 2026-07-24 — migrering `20260724140000_hms_category`). Sidestilt med Oppgave og Sjekkliste, med egen malbygger-side (`/dashbord/oppsett/produksjon/hmsmaler`). Subdomain (avvik/sja/ruh) bestemmer hvilken tabell dokumentet lagres i (avvik/ruh→`Task`, sja→`Checklist`) — ikke `category`. HMS-maler vises kun i «Meld HMS»-inngangen på HMS-modulsiden, aldri i oppgave-/sjekkliste-opprett-modalene (som filtrerer på `category`). Erstatter den tidligere HMS-haken (fjernet fra `MalListe.tsx`).
 
-Dette prinsippet styrer UI-arkitekturen: mal-administrasjon kan ha to separate lister (oppgavemaler/sjekklistemaler) — det er korrekt. HMS-haken settes på en mal innenfor sin type, ikke som en alternativ type.
+Skillet: `category="hms"` = malbygger-/opprett-organisering (hvilken liste malen bor på + auto-eksklusjon). `domain="hms"` (bevart) = runtime-identifisering (KPI-tellinger, erHms-guards, flyt-logikk). Invariant: en `category="hms"`-mal har alltid også `domain="hms"` (settes sammen i `MalListe.tsx`).
+
+**Godkjenning er en modifikator** på en mal-type — ikke en type i seg selv. Designes når den modulen bygges.
+
+Dette prinsippet styrer UI-arkitekturen: mal-administrasjon har tre separate lister (oppgavemaler/sjekklistemaler/hmsmaler) — det er korrekt. Type velges ved hvilken malbygger-side man er på, ikke via en hake.
 
 Bakgrunn: feilformulert planleggings-utkast 2026-05-26 antydet «én samlet mal-builder» som skulle erstatte de to listene. Det viste seg å være feil scope — Kenneth presiserte at dokumenttypene har grunnleggende forskjellig funksjon og må holdes separate i datamodell, server-routing og UI.
 
@@ -18,7 +22,7 @@ Bakgrunn: feilformulert planleggings-utkast 2026-05-26 antydet «én samlet mal-
 |------|----------|------|-----------|--------|--------|
 | **Sjekkliste** | `sjekkliste` | Toveis | Kan redigeres etter utkast | Standard faggruppeflyt | `bygg` / `kvalitet` |
 | **Oppgave** | `oppgave` | Toveis | Låses etter utkast (append-only) | Krever faggruppe-valg | `bygg` |
-| **HMS (RUH/SJA)** | `oppgave` | Toveis | Låses etter utkast (append-only) | Auto-ruter til HMS-gruppe | `hms` |
+| **HMS (avvik/SJA/RUH)** | `hms` | Toveis | Låses etter utkast (append-only) | Auto-ruter til HMS-gruppe; subdomain velger tabell (avvik/ruh→Task, sja→Checklist) | `hms` |
 | **Godkjenning** | `oppgave` | Enveis | Låses etter utkast | Bestiller → godkjenner, ingen retur | `bygg` |
 | **Timeregistrering** (planlagt) | `sjekkliste` | Toveis (forenklet) | Append-only etter sending | Ansatt → leder, kun utførelse | `bygg` |
 
@@ -51,8 +55,8 @@ Sentral mal-modell. Alle dokumenttyper bruker den.
 
 | Felt | Type | Rolle i malbygger |
 |------|------|-------------------|
-| `category` | `"sjekkliste" \| "oppgave"` | Bestemmer om dokumentet lagres som Checklist eller Task |
-| `domain` | `"bygg" \| "hms" \| "kvalitet"` | Styrer tilgangskontroll (lag 3) og HMS-spesialbehandling |
+| `category` | `"sjekkliste" \| "oppgave" \| "hms"` | Malbygger-organisering (hvilken liste/side malen bor på). For HMS avgjør `subdomain` Task vs Checklist, ikke `category` |
+| `domain` | `"bygg" \| "hms" \| "kvalitet"` | Runtime-identifisering: tilgangskontroll (lag 3), KPI-tellinger, HMS-spesialbehandling. Invariant: `category="hms"` ⇒ `domain="hms"` |
 | `prefix` | `string?` | Auto-nummerering (f.eks. `HMS-001`, `GM-003`) |
 | `subjects` | `JSON` | Forhåndsdefinerte emner for nedtrekk |
 | `showSubject/Enterprise/Location/Priority` | `boolean` | Vis/skjul standardfelter i opprettelsesdialog |

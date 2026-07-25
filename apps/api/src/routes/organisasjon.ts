@@ -901,6 +901,10 @@ export const organisasjonRouter = router({
         reisetidTellerOvertid: z.boolean().optional(),
         // null = nullstill (fallback til navne-match), uuid = peker på lønnsart.
         reiseLonnsartId: z.string().uuid().nullable().optional(),
+        // B Kloss 2b (2026-07-24): auto-prosjektadmin. "alle_firma_admins" →
+        // firmaets firma-admins auto-legges som ProjectMember.role=admin ved
+        // oppretting av NYE prosjekter. "av" = dagens oppførsel.
+        autoProsjektAdmin: z.enum(["av", "alle_firma_admins"]).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {

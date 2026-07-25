@@ -59,3 +59,6 @@ Lønnsarter til sortering.txt
 .playwright-mcp/
 
 .claude/settings.local.json
+
+# Fabel-leveranser (staging-inbox; kanoniske docs ligger i docs/claude/)
+Fra fabel/

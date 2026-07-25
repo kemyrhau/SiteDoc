@@ -8,6 +8,21 @@ sist_verifisert_mot_kode: 2026-07-04
 
 Arkiv av arbeid deployet til prod i juli 2026. Flyttet hit fra [STATUS-AKTUELT.md](STATUS-AKTUELT.md) per arkiveringsplikten (deployet arbeid ligger aldri igjen i STATUS-AKTUELT).
 
+## Prod-deploy 2026-07-23 (develop→main) — K3 kontekstvelger-redesign + polish (LIVE)
+
+Hele K3-sporet deployet til prod, `--no-deps sitedoc-api sitedoc-web` (embed/oversettelse + salsaklubb urørt). **Ingen migreringer.** Innlogget prod-verifisert (A.Markussen AS): trakt + to-linjers topplinje + sidehode + ⇄ + timer-hjem + maskin-kontekst + chip-pixel-lås + felles venstrekant — alle korrekte. Nav-redesignet ligger bak `nyNavigasjon`-flagget (normal bruker beholder gammel nav); flagg-nøytralt live: sidehode + timer-hjem-rute. Statuskilde: [verifisering/k3-verifiseringslogg.md](delplaner/verifisering/k3-verifiseringslogg.md).
+
+- **K3 kontekstvelger som trakt** — `KontekstChip.tsx` bygget om til firma → prosjekt → byggeplass-trakt (ett nivå åpent, «Endre»-rader, Alle/Mine-pille, «Sist brukt» via `Activity`, «Hele prosjektet» default). Prøvestein: kundetelefon-oppslag uten å gjette navn. Ordre: [k3-ordre.md](delplaner/k3-ordre.md), vedtak: [k3-kontekstvelger-vedtak.md](delplaner/k3-kontekstvelger-vedtak.md).
+- **To-linjers topplinje** (kloss 2c) — prosjektkontekst: Firma (dempet grå eyebrow) / Prosjekt · Byggeplass (blå chip + ⇄); firmakontekst: kun Firma (amber). SD-nummer ut av topplinja (bor i trakt-radene). Reverserte P1-vedtak 3 (ført i [p1-nivasignal-vedtak.md](delplaner/p1-nivasignal-vedtak.md)). Grammatikk: sonetone følger AKTIV kontekst, toppbar-blå = brand (ikke sonetone).
+- **Sidehode ×24 + verktøylinje-sonemarkør** — `SonetonetSidehode` rullet ut på nav-sider; sjekklister/oppgaver/maler fikk 4px sonemarkør på verktøylinja (delt kilde `sone-farger.ts`).
+- **⇄ nav-utledet + streng timer-paring** — `PARBARE_SEKSJONER` pensjonert; ⇄ vises kun når eiende nav-element (lengste href-prefiks) har motpart med samme relpath i den andre kontekstens tilgangs-filtrerte nav. attestering/rapport → chip uten ⇄. `<Link>` (ikke `router.push`).
+- **Maskin-kontekst-fiks** — `erFirmaKontekst` gjenkjenner `/dashbord/maskin` (firmamodul på topp-nivå-rute).
+- **Timer-hjem-rute** (`/firma/timer` ekte side, ikke redirect-stub) — løste **React #310 kryss-kontekst-krasj**: ⇄ prosjekt→firma til en `redirect()`-rute avbrøt renderen. Onboarding-innholdet flyttet inn i hjem-siden, `/onboarding` → redirect tilbake (ut av nav-flaten). Sak: [timer-310-hooks-bug.md](delplaner/timer-310-hooks-bug.md).
+- **Polish** — ⇄ pixel-lås (nivåord-knapp fast 127px + navn-område 240px = klikkmål står stille) + felles venstrekant (fjernet `mx-auto` på 24 innholds-containere → sidene starter på samme x, maxbredde varierer kun mot høyre; brede tabeller beholder plassen).
+- **i18n** — nye K3-nøkler + `firma.timer.fane.oversikt` generert til 13 språk.
+
+**Prod-lærdom (test-connection-tak, 2026-07-23):** test-deploy-runden traff `sitedoc_test`s per-database connection-tak (~25) pga. deploy-churn → NextAuth `AdapterError` maskert som `error=Configuration`. Recovery: drep idle-koblinger (`pg_terminate_backend … state='idle'`, kun `sitedoc_test`) + restart test-containere. Prod (`sitedoc`) urørt. Herding (`?connection_limit=5` i test-`DATABASE_URL`) står som egen test-infra-sak.
+
 ## Prod-deploy 2026-07-15, runde 3 (prod-merge `387d10a2`) — georeferanse-panel v2 + Kartverket-adressesøk
 
 Develop→main-merge `387d10a2` (7 commits). **Ingen migreringer.** Api + web rebuilt (sekvensielt), alle containere Up etter deploy. **Innlogget prod-verifisert:** panelet (ett kart · chips · kollapsede rader m/ ✓+koordinat · sticky footer), `storgata`-søk → treffliste + «Adressedata © Kartverket» i **begge** flater (georef-editor + geofence-modal), timer-attestering laster (api sunn etter rebuild).
