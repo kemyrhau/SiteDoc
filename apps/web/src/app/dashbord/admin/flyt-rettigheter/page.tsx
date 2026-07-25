@@ -12,7 +12,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { Spinner } from "@sitedoc/ui";
+import { Spinner, Tooltip } from "@sitedoc/ui";
 import { Lock, RotateCcw, Check } from "lucide-react";
 import { CELLE } from "@/lib/flytmatrise-farger";
 import { flytRettighetNoekkel, type RettighetsOverrides } from "@sitedoc/shared";
@@ -23,9 +23,15 @@ import {
   ROLLE_LABEL_NOEKKEL,
   STATUS_LABEL_NOEKKEL,
   celleTilstand,
+  matriseTittel,
+  flythjelpTekst,
   type MatriseRolle,
   type CelleTilstand,
+  type OversettFn,
 } from "@/lib/flytmatrise-def";
+
+/** Trigger-styling for mikrotekst-hover: prikket understrek + hjelpe-cursor (spec Flate 1). */
+const HOVER_TRIGGER = "underline decoration-dotted underline-offset-[3px] decoration-gray-400/40 cursor-help";
 
 type Fane = "matrise" | "logg" | "lesrediger";
 
@@ -125,7 +131,7 @@ function MatriseFane({
   kanRedigere: boolean;
   onKlikk: (rolle: MatriseRolle, fra: string, til: string, tilstand: CelleTilstand) => void;
   onTilbakestill: (rolle: MatriseRolle, fra: string, til: string) => void;
-  t: (k: string) => string;
+  t: OversettFn;
 }) {
   // Grupper rader etter fra-status for seksjonsoverskrifter.
   const grupper = useMemo(() => {
@@ -162,10 +168,19 @@ function MatriseFane({
                 {t("flytmatrise.auto.overskrift")}
               </td>
             </tr>
-            {AUTO_OVERGANGER.map((a) => (
+            {AUTO_OVERGANGER.map((a) => {
+              const overgangTekst = `${t(STATUS_LABEL_NOEKKEL[a.fra] ?? a.fra)} → ${t(STATUS_LABEL_NOEKKEL[a.til] ?? a.til)}`;
+              return (
               <tr key={`${a.fra}-${a.til}`} className="border-b border-gray-100">
                 <td className="px-3 py-2 text-gray-700">
-                  {t(STATUS_LABEL_NOEKKEL[a.fra] ?? a.fra)} → {t(STATUS_LABEL_NOEKKEL[a.til] ?? a.til)}
+                  {/* Kun sent→received har mikrotekst (autoMottatt); received→in_progress står urørt (spec ⚠2). */}
+                  {a.flythjelpNoekkel ? (
+                    <Tooltip tittel={overgangTekst} tekst={t(a.flythjelpNoekkel)} side="right">
+                      <span className={HOVER_TRIGGER}>{overgangTekst}</span>
+                    </Tooltip>
+                  ) : (
+                    overgangTekst
+                  )}
                 </td>
                 <td colSpan={MATRISE_ROLLER.length} className="px-3 py-2 text-center">
                   <span className="inline-flex items-center gap-2 text-xs text-gray-400">
@@ -174,7 +189,8 @@ function MatriseFane({
                   </span>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -200,7 +216,7 @@ function FraGruppe({
   kanRedigere: boolean;
   onKlikk: (rolle: MatriseRolle, fra: string, til: string, tilstand: CelleTilstand) => void;
   onTilbakestill: (rolle: MatriseRolle, fra: string, til: string) => void;
-  t: (k: string) => string;
+  t: OversettFn;
 }) {
   return (
     <>
@@ -211,7 +227,15 @@ function FraGruppe({
       </tr>
       {rader.map((rad) => (
         <tr key={`${rad.fra}-${rad.til}`} className="border-b border-gray-100 hover:bg-gray-50/40">
-          <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{t(rad.labelNoekkel)}</td>
+          <td className="px-3 py-2 text-gray-700 whitespace-nowrap">
+            <Tooltip
+              tittel={matriseTittel(rad, t)}
+              tekst={flythjelpTekst(rad.flythjelpNoekkel, rad.fallbackNoekkel ? t(rad.fallbackNoekkel) : undefined, t)}
+              side="right"
+            >
+              <span className={HOVER_TRIGGER}>{t(rad.labelNoekkel)}</span>
+            </Tooltip>
+          </td>
           {MATRISE_ROLLER.map((rolle) => {
             const tilstand = celleTilstand(rolle, rad.fra, rad.til, overrides);
             const noekkel = flytRettighetNoekkel(rolle, rad.fra, rad.til);
