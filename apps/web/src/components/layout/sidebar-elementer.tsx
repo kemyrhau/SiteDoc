@@ -31,6 +31,7 @@ import {
   CheckCircle2,
   Package,
   Contact,
+  Trash2,
 } from "lucide-react";
 import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -188,6 +189,12 @@ export const hovedelementer: SidebarElement[] = [
     ikon: <Package className="h-5 w-5" />,
     kreverProsjekt: true,
     kreverFirmaModul: "varelager",
+  },
+  {
+    id: "papirkurv",
+    labelKey: "nav.papirkurv",
+    ikon: <Trash2 className="h-5 w-5" />,
+    kreverProsjekt: true,
   },
 ];
 

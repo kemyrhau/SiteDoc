@@ -5,6 +5,7 @@ import { Prisma, krypter } from "@sitedoc/db";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
 import { hentBrukersOrg } from "../trpc/tilgangskontroll";
 import { importerKatalog } from "../services/katalog/importerKatalog";
+import { IKKE_SLETTET } from "../utils/softDelete";
 
 /**
  * Verifiser at bruker er SiteDoc-administrator.
@@ -62,12 +63,12 @@ export const adminRouter = router({
       ctx.prisma.checklist.groupBy({
         by: ["bestillerFaggruppeId"],
         _count: true,
-        where: { bestillerFaggruppe: { projectId: { in: prosjektIder } } },
+        where: { ...IKKE_SLETTET, bestillerFaggruppe: { projectId: { in: prosjektIder } } },
       }),
       ctx.prisma.task.groupBy({
         by: ["bestillerFaggruppeId"],
         _count: true,
-        where: { bestillerFaggruppe: { projectId: { in: prosjektIder } } },
+        where: { ...IKKE_SLETTET, bestillerFaggruppe: { projectId: { in: prosjektIder } } },
       }),
     ]);
 
@@ -291,7 +292,7 @@ export const adminRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-      const fgFilter = { bestillerFaggruppe: { projectId: input.projectId } };
+      const fgFilter = { ...IKKE_SLETTET, bestillerFaggruppe: { projectId: input.projectId } };
       const [sjekklister, oppgaver, maler, faggrupper, medlemmer, tegninger, mapper] = await Promise.all([
         ctx.prisma.checklist.count({ where: fgFilter }),
         ctx.prisma.task.count({ where: fgFilter }),

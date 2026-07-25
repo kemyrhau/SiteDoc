@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { createFaggruppeSchema, copyFaggruppeSchema } from "@sitedoc/shared";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { IKKE_SLETTET } from "../utils/softDelete";
 
 export const faggruppeRouter = router({
   // Hent alle faggrupper for et prosjekt
@@ -173,6 +174,7 @@ export const faggruppeRouter = router({
       const [sjekklisteAntall, oppgaveAntall] = await Promise.all([
         ctx.prisma.checklist.count({
           where: {
+            ...IKKE_SLETTET,
             OR: [
               { bestillerFaggruppeId: input.id },
               { utforerFaggruppeId: input.id },
@@ -181,6 +183,7 @@ export const faggruppeRouter = router({
         }),
         ctx.prisma.task.count({
           where: {
+            ...IKKE_SLETTET,
             OR: [
               { bestillerFaggruppeId: input.id },
               { utforerFaggruppeId: input.id },
