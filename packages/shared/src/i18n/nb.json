@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Lokalt",
   "flytvisning.bestiller.h1": "Ikke egen stasjon i dagens statusmaskin (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Slett kladd",
   "flytvisning.fantom.bestillerBesvar": "Besvar / send tilbake",
   "flytvisning.fantom.utforerSendTilbake": "Send tilbake (be om noe)",
   "flytvisning.fantom.tooltip": "Finnes ikke i statusmaskinen — krever vedtak",

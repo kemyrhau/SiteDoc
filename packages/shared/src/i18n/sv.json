@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Lokal",
   "flytvisning.bestiller.h1": "Inte en separat station i dagens statusmaskin (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Ta bort utkast",
   "flytvisning.fantom.bestillerBesvar": "Svara / skicka tillbaka",
   "flytvisning.fantom.utforerSendTilbake": "Skicka tillbaka (be om något)",
   "flytvisning.fantom.tooltip": "Finns inte i statusmaskinen — kräver beslut",

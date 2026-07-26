@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Vietinis",
   "flytvisning.bestiller.h1": "Ne atskira stotis šiandieninėje būsenos mašinoje (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Ištrinti juodraštį",
   "flytvisning.fantom.bestillerBesvar": "Atsakyti / išsiųsti atgal",
   "flytvisning.fantom.utforerSendTilbake": "Siųsti atgal (ko nors paprašyti)",
   "flytvisning.fantom.tooltip": "Būsenos mašinoje nėra – reikia priimti sprendimą",

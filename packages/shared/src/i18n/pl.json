@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Lokalny",
   "flytvisning.bestiller.h1": "Nie jest to osobna stacja w dzisiejszej maszynie statusowej (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Usuń wersję roboczą",
   "flytvisning.fantom.bestillerBesvar": "Odpowiedz / odeślij",
   "flytvisning.fantom.utforerSendTilbake": "Odeślij (poproś o coś)",
   "flytvisning.fantom.tooltip": "Nie istnieje w maszynie statusowej — wymaga decyzji",

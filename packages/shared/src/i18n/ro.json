@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Local",
   "flytvisning.bestiller.h1": "Nu este o stație separată în mașina de stare de astăzi (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Ștergeți schița",
   "flytvisning.fantom.bestillerBesvar": "Răspunde/trimite înapoi",
   "flytvisning.fantom.utforerSendTilbake": "Trimite înapoi (cere ceva)",
   "flytvisning.fantom.tooltip": "Nu există în mașina de stare — necesită o decizie",

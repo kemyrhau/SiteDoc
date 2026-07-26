@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Local",
   "flytvisning.bestiller.h1": "Not a separate station in today's status machine (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Delete draft",
   "flytvisning.fantom.bestillerBesvar": "Reply / send back",
   "flytvisning.fantom.utforerSendTilbake": "Send back (ask for something)",
   "flytvisning.fantom.tooltip": "Does not exist in the status machine — requires a decision",

@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Místní",
   "flytvisning.bestiller.h1": "Není to samostatná stanice v dnešním stavovém stroji (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Smazat koncept",
   "flytvisning.fantom.bestillerBesvar": "Odpovědět / odeslat zpět",
   "flytvisning.fantom.utforerSendTilbake": "Poslat zpět (požádat o něco)",
   "flytvisning.fantom.tooltip": "Ve stavovém stroji neexistuje – vyžaduje rozhodnutí",

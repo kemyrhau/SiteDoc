@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Местный",
   "flytvisning.bestiller.h1": "Не отдельная станция в сегодняшней статус-машине (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Удалить черновик",
   "flytvisning.fantom.bestillerBesvar": "Ответить/отправить обратно",
   "flytvisning.fantom.utforerSendTilbake": "Отправить обратно (попросить что-то)",
   "flytvisning.fantom.tooltip": "Не существует в статусе машины — требует решения",

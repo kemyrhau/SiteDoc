@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Місцевий",
   "flytvisning.bestiller.h1": "Не окрема станція в сьогоднішній станційній машині (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Видалити чернетку",
   "flytvisning.fantom.bestillerBesvar": "Відповісти / відправити назад",
   "flytvisning.fantom.utforerSendTilbake": "Відправити (попросити щось)",
   "flytvisning.fantom.tooltip": "Не існує в статусі машини — вимагає рішення",

@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Kohalik",
   "flytvisning.bestiller.h1": "Ei ole eraldi jaam tänases olekumasinas (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Kustuta mustand",
   "flytvisning.fantom.bestillerBesvar": "Vasta / saada tagasi",
   "flytvisning.fantom.utforerSendTilbake": "Saada tagasi (küsi midagi)",
   "flytvisning.fantom.tooltip": "Olekumasinas puudub – nõuab otsust",

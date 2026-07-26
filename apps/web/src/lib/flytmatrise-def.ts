@@ -255,122 +255,152 @@ export const RETNINGSGRUPPE_NOEKKEL: Record<Retningsgruppe, string> = {
   lokalt: "flytvisning.gruppe.lokalt",
 };
 
+/** Én celle-referanse (rolle · fra · til) — peker på samme FlytRettighetOverride som matrise-fanen. */
+export interface FlytOppslag {
+  rolle: MatriseRolle;
+  fra: string;
+  til: string;
+}
+
 /**
- * En oppføring i en retningsgruppe: enten en ekte celle (rolle · fra · til) eller et H2-fantom
- * (manglende overgang — disabled ?-bryter, IKKE en celle, IKKE klikkbar).
+ * En handling i en retningsgruppe. Avvik-1-fiks (fabel 2026-07-26): samme handling med flere
+ * fra-statuser samles til ÉN rad med `celler` som delceller — unngår duplikat-etiketter (fire like
+ * «Gjenåpne» osv.). Grupperingen er REN VISNING: hver delcelle er fortsatt sin egen
+ * FlytRettighetOverride-celle (én kilde bevart) — amber-prikk, «Tilbakestill», hengelås og A-merke
+ * virker per delcelle og skriver samme rad som matrise-fanen.
+ *
+ * `labelNoekkel` (valgfri): overstyrer den utledede etiketten — brukes for «Slett kladd» (skiller
+ * registrator/bestiller-slett fra admin-slett, som begge er `draft→deleted`). H2-fantom er en
+ * manglende overgang (disabled ?-bryter, IKKE en celle, IKKE klikkbar).
  */
-export type FlytEntry =
-  | { type: "celle"; rolle: MatriseRolle; fra: string; til: string }
+export type FlytHandling =
+  | { type: "handling"; celler: FlytOppslag[]; labelNoekkel?: string }
   | { type: "fantom"; labelNoekkel: string };
 
-/** Kortform for en celle-entry i en flyt-rolle-boks (rollen er gitt av boksen). */
-const c = (rolle: MatriseRolle, fra: string, til: string): FlytEntry => ({ type: "celle", rolle, fra, til });
+/** Kortform: en handling med én eller flere celler i en flyt-rolle-boks (rollen står i tuplet). */
+const h = (celler: Array<[MatriseRolle, string, string]>, labelNoekkel?: string): FlytHandling => ({
+  type: "handling",
+  celler: celler.map(([rolle, fra, til]): FlytOppslag => ({ rolle, fra, til })),
+  ...(labelNoekkel ? { labelNoekkel } : {}),
+});
+
+/** Utledet etikett-nøkkel for en handling: eksplisitt override, ellers fra den delte matriseraden. */
+export function handlingLabelNoekkel(handling: Extract<FlytHandling, { type: "handling" }>): string {
+  if (handling.labelNoekkel) return handling.labelNoekkel;
+  const forste = handling.celler[0];
+  if (!forste) return "";
+  return finnRad(forste.fra, forste.til)?.labelNoekkel ?? `${forste.fra}→${forste.til}`;
+}
 
 export interface FlytboksDef {
   boks: Flytboks;
   /** Bestiller er ikke egen stasjon i dagens statusmaskin (H1) → stiplet ramme + H1-merke. */
   stiplet?: boolean;
-  grupper: Partial<Record<Retningsgruppe, FlytEntry[]>>;
+  grupper: Partial<Record<Retningsgruppe, FlytHandling[]>>;
   /**
    * Videresend for flyt-roller er admin-only (H3) → egen LÅST chip (hengelås) nederst i boksen.
    * Representativ celle (received→forwarded) — celleLaast/erVideresendAdminLaast gir «laast».
    */
-  videresendLaast: FlytEntry & { type: "celle" };
+  videresendLaast: FlytOppslag;
 }
 
 /**
  * Mapping per flyt-rolle-boks. Cellene er utledet fra ROLLE_HANDLINGER_DEFAULTS (hvilke overganger
- * rollen eier) og gruppert etter overgangens retning. Opprett-cellen (registrator) er lov-låst
- * (celleLaast) → rendres med hengelås. H2-fantomene er «Besvar/send tilbake» (bestiller) og
- * «Send tilbake (be om noe)» (utfører).
+ * rollen eier) og gruppert etter overgangens retning; handlinger med flere fra-statuser samles til
+ * én rad med delceller. Opprett-cellen (registrator) er lov-låst (celleLaast) → rendres med hengelås.
+ * H2-fantomene er «Besvar/send tilbake» (bestiller) og «Send tilbake (be om noe)» (utfører).
  */
 export const FLYTVISNING_BOKS_DEF: FlytboksDef[] = [
   {
     boks: "registrator",
     grupper: {
-      sendHoyre: [c("registrator", "draft", "sent")],
-      hentTilbake: [c("registrator", "received", "draft")],
+      sendHoyre: [h([["registrator", "draft", "sent"]])],
+      hentTilbake: [h([["registrator", "received", "draft"]])],
       lokalt: [
-        c("registrator", SENTINEL_FRA, SENTINEL_TIL), // Opprett — lov-låst (hengelås)
-        c("registrator", "draft", "deleted"), // Slett kladd (soft)
-        // Gjenåpne (korreksjon a): registrator-cellene der de er redigerbare.
-        c("registrator", "closed", "draft"),
-        c("registrator", "dismissed", "draft"),
-        c("registrator", "cancelled", "draft"),
-        c("registrator", "approved", "draft"),
+        h([["registrator", SENTINEL_FRA, SENTINEL_TIL]]), // Opprett — lov-låst (hengelås)
+        h([["registrator", "draft", "deleted"]], "flytvisning.handling.slettKladd"), // Slett kladd (soft)
+        // Gjenåpne (korreksjon a): registrator-cellene → én rad, fire delceller (Lukket · Avvist · Trukket · Godkjent).
+        h([
+          ["registrator", "closed", "draft"],
+          ["registrator", "dismissed", "draft"],
+          ["registrator", "cancelled", "draft"],
+          ["registrator", "approved", "draft"],
+        ]),
       ],
     },
-    videresendLaast: c("registrator", "received", "forwarded") as FlytEntry & { type: "celle" },
+    videresendLaast: { rolle: "registrator", fra: "received", til: "forwarded" },
   },
   {
     boks: "bestiller",
     stiplet: true, // H1
     grupper: {
-      sendHoyre: [c("bestiller", "draft", "sent")],
+      sendHoyre: [h([["bestiller", "draft", "sent"]])],
       sendVenstre: [{ type: "fantom", labelNoekkel: "flytvisning.fantom.bestillerBesvar" }],
-      hentTilbake: [c("bestiller", "received", "draft")],
-      endepunkt: [c("bestiller", "in_progress", "closed")],
-      lokalt: [c("bestiller", "draft", "deleted")], // Slett kladd (korreksjon b)
+      hentTilbake: [h([["bestiller", "received", "draft"]])],
+      endepunkt: [h([["bestiller", "in_progress", "closed"]])],
+      lokalt: [h([["bestiller", "draft", "deleted"]], "flytvisning.handling.slettKladd")], // Slett kladd (korreksjon b)
     },
-    videresendLaast: c("bestiller", "received", "forwarded") as FlytEntry & { type: "celle" },
+    videresendLaast: { rolle: "bestiller", fra: "received", til: "forwarded" },
   },
   {
     boks: "utforer",
     grupper: {
-      sendHoyre: [c("utforer", "received", "sent"), c("utforer", "in_progress", "sent")],
+      // Send (received→sent) og Send på nytt (in_progress→sent) er ulike handlinger → egne rader.
+      sendHoyre: [h([["utforer", "received", "sent"]]), h([["utforer", "in_progress", "sent"]])],
       sendVenstre: [
-        c("utforer", "received", "responded"), // Besvar — svar går til den som ba
-        c("utforer", "in_progress", "responded"),
+        // Besvar fra Mottatt + Under arbeid → én rad, to delceller. Svar går til den som ba.
+        h([["utforer", "received", "responded"], ["utforer", "in_progress", "responded"]]),
         { type: "fantom", labelNoekkel: "flytvisning.fantom.utforerSendTilbake" },
       ],
-      endepunkt: [c("utforer", "received", "dismissed")], // Avvis
+      endepunkt: [h([["utforer", "received", "dismissed"]])], // Avvis
     },
-    videresendLaast: c("utforer", "received", "forwarded") as FlytEntry & { type: "celle" },
+    videresendLaast: { rolle: "utforer", fra: "received", til: "forwarded" },
   },
   {
     boks: "godkjenner",
     grupper: {
-      sendHoyre: [c("godkjenner", "responded", "sent"), c("godkjenner", "approved", "sent")],
-      sendVenstre: [c("godkjenner", "responded", "in_progress")], // Send tilbake til utfører
+      // Send fra Besvart + Godkjent → én rad, to delceller.
+      sendHoyre: [h([["godkjenner", "responded", "sent"], ["godkjenner", "approved", "sent"]])],
+      sendVenstre: [h([["godkjenner", "responded", "in_progress"]])], // Send tilbake til utfører
       endepunkt: [
-        c("godkjenner", "received", "approved"), // Godkjenn fra Mottatt (F6)
-        c("godkjenner", "responded", "approved"), // Godkjenn
-        c("godkjenner", "in_progress", "closed"), // Lukk
+        // Godkjenn fra Mottatt (F6) + Besvart → én rad, to delceller.
+        h([["godkjenner", "received", "approved"], ["godkjenner", "responded", "approved"]]),
+        h([["godkjenner", "in_progress", "closed"]]), // Lukk
       ],
     },
-    videresendLaast: c("godkjenner", "received", "forwarded") as FlytEntry & { type: "celle" },
+    videresendLaast: { rolle: "godkjenner", fra: "received", til: "forwarded" },
   },
 ];
 
 /**
  * Prosjektadmin-sonen (full bredde under boks-linjen) — IKKE en boks. Kuraterte admin-handlinger
  * i ordrens rekkefølge: Opprett · Videresend på tvers · Gjenåpne · Lukk trukket [Farlig] · Slett.
- * Alle celler er prosjektadmin-kolonnens egne (distinkt fra rolle-boksenes celler).
+ * Alle celler er prosjektadmin-kolonnens egne (distinkt fra rolle-boksenes celler); handlinger med
+ * flere fra-statuser (Videresend, Gjenåpne) samles til én rad med delceller.
  */
 export interface AdminSoneGruppe {
   labelNoekkel: string;
   /** Farlig sone (destruktivt) → rød aksent i UI. */
   farlig?: boolean;
-  celler: Array<{ type: "celle"; rolle: MatriseRolle; fra: string; til: string }>;
+  handlinger: FlytHandling[];
 }
 
-const pa = (fra: string, til: string): { type: "celle"; rolle: MatriseRolle; fra: string; til: string } => ({
-  type: "celle",
-  rolle: PROSJEKTADMIN_ROLLE,
-  fra,
-  til,
+/** Kortform: prosjektadmin-handling (én rad, delceller) — rollen er alltid prosjektadmin. */
+const pah = (celler: Array<[string, string]>): FlytHandling => ({
+  type: "handling",
+  celler: celler.map(([fra, til]): FlytOppslag => ({ rolle: PROSJEKTADMIN_ROLLE, fra, til })),
 });
 
 export const FLYTVISNING_ADMIN_SONE: AdminSoneGruppe[] = [
-  { labelNoekkel: "flytvisning.admin.opprett", celler: [pa(SENTINEL_FRA, SENTINEL_TIL)] },
+  { labelNoekkel: "flytvisning.admin.opprett", handlinger: [pah([[SENTINEL_FRA, SENTINEL_TIL]])] },
   {
     labelNoekkel: "flytvisning.admin.videresend",
-    celler: [pa("received", "forwarded"), pa("in_progress", "forwarded"), pa("responded", "forwarded"), pa("approved", "forwarded")],
+    handlinger: [pah([["received", "forwarded"], ["in_progress", "forwarded"], ["responded", "forwarded"], ["approved", "forwarded"]])],
   },
   {
     labelNoekkel: "flytvisning.admin.gjenapne",
-    celler: [pa("closed", "draft"), pa("dismissed", "draft"), pa("cancelled", "draft"), pa("approved", "draft")],
+    handlinger: [pah([["closed", "draft"], ["dismissed", "draft"], ["cancelled", "draft"], ["approved", "draft"]])],
   },
-  { labelNoekkel: "flytvisning.admin.lukkTrukket", farlig: true, celler: [pa("cancelled", "deleted")] },
-  { labelNoekkel: "flytvisning.admin.slett", celler: [pa("draft", "deleted")] },
+  { labelNoekkel: "flytvisning.admin.lukkTrukket", farlig: true, handlinger: [pah([["cancelled", "deleted"]])] },
+  { labelNoekkel: "flytvisning.admin.slett", handlinger: [pah([["draft", "deleted"]])] },
 ];

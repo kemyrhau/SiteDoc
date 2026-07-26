@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Locale",
   "flytvisning.bestiller.h1": "Pas une station distincte dans la machine de statut d'aujourd'hui (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Supprimer le brouillon",
   "flytvisning.fantom.bestillerBesvar": "Répondre / renvoyer",
   "flytvisning.fantom.utforerSendTilbake": "Renvoyer (demander quelque chose)",
   "flytvisning.fantom.tooltip": "N'existe pas dans la machine d'état - nécessite une décision",

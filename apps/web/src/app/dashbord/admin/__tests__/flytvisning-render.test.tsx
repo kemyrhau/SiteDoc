@@ -4,7 +4,7 @@ import { render, cleanup, within } from "@testing-library/react";
 import { I18nextProvider, initReactI18next } from "react-i18next";
 import i18n from "i18next";
 import { nb, flytRettighetNoekkel } from "@sitedoc/shared";
-import { FlytvisningFane } from "../flyt-rettigheter/page";
+import { FlytvisningFane } from "../flyt-rettigheter/FlytvisningFane";
 import type { OversettFn } from "@/lib/flytmatrise-def";
 
 /**

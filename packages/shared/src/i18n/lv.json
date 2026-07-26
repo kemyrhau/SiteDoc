@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Vietējais",
   "flytvisning.bestiller.h1": "Nav atsevišķa stacija mūsdienu statusa iekārtā (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Dzēst melnrakstu",
   "flytvisning.fantom.bestillerBesvar": "Atbildēt / nosūtīt atpakaļ",
   "flytvisning.fantom.utforerSendTilbake": "Sūtīt atpakaļ (paprasīt kaut ko)",
   "flytvisning.fantom.tooltip": "Statusa mašīnā neeksistē — nepieciešams lēmums",

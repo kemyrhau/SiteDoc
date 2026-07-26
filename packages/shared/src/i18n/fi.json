@@ -3125,6 +3125,7 @@
   "flytvisning.gruppe.lokalt": "Paikallinen",
   "flytvisning.bestiller.h1": "Ei erillinen asema tämän päivän tilakoneessa (H1)",
   "flytvisning.bestiller.h1merke": "H1",
+  "flytvisning.handling.slettKladd": "Poista luonnos",
   "flytvisning.fantom.bestillerBesvar": "Vastaa / lähetä takaisin",
   "flytvisning.fantom.utforerSendTilbake": "Lähetä takaisin (pyydä jotain)",
   "flytvisning.fantom.tooltip": "Ei ole olemassa tilakoneessa – vaatii päätöksen",
