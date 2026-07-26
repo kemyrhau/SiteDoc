@@ -1,0 +1,49 @@
+# Ordre til redesign-Opus: Firmaorientert admin-oversikt (1a + 1b) — 2026-07-26
+
+> Fra fabel via Kenneth. Design godkjent av Kenneth 2026-07-26 mot mockup `Admin Firmaorientert Oversikt.dc.html` (fabels designprosjekt, skjermbilder relayes ved behov). Kvalitet fremfor tempo: rotårsak, delte kilder, guards. DoD per FABEL-RAMMEVERK: kode → build grønn (`pnpm --filter @sitedoc/web build`) → skjermbilder til fabel for designgodkjenning → dok-sync → cowork-merge. Ikke merge selv, ikke rør STATUS/BACKLOG.
+
+## Hva som bygges (kort)
+
+Admin-flaten dreies firmaorientert: **Firmaer-listen blir inngangen; prosjektoversikt lever PER firma på en ny firma-detaljside.** Global «Prosjekter»-side (`dashbord/admin/prosjekter`) avvikles som nav-punkt — den skalerer ikke når firmaer har mange prosjekter.
+
+## Steg 0 — kodeverifisert nå-rapport (FØR design/koding)
+
+Lever kort rapport: dagens `admin/firmaer/page.tsx` + `admin/prosjekter/page.tsx` (datakilder, tRPC-ruter, kolonner), hvilke admin-ruter som finnes for firma-detaljdata (brukere, moduler, fakturering), og om det finnes paginering/søk server-side i dag. Fabel gater rapporten før koding. Negative påstander med oppgitt søkerom.
+
+## 1a — Firmaer-listen (erstatter dagens `admin/firmaer`)
+
+- Kolonner: Firma (navn + org.nr + EHF-indikator), **Status**, Brukere, **Prosjekter (aktive, + totalt)**, Moduler (chips fra `OrganizationModule`, aktiv=grønn), Sist aktivitet.
+- **Status-badge fra produktmodellen:** Kunde (`erKunde=true`) / Prøve (`erKunde=false`, egne prosjekter) / Skall (`erKunde=false`, kun part i andres prosjekt/dokumentflyt). Delt hjelper for klassifiseringen — ikke inline-logikk i siden.
+- Filterchips: Kunder / Prøve / Skall / Alle, + søkefelt (navn/org.nr). Client-side holder ved <100 firmaer; noter i rapporten om server-side trengs.
+- **Hele raden klikkbar** → firma-detaljside (1b). Rediger-blyanten består.
+- «Sist aktivitet»: billigste eksisterende signal (f.eks. nyeste Activity/updatedAt på firmaets prosjekter) — IKKE ny tung aggregering; foreslå kilde i rapporten, fabel gater.
+
+## 1b — Ny firma-detaljside (`dashbord/admin/firmaer/[id]`)
+
+- Header: navn, status-badge, org.nr, faktura-e-post, EHF. Knapper: Rediger firma, + Opprett prosjekt (prefylt organizationId — gjenbruk eksisterende opprett-flyt).
+- **Faner: Prosjekter | Brukere | Moduler | Fakturering | Innstillinger.** Denne ordren bygger Prosjekter-fanen fullt; øvrige faner er tynne visninger av EKSISTERENDE data/ruter (brukere = OrganizationMember-liste; moduler = OrganizationModule-status; fakturering = invoiceAddress/invoiceEmail/ehfEnabled + aktive moduler m/aktivertVed som fakturagrunnlag; innstillinger = lenke/gjenbruk av eksisterende firmainnstillinger). Ingen ny forretningslogikk i fanene.
+- Prosjekter-fanen:
+  - Tellekort: Aktive / Fullført+arkivert / Deaktivert / **Uten aktivitet 30 d** (amber).
+  - Søk + statusfilter (Aktive / Arkiverte / Alle) + sortering (default: sist aktivitet).
+  - Tabell: Prosjekt, Nr, Medl., Sjekk., Oppg., Sist aktivitet, Status. Rad med inaktivitet ≥30 d får amber bakgrunn + «Inaktiv 30d+»-badge.
+  - **Server-side paginering fra dag én** (25/side) — hele poenget er skala.
+- Prøveperiode-kolonnen fra gammel side: vises kun der den gjelder (trialExpiresAt satt), ellers utelatt.
+
+## Avvikling av global prosjektliste
+
+- Nav-punktet «Prosjekter» fjernes fra admin-sidemenyen. Ruten erstattes av en ren redirect til `admin/firmaer` i en overgangsperiode.
+- **Opprydding (obligatorisk, samme leveranse):** gammel kode fjernes, ikke etterlates død. `admin/prosjekter/page.tsx` slettes (redirect-fila er ny og triviell); komponenter, hooks og tRPC-ruter som KUN den gamle siden brukte fjernes — men mål først at de er ubrukte (alle callsites, oppgitt søkerom i rapporten) før sletting. Delte ruter som også brukes av andre flater består. Ubrukte i18n-nøkler etter slettingen ryddes i samme commit.
+- «Rydd utløpte» (gjelder kun orgløse prøveprosjekter, admin.slettUtlopteProsjekter) flyttes til Testsider/vedlikeholds-flaten — IKKE inn i firma-konteksten.
+- Tverrgående prosjektsøk dekkes av eksisterende Ctrl+K — ingen ny global liste.
+
+## Rammer
+
+- i18n: alle nye strenger via `t()` + språkgenerering (15 språk).
+- Ingen endring i guards/produktmodell — det eies av egne ordrer (sjekklistegrense-interim, firma-produktmodell). Denne ordren er ren lese-/navigasjonsflate.
+- Flagg-prinsippet: dette er admin-flate (sitedoc_admin), utenfor `nyNavigasjon`-skallet — bygges flagg-nøytralt.
+- Delte kilder: status-klassifisering (Kunde/Prøve/Skall) og «sist aktivitet»-oppslag som gjenbrukbare hjelpere i api-laget, brukt av både liste og detaljside.
+- Skjermbilder til fabel: firmaliste m/filtre, detaljside Prosjekter-fane (med og uten inaktiv-rad), tom-tilstand (firma uten prosjekter), én av de tynne fanene.
+
+## Utenfor scope
+
+Guard-/grenseendringer, OrganizationModule("prosjekt")-slug, standalone-avvikling, betalings-/fakturaintegrasjon, endringer i vanlig (ikke-admin) prosjektliste.
