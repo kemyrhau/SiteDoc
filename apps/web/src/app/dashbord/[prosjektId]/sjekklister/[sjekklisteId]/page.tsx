@@ -568,6 +568,7 @@ export default function SjekklisteDetaljSide() {
                 recipientGroupId={fullSjekkliste?.recipientGroupId}
                 status={sjekkliste.status}
                 bestillerUserId={fullSjekkliste?.bestillerUserId}
+                visUtveier
               />
             </div>
             <div className="sm:hidden">
@@ -578,6 +579,7 @@ export default function SjekklisteDetaljSide() {
                 status={sjekkliste.status}
                 bestillerUserId={fullSjekkliste?.bestillerUserId}
                 kompakt
+                visUtveier
               />
             </div>
           </div>

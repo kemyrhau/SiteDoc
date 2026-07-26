@@ -550,6 +550,7 @@ export default function OppgaveDetaljSide() {
                 recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
                 status={oppgave.status}
                 bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+                visUtveier
               />
             </div>
             {/* Mobil: kompakt flyt med tap-for-expand */}
@@ -561,6 +562,7 @@ export default function OppgaveDetaljSide() {
                 status={oppgave.status}
                 bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
                 kompakt
+                visUtveier
               />
             </div>
           </div>

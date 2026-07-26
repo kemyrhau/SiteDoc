@@ -26,19 +26,11 @@ import {
 import { byggVideresendValg, filtrerVideresendPaaMedlemskap, finnMottakerNavn } from "@/lib/videresend-valg";
 import type { DokumentflytData, FaggruppeData, VideresendMedlem } from "@/lib/videresend-valg";
 import { STATUS_LABEL_NOEKKEL, flythjelpTekst } from "@/lib/flytmatrise-def";
+import { byggLedd, finnAktivtIndex, type FlytMedlem } from "@/lib/flyt-ledd";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
 /* ------------------------------------------------------------------ */
-
-interface FlytMedlem {
-  id: string;
-  rolle: string;
-  steg: number;
-  faggruppe: { id: string; name: string } | null;
-  projectMember: { user: { id: string; name: string | null } } | null;
-  group: { id: string; name: string } | null;
-}
 
 interface Mottaker {
   userId?: string;
@@ -86,77 +78,6 @@ interface DokumentHandlingsmenyProps {
   bestillerUserId?: string;
   /** Tidspunkt da mottaker åpnet dokumentet */
   lestAvMottakerVed?: Date | string | null;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Flytposisjon-hjelpere                                              */
-/* ------------------------------------------------------------------ */
-
-interface Ledd {
-  navn: string;
-  gruppeIder: Set<string>;
-  brukerIder: Set<string>;
-  faggruppeIder: Set<string>;
-  steg: number;
-}
-
-function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
-  const stegMap = new Map<number, FlytMedlem[]>();
-  for (const m of medlemmer) {
-    const liste = stegMap.get(m.steg) ?? [];
-    liste.push(m);
-    stegMap.set(m.steg, liste);
-  }
-
-  return [...stegMap.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([steg, medl]) => {
-      const faggruppe = medl.find((m) => m.faggruppe);
-      const gruppe = medl.find((m) => m.group);
-      const person = medl.find((m) => m.projectMember?.user?.name);
-
-      const navn = faggruppe
-        ? faggruppe.faggruppe!.name
-        : gruppe
-          ? gruppe.group!.name
-          : person?.projectMember?.user?.name ?? "?";
-
-      return {
-        navn,
-        steg,
-        gruppeIder: new Set(medl.filter((m) => m.group).map((m) => m.group!.id)),
-        brukerIder: new Set(medl.filter((m) => m.projectMember).map((m) => m.projectMember!.user.id)),
-        faggruppeIder: new Set(medl.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id)),
-      };
-    });
-}
-
-/** Finn aktiv boks (hvor dokumentet er nå) */
-function finnAktivtIndex(
-  ledd: Ledd[],
-  status: string,
-  recipientUserId?: string | null,
-  recipientGroupId?: string | null,
-  bestillerUserId?: string,
-): number {
-  if (status === "draft" || status === "cancelled") {
-    if (bestillerUserId) {
-      const idx = ledd.findIndex((l) => l.brukerIder.has(bestillerUserId));
-      if (idx !== -1) return idx;
-    }
-    return 0;
-  }
-  if (status === "closed" || status === "approved") return -1;
-
-  if (recipientGroupId) {
-    const idx = ledd.findIndex((l) => l.gruppeIder.has(recipientGroupId));
-    if (idx !== -1) return idx;
-  }
-  if (recipientUserId) {
-    const idx = ledd.findIndex((l) => l.brukerIder.has(recipientUserId));
-    if (idx !== -1) return idx;
-  }
-  return ledd.length > 1 ? ledd.length - 1 : -1;
 }
 
 /* ------------------------------------------------------------------ */
