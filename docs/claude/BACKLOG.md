@@ -44,6 +44,10 @@ Topplinje-prosjektvelgeren (nedtrekk) viser intern ID «SD-20260506-0008» foran
 
 Flytvisning-fanen (`/dashbord/admin/flyt-rettigheter`, `FlytvisningFane.tsx`): retningsgruppe-headeren «Hent tilbake — dokumentet står lenger frem» er lang og bør brytes over to linjer. Kenneth verifiserte fanen grønt på test 2026-07-26 — dette er eneste gjenstående note, ikke-blokkerende. Del av «smårusk»-UX-sveipet over.
 
+### 🟡 «Venter på»-chip vises ikke ved faggruppe-ruting (fabel-avgjort 2026-07-26)
+
+Flyt-posisjon-headeren (`FlytIndikator`): den amber «Venter på»-chippen rendres kun når mottakeren er en konkret person/gruppe (`recipientUserId` satt). Ved **faggruppe-rutet** flyt nullstilles `recipientUserId` ved send, så chippen er blank. **Fabel-avgjørelse:** chippen SKAL vises også for faggruppe-rutede flyter, med faggruppe-navnet — samme regel som ledd-boksene og `finnMottakerNavn` (vis gruppen når mottaker er gruppe/faggruppe, ellers person med hovedansvarlig prioritert). Chippens jobb er «hvem venter vi på» — aldri blank fordi mottakeren tilfeldigvis er en faggruppe. Lav prioritet: headeren bærer ball-holderen i aktiv ledd-boks i mellomtiden. **Ved fiks:** gjeninnfør det fjernede `venter-paa`-assertet i `tests/e2e/tests/04-flytposisjon.spec.ts` (fjernet i `5e664cef` som manglende dekning, ikke feil test).
+
 ### 🟡 HMS-dokument har både «Tilføy informasjon»-knapp og «Dialog»-kommentarfelt — UX-tvetydighet (HMS-klikktest 2026-07-25)
 
 På HMS-dokumenter (RUH/avvik/SJA) finnes **både** HMS-handlingen «Tilføy informasjon» (append via `hmsTilfoyInformasjon` → `DocumentTransfer`, vises i Tidslinjen) OG det generelle «Dialog»-kommentarfeltet (egen visning, ikke i Tidslinjen). Klikktesten viste at det forvirrer — agenten brukte Dialog i stedet for Tilføy. Bør konsolideres til én kommentar-vei for HMS.

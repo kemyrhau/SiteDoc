@@ -15,6 +15,7 @@ Konverter de mest gjentatte klikktest-punktene fra veilederne til kode:
 6. Videresend-synlighet per rolle (regresjonsvern for H3 når den er merget).
 7. Gjenåpne fra Lukket.
 8. **Flytvisning-fanen (testkandidat, lagt til 2026-07-26 av fabel):** klikk en delcelle → skriver `FlytRettighetOverride`-rad + logglinje i Endringslogg-fanen; amber-prikk på riktig delcelle speiles i Matrise-fanen (én-kilde-regresjonsvern). Legges når riggen står.
+9. **«Venter på»-chip matcher aktiv boks (testkandidat, godkjent 2026-07-26 av fabel):** person-/gruppe-rutet seed-flyt (konkret mottaker, ikke faggruppe) → verifiser at `venter-paa`-chippen vises OG matcher den aktive ledd-boksen. Dekker permanent det `venter-paa`-assertet som ble fjernet fra `04-flytposisjon` i `5e664cef` (det ble fjernet fordi den gjeldende seed-flyten er faggruppe-rutet → chip legitimt fraværende i dag; se BACKLOG «Venter på»-chip). Legges sammen med chip-fiksen.
 
 ## Rammer
 - **Testdata:** eget agentprosjekt i `sitedoc_test` (gjenbruk `test-arbeider`-mønsteret); hver kjøring oppretter sine dokumenter med kjørings-prefiks og rydder etter seg (soft-delete er ok). ALDRI mot prod.
