@@ -208,3 +208,199 @@ export function celleTilstand(
   if (noekkel in overrides) return overrides[noekkel] ? "overstyrt-pa" : "overstyrt-av";
   return celleDefault(rolle, fra, til) ? "standard-pa" : "standard-av";
 }
+
+/** Slå opp rad-metadata (etikett + mikrotekst) for en (fra → til)-overgang. Hver overgang er unik. */
+export function finnRad(fra: string, til: string): MatriseRad | undefined {
+  return MATRISE_RADER.find((r) => r.fra === fra && r.til === til);
+}
+
+/* ------------------------------------------------------------------ */
+/*  Flytvisning — boks/retningsgruppe-projeksjon (ordre 2026-07-26)     */
+/* ------------------------------------------------------------------ */
+//
+// Ren PROJEKSJON over de samme cellene som matrise-fanen (rolle · fra · til). Ingen ny lagring,
+// intet nytt skjema: hver bryter ER en matrisecelle. Denne mappingen legger KUN på hvor cellen
+// vises (boks + retningsgruppe). Etikett/mikrotekst/tilstand hentes fra den delte def-en over
+// (MATRISE_RADER + celleTilstand), så de to fanene kan ikke drifte.
+//
+// Fabel-bekreftet mapping 2026-07-26 med to korreksjoner:
+//   (a) Gjenåpne vises der den er redigerbar — registrator-cellene i Registrator-boksen (LOKALT)
+//       OG prosjektadmin-cellene i admin-sonen. Distinkte celler, én bryter per (rolle × overgang).
+//   (b) «Slett kladd» (draft→deleted, soft) i Registrator- OG Bestiller-boks (LOKALT). Admin-Slett
+//       er admin-cellen. «Slett endelig» (hard, deletedAt-basert, F0) er IKKE en matrisecelle og
+//       vises ikke her — den hører til papirkurv-UI-et. Papirkurv-pseudoene (slettet→*) utelates.
+
+/** Flytboks = én flyt-rolle med egen «stasjon» i visningen. Prosjektadmin er IKKE en boks (egen sone). */
+export type Flytboks = "registrator" | "bestiller" | "utforer" | "godkjenner";
+
+/** De fire boksene i venstre-mot-høyre-rekkefølge (dokumentflyten). */
+export const FLYTVISNING_BOKSER: Flytboks[] = ["registrator", "bestiller", "utforer", "godkjenner"];
+
+/** Retningsgruppe innenfor en boks — rendret i denne rekkefølgen der de finnes. */
+export type Retningsgruppe = "sendHoyre" | "sendVenstre" | "hentTilbake" | "endepunkt" | "lokalt";
+export const RETNINGSGRUPPE_REKKEFOLGE: Retningsgruppe[] = [
+  "sendHoyre",
+  "sendVenstre",
+  "hentTilbake",
+  "endepunkt",
+  "lokalt",
+];
+
+/** i18n-nøkkel for retningsgruppe-overskrift. Pil-glyfen legges på i UI-et. */
+export const RETNINGSGRUPPE_NOEKKEL: Record<Retningsgruppe, string> = {
+  sendHoyre: "flytvisning.gruppe.sendHoyre",
+  sendVenstre: "flytvisning.gruppe.sendVenstre",
+  hentTilbake: "flytvisning.gruppe.hentTilbake",
+  endepunkt: "flytvisning.gruppe.endepunkt",
+  lokalt: "flytvisning.gruppe.lokalt",
+};
+
+/** Én celle-referanse (rolle · fra · til) — peker på samme FlytRettighetOverride som matrise-fanen. */
+export interface FlytOppslag {
+  rolle: MatriseRolle;
+  fra: string;
+  til: string;
+}
+
+/**
+ * En handling i en retningsgruppe. Avvik-1-fiks (fabel 2026-07-26): samme handling med flere
+ * fra-statuser samles til ÉN rad med `celler` som delceller — unngår duplikat-etiketter (fire like
+ * «Gjenåpne» osv.). Grupperingen er REN VISNING: hver delcelle er fortsatt sin egen
+ * FlytRettighetOverride-celle (én kilde bevart) — amber-prikk, «Tilbakestill», hengelås og A-merke
+ * virker per delcelle og skriver samme rad som matrise-fanen.
+ *
+ * `labelNoekkel` (valgfri): overstyrer den utledede etiketten — brukes for «Slett kladd» (skiller
+ * registrator/bestiller-slett fra admin-slett, som begge er `draft→deleted`). H2-fantom er en
+ * manglende overgang (disabled ?-bryter, IKKE en celle, IKKE klikkbar).
+ */
+export type FlytHandling =
+  | { type: "handling"; celler: FlytOppslag[]; labelNoekkel?: string }
+  | { type: "fantom"; labelNoekkel: string };
+
+/** Kortform: en handling med én eller flere celler i en flyt-rolle-boks (rollen står i tuplet). */
+const h = (celler: Array<[MatriseRolle, string, string]>, labelNoekkel?: string): FlytHandling => ({
+  type: "handling",
+  celler: celler.map(([rolle, fra, til]): FlytOppslag => ({ rolle, fra, til })),
+  ...(labelNoekkel ? { labelNoekkel } : {}),
+});
+
+/** Utledet etikett-nøkkel for en handling: eksplisitt override, ellers fra den delte matriseraden. */
+export function handlingLabelNoekkel(handling: Extract<FlytHandling, { type: "handling" }>): string {
+  if (handling.labelNoekkel) return handling.labelNoekkel;
+  const forste = handling.celler[0];
+  if (!forste) return "";
+  return finnRad(forste.fra, forste.til)?.labelNoekkel ?? `${forste.fra}→${forste.til}`;
+}
+
+export interface FlytboksDef {
+  boks: Flytboks;
+  /** Bestiller er ikke egen stasjon i dagens statusmaskin (H1) → stiplet ramme + H1-merke. */
+  stiplet?: boolean;
+  grupper: Partial<Record<Retningsgruppe, FlytHandling[]>>;
+  /**
+   * Videresend for flyt-roller er admin-only (H3) → egen LÅST chip (hengelås) nederst i boksen.
+   * Representativ celle (received→forwarded) — celleLaast/erVideresendAdminLaast gir «laast».
+   */
+  videresendLaast: FlytOppslag;
+}
+
+/**
+ * Mapping per flyt-rolle-boks. Cellene er utledet fra ROLLE_HANDLINGER_DEFAULTS (hvilke overganger
+ * rollen eier) og gruppert etter overgangens retning; handlinger med flere fra-statuser samles til
+ * én rad med delceller. Opprett-cellen (registrator) er lov-låst (celleLaast) → rendres med hengelås.
+ * H2-fantomene er «Besvar/send tilbake» (bestiller) og «Send tilbake (be om noe)» (utfører).
+ */
+export const FLYTVISNING_BOKS_DEF: FlytboksDef[] = [
+  {
+    boks: "registrator",
+    grupper: {
+      sendHoyre: [h([["registrator", "draft", "sent"]])],
+      hentTilbake: [h([["registrator", "received", "draft"]])],
+      lokalt: [
+        h([["registrator", SENTINEL_FRA, SENTINEL_TIL]]), // Opprett — lov-låst (hengelås)
+        h([["registrator", "draft", "deleted"]], "flytvisning.handling.slettKladd"), // Slett kladd (soft)
+        // Gjenåpne (korreksjon a): registrator-cellene → én rad, fire delceller (Lukket · Avvist · Trukket · Godkjent).
+        h([
+          ["registrator", "closed", "draft"],
+          ["registrator", "dismissed", "draft"],
+          ["registrator", "cancelled", "draft"],
+          ["registrator", "approved", "draft"],
+        ]),
+      ],
+    },
+    videresendLaast: { rolle: "registrator", fra: "received", til: "forwarded" },
+  },
+  {
+    boks: "bestiller",
+    stiplet: true, // H1
+    grupper: {
+      sendHoyre: [h([["bestiller", "draft", "sent"]])],
+      sendVenstre: [{ type: "fantom", labelNoekkel: "flytvisning.fantom.bestillerBesvar" }],
+      hentTilbake: [h([["bestiller", "received", "draft"]])],
+      endepunkt: [h([["bestiller", "in_progress", "closed"]])],
+      lokalt: [h([["bestiller", "draft", "deleted"]], "flytvisning.handling.slettKladd")], // Slett kladd (korreksjon b)
+    },
+    videresendLaast: { rolle: "bestiller", fra: "received", til: "forwarded" },
+  },
+  {
+    boks: "utforer",
+    grupper: {
+      // Send (received→sent) og Send på nytt (in_progress→sent) er ulike handlinger → egne rader.
+      sendHoyre: [h([["utforer", "received", "sent"]]), h([["utforer", "in_progress", "sent"]])],
+      sendVenstre: [
+        // Besvar fra Mottatt + Under arbeid → én rad, to delceller. Svar går til den som ba.
+        h([["utforer", "received", "responded"], ["utforer", "in_progress", "responded"]]),
+        { type: "fantom", labelNoekkel: "flytvisning.fantom.utforerSendTilbake" },
+      ],
+      endepunkt: [h([["utforer", "received", "dismissed"]])], // Avvis
+    },
+    videresendLaast: { rolle: "utforer", fra: "received", til: "forwarded" },
+  },
+  {
+    boks: "godkjenner",
+    grupper: {
+      // Send fra Besvart + Godkjent → én rad, to delceller.
+      sendHoyre: [h([["godkjenner", "responded", "sent"], ["godkjenner", "approved", "sent"]])],
+      sendVenstre: [h([["godkjenner", "responded", "in_progress"]])], // Send tilbake til utfører
+      endepunkt: [
+        // Godkjenn fra Mottatt (F6) + Besvart → én rad, to delceller.
+        h([["godkjenner", "received", "approved"], ["godkjenner", "responded", "approved"]]),
+        h([["godkjenner", "in_progress", "closed"]]), // Lukk
+      ],
+    },
+    videresendLaast: { rolle: "godkjenner", fra: "received", til: "forwarded" },
+  },
+];
+
+/**
+ * Prosjektadmin-sonen (full bredde under boks-linjen) — IKKE en boks. Kuraterte admin-handlinger
+ * i ordrens rekkefølge: Opprett · Videresend på tvers · Gjenåpne · Lukk trukket [Farlig] · Slett.
+ * Alle celler er prosjektadmin-kolonnens egne (distinkt fra rolle-boksenes celler); handlinger med
+ * flere fra-statuser (Videresend, Gjenåpne) samles til én rad med delceller.
+ */
+export interface AdminSoneGruppe {
+  labelNoekkel: string;
+  /** Farlig sone (destruktivt) → rød aksent i UI. */
+  farlig?: boolean;
+  handlinger: FlytHandling[];
+}
+
+/** Kortform: prosjektadmin-handling (én rad, delceller) — rollen er alltid prosjektadmin. */
+const pah = (celler: Array<[string, string]>): FlytHandling => ({
+  type: "handling",
+  celler: celler.map(([fra, til]): FlytOppslag => ({ rolle: PROSJEKTADMIN_ROLLE, fra, til })),
+});
+
+export const FLYTVISNING_ADMIN_SONE: AdminSoneGruppe[] = [
+  { labelNoekkel: "flytvisning.admin.opprett", handlinger: [pah([[SENTINEL_FRA, SENTINEL_TIL]])] },
+  {
+    labelNoekkel: "flytvisning.admin.videresend",
+    handlinger: [pah([["received", "forwarded"], ["in_progress", "forwarded"], ["responded", "forwarded"], ["approved", "forwarded"]])],
+  },
+  {
+    labelNoekkel: "flytvisning.admin.gjenapne",
+    handlinger: [pah([["closed", "draft"], ["dismissed", "draft"], ["cancelled", "draft"], ["approved", "draft"]])],
+  },
+  { labelNoekkel: "flytvisning.admin.lukkTrukket", farlig: true, handlinger: [pah([["cancelled", "deleted"]])] },
+  { labelNoekkel: "flytvisning.admin.slett", handlinger: [pah([["draft", "deleted"]])] },
+];

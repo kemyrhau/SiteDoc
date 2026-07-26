@@ -13,7 +13,6 @@ import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Tooltip } from "@sitedoc/ui";
-import { Lock, RotateCcw, Check } from "lucide-react";
 import { CELLE } from "@/lib/flytmatrise-farger";
 import { flytRettighetNoekkel, type RettighetsOverrides } from "@sitedoc/shared";
 import {
@@ -30,16 +29,14 @@ import {
   type CelleTilstand,
   type OversettFn,
 } from "@/lib/flytmatrise-def";
+import { FlytvisningFane, Celle, HOVER_TRIGGER } from "./FlytvisningFane";
 
-/** Trigger-styling for mikrotekst-hover: prikket understrek + hjelpe-cursor (spec Flate 1). */
-const HOVER_TRIGGER = "underline decoration-dotted underline-offset-[3px] decoration-gray-400/40 cursor-help";
-
-type Fane = "matrise" | "logg" | "lesrediger";
+type Fane = "flytvisning" | "matrise" | "logg" | "lesrediger";
 
 export default function FlytRettigheterSide() {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const [fane, setFane] = useState<Fane>("matrise");
+  const [fane, setFane] = useState<Fane>("flytvisning");
 
   // Global konfig (Kloss 2d): matrisen lastes direkte, ingen firma-valg.
   const { data, isLoading, error } = trpc.flytMatrise.hentMatrise.useQuery();
@@ -85,7 +82,7 @@ export default function FlytRettigheterSide() {
 
       {/* Faner */}
       <div className="mb-4 flex gap-1 border-b border-gray-200">
-        {(["matrise", "logg", "lesrediger"] as const).map((f) => (
+        {(["flytvisning", "matrise", "logg", "lesrediger"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFane(f)}
@@ -102,6 +99,15 @@ export default function FlytRettigheterSide() {
         <div className="flex items-center justify-center py-12"><Spinner /></div>
       ) : error ? (
         <p className="py-12 text-center text-sm text-red-600">{error.message}</p>
+      ) : fane === "flytvisning" ? (
+        <FlytvisningFane
+          overrides={overrides}
+          meta={meta}
+          kanRedigere={kanRedigere}
+          onKlikk={klikkCelle}
+          onTilbakestill={tilbakestillCelle}
+          t={t}
+        />
       ) : fane === "matrise" ? (
         <MatriseFane
           overrides={overrides}
@@ -257,64 +263,6 @@ function FraGruppe({
         </tr>
       ))}
     </>
-  );
-}
-
-function Celle({
-  tilstand, kanRedigere, metaTekst, laastTekst, onKlikk, onTilbakestill, tilbakestillTekst,
-}: {
-  tilstand: CelleTilstand;
-  kanRedigere: boolean;
-  metaTekst?: string;
-  /** H3: forklaring på hvorfor cellen er låst (videresend = admin-only). Vises som hover-tooltip. */
-  laastTekst?: string;
-  onKlikk: () => void;
-  onTilbakestill: () => void;
-  tilbakestillTekst: string;
-}) {
-  // Låst — hengelås på lys bakgrunn (fabel-cellespec).
-  if (tilstand === "laast") {
-    const laasIkon = (
-      <div className={`mx-auto flex h-6 w-6 items-center justify-center rounded ${CELLE.laastBg}`}>
-        <Lock className={`h-3.5 w-3.5 ${CELLE.laastIkon}`} aria-hidden />
-      </div>
-    );
-    return laastTekst ? (
-      <Tooltip tekst={laastTekst} side="top">{laasIkon}</Tooltip>
-    ) : (
-      laasIkon
-    );
-  }
-  const paa = tilstand === "standard-pa" || tilstand === "overstyrt-pa";
-  const overstyrt = tilstand === "overstyrt-pa" || tilstand === "overstyrt-av";
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      <button
-        type="button"
-        disabled={!kanRedigere}
-        onClick={onKlikk}
-        title={metaTekst}
-        className={`flex h-6 w-6 items-center justify-center rounded ${
-          paa ? CELLE.paa : CELLE.av
-        } ${kanRedigere ? `cursor-pointer ${CELLE.hover}` : "cursor-default"}`}
-      >
-        {/* På = hvit hake; av = tom ramme (ingen strek/dash). */}
-        {paa && <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />}
-      </button>
-      {overstyrt && (
-        <span className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-1 ring-white ${CELLE.overstyrtPrikk}`} title={metaTekst} />
-      )}
-      {overstyrt && kanRedigere && (
-        <button
-          type="button"
-          onClick={onTilbakestill}
-          title={tilbakestillTekst}
-          className="ml-1 text-gray-300 hover:text-gray-500"
-        >
-          <RotateCcw className="h-3 w-3" />
-        </button>
-      )}
-    </div>
   );
 }
 
