@@ -2172,7 +2172,7 @@
   "flythjelp.handling.besvar": "Siirtää asiakirjan askeleen taaksepäin: sinulta {{mottaker}}:lle, joka tarkistaa vastauksen. He näkevät sen vastauksena.",
   "flythjelp.handling.besvarSisteLedd": "Merkitsee asiakirjan vastatuksi ja lähettää sen takaisin sinulle, joka on sen lähettänyt – kululla ei ole muita vaiheita.",
   "flythjelp.handling.avvis": "Hylkää asiakirjan perustellusti. Virtaus pysähtyy; {{mottaker}} näkee sen hylätyksi syylläsi. Voidaan avata uudelleen.",
-  "flythjelp.handling.godkjenn": "Hyväksyy vastauksen. Asiakirja ei etene – se on hyväksytty kaikille osapuolille, valmis suljettavaksi.",
+  "flythjelp.handling.godkjenn": "Hyväksyy asiakirjan. Se ei etene – se on hyväksytty kaikille osapuolille, valmis suljettavaksi.",
   "flythjelp.handling.sendTilbakeUtforer": "Siirtää asiakirjan askeleen taaksepäin: sinulta {{mottaker}}:lle korjausta varten. Heillä se näkyy tilassa Käynnissä.",
   "flythjelp.handling.sendPaaNytt": "Siirtää asiakirjan uudelleen eteenpäin: sinulta {{mottaker}} korjauksen jälkeen.",
   "flythjelp.handling.lukk": "Lopettaa kulun: asiakirja arkistoidaan Suljetuksi kaikille eikä siirry eteenpäin. Uudelleen avaaminen vaatii erillisen luvan.",

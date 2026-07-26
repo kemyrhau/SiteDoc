@@ -2172,7 +2172,7 @@
   "flythjelp.handling.besvar": "Přesune dokument o krok zpět: od vás k {{mottaker}}, který zkontroluje odpověď. Vidí to jako Odpovězeno.",
   "flythjelp.handling.besvarSisteLedd": "Označí dokument jako zodpovězený a odešle jej zpět tomu, kdo vám jej poslal – tok nemá žádné další kroky.",
   "flythjelp.handling.avvis": "Odmítne dokument s uvedením důvodu. Tok se zastaví; {{mottaker}} to vidí jako odmítnuté s vaším důvodem. Lze znovu otevřít.",
-  "flythjelp.handling.godkjenn": "Přijímá odpověď. Dokument se neposouvá dál — je pro všechny strany schválen a připraven k uzavření.",
+  "flythjelp.handling.godkjenn": "Schvaluje dokument. Neposouvá se dál — je schválený pro všechny strany, připraven k uzavření.",
   "flythjelp.handling.sendTilbakeUtforer": "Přesune dokument o krok zpět: od vás k {{mottaker}} za účelem opravy. U nich se zobrazuje jako Probíhá.",
   "flythjelp.handling.sendPaaNytt": "Po opravě posune dokument znovu vpřed: od vás k {{mottaker}}.",
   "flythjelp.handling.lukk": "Ukončí tok: dokument je archivován jako Uzavřený pro všechny a nepokračuje. Opětovné otevření vyžaduje samostatné povolení.",

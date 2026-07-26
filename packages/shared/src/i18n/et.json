@@ -2172,7 +2172,7 @@
   "flythjelp.handling.besvar": "Liigutab dokumendi ühe sammu tagasi: teilt {{mottaker}}-le, kes vastuse üle vaatab. Nad näevad seda vastatuna.",
   "flythjelp.handling.besvarSisteLedd": "Märgib dokumendi vastatuks ja saadab selle tagasi sellele, kes selle teile saatis – voos pole edasisi samme.",
   "flythjelp.handling.avvis": "Lükkab dokumendi põhjusega tagasi. Vool peatub; {{mottaker}} peab seda teie põhjusega tagasi lükatuks. Saab uuesti avada.",
-  "flythjelp.handling.godkjenn": "Võtab vastuse vastu. Dokument ei liigu edasi – see on kõigi osapoolte jaoks heaks kiidetud, sulgemiseks valmis.",
+  "flythjelp.handling.godkjenn": "Kinnitab dokumendi. See ei liigu edasi – see on kõigi osapoolte jaoks heaks kiidetud, sulgemiseks valmis.",
   "flythjelp.handling.sendTilbakeUtforer": "Liigutab dokumendi ühe sammu tagasi: teilt {{mottaker}}-le, parandamiseks. Neil kuvatakse see kui Pooleli.",
   "flythjelp.handling.sendPaaNytt": "Liigutab dokumendi pärast parandamist uuesti edasi: teilt kasutajale {{mottaker}}.",
   "flythjelp.handling.lukk": "Lõpetab voo: dokument arhiveeritakse kõigi jaoks suletud kujul ja see ei liigu edasi. Taasavamiseks on vaja eraldi luba.",
