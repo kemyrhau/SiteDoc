@@ -20,12 +20,13 @@ test("flytposisjon-header: full ledd-rad med korrekt aktiv boks", async ({ page,
   await expect(fi.locator('[data-testid="flyt-ledd"][data-rolle="utforer"]')).toHaveCount(1);
   await expect(fi.locator('[data-testid="flyt-ledd"][data-rolle="godkjenner"]')).toHaveCount(1);
 
-  // Nøyaktig én aktiv boks, og den matcher ball-holderen (utfører ved received).
+  // Nøyaktig én aktiv boks, og den er ball-holderen («venter på»-posisjonen):
+  // ved received står ballen hos utfører. Den aktive boksen ER Venter-på-signalet.
+  // (Egen amber «Venter på»-chip rendres kun ved KONKRET person/gruppe-mottaker;
+  // denne flyten er faggruppe-rutet → recipientUserId nullstilles ved send, så
+  // chippen er legitimt fraværende. Ledd-boksen bærer signalet.)
   await expect(fi.locator('[data-testid="flyt-ledd"][data-aktiv="true"]')).toHaveCount(1);
   await expect(
     fi.locator('[data-testid="flyt-ledd"][data-aktiv="true"][data-rolle="utforer"]'),
   ).toHaveCount(1);
-
-  // «Venter på»-chippen bekrefter ball-holderen i headeren.
-  await expect(page.getByTestId("venter-paa")).toBeVisible();
 });

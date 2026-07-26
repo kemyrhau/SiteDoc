@@ -6,7 +6,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { devLogin, ApiKlient } from "./lib/api";
-import { slåOppFlyt } from "./lib/flyt";
+import { slåOppFlyt, ryddProsjektMal } from "./lib/flyt";
 import {
   AUTH_DIR,
   BASE_URL,
@@ -54,12 +54,17 @@ export default async function globalSetup() {
   }
 
   // Flyt-oppslag som firma (prosjektadmin + registrator-medlem).
-  const flyt = await slåOppFlyt(new ApiKlient(tokens.firma));
+  const firmaApi = new ApiKlient(tokens.firma);
+  const flyt = await slåOppFlyt(firmaApi);
+
+  // Pre-clean: fjern etterlatte dokumenter fra en evt. avbrutt tidligere kjøring,
+  // så gratis-grensen (10 sjekklister) aldri forgifter denne kjøringen.
+  const ryddet = await ryddProsjektMal(firmaApi, flyt.projectId, flyt.templateId);
 
   const runtime: Runtime = { runId: nyRunId(), tokens, ...flyt };
   await writeFile(RUNTIME_FIL, JSON.stringify(runtime, null, 2));
 
   console.log(
-    `[e2e] runId=${runtime.runId} · prosjekt=${runtime.projectId} · ledd=${runtime.antallLedd}`,
+    `[e2e] runId=${runtime.runId} · prosjekt=${runtime.projectId} · ledd=${runtime.antallLedd} · pre-clean=${ryddet}`,
   );
 }

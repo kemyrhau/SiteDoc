@@ -118,6 +118,29 @@ const MOT_DRAFT: Record<string, string> = {
 };
 
 /**
+ * Rydd ALLE dokumenter på E2E-malen i prosjektet (soft-slett). Brukes både som
+ * pre-clean i global-setup (selv-helende: en avbrutt kjøring uten teardown skal
+ * ikke forgifte neste via gratis-grensen på 10 sjekklister) og i teardown.
+ * Agentprosjektet er eksklusivt for e2e → alle mal-dokumenter er riggens egne.
+ * Best-effort; returnerer antall ryddet.
+ */
+export async function ryddProsjektMal(
+  api: ApiKlient,
+  projectId: string,
+  templateId: string,
+): Promise<number> {
+  let dokumenter: Array<{ id: string; templateId: string }> = [];
+  try {
+    dokumenter = await api.query("sjekkliste.hentForProsjekt", { projectId });
+  } catch {
+    return 0;
+  }
+  const våre = dokumenter.filter((d) => d.templateId === templateId);
+  for (const d of våre) await ryddDokument(api, d.id);
+  return våre.length;
+}
+
+/**
  * Rydd ett dokument: driv det (som admin) ned til draft/cancelled og soft-slett.
  * Best-effort — kaster aldri (rydding skal aldri velte en kjøring).
  */
