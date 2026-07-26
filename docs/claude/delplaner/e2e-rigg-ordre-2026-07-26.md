@@ -14,6 +14,7 @@ Konverter de mest gjentatte klikktest-punktene fra veilederne til kode:
 5. Besvar → Besvart; Godkjenn → Godkjent.
 6. Videresend-synlighet per rolle (regresjonsvern for H3 når den er merget).
 7. Gjenåpne fra Lukket.
+8. **Flytvisning-fanen (testkandidat, lagt til 2026-07-26 av fabel):** klikk en delcelle → skriver `FlytRettighetOverride`-rad + logglinje i Endringslogg-fanen; amber-prikk på riktig delcelle speiles i Matrise-fanen (én-kilde-regresjonsvern). Legges når riggen står.
 
 ## Rammer
 - **Testdata:** eget agentprosjekt i `sitedoc_test` (gjenbruk `test-arbeider`-mønsteret); hver kjøring oppretter sine dokumenter med kjørings-prefiks og rydder etter seg (soft-delete er ok). ALDRI mot prod.

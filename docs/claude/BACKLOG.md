@@ -40,6 +40,10 @@ På den generelle dokumentdetaljsiden (`DokumentHandlingsmeny`) mangler `Besvar`
 
 Topplinje-prosjektvelgeren (nedtrekk) viser intern ID «SD-20260506-0008» foran prosjektnavnet — gir brukeren ingen mening. Fjern prefikset (vis kun navn + lokasjon). Del av en «smårusk»-UX-oppryddingssveip — samle med annet visuelt rusk, evt. fold inn i en større UX-rydde-oppgave.
 
+### 🟡 Flytvisning-fane: retningsgruppe-header brytes ikke over to linjer (kosmetisk, Kenneth 2026-07-26)
+
+Flytvisning-fanen (`/dashbord/admin/flyt-rettigheter`, `FlytvisningFane.tsx`): retningsgruppe-headeren «Hent tilbake — dokumentet står lenger frem» er lang og bør brytes over to linjer. Kenneth verifiserte fanen grønt på test 2026-07-26 — dette er eneste gjenstående note, ikke-blokkerende. Del av «smårusk»-UX-sveipet over.
+
 ### 🟡 HMS-dokument har både «Tilføy informasjon»-knapp og «Dialog»-kommentarfelt — UX-tvetydighet (HMS-klikktest 2026-07-25)
 
 På HMS-dokumenter (RUH/avvik/SJA) finnes **både** HMS-handlingen «Tilføy informasjon» (append via `hmsTilfoyInformasjon` → `DocumentTransfer`, vises i Tidslinjen) OG det generelle «Dialog»-kommentarfeltet (egen visning, ikke i Tidslinjen). Klikktesten viste at det forvirrer — agenten brukte Dialog i stedet for Tilføy. Bør konsolideres til én kommentar-vei for HMS.
