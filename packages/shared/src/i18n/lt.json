@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Įmonės administratorius nėra srauto administratoriaus lygis ir atlieka įprastą srauto vaidmenį.",
   "flytmatrise.overstyrt.tooltip": "Nepaisė {navn} – {naar}",
   "flytmatrise.tilbakestill": "Iš naujo nustatyti numatytuosius",
+  "flytmatrise.laast.videresend": "Užrakinta: tik projekto administratorius – perkelia dokumentą iš srauto",
   "flytmatrise.logg.tom": "Pakeitimų dar neužfiksuota.",
   "flytmatrise.logg.celle": "Ląstelė",
   "flytmatrise.logg.endring": "Keisti",

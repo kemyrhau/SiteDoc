@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Správce společnosti není úrovní správce toku a řídí se svou normální rolí v toku.",
   "flytmatrise.overstyrt.tooltip": "Přepsáno {navn} — {naar}",
   "flytmatrise.tilbakestill": "Obnovit výchozí",
+  "flytmatrise.laast.videresend": "Uzamčeno: Pouze správce projektu – přesune dokument mimo tok",
   "flytmatrise.logg.tom": "Zatím nebyly zaznamenány žádné změny.",
   "flytmatrise.logg.celle": "Buňka",
   "flytmatrise.logg.endring": "Přeměna",

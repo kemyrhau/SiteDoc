@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Firma-admin er ikke et flyt-admin-nivå og følger sin vanlige flyt-rolle.",
   "flytmatrise.overstyrt.tooltip": "Overstyrt av {navn} — {naar}",
   "flytmatrise.tilbakestill": "Tilbakestill til standard",
+  "flytmatrise.laast.videresend": "Låst: kun prosjektadmin — flytter dokumentet ut av flyten",
   "flytmatrise.logg.tom": "Ingen endringer registrert ennå.",
   "flytmatrise.logg.celle": "Celle",
   "flytmatrise.logg.endring": "Endring",

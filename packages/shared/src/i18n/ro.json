@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Administratorul companiei nu este un nivel de administrator de flux și își urmează rolul normal de flux.",
   "flytmatrise.overstyrt.tooltip": "Înlocuit de {navn} — {naar}",
   "flytmatrise.tilbakestill": "Resetați la valoarea implicită",
+  "flytmatrise.laast.videresend": "Blocat: numai administrator de proiect — mută documentul din flux",
   "flytmatrise.logg.tom": "Nu au fost înregistrate modificări încă.",
   "flytmatrise.logg.celle": "Celulă",
   "flytmatrise.logg.endring": "Schimba",

@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Administratori i kompanisë nuk është një nivel i administrimit të rrjedhës dhe ndjek rolin e tyre normal të rrjedhës.",
   "flytmatrise.overstyrt.tooltip": "E anashkaluar nga {navn} — {naar}",
   "flytmatrise.tilbakestill": "Rivendos në parazgjedhje",
+  "flytmatrise.laast.videresend": "I kyçur: vetëm administratori i projektit — e zhvendos dokumentin jashtë rrjedhës",
   "flytmatrise.logg.tom": "Nuk janë regjistruar ende ndryshime.",
   "flytmatrise.logg.celle": "Qelizë",
   "flytmatrise.logg.endring": "Ndryshimi",

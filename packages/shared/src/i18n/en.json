@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Company admin is not a flow-admin level and follows their normal flow role.",
   "flytmatrise.overstyrt.tooltip": "Overridden by {navn} — {naar}",
   "flytmatrise.tilbakestill": "Reset to default",
+  "flytmatrise.laast.videresend": "Locked: project admin only — moves the document out of the flow",
   "flytmatrise.logg.tom": "No changes recorded yet.",
   "flytmatrise.logg.celle": "Cell",
   "flytmatrise.logg.endring": "Change",

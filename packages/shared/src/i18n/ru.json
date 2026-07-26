@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Администратор компании не является администратором потока и выполняет свою обычную роль в потоке.",
   "flytmatrise.overstyrt.tooltip": "Переопределено пользователем {navn} — {naar}",
   "flytmatrise.tilbakestill": "Сбросить настройки по умолчанию",
+  "flytmatrise.laast.videresend": "Заблокировано: только администратор проекта — удаляет документ из потока.",
   "flytmatrise.logg.tom": "Никаких изменений пока не зафиксировано.",
   "flytmatrise.logg.celle": "Клетка",
   "flytmatrise.logg.endring": "Изменять",
