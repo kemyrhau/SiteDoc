@@ -11,7 +11,9 @@
     "db:migrate": "pnpm --filter @sitedoc/db migrate",
     "db:seed": "pnpm --filter @sitedoc/db seed",
     "db:studio": "pnpm --filter @sitedoc/db studio",
-    "db:generate": "pnpm --filter @sitedoc/db generate"
+    "db:generate": "pnpm --filter @sitedoc/db generate",
+    "e2e": "pnpm --filter @sitedoc/e2e run e2e",
+    "e2e:install": "pnpm --filter @sitedoc/e2e run e2e:install"
   },
   "packageManager": "pnpm@9.15.4",
   "engines": {

@@ -124,6 +124,9 @@ export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, st
   return (
     <div className="flex flex-col gap-1 text-[11px] leading-none">
       <div
+        data-testid="flyt-indikator"
+        data-antall-ledd={ledd.length}
+        data-kompakt={kompakt ? "true" : "false"}
         className={`flex items-center gap-0.5 whitespace-nowrap overflow-hidden ${kompakt ? "cursor-pointer" : "cursor-default"}`}
         onClick={kompakt ? () => setEkspandert((e) => !e) : undefined}
         title={kompakt && skalKollapse ? t("flytindikator.visHele") : undefined}
@@ -136,6 +139,10 @@ export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, st
 
           const boks = (
             <span
+              data-testid="flyt-ledd"
+              data-rolle={item.ledd.rolle}
+              data-aktiv={erAktiv ? "true" : "false"}
+              data-passert={erPassert ? "true" : "false"}
               className={`inline-flex flex-col gap-0.5 rounded px-1.5 py-1 ${
                 erAktiv
                   ? "bg-sitedoc-primary text-white font-medium"

@@ -811,7 +811,7 @@ export default function SjekklisteSide() {
               ))}
             </div>
             <div className="flex gap-3 pt-1">
-              <Button loading={opprettMutation.isPending} onClick={() => {
+              <Button data-testid="opprett-flyt-bekreft" loading={opprettMutation.isPending} onClick={() => {
                 const k = flytSteg.kandidater.find((x) => x.flytId === valgtFlytId);
                 if (k) opprettMedKandidat(flytSteg.malId, k);
               }}>{t("handling.opprett")}</Button>
