@@ -63,6 +63,10 @@ export const MATRISE_RADER: MatriseRad[] = [
   { fra: "draft", til: "deleted", labelNoekkel: "handling.slett", flythjelpNoekkel: "flythjelp.handling.slett" },
   // F2 (D-1): `sent`-seksjonen utgår (transient). Trekk tilbake flyttet til received→draft.
   { fra: "received", til: "responded", labelNoekkel: "statushandling.besvar", flythjelpNoekkel: "flythjelp.handling.besvar", fallbackNoekkel: "flythjelp.fallback.avsender" },
+  // F6 (Godkjenn fra Mottatt): direkte godkjenn-vei fra Mottatt for Registrator→Godkjenner-flyt uten
+  // utfører. Default-roller Godkjenner + Prosjektadmin (avledes fra ROLLE_HANDLINGER_DEFAULTS +
+  // statusmaskin). Gjenbruker flythjelp.handling.godkjenn — samme mikrotekst som responded→approved.
+  { fra: "received", til: "approved", labelNoekkel: "handling.godkjenn", flythjelpNoekkel: "flythjelp.handling.godkjenn" },
   // F5 (Send/Videresend-paring, beslutning 6): Send fram i flyten — gjenbruker handling.send.
   { fra: "received", til: "sent", labelNoekkel: "handling.send", flythjelpNoekkel: "flythjelp.handling.send", fallbackNoekkel: "flythjelp.fallback.nesteMottaker" },
   { fra: "received", til: "draft", labelNoekkel: "statushandling.trekkTilbake", flythjelpNoekkel: "flythjelp.handling.trekkTilbake", fallbackNoekkel: "flythjelp.fallback.mottakerDin" },

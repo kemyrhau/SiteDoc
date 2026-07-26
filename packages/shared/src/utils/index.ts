@@ -103,7 +103,9 @@ export function isValidStatusTransition(
     // F2: Trekk tilbake → received→draft (redigerbar kladd hos avsender, før mottaker har svart).
     // F5 (Send/Videresend-paring, beslutning 6): `sent` aktiveres der Videresend finnes — Send
     // fram i flyten (mot neste ledd) uten å gå via Under arbeid.
-    received: ["in_progress", "responded", "sent", "cancelled", "dismissed", "draft"],
+    // F6 (Godkjenn fra Mottatt): `approved` gir en Registrator→Godkjenner-flyt (uten utfører) en
+    // direkte godkjenn-vei fra Mottatt — TILLEGG til responded→approved, ikke erstatning.
+    received: ["in_progress", "responded", "sent", "cancelled", "dismissed", "draft", "approved"],
     // F3 (Under arbeid): `rejected` og `in_progress` er merget. in_progress-handlingene er
     // Besvar (→responded), Send på nytt (→sent) og Lukk (→closed, arver dagens rejected→closed).
     in_progress: ["responded", "sent", "closed"],
