@@ -2,13 +2,15 @@
 name: dev-login-agent
 description: Dev-only test-innlogging for agent- + simulator-testing (test-miljø). Endepunkt, header, testbrukere, sikkerhetsgrense.
 metadata:
-  sist_verifisert_mot_kode: 2026-07-06
+  sist_verifisert_mot_kode: 2026-07-26
 ---
 
 # Dev-login — agent- og simulator-testing (test-miljø)
 
 Lar agent/simulator logge inn i SiteDoc **uten OAuth**, gated til test-miljø.
 Nivå A+B (seedet testbruker + delt hemmelighet + whitelist).
+
+**E2e-bruk (levert 2026-07-26):** dette endepunktet er auth-grunnmuren for Playwright-røyksuiten (`tests/e2e/`, 8 tester, 3× grønn mot test.sitedoc.no) — se [delplaner/e2e-rigg-ordre-2026-07-26.md](delplaner/e2e-rigg-ordre-2026-07-26.md). Suiten minter session-token via dette endepunktet; `DEV_LOGIN_SECRET` ligger i `tests/e2e/.env.local` (gitignored, aldri i repo). Suitens 3× grønne kjøringer re-verifiserer at dev-login virker ende-til-ende på test.
 
 ## Hvorfor: automatisert Chrome avvises av OAuth (web-agent-læring, 2026-07-07)
 
