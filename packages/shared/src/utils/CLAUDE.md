@@ -15,11 +15,17 @@ Format: `SD-YYYYMMDD-XXXX`. Brukes ved prosjektopprettelse. 4-sifret padded løp
 Tilstandsmaskin for dokumentstatus. Brukes på server (API-validering) og klient (knapp-visning).
 
 ```
-draft → sent → received → responded → approved → closed
+draft → sent → received → responded → approved   (Godkjent = stoppsted, lukkes ALDRI — H6)
                                        responded → in_progress (Send tilbake, F3)
+                                       approved → draft (Gjenåpne, H6 — Reg + P-adm)
 in_progress → responded / sent (Send på nytt) / closed (Lukk)
 received → dismissed (Avvis, begrunnelse påkrevd) · received → draft (Trekk tilbake, F2)
 ```
+
+**H6 Godkjent = stoppsted:** en Godkjent sjekkliste/oppgave lukkes aldri (`approved→closed`
+fjernet). Veien tilbake er Gjenåpne (`approved→draft`, registrator + prosjektadmin). Send/Videresend
+beholdt. `in_progress→closed` (Lukk) står — det er der et åpent dokument/KS-avvik lukkes. Ren kode,
+ingen migrering, ingen ny mikrotekst-nøkkel (`flythjelp.handling.gjenapne` gjenbrukt).
 
 **F3 Merge «Under arbeid»:** `rejected` er merget inn i `in_progress` — Send tilbake
 (responded→in_progress) ruter direkte til Under arbeid, ingen Gjenoppta. `rejected`-rader

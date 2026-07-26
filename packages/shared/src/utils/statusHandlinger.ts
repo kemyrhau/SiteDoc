@@ -55,8 +55,11 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
+    // H6 (Godkjent = stoppsted): Godkjent lukkes ALDRI — Lukk fjernet. Veien tilbake er Gjenåpne
+    // (approved→draft, samme handling som øvrig gjenåpne). Send/Videresend beholdt (sende-kapasitet
+    // ok på en låst suksess-terminal).
     approved: [
-      { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400", erPrimaer: true },
+      { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
       // F5 (Send/Videresend-paring): Send fram fra godkjent — gjenbruker handling.send.
       { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
@@ -88,7 +91,7 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * | received     | Trekk tilbake        | Trekk tilbake   | Besvar, Send, Videresend, Avvis   | Godkjenn (F6, fra Mottatt)        |
  * | in_progress  | —                    | Lukk        | Besvar, Send på nytt, Videresend  | Lukk                              |
  * | responded    | —                    | —           | —                                 | Godkjenn, Send tilbake, Send, Videresend|
- * | approved     | Lukk, Videresend     | Lukk        | —                                 | Send                              |
+ * | approved     | Gjenåpne             | —           | —                                 | Send                              |
  * | closed       | Gjenåpne             | —           | —                                 | —                                 |
  * | dismissed    | Gjenåpne             | —           | —                                 | —                                 |
  * | cancelled    | Gjenåpne             | —           | —                                 | —                                 |
@@ -98,6 +101,8 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * av utfører; Lukk (in_progress→closed) av bestiller + godkjenner.
  * F4 (Gjenåpne-samling): closed/dismissed/cancelled → draft eies av registrator
  * (oppretter) + prosjektadmin (spec § 4). Bestiller mister gjenåpne (var legacy cancelled).
+ * H6 (Godkjent = stoppsted): approved→closed er fjernet (Godkjent lukkes aldri). Veien tilbake
+ * er Gjenåpne (approved→draft), samme eierskap som øvrig gjenåpne: registrator + prosjektadmin.
  */
 export function hentRolleFiltrertHandlinger(
   status: string,
@@ -257,6 +262,9 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
     closed: new Set(["draft"]),
     dismissed: new Set(["draft"]),
     cancelled: new Set(["draft"]),
+    // H6 (Godkjent = stoppsted): Gjenåpne fra Godkjent (approved→draft) — samme regel som øvrig
+    // gjenåpne: registrator (oppretter) + prosjektadmin. Erstatter approved→closed (fjernet).
+    approved: new Set(["draft"]),
     // F0 soft-delete: oppretteren kan gjenopprette egne slettede dokumenter (spec § 3–4).
     slettet: new Set(["gjenopprett"]),
   },
@@ -266,7 +274,8 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
     received: new Set(["draft"]),
     // F3 (matrise § 3): Lukk fra Under arbeid (in_progress→closed) eies av bestiller + godkjenner.
     in_progress: new Set(["closed"]),
-    approved: new Set(["closed"]),
+    // H6 (Godkjent = stoppsted): approved→closed fjernet (Godkjent lukkes aldri) — bestiller
+    // mister Lukk på Godkjent. Gjenåpne eies av Reg + P-adm, ikke bestiller.
     // F4: Gjenåpne eies IKKE av bestiller (spec § 3 — kun Reg + P-adm). Legacy cancelled→draft
     // flyttet til registrator; bestiller mister gjenåpne.
   },
