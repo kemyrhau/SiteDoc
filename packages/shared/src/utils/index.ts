@@ -113,7 +113,9 @@ export function isValidStatusTransition(
     // F5: responded→sent ble for-staget i F3 (Send fram fra svar-leddet) — bekreftet her.
     responded: ["approved", "in_progress", "sent"],
     // F5 (Send/Videresend-paring, beslutning 6): Send fram også fra godkjent (der Videresend finnes).
-    approved: ["closed", "sent"],
+    // H6 (Godkjent = stoppsted): approved lukkes ALDRI — approved→closed fjernet. Veien tilbake er
+    // Gjenåpne (approved→draft, Reg + P-adm, § 4). Send beholdt (sende-kapasitet ok på låst tilstand).
+    approved: ["sent", "draft"],
     // F3: `rejected`-oppføringen utgår (merget inn i in_progress). `status` er String —
     // eksisterende `rejected`-rader migreres til `in_progress` ved deploy (se migrering).
     // F4 (Gjenåpne-samling): closed/dismissed/cancelled → draft er ÉN handling (Gjenåpne) —

@@ -61,7 +61,8 @@ const HANDLING_MATRISE: HandlingRad[] = [
   { navn: "[REGISTRATOR] in_progress → tom (fikset)", status: "in_progress", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] responded → tom (fikset: kan ikke lenger godkjenne)", status: "responded", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] rejected → tom (F3: rejected merget inn i in_progress, universet er tomt)", status: "rejected", rolle: "registrator", erAdmin: false, forventet: [] },
-  { navn: "[REGISTRATOR] approved → tom (fikset)", status: "approved", rolle: "registrator", erAdmin: false, forventet: [] },
+  // H6 (Godkjent = stoppsted): approved→closed fjernet, approved→draft (Gjenåpne) lagt til — Reg eier gjenåpne.
+  { navn: "[REGISTRATOR] approved → gjenåpne (H6: Godkjent lukkes aldri, Reg eier gjenåpne)", status: "approved", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
   // F4 (spec § 3–4): Gjenåpne fra alle avsluttede statuser eies av registrator (oppretter).
   { navn: "[REGISTRATOR] cancelled → gjenåpne (F4: Reg eier gjenåpne, legacy)", status: "cancelled", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
   { navn: "[REGISTRATOR] closed → gjenåpne (F4)", status: "closed", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
@@ -70,7 +71,8 @@ const HANDLING_MATRISE: HandlingRad[] = [
   // — [ROLLE — står] øvrige roller filtreres per ROLLE_HANDLINGER ————
   { navn: "[ROLLE] bestiller, draft → send+slett", status: "draft", rolle: "bestiller", erAdmin: false, forventet: ["sent", "deleted"] },
   { navn: "[ROLLE] bestiller, sent → tom (F2: transient, trekk tilbake flyttet til received)", status: "sent", rolle: "bestiller", erAdmin: false, forventet: [] },
-  { navn: "[ROLLE] bestiller, approved → lukk (ikke videresend)", status: "approved", rolle: "bestiller", erAdmin: false, forventet: ["closed"] },
+  // H6 (Godkjent = stoppsted): approved→closed fjernet — bestiller mister Lukk på Godkjent (gjenåpne eies av Reg + P-adm).
+  { navn: "[ROLLE] bestiller, approved → tom (H6: Godkjent lukkes aldri, bestiller mister Lukk)", status: "approved", rolle: "bestiller", erAdmin: false, forventet: [] },
   { navn: "[ROLLE] bestiller, cancelled → tom (F4: gjenåpne flyttet til registrator, ikke bestiller)", status: "cancelled", rolle: "bestiller", erAdmin: false, forventet: [] },
   { navn: "[ROLLE] bestiller, received → trekk tilbake (F2: henter sendt hendelse til kladd)", status: "received", rolle: "bestiller", erAdmin: false, forventet: ["draft"] },
   { navn: "[ROLLE] bestiller, rejected → tom (F3: rejected merget inn i in_progress)", status: "rejected", rolle: "bestiller", erAdmin: false, forventet: [] },
