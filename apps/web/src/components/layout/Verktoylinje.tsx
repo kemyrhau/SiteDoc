@@ -24,6 +24,7 @@ export function Verktoylinje() {
       {verktoylinjeHandlinger.map((handling) => (
         <Button
           key={handling.id}
+          data-testid={`verktoy-${handling.id}`}
           variant={handling.variant === "primary" ? "primary" : "secondary"}
           size="sm"
           onClick={handling.onClick}

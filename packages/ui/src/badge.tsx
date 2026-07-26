@@ -13,13 +13,25 @@ interface BadgeProps {
   variant?: keyof typeof varianter;
   className?: string;
   title?: string;
+  /** Testkroker (e2e) — additive, påvirker ikke visuell framtoning. */
+  "data-testid"?: string;
+  "data-status"?: string;
 }
 
-export function Badge({ children, variant = "default", className = "", title }: BadgeProps) {
+export function Badge({
+  children,
+  variant = "default",
+  className = "",
+  title,
+  "data-testid": dataTestid,
+  "data-status": dataStatus,
+}: BadgeProps) {
   return (
     <span
       className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${varianter[variant]} ${className}`}
       title={title}
+      data-testid={dataTestid}
+      data-status={dataStatus}
     >
       {children}
     </span>
