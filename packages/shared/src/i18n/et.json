@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Ettevõtte administraator ei ole voo-administraatori tase ja järgib nende tavapärast voorolli.",
   "flytmatrise.overstyrt.tooltip": "Alistas {navn} – {naar}",
   "flytmatrise.tilbakestill": "Lähtestage vaikeseadetele",
+  "flytmatrise.laast.videresend": "Lukustatud: ainult projekti administraator – teisaldab dokumendi voost välja",
   "flytmatrise.logg.tom": "Muudatusi pole veel registreeritud.",
   "flytmatrise.logg.celle": "Lahter",
   "flytmatrise.logg.endring": "Muuda",

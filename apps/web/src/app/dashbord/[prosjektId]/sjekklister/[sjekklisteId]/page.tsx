@@ -85,6 +85,12 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.prosjektId },
   );
 
+  // H3 (videresend-rettighet): flyt-medlemskap for å begrense videresend-mottakere til egne flyter.
+  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
   const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -622,6 +628,7 @@ export default function SjekklisteDetaljSide() {
             minRolle={minRolle}
             adminNiva={minFlytInfo?.adminNiva ?? null}
             flytMedlemmer={flytMedlemmer}
+            mineFlytIder={mineFlyter}
             recipientUserId={fullSjekkliste?.recipientUserId}
             recipientGroupId={fullSjekkliste?.recipientGroupId}
             bestillerUserId={fullSjekkliste?.bestillerUserId}

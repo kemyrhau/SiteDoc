@@ -180,7 +180,20 @@ export function celleDefault(rolle: MatriseRolle, fra: string, til: string): boo
 export function celleLaast(rolle: MatriseRolle, fra: string, til: string): boolean {
   if (rolle === "registrator" && fra === SENTINEL_FRA && til === SENTINEL_TIL) return true;
   if (!erStruktureltGyldig(fra, til)) return true;
+  if (erVideresendAdminLaast(rolle, fra, til)) return true;
   return false;
+}
+
+/**
+ * H3 (videresend-rettighet, fabel-vedtak 2026-07-26): Videresend (`til = "forwarded"`) er admin-only.
+ * For flyt-roller (ikke prosjektadmin) vises cellen LÅST (hengelås), ikke som en av-celle man kan
+ * klikke PÅ — en positiv override ville uansett vært en no-op: runtime (`celleTillatt` i
+ * statusHandlinger) snitter override mot `isValidStatusTransition`, og `forwarded` ligger utenfor den.
+ * Prosjektadmins videresend-celle forblir PÅ (via `celleDefault` → `erStruktureltGyldig`).
+ * Styrer også lås-tooltipen i matrise-UI-et.
+ */
+export function erVideresendAdminLaast(rolle: MatriseRolle, _fra: string, til: string): boolean {
+  return til === "forwarded" && rolle !== PROSJEKTADMIN_ROLLE;
 }
 
 /** Effektiv celle-tilstand gitt overrides-map (nøkkel `${rolle}:${fra}:${til}`). */

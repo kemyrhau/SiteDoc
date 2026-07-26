@@ -23,6 +23,7 @@ import {
   ROLLE_LABEL_NOEKKEL,
   STATUS_LABEL_NOEKKEL,
   celleTilstand,
+  erVideresendAdminLaast,
   matriseTittel,
   flythjelpTekst,
   type MatriseRolle,
@@ -245,6 +246,7 @@ function FraGruppe({
                   tilstand={tilstand}
                   kanRedigere={kanRedigere}
                   metaTekst={meta[noekkel] ? t("flytmatrise.overstyrt.tooltip").replace("{navn}", meta[noekkel].navn).replace("{naar}", meta[noekkel].naar) : undefined}
+                  laastTekst={erVideresendAdminLaast(rolle, rad.fra, rad.til) ? t("flytmatrise.laast.videresend") : undefined}
                   onKlikk={() => onKlikk(rolle, rad.fra, rad.til, tilstand)}
                   onTilbakestill={() => onTilbakestill(rolle, rad.fra, rad.til)}
                   tilbakestillTekst={t("flytmatrise.tilbakestill")}
@@ -259,21 +261,28 @@ function FraGruppe({
 }
 
 function Celle({
-  tilstand, kanRedigere, metaTekst, onKlikk, onTilbakestill, tilbakestillTekst,
+  tilstand, kanRedigere, metaTekst, laastTekst, onKlikk, onTilbakestill, tilbakestillTekst,
 }: {
   tilstand: CelleTilstand;
   kanRedigere: boolean;
   metaTekst?: string;
+  /** H3: forklaring på hvorfor cellen er låst (videresend = admin-only). Vises som hover-tooltip. */
+  laastTekst?: string;
   onKlikk: () => void;
   onTilbakestill: () => void;
   tilbakestillTekst: string;
 }) {
   // Låst — hengelås på lys bakgrunn (fabel-cellespec).
   if (tilstand === "laast") {
-    return (
+    const laasIkon = (
       <div className={`mx-auto flex h-6 w-6 items-center justify-center rounded ${CELLE.laastBg}`}>
         <Lock className={`h-3.5 w-3.5 ${CELLE.laastIkon}`} aria-hidden />
       </div>
+    );
+    return laastTekst ? (
+      <Tooltip tekst={laastTekst} side="top">{laasIkon}</Tooltip>
+    ) : (
+      laasIkon
     );
   }
   const paa = tilstand === "standard-pa" || tilstand === "overstyrt-pa";

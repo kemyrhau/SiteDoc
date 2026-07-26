@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Företagsadministratören är inte en flödesadminnivå och följer deras normala flödesroll.",
   "flytmatrise.overstyrt.tooltip": "Åsidosatt av {namn} — {naar}",
   "flytmatrise.tilbakestill": "Återställ till standard",
+  "flytmatrise.laast.videresend": "Låst: endast projektadministratör – flyttar dokumentet ur flödet",
   "flytmatrise.logg.tom": "Inga ändringar har registrerats ännu.",
   "flytmatrise.logg.celle": "Cell",
   "flytmatrise.logg.endring": "Ändra",

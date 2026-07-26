@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "L’administrateur de l’entreprise n’est pas un niveau d’administrateur de flux et suit son rôle de flux normal.",
   "flytmatrise.overstyrt.tooltip": "Remplacé par {navn} — {naar}",
   "flytmatrise.tilbakestill": "Réinitialiser aux valeurs par défaut",
+  "flytmatrise.laast.videresend": "Verrouillé : administrateur du projet uniquement – déplace le document hors du flux",
   "flytmatrise.logg.tom": "Aucun changement enregistré pour l'instant.",
   "flytmatrise.logg.celle": "Cellule",
   "flytmatrise.logg.endring": "Changement",

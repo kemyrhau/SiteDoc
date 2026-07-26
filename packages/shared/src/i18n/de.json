@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Der Unternehmensadministrator hat keine Flow-Administratorebene und folgt seiner normalen Flow-Rolle.",
   "flytmatrise.overstyrt.tooltip": "Überschrieben durch {navn} – {naar}",
   "flytmatrise.tilbakestill": "Auf Standard zurücksetzen",
+  "flytmatrise.laast.videresend": "Gesperrt: nur für Projektadministratoren – verschiebt das Dokument aus dem Flow",
   "flytmatrise.logg.tom": "Es wurden noch keine Änderungen registriert.",
   "flytmatrise.logg.celle": "Zelle",
   "flytmatrise.logg.endring": "Ändern",

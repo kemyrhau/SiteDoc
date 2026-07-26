@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Адміністратор компанії не є адміністратором потоку та виконує свою звичайну роль.",
   "flytmatrise.overstyrt.tooltip": "Перевизначено {navn} — {naar}",
   "flytmatrise.tilbakestill": "Скинути до замовчування",
+  "flytmatrise.laast.videresend": "Заблоковано: лише адміністратор проекту — виводить документ із потоку",
   "flytmatrise.logg.tom": "Змін ще не зафіксовано.",
   "flytmatrise.logg.celle": "Стільниковий",
   "flytmatrise.logg.endring": "Зміна",

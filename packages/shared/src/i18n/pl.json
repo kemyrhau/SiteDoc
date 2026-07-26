@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Administrator firmy nie jest administratorem przepływu i pełni swoją normalną rolę w zakresie przepływu.",
   "flytmatrise.overstyrt.tooltip": "Zastąpiony przez {navn} — {naar}",
   "flytmatrise.tilbakestill": "Przywróć ustawienia domyślne",
+  "flytmatrise.laast.videresend": "Zablokowany: tylko administrator projektu — usuwa dokument z przepływu",
   "flytmatrise.logg.tom": "Nie zarejestrowano jeszcze żadnych zmian.",
   "flytmatrise.logg.celle": "Komórka",
   "flytmatrise.logg.endring": "Zmiana",

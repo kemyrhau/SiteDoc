@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Uzņēmuma administrators nav plūsmas administratora līmenis un ievēro to parasto plūsmas lomu.",
   "flytmatrise.overstyrt.tooltip": "Ignorēja {navn} — {naar}",
   "flytmatrise.tilbakestill": "Atiestatīt uz noklusējuma vērtību",
+  "flytmatrise.laast.videresend": "Bloķēts: tikai projekta administrators — pārvieto dokumentu no plūsmas",
   "flytmatrise.logg.tom": "Izmaiņas vēl nav reģistrētas.",
   "flytmatrise.logg.celle": "Šūna",
   "flytmatrise.logg.endring": "Mainīt",

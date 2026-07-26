@@ -3103,6 +3103,7 @@
   "flytmatrise.fotnote.firmaadmin": "Yrityksen järjestelmänvalvoja ei ole Flow-admin-taso ja noudattaa normaalia kulkurooliaan.",
   "flytmatrise.overstyrt.tooltip": "Ohittanut {navn} – {naar}",
   "flytmatrise.tilbakestill": "Palauta oletusarvo",
+  "flytmatrise.laast.videresend": "Lukittu: vain projektin järjestelmänvalvoja – siirtää asiakirjan pois kulusta",
   "flytmatrise.logg.tom": "Muutoksia ei ole vielä tallennettu.",
   "flytmatrise.logg.celle": "Cell",
   "flytmatrise.logg.endring": "Muuttaa",

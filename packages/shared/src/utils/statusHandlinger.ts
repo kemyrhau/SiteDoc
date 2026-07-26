@@ -88,14 +88,17 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * |--------------|----------------------|-----------------|-----------------------------------|-----------------------------------|
  * | draft        | Send, Slett          | Send, Slett     | —                                 | —                                 |
  * | sent         | — (transient)        | — (transient)   | —                                 | —                                 |
- * | received     | Trekk tilbake        | Trekk tilbake   | Besvar, Send, Videresend, Avvis   | Godkjenn (F6, fra Mottatt)        |
- * | in_progress  | —                    | Lukk        | Besvar, Send på nytt, Videresend  | Lukk                              |
- * | responded    | —                    | —           | —                                 | Godkjenn, Send tilbake, Send, Videresend|
+ * | received     | Trekk tilbake        | Trekk tilbake   | Besvar, Send, Avvis               | Godkjenn (F6, fra Mottatt)        |
+ * | in_progress  | —                    | Lukk        | Besvar, Send på nytt              | Lukk                              |
+ * | responded    | —                    | —           | —                                 | Godkjenn, Send tilbake, Send      |
  * | approved     | Gjenåpne             | —           | —                                 | Send                              |
  * | closed       | Gjenåpne             | —           | —                                 | —                                 |
  * | dismissed    | Gjenåpne             | —           | —                                 | —                                 |
  * | cancelled    | Gjenåpne             | —           | —                                 | —                                 |
  *
+ * H3 (videresend-rettighet, 2026-07-26): Videresend (`forwarded`) er fjernet fra utfører/godkjenner-
+ * defaults — kun prosjektadmin har den (via statusmaskin-snittet). Cellene i matrisen står igjen så
+ * et firma i prinsippet kan konfigurere, men default-haken er AV for flytroller.
  * F3 (Under arbeid): `rejected` er merget inn i `in_progress`. Send tilbake
  * (responded→in_progress) eies av godkjenner; Send på nytt (in_progress→sent)
  * av utfører; Lukk (in_progress→closed) av bestiller + godkjenner.
@@ -282,9 +285,12 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
   utforer: {
     // F1 (matrise § 3): utfører eier Avvis (received→dismissed) sammen med prosjektadmin.
     // F5 (matrise § 3): Send fram (received→sent) eies av utfører + prosjektadmin.
-    received: new Set(["responded", "sent", "forwarded", "dismissed"]),
-    // F3 (matrise § 3): Besvar (→responded), Send på nytt (→sent), Videresend fra Under arbeid.
-    in_progress: new Set(["responded", "sent", "forwarded"]),
+    // H3 (videresend-rettighet, 2026-07-26): `forwarded` fjernet — videresend er en admin-handling
+    // (kryssflyt ut av flyten). Prosjektadmin beholder den via statusmaskin-snittet (erStruktureltGyldig),
+    // ikke via denne default-lista.
+    received: new Set(["responded", "sent", "dismissed"]),
+    // F3 (matrise § 3): Besvar (→responded), Send på nytt (→sent) fra Under arbeid.
+    in_progress: new Set(["responded", "sent"]),
   },
   godkjenner: {
     // F6 (Godkjenn fra Mottatt): godkjenner eier direkte godkjenning fra Mottatt (received→approved)
@@ -292,7 +298,8 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
     received: new Set(["approved"]),
     // F3: Send tilbake ruter direkte til Under arbeid (responded→in_progress), ikke rejected.
     // F5 (matrise § 3): Send fram (responded→sent) eies av godkjenner + prosjektadmin.
-    responded: new Set(["approved", "in_progress", "sent", "forwarded"]),
+    // H3 (videresend-rettighet, 2026-07-26): `forwarded` fjernet — se utfører-kommentaren over.
+    responded: new Set(["approved", "in_progress", "sent"]),
     // F3 (matrise § 3): Lukk fra Under arbeid eies av godkjenner + bestiller.
     in_progress: new Set(["closed"]),
     // F5 (matrise § 3): Send fram (approved→sent) eies av godkjenner + prosjektadmin.
