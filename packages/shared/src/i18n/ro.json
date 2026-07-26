@@ -2172,7 +2172,7 @@
   "flythjelp.handling.besvar": "Mută ​​documentul cu un pas înapoi: de la dvs. la {{mottaker}}, care examinează răspunsul. Ei îl văd ca fiind Răspuns.",
   "flythjelp.handling.besvarSisteLedd": "Marchează documentul ca Răspuns și îl trimite înapoi celui care ți l-a trimis — fluxul nu mai are pași.",
   "flythjelp.handling.avvis": "Respinge documentul cu un motiv. Curgerea se oprește; {{mottaker}} îl vede ca Respins cu motivul dvs. Poate fi redeschis.",
-  "flythjelp.handling.godkjenn": "Acceptă răspunsul. Documentul nu merge mai departe – este Aprobat pentru toate părțile, gata să fie închis.",
+  "flythjelp.handling.godkjenn": "Aproba documentul. Nu merge mai departe – este Aprobat pentru toate părțile, gata să fie închis.",
   "flythjelp.handling.sendTilbakeUtforer": "Mută documentul cu un pas înapoi: de la dvs. la {{mottaker}}, pentru corectare. La ei apare ca În curs.",
   "flythjelp.handling.sendPaaNytt": "Mută ​​din nou documentul înainte: de la dvs. la {{mottaker}}, după corectare.",
   "flythjelp.handling.lukk": "Încheie fluxul: documentul este arhivat ca Închis pentru toată lumea și nu trece mai departe. Redeschiderea necesită o permisiune separată.",

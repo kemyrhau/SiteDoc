@@ -2172,7 +2172,7 @@
   "flythjelp.handling.besvar": "Flytter dokumentet ett ledd tilbake: fra deg til {{mottaker}}, som vurderer svaret. Hos dem står det som Besvart.",
   "flythjelp.handling.besvarSisteLedd": "Markerer dokumentet som Besvart og sender det tilbake til den som sendte det til deg — flyten har ingen videre ledd.",
   "flythjelp.handling.avvis": "Avviser dokumentet med begrunnelse. Flyten stopper; {{mottaker}} ser det som Avvist med begrunnelsen din. Kan gjenåpnes.",
-  "flythjelp.handling.godkjenn": "Godtar svaret. Dokumentet flytter ikke videre — det står som Godkjent hos alle parter, klart til lukking.",
+  "flythjelp.handling.godkjenn": "Godkjenner dokumentet. Det flytter ikke videre — står som Godkjent hos alle parter, klart til lukking.",
   "flythjelp.handling.sendTilbakeUtforer": "Flytter dokumentet ett ledd tilbake: fra deg til {{mottaker}}, for utbedring. Hos dem står det som Under arbeid.",
   "flythjelp.handling.sendPaaNytt": "Flytter dokumentet fram igjen: fra deg til {{mottaker}}, etter retting.",
   "flythjelp.handling.lukk": "Avslutter flyten: dokumentet arkiveres som Lukket hos alle og flytter ikke videre. Gjenåpning krever egen rettighet.",

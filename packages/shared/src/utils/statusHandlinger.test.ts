@@ -401,10 +401,11 @@ describe("adminNiva='prosjekt' — full INNENFOR statusmaskinen (tom override)",
     expect(erTillattForRolle("registrator", "received", "forwarded", "prosjekt")).toBe(true);
   });
   it("hentRolleFiltrertHandlinger: hele det statusmaskin-lovlige universet for status", () => {
-    // received-universet: responded (lovlig), sent (F5 Send, lovlig), draft (F2 trekk tilbake, lovlig),
-    // forwarded (pseudo), dismissed (lovlig) → alle. Prosjektadmin får hele det statusmaskin-lovlige universet.
+    // received-universet: responded (lovlig), approved (F6 Godkjenn fra Mottatt, lovlig), sent (F5 Send,
+    // lovlig), draft (F2 trekk tilbake, lovlig), forwarded (pseudo), dismissed (lovlig) → alle.
+    // Prosjektadmin får hele det statusmaskin-lovlige universet.
     expect(hentRolleFiltrertHandlinger("received", "registrator", "prosjekt").map((h) => h.nyStatus))
-      .toEqual(["responded", "sent", "draft", "forwarded", "dismissed"]);
+      .toEqual(["responded", "approved", "sent", "draft", "forwarded", "dismissed"]);
   });
   it("konfigurerbar NEDOVER: negativ prosjektadmin-override slår av en celle", () => {
     const override: RettighetsOverrides = { [flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, "draft", "sent")]: false };

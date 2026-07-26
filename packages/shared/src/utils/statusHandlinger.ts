@@ -25,6 +25,9 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
     // F2 (D-1): `sent` er transient (auto→received) — ingen handlinger bor her.
     received: [
       { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
+      // F6 (Godkjenn fra Mottatt): direkte godkjenn-vei for Registrator→Godkjenner-flyt uten utfører.
+      // TILLEGG til responded→approved (Godkjenn etter Besvart), ikke erstatning. Eies av godkjenner + P-adm.
+      { tekstNoekkel: "handling.godkjenn", nyStatus: "approved", farge: "bg-green-600", aktivFarge: "bg-green-400" },
       // F5 (Send/Videresend-paring, beslutning 6): Send fram i flyten — gjenbruker handling.send.
       { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       // F2: Trekk tilbake henter en sendt hendelse tilbake til avsender FØR mottaker har
@@ -82,7 +85,7 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
  * |--------------|----------------------|-----------------|-----------------------------------|-----------------------------------|
  * | draft        | Send, Slett          | Send, Slett     | —                                 | —                                 |
  * | sent         | — (transient)        | — (transient)   | —                                 | —                                 |
- * | received     | Trekk tilbake        | Trekk tilbake   | Besvar, Send, Videresend, Avvis   | —                                 |
+ * | received     | Trekk tilbake        | Trekk tilbake   | Besvar, Send, Videresend, Avvis   | Godkjenn (F6, fra Mottatt)        |
  * | in_progress  | —                    | Lukk        | Besvar, Send på nytt, Videresend  | Lukk                              |
  * | responded    | —                    | —           | —                                 | Godkjenn, Send tilbake, Send, Videresend|
  * | approved     | Lukk, Videresend     | Lukk        | —                                 | Send                              |
@@ -275,6 +278,9 @@ export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string
     in_progress: new Set(["responded", "sent", "forwarded"]),
   },
   godkjenner: {
+    // F6 (Godkjenn fra Mottatt): godkjenner eier direkte godkjenning fra Mottatt (received→approved)
+    // for Registrator→Godkjenner-flyt uten utfører. Utfører/registrator får den IKKE.
+    received: new Set(["approved"]),
     // F3: Send tilbake ruter direkte til Under arbeid (responded→in_progress), ikke rejected.
     // F5 (matrise § 3): Send fram (responded→sent) eies av godkjenner + prosjektadmin.
     responded: new Set(["approved", "in_progress", "sent", "forwarded"]),

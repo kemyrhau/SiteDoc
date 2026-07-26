@@ -2172,7 +2172,7 @@
   "flythjelp.handling.besvar": "Flyttar dokumentet ett steg tillbaka: från dig till {{mottaker}}, som granskar svaret. De ser det som besvarat.",
   "flythjelp.handling.besvarSisteLedd": "Markerar dokumentet som besvarat och skickar det tillbaka till den som skickade det till dig – flödet har inga ytterligare steg.",
   "flythjelp.handling.avvis": "Avvisar dokumentet med en anledning. Flödet stannar; {{mottaker}} ser det som avvisat med ditt skäl. Kan öppnas igen.",
-  "flythjelp.handling.godkjenn": "Accepterar svaret. Dokumentet går inte vidare – det står som Godkänt för alla parter, redo att stängas.",
+  "flythjelp.handling.godkjenn": "Godkänner dokumentet. Den går inte vidare — den står som Godkänd för alla parter, redo att stängas.",
   "flythjelp.handling.sendTilbakeUtforer": "Flyttar dokumentet ett steg tillbaka: från dig till {{mottaker}}, för korrigering. Hos dem visas det som Pågår.",
   "flythjelp.handling.sendPaaNytt": "Flyttar dokumentet framåt igen: från dig till {{mottaker}}, efter korrigering.",
   "flythjelp.handling.lukk": "Avslutar flödet: dokumentet arkiveras som Stängt för alla och går inte vidare. Återöppning kräver ett separat tillstånd.",

@@ -2172,7 +2172,7 @@
   "flythjelp.handling.besvar": "E zhvendos dokumentin një hap prapa: nga ju te {{mottaker}}, i cili shqyrton përgjigjen. Ata e shohin atë si të Përgjigjur.",
   "flythjelp.handling.besvarSisteLedd": "Shënon dokumentin si të Përgjigjur dhe ia dërgon atij që ju ka dërguar - rrjedha nuk ka hapa të mëtejshëm.",
   "flythjelp.handling.avvis": "Refuzon dokumentin me një arsye. Rrjedha ndalon; {{mottaker}} e sheh atë si të Refuzuar me arsyen tuaj. Mund të rihapet.",
-  "flythjelp.handling.godkjenn": "Pranon përgjigjen. Dokumenti nuk vazhdon - ai qëndron si i miratuar për të gjitha palët, gati për t'u mbyllur.",
+  "flythjelp.handling.godkjenn": "Miraton dokumentin. Nuk vazhdon më - qëndron si i miratuar për të gjitha palët, gati për t'u mbyllur.",
   "flythjelp.handling.sendTilbakeUtforer": "E zhvendos dokumentin një hap prapa: nga ju te {{mottaker}}, për korrigjim. Tek ata shfaqet si Në vazhdim.",
   "flythjelp.handling.sendPaaNytt": "E zhvendos dokumentin përsëri përpara: nga ju te {{mottaker}}, pas korrigjimit.",
   "flythjelp.handling.lukk": "Përfundon rrjedhën: dokumenti arkivohet si i mbyllur për të gjithë dhe nuk vazhdon. Rihapja kërkon një leje të veçantë.",
