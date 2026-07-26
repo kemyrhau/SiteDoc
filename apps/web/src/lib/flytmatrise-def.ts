@@ -92,7 +92,9 @@ export const MATRISE_RADER: MatriseRad[] = [
   { fra: "closed", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
   { fra: "dismissed", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
   { fra: "cancelled", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
-  { fra: "cancelled", til: "deleted", labelNoekkel: "handling.slett", flythjelpNoekkel: "flythjelp.handling.slettTrukket" },
+  // Fiks 2 (klikktest): F0 soft-delete gjelder også trukket-tilbake dokument → 90-dagers papirkurv,
+  // ikke «permanent». Koherens med hover (DokumentHandlingsmeny). slettTrukket beholdes som relikvi.
+  { fra: "cancelled", til: "deleted", labelNoekkel: "handling.slett", flythjelpNoekkel: "flythjelp.handling.slett" },
   // F0 soft-delete — papirkurv-handlinger fra visningsstatus «Slettet» (deletedAt).
   { fra: "slettet", til: "gjenopprett", labelNoekkel: "statushandling.gjenopprett", flythjelpNoekkel: "flythjelp.handling.gjenopprett" },
   { fra: "slettet", til: "slett_endelig", labelNoekkel: "statushandling.slettEndelig", flythjelpNoekkel: "flythjelp.handling.slettEndelig" },

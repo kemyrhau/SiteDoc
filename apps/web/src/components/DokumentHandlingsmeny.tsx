@@ -287,7 +287,9 @@ export function DokumentHandlingsmeny({
           mottaker: videresendValg.length === 1 ? videresendValg[0]?.visningsnavn : fb("flythjelp.fallback.nesteMottaker"),
         };
       case "handling.slett":
-        return { noekkel: status === "cancelled" ? "flythjelp.handling.slettTrukket" : "flythjelp.handling.slettKladd" };
+        // Fiks 2 (klikktest): F0 soft-delete = papirkurv i 90 dager, ikke «permanent».
+        // slettKladd/slettTrukket beholdes som relikvier (fjernes i konsoliderings-oppryddingen).
+        return { noekkel: "flythjelp.handling.slett" };
       case "statushandling.trekkTilbake":
         // Retning: henter dokumentet FRA den du sendte til (ikke avsenderen) → mottakerDin.
         return {
@@ -535,6 +537,13 @@ export function DokumentHandlingsmeny({
   const primærFarge = primærHandling ? FARGE_KLASSE[primærHandling.farge] ?? "bg-sitedoc-primary hover:bg-blue-700" : "";
   const primærMikro = primærHandling ? mikrotekst(primærHandling.tekstNoekkel, primærHandling.nyStatus, t(primærHandling.tekstNoekkel)) : undefined;
 
+  // Fiks 1 (klikktest): kryssflyt-nedtrekket er «Videresend» (ikke-draft) med egen flythjelp-hover —
+  // tydelig skilt fra F5s «Send» (fram i flyten). Draft beholder «Send» (førstegangs-send til faggruppe).
+  const erVideresendNedtrekk = harForwarded && !draftSend;
+  const videresendMikro = erVideresendNedtrekk && forwardedHandling
+    ? mikrotekst(forwardedHandling.tekstNoekkel, "forwarded", t("statushandling.videresend"))
+    : undefined;
+
   return (
     <div className="flex flex-wrap items-center gap-2" ref={menyRef}>
       {/* Primærhandling som knapp (+ split-▾ ved draft-send med flere mottakere) */}
@@ -603,14 +612,27 @@ export function DokumentHandlingsmeny({
       {/* Nedtrekk: send-mottakere + admin + deaktiverte */}
       {dropdownHarInnhold && !(draftSend && videresendValg.length > 1) && (
         <div className="relative">
-          <button
-            onClick={() => setÅpenMeny((å) => !å)}
-            disabled={erLaster}
-            className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {harForwarded && !draftSend ? t("handling.send") : t("statushandling.admin")}
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
+          {erVideresendNedtrekk && videresendMikro ? (
+            <Tooltip tittel={videresendMikro.tittel} tekst={videresendMikro.tekst} side="top">
+              <button
+                onClick={() => setÅpenMeny((å) => !å)}
+                disabled={erLaster}
+                className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {t("statushandling.videresend")}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={() => setÅpenMeny((å) => !å)}
+              disabled={erLaster}
+              className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {t("statushandling.admin")}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       )}
 
