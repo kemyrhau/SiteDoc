@@ -95,7 +95,9 @@ Kenneth-gjennomgang av mikrotekst-hoveren på test avdekket flyt-design-probleme
 - **F4 Samlet gjenåpne** — ✅ MERGET DEVELOP `4227d0a2`. `closed/dismissed/cancelled → draft` (én handling), rett registrator + prosjektadmin, ruting → kladd hos oppretter. Ren kode. Test-verifiser: kun Reg+P-adm ser Gjenåpne (#9).
 - **F5 Send/Videresend-paring** — ✅ MERGET DEVELOP `8b23fc5b`. Send aktivert i received/responded/approved → sent (Send fram), plukket opp F3s `responded→sent`-for-staging. Ren kode.
 
-**ALLE FASER F0–F5 PÅ DEVELOP.** Neste: **test-deploy** — sekvensiell bygging + `prisma migrate deploy` kjører F0 (`deletedAt`) + F3 (`rejected→in_progress`), Kenneths go på hver. Deretter visuell verifisering av hele flyten. **Ikke deployet prod.**
+**F0–F5 + klikktest-fikser + F6 MERGET OG DEPLOYET TEST** (migreringer F0 `deletedAt` + F3 `rejected→in_progress` kjørt mot `sitedoc_test` 2026-07-26). Klikktest-fikser: Videresend-label+hover, 90-dagers slett-tekst. **F6** (`received→approved`): Registrator→Godkjenner-flyt uten utfører kan nå godkjenne; nøytral `godkjenn`-tekst dekker begge veier. **Ikke deployet prod.**
+
+**Åpne design-saker:** flytrettigheter-evaluering H1–H9 ([delplaner/flytrettigheter-evaluering-2026-07-26.md](delplaner/flytrettigheter-evaluering-2026-07-26.md)) — H1: status koder ikke posisjon, matrisen er rolle×status (men `steg`-feltet finnes → N-boks nærmere enn antatt). Gjenstår: konfigurerbar boks-UI (projeksjon over matrisen; fabel-kryssjekk pågår), Godkjent-design (fjern Lukk fra Godkjent + direkte Gjenåpne — Godkjent er stoppsted i byggebransjen, ikke lukkes), registrator-steg-1-validering. N-boks/posisjonsmodell utsatt.
 
 **Konsoliderings-opprydding (egen senere fase, ikke blokkerende):** (1) døde VALID_TRANSITIONS-oppføringer `received→in_progress` + `received→cancelled` (inerte, ingen matrise-celle); (2) legacy `rejected`-visning i StatusMerkelapp/status-badge/PDF + `STATUS_LABEL_NOEKKEL.rejected` (inert etter migrering); (3) § 0 delt-kilde-refaktoren (statusHandlinger som avledbar kilde for matrise+hover — eliminerer manuell triple-gating). Se [BACKLOG](BACKLOG.md#statusmaskin-konsolidering).
 
