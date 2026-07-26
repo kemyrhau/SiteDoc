@@ -1,0 +1,6 @@
+# Hemmelighet + minted tokens + kjøringsartefakter — ALDRI i git
+.env.local
+.auth/
+.runtime.json
+playwright-report/
+test-results/
