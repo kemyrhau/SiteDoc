@@ -21,6 +21,7 @@ Konverter de mest gjentatte klikktest-punktene fra veilederne til kode:
 - **Selektorer:** `data-testid` på de flatene testene trenger (ledd-rad, handlingsknapper, status-pill) — små additive UI-endringer tillatt.
 - **Flake-policy:** en test som flaker fikses eller fjernes samme dag — suiten skal være troverdig eller ikke finnes.
 - Playwright-config i repoet (`tests/e2e/`), dev-login-detaljer fra `docs/claude/dev-login-agent.md`; secrets aldri i repo.
+- **Worktree-krav (lærdom 2026-07-26, flytvisning-bygget):** suiten skal kunne kjøres fra ENHVER worktree uten manuell env-flikking — én dokumentert bootstrap (`tests/e2e/README`: hvor env hentes fra, hva som må finnes) + tydelig feilmelding når env mangler. Bygge-øktene stoppet nettopp på «worktree mangler .env»; e2e-riggen skal ikke arve det hullet.
 
 ## Rolleeffekt
 Chrome-Opus-klikktester reserveres etter dette til NYE flater og utforskende testing — regresjonene eies av suiten. Veilederne består som kilde for nye testkandidater.
