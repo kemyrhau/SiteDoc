@@ -119,6 +119,26 @@ export function byggVideresendValg(
 }
 
 /**
+ * H3 (videresend-rettighet, 2026-07-26): begrens videresend-mottakere til flyter
+ * avsenderen SELV er medlem av. Lukker lekkasjen der `byggVideresendValg` bygger
+ * lista av ALLE prosjektets faggrupper uten avsender-filter — kombinert med at en
+ * flytrolle får videresend PÅ (override) kunne en utfører/godkjenner ellers flytte
+ * dokumenter inn i flyter de ikke har noen rolle i.
+ *
+ * Admin (prosjekt/sitedoc) beholder full liste — intet filter (kryssflyt er en
+ * legitim admin-handling). Gjelder KUN videresend-stien; førstegangs-send (draft→sent)
+ * bruker den ufiltrerte lista og er urørt.
+ */
+export function filtrerVideresendPaaMedlemskap(
+  valg: VideresendValg[],
+  avsenderFlytIder: Set<string>,
+  erAdmin: boolean,
+): VideresendValg[] {
+  if (erAdmin) return valg;
+  return valg.filter((v) => avsenderFlytIder.has(v.dokumentflytId));
+}
+
+/**
  * Finn flytens medlemmer som konkrete mottakere (person eller gruppe), dedup på
  * mottaker-ID. Brukes til person-videresending (Del 2.4): ekspandér faggruppe →
  * velg spesifikk person. Hovedansvarlig person telles med; rolle beholdes for

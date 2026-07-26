@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   hentRolleFiltrertHandlinger,
   hentStatusHandlinger,
+  hentHandlingEierRoller,
   erTillattForRolle,
   flytRettighetNoekkel,
   PROSJEKTADMIN_ROLLE,
@@ -78,12 +79,13 @@ const HANDLING_MATRISE: HandlingRad[] = [
   { navn: "[ROLLE] bestiller, rejected → tom (F3: rejected merget inn i in_progress)", status: "rejected", rolle: "bestiller", erAdmin: false, forventet: [] },
   // F3 (matrise § 3): bestiller eier Lukk fra Under arbeid (in_progress→closed).
   { navn: "[ROLLE] bestiller, in_progress → lukk", status: "in_progress", rolle: "bestiller", erAdmin: false, forventet: ["closed"] },
-  // F1: utfører eier nå Avvis (received→dismissed) — universet gir responded/forwarded/dismissed.
-  { navn: "[ROLLE] utforer, received → besvar+send+videresend+avvis (F5: Send)", status: "received", rolle: "utforer", erAdmin: false, forventet: ["responded", "sent", "forwarded", "dismissed"] },
-  { navn: "[ROLLE] utforer, in_progress → besvar+send på nytt+videresend (ikke lukk)", status: "in_progress", rolle: "utforer", erAdmin: false, forventet: ["responded", "sent", "forwarded"] },
+  // F1: utfører eier Avvis (received→dismissed). H3: Videresend (forwarded) fjernet fra utfører-defaults.
+  { navn: "[ROLLE] utforer, received → besvar+send+avvis (F5: Send; H3: ikke videresend)", status: "received", rolle: "utforer", erAdmin: false, forventet: ["responded", "sent", "dismissed"] },
+  { navn: "[ROLLE] utforer, in_progress → besvar+send på nytt (H3: ikke videresend, ikke lukk)", status: "in_progress", rolle: "utforer", erAdmin: false, forventet: ["responded", "sent"] },
   { navn: "[ROLLE] utforer, rejected → tom (F3: rejected merget inn i in_progress)", status: "rejected", rolle: "utforer", erAdmin: false, forventet: [] },
   { navn: "[ROLLE] utforer, draft → tom", status: "draft", rolle: "utforer", erAdmin: false, forventet: [] },
-  { navn: "[ROLLE] godkjenner, responded → godkjenn+send tilbake+send+videresend (F3: → in_progress; F5: Send)", status: "responded", rolle: "godkjenner", erAdmin: false, forventet: ["approved", "in_progress", "sent", "forwarded"] },
+  // H3: Videresend (forwarded) fjernet fra godkjenner-defaults.
+  { navn: "[ROLLE] godkjenner, responded → godkjenn+send tilbake+send (F3: → in_progress; F5: Send; H3: ikke videresend)", status: "responded", rolle: "godkjenner", erAdmin: false, forventet: ["approved", "in_progress", "sent"] },
   // F3 (matrise § 3): godkjenner eier Lukk fra Under arbeid (in_progress→closed).
   { navn: "[ROLLE] godkjenner, in_progress → lukk", status: "in_progress", rolle: "godkjenner", erAdmin: false, forventet: ["closed"] },
   { navn: "[ROLLE] godkjenner, draft → tom", status: "draft", rolle: "godkjenner", erAdmin: false, forventet: [] },
@@ -270,6 +272,33 @@ describe("F5 Send/Videresend-paring — Send fram der Videresend finnes (beslutn
   it.each(["received", "responded", "approved"])("%s-universet bærer en Send-handling (handling.send → sent)", (status) => {
     const send = hentStatusHandlinger(status).find((h) => h.tekstNoekkel === "handling.send");
     expect(send?.nyStatus).toBe("sent");
+  });
+});
+
+describe("H3 videresend-rettighet — forwarded er admin-only (fjernet fra flytrolle-defaults)", () => {
+  // Del 1: default AV for utfører/godkjenner, PÅ for prosjektadmin (via statusmaskin-snittet).
+  it("utfører får IKKE videresend i menyen (received/in_progress)", () => {
+    expect(hentRolleFiltrertHandlinger("received", "utforer", null).map((h) => h.nyStatus)).not.toContain("forwarded");
+    expect(hentRolleFiltrertHandlinger("in_progress", "utforer", null).map((h) => h.nyStatus)).not.toContain("forwarded");
+  });
+  it("godkjenner får IKKE videresend i menyen (responded)", () => {
+    expect(hentRolleFiltrertHandlinger("responded", "godkjenner", null).map((h) => h.nyStatus)).not.toContain("forwarded");
+  });
+  it("serveren avviser videresend for utfører/godkjenner (null-nivå)", () => {
+    expect(erTillattForRolle("utforer", "received", "forwarded", null)).toBe(false);
+    expect(erTillattForRolle("utforer", "in_progress", "forwarded", null)).toBe(false);
+    expect(erTillattForRolle("godkjenner", "responded", "forwarded", null)).toBe(false);
+  });
+  it("prosjektadmin BEHOLDER videresend på de relevante statusene (via snittet, ikke defaults)", () => {
+    expect(hentRolleFiltrertHandlinger("received", "utforer", "prosjekt").map((h) => h.nyStatus)).toContain("forwarded");
+    expect(hentRolleFiltrertHandlinger("in_progress", "utforer", "prosjekt").map((h) => h.nyStatus)).toContain("forwarded");
+    expect(hentRolleFiltrertHandlinger("responded", "godkjenner", "prosjekt").map((h) => h.nyStatus)).toContain("forwarded");
+    expect(erTillattForRolle("utforer", "received", "forwarded", "prosjekt")).toBe(true);
+    expect(erTillattForRolle("godkjenner", "responded", "forwarded", "prosjekt")).toBe(true);
+  });
+  it("hentHandlingEierRoller for videresend er tom (eierløs → kun admin)", () => {
+    expect(hentHandlingEierRoller("received", "forwarded")).toEqual([]);
+    expect(hentHandlingEierRoller("responded", "forwarded")).toEqual([]);
   });
 });
 

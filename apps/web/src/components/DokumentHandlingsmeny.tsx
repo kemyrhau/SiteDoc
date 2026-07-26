@@ -23,7 +23,7 @@ import {
   type DokumentflytRolle,
   type AdminNiva,
 } from "@sitedoc/shared";
-import { byggVideresendValg, finnMottakerNavn } from "@/lib/videresend-valg";
+import { byggVideresendValg, filtrerVideresendPaaMedlemskap, finnMottakerNavn } from "@/lib/videresend-valg";
 import type { DokumentflytData, FaggruppeData, VideresendMedlem } from "@/lib/videresend-valg";
 import { STATUS_LABEL_NOEKKEL, flythjelpTekst } from "@/lib/flytmatrise-def";
 
@@ -72,6 +72,12 @@ interface DokumentHandlingsmenyProps {
   adminNiva?: AdminNiva;
   /** Dokumentflyt-medlemmer for posisjon-utledning */
   flytMedlemmer?: FlytMedlem[];
+  /**
+   * H3 (videresend-rettighet): flyt-ID-ene innlogget bruker (avsenderen) er medlem av
+   * i prosjektet — fra `medlem.hentMineFlyter`. Videresend-mottakerlista begrenses til
+   * disse for ikke-admin. Admin (adminNiva prosjekt/sitedoc) beholder full liste.
+   */
+  mineFlytIder?: string[];
   /** Nåværende mottaker (bruker-ID) */
   recipientUserId?: string | null;
   /** Nåværende mottaker (gruppe-ID) */
@@ -217,6 +223,7 @@ export function DokumentHandlingsmeny({
   minRolle,
   adminNiva,
   flytMedlemmer,
+  mineFlytIder,
   recipientUserId,
   recipientGroupId,
   bestillerUserId,
@@ -242,6 +249,15 @@ export function DokumentHandlingsmeny({
   const videresendValg = useMemo(
     () => byggVideresendValg(alleFaggrupper ?? [], dokumentflyter ?? [], templateId),
     [alleFaggrupper, dokumentflyter, templateId],
+  );
+
+  // H3 (videresend-rettighet): videresend-mottakere begrenses til flyter avsenderen selv
+  // er medlem av — admin (prosjekt/sitedoc) beholder full liste. Gjelder KUN videresend-stien
+  // (forwarded); førstegangs-send (draft→sent) bruker fortsatt `videresendValg` ufiltrert.
+  const erFlytAdmin = adminNiva === "sitedoc" || adminNiva === "prosjekt";
+  const videresendMottakere = useMemo(
+    () => filtrerVideresendPaaMedlemskap(videresendValg, new Set(mineFlytIder ?? []), erFlytAdmin),
+    [videresendValg, mineFlytIder, erFlytAdmin],
   );
 
   const ledd = useMemo(() => byggLedd(flytMedlemmer ?? []), [flytMedlemmer]);
@@ -352,9 +368,16 @@ export function DokumentHandlingsmeny({
 
   const primærHandling = aktive.find((h) => h.erPrimaer) ?? null;
 
-  // Recipient-oppføringer (draft-send eller videresend) fra videresendValg
-  const recipientOppforinger = (nyStatus: string, prefix: string, tekstNoekkel: string): MenyOppforing[] =>
-    videresendValg.map((v) => ({
+  // Recipient-oppføringer (draft-send eller videresend) fra en valg-liste.
+  // Draft-send bruker full `videresendValg`; videresend-stien sender inn den
+  // medlemskaps-filtrerte lista (H3).
+  const recipientOppforinger = (
+    nyStatus: string,
+    prefix: string,
+    tekstNoekkel: string,
+    kilde: typeof videresendValg = videresendValg,
+  ): MenyOppforing[] =>
+    kilde.map((v) => ({
       key: `${prefix}-${v.key}`,
       label: v.visningsnavn,
       nyStatus,
@@ -371,7 +394,7 @@ export function DokumentHandlingsmeny({
   const sendOppforinger: MenyOppforing[] = draftSend
     ? recipientOppforinger("sent", "send", primærHandling!.tekstNoekkel)
     : harForwarded
-      ? recipientOppforinger("forwarded", "fwd", forwardedHandling.tekstNoekkel)
+      ? recipientOppforinger("forwarded", "fwd", forwardedHandling.tekstNoekkel, videresendMottakere)
       : [];
 
   // Sekundær-knapper: aktive (minus primær), ikke forwarded, ikke admin-status
