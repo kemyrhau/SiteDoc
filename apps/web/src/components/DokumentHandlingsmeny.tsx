@@ -187,7 +187,8 @@ export function DokumentHandlingsmeny({
     [ledd, status, recipientUserId, recipientGroupId, bestillerUserId],
   );
   const harFlyt = ledd.length > 0;
-  const erSisteBoks = harFlyt && aktivtIndex === ledd.length - 1;
+  // Variant C krever FLERE ledd: en enkelt-ledds flyt har ingen «neste mottaker».
+  const erSisteBoks = ledd.length > 1 && aktivtIndex === ledd.length - 1;
 
   // Kilde: aktive handlinger + hele universet (for deaktiverte).
   // Uten dokumentflyt finnes ingen rollestruktur — serveren bypasser `verifiserFlytRolle`

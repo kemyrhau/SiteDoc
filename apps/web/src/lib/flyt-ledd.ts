@@ -3,9 +3,53 @@
  *
  * `byggLedd` + `finnAktivtIndex` lå tidligere duplisert i BÅDE `FlytIndikator.tsx`
  * og `DokumentHandlingsmeny.tsx` (fabel-flagg 1). Én kilde nå — begge importerer
- * herfra, ingen dobbel logikk. Ren utledning fra dokumentets FAKTISKE flyt
- * (medlemmer gruppert på `steg`): antall ledd er dynamisk, aldri hardkodet.
+ * herfra, ingen dobbel logikk. Ren utledning fra dokumentets FAKTISKE flyt:
+ * antall ledd er dynamisk, aldri hardkodet.
+ *
+ * Sekvensering (interim, 2026-07-26): ledd sekvenseres på kanonisk ROLLE-RANG,
+ * IKKE på `steg`. I dagens faste rolle-modell er `steg` ikke populert — alle
+ * medlemmer bærer default `steg=1`, så steg-gruppering kollapset ALLE roller til
+ * ett eneste ledd (én boks + variant-C overalt). Når posisjonsutredningen gir
+ * distinkte `steg`, byttes sekvenseringen tilbake til `steg`.
  */
+
+/**
+ * Kanonisk rolle-rang: registrator → bestiller → utfører → godkjenner.
+ * Speiler `ROLLE_PRIORITET` i `@sitedoc/shared` (utils/flytRolle.ts) — samme
+ * rekkefølge, holdt lokalt for å unngå å eksponere shared-intern konstant.
+ * Ukjente roller får rang 99 (sorteres sist, stabilt på innsettingsrekkefølge).
+ */
+const ROLLE_RANG: Record<string, number> = {
+  registrator: 1,
+  bestiller: 2,
+  utforer: 3,
+  godkjenner: 4,
+};
+
+const rolleRang = (rolle: string): number => ROLLE_RANG[rolle] ?? 99;
+
+/**
+ * Hvilke roller kan holde ballen for en gitt status — i preferanserekkefølge.
+ * Fallback KUN når recipient-identiteten ikke matcher et medlem (f.eks. en
+ * faggruppe-flyt uten `projectMember`-rad). Grunnlag: statusmaskinen i
+ * `isValidStatusTransition` (@sitedoc/shared). Erstatter det gamle «blindt siste
+ * ledd»-fallbacket som ga variant-C (deaktivert Send) på HVERT dokument.
+ */
+function forventetRolleKandidater(status: string): string[] {
+  switch (status) {
+    case "draft":
+    case "cancelled":
+      return ["bestiller", "registrator"];
+    case "sent":
+    case "received":
+    case "in_progress":
+      return ["utforer"];
+    case "responded":
+      return ["godkjenner", "bestiller", "registrator"];
+    default:
+      return [];
+  }
+}
 
 export interface FlytMedlem {
   id: string;
@@ -27,7 +71,7 @@ export interface Ledd {
   navn: string;
   /** Detaljert aktiv-visning: faggruppe · person/gruppe. */
   aktivNavn: string;
-  /** Leddets rolle (steg-gruppen bærer rollen) — brukes til rolle-etiketten. */
+  /** Leddets rolle (rolle-gruppen bærer rollen) — brukes til rolle-etiketten. */
   rolle: string;
   /** Alle medlemmer i leddet (navn + rolle) for hover-listing. */
   medlemmer: LeddMedlem[];
@@ -37,18 +81,24 @@ export interface Ledd {
   faggruppeIder: Set<string>;
 }
 
-/** Grupper medlemmer per steg og bygg visningsinfo. */
+/**
+ * Grupper medlemmer per ROLLE og sekvensér på kanonisk rolle-rang.
+ * (Interim — se fil-header: byttes til `steg`-gruppering når posisjonsutredningen
+ * populerer distinkte `steg`.) Manglende roller utelates: en 2-rolle-flyt gir 2
+ * ledd, en 4-rolle-flyt gir 4. Flere medlemmer i samme rolle → ett ledd (hover
+ * ramser opp alle).
+ */
 export function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
-  const stegMap = new Map<number, FlytMedlem[]>();
+  const rolleMap = new Map<string, FlytMedlem[]>();
   for (const m of medlemmer) {
-    const liste = stegMap.get(m.steg) ?? [];
+    const liste = rolleMap.get(m.rolle) ?? [];
     liste.push(m);
-    stegMap.set(m.steg, liste);
+    rolleMap.set(m.rolle, liste);
   }
 
-  return [...stegMap.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([steg, medl]) => {
+  return [...rolleMap.entries()]
+    .sort(([a], [b]) => rolleRang(a) - rolleRang(b))
+    .map(([rolle, medl]) => {
       const faggruppe = medl.find((m) => m.faggruppe);
       const gruppe = medl.find((m) => m.group);
       const person = medl.find((m) => m.projectMember?.user?.name);
@@ -77,10 +127,11 @@ export function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
       return {
         navn,
         aktivNavn,
-        // Steg-gruppen bærer rollen — medlemmene i ett steg deler rolle.
-        rolle: medl[0]?.rolle ?? "",
+        // Rolle-gruppen bærer rollen — alle medlemmene i leddet deler rolle.
+        rolle,
         medlemmer: leddMedlemmer,
-        steg,
+        // Beholdt for kompatibilitet; ledd-rekkefølgen styres nå av rolle-rang.
+        steg: medl[0]?.steg ?? 0,
         gruppeIder: new Set(medl.filter((m) => m.group).map((m) => m.group!.id)),
         brukerIder: new Set(medl.filter((m) => m.projectMember).map((m) => m.projectMember!.user.id)),
         faggruppeIder: new Set(medl.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id)),
@@ -88,7 +139,12 @@ export function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
     });
 }
 
-/** Finn aktiv boks (hvor dokumentet er nå). -1 = terminal (lukket/godkjent). */
+/**
+ * Finn aktiv boks (hvilket rolle-ledd som holder ballen nå). -1 = terminal
+ * (lukket/godkjent). Rolle-bevisst: resolver primært på recipient-IDENTITET
+ * (recipient settes serverside fra et medlems `projectMember`/`group`, så den
+ * matcher nøyaktig ett rolle-ledd), deretter på forventet rolle for statusen.
+ */
 export function finnAktivtIndex(
   ledd: Ledd[],
   status: string,
@@ -96,15 +152,19 @@ export function finnAktivtIndex(
   recipientGroupId?: string | null,
   bestillerUserId?: string,
 ): number {
+  if (ledd.length === 0) return -1;
+  if (status === "closed" || status === "approved") return -1;
+
   if (status === "draft" || status === "cancelled") {
     if (bestillerUserId) {
       const idx = ledd.findIndex((l) => l.brukerIder.has(bestillerUserId));
       if (idx !== -1) return idx;
     }
-    return 0;
+    // Kladd/tilbaketrukket ligger hos bestiller-ledden (ellers første ledd).
+    return finnRolleIndex(ledd, forventetRolleKandidater(status)) ?? 0;
   }
-  if (status === "closed" || status === "approved") return -1;
 
+  // 1) Recipient-identitet → rolle-ledden som faktisk holder dokumentet.
   if (recipientGroupId) {
     const idx = ledd.findIndex((l) => l.gruppeIder.has(recipientGroupId));
     if (idx !== -1) return idx;
@@ -113,7 +173,21 @@ export function finnAktivtIndex(
     const idx = ledd.findIndex((l) => l.brukerIder.has(recipientUserId));
     if (idx !== -1) return idx;
   }
-  return ledd.length > 1 ? ledd.length - 1 : -1;
+
+  // 2) Fallback: forventet rolle for statusen (ikke blindt siste ledd).
+  const idx = finnRolleIndex(ledd, forventetRolleKandidater(status));
+  if (idx !== null) return idx;
+
+  return ledd.length - 1;
+}
+
+/** Første ledd som matcher én av rolle-kandidatene (i preferanserekkefølge). */
+function finnRolleIndex(ledd: Ledd[], kandidater: string[]): number | null {
+  for (const rolle of kandidater) {
+    const idx = ledd.findIndex((l) => l.rolle === rolle);
+    if (idx !== -1) return idx;
+  }
+  return null;
 }
 
 /** Filtrer til aktiv boks + én nabo på hver side (kompakt/kollaps-modus). */

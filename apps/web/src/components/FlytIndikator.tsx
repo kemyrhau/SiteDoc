@@ -97,8 +97,9 @@ export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, st
     : [];
 
   // Siste-ledd (variant C): dokumentet står på ytterste ledd og kan ikke sendes videre.
-  // Kun i detalj-header (visUtveier) — utelates i liste-/tabellceller.
-  const erSisteBoks = visUtveier && aktivtIndex >= 0 && aktivtIndex === ledd.length - 1;
+  // Kun i detalj-header (visUtveier) — utelates i liste-/tabellceller. Krever FLERE
+  // ledd: en enkelt-ledds flyt har ingen «neste mottaker» å mangle.
+  const erSisteBoks = visUtveier && aktivtIndex >= 0 && ledd.length > 1 && aktivtIndex === ledd.length - 1;
 
   // Reelle utveier fra denne statusen (statusmaskin-lovlige), minus fram-sending
   // (sent/forwarded finnes ikke ved siste ledd — det er nettopp derfor Send er av).
