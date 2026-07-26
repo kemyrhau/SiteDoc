@@ -550,7 +550,7 @@ export default function SjekklisteDetaljSide() {
                 fullSjekkliste?.recipientGroup?.name;
               if (!navn) return null;
               return (
-                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                <span data-testid="venter-paa" className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
                   {t("tabell.venterPaa")}: {navn}
                 </span>
               );

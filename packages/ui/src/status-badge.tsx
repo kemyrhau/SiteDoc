@@ -61,7 +61,7 @@ export function StatusBadge({ status, className, lestAvMottakerVed, perspektiv }
       minute: "2-digit",
     });
     return (
-      <Badge variant="primary" className={className} title={dato}>
+      <Badge variant="primary" className={className} title={dato} data-testid="status-badge" data-status={status}>
         {t("status.lest")}
       </Badge>
     );
@@ -70,7 +70,7 @@ export function StatusBadge({ status, className, lestAvMottakerVed, perspektiv }
   // A-3b: perspektiv-avhengig etikett (kallstedet har kalt perspektivEtikett).
   if (perspektiv) {
     return (
-      <Badge variant={perspektiv.variant} className={className}>
+      <Badge variant={perspektiv.variant} className={className} data-testid="status-badge" data-status={status}>
         {t(perspektiv.etikettKey)}
       </Badge>
     );
@@ -80,7 +80,7 @@ export function StatusBadge({ status, className, lestAvMottakerVed, perspektiv }
   const i18nKey = STATUS_I18N[status];
   const label = i18nKey ? t(i18nKey) : status;
   return (
-    <Badge variant={variant} className={className}>
+    <Badge variant={variant} className={className} data-testid="status-badge" data-status={status}>
       {label}
     </Badge>
   );

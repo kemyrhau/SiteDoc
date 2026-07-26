@@ -497,6 +497,7 @@ export function DokumentHandlingsmeny({
           {primærMikro ? (
             <Tooltip tittel={primærMikro.tittel} tekst={primærMikro.tekst} side="top">
               <button
+                data-testid={`handling-${primærHandling.nyStatus}`}
                 onClick={klikkPrimær}
                 disabled={erLaster}
                 className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
@@ -508,6 +509,7 @@ export function DokumentHandlingsmeny({
             </Tooltip>
           ) : (
             <button
+              data-testid={`handling-${primærHandling.nyStatus}`}
               onClick={klikkPrimær}
               disabled={erLaster}
               className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
@@ -534,6 +536,7 @@ export function DokumentHandlingsmeny({
         const knapp = (
           <button
             key={o.key}
+            data-testid={`handling-${o.nyStatus}`}
             onClick={() => klikk(o)}
             disabled={erLaster}
             className={`rounded-lg border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
@@ -560,6 +563,7 @@ export function DokumentHandlingsmeny({
           {erVideresendNedtrekk && videresendMikro ? (
             <Tooltip tittel={videresendMikro.tittel} tekst={videresendMikro.tekst} side="top">
               <button
+                data-testid="handling-videresend-nedtrekk"
                 onClick={() => setÅpenMeny((å) => !å)}
                 disabled={erLaster}
                 className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
@@ -570,6 +574,7 @@ export function DokumentHandlingsmeny({
             </Tooltip>
           ) : (
             <button
+              data-testid="handling-admin-nedtrekk"
               onClick={() => setÅpenMeny((å) => !å)}
               disabled={erLaster}
               className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
