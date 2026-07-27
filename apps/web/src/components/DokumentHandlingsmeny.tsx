@@ -6,35 +6,31 @@
 // resten i nedtrekk. Handlinger brukeren ikke kan gjøre nå vises deaktivert med
 // begrunnelse utledet fra kilden. Bekreftelse kreves kun for irreversible
 // overganger (`closed`/`deleted`); alt annet er 1 klikk. Kommentar er en
-// valgfri utvider, aldri et påkrevd steg.
+// valgfri utvider — MED ett unntak (F1): Avvis (dismissed) krever en ikke-tom
+// begrunnelse (statusKreverBegrunnelse), håndhevet både her og på serveren.
 
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Plus } from "lucide-react";
+import { Tooltip } from "@sitedoc/ui";
 import {
   hentStatusHandlinger,
   hentRolleFiltrertHandlinger,
   hentHandlingEierRoller,
   isValidStatusTransition,
+  statusKreverBegrunnelse,
   type StatusHandling,
   type DokumentflytRolle,
   type AdminNiva,
 } from "@sitedoc/shared";
-import { byggVideresendValg } from "@/lib/videresend-valg";
+import { byggVideresendValg, filtrerVideresendPaaMedlemskap, finnMottakerNavn } from "@/lib/videresend-valg";
 import type { DokumentflytData, FaggruppeData, VideresendMedlem } from "@/lib/videresend-valg";
+import { STATUS_LABEL_NOEKKEL, flythjelpTekst } from "@/lib/flytmatrise-def";
+import { byggLedd, finnAktivtIndex, type FlytMedlem } from "@/lib/flyt-ledd";
 
 /* ------------------------------------------------------------------ */
 /*  Typer                                                              */
 /* ------------------------------------------------------------------ */
-
-interface FlytMedlem {
-  id: string;
-  rolle: string;
-  steg: number;
-  faggruppe: { id: string; name: string } | null;
-  projectMember: { user: { id: string; name: string | null } } | null;
-  group: { id: string; name: string } | null;
-}
 
 interface Mottaker {
   userId?: string;
@@ -68,6 +64,12 @@ interface DokumentHandlingsmenyProps {
   adminNiva?: AdminNiva;
   /** Dokumentflyt-medlemmer for posisjon-utledning */
   flytMedlemmer?: FlytMedlem[];
+  /**
+   * H3 (videresend-rettighet): flyt-ID-ene innlogget bruker (avsenderen) er medlem av
+   * i prosjektet — fra `medlem.hentMineFlyter`. Videresend-mottakerlista begrenses til
+   * disse for ikke-admin. Admin (adminNiva prosjekt/sitedoc) beholder full liste.
+   */
+  mineFlytIder?: string[];
   /** Nåværende mottaker (bruker-ID) */
   recipientUserId?: string | null;
   /** Nåværende mottaker (gruppe-ID) */
@@ -76,77 +78,6 @@ interface DokumentHandlingsmenyProps {
   bestillerUserId?: string;
   /** Tidspunkt da mottaker åpnet dokumentet */
   lestAvMottakerVed?: Date | string | null;
-}
-
-/* ------------------------------------------------------------------ */
-/*  Flytposisjon-hjelpere                                              */
-/* ------------------------------------------------------------------ */
-
-interface Ledd {
-  navn: string;
-  gruppeIder: Set<string>;
-  brukerIder: Set<string>;
-  faggruppeIder: Set<string>;
-  steg: number;
-}
-
-function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
-  const stegMap = new Map<number, FlytMedlem[]>();
-  for (const m of medlemmer) {
-    const liste = stegMap.get(m.steg) ?? [];
-    liste.push(m);
-    stegMap.set(m.steg, liste);
-  }
-
-  return [...stegMap.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([steg, medl]) => {
-      const faggruppe = medl.find((m) => m.faggruppe);
-      const gruppe = medl.find((m) => m.group);
-      const person = medl.find((m) => m.projectMember?.user?.name);
-
-      const navn = faggruppe
-        ? faggruppe.faggruppe!.name
-        : gruppe
-          ? gruppe.group!.name
-          : person?.projectMember?.user?.name ?? "?";
-
-      return {
-        navn,
-        steg,
-        gruppeIder: new Set(medl.filter((m) => m.group).map((m) => m.group!.id)),
-        brukerIder: new Set(medl.filter((m) => m.projectMember).map((m) => m.projectMember!.user.id)),
-        faggruppeIder: new Set(medl.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id)),
-      };
-    });
-}
-
-/** Finn aktiv boks (hvor dokumentet er nå) */
-function finnAktivtIndex(
-  ledd: Ledd[],
-  status: string,
-  recipientUserId?: string | null,
-  recipientGroupId?: string | null,
-  bestillerUserId?: string,
-): number {
-  if (status === "draft" || status === "cancelled") {
-    if (bestillerUserId) {
-      const idx = ledd.findIndex((l) => l.brukerIder.has(bestillerUserId));
-      if (idx !== -1) return idx;
-    }
-    return 0;
-  }
-  if (status === "closed" || status === "approved") return -1;
-
-  if (recipientGroupId) {
-    const idx = ledd.findIndex((l) => l.gruppeIder.has(recipientGroupId));
-    if (idx !== -1) return idx;
-  }
-  if (recipientUserId) {
-    const idx = ledd.findIndex((l) => l.brukerIder.has(recipientUserId));
-    if (idx !== -1) return idx;
-  }
-  return ledd.length > 1 ? ledd.length - 1 : -1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -167,6 +98,8 @@ interface MenyOppforing {
   erDestruktiv?: boolean;
   /** Person-videresending (Del 2.4): flytens medlemmer, vist når faggruppe-raden ekspanderes. */
   medlemmer?: VideresendMedlem[];
+  /** Mikrotekst-hover (flyt-flater-ordre 2026-07-25): fet tittel + brødtekst med resolvert mottaker. */
+  mikro?: { tittel: string; tekst: string };
 }
 
 /**
@@ -176,7 +109,8 @@ interface MenyOppforing {
  * Begrunnelsen forblir valgfri (fritekst = valgfritt, CLAUDE.md) — nudgen oppfordrer.
  */
 const NUDGE_TEKSTNOEKLER = new Set([
-  "statushandling.sendTilbake",
+  // F3: «Send tilbake» (responded→in_progress) er nå den eneste tilbakesendingen som nudger.
+  // «Send på nytt» (in_progress→sent) er en fram-sending og nudger ikke.
   "statushandling.sendTilbakeUtforer",
   "handling.avvis",
 ]);
@@ -210,6 +144,7 @@ export function DokumentHandlingsmeny({
   minRolle,
   adminNiva,
   flytMedlemmer,
+  mineFlytIder,
   recipientUserId,
   recipientGroupId,
   bestillerUserId,
@@ -237,13 +172,23 @@ export function DokumentHandlingsmeny({
     [alleFaggrupper, dokumentflyter, templateId],
   );
 
+  // H3 (videresend-rettighet): videresend-mottakere begrenses til flyter avsenderen selv
+  // er medlem av — admin (prosjekt/sitedoc) beholder full liste. Gjelder KUN videresend-stien
+  // (forwarded); førstegangs-send (draft→sent) bruker fortsatt `videresendValg` ufiltrert.
+  const erFlytAdmin = adminNiva === "sitedoc" || adminNiva === "prosjekt";
+  const videresendMottakere = useMemo(
+    () => filtrerVideresendPaaMedlemskap(videresendValg, new Set(mineFlytIder ?? []), erFlytAdmin),
+    [videresendValg, mineFlytIder, erFlytAdmin],
+  );
+
   const ledd = useMemo(() => byggLedd(flytMedlemmer ?? []), [flytMedlemmer]);
   const aktivtIndex = useMemo(
     () => finnAktivtIndex(ledd, status, recipientUserId, recipientGroupId, bestillerUserId),
     [ledd, status, recipientUserId, recipientGroupId, bestillerUserId],
   );
   const harFlyt = ledd.length > 0;
-  const erSisteBoks = harFlyt && aktivtIndex === ledd.length - 1;
+  // Variant C krever FLERE ledd: en enkelt-ledds flyt har ingen «neste mottaker».
+  const erSisteBoks = ledd.length > 1 && aktivtIndex === ledd.length - 1;
 
   // Kilde: aktive handlinger + hele universet (for deaktiverte).
   // Uten dokumentflyt finnes ingen rollestruktur — serveren bypasser `verifiserFlytRolle`
@@ -260,6 +205,66 @@ export function DokumentHandlingsmeny({
       ? videresendValg.find((v) => v.faggruppeId === standardFaggruppeId)
       : undefined;
     return std?.mottaker ? { ...std.mottaker, dokumentflytId: std.dokumentflytId } : undefined;
+  };
+
+  /* ------------------------------------------------------------------ */
+  /*  Mikrotekst-hover (flyt-flater-ordre 2026-07-25)                    */
+  /* ------------------------------------------------------------------ */
+
+  // Delt tekstkilde med matrisen (flythjelp.*). Kartlegger tekstNoekkel → flythjelp.handling.*
+  // og fyller {{mottaker}} med resolvert navn, ellers den relasjonelle fallback-benevnelsen.
+  // besvar bruker ledd[aktivtIndex-1]/avsender (server ruter til forrige avsender via
+  // sisteTransfer.senderId) — ALDRI mottakerForStandard(), som kun styrer selve mutasjonen.
+  const flythjelpFor = (tekstNoekkel: string): { noekkel: string; mottaker?: string } | null => {
+    const leddNavn = (i: number): string | undefined => ledd[i]?.navn;
+    const fb = (k: string) => t(k);
+    switch (tekstNoekkel) {
+      case "handling.send":
+        return {
+          noekkel: "flythjelp.handling.send",
+          mottaker: videresendValg.length === 1 ? videresendValg[0]?.visningsnavn : fb("flythjelp.fallback.nesteMottaker"),
+        };
+      case "handling.slett":
+        // Fiks 2 (klikktest): F0 soft-delete = papirkurv i 90 dager, ikke «permanent».
+        // slettKladd/slettTrukket beholdes som relikvier (fjernes i konsoliderings-oppryddingen).
+        return { noekkel: "flythjelp.handling.slett" };
+      case "statushandling.trekkTilbake":
+        // Retning: henter dokumentet FRA den du sendte til (ikke avsenderen) → mottakerDin.
+        return {
+          noekkel: "flythjelp.handling.trekkTilbake",
+          mottaker: finnMottakerNavn(flytMedlemmer ?? [], recipientUserId, recipientGroupId) ?? fb("flythjelp.fallback.mottakerDin"),
+        };
+      case "statushandling.besvar":
+        return erSisteBoks
+          ? { noekkel: "flythjelp.handling.besvarSisteLedd" }
+          : { noekkel: "flythjelp.handling.besvar", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.avsender") };
+      case "handling.avvis":
+        return { noekkel: "flythjelp.handling.avvis", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.avsender") };
+      case "handling.godkjenn":
+        return { noekkel: "flythjelp.handling.godkjenn" };
+      case "statushandling.sendTilbakeUtforer":
+        return { noekkel: "flythjelp.handling.sendTilbakeUtforer", mottaker: leddNavn(aktivtIndex - 1) ?? fb("flythjelp.fallback.utforer") };
+      case "statushandling.sendPaaNytt":
+        return { noekkel: "flythjelp.handling.sendPaaNytt", mottaker: leddNavn(aktivtIndex + 1) ?? fb("flythjelp.fallback.nesteMottaker") };
+      case "handling.lukk":
+        return { noekkel: "flythjelp.handling.lukk" };
+      case "statushandling.gjenapne":
+        return { noekkel: "flythjelp.handling.gjenapne" };
+      case "statushandling.videresend":
+        return { noekkel: "flythjelp.handling.videresend", mottaker: fb("flythjelp.fallback.videresendMottaker") };
+      default:
+        return null;
+    }
+  };
+
+  // Bygger { tittel, tekst } for hover/inline. Tittel = «Handling → Ny status» (delt mønster med matrisen).
+  const mikrotekst = (tekstNoekkel: string, nyStatus: string, label: string): { tittel: string; tekst: string } | undefined => {
+    const f = flythjelpFor(tekstNoekkel);
+    if (!f) return undefined;
+    return {
+      tittel: `${label} → ${t(STATUS_LABEL_NOEKKEL[nyStatus] ?? nyStatus)}`,
+      tekst: flythjelpTekst(f.noekkel, f.mottaker, t),
+    };
   };
 
   /* --- Begrunnelse for en deaktivert handling (utledet fra kilden) --- */
@@ -285,9 +290,16 @@ export function DokumentHandlingsmeny({
 
   const primærHandling = aktive.find((h) => h.erPrimaer) ?? null;
 
-  // Recipient-oppføringer (draft-send eller videresend) fra videresendValg
-  const recipientOppforinger = (nyStatus: string, prefix: string, tekstNoekkel: string): MenyOppforing[] =>
-    videresendValg.map((v) => ({
+  // Recipient-oppføringer (draft-send eller videresend) fra en valg-liste.
+  // Draft-send bruker full `videresendValg`; videresend-stien sender inn den
+  // medlemskaps-filtrerte lista (H3).
+  const recipientOppforinger = (
+    nyStatus: string,
+    prefix: string,
+    tekstNoekkel: string,
+    kilde: typeof videresendValg = videresendValg,
+  ): MenyOppforing[] =>
+    kilde.map((v) => ({
       key: `${prefix}-${v.key}`,
       label: v.visningsnavn,
       nyStatus,
@@ -304,7 +316,7 @@ export function DokumentHandlingsmeny({
   const sendOppforinger: MenyOppforing[] = draftSend
     ? recipientOppforinger("sent", "send", primærHandling!.tekstNoekkel)
     : harForwarded
-      ? recipientOppforinger("forwarded", "fwd", forwardedHandling.tekstNoekkel)
+      ? recipientOppforinger("forwarded", "fwd", forwardedHandling.tekstNoekkel, videresendMottakere)
       : [];
 
   // Sekundær-knapper: aktive (minus primær), ikke forwarded, ikke admin-status
@@ -316,7 +328,9 @@ export function DokumentHandlingsmeny({
       nyStatus: h.nyStatus,
       tekstNoekkel: h.tekstNoekkel,
       plassering: "sekundær" as const,
-      erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "rejected",
+      // F1: Avvis (dismissed) er en danger-handling → rød sekundærknapp, som deleted.
+      erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "dismissed",
+      mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
     }));
 
   // Overflow (⋯): aktive admin-status som IKKE er primær (lukk/trekk tilbake/gjenåpne når sekundær)
@@ -329,6 +343,7 @@ export function DokumentHandlingsmeny({
       tekstNoekkel: h.tekstNoekkel,
       plassering: "overflow" as const,
       erDestruktiv: h.nyStatus === "cancelled",
+      mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
     }));
 
   // Deaktiverte: finnes i universet, men ikke tilgjengelig for denne rollen/statusen
@@ -412,34 +427,45 @@ export function DokumentHandlingsmeny({
   if (bekreft) {
     const erTrekkTilbake = bekreft.nyStatus === "cancelled";
     const mottakerHarLest = erTrekkTilbake && lestAvMottakerVed != null;
+    // F1 (gate-JA #2): Avvis (dismissed) krever en ikke-tom begrunnelse — blokker send til
+    // feltet er fylt. Speiler server-Zod-gaten (statusKreverBegrunnelse), samme delte kilde.
+    const paakrevd = statusKreverBegrunnelse(bekreft.nyStatus);
+    const manglerBegrunnelse = paakrevd && kommentar.trim().length === 0;
     // Nudge (Del 2.5): oppfordrer til begrunnelse ved retur, men krever den ikke.
-    const overskrift = bekreft.nudge
+    // Påkrevd (F1): egen overskrift som gjør tvangen tydelig.
+    const overskrift = paakrevd
+      ? t("statushandling.begrunnelsePaakrevd")
+      : bekreft.nudge
       ? t("statushandling.begrunnelseRetur")
       : t("statushandling.bekreftHandling", { handling: bekreft.label });
+    // Konsekvensen vises INLINE i bekreft/nudge-modus (§ 3a: skal ikke gjemmes bak hover).
+    const bekreftMikro = mikrotekst(bekreft.tekstNoekkel, bekreft.nyStatus, bekreft.label);
     return (
-      <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
+      <div className="flex w-full flex-col gap-1">
+        {bekreftMikro && <span className="text-xs text-gray-500">{bekreftMikro.tekst}</span>}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full">
         {mottakerHarLest && (
           <span className="text-xs text-amber-600 font-medium shrink-0">{t("statushandling.mottakerHarLest")}</span>
         )}
-        <span className={`text-sm shrink-0 ${bekreft.nudge ? "text-amber-700 font-medium" : "text-gray-500"}`}>
+        <span className={`text-sm shrink-0 ${bekreft.nudge || paakrevd ? "text-amber-700 font-medium" : "text-gray-500"}`}>
           {overskrift}
         </span>
         <input
           type="text"
           value={kommentar}
           onChange={(e) => setKommentar(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker); }}
-          placeholder={bekreft.nudge ? t("statushandling.begrunnelsePlaceholder") : t("statushandling.valgfriKommentar")}
+          onKeyDown={(e) => { if (e.key === "Enter" && !manglerBegrunnelse) utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker); }}
+          placeholder={bekreft.nudge || paakrevd ? t("statushandling.begrunnelsePlaceholder") : t("statushandling.valgfriKommentar")}
           className="rounded-lg border border-gray-200 px-2 py-1 text-sm focus:border-blue-500 focus:outline-none w-full sm:w-56"
           autoFocus
         />
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => utfor(bekreft.nyStatus, bekreft.tekstNoekkel, bekreft.mottaker)}
-            disabled={erLaster}
+            disabled={erLaster || manglerBegrunnelse}
             className="rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {erLaster ? t("statushandling.endrer") : bekreft.nudge ? bekreft.label : t("handling.bekreft")}
+            {erLaster ? t("statushandling.endrer") : bekreft.nudge || paakrevd ? bekreft.label : t("handling.bekreft")}
           </button>
           <button
             onClick={() => { setBekreft(null); setKommentar(""); }}
@@ -448,26 +474,51 @@ export function DokumentHandlingsmeny({
             {t("handling.avbryt")}
           </button>
         </div>
+        </div>
       </div>
     );
   }
 
   const primærFarge = primærHandling ? FARGE_KLASSE[primærHandling.farge] ?? "bg-sitedoc-primary hover:bg-blue-700" : "";
+  const primærMikro = primærHandling ? mikrotekst(primærHandling.tekstNoekkel, primærHandling.nyStatus, t(primærHandling.tekstNoekkel)) : undefined;
+
+  // Fiks 1 (klikktest): kryssflyt-nedtrekket er «Videresend» (ikke-draft) med egen flythjelp-hover —
+  // tydelig skilt fra F5s «Send» (fram i flyten). Draft beholder «Send» (førstegangs-send til faggruppe).
+  const erVideresendNedtrekk = harForwarded && !draftSend;
+  const videresendMikro = erVideresendNedtrekk && forwardedHandling
+    ? mikrotekst(forwardedHandling.tekstNoekkel, "forwarded", t("statushandling.videresend"))
+    : undefined;
 
   return (
     <div className="flex flex-wrap items-center gap-2" ref={menyRef}>
       {/* Primærhandling som knapp (+ split-▾ ved draft-send med flere mottakere) */}
       {primærHandling && (
         <div className="relative flex">
-          <button
-            onClick={klikkPrimær}
-            disabled={erLaster}
-            className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
-              draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
-            } ${primærFarge}`}
-          >
-            {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
-          </button>
+          {primærMikro ? (
+            <Tooltip tittel={primærMikro.tittel} tekst={primærMikro.tekst} side="top">
+              <button
+                data-testid={`handling-${primærHandling.nyStatus}`}
+                onClick={klikkPrimær}
+                disabled={erLaster}
+                className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
+                  draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
+                } ${primærFarge}`}
+              >
+                {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
+              </button>
+            </Tooltip>
+          ) : (
+            <button
+              data-testid={`handling-${primærHandling.nyStatus}`}
+              onClick={klikkPrimær}
+              disabled={erLaster}
+              className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
+                draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
+              } ${primærFarge}`}
+            >
+              {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
+            </button>
+          )}
           {draftSend && videresendValg.length > 1 && (
             <button
               onClick={() => setÅpenMeny((å) => !å)}
@@ -481,32 +532,57 @@ export function DokumentHandlingsmeny({
       )}
 
       {/* Sekundær-knapper */}
-      {sekundærKnapper.map((o) => (
-        <button
-          key={o.key}
-          onClick={() => klikk(o)}
-          disabled={erLaster}
-          className={`rounded-lg border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
-            o.erDestruktiv
-              ? "border-red-300 text-red-600 hover:bg-red-50"
-              : "border-gray-300 text-gray-700 hover:bg-gray-50"
-          }`}
-        >
-          {o.label}
-        </button>
-      ))}
+      {sekundærKnapper.map((o) => {
+        const knapp = (
+          <button
+            key={o.key}
+            data-testid={`handling-${o.nyStatus}`}
+            onClick={() => klikk(o)}
+            disabled={erLaster}
+            className={`rounded-lg border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
+              o.erDestruktiv
+                ? "border-red-300 text-red-600 hover:bg-red-50"
+                : "border-gray-300 text-gray-700 hover:bg-gray-50"
+            }`}
+          >
+            {o.label}
+          </button>
+        );
+        return o.mikro ? (
+          <Tooltip key={o.key} tittel={o.mikro.tittel} tekst={o.mikro.tekst} side="top">
+            {knapp}
+          </Tooltip>
+        ) : (
+          knapp
+        );
+      })}
 
       {/* Nedtrekk: send-mottakere + admin + deaktiverte */}
       {dropdownHarInnhold && !(draftSend && videresendValg.length > 1) && (
         <div className="relative">
-          <button
-            onClick={() => setÅpenMeny((å) => !å)}
-            disabled={erLaster}
-            className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-          >
-            {harForwarded && !draftSend ? t("handling.send") : t("statushandling.admin")}
-            <ChevronDown className="h-3.5 w-3.5" />
-          </button>
+          {erVideresendNedtrekk && videresendMikro ? (
+            <Tooltip tittel={videresendMikro.tittel} tekst={videresendMikro.tekst} side="top">
+              <button
+                data-testid="handling-videresend-nedtrekk"
+                onClick={() => setÅpenMeny((å) => !å)}
+                disabled={erLaster}
+                className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+              >
+                {t("statushandling.videresend")}
+                <ChevronDown className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+          ) : (
+            <button
+              data-testid="handling-admin-nedtrekk"
+              onClick={() => setÅpenMeny((å) => !å)}
+              disabled={erLaster}
+              className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {t("statushandling.admin")}
+              <ChevronDown className="h-3.5 w-3.5" />
+            </button>
+          )}
         </div>
       )}
 
@@ -634,17 +710,26 @@ function DropdownMeny({
         <>
           {send.length > 0 && <div className="my-1 border-t border-gray-100" />}
           <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{adminLabel}</div>
-          {overflow.map((o) => (
-            <button
-              key={o.key}
-              onClick={() => onVelg(o)}
-              className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-                o.erDestruktiv ? "text-red-600" : "text-gray-700"
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
+          {overflow.map((o) => {
+            const knapp = (
+              <button
+                key={o.key}
+                onClick={() => onVelg(o)}
+                className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+                  o.erDestruktiv ? "text-red-600" : "text-gray-700"
+                }`}
+              >
+                {o.label}
+              </button>
+            );
+            return o.mikro ? (
+              <Tooltip key={o.key} tittel={o.mikro.tittel} tekst={o.mikro.tekst} side="left" wrapperClassName="relative block w-full">
+                {knapp}
+              </Tooltip>
+            ) : (
+              knapp
+            );
+          })}
         </>
       )}
 
@@ -652,14 +737,13 @@ function DropdownMeny({
         <>
           {(send.length > 0 || overflow.length > 0) && <div className="my-1 border-t border-gray-100" />}
           {deaktivert.map((o) => (
-            <div
-              key={o.key}
-              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-sm text-gray-300"
-              title={o.begrunnelse}
-            >
-              <span className="line-through">{o.label}</span>
-              <span className="shrink-0 text-[10px] uppercase tracking-wide text-gray-400">{o.begrunnelse}</span>
-            </div>
+            // Begrunnelsen flyttet fra nativ title= til Tooltip v2 (usynlig på mobil ellers — § 2-sweep).
+            <Tooltip key={o.key} tekst={o.begrunnelse ?? ""} side="left" wrapperClassName="relative block w-full">
+              <div className="flex w-full items-center justify-between gap-3 px-3 py-2 text-sm text-gray-300">
+                <span className="line-through">{o.label}</span>
+                <span className="shrink-0 text-[10px] uppercase tracking-wide text-gray-400">{o.begrunnelse}</span>
+              </div>
+            </Tooltip>
           ))}
         </>
       )}

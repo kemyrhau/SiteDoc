@@ -10,6 +10,7 @@ import {
 import { oppdaterByggeplassGeofence } from "../services/byggeplassGeofence";
 import { recomputeRadForByggeplass } from "../services/reisetidMatrise";
 import { sokAdresser } from "../services/rute-service";
+import { IKKE_SLETTET } from "../utils/softDelete";
 
 export const byggeplassRouter = router({
   // R4: member-lesbar liste over firmaets byggeplasser (mobil-cache for
@@ -222,7 +223,7 @@ export const byggeplassRouter = router({
             select: {
               drawings: true,
               pointClouds: true,
-              checklists: true,
+              checklists: { where: IKKE_SLETTET },
               ftdKontrakter: true,
               psiEr: true,
               omrader: true,
@@ -276,7 +277,7 @@ export const byggeplassRouter = router({
             select: {
               drawings: true,
               pointClouds: true,
-              checklists: true,
+              checklists: { where: IKKE_SLETTET },
               ftdKontrakter: true,
               psiEr: true,
               omrader: true,

@@ -15,10 +15,26 @@ Format: `SD-YYYYMMDD-XXXX`. Brukes ved prosjektopprettelse. 4-sifret padded løp
 Tilstandsmaskin for dokumentstatus. Brukes på server (API-validering) og klient (knapp-visning).
 
 ```
-draft → sent → received → in_progress → responded → approved/rejected → closed
-                                                      rejected → in_progress
-draft/sent/received/in_progress → cancelled (irreversibel)
+draft → sent → received → responded → approved   (Godkjent = stoppsted, lukkes ALDRI — H6)
+                                       responded → in_progress (Send tilbake, F3)
+                                       approved → draft (Gjenåpne, H6 — Reg + P-adm)
+in_progress → responded / sent (Send på nytt) / closed (Lukk)
+received → dismissed (Avvis, begrunnelse påkrevd) · received → draft (Trekk tilbake, F2)
 ```
+
+**H6 Godkjent = stoppsted:** en Godkjent sjekkliste/oppgave lukkes aldri (`approved→closed`
+fjernet). Veien tilbake er Gjenåpne (`approved→draft`, registrator + prosjektadmin). Send/Videresend
+beholdt. `in_progress→closed` (Lukk) står — det er der et åpent dokument/KS-avvik lukkes. Ren kode,
+ingen migrering, ingen ny mikrotekst-nøkkel (`flythjelp.handling.gjenapne` gjenbrukt).
+
+**F3 Merge «Under arbeid»:** `rejected` er merget inn i `in_progress` — Send tilbake
+(responded→in_progress) ruter direkte til Under arbeid, ingen Gjenoppta. `rejected`-rader
+migreres til `in_progress` (`20260725130000_merge_underarbeid_rejected`).
+
+**F5 Send/Videresend-paring (beslutning 6):** Send (`handling.send`→`sent`, fram i flyten)
+aktiveres overalt der Videresend finnes — `received→sent`, `responded→sent` (for-staget i F3),
+`approved→sent`. Rett: received→sent = utfører + P-adm; responded/approved→sent = godkjenner + P-adm.
+Ren kode, ingen migrering, ingen ny mikrotekst-nøkkel (`flythjelp.handling.send` gjenbrukt).
 
 ### `hentStatusHandlinger(status)` → `StatusHandling[]`
 
@@ -33,7 +49,7 @@ interface StatusHandling {
 }
 ```
 
-Returnerer tom array for terminale statuser (`closed`, `cancelled`). `responded` gir to knapper (Godkjenn + Avvis).
+Returnerer tom array for terminale statuser (`closed`, `cancelled`). `responded` gir Godkjenn + Send tilbake (→ in_progress) + Send (→ sent, F5) + Videresend.
 
 ### Georeferanse (`georeferanse.ts`)
 

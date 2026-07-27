@@ -85,6 +85,12 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.prosjektId },
   );
 
+  // H3 (videresend-rettighet): flyt-medlemskap for å begrense videresend-mottakere til egne flyter.
+  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
   const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -544,7 +550,7 @@ export default function SjekklisteDetaljSide() {
                 fullSjekkliste?.recipientGroup?.name;
               if (!navn) return null;
               return (
-                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                <span data-testid="venter-paa" className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
                   {t("tabell.venterPaa")}: {navn}
                 </span>
               );
@@ -562,6 +568,7 @@ export default function SjekklisteDetaljSide() {
                 recipientGroupId={fullSjekkliste?.recipientGroupId}
                 status={sjekkliste.status}
                 bestillerUserId={fullSjekkliste?.bestillerUserId}
+                visUtveier
               />
             </div>
             <div className="sm:hidden">
@@ -572,6 +579,7 @@ export default function SjekklisteDetaljSide() {
                 status={sjekkliste.status}
                 bestillerUserId={fullSjekkliste?.bestillerUserId}
                 kompakt
+                visUtveier
               />
             </div>
           </div>
@@ -622,6 +630,7 @@ export default function SjekklisteDetaljSide() {
             minRolle={minRolle}
             adminNiva={minFlytInfo?.adminNiva ?? null}
             flytMedlemmer={flytMedlemmer}
+            mineFlytIder={mineFlyter}
             recipientUserId={fullSjekkliste?.recipientUserId}
             recipientGroupId={fullSjekkliste?.recipientGroupId}
             bestillerUserId={fullSjekkliste?.bestillerUserId}

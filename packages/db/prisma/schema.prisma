@@ -961,6 +961,11 @@ model Checklist {
   recipientUserId      String?   @map("recipient_user_id")
   recipientGroupId     String?   @map("recipient_group_id")
   lestAvMottakerVed    DateTime? @map("lest_av_mottaker_ved")
+  // Soft delete (F0 — 90-dagers papirkurv). Slett setter deletedAt/deletedById;
+  // guard-filteret `deletedAt IS NULL` skjuler slettede rader fra alle lister.
+  // deletedById er svakt String-felt uten @relation (bevisst — ingen FK-kobling til User).
+  deletedAt            DateTime? @map("deleted_at")
+  deletedById          String?   @map("deleted_by_id")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
@@ -986,6 +991,7 @@ model Checklist {
   @@index([dueDate])
   @@index([status])
   @@index([dokumentflytId, status])
+  @@index([deletedAt])
   @@map("checklists")
 }
 
@@ -1013,6 +1019,9 @@ model Task {
   recipientUserId      String?   @map("recipient_user_id")
   recipientGroupId     String?   @map("recipient_group_id")
   lestAvMottakerVed    DateTime? @map("lest_av_mottaker_ved")
+  // Soft delete (F0 — 90-dagers papirkurv). Se Checklist for forklaring.
+  deletedAt            DateTime? @map("deleted_at")
+  deletedById          String?   @map("deleted_by_id")
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
@@ -1037,6 +1046,7 @@ model Task {
   @@index([dueDate])
   @@index([status])
   @@index([dokumentflytId, status])
+  @@index([deletedAt])
   @@map("tasks")
 }
 

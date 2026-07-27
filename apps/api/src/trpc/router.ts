@@ -43,6 +43,7 @@ import { vareImportRouter } from "../routes/vareImport";
 import { firmaIntegrasjonRouter } from "../routes/firma-integrasjon";
 import { firmaRouter } from "../routes/firma";
 import { flytMatriseRouter } from "../routes/flytMatrise";
+import { papirkurvRouter } from "../routes/papirkurv";
 
 
 export const appRouter = router({
@@ -51,6 +52,7 @@ export const appRouter = router({
   entreprise: faggruppeRouter, // bakoverkompatibel alias (mobil)
   sjekkliste: sjekklisteRouter,
   oppgave: oppgaveRouter,
+  papirkurv: papirkurvRouter,
   mal: malRouter,
   bygning: byggeplassRouter, // bakoverkompatibel nøkkel (1 uke)
   tegning: tegningRouter,

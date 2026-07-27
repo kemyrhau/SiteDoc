@@ -50,18 +50,23 @@ const MATRISE: Rad[] = [
   { navn: "base/aktiv/received", status: "received", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.tilBehandling", variant: "warning", perspektiv: "aktiv" },
   { navn: "base/aktiv/in_progress", status: "in_progress", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.underArbeid", variant: "warning", perspektiv: "aktiv" },
   { navn: "base/aktiv/responded (godkjenner har ballen)", status: "responded", kontekst: godkjennerMedBall, type: "sjekkliste", etikettKey: "status.tilGodkjenning", variant: "warning", perspektiv: "aktiv" },
-  { navn: "base/aktiv/rejected (utfører utbedrer)", status: "rejected", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.tilUtbedring", variant: "warning", perspektiv: "aktiv" },
-  // § 9 (A-laget): avsender/bestiller kan «Send på nytt» → har ballen → «din tur» (warning), ikke lenger «—».
-  { navn: "base/aktiv/rejected (avsender Send på nytt)", status: "rejected", kontekst: { rolle: "bestiller", harBallen: true }, type: "sjekkliste", etikettKey: "status.tilUtbedring", variant: "warning", perspektiv: "aktiv" },
+  // F3: `rejected` er merget inn i `in_progress` — utbedring etter retur bæres av base/aktiv/in_progress over.
   { navn: "base/aktiv/approved", status: "approved", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.godkjent", variant: "success", perspektiv: "aktiv" },
   { navn: "base/aktiv/closed", status: "closed", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.lukket", variant: "default", perspektiv: "aktiv" },
   { navn: "base/aktiv/cancelled", status: "cancelled", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.avbrutt", variant: "danger", perspektiv: "aktiv" },
+
+  // ── F1 Avvist (dismissed): perspektiv-FLAT — «Avvist» danger for ALLE seere ──
+  // Ingen BASE_AKTIV/BASE_VENTER-rad → alle perspektiv faller til NOEYTRAL-cellen.
+  // Verifiserer flatheten: samme etikett/variant uansett aktiv/venter/nøytral.
+  { navn: "dismissed/aktiv → Avvist (flat)", status: "dismissed", kontekst: aktiv, type: "sjekkliste", etikettKey: "status.avvist", variant: "danger", perspektiv: "aktiv" },
+  { navn: "dismissed/venter → Avvist (flat)", status: "dismissed", kontekst: venter, type: "sjekkliste", etikettKey: "status.avvist", variant: "danger", perspektiv: "venter" },
+  { navn: "dismissed/admin → Avvist (flat)", status: "dismissed", kontekst: admin, type: "sjekkliste", etikettKey: "status.avvist", variant: "danger", perspektiv: "noeytral" },
 
   // ── Base — VENTER (ballen hos andre) ────────────────────────────────────
   { navn: "base/venter/received", status: "received", kontekst: venter, type: "sjekkliste", etikettKey: "status.tilBehandling", variant: "primary", perspektiv: "venter" },
   { navn: "base/venter/in_progress", status: "in_progress", kontekst: venter, type: "sjekkliste", etikettKey: "status.underArbeid", variant: "primary", perspektiv: "venter" },
   { navn: "base/venter/responded (utfører venter)", status: "responded", kontekst: venter, type: "sjekkliste", etikettKey: "status.besvartTilGodkjenning", variant: "primary", perspektiv: "venter" },
-  { navn: "base/venter/rejected (godkjenner sendte tilbake)", status: "rejected", kontekst: godkjennerUtenBall, type: "sjekkliste", etikettKey: "status.tilRevisjon", variant: "primary", perspektiv: "venter" },
+  // F3: godkjenner som sendte tilbake venter nå på `in_progress` (base/venter/in_progress over).
   { navn: "base/venter/approved", status: "approved", kontekst: venter, type: "sjekkliste", etikettKey: "status.godkjent", variant: "success", perspektiv: "venter" },
   { navn: "base/venter/cancelled", status: "cancelled", kontekst: venter, type: "sjekkliste", etikettKey: "status.avbrutt", variant: "danger", perspektiv: "venter" },
 
@@ -71,14 +76,13 @@ const MATRISE: Rad[] = [
   { navn: "reg/venter/received (§8: «Til behandling», ikke «Mottatt»)", status: "received", kontekst: registratorVenter, type: "sjekkliste", etikettKey: "status.tilBehandling", variant: "primary", perspektiv: "venter" },
   { navn: "reg/venter/in_progress", status: "in_progress", kontekst: registratorVenter, type: "sjekkliste", etikettKey: "status.underArbeid", variant: "primary", perspektiv: "venter" },
   { navn: "reg/venter/responded", status: "responded", kontekst: registratorVenter, type: "sjekkliste", etikettKey: "status.besvartTilGodkjenning", variant: "primary", perspektiv: "venter" },
-  { navn: "reg/venter/rejected", status: "rejected", kontekst: registratorVenter, type: "sjekkliste", etikettKey: "status.tilRevisjon", variant: "primary", perspektiv: "venter" },
 
   // ── Admin = nøytral kolonne D (§ 8-gate: erAdmin → D ubetinget) ──────────
   { navn: "admin/draft", status: "draft", kontekst: admin, type: "sjekkliste", etikettKey: "status.utkast", variant: "default", perspektiv: "noeytral" },
   { navn: "admin/received (nøytral «Mottatt»)", status: "received", kontekst: admin, type: "sjekkliste", etikettKey: "status.mottatt", variant: "primary", perspektiv: "noeytral" },
-  { navn: "admin/in_progress", status: "in_progress", kontekst: admin, type: "sjekkliste", etikettKey: "status.paagaar", variant: "primary", perspektiv: "noeytral" },
+  // F3: Nøytral D for merget in_progress bærer «Under arbeid», ikke lenger «Pågår».
+  { navn: "admin/in_progress (F3: «Under arbeid»)", status: "in_progress", kontekst: admin, type: "sjekkliste", etikettKey: "status.underArbeid", variant: "primary", perspektiv: "noeytral" },
   { navn: "admin/responded", status: "responded", kontekst: admin, type: "sjekkliste", etikettKey: "status.besvart", variant: "primary", perspektiv: "noeytral" },
-  { navn: "admin/rejected", status: "rejected", kontekst: admin, type: "sjekkliste", etikettKey: "status.tilRevisjon", variant: "primary", perspektiv: "noeytral" },
   { navn: "admin/approved", status: "approved", kontekst: admin, type: "sjekkliste", etikettKey: "status.godkjent", variant: "success", perspektiv: "noeytral" },
   { navn: "admin/closed", status: "closed", kontekst: admin, type: "sjekkliste", etikettKey: "status.lukket", variant: "default", perspektiv: "noeytral" },
   { navn: "admin/cancelled", status: "cancelled", kontekst: admin, type: "sjekkliste", etikettKey: "status.avbrutt", variant: "danger", perspektiv: "noeytral" },
@@ -91,17 +95,17 @@ const MATRISE: Rad[] = [
   { navn: "hms/aktiv/received (HMS-gruppe)", status: "received", kontekst: aktiv, type: "hms", etikettKey: "status.tilBehandling", variant: "warning", perspektiv: "aktiv" },
   { navn: "hms/aktiv/in_progress", status: "in_progress", kontekst: aktiv, type: "hms", etikettKey: "status.underBehandling", variant: "warning", perspektiv: "aktiv" },
   { navn: "hms/aktiv/approved (innsender, retur)", status: "approved", kontekst: aktiv, type: "hms", etikettKey: "status.godkjentReturnert", variant: "success", perspektiv: "aktiv" },
-  { navn: "hms/aktiv/rejected (innsender utbedrer)", status: "rejected", kontekst: aktiv, type: "hms", etikettKey: "status.tilUtbedring", variant: "warning", perspektiv: "aktiv" },
+  // F3: HMS-`rejected` merget inn i `in_progress` — utbedring etter retur bæres av hms/aktiv/in_progress over.
   { navn: "hms/aktiv/cancelled", status: "cancelled", kontekst: aktiv, type: "hms", etikettKey: "status.avbrutt", variant: "danger", perspektiv: "aktiv" },
 
   // ── HMS — VENTER (innsender venter, eller HMS-gruppe etter behandling) ───
   { navn: "hms/venter/received (innsender venter)", status: "received", kontekst: venter, type: "hms", etikettKey: "status.tilBehandlingHms", variant: "primary", perspektiv: "venter" },
   { navn: "hms/venter/in_progress", status: "in_progress", kontekst: venter, type: "hms", etikettKey: "status.underBehandling", variant: "primary", perspektiv: "venter" },
   { navn: "hms/venter/approved (HMS-gruppe ferdig)", status: "approved", kontekst: venter, type: "hms", etikettKey: "status.godkjent", variant: "success", perspektiv: "venter" },
-  { navn: "hms/venter/rejected (HMS-gruppe sendte tilbake)", status: "rejected", kontekst: venter, type: "hms", etikettKey: "status.tilRevisjon", variant: "primary", perspektiv: "venter" },
 
   // ── HMS — ADMIN (nøytral D, samme sannhet som base — ikke HMS-kolonnene) ─
-  { navn: "hms/admin/in_progress (Pågår, ikke Under behandling)", status: "in_progress", kontekst: admin, type: "hms", etikettKey: "status.paagaar", variant: "primary", perspektiv: "noeytral" },
+  // F3: nøytral D for merget in_progress = «Under arbeid» (base-sannheten), ikke HMS-«Under behandling».
+  { navn: "hms/admin/in_progress («Under arbeid», ikke «Under behandling»)", status: "in_progress", kontekst: admin, type: "hms", etikettKey: "status.underArbeid", variant: "primary", perspektiv: "noeytral" },
 
   // ── Ikke-part (rolle=null, ikke admin): § 2-fallback → nøytral D ─────────
   // En leser uten flytrolle sendte aldri noe → ser nøytral «Mottatt», IKKE
@@ -141,13 +145,13 @@ describe("perspektivEtikett — N1-kjernen: samme status, ulik seer", () => {
     expect(godkjenner.etikettKey).toBe("status.tilGodkjenning");
   });
 
-  it("rejected: utfører «Til utbedring» (warning) ≠ godkjenner «Til revisjon» (primary)", () => {
-    const utforer = perspektivEtikett("rejected", aktiv, "sjekkliste");
-    const godkjenner = perspektivEtikett("rejected", godkjennerUtenBall, "sjekkliste");
-    expect(utforer.etikettKey).toBe("status.tilUtbedring");
-    expect(utforer.variant).toBe("warning");
-    expect(godkjenner.etikettKey).toBe("status.tilRevisjon");
-    expect(godkjenner.variant).toBe("primary");
+  it("in_progress (F3-merget): utbedrer «Under arbeid» (warning) ≠ den som sendte tilbake (primary), samme ord", () => {
+    const utbedrer = perspektivEtikett("in_progress", aktiv, "sjekkliste");
+    const sendteTilbake = perspektivEtikett("in_progress", godkjennerUtenBall, "sjekkliste");
+    expect(utbedrer.etikettKey).toBe("status.underArbeid");
+    expect(utbedrer.variant).toBe("warning");
+    expect(sendteTilbake.etikettKey).toBe("status.underArbeid");
+    expect(sendteTilbake.variant).toBe("primary");
   });
 });
 
@@ -167,12 +171,12 @@ describe("kvitteringEtikett — nøklet på HANDLING, én rad per tekstNoekkel (
     ["handling.send", "kvittering.sendt", "primary"],
     ["statushandling.besvar", "kvittering.besvart", "primary"],
     ["handling.godkjenn", "kvittering.godkjent", "success"],
-    ["statushandling.sendTilbake", "kvittering.sendtTilbake", "warning"],
+    // F3: `sendTilbake` (in_progress→sent) og `gjenoppta` er utgått — `sendTilbakeUtforer` er
+    // nå den eneste tilbakesendingen (responded→in_progress).
     ["statushandling.sendTilbakeUtforer", "kvittering.sendtTilbake", "warning"],
     ["statushandling.videresend", "kvittering.videresendt", "primary"],
     ["handling.avvis", "kvittering.avvist", "danger"],
     ["statushandling.trekkTilbake", "kvittering.trukketTilbake", "default"],
-    ["statushandling.gjenoppta", "kvittering.gjenopptatt", "primary"],
     ["statushandling.gjenapne", "kvittering.gjenapnet", "primary"],
     ["handling.lukk", "kvittering.lukket", "success"],
   ];
@@ -181,12 +185,16 @@ describe("kvitteringEtikett — nøklet på HANDLING, én rad per tekstNoekkel (
   });
 
   // Kollisjonene som var mulige ved status-nøkling — nå umulige:
-  it("«Send» og «Send tilbake» (begge nyStatus=sent) gir ULIK kvittering", () => {
+  it("«Send» og «Send på nytt» (begge nyStatus=sent) gir ULIK kvittering-oppslag", () => {
+    // handling.send har kvittering «Sendt ✓»; sendPaaNytt har ingen egen rad (→ null),
+    // men nøklingen er uansett på HANDLING, så «Sendt ✓» kan aldri havne på en tilbakesending.
     expect(kvitteringEtikett("handling.send")?.etikettKey).toBe("kvittering.sendt");
-    expect(kvitteringEtikett("statushandling.sendTilbake")?.etikettKey).toBe("kvittering.sendtTilbake");
-    expect(kvitteringEtikett("handling.send")).not.toEqual(kvitteringEtikett("statushandling.sendTilbake"));
+    expect(kvitteringEtikett("statushandling.sendTilbakeUtforer")?.etikettKey).toBe("kvittering.sendtTilbake");
+    expect(kvitteringEtikett("handling.send")).not.toEqual(kvitteringEtikett("statushandling.sendTilbakeUtforer"));
   });
-  it("«Avvis» og «Trekk tilbake» (begge nyStatus=cancelled) gir ULIK kvittering", () => {
+  // F1: Avvis ruter nå til dismissed, Trekk tilbake til cancelled — men kvitteringen er
+  // uansett nøklet på HANDLING (ikke nyStatus), så de to forblir distinkte.
+  it("«Avvis» (→dismissed) og «Trekk tilbake» (→cancelled) gir ULIK kvittering", () => {
     expect(kvitteringEtikett("handling.avvis")?.etikettKey).toBe("kvittering.avvist");
     expect(kvitteringEtikett("statushandling.trekkTilbake")?.etikettKey).toBe("kvittering.trukketTilbake");
     expect(kvitteringEtikett("handling.avvis")).not.toEqual(kvitteringEtikett("statushandling.trekkTilbake"));

@@ -16,6 +16,46 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🟠 Livssyklus-overgangs-design — hvilke handlinger fra hvilke statuser × roller + terminal-ruting/gjenåpning (Kenneth 2026-07-25)
+
+Statusmaskinen (`VALID_TRANSITIONS`) låser hver livssyklus-handling til få kilde-statuser: **godkjenn** kun fra responded · **slett** kun fra draft · **lukk** fra approved+rejected · **gjenoppta** kun `rejected→in_progress` · **gjenåpne** (closed/cancelled)→**draft** (alltid til start, ikke midt i løpet) · **avbryt** (cancelled) fra draft/sent/received/in_progress. Åpne designspørsmål (Kenneth): bør lukk/slett/gjenåpne/godkjenn være tilgjengelig fra **flere** stadier (admin savner bl.a. godkjenn/lukk uansett status)? Hvor rutes en gjenåpnet approved/closed — til draft, eller tilbake dit den var? Hvem får ballen etter terminaltilstand? Krever **fabel-design-gjennomgang** med statusmaskin-kartet som utgangspunkt → definerer ønsket flyt → mater matrise-rader + statusmaskin. **Rekkefølge:** tas ETTER matrise-hoveren (så matrisen er lesbar først). Relatert: admin «enkel godkjenn/lukk»-override var det opprinnelige symptomet.
+
+**Konkret funn (cowork-verifisert 2026-07-25, under mikrotekst-wiring):** `AUTO_OVERGANGER` (`flytmatrise-def.ts`) lister `received→in_progress` som auto-overgang, men serveren auto-fyrer **kun** `sent→received` (`effektivStatus`-linja i sjekkliste.ts:1077 + oppgave.ts:1222). `received→in_progress` har ingen auto-fyring, tilbys ikke som manuell handling fra `received` (kun Besvar/Videresend), og `in_progress` nås kun via gjenoppta (`rejected→in_progress`). Raden er altså en **fantom** i display-defen — matrisen viser en «A»-auto-rad som aldri fyrer. Design-avgjørelsen: enten **implementér** auto `received→in_progress` (f.eks. ved at mottaker åpner/påbegynner), eller **fjern** fantom-raden fra `AUTO_OVERGANGER` (rent display, trygt). Ikke rørt i mikrotekst-ordren (display-only-hover wirer kun `sent→received`).
+
+**Kenneth-beslutninger mottatt 2026-07-25** (fra mikrotekst-gjennomgang på test) → [delplaner/livssyklus-redesign-beslutninger-2026-07-25.md](delplaner/livssyklus-redesign-beslutninger-2026-07-25.md): fjern `in_progress`, ny «Avvist»-status, trekk tilbake → redigerbar kladd, soft delete + «slett endelig», samlet gjenåpne fra alle avsluttede, Send=fram/Videresend=ut, perspektiv-etikett-tekstfiks. **IMPLEMENTERT F0–F5 på develop 2026-07-25** (spec: [statusmaskin-redesign-spec-2026-07-25.md](delplaner/statusmaskin-redesign-spec-2026-07-25.md)); venter test-deploy + migreringer.
+
+### 🟡 Statusmaskin-konsolidering (opprydding etter F0–F5-redesignet, ikke blokkerende) {#statusmaskin-konsolidering}
+
+Etter at statusmaskin-redesignet (F0–F5) landet på develop 2026-07-25 gjenstår tre inerte etterlatenskaper som ikke rører funksjonell oppførsel: **(1)** døde `VALID_TRANSITIONS`-oppføringer `received→in_progress` + `received→cancelled` (ingen matrise-celle gir dem til noen rolle → ikke triggbare; F1 flyttet avvis→dismissed, F3 fjernet fantom received→in_progress); **(2)** legacy `rejected`-visning i `StatusMerkelapp`/status-badge/`pdf/konstanter` + `STATUS_LABEL_NOEKKEL.rejected` (inert etter `rejected→in_progress`-migreringen — ingen rad står i rejected); **(3) § 0 delt-kilde-refaktoren** — `statusHandlinger.ts` som ÉN avledbar kilde for både `MATRISE_RADER` og hover-nøkler, så trippelen matrise↔hover↔overgang ikke kan divergere (eliminerer cowork sin manuelle triple-gating per fase). Bevisst utelatt fra F0–F5 for å unngå at to parallelle økter refaktorerer fundamentet samtidig. Tas som egen fase når redesignet er verifisert på test/prod.
+
+### 🟠 Flyt-handlingsknapper (Besvar/Send/Videresend) sier ikke HVEM — bruker vet ikke hvem hen besvarer/sender til (Kenneth, prod 2026-07-25)
+
+På den generelle dokumentdetaljsiden (`DokumentHandlingsmeny`) mangler `Besvar`/`Send` tekst/hover som sier hvem handlingen går til (hvem får ballen / neste mottaker). **Dataene finnes** i komponenten (`recipientUserId`/`recipientGroupId`, `mottakerForStandard`, `recipientOppforinger`) — kun å surface dem per mikrotekst-standarden ([tooltip-hjelpetekst-veileder § 3a](retningslinjer/tooltip-hjelpetekst-veileder.md): relasjonelle benevnelser «den som sendte det»/«neste mottaker»). Konkret høyverdi-instans av Tooltip v2. Krever fabel-mikrotekst-spec (hover vs inline + ordlyd) → liten kode-ordre. Kenneth traff den på prod.
+
+### 🟡 Klientens `mottakerForStandard()` sendes på besvar men ignoreres av serveren — død/villedende parameter (cowork-gating 2026-07-25)
+
+`DokumentHandlingsmeny` (linje 393) beregner + sender `mottaker = mottakerForStandard()` (utfører-faggruppen) på `responded` (besvar). Men serverens besvar-gren (`sjekkliste.ts`) ruter besvar utelukkende til `sisteTransfer.senderId` (den som sist sendte) og **bruker aldri klient-`mottaker` for responded** — kun for `sent`. Klient-parameteren er dermed inert/død. Ingen synlig bug i dag (serveren ruter riktig uansett), men villedende kode + kan gi feil hover om en fremtidig flate leser `mottakerForStandard()` som besvar-mottaker. Fiks: verifiser at serveren ignorerer den i ALLE besvar-baner, så fjern beregningen+parameteren for responded (eller avstem klient↔server). **Mikrotekst-hoveren nøytraliserer symptomet** (viser `ledd[aktivtIndex-1]` = server-sannheten), så dette er ren opprydding — haster ikke. Funnet under gating av mikrotekst-spec rev.2.
+
+### 🟡 Prosjektvelgeren viser «SD-{dato}-{nummer}»-prefiks — meningsløst for bruker (Kenneth 2026-07-25)
+
+Topplinje-prosjektvelgeren (nedtrekk) viser intern ID «SD-20260506-0008» foran prosjektnavnet — gir brukeren ingen mening. Fjern prefikset (vis kun navn + lokasjon). Del av en «smårusk»-UX-oppryddingssveip — samle med annet visuelt rusk, evt. fold inn i en større UX-rydde-oppgave.
+
+### 🟡 Flytvisning-fane: retningsgruppe-header brytes ikke over to linjer (kosmetisk, Kenneth 2026-07-26)
+
+Flytvisning-fanen (`/dashbord/admin/flyt-rettigheter`, `FlytvisningFane.tsx`): retningsgruppe-headeren «Hent tilbake — dokumentet står lenger frem» er lang og bør brytes over to linjer. Kenneth verifiserte fanen grønt på test 2026-07-26 — dette er eneste gjenstående note, ikke-blokkerende. Del av «smårusk»-UX-sveipet over.
+
+### 🟡 «Venter på»-chip vises ikke ved faggruppe-ruting (fabel-avgjort 2026-07-26)
+
+Flyt-posisjon-headeren (`FlytIndikator`): den amber «Venter på»-chippen rendres kun når mottakeren er en konkret person/gruppe (`recipientUserId` satt). Ved **faggruppe-rutet** flyt nullstilles `recipientUserId` ved send, så chippen er blank. **Fabel-avgjørelse:** chippen SKAL vises også for faggruppe-rutede flyter, med faggruppe-navnet — samme regel som ledd-boksene og `finnMottakerNavn` (vis gruppen når mottaker er gruppe/faggruppe, ellers person med hovedansvarlig prioritert). Chippens jobb er «hvem venter vi på» — aldri blank fordi mottakeren tilfeldigvis er en faggruppe. Lav prioritet: headeren bærer ball-holderen i aktiv ledd-boks i mellomtiden. **Ved fiks:** gjeninnfør det fjernede `venter-paa`-assertet i `tests/e2e/tests/04-flytposisjon.spec.ts` (fjernet i `5e664cef` som manglende dekning, ikke feil test).
+
+### 🟡 Activity-skriving mangler fra kjerne-prosjektruter (født av admin-oversikt-redesign 2026-07-27)
+
+`Activity`-loggen skrives i dag kun av timer/varelager/vareImport (verifisert 0 `activity.create` i sjekkliste-/oppgave-/HMS-ruter, firmaadmin-Opus steg 0). Konsekvens: «sist aktivitet»-signal på admin-firmaoversikten kan ikke reflektere kjernebruk, og «Inaktiv 30d+»-badgen ble droppet som villedende (fabel-gate 2026-07-27). Oppfølging: skriv `Activity`-rader fra kjerne-prosjektrutene (sjekkliste/oppgave/HMS opprett+statusendring) → gjeninnfør inaktiv-badge + tellekort på [admin-firmaorientert-oversikt](admin-firmaorientert-oversikt-ordre-2026-07-26.md).
+
+### 🟡 Ctrl+K tverrgående prosjektsøk (admin-scope) — forutsetning for fase 2 (født 2026-07-27)
+
+`useSokRegistry` bygger treff fra nav/sidebar/hub-kort + gjeldende prosjektkontekst — IKKE en tverrgående liste over alle prosjekter på tvers av firma (verifisert firmaadmin-Opus steg 0). Før den globale `admin/prosjekter`-siden kan fjernes (fase 2 av admin-oversikt-redesignen) må Ctrl+K utvides med admin-scoped tverrgående prosjekt-treff. Ingen kapabilitet fjernes før erstatningen finnes. Leveranse: Ctrl+K-utvidelse → deretter fjern nav-punkt «Prosjekter» + side i samme commit.
+
 ### 🟡 HMS-dokument har både «Tilføy informasjon»-knapp og «Dialog»-kommentarfelt — UX-tvetydighet (HMS-klikktest 2026-07-25)
 
 På HMS-dokumenter (RUH/avvik/SJA) finnes **både** HMS-handlingen «Tilføy informasjon» (append via `hmsTilfoyInformasjon` → `DocumentTransfer`, vises i Tidslinjen) OG det generelle «Dialog»-kommentarfeltet (egen visning, ikke i Tidslinjen). Klikktesten viste at det forvirrer — agenten brukte Dialog i stedet for Tilføy. Bør konsolideres til én kommentar-vei for HMS.

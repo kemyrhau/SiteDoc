@@ -25,7 +25,7 @@ import {
 } from "react-native";
 import { Star, MoreHorizontal, ChevronDown } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { hentRolleFiltrertHandlinger, type StatusHandling, type DokumentflytRolle, type AdminNiva } from "@sitedoc/shared";
+import { hentRolleFiltrertHandlinger, statusKreverBegrunnelse, type StatusHandling, type DokumentflytRolle, type AdminNiva } from "@sitedoc/shared";
 import { byggLedd, type FlytMedlem, type Ledd } from "../utils/dokumentflyt-ledd";
 
 interface TilgjengeligeFlyter {
@@ -156,6 +156,9 @@ export function DokumentHandlingsmeny({
 
   function utforHandling() {
     if (!visBekreftelse) return;
+    // F1 (gate-JA #2): Avvis (dismissed) krever en ikke-tom begrunnelse — blokker send
+    // til feltet er fylt (speiler server-Zod-gaten, samme delte statusKreverBegrunnelse).
+    if (statusKreverBegrunnelse(visBekreftelse.nyStatus) && !kommentar.trim()) return;
     onEndreStatus(visBekreftelse.nyStatus, kommentar.trim() || undefined, visBekreftelse.mottaker);
     setVisBekreftelse(null);
     setKommentar("");
@@ -453,14 +456,19 @@ export function DokumentHandlingsmeny({
           behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
           <Pressable className="flex-1" onPress={() => setVisBekreftelse(null)} />
+          {(() => {
+            // F1: Avvis (dismissed) krever begrunnelse — deaktiver bekreft til feltet er fylt.
+            const paakrevd = visBekreftelse ? statusKreverBegrunnelse(visBekreftelse.nyStatus) : false;
+            const manglerBegrunnelse = paakrevd && kommentar.trim().length === 0;
+            return (
           <View className="rounded-t-2xl bg-white px-4 pb-8 pt-4">
             <Text className="mb-3 text-sm font-semibold text-gray-700">
-              {visBekreftelse?.bekreftelsesTekst}
+              {paakrevd ? t("statushandling.begrunnelsePaakrevd") : visBekreftelse?.bekreftelsesTekst}
             </Text>
             <TextInput
               value={kommentar}
               onChangeText={setKommentar}
-              placeholder={t("statushandling.valgfriKommentar")}
+              placeholder={paakrevd ? t("statushandling.begrunnelsePlaceholder") : t("statushandling.valgfriKommentar")}
               placeholderTextColor="#9ca3af"
               className="mb-3 rounded-lg border border-gray-200 px-3 py-2.5 text-sm text-gray-800"
               autoFocus
@@ -470,8 +478,8 @@ export function DokumentHandlingsmeny({
             <View className="flex-row gap-2">
               <Pressable
                 onPress={utforHandling}
-                disabled={erLaster}
-                className={`flex-1 items-center rounded-lg py-3 ${erLaster ? "bg-blue-400" : "bg-blue-600"}`}
+                disabled={erLaster || manglerBegrunnelse}
+                className={`flex-1 items-center rounded-lg py-3 ${erLaster || manglerBegrunnelse ? "bg-blue-400" : "bg-blue-600"}`}
               >
                 <Text className="font-medium text-white">
                   {erLaster ? t("statushandling.endrer") : t("handling.bekreft")}
@@ -485,6 +493,8 @@ export function DokumentHandlingsmeny({
               </Pressable>
             </View>
           </View>
+            );
+          })()}
         </KeyboardAvoidingView>
       </Modal>
     </>

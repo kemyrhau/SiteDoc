@@ -5,6 +5,12 @@ import { Prisma, krypter } from "@sitedoc/db";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
 import { hentBrukersOrg } from "../trpc/tilgangskontroll";
 import { importerKatalog } from "../services/katalog/importerKatalog";
+import { IKKE_SLETTET } from "../utils/softDelete";
+import {
+  klassifiserFirmaStatus,
+  hentFirmaAktivitet,
+  hentProsjektAktivitet,
+} from "../services/firmaOversikt";
 
 /**
  * Verifiser at bruker er SiteDoc-administrator.
@@ -62,12 +68,12 @@ export const adminRouter = router({
       ctx.prisma.checklist.groupBy({
         by: ["bestillerFaggruppeId"],
         _count: true,
-        where: { bestillerFaggruppe: { projectId: { in: prosjektIder } } },
+        where: { ...IKKE_SLETTET, bestillerFaggruppe: { projectId: { in: prosjektIder } } },
       }),
       ctx.prisma.task.groupBy({
         by: ["bestillerFaggruppeId"],
         _count: true,
-        where: { bestillerFaggruppe: { projectId: { in: prosjektIder } } },
+        where: { ...IKKE_SLETTET, bestillerFaggruppe: { projectId: { in: prosjektIder } } },
       }),
     ]);
 
@@ -121,10 +127,12 @@ export const adminRouter = router({
       orderBy: { createdAt: "desc" },
     });
 
+    const orgIds = orgs.map((o) => o.id);
+
     // Steg 1e Fase B: berik med aktiveFirmamoduler fra OrganizationModule.
     const moduler = await ctx.prisma.organizationModule.findMany({
       where: {
-        organizationId: { in: orgs.map((o) => o.id) },
+        organizationId: { in: orgIds },
         status: "aktiv",
       },
       select: { organizationId: true, moduleSlug: true },
@@ -135,15 +143,240 @@ export const adminRouter = router({
       liste.push(m.moduleSlug);
       perOrg.set(m.organizationId, liste);
     }
+
+    // 1a-berikelse (2026-07-27): prosjekt-tellere (aktive + totalt) og sist
+    // aktivitet. Prosjekt-tilhørighet regnes på primaryOrganizationId — samme
+    // eierskaps-akse som detaljsidens prosjektliste.
+    const [prosjektTellere, sistAktivitet] = await Promise.all([
+      ctx.prisma.project.groupBy({
+        by: ["primaryOrganizationId", "status"],
+        where: { primaryOrganizationId: { in: orgIds } },
+        _count: true,
+      }),
+      hentFirmaAktivitet(ctx.prisma, orgIds),
+    ]);
+    const aktivePerOrg = new Map<string, number>();
+    const totaltPerOrg = new Map<string, number>();
+    for (const rad of prosjektTellere) {
+      const id = rad.primaryOrganizationId;
+      if (!id) continue;
+      totaltPerOrg.set(id, (totaltPerOrg.get(id) ?? 0) + rad._count);
+      if (rad.status === "active") {
+        aktivePerOrg.set(id, (aktivePerOrg.get(id) ?? 0) + rad._count);
+      }
+    }
+
     return orgs.map((o) => {
       const { members, ...rest } = o;
       return {
         ...rest,
         users: members.map((m) => m.user),
         aktiveFirmamoduler: perOrg.get(o.id) ?? [],
+        status: klassifiserFirmaStatus(o),
+        prosjekterAktive: aktivePerOrg.get(o.id) ?? 0,
+        prosjekterTotalt: totaltPerOrg.get(o.id) ?? 0,
+        sistAktivitet: sistAktivitet.get(o.id) ?? null,
       };
     });
   }),
+
+  // Hent ett firma med detaljdata for firma-detaljsiden (1b). Tynne faner
+  // (brukere/moduler/fakturering/innstillinger) er visninger av eksisterende
+  // data — ingen ny forretningslogikk. Prosjekt-tellekort på primaryOrg.
+  hentFirmaDetalj: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+      const org = await ctx.prisma.organization.findUniqueOrThrow({
+        where: { id: input.organizationId },
+        select: {
+          id: true,
+          name: true,
+          organizationNumber: true,
+          invoiceAddress: true,
+          invoiceEmail: true,
+          ehfEnabled: true,
+          erKunde: true,
+          createdAt: true,
+        },
+      });
+
+      const [tellere, medlemmer, moduler, innstillinger] = await Promise.all([
+        ctx.prisma.project.groupBy({
+          by: ["status"],
+          where: { primaryOrganizationId: input.organizationId },
+          _count: true,
+        }),
+        ctx.prisma.organizationMember.findMany({
+          where: { organizationId: input.organizationId },
+          select: {
+            id: true,
+            ansattRolle: true,
+            firmaRoller: true,
+            user: { select: { id: true, name: true, email: true, role: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        }),
+        ctx.prisma.organizationModule.findMany({
+          where: { organizationId: input.organizationId },
+          select: { moduleSlug: true, status: true, aktivertVed: true, deaktivertVed: true },
+          orderBy: { aktivertVed: "asc" },
+        }),
+        ctx.prisma.organizationSetting.findUnique({
+          where: { organizationId: input.organizationId },
+          select: {
+            timezone: true,
+            dagsnorm: true,
+            timerTilgangDefault: true,
+            vareforbrukTilgangDefault: true,
+            maskinbrukTilgangDefault: true,
+          },
+        }),
+      ]);
+
+      let aktive = 0;
+      let fullfortArkivert = 0;
+      let deaktivert = 0;
+      for (const t of tellere) {
+        if (t.status === "active") aktive += t._count;
+        else if (t.status === "deactivated") deaktivert += t._count;
+        else fullfortArkivert += t._count; // archived + completed
+      }
+
+      return {
+        ...org,
+        status: klassifiserFirmaStatus(org),
+        prosjektTellekort: { aktive, fullfortArkivert, deaktivert },
+        brukere: medlemmer,
+        moduler,
+        innstillinger: innstillinger
+          ? {
+              timezone: innstillinger.timezone,
+              dagsnorm: Number(innstillinger.dagsnorm),
+              timerTilgangDefault: innstillinger.timerTilgangDefault,
+              vareforbrukTilgangDefault: innstillinger.vareforbrukTilgangDefault,
+              maskinbrukTilgangDefault: innstillinger.maskinbrukTilgangDefault,
+            }
+          : null,
+      };
+    }),
+
+  // Paginert prosjektliste for ett firma (1b Prosjekter-fane). Server-side
+  // paginering fra dag én — poenget er skala. Sort «sistAktivitet» bruker
+  // Project.updatedAt som DB-proxy (indekserbar); DISPLAY-verdien merges med
+  // Activity (Activity primær, updatedAt fallback) per rad. Activity er sparsom
+  // for kjernemoduler, så avviket er lite — dokumentert i firmaOversikt.ts.
+  hentProsjekterForFirma: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        søk: z.string().optional(),
+        status: z.enum(["aktive", "arkiverte", "alle"]).default("aktive"),
+        sortering: z.enum(["sistAktivitet", "navn", "opprettet"]).default("sistAktivitet"),
+        page: z.number().int().min(1).default(1),
+        take: z.number().int().min(1).max(100).default(25),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+      const statusFilter =
+        input.status === "aktive"
+          ? { status: "active" }
+          : input.status === "arkiverte"
+            ? { status: { in: ["archived", "completed", "deactivated"] } }
+            : {};
+      const søk = input.søk?.trim();
+      const søkFilter = søk
+        ? {
+            OR: [
+              { name: { contains: søk, mode: "insensitive" as const } },
+              { projectNumber: { contains: søk, mode: "insensitive" as const } },
+            ],
+          }
+        : {};
+      const where: Prisma.ProjectWhereInput = {
+        primaryOrganizationId: input.organizationId,
+        ...statusFilter,
+        ...søkFilter,
+      };
+      const orderBy: Prisma.ProjectOrderByWithRelationInput =
+        input.sortering === "navn"
+          ? { name: "asc" }
+          : input.sortering === "opprettet"
+            ? { createdAt: "desc" }
+            : { updatedAt: "desc" };
+
+      const [total, prosjekter] = await Promise.all([
+        ctx.prisma.project.count({ where }),
+        ctx.prisma.project.findMany({
+          where,
+          orderBy,
+          skip: (input.page - 1) * input.take,
+          take: input.take,
+          select: {
+            id: true,
+            name: true,
+            projectNumber: true,
+            status: true,
+            createdAt: true,
+            updatedAt: true,
+            trialExpiresAt: true,
+            members: { select: { id: true } },
+          },
+        }),
+      ]);
+
+      const projIds = prosjekter.map((p) => p.id);
+      const faggrupper = await ctx.prisma.faggruppe.findMany({
+        where: { projectId: { in: projIds } },
+        select: { id: true, projectId: true },
+      });
+      const fgTilProsjekt = new Map(faggrupper.map((f) => [f.id, f.projectId]));
+      const fgIds = faggrupper.map((f) => f.id);
+
+      const [sjekk, oppg, aktivitet] = await Promise.all([
+        ctx.prisma.checklist.groupBy({
+          by: ["bestillerFaggruppeId"],
+          _count: true,
+          where: { ...IKKE_SLETTET, bestillerFaggruppeId: { in: fgIds } },
+        }),
+        ctx.prisma.task.groupBy({
+          by: ["bestillerFaggruppeId"],
+          _count: true,
+          where: { ...IKKE_SLETTET, bestillerFaggruppeId: { in: fgIds } },
+        }),
+        hentProsjektAktivitet(ctx.prisma, projIds),
+      ]);
+      const sjekkPer = new Map<string, number>();
+      const oppgPer = new Map<string, number>();
+      for (const s of sjekk) {
+        const pid = s.bestillerFaggruppeId ? fgTilProsjekt.get(s.bestillerFaggruppeId) : undefined;
+        if (pid) sjekkPer.set(pid, (sjekkPer.get(pid) ?? 0) + s._count);
+      }
+      for (const o of oppg) {
+        const pid = o.bestillerFaggruppeId ? fgTilProsjekt.get(o.bestillerFaggruppeId) : undefined;
+        if (pid) oppgPer.set(pid, (oppgPer.get(pid) ?? 0) + o._count);
+      }
+
+      return {
+        total,
+        page: input.page,
+        take: input.take,
+        items: prosjekter.map((p) => ({
+          id: p.id,
+          name: p.name,
+          projectNumber: p.projectNumber,
+          status: p.status,
+          trialExpiresAt: p.trialExpiresAt,
+          antallMedlemmer: p.members.length,
+          antallSjekklister: sjekkPer.get(p.id) ?? 0,
+          antallOppgaver: oppgPer.get(p.id) ?? 0,
+          sistAktivitet: aktivitet.get(p.id) ?? p.updatedAt,
+        })),
+      };
+    }),
 
   // Opprett organisasjon (kun sitedoc_admin)
   opprettOrganisasjon: protectedProcedure
@@ -291,7 +524,7 @@ export const adminRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
 
-      const fgFilter = { bestillerFaggruppe: { projectId: input.projectId } };
+      const fgFilter = { ...IKKE_SLETTET, bestillerFaggruppe: { projectId: input.projectId } };
       const [sjekklister, oppgaver, maler, faggrupper, medlemmer, tegninger, mapper] = await Promise.all([
         ctx.prisma.checklist.count({ where: fgFilter }),
         ctx.prisma.task.count({ where: fgFilter }),

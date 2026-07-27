@@ -167,6 +167,12 @@ export default function OppgaveDetaljSide() {
     { enabled: !!params.prosjektId },
   );
 
+  // H3 (videresend-rettighet): flyt-medlemskap for å begrense videresend-mottakere til egne flyter.
+  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+
   const { data: mineTillatelserRå } = trpc.gruppe.hentMineTillatelser.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId },
@@ -544,6 +550,7 @@ export default function OppgaveDetaljSide() {
                 recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
                 status={oppgave.status}
                 bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+                visUtveier
               />
             </div>
             {/* Mobil: kompakt flyt med tap-for-expand */}
@@ -555,6 +562,7 @@ export default function OppgaveDetaljSide() {
                 status={oppgave.status}
                 bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
                 kompakt
+                visUtveier
               />
             </div>
           </div>
@@ -604,6 +612,7 @@ export default function OppgaveDetaljSide() {
             minRolle={minRolle}
             adminNiva={minFlytInfo?.adminNiva ?? null}
             flytMedlemmer={flytMedlemmer}
+            mineFlytIder={mineFlyter}
             recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
             recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
             bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}

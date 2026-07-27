@@ -35,6 +35,8 @@ sist_verifisert_mot_kode: 2026-07-20
 ## 1. Vedtak (fabel 2026-07-20)
 Scope for trinn 1 er **bevisst smalt**: GitHub Actions-workflow som kjører **lint + typecheck + eksisterende tester** på PR mot `develop`. **Ikke** test-DB, **ikke** deploy, **ikke** e2e — det er senere trinn. Smalt trinn 1 gir verdi dag én og null risiko.
 
+> **Oppdatering 2026-07-26 — «senere trinn (e2e)» er levert.** Playwright-røyksuiten (`tests/e2e/`, 8 tester, 3× grønn mot test.sitedoc.no) er bygget og levert — se [e2e-rigg-ordre-2026-07-26.md](e2e-rigg-ordre-2026-07-26.md). Kjører foreløpig lokalt/worktree (`pnpm e2e`), ikke i CI. **Gjenstår:** GitHub Actions-kobling som eget beslutningspunkt (nightly eller PR-label, IKKE hver PR — delt test-miljø) etter ~1 uke stabil drift.
+
 ## 2. Steg 0 — etabler baseline FØRST (leveres før workflow skrives)
 
 Cowork kunne **ikke** verifisere testtilstanden (sandkassen mangler `rolldown`s native binding for linux-arm64; `node_modules` er installert for darwin). Det er en måle-begrensning, ikke et funn. **Du kjører derfor baselinen selv** på Mac-en:

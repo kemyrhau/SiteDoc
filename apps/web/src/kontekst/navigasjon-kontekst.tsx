@@ -22,6 +22,7 @@ export type Seksjon =
   | "mannskap"
   | "kontrollplan"
   | "kontakter"
+  | "papirkurv"
   | "timer"
   | "timer-attestering"
   | "mine-timer"

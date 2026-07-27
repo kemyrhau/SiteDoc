@@ -4,6 +4,7 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { documentStatusSchema, isValidStatusTransition } from "@sitedoc/shared";
 import { prisma } from "@sitedoc/db";
+import { IKKE_SLETTET } from "../utils/softDelete";
 
 /**
  * Bygger Prisma WHERE-fragment for HMS-synlighet (privat/åpen) på Task/Checklist.
@@ -57,9 +58,9 @@ function komponerWhere(
   base: Record<string, unknown>,
   ...fragmenter: Array<Record<string, unknown> | null | undefined>
 ): Record<string, unknown> {
+  // Soft-delete-guard (F0): alle HMS-lister via komponerWhere skjuler slettede rader.
   const aktive = fragmenter.filter((f): f is Record<string, unknown> => !!f);
-  if (aktive.length === 0) return base;
-  return { AND: [base, ...aktive] };
+  return { AND: [base, IKKE_SLETTET, ...aktive] };
 }
 
 const TASK_SELECT = {
@@ -333,6 +334,7 @@ export const hmsRouter = router({
       const avvikPromise = (input.subdomain === undefined || input.subdomain === "avvik")
         ? ctx.prisma.task.findMany({
             where: {
+              ...IKKE_SLETTET,
               ...statusFilter,
               template: { is: { projectId: { in: projectIdList }, domain: "hms", subdomain: "avvik" } },
               ...(taskByggeplassClause ?? {}),
@@ -360,6 +362,7 @@ export const hmsRouter = router({
       const sjaPromise = (input.subdomain === undefined || input.subdomain === "sja")
         ? ctx.prisma.checklist.findMany({
             where: {
+              ...IKKE_SLETTET,
               ...statusFilter,
               template: { is: { projectId: { in: projectIdList }, domain: "hms", subdomain: "sja" } },
               ...(checklistByggeplassClause ?? {}),
@@ -388,6 +391,7 @@ export const hmsRouter = router({
       const ruhPromise = (input.subdomain === undefined || input.subdomain === "ruh")
         ? ctx.prisma.task.findMany({
             where: {
+              ...IKKE_SLETTET,
               ...statusFilter,
               template: { is: { projectId: { in: projectIdList }, domain: "hms", subdomain: "ruh" } },
               ...(taskByggeplassClause ?? {}),

@@ -12,8 +12,7 @@
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
-import { Spinner } from "@sitedoc/ui";
-import { Lock, RotateCcw, Check } from "lucide-react";
+import { Spinner, Tooltip } from "@sitedoc/ui";
 import { CELLE } from "@/lib/flytmatrise-farger";
 import { flytRettighetNoekkel, type RettighetsOverrides } from "@sitedoc/shared";
 import {
@@ -23,16 +22,21 @@ import {
   ROLLE_LABEL_NOEKKEL,
   STATUS_LABEL_NOEKKEL,
   celleTilstand,
+  erVideresendAdminLaast,
+  matriseTittel,
+  flythjelpTekst,
   type MatriseRolle,
   type CelleTilstand,
+  type OversettFn,
 } from "@/lib/flytmatrise-def";
+import { FlytvisningFane, Celle, HOVER_TRIGGER } from "./FlytvisningFane";
 
-type Fane = "matrise" | "logg" | "lesrediger";
+type Fane = "flytvisning" | "matrise" | "logg" | "lesrediger";
 
 export default function FlytRettigheterSide() {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
-  const [fane, setFane] = useState<Fane>("matrise");
+  const [fane, setFane] = useState<Fane>("flytvisning");
 
   // Global konfig (Kloss 2d): matrisen lastes direkte, ingen firma-valg.
   const { data, isLoading, error } = trpc.flytMatrise.hentMatrise.useQuery();
@@ -78,7 +82,7 @@ export default function FlytRettigheterSide() {
 
       {/* Faner */}
       <div className="mb-4 flex gap-1 border-b border-gray-200">
-        {(["matrise", "logg", "lesrediger"] as const).map((f) => (
+        {(["flytvisning", "matrise", "logg", "lesrediger"] as const).map((f) => (
           <button
             key={f}
             onClick={() => setFane(f)}
@@ -95,6 +99,15 @@ export default function FlytRettigheterSide() {
         <div className="flex items-center justify-center py-12"><Spinner /></div>
       ) : error ? (
         <p className="py-12 text-center text-sm text-red-600">{error.message}</p>
+      ) : fane === "flytvisning" ? (
+        <FlytvisningFane
+          overrides={overrides}
+          meta={meta}
+          kanRedigere={kanRedigere}
+          onKlikk={klikkCelle}
+          onTilbakestill={tilbakestillCelle}
+          t={t}
+        />
       ) : fane === "matrise" ? (
         <MatriseFane
           overrides={overrides}
@@ -125,7 +138,7 @@ function MatriseFane({
   kanRedigere: boolean;
   onKlikk: (rolle: MatriseRolle, fra: string, til: string, tilstand: CelleTilstand) => void;
   onTilbakestill: (rolle: MatriseRolle, fra: string, til: string) => void;
-  t: (k: string) => string;
+  t: OversettFn;
 }) {
   // Grupper rader etter fra-status for seksjonsoverskrifter.
   const grupper = useMemo(() => {
@@ -162,10 +175,19 @@ function MatriseFane({
                 {t("flytmatrise.auto.overskrift")}
               </td>
             </tr>
-            {AUTO_OVERGANGER.map((a) => (
+            {AUTO_OVERGANGER.map((a) => {
+              const overgangTekst = `${t(STATUS_LABEL_NOEKKEL[a.fra] ?? a.fra)} → ${t(STATUS_LABEL_NOEKKEL[a.til] ?? a.til)}`;
+              return (
               <tr key={`${a.fra}-${a.til}`} className="border-b border-gray-100">
                 <td className="px-3 py-2 text-gray-700">
-                  {t(STATUS_LABEL_NOEKKEL[a.fra] ?? a.fra)} → {t(STATUS_LABEL_NOEKKEL[a.til] ?? a.til)}
+                  {/* Kun sent→received har mikrotekst (autoMottatt); received→in_progress står urørt (spec ⚠2). */}
+                  {a.flythjelpNoekkel ? (
+                    <Tooltip tittel={overgangTekst} tekst={t(a.flythjelpNoekkel)} side="right">
+                      <span className={HOVER_TRIGGER}>{overgangTekst}</span>
+                    </Tooltip>
+                  ) : (
+                    overgangTekst
+                  )}
                 </td>
                 <td colSpan={MATRISE_ROLLER.length} className="px-3 py-2 text-center">
                   <span className="inline-flex items-center gap-2 text-xs text-gray-400">
@@ -174,7 +196,8 @@ function MatriseFane({
                   </span>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -200,7 +223,7 @@ function FraGruppe({
   kanRedigere: boolean;
   onKlikk: (rolle: MatriseRolle, fra: string, til: string, tilstand: CelleTilstand) => void;
   onTilbakestill: (rolle: MatriseRolle, fra: string, til: string) => void;
-  t: (k: string) => string;
+  t: OversettFn;
 }) {
   return (
     <>
@@ -211,7 +234,15 @@ function FraGruppe({
       </tr>
       {rader.map((rad) => (
         <tr key={`${rad.fra}-${rad.til}`} className="border-b border-gray-100 hover:bg-gray-50/40">
-          <td className="px-3 py-2 text-gray-700 whitespace-nowrap">{t(rad.labelNoekkel)}</td>
+          <td className="px-3 py-2 text-gray-700 whitespace-nowrap">
+            <Tooltip
+              tittel={matriseTittel(rad, t)}
+              tekst={flythjelpTekst(rad.flythjelpNoekkel, rad.fallbackNoekkel ? t(rad.fallbackNoekkel) : undefined, t)}
+              side="right"
+            >
+              <span className={HOVER_TRIGGER}>{t(rad.labelNoekkel)}</span>
+            </Tooltip>
+          </td>
           {MATRISE_ROLLER.map((rolle) => {
             const tilstand = celleTilstand(rolle, rad.fra, rad.til, overrides);
             const noekkel = flytRettighetNoekkel(rolle, rad.fra, rad.til);
@@ -221,6 +252,7 @@ function FraGruppe({
                   tilstand={tilstand}
                   kanRedigere={kanRedigere}
                   metaTekst={meta[noekkel] ? t("flytmatrise.overstyrt.tooltip").replace("{navn}", meta[noekkel].navn).replace("{naar}", meta[noekkel].naar) : undefined}
+                  laastTekst={erVideresendAdminLaast(rolle, rad.fra, rad.til) ? t("flytmatrise.laast.videresend") : undefined}
                   onKlikk={() => onKlikk(rolle, rad.fra, rad.til, tilstand)}
                   onTilbakestill={() => onTilbakestill(rolle, rad.fra, rad.til)}
                   tilbakestillTekst={t("flytmatrise.tilbakestill")}
@@ -231,57 +263,6 @@ function FraGruppe({
         </tr>
       ))}
     </>
-  );
-}
-
-function Celle({
-  tilstand, kanRedigere, metaTekst, onKlikk, onTilbakestill, tilbakestillTekst,
-}: {
-  tilstand: CelleTilstand;
-  kanRedigere: boolean;
-  metaTekst?: string;
-  onKlikk: () => void;
-  onTilbakestill: () => void;
-  tilbakestillTekst: string;
-}) {
-  // Låst — hengelås på lys bakgrunn (fabel-cellespec).
-  if (tilstand === "laast") {
-    return (
-      <div className={`mx-auto flex h-6 w-6 items-center justify-center rounded ${CELLE.laastBg}`}>
-        <Lock className={`h-3.5 w-3.5 ${CELLE.laastIkon}`} aria-hidden />
-      </div>
-    );
-  }
-  const paa = tilstand === "standard-pa" || tilstand === "overstyrt-pa";
-  const overstyrt = tilstand === "overstyrt-pa" || tilstand === "overstyrt-av";
-  return (
-    <div className="relative inline-flex items-center justify-center">
-      <button
-        type="button"
-        disabled={!kanRedigere}
-        onClick={onKlikk}
-        title={metaTekst}
-        className={`flex h-6 w-6 items-center justify-center rounded ${
-          paa ? CELLE.paa : CELLE.av
-        } ${kanRedigere ? `cursor-pointer ${CELLE.hover}` : "cursor-default"}`}
-      >
-        {/* På = hvit hake; av = tom ramme (ingen strek/dash). */}
-        {paa && <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden />}
-      </button>
-      {overstyrt && (
-        <span className={`absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full ring-1 ring-white ${CELLE.overstyrtPrikk}`} title={metaTekst} />
-      )}
-      {overstyrt && kanRedigere && (
-        <button
-          type="button"
-          onClick={onTilbakestill}
-          title={tilbakestillTekst}
-          className="ml-1 text-gray-300 hover:text-gray-500"
-        >
-          <RotateCcw className="h-3 w-3" />
-        </button>
-      )}
-    </div>
   );
 }
 

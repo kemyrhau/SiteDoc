@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
-import { isValidStatusTransition } from "@sitedoc/shared";
+import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
@@ -18,6 +18,7 @@ import {
   kanByttFlyt,
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
+import { IKKE_SLETTET } from "../utils/softDelete";
 import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
 
@@ -132,6 +133,7 @@ export const sjekklisteRouter = router({
 
       return ctx.prisma.checklist.findMany({
         where: {
+          ...IKKE_SLETTET,
           template: { projectId: input.projectId, ...templateDomainFilter },
           ...(input.status ? { status: input.status } : {}),
           ...(input.byggeplassId ? { OR: [{ byggeplassId: input.byggeplassId }, { byggeplassId: null }] } : {}),
@@ -334,7 +336,7 @@ export const sjekklisteRouter = router({
             select: { projectId: true },
           });
           const antall = await ctx.prisma.checklist.count({
-            where: { bestillerFaggruppe: { projectId: faggruppe.projectId } },
+            where: { ...IKKE_SLETTET, bestillerFaggruppe: { projectId: faggruppe.projectId } },
           });
           if (antall >= 10) {
             throw new TRPCError({
@@ -354,7 +356,9 @@ export const sjekklisteRouter = router({
 
         let nummer: number | undefined;
         if (mal.prefix) {
-          // Finn høyeste nummer for denne malen i prosjektet
+          // Finn høyeste nummer for denne malen i prosjektet.
+          // Bevisst UTEN deletedAt-guard: soft-slettede rader teller med, så et
+          // gjenopprettet dokument aldri kolliderer i nummer med et nyopprettet (nummer-monotoni).
           const maks = await tx.checklist.aggregate({
             where: {
               templateId: input.templateId,
@@ -1073,6 +1077,14 @@ export const sjekklisteRouter = router({
         });
       }
 
+      // F1 (gate-JA #2): Avvis krever påkrevd begrunnelse — bryter bevisst «fritekst = valgfritt».
+      if (statusKreverBegrunnelse(input.nyStatus) && !input.kommentar?.trim()) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Begrunnelse er påkrevd ved avvisning",
+        });
+      }
+
       // Auto-mottatt: sent → received umiddelbart
       const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus;
 
@@ -1377,7 +1389,8 @@ export const sjekklisteRouter = router({
       return transfer;
     }),
 
-  // Slett sjekkliste (blokkeres hvis tilknyttede oppgaver finnes)
+  // Slett sjekkliste (myk — legges i papirkurv, kan gjenopprettes i 90 dager).
+  // Blokkeres hvis tilknyttede (ikke-slettede) oppgaver finnes.
   slett: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -1385,7 +1398,7 @@ export const sjekklisteRouter = router({
         where: { id: input.id },
         include: {
           template: { select: { projectId: true, domain: true } },
-          _count: { select: { tasks: true } },
+          _count: { select: { tasks: { where: IKKE_SLETTET } } },
         },
       });
 
@@ -1413,12 +1426,14 @@ export const sjekklisteRouter = router({
         });
       }
 
-      return ctx.prisma.$transaction(async (tx) => {
-        await tx.documentTransfer.deleteMany({ where: { checklistId: input.id } });
-        await tx.image.deleteMany({ where: { checklistId: input.id } });
-        await tx.checklist.delete({ where: { id: input.id } });
-        return { success: true };
+      // Myk slett: behold transfers/images/relasjoner intakt så Gjenopprett gir
+      // tilbake et komplett dokument. Ekte delete() skjer kun via «Slett endelig»
+      // (papirkurv-routeren) eller 90-dagers sweep.
+      await ctx.prisma.checklist.update({
+        where: { id: input.id },
+        data: { deletedAt: new Date(), deletedById: ctx.userId },
       });
+      return { success: true };
     }),
 
   // Bytt eier av sjekkliste — kun prosjekteier eller registrator/admin

@@ -37,8 +37,8 @@ export type PerspektivDokumentType = "sjekkliste" | "oppgave" | "godkjenning" | 
  *
  * De fire tabell-kolonnene (Avsender/Mottaker/Godkjenner/Registrator) kollapser
  * til disse tre: godkjenner-kolonnen = `aktiv` ved `responded` (har ballen →
- * «Til godkjenning») og `venter` ved `rejected` (sendte tilbake, venter →
- * «Til revisjon»). Mottaker-kolonnen = `aktiv`; avsender-kolonnen = `venter`.
+ * «Til godkjenning») og `venter` ved `in_progress` (sendte tilbake, venter på
+ * utbedring → «Under arbeid», F3-merget). Mottaker-kolonnen = `aktiv`; avsender-kolonnen = `venter`.
  */
 export type Perspektiv = "aktiv" | "venter" | "noeytral";
 
@@ -96,27 +96,28 @@ const NOEYTRAL: Record<string, Celle> = {
   // optimistisk/eksperimentell status i en fremtidig konsument) — fyrer ikke nå.
   sent: { etikettKey: "status.sendt", variant: "primary" },
   received: { etikettKey: "status.mottatt", variant: "primary" },
-  in_progress: { etikettKey: "status.paagaar", variant: "primary" },
+  // F3 (Under arbeid): `rejected` er merget inn i `in_progress`. Nøytral D bærer
+  // «Under arbeid» (samme label som ballinnehaver-cellene) — retur-nyansen ligger
+  // i kvitteringen «Sendt tilbake ✓», ikke i en egen statusetikett.
+  in_progress: { etikettKey: "status.underArbeid", variant: "primary" },
   responded: { etikettKey: "status.besvart", variant: "primary" },
   approved: { etikettKey: "status.godkjent", variant: "success" },
-  // § 9-konsolidering (fabel-gate 2026-07-24): `rejected`-fargen er nå perspektiv-
-  // avhengig (samme grammatikk som received/in_progress) — warning til ballinnehaver
-  // (aktiv/venter-utbedrer), primary til den som venter og til nøytral D. Den gamle
-  // § 2b globale danger→farge-endringen er KONSUMERT av dette; ingen egen baseline.
-  rejected: { etikettKey: "status.tilRevisjon", variant: "primary" },
   closed: { etikettKey: "status.lukket", variant: "default" },
   cancelled: { etikettKey: "status.avbrutt", variant: "danger" },
+  // F1 (spec § 7): «Avvist» er perspektiv-FLAT — ingen ball, ingen aktiv/venter-split.
+  // Kun denne NOEYTRAL-cellen + fallback; BASE_AKTIV/BASE_VENTER har med vilje ingen
+  // dismissed-rad, så alle seere lander her (danger).
+  dismissed: { etikettKey: "status.avvist", variant: "danger" },
 };
 
 /** Base = sjekkliste / oppgave / godkjenning (felles rolle-vokabular). */
 const BASE_AKTIV: Record<string, Celle> = {
   draft: { etikettKey: "status.utkast", variant: "default" }, // egen usendt kladd
   received: { etikettKey: "status.tilBehandling", variant: "warning" },
+  // F3 (Under arbeid): ballinnehaver på merget in_progress = utbedrer (din tur → warning).
+  // Dekker både førstegangsarbeid og utbedring etter retur (absorbert rejected-cellen).
   in_progress: { etikettKey: "status.underArbeid", variant: "warning" },
   responded: { etikettKey: "status.tilGodkjenning", variant: "warning" }, // godkjenner har ballen
-  // § 9 (A-laget): ballinnehaver på rejected = utfører (gjenoppta) ELLER avsender
-  // (registrator/bestiller «Send på nytt») — begge «din tur» → warning.
-  rejected: { etikettKey: "status.tilUtbedring", variant: "warning" },
   approved: { etikettKey: "status.godkjent", variant: "success" },
   closed: { etikettKey: "status.lukket", variant: "default" },
   cancelled: { etikettKey: "status.avbrutt", variant: "danger" },
@@ -124,9 +125,8 @@ const BASE_AKTIV: Record<string, Celle> = {
 
 const BASE_VENTER: Record<string, Celle> = {
   received: { etikettKey: "status.tilBehandling", variant: "primary" },
-  in_progress: { etikettKey: "status.underArbeid", variant: "primary" },
+  in_progress: { etikettKey: "status.underArbeid", variant: "primary" }, // sendte tilbake / venter på utbedring
   responded: { etikettKey: "status.besvartTilGodkjenning", variant: "primary" }, // utfører har besvart
-  rejected: { etikettKey: "status.tilRevisjon", variant: "primary" }, // godkjenner sendte tilbake, venter
   approved: { etikettKey: "status.godkjent", variant: "success" },
   closed: { etikettKey: "status.lukket", variant: "default" },
   cancelled: { etikettKey: "status.avbrutt", variant: "danger" },
@@ -134,9 +134,9 @@ const BASE_VENTER: Record<string, Celle> = {
 
 /**
  * HMS — enveis med auto-retur. Innsender = `venter`, HMS-gruppe = `aktiv`.
- * § 9-konsolidering: på `rejected` speiler HMS base-grammatikken — innsender får
- * ballen tilbake for utbedring (`aktiv` → warning), HMS-gruppen sendte tilbake og
- * venter (`venter` → primary).
+ * F3-konsolidering: `rejected` er merget inn i `in_progress` («Under behandling») —
+ * HMS-kartene har ingen egen `rejected`-celle lenger. Innsender får ballen tilbake
+ * for utbedring på `in_progress` (`aktiv` → warning), HMS-gruppen venter (`venter` → primary).
  *
  * ⚠️ HMS-retur-avhengighet (fabel-svar 3, A-3b): «Godkjent – returnert» krever
  * at seer-konteksten identifiserer innsender som `aktiv` ved `approved` (ballen
@@ -148,18 +148,16 @@ const BASE_VENTER: Record<string, Celle> = {
 const HMS_AKTIV: Record<string, Celle> = {
   draft: { etikettKey: "status.utkast", variant: "default" }, // innsenders usendte kladd
   received: { etikettKey: "status.tilBehandling", variant: "warning" }, // HMS-gruppe
-  in_progress: { etikettKey: "status.underBehandling", variant: "warning" },
+  in_progress: { etikettKey: "status.underBehandling", variant: "warning" }, // innsender utbedrer (merget rejected)
   approved: { etikettKey: "status.godkjentReturnert", variant: "success" }, // innsender, retur
-  rejected: { etikettKey: "status.tilUtbedring", variant: "warning" }, // innsender har ballen
   closed: { etikettKey: "status.lukket", variant: "default" },
   cancelled: { etikettKey: "status.avbrutt", variant: "danger" },
 };
 
 const HMS_VENTER: Record<string, Celle> = {
   received: { etikettKey: "status.tilBehandlingHms", variant: "primary" }, // innsender venter
-  in_progress: { etikettKey: "status.underBehandling", variant: "primary" },
+  in_progress: { etikettKey: "status.underBehandling", variant: "primary" }, // HMS-gruppe sendte tilbake / venter
   approved: { etikettKey: "status.godkjent", variant: "success" }, // HMS-gruppe, ferdig
-  rejected: { etikettKey: "status.tilRevisjon", variant: "primary" }, // HMS-gruppe sendte tilbake
   closed: { etikettKey: "status.lukket", variant: "default" },
   cancelled: { etikettKey: "status.avbrutt", variant: "danger" },
 };
@@ -202,9 +200,9 @@ export function perspektivEtikett(
  * a3b-perspektiv-tabell.md § 6 + statusHandlinger.ts.
  *
  * HVORFOR handling og ikke status: `nyStatus` er ikke injektiv over handlinger —
- * `handling.send` og `statushandling.sendTilbake` gir begge `sent`, `handling.avvis`
- * og `statushandling.trekkTilbake` gir begge `cancelled`. Nøkling på status ga «Sendt ✓»
- * på en «Send tilbake»-handling. Statusen er utfallet; handlingen er det brukeren gjorde.
+ * `handling.send` og `statushandling.sendPaaNytt` gir begge `sent`. Nøkling på status
+ * ga «Sendt ✓» på en tilbakesendings-handling. Statusen er utfallet; handlingen er
+ * det brukeren gjorde.
  *
  * Én rad per distinkt `tekstNoekkel` i statusHandlinger.ts. `handling.slett` er utelatt
  * (går via `onSlett`, ikke `onEndreStatus`). Returnerer `null` for ukjent handling.
@@ -213,14 +211,12 @@ const KVITTERING: Record<string, Celle> = {
   "handling.send": { etikettKey: "kvittering.sendt", variant: "primary" },
   "statushandling.besvar": { etikettKey: "kvittering.besvart", variant: "primary" },
   "handling.godkjenn": { etikettKey: "kvittering.godkjent", variant: "success" },
-  // To distinkte «send tilbake»-handlinger (in_progress→sent og responded→rejected)
-  // — samme kvittering er korrekt, begge ER en tilbakesending.
-  "statushandling.sendTilbake": { etikettKey: "kvittering.sendtTilbake", variant: "warning" },
+  // F3: «Send tilbake» (responded→in_progress) er nå den eneste tilbakesendings-handlingen.
+  // Gammel `statushandling.sendTilbake` (in_progress→sent uten svar) og `gjenoppta` er utgått.
   "statushandling.sendTilbakeUtforer": { etikettKey: "kvittering.sendtTilbake", variant: "warning" },
   "statushandling.videresend": { etikettKey: "kvittering.videresendt", variant: "primary" },
   "handling.avvis": { etikettKey: "kvittering.avvist", variant: "danger" },
   "statushandling.trekkTilbake": { etikettKey: "kvittering.trukketTilbake", variant: "default" },
-  "statushandling.gjenoppta": { etikettKey: "kvittering.gjenopptatt", variant: "primary" },
   "statushandling.gjenapne": { etikettKey: "kvittering.gjenapnet", variant: "primary" },
   "handling.lukk": { etikettKey: "kvittering.lukket", variant: "success" },
 };

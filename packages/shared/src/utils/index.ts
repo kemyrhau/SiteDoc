@@ -7,6 +7,7 @@ export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
 export { hentStatusHandlinger } from "./statusHandlinger";
 export type { StatusHandling } from "./statusHandlinger";
+export { IKKE_SLETTET, KUN_SLETTET, PAPIRKURV_DAGER, dagerIgjen } from "./softDelete";
 export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil, beregnByggeplassGeofence, avstandMeter } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
 export { klassifiserReise, estimerReisetidMin } from "./reise";
@@ -96,15 +97,45 @@ export function isValidStatusTransition(
 ): boolean {
   const validTransitions: Record<string, string[]> = {
     draft: ["sent", "cancelled"],
-    sent: ["received", "cancelled"],
-    received: ["in_progress", "responded", "cancelled"],
-    in_progress: ["responded", "sent", "cancelled"],
-    responded: ["approved", "rejected"],
-    approved: ["closed"],
-    rejected: ["in_progress", "closed", "sent"],
+    // F2 (D-1): `sent` er transient (auto→received) og har ingen produserbare handlinger.
+    // Trekk tilbake flyttet til received→draft; sent→cancelled utgår.
+    sent: ["received"],
+    // F2: Trekk tilbake → received→draft (redigerbar kladd hos avsender, før mottaker har svart).
+    // F5 (Send/Videresend-paring, beslutning 6): `sent` aktiveres der Videresend finnes — Send
+    // fram i flyten (mot neste ledd) uten å gå via Under arbeid.
+    // F6 (Godkjenn fra Mottatt): `approved` gir en Registrator→Godkjenner-flyt (uten utfører) en
+    // direkte godkjenn-vei fra Mottatt — TILLEGG til responded→approved, ikke erstatning.
+    received: ["in_progress", "responded", "sent", "cancelled", "dismissed", "draft", "approved"],
+    // F3 (Under arbeid): `rejected` og `in_progress` er merget. in_progress-handlingene er
+    // Besvar (→responded), Send på nytt (→sent) og Lukk (→closed, arver dagens rejected→closed).
+    in_progress: ["responded", "sent", "closed"],
+    // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
+    // F5: responded→sent ble for-staget i F3 (Send fram fra svar-leddet) — bekreftet her.
+    responded: ["approved", "in_progress", "sent"],
+    // F5 (Send/Videresend-paring, beslutning 6): Send fram også fra godkjent (der Videresend finnes).
+    // H6 (Godkjent = stoppsted): approved lukkes ALDRI — approved→closed fjernet. Veien tilbake er
+    // Gjenåpne (approved→draft, Reg + P-adm, § 4). Send beholdt (sende-kapasitet ok på låst tilstand).
+    approved: ["sent", "draft"],
+    // F3: `rejected`-oppføringen utgår (merget inn i in_progress). `status` er String —
+    // eksisterende `rejected`-rader migreres til `in_progress` ved deploy (se migrering).
+    // F4 (Gjenåpne-samling): closed/dismissed/cancelled → draft er ÉN handling (Gjenåpne) —
+    // henter et avsluttet dokument tilbake til kladd hos oppretteren. cancelled er legacy.
     closed: ["draft"],
     cancelled: ["draft"],
+    // F4: Avvist er ikke lenger terminal — dismissed→draft åpner F1s terminal-status (Gjenåpne).
+    dismissed: ["draft"],
   };
 
   return validTransitions[current]?.includes(next) ?? false;
+}
+
+/**
+ * Statusoverganger som krever en ikke-tom begrunnelse (F1, gate-JA #2).
+ * Bryter bevisst «fritekst = valgfritt»-presedensen — Kenneth-vedtatt: en avvisning
+ * skal alltid bære en begrunnelse. Delt kilde for server-validering (Zod-gate i
+ * endreStatus) og klient-validering (web + mobil handlingsmeny), så regelen ikke
+ * kan divergere mellom lagene.
+ */
+export function statusKreverBegrunnelse(nyStatus: string): boolean {
+  return nyStatus === "dismissed";
 }

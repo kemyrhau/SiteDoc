@@ -22,38 +22,56 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
       { tekstNoekkel: "handling.slett", nyStatus: "deleted", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
-    sent: [
-      { tekstNoekkel: "statushandling.trekkTilbake", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400", erPrimaer: true },
-    ],
+    // F2 (D-1): `sent` er transient (auto→received) — ingen handlinger bor her.
     received: [
       { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
+      // F6 (Godkjenn fra Mottatt): direkte godkjenn-vei for Registrator→Godkjenner-flyt uten utfører.
+      // TILLEGG til responded→approved (Godkjenn etter Besvart), ikke erstatning. Eies av godkjenner + P-adm.
+      { tekstNoekkel: "handling.godkjenn", nyStatus: "approved", farge: "bg-green-600", aktivFarge: "bg-green-400" },
+      // F5 (Send/Videresend-paring, beslutning 6): Send fram i flyten — gjenbruker handling.send.
+      { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
+      // F2: Trekk tilbake henter en sendt hendelse tilbake til avsender FØR mottaker har
+      // svart, og lander som redigerbar kladd (received→draft, D-1-fiks).
+      { tekstNoekkel: "statushandling.trekkTilbake", nyStatus: "draft", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
-      { tekstNoekkel: "handling.avvis", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
+      // F1: Avvis ruter nå til egen «Avvist»-status (dismissed), ikke lenger cancelled.
+      { tekstNoekkel: "handling.avvis", nyStatus: "dismissed", farge: "bg-red-600", aktivFarge: "bg-red-400" },
     ],
+    // F3 (Under arbeid): merget tilstand (dagens in_progress + rejected). Handlingene er
+    // Besvar (→responded), Send på nytt (→sent, fram igjen etter retting), Lukk (→closed,
+    // arver dagens rejected→closed) og Videresend. Gammel `sendTilbake` (in_progress→sent
+    // uten svar) og `avvis` (→cancelled) utgår.
     in_progress: [
       { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
-      { tekstNoekkel: "statushandling.sendTilbake", nyStatus: "sent", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
-      { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
-      { tekstNoekkel: "handling.avvis", nyStatus: "cancelled", farge: "bg-red-600", aktivFarge: "bg-red-400" },
-    ],
-    responded: [
-      { tekstNoekkel: "handling.godkjenn", nyStatus: "approved", farge: "bg-green-600", aktivFarge: "bg-green-400", erPrimaer: true },
-      { tekstNoekkel: "statushandling.sendTilbakeUtforer", nyStatus: "rejected", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
-      { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
-    ],
-    rejected: [
-      // A-i (2026-07-17): rejected→responded var ULOVLIG i isValidStatusTransition (server-BAD_REQUEST).
-      // Veien går nå rejected → in_progress → responded. Se dokumentflyt.md § 6.
-      { tekstNoekkel: "statushandling.gjenoppta", nyStatus: "in_progress", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
-      // Venstre ende (flytmodell-vedtak-2026-07-22): registrator/bestiller retter opp
-      // et returnert dokument og sender det mot høyre igjen. Uten denne var rejected→sent inert.
       { tekstNoekkel: "statushandling.sendPaaNytt", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
       { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
-    approved: [
-      { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400", erPrimaer: true },
+    responded: [
+      { tekstNoekkel: "handling.godkjenn", nyStatus: "approved", farge: "bg-green-600", aktivFarge: "bg-green-400", erPrimaer: true },
+      // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
+      { tekstNoekkel: "statushandling.sendTilbakeUtforer", nyStatus: "in_progress", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
+      // F5 (Send/Videresend-paring): Send fram fra svar-leddet — gjenbruker handling.send.
+      { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
+    ],
+    // H6 (Godkjent = stoppsted): Godkjent lukkes ALDRI — Lukk fjernet. Veien tilbake er Gjenåpne
+    // (approved→draft, samme handling som øvrig gjenåpne). Send/Videresend beholdt (sende-kapasitet
+    // ok på en låst suksess-terminal).
+    approved: [
+      { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
+      // F5 (Send/Videresend-paring): Send fram fra godkjent — gjenbruker handling.send.
+      { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
+      { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
+    ],
+    // F4 (Gjenåpne-samling): closed/dismissed/cancelled er avsluttede statuser. Gjenåpne
+    // (→draft) henter dokumentet tilbake til kladd hos oppretteren — samme handling overalt.
+    closed: [
+      { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
+    ],
+    // F4: Avvist gjenåpnes med valgfri begrunnelse (nudge, ikke påkrevd — motsatt av selve Avvis).
+    dismissed: [
+      { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
     ],
     cancelled: [
       { tekstNoekkel: "statushandling.gjenapne", nyStatus: "draft", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
@@ -66,16 +84,28 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
 /**
  * Rollefiltrert handlingsliste.
  *
- * | Status       | registrator          | bestiller   | utfører                           | godkjenner                        |
- * |--------------|----------------------|-------------|-----------------------------------|-----------------------------------|
- * | draft        | Send, Slett          | Send, Slett | —                                 | —                                 |
- * | sent         | Avbryt               | Avbryt      | —                                 | —                                 |
- * | received     | Besvar, Videres.     | —           | Besvar, Videresend                | —                                 |
- * | in_progress  | Besvar, Tilbake, V   | —           | Besvar, Send tilbake, Videresend  | —                                 |
- * | responded    | Godkjenn, Tilbake, V | —           | —                                 | Godkjenn, Send tilbake, Videresend|
- * | rejected     | Send på nytt         | Send på nytt| Gjenoppta, Videresend             | —                                 |
- * | approved     | Lukk, Videresend     | Lukk        | —                                 | —                                 |
- * | cancelled    | Gjenåpne, Slett      | Gjenåpne    | —                                 | —                                 |
+ * | Status       | registrator          | bestiller       | utfører                           | godkjenner                        |
+ * |--------------|----------------------|-----------------|-----------------------------------|-----------------------------------|
+ * | draft        | Send, Slett          | Send, Slett     | —                                 | —                                 |
+ * | sent         | — (transient)        | — (transient)   | —                                 | —                                 |
+ * | received     | Trekk tilbake        | Trekk tilbake   | Besvar, Send, Avvis               | Godkjenn (F6, fra Mottatt)        |
+ * | in_progress  | —                    | Lukk        | Besvar, Send på nytt              | Lukk                              |
+ * | responded    | —                    | —           | —                                 | Godkjenn, Send tilbake, Send      |
+ * | approved     | Gjenåpne             | —           | —                                 | Send                              |
+ * | closed       | Gjenåpne             | —           | —                                 | —                                 |
+ * | dismissed    | Gjenåpne             | —           | —                                 | —                                 |
+ * | cancelled    | Gjenåpne             | —           | —                                 | —                                 |
+ *
+ * H3 (videresend-rettighet, 2026-07-26): Videresend (`forwarded`) er fjernet fra utfører/godkjenner-
+ * defaults — kun prosjektadmin har den (via statusmaskin-snittet). Cellene i matrisen står igjen så
+ * et firma i prinsippet kan konfigurere, men default-haken er AV for flytroller.
+ * F3 (Under arbeid): `rejected` er merget inn i `in_progress`. Send tilbake
+ * (responded→in_progress) eies av godkjenner; Send på nytt (in_progress→sent)
+ * av utfører; Lukk (in_progress→closed) av bestiller + godkjenner.
+ * F4 (Gjenåpne-samling): closed/dismissed/cancelled → draft eies av registrator
+ * (oppretter) + prosjektadmin (spec § 4). Bestiller mister gjenåpne (var legacy cancelled).
+ * H6 (Godkjent = stoppsted): approved→closed er fjernet (Godkjent lukkes aldri). Veien tilbake
+ * er Gjenåpne (approved→draft), samme eierskap som øvrig gjenåpne: registrator + prosjektadmin.
  */
 export function hentRolleFiltrertHandlinger(
   status: string,
@@ -225,28 +255,54 @@ function prosjektadminCelle(fraStatus: string, tilStatus: string, overrides?: Re
 
 /** Roller → status → tillatte nyStatus-verdier (default-laget; per-firma avvik i RettighetsOverrides) */
 export const ROLLE_HANDLINGER_DEFAULTS: Record<string, Record<string, Set<string>>> = {
-  // Registrator: oppretter → sender/sletter EGEN kladd. Venstre ende av linja
-  // (flytmodell-vedtak-2026-07-22): et returnert (rejected) dokument lander hos henne,
-  // hun retter opp og sender mot høyre igjen.
+  // Registrator: oppretter → sender/sletter EGEN kladd.
   registrator: {
     draft: new Set(["sent", "deleted"]),
-    rejected: new Set(["sent"]),
+    // F2 (spec § 3): avsender-siden trekker en sendt hendelse tilbake til kladd før svar.
+    received: new Set(["draft"]),
+    // F4 (spec § 3–4): Gjenåpne fra alle avsluttede statuser → kladd hos oppretteren.
+    // Rett: registrator (oppretter) + prosjektadmin; godkjenner-ledd kan mangle.
+    closed: new Set(["draft"]),
+    dismissed: new Set(["draft"]),
+    cancelled: new Set(["draft"]),
+    // H6 (Godkjent = stoppsted): Gjenåpne fra Godkjent (approved→draft) — samme regel som øvrig
+    // gjenåpne: registrator (oppretter) + prosjektadmin. Erstatter approved→closed (fjernet).
+    approved: new Set(["draft"]),
+    // F0 soft-delete: oppretteren kan gjenopprette egne slettede dokumenter (spec § 3–4).
+    slettet: new Set(["gjenopprett"]),
   },
   bestiller: {
     draft: new Set(["sent", "deleted"]),
-    sent: new Set(["cancelled"]),
-    approved: new Set(["closed"]),
-    cancelled: new Set(["draft"]),
-    // Venstre ende (flytmodell-vedtak-2026-07-22): kan sende returnert dokument videre.
-    rejected: new Set(["sent"]),
+    // F2 (spec § 3): Trekk tilbake flyttet fra sent→cancelled til received→draft (D-1).
+    received: new Set(["draft"]),
+    // F3 (matrise § 3): Lukk fra Under arbeid (in_progress→closed) eies av bestiller + godkjenner.
+    in_progress: new Set(["closed"]),
+    // H6 (Godkjent = stoppsted): approved→closed fjernet (Godkjent lukkes aldri) — bestiller
+    // mister Lukk på Godkjent. Gjenåpne eies av Reg + P-adm, ikke bestiller.
+    // F4: Gjenåpne eies IKKE av bestiller (spec § 3 — kun Reg + P-adm). Legacy cancelled→draft
+    // flyttet til registrator; bestiller mister gjenåpne.
   },
   utforer: {
-    received: new Set(["responded", "forwarded"]),
-    in_progress: new Set(["responded", "sent", "forwarded"]),
-    // A-i: rejected → in_progress (gjenoppta), ikke responded (ulovlig i statusmaskinen)
-    rejected: new Set(["in_progress", "forwarded"]),
+    // F1 (matrise § 3): utfører eier Avvis (received→dismissed) sammen med prosjektadmin.
+    // F5 (matrise § 3): Send fram (received→sent) eies av utfører + prosjektadmin.
+    // H3 (videresend-rettighet, 2026-07-26): `forwarded` fjernet — videresend er en admin-handling
+    // (kryssflyt ut av flyten). Prosjektadmin beholder den via statusmaskin-snittet (erStruktureltGyldig),
+    // ikke via denne default-lista.
+    received: new Set(["responded", "sent", "dismissed"]),
+    // F3 (matrise § 3): Besvar (→responded), Send på nytt (→sent) fra Under arbeid.
+    in_progress: new Set(["responded", "sent"]),
   },
   godkjenner: {
-    responded: new Set(["approved", "rejected", "forwarded"]),
+    // F6 (Godkjenn fra Mottatt): godkjenner eier direkte godkjenning fra Mottatt (received→approved)
+    // for Registrator→Godkjenner-flyt uten utfører. Utfører/registrator får den IKKE.
+    received: new Set(["approved"]),
+    // F3: Send tilbake ruter direkte til Under arbeid (responded→in_progress), ikke rejected.
+    // F5 (matrise § 3): Send fram (responded→sent) eies av godkjenner + prosjektadmin.
+    // H3 (videresend-rettighet, 2026-07-26): `forwarded` fjernet — se utfører-kommentaren over.
+    responded: new Set(["approved", "in_progress", "sent"]),
+    // F3 (matrise § 3): Lukk fra Under arbeid eies av godkjenner + bestiller.
+    in_progress: new Set(["closed"]),
+    // F5 (matrise § 3): Send fram (approved→sent) eies av godkjenner + prosjektadmin.
+    approved: new Set(["sent"]),
   },
 };
