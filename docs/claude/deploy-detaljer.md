@@ -73,11 +73,29 @@ Planen om egen `apps/timer/`-app (og at timer-sidene var en hardkodet demo som s
 ## Arbeidsflyt
 
 1. **Utvikle** — jobb på `develop`, commit og push
-2. **Deploy til test** — bruk deploy-kommandoen under (inkluderer cache-rydding >300 MB)
+2. **Deploy til test** — se § «Test-deploy (server-ny, Docker) — KANONISK sekvens» under
 3. **Test** — verifiser på test.sitedoc.no
 4. **Deploy til prod** (kun på eksplisitt forespørsel) — `git checkout main && git merge develop --no-edit && git push origin main` etterfulgt av server-deploy
 
-## Deploy-kommandoer (GAMMEL SERVER — utgått, se infrastruktur.md/deploy.sh)
+## Test-deploy (server-ny, Docker) — KANONISK sekvens (fra 2026-07, gjelder cowork + alle økter)
+
+Test-deploy er MANUELL — ingen auto-deploy. Docker-mekanikken (helsesjekk, sekvensielt bygg, `--no-deps`, postgres `grep -x`, migrate-gate) bor i [docker/DOCKER-NOTES.md § Post-deploy + § Deploy-mekanikk](../../docker/DOCKER-NOTES.md); denne seksjonen er den samlede rekkefølgen.
+
+1. **Merge til develop** (i `SiteDoc-merge`-worktreet): kastbar branch fra `origin/develop`, `--no-ff`, `git push HEAD:develop`, verifiser `git ls-remote origin refs/heads/develop` mot merge-commiten.
+2. **Pull LOKAL develop FØRST:** `cd <SiteDoc-develop-mappe> && git pull --ff-only origin develop`. `deploy-test.sh` rsyncer den **LOKALE** develop-mappa (ikke origin) — glemmes dette blir deployen stale (lærdom 2026-07-26).
+3. **rsync:** `./deploy-test.sh` (gjør KUN rsync + skriver ut en docker-kommando). **IGNORER den utskrevne `up -d --build`-kommandoen** — den bygger api+web SAMTIDIG og OOM-er → tar ned delt postgres + PROD (DOCKER-NOTES § Post-deploy).
+4. **Bygg SEKVENSIELT** (Kenneths TTY, `ssh -t server-ny '...'`) — ett image om gangen, aldri to samtidig:
+   - Scope fra diffen: kun `apps/web`+`packages` → **web-only**; `apps/api` endret → **api OG web** (web kaller api-prosedyrene).
+   - `sudo docker compose -f docker/docker-compose.test.yml build sitedoc-test-api` (kun hvis api endret)
+   - `sudo docker compose -f docker/docker-compose.test.yml build sitedoc-test-web`
+   - `sudo docker compose -f docker/docker-compose.test.yml up -d --no-deps <tjeneste(r)>`
+5. **Migrering** kun hvis schema/migrations i diffen — engangs-container med db-navn-gate (DOCKER-NOTES § Deploy-mekanikk punkt 5). Ellers hopp over.
+6. **Helsesjekk (ufravikelig):** alle containere `Up`, særlig at prod (`sitedoc-web`/`sitedoc-api`) er urørt og delt `postgres` frisk (DOCKER-NOTES § Post-deploy).
+7. **Verifiser som INNLOGGET bruker** på test.sitedoc.no (ikke bare HTTP 200 / anonymt).
+
+Prod-deploy: samme mekanikk mot `docker-compose.yml` (uten `-p`, jf. DOCKER-NOTES punkt 3-note) — **kun på eksplisitt forespørsel**, re-rsync `main` først (DOCKER-NOTES § delt build-kontekst).
+
+## Deploy-kommandoer (GAMMEL SERVER, PM2 — HISTORISK, se seksjonen over + DOCKER-NOTES)
 
 ```bash
 # Test (automatisk etter push til develop)
