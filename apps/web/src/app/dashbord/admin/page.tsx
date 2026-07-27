@@ -42,7 +42,7 @@ export default function AdminOversikt() {
         </Link>
 
         <Link
-          href="/dashbord/admin/prosjekter"
+          href="/dashbord/admin/firmaer"
           className="rounded-lg border border-gray-200 bg-white p-5 transition-colors hover:border-amber-200 hover:bg-amber-50/30"
         >
           <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
