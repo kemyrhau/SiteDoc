@@ -156,7 +156,7 @@ export default function AdminFirmaer() {
                     <th className="px-4 py-3 text-center font-medium text-gray-600 w-20">{t("admin.firmaer.kolBrukere")}</th>
                     <th className="px-4 py-3 text-center font-medium text-gray-600 w-28">{t("admin.firmaer.kolProsjekter")}</th>
                     <th className="px-4 py-3 text-left font-medium text-gray-600">{t("admin.firmaer.kolModuler")}</th>
-                    <th className="px-4 py-3 text-left font-medium text-gray-600 w-32">{t("admin.firmaer.kolSistAktivitet")}</th>
+                    <th className="whitespace-nowrap px-4 py-3 text-left font-medium text-gray-600 min-w-[120px]">{t("admin.firmaer.kolSistAktivitet")}</th>
                     <th className="px-4 py-3 text-center font-medium text-gray-600 w-12"></th>
                   </tr>
                 </thead>
@@ -196,9 +196,11 @@ export default function AdminFirmaer() {
                         <span className="text-gray-400"> / {org.prosjekterTotalt}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <ModulPiller aktiveFirmamoduler={org.aktiveFirmamoduler} storrelse="xs" />
+                        <div className="max-w-[132px]">
+                          <ModulPiller aktiveFirmamoduler={org.aktiveFirmamoduler} storrelse="xs" />
+                        </div>
                       </td>
-                      <td className="px-4 py-3 text-gray-500">
+                      <td className="whitespace-nowrap px-4 py-3 text-gray-500">
                         {formaterSistAktivitet(org.sistAktivitet, i18n.language, "—")}
                       </td>
                       <td className="px-4 py-3 text-center">

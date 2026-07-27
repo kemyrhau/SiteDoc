@@ -311,8 +311,11 @@ export function ProsjekterFane({
 }
 
 function Tellekort({ label, verdi, stil }: { label: string; verdi: number; stil: "emerald" | "gray" | "red" }) {
-  const farge =
+  // Farge (rød/grønn) kun når verdi > 0 — et rødt «0» signaliserer problem der
+  // intet finnes. Nøytral grå ved 0 (fabel-gate 2026-07-27).
+  const aktivFarge =
     stil === "emerald" ? "text-emerald-700" : stil === "red" ? "text-red-700" : "text-gray-700";
+  const farge = verdi > 0 ? aktivFarge : "text-gray-300";
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4">
       <p className={`text-2xl font-semibold ${farge}`}>{verdi}</p>

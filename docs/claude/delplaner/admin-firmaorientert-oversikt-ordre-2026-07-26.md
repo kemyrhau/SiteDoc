@@ -76,6 +76,11 @@ Bygget flagg-nøytralt. Build grønn (`pnpm --filter @sitedoc/web build`, exit 0
 - `admin/testsider/page.tsx` — «Opprett malprosjekt»-knapp flyttet hit (§7.3), bruker FirmaVelger som før.
 - i18n: 105 nye nøkler i nb+en, generert til 13 språk.
 
-**To beslutninger tatt i implementasjonen (flagges til fabel ved skjermbilde-review):**
-1. **Integrasjoner-CRUD** (lå i gammel firmaer-slide-over) plassert under **Innstillinger-fanen** — ikke i 5-fane-lista, men bevarer kapabiliteten uten å bryte fane-strukturen. Endres lett hvis mockup mente annet.
-2. **Sekundær-org-tilknytning** (`tilknyttProsjekt`/`fjernProsjektTilknytning`, `ProjectOrganization` m:n) — lå kun i gammel slide-over, er IKKE portert til 1b (ikke i fane-spec). tRPC-prosedyrene består (intet slettet i fase 1), så UI kan gjeninnføres trivielt om ønsket.
+**To beslutninger — bekreftet av fabel ved skjermbilde-gate (2026-07-27):**
+1. **Integrasjoner-CRUD** (lå i gammel firmaer-slide-over) plassert under **Innstillinger-fanen**. Fabel: godkjent, riktig hjem — behold.
+2. **Sekundær-org-tilknytning** (`tilknyttProsjekt`/`fjernProsjektTilknytning`, `ProjectOrganization` m:n) er **bevisst utelatt** fra 1b (ikke i fane-spec). Fabel: akseptert. tRPC-prosedyrene består (intet slettet i fase 1), og den **gamle `admin/prosjekter`-flaten dekker behovet inntil fase 2**; UI kan gjeninnføres trivielt om ønsket.
+
+**Designgate-justeringer (fabel 2026-07-27, skjermbilde-bekreftet):**
+- Tellekort-farge (rød/grønn) kun ved verdi > 0; nøytral grå (`text-gray-300`) ved 0 — et rødt «0» på Deaktivert villedet. Gjelder alle tre kortene (`ProsjekterFane.tsx`).
+- Org.nr som sekundærlinje under firmanavnet i lista (koden hadde linjen; test-data manglet org.nr).
+- Firmaliste-layout: Moduler-kolonnen wrapper (`max-w-[132px]`) + Sist aktivitet `min-w-[120px] whitespace-nowrap` — fjerner tidligere zoom-avhengighet, ingen horisontal overflow.
