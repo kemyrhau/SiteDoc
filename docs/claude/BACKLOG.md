@@ -56,6 +56,10 @@ Flyt-posisjon-headeren (`FlytIndikator`): den amber «Venter på»-chippen rendr
 
 `useSokRegistry` bygger treff fra nav/sidebar/hub-kort + gjeldende prosjektkontekst — IKKE en tverrgående liste over alle prosjekter på tvers av firma (verifisert firmaadmin-Opus steg 0). Før den globale `admin/prosjekter`-siden kan fjernes (fase 2 av admin-oversikt-redesignen) må Ctrl+K utvides med admin-scoped tverrgående prosjekt-treff. Ingen kapabilitet fjernes før erstatningen finnes. Leveranse: Ctrl+K-utvidelse → deretter fjern nav-punkt «Prosjekter» + side i samme commit.
 
+### 🟡 Flyt-løse (legacy) dokumenter viser flyt-handlinger uten flyt-posisjon (prod-verifisering 2026-07-27)
+
+Legacy-dokumenter med `dokumentflyt_id = NULL` (f.eks. KS-avvik opprettet før dokumentflyt-binding, faggruppe-rutet i gammel modell) viser flyt-handlinger (Besvar/Send/Godkjenn/Avvis/Videresend) men INGEN flyt-posisjon-header — `byggLedd` har ingen medlemmer, så ledd-raden skjules (korrekt oppførsel, verifisert mot prod-DB: task nr 1, `status=received`, `dokumentflyt_id=NULL`, 0 medlemmer). Statushandlingene opererer på `status`-feltet uavhengig av flyt-binding. Ikke prod-kritisk, kun legacy-data. Vurder (fabel): fallback-header («utenfor navngitt flyt») eller om handlingene bør skjules for flyt-løse dokumenter.
+
 ### 🟡 HMS-dokument har både «Tilføy informasjon»-knapp og «Dialog»-kommentarfelt — UX-tvetydighet (HMS-klikktest 2026-07-25)
 
 På HMS-dokumenter (RUH/avvik/SJA) finnes **både** HMS-handlingen «Tilføy informasjon» (append via `hmsTilfoyInformasjon` → `DocumentTransfer`, vises i Tidslinjen) OG det generelle «Dialog»-kommentarfeltet (egen visning, ikke i Tidslinjen). Klikktesten viste at det forvirrer — agenten brukte Dialog i stedet for Tilføy. Bør konsolideres til én kommentar-vei for HMS.
