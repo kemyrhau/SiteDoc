@@ -1,13 +1,44 @@
 "use client";
 
 import { trpc } from "@/lib/trpc";
-import { Spinner, EmptyState } from "@sitedoc/ui";
-import { FlaskConical, Clock, AlertTriangle, Trash2 } from "lucide-react";
+import { useFirma } from "@/kontekst/firma-kontekst";
+import { Spinner, EmptyState, Button } from "@sitedoc/ui";
+import { FlaskConical, Clock, AlertTriangle, Trash2, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 
 export default function AdminTestsider() {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { valgtFirma } = useFirma();
   const { data: alleProsjekter, isLoading } =
     trpc.admin.hentAlleProsjekter.useQuery();
+
+  type OpprettMalProsjekt = { id: string };
+  type OpprettMalMutation = {
+    mutate: (input: { organizationId: string }) => void;
+    isPending?: boolean;
+  };
+  // @ts-ignore TS2589 — tRPC-router-typen er for dyp etter Fase 0 schema-utvidelser
+  const opprettMalprosjekt = trpc.prosjekt.opprettTestprosjekt.useMutation({
+    onSuccess: (prosjekt: OpprettMalProsjekt) => {
+      router.push(`/dashbord/${prosjekt.id}`);
+    },
+  }) as unknown as OpprettMalMutation;
+
+  const MalprosjektKnapp = () => (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => valgtFirma?.id && opprettMalprosjekt.mutate({ organizationId: valgtFirma.id })}
+      disabled={!valgtFirma?.id || opprettMalprosjekt.isPending}
+      title={!valgtFirma?.id ? t("admin.testsider.velgFirmaHint") : undefined}
+    >
+      <Sparkles className="mr-1.5 h-4 w-4" />
+      {opprettMalprosjekt.isPending ? t("handling.oppretter") : t("admin.testsider.opprettMalprosjekt")}
+    </Button>
+  );
 
   if (isLoading) {
     return (
@@ -37,7 +68,10 @@ export default function AdminTestsider() {
   if (testsider.length === 0) {
     return (
       <div>
-        <h1 className="mb-4 text-lg font-semibold text-gray-900">Testsider</h1>
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-gray-900">Testsider</h1>
+          <MalprosjektKnapp />
+        </div>
         <EmptyState
           title="Ingen testsider"
           description="Det finnes ingen prøveprosjekter uten firmatilknytning."
@@ -51,14 +85,17 @@ export default function AdminTestsider() {
 
   return (
     <div>
-      <div className="mb-4 flex items-center gap-2">
-        <FlaskConical className="h-5 w-5 text-amber-600" />
-        <h1 className="text-lg font-semibold text-gray-900">
-          Testsider
-          <span className="ml-2 text-sm font-normal text-gray-400">
-            ({testsider.length})
-          </span>
-        </h1>
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <FlaskConical className="h-5 w-5 text-amber-600" />
+          <h1 className="text-lg font-semibold text-gray-900">
+            Testsider
+            <span className="ml-2 text-sm font-normal text-gray-400">
+              ({testsider.length})
+            </span>
+          </h1>
+        </div>
+        <MalprosjektKnapp />
       </div>
 
       <p className="mb-6 text-sm text-gray-500">

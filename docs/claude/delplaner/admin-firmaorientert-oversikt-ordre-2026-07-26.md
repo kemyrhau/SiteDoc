@@ -59,3 +59,28 @@ Steg 0-rapporten godkjent (cowork-gatet rigorøs). Beslutninger fra fabel:
 - **§7.4:** oversikt-statkort re-pekes til firmaer.
 
 **To oppfølgingsordrer født (→ BACKLOG):** (1) Activity-skriving fra kjerne-prosjektruter (sjekkliste/oppgave/HMS) — muliggjør ærlig «sist aktivitet» + gjeninnføring av inaktiv-badge. (2) Ctrl+K tverrgående prosjektsøk (admin-scope) — forutsetning for fase 2-sletting av global prosjektliste.
+
+## Levert — fase 1 (2026-07-27, branch `feat/admin-firmaorientert`)
+
+Bygget flagg-nøytralt. Build grønn (`pnpm --filter @sitedoc/web build`, exit 0). Gammel `admin/prosjekter`-side + nav-punkt uendret (fase 2 avvikler).
+
+**API (`apps/api/src`):**
+- `services/firmaOversikt.ts` (ny) — delte hjelpere: `klassifiserFirmaStatus` (fase 1: kun `"kunde"`), `hentFirmaAktivitet` (per firma: Activity `_max.createdAt` primær + Project `_max.updatedAt` fallback), `hentProsjektAktivitet` (per prosjekt).
+- `routes/admin.ts` — `hentAlleOrganisasjoner` beriket med `status` + `prosjekterAktive`/`prosjekterTotalt` (på `primaryOrganizationId`) + `sistAktivitet`. Nye prosedyrer: `hentFirmaDetalj` (header/tellekort/brukere/moduler/innstillinger) og `hentProsjekterForFirma` (server-side paginering 25/side, søk + statusfilter + sortering; sort «sistAktivitet» = `updatedAt`-proxy i DB, display merget med Activity per rad).
+
+**Web (`apps/web/src/app/dashbord/admin`):**
+- `firmaer/page.tsx` (1a) — omskrevet: kolonner Firma (+EHF-indikator), Status (Kunde-badge), Brukere, Prosjekter (aktive/totalt), Moduler, Sist aktivitet. Client-side søk. Hele raden → detaljside; rediger-blyant + opprett/rediger-modaler (m/Brreg) beholdt.
+- `firmaer/[id]/page.tsx` (1b, ny) + faner: `ProsjekterFane.tsx` (full — paginert tabell, 3 tellekort, søk/status/sortering, per-rad slett m/statistikk, prøveperiode-kolonne kun der `trialExpiresAt` satt), `BrukereFane.tsx` (OrganizationMember-liste + Imperser), `ModulerFane.tsx`, `FaktureringFane.tsx` (read-only invoice-felt + aktive moduler m/aktivertVed), `InnstillingerFane.tsx` (read-only OrganizationSetting + integrasjoner-CRUD).
+- `firmaer/delte-komponenter.tsx` (ny) — `ModulPiller`, `FirmaStatusBadge`, `formaterSistAktivitet`.
+- `admin/page.tsx` — Prosjekter-statkort re-pekt til `firmaer` (§7.4).
+- `admin/testsider/page.tsx` — «Opprett malprosjekt»-knapp flyttet hit (§7.3), bruker FirmaVelger som før.
+- i18n: 105 nye nøkler i nb+en, generert til 13 språk.
+
+**To beslutninger — bekreftet av fabel ved skjermbilde-gate (2026-07-27):**
+1. **Integrasjoner-CRUD** (lå i gammel firmaer-slide-over) plassert under **Innstillinger-fanen**. Fabel: godkjent, riktig hjem — behold.
+2. **Sekundær-org-tilknytning** (`tilknyttProsjekt`/`fjernProsjektTilknytning`, `ProjectOrganization` m:n) er **bevisst utelatt** fra 1b (ikke i fane-spec). Fabel: akseptert. tRPC-prosedyrene består (intet slettet i fase 1), og den **gamle `admin/prosjekter`-flaten dekker behovet inntil fase 2**; UI kan gjeninnføres trivielt om ønsket.
+
+**Designgate-justeringer (fabel 2026-07-27, skjermbilde-bekreftet):**
+- Tellekort-farge (rød/grønn) kun ved verdi > 0; nøytral grå (`text-gray-300`) ved 0 — et rødt «0» på Deaktivert villedet. Gjelder alle tre kortene (`ProsjekterFane.tsx`).
+- Org.nr som sekundærlinje under firmanavnet i lista (koden hadde linjen; test-data manglet org.nr).
+- Firmaliste-layout: Moduler-kolonnen wrapper (`max-w-[132px]`) + Sist aktivitet `min-w-[120px] whitespace-nowrap` — fjerner tidligere zoom-avhengighet, ingen horisontal overflow.
