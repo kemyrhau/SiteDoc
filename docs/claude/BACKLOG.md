@@ -48,6 +48,14 @@ Flytvisning-fanen (`/dashbord/admin/flyt-rettigheter`, `FlytvisningFane.tsx`): r
 
 Flyt-posisjon-headeren (`FlytIndikator`): den amber «Venter på»-chippen rendres kun når mottakeren er en konkret person/gruppe (`recipientUserId` satt). Ved **faggruppe-rutet** flyt nullstilles `recipientUserId` ved send, så chippen er blank. **Fabel-avgjørelse:** chippen SKAL vises også for faggruppe-rutede flyter, med faggruppe-navnet — samme regel som ledd-boksene og `finnMottakerNavn` (vis gruppen når mottaker er gruppe/faggruppe, ellers person med hovedansvarlig prioritert). Chippens jobb er «hvem venter vi på» — aldri blank fordi mottakeren tilfeldigvis er en faggruppe. Lav prioritet: headeren bærer ball-holderen i aktiv ledd-boks i mellomtiden. **Ved fiks:** gjeninnfør det fjernede `venter-paa`-assertet i `tests/e2e/tests/04-flytposisjon.spec.ts` (fjernet i `5e664cef` som manglende dekning, ikke feil test).
 
+### 🟡 Activity-skriving mangler fra kjerne-prosjektruter (født av admin-oversikt-redesign 2026-07-27)
+
+`Activity`-loggen skrives i dag kun av timer/varelager/vareImport (verifisert 0 `activity.create` i sjekkliste-/oppgave-/HMS-ruter, firmaadmin-Opus steg 0). Konsekvens: «sist aktivitet»-signal på admin-firmaoversikten kan ikke reflektere kjernebruk, og «Inaktiv 30d+»-badgen ble droppet som villedende (fabel-gate 2026-07-27). Oppfølging: skriv `Activity`-rader fra kjerne-prosjektrutene (sjekkliste/oppgave/HMS opprett+statusendring) → gjeninnfør inaktiv-badge + tellekort på [admin-firmaorientert-oversikt](admin-firmaorientert-oversikt-ordre-2026-07-26.md).
+
+### 🟡 Ctrl+K tverrgående prosjektsøk (admin-scope) — forutsetning for fase 2 (født 2026-07-27)
+
+`useSokRegistry` bygger treff fra nav/sidebar/hub-kort + gjeldende prosjektkontekst — IKKE en tverrgående liste over alle prosjekter på tvers av firma (verifisert firmaadmin-Opus steg 0). Før den globale `admin/prosjekter`-siden kan fjernes (fase 2 av admin-oversikt-redesignen) må Ctrl+K utvides med admin-scoped tverrgående prosjekt-treff. Ingen kapabilitet fjernes før erstatningen finnes. Leveranse: Ctrl+K-utvidelse → deretter fjern nav-punkt «Prosjekter» + side i samme commit.
+
 ### 🟡 HMS-dokument har både «Tilføy informasjon»-knapp og «Dialog»-kommentarfelt — UX-tvetydighet (HMS-klikktest 2026-07-25)
 
 På HMS-dokumenter (RUH/avvik/SJA) finnes **både** HMS-handlingen «Tilføy informasjon» (append via `hmsTilfoyInformasjon` → `DocumentTransfer`, vises i Tidslinjen) OG det generelle «Dialog»-kommentarfeltet (egen visning, ikke i Tidslinjen). Klikktesten viste at det forvirrer — agenten brukte Dialog i stedet for Tilføy. Bør konsolideres til én kommentar-vei for HMS.

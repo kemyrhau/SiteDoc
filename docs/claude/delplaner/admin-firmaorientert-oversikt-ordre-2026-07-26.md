@@ -47,3 +47,15 @@ Lever kort rapport: dagens `admin/firmaer/page.tsx` + `admin/prosjekter/page.tsx
 ## Utenfor scope
 
 Guard-/grenseendringer, OrganizationModule("prosjekt")-slug, standalone-avvikling, betalings-/fakturaintegrasjon, endringer i vanlig (ikke-admin) prosjektliste.
+
+## Fabel-gate steg 0 + beslutninger (2026-07-27) — STYRENDE, overstyrer teksten over der de avviker
+
+Steg 0-rapporten godkjent (cowork-gatet rigorøs). Beslutninger fra fabel:
+
+- **§5 «sist aktivitet»:** `Activity` primær + `Project.updatedAt` fallback for **kolonnen** (sorterbar, «—» når intet signal). **DROP «Inaktiv 30d+»-badgen OG tellekortet «Uten aktivitet 30 d»** — signalet skrives ikke av sjekkliste-/oppgaveruter, så et amber-«fakta»-varsel villeder. Badgen kommer tilbake med oppfølgingsordre 1.
+- **§7.1 klassifisering:** kun **Kunde-status** nå. Filterchips (Kunder/Prøve/Skall) **utgår**; søkefeltet består. Prøve/Skall venter på produktmodell-ordren.
+- **§7.2 — § «Avvikling av global prosjektliste» OVERSTYRT.** Sletting flyttes til **fase 2**. **Fase 1 (denne ordren):** bygg 1a+1b komplett; nav-punktet «Prosjekter» + `admin/prosjekter`-siden **BESTÅR**, ingen sletting, ingen redirect. **Fase 2 (egen ordre):** utvid Ctrl+K med tverrgående prosjekt-treff (admin-scope) → DERETTER fjernes nav-punkt + side i samme leveranse. Ingen kapabilitet fjernes før erstatningen finnes. (Opprydding-avsnittet i § over gjelder altså IKKE i fase 1.)
+- **§7.3:** enkeltslett → per-rad i 1b Prosjekter-fanen; «Opprett malprosjekt» → Testsider. `hentProsjektStatistikk`/`slettProsjekt` består.
+- **§7.4:** oversikt-statkort re-pekes til firmaer.
+
+**To oppfølgingsordrer født (→ BACKLOG):** (1) Activity-skriving fra kjerne-prosjektruter (sjekkliste/oppgave/HMS) — muliggjør ærlig «sist aktivitet» + gjeninnføring av inaktiv-badge. (2) Ctrl+K tverrgående prosjektsøk (admin-scope) — forutsetning for fase 2-sletting av global prosjektliste.
