@@ -2164,6 +2164,7 @@
   "statushandling.laast.admin": "Doar administrator",
   "statushandling.laast.lukket": "Documentul este închis",
   "statushandling.laast.ugyldig": "Nu este valabil din această stare",
+  "statushandling.laast.tomBesvarelse": "Completați cel puțin un câmp pentru a răspunde",
   "flythjelp.handling.opprett": "Creează un document nou ca schiță. Rămâne cu tine - doar tu îl poți vedea până îl trimiți.",
   "flythjelp.handling.send": "Mută ​​documentul cu un pas înainte: de la dvs. la {{mottaker}}. Ei îl văd ca fiind Primit; îl vedeți ca în procesare.",
   "flythjelp.handling.slettKladd": "Șterge definitiv schița. Posibil doar în timp ce documentul este încă la tine — după trimitere, acesta poate fi retras doar.",

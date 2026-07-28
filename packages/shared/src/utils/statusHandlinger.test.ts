@@ -9,7 +9,13 @@ import {
   type StatusHandling,
   type RettighetsOverrides,
 } from "./statusHandlinger";
-import { isValidStatusTransition, statusKreverBegrunnelse } from "./index";
+import {
+  isValidStatusTransition,
+  statusKreverBegrunnelse,
+  harMinstEttUtfyltFelt,
+  erUtfyllbartFelt,
+  feltErBesvart,
+} from "./index";
 import type { DokumentflytRolle } from "../types";
 
 /**
@@ -231,12 +237,68 @@ describe("F1 Avvist — statusmaskin + handling + begrunnelse-gate", () => {
     const avvis = hentStatusHandlinger("received").find((h) => h.tekstNoekkel === "handling.avvis");
     expect(avvis?.nyStatus).toBe("dismissed");
   });
-  it("statusKreverBegrunnelse: kun dismissed krever begrunnelse", () => {
+  it("statusKreverBegrunnelse: Avvis (dismissed) krever begrunnelse", () => {
     expect(statusKreverBegrunnelse("dismissed")).toBe(true);
-    expect(statusKreverBegrunnelse("cancelled")).toBe(false);
-    expect(statusKreverBegrunnelse("responded")).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/*  P2 — Inndata-validering: kommentar-klasse + tom-besvarelse         */
+/* ------------------------------------------------------------------ */
+
+describe("statusKreverBegrunnelse — P2 (Kenneth-vedtak, valg B): kommentar-klassen", () => {
+  it("Besvar (responded), Send tilbake (in_progress) og Avvis (dismissed) krever begrunnelse", () => {
+    expect(statusKreverBegrunnelse("responded")).toBe(true);
+    expect(statusKreverBegrunnelse("in_progress")).toBe(true);
+    expect(statusKreverBegrunnelse("dismissed")).toBe(true);
+  });
+  it("Videresend (forwarded) og Send (sent) er UNNTAK — krever ikke begrunnelse", () => {
+    expect(statusKreverBegrunnelse("forwarded")).toBe(false);
     expect(statusKreverBegrunnelse("sent")).toBe(false);
+  });
+  it("øvrige statuser krever ikke begrunnelse", () => {
+    expect(statusKreverBegrunnelse("approved")).toBe(false);
     expect(statusKreverBegrunnelse("closed")).toBe(false);
+    expect(statusKreverBegrunnelse("cancelled")).toBe(false);
+    expect(statusKreverBegrunnelse("draft")).toBe(false);
+  });
+});
+
+describe("harMinstEttUtfyltFelt — P2 tom-besvarelse-guard", () => {
+  const felt = (id: string, type = "text") => ({ id, type });
+
+  it("blokkerer (false) når malen har svar-felt men ingen er besvart", () => {
+    expect(harMinstEttUtfyltFelt([felt("a"), felt("b")], {})).toBe(false);
+    expect(harMinstEttUtfyltFelt([felt("a")], { a: { verdi: "", kommentar: "", vedlegg: [] } })).toBe(false);
+    expect(harMinstEttUtfyltFelt([felt("a")], null)).toBe(false);
+  });
+
+  it("tillater (true) når minst ett felt er besvart — valg B: verdi ELLER kommentar ELLER vedlegg", () => {
+    expect(harMinstEttUtfyltFelt([felt("a")], { a: { verdi: "OK" } })).toBe(true);
+    expect(harMinstEttUtfyltFelt([felt("a")], { a: { kommentar: "notat" } })).toBe(true);
+    expect(harMinstEttUtfyltFelt([felt("a")], { a: { vedlegg: [{ id: "1" }] } })).toBe(true);
+  });
+
+  it("tillater (true) når malen ikke har utfyllbare felt (ingenting å fylle)", () => {
+    expect(harMinstEttUtfyltFelt([], {})).toBe(true);
+    expect(harMinstEttUtfyltFelt([felt("h", "heading"), felt("s", "subtitle")], {})).toBe(true);
+    expect(harMinstEttUtfyltFelt([felt("l", "location"), felt("c", "calculation")], {})).toBe(true);
+  });
+
+  it("ren-visning/skjulte/auto-felt teller ikke som utfyllbare", () => {
+    expect(erUtfyllbartFelt("heading")).toBe(false);
+    expect(erUtfyllbartFelt("subtitle")).toBe(false);
+    expect(erUtfyllbartFelt("location")).toBe(false);
+    expect(erUtfyllbartFelt("drawing_position")).toBe(false);
+    expect(erUtfyllbartFelt("calculation")).toBe(false);
+    expect(erUtfyllbartFelt("text")).toBe(true);
+    expect(erUtfyllbartFelt("checkbox")).toBe(true);
+  });
+
+  it("feltErBesvart: tom/manglende felt er ikke besvart", () => {
+    expect(feltErBesvart(undefined)).toBe(false);
+    expect(feltErBesvart(null)).toBe(false);
+    expect(feltErBesvart({ verdi: null, kommentar: "", vedlegg: [] })).toBe(false);
   });
 });
 

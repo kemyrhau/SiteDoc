@@ -2164,6 +2164,7 @@
   "statushandling.laast.admin": "Tylko administrator",
   "statushandling.laast.lukket": "Dokument jest zamknięty",
   "statushandling.laast.ugyldig": "Nieważne od tego statusu",
+  "statushandling.laast.tomBesvarelse": "Aby odpowiedzieć, wypełnij przynajmniej jedno pole",
   "flythjelp.handling.opprett": "Tworzy nowy dokument jako wersję roboczą. Pozostaje z Tobą — tylko Ty możesz go zobaczyć, dopóki go nie wyślesz.",
   "flythjelp.handling.send": "Przesuwa dokument o krok do przodu: od Ciebie do {{mottaker}}. Postrzegają to jako Otrzymane; widzisz to jako W trakcie przetwarzania.",
   "flythjelp.handling.slettKladd": "Trwale usuwa wersję roboczą. Możliwe tylko wtedy, gdy dokument jest jeszcze przy Tobie – po wysłaniu można go jedynie wycofać.",

@@ -2164,6 +2164,7 @@
   "statushandling.laast.admin": "Tik administratorius",
   "statushandling.laast.lukket": "Dokumentas uždarytas",
   "statushandling.laast.ugyldig": "Negalioja nuo šios būsenos",
+  "statushandling.laast.tomBesvarelse": "Norėdami atsakyti, užpildykite bent vieną lauką",
   "flythjelp.handling.opprett": "Sukuria naują dokumentą kaip juodraštį. Jis lieka su jumis – tik jūs galite jį matyti, kol neišsiųsite.",
   "flythjelp.handling.send": "Perkelia dokumentą vienu žingsniu į priekį: nuo jūsų iki {{mottaker}}. Jie mato tai kaip Gautą; matote kaip Apdorojant.",
   "flythjelp.handling.slettKladd": "Visam laikui ištrina juodraštį. Galima tik tada, kai dokumentas dar yra su jumis – išsiuntus jį galima tik atsiimti.",

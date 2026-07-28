@@ -2164,6 +2164,7 @@
   "statushandling.laast.admin": "Vetëm administrator",
   "statushandling.laast.lukket": "Dokumenti është i mbyllur",
   "statushandling.laast.ugyldig": "Nuk është e vlefshme nga ky status",
+  "statushandling.laast.tomBesvarelse": "Plotësoni të paktën një fushë për t'u përgjigjur",
   "flythjelp.handling.opprett": "Krijon një dokument të ri si draft. Ai qëndron me ju - vetëm ju mund ta shihni derisa ta dërgoni.",
   "flythjelp.handling.send": "E çon dokumentin një hap përpara: nga ju te {{mottaker}}. Ata e shohin atë si të Marrë; e shihni si Në përpunim.",
   "flythjelp.handling.slettKladd": "Fshin përgjithmonë draftin tuaj. E mundur vetëm kur dokumenti është ende me ju - pas dërgimit, ai mund të tërhiqet vetëm.",

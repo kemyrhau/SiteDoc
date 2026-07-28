@@ -2164,6 +2164,7 @@
   "statushandling.laast.admin": "Administrator only",
   "statushandling.laast.lukket": "Document is closed",
   "statushandling.laast.ugyldig": "Not valid from this status",
+  "statushandling.laast.tomBesvarelse": "Fill in at least one field to respond",
   "flythjelp.handling.opprett": "Creates a new document as a draft. It stays with you — only you can see it until you send it.",
   "flythjelp.handling.send": "Moves the document one step forward: from you to {{mottaker}}. They see it as Received; you see it as In processing.",
   "flythjelp.handling.slettKladd": "Permanently deletes your draft. Possible only while the document is still with you — after sending it can only be withdrawn.",

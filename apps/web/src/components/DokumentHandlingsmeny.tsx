@@ -78,6 +78,13 @@ interface DokumentHandlingsmenyProps {
   bestillerUserId?: string;
   /** Tidspunkt da mottaker åpnet dokumentet */
   lestAvMottakerVed?: Date | string | null;
+  /**
+   * P2 (tom-besvarelse): når satt, er «Besvar» (responded) deaktivert fordi
+   * besvarelsen er tom (ingen utfylte svar-felt). Teksten vises som mikrotekst/
+   * tooltip. Beregnes på detaljflaten (der svarverdiene + malfeltene finnes) —
+   * `DokumentHandlingsmeny` forblir innholds-agnostisk. Speiler server-guarden.
+   */
+  besvarDeaktivertGrunn?: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -149,6 +156,7 @@ export function DokumentHandlingsmeny({
   recipientGroupId,
   bestillerUserId,
   lestAvMottakerVed,
+  besvarDeaktivertGrunn,
 }: DokumentHandlingsmenyProps) {
   const { t } = useTranslation();
   const [åpenMeny, setÅpenMeny] = useState(false);
@@ -391,9 +399,13 @@ export function DokumentHandlingsmeny({
     utfor(o.nyStatus, o.tekstNoekkel, o.mottaker);
   };
 
+  // P2 (tom-besvarelse): «Besvar» blokkeres når besvarelsen er tom. Speiler
+  // server-guarden — UI viser aldri en handling serveren avviser.
+  const besvarBlokkert = !!besvarDeaktivertGrunn && primærHandling?.nyStatus === "responded";
+
   // Primærknapp-klikk: draft-send med flere mottakere → åpne nedtrekk; ellers utfør
   const klikkPrimær = () => {
-    if (!primærHandling) return;
+    if (!primærHandling || besvarBlokkert) return;
     if (draftSend) {
       const v = videresendValg[0];
       if (videresendValg.length === 1 && v) {
@@ -481,6 +493,11 @@ export function DokumentHandlingsmeny({
 
   const primærFarge = primærHandling ? FARGE_KLASSE[primærHandling.farge] ?? "bg-sitedoc-primary hover:bg-blue-700" : "";
   const primærMikro = primærHandling ? mikrotekst(primærHandling.tekstNoekkel, primærHandling.nyStatus, t(primærHandling.tekstNoekkel)) : undefined;
+  // P2: når Besvar er blokkert (tom besvarelse), vis blokkerings-grunnen i tooltipen
+  // framfor den vanlige flythjelp-mikroteksten.
+  const primærTooltip = besvarBlokkert && primærHandling
+    ? { tittel: t(primærHandling.tekstNoekkel), tekst: besvarDeaktivertGrunn! }
+    : primærMikro;
 
   // Fiks 1 (klikktest): kryssflyt-nedtrekket er «Videresend» (ikke-draft) med egen flythjelp-hover —
   // tydelig skilt fra F5s «Send» (fram i flyten). Draft beholder «Send» (førstegangs-send til faggruppe).
@@ -494,12 +511,12 @@ export function DokumentHandlingsmeny({
       {/* Primærhandling som knapp (+ split-▾ ved draft-send med flere mottakere) */}
       {primærHandling && (
         <div className="relative flex">
-          {primærMikro ? (
-            <Tooltip tittel={primærMikro.tittel} tekst={primærMikro.tekst} side="top">
+          {primærTooltip ? (
+            <Tooltip tittel={primærTooltip.tittel} tekst={primærTooltip.tekst} side="top">
               <button
                 data-testid={`handling-${primærHandling.nyStatus}`}
                 onClick={klikkPrimær}
-                disabled={erLaster}
+                disabled={erLaster || besvarBlokkert}
                 className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
                   draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
                 } ${primærFarge}`}
@@ -511,7 +528,7 @@ export function DokumentHandlingsmeny({
             <button
               data-testid={`handling-${primærHandling.nyStatus}`}
               onClick={klikkPrimær}
-              disabled={erLaster}
+              disabled={erLaster || besvarBlokkert}
               className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
                 draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
               } ${primærFarge}`}

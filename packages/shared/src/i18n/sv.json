@@ -2164,6 +2164,7 @@
   "statushandling.laast.admin": "Endast administratör",
   "statushandling.laast.lukket": "Dokumentet är stängt",
   "statushandling.laast.ugyldig": "Ej giltig från denna status",
+  "statushandling.laast.tomBesvarelse": "Fyll i minst ett fält för att svara",
   "flythjelp.handling.opprett": "Skapar ett nytt dokument som ett utkast. Den stannar hos dig – bara du kan se den tills du skickar den.",
   "flythjelp.handling.send": "Flyttar dokumentet ett steg framåt: från dig till {{mottaker}}. De ser det som Mottaget; du ser det som Under bearbetning.",
   "flythjelp.handling.slettKladd": "Tar bort ditt utkast permanent. Endast möjligt medan dokumentet fortfarande finns hos dig – efter att du har skickat det kan det bara dras tillbaka.",

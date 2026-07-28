@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, beregnHarBallen } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, beregnHarBallen, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { FlytIndikator } from "../../src/components/FlytIndikator";
@@ -394,6 +394,15 @@ export default function SjekklisteUtfylling() {
     hentFeltVerdi,
     settVerdi,
   });
+
+  // P2 (tom-besvarelse): speiler server-guarden. Offline-first → beregnes fra lokal
+  // svar-tilstand (samme delte helper som web + server). Deaktiverer Besvar til minst
+  // ett svar-felt er utfylt (fyll → Lagre → Besvar).
+  const besvarDeaktivertGrunn = useMemo(() => {
+    const objs = (sjekkliste?.template?.objects ?? []) as { id: string; type: string }[];
+    const data = Object.fromEntries(objs.map((o) => [o.id, hentFeltVerdi(o.id)]));
+    return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
+  }, [sjekkliste?.template?.objects, hentFeltVerdi, t]);
 
   // Hent prosjektdata for PDF
   const { data: prosjektData } = trpc.prosjekt.hentMedId.useQuery(
@@ -931,6 +940,7 @@ export default function SjekklisteUtfylling() {
           tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["tilgjengeligeFlyter"]}
           minRolle={minRolle ?? null}
           adminNiva={minFlytInfo?.adminNiva ?? null}
+          besvarDeaktivertGrunn={besvarDeaktivertGrunn}
         />
 
         {erRedigerbar && (

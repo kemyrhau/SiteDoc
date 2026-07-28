@@ -2164,6 +2164,7 @@
   "statushandling.laast.admin": "Tikai administrators",
   "statushandling.laast.lukket": "Dokuments ir aizvērts",
   "statushandling.laast.ugyldig": "Nav derīgs no šī statusa",
+  "statushandling.laast.tomBesvarelse": "Lai atbildētu, aizpildiet vismaz vienu lauku",
   "flythjelp.handling.opprett": "Izveido jaunu dokumentu kā melnrakstu. Tas paliek pie jums — tikai jūs to varat redzēt, līdz to nosūtāt.",
   "flythjelp.handling.send": "Pārvieto dokumentu vienu soli uz priekšu: no jums uz {{mottaker}}. Viņi to redz kā Saņemtu; jūs to redzat kā Apstrādē.",
   "flythjelp.handling.slettKladd": "Jūsu melnraksts tiek neatgriezeniski dzēsts. Iespējams tikai tad, kad dokuments vēl ir pie jums – pēc nosūtīšanas to var izņemt tikai.",

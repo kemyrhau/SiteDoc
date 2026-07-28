@@ -2164,6 +2164,7 @@
   "statushandling.laast.admin": "Ainult administraator",
   "statushandling.laast.lukket": "Dokument on suletud",
   "statushandling.laast.ugyldig": "Sellest olekust ei kehti",
+  "statushandling.laast.tomBesvarelse": "Vastamiseks täitke vähemalt üks väli",
   "flythjelp.handling.opprett": "Loob mustandina uue dokumendi. See jääb teie juurde – kuni saatmiseni näete seda ainult teie.",
   "flythjelp.handling.send": "Liigutab dokumendi ühe sammu edasi: sinult {{mottaker}} juurde. Nad näevad seda vastuvõetuna; näete seda töötlemisel.",
   "flythjelp.handling.slettKladd": "Kustutab jäädavalt teie mustandi. Võimalik ainult siis, kui dokument on veel teiega – pärast saatmist saab selle alles tagasi võtta.",

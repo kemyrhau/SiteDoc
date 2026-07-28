@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
-import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
+import { isValidStatusTransition, statusKreverBegrunnelse, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
@@ -848,6 +848,7 @@ export const sjekklisteRouter = router({
               domain: true,
               prefix: true,
               project: { select: { name: true } },
+              objects: { select: { id: true, type: true } },
             },
           },
           utforerFaggruppe: { select: { name: true } },
@@ -1077,11 +1078,27 @@ export const sjekklisteRouter = router({
         });
       }
 
-      // F1 (gate-JA #2): Avvis krever påkrevd begrunnelse — bryter bevisst «fritekst = valgfritt».
+      // P2 (Kenneth-vedtak 2026-07-21): Besvar/Send tilbake/Avvis krever ikke-tom
+      // begrunnelse (statusKreverBegrunnelse — delt kilde, samme regel som klienten).
       if (statusKreverBegrunnelse(input.nyStatus) && !input.kommentar?.trim()) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Begrunnelse er påkrevd ved avvisning",
+          message: "Begrunnelse er påkrevd for denne handlingen",
+        });
+      }
+
+      // P2 (tom-besvarelse): en besvarelse (→responded) kan aldri sendes tom —
+      // minst ett utfylt svar-felt (mal-bevisst; malen uten svar-felt tillates).
+      if (
+        input.nyStatus === "responded" &&
+        !harMinstEttUtfyltFelt(
+          sjekkliste.template.objects,
+          sjekkliste.data as Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null,
+        )
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Besvarelsen kan ikke være tom — fyll ut minst ett felt",
         });
       }
 

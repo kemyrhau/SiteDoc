@@ -5,6 +5,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Printer, Pencil } from "lucide-react";
+import { harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
@@ -472,6 +473,15 @@ export default function SjekklisteDetaljSide() {
     return prefix ? `${prefix}-${nummerPad}` : nummerPad;
   }, [fullSjekkliste?.number, sjekkliste?.template?.prefix]);
 
+  // P2 (tom-besvarelse): speiler server-guarden. Beregnes fra lagret svar-data
+  // (samme delte helper + samme input som serveren) → UI viser aldri en Besvar
+  // serveren avviser. Deaktivert til minst ett svar-felt er utfylt og lagret.
+  const besvarDeaktivertGrunn = useMemo(() => {
+    const objs = (sjekkliste?.template?.objects ?? []) as { id: string; type: string }[];
+    const data = ((sjekkliste as unknown as { data?: unknown })?.data ?? null) as Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null;
+    return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
+  }, [sjekkliste, t]);
+
   const leseModus = !erRedigerbar;
 
   if (erLaster) {
@@ -635,6 +645,7 @@ export default function SjekklisteDetaljSide() {
             recipientGroupId={fullSjekkliste?.recipientGroupId}
             bestillerUserId={fullSjekkliste?.bestillerUserId}
             lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
+            besvarDeaktivertGrunn={besvarDeaktivertGrunn}
           />
           )}
           <button
