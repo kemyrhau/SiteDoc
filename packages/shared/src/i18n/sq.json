@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Integrimet",
   "kontekstChip.firma": "Kompania",
   "kontekstChip.prosjekt": "Projekti",
+  "kontekstChip.byttTil.firma": "Kalo në pamjen e kompanisë",
+  "kontekstChip.byttTil.prosjekt": "Kalo në pamjen e projektit",
   "kontekstChip.velgFirma": "Zgjidhni kompaninë",
   "kontekstChip.velgProsjekt": "Zgjidhni projektin",
   "kontekstChip.byggeplass": "Vend ndërtimi",

@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Integrari",
   "kontekstChip.firma": "Companie",
   "kontekstChip.prosjekt": "Proiect",
+  "kontekstChip.byttTil.firma": "Comutați la vizualizarea companiei",
+  "kontekstChip.byttTil.prosjekt": "Comutați la vizualizarea proiectului",
   "kontekstChip.velgFirma": "Selectați compania",
   "kontekstChip.velgProsjekt": "Selectați proiectul",
   "kontekstChip.byggeplass": "Şantier de construcţie",

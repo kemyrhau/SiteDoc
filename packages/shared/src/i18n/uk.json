@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Інтеграції",
   "kontekstChip.firma": "Компанія",
   "kontekstChip.prosjekt": "Демонструвати",
+  "kontekstChip.byttTil.firma": "Перейти до перегляду компанії",
+  "kontekstChip.byttTil.prosjekt": "Перейти до перегляду проекту",
   "kontekstChip.velgFirma": "Виберіть компанію",
   "kontekstChip.velgProsjekt": "Виберіть проект",
   "kontekstChip.byggeplass": "Будівельний майданчик",

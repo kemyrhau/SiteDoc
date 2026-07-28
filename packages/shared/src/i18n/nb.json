@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Integrasjoner",
   "kontekstChip.firma": "Firma",
   "kontekstChip.prosjekt": "Prosjekt",
+  "kontekstChip.byttTil.firma": "Bytt til firmavisning",
+  "kontekstChip.byttTil.prosjekt": "Bytt til prosjektvisning",
   "kontekstChip.velgFirma": "Velg firma",
   "kontekstChip.velgProsjekt": "Velg prosjekt",
   "kontekstChip.byggeplass": "Byggeplass",

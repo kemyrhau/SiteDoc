@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Integracijos",
   "kontekstChip.firma": "Įmonė",
   "kontekstChip.prosjekt": "Projektas",
+  "kontekstChip.byttTil.firma": "Perjungti į įmonės vaizdą",
+  "kontekstChip.byttTil.prosjekt": "Perjungti į projekto rodinį",
   "kontekstChip.velgFirma": "Pasirinkite įmonę",
   "kontekstChip.velgProsjekt": "Pasirinkite projektą",
   "kontekstChip.byggeplass": "Statybos aikštelė",

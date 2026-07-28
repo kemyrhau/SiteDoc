@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Integrace",
   "kontekstChip.firma": "Společnost",
   "kontekstChip.prosjekt": "Projekt",
+  "kontekstChip.byttTil.firma": "Přepnout na zobrazení společnosti",
+  "kontekstChip.byttTil.prosjekt": "Přepnout do zobrazení projektu",
   "kontekstChip.velgFirma": "Vyberte společnost",
   "kontekstChip.velgProsjekt": "Vyberte projekt",
   "kontekstChip.byggeplass": "Staveniště",

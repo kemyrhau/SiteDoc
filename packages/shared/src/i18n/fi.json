@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Integraatiot",
   "kontekstChip.firma": "Yritys",
   "kontekstChip.prosjekt": "Projekti",
+  "kontekstChip.byttTil.firma": "Vaihda yritysnäkymään",
+  "kontekstChip.byttTil.prosjekt": "Vaihda projektinäkymään",
   "kontekstChip.velgFirma": "Valitse yritys",
   "kontekstChip.velgProsjekt": "Valitse projekti",
   "kontekstChip.byggeplass": "Rakennustyömaa",

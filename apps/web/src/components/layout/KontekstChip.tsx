@@ -197,8 +197,12 @@ export function KontekstChip() {
   const soneKlasse = erFirmaKontekst
     ? "border-[#f5c97b] bg-[#fef3e2] text-[#92400e]"
     : "border-[#a9c4f5] bg-[#e8effc] text-[#1e40af]";
-  // ⇄-aria/title: mål-nivået. Gjenbruker eksisterende nøkler (ingen generator).
-  const byttLabel = erFirmaKontekst ? t("kontekstChip.prosjekt") : t("kontekstChip.firma");
+  // ⇄-aria/title: dedikert byttehandling-nøkkel (§ 3b a11y, ikke kosmetikk).
+  // Firmakontekst → ⇄ navigerer TIL prosjektvisning, og omvendt. Kun mål-nivåets
+  // navn («Prosjekt»/«Firma») sier ikke til skjermleser at det ER en byttehandling.
+  const byttLabel = erFirmaKontekst
+    ? t("kontekstChip.byttTil.prosjekt")
+    : t("kontekstChip.byttTil.firma");
 
   // --- Trakt-derivat (K3) --------------------------------------------------
   // Firma-raden vises for ALLE roller (R2: popover skal vise prosjektets firma).
