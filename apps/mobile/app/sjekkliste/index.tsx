@@ -94,7 +94,8 @@ export default function SjekklisteListe() {
     ({ item }: { item: SjekklisteRad }) => {
       const nummer = formaterNummer(item.template?.prefix, item.number);
       const undertekst = [
-        item.template?.name,
+        // Undertrykk mal-navnet når det er identisk med tittelen (unngå dobbeltnavn).
+        item.template?.name === item.title ? null : item.template?.name,
         item.byggeplass?.name,
         item.utforerFaggruppe?.name,
       ]

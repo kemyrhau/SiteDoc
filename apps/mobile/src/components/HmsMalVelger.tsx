@@ -95,7 +95,9 @@ export function HmsMalVelger({
                 className="border-b border-gray-100 px-4 py-3"
               >
                 <Text className="text-sm font-semibold text-gray-900">
-                  {mal.prefix ? <Text className="text-gray-500">{mal.prefix} </Text> : null}
+                  {mal.prefix && mal.prefix !== mal.name ? (
+                    <Text className="text-gray-500">{mal.prefix} </Text>
+                  ) : null}
                   {mal.name}
                 </Text>
                 <Text className="mt-0.5 text-xs text-gray-500" numberOfLines={2}>

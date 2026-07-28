@@ -123,7 +123,11 @@ export default function HmsListe() {
   const renderElement = useCallback(
     ({ item }: { item: HmsRad }) => {
       const nummer = formaterNummer(item.template?.prefix, item.number);
-      const undertekst = [item.template?.name, item.bestillerFaggruppe?.name]
+      const undertekst = [
+        // Undertrykk mal-navnet når det er identisk med tittelen (unngå dobbeltnavn).
+        item.template?.name === item.title ? null : item.template?.name,
+        item.bestillerFaggruppe?.name,
+      ]
         .filter(Boolean)
         .join(" · ");
       // SJA er sjekkliste, avvik/RUH er oppgave.
