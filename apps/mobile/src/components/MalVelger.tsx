@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -41,6 +41,20 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
     () => maler?.filter((m) => m.category === kategori) ?? [],
     [maler, kategori],
   );
+
+  // Klikk-kutt: nøyaktig 1 mal → hopp over velgeren og velg den automatisk
+  // (malen vises uansett som felt i opprett-skjemaet). Én gang per åpning.
+  const harAutoValgt = useRef(false);
+  useEffect(() => {
+    if (!synlig) {
+      harAutoValgt.current = false;
+      return;
+    }
+    if (!malQuery.isLoading && filtrerteMaler.length === 1 && !harAutoValgt.current) {
+      harAutoValgt.current = true;
+      onVelg(filtrerteMaler[0]);
+    }
+  }, [synlig, malQuery.isLoading, filtrerteMaler, onVelg]);
 
   return (
     <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
