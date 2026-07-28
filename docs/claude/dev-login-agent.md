@@ -64,6 +64,7 @@ private/lokale adresser, som en fersk app blokkerer uten Local Network-tillatels
 
 **Løsning (omgår hele klassen — loopback er unntatt både ATS og Local Network):**
 
+0. **Tailscale MÅ være oppe FØRST.** `ssh server-ny` går over Tailscale — er den nede, timer tunnelen ut («Operation timed out» på port 22, nettopp det som skjedde 2026-07-28). Sjekk `tailscale status` / koble til FØR steg 1.
 1. Kenneth åpner en SSH-port-forward på Mac-en (hold åpen):
    ```
    ssh -N -L 3301:localhost:3301 server-ny
@@ -82,6 +83,10 @@ Diagnostikk-instrumentering (midlertidig) i `services/auth.ts` logger fullt
 feilobjekt + prober example.com/test.sitedoc.no/{apiUrl} (per-probe timeout) ved
 fetch-feil. **Forkastet:** direkte Tailscale-IP (`100.76.248.15:3301`) — feilet
 pga. Local Network-privacy; localhost er robust uansett.
+
+> **Forholdet til [simulator-ipv6-nordvpn.md](simulator-ipv6-nordvpn.md) (reconcile 2026-07-28):** det dokumentet beskriver den ALTERNATIVE veien (`EXPO_PUBLIC_API_URL=https://api-test.sitedoc.no` + IPv6-off). Den public url-en HAR AAAA → happy-eyeballs prøver IPv6 → henger (hele IPv6-fella). **`localhost:3301`-via-tunnel (denne seksjonen) er PRIMÆR** — loopback har ikke AAAA og sidestepper IPv6-fella helt. Bruk public-url-veien kun hvis tunnelen ikke er et alternativ (f.eks. fysisk enhet uten tunnel).
+>
+> **Metro-port ved flere worktrees:** to Expo/Metro-instanser kan ikke dele port 8081. Kjører Metro fra ett worktree (`SiteDoc/apps/mobile`) og du starter et annet (`SiteDoc-del6b/apps/mobile`), havner det nye på 8082 mens sim-en fortsatt peker på 8081. **Stopp den gamle Metro-en først** (frigi 8081), ELLER åpne `exp://127.0.0.1:8082` i sim-en. Merk: sim-en er en **global macOS-ressurs** (ikke checkout-bundet — enhver Bash-økt når den via `xcrun simctl`); kun Metro (JS-bundelen) er worktree-bundet.
 
 ## Testbrukere (seed)
 

@@ -16,6 +16,8 @@ status: aktiv
 >
 > **Fiks:** `sudo networksetup -setv6off Wi-Fi` → `npx expo start --clear` → ved vedvarende spinner,
 > logg ut/inn i appen for å nullstille SecureStore. Detaljer i [Løsninger](#løsninger-rangert).
+>
+> **⚠️ Denne fella gjelder public-url-veien (`EXPO_PUBLIC_API_URL=https://api-test.sitedoc.no`).** Den PRIMÆRE simulator-veien er `localhost:3301` via SSH-tunnel — se [dev-login-agent.md § Simulator](dev-login-agent.md). Loopback har ikke AAAA og sidestepper IPv6-fella helt (krever Tailscale oppe → tunnel). Bruk denne IPv6-fiksen kun når du MÅ bruke public-url (f.eks. fysisk enhet uten tunnel).
 
 ## ⚠️ Variant 2026-07-20 — rammer også Claude Code selv, og `dig A` lurer deg
 
