@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Интеграции",
   "kontekstChip.firma": "Компания",
   "kontekstChip.prosjekt": "Проект",
+  "kontekstChip.byttTil.firma": "Переключиться на представление компании",
+  "kontekstChip.byttTil.prosjekt": "Переключиться на просмотр проекта",
   "kontekstChip.velgFirma": "Выберите компанию",
   "kontekstChip.velgProsjekt": "Выберите проект",
   "kontekstChip.byggeplass": "Строительная площадка",

@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Integrācijas",
   "kontekstChip.firma": "Uzņēmums",
   "kontekstChip.prosjekt": "Projekts",
+  "kontekstChip.byttTil.firma": "Pārslēdzieties uz uzņēmuma skatu",
+  "kontekstChip.byttTil.prosjekt": "Pārslēdzieties uz projekta skatu",
   "kontekstChip.velgFirma": "Izvēlieties uzņēmumu",
   "kontekstChip.velgProsjekt": "Izvēlieties projektu",
   "kontekstChip.byggeplass": "Būvlaukums",

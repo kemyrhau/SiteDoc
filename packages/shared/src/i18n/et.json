@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Integratsioonid",
   "kontekstChip.firma": "Ettevõte",
   "kontekstChip.prosjekt": "Projekt",
+  "kontekstChip.byttTil.firma": "Lülitu ettevõttevaatele",
+  "kontekstChip.byttTil.prosjekt": "Lülitu projektivaatele",
   "kontekstChip.velgFirma": "Valige ettevõte",
   "kontekstChip.velgProsjekt": "Valige projekt",
   "kontekstChip.byggeplass": "Ehitusplats",

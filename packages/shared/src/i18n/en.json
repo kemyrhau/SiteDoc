@@ -59,6 +59,8 @@
   "firmaNav.integrasjoner": "Integrations",
   "kontekstChip.firma": "Company",
   "kontekstChip.prosjekt": "Project",
+  "kontekstChip.byttTil.firma": "Switch to company view",
+  "kontekstChip.byttTil.prosjekt": "Switch to project view",
   "kontekstChip.velgFirma": "Select company",
   "kontekstChip.velgProsjekt": "Select project",
   "kontekstChip.laster": "Loading …",
