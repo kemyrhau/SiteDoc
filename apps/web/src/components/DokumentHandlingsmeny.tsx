@@ -392,8 +392,11 @@ export function DokumentHandlingsmeny({
     setÅpenMeny(false);
     const erBekreft = trengerBekreft(o.nyStatus);
     const erNudge = NUDGE_TEKSTNOEKLER.has(o.tekstNoekkel);
-    if (erBekreft || erNudge) {
-      setBekreft({ nyStatus: o.nyStatus, tekstNoekkel: o.tekstNoekkel, mottaker: o.mottaker, label: o.label, nudge: erNudge && !erBekreft });
+    // P2: en handling som krever begrunnelse (Besvar/Send tilbake/Avvis) må åpne
+    // bekreftelses-dialogen med påkrevd kommentar — aldri fyre direkte mot serveren.
+    const krevBegrunnelse = statusKreverBegrunnelse(o.nyStatus);
+    if (erBekreft || erNudge || krevBegrunnelse) {
+      setBekreft({ nyStatus: o.nyStatus, tekstNoekkel: o.tekstNoekkel, mottaker: o.mottaker, label: o.label, nudge: (erNudge || krevBegrunnelse) && !erBekreft });
       return;
     }
     utfor(o.nyStatus, o.tekstNoekkel, o.mottaker);

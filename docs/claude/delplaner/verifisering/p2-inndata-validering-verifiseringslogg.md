@@ -86,7 +86,16 @@ Kenneth-vedtak valg **B**: «utfylt felt» = `verdi` ELLER `kommentar` ELLER `ve
 ### Test
 - `statusHandlinger.test.ts`: gammel «kun dismissed» erstattet; nye describe-blokker for kommentar-klassen (responded/in_progress/dismissed true; forwarded/sent false) + `harMinstEttUtfyltFelt`/`feltErBesvart`/`erUtfyllbartFelt`. **376 shared-tester grønne.**
 
+### Ledd 3 — web-bevis (lokal dev) fanget TO reelle bugs (fikset)
+Bevis-oppsett: lokal dev (`NODE_ENV=development` + `tsx --env-file`), dev-login-cookie som test-arbeider (utfører m/ball), seedet received-sjekkliste. Bevis i `SiteDoc/p2-bevis/` (p2-web-01…04).
+
+1. **Web-hookene projiserte bort `data`** (`useSjekklisteSkjema`/`useOppgaveSkjema` returnerte et utvalg UTEN svar-blobben) → `besvarDeaktivertGrunn` leste `undefined` → **Besvar PERMANENT deaktivert på web**, også når dokumentet var utfylt. Fiks: eksponer `data` i begge hookenes retur + type.
+2. **Besvar (responded) rutet ikke gjennom kommentar-dialogen** — web `NUDGE_TEKSTNOEKLER` hadde bare Send tilbake + Avvis; Besvar fyrte direkte → serveren ville avvist «begrunnelse påkrevd» uten at UI ba om den. Fiks: `klikk()` åpner bekreftelses-dialogen for ENHVER `statusKreverBegrunnelse`-status (Besvar/Send tilbake/Avvis).
+3. **Mikrotekst genericisert:** `statushandling.begrunnelsePaakrevd`/`begrunnelsePlaceholder` var avvisning/retur-spesifikke («…ved avvisning», «Begrunnelse for retur») — dialogen tjener nå alle tre handlinger → «Begrunnelse er påkrevd» / «Skriv en begrunnelse…». nb+en + regenerert 13 språk (slettet+regenererte de 2 endrede nøklene siden generate.ts er additiv).
+
+**Bevis (web, 4 skjermbilder):** 01 tom → Besvar deaktivert + tooltip «Fyll ut minst ett felt for å besvare»; 02 utfylt → Besvar åpner dialog «Begrunnelse er påkrevd» + send-knapp deaktivert; 03 kommentar skrevet → send-knapp aktiv; 04 Avvis-dialog samme påkrevd-kommentar (rejection-klassen). Mobil-bevis utestående (A holder simulatoren; ruter til Kenneths re-test — mobil `DokumentHandlingsmeny` viser samme via `visBekreftelse`-modal + undertekst).
+
 ### Build/typecheck-status
-- shared test ✅ 376/376 · api typecheck+build ✅ · web typecheck+build ✅.
+- shared test ✅ 376/376 · api typecheck+build ✅ · web typecheck+build ✅ (etter follow-up-fikser).
 - **Mobil typecheck**: feiler KUN på pre-eksisterende gjeld utenfor min diff (`erstattVedlegg` hook-type-mismatch i `useOppgaveSkjema`/`useSjekklisteSkjema`, `timerSync`, `psi`, `hjem`). Mine tre mobil-filer gir NULL typecheck-feil. Bekreftet: ingen av de feilende filene er i min diff.
 - Fresh worktree krevde `pnpm install --frozen-lockfile` + `prisma generate` (4 db-pakker) for å typecheck'e — ingen nye pakker/schema-endring.
