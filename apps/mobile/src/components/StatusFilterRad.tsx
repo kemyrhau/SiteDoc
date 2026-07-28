@@ -43,7 +43,15 @@ export function StatusFilterRad({
       horizontal
       showsHorizontalScrollIndicator={false}
       className="border-b border-gray-100 bg-white"
-      contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 8, gap: 8 }}
+      // flexGrow:0 hindrer at den horisontale raden vokser vertikalt i
+      // flex-kolonnen; alignItems:center hindrer at chip-ene strekkes på tvers.
+      style={{ flexGrow: 0 }}
+      contentContainerStyle={{
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        gap: 8,
+        alignItems: "center",
+      }}
     >
       <Chip
         label={t("status.alle")}
