@@ -524,9 +524,22 @@ export default function HjemSkjerm() {
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
 
-              <Pressable className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+              <Pressable
+                onPress={() => router.push("/kontrollplan")}
+                className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+              >
                 <Text className="text-base font-semibold text-gray-900">
                   {t("hjem.kontrollplaner")}
+                </Text>
+                <ChevronRight size={20} color="#9ca3af" />
+              </Pressable>
+
+              <Pressable
+                onPress={() => router.push("/hms")}
+                className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+              >
+                <Text className="text-base font-semibold text-gray-900">
+                  {t("hjem.hms")}
                 </Text>
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>

@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   View,
   Text,
@@ -10,10 +10,13 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { ArrowLeft, Plus } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
+import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
 import { StatusMerkelapp } from "../../src/components/StatusMerkelapp";
+import { StatusFilterRad } from "../../src/components/StatusFilterRad";
 import { MalVelger } from "../../src/components/MalVelger";
 import { OpprettDokumentModal } from "../../src/components/OpprettDokumentModal";
 import { ByggeplassChip } from "../../src/components/ByggeplassChip";
@@ -46,19 +49,42 @@ function formaterNummer(prefix: string | null | undefined, nummer: number | null
 }
 
 export default function SjekklisteListe() {
+  const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
+  const { valgtBygningId } = useByggeplass();
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const [visVelger, settVisVelger] = useState(false);
   const [valgtMal, settValgtMal] = useState<MalData | null>(null);
+  const [statusFilter, settStatusFilter] = useState<string | null>(null);
 
+  // Byggeplass filtreres serverside via global aktiv byggeplass (myk filter:
+  // serveren tar OR byggeplassId=null). Status filtreres klientside under.
   const sjekklisteQuery = trpc.sjekkliste.hentForProsjekt.useQuery(
-    { projectId: valgtProsjektId! },
+    { projectId: valgtProsjektId!, byggeplassId: valgtBygningId ?? undefined },
     { enabled: !!valgtProsjektId },
   );
 
   const sjekklister = sjekklisteQuery.data as SjekklisteRad[] | undefined;
+
+  // Kun statuser som faktisk finnes i (den byggeplass-filtrerte) lista.
+  const tilgjengeligeStatuser = useMemo(
+    () => Array.from(new Set((sjekklister ?? []).map((s) => s.status))),
+    [sjekklister],
+  );
+
+  // Nullstill implisitt hvis valgt status forsvant (f.eks. byttet byggeplass).
+  const effektivStatus =
+    statusFilter && tilgjengeligeStatuser.includes(statusFilter) ? statusFilter : null;
+
+  const synlige = useMemo(
+    () =>
+      effektivStatus
+        ? (sjekklister ?? []).filter((s) => s.status === effektivStatus)
+        : sjekklister ?? [],
+    [sjekklister, effektivStatus],
+  );
 
   const onRefresh = useCallback(() => {
     queryClient.invalidateQueries();
@@ -106,7 +132,7 @@ export default function SjekklisteListe() {
             <ArrowLeft size={22} color="#ffffff" />
           </Pressable>
           <Text className="ml-3 text-lg font-semibold text-white">
-            Sjekklister
+            {t("nav.sjekklister")}
           </Text>
         </View>
         <Pressable onPress={() => settVisVelger(true)} hitSlop={12}>
@@ -114,17 +140,24 @@ export default function SjekklisteListe() {
         </Pressable>
       </View>
 
-      {/* F2: global byggeplass-chip */}
+      {/* F2: global byggeplass-chip (filtrerer lista serverside) */}
       <ByggeplassChip />
+
+      {/* Status-filter — kun statuser som finnes i lista */}
+      <StatusFilterRad
+        statuser={tilgjengeligeStatuser}
+        valgt={effektivStatus}
+        onVelg={settStatusFilter}
+      />
 
       {sjekklisteQuery.isLoading ? (
         <View className="flex-1 items-center justify-center">
           <ActivityIndicator size="large" color="#1e40af" />
-          <Text className="mt-3 text-sm text-gray-500">Henter sjekklister...</Text>
+          <Text className="mt-3 text-sm text-gray-500">{t("handling.laster")}</Text>
         </View>
       ) : (
         <FlatList
-          data={sjekklister ?? []}
+          data={synlige}
           keyExtractor={(item) => item.id}
           renderItem={renderElement}
           refreshControl={
@@ -135,7 +168,9 @@ export default function SjekklisteListe() {
           }
           ListEmptyComponent={
             <View className="items-center px-4 pt-20">
-              <Text className="text-base text-gray-500">Ingen sjekklister</Text>
+              <Text className="text-base text-gray-500">
+                {effektivStatus ? t("tom.ingenMatcherFilter") : t("tom.ingenSjekklister")}
+              </Text>
             </View>
           }
         />
