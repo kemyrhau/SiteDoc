@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   View,
   Text,
@@ -41,6 +41,26 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
     () => maler?.filter((m) => m.category === kategori) ?? [],
     [maler, kategori],
   );
+
+  // Klikk-kutt: nøyaktig 1 mal → hopp over velgeren og velg den automatisk
+  // (malen vises uansett som felt i opprett-skjemaet). Én gang per åpning.
+  const skalAutoVelge = !malQuery.isLoading && filtrerteMaler.length === 1;
+  const harAutoValgt = useRef(false);
+  useEffect(() => {
+    if (!synlig) {
+      harAutoValgt.current = false;
+      return;
+    }
+    if (skalAutoVelge && !harAutoValgt.current) {
+      harAutoValgt.current = true;
+      onVelg(filtrerteMaler[0]);
+    }
+  }, [synlig, skalAutoVelge, filtrerteMaler, onVelg]);
+
+  // Ved auto-velg (eller mens maler lastes) rendres IKKE velger-modalen — så
+  // den aldri sklir inn og ut samtidig som opprett-modalen animeres inn (to
+  // samtidige pageSheet-modaler kolliderer på iOS). Kun ≥2 maler viser velger.
+  if (synlig && (malQuery.isLoading || skalAutoVelge)) return null;
 
   return (
     <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">

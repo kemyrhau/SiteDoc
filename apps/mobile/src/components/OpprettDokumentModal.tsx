@@ -16,8 +16,8 @@ import { ChevronDown, MapPin } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import * as Location from "expo-location";
 import { trpc } from "../lib/trpc";
+import { formaterServerFeil } from "../lib/feil";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
-import { useFirma } from "../kontekst/FirmaKontekst";
 import { useByggeplass } from "../kontekst/ByggeplassKontekst";
 
 // F1 (Option B): sist-brukt byggeplass/tegning leses fra og skrives til
@@ -140,6 +140,7 @@ export function OpprettDokumentModal({
   } = useByggeplass();
 
   const [emne, setEmne] = useState("");
+  const [tittel, setTittel] = useState("");
   const [prioritet, setPrioritet] = useState<Prioritet>("medium");
   const [oppretterFaggruppeId, setOppretterFaggruppeId] = useState<string | null>(null);
   const [valgtBygningId, setValgtBygningId] = useState<string | null>(null);
@@ -152,6 +153,16 @@ export function OpprettDokumentModal({
   const [visBygningListe, setVisBygningListe] = useState(false);
   const [visTegningListe, setVisTegningListe] = useState(false);
   const [visEmneListe, setVisEmneListe] = useState(false);
+
+  // Default oppgave-tittel = malnavn ved modalåpning (redigerbar). Kun på
+  // false→true-overgang, så brukerens redigering ikke overskrives.
+  const forrigeSynlig = useRef(false);
+  useEffect(() => {
+    if (synlig && !forrigeSynlig.current && kategori === "oppgave") {
+      setTittel(mal.name);
+    }
+    forrigeSynlig.current = synlig;
+  }, [synlig, kategori, mal.name]);
 
   // Hent ALLE tegninger for prosjektet (for GPS-matching, ufiltrert)
   const alleTegningerQuery = trpc.tegning.hentForProsjekt.useQuery(
@@ -223,15 +234,14 @@ export function OpprettDokumentModal({
     : [];
   const harSubjects = malSubjects.length > 0;
 
-  // Hent prosjektnavn for auto-tittel — gated på valgt firma
-  const { valgtFirmaId } = useFirma();
-  const prosjektQuery = trpc.prosjekt.hentMine.useQuery(
-    { organizationId: valgtFirmaId ?? undefined },
-    { enabled: synlig && !!valgtFirmaId },
+  // Hent prosjektnavn via id (medlemssjekk, IKKE firma-scopet) — resolver
+  // uansett firma-valg. Rettet: firma-scopet hentMine ga tom prosjektNavn for
+  // fler-firma-brukere → «Prosjekt: Laster…» hang + tom oppgave-tittel.
+  const prosjektQuery = trpc.prosjekt.hentMedId.useQuery(
+    { id: valgtProsjektId! },
+    { enabled: synlig && !!valgtProsjektId },
   );
-  const prosjekter = prosjektQuery.data ?? [];
-  const valgtProsjekt = prosjekter.find((p: { id: string }) => p.id === valgtProsjektId);
-  const prosjektNavn = valgtProsjekt?.name ?? "";
+  const prosjektNavn = (prosjektQuery.data as { name?: string } | undefined)?.name ?? "";
 
   // Hent brukerens faggrupper (filtrert til mine)
   const mineFaggrupperQuery = trpc.medlem.hentMineFaggrupper.useQuery(
@@ -356,8 +366,8 @@ export function OpprettDokumentModal({
       nullstillSkjema();
       onOpprettet(resultat.id);
     },
-    onError: (feil: { message: string }) => {
-      Alert.alert(t("feil.tittel"), feil.message || t("opprettModal.kunneIkkeOpprette"));
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.tittel"), formaterServerFeil(feil, t("opprettModal.kunneIkkeOpprette")));
     },
   });
 
@@ -368,8 +378,8 @@ export function OpprettDokumentModal({
       nullstillSkjema();
       onOpprettet(resultat.id);
     },
-    onError: (feil: { message: string }) => {
-      Alert.alert(t("feil.tittel"), feil.message || t("opprettModal.kunneIkkeOpprette"));
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.tittel"), formaterServerFeil(feil, t("opprettModal.kunneIkkeOpprette")));
     },
   });
 
@@ -377,6 +387,7 @@ export function OpprettDokumentModal({
 
   const nullstillSkjema = useCallback(() => {
     setEmne("");
+    setTittel("");
     setPrioritet("medium");
     setOppretterFaggruppeId(null);
     setValgtDokumentflytId(null);
@@ -425,10 +436,10 @@ export function OpprettDokumentModal({
         drawingId: valgtTegningId ?? undefined,
       });
     } else {
-      // Oppgave-tittel: fra sjekkliste eller prosjektnavn
+      // Oppgave-tittel: fra sjekklistefelt, ellers redigert tittel (default malnavn).
       const oppgaveTittel = erFraSjekkliste && sjekklisteNummer && feltLabel
         ? `Oppgave fra ${sjekklisteNummer}: ${feltLabel}`
-        : prosjektNavn;
+        : (tittel.trim() || mal.name);
 
       opprettOppgave.mutate({
         templateId: mal.id,
@@ -446,7 +457,8 @@ export function OpprettDokumentModal({
     autoSvarerFaggruppeId,
     kategori,
     mal.id,
-    prosjektNavn,
+    mal.name,
+    tittel,
     emne,
     valgtBygningId,
     valgtTegningId,
@@ -527,6 +539,21 @@ export function OpprettDokumentModal({
               {prosjektNavn || t("handling.laster")}
             </Text>
           </View>
+
+          {/* 2b. Tittel (oppgave) — redigerbar, default malnavn. Løpenummer
+              tildeles + vises automatisk etter opprettelse. */}
+          {erOppgave && (
+            <View className="border-b border-gray-100 px-4 py-3">
+              <Text className="mb-1 text-xs font-medium text-gray-500">{t("opprettModal.tittel")}</Text>
+              <TextInput
+                value={tittel}
+                onChangeText={setTittel}
+                placeholder={mal.name}
+                placeholderTextColor="#9ca3af"
+                className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm text-gray-800"
+              />
+            </View>
+          )}
 
           {/* 3. Emne — dropdown med forhåndsdefinerte tekster, eller fritekst som fallback */}
           {!erOppgave && (

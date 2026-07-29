@@ -1,7 +1,11 @@
 import { View, Text } from "react-native";
 import { useTranslation } from "react-i18next";
 
-const STATUS_MAP: Record<string, { noekkel: string; bg: string; tekstFarge: string }> = {
+/**
+ * Status → i18n-nøkkel + farge. Delt kilde: brukes både av `StatusMerkelapp`
+ * (badge) og `StatusFilterRad` (filter-chip) så fargespråket er ett sted.
+ */
+export const STATUS_MAP: Record<string, { noekkel: string; bg: string; tekstFarge: string }> = {
   draft: { noekkel: "status.utkast", bg: "bg-gray-100", tekstFarge: "text-gray-700" },
   sent: { noekkel: "status.sendt", bg: "bg-blue-100", tekstFarge: "text-blue-700" },
   received: { noekkel: "status.mottatt", bg: "bg-indigo-100", tekstFarge: "text-indigo-700" },
