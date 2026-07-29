@@ -90,6 +90,16 @@ Full statusmaskin-redesign (F0–F6), flytrettigheter (H3/H6) + flyt-posisjon-he
 
 **Gjenstår (ikke deployert-blokkerende):** F6-oppfølger (`received→approved` som default — antatt trygg) · posisjonsutredning (H1/N-boks — `steg`-feltet finnes) · registrator-steg-1-validering · H2 (utførers venstre-send/tilbake-kant) · besvar=venstre-modellspenning · konsolidering (§ 0 delt-kilde-refaktor, egen fase). Nye aktive spor: interim sjekklistegrense-guard (`feat/sjekklistegrense-firma`) · firma-produktmodell-byggeordre (parkert til guard + admin lander) · admin fase 2 (Ctrl+K tverrgående søk + Activity-skriving → deretter sletting global prosjektliste).
 
+### ✅ Effektivitets-runden (audit + Send-bugfiks + 6 wire-ins + handlingslinje-redesign) — PÅ DEVELOP + TEST-DEPLOYET 2026-07-29, venter prod
+
+Fabels **Effektivitets-gate** (klikk-budsjett obligatorisk i brukervendte ordrer — gjenoppretting av `domene-arbeidsflyt.md`-prinsippet, `docs/redesign/FABEL-RAMMEVERK.md`) + **effektivitets-audit** (`verifisering/effektivitets-audit-2026-07.md`) → prioritert fiks-plan (`delplaner/effektivitets-fiksplan-2026-07-29.md`, P1–P5).
+
+- **P1 Send-bugfiks** (merget `402b9ce4`): «Send fram» fjernet fra `received`/`responded`/`approved` (recipient-løs no-op — server auto-konverterte tilbake, markøren flyttet seg aldri) + first-match rolle-konsistens (`flyt-ledd.ts`) + flytmatrise-konsistens. Delt kilde, ingen tilgangskontroll rørt.
+- **P2 småsaker** (merget `402b9ce4`, 6 wire-ins): byggeplass/tegning i opprett-mutasjoner (V2=(A) ren wiring), lønnsart-prefill web, fjernet suksess-Alert (sjekkliste-mobil), galleri-kobling `FeltDokumentasjon`, V3 web auto-hopp malvelger (**del6b-web-paritet innfridd**), onSlett-wiring (fikset utkast-slett-no-op på oppgave-detalj).
+- **P3 handlingslinje-redesign** (merget `50ce6d90`): primær + split-▾ med øvrige lovlige handlinger — **5 → 2 flate elementer**; ett-trykks-utkast-slett (papirkurv = sikring). Fabel-godkjent på dev-harness-bevis. `verifisering/handlingslinje-redesign-verifiseringslogg.md`.
+
+Test-deployet web 2026-07-29 (sekvensielt bygg, prod urørt). **Venter prod-verifisering + prod-deploy.** Restanser i BACKLOG: `in_progress→sent`-måling (§8A-nabo), oppgave direkte `byggeplassId` (V2 sak B), oppgave suksess-Alert-paritet, mobil handlingslinje (V5b/P5), mobil utkast-slett. Neste fiks-spor: P4 ett-klikk opprett, P5 øvrige.
+
 ### Sjekkliste ikke append-only (branch `fix/sjekkliste-ikke-append-only`) — PÅ BRANCH, venter merge
 
 **Regresjonsfiks fra `04f6d295`** (kun develop/test, prod ikke rammet). `04f6d295` slo på append-only felt-låsing i alle fire skjema-hooks. Riktig for oppgave (mobil manglet den), **feil for sjekkliste** (spec `dokumentflyt.md § 2`: sjekkliste er redigerbar for den som har ballen + admin/registrator) — et innsendt tallfelt ble permanent låst, også for admin.
