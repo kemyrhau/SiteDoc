@@ -34,6 +34,68 @@ export function harFeltVerdi(verdi: unknown): boolean {
   );
 }
 
+/**
+ * Felttyper som IKKE er bruker-utfyllbare svar: ren visning (`heading`/`subtitle`),
+ * skjult i utfylling (`location`/`drawing_position`) og auto-utledet (`calculation`).
+ * Delt kilde med web-rendreren (`RapportObjektRenderer` DISPLAY/SKJULT/READONLY) og
+ * P2-guarden (tom-besvarelse) så «hva er et svar-felt» ikke divergerer.
+ */
+export const IKKE_UTFYLLBARE_FELTTYPER: ReadonlySet<string> = new Set([
+  "heading",
+  "subtitle",
+  "location",
+  "drawing_position",
+  "calculation",
+]);
+
+/** Er felttypen et bruker-utfyllbart svar-felt (ikke visning/skjult/auto-utledet)? */
+export function erUtfyllbartFelt(type: string): boolean {
+  return !IKKE_UTFYLLBARE_FELTTYPER.has(type);
+}
+
+/** Ett lagret svar slik det ligger i `Checklist.data`/`Task.data`. */
+interface Besvarelsesfelt {
+  verdi?: unknown;
+  kommentar?: unknown;
+  vedlegg?: unknown;
+}
+
+/**
+ * Er feltet besvart? P2 (Kenneth-vedtak 2026-07-21, valg B): et svar teller hvis
+ * brukeren har gitt ÉN av tre — `verdi`, `kommentar` eller `vedlegg`. Fanger foto-/
+ * kommentar-svar uten verdi (feltarbeiderens vanligste flyt), ikke bare `verdi`.
+ */
+export function feltErBesvart(felt: Besvarelsesfelt | undefined | null): boolean {
+  if (!felt) return false;
+  return (
+    harFeltVerdi(felt.verdi) ||
+    harFeltVerdi(felt.kommentar) ||
+    (Array.isArray(felt.vedlegg) && felt.vedlegg.length > 0)
+  );
+}
+
+/**
+ * Har en besvarelse minst ett utfylt svar-felt? Tom-besvarelse-guarden (P2): en
+ * utfylling/besvarelse (→`responded`) kan aldri sendes tom.
+ *
+ * @param felter malens objekter (`id` + `type`). Display/skjulte/auto-felt filtreres bort.
+ * @param data   svarene (`Checklist.data`/`Task.data`).
+ * @returns true når malen ikke har utfyllbare felt (ingenting å fylle → ikke «tom»),
+ *          ellers true bare hvis minst ett utfyllbart felt er besvart.
+ */
+export function harMinstEttUtfyltFelt(
+  felter: ReadonlyArray<{ id: string; type: string }>,
+  data: Record<string, Besvarelsesfelt | undefined> | null | undefined,
+): boolean {
+  // Malen brukes kun til å avgjøre OM det finnes noe å fylle. Selve «har svart»-
+  // sjekken går mot `data` (enhver registrert svar-oppføring) — robust mot nestede
+  // felt/repeater-nøkler som ikke nødvendigvis matcher et topp-nivå objekt-id.
+  const harUtfyllbare = felter.some((f) => erUtfyllbartFelt(f.type));
+  if (!harUtfyllbare) return true;
+  if (!data) return false;
+  return Object.values(data).some(feltErBesvart);
+}
+
 /** Ett lagret felt slik det ligger i `Checklist.data`/`Task.data`. */
 interface LagretFelt {
   verdi?: unknown;

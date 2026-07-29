@@ -29,7 +29,7 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, beregnHarBallen } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, beregnHarBallen, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { FlytIndikator } from "../../src/components/FlytIndikator";
@@ -343,6 +343,14 @@ export default function OppgaveDetalj() {
     hentFeltVerdi,
     settVerdi,
   });
+
+  // P2 (tom-besvarelse): speiler server-guarden fra lokal svar-tilstand (samme delte
+  // helper som web + server). Deaktiverer Besvar til minst ett svar-felt er utfylt.
+  const besvarDeaktivertGrunn = useMemo(() => {
+    const objs = (oppgave?.template?.objects ?? []) as { id: string; type: string }[];
+    const data = Object.fromEntries(objs.map((o) => [o.id, hentFeltVerdi(o.id)]));
+    return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
+  }, [oppgave?.template?.objects, hentFeltVerdi, t]);
 
   const håndterTilbake = useCallback(async () => {
     if (harEndringer) {
@@ -803,6 +811,7 @@ export default function OppgaveDetalj() {
           tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["tilgjengeligeFlyter"]}
           minRolle={minRolle ?? null}
           adminNiva={minFlytInfo?.adminNiva ?? null}
+          besvarDeaktivertGrunn={besvarDeaktivertGrunn}
         />
 
         {/* Lagre-knapp */}

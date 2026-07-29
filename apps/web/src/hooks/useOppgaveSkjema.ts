@@ -41,6 +41,8 @@ export interface UseOppgaveSkjemaResultat {
     bestillerFaggruppe: { id: string; name: string } | null;
     utforerFaggruppe: { id: string; name: string } | null;
     number: number | null;
+    /** Lagrede svar (P2 tom-besvarelse-guard leser dette for server-paritet). */
+    data: Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null;
   } | undefined;
   erLaster: boolean;
   hentFeltVerdi: (objektId: string) => FeltVerdi;
@@ -323,6 +325,7 @@ export function useOppgaveSkjema(oppgaveId: string, rettighetInput?: RettighetIn
           bestillerFaggruppe: oppgave.bestillerFaggruppe,
           utforerFaggruppe: oppgave.utforerFaggruppe,
           number: oppgave.number,
+          data: (oppgave.data ?? null) as Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null,
         }
       : undefined,
     erLaster: oppgaveQuery.isLoading,

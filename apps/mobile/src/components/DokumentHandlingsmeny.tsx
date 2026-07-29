@@ -65,6 +65,12 @@ interface Props {
    * serveren uansett avviste; prosjektadmin (server ga full) beholder paritet.
    */
   adminNiva?: AdminNiva;
+  /**
+   * P2 (tom-besvarelse): når satt, er «Besvar» (responded) deaktivert fordi
+   * besvarelsen er tom. Teksten vises under handlingen. Beregnes på detaljflaten
+   * (der svarene finnes) — komponenten forblir innholds-agnostisk. Speiler serveren.
+   */
+  besvarDeaktivertGrunn?: string | null;
 }
 
 const BOKS_WIDTH = 36;
@@ -79,6 +85,7 @@ export function DokumentHandlingsmeny({
   tilgjengeligeFlyter,
   minRolle,
   adminNiva,
+  besvarDeaktivertGrunn,
 }: Props) {
   const { t } = useTranslation();
   const [valgtBoksIdx, setValgtBoksIdx] = useState<number | null>(null);
@@ -136,7 +143,12 @@ export function DokumentHandlingsmeny({
 
   const valgtLedd = valgtBoksIdx !== null ? ledd[valgtBoksIdx] : null;
 
+  // P2 (tom-besvarelse): «Besvar» blokkeres når besvarelsen er tom (speiler serveren).
+  const erBesvarBlokkert = (nyStatus: string) =>
+    nyStatus === "responded" && !!besvarDeaktivertGrunn;
+
   function bekreftStatus(handling: StatusHandling, dokumentflytId?: string) {
+    if (erBesvarBlokkert(handling.nyStatus as string)) return;
     const label = t(handling.tekstNoekkel);
     const tekst = t("statushandling.bekreftSendBytte", { status: label });
     setVisBekreftelse({
@@ -306,16 +318,25 @@ export function DokumentHandlingsmeny({
                       {t("dokumentflyt.ingenHandlinger")}
                     </Text>
                   ) : (
-                    boksStatusHandlinger.map((h) => (
-                      <Pressable
-                        key={h.nyStatus}
-                        onPress={() => bekreftStatus(h)}
-                        disabled={erLaster}
-                        className={`items-center rounded-lg py-3 ${h.farge}`}
-                      >
-                        <Text className="font-medium text-white">{t(h.tekstNoekkel)}</Text>
-                      </Pressable>
-                    ))
+                    boksStatusHandlinger.map((h) => {
+                      const blokkert = erBesvarBlokkert(h.nyStatus as string);
+                      return (
+                        <View key={h.nyStatus} className="gap-1">
+                          <Pressable
+                            onPress={() => bekreftStatus(h)}
+                            disabled={erLaster || blokkert}
+                            className={`items-center rounded-lg py-3 ${h.farge} ${blokkert ? "opacity-40" : ""}`}
+                          >
+                            <Text className="font-medium text-white">{t(h.tekstNoekkel)}</Text>
+                          </Pressable>
+                          {blokkert && (
+                            <Text className="text-center text-xs text-gray-500">
+                              {besvarDeaktivertGrunn}
+                            </Text>
+                          )}
+                        </View>
+                      );
+                    })
                   )}
                 </View>
               </>

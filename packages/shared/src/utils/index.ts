@@ -56,7 +56,14 @@ export {
 export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
 export { carveArbeidstider } from "./carveArbeidstid";
 export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
-export { harFeltVerdi, beregnLaasteFelter } from "./feltLaasing";
+export {
+  harFeltVerdi,
+  beregnLaasteFelter,
+  erUtfyllbartFelt,
+  feltErBesvart,
+  harMinstEttUtfyltFelt,
+  IKKE_UTFYLLBARE_FELTTYPER,
+} from "./feltLaasing";
 export { avgjorDokumentTilgang } from "./avgjorDokumentTilgang";
 export type { TilgangsFakta, TilgangsResultat } from "./avgjorDokumentTilgang";
 export {
@@ -130,12 +137,26 @@ export function isValidStatusTransition(
 }
 
 /**
- * Statusoverganger som krever en ikke-tom begrunnelse (F1, gate-JA #2).
- * Bryter bevisst «fritekst = valgfritt»-presedensen — Kenneth-vedtatt: en avvisning
- * skal alltid bære en begrunnelse. Delt kilde for server-validering (Zod-gate i
- * endreStatus) og klient-validering (web + mobil handlingsmeny), så regelen ikke
- * kan divergere mellom lagene.
+ * Statusoverganger som krever en ikke-tom begrunnelse/kommentar.
+ *
+ * Bryter bevisst «fritekst = valgfritt»-presedensen. P2 (Kenneth-vedtak 2026-07-21,
+ * valg B) utvidet fra kun `dismissed` (Avvis, F1) til hele kommentar-klassen:
+ *   - `dismissed`   — Avvis (F1)
+ *   - `in_progress` — Send tilbake (responded→in_progress, F3)
+ *   - `responded`   — Besvar
+ * Videresend (`forwarded`) og Send (`sent`) er UNNTAK — krever ikke kommentar.
+ * Hver mål-status er enekilde til sin handling (målt Ledd 1), så `nyStatus` alene
+ * skiller rent uten per-flate if-er.
+ *
+ * Delt kilde for server-validering (Zod-gate i endreStatus) og klient-validering
+ * (web + mobil handlingsmeny), så regelen ikke kan divergere mellom lagene.
  */
+const STATUS_KREVER_BEGRUNNELSE: ReadonlySet<string> = new Set([
+  "dismissed",
+  "in_progress",
+  "responded",
+]);
+
 export function statusKreverBegrunnelse(nyStatus: string): boolean {
-  return nyStatus === "dismissed";
+  return STATUS_KREVER_BEGRUNNELSE.has(nyStatus);
 }
