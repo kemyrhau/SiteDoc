@@ -8,6 +8,7 @@ import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@
 import { beregnHarBallen } from "@sitedoc/shared";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
@@ -342,9 +343,22 @@ export default function OppgaverSide() {
   // «Mine oppgaver»-filter (Del 1d): trenger userId + gruppeIder for beregnHarBallen.
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
 
+  // P4b: sist brukt oppgavemal (klient-lokal interim, se useSistBrukteMal).
+  // Oppgave-mal → flyt er DETERMINISTISK (matchDf i handleOpprettFraMal), så en
+  // per-prosjekt-nøkkel kan aldri gi «feil mal på tvers av flyter» — å velge mal
+  // X ruter alltid til X sin flyt. (Skiller seg fra sjekkliste, der samme mal kan
+  // ligge i flere flyter og nøkkelen derfor må være per flyt.)
+  const { sistBrukt, settSistBrukt } = useSistBrukteMal(minFlytInfo?.userId);
+  const oppgaveMalNøkkel = `oppgave:${params.prosjektId}`;
+  const sisteMalRef = useRef<string | null>(null);
+
   const opprettMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown) => {
       const resultat = _data as { id: string };
+      if (sisteMalRef.current) {
+        settSistBrukt(oppgaveMalNøkkel, sisteMalRef.current);
+        sisteMalRef.current = null;
+      }
       utils.oppgave.hentForProsjekt.invalidate({ projectId: params.prosjektId });
       setVisModal(false);
       router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
@@ -366,6 +380,8 @@ export default function OppgaverSide() {
   ]);
 
   function handleOpprettFraMal(malId: string) {
+    // P4b: husk malen til onSuccess skriver sist-brukt-signalet (interim).
+    sisteMalRef.current = malId;
     // Hent malen med domain fra API-data (ikke fra type-castet oppgaveMaler)
     const alleMalerTypet = (maler ?? []) as Array<{ id: string; name: string; domain?: string | null; category: string }>;
     const malMedDomain = alleMalerTypet.find((m) => m.id === malId);
@@ -428,14 +444,20 @@ export default function OppgaverSide() {
     });
   }
 
-  // V3 (del6b web-paritet): åpner malvelgeren — men ved nøyaktig 1 mal hoppes
-  // liste-steget over og malen opprettes direkte (speiler mobil MalVelger).
-  // Ruting følger dagens detaljside-rute via handleOpprettFraMal.
+  // V3 (del6b web-paritet) + P4b auto-hopp: ved nøyaktig 1 mal opprettes den
+  // direkte (speiler mobil MalVelger). Ved flere maler brukes sist-brukt-signalet
+  // (klient-lokal interim): treffer det en mal som fortsatt finnes → opprett
+  // direkte; ellers mellomvalget (modalen). Aldri gjett blindt.
   function åpneMalVelger() {
     const eneste = oppgaveMaler.length === 1 ? oppgaveMaler[0] : undefined;
     if (eneste) {
       handleOpprettFraMal(eneste.id);
     } else {
+      const sistMalId = sistBrukt(oppgaveMalNøkkel);
+      if (sistMalId && oppgaveMaler.some((m) => m.id === sistMalId)) {
+        handleOpprettFraMal(sistMalId);
+        return;
+      }
       setVisModal(true);
     }
   }
