@@ -502,8 +502,9 @@ export function DokumentHandlingsmeny({
     ? { tittel: t(primærHandling.tekstNoekkel), tekst: besvarDeaktivertGrunn! }
     : primærMikro;
 
-  // Fiks 1 (klikktest): kryssflyt-nedtrekket er «Videresend» (ikke-draft) med egen flythjelp-hover —
-  // tydelig skilt fra F5s «Send» (fram i flyten). Draft beholder «Send» (førstegangs-send til faggruppe).
+  // Fiks 1 (klikktest): kryssflyt-nedtrekket er «Videresend» (ikke-draft) med egen flythjelp-hover.
+  // §8A (2026-07-29): F5s «Send fram» fra received/responded/approved er fjernet (recipient-løs no-op);
+  // draft beholder «Send» (førstegangs-send til faggruppe, setter recipient via person-velger).
   const erVideresendNedtrekk = harForwarded && !draftSend;
   const videresendMikro = erVideresendNedtrekk && forwardedHandling
     ? mikrotekst(forwardedHandling.tekstNoekkel, "forwarded", t("statushandling.videresend"))

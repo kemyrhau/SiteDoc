@@ -155,30 +155,55 @@ export function finnAktivtIndex(
   if (ledd.length === 0) return -1;
   if (status === "closed" || status === "approved") return -1;
 
+  const kandidatRoller = forventetRolleKandidater(status);
+
   if (status === "draft" || status === "cancelled") {
     if (bestillerUserId) {
       const idx = ledd.findIndex((l) => l.brukerIder.has(bestillerUserId));
       if (idx !== -1) return idx;
     }
     // Kladd/tilbaketrukket ligger hos bestiller-ledden (ellers første ledd).
-    return finnRolleIndex(ledd, forventetRolleKandidater(status)) ?? 0;
+    return finnRolleIndex(ledd, kandidatRoller) ?? 0;
   }
 
   // 1) Recipient-identitet → rolle-ledden som faktisk holder dokumentet.
+  // §8A-fiks (2026-07-29): når SAMME part fyller flere rolle-ledd (utfører=godkjenner), matcher
+  // recipient-ID-en flere ledd. Blind first-match låste da markøren til lavest-rangerte ledd
+  // (utfører) selv når ballen semantisk sto framme hos godkjenner. Foretrekk derfor leddet som er
+  // konsistent med forventet rolle for statusen; ved bare ett treff er dette identisk med før.
   if (recipientGroupId) {
-    const idx = ledd.findIndex((l) => l.gruppeIder.has(recipientGroupId));
+    const idx = velgLeddMedRolle(ledd, (l) => l.gruppeIder.has(recipientGroupId), kandidatRoller);
     if (idx !== -1) return idx;
   }
   if (recipientUserId) {
-    const idx = ledd.findIndex((l) => l.brukerIder.has(recipientUserId));
+    const idx = velgLeddMedRolle(ledd, (l) => l.brukerIder.has(recipientUserId), kandidatRoller);
     if (idx !== -1) return idx;
   }
 
   // 2) Fallback: forventet rolle for statusen (ikke blindt siste ledd).
-  const idx = finnRolleIndex(ledd, forventetRolleKandidater(status));
+  const idx = finnRolleIndex(ledd, kandidatRoller);
   if (idx !== null) return idx;
 
   return ledd.length - 1;
+}
+
+/**
+ * Indeksen til leddet som matcher recipient-predikatet. Ved treff på FLERE ledd (samme part i
+ * flere roller) foretrekkes det som matcher en forventet rolle for statusen, i preferanse-
+ * rekkefølge; ellers første treff. -1 = ingen treff (fall videre til rolle-fallback).
+ */
+function velgLeddMedRolle(
+  ledd: Ledd[],
+  match: (l: Ledd) => boolean,
+  kandidatRoller: string[],
+): number {
+  const treff = ledd.flatMap((l, i) => (match(l) ? [i] : []));
+  if (treff.length <= 1) return treff[0] ?? -1;
+  for (const rolle of kandidatRoller) {
+    const idx = treff.find((i) => ledd[i]!.rolle === rolle);
+    if (idx !== undefined) return idx;
+  }
+  return treff[0]!;
 }
 
 /** Første ledd som matcher én av rolle-kandidatene (i preferanserekkefølge). */

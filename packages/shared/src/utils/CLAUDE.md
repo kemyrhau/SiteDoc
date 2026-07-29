@@ -49,7 +49,7 @@ interface StatusHandling {
 }
 ```
 
-Returnerer tom array for terminale statuser (`closed`, `cancelled`). `responded` gir Godkjenn + Send tilbake (→ in_progress) + Send (→ sent, F5) + Videresend.
+Returnerer tom array for terminale statuser (`closed`, `cancelled`). `responded` gir Godkjenn + Send tilbake (→ in_progress) + Videresend. **§8A-fiks (2026-07-29):** F5s «Send fram» (`received`/`responded`/`approved` → `sent`) er fjernet — den var en recipient-løs no-op (server auto-konverterte `sent→received` og nullstilte recipient). Framover fra `received` = Besvar/Godkjenn. `draft→sent` (førstegangs-send) og `in_progress→sent` (Send på nytt) er urørt.
 
 ### Georeferanse (`georeferanse.ts`)
 
