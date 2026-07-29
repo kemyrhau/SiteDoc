@@ -576,7 +576,8 @@ export default function SjekklisteUtfylling() {
       return;
     }
     await lagre();
-    Alert.alert(t("dokument.lagret"), t("dokument.utfyllingLagret"));
+    // V5a: suksess-Alert fjernet — LagreIndikator (lagreStatus === "lagret" →
+    // Check-ikon) dekker allerede kvitteringen. Dobbel bekreftelse mot ren-UI.
   }, [valider, lagre]);
 
   // Beregn objekter og repeater-logikk FØR tidlige returns (hooks må alltid kjøres)

@@ -310,6 +310,15 @@ export default function OppgaveDetaljSide() {
   const handlingRef = useRef<string | undefined>(undefined);
   useEffect(() => () => clearTimeout(kvitteringTimer.current), []);
 
+  // P6: utkast-slett var stille no-op — onSlett ble aldri sendt til
+  // DokumentHandlingsmeny. Speiler sjekkliste-detaljsiden (myk slett + retur).
+  const slettMutasjon = trpc.oppgave.slett.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentForProsjekt.invalidate();
+      router.push(`/dashbord/${params.prosjektId}/oppgaver`);
+    },
+  });
+
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
       setStatusFeil(null);
@@ -626,6 +635,7 @@ export default function OppgaveDetaljSide() {
             bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
             lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
             besvarDeaktivertGrunn={besvarDeaktivertGrunn}
+            onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
           />
           )}
           <button

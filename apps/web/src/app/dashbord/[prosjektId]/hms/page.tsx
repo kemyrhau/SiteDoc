@@ -127,7 +127,7 @@ export default function HmsSide() {
   const params = useParams<{ prosjektId: string }>();
   const router = useRouter();
   const utils = trpc.useUtils();
-  const { aktivByggeplass } = useByggeplass();
+  const { aktivByggeplass, standardTegning } = useByggeplass();
 
   const [aktivTab, setAktivTab] = useState<Tab>("avvik");
   // Status-filter: forhåndsvelger åpne statuser (bevarer «åpne først»-default,
@@ -178,6 +178,9 @@ export default function HmsSide() {
           templateId: mal.id,
           title: mal.name,
           priority: "medium",
+          // Kontekst-default (V2): oppgave tar kun drawingId (byggeplass utledes
+          // via tegning). Byggeplass-uten-aktiv-tegning droppes (sak B, backlog).
+          drawingId: standardTegning?.id,
         })) as { id: string };
         await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
         router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
@@ -185,6 +188,9 @@ export default function HmsSide() {
         const resultat = (await utils.client.sjekkliste.opprett.mutate({
           templateId: mal.id,
           title: mal.name,
+          // Kontekst-default (V2): sjekkliste.opprett tar begge felt.
+          byggeplassId: aktivByggeplass?.id,
+          drawingId: standardTegning?.id,
         })) as { id: string };
         await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
         router.push(`/dashbord/${params.prosjektId}/sjekklister/${resultat.id}`);
