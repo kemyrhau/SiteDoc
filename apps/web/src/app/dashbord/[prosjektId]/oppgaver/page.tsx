@@ -316,7 +316,11 @@ export default function OppgaverSide() {
   });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const [mineOppgaver, setMineOppgaver] = useState(false);
-  const { aktivByggeplass } = useByggeplass();
+  // Oppgave-opprett tar kun drawingId (oppgave.opprett har ikke byggeplassId —
+  // byggeplass utledes via drawing.byggeplassId). Henter standardTegning som
+  // kontekst-default (V2); byggeplass-uten-aktiv-tegning kan ikke festes på
+  // oppgave uten server-endring (sak B, backlogget).
+  const { standardTegning } = useByggeplass();
 
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
@@ -356,7 +360,7 @@ export default function OppgaverSide() {
       id: "ny-oppgave",
       label: t("oppgaver.ny"),
       ikon: <Plus className="h-4 w-4" />,
-      onClick: () => setVisModal(true),
+      onClick: åpneMalVelger,
       variant: "primary",
     },
   ]);
@@ -372,6 +376,7 @@ export default function OppgaverSide() {
         templateId: malId,
         title: malMedDomain.name ?? t("oppgaver.hmsAvvikFallback"),
         priority: "medium",
+        drawingId: standardTegning?.id,
       });
       return;
     }
@@ -419,7 +424,20 @@ export default function OppgaverSide() {
       title: malMedDomain?.name ?? t("oppgaver.nyOppgaveFallback"),
       priority: "medium",
       dokumentflytId: matchDf?.id,
+      drawingId: standardTegning?.id,
     });
+  }
+
+  // V3 (del6b web-paritet): åpner malvelgeren — men ved nøyaktig 1 mal hoppes
+  // liste-steget over og malen opprettes direkte (speiler mobil MalVelger).
+  // Ruting følger dagens detaljside-rute via handleOpprettFraMal.
+  function åpneMalVelger() {
+    const eneste = oppgaveMaler.length === 1 ? oppgaveMaler[0] : undefined;
+    if (eneste) {
+      handleOpprettFraMal(eneste.id);
+    } else {
+      setVisModal(true);
+    }
   }
 
   // Trekk ut Verdier-kolonner fra alle maler brukt i data
@@ -872,7 +890,7 @@ export default function OppgaverSide() {
         <EmptyState
           title={t("oppgaver.ingen")}
           description={t("oppgaver.ingenBeskrivelse")}
-          action={<Button onClick={() => setVisModal(true)}>{t("oppgaver.opprett")}</Button>}
+          action={<Button onClick={åpneMalVelger}>{t("oppgaver.opprett")}</Button>}
         />
       ) : (
         <Table<OppgaveRad>

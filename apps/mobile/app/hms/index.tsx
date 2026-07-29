@@ -108,12 +108,21 @@ export default function HmsListe() {
     (mal: HmsMal) => {
       settVisMalVelger(false);
       if (mal.subdomain === "sja") {
-        opprettSjekkliste.mutate({ templateId: mal.id, title: mal.name });
+        // Kontekst-default (V2): aktiv byggeplass fra global kontekst settes ved
+        // opprettelse. sjekkliste.opprett tar byggeplassId direkte.
+        opprettSjekkliste.mutate({
+          templateId: mal.id,
+          title: mal.name,
+          byggeplassId: valgtBygningId ?? undefined,
+        });
       } else {
+        // Avvik/RUH = oppgave. oppgave.opprett tar kun drawingId (ingen
+        // byggeplassId-felt), og mobil-HMS har ingen aktiv tegning-kilde →
+        // byggeplass festes ikke her (sak B, backlogget).
         opprettOppgave.mutate({ templateId: mal.id, title: mal.name });
       }
     },
-    [opprettOppgave, opprettSjekkliste],
+    [opprettOppgave, opprettSjekkliste, valgtBygningId],
   );
 
   const onRefresh = useCallback(() => {

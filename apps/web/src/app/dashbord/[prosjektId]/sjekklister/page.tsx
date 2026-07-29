@@ -390,6 +390,10 @@ export default function SjekklisteSide() {
       bestillerFaggruppeId: k.bestillerFaggruppeId,
       utforerFaggruppeId: k.utforerFaggruppeId,
       dokumentflytId: k.flytId,
+      // Kontekst-default: aktiv byggeplass/tegning fra header settes ved opprettelse
+      // så dokumentet arver lokasjon (V2 — server tar begge på sjekkliste.opprett).
+      byggeplassId: aktivByggeplass?.id,
+      drawingId: standardTegning?.id,
     });
   }
 
@@ -406,6 +410,22 @@ export default function SjekklisteSide() {
     }
   }
 
+  // V3 (del6b web-paritet): åpner malvelgeren — men ved nøyaktig 1 mal som er
+  // klikkbar (status ≠ "ingen") hoppes liste-steget over (speiler mobil
+  // MalVelger). En "flere"-mal beholder flyt-velgeren (steg 2); en "ingen"-mal
+  // (dempet) åpner modalen så brukeren ser malen + hvorfor den er utilgjengelig.
+  function åpneMalVelger() {
+    const eneste = sjekklisteMaler.length === 1 ? sjekklisteMaler[0] : undefined;
+    if (eneste) {
+      const status = malFlytStatus.get(eneste.id);
+      if (status && status.type !== "ingen") {
+        handleMalKlikk(eneste.id);
+        return;
+      }
+    }
+    setVisModal(true);
+  }
+
   function lukkOpprettModal() {
     setOpprettFeil(null);
     setVisModal(false);
@@ -415,7 +435,7 @@ export default function SjekklisteSide() {
 
   const verktoylinjeHandlinger = useMemo((): VerktoylinjeHandling[] => {
     const h: VerktoylinjeHandling[] = [
-      { id: "ny-sjekkliste", label: t("sjekklister.ny"), ikon: <Plus className="h-4 w-4" />, onClick: () => setVisModal(true), variant: "primary" },
+      { id: "ny-sjekkliste", label: t("sjekklister.ny"), ikon: <Plus className="h-4 w-4" />, onClick: åpneMalVelger, variant: "primary" },
     ];
     if (valgte.size > 0) {
       h.push({ id: "skriv-ut-valgte", label: `${t("handling.skrivUt")} (${valgte.size})`, ikon: <Printer className="h-4 w-4" />,
@@ -768,7 +788,7 @@ export default function SjekklisteSide() {
 
       {!sjekklister?.length ? (
         <EmptyState title={t("sjekklister.ingen")} description={t("sjekklister.ingenBeskrivelse")}
-          action={<Button onClick={() => setVisModal(true)}>{t("sjekklister.opprett")}</Button>} />
+          action={<Button onClick={åpneMalVelger}>{t("sjekklister.opprett")}</Button>} />
       ) : (
         <Table<SjekklisteRad>
           kolonner={kolonneDefinisjoner} data={filtrerte} radNokkel={(rad) => rad.id}
