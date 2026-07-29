@@ -67,8 +67,8 @@ export const MATRISE_RADER: MatriseRad[] = [
   // utfører. Default-roller Godkjenner + Prosjektadmin (avledes fra ROLLE_HANDLINGER_DEFAULTS +
   // statusmaskin). Gjenbruker flythjelp.handling.godkjenn — samme mikrotekst som responded→approved.
   { fra: "received", til: "approved", labelNoekkel: "handling.godkjenn", flythjelpNoekkel: "flythjelp.handling.godkjenn" },
-  // F5 (Send/Videresend-paring, beslutning 6): Send fram i flyten — gjenbruker handling.send.
-  { fra: "received", til: "sent", labelNoekkel: "handling.send", flythjelpNoekkel: "flythjelp.handling.send", fallbackNoekkel: "flythjelp.fallback.nesteMottaker" },
+  // §8A-fiks (2026-07-29): F5s «Send fram» (received→sent) FJERNET — recipient-løs no-op (se
+  // @sitedoc/shared statusHandlinger + isValidStatusTransition). Raden speiler det tomme universet.
   { fra: "received", til: "draft", labelNoekkel: "statushandling.trekkTilbake", flythjelpNoekkel: "flythjelp.handling.trekkTilbake", fallbackNoekkel: "flythjelp.fallback.mottakerDin" },
   { fra: "received", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
   { fra: "received", til: "dismissed", labelNoekkel: "handling.avvis", flythjelpNoekkel: "flythjelp.handling.avvis", fallbackNoekkel: "flythjelp.fallback.avsender" },
@@ -82,16 +82,14 @@ export const MATRISE_RADER: MatriseRad[] = [
   { fra: "responded", til: "approved", labelNoekkel: "handling.godkjenn", flythjelpNoekkel: "flythjelp.handling.godkjenn" },
   // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
   { fra: "responded", til: "in_progress", labelNoekkel: "statushandling.sendTilbakeUtforer", flythjelpNoekkel: "flythjelp.handling.sendTilbakeUtforer", fallbackNoekkel: "flythjelp.fallback.utforer" },
-  // F5 (Send/Videresend-paring): Send fram fra svar-leddet (responded→sent, for-staget i F3).
-  { fra: "responded", til: "sent", labelNoekkel: "handling.send", flythjelpNoekkel: "flythjelp.handling.send", fallbackNoekkel: "flythjelp.fallback.nesteMottaker" },
+  // §8A-fiks (2026-07-29): F5s «Send fram» (responded→sent) FJERNET — recipient-løs no-op.
   { fra: "responded", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
   // F3: `rejected`-seksjonen utgår (merget inn i in_progress over).
   // H6 (Godkjent = stoppsted): approved→closed fjernet (Godkjent lukkes aldri). Gjenåpne
   // (approved→draft) er veien tilbake — default-roller registrator + prosjektadmin (avledes fra
   // ROLLE_HANDLINGER_DEFAULTS). Gjenbruker gjenapne-mikrotekst (samme som øvrig Gjenåpne).
   { fra: "approved", til: "draft", labelNoekkel: "statushandling.gjenapne", flythjelpNoekkel: "flythjelp.handling.gjenapne" },
-  // F5 (Send/Videresend-paring): Send fram fra godkjent (approved→sent).
-  { fra: "approved", til: "sent", labelNoekkel: "handling.send", flythjelpNoekkel: "flythjelp.handling.send", fallbackNoekkel: "flythjelp.fallback.nesteMottaker" },
+  // §8A-fiks (2026-07-29): F5s «Send fram» (approved→sent) FJERNET — recipient-løs no-op.
   { fra: "approved", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
   // F4 (Gjenåpne-samling, spec § 3): closed/dismissed/cancelled → draft er ÉN handling
   // (Gjenåpne) — henter et avsluttet dokument tilbake til kladd hos oppretteren. Default-
@@ -345,8 +343,9 @@ export const FLYTVISNING_BOKS_DEF: FlytboksDef[] = [
   {
     boks: "utforer",
     grupper: {
-      // Send (received→sent) og Send på nytt (in_progress→sent) er ulike handlinger → egne rader.
-      sendHoyre: [h([["utforer", "received", "sent"]]), h([["utforer", "in_progress", "sent"]])],
+      // §8A-fiks (2026-07-29): «Send fram» (received→sent) FJERNET (recipient-løs no-op). Kun
+      // «Send på nytt» (in_progress→sent, fram igjen etter retting) står igjen.
+      sendHoyre: [h([["utforer", "in_progress", "sent"]])],
       sendVenstre: [
         // Besvar fra Mottatt + Under arbeid → én rad, to delceller. Svar går til den som ba.
         h([["utforer", "received", "responded"], ["utforer", "in_progress", "responded"]]),
@@ -359,8 +358,8 @@ export const FLYTVISNING_BOKS_DEF: FlytboksDef[] = [
   {
     boks: "godkjenner",
     grupper: {
-      // Send fra Besvart + Godkjent → én rad, to delceller.
-      sendHoyre: [h([["godkjenner", "responded", "sent"], ["godkjenner", "approved", "sent"]])],
+      // §8A-fiks (2026-07-29): «Send fram» (responded→sent + approved→sent) FJERNET (recipient-løs
+      // no-op). Godkjenner har ingen framover-sending igjen — sendHoyre-gruppen utgår.
       sendVenstre: [h([["godkjenner", "responded", "in_progress"]])], // Send tilbake til utfører
       endepunkt: [
         // Godkjenn fra Mottatt (F6) + Besvart → én rad, to delceller.

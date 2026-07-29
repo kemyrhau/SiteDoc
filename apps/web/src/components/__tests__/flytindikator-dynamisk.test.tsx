@@ -143,6 +143,23 @@ describe("finnAktivtIndex er rolle-bevisst", () => {
     expect(finnAktivtIndex(ledd, "responded", "u-utf")).toBe(1);
   });
 
+  it("§8A first-match: samme part fyller utfører OG godkjenner → recipient velger rolle-konsistent ledd", () => {
+    // Regresjon for §8-Q3(a): når én bruker er både utfører (rang 3) og godkjenner (rang 4),
+    // matcher recipient-ID-en to ledd. Blind first-match låste markøren til utfører (lavest rang)
+    // uansett status. Fiksen foretrekker leddet som matcher forventet rolle for statusen.
+    const delt = { id: "u-delt", name: "Kari" };
+    const medl: FlytMedlem[] = [
+      medlem(1, "bestiller", "Best"),
+      { id: "utf-delt", rolle: "utforer", steg: 1, faggruppe: null, projectMember: { user: delt }, group: null },
+      { id: "godkj-delt", rolle: "godkjenner", steg: 1, faggruppe: null, projectMember: { user: delt }, group: null },
+    ];
+    const ledd = byggLedd(medl); // [bestiller(0), utforer(1), godkjenner(2)]; u-delt fyller 1 OG 2.
+    // responded → forventet rolle godkjenner → idx 2 (før fiksen: 1).
+    expect(finnAktivtIndex(ledd, "responded", "u-delt")).toBe(2);
+    // received → forventet rolle utfører → idx 1 (samme delte part, motsatt vei).
+    expect(finnAktivtIndex(ledd, "received", "u-delt")).toBe(1);
+  });
+
   it("godkjent/lukket → terminal (-1)", () => {
     const ledd = byggLedd(fireLedds);
     expect(finnAktivtIndex(ledd, "approved")).toBe(-1);

@@ -108,21 +108,23 @@ export function isValidStatusTransition(
     // Trekk tilbake flyttet til received→draft; sent→cancelled utgår.
     sent: ["received"],
     // F2: Trekk tilbake → received→draft (redigerbar kladd hos avsender, før mottaker har svart).
-    // F5 (Send/Videresend-paring, beslutning 6): `sent` aktiveres der Videresend finnes — Send
-    // fram i flyten (mot neste ledd) uten å gå via Under arbeid.
+    // §8A-fiks (2026-07-29): `received→sent` FJERNET. F5s «Send fram» var en recipient-løs no-op
+    // (serveren auto-konverterer sent→received og nullstiller recipient → markøren flyttet seg aldri,
+    // 2 loggrader/klikk). Framover = Besvar/Godkjenn. Videresend (`forwarded`) og førstegangs
+    // `draft→sent` er URØRT. Å stenge overgangen her stopper den også for prosjektadmin + server.
     // F6 (Godkjenn fra Mottatt): `approved` gir en Registrator→Godkjenner-flyt (uten utfører) en
     // direkte godkjenn-vei fra Mottatt — TILLEGG til responded→approved, ikke erstatning.
-    received: ["in_progress", "responded", "sent", "cancelled", "dismissed", "draft", "approved"],
+    received: ["in_progress", "responded", "cancelled", "dismissed", "draft", "approved"],
     // F3 (Under arbeid): `rejected` og `in_progress` er merget. in_progress-handlingene er
     // Besvar (→responded), Send på nytt (→sent) og Lukk (→closed, arver dagens rejected→closed).
     in_progress: ["responded", "sent", "closed"],
     // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
-    // F5: responded→sent ble for-staget i F3 (Send fram fra svar-leddet) — bekreftet her.
-    responded: ["approved", "in_progress", "sent"],
-    // F5 (Send/Videresend-paring, beslutning 6): Send fram også fra godkjent (der Videresend finnes).
+    // §8A-fiks (2026-07-29): `responded→sent` FJERNET — samme recipient-løse no-op som received.
+    responded: ["approved", "in_progress"],
+    // §8A-fiks (2026-07-29): `approved→sent` FJERNET — samme recipient-løse no-op.
     // H6 (Godkjent = stoppsted): approved lukkes ALDRI — approved→closed fjernet. Veien tilbake er
-    // Gjenåpne (approved→draft, Reg + P-adm, § 4). Send beholdt (sende-kapasitet ok på låst tilstand).
-    approved: ["sent", "draft"],
+    // Gjenåpne (approved→draft, Reg + P-adm, § 4).
+    approved: ["draft"],
     // F3: `rejected`-oppføringen utgår (merget inn i in_progress). `status` er String —
     // eksisterende `rejected`-rader migreres til `in_progress` ved deploy (se migrering).
     // F4 (Gjenåpne-samling): closed/dismissed/cancelled → draft er ÉN handling (Gjenåpne) —
