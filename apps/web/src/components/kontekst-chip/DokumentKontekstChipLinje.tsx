@@ -41,6 +41,11 @@ export type Chip =
       onVelg: (id: string | null) => void;
       /** Tekst for «tom»-raden øverst (id=null). Utelates → ingen tom-rad. */
       tomLabel?: string;
+      /** Påkrevd felt uten verdi → varselfarget chip («Velg … ▾») per fallback-
+       * stigen (må velges før innsending). Kun visuelt signal her. */
+      påkrevd?: boolean;
+      /** Marker ett alternativ som «sist brukt» (badge i nedtrekket). */
+      sistBruktId?: string;
       /** Deaktivert (f.eks. faggruppe utenfor utkast) + grunn som tittel. */
       deaktivert?: boolean;
       deaktivertGrunn?: string;
@@ -64,30 +69,41 @@ function ChipRamme({
   etikett,
   verdi,
   ikon,
+  varsel = false,
   ...knappProps
 }: {
   etikett: string;
   verdi: string;
   ikon?: ReactNode;
+  varsel?: boolean;
 } & ButtonHTMLAttributes<HTMLButtonElement>) {
   const erKnapp = typeof knappProps.onClick === "function" && !knappProps.disabled;
   return (
     <button
       type="button"
       {...knappProps}
-      // ≥44px hit-target (min-h-11) — mobil/nettbrett-vennlig.
-      className={`flex min-h-11 items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-left transition-colors ${
-        erKnapp ? "hover:border-gray-300 hover:bg-gray-50" : "cursor-default"
-      } ${knappProps.disabled ? "opacity-60" : ""}`}
+      // ≥44px hit-target (min-h-11) — mobil/nettbrett-vennlig. Varsel = påkrevd
+      // felt uten verdi (amber, må velges før innsending).
+      className={`flex min-h-11 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-left transition-colors ${
+        varsel ? "border-amber-300 bg-amber-50" : "border-gray-200 bg-white"
+      } ${erKnapp ? (varsel ? "hover:bg-amber-100" : "hover:border-gray-300 hover:bg-gray-50") : "cursor-default"} ${
+        knappProps.disabled ? "opacity-60" : ""
+      }`}
     >
-      {ikon && <span className="shrink-0 text-gray-400">{ikon}</span>}
+      {ikon && <span className={`shrink-0 ${varsel ? "text-amber-500" : "text-gray-400"}`}>{ikon}</span>}
       <span className="flex flex-col leading-tight">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+        <span
+          className={`text-[10px] font-semibold uppercase tracking-wide ${varsel ? "text-amber-600" : "text-gray-400"}`}
+        >
           {etikett}
         </span>
-        <span className="max-w-[10rem] truncate text-sm font-medium text-gray-800">{verdi}</span>
+        <span
+          className={`max-w-[10rem] truncate text-sm font-medium ${varsel ? "text-amber-700" : "text-gray-800"}`}
+        >
+          {verdi}
+        </span>
       </span>
-      {erKnapp && <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" />}
+      {erKnapp && <ChevronDown className={`h-4 w-4 shrink-0 ${varsel ? "text-amber-500" : "text-gray-400"}`} />}
     </button>
   );
 }
@@ -117,6 +133,10 @@ function VelgerChip({ chip }: { chip: Extract<Chip, { type: "velger" }> }) {
       )
     : chip.alternativer;
   const visSøk = chip.alternativer.length > 6;
+  // Varsel: påkrevd felt uten verdi → «Velg {etikett} ▾» i amber (fallback-stige).
+  const erTom = chip.valgtId === null;
+  const varsel = !!chip.påkrevd && erTom;
+  const chipVerdi = varsel ? t("kontekstChip.velgFelt", { felt: chip.etikett.toLowerCase() }) : chip.verdi;
 
   function velg(id: string | null) {
     chip.onVelg(id);
@@ -128,8 +148,9 @@ function VelgerChip({ chip }: { chip: Extract<Chip, { type: "velger" }> }) {
     <div ref={ref} className="relative">
       <ChipRamme
         etikett={chip.etikett}
-        verdi={chip.verdi}
+        verdi={chipVerdi}
         ikon={chip.ikon}
+        varsel={varsel}
         disabled={chip.deaktivert}
         title={chip.deaktivert ? chip.deaktivertGrunn : undefined}
         onClick={chip.deaktivert ? undefined : () => setÅpen((v) => !v)}
@@ -153,7 +174,10 @@ function VelgerChip({ chip }: { chip: Extract<Chip, { type: "velger" }> }) {
                 <TraktRad
                   key={a.id ?? "__tom__"}
                   tittel={a.navn}
-                  undertekst={a.undertekst}
+                  // «Sist brukt»-merke (badge via undertekst) på markert alternativ.
+                  undertekst={
+                    a.id && a.id === chip.sistBruktId ? t("kontekstChip.sistBrukt") : a.undertekst
+                  }
                   valgt={chip.valgtId === a.id}
                   onVelg={() => velg(a.id)}
                 />
