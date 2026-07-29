@@ -1,6 +1,6 @@
 ---
 name: effektivitets-audit-2026-07
-status: 🔵 Måling ferdig 2026-07-29 — venter fabel-prioritering (fiks-plan)
+status: 🔵 Måling ferdig 2026-07-29 (grunn-audit A + Handlingslinje B) — venter fabel-prioritering (fiks-plan)
 eier: lese-Opus (måling) · fabel (prioritering) · cowork (ordre-ruting)
 branch: audit/effektivitets (fra develop, post-del6b `3b103cfc`)
 ordre: delplaner/effektivitets-audit-ordre-2026-07-29.md
@@ -151,6 +151,60 @@ Slette-flyt telles IKKE her — egen ordre (`slette-flyt-ordre-2026-07-28.md`); 
 
 ---
 
+## 8 — Handlingslinja (statusendring-flyten, web `DokumentHandlingsmeny`)
+
+Utvidet oppgave (cowork 2026-07-29, Kenneth-funn på sjekkliste KB2-007). Fortsatt ren måling/diagnose — fabel designer, ikke jeg.
+
+**Søkerom:** `apps/web/src/components/{DokumentHandlingsmeny,FlytIndikator,DokumentTidslinje}.tsx`, `apps/web/src/lib/{flyt-ledd,flytmatrise-def}.ts`, `packages/shared/src/utils/{statusHandlinger,flytRolle,index}.ts`, `apps/api/src/routes/sjekkliste.ts` (`endreStatus`/`utledNyEier`), `sjekklister/[sjekklisteId]/page.tsx`.
+
+### A) Send-oppførsel + flytindikator — diagnose
+
+**Q1 — hva driver flytindikatorens aktive steg?**
+Aktivt ledd beregnes i `finnAktivtIndex` (`flyt-ledd.ts:148`), kalt fra `FlytIndikator.tsx:86`. Det er **verken et eget felt eller `harBallen`** — det er en ren funksjon av `status` + `recipient*`. Prioritet: (1) `draft`/`cancelled` → bestiller-ledd (`:158-165`); (2) recipient-identitet `recipientGroupId`/`recipientUserId` → første ledd med den ID-en (`:168-175`); (3) fallback `forventetRolleKandidater(status)` (`:178-181`, `:38-52`). Ledd bygges per rolle (`byggLedd :91-99`), sekvensert på rolle-rang (`:22-27`) — `steg` er ikke populert.
+
+**Q2 — avanserer «Send» ballen? Auto sent→received?**
+Nei / ja. Ved `received` er «Send» en **sekundærknapp** (`DokumentHandlingsmeny.tsx:331-342`) som ikke setter mottaker → `onEndreStatus(mottaker=undefined)`. Server: `effektivStatus = nyStatus === "sent" ? "received" : nyStatus` (`sjekkliste.ts:1106`) → Sendt konverteres straks til Mottatt; `recipientUserId/GroupId = null` (`:1136-1139`); `utledNyEier(undefined, undefined)` → eier uendret (`:921-937`). **Netto av ett Send-klikk fra `received`: status = `received`, recipient = null.** `finnAktivtIndex("received", null, null)` → fallback `["utforer"]` (`flyt-ledd.ts:44-46`) = nøyaktig der ballen sto. Ingen bevegelse.
+
+**Q3 — rangert rotårsak til at indikatoren ikke flytter seg:**
+1. **(b) PRIMÆR — «Send» ved `received` er reelt en no-op.** Indikator bundet til `status`; Send re-stempler `received` med tom recipient, og fallback for `received` er hardkodet til utfører (`flyt-ledd.ts:44-46`). Markøren kan aldri flytte seg på «Send». Riktig framoverknapp er **«Besvar»** (`responded`, fallback `["godkjenner"]` `:47-48`) eller **«Godkjenn»** (`received→approved`). Kilde: `sjekkliste.ts:1106,1136-1139` + `flyt-ledd.ts:44-46,178-181`.
+2. **(a) SEKUNDÆR/latent — utfører = godkjenner samme part.** `finnAktivtIndex :172-175` bruker `findIndex` (first-match) → selv om recipient hadde pekt framover til den delte parten, ville markøren låst til utfører (lavere rang). Ikke utløsende i testen (recipient var null → fallback rådet), men reell felle når én part har flere roller.
+3. **(c) FORKASTET — re-render/invalidering.** `page.tsx:239-240` invaliderer både `hentForProsjekt` og `hentMedId` i `onSuccess`; indikator re-rendres, dataen er bare uendret. Ikke render-bug.
+
+**Q4 (Symptom 2) — Sendt↔Mottatt-veksling: kode-løkke eller manuelle klikk?**
+**N manuelle klikk, der hvert klikk auto-skriver 2 logg-rader server-side.** Per «Send» skrives to `documentTransfer`-rader i samme transaksjon: `→ sent` (`sjekkliste.ts:1144-1160`) + `sent → received` (kun når `nyStatus==="sent"`, `:1162-1172`). `DokumentTidslinje.tsx:120-122` rendrer hver rad som `fra→til`-badge → paret «→ Sendt» + «Sendt → Mottatt» per klikk. Klyngen 11:12–11:13 er **konsekvens av Symptom 1**: markøren flytter seg aldri → bruker klikker «Send» igjen → 2 nye rader per klikk. Ingen auto-mutasjon finnes (eneste `useEffect` er timer-opprydding `page.tsx:228`).
+
+> **⚠️ Dette er en korrekthets-bug, ikke bare effektivitet.** «Send» tilbys som lovlig handling i en tilstand der den ikke gjør noe meningsfullt (received→sent→received, recipient nullstilt). Bør inn i fiks-planen som bugfiks (strukturell — fabel/statusmaskin-avklaring om «Send» i det hele tatt skal tilbys fra `received`).
+
+### B) Knappe-klutter — måling
+
+Knappe-settet avhenger av **`status × minRolle × adminNiva`** (ikke `harBallen`). Én bruker har alltid nøyaktig én resolvert `minRolle` (`flytRolle.ts:67-107`). Kilde: `hentStatusHandlinger` (`statusHandlinger.ts:19-82`).
+
+**Renderings-bøtter (`DokumentHandlingsmeny.tsx`):** primær = `find(erPrimaer)` → flat knapp, `+split ▾` **kun** ved draft-send m/ >1 mottaker (`:299,515-552`) · sekundær (minus `forwarded`/ADMIN_NY) → **flate knapper** (`:331-342,555-578`) · `forwarded`-mottakere + ADMIN_NY-status + deaktiverte → bak dropdown-trigger «Videresend ▾»/«Admin ▾» (`:345-368,581-607`) · kommentar → egen flat `+`-knapp (`:621-640`).
+
+**Status × rolle-matrise (handlingsknapper som vises samtidig; «flat» = direkte i linja):**
+
+| Status | Rolle | Flate handlinger | Flat totalt (m/ ▾ + kommentar) |
+|--------|-------|------------------|-------------------------------|
+| **received** | **admin / uten flyt** | Besvar, Godkjenn, Send, Avvis | **6 ⚠️ VERSTE** (+ Videresend▾ + kommentar) |
+| received | utfører | Besvar, Send, Avvis | 5 (+ Admin▾ + kommentar) |
+| responded | godkjenner / admin | Godkjenn, Send tilbake, Send | 5 (+ ▾ + kommentar) |
+| in_progress | utfører / admin | Besvar, Send på nytt | 4 |
+| approved | admin / uten flyt | Gjenåpne, Send | 4 |
+| received | godkjenner | Godkjenn | 3 |
+| draft | registrator/bestiller | Send (m/split), Slett | 2 + split |
+| closed / dismissed | registrator/admin | Gjenåpne | 2 |
+| received/in_progress | ikke-eier-rolle | – (alt deaktivert bak ▾) | 1 |
+
+**Verste fall:** `received × admin/uten-flyt` = **6 flate elementer**: Besvar (primær) · Godkjenn · Send · Avvis · Videresend ▾ · + kommentar. Treffer Kenneths funn presist. Merk: **Videresend er allerede bak ▾** (aldri flat, `:332` ekskluderer `forwarded`) — «Videresend» i klagen er dropdown-triggeren, ikke en flat knapp.
+
+**Gap mot målbildet (primær + split-▾ for øvrige lovlige handlinger; Videresend beholder person-velger):**
+- Split-▾-mønsteret **finnes alt**, men kun for draft-send m/ >1 mottaker (`:542`). I alle andre statuser rendres sekundær-handlingene flatt, og eksisterende ▾ inneholder IKKE disse lovlige sekundær-handlingene (kun admin-status/forwarded-mottakere/deaktiverte).
+- Fabel-input for å nå målbildet: flytt sekundær-bøtta (`:331-342`) under primærens split, og generaliser split-betingelsen fra `draftSend && videresendValg.length > 1` (`:542,581`) til «primær finnes + ≥1 øvrig lovlig handling». Flate sekundær-knapper som da samles bak split: received×admin = 3 (Godkjenn/Send/Avvis), received×utfører = 2, responded×godkjenner = 2.
+- `+ kommentar` (`:621-640`) står alltid som eget flatt element — selvstendig gap-element hvis målet er én primær + én ▾.
+- Videresend har alt person-velger i dropdownen (`:681-727`, `medlemmer`-ekspansjon) — beholdes som i målbildet.
+
+---
+
 ## Gate
 
-Måling ferdig → skrevet til `inbox-cowork.md` → fabel vurderer → prioritert fiks-plan til Kenneth → ordrer skrives derfra. Statuskilde: denne filen.
+Måling ferdig (grunn-audit § 1–7 + Handlingslinje § 8) → skrevet til `inbox-cowork.md` → fabel vurderer → prioritert fiks-plan til Kenneth → ordrer skrives derfra. Statuskilde: denne filen.
