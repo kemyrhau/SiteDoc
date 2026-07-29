@@ -2158,6 +2158,7 @@
   "statushandling.trekkTilbake": "Zurückziehen",
   "statushandling.mottakerHarLest": "Der Empfänger hat dieses Dokument bereits gelesen. Möchten Sie es trotzdem zurückziehen?",
   "statushandling.admin": "Admin",
+  "statushandling.flereHandlinger": "Weitere Aktionen",
   "statushandling.leggTilKommentar": "+ Kommentar",
   "statushandling.sendVidereTil": "Weiterleiten an:",
   "statushandling.velgPerson": "Person auswählen",

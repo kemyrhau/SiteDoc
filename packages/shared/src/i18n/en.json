@@ -2158,6 +2158,7 @@
   "statushandling.trekkTilbake": "Withdraw",
   "statushandling.mottakerHarLest": "The recipient has already read this document. Do you still want to withdraw it?",
   "statushandling.admin": "Admin",
+  "statushandling.flereHandlinger": "More actions",
   "statushandling.leggTilKommentar": "+ comment",
   "statushandling.sendVidereTil": "Forward to:",
   "statushandling.velgPerson": "Choose person",

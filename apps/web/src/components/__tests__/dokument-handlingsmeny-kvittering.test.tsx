@@ -78,14 +78,15 @@ describe("Ende-til-ende: DokumentHandlingsmeny-klikk → StatusBadge-kvittering"
     expect(screen.getByText("Til godkjenning")).toBeTruthy();
   });
 
-  it("klikk «Send tilbake» (F3: responded→in_progress) → nudge → bekreft → badge viser «Sendt tilbake ✓», IKKE «Sendt ✓»", () => {
-    // Del 2.5: «Send tilbake» ber om begrunnelse (nudge) før den utføres. Første klikk
-    // åpner nudge-prompten (menyen erstattes av bekreft-visningen), bekreft-knappen
-    // bærer handlingslabelen «Send tilbake» → andre klikk utfører → kvittering vises.
+  it("åpne split-▾ → «Send tilbake» (F3: responded→in_progress) → begrunnelse påkrevd → badge viser «Sendt tilbake ✓», IKKE «Sendt ✓»", () => {
+    // P3: «Send tilbake» er ikke lenger en flat knapp — den ligger bak primærens split-▾.
+    // in_progress krever begrunnelse (P2): bekreft-knappen er disabled til feltet er fylt.
     render(<I18nextProvider i18n={i18n}><Harness /></I18nextProvider>);
-    fireEvent.click(screen.getByText("Send tilbake")); // åpner nudge
+    fireEvent.click(screen.getByTestId("handling-split-nedtrekk")); // åpne split-menyen
+    fireEvent.click(screen.getByText("Send tilbake")); // menyvalg → åpner begrunnelse-dialog
     expect(screen.queryByText("Sendt tilbake ✓")).toBeNull(); // ikke utført ennå
-    fireEvent.click(screen.getByText("Send tilbake")); // bekreft i nudge → utfør
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Trenger retting" } }); // fyll påkrevd begrunnelse
+    fireEvent.click(screen.getByText("Send tilbake")); // bekreft → utfør
     expect(screen.getByText("Sendt tilbake ✓")).toBeTruthy();
     expect(screen.queryByText("Sendt ✓")).toBeNull();
   });

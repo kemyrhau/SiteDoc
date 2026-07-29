@@ -2158,6 +2158,7 @@
   "statushandling.trekkTilbake": "Tõmba tagasi",
   "statushandling.mottakerHarLest": "Saaja on seda dokumenti juba lugenud. Kas soovite ikkagi selle tagasi võtta?",
   "statushandling.admin": "Admin",
+  "statushandling.flereHandlinger": "Rohkem toiminguid",
   "statushandling.leggTilKommentar": "+ kommentaar",
   "statushandling.sendVidereTil": "Edasta:",
   "statushandling.velgPerson": "Vali inimene",

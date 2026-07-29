@@ -2158,6 +2158,7 @@
   "statushandling.trekkTilbake": "Retirer",
   "statushandling.mottakerHarLest": "Le destinataire a déjà lu ce document. Voulez-vous toujours le retirer ?",
   "statushandling.admin": "Administratrice",
+  "statushandling.flereHandlinger": "Plus de propositions",
   "statushandling.leggTilKommentar": "+ commentaire",
   "statushandling.sendVidereTil": "Envoyer à :",
   "statushandling.velgPerson": "Choisir une personne",
