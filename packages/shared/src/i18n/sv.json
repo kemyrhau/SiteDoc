@@ -2158,6 +2158,7 @@
   "statushandling.trekkTilbake": "Dra tillbaka",
   "statushandling.mottakerHarLest": "Mottagaren har redan läst detta dokument. Vill du fortfarande dra tillbaka den?",
   "statushandling.admin": "Administration",
+  "statushandling.flereHandlinger": "Fler åtgärder",
   "statushandling.leggTilKommentar": "+ kommentar",
   "statushandling.sendVidereTil": "Vidarebefordra till:",
   "statushandling.velgPerson": "Välj person",

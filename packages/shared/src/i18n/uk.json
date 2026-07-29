@@ -2158,6 +2158,7 @@
   "statushandling.trekkTilbake": "Вилучити",
   "statushandling.mottakerHarLest": "Одержувач уже прочитав цей документ. Ви все ще хочете відкликати його?",
   "statushandling.admin": "адмін",
+  "statushandling.flereHandlinger": "Більше дій",
   "statushandling.leggTilKommentar": "+ коментар",
   "statushandling.sendVidereTil": "Переслати на:",
   "statushandling.velgPerson": "Виберіть людину",

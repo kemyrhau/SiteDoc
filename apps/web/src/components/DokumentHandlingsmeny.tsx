@@ -296,7 +296,11 @@ export function DokumentHandlingsmeny({
   /*  Bygg oppføringer fra kilden                                        */
   /* ------------------------------------------------------------------ */
 
-  const primærHandling = aktive.find((h) => h.erPrimaer) ?? null;
+  // Primærhandling: kildens `erPrimaer`, ellers promoteres første aktive handling.
+  // P3 (fabel-ordre § 1): ingen flate sekundærknapper — en status uten erPrimaer for
+  // rollen (f.eks. received×godkjenner = kun Godkjenn) viser den som primærknapp, ikke
+  // som løs knapp ved siden av. Alt annet lovlig samles bak primærens split-▾.
+  const primærHandling = aktive.find((h) => h.erPrimaer) ?? aktive[0] ?? null;
 
   // Recipient-oppføringer (draft-send eller videresend) fra en valg-liste.
   // Draft-send bruker full `videresendValg`; videresend-stien sender inn den
@@ -317,32 +321,42 @@ export function DokumentHandlingsmeny({
       medlemmer: v.medlemmer,
     }));
 
-  // Send-seksjon: draft → send til faggruppe; ellers → videresend (forwarded)
+  // Mottaker-lister: draft → send til faggruppe (førstegangs, ØVERST som framover-utvidelse);
+  // ellers → Videresend (forwarded, EGEN seksjon etter destruktive). Gjensidig utelukkende.
   const draftSend = status === "draft" && primærHandling?.nyStatus === "sent";
-  const forwardedHandling = aktive.find((h) => h.nyStatus === "forwarded");
+  const forwardedHandling = aktive.find((h) => h.nyStatus === "forwarded" && h !== primærHandling);
   const harForwarded = forwardedHandling != null;
-  const sendOppforinger: MenyOppforing[] = draftSend
-    ? recipientOppforinger("sent", "send", primærHandling!.tekstNoekkel)
-    : harForwarded
+  // Draft-mottakere vises kun ved >1 mottaker — primærknappen håndterer 0/1 direkte (klikkPrimær).
+  const draftMottakerOppforinger: MenyOppforing[] =
+    draftSend && videresendValg.length > 1
+      ? recipientOppforinger("sent", "send", primærHandling!.tekstNoekkel)
+      : [];
+  const videresendOppforinger: MenyOppforing[] =
+    !draftSend && harForwarded
       ? recipientOppforinger("forwarded", "fwd", forwardedHandling.tekstNoekkel, videresendMottakere)
       : [];
 
-  // Sekundær-knapper: aktive (minus primær), ikke forwarded, ikke admin-status
-  const sekundærKnapper: MenyOppforing[] = aktive
-    .filter((h) => h !== primærHandling && h.nyStatus !== "forwarded" && !ADMIN_NY.has(h.nyStatus))
-    .map((h) => ({
-      key: `sek-${h.nyStatus}`,
-      label: t(h.tekstNoekkel),
-      nyStatus: h.nyStatus,
-      tekstNoekkel: h.tekstNoekkel,
-      plassering: "sekundær" as const,
-      // F1: Avvis (dismissed) er en danger-handling → rød sekundærknapp, som deleted.
-      erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "dismissed",
-      mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
-    }));
+  // Øvrige statushandlinger (ikke primær, ikke forwarded, ikke admin-status), delt i
+  // framover (nøytrale) og destruktive (Avvis/Slett, rød) for fabel-rekkefølgen.
+  const byggStatusOppforing = (h: StatusHandling): MenyOppforing => ({
+    key: `sek-${h.nyStatus}`,
+    label: t(h.tekstNoekkel),
+    nyStatus: h.nyStatus,
+    tekstNoekkel: h.tekstNoekkel,
+    plassering: "sekundær" as const,
+    // F1: Avvis (dismissed) er en danger-handling → rød, som deleted.
+    erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "dismissed",
+    mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
+  });
+  const øvrigeStatus = aktive.filter(
+    (h) => h !== primærHandling && h.nyStatus !== "forwarded" && !ADMIN_NY.has(h.nyStatus),
+  );
+  const erDestruktivNy = (ns: string) => ns === "deleted" || ns === "dismissed";
+  const framoverOppforinger = øvrigeStatus.filter((h) => !erDestruktivNy(h.nyStatus)).map(byggStatusOppforing);
+  const destruktivOppforinger = øvrigeStatus.filter((h) => erDestruktivNy(h.nyStatus)).map(byggStatusOppforing);
 
-  // Overflow (⋯): aktive admin-status som IKKE er primær (lukk/trekk tilbake/gjenåpne når sekundær)
-  const overflowOppforinger: MenyOppforing[] = aktive
+  // Admin-seksjon: aktive admin-status som IKKE er primær (Lukk/Trekk tilbake/Gjenåpne når sekundær)
+  const adminOppforinger: MenyOppforing[] = aktive
     .filter((h) => h !== primærHandling && ADMIN_NY.has(h.nyStatus) && h.nyStatus !== "forwarded")
     .map((h) => ({
       key: `adm-${h.nyStatus}`,
@@ -367,14 +381,26 @@ export function DokumentHandlingsmeny({
       begrunnelse: begrunnelseFor(h),
     }));
 
-  const dropdownHarInnhold =
-    sendOppforinger.length > 0 || overflowOppforinger.length > 0 || deaktiverteOppforinger.length > 0;
+  // Øvrige LOVLIGE handlinger (alt utenom primær som kan utføres) styrer split-▾ (fabel § 1).
+  const aktiveØvrige =
+    draftMottakerOppforinger.length +
+    framoverOppforinger.length +
+    destruktivOppforinger.length +
+    videresendOppforinger.length +
+    adminOppforinger.length;
+  // Split vises kun ved primær + ≥1 øvrig lovlig. Deaktiverte alene utløser IKKE split
+  // (received×godkjenner = «Godkjenn uten split»); de vises som info NÅR menyen åpnes.
+  const harØvrige = aktiveØvrige > 0;
+  const menyHarInnhold = harØvrige || deaktiverteOppforinger.length > 0;
 
   /* ------------------------------------------------------------------ */
   /*  Handlinger                                                         */
   /* ------------------------------------------------------------------ */
 
-  const trengerBekreft = (nyStatus: string) => nyStatus === "closed" || nyStatus === "deleted";
+  // P3 (cowork-tillegg): utkast slettes i ett trykk — soft-delete = papirkurv 90 dager er
+  // sikringen. `closed` og øvrige `deleted` (cancelled→deleted) beholder bekreft-baren.
+  const trengerBekreft = (nyStatus: string) =>
+    nyStatus === "closed" || (nyStatus === "deleted" && status !== "draft");
 
   const utfor = (nyStatus: string, tekstNoekkel: string, mottaker?: Mottaker) => {
     if (nyStatus === "deleted") {
@@ -434,7 +460,7 @@ export function DokumentHandlingsmeny({
   }
 
   // Ingenting å vise (f.eks. terminal `closed` uten deaktiverte)
-  if (!primærHandling && sekundærKnapper.length === 0 && !dropdownHarInnhold) {
+  if (!primærHandling && !menyHarInnhold) {
     return null;
   }
 
@@ -502,17 +528,28 @@ export function DokumentHandlingsmeny({
     ? { tittel: t(primærHandling.tekstNoekkel), tekst: besvarDeaktivertGrunn! }
     : primærMikro;
 
-  // Fiks 1 (klikktest): kryssflyt-nedtrekket er «Videresend» (ikke-draft) med egen flythjelp-hover.
-  // §8A (2026-07-29): F5s «Send fram» fra received/responded/approved er fjernet (recipient-løs no-op);
-  // draft beholder «Send» (førstegangs-send til faggruppe, setter recipient via person-velger).
-  const erVideresendNedtrekk = harForwarded && !draftSend;
-  const videresendMikro = erVideresendNedtrekk && forwardedHandling
-    ? mikrotekst(forwardedHandling.tekstNoekkel, "forwarded", t("statushandling.videresend"))
-    : undefined;
+  // Splittkanten (rounded-l) på primærknappen når split-▾ vises.
+  const primærRund = harØvrige ? "rounded-l-lg" : "rounded-lg";
+  const primærKnappKlasse = `px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${primærRund} ${primærFarge}`;
+
+  const meny = (
+    <DropdownMeny
+      draftMottaker={draftMottakerOppforinger}
+      framover={framoverOppforinger}
+      destruktiv={destruktivOppforinger}
+      videresend={videresendOppforinger}
+      admin={adminOppforinger}
+      deaktivert={deaktiverteOppforinger}
+      onVelg={klikk}
+      sendLabel={t("statushandling.sendVidereTil")}
+      videresendLabel={t("statushandling.videresend")}
+      adminLabel={t("statushandling.admin")}
+    />
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2" ref={menyRef}>
-      {/* Primærhandling som knapp (+ split-▾ ved draft-send med flere mottakere) */}
+      {/* Primærhandling som knapp + split-▾ (fabel § 1: alle øvrige lovlige handlinger i menyen) */}
       {primærHandling && (
         <div className="relative flex">
           {primærTooltip ? (
@@ -521,9 +558,7 @@ export function DokumentHandlingsmeny({
                 data-testid={`handling-${primærHandling.nyStatus}`}
                 onClick={klikkPrimær}
                 disabled={erLaster || besvarBlokkert}
-                className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
-                  draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
-                } ${primærFarge}`}
+                className={primærKnappKlasse}
               >
                 {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
               </button>
@@ -533,93 +568,44 @@ export function DokumentHandlingsmeny({
               data-testid={`handling-${primærHandling.nyStatus}`}
               onClick={klikkPrimær}
               disabled={erLaster || besvarBlokkert}
-              className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
-                draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
-              } ${primærFarge}`}
+              className={primærKnappKlasse}
             >
               {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
             </button>
           )}
-          {draftSend && videresendValg.length > 1 && (
+          {harØvrige && (
             <button
+              data-testid="handling-split-nedtrekk"
+              aria-label={t("statushandling.flereHandlinger")}
               onClick={() => setÅpenMeny((å) => !å)}
               disabled={erLaster}
-              className={`rounded-r-lg border-l border-blue-500 px-1.5 py-1.5 text-white disabled:opacity-50 ${primærFarge}`}
+              className={`rounded-r-lg border-l border-white/30 px-1.5 py-1.5 text-white disabled:opacity-50 ${primærFarge}`}
             >
               <ChevronDown className="h-4 w-4" />
             </button>
           )}
+          {åpenMeny && menyHarInnhold && meny}
         </div>
       )}
 
-      {/* Sekundær-knapper */}
-      {sekundærKnapper.map((o) => {
-        const knapp = (
-          <button
-            key={o.key}
-            data-testid={`handling-${o.nyStatus}`}
-            onClick={() => klikk(o)}
-            disabled={erLaster}
-            className={`rounded-lg border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
-              o.erDestruktiv
-                ? "border-red-300 text-red-600 hover:bg-red-50"
-                : "border-gray-300 text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            {o.label}
-          </button>
-        );
-        return o.mikro ? (
-          <Tooltip key={o.key} tittel={o.mikro.tittel} tekst={o.mikro.tekst} side="top">
-            {knapp}
-          </Tooltip>
-        ) : (
-          knapp
-        );
-      })}
-
-      {/* Nedtrekk: send-mottakere + admin + deaktiverte */}
-      {dropdownHarInnhold && !(draftSend && videresendValg.length > 1) && (
+      {/* Uten primærhandling (ikke-eier): alt lovlig/deaktivert bak én ▾ */}
+      {!primærHandling && menyHarInnhold && (
         <div className="relative">
-          {erVideresendNedtrekk && videresendMikro ? (
-            <Tooltip tittel={videresendMikro.tittel} tekst={videresendMikro.tekst} side="top">
-              <button
-                data-testid="handling-videresend-nedtrekk"
-                onClick={() => setÅpenMeny((å) => !å)}
-                disabled={erLaster}
-                className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-              >
-                {t("statushandling.videresend")}
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </Tooltip>
-          ) : (
-            <button
-              data-testid="handling-admin-nedtrekk"
-              onClick={() => setÅpenMeny((å) => !å)}
-              disabled={erLaster}
-              className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {t("statushandling.admin")}
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <button
+            data-testid="handling-admin-nedtrekk"
+            onClick={() => setÅpenMeny((å) => !å)}
+            disabled={erLaster}
+            className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {t("statushandling.flereHandlinger")}
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+          {åpenMeny && meny}
         </div>
-      )}
-
-      {åpenMeny && dropdownHarInnhold && (
-        <DropdownMeny
-          send={sendOppforinger}
-          overflow={overflowOppforinger}
-          deaktivert={deaktiverteOppforinger}
-          onVelg={klikk}
-          adminLabel={t("statushandling.admin")}
-          sendLabel={t("statushandling.sendVidereTil")}
-        />
       )}
 
       {/* Kommentar-utvider — alltid tilgjengelig, aldri påkrevd */}
-      {(primærHandling || sekundærKnapper.length > 0) && (
+      {(primærHandling || harØvrige) && (
         visKommentar ? (
           <input
             type="text"
@@ -648,19 +634,33 @@ export function DokumentHandlingsmeny({
 /* ------------------------------------------------------------------ */
 
 function DropdownMeny({
-  send,
-  overflow,
+  draftMottaker,
+  framover,
+  destruktiv,
+  videresend,
+  admin,
   deaktivert,
   onVelg,
-  adminLabel,
   sendLabel,
+  videresendLabel,
+  adminLabel,
 }: {
-  send: MenyOppforing[];
-  overflow: MenyOppforing[];
+  /** Draft-send: mottaker-liste (person-velger), øverst som framover-utvidelse */
+  draftMottaker: MenyOppforing[];
+  /** Framover-handlinger (nøytrale statushandlinger) */
+  framover: MenyOppforing[];
+  /** Destruktive handlinger (Avvis/Slett — rød) */
+  destruktiv: MenyOppforing[];
+  /** Videresend: mottaker-liste (person-velger), etter destruktive */
+  videresend: MenyOppforing[];
+  /** Admin-overstyringer (Lukk/Trekk tilbake/Gjenåpne-når-sekundær) */
+  admin: MenyOppforing[];
+  /** Deaktiverte (gjennomstrøket, med begrunnelse) */
   deaktivert: MenyOppforing[];
   onVelg: (o: MenyOppforing) => void;
-  adminLabel: string;
   sendLabel: string;
+  videresendLabel: string;
+  adminLabel: string;
 }) {
   const { t } = useTranslation();
   // Person-videresending (Del 2.4): hvilke faggruppe-rader er ekspandert.
@@ -673,90 +673,135 @@ function DropdownMeny({
       return n;
     });
 
+  // Seksjonsoverskrift (10px uppercase)
+  const overskrift = (tekst: string) => (
+    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{tekst}</div>
+  );
+
+  // Statushandling-rad (framover/destruktiv/admin): rød ved erDestruktiv, mikro-hover.
+  const statusRad = (o: MenyOppforing) => {
+    const knapp = (
+      <button
+        key={o.key}
+        data-testid={`handling-${o.nyStatus}`}
+        onClick={() => onVelg(o)}
+        className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+          o.erDestruktiv ? "text-red-600" : "text-gray-700"
+        }`}
+      >
+        {o.label}
+      </button>
+    );
+    return o.mikro ? (
+      <Tooltip key={o.key} tittel={o.mikro.tittel} tekst={o.mikro.tekst} side="left" wrapperClassName="relative block w-full">
+        {knapp}
+      </Tooltip>
+    ) : (
+      knapp
+    );
+  };
+
+  // Mottaker-rad (draft-send/videresend): person-velger-ekspansjon via medlemmer.
+  const mottakerRad = (o: MenyOppforing) => {
+    const harMedlemmer = (o.medlemmer?.length ?? 0) > 0;
+    const erÅpen = ekspandert.has(o.key);
+    return (
+      <div key={o.key}>
+        <div className="flex w-full items-center">
+          <button
+            onClick={() => onVelg(o)}
+            className="flex flex-1 items-center px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+          >
+            {o.label}
+          </button>
+          {harMedlemmer && (
+            <button
+              onClick={() => veksle(o.key)}
+              aria-label={t("statushandling.velgPerson")}
+              className="px-2 py-2 text-gray-400 hover:text-gray-600"
+            >
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${erÅpen ? "rotate-180" : ""}`} />
+            </button>
+          )}
+        </div>
+        {/* Kollapset person-liste: send til spesifikk person i mottaker-flyten */}
+        {harMedlemmer && erÅpen && (
+          <div className="bg-gray-50/60">
+            {o.medlemmer!.map((m) => (
+              <button
+                key={`${o.key}-${m.key}`}
+                onClick={() =>
+                  onVelg({
+                    ...o,
+                    key: `${o.key}-${m.key}`,
+                    label: m.navn,
+                    mottaker: { ...m.mottaker, dokumentflytId: o.mottaker?.dokumentflytId },
+                    medlemmer: undefined,
+                  })
+                }
+                className="flex w-full items-center gap-2 py-1.5 pl-7 pr-3 text-left text-sm text-gray-600 hover:bg-gray-100"
+              >
+                <span className="truncate">{m.navn}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Skille-linje mellom to ikke-tomme seksjoner.
+  let harTidligere = false;
+  const skille = (harInnhold: boolean) => {
+    const vis = harInnhold && harTidligere;
+    if (harInnhold) harTidligere = true;
+    return vis ? <div className="my-1 border-t border-gray-100" /> : null;
+  };
+
+  // Fabel-rekkefølge: (draft-mottakere →) framover → destruktiv → Videresend → Admin → deaktiverte.
   return (
     <div className="absolute right-0 top-full z-20 mt-1 min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-      {/* Send-skille (Del 2.3): tydelig «Send videre til:»-overskrift over faggruppene */}
-      {send.length > 0 && (
-        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{sendLabel}</div>
-      )}
-      {send.map((o) => {
-        const harMedlemmer = (o.medlemmer?.length ?? 0) > 0;
-        const erÅpen = ekspandert.has(o.key);
-        return (
-          <div key={o.key}>
-            <div className="flex w-full items-center">
-              <button
-                onClick={() => onVelg(o)}
-                className="flex flex-1 items-center px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-              >
-                {o.label}
-              </button>
-              {harMedlemmer && (
-                <button
-                  onClick={() => veksle(o.key)}
-                  aria-label={t("statushandling.velgPerson")}
-                  className="px-2 py-2 text-gray-400 hover:text-gray-600"
-                >
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${erÅpen ? "rotate-180" : ""}`} />
-                </button>
-              )}
-            </div>
-            {/* Kollapset person-liste: send til spesifikk person i mottaker-flyten */}
-            {harMedlemmer && erÅpen && (
-              <div className="bg-gray-50/60">
-                {o.medlemmer!.map((m) => (
-                  <button
-                    key={`${o.key}-${m.key}`}
-                    onClick={() =>
-                      onVelg({
-                        ...o,
-                        key: `${o.key}-${m.key}`,
-                        label: m.navn,
-                        mottaker: { ...m.mottaker, dokumentflytId: o.mottaker?.dokumentflytId },
-                        medlemmer: undefined,
-                      })
-                    }
-                    className="flex w-full items-center gap-2 py-1.5 pl-7 pr-3 text-left text-sm text-gray-600 hover:bg-gray-100"
-                  >
-                    <span className="truncate">{m.navn}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
-
-      {overflow.length > 0 && (
+      {draftMottaker.length > 0 && (
         <>
-          {send.length > 0 && <div className="my-1 border-t border-gray-100" />}
-          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{adminLabel}</div>
-          {overflow.map((o) => {
-            const knapp = (
-              <button
-                key={o.key}
-                onClick={() => onVelg(o)}
-                className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-                  o.erDestruktiv ? "text-red-600" : "text-gray-700"
-                }`}
-              >
-                {o.label}
-              </button>
-            );
-            return o.mikro ? (
-              <Tooltip key={o.key} tittel={o.mikro.tittel} tekst={o.mikro.tekst} side="left" wrapperClassName="relative block w-full">
-                {knapp}
-              </Tooltip>
-            ) : (
-              knapp
-            );
-          })}
+          {skille(true)}
+          {overskrift(sendLabel)}
+          {draftMottaker.map(mottakerRad)}
+        </>
+      )}
+
+      {framover.length > 0 && (
+        <>
+          {skille(true)}
+          {framover.map(statusRad)}
+        </>
+      )}
+
+      {destruktiv.length > 0 && (
+        <>
+          {skille(true)}
+          {destruktiv.map(statusRad)}
+        </>
+      )}
+
+      {videresend.length > 0 && (
+        <>
+          {skille(true)}
+          {overskrift(videresendLabel)}
+          {videresend.map(mottakerRad)}
+        </>
+      )}
+
+      {admin.length > 0 && (
+        <>
+          {skille(true)}
+          {overskrift(adminLabel)}
+          {admin.map(statusRad)}
         </>
       )}
 
       {deaktivert.length > 0 && (
         <>
-          {(send.length > 0 || overflow.length > 0) && <div className="my-1 border-t border-gray-100" />}
+          {skille(true)}
           {deaktivert.map((o) => (
             // Begrunnelsen flyttet fra nativ title= til Tooltip v2 (usynlig på mobil ellers — § 2-sweep).
             <Tooltip key={o.key} tekst={o.begrunnelse ?? ""} side="left" wrapperClassName="relative block w-full">

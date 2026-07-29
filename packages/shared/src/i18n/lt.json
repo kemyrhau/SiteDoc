@@ -2158,6 +2158,7 @@
   "statushandling.trekkTilbake": "Atsitraukti",
   "statushandling.mottakerHarLest": "Gavėjas jau perskaitė šį dokumentą. Ar vis tiek norite jį atsiimti?",
   "statushandling.admin": "Admin",
+  "statushandling.flereHandlinger": "Daugiau veiksmų",
   "statushandling.leggTilKommentar": "+ komentaras",
   "statushandling.sendVidereTil": "Persiųsti į:",
   "statushandling.velgPerson": "Pasirinkite asmenį",

@@ -2158,6 +2158,7 @@
   "statushandling.trekkTilbake": "Peruuttaa",
   "statushandling.mottakerHarLest": "Vastaanottaja on jo lukenut tämän asiakirjan. Haluatko silti peruuttaa sen?",
   "statushandling.admin": "Admin",
+  "statushandling.flereHandlinger": "Lisää toimintoja",
   "statushandling.leggTilKommentar": "+ kommentti",
   "statushandling.sendVidereTil": "Lähetä eteenpäin:",
   "statushandling.velgPerson": "Valitse henkilö",
