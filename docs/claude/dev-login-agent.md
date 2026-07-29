@@ -104,6 +104,27 @@ DATABASE_URL=<sitedoc_test> pnpm --filter @sitedoc/db exec tsx scripts/seed-test
 
 Whitelisten i `apps/api/src/routes/dev-login.ts` MÅ matche disse epostene.
 
+## Worktree — lokal web-bevis uten Kenneth-innlogging (localhost)
+
+**Når:** en kode-Opus i et eget worktree (f.eks. `SiteDoc-p2`) trenger å fange web-skjermbilder av sin egen branch (fabel-designgate) — men branchen er ikke test-deployet (test tracker develop), og Google/Microsoft-OAuth avviser en agent-Chrome. Løsning: kjør branchen lokalt + mint token via dev-login + seed nødvendig data-tilstand. **Kenneth trenger IKKE logge inn.** (Etablert 2026-07-28, P2-bevis. Verifisert: `seed-e2e-flyt.ts` finnes + invokering; `worktree-bootstrap.sh` = fabels forslag, se BACKLOG.)
+
+1. **Env inn i worktreet** (gitignorert interim — samme worktree-lærdom som e2e-rigg-ordren; aldri commit):
+   ```
+   cp ../SiteDoc/apps/api/.env       apps/api/.env
+   cp ../SiteDoc/apps/web/.env.local apps/web/.env.local
+   ```
+2. **Lokal dev-login trenger IKKE secret** (`NODE_ENV=development`, localhost — se § Sikkerhetsgrense). Mint token mot lokal api (`localhost:3001`) som `test-arbeider@sitedoc.test` (utfører-rollen).
+3. **Seed data-tilstanden mot LOKAL DB** (ikke test-DB): kjør `seed-testbrukere.ts` FØRST, så `seed-e2e-flyt.ts` — begge med `DATABASE_URL=<lokal>`:
+   ```
+   DATABASE_URL=<lokal> pnpm --filter @sitedoc/db exec tsx scripts/seed-testbrukere.ts
+   DATABASE_URL=<lokal> pnpm --filter @sitedoc/db exec tsx scripts/seed-e2e-flyt.ts
+   ```
+   - ⚠️ **Kandidat — verifiser, ikke anta (2026-07-28):** `seed-e2e-flyt.ts` traff `ERR_MODULE_NOT_FOUND` under e2e-riggen (2026-07-26). `seed-testbrukere.ts` med samme invokering kjørte grønt → feilen ligger i `seed-e2e-flyt.ts` sine import-stier, ikke i `tsx`. Verifiser at den kjører; feiler den, fiks modul-oppslaget FØR du bygger bevis på den.
+   - ⚠️ **Kandidat:** seed-en setter opp flyt-scaffolding (faggrupper/mal/flyt/medlemmer). Verifiser om den også lager en **`received`-status sjekkliste-instans med test-arbeider som utfører** — trengs for at «Besvar» vises. Hvis ikke: opprett + send én sjekkliste til `received` som del av oppsettet.
+4. `pnpm dev --filter @sitedoc/web --filter @sitedoc/api` → browser `localhost:3100` med token → fang skjermbildene → `SiteDoc/<modul>-bevis/`.
+
+**Fremtidig forbedring (fabel-forslag 2026-07-28, ikke bygget):** `scripts/worktree-bootstrap.sh` som kopierer/lenker env fra hovedtreet ved oppsett av nytt worktree — lukker env-hullet for ALLE fremtidige worktrees i én kommando. Samme krav (gitignorert, aldri commit) som resten av e2e-rigg-ordren. Se BACKLOG.
+
 ## Sikkerhetsgrense
 
 - **Prod (avgjørende):** ruten monteres kun når `erDevLoginAktiv()` = `NODE_ENV==="development"` **eller** `ENABLE_DEV_LOGIN==="true"`. Prod har ingen → **404**, ingen credential-vei til prod-sesjon (fail-secure whitelist).

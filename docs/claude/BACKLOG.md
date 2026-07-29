@@ -16,6 +16,26 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🔴 `dokument-handlingsmeny-kvittering.test.tsx` feiler på develop (P2-mobil-restanse, 2026-07-29)
+
+Bekreftet (P1-Opus, `git stash`): testen feiler ALT på develop — P2 (inndata-validering) gjorde `in_progress` begrunnelse-påkrevd, men denne nudge-æra-testen skriver ingen begrunnelse. Ikke §8A. Oppdater testen så den skriver begrunnelse (matcher P2-regelen). Naturlig å ta i P3 (handlingslinje-redesign rører uansett `DokumentHandlingsmeny` + testene).
+
+### 🔴 `in_progress→sent` («Send på nytt») — måle om den også er recipient-løs no-op (§8A-nabo, 2026-07-29)
+
+§8A-fiksen fjernet Send fra received/responded/approved (recipient-løse no-ops). `in_progress→sent` («Send på nytt» etter Send tilbake) ble parkert — P1 målte den ikke. Egen liten runde: setter den recipient (legitim re-send) eller er den samme no-op? Hvis no-op → samme fix (fjern fra `in_progress`-lista i `isValidStatusTransition` + defaults + universe).
+
+### 🔴 Fjern suksess-Alert på oppgave-detalj (V5a-paritet, 2026-07-29)
+
+P2-småsaker fjernet suksess-Alert etter lagring på `sjekkliste/[id].tsx:579` (LagreIndikator dekker). Samme Alert står igjen på `oppgave/[id].tsx:369` — utenfor P2-scope. Fjern for paritet (samme mønster). Trivielt; i18n-nøklene `dokument.lagret`/`dokument.utfyllingLagret` beholdes (fortsatt brukt til de begge er borte).
+
+### 🔴 Oppgave direkte `byggeplassId` — full byggeplass-kontekst på oppgave (V2 sak B, 2026-07-29)
+
+Effektivitets-auditens V2 (byggeplass-kontekst-lekkasje) er delvis fikset i P2: `sjekkliste.opprett` tar `byggeplassId`+`drawingId`, men `oppgave.opprett` tar **kun `drawingId`** (byggeplass utledes via `drawing.byggeplassId`). P2 wiret (A) ren: oppgave får byggeplass-kontekst KUN når det finnes en aktiv tegning (`standardTegning`) — **byggeplass-uten-tegning droppes stille på oppgave.** Den ordentlige fiksen (B): gi `Task` et direkte `byggeplassId`-felt (datamodell-endring + `oppgave.opprett`-input) så oppgave kan bære byggeplass uten en tegning, symmetrisk med sjekkliste. Krever fabel-design (byggeplass-strategi) + migrering. Ikke wiring — egen ordre.
+
+### 🔴 `scripts/worktree-bootstrap.sh` — lukk env-hullet for nye worktrees (fabel-forslag 2026-07-28)
+
+Hver gang en kode-Opus lager et fresh worktree (`git worktree add`) mangler de gitignorerte env-filene (`apps/api/.env`, `apps/web/.env.local`, `apps/mobile/.env`) → api/web/Expo starter ikke før de kopieres manuelt fra hovedtreet. Gjentatt friksjon (del6b mobil-env, P2 web-bevis). **Forslag:** ett skript som kopierer/lenker env-filene fra hovedtreet ved oppsett av nytt worktree — lukker hullet for alle fremtidige worktrees i én kommando. Krav: gitignorert, aldri commit (samme som e2e-rigg-ordren). Full manuell løype er dokumentert i [dev-login-agent.md § Worktree — lokal web-bevis](dev-login-agent.md); skriptet automatiserer bare env-steget.
+
 ### 🟠 Livssyklus-overgangs-design — hvilke handlinger fra hvilke statuser × roller + terminal-ruting/gjenåpning (Kenneth 2026-07-25)
 
 Statusmaskinen (`VALID_TRANSITIONS`) låser hver livssyklus-handling til få kilde-statuser: **godkjenn** kun fra responded · **slett** kun fra draft · **lukk** fra approved+rejected · **gjenoppta** kun `rejected→in_progress` · **gjenåpne** (closed/cancelled)→**draft** (alltid til start, ikke midt i løpet) · **avbryt** (cancelled) fra draft/sent/received/in_progress. Åpne designspørsmål (Kenneth): bør lukk/slett/gjenåpne/godkjenn være tilgjengelig fra **flere** stadier (admin savner bl.a. godkjenn/lukk uansett status)? Hvor rutes en gjenåpnet approved/closed — til draft, eller tilbake dit den var? Hvem får ballen etter terminaltilstand? Krever **fabel-design-gjennomgang** med statusmaskin-kartet som utgangspunkt → definerer ønsket flyt → mater matrise-rader + statusmaskin. **Rekkefølge:** tas ETTER matrise-hoveren (så matrisen er lesbar først). Relatert: admin «enkel godkjenn/lukk»-override var det opprinnelige symptomet.

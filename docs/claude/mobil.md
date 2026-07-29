@@ -124,6 +124,14 @@ Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanel
 - mobil-`.env`: `EXPO_PUBLIC_API_URL=http://localhost:3301`
 - `localhost` løser via IPv4-loopback → omgår AAAA-fella. Verifiser i Metro-loggen at timer-/prosjekt-kall går mot `localhost:3301`, aldri `api.sitedoc.no`.
 
+**Oppstart-sekvens for simulator mot test-API (rekkefølge er ufravikelig — verifisert 2026-07-28):**
+1. **Tailscale må være oppe** — `server-ny` nås kun via Tailscale (`100.76.248.15`). Sjekk at noden er tilkoblet i Tailscale-menylinjen. `ping -c3 100.76.248.15` med 100 % pakketap = server-ny offline → tunnelen vil time ut (`ssh: connect ... Operation timed out`, exit 255).
+2. **Start SSH-tunnelen** (eget terminalvindu, `ssh -N` blokkerer): `ssh -N -L 3301:localhost:3301 server-ny`. Verifiser: `lsof -nP -iTCP:3301 -sTCP:LISTEN` skal vise `ssh` som lytter; `curl -s -o /dev/null -w "%{http_code}" http://localhost:3301/` → `404` (server svarer, ingen rot-rute) bekrefter at API-et nås.
+3. **Start simulator + Metro:** `cd apps/mobile && npx expo start --clear --ios` (auto-booter sim, installerer Expo Go første gang, åpner appen). Bruker Expo Go — **ingen** `expo-dev-client`.
+- **Symptom uten tunnel:** appen laster, men dev-login-knappene gir «Dev-bypass feilet: Fetch feilet mot http://localhost:3301/dev-login: Network request failed». Rotårsak er alltid trinn 1–2 (Tailscale/tunnel), ikke appen.
+- **Bundling-feil «Unable to resolve … from …» etter pull:** kjør `pnpm install --frozen-lockfile` fra repo-roten — en ny dependency (f.eks. `expo-application`) mangler symlink i `apps/mobile/node_modules` til install er kjørt. Lockfil er allerede i sync, så `--frozen-lockfile` lager kun lenken (ingen lockfil-endring).
+- **Checkout-merknad:** aktiv checkout er `~/Documents/Programmering/SiteDoc` (branch `develop`). Den gamle `SiteDoc-develop`-stien finnes ikke lenger.
+
 **Expo dev-server:**
 - `pnpm dev:tunnel` — Starter ngrok v3-tunnel + Expo. Telefon og Mac kan være på forskjellige nettverk.
 - `npx expo start --clear` — LAN-modus. Krever Mac og telefon på samme WiFi.

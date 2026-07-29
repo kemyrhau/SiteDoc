@@ -62,3 +62,6 @@ Lønnsarter til sortering.txt
 
 # Fabel-leveranser (staging-inbox; kanoniske docs ligger i docs/claude/)
 Fra fabel/
+
+# Relé — asynkron koordinering mellom cowork/fabel/Opus (lokal scratch, ikke historikk)
+relay/
