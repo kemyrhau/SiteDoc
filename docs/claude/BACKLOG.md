@@ -32,6 +32,14 @@ P4b bygde server-fritt: mal-chip er **display-only** (bytte KUN ved flertydighet
 
 P4a løser iOS-modal-kollisjonen via kandidat #1 (serialiser onDismiss + skip modal ved auto-kontekst). Fabel noterte #2 (full-screen expo-router-rute — fjerner kollisjonsklassen permanent, 5-callsite-refaktor) + #3 (ekte ett-klikk uten modal → detaljskjerm med kontekst-chips = mobil-ekvivalent av P4b) som **naturlig neste steg**. Vurderes SAMLET når P4b-chip-skjermen finnes (mobil chip-linje forutsetter ny skjermstruktur). Egen runde etter P4b/P4c.
 
+### 🔴 Slett kommentar in-app (mobil dialog) — mangler helt (2026-07-30)
+
+Mobil-avbryt-nå-sjekken (funn A) fant: en sendt dialog-kommentar kan IKKE slettes in-app. `Trash2` er importert i `apps/mobile/app/oppgave/[id].tsx:27` men aldri brukt; ingen `slettKommentar`-mutasjon/UI i dialog-rendringen. Kenneths ufrivillige BEF1-kommentar (fra avbryt-bugen) ble stående. Egen sak: legg til slett-kommentar (server-mutasjon + UI, eier/admin-scope). Relatert: avbryt-fiksen (`fix/mobil-avbryt-modaler`) hindrer FLERE ufrivillige, men fjerner ikke eksisterende.
+
+### 🔴 Tidslinje: kollaps Sendt⇄Mottatt-spam (mobiltest-funn C, 2026-07-30)
+
+Dokumenter med historikk fra P1-bugens no-op-klikk (før §8A-fiksen) viser ~15 Sendt↔Mottatt-par i tidslinja (KB27 eksempel). Bugen selv er fikset (P1, `402b9ce4`); dette er historiske loggrader. Kosmetisk visnings-sak: kollaps konsekutive identiske statuspar i tidslinje-visningen («Sendt ⇄ Mottatt ×8», ekspanderbar). Web + mobil. Lav prioritet.
+
 ### 🔴 Fjern suksess-Alert på oppgave-detalj (V5a-paritet, 2026-07-29)
 
 P2-småsaker fjernet suksess-Alert etter lagring på `sjekkliste/[id].tsx:579` (LagreIndikator dekker). Samme Alert står igjen på `oppgave/[id].tsx:369` — utenfor P2-scope. Fjern for paritet (samme mønster). Trivielt; i18n-nøklene `dokument.lagret`/`dokument.utfyllingLagret` beholdes (fortsatt brukt til de begge er borte).
