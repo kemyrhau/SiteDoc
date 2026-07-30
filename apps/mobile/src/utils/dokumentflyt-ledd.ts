@@ -1,7 +1,7 @@
 /**
  * Delt helper for å bygge "ledd"-rader fra DokumentflytMedlem.
- * Brukes av FlytIndikator (kompakt visuell visning i topbar) og
- * DokumentHandlingsmeny (trykkbar boks-rad i bunn).
+ * Brukes av Flytlinje (kompakt visuell visning i header + flyt-sheet) og
+ * DokumentHandlingslinje (retningsnavn på primærhandling).
  *
  * Et "ledd" er en gruppering av medlemmer som deler samme `steg`.
  * Spesifisitets-hierarki ved navn-utledning: faggruppe > group > projectMember.

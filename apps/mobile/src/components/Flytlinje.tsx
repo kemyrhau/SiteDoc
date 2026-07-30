@@ -1,10 +1,10 @@
 /**
  * Flytlinje (M1) + flyt-sheet (M3) for mobilens detaljskjermer.
  *
- * Slår sammen de to tidligere flyt-representasjonene (FlytIndikator i header +
- * boks-raden i DokumentHandlingsmeny) til ÉN linje i den blå headeren:
+ * Slår sammen de to tidligere flyt-representasjonene (den kompakte header-indikatoren +
+ * den trykkbare boks-raden i bunn) til ÉN linje i den blå headeren:
  *  - Per ledd: faggruppefarge-svatt (10px) + navn. Aktivt ledd = hvit chip m/fet tekst.
- *  - Kompakt-regel arvet fra FlytIndikator: aktiv + én nabo, «+N» ved >3 ledd.
+ *  - Kompakt-regel: aktiv + én nabo, «+N» ved >3 ledd.
  *  - Under linjen: «Du har ballen» (grønn prikk) når recipient = meg/min gruppe,
  *    ellers «Venter på [aktivt ledd]».
  *  - Tap på linjen → flyt-sheet (M3): ren visning av flyten, ingen statushandlinger.
@@ -78,7 +78,7 @@ export function Flytlinje({
 
   if (ledd.length === 0) return null;
 
-  // Kompakt: aktiv + én nabo på hver side når >3 ledd (arvet fra FlytIndikator).
+  // Kompakt: aktiv + én nabo på hver side når >3 ledd.
   const kompakt = ledd.length > 3;
   const visbare = kompakt
     ? filtrerNaboer(ledd, aktivtIndex)
@@ -280,7 +280,7 @@ function FlytSheet({
 /*  Hjelpere                                                           */
 /* ------------------------------------------------------------------ */
 
-/** Kompakt-visning: aktivt ledd + én nabo på hver side (samme regel som FlytIndikator). */
+/** Kompakt-visning: aktivt ledd + én nabo på hver side. */
 function filtrerNaboer(
   ledd: Ledd[],
   aktivtIndex: number,
