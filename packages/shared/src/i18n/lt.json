@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Uždaryti",
   "statushandling.sendTil": "Siųsti {{mottaker}}",
   "statushandling.besvarTil": "Atsakyti {{mottaker}}",
+  "statushandling.bekreftSendTil": "Siųsti {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Atsakyti {{mottaker}}?",
   "statushandling.handlingerTittel": "Veiksmai",
   "dokument.valideringsfeil": "Patvirtinimo klaida",
   "dokument.fyllInnPaakrevde": "Prieš išsaugodami užpildykite visus privalomus laukus.",

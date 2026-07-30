@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Blízko",
   "statushandling.sendTil": "Odeslat {{mottaker}}",
   "statushandling.besvarTil": "Odpovědět uživateli {{mottaker}}",
+  "statushandling.bekreftSendTil": "Odeslat uživateli {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Odpovědět uživateli {{mottaker}}?",
   "statushandling.handlingerTittel": "Akce",
   "dokument.valideringsfeil": "Chyba ověření",
   "dokument.fyllInnPaakrevde": "Před uložením vyplňte všechna povinná pole.",

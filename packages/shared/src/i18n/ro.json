@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Aproape",
   "statushandling.sendTil": "Trimite către {{mottaker}}",
   "statushandling.besvarTil": "Răspunde lui {{mottaker}}",
+  "statushandling.bekreftSendTil": "Trimiți către {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Răspuns la {{mottaker}}?",
   "statushandling.handlingerTittel": "Acțiuni",
   "dokument.valideringsfeil": "Eroare de validare",
   "dokument.fyllInnPaakrevde": "Completați toate câmpurile obligatorii înainte de a salva.",

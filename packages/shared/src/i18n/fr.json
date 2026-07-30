@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Fermer",
   "statushandling.sendTil": "Envoyer à {{mottaker}}",
   "statushandling.besvarTil": "Répondre à {{mottaker}}",
+  "statushandling.bekreftSendTil": "Envoyer à {{mottaker}} ?",
+  "statushandling.bekreftBesvarTil": "Répondre à {{mottaker}} ?",
   "statushandling.handlingerTittel": "Actes",
   "dokument.valideringsfeil": "Erreur de validation",
   "dokument.fyllInnPaakrevde": "Remplissez tous les champs obligatoires avant d'enregistrer.",

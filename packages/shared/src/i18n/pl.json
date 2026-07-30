@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Zamknąć",
   "statushandling.sendTil": "Wyślij do {{mottaker}}",
   "statushandling.besvarTil": "Odpowiedz dla {{mottaker}}",
+  "statushandling.bekreftSendTil": "Wysłać do {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Odpowiedzieć {{mottakerowi}}?",
   "statushandling.handlingerTittel": "Działania",
   "dokument.valideringsfeil": "Błąd walidacji",
   "dokument.fyllInnPaakrevde": "Przed zapisaniem wypełnij wszystkie wymagane pola.",

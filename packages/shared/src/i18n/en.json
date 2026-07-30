@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Close",
   "statushandling.sendTil": "Send to {{mottaker}}",
   "statushandling.besvarTil": "Reply to {{mottaker}}",
+  "statushandling.bekreftSendTil": "Send to {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Reply to {{mottaker}}?",
   "statushandling.handlingerTittel": "Actions",
   "dokument.valideringsfeil": "Validation error",
   "dokument.fyllInnPaakrevde": "Fill in all required fields",

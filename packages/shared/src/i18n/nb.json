@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Lukk",
   "statushandling.sendTil": "Send til {{mottaker}}",
   "statushandling.besvarTil": "Besvar til {{mottaker}}",
+  "statushandling.bekreftSendTil": "Send til {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Besvar til {{mottaker}}?",
   "statushandling.handlingerTittel": "Handlinger",
   "dokument.valideringsfeil": "Valideringsfeil",
   "dokument.fyllInnPaakrevde": "Fyll inn alle påkrevde felt",

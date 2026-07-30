@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Lähellä",
   "statushandling.sendTil": "Lähetä {{mottaker}}",
   "statushandling.besvarTil": "Vastaa henkilölle {{mottaker}}",
+  "statushandling.bekreftSendTil": "Lähetetäänkö käyttäjälle {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Vastaa käyttäjälle {{mottaker}}?",
   "statushandling.handlingerTittel": "Toiminnot",
   "dokument.valideringsfeil": "Vahvistusvirhe",
   "dokument.fyllInnPaakrevde": "Täytä kaikki pakolliset kentät ennen tallentamista.",

@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Закрывать",
   "statushandling.sendTil": "Отправить {{mottaker}}",
   "statushandling.besvarTil": "Ответить пользователю {{mottaker}}",
+  "statushandling.bekreftSendTil": "Отправить {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Ответить пользователю {{mottaker}}?",
   "statushandling.handlingerTittel": "Действия",
   "dokument.valideringsfeil": "Ошибка проверки",
   "dokument.fyllInnPaakrevde": "Перед сохранением заполните все обязательные поля.",

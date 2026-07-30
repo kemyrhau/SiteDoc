@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Nära",
   "statushandling.sendTil": "Skicka till {{mottaker}}",
   "statushandling.besvarTil": "Svara till {{mottaker}}",
+  "statushandling.bekreftSendTil": "Skicka till {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Svara till {{mottaker}}?",
   "statushandling.handlingerTittel": "Åtgärder",
   "dokument.valideringsfeil": "Valideringsfel",
   "dokument.fyllInnPaakrevde": "Fyll i alla obligatoriska fält innan du sparar.",

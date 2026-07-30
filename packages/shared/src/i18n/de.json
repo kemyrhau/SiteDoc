@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Schließen",
   "statushandling.sendTil": "Senden an {{mottaker}}",
   "statushandling.besvarTil": "Antwort auf {{mottaker}}",
+  "statushandling.bekreftSendTil": "An {{mottaker}} senden?",
+  "statushandling.bekreftBesvarTil": "Auf {{mottaker}} antworten?",
   "statushandling.handlingerTittel": "Aktionen",
   "dokument.valideringsfeil": "Validierungsfehler",
   "dokument.fyllInnPaakrevde": "Füllen Sie vor dem Speichern alle erforderlichen Felder aus.",

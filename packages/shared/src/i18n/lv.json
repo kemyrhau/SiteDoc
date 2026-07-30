@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Aizvērt",
   "statushandling.sendTil": "Sūtīt uz {{mottaker}}",
   "statushandling.besvarTil": "Atbildēt uz {{mottaker}}",
+  "statushandling.bekreftSendTil": "Vai nosūtīt {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Vai atbildēt lietotājam {{mottaker}}?",
   "statushandling.handlingerTittel": "Darbības",
   "dokument.valideringsfeil": "Validācijas kļūda",
   "dokument.fyllInnPaakrevde": "Pirms saglabāšanas aizpildiet visus obligātos laukus.",

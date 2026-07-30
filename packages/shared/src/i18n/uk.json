@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Закрити",
   "statushandling.sendTil": "Надіслати {{mottaker}}",
   "statushandling.besvarTil": "Відповісти {{mottaker}}",
+  "statushandling.bekreftSendTil": "Надіслати {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Відповісти {{mottaker}}?",
   "statushandling.handlingerTittel": "Дії",
   "dokument.valideringsfeil": "Помилка підтвердження",
   "dokument.fyllInnPaakrevde": "Перед збереженням заповніть усі необхідні поля.",

@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Mbylle",
   "statushandling.sendTil": "Dërgo te {{mottaker}}",
   "statushandling.besvarTil": "Përgjigju {{mottaker}}",
+  "statushandling.bekreftSendTil": "Dërgo te {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "T'i përgjigjeni {{mottaker}}?",
   "statushandling.handlingerTittel": "Veprimet",
   "dokument.valideringsfeil": "Gabim verifikimi",
   "dokument.fyllInnPaakrevde": "Plotësoni të gjitha fushat e kërkuara",

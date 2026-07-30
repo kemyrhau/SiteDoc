@@ -198,6 +198,26 @@ export function DokumentHandlingslinje({
     return t(h.tekstNoekkel);
   };
 
+  // Bekreftelses-sheetens tekst speiler primærens retningsnavn (samme neste/forrige-
+  // utledning som `primærLabel`). Fallback til bekreftSendBytte KUN når ett-stegs
+  // (ingen neste/forrige ledd) eller andre handlinger enn Send/Besvar.
+  const bekreftelsesTekstFor = (h: StatusHandling): string => {
+    const label = t(h.tekstNoekkel);
+    if (h.nyStatus === "sent") {
+      const neste = ledd[aktivtIndex + 1]?.navn;
+      return neste
+        ? t("statushandling.bekreftSendTil", { mottaker: neste })
+        : t("statushandling.bekreftSendBytte", { status: label });
+    }
+    if (h.nyStatus === "responded") {
+      const forrige = ledd[aktivtIndex - 1]?.navn;
+      return forrige
+        ? t("statushandling.bekreftBesvarTil", { mottaker: forrige })
+        : t("statushandling.bekreftSendBytte", { status: label });
+    }
+    return t("statushandling.bekreftSendBytte", { status: label });
+  };
+
   // --- Primær deaktivering + caption ---
   const primærFramover =
     primærHandling?.nyStatus === "sent" || primærHandling?.nyStatus === "responded";
@@ -221,7 +241,7 @@ export function DokumentHandlingslinje({
       nyStatus: handling.nyStatus as string,
       label,
       mottaker: dokumentflytId ? { dokumentflytId } : undefined,
-      bekreftelsesTekst: t("statushandling.bekreftSendBytte", { status: label }),
+      bekreftelsesTekst: bekreftelsesTekstFor(handling),
     });
   }
 

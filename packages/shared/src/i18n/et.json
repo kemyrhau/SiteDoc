@@ -2101,6 +2101,8 @@
   "flytlinje.lukk": "Sule",
   "statushandling.sendTil": "Saada kasutajale {{mottaker}}",
   "statushandling.besvarTil": "Vasta kasutajale {{mottaker}}",
+  "statushandling.bekreftSendTil": "Kas saata kasutajale {{mottaker}}?",
+  "statushandling.bekreftBesvarTil": "Kas vastata kasutajale {{mottaker}}?",
   "statushandling.handlingerTittel": "Tegevused",
   "dokument.valideringsfeil": "Valideerimisviga",
   "dokument.fyllInnPaakrevde": "Enne salvestamist täitke kõik nõutavad väljad.",
