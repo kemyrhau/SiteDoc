@@ -198,17 +198,27 @@ Drag-and-drop i `apps/web/src/components/malbygger/`: `MalBygger`, `FeltPalett`,
 - Rekkefølge: topptekst-sone først, deretter datafelter
 - Entreprise-dropdown i opprettelse viser kun brukerens entrepriser (`hentMineEntrepriser`)
 
-## Opprettelsesflyt — ett-klikk
+## Opprettelsesflyt — ett-klikk (P4b, 2026-07-29)
 
-Oppgaver og sjekklister opprettes med ett klikk — velg mal, alt annet utledes automatisk:
-- **Bestiller-entreprise**: Første fra `hentMineEntrepriser`
-- **Utfører-entreprise**: Utledes fra dokumentflyt som matcher malen og bestiller-entreprisen
-- **Tittel**: Settes til malnavn (nummer vises separat i Nr-kolonne)
-- **Prioritet**: Default "medium"
-- **Lokasjon**: Settes fra tegning (ved klikk) eller kobles etterpå — ALDRI i opprettelsesmodal
-- **Emne/beskrivelse**: Redigeres etterpå i detaljvisningen
+Oppgaver og sjekklister opprettes med **maks 2 klikk før utfylling** (ideal 1). «Opprett»-knappen (`useVerktoylinje`) → dokumentet opprettes som utkast → detaljsiden i **utfyllingsmodus**. Alt utledes fra kontekst; overstyring skjer INNE i utfyllingen, aldri som forhåndssteg. Auto-utledet ved opprett:
+- **Bestiller-/utfører-faggruppe**: fra valgt dokumentflyt (flyt-kandidat)
+- **Tittel**: malnavn (løpenummer vises separat, `sjekkliste.ts` `number`-kolonne → `prefix-NNN`)
+- **Byggeplass/tegning**: aktiv header-kontekst (`useByggeplass` — sjekkliste tar `byggeplassId`+`drawingId`, oppgave kun `drawingId`)
+- **Prioritet**: default «medium»
 
-Etter opprettelse navigeres brukeren direkte til detaljsiden for å begynne registrering. Ingen skjemamodal med felter — kun mal-picker.
+**Auto-hopp (`åpneMalVelger` i `sjekklister/page.tsx` + `oppgaver/page.tsx`):**
+- Nøyaktig 1 opprettbar mal → opprett direkte (1 klikk).
+- Flere maler → sist-brukt-signal (`useSistBrukteMal`, hooks/) avgjør. Entydig treff → opprett direkte (1 klikk); ellers ETT mellomvalg (mal-velger, 2 klikk). Aldri gjett blindt.
+- ⚠️ **`useSistBrukteMal` er KLIENT-LOKAL INTERIM** (localStorage, nøkkel per bruker+flyt) — flyttes server-side hvis/når malbytte-saken bygger server-støtte.
+- ⚠️ Toppknappens onClick bruker en **ref** (`åpneMalVelgerRef.current()`), ikke funksjonen direkte: `useVerktoylinje` re-registrerer kun ved deps-endring, så en direkte referanse frøs en stale `åpneMalVelger` (tom data) → auto-hopp utløstes aldri (gjaldt òg P2s 1-mal-auto-hopp). Fikset 2026-07-30.
+
+**Flyt-gruppert mal-velger:** ved flere registrator-flyter grupperes velgeren per dokumentflyt (flyt = overskrift v/≥2, maler under) — klikk entydig, ingen steg-2. Klient-side invertering av `mal.opprettbareFlytIder`.
+
+**pkt 0 — tilgjengelighets-filter (server, delt kilde):** `mal.hentForProsjekt` (`api/routes/mal.ts`) returnerer additivt `opprettbar` + `opprettbareFlytIder`, utledet via `hentBrukersOpprettFlytMedlemskap` (`tilgangskontroll.ts` — SAMME fn opprett-valideringen avviser på). Velgeren + auto-hopp tilbyr KUN opprettbare maler; utilgjengelige skjules bak «vis utilgjengelige (N)» m/grunn. HMS-maler alltid opprettbare. **Ikke hard-filter** — mal-admin trenger alle. Mobil `MalVelger` arver samme kall. Bakgrunn: mal-velgeren tilbød maler som ble avvist ved innsending (Kenneth-mobiltest).
+
+**Kontekst-chip-linje i utfyllingsmodus:** `DokumentKontekstChipLinje` (`components/kontekst-chip/`, delt m/ P4c timer, bygd på hevede trakt-primitiver fra `KontekstChip`) viser prosjekt · byggeplass · faggruppe · mal øverst på detaljsiden. Byggeplass/faggruppe = velgere (overstyring via eksisterende `oppdater`-mutasjon; faggruppe kun i utkast). Redigerbar tittel (blyant → input, Enter/blur lagrer). **Mal-chip = display-only** — malbytte etter opprettelse krever ny server-mutasjon (`templateId`-bytte + sjekkpunkt-migrering), backlogget som egen sak.
+
+Ingen skjemamodal med felter — kun (evt.) mal-velger. Emne/beskrivelse/lokasjon redigeres i detaljvisningen.
 
 ## Lokasjon i detalj
 

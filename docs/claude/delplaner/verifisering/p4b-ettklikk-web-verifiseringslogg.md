@@ -1,11 +1,19 @@
 ---
 name: p4b-ettklikk-web-verifiseringslogg
-status: 🔵 Ledd 2 bygget — build+tester grønt. Venter harness/e2e (chip-tilstander + flyt) + fabel task-walkthrough
-eier: kode-Opus (P4b) · fabel (walkthrough) · cowork (merge)
+status: 🟢 FABEL FULL GODKJENNING (task-walkthrough) — dok-sync gjort, venter cowork-merge
+eier: kode-Opus (P4b) · fabel (godkjent) · cowork (merge)
 branch: feat/p4b-ettklikk-web (fra origin/develop, post-P1/P2/P3 `50ce6d90`)
-ordre: relay/inbox-opus-p4b-web.md [2026-07-29] (GO Ledd 2, server-fritt)
-sist_verifisert_mot_kode: 2026-07-29
+ordre: relay/inbox-opus-p4b-web.md [2026-07-29] (GO Ledd 2 + pkt 0 + Løype 1/2)
+sist_verifisert_mot_kode: 2026-07-30
 ---
+
+> **🟢 Fabel-designgate: FULL GODKJENNING** på task-walkthrough av de 8 bevisene (2026-07-30).
+> Siste steg = dok-sync (`web.md` + denne loggen), så cowork-merge. P4b merger alene.
+>
+> **Bevis-steg-lærdom (3. gang):** Løype-2-e2e fanget en reell stale-closure-bug (auto-hopp
+> fra toppknappen utløstes ALDRI — gjaldt òg P2s 1-mal-auto-hopp, maskert av modalen) som
+> unit-tester + typecheck + kode-gate IKKE fanget. Tredje gang bevis-steget fanger det
+> tester ikke gjør — mønsteret holder: driv flyten, ikke bare testene.
 
 # P4b — web ett-klikk opprett + delt kontekst-chip-linje (verifiseringslogg)
 
