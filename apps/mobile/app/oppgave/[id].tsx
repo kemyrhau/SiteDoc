@@ -838,10 +838,13 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Text className="flex-1 text-base font-semibold text-white">{t("oppgave.redigerTittel")}</Text>
+              <Pressable onPress={() => settVisTittelModal(false)} hitSlop={8}>
+                <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
+              </Pressable>
+              <Text className="flex-1 px-3 text-center text-base font-semibold text-white">{t("oppgave.redigerTittel")}</Text>
               <Pressable
                 onPress={lagreTittel}
-                className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
+                className="rounded-lg bg-white/20 px-4 py-1.5"
               >
                 <Text className="text-sm font-semibold text-white">{t("oppgave.ferdig")}</Text>
               </Pressable>
@@ -865,10 +868,13 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Text className="flex-1 text-base font-semibold text-white">{t("oppgave.beskrivelse")}</Text>
+              <Pressable onPress={() => settVisBeskrivelseModal(false)} hitSlop={8}>
+                <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
+              </Pressable>
+              <Text className="flex-1 px-3 text-center text-base font-semibold text-white">{t("oppgave.beskrivelse")}</Text>
               <Pressable
                 onPress={lagreBeskrivelse}
-                className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
+                className="rounded-lg bg-white/20 px-4 py-1.5"
               >
                 <Text className="text-sm font-semibold text-white">{t("oppgave.ferdig")}</Text>
               </Pressable>
@@ -894,11 +900,14 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Text className="flex-1 text-base font-semibold text-white">{t("oppgave.nyKommentar")}</Text>
+              <Pressable onPress={() => settVisDialogModal(false)} hitSlop={8}>
+                <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
+              </Pressable>
+              <Text className="flex-1 px-3 text-center text-base font-semibold text-white">{t("oppgave.nyKommentar")}</Text>
               <Pressable
                 onPress={håndterSendKommentar}
                 disabled={!dialogTekst.trim() || leggTilKommentarMutasjon.isPending}
-                className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
+                className="rounded-lg bg-white/20 px-4 py-1.5"
               >
                 <Text className="text-sm font-semibold text-white">
                   {leggTilKommentarMutasjon.isPending ? t("handling.sender") : t("handling.send")}
