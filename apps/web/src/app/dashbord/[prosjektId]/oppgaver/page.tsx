@@ -358,6 +358,8 @@ export default function OppgaverSide() {
   // P4b pkt 0: utilgjengelige maler skjules som default; åpnes via «vis (N)».
   const [visUtilgjengelige, setVisUtilgjengelige] = useState(false);
 
+  // @ts-ignore TS2589 — tRPC-output trigger excessively deep instantiation (kjent
+  // falsk-positiv, samme mønster som oppgave-detalj); callback bruker _data: unknown.
   const opprettMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown) => {
       const resultat = _data as { id: string };
@@ -375,12 +377,16 @@ export default function OppgaverSide() {
     },
   });
 
+  // Verktøylinja registrerer kun ved mount → onClick ville fryse en stale
+  // åpneMalVelger (tom mal-liste før data er lastet) og auto-hopp ville aldri
+  // utløses. Ref holdes fersk hver render (assign etter definisjonen under).
+  const åpneMalVelgerRef = useRef<() => void>(() => {});
   useVerktoylinje([
     {
       id: "ny-oppgave",
       label: t("oppgaver.ny"),
       ikon: <Plus className="h-4 w-4" />,
-      onClick: åpneMalVelger,
+      onClick: () => åpneMalVelgerRef.current(),
       variant: "primary",
     },
   ]);
@@ -468,6 +474,8 @@ export default function OppgaverSide() {
       setVisModal(true);
     }
   }
+  // Hold verktøylinje-ref fersk (se useVerktoylinje over).
+  åpneMalVelgerRef.current = åpneMalVelger;
 
   // Trekk ut Verdier-kolonner fra alle maler brukt i data
   const verdiFelter = useMemo<KolonneParam[]>(() => {

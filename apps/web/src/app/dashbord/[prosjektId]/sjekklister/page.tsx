@@ -482,9 +482,16 @@ export default function SjekklisteSide() {
     setValgtFlytId(null);
   }
 
+  // Verktøylinja re-registrerer kun ved deps-endring (useVerktoylinje) → den
+  // memoiserte onClick ville fryse en stale åpneMalVelger (tom flytGrupper/
+  // sist-brukt før data er lastet) og auto-hopp ville aldri utløses. Ref-en
+  // holdes fersk hver render; toppknappen deref-er den ved klikk.
+  const åpneMalVelgerRef = useRef(åpneMalVelger);
+  åpneMalVelgerRef.current = åpneMalVelger;
+
   const verktoylinjeHandlinger = useMemo((): VerktoylinjeHandling[] => {
     const h: VerktoylinjeHandling[] = [
-      { id: "ny-sjekkliste", label: t("sjekklister.ny"), ikon: <Plus className="h-4 w-4" />, onClick: åpneMalVelger, variant: "primary" },
+      { id: "ny-sjekkliste", label: t("sjekklister.ny"), ikon: <Plus className="h-4 w-4" />, onClick: () => åpneMalVelgerRef.current(), variant: "primary" },
     ];
     if (valgte.size > 0) {
       h.push({ id: "skriv-ut-valgte", label: `${t("handling.skrivUt")} (${valgte.size})`, ikon: <Printer className="h-4 w-4" />,
