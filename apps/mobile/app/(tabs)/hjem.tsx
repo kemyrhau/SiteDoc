@@ -45,6 +45,8 @@ interface MalData {
   prefix: string | null;
   category: string;
   subjects?: string[];
+  // Flytresolusjon: bæres fra mal-lista til opprett-modalen (delt opprett-regel).
+  opprettbareFlytIder?: string[];
 }
 
 interface InnboksElement {

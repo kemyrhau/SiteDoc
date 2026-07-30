@@ -20,6 +20,9 @@ interface MalData {
   subjects?: string[];
   // P4b pkt 0: opprettbarhet fra serveren (delt regel med opprett-valideringen).
   opprettbar?: boolean;
+  // Flytresolusjon: de opprettbare flyt-idene (delt regel) bæres videre til
+  // opprett-modalen, som bruker dem til flyt-valg (én sannhet med velgeren).
+  opprettbareFlytIder?: string[];
 }
 
 interface MalVelgerProps {

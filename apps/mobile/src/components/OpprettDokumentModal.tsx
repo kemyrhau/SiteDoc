@@ -50,6 +50,10 @@ interface MalData {
   prefix: string | null;
   category: string;
   subjects?: string[];
+  // Flytresolusjon: serverens delte opprett-regel (`mal.opprettbareFlytIder`,
+  // mal.ts:84-95). Modalen bruker DENNE til flyt-valg — ikke en egen regel — så
+  // «vist som opprettbar» og «kan faktisk opprettes» er én sannhet (paritet web).
+  opprettbareFlytIder?: string[];
 }
 
 interface DokumentflytData {
@@ -257,94 +261,86 @@ export function OpprettDokumentModal({
   );
   const prosjektNavn = (prosjektQuery.data as { name?: string } | undefined)?.name ?? "";
 
-  // Hent brukerens faggrupper (filtrert til mine)
-  const mineFaggrupperQuery = trpc.medlem.hentMineFaggrupper.useQuery(
-    { projectId: valgtProsjektId! },
-    { enabled: !!valgtProsjektId && synlig },
-  );
-  const mineFaggrupper = (mineFaggrupperQuery.data ?? []) as FaggruppeData[];
-
-  // Fallback: hent alle faggrupper for svarer-visning
+  // Alle faggrupper for navne-oppslag (bestiller/svarer-visning)
   const faggruppeQuery = trpc.faggruppe.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
   const faggrupper = (faggruppeQuery.data ?? []) as FaggruppeData[];
 
-  // (Auto-velg faggruppe gjøres i faggrupperMedFlyt-effekten ovenfor)
-
-  // Hent dokumentflyter for prosjektet
+  // Hent dokumentflyter for prosjektet (kun for kandidat-DETALJER: navn + faggrupper)
   const dokumentflytQuery = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && synlig },
   );
   const alleDokumentflyter = (dokumentflytQuery.data ?? []) as DokumentflytData[];
 
-  // Filtrer faggrupper: vis kun de som har minst én dokumentflyt for valgt mal
-  const faggrupperMedFlyt = useMemo(() => {
-    // Finn alle dokumentflyter som har denne malen
-    const flyterForMal = alleDokumentflyter.filter(
-      (df) => df.maler.some((m) => m.templateId === mal.id),
-    );
-    // Hent alle faggruppe-IDer fra steg 1 (bestiller) i disse flytene
-    const iderMedFlyt = new Set<string>();
-    for (const df of flyterForMal) {
-      // Bestiller = faggruppe-ID på dokumentflyten, eller første steg
-      if (df.faggruppeId) {
-        iderMedFlyt.add(df.faggruppeId);
-      }
-      // Også inkluder faggrupper fra første steg
-      const førsteSteg = df.medlemmer.filter((m) => m.steg === 1);
-      for (const m of førsteSteg) {
-        if (m.faggruppe?.id) iderMedFlyt.add(m.faggruppe.id);
+  // Flytresolusjon (paritet web `malFlytStatus`): opprettbarheten kommer FRA
+  // serveren (`mal.opprettbareFlytIder` — delt regel med opprett-valideringen).
+  // Modalen bygger kun kandidat-detaljene, ikke et klient-duplikat av regelen.
+  // Bestiller = flytens eier-faggruppe (`df.faggruppeId`); utfører = medlem med
+  // rolle="utforer" (match web), fallback eier-faggruppe (intern flyt).
+  const flytKandidater = useMemo(() => {
+    const dfById = new Map(alleDokumentflyter.map((df) => [df.id, df]));
+    const navnFor = (id: string, df: DokumentflytData) =>
+      faggrupper.find((f) => f.id === id)?.name ??
+      df.medlemmer.find((m) => m.faggruppe?.id === id)?.faggruppe?.name ??
+      "";
+    return (mal.opprettbareFlytIder ?? [])
+      .map((id) => dfById.get(id))
+      .filter((df): df is DokumentflytData => !!df && df.faggruppeId != null)
+      .map((df) => {
+        const utforer = df.medlemmer.find((m) => m.rolle === "utforer");
+        const bestillerFaggruppeId = df.faggruppeId!;
+        const utforerFaggruppeId = utforer?.faggruppe?.id ?? bestillerFaggruppeId;
+        return {
+          flytId: df.id,
+          flytNavn: df.name,
+          bestillerFaggruppeId,
+          bestillerNavn: navnFor(bestillerFaggruppeId, df),
+          utforerFaggruppeId,
+          utforerNavn: utforer?.faggruppe?.name ?? navnFor(utforerFaggruppeId, df),
+          erIntern: !utforer,
+        };
+      });
+  }, [alleDokumentflyter, mal.opprettbareFlytIder, faggrupper]);
+
+  // Bestiller-faggrupper = unike eier-faggrupper blant de opprettbare flytene
+  const bestillerFaggrupper = useMemo(() => {
+    const seen = new Map<string, FaggruppeData>();
+    for (const k of flytKandidater) {
+      if (!seen.has(k.bestillerFaggruppeId)) {
+        seen.set(k.bestillerFaggruppeId, { id: k.bestillerFaggruppeId, name: k.bestillerNavn });
       }
     }
-    return mineFaggrupper.filter((e) => iderMedFlyt.has(e.id));
-  }, [alleDokumentflyter, mineFaggrupper, mal.id]);
+    return [...seen.values()];
+  }, [flytKandidater]);
 
-  // Auto-velg faggruppe hvis kun én har flyt for malen
+  // Auto-velg bestiller-faggruppe hvis kun én
   useEffect(() => {
-    if (faggrupperMedFlyt.length === 1 && !oppretterFaggruppeId) {
-      setOppretterFaggruppeId(faggrupperMedFlyt[0].id);
+    if (bestillerFaggrupper.length === 1 && !oppretterFaggruppeId) {
+      setOppretterFaggruppeId(bestillerFaggrupper[0].id);
     }
-  }, [faggrupperMedFlyt, oppretterFaggruppeId]);
+  }, [bestillerFaggrupper, oppretterFaggruppeId]);
 
-  // Dokumentflyter som matcher valgt faggruppe + mal
-  const matchendeDokumentflyter = useMemo(() => {
+  // Opprettbare flyter for valgt bestiller-faggruppe
+  const matchendeKandidater = useMemo(() => {
     if (!oppretterFaggruppeId) return [];
-    return alleDokumentflyter.filter((df) => {
-      const harMal = df.maler.some((m) => m.templateId === mal.id);
-      if (!harMal) return false;
-      // Sjekk at faggruppen er bestiller (faggruppeId eller steg 1)
-      if (df.faggruppeId === oppretterFaggruppeId) return true;
-      return df.medlemmer.some(
-        (m) => m.steg === 1 && m.faggruppe?.id === oppretterFaggruppeId,
-      );
-    });
-  }, [alleDokumentflyter, oppretterFaggruppeId, mal.id]);
+    return flytKandidater.filter((k) => k.bestillerFaggruppeId === oppretterFaggruppeId);
+  }, [flytKandidater, oppretterFaggruppeId]);
 
-  // Auto-velg dokumentflyt: kun én → koble automatisk
+  // Auto-velg flyt: kun én → koble automatisk
   useEffect(() => {
-    if (matchendeDokumentflyter.length === 1) {
-      setValgtDokumentflytId(matchendeDokumentflyter[0].id);
-    } else if (matchendeDokumentflyter.length === 0) {
+    if (matchendeKandidater.length === 1) {
+      setValgtDokumentflytId(matchendeKandidater[0].flytId);
+    } else if (matchendeKandidater.length === 0) {
       setValgtDokumentflytId(null);
     }
-  }, [matchendeDokumentflyter]);
+  }, [matchendeKandidater]);
 
-  const valgtDokumentflyt = matchendeDokumentflyter.find((df) => df.id === valgtDokumentflytId) ?? null;
-
-  // Svarer-faggruppe utledes fra valgt dokumentflyt (steg 2, eller steg 1 hvis intern)
-  const { autoSvarerFaggruppeId, autoSvarerNavn } = useMemo(() => {
-    if (!valgtDokumentflyt) return { autoSvarerFaggruppeId: null, autoSvarerNavn: "" };
-    // Finn mottaker (steg 2), fallback til steg 1 (intern flyt)
-    const steg2 = valgtDokumentflyt.medlemmer.find((m) => m.steg === 2);
-    const mottaker = steg2 ?? valgtDokumentflyt.medlemmer.find((m) => m.steg === 1);
-    const fgId = mottaker?.faggruppe?.id ?? valgtDokumentflyt.faggruppeId ?? null;
-    const fgNavn = mottaker?.faggruppe?.name ??
-      faggrupper.find((e) => e.id === fgId)?.name ?? "";
-    return { autoSvarerFaggruppeId: fgId, autoSvarerNavn: fgNavn };
-  }, [valgtDokumentflyt, faggrupper]);
+  const valgtKandidat = matchendeKandidater.find((k) => k.flytId === valgtDokumentflytId) ?? null;
+  const autoSvarerFaggruppeId = valgtKandidat?.utforerFaggruppeId ?? null;
+  const autoSvarerNavn = valgtKandidat?.utforerNavn ?? "";
 
   // Hent bygninger for prosjektet
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
@@ -450,7 +446,7 @@ export function OpprettDokumentModal({
       Alert.alert(t("opprettModal.manglerOppretter"), t("opprettModal.velgOppretterFaggruppe"));
       return;
     }
-    if (!valgtDokumentflyt || !autoSvarerFaggruppeId) {
+    if (!valgtKandidat || !autoSvarerFaggruppeId) {
       Alert.alert(
         t("opprettModal.manglerDokumentflyt"),
         t("opprettModal.manglerDokumentflytBeskrivelse"),
@@ -469,6 +465,7 @@ export function OpprettDokumentModal({
         templateId: mal.id,
         bestillerFaggruppeId: oppretterFaggruppeId,
         utforerFaggruppeId: autoSvarerFaggruppeId,
+        dokumentflytId: valgtKandidat.flytId,
         subject: emne.trim() || undefined,
         byggeplassId: valgtBygningId ?? undefined,
         drawingId: valgtTegningId ?? undefined,
@@ -483,6 +480,7 @@ export function OpprettDokumentModal({
         templateId: mal.id,
         bestillerFaggruppeId: oppretterFaggruppeId,
         utforerFaggruppeId: autoSvarerFaggruppeId,
+        dokumentflytId: valgtKandidat.flytId,
         title: oppgaveTittel,
         priority: prioritet,
         checklistId: sjekklisteId || undefined,
@@ -491,7 +489,7 @@ export function OpprettDokumentModal({
     }
   }, [
     oppretterFaggruppeId,
-    valgtDokumentflyt,
+    valgtKandidat,
     autoSvarerFaggruppeId,
     kategori,
     mal.id,
@@ -511,7 +509,7 @@ export function OpprettDokumentModal({
     feltLabel,
   ]);
 
-  const kanOpprett = !!oppretterFaggruppeId && !!valgtDokumentflyt && !erPending;
+  const kanOpprett = !!oppretterFaggruppeId && !!valgtKandidat && !erPending;
 
   // P4a: skip bekreftelses-modalen når konteksten er entydig (faggruppe + flyt +
   // svarer utledet). Da opprettes utkast automatisk → trykk mal → rett i
@@ -520,8 +518,8 @@ export function OpprettDokumentModal({
   // best-effort — det som er utledet ved opprett tas med, vi venter ikke.
   const skalAutoOpprett =
     !dokumentflytQuery.isLoading &&
-    faggrupperMedFlyt.length === 1 &&
-    matchendeDokumentflyter.length === 1 &&
+    bestillerFaggrupper.length === 1 &&
+    matchendeKandidater.length === 1 &&
     !!autoSvarerFaggruppeId;
 
   useEffect(() => {
@@ -533,8 +531,7 @@ export function OpprettDokumentModal({
 
   // Fullskjerm-spinner (i stedet for skjema-flash) mens konteksten avgjøres eller
   // utkastet opprettes. Kun ambiguøse tilfeller viser det fulle skjemaet.
-  const kontekstLaster =
-    mineFaggrupperQuery.isLoading || dokumentflytQuery.isLoading;
+  const kontekstLaster = dokumentflytQuery.isLoading;
   const visSpinner =
     internSynlig && (kontekstLaster || skalAutoOpprett || erPending);
 
@@ -548,7 +545,7 @@ export function OpprettDokumentModal({
     setVisEmneListe(false);
   };
 
-  const valgtOppretter = faggrupperMedFlyt.find((e) => e.id === oppretterFaggruppeId);
+  const valgtOppretter = bestillerFaggrupper.find((e) => e.id === oppretterFaggruppeId);
 
   return (
     <Modal
@@ -700,21 +697,21 @@ export function OpprettDokumentModal({
 
           {/* 4. Prioritet — skjult i forenklet oppgaveflyt (redigeres i detaljskjerm) */}
 
-          {/* 5. Bestiller-faggruppe (kun faggrupper med dokumentflyt for malen) */}
+          {/* 5. Bestiller-faggruppe (eier-faggruppene i de opprettbare flytene) */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-1 text-xs font-medium text-gray-500">
               {t("opprettModal.oppretterFaggruppe")} *
             </Text>
-            {faggrupperMedFlyt.length === 0 && dokumentflytQuery.isLoading ? (
+            {bestillerFaggrupper.length === 0 && dokumentflytQuery.isLoading ? (
               <View className="flex-row items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
                 <ActivityIndicator size="small" color="#1e40af" />
                 <Text className="text-sm text-gray-500">{t("opprettModal.henterDokumentflyt")}</Text>
               </View>
-            ) : faggrupperMedFlyt.length === 0 ? (
+            ) : bestillerFaggrupper.length === 0 ? (
               <Text className="text-sm text-amber-600">{t("opprettModal.ingenDokumentflyt")}</Text>
-            ) : faggrupperMedFlyt.length === 1 ? (
+            ) : bestillerFaggrupper.length === 1 ? (
               <View className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
-                <Text className="text-sm text-gray-800">{faggrupperMedFlyt[0].name}</Text>
+                <Text className="text-sm text-gray-800">{bestillerFaggrupper[0].name}</Text>
               </View>
             ) : (
               <>
@@ -734,7 +731,7 @@ export function OpprettDokumentModal({
                 </Pressable>
                 {visOppretterListe && (
                   <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-                    {faggrupperMedFlyt.map((e) => (
+                    {bestillerFaggrupper.map((e) => (
                       <Pressable
                         key={e.id}
                         onPress={() => {
@@ -766,15 +763,15 @@ export function OpprettDokumentModal({
                   <ActivityIndicator size="small" color="#1e40af" />
                   <Text className="text-sm text-gray-500">{t("opprettModal.henterDokumentflyt")}</Text>
                 </View>
-              ) : matchendeDokumentflyter.length === 0 ? (
+              ) : matchendeKandidater.length === 0 ? (
                 <Text className="mt-1 text-sm text-amber-600">
                   {t("opprettModal.ingenDokumentflyt")}
                 </Text>
-              ) : matchendeDokumentflyter.length === 1 ? (
+              ) : matchendeKandidater.length === 1 ? (
                 /* Én flyt — auto-koblet, vis read-only */
                 <View className="mt-1 flex-row items-center gap-2">
                   <Text className="text-sm text-gray-800">{autoSvarerNavn}</Text>
-                  {valgtDokumentflyt && !valgtDokumentflyt.medlemmer.some((m) => m.steg === 2) && (
+                  {valgtKandidat?.erIntern && (
                     <Text className="text-xs text-gray-400">({t("opprettModal.internFlyt")})</Text>
                   )}
                 </View>
@@ -788,30 +785,29 @@ export function OpprettDokumentModal({
                     }}
                     className="mt-1 flex-row items-center justify-between rounded-lg border border-gray-200 bg-white px-3 py-2.5"
                   >
-                    <Text className={`text-sm ${valgtDokumentflyt ? "text-gray-800" : "text-gray-400"}`}>
-                      {valgtDokumentflyt
-                        ? `${valgtDokumentflyt.name} → ${autoSvarerNavn}`
+                    <Text className={`text-sm ${valgtKandidat ? "text-gray-800" : "text-gray-400"}`}>
+                      {valgtKandidat
+                        ? `${valgtKandidat.flytNavn} → ${autoSvarerNavn}`
                         : t("opprettModal.velgDokumentflyt")}
                     </Text>
                     <ChevronDown size={16} color="#9ca3af" />
                   </Pressable>
                   {visDokumentflytListe && (
                     <View className="mt-1 rounded-lg border border-gray-200 bg-white">
-                      {matchendeDokumentflyter.map((df) => (
+                      {matchendeKandidater.map((k) => (
                         <Pressable
-                          key={df.id}
+                          key={k.flytId}
                           onPress={() => {
-                            setValgtDokumentflytId(df.id);
+                            setValgtDokumentflytId(k.flytId);
                             setVisDokumentflytListe(false);
                           }}
-                          className={`border-b border-gray-50 px-3 py-2.5 ${valgtDokumentflytId === df.id ? "bg-blue-50" : ""}`}
+                          className={`border-b border-gray-50 px-3 py-2.5 ${valgtDokumentflytId === k.flytId ? "bg-blue-50" : ""}`}
                         >
-                          <Text className={`text-sm ${valgtDokumentflytId === df.id ? "font-medium text-blue-700" : "text-gray-700"}`}>
-                            {df.name}
+                          <Text className={`text-sm ${valgtDokumentflytId === k.flytId ? "font-medium text-blue-700" : "text-gray-700"}`}>
+                            {k.flytNavn}
                           </Text>
                           <Text className="text-xs text-gray-400">
-                            → {df.medlemmer.find((m) => m.steg === 2)?.faggruppe?.name ??
-                               df.medlemmer.find((m) => m.steg === 1)?.faggruppe?.name ?? ""}
+                            → {k.utforerNavn}
                           </Text>
                         </Pressable>
                       ))}

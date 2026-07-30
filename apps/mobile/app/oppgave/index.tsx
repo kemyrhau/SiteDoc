@@ -41,6 +41,8 @@ interface MalData {
   name: string;
   prefix: string | null;
   category: string;
+  // Flytresolusjon: bæres fra mal-lista til opprett-modalen (delt opprett-regel).
+  opprettbareFlytIder?: string[];
 }
 
 // Cast-type for å unngå TS2589 (excessively deep type instantiation)
