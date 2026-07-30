@@ -10,11 +10,14 @@
 
 ## Opprettelsesflyt
 
-`OpprettDokumentModal` — brukes for både sjekklister og oppgaver. Brukeren trykker alltid "Opprett" manuelt (auto-opprett fjernet pga. iOS Modal-animasjon som blokkerte navigering).
-- **Entreprise**: Auto-velges hvis bruker kun er i 1 entreprise
-- **Utfører**: Auto fra dokumentflyt (read-only)
-- **Tittel**: Auto-generert i API (malnavn + løpenummer)
-- **Lokasjon**: IKKE i opprettelsesmodal — settes fra tegning ved klikk, eller kobles etterpå
+`OpprettDokumentModal` — brukes for både sjekklister og oppgaver.
+
+**iOS-modal-serialisering + ett-klikk opprett (P4a, `7d19e3ea`):** Tidligere satte modalen `synlig=false` (start slide-dismiss) OG kalte parentens `router.push` i samme tick — native modal-dismiss og stack-push kolliderer på iOS (hengende modal / dobbel-nav). Derfor var auto-opprett deaktivert og krevde et ekstra manuelt «Opprett»-trykk. Fikset ved å serialisere: `internSynlig`-speil settes false lokalt ved suksess, og navigering skjer i `<Modal onDismiss>` (iOS-only, fyrer ETTER at dismiss er ferdig) via `onModalLukket`-propen; Android navigerer direkte (ingen modal-VC-kollisjon). Grepet ligger i `OpprettDokumentModal.tsx` og dekker alle 4 call-sites uten endring i dem (samme klasse som del6b klikk-kutt 1, MalVelger `f5e69756`).
+- **Auto-opprett-skip er nå trygt ved entydig kontekst** (bestiller-faggruppe + flyt + utledet svarer): trykk mal → kort «Oppretter…»-spinner (ingen skjema-flash) → rett inn i utfyllingen, ingen «Opprett»-bekreftelse. Ved reell flertydighet (≥2 faggrupper/flyter) beholdes skjemaet for manuelt valg.
+- **Bestiller-faggruppe**: Auto-velges hvis bruker har kun 1 faggruppe med flyt for malen
+- **Utfører/svarer**: Auto fra dokumentflyt (read-only)
+- **Tittel**: Oppgave = malnavn (redigerbar); API tildeler løpenummer
+- **Lokasjon**: GPS-auto + sist brukt byggeplass/tegning, redigerbar i modalen. Ved auto-opprett er GPS **best-effort** — det som er utledet ved opprett tas med, vi venter ikke (fallback-stigen: manglende signal blokkerer aldri opprettelse). Lokasjon kan settes i detaljskjermen etterpå. GPS-på-chip + post-opprett-patch = senere mobil-chip-runde (P4a #2/#3, backlogget)
 - **VIKTIG**: Ikke bruk `presentationStyle="pageSheet"` på Modal — forstyrrer navigering etter dismiss på iOS
 - Etter opprettelse navigeres til detaljskjermen for umiddelbar registrering
 
