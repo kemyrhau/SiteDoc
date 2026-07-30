@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -16,9 +16,9 @@ import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, 
 import { harBetingelse, harForelderObjekt, utledMinRolle, beregnHarBallen, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
-import { FlytIndikator } from "../../src/components/FlytIndikator";
-import type { FlytMedlem } from "../../src/components/FlytIndikator";
-import { DokumentHandlingsmeny } from "../../src/components/DokumentHandlingsmeny";
+import { Flytlinje } from "../../src/components/Flytlinje";
+import type { FlytMedlem } from "../../src/components/Flytlinje";
+import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
 import { useSjekklisteSkjema } from "../../src/hooks/useSjekklisteSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -87,6 +87,10 @@ function formaterHistorikkDato(dato: Date | string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formaterKlokke(dato: Date): string {
+  return dato.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
 }
 
 interface MalData {
@@ -365,9 +369,7 @@ export default function SjekklisteUtfylling() {
     flyttVedlegg,
     erSynlig,
     valideringsfeil,
-    valider,
     lagre,
-    erLagrer,
     harEndringer,
     erRedigerbar,
     lagreStatus,
@@ -562,6 +564,31 @@ export default function SjekklisteUtfylling() {
     return resultat;
   }
 
+  // Påkrevd-felt-teller (M2): live antall gjenstående påkrevde synlige felt. Deaktiverer
+  // framover-primær (Send/Besvar) + caption. Read-only speiling av `valider()` — muterer ikke.
+  const paakrevdeFeltGjenstaar = useMemo(() => {
+    const objs = (sjekkliste?.template?.objects ?? []) as { id: string; type: string; required?: boolean }[];
+    let n = 0;
+    for (const o of objs) {
+      if (DISPLAY_TYPER.has(o.type)) continue;
+      if (!o.required) continue;
+      if (!erSynlig(o as Parameters<typeof erSynlig>[0])) continue;
+      const v = hentFeltVerdi(o.id).verdi;
+      if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) n++;
+    }
+    return n;
+  }, [sjekkliste?.template?.objects, erSynlig, hentFeltVerdi]);
+
+  // Autolagret-mikrotekst (M2): stemple tidspunkt når en lokal lagring fullfører.
+  const [sisteLagretTid, settSisteLagretTid] = useState<Date | null>(null);
+  useEffect(() => {
+    if (lagreStatus === "lagret") settSisteLagretTid(new Date());
+  }, [lagreStatus]);
+  const sisteLagretTekst = useMemo(
+    () => (sisteLagretTid ? t("dokument.lagretAutomatisk", { tid: formaterKlokke(sisteLagretTid) }) : null),
+    [sisteLagretTid, t],
+  );
+
   const håndterTilbake = useCallback(async () => {
     if (harEndringer) {
       await lagre();
@@ -569,16 +596,12 @@ export default function SjekklisteUtfylling() {
     router.back();
   }, [harEndringer, lagre, router]);
 
-  const håndterLagre = useCallback(async () => {
-    const erGyldig = valider();
-    if (!erGyldig) {
-      Alert.alert(t("dokument.valideringsfeil"), t("dokument.fyllInnPaakrevde"));
-      return;
-    }
+  // «Lagre og lukk» (M2): lagrer og navigerer tilbake. Validerer ALDRI — utkast skal
+  // kunne være ufullstendige (fabel 2026-07-30). Autolagring har allerede persistert.
+  const håndterLagreOgLukk = useCallback(async () => {
     await lagre();
-    // V5a: suksess-Alert fjernet — LagreIndikator (lagreStatus === "lagret" →
-    // Check-ikon) dekker allerede kvitteringen. Dobbel bekreftelse mot ren-UI.
-  }, [valider, lagre]);
+    router.back();
+  }, [lagre, router]);
 
   // Beregn objekter og repeater-logikk FØR tidlige returns (hooks må alltid kjøres)
   const objekter = useMemo(() =>
@@ -689,12 +712,16 @@ export default function SjekklisteUtfylling() {
           </View>
         </View>
         {flytMedlemmer.length > 0 && (
-          <FlytIndikator
+          <Flytlinje
             medlemmer={flytMedlemmer}
             recipientUserId={(sjekklisteDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
             recipientGroupId={(sjekklisteDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
             status={sjekkliste.status}
             bestillerUserId={(sjekklisteDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+            harBallen={harBallen}
+            meg={{ userId: minFlytInfo?.userId, gruppeIder: minFlytInfo?.gruppeIder }}
+            overforinger={overforinger}
+            formaterTid={formaterHistorikkDato}
           />
         )}
       </View>
@@ -921,9 +948,9 @@ export default function SjekklisteUtfylling() {
         )}
       </ScrollView>
 
-      {/* Handlingsmeny + lagre-knapp i bunn */}
-      <View className="border-t border-gray-200 bg-white px-4 py-3 gap-2">
-        <DokumentHandlingsmeny
+      {/* Handlingslinje (M2) — P3-mønster: primær m/retning + split-▾ */}
+      <View className="border-t border-gray-200 bg-white px-4 py-3">
+        <DokumentHandlingslinje
           status={sjekkliste.status}
           erLaster={endreStatusMutasjon.isPending}
           onEndreStatus={(nyStatus, kommentarTekst, mottaker) => {
@@ -938,23 +965,19 @@ export default function SjekklisteUtfylling() {
             });
           }}
           onSlett={["draft", "cancelled"].includes(sjekkliste.status) ? håndterSlett : undefined}
-          tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["tilgjengeligeFlyter"]}
+          tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingslinje>[0]["tilgjengeligeFlyter"]}
           minRolle={minRolle ?? null}
           adminNiva={minFlytInfo?.adminNiva ?? null}
           besvarDeaktivertGrunn={besvarDeaktivertGrunn}
+          medlemmer={flytMedlemmer}
+          recipientUserId={(sjekklisteDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
+          recipientGroupId={(sjekklisteDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
+          bestillerUserId={(sjekklisteDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+          paakrevdeFeltGjenstaar={paakrevdeFeltGjenstaar}
+          erRedigerbar={erRedigerbar}
+          sisteLagretTekst={sisteLagretTekst}
+          onLagreOgLukk={håndterLagreOgLukk}
         />
-
-        {erRedigerbar && (
-          <Pressable
-            onPress={håndterLagre}
-            disabled={erLagrer}
-            className={`items-center rounded-lg py-3 ${erLagrer ? "bg-blue-400" : "bg-blue-600"}`}
-          >
-            <Text className="font-medium text-white">
-              {erLagrer ? t("handling.lagrer") : t("dokument.lagreUtfylling")}
-            </Text>
-          </Pressable>
-        )}
       </View>
 
       </KeyboardAvoidingView>
