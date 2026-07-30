@@ -79,9 +79,34 @@ kommentaren behandler sist-brukt som normal kilde (ikke fallback-hierarki).
 **Mobil-note:** `MalVelger.tsx` er hardkodet nb (pre-eksisterende, ikke i18n) — nye
 strenger følger filens konvensjon; i18n av hele fila er egen gjeld. **Reload: `npx expo start --clear`.**
 
+## Løype 2 — e2e opprett-flyt (dev-login + seed, localhost `2746999d`)
+Full app + dev-login (`test-firma`, registrator) + seed (`seed-testbrukere` + `seed-e2e-flyt`
++ 2 ekstra maler: én opprettbar #2, én utilgjengelig). Bevis i `relay/p4b-bevis/`:
+- `p4b-e2e-01-velger-opprettbare.png` — velger med 2 opprettbare maler + «Vis utilgjengelige (1)».
+- `p4b-e2e-02-utilgjengelig-expandert.png` — ekspandert: «E2E Utilgjengelig» dempet m/grunn (**pkt 0-bevis — KB2-klassen vises ikke lenger**).
+- `p4b-e2e-03-utfyllingsmodus-chiplinje.png` — detaljside i utfyllingsmodus: redigerbar tittel + chip-linje (Prosjekt · Byggeplass ▾ · Utfører ▾ · Mal) + utfyllbart felt (2-klikk-flyten).
+- `p4b-e2e-04-sistbrukt-autohopp.png` — sist-brukt: **1 klikk → rett i utfylling** (ingen modal).
+
+**Klikk-tall mot budsjett (maks 2):**
+| Flyt | Klikk | Budsjett |
+|------|-------|----------|
+| >1 mal, ingen historikk | Opprett (1) → velg mal (2) = **2** | ✅ innenfor (ett lovlig mellomvalg) |
+| Sist brukt / eneste opprettbar | Opprett (1) = **1** | ✅ optimal |
+| Utilgjengelig mal | skjult — aldri tilbudt (ingen fyll-så-avvis) | ✅ pkt 0 |
+
+### ⚠️ Bug funnet + fikset i Løype 2 (`2746999d`)
+Auto-hopp (både 1-mal og sist-brukt) fra **verktøylinje-toppknappen** utløstes ALDRI:
+`useVerktoylinje` re-registrerer onClick kun ved deps-endring → handleren frøs en stale
+`åpneMalVelger` med tom `flytGrupper`/sist-brukt (data ikke lastet ved registrering) → falt
+alltid til mal-modalen. Modalen rendret riktige maler (fersk JSX) og maskerte buggen for
+>1-mal. Fiks: stabil onClick som deref-er en ref holdt fersk hver render. Gjelder både
+sjekkliste + oppgave. (TS2589 ref-tippet budsjettet → sanksjonert suppresjon på oppgave.opprett.)
+**Testdata ryddet etterpå** (3 instanser slettet, seed-scaffolding beholdt).
+
 ## Gate-kjede
 - [x] **build+tester:** typecheck ren api+web (TS2589 løst); lint 0 nye feil (110 baseline-errors urørt, ingen i mine filer); web-tester 93/93, shared 379/379. Mobil `MalVelger` ren (mobil-baseline har pre-eksisterende feil urelatert til P4b — verifisert via stash-sammenligning).
 - [x] **Løype 1 (harness):** 4 chip-tilstander i `relay/p4b-bevis/` (alle fylt · sist-brukt-merke · varsel-tom-chip · søk>6). Harness slettet, git rent.
+- [x] **Løype 2 (e2e):** opprett-flyt + pkt-0 + sist-brukt + klikk-tall (over). Stale-closure-bug funnet + fikset.
 - [ ] i18n 13 språk (nb+en lagt til: `kontekstChip.faggruppeKunUtkast`, `sjekklister.mal`, `sjekklister.utilgjengeligeMaler`, `felles.ingenTreff`) — generate ved merge (P2/P3-konvensjon).
 - [ ] harness (chip-tilstander) + e2e (opprett-flyt + auto-hopp) + klikk-tall — test-miljø.
 - [ ] fabel task-walkthrough.
