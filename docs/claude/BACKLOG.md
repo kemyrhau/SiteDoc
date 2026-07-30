@@ -104,13 +104,15 @@ På HMS-dokumenter (RUH/avvik/SJA) finnes **både** HMS-handlingen «Tilføy inf
 
 HMS-001 (HMS-avvik) + RUH-001 står i status «Utkast» — opprettet før Ordre A–D innførte opprett=sent. HMS-flyten har ingen Utkast-tilstand, så de er strandet. Data-opprydning: sett dem «sent» (eller lukk/slett); vurder engangs-backfill hvis prod har tilsvarende.
 
-### 🟠 Mobil-typecheck er RØD på develop — gaten har aldri spurt (develop-Opus exit 2026-07-16)
+### ✅ Mobil-typecheck RØD på develop — LØST 2026-07-30 (`fba830da`, branch `fix/mobil-typecheck-groenn`)
 
-`pnpm --filter @sitedoc/mobile typecheck` **passerer ikke på ren develop** — 11 feil. Bl.a.: `erstattVedlegg` returneres av **begge** mobil-hookene og destruktureres i begge detaljsidene, men står **ikke** i `UseOppgaveSkjemaResultat`/`UseSjekklisteSkjemaResultat` (verifisert: returneres 1×, deklarert 0× i begge).
+`pnpm --filter @sitedoc/mobile typecheck` var rød på ren develop — **11 ekte feil** (måling: 418 rå, men 407 var stale Prisma-gen-artefakter som forsvinner etter `prisma generate` ×4). Ryddet med kun type-korrektheter (ingen funksjonalitet rørt) → **exit 0**:
+- `erstattVedlegg` deklarert i `UseOppgaveSkjemaResultat` + `UseSjekklisteSkjemaResultat` (var returnert + destrukturert, manglet kun i interface) — løste 4 feil.
+- `hjem.tsx` + `sjekkliste/[id].tsx`: lean klient-cast av tRPC-output (dyp config-Json → TS2589/2345/2352), samme mønster fila alt brukte — 5 feil.
+- `psi/[psiId].tsx` tom-tilstand `onLukk` (forslag A, Kenneth-avgjort) — 1 feil.
+- `timerSync.ts` `aktivitetId ?? ""` (fullfører dokumentert `projectId ?? ""`-mønster mot `.notNull()`-kolonne, Kenneth-avgjort) — 1 feil (2 linjer).
 
-**Rotårsaken er prosess, ikke typer:** [regel 10](SAMARBEIDSREGLER.md) krevde grønt `@sitedoc/web build` — **web only**. Mobil har aldri vært gatet, så gjelden vokste usett. Regelen er utvidet 2026-07-16; **den kan ikke blokkere før denne posten er ryddet.** Inntil da: baseline-sammenligning (diffen skal ikke ØKE feiltallet).
-
-Funnet av develop-Opus, som kjørte negativ kontroll uoppfordret for å skille sine egne feil fra baseline. Uten den ville de 11 vært usynlige videre.
+**Rotårsaken var prosess:** [regel 10](SAMARBEIDSREGLER.md) krevde grønt `@sitedoc/web build` — **web only**. Mobil har aldri vært gatet, så gjelden vokste usett. **Regel 10 er nå utvidet:** mobil-typecheck er blokkerende (exit 0), med `prisma generate` ×4 som eksplisitt forsteg (ellers 400+ falske «any»-feil). Funnet opprinnelig av develop-Opus (negativ kontroll uoppfordret).
 
 ### 🟠 Ingen navigasjonsvakt i HELE web-appen — «ulagrede endringer tapes» er app-vidt (develop-Opus exit 2026-07-16)
 
@@ -1363,7 +1365,7 @@ Pre-eksisterende cross-firma-lekkasje-klasse (åpen siden 2026-06-09): `SheetMac
 
 Fanget under R4-konsistens-sjekk (2026-06-11) — **ikke R-serie-introdusert** (R-serie-filer er rein; verifisert mot kode). Type-only, blokkerer **ikke** byggene (EAS = Metro/Babel uten `tsc`; web Next.js-build typesjekker ikke test-filer).
 
-- **Mobil (~12 feil):** `erstattVedlegg` mangler i `UseOppgaveSkjemaResultat`/`UseSjekklisteSkjemaResultat` (`useOppgaveSkjema.ts:615`/`useSjekklisteSkjema.ts:594` — egenskapen finnes i runtime, type-interface usynket); `timerSync.ts:313/339` Drizzle-overload på `byggeplassId` (`string | null` vs insert-type); + følgefeil i `oppgave/[id].tsx`, `psi/[psiId].tsx`, `sjekkliste/[id].tsx`.
+- **Mobil (~12 feil): ✅ LØST 2026-07-30 (`fba830da`)** — mobil-typecheck er nå exit 0, se posten «Mobil-typecheck RØD på develop — LØST» over. (`erstattVedlegg` deklarert, Drizzle-null-guard, lean-cast deep-Json.)
 - **Web (1 feil):** `vitest`-modul mangler typer i `src/components/mengde/__tests__/import-hjelpere.test.ts` (test-tooling, ikke produksjonskode).
 
 Fiks når noen rører de filene: synk hook-resultat-typene med faktisk retur, og gi `byggeplassId` riktig Drizzle-type / `vitest` til devDependencies+tsconfig. Lav prio — ingen runtime-effekt.
