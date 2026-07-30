@@ -113,7 +113,7 @@ Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanel
 
 **Bilderekkefølge:** Velg bilde → `◀`/`▶`-piler i verktøylinjen for å flytte. `flyttVedlegg(objektId, vedleggId, "opp"|"ned")` i begge hooks. Rekkefølgen lagres i vedlegg-arrayet og reflekteres i PDF.
 
-**Modal tekstredigering:** Alle tekstfelt bruker Pressable → fullskjerm Modal med "Ferdig"-knapp.
+**Modal tekstredigering:** Alle tekstfelt bruker Pressable → fullskjerm Modal med **Avbryt** (venstre i header) + «Ferdig»/handling (høyre). Avbryt-affordance er ufravikelig — en handling skal aldri være eneste utvei ut av en modal (FABEL-RAMMEVERK § Effektivitets-gate pkt 5; Kenneth-mobiltest 2026-07-30, «Ny kommentar» hadde kun Send). Mønster: `<Pressable onPress={() => settVisXModal(false)} hitSlop={8}>` med `t("handling.avbryt")`, samme header-plassering som `OpprettDokumentModal.tsx:573`. Gjelder de fire form-modalene som ble fikset: `oppgave/[id].tsx` (Ny kommentar/Dialog, Rediger tittel, Rediger beskrivelse) + `FeltDokumentasjon.tsx` (Feltkommentar). Avbryt forkaster (lukker uten å lagre/sende — utkast reinitialiseres ved neste åpning); høyre knapp lagrer/sender. Merk skillet mot linje 9: **X-ikon**-standarden gjelder rene visnings-/fullskjermmodaler (PDF, kamera, bilde-zoom); **tekst-Avbryt** gjelder skjema-modaler som har en primærhandling (Send/Ferdig/Opprett) til høyre — iOS Cancel/Done-konvensjon.
 
 ## Utviklingsmiljø — Tunnel og nettverk
 
