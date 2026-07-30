@@ -11,6 +11,12 @@
  * medlemmer bærer default `steg=1`, så steg-gruppering kollapset ALLE roller til
  * ett eneste ledd (én boks + variant-C overalt). Når posisjonsutredningen gir
  * distinkte `steg`, byttes sekvenseringen tilbake til `steg`.
+ *
+ * ⚠️ MOBIL-PARITET (lærdom 2026-07-30): mobil har en PARALLELL kopi
+ * `apps/mobile/src/utils/dokumentflyt-ledd.ts` som MÅ holde samme rolle-gruppering.
+ * Den var stale (steg-basert) og re-introduserte kollapsen (én chip mot 4-rolle-flyt)
+ * i mobil detalj-redesign M1-M3 — fabel-walkthrough fanget den. Endres flyt-ledd-
+ * logikken her, MÅ mobil-kopien oppdateres i SAMME runde til begge konsolideres.
  */
 
 /**
