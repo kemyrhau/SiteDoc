@@ -25,6 +25,7 @@ import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useOversettelse } from "@/hooks/useOversettelse";
 import { DokumentTidslinje } from "@/components/DokumentTidslinje";
+import { DokumentKontekstChipLinje } from "@/components/kontekst-chip/DokumentKontekstChipLinje";
 import { usePresence } from "@/hooks/usePresence";
 
 /* ------------------------------------------------------------------ */
@@ -323,6 +324,18 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.prosjektId },
   );
 
+  // P4b: byggeplasser for byggeplass-chippen i kontekst-chip-linja (utfyllingsmodus).
+  const { data: bygningerRå } = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const bygninger = (bygningerRå ?? []) as Array<{ id: string; name: string; number: number | null }>;
+
+  // P4b: redigerbar tittel (utfyllingsmodus). Lokalt utkast så feltet ikke
+  // hopper mens oppdater-mutasjonen kjører; skriver via eksisterende oppdater.
+  const [redigererTittel, setRedigererTittel] = useState(false);
+  const [tittelUtkast, setTittelUtkast] = useState("");
+
   // fullSjekklisteRå hentet ovenfor — cast for typesikkerhet
   const fullSjekkliste = fullSjekklisteRå as {
     number?: number | null;
@@ -498,6 +511,60 @@ export default function SjekklisteDetaljSide() {
 
   const oppretterBruker = fullSjekkliste?.bestiller?.name;
 
+  // P4b: kontekst-chip-linje (utfyllingsmodus). Prosjekt + mal = display;
+  // byggeplass = velger (overstyring via oppdater); faggruppe (utfører) =
+  // velger kun i utkast (server tillater faggruppe-endring kun i draft).
+  const sjekklisteCast = sjekkliste as unknown as {
+    title: string;
+    status: string;
+    template?: { id: string; name?: string | null } | null;
+    utforerFaggruppe?: { id: string; name?: string | null } | null;
+  };
+  const erUtkast = sjekklisteCast.status === "draft";
+
+  function lagreTittel() {
+    const ny = tittelUtkast.trim();
+    setRedigererTittel(false);
+    if (ny && ny !== sjekklisteCast.title) {
+      oppdaterMutasjon.mutate({ id: params.sjekklisteId, title: ny });
+    }
+  }
+
+  const kontekstChips: import("@/components/kontekst-chip/DokumentKontekstChipLinje").Chip[] = [
+    {
+      etikett: t("kontekstChip.prosjekt"),
+      verdi: prosjekt?.name ?? t("kontekstChip.laster"),
+      type: "display",
+    },
+    {
+      etikett: t("kontekstChip.byggeplass"),
+      verdi: fullSjekkliste?.byggeplass?.name ?? t("kontekstChip.heleProsjektet"),
+      type: "velger",
+      valgtId: fullSjekkliste?.byggeplass?.id ?? null,
+      tomLabel: t("kontekstChip.heleProsjektet"),
+      alternativer: bygninger.map((b) => ({ id: b.id, navn: b.name })),
+      onVelg: (id) =>
+        oppdaterMutasjon.mutate({ id: params.sjekklisteId, byggeplassId: id, drawingId: null }),
+    },
+    {
+      etikett: t("tabell.utforer"),
+      verdi: sjekklisteCast.utforerFaggruppe?.name ?? "—",
+      type: "velger",
+      deaktivert: !erUtkast,
+      deaktivertGrunn: t("kontekstChip.faggruppeKunUtkast"),
+      valgtId: sjekklisteCast.utforerFaggruppe?.id ?? null,
+      alternativer: alleFaggrupper.map((f) => ({ id: f.id, navn: f.name })),
+      onVelg: (id) => {
+        if (id) oppdaterMutasjon.mutate({ id: params.sjekklisteId, utforerFaggruppeId: id });
+      },
+    },
+    {
+      etikett: t("sjekklister.mal"),
+      verdi: sjekklisteCast.template?.name ?? "—",
+      type: "display",
+    },
+  ];
+
   return (
     <div className="max-w-3xl pb-12">
       {/* Print-header: skjult på skjerm, synlig ved print */}
@@ -528,7 +595,38 @@ export default function SjekklisteDetaljSide() {
           {sjekklisteNummer && (
             <span className="text-sm font-bold text-gray-500">{sjekklisteNummer}</span>
           )}
-          <h3 className="text-base sm:text-lg font-bold truncate max-w-[60vw] sm:max-w-none">{sjekkliste.title}</h3>
+          {/* P4b: redigerbar tittel (utfyllingsmodus). Klikk blyant → input;
+              Enter/blur lagrer via oppdater. Manuell tom tittel forkastes. */}
+          {redigererTittel ? (
+            <input
+              autoFocus
+              value={tittelUtkast}
+              onChange={(e) => setTittelUtkast(e.target.value)}
+              onBlur={lagreTittel}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") lagreTittel();
+                if (e.key === "Escape") setRedigererTittel(false);
+              }}
+              maxLength={255}
+              aria-label={t("handling.rediger")}
+              className="min-h-11 max-w-[60vw] rounded-md border border-sitedoc-primary px-2 py-0.5 text-base font-bold focus:outline-none sm:max-w-none sm:text-lg"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setTittelUtkast(sjekkliste.title);
+                setRedigererTittel(true);
+              }}
+              title={t("handling.rediger")}
+              className="group flex min-h-11 items-center gap-1.5 text-left"
+            >
+              <span className="truncate text-base font-bold max-w-[55vw] sm:max-w-none sm:text-lg">
+                {sjekkliste.title}
+              </span>
+              <Pencil className="h-3.5 w-3.5 shrink-0 text-gray-300 group-hover:text-gray-500" />
+            </button>
+          )}
           <LagreIndikator status={lagreStatus} />
           {andreRedaktorer.length > 0 && (
             <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700">
@@ -566,6 +664,12 @@ export default function SjekklisteDetaljSide() {
               );
             })()}
           </div>
+        </div>
+
+        {/* P4b Rad 1b: kontekst-chip-linje (utfyllingsmodus) — prosjekt ·
+            byggeplass · faggruppe · mal. Skjult ved print. */}
+        <div className="print-skjul mt-2">
+          <DokumentKontekstChipLinje chips={kontekstChips} />
         </div>
 
         {/* Rad 2: FlytIndikator (full bredde på mobil) */}
