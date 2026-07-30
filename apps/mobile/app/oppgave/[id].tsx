@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -32,9 +32,9 @@ import {
 import { harBetingelse, harForelderObjekt, utledMinRolle, beregnHarBallen, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
-import { FlytIndikator } from "../../src/components/FlytIndikator";
-import type { FlytMedlem } from "../../src/components/FlytIndikator";
-import { DokumentHandlingsmeny } from "../../src/components/DokumentHandlingsmeny";
+import { Flytlinje } from "../../src/components/Flytlinje";
+import type { FlytMedlem } from "../../src/components/Flytlinje";
+import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -84,6 +84,10 @@ function formaterNummer(
 ): string | null {
   if (!prefix || nummer == null) return null;
   return `${prefix}${nummer}`;
+}
+
+function formaterKlokke(dato: Date): string {
+  return dato.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
 }
 
 export default function OppgaveDetalj() {
@@ -314,9 +318,7 @@ export default function OppgaveDetalj() {
     erSynlig,
     erFeltLåst,
     valideringsfeil,
-    valider,
     lagre,
-    erLagrer,
     harEndringer,
     erRedigerbar,
     lagreStatus,
@@ -352,6 +354,31 @@ export default function OppgaveDetalj() {
     return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
   }, [oppgave?.template?.objects, hentFeltVerdi, t]);
 
+  // Påkrevd-felt-teller (M2): live antall gjenstående påkrevde synlige felt. Deaktiverer
+  // framover-primær (Send/Besvar) + caption. Read-only speiling av `valider()` — muterer ikke.
+  const paakrevdeFeltGjenstaar = useMemo(() => {
+    const objs = (oppgave?.template?.objects ?? []) as { id: string; type: string; required?: boolean }[];
+    let n = 0;
+    for (const o of objs) {
+      if (DISPLAY_TYPER.has(o.type)) continue;
+      if (!o.required) continue;
+      if (!erSynlig(o as Parameters<typeof erSynlig>[0])) continue;
+      const v = hentFeltVerdi(o.id).verdi;
+      if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) n++;
+    }
+    return n;
+  }, [oppgave?.template?.objects, erSynlig, hentFeltVerdi]);
+
+  // Autolagret-mikrotekst (M2): stemple tidspunkt når en lokal lagring fullfører.
+  const [sisteLagretTid, settSisteLagretTid] = useState<Date | null>(null);
+  useEffect(() => {
+    if (lagreStatus === "lagret") settSisteLagretTid(new Date());
+  }, [lagreStatus]);
+  const sisteLagretTekst = useMemo(
+    () => (sisteLagretTid ? t("dokument.lagretAutomatisk", { tid: formaterKlokke(sisteLagretTid) }) : null),
+    [sisteLagretTid, t],
+  );
+
   const håndterTilbake = useCallback(async () => {
     if (harEndringer) {
       await lagre();
@@ -359,15 +386,12 @@ export default function OppgaveDetalj() {
     router.back();
   }, [harEndringer, lagre, router]);
 
-  const håndterLagre = useCallback(async () => {
-    const erGyldig = valider();
-    if (!erGyldig) {
-      Alert.alert(t("dokument.valideringsfeil"), t("dokument.fyllInnPaakrevde"));
-      return;
-    }
+  // «Lagre og lukk» (M2): lagrer og navigerer tilbake. Validerer ALDRI — utkast skal
+  // kunne være ufullstendige (fabel 2026-07-30). Autolagring har allerede persistert.
+  const håndterLagreOgLukk = useCallback(async () => {
     await lagre();
-    Alert.alert(t("dokument.lagret"), t("dokument.utfyllingLagret"));
-  }, [valider, lagre]);
+    router.back();
+  }, [lagre, router]);
 
   const endrePrioritet = useCallback(
     (nyPrioritet: string) => {
@@ -492,14 +516,18 @@ export default function OppgaveDetalj() {
             })()}
           </View>
         </View>
-        {/* FlytIndikator */}
+        {/* Flytlinje (M1) — én linje, tap → flyt-sheet */}
         {flytMedlemmer.length > 0 && (
-          <FlytIndikator
+          <Flytlinje
             medlemmer={flytMedlemmer}
             recipientUserId={(oppgaveDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
             recipientGroupId={(oppgaveDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
             status={oppgave.status}
             bestillerUserId={(oppgaveDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+            harBallen={harBallen}
+            meg={{ userId: minFlytInfo?.userId, gruppeIder: minFlytInfo?.gruppeIder }}
+            overforinger={overforinger}
+            formaterTid={formaterHistorikkDato}
           />
         )}
       </View>
@@ -791,9 +819,9 @@ export default function OppgaveDetalj() {
         )}
       </ScrollView>
 
-      {/* Handlingsmeny + lagre-knapp i bunn */}
-      <View className="border-t border-gray-200 bg-white px-4 py-3 gap-2">
-        <DokumentHandlingsmeny
+      {/* Handlingslinje (M2) — P3-mønster: primær m/retning + split-▾ */}
+      <View className="border-t border-gray-200 bg-white px-4 py-3">
+        <DokumentHandlingslinje
           status={oppgave.status}
           erLaster={endreStatusMutasjon.isPending}
           onEndreStatus={(nyStatus, kommentarTekst, mottaker) => {
@@ -808,24 +836,19 @@ export default function OppgaveDetalj() {
             });
           }}
           onSlett={["draft", "cancelled"].includes(oppgave.status) ? håndterSlett : undefined}
-          tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["tilgjengeligeFlyter"]}
+          tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingslinje>[0]["tilgjengeligeFlyter"]}
           minRolle={minRolle ?? null}
           adminNiva={minFlytInfo?.adminNiva ?? null}
           besvarDeaktivertGrunn={besvarDeaktivertGrunn}
+          medlemmer={flytMedlemmer}
+          recipientUserId={(oppgaveDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
+          recipientGroupId={(oppgaveDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
+          bestillerUserId={(oppgaveDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+          paakrevdeFeltGjenstaar={paakrevdeFeltGjenstaar}
+          erRedigerbar={erRedigerbar}
+          sisteLagretTekst={sisteLagretTekst}
+          onLagreOgLukk={håndterLagreOgLukk}
         />
-
-        {/* Lagre-knapp */}
-        {erRedigerbar && (
-          <Pressable
-            onPress={håndterLagre}
-            disabled={erLagrer}
-            className={`items-center rounded-lg py-3 ${erLagrer ? "bg-blue-400" : "bg-blue-600"}`}
-          >
-            <Text className="font-medium text-white">
-              {erLagrer ? t("handling.lagrer") : t("dokument.lagreUtfylling")}
-            </Text>
-          </Pressable>
-        )}
       </View>
 
       </KeyboardAvoidingView>

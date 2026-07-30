@@ -28,34 +28,47 @@
 - `BildeAnnotering`-komponent returnerer annotert fil → `FeltDokumentasjon` oppdaterer vedleggets URL
 - Opplastingskø håndterer ny fil med samme vedlegg-ID
 
-## Statusendring
+## Statusendring — detalj-redesign M1–M3 (2026-07-30)
 
-Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanelet:
+Sjekkliste-/oppgave-detaljskjermen ble omstrukturert til **én** flyt-representasjon i
+headeren + **P3-mønster** handlingslinje i bunnpanelet. Begge skjermer bruker de samme
+FELLES komponentene (ingen duplisert JSX). Speiler web-P3-linjen; ingen server-/statusmaskin-
+/ledd-logikk endret — delte kilder: `hentRolleFiltrertHandlinger`, `statusKreverBegrunnelse`,
+`byggLedd`/`finnAktivtIndex`.
 
-### Header (blå bar)
+### M1 — Flytlinje i header (`apps/mobile/src/components/Flytlinje.tsx`)
 ```
 ← BEF-002  Befaring betong  [☁][Mottatt]
-   [Elektro] →●→ [BH · Byggeleder] +1
+   [Elektro] → ⟨Byggeleder⟩ +1        ← aktivt ledd = hvit chip, farge-svatt + navn
+   ● Du har ballen  /  Venter på Byggeleder
 ```
-- Rad 1: Tilbake · Prefix+nummer · Tittel · Synk-ikoner · StatusBadge
-- Rad 2: FlytIndikator (`apps/mobile/src/components/FlytIndikator.tsx`) — native View, kompakt
+- Én linje (erstatter tidligere FlytIndikator + boks-raden i bunn). Farge-svatt (10px) +
+  faggruppenavn per ledd; aktivt ledd = hvit chip m/fet tekst. Kompakt: aktiv + nabo, «+N» >3 ledd.
+- Mikrotekst under: «Du har ballen» (grønn prikk) når recipient = meg/min gruppe, ellers
+  «Venter på [aktivt ledd]». → «hvem har ballen» = 0 taps (synlig).
+- Tap → **flyt-sheet (M3)**: ledd vertikalt 1→2→3, nummererte fargede noder, aktivt ledd grønn
+  ramme + «DIN TUR»-badge når det er brukerens tur; per ledd faggruppenavn · rolle, ★ hovedansvarlig,
+  «(deg)», siste overførings-tidsstempel. Ren visning (ingen statushandlinger), synlig «Lukk».
 
-### Bunnpanel (DokumentHandlingsmeny)
-`apps/mobile/src/components/DokumentHandlingsmeny.tsx` — ActionSheet (iOS) / Alert (Android).
+### M2 — Handlingslinje i bunn (`apps/mobile/src/components/DokumentHandlingslinje.tsx`)
+Én primærknapp (kildens `erPrimaer`, ellers første lovlige) full bredde m/retningsnavn
+(«Send til [neste ledd]» / «Besvar til [forrige ledd]», fra `byggLedd`) + split-▾ → ÉN sheet
+med ALLE øvrige lovlige handlinger fra `hentRolleFiltrertHandlinger` i fabel-rekkefølge:
+**framover → Lagre og lukk → destruktive (Avvis, rød) → Videresend → Bytt flyt → Admin.**
+Egen flyt-bytte-knapp og ⋯-admin-meny slått sammen inn i denne sheeten.
 
-| Status | Knapper |
-|--------|---------|
-| draft | `[Send ▾]` + `[Slett]` |
-| sent | `[Trekk tilbake]` |
-| received/in_progress/rejected | `[Send ▾]` (ActionSheet med entrepriser) |
-| responded | `[Godkjenn]` + `[Avvis]` + `[Send ▾]` |
-| approved | `[Lukk]` + `[Videresend ▾]` |
-| cancelled | `[Gjenåpne]` + `[Slett]` |
+- **Lagre demotert:** autolagring dekker persistering (alle 21 utfyllbare felttyper, verifisert
+  nå-sjekk 2026-07-30) → baren viser «Lagret automatisk HH:MM ✓»-mikrotekst; «Lagre og lukk» bor
+  i split-sheeten (validerer ALDRI — utkast kan være ufullstendige).
+- **Påkrevd-validering (fabel 2026-07-30):** framover-primær (Send/Besvar) deaktiveres m/caption
+  «X påkrevde felt gjenstår» når påkrevde synlige felt mangler — KUN framover. Feltmarkeringen
+  (`valideringsfeil`) er veiviseren, captionen er telleren. Erstatter dagens Lagre-knapp-Alert.
+- Bekreftelses-sheet ved statushandling beholdt (ER kommentar-inngangen; Avvis krever begrunnelse).
+- Ikke-eier/lesevisning: ingen handlingslinje (som før), men flytlinjen (M1) vises alltid.
 
-- Send-dropdown: primærmottaker, Send tilbake (boks 2+), videresend til andre entrepriser
-- Admin-seksjon (registrator/admin/siste boks): Godkjenn, Lukk, Trekk tilbake, Gjenåpne
-- Kommentar-modal (bottom sheet) med tastaturhåndtering etter ActionSheet-valg
-- Lagre-knapp beholdt under handlingsmeny (offline-first)
+Klikk-budsjett: **Send 3 → 2 taps** (primær → bekreft), **hvem-har-ballen 0 taps**.
+
+> M4 (Avbryt-affordance i 4 form-modaler) landet separat (`9bbeb2e5`). M5 (tidslinje-kollaps) = backlog.
 
 ### Rettighetsbasert UI
 `useOppgaveSkjema(id, rettighetInput?)` og `useSjekklisteSkjema(id, rettighetInput?)` — valgfri `rettighetInput` med `utledDokumentRettighet()`. Uten param → gammel status-basert logikk.
@@ -65,12 +78,12 @@ Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanel
 `useOppgaveSkjema`-hook i `apps/mobile/src/hooks/useOppgaveSkjema.ts`. Identisk med sjekkliste-utfylling:
 
 ```
-[Blå header med FlytIndikator]
+[Blå header med Flytlinje (M1)]
 ─── ScrollView ───
   [Tittel] [Prioritet] [Beskrivelse]
   [Koblinger] [Malobjekter] [Historikk]
 ─── Bunnpanel ───
-  [DokumentHandlingsmeny + Lagre]
+  [DokumentHandlingslinje (M2): primær m/retning + split-▾]
 ```
 
 **Auto-fill:** date→i dag, date_time→nå, person→bruker, company→entreprise, drawing_position→fra oppgavens tegning.
