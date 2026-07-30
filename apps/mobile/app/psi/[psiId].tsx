@@ -242,7 +242,7 @@ export default function PsiLeser() {
   if (seksjoner.length === 0) {
     return (
       <SafeAreaView className="flex-1 bg-white">
-        <Header onTilbake={() => router.back()} tittel="PSI" />
+        <Header onTilbake={() => router.back()} onLukk={() => router.back()} tittel="PSI" />
         <View className="flex-1 items-center justify-center px-6">
           <Text className="text-sm text-gray-500">Ingen innhold i PSI</Text>
         </View>
