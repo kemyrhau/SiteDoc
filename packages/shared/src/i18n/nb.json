@@ -729,6 +729,7 @@
   "sjekklister.velgMal": "Velg sjekklistemal",
   "sjekklister.mal": "Mal",
   "sjekklister.utilgjengeligeMaler": "Utilgjengelige maler",
+  "sjekklister.visUtilgjengelige": "Vis utilgjengelige ({{antall}})",
   "sjekklister.velgFlyt": "Velg dokumentflyt",
   "sjekklister.flyt": "Flyt",
   "sjekklister.flereFlyter": "{{antall}} flyter bruker malen — du velger i neste steg",

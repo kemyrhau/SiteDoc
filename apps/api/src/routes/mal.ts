@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@sitedoc/shared";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, hentBrukersOpprettFlytMedlemskap } from "../trpc/tilgangskontroll";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import { oversettMedMotor, hashTekst } from "../services/oversettelse-service";
 import type { OversettelsesMotor } from "../services/oversettelse-service";
@@ -39,19 +39,60 @@ function valideerSubdomainCategory(
   }
 }
 
+// P4b pkt 0: eksplisitt (grunn) returtype for mal-lista så tRPC ikke dyp-
+// infererer AppRouter-typen (unngår TS2589 i andre prosedyrer, f.eks.
+// oppgave.opprett). opprettbar/opprettbareFlytIder er den delte opprett-regelen.
+type MalListeElement = Prisma.ReportTemplateGetPayload<{
+  include: {
+    _count: { select: { objects: true; checklists: true; tasks: true } };
+    dokumentflytMaler: { select: { dokumentflytId: true } };
+  };
+}> & { opprettbar: boolean; opprettbareFlytIder: string[] };
+
 export const malRouter = router({
   // Hent alle maler for et prosjekt
   hentForProsjekt: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx, input }): Promise<MalListeElement[]> => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
-      return ctx.prisma.reportTemplate.findMany({
+      const maler = await ctx.prisma.reportTemplate.findMany({
         where: { projectId: input.projectId },
         include: {
           _count: { select: { objects: true, checklists: { where: IKKE_SLETTET }, tasks: { where: IKKE_SLETTET } } },
           dokumentflytMaler: { select: { dokumentflytId: true } },
         },
         orderBy: { updatedAt: "desc" },
+      });
+
+      // P4b pkt 0: opprettbarhet som ADDITIV metadata (ikke hard-filter — mal-admin
+      // trenger alle). DELT kilde med opprett-valideringen: en mal er opprettbar hvis
+      // den ligger i ≥1 dokumentflyt der brukeren er registrator-medlem
+      // (hentBrukersOpprettFlytMedlemskap — samme fn opprett-valideringen avviser på)
+      // OG flyten har eier-faggruppe (bestiller kan utledes). HMS-maler er alltid
+      // opprettbare (auto-rutes til HMS-gruppen, flyt-løse). En mal som ville feile
+      // ved Opprett får opprettbar=false og skjules i velgerne (web + mobil).
+      const opprettFlytIder = await hentBrukersOpprettFlytMedlemskap(ctx.userId, input.projectId);
+      const flyterMedEierFaggruppe =
+        opprettFlytIder.length > 0
+          ? await ctx.prisma.dokumentflyt.findMany({
+              where: { id: { in: opprettFlytIder }, faggruppeId: { not: null } },
+              select: { id: true },
+            })
+          : [];
+      const gyldigeFlytIder = new Set(flyterMedEierFaggruppe.map((f) => f.id));
+
+      return maler.map((mal) => {
+        const erHms = mal.domain === "hms";
+        const opprettbareFlytIder = erHms
+          ? []
+          : mal.dokumentflytMaler
+              .map((dm) => dm.dokumentflytId)
+              .filter((id) => gyldigeFlytIder.has(id));
+        return {
+          ...mal,
+          opprettbar: erHms || opprettbareFlytIder.length > 0,
+          opprettbareFlytIder,
+        };
       });
     }),
 

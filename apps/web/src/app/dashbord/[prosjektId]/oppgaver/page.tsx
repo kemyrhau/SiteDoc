@@ -330,7 +330,11 @@ export default function OppgaverSide() {
   const isLoading = oppgaveQuery.isLoading;
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
-  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null }>).filter((m) => m.category === "oppgave");
+  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null; opprettbar?: boolean }>).filter((m) => m.category === "oppgave");
+  // P4b pkt 0: skill opprettbare fra utilgjengelige (server-feltet, delt regel).
+  // Velger + auto-hopp bruker KUN opprettbare; utilgjengelige vises bak «vis (N)».
+  const opprettbareOppgaveMaler = oppgaveMaler.filter((m) => m.opprettbar !== false);
+  const utilgjengeligeOppgaveMaler = oppgaveMaler.filter((m) => m.opprettbar === false);
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: params.prosjektId },
   );
@@ -351,6 +355,8 @@ export default function OppgaverSide() {
   const { sistBrukt, settSistBrukt } = useSistBrukteMal(minFlytInfo?.userId);
   const oppgaveMalNøkkel = `oppgave:${params.prosjektId}`;
   const sisteMalRef = useRef<string | null>(null);
+  // P4b pkt 0: utilgjengelige maler skjules som default; åpnes via «vis (N)».
+  const [visUtilgjengelige, setVisUtilgjengelige] = useState(false);
 
   const opprettMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown) => {
@@ -449,12 +455,13 @@ export default function OppgaverSide() {
   // (klient-lokal interim): treffer det en mal som fortsatt finnes → opprett
   // direkte; ellers mellomvalget (modalen). Aldri gjett blindt.
   function åpneMalVelger() {
-    const eneste = oppgaveMaler.length === 1 ? oppgaveMaler[0] : undefined;
+    // P4b pkt 0: auto-valg KUN fra opprettbare maler (server-feltet).
+    const eneste = opprettbareOppgaveMaler.length === 1 ? opprettbareOppgaveMaler[0] : undefined;
     if (eneste) {
       handleOpprettFraMal(eneste.id);
     } else {
       const sistMalId = sistBrukt(oppgaveMalNøkkel);
-      if (sistMalId && oppgaveMaler.some((m) => m.id === sistMalId)) {
+      if (sistMalId && opprettbareOppgaveMaler.some((m) => m.id === sistMalId)) {
         handleOpprettFraMal(sistMalId);
         return;
       }
@@ -933,19 +940,40 @@ export default function OppgaverSide() {
           {oppgaveMaler.length === 0 ? (
             <p className="py-4 text-center text-sm text-gray-400">{t("oppgaver.ingenMaler")}</p>
           ) : (
-            oppgaveMaler.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => handleOpprettFraMal(m.id)}
-                disabled={opprettMutation.isPending}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50"
-              >
-                <span className="text-sm font-medium text-gray-800">{m.name}</span>
-                {m.prefix && (
-                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>
-                )}
-              </button>
-            ))
+            <>
+              {opprettbareOppgaveMaler.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => handleOpprettFraMal(m.id)}
+                  disabled={opprettMutation.isPending}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <span className="text-sm font-medium text-gray-800">{m.name}</span>
+                  {m.prefix && (
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>
+                  )}
+                </button>
+              ))}
+              {/* P4b pkt 0: utilgjengelige maler bak «vis (N)» — dempet, ikke klikkbar. */}
+              {utilgjengeligeOppgaveMaler.length > 0 && (
+                <div className="border-t border-gray-100 pt-2">
+                  <button type="button" onClick={() => setVisUtilgjengelige((v) => !v)}
+                    className="flex min-h-11 w-full items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600">
+                    {visUtilgjengelige ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    {t("sjekklister.visUtilgjengelige", { antall: utilgjengeligeOppgaveMaler.length })}
+                  </button>
+                  {visUtilgjengelige && utilgjengeligeOppgaveMaler.map((m) => (
+                    <div key={m.id} className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2.5 opacity-60">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-500">{m.name}</span>
+                        {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
+                      </span>
+                      <span className="text-xs text-gray-400">{t("dokumentflyt.feil.ingenFlytMedMal")}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </Modal>

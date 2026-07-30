@@ -729,6 +729,7 @@
   "sjekklister.velgMal": "Select checklist template",
   "sjekklister.mal": "Template",
   "sjekklister.utilgjengeligeMaler": "Unavailable templates",
+  "sjekklister.visUtilgjengelige": "Show unavailable ({{antall}})",
   "sjekklister.velgFlyt": "Select document flow",
   "sjekklister.flyt": "Flow",
   "sjekklister.flereFlyter": "{{antall}} flows use this template — you'll choose in the next step",
