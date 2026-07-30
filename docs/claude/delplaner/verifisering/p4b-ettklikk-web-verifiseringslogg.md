@@ -52,8 +52,36 @@ regenerere sjekkpunkter + løpenummer + tittel) krever NY server-mutasjon (finne
 `oppdater`-input tar ikke `templateId`). Utenfor P4b (server-fritt). Flagget til
 `inbox-cowork.md` som egen backlog-sak. Mal-chip er display-only inntil den bygges.
 
+## pkt 0 — server-side tilgjengelighets-filter (fabel-gatet, `20d6fe03`)
+Kenneths mobiltest: mal-velgeren tilbød maler brukeren ikke kan opprette fra →
+skjema fylles, innsending avvises («Dokumentflyt er påkrevd»). Fabel-vedtak:
+filtrer på opprettbarhet FØR auto-valg, SERVER-SIDE, DELT kilde med opprett-
+valideringen (ikke duplisert klient-logikk, ikke ny validering).
+
+- **Server (`mal.ts:44`):** additivt `opprettbar` + `opprettbareFlytIder` på
+  `mal.hentForProsjekt`, utledet via `hentBrukersOpprettFlytMedlemskap`
+  (`tilgangskontroll.ts:881` — samme fn opprett-valideringen `sjekkliste.ts:324`
+  avviser på) + eier-faggruppe. HMS alltid opprettbar. **IKKE hard-filter** (mal-
+  admin trenger alle). Eksplisitt returtype (`Prisma.ReportTemplateGetPayload`)
+  mot TS2589 i AppRouter-inferens.
+- **Web sjekkliste:** `malFlytStatus` bruker server-feltet; klient-duplikatet
+  (`mineOpprettFlyter`) fjernet. Auto-hopp + flyt-gruppert velger → kun opprettbare.
+- **Web oppgave + mobil `MalVelger`:** velger/auto-hopp filtrerer på `opprettbar`.
+  Mobil-bugkilden var kun kategori-filter (`MalVelger.tsx:41`).
+- **Utilgjengelige:** skjult som default, bak «vis utilgjengelige (N)» m/grunn (web+mobil).
+- **Klikk-tak uendret (maks 2 før utfylling):** filteret FJERNER avvist innsending, legger ikke til klikk.
+
+**GPS-presisering (fabel #5, til fallback-stigen):** GPS er bekreftelsessignal NÅR
+til stede, aldri forutsetning — utfylling skjer ofte ikke på byggeplass. «Sist
+brukt»/manuelt valg er likeverdig normalvei, ikke degradert unntak. `useSistBrukteMal`-
+kommentaren behandler sist-brukt som normal kilde (ikke fallback-hierarki).
+
+**Mobil-note:** `MalVelger.tsx` er hardkodet nb (pre-eksisterende, ikke i18n) — nye
+strenger følger filens konvensjon; i18n av hele fila er egen gjeld. **Reload: `npx expo start --clear`.**
+
 ## Gate-kjede
-- [x] **build+tester:** typecheck ren (0 feil); lint 0 nye feil (110 baseline-errors urørt, ingen i mine filer); web-tester 93/93, shared 379/379.
+- [x] **build+tester:** typecheck ren api+web (TS2589 løst); lint 0 nye feil (110 baseline-errors urørt, ingen i mine filer); web-tester 93/93, shared 379/379. Mobil `MalVelger` ren (mobil-baseline har pre-eksisterende feil urelatert til P4b — verifisert via stash-sammenligning).
+- [x] **Løype 1 (harness):** 4 chip-tilstander i `relay/p4b-bevis/` (alle fylt · sist-brukt-merke · varsel-tom-chip · søk>6). Harness slettet, git rent.
 - [ ] i18n 13 språk (nb+en lagt til: `kontekstChip.faggruppeKunUtkast`, `sjekklister.mal`, `sjekklister.utilgjengeligeMaler`, `felles.ingenTreff`) — generate ved merge (P2/P3-konvensjon).
 - [ ] harness (chip-tilstander) + e2e (opprett-flyt + auto-hopp) + klikk-tall — test-miljø.
 - [ ] fabel task-walkthrough.
