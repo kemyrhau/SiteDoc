@@ -24,6 +24,14 @@ Bekreftet (P1-Opus, `git stash`): testen feiler ALT på develop — P2 (inndata-
 
 §8A-fiksen fjernet Send fra received/responded/approved (recipient-løse no-ops). `in_progress→sent` («Send på nytt» etter Send tilbake) ble parkert — P1 målte den ikke. Egen liten runde: setter den recipient (legitim re-send) eller er den samme no-op? Hvis no-op → samme fix (fjern fra `in_progress`-lista i `isValidStatusTransition` + defaults + universe).
 
+### 🔴 Malbytte etter opprettelse + sist-brukt-mal server-side (P4b-følgesak, 2026-07-29)
+
+P4b bygde server-fritt: mal-chip er **display-only** (bytte KUN ved flertydighet ved opprettelse), og «sist brukt mal» ligger i **klient-localStorage** (nøkkel per bruker+flyt, merket interim). Egen sak: (1) malbytte ETTER opprettelse med tittel-regenerering — krever server-logikk utover å gjenbruke opprett-generatoren (fabel gate-svar #5); (2) når den bygger server-støtte, flytt sist-brukt-mal fra localStorage til server-query (per bruker+flyt). Fabel-design + evt. migrering.
+
+### 🔴 P4a+ mobil ekte ett-klikk opprett uten modal (kandidat #2/#3, 2026-07-29)
+
+P4a løser iOS-modal-kollisjonen via kandidat #1 (serialiser onDismiss + skip modal ved auto-kontekst). Fabel noterte #2 (full-screen expo-router-rute — fjerner kollisjonsklassen permanent, 5-callsite-refaktor) + #3 (ekte ett-klikk uten modal → detaljskjerm med kontekst-chips = mobil-ekvivalent av P4b) som **naturlig neste steg**. Vurderes SAMLET når P4b-chip-skjermen finnes (mobil chip-linje forutsetter ny skjermstruktur). Egen runde etter P4b/P4c.
+
 ### 🔴 Fjern suksess-Alert på oppgave-detalj (V5a-paritet, 2026-07-29)
 
 P2-småsaker fjernet suksess-Alert etter lagring på `sjekkliste/[id].tsx:579` (LagreIndikator dekker). Samme Alert står igjen på `oppgave/[id].tsx:369` — utenfor P2-scope. Fjern for paritet (samme mønster). Trivielt; i18n-nøklene `dokument.lagret`/`dokument.utfyllingLagret` beholdes (fortsatt brukt til de begge er borte).

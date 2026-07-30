@@ -123,6 +123,32 @@ Whitelisten i `apps/api/src/routes/dev-login.ts` MÅ matche disse epostene.
    - ⚠️ **Kandidat:** seed-en setter opp flyt-scaffolding (faggrupper/mal/flyt/medlemmer). Verifiser om den også lager en **`received`-status sjekkliste-instans med test-arbeider som utfører** — trengs for at «Besvar» vises. Hvis ikke: opprett + send én sjekkliste til `received` som del av oppsettet.
 4. `pnpm dev --filter @sitedoc/web --filter @sitedoc/api` → browser `localhost:3100` med token → fang skjermbildene → `SiteDoc/<modul>-bevis/`.
 
+### Worktree e2e — konkrete gotchas (Playwright + localhost, verifisert 2026-07-30 under P4b-e2e)
+
+Skjelettet over stemmer, men fem ting er ikke åpenbare og koster runde-tap:
+
+1. **dev-login-ruten gir 404 til api kjører med `NODE_ENV=development` EKSPLISITT.** `tsx watch src/server.ts` (api dev-script) setter ikke NODE_ENV → `erDevLoginAktiv()` = false → ruten monteres aldri. Start api slik:
+   ```
+   NODE_ENV=development DATABASE_URL="<lokal>" pnpm --filter @sitedoc/api dev
+   ```
+2. **DATABASE_URL auto-lastes ikke inn i api-prosessen** (maskin/Vegvesen-worker feiler «Environment variable not found: DATABASE_URL») — send den eksplisitt (som over). Web (3100) trenger den ikke.
+3. **Cookie-navnet er Auth.js v5, ikke next-auth:** `authjs.session-token` (http/localhost) / `__Secure-authjs.session-token` (https). Kilde: `tests/e2e/lib/miljo.ts` (`COOKIE_NAVN`).
+4. **Cookien er httpOnly → MÅ settes via Playwright `context.addCookies`**, aldri `document.cookie`/`evaluate`. Mint token mot lokal dev-login (ingen secret), sett cookie, naviger:
+   ```js
+   const { sessionToken } = await (await fetch('http://localhost:3001/dev-login', {
+     method:'POST', headers:{'Content-Type':'application/json'},
+     body: JSON.stringify({ email: 'test-firma@sitedoc.test' })
+   })).json();
+   await page.context().addCookies([{
+     name:'authjs.session-token', value: sessionToken,
+     domain:'localhost', path:'/', httpOnly:true, secure:false, sameSite:'Lax',
+     expires: Math.floor(Date.now()/1000)+25*24*60*60,
+   }]);
+   await page.goto('http://localhost:3100/dashbord/<projectId>/sjekklister');
+   ```
+   (velg testbruker etter rolle: `test-firma` = registrator/opprett-tester, `test-arbeider` = utfører.)
+5. **Port 3001 EADDRINUSE ved restart** (gammel api henger igjen): `lsof -ti:3001 | xargs kill -9` før ny start.
+
 **Fremtidig forbedring (fabel-forslag 2026-07-28, ikke bygget):** `scripts/worktree-bootstrap.sh` som kopierer/lenker env fra hovedtreet ved oppsett av nytt worktree — lukker env-hullet for ALLE fremtidige worktrees i én kommando. Samme krav (gitignorert, aldri commit) som resten av e2e-rigg-ordren. Se BACKLOG.
 
 ## Sikkerhetsgrense
