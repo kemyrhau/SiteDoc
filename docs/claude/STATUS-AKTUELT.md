@@ -103,6 +103,18 @@ Fabels **Effektivitets-gate** (klikk-budsjett obligatorisk i brukervendte ordrer
 
 Test-deployet web (P1/P2/P3) 2026-07-29 (sekvensielt bygg, prod urørt). **Venter prod-verifisering + prod-deploy.** Ny mobil-designretning (Kenneth): kontekst FRA innlogging (firma→prosjekt→byggeplass) + strukturert opprett-velger — fabel speccer (egen mobil-runde). Restanser i BACKLOG: `in_progress→sent`-måling, oppgave direkte `byggeplassId` (V2 sak B), oppgave suksess-Alert-paritet, mobil handlingslinje (V5b/P5), P4a #2/#3 mobil ekte ett-klikk, malbytte-server-sak. Neste fiks-spor: P4a-merge (etter iOS-test), P4c, P5.
 
+### ✅ Mobil detalj-redesign M1–M3 (flytlinje + P3-handlingslinje + flyt-sheet) — MERGET DEVELOP 2026-07-30
+
+Fabel-ordre `delplaner/mobil-detalj-redesign-ordre-M1-M3.md` (Kenneth-godkjent mockup). Merget develop `784c90b7` (merge av `feat/mobil-detalj-redesign` @ `a8603a4a`). Ingen server-delta (kun mobil + i18n) → ingen test-deploy; Kenneth re-tester på develop-bygg.
+
+- **M1** én flytlinje i header (rolle-gruppert kjede + «Du har ballen»/«Venter på …»), erstatter `FlytIndikator` + boks-raden.
+- **M2** P3-mønster på mobil: primær m/retningsnavn («Send til [neste rolle]»/«Besvar til …») + split-▾ med alle lovlige handlinger (framover → Lagre og gå tilbake → Avvis → Videresend → Bytt flyt → Admin). «Lagre utfylling» demotert (autolagret-mikrotekst); påkrevd-validering = deaktivert Send + «X påkrevde felt gjenstår» (P2-mekanisme, kun framoverstatus).
+- **M3** ren flyt-sheet (vertikal 1→N, «DIN TUR»-badge, medlemsliste), erstatter flat medlemspopup.
+- **Bug-fiks underveis (walkthrough):** mobil `dokumentflyt-ledd.ts` `byggLedd` portet til ROLLE-gruppering (speiler web `flyt-ledd.ts`) — steg-gruppering kollapset 4-rolle-flyt til 1 chip. Web-paritet empirisk verifisert. Dead-code slettet (`DokumentHandlingsmeny` + `FlytIndikator`). Mikrotekst «Lagre og lukk» → «Lagre og gå tilbake» (kolliderte med status Lukket).
+- Felles komponenter begge skjermer (`Flytlinje.tsx` + `DokumentHandlingslinje.tsx`), ingen server/statusmaskin. Klikk: Send 3→2, hvem-har-ballen 0. Fabel-designgodkjent (`verifisering/M1-M3-verifiseringslogg.md` + `verifisering/m1-m3-walkthrough-bevis-2026-07-30/`). Typecheck 11=11.
+
+**Gjenstår:** Kenneths re-test på develop-bygg (menneskelaget). Post-merge egne saker: #2 inline-kommentar-inngang · #7b liste-filter · #4 bekreft-på-send-vurdering · #5 testdata-flyt m/distinkte personer per ledd. M4 (Avbryt-sweep) + KB2-opprett-flyt alt merget (`b3c3055a`).
+
 ### Sjekkliste ikke append-only (branch `fix/sjekkliste-ikke-append-only`) — PÅ BRANCH, venter merge
 
 **Regresjonsfiks fra `04f6d295`** (kun develop/test, prod ikke rammet). `04f6d295` slo på append-only felt-låsing i alle fire skjema-hooks. Riktig for oppgave (mobil manglet den), **feil for sjekkliste** (spec `dokumentflyt.md § 2`: sjekkliste er redigerbar for den som har ballen + admin/registrator) — et innsendt tallfelt ble permanent låst, også for admin.
