@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Popište předmět (volitelné)…",
   "opprettModal.velgFaggruppe": "Vyberte dodavatele…",
   "opprettModal.kunneIkkeOpprette": "Dokument nelze vytvořit",
+  "opprettModal.oppretter": "Vytváření…",
   "oppgaveModal.gpsPosisjon": "GPS pozice",
   "oppgaveModal.velgSvarer": "Vybrat respondenta…",
   "oppgaveModal.tittelFraTegning": "Úkol — {{tegning}}",

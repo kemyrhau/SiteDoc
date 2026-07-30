@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Опишите тему (необязательно)…",
   "opprettModal.velgFaggruppe": "Выбор подрядчика…",
   "opprettModal.kunneIkkeOpprette": "Не удалось создать документ",
+  "opprettModal.oppretter": "Создание…",
   "oppgaveModal.gpsPosisjon": "GPS-положение",
   "oppgaveModal.velgSvarer": "Выберите ответчика…",
   "oppgaveModal.tittelFraTegning": "Задача — {{тэгнинг}}",

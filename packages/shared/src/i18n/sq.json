@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Përshkruani temën (opsionale)…",
   "opprettModal.velgFaggruppe": "Zgjidh grupin e tregtisë…",
   "opprettModal.kunneIkkeOpprette": "Dokumenti nuk mund të krijohej",
+  "opprettModal.oppretter": "Po krijohet…",
   "oppgaveModal.gpsPosisjon": "Pozicioni GPS",
   "oppgaveModal.velgSvarer": "Zgjidh përgjigjen…",
   "oppgaveModal.tittelFraTegning": "Detyra - {{tegning}}",

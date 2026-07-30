@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Beskriv ämnet (valfritt)...",
   "opprettModal.velgFaggruppe": "Välj entreprenör...",
   "opprettModal.kunneIkkeOpprette": "Det gick inte att skapa dokumentet",
+  "opprettModal.oppretter": "Skapande…",
   "oppgaveModal.gpsPosisjon": "GPS-position",
   "oppgaveModal.velgSvarer": "Välj svarare...",
   "oppgaveModal.tittelFraTegning": "Uppgift – {{tecken}}",

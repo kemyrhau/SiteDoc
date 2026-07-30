@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Opisz temat (opcjonalnie)…",
   "opprettModal.velgFaggruppe": "Wybierz wykonawcę…",
   "opprettModal.kunneIkkeOpprette": "Nie można utworzyć dokumentu",
+  "opprettModal.oppretter": "Tworzenie…",
   "oppgaveModal.gpsPosisjon": "Pozycja GPS",
   "oppgaveModal.velgSvarer": "Wybierz respondenta…",
   "oppgaveModal.tittelFraTegning": "Zadanie — {{tegning}}",

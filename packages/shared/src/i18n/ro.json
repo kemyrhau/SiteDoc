@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Descrieți subiectul (opțional)...",
   "opprettModal.velgFaggruppe": "Selectați antreprenorul...",
   "opprettModal.kunneIkkeOpprette": "Nu s-a putut crea documentul",
+  "opprettModal.oppretter": "Se creează…",
   "oppgaveModal.gpsPosisjon": "Poziția GPS",
   "oppgaveModal.velgSvarer": "Selectați răspunsul...",
   "oppgaveModal.tittelFraTegning": "Sarcină — {{tegning}}",

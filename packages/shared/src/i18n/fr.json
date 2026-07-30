@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Décrivez le sujet (facultatif)…",
   "opprettModal.velgFaggruppe": "Sélectionner un entrepreneur…",
   "opprettModal.kunneIkkeOpprette": "Impossible de créer le document",
+  "opprettModal.oppretter": "Création…",
   "oppgaveModal.gpsPosisjon": "Position GPS",
   "oppgaveModal.velgSvarer": "Sélectionnez le répondeur…",
   "oppgaveModal.tittelFraTegning": "Tâche — {{tegning}}",

@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Kirjeldage teemat (valikuline)…",
   "opprettModal.velgFaggruppe": "Valige töövõtja…",
   "opprettModal.kunneIkkeOpprette": "Dokumenti ei saanud luua",
+  "opprettModal.oppretter": "Loomine…",
   "oppgaveModal.gpsPosisjon": "GPS-i asukoht",
   "oppgaveModal.velgSvarer": "Valige vastaja …",
   "oppgaveModal.tittelFraTegning": "Ülesanne – {{tegning}}",

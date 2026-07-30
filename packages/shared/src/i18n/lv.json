@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Aprakstiet tēmu (pēc izvēles)…",
   "opprettModal.velgFaggruppe": "Izvēlieties darbuzņēmēju…",
   "opprettModal.kunneIkkeOpprette": "Nevarēja izveidot dokumentu",
+  "opprettModal.oppretter": "Notiek izveide…",
   "oppgaveModal.gpsPosisjon": "GPS pozīcija",
   "oppgaveModal.velgSvarer": "Atlasīt atbildētāju…",
   "oppgaveModal.tittelFraTegning": "Uzdevums — {{tegning}}",

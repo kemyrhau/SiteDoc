@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Aprašykite temą (neprivaloma)…",
   "opprettModal.velgFaggruppe": "Pasirinkite rangovą…",
   "opprettModal.kunneIkkeOpprette": "Nepavyko sukurti dokumento",
+  "opprettModal.oppretter": "Kuriama…",
   "oppgaveModal.gpsPosisjon": "GPS padėtis",
   "oppgaveModal.velgSvarer": "Pasirinkite atsakiklį…",
   "oppgaveModal.tittelFraTegning": "Užduotis – {{tegning}}",

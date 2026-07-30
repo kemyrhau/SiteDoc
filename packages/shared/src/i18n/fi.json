@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Kuvaile aihetta (valinnainen)…",
   "opprettModal.velgFaggruppe": "Valitse urakoitsija…",
   "opprettModal.kunneIkkeOpprette": "Asiakirjaa ei voitu luoda",
+  "opprettModal.oppretter": "Luodaan…",
   "oppgaveModal.gpsPosisjon": "GPS-sijainti",
   "oppgaveModal.velgSvarer": "Valitse vastaaja…",
   "oppgaveModal.tittelFraTegning": "Tehtävä – {{tegning}}",

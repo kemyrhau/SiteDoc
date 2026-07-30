@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Опишіть тему (на вибір)…",
   "opprettModal.velgFaggruppe": "Вибір підрядника…",
   "opprettModal.kunneIkkeOpprette": "Не вдалося створити документ",
+  "opprettModal.oppretter": "Створення…",
   "oppgaveModal.gpsPosisjon": "Позиція GPS",
   "oppgaveModal.velgSvarer": "Виберіть відповідач…",
   "oppgaveModal.tittelFraTegning": "Завдання — {{tegning}}",
