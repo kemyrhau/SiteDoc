@@ -50,6 +50,8 @@ Bakgrunn: fase 2-mobiltesten viste at flyter vokser ett «rimelig» obligatorisk
 1. **Klikk-budsjett i hver brukervendt ordre:** fabel måler dagens interaksjonstall for hyppigste handling og setter mål i ordren; utførende rapporterer faktisk antall ved levering. Mangler budsjettet, er ordren ikke komplett.
 2. **Task-walkthrough i designgaten (DoD pkt 3 utvidet):** fabel teller steg mot budsjettet før godkjenning — skjermbilder alene holder ikke for flyt-endringer.
 3. **Defaults over valg:** hvert obligatorisk felt/bekreftelse må begrunnes i ordren. Finnes sikkerhetsnett (soft-delete/papirkurv, angre, utkast-status), er ekstra bekreftelse FORBUDT som standard — dobbel sikring oppå sikkerhetsnett er friksjon uten funksjon.
+4. **Kontekst-default (Kenneth 2026-07-29):** appen skal aldri spørre om noe den allerede vet. Innlogget kontekst (firma → prosjekt → byggeplass, synlig i headeren) OG enhetssignaler (mobil: GPS→byggeplass, PSI→prosjekt) er default-kilder for alle opprett-flyter — skjemaer forhåndsutfylles derfra, autogenerert der alt er kjent. Brukeren skal kunne overstyre autovalget (bytte prosjekt/byggeplass), men aldri måtte bekrefte det. Et opprett-skjema som spør om prosjekt/byggeplass mens headeren viser dem, er en gate-feil.
+5. **Avbrytbarhet (Kenneth-funn 2026-07-30, mobiltest):** enhver modal/flate som starter en handling skal ha eksplisitt Avbryt-affordance — en handling skal aldri være eneste utvei. Trykk-utenfor holder kun for delvise flater (bottom-sheet); fullskjermmodal krever synlig Avbryt/X. Gates i task-walkthrough: verifiser utvei fra hver ny/rørt modal.
 
 ## Målestokk (alle designvalg måles mot disse — README § Hensikt)
 1. Enklest mulig brukergrensesnitt — ved tvil: enklest for brukeren
