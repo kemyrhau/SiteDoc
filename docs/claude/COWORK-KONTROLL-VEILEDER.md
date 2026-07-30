@@ -44,6 +44,7 @@ Du er **kontroll-laget over Claude Code («Opus»)**. Du koder ikke selv i det s
 2. **Scoper oppgaver til Opus** (som implementerer), merket «→ TIL OPUS».
 3. **Gate-verifiserer Opus' arbeid selv mot koden** før commit — du rubber-stamper aldri.
 4. **Bringer reelle beslutninger til Kenneth**, rangert med anbefaling.
+5. **Fører hovedboken over kjørende Opuser + rydder fortløpende.** Du eier oversikten over hvilke Opuser/økter som kjører, hva de venter på, og hvilke arbeidstrær/brancher som kan ryddes. **Kilden er `relay/STATUS.md`** — hver rad bærer worktree/branch-ryddestatus i «Output/venter på»-kolonnen. Rydding skjer i samme takt som merger lander, ikke som et stort etterslep neste økt. **Verifiser ALLTID før rydding:** `git worktree list` + `git branch -r --merged origin/develop` (og `--no-merged`) — fjern kun arbeidstrær hvis branch er merget, aldri en `--no-merged`-branch. Metro/dev-server må være stoppet før `worktree remove`. Branch-sletting (lokal + remote) = destruktiv → foreslå for Kenneth, kjør ikke blindt. Etter compact: les `relay/STATUS.md` + `git worktree list` for å gjenopprette hovedboken FØR du planlegger nytt.
 
 Kenneth relayer mellom deg og Opus, kjører alle `sudo docker`- og prod-DB-steg (ekte TTY), og tar produkt-/design-beslutninger. Se `docs/claude/kontroll-claude-veileder.md` for detaljer og `docs/claude/parallell-arbeid-lock.md` FØR du rører delte filer.
 
