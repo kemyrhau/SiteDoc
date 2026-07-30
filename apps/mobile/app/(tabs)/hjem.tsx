@@ -158,10 +158,9 @@ export default function HjemSkjerm() {
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && erPsiAktiv },
   );
-  type PsiData = { id: string; version: number; byggeplassId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } };
-  // as unknown as: server-output overlapper ikke PsiData tilstrekkelig (TS2352).
-  // Bevarer eksisterende runtime (uendret form) — ingen atferdsendring.
-  const psiListe = (psiQuery.data ?? []) as unknown as PsiData[];
+  type PsiData = { id: string; version: number; byggeplassId: string | null; byggeplass: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } };
+  // Klient-typen matcher nå server-output (psi.ts include: byggeplass).
+  const psiListe = (psiQuery.data ?? []) as PsiData[];
 
   // Sjekk om valgt bygning har IFC-modeller OG 3D-modulen er aktiv
   const harIfcModeller = useMemo(() => {
@@ -674,7 +673,7 @@ export default function HjemSkjerm() {
 }
 
 /* PSI-statuslinje — smal linje per PSI */
-function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: number; byggeplassId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } }> }) {
+function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: number; byggeplassId: string | null; byggeplass: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } }> }) {
   const router = useRouter();
 
   return (
@@ -687,13 +686,13 @@ function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: nu
 }
 
 function PsiStatusRad({ psi, onPress }: {
-  psi: { id: string; version: number; byggeplassId: string | null; building: { id: string; name: string } | null };
+  psi: { id: string; version: number; byggeplassId: string | null; byggeplass: { id: string; name: string } | null };
   onPress: () => void;
 }) {
   const { t } = useTranslation();
   const statusQuery = trpc.psi.hentMinStatus.useQuery({ psiId: psi.id });
   const status = statusQuery.data;
-  const navn = psi.building?.name ?? null;
+  const navn = psi.byggeplass?.name ?? null;
 
   let bakgrunn = "bg-amber-50";
   let ikon = "#f59e0b";
