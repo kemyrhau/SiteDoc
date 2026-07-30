@@ -28,9 +28,11 @@
 All merge-koreografi går gjennom cowork:
 - **Rekkefølge:** timer og redesign treffer ikke develop samtidig uten build-gate mellom — én verifisert ting om gangen.
 - **Regel 9:** `redesign/navigasjon → develop` alltid `--no-ff` (synlige, revertbare grenser).
-- **Regel 10:** ingen merge til develop uten grønt `pnpm --filter @sitedoc/web build` (ikke bare typecheck). **Rører diffen `apps/mobile/`: også `pnpm --filter @sitedoc/mobile typecheck`** — se advarselen under.
+- **Regel 10:** ingen merge til develop uten grønt `pnpm --filter @sitedoc/web build` (ikke bare typecheck) **OG grønt `pnpm --filter @sitedoc/mobile typecheck` (exit 0)**. Mobil-gaten er nå blokkerende — baseline ble ryddet 2026-07-30 (`fba830da`, branch `fix/mobil-typecheck-groenn`).
 
-  > ⚠️ **Regelen gatet KUN web til 2026-07-16, og mobil råtnet i skyggen.** develop-Opus kjørte negativ kontroll uoppfordret og fant at `@sitedoc/mobile typecheck` er **rød på ren develop** (11 feil, bl.a. `erstattVedlegg` returneres av begge mobil-hookene men er ikke deklarert i interfacene). **Ingen visste**, fordi gaten aldri spurte. Mobil-gjelden må ryddes før gaten kan blokkere på den (🟠 i [BACKLOG](BACKLOG.md)) — inntil da: krev at diffen ikke ØKER feiltallet (baseline-sammenligning, som han gjorde).
+  > **Kjør `prisma generate` for de 4 db-pakkene FØR mobil-typecheck** (`db`, `db-timer`, `db-maskin`, `db-varelager`) — ellers rapporterer tsc 400+ falske «implicit any»-feil fra ugenererte Prisma-klienter (`.prisma/*-client`), som maskerer de reelle. I Docker-deployen bakes generate inn; lokalt/i gaten er det et eksplisitt forsteg.
+  >
+  > ⚠️ **Historikk (hvorfor gaten finnes):** Regelen gatet KUN web til 2026-07-16, og mobil råtnet i skyggen — `@sitedoc/mobile typecheck` var **rød på ren develop** (11 ekte feil, bl.a. `erstattVedlegg` returnert av begge mobil-hookene men ikke deklarert i interfacene). Ingen visste, fordi gaten aldri spurte. Ryddet 2026-07-30 (`fba830da`) → mobil-gaten er nå blokkerende, ikke bare baseline-sammenligning.
 - **Worktree per spor:** aldri to økter i samme arbeidstre.
 - **Prod:** aldri uten Kenneths eksplisitte ordre; rett branch rsynca; migreringer gated.
 

@@ -120,9 +120,10 @@ export default function HjemSkjerm() {
     { organizationId: valgtFirmaId ?? undefined },
     { enabled: !!valgtFirmaId || (!lasterFirmaer && firmaer.length === 0) },
   );
-  const valgtProsjekt = prosjektQuery.data?.find(
-    (p) => p.id === valgtProsjektId,
-  );
+  // Lean cast: tRPC-output drar med seg dyp config-Json (TS2589 på .find/.some).
+  // Samme mønster som bygninger/psiListe under — holder scope i mobil.
+  const prosjektListe = prosjektQuery.data as Array<{ id: string; name: string }> | undefined;
+  const valgtProsjekt = prosjektListe?.find((p) => p.id === valgtProsjektId);
 
   // Hent bygninger for å vise valgt bygningsnavn
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
@@ -140,15 +141,17 @@ export default function HjemSkjerm() {
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
+  // Lean cast (som prosjektListe): tRPC-modul-output har dyp config-Json.
+  const moduler = modulQuery.data as Array<{ moduleSlug: string; active: boolean }> | undefined;
   const er3dAktiv = useMemo(() => {
-    if (!modulQuery.data) return false;
-    return modulQuery.data.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "3d-visning" && m.active);
-  }, [modulQuery.data]);
+    if (!moduler) return false;
+    return moduler.some((m) => m.moduleSlug === "3d-visning" && m.active);
+  }, [moduler]);
 
   const erPsiAktiv = useMemo(() => {
-    if (!modulQuery.data) return false;
-    return modulQuery.data.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "psi" && m.active);
-  }, [modulQuery.data]);
+    if (!moduler) return false;
+    return moduler.some((m) => m.moduleSlug === "psi" && m.active);
+  }, [moduler]);
 
   // Hent PSI-er og status per PSI
   const psiQuery = trpc.psi.hentForProsjekt.useQuery(
@@ -156,7 +159,9 @@ export default function HjemSkjerm() {
     { enabled: !!valgtProsjektId && erPsiAktiv },
   );
   type PsiData = { id: string; version: number; byggeplassId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } };
-  const psiListe = (psiQuery.data ?? []) as PsiData[];
+  // as unknown as: server-output overlapper ikke PsiData tilstrekkelig (TS2352).
+  // Bevarer eksisterende runtime (uendret form) — ingen atferdsendring.
+  const psiListe = (psiQuery.data ?? []) as unknown as PsiData[];
 
   // Sjekk om valgt bygning har IFC-modeller OG 3D-modulen er aktiv
   const harIfcModeller = useMemo(() => {

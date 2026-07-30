@@ -433,11 +433,11 @@ export default function SjekklisteUtfylling() {
     const prosjektForPdf = prosjektData ? {
       name: prosjektData.name,
       projectNumber: prosjektData.projectNumber,
-      externalProjectNumber: (prosjektData as Record<string, unknown>).externalProjectNumber as string | null | undefined,
+      externalProjectNumber: (prosjektData as unknown as Record<string, unknown>).externalProjectNumber as string | null | undefined,
       address: prosjektData.address,
-      logoUrl: (prosjektData as Record<string, unknown>).logoUrl as string | null | undefined,
+      logoUrl: (prosjektData as unknown as Record<string, unknown>).logoUrl as string | null | undefined,
     } : null;
-    const ui = (prosjektData as Record<string, unknown> | undefined)?.utskriftsinnstillinger as Record<string, boolean> | null | undefined;
+    const ui = (prosjektData as unknown as Record<string, unknown> | undefined)?.utskriftsinnstillinger as Record<string, boolean> | null | undefined;
     // Tegningsbilde-URL (PNG/bilde-tegninger fungerer direkte, PDF-tegninger ikke)
     const tegningUrl = sjekklisteDetalj?.drawing?.fileUrl
       ? `${bildeBase}${sjekklisteDetalj.drawing.fileUrl}`
