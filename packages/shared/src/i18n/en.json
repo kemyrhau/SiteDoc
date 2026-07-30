@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Saved automatically {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "{{count}} required field remaining",
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} required fields remaining",
-  "handling.lagreOgLukk": "Save and close",
+  "handling.lagreOgLukk": "Save and go back",
   "flytlinje.duHarBallen": "It's your turn",
   "flytlinje.venterPaa": "Waiting for {{ledd}}",
   "flytlinje.flytTittel": "Document flow",

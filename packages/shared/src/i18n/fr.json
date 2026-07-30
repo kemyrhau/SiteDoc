@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Enregistré automatiquement {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "{{count}} champs obligatoires restants",
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} champs obligatoires restants",
-  "handling.lagreOgLukk": "Enregistrer et fermer",
+  "handling.lagreOgLukk": "Enregistrer et revenir",
   "flytlinje.duHarBallen": "C'est ton tour",
   "flytlinje.venterPaa": "En attente de {{ledd}}",
   "flytlinje.flytTittel": "Flux de documents",

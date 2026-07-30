@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Збережено автоматично {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "Залишилось {{count}} обов’язкових полів",
   "dokument.paakrevdeFeltGjenstaar_other": "Залишилося {{count}} обов’язкових полів",
-  "handling.lagreOgLukk": "Зберегти та закрити",
+  "handling.lagreOgLukk": "Збережіть і поверніться",
   "flytlinje.duHarBallen": "Ваша черга",
   "flytlinje.venterPaa": "Чекаю на {{ledd}}",
   "flytlinje.flytTittel": "Документообіг",

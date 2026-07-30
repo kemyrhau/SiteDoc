@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Uloženo automaticky {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "Zbývá {{count}} povinné pole",
   "dokument.paakrevdeFeltGjenstaar_other": "Zbývající povinná pole: {{count}}",
-  "handling.lagreOgLukk": "Uložit a zavřít",
+  "handling.lagreOgLukk": "Uložit a vrátit se",
   "flytlinje.duHarBallen": "Jste na řadě",
   "flytlinje.venterPaa": "Čekání na {{ledd}}",
   "flytlinje.flytTittel": "Tok dokumentů",

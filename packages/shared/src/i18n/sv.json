@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Sparas automatiskt {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "{{count}} obligatoriskt fält kvar",
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} obligatoriska fält kvar",
-  "handling.lagreOgLukk": "Spara och stäng",
+  "handling.lagreOgLukk": "Spara och gå tillbaka",
   "flytlinje.duHarBallen": "Det är din tur",
   "flytlinje.venterPaa": "Väntar på {{ledd}}",
   "flytlinje.flytTittel": "Dokumentflöde",

@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Išsaugota automatiškai {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "Liko {{count}} privalomas laukas",
   "dokument.paakrevdeFeltGjenstaar_other": "Liko {{count}} privalomi laukai",
-  "handling.lagreOgLukk": "Išsaugokite ir uždarykite",
+  "handling.lagreOgLukk": "Išsaugokite ir grįžkite atgal",
   "flytlinje.duHarBallen": "Jūsų eilė",
   "flytlinje.venterPaa": "Laukiu {{ledd}}",
   "flytlinje.flytTittel": "Dokumentų srautas",

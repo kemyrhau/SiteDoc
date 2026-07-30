@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Salvestatud automaatselt {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "Jäänud on {{count}} kohustuslik väli",
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} kohustuslikku välja on jäänud",
-  "handling.lagreOgLukk": "Salvesta ja sulge",
+  "handling.lagreOgLukk": "Salvestage ja minge tagasi",
   "flytlinje.duHarBallen": "Sinu kord",
   "flytlinje.venterPaa": "Ootan {{ledd}}",
   "flytlinje.flytTittel": "Dokumendivoog",

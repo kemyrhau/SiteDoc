@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Tallennettu automaattisesti {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "{{count}} pakollinen kenttä jäljellä",
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} pakollista kenttää jäljellä",
-  "handling.lagreOgLukk": "Tallenna ja sulje",
+  "handling.lagreOgLukk": "Tallenna ja palaa takaisin",
   "flytlinje.duHarBallen": "Sinun vuorosi",
   "flytlinje.venterPaa": "Odotetaan {{ledd}}",
   "flytlinje.flytTittel": "Asiakirjan kulku",

@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Zapisano automatycznie {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "Pozostało wymagane pole: {{count}}",
   "dokument.paakrevdeFeltGjenstaar_other": "Pozostało wymagane pola: {{count}}",
-  "handling.lagreOgLukk": "Zapisz i zamknij",
+  "handling.lagreOgLukk": "Zapisz i wróć",
   "flytlinje.duHarBallen": "Twoja kolej",
   "flytlinje.venterPaa": "Czekam na {{ledd}}",
   "flytlinje.flytTittel": "Przepływ dokumentów",

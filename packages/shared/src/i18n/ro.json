@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Salvat automat {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "{{count}} câmp obligatoriu rămas",
   "dokument.paakrevdeFeltGjenstaar_other": "Au rămas {{count}} câmpuri obligatorii",
-  "handling.lagreOgLukk": "Salvați și închideți",
+  "handling.lagreOgLukk": "Salvați și întoarceți-vă",
   "flytlinje.duHarBallen": "E rândul tău",
   "flytlinje.venterPaa": "În așteptarea lui {{ledd}}",
   "flytlinje.flytTittel": "Fluxul documentelor",

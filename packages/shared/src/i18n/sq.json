@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Ruajtur automatikisht {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "Mbetet {{count}} fushë e detyrueshme",
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} fusha të nevojshme të mbetura",
-  "handling.lagreOgLukk": "Ruaj dhe mbyll",
+  "handling.lagreOgLukk": "Ruaj dhe kthehu",
   "flytlinje.duHarBallen": "Është radha juaj",
   "flytlinje.venterPaa": "Në pritje të {{ledd}}",
   "flytlinje.flytTittel": "Rrjedha e dokumentit",

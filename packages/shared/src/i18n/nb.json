@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Lagret automatisk {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "{{count}} påkrevd felt gjenstår",
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} påkrevde felt gjenstår",
-  "handling.lagreOgLukk": "Lagre og lukk",
+  "handling.lagreOgLukk": "Lagre og gå tilbake",
   "flytlinje.duHarBallen": "Du har ballen",
   "flytlinje.venterPaa": "Venter på {{ledd}}",
   "flytlinje.flytTittel": "Dokumentflyt",

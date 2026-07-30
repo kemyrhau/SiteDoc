@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Сохраняется автоматически {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "Осталось {{count}} обязательное поле",
   "dokument.paakrevdeFeltGjenstaar_other": "Осталось {{count}} обязательных полей",
-  "handling.lagreOgLukk": "Сохранить и закрыть",
+  "handling.lagreOgLukk": "Сохранить и вернуться",
   "flytlinje.duHarBallen": "Это твоя очередь",
   "flytlinje.venterPaa": "Ожидание {{ledd}}",
   "flytlinje.flytTittel": "Документооборот",

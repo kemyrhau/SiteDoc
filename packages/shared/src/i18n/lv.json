@@ -2092,7 +2092,7 @@
   "dokument.lagretAutomatisk": "Saglabāts automātiski {{tid}}",
   "dokument.paakrevdeFeltGjenstaar_one": "Atlikuši {{count}} obligātie lauki",
   "dokument.paakrevdeFeltGjenstaar_other": "Atlikuši {{count}} obligātie lauki",
-  "handling.lagreOgLukk": "Saglabājiet un aizveriet",
+  "handling.lagreOgLukk": "Saglabājiet un atgriezieties",
   "flytlinje.duHarBallen": "Pienākusi tava kārta",
   "flytlinje.venterPaa": "Gaida {{ledd}}",
   "flytlinje.flytTittel": "Dokumentu plūsma",
