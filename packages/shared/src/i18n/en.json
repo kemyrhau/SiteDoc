@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Describe the subject (optional)…",
   "opprettModal.velgFaggruppe": "Select trade group…",
   "opprettModal.kunneIkkeOpprette": "Could not create the document",
+  "opprettModal.oppretter": "Creating…",
   "oppgaveModal.gpsPosisjon": "GPS position",
   "oppgaveModal.velgSvarer": "Select responder …",
   "oppgaveModal.tittelFraTegning": "Task — {{tegning}}",

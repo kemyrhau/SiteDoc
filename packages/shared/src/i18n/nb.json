@@ -2027,6 +2027,7 @@
   "opprettModal.beskrivEmne": "Beskriv emnet (valgfritt)…",
   "opprettModal.velgFaggruppe": "Velg faggruppe…",
   "opprettModal.kunneIkkeOpprette": "Kunne ikke opprette dokumentet",
+  "opprettModal.oppretter": "Oppretter…",
   "oppgaveModal.gpsPosisjon": "GPS-posisjon",
   "oppgaveModal.velgSvarer": "Velg svarer …",
   "oppgaveModal.tittelFraTegning": "Oppgave — {{tegning}}",

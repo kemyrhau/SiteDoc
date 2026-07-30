@@ -154,6 +154,16 @@ export function OpprettDokumentModal({
   const [visTegningListe, setVisTegningListe] = useState(false);
   const [visEmneListe, setVisEmneListe] = useState(false);
 
+  // P4a: serialiser navigering. `internSynlig` speiler `synlig`-propen men kan
+  // settes false lokalt ved suksess, så modalen animerer HELT ut (iOS onDismiss)
+  // FØR parenten navigerer — native modal-dismiss og stack-push kolliderer ellers.
+  const [internSynlig, setInternSynlig] = useState(synlig);
+  useEffect(() => {
+    setInternSynlig(synlig);
+  }, [synlig]);
+  const pendingNavId = useRef<string | null>(null);
+  const harAutoOpprettet = useRef(false);
+
   // Default oppgave-tittel = malnavn ved modalåpning (redigerbar). Kun på
   // false→true-overgang, så brukerens redigering ikke overskrives.
   const forrigeSynlig = useRef(false);
@@ -223,9 +233,13 @@ export function OpprettDokumentModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [synlig, valgtProsjektId, alleTegninger.length, kontekstBygningId]);
 
-  // Nullstill ref når modal lukkes
+  // Nullstill refs når modal lukkes
   useEffect(() => {
-    if (!synlig) harKjørtLokasjon.current = false;
+    if (!synlig) {
+      harKjørtLokasjon.current = false;
+      harAutoOpprettet.current = false;
+      pendingNavId.current = null;
+    }
   }, [synlig]);
 
   // Forhåndsdefinerte emner fra malen
@@ -363,8 +377,7 @@ export function OpprettDokumentModal({
   const opprettSjekkliste = trpc.sjekkliste.opprett.useMutation({
     onSuccess: (_data: unknown) => {
       const resultat = _data as { id: string };
-      nullstillSkjema();
-      onOpprettet(resultat.id);
+      fullførOpprett(resultat.id);
     },
     onError: (feil: { message?: string }) => {
       Alert.alert(t("feil.tittel"), formaterServerFeil(feil, t("opprettModal.kunneIkkeOpprette")));
@@ -375,8 +388,7 @@ export function OpprettDokumentModal({
   const opprettOppgave = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown) => {
       const resultat = _data as { id: string };
-      nullstillSkjema();
-      onOpprettet(resultat.id);
+      fullførOpprett(resultat.id);
     },
     onError: (feil: { message?: string }) => {
       Alert.alert(t("feil.tittel"), formaterServerFeil(feil, t("opprettModal.kunneIkkeOpprette")));
@@ -406,6 +418,32 @@ export function OpprettDokumentModal({
     nullstillSkjema();
     onLukk();
   }, [nullstillSkjema, onLukk]);
+
+  // P4a: kalles ved opprett-suksess. iOS → start dismiss lokalt og naviger først
+  // i onDismiss (etter at modalen er helt ute). Android har ingen modal-VC-
+  // kollisjon → naviger direkte.
+  const fullførOpprett = useCallback(
+    (id: string) => {
+      nullstillSkjema();
+      if (Platform.OS === "ios") {
+        pendingNavId.current = id;
+        setInternSynlig(false);
+      } else {
+        onOpprettet(id);
+      }
+    },
+    [nullstillSkjema, onOpprettet],
+  );
+
+  // iOS: modalen er helt dismisset → trygt å navigere / rapportere lukket.
+  const håndterDismiss = useCallback(() => {
+    onModalLukket?.();
+    if (pendingNavId.current) {
+      const id = pendingNavId.current;
+      pendingNavId.current = null;
+      onOpprettet(id);
+    }
+  }, [onModalLukket, onOpprettet]);
 
   const håndterOpprett = useCallback(() => {
     if (!oppretterFaggruppeId) {
@@ -475,8 +513,30 @@ export function OpprettDokumentModal({
 
   const kanOpprett = !!oppretterFaggruppeId && !!valgtDokumentflyt && !erPending;
 
-  // Auto-opprett deaktivert — modal-animasjon + navigering kolliderer på iOS
-  // Brukeren trykker "Opprett" manuelt
+  // P4a: skip bekreftelses-modalen når konteksten er entydig (faggruppe + flyt +
+  // svarer utledet). Da opprettes utkast automatisk → trykk mal → rett i
+  // utfyllingen, ingen «Opprett»-bekreftelse. Ved reell flertydighet (≥2
+  // faggrupper/flyter) beholdes skjemaet for manuelt valg. Lokasjon (GPS) er
+  // best-effort — det som er utledet ved opprett tas med, vi venter ikke.
+  const skalAutoOpprett =
+    !dokumentflytQuery.isLoading &&
+    faggrupperMedFlyt.length === 1 &&
+    matchendeDokumentflyter.length === 1 &&
+    !!autoSvarerFaggruppeId;
+
+  useEffect(() => {
+    if (synlig && skalAutoOpprett && kanOpprett && !harAutoOpprettet.current) {
+      harAutoOpprettet.current = true;
+      håndterOpprett();
+    }
+  }, [synlig, skalAutoOpprett, kanOpprett, håndterOpprett]);
+
+  // Fullskjerm-spinner (i stedet for skjema-flash) mens konteksten avgjøres eller
+  // utkastet opprettes. Kun ambiguøse tilfeller viser det fulle skjemaet.
+  const kontekstLaster =
+    mineFaggrupperQuery.isLoading || dokumentflytQuery.isLoading;
+  const visSpinner =
+    internSynlig && (kontekstLaster || skalAutoOpprett || erPending);
 
   // Lukk alle åpne dropdowns
   const lukkAlleDropdowns = () => {
@@ -491,8 +551,19 @@ export function OpprettDokumentModal({
   const valgtOppretter = faggrupperMedFlyt.find((e) => e.id === oppretterFaggruppeId);
 
   return (
-    <Modal visible={synlig} animationType="slide" onRequestClose={onLukk}>
+    <Modal
+      visible={internSynlig}
+      animationType="slide"
+      onRequestClose={onLukk}
+      onDismiss={håndterDismiss}
+    >
       <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
+        {visSpinner ? (
+          <View className="flex-1 items-center justify-center gap-3">
+            <ActivityIndicator size="large" color="#1e40af" />
+            <Text className="text-sm text-gray-500">{t("opprettModal.oppretter")}</Text>
+          </View>
+        ) : (
         <KeyboardAvoidingView
           style={{ flex: 1 }}
           behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -857,6 +928,7 @@ export function OpprettDokumentModal({
           </View>
         </ScrollView>
         </KeyboardAvoidingView>
+        )}
       </SafeAreaView>
     </Modal>
   );
