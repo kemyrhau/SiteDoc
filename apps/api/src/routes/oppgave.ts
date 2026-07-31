@@ -426,6 +426,8 @@ export const oppgaveRouter = router({
 
       // HMS-oppgaver: auto-rut til HMS-gruppen, ingen faggruppe
       let recipientGroupId: string | undefined;
+      // F1b (HMS flyt-binding): server binder HMS-oppgaven til prosjektets HMS-flyt.
+      let hmsFlytId: string | undefined;
       if (erHms) {
         await verifiserProsjektmedlem(ctx.userId, mal.projectId);
 
@@ -446,6 +448,15 @@ export const oppgaveRouter = router({
         }
 
         recipientGroupId = hmsGruppe.id;
+
+        // F1b: bind HMS-oppgaven til prosjektets HMS-flyt (oppretter → HMS-gruppe, 2 ledd).
+        // Finnes ingen HMS-flyt (gammelt prosjekt) → hmsFlytId undefined → flyt-løst
+        // (dagens oppførsel), graceful degradering.
+        const hmsFlytMal = await ctx.prisma.dokumentflytMal.findFirst({
+          where: { templateId: input.templateId },
+          select: { dokumentflytId: true },
+        });
+        hmsFlytId = hmsFlytMal?.dokumentflytId ?? undefined;
       } else {
         // Standard: faggrupper påkrevd
         if (!input.bestillerFaggruppeId || !input.utforerFaggruppeId) {
@@ -524,11 +535,15 @@ export const oppgaveRouter = router({
             drawingId: input.drawingId,
             positionX: input.positionX,
             positionY: input.positionY,
-            dokumentflytId: input.dokumentflytId,
+            dokumentflytId: erHms ? hmsFlytId : input.dokumentflytId,
             checklistId: input.checklistId,
             checklistFieldId: input.checklistFieldId,
             // HMS har ingen kladd — opprett = send (D1). Standard starter i draft.
             status: erHms ? "sent" : "draft",
+            // F1b (posisjonsmodell): HMS starter sendt, ball hos Ledd 2 (HMS-gruppe) →
+            // aktivPosisjon 2. aktivPosisjon kun når flyten faktisk finnes.
+            sendt: erHms,
+            aktivPosisjon: erHms && hmsFlytId ? 2 : undefined,
             recipientUserId,
             recipientGroupId,
           },
@@ -1013,16 +1028,21 @@ export const oppgaveRouter = router({
         "task",
       );
 
-      // Rollevalidering: sjekk at bruker har riktig rolle i dokumentflyten
-      await verifiserFlytRolle(
-        ctx.userId,
-        projectId,
-        oppgave.dokumentflytId,
-        oppgave.bestillerFaggruppeId,
-        oppgave.utforerFaggruppeId,
-        oppgave.status,
-        input.nyStatus,
-      );
+      // Rollevalidering: sjekk at bruker har riktig rolle i dokumentflyten.
+      // F1b: HMS-dok er nå flyt-bundet, men rolle-matrise-håndhevelsen for HMS aktiveres
+      // først i Fase 3 (ruting-omskriving). Den generiske endreStatus-veien (mobil) må
+      // bevare dagens no-op for HMS til rutingen skrives om. Gate fjernes i Fase 3.
+      if (oppgave.template?.domain !== "hms") {
+        await verifiserFlytRolle(
+          ctx.userId,
+          projectId,
+          oppgave.dokumentflytId,
+          oppgave.bestillerFaggruppeId,
+          oppgave.utforerFaggruppeId,
+          oppgave.status,
+          input.nyStatus,
+        );
+      }
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)
       const varsle = async (erVideresending: boolean, overrideMottaker?: { recipientUserId?: string | null; recipientGroupId?: string | null }) => {
