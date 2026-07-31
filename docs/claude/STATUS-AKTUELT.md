@@ -84,6 +84,14 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 ## Pågående arbeid (PR-historikk)
 
+### 🔵 Flytmodell (dynamisk posisjonsmodell) — FASE 1a PÅ DEVELOP 2026-07-31, faser 1b–5 pågår
+
+Rotårsaksfiks: dagens ruting konsulterer ALDRI dokumentflytens leddrekkefølge (hardkodet på rollenavn/historikk) → Send hopper ledd, Besvar går bakover, Godkjenn uten at godkjenner hadde ballen. Pilot-blokkerende med distinkte personer. Vedtatt modell: ruting teller **posisjon**, status **avledes** (aldri settes direkte), én delt utledning i `@sitedoc/shared`. Grunnlag: `delplaner/flytmodell-veileder-cowork.md` (fabel, Kenneth-godkjent) + `flytmodell-implementeringsplan.md` + `flytmodell-gate-svar-fabel.md`.
+
+- **Fase 1a** (merget develop `7e385ade`, branch `feat/flytmodell-fase0` @ `5c274e55`): datamodell + migrering `20260731120000_flytmodell_fase1_posisjon`. 8 nye felt (`DokumentflytMedlem`: ansvarsmerke/klassifisering/kanTerminereUtenBall; `Checklist`+`Task`: aktivPosisjon/retning/terminal/sendt). To-stegs migrering (nullable/default, ALDRI drop, status-enum = avledet cache). Deterministisk backfill: `steg`=DENSE_RANK rolle-prioritet, klassifisering `{kontroll,utfor,orienteres}`, terminal inkl. `cancelled→avbrutt`, `sendt`, **terminal-aktivPosisjon** (valg 4). **⚠️ Terminal-posisjon kjøringsverifisert, IKKE dataverifisert** (sandkasse 0 terminale) → spot-sjekk test-DB ved test-deploy.
+- **Vedtak (Kenneth 31.07):** klassifisering + retningsrettigheter (← = kontroll+utfør, ↔ = H3), HMS = ordinær 2-ledds flyt, cancelled→terminal `avbrutt`, sletting § 2.5 (utkast `!sendt`=hard, underveis=myk 90d, terminaler aldri slettbar, rett=firmaadmin+prosjektadmin+sitedoc), FLAGG 1-3 (firmaBehandleAvvik→↔ terminal-only, kanTerminereUtenBall-flagg, hmsTilfoyInformasjon=ikke-retning).
+- **Gjenstår:** Fase 1b HMS flyt-binding (eget commit) · Fase 2 delt utledning + `avledStatus` + non-terminal aktivPosisjon-backfill · Fase 3 server-omskriving (11 statusskriv → avledStatus, 3 rutingveier → delt utledning, isValidStatusTransition→retningsregler) · Fase 4 web+mobil-paritet · Fase 5 e2e + prototype-verifisering (distinkte personer).
+
 ### ✅ Statusmaskin-redesign + flyt-arbeid + e2e + admin-oversikt — DEPLOYET PROD 2026-07-27
 
 Full statusmaskin-redesign (F0–F6), flytrettigheter (H3/H6) + flyt-posisjon-header, e2e-røyksuite, Tooltip v2 + mikrotekst-wiring, tilgangslaget/N3-fiks, A-3a handlingsmeny og admin firmaorientert oversikt fase 1 er deployet til prod (develop→main 2026-07-27, 81 commits + 2 migreringer). Arkivert med commit-refs → [historikk-2026-07.md § Prod-deploy 2026-07-27](historikk-2026-07.md).
