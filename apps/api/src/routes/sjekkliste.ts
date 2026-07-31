@@ -3,6 +3,7 @@ import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { beregnSkyggeFakta, hentPosisjonsLedd } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
@@ -426,10 +427,10 @@ export const sjekklisteRouter = router({
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             // HMS har ingen kladd — opprett = send (D1). Standard starter i draft.
             status: erHms ? "sent" : "draft",
-            // F1b (posisjonsmodell): HMS starter sendt (sendt=true), ball hos Ledd 2
-            // (HMS-gruppe) → aktivPosisjon 2. aktivPosisjon kun når flyten faktisk finnes.
+            // Posisjonsmodell: HMS starter sendt (ball hos Ledd 2 = HMS-gruppe → aktivPosisjon 2,
+            // F1b). Standard starter som utkast hos oppretter (Ledd 1), ikke sendt (F3.1).
             sendt: erHms,
-            aktivPosisjon: erHms && hmsFlytId ? 2 : undefined,
+            aktivPosisjon: erHms ? (hmsFlytId ? 2 : undefined) : 1,
             recipientUserId,
             recipientGroupId: endeligRecipientGroupId,
           },
@@ -1053,12 +1054,29 @@ export const sjekklisteRouter = router({
 
         const nyEier = await utledNyEier(effektivRecipientUserId, effektivRecipientGroupId);
 
+        // F3.1: videresend endrer IKKE status — kun aktivPosisjon flyttes (retning=paatvers).
+        // Ledd fra mål-flyten ved flyt-bytte, ellers gjeldende flyt.
+        const forwardLedd = await hentPosisjonsLedd(
+          ctx.prisma,
+          flytBytteData?.dokumentflytId ?? sjekkliste.dokumentflytId,
+        );
+        const forwardFakta = beregnSkyggeFakta({
+          effektivStatus: sjekkliste.status,
+          nyStatusRaw: "forwarded",
+          ledd: forwardLedd,
+          recipientUserId: effektivRecipientUserId,
+          recipientGroupId: effektivRecipientGroupId,
+          bestillerUserId: sjekkliste.bestillerUserId,
+        });
+
         const resultat = await ctx.prisma.$transaction(async (tx) => {
           const oppdatert = await tx.checklist.update({
             where: { id: input.id },
             data: {
               recipientUserId: effektivRecipientUserId,
               recipientGroupId: effektivRecipientGroupId,
+              aktivPosisjon: forwardFakta.aktivPosisjon,
+              retning: forwardFakta.retning,
               ...(nyEier ? { eierUserId: nyEier } : {}),
               ...(flytBytteData ? {
                 dokumentflytId: flytBytteData.dokumentflytId,
@@ -1152,11 +1170,35 @@ export const sjekklisteRouter = router({
         eierOppdatering = { eierUserId: besvarMottaker.recipientUserId };
       }
 
+      // F3.1: skygge-fakta (additiv — avledStatus reproduserer status; ingen ruting/klient
+      // leser dem ennå). Mottaker som fakta beregnes mot = den handlingen faktisk gir dokumentet.
+      const posLedd = await hentPosisjonsLedd(ctx.prisma, sjekkliste.dokumentflytId);
+      const faktaRecipientUser =
+        input.nyStatus === "sent" ? (input.recipientUserId ?? null)
+        : input.nyStatus === "responded" ? (besvarMottaker.recipientUserId ?? null)
+        : sjekkliste.recipientUserId;
+      const faktaRecipientGroup =
+        input.nyStatus === "sent" ? (input.recipientGroupId ?? null)
+        : input.nyStatus === "responded" ? null
+        : sjekkliste.recipientGroupId;
+      const skyggeFakta = beregnSkyggeFakta({
+        effektivStatus,
+        nyStatusRaw: input.nyStatus,
+        ledd: posLedd,
+        recipientUserId: faktaRecipientUser,
+        recipientGroupId: faktaRecipientGroup,
+        bestillerUserId: sjekkliste.bestillerUserId,
+      });
+
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
           data: {
             status: effektivStatus,
+            aktivPosisjon: skyggeFakta.aktivPosisjon,
+            retning: skyggeFakta.retning,
+            terminal: skyggeFakta.terminal,
+            sendt: skyggeFakta.sendt,
             ...eierOppdatering,
             ...(input.nyStatus === "sent" ? {
               recipientUserId: input.recipientUserId ?? null,
@@ -1240,7 +1282,9 @@ export const sjekklisteRouter = router({
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { status: "responded" },
+          // F3.1: HMS-besvar → ball tilbake mot oppretter (retning=tilbake). aktivPosisjon-
+          // presisjon for HMS null-medlem-bestillerboks er 3.3-arbeid; her kun status-reproduksjon.
+          data: { status: "responded", retning: "tilbake", sendt: true },
         });
         await tx.documentTransfer.create({
           data: {
@@ -1295,7 +1339,8 @@ export const sjekklisteRouter = router({
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { status: "closed" },
+          // F3.1: HMS-lukk → terminal lukket (aktivPosisjon = leddet handlingen skjer fra, uendret).
+          data: { status: "closed", terminal: "lukket", sendt: true },
         });
         await tx.documentTransfer.create({
           data: {
@@ -1349,7 +1394,8 @@ export const sjekklisteRouter = router({
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { status: "responded" },
+          // F3.1: HMS-gjenåpne → terminal nulles (closed→responded), ball tilbake mot oppretter.
+          data: { status: "responded", terminal: null, retning: "tilbake", sendt: true },
         });
         await tx.documentTransfer.create({
           data: {

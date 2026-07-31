@@ -3,6 +3,7 @@ import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { beregnSkyggeFakta, hentPosisjonsLedd } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
@@ -540,10 +541,10 @@ export const oppgaveRouter = router({
             checklistFieldId: input.checklistFieldId,
             // HMS har ingen kladd — opprett = send (D1). Standard starter i draft.
             status: erHms ? "sent" : "draft",
-            // F1b (posisjonsmodell): HMS starter sendt, ball hos Ledd 2 (HMS-gruppe) →
-            // aktivPosisjon 2. aktivPosisjon kun når flyten faktisk finnes.
+            // Posisjonsmodell: HMS starter sendt (ball hos Ledd 2 = HMS-gruppe → aktivPosisjon 2,
+            // F1b). Standard starter som utkast hos oppretter (Ledd 1), ikke sendt (F3.1).
             sendt: erHms,
-            aktivPosisjon: erHms && hmsFlytId ? 2 : undefined,
+            aktivPosisjon: erHms ? (hmsFlytId ? 2 : undefined) : 1,
             recipientUserId,
             recipientGroupId,
           },
@@ -1192,12 +1193,28 @@ export const oppgaveRouter = router({
         const gammelFaggruppeNavn = oppgave.utforerFaggruppe?.name ?? "Ukjent";
         const nyEier = await utledNyEier(effektivRecipientUserId, effektivRecipientGroupId);
 
+        // F3.1: videresend endrer IKKE status — kun aktivPosisjon flyttes (retning=paatvers).
+        const forwardLedd = await hentPosisjonsLedd(
+          ctx.prisma,
+          flytBytteData?.dokumentflytId ?? oppgave.dokumentflytId,
+        );
+        const forwardFakta = beregnSkyggeFakta({
+          effektivStatus: oppgave.status,
+          nyStatusRaw: "forwarded",
+          ledd: forwardLedd,
+          recipientUserId: effektivRecipientUserId,
+          recipientGroupId: effektivRecipientGroupId,
+          bestillerUserId: oppgave.bestillerUserId,
+        });
+
         const resultat = await ctx.prisma.$transaction(async (tx) => {
           const oppdatert = await tx.task.update({
             where: { id: input.id },
             data: {
               recipientUserId: effektivRecipientUserId,
               recipientGroupId: effektivRecipientGroupId,
+              aktivPosisjon: forwardFakta.aktivPosisjon,
+              retning: forwardFakta.retning,
               ...(nyEier ? { eierUserId: nyEier } : {}),
               ...(flytBytteData ? {
                 dokumentflytId: flytBytteData.dokumentflytId,
@@ -1291,11 +1308,34 @@ export const oppgaveRouter = router({
         eierOppdatering = { eierUserId: besvarMottaker.recipientUserId };
       }
 
+      // F3.1: skygge-fakta (additiv — avledStatus reproduserer status; ingen ruting/klient leser dem ennå).
+      const posLedd = await hentPosisjonsLedd(ctx.prisma, oppgave.dokumentflytId);
+      const faktaRecipientUser =
+        input.nyStatus === "sent" ? (input.recipientUserId ?? null)
+        : input.nyStatus === "responded" ? (besvarMottaker.recipientUserId ?? null)
+        : oppgave.recipientUserId;
+      const faktaRecipientGroup =
+        input.nyStatus === "sent" ? (input.recipientGroupId ?? null)
+        : input.nyStatus === "responded" ? null
+        : oppgave.recipientGroupId;
+      const skyggeFakta = beregnSkyggeFakta({
+        effektivStatus,
+        nyStatusRaw: input.nyStatus,
+        ledd: posLedd,
+        recipientUserId: faktaRecipientUser,
+        recipientGroupId: faktaRecipientGroup,
+        bestillerUserId: oppgave.bestillerUserId,
+      });
+
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
           where: { id: input.id },
           data: {
             status: effektivStatus,
+            aktivPosisjon: skyggeFakta.aktivPosisjon,
+            retning: skyggeFakta.retning,
+            terminal: skyggeFakta.terminal,
+            sendt: skyggeFakta.sendt,
             ...eierOppdatering,
             ...(input.nyStatus === "sent" ? {
               recipientUserId: input.recipientUserId ?? null,
@@ -1381,7 +1421,9 @@ export const oppgaveRouter = router({
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
           where: { id: input.id },
-          data: { status: "responded" },
+          // F3.1: HMS-besvar → ball tilbake mot oppretter (retning=tilbake). aktivPosisjon-
+          // presisjon for HMS null-medlem-bestillerboks er 3.3-arbeid; her kun status-reproduksjon.
+          data: { status: "responded", retning: "tilbake", sendt: true },
         });
         await tx.documentTransfer.create({
           data: {
@@ -1436,7 +1478,8 @@ export const oppgaveRouter = router({
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
           where: { id: input.id },
-          data: { status: "closed" },
+          // F3.1: HMS-lukk → terminal lukket (aktivPosisjon = leddet handlingen skjer fra, uendret).
+          data: { status: "closed", terminal: "lukket", sendt: true },
         });
         await tx.documentTransfer.create({
           data: {
@@ -1490,7 +1533,8 @@ export const oppgaveRouter = router({
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.task.update({
           where: { id: input.id },
-          data: { status: "responded" },
+          // F3.1: HMS-gjenåpne → terminal nulles (closed→responded), ball tilbake mot oppretter.
+          data: { status: "responded", terminal: null, retning: "tilbake", sendt: true },
         });
         await tx.documentTransfer.create({
           data: {

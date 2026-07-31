@@ -26,6 +26,7 @@ export {
   retningsrettigheter,
   finnPosisjon,
   gjenapnePosisjon,
+  byggPosisjonsLedd,
 } from "./flytPosisjon";
 export type {
   LeddKlassifisering,
@@ -33,6 +34,7 @@ export type {
   FlytBruker,
   AvledStatusFakta,
   AvledetVisning,
+  RaFlytMedlem,
 } from "./flytPosisjon";
 export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
 export { resolverNyNavigasjon } from "./nyNavigasjon";

@@ -18,7 +18,7 @@
  */
 
 import { prisma } from "@sitedoc/db";
-import { finnPosisjon, type FlytPosisjonLedd, type LeddKlassifisering } from "@sitedoc/shared";
+import { finnPosisjon, byggPosisjonsLedd, type RaFlytMedlem } from "@sitedoc/shared";
 
 interface RaMedlem {
   steg: number;
@@ -29,31 +29,15 @@ interface RaMedlem {
   projectMember: { userId: string | null } | null;
 }
 
-/** Grupper rå DokumentflytMedlem på steg → FlytPosisjonLedd[] (posisjon = steg). */
-function byggPosisjonsLedd(medlemmer: RaMedlem[]): FlytPosisjonLedd[] {
-  const perSteg = new Map<number, FlytPosisjonLedd>();
-  for (const m of medlemmer) {
-    let l = perSteg.get(m.steg);
-    if (!l) {
-      l = {
-        posisjon: m.steg,
-        klassifisering: (m.klassifisering as LeddKlassifisering | null) ?? "utfor",
-        kanTerminereUtenBall: false,
-        brukerIder: new Set<string>(),
-        gruppeIder: new Set<string>(),
-        faggruppeIder: new Set<string>(),
-      };
-      perSteg.set(m.steg, l);
-    }
-    // Leddet arver kontroll-klassifisering hvis noen medlem er kontroll; kanTerminere hvis noen har det.
-    if (m.klassifisering === "kontroll") l.klassifisering = "kontroll";
-    if (m.kanTerminereUtenBall) l.kanTerminereUtenBall = true;
-    if (m.projectMember?.userId) l.brukerIder.add(m.projectMember.userId);
-    if (m.groupId) l.gruppeIder.add(m.groupId);
-    if (m.faggruppeId) l.faggruppeIder.add(m.faggruppeId);
-  }
-  return [...perSteg.values()];
-}
+/** Normaliser Prisma-medlem → delt RaFlytMedlem (brukerId = projectMember-brukeren). */
+const normaliser = (m: RaMedlem): RaFlytMedlem => ({
+  steg: m.steg,
+  klassifisering: m.klassifisering,
+  kanTerminereUtenBall: m.kanTerminereUtenBall,
+  brukerId: m.projectMember?.userId ?? null,
+  gruppeId: m.groupId,
+  faggruppeId: m.faggruppeId,
+});
 
 const medlemSelect = {
   steg: true,
@@ -82,7 +66,7 @@ async function backfillChecklists(): Promise<{ oppdatert: number; uendret: numbe
   let oppdatert = 0;
   let uendret = 0;
   for (const c of rader) {
-    const ledd = byggPosisjonsLedd(c.dokumentflyt?.medlemmer ?? []);
+    const ledd = byggPosisjonsLedd((c.dokumentflyt?.medlemmer ?? []).map(normaliser));
     const posisjon = finnPosisjon({
       ledd,
       status: c.status,
@@ -120,7 +104,7 @@ async function backfillTasks(): Promise<{ oppdatert: number; uendret: number }> 
   let oppdatert = 0;
   let uendret = 0;
   for (const t of rader) {
-    const ledd = byggPosisjonsLedd(t.dokumentflyt?.medlemmer ?? []);
+    const ledd = byggPosisjonsLedd((t.dokumentflyt?.medlemmer ?? []).map(normaliser));
     const posisjon = finnPosisjon({
       ledd,
       status: t.status,
