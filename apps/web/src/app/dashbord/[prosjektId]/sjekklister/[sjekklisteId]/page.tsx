@@ -672,8 +672,11 @@ export default function SjekklisteDetaljSide() {
           <DokumentKontekstChipLinje chips={kontekstChips} />
         </div>
 
-        {/* Rad 2: FlytIndikator (full bredde på mobil) */}
-        {flytMedlemmer.length > 0 && (
+        {/* Rad 2: FlytIndikator (full bredde på mobil).
+            F1b: HMS-dok er nå flyt-bundet (2 ledd), men HMS har egen HmsHandlingsflate —
+            flytlinja ville vært redundant + vise "?" for null-medlem-oppretterboksen til
+            Fase 2-matcheren navngir den. Skjul for HMS her (paritet med perspektiv-skjul under). */}
+        {!erHms && flytMedlemmer.length > 0 && (
           <div className="mt-2">
             <div className="hidden sm:block">
               <FlytIndikator

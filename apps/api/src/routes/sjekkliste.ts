@@ -257,9 +257,13 @@ export const sjekklisteRouter = router({
       // HMS-sjekklister (SJA, RUH): auto-rut til HMS-gruppen, ingen faggruppe.
       // Speiler oppgave.opprett-mønsteret for HMS.
       let recipientGroupId: string | undefined;
+      // F1b (HMS flyt-binding): server slår opp prosjektets HMS-flyt og binder
+      // dokumentet til den (klienten sender fortsatt ikke dokumentflytId for HMS).
+      let hmsFlytId: string | undefined;
       if (erHms) {
-        // Guard 1 (F1/B1 vedtak A): HMS-maler er flyt-løse by design — auto-rutes til
-        // HMS-gruppen. En innsendt dokumentflytId er en config-feil; fail loud.
+        // Klienten kan ikke binde HMS til en flyt manuelt — HMS auto-rutes. En
+        // innsendt dokumentflytId er en config-feil; fail loud. (Serveren binder
+        // selv til HMS-flyten nedenfor, F1b.)
         if (input.dokumentflytId) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -282,6 +286,16 @@ export const sjekklisteRouter = router({
           });
         }
         recipientGroupId = hmsGruppe.id;
+
+        // F1b: bind HMS-dokumentet til prosjektets HMS-flyt (oppretter → HMS-gruppe,
+        // 2 ledd). Flyten seedes ved modul-aktivering (modul.ts). Finnes den ikke
+        // (gammelt prosjekt / modul aldri aktivert) → hmsFlytId undefined → dokumentet
+        // forblir flyt-løst (dagens oppførsel), graceful degradering.
+        const hmsFlytMal = await ctx.prisma.dokumentflytMal.findFirst({
+          where: { templateId: input.templateId },
+          select: { dokumentflytId: true },
+        });
+        hmsFlytId = hmsFlytMal?.dokumentflytId ?? undefined;
       } else {
         // Standard-gren (F1/B1): et dokument tilhører ALLTID nøyaktig én flyt.
         // dokumentflytId påkrevd her (ikke i Zod — HMS-grenen utelater den legitimt).
@@ -405,13 +419,17 @@ export const sjekklisteRouter = router({
             bestillerUserId: ctx.userId,
             eierUserId: ctx.userId,
             number: nummer,
-            dokumentflytId: input.dokumentflytId,
+            dokumentflytId: erHms ? hmsFlytId : input.dokumentflytId,
             subject: input.subject,
             byggeplassId: input.byggeplassId,
             drawingId: input.drawingId,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
             // HMS har ingen kladd — opprett = send (D1). Standard starter i draft.
             status: erHms ? "sent" : "draft",
+            // F1b (posisjonsmodell): HMS starter sendt (sendt=true), ball hos Ledd 2
+            // (HMS-gruppe) → aktivPosisjon 2. aktivPosisjon kun når flyten faktisk finnes.
+            sendt: erHms,
+            aktivPosisjon: erHms && hmsFlytId ? 2 : undefined,
             recipientUserId,
             recipientGroupId: endeligRecipientGroupId,
           },
@@ -868,16 +886,23 @@ export const sjekklisteRouter = router({
         "checklist",
       );
 
-      // Rollevalidering: sjekk at bruker har riktig rolle i dokumentflyten
-      await verifiserFlytRolle(
-        ctx.userId,
-        projectId,
-        sjekkliste.dokumentflytId,
-        sjekkliste.bestillerFaggruppeId,
-        sjekkliste.utforerFaggruppeId,
-        sjekkliste.status,
-        input.nyStatus,
-      );
+      // Rollevalidering: sjekk at bruker har riktig rolle i dokumentflyten.
+      // F1b: HMS-dok er nå flyt-bundet (dokumentflytId satt), men rolle-matrise-
+      // håndhevelsen for HMS aktiveres først i Fase 3 (ruting-omskriving). HMS bruker
+      // egne prosedyrer (verifiserHmsHandling) på web; den generiske endreStatus-veien
+      // (mobil) må bevare dagens no-op til rutingen skrives om — ellers ville HMS-flytens
+      // null-medlem-bestillerboks gi FORBIDDEN. Gate fjernes i Fase 3.
+      if (sjekkliste.template.domain !== "hms") {
+        await verifiserFlytRolle(
+          ctx.userId,
+          projectId,
+          sjekkliste.dokumentflytId,
+          sjekkliste.bestillerFaggruppeId,
+          sjekkliste.utforerFaggruppeId,
+          sjekkliste.status,
+          input.nyStatus,
+        );
+      }
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)
       const varsle = async (erVideresending: boolean, overrideMottaker?: { recipientUserId?: string | null; recipientGroupId?: string | null }) => {

@@ -651,8 +651,10 @@ export default function OppgaveDetaljSide() {
           <DokumentKontekstChipLinje chips={kontekstChips} />
         </div>
 
-        {/* Rad 2: FlytIndikator (full bredde på mobil) */}
-        {flytMedlemmer.length > 0 && (
+        {/* Rad 2: FlytIndikator (full bredde på mobil).
+            F1b: skjul for HMS — HMS har egen HmsHandlingsflate; flytlinja ville vært
+            redundant + vist "?" for null-medlem-oppretterboksen til Fase 2 navngir den. */}
+        {!erHms && flytMedlemmer.length > 0 && (
           <div className="mt-2">
             {/* Desktop: full flyt */}
             <div className="hidden sm:block">
