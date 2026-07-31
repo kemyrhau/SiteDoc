@@ -157,6 +157,89 @@ export async function seedScenario(): Promise<FlytScenario> {
   };
 }
 
+/**
+ * «Bestiller sist»-fixture (Fase 3.6, fabel-forslag): 3-ledds flyt der SISTE ledд er en
+ * kontroll/bestiller (ikke en dedikert godkjenner). Beviser at Send-kjeden når siste ledд og
+ * at `nesteLedd(siste)=null` ⇒ «Godkjenn og fullfør» (E2 no-op-flytt, ingen auto-terminal).
+ *   1 registrator (utfor, oppretter)  2 utfører (utfor)  3 bestiller (kontroll, SIST)
+ */
+export interface BestillerSistScenario {
+  projectId: string;
+  dokumentflytId: string;
+  templateId: string;
+  checklistId: string;
+  reg: string;
+  utforer: string;
+  bestillerSist: string;
+  brukere: string[];
+}
+
+export async function seedBestillerSist(): Promise<BestillerSistScenario> {
+  const kjoreId = randomUUID().slice(0, 8);
+  const epost = (r: string) => `${NS.toLowerCase()}-bs-${r}-${kjoreId}@flyt5a.test`;
+  async function lagBruker(navn: string, r: string) {
+    const u = await prisma.user.create({ data: { id: randomUUID(), name: `${NS} ${navn}`, email: epost(r), role: "user" } });
+    return u.id;
+  }
+  const reg = await lagBruker("BS Registrator", "reg");
+  const utforer = await lagBruker("BS Utfører", "utf");
+  const bestillerSist = await lagBruker("BS Bestiller sist", "best");
+
+  const project = await prisma.project.create({
+    data: { id: randomUUID(), projectNumber: `${NS}-BS-${kjoreId}`, name: `${NS} BS-prosjekt ${kjoreId}`, primaryOrganizationId: null },
+  });
+  async function lagMedlem(userId: string) {
+    const pm = await prisma.projectMember.create({ data: { id: randomUUID(), userId, projectId: project.id, role: "member" } });
+    return pm.id;
+  }
+  const pmReg = await lagMedlem(reg);
+  const pmUtf = await lagMedlem(utforer);
+  const pmBest = await lagMedlem(bestillerSist);
+
+  const flyt = await prisma.dokumentflyt.create({
+    data: {
+      id: randomUUID(),
+      projectId: project.id,
+      name: `${NS} BS-flyt`,
+      roller: [{ rolle: "registrator" }, { rolle: "utforer" }, { rolle: "bestiller" }],
+    },
+  });
+  async function lagLedd(steg: number, rolle: string, klassifisering: "kontroll" | "utfor" | "orienteres", pmId: string, erHovedansvarlig = false) {
+    await prisma.dokumentflytMedlem.create({
+      data: { id: randomUUID(), dokumentflytId: flyt.id, rolle, steg, klassifisering, erHovedansvarlig, projectMemberId: pmId },
+    });
+  }
+  await lagLedd(1, "registrator", "utfor", pmReg);
+  await lagLedd(2, "utforer", "utfor", pmUtf, true);
+  await lagLedd(3, "bestiller", "kontroll", pmBest); // bestiller SIST (kontroll)
+
+  const template = await prisma.reportTemplate.create({
+    data: { id: randomUUID(), projectId: project.id, name: `${NS} BS-mal`, category: "sjekkliste", domain: "bygg" },
+  });
+  const checklist = await prisma.checklist.create({
+    data: {
+      id: randomUUID(), templateId: template.id, bestillerUserId: reg, title: `${NS} BS-sjekkliste`,
+      status: "draft", dokumentflytId: flyt.id, aktivPosisjon: 1, sendt: false, recipientUserId: reg, data: {},
+    },
+  });
+
+  return {
+    projectId: project.id, dokumentflytId: flyt.id, templateId: template.id, checklistId: checklist.id,
+    reg, utforer, bestillerSist, brukere: [reg, utforer, bestillerSist],
+  };
+}
+
+export async function teardownBestillerSist(s: BestillerSistScenario): Promise<void> {
+  await prisma.documentTransfer.deleteMany({ where: { checklistId: s.checklistId } });
+  await prisma.checklist.deleteMany({ where: { id: s.checklistId } });
+  await prisma.dokumentflytMedlem.deleteMany({ where: { dokumentflytId: s.dokumentflytId } });
+  await prisma.reportTemplate.deleteMany({ where: { id: s.templateId } });
+  await prisma.dokumentflyt.deleteMany({ where: { projectId: s.projectId } });
+  await prisma.projectMember.deleteMany({ where: { projectId: s.projectId } });
+  await prisma.project.deleteMany({ where: { id: s.projectId } });
+  await prisma.user.deleteMany({ where: { id: { in: s.brukere } } });
+}
+
 /** Sett klassifisering på ett ledд (for orienteres-hopp-scenariet). Test-setup. */
 export async function settLeddKlassifisering(
   dokumentflytId: string,

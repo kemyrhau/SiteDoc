@@ -324,20 +324,23 @@ describe("F2 Trekk tilbake — received→draft (D-1: sent er dødt, handlingen 
   });
 });
 
-describe("§8A — «Send fram» (received/responded/approved → sent) er FJERNET (recipient-løs no-op)", () => {
-  it("received → sent er ULOVLIG (Send fram fjernet — var no-op)", () => {
-    expect(isValidStatusTransition("received", "sent")).toBe(false);
+describe("Fase 3.6 — «Send fram» (received→sent) GJENINNFØRT i statusmaskinen; UI-tilbud fortsatt av til Fase 4", () => {
+  it("received → sent er LOVLIG igjen (Fase 3.6: posisjonsmodell ruter sent→nesteLedd, ikke no-op)", () => {
+    expect(isValidStatusTransition("received", "sent")).toBe(true);
   });
-  it("responded → sent er ULOVLIG (Send fram fjernet)", () => {
+  it("responded → sent er fortsatt ULOVLIG (responded=besvart/tilbake, ikke Send-forover)", () => {
     expect(isValidStatusTransition("responded", "sent")).toBe(false);
   });
-  it("approved → sent er ULOVLIG (Send fram fjernet)", () => {
+  it("approved → sent er fortsatt ULOVLIG (approved=terminal H6, ingen forover)", () => {
     expect(isValidStatusTransition("approved", "sent")).toBe(false);
   });
-  it.each(["received", "responded", "approved"])("%s-universet bærer INGEN Send-handling lenger", (status) => {
-    const send = hentStatusHandlinger(status).find((h) => h.tekstNoekkel === "handling.send");
-    expect(send).toBeUndefined();
-  });
+  it.each(["received", "responded", "approved"])(
+    "%s-universet bærer INGEN Send-KNAPP ennå (Lag B urørt — dormant til Fase 4 steg 4 wirer «Send til N·X →»)",
+    (status) => {
+      const send = hentStatusHandlinger(status).find((h) => h.tekstNoekkel === "handling.send");
+      expect(send).toBeUndefined();
+    },
+  );
   // Negativ kontroll: de legitime Send-veiene er URØRT.
   it("draft → sent er fortsatt lovlig (førstegangs-send med person-velger)", () => {
     expect(isValidStatusTransition("draft", "sent")).toBe(true);
