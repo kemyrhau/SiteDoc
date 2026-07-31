@@ -68,7 +68,23 @@ avledStatus(posisjon, retning, terminal, sendt):
 2. Åpner ikke medlem av leddet dokumentet ligger hos → **nærmeste ledd åpneren er medlem av** (Orienteres-ledd kan ikke motta — da nærmeste kontroll-ledd)
 3. Åpner utenfor flyten (admin) → dokumentet gjenåpnes **i samme boks**
 
-### 2.5 Flytboksenes navn (vedtak-kandidat 2d-B)
+### 2.5 Sletting (vedtak Kenneth 31.07)
+
+Sletting er i dag **utenfor statusmaskinen** og skal forbli det (egne `slett`-prosedyrer: `sjekkliste.ts` ~1411, `oppgave.ts` ~1556; sjekkliste blokkeres ved tilknyttede ikke-slettede oppgaver — beholdes).
+
+| Tilstand | Sletting |
+|---|---|
+| **Utkast** (steg 1, aldri sendt — `!sendt`) | **Hard delete** — slettes uten å kunne gjenskapes (ingen papirkurv; dokumentet har aldri vært del av en flyt) |
+| **Underveis** (etter steg 1 — har vært sendt) | **Myk sletting** — papirkurv, gjenopprettbar (dagens 90-dagers ordning) |
+| **Terminal: godkjent** | **Aldri slettbar** — står som Godkjent |
+| **Terminal: avvist** | **Aldri slettbar** — står som Avvist |
+| **Terminal: lukket** | **Aldri slettbar** — står som Lukket |
+
+Terminaltilstander er permanente vitnesbyrd — de kan kun gjenåpnes (§ 2.4), aldri slettes. `deleted` skal ikke inn i terminal-feltet; et slettet dokument har ingen posisjon i flyten. Merk endringen fra i dag: utkast-sletting går fra myk til hard, og myk sletting utvides fra «kun utkast/avbrutt» til underveis-dokumenter.
+
+**Sletterettighet (vedtak Kenneth 31.07):** kun adminrettighet kan slette — firmaadmin, prosjektadmin, sitedoc_admin. Gjelder både hard delete av utkast og myk sletting underveis; vanlige flytmedlemmer (inkl. oppretter uten adminrolle) har ingen slettehandling.
+
+### 2.6 Flytboksenes navn (vedtak-kandidat 2d-B)
 
 Rollenavn fjernes som brukervendt identitet. Hver boks viser: **posisjonsnummer + hvem (person/faggruppe) + ansvarsmerke** valgt ved flytoppsett («Bestiller arbeid», «Kontrollerer avvik», «Godkjenner økonomi», «Utfører», «Orienteres»). Internt beholdes rolle kun som rettighetsmal bak merket. Begrunnelse: «Bestiller» midt i flyten er en mellomgodkjenner (avvik, ikke økonomi) — fast rollevokabular lover feil ting og tolkes ulikt.
 
@@ -98,3 +114,4 @@ Posisjonsmodellen koster null ekstra plass mot merget M1–M3-design — kun *te
 - Varslingsregler for Orienteres-ledd (når varsles de — hver bevegelse eller kun terminal?)
 - Rettighetsmatrise-detaljer: hvilke ansvar gir ← og ↔
 - Forholdet til F6-snarveien (direkte godkjenn fra Mottatt i flyt uten utfører) — trolig overflødig i posisjonsmodellen (kort flyt gir samme resultat naturlig)
+- Papirkurv-frist for myk sletting: fortsatt 90 dager?
