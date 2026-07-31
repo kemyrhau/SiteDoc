@@ -8,7 +8,14 @@
  * fra @sitedoc/shared — samme utledning ruting og backfill bruker (ingen divergens).
  */
 
-import { finnPosisjon, byggPosisjonsLedd, type FlytPosisjonLedd, type RaFlytMedlem } from "@sitedoc/shared";
+import {
+  finnPosisjon,
+  byggPosisjonsLedd,
+  avledStatus,
+  type FlytPosisjonLedd,
+  type RaFlytMedlem,
+  type DocumentStatus,
+} from "@sitedoc/shared";
 import type { PrismaClient, Prisma } from "@sitedoc/db";
 
 type DbKlient = PrismaClient | Prisma.TransactionClient;
@@ -24,6 +31,24 @@ const TERMINAL_FRA_STATUS: Record<string, string> = {
 
 /** Terminal-status → terminal-felt-verdi (eller null hvis ikke-terminal). Delt, én kilde. */
 export const terminalFraStatus = (status: string): string | null => TERMINAL_FRA_STATUS[status] ?? null;
+
+/**
+ * F3.2: avledet status-enum-cache fra fakta. ÉN kilde til status-skriving (delt avledStatus).
+ * aktivPosisjon påvirker ikke status (kun terminal/sendt/retning gjør) → valgfri.
+ */
+export function avledetStatus(fakta: {
+  aktivPosisjon?: number | null;
+  retning: string | null;
+  terminal: string | null;
+  sendt: boolean;
+}): DocumentStatus {
+  return avledStatus({
+    aktivPosisjon: fakta.aktivPosisjon ?? null,
+    retning: fakta.retning,
+    terminal: fakta.terminal,
+    sendt: fakta.sendt,
+  }).status;
+}
 
 export interface SkyggeFakta {
   aktivPosisjon: number | null;

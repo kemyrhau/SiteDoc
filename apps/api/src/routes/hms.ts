@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { documentStatusSchema, isValidStatusTransition } from "@sitedoc/shared";
-import { terminalFraStatus } from "../services/flytFakta";
+import { terminalFraStatus, avledetStatus } from "../services/flytFakta";
 import { prisma } from "@sitedoc/db";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
@@ -571,12 +571,17 @@ export const hmsRouter = router({
             message: `Ugyldig statusovergang ${oppgave.status} → ${input.nyStatus}`,
           });
         }
-        // F3.1: skygge-fakta. Firma-hurtigbehandling flytter ikke ballen (ingen recipient-
-        // endring) → aktivPosisjon urørt; kun terminal (ved terminal-status) + sendt.
+        // F3.1/3.2: firma-hurtigbehandling flytter ikke ballen → aktivPosisjon urørt; setter
+        // terminal (ved terminal-status) + sendt, og status AVLEDES (in_progress→received-kollaps).
         // FLAGG 1 (3.5) begrenser dette til ren terminal-override via transferlogg.
+        const firmaTerminal = terminalFraStatus(input.nyStatus);
         await ctx.prisma.task.update({
           where: { id: input.taskId },
-          data: { status: input.nyStatus, terminal: terminalFraStatus(input.nyStatus), sendt: true },
+          data: {
+            status: avledetStatus({ retning: "frem", terminal: firmaTerminal, sendt: true }),
+            terminal: firmaTerminal,
+            sendt: true,
+          },
         });
       }
 
