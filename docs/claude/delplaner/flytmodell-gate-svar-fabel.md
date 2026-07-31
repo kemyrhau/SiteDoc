@@ -85,6 +85,14 @@ Fasit-sekvens (simulatorens logg, standard 4-ledds preset): 1 Send→2, 2 Send�
    - Regler: maks ~22 tegn, verb-først; fritekst tillates ved oppsett, men klassifiseringen styrer alltid rettighetene — merket er ren visning. Utvides ved oppsett-UI.
 4. **Orienteres-varsling:** varsel ved (a) første send inn i flyten og (b) terminal — ikke hver bevegelse. Lesetilgang hele tiden. Revideres etter pilot.
 
+## Fase 3.6-vedtak: received→sent gjeninnføres (fabel, 01.08)
+
+5a avdekket at §8A/P1 fjernet `received→sent` (recipient-løs no-op i gammel modell) — dermed kunne ikke utfører Sende forover. **Løsning 1 vedtatt:** overgangen gjeninnføres, rutet via `nesteLedd`. Veileder § 2.2 («Send → = neste ledd», ethvert ledd) og Tolkning A står; løsning 2 (forover = Videresend) forkastet fordi ↔ er på tvers og admin-gatet (H3) — normal fremdrift kan ikke kreve admin-rettighet. Posisjonsmodellen gir overgangen meningen den manglet i P1 — gjeninnføringen fullfører fiksen, reverserer den ikke.
+
+Krav: (1) kun rutet via `nesteLedd`, aldri recipient-løs; (2) guard: bare ballholder kan Sende; (3) 5a utvides — utfører-Send fra received blir grønn + «bestiller sist»-fixture. Fase 3.6 går FØR Fase 4 steg 4 (UI-teksten «Send til N·X» vises fra ethvert ballholder-ledd).
+
+Status: 5a-regresjonsnettet er merget til develop (12d2e401) — pilot-fiksen står grønn uavhengig av dette.
+
 ## Prøvekjørings-vedtak (fabel, 31.07 — relayet direkte, cowork treg)
 
 Drift-diagnosen (22 fremmede migreringer = modul-pakkenes egne i delt DB) er akseptert. **Vei 2 valgt:** `BEGIN … ROLLBACK`-dry-run av hele migreringen + backfill først (beviser ren kjøring mot faktisk dataform uten å persistere), deretter vei 1 (`migrate deploy` på lokal sandkasse). Betingelser: `migrate dev` forbudt; etter deploy verifiseres at KUN den ene pending-migreringen ble anvendt (fremmede urørt) + rad-tellinger på de 6 backfilte feltene; rapport før push. Begrunnelse: delt migrasjonstabell → dry-run koster minutter, fjerner hele klassen «backfill feiler halvveis».
