@@ -107,9 +107,10 @@ const TERMINAL_TIL_STATUS: Record<string, DocumentStatus> = {
  *   retning = tilbake   → «Besvart — hos N»
  *   ellers              → «Hos N»
  *
- * Q1 (venter fabel): posisjonsmodellens 4 fakta skiller ikke received fra in_progress —
- * «hos»-grenen kollapser dem til status="received" (cowork-anbefaling A). Finaliseres når
- * fabel svarer; skjer det ingen endring i signaturen, kun i denne ene grenen.
+ * Q1 (fabel-VEDTATT, A): posisjonsmodellens 4 fakta skiller IKKE received fra in_progress —
+ * «hos»-grenen gir status="received". `in_progress` gjeninnføres ALDRI som statusfakta;
+ * et evt. «sett/påbegynt»-signal er et VISNINGS-anliggende (perspektivEtikett/lesekvittering),
+ * ikke en ny fakta i maskinen. F3-lukk-fra-under-arbeid er bevart via `kanTerminereUtenBall`.
  */
 export function avledStatus(fakta: AvledStatusFakta): { status: DocumentStatus; visning: AvledetVisning } {
   if (fakta.terminal) {
@@ -121,7 +122,7 @@ export function avledStatus(fakta: AvledStatusFakta): { status: DocumentStatus; 
   if (fakta.retning === "tilbake") {
     return { status: "responded", visning: "besvart" };
   }
-  // Q1-gren (received/in_progress-kollaps) — venter fabel.
+  // Q1 (fabel-vedtatt A): received/in_progress kollapser til «Hos N» = status "received".
   return { status: "received", visning: "hos" };
 }
 

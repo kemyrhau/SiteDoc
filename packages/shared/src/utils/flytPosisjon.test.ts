@@ -11,6 +11,7 @@ import {
   type LeddKlassifisering,
   type FlytBruker,
 } from "./flytPosisjon";
+import { beregnHarBallen } from "./flytRolle";
 
 // Kompakt ledd-bygger for tester. Medlemskap valgfritt.
 function ledd(
@@ -298,5 +299,107 @@ describe("prototype-forhåndsvalg — Send-sekvens gir identisk logg", () => {
 
   it("bestiller sist → 1,2,3 (siste = Godkjenn og fullfør)", () => {
     expect(sendSekvens(BESTILLER_SIST)).toEqual([1, 2, 3]);
+  });
+});
+
+/**
+ * Q2 divergens-test (fabel-krav): kjør NY posisjon-basert harBallenPosisjon vs GAMMEL
+ * recipient-basert beregnHarBallen mot samme fixtures. Distinkt-person-scenariet SKAL
+ * divergere — det beviser at posisjon-modellen er riktig og recipient-modellen er buggen.
+ * Dokumenterer HVILKE saker som divergerer, så Fase 4-byttet av konsumenter er bevisst.
+ */
+describe("Q2 divergens: harBallenPosisjon (ny) vs beregnHarBallen (gammel)", () => {
+  // Kenneths 31.07-flyt med DISTINKTE personer per ledd (pilot-scenariet).
+  const A = "person-A-oppretter";
+  const B = "person-B-bestiller";
+  const C = "person-C-utforer";
+  const D = "person-D-godkjenner";
+  const FLYT = [
+    ledd(1, "utfor", { brukere: [A] }),
+    ledd(2, "kontroll", { brukere: [B] }),
+    ledd(3, "utfor", { brukere: [C] }),
+    ledd(4, "kontroll", { brukere: [D] }),
+  ];
+
+  // Kjør begge modeller for én seer mot én dokumenttilstand.
+  function begge(
+    dok: { status: string; aktivPosisjon: number | null; recipientUserId?: string | null; bestillerUserId?: string | null },
+    seer: string,
+  ): { gammel: boolean; ny: boolean } {
+    return {
+      gammel: beregnHarBallen(
+        {
+          status: dok.status,
+          bestillerUserId: dok.bestillerUserId ?? A,
+          recipientUserId: dok.recipientUserId ?? null,
+          recipientGroupId: null,
+        },
+        { userId: seer, gruppeIder: [] },
+      ),
+      ny: harBallenPosisjon(FLYT, dok.aktivPosisjon, bruker({ userId: seer })),
+    };
+  }
+
+  it("KONSISTENT data (recipient = personen på aktivPosisjon) → modellene ENIGE", () => {
+    // Dok korrekt hos godkjenner (posisjon 4), recipient = D.
+    const dok = { status: "received", aktivPosisjon: 4, recipientUserId: D };
+    for (const seer of [A, B, C, D]) {
+      const { gammel, ny } = begge(dok, seer);
+      expect(ny).toBe(gammel); // ingen divergens når dataene stemmer
+    }
+    expect(begge(dok, D).ny).toBe(true); // godkjenner har ballen (begge)
+  });
+
+  it("PILOT-BUG (recipient stale hos bestiller mens posisjon = godkjenner) → DIVERGERER, ny er riktig", () => {
+    // Gammel ruting lot recipient bli hos bestiller (B) mens ballen egentlig er hos
+    // godkjenner (posisjon 4). Dette er «bestiller sitter med ballen, godkjenner varsles aldri».
+    const dok = { status: "responded", aktivPosisjon: 4, recipientUserId: B };
+
+    const bestiller = begge(dok, B);
+    // Gammel: bestiller «har ballen» (recipient-match) — BUG. Ny: nei (ikke på posisjon 4).
+    expect(bestiller.gammel).toBe(true);
+    expect(bestiller.ny).toBe(false);
+    expect(bestiller.ny).not.toBe(bestiller.gammel); // DIVERGERER
+
+    const godkjenner = begge(dok, D);
+    // Gammel: godkjenner har IKKE ballen (recipient≠D) — BUG. Ny: ja (på posisjon 4) — RIKTIG.
+    expect(godkjenner.gammel).toBe(false);
+    expect(godkjenner.ny).toBe(true);
+    expect(godkjenner.ny).not.toBe(godkjenner.gammel); // DIVERGERER
+  });
+
+  it("rapport: samler OG teller divergente (seer)-saker i pilot-buggen", () => {
+    const dok = { status: "responded", aktivPosisjon: 4, recipientUserId: B };
+    const divergente: { seer: string; gammel: boolean; ny: boolean }[] = [];
+    for (const seer of [A, B, C, D]) {
+      const { gammel, ny } = begge(dok, seer);
+      if (gammel !== ny) divergente.push({ seer, gammel, ny });
+    }
+    // Nøyaktig 2 seere divergerer: bestiller (gammel true→ny false) + godkjenner (gammel false→ny true).
+    expect(divergente).toHaveLength(2);
+    expect(divergente.map((d) => d.seer).sort()).toEqual([B, D].sort());
+    // Dokumentert bevis: den nye modellen flytter «ballen» fra feil ledd (bestiller) til rett (godkjenner).
+  });
+
+  it("SAMME person i alle ledd (Kenneths opprinnelige test) → ingen harBallen-divergens (recipient=person og person er overalt)", () => {
+    // Note: for harBallen spesifikt gir samme-person-flyten ingen divergens — begge sier
+    // «du har ballen». Divergensen (og buggen) krever DISTINKTE personer (over). Dette
+    // dokumenterer HVOR modellene er enige, så Fase 4-byttet er bevisst.
+    const P = "samme-person";
+    const sammeFlyt = [
+      ledd(1, "utfor", { brukere: [P] }),
+      ledd(2, "kontroll", { brukere: [P] }),
+      ledd(3, "utfor", { brukere: [P] }),
+      ledd(4, "kontroll", { brukere: [P] }),
+    ];
+    for (const pos of [1, 2, 3, 4]) {
+      const gammel = beregnHarBallen(
+        { status: "received", bestillerUserId: P, recipientUserId: P, recipientGroupId: null },
+        { userId: P, gruppeIder: [] },
+      );
+      const ny = harBallenPosisjon(sammeFlyt, pos, bruker({ userId: P }));
+      expect(ny).toBe(gammel); // enige (begge true)
+      expect(ny).toBe(true);
+    }
   });
 });
