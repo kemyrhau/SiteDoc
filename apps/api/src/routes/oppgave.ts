@@ -9,7 +9,7 @@ import {
   byggTilgangsFilter,
   verifiserFaggruppeTilhorighet,
   verifiserDokumentTilgang,
-  verifiserFlytRolle,
+  verifiserRetningsrett,
   verifiserProsjektmedlem,
   verifiserHmsHandling,
   hentBrukerTillatelser,
@@ -1033,21 +1033,17 @@ export const oppgaveRouter = router({
         "task",
       );
 
-      // Rollevalidering: sjekk at bruker har riktig rolle i dokumentflyten.
-      // F1b: HMS-dok er nå flyt-bundet, men rolle-matrise-håndhevelsen for HMS aktiveres
-      // først i Fase 3 (ruting-omskriving). Den generiske endreStatus-veien (mobil) må
-      // bevare dagens no-op for HMS til rutingen skrives om. Gate fjernes i Fase 3.
-      if (oppgave.template?.domain !== "hms") {
-        await verifiserFlytRolle(
-          ctx.userId,
-          projectId,
-          oppgave.dokumentflytId,
-          oppgave.bestillerFaggruppeId,
-          oppgave.utforerFaggruppeId,
-          oppgave.status,
-          input.nyStatus,
-        );
-      }
+      // F3.4: POSISJON-basert autorisasjon (erstatter verifiserFlytRolle). 1b B-gaten fjernet:
+      // HMS ruter nå via posisjon → null-medlem-bestillerboksen (E1) er ikke lenger et
+      // autorisasjonsproblem. Medlemmer lastes her og gjenbrukes av rutingen nedenfor.
+      const flytMedlemmer = await hentFlytMedlemmer(ctx.prisma, oppgave.dokumentflytId);
+      await verifiserRetningsrett(
+        ctx.userId,
+        projectId,
+        flytMedlemmer,
+        oppgave.aktivPosisjon,
+        input.nyStatus,
+      );
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)
       const varsle = async (erVideresending: boolean, overrideMottaker?: { recipientUserId?: string | null; recipientGroupId?: string | null }) => {
@@ -1292,11 +1288,10 @@ export const oppgaveRouter = router({
 
       // F3.3: POSISJON-basert ruting (Tolkning A). Send→nesteLedd (forover), Besvar→
       // forrigeBallLedd (retur bakover). Erstatter senderId/klient-input-hardkodingen.
-      const medlemmer = await hentFlytMedlemmer(ctx.prisma, oppgave.dokumentflytId);
       const ruting = beregnRuting({
         nyStatus: input.nyStatus,
         effektivStatus,
-        medlemmer,
+        medlemmer: flytMedlemmer,
         naaPos: oppgave.aktivPosisjon,
         bestillerUserId: oppgave.bestillerUserId,
       });

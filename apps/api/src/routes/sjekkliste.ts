@@ -9,7 +9,7 @@ import {
   byggTilgangsFilter,
   verifiserFaggruppeTilhorighet,
   verifiserDokumentTilgang,
-  verifiserFlytRolle,
+  verifiserRetningsrett,
   verifiserHmsHandling,
   verifiserProsjektmedlem,
   hentBrukersOpprettFlytMedlemskap,
@@ -890,23 +890,17 @@ export const sjekklisteRouter = router({
         "checklist",
       );
 
-      // Rollevalidering: sjekk at bruker har riktig rolle i dokumentflyten.
-      // F1b: HMS-dok er nå flyt-bundet (dokumentflytId satt), men rolle-matrise-
-      // håndhevelsen for HMS aktiveres først i Fase 3 (ruting-omskriving). HMS bruker
-      // egne prosedyrer (verifiserHmsHandling) på web; den generiske endreStatus-veien
-      // (mobil) må bevare dagens no-op til rutingen skrives om — ellers ville HMS-flytens
-      // null-medlem-bestillerboks gi FORBIDDEN. Gate fjernes i Fase 3.
-      if (sjekkliste.template.domain !== "hms") {
-        await verifiserFlytRolle(
-          ctx.userId,
-          projectId,
-          sjekkliste.dokumentflytId,
-          sjekkliste.bestillerFaggruppeId,
-          sjekkliste.utforerFaggruppeId,
-          sjekkliste.status,
-          input.nyStatus,
-        );
-      }
+      // F3.4: POSISJON-basert autorisasjon (erstatter verifiserFlytRolle sin rolle×status-matrise).
+      // 1b B-gaten fjernet: HMS ruter nå via posisjon → null-medlem-bestillerboksen (E1) er ikke
+      // lenger et autorisasjonsproblem. Medlemmer lastes her og gjenbrukes av rutingen nedenfor.
+      const flytMedlemmer = await hentFlytMedlemmer(ctx.prisma, sjekkliste.dokumentflytId);
+      await verifiserRetningsrett(
+        ctx.userId,
+        projectId,
+        flytMedlemmer,
+        sjekkliste.aktivPosisjon,
+        input.nyStatus,
+      );
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)
       const varsle = async (erVideresending: boolean, overrideMottaker?: { recipientUserId?: string | null; recipientGroupId?: string | null }) => {
@@ -1152,13 +1146,11 @@ export const sjekklisteRouter = router({
       const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus;
 
       // F3.3: POSISJON-basert ruting (Tolkning A, fabel-bindende). Send→nesteLedd (forover),
-      // Besvar→forrigeBallLedd (retur bakover). Erstatter senderId/klient-input-hardkodingen —
-      // rutingen teller nå ledd (aktivPosisjon), aldri navn/historikk.
-      const medlemmer = await hentFlytMedlemmer(ctx.prisma, sjekkliste.dokumentflytId);
+      // Besvar→forrigeBallLedd (retur bakover). Gjenbruker flytMedlemmer fra authz-steget.
       const ruting = beregnRuting({
         nyStatus: input.nyStatus,
         effektivStatus,
-        medlemmer,
+        medlemmer: flytMedlemmer,
         naaPos: sjekkliste.aktivPosisjon,
         bestillerUserId: sjekkliste.bestillerUserId,
       });
