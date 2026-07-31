@@ -24,6 +24,7 @@ interface RaMedlem {
   steg: number;
   klassifisering: string | null;
   kanTerminereUtenBall: boolean;
+  erHovedansvarlig: boolean;
   faggruppeId: string | null;
   groupId: string | null;
   projectMember: { userId: string | null } | null;
@@ -34,6 +35,7 @@ const normaliser = (m: RaMedlem): RaFlytMedlem => ({
   steg: m.steg,
   klassifisering: m.klassifisering,
   kanTerminereUtenBall: m.kanTerminereUtenBall,
+  erHovedansvarlig: m.erHovedansvarlig,
   brukerId: m.projectMember?.userId ?? null,
   gruppeId: m.groupId,
   faggruppeId: m.faggruppeId,
@@ -43,6 +45,7 @@ const medlemSelect = {
   steg: true,
   klassifisering: true,
   kanTerminereUtenBall: true,
+  erHovedansvarlig: true,
   faggruppeId: true,
   groupId: true,
   projectMember: { select: { userId: true } },

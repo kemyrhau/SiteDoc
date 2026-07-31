@@ -12,8 +12,12 @@ import {
   finnPosisjon,
   byggPosisjonsLedd,
   avledStatus,
+  nesteLedd,
+  forrigeBallLedd,
+  utledMottakerForPosisjon,
   type FlytPosisjonLedd,
   type RaFlytMedlem,
+  type Mottaker,
   type DocumentStatus,
 } from "@sitedoc/shared";
 import type { PrismaClient, Prisma } from "@sitedoc/db";
@@ -85,11 +89,11 @@ export function beregnSkyggeFakta(input: {
   return { aktivPosisjon, retning, terminal, sendt };
 }
 
-/** Last flytens medlemmer og bygg FlytPosisjonLedd[] via delt byggPosisjonsLedd. Tom ved flyt-løst dok. */
-export async function hentPosisjonsLedd(
+/** Last flytens rå medlemmer (normalisert RaFlytMedlem). Tom ved flyt-løst dok. */
+export async function hentFlytMedlemmer(
   db: DbKlient,
   dokumentflytId: string | null | undefined,
-): Promise<FlytPosisjonLedd[]> {
+): Promise<RaFlytMedlem[]> {
   if (!dokumentflytId) return [];
   const medlemmer = await db.dokumentflytMedlem.findMany({
     where: { dokumentflytId },
@@ -97,18 +101,83 @@ export async function hentPosisjonsLedd(
       steg: true,
       klassifisering: true,
       kanTerminereUtenBall: true,
+      erHovedansvarlig: true,
       faggruppeId: true,
       groupId: true,
       projectMember: { select: { userId: true } },
     },
   });
-  const ra: RaFlytMedlem[] = medlemmer.map((m) => ({
+  return medlemmer.map((m) => ({
     steg: m.steg,
     klassifisering: m.klassifisering,
     kanTerminereUtenBall: m.kanTerminereUtenBall,
+    erHovedansvarlig: m.erHovedansvarlig,
     brukerId: m.projectMember?.userId ?? null,
     gruppeId: m.groupId,
     faggruppeId: m.faggruppeId,
   }));
-  return byggPosisjonsLedd(ra);
+}
+
+/** Last flytens medlemmer og bygg FlytPosisjonLedd[] via delt byggPosisjonsLedd. Tom ved flyt-løst dok. */
+export async function hentPosisjonsLedd(
+  db: DbKlient,
+  dokumentflytId: string | null | undefined,
+): Promise<FlytPosisjonLedd[]> {
+  return byggPosisjonsLedd(await hentFlytMedlemmer(db, dokumentflytId));
+}
+
+export interface RutingResultat {
+  aktivPosisjon: number | null;
+  retning: string;
+  terminal: string | null;
+  sendt: boolean;
+  status: DocumentStatus;
+  /** Ny mottaker fra posisjon, eller null = behold gjeldende (E2/E3 no-op, E5 fallback, terminal/draft). */
+  mottaker: Mottaker | null;
+}
+
+/**
+ * F3.3: POSISJON-basert ruting (Tolkning A, fabel-bindende).
+ *   send      → nesteLedd (forover); siste ledd (null) = no-op-flytt (Godkjenn er egen handling, E2)
+ *   responded → forrigeBallLedd (retur bakover til kontroll); første ledd (null) = no-op (E3)
+ *   terminal/draft → ingen posisjon-/mottaker-endring (aktivPosisjon = der handlingen skjer)
+ * Mottaker utledes av delt utledMottakerForPosisjon (E1 null-medlem→bestiller, E5 fallback).
+ * Erstatter senderId/erHovedansvarlig/bestillerUserId-hardkodingen. Status avledes.
+ */
+export function beregnRuting(input: {
+  nyStatus: string; // input.nyStatus (rå)
+  effektivStatus: string;
+  medlemmer: RaFlytMedlem[];
+  naaPos: number | null;
+  bestillerUserId: string | null;
+}): RutingResultat {
+  const ledd = byggPosisjonsLedd(input.medlemmer);
+  const fra = input.naaPos ?? 0;
+  let aktivPosisjon = input.naaPos;
+  let mottaker: Mottaker | null = null;
+  let retning = "frem";
+
+  if (input.nyStatus === "sent") {
+    const nyPos = nesteLedd(ledd, fra);
+    if (nyPos !== null) {
+      aktivPosisjon = nyPos;
+      mottaker = utledMottakerForPosisjon(input.medlemmer, nyPos, input.bestillerUserId);
+    }
+    // E2: nyPos null (siste ledd) → behold posisjon + mottaker (ingen auto-terminal).
+    retning = "frem";
+  } else if (input.nyStatus === "responded") {
+    const nyPos = forrigeBallLedd(ledd, fra);
+    if (nyPos !== null) {
+      aktivPosisjon = nyPos;
+      mottaker = utledMottakerForPosisjon(input.medlemmer, nyPos, input.bestillerUserId);
+    }
+    // E3: nyPos null (første ledd) → behold posisjon + mottaker.
+    retning = "tilbake";
+  }
+  // terminal (approved/dismissed/closed/cancelled) + draft/forwarded: ingen posisjon-/mottaker-endring her.
+
+  const terminal = terminalFraStatus(input.effektivStatus);
+  const sendt = input.effektivStatus !== "draft";
+  const status = avledetStatus({ aktivPosisjon, retning, terminal, sendt });
+  return { aktivPosisjon, retning, terminal, sendt, status, mottaker };
 }

@@ -3,7 +3,7 @@ import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse, harMinstEttUtfyltFelt } from "@sitedoc/shared";
-import { beregnSkyggeFakta, hentPosisjonsLedd, avledetStatus } from "../services/flytFakta";
+import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
@@ -94,6 +94,8 @@ async function hentHmsSjekkliste(
       number: true,
       bestillerUserId: true,
       recipientGroupId: true,
+      dokumentflytId: true,
+      aktivPosisjon: true,
       template: {
         select: {
           domain: true,
@@ -1149,65 +1151,40 @@ export const sjekklisteRouter = router({
       // Auto-mottatt: sent → received umiddelbart
       const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus;
 
-      // Besvar (responded): finn forrige avsender og send tilbake
-      let besvarMottaker: { recipientUserId?: string | null; recipientGroupId?: string | null } = {};
-      if (input.nyStatus === "responded") {
-        const sisteTransfer = await ctx.prisma.documentTransfer.findFirst({
-          where: { checklistId: input.id },
-          orderBy: { createdAt: "desc" },
-          select: { senderId: true },
-        });
-        if (sisteTransfer?.senderId) {
-          besvarMottaker = { recipientUserId: sisteTransfer.senderId, recipientGroupId: null };
-        }
-      }
-
-      // Utled ny eier ved sending eller besvar
-      let eierOppdatering: { eierUserId: string } | Record<string, never> = {};
-      if (input.nyStatus === "sent") {
-        const nyEier = await utledNyEier(input.recipientUserId, input.recipientGroupId);
-        if (nyEier) eierOppdatering = { eierUserId: nyEier };
-      } else if (input.nyStatus === "responded" && besvarMottaker.recipientUserId) {
-        eierOppdatering = { eierUserId: besvarMottaker.recipientUserId };
-      }
-
-      // F3.1: skygge-fakta (additiv — avledStatus reproduserer status; ingen ruting/klient
-      // leser dem ennå). Mottaker som fakta beregnes mot = den handlingen faktisk gir dokumentet.
-      const posLedd = await hentPosisjonsLedd(ctx.prisma, sjekkliste.dokumentflytId);
-      const faktaRecipientUser =
-        input.nyStatus === "sent" ? (input.recipientUserId ?? null)
-        : input.nyStatus === "responded" ? (besvarMottaker.recipientUserId ?? null)
-        : sjekkliste.recipientUserId;
-      const faktaRecipientGroup =
-        input.nyStatus === "sent" ? (input.recipientGroupId ?? null)
-        : input.nyStatus === "responded" ? null
-        : sjekkliste.recipientGroupId;
-      const skyggeFakta = beregnSkyggeFakta({
+      // F3.3: POSISJON-basert ruting (Tolkning A, fabel-bindende). Send→nesteLedd (forover),
+      // Besvar→forrigeBallLedd (retur bakover). Erstatter senderId/klient-input-hardkodingen —
+      // rutingen teller nå ledd (aktivPosisjon), aldri navn/historikk.
+      const medlemmer = await hentFlytMedlemmer(ctx.prisma, sjekkliste.dokumentflytId);
+      const ruting = beregnRuting({
+        nyStatus: input.nyStatus,
         effektivStatus,
-        nyStatusRaw: input.nyStatus,
-        ledd: posLedd,
-        recipientUserId: faktaRecipientUser,
-        recipientGroupId: faktaRecipientGroup,
+        medlemmer,
+        naaPos: sjekkliste.aktivPosisjon,
         bestillerUserId: sjekkliste.bestillerUserId,
       });
+      const nyMottaker = ruting.mottaker; // null = behold gjeldende (E2/E3 no-op, terminal, E5)
+
+      // Ny eier følger ny mottaker (person direkte, gruppe → hovedansvarlig).
+      let eierOppdatering: { eierUserId: string } | Record<string, never> = {};
+      if (nyMottaker) {
+        const nyEier = await utledNyEier(nyMottaker.recipientUserId, nyMottaker.recipientGroupId);
+        if (nyEier) eierOppdatering = { eierUserId: nyEier };
+      }
 
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
           data: {
-            // F3.2: status avledes fra fakta (avledStatus = eneste skriver). Reproduserer
-            // effektivStatus for alt unntatt in_progress → received (Q1-kollaps, bevisst).
-            status: avledetStatus(skyggeFakta),
-            aktivPosisjon: skyggeFakta.aktivPosisjon,
-            retning: skyggeFakta.retning,
-            terminal: skyggeFakta.terminal,
-            sendt: skyggeFakta.sendt,
+            status: ruting.status,
+            aktivPosisjon: ruting.aktivPosisjon,
+            retning: ruting.retning,
+            terminal: ruting.terminal,
+            sendt: ruting.sendt,
             ...eierOppdatering,
-            ...(input.nyStatus === "sent" ? {
-              recipientUserId: input.recipientUserId ?? null,
-              recipientGroupId: input.recipientGroupId ?? null,
+            ...(nyMottaker ? {
+              recipientUserId: nyMottaker.recipientUserId,
+              recipientGroupId: nyMottaker.recipientGroupId,
             } : {}),
-            ...(input.nyStatus === "responded" ? besvarMottaker : {}),
           },
         });
 
@@ -1218,12 +1195,9 @@ export const sjekklisteRouter = router({
             fromStatus: sjekkliste.status,
             toStatus: input.nyStatus,
             comment: input.kommentar,
-            ...(input.nyStatus === "sent" ? {
-              recipientUserId: input.recipientUserId,
-              recipientGroupId: input.recipientGroupId,
-            } : {}),
-            ...(input.nyStatus === "responded" && besvarMottaker.recipientUserId ? {
-              recipientUserId: besvarMottaker.recipientUserId,
+            ...(nyMottaker ? {
+              recipientUserId: nyMottaker.recipientUserId,
+              recipientGroupId: nyMottaker.recipientGroupId,
             } : {}),
             ...snapshot,
           },
@@ -1244,10 +1218,10 @@ export const sjekklisteRouter = router({
         return oppdatert;
       });
 
-      // Varsle mottaker ved sending, besvar, godkjenning, avvisning
-      if (input.nyStatus === "responded" && besvarMottaker.recipientUserId) {
-        void varsle(false, besvarMottaker);
-      } else if (["sent", "approved", "rejected"].includes(input.nyStatus)) {
+      // Varsle ny mottaker (posisjon-utledet) ved send/besvar; terminal varsles som før.
+      if (nyMottaker) {
+        void varsle(false, nyMottaker);
+      } else if (["approved", "rejected", "dismissed"].includes(input.nyStatus)) {
         void varsle(false);
       }
 
@@ -1282,12 +1256,29 @@ export const sjekklisteRouter = router({
         "besvar",
       );
 
+      // F3.3: HMS-besvar ruter via posisjon (forrigeBallLedd → Ledd 1 oppretter, E1 null-medlem→bestiller).
+      const hmsMedlemmer = await hentFlytMedlemmer(ctx.prisma, sjekkliste.dokumentflytId);
+      const hmsRuting = beregnRuting({
+        nyStatus: "responded",
+        effektivStatus: "responded",
+        medlemmer: hmsMedlemmer,
+        naaPos: sjekkliste.aktivPosisjon,
+        bestillerUserId: sjekkliste.bestillerUserId,
+      });
+
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          // F3.1/3.2: HMS-besvar → ball tilbake mot oppretter (retning=tilbake); status avledes.
-          // aktivPosisjon-presisjon for HMS null-medlem-bestillerboks er 3.3-arbeid.
-          data: { status: avledetStatus({ retning: "tilbake", terminal: null, sendt: true }), retning: "tilbake", sendt: true },
+          data: {
+            status: hmsRuting.status,
+            aktivPosisjon: hmsRuting.aktivPosisjon,
+            retning: hmsRuting.retning,
+            terminal: hmsRuting.terminal,
+            sendt: hmsRuting.sendt,
+            ...(hmsRuting.mottaker
+              ? { recipientUserId: hmsRuting.mottaker.recipientUserId, recipientGroupId: hmsRuting.mottaker.recipientGroupId }
+              : {}),
+          },
         });
         await tx.documentTransfer.create({
           data: {
@@ -1394,11 +1385,29 @@ export const sjekklisteRouter = router({
         "gjenapne",
       );
 
+      // F3.3: HMS-gjenåpne ruter via posisjon (terminal nulles, ball tilbake mot oppretter/Ledd 1).
+      const hmsMedlemmer = await hentFlytMedlemmer(ctx.prisma, sjekkliste.dokumentflytId);
+      const hmsRuting = beregnRuting({
+        nyStatus: "responded",
+        effektivStatus: "responded",
+        medlemmer: hmsMedlemmer,
+        naaPos: sjekkliste.aktivPosisjon,
+        bestillerUserId: sjekkliste.bestillerUserId,
+      });
+
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          // F3.1/3.2: HMS-gjenåpne → terminal nulles, ball tilbake mot oppretter; status avledes (→ responded).
-          data: { status: avledetStatus({ retning: "tilbake", terminal: null, sendt: true }), terminal: null, retning: "tilbake", sendt: true },
+          data: {
+            status: hmsRuting.status,
+            aktivPosisjon: hmsRuting.aktivPosisjon,
+            retning: hmsRuting.retning,
+            terminal: null,
+            sendt: hmsRuting.sendt,
+            ...(hmsRuting.mottaker
+              ? { recipientUserId: hmsRuting.mottaker.recipientUserId, recipientGroupId: hmsRuting.mottaker.recipientGroupId }
+              : {}),
+          },
         });
         await tx.documentTransfer.create({
           data: {

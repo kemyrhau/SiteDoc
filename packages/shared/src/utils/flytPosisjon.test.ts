@@ -7,9 +7,12 @@ import {
   retningsrettigheter,
   finnPosisjon,
   gjenapnePosisjon,
+  utledMottakerForPosisjon,
+  byggPosisjonsLedd,
   type FlytPosisjonLedd,
   type LeddKlassifisering,
   type FlytBruker,
+  type RaFlytMedlem,
 } from "./flytPosisjon";
 import { beregnHarBallen } from "./flytRolle";
 
@@ -401,5 +404,93 @@ describe("Q2 divergens: harBallenPosisjon (ny) vs beregnHarBallen (gammel)", () 
       expect(ny).toBe(gammel); // enige (begge true)
       expect(ny).toBe(true);
     }
+  });
+});
+
+/**
+ * F3.3 bevis (skjerpet krav): Kenneths 31.07-sekvens med DISTINKTE personer per ledd.
+ * Tolkning A (fabel-bindende): send=alltid forover (nesteLedd), besvar=alltid bakover
+ * (forrigeBallLedd). Utførerens submit ER en Send → godkjenner. Beviser at pilot-buggen
+ * (Send hopper bestiller / Besvar går bakover til vilkårlig avsender) er løst.
+ */
+describe("F3.3 utledMottakerForPosisjon + 31.07-sekvens (distinkte personer)", () => {
+  const A = "reg-A", B = "best-B", C = "utf-C", D = "godk-D";
+  const medlem = (
+    steg: number,
+    klassifisering: LeddKlassifisering,
+    o: { brukerId?: string; gruppeId?: string; faggruppeId?: string; erHovedansvarlig?: boolean } = {},
+  ): RaFlytMedlem => ({
+    steg,
+    klassifisering,
+    kanTerminereUtenBall: false,
+    erHovedansvarlig: o.erHovedansvarlig ?? false,
+    brukerId: o.brukerId ?? null,
+    gruppeId: o.gruppeId ?? null,
+    faggruppeId: o.faggruppeId ?? null,
+  });
+  // reg(1)→best(2,kontroll)→utf(3)→godk(4,kontroll), hver med én distinkt person.
+  const MEDLEMMER = [
+    medlem(1, "utfor", { brukerId: A }),
+    medlem(2, "kontroll", { brukerId: B }),
+    medlem(3, "utfor", { brukerId: C }),
+    medlem(4, "kontroll", { brukerId: D }),
+  ];
+  const LEDD = byggPosisjonsLedd(MEDLEMMER);
+  const mottaker = (pos: number) => utledMottakerForPosisjon(MEDLEMMER, pos, A);
+
+  it("utledMottakerForPosisjon → riktig person per posisjon", () => {
+    expect(mottaker(1)).toEqual({ recipientUserId: A, recipientGroupId: null });
+    expect(mottaker(2)).toEqual({ recipientUserId: B, recipientGroupId: null });
+    expect(mottaker(3)).toEqual({ recipientUserId: C, recipientGroupId: null });
+    expect(mottaker(4)).toEqual({ recipientUserId: D, recipientGroupId: null });
+  });
+
+  it("SEND treffer bestiller (ikke hopp): fra Ledd 1 → 2 = bestiller B", () => {
+    const nyPos = nesteLedd(LEDD, 1);
+    expect(nyPos).toBe(2);
+    expect(mottaker(nyPos!)).toEqual({ recipientUserId: B, recipientGroupId: null });
+  });
+
+  it("SEND fra utfører treffer godkjenner (Tolkning A): fra 3 → 4 = godkjenner D", () => {
+    const nyPos = nesteLedd(LEDD, 3);
+    expect(nyPos).toBe(4);
+    expect(mottaker(nyPos!)).toEqual({ recipientUserId: D, recipientGroupId: null });
+  });
+
+  it("BESVAR fra godkjenner går tilbake til utfører (retur): fra 4 → 3 = utfører C", () => {
+    const nyPos = forrigeBallLedd(LEDD, 4);
+    expect(nyPos).toBe(3);
+    expect(mottaker(nyPos!)).toEqual({ recipientUserId: C, recipientGroupId: null });
+  });
+
+  it("full Send-sekvens 1→2→3→4 gir riktig person-rekke (ingen hopp, ingen bakover-til-avsender)", () => {
+    const rekke: string[] = [];
+    let pos = 1;
+    let neste = nesteLedd(LEDD, pos);
+    while (neste !== null) {
+      rekke.push(mottaker(neste)!.recipientUserId!);
+      pos = neste;
+      neste = nesteLedd(LEDD, pos);
+    }
+    expect(rekke).toEqual([B, C, D]); // bestiller → utfører → godkjenner
+  });
+
+  it("E1: null-medlem oppretter-boks (HMS Ledd 1) → bestillerUserId", () => {
+    const hms = [medlem(1, "kontroll"), medlem(2, "kontroll", { gruppeId: "g-hms" })];
+    expect(utledMottakerForPosisjon(hms, 1, "opp-X")).toEqual({ recipientUserId: "opp-X", recipientGroupId: null });
+    expect(utledMottakerForPosisjon(hms, 2, "opp-X")).toEqual({ recipientUserId: null, recipientGroupId: "g-hms" });
+  });
+
+  it("E5: faggruppe-ledd uten person/gruppe → null (behold gjeldende)", () => {
+    const fg = [medlem(1, "utfor", { faggruppeId: "fg-1" })];
+    expect(utledMottakerForPosisjon(fg, 1, "opp-X")).toBeNull();
+  });
+
+  it("hovedansvarlig-person vinner ved flertreff på samme steg", () => {
+    const flere = [
+      medlem(2, "kontroll", { brukerId: "p-vanlig" }),
+      medlem(2, "kontroll", { brukerId: "p-hoved", erHovedansvarlig: true }),
+    ];
+    expect(utledMottakerForPosisjon(flere, 2, null)).toEqual({ recipientUserId: "p-hoved", recipientGroupId: null });
   });
 });
