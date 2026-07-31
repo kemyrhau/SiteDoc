@@ -48,9 +48,48 @@ export interface RaFlytMedlem {
   steg: number;
   klassifisering: string | null;
   kanTerminereUtenBall: boolean;
+  erHovedansvarlig: boolean;
   brukerId: string | null; // projectMember-brukeren
   gruppeId: string | null;
   faggruppeId: string | null;
+}
+
+/** Mottaker for et dokument: person ELLER gruppe (recipient-modellen). */
+export interface Mottaker {
+  recipientUserId: string | null;
+  recipientGroupId: string | null;
+}
+
+/**
+ * utledMottakerForPosisjon — invers av finnPosisjon: gitt en posisjon, hvem får ballen?
+ * Speiler dagens erHovedansvarlig→person/gruppe-resolusjon, generalisert til alle ledd.
+ *   1. medlem m/ erHovedansvarlig som har person/gruppe → den
+ *   2. ellers person-medlem (brukerId) → recipientUserId
+ *   3. ellers gruppe-medlem (gruppeId) → recipientGroupId
+ *   4. null-medlem-boks (ingen person/gruppe/faggruppe = oppretter-boks) → bestillerUserId (E1)
+ *   5. faggruppe-ledd uten person/gruppe → null (behold gjeldende mottaker, E5)
+ */
+export function utledMottakerForPosisjon(
+  medlemmer: RaFlytMedlem[],
+  posisjon: number,
+  bestillerUserId: string | null,
+): Mottaker | null {
+  const vedSteg = medlemmer.filter((m) => m.steg === posisjon);
+  if (vedSteg.length === 0) {
+    // Ingen medlem på posisjonen = oppretter-boks (E1).
+    return bestillerUserId ? { recipientUserId: bestillerUserId, recipientGroupId: null } : null;
+  }
+  const harMottaker = (m: RaFlytMedlem): boolean => Boolean(m.brukerId || m.gruppeId);
+  const valgt =
+    vedSteg.find((m) => m.erHovedansvarlig && harMottaker(m)) ??
+    vedSteg.find((m) => m.brukerId) ??
+    vedSteg.find((m) => m.gruppeId) ??
+    vedSteg[0]!;
+  if (valgt.brukerId) return { recipientUserId: valgt.brukerId, recipientGroupId: null };
+  if (valgt.gruppeId) return { recipientUserId: null, recipientGroupId: valgt.gruppeId };
+  // Ingen person/gruppe: null-medlem (oppretter-boks) → bestillerUserId (E1); faggruppe-only → behold (E5).
+  if (!valgt.faggruppeId && bestillerUserId) return { recipientUserId: bestillerUserId, recipientGroupId: null };
+  return null;
 }
 
 /**
