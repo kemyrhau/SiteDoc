@@ -961,6 +961,11 @@ model Checklist {
   recipientUserId      String?   @map("recipient_user_id")
   recipientGroupId     String?   @map("recipient_group_id")
   lestAvMottakerVed    DateTime? @map("lest_av_mottaker_ved")
+  // Flytmodell Fase 1 (posisjonsmodell) — per-dokument avledStatus-fakta (§ 2.3). Status-enum beholdes som avledet cache.
+  aktivPosisjon        Int?      @map("aktiv_posisjon") // Aktivt ledd (rutingens sannhet). Terminal: leddet handlingen ble utført fra (§ 2g)
+  retning              String?   @map("retning") // "frem" | "tilbake" | "paatvers" (siste bevegelse)
+  terminal             String?   @map("terminal") // "godkjent" | "avvist" | "lukket" | "avbrutt" | null (åpent felt, ikke tilstandsmaskin)
+  sendt                Boolean   @default(false) @map("sendt") // Har forlatt ledd 1. Egen kilde — draft ≠ aldri sendt
   // Soft delete (F0 — 90-dagers papirkurv). Slett setter deletedAt/deletedById;
   // guard-filteret `deletedAt IS NULL` skjuler slettede rader fra alle lister.
   // deletedById er svakt String-felt uten @relation (bevisst — ingen FK-kobling til User).
@@ -1019,6 +1024,11 @@ model Task {
   recipientUserId      String?   @map("recipient_user_id")
   recipientGroupId     String?   @map("recipient_group_id")
   lestAvMottakerVed    DateTime? @map("lest_av_mottaker_ved")
+  // Flytmodell Fase 1 (posisjonsmodell) — per-dokument avledStatus-fakta (§ 2.3). Status-enum beholdes som avledet cache.
+  aktivPosisjon        Int?      @map("aktiv_posisjon") // Aktivt ledd (rutingens sannhet). Terminal: leddet handlingen ble utført fra (§ 2g)
+  retning              String?   @map("retning") // "frem" | "tilbake" | "paatvers" (siste bevegelse)
+  terminal             String?   @map("terminal") // "godkjent" | "avvist" | "lukket" | "avbrutt" | null (åpent felt, ikke tilstandsmaskin)
+  sendt                Boolean   @default(false) @map("sendt") // Har forlatt ledd 1. Egen kilde — draft ≠ aldri sendt
   // Soft delete (F0 — 90-dagers papirkurv). Se Checklist for forklaring.
   deletedAt            DateTime? @map("deleted_at")
   deletedById          String?   @map("deleted_by_id")
@@ -1235,7 +1245,11 @@ model DokumentflytMedlem {
   groupId                String?   @map("group_id")
   hovedansvarligPersonId String?   @map("hovedansvarlig_person_id") // Spesifikk person i gruppen som er hovedansvarlig
   rolle                  String // "registrator" | "bestiller" | "utforer" | "godkjenner"
-  steg                   Int       @default(1)
+  steg                   Int       @default(1) // Flytmodell Fase 1: posisjon i leddrekka (backfilles fra kanonisk rollerekkefølge)
+  // Flytmodell Fase 1 (posisjonsmodell) — per-ledd. ASCII-verdier per rolle:"utforer"-konvensjon; visning via etikett-laget.
+  ansvarsmerke           String?   @map("ansvarsmerke") // Brukervendt merke (§ 2.6): "Bestiller arbeid" | "Kontrollerer avvik" | "Utfører" | "Orienteres"
+  klassifisering         String?   @map("klassifisering") // "kontroll" | "utfor" | "orienteres" — styrer retningsrett (← = kontroll+utfor; orienteres = aldri ball)
+  kanTerminereUtenBall   Boolean   @default(false) @map("kan_terminere_uten_ball") // FLAGG 2 (generelt leddflagg): kontroll-ledd som eier Lukk uten ball; erstatter F3-lukking
   erHovedansvarlig       Boolean   @default(false) @map("er_hovedansvarlig")
   kanRedigere            Boolean   @default(true) @map("kan_redigere")
   låsesEtterPasseringer Int?      @map("laases_etter_passeringer")
