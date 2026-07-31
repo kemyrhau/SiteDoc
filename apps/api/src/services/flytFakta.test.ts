@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { avledStatus, type FlytPosisjonLedd } from "@sitedoc/shared";
-import { beregnSkyggeFakta, terminalFraStatus } from "./flytFakta";
+import { beregnSkyggeFakta, terminalFraStatus, avledetStatus } from "./flytFakta";
 
 /**
  * F3.1 bevis-krav (cowork): avledStatus(beregnSkyggeFakta(...)) REPRODUSERER statusen som
@@ -83,5 +83,33 @@ describe("F3.1 fakta-verdier", () => {
     expect(terminalFraStatus("rejected")).toBe("avvist");
     expect(terminalFraStatus("approved")).toBe("godkjent");
     expect(terminalFraStatus("received")).toBeNull();
+  });
+});
+
+describe("F3.2 avledetStatus (avledStatus = eneste status-skriver)", () => {
+  it("opprett standard (!sendt) → draft", () => {
+    expect(avledetStatus({ retning: null, terminal: null, sendt: false })).toBe("draft");
+  });
+
+  it("opprett HMS (sendt, ingen terminal) → received (transient «sent» kollapser)", () => {
+    // F3.2 bevisst endring #2: HMS-opprett skrev «sent» før; nå «Hos 2» = received.
+    expect(avledetStatus({ retning: null, terminal: null, sendt: true })).toBe("received");
+  });
+
+  it("HMS-besvar/gjenåpne (retning=tilbake) → responded", () => {
+    expect(avledetStatus({ retning: "tilbake", terminal: null, sendt: true })).toBe("responded");
+  });
+
+  it("HMS-lukk (terminal=lukket) → closed", () => {
+    expect(avledetStatus({ retning: "frem", terminal: "lukket", sendt: true })).toBe("closed");
+  });
+
+  it("firma-terminaler avledes fra terminal-feltet", () => {
+    expect(avledetStatus({ retning: "frem", terminal: "godkjent", sendt: true })).toBe("approved");
+    expect(avledetStatus({ retning: "frem", terminal: "avvist", sendt: true })).toBe("dismissed");
+  });
+
+  it("BEVISST ENDRING #1: firma in_progress-input (terminal=null, sendt) → received (Q1)", () => {
+    expect(avledetStatus({ retning: "frem", terminal: null, sendt: true })).toBe("received");
   });
 });

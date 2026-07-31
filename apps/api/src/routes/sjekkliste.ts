@@ -3,7 +3,7 @@ import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse, harMinstEttUtfyltFelt } from "@sitedoc/shared";
-import { beregnSkyggeFakta, hentPosisjonsLedd } from "../services/flytFakta";
+import { beregnSkyggeFakta, hentPosisjonsLedd, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
@@ -425,10 +425,11 @@ export const sjekklisteRouter = router({
             byggeplassId: input.byggeplassId,
             drawingId: input.drawingId,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
-            // HMS har ingen kladd — opprett = send (D1). Standard starter i draft.
-            status: erHms ? "sent" : "draft",
-            // Posisjonsmodell: HMS starter sendt (ball hos Ledd 2 = HMS-gruppe → aktivPosisjon 2,
-            // F1b). Standard starter som utkast hos oppretter (Ledd 1), ikke sendt (F3.1).
+            // F3.2: status AVLEDES fra fakta (avledStatus = eneste skriver). HMS: sendt → «Hos 2»
+            // = received (transient «sent» kollapser, samme klasse som in_progress). Standard: !sendt → draft.
+            status: avledetStatus({ terminal: null, retning: null, sendt: erHms }),
+            // Posisjonsmodell: HMS starter sendt (ball hos Ledd 2 = HMS-gruppe → aktivPosisjon 2, F1b).
+            // Standard starter som utkast hos oppretter (Ledd 1), ikke sendt (F3.1).
             sendt: erHms,
             aktivPosisjon: erHms ? (hmsFlytId ? 2 : undefined) : 1,
             recipientUserId,
@@ -1194,7 +1195,9 @@ export const sjekklisteRouter = router({
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
           data: {
-            status: effektivStatus,
+            // F3.2: status avledes fra fakta (avledStatus = eneste skriver). Reproduserer
+            // effektivStatus for alt unntatt in_progress → received (Q1-kollaps, bevisst).
+            status: avledetStatus(skyggeFakta),
             aktivPosisjon: skyggeFakta.aktivPosisjon,
             retning: skyggeFakta.retning,
             terminal: skyggeFakta.terminal,
@@ -1282,9 +1285,9 @@ export const sjekklisteRouter = router({
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          // F3.1: HMS-besvar → ball tilbake mot oppretter (retning=tilbake). aktivPosisjon-
-          // presisjon for HMS null-medlem-bestillerboks er 3.3-arbeid; her kun status-reproduksjon.
-          data: { status: "responded", retning: "tilbake", sendt: true },
+          // F3.1/3.2: HMS-besvar → ball tilbake mot oppretter (retning=tilbake); status avledes.
+          // aktivPosisjon-presisjon for HMS null-medlem-bestillerboks er 3.3-arbeid.
+          data: { status: avledetStatus({ retning: "tilbake", terminal: null, sendt: true }), retning: "tilbake", sendt: true },
         });
         await tx.documentTransfer.create({
           data: {
@@ -1339,8 +1342,8 @@ export const sjekklisteRouter = router({
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          // F3.1: HMS-lukk → terminal lukket (aktivPosisjon = leddet handlingen skjer fra, uendret).
-          data: { status: "closed", terminal: "lukket", sendt: true },
+          // F3.1/3.2: HMS-lukk → terminal lukket; status avledes (→ closed). aktivPosisjon uendret.
+          data: { status: avledetStatus({ retning: "frem", terminal: "lukket", sendt: true }), terminal: "lukket", sendt: true },
         });
         await tx.documentTransfer.create({
           data: {
@@ -1394,8 +1397,8 @@ export const sjekklisteRouter = router({
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          // F3.1: HMS-gjenåpne → terminal nulles (closed→responded), ball tilbake mot oppretter.
-          data: { status: "responded", terminal: null, retning: "tilbake", sendt: true },
+          // F3.1/3.2: HMS-gjenåpne → terminal nulles, ball tilbake mot oppretter; status avledes (→ responded).
+          data: { status: avledetStatus({ retning: "tilbake", terminal: null, sendt: true }), terminal: null, retning: "tilbake", sendt: true },
         });
         await tx.documentTransfer.create({
           data: {
