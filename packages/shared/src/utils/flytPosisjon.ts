@@ -40,6 +40,48 @@ export interface FlytBruker {
   erAdmin: boolean;
 }
 
+/**
+ * Normalisert rå-medlem (ett DokumentflytMedlem). Både server (Prisma) og klient (tRPC)
+ * normaliserer sine medlemsrader til denne før `byggPosisjonsLedd` — ÉN grupperingslogikk.
+ */
+export interface RaFlytMedlem {
+  steg: number;
+  klassifisering: string | null;
+  kanTerminereUtenBall: boolean;
+  brukerId: string | null; // projectMember-brukeren
+  gruppeId: string | null;
+  faggruppeId: string | null;
+}
+
+/**
+ * Grupperer rå DokumentflytMedlem på `steg` → FlytPosisjonLedd[] (posisjon = steg).
+ * Leddet er «kontroll» hvis noe medlem er kontroll; kanTerminereUtenBall hvis noe medlem har det.
+ * Delt av backfill (Fase 2), server-ruting (Fase 3) og klient-ledd (Fase 4) — ingen divergens.
+ */
+export function byggPosisjonsLedd(medlemmer: RaFlytMedlem[]): FlytPosisjonLedd[] {
+  const perSteg = new Map<number, FlytPosisjonLedd>();
+  for (const m of medlemmer) {
+    let l = perSteg.get(m.steg);
+    if (!l) {
+      l = {
+        posisjon: m.steg,
+        klassifisering: (m.klassifisering as LeddKlassifisering | null) ?? "utfor",
+        kanTerminereUtenBall: false,
+        brukerIder: new Set<string>(),
+        gruppeIder: new Set<string>(),
+        faggruppeIder: new Set<string>(),
+      };
+      perSteg.set(m.steg, l);
+    }
+    if (m.klassifisering === "kontroll") l.klassifisering = "kontroll";
+    if (m.kanTerminereUtenBall) l.kanTerminereUtenBall = true;
+    if (m.brukerId) l.brukerIder.add(m.brukerId);
+    if (m.gruppeId) l.gruppeIder.add(m.gruppeId);
+    if (m.faggruppeId) l.faggruppeIder.add(m.faggruppeId);
+  }
+  return [...perSteg.values()];
+}
+
 const sorterStigende = (ledd: FlytPosisjonLedd[]): FlytPosisjonLedd[] =>
   [...ledd].sort((a, b) => a.posisjon - b.posisjon);
 
