@@ -23,6 +23,12 @@
 - cowork → develop-Opus / Opus web (funksjon): formuleres ferdig av cowork, Kenneth relayer.
 - Kommandoer (git/build/sudo/deploy): formuleres til Kenneth, som kjører.
 
+## Miljø-/DB-/test-oppsett — sjekk-først, aldri be Kenneth gjenta (vedtatt 2026-08-01)
+
+**Miljøspørsmål besvares fra [LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) + sjekk-først — aldri ved å be Kenneth gjenta oppsett.** Kunnskapen om `.env`-filer, lokal DB og test-kjøring bor i repoet ([LOKALT-OPPSETT.md](LOKALT-OPPSETT.md) → [lokal-dev.md](lokal-dev.md), [tests/e2e/README.md](../../tests/e2e/README.md), [dev-login-agent.md](dev-login-agent.md)). Compaction sletter agentens minne om at filene finnes — ikke filene.
+
+Før noen agent ber Kenneth om miljøoppsett: (1) `ls` etter `.env*` på kjente steder + les det som finnes, (2) les LOKALT-OPPSETT.md + relevant dyp-doc, (3) spør KUN om den ENE variabelen som faktisk mangler. Aldri «opprett .env» / «gi meg DATABASE_URL» før det er lett — samme feilklasse som flytmodellen (sannhet i samtalen, ikke i kilden).
+
 ## Commit-orden — én eier: cowork
 
 All merge-koreografi går gjennom cowork:
