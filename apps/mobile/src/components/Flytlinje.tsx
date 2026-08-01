@@ -41,10 +41,8 @@ interface MegInfo {
 
 interface FlytlinjeProps {
   medlemmer: FlytMedlem[];
-  recipientUserId?: string | null;
-  recipientGroupId?: string | null;
-  status: string;
-  bestillerUserId?: string;
+  /** Aktivt ledd = dokumentets `aktivPosisjon` (server-fakta). */
+  aktivPosisjon?: number | null;
   /** Har innlogget bruker/gruppe ballen nå? (beregnHarBallen på skjermen) */
   harBallen: boolean;
   meg?: MegInfo;
@@ -58,10 +56,7 @@ const AKTIV_TEKST = "#1e40af"; // sitedoc-primary — aktiv chip på hvit bakgru
 
 export function Flytlinje({
   medlemmer,
-  recipientUserId,
-  recipientGroupId,
-  status,
-  bestillerUserId,
+  aktivPosisjon,
   harBallen,
   meg,
   overforinger,
@@ -72,8 +67,8 @@ export function Flytlinje({
 
   const ledd = useMemo(() => byggLedd(medlemmer), [medlemmer]);
   const aktivtIndex = useMemo(
-    () => finnAktivtIndex(ledd, status, recipientUserId, recipientGroupId, bestillerUserId),
-    [ledd, status, recipientUserId, recipientGroupId, bestillerUserId],
+    () => finnAktivtIndex(ledd, aktivPosisjon),
+    [ledd, aktivPosisjon],
   );
 
   if (ledd.length === 0) return null;

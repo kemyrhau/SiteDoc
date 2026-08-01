@@ -711,13 +711,11 @@ export default function SjekklisteUtfylling() {
             })()}
           </View>
         </View>
-        {flytMedlemmer.length > 0 && (
+        {/* Steg 5: skjul flytlinje for HMS (paritet med web — HMS er eget løp, ikke posisjonsflyt). */}
+        {(sjekklisteDetalj as { template?: { domain?: string } } | undefined)?.template?.domain !== "hms" && flytMedlemmer.length > 0 && (
           <Flytlinje
             medlemmer={flytMedlemmer}
-            recipientUserId={(sjekklisteDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
-            recipientGroupId={(sjekklisteDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
-            status={sjekkliste.status}
-            bestillerUserId={(sjekklisteDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+            aktivPosisjon={(sjekklisteDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon}
             harBallen={harBallen}
             meg={{ userId: minFlytInfo?.userId, gruppeIder: minFlytInfo?.gruppeIder }}
             overforinger={overforinger}
@@ -970,9 +968,7 @@ export default function SjekklisteUtfylling() {
           adminNiva={minFlytInfo?.adminNiva ?? null}
           besvarDeaktivertGrunn={besvarDeaktivertGrunn}
           medlemmer={flytMedlemmer}
-          recipientUserId={(sjekklisteDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
-          recipientGroupId={(sjekklisteDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
-          bestillerUserId={(sjekklisteDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+          aktivPosisjon={(sjekklisteDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon}
           paakrevdeFeltGjenstaar={paakrevdeFeltGjenstaar}
           erRedigerbar={erRedigerbar}
           sisteLagretTekst={sisteLagretTekst}
