@@ -128,13 +128,16 @@ export function isValidStatusTransition(
     // Trekk tilbake flyttet til received→draft; sent→cancelled utgår.
     sent: ["received"],
     // F2: Trekk tilbake → received→draft (redigerbar kladd hos avsender, før mottaker har svart).
-    // §8A-fiks (2026-07-29): `received→sent` FJERNET. F5s «Send fram» var en recipient-løs no-op
-    // (serveren auto-konverterer sent→received og nullstiller recipient → markøren flyttet seg aldri,
-    // 2 loggrader/klikk). Framover = Besvar/Godkjenn. Videresend (`forwarded`) og førstegangs
-    // `draft→sent` er URØRT. Å stenge overgangen her stopper den også for prosjektadmin + server.
+    // Fase 3.6 (2026-08-01, fabel-løsning 1): `received→sent` GJENINNFØRT. §8A fjernet den fordi den
+    // var en recipient-løs no-op i den GAMLE modellen; posisjonsmodellen (Fase 3) ruter `sent→nesteLedd`
+    // (ignorerer recipient-input, aldri no-op) og guarder med `verifiserRetningsrett` (kun ball-holder),
+    // så «Send → = neste ledd» (veileder § 2.2) gir mening fra ETHVERT ledd — dette FULLFØRER P1, reverserer
+    // den ikke. Simulator-fasit: 1 Send→2, 2 Send→3, 3 Send→4. UI-tilbudet (statusHandlinger/flytmatrise-def)
+    // holdes URØRT til Fase 4 steg 4 wirer «Send til N·X →» fra received → dormant/additiv kapabilitet her.
+    // responded→sent + approved→sent forblir fjernet (responded=besvart/tilbake, approved=terminal H6).
     // F6 (Godkjenn fra Mottatt): `approved` gir en Registrator→Godkjenner-flyt (uten utfører) en
     // direkte godkjenn-vei fra Mottatt — TILLEGG til responded→approved, ikke erstatning.
-    received: ["in_progress", "responded", "cancelled", "dismissed", "draft", "approved"],
+    received: ["in_progress", "responded", "cancelled", "dismissed", "draft", "approved", "sent"],
     // F3 (Under arbeid): `rejected` og `in_progress` er merget. in_progress-handlingene er
     // Besvar (→responded), Send på nytt (→sent) og Lukk (→closed, arver dagens rejected→closed).
     in_progress: ["responded", "sent", "closed"],
