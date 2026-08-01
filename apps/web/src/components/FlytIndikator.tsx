@@ -1,25 +1,23 @@
 "use client";
 
 /**
- * Flyt-posisjon i dokument-headeren (evolusjon 2026-07-26, fabel-design).
+ * Flyt-posisjon i dokument-headeren (evolusjon 2026-07-26; Fase 4-konsolidering 2026-08-01).
  *
- * Kompakt ledd-rad som viser HVOR i flyten dokumentet står — ikke bare hvem som
- * har ballen. Rendres DYNAMISK fra dokumentets faktiske flyt (`byggLedd` grupperer
- * medlemmer på `steg`): 2 bokser i en 2-ledds flyt, 4 i en 4-ledds. Aldri hardkodet.
+ * Kompakt ledd-rad som viser HVOR i flyten dokumentet står. Rendres DYNAMISK fra dokumentets
+ * faktiske flyt (`byggLedd` grupperer medlemmer på `steg` = posisjon). Aktivt ledd leses fra
+ * dokumentets `aktivPosisjon` (server-fakta), ALDRI gjettet fra status/recipient. Antall ledd
+ * er dynamisk (2, 4, 8, …) — kollaps holder headeren kompakt uansett.
  *
  * - Passert ledd: hvit boks, ✓, dempet.
  * - Aktivt ledd (ballen): fylt blå boks, ● + ball-holderens navn.
  * - Kommende ledd: stiplet ramme, dempet.
- * - Rolle-etikett i caps over navnet i hver boks.
- * - Siste-ledd: deaktivert «Send →» + hover + fotnote med de reelle utveiene
- *   (svar på Kenneths test-observasjon: Send går ikke, men hvorfor?).
+ * - Ansvarsmerke (§ 2.6) i caps over navnet — erstatter rollenavnet som brukervendt etikett.
  * - 5+ ledd: fjerne ledd kollapses til «+N»-pille (aktivt ± 1 vises).
  * - Medlems-hover: boksen viser ETT navn, hover ramser opp alle medlemmene.
  */
 
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { hentStatusHandlinger } from "@sitedoc/shared";
 import { Tooltip } from "@sitedoc/ui";
 import {
   byggLedd,
@@ -31,48 +29,23 @@ import {
 
 // Re-eksporter for eksisterende importører (hentFlytLedd-konsumenter i tabeller).
 export type { FlytMedlem } from "@/lib/flyt-ledd";
+export { hentFlytLedd } from "@/lib/flyt-ledd";
 
 interface FlytIndikatorProps {
   medlemmer: FlytMedlem[];
-  recipientUserId?: string | null;
-  recipientGroupId?: string | null;
-  status: string;
-  bestillerUserId?: string;
+  /** Aktivt ledd = dokumentets `aktivPosisjon` (server-fakta). */
+  aktivPosisjon?: number | null;
   /** Kompakt modus: vis kun aktiv boks + naboer, ekspandér ved tap. */
   kompakt?: boolean;
-  /**
-   * Detalj-header (variant C): vis deaktivert «Send →» + utveier-fotnote ved siste ledd.
-   * Utelates i liste-/tabellceller for å holde radene lave (kun ledd-raden der).
-   */
+  /** Detalj-header: vis «Godkjenn og fullfør»-hint ved siste ledd (utelates i tabellceller). */
   visUtveier?: boolean;
-}
-
-/** i18n-nøkkel for en rolle-etikett; tom streng hvis ukjent rolle. */
-function rolleNoekkel(rolle: string): string | null {
-  const kjent = new Set(["registrator", "bestiller", "utforer", "godkjenner"]);
-  return kjent.has(rolle) ? `dokumentflyt.${rolle}` : null;
 }
 
 function forkort(tekst: string, maks: number): string {
   return tekst.length > maks ? tekst.slice(0, maks - 1) + "…" : tekst;
 }
 
-/** Hent flyt-tekst for filtrering/sortering i tabeller. */
-export function hentFlytLedd(
-  medlemmer: FlytMedlem[],
-  recipientUserId?: string | null,
-  recipientGroupId?: string | null,
-  status?: string,
-  bestillerUserId?: string,
-): string {
-  const ledd = byggLedd(medlemmer);
-  if (ledd.length === 0) return "";
-  const aktivtIndex = finnAktivtIndex(ledd, status ?? "", recipientUserId, recipientGroupId, bestillerUserId);
-  if (aktivtIndex === -1) return "";
-  return ledd[aktivtIndex]?.aktivNavn ?? "";
-}
-
-export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, status, bestillerUserId, kompakt, visUtveier }: FlytIndikatorProps) {
+export function FlytIndikator({ medlemmer, aktivPosisjon, kompakt, visUtveier }: FlytIndikatorProps) {
   const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(false);
 
@@ -83,7 +56,7 @@ export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, st
   const ledd = byggLedd(medlemmer);
   if (ledd.length === 0) return <span className="text-gray-300">—</span>;
 
-  const aktivtIndex = finnAktivtIndex(ledd, status, recipientUserId, recipientGroupId, bestillerUserId);
+  const aktivtIndex = finnAktivtIndex(ledd, aktivPosisjon);
 
   // Kollaps: kompakt (mobil) fra >3 ledd, ellers variant D-terskel (5+). Aktiv ± 1 vises.
   const kollapsTerskel = kompakt ? 3 : 4;
@@ -96,30 +69,10 @@ export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, st
     ? ledd.filter((_, i) => !visbareLedd.some((v) => v.originalIndex === i))
     : [];
 
-  // Siste-ledd (variant C): dokumentet står på ytterste ledd og kan ikke sendes videre.
-  // Kun i detalj-header (visUtveier) — utelates i liste-/tabellceller. Krever FLERE
-  // ledd: en enkelt-ledds flyt har ingen «neste mottaker» å mangle.
+  // Siste-ledd: dokumentet står på ytterste ledd → «Send» er «Godkjenn og fullfør».
   const erSisteBoks = visUtveier && aktivtIndex >= 0 && ledd.length > 1 && aktivtIndex === ledd.length - 1;
 
-  // Reelle utveier fra denne statusen (statusmaskin-lovlige), minus fram-sending
-  // (sent/forwarded finnes ikke ved siste ledd — det er nettopp derfor Send er av).
-  const utveier = erSisteBoks
-    ? [
-        ...new Map(
-          hentStatusHandlinger(status)
-            .filter((h) => h.nyStatus !== "sent" && h.nyStatus !== "forwarded")
-            .map((h) => [h.tekstNoekkel, t(h.tekstNoekkel)]),
-        ).values(),
-      ]
-    : [];
-
-  const boksHover = (l: Ledd): string =>
-    l.medlemmer
-      .map((m) => {
-        const rn = rolleNoekkel(m.rolle);
-        return rn ? `${m.navn} (${t(rn)})` : m.navn;
-      })
-      .join(" · ");
+  const boksHover = (l: Ledd): string => l.medlemmer.map((m) => m.navn).join(" · ");
 
   return (
     <div className="flex flex-col gap-1 text-[11px] leading-none">
@@ -135,11 +88,11 @@ export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, st
           const erAktiv = item.originalIndex === aktivtIndex;
           const erPassert = aktivtIndex === -1 || item.originalIndex < aktivtIndex;
           const visningstekst = erAktiv ? item.ledd.aktivNavn : item.ledd.navn;
-          const rn = rolleNoekkel(item.ledd.rolle);
 
           const boks = (
             <span
               data-testid="flyt-ledd"
+              data-posisjon={item.ledd.posisjon}
               data-rolle={item.ledd.rolle}
               data-aktiv={erAktiv ? "true" : "false"}
               data-passert={erPassert ? "true" : "false"}
@@ -151,11 +104,9 @@ export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, st
                     : "border border-dashed border-gray-300 bg-white text-gray-400"
               }`}
             >
-              {rn && (
-                <span className={`text-[9px] uppercase tracking-wide leading-none ${erAktiv ? "text-blue-100" : "text-gray-400"}`}>
-                  {t(rn)}
-                </span>
-              )}
+              <span className={`text-[9px] uppercase tracking-wide leading-none ${erAktiv ? "text-blue-100" : "text-gray-400"}`}>
+                {item.ledd.posisjon}. {t(item.ledd.ansvarsmerkeKey)}
+              </span>
               <span className="flex items-center gap-0.5 leading-none">
                 {erAktiv && <span>●</span>}
                 {erPassert && <span className="text-gray-400">✓</span>}
@@ -182,25 +133,18 @@ export function FlytIndikator({ medlemmer, recipientUserId, recipientGroupId, st
           </Tooltip>
         )}
 
-        {/* Siste-ledd: deaktivert «Send →» — forklarer hvorfor dokumentet ikke går videre. */}
+        {/* Siste-ledd: «Godkjenn og fullfør» — ingen neste mottaker å sende til. */}
         {erSisteBoks && (
           <span className="flex items-center gap-0.5">
             <span className="text-gray-300">→</span>
-            <Tooltip tekst={t("flytindikator.sisteLeddHover")} side="top">
-              <span className="inline-flex cursor-not-allowed items-center gap-0.5 rounded border border-dashed border-gray-200 px-1.5 py-1 text-gray-300">
-                {t("handling.send")} →
+            <Tooltip tekst={t("flyt.godkjennOgFullfor")} side="top">
+              <span className="inline-flex items-center gap-0.5 rounded border border-dashed border-gray-200 px-1.5 py-1 text-gray-400">
+                ✓
               </span>
             </Tooltip>
           </span>
         )}
       </div>
-
-      {/* Fotnote: de reelle utveiene ved siste ledd. */}
-      {erSisteBoks && utveier.length > 0 && (
-        <span className="text-[10px] text-gray-400">
-          {t("flytindikator.utveier")} {utveier.join(" · ")}
-        </span>
-      )}
     </div>
   );
 }

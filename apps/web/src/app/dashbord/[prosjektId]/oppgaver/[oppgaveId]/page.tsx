@@ -10,8 +10,8 @@ import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
-import { utledMinRolle, beregnHarBallen, perspektivEtikett, kvitteringEtikett, harMinstEttUtfyltFelt } from "@sitedoc/shared";
-import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
@@ -209,72 +209,14 @@ export default function OppgaveDetaljSide() {
     { enabled: !!params.oppgaveId },
   );
 
-  // harBallen: sjekk om brukerens userId/gruppeIder matcher recipientUserId/GroupId
-  const harBallen = useMemo(() => {
-    if (!fullOppgaveRå || !minFlytInfo) return false;
-    const fo = fullOppgaveRå as HarBallenDokument;
-    return beregnHarBallen(fo, { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder });
-    // @ts-ignore TS2589 — tRPC-output trigger excessively deep instantiation i Next.js-build (strengere enn tsc --noEmit)
-  }, [fullOppgaveRå, minFlytInfo]);
-
-  // Utled brukerens rolle i dokumentflyten — trengs for rettighetInput + handlingsknapper
-  const minRolle = useMemo(() => {
-    if (!minFlytInfo || !fullOppgaveRå) return undefined;
-    const op = fullOppgaveRå as unknown as { dokumentflytId?: string | null; bestillerFaggruppe?: { id: string }; utforerFaggruppe?: { id: string } };
-    if (!op.dokumentflytId) return undefined;
-    const flyt = dokumentflyter.find((df) => df.id === op.dokumentflytId);
-    if (!flyt) return null;
-    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
-      rolle: m.rolle,
-      faggruppeId: m.faggruppeId ?? null,
-      projectMemberId: m.projectMemberId ?? null,
-      groupId: m.groupId ?? null,
-    }));
-    return utledMinRolle(
-      // Kloss 2: rolle-utledning følger adminNiva (firma-admin = adminNiva:null → vanlig
-      // rolle/lesevisning). sitedoc/prosjekt → admin.
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.adminNiva !== null },
-      medlemmer,
-      { bestillerFaggruppeId: op.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: op.utforerFaggruppe?.id ?? "" },
-    );
-  }, [minFlytInfo, fullOppgaveRå, dokumentflyter]);
-
-  // Utled flytRettighet fra DokumentflytMedlem.kanRedigere for brukerens aktive flytledd
-  const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
-    if (!minFlytInfo || !fullOppgaveRå || !dokumentflyterRå) return undefined;
-    const op = fullOppgaveRå as unknown as { dokumentflytId?: string | null };
-    if (!op.dokumentflytId) return undefined;
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        kanRedigere: boolean;
-        faggruppeId?: string | null;
-        projectMemberId?: string | null;
-        groupId?: string | null;
-      }>;
-    }>;
-    const flyt = rå.find((df) => df.id === op.dokumentflytId);
-    if (!flyt) return undefined;
-    // Finn brukerens matchende flytmedlem (samme logikk som utledMinRolle)
-    const fi = minFlytInfo as { userId?: string; projectMemberId: string; faggruppeIder: string[]; gruppeIder: string[] };
-    for (const m of flyt.medlemmer) {
-      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
-      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
-    }
-    return undefined;
-  }, [minFlytInfo, fullOppgaveRå, dokumentflyterRå]);
-
-  // Bygg rettighetInput for skjema-hook
-  const rettighetInput = useMemo(() => {
-    if (!minFlytInfo) return undefined;
-    return {
-      erAdmin: minFlytInfo.erAdmin,
-      minRolle,
-      tillatelser: mineTillatelser,
-      harBallen,
-      flytRettighet,
-    };
-  }, [minFlytInfo, minRolle, mineTillatelser, harBallen, flytRettighet]);
+  // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
+  // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
+  const { harBallen, minRolle, flytRettighet, flytMedlemmer, aktivPosisjon, rettighetInput } = useFlytKontekst({
+    fullDokRå: fullOppgaveRå,
+    dokumentflyterRå,
+    minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
+    mineTillatelser,
+  });
 
   // --- Skjema-hook med rettighetsinfo ---
 
@@ -395,26 +337,6 @@ export default function OppgaveDetaljSide() {
     [params.oppgaveId, hmsTilfoyMutasjon, hmsBesvarMutasjon, hmsLukkMutasjon, hmsGjenapneMutasjon],
   );
 
-  // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
-  // Bruker dokumentflyterRå (ucastet) for å beholde steg + faggruppe-objekter
-  const flytMedlemmer = useMemo(() => {
-    const op = oppgave as unknown as { dokumentflytId?: string | null };
-    if (!op?.dokumentflytId || !dokumentflyterRå) return [];
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        id: string;
-        rolle: string;
-        steg: number;
-        faggruppe: { id: string; name: string } | null;
-        projectMember: { user: { id: string; name: string | null } } | null;
-        group: { id: string; name: string } | null;
-      }>;
-    }>;
-    const flyt = rå.find((df) => df.id === op.dokumentflytId);
-    if (!flyt) return [];
-    return flyt.medlemmer;
-  }, [oppgave, dokumentflyterRå]);
 
   const oppdaterMutasjon = trpc.oppgave.oppdater.useMutation({
     onSuccess: () => {
@@ -660,10 +582,7 @@ export default function OppgaveDetaljSide() {
             <div className="hidden sm:block">
               <FlytIndikator
                 medlemmer={flytMedlemmer}
-                recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
-                recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
-                status={oppgave.status}
-                bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+                aktivPosisjon={aktivPosisjon}
                 visUtveier
               />
             </div>
@@ -671,10 +590,7 @@ export default function OppgaveDetaljSide() {
             <div className="sm:hidden">
               <FlytIndikator
                 medlemmer={flytMedlemmer}
-                recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
-                recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
-                status={oppgave.status}
-                bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+                aktivPosisjon={aktivPosisjon}
                 kompakt
                 visUtveier
               />
@@ -706,6 +622,7 @@ export default function OppgaveDetaljSide() {
           ) : (
           <DokumentHandlingsmeny
             status={oppgave.status}
+            aktivPosisjon={aktivPosisjon}
             erLaster={endreStatusMutasjon.isPending}
             onEndreStatus={(nyStatus, handlingNoekkel, kommentar, mottaker) => {
               handlingRef.current = handlingNoekkel;

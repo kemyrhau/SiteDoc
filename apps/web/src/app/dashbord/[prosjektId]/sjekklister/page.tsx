@@ -10,7 +10,7 @@ import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
 import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight, User, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { FlytIndikator } from "@/components/FlytIndikator";
+import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { beregnHarBallen } from "@sitedoc/shared";
 
@@ -556,25 +556,15 @@ export default function SjekklisteSide() {
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
 
   // Utled aktivt flyt-ledd for en rad (for filter/sortering)
-  const hentFlytLedd = useCallback((rad: SjekklisteRad): string => {
-    const medl = rad.dokumentflyt?.medlemmer;
-    if (!medl || medl.length === 0) return "";
-    // Finn mottaker-ledd
-    const recipientGroupId = rad.recipientGroup?.id;
-    const recipientUserId = rad.recipientUser?.id;
-    if (rad.status === "closed" || rad.status === "approved") return "";
-    for (const m of medl) {
-      if (recipientGroupId && m.group?.id === recipientGroupId) return m.group.name;
-      if (recipientUserId && m.projectMember?.user?.id === recipientUserId) return m.projectMember.user.name ?? "";
-    }
-    // Fallback: faggruppe-match
-    if (recipientUserId || recipientGroupId) {
-      // Bruk første faggruppe-medlem som fallback
-      const ent = medl.find((m) => m.faggruppe);
-      if (ent?.faggruppe) return ent.faggruppe.name;
-    }
-    return "";
-  }, []);
+  // Fase 4: aktiv boks fra posisjon (server-fakta), ikke recipient-heuristikk.
+  const hentFlytLedd = useCallback(
+    (rad: SjekklisteRad): string =>
+      hentAktivtLeddNavn(
+        rad.dokumentflyt?.medlemmer ?? [],
+        (rad as { aktivPosisjon?: number | null }).aktivPosisjon,
+      ),
+    [],
+  );
 
   // Dynamiske filteralternativer
   const dynamiskFilter = useMemo(() => {
@@ -763,10 +753,7 @@ export default function SjekklisteSide() {
       flyt: { id: "flyt", header: t("tabell.flyt"),
         celle: (rad) => <FlytIndikator
           medlemmer={rad.dokumentflyt?.medlemmer ?? []}
-          recipientUserId={rad.recipientUser?.id}
-          recipientGroupId={rad.recipientGroup?.id}
-          status={rad.status}
-          bestillerUserId={rad.bestillerUserId}
+          aktivPosisjon={(rad as { aktivPosisjon?: number | null }).aktivPosisjon}
         />,
         bredde: "200px", sorterbar: true, sorterVerdi: (rad) => hentFlytLedd(rad),
         filtrerbar: true, filterAlternativer: dynamiskFilter.flyt ?? [] },

@@ -121,7 +121,7 @@ export default function SjekklisteDetaljSide() {
 
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
   // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
-  const { harBallen, minRolle, flytRettighet, flytMedlemmer, rettighetInput } = useFlytKontekst({
+  const { harBallen, minRolle, flytRettighet, flytMedlemmer, aktivPosisjon, rettighetInput } = useFlytKontekst({
     fullDokRå: fullSjekklisteRå,
     dokumentflyterRå,
     minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
@@ -608,20 +608,14 @@ export default function SjekklisteDetaljSide() {
             <div className="hidden sm:block">
               <FlytIndikator
                 medlemmer={flytMedlemmer}
-                recipientUserId={fullSjekkliste?.recipientUserId}
-                recipientGroupId={fullSjekkliste?.recipientGroupId}
-                status={sjekkliste.status}
-                bestillerUserId={fullSjekkliste?.bestillerUserId}
+                aktivPosisjon={aktivPosisjon}
                 visUtveier
               />
             </div>
             <div className="sm:hidden">
               <FlytIndikator
                 medlemmer={flytMedlemmer}
-                recipientUserId={fullSjekkliste?.recipientUserId}
-                recipientGroupId={fullSjekkliste?.recipientGroupId}
-                status={sjekkliste.status}
-                bestillerUserId={fullSjekkliste?.bestillerUserId}
+                aktivPosisjon={aktivPosisjon}
                 kompakt
                 visUtveier
               />
@@ -653,6 +647,7 @@ export default function SjekklisteDetaljSide() {
           ) : (
           <DokumentHandlingsmeny
             status={sjekkliste.status}
+            aktivPosisjon={aktivPosisjon}
             erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
             onEndreStatus={(nyStatus, handlingNoekkel, kommentar, mottaker) => {
               handlingRef.current = handlingNoekkel;

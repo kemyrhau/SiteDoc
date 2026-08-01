@@ -40,6 +40,8 @@ interface Mottaker {
 
 interface DokumentHandlingsmenyProps {
   status: string;
+  /** Aktivt ledd = dokumentets `aktivPosisjon` (server-fakta) — styrer aktiv boks. */
+  aktivPosisjon?: number | null;
   erLaster: boolean;
   /**
    * `handlingNoekkel` (StatusHandling.tekstNoekkel) er PÅKREVD, ikke valgfri (A-3b,
@@ -141,6 +143,7 @@ const FARGE_KLASSE: Record<string, string> = {
 
 export function DokumentHandlingsmeny({
   status,
+  aktivPosisjon,
   erLaster,
   onEndreStatus,
   onSlett,
@@ -191,8 +194,8 @@ export function DokumentHandlingsmeny({
 
   const ledd = useMemo(() => byggLedd(flytMedlemmer ?? []), [flytMedlemmer]);
   const aktivtIndex = useMemo(
-    () => finnAktivtIndex(ledd, status, recipientUserId, recipientGroupId, bestillerUserId),
-    [ledd, status, recipientUserId, recipientGroupId, bestillerUserId],
+    () => finnAktivtIndex(ledd, aktivPosisjon),
+    [ledd, aktivPosisjon],
   );
   const harFlyt = ledd.length > 0;
   // Variant C krever FLERE ledd: en enkelt-ledds flyt har ingen «neste mottaker».
