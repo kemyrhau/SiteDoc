@@ -6,6 +6,7 @@ import fastifyStatic from "@fastify/static";
 import websocket from "@fastify/websocket";
 import { fetchRequestHandler } from "@trpc/server/adapters/fetch";
 import { healthRoute } from "./routes/health";
+import { versionRoute } from "./routes/version";
 import { uploadRoute } from "./routes/upload";
 import { prosesserRoute } from "./routes/prosesser";
 import { devLoginRoute, erDevLoginAktiv } from "./routes/dev-login";
@@ -84,6 +85,9 @@ async function start() {
 
   // Helsesjekk
   await server.register(healthRoute);
+
+  // Bygg-stempel (offentlig sha + byggtid)
+  await server.register(versionRoute);
 
   // Filopplasting
   await server.register(uploadRoute);

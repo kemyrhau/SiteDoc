@@ -984,6 +984,7 @@
   "byggeplassVelger.favoritt": "Favoritt",
   "byggeplass.gpsPaaPlass": "GPS · du er på plass",
   "byggeplass.gpsForeslar": "GPS foreslår",
+  "bygg.stempel": "Bygg {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Venter på prosjekttilgang",
   "dashbord.venterPaaTilgangBeskrivelse": "Du har ikke tilgang til noen prosjekter ennå. Ta kontakt med din prosjektleder.",
   "dashbord.opprettProsjekt": "Opprett prosjekt",
