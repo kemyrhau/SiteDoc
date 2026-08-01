@@ -15,7 +15,7 @@ import { ChevronDown, Plus } from "lucide-react";
 import { Tooltip } from "@sitedoc/ui";
 import {
   hentStatusHandlinger,
-  hentRolleFiltrertHandlinger,
+  hentPosisjonFiltrertHandlinger,
   hentHandlingEierRoller,
   isValidStatusTransition,
   statusKreverBegrunnelse,
@@ -42,6 +42,12 @@ interface DokumentHandlingsmenyProps {
   status: string;
   /** Aktivt ledd = dokumentets `aktivPosisjon` (server-fakta) — styrer aktiv boks. */
   aktivPosisjon?: number | null;
+  /** Steg 4b: posisjon-baserte retningsrettigheter (klient-handlingsfilter = server). */
+  retningsrett?: { kanSende: boolean; kanBesvare: boolean; kanVideresende: boolean; kanTerminere: boolean };
+  /** Har innlogget bruker ballen? (posisjon) */
+  harBallen?: boolean;
+  /** Avsender-siden (medlem av ledд bak ballen) — for «Trekk tilbake». */
+  seerErBakover?: boolean;
   erLaster: boolean;
   /**
    * `handlingNoekkel` (StatusHandling.tekstNoekkel) er PÅKREVD, ikke valgfri (A-3b,
@@ -144,6 +150,9 @@ const FARGE_KLASSE: Record<string, string> = {
 export function DokumentHandlingsmeny({
   status,
   aktivPosisjon,
+  retningsrett,
+  harBallen,
+  seerErBakover,
   erLaster,
   onEndreStatus,
   onSlett,
@@ -205,9 +214,20 @@ export function DokumentHandlingsmeny({
   // Uten dokumentflyt finnes ingen rollestruktur — serveren bypasser `verifiserFlytRolle`
   // for dokumenter uten `dokumentflytId`, så klienten tilbyr da hele (statusmaskin-lovlige) settet.
   const alle = useMemo(() => hentStatusHandlinger(status), [status]);
+  // Steg 4b (retning B): posisjon-basert handlingsfilter — klienten viser nøyaktig det serveren
+  // (`verifiserRetningsrett`) autoriserer. Uten flyt: hele universet (som før, flyt-løst dok).
+  const erFlytAdminNiva = adminNiva === "sitedoc" || adminNiva === "prosjekt";
   const aktive = useMemo(
-    () => (harFlyt ? hentRolleFiltrertHandlinger(status, minRolle ?? null, adminNiva ?? null) : alle),
-    [harFlyt, status, minRolle, adminNiva, alle],
+    () =>
+      harFlyt
+        ? hentPosisjonFiltrertHandlinger(status, {
+            retningsrett: retningsrett ?? { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
+            harBallen: harBallen ?? false,
+            seerErBakover: seerErBakover ?? false,
+            erAdmin: erFlytAdminNiva,
+          })
+        : alle,
+    [harFlyt, status, retningsrett, harBallen, seerErBakover, erFlytAdminNiva, alle],
   );
 
   // Standard-mottaker (utfører-faggruppen) for «besvar»-overgangen
@@ -304,6 +324,22 @@ export function DokumentHandlingsmeny({
   // rollen (f.eks. received×godkjenner = kun Godkjenn) viser den som primærknapp, ikke
   // som løs knapp ved siden av. Alt annet lovlig samles bak primærens split-▾.
   const primærHandling = aktive.find((h) => h.erPrimaer) ?? aktive[0] ?? null;
+
+  // Steg 4c (fabel-design 2): «Send til N · X →» (måll-leddets nummer + hvem) / «Godkjenn og
+  // fullfør ✓» ved siste ledд (Send fra siste = no-op → primær blir Godkjenn). Ellers standard-tekst.
+  const nesteLeddBoks = aktivtIndex >= 0 ? ledd[aktivtIndex + 1] : undefined;
+  const effektivPrimær =
+    primærHandling?.nyStatus === "sent" && !nesteLeddBoks
+      ? aktive.find((h) => h.nyStatus === "approved") ?? primærHandling
+      : primærHandling;
+  const sisteLeddGodkjenn = effektivPrimær !== primærHandling && effektivPrimær?.nyStatus === "approved";
+  const primærLabel: string = !effektivPrimær
+    ? ""
+    : effektivPrimær.nyStatus === "sent" && nesteLeddBoks
+      ? t("flyt.sendTil", { navn: `${nesteLeddBoks.posisjon} · ${nesteLeddBoks.aktivNavn}` })
+      : sisteLeddGodkjenn
+        ? t("flyt.godkjennOgFullfor")
+        : t(effektivPrimær.tekstNoekkel);
 
   // Recipient-oppføringer (draft-send eller videresend) fra en valg-liste.
   // Draft-send bruker full `videresendValg`; videresend-stien sender inn den
@@ -449,8 +485,10 @@ export function DokumentHandlingsmeny({
       }
       return;
     }
-    const mottaker = primærHandling.nyStatus === "responded" ? (erSisteBoks ? undefined : mottakerForStandard()) : undefined;
-    klikk({ nyStatus: primærHandling.nyStatus, tekstNoekkel: primærHandling.tekstNoekkel, mottaker, label: t(primærHandling.tekstNoekkel) });
+    // Steg 4c: bruk effektivPrimær (siste ledд: Send erstattet av Godkjenn) + komponert label.
+    const handling = effektivPrimær ?? primærHandling;
+    const mottaker = handling.nyStatus === "responded" ? (erSisteBoks ? undefined : mottakerForStandard()) : undefined;
+    klikk({ nyStatus: handling.nyStatus, tekstNoekkel: handling.tekstNoekkel, mottaker, label: primærLabel });
   };
 
   /* ------------------------------------------------------------------ */
@@ -563,7 +601,7 @@ export function DokumentHandlingsmeny({
                 disabled={erLaster || besvarBlokkert}
                 className={primærKnappKlasse}
               >
-                {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
+                {erLaster ? t("statushandling.endrer") : primærLabel}
               </button>
             </Tooltip>
           ) : (

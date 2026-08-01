@@ -211,7 +211,7 @@ export default function OppgaveDetaljSide() {
 
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
   // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
-  const { harBallen, minRolle, flytRettighet, flytMedlemmer, aktivPosisjon, rettighetInput } = useFlytKontekst({
+  const { harBallen, seerErBakover, retningsrett, minRolle, flytRettighet, flytMedlemmer, aktivPosisjon, rettighetInput } = useFlytKontekst({
     fullDokRå: fullOppgaveRå,
     dokumentflyterRå,
     minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
@@ -624,6 +624,9 @@ export default function OppgaveDetaljSide() {
           <DokumentHandlingsmeny
             status={oppgave.status}
             aktivPosisjon={aktivPosisjon}
+            retningsrett={retningsrett}
+            harBallen={harBallen}
+            seerErBakover={seerErBakover}
             erLaster={endreStatusMutasjon.isPending}
             onEndreStatus={(nyStatus, handlingNoekkel, kommentar, mottaker) => {
               handlingRef.current = handlingNoekkel;
