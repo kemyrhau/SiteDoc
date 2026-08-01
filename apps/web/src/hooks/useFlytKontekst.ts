@@ -1,9 +1,10 @@
 import { useMemo } from "react";
 import {
-  beregnHarBallen,
   utledMinRolle,
+  byggPosisjonsLedd,
+  harBallenPosisjon,
   type FlytMedlemInfo,
-  type HarBallenDokument,
+  type RaFlytMedlem,
   type DokumentflytRolle,
 } from "@sitedoc/shared";
 import type { FlytMedlem } from "@/components/FlytIndikator";
@@ -68,13 +69,44 @@ export function useFlytKontekst(input: {
   const dokumentflytId = dok?.dokumentflytId ?? null;
   const aktivPosisjon = dok?.aktivPosisjon;
 
+  // Steg 3 (Fase 4): POSISJON-basert har-ballen (Q2, divergens-test-referanse). Erstatter
+  // recipient-baserte beregnHarBallen — ball = medlemskap av leddet på aktivPosisjon.
   const harBallen = useMemo<boolean>(() => {
-    if (!fullDokRå || !minFlytInfo) return false;
-    return beregnHarBallen(fullDokRå as HarBallenDokument, {
+    if (!minFlytInfo || aktivPosisjon == null || !dokumentflytId || !dokumentflyterRå) return false;
+    const rå = dokumentflyterRå as Array<{
+      id: string;
+      medlemmer: Array<{
+        steg: number;
+        klassifisering?: string | null;
+        kanTerminereUtenBall?: boolean;
+        erHovedansvarlig?: boolean;
+        projectMember?: { user?: { id: string } } | null;
+        groupId?: string | null;
+        faggruppeId?: string | null;
+      }>;
+    }>;
+    const flyt = rå.find((df) => df.id === dokumentflytId);
+    if (!flyt) return false;
+    const ledd = byggPosisjonsLedd(
+      flyt.medlemmer.map(
+        (m): RaFlytMedlem => ({
+          steg: m.steg,
+          klassifisering: m.klassifisering ?? null,
+          kanTerminereUtenBall: m.kanTerminereUtenBall ?? false,
+          erHovedansvarlig: m.erHovedansvarlig ?? false,
+          brukerId: m.projectMember?.user?.id ?? null,
+          gruppeId: m.groupId ?? null,
+          faggruppeId: m.faggruppeId ?? null,
+        }),
+      ),
+    );
+    return harBallenPosisjon(ledd, aktivPosisjon, {
       userId: minFlytInfo.userId,
       gruppeIder: minFlytInfo.gruppeIder,
+      faggruppeIder: minFlytInfo.faggruppeIder,
+      erAdmin: minFlytInfo.erAdmin,
     });
-  }, [fullDokRå, minFlytInfo]);
+  }, [minFlytInfo, aktivPosisjon, dokumentflytId, dokumentflyterRå]);
 
   const minRolle = useMemo<DokumentflytRolle | null | undefined>(() => {
     if (!minFlytInfo || !dokumentflytId || !dokumentflyterRå) return undefined;

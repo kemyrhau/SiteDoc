@@ -283,7 +283,8 @@ export default function OppgaveDetaljSide() {
       utils.oppgave.hentForProsjekt.invalidate();
       utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
     },
-    onError: (error) => {
+    // TS2589-avlastning: shallow error-type unngår instansiering av dyp tRPC-feiltype.
+    onError: (error: { message?: string }) => {
       setStatusFeil(error.message ?? "Kunne ikke endre status. Prøv igjen.");
     },
   });

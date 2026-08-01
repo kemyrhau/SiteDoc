@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, beregnHarBallen, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -265,13 +265,28 @@ export default function SjekklisteUtfylling() {
     );
   }, [minFlytInfo, sjekklisteDetalj, dokumentflyterRå]);
 
+  // Steg 3 (Fase 4): POSISJON-basert har-ballen (paritet med web-hook + divergens-test).
   const harBallen = useMemo(() => {
-    if (!sjekklisteDetalj || !minFlytInfo) return false;
-    return beregnHarBallen(
-      sjekklisteDetalj as unknown as HarBallenDokument,
-      { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder },
+    const aktivPosisjon = (sjekklisteDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon;
+    if (!minFlytInfo || aktivPosisjon == null) return false;
+    const ledd = byggPosisjonsLedd(
+      flytMedlemmer.map((m) => ({
+        steg: m.steg,
+        klassifisering: m.klassifisering ?? null,
+        kanTerminereUtenBall: m.kanTerminereUtenBall ?? false,
+        erHovedansvarlig: m.erHovedansvarlig ?? false,
+        brukerId: m.projectMember?.user?.id ?? null,
+        gruppeId: m.group?.id ?? null,
+        faggruppeId: m.faggruppe?.id ?? null,
+      })),
     );
-  }, [sjekklisteDetalj, minFlytInfo]);
+    return harBallenPosisjon(ledd, aktivPosisjon, {
+      userId: minFlytInfo.userId,
+      gruppeIder: minFlytInfo.gruppeIder,
+      faggruppeIder: (minFlytInfo as { faggruppeIder?: string[] }).faggruppeIder ?? [],
+      erAdmin: minFlytInfo.erAdmin,
+    });
+  }, [sjekklisteDetalj, minFlytInfo, flytMedlemmer]);
 
   const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
     if (!minFlytInfo || !sjekklisteDetalj || !dokumentflyterRå) return undefined;
