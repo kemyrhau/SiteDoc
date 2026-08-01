@@ -33,7 +33,7 @@ import {
 import { ChevronDown, Check, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
-  hentRolleFiltrertHandlinger,
+  hentPosisjonFiltrertHandlinger,
   statusKreverBegrunnelse,
   type StatusHandling,
   type DokumentflytRolle,
@@ -73,6 +73,11 @@ interface Props {
   tilgjengeligeFlyter: TilgjengeligeFlyter | null;
   minRolle: DokumentflytRolle | null;
   adminNiva?: AdminNiva;
+  /** Steg 4b: posisjon-baserte retningsrettigheter (klient-handlingsfilter = server). */
+  retningsrett?: { kanSende: boolean; kanBesvare: boolean; kanVideresende: boolean; kanTerminere: boolean };
+  harBallen?: boolean;
+  /** Avsender-siden (medlem av ledд bak ballen) — for «Trekk tilbake». */
+  seerErBakover?: boolean;
   /** P2 (tom-besvarelse): «Besvar» deaktivert fordi besvarelsen er tom. Speiler serveren. */
   besvarDeaktivertGrunn?: string | null;
   /** Flytmedlemmer for retningsnavn (neste/forrige ledd) — samme kilde som flytlinjen. */
@@ -112,6 +117,9 @@ export function DokumentHandlingslinje({
   tilgjengeligeFlyter,
   minRolle,
   adminNiva,
+  retningsrett,
+  harBallen,
+  seerErBakover,
   besvarDeaktivertGrunn,
   medlemmer,
   aktivPosisjon,
@@ -143,16 +151,27 @@ export function DokumentHandlingslinje({
 
   const erAdmin = adminNiva != null;
 
+  // Steg 4b (retning B): posisjon-basert handlingsfilter — klienten viser det serveren autoriserer.
   const statusHandlinger = useMemo(
-    () => hentRolleFiltrertHandlinger(status, minRolle, adminNiva ?? null),
-    [status, minRolle, adminNiva],
+    () =>
+      hentPosisjonFiltrertHandlinger(status, {
+        retningsrett: retningsrett ?? { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
+        harBallen: harBallen ?? false,
+        seerErBakover: seerErBakover ?? false,
+        erAdmin,
+      }),
+    [status, retningsrett, harBallen, seerErBakover, erAdmin],
   );
 
-  // Primær: kildens `erPrimaer`, ellers første lovlige (P3 — ingen flate sekundærknapper).
-  const primærHandling = useMemo(
-    () => statusHandlinger.find((h) => h.erPrimaer) ?? statusHandlinger[0] ?? null,
-    [statusHandlinger],
-  );
+  // Primær: kildens `erPrimaer`, ellers første lovlige (P3). Steg 4c: Send fra SISTE ledд
+  // (nesteLedд=null) er no-op → primær blir Godkjenn (fabel-design 2, «Godkjenn og fullfør»).
+  const primærHandling = useMemo(() => {
+    const p = statusHandlinger.find((h) => h.erPrimaer) ?? statusHandlinger[0] ?? null;
+    if (p?.nyStatus === "sent" && aktivtIndex >= 0 && !ledd[aktivtIndex + 1]) {
+      return statusHandlinger.find((h) => h.nyStatus === "approved") ?? p;
+    }
+    return p;
+  }, [statusHandlinger, ledd, aktivtIndex]);
 
   // Kategoriser øvrige (ikke-primær) handlinger til split-sheetens seksjoner.
   const øvrige = statusHandlinger.filter((h) => h !== primærHandling);
@@ -183,15 +202,19 @@ export function DokumentHandlingslinje({
   if (!primærHandling && !harMeny) return null;
 
   // --- Primær-navngiving med retning (fra byggLedd — ingen ny ledd-logikk) ---
+  const sisteLedd = ledd.length > 1 && aktivtIndex === ledd.length - 1;
   const primærLabel = (h: StatusHandling): string => {
     if (h.nyStatus === "sent") {
-      const neste = ledd[aktivtIndex + 1]?.navn;
-      return neste ? t("statushandling.sendTil", { mottaker: neste }) : t(h.tekstNoekkel);
+      const neste = ledd[aktivtIndex + 1];
+      // Steg 4c: «Send til N · X →» (måll-leddets nummer + hvem).
+      return neste ? t("statushandling.sendTil", { mottaker: `${neste.posisjon} · ${neste.navn}` }) : t(h.tekstNoekkel);
     }
     if (h.nyStatus === "responded") {
       const forrige = ledd[aktivtIndex - 1]?.navn;
       return forrige ? t("statushandling.besvarTil", { mottaker: forrige }) : t(h.tekstNoekkel);
     }
+    // Siste ledд-godkjenn (Send-substitutt ELLER godkjenner på siste ledд) → «Godkjenn og fullfør ✓».
+    if (h.nyStatus === "approved" && sisteLedd) return t("flyt.godkjennOgFullfor");
     return t(h.tekstNoekkel);
   };
 

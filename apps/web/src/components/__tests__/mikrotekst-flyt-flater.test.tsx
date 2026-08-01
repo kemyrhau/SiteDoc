@@ -99,6 +99,10 @@ describe("Flate 2: «Besvar»-hover bruker ledd[aktivtIndex-1] (avsender), ikke 
       <I18nextProvider i18n={i18n}>
         <DokumentHandlingsmeny
           status="in_progress"
+          aktivPosisjon={2}
+          retningsrett={{ kanSende: true, kanBesvare: true, kanVideresende: false, kanTerminere: false }}
+          harBallen={true}
+          seerErBakover={false}
           erLaster={false}
           minRolle="utforer"
           onEndreStatus={() => {}}

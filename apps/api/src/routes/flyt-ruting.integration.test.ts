@@ -163,16 +163,22 @@ describe("Fase 5a: server-e2e posisjons-ruting (distinkte personer)", () => {
     expect(etter.retning).toBe("tilbake");
   });
 
-  it("Bakoverkompat: nyStatus-input gir korrekte fakta + avledet status (Trekk tilbake → draft)", async () => {
+  it("Trekk tilbake (received→draft) = avsender-siden (seerErBakover), IKKE ball-holderen", async () => {
     const s = await nyttScenario();
-    await send(s.A_registrator, s.checklistId); // ball @2 (B)
-    // received→draft (Trekk tilbake, F2). beregnRuting: draft → effektivStatus="draft" → sendt=false,
-    // terminal=null, ingen posisjon-endring. avledStatus(!sendt) = "draft" (deterministisk).
-    await createTestCaller(s.B_bestiller).sjekkliste.endreStatus({ id: s.checklistId, nyStatus: "draft" });
+    await send(s.A_registrator, s.checklistId); // A (Ledд 1) sender → ball @2 (B, mottaker)
+
+    // Steg 4b: ball-holder B (Ledд 2) er IKKE avsender → kan ikke trekke tilbake.
+    const negativ = await feilkode(() =>
+      createTestCaller(s.B_bestiller).sjekkliste.endreStatus({ id: s.checklistId, nyStatus: "draft" }),
+    );
+    expect(negativ).toBe("FORBIDDEN");
+
+    // Avsender-siden A (Ledд 1, bak ballen) trekker tilbake → draft. Deterministisk fakta.
+    await createTestCaller(s.A_registrator).sjekkliste.endreStatus({ id: s.checklistId, nyStatus: "draft" });
     const f = await faktaFor(s.checklistId);
     expect(f.terminal).toBeNull();
     expect(f.sendt).toBe(false);      // Trekk tilbake nullstiller sendt-fakta
-    expect(f.status).toBe("draft");   // avledet fra (!sendt) — bakoverkompat status-cache korrekt
+    expect(f.status).toBe("draft");   // avledet fra (!sendt)
   });
 
   it("Bestiller sist (Fase 3.6-fixture): Send-kjede når siste ledд; nesteLedd(siste)=null ⇒ Godkjenn og fullfør (E2 no-op)", async () => {

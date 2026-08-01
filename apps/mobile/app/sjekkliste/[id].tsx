@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ArrowLeft, Save, Check, AlertTriangle, Clock, CloudOff, Cloud, Trash2, ChevronDown, Share2, MapPin } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, beregnHarBallen, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, seerErBakover, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -265,13 +265,44 @@ export default function SjekklisteUtfylling() {
     );
   }, [minFlytInfo, sjekklisteDetalj, dokumentflyterRå]);
 
-  const harBallen = useMemo(() => {
-    if (!sjekklisteDetalj || !minFlytInfo) return false;
-    return beregnHarBallen(
-      sjekklisteDetalj as unknown as HarBallenDokument,
-      { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder },
+  // Steg 3+4b (Fase 4): POSISJON-baserte rettigheter (harBallen + seerErBakover + retningsrett).
+  const posisjonRett = useMemo(() => {
+    const tom = {
+      harBallen: false, seerErBakover: false,
+      retningsrett: { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
+    };
+    const aktivPosisjon = (sjekklisteDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon;
+    if (!minFlytInfo || aktivPosisjon == null) return tom;
+    const ledd = byggPosisjonsLedd(
+      flytMedlemmer.map((m) => ({
+        steg: m.steg,
+        klassifisering: m.klassifisering ?? null,
+        kanTerminereUtenBall: m.kanTerminereUtenBall ?? false,
+        erHovedansvarlig: m.erHovedansvarlig ?? false,
+        brukerId: m.projectMember?.user?.id ?? null,
+        gruppeId: m.group?.id ?? null,
+        faggruppeId: m.faggruppe?.id ?? null,
+      })),
     );
-  }, [sjekklisteDetalj, minFlytInfo]);
+    const bruker = {
+      userId: minFlytInfo.userId,
+      gruppeIder: minFlytInfo.gruppeIder,
+      faggruppeIder: (minFlytInfo as { faggruppeIder?: string[] }).faggruppeIder ?? [],
+      erAdmin: minFlytInfo.erAdmin,
+    };
+    const erMedlemAv = (l: (typeof ledd)[number]): boolean =>
+      l.brukerIder.has(bruker.userId) ||
+      bruker.gruppeIder.some((g) => l.gruppeIder.has(g)) ||
+      bruker.faggruppeIder.some((f) => l.faggruppeIder.has(f));
+    const harBallen = harBallenPosisjon(ledd, aktivPosisjon, bruker);
+    const seerLedd = ledd.find((l) => erMedlemAv(l) && l.kanTerminereUtenBall) ?? ledd.find(erMedlemAv) ?? null;
+    return {
+      harBallen,
+      seerErBakover: seerErBakover(ledd, aktivPosisjon, bruker),
+      retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: minFlytInfo.erAdmin }),
+    };
+  }, [sjekklisteDetalj, minFlytInfo, flytMedlemmer]);
+  const harBallen = posisjonRett.harBallen;
 
   const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
     if (!minFlytInfo || !sjekklisteDetalj || !dokumentflyterRå) return undefined;
@@ -969,6 +1000,9 @@ export default function SjekklisteUtfylling() {
           besvarDeaktivertGrunn={besvarDeaktivertGrunn}
           medlemmer={flytMedlemmer}
           aktivPosisjon={(sjekklisteDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon}
+          retningsrett={posisjonRett.retningsrett}
+          harBallen={posisjonRett.harBallen}
+          seerErBakover={posisjonRett.seerErBakover}
           paakrevdeFeltGjenstaar={paakrevdeFeltGjenstaar}
           erRedigerbar={erRedigerbar}
           sisteLagretTekst={sisteLagretTekst}

@@ -24,16 +24,15 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
     ],
     // F2 (D-1): `sent` er transient (auto→received) — ingen handlinger bor her.
     received: [
-      { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400", erPrimaer: true },
+      // Fase 4 steg 4b (2026-08-01): «Send til N·X →» GJENINNFØRT fra received. Fase 3.6 gjorde
+      // received→sent meningsfull (ruter via nesteLedd, aldri recipient-løs); dette wirer UI-tilbudet.
+      // Primær fra received = Send forover (fabel-design 2); Besvar demotert til sekundær (retur bakover).
+      { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400", erPrimaer: true },
+      { tekstNoekkel: "statushandling.besvar", nyStatus: "responded", farge: "bg-purple-600", aktivFarge: "bg-purple-400" },
       // F6 (Godkjenn fra Mottatt): direkte godkjenn-vei for Registrator→Godkjenner-flyt uten utfører.
-      // TILLEGG til responded→approved (Godkjenn etter Besvart), ikke erstatning. Eies av godkjenner + P-adm.
       { tekstNoekkel: "handling.godkjenn", nyStatus: "approved", farge: "bg-green-600", aktivFarge: "bg-green-400" },
-      // §8A-fiks (2026-07-29): «Send fram» (received→sent) FJERNET — den var en recipient-løs no-op
-      // (serveren auto-konverterer sent→received og nullstiller recipient, så markøren flyttet seg
-      // aldri; hvert klikk skrev 2 loggrader). Framover fra received = Besvar/Godkjenn, bakover =
-      // Avvis/Trekk tilbake. Videresend (person-velger) beholdt — den er IKKE recipient-løs.
-      // F2: Trekk tilbake henter en sendt hendelse tilbake til avsender FØR mottaker har
-      // svart, og lander som redigerbar kladd (received→draft, D-1-fiks).
+      // Trekk tilbake: avsender-siden henter en sendt hendelse tilbake FØR mottaker svarer
+      // (received→draft). Fase 4: gatet på seerErBakover ∨ admin (ikke rolle).
       { tekstNoekkel: "statushandling.trekkTilbake", nyStatus: "draft", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
       // F1: Avvis ruter nå til egen «Avvist»-status (dismissed), ikke lenger cancelled.
@@ -130,6 +129,56 @@ export function hentRolleFiltrertHandlinger(
   // null (vanlig flyt-rolle, inkl. firma-admin): per celle override → default (celleTillatt).
   // Uten overrides = default-laget = bit-identisk med Kloss 1.
   return alle.filter((h) => celleTillatt(rolle, status, h.nyStatus, overrides));
+}
+
+/**
+ * POSISJON-basert handlingsfilter (Fase 4 steg 4b, retning B). Erstatter det rolle-baserte
+ * `hentRolleFiltrertHandlinger` i klienten — klienten viser nøyaktig det serveren autoriserer
+ * (`verifiserRetningsrett`), én kilde. Ball-handlinger fra `retningsrettigheter`; admin ser hele
+ * universet (bevart); trekk tilbake = avsender-siden (`seerErBakover`); gjenåpne = ball-holder ∨ admin.
+ */
+export interface PosisjonHandlingKontekst {
+  retningsrett: { kanSende: boolean; kanBesvare: boolean; kanVideresende: boolean; kanTerminere: boolean };
+  harBallen: boolean;
+  seerErBakover: boolean;
+  /** sitedoc/prosjekt-admin — ser hele det statusmaskin-gyldige universet. */
+  erAdmin: boolean;
+}
+
+export function hentPosisjonFiltrertHandlinger(
+  status: string,
+  ctx: PosisjonHandlingKontekst,
+): StatusHandling[] {
+  const alle = hentStatusHandlinger(status);
+  if (ctx.erAdmin) return alle;
+  return alle.filter((h) => posisjonHandlingTillatt(status, h.nyStatus, ctx));
+}
+
+function posisjonHandlingTillatt(status: string, nyStatus: string, ctx: PosisjonHandlingKontekst): boolean {
+  const { retningsrett, harBallen, seerErBakover } = ctx;
+  switch (nyStatus) {
+    case "sent": // Send til N·X (received/draft) + Send på nytt (in_progress)
+      return retningsrett.kanSende;
+    case "responded": // Besvar (retur bakover)
+      return retningsrett.kanBesvare;
+    case "in_progress": // Send tilbake (godkjenner → utfører, retur)
+      return retningsrett.kanBesvare;
+    case "approved":
+    case "dismissed":
+    case "closed":
+    case "cancelled":
+    case "rejected": // Godkjenn / Avvis / Lukk (terminaler)
+      return retningsrett.kanTerminere;
+    case "forwarded": // Videresend (H3)
+      return retningsrett.kanVideresende;
+    case "draft":
+      // received→draft = Trekk tilbake (avsender-siden); terminal→draft = Gjenåpne (ball-holder; admin dekket over).
+      return status === "received" ? seerErBakover : harBallen;
+    case "deleted": // går via onSlett (sletterett), ikke handlingsmenyen
+      return false;
+    default:
+      return false;
+  }
 }
 
 /**

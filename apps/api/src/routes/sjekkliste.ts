@@ -905,6 +905,7 @@ export const sjekklisteRouter = router({
         flytMedlemmer,
         sjekkliste.aktivPosisjon,
         input.nyStatus,
+        sjekkliste.status, // fra-status: skiller trekk tilbake (received→draft) fra gjenåpne (terminal→draft)
       );
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)

@@ -2,12 +2,14 @@ import { describe, it, expect } from "vitest";
 import {
   hentRolleFiltrertHandlinger,
   hentStatusHandlinger,
+  hentPosisjonFiltrertHandlinger,
   hentHandlingEierRoller,
   erTillattForRolle,
   flytRettighetNoekkel,
   PROSJEKTADMIN_ROLLE,
   type StatusHandling,
   type RettighetsOverrides,
+  type PosisjonHandlingKontekst,
 } from "./statusHandlinger";
 import {
   isValidStatusTransition,
@@ -334,8 +336,13 @@ describe("Fase 3.6 — «Send fram» (received→sent) GJENINNFØRT i statusmask
   it("approved → sent er fortsatt ULOVLIG (approved=terminal H6, ingen forover)", () => {
     expect(isValidStatusTransition("approved", "sent")).toBe(false);
   });
-  it.each(["received", "responded", "approved"])(
-    "%s-universet bærer INGEN Send-KNAPP ennå (Lag B urørt — dormant til Fase 4 steg 4 wirer «Send til N·X →»)",
+  it("received-universet BÆRER nå Send-knapp (Fase 4 steg 4b: «Send til N·X →», erPrimaer)", () => {
+    const send = hentStatusHandlinger("received").find((h) => h.tekstNoekkel === "handling.send");
+    expect(send?.nyStatus).toBe("sent");
+    expect(send?.erPrimaer).toBe(true);
+  });
+  it.each(["responded", "approved"])(
+    "%s-universet bærer fortsatt INGEN Send-knapp (kun received + draft + in_progress)",
     (status) => {
       const send = hentStatusHandlinger(status).find((h) => h.tekstNoekkel === "handling.send");
       expect(send).toBeUndefined();
@@ -513,12 +520,11 @@ describe("adminNiva='prosjekt' — full INNENFOR statusmaskinen (tom override)",
     expect(erTillattForRolle("registrator", "received", "forwarded", "prosjekt")).toBe(true);
   });
   it("hentRolleFiltrertHandlinger: hele det statusmaskin-lovlige universet for status", () => {
-    // received-universet: responded (lovlig), approved (F6 Godkjenn fra Mottatt, lovlig),
-    // draft (F2 trekk tilbake, lovlig), forwarded (pseudo), dismissed (lovlig).
-    // §8A: `sent` (Send fram) er stengt i statusmaskinen → prosjektadmin mister den også.
+    // received-universet: sent (Fase 4 steg 4b: «Send til N·X», gjeninnført), responded,
+    // approved (F6 Godkjenn fra Mottatt), draft (trekk tilbake), forwarded (pseudo), dismissed.
     // Prosjektadmin får hele det statusmaskin-lovlige universet.
     expect(hentRolleFiltrertHandlinger("received", "registrator", "prosjekt").map((h) => h.nyStatus))
-      .toEqual(["responded", "approved", "draft", "forwarded", "dismissed"]);
+      .toEqual(["sent", "responded", "approved", "draft", "forwarded", "dismissed"]);
   });
   it("konfigurerbar NEDOVER: negativ prosjektadmin-override slår av en celle", () => {
     const override: RettighetsOverrides = { [flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, "draft", "sent")]: false };
@@ -539,5 +545,45 @@ describe("adminNiva=null (vanlig rolle, inkl. firma-admin) — Kloss 1-sti bevar
   it("prosjektadmin-override påvirker IKKE null-nivået (kun 'prosjekt'-stien leser den)", () => {
     const override: RettighetsOverrides = { [flytRettighetNoekkel(PROSJEKTADMIN_ROLLE, "draft", "sent")]: false };
     expect(erTillattForRolle("bestiller", "draft", "sent", null, override)).toBe(true);
+  });
+});
+
+describe("hentPosisjonFiltrertHandlinger (Fase 4 steg 4b — posisjon-basert klientfilter)", () => {
+  const rett = (o: Partial<PosisjonHandlingKontekst["retningsrett"]>) => ({
+    kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false, ...o,
+  });
+  const ctx = (o: Partial<PosisjonHandlingKontekst>): PosisjonHandlingKontekst => ({
+    retningsrett: rett({}), harBallen: false, seerErBakover: false, erAdmin: false, ...o,
+  });
+
+  it("ball-holder: Send (primær) + Besvar + Godkjenn fra received; IKKE trekk tilbake", () => {
+    const ns = hentPosisjonFiltrertHandlinger("received", ctx({
+      harBallen: true, retningsrett: rett({ kanSende: true, kanBesvare: true, kanTerminere: true }),
+    })).map((h) => h.nyStatus);
+    expect(ns).toContain("sent");
+    expect(ns).toContain("responded");
+    expect(ns).toContain("approved");
+    expect(ns).not.toContain("draft"); // ball-holder er ikke avsender
+  });
+
+  it("avsender-siden (seerErBakover): Trekk tilbake, IKKE Send", () => {
+    const ns = hentPosisjonFiltrertHandlinger("received", ctx({ seerErBakover: true })).map((h) => h.nyStatus);
+    expect(ns).toContain("draft");
+    expect(ns).not.toContain("sent");
+  });
+
+  it("verken ball, bakover eller admin → tom handlingsliste", () => {
+    expect(hentPosisjonFiltrertHandlinger("received", ctx({}))).toEqual([]);
+  });
+
+  it("admin ser hele universet (bevart)", () => {
+    const ns = hentPosisjonFiltrertHandlinger("received", ctx({ erAdmin: true })).map((h) => h.nyStatus);
+    expect(ns).toContain("sent");
+    expect(ns.length).toBeGreaterThan(3);
+  });
+
+  it("gjenåpne (terminal→draft) = ball-holder, IKKE seerErBakover", () => {
+    expect(hentPosisjonFiltrertHandlinger("approved", ctx({ harBallen: true })).map((h) => h.nyStatus)).toContain("draft");
+    expect(hentPosisjonFiltrertHandlinger("approved", ctx({ seerErBakover: true })).map((h) => h.nyStatus)).not.toContain("draft");
   });
 });

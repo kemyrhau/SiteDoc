@@ -275,11 +275,16 @@ export default function ProsjektOversikt() {
           <Card>
             <h3 className="mb-3 text-sm font-medium text-gray-500">{t("dashbord.medlemmer")}</h3>
             <div className="divide-y divide-gray-100">
-              {prosjekt.members.map((m) => (
+              {(prosjekt.members as Array<{
+                id: string;
+                role: string;
+                user?: { name?: string | null; email?: string | null } | null;
+                faggruppeKoblinger?: Array<{ faggruppe: { name: string } }>;
+              }>).map((m) => (
                 <div key={m.id} className="flex items-center justify-between py-2">
                   <div>
                     <p className="text-sm font-medium">{m.user?.name ?? m.user?.email ?? "–"}</p>
-                    <p className="text-xs text-gray-400">{m.faggruppeKoblinger?.map((me: { faggruppe: { name: string } }) => me.faggruppe.name).join(", ")}</p>
+                    <p className="text-xs text-gray-400">{m.faggruppeKoblinger?.map((me) => me.faggruppe.name).join(", ")}</p>
                   </div>
                   <span className="text-xs text-gray-500">{m.role}</span>
                 </div>

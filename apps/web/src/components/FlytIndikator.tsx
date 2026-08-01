@@ -104,12 +104,11 @@ export function FlytIndikator({ medlemmer, aktivPosisjon, kompakt, visUtveier }:
                     : "border border-dashed border-gray-300 bg-white text-gray-400"
               }`}
             >
-              <span className={`text-[9px] uppercase tracking-wide leading-none ${erAktiv ? "text-blue-100" : "text-gray-400"}`}>
-                {item.ledd.posisjon}. {t(item.ledd.ansvarsmerkeKey)}
-              </span>
+              {/* Fabel steg 4 (01.08): header = nummer + hvem (ansvarsmerke bor i sheet/«Du har ballen»). */}
               <span className="flex items-center gap-0.5 leading-none">
                 {erAktiv && <span>●</span>}
                 {erPassert && <span className="text-gray-400">✓</span>}
+                <span className={erAktiv ? "text-blue-100" : "text-gray-400"}>{item.ledd.posisjon}.</span>
                 {forkort(visningstekst, erAktiv ? 24 : 14)}
               </span>
             </span>

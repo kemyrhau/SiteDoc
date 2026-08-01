@@ -1,9 +1,13 @@
 import { useMemo } from "react";
 import {
-  beregnHarBallen,
   utledMinRolle,
+  byggPosisjonsLedd,
+  harBallenPosisjon,
+  seerErBakover,
+  retningsrettigheter,
   type FlytMedlemInfo,
-  type HarBallenDokument,
+  type RaFlytMedlem,
+  type FlytBruker,
   type DokumentflytRolle,
 } from "@sitedoc/shared";
 import type { FlytMedlem } from "@/components/FlytIndikator";
@@ -32,6 +36,10 @@ export interface MinFlytInfoUtsnitt {
 
 export interface FlytKontekst {
   harBallen: boolean;
+  /** Avsender-siden (medlem av ledд bak ballen) — for «Trekk tilbake» (steg 4b). */
+  seerErBakover: boolean;
+  /** Posisjon-baserte retningsrettigheter — klient-handlingsfilter = server (steg 4b). */
+  retningsrett: { kanSende: boolean; kanBesvare: boolean; kanVideresende: boolean; kanTerminere: boolean };
   minRolle: DokumentflytRolle | null | undefined;
   flytRettighet: "redigerer" | "leser" | undefined;
   flytMedlemmer: FlytMedlem[];
@@ -68,13 +76,59 @@ export function useFlytKontekst(input: {
   const dokumentflytId = dok?.dokumentflytId ?? null;
   const aktivPosisjon = dok?.aktivPosisjon;
 
-  const harBallen = useMemo<boolean>(() => {
-    if (!fullDokRå || !minFlytInfo) return false;
-    return beregnHarBallen(fullDokRå as HarBallenDokument, {
+  // Steg 3+4b (Fase 4): POSISJON-baserte rettigheter (Q2, divergens-referanse). Bygger ledд-
+  // posisjonene én gang → harBallen (medlemskap av aktivPosisjon-leddet), seerErBakover (avsender-
+  // siden, for trekk tilbake) + retningsrettigheter (Send/Besvar/Terminere/Videresende). Klient=server.
+  const posisjonRett = useMemo(() => {
+    const tom = {
+      harBallen: false,
+      seerErBakover: false,
+      retningsrett: { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
+    };
+    if (!minFlytInfo || aktivPosisjon == null || !dokumentflytId || !dokumentflyterRå) return tom;
+    const rå = dokumentflyterRå as Array<{
+      id: string;
+      medlemmer: Array<{
+        steg: number;
+        klassifisering?: string | null;
+        kanTerminereUtenBall?: boolean;
+        erHovedansvarlig?: boolean;
+        projectMember?: { user?: { id: string } } | null;
+        groupId?: string | null;
+        faggruppeId?: string | null;
+      }>;
+    }>;
+    const flyt = rå.find((df) => df.id === dokumentflytId);
+    if (!flyt) return tom;
+    const ledd = byggPosisjonsLedd(
+      flyt.medlemmer.map(
+        (m): RaFlytMedlem => ({
+          steg: m.steg,
+          klassifisering: m.klassifisering ?? null,
+          kanTerminereUtenBall: m.kanTerminereUtenBall ?? false,
+          erHovedansvarlig: m.erHovedansvarlig ?? false,
+          brukerId: m.projectMember?.user?.id ?? null,
+          gruppeId: m.groupId ?? null,
+          faggruppeId: m.faggruppeId ?? null,
+        }),
+      ),
+    );
+    const bruker: FlytBruker = {
       userId: minFlytInfo.userId,
       gruppeIder: minFlytInfo.gruppeIder,
-    });
-  }, [fullDokRå, minFlytInfo]);
+      faggruppeIder: minFlytInfo.faggruppeIder,
+      erAdmin: minFlytInfo.erAdmin,
+    };
+    const erMedlemAv = (l: (typeof ledd)[number]): boolean =>
+      l.brukerIder.has(bruker.userId) ||
+      bruker.gruppeIder.some((g) => l.gruppeIder.has(g)) ||
+      bruker.faggruppeIder.some((f) => l.faggruppeIder.has(f));
+    const harBallen = harBallenPosisjon(ledd, aktivPosisjon, bruker);
+    const seerLedd = ledd.find((l) => erMedlemAv(l) && l.kanTerminereUtenBall) ?? ledd.find(erMedlemAv) ?? null;
+    const retningsrett = retningsrettigheter({ harBallen, seerLedd, kanVideresende: minFlytInfo.erAdmin });
+    return { harBallen, seerErBakover: seerErBakover(ledd, aktivPosisjon, bruker), retningsrett };
+  }, [minFlytInfo, aktivPosisjon, dokumentflytId, dokumentflyterRå]);
+  const harBallen = posisjonRett.harBallen;
 
   const minRolle = useMemo<DokumentflytRolle | null | undefined>(() => {
     if (!minFlytInfo || !dokumentflytId || !dokumentflyterRå) return undefined;
@@ -144,5 +198,14 @@ export function useFlytKontekst(input: {
     };
   }, [minFlytInfo, minRolle, mineTillatelser, harBallen, flytRettighet]);
 
-  return { harBallen, minRolle, flytRettighet, flytMedlemmer, aktivPosisjon, rettighetInput };
+  return {
+    harBallen,
+    seerErBakover: posisjonRett.seerErBakover,
+    retningsrett: posisjonRett.retningsrett,
+    minRolle,
+    flytRettighet,
+    flytMedlemmer,
+    aktivPosisjon,
+    rettighetInput,
+  };
 }
