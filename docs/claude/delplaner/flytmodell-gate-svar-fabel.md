@@ -93,6 +93,11 @@ Krav: (1) kun rutet via `nesteLedd`, aldri recipient-løs; (2) guard: bare ballh
 
 Status: 5a-regresjonsnettet er merget til develop (12d2e401) — pilot-fiksen står grønn uavhengig av dette.
 
+## Fase 4 steg 3+4 design-kall (fabel, 01.08)
+
+1. **Ansvarsmerke-plassering: kun i flyt-sheeten** (veileder § 4 står — flytlinje i header = nummer + hvem). Unntak: aktivt ledd viser merket i «Du har ballen»-mikroteksten («Du har ballen — Kontrollerer avvik»). Begrunnelse: mobil-plassbudsjett + merket er oppslagsinformasjon, ikke navigasjon.
+2. **Primærknapp fra received: «Send til N · X →»** (målleddets nummer + hvem, ikke ansvarsmerke) — identisk ordlyd fra draft og received; posisjonen varierer, ikke handlingen. Siste ledd: «Godkjenn og fullfør ✓».
+
 ## Prøvekjørings-vedtak (fabel, 31.07 — relayet direkte, cowork treg)
 
 Drift-diagnosen (22 fremmede migreringer = modul-pakkenes egne i delt DB) er akseptert. **Vei 2 valgt:** `BEGIN … ROLLBACK`-dry-run av hele migreringen + backfill først (beviser ren kjøring mot faktisk dataform uten å persistere), deretter vei 1 (`migrate deploy` på lokal sandkasse). Betingelser: `migrate dev` forbudt; etter deploy verifiseres at KUN den ene pending-migreringen ble anvendt (fremmede urørt) + rad-tellinger på de 6 backfilte feltene; rapport før push. Begrunnelse: delt migrasjonstabell → dry-run koster minutter, fjerner hele klassen «backfill feiler halvveis».
