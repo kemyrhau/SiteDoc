@@ -5,8 +5,8 @@ export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
 export { vaerkodeTilTekst } from "./vaer";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
-export { hentStatusHandlinger } from "./statusHandlinger";
-export type { StatusHandling } from "./statusHandlinger";
+export { hentStatusHandlinger, hentPosisjonFiltrertHandlinger } from "./statusHandlinger";
+export type { StatusHandling, PosisjonHandlingKontekst } from "./statusHandlinger";
 export { IKKE_SLETTET, KUN_SLETTET, PAPIRKURV_DAGER, dagerIgjen } from "./softDelete";
 export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil, beregnByggeplassGeofence, avstandMeter } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
@@ -29,6 +29,7 @@ export {
   byggPosisjonsLedd,
   utledMottakerForPosisjon,
   ansvarsmerkeKey,
+  seerErBakover,
 } from "./flytPosisjon";
 export type {
   LeddKlassifisering,

@@ -251,6 +251,21 @@ export function harBallenPosisjon(
   return erMedlemAvLedd(ballLedd, bruker);
 }
 
+/**
+ * seerErBakover (Fase 4 steg 4b): er seeren medlem av et ledд BAK ballen (posisjon <
+ * aktivPosisjon)? = avsender-siden. Grunnlag for «Trekk tilbake» (avsender henter en sendt
+ * hendelse tilbake FØR mottaker svarer) — en posisjon-basert erstatning for avsender-rollene
+ * (registrator/bestiller) uten rolle-kobling.
+ */
+export function seerErBakover(
+  ledd: FlytPosisjonLedd[],
+  aktivPosisjon: number | null,
+  bruker: FlytBruker,
+): boolean {
+  if (aktivPosisjon === null) return false;
+  return ledd.some((l) => l.posisjon < aktivPosisjon && erMedlemAvLedd(l, bruker));
+}
+
 /** Retningsrettigheter for en seer (§ 2.2 + vedtak). `kanVideresende` = H3 inn (admin/override). */
 export function retningsrettigheter(input: {
   harBallen: boolean;
