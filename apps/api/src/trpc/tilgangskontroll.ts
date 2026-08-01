@@ -1,6 +1,6 @@
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
-import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle, avgjorDokumentTilgang, byggPosisjonsLedd, harBallenPosisjon, retningsrettigheter } from "@sitedoc/shared";
+import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle, avgjorDokumentTilgang, byggPosisjonsLedd, harBallenPosisjon, retningsrettigheter, seerErBakover } from "@sitedoc/shared";
 import type { FlytMedlemInfo, AdminNiva, RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
 import { hentFlytRettighetOverrides } from "../services/flytRettighet";
 
@@ -838,6 +838,7 @@ export async function verifiserRetningsrett(
   medlemmer: RaFlytMedlem[],
   aktivPosisjon: number | null,
   nyStatus: string,
+  fraStatus: string,
 ): Promise<void> {
   if (medlemmer.length === 0) return; // Flyt-løst dok — bakoverkompat.
   if (nyStatus === "forwarded") return; // Videresend autoriseres i flyt-bytte-grenen (H3).
@@ -872,12 +873,15 @@ export async function verifiserRetningsrett(
   // Seer-ledd for kanTerminereUtenBall: brukerens ledd, foretrukket det med termineringsfullmakt.
   const seerLedd = ledd.find((l) => erMedlemAv(l) && l.kanTerminereUtenBall) ?? ledd.find(erMedlemAv) ?? null;
   const rett = retningsrettigheter({ harBallen, seerLedd, kanVideresende: false });
+  // Fase 4 steg 4b: fra-status skiller draft-veiene — trekk tilbake (received→draft) = avsender-siden
+  // (seerErBakover); gjenåpne (terminal→draft) = ball-holder (av terminal-leddet). Admin dekket over.
+  const erBakover = seerErBakover(ledd, aktivPosisjon, flytBruker);
 
   const tillatt =
     nyStatus === "sent" ? rett.kanSende
     : nyStatus === "responded" ? rett.kanBesvare
     : ["approved", "dismissed", "closed", "cancelled", "rejected"].includes(nyStatus) ? rett.kanTerminere
-    : nyStatus === "draft" ? rett.kanBesvare || rett.kanSende
+    : nyStatus === "draft" ? (fraStatus === "received" ? erBakover : harBallen)
     : harBallen;
 
   if (!tillatt) {

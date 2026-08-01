@@ -1048,6 +1048,7 @@ export const oppgaveRouter = router({
         flytMedlemmer,
         oppgave.aktivPosisjon,
         input.nyStatus,
+        oppgave.status, // fra-status: skiller trekk tilbake (received→draft) fra gjenåpne (terminal→draft)
       );
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)
