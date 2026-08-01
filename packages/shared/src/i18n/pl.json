@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "Pozostało wymagane pola: {{count}}",
   "handling.lagreOgLukk": "Zapisz i wróć",
   "flytlinje.duHarBallen": "Twoja kolej",
+  "flytlinje.duHarBallenMerke": "Twoja kolej — {{merke}}",
   "flytlinje.venterPaa": "Czekam na {{ledd}}",
   "flytlinje.flytTittel": "Przepływ dokumentów",
   "flytlinje.dinTur": "Twoja kolej",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Wykonuje",
   "flyt.godkjennOgFullfor": "Zatwierdź i uzupełnij",
   "flyt.duHarBallen": "Masz piłkę",
+  "flyt.duHarBallenMerke": "Masz piłkę — {{merke}}",
   "flyt.sendTil": "Wyślij do {{navn}}"
 }

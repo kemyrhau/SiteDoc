@@ -26,6 +26,8 @@ const WHITELIST = new Set([
   "test-admin@sitedoc.test", // sitedoc_admin
   "test-firma@sitedoc.test", // company_admin
   "test-arbeider@sitedoc.test", // user uten manage_field
+  "test-bestiller@sitedoc.test", // 5b pilot ledд 2 (distinkt-person 4-ledds flyt)
+  "test-godkjenner@sitedoc.test", // 5b pilot ledд 4
   "kemyrhau@gmail.com", // legacy dev-bruker (bakoverkompat)
 ]);
 

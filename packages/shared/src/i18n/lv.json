@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "Atlikuši {{count}} obligātie lauki",
   "handling.lagreOgLukk": "Saglabājiet un atgriezieties",
   "flytlinje.duHarBallen": "Pienākusi tava kārta",
+  "flytlinje.duHarBallenMerke": "Ir tava kārta — {{merke}}",
   "flytlinje.venterPaa": "Gaida {{ledd}}",
   "flytlinje.flytTittel": "Dokumentu plūsma",
   "flytlinje.dinTur": "Tava kārta",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Uzstājas",
   "flyt.godkjennOgFullfor": "Apstipriniet un aizpildiet",
   "flyt.duHarBallen": "Jums ir bumba",
+  "flyt.duHarBallenMerke": "Jums ir bumba — {{merke}}",
   "flyt.sendTil": "Sūtīt uz {{navn}}"
 }

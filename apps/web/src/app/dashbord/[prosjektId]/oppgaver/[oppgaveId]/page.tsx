@@ -584,6 +584,7 @@ export default function OppgaveDetaljSide() {
               <FlytIndikator
                 medlemmer={flytMedlemmer}
                 aktivPosisjon={aktivPosisjon}
+                harBallen={harBallen}
                 visUtveier
               />
             </div>
@@ -592,6 +593,7 @@ export default function OppgaveDetaljSide() {
               <FlytIndikator
                 medlemmer={flytMedlemmer}
                 aktivPosisjon={aktivPosisjon}
+                harBallen={harBallen}
                 kompakt
                 visUtveier
               />

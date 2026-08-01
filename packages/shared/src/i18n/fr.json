@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} champs obligatoires restants",
   "handling.lagreOgLukk": "Enregistrer et revenir",
   "flytlinje.duHarBallen": "C'est ton tour",
+  "flytlinje.duHarBallenMerke": "C'est ton tour — {{merke}}",
   "flytlinje.venterPaa": "En attente de {{ledd}}",
   "flytlinje.flytTittel": "Flux de documents",
   "flytlinje.dinTur": "A ton tour",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Effectue",
   "flyt.godkjennOgFullfor": "Approuver et compléter",
   "flyt.duHarBallen": "Tu as le ballon",
+  "flyt.duHarBallenMerke": "Vous avez le ballon — {{merke}}",
   "flyt.sendTil": "Envoyer à {{navn}}"
 }

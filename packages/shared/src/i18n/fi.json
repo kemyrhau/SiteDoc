@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} pakollista kenttää jäljellä",
   "handling.lagreOgLukk": "Tallenna ja palaa takaisin",
   "flytlinje.duHarBallen": "Sinun vuorosi",
+  "flytlinje.duHarBallenMerke": "On sinun vuorosi – {{merke}}",
   "flytlinje.venterPaa": "Odotetaan {{ledd}}",
   "flytlinje.flytTittel": "Asiakirjan kulku",
   "flytlinje.dinTur": "Sinun vuorosi",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Suorittaa",
   "flyt.godkjennOgFullfor": "Hyväksy ja täytä",
   "flyt.duHarBallen": "Sinulla on pallo",
+  "flyt.duHarBallenMerke": "Sinulla on pallo – {{merke}}",
   "flyt.sendTil": "Lähetä osoitteeseen {{navn}}"
 }

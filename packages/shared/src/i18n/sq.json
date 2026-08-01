@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} fusha të nevojshme të mbetura",
   "handling.lagreOgLukk": "Ruaj dhe kthehu",
   "flytlinje.duHarBallen": "Është radha juaj",
+  "flytlinje.duHarBallenMerke": "Është radha juaj - {{merke}}",
   "flytlinje.venterPaa": "Në pritje të {{ledd}}",
   "flytlinje.flytTittel": "Rrjedha e dokumentit",
   "flytlinje.dinTur": "Radha juaj",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Kryen",
   "flyt.godkjennOgFullfor": "Mirato dhe plotëso",
   "flyt.duHarBallen": "Ju keni topin",
+  "flyt.duHarBallenMerke": "Ti e ke topin — {{merke}}",
   "flyt.sendTil": "Dërgo te {{navn}}"
 }

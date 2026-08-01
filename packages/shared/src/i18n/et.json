@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} kohustuslikku välja on jäänud",
   "handling.lagreOgLukk": "Salvestage ja minge tagasi",
   "flytlinje.duHarBallen": "Sinu kord",
+  "flytlinje.duHarBallenMerke": "On sinu kord – {{merke}}",
   "flytlinje.venterPaa": "Ootan {{ledd}}",
   "flytlinje.flytTittel": "Dokumendivoog",
   "flytlinje.dinTur": "Sinu kord",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Esineb",
   "flyt.godkjennOgFullfor": "Kinnitage ja täitke",
   "flyt.duHarBallen": "Sul on pall",
+  "flyt.duHarBallenMerke": "Sul on pall — {{merke}}",
   "flyt.sendTil": "Saada aadressile {{navn}}"
 }

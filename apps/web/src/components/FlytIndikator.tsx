@@ -39,13 +39,20 @@ interface FlytIndikatorProps {
   kompakt?: boolean;
   /** Detalj-header: vis «Godkjenn og fullfør»-hint ved siste ledd (utelates i tabellceller). */
   visUtveier?: boolean;
+  /**
+   * Holder innlogget bruker ballen? (posisjon-basert, fra useFlytKontekst.) Når satt +
+   * aktivt ledд finnes: vis «Du har ballen — {ansvarsmerke}»-mikrotekst under ledd-raden
+   * (fabel steg 4: ballholder ser forventningen uten å åpne flyt-sheeten). Utelates i
+   * tabellceller (viewer-spesifikt, ikke meningsfullt i en dokumentliste).
+   */
+  harBallen?: boolean;
 }
 
 function forkort(tekst: string, maks: number): string {
   return tekst.length > maks ? tekst.slice(0, maks - 1) + "…" : tekst;
 }
 
-export function FlytIndikator({ medlemmer, aktivPosisjon, kompakt, visUtveier }: FlytIndikatorProps) {
+export function FlytIndikator({ medlemmer, aktivPosisjon, kompakt, visUtveier, harBallen }: FlytIndikatorProps) {
   const { t } = useTranslation();
   const [ekspandert, setEkspandert] = useState(false);
 
@@ -144,6 +151,14 @@ export function FlytIndikator({ medlemmer, aktivPosisjon, kompakt, visUtveier }:
           </span>
         )}
       </div>
+
+      {/* Fabel steg 4: ballholderen ser ansvarsmerket sitt uten å åpne flyt-sheeten. */}
+      {harBallen && aktivtIndex >= 0 && ledd[aktivtIndex] && (
+        <span data-testid="du-har-ballen-merke" className="flex items-center gap-1 text-[10px] font-medium text-sitedoc-primary">
+          <span className="h-1.5 w-1.5 rounded-full bg-sitedoc-primary" />
+          {t("flyt.duHarBallenMerke", { merke: t(ledd[aktivtIndex].ansvarsmerkeKey) })}
+        </span>
+      )}
     </div>
   );
 }

@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} obligatoriska fält kvar",
   "handling.lagreOgLukk": "Spara och gå tillbaka",
   "flytlinje.duHarBallen": "Det är din tur",
+  "flytlinje.duHarBallenMerke": "Det är din tur – {{merke}}",
   "flytlinje.venterPaa": "Väntar på {{ledd}}",
   "flytlinje.flytTittel": "Dokumentflöde",
   "flytlinje.dinTur": "Din tur",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Uppträder",
   "flyt.godkjennOgFullfor": "Godkänn och komplettera",
   "flyt.duHarBallen": "Du har bollen",
+  "flyt.duHarBallenMerke": "Du har bollen – {{merke}}",
   "flyt.sendTil": "Skicka till {{namn}}"
 }
