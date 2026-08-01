@@ -362,7 +362,12 @@ export function DokumentHandlingsmeny({
 
   // Mottaker-lister: draft → send til faggruppe (førstegangs, ØVERST som framover-utvidelse);
   // ellers → Videresend (forwarded, EGEN seksjon etter destruktive). Gjensidig utelukkende.
-  const draftSend = status === "draft" && primærHandling?.nyStatus === "sent";
+  //
+  // Posisjonsmodell (fabel-vedtatt): et FLYT-BUNDET utkast (harFlyt) ruter Send via `nesteLedd`
+  // — server `beregnRuting` ignorerer klient-mottaker for `sent` og bruker aktivPosisjon. Den
+  // manuelle mottakervelgeren er derfor både obsolet OG villedende der (valget kastes). Behold
+  // den KUN for flyt-løse utkast (ad-hoc, ingen posisjon), der mottaker-valget binder flyten.
+  const draftSend = status === "draft" && primærHandling?.nyStatus === "sent" && !harFlyt;
   const forwardedHandling = aktive.find((h) => h.nyStatus === "forwarded" && h !== primærHandling);
   const harForwarded = forwardedHandling != null;
   // Draft-mottakere vises kun ved >1 mottaker — primærknappen håndterer 0/1 direkte (klikkPrimær).
@@ -801,10 +806,7 @@ function DropdownMeny({
 
   // Fabel-rekkefølge: (draft-mottakere →) framover → destruktiv → Videresend → Admin → deaktiverte.
   return (
-    // z-50 (ikke z-20): menyen deler den `sticky top-0 z-10`-headeren med kontekst-chip-linjas
-    // nedtrekk (byggeplass/faggruppe), som er z-50 (DokumentKontekstChipLinje.tsx). Med z-20 malte
-    // chip-nedtrekket over/gjennom denne menyen. z-50 = appens dropdown-konvensjon.
-    <div className="absolute right-0 top-full z-50 mt-1 min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+    <div className="absolute right-0 top-full z-20 mt-1 min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
       {draftMottaker.length > 0 && (
         <>
           {skille(true)}
