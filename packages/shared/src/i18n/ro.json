@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Ce este asta?",
   "hjelp.firmaDetalj.hva": "Pagina cu detalii despre companie pentru administratorii SiteDoc. Proiecte, utilizatori, module, facturare și setări pentru o singură companie.",
   "admin.testsider.opprettMalprosjekt": "Creați un proiect șablon",
-  "admin.testsider.velgFirmaHint": "Selectați o companie din meniul de sus pentru a crea un proiect șablon"
+  "admin.testsider.velgFirmaHint": "Selectați o companie din meniul de sus pentru a crea un proiect șablon",
+  "ansvarsmerke.registrerer": "Registrele",
+  "ansvarsmerke.utforerArbeid": "Efectuează munca",
+  "ansvarsmerke.kontrollererAvvik": "Analizează abaterile",
+  "ansvarsmerke.godkjennerOkonomi": "Aproba costurile",
+  "ansvarsmerke.kontrollererHms": "Recenzii HSE",
+  "ansvarsmerke.orienteres": "Informat",
+  "ansvarsmerke.kontrollerer": "Recenzii",
+  "ansvarsmerke.utforer": "Realizează",
+  "flyt.godkjennOgFullfor": "Aprobați și completați",
+  "flyt.duHarBallen": "Ai mingea",
+  "flyt.sendTil": "Trimite la {{navn}}"
 }

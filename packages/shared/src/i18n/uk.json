@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Що це?",
   "hjelp.firmaDetalj.hva": "Сторінка інформації про компанію для адміністраторів SiteDoc. Проекти, користувачі, модулі, білінг та налаштування для однієї компанії.",
   "admin.testsider.opprettMalprosjekt": "Створення шаблону проекту",
-  "admin.testsider.velgFirmaHint": "Виберіть компанію у верхньому меню, щоб створити шаблон проекту"
+  "admin.testsider.velgFirmaHint": "Виберіть компанію у верхньому меню, щоб створити шаблон проекту",
+  "ansvarsmerke.registrerer": "Реєстри",
+  "ansvarsmerke.utforerArbeid": "Виконує роботу",
+  "ansvarsmerke.kontrollererAvvik": "Огляди відхилень",
+  "ansvarsmerke.godkjennerOkonomi": "Затверджує витрати",
+  "ansvarsmerke.kontrollererHms": "Відгуки про HSE",
+  "ansvarsmerke.orienteres": "Інформований",
+  "ansvarsmerke.kontrollerer": "Відгуки",
+  "ansvarsmerke.utforer": "Виконує",
+  "flyt.godkjennOgFullfor": "Затвердити та завершити",
+  "flyt.duHarBallen": "У вас є м'яч",
+  "flyt.sendTil": "Надіслати до {{navn}}"
 }

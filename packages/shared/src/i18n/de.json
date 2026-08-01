@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Was ist das?",
   "hjelp.firmaDetalj.hva": "Firmendetailseite für SiteDoc-Administratoren. Projekte, Benutzer, Module, Abrechnung und Einstellungen für ein Unternehmen.",
   "admin.testsider.opprettMalprosjekt": "Vorlagenprojekt erstellen",
-  "admin.testsider.velgFirmaHint": "Wählen Sie im oberen Menü ein Unternehmen aus, um ein Vorlagenprojekt zu erstellen"
+  "admin.testsider.velgFirmaHint": "Wählen Sie im oberen Menü ein Unternehmen aus, um ein Vorlagenprojekt zu erstellen",
+  "ansvarsmerke.registrerer": "Registriert",
+  "ansvarsmerke.utforerArbeid": "Führt Arbeit aus",
+  "ansvarsmerke.kontrollererAvvik": "Überprüft Abweichungen",
+  "ansvarsmerke.godkjennerOkonomi": "Genehmigt Kosten",
+  "ansvarsmerke.kontrollererHms": "Bewertungen HSE",
+  "ansvarsmerke.orienteres": "Informiert",
+  "ansvarsmerke.kontrollerer": "Rezensionen",
+  "ansvarsmerke.utforer": "Führt durch",
+  "flyt.godkjennOgFullfor": "Genehmigen und abschließen",
+  "flyt.duHarBallen": "Du hast den Ball",
+  "flyt.sendTil": "Senden an {{navn}}"
 }

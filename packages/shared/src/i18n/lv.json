@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Kas tas ir?",
   "hjelp.firmaDetalj.hva": "Uzņēmuma informācijas lapa SiteDoc administratoriem. Projekti, lietotāji, moduļi, norēķini un iestatījumi vienam uzņēmumam.",
   "admin.testsider.opprettMalprosjekt": "Izveidojiet veidnes projektu",
-  "admin.testsider.velgFirmaHint": "Augšējā izvēlnē atlasiet uzņēmumu, lai izveidotu veidnes projektu"
+  "admin.testsider.velgFirmaHint": "Augšējā izvēlnē atlasiet uzņēmumu, lai izveidotu veidnes projektu",
+  "ansvarsmerke.registrerer": "Reģistri",
+  "ansvarsmerke.utforerArbeid": "Veic darbu",
+  "ansvarsmerke.kontrollererAvvik": "Atsauksmes par novirzēm",
+  "ansvarsmerke.godkjennerOkonomi": "Apstiprina izmaksas",
+  "ansvarsmerke.kontrollererHms": "Atsauksmes HSE",
+  "ansvarsmerke.orienteres": "Informēts",
+  "ansvarsmerke.kontrollerer": "Atsauksmes",
+  "ansvarsmerke.utforer": "Uzstājas",
+  "flyt.godkjennOgFullfor": "Apstipriniet un aizpildiet",
+  "flyt.duHarBallen": "Jums ir bumba",
+  "flyt.sendTil": "Sūtīt uz {{navn}}"
 }

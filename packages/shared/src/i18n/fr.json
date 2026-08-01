@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Qu'est-ce que c'est?",
   "hjelp.firmaDetalj.hva": "Page de détails de l'entreprise pour les administrateurs SiteDoc. Projets, utilisateurs, modules, facturation et paramètres pour une entreprise.",
   "admin.testsider.opprettMalprosjekt": "Créer un projet modèle",
-  "admin.testsider.velgFirmaHint": "Sélectionnez une entreprise dans le menu supérieur pour créer un modèle de projet"
+  "admin.testsider.velgFirmaHint": "Sélectionnez une entreprise dans le menu supérieur pour créer un modèle de projet",
+  "ansvarsmerke.registrerer": "Registres",
+  "ansvarsmerke.utforerArbeid": "Effectue un travail",
+  "ansvarsmerke.kontrollererAvvik": "Examine les écarts",
+  "ansvarsmerke.godkjennerOkonomi": "Approuve les coûts",
+  "ansvarsmerke.kontrollererHms": "Avis HSE",
+  "ansvarsmerke.orienteres": "Informée",
+  "ansvarsmerke.kontrollerer": "Avis",
+  "ansvarsmerke.utforer": "Effectue",
+  "flyt.godkjennOgFullfor": "Approuver et compléter",
+  "flyt.duHarBallen": "Tu as le ballon",
+  "flyt.sendTil": "Envoyer à {{navn}}"
 }

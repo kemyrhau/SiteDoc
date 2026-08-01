@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Co to jest?",
   "hjelp.firmaDetalj.hva": "Strona zawierająca szczegółowe informacje o firmie dla administratorów SiteDoc. Projekty, użytkownicy, moduły, rozliczenia i ustawienia dla jednej firmy.",
   "admin.testsider.opprettMalprosjekt": "Utwórz projekt szablonowy",
-  "admin.testsider.velgFirmaHint": "Wybierz firmę w górnym menu, aby utworzyć projekt szablonowy"
+  "admin.testsider.velgFirmaHint": "Wybierz firmę w górnym menu, aby utworzyć projekt szablonowy",
+  "ansvarsmerke.registrerer": "Rejestry",
+  "ansvarsmerke.utforerArbeid": "Wykonuje pracę",
+  "ansvarsmerke.kontrollererAvvik": "Recenzje odchyleń",
+  "ansvarsmerke.godkjennerOkonomi": "Zatwierdza koszty",
+  "ansvarsmerke.kontrollererHms": "Recenzje BHP",
+  "ansvarsmerke.orienteres": "Powiadomiony",
+  "ansvarsmerke.kontrollerer": "Recenzje",
+  "ansvarsmerke.utforer": "Wykonuje",
+  "flyt.godkjennOgFullfor": "Zatwierdź i uzupełnij",
+  "flyt.duHarBallen": "Masz piłkę",
+  "flyt.sendTil": "Wyślij do {{navn}}"
 }

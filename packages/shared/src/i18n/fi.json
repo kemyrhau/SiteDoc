@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Mikä tämä on?",
   "hjelp.firmaDetalj.hva": "Yrityksen tietosivu SiteDoc-järjestelmänvalvojille. Projektit, käyttäjät, moduulit, laskutus ja asetukset yhdelle yritykselle.",
   "admin.testsider.opprettMalprosjekt": "Luo malliprojekti",
-  "admin.testsider.velgFirmaHint": "Valitse yritys ylävalikosta luodaksesi malliprojektin"
+  "admin.testsider.velgFirmaHint": "Valitse yritys ylävalikosta luodaksesi malliprojektin",
+  "ansvarsmerke.registrerer": "Rekisterit",
+  "ansvarsmerke.utforerArbeid": "Suorittaa työtä",
+  "ansvarsmerke.kontrollererAvvik": "Arvostelut poikkeamat",
+  "ansvarsmerke.godkjennerOkonomi": "Hyväksyy kustannukset",
+  "ansvarsmerke.kontrollererHms": "Arvostelut HSE",
+  "ansvarsmerke.orienteres": "Tietoinen",
+  "ansvarsmerke.kontrollerer": "Arvostelut",
+  "ansvarsmerke.utforer": "Suorittaa",
+  "flyt.godkjennOgFullfor": "Hyväksy ja täytä",
+  "flyt.duHarBallen": "Sinulla on pallo",
+  "flyt.sendTil": "Lähetä osoitteeseen {{navn}}"
 }

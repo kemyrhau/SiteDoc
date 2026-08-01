@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Что это?",
   "hjelp.firmaDetalj.hva": "Страница сведений о компании для администраторов SiteDoc. Проекты, пользователи, модули, биллинг и настройки для одной компании.",
   "admin.testsider.opprettMalprosjekt": "Создать шаблон проекта",
-  "admin.testsider.velgFirmaHint": "Выберите компанию в верхнем меню, чтобы создать шаблон проекта."
+  "admin.testsider.velgFirmaHint": "Выберите компанию в верхнем меню, чтобы создать шаблон проекта.",
+  "ansvarsmerke.registrerer": "Регистры",
+  "ansvarsmerke.utforerArbeid": "Выполняет работу",
+  "ansvarsmerke.kontrollererAvvik": "Отклонения отзывов",
+  "ansvarsmerke.godkjennerOkonomi": "Утверждает расходы",
+  "ansvarsmerke.kontrollererHms": "Отзывы НИУ ВШЭ",
+  "ansvarsmerke.orienteres": "Информированный",
+  "ansvarsmerke.kontrollerer": "Отзывы",
+  "ansvarsmerke.utforer": "Выполняет",
+  "flyt.godkjennOgFullfor": "Утвердить и завершить",
+  "flyt.duHarBallen": "У тебя есть мяч",
+  "flyt.sendTil": "Отправить на {{navn}}"
 }

@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Mis see on?",
   "hjelp.firmaDetalj.hva": "Ettevõtte üksikasjade leht SiteDoci administraatoritele. Ühe ettevõtte projektid, kasutajad, moodulid, arveldamine ja seaded.",
   "admin.testsider.opprettMalprosjekt": "Loo malliprojekt",
-  "admin.testsider.velgFirmaHint": "Mallprojekti loomiseks valige ülemisest menüüst ettevõte"
+  "admin.testsider.velgFirmaHint": "Mallprojekti loomiseks valige ülemisest menüüst ettevõte",
+  "ansvarsmerke.registrerer": "Registrid",
+  "ansvarsmerke.utforerArbeid": "Teostab tööd",
+  "ansvarsmerke.kontrollererAvvik": "Arvustused kõrvalekalded",
+  "ansvarsmerke.godkjennerOkonomi": "Kinnitab kulud",
+  "ansvarsmerke.kontrollererHms": "Arvustused HSE",
+  "ansvarsmerke.orienteres": "Informeeritud",
+  "ansvarsmerke.kontrollerer": "Arvustused",
+  "ansvarsmerke.utforer": "Esineb",
+  "flyt.godkjennOgFullfor": "Kinnitage ja täitke",
+  "flyt.duHarBallen": "Sul on pall",
+  "flyt.sendTil": "Saada aadressile {{navn}}"
 }

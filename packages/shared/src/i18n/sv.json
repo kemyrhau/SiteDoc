@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Vad är det här?",
   "hjelp.firmaDetalj.hva": "Företagsdetaljsida för SiteDoc-administratörer. Projekt, användare, moduler, fakturering och inställningar för ett företag.",
   "admin.testsider.opprettMalprosjekt": "Skapa mallprojekt",
-  "admin.testsider.velgFirmaHint": "Välj ett företag i toppmenyn för att skapa ett mallprojekt"
+  "admin.testsider.velgFirmaHint": "Välj ett företag i toppmenyn för att skapa ett mallprojekt",
+  "ansvarsmerke.registrerer": "Register",
+  "ansvarsmerke.utforerArbeid": "Utför arbete",
+  "ansvarsmerke.kontrollererAvvik": "Recensioner avvikelser",
+  "ansvarsmerke.godkjennerOkonomi": "Godkänner kostnader",
+  "ansvarsmerke.kontrollererHms": "Recensioner HSE",
+  "ansvarsmerke.orienteres": "Informerad",
+  "ansvarsmerke.kontrollerer": "Recensioner",
+  "ansvarsmerke.utforer": "Uppträder",
+  "flyt.godkjennOgFullfor": "Godkänn och komplettera",
+  "flyt.duHarBallen": "Du har bollen",
+  "flyt.sendTil": "Skicka till {{namn}}"
 }

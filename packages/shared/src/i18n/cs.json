@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "co to je?",
   "hjelp.firmaDetalj.hva": "Stránka s podrobnostmi o společnosti pro administrátory SiteDoc. Projekty, uživatelé, moduly, fakturace a nastavení pro jednu společnost.",
   "admin.testsider.opprettMalprosjekt": "Vytvořte projekt šablony",
-  "admin.testsider.velgFirmaHint": "Chcete-li vytvořit projekt šablony, vyberte v horní nabídce společnost"
+  "admin.testsider.velgFirmaHint": "Chcete-li vytvořit projekt šablony, vyberte v horní nabídce společnost",
+  "ansvarsmerke.registrerer": "Registry",
+  "ansvarsmerke.utforerArbeid": "Provádí práci",
+  "ansvarsmerke.kontrollererAvvik": "Recenze odchylek",
+  "ansvarsmerke.godkjennerOkonomi": "Schvaluje náklady",
+  "ansvarsmerke.kontrollererHms": "Recenze HSE",
+  "ansvarsmerke.orienteres": "Informovaný",
+  "ansvarsmerke.kontrollerer": "Recenze",
+  "ansvarsmerke.utforer": "Vystupuje",
+  "flyt.godkjennOgFullfor": "Schválit a dokončit",
+  "flyt.duHarBallen": "Máš míč",
+  "flyt.sendTil": "Odeslat na {{navn}}"
 }

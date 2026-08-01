@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Çfarë është kjo?",
   "hjelp.firmaDetalj.hva": "Faqja e detajeve të kompanisë për administratorët e SiteDoc. Projektet, përdoruesit, modulet, faturimi dhe cilësimet për një kompani.",
   "admin.testsider.opprettMalprosjekt": "Krijo projekt shabllon",
-  "admin.testsider.velgFirmaHint": "Zgjidhni një kompani në menunë e sipërme për të krijuar një projekt shabllon"
+  "admin.testsider.velgFirmaHint": "Zgjidhni një kompani në menunë e sipërme për të krijuar një projekt shabllon",
+  "ansvarsmerke.registrerer": "Regjistrat",
+  "ansvarsmerke.utforerArbeid": "Kryen punë",
+  "ansvarsmerke.kontrollererAvvik": "Shqyrton devijimet",
+  "ansvarsmerke.godkjennerOkonomi": "Miraton kostot",
+  "ansvarsmerke.kontrollererHms": "Shqyrtime HSE",
+  "ansvarsmerke.orienteres": "I informuar",
+  "ansvarsmerke.kontrollerer": "Vlerësime",
+  "ansvarsmerke.utforer": "Kryen",
+  "flyt.godkjennOgFullfor": "Mirato dhe plotëso",
+  "flyt.duHarBallen": "Ju keni topin",
+  "flyt.sendTil": "Dërgo te {{navn}}"
 }

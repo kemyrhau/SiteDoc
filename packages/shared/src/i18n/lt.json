@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Kas tai yra?",
   "hjelp.firmaDetalj.hva": "Išsamios įmonės informacijos puslapis, skirtas SiteDoc administratoriams. Projektai, vartotojai, moduliai, atsiskaitymas ir nustatymai vienai įmonei.",
   "admin.testsider.opprettMalprosjekt": "Sukurti šabloninį projektą",
-  "admin.testsider.velgFirmaHint": "Norėdami sukurti šabloninį projektą, viršutiniame meniu pasirinkite įmonę"
+  "admin.testsider.velgFirmaHint": "Norėdami sukurti šabloninį projektą, viršutiniame meniu pasirinkite įmonę",
+  "ansvarsmerke.registrerer": "Registrai",
+  "ansvarsmerke.utforerArbeid": "Atlieka darbus",
+  "ansvarsmerke.kontrollererAvvik": "Atsiliepimai apie nukrypimus",
+  "ansvarsmerke.godkjennerOkonomi": "Patvirtina išlaidas",
+  "ansvarsmerke.kontrollererHms": "Atsiliepimai HSE",
+  "ansvarsmerke.orienteres": "Informuotas",
+  "ansvarsmerke.kontrollerer": "Atsiliepimai",
+  "ansvarsmerke.utforer": "Atlieka",
+  "flyt.godkjennOgFullfor": "Patvirtinti ir užpildyti",
+  "flyt.duHarBallen": "Tu turi kamuolį",
+  "flyt.sendTil": "Siųsti į {{navn}}"
 }
