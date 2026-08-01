@@ -10,6 +10,7 @@ import {
   verifiserFaggruppeTilhorighet,
   verifiserDokumentTilgang,
   verifiserRetningsrett,
+  byggFlytBruker,
   verifiserProsjektmedlem,
   verifiserHmsHandling,
   hentBrukerTillatelser,
@@ -1294,12 +1295,16 @@ export const oppgaveRouter = router({
 
       // F3.3: POSISJON-basert ruting (Tolkning A). Send→nesteLedd (forover), Besvar→
       // forrigeBallLedd (retur bakover). Erstatter senderId/klient-input-hardkodingen.
+      // § 2.4: draft-overgang (gjenåpne/trekk-tilbake) trenger handleren for gjenapnePosisjon.
+      const aapner = input.nyStatus === "draft" ? await byggFlytBruker(ctx.userId, projectId) : null;
       const ruting = beregnRuting({
         nyStatus: input.nyStatus,
         effektivStatus,
         medlemmer: flytMedlemmer,
         naaPos: oppgave.aktivPosisjon,
         bestillerUserId: oppgave.bestillerUserId,
+        fraStatus: oppgave.status,
+        aapner,
       });
       const nyMottaker = ruting.mottaker; // null = behold gjeldende (E2/E3 no-op, terminal, E5)
 

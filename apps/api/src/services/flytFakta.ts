@@ -14,9 +14,11 @@ import {
   avledStatus,
   nesteLedd,
   forrigeBallLedd,
+  gjenapnePosisjon,
   utledMottakerForPosisjon,
   type FlytPosisjonLedd,
   type RaFlytMedlem,
+  type FlytBruker,
   type Mottaker,
   type DocumentStatus,
 } from "@sitedoc/shared";
@@ -140,7 +142,9 @@ export interface RutingResultat {
  * F3.3: POSISJON-basert ruting (Tolkning A, fabel-bindende).
  *   send      → nesteLedd (forover); siste ledd (null) = no-op-flytt (Godkjenn er egen handling, E2)
  *   responded → forrigeBallLedd (retur bakover til kontroll); første ledd (null) = no-op (E3)
- *   terminal/draft → ingen posisjon-/mottaker-endring (aktivPosisjon = der handlingen skjer)
+ *   draft     → gjenapnePosisjon (§ 2.4, fabel alt. A): gjenåpne/trekk-tilbake lander på handlerens
+ *               EGET ledд (krever `aapner`). Trekk-tilbake (fra received) = retning tilbake.
+ *   terminal/forwarded → ingen posisjon-/mottaker-endring (aktivPosisjon = der handlingen skjer)
  * Mottaker utledes av delt utledMottakerForPosisjon (E1 null-medlem→bestiller, E5 fallback).
  * Erstatter senderId/erHovedansvarlig/bestillerUserId-hardkodingen. Status avledes.
  */
@@ -150,6 +154,10 @@ export function beregnRuting(input: {
   medlemmer: RaFlytMedlem[];
   naaPos: number | null;
   bestillerUserId: string | null;
+  /** Fra-status: skiller trekk-tilbake (received→draft) fra gjenåpne (terminal→draft). */
+  fraStatus?: string;
+  /** Handleren (for §2.4 gjenåpne-landing). Kun nødvendig ved draft-overgang. */
+  aapner?: FlytBruker | null;
 }): RutingResultat {
   const ledd = byggPosisjonsLedd(input.medlemmer);
   const fra = input.naaPos ?? 0;
@@ -173,8 +181,21 @@ export function beregnRuting(input: {
     }
     // E3: nyPos null (første ledd) → behold posisjon + mottaker.
     retning = "tilbake";
+  } else if (input.nyStatus === "draft" && input.aapner) {
+    // § 2.4 (fabel alt. A): gjenåpne (terminal→draft) OG trekk-tilbake (received→draft) lander på
+    // handlerens EGET ledд via gjenapnePosisjon (regel 1 åpnerens ledд → 2 nærmeste medlemsledд →
+    // 3 admin utenfor flyten = samme boks). Erstatter «behold naaPos»-fall-throughen som lot et
+    // gjenåpnet dok beholde terminal-posisjonen (systematisk aktivPosisjon-bug, live-funnet 01.08).
+    const nyPos = gjenapnePosisjon({ ledd, aktivPosisjon: input.naaPos, aapner: input.aapner });
+    if (nyPos !== null) {
+      aktivPosisjon = nyPos;
+      mottaker = utledMottakerForPosisjon(input.medlemmer, nyPos, input.bestillerUserId);
+    }
+    // Trekk-tilbake (fra received) = avsenderen henter tilbake → retning tilbake. Gjenåpne (fra
+    // terminal) = ny start hos handleren → frem.
+    retning = input.fraStatus === "received" ? "tilbake" : "frem";
   }
-  // terminal (approved/dismissed/closed/cancelled) + draft/forwarded: ingen posisjon-/mottaker-endring her.
+  // terminal (approved/dismissed/closed/cancelled) + forwarded: ingen posisjon-/mottaker-endring her.
 
   const terminal = terminalFraStatus(input.effektivStatus);
   const sendt = input.effektivStatus !== "draft";

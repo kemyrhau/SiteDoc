@@ -832,6 +832,28 @@ export async function verifiserFlytRolle(
  * Erstatter 1b B-gaten: HMS ruter nå via posisjon, så null-medlem-bestillerboksen er ikke
  * lenger et autorisasjonsproblem (bestillerUserId bærer Ledd 1 via E1).
  */
+/**
+ * Bygg `FlytBruker` for en handlende bruker (§ 2.4 gjenåpne-landing i beregnRuting).
+ * `erAdmin` dekker sitedoc_admin + prosjektadmin (samme bypass som verifiserRetningsrett).
+ * Kalles kun ved draft-overgang (gjenåpne/trekk-tilbake) — ikke hot-path.
+ */
+export async function byggFlytBruker(userId: string, projectId: string): Promise<FlytBruker> {
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    include: {
+      faggruppeKoblinger: { select: { faggruppeId: true } },
+      groupMemberships: { select: { groupId: true } },
+    },
+  });
+  return {
+    userId,
+    gruppeIder: medlem?.groupMemberships.map((gm) => gm.groupId) ?? [],
+    faggruppeIder: medlem?.faggruppeKoblinger.map((e) => e.faggruppeId) ?? [],
+    erAdmin: bruker?.role === "sitedoc_admin" || medlem?.role === "admin",
+  };
+}
+
 export async function verifiserRetningsrett(
   userId: string,
   projectId: string,
