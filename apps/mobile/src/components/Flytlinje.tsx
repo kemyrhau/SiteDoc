@@ -221,7 +221,9 @@ function FlytSheet({
                   {/* Innhold */}
                   <View className={`flex-1 ${i < ledd.length - 1 ? "pb-4" : ""}`}>
                     <View className="flex-row flex-wrap items-center gap-1.5">
-                      <Text className="text-sm font-semibold text-gray-900">{l.navn}</Text>
+                      <Text className="text-sm font-semibold text-gray-900">
+                        {l.posisjon}. {l.navn}
+                      </Text>
                       {erAktiv && harBallen && (
                         <View className="rounded-full bg-green-100 px-2 py-0.5">
                           <Text className="text-[10px] font-bold uppercase tracking-wide text-green-700">
@@ -230,6 +232,8 @@ function FlytSheet({
                         </View>
                       )}
                     </View>
+                    {/* Fabel steg 4: ansvarsmerke bor i flyt-sheeten (§ 2.6). */}
+                    <Text className="text-[11px] text-gray-500">{t(l.ansvarsmerkeKey)}</Text>
 
                     {l.medlemmer.map((m) => {
                       const navn =

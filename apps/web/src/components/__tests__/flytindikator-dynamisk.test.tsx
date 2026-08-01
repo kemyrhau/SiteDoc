@@ -143,13 +143,15 @@ describe("FlytIndikator rendrer dynamisk antall bokser", () => {
     expect(tekst).not.toContain("Gamma");
   });
 
-  it("4-ledds flyt viser alle 4 bokser + ansvarsmerke-etikett (ikke rollenavn)", () => {
+  it("4-ledds flyt viser alle 4 bokser (nummer + hvem, ikke rollenavn/ansvarsmerke i kompakt)", () => {
     const { container } = wrap(<FlytIndikator medlemmer={fireLedds} aktivPosisjon={4} visUtveier />);
     const tekst = container.textContent ?? "";
     for (const navn of ["Alfa", "Beta", "Gamma", "Delta"]) {
       expect(tekst).toContain(navn);
     }
-    expect(tekst).toContain(T["ansvarsmerke.godkjennerOkonomi"]);
+    // Fabel steg 4: kompakt header = nummer + hvem; ansvarsmerke bor i sheet/«Du har ballen», ikke her.
+    expect(tekst).not.toContain(T["ansvarsmerke.godkjennerOkonomi"]!);
+    expect(tekst).not.toContain(T["dokumentflyt.godkjenner"]!); // heller ikke rollenavnet
   });
 
   it("8-ledд kollapser i headeren (aktiv ± 1 + «+N»-pille), ikke 8 bokser på rad", () => {
