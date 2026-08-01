@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} required fields remaining",
   "handling.lagreOgLukk": "Save and go back",
   "flytlinje.duHarBallen": "It's your turn",
+  "flytlinje.duHarBallenMerke": "It's your turn — {{merke}}",
   "flytlinje.venterPaa": "Waiting for {{ledd}}",
   "flytlinje.flytTittel": "Document flow",
   "flytlinje.dinTur": "Your turn",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Performs",
   "flyt.godkjennOgFullfor": "Approve and complete",
   "flyt.duHarBallen": "You have the ball",
+  "flyt.duHarBallenMerke": "You have the ball — {{merke}}",
   "flyt.sendTil": "Send to {{navn}}"
 }

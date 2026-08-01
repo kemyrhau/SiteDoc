@@ -125,7 +125,10 @@ export function Flytlinje({
             <>
               <View className="h-1.5 w-1.5 rounded-full bg-green-400" />
               <Text className="text-[10px] font-medium text-green-300">
-                {t("flytlinje.duHarBallen")}
+                {/* Fabel steg 4: ballholder ser ansvarsmerket sitt uten å åpne flyt-sheeten. */}
+                {aktivtIndex >= 0 && ledd[aktivtIndex]?.ansvarsmerkeKey
+                  ? t("flytlinje.duHarBallenMerke", { merke: t(ledd[aktivtIndex].ansvarsmerkeKey) })
+                  : t("flytlinje.duHarBallen")}
               </Text>
             </>
           ) : aktivtNavn ? (

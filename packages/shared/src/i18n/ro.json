@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "Au rămas {{count}} câmpuri obligatorii",
   "handling.lagreOgLukk": "Salvați și întoarceți-vă",
   "flytlinje.duHarBallen": "E rândul tău",
+  "flytlinje.duHarBallenMerke": "E rândul tău — {{merke}}",
   "flytlinje.venterPaa": "În așteptarea lui {{ledd}}",
   "flytlinje.flytTittel": "Fluxul documentelor",
   "flytlinje.dinTur": "Rândul tău",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Realizează",
   "flyt.godkjennOgFullfor": "Aprobați și completați",
   "flyt.duHarBallen": "Ai mingea",
+  "flyt.duHarBallenMerke": "Ai mingea — {{merke}}",
   "flyt.sendTil": "Trimite la {{navn}}"
 }

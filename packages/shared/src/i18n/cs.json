@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "Zbývající povinná pole: {{count}}",
   "handling.lagreOgLukk": "Uložit a vrátit se",
   "flytlinje.duHarBallen": "Jste na řadě",
+  "flytlinje.duHarBallenMerke": "Jsi na řadě — {{merke}}",
   "flytlinje.venterPaa": "Čekání na {{ledd}}",
   "flytlinje.flytTittel": "Tok dokumentů",
   "flytlinje.dinTur": "Jste na řadě",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Vystupuje",
   "flyt.godkjennOgFullfor": "Schválit a dokončit",
   "flyt.duHarBallen": "Máš míč",
+  "flyt.duHarBallenMerke": "Máš míč — {{merke}}",
   "flyt.sendTil": "Odeslat na {{navn}}"
 }

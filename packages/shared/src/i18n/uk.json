@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "Залишилося {{count}} обов’язкових полів",
   "handling.lagreOgLukk": "Збережіть і поверніться",
   "flytlinje.duHarBallen": "Ваша черга",
+  "flytlinje.duHarBallenMerke": "Ваша черга — {{merke}}",
   "flytlinje.venterPaa": "Чекаю на {{ledd}}",
   "flytlinje.flytTittel": "Документообіг",
   "flytlinje.dinTur": "Ваша черга",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Виконує",
   "flyt.godkjennOgFullfor": "Затвердити та завершити",
   "flyt.duHarBallen": "У вас є м'яч",
+  "flyt.duHarBallenMerke": "У вас м’яч — {{merke}}",
   "flyt.sendTil": "Надіслати до {{navn}}"
 }

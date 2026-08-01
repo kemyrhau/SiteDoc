@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "{{count}} påkrevde felt gjenstår",
   "handling.lagreOgLukk": "Lagre og gå tilbake",
   "flytlinje.duHarBallen": "Du har ballen",
+  "flytlinje.duHarBallenMerke": "Du har ballen — {{merke}}",
   "flytlinje.venterPaa": "Venter på {{ledd}}",
   "flytlinje.flytTittel": "Dokumentflyt",
   "flytlinje.dinTur": "Din tur",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Utfører",
   "flyt.godkjennOgFullfor": "Godkjenn og fullfør",
   "flyt.duHarBallen": "Du har ballen",
+  "flyt.duHarBallenMerke": "Du har ballen — {{merke}}",
   "flyt.sendTil": "Send til {{navn}}"
 }

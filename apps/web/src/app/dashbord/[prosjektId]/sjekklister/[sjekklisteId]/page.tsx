@@ -609,6 +609,7 @@ export default function SjekklisteDetaljSide() {
               <FlytIndikator
                 medlemmer={flytMedlemmer}
                 aktivPosisjon={aktivPosisjon}
+                harBallen={harBallen}
                 visUtveier
               />
             </div>
@@ -616,6 +617,7 @@ export default function SjekklisteDetaljSide() {
               <FlytIndikator
                 medlemmer={flytMedlemmer}
                 aktivPosisjon={aktivPosisjon}
+                harBallen={harBallen}
                 kompakt
                 visUtveier
               />

@@ -2094,6 +2094,7 @@
   "dokument.paakrevdeFeltGjenstaar_other": "Осталось {{count}} обязательных полей",
   "handling.lagreOgLukk": "Сохранить и вернуться",
   "flytlinje.duHarBallen": "Это твоя очередь",
+  "flytlinje.duHarBallenMerke": "Твоя очередь — {{merke}}",
   "flytlinje.venterPaa": "Ожидание {{ledd}}",
   "flytlinje.flytTittel": "Документооборот",
   "flytlinje.dinTur": "Ваша очередь",
@@ -3284,5 +3285,6 @@
   "ansvarsmerke.utforer": "Выполняет",
   "flyt.godkjennOgFullfor": "Утвердить и завершить",
   "flyt.duHarBallen": "У тебя есть мяч",
+  "flyt.duHarBallenMerke": "У тебя есть мяч — {{merke}}",
   "flyt.sendTil": "Отправить на {{navn}}"
 }
