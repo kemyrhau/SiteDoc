@@ -18,6 +18,35 @@ import type { DocumentStatus } from "../types";
 export type LeddKlassifisering = "kontroll" | "utfor" | "orienteres";
 
 /**
+ * Default ansvarsmerke-i18n-nøkkel per ledд (§ 2.6 + fabel-ordliste 2026-08-01, bindende).
+ *
+ * Ansvarsmerket er ren VISNING; `klassifisering` styrer ALLTID rettighetene. Merket AVLEDES
+ * fra rolle+klassifisering (ikke lagret) — «alt som kan utledes skal utledes». Et fremtidig
+ * flytoppsett-UI kan lagre et egendefinert fritekst-merke som overstyrer denne default-en.
+ * Rammeverk-fri: returnerer en i18n-NØKKEL; konsumenten kaller `t(nøkkel)`.
+ *
+ * Ordliste (verb-først, ≤22 tegn): kontroll=«Kontrollerer avvik»(bestiller)/«Godkjenner
+ * økonomi»(godkjenner)/«Kontrollerer HMS»(HMS-gruppe); utfør=«Utfører arbeid»(utforer)/
+ * «Registrerer»(registrator); orienteres=«Orienteres».
+ */
+export function ansvarsmerkeKey(rolle: string, klassifisering: string | null): string {
+  if (klassifisering === "orienteres") return "ansvarsmerke.orienteres";
+  switch (rolle) {
+    case "registrator":
+      return "ansvarsmerke.registrerer";
+    case "utforer":
+      return "ansvarsmerke.utforerArbeid";
+    case "bestiller":
+      return "ansvarsmerke.kontrollererAvvik";
+    case "godkjenner":
+      return "ansvarsmerke.godkjennerOkonomi";
+    default:
+      // Ukjent/gruppe-bundet rolle: fall tilbake på klassifiserings-generisk merke.
+      return klassifisering === "kontroll" ? "ansvarsmerke.kontrollerer" : "ansvarsmerke.utforer";
+  }
+}
+
+/**
  * Ett ledd i flyten, slik den delte utledningen ser det. Utledes fra DokumentflytMedlem
  * gruppert på `steg` (= posisjon). Bærer alt funksjonene trenger — rutings-felt
  * (klassifisering/kanTerminereUtenBall) OG medlemskap (for posisjon-matching/har-ballen).

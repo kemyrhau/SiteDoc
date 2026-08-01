@@ -18,8 +18,8 @@ import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { utledMinRolle, beregnHarBallen, perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
-import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
+import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
@@ -119,70 +119,14 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.sjekklisteId },
   );
 
-  // harBallen
-  const harBallen = useMemo(() => {
-    if (!fullSjekklisteRå || !minFlytInfo) return false;
-    const fs = fullSjekklisteRå as HarBallenDokument;
-    return beregnHarBallen(fs, { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder });
-  }, [fullSjekklisteRå, minFlytInfo]);
-
-  // Utled brukerens rolle i dokumentflyten
-  const minRolle = useMemo(() => {
-    if (!minFlytInfo || !fullSjekklisteRå) return undefined;
-    const sj = fullSjekklisteRå as unknown as { dokumentflytId?: string | null; bestillerFaggruppe?: { id: string }; utforerFaggruppe?: { id: string } };
-    if (!sj.dokumentflytId) return undefined;
-    const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
-    if (!flyt) return null;
-    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
-      rolle: m.rolle,
-      faggruppeId: m.faggruppeId ?? null,
-      projectMemberId: m.projectMemberId ?? null,
-      groupId: m.groupId ?? null,
-    }));
-    return utledMinRolle(
-      // Kloss 2: rolle-utledning følger adminNiva (firma-admin = adminNiva:null → vanlig
-      // rolle/lesevisning, ikke lenger implisitt "registrator"). sitedoc/prosjekt → admin.
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.adminNiva !== null },
-      medlemmer,
-      { bestillerFaggruppeId: sj.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: sj.utforerFaggruppe?.id ?? "" },
-    );
-  }, [minFlytInfo, fullSjekklisteRå, dokumentflyter]);
-
-  // Bygg rettighetInput for skjema-hook
-  // Utled flytRettighet fra DokumentflytMedlem.kanRedigere
-  const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
-    if (!minFlytInfo || !fullSjekklisteRå || !dokumentflyterRå) return undefined;
-    const sj = fullSjekklisteRå as unknown as { dokumentflytId?: string | null };
-    if (!sj.dokumentflytId) return undefined;
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        kanRedigere: boolean;
-        faggruppeId?: string | null;
-        projectMemberId?: string | null;
-        groupId?: string | null;
-      }>;
-    }>;
-    const flyt = rå.find((df) => df.id === sj.dokumentflytId);
-    if (!flyt) return undefined;
-    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[] };
-    for (const m of flyt.medlemmer) {
-      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
-      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
-    }
-    return undefined;
-  }, [minFlytInfo, fullSjekklisteRå, dokumentflyterRå]);
-
-  const rettighetInput = useMemo(() => {
-    if (!minFlytInfo) return undefined;
-    return {
-      erAdmin: minFlytInfo.erAdmin,
-      minRolle,
-      tillatelser: mineTillatelser,
-      harBallen,
-      flytRettighet,
-    };
-  }, [minFlytInfo, minRolle, mineTillatelser, harBallen, flytRettighet]);
+  // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
+  // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
+  const { harBallen, minRolle, flytRettighet, flytMedlemmer, aktivPosisjon, rettighetInput } = useFlytKontekst({
+    fullDokRå: fullSjekklisteRå,
+    dokumentflyterRå,
+    minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
+    mineTillatelser,
+  });
 
   // --- Skjema-hook med rettighetsinfo ---
 
@@ -240,7 +184,9 @@ export default function SjekklisteDetaljSide() {
       utils.sjekkliste.hentForProsjekt.invalidate();
       utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
     },
-    onError: (error) => {
+    // TS2589-avlastning: eksplisitt grunn-type på error unngår instansiering av den dype
+    // tRPC-feiltypen (denne fila ligger på TS' instansierings-tak).
+    onError: (error: { message?: string }) => {
       setStatusFeil(error.message ?? "Kunne ikke endre status. Prøv igjen.");
     },
   });
@@ -298,25 +244,6 @@ export default function SjekklisteDetaljSide() {
     [params.sjekklisteId, hmsTilfoyMutasjon, hmsBesvarMutasjon, hmsLukkMutasjon, hmsGjenapneMutasjon],
   );
 
-  // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
-  const flytMedlemmer = useMemo(() => {
-    const sj = sjekkliste as unknown as { dokumentflytId?: string | null };
-    if (!sj?.dokumentflytId || !dokumentflyterRå) return [];
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        id: string;
-        rolle: string;
-        steg: number;
-        faggruppe: { id: string; name: string } | null;
-        projectMember: { user: { id: string; name: string | null } } | null;
-        group: { id: string; name: string } | null;
-      }>;
-    }>;
-    const flyt = rå.find((df) => df.id === sj.dokumentflytId);
-    if (!flyt) return [];
-    return flyt.medlemmer;
-  }, [sjekkliste, dokumentflyterRå]);
 
   // Hent prosjektdata for print-header
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
@@ -681,20 +608,14 @@ export default function SjekklisteDetaljSide() {
             <div className="hidden sm:block">
               <FlytIndikator
                 medlemmer={flytMedlemmer}
-                recipientUserId={fullSjekkliste?.recipientUserId}
-                recipientGroupId={fullSjekkliste?.recipientGroupId}
-                status={sjekkliste.status}
-                bestillerUserId={fullSjekkliste?.bestillerUserId}
+                aktivPosisjon={aktivPosisjon}
                 visUtveier
               />
             </div>
             <div className="sm:hidden">
               <FlytIndikator
                 medlemmer={flytMedlemmer}
-                recipientUserId={fullSjekkliste?.recipientUserId}
-                recipientGroupId={fullSjekkliste?.recipientGroupId}
-                status={sjekkliste.status}
-                bestillerUserId={fullSjekkliste?.bestillerUserId}
+                aktivPosisjon={aktivPosisjon}
                 kompakt
                 visUtveier
               />
@@ -726,6 +647,7 @@ export default function SjekklisteDetaljSide() {
           ) : (
           <DokumentHandlingsmeny
             status={sjekkliste.status}
+            aktivPosisjon={aktivPosisjon}
             erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
             onEndreStatus={(nyStatus, handlingNoekkel, kommentar, mottaker) => {
               handlingRef.current = handlingNoekkel;

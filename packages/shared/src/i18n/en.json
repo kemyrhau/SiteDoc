@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "What is this?",
   "hjelp.firmaDetalj.hva": "Company detail page for SiteDoc administrators. Projects, users, modules, billing and settings for one company.",
   "admin.testsider.opprettMalprosjekt": "Create template project",
-  "admin.testsider.velgFirmaHint": "Select a company in the top menu to create a template project"
+  "admin.testsider.velgFirmaHint": "Select a company in the top menu to create a template project",
+  "ansvarsmerke.registrerer": "Registers",
+  "ansvarsmerke.utforerArbeid": "Performs work",
+  "ansvarsmerke.kontrollererAvvik": "Reviews deviations",
+  "ansvarsmerke.godkjennerOkonomi": "Approves costs",
+  "ansvarsmerke.kontrollererHms": "Reviews HSE",
+  "ansvarsmerke.orienteres": "Informed",
+  "ansvarsmerke.kontrollerer": "Reviews",
+  "ansvarsmerke.utforer": "Performs",
+  "flyt.godkjennOgFullfor": "Approve and complete",
+  "flyt.duHarBallen": "You have the ball",
+  "flyt.sendTil": "Send to {{navn}}"
 }

@@ -77,9 +77,8 @@ interface Props {
   besvarDeaktivertGrunn?: string | null;
   /** Flytmedlemmer for retningsnavn (neste/forrige ledd) — samme kilde som flytlinjen. */
   medlemmer: FlytMedlem[];
-  recipientUserId?: string | null;
-  recipientGroupId?: string | null;
-  bestillerUserId?: string;
+  /** Aktivt ledd = dokumentets `aktivPosisjon` (server-fakta). */
+  aktivPosisjon?: number | null;
   /** Antall gjenstående påkrevde felt. >0 → framover-primær deaktivert + caption. */
   paakrevdeFeltGjenstaar?: number;
   /** Er dokumentet redigerbart? Styrer «Lagre og lukk» + autolagret-mikrotekst. */
@@ -115,9 +114,7 @@ export function DokumentHandlingslinje({
   adminNiva,
   besvarDeaktivertGrunn,
   medlemmer,
-  recipientUserId,
-  recipientGroupId,
-  bestillerUserId,
+  aktivPosisjon,
   paakrevdeFeltGjenstaar,
   erRedigerbar,
   sisteLagretTekst,
@@ -140,8 +137,8 @@ export function DokumentHandlingslinje({
 
   const ledd = useMemo(() => byggLedd(medlemmer), [medlemmer]);
   const aktivtIndex = useMemo(
-    () => finnAktivtIndex(ledd, status, recipientUserId, recipientGroupId, bestillerUserId),
-    [ledd, status, recipientUserId, recipientGroupId, bestillerUserId],
+    () => finnAktivtIndex(ledd, aktivPosisjon),
+    [ledd, aktivPosisjon],
   );
 
   const erAdmin = adminNiva != null;

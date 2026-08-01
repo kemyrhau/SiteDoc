@@ -10,7 +10,7 @@ import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
-import { FlytIndikator } from "@/components/FlytIndikator";
+import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 
 // --- Typer ---
@@ -524,20 +524,15 @@ export default function OppgaverSide() {
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
 
   // Utled aktivt flyt-ledd for en rad (for filter/sortering)
-  const hentFlytLedd = useCallback((rad: OppgaveRad): string => {
-    const medl = rad.dokumentflyt?.medlemmer;
-    if (!medl || medl.length === 0) return "";
-    if (rad.status === "closed" || rad.status === "approved") return "";
-    const recipientGroupId = rad.recipientGroup?.id;
-    const recipientUserId = rad.recipientUser?.id;
-    for (const m of medl) {
-      if (recipientGroupId && m.group?.id === recipientGroupId) return m.group.name;
-      if (recipientUserId && m.projectMember?.user?.id === recipientUserId) return m.projectMember.user.name ?? "";
-    }
-    const ent = medl.find((m) => m.faggruppe);
-    if (ent?.faggruppe) return ent.faggruppe.name;
-    return "";
-  }, []);
+  // Fase 4: aktiv boks fra posisjon (server-fakta), ikke recipient-heuristikk.
+  const hentFlytLedd = useCallback(
+    (rad: OppgaveRad): string =>
+      hentAktivtLeddNavn(
+        rad.dokumentflyt?.medlemmer ?? [],
+        (rad as { aktivPosisjon?: number | null }).aktivPosisjon,
+      ),
+    [],
+  );
 
   // Dynamiske filteralternativer
   const dynamiskFilter = useMemo(() => {
@@ -781,10 +776,7 @@ export default function OppgaverSide() {
         id: "flyt", header: t("tabell.flyt"),
         celle: (rad) => <FlytIndikator
           medlemmer={rad.dokumentflyt?.medlemmer ?? []}
-          recipientUserId={rad.recipientUser?.id}
-          recipientGroupId={rad.recipientGroup?.id}
-          status={rad.status}
-          bestillerUserId={rad.bestillerUserId}
+          aktivPosisjon={(rad as { aktivPosisjon?: number | null }).aktivPosisjon}
         />,
         bredde: "200px", sorterbar: true, sorterVerdi: (rad) => hentFlytLedd(rad),
         filtrerbar: true, filterAlternativer: dynamiskFilter.flyt ?? [],

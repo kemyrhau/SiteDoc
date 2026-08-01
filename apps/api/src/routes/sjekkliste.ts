@@ -160,6 +160,11 @@ export const sjekklisteRouter = router({
                   id: true,
                   rolle: true,
                   steg: true,
+                  // Fase 4 output-plumbing (read-only): posisjons-felt klienten trenger for
+                  // byggPosisjonsLedd + ansvarsmerke-avledning + harBallenPosisjon.
+                  klassifisering: true,
+                  kanTerminereUtenBall: true,
+                  erHovedansvarlig: true,
                   faggruppe: { select: { id: true, name: true } },
                   projectMember: { include: { user: { select: { id: true, name: true } } } },
                   group: { select: { id: true, name: true } },

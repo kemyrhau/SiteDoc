@@ -3273,5 +3273,16 @@
   "hjelp.firmaDetalj.hvaTittel": "Hva er dette?",
   "hjelp.firmaDetalj.hva": "Firma-detaljside for SiteDoc-administratorer. Prosjekter, brukere, moduler, fakturering og innstillinger for ett firma.",
   "admin.testsider.opprettMalprosjekt": "Opprett malprosjekt",
-  "admin.testsider.velgFirmaHint": "Velg firma i toppmenyen for å opprette malprosjekt"
+  "admin.testsider.velgFirmaHint": "Velg firma i toppmenyen for å opprette malprosjekt",
+  "ansvarsmerke.registrerer": "Registrerer",
+  "ansvarsmerke.utforerArbeid": "Utfører arbeid",
+  "ansvarsmerke.kontrollererAvvik": "Kontrollerer avvik",
+  "ansvarsmerke.godkjennerOkonomi": "Godkjenner økonomi",
+  "ansvarsmerke.kontrollererHms": "Kontrollerer HMS",
+  "ansvarsmerke.orienteres": "Orienteres",
+  "ansvarsmerke.kontrollerer": "Kontrollerer",
+  "ansvarsmerke.utforer": "Utfører",
+  "flyt.godkjennOgFullfor": "Godkjenn og fullfør",
+  "flyt.duHarBallen": "Du har ballen",
+  "flyt.sendTil": "Send til {{navn}}"
 }
