@@ -46,8 +46,10 @@ interface DokumentHandlingsmenyProps {
   retningsrett?: { kanSende: boolean; kanBesvare: boolean; kanVideresende: boolean; kanTerminere: boolean };
   /** Har innlogget bruker ballen? (posisjon) */
   harBallen?: boolean;
-  /** Avsender-siden (medlem av ledд bak ballen) — for «Trekk tilbake». */
-  seerErBakover?: boolean;
+  /** § 2.4: medlem av avsenderleddet (forrigeBallLedд) — for «Trekk tilbake» (received→draft). */
+  erAvsender?: boolean;
+  /** § 2.4: medlem av NOEN ledд i flyten — for «Gjenåpne» (terminal→draft). */
+  erMedlemAvFlyt?: boolean;
   erLaster: boolean;
   /**
    * `handlingNoekkel` (StatusHandling.tekstNoekkel) er PÅKREVD, ikke valgfri (A-3b,
@@ -152,7 +154,8 @@ export function DokumentHandlingsmeny({
   aktivPosisjon,
   retningsrett,
   harBallen,
-  seerErBakover,
+  erAvsender,
+  erMedlemAvFlyt,
   erLaster,
   onEndreStatus,
   onSlett,
@@ -223,11 +226,12 @@ export function DokumentHandlingsmeny({
         ? hentPosisjonFiltrertHandlinger(status, {
             retningsrett: retningsrett ?? { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
             harBallen: harBallen ?? false,
-            seerErBakover: seerErBakover ?? false,
+            erAvsender: erAvsender ?? false,
+            erMedlemAvFlyt: erMedlemAvFlyt ?? false,
             erAdmin: erFlytAdminNiva,
           })
         : alle,
-    [harFlyt, status, retningsrett, harBallen, seerErBakover, erFlytAdminNiva, alle],
+    [harFlyt, status, retningsrett, harBallen, erAvsender, erMedlemAvFlyt, erFlytAdminNiva, alle],
   );
 
   // Standard-mottaker (utfører-faggruppen) for «besvar»-overgangen

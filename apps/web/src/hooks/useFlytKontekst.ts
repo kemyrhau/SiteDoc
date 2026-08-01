@@ -3,7 +3,8 @@ import {
   utledMinRolle,
   byggPosisjonsLedd,
   harBallenPosisjon,
-  seerErBakover,
+  erAvsenderledd,
+  erMedlemAvFlyt,
   retningsrettigheter,
   type FlytMedlemInfo,
   type RaFlytMedlem,
@@ -36,8 +37,10 @@ export interface MinFlytInfoUtsnitt {
 
 export interface FlytKontekst {
   harBallen: boolean;
-  /** Avsender-siden (medlem av ledд bak ballen) — for «Trekk tilbake» (steg 4b). */
-  seerErBakover: boolean;
+  /** § 2.4: medlem av avsenderleddet (forrigeBallLedд = «den som sendte») — for «Trekk tilbake». */
+  erAvsender: boolean;
+  /** § 2.4: medlem av NOEN ledд i flyten — for «Gjenåpne» (terminal→draft). */
+  erMedlemAvFlyt: boolean;
   /** Posisjon-baserte retningsrettigheter — klient-handlingsfilter = server (steg 4b). */
   retningsrett: { kanSende: boolean; kanBesvare: boolean; kanVideresende: boolean; kanTerminere: boolean };
   minRolle: DokumentflytRolle | null | undefined;
@@ -77,12 +80,13 @@ export function useFlytKontekst(input: {
   const aktivPosisjon = dok?.aktivPosisjon;
 
   // Steg 3+4b (Fase 4): POSISJON-baserte rettigheter (Q2, divergens-referanse). Bygger ledд-
-  // posisjonene én gang → harBallen (medlemskap av aktivPosisjon-leddet), seerErBakover (avsender-
+  // posisjonene én gang → harBallen (medlemskap av aktivPosisjon-leddet), erAvsender/erMedlemAvFlyt (§ 2.4 avsender-
   // siden, for trekk tilbake) + retningsrettigheter (Send/Besvar/Terminere/Videresende). Klient=server.
   const posisjonRett = useMemo(() => {
     const tom = {
       harBallen: false,
-      seerErBakover: false,
+      erAvsender: false,
+      erMedlemAvFlyt: false,
       retningsrett: { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
     };
     if (!minFlytInfo || aktivPosisjon == null || !dokumentflytId || !dokumentflyterRå) return tom;
@@ -126,7 +130,13 @@ export function useFlytKontekst(input: {
     const harBallen = harBallenPosisjon(ledd, aktivPosisjon, bruker);
     const seerLedd = ledd.find((l) => erMedlemAv(l) && l.kanTerminereUtenBall) ?? ledd.find(erMedlemAv) ?? null;
     const retningsrett = retningsrettigheter({ harBallen, seerLedd, kanVideresende: minFlytInfo.erAdmin });
-    return { harBallen, seerErBakover: seerErBakover(ledd, aktivPosisjon, bruker), retningsrett };
+    // § 2.4-guards: erAvsender (avsenderleddet, for trekk tilbake) + erMedlemAvFlyt (for gjenåpne).
+    return {
+      harBallen,
+      erAvsender: erAvsenderledd(ledd, aktivPosisjon, bruker),
+      erMedlemAvFlyt: erMedlemAvFlyt(ledd, bruker),
+      retningsrett,
+    };
   }, [minFlytInfo, aktivPosisjon, dokumentflytId, dokumentflyterRå]);
   const harBallen = posisjonRett.harBallen;
 
@@ -200,7 +210,8 @@ export function useFlytKontekst(input: {
 
   return {
     harBallen,
-    seerErBakover: posisjonRett.seerErBakover,
+    erAvsender: posisjonRett.erAvsender,
+    erMedlemAvFlyt: posisjonRett.erMedlemAvFlyt,
     retningsrett: posisjonRett.retningsrett,
     minRolle,
     flytRettighet,

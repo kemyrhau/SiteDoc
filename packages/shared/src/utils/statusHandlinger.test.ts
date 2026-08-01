@@ -553,7 +553,7 @@ describe("hentPosisjonFiltrertHandlinger (Fase 4 steg 4b — posisjon-basert kli
     kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false, ...o,
   });
   const ctx = (o: Partial<PosisjonHandlingKontekst>): PosisjonHandlingKontekst => ({
-    retningsrett: rett({}), harBallen: false, seerErBakover: false, erAdmin: false, ...o,
+    retningsrett: rett({}), harBallen: false, erAvsender: false, erMedlemAvFlyt: false, erAdmin: false, ...o,
   });
 
   it("ball-holder: Send (primær) + Besvar + Godkjenn fra received; IKKE trekk tilbake", () => {
@@ -566,10 +566,16 @@ describe("hentPosisjonFiltrertHandlinger (Fase 4 steg 4b — posisjon-basert kli
     expect(ns).not.toContain("draft"); // ball-holder er ikke avsender
   });
 
-  it("avsender-siden (seerErBakover): Trekk tilbake, IKKE Send", () => {
-    const ns = hentPosisjonFiltrertHandlinger("received", ctx({ seerErBakover: true })).map((h) => h.nyStatus);
+  it("§ 2.4 avsenderleddet (erAvsender): Trekk tilbake, IKKE Send", () => {
+    const ns = hentPosisjonFiltrertHandlinger("received", ctx({ erAvsender: true })).map((h) => h.nyStatus);
     expect(ns).toContain("draft");
     expect(ns).not.toContain("sent");
+  });
+
+  it("§ 2.4 medlem uten å være avsenderleddet → IKKE trekk tilbake fra received", () => {
+    // erMedlemAvFlyt gir gjenåpne (terminal), men trekk-tilbake (received) krever avsenderleddet.
+    const ns = hentPosisjonFiltrertHandlinger("received", ctx({ erMedlemAvFlyt: true })).map((h) => h.nyStatus);
+    expect(ns).not.toContain("draft");
   });
 
   it("verken ball, bakover eller admin → tom handlingsliste", () => {
@@ -582,8 +588,10 @@ describe("hentPosisjonFiltrertHandlinger (Fase 4 steg 4b — posisjon-basert kli
     expect(ns.length).toBeGreaterThan(3);
   });
 
-  it("gjenåpne (terminal→draft) = ball-holder, IKKE seerErBakover", () => {
-    expect(hentPosisjonFiltrertHandlinger("approved", ctx({ harBallen: true })).map((h) => h.nyStatus)).toContain("draft");
-    expect(hentPosisjonFiltrertHandlinger("approved", ctx({ seerErBakover: true })).map((h) => h.nyStatus)).not.toContain("draft");
+  it("§ 2.4 gjenåpne (terminal→draft) = medlem av flyten, IKKE bare avsenderleddet/ball", () => {
+    expect(hentPosisjonFiltrertHandlinger("approved", ctx({ erMedlemAvFlyt: true })).map((h) => h.nyStatus)).toContain("draft");
+    // Verken ball-holder eller avsender-medlemskap alene gir gjenåpne uten flyt-medlemskap.
+    expect(hentPosisjonFiltrertHandlinger("approved", ctx({ harBallen: true })).map((h) => h.nyStatus)).not.toContain("draft");
+    expect(hentPosisjonFiltrertHandlinger("approved", ctx({ erAvsender: true })).map((h) => h.nyStatus)).not.toContain("draft");
   });
 });
