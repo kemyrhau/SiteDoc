@@ -28,6 +28,7 @@ export {
   gjenapnePosisjon,
   byggPosisjonsLedd,
   utledMottakerForPosisjon,
+  ansvarsmerkeKey,
 } from "./flytPosisjon";
 export type {
   LeddKlassifisering,
