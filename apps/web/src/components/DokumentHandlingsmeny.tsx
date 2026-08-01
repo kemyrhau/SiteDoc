@@ -801,7 +801,10 @@ function DropdownMeny({
 
   // Fabel-rekkefølge: (draft-mottakere →) framover → destruktiv → Videresend → Admin → deaktiverte.
   return (
-    <div className="absolute right-0 top-full z-20 mt-1 min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+    // z-50 (ikke z-20): menyen deler den `sticky top-0 z-10`-headeren med kontekst-chip-linjas
+    // nedtrekk (byggeplass/faggruppe), som er z-50 (DokumentKontekstChipLinje.tsx). Med z-20 malte
+    // chip-nedtrekket over/gjennom denne menyen. z-50 = appens dropdown-konvensjon.
+    <div className="absolute right-0 top-full z-50 mt-1 min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
       {draftMottaker.length > 0 && (
         <>
           {skille(true)}
