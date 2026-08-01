@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { avledStatus, type FlytPosisjonLedd } from "@sitedoc/shared";
-import { beregnSkyggeFakta, terminalFraStatus, avledetStatus } from "./flytFakta";
+import { avledStatus, type FlytPosisjonLedd, type RaFlytMedlem, type FlytBruker } from "@sitedoc/shared";
+import { beregnSkyggeFakta, terminalFraStatus, avledetStatus, beregnRuting } from "./flytFakta";
 
 /**
  * F3.1 bevis-krav (cowork): avledStatus(beregnSkyggeFakta(...)) REPRODUSERER statusen som
@@ -111,5 +111,56 @@ describe("F3.2 avledetStatus (avledStatus = eneste status-skriver)", () => {
 
   it("BEVISST ENDRING #1: firma in_progress-input (terminal=null, sendt) → received (Q1)", () => {
     expect(avledetStatus({ retning: "frem", terminal: null, sendt: true })).toBe("received");
+  });
+});
+
+/**
+ * § 2.4 (fabel alt. A, 2026-08-01): draft-overgangen (gjenåpne/trekk-tilbake) skal lande på
+ * handlerens EGET ledд via `gjenapnePosisjon` — ikke lenger beholde terminal-/gjeldende posisjon.
+ * Fikser den systematiske aktivPosisjon-buggen (approved@4 → gjenåpne → utkast beholdt pos 4).
+ */
+const raMedlem = (steg: number, brukerId: string, klassifisering: string): RaFlytMedlem => ({
+  steg,
+  klassifisering,
+  kanTerminereUtenBall: false,
+  erHovedansvarlig: false,
+  brukerId,
+  gruppeId: null,
+  faggruppeId: null,
+});
+// 4-ledд: registrator(1) → bestiller(2) → utfører(3) → godkjenner(4). Speiler Kenneths live-flyt.
+const FLYT4: RaFlytMedlem[] = [
+  raMedlem(1, "u1", "utfor"),
+  raMedlem(2, "u2", "kontroll"),
+  raMedlem(3, "u3", "utfor"),
+  raMedlem(4, "u4", "kontroll"),
+];
+const bruker = (userId: string, erAdmin = false): FlytBruker => ({ userId, gruppeIder: [], faggruppeIder: [], erAdmin });
+const draftRuting = (naaPos: number, fraStatus: string, aapner?: FlytBruker | null) =>
+  beregnRuting({ nyStatus: "draft", effektivStatus: "draft", medlemmer: FLYT4, naaPos, bestillerUserId: "u1", fraStatus, aapner });
+
+describe("§ 2.4 gjenåpne/trekk-tilbake landing (beregnRuting draft-gren)", () => {
+  it("REGRESJON (Kenneths tilfelle): gjenåpne approved@4 av registrator (ledд 1) → lander på 1, IKKE 4", () => {
+    const r = draftRuting(4, "approved", bruker("u1"));
+    expect(r.aktivPosisjon).toBe(1); // §2.4 regel 1: åpnerens eget ledд
+    expect(r.retning).toBe("frem"); // gjenåpne = ny start
+    expect(r.sendt).toBe(false);
+    expect(r.status).toBe("draft");
+  });
+
+  it("trekk-tilbake received (dok@3) av avsender (ledд 2) → lander på 2 + retning tilbake", () => {
+    const r = draftRuting(3, "received", bruker("u2"));
+    expect(r.aktivPosisjon).toBe(2);
+    expect(r.retning).toBe("tilbake");
+  });
+
+  it("§ 2.4 regel 3: admin UTENFOR flyten → samme boks (aktivPosisjon uendret)", () => {
+    const r = draftRuting(4, "approved", bruker("admin-x", true));
+    expect(r.aktivPosisjon).toBe(4);
+  });
+
+  it("bakoverkompat: uten `aapner` (ikke-draft-veier) → posisjon uendret (gammel fall-through)", () => {
+    const r = draftRuting(4, "approved", null);
+    expect(r.aktivPosisjon).toBe(4);
   });
 });

@@ -30,6 +30,8 @@ export {
   utledMottakerForPosisjon,
   ansvarsmerkeKey,
   seerErBakover,
+  erAvsenderledd,
+  erMedlemAvFlyt,
 } from "./flytPosisjon";
 export type {
   LeddKlassifisering,

@@ -121,7 +121,7 @@ export default function SjekklisteDetaljSide() {
 
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
   // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
-  const { harBallen, seerErBakover, retningsrett, minRolle, flytRettighet, flytMedlemmer, aktivPosisjon, rettighetInput } = useFlytKontekst({
+  const { harBallen, erAvsender, erMedlemAvFlyt, retningsrett, minRolle, flytRettighet, flytMedlemmer, aktivPosisjon, rettighetInput } = useFlytKontekst({
     fullDokRå: fullSjekklisteRå,
     dokumentflyterRå,
     minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
@@ -650,7 +650,8 @@ export default function SjekklisteDetaljSide() {
             aktivPosisjon={aktivPosisjon}
             retningsrett={retningsrett}
             harBallen={harBallen}
-            seerErBakover={seerErBakover}
+            erAvsender={erAvsender}
+            erMedlemAvFlyt={erMedlemAvFlyt}
             erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
             onEndreStatus={(nyStatus, handlingNoekkel, kommentar, mottaker) => {
               handlingRef.current = handlingNoekkel;

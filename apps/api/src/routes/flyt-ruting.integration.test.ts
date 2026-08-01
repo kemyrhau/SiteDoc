@@ -163,22 +163,44 @@ describe("Fase 5a: server-e2e posisjons-ruting (distinkte personer)", () => {
     expect(etter.retning).toBe("tilbake");
   });
 
-  it("Trekk tilbake (received→draft) = avsender-siden (seerErBakover), IKKE ball-holderen", async () => {
+  it("Trekk tilbake (received→draft) = avsenderleddet (§2.4), IKKE ball-holderen; lander på avsenderledд + retning tilbake", async () => {
     const s = await nyttScenario();
     await send(s.A_registrator, s.checklistId); // A (Ledд 1) sender → ball @2 (B, mottaker)
 
-    // Steg 4b: ball-holder B (Ledд 2) er IKKE avsender → kan ikke trekke tilbake.
+    // § 2.4: ball-holder B (Ledд 2) er IKKE avsenderleddet → kan ikke trekke tilbake.
     const negativ = await feilkode(() =>
       createTestCaller(s.B_bestiller).sjekkliste.endreStatus({ id: s.checklistId, nyStatus: "draft" }),
     );
     expect(negativ).toBe("FORBIDDEN");
 
-    // Avsender-siden A (Ledд 1, bak ballen) trekker tilbake → draft. Deterministisk fakta.
+    // Avsenderleddet A (Ledд 1 = forrigeBallLedд(2)) trekker tilbake → draft, LANDER på ledд 1.
     await createTestCaller(s.A_registrator).sjekkliste.endreStatus({ id: s.checklistId, nyStatus: "draft" });
     const f = await faktaFor(s.checklistId);
+    expect(f.aktivPosisjon).toBe(1);  // § 2.4: lander på avsenderleddet (A), IKKE @2
+    expect(f.retning).toBe("tilbake"); // trekk-tilbake = retning tilbake
     expect(f.terminal).toBeNull();
     expect(f.sendt).toBe(false);      // Trekk tilbake nullstiller sendt-fakta
     expect(f.status).toBe("draft");   // avledet fra (!sendt)
+  });
+
+  it("§ 2.4 REGRESJON (distinkt-person): gjenåpne approved@4 av registrator (Ledд 1) → lander på 1, IKKE 4", async () => {
+    const s = await nyttScenario();
+    await send(s.A_registrator, s.checklistId); // →2
+    await send(s.B_bestiller, s.checklistId);   // →3
+    await send(s.C_utforer, s.checklistId);     // →4
+    await createTestCaller(s.D_godkjenner).sjekkliste.endreStatus({ id: s.checklistId, nyStatus: "approved" });
+    const term = await faktaFor(s.checklistId);
+    expect(term.terminal).toBe("godkjent");
+    expect(term.aktivPosisjon).toBe(4);
+
+    // Registrator A (Ledд 1, medlem — § 2.4 gjenåpne-rett) gjenåpner. Landing = åpnerens eget ledд.
+    // Med DISTINKTE personer (A ≠ D) lander det på 1, ikke terminal-posisjon 4 (den systematiske buggen).
+    await createTestCaller(s.A_registrator).sjekkliste.endreStatus({ id: s.checklistId, nyStatus: "draft" });
+    const f = await faktaFor(s.checklistId);
+    expect(f.aktivPosisjon).toBe(1);  // §2.4 regel 1: åpnerens eget ledд — IKKE 4
+    expect(f.terminal).toBeNull();
+    expect(f.sendt).toBe(false);
+    expect(f.status).toBe("draft");
   });
 
   it("Bestiller sist (Fase 3.6-fixture): Send-kjede når siste ledд; nesteLedd(siste)=null ⇒ Godkjenn og fullfør (E2 no-op)", async () => {

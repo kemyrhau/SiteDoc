@@ -29,7 +29,7 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, seerErBakover, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
 import { Flytlinje } from "../../src/components/Flytlinje";
@@ -189,10 +189,10 @@ export default function OppgaveDetalj() {
     );
   }, [minFlytInfo, oppgaveDetalj, dokumentflyterRå]);
 
-  // Steg 3+4b (Fase 4): POSISJON-baserte rettigheter (harBallen + seerErBakover + retningsrett).
+  // Steg 3+4b (Fase 4): POSISJON-baserte rettigheter (harBallen + erAvsender + erMedlemAvFlyt + retningsrett).
   const posisjonRett = useMemo(() => {
     const tom = {
-      harBallen: false, seerErBakover: false,
+      harBallen: false, erAvsender: false, erMedlemAvFlyt: false,
       retningsrett: { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
     };
     const aktivPosisjon = (oppgaveDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon;
@@ -222,7 +222,8 @@ export default function OppgaveDetalj() {
     const seerLedd = ledd.find((l) => erMedlemAv(l) && l.kanTerminereUtenBall) ?? ledd.find(erMedlemAv) ?? null;
     return {
       harBallen,
-      seerErBakover: seerErBakover(ledd, aktivPosisjon, bruker),
+      erAvsender: erAvsenderledd(ledd, aktivPosisjon, bruker),
+      erMedlemAvFlyt: erMedlemAvFlyt(ledd, bruker),
       retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: minFlytInfo.erAdmin }),
     };
   }, [oppgaveDetalj, minFlytInfo, flytMedlemmer]);
@@ -873,7 +874,8 @@ export default function OppgaveDetalj() {
           aktivPosisjon={(oppgaveDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon}
           retningsrett={posisjonRett.retningsrett}
           harBallen={posisjonRett.harBallen}
-          seerErBakover={posisjonRett.seerErBakover}
+          erAvsender={posisjonRett.erAvsender}
+          erMedlemAvFlyt={posisjonRett.erMedlemAvFlyt}
           paakrevdeFeltGjenstaar={paakrevdeFeltGjenstaar}
           erRedigerbar={erRedigerbar}
           sisteLagretTekst={sisteLagretTekst}

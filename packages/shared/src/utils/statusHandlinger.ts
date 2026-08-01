@@ -135,12 +135,16 @@ export function hentRolleFiltrertHandlinger(
  * POSISJON-basert handlingsfilter (Fase 4 steg 4b, retning B). Erstatter det rolle-baserte
  * `hentRolleFiltrertHandlinger` i klienten — klienten viser nøyaktig det serveren autoriserer
  * (`verifiserRetningsrett`), én kilde. Ball-handlinger fra `retningsrettigheter`; admin ser hele
- * universet (bevart); trekk tilbake = avsender-siden (`seerErBakover`); gjenåpne = ball-holder ∨ admin.
+ * universet (bevart). § 2.4-guards (2026-08-01): trekk tilbake = avsenderleddet (`erAvsender`,
+ * = den som sendte); gjenåpne = medlem av flyten ∨ admin (`erMedlemAvFlyt`).
  */
 export interface PosisjonHandlingKontekst {
   retningsrett: { kanSende: boolean; kanBesvare: boolean; kanVideresende: boolean; kanTerminere: boolean };
   harBallen: boolean;
-  seerErBakover: boolean;
+  /** § 2.4 trekk-tilbake: medlem av avsenderleddet (forrigeBallLedд = «den som sendte»). */
+  erAvsender: boolean;
+  /** § 2.4 gjenåpne: medlem av NOEN ledд i flyten (terminal→draft-rett for ikke-admin). */
+  erMedlemAvFlyt: boolean;
   /** sitedoc/prosjekt-admin — ser hele det statusmaskin-gyldige universet. */
   erAdmin: boolean;
 }
@@ -155,7 +159,7 @@ export function hentPosisjonFiltrertHandlinger(
 }
 
 function posisjonHandlingTillatt(status: string, nyStatus: string, ctx: PosisjonHandlingKontekst): boolean {
-  const { retningsrett, harBallen, seerErBakover } = ctx;
+  const { retningsrett, erAvsender, erMedlemAvFlyt } = ctx;
   switch (nyStatus) {
     case "sent": // Send til N·X (received/draft) + Send på nytt (in_progress)
       return retningsrett.kanSende;
@@ -172,8 +176,9 @@ function posisjonHandlingTillatt(status: string, nyStatus: string, ctx: Posisjon
     case "forwarded": // Videresend (H3)
       return retningsrett.kanVideresende;
     case "draft":
-      // received→draft = Trekk tilbake (avsender-siden); terminal→draft = Gjenåpne (ball-holder; admin dekket over).
-      return status === "received" ? seerErBakover : harBallen;
+      // § 2.4: received→draft = Trekk tilbake (avsenderleddet = den som sendte); terminal→draft =
+      // Gjenåpne (medlem av flyten; admin dekket over av erAdmin-grenen).
+      return status === "received" ? erAvsender : erMedlemAvFlyt;
     case "deleted": // går via onSlett (sletterett), ikke handlingsmenyen
       return false;
     default:

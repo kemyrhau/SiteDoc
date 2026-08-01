@@ -76,8 +76,10 @@ interface Props {
   /** Steg 4b: posisjon-baserte retningsrettigheter (klient-handlingsfilter = server). */
   retningsrett?: { kanSende: boolean; kanBesvare: boolean; kanVideresende: boolean; kanTerminere: boolean };
   harBallen?: boolean;
-  /** Avsender-siden (medlem av ledд bak ballen) — for «Trekk tilbake». */
-  seerErBakover?: boolean;
+  /** § 2.4: medlem av avsenderleddet (forrigeBallLedд) — for «Trekk tilbake» (received→draft). */
+  erAvsender?: boolean;
+  /** § 2.4: medlem av NOEN ledд i flyten — for «Gjenåpne» (terminal→draft). */
+  erMedlemAvFlyt?: boolean;
   /** P2 (tom-besvarelse): «Besvar» deaktivert fordi besvarelsen er tom. Speiler serveren. */
   besvarDeaktivertGrunn?: string | null;
   /** Flytmedlemmer for retningsnavn (neste/forrige ledd) — samme kilde som flytlinjen. */
@@ -119,7 +121,8 @@ export function DokumentHandlingslinje({
   adminNiva,
   retningsrett,
   harBallen,
-  seerErBakover,
+  erAvsender,
+  erMedlemAvFlyt,
   besvarDeaktivertGrunn,
   medlemmer,
   aktivPosisjon,
@@ -157,10 +160,11 @@ export function DokumentHandlingslinje({
       hentPosisjonFiltrertHandlinger(status, {
         retningsrett: retningsrett ?? { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
         harBallen: harBallen ?? false,
-        seerErBakover: seerErBakover ?? false,
+        erAvsender: erAvsender ?? false,
+        erMedlemAvFlyt: erMedlemAvFlyt ?? false,
         erAdmin,
       }),
-    [status, retningsrett, harBallen, seerErBakover, erAdmin],
+    [status, retningsrett, harBallen, erAvsender, erMedlemAvFlyt, erAdmin],
   );
 
   // Primær: kildens `erPrimaer`, ellers første lovlige (P3). Steg 4c: Send fra SISTE ledд

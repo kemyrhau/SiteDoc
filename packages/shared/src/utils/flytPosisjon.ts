@@ -266,6 +266,35 @@ export function seerErBakover(
   return ledd.some((l) => l.posisjon < aktivPosisjon && erMedlemAvLedd(l, bruker));
 }
 
+/**
+ * Avsenderleddet (§ 2.4 trekk-tilbake, fabel «den som sendte», 2026-08-01): er brukeren medlem
+ * av det UMIDDELBART forrige ball-leddet (`forrigeBallLedd`) — den som sendte dokumentet framover?
+ * Posisjon-native (ikke transferlogg): i trekk-tilbake-vinduet (før mottaker har handlet) er
+ * forrige ball-ledд = avsenderleddet. Strammere enn `seerErBakover` (som slapp ETHVERT bakre ledд
+ * til) → erstatter den for trekk-tilbake-guarden. (Videresend-kanten der de divergerer = egen H3-
+ * semantikk, liten oppfølger hvis den dukker opp.)
+ */
+export function erAvsenderledd(
+  ledd: FlytPosisjonLedd[],
+  aktivPosisjon: number | null,
+  bruker: FlytBruker,
+): boolean {
+  if (aktivPosisjon === null) return false;
+  const forrigePos = forrigeBallLedd(ledd, aktivPosisjon);
+  if (forrigePos === null) return false;
+  const l = ledd.find((x) => x.posisjon === forrigePos);
+  return l ? erMedlemAvLedd(l, bruker) : false;
+}
+
+/**
+ * Er brukeren medlem av NOEN ledд i flyten? § 2.4 gjenåpne-rett (fabel: «medlem/admin kan gjenåpne
+ * terminal»). Erstatter `harBallen` som gjenåpne-guard slik at en lavere-ledд-åpner (f.eks.
+ * registrator) faktisk slipper til → `gjenapnePosisjon` lander dem på deres eget ledд (ikke terminal).
+ */
+export function erMedlemAvFlyt(ledd: FlytPosisjonLedd[], bruker: FlytBruker): boolean {
+  return ledd.some((l) => erMedlemAvLedd(l, bruker));
+}
+
 /** Retningsrettigheter for en seer (§ 2.2 + vedtak). `kanVideresende` = H3 inn (admin/override). */
 export function retningsrettigheter(input: {
   harBallen: boolean;

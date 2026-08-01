@@ -102,7 +102,8 @@ describe("Flate 2: «Besvar»-hover bruker ledd[aktivtIndex-1] (avsender), ikke 
           aktivPosisjon={2}
           retningsrett={{ kanSende: true, kanBesvare: true, kanVideresende: false, kanTerminere: false }}
           harBallen={true}
-          seerErBakover={false}
+          erAvsender={false}
+          erMedlemAvFlyt={false}
           erLaster={false}
           minRolle="utforer"
           onEndreStatus={() => {}}
