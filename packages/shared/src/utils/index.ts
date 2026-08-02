@@ -141,16 +141,16 @@ export function isValidStatusTransition(
     // responded→sent + approved→sent forblir fjernet (responded=besvart/tilbake, approved=terminal H6).
     // F6 (Godkjenn fra Mottatt): `approved` gir en Registrator→Godkjenner-flyt (uten utfører) en
     // direkte godkjenn-vei fra Mottatt — TILLEGG til responded→approved, ikke erstatning.
-    received: ["in_progress", "responded", "cancelled", "dismissed", "draft", "approved", "sent"],
-    // F3 (Under arbeid): `rejected` og `in_progress` er merget. in_progress-handlingene er
-    // Besvar (→responded), Send på nytt (→sent) og Lukk (→closed, arver dagens rejected→closed).
-    in_progress: ["responded", "sent", "closed"],
-    // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
+    // Runde-2 (2026-08-02): `in_progress` kollapset HELT (Q1=A) — fjernet som mål fra received (nås
+    // aldri) og som kilde (in_progress-nøkkelen utgår). avledStatus gir alltid received/«Hos N».
+    received: ["responded", "cancelled", "dismissed", "draft", "approved", "sent"],
     // Pilot-fiks B (2026-08-02, fabel-bindende): `responded→sent` GJENINNFØRT — samme klasse som
     // Fase 3.6 `received→sent`. Et kontroll-ledд som mottar Besvar og IKKE er siste ledд skal Sende
     // FRAMOVER (nesteLedd, ball-guardet via verifiserRetningsrett), ikke Godkjenne. Ruter via
     // posisjon (aldri recipient-løs no-op — det var §8A-bekymringen i den GAMLE modellen).
-    responded: ["approved", "in_progress", "sent"],
+    // Runde-2 (2026-08-02): `responded→in_progress` («Send tilbake») FJERNET — bakover er nå Besvar ←
+    // (fra received), én bakover-vei. `in_progress` kollapses HELT (Q1=A) og skrives aldri.
+    responded: ["approved", "sent"],
     // §8A-fiks (2026-07-29): `approved→sent` FJERNET — samme recipient-løse no-op.
     // H6 (Godkjent = stoppsted): approved lukkes ALDRI — approved→closed fjernet. Veien tilbake er
     // Gjenåpne (approved→draft, Reg + P-adm, § 4).
@@ -183,9 +183,9 @@ export function isValidStatusTransition(
  * Delt kilde for server-validering (Zod-gate i endreStatus) og klient-validering
  * (web + mobil handlingsmeny), så regelen ikke kan divergere mellom lagene.
  */
+// Runde-2 (2026-08-02): `in_progress` («Send tilbake») fjernet fra klassen — handlingen finnes ikke mer.
 const STATUS_KREVER_BEGRUNNELSE: ReadonlySet<string> = new Set([
   "dismissed",
-  "in_progress",
   "responded",
 ]);
 

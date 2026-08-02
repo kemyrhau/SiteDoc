@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Oppdatert",
   "tabell.ansvarlig": "Ansvarlig",
   "tabell.venterPaa": "Venter på",
+  "tabell.venterPaaDeg": "Venter på deg",
   "tabell.faggruppe": "Faggruppe",
   "tabell.fagomraade": "Fagområde",
   "tabell.type": "Type",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Godkjenn og fullfør",
   "flyt.duHarBallen": "Du har ballen",
   "flyt.duHarBallenMerke": "Du har ballen — {{merke}}",
-  "flyt.sendTil": "Send til {{navn}}"
+  "flyt.sendTil": "Send til {{navn}}",
+  "flyt.besvarTil": "Besvar til {{navn}}"
 }

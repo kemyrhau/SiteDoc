@@ -211,7 +211,7 @@ export default function OppgaveDetaljSide() {
 
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
   // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
-  const { harBallen, erAvsender, erMedlemAvFlyt, retningsrett, minRolle, flytRettighet, flytMedlemmer, aktivPosisjon, rettighetInput } = useFlytKontekst({
+  const { harBallen, erAvsender, erMedlemAvFlyt, retningsrett, minRolle, flytMedlemmer, flytNavn, aktivPosisjon, rettighetInput } = useFlytKontekst({
     fullDokRå: fullOppgaveRå,
     dokumentflyterRå,
     minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
@@ -472,7 +472,8 @@ export default function OppgaveDetaljSide() {
       type: "display",
     },
     {
-      etikett: t("tabell.utforer"),
+      // Runde-2 (#6): «UTFØRER»-etikett → «Faggruppe» (relasjonell benevnelse; verdien er faggruppen).
+      etikett: t("tabell.faggruppe"),
       verdi: oppgaveCast.utforerFaggruppe?.name ?? "—",
       type: "velger",
       deaktivert: !erUtkast,
@@ -561,8 +562,9 @@ export default function OppgaveDetaljSide() {
                 finnMottakerNavn(flytMedlemmer, o?.recipientUserId, o?.recipientGroupId) ?? o?.recipientGroup?.name;
               if (!navn) return null;
               return (
-                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                  {t("tabell.venterPaa")}: {navn}
+                // Runde-2 (R5): seer-relativ «Venter på deg» / «Venter på {navn}» (web-paritet med sjekkliste).
+                <span data-testid="venter-paa" className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                  {harBallen ? t("tabell.venterPaaDeg") : `${t("tabell.venterPaa")}: ${navn}`}
                 </span>
               );
             })()}
@@ -579,6 +581,10 @@ export default function OppgaveDetaljSide() {
             redundant + vist "?" for null-medlem-oppretterboksen til Fase 2 navngir den. */}
         {!erHms && flytMedlemmer.length > 0 && (
           <div className="mt-2">
+            {/* Runde-2 (#7/#8): flyt-navn som caption over flytlinja (f.eks. «Sitedoc Ansatte»). */}
+            {flytNavn && (
+              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">{flytNavn}</div>
+            )}
             {/* Desktop: full flyt */}
             <div className="hidden sm:block">
               <FlytIndikator

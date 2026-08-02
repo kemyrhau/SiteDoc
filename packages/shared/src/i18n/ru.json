@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Обновлено",
   "tabell.ansvarlig": "Ответственный",
   "tabell.venterPaa": "Ожидает",
+  "tabell.venterPaaDeg": "Ждем Вас",
   "tabell.faggruppe": "Торговый подрядчик",
   "tabell.fagomraade": "Дисциплина",
   "tabell.type": "Тип",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Утвердить и завершить",
   "flyt.duHarBallen": "У тебя есть мяч",
   "flyt.duHarBallenMerke": "У тебя есть мяч — {{merke}}",
-  "flyt.sendTil": "Отправить на {{navn}}"
+  "flyt.sendTil": "Отправить на {{navn}}",
+  "flyt.besvarTil": "Ответить пользователю {{navn}}"
 }

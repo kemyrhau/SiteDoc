@@ -36,13 +36,14 @@ import {
   hentPosisjonFiltrertHandlinger,
   statusKreverBegrunnelse,
   nesteLedd,
+  forrigeBallLedd,
   type StatusHandling,
   type DokumentflytRolle,
   type AdminNiva,
   type FlytPosisjonLedd,
   type LeddKlassifisering,
 } from "@sitedoc/shared";
-import { byggLedd, finnAktivtIndex, type FlytMedlem } from "../utils/dokumentflyt-ledd";
+import { byggLedd, type FlytMedlem } from "../utils/dokumentflyt-ledd";
 
 interface TilgjengeligeFlyter {
   gjeldende: {
@@ -150,10 +151,6 @@ export function DokumentHandlingslinje({
   } | null>(null);
 
   const ledd = useMemo(() => byggLedd(medlemmer), [medlemmer]);
-  const aktivtIndex = useMemo(
-    () => finnAktivtIndex(ledd, aktivPosisjon),
-    [ledd, aktivPosisjon],
-  );
 
   const erAdmin = adminNiva != null;
 
@@ -183,6 +180,9 @@ export function DokumentHandlingslinje({
     faggruppeIder: l.faggruppeIder,
   }));
   const nesteLeddPos = harFlyt && aktivPosisjon != null ? nesteLedd(posisjonsLedd, aktivPosisjon) : null;
+  // Runde-2 (2026-08-02): Besvar ← = eneste bakover-handling. Målleddet = forrigeBallLedd (delt
+  // funksjon — hopper Orienteres), ikke nabo-indeks. Brukes til «Besvar til N·X» (primær + split).
+  const forrigeBallLeddPos = harFlyt && aktivPosisjon != null ? forrigeBallLedd(posisjonsLedd, aktivPosisjon) : null;
 
   // Primær: kildens `erPrimaer`, ellers første lovlige (P3), men promotert til Send/Godkjenn-og-fullfør
   // etter nesteLedд når begge finnes i det posisjon-filtrerte settet.
@@ -225,6 +225,7 @@ export function DokumentHandlingslinje({
 
   // --- Primær-navngiving med retning (delt nesteLedd — orienteres-hopp, ikke nabo-indeks) ---
   const nesteLeddBoks = nesteLeddPos !== null ? ledd.find((l) => l.posisjon === nesteLeddPos) : undefined;
+  const forrigeBallLeddBoks = forrigeBallLeddPos !== null ? ledd.find((l) => l.posisjon === forrigeBallLeddPos) : undefined;
   const primærLabel = (h: StatusHandling): string => {
     if (h.nyStatus === "sent") {
       // Steg 4c/pilot-fiks B: «Send til N · X →» (måll-leddets nummer + hvem, via nesteLedd).
@@ -233,13 +234,21 @@ export function DokumentHandlingslinje({
         : t(h.tekstNoekkel);
     }
     if (h.nyStatus === "responded") {
-      const forrige = ledd[aktivtIndex - 1]?.navn;
-      return forrige ? t("statushandling.besvarTil", { mottaker: forrige }) : t(h.tekstNoekkel);
+      // Runde-2: «Besvar til N · X ←» (målleddet via forrigeBallLedd, delt funksjon). Web-paritet.
+      return forrigeBallLeddBoks
+        ? t("statushandling.besvarTil", { mottaker: `${forrigeBallLeddBoks.posisjon} · ${forrigeBallLeddBoks.navn}` })
+        : t(h.tekstNoekkel);
     }
     // Godkjenn-og-fullfør: siste ball-ledд (nesteLedд=null) i en flyt → «Godkjenn og fullfør ✓».
     if (h.nyStatus === "approved" && harFlyt && nesteLeddPos === null) return t("flyt.godkjennOgFullfor");
     return t(h.tekstNoekkel);
   };
+  // Split-sheet-etikett: Besvar ← får samme komponerte «Besvar til N·X» som primær (den er nå
+  // sekundær i de fleste flyter). Øvrige handlinger beholder kilde-etiketten.
+  const splittLabel = (h: StatusHandling): string =>
+    h.nyStatus === "responded" && forrigeBallLeddBoks
+      ? t("statushandling.besvarTil", { mottaker: `${forrigeBallLeddBoks.posisjon} · ${forrigeBallLeddBoks.navn}` })
+      : t(h.tekstNoekkel);
 
   // Bekreftelses-sheetens tekst speiler primærens retningsnavn (samme neste/forrige-
   // utledning som `primærLabel`). Fallback til bekreftSendBytte KUN når ett-stegs
@@ -253,9 +262,8 @@ export function DokumentHandlingslinje({
         : t("statushandling.bekreftSendBytte", { status: label });
     }
     if (h.nyStatus === "responded") {
-      const forrige = ledd[aktivtIndex - 1]?.navn;
-      return forrige
-        ? t("statushandling.bekreftBesvarTil", { mottaker: forrige })
+      return forrigeBallLeddBoks
+        ? t("statushandling.bekreftBesvarTil", { mottaker: `${forrigeBallLeddBoks.posisjon} · ${forrigeBallLeddBoks.navn}` })
         : t("statushandling.bekreftSendBytte", { status: label });
     }
     return t("statushandling.bekreftSendBytte", { status: label });
@@ -410,9 +418,9 @@ export function DokumentHandlingslinje({
             </View>
 
             <ScrollView style={{ maxHeight: 420 }}>
-              {/* Framover */}
+              {/* Framover (Besvar ← får komponert «Besvar til N·X») */}
               {framoverHandlinger.map((h) => (
-                <MenyRad key={`fram-${h.nyStatus}`} label={t(h.tekstNoekkel)} onPress={() => velgHandling(h)} />
+                <MenyRad key={`fram-${h.nyStatus}`} label={splittLabel(h)} onPress={() => velgHandling(h)} />
               ))}
 
               {/* Lagre og lukk */}

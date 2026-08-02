@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Actualizat",
   "tabell.ansvarlig": "Responsabil",
   "tabell.venterPaa": "Așteaptă",
+  "tabell.venterPaaDeg": "Te aştept",
   "tabell.faggruppe": "Antreprenor comercial",
   "tabell.fagomraade": "Disciplina",
   "tabell.type": "Tip",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Aprobați și completați",
   "flyt.duHarBallen": "Ai mingea",
   "flyt.duHarBallenMerke": "Ai mingea — {{merke}}",
-  "flyt.sendTil": "Trimite la {{navn}}"
+  "flyt.sendTil": "Trimite la {{navn}}",
+  "flyt.besvarTil": "Răspunde la {{navn}}"
 }

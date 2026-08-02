@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import type { ReactElement, ReactNode } from "react";
 
 type Side = "top" | "right" | "bottom" | "left";
@@ -28,14 +29,6 @@ interface TooltipProps {
   wrapperClassName?: string;
 }
 
-// Posisjonering relativt til wrapperen. `side` er den løste (auto-flippede) siden.
-const POSISJON: Record<Side, string> = {
-  right: "left-full top-1/2 ml-2 -translate-y-1/2",
-  left: "right-full top-1/2 mr-2 -translate-y-1/2",
-  bottom: "left-1/2 top-full mt-2 -translate-x-1/2",
-  top: "left-1/2 bottom-full mb-2 -translate-x-1/2",
-};
-
 const MOTSATT: Record<Side, Side> = {
   right: "left",
   left: "right",
@@ -43,14 +36,39 @@ const MOTSATT: Record<Side, Side> = {
   top: "bottom",
 };
 
+// Runde-2 (#10a/R4): tooltip-noden portales til <body> med `position: fixed`, så den ALDRI klippes
+// av en scroll-container (`<main overflow-y-auto>`) eller fanges i et lav-z stacking-context (split-
+// menyens `z-20`). Transform plasserer boksen relativt til trigger-punktet per løst side.
+const TRANSFORM: Record<Side, string> = {
+  right: "translateY(-50%)",
+  left: "translate(-100%, -50%)",
+  bottom: "translateX(-50%)",
+  top: "translate(-50%, -100%)",
+};
+
+const GAP = 8;
+
+function beregnKoord(rect: DOMRect, s: Side): { left: number; top: number } {
+  switch (s) {
+    case "right":
+      return { left: rect.right + GAP, top: rect.top + rect.height / 2 };
+    case "left":
+      return { left: rect.left - GAP, top: rect.top + rect.height / 2 };
+    case "bottom":
+      return { left: rect.left + rect.width / 2, top: rect.bottom + GAP };
+    case "top":
+      return { left: rect.left + rect.width / 2, top: rect.top - GAP };
+  }
+}
+
 /**
  * Tooltip v2 — flerlinje hjelpetekst på ord, celler og handlinger.
  *
  * Universell per docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md § 2:
  * flerlinje (max 280px, bryter), valgfri fet tittel, ~300 ms vis-forsinkelse,
  * tastatur (:focus-visible), touch (tap viser / tap utenfor lukker) og auto-flip
- * ved skjermkant. Tooltip-noden er alltid montert, kun skjult via klasser, slik
- * at `aria-describedby`-koblingen er stabil for skjermlesere.
+ * ved skjermkant. Tooltip-noden portales til <body> (fixed) — se TRANSFORM-noten — så
+ * `aria-describedby`-koblingen (via id) er stabil på tvers av stacking-contexts.
  */
 export function Tooltip({
   tekst,
@@ -65,7 +83,12 @@ export function Tooltip({
   const tooltipRef = useRef<HTMLSpanElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [open, setOpen] = useState(false);
+  const [montert, setMontert] = useState(false);
   const [løstSide, setLøstSide] = useState<Side>(side);
+  const [koord, setKoord] = useState<{ left: number; top: number } | null>(null);
+
+  // createPortal krever document — monter kun på klient (etter hydrering).
+  useEffect(() => setMontert(true), []);
 
   const nullstillTimer = useCallback(() => {
     if (timerRef.current) {
@@ -94,23 +117,46 @@ export function Tooltip({
   // Rydd opp ved unmount.
   useEffect(() => nullstillTimer, [nullstillTimer]);
 
-  // Auto-flip: mål tooltipen når den vises, flip til motsatt side ved skjermkant.
+  // Posisjonering + auto-flip: mål wrapperen + tooltipens størrelse, flip til motsatt side ved
+  // skjermkant, og sett fixed-koordinater. Kjøres når den vises + ved scroll/resize (fixed følger
+  // ikke wrapperen av seg selv).
+  const oppdaterPosisjon = useCallback(() => {
+    const w = wrapperRef.current;
+    const tip = tooltipRef.current;
+    if (!w || typeof window === "undefined") return;
+    const wr = w.getBoundingClientRect();
+    const tr = tip?.getBoundingClientRect();
+    const pad = 8;
+    let s = side;
+    if (tr) {
+      if (side === "right" && wr.right + tr.width + pad > window.innerWidth) s = MOTSATT.right;
+      else if (side === "left" && wr.left - tr.width - pad < pad) s = MOTSATT.left;
+      else if (side === "bottom" && wr.bottom + tr.height + pad > window.innerHeight) s = MOTSATT.bottom;
+      else if (side === "top" && wr.top - tr.height - pad < pad) s = MOTSATT.top;
+    }
+    setLøstSide(s);
+    setKoord(beregnKoord(wr, s));
+  }, [side]);
+
   useLayoutEffect(() => {
     if (!open) {
       setLøstSide(side);
       return;
     }
-    const el = tooltipRef.current;
-    if (!el || typeof window === "undefined") return;
-    const r = el.getBoundingClientRect();
-    const pad = 8;
-    let s = side;
-    if (side === "right" && r.right > window.innerWidth - pad) s = MOTSATT.right;
-    else if (side === "left" && r.left < pad) s = MOTSATT.left;
-    else if (side === "bottom" && r.bottom > window.innerHeight - pad) s = MOTSATT.bottom;
-    else if (side === "top" && r.top < pad) s = MOTSATT.top;
-    setLøstSide(s);
-  }, [open, side]);
+    oppdaterPosisjon();
+  }, [open, side, oppdaterPosisjon]);
+
+  // Fixed-tooltip følger ikke wrapperen ved scroll/resize — reposisjoner mens den er åpen.
+  useEffect(() => {
+    if (!open || typeof window === "undefined") return;
+    const h = () => oppdaterPosisjon();
+    window.addEventListener("scroll", h, true);
+    window.addEventListener("resize", h);
+    return () => {
+      window.removeEventListener("scroll", h, true);
+      window.removeEventListener("resize", h);
+    };
+  }, [open, oppdaterPosisjon]);
 
   // Touch-åpnet tooltip: tap utenfor lukker.
   useEffect(() => {
@@ -130,6 +176,27 @@ export function Tooltip({
         tabIndex: children.props.tabIndex ?? 0,
       })
     : children;
+
+  // Tooltip-noden — portalet til <body> (fixed, høy z) slik at den aldri klippes/overlappes.
+  const tooltipNode = (
+    <span
+      ref={tooltipRef}
+      id={id}
+      role="tooltip"
+      style={{
+        position: "fixed",
+        left: koord?.left ?? 0,
+        top: koord?.top ?? 0,
+        transform: TRANSFORM[løstSide],
+      }}
+      className={`pointer-events-none z-[9999] max-w-[280px] break-words [text-wrap:pretty] rounded bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg transition-opacity duration-100 ${
+        open ? "opacity-100" : "invisible opacity-0"
+      }`}
+    >
+      {tittel && <span className="block font-semibold">{tittel}</span>}
+      <span className="block whitespace-normal">{tekst}</span>
+    </span>
+  );
 
   return (
     <span
@@ -153,17 +220,9 @@ export function Tooltip({
       }}
     >
       {trigger}
-      <span
-        ref={tooltipRef}
-        id={id}
-        role="tooltip"
-        className={`pointer-events-none absolute z-50 max-w-[280px] break-words [text-wrap:pretty] rounded bg-gray-900 px-2.5 py-1.5 text-xs text-white shadow-lg transition-opacity duration-100 ${
-          open ? "opacity-100" : "invisible opacity-0"
-        } ${POSISJON[løstSide]}`}
-      >
-        {tittel && <span className="block font-semibold">{tittel}</span>}
-        <span className="block whitespace-normal">{tekst}</span>
-      </span>
+      {montert && typeof document !== "undefined"
+        ? createPortal(tooltipNode, document.body)
+        : null}
     </span>
   );
 }

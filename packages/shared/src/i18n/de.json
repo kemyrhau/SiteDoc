@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Aktualisiert",
   "tabell.ansvarlig": "Verantwortlich",
   "tabell.venterPaa": "Wartet auf",
+  "tabell.venterPaaDeg": "Warten auf Sie",
   "tabell.faggruppe": "Handelsunternehmer",
   "tabell.fagomraade": "Disziplin",
   "tabell.type": "Typ",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Genehmigen und abschließen",
   "flyt.duHarBallen": "Du hast den Ball",
   "flyt.duHarBallenMerke": "Du hast den Ball – {{merke}}",
-  "flyt.sendTil": "Senden an {{navn}}"
+  "flyt.sendTil": "Senden an {{navn}}",
+  "flyt.besvarTil": "Antwort auf {{navn}}"
 }

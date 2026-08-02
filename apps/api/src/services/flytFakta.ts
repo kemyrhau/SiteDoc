@@ -191,20 +191,22 @@ export function beregnRuting(input: {
       aktivPosisjon = nyPos;
       mottaker = utledMottakerForPosisjon(input.medlemmer, nyPos, input.bestillerUserId);
     }
-    // Trekk-tilbake (fra received) = avsenderen henter tilbake → retning tilbake. Gjenåpne (fra
-    // terminal) = ny start hos handleren → frem.
-    retning = input.fraStatus === "received" ? "tilbake" : "frem";
+    // Runde-2 (2026-08-02, fabel R1): BÅDE gjenåpne (fra terminal) OG trekk-tilbake (fra received)
+    // gir `retning="frem"` → «Hos N» (received-semantikk: «ballen er hos [dette leddet], venter»).
+    // Bakover-ness ved trekk-tilbake er et historisk faktum i transferloggen, IKKE en cache-distinksjon
+    // — retning="tilbake" ville gitt «Besvart — hos N», som er feil (det er ikke en Besvar). REVERSERER
+    // pilot-fiks D-scopingen (som holdt trekk-tilbake på retning="tilbake"/sendt=false/«Utkast»).
+    retning = "frem";
   }
   // terminal (approved/dismissed/closed/cancelled) + forwarded: ingen posisjon-/mottaker-endring her.
 
   const terminal = terminalFraStatus(input.effektivStatus);
-  // D + #11 (pilot-fiks 02.08, fabel-bindende): et GJENÅPNET dok (draft-overgang FRA en terminal)
-  // HAR forlatt ledд 1 → `sendt=true` (§ 2.3) → avledStatus gir «Hos N», ikke «Utkast». «Gjenåpnet»
-  // er en tidslinjehendelse, ingen ny statusfakta. Scoped til gjenåpne (fraStatus ∈ terminaler);
-  // trekk-tilbake (received→draft) beholder sendt=false («Utkast») — egen fabel-sak, ikke rørt her.
-  const erGjenapne =
-    input.nyStatus === "draft" && input.aapner != null && terminalFraStatus(input.fraStatus ?? "") !== null;
-  const sendt = erGjenapne ? true : input.effektivStatus !== "draft";
+  // Runde-2 (2026-08-02, fabel R1 + pilot-fiks D): enhver åpner-drevet draft-overgang (gjenåpne FRA
+  // terminal ELLER trekk-tilbake FRA received) HAR forlatt ledд 1 → `sendt=true` (§ 2.3) → avledStatus
+  // gir «Hos N», ALDRI «Utkast». «Gjenåpnet»/«trukket tilbake» er tidslinjehendelser, ingen statusfakta.
+  // Ferskt utkast (nyStatus="draft" uten `aapner`) forblir sendt=false («Utkast»).
+  const erAapnerDraft = input.nyStatus === "draft" && input.aapner != null;
+  const sendt = erAapnerDraft ? true : input.effektivStatus !== "draft";
   const status = avledetStatus({ aktivPosisjon, retning, terminal, sendt });
   return { aktivPosisjon, retning, terminal, sendt, status, mottaker };
 }

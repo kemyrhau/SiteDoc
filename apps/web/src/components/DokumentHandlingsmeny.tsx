@@ -20,6 +20,7 @@ import {
   isValidStatusTransition,
   statusKreverBegrunnelse,
   nesteLedd,
+  forrigeBallLedd,
   type StatusHandling,
   type DokumentflytRolle,
   type AdminNiva,
@@ -129,9 +130,8 @@ interface MenyOppforing {
  * Begrunnelsen forblir valgfri (fritekst = valgfritt, CLAUDE.md) — nudgen oppfordrer.
  */
 const NUDGE_TEKSTNOEKLER = new Set([
-  // F3: «Send tilbake» (responded→in_progress) er nå den eneste tilbakesendingen som nudger.
-  // «Send på nytt» (in_progress→sent) er en fram-sending og nudger ikke.
-  "statushandling.sendTilbakeUtforer",
+  // Runde-2 (2026-08-02): «Send tilbake» fjernet. Besvar ← (responded) nudger via
+  // statusKreverBegrunnelse; Avvis beholder sin egen nudge her.
   "handling.avvis",
 ]);
 
@@ -346,6 +346,10 @@ export function DokumentHandlingsmeny({
   }));
   const nesteLeddPos = harFlyt && aktivPosisjon != null ? nesteLedd(posisjonsLedd, aktivPosisjon) : null;
   const nesteLeddBoks = nesteLeddPos != null ? ledd.find((l) => l.posisjon === nesteLeddPos) : undefined;
+  // Runde-2 (2026-08-02): Besvar ← = eneste bakover-handling. Målleddet = forrigeBallLedd (delt
+  // funksjon — nærmeste bakover som kan holde ballen, hopper Orienteres). Brukes til «Besvar til N·X ←».
+  const forrigeBallLeddPos = harFlyt && aktivPosisjon != null ? forrigeBallLedd(posisjonsLedd, aktivPosisjon) : null;
+  const forrigeBallLeddBoks = forrigeBallLeddPos != null ? ledd.find((l) => l.posisjon === forrigeBallLeddPos) : undefined;
   const sendHandling = aktive.find((h) => h.nyStatus === "sent");
   const godkjennHandling = aktive.find((h) => h.nyStatus === "approved");
   // Fram til neste ledд (Send) når mulig; ellers Godkjenn-og-fullfør på siste ledд. Kun for flyt-
@@ -410,16 +414,24 @@ export function DokumentHandlingsmeny({
 
   // Øvrige statushandlinger (ikke primær, ikke forwarded, ikke admin-status), delt i
   // framover (nøytrale) og destruktive (Avvis, rød) for fabel-rekkefølgen.
-  const byggStatusOppforing = (h: StatusHandling): MenyOppforing => ({
-    key: `sek-${h.nyStatus}`,
-    label: t(h.tekstNoekkel),
-    nyStatus: h.nyStatus,
-    tekstNoekkel: h.tekstNoekkel,
-    plassering: "sekundær" as const,
-    // F1: Avvis (dismissed) er en danger-handling → rød, som deleted.
-    erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "dismissed",
-    mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
-  });
+  const byggStatusOppforing = (h: StatusHandling): MenyOppforing => {
+    // Runde-2: Besvar ← får komponert etikett «Besvar til N·X ←» (målleddet = forrigeBallLedd).
+    // Speiler «Send til N·X →». Fallback til ren «Besvar» uten flyt/målledд.
+    const label =
+      h.nyStatus === "responded" && forrigeBallLeddBoks
+        ? t("flyt.besvarTil", { navn: `${forrigeBallLeddBoks.posisjon} · ${forrigeBallLeddBoks.aktivNavn}` })
+        : t(h.tekstNoekkel);
+    return {
+      key: `sek-${h.nyStatus}`,
+      label,
+      nyStatus: h.nyStatus,
+      tekstNoekkel: h.tekstNoekkel,
+      plassering: "sekundær" as const,
+      // F1: Avvis (dismissed) er en danger-handling → rød, som deleted.
+      erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "dismissed",
+      mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, label),
+    };
+  };
   // Split-eksklusjon på effektivPrimær (ikke primærHandling): når primær promoteres fra Godkjenn til
   // Send (B), skal Send IKKE også dukke opp i split, og Godkjenn skal (den er ikke lenger primær).
   const øvrigeStatus = aktive.filter(

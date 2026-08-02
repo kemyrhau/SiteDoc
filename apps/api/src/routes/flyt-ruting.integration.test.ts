@@ -184,7 +184,7 @@ describe("Fase 5a: server-e2e posisjons-ruting (distinkte personer)", () => {
     expect(etter.retning).toBe("tilbake");
   });
 
-  it("Trekk tilbake (received→draft) = avsenderleddet (§2.4), IKKE ball-holderen; lander på avsenderledд + retning tilbake", async () => {
+  it("Trekk tilbake (received→draft) = avsenderleddet (§2.4); lander på avsenderledд, «Hos N» (Runde-2 R1)", async () => {
     const s = await nyttScenario();
     await send(s.A_registrator, s.checklistId); // A (Ledд 1) sender → ball @2 (B, mottaker)
 
@@ -194,14 +194,17 @@ describe("Fase 5a: server-e2e posisjons-ruting (distinkte personer)", () => {
     );
     expect(negativ).toBe("FORBIDDEN");
 
-    // Avsenderleddet A (Ledд 1 = forrigeBallLedд(2)) trekker tilbake → draft, LANDER på ledд 1.
+    // Avsenderleddet A (Ledд 1 = forrigeBallLedд(2)) trekker tilbake → LANDER på ledд 1.
     await createTestCaller(s.A_registrator).sjekkliste.endreStatus({ id: s.checklistId, nyStatus: "draft" });
     const f = await faktaFor(s.checklistId);
     expect(f.aktivPosisjon).toBe(1);  // § 2.4: lander på avsenderleddet (A), IKKE @2
-    expect(f.retning).toBe("tilbake"); // trekk-tilbake = retning tilbake
+    // Runde-2 R1: trekk-tilbake gir retning=frem + sendt=true → «Hos 1» (received), ALDRI «Utkast»/
+    // «Besvart». REVERSERER D-scopingen (var tidligere tilbake/false/draft). Bakover-ness er historisk
+    // faktum i transferloggen, ikke en cache-distinksjon.
+    expect(f.retning).toBe("frem");
     expect(f.terminal).toBeNull();
-    expect(f.sendt).toBe(false);      // Trekk tilbake nullstiller sendt-fakta
-    expect(f.status).toBe("draft");   // avledet fra (!sendt)
+    expect(f.sendt).toBe(true);
+    expect(f.status).toBe("received"); // «Hos 1» — avsenderen har ballen igjen
   });
 
   it("§ 2.4 REGRESJON (distinkt-person): gjenåpne approved@4 av registrator (Ledд 1) → lander på 1, IKKE 4", async () => {

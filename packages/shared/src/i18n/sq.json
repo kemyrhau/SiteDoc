@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Përditësuar",
   "tabell.ansvarlig": "Përgjegjës",
   "tabell.venterPaa": "Në pritje të",
+  "tabell.venterPaaDeg": "Duke pritur për ju",
   "tabell.faggruppe": "Grupi tregtar",
   "tabell.fagomraade": "Disiplinë",
   "tabell.type": "Lloji",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Mirato dhe plotëso",
   "flyt.duHarBallen": "Ju keni topin",
   "flyt.duHarBallenMerke": "Ti e ke topin — {{merke}}",
-  "flyt.sendTil": "Dërgo te {{navn}}"
+  "flyt.sendTil": "Dërgo te {{navn}}",
+  "flyt.besvarTil": "Përgjigju {{navn}}"
 }

@@ -5,7 +5,10 @@ const STATUS_I18N: Record<string, string> = {
   draft: "status.utkast",
   sent: "status.sendt",
   received: "status.mottatt",
-  in_progress: "status.underArbeid",
+  // Runde-2 (2026-08-02, Q1=A): `in_progress` er kollapset — vises som «Mottatt» (received), også i
+  // tidslinjeloggen (rå DocumentTransfer.toStatus). Ingen «Under arbeid» noe sted; loggen bruker
+  // samme avledningsvokabular som statusen. «Venter på»-nyansen leveres seer-relativt av chippen.
+  in_progress: "status.mottatt",
   responded: "status.besvart",
   approved: "status.godkjent",
   rejected: "status.avvist",
@@ -20,7 +23,7 @@ const statusVariant: Record<string, "default" | "primary" | "success" | "warning
   draft: "default",
   sent: "primary",
   received: "primary",
-  in_progress: "warning",
+  in_progress: "primary", // Runde-2: kollapset til received-farge (samme «Mottatt»-vokabular)
   responded: "warning",
   approved: "success",
   rejected: "danger",

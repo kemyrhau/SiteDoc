@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Uppdaterad",
   "tabell.ansvarlig": "Ansvarig",
   "tabell.venterPaa": "Väntar på",
+  "tabell.venterPaaDeg": "Väntar på dig",
   "tabell.faggruppe": "Handelsentreprenör",
   "tabell.fagomraade": "Disciplin",
   "tabell.type": "Typ",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Godkänn och komplettera",
   "flyt.duHarBallen": "Du har bollen",
   "flyt.duHarBallenMerke": "Du har bollen – {{merke}}",
-  "flyt.sendTil": "Skicka till {{namn}}"
+  "flyt.sendTil": "Skicka till {{namn}}",
+  "flyt.besvarTil": "Svara på {{namn}}"
 }

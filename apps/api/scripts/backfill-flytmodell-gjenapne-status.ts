@@ -1,24 +1,26 @@
 /**
- * Flytmodell pilot-fiks D + #11 — backfill av feil-skrevet gjenåpne-status-cache (2026-08-02).
+ * Flytmodell backfill — feil-skrevet «forlatt ledд 1»-status-cache (pilot-fiks D + Runde-2 R1).
  *
- * BAKGRUNN: før D-fiksen skrev gjenåpning (terminal→draft) `sendt=false` (flytFakta.ts:201, gammel)
- * → `avledStatus` ga status="draft"/«Utkast» for et dok som faktisk HAR forlatt ledд 1 (§ 2.3).
- * Kode-fiksen retter kun NYE gjenåpninger; eksisterende gjenåpnede dok beholder den ugyldige
- * cachen (f.eks. KB2-010 på test) til de re-avledes.
+ * BAKGRUNN: et dok som HAR forlatt ledд 1 skal ha `sendt=true` (§ 2.3) → «Hos N», aldri «Utkast».
+ * To draft-overganger brøt dette før fiksene:
+ *   1. GJENÅPNE (terminal→draft): skrev `sendt=false` → «Utkast» (pilot-fiks D, f.eks. KB2-010).
+ *   2. TREKK-TILBAKE (received→draft): skrev `sendt=false` + `retning="tilbake"` → «Utkast»
+ *      (Runde-2 R1 reverserer D-scopingen; nå skal trekk-tilbake òg gi `sendt=true` + `retning="frem"`
+ *      → «Hos N», f.eks. KB2-017).
+ * Kode-fiksen retter kun NYE overganger; eksisterende feilskrevne dok re-avledes her.
  *
- * ⚠️ AVVIK FRA ORDRE-FORMULERING (flagget til cowork): de berørte radene har `sendt=FALSE`
- * (ikke `sendt=true` som ordren antok) — det var nettopp `sendt=false` som ga draft. En ren
- * «re-avled status»-backfill ville derfor vært en no-op (sendt=false → draft uansett). Roten som
- * må rettes er FAKTAET `sendt`: et gjenåpnet dok skal ha `sendt=true`. Dette scriptet setter
- * `sendt=true` + re-avleder `status` via delt `avledStatus` for rader som var TERMINALE og er
- * gjenåpnet (har en transfer til en terminal-status, men ligger nå som draft, terminal=null).
+ * ROTEN er FAKTAENE `sendt` (+ `retning` for trekk-tilbake): en ren «re-avled status» ville vært
+ * no-op (sendt=false → draft uansett). Scriptet setter `sendt=true` + `retning="frem"` + re-avleder
+ * `status` via delt `avledStatus` (terminal=null) → «Hos N» (received).
  *
- * SCOPE (kun gjenåpne, IKKE trekk-tilbake): trekk-tilbake (received→draft) har INGEN terminal-
- * transfer i historikken → matches ikke → beholder `sendt=false`/«Utkast» (D-scoping, fabel-sak
- * for seg). Genuine utkast (aldri sendt, ingen terminal-transfer) røres heller ikke.
+ * SCOPE — tre grupper, alle «forlatt ledд 1»:
+ *   (a) gjenåpne  : status=draft, terminal=null, HAR terminal-transfer i historikken.
+ *   (b) trekk-tilbake: status=draft, terminal=null, HAR received→draft-transfer (ingen terminal).
+ *   (c) legacy in_progress: status=in_progress (Q1-kollaps — skal være received/«Hos N»).
+ * Genuine utkast (aldri sendt: status=draft, ingen slik transfer) røres ALDRI.
  *
- * IDEMPOTENT: etter fiks blir status ≠ 'draft' → radene matcher ikke ved ny kjøring. Skriver kun
- * rader der (sendt, status) faktisk avviker fra korrekt avledet verdi.
+ * IDEMPOTENT: etter fiks matcher radene ikke lenger (status≠draft/≠in_progress). Skriver kun rader
+ * der (sendt, retning, status) faktisk avviker fra korrekt avledet verdi.
  *
  * Bruk (mot ønsket DB — verifiser DATABASE_URL FØRST; kjøres mot sitedoc_test av Kenneth post-deploy):
  *   pnpm --filter @sitedoc/api exec tsx scripts/backfill-flytmodell-gjenapne-status.ts
@@ -39,15 +41,19 @@ interface Rad {
   sendt: boolean;
 }
 
-/** Riktig (sendt, status) for en gjenåpnet rad: sendt=true, status re-avledet med terminal=null. */
-function korrekt(rad: Rad): { sendt: boolean; status: string } {
+/**
+ * Riktig (sendt, retning, status) for et «forlatt ledд 1»-dok: sendt=true, retning=frem (R1 —
+ * bakover-ness er historisk faktum i transferloggen, ikke en cache-distinksjon), status re-avledet
+ * med terminal=null → «Hos N» (received).
+ */
+function korrekt(rad: Rad): { sendt: boolean; retning: string; status: string } {
   const { status } = avledStatus({
     aktivPosisjon: rad.aktivPosisjon,
-    retning: rad.retning,
-    terminal: null, // gjenåpnet dok er ikke lenger terminal
+    retning: "frem",
+    terminal: null, // ikke lenger terminal
     sendt: true,
   });
-  return { sendt: true, status };
+  return { sendt: true, retning: "frem", status };
 }
 
 const select = {
@@ -59,41 +65,52 @@ const select = {
   sendt: true,
 } as const;
 
+// (a) gjenåpne + (b) trekk-tilbake: draft-status, forlatt ledд 1 (terminal-transfer ELLER
+// received→draft-transfer). (c) legacy in_progress fanges av egen where under.
 const whereGjenapnet = {
   status: "draft",
   terminal: null,
-  transfers: { some: { toStatus: { in: TERMINAL_STATUSER } } },
+  OR: [
+    { transfers: { some: { toStatus: { in: TERMINAL_STATUSER } } } }, // (a) gjenåpne
+    { transfers: { some: { fromStatus: "received", toStatus: "draft" } } }, // (b) trekk-tilbake
+  ],
 } as const;
 
+// (c) legacy in_progress → received (Q1-kollaps, Runde-2). in_progress skrives aldri lenger.
+const whereInProgress = { status: "in_progress" } as const;
+
+// Alle tre gruppene = «forlatt ledд 1», feilskrevet cache.
+const whereForlattLedd1 = { OR: [whereGjenapnet, whereInProgress] } as const;
+
 async function backfillChecklists(): Promise<{ oppdatert: number; uendret: number }> {
-  const rader = await prisma.checklist.findMany({ where: whereGjenapnet, select });
+  const rader = await prisma.checklist.findMany({ where: whereForlattLedd1, select });
   let oppdatert = 0;
   let uendret = 0;
   for (const c of rader) {
     const k = korrekt(c);
-    if (c.sendt === k.sendt && c.status === k.status) {
+    if (c.sendt === k.sendt && c.status === k.status && c.retning === k.retning) {
       uendret++;
       continue;
     }
-    await prisma.checklist.update({ where: { id: c.id }, data: { sendt: k.sendt, status: k.status } });
-    console.log(`  Checklist ${c.id}: draft/sendt=${c.sendt} → ${k.status}/sendt=${k.sendt} (pos ${c.aktivPosisjon})`);
+    await prisma.checklist.update({ where: { id: c.id }, data: { sendt: k.sendt, retning: k.retning, status: k.status } });
+    console.log(`  Checklist ${c.id}: ${c.status}/sendt=${c.sendt}/retning=${c.retning} → ${k.status}/sendt=${k.sendt}/retning=${k.retning} (pos ${c.aktivPosisjon})`);
     oppdatert++;
   }
   return { oppdatert, uendret };
 }
 
 async function backfillTasks(): Promise<{ oppdatert: number; uendret: number }> {
-  const rader = await prisma.task.findMany({ where: whereGjenapnet, select });
+  const rader = await prisma.task.findMany({ where: whereForlattLedd1, select });
   let oppdatert = 0;
   let uendret = 0;
   for (const t of rader) {
     const k = korrekt(t);
-    if (t.sendt === k.sendt && t.status === k.status) {
+    if (t.sendt === k.sendt && t.status === k.status && t.retning === k.retning) {
       uendret++;
       continue;
     }
-    await prisma.task.update({ where: { id: t.id }, data: { sendt: k.sendt, status: k.status } });
-    console.log(`  Task ${t.id}: draft/sendt=${t.sendt} → ${k.status}/sendt=${k.sendt} (pos ${t.aktivPosisjon})`);
+    await prisma.task.update({ where: { id: t.id }, data: { sendt: k.sendt, retning: k.retning, status: k.status } });
+    console.log(`  Task ${t.id}: ${t.status}/sendt=${t.sendt}/retning=${t.retning} → ${k.status}/sendt=${k.sendt}/retning=${k.retning} (pos ${t.aktivPosisjon})`);
     oppdatert++;
   }
   return { oppdatert, uendret };

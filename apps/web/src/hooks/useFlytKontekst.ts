@@ -46,6 +46,8 @@ export interface FlytKontekst {
   minRolle: DokumentflytRolle | null | undefined;
   flytRettighet: "redigerer" | "leser" | undefined;
   flytMedlemmer: FlytMedlem[];
+  /** Runde-2 (#7/#8): dokumentflytens navn (f.eks. «Sitedoc Ansatte») for sheet-tittel + flytlinje-caption. */
+  flytNavn: string | null;
   aktivPosisjon: number | null | undefined;
   rettighetInput:
     | {
@@ -197,6 +199,14 @@ export function useFlytKontekst(input: {
     return flyt?.medlemmer ?? [];
   }, [dokumentflytId, dokumentflyterRå]);
 
+  // Runde-2 (#7/#8): flyt-navnet er alt lastet via `dokumentflyt.hentForProsjekt` (projeksjon, ingen
+  // ny query) — plukkes ut her for sheet-tittel + flytlinje-caption på detalj.
+  const flytNavn = useMemo<string | null>(() => {
+    if (!dokumentflytId || !dokumentflyterRå) return null;
+    const rå = dokumentflyterRå as Array<{ id: string; name?: string | null }>;
+    return rå.find((df) => df.id === dokumentflytId)?.name ?? null;
+  }, [dokumentflytId, dokumentflyterRå]);
+
   const rettighetInput = useMemo<FlytKontekst["rettighetInput"]>(() => {
     if (!minFlytInfo) return undefined;
     return {
@@ -216,6 +226,7 @@ export function useFlytKontekst(input: {
     minRolle,
     flytRettighet,
     flytMedlemmer,
+    flytNavn,
     aktivPosisjon,
     rettighetInput,
   };

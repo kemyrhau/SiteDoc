@@ -121,7 +121,7 @@ export default function SjekklisteDetaljSide() {
 
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
   // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
-  const { harBallen, erAvsender, erMedlemAvFlyt, retningsrett, minRolle, flytRettighet, flytMedlemmer, aktivPosisjon, rettighetInput } = useFlytKontekst({
+  const { harBallen, erAvsender, erMedlemAvFlyt, retningsrett, minRolle, flytMedlemmer, flytNavn, aktivPosisjon, rettighetInput } = useFlytKontekst({
     fullDokRå: fullSjekklisteRå,
     dokumentflyterRå,
     minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
@@ -474,7 +474,9 @@ export default function SjekklisteDetaljSide() {
         oppdaterMutasjon.mutate({ id: params.sjekklisteId, byggeplassId: id, drawingId: null }),
     },
     {
-      etikett: t("tabell.utforer"),
+      // Runde-2 (#6): «UTFØRER»-etikett → «Faggruppe» (relasjonell benevnelse; chip-verdien er selve
+      // faggruppen). Rører ikke velger-oppførselen.
+      etikett: t("tabell.faggruppe"),
       verdi: sjekklisteCast.utforerFaggruppe?.name ?? "—",
       type: "velger",
       deaktivert: !erUtkast,
@@ -585,8 +587,11 @@ export default function SjekklisteDetaljSide() {
                 fullSjekkliste?.recipientGroup?.name;
               if (!navn) return null;
               return (
+                // Runde-2 (R5): seer-relativ — «Venter på deg» når innlogget har ballen, ellers
+                // «Venter på {navn}» (mottakerens ledд). Leverer «venter på»-nyansen Q1-kollapsen tok
+                // fra loggen, som visning (aldri statusfakta).
                 <span data-testid="venter-paa" className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                  {t("tabell.venterPaa")}: {navn}
+                  {harBallen ? t("tabell.venterPaaDeg") : `${t("tabell.venterPaa")}: ${navn}`}
                 </span>
               );
             })()}
@@ -605,6 +610,10 @@ export default function SjekklisteDetaljSide() {
             Fase 2-matcheren navngir den. Skjul for HMS her (paritet med perspektiv-skjul under). */}
         {!erHms && flytMedlemmer.length > 0 && (
           <div className="mt-2">
+            {/* Runde-2 (#7/#8): flyt-navn som caption over flytlinja (f.eks. «Sitedoc Ansatte»). */}
+            {flytNavn && (
+              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">{flytNavn}</div>
+            )}
             <div className="hidden sm:block">
               <FlytIndikator
                 medlemmer={flytMedlemmer}

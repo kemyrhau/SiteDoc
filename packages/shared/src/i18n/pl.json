@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Zaktualizowano",
   "tabell.ansvarlig": "Odpowiedzialny",
   "tabell.venterPaa": "Oczekuje na",
+  "tabell.venterPaaDeg": "Czekam na ciebie",
   "tabell.faggruppe": "Wykonawca handlowy",
   "tabell.fagomraade": "Dyscyplina",
   "tabell.type": "Typ",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Zatwierdź i uzupełnij",
   "flyt.duHarBallen": "Masz piłkę",
   "flyt.duHarBallenMerke": "Masz piłkę — {{merke}}",
-  "flyt.sendTil": "Wyślij do {{navn}}"
+  "flyt.sendTil": "Wyślij do {{navn}}",
+  "flyt.besvarTil": "Odpowiedz do {{navn}}"
 }

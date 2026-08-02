@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Aktualizováno",
   "tabell.ansvarlig": "Odpovědný",
   "tabell.venterPaa": "Čeká na",
+  "tabell.venterPaaDeg": "Čekám na tebe",
   "tabell.faggruppe": "Obchodní dodavatel",
   "tabell.fagomraade": "Disciplína",
   "tabell.type": "Typ",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Schválit a dokončit",
   "flyt.duHarBallen": "Máš míč",
   "flyt.duHarBallenMerke": "Máš míč — {{merke}}",
-  "flyt.sendTil": "Odeslat na {{navn}}"
+  "flyt.sendTil": "Odeslat na {{navn}}",
+  "flyt.besvarTil": "Odpovědět uživateli {{navn}}"
 }

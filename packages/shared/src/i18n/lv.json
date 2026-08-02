@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Atjaunināts",
   "tabell.ansvarlig": "Atbildīgs",
   "tabell.venterPaa": "Gaida",
+  "tabell.venterPaaDeg": "Gaida tevi",
   "tabell.faggruppe": "Tirdzniecības darbuzņēmējs",
   "tabell.fagomraade": "Disciplīna",
   "tabell.type": "Tips",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Apstipriniet un aizpildiet",
   "flyt.duHarBallen": "Jums ir bumba",
   "flyt.duHarBallenMerke": "Jums ir bumba — {{merke}}",
-  "flyt.sendTil": "Sūtīt uz {{navn}}"
+  "flyt.sendTil": "Sūtīt uz {{navn}}",
+  "flyt.besvarTil": "Atbildēt uz {{navn}}"
 }
