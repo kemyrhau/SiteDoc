@@ -35,9 +35,12 @@ import { useTranslation } from "react-i18next";
 import {
   hentPosisjonFiltrertHandlinger,
   statusKreverBegrunnelse,
+  nesteLedd,
   type StatusHandling,
   type DokumentflytRolle,
   type AdminNiva,
+  type FlytPosisjonLedd,
+  type LeddKlassifisering,
 } from "@sitedoc/shared";
 import { byggLedd, finnAktivtIndex, type FlytMedlem } from "../utils/dokumentflyt-ledd";
 
@@ -167,15 +170,30 @@ export function DokumentHandlingslinje({
     [status, retningsrett, harBallen, erAvsender, erMedlemAvFlyt, erAdmin],
   );
 
-  // Primær: kildens `erPrimaer`, ellers første lovlige (P3). Steg 4c: Send fra SISTE ledд
-  // (nesteLedд=null) er no-op → primær blir Godkjenn (fabel-design 2, «Godkjenn og fullfør»).
+  // Pilot-fiks B (2026-08-02, fabel-bindende): primær styres av POSISJON (delt nesteLedd, hopper
+  // Orienteres), ikke status/nabo-indeks. nesteLedд≠null ⇒ Send framover; =null ⇒ Godkjenn-og-fullfør.
+  // Et kontroll-ledд som mottar Besvar men IKKE er siste skal Sende, ikke Godkjenne (bevis-03).
+  const harFlyt = ledd.length > 0;
+  const posisjonsLedd: FlytPosisjonLedd[] = ledd.map((l) => ({
+    posisjon: l.posisjon,
+    klassifisering: l.klassifisering as LeddKlassifisering,
+    kanTerminereUtenBall: false,
+    brukerIder: l.brukerIder,
+    gruppeIder: l.gruppeIder,
+    faggruppeIder: l.faggruppeIder,
+  }));
+  const nesteLeddPos = harFlyt && aktivPosisjon != null ? nesteLedd(posisjonsLedd, aktivPosisjon) : null;
+
+  // Primær: kildens `erPrimaer`, ellers første lovlige (P3), men promotert til Send/Godkjenn-og-fullfør
+  // etter nesteLedд når begge finnes i det posisjon-filtrerte settet.
   const primærHandling = useMemo(() => {
     const p = statusHandlinger.find((h) => h.erPrimaer) ?? statusHandlinger[0] ?? null;
-    if (p?.nyStatus === "sent" && aktivtIndex >= 0 && !ledd[aktivtIndex + 1]) {
-      return statusHandlinger.find((h) => h.nyStatus === "approved") ?? p;
-    }
+    const sendH = statusHandlinger.find((h) => h.nyStatus === "sent");
+    const godkjennH = statusHandlinger.find((h) => h.nyStatus === "approved");
+    if (harFlyt && nesteLeddPos !== null && sendH) return sendH;
+    if (harFlyt && nesteLeddPos === null && godkjennH) return godkjennH;
     return p;
-  }, [statusHandlinger, ledd, aktivtIndex]);
+  }, [statusHandlinger, harFlyt, nesteLeddPos]);
 
   // Kategoriser øvrige (ikke-primær) handlinger til split-sheetens seksjoner.
   const øvrige = statusHandlinger.filter((h) => h !== primærHandling);
@@ -205,20 +223,21 @@ export function DokumentHandlingslinje({
   if (!tilgjengeligeFlyter?.gjeldende && status !== "draft") return null;
   if (!primærHandling && !harMeny) return null;
 
-  // --- Primær-navngiving med retning (fra byggLedd — ingen ny ledd-logikk) ---
-  const sisteLedd = ledd.length > 1 && aktivtIndex === ledd.length - 1;
+  // --- Primær-navngiving med retning (delt nesteLedd — orienteres-hopp, ikke nabo-indeks) ---
+  const nesteLeddBoks = nesteLeddPos !== null ? ledd.find((l) => l.posisjon === nesteLeddPos) : undefined;
   const primærLabel = (h: StatusHandling): string => {
     if (h.nyStatus === "sent") {
-      const neste = ledd[aktivtIndex + 1];
-      // Steg 4c: «Send til N · X →» (måll-leddets nummer + hvem).
-      return neste ? t("statushandling.sendTil", { mottaker: `${neste.posisjon} · ${neste.navn}` }) : t(h.tekstNoekkel);
+      // Steg 4c/pilot-fiks B: «Send til N · X →» (måll-leddets nummer + hvem, via nesteLedd).
+      return nesteLeddBoks
+        ? t("statushandling.sendTil", { mottaker: `${nesteLeddBoks.posisjon} · ${nesteLeddBoks.navn}` })
+        : t(h.tekstNoekkel);
     }
     if (h.nyStatus === "responded") {
       const forrige = ledd[aktivtIndex - 1]?.navn;
       return forrige ? t("statushandling.besvarTil", { mottaker: forrige }) : t(h.tekstNoekkel);
     }
-    // Siste ledд-godkjenn (Send-substitutt ELLER godkjenner på siste ledд) → «Godkjenn og fullfør ✓».
-    if (h.nyStatus === "approved" && sisteLedd) return t("flyt.godkjennOgFullfor");
+    // Godkjenn-og-fullfør: siste ball-ledд (nesteLedд=null) i en flyt → «Godkjenn og fullfør ✓».
+    if (h.nyStatus === "approved" && harFlyt && nesteLeddPos === null) return t("flyt.godkjennOgFullfor");
     return t(h.tekstNoekkel);
   };
 
@@ -228,7 +247,7 @@ export function DokumentHandlingslinje({
   const bekreftelsesTekstFor = (h: StatusHandling): string => {
     const label = t(h.tekstNoekkel);
     if (h.nyStatus === "sent") {
-      const neste = ledd[aktivtIndex + 1]?.navn;
+      const neste = nesteLeddBoks?.navn;
       return neste
         ? t("statushandling.bekreftSendTil", { mottaker: neste })
         : t("statushandling.bekreftSendBytte", { status: label });

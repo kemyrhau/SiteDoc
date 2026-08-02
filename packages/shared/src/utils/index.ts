@@ -146,8 +146,11 @@ export function isValidStatusTransition(
     // Besvar (→responded), Send på nytt (→sent) og Lukk (→closed, arver dagens rejected→closed).
     in_progress: ["responded", "sent", "closed"],
     // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
-    // §8A-fiks (2026-07-29): `responded→sent` FJERNET — samme recipient-løse no-op som received.
-    responded: ["approved", "in_progress"],
+    // Pilot-fiks B (2026-08-02, fabel-bindende): `responded→sent` GJENINNFØRT — samme klasse som
+    // Fase 3.6 `received→sent`. Et kontroll-ledд som mottar Besvar og IKKE er siste ledд skal Sende
+    // FRAMOVER (nesteLedd, ball-guardet via verifiserRetningsrett), ikke Godkjenne. Ruter via
+    // posisjon (aldri recipient-løs no-op — det var §8A-bekymringen i den GAMLE modellen).
+    responded: ["approved", "in_progress", "sent"],
     // §8A-fiks (2026-07-29): `approved→sent` FJERNET — samme recipient-løse no-op.
     // H6 (Godkjent = stoppsted): approved lukkes ALDRI — approved→closed fjernet. Veien tilbake er
     // Gjenåpne (approved→draft, Reg + P-adm, § 4).

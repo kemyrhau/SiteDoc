@@ -140,23 +140,37 @@ const draftRuting = (naaPos: number, fraStatus: string, aapner?: FlytBruker | nu
   beregnRuting({ nyStatus: "draft", effektivStatus: "draft", medlemmer: FLYT4, naaPos, bestillerUserId: "u1", fraStatus, aapner });
 
 describe("§ 2.4 gjenåpne/trekk-tilbake landing (beregnRuting draft-gren)", () => {
-  it("REGRESJON (Kenneths tilfelle): gjenåpne approved@4 av registrator (ledд 1) → lander på 1, IKKE 4", () => {
+  it("REGRESJON (distinkt-person, §2.4): gjenåpne approved@4 av registrator (ledд 1) → lander på 1, IKKE 4", () => {
     const r = draftRuting(4, "approved", bruker("u1"));
     expect(r.aktivPosisjon).toBe(1); // §2.4 regel 1: åpnerens eget ledд
     expect(r.retning).toBe("frem"); // gjenåpne = ny start
+    // Pilot-fiks D + #11 (2026-08-02): et gjenåpnet dok HAR forlatt ledд 1 → sendt=true → «Hos N»,
+    // IKKE «Utkast». (Var tidligere sendt=false/draft = buggen KB2-010/bevis-09 rettet.)
+    expect(r.sendt).toBe(true);
+    expect(r.status).toBe("received");
+  });
+
+  it("REGRESJON (bevis-09, Kenneths all-samme-faggruppe): gjenåpne approved@4 av ledд-4-medlem → «Hos 4», ikke «Utkast»", () => {
+    const r = draftRuting(4, "approved", bruker("u4"));
+    expect(r.aktivPosisjon).toBe(4); // §2.4 regel 1: åpnerens eget (terminal) ledд
+    expect(r.sendt).toBe(true);
+    expect(r.status).toBe("received"); // «Hos 4» — nesteLedд(4)=null ⇒ klient viser «Godkjenn og fullfør»
+  });
+
+  it("trekk-tilbake received (dok@3) av avsender (ledд 2) → lander på 2 + retning tilbake, BEHOLDER «Utkast»", () => {
+    const r = draftRuting(3, "received", bruker("u2"));
+    expect(r.aktivPosisjon).toBe(2);
+    expect(r.retning).toBe("tilbake");
+    // D-scoping: trekk-tilbake (fraStatus=received, ikke terminal) er URØRT → sendt=false/«Utkast».
+    // (Egen fabel-sak: skal et trukket-tilbake dok vise «Utkast» eller «Hos [avsender]»?)
     expect(r.sendt).toBe(false);
     expect(r.status).toBe("draft");
   });
 
-  it("trekk-tilbake received (dok@3) av avsender (ledд 2) → lander på 2 + retning tilbake", () => {
-    const r = draftRuting(3, "received", bruker("u2"));
-    expect(r.aktivPosisjon).toBe(2);
-    expect(r.retning).toBe("tilbake");
-  });
-
-  it("§ 2.4 regel 3: admin UTENFOR flyten → samme boks (aktivPosisjon uendret)", () => {
+  it("§ 2.4 regel 3: admin UTENFOR flyten → samme boks (aktivPosisjon uendret), men gjenåpnet ⇒ «Hos N»", () => {
     const r = draftRuting(4, "approved", bruker("admin-x", true));
     expect(r.aktivPosisjon).toBe(4);
+    expect(r.sendt).toBe(true); // gjenåpne fra terminal → sendt=true uansett hvem som åpner
   });
 
   it("bakoverkompat: uten `aapner` (ikke-draft-veier) → posisjon uendret (gammel fall-through)", () => {

@@ -198,7 +198,13 @@ export function beregnRuting(input: {
   // terminal (approved/dismissed/closed/cancelled) + forwarded: ingen posisjon-/mottaker-endring her.
 
   const terminal = terminalFraStatus(input.effektivStatus);
-  const sendt = input.effektivStatus !== "draft";
+  // D + #11 (pilot-fiks 02.08, fabel-bindende): et GJENÅPNET dok (draft-overgang FRA en terminal)
+  // HAR forlatt ledд 1 → `sendt=true` (§ 2.3) → avledStatus gir «Hos N», ikke «Utkast». «Gjenåpnet»
+  // er en tidslinjehendelse, ingen ny statusfakta. Scoped til gjenåpne (fraStatus ∈ terminaler);
+  // trekk-tilbake (received→draft) beholder sendt=false («Utkast») — egen fabel-sak, ikke rørt her.
+  const erGjenapne =
+    input.nyStatus === "draft" && input.aapner != null && terminalFraStatus(input.fraStatus ?? "") !== null;
+  const sendt = erGjenapne ? true : input.effektivStatus !== "draft";
   const status = avledetStatus({ aktivPosisjon, retning, terminal, sendt });
   return { aktivPosisjon, retning, terminal, sendt, status, mottaker };
 }
