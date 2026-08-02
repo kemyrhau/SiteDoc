@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Mis à jour",
   "tabell.ansvarlig": "Responsable",
   "tabell.venterPaa": "En attente de",
+  "tabell.venterPaaDeg": "Dans votre attente",
   "tabell.faggruppe": "Entrepreneur spécialisé",
   "tabell.fagomraade": "Discipline",
   "tabell.type": "Taper",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Approuver et compléter",
   "flyt.duHarBallen": "Tu as le ballon",
   "flyt.duHarBallenMerke": "Vous avez le ballon — {{merke}}",
-  "flyt.sendTil": "Envoyer à {{navn}}"
+  "flyt.sendTil": "Envoyer à {{navn}}",
+  "flyt.besvarTil": "Répondre à {{navn}}"
 }

@@ -59,15 +59,15 @@ const HANDLING_MATRISE: HandlingRad[] = [
 
   // — [ADMIN — står] erAdmin=true gir alle handlinger ————————————————
   { navn: "[ADMIN] registrator+erAdmin, draft → alle", status: "draft", rolle: "registrator", erAdmin: true, forventet: ["sent", "deleted"] },
-  { navn: "[ADMIN] registrator+erAdmin, responded → alle (pilot-fiks B: Send gjeninnført; F3: Send tilbake → in_progress)", status: "responded", rolle: "registrator", erAdmin: true, forventet: ["sent", "approved", "in_progress", "forwarded"] },
+  { navn: "[ADMIN] registrator+erAdmin, responded → alle (pilot-fiks B: Send; Runde-2: Send tilbake fjernet)", status: "responded", rolle: "registrator", erAdmin: true, forventet: ["sent", "approved", "forwarded"] },
   { navn: "[ADMIN] registrator+erAdmin, closed → gjenåpne (F4: universet har Gjenåpne)", status: "closed", rolle: "registrator", erAdmin: true, forventet: ["draft"] },
-  { navn: "[ADMIN] erAdmin overstyrer rolle-filter: bestiller+erAdmin, responded → alle (pilot-fiks B: Send gjeninnført)", status: "responded", rolle: "bestiller", erAdmin: true, forventet: ["sent", "approved", "in_progress", "forwarded"] },
+  { navn: "[ADMIN] erAdmin overstyrer rolle-filter: bestiller+erAdmin, responded → alle (Runde-2: uten Send tilbake)", status: "responded", rolle: "bestiller", erAdmin: true, forventet: ["sent", "approved", "forwarded"] },
 
   // — [REGISTRATOR — VENDT] Fase B: registrator sender/sletter EGEN kladd, ellers tom —
   { navn: "[REGISTRATOR] draft → send+slett (oppretter sender/sletter egen kladd)", status: "draft", rolle: "registrator", erAdmin: false, forventet: ["sent", "deleted"] },
   { navn: "[REGISTRATOR] sent → tom (F2: transient, ingen handlinger)", status: "sent", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] received → trekk tilbake (F2: avsender-siden henter til kladd)", status: "received", rolle: "registrator", erAdmin: false, forventet: ["draft"] },
-  { navn: "[REGISTRATOR] in_progress → tom (fikset)", status: "in_progress", rolle: "registrator", erAdmin: false, forventet: [] },
+  { navn: "[REGISTRATOR] in_progress → tom (Runde-2: in_progress-grenen fjernet)", status: "in_progress", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] responded → tom (fikset: kan ikke lenger godkjenne)", status: "responded", rolle: "registrator", erAdmin: false, forventet: [] },
   { navn: "[REGISTRATOR] rejected → tom (F3: rejected merget inn i in_progress, universet er tomt)", status: "rejected", rolle: "registrator", erAdmin: false, forventet: [] },
   // H6 (Godkjent = stoppsted): approved→closed fjernet, approved→draft (Gjenåpne) lagt til — Reg eier gjenåpne.
@@ -85,18 +85,18 @@ const HANDLING_MATRISE: HandlingRad[] = [
   { navn: "[ROLLE] bestiller, cancelled → tom (F4: gjenåpne flyttet til registrator, ikke bestiller)", status: "cancelled", rolle: "bestiller", erAdmin: false, forventet: [] },
   { navn: "[ROLLE] bestiller, received → trekk tilbake (F2: henter sendt hendelse til kladd)", status: "received", rolle: "bestiller", erAdmin: false, forventet: ["draft"] },
   { navn: "[ROLLE] bestiller, rejected → tom (F3: rejected merget inn i in_progress)", status: "rejected", rolle: "bestiller", erAdmin: false, forventet: [] },
-  // F3 (matrise § 3): bestiller eier Lukk fra Under arbeid (in_progress→closed).
-  { navn: "[ROLLE] bestiller, in_progress → lukk", status: "in_progress", rolle: "bestiller", erAdmin: false, forventet: ["closed"] },
+  // Runde-2: in_progress-grenen fjernet (kollaps) → tomt. Lukk går via firma-terminal (hms.ts).
+  { navn: "[ROLLE] bestiller, in_progress → tom (Runde-2: kollaps)", status: "in_progress", rolle: "bestiller", erAdmin: false, forventet: [] },
   // F1: utfører eier Avvis (received→dismissed). H3: Videresend (forwarded) fjernet fra utfører-defaults.
   // §8A (2026-07-29): Send (received→sent) fjernet — recipient-løs no-op.
   { navn: "[ROLLE] utforer, received → besvar+avvis (§8A: Send fjernet; H3: ikke videresend)", status: "received", rolle: "utforer", erAdmin: false, forventet: ["responded", "dismissed"] },
-  { navn: "[ROLLE] utforer, in_progress → besvar+send på nytt (H3: ikke videresend, ikke lukk)", status: "in_progress", rolle: "utforer", erAdmin: false, forventet: ["responded", "sent"] },
+  { navn: "[ROLLE] utforer, in_progress → tom (Runde-2: in_progress-grenen fjernet)", status: "in_progress", rolle: "utforer", erAdmin: false, forventet: [] },
   { navn: "[ROLLE] utforer, rejected → tom (F3: rejected merget inn i in_progress)", status: "rejected", rolle: "utforer", erAdmin: false, forventet: [] },
   { navn: "[ROLLE] utforer, draft → tom", status: "draft", rolle: "utforer", erAdmin: false, forventet: [] },
   // H3: Videresend (forwarded) fjernet fra godkjenner-defaults. §8A: Send (responded→sent) fjernet.
-  { navn: "[ROLLE] godkjenner, responded → godkjenn+send tilbake (F3: → in_progress; §8A: Send fjernet; H3: ikke videresend)", status: "responded", rolle: "godkjenner", erAdmin: false, forventet: ["approved", "in_progress"] },
-  // F3 (matrise § 3): godkjenner eier Lukk fra Under arbeid (in_progress→closed).
-  { navn: "[ROLLE] godkjenner, in_progress → lukk", status: "in_progress", rolle: "godkjenner", erAdmin: false, forventet: ["closed"] },
+  { navn: "[ROLLE] godkjenner, responded → godkjenn (Runde-2: Send tilbake fjernet; §8A: Send fjernet; H3: ikke videresend)", status: "responded", rolle: "godkjenner", erAdmin: false, forventet: ["approved"] },
+  // Runde-2: in_progress-grenen fjernet (kollaps) → tomt. Lukk via firma-terminal (hms.ts).
+  { navn: "[ROLLE] godkjenner, in_progress → tom (Runde-2: kollaps)", status: "in_progress", rolle: "godkjenner", erAdmin: false, forventet: [] },
   { navn: "[ROLLE] godkjenner, draft → tom", status: "draft", rolle: "godkjenner", erAdmin: false, forventet: [] },
 ];
 
@@ -146,9 +146,9 @@ const TILLATT_MATRISE: TillattRad[] = [
   { navn: "[ROLLE] bestiller, responded→approved → false (ikke eid)", rolle: "bestiller", fra: "responded", til: "approved", erAdmin: false, forventet: false },
   { navn: "[ROLLE] bestiller, closed→draft → false (ingen oppføring)", rolle: "bestiller", fra: "closed", til: "draft", erAdmin: false, forventet: false },
   { navn: "[ROLLE] bestiller, rejected→sent → false (F3: rejected merget inn i in_progress)", rolle: "bestiller", fra: "rejected", til: "sent", erAdmin: false, forventet: false },
-  // F3 (matrise § 3): Lukk fra Under arbeid eies av bestiller + godkjenner.
-  { navn: "[ROLLE] bestiller, in_progress→closed → true (lukk)", rolle: "bestiller", fra: "in_progress", til: "closed", erAdmin: false, forventet: true },
-  { navn: "[ROLLE] godkjenner, in_progress→closed → true (lukk)", rolle: "godkjenner", fra: "in_progress", til: "closed", erAdmin: false, forventet: true },
+  // Runde-2: in_progress kollapset HELT — ingen in_progress-overgang finnes (heller ikke Lukk herfra).
+  { navn: "[Runde-2] bestiller, in_progress→closed → false (in_progress fjernet)", rolle: "bestiller", fra: "in_progress", til: "closed", erAdmin: false, forventet: false },
+  { navn: "[Runde-2] godkjenner, in_progress→closed → false (in_progress fjernet)", rolle: "godkjenner", fra: "in_progress", til: "closed", erAdmin: false, forventet: false },
   { navn: "[ROLLE] utforer, in_progress→closed → false (ikke eid av utfører)", rolle: "utforer", fra: "in_progress", til: "closed", erAdmin: false, forventet: false },
   { navn: "[ROLLE] utforer, received→responded → true", rolle: "utforer", fra: "received", til: "responded", erAdmin: false, forventet: true },
   // F1: Avvis ruter til dismissed (eid av utfører), IKKE lenger cancelled.
@@ -158,10 +158,10 @@ const TILLATT_MATRISE: TillattRad[] = [
   { navn: "[F2] registrator, received→draft → true (trekk tilbake til kladd)", rolle: "registrator", fra: "received", til: "draft", erAdmin: false, forventet: true },
   { navn: "[F2] bestiller, received→draft → true (trekk tilbake til kladd)", rolle: "bestiller", fra: "received", til: "draft", erAdmin: false, forventet: true },
   { navn: "[F2] utforer, received→draft → false (ikke avsender-siden)", rolle: "utforer", fra: "received", til: "draft", erAdmin: false, forventet: false },
-  { navn: "[ROLLE] utforer, in_progress→sent → true (send på nytt)", rolle: "utforer", fra: "in_progress", til: "sent", erAdmin: false, forventet: true },
-  { navn: "[ROLLE] utforer, rejected→in_progress → false (F3: rejected merget, ingen gjenoppta)", rolle: "utforer", fra: "rejected", til: "in_progress", erAdmin: false, forventet: false },
+  { navn: "[Runde-2] utforer, in_progress→sent → false (in_progress-grenen fjernet)", rolle: "utforer", fra: "in_progress", til: "sent", erAdmin: false, forventet: false },
+  { navn: "[ROLLE] utforer, rejected→in_progress → false (in_progress fjernet)", rolle: "utforer", fra: "rejected", til: "in_progress", erAdmin: false, forventet: false },
   { navn: "[ROLLE] godkjenner, responded→approved → true", rolle: "godkjenner", fra: "responded", til: "approved", erAdmin: false, forventet: true },
-  { navn: "[ROLLE] godkjenner, responded→in_progress → true (F3: Send tilbake direkte til Under arbeid)", rolle: "godkjenner", fra: "responded", til: "in_progress", erAdmin: false, forventet: true },
+  { navn: "[Runde-2] godkjenner, responded→in_progress → false («Send tilbake» fjernet)", rolle: "godkjenner", fra: "responded", til: "in_progress", erAdmin: false, forventet: false },
   { navn: "[ROLLE] godkjenner, draft→sent → false (ikke eid)", rolle: "godkjenner", fra: "draft", til: "sent", erAdmin: false, forventet: false },
   // §8A (2026-07-29): «Send fram» fjernet fra received/responded/approved (recipient-løs no-op).
   // Overgangen finnes ikke lenger i statusmaskinen → false for ALLE roller, også der utfører/godkjenner
@@ -183,21 +183,17 @@ describe("erTillattForRolle — karakterisering av dagens oppførsel", () => {
 /*  isValidStatusTransition — statusmaskinen (linjemodell-vedtak)       */
 /* ------------------------------------------------------------------ */
 
-describe("isValidStatusTransition — F3 Merge «Under arbeid» (rejected merget inn i in_progress)", () => {
-  it("responded → in_progress er lovlig (Send tilbake DIREKTE til Under arbeid)", () => {
-    expect(isValidStatusTransition("responded", "in_progress")).toBe(true);
+describe("isValidStatusTransition — Runde-2: in_progress kollapset HELT (Q1=A)", () => {
+  it("responded → in_progress er ULOVLIG («Send tilbake» fjernet — bakover er Besvar ←)", () => {
+    expect(isValidStatusTransition("responded", "in_progress")).toBe(false);
   });
-  it("in_progress → closed er lovlig (Lukk — arver dagens rejected→closed)", () => {
-    expect(isValidStatusTransition("in_progress", "closed")).toBe(true);
+  it("received → in_progress er ULOVLIG (in_progress finnes ikke som mål)", () => {
+    expect(isValidStatusTransition("received", "in_progress")).toBe(false);
   });
-  it("in_progress → sent er lovlig (Send på nytt, fram igjen etter retting)", () => {
-    expect(isValidStatusTransition("in_progress", "sent")).toBe(true);
-  });
-  it("in_progress → responded er lovlig (Besvar)", () => {
-    expect(isValidStatusTransition("in_progress", "responded")).toBe(true);
-  });
-  it("in_progress → cancelled er ULOVLIG (Avvis fra Under arbeid utgår)", () => {
-    expect(isValidStatusTransition("in_progress", "cancelled")).toBe(false);
+  it("in_progress → * er ULOVLIG — statusen finnes ikke som kilde (kollaps → received)", () => {
+    expect(isValidStatusTransition("in_progress", "closed")).toBe(false);
+    expect(isValidStatusTransition("in_progress", "sent")).toBe(false);
+    expect(isValidStatusTransition("in_progress", "responded")).toBe(false);
   });
   it("rejected → * er ulovlig — statusen er borte fra maskinen (merget, rader migreres)", () => {
     expect(isValidStatusTransition("rejected", "sent")).toBe(false);
@@ -252,9 +248,9 @@ describe("F1 Avvist — statusmaskin + handling + begrunnelse-gate", () => {
 /* ------------------------------------------------------------------ */
 
 describe("statusKreverBegrunnelse — P2 (Kenneth-vedtak, valg B): kommentar-klassen", () => {
-  it("Besvar (responded), Send tilbake (in_progress) og Avvis (dismissed) krever begrunnelse", () => {
+  it("Besvar (responded) og Avvis (dismissed) krever begrunnelse (Runde-2: Send tilbake/in_progress fjernet)", () => {
     expect(statusKreverBegrunnelse("responded")).toBe(true);
-    expect(statusKreverBegrunnelse("in_progress")).toBe(true);
+    expect(statusKreverBegrunnelse("in_progress")).toBe(false);
     expect(statusKreverBegrunnelse("dismissed")).toBe(true);
   });
   it("Videresend (forwarded) og Send (sent) er UNNTAK — krever ikke begrunnelse", () => {
@@ -357,8 +353,8 @@ describe("Fase 3.6 — «Send fram» (received→sent) GJENINNFØRT i statusmask
     expect(isValidStatusTransition("draft", "sent")).toBe(true);
     expect(hentStatusHandlinger("draft").find((h) => h.tekstNoekkel === "handling.send")?.nyStatus).toBe("sent");
   });
-  it("in_progress → sent er fortsatt lovlig (Send på nytt etter retting)", () => {
-    expect(isValidStatusTransition("in_progress", "sent")).toBe(true);
+  it("in_progress → sent er ULOVLIG (Runde-2: in_progress kollapset HELT)", () => {
+    expect(isValidStatusTransition("in_progress", "sent")).toBe(false);
   });
   it("Videresend (forwarded) er URØRT på received/responded/approved", () => {
     for (const status of ["received", "responded", "approved"]) {
@@ -369,9 +365,8 @@ describe("Fase 3.6 — «Send fram» (received→sent) GJENINNFØRT i statusmask
 
 describe("H3 videresend-rettighet — forwarded er admin-only (fjernet fra flytrolle-defaults)", () => {
   // Del 1: default AV for utfører/godkjenner, PÅ for prosjektadmin (via statusmaskin-snittet).
-  it("utfører får IKKE videresend i menyen (received/in_progress)", () => {
+  it("utfører får IKKE videresend i menyen (received)", () => {
     expect(hentRolleFiltrertHandlinger("received", "utforer", null).map((h) => h.nyStatus)).not.toContain("forwarded");
-    expect(hentRolleFiltrertHandlinger("in_progress", "utforer", null).map((h) => h.nyStatus)).not.toContain("forwarded");
   });
   it("godkjenner får IKKE videresend i menyen (responded)", () => {
     expect(hentRolleFiltrertHandlinger("responded", "godkjenner", null).map((h) => h.nyStatus)).not.toContain("forwarded");
@@ -383,7 +378,6 @@ describe("H3 videresend-rettighet — forwarded er admin-only (fjernet fra flytr
   });
   it("prosjektadmin BEHOLDER videresend på de relevante statusene (via snittet, ikke defaults)", () => {
     expect(hentRolleFiltrertHandlinger("received", "utforer", "prosjekt").map((h) => h.nyStatus)).toContain("forwarded");
-    expect(hentRolleFiltrertHandlinger("in_progress", "utforer", "prosjekt").map((h) => h.nyStatus)).toContain("forwarded");
     expect(hentRolleFiltrertHandlinger("responded", "godkjenner", "prosjekt").map((h) => h.nyStatus)).toContain("forwarded");
     expect(erTillattForRolle("utforer", "received", "forwarded", "prosjekt")).toBe(true);
     expect(erTillattForRolle("godkjenner", "responded", "forwarded", "prosjekt")).toBe(true);
@@ -394,22 +388,16 @@ describe("H3 videresend-rettighet — forwarded er admin-only (fjernet fra flytr
   });
 });
 
-describe("hentStatusHandlinger — F3: Under arbeid (in_progress) bærer «Send på nytt»", () => {
+describe("hentStatusHandlinger — Runde-2: in_progress-universet er tomt (kollaps → received)", () => {
   it("rejected-universet er tomt (statusen er merget bort)", () => {
     expect(hentStatusHandlinger("rejected")).toEqual([]);
   });
-  it("in_progress-universet inneholder en sent-handling", () => {
-    const nyStatuser = hentStatusHandlinger("in_progress").map((h) => h.nyStatus);
-    expect(nyStatuser).toContain("sent");
+  it("in_progress-universet er tomt (grenen fjernet — Q1=A, avledStatus gir alltid received)", () => {
+    expect(hentStatusHandlinger("in_progress")).toEqual([]);
   });
-  it("sent-handlingen bruker flytspråk-etiketten «Send på nytt»", () => {
-    const sendPaaNytt = hentStatusHandlinger("in_progress").find((h) => h.nyStatus === "sent");
-    expect(sendPaaNytt?.tekstNoekkel).toBe("statushandling.sendPaaNytt");
-  });
-  it("in_progress-universet inneholder Lukk (→closed), ikke Avvis (→cancelled)", () => {
-    const nyStatuser = hentStatusHandlinger("in_progress").map((h) => h.nyStatus);
-    expect(nyStatuser).toContain("closed");
-    expect(nyStatuser).not.toContain("cancelled");
+  it("responded bærer IKKE «Send tilbake» (in_progress) lenger — bakover er Besvar ← fra received", () => {
+    const nyStatuser = hentStatusHandlinger("responded").map((h) => h.nyStatus);
+    expect(nyStatuser).not.toContain("in_progress");
   });
 });
 
@@ -509,7 +497,7 @@ describe("adminNiva='sitedoc' — kode-bypass (full, også ulovlige overganger)"
   });
   it("hentRolleFiltrertHandlinger: hele universet", () => {
     expect(hentRolleFiltrertHandlinger("draft", "registrator", "sitedoc").map((h) => h.nyStatus)).toEqual(["sent", "deleted"]);
-    expect(hentRolleFiltrertHandlinger("responded", "bestiller", "sitedoc").map((h) => h.nyStatus)).toEqual(["sent", "approved", "in_progress", "forwarded"]);
+    expect(hentRolleFiltrertHandlinger("responded", "bestiller", "sitedoc").map((h) => h.nyStatus)).toEqual(["sent", "approved", "forwarded"]);
   });
 });
 

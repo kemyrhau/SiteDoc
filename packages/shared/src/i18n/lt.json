@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Atnaujinta",
   "tabell.ansvarlig": "Atsakingas",
   "tabell.venterPaa": "Laukia",
+  "tabell.venterPaaDeg": "Laukia tavęs",
   "tabell.faggruppe": "Prekybos rangovas",
   "tabell.fagomraade": "Drausmė",
   "tabell.type": "Tipas",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Patvirtinti ir užpildyti",
   "flyt.duHarBallen": "Tu turi kamuolį",
   "flyt.duHarBallenMerke": "Tu turi kamuolį – {{merke}}",
-  "flyt.sendTil": "Siųsti į {{navn}}"
+  "flyt.sendTil": "Siųsti į {{navn}}",
+  "flyt.besvarTil": "Atsakyti {{navn}}"
 }

@@ -539,9 +539,10 @@ export default function OppgaveDetalj() {
               if (!["sent", "received", "in_progress"].includes(oppgave.status)) return null;
               if (!recipientGroup?.name) return null;
               return (
+                // Runde-2 (R5): seer-relativ «Venter på deg» / «Venter på: {navn}» (web-paritet).
                 <View className="rounded bg-amber-50 px-1.5 py-0.5">
                   <Text className="text-xs font-medium text-amber-700">
-                    {t("tabell.venterPaa")}: {recipientGroup.name}
+                    {harBallen ? t("tabell.venterPaaDeg") : `${t("tabell.venterPaa")}: ${recipientGroup.name}`}
                   </Text>
                 </View>
               );
@@ -557,6 +558,7 @@ export default function OppgaveDetalj() {
             harBallen={harBallen}
             meg={{ userId: minFlytInfo?.userId, gruppeIder: minFlytInfo?.gruppeIder }}
             overforinger={overforinger}
+            flytNavn={(tilgjengeligeFlyter as { gjeldende?: { name?: string | null } | null } | null | undefined)?.gjeldende?.name ?? null}
             formaterTid={formaterHistorikkDato}
           />
         )}

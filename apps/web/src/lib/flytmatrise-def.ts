@@ -80,8 +80,8 @@ export const MATRISE_RADER: MatriseRad[] = [
   { fra: "in_progress", til: "closed", labelNoekkel: "handling.lukk", flythjelpNoekkel: "flythjelp.handling.lukk" },
   { fra: "in_progress", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
   { fra: "responded", til: "approved", labelNoekkel: "handling.godkjenn", flythjelpNoekkel: "flythjelp.handling.godkjenn" },
-  // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
-  { fra: "responded", til: "in_progress", labelNoekkel: "statushandling.sendTilbakeUtforer", flythjelpNoekkel: "flythjelp.handling.sendTilbakeUtforer", fallbackNoekkel: "flythjelp.fallback.utforer" },
+  // Runde-2 (2026-08-02): «Send tilbake» (responded→in_progress) FJERNET — bakover er nå Besvar ←
+  // (received→responded). Raden utgår helt (ikke en låst celle) i tråd med statusmaskin-fjerningen.
   // §8A-fiks (2026-07-29): F5s «Send fram» (responded→sent) FJERNET — recipient-løs no-op.
   { fra: "responded", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
   // F3: `rejected`-seksjonen utgår (merget inn i in_progress over).
@@ -360,7 +360,8 @@ export const FLYTVISNING_BOKS_DEF: FlytboksDef[] = [
     grupper: {
       // §8A-fiks (2026-07-29): «Send fram» (responded→sent + approved→sent) FJERNET (recipient-løs
       // no-op). Godkjenner har ingen framover-sending igjen — sendHoyre-gruppen utgår.
-      sendVenstre: [h([["godkjenner", "responded", "in_progress"]])], // Send tilbake til utfører
+      // Runde-2 (2026-08-02): «Send tilbake» (responded→in_progress) FJERNET — godkjenner går bakover
+      // via Besvar ← (received→responded) fra Mottatt, ikke fra Besvart. sendVenstre-gruppen utgår.
       endepunkt: [
         // Godkjenn fra Mottatt (F6) + Besvart → én rad, to delceller.
         h([["godkjenner", "received", "approved"], ["godkjenner", "responded", "approved"]]),

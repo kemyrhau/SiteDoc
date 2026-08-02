@@ -157,14 +157,15 @@ describe("§ 2.4 gjenåpne/trekk-tilbake landing (beregnRuting draft-gren)", () 
     expect(r.status).toBe("received"); // «Hos 4» — nesteLedд(4)=null ⇒ klient viser «Godkjenn og fullfør»
   });
 
-  it("trekk-tilbake received (dok@3) av avsender (ledд 2) → lander på 2 + retning tilbake, BEHOLDER «Utkast»", () => {
+  it("REGRESJON (Runde-2 R1): trekk-tilbake received (dok@3) av avsender (ledд 2) → lander på 2, «Hos 2»", () => {
     const r = draftRuting(3, "received", bruker("u2"));
-    expect(r.aktivPosisjon).toBe(2);
-    expect(r.retning).toBe("tilbake");
-    // D-scoping: trekk-tilbake (fraStatus=received, ikke terminal) er URØRT → sendt=false/«Utkast».
-    // (Egen fabel-sak: skal et trukket-tilbake dok vise «Utkast» eller «Hos [avsender]»?)
-    expect(r.sendt).toBe(false);
-    expect(r.status).toBe("draft");
+    expect(r.aktivPosisjon).toBe(2); // avsenderleddet
+    // R1 (fabel, 2026-08-02): trekk-tilbake gir retning=frem + sendt=true → «Hos N» (received), IKKE
+    // «Utkast»/«Besvart». REVERSERER pilot-fiks D-scopingen (som holdt trekk-tilbake på tilbake/false/draft).
+    // Bakover-ness er historisk faktum i transferloggen, ikke en cache-distinksjon.
+    expect(r.retning).toBe("frem");
+    expect(r.sendt).toBe(true);
+    expect(r.status).toBe("received");
   });
 
   it("§ 2.4 regel 3: admin UTENFOR flyten → samme boks (aktivPosisjon uendret), men gjenåpnet ⇒ «Hos N»", () => {

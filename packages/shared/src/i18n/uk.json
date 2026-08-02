@@ -648,6 +648,7 @@
   "tabell.oppdatert": "Оновлено",
   "tabell.ansvarlig": "Відповідальний",
   "tabell.venterPaa": "Очікує",
+  "tabell.venterPaaDeg": "Чекаю на вас",
   "tabell.faggruppe": "Підрядник торгівлі",
   "tabell.fagomraade": "Дисциплінованість",
   "tabell.type": "Тип",
@@ -3287,5 +3288,6 @@
   "flyt.godkjennOgFullfor": "Затвердити та завершити",
   "flyt.duHarBallen": "У вас є м'яч",
   "flyt.duHarBallenMerke": "У вас м’яч — {{merke}}",
-  "flyt.sendTil": "Надіслати до {{navn}}"
+  "flyt.sendTil": "Надіслати до {{navn}}",
+  "flyt.besvarTil": "Відповісти {{navn}}"
 }
