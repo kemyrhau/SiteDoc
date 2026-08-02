@@ -98,6 +98,44 @@ Status: 5a-regresjonsnettet er merget til develop (12d2e401) — pilot-fiksen st
 1. **Ansvarsmerke-plassering: kun i flyt-sheeten** (veileder § 4 står — flytlinje i header = nummer + hvem). Unntak: aktivt ledd viser merket i «Du har ballen»-mikroteksten («Du har ballen — Kontrollerer avvik»). Begrunnelse: mobil-plassbudsjett + merket er oppslagsinformasjon, ikke navigasjon.
 2. **Primærknapp fra received: «Send til N · X →»** (målleddets nummer + hvem, ikke ansvarsmerke) — identisk ordlyd fra draft og received; posisjonen varierer, ikke handlingen. Siste ledd: «Godkjenn og fullfør ✓».
 
+## Menyfiks-vurdering (fabel, 01.08)
+
+Test-skjermbildet (Send-split viser prosjektvelger-innhold løsrevet på skjermen) er **ikke gyldig bevis mot fiksen**: e6a8ebba ble rsync'et etter at web-bygget startet → bygget er trolig a64044d8 uten fiksen. Kjør web-only-blokket på nytt (build sitedoc-test-web → up -d --no-deps; ALDRI up -d --build per OOM-merknaden) og re-test.
+
+Hvis feilen består etter verifisert bygg: dette er en **portal/anker-feil, ikke CSS** — dropdownen rendrer PROSJEKT-velgerens innhold i feil portal-posisjon. Opus sjekker da portal-target + anker-ref for split-menyen.
+
+Notert grønt: flytlinja i header viser posisjonsmodellen korrekt på test (1→2→3→✓4, aktivt ledd markert) — Fase 4 del 1 verifisert visuelt.
+
+## §2.4 gjenåpne-posisjon: vedtak (fabel, 01.08)
+
+Funn #2 (gjenåpnet dokument beholdt aktivPosisjon=4) er systematisk: `gjenapnePosisjon` (§2.4-regelen) ligger ferdig kodet men aldri påkoblet; `beregnRuting` nullstiller ikke posisjon på draft-overgang.
+
+**Alternativ A vedtatt:** koble på `gjenapnePosisjon` — wiring, ikke ny logikk. Krav: draft-overgangen i `beregnRuting` går via samme funksjon, ingen egen vei.
+
+**Reconcile: gjenåpne og trekk-tilbake deler landing** («ballen lander i handlerens eget ledd», §2.4 pkt 1–3) men har ulike gate-betingelser: gjenåpne = medlem/admin fra terminal; trekk-tilbake = kun avsenderleddet, fra sendt før mottaker har handlet (`retning: tilbake` til eget ledd — ingen ny terminal/retning). Én landing-funksjon, to guards.
+
+E2e-krav: Kenneths aktivPosisjon=4-tilfelle som regresjonstest + trekk-tilbake-tilfellet.
+
+Notert: meny-fiks #1 (fa49f9a5) gatet grønt — roten var obsolete utkast-mottakervelger på flyt-bundne utkast (`draftSend = … && !harFlyt`), z-50 ærlig reversert. Batches med bygg-stempel etter 5b.
+
+## Pilot-funn 02.08: fabels kall på A–D + nytt funn #11 (fabel, 02.08)
+
+Grunnlag: `verifisering/flytmodell-pilot-bevis-2026-08-02/` (rapport + bevis-01..09, lest).
+
+- **B (#1/#2) bekreftet som implementasjonsavvik:** kontroll-ledd som mottar Besvar → primær «Send til N·X →»; «Godkjenn og fullfør ✓» KUN på siste ledd (`nesteLedd=null`). Bevis-03: ball hos ledd 2/4, primær «Godkjenn» = regelbrudd. Vedtak 01.08 står.
+- **A (#3/#8/#9) — strukturell fiks påkrevd:** mottakervelgeren skal fjernes fra split-menyens render-tre i alle flyt-bundne tilstander — IKKE nok et tilstandsvilkår (tredje forekomst av samme klasse = plaster-mønster).
+- **C (#7) avgjort:** split-▾ = gyldige retninger fra posisjon + eide terminaler, fast rekkefølge: Besvar ← · Videresend ↔ · Avvis · Lukk · Slett (admin, § 2.5). Utkast Besvares IKKE (`!sendt` = lokal tilstand) → bevis-06 (Send + Slett) er korrekt som den står. Ingen kodeendring.
+- **D (#10) — etikettfeil i avledningen, ikke Q1-kollisjon:** gjenåpnet dok har `sendt=true` (§ 2.3) og skal avlede «Hos N · X» — aldri «Utkast». Rot: gjenåpning skriver draft til status-cachen. Fiks: gjenåpning setter ikke cache til draft; «Gjenåpnet» er tidslinjehendelse, ingen ny statusfakta.
+- **NYTT #11 (bevis-09):** gjenåpnet dok, ball hos ledd 4 (siste), viser primær «Send» uten mål i stedet for «Godkjenn og fullfør ✓». Samme rot som D; eget verifiseringspunkt i fiks-ordren.
+
+**Ordre-pakking:** A + B + D/#11 = én fokusert Opus-ordre. E2e-krav: bevis-03-tilfellet (Besvar→kontroll-ledd→primær Send) + bevis-09-tilfellet (gjenåpnet fra Godkjent → «Hos 4», primær «Godkjenn og fullfør»).
+
+## Videresend-kall: ship bleeden-fiksen (fabel, 02.08 — blokkerende for A-merge)
+
+**Valg 1 vedtatt:** merge A nå — Videresend forsvinner interim fra web flyt-dok (admin-only-tap, smalt; nødveier finnes). Inline-velgeren i split-▾ var selve bleed-mekanismen og skal ikke bevares. **Oppfølger-designsak:** «Videresend ↔» tilbake som ren oppføring → egen mål-velger-flate (mobils «Bytt flyt»-modal som mønster); fabel skisserer etter pilot-fiksene. C-rekkefølgen står som målbilde; interim uten Videresend-raden = akseptert avvik. B + D + backfill merges uavhengig.
+
+**Trekk-tilbake-status (parallell senere-sak), foreløpig retning:** «Hos [avsenderens ledd]» via samme avledning som D (`sendt=true` består) — ikke egen etikett. Endelig kall når saken tas.
+
 ## Prøvekjørings-vedtak (fabel, 31.07 — relayet direkte, cowork treg)
 
 Drift-diagnosen (22 fremmede migreringer = modul-pakkenes egne i delt DB) er akseptert. **Vei 2 valgt:** `BEGIN … ROLLBACK`-dry-run av hele migreringen + backfill først (beviser ren kjøring mot faktisk dataform uten å persistere), deretter vei 1 (`migrate deploy` på lokal sandkasse). Betingelser: `migrate dev` forbudt; etter deploy verifiseres at KUN den ene pending-migreringen ble anvendt (fremmede urørt) + rad-tellinger på de 6 backfilte feltene; rapport før push. Begrunnelse: delt migrasjonstabell → dry-run koster minutter, fjerner hele klassen «backfill feiler halvveis».
