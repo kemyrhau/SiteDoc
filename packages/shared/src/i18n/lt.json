@@ -984,6 +984,7 @@
   "byggeplassVelger.favoritt": "Mėgstamiausias",
   "byggeplass.gpsPaaPlass": "GPS · esate svetainėje",
   "byggeplass.gpsForeslar": "GPS siūlo",
+  "bygg.stempel": "Sukurti {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Laukiama projekto prieigos",
   "dashbord.venterPaaTilgangBeskrivelse": "Dar neturite prieigos prie jokio projekto. Susisiekite su savo projekto vadovu.",
   "dashbord.opprettProsjekt": "Sukurti projektą",

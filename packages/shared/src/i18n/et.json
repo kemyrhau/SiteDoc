@@ -984,6 +984,7 @@
   "byggeplassVelger.favoritt": "Lemmik",
   "byggeplass.gpsPaaPlass": "GPS · olete kohapeal",
   "byggeplass.gpsForeslar": "GPS soovitab",
+  "bygg.stempel": "Järg {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Ootab projekti juurdepääsu",
   "dashbord.venterPaaTilgangBeskrivelse": "Teil pole veel ühelegi projektile juurdepääsu. Võtke ühendust oma projektijuhiga.",
   "dashbord.opprettProsjekt": "Loo projekt",

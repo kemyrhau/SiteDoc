@@ -984,6 +984,7 @@
   "byggeplassVelger.favoritt": "Любимый",
   "byggeplass.gpsPaaPlass": "GPS · вы на месте",
   "byggeplass.gpsForeslar": "GPS подсказывает",
+  "bygg.stempel": "Построить {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Ожидание доступа к проекту",
   "dashbord.venterPaaTilgangBeskrivelse": "У вас пока нет доступа ни к одному проекту. Свяжитесь с менеджером проекта.",
   "dashbord.opprettProsjekt": "Создать проект",

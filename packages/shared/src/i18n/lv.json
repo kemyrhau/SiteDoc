@@ -984,6 +984,7 @@
   "byggeplassVelger.favoritt": "Mīļākais",
   "byggeplass.gpsPaaPlass": "GPS · jūs esat uz vietas",
   "byggeplass.gpsForeslar": "GPS iesaka",
+  "bygg.stempel": "Būvējums {{sha}} · {{tid}}",
   "dashbord.venterPaaTilgangTittel": "Gaida projekta piekļuvi",
   "dashbord.venterPaaTilgangBeskrivelse": "Jums vēl nav piekļuves nevienam projektam. Sazinieties ar savu projekta vadītāju.",
   "dashbord.opprettProsjekt": "Izveidot projektu",
