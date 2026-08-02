@@ -59,9 +59,9 @@ const HANDLING_MATRISE: HandlingRad[] = [
 
   // — [ADMIN — står] erAdmin=true gir alle handlinger ————————————————
   { navn: "[ADMIN] registrator+erAdmin, draft → alle", status: "draft", rolle: "registrator", erAdmin: true, forventet: ["sent", "deleted"] },
-  { navn: "[ADMIN] registrator+erAdmin, responded → alle (F3: Send tilbake → in_progress; §8A: Send fjernet)", status: "responded", rolle: "registrator", erAdmin: true, forventet: ["approved", "in_progress", "forwarded"] },
+  { navn: "[ADMIN] registrator+erAdmin, responded → alle (pilot-fiks B: Send gjeninnført; F3: Send tilbake → in_progress)", status: "responded", rolle: "registrator", erAdmin: true, forventet: ["sent", "approved", "in_progress", "forwarded"] },
   { navn: "[ADMIN] registrator+erAdmin, closed → gjenåpne (F4: universet har Gjenåpne)", status: "closed", rolle: "registrator", erAdmin: true, forventet: ["draft"] },
-  { navn: "[ADMIN] erAdmin overstyrer rolle-filter: bestiller+erAdmin, responded → alle (§8A: Send fjernet)", status: "responded", rolle: "bestiller", erAdmin: true, forventet: ["approved", "in_progress", "forwarded"] },
+  { navn: "[ADMIN] erAdmin overstyrer rolle-filter: bestiller+erAdmin, responded → alle (pilot-fiks B: Send gjeninnført)", status: "responded", rolle: "bestiller", erAdmin: true, forventet: ["sent", "approved", "in_progress", "forwarded"] },
 
   // — [REGISTRATOR — VENDT] Fase B: registrator sender/sletter EGEN kladd, ellers tom —
   { navn: "[REGISTRATOR] draft → send+slett (oppretter sender/sletter egen kladd)", status: "draft", rolle: "registrator", erAdmin: false, forventet: ["sent", "deleted"] },
@@ -330,8 +330,10 @@ describe("Fase 3.6 — «Send fram» (received→sent) GJENINNFØRT i statusmask
   it("received → sent er LOVLIG igjen (Fase 3.6: posisjonsmodell ruter sent→nesteLedd, ikke no-op)", () => {
     expect(isValidStatusTransition("received", "sent")).toBe(true);
   });
-  it("responded → sent er fortsatt ULOVLIG (responded=besvart/tilbake, ikke Send-forover)", () => {
-    expect(isValidStatusTransition("responded", "sent")).toBe(false);
+  // Pilot-fiks B (2026-08-02): responded→sent GJENINNFØRT — et kontroll-ledд som mottar Besvar men
+  // ikke er siste ledд Sender framover (nesteLedd, ball-guardet), ikke Godkjenner (bevis-03).
+  it("responded → sent er LOVLIG igjen (pilot-fiks B: Send framover fra Besvart via nesteLedd)", () => {
+    expect(isValidStatusTransition("responded", "sent")).toBe(true);
   });
   it("approved → sent er fortsatt ULOVLIG (approved=terminal H6, ingen forover)", () => {
     expect(isValidStatusTransition("approved", "sent")).toBe(false);
@@ -341,13 +343,15 @@ describe("Fase 3.6 — «Send fram» (received→sent) GJENINNFØRT i statusmask
     expect(send?.nyStatus).toBe("sent");
     expect(send?.erPrimaer).toBe(true);
   });
-  it.each(["responded", "approved"])(
-    "%s-universet bærer fortsatt INGEN Send-knapp (kun received + draft + in_progress)",
-    (status) => {
-      const send = hentStatusHandlinger(status).find((h) => h.tekstNoekkel === "handling.send");
-      expect(send).toBeUndefined();
-    },
-  );
+  it("responded-universet BÆRER nå Send-knapp (pilot-fiks B; erPrimaer beholdt på Godkjenn — klient promoterer)", () => {
+    const send = hentStatusHandlinger("responded").find((h) => h.tekstNoekkel === "handling.send");
+    expect(send?.nyStatus).toBe("sent");
+    expect(send?.erPrimaer).toBeUndefined();
+  });
+  it("approved-universet bærer fortsatt INGEN Send-knapp (terminal H6, ingen forover)", () => {
+    const send = hentStatusHandlinger("approved").find((h) => h.tekstNoekkel === "handling.send");
+    expect(send).toBeUndefined();
+  });
   // Negativ kontroll: de legitime Send-veiene er URØRT.
   it("draft → sent er fortsatt lovlig (førstegangs-send med person-velger)", () => {
     expect(isValidStatusTransition("draft", "sent")).toBe(true);
@@ -505,7 +509,7 @@ describe("adminNiva='sitedoc' — kode-bypass (full, også ulovlige overganger)"
   });
   it("hentRolleFiltrertHandlinger: hele universet", () => {
     expect(hentRolleFiltrertHandlinger("draft", "registrator", "sitedoc").map((h) => h.nyStatus)).toEqual(["sent", "deleted"]);
-    expect(hentRolleFiltrertHandlinger("responded", "bestiller", "sitedoc").map((h) => h.nyStatus)).toEqual(["approved", "in_progress", "forwarded"]);
+    expect(hentRolleFiltrertHandlinger("responded", "bestiller", "sitedoc").map((h) => h.nyStatus)).toEqual(["sent", "approved", "in_progress", "forwarded"]);
   });
 });
 

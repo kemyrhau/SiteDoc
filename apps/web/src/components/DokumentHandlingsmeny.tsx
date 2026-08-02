@@ -19,9 +19,12 @@ import {
   hentHandlingEierRoller,
   isValidStatusTransition,
   statusKreverBegrunnelse,
+  nesteLedd,
   type StatusHandling,
   type DokumentflytRolle,
   type AdminNiva,
+  type FlytPosisjonLedd,
+  type LeddKlassifisering,
 } from "@sitedoc/shared";
 import { byggVideresendValg, filtrerVideresendPaaMedlemskap, finnMottakerNavn } from "@/lib/videresend-valg";
 import type { DokumentflytData, FaggruppeData, VideresendMedlem } from "@/lib/videresend-valg";
@@ -169,7 +172,7 @@ export function DokumentHandlingsmeny({
   mineFlytIder,
   recipientUserId,
   recipientGroupId,
-  bestillerUserId,
+  // bestillerUserId: prop beholdt for API-kompat, men klienten utleder ikke mottaker (server gjør).
   lestAvMottakerVed,
   besvarDeaktivertGrunn,
 }: DokumentHandlingsmenyProps) {
@@ -329,19 +332,35 @@ export function DokumentHandlingsmeny({
   // som løs knapp ved siden av. Alt annet lovlig samles bak primærens split-▾.
   const primærHandling = aktive.find((h) => h.erPrimaer) ?? aktive[0] ?? null;
 
-  // Steg 4c (fabel-design 2): «Send til N · X →» (måll-leddets nummer + hvem) / «Godkjenn og
-  // fullfør ✓» ved siste ledд (Send fra siste = no-op → primær blir Godkjenn). Ellers standard-tekst.
-  const nesteLeddBoks = aktivtIndex >= 0 ? ledd[aktivtIndex + 1] : undefined;
+  // Pilot-fiks B (2026-08-02, fabel-bindende): primær styres av POSISJON (nesteLedd), ikke status.
+  // nesteLedд≠null ⇒ «Send til N·X →» (fram til neste ball-ledд; delt nesteLedd hopper Orienteres,
+  // ikke nabo-indeks); nesteLedд=null ⇒ «Godkjenn og fullfør ✓» (siste ledд). Uavhengig av received/
+  // Besvart — et kontroll-ledд som mottar Besvar men IKKE er siste skal Sende framover (bevis-03).
+  const posisjonsLedd: FlytPosisjonLedd[] = ledd.map((l) => ({
+    posisjon: l.posisjon,
+    klassifisering: l.klassifisering as LeddKlassifisering,
+    kanTerminereUtenBall: false,
+    brukerIder: l.brukerIder,
+    gruppeIder: l.gruppeIder,
+    faggruppeIder: l.faggruppeIder,
+  }));
+  const nesteLeddPos = harFlyt && aktivPosisjon != null ? nesteLedd(posisjonsLedd, aktivPosisjon) : null;
+  const nesteLeddBoks = nesteLeddPos != null ? ledd.find((l) => l.posisjon === nesteLeddPos) : undefined;
+  const sendHandling = aktive.find((h) => h.nyStatus === "sent");
+  const godkjennHandling = aktive.find((h) => h.nyStatus === "approved");
+  // Fram til neste ledд (Send) når mulig; ellers Godkjenn-og-fullfør på siste ledд. Kun for flyt-
+  // bundne dok der den lovlige handlingen finnes i det posisjon-filtrerte settet; ellers kildens primær.
   const effektivPrimær =
-    primærHandling?.nyStatus === "sent" && !nesteLeddBoks
-      ? aktive.find((h) => h.nyStatus === "approved") ?? primærHandling
-      : primærHandling;
-  const sisteLeddGodkjenn = effektivPrimær !== primærHandling && effektivPrimær?.nyStatus === "approved";
+    harFlyt && nesteLeddBoks && sendHandling
+      ? sendHandling
+      : harFlyt && !nesteLeddBoks && godkjennHandling
+        ? godkjennHandling
+        : primærHandling;
   const primærLabel: string = !effektivPrimær
     ? ""
     : effektivPrimær.nyStatus === "sent" && nesteLeddBoks
       ? t("flyt.sendTil", { navn: `${nesteLeddBoks.posisjon} · ${nesteLeddBoks.aktivNavn}` })
-      : sisteLeddGodkjenn
+      : effektivPrimær === godkjennHandling && harFlyt && !nesteLeddBoks
         ? t("flyt.godkjennOgFullfor")
         : t(effektivPrimær.tekstNoekkel);
 
@@ -379,13 +398,18 @@ export function DokumentHandlingsmeny({
     draftSend && videresendValg.length > 1
       ? recipientOppforinger("sent", "send", primærHandling!.tekstNoekkel)
       : [];
+  // Pilot-fiks A (2026-08-02, fabel-bindende): faggruppe-mottakervelgeren for Videresend blør gjennom
+  // split-▾ på flyt-bundne dok (bevis-03/07/08). Videresend på et flyt-bundet dok rutes uansett via
+  // posisjon (ikke manuell mottaker-plukk), så velger-innholdet er obsolet OG villedende → gate på
+  // `!harFlyt` (som draftMottaker). Velgeren hører KUN til flyt-LØSE (ad-hoc) dok. Se flagg i rapport:
+  // dette fjerner hele Videresend-affordansen for flyt-bundne dok (admin-only i praksis).
   const videresendOppforinger: MenyOppforing[] =
-    !draftSend && harForwarded
+    !draftSend && harForwarded && !harFlyt
       ? recipientOppforinger("forwarded", "fwd", forwardedHandling.tekstNoekkel, videresendMottakere)
       : [];
 
   // Øvrige statushandlinger (ikke primær, ikke forwarded, ikke admin-status), delt i
-  // framover (nøytrale) og destruktive (Avvis/Slett, rød) for fabel-rekkefølgen.
+  // framover (nøytrale) og destruktive (Avvis, rød) for fabel-rekkefølgen.
   const byggStatusOppforing = (h: StatusHandling): MenyOppforing => ({
     key: `sek-${h.nyStatus}`,
     label: t(h.tekstNoekkel),
@@ -396,16 +420,21 @@ export function DokumentHandlingsmeny({
     erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "dismissed",
     mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
   });
+  // Split-eksklusjon på effektivPrimær (ikke primærHandling): når primær promoteres fra Godkjenn til
+  // Send (B), skal Send IKKE også dukke opp i split, og Godkjenn skal (den er ikke lenger primær).
   const øvrigeStatus = aktive.filter(
-    (h) => h !== primærHandling && h.nyStatus !== "forwarded" && !ADMIN_NY.has(h.nyStatus),
+    (h) => h !== effektivPrimær && h.nyStatus !== "forwarded" && !ADMIN_NY.has(h.nyStatus),
   );
   const erDestruktivNy = (ns: string) => ns === "deleted" || ns === "dismissed";
   const framoverOppforinger = øvrigeStatus.filter((h) => !erDestruktivNy(h.nyStatus)).map(byggStatusOppforing);
-  const destruktivOppforinger = øvrigeStatus.filter((h) => erDestruktivNy(h.nyStatus)).map(byggStatusOppforing);
+  // Fabel C-orden (pilot-fiks A): destruktiv-seksjonen = KUN Avvis (dismissed). Slett (deleted)
+  // flyttes til admin-seksjonen, rendret SIST («Slett (admin)», § 2.5).
+  const destruktivOppforinger = øvrigeStatus.filter((h) => h.nyStatus === "dismissed").map(byggStatusOppforing);
+  const slettOppforinger = øvrigeStatus.filter((h) => h.nyStatus === "deleted").map(byggStatusOppforing);
 
-  // Admin-seksjon: aktive admin-status som IKKE er primær (Lukk/Trekk tilbake/Gjenåpne når sekundær)
-  const adminOppforinger: MenyOppforing[] = aktive
-    .filter((h) => h !== primærHandling && ADMIN_NY.has(h.nyStatus) && h.nyStatus !== "forwarded")
+  // Admin-seksjon: aktive admin-status som IKKE er primær (Lukk/Trekk tilbake/Gjenåpne) + Slett SIST.
+  const adminStatusOppforinger: MenyOppforing[] = aktive
+    .filter((h) => h !== effektivPrimær && ADMIN_NY.has(h.nyStatus) && h.nyStatus !== "forwarded")
     .map((h) => ({
       key: `adm-${h.nyStatus}`,
       label: t(h.tekstNoekkel),
@@ -415,6 +444,7 @@ export function DokumentHandlingsmeny({
       erDestruktiv: h.nyStatus === "cancelled",
       mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
     }));
+  const adminOppforinger: MenyOppforing[] = [...adminStatusOppforinger, ...slettOppforinger];
 
   // Deaktiverte: finnes i universet, men ikke tilgjengelig for denne rollen/statusen
   const aktiveNy = new Set(aktive.map((h) => h.nyStatus));
@@ -477,12 +507,13 @@ export function DokumentHandlingsmeny({
   };
 
   // P2 (tom-besvarelse): «Besvar» blokkeres når besvarelsen er tom. Speiler
-  // server-guarden — UI viser aldri en handling serveren avviser.
-  const besvarBlokkert = !!besvarDeaktivertGrunn && primærHandling?.nyStatus === "responded";
+  // server-guarden — UI viser aldri en handling serveren avviser. Gjelder KUN når Besvar er
+  // primær (effektivPrimär) — etter B kan primær være Send/Godkjenn (skal ikke blokkeres av tom besvar).
+  const besvarBlokkert = !!besvarDeaktivertGrunn && effektivPrimær?.nyStatus === "responded";
 
   // Primærknapp-klikk: draft-send med flere mottakere → åpne nedtrekk; ellers utfør
   const klikkPrimær = () => {
-    if (!primærHandling || besvarBlokkert) return;
+    if (!effektivPrimær || besvarBlokkert) return;
     if (draftSend) {
       const v = videresendValg[0];
       if (videresendValg.length === 1 && v) {
@@ -570,12 +601,14 @@ export function DokumentHandlingsmeny({
     );
   }
 
-  const primærFarge = primærHandling ? FARGE_KLASSE[primærHandling.farge] ?? "bg-sitedoc-primary hover:bg-blue-700" : "";
-  const primærMikro = primærHandling ? mikrotekst(primærHandling.tekstNoekkel, primærHandling.nyStatus, t(primærHandling.tekstNoekkel)) : undefined;
+  // Rendering bruker effektivPrimär (pilot-fiks B) — farge/mikro/testid følger den faktiske
+  // primærhandlingen (Send/Godkjenn-og-fullfør), ikke kildens erPrimaer.
+  const primærFarge = effektivPrimær ? FARGE_KLASSE[effektivPrimær.farge] ?? "bg-sitedoc-primary hover:bg-blue-700" : "";
+  const primærMikro = effektivPrimær ? mikrotekst(effektivPrimær.tekstNoekkel, effektivPrimær.nyStatus, primærLabel) : undefined;
   // P2: når Besvar er blokkert (tom besvarelse), vis blokkerings-grunnen i tooltipen
   // framfor den vanlige flythjelp-mikroteksten.
-  const primærTooltip = besvarBlokkert && primærHandling
-    ? { tittel: t(primærHandling.tekstNoekkel), tekst: besvarDeaktivertGrunn! }
+  const primærTooltip = besvarBlokkert && effektivPrimær
+    ? { tittel: t(effektivPrimær.tekstNoekkel), tekst: besvarDeaktivertGrunn! }
     : primærMikro;
 
   // Splittkanten (rounded-l) på primærknappen når split-▾ vises.
@@ -600,12 +633,12 @@ export function DokumentHandlingsmeny({
   return (
     <div className="flex flex-wrap items-center gap-2" ref={menyRef}>
       {/* Primærhandling som knapp + split-▾ (fabel § 1: alle øvrige lovlige handlinger i menyen) */}
-      {primærHandling && (
+      {effektivPrimær && (
         <div className="relative flex">
           {primærTooltip ? (
             <Tooltip tittel={primærTooltip.tittel} tekst={primærTooltip.tekst} side="top">
               <button
-                data-testid={`handling-${primærHandling.nyStatus}`}
+                data-testid={`handling-${effektivPrimær.nyStatus}`}
                 onClick={klikkPrimær}
                 disabled={erLaster || besvarBlokkert}
                 className={primærKnappKlasse}
@@ -615,12 +648,12 @@ export function DokumentHandlingsmeny({
             </Tooltip>
           ) : (
             <button
-              data-testid={`handling-${primærHandling.nyStatus}`}
+              data-testid={`handling-${effektivPrimær.nyStatus}`}
               onClick={klikkPrimær}
               disabled={erLaster || besvarBlokkert}
               className={primærKnappKlasse}
             >
-              {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
+              {erLaster ? t("statushandling.endrer") : primærLabel}
             </button>
           )}
           {harØvrige && (
@@ -808,7 +841,8 @@ function DropdownMeny({
     return vis ? <div className="my-1 border-t border-gray-100" /> : null;
   };
 
-  // Fabel-rekkefølge: (draft-mottakere →) framover → destruktiv → Videresend → Admin → deaktiverte.
+  // Fabel C-orden (pilot-fiks A): (draft-mottakere →) framover (Besvar) → Videresend → destruktiv
+  // (Avvis) → Admin (Lukk/Trekk tilbake/Gjenåpne + Slett sist) → deaktiverte.
   return (
     <div className="absolute right-0 top-full z-20 mt-1 min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
       {draftMottaker.length > 0 && (
@@ -826,18 +860,18 @@ function DropdownMeny({
         </>
       )}
 
-      {destruktiv.length > 0 && (
-        <>
-          {skille(true)}
-          {destruktiv.map(statusRad)}
-        </>
-      )}
-
       {videresend.length > 0 && (
         <>
           {skille(true)}
           {overskrift(videresendLabel)}
           {videresend.map(mottakerRad)}
+        </>
+      )}
+
+      {destruktiv.length > 0 && (
+        <>
+          {skille(true)}
+          {destruktiv.map(statusRad)}
         </>
       )}
 

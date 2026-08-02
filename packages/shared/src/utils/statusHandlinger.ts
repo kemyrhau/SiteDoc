@@ -49,11 +49,15 @@ export function hentStatusHandlinger(status: string): StatusHandling[] {
       { tekstNoekkel: "handling.lukk", nyStatus: "closed", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
     responded: [
+      // Pilot-fiks B (2026-08-02, fabel-bindende): «Send til N·X →» GJENINNFØRT fra Besvart, som
+      // received (Fase 3.6/4b). Ruter via nesteLedd (ball-guardet), aldri recipient-løs no-op — det
+      // fjerner §8A-bekymringen i posisjonsmodellen. Klientens primær-utledning velger Send når
+      // nesteLedд≠null, Godkjenn-og-fullfør når nesteLedд=null (erPrimaer beholdt på approved for
+      // ikke-flyt/fallback). Ledд som mottar Besvar men ikke er siste → primær Send, ikke Godkjenn.
+      { tekstNoekkel: "handling.send", nyStatus: "sent", farge: "bg-blue-600", aktivFarge: "bg-blue-400" },
       { tekstNoekkel: "handling.godkjenn", nyStatus: "approved", farge: "bg-green-600", aktivFarge: "bg-green-400", erPrimaer: true },
       // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
       { tekstNoekkel: "statushandling.sendTilbakeUtforer", nyStatus: "in_progress", farge: "bg-amber-500", aktivFarge: "bg-amber-400" },
-      // §8A-fiks (2026-07-29): «Send fram» (responded→sent) FJERNET — samme recipient-løse no-op
-      // som received (F5 la den i alle tre statusene). Videresend beholdt.
       { tekstNoekkel: "statushandling.videresend", nyStatus: "forwarded", farge: "bg-gray-500", aktivFarge: "bg-gray-400" },
     ],
     // H6 (Godkjent = stoppsted): Godkjent lukkes ALDRI — Lukk fjernet. Veien tilbake er Gjenåpne

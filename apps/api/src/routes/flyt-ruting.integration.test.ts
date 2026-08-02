@@ -117,6 +117,27 @@ describe("Fase 5a: server-e2e posisjons-ruting (distinkte personer)", () => {
     expect(etter.status).toBe("responded");              // avledet (retning=tilbake)
   });
 
+  it("bevis-03 (pilot-fiks B): ledд på Besvart Sender FRAMOVER (responded→sent → nesteLedд), ikke blokkert", async () => {
+    const s = await nyttScenario();
+    await send(s.A_registrator, s.checklistId); // →2
+    await send(s.B_bestiller, s.checklistId);   // →3
+    await send(s.C_utforer, s.checklistId);     // →4
+    // Godkjenner(4) besvarer → utfører(3): status responded, ballen @3.
+    await createTestCaller(s.D_godkjenner).sjekkliste.endreStatus({
+      id: s.checklistId, nyStatus: "responded", kommentar: "utbedre",
+    });
+    const påBesvart = await faktaFor(s.checklistId);
+    expect(påBesvart.aktivPosisjon).toBe(3);
+    expect(påBesvart.status).toBe("responded");
+    // Utfører(3) Sender framover fra Besvart (responded→sent). Tidligere BLOKKERT (§8A) → primær
+    // ble feilaktig «Godkjenn». Pilot-fiks B: nå GRØNT (nesteLedд 3→4), primær ville vært «Send».
+    await send(s.C_utforer, s.checklistId);
+    const etter = await faktaFor(s.checklistId);
+    expect(etter.aktivPosisjon).toBe(4);              // Send framover, IKKE terminal/Godkjenn
+    expect(etter.recipientUserId).toBe(s.D_godkjenner);
+    expect(etter.status).toBe("received");            // «Hos 4», ikke approved
+  });
+
   it("Godkjenn krever ball: ikke-ball-holder → FORBIDDEN, ball-holder → godkjent (terminal)", async () => {
     const s = await nyttScenario();
     await send(s.A_registrator, s.checklistId); // →2
@@ -199,8 +220,10 @@ describe("Fase 5a: server-e2e posisjons-ruting (distinkte personer)", () => {
     const f = await faktaFor(s.checklistId);
     expect(f.aktivPosisjon).toBe(1);  // §2.4 regel 1: åpnerens eget ledд — IKKE 4
     expect(f.terminal).toBeNull();
-    expect(f.sendt).toBe(false);
-    expect(f.status).toBe("draft");
+    // Pilot-fiks D + #11 (bevis-09): et gjenåpnet dok HAR forlatt ledд 1 → sendt=true → «Hos 1»,
+    // IKKE «Utkast» (var tidligere sendt=false/draft = KB2-010-buggen). aktivPosisjon uendret av D.
+    expect(f.sendt).toBe(true);
+    expect(f.status).toBe("received");
   });
 
   it("Bestiller sist (Fase 3.6-fixture): Send-kjede når siste ledд; nesteLedd(siste)=null ⇒ Godkjenn og fullfør (E2 no-op)", async () => {
