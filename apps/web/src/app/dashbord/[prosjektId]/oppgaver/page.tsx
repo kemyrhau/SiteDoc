@@ -361,10 +361,11 @@ export default function OppgaverSide() {
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
 
   // P4b: sist brukt oppgavemal (klient-lokal interim, se useSistBrukteMal).
-  // Oppgave-mal → flyt er DETERMINISTISK (matchDf i handleOpprettFraMal), så en
-  // per-prosjekt-nøkkel kan aldri gi «feil mal på tvers av flyter» — å velge mal
-  // X ruter alltid til X sin flyt. (Skiller seg fra sjekkliste, der samme mal kan
-  // ligge i flere flyter og nøkkelen derfor må være per flyt.)
+  // En oppgave-mal KAN ligge i flere dokumentflyter (`DokumentflytMal @@unique([dokumentflytId,
+  // templateId])` — kompositt, ikke templateId alene). Per-prosjekt-nøkkelen (`oppgaveMalNøkkel`) er
+  // likevel trygg fordi flyt-VALGET alltid re-kjøres i `handleOpprettFraMal` via `malFlytStatus`:
+  // sist-brukt gjenåpner bare malen, som deretter auto-binder ved nøyaktig én kandidatflyt eller
+  // åpner picker ved flere — nøkkelen ruter aldri blindt til «feil flyt».
   const { sistBrukt, settSistBrukt } = useSistBrukteMal(minFlytInfo?.userId);
   const oppgaveMalNøkkel = `oppgave:${params.prosjektId}`;
   const sisteMalRef = useRef<string | null>(null);
