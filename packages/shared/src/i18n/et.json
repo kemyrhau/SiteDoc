@@ -717,6 +717,7 @@
   "oppgaver.ingenBeskrivelse": "Looge töövõtjatele tööde määramiseks ülesandeid.",
   "oppgaver.ingenMaler": "Ülesandemalle pole saadaval",
   "oppgaver.velgMal": "Valige ülesande mall",
+  "opprettVelger.sistBrukt": "Viimati kasutatud",
   "oppgaver.ingenMatcherFilter": "Ükski ülesanne ei vasta filtritele",
   "oppgaver.slettBekreftelse": "Kas olete kindel, et soovite selle ülesande kustutada?",
   "oppgaver.sokPlaceholder": "Otsi ülesandeid...",

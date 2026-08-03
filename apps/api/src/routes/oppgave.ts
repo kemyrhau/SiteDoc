@@ -8,6 +8,7 @@ import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
   verifiserFaggruppeTilhorighet,
+  hentBrukersOpprettFlytMedlemskap,
   verifiserDokumentTilgang,
   verifiserRetningsrett,
   byggFlytBruker,
@@ -467,6 +468,16 @@ export const oppgaveRouter = router({
         });
         hmsFlytId = hmsFlytMal?.dokumentflytId ?? undefined;
       } else {
+        // Standard-gren (P4b-port 2026-08-03, paritet med sjekkliste.opprett): et dokument tilhører
+        // ALLTID nøyaktig én flyt. Serveren stoler IKKE på klienten — validerer flyt + medlemskap, så
+        // en bommet binding AVVISES i stedet for å lagres stille flyt-løs (Funn A, ~4 mnd latent bug).
+        // dokumentflytId påkrevd her (ikke i Zod — HMS-grenen utelater den legitimt).
+        if (!input.dokumentflytId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Dokumentflyt er påkrevd for denne oppgavetypen. Velg en flyt som bruker malen.",
+          });
+        }
         // Standard: faggrupper påkrevd
         if (!input.bestillerFaggruppeId || !input.utforerFaggruppeId) {
           throw new TRPCError({
@@ -475,6 +486,27 @@ export const oppgaveRouter = router({
           });
         }
         await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
+
+        // F1/B2 (paritet): valider at (a) flyten har den valgte malen og (b) brukeren er oppretter-
+        // medlem (rollen lagret som "registrator"). Ingen bypass — også admin må være registrator-
+        // medlem av flyten for å opprette (Kenneth-vedtak 2026-07-24).
+        const flytHarMal = await ctx.prisma.dokumentflytMal.findFirst({
+          where: { dokumentflytId: input.dokumentflytId, templateId: input.templateId },
+          select: { id: true },
+        });
+        if (!flytHarMal) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Valgt dokumentflyt bruker ikke denne malen",
+          });
+        }
+        const flytIder = await hentBrukersOpprettFlytMedlemskap(ctx.userId, mal.projectId);
+        if (!flytIder.includes(input.dokumentflytId)) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "Du er ikke oppretter-medlem av valgt dokumentflyt",
+          });
+        }
       }
 
       // Sjekk grense for gratisbrukere (10 oppgaver per prosjekt)

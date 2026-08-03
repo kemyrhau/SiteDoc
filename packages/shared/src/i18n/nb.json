@@ -717,6 +717,7 @@
   "oppgaver.ingenBeskrivelse": "Opprett oppgaver for å tildele arbeid til faggrupper.",
   "oppgaver.ingenMaler": "Ingen oppgavemaler tilgjengelig",
   "oppgaver.velgMal": "Velg oppgavemal",
+  "opprettVelger.sistBrukt": "Sist brukt",
   "oppgaver.ingenMatcherFilter": "Ingen oppgaver matcher filtrene",
   "oppgaver.slettBekreftelse": "Er du sikker på at du vil slette denne oppgaven?",
   "oppgaver.sokPlaceholder": "Søk oppgaver...",

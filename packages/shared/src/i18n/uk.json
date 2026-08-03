@@ -717,6 +717,7 @@
   "oppgaver.ingenBeskrivelse": "Створення завдань для доручення робіт підрядникам.",
   "oppgaver.ingenMaler": "Шаблони завдань відсутні",
   "oppgaver.velgMal": "Виберіть шаблон завдання",
+  "opprettVelger.sistBrukt": "Останнє використання",
   "oppgaver.ingenMatcherFilter": "Жодне завдання не відповідає фільтрам",
   "oppgaver.slettBekreftelse": "Ви впевнені, що хочете видалити це завдання?",
   "oppgaver.sokPlaceholder": "Пошукові завдання...",

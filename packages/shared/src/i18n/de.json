@@ -717,6 +717,7 @@
   "oppgaver.ingenBeskrivelse": "Erstellen Sie Aufgaben, um Auftragnehmern Arbeit zuzuweisen.",
   "oppgaver.ingenMaler": "Keine Aufgabenvorlagen verfügbar",
   "oppgaver.velgMal": "Wählen Sie eine Aufgabenvorlage aus",
+  "opprettVelger.sistBrukt": "Zuletzt verwendet",
   "oppgaver.ingenMatcherFilter": "Keine Aufgabe entspricht den Filtern",
   "oppgaver.slettBekreftelse": "Sind Sie sicher, dass Sie diese Aufgabe löschen möchten?",
   "oppgaver.sokPlaceholder": "Suchaufgaben...",

@@ -11,9 +11,27 @@ import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
+import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 
 // --- Typer ---
+
+// P4b-port (2026-08-03): kandidatflyt for en oppgave-mal — flyt brukeren er registrator-medlem av
+// og som har malen. Speiler sjekkliste-siden (server-beregnet `opprettbareFlytIder`).
+interface FlytKandidat {
+  flytId: string;
+  flytNavn: string;
+  bestillerFaggruppeId: string;
+  utforerFaggruppeId: string;
+  oppretterNavn: string;
+  utforerNavn: string;
+}
+
+// Flyt-status for en mal FØR klikk (styrer klikk-oppførsel: auto-bind vs picker).
+type MalFlytStatus =
+  | { type: "en"; kandidat: FlytKandidat }
+  | { type: "flere"; kandidater: FlytKandidat[] }
+  | { type: "ingen" };
 
 interface OppgaveRad {
   id: string;
@@ -330,17 +348,13 @@ export default function OppgaverSide() {
   const isLoading = oppgaveQuery.isLoading;
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
-  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null; opprettbar?: boolean }>).filter((m) => m.category === "oppgave");
+  // P4b-port (2026-08-03): les `opprettbareFlytIder` (server-beregnet, delt regel med opprett-
+  // valideringen) — erstatter den skjøre klient-`matchDf`-heuristikken.
+  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null; opprettbar?: boolean; opprettbareFlytIder?: string[] }>).filter((m) => m.category === "oppgave");
   // P4b pkt 0: skill opprettbare fra utilgjengelige (server-feltet, delt regel).
   // Velger + auto-hopp bruker KUN opprettbare; utilgjengelige vises bak «vis (N)».
   const opprettbareOppgaveMaler = oppgaveMaler.filter((m) => m.opprettbar !== false);
   const utilgjengeligeOppgaveMaler = oppgaveMaler.filter((m) => m.opprettbar === false);
-  const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
-    { projectId: params.prosjektId },
-  );
-  const { data: mineFlyter } = trpc.medlem.hentMineFlyter.useQuery(
-    { projectId: params.prosjektId },
-  );
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
   );
@@ -348,15 +362,19 @@ export default function OppgaverSide() {
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
 
   // P4b: sist brukt oppgavemal (klient-lokal interim, se useSistBrukteMal).
-  // Oppgave-mal → flyt er DETERMINISTISK (matchDf i handleOpprettFraMal), så en
-  // per-prosjekt-nøkkel kan aldri gi «feil mal på tvers av flyter» — å velge mal
-  // X ruter alltid til X sin flyt. (Skiller seg fra sjekkliste, der samme mal kan
-  // ligge i flere flyter og nøkkelen derfor må være per flyt.)
+  // En oppgave-mal KAN ligge i flere dokumentflyter (`DokumentflytMal @@unique([dokumentflytId,
+  // templateId])` — kompositt, ikke templateId alene). Per-prosjekt-nøkkelen (`oppgaveMalNøkkel`) er
+  // likevel trygg fordi flyt-VALGET alltid re-kjøres i `handleOpprettFraMal` via `malFlytStatus`:
+  // sist-brukt gjenåpner bare malen, som deretter auto-binder ved nøyaktig én kandidatflyt eller
+  // åpner picker ved flere — nøkkelen ruter aldri blindt til «feil flyt».
   const { sistBrukt, settSistBrukt } = useSistBrukteMal(minFlytInfo?.userId);
   const oppgaveMalNøkkel = `oppgave:${params.prosjektId}`;
   const sisteMalRef = useRef<string | null>(null);
   // P4b pkt 0: utilgjengelige maler skjules som default; åpnes via «vis (N)».
   const [visUtilgjengelige, setVisUtilgjengelige] = useState(false);
+  // P4b-port: steg-2 flyt-velger når en mal har flere kandidatflyter (speiler sjekkliste).
+  const [flytSteg, setFlytSteg] = useState<{ malId: string; kandidater: FlytKandidat[] } | null>(null);
+  const [valgtFlytId, setValgtFlytId] = useState<string | null>(null);
 
   // @ts-ignore TS2589 — tRPC-output trigger excessively deep instantiation (kjent
   // falsk-positiv, samme mønster som oppgave-detalj); callback bruker _data: unknown.
@@ -391,15 +409,65 @@ export default function OppgaverSide() {
     },
   ]);
 
-  function handleOpprettFraMal(malId: string) {
+  // P4b-port: flyt-status per mal FØR klikk. Opprettbarheten (hvilke flyter brukeren KAN opprette malen
+  // under) kommer fra SERVEREN (`mal.opprettbareFlytIder` — delt regel med opprett-valideringen).
+  // Klienten bygger kun kandidat-DETALJENE (flyt-navn/faggruppe) for auto-bind/picker. Speiler sjekkliste.
+  const malFlytStatus = useMemo(() => {
+    const alleDf = (dokumentflyter ?? []) as Array<{
+      id: string;
+      name: string;
+      faggruppeId: string | null;
+      faggruppe?: { id: string; name: string } | null;
+      medlemmer: Array<{ faggruppe?: { id: string; name?: string } | null; rolle: string }>;
+    }>;
+    const dfById = new Map(alleDf.map((df) => [df.id, df]));
+    const map = new Map<string, MalFlytStatus>();
+    for (const mal of oppgaveMaler) {
+      const kandidater: FlytKandidat[] = (mal.opprettbareFlytIder ?? [])
+        .map((id) => dfById.get(id))
+        .filter((df): df is NonNullable<typeof df> => !!df && df.faggruppeId != null)
+        .map((df) => {
+          const utforer = df.medlemmer.find((m) => m.rolle === "utforer");
+          return {
+            flytId: df.id,
+            flytNavn: df.name,
+            bestillerFaggruppeId: df.faggruppeId!,
+            utforerFaggruppeId: utforer?.faggruppe?.id ?? df.faggruppeId!,
+            oppretterNavn: df.faggruppe?.name ?? "—",
+            utforerNavn: utforer?.faggruppe?.name ?? df.faggruppe?.name ?? "—",
+          };
+        });
+      if (kandidater.length === 0) map.set(mal.id, { type: "ingen" });
+      else if (kandidater.length === 1) map.set(mal.id, { type: "en", kandidat: kandidater[0]! });
+      else map.set(mal.id, { type: "flere", kandidater });
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dokumentflyter, oppgaveMaler]);
+
+  function opprettMedKandidat(malId: string, k: FlytKandidat) {
     // P4b: husk malen til onSuccess skriver sist-brukt-signalet (interim).
     sisteMalRef.current = malId;
+    const navn = ((maler ?? []) as Array<{ id: string; name: string }>).find((m) => m.id === malId)?.name;
+    opprettMutation.mutate({
+      templateId: malId,
+      bestillerFaggruppeId: k.bestillerFaggruppeId,
+      utforerFaggruppeId: k.utforerFaggruppeId,
+      title: navn ?? t("oppgaver.nyOppgaveFallback"),
+      priority: "medium",
+      dokumentflytId: k.flytId,
+      drawingId: standardTegning?.id,
+    });
+  }
+
+  function handleOpprettFraMal(malId: string) {
     // Hent malen med domain fra API-data (ikke fra type-castet oppgaveMaler)
     const alleMalerTypet = (maler ?? []) as Array<{ id: string; name: string; domain?: string | null; category: string }>;
     const malMedDomain = alleMalerTypet.find((m) => m.id === malId);
 
-    // HMS-oppgaver: ingen faggruppe, auto-rutes til HMS-gruppen av API
+    // HMS-oppgaver: ingen faggruppe, auto-rutes til HMS-gruppen av API (uendret).
     if (malMedDomain?.domain === "hms") {
+      sisteMalRef.current = malId;
       opprettMutation.mutate({
         templateId: malId,
         title: malMedDomain.name ?? t("oppgaver.hmsAvvikFallback"),
@@ -409,51 +477,21 @@ export default function OppgaverSide() {
       return;
     }
 
-    const oppretter = mineFaggrupper?.[0];
-
-    const alleDf = (dokumentflyter ?? []) as Array<{
-      id: string;
-      faggruppeId: string | null;
-      medlemmer: Array<{ faggruppe?: { id: string } | null; group?: { id: string } | null; projectMember?: { id: string } | null; rolle: string }>;
-      maler: Array<{ template: { id: string } }>;
-    }>;
-    const matchDf = alleDf.find((df) =>
-      df.maler.some((m) => m.template.id === malId) &&
-      df.medlemmer.some((m) =>
-        m.rolle === "oppretter" && (m.faggruppe?.id === oppretter?.id || m.group || m.projectMember),
-      ),
-    );
-
-    // Bestiller-faggruppe: egen faggruppe, ellers eier-faggruppen (Dokumentflyt.faggruppeId)
-    // til flyten brukeren er medlem av (person-/gruppe-direkte medlem uten egen faggruppe).
-    let bestillerId = oppretter?.id;
-    const mineFlytIder = new Set(mineFlyter ?? []);
-    const minFlyt = alleDf.find((df) => df.maler.some((m) => m.template.id === malId) && mineFlytIder.has(df.id));
-    if (!bestillerId) {
-      bestillerId = minFlyt?.faggruppeId ?? undefined;
-    }
-    if (!bestillerId) {
-      // G3 (2026-07-19): skill de to årsakene (flyt m/ malen men uten eier-faggruppe
-      // vs. ingen flyt med malen). Ingen rettighetsutvidelse — kun feilmelding-skillet.
-      alert(
-        minFlyt
-          ? t("dokumentflyt.feil.flytManglerFaggruppe")
-          : t("dokumentflyt.feil.ingenFlytMedMal"),
-      );
+    // P4b-port: bind flyt fra server-beregnet kandidat. Erstatter den skjøre `matchDf`-heuristikken
+    // (som brukte de døde rolle-strengene «oppretter»/«svarer»). Nøyaktig én kandidat → auto-bind;
+    // flere → steg-2 flyt-velger. Serveren håndhever samme regel (registrator-medlemskap + flytHarMal).
+    const status = malFlytStatus.get(malId);
+    if (!status || status.type === "ingen") {
+      alert(t("dokumentflyt.feil.ingenFlytMedMal"));
       return;
     }
-    const svarer = matchDf?.medlemmer.find((m) => m.rolle === "svarer");
-    const svarerFaggruppeId = svarer?.faggruppe?.id ?? bestillerId;
-
-    opprettMutation.mutate({
-      templateId: malId,
-      bestillerFaggruppeId: bestillerId,
-      utforerFaggruppeId: svarerFaggruppeId,
-      title: malMedDomain?.name ?? t("oppgaver.nyOppgaveFallback"),
-      priority: "medium",
-      dokumentflytId: matchDf?.id,
-      drawingId: standardTegning?.id,
-    });
+    if (status.type === "en") {
+      opprettMedKandidat(malId, status.kandidat);
+    } else {
+      setFlytSteg({ malId, kandidater: status.kandidater });
+      setValgtFlytId(status.kandidater[0]?.flytId ?? null);
+      setVisModal(true);
+    }
   }
 
   // V3 (del6b web-paritet) + P4b auto-hopp: ved nøyaktig 1 mal opprettes den
@@ -461,18 +499,14 @@ export default function OppgaverSide() {
   // (klient-lokal interim): treffer det en mal som fortsatt finnes → opprett
   // direkte; ellers mellomvalget (modalen). Aldri gjett blindt.
   function åpneMalVelger() {
-    // P4b pkt 0: auto-valg KUN fra opprettbare maler (server-feltet).
-    const eneste = opprettbareOppgaveMaler.length === 1 ? opprettbareOppgaveMaler[0] : undefined;
-    if (eneste) {
-      handleOpprettFraMal(eneste.id);
-    } else {
-      const sistMalId = sistBrukt(oppgaveMalNøkkel);
-      if (sistMalId && opprettbareOppgaveMaler.some((m) => m.id === sistMalId)) {
-        handleOpprettFraMal(sistMalId);
-        return;
-      }
-      setVisModal(true);
+    // Funn C (2026-08-03, fabel-spec § 0): nøyaktig 1 opprettbar mal → auto-hopp; >1 → velgeren åpnes
+    // ALLTID (aldri stille auto-opprett fra sist-brukt — det var fella). Sist-brukt styrer nå bare
+    // markørens startrad i velgeren (hurtig-sti: åpne → Enter), ikke auto-opprettelse.
+    if (opprettbareOppgaveMaler.length === 1) {
+      handleOpprettFraMal(opprettbareOppgaveMaler[0]!.id);
+      return;
     }
+    setVisModal(true);
   }
   // Hold verktøylinje-ref fersk (se useVerktoylinje over).
   åpneMalVelgerRef.current = åpneMalVelger;
@@ -935,47 +969,77 @@ export default function OppgaverSide() {
         />
       )}
 
-      <Modal open={visModal} onClose={() => setVisModal(false)} title={t("oppgaver.velgMal")}>
-        <div className="space-y-1">
-          {oppgaveMaler.length === 0 ? (
-            <p className="py-4 text-center text-sm text-gray-400">{t("oppgaver.ingenMaler")}</p>
-          ) : (
-            <>
-              {opprettbareOppgaveMaler.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => handleOpprettFraMal(m.id)}
-                  disabled={opprettMutation.isPending}
-                  className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="text-sm font-medium text-gray-800">{m.name}</span>
-                  {m.prefix && (
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>
-                  )}
-                </button>
-              ))}
-              {/* P4b pkt 0: utilgjengelige maler bak «vis (N)» — dempet, ikke klikkbar. */}
-              {utilgjengeligeOppgaveMaler.length > 0 && (
-                <div className="border-t border-gray-100 pt-2">
-                  <button type="button" onClick={() => setVisUtilgjengelige((v) => !v)}
-                    className="flex min-h-11 w-full items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600">
-                    {visUtilgjengelige ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                    {t("sjekklister.visUtilgjengelige", { antall: utilgjengeligeOppgaveMaler.length })}
-                  </button>
-                  {visUtilgjengelige && utilgjengeligeOppgaveMaler.map((m) => (
-                    <div key={m.id} className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2.5 opacity-60">
-                      <span className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-500">{m.name}</span>
-                        {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
-                      </span>
-                      <span className="text-xs text-gray-400">{t("dokumentflyt.feil.ingenFlytMedMal")}</span>
+      <Modal
+        open={visModal}
+        onClose={() => { setVisModal(false); setFlytSteg(null); setValgtFlytId(null); }}
+        title={flytSteg ? t("sjekklister.velgFlyt") : t("oppgaver.velgMal")}
+      >
+        {flytSteg ? (
+          // P4b-port steg 2: flyt-velger når malen har flere kandidatflyter (speiler sjekkliste).
+          <div className="space-y-3">
+            <div className="space-y-1">
+              {flytSteg.kandidater.map((k) => (
+                <label key={k.flytId}
+                  className="flex cursor-pointer items-start gap-3 rounded-lg px-3 py-2.5 hover:bg-gray-50">
+                  <input type="radio" name="oppgave-flytvelger" className="mt-1"
+                    checked={valgtFlytId === k.flytId} onChange={() => setValgtFlytId(k.flytId)} />
+                  <div>
+                    <div className="text-sm font-medium text-gray-800">{k.flytNavn}</div>
+                    <div className="text-xs text-gray-500">
+                      {t("sjekklister.flytOppretter")}: {k.oppretterNavn} · {t("sjekklister.flytUtforer")}: {k.utforerNavn}
                     </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                  </div>
+                </label>
+              ))}
+            </div>
+            <div className="flex gap-3 pt-1">
+              <Button data-testid="oppgave-opprett-flyt-bekreft" loading={opprettMutation.isPending} onClick={() => {
+                const k = flytSteg.kandidater.find((x) => x.flytId === valgtFlytId);
+                if (k) opprettMedKandidat(flytSteg.malId, k);
+              }}>{t("handling.opprett")}</Button>
+              <Button variant="secondary" onClick={() => { setFlytSteg(null); setValgtFlytId(null); }}>
+                {t("handling.tilbake")}
+              </Button>
+            </div>
+          </div>
+        ) : oppgaveMaler.length === 0 ? (
+          <p className="py-4 text-center text-sm text-gray-400">{t("oppgaver.ingenMaler")}</p>
+        ) : (
+          // Funn C: unifisert velger (markør/tastatur/«Opprett»/«Sist brukt»). Oppgave = flat liste
+          // (én gruppe uten overskrift); hver rad → handleOpprettFraMal (auto-bind@1 flyt / steg-2@flere).
+          <OpprettMalVelger
+            grupper={[{
+              key: "oppgave-maler",
+              maler: opprettbareOppgaveMaler.map((m) => ({
+                radKey: m.id,
+                malId: m.id,
+                malNavn: m.name,
+                prefix: m.prefix,
+                onVelg: () => handleOpprettFraMal(m.id),
+              })),
+            }]}
+            sistBruktMalId={sistBrukt(oppgaveMalNøkkel)}
+            opprettPending={opprettMutation.isPending}
+            footer={utilgjengeligeOppgaveMaler.length > 0 ? (
+              <div className="border-t border-gray-100 pt-2">
+                <button type="button" onClick={() => setVisUtilgjengelige((v) => !v)}
+                  className="flex min-h-11 w-full items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600">
+                  {visUtilgjengelige ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  {t("sjekklister.visUtilgjengelige", { antall: utilgjengeligeOppgaveMaler.length })}
+                </button>
+                {visUtilgjengelige && utilgjengeligeOppgaveMaler.map((m) => (
+                  <div key={m.id} className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2.5 opacity-60">
+                    <span className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-500">{m.name}</span>
+                      {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
+                    </span>
+                    <span className="text-xs text-gray-400">{t("dokumentflyt.feil.ingenFlytMedMal")}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          />
+        )}
       </Modal>
     </div>
   );
