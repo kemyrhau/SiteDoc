@@ -154,22 +154,9 @@ export function DokumentHandlingslinje({
 
   const erAdmin = adminNiva != null;
 
-  // Steg 4b (retning B): posisjon-basert handlingsfilter — klienten viser det serveren autoriserer.
-  const statusHandlinger = useMemo(
-    () =>
-      hentPosisjonFiltrertHandlinger(status, {
-        retningsrett: retningsrett ?? { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
-        harBallen: harBallen ?? false,
-        erAvsender: erAvsender ?? false,
-        erMedlemAvFlyt: erMedlemAvFlyt ?? false,
-        erAdmin,
-      }),
-    [status, retningsrett, harBallen, erAvsender, erMedlemAvFlyt, erAdmin],
-  );
-
   // Pilot-fiks B (2026-08-02, fabel-bindende): primær styres av POSISJON (delt nesteLedd, hopper
   // Orienteres), ikke status/nabo-indeks. nesteLedд≠null ⇒ Send framover; =null ⇒ Godkjenn-og-fullfør.
-  // Et kontroll-ledд som mottar Besvar men IKKE er siste skal Sende, ikke Godkjenne (bevis-03).
+  // Beregnes FØR handlingsfilteret (P1: filteret trenger `erSisteLedd`).
   const harFlyt = ledd.length > 0;
   const posisjonsLedd: FlytPosisjonLedd[] = ledd.map((l) => ({
     posisjon: l.posisjon,
@@ -183,6 +170,20 @@ export function DokumentHandlingslinje({
   // Runde-2 (2026-08-02): Besvar ← = eneste bakover-handling. Målleddet = forrigeBallLedd (delt
   // funksjon — hopper Orienteres), ikke nabo-indeks. Brukes til «Besvar til N·X» (primær + split).
   const forrigeBallLeddPos = harFlyt && aktivPosisjon != null ? forrigeBallLedd(posisjonsLedd, aktivPosisjon) : null;
+
+  // Steg 4b (retning B): posisjon-basert handlingsfilter — klienten viser det serveren autoriserer.
+  const statusHandlinger = useMemo(
+    () =>
+      hentPosisjonFiltrertHandlinger(status, {
+        retningsrett: retningsrett ?? { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
+        harBallen: harBallen ?? false,
+        erAvsender: erAvsender ?? false,
+        erMedlemAvFlyt: erMedlemAvFlyt ?? false,
+        erAdmin,
+        erSisteLedd: harFlyt && nesteLeddPos === null, // P1: dropp «Send» på siste ledд (kun flyt-dok)
+      }),
+    [status, retningsrett, harBallen, erAvsender, erMedlemAvFlyt, erAdmin, harFlyt, nesteLeddPos],
+  );
 
   // Primær: kildens `erPrimaer`, ellers første lovlige (P3), men promotert til Send/Godkjenn-og-fullfør
   // etter nesteLedд når begge finnes i det posisjon-filtrerte settet.

@@ -147,6 +147,12 @@ export interface PosisjonHandlingKontekst {
   erMedlemAvFlyt: boolean;
   /** sitedoc/prosjekt-admin — ser hele det statusmaskin-gyldige universet. */
   erAdmin: boolean;
+  /**
+   * Runde-2-polering P1: er dette SISTE ball-ledд (`nesteLedd == null`)? Da har «Send» intet mål —
+   * primæren er «Godkjenn og fullfør», og `sent` skal aldri tilbys (heller ikke i split, heller ikke
+   * for admin). Gjelder IKKE draft (førstegangs-send). Kalleren utleder fra delt `nesteLedd`.
+   */
+  erSisteLedd?: boolean;
 }
 
 export function hentPosisjonFiltrertHandlinger(
@@ -154,8 +160,12 @@ export function hentPosisjonFiltrertHandlinger(
   ctx: PosisjonHandlingKontekst,
 ): StatusHandling[] {
   const alle = hentStatusHandlinger(status);
-  if (ctx.erAdmin) return alle;
-  return alle.filter((h) => posisjonHandlingTillatt(status, h.nyStatus, ctx));
+  // P1: «Send» har intet mål på siste ledд (nesteLedd=null) → dropp `sent` FØR både admin-grenen og
+  // rettighetsfilteret. draft (førstegangs-send) er unntatt. «Intet mål» er ikke et rettighetsspørsmål.
+  const univers =
+    ctx.erSisteLedd && status !== "draft" ? alle.filter((h) => h.nyStatus !== "sent") : alle;
+  if (ctx.erAdmin) return univers;
+  return univers.filter((h) => posisjonHandlingTillatt(status, h.nyStatus, ctx));
 }
 
 /** Terminal-statuser en draft-overgang kan komme FRA = Gjenåpne (i motsetning til Trekk tilbake fra received). */

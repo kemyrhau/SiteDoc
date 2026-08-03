@@ -586,4 +586,27 @@ describe("hentPosisjonFiltrertHandlinger (Fase 4 steg 4b — posisjon-basert kli
     expect(hentPosisjonFiltrertHandlinger("approved", ctx({ harBallen: true })).map((h) => h.nyStatus)).not.toContain("draft");
     expect(hentPosisjonFiltrertHandlinger("approved", ctx({ erAvsender: true })).map((h) => h.nyStatus)).not.toContain("draft");
   });
+
+  // Runde-2-polering P1: «Send» har intet mål på siste ledд (nesteLedd=null) → aldri i settet der.
+  it("P1: siste ledд (erSisteLedd) → INGEN «Send» fra received; Godkjenn står", () => {
+    const c = ctx({ harBallen: true, erSisteLedd: true, retningsrett: rett({ kanSende: true, kanBesvare: true, kanTerminere: true }) });
+    const ns = hentPosisjonFiltrertHandlinger("received", c).map((h) => h.nyStatus);
+    expect(ns).not.toContain("sent");
+    expect(ns).toContain("approved"); // Godkjenn og fullfør står
+  });
+
+  it("P1: ikke-siste ledд (erSisteLedd=false) → «Send» står fra received", () => {
+    const c = ctx({ harBallen: true, erSisteLedd: false, retningsrett: rett({ kanSende: true }) });
+    expect(hentPosisjonFiltrertHandlinger("received", c).map((h) => h.nyStatus)).toContain("sent");
+  });
+
+  it("P1: draft er unntatt — førstegangs-«Send» beholdes selv på erSisteLedd", () => {
+    const c = ctx({ harBallen: true, erSisteLedd: true, retningsrett: rett({ kanSende: true }) });
+    expect(hentPosisjonFiltrertHandlinger("draft", c).map((h) => h.nyStatus)).toContain("sent");
+  });
+
+  it("P1: gjelder også admin — «Send» droppes på siste ledд i det fulle universet", () => {
+    const ns = hentPosisjonFiltrertHandlinger("received", ctx({ erAdmin: true, erSisteLedd: true })).map((h) => h.nyStatus);
+    expect(ns).not.toContain("sent");
+  });
 });

@@ -216,6 +216,17 @@ export function DokumentHandlingsmeny({
   // Variant C krever FLERE ledd: en enkelt-ledds flyt har ingen «neste mottaker».
   const erSisteBoks = ledd.length > 1 && aktivtIndex === ledd.length - 1;
 
+  // Posisjons-ledд + nesteLedд beregnes FØR handlingsfilteret (P1: filteret trenger `erSisteLedd`).
+  const posisjonsLedd: FlytPosisjonLedd[] = ledd.map((l) => ({
+    posisjon: l.posisjon,
+    klassifisering: l.klassifisering as LeddKlassifisering,
+    kanTerminereUtenBall: false,
+    brukerIder: l.brukerIder,
+    gruppeIder: l.gruppeIder,
+    faggruppeIder: l.faggruppeIder,
+  }));
+  const nesteLeddPos = harFlyt && aktivPosisjon != null ? nesteLedd(posisjonsLedd, aktivPosisjon) : null;
+
   // Kilde: aktive handlinger + hele universet (for deaktiverte).
   // Uten dokumentflyt finnes ingen rollestruktur — serveren bypasser `verifiserFlytRolle`
   // for dokumenter uten `dokumentflytId`, så klienten tilbyr da hele (statusmaskin-lovlige) settet.
@@ -232,9 +243,10 @@ export function DokumentHandlingsmeny({
             erAvsender: erAvsender ?? false,
             erMedlemAvFlyt: erMedlemAvFlyt ?? false,
             erAdmin: erFlytAdminNiva,
+            erSisteLedd: nesteLeddPos === null, // P1: dropp «Send» når intet neste ledд
           })
         : alle,
-    [harFlyt, status, retningsrett, harBallen, erAvsender, erMedlemAvFlyt, erFlytAdminNiva, alle],
+    [harFlyt, status, retningsrett, harBallen, erAvsender, erMedlemAvFlyt, erFlytAdminNiva, nesteLeddPos, alle],
   );
 
   // Standard-mottaker (utfører-faggruppen) for «besvar»-overgangen
@@ -336,15 +348,7 @@ export function DokumentHandlingsmeny({
   // nesteLedд≠null ⇒ «Send til N·X →» (fram til neste ball-ledд; delt nesteLedd hopper Orienteres,
   // ikke nabo-indeks); nesteLedд=null ⇒ «Godkjenn og fullfør ✓» (siste ledд). Uavhengig av received/
   // Besvart — et kontroll-ledд som mottar Besvar men IKKE er siste skal Sende framover (bevis-03).
-  const posisjonsLedd: FlytPosisjonLedd[] = ledd.map((l) => ({
-    posisjon: l.posisjon,
-    klassifisering: l.klassifisering as LeddKlassifisering,
-    kanTerminereUtenBall: false,
-    brukerIder: l.brukerIder,
-    gruppeIder: l.gruppeIder,
-    faggruppeIder: l.faggruppeIder,
-  }));
-  const nesteLeddPos = harFlyt && aktivPosisjon != null ? nesteLedd(posisjonsLedd, aktivPosisjon) : null;
+  // (posisjonsLedd + nesteLeddPos er beregnet over — filteret trenger dem.)
   const nesteLeddBoks = nesteLeddPos != null ? ledd.find((l) => l.posisjon === nesteLeddPos) : undefined;
   // Runde-2 (2026-08-02): Besvar ← = eneste bakover-handling. Målleddet = forrigeBallLedd (delt
   // funksjon — nærmeste bakover som kan holde ballen, hopper Orienteres). Brukes til «Besvar til N·X ←».
