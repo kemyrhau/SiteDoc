@@ -16,6 +16,42 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### 🔴 `dokument-handlingsmeny-kvittering.test.tsx` feiler på develop (P2-mobil-restanse, 2026-07-29)
+
+Bekreftet (P1-Opus, `git stash`): testen feiler ALT på develop — P2 (inndata-validering) gjorde `in_progress` begrunnelse-påkrevd, men denne nudge-æra-testen skriver ingen begrunnelse. Ikke §8A. Oppdater testen så den skriver begrunnelse (matcher P2-regelen). Naturlig å ta i P3 (handlingslinje-redesign rører uansett `DokumentHandlingsmeny` + testene).
+
+### 🔴 `in_progress→sent` («Send på nytt») — måle om den også er recipient-løs no-op (§8A-nabo, 2026-07-29)
+
+§8A-fiksen fjernet Send fra received/responded/approved (recipient-løse no-ops). `in_progress→sent` («Send på nytt» etter Send tilbake) ble parkert — P1 målte den ikke. Egen liten runde: setter den recipient (legitim re-send) eller er den samme no-op? Hvis no-op → samme fix (fjern fra `in_progress`-lista i `isValidStatusTransition` + defaults + universe).
+
+### 🔴 Malbytte etter opprettelse + sist-brukt-mal server-side (P4b-følgesak, 2026-07-29)
+
+P4b bygde server-fritt: mal-chip er **display-only** (bytte KUN ved flertydighet ved opprettelse), og «sist brukt mal» ligger i **klient-localStorage** (nøkkel per bruker+flyt, merket interim). Egen sak: (1) malbytte ETTER opprettelse med tittel-regenerering — krever server-logikk utover å gjenbruke opprett-generatoren (fabel gate-svar #5); (2) når den bygger server-støtte, flytt sist-brukt-mal fra localStorage til server-query (per bruker+flyt). Fabel-design + evt. migrering.
+
+### 🔴 P4a+ mobil ekte ett-klikk opprett uten modal (kandidat #2/#3, 2026-07-29)
+
+P4a løser iOS-modal-kollisjonen via kandidat #1 (serialiser onDismiss + skip modal ved auto-kontekst). Fabel noterte #2 (full-screen expo-router-rute — fjerner kollisjonsklassen permanent, 5-callsite-refaktor) + #3 (ekte ett-klikk uten modal → detaljskjerm med kontekst-chips = mobil-ekvivalent av P4b) som **naturlig neste steg**. Vurderes SAMLET når P4b-chip-skjermen finnes (mobil chip-linje forutsetter ny skjermstruktur). Egen runde etter P4b/P4c.
+
+### 🔴 Slett kommentar in-app (mobil dialog) — mangler helt (2026-07-30)
+
+Mobil-avbryt-nå-sjekken (funn A) fant: en sendt dialog-kommentar kan IKKE slettes in-app. `Trash2` er importert i `apps/mobile/app/oppgave/[id].tsx:27` men aldri brukt; ingen `slettKommentar`-mutasjon/UI i dialog-rendringen. Kenneths ufrivillige BEF1-kommentar (fra avbryt-bugen) ble stående. Egen sak: legg til slett-kommentar (server-mutasjon + UI, eier/admin-scope). Relatert: avbryt-fiksen (`fix/mobil-avbryt-modaler`) hindrer FLERE ufrivillige, men fjerner ikke eksisterende.
+
+### 🔴 Tidslinje: kollaps Sendt⇄Mottatt-spam (mobiltest-funn C, 2026-07-30)
+
+Dokumenter med historikk fra P1-bugens no-op-klikk (før §8A-fiksen) viser ~15 Sendt↔Mottatt-par i tidslinja (KB27 eksempel). Bugen selv er fikset (P1, `402b9ce4`); dette er historiske loggrader. Kosmetisk visnings-sak: kollaps konsekutive identiske statuspar i tidslinje-visningen («Sendt ⇄ Mottatt ×8», ekspanderbar). Web + mobil. Lav prioritet.
+
+### 🔴 Fjern suksess-Alert på oppgave-detalj (V5a-paritet, 2026-07-29)
+
+P2-småsaker fjernet suksess-Alert etter lagring på `sjekkliste/[id].tsx:579` (LagreIndikator dekker). Samme Alert står igjen på `oppgave/[id].tsx:369` — utenfor P2-scope. Fjern for paritet (samme mønster). Trivielt; i18n-nøklene `dokument.lagret`/`dokument.utfyllingLagret` beholdes (fortsatt brukt til de begge er borte).
+
+### 🔴 Oppgave direkte `byggeplassId` — full byggeplass-kontekst på oppgave (V2 sak B, 2026-07-29)
+
+Effektivitets-auditens V2 (byggeplass-kontekst-lekkasje) er delvis fikset i P2: `sjekkliste.opprett` tar `byggeplassId`+`drawingId`, men `oppgave.opprett` tar **kun `drawingId`** (byggeplass utledes via `drawing.byggeplassId`). P2 wiret (A) ren: oppgave får byggeplass-kontekst KUN når det finnes en aktiv tegning (`standardTegning`) — **byggeplass-uten-tegning droppes stille på oppgave.** Den ordentlige fiksen (B): gi `Task` et direkte `byggeplassId`-felt (datamodell-endring + `oppgave.opprett`-input) så oppgave kan bære byggeplass uten en tegning, symmetrisk med sjekkliste. Krever fabel-design (byggeplass-strategi) + migrering. Ikke wiring — egen ordre.
+
+### 🔴 `scripts/worktree-bootstrap.sh` — lukk env-hullet for nye worktrees (fabel-forslag 2026-07-28)
+
+Hver gang en kode-Opus lager et fresh worktree (`git worktree add`) mangler de gitignorerte env-filene (`apps/api/.env`, `apps/web/.env.local`, `apps/mobile/.env`) → api/web/Expo starter ikke før de kopieres manuelt fra hovedtreet. Gjentatt friksjon (del6b mobil-env, P2 web-bevis). **Forslag:** ett skript som kopierer/lenker env-filene fra hovedtreet ved oppsett av nytt worktree — lukker hullet for alle fremtidige worktrees i én kommando. Krav: gitignorert, aldri commit (samme som e2e-rigg-ordren). Full manuell løype er dokumentert i [dev-login-agent.md § Worktree — lokal web-bevis](dev-login-agent.md); skriptet automatiserer bare env-steget.
+
 ### 🟠 Livssyklus-overgangs-design — hvilke handlinger fra hvilke statuser × roller + terminal-ruting/gjenåpning (Kenneth 2026-07-25)
 
 Statusmaskinen (`VALID_TRANSITIONS`) låser hver livssyklus-handling til få kilde-statuser: **godkjenn** kun fra responded · **slett** kun fra draft · **lukk** fra approved+rejected · **gjenoppta** kun `rejected→in_progress` · **gjenåpne** (closed/cancelled)→**draft** (alltid til start, ikke midt i løpet) · **avbryt** (cancelled) fra draft/sent/received/in_progress. Åpne designspørsmål (Kenneth): bør lukk/slett/gjenåpne/godkjenn være tilgjengelig fra **flere** stadier (admin savner bl.a. godkjenn/lukk uansett status)? Hvor rutes en gjenåpnet approved/closed — til draft, eller tilbake dit den var? Hvem får ballen etter terminaltilstand? Krever **fabel-design-gjennomgang** med statusmaskin-kartet som utgangspunkt → definerer ønsket flyt → mater matrise-rader + statusmaskin. **Rekkefølge:** tas ETTER matrise-hoveren (så matrisen er lesbar først). Relatert: admin «enkel godkjenn/lukk»-override var det opprinnelige symptomet.
@@ -56,6 +92,10 @@ Flyt-posisjon-headeren (`FlytIndikator`): den amber «Venter på»-chippen rendr
 
 `useSokRegistry` bygger treff fra nav/sidebar/hub-kort + gjeldende prosjektkontekst — IKKE en tverrgående liste over alle prosjekter på tvers av firma (verifisert firmaadmin-Opus steg 0). Før den globale `admin/prosjekter`-siden kan fjernes (fase 2 av admin-oversikt-redesignen) må Ctrl+K utvides med admin-scoped tverrgående prosjekt-treff. Ingen kapabilitet fjernes før erstatningen finnes. Leveranse: Ctrl+K-utvidelse → deretter fjern nav-punkt «Prosjekter» + side i samme commit.
 
+### 🟡 Flyt-løse (legacy) dokumenter viser flyt-handlinger uten flyt-posisjon (prod-verifisering 2026-07-27)
+
+Legacy-dokumenter med `dokumentflyt_id = NULL` (f.eks. KS-avvik opprettet før dokumentflyt-binding, faggruppe-rutet i gammel modell) viser flyt-handlinger (Besvar/Send/Godkjenn/Avvis/Videresend) men INGEN flyt-posisjon-header — `byggLedd` har ingen medlemmer, så ledd-raden skjules (korrekt oppførsel, verifisert mot prod-DB: task nr 1, `status=received`, `dokumentflyt_id=NULL`, 0 medlemmer). Statushandlingene opererer på `status`-feltet uavhengig av flyt-binding. Ikke prod-kritisk, kun legacy-data. Vurder (fabel): fallback-header («utenfor navngitt flyt») eller om handlingene bør skjules for flyt-løse dokumenter.
+
 ### 🟡 HMS-dokument har både «Tilføy informasjon»-knapp og «Dialog»-kommentarfelt — UX-tvetydighet (HMS-klikktest 2026-07-25)
 
 På HMS-dokumenter (RUH/avvik/SJA) finnes **både** HMS-handlingen «Tilføy informasjon» (append via `hmsTilfoyInformasjon` → `DocumentTransfer`, vises i Tidslinjen) OG det generelle «Dialog»-kommentarfeltet (egen visning, ikke i Tidslinjen). Klikktesten viste at det forvirrer — agenten brukte Dialog i stedet for Tilføy. Bør konsolideres til én kommentar-vei for HMS.
@@ -64,13 +104,15 @@ På HMS-dokumenter (RUH/avvik/SJA) finnes **både** HMS-handlingen «Tilføy inf
 
 HMS-001 (HMS-avvik) + RUH-001 står i status «Utkast» — opprettet før Ordre A–D innførte opprett=sent. HMS-flyten har ingen Utkast-tilstand, så de er strandet. Data-opprydning: sett dem «sent» (eller lukk/slett); vurder engangs-backfill hvis prod har tilsvarende.
 
-### 🟠 Mobil-typecheck er RØD på develop — gaten har aldri spurt (develop-Opus exit 2026-07-16)
+### ✅ Mobil-typecheck RØD på develop — LØST 2026-07-30 (`fba830da`, branch `fix/mobil-typecheck-groenn`)
 
-`pnpm --filter @sitedoc/mobile typecheck` **passerer ikke på ren develop** — 11 feil. Bl.a.: `erstattVedlegg` returneres av **begge** mobil-hookene og destruktureres i begge detaljsidene, men står **ikke** i `UseOppgaveSkjemaResultat`/`UseSjekklisteSkjemaResultat` (verifisert: returneres 1×, deklarert 0× i begge).
+`pnpm --filter @sitedoc/mobile typecheck` var rød på ren develop — **11 ekte feil** (måling: 418 rå, men 407 var stale Prisma-gen-artefakter som forsvinner etter `prisma generate` ×4). Ryddet med kun type-korrektheter (ingen funksjonalitet rørt) → **exit 0**:
+- `erstattVedlegg` deklarert i `UseOppgaveSkjemaResultat` + `UseSjekklisteSkjemaResultat` (var returnert + destrukturert, manglet kun i interface) — løste 4 feil.
+- `hjem.tsx` + `sjekkliste/[id].tsx`: lean klient-cast av tRPC-output (dyp config-Json → TS2589/2345/2352), samme mønster fila alt brukte — 5 feil.
+- `psi/[psiId].tsx` tom-tilstand `onLukk` (forslag A, Kenneth-avgjort) — 1 feil.
+- `timerSync.ts` `aktivitetId ?? ""` (fullfører dokumentert `projectId ?? ""`-mønster mot `.notNull()`-kolonne, Kenneth-avgjort) — 1 feil (2 linjer).
 
-**Rotårsaken er prosess, ikke typer:** [regel 10](SAMARBEIDSREGLER.md) krevde grønt `@sitedoc/web build` — **web only**. Mobil har aldri vært gatet, så gjelden vokste usett. Regelen er utvidet 2026-07-16; **den kan ikke blokkere før denne posten er ryddet.** Inntil da: baseline-sammenligning (diffen skal ikke ØKE feiltallet).
-
-Funnet av develop-Opus, som kjørte negativ kontroll uoppfordret for å skille sine egne feil fra baseline. Uten den ville de 11 vært usynlige videre.
+**Rotårsaken var prosess:** [regel 10](SAMARBEIDSREGLER.md) krevde grønt `@sitedoc/web build` — **web only**. Mobil har aldri vært gatet, så gjelden vokste usett. **Regel 10 er nå utvidet:** mobil-typecheck er blokkerende (exit 0), med `prisma generate` ×4 som eksplisitt forsteg (ellers 400+ falske «any»-feil). Funnet opprinnelig av develop-Opus (negativ kontroll uoppfordret).
 
 ### 🟠 Ingen navigasjonsvakt i HELE web-appen — «ulagrede endringer tapes» er app-vidt (develop-Opus exit 2026-07-16)
 
@@ -1323,7 +1365,7 @@ Pre-eksisterende cross-firma-lekkasje-klasse (åpen siden 2026-06-09): `SheetMac
 
 Fanget under R4-konsistens-sjekk (2026-06-11) — **ikke R-serie-introdusert** (R-serie-filer er rein; verifisert mot kode). Type-only, blokkerer **ikke** byggene (EAS = Metro/Babel uten `tsc`; web Next.js-build typesjekker ikke test-filer).
 
-- **Mobil (~12 feil):** `erstattVedlegg` mangler i `UseOppgaveSkjemaResultat`/`UseSjekklisteSkjemaResultat` (`useOppgaveSkjema.ts:615`/`useSjekklisteSkjema.ts:594` — egenskapen finnes i runtime, type-interface usynket); `timerSync.ts:313/339` Drizzle-overload på `byggeplassId` (`string | null` vs insert-type); + følgefeil i `oppgave/[id].tsx`, `psi/[psiId].tsx`, `sjekkliste/[id].tsx`.
+- **Mobil (~12 feil): ✅ LØST 2026-07-30 (`fba830da`)** — mobil-typecheck er nå exit 0, se posten «Mobil-typecheck RØD på develop — LØST» over. (`erstattVedlegg` deklarert, Drizzle-null-guard, lean-cast deep-Json.)
 - **Web (1 feil):** `vitest`-modul mangler typer i `src/components/mengde/__tests__/import-hjelpere.test.ts` (test-tooling, ikke produksjonskode).
 
 Fiks når noen rører de filene: synk hook-resultat-typene med faktisk retur, og gi `byggeplassId` riktig Drizzle-type / `vitest` til devDependencies+tsconfig. Lav prio — ingen runtime-effekt.

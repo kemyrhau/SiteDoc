@@ -9,19 +9,24 @@
 // valgfri utvider — MED ett unntak (F1): Avvis (dismissed) krever en ikke-tom
 // begrunnelse (statusKreverBegrunnelse), håndhevet både her og på serveren.
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Plus } from "lucide-react";
 import { Tooltip } from "@sitedoc/ui";
 import {
   hentStatusHandlinger,
-  hentRolleFiltrertHandlinger,
+  hentPosisjonFiltrertHandlinger,
   hentHandlingEierRoller,
   isValidStatusTransition,
   statusKreverBegrunnelse,
+  nesteLedd,
+  forrigeBallLedd,
   type StatusHandling,
   type DokumentflytRolle,
   type AdminNiva,
+  type FlytPosisjonLedd,
+  type LeddKlassifisering,
 } from "@sitedoc/shared";
 import { byggVideresendValg, filtrerVideresendPaaMedlemskap, finnMottakerNavn } from "@/lib/videresend-valg";
 import type { DokumentflytData, FaggruppeData, VideresendMedlem } from "@/lib/videresend-valg";
@@ -40,6 +45,16 @@ interface Mottaker {
 
 interface DokumentHandlingsmenyProps {
   status: string;
+  /** Aktivt ledd = dokumentets `aktivPosisjon` (server-fakta) — styrer aktiv boks. */
+  aktivPosisjon?: number | null;
+  /** Steg 4b: posisjon-baserte retningsrettigheter (klient-handlingsfilter = server). */
+  retningsrett?: { kanSende: boolean; kanBesvare: boolean; kanVideresende: boolean; kanTerminere: boolean };
+  /** Har innlogget bruker ballen? (posisjon) */
+  harBallen?: boolean;
+  /** § 2.4: medlem av avsenderleddet (forrigeBallLedд) — for «Trekk tilbake» (received→draft). */
+  erAvsender?: boolean;
+  /** § 2.4: medlem av NOEN ledд i flyten — for «Gjenåpne» (terminal→draft). */
+  erMedlemAvFlyt?: boolean;
   erLaster: boolean;
   /**
    * `handlingNoekkel` (StatusHandling.tekstNoekkel) er PÅKREVD, ikke valgfri (A-3b,
@@ -78,6 +93,13 @@ interface DokumentHandlingsmenyProps {
   bestillerUserId?: string;
   /** Tidspunkt da mottaker åpnet dokumentet */
   lestAvMottakerVed?: Date | string | null;
+  /**
+   * P2 (tom-besvarelse): når satt, er «Besvar» (responded) deaktivert fordi
+   * besvarelsen er tom (ingen utfylte svar-felt). Teksten vises som mikrotekst/
+   * tooltip. Beregnes på detaljflaten (der svarverdiene + malfeltene finnes) —
+   * `DokumentHandlingsmeny` forblir innholds-agnostisk. Speiler server-guarden.
+   */
+  besvarDeaktivertGrunn?: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -109,9 +131,8 @@ interface MenyOppforing {
  * Begrunnelsen forblir valgfri (fritekst = valgfritt, CLAUDE.md) — nudgen oppfordrer.
  */
 const NUDGE_TEKSTNOEKLER = new Set([
-  // F3: «Send tilbake» (responded→in_progress) er nå den eneste tilbakesendingen som nudger.
-  // «Send på nytt» (in_progress→sent) er en fram-sending og nudger ikke.
-  "statushandling.sendTilbakeUtforer",
+  // Runde-2 (2026-08-02): «Send tilbake» fjernet. Besvar ← (responded) nudger via
+  // statusKreverBegrunnelse; Avvis beholder sin egen nudge her.
   "handling.avvis",
 ]);
 
@@ -134,6 +155,11 @@ const FARGE_KLASSE: Record<string, string> = {
 
 export function DokumentHandlingsmeny({
   status,
+  aktivPosisjon,
+  retningsrett,
+  harBallen,
+  erAvsender,
+  erMedlemAvFlyt,
   erLaster,
   onEndreStatus,
   onSlett,
@@ -147,8 +173,9 @@ export function DokumentHandlingsmeny({
   mineFlytIder,
   recipientUserId,
   recipientGroupId,
-  bestillerUserId,
+  // bestillerUserId: prop beholdt for API-kompat, men klienten utleder ikke mottaker (server gjør).
   lestAvMottakerVed,
+  besvarDeaktivertGrunn,
 }: DokumentHandlingsmenyProps) {
   const { t } = useTranslation();
   const [åpenMeny, setÅpenMeny] = useState(false);
@@ -156,12 +183,18 @@ export function DokumentHandlingsmeny({
   const [visKommentar, setVisKommentar] = useState(false);
   const [kommentar, setKommentar] = useState("");
   const menyRef = useRef<HTMLDivElement>(null);
+  // P1-restfiks (b): ▾-triggeren (anker for portalen) + selve den portalede meny-noden. Nedtrekket
+  // portales til document.body (fixed) for å unngå `<main overflow>`-klippet (samme R4-rot som tooltipen).
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Lukk nedtrekk ved klikk utenfor
+  // Lukk nedtrekk ved klikk utenfor — teller BÅDE ankeret (menyRef) OG den portalede noden (i body),
+  // ellers ville et klikk på et menyvalg lukket menyen før onClick rakk å fyre.
   useEffect(() => {
     if (!åpenMeny) return;
     const lukk = (e: MouseEvent) => {
-      if (menyRef.current && !menyRef.current.contains(e.target as Node)) setÅpenMeny(false);
+      const mål = e.target as Node;
+      if (!menyRef.current?.contains(mål) && !dropdownRef.current?.contains(mål)) setÅpenMeny(false);
     };
     document.addEventListener("mousedown", lukk);
     return () => document.removeEventListener("mousedown", lukk);
@@ -183,20 +216,47 @@ export function DokumentHandlingsmeny({
 
   const ledd = useMemo(() => byggLedd(flytMedlemmer ?? []), [flytMedlemmer]);
   const aktivtIndex = useMemo(
-    () => finnAktivtIndex(ledd, status, recipientUserId, recipientGroupId, bestillerUserId),
-    [ledd, status, recipientUserId, recipientGroupId, bestillerUserId],
+    () => finnAktivtIndex(ledd, aktivPosisjon),
+    [ledd, aktivPosisjon],
   );
   const harFlyt = ledd.length > 0;
   // Variant C krever FLERE ledd: en enkelt-ledds flyt har ingen «neste mottaker».
   const erSisteBoks = ledd.length > 1 && aktivtIndex === ledd.length - 1;
 
+  // Posisjons-ledд + nesteLedд beregnes FØR handlingsfilteret (P1: filteret trenger `erSisteLedd`).
+  const posisjonsLedd: FlytPosisjonLedd[] = ledd.map((l) => ({
+    posisjon: l.posisjon,
+    klassifisering: l.klassifisering as LeddKlassifisering,
+    kanTerminereUtenBall: false,
+    brukerIder: l.brukerIder,
+    gruppeIder: l.gruppeIder,
+    faggruppeIder: l.faggruppeIder,
+  }));
+  const nesteLeddPos = harFlyt && aktivPosisjon != null ? nesteLedd(posisjonsLedd, aktivPosisjon) : null;
+  // P1: siste ball-ledд (intet neste ledд) — «Send» har intet mål og skal aldri vises (verken aktiv
+  // eller deaktivert). Kun flyt-dok (flyt-løse bruker `alle` uten posisjonsbegrep).
+  const erSisteLedd = harFlyt && nesteLeddPos === null;
+
   // Kilde: aktive handlinger + hele universet (for deaktiverte).
   // Uten dokumentflyt finnes ingen rollestruktur — serveren bypasser `verifiserFlytRolle`
   // for dokumenter uten `dokumentflytId`, så klienten tilbyr da hele (statusmaskin-lovlige) settet.
   const alle = useMemo(() => hentStatusHandlinger(status), [status]);
+  // Steg 4b (retning B): posisjon-basert handlingsfilter — klienten viser nøyaktig det serveren
+  // (`verifiserRetningsrett`) autoriserer. Uten flyt: hele universet (som før, flyt-løst dok).
+  const erFlytAdminNiva = adminNiva === "sitedoc" || adminNiva === "prosjekt";
   const aktive = useMemo(
-    () => (harFlyt ? hentRolleFiltrertHandlinger(status, minRolle ?? null, adminNiva ?? null) : alle),
-    [harFlyt, status, minRolle, adminNiva, alle],
+    () =>
+      harFlyt
+        ? hentPosisjonFiltrertHandlinger(status, {
+            retningsrett: retningsrett ?? { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
+            harBallen: harBallen ?? false,
+            erAvsender: erAvsender ?? false,
+            erMedlemAvFlyt: erMedlemAvFlyt ?? false,
+            erAdmin: erFlytAdminNiva,
+            erSisteLedd, // P1: dropp «Send» når intet neste ledд
+          })
+        : alle,
+    [harFlyt, status, retningsrett, harBallen, erAvsender, erMedlemAvFlyt, erFlytAdminNiva, nesteLeddPos, alle],
   );
 
   // Standard-mottaker (utfører-faggruppen) for «besvar»-overgangen
@@ -288,7 +348,39 @@ export function DokumentHandlingsmeny({
   /*  Bygg oppføringer fra kilden                                        */
   /* ------------------------------------------------------------------ */
 
-  const primærHandling = aktive.find((h) => h.erPrimaer) ?? null;
+  // Primærhandling: kildens `erPrimaer`, ellers promoteres første aktive handling.
+  // P3 (fabel-ordre § 1): ingen flate sekundærknapper — en status uten erPrimaer for
+  // rollen (f.eks. received×godkjenner = kun Godkjenn) viser den som primærknapp, ikke
+  // som løs knapp ved siden av. Alt annet lovlig samles bak primærens split-▾.
+  const primærHandling = aktive.find((h) => h.erPrimaer) ?? aktive[0] ?? null;
+
+  // Pilot-fiks B (2026-08-02, fabel-bindende): primær styres av POSISJON (nesteLedd), ikke status.
+  // nesteLedд≠null ⇒ «Send til N·X →» (fram til neste ball-ledд; delt nesteLedd hopper Orienteres,
+  // ikke nabo-indeks); nesteLedд=null ⇒ «Godkjenn og fullfør ✓» (siste ledд). Uavhengig av received/
+  // Besvart — et kontroll-ledд som mottar Besvar men IKKE er siste skal Sende framover (bevis-03).
+  // (posisjonsLedd + nesteLeddPos er beregnet over — filteret trenger dem.)
+  const nesteLeddBoks = nesteLeddPos != null ? ledd.find((l) => l.posisjon === nesteLeddPos) : undefined;
+  // Runde-2 (2026-08-02): Besvar ← = eneste bakover-handling. Målleddet = forrigeBallLedd (delt
+  // funksjon — nærmeste bakover som kan holde ballen, hopper Orienteres). Brukes til «Besvar til N·X ←».
+  const forrigeBallLeddPos = harFlyt && aktivPosisjon != null ? forrigeBallLedd(posisjonsLedd, aktivPosisjon) : null;
+  const forrigeBallLeddBoks = forrigeBallLeddPos != null ? ledd.find((l) => l.posisjon === forrigeBallLeddPos) : undefined;
+  const sendHandling = aktive.find((h) => h.nyStatus === "sent");
+  const godkjennHandling = aktive.find((h) => h.nyStatus === "approved");
+  // Fram til neste ledд (Send) når mulig; ellers Godkjenn-og-fullfør på siste ledд. Kun for flyt-
+  // bundne dok der den lovlige handlingen finnes i det posisjon-filtrerte settet; ellers kildens primær.
+  const effektivPrimær =
+    harFlyt && nesteLeddBoks && sendHandling
+      ? sendHandling
+      : harFlyt && !nesteLeddBoks && godkjennHandling
+        ? godkjennHandling
+        : primærHandling;
+  const primærLabel: string = !effektivPrimær
+    ? ""
+    : effektivPrimær.nyStatus === "sent" && nesteLeddBoks
+      ? t("flyt.sendTil", { navn: `${nesteLeddBoks.posisjon} · ${nesteLeddBoks.aktivNavn}` })
+      : effektivPrimær === godkjennHandling && harFlyt && !nesteLeddBoks
+        ? t("flyt.godkjennOgFullfor")
+        : t(effektivPrimær.tekstNoekkel);
 
   // Recipient-oppføringer (draft-send eller videresend) fra en valg-liste.
   // Draft-send bruker full `videresendValg`; videresend-stien sender inn den
@@ -309,33 +401,66 @@ export function DokumentHandlingsmeny({
       medlemmer: v.medlemmer,
     }));
 
-  // Send-seksjon: draft → send til faggruppe; ellers → videresend (forwarded)
-  const draftSend = status === "draft" && primærHandling?.nyStatus === "sent";
-  const forwardedHandling = aktive.find((h) => h.nyStatus === "forwarded");
+  // Mottaker-lister: draft → send til faggruppe (førstegangs, ØVERST som framover-utvidelse);
+  // ellers → Videresend (forwarded, EGEN seksjon etter destruktive). Gjensidig utelukkende.
+  //
+  // Posisjonsmodell (fabel-vedtatt): et FLYT-BUNDET utkast (harFlyt) ruter Send via `nesteLedd`
+  // — server `beregnRuting` ignorerer klient-mottaker for `sent` og bruker aktivPosisjon. Den
+  // manuelle mottakervelgeren er derfor både obsolet OG villedende der (valget kastes). Behold
+  // den KUN for flyt-løse utkast (ad-hoc, ingen posisjon), der mottaker-valget binder flyten.
+  const draftSend = status === "draft" && primærHandling?.nyStatus === "sent" && !harFlyt;
+  const forwardedHandling = aktive.find((h) => h.nyStatus === "forwarded" && h !== primærHandling);
   const harForwarded = forwardedHandling != null;
-  const sendOppforinger: MenyOppforing[] = draftSend
-    ? recipientOppforinger("sent", "send", primærHandling!.tekstNoekkel)
-    : harForwarded
+  // Draft-mottakere vises kun ved >1 mottaker — primærknappen håndterer 0/1 direkte (klikkPrimær).
+  const draftMottakerOppforinger: MenyOppforing[] =
+    draftSend && videresendValg.length > 1
+      ? recipientOppforinger("sent", "send", primærHandling!.tekstNoekkel)
+      : [];
+  // Pilot-fiks A (2026-08-02, fabel-bindende): faggruppe-mottakervelgeren for Videresend blør gjennom
+  // split-▾ på flyt-bundne dok (bevis-03/07/08). Videresend på et flyt-bundet dok rutes uansett via
+  // posisjon (ikke manuell mottaker-plukk), så velger-innholdet er obsolet OG villedende → gate på
+  // `!harFlyt` (som draftMottaker). Velgeren hører KUN til flyt-LØSE (ad-hoc) dok. Se flagg i rapport:
+  // dette fjerner hele Videresend-affordansen for flyt-bundne dok (admin-only i praksis).
+  const videresendOppforinger: MenyOppforing[] =
+    !draftSend && harForwarded && !harFlyt
       ? recipientOppforinger("forwarded", "fwd", forwardedHandling.tekstNoekkel, videresendMottakere)
       : [];
 
-  // Sekundær-knapper: aktive (minus primær), ikke forwarded, ikke admin-status
-  const sekundærKnapper: MenyOppforing[] = aktive
-    .filter((h) => h !== primærHandling && h.nyStatus !== "forwarded" && !ADMIN_NY.has(h.nyStatus))
-    .map((h) => ({
+  // Øvrige statushandlinger (ikke primær, ikke forwarded, ikke admin-status), delt i
+  // framover (nøytrale) og destruktive (Avvis, rød) for fabel-rekkefølgen.
+  const byggStatusOppforing = (h: StatusHandling): MenyOppforing => {
+    // Runde-2: Besvar ← får komponert etikett «Besvar til N·X ←» (målleddet = forrigeBallLedd).
+    // Speiler «Send til N·X →». Fallback til ren «Besvar» uten flyt/målledд.
+    const label =
+      h.nyStatus === "responded" && forrigeBallLeddBoks
+        ? t("flyt.besvarTil", { navn: `${forrigeBallLeddBoks.posisjon} · ${forrigeBallLeddBoks.aktivNavn}` })
+        : t(h.tekstNoekkel);
+    return {
       key: `sek-${h.nyStatus}`,
-      label: t(h.tekstNoekkel),
+      label,
       nyStatus: h.nyStatus,
       tekstNoekkel: h.tekstNoekkel,
       plassering: "sekundær" as const,
-      // F1: Avvis (dismissed) er en danger-handling → rød sekundærknapp, som deleted.
+      // F1: Avvis (dismissed) er en danger-handling → rød, som deleted.
       erDestruktiv: h.nyStatus === "deleted" || h.nyStatus === "dismissed",
-      mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
-    }));
+      mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, label),
+    };
+  };
+  // Split-eksklusjon på effektivPrimær (ikke primærHandling): når primær promoteres fra Godkjenn til
+  // Send (B), skal Send IKKE også dukke opp i split, og Godkjenn skal (den er ikke lenger primær).
+  const øvrigeStatus = aktive.filter(
+    (h) => h !== effektivPrimær && h.nyStatus !== "forwarded" && !ADMIN_NY.has(h.nyStatus),
+  );
+  const erDestruktivNy = (ns: string) => ns === "deleted" || ns === "dismissed";
+  const framoverOppforinger = øvrigeStatus.filter((h) => !erDestruktivNy(h.nyStatus)).map(byggStatusOppforing);
+  // Fabel C-orden (pilot-fiks A): destruktiv-seksjonen = KUN Avvis (dismissed). Slett (deleted)
+  // flyttes til admin-seksjonen, rendret SIST («Slett (admin)», § 2.5).
+  const destruktivOppforinger = øvrigeStatus.filter((h) => h.nyStatus === "dismissed").map(byggStatusOppforing);
+  const slettOppforinger = øvrigeStatus.filter((h) => h.nyStatus === "deleted").map(byggStatusOppforing);
 
-  // Overflow (⋯): aktive admin-status som IKKE er primær (lukk/trekk tilbake/gjenåpne når sekundær)
-  const overflowOppforinger: MenyOppforing[] = aktive
-    .filter((h) => h !== primærHandling && ADMIN_NY.has(h.nyStatus) && h.nyStatus !== "forwarded")
+  // Admin-seksjon: aktive admin-status som IKKE er primær (Lukk/Trekk tilbake/Gjenåpne) + Slett SIST.
+  const adminStatusOppforinger: MenyOppforing[] = aktive
+    .filter((h) => h !== effektivPrimær && ADMIN_NY.has(h.nyStatus) && h.nyStatus !== "forwarded")
     .map((h) => ({
       key: `adm-${h.nyStatus}`,
       label: t(h.tekstNoekkel),
@@ -345,11 +470,16 @@ export function DokumentHandlingsmeny({
       erDestruktiv: h.nyStatus === "cancelled",
       mikro: mikrotekst(h.tekstNoekkel, h.nyStatus, t(h.tekstNoekkel)),
     }));
+  const adminOppforinger: MenyOppforing[] = [...adminStatusOppforinger, ...slettOppforinger];
 
-  // Deaktiverte: finnes i universet, men ikke tilgjengelig for denne rollen/statusen
+  // Deaktiverte: finnes i universet, men ikke tilgjengelig for denne rollen/statusen.
+  // P1-restfiks (2026-08-03): `alle` er det RÅ status-universet (ikke posisjon-filtrert), så «Send»
+  // dukket opp igjen som deaktivert «Send · KUN ADMINISTRATOR» på siste ledд (KB2-017 ledд 4). Dropp
+  // `sent` fra deaktivert-visningen på siste ledд med SAMME betingelse som P1 — så BÅDE aktive og
+  // deaktiverte mangler «Send» der. Rører kun deaktivert-lista (ikke `alle`s andre bruk).
   const aktiveNy = new Set(aktive.map((h) => h.nyStatus));
   const deaktiverteOppforinger: MenyOppforing[] = alle
-    .filter((h) => !aktiveNy.has(h.nyStatus))
+    .filter((h) => !aktiveNy.has(h.nyStatus) && !(erSisteLedd && h.nyStatus === "sent"))
     .map((h) => ({
       key: `deakt-${h.nyStatus}`,
       label: t(h.tekstNoekkel),
@@ -359,14 +489,26 @@ export function DokumentHandlingsmeny({
       begrunnelse: begrunnelseFor(h),
     }));
 
-  const dropdownHarInnhold =
-    sendOppforinger.length > 0 || overflowOppforinger.length > 0 || deaktiverteOppforinger.length > 0;
+  // Øvrige LOVLIGE handlinger (alt utenom primær som kan utføres) styrer split-▾ (fabel § 1).
+  const aktiveØvrige =
+    draftMottakerOppforinger.length +
+    framoverOppforinger.length +
+    destruktivOppforinger.length +
+    videresendOppforinger.length +
+    adminOppforinger.length;
+  // Split vises kun ved primær + ≥1 øvrig lovlig. Deaktiverte alene utløser IKKE split
+  // (received×godkjenner = «Godkjenn uten split»); de vises som info NÅR menyen åpnes.
+  const harØvrige = aktiveØvrige > 0;
+  const menyHarInnhold = harØvrige || deaktiverteOppforinger.length > 0;
 
   /* ------------------------------------------------------------------ */
   /*  Handlinger                                                         */
   /* ------------------------------------------------------------------ */
 
-  const trengerBekreft = (nyStatus: string) => nyStatus === "closed" || nyStatus === "deleted";
+  // P3 (cowork-tillegg): utkast slettes i ett trykk — soft-delete = papirkurv 90 dager er
+  // sikringen. `closed` og øvrige `deleted` (cancelled→deleted) beholder bekreft-baren.
+  const trengerBekreft = (nyStatus: string) =>
+    nyStatus === "closed" || (nyStatus === "deleted" && status !== "draft");
 
   const utfor = (nyStatus: string, tekstNoekkel: string, mottaker?: Mottaker) => {
     if (nyStatus === "deleted") {
@@ -384,16 +526,24 @@ export function DokumentHandlingsmeny({
     setÅpenMeny(false);
     const erBekreft = trengerBekreft(o.nyStatus);
     const erNudge = NUDGE_TEKSTNOEKLER.has(o.tekstNoekkel);
-    if (erBekreft || erNudge) {
-      setBekreft({ nyStatus: o.nyStatus, tekstNoekkel: o.tekstNoekkel, mottaker: o.mottaker, label: o.label, nudge: erNudge && !erBekreft });
+    // P2: en handling som krever begrunnelse (Besvar/Send tilbake/Avvis) må åpne
+    // bekreftelses-dialogen med påkrevd kommentar — aldri fyre direkte mot serveren.
+    const krevBegrunnelse = statusKreverBegrunnelse(o.nyStatus);
+    if (erBekreft || erNudge || krevBegrunnelse) {
+      setBekreft({ nyStatus: o.nyStatus, tekstNoekkel: o.tekstNoekkel, mottaker: o.mottaker, label: o.label, nudge: (erNudge || krevBegrunnelse) && !erBekreft });
       return;
     }
     utfor(o.nyStatus, o.tekstNoekkel, o.mottaker);
   };
 
+  // P2 (tom-besvarelse): «Besvar» blokkeres når besvarelsen er tom. Speiler
+  // server-guarden — UI viser aldri en handling serveren avviser. Gjelder KUN når Besvar er
+  // primær (effektivPrimär) — etter B kan primær være Send/Godkjenn (skal ikke blokkeres av tom besvar).
+  const besvarBlokkert = !!besvarDeaktivertGrunn && effektivPrimær?.nyStatus === "responded";
+
   // Primærknapp-klikk: draft-send med flere mottakere → åpne nedtrekk; ellers utfør
   const klikkPrimær = () => {
-    if (!primærHandling) return;
+    if (!effektivPrimær || besvarBlokkert) return;
     if (draftSend) {
       const v = videresendValg[0];
       if (videresendValg.length === 1 && v) {
@@ -405,8 +555,10 @@ export function DokumentHandlingsmeny({
       }
       return;
     }
-    const mottaker = primærHandling.nyStatus === "responded" ? (erSisteBoks ? undefined : mottakerForStandard()) : undefined;
-    klikk({ nyStatus: primærHandling.nyStatus, tekstNoekkel: primærHandling.tekstNoekkel, mottaker, label: t(primærHandling.tekstNoekkel) });
+    // Steg 4c: bruk effektivPrimær (siste ledд: Send erstattet av Godkjenn) + komponert label.
+    const handling = effektivPrimær ?? primærHandling;
+    const mottaker = handling.nyStatus === "responded" ? (erSisteBoks ? undefined : mottakerForStandard()) : undefined;
+    klikk({ nyStatus: handling.nyStatus, tekstNoekkel: handling.tekstNoekkel, mottaker, label: primærLabel });
   };
 
   /* ------------------------------------------------------------------ */
@@ -419,7 +571,7 @@ export function DokumentHandlingsmeny({
   }
 
   // Ingenting å vise (f.eks. terminal `closed` uten deaktiverte)
-  if (!primærHandling && sekundærKnapper.length === 0 && !dropdownHarInnhold) {
+  if (!primærHandling && !menyHarInnhold) {
     return null;
   }
 
@@ -479,126 +631,98 @@ export function DokumentHandlingsmeny({
     );
   }
 
-  const primærFarge = primærHandling ? FARGE_KLASSE[primærHandling.farge] ?? "bg-sitedoc-primary hover:bg-blue-700" : "";
-  const primærMikro = primærHandling ? mikrotekst(primærHandling.tekstNoekkel, primærHandling.nyStatus, t(primærHandling.tekstNoekkel)) : undefined;
+  // Rendering bruker effektivPrimär (pilot-fiks B) — farge/mikro/testid følger den faktiske
+  // primærhandlingen (Send/Godkjenn-og-fullfør), ikke kildens erPrimaer.
+  const primærFarge = effektivPrimær ? FARGE_KLASSE[effektivPrimær.farge] ?? "bg-sitedoc-primary hover:bg-blue-700" : "";
+  const primærMikro = effektivPrimær ? mikrotekst(effektivPrimær.tekstNoekkel, effektivPrimær.nyStatus, primærLabel) : undefined;
+  // P2: når Besvar er blokkert (tom besvarelse), vis blokkerings-grunnen i tooltipen
+  // framfor den vanlige flythjelp-mikroteksten.
+  const primærTooltip = besvarBlokkert && effektivPrimær
+    ? { tittel: t(effektivPrimær.tekstNoekkel), tekst: besvarDeaktivertGrunn! }
+    : primærMikro;
 
-  // Fiks 1 (klikktest): kryssflyt-nedtrekket er «Videresend» (ikke-draft) med egen flythjelp-hover —
-  // tydelig skilt fra F5s «Send» (fram i flyten). Draft beholder «Send» (førstegangs-send til faggruppe).
-  const erVideresendNedtrekk = harForwarded && !draftSend;
-  const videresendMikro = erVideresendNedtrekk && forwardedHandling
-    ? mikrotekst(forwardedHandling.tekstNoekkel, "forwarded", t("statushandling.videresend"))
-    : undefined;
+  // Splittkanten (rounded-l) på primærknappen når split-▾ vises.
+  const primærRund = harØvrige ? "rounded-l-lg" : "rounded-lg";
+  const primærKnappKlasse = `px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${primærRund} ${primærFarge}`;
+
+  const meny = (
+    <DropdownMeny
+      draftMottaker={draftMottakerOppforinger}
+      framover={framoverOppforinger}
+      destruktiv={destruktivOppforinger}
+      videresend={videresendOppforinger}
+      admin={adminOppforinger}
+      deaktivert={deaktiverteOppforinger}
+      onVelg={klikk}
+      sendLabel={t("statushandling.sendVidereTil")}
+      videresendLabel={t("statushandling.videresend")}
+      adminLabel={t("statushandling.admin")}
+      ankerRef={triggerRef}
+      rootRef={dropdownRef}
+    />
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-2" ref={menyRef}>
-      {/* Primærhandling som knapp (+ split-▾ ved draft-send med flere mottakere) */}
-      {primærHandling && (
+      {/* Primærhandling som knapp + split-▾ (fabel § 1: alle øvrige lovlige handlinger i menyen) */}
+      {effektivPrimær && (
         <div className="relative flex">
-          {primærMikro ? (
-            <Tooltip tittel={primærMikro.tittel} tekst={primærMikro.tekst} side="top">
+          {primærTooltip ? (
+            <Tooltip tittel={primærTooltip.tittel} tekst={primærTooltip.tekst} side="top">
               <button
-                data-testid={`handling-${primærHandling.nyStatus}`}
+                data-testid={`handling-${effektivPrimær.nyStatus}`}
                 onClick={klikkPrimær}
-                disabled={erLaster}
-                className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
-                  draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
-                } ${primærFarge}`}
+                disabled={erLaster || besvarBlokkert}
+                className={primærKnappKlasse}
               >
-                {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
+                {erLaster ? t("statushandling.endrer") : primærLabel}
               </button>
             </Tooltip>
           ) : (
             <button
-              data-testid={`handling-${primærHandling.nyStatus}`}
+              data-testid={`handling-${effektivPrimær.nyStatus}`}
               onClick={klikkPrimær}
-              disabled={erLaster}
-              className={`px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
-                draftSend && videresendValg.length > 1 ? "rounded-l-lg" : "rounded-lg"
-              } ${primærFarge}`}
+              disabled={erLaster || besvarBlokkert}
+              className={primærKnappKlasse}
             >
-              {erLaster ? t("statushandling.endrer") : t(primærHandling.tekstNoekkel)}
+              {erLaster ? t("statushandling.endrer") : primærLabel}
             </button>
           )}
-          {draftSend && videresendValg.length > 1 && (
+          {harØvrige && (
             <button
+              ref={triggerRef}
+              data-testid="handling-split-nedtrekk"
+              aria-label={t("statushandling.flereHandlinger")}
               onClick={() => setÅpenMeny((å) => !å)}
               disabled={erLaster}
-              className={`rounded-r-lg border-l border-blue-500 px-1.5 py-1.5 text-white disabled:opacity-50 ${primærFarge}`}
+              className={`rounded-r-lg border-l border-white/30 px-1.5 py-1.5 text-white disabled:opacity-50 ${primærFarge}`}
             >
               <ChevronDown className="h-4 w-4" />
             </button>
           )}
+          {åpenMeny && menyHarInnhold && meny}
         </div>
       )}
 
-      {/* Sekundær-knapper */}
-      {sekundærKnapper.map((o) => {
-        const knapp = (
-          <button
-            key={o.key}
-            data-testid={`handling-${o.nyStatus}`}
-            onClick={() => klikk(o)}
-            disabled={erLaster}
-            className={`rounded-lg border px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${
-              o.erDestruktiv
-                ? "border-red-300 text-red-600 hover:bg-red-50"
-                : "border-gray-300 text-gray-700 hover:bg-gray-50"
-            }`}
-          >
-            {o.label}
-          </button>
-        );
-        return o.mikro ? (
-          <Tooltip key={o.key} tittel={o.mikro.tittel} tekst={o.mikro.tekst} side="top">
-            {knapp}
-          </Tooltip>
-        ) : (
-          knapp
-        );
-      })}
-
-      {/* Nedtrekk: send-mottakere + admin + deaktiverte */}
-      {dropdownHarInnhold && !(draftSend && videresendValg.length > 1) && (
+      {/* Uten primærhandling (ikke-eier): alt lovlig/deaktivert bak én ▾ */}
+      {!primærHandling && menyHarInnhold && (
         <div className="relative">
-          {erVideresendNedtrekk && videresendMikro ? (
-            <Tooltip tittel={videresendMikro.tittel} tekst={videresendMikro.tekst} side="top">
-              <button
-                data-testid="handling-videresend-nedtrekk"
-                onClick={() => setÅpenMeny((å) => !å)}
-                disabled={erLaster}
-                className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-              >
-                {t("statushandling.videresend")}
-                <ChevronDown className="h-3.5 w-3.5" />
-              </button>
-            </Tooltip>
-          ) : (
-            <button
-              data-testid="handling-admin-nedtrekk"
-              onClick={() => setÅpenMeny((å) => !å)}
-              disabled={erLaster}
-              className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
-            >
-              {t("statushandling.admin")}
-              <ChevronDown className="h-3.5 w-3.5" />
-            </button>
-          )}
+          <button
+            ref={triggerRef}
+            data-testid="handling-admin-nedtrekk"
+            onClick={() => setÅpenMeny((å) => !å)}
+            disabled={erLaster}
+            className="flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {t("statushandling.flereHandlinger")}
+            <ChevronDown className="h-3.5 w-3.5" />
+          </button>
+          {åpenMeny && meny}
         </div>
-      )}
-
-      {åpenMeny && dropdownHarInnhold && (
-        <DropdownMeny
-          send={sendOppforinger}
-          overflow={overflowOppforinger}
-          deaktivert={deaktiverteOppforinger}
-          onVelg={klikk}
-          adminLabel={t("statushandling.admin")}
-          sendLabel={t("statushandling.sendVidereTil")}
-        />
       )}
 
       {/* Kommentar-utvider — alltid tilgjengelig, aldri påkrevd */}
-      {(primærHandling || sekundærKnapper.length > 0) && (
+      {(primærHandling || harØvrige) && (
         visKommentar ? (
           <input
             type="text"
@@ -627,21 +751,62 @@ export function DokumentHandlingsmeny({
 /* ------------------------------------------------------------------ */
 
 function DropdownMeny({
-  send,
-  overflow,
+  draftMottaker,
+  framover,
+  destruktiv,
+  videresend,
+  admin,
   deaktivert,
   onVelg,
-  adminLabel,
   sendLabel,
+  videresendLabel,
+  adminLabel,
+  ankerRef,
+  rootRef,
 }: {
-  send: MenyOppforing[];
-  overflow: MenyOppforing[];
+  /** Draft-send: mottaker-liste (person-velger), øverst som framover-utvidelse */
+  draftMottaker: MenyOppforing[];
+  /** Framover-handlinger (nøytrale statushandlinger) */
+  framover: MenyOppforing[];
+  /** Destruktive handlinger (Avvis/Slett — rød) */
+  destruktiv: MenyOppforing[];
+  /** Videresend: mottaker-liste (person-velger), etter destruktive */
+  videresend: MenyOppforing[];
+  /** Admin-overstyringer (Lukk/Trekk tilbake/Gjenåpne-når-sekundær) */
+  admin: MenyOppforing[];
+  /** Deaktiverte (gjennomstrøket, med begrunnelse) */
   deaktivert: MenyOppforing[];
   onVelg: (o: MenyOppforing) => void;
-  adminLabel: string;
   sendLabel: string;
+  videresendLabel: string;
+  adminLabel: string;
+  /** ▾-triggeren nedtrekket forankres til (fixed-koordinater fra dens rect). */
+  ankerRef: RefObject<HTMLButtonElement | null>;
+  /** Ref til den portalede meny-noden (for outside-click i forelderen). */
+  rootRef: RefObject<HTMLDivElement | null>;
 }) {
   const { t } = useTranslation();
+  // P1-restfiks (b): portal til document.body + fixed-posisjon fra ▾-ankeret, så kortet ikke klippes
+  // av `<main overflow-y-auto>` (R4-rot). Høyre-justert under triggeren; reposisjoneres ved scroll/resize.
+  const [koord, setKoord] = useState<{ top: number; right: number } | null>(null);
+  const oppdaterKoord = () => {
+    const a = ankerRef.current;
+    if (!a || typeof window === "undefined") return;
+    const r = a.getBoundingClientRect();
+    setKoord({ top: r.bottom + 4, right: window.innerWidth - r.right });
+  };
+  useLayoutEffect(() => {
+    oppdaterKoord();
+    if (typeof window === "undefined") return;
+    const h = () => oppdaterKoord();
+    window.addEventListener("scroll", h, true);
+    window.addEventListener("resize", h);
+    return () => {
+      window.removeEventListener("scroll", h, true);
+      window.removeEventListener("resize", h);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Person-videresending (Del 2.4): hvilke faggruppe-rader er ekspandert.
   const [ekspandert, setEkspandert] = useState<Set<string>>(new Set());
   const veksle = (key: string) =>
@@ -652,90 +817,140 @@ function DropdownMeny({
       return n;
     });
 
-  return (
-    <div className="absolute right-0 top-full z-20 mt-1 min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
-      {/* Send-skille (Del 2.3): tydelig «Send videre til:»-overskrift over faggruppene */}
-      {send.length > 0 && (
-        <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{sendLabel}</div>
-      )}
-      {send.map((o) => {
-        const harMedlemmer = (o.medlemmer?.length ?? 0) > 0;
-        const erÅpen = ekspandert.has(o.key);
-        return (
-          <div key={o.key}>
-            <div className="flex w-full items-center">
-              <button
-                onClick={() => onVelg(o)}
-                className="flex flex-1 items-center px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
-              >
-                {o.label}
-              </button>
-              {harMedlemmer && (
-                <button
-                  onClick={() => veksle(o.key)}
-                  aria-label={t("statushandling.velgPerson")}
-                  className="px-2 py-2 text-gray-400 hover:text-gray-600"
-                >
-                  <ChevronDown className={`h-3.5 w-3.5 transition-transform ${erÅpen ? "rotate-180" : ""}`} />
-                </button>
-              )}
-            </div>
-            {/* Kollapset person-liste: send til spesifikk person i mottaker-flyten */}
-            {harMedlemmer && erÅpen && (
-              <div className="bg-gray-50/60">
-                {o.medlemmer!.map((m) => (
-                  <button
-                    key={`${o.key}-${m.key}`}
-                    onClick={() =>
-                      onVelg({
-                        ...o,
-                        key: `${o.key}-${m.key}`,
-                        label: m.navn,
-                        mottaker: { ...m.mottaker, dokumentflytId: o.mottaker?.dokumentflytId },
-                        medlemmer: undefined,
-                      })
-                    }
-                    className="flex w-full items-center gap-2 py-1.5 pl-7 pr-3 text-left text-sm text-gray-600 hover:bg-gray-100"
-                  >
-                    <span className="truncate">{m.navn}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        );
-      })}
+  // Seksjonsoverskrift (10px uppercase)
+  const overskrift = (tekst: string) => (
+    <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{tekst}</div>
+  );
 
-      {overflow.length > 0 && (
-        <>
-          {send.length > 0 && <div className="my-1 border-t border-gray-100" />}
-          <div className="px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-400">{adminLabel}</div>
-          {overflow.map((o) => {
-            const knapp = (
+  // Statushandling-rad (framover/destruktiv/admin): rød ved erDestruktiv, mikro-hover.
+  const statusRad = (o: MenyOppforing) => {
+    const knapp = (
+      <button
+        key={o.key}
+        data-testid={`handling-${o.nyStatus}`}
+        onClick={() => onVelg(o)}
+        className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-50 ${
+          o.erDestruktiv ? "text-red-600" : "text-gray-700"
+        }`}
+      >
+        {o.label}
+      </button>
+    );
+    return o.mikro ? (
+      <Tooltip key={o.key} tittel={o.mikro.tittel} tekst={o.mikro.tekst} side="left" wrapperClassName="relative block w-full">
+        {knapp}
+      </Tooltip>
+    ) : (
+      knapp
+    );
+  };
+
+  // Mottaker-rad (draft-send/videresend): person-velger-ekspansjon via medlemmer.
+  const mottakerRad = (o: MenyOppforing) => {
+    const harMedlemmer = (o.medlemmer?.length ?? 0) > 0;
+    const erÅpen = ekspandert.has(o.key);
+    return (
+      <div key={o.key}>
+        <div className="flex w-full items-center">
+          <button
+            onClick={() => onVelg(o)}
+            className="flex flex-1 items-center px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50"
+          >
+            {o.label}
+          </button>
+          {harMedlemmer && (
+            <button
+              onClick={() => veksle(o.key)}
+              aria-label={t("statushandling.velgPerson")}
+              className="px-2 py-2 text-gray-400 hover:text-gray-600"
+            >
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${erÅpen ? "rotate-180" : ""}`} />
+            </button>
+          )}
+        </div>
+        {/* Kollapset person-liste: send til spesifikk person i mottaker-flyten */}
+        {harMedlemmer && erÅpen && (
+          <div className="bg-gray-50/60">
+            {o.medlemmer!.map((m) => (
               <button
-                key={o.key}
-                onClick={() => onVelg(o)}
-                className={`flex w-full items-center px-3 py-2 text-left text-sm hover:bg-gray-50 ${
-                  o.erDestruktiv ? "text-red-600" : "text-gray-700"
-                }`}
+                key={`${o.key}-${m.key}`}
+                onClick={() =>
+                  onVelg({
+                    ...o,
+                    key: `${o.key}-${m.key}`,
+                    label: m.navn,
+                    mottaker: { ...m.mottaker, dokumentflytId: o.mottaker?.dokumentflytId },
+                    medlemmer: undefined,
+                  })
+                }
+                className="flex w-full items-center gap-2 py-1.5 pl-7 pr-3 text-left text-sm text-gray-600 hover:bg-gray-100"
               >
-                {o.label}
+                <span className="truncate">{m.navn}</span>
               </button>
-            );
-            return o.mikro ? (
-              <Tooltip key={o.key} tittel={o.mikro.tittel} tekst={o.mikro.tekst} side="left" wrapperClassName="relative block w-full">
-                {knapp}
-              </Tooltip>
-            ) : (
-              knapp
-            );
-          })}
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Skille-linje mellom to ikke-tomme seksjoner.
+  let harTidligere = false;
+  const skille = (harInnhold: boolean) => {
+    const vis = harInnhold && harTidligere;
+    if (harInnhold) harTidligere = true;
+    return vis ? <div className="my-1 border-t border-gray-100" /> : null;
+  };
+
+  // Fabel C-orden (pilot-fiks A): (draft-mottakere →) framover (Besvar) → Videresend → destruktiv
+  // (Avvis) → Admin (Lukk/Trekk tilbake/Gjenåpne + Slett sist) → deaktiverte.
+  const innhold = (
+    <div
+      ref={rootRef}
+      style={{ position: "fixed", top: koord?.top ?? 0, right: koord?.right ?? 0, visibility: koord ? "visible" : "hidden" }}
+      className="z-[9999] min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+    >
+      {draftMottaker.length > 0 && (
+        <>
+          {skille(true)}
+          {overskrift(sendLabel)}
+          {draftMottaker.map(mottakerRad)}
+        </>
+      )}
+
+      {framover.length > 0 && (
+        <>
+          {skille(true)}
+          {framover.map(statusRad)}
+        </>
+      )}
+
+      {videresend.length > 0 && (
+        <>
+          {skille(true)}
+          {overskrift(videresendLabel)}
+          {videresend.map(mottakerRad)}
+        </>
+      )}
+
+      {destruktiv.length > 0 && (
+        <>
+          {skille(true)}
+          {destruktiv.map(statusRad)}
+        </>
+      )}
+
+      {admin.length > 0 && (
+        <>
+          {skille(true)}
+          {overskrift(adminLabel)}
+          {admin.map(statusRad)}
         </>
       )}
 
       {deaktivert.length > 0 && (
         <>
-          {(send.length > 0 || overflow.length > 0) && <div className="my-1 border-t border-gray-100" />}
+          {skille(true)}
           {deaktivert.map((o) => (
             // Begrunnelsen flyttet fra nativ title= til Tooltip v2 (usynlig på mobil ellers — § 2-sweep).
             <Tooltip key={o.key} tekst={o.begrunnelse ?? ""} side="left" wrapperClassName="relative block w-full">
@@ -749,4 +964,6 @@ function DropdownMeny({
       )}
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(innhold, document.body) : innhold;
 }

@@ -5,8 +5,8 @@ export type { RettighetsOverrides, AdminNiva } from "./statusHandlinger";
 export { vaerkodeTilTekst } from "./vaer";
 export { beregnSynligeMapper } from "./mappeTilgang";
 export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from "./mappeTilgang";
-export { hentStatusHandlinger } from "./statusHandlinger";
-export type { StatusHandling } from "./statusHandlinger";
+export { hentStatusHandlinger, hentPosisjonFiltrertHandlinger } from "./statusHandlinger";
+export type { StatusHandling, PosisjonHandlingKontekst } from "./statusHandlinger";
 export { IKKE_SLETTET, KUN_SLETTET, PAPIRKURV_DAGER, dagerIgjen } from "./softDelete";
 export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil, beregnByggeplassGeofence, avstandMeter } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
@@ -18,6 +18,30 @@ export { wgs84TilUtm, wgs84TilNtm, wgs84TilProjeksjon, gpsTil3D, tredjeTilGps } 
 export type { IfcOpprinnelse } from "./koordinatBro";
 export { kompetanseStatus } from "./kompetanseStatus";
 export type { KompetanseStatus } from "./kompetanseStatus";
+export {
+  nesteLedd,
+  forrigeBallLedd,
+  avledStatus,
+  harBallenPosisjon,
+  retningsrettigheter,
+  finnPosisjon,
+  gjenapnePosisjon,
+  byggPosisjonsLedd,
+  utledMottakerForPosisjon,
+  ansvarsmerkeKey,
+  seerErBakover,
+  erAvsenderledd,
+  erMedlemAvFlyt,
+} from "./flytPosisjon";
+export type {
+  LeddKlassifisering,
+  FlytPosisjonLedd,
+  FlytBruker,
+  AvledStatusFakta,
+  AvledetVisning,
+  RaFlytMedlem,
+  Mottaker,
+} from "./flytPosisjon";
 export { normaliserRegnummer, erGyldigRegnummer } from "./regnummer";
 export { resolverNyNavigasjon } from "./nyNavigasjon";
 export type { NyNavigasjonKilde } from "./nyNavigasjon";
@@ -56,7 +80,14 @@ export {
 export type { Tidsrom, TidsromKonflikt } from "./tidsromValidering";
 export { carveArbeidstider } from "./carveArbeidstid";
 export type { CarveSegment, CarvetVindu } from "./carveArbeidstid";
-export { harFeltVerdi, beregnLaasteFelter } from "./feltLaasing";
+export {
+  harFeltVerdi,
+  beregnLaasteFelter,
+  erUtfyllbartFelt,
+  feltErBesvart,
+  harMinstEttUtfyltFelt,
+  IKKE_UTFYLLBARE_FELTTYPER,
+} from "./feltLaasing";
 export { avgjorDokumentTilgang } from "./avgjorDokumentTilgang";
 export type { TilgangsFakta, TilgangsResultat } from "./avgjorDokumentTilgang";
 export {
@@ -101,21 +132,29 @@ export function isValidStatusTransition(
     // Trekk tilbake flyttet til received→draft; sent→cancelled utgår.
     sent: ["received"],
     // F2: Trekk tilbake → received→draft (redigerbar kladd hos avsender, før mottaker har svart).
-    // F5 (Send/Videresend-paring, beslutning 6): `sent` aktiveres der Videresend finnes — Send
-    // fram i flyten (mot neste ledd) uten å gå via Under arbeid.
+    // Fase 3.6 (2026-08-01, fabel-løsning 1): `received→sent` GJENINNFØRT. §8A fjernet den fordi den
+    // var en recipient-løs no-op i den GAMLE modellen; posisjonsmodellen (Fase 3) ruter `sent→nesteLedd`
+    // (ignorerer recipient-input, aldri no-op) og guarder med `verifiserRetningsrett` (kun ball-holder),
+    // så «Send → = neste ledd» (veileder § 2.2) gir mening fra ETHVERT ledd — dette FULLFØRER P1, reverserer
+    // den ikke. Simulator-fasit: 1 Send→2, 2 Send→3, 3 Send→4. UI-tilbudet (statusHandlinger/flytmatrise-def)
+    // holdes URØRT til Fase 4 steg 4 wirer «Send til N·X →» fra received → dormant/additiv kapabilitet her.
+    // responded→sent + approved→sent forblir fjernet (responded=besvart/tilbake, approved=terminal H6).
     // F6 (Godkjenn fra Mottatt): `approved` gir en Registrator→Godkjenner-flyt (uten utfører) en
     // direkte godkjenn-vei fra Mottatt — TILLEGG til responded→approved, ikke erstatning.
-    received: ["in_progress", "responded", "sent", "cancelled", "dismissed", "draft", "approved"],
-    // F3 (Under arbeid): `rejected` og `in_progress` er merget. in_progress-handlingene er
-    // Besvar (→responded), Send på nytt (→sent) og Lukk (→closed, arver dagens rejected→closed).
-    in_progress: ["responded", "sent", "closed"],
-    // F3: Send tilbake ruter DIREKTE til Under arbeid (responded→in_progress) — ingen Gjenoppta.
-    // F5: responded→sent ble for-staget i F3 (Send fram fra svar-leddet) — bekreftet her.
-    responded: ["approved", "in_progress", "sent"],
-    // F5 (Send/Videresend-paring, beslutning 6): Send fram også fra godkjent (der Videresend finnes).
+    // Runde-2 (2026-08-02): `in_progress` kollapset HELT (Q1=A) — fjernet som mål fra received (nås
+    // aldri) og som kilde (in_progress-nøkkelen utgår). avledStatus gir alltid received/«Hos N».
+    received: ["responded", "cancelled", "dismissed", "draft", "approved", "sent"],
+    // Pilot-fiks B (2026-08-02, fabel-bindende): `responded→sent` GJENINNFØRT — samme klasse som
+    // Fase 3.6 `received→sent`. Et kontroll-ledд som mottar Besvar og IKKE er siste ledд skal Sende
+    // FRAMOVER (nesteLedd, ball-guardet via verifiserRetningsrett), ikke Godkjenne. Ruter via
+    // posisjon (aldri recipient-løs no-op — det var §8A-bekymringen i den GAMLE modellen).
+    // Runde-2 (2026-08-02): `responded→in_progress` («Send tilbake») FJERNET — bakover er nå Besvar ←
+    // (fra received), én bakover-vei. `in_progress` kollapses HELT (Q1=A) og skrives aldri.
+    responded: ["approved", "sent"],
+    // §8A-fiks (2026-07-29): `approved→sent` FJERNET — samme recipient-løse no-op.
     // H6 (Godkjent = stoppsted): approved lukkes ALDRI — approved→closed fjernet. Veien tilbake er
-    // Gjenåpne (approved→draft, Reg + P-adm, § 4). Send beholdt (sende-kapasitet ok på låst tilstand).
-    approved: ["sent", "draft"],
+    // Gjenåpne (approved→draft, Reg + P-adm, § 4).
+    approved: ["draft"],
     // F3: `rejected`-oppføringen utgår (merget inn i in_progress). `status` er String —
     // eksisterende `rejected`-rader migreres til `in_progress` ved deploy (se migrering).
     // F4 (Gjenåpne-samling): closed/dismissed/cancelled → draft er ÉN handling (Gjenåpne) —
@@ -130,12 +169,26 @@ export function isValidStatusTransition(
 }
 
 /**
- * Statusoverganger som krever en ikke-tom begrunnelse (F1, gate-JA #2).
- * Bryter bevisst «fritekst = valgfritt»-presedensen — Kenneth-vedtatt: en avvisning
- * skal alltid bære en begrunnelse. Delt kilde for server-validering (Zod-gate i
- * endreStatus) og klient-validering (web + mobil handlingsmeny), så regelen ikke
- * kan divergere mellom lagene.
+ * Statusoverganger som krever en ikke-tom begrunnelse/kommentar.
+ *
+ * Bryter bevisst «fritekst = valgfritt»-presedensen. P2 (Kenneth-vedtak 2026-07-21,
+ * valg B) utvidet fra kun `dismissed` (Avvis, F1) til hele kommentar-klassen:
+ *   - `dismissed`   — Avvis (F1)
+ *   - `in_progress` — Send tilbake (responded→in_progress, F3)
+ *   - `responded`   — Besvar
+ * Videresend (`forwarded`) og Send (`sent`) er UNNTAK — krever ikke kommentar.
+ * Hver mål-status er enekilde til sin handling (målt Ledd 1), så `nyStatus` alene
+ * skiller rent uten per-flate if-er.
+ *
+ * Delt kilde for server-validering (Zod-gate i endreStatus) og klient-validering
+ * (web + mobil handlingsmeny), så regelen ikke kan divergere mellom lagene.
  */
+// Runde-2 (2026-08-02): `in_progress` («Send tilbake») fjernet fra klassen — handlingen finnes ikke mer.
+const STATUS_KREVER_BEGRUNNELSE: ReadonlySet<string> = new Set([
+  "dismissed",
+  "responded",
+]);
+
 export function statusKreverBegrunnelse(nyStatus: string): boolean {
-  return nyStatus === "dismissed";
+  return STATUS_KREVER_BEGRUNNELSE.has(nyStatus);
 }

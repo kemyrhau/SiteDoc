@@ -587,7 +587,7 @@ export async function syncTimer(
             userId: serverSedel.userId,
             organizationId: serverSedel.organizationId,
             projectId: sedelProjectId,
-            aktivitetId: serverSedel.aktivitetId,
+            aktivitetId: serverSedel.aktivitetId ?? "",
             avdelingId: serverSedel.avdelingId,
             byggeplassId: serverSedel.byggeplassId,
             dato: serverSedel.dato,
@@ -609,7 +609,7 @@ export async function syncTimer(
         db.update(dagsseddelLocal)
           .set({
             projectId: sedelProjectId,
-            aktivitetId: serverSedel.aktivitetId,
+            aktivitetId: serverSedel.aktivitetId ?? "",
             avdelingId: serverSedel.avdelingId,
             byggeplassId: serverSedel.byggeplassId,
             dato: serverSedel.dato,

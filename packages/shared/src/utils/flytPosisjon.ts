@@ -1,0 +1,389 @@
+/**
+ * Flytmodell Fase 2 — delt posisjonsutledning (@sitedoc/shared).
+ *
+ * DEN DELTE SANNHETEN all ruting + status skal gå gjennom (server Fase 3, web+mobil Fase 4).
+ * Rutingen teller LEDD-POSISJON, aldri rollenavn/historikk. Status AVLEDES fra fakta
+ * (aktivPosisjon/retning/terminal/sendt), skrives aldri direkte.
+ *
+ * Grunnlag: flytmodell-veileder-cowork.md §§ 2.1–2.5 + gate-svar (FLAGG 1–3, Q2–Q4).
+ * Erstatter: forventetRolleKandidater (web flyt-ledd.ts + mobil dokumentflyt-ledd.ts) +
+ * rolledimensjonen i statusHandlinger.ts. Mater: perspektivEtikett + status-enum-cachen.
+ *
+ * Fase 2 = BIBLIOTEK + tester + backfill. Ingen server-ruting/klient-konsum rørt ennå.
+ */
+
+import type { DocumentStatus } from "../types";
+
+/** Leddets rutings-klassifisering (§ 2.5). Orienteres kan ALDRI holde ballen. */
+export type LeddKlassifisering = "kontroll" | "utfor" | "orienteres";
+
+/**
+ * Default ansvarsmerke-i18n-nøkkel per ledд (§ 2.6 + fabel-ordliste 2026-08-01, bindende).
+ *
+ * Ansvarsmerket er ren VISNING; `klassifisering` styrer ALLTID rettighetene. Merket AVLEDES
+ * fra rolle+klassifisering (ikke lagret) — «alt som kan utledes skal utledes». Et fremtidig
+ * flytoppsett-UI kan lagre et egendefinert fritekst-merke som overstyrer denne default-en.
+ * Rammeverk-fri: returnerer en i18n-NØKKEL; konsumenten kaller `t(nøkkel)`.
+ *
+ * Ordliste (verb-først, ≤22 tegn): kontroll=«Kontrollerer avvik»(bestiller)/«Godkjenner
+ * økonomi»(godkjenner)/«Kontrollerer HMS»(HMS-gruppe); utfør=«Utfører arbeid»(utforer)/
+ * «Registrerer»(registrator); orienteres=«Orienteres».
+ */
+export function ansvarsmerkeKey(rolle: string, klassifisering: string | null): string {
+  if (klassifisering === "orienteres") return "ansvarsmerke.orienteres";
+  switch (rolle) {
+    case "registrator":
+      return "ansvarsmerke.registrerer";
+    case "utforer":
+      return "ansvarsmerke.utforerArbeid";
+    case "bestiller":
+      return "ansvarsmerke.kontrollererAvvik";
+    case "godkjenner":
+      return "ansvarsmerke.godkjennerOkonomi";
+    default:
+      // Ukjent/gruppe-bundet rolle: fall tilbake på klassifiserings-generisk merke.
+      return klassifisering === "kontroll" ? "ansvarsmerke.kontrollerer" : "ansvarsmerke.utforer";
+  }
+}
+
+/**
+ * Ett ledd i flyten, slik den delte utledningen ser det. Utledes fra DokumentflytMedlem
+ * gruppert på `steg` (= posisjon). Bærer alt funksjonene trenger — rutings-felt
+ * (klassifisering/kanTerminereUtenBall) OG medlemskap (for posisjon-matching/har-ballen).
+ * Medlemskaps-settene kan være tomme når kun rutings-feltene er relevante.
+ */
+export interface FlytPosisjonLedd {
+  posisjon: number; // 1-basert (= DokumentflytMedlem.steg)
+  klassifisering: LeddKlassifisering;
+  kanTerminereUtenBall: boolean;
+  brukerIder: Set<string>;
+  gruppeIder: Set<string>;
+  faggruppeIder: Set<string>;
+}
+
+/** En seer/åpner, uttrykt som medlemskap. */
+export interface FlytBruker {
+  userId: string;
+  gruppeIder: string[];
+  faggruppeIder: string[];
+  erAdmin: boolean;
+}
+
+/**
+ * Normalisert rå-medlem (ett DokumentflytMedlem). Både server (Prisma) og klient (tRPC)
+ * normaliserer sine medlemsrader til denne før `byggPosisjonsLedd` — ÉN grupperingslogikk.
+ */
+export interface RaFlytMedlem {
+  steg: number;
+  klassifisering: string | null;
+  kanTerminereUtenBall: boolean;
+  erHovedansvarlig: boolean;
+  brukerId: string | null; // projectMember-brukeren
+  gruppeId: string | null;
+  faggruppeId: string | null;
+}
+
+/** Mottaker for et dokument: person ELLER gruppe (recipient-modellen). */
+export interface Mottaker {
+  recipientUserId: string | null;
+  recipientGroupId: string | null;
+}
+
+/**
+ * utledMottakerForPosisjon — invers av finnPosisjon: gitt en posisjon, hvem får ballen?
+ * Speiler dagens erHovedansvarlig→person/gruppe-resolusjon, generalisert til alle ledd.
+ *   1. medlem m/ erHovedansvarlig som har person/gruppe → den
+ *   2. ellers person-medlem (brukerId) → recipientUserId
+ *   3. ellers gruppe-medlem (gruppeId) → recipientGroupId
+ *   4. null-medlem-boks (ingen person/gruppe/faggruppe = oppretter-boks) → bestillerUserId (E1)
+ *   5. faggruppe-ledd uten person/gruppe → null (behold gjeldende mottaker, E5)
+ */
+export function utledMottakerForPosisjon(
+  medlemmer: RaFlytMedlem[],
+  posisjon: number,
+  bestillerUserId: string | null,
+): Mottaker | null {
+  const vedSteg = medlemmer.filter((m) => m.steg === posisjon);
+  if (vedSteg.length === 0) {
+    // Ingen medlem på posisjonen = oppretter-boks (E1).
+    return bestillerUserId ? { recipientUserId: bestillerUserId, recipientGroupId: null } : null;
+  }
+  const harMottaker = (m: RaFlytMedlem): boolean => Boolean(m.brukerId || m.gruppeId);
+  const valgt =
+    vedSteg.find((m) => m.erHovedansvarlig && harMottaker(m)) ??
+    vedSteg.find((m) => m.brukerId) ??
+    vedSteg.find((m) => m.gruppeId) ??
+    vedSteg[0]!;
+  if (valgt.brukerId) return { recipientUserId: valgt.brukerId, recipientGroupId: null };
+  if (valgt.gruppeId) return { recipientUserId: null, recipientGroupId: valgt.gruppeId };
+  // Ingen person/gruppe: null-medlem (oppretter-boks) → bestillerUserId (E1); faggruppe-only → behold (E5).
+  if (!valgt.faggruppeId && bestillerUserId) return { recipientUserId: bestillerUserId, recipientGroupId: null };
+  return null;
+}
+
+/**
+ * Grupperer rå DokumentflytMedlem på `steg` → FlytPosisjonLedd[] (posisjon = steg).
+ * Leddet er «kontroll» hvis noe medlem er kontroll; kanTerminereUtenBall hvis noe medlem har det.
+ * Delt av backfill (Fase 2), server-ruting (Fase 3) og klient-ledd (Fase 4) — ingen divergens.
+ */
+export function byggPosisjonsLedd(medlemmer: RaFlytMedlem[]): FlytPosisjonLedd[] {
+  const perSteg = new Map<number, FlytPosisjonLedd>();
+  for (const m of medlemmer) {
+    let l = perSteg.get(m.steg);
+    if (!l) {
+      l = {
+        posisjon: m.steg,
+        klassifisering: (m.klassifisering as LeddKlassifisering | null) ?? "utfor",
+        kanTerminereUtenBall: false,
+        brukerIder: new Set<string>(),
+        gruppeIder: new Set<string>(),
+        faggruppeIder: new Set<string>(),
+      };
+      perSteg.set(m.steg, l);
+    }
+    if (m.klassifisering === "kontroll") l.klassifisering = "kontroll";
+    if (m.kanTerminereUtenBall) l.kanTerminereUtenBall = true;
+    if (m.brukerId) l.brukerIder.add(m.brukerId);
+    if (m.gruppeId) l.gruppeIder.add(m.gruppeId);
+    if (m.faggruppeId) l.faggruppeIder.add(m.faggruppeId);
+  }
+  return [...perSteg.values()];
+}
+
+const sorterStigende = (ledd: FlytPosisjonLedd[]): FlytPosisjonLedd[] =>
+  [...ledd].sort((a, b) => a.posisjon - b.posisjon);
+
+const kanHoldeBallen = (l: FlytPosisjonLedd): boolean => l.klassifisering !== "orienteres";
+
+/** Er brukeren medlem av dette leddet (person/gruppe/faggruppe)? */
+function erMedlemAvLedd(l: FlytPosisjonLedd, bruker: FlytBruker): boolean {
+  return (
+    l.brukerIder.has(bruker.userId) ||
+    bruker.gruppeIder.some((g) => l.gruppeIder.has(g)) ||
+    bruker.faggruppeIder.some((f) => l.faggruppeIder.has(f))
+  );
+}
+
+/**
+ * Send → : neste posisjon fremover som KAN holde ballen (hopper Orienteres).
+ * Fra siste ball-ledd finnes ingen neste → null ⇒ handlingen ER «Godkjenn og fullfør»
+ * (ingen spesialkode for «bestiller sist»). § 2.2.
+ */
+export function nesteLedd(ledd: FlytPosisjonLedd[], aktivPosisjon: number): number | null {
+  for (const l of sorterStigende(ledd)) {
+    if (l.posisjon > aktivPosisjon && kanHoldeBallen(l)) return l.posisjon;
+  }
+  return null;
+}
+
+/**
+ * Besvar ← : nærmeste posisjon bakover som kan holde ballen (kontroll ELLER utfor —
+ * vedtak 1). Hopper KUN Orienteres. Null hvis ingen bakover. § 2.2.
+ * (Navn: «BallLedd» og ikke «KontrollLedd» fordi ← treffer både kontroll og utfor.)
+ */
+export function forrigeBallLedd(ledd: FlytPosisjonLedd[], aktivPosisjon: number): number | null {
+  const bakover = sorterStigende(ledd).reverse();
+  for (const l of bakover) {
+    if (l.posisjon < aktivPosisjon && kanHoldeBallen(l)) return l.posisjon;
+  }
+  return null;
+}
+
+/** Lagrede fakta avledStatus leser (§ 2.3). Ingen av dem er status-enum. */
+export interface AvledStatusFakta {
+  aktivPosisjon: number | null;
+  retning: string | null; // "frem" | "tilbake" | "paatvers"
+  terminal: string | null; // "godkjent" | "avvist" | "lukket" | "avbrutt" | null
+  sendt: boolean;
+}
+
+/** Avledet visningstype — kaller komponerer «N · X» (ansvarsmerke) fra ledd[aktivPosisjon]. */
+export type AvledetVisning = "terminal" | "utkast" | "besvart" | "hos";
+
+// Q3 (cowork-verifisert): avvist → dismissed (den LEVENDE Avvis-statusen), ikke rejected.
+const TERMINAL_TIL_STATUS: Record<string, DocumentStatus> = {
+  godkjent: "approved",
+  avvist: "dismissed",
+  lukket: "closed",
+  avbrutt: "cancelled",
+};
+
+/**
+ * avledStatus — ÉN kilde til status-enum-cachen (§ 2.3). Skrives aldri direkte av
+ * endepunktene; kun denne funksjonen setter status-cachen (Fase 3).
+ *
+ *   terminal            → «Terminal-etikett» (status = map(terminal))
+ *   !sendt              → «Utkast»
+ *   retning = tilbake   → «Besvart — hos N»
+ *   ellers              → «Hos N»
+ *
+ * Q1 (fabel-VEDTATT, A): posisjonsmodellens 4 fakta skiller IKKE received fra in_progress —
+ * «hos»-grenen gir status="received". `in_progress` gjeninnføres ALDRI som statusfakta;
+ * et evt. «sett/påbegynt»-signal er et VISNINGS-anliggende (perspektivEtikett/lesekvittering),
+ * ikke en ny fakta i maskinen. F3-lukk-fra-under-arbeid er bevart via `kanTerminereUtenBall`.
+ */
+export function avledStatus(fakta: AvledStatusFakta): { status: DocumentStatus; visning: AvledetVisning } {
+  if (fakta.terminal) {
+    return { status: TERMINAL_TIL_STATUS[fakta.terminal] ?? "dismissed", visning: "terminal" };
+  }
+  if (!fakta.sendt) {
+    return { status: "draft", visning: "utkast" };
+  }
+  if (fakta.retning === "tilbake") {
+    return { status: "responded", visning: "besvart" };
+  }
+  // Q1 (fabel-vedtatt A): received/in_progress kollapser til «Hos N» = status "received".
+  return { status: "received", visning: "hos" };
+}
+
+/**
+ * har-ballen (Q2): brukeren er medlem av leddet på aktivPosisjon. Erstatter den recipient-
+ * identitets-baserte beregnHarBallen (som beholdes til Fase 4 bytter konsumentene).
+ */
+export function harBallenPosisjon(
+  ledd: FlytPosisjonLedd[],
+  aktivPosisjon: number | null,
+  bruker: FlytBruker,
+): boolean {
+  if (aktivPosisjon === null) return false;
+  const ballLedd = ledd.find((l) => l.posisjon === aktivPosisjon);
+  if (!ballLedd) return false;
+  return erMedlemAvLedd(ballLedd, bruker);
+}
+
+/**
+ * seerErBakover (Fase 4 steg 4b): er seeren medlem av et ledд BAK ballen (posisjon <
+ * aktivPosisjon)? = avsender-siden. Grunnlag for «Trekk tilbake» (avsender henter en sendt
+ * hendelse tilbake FØR mottaker svarer) — en posisjon-basert erstatning for avsender-rollene
+ * (registrator/bestiller) uten rolle-kobling.
+ */
+export function seerErBakover(
+  ledd: FlytPosisjonLedd[],
+  aktivPosisjon: number | null,
+  bruker: FlytBruker,
+): boolean {
+  if (aktivPosisjon === null) return false;
+  return ledd.some((l) => l.posisjon < aktivPosisjon && erMedlemAvLedd(l, bruker));
+}
+
+/**
+ * Avsenderleddet (§ 2.4 trekk-tilbake, fabel «den som sendte», 2026-08-01): er brukeren medlem
+ * av det UMIDDELBART forrige ball-leddet (`forrigeBallLedd`) — den som sendte dokumentet framover?
+ * Posisjon-native (ikke transferlogg): i trekk-tilbake-vinduet (før mottaker har handlet) er
+ * forrige ball-ledд = avsenderleddet. Strammere enn `seerErBakover` (som slapp ETHVERT bakre ledд
+ * til) → erstatter den for trekk-tilbake-guarden. (Videresend-kanten der de divergerer = egen H3-
+ * semantikk, liten oppfølger hvis den dukker opp.)
+ */
+export function erAvsenderledd(
+  ledd: FlytPosisjonLedd[],
+  aktivPosisjon: number | null,
+  bruker: FlytBruker,
+): boolean {
+  if (aktivPosisjon === null) return false;
+  const forrigePos = forrigeBallLedd(ledd, aktivPosisjon);
+  if (forrigePos === null) return false;
+  const l = ledd.find((x) => x.posisjon === forrigePos);
+  return l ? erMedlemAvLedd(l, bruker) : false;
+}
+
+/**
+ * Er brukeren medlem av NOEN ledд i flyten? § 2.4 gjenåpne-rett (fabel: «medlem/admin kan gjenåpne
+ * terminal»). Erstatter `harBallen` som gjenåpne-guard slik at en lavere-ledд-åpner (f.eks.
+ * registrator) faktisk slipper til → `gjenapnePosisjon` lander dem på deres eget ledд (ikke terminal).
+ */
+export function erMedlemAvFlyt(ledd: FlytPosisjonLedd[], bruker: FlytBruker): boolean {
+  return ledd.some((l) => erMedlemAvLedd(l, bruker));
+}
+
+/** Retningsrettigheter for en seer (§ 2.2 + vedtak). `kanVideresende` = H3 inn (admin/override). */
+export function retningsrettigheter(input: {
+  harBallen: boolean;
+  seerLedd: FlytPosisjonLedd | null; // leddet seeren tilhører (for kanTerminereUtenBall)
+  kanVideresende: boolean; // H3-mønsteret, avgjøres utenfor
+}): { kanSende: boolean; kanBesvare: boolean; kanVideresende: boolean; kanTerminere: boolean } {
+  const { harBallen, seerLedd, kanVideresende } = input;
+  const erOrienteres = seerLedd?.klassifisering === "orienteres";
+  return {
+    // Send → og Besvar ← : den som holder ballen (orienteres holder aldri ballen).
+    kanSende: harBallen && !erOrienteres,
+    kanBesvare: harBallen && !erOrienteres,
+    // Videresend ↔ : H3 (admin-nivå + eksplisitt override).
+    kanVideresende,
+    // Terminere (Lukk): ball-holder, ELLER kontroll-ledd med kanTerminereUtenBall (F3 + HMS).
+    kanTerminere: harBallen || (seerLedd?.kanTerminereUtenBall ?? false),
+  };
+}
+
+/**
+ * finnPosisjon — den DELTE matcheren (Q4): mapper dagens eier/recipient til en ledd-posisjon.
+ * Brukes av non-terminal backfill (Fase 2) og erstatter finnAktivtIndex sin identitets-logikk
+ * (Fase 4). Returnerer posisjon, ikke array-indeks.
+ *
+ *   !sendt/draft        → laveste posisjon (oppretter, Ledd 1)
+ *   recipientUserId     → leddet brukeren er i
+ *   recipientGroupId    → leddet gruppen er i
+ *   fallback            → oppretter-leddet (bestillerUserId), ellers null
+ */
+export function finnPosisjon(input: {
+  ledd: FlytPosisjonLedd[];
+  status: string;
+  sendt: boolean;
+  recipientUserId?: string | null;
+  recipientGroupId?: string | null;
+  bestillerUserId?: string | null;
+}): number | null {
+  const { ledd, status, sendt, recipientUserId, recipientGroupId, bestillerUserId } = input;
+  const sortert = sorterStigende(ledd);
+  const forste = sortert[0];
+  if (!forste) return null;
+
+  // Ikke sendt (utkast): ballen hos oppretter = laveste posisjon.
+  if (!sendt || status === "draft") {
+    return forste.posisjon;
+  }
+  if (recipientUserId) {
+    const l = sortert.find((x) => x.brukerIder.has(recipientUserId));
+    if (l) return l.posisjon;
+  }
+  if (recipientGroupId) {
+    const l = sortert.find((x) => x.gruppeIder.has(recipientGroupId));
+    if (l) return l.posisjon;
+  }
+  if (bestillerUserId) {
+    const l = sortert.find((x) => x.brukerIder.has(bestillerUserId));
+    if (l) return l.posisjon;
+  }
+  return null;
+}
+
+/**
+ * Gjenåpne-posisjon (§ 2.4). Terminal-dok gjenåpnes:
+ *   1. Ballen går til åpnerens EGET ledd (nærmeste ledd åpner er medlem av, som kan holde ballen).
+ *   2. Åpner ikke medlem av leddet dok ligger hos → nærmeste ledd åpner er medlem av
+ *      (Orienteres kan ikke motta → hoppes).
+ *   3. Åpner utenfor flyten (admin) → gjenåpnes i SAMME boks (aktivPosisjon uendret).
+ * Returnerer ny posisjon (eller aktivPosisjon ved regel 3 / null hvis ubestembar).
+ */
+export function gjenapnePosisjon(input: {
+  ledd: FlytPosisjonLedd[];
+  aktivPosisjon: number | null;
+  aapner: FlytBruker;
+}): number | null {
+  const { ledd, aktivPosisjon, aapner } = input;
+  const sortert = sorterStigende(ledd);
+
+  // Ledd åpner er medlem av OG som kan holde ballen (ikke orienteres).
+  const egneLedd = sortert.filter((l) => erMedlemAvLedd(l, aapner) && kanHoldeBallen(l));
+
+  // Regel 3: admin utenfor flyten → samme boks.
+  const forsteEget = egneLedd[0];
+  if (!forsteEget) {
+    return aapner.erAdmin ? aktivPosisjon : null;
+  }
+
+  // Regel 1 + 2: nærmeste eget ball-ledd til der dok ligger. Uten aktivPosisjon: laveste.
+  if (aktivPosisjon === null) return forsteEget.posisjon;
+  return egneLedd.reduce((naermest, l) =>
+    Math.abs(l.posisjon - aktivPosisjon) < Math.abs(naermest.posisjon - aktivPosisjon) ? l : naermest,
+  ).posisjon;
+}

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { X } from "lucide-react";
-import { DOCUMENT_STATUSES, isValidStatusTransition } from "@sitedoc/shared";
+import { DOCUMENT_STATUSES } from "@sitedoc/shared";
 import { StatusBadge } from "@sitedoc/ui";
 import { trpc } from "@/lib/trpc";
 import type { DokumentRad } from "./types";
@@ -35,9 +35,10 @@ export function FirmaHurtigModal({ rad, organizationId, onLukk, onSuksess }: Pro
 
   const mutation = trpc.hms.firmaBehandleAvvik.useMutation();
 
-  const gyldigeStatuser = DOCUMENT_STATUSES.filter((s) =>
-    isValidStatusTransition(rad.status, s),
-  );
+  // F3.5 (FLAGG 1): firma-hurtigbehandling er en admin-override som KUN kan sette en terminal
+  // (godkjent/avvist/lukket/avbrutt), ikke vilkårlige mellomstatuser.
+  const FIRMA_TERMINALE = ["approved", "dismissed", "closed", "cancelled"] as const;
+  const gyldigeStatuser = FIRMA_TERMINALE.filter((s) => s !== rad.status);
 
   const kanLagre =
     !mutation.isPending && (nyStatus !== "" || kommentar.trim().length > 0);

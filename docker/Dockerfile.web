@@ -24,6 +24,12 @@ ENV API_PORT=${API_PORT}
 # (prod/test) = "av". Se docker-compose.redesign.yml + docs/redesign/steg-viii-kunderunde.md.
 ARG NEXT_PUBLIC_NY_NAV_DEFAULT=
 ENV NEXT_PUBLIC_NY_NAV_DEFAULT=${NEXT_PUBLIC_NY_NAV_DEFAULT}
+# Bygg-stempel: NEXT_PUBLIC_* bakes inn i klient-bundelen ved BUILD-tid (runtime-env
+# er for sent). Innstillinger-siden viser en diskret linje. Usatt (lokal dev) → «dev».
+ARG NEXT_PUBLIC_BUILD_SHA=
+ENV NEXT_PUBLIC_BUILD_SHA=${NEXT_PUBLIC_BUILD_SHA}
+ARG NEXT_PUBLIC_BUILD_TID=
+ENV NEXT_PUBLIC_BUILD_TID=${NEXT_PUBLIC_BUILD_TID}
 RUN pnpm turbo build --filter @sitedoc/web
 
 ENV NODE_ENV=production

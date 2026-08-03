@@ -77,23 +77,76 @@ Planen om egen `apps/timer/`-app (og at timer-sidene var en hardkodet demo som s
 3. **Test** — verifiser på test.sitedoc.no
 4. **Deploy til prod** (kun på eksplisitt forespørsel) — `git checkout main && git merge develop --no-edit && git push origin main` etterfulgt av server-deploy
 
-## Test-deploy (server-ny, Docker) — KANONISK sekvens (fra 2026-07, gjelder cowork + alle økter)
+## Deploy (server-ny, Docker) — LIM-KLARE kommandoer
 
-Test-deploy er MANUELL — ingen auto-deploy. Docker-mekanikken (helsesjekk, sekvensielt bygg, `--no-deps`, postgres `grep -x`, migrate-gate) bor i [docker/DOCKER-NOTES.md § Post-deploy + § Deploy-mekanikk](../../docker/DOCKER-NOTES.md); denne seksjonen er den samlede rekkefølgen.
+Test-deploy er MANUELL (ingen auto-deploy). Bygg SEKVENSIELT (aldri to tunge images i samme `up --build` → OOM tar ned delt postgres + PROD). Migrering kun hvis schema/migrations i diffen. Sudo-steg = Kenneths TTY. Full mekanikk-detalj: [docker/DOCKER-NOTES.md](../../docker/DOCKER-NOTES.md).
 
-1. **Merge til develop** (i `SiteDoc-merge`-worktreet): kastbar branch fra `origin/develop`, `--no-ff`, `git push HEAD:develop`, verifiser `git ls-remote origin refs/heads/develop` mot merge-commiten.
-2. **Pull LOKAL develop FØRST:** `cd <SiteDoc-develop-mappe> && git pull --ff-only origin develop`. `deploy-test.sh` rsyncer den **LOKALE** develop-mappa (ikke origin) — glemmes dette blir deployen stale (lærdom 2026-07-26).
-3. **rsync:** `./deploy-test.sh` (gjør KUN rsync + skriver ut en docker-kommando). **IGNORER den utskrevne `up -d --build`-kommandoen** — den bygger api+web SAMTIDIG og OOM-er → tar ned delt postgres + PROD (DOCKER-NOTES § Post-deploy).
-4. **Bygg SEKVENSIELT** (Kenneths TTY, `ssh -t server-ny '...'`) — ett image om gangen, aldri to samtidig:
-   - Scope fra diffen: kun `apps/web`+`packages` → **web-only**; `apps/api` endret → **api OG web** (web kaller api-prosedyrene).
-   - `sudo docker compose -f docker/docker-compose.test.yml build sitedoc-test-api` (kun hvis api endret)
-   - `sudo docker compose -f docker/docker-compose.test.yml build sitedoc-test-web`
-   - `sudo docker compose -f docker/docker-compose.test.yml up -d --no-deps <tjeneste(r)>`
-5. **Migrering** kun hvis schema/migrations i diffen — engangs-container med db-navn-gate (DOCKER-NOTES § Deploy-mekanikk punkt 5). Ellers hopp over.
-6. **Helsesjekk (ufravikelig):** alle containere `Up`, særlig at prod (`sitedoc-web`/`sitedoc-api`) er urørt og delt `postgres` frisk (DOCKER-NOTES § Post-deploy).
-7. **Verifiser som INNLOGGET bruker** på test.sitedoc.no (ikke bare HTTP 200 / anonymt).
+### TEST-deploy — lim-klar
 
-Prod-deploy: samme mekanikk mot `docker-compose.yml` (uten `-p`, jf. DOCKER-NOTES punkt 3-note) — **kun på eksplisitt forespørsel**, re-rsync `main` først (DOCKER-NOTES § delt build-kontekst).
+**Mac (rsync develop):**
+```
+cd ~/Documents/Programmering/SiteDoc && git checkout develop && git pull --ff-only origin develop && ./deploy-test.sh
+```
+
+**Server (`ssh server-ny`, lim blokken):**
+```
+cd ~/stack/sitedoc
+sudo docker compose -f docker/docker-compose.test.yml build sitedoc-test-api
+sudo docker compose -f docker/docker-compose.test.yml build sitedoc-test-web
+sudo docker compose -f docker/docker-compose.test.yml run --rm --no-deps --entrypoint sh sitedoc-test-api -c 'echo "$DATABASE_URL" | grep -q sitedoc_test || { echo "ABORT ikke test-DB"; exit 1; }; pnpm --filter @sitedoc/db exec prisma migrate deploy'
+sudo docker compose -f docker/docker-compose.test.yml up -d --no-deps sitedoc-test-api sitedoc-test-web
+sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'sitedoc|postgres'
+```
+- **Kun `apps/web`+`packages` endret** (ikke `apps/api`): dropp `build sitedoc-test-api`, `up ... sitedoc-test-web` alene.
+- **Ingen migrering i diffen:** dropp migrate-linja.
+- **Migrering i andre db-pakker** (db-timer/maskin/varelager): legg til `&& pnpm --filter @sitedoc/db-<pakke> exec prisma migrate deploy` i migrate-linja.
+- Verifiser som INNLOGGET bruker på test.sitedoc.no (ikke bare HTTP 200).
+
+### Bygg-stempel: `--build-arg` (fra 2026-08-02 — GIT_SHA i image)
+
+Fra bygg-stempel-landingen (`/version` + Innstillinger-linje) bærer imaget commit-sha + byggtid. **`.git` følger IKKE med rsync** (`deploy-test.sh` linje 48 + prod-rsync ekskluderer `.git`) → server har ingen git → **SHA beregnes på Mac-kilden og sendes inn via `ssh -t`**. Utelates argene → fallback «dev»/«ukjent» (ingen krasj, men stemplet blir «dev»).
+
+**Test — bygg m/ stempel + up (fra Mac, erstatter de rene `build`-linjene over når api+web endret):**
+```
+cd ~/Documents/Programmering/SiteDoc && git checkout develop && git pull --ff-only origin develop && ./deploy-test.sh
+SHA=$(git -C ~/Documents/Programmering/SiteDoc rev-parse --short HEAD); TID=$(date -u +%FT%TZ); echo "Stempler $SHA · $TID"
+ssh -t server-ny "cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.test.yml build --build-arg GIT_SHA=$SHA --build-arg BUILD_TID=$TID sitedoc-test-api && sudo docker compose -f docker/docker-compose.test.yml build --build-arg NEXT_PUBLIC_BUILD_SHA=$SHA --build-arg NEXT_PUBLIC_BUILD_TID=$TID sitedoc-test-web && sudo docker compose -f docker/docker-compose.test.yml up -d --no-deps sitedoc-test-api sitedoc-test-web && sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'sitedoc|postgres'"
+```
+- SHA/TID ekspanderes på Mac (dobbelfnutt), server får literale verdier. Sekvensielt bygg (api → web separat, aldri sammen = OOM). Migrate-linja droppes når diffen ikke har migrering.
+- **sudo kan spørre om passord 2–3 ganger** (én gang per ~5-min bygg, sudo-cache utløper) — `-t` gir TTY så du kan skrive det.
+- **Verifiser stemplet:** `curl https://api-test.sitedoc.no/version` → `{gitSha, byggTid, node}` + diskret grå linje nederst i Innstillinger.
+
+**Prod:** samme mønster — `git -C ~/Documents/Programmering/SiteDoc-deploy` (main-checkout), `-f docker/docker-compose.yml`, tjenester `sitedoc-api`/`sitedoc-web`, migrate bruker `-p docker`.
+
+### PROD-deploy — lim-klar (KUN på eksplisitt forespørsel)
+
+⚠️ Re-rsync **main** først — delt build-kontekst prod↔test; uten fersk main-rsync bygges develop inn i prod.
+
+**Mac (rsync main):**
+```
+cd ~/Documents/Programmering/SiteDoc-deploy && git checkout main && git pull --ff-only origin main && rsync -a --exclude node_modules --exclude .next --exclude .git --exclude docker/env --exclude uploads --exclude 'apps/mobile/node_modules' ~/Documents/Programmering/SiteDoc-deploy/ server-ny:stack/sitedoc/
+```
+
+**Server (`ssh server-ny`, lim blokken):**
+```
+cd ~/stack/sitedoc
+sudo docker compose -f docker/docker-compose.yml build sitedoc-api
+sudo docker compose -f docker/docker-compose.yml build sitedoc-web
+sudo docker compose -p docker -f docker/docker-compose.yml run --rm --no-deps --entrypoint sh sitedoc-api -c 'echo "$DATABASE_URL" | grep -qE "/sitedoc([?]|$)" || { echo "ABORT ikke prod-DB"; exit 1; }; pnpm --filter @sitedoc/db exec prisma migrate deploy'
+sudo docker compose -f docker/docker-compose.yml up -d --no-deps sitedoc-api sitedoc-web
+sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'sitedoc|postgres'
+```
+- Migrate bruker **`-p docker`** (engangs `run --rm`); **`up` for api/web bruker IKKE `-p`** (api/web tilhører prosjekt `sitedoc` etter reconcile 2026-07-09 — `-p docker` gir «container name in use»).
+- Verifiser som INNLOGGET bruker på sitedoc.no.
+
+### ⚠️ `deploy.sh` er en FELLE — IKKE bruk (bør slettes/omskrives)
+`deploy.sh` rsyncer fra `~/Documents/Programmering/SiteDoc/` (som står på **develop**) og kjører `up -d --build` (bygger api+web parallelt → **OOM tar ned prod**). Den ville deployet develop-kode inn i prod med OOM-risiko — motsatt av prod-blokken over. Bruk blokkene i denne seksjonen.
+
+### Hvorfor (lærdommer, kort — full detalj i DOCKER-NOTES)
+- **Sekvensielt bygg:** to tunge images i samme `up --build` → OOM (137) → daemon-blip → tar ned delt postgres + prod. `restart:unless-stopped` redder ikke exited containere.
+- **rsync FØR build:** build-kontekst = server-fila; uten fersk rsync gjenbrukes cache (~6s «build», nye ruter 404).
+- **Migrate `-c` ikke `-lc`; aldri pipe migrate gjennom tail/grep** (svelger feil-exit → deploy fortsetter uten schema).
+- **Delt build-kontekst:** re-rsync riktig branch før HVER build (main=prod, develop=test).
 
 ## Deploy-kommandoer (GAMMEL SERVER, PM2 — HISTORISK, se seksjonen over + DOCKER-NOTES)
 

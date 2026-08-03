@@ -1,11 +1,11 @@
 import { useState, useCallback, useRef } from "react";
 import { View, Text, TextInput, Pressable, Image, Alert, Modal, ScrollView, InteractionManager, SafeAreaView, KeyboardAvoidingView, Platform } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Camera, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { Camera, Images, Paperclip, Map, FileText, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { randomUUID } from "expo-crypto";
 import type { Vedlegg } from "../../hooks/useSjekklisteSkjema";
-import { komprimer, hentGps } from "../../services/bilde";
+import { komprimer, hentGps, velgBilde } from "../../services/bilde";
 import { lastOppFil } from "../../services/opplasting";
 import { lagreLokaltBilde, hentFilstorrelse } from "../../services/lokalBilde";
 import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
@@ -164,6 +164,18 @@ export function FeltDokumentasjon({
     håndterBilde(bildeUri);
   }, [håndterBilde]);
 
+  // Galleri-kobling: velgBilde komprimerer + henter GPS internt og returnerer et
+  // ferdig BildeResultat — mates rett inn i håndterBilde (ingen dobbel-komprimering).
+  const håndterVelgGalleri = useCallback(async () => {
+    settLasterOpp(true);
+    try {
+      const res = await velgBilde();
+      if (res) await håndterBilde(res.uri, res.gpsLat, res.gpsLng);
+    } finally {
+      settLasterOpp(false);
+    }
+  }, [håndterBilde]);
+
   const valgtVedlegg = vedlegg.find((v) => v.id === valgtVedleggId);
 
   const håndterSlett = useCallback(() => {
@@ -211,13 +223,16 @@ export function FeltDokumentasjon({
                 className="flex-1"
               >
                 <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-                  <Text className="flex-1 text-base font-semibold text-white">{t("felt.kommentar")}</Text>
+                  <Pressable onPress={() => settVisKommentarModal(false)} hitSlop={8}>
+                    <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
+                  </Pressable>
+                  <Text className="flex-1 px-3 text-center text-base font-semibold text-white">{t("felt.kommentar")}</Text>
                   <Pressable
                     onPress={() => {
                       onEndreKommentar(lokalKommentar);
                       settVisKommentarModal(false);
                     }}
-                    className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
+                    className="rounded-lg bg-white/20 px-4 py-1.5"
                   >
                     <Text className="text-sm font-semibold text-white">{t("felt.ferdig")}</Text>
                   </Pressable>
@@ -340,6 +355,14 @@ export function FeltDokumentasjon({
           >
             <Camera size={16} color="#6b7280" />
             <Text className="text-xs text-gray-600">{t("felt.taBilde")}</Text>
+          </Pressable>
+          <Pressable
+            onPress={håndterVelgGalleri}
+            disabled={lasterOpp}
+            className="flex-1 flex-row items-center justify-center gap-1.5 rounded-lg border border-gray-300 bg-white py-2"
+          >
+            <Images size={16} color="#6b7280" />
+            <Text className="text-xs text-gray-600">{t("felt.galleri")}</Text>
           </Pressable>
           <Pressable
             onPress={håndterVelgFil}

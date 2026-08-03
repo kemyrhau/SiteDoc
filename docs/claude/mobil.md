@@ -10,11 +10,15 @@
 
 ## Opprettelsesflyt
 
-`OpprettDokumentModal` — brukes for både sjekklister og oppgaver. Brukeren trykker alltid "Opprett" manuelt (auto-opprett fjernet pga. iOS Modal-animasjon som blokkerte navigering).
-- **Entreprise**: Auto-velges hvis bruker kun er i 1 entreprise
-- **Utfører**: Auto fra dokumentflyt (read-only)
-- **Tittel**: Auto-generert i API (malnavn + løpenummer)
-- **Lokasjon**: IKKE i opprettelsesmodal — settes fra tegning ved klikk, eller kobles etterpå
+`OpprettDokumentModal` — brukes for både sjekklister og oppgaver.
+
+**iOS-modal-serialisering + ett-klikk opprett (P4a, `7d19e3ea`):** Tidligere satte modalen `synlig=false` (start slide-dismiss) OG kalte parentens `router.push` i samme tick — native modal-dismiss og stack-push kolliderer på iOS (hengende modal / dobbel-nav). Derfor var auto-opprett deaktivert og krevde et ekstra manuelt «Opprett»-trykk. Fikset ved å serialisere: `internSynlig`-speil settes false lokalt ved suksess, og navigering skjer i `<Modal onDismiss>` (iOS-only, fyrer ETTER at dismiss er ferdig) via `onModalLukket`-propen; Android navigerer direkte (ingen modal-VC-kollisjon). Grepet ligger i `OpprettDokumentModal.tsx` og dekker alle 4 call-sites uten endring i dem (samme klasse som del6b klikk-kutt 1, MalVelger `f5e69756`).
+- **Auto-opprett-skip er nå trygt ved entydig kontekst** (bestiller-faggruppe + flyt + utledet svarer): trykk mal → kort «Oppretter…»-spinner (ingen skjema-flash) → rett inn i utfyllingen, ingen «Opprett»-bekreftelse. Ved reell flertydighet (≥2 faggrupper/flyter) beholdes skjemaet for manuelt valg.
+- **Flyt-oppløsning = serverens `mal.opprettbareFlytIder` (én sannhet med mal-velgeren):** Modalen bygger flyt-kandidatene FRA det server-feltet (`mal.hentForProsjekt`, `mal.ts:84-95` — samme registrator-medlemskaps-regel som `sjekkliste.opprett`/`oppgave.opprett` validerer på), ikke en egen klient-regel. Bestiller = flytens eier-faggruppe (`df.faggruppeId`); utfører = medlem `rolle="utforer"` (fallback eier = intern flyt) — paritet med web `malFlytStatus`. Retter divergens der en mal vises opprettbar i velgeren, men opprett feilet med «Dokumentflyt er påkrevd»: den gamle `matchendeDokumentflyter` krevde at brukerens EGEN faggruppe var flytens bestiller (bommet på registrator via gruppe/projectMember), OG modalen sendte aldri `dokumentflytId` i mutate-payloaden. Nå auto-velges/​sendes `dokumentflytId` fra kandidat-flyten. Ingen server-endring (`verifiserFaggruppeTilhorighet` godtar bestiller=eier-faggruppe via flyt-medlemskap). `fix/mobil-opprett-flytresolusjon`.
+- **Bestiller-faggruppe**: Auto-velges når det finnes kun 1 eier-faggruppe blant de opprettbare flytene for malen
+- **Utfører/svarer**: Auto fra valgt dokumentflyt (read-only), medlem `rolle="utforer"`
+- **Tittel**: Oppgave = malnavn (redigerbar); API tildeler løpenummer
+- **Lokasjon**: GPS-auto + sist brukt byggeplass/tegning, redigerbar i modalen. Ved auto-opprett er GPS **best-effort** — det som er utledet ved opprett tas med, vi venter ikke (fallback-stigen: manglende signal blokkerer aldri opprettelse). Lokasjon kan settes i detaljskjermen etterpå. GPS-på-chip + post-opprett-patch = senere mobil-chip-runde (P4a #2/#3, backlogget)
 - **VIKTIG**: Ikke bruk `presentationStyle="pageSheet"` på Modal — forstyrrer navigering etter dismiss på iOS
 - Etter opprettelse navigeres til detaljskjermen for umiddelbar registrering
 
@@ -24,34 +28,47 @@
 - `BildeAnnotering`-komponent returnerer annotert fil → `FeltDokumentasjon` oppdaterer vedleggets URL
 - Opplastingskø håndterer ny fil med samme vedlegg-ID
 
-## Statusendring
+## Statusendring — detalj-redesign M1–M3 (2026-07-30)
 
-Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanelet:
+Sjekkliste-/oppgave-detaljskjermen ble omstrukturert til **én** flyt-representasjon i
+headeren + **P3-mønster** handlingslinje i bunnpanelet. Begge skjermer bruker de samme
+FELLES komponentene (ingen duplisert JSX). Speiler web-P3-linjen; ingen server-/statusmaskin-
+/ledd-logikk endret — delte kilder: `hentRolleFiltrertHandlinger`, `statusKreverBegrunnelse`,
+`byggLedd`/`finnAktivtIndex`.
 
-### Header (blå bar)
+### M1 — Flytlinje i header (`apps/mobile/src/components/Flytlinje.tsx`)
 ```
 ← BEF-002  Befaring betong  [☁][Mottatt]
-   [Elektro] →●→ [BH · Byggeleder] +1
+   [Elektro] → ⟨Byggeleder⟩ +1        ← aktivt ledd = hvit chip, farge-svatt + navn
+   ● Du har ballen  /  Venter på Byggeleder
 ```
-- Rad 1: Tilbake · Prefix+nummer · Tittel · Synk-ikoner · StatusBadge
-- Rad 2: FlytIndikator (`apps/mobile/src/components/FlytIndikator.tsx`) — native View, kompakt
+- Én linje (erstatter tidligere FlytIndikator + boks-raden i bunn). Farge-svatt (10px) +
+  faggruppenavn per ledd; aktivt ledd = hvit chip m/fet tekst. Kompakt: aktiv + nabo, «+N» >3 ledd.
+- Mikrotekst under: «Du har ballen» (grønn prikk) når recipient = meg/min gruppe, ellers
+  «Venter på [aktivt ledd]». → «hvem har ballen» = 0 taps (synlig).
+- Tap → **flyt-sheet (M3)**: ledd vertikalt 1→2→3, nummererte fargede noder, aktivt ledd grønn
+  ramme + «DIN TUR»-badge når det er brukerens tur; per ledd faggruppenavn · rolle, ★ hovedansvarlig,
+  «(deg)», siste overførings-tidsstempel. Ren visning (ingen statushandlinger), synlig «Lukk».
 
-### Bunnpanel (DokumentHandlingsmeny)
-`apps/mobile/src/components/DokumentHandlingsmeny.tsx` — ActionSheet (iOS) / Alert (Android).
+### M2 — Handlingslinje i bunn (`apps/mobile/src/components/DokumentHandlingslinje.tsx`)
+Én primærknapp (kildens `erPrimaer`, ellers første lovlige) full bredde m/retningsnavn
+(«Send til [neste ledd]» / «Besvar til [forrige ledd]», fra `byggLedd`) + split-▾ → ÉN sheet
+med ALLE øvrige lovlige handlinger fra `hentRolleFiltrertHandlinger` i fabel-rekkefølge:
+**framover → Lagre og lukk → destruktive (Avvis, rød) → Videresend → Bytt flyt → Admin.**
+Egen flyt-bytte-knapp og ⋯-admin-meny slått sammen inn i denne sheeten.
 
-| Status | Knapper |
-|--------|---------|
-| draft | `[Send ▾]` + `[Slett]` |
-| sent | `[Trekk tilbake]` |
-| received/in_progress/rejected | `[Send ▾]` (ActionSheet med entrepriser) |
-| responded | `[Godkjenn]` + `[Avvis]` + `[Send ▾]` |
-| approved | `[Lukk]` + `[Videresend ▾]` |
-| cancelled | `[Gjenåpne]` + `[Slett]` |
+- **Lagre demotert:** autolagring dekker persistering (alle 21 utfyllbare felttyper, verifisert
+  nå-sjekk 2026-07-30) → baren viser «Lagret automatisk HH:MM ✓»-mikrotekst; «Lagre og lukk» bor
+  i split-sheeten (validerer ALDRI — utkast kan være ufullstendige).
+- **Påkrevd-validering (fabel 2026-07-30):** framover-primær (Send/Besvar) deaktiveres m/caption
+  «X påkrevde felt gjenstår» når påkrevde synlige felt mangler — KUN framover. Feltmarkeringen
+  (`valideringsfeil`) er veiviseren, captionen er telleren. Erstatter dagens Lagre-knapp-Alert.
+- Bekreftelses-sheet ved statushandling beholdt (ER kommentar-inngangen; Avvis krever begrunnelse).
+- Ikke-eier/lesevisning: ingen handlingslinje (som før), men flytlinjen (M1) vises alltid.
 
-- Send-dropdown: primærmottaker, Send tilbake (boks 2+), videresend til andre entrepriser
-- Admin-seksjon (registrator/admin/siste boks): Godkjenn, Lukk, Trekk tilbake, Gjenåpne
-- Kommentar-modal (bottom sheet) med tastaturhåndtering etter ActionSheet-valg
-- Lagre-knapp beholdt under handlingsmeny (offline-first)
+Klikk-budsjett: **Send 3 → 2 taps** (primær → bekreft), **hvem-har-ballen 0 taps**.
+
+> M4 (Avbryt-affordance i 4 form-modaler) landet separat (`9bbeb2e5`). M5 (tidslinje-kollaps) = backlog.
 
 ### Rettighetsbasert UI
 `useOppgaveSkjema(id, rettighetInput?)` og `useSjekklisteSkjema(id, rettighetInput?)` — valgfri `rettighetInput` med `utledDokumentRettighet()`. Uten param → gammel status-basert logikk.
@@ -61,12 +78,12 @@ Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanel
 `useOppgaveSkjema`-hook i `apps/mobile/src/hooks/useOppgaveSkjema.ts`. Identisk med sjekkliste-utfylling:
 
 ```
-[Blå header med FlytIndikator]
+[Blå header med Flytlinje (M1)]
 ─── ScrollView ───
   [Tittel] [Prioritet] [Beskrivelse]
   [Koblinger] [Malobjekter] [Historikk]
 ─── Bunnpanel ───
-  [DokumentHandlingsmeny + Lagre]
+  [DokumentHandlingslinje (M2): primær m/retning + split-▾]
 ```
 
 **Auto-fill:** date→i dag, date_time→nå, person→bruker, company→entreprise, drawing_position→fra oppgavens tegning.
@@ -109,7 +126,7 @@ Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanel
 
 **Bilderekkefølge:** Velg bilde → `◀`/`▶`-piler i verktøylinjen for å flytte. `flyttVedlegg(objektId, vedleggId, "opp"|"ned")` i begge hooks. Rekkefølgen lagres i vedlegg-arrayet og reflekteres i PDF.
 
-**Modal tekstredigering:** Alle tekstfelt bruker Pressable → fullskjerm Modal med "Ferdig"-knapp.
+**Modal tekstredigering:** Alle tekstfelt bruker Pressable → fullskjerm Modal med **Avbryt** (venstre i header) + «Ferdig»/handling (høyre). Avbryt-affordance er ufravikelig — en handling skal aldri være eneste utvei ut av en modal (FABEL-RAMMEVERK § Effektivitets-gate pkt 5; Kenneth-mobiltest 2026-07-30, «Ny kommentar» hadde kun Send). Mønster: `<Pressable onPress={() => settVisXModal(false)} hitSlop={8}>` med `t("handling.avbryt")`, samme header-plassering som `OpprettDokumentModal.tsx:573`. Gjelder de fire form-modalene som ble fikset: `oppgave/[id].tsx` (Ny kommentar/Dialog, Rediger tittel, Rediger beskrivelse) + `FeltDokumentasjon.tsx` (Feltkommentar). Avbryt forkaster (lukker uten å lagre/sende — utkast reinitialiseres ved neste åpning); høyre knapp lagrer/sender. Merk skillet mot linje 9: **X-ikon**-standarden gjelder rene visnings-/fullskjermmodaler (PDF, kamera, bilde-zoom); **tekst-Avbryt** gjelder skjema-modaler som har en primærhandling (Send/Ferdig/Opprett) til høyre — iOS Cancel/Done-konvensjon.
 
 ## Utviklingsmiljø — Tunnel og nettverk
 
@@ -123,6 +140,14 @@ Sjekkliste-/oppgave-detaljskjermen har posisjon-basert handlingsmeny i bunnpanel
 - `ssh -N -L 3301:localhost:3301 server-ny` (forward lokal `3301` → api-test på server-ny)
 - mobil-`.env`: `EXPO_PUBLIC_API_URL=http://localhost:3301`
 - `localhost` løser via IPv4-loopback → omgår AAAA-fella. Verifiser i Metro-loggen at timer-/prosjekt-kall går mot `localhost:3301`, aldri `api.sitedoc.no`.
+
+**Oppstart-sekvens for simulator mot test-API (rekkefølge er ufravikelig — verifisert 2026-07-28):**
+1. **Tailscale må være oppe** — `server-ny` nås kun via Tailscale (`100.76.248.15`). Sjekk at noden er tilkoblet i Tailscale-menylinjen. `ping -c3 100.76.248.15` med 100 % pakketap = server-ny offline → tunnelen vil time ut (`ssh: connect ... Operation timed out`, exit 255).
+2. **Start SSH-tunnelen** (eget terminalvindu, `ssh -N` blokkerer): `ssh -N -L 3301:localhost:3301 server-ny`. Verifiser: `lsof -nP -iTCP:3301 -sTCP:LISTEN` skal vise `ssh` som lytter; `curl -s -o /dev/null -w "%{http_code}" http://localhost:3301/` → `404` (server svarer, ingen rot-rute) bekrefter at API-et nås.
+3. **Start simulator + Metro:** `cd apps/mobile && npx expo start --clear --ios` (auto-booter sim, installerer Expo Go første gang, åpner appen). Bruker Expo Go — **ingen** `expo-dev-client`.
+- **Symptom uten tunnel:** appen laster, men dev-login-knappene gir «Dev-bypass feilet: Fetch feilet mot http://localhost:3301/dev-login: Network request failed». Rotårsak er alltid trinn 1–2 (Tailscale/tunnel), ikke appen.
+- **Bundling-feil «Unable to resolve … from …» etter pull:** kjør `pnpm install --frozen-lockfile` fra repo-roten — en ny dependency (f.eks. `expo-application`) mangler symlink i `apps/mobile/node_modules` til install er kjørt. Lockfil er allerede i sync, så `--frozen-lockfile` lager kun lenken (ingen lockfil-endring).
+- **Checkout-merknad:** aktiv checkout er `~/Documents/Programmering/SiteDoc` (branch `develop`). Den gamle `SiteDoc-develop`-stien finnes ikke lenger.
 
 **Expo dev-server:**
 - `pnpm dev:tunnel` — Starter ngrok v3-tunnel + Expo. Telefon og Mac kan være på forskjellige nettverk.

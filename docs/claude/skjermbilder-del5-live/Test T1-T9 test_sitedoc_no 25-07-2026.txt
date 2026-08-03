@@ -1,0 +1,18 @@
+hei, jeg har prøvd å få claude in chrome til å utføre tester, testene går bra, men lagring av bilder gikk ikke bra. la oss forsøke annen tilnærming.
+
+Du utfører tester -> du sjekker om funksjoner er logiske. om noe er tungvint eller kunne blitt løst med færre klikk, rapporter. ta bilder kun av det som er viktig for videre visning til cowork. bildene gjør du tilgjengelig for meg. under hvert bilde "# bilde + forklarende tekst"
+
+
+Jeg har startet T1 (RUH) og støtt på noe jeg må avklare med deg før jeg går videre, pluss et par funn jeg vil flagge allerede nå.
+Avklaring nødvendig: bruker-identitet
+Chrome-sesjonen er innlogget som "kmy" (øverst til høyre), ikke Kenneth. I prosjektmedlemslisten er kmy satt som "member" (ikke admin). Veilederen forutsetter at Kenneth kjører sesjonen som admin, og at kmy kun testes separat i T9 (ikke-admin). Siden jeg allerede er kmy, ser jeg kun knappen «Tilføy informasjon» på dokumentet — ingen «Besvar»-knapp, som er korrekt for en ikke-admin, men det betyr at jeg ikke kan teste T2 (Besvar-validering), T3 (ingen Godkjenn på Besvart-status) eller T4 (Lukk/Gjenåpne) uten en admin/HMS-admin-innlogging.
+Vil du logge inn som Kenneth (eller en HMS-admin-bruker) i denne fanen selv, slik at jeg kan fortsette T1–T8 med riktige rettigheter? Jeg logger som kjent ikke inn med passord selv.
+Mens jeg ventet på avklaring fortsatte jeg det jeg kunne som kmy, og fant følgende:
+bilde 1 — RUH-006 opprettet direkte som «Sendt»
+Da jeg valgte Meld HMS → RUH ble et nytt dokument (RUH-006) opprettet umiddelbart med status «Sendt» og «Venter på: HMS-ansvarlige» — ingen «Utkast»-steg synlig. Dette matcher forventet HMS-flyt for T1 (PASS så langt, med forbehold om at handlingsflaten for admin/HMS-admin må bekreftes separat).
+Avvik/bugs jeg vil flagge (uavhengig av rolle-spørsmålet):
+
+Statusmismatch mellom paneler: Venstre "Oppgaver"-filter (generell status-liste med Utkast/Sendt/Mottatt/Under arbeid/Besvart/Godkjent/Avvist/Lukket) teller RUH-006 under "Mottatt" (1), mens selve dokumentheaderen viser status «Sendt». Det er inkonsekvent — samme dokument har to forskjellige statuser avhengig av hvor man ser. Dette bør sjekkes: bruker den generelle oppgave-statusmaskinen fortsatt i bakgrunnen selv om HMS-fronten viser "Sendt"?
+«Type observasjon» (påkrevd felt) er ikke klikkbart i det hele tatt — verken med museklikk eller tastatur-fokus (Tab hopper rett forbi feltet). Feltet viser bare «Ikke valgt» som statisk tekst. Dette blokkerer reell utfylling av et påkrevd felt via UI.
+Skriving i "Beskrivelse"-feltet med normal tastaturinput førte til at teksten forsvant og siden automatisk scrollet til bunnen — reproduserbart flere ganger. Jeg fikk det til å fungere ved å sette verdien direkte (ikke simulert tasting), og da ble teksten korrekt lagret (bekreftet etter reload). Dette tyder på at hver tastetrykk trigger en full re-render av siden som nullstiller/hopper i scroll — potensielt et reelt problem for ekte brukere som skriver normalt, ikke bare et automasjonsartefakt. Bør verifiseres manuelt av deg.
+

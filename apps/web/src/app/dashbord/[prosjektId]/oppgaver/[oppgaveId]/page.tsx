@@ -10,8 +10,8 @@ import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
-import { utledMinRolle, beregnHarBallen, perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
-import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
 import { FeltWrapper } from "@/components/rapportobjekter/FeltWrapper";
@@ -19,6 +19,7 @@ import { UtfyllingSeksjoner } from "@/components/rapportobjekter/UtfyllingSeksjo
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useOversettelse } from "@/hooks/useOversettelse";
 import { DokumentTidslinje } from "@/components/DokumentTidslinje";
+import { DokumentKontekstChipLinje } from "@/components/kontekst-chip/DokumentKontekstChipLinje";
 import { usePresence } from "@/hooks/usePresence";
 import { useTranslation } from "react-i18next";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -193,78 +194,29 @@ export default function OppgaveDetaljSide() {
   const alleFaggrupper = (alleFaggrupperRå ?? []) as Array<{ id: string; name: string; color: string | null }>;
   const dokumentflyter = (dokumentflyterRå ?? []) as unknown as import("@/lib/videresend-valg").DokumentflytData[];
 
+  // P4b: prosjektnavn til kontekst-chip-linja (utfyllingsmodus).
+  const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
+    { id: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  // P4b: redigerbar tittel (utfyllingsmodus).
+  const [redigererTittel, setRedigererTittel] = useState(false);
+  const [tittelUtkast, setTittelUtkast] = useState("");
+
   // Hent full oppgavedata for tidslinje/recipient/creator (cast for TS2589)
   const { data: fullOppgaveRå } = trpc.oppgave.hentMedId.useQuery(
     { id: params.oppgaveId },
     { enabled: !!params.oppgaveId },
   );
 
-  // harBallen: sjekk om brukerens userId/gruppeIder matcher recipientUserId/GroupId
-  const harBallen = useMemo(() => {
-    if (!fullOppgaveRå || !minFlytInfo) return false;
-    const fo = fullOppgaveRå as HarBallenDokument;
-    return beregnHarBallen(fo, { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder });
-    // @ts-ignore TS2589 — tRPC-output trigger excessively deep instantiation i Next.js-build (strengere enn tsc --noEmit)
-  }, [fullOppgaveRå, minFlytInfo]);
-
-  // Utled brukerens rolle i dokumentflyten — trengs for rettighetInput + handlingsknapper
-  const minRolle = useMemo(() => {
-    if (!minFlytInfo || !fullOppgaveRå) return undefined;
-    const op = fullOppgaveRå as unknown as { dokumentflytId?: string | null; bestillerFaggruppe?: { id: string }; utforerFaggruppe?: { id: string } };
-    if (!op.dokumentflytId) return undefined;
-    const flyt = dokumentflyter.find((df) => df.id === op.dokumentflytId);
-    if (!flyt) return null;
-    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
-      rolle: m.rolle,
-      faggruppeId: m.faggruppeId ?? null,
-      projectMemberId: m.projectMemberId ?? null,
-      groupId: m.groupId ?? null,
-    }));
-    return utledMinRolle(
-      // Kloss 2: rolle-utledning følger adminNiva (firma-admin = adminNiva:null → vanlig
-      // rolle/lesevisning). sitedoc/prosjekt → admin.
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.adminNiva !== null },
-      medlemmer,
-      { bestillerFaggruppeId: op.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: op.utforerFaggruppe?.id ?? "" },
-    );
-  }, [minFlytInfo, fullOppgaveRå, dokumentflyter]);
-
-  // Utled flytRettighet fra DokumentflytMedlem.kanRedigere for brukerens aktive flytledd
-  const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
-    if (!minFlytInfo || !fullOppgaveRå || !dokumentflyterRå) return undefined;
-    const op = fullOppgaveRå as unknown as { dokumentflytId?: string | null };
-    if (!op.dokumentflytId) return undefined;
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        kanRedigere: boolean;
-        faggruppeId?: string | null;
-        projectMemberId?: string | null;
-        groupId?: string | null;
-      }>;
-    }>;
-    const flyt = rå.find((df) => df.id === op.dokumentflytId);
-    if (!flyt) return undefined;
-    // Finn brukerens matchende flytmedlem (samme logikk som utledMinRolle)
-    const fi = minFlytInfo as { userId?: string; projectMemberId: string; faggruppeIder: string[]; gruppeIder: string[] };
-    for (const m of flyt.medlemmer) {
-      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
-      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
-    }
-    return undefined;
-  }, [minFlytInfo, fullOppgaveRå, dokumentflyterRå]);
-
-  // Bygg rettighetInput for skjema-hook
-  const rettighetInput = useMemo(() => {
-    if (!minFlytInfo) return undefined;
-    return {
-      erAdmin: minFlytInfo.erAdmin,
-      minRolle,
-      tillatelser: mineTillatelser,
-      harBallen,
-      flytRettighet,
-    };
-  }, [minFlytInfo, minRolle, mineTillatelser, harBallen, flytRettighet]);
+  // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
+  // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
+  const { harBallen, erAvsender, erMedlemAvFlyt, retningsrett, minRolle, flytMedlemmer, flytNavn, aktivPosisjon, rettighetInput } = useFlytKontekst({
+    fullDokRå: fullOppgaveRå,
+    dokumentflyterRå,
+    minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
+    mineTillatelser,
+  });
 
   // --- Skjema-hook med rettighetsinfo ---
 
@@ -310,6 +262,15 @@ export default function OppgaveDetaljSide() {
   const handlingRef = useRef<string | undefined>(undefined);
   useEffect(() => () => clearTimeout(kvitteringTimer.current), []);
 
+  // P6: utkast-slett var stille no-op — onSlett ble aldri sendt til
+  // DokumentHandlingsmeny. Speiler sjekkliste-detaljsiden (myk slett + retur).
+  const slettMutasjon = trpc.oppgave.slett.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentForProsjekt.invalidate();
+      router.push(`/dashbord/${params.prosjektId}/oppgaver`);
+    },
+  });
+
   const endreStatusMutasjon = trpc.oppgave.endreStatus.useMutation({
     onSuccess: () => {
       setStatusFeil(null);
@@ -322,7 +283,8 @@ export default function OppgaveDetaljSide() {
       utils.oppgave.hentForProsjekt.invalidate();
       utils.oppgave.hentMedId.invalidate({ id: params.oppgaveId });
     },
-    onError: (error) => {
+    // TS2589-avlastning: shallow error-type unngår instansiering av dyp tRPC-feiltype.
+    onError: (error: { message?: string }) => {
       setStatusFeil(error.message ?? "Kunne ikke endre status. Prøv igjen.");
     },
   });
@@ -376,26 +338,6 @@ export default function OppgaveDetaljSide() {
     [params.oppgaveId, hmsTilfoyMutasjon, hmsBesvarMutasjon, hmsLukkMutasjon, hmsGjenapneMutasjon],
   );
 
-  // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
-  // Bruker dokumentflyterRå (ucastet) for å beholde steg + faggruppe-objekter
-  const flytMedlemmer = useMemo(() => {
-    const op = oppgave as unknown as { dokumentflytId?: string | null };
-    if (!op?.dokumentflytId || !dokumentflyterRå) return [];
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        id: string;
-        rolle: string;
-        steg: number;
-        faggruppe: { id: string; name: string } | null;
-        projectMember: { user: { id: string; name: string | null } } | null;
-        group: { id: string; name: string } | null;
-      }>;
-    }>;
-    const flyt = rå.find((df) => df.id === op.dokumentflytId);
-    if (!flyt) return [];
-    return flyt.medlemmer;
-  }, [oppgave, dokumentflyterRå]);
 
   const oppdaterMutasjon = trpc.oppgave.oppdater.useMutation({
     onSuccess: () => {
@@ -476,6 +418,14 @@ export default function OppgaveDetaljSide() {
     return oppgave.template?.prefix ? `${oppgave.template.prefix}-${nummerPad}` : nummerPad;
   }, [oppgave?.number, oppgave?.template?.prefix]);
 
+  // P2 (tom-besvarelse): speiler server-guarden fra lagret svar-data (samme delte
+  // helper + input som serveren). Deaktiverer Besvar til minst ett svar-felt er utfylt.
+  const besvarDeaktivertGrunn = useMemo(() => {
+    const objs = (oppgave?.template?.objects ?? []) as { id: string; type: string }[];
+    const data = ((oppgave as unknown as { data?: unknown })?.data ?? null) as Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null;
+    return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
+  }, [oppgave, t]);
+
   const leseModus = !erRedigerbar;
 
   if (erLaster) {
@@ -490,6 +440,57 @@ export default function OppgaveDetaljSide() {
     return <p className="py-12 text-center text-gray-500">{t("oppgaver.ikkeFunnet")}</p>;
   }
 
+  // P4b: kontekst-chip-linje (utfyllingsmodus). Byggeplass er tegning-avledet på
+  // oppgave (ingen byggeplassId på oppgave — audit) → display; faggruppe (utfører)
+  // = velger i utkast; prosjekt/mal = display.
+  const oppgaveCast = oppgave as unknown as {
+    title: string;
+    status: string;
+    template?: { id: string; name?: string | null } | null;
+    utforerFaggruppe?: { id: string; name?: string | null } | null;
+    drawing?: { byggeplass?: { name?: string } | null } | null;
+  };
+  const erUtkast = oppgaveCast.status === "draft";
+
+  function lagreTittel() {
+    const ny = tittelUtkast.trim();
+    setRedigererTittel(false);
+    if (ny && ny !== oppgaveCast.title) {
+      oppdaterMutasjon.mutate({ id: params.oppgaveId, title: ny });
+    }
+  }
+
+  const kontekstChips: import("@/components/kontekst-chip/DokumentKontekstChipLinje").Chip[] = [
+    {
+      etikett: t("kontekstChip.prosjekt"),
+      verdi: prosjekt?.name ?? t("kontekstChip.laster"),
+      type: "display",
+    },
+    {
+      etikett: t("kontekstChip.byggeplass"),
+      verdi: oppgaveCast.drawing?.byggeplass?.name ?? t("kontekstChip.heleProsjektet"),
+      type: "display",
+    },
+    {
+      // Runde-2 (#6): «UTFØRER»-etikett → «Faggruppe» (relasjonell benevnelse; verdien er faggruppen).
+      etikett: t("tabell.faggruppe"),
+      verdi: oppgaveCast.utforerFaggruppe?.name ?? "—",
+      type: "velger",
+      deaktivert: !erUtkast,
+      deaktivertGrunn: t("kontekstChip.faggruppeKunUtkast"),
+      valgtId: oppgaveCast.utforerFaggruppe?.id ?? null,
+      alternativer: alleFaggrupper.map((f) => ({ id: f.id, navn: f.name })),
+      onVelg: (id) => {
+        if (id) oppdaterMutasjon.mutate({ id: params.oppgaveId, utforerFaggruppeId: id });
+      },
+    },
+    {
+      etikett: t("sjekklister.mal"),
+      verdi: oppgaveCast.template?.name ?? "—",
+      type: "display",
+    },
+  ];
+
   return (
     <div className="max-w-3xl pb-12">
       {/* Skjerm-header: sticky ved scrolling */}
@@ -499,7 +500,37 @@ export default function OppgaveDetaljSide() {
           {oppgaveNummer && (
             <span className="text-sm font-bold text-gray-500">{oppgaveNummer}</span>
           )}
-          <h3 className="text-base sm:text-lg font-bold truncate max-w-[60vw] sm:max-w-none">{oppgave.title}</h3>
+          {/* P4b: redigerbar tittel (utfyllingsmodus). */}
+          {redigererTittel ? (
+            <input
+              autoFocus
+              value={tittelUtkast}
+              onChange={(e) => setTittelUtkast(e.target.value)}
+              onBlur={lagreTittel}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") lagreTittel();
+                if (e.key === "Escape") setRedigererTittel(false);
+              }}
+              maxLength={255}
+              aria-label={t("handling.rediger")}
+              className="min-h-11 max-w-[60vw] rounded-md border border-sitedoc-primary px-2 py-0.5 text-base font-bold focus:outline-none sm:max-w-none sm:text-lg"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setTittelUtkast(oppgave.title);
+                setRedigererTittel(true);
+              }}
+              title={t("handling.rediger")}
+              className="group flex min-h-11 items-center gap-1.5 text-left"
+            >
+              <span className="truncate text-base font-bold max-w-[55vw] sm:max-w-none sm:text-lg">
+                {oppgave.title}
+              </span>
+              <Pencil className="h-3.5 w-3.5 shrink-0 text-gray-300 group-hover:text-gray-500" />
+            </button>
+          )}
           <LagreIndikator status={lagreStatus} />
           {andreRedaktorer.length > 0 && (
             <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700">
@@ -531,25 +562,35 @@ export default function OppgaveDetaljSide() {
                 finnMottakerNavn(flytMedlemmer, o?.recipientUserId, o?.recipientGroupId) ?? o?.recipientGroup?.name;
               if (!navn) return null;
               return (
-                <span className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                  {t("tabell.venterPaa")}: {navn}
+                // Runde-2 (R5): seer-relativ «Venter på deg» / «Venter på {navn}» (web-paritet med sjekkliste).
+                <span data-testid="venter-paa" className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
+                  {harBallen ? t("tabell.venterPaaDeg") : `${t("tabell.venterPaa")}: ${navn}`}
                 </span>
               );
             })()}
           </div>
         </div>
 
-        {/* Rad 2: FlytIndikator (full bredde på mobil) */}
-        {flytMedlemmer.length > 0 && (
+        {/* P4b Rad 1b: kontekst-chip-linje (utfyllingsmodus). */}
+        <div className="print-skjul mt-2">
+          <DokumentKontekstChipLinje chips={kontekstChips} />
+        </div>
+
+        {/* Rad 2: FlytIndikator (full bredde på mobil).
+            F1b: skjul for HMS — HMS har egen HmsHandlingsflate; flytlinja ville vært
+            redundant + vist "?" for null-medlem-oppretterboksen til Fase 2 navngir den. */}
+        {!erHms && flytMedlemmer.length > 0 && (
           <div className="mt-2">
+            {/* Runde-2 (#7/#8): flyt-navn som caption over flytlinja (f.eks. «Sitedoc Ansatte»). */}
+            {flytNavn && (
+              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">{flytNavn}</div>
+            )}
             {/* Desktop: full flyt */}
             <div className="hidden sm:block">
               <FlytIndikator
                 medlemmer={flytMedlemmer}
-                recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
-                recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
-                status={oppgave.status}
-                bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+                aktivPosisjon={aktivPosisjon}
+                harBallen={harBallen}
                 visUtveier
               />
             </div>
@@ -557,10 +598,8 @@ export default function OppgaveDetaljSide() {
             <div className="sm:hidden">
               <FlytIndikator
                 medlemmer={flytMedlemmer}
-                recipientUserId={(fullOppgaveRå as { recipientUserId?: string | null })?.recipientUserId}
-                recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
-                status={oppgave.status}
-                bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+                aktivPosisjon={aktivPosisjon}
+                harBallen={harBallen}
                 kompakt
                 visUtveier
               />
@@ -592,6 +631,11 @@ export default function OppgaveDetaljSide() {
           ) : (
           <DokumentHandlingsmeny
             status={oppgave.status}
+            aktivPosisjon={aktivPosisjon}
+            retningsrett={retningsrett}
+            harBallen={harBallen}
+            erAvsender={erAvsender}
+            erMedlemAvFlyt={erMedlemAvFlyt}
             erLaster={endreStatusMutasjon.isPending}
             onEndreStatus={(nyStatus, handlingNoekkel, kommentar, mottaker) => {
               handlingRef.current = handlingNoekkel;
@@ -617,6 +661,8 @@ export default function OppgaveDetaljSide() {
             recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
             bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
             lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
+            besvarDeaktivertGrunn={besvarDeaktivertGrunn}
+            onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
           />
           )}
           <button

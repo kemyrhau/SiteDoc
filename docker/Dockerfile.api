@@ -21,6 +21,13 @@ RUN pnpm turbo build --filter @sitedoc/api
 # ============ Runtime (med native konvertere API-et shell-er ut til) ============
 FROM node:20-bookworm-slim AS runtime
 ENV NODE_ENV=production
+# Bygg-stempel: GIT_SHA + byggtid bakes inn som env og eksponeres via /version.
+# Build-arg må re-deklareres i runtime-stega — build-stegets ENV bæres ikke over.
+# Fallback tom → ruten viser «dev»/«ukjent» ved lokal dev uten build-arg.
+ARG GIT_SHA=
+ARG BUILD_TID=
+ENV GIT_SHA=${GIT_SHA}
+ENV BUILD_TID=${BUILD_TID}
 RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
 RUN apt-get update && apt-get install -y --no-install-recommends \
       poppler-utils tesseract-ocr tesseract-ocr-nor xvfb \

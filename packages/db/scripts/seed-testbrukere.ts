@@ -60,6 +60,30 @@ async function main() {
     update: { firmaRoller: [] },
   });
 
+  // 5b (pilot-e2e): to EKSTRA distinkte personer så 4-ledds pilot-flyten (reg/best/utf/godk)
+  // har fire ULIKE brukere. Uten dette gjenbruker 3-ledds-flyten firma på reg+godk, og
+  // pilot-buggen (distinkt-person-ruting) kan ikke reproduseres i UI. Vanlige ansatte.
+  const bestiller = await prisma.user.upsert({
+    where: { email: "test-bestiller@sitedoc.test" },
+    create: { email: "test-bestiller@sitedoc.test", name: "Test Bestiller", role: "user", canLogin: true },
+    update: { role: "user", canLogin: true },
+  });
+  await prisma.organizationMember.upsert({
+    where: { userId_organizationId: { userId: bestiller.id, organizationId: org.id } },
+    create: { userId: bestiller.id, organizationId: org.id, ansattRolle: "ansatt", firmaRoller: [] },
+    update: { firmaRoller: [] },
+  });
+  const godkjenner = await prisma.user.upsert({
+    where: { email: "test-godkjenner@sitedoc.test" },
+    create: { email: "test-godkjenner@sitedoc.test", name: "Test Godkjenner", role: "user", canLogin: true },
+    update: { role: "user", canLogin: true },
+  });
+  await prisma.organizationMember.upsert({
+    where: { userId_organizationId: { userId: godkjenner.id, organizationId: org.id } },
+    create: { userId: godkjenner.id, organizationId: org.id, ansattRolle: "ansatt", firmaRoller: [] },
+    update: { firmaRoller: [] },
+  });
+
   // Prosjekt eid av Testfirma — arbeider legges som member UTEN manage_field.
   let prosjekt = await prisma.project.findFirst({ where: { name: PROSJEKT_NAVN } });
   if (!prosjekt) {
@@ -89,11 +113,20 @@ async function main() {
       data: { projectId: prosjekt.id, userId: firma.id, role: "admin" },
     });
   }
+  // Pilot-personene som vanlige prosjektmedlemmer (bindes til pilot-flytens ledд i seed-e2e-pilot.ts).
+  for (const bruker of [bestiller, godkjenner]) {
+    const finnes = await prisma.projectMember.findFirst({ where: { projectId: prosjekt.id, userId: bruker.id } });
+    if (!finnes) {
+      await prisma.projectMember.create({ data: { projectId: prosjekt.id, userId: bruker.id, role: "member" } });
+    }
+  }
 
   console.log("Testbrukere seedet:");
   console.log(`  ${admin.email}     → sitedoc_admin`);
   console.log(`  ${firma.email}     → company_admin (${ORG_NAVN})`);
   console.log(`  ${arbeider.email}  → user, prosjektmedlem uten manage_field`);
+  console.log(`  ${bestiller.email}  → user, pilot bestiller (ledд 2)`);
+  console.log(`  ${godkjenner.email} → user, pilot godkjenner (ledд 4)`);
   console.log(`  Org: ${org.name} (${org.id})`);
   console.log(`  Prosjekt: ${prosjekt.name} (${prosjekt.id})`);
 }

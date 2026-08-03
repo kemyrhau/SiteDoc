@@ -45,11 +45,11 @@ interface OppgaveModalProps {
   templateId: string;
 }
 
-const PRIORITETER: { verdi: Prioritet; label: string }[] = [
-  { verdi: "low", label: "Lav" },
-  { verdi: "medium", label: "Medium" },
-  { verdi: "high", label: "Høy" },
-  { verdi: "critical", label: "Kritisk" },
+const PRIORITETER: { verdi: Prioritet; labelKey: string }[] = [
+  { verdi: "low", labelKey: "prioritet.lav" },
+  { verdi: "medium", labelKey: "prioritet.middels" },
+  { verdi: "high", labelKey: "prioritet.hoey" },
+  { verdi: "critical", labelKey: "prioritet.kritisk" },
 ];
 
 const PRIORITET_FARGER: Record<Prioritet, string> = {
@@ -142,7 +142,7 @@ export function OppgaveModal({
       onOpprettet((_data as { id: string }).id);
     },
     onError: (feil: { message?: string }) => {
-      Alert.alert("Feil", feil.message || "Kunne ikke opprette oppgave");
+      Alert.alert(t("feil.tittel"), feil.message || t("opprettModal.kunneIkkeOpprette"));
     },
   });
 
@@ -160,7 +160,7 @@ export function OppgaveModal({
 
   const håndterOpprett = useCallback(async () => {
     if (!oppretterFaggruppeId) {
-      Alert.alert("Mangler oppretter", "Velg en oppretter-faggruppe");
+      Alert.alert(t("opprettModal.manglerOppretter"), t("opprettModal.velgOppretterFaggruppe"));
       return;
     }
 
@@ -169,7 +169,7 @@ export function OppgaveModal({
     opprettMutasjon.mutate({
       bestillerFaggruppeId: oppretterFaggruppeId,
       utforerFaggruppeId: effektivSvarer,
-      title: `Oppgave — ${tegningNavn}`,
+      title: t("oppgaveModal.tittelFraTegning", { tegning: tegningNavn }),
       priority: prioritet,
       templateId,
       drawingId: tegningId,
@@ -188,6 +188,7 @@ export function OppgaveModal({
     posisjonY,
     matchendeDokumentflyt,
     opprettMutasjon,
+    t,
   ]);
 
   const valgtOppretter = faggrupper.find((e) => e.id === oppretterFaggruppeId);
@@ -203,7 +204,7 @@ export function OppgaveModal({
           <Pressable onPress={håndterAvbryt} hitSlop={8}>
             <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
           </Pressable>
-          <Text className="text-sm font-semibold text-white">Ny oppgave</Text>
+          <Text className="text-sm font-semibold text-white">{t("oppgaver.ny")}</Text>
           <Pressable
             onPress={håndterOpprett}
             disabled={!kanOpprett}
@@ -215,7 +216,7 @@ export function OppgaveModal({
               <Text
                 className={`text-sm font-medium ${kanOpprett ? "text-white" : "text-white/40"}`}
               >
-                Opprett
+                {t("handling.opprett")}
               </Text>
             )}
           </Pressable>
@@ -225,7 +226,7 @@ export function OppgaveModal({
           {/* Tegningsposisjon */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-1 text-xs font-medium text-gray-500">
-              Tegning
+              {t("tabell.tegning")}
             </Text>
             <View className={`flex-row items-center gap-2 rounded-lg px-3 py-2.5 ${gpsPositionert ? "bg-green-50" : "bg-blue-50"}`}>
               <MapPin size={16} color={gpsPositionert ? "#059669" : "#1e40af"} />
@@ -235,7 +236,7 @@ export function OppgaveModal({
                 </Text>
                 {gpsPositionert && (
                   <Text className="text-xs text-green-600">
-                    GPS-posisjon
+                    {t("oppgaveModal.gpsPosisjon")}
                   </Text>
                 )}
               </View>
@@ -245,13 +246,13 @@ export function OppgaveModal({
           {/* Faggruppe-flyt: Oppretter → Svarer */}
           <View className="border-b border-gray-100 px-4 py-3">
             <Text className="mb-2 text-xs font-medium text-gray-500">
-              Faggruppe
+              {t("tabell.faggruppe")}
             </Text>
 
             {/* Oppretter — auto-valgt, vises som tekst (valgbar hvis flere) */}
             {mineFaggrupper.length > 1 ? (
               <View className="mb-2">
-                <Text className="mb-1 text-xs text-gray-400">Fra</Text>
+                <Text className="mb-1 text-xs text-gray-400">{t("dokument.fra")}</Text>
                 {mineFaggrupper.map((e) => (
                   <Pressable
                     key={e.id}
@@ -279,7 +280,7 @@ export function OppgaveModal({
               </View>
             ) : valgtOppretter ? (
               <View className="mb-2">
-                <Text className="mb-1 text-xs text-gray-400">Fra</Text>
+                <Text className="mb-1 text-xs text-gray-400">{t("dokument.fra")}</Text>
                 <View className="rounded-lg border border-blue-300 bg-blue-50 px-3 py-2">
                   <Text className="text-sm font-medium text-blue-700">
                     {valgtOppretter.name}
@@ -295,7 +296,7 @@ export function OppgaveModal({
 
             {/* Svarer */}
             <View>
-              <Text className="mb-1 text-xs text-gray-400">Til</Text>
+              <Text className="mb-1 text-xs text-gray-400">{t("dokument.til")}</Text>
               <Pressable
                 onPress={() => setVisSvarerListe(!visSvarerListe)}
                 className={`flex-row items-center justify-between rounded-lg border px-3 py-2 ${
@@ -303,7 +304,7 @@ export function OppgaveModal({
                 }`}
               >
                 <Text className={`text-sm ${valgtSvarer ? "text-gray-800" : "text-gray-400"}`}>
-                  {valgtSvarer?.name ?? "Velg svarer…"}
+                  {valgtSvarer?.name ?? t("oppgaveModal.velgSvarer")}
                 </Text>
                 <ChevronDown size={16} color="#9ca3af" />
               </Pressable>
@@ -337,7 +338,7 @@ export function OppgaveModal({
           {/* Prioritet */}
           <View className="px-4 py-3">
             <Text className="mb-2 text-xs font-medium text-gray-500">
-              Prioritet
+              {t("tabell.prioritet")}
             </Text>
             <View className="flex-row gap-2">
               {PRIORITETER.map((p) => {
@@ -351,7 +352,7 @@ export function OppgaveModal({
                     <Text
                       className={`text-xs font-medium ${erValgt ? "" : "text-gray-500"}`}
                     >
-                      {p.label}
+                      {t(p.labelKey)}
                     </Text>
                   </Pressable>
                 );

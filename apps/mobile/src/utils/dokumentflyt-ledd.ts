@@ -1,16 +1,25 @@
 /**
- * Delt helper for å bygge "ledd"-rader fra DokumentflytMedlem.
- * Brukes av FlytIndikator (kompakt visuell visning i topbar) og
- * DokumentHandlingsmeny (trykkbar boks-rad i bunn).
+ * Delt helper for å bygge "ledd"-rader fra DokumentflytMedlem (mobil).
+ * Brukes av Flytlinje (kompakt visuell visning i header + flyt-sheet) og
+ * DokumentHandlingslinje (retningsnavn på primærhandling).
  *
- * Et "ledd" er en gruppering av medlemmer som deler samme `steg`.
- * Spesifisitets-hierarki ved navn-utledning: faggruppe > group > projectMember.
+ * Fase 4-konsolidering (2026-08-01): sekvenserer på `steg` (= posisjon) via delt
+ * `byggPosisjonsLedd` fra @sitedoc/shared — PARITET med web `flyt-ledd.ts`. Regellaget
+ * (posisjon/klassifisering/medlemskap) er delt; denne fila legger KUN mobil-visning oppå
+ * (navn/farge/full medlemsliste). Aktivt ledd leses fra `aktivPosisjon` (server-fakta).
+ * Rolle-rang-heuristikken er fjernet. Antall ledд er dynamisk (2/4/8+).
+ *
+ * ⚠️ MOBIL-PARITET: hold atferds-identisk med `apps/web/src/lib/flyt-ledd.ts`.
  */
+
+import { byggPosisjonsLedd, ansvarsmerkeKey, type RaFlytMedlem } from "@sitedoc/shared";
 
 export interface FlytMedlem {
   id?: string;
   rolle: string;
   steg: number;
+  klassifisering?: string | null;
+  kanTerminereUtenBall?: boolean;
   erHovedansvarlig?: boolean;
   faggruppe: { id: string; name: string; color?: string | null } | null;
   projectMember: { id?: string; user: { id: string; name: string | null } } | null;
@@ -18,7 +27,15 @@ export interface FlytMedlem {
 }
 
 export interface Ledd {
+  /** 1-basert posisjon (= DokumentflytMedlem.steg). */
+  posisjon: number;
   steg: number;
+  /** Leddets rolle (rettighetsmal bak merket) — internt, ikke brukervendt etikett. */
+  rolle: string;
+  /** Rutings-klassifisering (kontroll/utfor/orienteres). */
+  klassifisering: string;
+  /** i18n-nøkkel for ansvarsmerket (§ 2.6). Konsumenten kaller t(). */
+  ansvarsmerkeKey: string;
   navn: string;
   aktivNavn: string;
   farge: string | null;
@@ -28,17 +45,36 @@ export interface Ledd {
   medlemmer: FlytMedlem[];
 }
 
+function tilRaMedlem(m: FlytMedlem): RaFlytMedlem {
+  return {
+    steg: m.steg,
+    klassifisering: m.klassifisering ?? null,
+    kanTerminereUtenBall: m.kanTerminereUtenBall ?? false,
+    erHovedansvarlig: m.erHovedansvarlig ?? false,
+    brukerId: m.projectMember?.user?.id ?? null,
+    gruppeId: m.group?.id ?? null,
+    faggruppeId: m.faggruppe?.id ?? null,
+  };
+}
+
+/**
+ * Grupper medlemmer per POSISJON (`steg`) og sekvensér stigende (delt byggPosisjonsLedd).
+ * Flere medlemmer på samme steg → ett ledd.
+ */
 export function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
-  const stegMap = new Map<number, FlytMedlem[]>();
+  const posLedd = byggPosisjonsLedd(medlemmer.map(tilRaMedlem));
+  const perSteg = new Map<number, FlytMedlem[]>();
   for (const m of medlemmer) {
-    const liste = stegMap.get(m.steg) ?? [];
+    const liste = perSteg.get(m.steg) ?? [];
     liste.push(m);
-    stegMap.set(m.steg, liste);
+    perSteg.set(m.steg, liste);
   }
 
-  return [...stegMap.entries()]
-    .sort(([a], [b]) => a - b)
-    .map(([steg, medl]) => {
+  return posLedd
+    .slice()
+    .sort((a, b) => a.posisjon - b.posisjon)
+    .map((pl) => {
+      const medl = perSteg.get(pl.posisjon) ?? [];
       const faggruppeM = medl.find((m) => m.faggruppe);
       const gruppe = medl.find((m) => m.group);
       const person = medl.find((m) => m.projectMember?.user?.name);
@@ -56,44 +92,32 @@ export function byggLedd(medlemmer: FlytMedlem[]): Ledd[] {
         aktivNavn = `${faggruppeNavn} · ${personEllerGruppe}`;
       }
 
+      const leddRolle = medl[0]?.rolle ?? "";
+
       return {
-        steg,
+        posisjon: pl.posisjon,
+        steg: pl.posisjon,
+        rolle: leddRolle,
+        klassifisering: pl.klassifisering,
+        ansvarsmerkeKey: ansvarsmerkeKey(leddRolle, pl.klassifisering),
         navn,
         aktivNavn,
         farge: faggruppeM?.faggruppe?.color ?? null,
-        gruppeIder: new Set(medl.filter((m) => m.group).map((m) => m.group!.id)),
-        brukerIder: new Set(medl.filter((m) => m.projectMember).map((m) => m.projectMember!.user.id)),
-        faggruppeIder: new Set(medl.filter((m) => m.faggruppe).map((m) => m.faggruppe!.id)),
+        gruppeIder: pl.gruppeIder,
+        brukerIder: pl.brukerIder,
+        faggruppeIder: pl.faggruppeIder,
         medlemmer: medl,
       };
     });
 }
 
-export function finnAktivtIndex(
-  ledd: Ledd[],
-  status: string,
-  recipientUserId?: string | null,
-  recipientGroupId?: string | null,
-  bestillerUserId?: string,
-): number {
-  if (status === "draft" || status === "cancelled") {
-    if (bestillerUserId) {
-      const idx = ledd.findIndex((l) => l.brukerIder.has(bestillerUserId));
-      if (idx !== -1) return idx;
-    }
-    return 0;
-  }
-  if (status === "closed" || status === "approved") return -1;
-
-  if (recipientGroupId) {
-    const idx = ledd.findIndex((l) => l.gruppeIder.has(recipientGroupId));
-    if (idx !== -1) return idx;
-  }
-  if (recipientUserId) {
-    const idx = ledd.findIndex((l) => l.brukerIder.has(recipientUserId));
-    if (idx !== -1) return idx;
-  }
-  return ledd.length > 1 ? ledd.length - 1 : -1;
+/**
+ * Aktiv boks = leddet på dokumentets `aktivPosisjon` (server-fakta). -1 hvis ikke funnet.
+ * Terminal-dokument ligger hos sitt terminal-ledd (§ 2.3).
+ */
+export function finnAktivtIndex(ledd: Ledd[], aktivPosisjon: number | null | undefined): number {
+  if (ledd.length === 0 || aktivPosisjon == null) return -1;
+  return ledd.findIndex((l) => l.posisjon === aktivPosisjon);
 }
 
 export function forkort(tekst: string, maks: number): string {

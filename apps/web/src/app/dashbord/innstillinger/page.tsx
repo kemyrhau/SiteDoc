@@ -19,6 +19,18 @@ const SEKSJON_STIL: Record<Seksjon, { aksent: string; flis: string }> = {
   prosjekt: { aksent: "#92610a", flis: "#fbf3e2" },
 };
 
+// Bygg-stempel: NEXT_PUBLIC_* bakes inn ved build-tid (docker/Dockerfile.web).
+// Usatt (lokal dev) → «dev»/«ukjent», aldri krasj. Byggtid vises kompakt (DD.MM HH:MM).
+const BYGG_SHA = process.env.NEXT_PUBLIC_BUILD_SHA || "dev";
+function formaterByggTid(iso: string | undefined): string {
+  if (!iso) return "ukjent";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  const to = (n: number) => String(n).padStart(2, "0");
+  return `${to(d.getDate())}.${to(d.getMonth() + 1)} ${to(d.getHours())}:${to(d.getMinutes())}`;
+}
+const BYGG_TID = formaterByggTid(process.env.NEXT_PUBLIC_BUILD_TID);
+
 export default function InnstillingerHub() {
   const { t } = useTranslation();
   const { valgtFirma } = useFirma();
@@ -192,6 +204,11 @@ export default function InnstillingerHub() {
       {!harNoenTreff && sokLavere && (
         <p className="py-8 text-center text-sm text-gray-400">{t("innstillinger.ingenTreff")}</p>
       )}
+
+      {/* Bygg-stempel — diskret, hvilken commit kjører (se /version for api-sha) */}
+      <p className="mt-8 text-[11px] text-gray-300">
+        {t("bygg.stempel", { sha: BYGG_SHA, tid: BYGG_TID })}
+      </p>
     </div>
   );
 }

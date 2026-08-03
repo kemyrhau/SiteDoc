@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -1543,7 +1543,19 @@ function TimerRadDialog({
     | Array<{ id: string; merke: string | null; modell: string | null; internNavn: string | null }>
     | undefined;
 
-  const [lonnsartId, setLonnsartId] = useState<string>(rad?.lonnsartId ?? "");
+  // V1c: ved NY rad (ingen forrige å arve fra) prefylles firma-default lønnsart
+  // (Lonnsart.erStandardvalg) i stedet for tomt felt. Redigering av eksisterende
+  // rad beholder radens lønnsart. Dekker cache-treff her; async-lasting i effekt
+  // under (lonnsarter kan være uhentet ved mount).
+  const [lonnsartId, setLonnsartId] = useState<string>(
+    rad?.lonnsartId ?? lonnsarter?.find((l) => l.erStandardvalg)?.id ?? "",
+  );
+  useEffect(() => {
+    if (!rad && !lonnsartId) {
+      const standard = lonnsarter?.find((l) => l.erStandardvalg)?.id;
+      if (standard) setLonnsartId(standard);
+    }
+  }, [rad, lonnsartId, lonnsarter]);
   const [aktivitetId, setAktivitetId] = useState<string>(
     rad?.aktivitetId ?? defaultAktivitetId ?? "",
   );

@@ -29,6 +29,8 @@ export interface UseSjekklisteSkjemaResultat {
     };
     bestillerFaggruppe: { id: string; name: string } | null;
     utforerFaggruppe: { id: string; name: string } | null;
+    /** Lagrede svar (P2 tom-besvarelse-guard leser dette for server-paritet). */
+    data: Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null;
   } | undefined;
   erLaster: boolean;
   hentFeltVerdi: (objektId: string) => FeltVerdi;
@@ -305,6 +307,7 @@ export function useSjekklisteSkjema(sjekklisteId: string, rettighetInput?: Retti
           template: sjekkliste.template,
           bestillerFaggruppe: sjekkliste.bestillerFaggruppe,
           utforerFaggruppe: sjekkliste.utforerFaggruppe,
+          data: (sjekkliste.data ?? null) as Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null,
           // Lokasjon + ekstra felt fra full query-data
           ...(fullSjekkliste && {
             drawingId: fullSjekkliste.drawingId,

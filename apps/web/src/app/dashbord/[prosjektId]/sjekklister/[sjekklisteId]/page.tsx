@@ -5,6 +5,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
 import { Check, AlertCircle, Loader2, Printer, Pencil } from "lucide-react";
+import { harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useSjekklisteSkjema } from "@/hooks/useSjekklisteSkjema";
@@ -17,13 +18,14 @@ import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
 import { FlytIndikator } from "@/components/FlytIndikator";
-import { utledMinRolle, beregnHarBallen, perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
-import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
+import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import type { RapportObjekt } from "@/components/rapportobjekter/typer";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useOversettelse } from "@/hooks/useOversettelse";
 import { DokumentTidslinje } from "@/components/DokumentTidslinje";
+import { DokumentKontekstChipLinje } from "@/components/kontekst-chip/DokumentKontekstChipLinje";
 import { usePresence } from "@/hooks/usePresence";
 
 /* ------------------------------------------------------------------ */
@@ -117,70 +119,14 @@ export default function SjekklisteDetaljSide() {
     { enabled: !!params.sjekklisteId },
   );
 
-  // harBallen
-  const harBallen = useMemo(() => {
-    if (!fullSjekklisteRå || !minFlytInfo) return false;
-    const fs = fullSjekklisteRå as HarBallenDokument;
-    return beregnHarBallen(fs, { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder });
-  }, [fullSjekklisteRå, minFlytInfo]);
-
-  // Utled brukerens rolle i dokumentflyten
-  const minRolle = useMemo(() => {
-    if (!minFlytInfo || !fullSjekklisteRå) return undefined;
-    const sj = fullSjekklisteRå as unknown as { dokumentflytId?: string | null; bestillerFaggruppe?: { id: string }; utforerFaggruppe?: { id: string } };
-    if (!sj.dokumentflytId) return undefined;
-    const flyt = dokumentflyter.find((df) => df.id === sj.dokumentflytId);
-    if (!flyt) return null;
-    const medlemmer = flyt.medlemmer.map((m): FlytMedlemInfo => ({
-      rolle: m.rolle,
-      faggruppeId: m.faggruppeId ?? null,
-      projectMemberId: m.projectMemberId ?? null,
-      groupId: m.groupId ?? null,
-    }));
-    return utledMinRolle(
-      // Kloss 2: rolle-utledning følger adminNiva (firma-admin = adminNiva:null → vanlig
-      // rolle/lesevisning, ikke lenger implisitt "registrator"). sitedoc/prosjekt → admin.
-      { ...minFlytInfo, userId: "", erAdmin: minFlytInfo.adminNiva !== null },
-      medlemmer,
-      { bestillerFaggruppeId: sj.bestillerFaggruppe?.id ?? "", utforerFaggruppeId: sj.utforerFaggruppe?.id ?? "" },
-    );
-  }, [minFlytInfo, fullSjekklisteRå, dokumentflyter]);
-
-  // Bygg rettighetInput for skjema-hook
-  // Utled flytRettighet fra DokumentflytMedlem.kanRedigere
-  const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
-    if (!minFlytInfo || !fullSjekklisteRå || !dokumentflyterRå) return undefined;
-    const sj = fullSjekklisteRå as unknown as { dokumentflytId?: string | null };
-    if (!sj.dokumentflytId) return undefined;
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        kanRedigere: boolean;
-        faggruppeId?: string | null;
-        projectMemberId?: string | null;
-        groupId?: string | null;
-      }>;
-    }>;
-    const flyt = rå.find((df) => df.id === sj.dokumentflytId);
-    if (!flyt) return undefined;
-    const fi = minFlytInfo as { projectMemberId: string; gruppeIder: string[] };
-    for (const m of flyt.medlemmer) {
-      if (m.projectMemberId && m.projectMemberId === fi.projectMemberId) return m.kanRedigere ? "redigerer" : "leser";
-      if (m.groupId && fi.gruppeIder.includes(m.groupId)) return m.kanRedigere ? "redigerer" : "leser";
-    }
-    return undefined;
-  }, [minFlytInfo, fullSjekklisteRå, dokumentflyterRå]);
-
-  const rettighetInput = useMemo(() => {
-    if (!minFlytInfo) return undefined;
-    return {
-      erAdmin: minFlytInfo.erAdmin,
-      minRolle,
-      tillatelser: mineTillatelser,
-      harBallen,
-      flytRettighet,
-    };
-  }, [minFlytInfo, minRolle, mineTillatelser, harBallen, flytRettighet]);
+  // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
+  // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
+  const { harBallen, erAvsender, erMedlemAvFlyt, retningsrett, minRolle, flytMedlemmer, flytNavn, aktivPosisjon, rettighetInput } = useFlytKontekst({
+    fullDokRå: fullSjekklisteRå,
+    dokumentflyterRå,
+    minFlytInfo: minFlytInfo as MinFlytInfoUtsnitt | undefined,
+    mineTillatelser,
+  });
 
   // --- Skjema-hook med rettighetsinfo ---
 
@@ -238,7 +184,9 @@ export default function SjekklisteDetaljSide() {
       utils.sjekkliste.hentForProsjekt.invalidate();
       utils.sjekkliste.hentMedId.invalidate({ id: params.sjekklisteId });
     },
-    onError: (error) => {
+    // TS2589-avlastning: eksplisitt grunn-type på error unngår instansiering av den dype
+    // tRPC-feiltypen (denne fila ligger på TS' instansierings-tak).
+    onError: (error: { message?: string }) => {
       setStatusFeil(error.message ?? "Kunne ikke endre status. Prøv igjen.");
     },
   });
@@ -296,31 +244,24 @@ export default function SjekklisteDetaljSide() {
     [params.sjekklisteId, hmsTilfoyMutasjon, hmsBesvarMutasjon, hmsLukkMutasjon, hmsGjenapneMutasjon],
   );
 
-  // Flytmedlemmer for FlytIndikator og DokumentHandlingsmeny
-  const flytMedlemmer = useMemo(() => {
-    const sj = sjekkliste as unknown as { dokumentflytId?: string | null };
-    if (!sj?.dokumentflytId || !dokumentflyterRå) return [];
-    const rå = dokumentflyterRå as unknown as Array<{
-      id: string;
-      medlemmer: Array<{
-        id: string;
-        rolle: string;
-        steg: number;
-        faggruppe: { id: string; name: string } | null;
-        projectMember: { user: { id: string; name: string | null } } | null;
-        group: { id: string; name: string } | null;
-      }>;
-    }>;
-    const flyt = rå.find((df) => df.id === sj.dokumentflytId);
-    if (!flyt) return [];
-    return flyt.medlemmer;
-  }, [sjekkliste, dokumentflyterRå]);
 
   // Hent prosjektdata for print-header
   const { data: prosjekt } = trpc.prosjekt.hentMedId.useQuery(
     { id: params.prosjektId },
     { enabled: !!params.prosjektId },
   );
+
+  // P4b: byggeplasser for byggeplass-chippen i kontekst-chip-linja (utfyllingsmodus).
+  const { data: bygningerRå } = trpc.bygning.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const bygninger = (bygningerRå ?? []) as Array<{ id: string; name: string; number: number | null }>;
+
+  // P4b: redigerbar tittel (utfyllingsmodus). Lokalt utkast så feltet ikke
+  // hopper mens oppdater-mutasjonen kjører; skriver via eksisterende oppdater.
+  const [redigererTittel, setRedigererTittel] = useState(false);
+  const [tittelUtkast, setTittelUtkast] = useState("");
 
   // fullSjekklisteRå hentet ovenfor — cast for typesikkerhet
   const fullSjekkliste = fullSjekklisteRå as {
@@ -472,6 +413,15 @@ export default function SjekklisteDetaljSide() {
     return prefix ? `${prefix}-${nummerPad}` : nummerPad;
   }, [fullSjekkliste?.number, sjekkliste?.template?.prefix]);
 
+  // P2 (tom-besvarelse): speiler server-guarden. Beregnes fra lagret svar-data
+  // (samme delte helper + samme input som serveren) → UI viser aldri en Besvar
+  // serveren avviser. Deaktivert til minst ett svar-felt er utfylt og lagret.
+  const besvarDeaktivertGrunn = useMemo(() => {
+    const objs = (sjekkliste?.template?.objects ?? []) as { id: string; type: string }[];
+    const data = ((sjekkliste as unknown as { data?: unknown })?.data ?? null) as Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null;
+    return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
+  }, [sjekkliste, t]);
+
   const leseModus = !erRedigerbar;
 
   if (erLaster) {
@@ -487,6 +437,62 @@ export default function SjekklisteDetaljSide() {
   }
 
   const oppretterBruker = fullSjekkliste?.bestiller?.name;
+
+  // P4b: kontekst-chip-linje (utfyllingsmodus). Prosjekt + mal = display;
+  // byggeplass = velger (overstyring via oppdater); faggruppe (utfører) =
+  // velger kun i utkast (server tillater faggruppe-endring kun i draft).
+  const sjekklisteCast = sjekkliste as unknown as {
+    title: string;
+    status: string;
+    template?: { id: string; name?: string | null } | null;
+    utforerFaggruppe?: { id: string; name?: string | null } | null;
+  };
+  const erUtkast = sjekklisteCast.status === "draft";
+
+  function lagreTittel() {
+    const ny = tittelUtkast.trim();
+    setRedigererTittel(false);
+    if (ny && ny !== sjekklisteCast.title) {
+      oppdaterMutasjon.mutate({ id: params.sjekklisteId, title: ny });
+    }
+  }
+
+  const kontekstChips: import("@/components/kontekst-chip/DokumentKontekstChipLinje").Chip[] = [
+    {
+      etikett: t("kontekstChip.prosjekt"),
+      verdi: prosjekt?.name ?? t("kontekstChip.laster"),
+      type: "display",
+    },
+    {
+      etikett: t("kontekstChip.byggeplass"),
+      verdi: fullSjekkliste?.byggeplass?.name ?? t("kontekstChip.heleProsjektet"),
+      type: "velger",
+      valgtId: fullSjekkliste?.byggeplass?.id ?? null,
+      tomLabel: t("kontekstChip.heleProsjektet"),
+      alternativer: bygninger.map((b) => ({ id: b.id, navn: b.name })),
+      onVelg: (id) =>
+        oppdaterMutasjon.mutate({ id: params.sjekklisteId, byggeplassId: id, drawingId: null }),
+    },
+    {
+      // Runde-2 (#6): «UTFØRER»-etikett → «Faggruppe» (relasjonell benevnelse; chip-verdien er selve
+      // faggruppen). Rører ikke velger-oppførselen.
+      etikett: t("tabell.faggruppe"),
+      verdi: sjekklisteCast.utforerFaggruppe?.name ?? "—",
+      type: "velger",
+      deaktivert: !erUtkast,
+      deaktivertGrunn: t("kontekstChip.faggruppeKunUtkast"),
+      valgtId: sjekklisteCast.utforerFaggruppe?.id ?? null,
+      alternativer: alleFaggrupper.map((f) => ({ id: f.id, navn: f.name })),
+      onVelg: (id) => {
+        if (id) oppdaterMutasjon.mutate({ id: params.sjekklisteId, utforerFaggruppeId: id });
+      },
+    },
+    {
+      etikett: t("sjekklister.mal"),
+      verdi: sjekklisteCast.template?.name ?? "—",
+      type: "display",
+    },
+  ];
 
   return (
     <div className="max-w-3xl pb-12">
@@ -518,7 +524,38 @@ export default function SjekklisteDetaljSide() {
           {sjekklisteNummer && (
             <span className="text-sm font-bold text-gray-500">{sjekklisteNummer}</span>
           )}
-          <h3 className="text-base sm:text-lg font-bold truncate max-w-[60vw] sm:max-w-none">{sjekkliste.title}</h3>
+          {/* P4b: redigerbar tittel (utfyllingsmodus). Klikk blyant → input;
+              Enter/blur lagrer via oppdater. Manuell tom tittel forkastes. */}
+          {redigererTittel ? (
+            <input
+              autoFocus
+              value={tittelUtkast}
+              onChange={(e) => setTittelUtkast(e.target.value)}
+              onBlur={lagreTittel}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") lagreTittel();
+                if (e.key === "Escape") setRedigererTittel(false);
+              }}
+              maxLength={255}
+              aria-label={t("handling.rediger")}
+              className="min-h-11 max-w-[60vw] rounded-md border border-sitedoc-primary px-2 py-0.5 text-base font-bold focus:outline-none sm:max-w-none sm:text-lg"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setTittelUtkast(sjekkliste.title);
+                setRedigererTittel(true);
+              }}
+              title={t("handling.rediger")}
+              className="group flex min-h-11 items-center gap-1.5 text-left"
+            >
+              <span className="truncate text-base font-bold max-w-[55vw] sm:max-w-none sm:text-lg">
+                {sjekkliste.title}
+              </span>
+              <Pencil className="h-3.5 w-3.5 shrink-0 text-gray-300 group-hover:text-gray-500" />
+            </button>
+          )}
           <LagreIndikator status={lagreStatus} />
           {andreRedaktorer.length > 0 && (
             <div className="flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs text-amber-700">
@@ -550,34 +587,46 @@ export default function SjekklisteDetaljSide() {
                 fullSjekkliste?.recipientGroup?.name;
               if (!navn) return null;
               return (
+                // Runde-2 (R5): seer-relativ — «Venter på deg» når innlogget har ballen, ellers
+                // «Venter på {navn}» (mottakerens ledд). Leverer «venter på»-nyansen Q1-kollapsen tok
+                // fra loggen, som visning (aldri statusfakta).
                 <span data-testid="venter-paa" className="inline-flex items-center rounded bg-amber-50 px-1.5 py-0.5 text-xs font-medium text-amber-700 whitespace-nowrap">
-                  {t("tabell.venterPaa")}: {navn}
+                  {harBallen ? t("tabell.venterPaaDeg") : `${t("tabell.venterPaa")}: ${navn}`}
                 </span>
               );
             })()}
           </div>
         </div>
 
-        {/* Rad 2: FlytIndikator (full bredde på mobil) */}
-        {flytMedlemmer.length > 0 && (
+        {/* P4b Rad 1b: kontekst-chip-linje (utfyllingsmodus) — prosjekt ·
+            byggeplass · faggruppe · mal. Skjult ved print. */}
+        <div className="print-skjul mt-2">
+          <DokumentKontekstChipLinje chips={kontekstChips} />
+        </div>
+
+        {/* Rad 2: FlytIndikator (full bredde på mobil).
+            F1b: HMS-dok er nå flyt-bundet (2 ledd), men HMS har egen HmsHandlingsflate —
+            flytlinja ville vært redundant + vise "?" for null-medlem-oppretterboksen til
+            Fase 2-matcheren navngir den. Skjul for HMS her (paritet med perspektiv-skjul under). */}
+        {!erHms && flytMedlemmer.length > 0 && (
           <div className="mt-2">
+            {/* Runde-2 (#7/#8): flyt-navn som caption over flytlinja (f.eks. «Sitedoc Ansatte»). */}
+            {flytNavn && (
+              <div className="mb-1 text-[11px] font-medium uppercase tracking-wide text-gray-400">{flytNavn}</div>
+            )}
             <div className="hidden sm:block">
               <FlytIndikator
                 medlemmer={flytMedlemmer}
-                recipientUserId={fullSjekkliste?.recipientUserId}
-                recipientGroupId={fullSjekkliste?.recipientGroupId}
-                status={sjekkliste.status}
-                bestillerUserId={fullSjekkliste?.bestillerUserId}
+                aktivPosisjon={aktivPosisjon}
+                harBallen={harBallen}
                 visUtveier
               />
             </div>
             <div className="sm:hidden">
               <FlytIndikator
                 medlemmer={flytMedlemmer}
-                recipientUserId={fullSjekkliste?.recipientUserId}
-                recipientGroupId={fullSjekkliste?.recipientGroupId}
-                status={sjekkliste.status}
-                bestillerUserId={fullSjekkliste?.bestillerUserId}
+                aktivPosisjon={aktivPosisjon}
+                harBallen={harBallen}
                 kompakt
                 visUtveier
               />
@@ -609,6 +658,11 @@ export default function SjekklisteDetaljSide() {
           ) : (
           <DokumentHandlingsmeny
             status={sjekkliste.status}
+            aktivPosisjon={aktivPosisjon}
+            retningsrett={retningsrett}
+            harBallen={harBallen}
+            erAvsender={erAvsender}
+            erMedlemAvFlyt={erMedlemAvFlyt}
             erLaster={endreStatusMutasjon.isPending || slettMutasjon.isPending}
             onEndreStatus={(nyStatus, handlingNoekkel, kommentar, mottaker) => {
               handlingRef.current = handlingNoekkel;
@@ -635,6 +689,7 @@ export default function SjekklisteDetaljSide() {
             recipientGroupId={fullSjekkliste?.recipientGroupId}
             bestillerUserId={fullSjekkliste?.bestillerUserId}
             lestAvMottakerVed={fullSjekkliste?.lestAvMottakerVed}
+            besvarDeaktivertGrunn={besvarDeaktivertGrunn}
           />
           )}
           <button

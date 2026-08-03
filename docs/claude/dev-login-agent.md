@@ -64,6 +64,7 @@ private/lokale adresser, som en fersk app blokkerer uten Local Network-tillatels
 
 **Løsning (omgår hele klassen — loopback er unntatt både ATS og Local Network):**
 
+0. **Tailscale MÅ være oppe FØRST.** `ssh server-ny` går over Tailscale — er den nede, timer tunnelen ut («Operation timed out» på port 22, nettopp det som skjedde 2026-07-28). Sjekk `tailscale status` / koble til FØR steg 1.
 1. Kenneth åpner en SSH-port-forward på Mac-en (hold åpen):
    ```
    ssh -N -L 3301:localhost:3301 server-ny
@@ -83,6 +84,10 @@ feilobjekt + prober example.com/test.sitedoc.no/{apiUrl} (per-probe timeout) ved
 fetch-feil. **Forkastet:** direkte Tailscale-IP (`100.76.248.15:3301`) — feilet
 pga. Local Network-privacy; localhost er robust uansett.
 
+> **Forholdet til [simulator-ipv6-nordvpn.md](simulator-ipv6-nordvpn.md) (reconcile 2026-07-28):** det dokumentet beskriver den ALTERNATIVE veien (`EXPO_PUBLIC_API_URL=https://api-test.sitedoc.no` + IPv6-off). Den public url-en HAR AAAA → happy-eyeballs prøver IPv6 → henger (hele IPv6-fella). **`localhost:3301`-via-tunnel (denne seksjonen) er PRIMÆR** — loopback har ikke AAAA og sidestepper IPv6-fella helt. Bruk public-url-veien kun hvis tunnelen ikke er et alternativ (f.eks. fysisk enhet uten tunnel).
+>
+> **Metro-port ved flere worktrees:** to Expo/Metro-instanser kan ikke dele port 8081. Kjører Metro fra ett worktree (`SiteDoc/apps/mobile`) og du starter et annet (`SiteDoc-del6b/apps/mobile`), havner det nye på 8082 mens sim-en fortsatt peker på 8081. **Stopp den gamle Metro-en først** (frigi 8081), ELLER åpne `exp://127.0.0.1:8082` i sim-en. Merk: sim-en er en **global macOS-ressurs** (ikke checkout-bundet — enhver Bash-økt når den via `xcrun simctl`); kun Metro (JS-bundelen) er worktree-bundet.
+
 ## Testbrukere (seed)
 
 Kjør seed mot test-DB (idempotent):
@@ -98,6 +103,53 @@ DATABASE_URL=<sitedoc_test> pnpm --filter @sitedoc/db exec tsx scripts/seed-test
 | `test-arbeider@sitedoc.test` | `user` (prosjektmedlem, **uten manage_field**) | Søke-gating-testen (steg iv): skjulte manage_field-kort |
 
 Whitelisten i `apps/api/src/routes/dev-login.ts` MÅ matche disse epostene.
+
+## Worktree — lokal web-bevis uten Kenneth-innlogging (localhost)
+
+**Når:** en kode-Opus i et eget worktree (f.eks. `SiteDoc-p2`) trenger å fange web-skjermbilder av sin egen branch (fabel-designgate) — men branchen er ikke test-deployet (test tracker develop), og Google/Microsoft-OAuth avviser en agent-Chrome. Løsning: kjør branchen lokalt + mint token via dev-login + seed nødvendig data-tilstand. **Kenneth trenger IKKE logge inn.** (Etablert 2026-07-28, P2-bevis. Verifisert: `seed-e2e-flyt.ts` finnes + invokering; `worktree-bootstrap.sh` = fabels forslag, se BACKLOG.)
+
+1. **Env inn i worktreet** (gitignorert interim — samme worktree-lærdom som e2e-rigg-ordren; aldri commit):
+   ```
+   cp ../SiteDoc/apps/api/.env       apps/api/.env
+   cp ../SiteDoc/apps/web/.env.local apps/web/.env.local
+   ```
+2. **Lokal dev-login trenger IKKE secret** (`NODE_ENV=development`, localhost — se § Sikkerhetsgrense). Mint token mot lokal api (`localhost:3001`) som `test-arbeider@sitedoc.test` (utfører-rollen).
+3. **Seed data-tilstanden mot LOKAL DB** (ikke test-DB): kjør `seed-testbrukere.ts` FØRST, så `seed-e2e-flyt.ts` — begge med `DATABASE_URL=<lokal>`:
+   ```
+   DATABASE_URL=<lokal> pnpm --filter @sitedoc/db exec tsx scripts/seed-testbrukere.ts
+   DATABASE_URL=<lokal> pnpm --filter @sitedoc/db exec tsx scripts/seed-e2e-flyt.ts
+   ```
+   - ⚠️ **Kandidat — verifiser, ikke anta (2026-07-28):** `seed-e2e-flyt.ts` traff `ERR_MODULE_NOT_FOUND` under e2e-riggen (2026-07-26). `seed-testbrukere.ts` med samme invokering kjørte grønt → feilen ligger i `seed-e2e-flyt.ts` sine import-stier, ikke i `tsx`. Verifiser at den kjører; feiler den, fiks modul-oppslaget FØR du bygger bevis på den.
+   - ⚠️ **Kandidat:** seed-en setter opp flyt-scaffolding (faggrupper/mal/flyt/medlemmer). Verifiser om den også lager en **`received`-status sjekkliste-instans med test-arbeider som utfører** — trengs for at «Besvar» vises. Hvis ikke: opprett + send én sjekkliste til `received` som del av oppsettet.
+4. `pnpm dev --filter @sitedoc/web --filter @sitedoc/api` → browser `localhost:3100` med token → fang skjermbildene → `SiteDoc/<modul>-bevis/`.
+
+### Worktree e2e — konkrete gotchas (Playwright + localhost, verifisert 2026-07-30 under P4b-e2e)
+
+Skjelettet over stemmer, men fem ting er ikke åpenbare og koster runde-tap:
+
+1. **dev-login-ruten gir 404 til api kjører med `NODE_ENV=development` EKSPLISITT.** `tsx watch src/server.ts` (api dev-script) setter ikke NODE_ENV → `erDevLoginAktiv()` = false → ruten monteres aldri. Start api slik:
+   ```
+   NODE_ENV=development DATABASE_URL="<lokal>" pnpm --filter @sitedoc/api dev
+   ```
+2. **DATABASE_URL auto-lastes ikke inn i api-prosessen** (maskin/Vegvesen-worker feiler «Environment variable not found: DATABASE_URL») — send den eksplisitt (som over). Web (3100) trenger den ikke.
+3. **Cookie-navnet er Auth.js v5, ikke next-auth:** `authjs.session-token` (http/localhost) / `__Secure-authjs.session-token` (https). Kilde: `tests/e2e/lib/miljo.ts` (`COOKIE_NAVN`).
+4. **Cookien er httpOnly → MÅ settes via Playwright `context.addCookies`**, aldri `document.cookie`/`evaluate`. Mint token mot lokal dev-login (ingen secret), sett cookie, naviger:
+   ```js
+   const { sessionToken } = await (await fetch('http://localhost:3001/dev-login', {
+     method:'POST', headers:{'Content-Type':'application/json'},
+     body: JSON.stringify({ email: 'test-firma@sitedoc.test' })
+   })).json();
+   await page.context().addCookies([{
+     name:'authjs.session-token', value: sessionToken,
+     domain:'localhost', path:'/', httpOnly:true, secure:false, sameSite:'Lax',
+     expires: Math.floor(Date.now()/1000)+25*24*60*60,
+   }]);
+   await page.goto('http://localhost:3100/dashbord/<projectId>/sjekklister');
+   ```
+   (velg testbruker etter rolle: `test-firma` = registrator/opprett-tester, `test-arbeider` = utfører.)
+5. **Port 3001 EADDRINUSE ved restart** (gammel api henger igjen): `lsof -ti:3001 | xargs kill -9` før ny start.
+
+**Fremtidig forbedring (fabel-forslag 2026-07-28, ikke bygget):** `scripts/worktree-bootstrap.sh` som kopierer/lenker env fra hovedtreet ved oppsett av nytt worktree — lukker env-hullet for ALLE fremtidige worktrees i én kommando. Samme krav (gitignorert, aldri commit) som resten av e2e-rigg-ordren. Se BACKLOG.
 
 ## Sikkerhetsgrense
 

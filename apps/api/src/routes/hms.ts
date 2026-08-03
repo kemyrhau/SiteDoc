@@ -2,7 +2,8 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { byggTilgangsFilter, erHmsAdmin, harFirmaHmsTilgang, verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
-import { documentStatusSchema, isValidStatusTransition } from "@sitedoc/shared";
+import { documentStatusSchema } from "@sitedoc/shared";
+import { terminalFraStatus, avledetStatus } from "../services/flytFakta";
 import { prisma } from "@sitedoc/db";
 import { IKKE_SLETTET } from "../utils/softDelete";
 
@@ -562,26 +563,42 @@ export const hmsRouter = router({
         });
       }
 
-      // Valider status-overgang hvis oppgitt
+      // F3.5 (FLAGG 1): firma-hurtigbehandling er en ↔ ADMIN-OVERRIDE som KUN kan sette en
+      // TERMINAL (godkjent/avvist/lukket/avbrutt) — ikke vilkårlige mellomstatuser. Overgangen
+      // føres i transferloggen (ikke TaskComment-sidekanal), og status AVLEDES fra terminal-feltet.
+      // isValidStatusTransition-gaten er borte: terminal er ikke en statusmaskin-overgang.
+      const kommentar = input.kommentar?.trim() || null;
       if (input.nyStatus && input.nyStatus !== oppgave.status) {
-        if (!isValidStatusTransition(oppgave.status, input.nyStatus)) {
+        const firmaTerminal = terminalFraStatus(input.nyStatus);
+        if (!firmaTerminal) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: `Ugyldig statusovergang ${oppgave.status} → ${input.nyStatus}`,
+            message: "Hurtigbehandling kan kun sette en terminal-status (godkjent, avvist, lukket eller avbrutt)",
           });
         }
-        await ctx.prisma.task.update({
-          where: { id: input.taskId },
-          data: { status: input.nyStatus },
+        const nyDokStatus = avledetStatus({ retning: "frem", terminal: firmaTerminal, sendt: true });
+        await ctx.prisma.$transaction(async (tx) => {
+          await tx.task.update({
+            where: { id: input.taskId },
+            data: { status: nyDokStatus, terminal: firmaTerminal, sendt: true },
+          });
+          await tx.documentTransfer.create({
+            data: {
+              taskId: input.taskId,
+              senderId: ctx.userId,
+              fromStatus: oppgave.status,
+              toStatus: nyDokStatus,
+              comment: kommentar,
+            },
+          });
         });
-      }
-
-      if (input.kommentar?.trim()) {
+      } else if (kommentar) {
+        // Kun kommentar (ingen status-endring) → TaskComment, som før.
         await ctx.prisma.taskComment.create({
           data: {
             taskId: input.taskId,
             userId: ctx.userId,
-            content: input.kommentar.trim(),
+            content: kommentar,
           },
         });
       }

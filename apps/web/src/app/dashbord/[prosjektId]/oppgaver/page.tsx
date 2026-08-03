@@ -8,8 +8,9 @@ import { Button, Modal, Spinner, EmptyState, StatusBadge, Badge, Table } from "@
 import { beregnHarBallen } from "@sitedoc/shared";
 import { useVerktoylinje } from "@/hooks/useVerktoylinje";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
+import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
-import { FlytIndikator } from "@/components/FlytIndikator";
+import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 
 // --- Typer ---
@@ -316,7 +317,11 @@ export default function OppgaverSide() {
   });
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const [mineOppgaver, setMineOppgaver] = useState(false);
-  const { aktivByggeplass } = useByggeplass();
+  // Oppgave-opprett tar kun drawingId (oppgave.opprett har ikke byggeplassId —
+  // byggeplass utledes via drawing.byggeplassId). Henter standardTegning som
+  // kontekst-default (V2); byggeplass-uten-aktiv-tegning kan ikke festes på
+  // oppgave uten server-endring (sak B, backlogget).
+  const { standardTegning } = useByggeplass();
 
   const oppgaveQuery = trpc.oppgave.hentForProsjekt.useQuery(
     { projectId: params.prosjektId },
@@ -325,7 +330,11 @@ export default function OppgaverSide() {
   const isLoading = oppgaveQuery.isLoading;
 
   const { data: maler } = trpc.mal.hentForProsjekt.useQuery({ projectId: params.prosjektId });
-  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null }>).filter((m) => m.category === "oppgave");
+  const oppgaveMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string | null; category: string; domain?: string | null; opprettbar?: boolean }>).filter((m) => m.category === "oppgave");
+  // P4b pkt 0: skill opprettbare fra utilgjengelige (server-feltet, delt regel).
+  // Velger + auto-hopp bruker KUN opprettbare; utilgjengelige vises bak «vis (N)».
+  const opprettbareOppgaveMaler = oppgaveMaler.filter((m) => m.opprettbar !== false);
+  const utilgjengeligeOppgaveMaler = oppgaveMaler.filter((m) => m.opprettbar === false);
   const { data: mineFaggrupper } = trpc.medlem.hentMineFaggrupper.useQuery(
     { projectId: params.prosjektId },
   );
@@ -338,9 +347,26 @@ export default function OppgaverSide() {
   // «Mine oppgaver»-filter (Del 1d): trenger userId + gruppeIder for beregnHarBallen.
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
 
+  // P4b: sist brukt oppgavemal (klient-lokal interim, se useSistBrukteMal).
+  // Oppgave-mal → flyt er DETERMINISTISK (matchDf i handleOpprettFraMal), så en
+  // per-prosjekt-nøkkel kan aldri gi «feil mal på tvers av flyter» — å velge mal
+  // X ruter alltid til X sin flyt. (Skiller seg fra sjekkliste, der samme mal kan
+  // ligge i flere flyter og nøkkelen derfor må være per flyt.)
+  const { sistBrukt, settSistBrukt } = useSistBrukteMal(minFlytInfo?.userId);
+  const oppgaveMalNøkkel = `oppgave:${params.prosjektId}`;
+  const sisteMalRef = useRef<string | null>(null);
+  // P4b pkt 0: utilgjengelige maler skjules som default; åpnes via «vis (N)».
+  const [visUtilgjengelige, setVisUtilgjengelige] = useState(false);
+
+  // @ts-ignore TS2589 — tRPC-output trigger excessively deep instantiation (kjent
+  // falsk-positiv, samme mønster som oppgave-detalj); callback bruker _data: unknown.
   const opprettMutation = trpc.oppgave.opprett.useMutation({
     onSuccess: (_data: unknown) => {
       const resultat = _data as { id: string };
+      if (sisteMalRef.current) {
+        settSistBrukt(oppgaveMalNøkkel, sisteMalRef.current);
+        sisteMalRef.current = null;
+      }
       utils.oppgave.hentForProsjekt.invalidate({ projectId: params.prosjektId });
       setVisModal(false);
       router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
@@ -351,17 +377,23 @@ export default function OppgaverSide() {
     },
   });
 
+  // Verktøylinja registrerer kun ved mount → onClick ville fryse en stale
+  // åpneMalVelger (tom mal-liste før data er lastet) og auto-hopp ville aldri
+  // utløses. Ref holdes fersk hver render (assign etter definisjonen under).
+  const åpneMalVelgerRef = useRef<() => void>(() => {});
   useVerktoylinje([
     {
       id: "ny-oppgave",
       label: t("oppgaver.ny"),
       ikon: <Plus className="h-4 w-4" />,
-      onClick: () => setVisModal(true),
+      onClick: () => åpneMalVelgerRef.current(),
       variant: "primary",
     },
   ]);
 
   function handleOpprettFraMal(malId: string) {
+    // P4b: husk malen til onSuccess skriver sist-brukt-signalet (interim).
+    sisteMalRef.current = malId;
     // Hent malen med domain fra API-data (ikke fra type-castet oppgaveMaler)
     const alleMalerTypet = (maler ?? []) as Array<{ id: string; name: string; domain?: string | null; category: string }>;
     const malMedDomain = alleMalerTypet.find((m) => m.id === malId);
@@ -372,6 +404,7 @@ export default function OppgaverSide() {
         templateId: malId,
         title: malMedDomain.name ?? t("oppgaver.hmsAvvikFallback"),
         priority: "medium",
+        drawingId: standardTegning?.id,
       });
       return;
     }
@@ -419,8 +452,30 @@ export default function OppgaverSide() {
       title: malMedDomain?.name ?? t("oppgaver.nyOppgaveFallback"),
       priority: "medium",
       dokumentflytId: matchDf?.id,
+      drawingId: standardTegning?.id,
     });
   }
+
+  // V3 (del6b web-paritet) + P4b auto-hopp: ved nøyaktig 1 mal opprettes den
+  // direkte (speiler mobil MalVelger). Ved flere maler brukes sist-brukt-signalet
+  // (klient-lokal interim): treffer det en mal som fortsatt finnes → opprett
+  // direkte; ellers mellomvalget (modalen). Aldri gjett blindt.
+  function åpneMalVelger() {
+    // P4b pkt 0: auto-valg KUN fra opprettbare maler (server-feltet).
+    const eneste = opprettbareOppgaveMaler.length === 1 ? opprettbareOppgaveMaler[0] : undefined;
+    if (eneste) {
+      handleOpprettFraMal(eneste.id);
+    } else {
+      const sistMalId = sistBrukt(oppgaveMalNøkkel);
+      if (sistMalId && opprettbareOppgaveMaler.some((m) => m.id === sistMalId)) {
+        handleOpprettFraMal(sistMalId);
+        return;
+      }
+      setVisModal(true);
+    }
+  }
+  // Hold verktøylinje-ref fersk (se useVerktoylinje over).
+  åpneMalVelgerRef.current = åpneMalVelger;
 
   // Trekk ut Verdier-kolonner fra alle maler brukt i data
   const verdiFelter = useMemo<KolonneParam[]>(() => {
@@ -469,20 +524,15 @@ export default function OppgaverSide() {
   const alleKolonner = useMemo(() => [...SYSTEM_KOLONNER, ...POSISJON_KOLONNER, ...verdiFelter], [verdiFelter]);
 
   // Utled aktivt flyt-ledd for en rad (for filter/sortering)
-  const hentFlytLedd = useCallback((rad: OppgaveRad): string => {
-    const medl = rad.dokumentflyt?.medlemmer;
-    if (!medl || medl.length === 0) return "";
-    if (rad.status === "closed" || rad.status === "approved") return "";
-    const recipientGroupId = rad.recipientGroup?.id;
-    const recipientUserId = rad.recipientUser?.id;
-    for (const m of medl) {
-      if (recipientGroupId && m.group?.id === recipientGroupId) return m.group.name;
-      if (recipientUserId && m.projectMember?.user?.id === recipientUserId) return m.projectMember.user.name ?? "";
-    }
-    const ent = medl.find((m) => m.faggruppe);
-    if (ent?.faggruppe) return ent.faggruppe.name;
-    return "";
-  }, []);
+  // Fase 4: aktiv boks fra posisjon (server-fakta), ikke recipient-heuristikk.
+  const hentFlytLedd = useCallback(
+    (rad: OppgaveRad): string =>
+      hentAktivtLeddNavn(
+        rad.dokumentflyt?.medlemmer ?? [],
+        (rad as { aktivPosisjon?: number | null }).aktivPosisjon,
+      ),
+    [],
+  );
 
   // Dynamiske filteralternativer
   const dynamiskFilter = useMemo(() => {
@@ -726,10 +776,7 @@ export default function OppgaverSide() {
         id: "flyt", header: t("tabell.flyt"),
         celle: (rad) => <FlytIndikator
           medlemmer={rad.dokumentflyt?.medlemmer ?? []}
-          recipientUserId={rad.recipientUser?.id}
-          recipientGroupId={rad.recipientGroup?.id}
-          status={rad.status}
-          bestillerUserId={rad.bestillerUserId}
+          aktivPosisjon={(rad as { aktivPosisjon?: number | null }).aktivPosisjon}
         />,
         bredde: "200px", sorterbar: true, sorterVerdi: (rad) => hentFlytLedd(rad),
         filtrerbar: true, filterAlternativer: dynamiskFilter.flyt ?? [],
@@ -872,7 +919,7 @@ export default function OppgaverSide() {
         <EmptyState
           title={t("oppgaver.ingen")}
           description={t("oppgaver.ingenBeskrivelse")}
-          action={<Button onClick={() => setVisModal(true)}>{t("oppgaver.opprett")}</Button>}
+          action={<Button onClick={åpneMalVelger}>{t("oppgaver.opprett")}</Button>}
         />
       ) : (
         <Table<OppgaveRad>
@@ -893,19 +940,40 @@ export default function OppgaverSide() {
           {oppgaveMaler.length === 0 ? (
             <p className="py-4 text-center text-sm text-gray-400">{t("oppgaver.ingenMaler")}</p>
           ) : (
-            oppgaveMaler.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => handleOpprettFraMal(m.id)}
-                disabled={opprettMutation.isPending}
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50"
-              >
-                <span className="text-sm font-medium text-gray-800">{m.name}</span>
-                {m.prefix && (
-                  <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>
-                )}
-              </button>
-            ))
+            <>
+              {opprettbareOppgaveMaler.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => handleOpprettFraMal(m.id)}
+                  disabled={opprettMutation.isPending}
+                  className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <span className="text-sm font-medium text-gray-800">{m.name}</span>
+                  {m.prefix && (
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>
+                  )}
+                </button>
+              ))}
+              {/* P4b pkt 0: utilgjengelige maler bak «vis (N)» — dempet, ikke klikkbar. */}
+              {utilgjengeligeOppgaveMaler.length > 0 && (
+                <div className="border-t border-gray-100 pt-2">
+                  <button type="button" onClick={() => setVisUtilgjengelige((v) => !v)}
+                    className="flex min-h-11 w-full items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600">
+                    {visUtilgjengelige ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    {t("sjekklister.visUtilgjengelige", { antall: utilgjengeligeOppgaveMaler.length })}
+                  </button>
+                  {visUtilgjengelige && utilgjengeligeOppgaveMaler.map((m) => (
+                    <div key={m.id} className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2.5 opacity-60">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-500">{m.name}</span>
+                        {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
+                      </span>
+                      <span className="text-xs text-gray-400">{t("dokumentflyt.feil.ingenFlytMedMal")}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </div>
       </Modal>

@@ -45,6 +45,8 @@ interface MalData {
   prefix: string | null;
   category: string;
   subjects?: string[];
+  // Flytresolusjon: bæres fra mal-lista til opprett-modalen (delt opprett-regel).
+  opprettbareFlytIder?: string[];
 }
 
 interface InnboksElement {
@@ -118,9 +120,10 @@ export default function HjemSkjerm() {
     { organizationId: valgtFirmaId ?? undefined },
     { enabled: !!valgtFirmaId || (!lasterFirmaer && firmaer.length === 0) },
   );
-  const valgtProsjekt = prosjektQuery.data?.find(
-    (p) => p.id === valgtProsjektId,
-  );
+  // Lean cast: tRPC-output drar med seg dyp config-Json (TS2589 på .find/.some).
+  // Samme mønster som bygninger/psiListe under — holder scope i mobil.
+  const prosjektListe = prosjektQuery.data as Array<{ id: string; name: string }> | undefined;
+  const valgtProsjekt = prosjektListe?.find((p) => p.id === valgtProsjektId);
 
   // Hent bygninger for å vise valgt bygningsnavn
   const bygningQuery = trpc.bygning.hentForProsjekt.useQuery(
@@ -138,22 +141,25 @@ export default function HjemSkjerm() {
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId },
   );
+  // Lean cast (som prosjektListe): tRPC-modul-output har dyp config-Json.
+  const moduler = modulQuery.data as Array<{ moduleSlug: string; active: boolean }> | undefined;
   const er3dAktiv = useMemo(() => {
-    if (!modulQuery.data) return false;
-    return modulQuery.data.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "3d-visning" && m.active);
-  }, [modulQuery.data]);
+    if (!moduler) return false;
+    return moduler.some((m) => m.moduleSlug === "3d-visning" && m.active);
+  }, [moduler]);
 
   const erPsiAktiv = useMemo(() => {
-    if (!modulQuery.data) return false;
-    return modulQuery.data.some((m: { moduleSlug: string; active: boolean }) => m.moduleSlug === "psi" && m.active);
-  }, [modulQuery.data]);
+    if (!moduler) return false;
+    return moduler.some((m) => m.moduleSlug === "psi" && m.active);
+  }, [moduler]);
 
   // Hent PSI-er og status per PSI
   const psiQuery = trpc.psi.hentForProsjekt.useQuery(
     { projectId: valgtProsjektId! },
     { enabled: !!valgtProsjektId && erPsiAktiv },
   );
-  type PsiData = { id: string; version: number; byggeplassId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } };
+  type PsiData = { id: string; version: number; byggeplassId: string | null; byggeplass: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } };
+  // Klient-typen matcher nå server-output (psi.ts include: byggeplass).
   const psiListe = (psiQuery.data ?? []) as PsiData[];
 
   // Sjekk om valgt bygning har IFC-modeller OG 3D-modulen er aktiv
@@ -524,9 +530,22 @@ export default function HjemSkjerm() {
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
 
-              <Pressable className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3">
+              <Pressable
+                onPress={() => router.push("/kontrollplan")}
+                className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+              >
                 <Text className="text-base font-semibold text-gray-900">
                   {t("hjem.kontrollplaner")}
+                </Text>
+                <ChevronRight size={20} color="#9ca3af" />
+              </Pressable>
+
+              <Pressable
+                onPress={() => router.push("/hms")}
+                className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+              >
+                <Text className="text-base font-semibold text-gray-900">
+                  {t("hjem.hms")}
                 </Text>
                 <ChevronRight size={20} color="#9ca3af" />
               </Pressable>
@@ -654,7 +673,7 @@ export default function HjemSkjerm() {
 }
 
 /* PSI-statuslinje — smal linje per PSI */
-function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: number; byggeplassId: string | null; building: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } }> }) {
+function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: number; byggeplassId: string | null; byggeplass: { id: string; name: string } | null; template: { id: string; name: string; prefix: string | null } }> }) {
   const router = useRouter();
 
   return (
@@ -667,13 +686,13 @@ function PsiStatusKort({ psiListe }: { psiListe: Array<{ id: string; version: nu
 }
 
 function PsiStatusRad({ psi, onPress }: {
-  psi: { id: string; version: number; byggeplassId: string | null; building: { id: string; name: string } | null };
+  psi: { id: string; version: number; byggeplassId: string | null; byggeplass: { id: string; name: string } | null };
   onPress: () => void;
 }) {
   const { t } = useTranslation();
   const statusQuery = trpc.psi.hentMinStatus.useQuery({ psiId: psi.id });
   const status = statusQuery.data;
-  const navn = psi.building?.name ?? null;
+  const navn = psi.byggeplass?.name ?? null;
 
   let bakgrunn = "bg-amber-50";
   let ikon = "#f59e0b";

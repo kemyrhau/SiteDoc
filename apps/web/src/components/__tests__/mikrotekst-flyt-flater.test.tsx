@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, beforeAll, afterEach } from "vitest";
-import { render, cleanup } from "@testing-library/react";
+import { render, cleanup, fireEvent, screen } from "@testing-library/react";
 import { useTranslation, I18nextProvider, initReactI18next } from "react-i18next";
 import i18n from "i18next";
 import { nb } from "@sitedoc/shared";
@@ -52,12 +52,13 @@ function MatriseRadHover({ rad }: { rad: MatriseRad }) {
 describe("Flate 1: matrise-hover leser delt flythjelp-kilde", () => {
   it("received→responded (besvar) rendrer tittel «Besvar → Besvart» + brødtekst med fallback-benevnelse", () => {
     const rad = MATRISE_RADER.find((r) => r.fra === "received" && r.til === "responded")!;
-    const { container } = render(
+    render(
       <I18nextProvider i18n={i18n}>
         <MatriseRadHover rad={rad} />
       </I18nextProvider>,
     );
-    const tekst = container.textContent ?? "";
+    // Runde-2: tooltip-noden portales til document.body (fixed) → les hele body, ikke container.
+    const tekst = document.body.textContent ?? "";
     // Tittel = Handling → Ny status (delt mønster).
     expect(tekst).toContain("Besvar → Besvart");
     // Brødtekst med {{mottaker}} fylt av den relasjonelle fallback-benevnelsen.
@@ -68,12 +69,12 @@ describe("Flate 1: matrise-hover leser delt flythjelp-kilde", () => {
 
   it("draft→sent (send) tittel «Send → Sendt» + fallback «neste mottaker i flyten»", () => {
     const rad = MATRISE_RADER.find((r) => r.fra === "draft" && r.til === "sent")!;
-    const { container } = render(
+    render(
       <I18nextProvider i18n={i18n}>
         <MatriseRadHover rad={rad} />
       </I18nextProvider>,
     );
-    const tekst = container.textContent ?? "";
+    const tekst = document.body.textContent ?? "";
     expect(tekst).toContain("Send → Sendt");
     expect(tekst).toContain("fra deg til neste mottaker i flyten");
     expect(tekst).not.toContain("{{");
@@ -86,8 +87,8 @@ describe("Flate 1: matrise-hover leser delt flythjelp-kilde", () => {
 
 describe("Flate 2: «Besvar»-hover bruker ledd[aktivtIndex-1] (avsender), ikke mottakerForStandard", () => {
   // Tre ledd: avsender (Kari) → utfører (Ola, nåværende boks) → godkjenner (Per).
-  // status=in_progress, recipient=Ola ⇒ aktivtIndex=1, erSisteBoks=false ⇒ variant «besvar»,
-  // {{mottaker}} = ledd[0].navn = «Kari Byggherre».
+  // Runde-2: status=received (in_progress kollapset), recipient=Ola ⇒ aktivtIndex=1, erSisteBoks=false
+  // ⇒ variant «besvar», {{mottaker}} = ledd[0].navn = «Kari Byggherre».
   const flytMedlemmer = [
     { id: "m0", rolle: "bestiller", steg: 1, faggruppe: null, projectMember: { user: { id: "u-kari", name: "Kari Byggherre" } }, group: null },
     { id: "m1", rolle: "utforer", steg: 2, faggruppe: null, projectMember: { user: { id: "u-ola", name: "Ola Tømrer" } }, group: null },
@@ -95,10 +96,15 @@ describe("Flate 2: «Besvar»-hover bruker ledd[aktivtIndex-1] (avsender), ikke 
   ];
 
   it("hover-brødteksten navngir avsenderen «Kari Byggherre»", () => {
-    const { container } = render(
+    render(
       <I18nextProvider i18n={i18n}>
         <DokumentHandlingsmeny
-          status="in_progress"
+          status="received"
+          aktivPosisjon={2}
+          retningsrett={{ kanSende: true, kanBesvare: true, kanVideresende: false, kanTerminere: false }}
+          harBallen={true}
+          erAvsender={false}
+          erMedlemAvFlyt={false}
           erLaster={false}
           minRolle="utforer"
           onEndreStatus={() => {}}
@@ -107,7 +113,11 @@ describe("Flate 2: «Besvar»-hover bruker ledd[aktivtIndex-1] (avsender), ikke 
         />
       </I18nextProvider>,
     );
-    const tekst = container.textContent ?? "";
+    // Runde-2: primær = «Send til N·X» (nesteLedd); Besvar er sekundær i split-▾. Åpne menyen så
+    // Besvar-raden + dens mikrotekst-tooltip monteres.
+    fireEvent.click(screen.getByTestId("handling-split-nedtrekk"));
+    // Tooltip-mikroteksten portales til document.body → les hele body.
+    const tekst = document.body.textContent ?? "";
     // Avsenderen (forrige ledd) er navngitt i besvar-brødteksten.
     expect(tekst).toContain("fra deg til Kari Byggherre, som vurderer svaret");
     // Ikke siste-ledd-varianten, og ingen placeholder-lekkasje.

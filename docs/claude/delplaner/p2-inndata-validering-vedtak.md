@@ -1,6 +1,6 @@
 ---
 name: p2-inndata-validering-vedtak
-status: 🟡 VEDTATT — ordre ikke skrevet. Sekvensert etter A-3b Fase B (overlappende flater)
+status: 🟢 ORDRE SKREVET 2026-07-28 (delplaner/p2-inndata-validering-ordre.md). A-3b Fase B ferdig+prod 25.07 — sekvenserings-blokker borte; P2 na-sjekk kan starte, koding sekvenseres etter A (del6b) merger (mobil-dialog-overlapp).
 eier: Kenneth (vedtak) · fabel (ordre) · cowork (sekvensering + gate)
 sist_verifisert_mot_kode: 2026-07-21
 ---

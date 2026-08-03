@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native";
-import { X } from "lucide-react-native";
+import { X, ChevronDown, ChevronRight } from "lucide-react-native";
 import { trpc } from "../lib/trpc";
 import { useProsjekt } from "../kontekst/ProsjektKontekst";
 
@@ -18,6 +18,11 @@ interface MalData {
   prefix: string | null;
   category: string;
   subjects?: string[];
+  // P4b pkt 0: opprettbarhet fra serveren (delt regel med opprett-valideringen).
+  opprettbar?: boolean;
+  // Flytresolusjon: de opprettbare flyt-idene (delt regel) bæres videre til
+  // opprett-modalen, som bruker dem til flyt-valg (én sannhet med velgeren).
+  opprettbareFlytIder?: string[];
 }
 
 interface MalVelgerProps {
@@ -36,11 +41,42 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
   );
 
   const maler = malQuery.data as MalData[] | undefined;
+  const [visUtilgjengelige, setVisUtilgjengelige] = useState(false);
 
-  const filtrerteMaler = useMemo(
+  const kategoriMaler = useMemo(
     () => maler?.filter((m) => m.category === kategori) ?? [],
     [maler, kategori],
   );
+  // P4b pkt 0: velger + auto-velg bruker KUN opprettbare maler (server-feltet,
+  // delt regel med opprett-valideringen). Utilgjengelige vises bak «vis (N)».
+  const filtrerteMaler = useMemo(
+    () => kategoriMaler.filter((m) => m.opprettbar !== false),
+    [kategoriMaler],
+  );
+  const utilgjengeligeMaler = useMemo(
+    () => kategoriMaler.filter((m) => m.opprettbar === false),
+    [kategoriMaler],
+  );
+
+  // Klikk-kutt: nøyaktig 1 mal → hopp over velgeren og velg den automatisk
+  // (malen vises uansett som felt i opprett-skjemaet). Én gang per åpning.
+  const skalAutoVelge = !malQuery.isLoading && filtrerteMaler.length === 1;
+  const harAutoValgt = useRef(false);
+  useEffect(() => {
+    if (!synlig) {
+      harAutoValgt.current = false;
+      return;
+    }
+    if (skalAutoVelge && !harAutoValgt.current) {
+      harAutoValgt.current = true;
+      onVelg(filtrerteMaler[0]);
+    }
+  }, [synlig, skalAutoVelge, filtrerteMaler, onVelg]);
+
+  // Ved auto-velg (eller mens maler lastes) rendres IKKE velger-modalen — så
+  // den aldri sklir inn og ut samtidig som opprett-modalen animeres inn (to
+  // samtidige pageSheet-modaler kolliderer på iOS). Kun ≥2 maler viser velger.
+  if (synlig && (malQuery.isLoading || skalAutoVelge)) return null;
 
   return (
     <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
@@ -60,7 +96,7 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
             <ActivityIndicator size="large" color="#1e40af" />
             <Text className="mt-3 text-sm text-gray-500">Henter maler...</Text>
           </View>
-        ) : filtrerteMaler.length === 0 ? (
+        ) : filtrerteMaler.length === 0 && utilgjengeligeMaler.length === 0 ? (
           <View className="flex-1 items-center justify-center px-4">
             <Text className="text-base text-gray-500">
               Ingen {kategori === "sjekkliste" ? "sjekkliste" : "oppgave"}maler funnet
@@ -89,6 +125,38 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
                 ) : null}
               </Pressable>
             )}
+            ListFooterComponent={
+              utilgjengeligeMaler.length > 0 ? (
+                // P4b pkt 0: utilgjengelige maler (kan ikke opprettes) bak «vis (N)».
+                <View className="border-t border-gray-100">
+                  <Pressable
+                    onPress={() => setVisUtilgjengelige((v) => !v)}
+                    className="flex-row items-center gap-1.5 px-4 py-3"
+                  >
+                    {visUtilgjengelige ? (
+                      <ChevronDown size={16} color="#9ca3af" />
+                    ) : (
+                      <ChevronRight size={16} color="#9ca3af" />
+                    )}
+                    <Text className="text-xs font-semibold uppercase text-gray-400">
+                      Vis utilgjengelige ({utilgjengeligeMaler.length})
+                    </Text>
+                  </Pressable>
+                  {visUtilgjengelige &&
+                    utilgjengeligeMaler.map((item) => (
+                      <View
+                        key={item.id}
+                        className="border-b border-gray-100 bg-white px-4 py-3.5 opacity-60"
+                      >
+                        <Text className="text-sm font-medium text-gray-500">{item.name}</Text>
+                        <Text className="text-xs text-gray-400">
+                          Ingen av dine dokumentflyter bruker denne malen
+                        </Text>
+                      </View>
+                    ))}
+                </View>
+              ) : null
+            }
           />
         )}
       </SafeAreaView>

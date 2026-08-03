@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { prisma } from "@sitedoc/db";
-import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle, avgjorDokumentTilgang } from "@sitedoc/shared";
-import type { FlytMedlemInfo, AdminNiva } from "@sitedoc/shared";
+import { type Permission, PERMISSIONS, utvidTillatelser, utledMinRolle, erTillattForRolle, avgjorDokumentTilgang, byggPosisjonsLedd, harBallenPosisjon, retningsrettigheter, erAvsenderledd, erMedlemAvFlyt } from "@sitedoc/shared";
+import type { FlytMedlemInfo, AdminNiva, RaFlytMedlem, FlytBruker } from "@sitedoc/shared";
 import { hentFlytRettighetOverrides } from "../services/flytRettighet";
 
 /**
@@ -813,6 +813,106 @@ export async function verifiserFlytRolle(
     throw new TRPCError({
       code: "FORBIDDEN",
       message: `Du har rollen «${rolleNavn}» i denne dokumentflyten og kan ikke utføre overgangen ${gjeldendStatus} → ${nyStatus}`,
+    });
+  }
+}
+
+/**
+ * F3.4: POSISJON-basert autorisasjon (erstatter verifiserFlytRolle sin rolle×status-matrise).
+ * Rutingen teller ledd — så autorisasjonen gjør det også: en handling er tillatt hvis brukeren
+ * har ballen (er medlem av aktivPosisjon-leddet) eller har terminerings-fullmakt (kanTerminereUtenBall).
+ * Retningsreglene (retningsrettigheter) er ÉN kilde delt med klient (Fase 4).
+ *
+ *   send      → kanSende (ball-holder)
+ *   responded → kanBesvare (ball-holder, kontroll|utfor)
+ *   terminaler → kanTerminere (ball-holder ∨ kanTerminereUtenBall; F3/HMS-lukk)
+ *   draft (trekk tilbake/gjenåpne) → kanBesvare ∨ kanSende
+ *   forwarded → deferres til flyt-bytte-grenens egen H3-sjekk
+ *
+ * Erstatter 1b B-gaten: HMS ruter nå via posisjon, så null-medlem-bestillerboksen er ikke
+ * lenger et autorisasjonsproblem (bestillerUserId bærer Ledd 1 via E1).
+ */
+/**
+ * Bygg `FlytBruker` for en handlende bruker (§ 2.4 gjenåpne-landing i beregnRuting).
+ * `erAdmin` dekker sitedoc_admin + prosjektadmin (samme bypass som verifiserRetningsrett).
+ * Kalles kun ved draft-overgang (gjenåpne/trekk-tilbake) — ikke hot-path.
+ */
+export async function byggFlytBruker(userId: string, projectId: string): Promise<FlytBruker> {
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    include: {
+      faggruppeKoblinger: { select: { faggruppeId: true } },
+      groupMemberships: { select: { groupId: true } },
+    },
+  });
+  return {
+    userId,
+    gruppeIder: medlem?.groupMemberships.map((gm) => gm.groupId) ?? [],
+    faggruppeIder: medlem?.faggruppeKoblinger.map((e) => e.faggruppeId) ?? [],
+    erAdmin: bruker?.role === "sitedoc_admin" || medlem?.role === "admin",
+  };
+}
+
+export async function verifiserRetningsrett(
+  userId: string,
+  projectId: string,
+  medlemmer: RaFlytMedlem[],
+  aktivPosisjon: number | null,
+  nyStatus: string,
+  fraStatus: string,
+): Promise<void> {
+  if (medlemmer.length === 0) return; // Flyt-løst dok — bakoverkompat.
+  if (nyStatus === "forwarded") return; // Videresend autoriseres i flyt-bytte-grenen (H3).
+
+  const bruker = await prisma.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (bruker?.role === "sitedoc_admin") return;
+
+  const medlem = await prisma.projectMember.findUnique({
+    where: { userId_projectId: { userId, projectId } },
+    include: {
+      faggruppeKoblinger: { select: { faggruppeId: true } },
+      groupMemberships: { select: { groupId: true } },
+    },
+  });
+  if (!medlem) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Ikke medlem av prosjektet" });
+  }
+  if (medlem.role === "admin") return; // Prosjektadmin: full tilgang (som dagens adminNiva="prosjekt").
+
+  const flytBruker: FlytBruker = {
+    userId,
+    gruppeIder: medlem.groupMemberships.map((gm) => gm.groupId),
+    faggruppeIder: medlem.faggruppeKoblinger.map((e) => e.faggruppeId),
+    erAdmin: false,
+  };
+  const ledd = byggPosisjonsLedd(medlemmer);
+  const erMedlemAv = (l: (typeof ledd)[number]): boolean =>
+    l.brukerIder.has(userId) ||
+    flytBruker.gruppeIder.some((g) => l.gruppeIder.has(g)) ||
+    flytBruker.faggruppeIder.some((f) => l.faggruppeIder.has(f));
+  const harBallen = harBallenPosisjon(ledd, aktivPosisjon, flytBruker);
+  // Seer-ledd for kanTerminereUtenBall: brukerens ledd, foretrukket det med termineringsfullmakt.
+  const seerLedd = ledd.find((l) => erMedlemAv(l) && l.kanTerminereUtenBall) ?? ledd.find(erMedlemAv) ?? null;
+  const rett = retningsrettigheter({ harBallen, seerLedd, kanVideresende: false });
+  // § 2.4-guards (2026-08-01, fabel alt. A): fra-status skiller draft-veiene —
+  //   trekk tilbake (received→draft) = AVSENDERLEDDET (den som sendte = forrigeBallLedд);
+  //   gjenåpne (terminal→draft)      = MEDLEM av flyten (§ 2.4-rett; admin dekket over).
+  // Erstatter seerErBakover (for bred) / harBallen (for smal — låste gjenåpne til terminal-ball).
+  const erAvsender = erAvsenderledd(ledd, aktivPosisjon, flytBruker);
+  const erMedlem = erMedlemAvFlyt(ledd, flytBruker);
+
+  const tillatt =
+    nyStatus === "sent" ? rett.kanSende
+    : nyStatus === "responded" ? rett.kanBesvare
+    : ["approved", "dismissed", "closed", "cancelled", "rejected"].includes(nyStatus) ? rett.kanTerminere
+    : nyStatus === "draft" ? (fraStatus === "received" ? erAvsender : erMedlem)
+    : harBallen;
+
+  if (!tillatt) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: `Du har ikke ballen i denne flyten og kan ikke utføre handlingen «${nyStatus}»`,
     });
   }
 }

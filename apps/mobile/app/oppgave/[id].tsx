@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo } from "react";
+import { useCallback, useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -29,12 +29,12 @@ import {
   MessageCircle,
   Send,
 } from "lucide-react-native";
-import { harBetingelse, harForelderObjekt, utledMinRolle, beregnHarBallen } from "@sitedoc/shared";
+import { harBetingelse, harForelderObjekt, utledMinRolle, byggPosisjonsLedd, harBallenPosisjon, erAvsenderledd, erMedlemAvFlyt, retningsrettigheter, harMinstEttUtfyltFelt } from "@sitedoc/shared";
 import type { FlytMedlemInfo, HarBallenDokument } from "@sitedoc/shared";
 import { useTranslation } from "react-i18next";
-import { FlytIndikator } from "../../src/components/FlytIndikator";
-import type { FlytMedlem } from "../../src/components/FlytIndikator";
-import { DokumentHandlingsmeny } from "../../src/components/DokumentHandlingsmeny";
+import { Flytlinje } from "../../src/components/Flytlinje";
+import type { FlytMedlem } from "../../src/components/Flytlinje";
+import { DokumentHandlingslinje } from "../../src/components/DokumentHandlingslinje";
 import { useOppgaveSkjema } from "../../src/hooks/useOppgaveSkjema";
 import { useAutoVaer } from "../../src/hooks/useAutoVaer";
 import { useOversettelse } from "../../src/hooks/useOversettelse";
@@ -84,6 +84,10 @@ function formaterNummer(
 ): string | null {
   if (!prefix || nummer == null) return null;
   return `${prefix}${nummer}`;
+}
+
+function formaterKlokke(dato: Date): string {
+  return dato.toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" });
 }
 
 export default function OppgaveDetalj() {
@@ -185,13 +189,45 @@ export default function OppgaveDetalj() {
     );
   }, [minFlytInfo, oppgaveDetalj, dokumentflyterRå]);
 
-  const harBallen = useMemo(() => {
-    if (!oppgaveDetalj || !minFlytInfo) return false;
-    return beregnHarBallen(
-      oppgaveDetalj as unknown as HarBallenDokument,
-      { userId: minFlytInfo.userId, gruppeIder: minFlytInfo.gruppeIder },
+  // Steg 3+4b (Fase 4): POSISJON-baserte rettigheter (harBallen + erAvsender + erMedlemAvFlyt + retningsrett).
+  const posisjonRett = useMemo(() => {
+    const tom = {
+      harBallen: false, erAvsender: false, erMedlemAvFlyt: false,
+      retningsrett: { kanSende: false, kanBesvare: false, kanVideresende: false, kanTerminere: false },
+    };
+    const aktivPosisjon = (oppgaveDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon;
+    if (!minFlytInfo || aktivPosisjon == null) return tom;
+    const ledd = byggPosisjonsLedd(
+      flytMedlemmer.map((m) => ({
+        steg: m.steg,
+        klassifisering: m.klassifisering ?? null,
+        kanTerminereUtenBall: m.kanTerminereUtenBall ?? false,
+        erHovedansvarlig: m.erHovedansvarlig ?? false,
+        brukerId: m.projectMember?.user?.id ?? null,
+        gruppeId: m.group?.id ?? null,
+        faggruppeId: m.faggruppe?.id ?? null,
+      })),
     );
-  }, [oppgaveDetalj, minFlytInfo]);
+    const bruker = {
+      userId: minFlytInfo.userId,
+      gruppeIder: minFlytInfo.gruppeIder,
+      faggruppeIder: (minFlytInfo as { faggruppeIder?: string[] }).faggruppeIder ?? [],
+      erAdmin: minFlytInfo.erAdmin,
+    };
+    const erMedlemAv = (l: (typeof ledd)[number]): boolean =>
+      l.brukerIder.has(bruker.userId) ||
+      bruker.gruppeIder.some((g) => l.gruppeIder.has(g)) ||
+      bruker.faggruppeIder.some((f) => l.faggruppeIder.has(f));
+    const harBallen = harBallenPosisjon(ledd, aktivPosisjon, bruker);
+    const seerLedd = ledd.find((l) => erMedlemAv(l) && l.kanTerminereUtenBall) ?? ledd.find(erMedlemAv) ?? null;
+    return {
+      harBallen,
+      erAvsender: erAvsenderledd(ledd, aktivPosisjon, bruker),
+      erMedlemAvFlyt: erMedlemAvFlyt(ledd, bruker),
+      retningsrett: retningsrettigheter({ harBallen, seerLedd, kanVideresende: minFlytInfo.erAdmin }),
+    };
+  }, [oppgaveDetalj, minFlytInfo, flytMedlemmer]);
+  const harBallen = posisjonRett.harBallen;
 
   const flytRettighet = useMemo((): "redigerer" | "leser" | undefined => {
     if (!minFlytInfo || !oppgaveDetalj || !dokumentflyterRå) return undefined;
@@ -314,9 +350,7 @@ export default function OppgaveDetalj() {
     erSynlig,
     erFeltLåst,
     valideringsfeil,
-    valider,
     lagre,
-    erLagrer,
     harEndringer,
     erRedigerbar,
     lagreStatus,
@@ -344,6 +378,39 @@ export default function OppgaveDetalj() {
     settVerdi,
   });
 
+  // P2 (tom-besvarelse): speiler server-guarden fra lokal svar-tilstand (samme delte
+  // helper som web + server). Deaktiverer Besvar til minst ett svar-felt er utfylt.
+  const besvarDeaktivertGrunn = useMemo(() => {
+    const objs = (oppgave?.template?.objects ?? []) as { id: string; type: string }[];
+    const data = Object.fromEntries(objs.map((o) => [o.id, hentFeltVerdi(o.id)]));
+    return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
+  }, [oppgave?.template?.objects, hentFeltVerdi, t]);
+
+  // Påkrevd-felt-teller (M2): live antall gjenstående påkrevde synlige felt. Deaktiverer
+  // framover-primær (Send/Besvar) + caption. Read-only speiling av `valider()` — muterer ikke.
+  const paakrevdeFeltGjenstaar = useMemo(() => {
+    const objs = (oppgave?.template?.objects ?? []) as { id: string; type: string; required?: boolean }[];
+    let n = 0;
+    for (const o of objs) {
+      if (DISPLAY_TYPER.has(o.type)) continue;
+      if (!o.required) continue;
+      if (!erSynlig(o as Parameters<typeof erSynlig>[0])) continue;
+      const v = hentFeltVerdi(o.id).verdi;
+      if (v === null || v === undefined || v === "" || (Array.isArray(v) && v.length === 0)) n++;
+    }
+    return n;
+  }, [oppgave?.template?.objects, erSynlig, hentFeltVerdi]);
+
+  // Autolagret-mikrotekst (M2): stemple tidspunkt når en lokal lagring fullfører.
+  const [sisteLagretTid, settSisteLagretTid] = useState<Date | null>(null);
+  useEffect(() => {
+    if (lagreStatus === "lagret") settSisteLagretTid(new Date());
+  }, [lagreStatus]);
+  const sisteLagretTekst = useMemo(
+    () => (sisteLagretTid ? t("dokument.lagretAutomatisk", { tid: formaterKlokke(sisteLagretTid) }) : null),
+    [sisteLagretTid, t],
+  );
+
   const håndterTilbake = useCallback(async () => {
     if (harEndringer) {
       await lagre();
@@ -351,15 +418,12 @@ export default function OppgaveDetalj() {
     router.back();
   }, [harEndringer, lagre, router]);
 
-  const håndterLagre = useCallback(async () => {
-    const erGyldig = valider();
-    if (!erGyldig) {
-      Alert.alert(t("dokument.valideringsfeil"), t("dokument.fyllInnPaakrevde"));
-      return;
-    }
+  // «Lagre og lukk» (M2): lagrer og navigerer tilbake. Validerer ALDRI — utkast skal
+  // kunne være ufullstendige (fabel 2026-07-30). Autolagring har allerede persistert.
+  const håndterLagreOgLukk = useCallback(async () => {
     await lagre();
-    Alert.alert(t("dokument.lagret"), t("dokument.utfyllingLagret"));
-  }, [valider, lagre]);
+    router.back();
+  }, [lagre, router]);
 
   const endrePrioritet = useCallback(
     (nyPrioritet: string) => {
@@ -475,23 +539,27 @@ export default function OppgaveDetalj() {
               if (!["sent", "received", "in_progress"].includes(oppgave.status)) return null;
               if (!recipientGroup?.name) return null;
               return (
+                // Runde-2 (R5): seer-relativ «Venter på deg» / «Venter på: {navn}» (web-paritet).
                 <View className="rounded bg-amber-50 px-1.5 py-0.5">
                   <Text className="text-xs font-medium text-amber-700">
-                    {t("tabell.venterPaa")}: {recipientGroup.name}
+                    {harBallen ? t("tabell.venterPaaDeg") : `${t("tabell.venterPaa")}: ${recipientGroup.name}`}
                   </Text>
                 </View>
               );
             })()}
           </View>
         </View>
-        {/* FlytIndikator */}
-        {flytMedlemmer.length > 0 && (
-          <FlytIndikator
+        {/* Flytlinje (M1) — én linje, tap → flyt-sheet */}
+        {/* Steg 5: skjul flytlinje for HMS (paritet med web). */}
+        {(oppgaveDetalj as { template?: { domain?: string } } | undefined)?.template?.domain !== "hms" && flytMedlemmer.length > 0 && (
+          <Flytlinje
             medlemmer={flytMedlemmer}
-            recipientUserId={(oppgaveDetalj as { recipientUserId?: string | null } | undefined)?.recipientUserId}
-            recipientGroupId={(oppgaveDetalj as { recipientGroupId?: string | null } | undefined)?.recipientGroupId}
-            status={oppgave.status}
-            bestillerUserId={(oppgaveDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId}
+            aktivPosisjon={(oppgaveDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon}
+            harBallen={harBallen}
+            meg={{ userId: minFlytInfo?.userId, gruppeIder: minFlytInfo?.gruppeIder }}
+            overforinger={overforinger}
+            flytNavn={(tilgjengeligeFlyter as { gjeldende?: { name?: string | null } | null } | null | undefined)?.gjeldende?.name ?? null}
+            formaterTid={formaterHistorikkDato}
           />
         )}
       </View>
@@ -783,9 +851,9 @@ export default function OppgaveDetalj() {
         )}
       </ScrollView>
 
-      {/* Handlingsmeny + lagre-knapp i bunn */}
-      <View className="border-t border-gray-200 bg-white px-4 py-3 gap-2">
-        <DokumentHandlingsmeny
+      {/* Handlingslinje (M2) — P3-mønster: primær m/retning + split-▾ */}
+      <View className="border-t border-gray-200 bg-white px-4 py-3">
+        <DokumentHandlingslinje
           status={oppgave.status}
           erLaster={endreStatusMutasjon.isPending}
           onEndreStatus={(nyStatus, kommentarTekst, mottaker) => {
@@ -800,23 +868,21 @@ export default function OppgaveDetalj() {
             });
           }}
           onSlett={["draft", "cancelled"].includes(oppgave.status) ? håndterSlett : undefined}
-          tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingsmeny>[0]["tilgjengeligeFlyter"]}
+          tilgjengeligeFlyter={(tilgjengeligeFlyter ?? null) as unknown as Parameters<typeof DokumentHandlingslinje>[0]["tilgjengeligeFlyter"]}
           minRolle={minRolle ?? null}
           adminNiva={minFlytInfo?.adminNiva ?? null}
+          besvarDeaktivertGrunn={besvarDeaktivertGrunn}
+          medlemmer={flytMedlemmer}
+          aktivPosisjon={(oppgaveDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon}
+          retningsrett={posisjonRett.retningsrett}
+          harBallen={posisjonRett.harBallen}
+          erAvsender={posisjonRett.erAvsender}
+          erMedlemAvFlyt={posisjonRett.erMedlemAvFlyt}
+          paakrevdeFeltGjenstaar={paakrevdeFeltGjenstaar}
+          erRedigerbar={erRedigerbar}
+          sisteLagretTekst={sisteLagretTekst}
+          onLagreOgLukk={håndterLagreOgLukk}
         />
-
-        {/* Lagre-knapp */}
-        {erRedigerbar && (
-          <Pressable
-            onPress={håndterLagre}
-            disabled={erLagrer}
-            className={`items-center rounded-lg py-3 ${erLagrer ? "bg-blue-400" : "bg-blue-600"}`}
-          >
-            <Text className="font-medium text-white">
-              {erLagrer ? t("handling.lagrer") : t("dokument.lagreUtfylling")}
-            </Text>
-          </Pressable>
-        )}
       </View>
 
       </KeyboardAvoidingView>
@@ -829,10 +895,13 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Text className="flex-1 text-base font-semibold text-white">{t("oppgave.redigerTittel")}</Text>
+              <Pressable onPress={() => settVisTittelModal(false)} hitSlop={8}>
+                <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
+              </Pressable>
+              <Text className="flex-1 px-3 text-center text-base font-semibold text-white">{t("oppgave.redigerTittel")}</Text>
               <Pressable
                 onPress={lagreTittel}
-                className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
+                className="rounded-lg bg-white/20 px-4 py-1.5"
               >
                 <Text className="text-sm font-semibold text-white">{t("oppgave.ferdig")}</Text>
               </Pressable>
@@ -856,10 +925,13 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Text className="flex-1 text-base font-semibold text-white">{t("oppgave.beskrivelse")}</Text>
+              <Pressable onPress={() => settVisBeskrivelseModal(false)} hitSlop={8}>
+                <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
+              </Pressable>
+              <Text className="flex-1 px-3 text-center text-base font-semibold text-white">{t("oppgave.beskrivelse")}</Text>
               <Pressable
                 onPress={lagreBeskrivelse}
-                className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
+                className="rounded-lg bg-white/20 px-4 py-1.5"
               >
                 <Text className="text-sm font-semibold text-white">{t("oppgave.ferdig")}</Text>
               </Pressable>
@@ -885,11 +957,14 @@ export default function OppgaveDetalj() {
             className="flex-1"
           >
             <View className="flex-row items-center justify-between border-b border-gray-200 bg-[#1e40af] px-4 py-3">
-              <Text className="flex-1 text-base font-semibold text-white">{t("oppgave.nyKommentar")}</Text>
+              <Pressable onPress={() => settVisDialogModal(false)} hitSlop={8}>
+                <Text className="text-sm font-medium text-white">{t("handling.avbryt")}</Text>
+              </Pressable>
+              <Text className="flex-1 px-3 text-center text-base font-semibold text-white">{t("oppgave.nyKommentar")}</Text>
               <Pressable
                 onPress={håndterSendKommentar}
                 disabled={!dialogTekst.trim() || leggTilKommentarMutasjon.isPending}
-                className="ml-3 rounded-lg bg-white/20 px-4 py-1.5"
+                className="rounded-lg bg-white/20 px-4 py-1.5"
               >
                 <Text className="text-sm font-semibold text-white">
                   {leggTilKommentarMutasjon.isPending ? t("handling.sender") : t("handling.send")}

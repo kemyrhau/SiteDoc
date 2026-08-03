@@ -2,13 +2,15 @@ import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
-import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
+import { isValidStatusTransition, statusKreverBegrunnelse, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
   byggTilgangsFilter,
   verifiserFaggruppeTilhorighet,
   verifiserDokumentTilgang,
-  verifiserFlytRolle,
+  verifiserRetningsrett,
+  byggFlytBruker,
   verifiserHmsHandling,
   verifiserProsjektmedlem,
   hentBrukersOpprettFlytMedlemskap,
@@ -93,6 +95,8 @@ async function hentHmsSjekkliste(
       number: true,
       bestillerUserId: true,
       recipientGroupId: true,
+      dokumentflytId: true,
+      aktivPosisjon: true,
       template: {
         select: {
           domain: true,
@@ -157,6 +161,11 @@ export const sjekklisteRouter = router({
                   id: true,
                   rolle: true,
                   steg: true,
+                  // Fase 4 output-plumbing (read-only): posisjons-felt klienten trenger for
+                  // byggPosisjonsLedd + ansvarsmerke-avledning + harBallenPosisjon.
+                  klassifisering: true,
+                  kanTerminereUtenBall: true,
+                  erHovedansvarlig: true,
                   faggruppe: { select: { id: true, name: true } },
                   projectMember: { include: { user: { select: { id: true, name: true } } } },
                   group: { select: { id: true, name: true } },
@@ -257,9 +266,13 @@ export const sjekklisteRouter = router({
       // HMS-sjekklister (SJA, RUH): auto-rut til HMS-gruppen, ingen faggruppe.
       // Speiler oppgave.opprett-mønsteret for HMS.
       let recipientGroupId: string | undefined;
+      // F1b (HMS flyt-binding): server slår opp prosjektets HMS-flyt og binder
+      // dokumentet til den (klienten sender fortsatt ikke dokumentflytId for HMS).
+      let hmsFlytId: string | undefined;
       if (erHms) {
-        // Guard 1 (F1/B1 vedtak A): HMS-maler er flyt-løse by design — auto-rutes til
-        // HMS-gruppen. En innsendt dokumentflytId er en config-feil; fail loud.
+        // Klienten kan ikke binde HMS til en flyt manuelt — HMS auto-rutes. En
+        // innsendt dokumentflytId er en config-feil; fail loud. (Serveren binder
+        // selv til HMS-flyten nedenfor, F1b.)
         if (input.dokumentflytId) {
           throw new TRPCError({
             code: "BAD_REQUEST",
@@ -282,6 +295,16 @@ export const sjekklisteRouter = router({
           });
         }
         recipientGroupId = hmsGruppe.id;
+
+        // F1b: bind HMS-dokumentet til prosjektets HMS-flyt (oppretter → HMS-gruppe,
+        // 2 ledd). Flyten seedes ved modul-aktivering (modul.ts). Finnes den ikke
+        // (gammelt prosjekt / modul aldri aktivert) → hmsFlytId undefined → dokumentet
+        // forblir flyt-løst (dagens oppførsel), graceful degradering.
+        const hmsFlytMal = await ctx.prisma.dokumentflytMal.findFirst({
+          where: { templateId: input.templateId },
+          select: { dokumentflytId: true },
+        });
+        hmsFlytId = hmsFlytMal?.dokumentflytId ?? undefined;
       } else {
         // Standard-gren (F1/B1): et dokument tilhører ALLTID nøyaktig én flyt.
         // dokumentflytId påkrevd her (ikke i Zod — HMS-grenen utelater den legitimt).
@@ -405,13 +428,18 @@ export const sjekklisteRouter = router({
             bestillerUserId: ctx.userId,
             eierUserId: ctx.userId,
             number: nummer,
-            dokumentflytId: input.dokumentflytId,
+            dokumentflytId: erHms ? hmsFlytId : input.dokumentflytId,
             subject: input.subject,
             byggeplassId: input.byggeplassId,
             drawingId: input.drawingId,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
-            // HMS har ingen kladd — opprett = send (D1). Standard starter i draft.
-            status: erHms ? "sent" : "draft",
+            // F3.2: status AVLEDES fra fakta (avledStatus = eneste skriver). HMS: sendt → «Hos 2»
+            // = received (transient «sent» kollapser, samme klasse som in_progress). Standard: !sendt → draft.
+            status: avledetStatus({ terminal: null, retning: null, sendt: erHms }),
+            // Posisjonsmodell: HMS starter sendt (ball hos Ledd 2 = HMS-gruppe → aktivPosisjon 2, F1b).
+            // Standard starter som utkast hos oppretter (Ledd 1), ikke sendt (F3.1).
+            sendt: erHms,
+            aktivPosisjon: erHms ? (hmsFlytId ? 2 : undefined) : 1,
             recipientUserId,
             recipientGroupId: endeligRecipientGroupId,
           },
@@ -848,6 +876,7 @@ export const sjekklisteRouter = router({
               domain: true,
               prefix: true,
               project: { select: { name: true } },
+              objects: { select: { id: true, type: true } },
             },
           },
           utforerFaggruppe: { select: { name: true } },
@@ -867,15 +896,17 @@ export const sjekklisteRouter = router({
         "checklist",
       );
 
-      // Rollevalidering: sjekk at bruker har riktig rolle i dokumentflyten
-      await verifiserFlytRolle(
+      // F3.4: POSISJON-basert autorisasjon (erstatter verifiserFlytRolle sin rolle×status-matrise).
+      // 1b B-gaten fjernet: HMS ruter nå via posisjon → null-medlem-bestillerboksen (E1) er ikke
+      // lenger et autorisasjonsproblem. Medlemmer lastes her og gjenbrukes av rutingen nedenfor.
+      const flytMedlemmer = await hentFlytMedlemmer(ctx.prisma, sjekkliste.dokumentflytId);
+      await verifiserRetningsrett(
         ctx.userId,
         projectId,
-        sjekkliste.dokumentflytId,
-        sjekkliste.bestillerFaggruppeId,
-        sjekkliste.utforerFaggruppeId,
-        sjekkliste.status,
+        flytMedlemmer,
+        sjekkliste.aktivPosisjon,
         input.nyStatus,
+        sjekkliste.status, // fra-status: skiller trekk tilbake (received→draft) fra gjenåpne (terminal→draft)
       );
 
       // Hjelpefunksjon for varsling (bruker input-mottaker eller besvar-mottaker)
@@ -1027,12 +1058,29 @@ export const sjekklisteRouter = router({
 
         const nyEier = await utledNyEier(effektivRecipientUserId, effektivRecipientGroupId);
 
+        // F3.1: videresend endrer IKKE status — kun aktivPosisjon flyttes (retning=paatvers).
+        // Ledd fra mål-flyten ved flyt-bytte, ellers gjeldende flyt.
+        const forwardLedd = await hentPosisjonsLedd(
+          ctx.prisma,
+          flytBytteData?.dokumentflytId ?? sjekkliste.dokumentflytId,
+        );
+        const forwardFakta = beregnSkyggeFakta({
+          effektivStatus: sjekkliste.status,
+          nyStatusRaw: "forwarded",
+          ledd: forwardLedd,
+          recipientUserId: effektivRecipientUserId,
+          recipientGroupId: effektivRecipientGroupId,
+          bestillerUserId: sjekkliste.bestillerUserId,
+        });
+
         const resultat = await ctx.prisma.$transaction(async (tx) => {
           const oppdatert = await tx.checklist.update({
             where: { id: input.id },
             data: {
               recipientUserId: effektivRecipientUserId,
               recipientGroupId: effektivRecipientGroupId,
+              aktivPosisjon: forwardFakta.aktivPosisjon,
+              retning: forwardFakta.retning,
               ...(nyEier ? { eierUserId: nyEier } : {}),
               ...(flytBytteData ? {
                 dokumentflytId: flytBytteData.dokumentflytId,
@@ -1077,50 +1125,69 @@ export const sjekklisteRouter = router({
         });
       }
 
-      // F1 (gate-JA #2): Avvis krever påkrevd begrunnelse — bryter bevisst «fritekst = valgfritt».
+      // P2 (Kenneth-vedtak 2026-07-21): Besvar/Send tilbake/Avvis krever ikke-tom
+      // begrunnelse (statusKreverBegrunnelse — delt kilde, samme regel som klienten).
       if (statusKreverBegrunnelse(input.nyStatus) && !input.kommentar?.trim()) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "Begrunnelse er påkrevd ved avvisning",
+          message: "Begrunnelse er påkrevd for denne handlingen",
+        });
+      }
+
+      // P2 (tom-besvarelse): en besvarelse (→responded) kan aldri sendes tom —
+      // minst ett utfylt svar-felt (mal-bevisst; malen uten svar-felt tillates).
+      if (
+        input.nyStatus === "responded" &&
+        !harMinstEttUtfyltFelt(
+          sjekkliste.template.objects,
+          sjekkliste.data as Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null,
+        )
+      ) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Besvarelsen kan ikke være tom — fyll ut minst ett felt",
         });
       }
 
       // Auto-mottatt: sent → received umiddelbart
       const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus;
 
-      // Besvar (responded): finn forrige avsender og send tilbake
-      let besvarMottaker: { recipientUserId?: string | null; recipientGroupId?: string | null } = {};
-      if (input.nyStatus === "responded") {
-        const sisteTransfer = await ctx.prisma.documentTransfer.findFirst({
-          where: { checklistId: input.id },
-          orderBy: { createdAt: "desc" },
-          select: { senderId: true },
-        });
-        if (sisteTransfer?.senderId) {
-          besvarMottaker = { recipientUserId: sisteTransfer.senderId, recipientGroupId: null };
-        }
-      }
+      // F3.3: POSISJON-basert ruting (Tolkning A, fabel-bindende). Send→nesteLedd (forover),
+      // Besvar→forrigeBallLedd (retur bakover). Gjenbruker flytMedlemmer fra authz-steget.
+      // § 2.4: draft-overgang (gjenåpne/trekk-tilbake) trenger handleren for gjenapnePosisjon.
+      const aapner = input.nyStatus === "draft" ? await byggFlytBruker(ctx.userId, projectId) : null;
+      const ruting = beregnRuting({
+        nyStatus: input.nyStatus,
+        effektivStatus,
+        medlemmer: flytMedlemmer,
+        naaPos: sjekkliste.aktivPosisjon,
+        bestillerUserId: sjekkliste.bestillerUserId,
+        fraStatus: sjekkliste.status,
+        aapner,
+      });
+      const nyMottaker = ruting.mottaker; // null = behold gjeldende (E2/E3 no-op, terminal, E5)
 
-      // Utled ny eier ved sending eller besvar
+      // Ny eier følger ny mottaker (person direkte, gruppe → hovedansvarlig).
       let eierOppdatering: { eierUserId: string } | Record<string, never> = {};
-      if (input.nyStatus === "sent") {
-        const nyEier = await utledNyEier(input.recipientUserId, input.recipientGroupId);
+      if (nyMottaker) {
+        const nyEier = await utledNyEier(nyMottaker.recipientUserId, nyMottaker.recipientGroupId);
         if (nyEier) eierOppdatering = { eierUserId: nyEier };
-      } else if (input.nyStatus === "responded" && besvarMottaker.recipientUserId) {
-        eierOppdatering = { eierUserId: besvarMottaker.recipientUserId };
       }
 
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
           data: {
-            status: effektivStatus,
+            status: ruting.status,
+            aktivPosisjon: ruting.aktivPosisjon,
+            retning: ruting.retning,
+            terminal: ruting.terminal,
+            sendt: ruting.sendt,
             ...eierOppdatering,
-            ...(input.nyStatus === "sent" ? {
-              recipientUserId: input.recipientUserId ?? null,
-              recipientGroupId: input.recipientGroupId ?? null,
+            ...(nyMottaker ? {
+              recipientUserId: nyMottaker.recipientUserId,
+              recipientGroupId: nyMottaker.recipientGroupId,
             } : {}),
-            ...(input.nyStatus === "responded" ? besvarMottaker : {}),
           },
         });
 
@@ -1131,12 +1198,9 @@ export const sjekklisteRouter = router({
             fromStatus: sjekkliste.status,
             toStatus: input.nyStatus,
             comment: input.kommentar,
-            ...(input.nyStatus === "sent" ? {
-              recipientUserId: input.recipientUserId,
-              recipientGroupId: input.recipientGroupId,
-            } : {}),
-            ...(input.nyStatus === "responded" && besvarMottaker.recipientUserId ? {
-              recipientUserId: besvarMottaker.recipientUserId,
+            ...(nyMottaker ? {
+              recipientUserId: nyMottaker.recipientUserId,
+              recipientGroupId: nyMottaker.recipientGroupId,
             } : {}),
             ...snapshot,
           },
@@ -1157,10 +1221,10 @@ export const sjekklisteRouter = router({
         return oppdatert;
       });
 
-      // Varsle mottaker ved sending, besvar, godkjenning, avvisning
-      if (input.nyStatus === "responded" && besvarMottaker.recipientUserId) {
-        void varsle(false, besvarMottaker);
-      } else if (["sent", "approved", "rejected"].includes(input.nyStatus)) {
+      // Varsle ny mottaker (posisjon-utledet) ved send/besvar; terminal varsles som før.
+      if (nyMottaker) {
+        void varsle(false, nyMottaker);
+      } else if (["approved", "rejected", "dismissed"].includes(input.nyStatus)) {
         void varsle(false);
       }
 
@@ -1195,10 +1259,29 @@ export const sjekklisteRouter = router({
         "besvar",
       );
 
+      // F3.3: HMS-besvar ruter via posisjon (forrigeBallLedd → Ledd 1 oppretter, E1 null-medlem→bestiller).
+      const hmsMedlemmer = await hentFlytMedlemmer(ctx.prisma, sjekkliste.dokumentflytId);
+      const hmsRuting = beregnRuting({
+        nyStatus: "responded",
+        effektivStatus: "responded",
+        medlemmer: hmsMedlemmer,
+        naaPos: sjekkliste.aktivPosisjon,
+        bestillerUserId: sjekkliste.bestillerUserId,
+      });
+
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { status: "responded" },
+          data: {
+            status: hmsRuting.status,
+            aktivPosisjon: hmsRuting.aktivPosisjon,
+            retning: hmsRuting.retning,
+            terminal: hmsRuting.terminal,
+            sendt: hmsRuting.sendt,
+            ...(hmsRuting.mottaker
+              ? { recipientUserId: hmsRuting.mottaker.recipientUserId, recipientGroupId: hmsRuting.mottaker.recipientGroupId }
+              : {}),
+          },
         });
         await tx.documentTransfer.create({
           data: {
@@ -1253,7 +1336,8 @@ export const sjekklisteRouter = router({
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { status: "closed" },
+          // F3.1/3.2: HMS-lukk → terminal lukket; status avledes (→ closed). aktivPosisjon uendret.
+          data: { status: avledetStatus({ retning: "frem", terminal: "lukket", sendt: true }), terminal: "lukket", sendt: true },
         });
         await tx.documentTransfer.create({
           data: {
@@ -1304,10 +1388,29 @@ export const sjekklisteRouter = router({
         "gjenapne",
       );
 
+      // F3.3: HMS-gjenåpne ruter via posisjon (terminal nulles, ball tilbake mot oppretter/Ledd 1).
+      const hmsMedlemmer = await hentFlytMedlemmer(ctx.prisma, sjekkliste.dokumentflytId);
+      const hmsRuting = beregnRuting({
+        nyStatus: "responded",
+        effektivStatus: "responded",
+        medlemmer: hmsMedlemmer,
+        naaPos: sjekkliste.aktivPosisjon,
+        bestillerUserId: sjekkliste.bestillerUserId,
+      });
+
       const resultat = await ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.checklist.update({
           where: { id: input.id },
-          data: { status: "responded" },
+          data: {
+            status: hmsRuting.status,
+            aktivPosisjon: hmsRuting.aktivPosisjon,
+            retning: hmsRuting.retning,
+            terminal: null,
+            sendt: hmsRuting.sendt,
+            ...(hmsRuting.mottaker
+              ? { recipientUserId: hmsRuting.mottaker.recipientUserId, recipientGroupId: hmsRuting.mottaker.recipientGroupId }
+              : {}),
+          },
         });
         await tx.documentTransfer.create({
           data: {
