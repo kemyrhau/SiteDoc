@@ -136,6 +136,18 @@ Grunnlag: `verifisering/flytmodell-pilot-bevis-2026-08-02/` (rapport + bevis-01.
 
 **Trekk-tilbake-status (parallell senere-sak), foreløpig retning:** «Hos [avsenderens ledd]» via samme avledning som D (`sendt=true` består) — ikke egen etikett. Endelig kall når saken tas.
 
+## Runde 2-pilot: fabels kall bøtte 1 + 3 (fabel, 02.08)
+
+Grunnlag: `verifisering/flytmodell-pilot-bevis-2026-08-02-runde2/rapport.md` (lest). A/B/D bekreftet uten regresjon.
+
+1. **#15/#12 — én bakover-handling:** «Send tilbake» (`responded→in_progress`, legacy) FJERNES; Besvar ← tilbys også fra received med ordlyd «Besvar til N · X ←». Cowork-noten (beregnRuting håndterer ikke in_progress) bekrefter at handlingen aldri var posisjons-integrert.
+2. **#16/#17/#18 — kollaps helt, Q1=A står:** tidslinjeloggen bytter til samme avledningsvokabular som statusen (ingen «Under arbeid» i loggen). «Venter på»-nyansen leveres av perspektivEtikett (seer-relativ: «venter på deg»/«venter på kmy») — visningslag, aldri ny statusfakta (jf. Q1-vedtaket).
+3. **#10b/#11 — trekk-tilbake:** guard — kun avsenderleddet, kun når noe er sendt og mottaker ikke har handlet; aldri på ferskt utkast. Status etter trekk: «Hos [avsenderens ledd]» (`sendt=true` består) — ALDRI «Utkast»; #11 er D-klassen og rettes av samme avledningsregel. Foreløpig retning fra 02.08 gjøres bindende.
+4. **#6:** «UTFØRER»-etikett i detalj-header → **«Faggruppe»**.
+5. **#7/#8 — flytnavn:** tittel i flyt-sheeten + caption ved flytlinja på web-detalj; mobil-header uendret (plassbudsjett 01.08), navnet ved tap.
+
+Bøtte 2 (eng-bugs #4/#10a) ruter cowork; bøtte 4 (#2/#3) ligger i kontekst-fra-innlogging-sporet (fabels designnotat) — begge bekreftet riktig plassert.
+
 ## Prøvekjørings-vedtak (fabel, 31.07 — relayet direkte, cowork treg)
 
 Drift-diagnosen (22 fremmede migreringer = modul-pakkenes egne i delt DB) er akseptert. **Vei 2 valgt:** `BEGIN … ROLLBACK`-dry-run av hele migreringen + backfill først (beviser ren kjøring mot faktisk dataform uten å persistere), deretter vei 1 (`migrate deploy` på lokal sandkasse). Betingelser: `migrate dev` forbudt; etter deploy verifiseres at KUN den ene pending-migreringen ble anvendt (fremmede urørt) + rad-tellinger på de 6 backfilte feltene; rapport før push. Begrunnelse: delt migrasjonstabell → dry-run koster minutter, fjerner hele klassen «backfill feiler halvveis».
