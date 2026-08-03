@@ -32,8 +32,7 @@ export const SENTINEL_TIL = "opprett";
 /**
  * Auto-overganger (ingen rolle-celler) — rendres med «A»-merke, ikke klikkbare.
  * `flythjelpNoekkel` (valgfri): kun sent→received får mikrotekst-hover (autoMottatt).
- * F3: fantom-raden received→in_progress er fjernet — in_progress nås nå kun via
- * responded→in_progress (Send tilbake), aldri via en auto-overgang.
+ * Runde-2 (2026-08-02): `in_progress` er kollapset HELT — ingen in_progress-overganger (auto eller ellers).
  */
 export const AUTO_OVERGANGER: Array<{ fra: string; til: string; flythjelpNoekkel?: string }> = [
   { fra: "sent", til: "received", flythjelpNoekkel: "flythjelp.handling.autoMottatt" },
@@ -72,13 +71,9 @@ export const MATRISE_RADER: MatriseRad[] = [
   { fra: "received", til: "draft", labelNoekkel: "statushandling.trekkTilbake", flythjelpNoekkel: "flythjelp.handling.trekkTilbake", fallbackNoekkel: "flythjelp.fallback.mottakerDin" },
   { fra: "received", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
   { fra: "received", til: "dismissed", labelNoekkel: "handling.avvis", flythjelpNoekkel: "flythjelp.handling.avvis", fallbackNoekkel: "flythjelp.fallback.avsender" },
-  // F3 (Under arbeid): merget in_progress-seksjon (dagens in_progress + rejected). Besvar /
-  // Send på nytt / Lukk / Videresend. Gammel `sendTilbake` (in_progress→sent uten svar) er nå
-  // «Send på nytt» (fram igjen etter retting), og `avvis` (→cancelled) utgår.
-  { fra: "in_progress", til: "responded", labelNoekkel: "statushandling.besvar", flythjelpNoekkel: "flythjelp.handling.besvar", fallbackNoekkel: "flythjelp.fallback.avsender" },
-  { fra: "in_progress", til: "sent", labelNoekkel: "statushandling.sendPaaNytt", flythjelpNoekkel: "flythjelp.handling.sendPaaNytt", fallbackNoekkel: "flythjelp.fallback.nesteMottaker" },
-  { fra: "in_progress", til: "closed", labelNoekkel: "handling.lukk", flythjelpNoekkel: "flythjelp.handling.lukk" },
-  { fra: "in_progress", til: "forwarded", labelNoekkel: "statushandling.videresend", flythjelpNoekkel: "flythjelp.handling.videresend", fallbackNoekkel: "flythjelp.fallback.videresendMottaker" },
+  // Runde-2-polering S2 (2026-08-02): hele in_progress-seksjonen (in_progress→responded/sent/closed/
+  // forwarded) FJERNET — `in_progress` er kollapset HELT (avledStatus gir den aldri), så konfig-radene
+  // var en død «Under arbeid»-stasjon. Bakover = Besvar ← (received→responded); Lukk = firma-terminal.
   { fra: "responded", til: "approved", labelNoekkel: "handling.godkjenn", flythjelpNoekkel: "flythjelp.handling.godkjenn" },
   // Runde-2 (2026-08-02): «Send tilbake» (responded→in_progress) FJERNET — bakover er nå Besvar ←
   // (received→responded). Raden utgår helt (ikke en låst celle) i tråd med statusmaskin-fjerningen.
@@ -335,7 +330,7 @@ export const FLYTVISNING_BOKS_DEF: FlytboksDef[] = [
       sendHoyre: [h([["bestiller", "draft", "sent"]])],
       sendVenstre: [{ type: "fantom", labelNoekkel: "flytvisning.fantom.bestillerBesvar" }],
       hentTilbake: [h([["bestiller", "received", "draft"]])],
-      endepunkt: [h([["bestiller", "in_progress", "closed"]])],
+      // Runde-2-polering S2: in_progress-Lukk-endepunktet fjernet (in_progress kollapset — død konfig).
       lokalt: [h([["bestiller", "draft", "deleted"]], "flytvisning.handling.slettKladd")], // Slett kladd (korreksjon b)
     },
     videresendLaast: { rolle: "bestiller", fra: "received", til: "forwarded" },
@@ -343,12 +338,12 @@ export const FLYTVISNING_BOKS_DEF: FlytboksDef[] = [
   {
     boks: "utforer",
     grupper: {
-      // §8A-fiks (2026-07-29): «Send fram» (received→sent) FJERNET (recipient-løs no-op). Kun
-      // «Send på nytt» (in_progress→sent, fram igjen etter retting) står igjen.
-      sendHoyre: [h([["utforer", "in_progress", "sent"]])],
+      // §8A-fiks (2026-07-29): «Send fram» (received→sent) FJERNET (recipient-løs no-op).
+      // Runde-2-polering S2: «Send på nytt» (in_progress→sent) fjernet — in_progress kollapset (død konfig).
+      // Utfører sender framover via primærens «Send til N·X» (nesteLedd), ikke via en boks-chip her.
       sendVenstre: [
-        // Besvar fra Mottatt + Under arbeid → én rad, to delceller. Svar går til den som ba.
-        h([["utforer", "received", "responded"], ["utforer", "in_progress", "responded"]]),
+        // Besvar fra Mottatt. Svar går bakover til den som ba (forrigeBallLedd).
+        h([["utforer", "received", "responded"]]),
         { type: "fantom", labelNoekkel: "flytvisning.fantom.utforerSendTilbake" },
       ],
       endepunkt: [h([["utforer", "received", "dismissed"]])], // Avvis
@@ -365,7 +360,7 @@ export const FLYTVISNING_BOKS_DEF: FlytboksDef[] = [
       endepunkt: [
         // Godkjenn fra Mottatt (F6) + Besvart → én rad, to delceller.
         h([["godkjenner", "received", "approved"], ["godkjenner", "responded", "approved"]]),
-        h([["godkjenner", "in_progress", "closed"]]), // Lukk
+        // Runde-2-polering S2: in_progress-Lukk fjernet (kollaps). Lukk for KS-avvik/HMS via firma-terminal.
       ],
     },
     videresendLaast: { rolle: "godkjenner", fra: "received", til: "forwarded" },
@@ -395,7 +390,7 @@ export const FLYTVISNING_ADMIN_SONE: AdminSoneGruppe[] = [
   { labelNoekkel: "flytvisning.admin.opprett", handlinger: [pah([[SENTINEL_FRA, SENTINEL_TIL]])] },
   {
     labelNoekkel: "flytvisning.admin.videresend",
-    handlinger: [pah([["received", "forwarded"], ["in_progress", "forwarded"], ["responded", "forwarded"], ["approved", "forwarded"]])],
+    handlinger: [pah([["received", "forwarded"], ["responded", "forwarded"], ["approved", "forwarded"]])],
   },
   {
     labelNoekkel: "flytvisning.admin.gjenapne",
