@@ -717,6 +717,7 @@
   "oppgaver.ingenBeskrivelse": "Skapa uppgifter för att tilldela arbete till entreprenörer.",
   "oppgaver.ingenMaler": "Inga uppgiftsmallar tillgängliga",
   "oppgaver.velgMal": "Välj uppgiftsmall",
+  "opprettVelger.sistBrukt": "Senast använd",
   "oppgaver.ingenMatcherFilter": "Inga uppgifter matchar filtren",
   "oppgaver.slettBekreftelse": "Är du säker på att du vill ta bort den här uppgiften?",
   "oppgaver.sokPlaceholder": "Sök uppgifter...",

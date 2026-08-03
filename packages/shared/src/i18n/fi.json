@@ -717,6 +717,7 @@
   "oppgaver.ingenBeskrivelse": "Luo tehtäviä ja anna töitä urakoitsijoille.",
   "oppgaver.ingenMaler": "Tehtävämalleja ei ole saatavilla",
   "oppgaver.velgMal": "Valitse tehtävämalli",
+  "opprettVelger.sistBrukt": "Viimeksi käytetty",
   "oppgaver.ingenMatcherFilter": "Yksikään tehtävä ei vastaa suodattimia",
   "oppgaver.slettBekreftelse": "Haluatko varmasti poistaa tämän tehtävän?",
   "oppgaver.sokPlaceholder": "Hae tehtäviä...",

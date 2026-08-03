@@ -11,6 +11,7 @@ import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { Plus, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
+import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 
 // --- Typer ---
@@ -498,18 +499,14 @@ export default function OppgaverSide() {
   // (klient-lokal interim): treffer det en mal som fortsatt finnes → opprett
   // direkte; ellers mellomvalget (modalen). Aldri gjett blindt.
   function åpneMalVelger() {
-    // P4b pkt 0: auto-valg KUN fra opprettbare maler (server-feltet).
-    const eneste = opprettbareOppgaveMaler.length === 1 ? opprettbareOppgaveMaler[0] : undefined;
-    if (eneste) {
-      handleOpprettFraMal(eneste.id);
-    } else {
-      const sistMalId = sistBrukt(oppgaveMalNøkkel);
-      if (sistMalId && opprettbareOppgaveMaler.some((m) => m.id === sistMalId)) {
-        handleOpprettFraMal(sistMalId);
-        return;
-      }
-      setVisModal(true);
+    // Funn C (2026-08-03, fabel-spec § 0): nøyaktig 1 opprettbar mal → auto-hopp; >1 → velgeren åpnes
+    // ALLTID (aldri stille auto-opprett fra sist-brukt — det var fella). Sist-brukt styrer nå bare
+    // markørens startrad i velgeren (hurtig-sti: åpne → Enter), ikke auto-opprettelse.
+    if (opprettbareOppgaveMaler.length === 1) {
+      handleOpprettFraMal(opprettbareOppgaveMaler[0]!.id);
+      return;
     }
+    setVisModal(true);
   }
   // Hold verktøylinje-ref fersk (se useVerktoylinje over).
   åpneMalVelgerRef.current = åpneMalVelger;
@@ -1005,47 +1002,43 @@ export default function OppgaverSide() {
               </Button>
             </div>
           </div>
+        ) : oppgaveMaler.length === 0 ? (
+          <p className="py-4 text-center text-sm text-gray-400">{t("oppgaver.ingenMaler")}</p>
         ) : (
-        <div className="space-y-1">
-          {oppgaveMaler.length === 0 ? (
-            <p className="py-4 text-center text-sm text-gray-400">{t("oppgaver.ingenMaler")}</p>
-          ) : (
-            <>
-              {opprettbareOppgaveMaler.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => handleOpprettFraMal(m.id)}
-                  disabled={opprettMutation.isPending}
-                  className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="text-sm font-medium text-gray-800">{m.name}</span>
-                  {m.prefix && (
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>
-                  )}
+          // Funn C: unifisert velger (markør/tastatur/«Opprett»/«Sist brukt»). Oppgave = flat liste
+          // (én gruppe uten overskrift); hver rad → handleOpprettFraMal (auto-bind@1 flyt / steg-2@flere).
+          <OpprettMalVelger
+            grupper={[{
+              key: "oppgave-maler",
+              maler: opprettbareOppgaveMaler.map((m) => ({
+                radKey: m.id,
+                malId: m.id,
+                malNavn: m.name,
+                prefix: m.prefix,
+                onVelg: () => handleOpprettFraMal(m.id),
+              })),
+            }]}
+            sistBruktMalId={sistBrukt(oppgaveMalNøkkel)}
+            opprettPending={opprettMutation.isPending}
+            footer={utilgjengeligeOppgaveMaler.length > 0 ? (
+              <div className="border-t border-gray-100 pt-2">
+                <button type="button" onClick={() => setVisUtilgjengelige((v) => !v)}
+                  className="flex min-h-11 w-full items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600">
+                  {visUtilgjengelige ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                  {t("sjekklister.visUtilgjengelige", { antall: utilgjengeligeOppgaveMaler.length })}
                 </button>
-              ))}
-              {/* P4b pkt 0: utilgjengelige maler bak «vis (N)» — dempet, ikke klikkbar. */}
-              {utilgjengeligeOppgaveMaler.length > 0 && (
-                <div className="border-t border-gray-100 pt-2">
-                  <button type="button" onClick={() => setVisUtilgjengelige((v) => !v)}
-                    className="flex min-h-11 w-full items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600">
-                    {visUtilgjengelige ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                    {t("sjekklister.visUtilgjengelige", { antall: utilgjengeligeOppgaveMaler.length })}
-                  </button>
-                  {visUtilgjengelige && utilgjengeligeOppgaveMaler.map((m) => (
-                    <div key={m.id} className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2.5 opacity-60">
-                      <span className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-500">{m.name}</span>
-                        {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
-                      </span>
-                      <span className="text-xs text-gray-400">{t("dokumentflyt.feil.ingenFlytMedMal")}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+                {visUtilgjengelige && utilgjengeligeOppgaveMaler.map((m) => (
+                  <div key={m.id} className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2.5 opacity-60">
+                    <span className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-500">{m.name}</span>
+                      {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
+                    </span>
+                    <span className="text-xs text-gray-400">{t("dokumentflyt.feil.ingenFlytMedMal")}</span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          />
         )}
       </Modal>
     </div>

@@ -717,6 +717,7 @@
   "oppgaver.ingenBeskrivelse": "Creați sarcini pentru a atribui lucrări contractorilor.",
   "oppgaver.ingenMaler": "Nu există șabloane de sarcini disponibile",
   "oppgaver.velgMal": "Selectați șablonul de sarcină",
+  "opprettVelger.sistBrukt": "Ultima utilizare",
   "oppgaver.ingenMatcherFilter": "Nicio sarcină nu se potrivește cu filtrele",
   "oppgaver.slettBekreftelse": "Sigur doriți să ștergeți această sarcină?",
   "oppgaver.sokPlaceholder": "Sarcini de căutare...",
