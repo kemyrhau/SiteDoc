@@ -9,7 +9,8 @@
 // valgfri utvider — MED ett unntak (F1): Avvis (dismissed) krever en ikke-tom
 // begrunnelse (statusKreverBegrunnelse), håndhevet både her og på serveren.
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, type RefObject } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Plus } from "lucide-react";
 import { Tooltip } from "@sitedoc/ui";
@@ -182,12 +183,18 @@ export function DokumentHandlingsmeny({
   const [visKommentar, setVisKommentar] = useState(false);
   const [kommentar, setKommentar] = useState("");
   const menyRef = useRef<HTMLDivElement>(null);
+  // P1-restfiks (b): ▾-triggeren (anker for portalen) + selve den portalede meny-noden. Nedtrekket
+  // portales til document.body (fixed) for å unngå `<main overflow>`-klippet (samme R4-rot som tooltipen).
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Lukk nedtrekk ved klikk utenfor
+  // Lukk nedtrekk ved klikk utenfor — teller BÅDE ankeret (menyRef) OG den portalede noden (i body),
+  // ellers ville et klikk på et menyvalg lukket menyen før onClick rakk å fyre.
   useEffect(() => {
     if (!åpenMeny) return;
     const lukk = (e: MouseEvent) => {
-      if (menyRef.current && !menyRef.current.contains(e.target as Node)) setÅpenMeny(false);
+      const mål = e.target as Node;
+      if (!menyRef.current?.contains(mål) && !dropdownRef.current?.contains(mål)) setÅpenMeny(false);
     };
     document.addEventListener("mousedown", lukk);
     return () => document.removeEventListener("mousedown", lukk);
@@ -226,6 +233,9 @@ export function DokumentHandlingsmeny({
     faggruppeIder: l.faggruppeIder,
   }));
   const nesteLeddPos = harFlyt && aktivPosisjon != null ? nesteLedd(posisjonsLedd, aktivPosisjon) : null;
+  // P1: siste ball-ledд (intet neste ledд) — «Send» har intet mål og skal aldri vises (verken aktiv
+  // eller deaktivert). Kun flyt-dok (flyt-løse bruker `alle` uten posisjonsbegrep).
+  const erSisteLedd = harFlyt && nesteLeddPos === null;
 
   // Kilde: aktive handlinger + hele universet (for deaktiverte).
   // Uten dokumentflyt finnes ingen rollestruktur — serveren bypasser `verifiserFlytRolle`
@@ -243,7 +253,7 @@ export function DokumentHandlingsmeny({
             erAvsender: erAvsender ?? false,
             erMedlemAvFlyt: erMedlemAvFlyt ?? false,
             erAdmin: erFlytAdminNiva,
-            erSisteLedd: nesteLeddPos === null, // P1: dropp «Send» når intet neste ledд
+            erSisteLedd, // P1: dropp «Send» når intet neste ledд
           })
         : alle,
     [harFlyt, status, retningsrett, harBallen, erAvsender, erMedlemAvFlyt, erFlytAdminNiva, nesteLeddPos, alle],
@@ -462,10 +472,14 @@ export function DokumentHandlingsmeny({
     }));
   const adminOppforinger: MenyOppforing[] = [...adminStatusOppforinger, ...slettOppforinger];
 
-  // Deaktiverte: finnes i universet, men ikke tilgjengelig for denne rollen/statusen
+  // Deaktiverte: finnes i universet, men ikke tilgjengelig for denne rollen/statusen.
+  // P1-restfiks (2026-08-03): `alle` er det RÅ status-universet (ikke posisjon-filtrert), så «Send»
+  // dukket opp igjen som deaktivert «Send · KUN ADMINISTRATOR» på siste ledд (KB2-017 ledд 4). Dropp
+  // `sent` fra deaktivert-visningen på siste ledд med SAMME betingelse som P1 — så BÅDE aktive og
+  // deaktiverte mangler «Send» der. Rører kun deaktivert-lista (ikke `alle`s andre bruk).
   const aktiveNy = new Set(aktive.map((h) => h.nyStatus));
   const deaktiverteOppforinger: MenyOppforing[] = alle
-    .filter((h) => !aktiveNy.has(h.nyStatus))
+    .filter((h) => !aktiveNy.has(h.nyStatus) && !(erSisteLedd && h.nyStatus === "sent"))
     .map((h) => ({
       key: `deakt-${h.nyStatus}`,
       label: t(h.tekstNoekkel),
@@ -643,6 +657,8 @@ export function DokumentHandlingsmeny({
       sendLabel={t("statushandling.sendVidereTil")}
       videresendLabel={t("statushandling.videresend")}
       adminLabel={t("statushandling.admin")}
+      ankerRef={triggerRef}
+      rootRef={dropdownRef}
     />
   );
 
@@ -674,6 +690,7 @@ export function DokumentHandlingsmeny({
           )}
           {harØvrige && (
             <button
+              ref={triggerRef}
               data-testid="handling-split-nedtrekk"
               aria-label={t("statushandling.flereHandlinger")}
               onClick={() => setÅpenMeny((å) => !å)}
@@ -691,6 +708,7 @@ export function DokumentHandlingsmeny({
       {!primærHandling && menyHarInnhold && (
         <div className="relative">
           <button
+            ref={triggerRef}
             data-testid="handling-admin-nedtrekk"
             onClick={() => setÅpenMeny((å) => !å)}
             disabled={erLaster}
@@ -743,6 +761,8 @@ function DropdownMeny({
   sendLabel,
   videresendLabel,
   adminLabel,
+  ankerRef,
+  rootRef,
 }: {
   /** Draft-send: mottaker-liste (person-velger), øverst som framover-utvidelse */
   draftMottaker: MenyOppforing[];
@@ -760,8 +780,33 @@ function DropdownMeny({
   sendLabel: string;
   videresendLabel: string;
   adminLabel: string;
+  /** ▾-triggeren nedtrekket forankres til (fixed-koordinater fra dens rect). */
+  ankerRef: RefObject<HTMLButtonElement | null>;
+  /** Ref til den portalede meny-noden (for outside-click i forelderen). */
+  rootRef: RefObject<HTMLDivElement | null>;
 }) {
   const { t } = useTranslation();
+  // P1-restfiks (b): portal til document.body + fixed-posisjon fra ▾-ankeret, så kortet ikke klippes
+  // av `<main overflow-y-auto>` (R4-rot). Høyre-justert under triggeren; reposisjoneres ved scroll/resize.
+  const [koord, setKoord] = useState<{ top: number; right: number } | null>(null);
+  const oppdaterKoord = () => {
+    const a = ankerRef.current;
+    if (!a || typeof window === "undefined") return;
+    const r = a.getBoundingClientRect();
+    setKoord({ top: r.bottom + 4, right: window.innerWidth - r.right });
+  };
+  useLayoutEffect(() => {
+    oppdaterKoord();
+    if (typeof window === "undefined") return;
+    const h = () => oppdaterKoord();
+    window.addEventListener("scroll", h, true);
+    window.addEventListener("resize", h);
+    return () => {
+      window.removeEventListener("scroll", h, true);
+      window.removeEventListener("resize", h);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Person-videresending (Del 2.4): hvilke faggruppe-rader er ekspandert.
   const [ekspandert, setEkspandert] = useState<Set<string>>(new Set());
   const veksle = (key: string) =>
@@ -859,8 +904,12 @@ function DropdownMeny({
 
   // Fabel C-orden (pilot-fiks A): (draft-mottakere →) framover (Besvar) → Videresend → destruktiv
   // (Avvis) → Admin (Lukk/Trekk tilbake/Gjenåpne + Slett sist) → deaktiverte.
-  return (
-    <div className="absolute right-0 top-full z-20 mt-1 min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg">
+  const innhold = (
+    <div
+      ref={rootRef}
+      style={{ position: "fixed", top: koord?.top ?? 0, right: koord?.right ?? 0, visibility: koord ? "visible" : "hidden" }}
+      className="z-[9999] min-w-[220px] rounded-lg border border-gray-200 bg-white py-1 shadow-lg"
+    >
       {draftMottaker.length > 0 && (
         <>
           {skille(true)}
@@ -915,4 +964,6 @@ function DropdownMeny({
       )}
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(innhold, document.body) : innhold;
 }
