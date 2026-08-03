@@ -717,6 +717,7 @@
   "oppgaver.ingenBeskrivelse": "Create tasks to assign work to trade groups.",
   "oppgaver.ingenMaler": "No task templates available",
   "oppgaver.velgMal": "Select task template",
+  "opprettVelger.sistBrukt": "Last used",
   "oppgaver.ingenMatcherFilter": "No tasks match the filters",
   "oppgaver.slettBekreftelse": "Are you sure you want to delete this task?",
   "oppgaver.sokPlaceholder": "Search tasks...",

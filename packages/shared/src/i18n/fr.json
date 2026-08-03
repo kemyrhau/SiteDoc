@@ -717,6 +717,7 @@
   "oppgaver.ingenBeskrivelse": "Créez des tâches pour attribuer du travail aux entrepreneurs.",
   "oppgaver.ingenMaler": "Aucun modèle de tâche disponible",
   "oppgaver.velgMal": "Sélectionner un modèle de tâche",
+  "opprettVelger.sistBrukt": "Dernière utilisation",
   "oppgaver.ingenMatcherFilter": "Aucune tâche ne correspond aux filtres",
   "oppgaver.slettBekreftelse": "Êtes-vous sûr de vouloir supprimer cette tâche ?",
   "oppgaver.sokPlaceholder": "Rechercher des tâches...",

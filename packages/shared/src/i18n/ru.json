@@ -717,6 +717,7 @@
   "oppgaver.ingenBeskrivelse": "Создавайте задачи для назначения работ подрядчикам.",
   "oppgaver.ingenMaler": "Нет доступных шаблонов задач",
   "oppgaver.velgMal": "Выберите шаблон задачи",
+  "opprettVelger.sistBrukt": "Последнее использование",
   "oppgaver.ingenMatcherFilter": "Нет задач, соответствующих фильтрам",
   "oppgaver.slettBekreftelse": "Вы уверены, что хотите удалить эту задачу?",
   "oppgaver.sokPlaceholder": "Поиск задач...",

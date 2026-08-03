@@ -11,6 +11,7 @@ import type { VerktoylinjeHandling } from "@/kontekst/navigasjon-kontekst";
 import { Plus, Printer, Trash2, Search, ChevronDown, ChevronRight, User, Users } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { FlytIndikator, hentFlytLedd as hentAktivtLeddNavn } from "@/components/FlytIndikator";
+import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useTabelloppsett } from "@/hooks/useTabelloppsett";
 import { beregnHarBallen } from "@sitedoc/shared";
 
@@ -301,14 +302,16 @@ export default function SjekklisteSide() {
   // P4b pkt 0: opprettbar/opprettbareFlytIder kommer nå fra serveren (delt regel
   // med opprett-valideringen) — ikke lenger klient-utledet fra mineOpprettFlyter.
   const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string; opprettbar?: boolean; opprettbareFlytIder?: string[] }>).filter((m) => m.category === "sjekkliste");
+  const opprettbareSjekklisteMaler = sjekklisteMaler.filter((m) => m.opprettbar !== false);
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // «Mine oppgaver»-filter (Del 1d): trenger userId + gruppeIder for beregnHarBallen.
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
 
-  // P4b: sist brukt mal per flyt (klient-lokal interim) — driver auto-hopp ved
-  // flertydighet. Skrives ved opprett; ref bærer siste forsøk til onSuccess.
+  // Funn C (2026-08-03): sist-brukt-nøkkel er nå PER PROSJEKT + DOKUMENTTYPE (erstatter per-flyt) —
+  // markøren lander på sist-brukte mal uansett flyt-gruppe. Klient-lokal interim (se useSistBrukteMal).
   const { sistBrukt, settSistBrukt } = useSistBrukteMal(minFlytInfo?.userId);
-  const sisteMalFlytRef = useRef<{ flytId: string; malId: string } | null>(null);
+  const sjekklisteMalNøkkel = `sjekkliste:${params.prosjektId}`;
+  const sisteMalRef = useRef<string | null>(null);
   // P4b pkt 0: utilgjengelige maler skjules som default; åpnes via «vis (N)».
   const [visUtilgjengelige, setVisUtilgjengelige] = useState(false);
 
@@ -330,9 +333,9 @@ export default function SjekklisteSide() {
     onSuccess: (_data: unknown) => {
       const resultat = _data as { id: string };
       // P4b: registrer sist brukt mal for flyten (interim signal for auto-hopp).
-      if (sisteMalFlytRef.current) {
-        settSistBrukt(sisteMalFlytRef.current.flytId, sisteMalFlytRef.current.malId);
-        sisteMalFlytRef.current = null;
+      if (sisteMalRef.current) {
+        settSistBrukt(sjekklisteMalNøkkel, sisteMalRef.current);
+        sisteMalRef.current = null;
       }
       utils.sjekkliste.hentForProsjekt.invalidate({ projectId: params.prosjektId });
       setOpprettFeil(null);
@@ -389,8 +392,8 @@ export default function SjekklisteSide() {
   }, [dokumentflyter, sjekklisteMaler]);
 
   function opprettMedKandidat(malId: string, k: FlytKandidat) {
-    // P4b: husk (flyt, mal) til onSuccess skriver sist-brukt-signalet.
-    sisteMalFlytRef.current = { flytId: k.flytId, malId };
+    // Funn C: husk MALEN (per prosjekt+doctype) til onSuccess skriver sist-brukt-signalet.
+    sisteMalRef.current = malId;
     opprettMutation.mutate({
       templateId: malId,
       bestillerFaggruppeId: k.bestillerFaggruppeId,
@@ -452,24 +455,11 @@ export default function SjekklisteSide() {
   //     opprett direkte. Ellers → mellomvalget (flyt-gruppert modal). Aldri gjett
   //     blindt: null/flere treff = modal.
   function åpneMalVelger() {
-    const eneste = sjekklisteMaler.length === 1 ? sjekklisteMaler[0] : undefined;
-    if (eneste) {
-      const status = malFlytStatus.get(eneste.id);
-      if (status && status.type !== "ingen") {
-        handleMalKlikk(eneste.id);
-        return;
-      }
-    }
-    // Sist-brukt auto-hopp: samle entydige treff der lagret mal fortsatt finnes i flyten.
-    const treff = flytGrupper.grupper
-      .map((g) => {
-        const malId = sistBrukt(g.flytId);
-        const m = malId ? g.maler.find((x) => x.malId === malId) : undefined;
-        return m ? { kandidat: m.kandidat, malId: m.malId } : null;
-      })
-      .filter((x): x is { kandidat: FlytKandidat; malId: string } => x !== null);
-    if (treff.length === 1) {
-      opprettMedKandidat(treff[0]!.malId, treff[0]!.kandidat);
+    // Funn C (2026-08-03, fabel-spec § 0): nøyaktig 1 opprettbar mal → auto-hopp (handleMalKlikk løser
+    // opprett/steg-2); >1 → velgeren åpnes ALLTID (aldri stille auto-opprett fra sist-brukt — det var
+    // fella). Sist-brukt styrer nå bare markørens startrad i velgeren (hurtig-sti: åpne → Enter).
+    if (opprettbareSjekklisteMaler.length === 1) {
+      handleMalKlikk(opprettbareSjekklisteMaler[0]!.id);
       return;
     }
     setVisModal(true);
@@ -883,54 +873,47 @@ export default function SjekklisteSide() {
               </Button>
             </div>
           </div>
+        ) : sjekklisteMaler.length === 0 ? (
+          <p className="py-4 text-center text-sm text-gray-400">{t("sjekklister.ingenMaler")}</p>
         ) : (
-          // P4b Steg 1: mal-velger GRUPPERT per dokumentflyt. Flere flyter →
-          // flyt-overskrift over sine maler; klikk = entydig (opprett direkte,
-          // ingen steg-2). Utilgjengelige maler samles dempet nederst m/ grunn.
-          <div className="space-y-2">
+          // Funn C: unifisert velger (markør/tastatur/«Opprett»/«Sist brukt»). Sjekkliste = flyt-gruppert
+          // (overskrift v/ >1 flyt); hver rad = løst kandidat → opprett direkte. Utilgjengelige nederst.
+          <>
             {opprettFeil && <p className="text-sm text-red-600 bg-red-50 rounded p-3 mb-2">{opprettFeil}</p>}
-            {sjekklisteMaler.length === 0 ? (
-              <p className="py-4 text-center text-sm text-gray-400">{t("sjekklister.ingenMaler")}</p>
-            ) : (
-              <>
-                {flytGrupper.grupper.map((g) => (
-                  <div key={g.flytId} className="space-y-0.5">
-                    {flytGrupper.grupper.length > 1 && (
-                      <p className="px-1 pt-1 text-[11px] font-semibold uppercase tracking-wide text-sitedoc-primary">
-                        {g.flytNavn}
-                      </p>
-                    )}
-                    {g.maler.map((m) => (
-                      <button key={`${g.flytId}:${m.malId}`} onClick={() => opprettMedKandidat(m.malId, m.kandidat)}
-                        disabled={opprettMutation.isPending}
-                        className="flex min-h-11 w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left enabled:hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60">
-                        <span className="text-sm font-medium text-gray-800">{m.malNavn}</span>
-                        {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-500">{m.prefix}</span>}
-                      </button>
-                    ))}
-                  </div>
-                ))}
-                {flytGrupper.utilgjengelig.length > 0 && (
-                  <div className="border-t border-gray-100 pt-2">
-                    <button type="button" onClick={() => setVisUtilgjengelige((v) => !v)}
-                      className="flex min-h-11 w-full items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600">
-                      {visUtilgjengelige ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                      {t("sjekklister.visUtilgjengelige", { antall: flytGrupper.utilgjengelig.length })}
-                    </button>
-                    {visUtilgjengelige && flytGrupper.utilgjengelig.map((m) => (
-                      <div key={m.malId} className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2.5 opacity-60">
-                        <span className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-500">{m.malNavn}</span>
-                          {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
-                        </span>
-                        <span className="text-xs text-gray-400">{t(`dokumentflyt.feil.${m.grunn}`)}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+            <OpprettMalVelger
+              grupper={flytGrupper.grupper.map((g) => ({
+                key: g.flytId,
+                overskrift: flytGrupper.grupper.length > 1 ? { navn: g.flytNavn } : undefined,
+                maler: g.maler.map((m) => ({
+                  radKey: `${g.flytId}:${m.malId}`,
+                  malId: m.malId,
+                  malNavn: m.malNavn,
+                  prefix: m.prefix,
+                  onVelg: () => opprettMedKandidat(m.malId, m.kandidat),
+                })),
+              }))}
+              sistBruktMalId={sistBrukt(sjekklisteMalNøkkel)}
+              opprettPending={opprettMutation.isPending}
+              footer={flytGrupper.utilgjengelig.length > 0 ? (
+                <div className="border-t border-gray-100 pt-2">
+                  <button type="button" onClick={() => setVisUtilgjengelige((v) => !v)}
+                    className="flex min-h-11 w-full items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600">
+                    {visUtilgjengelige ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                    {t("sjekklister.visUtilgjengelige", { antall: flytGrupper.utilgjengelig.length })}
+                  </button>
+                  {visUtilgjengelige && flytGrupper.utilgjengelig.map((m) => (
+                    <div key={m.malId} className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2.5 opacity-60">
+                      <span className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-500">{m.malNavn}</span>
+                        {m.prefix && <span className="rounded bg-gray-100 px-1.5 py-0.5 text-xs font-medium text-gray-400">{m.prefix}</span>}
+                      </span>
+                      <span className="text-xs text-gray-400">{t(`dokumentflyt.feil.${m.grunn}`)}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            />
+          </>
         )}
       </Modal>
     </div>

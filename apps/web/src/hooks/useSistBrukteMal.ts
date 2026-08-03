@@ -11,20 +11,20 @@ import { useCallback, useEffect, useState } from "react";
  * malbytte-server-saken bygger server-støtte, FLYTTES denne kilden server-side
  * (per-bruker/flyt-signal). Se `inbox-cowork.md` [2026-07-29] malbytte-flagg.
  *
- * Nøkkel: `sitedoc_sistbruktmal_${userId}` → JSON `Record<flytNøkkel, malId>`.
- * Nøkkel PER BRUKER + FLYT (ikke global) — fabel-krav (a): feil mal på tvers av
- * flyter er verre enn ingen default. `flytNøkkel` = dokumentflyt-id der en flyt
- * finnes; ellers en kategori-scopet sentinel fra kalleren (aldri delt på tvers
- * av flyter/kategorier).
+ * Nøkkel: `sitedoc_sistbruktmal_${userId}` → JSON `Record<nøkkel, malId>`.
+ * Nøkkel PER BRUKER + PROSJEKT + DOKUMENTTYPE (Funn C, 2026-08-03) — kalleren gir
+ * `"sjekkliste:${prosjektId}"` / `"oppgave:${prosjektId}"`. ERSTATTER den gamle per-flyt-nøkkelen:
+ * to ulike nøkkel-modeller (per-flyt sjekkliste vs per-prosjekt oppgave) var nettopp det som skapte
+ * Funn C (auto-hopp-fella). Én nøkkel per flate = forutsigbart. Verdien er nå bare markørens startrad
+ * i velgeren (aldri stille auto-opprett — fabel-spec § 0/§ 4).
  *
- * Miss (ingen lagret verdi) → kalleren faller tilbake til fallback-stigen
- * (favoritt/eneste → mellomvalg). Aldri gjett blindt.
+ * Miss (ingen lagret verdi) → velgeren setter markøren på første rad. Aldri gjett blindt.
  *
  * Feilfallback: tom (auto-hopp er nice-to-have, ikke kritisk).
  */
 export function useSistBrukteMal(userId: string | undefined): {
-  sistBrukt: (flytNøkkel: string) => string | null;
-  settSistBrukt: (flytNøkkel: string, malId: string) => void;
+  sistBrukt: (nøkkel: string) => string | null;
+  settSistBrukt: (nøkkel: string, malId: string) => void;
 } {
   const [kart, setKart] = useState<Record<string, string>>({});
 
@@ -48,15 +48,15 @@ export function useSistBrukteMal(userId: string | undefined): {
   }, [nokkel]);
 
   const sistBrukt = useCallback(
-    (flytNøkkel: string): string | null => kart[flytNøkkel] ?? null,
+    (nøkkel: string): string | null => kart[nøkkel] ?? null,
     [kart],
   );
 
   const settSistBrukt = useCallback(
-    (flytNøkkel: string, malId: string) => {
+    (nøkkel: string, malId: string) => {
       if (!nokkel || typeof window === "undefined") return;
       setKart((forrige) => {
-        const ny = { ...forrige, [flytNøkkel]: malId };
+        const ny = { ...forrige, [nøkkel]: malId };
         try {
           localStorage.setItem(nokkel, JSON.stringify(ny));
         } catch {
