@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
-import { isValidStatusTransition, statusKreverBegrunnelse, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
@@ -1134,20 +1134,13 @@ export const sjekklisteRouter = router({
         });
       }
 
-      // P2 (tom-besvarelse): en besvarelse (→responded) kan aldri sendes tom —
-      // minst ett utfylt svar-felt (mal-bevisst; malen uten svar-felt tillates).
-      if (
-        input.nyStatus === "responded" &&
-        !harMinstEttUtfyltFelt(
-          sjekkliste.template.objects,
-          sjekkliste.data as Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null,
-        )
-      ) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Besvarelsen kan ikke være tom — fyll ut minst ett felt",
-        });
-      }
+      // Funn D (2026-08-04, Tolkning A): den gamle tom-besvarelse-guarden (krevde minst ett
+      // utfylt svar-felt for `responded`) er fjernet. Under Tolkning A teller en kommentar/
+      // begrunnelse/vedlegg/tegning som gyldig besvarelse — og `responded` krever ALLTID en
+      // ikke-tom begrunnelse (statusKreverBegrunnelse-guarden over). Guarden var derfor både
+      // (a) feil (blokkerte gyldig kommentar-only-besvarelse, Kenneths funn) og (b) subsumert:
+      // en `responded` som passerer begrunnelse-guarden har alltid innhold. «Helt tom» avvises
+      // fortsatt — av begrunnelse-guarden («Begrunnelse er påkrevd»). Se inbox-cowork Funn D.
 
       // Auto-mottatt: sent → received umiddelbart
       const effektivStatus = input.nyStatus === "sent" ? "received" : input.nyStatus;

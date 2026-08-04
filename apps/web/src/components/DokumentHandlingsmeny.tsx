@@ -93,13 +93,6 @@ interface DokumentHandlingsmenyProps {
   bestillerUserId?: string;
   /** Tidspunkt da mottaker åpnet dokumentet */
   lestAvMottakerVed?: Date | string | null;
-  /**
-   * P2 (tom-besvarelse): når satt, er «Besvar» (responded) deaktivert fordi
-   * besvarelsen er tom (ingen utfylte svar-felt). Teksten vises som mikrotekst/
-   * tooltip. Beregnes på detaljflaten (der svarverdiene + malfeltene finnes) —
-   * `DokumentHandlingsmeny` forblir innholds-agnostisk. Speiler server-guarden.
-   */
-  besvarDeaktivertGrunn?: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -175,7 +168,6 @@ export function DokumentHandlingsmeny({
   recipientGroupId,
   // bestillerUserId: prop beholdt for API-kompat, men klienten utleder ikke mottaker (server gjør).
   lestAvMottakerVed,
-  besvarDeaktivertGrunn,
 }: DokumentHandlingsmenyProps) {
   const { t } = useTranslation();
   const [åpenMeny, setÅpenMeny] = useState(false);
@@ -536,14 +528,9 @@ export function DokumentHandlingsmeny({
     utfor(o.nyStatus, o.tekstNoekkel, o.mottaker);
   };
 
-  // P2 (tom-besvarelse): «Besvar» blokkeres når besvarelsen er tom. Speiler
-  // server-guarden — UI viser aldri en handling serveren avviser. Gjelder KUN når Besvar er
-  // primær (effektivPrimär) — etter B kan primær være Send/Godkjenn (skal ikke blokkeres av tom besvar).
-  const besvarBlokkert = !!besvarDeaktivertGrunn && effektivPrimær?.nyStatus === "responded";
-
   // Primærknapp-klikk: draft-send med flere mottakere → åpne nedtrekk; ellers utfør
   const klikkPrimær = () => {
-    if (!effektivPrimær || besvarBlokkert) return;
+    if (!effektivPrimær) return;
     if (draftSend) {
       const v = videresendValg[0];
       if (videresendValg.length === 1 && v) {
@@ -635,11 +622,6 @@ export function DokumentHandlingsmeny({
   // primærhandlingen (Send/Godkjenn-og-fullfør), ikke kildens erPrimaer.
   const primærFarge = effektivPrimær ? FARGE_KLASSE[effektivPrimær.farge] ?? "bg-sitedoc-primary hover:bg-blue-700" : "";
   const primærMikro = effektivPrimær ? mikrotekst(effektivPrimær.tekstNoekkel, effektivPrimær.nyStatus, primærLabel) : undefined;
-  // P2: når Besvar er blokkert (tom besvarelse), vis blokkerings-grunnen i tooltipen
-  // framfor den vanlige flythjelp-mikroteksten.
-  const primærTooltip = besvarBlokkert && effektivPrimær
-    ? { tittel: t(effektivPrimær.tekstNoekkel), tekst: besvarDeaktivertGrunn! }
-    : primærMikro;
 
   // Splittkanten (rounded-l) på primærknappen når split-▾ vises.
   const primærRund = harØvrige ? "rounded-l-lg" : "rounded-lg";
@@ -667,12 +649,12 @@ export function DokumentHandlingsmeny({
       {/* Primærhandling som knapp + split-▾ (fabel § 1: alle øvrige lovlige handlinger i menyen) */}
       {effektivPrimær && (
         <div className="relative flex">
-          {primærTooltip ? (
-            <Tooltip tittel={primærTooltip.tittel} tekst={primærTooltip.tekst} side="top">
+          {primærMikro ? (
+            <Tooltip tittel={primærMikro.tittel} tekst={primærMikro.tekst} side="top">
               <button
                 data-testid={`handling-${effektivPrimær.nyStatus}`}
                 onClick={klikkPrimær}
-                disabled={erLaster || besvarBlokkert}
+                disabled={erLaster}
                 className={primærKnappKlasse}
               >
                 {erLaster ? t("statushandling.endrer") : primærLabel}
@@ -682,7 +664,7 @@ export function DokumentHandlingsmeny({
             <button
               data-testid={`handling-${effektivPrimær.nyStatus}`}
               onClick={klikkPrimær}
-              disabled={erLaster || besvarBlokkert}
+              disabled={erLaster}
               className={primærKnappKlasse}
             >
               {erLaster ? t("statushandling.endrer") : primærLabel}
