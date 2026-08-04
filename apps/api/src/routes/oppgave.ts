@@ -453,7 +453,7 @@ export const oppgaveRouter = router({
         if (!hmsGruppe) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "HMS-gruppe ikke konfigurert i dette prosjektet. Opprett en gruppe med HMS-domene under Oppsett → Brukere.",
+            message: "HMS-gruppe ikke konfigurert i dette prosjektet. Opprett en tilgangsgruppe med HMS-domene under Oppsett → Kontakter.",
           });
         }
 

@@ -18,6 +18,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { SammenhengBoks } from "@/components/oppsett/SammenhengBoks";
 
 /* ------------------------------------------------------------------ */
 /*  KompaktBadgeListe — viser første verdi + "+N" utvidbar             */
@@ -241,6 +242,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     },
   });
 
+  const oppdaterDomenerMutation = trpc.gruppe.oppdaterDomener.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
   const opprettGruppeMutation = trpc.gruppe.opprett.useMutation({
     onSuccess: () => {
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
@@ -326,6 +333,17 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     if (dbGrupper) {
       for (const g of dbGrupper as Array<{ id: string; modules: unknown }>) {
         map[g.id] = (g.modules as string[] | null) ?? [];
+      }
+    }
+    return map;
+  }, [dbGrupper]);
+
+  // Bygg gruppeId → domains map (bygg/hms/kvalitet)
+  const gruppeDomener = useMemo((): Record<string, string[]> => {
+    const map: Record<string, string[]> = {};
+    if (dbGrupper) {
+      for (const g of dbGrupper as Array<{ id: string; domains: unknown }>) {
+        map[g.id] = (g.domains as string[] | null) ?? [];
       }
     }
     return map;
@@ -766,6 +784,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
         )}
       </div>
       <div className="px-6 pt-3 pb-6">
+      <SammenhengBoks />
       <div className="rounded-lg border border-gray-200">
         <table className="w-full text-left text-sm">
           <thead className="sticky top-[69px] z-20 border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500 shadow-sm">
@@ -941,6 +960,47 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                                     title={erAktiv ? `${info.label}: aktiv — klikk for å deaktivere` : `${info.label}: inaktiv — klikk for å aktivere`}
                                   >
                                     {info.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+
+                        {/* Domene-velger — bygg/hms/kvalitet, wirer gruppe.oppdaterDomener (admin-gatet server-side) */}
+                        {!erUtenGruppe && gruppeId && (() => {
+                          const domener = gruppeDomener[gruppeId] ?? [];
+                          const DOMENER: Array<{ key: "bygg" | "hms" | "kvalitet"; label: string; aktivBg: string }> = [
+                            { key: "bygg", label: t("brukere.domene.bygg"), aktivBg: "bg-sky-100 text-sky-700" },
+                            { key: "hms", label: t("brukere.domene.hms"), aktivBg: "bg-red-100 text-red-700" },
+                            { key: "kvalitet", label: t("brukere.domene.kvalitet"), aktivBg: "bg-emerald-100 text-emerald-700" },
+                          ];
+
+                          return (
+                            <div className="ml-1 flex items-center gap-1 border-l border-gray-300 pl-2" onClick={(e) => e.stopPropagation()}>
+                              <span className="text-[10px] font-medium normal-case tracking-normal text-gray-400">{t("brukere.domener")}</span>
+                              {DOMENER.map((dom) => {
+                                const erAktiv = domener.includes(dom.key);
+                                return (
+                                  <button
+                                    key={dom.key}
+                                    type="button"
+                                    onClick={() => {
+                                      const nyeDomener = (erAktiv
+                                        ? domener.filter((d) => d !== dom.key)
+                                        : [...domener, dom.key]) as Array<"bygg" | "hms" | "kvalitet">;
+                                      oppdaterDomenerMutation.mutate({
+                                        groupId: gruppeId,
+                                        projectId: prosjektId,
+                                        domains: nyeDomener,
+                                      });
+                                    }}
+                                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal transition-colors cursor-pointer hover:opacity-80 ${
+                                      erAktiv ? dom.aktivBg : "bg-gray-100 text-gray-400 line-through"
+                                    }`}
+                                    title={erAktiv ? t("brukere.domeneAktivHint", { domene: dom.label }) : t("brukere.domeneInaktivHint", { domene: dom.label })}
+                                  >
+                                    {dom.label}
                                   </button>
                                 );
                               })}
