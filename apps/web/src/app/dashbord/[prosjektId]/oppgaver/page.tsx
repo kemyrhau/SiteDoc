@@ -445,6 +445,44 @@ export default function OppgaverSide() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dokumentflyter, oppgaveMaler]);
 
+  // Gruppering v2 (2026-08-04, fabel-spec): oppgave-velger GRUPPERT i to nivåer — faggruppe (nivå 1) →
+  // dokumentflyt (nivå 2) → mal (nivå 3), speiler sjekkliste (var flat i Funn C). Faggruppe = flytens
+  // eier-/bestiller-faggruppe. En mal i flere flyter vises under hver (klikk = løst kandidat → opprett
+  // direkte, ingen steg-2 fra grupperingen). Flyt-løse opprettbare HMS-maler (domain=hms, auto-rutes til
+  // HMS-gruppen uten flyt) samles i egen nivå-1 «HMS»-seksjon (ALT 1, cowork-vedtak 2026-08-04) —
+  // sorteres nederst via `sorterSist`, ingen nivå-2-overskrift. Sortering ellers i OpprettMalVelger.
+  const velgerGrupper = useMemo(() => {
+    const fagMap = new Map<
+      string,
+      {
+        faggruppeId: string;
+        faggruppeNavn: string;
+        flyter: Map<string, { flytId: string; flytNavn: string; maler: Array<{ malId: string; malNavn: string; prefix?: string | null; kandidat: FlytKandidat }> }>;
+      }
+    >();
+    const hmsMaler: Array<{ malId: string; malNavn: string; prefix?: string | null }> = [];
+    for (const mal of opprettbareOppgaveMaler) {
+      // HMS-oppgavemaler: flyt-løse (auto-rutes) → egen nivå-1-seksjon, ikke faggruppe→flyt.
+      if (mal.domain === "hms") {
+        hmsMaler.push({ malId: mal.id, malNavn: mal.name, prefix: mal.prefix });
+        continue;
+      }
+      const status = malFlytStatus.get(mal.id);
+      // Opprettbar ikke-HMS-mal har alltid ≥1 kandidat (server-regel) — vaktklausul for typesnevring.
+      if (!status || status.type === "ingen") continue;
+      const kandidater = status.type === "en" ? [status.kandidat] : status.kandidater;
+      for (const k of kandidater) {
+        const fag = fagMap.get(k.bestillerFaggruppeId)
+          ?? { faggruppeId: k.bestillerFaggruppeId, faggruppeNavn: k.oppretterNavn, flyter: new Map() };
+        const flyt = fag.flyter.get(k.flytId) ?? { flytId: k.flytId, flytNavn: k.flytNavn, maler: [] };
+        flyt.maler.push({ malId: mal.id, malNavn: mal.name, prefix: mal.prefix, kandidat: k });
+        fag.flyter.set(k.flytId, flyt);
+        fagMap.set(k.bestillerFaggruppeId, fag);
+      }
+    }
+    return { faggrupper: Array.from(fagMap.values()), hmsMaler };
+  }, [opprettbareOppgaveMaler, malFlytStatus]);
+
   function opprettMedKandidat(malId: string, k: FlytKandidat) {
     // P4b: husk malen til onSuccess skriver sist-brukt-signalet (interim).
     sisteMalRef.current = malId;
@@ -1005,19 +1043,44 @@ export default function OppgaverSide() {
         ) : oppgaveMaler.length === 0 ? (
           <p className="py-4 text-center text-sm text-gray-400">{t("oppgaver.ingenMaler")}</p>
         ) : (
-          // Funn C: unifisert velger (markør/tastatur/«Opprett»/«Sist brukt»). Oppgave = flat liste
-          // (én gruppe uten overskrift); hver rad → handleOpprettFraMal (auto-bind@1 flyt / steg-2@flere).
+          // Gruppering v2: unifisert velger (markør/tastatur/«Opprett»/«Sist brukt»). Oppgave = to-nivå
+          // gruppert (faggruppe → flyt) som sjekkliste; hver flyt-rad = løst kandidat → opprett direkte.
+          // HMS-maler (flyt-løse) i egen nivå-1-seksjon nederst → handleOpprettFraMal (HMS-grenen auto-ruter).
           <OpprettMalVelger
-            grupper={[{
-              key: "oppgave-maler",
-              maler: opprettbareOppgaveMaler.map((m) => ({
-                radKey: m.id,
-                malId: m.id,
-                malNavn: m.name,
-                prefix: m.prefix,
-                onVelg: () => handleOpprettFraMal(m.id),
+            grupper={[
+              ...velgerGrupper.faggrupper.map((fag) => ({
+                key: fag.faggruppeId,
+                overskrift: { navn: fag.faggruppeNavn },
+                undergrupper: Array.from(fag.flyter.values()).map((flyt) => ({
+                  key: flyt.flytId,
+                  overskrift: { navn: flyt.flytNavn },
+                  maler: flyt.maler.map((m) => ({
+                    radKey: `${flyt.flytId}:${m.malId}`,
+                    malId: m.malId,
+                    malNavn: m.malNavn,
+                    prefix: m.prefix,
+                    onVelg: () => opprettMedKandidat(m.malId, m.kandidat),
+                  })),
+                })),
               })),
-            }]}
+              ...(velgerGrupper.hmsMaler.length > 0
+                ? [{
+                    key: "__hms__",
+                    overskrift: { navn: t("maler.domain.hms") },
+                    sorterSist: true,
+                    undergrupper: [{
+                      key: "__hms__u",
+                      maler: velgerGrupper.hmsMaler.map((m) => ({
+                        radKey: `hms:${m.malId}`,
+                        malId: m.malId,
+                        malNavn: m.malNavn,
+                        prefix: m.prefix,
+                        onVelg: () => handleOpprettFraMal(m.malId),
+                      })),
+                    }],
+                  }]
+                : []),
+            ]}
             sistBruktMalId={sistBrukt(oppgaveMalNøkkel)}
             opprettPending={opprettMutation.isPending}
             footer={utilgjengeligeOppgaveMaler.length > 0 ? (
