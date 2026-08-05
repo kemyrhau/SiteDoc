@@ -9,7 +9,7 @@ import { Button } from "@sitedoc/ui";
  * for sjekkliste + oppgave. Fabel-spec: `funn-c-opprett-velger-interaksjons-spec.md` +
  * `velger-gruppering-v2-visuell-spec.md`.
  *
- * Åpne-regelen (0 → knapp av, 1 → auto-hopp, >1 → alltid velger) eies av KALLEREN (`åpneMalVelger`).
+ * Åpne-regelen (0 → knapp av; ≥1 → alltid velger — auto-hopp fjernet, Ordre 1.4) eies av KALLEREN (`åpneMalVelger`).
  * Denne komponenten eier velger-interaksjonen når den er åpen: markør (init = sist-brukt, ellers
  * første rad), ↑/↓ (ingen wrap, flatt over ALLE gruppegrenser), Enter/«Opprett» oppretter, klikk på
  * rad = velg+bekreft i ett. Overskrifter (begge nivåer) er ikke-fokuserbare (markøren hopper flatt forbi).

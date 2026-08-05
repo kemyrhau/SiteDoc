@@ -532,18 +532,11 @@ export default function OppgaverSide() {
     }
   }
 
-  // V3 (del6b web-paritet) + P4b auto-hopp: ved nøyaktig 1 mal opprettes den
-  // direkte (speiler mobil MalVelger). Ved flere maler brukes sist-brukt-signalet
-  // (klient-lokal interim): treffer det en mal som fortsatt finnes → opprett
-  // direkte; ellers mellomvalget (modalen). Aldri gjett blindt.
+  // Ordre 1.4 (2026-08-05): auto-hopp fjernet OVERALT. 0 opprettbare maler → knappen er
+  // deaktivert m/ forklaring (eies utenfor). ≥1 → velgeren vises ALLTID, markør på sist-brukt
+  // (ingen → første/eneste rad). Enter oppretter — hurtig-stien er like rask (åpne → Enter).
+  // Sist-brukt styrer nå KUN markørens startrad, aldri auto-opprettelse.
   function åpneMalVelger() {
-    // Funn C (2026-08-03, fabel-spec § 0): nøyaktig 1 opprettbar mal → auto-hopp; >1 → velgeren åpnes
-    // ALLTID (aldri stille auto-opprett fra sist-brukt — det var fella). Sist-brukt styrer nå bare
-    // markørens startrad i velgeren (hurtig-sti: åpne → Enter), ikke auto-opprettelse.
-    if (opprettbareOppgaveMaler.length === 1) {
-      handleOpprettFraMal(opprettbareOppgaveMaler[0]!.id);
-      return;
-    }
     setVisModal(true);
   }
   // Hold verktøylinje-ref fersk (se useVerktoylinje over).

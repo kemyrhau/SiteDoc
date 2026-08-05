@@ -302,7 +302,6 @@ export default function SjekklisteSide() {
   // P4b pkt 0: opprettbar/opprettbareFlytIder kommer nå fra serveren (delt regel
   // med opprett-valideringen) — ikke lenger klient-utledet fra mineOpprettFlyter.
   const sjekklisteMaler = ((maler ?? []) as Array<{ id: string; name: string; prefix?: string; category: string; opprettbar?: boolean; opprettbareFlytIder?: string[] }>).filter((m) => m.category === "sjekkliste");
-  const opprettbareSjekklisteMaler = sjekklisteMaler.filter((m) => m.opprettbar !== false);
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery({ projectId: params.prosjektId });
   // «Mine oppgaver»-filter (Del 1d): trenger userId + gruppeIder for beregnHarBallen.
   const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery({ projectId: params.prosjektId });
@@ -440,36 +439,11 @@ export default function SjekklisteSide() {
     return { faggrupper: Array.from(fagMap.values()), utilgjengelig };
   }, [sjekklisteMaler, malFlytStatus]);
 
-  function handleMalKlikk(malId: string) {
-    setOpprettFeil(null);
-    const status = malFlytStatus.get(malId);
-    if (!status || status.type === "ingen") return; // dempet/uklikkbart — ingen handling
-    if (status.type === "en") {
-      opprettMedKandidat(malId, status.kandidat);
-    } else {
-      // Flere kandidater → steg 2: flyt-velger. Åpne modalen så steg-2 vises
-      // også når denne kalles fra auto-hopp-stien (1 mal m/ flere flyter).
-      setFlytSteg({ malId, kandidater: status.kandidater });
-      setValgtFlytId(status.kandidater[0]?.flytId ?? null);
-      setVisModal(true);
-    }
-  }
-
-  // V3 (del6b web-paritet) + P4b auto-hopp: åpner malvelgeren, men hopper over
-  // liste-steget når valget er entydig:
-  //  1. Nøyaktig 1 klikkbar mal → handleMalKlikk (speiler mobil MalVelger).
-  //  2. Flertydig (≥2 maler/flyter) → sist-brukt-signal (klient-lokal interim,
-  //     per flyt). Treffer signalet ENTYDIG én (flyt, mal) blant kandidatene →
-  //     opprett direkte. Ellers → mellomvalget (flyt-gruppert modal). Aldri gjett
-  //     blindt: null/flere treff = modal.
+  // Ordre 1.4 (2026-08-05): auto-hopp fjernet OVERALT. 0 opprettbare maler → knappen er
+  // deaktivert m/ forklaring (eies utenfor). ≥1 → velgeren vises ALLTID, markør på sist-brukt
+  // (ingen → første/eneste rad). Enter oppretter — hurtig-stien er like rask (åpne → Enter).
+  // Sist-brukt styrer nå KUN markørens startrad, aldri auto-opprettelse.
   function åpneMalVelger() {
-    // Funn C (2026-08-03, fabel-spec § 0): nøyaktig 1 opprettbar mal → auto-hopp (handleMalKlikk løser
-    // opprett/steg-2); >1 → velgeren åpnes ALLTID (aldri stille auto-opprett fra sist-brukt — det var
-    // fella). Sist-brukt styrer nå bare markørens startrad i velgeren (hurtig-sti: åpne → Enter).
-    if (opprettbareSjekklisteMaler.length === 1) {
-      handleMalKlikk(opprettbareSjekklisteMaler[0]!.id);
-      return;
-    }
     setVisModal(true);
   }
 

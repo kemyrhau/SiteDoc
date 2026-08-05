@@ -97,6 +97,30 @@ describe("OpprettMalVelger — Funn C regresjons-fasit", () => {
     expect(onVelg.m1).toHaveBeenCalledTimes(1);
   });
 
+  it("§5.3 (Ordre 1.4, SNUDD): nøyaktig 1 mal → forvalgt rad, Enter oppretter (auto-hopp fjernet)", () => {
+    // Før: «1 opprettbar mal → ingen velger, rett til opprettelse». Nå: velgeren vises ALLTID med
+    // malen forvalgt (markør på eneste rad når ingen sist-brukt); åpne → Enter oppretter.
+    const onVelg = vi.fn();
+    render(
+      <I18nextProvider i18n={i18n}>
+        <OpprettMalVelger
+          grupper={[
+            { key: "fag", overskrift: { navn: "Tømrer" }, undergrupper: [
+              { key: "flyt", overskrift: { navn: "Flyt A" }, maler: [
+                { radKey: "solo", malId: "solo", malNavn: "Eneste mal", onVelg },
+              ] },
+            ] },
+          ]}
+          sistBruktMalId={null}
+          opprettPending={false}
+        />
+      </I18nextProvider>,
+    );
+    expect(screen.getByTestId("opprettvelger-rad-solo").getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(screen.getByRole("listbox"), { key: "Enter" });
+    expect(onVelg).toHaveBeenCalledTimes(1);
+  });
+
   it("«Opprett»-knapp oppretter markert mal (touch/mus-sti)", () => {
     const onVelg = { m1: vi.fn(), m2: vi.fn(), m3: vi.fn() };
     render_("m2", onVelg);
