@@ -10,7 +10,7 @@ import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
-import { perspektivEtikett, kvitteringEtikett, harMinstEttUtfyltFelt } from "@sitedoc/shared";
+import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
 import { RapportObjektRenderer, DISPLAY_TYPER, SKJULT_I_UTFYLLING } from "@/components/rapportobjekter/RapportObjektRenderer";
@@ -418,14 +418,6 @@ export default function OppgaveDetaljSide() {
     return oppgave.template?.prefix ? `${oppgave.template.prefix}-${nummerPad}` : nummerPad;
   }, [oppgave?.number, oppgave?.template?.prefix]);
 
-  // P2 (tom-besvarelse): speiler server-guarden fra lagret svar-data (samme delte
-  // helper + input som serveren). Deaktiverer Besvar til minst ett svar-felt er utfylt.
-  const besvarDeaktivertGrunn = useMemo(() => {
-    const objs = (oppgave?.template?.objects ?? []) as { id: string; type: string }[];
-    const data = ((oppgave as unknown as { data?: unknown })?.data ?? null) as Record<string, { verdi?: unknown; kommentar?: unknown; vedlegg?: unknown }> | null;
-    return harMinstEttUtfyltFelt(objs, data) ? null : t("statushandling.laast.tomBesvarelse");
-  }, [oppgave, t]);
-
   const leseModus = !erRedigerbar;
 
   if (erLaster) {
@@ -661,7 +653,6 @@ export default function OppgaveDetaljSide() {
             recipientGroupId={(fullOppgaveRå as { recipientGroupId?: string | null })?.recipientGroupId}
             bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
             lestAvMottakerVed={(fullOppgaveRå as { lestAvMottakerVed?: string | null })?.lestAvMottakerVed}
-            besvarDeaktivertGrunn={besvarDeaktivertGrunn}
             onSlett={() => slettMutasjon.mutate({ id: params.oppgaveId })}
           />
           )}

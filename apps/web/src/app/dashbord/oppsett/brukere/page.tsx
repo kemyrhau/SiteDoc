@@ -18,6 +18,9 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { KontaktForklaringsboks } from "@/components/oppsett/KontaktForklaringsboks";
+import { FlytChip } from "@/components/oppsett/FlytChip";
+import { OpprettKontaktModal } from "../produksjon/_components/OpprettKontaktModal";
 
 /* ------------------------------------------------------------------ */
 /*  KompaktBadgeListe — viser første verdi + "+N" utvidbar             */
@@ -125,12 +128,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   const [leggTilMedlemIGruppe, setLeggTilMedlemIGruppe] = useState<string | null>(null);
   const [nyGruppeInput, setNyGruppeInput] = useState(false);
   const [nyGruppeNavn, setNyGruppeNavn] = useState("");
-  const [inviterOpen, setInviterOpen] = useState(false);
-  const [inviterFane, setInviterFane] = useState<"fra-firma" | "ny-epost">("fra-firma");
-  const [valgtFirmaBrukerId, setValgtFirmaBrukerId] = useState("");
-  const [inviterData, setInviterData] = useState({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" });
-  const [visNyttFirmaInput, setVisNyttFirmaInput] = useState(false);
-  const [nyttFirmaNavn, setNyttFirmaNavn] = useState("");
+  const [nyKontaktOpen, setNyKontaktOpen] = useState(false);
 
   const settFirmaansvarligMutation = trpc.medlem.settFirmaansvarlig.useMutation({
     onSuccess: () => {
@@ -144,26 +142,9 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     },
   });
 
-  const opprettOrgMutation = trpc.organisasjon.opprett.useMutation({
-    onSuccess: (nyOrg) => {
-      utils.organisasjon.hentAlle.invalidate();
-      setInviterData((p) => ({ ...p, organizationId: (nyOrg as { id: string }).id }));
-      setNyttFirmaNavn("");
-      setVisNyttFirmaInput(false);
-    },
-  });
-
-  const inviterMutation = trpc.medlem.leggTil.useMutation({
-    onSuccess: () => {
-      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
-      setInviterOpen(false);
-      setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" });
-    },
-  });
-
   const ledigeFirmaBrukereQuery = trpc.medlem.hentLedigeFirmaBrukere.useQuery(
     { projectId: prosjektId },
-    { enabled: !!prosjektId && inviterOpen && inviterFane === "fra-firma" },
+    { enabled: !!prosjektId && nyKontaktOpen },
   );
   const ledigeFirmaBrukere = (ledigeFirmaBrukereQuery.data ?? []) as Array<{
     id: string;
@@ -171,15 +152,6 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     email: string;
     role: string;
   }>;
-
-  const leggTilEksisterendeMutation = trpc.medlem.leggTilEksisterende.useMutation({
-    onSuccess: () => {
-      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
-      utils.medlem.hentLedigeFirmaBrukere.invalidate({ projectId: prosjektId });
-      setInviterOpen(false);
-      setValgtFirmaBrukerId("");
-    },
-  });
 
   const { data: medlemmer } = trpc.medlem.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -191,8 +163,11 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     { enabled: !!prosjektId },
   );
 
-  // Hent alle organisasjoner for firma-dropdown (redigering + invitasjon)
-  const { data: alleOrganisasjoner } = trpc.organisasjon.hentAlle.useQuery();
+  // Dokumentflyter — grunnlag for flyt-chips per kontakt (avledet klientside)
+  const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
 
   const { data: dbGrupper } = trpc.gruppe.hentForProsjekt.useQuery(
     { projectId: prosjektId },
@@ -236,6 +211,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   });
 
   const oppdaterModulerMutation = trpc.gruppe.oppdaterModuler.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
+  const oppdaterDomenerMutation = trpc.gruppe.oppdaterDomener.useMutation({
     onSuccess: () => {
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
     },
@@ -331,6 +312,17 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     return map;
   }, [dbGrupper]);
 
+  // Bygg gruppeId → domains map (bygg/hms/kvalitet)
+  const gruppeDomener = useMemo((): Record<string, string[]> => {
+    const map: Record<string, string[]> = {};
+    if (dbGrupper) {
+      for (const g of dbGrupper as Array<{ id: string; domains: unknown }>) {
+        map[g.id] = (g.domains as string[] | null) ?? [];
+      }
+    }
+    return map;
+  }, [dbGrupper]);
+
   const gruppeMedlemIdMap = useMemo((): Record<string, Record<string, string>> => {
     // gruppeId → userId → gruppeMedlemId
     const map: Record<string, Record<string, string>> = {};
@@ -360,6 +352,73 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
   }, [medlemmer]);
 
   const kontakterRå = (medlemmer ?? []) as KontaktMedlem[];
+
+  // Flyt-chips per kontakt — avledet klientside fra dokumentflyt-medlemskap.
+  // Deltakelse via person, gruppe eller faggruppe ekspanderes likt til personer
+  // (mockup-fasit: «kilden ser du i redigering»). Ingen ny tilgangsberegning.
+  const flytChipsPerMedlem = useMemo(() => {
+    const map = new Map<string, Array<{ flytNavn: string; rolleLabel: string; key: string }>>();
+    const dflyter = dokumentflyter as
+      | Array<{
+          id: string;
+          name: string;
+          roller?: Array<{ rolle: string; label?: string | null }> | null;
+          medlemmer: Array<{
+            rolle: string;
+            projectMember?: { id: string } | null;
+            group?: { id: string } | null;
+            faggruppe?: { id: string } | null;
+          }>;
+        }>
+      | undefined;
+    if (!dflyter) return map;
+
+    // groupId → projectMemberId[] (via user.id → medlemTilPmId)
+    const gruppePmIder = new Map<string, string[]>();
+    if (dbGrupper) {
+      for (const g of dbGrupper as Array<{ id: string; members: Array<{ projectMember: { user: { id: string } } | null }> }>) {
+        const ids: string[] = [];
+        for (const gm of g.members) {
+          const uid = gm.projectMember?.user?.id;
+          const pmId = uid ? medlemTilPmId[uid]?.id : undefined;
+          if (pmId) ids.push(pmId);
+        }
+        gruppePmIder.set(g.id, ids);
+      }
+    }
+
+    // faggruppeId → projectMemberId[]
+    const faggruppePmIder = new Map<string, string[]>();
+    for (const m of kontakterRå) {
+      for (const k of m.faggruppeKoblinger) {
+        const arr = faggruppePmIder.get(k.faggruppe.id) ?? [];
+        arr.push(m.id);
+        faggruppePmIder.set(k.faggruppe.id, arr);
+      }
+    }
+
+    const leggTil = (pmId: string, flytNavn: string, flytId: string, rolle: string, rolleLabel: string) => {
+      const arr = map.get(pmId) ?? [];
+      const key = `${flytId}-${rolle}`;
+      if (!arr.some((c) => c.key === key)) arr.push({ flytNavn, rolleLabel, key });
+      map.set(pmId, arr);
+    };
+
+    for (const df of dflyter) {
+      const roller = df.roller ?? [];
+      for (const dm of df.medlemmer) {
+        const label = roller.find((r) => r.rolle === dm.rolle)?.label ?? t(`dokumentflyt.${dm.rolle}`);
+        if (dm.projectMember?.id) {
+          leggTil(dm.projectMember.id, df.name, df.id, dm.rolle, label);
+        } else if (dm.group?.id) {
+          for (const pmId of gruppePmIder.get(dm.group.id) ?? []) leggTil(pmId, df.name, df.id, dm.rolle, label);
+        } else if (dm.faggruppe?.id) {
+          for (const pmId of faggruppePmIder.get(dm.faggruppe.id) ?? []) leggTil(pmId, df.name, df.id, dm.rolle, label);
+        }
+      }
+    }
+    return map;
+  }, [dokumentflyter, dbGrupper, kontakterRå, medlemTilPmId, t]);
 
   // Filtrer kontakter
   const kontakter = useMemo(() => {
@@ -471,11 +530,11 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
               </button>
             )}
             <button
-              onClick={() => setInviterOpen((p) => !p)}
-              className="flex items-center gap-1.5 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+              onClick={() => setNyKontaktOpen(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-800"
             >
               <Plus className="h-4 w-4" />
-              {t("brukere.inviterNy")}
+              {t("kontaktside.nyKontakt")}
             </button>
             <HjelpKnapp>
               <HjelpFane tittel={t("hjelp.faneFirma")}>
@@ -555,222 +614,15 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
             </HjelpKnapp>
           </div>
         </div>
-        {/* Inviter ny / Velg fra firma — fane-toggle */}
-        {inviterOpen && (
-          <div className="border-b border-gray-200 bg-gray-50 px-6 pt-2 pb-1">
-            <div className="mb-2 flex gap-1 text-xs">
-              <button
-                onClick={() => setInviterFane("fra-firma")}
-                className={`rounded-t-md px-3 py-1.5 font-medium transition-colors ${
-                  inviterFane === "fra-firma"
-                    ? "bg-white text-blue-700 ring-1 ring-gray-200 ring-b-0"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {t("brukere.fane.fraFirma")}
-              </button>
-              <button
-                onClick={() => setInviterFane("ny-epost")}
-                className={`rounded-t-md px-3 py-1.5 font-medium transition-colors ${
-                  inviterFane === "ny-epost"
-                    ? "bg-white text-blue-700 ring-1 ring-gray-200 ring-b-0"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {t("brukere.fane.nyEpost")}
-              </button>
-            </div>
-
-            {inviterFane === "fra-firma" ? (
-              <div className="flex items-end gap-2 pt-2 pb-1">
-                <div className="flex-1">
-                  <label className="block text-[10px] font-medium text-gray-500 mb-0.5">
-                    {t("brukere.velgFirmaBruker")}
-                  </label>
-                  <select
-                    value={valgtFirmaBrukerId}
-                    onChange={(e) => setValgtFirmaBrukerId(e.target.value)}
-                    className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:border-blue-400 focus:outline-none"
-                    disabled={ledigeFirmaBrukereQuery.isLoading || ledigeFirmaBrukere.length === 0}
-                  >
-                    <option value="">
-                      {ledigeFirmaBrukereQuery.isLoading
-                        ? t("handling.laster")
-                        : ledigeFirmaBrukere.length === 0
-                          ? t("brukere.ingenLedigeFirmaBrukere")
-                          : t("handling.velg") + "..."}
-                    </option>
-                    {ledigeFirmaBrukere.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name ? `${b.name} — ${b.email}` : b.email}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button
-                  onClick={() => {
-                    if (valgtFirmaBrukerId) {
-                      leggTilEksisterendeMutation.mutate({
-                        projectId: prosjektId,
-                        userId: valgtFirmaBrukerId,
-                      });
-                    }
-                  }}
-                  disabled={!valgtFirmaBrukerId || leggTilEksisterendeMutation.isPending}
-                  className="rounded-lg bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-                >
-                  {leggTilEksisterendeMutation.isPending ? t("handling.lagrer") : t("brukere.leggTil")}
-                </button>
-                <button
-                  onClick={() => {
-                    setInviterOpen(false);
-                    setValgtFirmaBrukerId("");
-                  }}
-                  className="rounded p-1 text-gray-400 hover:text-gray-600"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-wrap items-end gap-2 pt-2 pb-1">
-            <div>
-              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.fornavn")}</label>
-              <input
-                type="text"
-                value={inviterData.fornavn}
-                onChange={(e) => setInviterData((p) => ({ ...p, fornavn: e.target.value }))}
-                className="rounded border border-gray-300 px-2 py-1 text-sm w-28 focus:border-blue-400 focus:outline-none"
-                autoFocus
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.etternavn")}</label>
-              <input
-                type="text"
-                value={inviterData.etternavn}
-                onChange={(e) => setInviterData((p) => ({ ...p, etternavn: e.target.value }))}
-                className="rounded border border-gray-300 px-2 py-1 text-sm w-28 focus:border-blue-400 focus:outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.epost")}</label>
-              <input
-                type="email"
-                value={inviterData.epost}
-                onChange={(e) => setInviterData((p) => ({ ...p, epost: e.target.value }))}
-                className="rounded border border-gray-300 px-2 py-1 text-sm w-48 focus:border-blue-400 focus:outline-none"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && inviterData.fornavn.trim() && inviterData.etternavn.trim() && inviterData.epost.trim() && inviterData.organizationId) {
-                    inviterMutation.mutate({
-                      projectId: prosjektId,
-                      firstName: inviterData.fornavn.trim(),
-                      lastName: inviterData.etternavn.trim(),
-                      email: inviterData.epost.trim(),
-                      phone: inviterData.telefon.trim() || undefined,
-                      organizationId: inviterData.organizationId,
-                    });
-                  }
-                }}
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("label.telefon")}</label>
-              <input
-                type="text"
-                value={inviterData.telefon}
-                onChange={(e) => setInviterData((p) => ({ ...p, telefon: e.target.value }))}
-                className="rounded border border-gray-300 px-2 py-1 text-sm w-28 focus:border-blue-400 focus:outline-none"
-                placeholder={t("label.valgfritt")}
-              />
-            </div>
-            <div>
-              <label className="block text-[10px] font-medium text-gray-500 mb-0.5">{t("tabell.firma")} *</label>
-              {visNyttFirmaInput ? (
-                <div className="flex items-center gap-1">
-                  <input
-                    type="text"
-                    value={nyttFirmaNavn}
-                    onChange={(e) => setNyttFirmaNavn(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && nyttFirmaNavn.trim()) {
-                        opprettOrgMutation.mutate({ name: nyttFirmaNavn.trim() });
-                      } else if (e.key === "Escape") {
-                        setVisNyttFirmaInput(false);
-                        setNyttFirmaNavn("");
-                      }
-                    }}
-                    autoFocus
-                    placeholder="Firmanavn..."
-                    className="rounded border border-blue-300 px-2 py-1 text-sm w-36 focus:outline-none focus:ring-1 focus:ring-blue-400"
-                  />
-                  <button
-                    onClick={() => { if (nyttFirmaNavn.trim()) opprettOrgMutation.mutate({ name: nyttFirmaNavn.trim() }); }}
-                    disabled={!nyttFirmaNavn.trim() || opprettOrgMutation.isPending}
-                    className="rounded bg-blue-600 px-2 py-1 text-xs text-white hover:bg-blue-700 disabled:opacity-50"
-                  >
-                    OK
-                  </button>
-                  <button
-                    onClick={() => { setVisNyttFirmaInput(false); setNyttFirmaNavn(""); }}
-                    className="rounded p-0.5 text-gray-400 hover:text-gray-600"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              ) : (
-                <select
-                  value={inviterData.organizationId}
-                  onChange={(e) => {
-                    if (e.target.value === "__ny__") {
-                      setVisNyttFirmaInput(true);
-                    } else {
-                      setInviterData((p) => ({ ...p, organizationId: e.target.value }));
-                    }
-                  }}
-                  className="rounded border border-gray-300 px-2 py-1 text-sm w-40 focus:border-blue-400 focus:outline-none"
-                >
-                  <option value="">{t("handling.velg")}...</option>
-                  {(alleOrganisasjoner as Array<{ id: string; name: string }> ?? []).map((org) => (
-                    <option key={org.id} value={org.id}>{org.name}</option>
-                  ))}
-                  <option value="__ny__">+ Nytt firma</option>
-                </select>
-              )}
-            </div>
-            <button
-              onClick={() => {
-                if (inviterData.fornavn.trim() && inviterData.etternavn.trim() && inviterData.epost.trim()) {
-                  inviterMutation.mutate({
-                    projectId: prosjektId,
-                    firstName: inviterData.fornavn.trim(),
-                    lastName: inviterData.etternavn.trim(),
-                    email: inviterData.epost.trim(),
-                    phone: inviterData.telefon.trim() || undefined,
-                  });
-                }
-              }}
-              disabled={!inviterData.fornavn.trim() || !inviterData.etternavn.trim() || !inviterData.epost.trim() || !inviterData.organizationId || inviterMutation.isPending}
-              className="rounded-lg bg-blue-600 px-3 py-1 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {inviterMutation.isPending ? t("handling.sender") : t("brukere.sendInvitasjon")}
-            </button>
-            <button
-              onClick={() => { setInviterOpen(false); setInviterData({ fornavn: "", etternavn: "", epost: "", telefon: "", organizationId: "" }); }}
-              className="rounded p-1 text-gray-400 hover:text-gray-600"
-            >
-              <X className="h-4 w-4" />
-            </button>
-              </div>
-            )}
-          </div>
-        )}
       </div>
       <div className="px-6 pt-3 pb-6">
+      <KontaktForklaringsboks />
       <div className="rounded-lg border border-gray-200">
         <table className="w-full text-left text-sm">
           <thead className="sticky top-[69px] z-20 border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500 shadow-sm">
             <tr>
               <th className="px-4 py-2.5">{t("tabell.navn")}</th>
+              <th className="px-4 py-2.5">{t("kontaktside.kolFlytRolle")}</th>
               <th className="px-4 py-2.5">{t("brukere.epost")}</th>
               <th className="px-4 py-2.5">{t("brukere.telefon")}</th>
               <th className="px-4 py-2.5">{t("brukere.firma")}</th>
@@ -780,7 +632,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
             </tr>
             {/* Filterrad */}
             <tr className="border-b border-gray-200 bg-gray-50">
-              <th colSpan={3} className="px-4 py-1.5">
+              <th colSpan={4} className="px-4 py-1.5">
                 <input
                   type="text"
                   value={filterNavn}
@@ -855,7 +707,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                     key={`header-${idx}`}
                     className="group/gheader bg-gray-100 border-t-2 border-gray-200 cursor-pointer hover:bg-gray-200/80"
                   >
-                    <td colSpan={7} className="px-4 py-2.5">
+                    <td colSpan={8} className="px-4 py-2.5">
                       <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-600">
                         <span onClick={toggleKollaps} className="flex items-center gap-2">
                           {erKollapset
@@ -941,6 +793,47 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                                     title={erAktiv ? `${info.label}: aktiv — klikk for å deaktivere` : `${info.label}: inaktiv — klikk for å aktivere`}
                                   >
                                     {info.label}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+
+                        {/* Domene-velger — bygg/hms/kvalitet, wirer gruppe.oppdaterDomener (admin-gatet server-side) */}
+                        {!erUtenGruppe && gruppeId && (() => {
+                          const domener = gruppeDomener[gruppeId] ?? [];
+                          const DOMENER: Array<{ key: "bygg" | "hms" | "kvalitet"; label: string; aktivBg: string }> = [
+                            { key: "bygg", label: t("brukere.domene.bygg"), aktivBg: "bg-sky-100 text-sky-700" },
+                            { key: "hms", label: t("brukere.domene.hms"), aktivBg: "bg-red-100 text-red-700" },
+                            { key: "kvalitet", label: t("brukere.domene.kvalitet"), aktivBg: "bg-emerald-100 text-emerald-700" },
+                          ];
+
+                          return (
+                            <div className="ml-1 flex items-center gap-1 border-l border-gray-300 pl-2" onClick={(e) => e.stopPropagation()}>
+                              <span className="text-[10px] font-medium normal-case tracking-normal text-gray-400">{t("brukere.domener")}</span>
+                              {DOMENER.map((dom) => {
+                                const erAktiv = domener.includes(dom.key);
+                                return (
+                                  <button
+                                    key={dom.key}
+                                    type="button"
+                                    onClick={() => {
+                                      const nyeDomener = (erAktiv
+                                        ? domener.filter((d) => d !== dom.key)
+                                        : [...domener, dom.key]) as Array<"bygg" | "hms" | "kvalitet">;
+                                      oppdaterDomenerMutation.mutate({
+                                        groupId: gruppeId,
+                                        projectId: prosjektId,
+                                        domains: nyeDomener,
+                                      });
+                                    }}
+                                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium normal-case tracking-normal transition-colors cursor-pointer hover:opacity-80 ${
+                                      erAktiv ? dom.aktivBg : "bg-gray-100 text-gray-400 line-through"
+                                    }`}
+                                    title={erAktiv ? t("brukere.domeneAktivHint", { domene: dom.label }) : t("brukere.domeneInaktivHint", { domene: dom.label })}
+                                  >
+                                    {dom.label}
                                   </button>
                                 );
                               })}
@@ -1101,6 +994,21 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                         </>
                       )}
                     </div>
+                  </td>
+
+                  {/* Deltar i dokumentflyt · rolle — flyt-chips (stille avledet) */}
+                  <td className="px-4 py-2.5">
+                    {(() => {
+                      const chips = flytChipsPerMedlem.get(m.id) ?? [];
+                      if (chips.length === 0) return <span className="text-xs text-gray-300">—</span>;
+                      return (
+                        <div className="flex flex-wrap gap-1">
+                          {chips.map((c) => (
+                            <FlytChip key={c.key} flytNavn={c.flytNavn} rolle={c.rolleLabel} />
+                          ))}
+                        </div>
+                      );
+                    })()}
                   </td>
 
                   {/* E-post */}
@@ -1305,6 +1213,38 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
         </table>
       </div>
       </div>
+
+      <OpprettKontaktModal
+        open={nyKontaktOpen}
+        onClose={() => setNyKontaktOpen(false)}
+        prosjektId={prosjektId}
+        faggrupper={((alleFaggrupper as Array<{ id: string; name: string; color: string | null }>) ?? []).map((f) => ({
+          id: f.id,
+          name: f.name,
+          color: f.color ?? null,
+        }))}
+        dokumentflyter={((dokumentflyter as Array<{
+          id: string;
+          name: string;
+          faggruppeId: string | null;
+          roller?: Array<{ rolle: string; label?: string | null }> | null;
+        }>) ?? []).map((df) => ({
+          id: df.id,
+          name: df.name,
+          faggruppeId: df.faggruppeId,
+          roller: df.roller ?? [],
+        }))}
+        tilgangsgrupper={((dbGrupper as Array<{ id: string; name: string; category: string }>) ?? [])
+          .filter((g) => g.category === "brukergrupper")
+          .map((g) => ({ id: g.id, name: g.name }))}
+        ledigeFirmaBrukere={ledigeFirmaBrukere.map((b) => ({ id: b.id, name: b.name, email: b.email }))}
+        onFerdig={() => {
+          utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+          utils.dokumentflyt.hentForProsjekt.invalidate({ projectId: prosjektId });
+          utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+          utils.medlem.hentLedigeFirmaBrukere.invalidate({ projectId: prosjektId });
+        }}
+      />
     </div>
   );
 }

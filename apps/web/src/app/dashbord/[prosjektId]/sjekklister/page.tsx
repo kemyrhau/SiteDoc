@@ -406,14 +406,19 @@ export default function SjekklisteSide() {
     });
   }
 
-  // P4b: mal-velger GRUPPERT per dokumentflyt (fabel #3 — inverter presentasjonen
-  // klient-side). Flyt = overskrift, dens maler under. En mal i flere flyter vises
-  // under hver (klikk er dermed entydig — ingen steg-2 flyt-velger for grupper).
-  // «ingen»-maler samles i utilgjengelig-seksjon (dempet, med grunn).
-  const flytGrupper = useMemo(() => {
-    const grupper = new Map<
+  // Gruppering v2 (2026-08-04, fabel-spec): mal-velger GRUPPERT i to nivåer — faggruppe (nivå 1) →
+  // dokumentflyt (nivå 2) → mal (nivå 3). Faggruppe = flytens eier-/bestiller-faggruppe (`oppretterNavn`
+  // / `bestillerFaggruppeId`). En mal i flere flyter vises under hver (klikk er dermed entydig — ingen
+  // steg-2 flyt-velger for grupper). Sortering skjer i OpprettMalVelger (paritet). «ingen»-maler samles
+  // i utilgjengelig-seksjon (dempet, med grunn).
+  const velgerGrupper = useMemo(() => {
+    const fagMap = new Map<
       string,
-      { flytId: string; flytNavn: string; oppretterNavn: string; maler: Array<{ malId: string; malNavn: string; prefix?: string; kandidat: FlytKandidat }> }
+      {
+        faggruppeId: string;
+        faggruppeNavn: string;
+        flyter: Map<string, { flytId: string; flytNavn: string; maler: Array<{ malId: string; malNavn: string; prefix?: string; kandidat: FlytKandidat }> }>;
+      }
     >();
     const utilgjengelig: Array<{ malId: string; malNavn: string; prefix?: string; grunn: string }> = [];
     for (const mal of sjekklisteMaler) {
@@ -424,12 +429,15 @@ export default function SjekklisteSide() {
       }
       const kandidater = status.type === "en" ? [status.kandidat] : status.kandidater;
       for (const k of kandidater) {
-        const g = grupper.get(k.flytId) ?? { flytId: k.flytId, flytNavn: k.flytNavn, oppretterNavn: k.oppretterNavn, maler: [] };
-        g.maler.push({ malId: mal.id, malNavn: mal.name, prefix: mal.prefix, kandidat: k });
-        grupper.set(k.flytId, g);
+        const fag = fagMap.get(k.bestillerFaggruppeId)
+          ?? { faggruppeId: k.bestillerFaggruppeId, faggruppeNavn: k.oppretterNavn, flyter: new Map() };
+        const flyt = fag.flyter.get(k.flytId) ?? { flytId: k.flytId, flytNavn: k.flytNavn, maler: [] };
+        flyt.maler.push({ malId: mal.id, malNavn: mal.name, prefix: mal.prefix, kandidat: k });
+        fag.flyter.set(k.flytId, flyt);
+        fagMap.set(k.bestillerFaggruppeId, fag);
       }
     }
-    return { grupper: Array.from(grupper.values()), utilgjengelig };
+    return { faggrupper: Array.from(fagMap.values()), utilgjengelig };
   }, [sjekklisteMaler, malFlytStatus]);
 
   function handleMalKlikk(malId: string) {
@@ -473,7 +481,7 @@ export default function SjekklisteSide() {
   }
 
   // Verktøylinja re-registrerer kun ved deps-endring (useVerktoylinje) → den
-  // memoiserte onClick ville fryse en stale åpneMalVelger (tom flytGrupper/
+  // memoiserte onClick ville fryse en stale åpneMalVelger (tom velgerGrupper/
   // sist-brukt før data er lastet) og auto-hopp ville aldri utløses. Ref-en
   // holdes fersk hver render; toppknappen deref-er den ved klikk.
   const åpneMalVelgerRef = useRef(åpneMalVelger);
@@ -876,32 +884,37 @@ export default function SjekklisteSide() {
         ) : sjekklisteMaler.length === 0 ? (
           <p className="py-4 text-center text-sm text-gray-400">{t("sjekklister.ingenMaler")}</p>
         ) : (
-          // Funn C: unifisert velger (markør/tastatur/«Opprett»/«Sist brukt»). Sjekkliste = flyt-gruppert
-          // (overskrift v/ >1 flyt); hver rad = løst kandidat → opprett direkte. Utilgjengelige nederst.
+          // Gruppering v2: unifisert velger (markør/tastatur/«Opprett»/«Sist brukt»). Sjekkliste =
+          // to-nivå gruppert (faggruppe → flyt, begge overskrifter alltid synlige); hver rad = løst
+          // kandidat → opprett direkte. Utilgjengelige nederst.
           <>
             {opprettFeil && <p className="text-sm text-red-600 bg-red-50 rounded p-3 mb-2">{opprettFeil}</p>}
             <OpprettMalVelger
-              grupper={flytGrupper.grupper.map((g) => ({
-                key: g.flytId,
-                overskrift: flytGrupper.grupper.length > 1 ? { navn: g.flytNavn } : undefined,
-                maler: g.maler.map((m) => ({
-                  radKey: `${g.flytId}:${m.malId}`,
-                  malId: m.malId,
-                  malNavn: m.malNavn,
-                  prefix: m.prefix,
-                  onVelg: () => opprettMedKandidat(m.malId, m.kandidat),
+              grupper={velgerGrupper.faggrupper.map((fag) => ({
+                key: fag.faggruppeId,
+                overskrift: { navn: fag.faggruppeNavn },
+                undergrupper: Array.from(fag.flyter.values()).map((flyt) => ({
+                  key: flyt.flytId,
+                  overskrift: { navn: flyt.flytNavn },
+                  maler: flyt.maler.map((m) => ({
+                    radKey: `${flyt.flytId}:${m.malId}`,
+                    malId: m.malId,
+                    malNavn: m.malNavn,
+                    prefix: m.prefix,
+                    onVelg: () => opprettMedKandidat(m.malId, m.kandidat),
+                  })),
                 })),
               }))}
               sistBruktMalId={sistBrukt(sjekklisteMalNøkkel)}
               opprettPending={opprettMutation.isPending}
-              footer={flytGrupper.utilgjengelig.length > 0 ? (
+              footer={velgerGrupper.utilgjengelig.length > 0 ? (
                 <div className="border-t border-gray-100 pt-2">
                   <button type="button" onClick={() => setVisUtilgjengelige((v) => !v)}
                     className="flex min-h-11 w-full items-center gap-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400 hover:text-gray-600">
                     {visUtilgjengelige ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                    {t("sjekklister.visUtilgjengelige", { antall: flytGrupper.utilgjengelig.length })}
+                    {t("sjekklister.visUtilgjengelige", { antall: velgerGrupper.utilgjengelig.length })}
                   </button>
-                  {visUtilgjengelige && flytGrupper.utilgjengelig.map((m) => (
+                  {visUtilgjengelige && velgerGrupper.utilgjengelig.map((m) => (
                     <div key={m.malId} className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2.5 opacity-60">
                       <span className="flex items-center gap-2">
                         <span className="text-sm font-medium text-gray-500">{m.malNavn}</span>
