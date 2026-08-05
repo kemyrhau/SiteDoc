@@ -950,6 +950,7 @@
   "kontaktside.tilgangsgruppeHint": "Gir moduler + domener.",
   "kontaktside.ingenTilgangsgruppe": "Ingen",
   "kontaktside.fjernFlyt": "Fjern flyt",
+  "kontaktside.opprettFeilet": "Kunne ikke opprette kontakten. Prøv igjen.",
   "bilder.tittel": "Bilder",
   "bilder.liste": "Liste",
   "bilder.tegning": "Tegning",
