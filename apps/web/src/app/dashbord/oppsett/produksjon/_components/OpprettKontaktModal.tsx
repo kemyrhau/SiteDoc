@@ -181,6 +181,7 @@ export function OpprettKontaktModal({
           role: "member",
           faggruppeIder,
         });
+        if (!ny) throw new Error(t("kontaktside.opprettFeilet"));
         projectMemberId = ny.id;
       } else {
         const bruker = ledigeFirmaBrukere.find((b) => b.id === firmaBrukerId);
@@ -194,6 +195,7 @@ export function OpprettKontaktModal({
           role: "member",
           faggruppeIder,
         });
+        if (!ny) throw new Error(t("kontaktside.opprettFeilet"));
         projectMemberId = ny.id;
       }
 

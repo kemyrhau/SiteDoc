@@ -950,6 +950,7 @@
   "kontaktside.tilgangsgruppeHint": "Grants modules + domains.",
   "kontaktside.ingenTilgangsgruppe": "None",
   "kontaktside.fjernFlyt": "Remove flow",
+  "kontaktside.opprettFeilet": "Could not create the contact. Please try again.",
   "bilder.tittel": "Images",
   "bilder.liste": "List",
   "bilder.tegning": "Drawing",
