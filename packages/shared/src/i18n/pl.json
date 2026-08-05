@@ -950,6 +950,7 @@
   "kontaktside.tilgangsgruppeHint": "Moduły grantowe + domeny.",
   "kontaktside.ingenTilgangsgruppe": "Nic",
   "kontaktside.fjernFlyt": "Usuń przepływ",
+  "kontaktside.opprettFeilet": "Nie można utworzyć kontaktu. Spróbuj ponownie.",
   "bilder.tittel": "Obrazy",
   "bilder.liste": "Lista",
   "bilder.tegning": "Rysunek",

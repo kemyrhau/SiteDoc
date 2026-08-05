@@ -950,6 +950,7 @@
   "kontaktside.tilgangsgruppeHint": "Beviljer moduler + domäner.",
   "kontaktside.ingenTilgangsgruppe": "Ingen",
   "kontaktside.fjernFlyt": "Ta bort flödet",
+  "kontaktside.opprettFeilet": "Det gick inte att skapa kontakten. Försök igen.",
   "bilder.tittel": "Bilder",
   "bilder.liste": "Lista",
   "bilder.tegning": "Ritning",

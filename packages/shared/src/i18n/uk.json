@@ -950,6 +950,7 @@
   "kontaktside.tilgangsgruppeHint": "Надає модулі + домени.",
   "kontaktside.ingenTilgangsgruppe": "Жодного",
   "kontaktside.fjernFlyt": "Зняти потік",
+  "kontaktside.opprettFeilet": "Не вдалося створити контакт. Спробуйте ще раз.",
   "bilder.tittel": "Зображення",
   "bilder.liste": "Список",
   "bilder.tegning": "Малювання",

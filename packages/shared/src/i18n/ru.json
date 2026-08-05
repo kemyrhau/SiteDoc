@@ -950,6 +950,7 @@
   "kontaktside.tilgangsgruppeHint": "Предоставляет модули + домены.",
   "kontaktside.ingenTilgangsgruppe": "Никто",
   "kontaktside.fjernFlyt": "Удалить поток",
+  "kontaktside.opprettFeilet": "Не удалось создать контакт. Пожалуйста, попробуйте еще раз.",
   "bilder.tittel": "Изображения",
   "bilder.liste": "Список",
   "bilder.tegning": "Рисунок",

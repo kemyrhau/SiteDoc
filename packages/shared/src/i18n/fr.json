@@ -950,6 +950,7 @@
   "kontaktside.tilgangsgruppeHint": "Subventions modules + domaines.",
   "kontaktside.ingenTilgangsgruppe": "Aucune",
   "kontaktside.fjernFlyt": "Supprimer le flux",
+  "kontaktside.opprettFeilet": "Impossible de créer le contact. Veuillez réessayer.",
   "bilder.tittel": "Images",
   "bilder.liste": "Liste",
   "bilder.tegning": "Dessin",

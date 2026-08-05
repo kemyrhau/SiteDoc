@@ -950,6 +950,7 @@
   "kontaktside.tilgangsgruppeHint": "Apurahat moduulit + verkkotunnukset.",
   "kontaktside.ingenTilgangsgruppe": "Ei mitään",
   "kontaktside.fjernFlyt": "Poista virtaus",
+  "kontaktside.opprettFeilet": "Yhteystietoa ei voitu luoda. Yritä uudelleen.",
   "bilder.tittel": "Kuvat",
   "bilder.liste": "Lista",
   "bilder.tegning": "Piirustus",

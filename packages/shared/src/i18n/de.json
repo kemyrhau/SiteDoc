@@ -950,6 +950,7 @@
   "kontaktside.tilgangsgruppeHint": "Gewährt Module + Domänen.",
   "kontaktside.ingenTilgangsgruppe": "Keiner",
   "kontaktside.fjernFlyt": "Durchfluss entfernen",
+  "kontaktside.opprettFeilet": "Der Kontakt konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
   "bilder.tittel": "Bilder",
   "bilder.liste": "Liste",
   "bilder.tegning": "Zeichnung",

@@ -950,6 +950,7 @@
   "kontaktside.tilgangsgruppeHint": "Toetused moodulid + domeenid.",
   "kontaktside.ingenTilgangsgruppe": "Mitte ühtegi",
   "kontaktside.fjernFlyt": "Eemaldage vool",
+  "kontaktside.opprettFeilet": "Kontakti ei saanud luua. Palun proovi uuesti.",
   "bilder.tittel": "Pildid",
   "bilder.liste": "Nimekiri",
   "bilder.tegning": "Joonistamine",
