@@ -180,6 +180,41 @@ export const gruppeRouter = router({
       });
     }),
 
+  // Firma HMS-ansvarlige for prosjektets org(er) — behandler-leddets firmakilde (§2,
+  // Ordre 2.1). Leser OrganizationMember.firmaRoller="hms_ansvarlig". Server eier
+  // firma-grensen: KUN org(er) prosjektet faktisk er koblet til via ProjectOrganization
+  // — aldri hele plattformen. Read-only kilde; suppleres per prosjekt via HMS-gruppa.
+  hentHmsAnsvarlige: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+
+      const orgKoblinger = await ctx.prisma.projectOrganization.findMany({
+        where: { projectId: input.projectId },
+        select: { organizationId: true },
+      });
+      const orgIder = orgKoblinger.map((o) => o.organizationId);
+      if (orgIder.length === 0) return [];
+
+      const medlemmer = await ctx.prisma.organizationMember.findMany({
+        where: {
+          organizationId: { in: orgIder },
+          firmaRoller: { has: "hms_ansvarlig" },
+        },
+        select: {
+          userId: true,
+          user: { select: { id: true, name: true, email: true } },
+        },
+      });
+
+      // Dedup på userId (samme person kan ligge i flere av prosjektets org-koblinger)
+      const sett = new Map<string, { userId: string; navn: string | null; epost: string }>();
+      for (const m of medlemmer) {
+        sett.set(m.userId, { userId: m.userId, navn: m.user.name, epost: m.user.email });
+      }
+      return [...sett.values()];
+    }),
+
   // Idempotent opprettelse av standardgrupper (krever admin)
   opprettStandardgrupper: protectedProcedure
     .input(z.object({ projectId: z.string().uuid() }))
@@ -560,6 +595,54 @@ export const gruppeRouter = router({
       if (!medlem) throw new TRPCError({ code: "NOT_FOUND" });
       return ctx.prisma.projectGroupMember.deleteMany({
         where: { groupId: input.groupId, projectMemberId: medlem.id },
+      });
+    }),
+
+  // Meld innlogget bruker inn som medlem av en gruppe (ett-klikks selv-innmelding).
+  // Brukt av «Meld meg inn»-banneret (Funn H) for å bli HMS-behandler. Å bli behandler
+  // er en rettighets-tildeling, ikke en visning → serveren håndhever admin-nivå
+  // (sitedoc_admin / firma-admin på prosjektets org / ProjectMember.role="admin") via
+  // verifiserAdmin, ikke bare UI-et. Speiler fjernSegSelv (motsatt retning).
+  meldMegInn: protectedProcedure
+    .input(z.object({ groupId: z.string().uuid(), projectId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserAdmin(ctx.userId, input.projectId);
+
+      // Gruppen må tilhøre prosjektet (hindrer kryss-prosjekt-innmelding)
+      const gruppe = await ctx.prisma.projectGroup.findFirst({
+        where: { id: input.groupId, projectId: input.projectId },
+        select: { id: true },
+      });
+      if (!gruppe) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Gruppen finnes ikke i dette prosjektet",
+        });
+      }
+
+      // Finn eller opprett kallerens ProjectMember — firma-admin/sitedoc_admin kan
+      // mangle rad (de arver prosjekttilgang uten ProjectMember). En behandler MÅ
+      // ha en ProjectMember å knytte gruppemedlemskapet til.
+      let projectMember = await ctx.prisma.projectMember.findUnique({
+        where: {
+          userId_projectId: { userId: ctx.userId, projectId: input.projectId },
+        },
+      });
+      if (!projectMember) {
+        projectMember = await ctx.prisma.projectMember.create({
+          data: { userId: ctx.userId, projectId: input.projectId, role: "member" },
+        });
+      }
+
+      return ctx.prisma.projectGroupMember.upsert({
+        where: {
+          groupId_projectMemberId: {
+            groupId: input.groupId,
+            projectMemberId: projectMember.id,
+          },
+        },
+        update: {},
+        create: { groupId: input.groupId, projectMemberId: projectMember.id },
       });
     }),
 });

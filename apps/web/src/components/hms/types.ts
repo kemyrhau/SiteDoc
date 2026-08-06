@@ -1,5 +1,7 @@
 // Delte typer for HMS-visning (prosjekt-nivå + firma-nivå).
 
+import type { FlytMedlem } from "@/lib/flyt-ledd";
+
 export interface DokumentRad {
   id: string;
   title: string;
@@ -22,4 +24,8 @@ export interface DokumentRad {
   drawing?: { byggeplass?: { id: string; name: string } | null } | null;
   // For SJA/RUH (Checklist) — byggeplass direkte
   byggeplass?: { id: string; name: string } | null;
+  // Flyt-posisjon (Ordre 2.3) — «Hos»-kolonnen leser aktivt ledd + medlemmer via
+  // delt utledning (FlytIndikator/perspektivEtikett). Utelates i firma-aggregatet.
+  aktivPosisjon?: number | null;
+  dokumentflyt?: { id: string; name: string | null; medlemmer: FlytMedlem[] } | null;
 }
