@@ -11,6 +11,7 @@ import { KpiKort, MånedSøyler, FaggruppeBars, formaterDato, hentDataVerdi } fr
 import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
 import { FilterPanel } from "@/components/ui/FilterPanel";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { HmsTomBanner } from "@/components/hms/HmsTomBanner";
 import type { DokumentRad } from "@/components/hms/types";
 
 type Tab = "avvik" | "sja" | "ruh" | "statistikk";
@@ -325,6 +326,9 @@ export default function HmsSide() {
           <NyDropdown alternativer={opprettAlternativer} onClick={handleOpprett} />
         </div>
       </SonetonetSidehode>
+
+      {/* Funn H — behandler-leddet tomt: roper til admin (selv-innkapslet) */}
+      <HmsTomBanner prosjektId={params.prosjektId} />
 
       {/* KPI-bånd */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
