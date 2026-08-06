@@ -9,7 +9,7 @@
 // valgfri utvider — MED ett unntak (F1): Avvis (dismissed) krever en ikke-tom
 // begrunnelse (statusKreverBegrunnelse), håndhevet både her og på serveren.
 
-import { useState, useRef, useEffect, useLayoutEffect, useMemo, type RefObject } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useMemo, type Ref, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, Plus } from "lucide-react";
@@ -764,8 +764,12 @@ function DropdownMeny({
   adminLabel: string;
   /** ▾-triggeren nedtrekket forankres til (fixed-koordinater fra dens rect). */
   ankerRef: RefObject<HTMLButtonElement | null>;
-  /** Ref til den portalede meny-noden (for outside-click i forelderen). */
-  rootRef: RefObject<HTMLDivElement | null>;
+  /** Ref til den portalede meny-noden (for outside-click i forelderen).
+   * Typet som Ref (ikke RefObject) fordi den kun videresendes til `ref={rootRef}` —
+   * Ref<T> er nøyaktig det `ref`-attributtet aksepterer under BÅDE @types/react v18
+   * og v19 (v19s useRef<T>(null) gir RefObject<T | null>, som er tilordnbar til Ref<T>
+   * men ikke til RefObject<T>). Forelderen leser .current på sin egen dropdownRef. */
+  rootRef: Ref<HTMLDivElement>;
 }) {
   const { t } = useTranslation();
   // P1-restfiks (b): portal til document.body + fixed-posisjon fra ▾-ankeret, så kortet ikke klippes

@@ -21,7 +21,7 @@ import {
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { KontaktForklaringsboks } from "@/components/oppsett/KontaktForklaringsboks";
 import { FlytChip } from "@/components/oppsett/FlytChip";
-import { OpprettKontaktModal } from "../produksjon/_components/OpprettKontaktModal";
+import { OpprettKontaktModal, type FlytForModal } from "../produksjon/_components/OpprettKontaktModal";
 import { HmsBehandlerHandlinger } from "@/components/hms/HmsBehandlerHandlinger";
 import { finnHmsGruppe, erHmsGruppe, byggHmsKontakter, type HmsGruppe } from "@/components/hms/hms-utils";
 
@@ -1292,12 +1292,12 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
           name: f.name,
           color: f.color ?? null,
         }))}
-        dokumentflyter={((dokumentflyter as Array<{
+        dokumentflyter={((dokumentflyter as unknown as Array<{
           id: string;
           name: string;
           faggruppeId: string | null;
           roller?: Array<{ rolle: string; label?: string | null }> | null;
-        }>) ?? []).map((df) => ({
+        }>) ?? []).map((df): FlytForModal => ({
           id: df.id,
           name: df.name,
           faggruppeId: df.faggruppeId,
