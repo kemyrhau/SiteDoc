@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Gestionat pe proiect",
   "hms.flyt.melder": "1 · Reporter",
   "hms.flyt.behandler": "2 · Manipulator",
+  "hms.flyt.behandlerPaProsjekt": "Se ocupă de cazurile HSE în acest proiect. Managerii HSE al companiei se ocupă și de proiectele din prezentarea generală a companiei.",
   "hms.flyt.folgerKontaktlisten": "Urmează lista de contacte · {{antall}}",
   "hms.flyt.melderRegel": "Toți cei din lista de contacte a proiectului sunt reporter în timp ce modulul HSE este activ - contactele noi moștenesc regula automat. O regulă, nu o listă de nume.",
   "hms.flyt.fraFirma": "De la companie",

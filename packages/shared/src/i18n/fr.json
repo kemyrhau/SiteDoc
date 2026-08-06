@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Géré par projet",
   "hms.flyt.melder": "1 · Journaliste",
   "hms.flyt.behandler": "2 · Gestionnaire",
+  "hms.flyt.behandlerPaProsjekt": "Gère les dossiers HSE sur ce projet. Les responsables HSE de l'entreprise gèrent également tous les projets dans la vue d'ensemble de l'entreprise.",
   "hms.flyt.folgerKontaktlisten": "Suit la liste de contacts · {{antall}}",
   "hms.flyt.melderRegel": "Toutes les personnes figurant dans la liste de contacts du projet sont des reporters tant que le module HSE est actif : les nouveaux contacts héritent automatiquement de la règle. Une règle, pas une liste de noms.",
   "hms.flyt.fraFirma": "De la société",

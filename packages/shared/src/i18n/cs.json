@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Zpracováno podle projektu",
   "hms.flyt.melder": "1 · Reportér",
   "hms.flyt.behandler": "2 · Psovod",
+  "hms.flyt.behandlerPaProsjekt": "Řeší případy HSE na tomto projektu. Firemní HSE manažeři také řeší napříč projekty v přehledu společnosti.",
   "hms.flyt.folgerKontaktlisten": "Sleduje seznam kontaktů · {{antall}}",
   "hms.flyt.melderRegel": "Pokud je modul HSE aktivní, každý v seznamu kontaktů projektu je reportérem — nové kontakty zdědí pravidlo automaticky. Pravidlo, nikoli seznam jmen.",
   "hms.flyt.fraFirma": "Od společnosti",

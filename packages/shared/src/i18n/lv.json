@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Apstrādāts katram projektam",
   "hms.flyt.melder": "1 · Reportieris",
   "hms.flyt.behandler": "2 · Apdarinātājs",
+  "hms.flyt.behandlerPaProsjekt": "Apstrādā HSE lietas šajā projektā. Uzņēmuma HSE vadītāji arī apstrādā vairākus projektus uzņēmuma pārskatā.",
   "hms.flyt.folgerKontaktlisten": "Seko kontaktu sarakstam · {{antall}}",
   "hms.flyt.melderRegel": "Ikviens projekta kontaktpersonu sarakstā ir ziņotājs, kamēr HSE modulis ir aktīvs — jaunas kontaktpersonas automātiski pārmanto noteikumu. Noteikums, nevis vārdu saraksts.",
   "hms.flyt.fraFirma": "No uzņēmuma",

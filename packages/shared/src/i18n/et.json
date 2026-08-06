@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Käsitletakse projektipõhiselt",
   "hms.flyt.melder": "1 · Reporter",
   "hms.flyt.behandler": "2 · Käitleja",
+  "hms.flyt.behandlerPaProsjekt": "Käsitleb selles projektis HSE juhtumeid. Ettevõtte HSE juhid tegelevad ettevõtte ülevaates ka projektidega.",
   "hms.flyt.folgerKontaktlisten": "Jälgib kontaktide loendit · {{antall}}",
   "hms.flyt.melderRegel": "Kui HSE moodul on aktiivne, on kõik projekti kontaktiloendis olevad reporterid – uued kontaktid pärivad reegli automaatselt. Reegel, mitte nimeloend.",
   "hms.flyt.fraFirma": "Firmast",

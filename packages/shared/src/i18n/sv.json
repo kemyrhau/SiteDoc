@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Hanteras per projekt",
   "hms.flyt.melder": "1 · Reporter",
   "hms.flyt.behandler": "2 · Hanterare",
+  "hms.flyt.behandlerPaProsjekt": "Hanterar HSE-ärenden på detta projekt. Företagens HSE-chefer hanterar även över projekt i företagsöversikten.",
   "hms.flyt.folgerKontaktlisten": "Följer kontaktlistan · {{antall}}",
   "hms.flyt.melderRegel": "Alla i projektets kontaktlista är reporter medan HSE-modulen är aktiv — nya kontakter ärver regeln automatiskt. En regel, inte en namnlista.",
   "hms.flyt.fraFirma": "Från företaget",

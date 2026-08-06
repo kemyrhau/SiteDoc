@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Tvarkomas pagal projektą",
   "hms.flyt.melder": "1 · Reporteris",
   "hms.flyt.behandler": "2 · Prižiūrėtojas",
+  "hms.flyt.behandlerPaProsjekt": "Tvarko HSE bylas šiame projekte. Įmonės HSE vadovai taip pat tvarko įvairius projektus įmonės apžvalgoje.",
   "hms.flyt.folgerKontaktlisten": "Seka kontaktų sąrašą · {{antall}}",
   "hms.flyt.melderRegel": "Kol HSE modulis aktyvus, visi projekto kontaktų sąraše yra pranešėjai – nauji kontaktai taisyklę paveldi automatiškai. Taisyklė, o ne vardų sąrašas.",
   "hms.flyt.fraFirma": "Iš įmonės",

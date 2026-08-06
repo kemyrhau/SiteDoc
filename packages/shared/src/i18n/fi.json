@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Käsitellään projektikohtaisesti",
   "hms.flyt.melder": "1 · Toimittaja",
   "hms.flyt.behandler": "2 · Käsittelijä",
+  "hms.flyt.behandlerPaProsjekt": "Käsittelee HSE-tapauksia tässä projektissa. Yrityksen HSE-päälliköt käsittelevät myös yrityskatsauksessa projekteja.",
   "hms.flyt.folgerKontaktlisten": "Seuraa yhteystietoluetteloa · {{antall}}",
   "hms.flyt.melderRegel": "Kaikki projektin yhteystietoluettelossa olevat ovat raportoijia HSE-moduulin ollessa aktiivinen – uudet yhteyshenkilöt perivät säännön automaattisesti. Sääntö, ei nimilista.",
   "hms.flyt.fraFirma": "Yrityksestä",

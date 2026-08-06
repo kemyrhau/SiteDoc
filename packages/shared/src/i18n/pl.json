@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Obsługiwane według projektu",
   "hms.flyt.melder": "1 · Reporter",
   "hms.flyt.behandler": "2 · Opiekun",
+  "hms.flyt.behandlerPaProsjekt": "Zajmuje się sprawami BHP w tym projekcie. Menedżerowie HSE firmy zajmują się także różnymi projektami w przeglądzie firmy.",
   "hms.flyt.folgerKontaktlisten": "Śledzi listę kontaktów · {{antall}}",
   "hms.flyt.melderRegel": "Każdy na liście kontaktów projektu jest reporterem, gdy moduł HSE jest aktywny – nowe kontakty automatycznie dziedziczą regułę. Zasada, a nie lista nazwisk.",
   "hms.flyt.fraFirma": "Z firmy",

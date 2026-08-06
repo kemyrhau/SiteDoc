@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Trajtuar sipas projektit",
   "hms.flyt.melder": "1 · Reporter",
   "hms.flyt.behandler": "2 · Trajtues",
+  "hms.flyt.behandlerPaProsjekt": "Trajton rastet e HSE në këtë projekt. Menaxherët HSE të kompanisë trajtojnë gjithashtu projekte në pasqyrën e kompanisë.",
   "hms.flyt.folgerKontaktlisten": "Ndjek listën e kontakteve · {{antall}}",
   "hms.flyt.melderRegel": "Të gjithë në listën e kontakteve të projektit janë raportues ndërsa moduli HSE është aktiv — kontaktet e reja e trashëgojnë rregullin automatikisht. Një rregull, jo një listë emrash.",
   "hms.flyt.fraFirma": "Nga kompania",
