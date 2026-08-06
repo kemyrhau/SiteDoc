@@ -64,6 +64,34 @@ function komponerWhere(
   return { AND: [base, IKKE_SLETTET, ...aktive] };
 }
 
+// Flyt-felt (Fase 4 posisjons-plumbing, read-only) — klienten trenger `aktivPosisjon`
+// + flyt-medlemmene for «Hos»-kolonnen (Ordre 2.3): FlytIndikator/byggPosisjonsLedd +
+// perspektivEtikett fra @sitedoc/shared. Speiler oppgave.hentForProsjekt-selecten så
+// utledningen er delt, ikke duplisert. Additivt — ingen ny modell.
+const FLYT_SELECT = {
+  aktivPosisjon: true,
+  dokumentflyt: {
+    select: {
+      id: true,
+      name: true,
+      medlemmer: {
+        select: {
+          id: true,
+          rolle: true,
+          steg: true,
+          klassifisering: true,
+          kanTerminereUtenBall: true,
+          erHovedansvarlig: true,
+          faggruppe: { select: { id: true, name: true } },
+          projectMember: { select: { user: { select: { id: true, name: true } } } },
+          group: { select: { id: true, name: true } },
+        },
+        orderBy: { steg: "asc" },
+      },
+    },
+  },
+} as const;
+
 const TASK_SELECT = {
   id: true,
   title: true,
@@ -90,6 +118,7 @@ const TASK_SELECT = {
   recipientUser: { select: { id: true, name: true } },
   recipientUserId: true,
   recipientGroup: { select: { id: true, name: true } },
+  ...FLYT_SELECT,
 } as const;
 
 const CHECKLIST_SELECT = {
@@ -118,6 +147,7 @@ const CHECKLIST_SELECT = {
   recipientUser: { select: { id: true, name: true } },
   recipientUserId: true,
   recipientGroup: { select: { id: true, name: true } },
+  ...FLYT_SELECT,
 } as const;
 
 export const hmsRouter = router({

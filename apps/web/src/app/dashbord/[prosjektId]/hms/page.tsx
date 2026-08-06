@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
-import { Spinner, EmptyState } from "@sitedoc/ui";
-import { Plus, ChevronDown, ShieldAlert, AlertTriangle, ClipboardList, FileWarning } from "lucide-react";
+import { Spinner, EmptyState, Modal } from "@sitedoc/ui";
+import { Plus, ShieldAlert, AlertTriangle, ClipboardList, FileWarning } from "lucide-react";
+import { OpprettMalVelger } from "@/components/OpprettMalVelger";
+import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
 import { KpiKort, MånedSøyler, FaggruppeBars, formaterDato, hentDataVerdi } from "@/components/hms/visning";
 import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
 import { FilterPanel } from "@/components/ui/FilterPanel";
@@ -37,56 +39,6 @@ const STATUS_LABEL: Record<string, string> = {
   closed: "status.lukket",
 };
 const LUKKET_STATUSER = new Set(["approved", "closed", "cancelled"]);
-
-function NyDropdown({
-  alternativer,
-  onClick,
-}: {
-  alternativer: { subdomain: Subdomain; mal: MalRef }[];
-  onClick: (mal: MalRef) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation();
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
-      >
-        <Plus className="h-4 w-4" />
-        {t("hms.handling.meld")}
-        <ChevronDown className="h-3 w-3" />
-      </button>
-      {open && (
-        <div className="absolute right-0 z-50 mt-1 w-80 rounded-md border border-gray-200 bg-white shadow-lg">
-          {alternativer.length === 0 ? (
-            <div className="px-4 py-2 text-sm text-gray-500">{t("hms.ingenMalerTilgjengelig")}</div>
-          ) : (
-            alternativer.map(({ subdomain, mal }) => (
-              <button
-                key={mal.id}
-                onClick={() => { setOpen(false); onClick(mal); }}
-                className="block w-full px-4 py-2 text-left hover:bg-gray-50"
-              >
-                <div className="text-sm font-semibold text-gray-900">{mal.name}</div>
-                <div className="mt-0.5 text-xs text-gray-500">{t(`hms.hjelp.${subdomain}`)}</div>
-              </button>
-            ))
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 // KpiKort, MånedSøyler, FaggruppeBars importeres fra @/components/hms/visning.
 
@@ -135,6 +87,9 @@ export default function HmsSide() {
   // men gjør den synlig via chips i stedet for en skjult «Vis alle»-checkbox)
   const [statusValg, setStatusValg] = useState<string[]>([...ÅPEN_STATUSER]);
   const [tekstSok, setTekstSok] = useState("");
+  // Unifisert opprett-velger (Ordre 2.2/Funn E) — samme modell som sjekkliste/oppgave.
+  const [visVelger, setVisVelger] = useState(false);
+  const [opprettPending, setOpprettPending] = useState(false);
 
   const dokumenterQuery = trpc.hms.hentDokumenter.useQuery(
     { projectId: params.prosjektId, byggeplassId: aktivByggeplass?.id ?? undefined },
@@ -162,43 +117,64 @@ export default function HmsSide() {
   // «Meld HMS»-velger nøkles på category="hms" (opprett-organisering). subdomain
   // beholdes for å rute den nye til riktig tabell (avvik/ruh=oppgave, sja=sjekkliste).
   const hmsMaler = ((maler ?? []) as Array<MalRef>).filter((m) => m.category === "hms");
+  // Velgbare HMS-maler (avvik/sja/ruh) → én HMS-nivå-1-seksjon i den unifiserte velgeren.
+  const velgbareHmsMaler = useMemo(
+    () => hmsMaler.filter((m) => m.subdomain === "avvik" || m.subdomain === "sja" || m.subdomain === "ruh"),
+    [hmsMaler],
+  );
 
-  const opprettAlternativer = useMemo(() => {
-    return hmsMaler
-      .filter((m) => m.subdomain === "avvik" || m.subdomain === "sja" || m.subdomain === "ruh")
-      .map((m) => ({ subdomain: m.subdomain as Subdomain, mal: m }));
-  }, [hmsMaler]);
+  // Sist-brukt HMS-mal (per prosjekt + doctype «hms») — kun markørens startrad i
+  // velgeren, aldri auto-opprett (Funn C / Ordre 1.4). Bruker-id fra flyt-info.
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const { sistBrukt, settSistBrukt } = useSistBrukteMal(
+    (minFlytInfo as { userId?: string } | undefined)?.userId,
+  );
+  const hmsMalNøkkel = `hms:${params.prosjektId}`;
 
   // Imperativ tRPC-call via utils.client — unngår TS2589 fra useMutation-typegen.
+  // Kaster ved feil; velgOgOpprett håndterer feilmelding + pending-tilstand.
   async function handleOpprett(mal: MalRef) {
     const subdomain = mal.subdomain as Subdomain | null;
+    if (subdomain === "avvik" || subdomain === "ruh") {
+      // RUH bruker oppgave-flyt (vedtatt 2026-05-29) — samme som avvik.
+      const resultat = (await utils.client.oppgave.opprett.mutate({
+        templateId: mal.id,
+        title: mal.name,
+        priority: "medium",
+        // Kontekst-default (V2): oppgave tar kun drawingId (byggeplass utledes
+        // via tegning). Byggeplass-uten-aktiv-tegning droppes (sak B, backlog).
+        drawingId: standardTegning?.id,
+      })) as { id: string };
+      await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
+      router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
+    } else if (subdomain === "sja") {
+      const resultat = (await utils.client.sjekkliste.opprett.mutate({
+        templateId: mal.id,
+        title: mal.name,
+        // Kontekst-default (V2): sjekkliste.opprett tar begge felt.
+        byggeplassId: aktivByggeplass?.id,
+        drawingId: standardTegning?.id,
+      })) as { id: string };
+      await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
+      router.push(`/dashbord/${params.prosjektId}/sjekklister/${resultat.id}`);
+    }
+  }
+
+  // Velg + opprett i ett (Funn C-interaksjon): oppretter, markerer sist-brukt, lukker velger.
+  async function velgOgOpprett(mal: MalRef) {
+    setOpprettPending(true);
     try {
-      if (subdomain === "avvik" || subdomain === "ruh") {
-        // RUH bruker oppgave-flyt (vedtatt 2026-05-29) — samme som avvik.
-        const resultat = (await utils.client.oppgave.opprett.mutate({
-          templateId: mal.id,
-          title: mal.name,
-          priority: "medium",
-          // Kontekst-default (V2): oppgave tar kun drawingId (byggeplass utledes
-          // via tegning). Byggeplass-uten-aktiv-tegning droppes (sak B, backlog).
-          drawingId: standardTegning?.id,
-        })) as { id: string };
-        await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
-        router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
-      } else if (subdomain === "sja") {
-        const resultat = (await utils.client.sjekkliste.opprett.mutate({
-          templateId: mal.id,
-          title: mal.name,
-          // Kontekst-default (V2): sjekkliste.opprett tar begge felt.
-          byggeplassId: aktivByggeplass?.id,
-          drawingId: standardTegning?.id,
-        })) as { id: string };
-        await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
-        router.push(`/dashbord/${params.prosjektId}/sjekklister/${resultat.id}`);
-      }
+      await handleOpprett(mal);
+      settSistBrukt(hmsMalNøkkel, mal.id);
+      setVisVelger(false);
     } catch (err) {
       const melding = err instanceof Error ? err.message : t("felles.ukjentFeil");
       alert(t("felles.feilOpprettelse", { melding }));
+    } finally {
+      setOpprettPending(false);
     }
   }
 
@@ -323,12 +299,57 @@ export default function HmsSide() {
             <ShieldAlert className="h-6 w-6 text-sitedoc-primary" />
             <h1 className="text-2xl font-semibold text-gray-900">{t("hms.tittel")}</h1>
           </div>
-          <NyDropdown alternativer={opprettAlternativer} onClick={handleOpprett} />
+          {/* Ordre 2.2/Funn E: «+ Meld HMS» åpner den unifiserte velgeren (samme som
+              sjekkliste/oppgave). Åpne-regelen (Ordre 1.4): ≥1 mal → alltid velger,
+              0 maler → knapp av. */}
+          <button
+            type="button"
+            onClick={() => setVisVelger(true)}
+            disabled={velgbareHmsMaler.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus className="h-4 w-4" />
+            {t("hms.handling.meld")}
+          </button>
         </div>
       </SonetonetSidehode>
 
       {/* Funn H — behandler-leddet tomt: roper til admin (selv-innkapslet) */}
       <HmsTomBanner prosjektId={params.prosjektId} />
+
+      {/* Ordre 2.2/Funn E: unifisert opprett-velger. HMS-malene ligger i én egen
+          nivå-1-seksjon (versal-header, flyt-løse → ingen nivå-2-underoverskrift =
+          Kenneths gatede ALT 1). Interaksjon (markør/↑↓/Enter/«Opprett»/sist-brukt)
+          eies av OpprettMalVelger — identisk med sjekkliste/oppgave. */}
+      <Modal open={visVelger} onClose={() => setVisVelger(false)} title={t("oppgaver.velgMal")}>
+        {velgbareHmsMaler.length === 0 ? (
+          <p className="py-4 text-center text-sm text-gray-400">{t("hms.ingenMalerTilgjengelig")}</p>
+        ) : (
+          <OpprettMalVelger
+            grupper={[
+              {
+                key: "__hms__",
+                overskrift: { navn: t("maler.domain.hms") },
+                sorterSist: true,
+                undergrupper: [
+                  {
+                    key: "__hms__u",
+                    maler: velgbareHmsMaler.map((m) => ({
+                      radKey: `hms:${m.id}`,
+                      malId: m.id,
+                      malNavn: m.name,
+                      prefix: m.prefix,
+                      onVelg: () => velgOgOpprett(m),
+                    })),
+                  },
+                ],
+              },
+            ]}
+            sistBruktMalId={sistBrukt(hmsMalNøkkel)}
+            opprettPending={opprettPending}
+          />
+        )}
+      </Modal>
 
       {/* KPI-bånd */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">

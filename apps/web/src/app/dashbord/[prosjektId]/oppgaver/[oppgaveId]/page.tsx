@@ -3,7 +3,7 @@
 import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
-import { Check, AlertCircle, Loader2, Send, Printer, Pencil } from "lucide-react";
+import { Check, AlertCircle, Loader2, Send, Printer, Pencil, ArrowLeft, ShieldAlert } from "lucide-react";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
@@ -209,6 +209,14 @@ export default function OppgaveDetaljSide() {
     { enabled: !!params.oppgaveId },
   );
 
+  // HMS-oppgaver (domain="hms") får en egen handlingsflate i stedet for den
+  // generelle statusmaskinen (Ordre D). Domenet leses fra malen på full-queryen.
+  // Ordre 2.3/Funn G: HMS-avvik/RUH er task-er under panseret, men konteksten
+  // følger dokumentet — retur + brødsmule peker mot HMS-lista, ikke Oppgaver.
+  const erHms =
+    (fullOppgaveRå as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
+  const listeSti = `/dashbord/${params.prosjektId}/${erHms ? "hms" : "oppgaver"}`;
+
   // Flyt-kontekst — ekstrahert hook (TS2589-avlastning): de fire tunge tRPC-type-memoene
   // bor nå i useFlytKontekst der rå-outputene widenes til unknown. Identisk logikk.
   const { harBallen, erAvsender, erMedlemAvFlyt, retningsrett, minRolle, flytMedlemmer, flytNavn, aktivPosisjon, rettighetInput } = useFlytKontekst({
@@ -267,7 +275,7 @@ export default function OppgaveDetaljSide() {
   const slettMutasjon = trpc.oppgave.slett.useMutation({
     onSuccess: () => {
       utils.oppgave.hentForProsjekt.invalidate();
-      router.push(`/dashbord/${params.prosjektId}/oppgaver`);
+      router.push(listeSti);
     },
   });
 
@@ -288,11 +296,6 @@ export default function OppgaveDetaljSide() {
       setStatusFeil(error.message ?? "Kunne ikke endre status. Prøv igjen.");
     },
   });
-
-  // HMS-oppgaver (domain="hms") får en egen handlingsflate i stedet for den
-  // generelle statusmaskinen (Ordre D). Domenet leses fra malen på full-queryen.
-  const erHms =
-    (fullOppgaveRå as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
 
   const { data: erHmsAdmin = false } = trpc.hms.erHmsAdmin.useQuery(
     { projectId: params.prosjektId },
@@ -487,6 +490,19 @@ export default function OppgaveDetaljSide() {
     <div className="max-w-3xl pb-12">
       {/* Skjerm-header: sticky ved scrolling */}
       <div className="print-skjul sticky top-0 z-10 bg-white border-b border-gray-100 -mx-6 px-4 sm:px-6 py-3 mb-3">
+        {/* Ordre 2.3/Funn G: HMS-brødsmule — HMS-avvik/RUH er task under panseret, men
+            konteksten er HMS. «← HMS» returnerer til HMS-lista, ikke Oppgaver. */}
+        {erHms && (
+          <button
+            type="button"
+            onClick={() => router.push(listeSti)}
+            className="mb-1.5 inline-flex min-h-8 items-center gap-1.5 text-xs font-medium text-gray-500 hover:text-sitedoc-primary"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <ShieldAlert className="h-3.5 w-3.5" />
+            {t("hms.tittel")}
+          </button>
+        )}
         {/* Rad 1: Nummer + Tittel + Dato + Status */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           {oppgaveNummer && (
