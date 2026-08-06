@@ -21,7 +21,16 @@ export const medlemRouter = router({
     .query(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
 
-      return ctx.prisma.projectMember.findMany({
+      // FIRMA-kolonnen i kontakter-matrisen: firma utledes fra OrganizationMember
+      // (legacy User.organizationId ble droppet i migrering O5c 2026-05-13). Vi
+      // henter brukerens medlemskap + prosjektets eier-org for multi-org-regelen.
+      const prosjekt = await ctx.prisma.project.findUnique({
+        where: { id: input.projectId },
+        select: { primaryOrganizationId: true },
+      });
+      const primaryOrgId = prosjekt?.primaryOrganizationId ?? null;
+
+      const medlemmer = await ctx.prisma.projectMember.findMany({
         where: { projectId: input.projectId },
         include: {
           user: {
@@ -35,6 +44,13 @@ export const medlemRouter = router({
               language: true,
               hmsKortNr: true,
               hmsKortUtloper: true,
+              organizationMembers: {
+                select: {
+                  organizationId: true,
+                  organization: { select: { id: true, name: true } },
+                },
+                orderBy: { createdAt: "asc" },
+              },
             },
           },
           faggruppeKoblinger: {
@@ -42,6 +58,27 @@ export const medlemRouter = router({
           },
         },
         orderBy: { createdAt: "asc" },
+      });
+
+      // Multi-org-regel: vis brukerens EGET firma — (1) membership som matcher
+      // prosjektets eier-org (intern ansatt), ellers (2) første membership
+      // deterministisk (ekstern UE viser sitt eget firma). Ingen → null → «—».
+      return medlemmer.map((m) => {
+        if (!m.user) return { ...m, user: null };
+        const { organizationMembers, ...userRest } = m.user;
+        const valgt =
+          organizationMembers.find((om) => om.organizationId === primaryOrgId) ??
+          organizationMembers[0] ??
+          null;
+        return {
+          ...m,
+          user: {
+            ...userRest,
+            organization: valgt
+              ? { id: valgt.organization.id, name: valgt.organization.name }
+              : null,
+          },
+        };
       });
     }),
 

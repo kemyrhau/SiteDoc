@@ -111,10 +111,11 @@ model Organization {
 // OrganizationMember — firma-medlemskap (HR-relasjon).
 // Per docs/claude/fase-0-beslutninger.md § OrganizationMember-refaktor (2026-05-12).
 //
-// O-1 (denne migrasjonen): tabell opprettet + bakfylt fra User.organizationId.
-// Eksisterende User.organizationId + Organization.users beholdes for dual-read
-// i O-2. ansattRolle og firmaRoller er String/String[] (ikke DB-enum) slik at
-// verdier kan utvides uten migrasjon.
+// Historikk: tabell opprettet + bakfylt fra daværende User.organizationId (O-1),
+// dual-read i O-2. Legacy User.organizationId + Organization.users ble droppet i
+// migrering O5c (20260513210000_o5c_drop_user_org_fields) — OrganizationMember er
+// nå ENESTE sannhet for firma-medlemskap. ansattRolle og firmaRoller er
+// String/String[] (ikke DB-enum) slik at verdier kan utvides uten migrasjon.
 //
 // ansattRolle-startverdier: "ansatt" | "bas" | "prosjektleder" | "daglig_leder"
 // firmaRoller-startverdier: "firma_admin" | "hms_ansvarlig" | "hr_ansvarlig"
