@@ -29,10 +29,10 @@ type TabellProps = {
 function HosCelle({ rad, mineIder }: { rad: DokumentRad; mineIder?: MineIder }) {
   const { t } = useTranslation();
   const { bucket, aktivNavn } = hosPosisjon(rad, mineIder);
-  if (bucket === "lukket") {
+  if (bucket === "lukket" || bucket === "utkast") {
     return (
       <span className="inline-flex w-fit items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
-        {t("status.lukket")}
+        {t(bucket === "lukket" ? "status.lukket" : "status.utkast")}
       </span>
     );
   }
@@ -119,12 +119,6 @@ export function AvvikTabell({
   const { t } = useTranslation();
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const [kolonneBredder, setKolonneBredder] = useState<Record<string, number>>({});
-
-  if (rader.length === 0) {
-    return (
-      <EmptyState title={t("hms.tom.avvik")} description={t("hms.tom.avvikBeskrivelse")} />
-    );
-  }
 
   const hentProsjekt = (r: DokumentRad) => r.template.project?.name ?? "—";
   const hentAlvorlighet = (r: DokumentRad) =>
@@ -243,6 +237,11 @@ export function AvvikTabell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rader, visProsjektKolonne, visByggeplassKolonne, onHurtigBehandle, visHosKolonne, mineIder, t]);
 
+  // Tom-sjekk ETTER alle hooks (unngår hook-order-krasj når segment-filter tømmer lista).
+  if (rader.length === 0) {
+    return <EmptyState title={t("hms.tom.avvik")} description={t("hms.tom.avvikBeskrivelse")} />;
+  }
+
   return (
     <Table<DokumentRad>
       kolonner={kolonner}
@@ -273,10 +272,6 @@ export function SjaTabell({
   const { t } = useTranslation();
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const [kolonneBredder, setKolonneBredder] = useState<Record<string, number>>({});
-
-  if (rader.length === 0) {
-    return <EmptyState title={t("hms.tom.sja")} description={t("hms.tom.sjaBeskrivelse")} />;
-  }
 
   const hentProsjekt = (r: DokumentRad) => r.template.project?.name ?? "—";
   const hentArbeidsleder = (r: DokumentRad) =>
@@ -378,6 +373,10 @@ export function SjaTabell({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rader, visProsjektKolonne, visByggeplassKolonne, visHosKolonne, mineIder, t]);
 
+  if (rader.length === 0) {
+    return <EmptyState title={t("hms.tom.sja")} description={t("hms.tom.sjaBeskrivelse")} />;
+  }
+
   return (
     <Table<DokumentRad>
       kolonner={kolonner}
@@ -409,10 +408,6 @@ export function RuhTabell({
   const { t } = useTranslation();
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
   const [kolonneBredder, setKolonneBredder] = useState<Record<string, number>>({});
-
-  if (rader.length === 0) {
-    return <EmptyState title={t("hms.tom.ruh")} description={t("hms.tom.ruhBeskrivelse")} />;
-  }
 
   const hentProsjekt = (r: DokumentRad) => r.template.project?.name ?? "—";
   const hentTypeObservasjon = (r: DokumentRad) =>
@@ -515,6 +510,10 @@ export function RuhTabell({
     return k;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rader, visProsjektKolonne, visByggeplassKolonne, navneLookup, visHosKolonne, mineIder, t]);
+
+  if (rader.length === 0) {
+    return <EmptyState title={t("hms.tom.ruh")} description={t("hms.tom.ruhBeskrivelse")} />;
+  }
 
   return (
     <Table<DokumentRad>
