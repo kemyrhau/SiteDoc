@@ -94,7 +94,7 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
 
         {/* Behandler (§2) */}
         <div className="flex-1 rounded-lg border border-amber-200 bg-amber-50/40 px-3 py-2">
-          <div className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-600">
+          <div className="mb-0.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-gray-600">
             {t("hms.flyt.behandler")}
             {behandlerTom && (
               <span className="inline-flex items-center gap-1 normal-case tracking-normal text-amber-700">
@@ -103,6 +103,9 @@ export function HmsFlytKort({ prosjektId }: { prosjektId: string }) {
               </span>
             )}
           </div>
+          {/* Presiser at behandling skjer på DETTE prosjektet — «firmaets HMS-ansvarlige»
+              skal ikke feillede mot firma-oversikten (org-gatet, egen flate). */}
+          <p className="mb-1.5 text-[10.5px] leading-snug text-gray-500">{t("hms.flyt.behandlerPaProsjekt")}</p>
 
           {/* Firma-kilde (read-only) */}
           {(firmaAnsvarlige ?? []).map((f) => (

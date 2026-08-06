@@ -206,6 +206,15 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     },
   });
 
+  // Ordre 2.1 fix-forward: ett-klikks selv-innmelding fra HMS-gruppe-raden (så admin
+  // ikke må lete etter +-ikonet ved tom behandler-liste). Server håndhever admin.
+  const meldMegInnMutation = trpc.gruppe.meldMegInn.useMutation({
+    onSuccess: () => {
+      utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
+      utils.medlem.hentForProsjekt.invalidate({ projectId: prosjektId });
+    },
+  });
+
   const fjernMedlemMutation = trpc.gruppe.fjernMedlem.useMutation({
     onSuccess: () => {
       utils.gruppe.hentForProsjekt.invalidate({ projectId: prosjektId });
@@ -802,6 +811,19 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                             <AlertTriangle className="h-3 w-3" />
                             {t("hms.ingenBehandlere")}
                           </span>
+                        )}
+                        {erHms && rad.antall === 0 && hmsGruppe && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              meldMegInnMutation.mutate({ groupId: hmsGruppe.id, projectId: prosjektId });
+                            }}
+                            disabled={meldMegInnMutation.isPending}
+                            className="inline-flex items-center gap-1 rounded bg-amber-600 px-2 py-0.5 text-[11px] font-semibold normal-case tracking-normal text-white transition-colors hover:bg-amber-700 disabled:opacity-50"
+                          >
+                            <Plus className="h-3 w-3" />
+                            {t("hms.behandler.meldMegInn")}
+                          </button>
                         )}
 
                         {/* Modul-badges — alltid klikkbare for toggle */}

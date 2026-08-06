@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Behandles per prosjekt",
   "hms.flyt.melder": "1 · Melder",
   "hms.flyt.behandler": "2 · Behandler",
+  "hms.flyt.behandlerPaProsjekt": "Behandler HMS-saker på dette prosjektet. Firma-HMS-ansvarlige behandler også på tvers i firma-oversikten.",
   "hms.flyt.folgerKontaktlisten": "Følger kontaktlisten · {{antall}}",
   "hms.flyt.melderRegel": "Alle i prosjektets kontaktliste er melder så lenge HMS-modulen er aktiv — ny kontakt arver regelen automatisk. Regel, ikke navneliste.",
   "hms.flyt.fraFirma": "Fra firma",
