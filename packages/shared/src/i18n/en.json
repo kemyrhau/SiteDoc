@@ -1711,6 +1711,7 @@
   "hms.flyt.behandlesPerProsjekt": "Handled per project",
   "hms.flyt.melder": "1 · Reporter",
   "hms.flyt.behandler": "2 · Handler",
+  "hms.flyt.behandlerPaProsjekt": "Handles HSE cases on this project. Company HSE managers also handle across projects in the company overview.",
   "hms.flyt.folgerKontaktlisten": "Follows the contact list · {{antall}}",
   "hms.flyt.melderRegel": "Everyone in the project's contact list is a reporter while the HSE module is active — new contacts inherit the rule automatically. A rule, not a name list.",
   "hms.flyt.fraFirma": "From company",
