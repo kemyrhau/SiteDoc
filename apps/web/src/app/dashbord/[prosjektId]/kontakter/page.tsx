@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
+import { finnHmsGruppe, hmsBehandlerMedlemsIder, type HmsGruppe } from "@/components/hms/hms-utils";
 
 /**
  * P31 Kontakter — read-only lesevisning (K6-splitt). Personkatalog gruppert
@@ -66,8 +67,18 @@ export default function KontakterLesevisning() {
     { projectId: prosjektId! },
     { enabled: !!prosjektId },
   );
+  const { data: grupper } = trpc.gruppe.hentForProsjekt.useQuery(
+    { projectId: prosjektId! },
+    { enabled: !!prosjektId },
+  );
 
   const erLaster = e1 || e2;
+
+  // Ordre 2.1 §4: HMS-chip på kontakter som er behandlere (medlem i HMS-gruppa).
+  const hmsBehandlerIder = useMemo(
+    () => hmsBehandlerMedlemsIder(finnHmsGruppe(grupper as unknown as HmsGruppe[] | undefined)),
+    [grupper],
+  );
 
   // Grupper medlemmer per faggruppe; samle uten-faggruppe til slutt så ingen
   // kontakt skjules.
@@ -176,6 +187,11 @@ export default function KontakterLesevisning() {
                       <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-500">
                         {rolleLabel(m.role)}
                       </span>
+                      {hmsBehandlerIder.has(m.id) && (
+                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-medium text-amber-700">
+                          {t("hms.behandlerChip")}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 text-sm">
                       {m.user.phone ? (

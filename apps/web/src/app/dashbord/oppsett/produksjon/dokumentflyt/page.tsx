@@ -27,6 +27,7 @@ import {
   InviterNyMedlemModal,
 } from "../_components/dokumentflyt-komponenter";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
+import { HmsFlytKort } from "@/components/hms/HmsFlytKort";
 import { nesteAutoFarge, FARGE_MAP as FAGGRUPPE_FARGER } from "../_components/faggruppe-farger";
 import type { DokumentflytMedlemData } from "../_components/dokumentflyt-komponenter";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
@@ -1292,6 +1293,11 @@ export default function KontakterSide() {
           );
         })}
       </div>
+
+      {/* HMS-flyt (Ordre 2.1 §4) — auto-provisjonert prosjektflyt (faggruppeId=null),
+          vises som ordinær 2-ledds flyt. Selv-innkapslet: hele seksjonen (inkl. header)
+          rendrer null hvis HMS-modulen ikke er aktiv (ingen HMS-gruppe). */}
+      <HmsFlytKort prosjektId={prosjektId!} />
 
       {/* Legg til faggruppe */}
       {visNyFaggruppe ? (

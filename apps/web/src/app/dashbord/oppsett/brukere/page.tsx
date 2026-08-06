@@ -16,11 +16,14 @@ import {
   ChevronDown,
   Shield,
   ArrowRight,
+  AlertTriangle,
 } from "lucide-react";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { KontaktForklaringsboks } from "@/components/oppsett/KontaktForklaringsboks";
 import { FlytChip } from "@/components/oppsett/FlytChip";
 import { OpprettKontaktModal } from "../produksjon/_components/OpprettKontaktModal";
+import { HmsBehandlerHandlinger } from "@/components/hms/HmsBehandlerHandlinger";
+import { finnHmsGruppe, erHmsGruppe, byggHmsKontakter, type HmsGruppe } from "@/components/hms/hms-utils";
 
 /* ------------------------------------------------------------------ */
 /*  KompaktBadgeListe — viser første verdi + "+N" utvidbar             */
@@ -461,9 +464,13 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
     const rader: Array<{ type: "header"; gruppeNavn: string; antall: number } | { type: "medlem"; medlem: KontaktMedlem; gruppeNavn: string }> = [];
     const medlemmerMedGruppe = new Set<string>();
 
+    // Ordre 2.1 §3 (Funn H): HMS-gruppa (domene "hms", category="field") løftes inn i
+    // matrisen ved siden av brukergruppene — den ble usynlig kun fordi den ikke er
+    // "brukergrupper". Vises som en ordinær grupperad (Auto-merke + hms-domene-chip +
+    // tom-varsel avledes i header-renderen).
     const brukerGrupperListe = dbGrupper
-      ? (dbGrupper as Array<{ id: string; name: string; category: string; members: Array<{ projectMember: { user: { id: string } } | null }> }>)
-          .filter((g) => g.category === "brukergrupper")
+      ? (dbGrupper as Array<{ id: string; name: string; category: string; domains?: unknown; members: Array<{ projectMember: { user: { id: string } } | null }> }>)
+          .filter((g) => g.category === "brukergrupper" || erHmsGruppe(g))
       : [];
 
     for (const g of brukerGrupperListe) {
@@ -488,6 +495,22 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
 
     return rader;
   }, [kontakter, dbGrupper, t]);
+
+  // Ordre 2.1 §3 (Funn H): HMS-behandler-leddet (HMS-gruppa) tomt → banner m/ ett-klikks
+  // «Meld meg inn» + «Velg andre». Server håndhever admin på handlingene.
+  const hmsGruppe = useMemo(
+    () => finnHmsGruppe(dbGrupper as unknown as HmsGruppe[] | undefined),
+    [dbGrupper],
+  );
+  const hmsKontakter = useMemo(
+    () =>
+      byggHmsKontakter(
+        kontakterRå.map((m) => ({ id: m.id, user: { name: m.user.name, email: m.user.email } })),
+        hmsGruppe,
+      ),
+    [kontakterRå, hmsGruppe],
+  );
+  const hmsTom = !!hmsGruppe && hmsGruppe.members.length === 0;
 
   return (
     <div className="-mx-6 -mt-6">
@@ -617,6 +640,16 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
       </div>
       <div className="px-6 pt-3 pb-6">
       <KontaktForklaringsboks />
+      {hmsTom && hmsGruppe && (
+        <div className="mb-3 flex flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            {t("hms.tomBanner.tittel")}
+          </div>
+          <p className="text-sm leading-relaxed text-gray-600">{t("hms.tomBanner.beskrivelse")}</p>
+          <HmsBehandlerHandlinger prosjektId={prosjektId} hmsGruppeId={hmsGruppe.id} kontakter={hmsKontakter} />
+        </div>
+      )}
       <div className="rounded-lg border border-gray-200">
         <table className="w-full text-left text-sm">
           <thead className="sticky top-[69px] z-20 border-b border-gray-200 bg-gray-50 text-xs font-medium uppercase tracking-wide text-gray-500 shadow-sm">
@@ -689,6 +722,7 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                 const erKollapset = kollapserteGrupper.has(rad.gruppeNavn);
                 const gruppeId = gruppeNavnTilId[rad.gruppeNavn];
                 const erUtenGruppe = !gruppeId;
+                const erHms = !!gruppeId && gruppeId === hmsGruppe?.id;
                 const toggleKollaps = () => {
                   setKollapserteGrupper((prev) => {
                     const ny = new Set(prev);
@@ -756,6 +790,19 @@ function KontaktTabell({ prosjektId }: { prosjektId: string }) {
                         )}
 
                         <span className="font-normal text-gray-400" onClick={toggleKollaps}>({rad.antall})</span>
+
+                        {/* Ordre 2.1 §3: HMS-gruppa er auto-provisjonert — Auto-merke + tom-varsel */}
+                        {erHms && (
+                          <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-700 normal-case">
+                            {t("hms.autoMerke")}
+                          </span>
+                        )}
+                        {erHms && rad.antall === 0 && (
+                          <span className="inline-flex items-center gap-1 text-[11px] font-semibold normal-case tracking-normal text-amber-700">
+                            <AlertTriangle className="h-3 w-3" />
+                            {t("hms.ingenBehandlere")}
+                          </span>
+                        )}
 
                         {/* Modul-badges — alltid klikkbare for toggle */}
                         {!erUtenGruppe && gruppeId && (() => {
