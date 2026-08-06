@@ -5,13 +5,13 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
-import { Spinner, EmptyState, Modal } from "@sitedoc/ui";
+import { Spinner, EmptyState, Modal, SearchInput } from "@sitedoc/ui";
 import { Plus, ShieldAlert, AlertTriangle, ClipboardList, FileWarning } from "lucide-react";
 import { OpprettMalVelger } from "@/components/OpprettMalVelger";
 import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
+import { hosPosisjon, type MineIder, type HosBucket } from "@/lib/hms-hos";
 import { KpiKort, MånedSøyler, FaggruppeBars, formaterDato, hentDataVerdi } from "@/components/hms/visning";
 import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
-import { FilterPanel } from "@/components/ui/FilterPanel";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { HmsTomBanner } from "@/components/hms/HmsTomBanner";
 import type { DokumentRad } from "@/components/hms/types";
@@ -26,19 +26,38 @@ type Subdomain = "avvik" | "sja" | "ruh";
 
 const ÅPEN_STATUSER = new Set(["draft", "sent", "received", "in_progress", "responded", "rejected"]);
 
-// Status → i18n-etikett-nøkkel (gjenbruker delte status.*-nøkler)
-const STATUS_LABEL: Record<string, string> = {
-  draft: "status.utkast",
-  sent: "status.sendt",
-  received: "status.mottatt",
-  in_progress: "status.underArbeid",
-  responded: "status.besvart",
-  approved: "status.godkjent",
-  rejected: "status.avvist",
-  cancelled: "status.avbrutt",
-  closed: "status.lukket",
-};
-const LUKKET_STATUSER = new Set(["approved", "closed", "cancelled"]);
+// Segmentert status-filter (Funn F): fast segmentert kontroll som følger avledet
+// status (Hos N / terminal), ikke rå enum. «Lukket» alltid synlig m/ antall.
+function HmsSegmentFilter({
+  segmenter,
+  valgt,
+  onVelg,
+}: {
+  segmenter: { id: HosBucket | "apne"; label: string; antall: number }[];
+  valgt: HosBucket | "apne";
+  onVelg: (id: HosBucket | "apne") => void;
+}) {
+  return (
+    <div className="flex w-fit overflow-hidden rounded-lg border border-gray-200 text-sm font-medium">
+      {segmenter.map((s, i) => {
+        const aktiv = s.id === valgt;
+        return (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onVelg(s.id)}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 transition-colors ${
+              i > 0 ? "border-l border-gray-200" : ""
+            } ${aktiv ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-50"}`}
+          >
+            {s.label}
+            <span className={aktiv ? "text-white/75" : "text-gray-400"}>{s.antall}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 // KpiKort, MånedSøyler, FaggruppeBars importeres fra @/components/hms/visning.
 
@@ -83,9 +102,10 @@ export default function HmsSide() {
   const { aktivByggeplass, standardTegning } = useByggeplass();
 
   const [aktivTab, setAktivTab] = useState<Tab>("avvik");
-  // Status-filter: forhåndsvelger åpne statuser (bevarer «åpne først»-default,
-  // men gjør den synlig via chips i stedet for en skjult «Vis alle»-checkbox)
-  const [statusValg, setStatusValg] = useState<string[]>([...ÅPEN_STATUSER]);
+  // Segmentert status-filter (Ordre 2.3/Funn F): avledet status, ikke rå enum.
+  // «apne» = alle ikke-terminale (default, bevarer «åpne først»); «lukket» alltid
+  // synlig som eget segment så lukkede saker ikke forsvinner (Funn F-rotårsak).
+  const [segment, setSegment] = useState<HosBucket | "apne">("apne");
   const [tekstSok, setTekstSok] = useState("");
   // Unifisert opprett-velger (Ordre 2.2/Funn E) — samme modell som sjekkliste/oppgave.
   const [visVelger, setVisVelger] = useState(false);
@@ -134,6 +154,15 @@ export default function HmsSide() {
   );
   const hmsMalNøkkel = `hms:${params.prosjektId}`;
 
+  // Innlogget brukers flyt-identitet — viewer-relativt «Hos deg» i segment + kolonne.
+  const mineIder = useMemo<MineIder | undefined>(() => {
+    const info = minFlytInfo as
+      | { userId?: string; gruppeIder?: string[]; faggruppeIder?: string[] }
+      | undefined;
+    if (!info?.userId) return undefined;
+    return { brukerId: info.userId, gruppeIder: info.gruppeIder ?? [], faggruppeIder: info.faggruppeIder ?? [] };
+  }, [minFlytInfo]);
+
   // Imperativ tRPC-call via utils.client — unngår TS2589 fra useMutation-typegen.
   // Kaster ved feil; velgOgOpprett håndterer feilmelding + pending-tilstand.
   async function handleOpprett(mal: MalRef) {
@@ -179,9 +208,12 @@ export default function HmsSide() {
   }
 
   const filtrer = (rader: DokumentRad[]) => {
-    let r = rader;
-    // Tomt status-valg = vis alle (etter «Tøm filter»); ellers filtrer på valgte
-    if (statusValg.length > 0) r = r.filter((rad) => statusValg.includes(rad.status));
+    // Segment-filter på avledet «Hos»-bucket: «apne» = alt ikke-terminalt,
+    // ellers eksakt bucket-match («deg»/«behandler»/«lukket»).
+    let r = rader.filter((rad) => {
+      const bucket = hosPosisjon(rad, mineIder).bucket;
+      return segment === "apne" ? bucket !== "lukket" : bucket === segment;
+    });
     const q = tekstSok.trim().toLowerCase();
     if (q) {
       r = r.filter((rad) => {
@@ -198,19 +230,31 @@ export default function HmsSide() {
   const sja = dokumenter?.sja ?? [];
   const ruh = dokumenter?.ruh ?? [];
 
-  // Status-alternativer for aktiv fane. Fast rekkefølge fra STATUS_LABEL slik at
-  // forhåndsvalgte (åpne) statuser alltid har en etikett i chip-visningen, selv
-  // om de mangler i akkurat denne fanens data (antall = 0).
+  // Segment-antall for aktiv fane (avledet «Hos»-bucket). «apne» teller alle
+  // ikke-terminale; behandler-navnet leses fra flytens siste ledd (følger rename).
   const aktivFaneData = aktivTab === "avvik" ? avvik : aktivTab === "sja" ? sja : aktivTab === "ruh" ? ruh : [];
-  const statusAlternativer = useMemo(() => {
-    const antall = new Map<string, number>();
-    for (const rad of aktivFaneData) antall.set(rad.status, (antall.get(rad.status) ?? 0) + 1);
-    return Object.entries(STATUS_LABEL).map(([id, labelKey]) => ({
-      id,
-      name: t(labelKey),
-      antall: antall.get(id) ?? 0,
-    }));
-  }, [aktivFaneData, t]);
+  const segmentData = useMemo(() => {
+    const buckets = aktivFaneData.map((r) => hosPosisjon(r, mineIder));
+    const tell = (pred: (b: (typeof buckets)[number]) => boolean) => buckets.filter(pred).length;
+    return {
+      apne: tell((b) => b.bucket !== "lukket"),
+      deg: tell((b) => b.bucket === "deg"),
+      behandler: tell((b) => b.bucket === "behandler"),
+      lukket: tell((b) => b.bucket === "lukket"),
+      behandlerNavn: buckets.find((b) => b.behandlerNavn)?.behandlerNavn ?? null,
+    };
+  }, [aktivFaneData, mineIder]);
+
+  const segmenter: { id: HosBucket | "apne"; label: string; antall: number }[] = [
+    { id: "apne", label: t("status.alleApne"), antall: segmentData.apne },
+    { id: "deg", label: t("tabell.venterPaaDeg"), antall: segmentData.deg },
+    {
+      id: "behandler",
+      label: t("hms.hos", { navn: segmentData.behandlerNavn ?? t("hms.segment.behandler") }),
+      antall: segmentData.behandler,
+    },
+    { id: "lukket", label: t("status.lukket"), antall: segmentData.lukket },
+  ];
 
   // KPI: åpne avvik totalt + SJA siste 30 dager + RUH siste 30 dager
   const naa = Date.now();
@@ -399,31 +443,18 @@ export default function HmsSide() {
         })}
       </div>
 
-      {/* Delt filter-panel (skjult på statistikk-fanen) */}
+      {/* Segmentert status-filter + fritekst-søk (skjult på statistikk-fanen).
+          Segmentene følger avledet «Hos»-status; «Lukket» alltid synlig (Funn F). */}
       {aktivTab !== "statistikk" && (
-        <FilterPanel
-          sok={{
-            verdi: tekstSok,
-            onChange: setTekstSok,
-            placeholder: t("hms.sok.placeholder"),
-          }}
-          dimensjoner={[
-            {
-              id: "status",
-              label: t("hms.filter.status"),
-              options: statusAlternativer,
-              valgte: statusValg,
-              onToggle: (id) =>
-                setStatusValg((prev) =>
-                  prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
-                ),
-            },
-          ]}
-          tomLabel={t("filter.tom")}
-          onTom={() => { setStatusValg([]); setTekstSok(""); }}
-          visTom={statusValg.length > 0 || tekstSok.length > 0}
-          kolonner={1}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <HmsSegmentFilter segmenter={segmenter} valgt={segment} onVelg={setSegment} />
+          <SearchInput
+            verdi={tekstSok}
+            onChange={setTekstSok}
+            placeholder={t("hms.sok.placeholder")}
+            className="w-full sm:w-64"
+          />
+        </div>
       )}
 
       {/* Tab-innhold */}
@@ -431,12 +462,16 @@ export default function HmsSide() {
         <AvvikTabell
           rader={filtrer(avvik)}
           onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
+          visHosKolonne
+          mineIder={mineIder}
         />
       )}
       {aktivTab === "sja" && (
         <SjaTabell
           rader={filtrer(sja)}
           onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
+          visHosKolonne
+          mineIder={mineIder}
         />
       )}
       {aktivTab === "ruh" && (
@@ -444,6 +479,8 @@ export default function HmsSide() {
           rader={filtrer(ruh)}
           onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
           navneLookup={navneLookup}
+          visHosKolonne
+          mineIder={mineIder}
         />
       )}
       {aktivTab === "statistikk" && (
