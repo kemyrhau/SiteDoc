@@ -20,7 +20,7 @@ export interface MineIder {
   faggruppeIder: string[];
 }
 
-export type HosBucket = "lukket" | "deg" | "behandler" | "melder";
+export type HosBucket = "lukket" | "deg" | "behandler" | "melder" | "utkast";
 
 export interface HosPosisjon {
   bucket: HosBucket;
@@ -62,11 +62,12 @@ export function hosPosisjon(rad: HosRad, mine?: MineIder): HosPosisjon {
     return { bucket: "lukket", aktivNavn: null, behandlerNavn };
   }
 
+  // Utkast: ballen er ikke sendt ennå (status draft / uten aktiv posisjon). Egen
+  // bucket → kolonnen sier «Utkast», ikke «Hos ?» (null-medlem-leddet gir tomt navn).
   const idx = finnAktivtIndex(ledd, rad.aktivPosisjon ?? null);
   const aktiv = idx >= 0 ? ledd[idx] : undefined;
-  if (!aktiv) {
-    // Ubestembar posisjon (utkast uten sendt ball) → meldersiden.
-    return { bucket: "melder", aktivNavn: null, behandlerNavn };
+  if (rad.status === "draft" || !aktiv) {
+    return { bucket: "utkast", aktivNavn: null, behandlerNavn };
   }
 
   if (mine && erMineLedd(aktiv, mine)) {
