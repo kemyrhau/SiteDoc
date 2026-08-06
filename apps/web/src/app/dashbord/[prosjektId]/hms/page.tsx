@@ -1,15 +1,17 @@
 "use client";
 
-import { useState, useMemo, useRef, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
-import { Spinner, EmptyState } from "@sitedoc/ui";
-import { Plus, ChevronDown, ShieldAlert, AlertTriangle, ClipboardList, FileWarning } from "lucide-react";
+import { Spinner, EmptyState, Modal, SearchInput } from "@sitedoc/ui";
+import { Plus, ShieldAlert, AlertTriangle, ClipboardList, FileWarning } from "lucide-react";
+import { OpprettMalVelger } from "@/components/OpprettMalVelger";
+import { useSistBrukteMal } from "@/hooks/useSistBrukteMal";
+import { hosPosisjon, type MineIder, type HosBucket } from "@/lib/hms-hos";
 import { KpiKort, MånedSøyler, FaggruppeBars, formaterDato, hentDataVerdi } from "@/components/hms/visning";
 import { AvvikTabell, SjaTabell, RuhTabell } from "@/components/hms/tabeller";
-import { FilterPanel } from "@/components/ui/FilterPanel";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 import { HmsTomBanner } from "@/components/hms/HmsTomBanner";
 import type { DokumentRad } from "@/components/hms/types";
@@ -24,66 +26,35 @@ type Subdomain = "avvik" | "sja" | "ruh";
 
 const ÅPEN_STATUSER = new Set(["draft", "sent", "received", "in_progress", "responded", "rejected"]);
 
-// Status → i18n-etikett-nøkkel (gjenbruker delte status.*-nøkler)
-const STATUS_LABEL: Record<string, string> = {
-  draft: "status.utkast",
-  sent: "status.sendt",
-  received: "status.mottatt",
-  in_progress: "status.underArbeid",
-  responded: "status.besvart",
-  approved: "status.godkjent",
-  rejected: "status.avvist",
-  cancelled: "status.avbrutt",
-  closed: "status.lukket",
-};
-const LUKKET_STATUSER = new Set(["approved", "closed", "cancelled"]);
-
-function NyDropdown({
-  alternativer,
-  onClick,
+// Segmentert status-filter (Funn F): fast segmentert kontroll som følger avledet
+// status (Hos N / terminal), ikke rå enum. «Lukket» alltid synlig m/ antall.
+function HmsSegmentFilter({
+  segmenter,
+  valgt,
+  onVelg,
 }: {
-  alternativer: { subdomain: Subdomain; mal: MalRef }[];
-  onClick: (mal: MalRef) => void;
+  segmenter: { id: HosBucket | "apne"; label: string; antall: number }[];
+  valgt: HosBucket | "apne";
+  onVelg: (id: HosBucket | "apne") => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  const { t } = useTranslation();
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    }
-    if (open) document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [open]);
-
   return (
-    <div ref={ref} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 transition-opacity"
-      >
-        <Plus className="h-4 w-4" />
-        {t("hms.handling.meld")}
-        <ChevronDown className="h-3 w-3" />
-      </button>
-      {open && (
-        <div className="absolute right-0 z-50 mt-1 w-80 rounded-md border border-gray-200 bg-white shadow-lg">
-          {alternativer.length === 0 ? (
-            <div className="px-4 py-2 text-sm text-gray-500">{t("hms.ingenMalerTilgjengelig")}</div>
-          ) : (
-            alternativer.map(({ subdomain, mal }) => (
-              <button
-                key={mal.id}
-                onClick={() => { setOpen(false); onClick(mal); }}
-                className="block w-full px-4 py-2 text-left hover:bg-gray-50"
-              >
-                <div className="text-sm font-semibold text-gray-900">{mal.name}</div>
-                <div className="mt-0.5 text-xs text-gray-500">{t(`hms.hjelp.${subdomain}`)}</div>
-              </button>
-            ))
-          )}
-        </div>
-      )}
+    <div className="flex w-fit overflow-hidden rounded-lg border border-gray-200 text-sm font-medium">
+      {segmenter.map((s, i) => {
+        const aktiv = s.id === valgt;
+        return (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => onVelg(s.id)}
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 transition-colors ${
+              i > 0 ? "border-l border-gray-200" : ""
+            } ${aktiv ? "bg-sitedoc-primary text-white" : "text-gray-600 hover:bg-gray-50"}`}
+          >
+            {s.label}
+            <span className={aktiv ? "text-white/75" : "text-gray-400"}>{s.antall}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -131,10 +102,14 @@ export default function HmsSide() {
   const { aktivByggeplass, standardTegning } = useByggeplass();
 
   const [aktivTab, setAktivTab] = useState<Tab>("avvik");
-  // Status-filter: forhåndsvelger åpne statuser (bevarer «åpne først»-default,
-  // men gjør den synlig via chips i stedet for en skjult «Vis alle»-checkbox)
-  const [statusValg, setStatusValg] = useState<string[]>([...ÅPEN_STATUSER]);
+  // Segmentert status-filter (Ordre 2.3/Funn F): avledet status, ikke rå enum.
+  // «apne» = alle ikke-terminale (default, bevarer «åpne først»); «lukket» alltid
+  // synlig som eget segment så lukkede saker ikke forsvinner (Funn F-rotårsak).
+  const [segment, setSegment] = useState<HosBucket | "apne">("apne");
   const [tekstSok, setTekstSok] = useState("");
+  // Unifisert opprett-velger (Ordre 2.2/Funn E) — samme modell som sjekkliste/oppgave.
+  const [visVelger, setVisVelger] = useState(false);
+  const [opprettPending, setOpprettPending] = useState(false);
 
   const dokumenterQuery = trpc.hms.hentDokumenter.useQuery(
     { projectId: params.prosjektId, byggeplassId: aktivByggeplass?.id ?? undefined },
@@ -162,50 +137,83 @@ export default function HmsSide() {
   // «Meld HMS»-velger nøkles på category="hms" (opprett-organisering). subdomain
   // beholdes for å rute den nye til riktig tabell (avvik/ruh=oppgave, sja=sjekkliste).
   const hmsMaler = ((maler ?? []) as Array<MalRef>).filter((m) => m.category === "hms");
+  // Velgbare HMS-maler (avvik/sja/ruh) → én HMS-nivå-1-seksjon i den unifiserte velgeren.
+  const velgbareHmsMaler = useMemo(
+    () => hmsMaler.filter((m) => m.subdomain === "avvik" || m.subdomain === "sja" || m.subdomain === "ruh"),
+    [hmsMaler],
+  );
 
-  const opprettAlternativer = useMemo(() => {
-    return hmsMaler
-      .filter((m) => m.subdomain === "avvik" || m.subdomain === "sja" || m.subdomain === "ruh")
-      .map((m) => ({ subdomain: m.subdomain as Subdomain, mal: m }));
-  }, [hmsMaler]);
+  // Sist-brukt HMS-mal (per prosjekt + doctype «hms») — kun markørens startrad i
+  // velgeren, aldri auto-opprett (Funn C / Ordre 1.4). Bruker-id fra flyt-info.
+  const { data: minFlytInfo } = trpc.gruppe.hentMinFlytInfo.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId },
+  );
+  const { sistBrukt, settSistBrukt } = useSistBrukteMal(
+    (minFlytInfo as { userId?: string } | undefined)?.userId,
+  );
+  const hmsMalNøkkel = `hms:${params.prosjektId}`;
+
+  // Innlogget brukers flyt-identitet — viewer-relativt «Hos deg» i segment + kolonne.
+  const mineIder = useMemo<MineIder | undefined>(() => {
+    const info = minFlytInfo as
+      | { userId?: string; gruppeIder?: string[]; faggruppeIder?: string[] }
+      | undefined;
+    if (!info?.userId) return undefined;
+    return { brukerId: info.userId, gruppeIder: info.gruppeIder ?? [], faggruppeIder: info.faggruppeIder ?? [] };
+  }, [minFlytInfo]);
 
   // Imperativ tRPC-call via utils.client — unngår TS2589 fra useMutation-typegen.
+  // Kaster ved feil; velgOgOpprett håndterer feilmelding + pending-tilstand.
   async function handleOpprett(mal: MalRef) {
     const subdomain = mal.subdomain as Subdomain | null;
+    if (subdomain === "avvik" || subdomain === "ruh") {
+      // RUH bruker oppgave-flyt (vedtatt 2026-05-29) — samme som avvik.
+      const resultat = (await utils.client.oppgave.opprett.mutate({
+        templateId: mal.id,
+        title: mal.name,
+        priority: "medium",
+        // Kontekst-default (V2): oppgave tar kun drawingId (byggeplass utledes
+        // via tegning). Byggeplass-uten-aktiv-tegning droppes (sak B, backlog).
+        drawingId: standardTegning?.id,
+      })) as { id: string };
+      await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
+      router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
+    } else if (subdomain === "sja") {
+      const resultat = (await utils.client.sjekkliste.opprett.mutate({
+        templateId: mal.id,
+        title: mal.name,
+        // Kontekst-default (V2): sjekkliste.opprett tar begge felt.
+        byggeplassId: aktivByggeplass?.id,
+        drawingId: standardTegning?.id,
+      })) as { id: string };
+      await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
+      router.push(`/dashbord/${params.prosjektId}/sjekklister/${resultat.id}`);
+    }
+  }
+
+  // Velg + opprett i ett (Funn C-interaksjon): oppretter, markerer sist-brukt, lukker velger.
+  async function velgOgOpprett(mal: MalRef) {
+    setOpprettPending(true);
     try {
-      if (subdomain === "avvik" || subdomain === "ruh") {
-        // RUH bruker oppgave-flyt (vedtatt 2026-05-29) — samme som avvik.
-        const resultat = (await utils.client.oppgave.opprett.mutate({
-          templateId: mal.id,
-          title: mal.name,
-          priority: "medium",
-          // Kontekst-default (V2): oppgave tar kun drawingId (byggeplass utledes
-          // via tegning). Byggeplass-uten-aktiv-tegning droppes (sak B, backlog).
-          drawingId: standardTegning?.id,
-        })) as { id: string };
-        await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
-        router.push(`/dashbord/${params.prosjektId}/oppgaver/${resultat.id}`);
-      } else if (subdomain === "sja") {
-        const resultat = (await utils.client.sjekkliste.opprett.mutate({
-          templateId: mal.id,
-          title: mal.name,
-          // Kontekst-default (V2): sjekkliste.opprett tar begge felt.
-          byggeplassId: aktivByggeplass?.id,
-          drawingId: standardTegning?.id,
-        })) as { id: string };
-        await utils.hms.hentDokumenter.invalidate({ projectId: params.prosjektId });
-        router.push(`/dashbord/${params.prosjektId}/sjekklister/${resultat.id}`);
-      }
+      await handleOpprett(mal);
+      settSistBrukt(hmsMalNøkkel, mal.id);
+      setVisVelger(false);
     } catch (err) {
       const melding = err instanceof Error ? err.message : t("felles.ukjentFeil");
       alert(t("felles.feilOpprettelse", { melding }));
+    } finally {
+      setOpprettPending(false);
     }
   }
 
   const filtrer = (rader: DokumentRad[]) => {
-    let r = rader;
-    // Tomt status-valg = vis alle (etter «Tøm filter»); ellers filtrer på valgte
-    if (statusValg.length > 0) r = r.filter((rad) => statusValg.includes(rad.status));
+    // Segment-filter på avledet «Hos»-bucket: «apne» = alt ikke-terminalt,
+    // ellers eksakt bucket-match («deg»/«behandler»/«lukket»).
+    let r = rader.filter((rad) => {
+      const bucket = hosPosisjon(rad, mineIder).bucket;
+      return segment === "apne" ? bucket !== "lukket" : bucket === segment;
+    });
     const q = tekstSok.trim().toLowerCase();
     if (q) {
       r = r.filter((rad) => {
@@ -222,19 +230,31 @@ export default function HmsSide() {
   const sja = dokumenter?.sja ?? [];
   const ruh = dokumenter?.ruh ?? [];
 
-  // Status-alternativer for aktiv fane. Fast rekkefølge fra STATUS_LABEL slik at
-  // forhåndsvalgte (åpne) statuser alltid har en etikett i chip-visningen, selv
-  // om de mangler i akkurat denne fanens data (antall = 0).
+  // Segment-antall for aktiv fane (avledet «Hos»-bucket). «apne» teller alle
+  // ikke-terminale; behandler-navnet leses fra flytens siste ledd (følger rename).
   const aktivFaneData = aktivTab === "avvik" ? avvik : aktivTab === "sja" ? sja : aktivTab === "ruh" ? ruh : [];
-  const statusAlternativer = useMemo(() => {
-    const antall = new Map<string, number>();
-    for (const rad of aktivFaneData) antall.set(rad.status, (antall.get(rad.status) ?? 0) + 1);
-    return Object.entries(STATUS_LABEL).map(([id, labelKey]) => ({
-      id,
-      name: t(labelKey),
-      antall: antall.get(id) ?? 0,
-    }));
-  }, [aktivFaneData, t]);
+  const segmentData = useMemo(() => {
+    const buckets = aktivFaneData.map((r) => hosPosisjon(r, mineIder));
+    const tell = (pred: (b: (typeof buckets)[number]) => boolean) => buckets.filter(pred).length;
+    return {
+      apne: tell((b) => b.bucket !== "lukket"),
+      deg: tell((b) => b.bucket === "deg"),
+      behandler: tell((b) => b.bucket === "behandler"),
+      lukket: tell((b) => b.bucket === "lukket"),
+      behandlerNavn: buckets.find((b) => b.behandlerNavn)?.behandlerNavn ?? null,
+    };
+  }, [aktivFaneData, mineIder]);
+
+  const segmenter: { id: HosBucket | "apne"; label: string; antall: number }[] = [
+    { id: "apne", label: t("status.alleApne"), antall: segmentData.apne },
+    { id: "deg", label: t("tabell.venterPaaDeg"), antall: segmentData.deg },
+    {
+      id: "behandler",
+      label: t("hms.hos", { navn: segmentData.behandlerNavn ?? t("hms.segment.behandler") }),
+      antall: segmentData.behandler,
+    },
+    { id: "lukket", label: t("status.lukket"), antall: segmentData.lukket },
+  ];
 
   // KPI: åpne avvik totalt + SJA siste 30 dager + RUH siste 30 dager
   const naa = Date.now();
@@ -323,12 +343,57 @@ export default function HmsSide() {
             <ShieldAlert className="h-6 w-6 text-sitedoc-primary" />
             <h1 className="text-2xl font-semibold text-gray-900">{t("hms.tittel")}</h1>
           </div>
-          <NyDropdown alternativer={opprettAlternativer} onClick={handleOpprett} />
+          {/* Ordre 2.2/Funn E: «+ Meld HMS» åpner den unifiserte velgeren (samme som
+              sjekkliste/oppgave). Åpne-regelen (Ordre 1.4): ≥1 mal → alltid velger,
+              0 maler → knapp av. */}
+          <button
+            type="button"
+            onClick={() => setVisVelger(true)}
+            disabled={velgbareHmsMaler.length === 0}
+            className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-4 py-2 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Plus className="h-4 w-4" />
+            {t("hms.handling.meld")}
+          </button>
         </div>
       </SonetonetSidehode>
 
       {/* Funn H — behandler-leddet tomt: roper til admin (selv-innkapslet) */}
       <HmsTomBanner prosjektId={params.prosjektId} />
+
+      {/* Ordre 2.2/Funn E: unifisert opprett-velger. HMS-malene ligger i én egen
+          nivå-1-seksjon (versal-header, flyt-løse → ingen nivå-2-underoverskrift =
+          Kenneths gatede ALT 1). Interaksjon (markør/↑↓/Enter/«Opprett»/sist-brukt)
+          eies av OpprettMalVelger — identisk med sjekkliste/oppgave. */}
+      <Modal open={visVelger} onClose={() => setVisVelger(false)} title={t("oppgaver.velgMal")}>
+        {velgbareHmsMaler.length === 0 ? (
+          <p className="py-4 text-center text-sm text-gray-400">{t("hms.ingenMalerTilgjengelig")}</p>
+        ) : (
+          <OpprettMalVelger
+            grupper={[
+              {
+                key: "__hms__",
+                overskrift: { navn: t("maler.domain.hms") },
+                sorterSist: true,
+                undergrupper: [
+                  {
+                    key: "__hms__u",
+                    maler: velgbareHmsMaler.map((m) => ({
+                      radKey: `hms:${m.id}`,
+                      malId: m.id,
+                      malNavn: m.name,
+                      prefix: m.prefix,
+                      onVelg: () => velgOgOpprett(m),
+                    })),
+                  },
+                ],
+              },
+            ]}
+            sistBruktMalId={sistBrukt(hmsMalNøkkel)}
+            opprettPending={opprettPending}
+          />
+        )}
+      </Modal>
 
       {/* KPI-bånd */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -378,31 +443,18 @@ export default function HmsSide() {
         })}
       </div>
 
-      {/* Delt filter-panel (skjult på statistikk-fanen) */}
+      {/* Segmentert status-filter + fritekst-søk (skjult på statistikk-fanen).
+          Segmentene følger avledet «Hos»-status; «Lukket» alltid synlig (Funn F). */}
       {aktivTab !== "statistikk" && (
-        <FilterPanel
-          sok={{
-            verdi: tekstSok,
-            onChange: setTekstSok,
-            placeholder: t("hms.sok.placeholder"),
-          }}
-          dimensjoner={[
-            {
-              id: "status",
-              label: t("hms.filter.status"),
-              options: statusAlternativer,
-              valgte: statusValg,
-              onToggle: (id) =>
-                setStatusValg((prev) =>
-                  prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id],
-                ),
-            },
-          ]}
-          tomLabel={t("filter.tom")}
-          onTom={() => { setStatusValg([]); setTekstSok(""); }}
-          visTom={statusValg.length > 0 || tekstSok.length > 0}
-          kolonner={1}
-        />
+        <div className="flex flex-wrap items-center gap-3">
+          <HmsSegmentFilter segmenter={segmenter} valgt={segment} onVelg={setSegment} />
+          <SearchInput
+            verdi={tekstSok}
+            onChange={setTekstSok}
+            placeholder={t("hms.sok.placeholder")}
+            className="w-full sm:w-64"
+          />
+        </div>
       )}
 
       {/* Tab-innhold */}
@@ -410,12 +462,16 @@ export default function HmsSide() {
         <AvvikTabell
           rader={filtrer(avvik)}
           onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
+          visHosKolonne
+          mineIder={mineIder}
         />
       )}
       {aktivTab === "sja" && (
         <SjaTabell
           rader={filtrer(sja)}
           onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/sjekklister/${rad.id}`)}
+          visHosKolonne
+          mineIder={mineIder}
         />
       )}
       {aktivTab === "ruh" && (
@@ -423,6 +479,8 @@ export default function HmsSide() {
           rader={filtrer(ruh)}
           onKlikk={(rad) => router.push(`/dashbord/${params.prosjektId}/oppgaver/${rad.id}`)}
           navneLookup={navneLookup}
+          visHosKolonne
+          mineIder={mineIder}
         />
       )}
       {aktivTab === "statistikk" && (

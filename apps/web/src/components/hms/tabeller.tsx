@@ -8,6 +8,7 @@ import { useState, useMemo, type JSX } from "react";
 import { useTranslation } from "react-i18next";
 import { EmptyState, StatusBadge, Table } from "@sitedoc/ui";
 import { formaterDato, formaterLopenummer, hentDataVerdi } from "./visning";
+import { hosPosisjon, type MineIder } from "@/lib/hms-hos";
 import type { DokumentRad } from "./types";
 
 type TabellProps = {
@@ -18,7 +19,38 @@ type TabellProps = {
   onHurtigBehandle?: (rad: DokumentRad) => void;
   // Bruker-/faggruppe-ID → navn, for person-/firma-felt (RUH: Innmelder m.m.)
   navneLookup?: Map<string, string>;
+  // «Hos»-kolonne (Ordre 2.3/Funn G) — kun prosjekt-lista, ikke firma-aggregatet.
+  visHosKolonne?: boolean;
+  mineIder?: MineIder;
 };
+
+// «Hos»-celle: flytmodellens perspektiv-vokabular via delt hosPosisjon-avledning.
+// Terminal → «Lukket»; ballen hos innlogget → «Venter på deg»; ellers «Hos {ledd}».
+function HosCelle({ rad, mineIder }: { rad: DokumentRad; mineIder?: MineIder }) {
+  const { t } = useTranslation();
+  const { bucket, aktivNavn } = hosPosisjon(rad, mineIder);
+  if (bucket === "lukket") {
+    return (
+      <span className="inline-flex w-fit items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+        {t("status.lukket")}
+      </span>
+    );
+  }
+  if (bucket === "deg") {
+    return (
+      <span className="inline-flex w-fit items-center rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">
+        {t("tabell.venterPaaDeg")}
+      </span>
+    );
+  }
+  if (!aktivNavn) return <span className="text-gray-300">—</span>;
+  return (
+    <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-0.5 text-xs font-medium text-amber-700">
+      <span className="h-1.5 w-1.5 rounded-full bg-amber-600" />
+      {t("hms.hos", { navn: aktivNavn })}
+    </span>
+  );
+}
 
 type KolDef = {
   id: string;
@@ -81,6 +113,8 @@ export function AvvikTabell({
   visProsjektKolonne = false,
   visByggeplassKolonne = false,
   onHurtigBehandle,
+  visHosKolonne = false,
+  mineIder,
 }: TabellProps) {
   const { t } = useTranslation();
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
@@ -157,6 +191,16 @@ export function AvvikTabell({
       filtrerbar: true,
       filterAlternativer: unikeVerdier(rader, hentAlvorlighet),
     });
+    if (visHosKolonne) {
+      k.push({
+        id: "hos",
+        header: t("hms.kolonne.hos"),
+        celle: (r) => <HosCelle rad={r} mineIder={mineIder} />,
+        bredde: "180px",
+        sorterbar: true,
+        sorterVerdi: (r) => hosPosisjon(r, mineIder).aktivNavn ?? "",
+      });
+    }
     k.push({
       id: "status",
       header: t("tabell.status"),
@@ -197,7 +241,7 @@ export function AvvikTabell({
     }
     return k;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rader, visProsjektKolonne, visByggeplassKolonne, onHurtigBehandle, t]);
+  }, [rader, visProsjektKolonne, visByggeplassKolonne, onHurtigBehandle, visHosKolonne, mineIder, t]);
 
   return (
     <Table<DokumentRad>
@@ -223,6 +267,8 @@ export function SjaTabell({
   onKlikk,
   visProsjektKolonne = false,
   visByggeplassKolonne = false,
+  visHosKolonne = false,
+  mineIder,
 }: TabellProps) {
   const { t } = useTranslation();
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
@@ -308,6 +354,16 @@ export function SjaTabell({
       filtrerbar: true,
       filterAlternativer: unikeVerdier(rader, hentArbeidsleder),
     });
+    if (visHosKolonne) {
+      k.push({
+        id: "hos",
+        header: t("hms.kolonne.hos"),
+        celle: (r) => <HosCelle rad={r} mineIder={mineIder} />,
+        bredde: "180px",
+        sorterbar: true,
+        sorterVerdi: (r) => hosPosisjon(r, mineIder).aktivNavn ?? "",
+      });
+    }
     k.push({
       id: "status",
       header: t("tabell.status"),
@@ -320,7 +376,7 @@ export function SjaTabell({
     });
     return k;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rader, visProsjektKolonne, visByggeplassKolonne, t]);
+  }, [rader, visProsjektKolonne, visByggeplassKolonne, visHosKolonne, mineIder, t]);
 
   return (
     <Table<DokumentRad>
@@ -347,6 +403,8 @@ export function RuhTabell({
   visProsjektKolonne = false,
   visByggeplassKolonne = false,
   navneLookup,
+  visHosKolonne = false,
+  mineIder,
 }: TabellProps) {
   const { t } = useTranslation();
   const [filterVerdier, setFilterVerdier] = useState<Record<string, string>>({});
@@ -434,6 +492,16 @@ export function RuhTabell({
       sorterbar: true,
       sorterVerdi: (r) => r.createdAt,
     });
+    if (visHosKolonne) {
+      k.push({
+        id: "hos",
+        header: t("hms.kolonne.hos"),
+        celle: (r) => <HosCelle rad={r} mineIder={mineIder} />,
+        bredde: "180px",
+        sorterbar: true,
+        sorterVerdi: (r) => hosPosisjon(r, mineIder).aktivNavn ?? "",
+      });
+    }
     k.push({
       id: "status",
       header: t("tabell.status"),
@@ -446,7 +514,7 @@ export function RuhTabell({
     });
     return k;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rader, visProsjektKolonne, visByggeplassKolonne, navneLookup, t]);
+  }, [rader, visProsjektKolonne, visByggeplassKolonne, navneLookup, visHosKolonne, mineIder, t]);
 
   return (
     <Table<DokumentRad>
