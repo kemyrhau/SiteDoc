@@ -192,7 +192,7 @@ Env ligger nå i `~/stack/sitedoc/docker/env/` (lest av compose via `env_file`):
 
 | Fil | Nøkkelvariabler |
 |-----|----------------|
-| `docker/env/api.env` | `DATABASE_URL`/`DIRECT_URL` (`postgresql://sitedoc:***@postgres:5432/sitedoc`), `PORT=3001`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `SITEDOC_INTEGRATION_KEY` |
+| `docker/env/api.env` | `DATABASE_URL`/`DIRECT_URL` (`postgresql://sitedoc:***@postgres:5432/sitedoc`), `PORT=3001`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `SITEDOC_INTEGRATION_KEY`, `FIL_SIGNING_SECRET` (S1 signert filserving — api nekter å starte i prod uten den; force-recreate ved endring, se [DOCKER-NOTES § FIL_SIGNING_SECRET](../../docker/DOCKER-NOTES.md)) |
 | `docker/env/web.env` | `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_MICROSOFT_*`, `AUTH_URL`/`NEXTAUTH_URL=https://sitedoc.no`, `AUTH_TRUST_HOST=true`, `DATABASE_URL` (samme), `RESEND_*` |
 
 > Env-filene kopieres aldri inn i image (`.dockerignore` ekskluderer `docker/env/*.env`); de leses kun på host ved `up`. Nøkler håndteres av Kenneth.

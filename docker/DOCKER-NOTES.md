@@ -18,7 +18,7 @@ Alle på docker-nett `appnet`, bundet til `127.0.0.1`.
 
 ## Det Kenneth må skaffe / sette (nøkler — Claude ser dem aldri)
 1. **Env-filer** i `docker/env/`:
-   - `api.env` — `DATABASE_URL=postgresql://<rolle>:<pw>@postgres:5432/sitedoc`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `APP_URL`, `SITEDOC_INTEGRATION_KEY` …
+   - `api.env` — `DATABASE_URL=postgresql://<rolle>:<pw>@postgres:5432/sitedoc`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `APP_URL`, `SITEDOC_INTEGRATION_KEY`, **`FIL_SIGNING_SECRET`** (S1 signert filserving — se § FIL_SIGNING_SECRET) …
    - `web.env` — `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_MICROSOFT_*`, `AUTH_TRUST_HOST=true`, `DATABASE_URL` (samme), `RESEND_*` …
    - Kopier fra gammel server (`~/programmering/sitedoc/apps/{api/.env,web/.env.local}`), endre kun `DATABASE_URL`/`DIRECT_URL` → `@postgres:5432`.
 2. **DB-rolle:** opprett `sitedoc`-rolle (least-privilege) + database, som vi gjorde med `salsa`. Prod-DB er eid av `postgres` på gammel server — vi restorer med `--no-owner` til ny rolle.
@@ -130,6 +130,17 @@ Denne deployen traff gjentatt friksjon som ikke var dokumentert → «gjenoppdag
 > ⚠️ **rsync ekskluderer `docker/env` (lærdom 2026-07-04).** Server-env-filene (`docker/env/{api,web,api-test,web-test}.env`) er **autoritative + gitignored**. Kanonisk rsync: `rsync -a --exclude node_modules --exclude .next --exclude .git --exclude docker/env`. Uten `--exclude docker/env` kan en lokal `docker/env`-mappe overskrive server-env (`DATABASE_URL` m.m.) → brutt miljø. (2026-07-04: prod-rsync droppet excluden — harmløst **kun** fordi Mac-kilden ikke hadde `docker/env`. Ikke stol på flaks.)
 >
 > **Merk:** rsync ekskluderer KUN `docker/env`, ikke hele `docker/` — bevisst. Repoet er sannhetskilde for `docker-compose*.yml` + `Dockerfile.*`, så de SKAL overskrive serverens versjoner ved rsync (holdes i synk med koden). Kun `docker/env/*.env` er server-autoritativ (gitignored) og ekskluderes.
+
+## FIL_SIGNING_SECRET — deploy-forutsetning for signert filserving (S1, lærdom 2026-08-07)
+
+Fase 1 av autorisert filserving serverer sensitive filer (`/uploads/privat/*`) **signatur-KUN** (HMAC). API-en signerer URL-ene med `FIL_SIGNING_SECRET`. **Uten den satt i containeren kaster signeringen** → i praksis brøt det tRPC-svar (207) og viste seg som «Dagsseddelen finnes ikke» (rotårsak 2026-08-07: secret sto i fila, men containeren var ikke recreatet → 0-lengde i prosessen).
+
+Krav ved deploy (test OG prod, FØR Fase 1 kjører i miljøet):
+1. **Sett i `docker/env/api-*.env`** (`api-test.env` for test, `api.env` for prod): `FIL_SIGNING_SECRET=<64-hex>` (`openssl rand -hex 32`). Egen verdi per miljø. Gitignored + rsync-ekskludert (§ rsync ekskluderer `docker/env`).
+2. **Force-recreate, ikke restart** — `env_file` leses kun ved container-**opprettelse** (se § 8 om secret-recreate): `up -d --force-recreate --no-deps sitedoc-api sitedoc-web` (test: `sitedoc-test-api sitedoc-test-web`). Et `restart` plukker den IKKE opp.
+3. **Verifiser i containeren (lengde, aldri verdi):** `docker exec sitedoc-api sh -c 'echo ${#FIL_SIGNING_SECRET}'` → `64` = satt, `0` = mangler. Står den i fila men `0` i containeren ⇒ ikke recreatet (eller `env_file` når ikke fram).
+
+**Fail-fast:** `apps/api/src/server.ts` nekter å starte i `NODE_ENV=production` hvis secreten mangler (`harSigneringsSecret()` i `utils/hmac.ts`) — en manglende deploy-forutsetning krasjer da tydelig ved boot i stedet for å se ut som en tilfeldig prosedyre-feil i drift.
 
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.

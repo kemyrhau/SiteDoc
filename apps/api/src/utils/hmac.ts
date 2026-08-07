@@ -63,7 +63,26 @@ const PRIVAT_PREFIKS = "/uploads/privat/";
  */
 export function signerHvisPrivat(url: string | null | undefined): string | null | undefined {
   if (typeof url !== "string" || !url.startsWith(PRIVAT_PREFIKS)) return url;
-  return signerFilSti(url);
+  try {
+    return signerFilSti(url);
+  } catch (err) {
+    // Kontrollert degradering: en signeringsfeil (f.eks. manglende secret) skal
+    // ALDRI kaste midt i et tRPC-svar og velte urelaterte prosedyrer i en batch.
+    // Returnér usignert URL (fail-closed: /uploads/privat/*-hooken avviser den
+    // uten gyldig signatur → 401, fila blir utilgjengelig, ikke lekket).
+    // Oppstart-sjekken i server.ts fanger den egentlige årsaken i produksjon.
+    console.error("[hmac] signering feilet — returnerer usignert URL:", err);
+    return url;
+  }
+}
+
+/**
+ * Er signerings-secreten satt? Brukes av oppstart-sjekk (fail-fast i produksjon)
+ * så en manglende deploy-forutsetning aldri viser seg som en tilfeldig
+ * prosedyre-feil («dagsseddelen finnes ikke») midt i drift.
+ */
+export function harSigneringsSecret(): boolean {
+  return Boolean(process.env.FIL_SIGNING_SECRET && process.env.FIL_SIGNING_SECRET.length > 0);
 }
 
 /**
