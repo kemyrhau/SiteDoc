@@ -266,19 +266,24 @@ export async function erHmsAdmin(
   return false;
 }
 
-/** Handlinger i det dedikerte HMS-løpet (D2). */
-export type HmsHandling = "tilfoyInformasjon" | "besvar" | "lukk" | "gjenapne";
+/** Handlinger i det dedikerte HMS-løpet (D2 + Spor 2 «Returner til melder»). */
+export type HmsHandling = "tilfoyInformasjon" | "besvar" | "lukk" | "gjenapne" | "returner";
 
 /**
  * HMS-egen autorisasjonsguard (tilstand × handling × hvem) — dedikert HMS-løp,
  * D2. Rører ALDRI `verifiserFlytRolle`/rolle-matrisen. sitedoc_admin bypasser.
  *
- * | Handling         | Hvem      | Tilstand        |
- * |------------------|-----------|-----------------|
- * | tilfoyInformasjon| oppretter | sent · responded|
- * | besvar           | HMS-admin | sent · responded|
- * | lukk             | HMS-admin | responded       |
- * | gjenapne         | HMS-admin | closed          |
+ * | Handling         | Hvem      | Tilstand                  |
+ * |------------------|-----------|---------------------------|
+ * | tilfoyInformasjon| oppretter | sent · received · responded|
+ * | besvar           | HMS-admin | sent · received · responded|
+ * | lukk             | HMS-admin | received · responded      |
+ * | returner         | HMS-admin | received                  |
+ * | gjenapne         | HMS-admin | closed                    |
+ *
+ * `received` = «Hos behandler» (sendt, ball hos HMS-leddet — Q1-kollapsen av
+ * sent/in_progress). Førsteklasses HMS-tilstand: behandler handler nettopp her,
+ * og melder kan legge til tillegg mens saken ligger hos behandler (5b).
  *
  * Kaster FORBIDDEN (feil hvem) eller BAD_REQUEST (feil tilstand) ellers.
  */
@@ -295,8 +300,10 @@ export async function verifiserHmsHandling(
 
   const { bestillerUserId, status, projectId } = sjekkliste;
 
+  const erÅpenBehandling = status === "sent" || status === "received" || status === "responded";
+
   if (handling === "tilfoyInformasjon") {
-    if (bestillerUserId === userId && (status === "sent" || status === "responded")) {
+    if (bestillerUserId === userId && erÅpenBehandling) {
       return;
     }
     if (bestillerUserId !== userId) {
@@ -311,7 +318,7 @@ export async function verifiserHmsHandling(
     });
   }
 
-  // besvar / lukk / gjenapne krever HMS-admin
+  // besvar / lukk / returner / gjenapne krever HMS-admin
   const admin = await erHmsAdmin(userId, projectId);
   if (!admin) {
     throw new TRPCError({
@@ -321,8 +328,9 @@ export async function verifiserHmsHandling(
   }
 
   const tillatt =
-    (handling === "besvar" && (status === "sent" || status === "responded")) ||
-    (handling === "lukk" && status === "responded") ||
+    (handling === "besvar" && erÅpenBehandling) ||
+    (handling === "lukk" && (status === "received" || status === "responded")) ||
+    (handling === "returner" && status === "received") ||
     (handling === "gjenapne" && status === "closed");
 
   if (!tillatt) {
