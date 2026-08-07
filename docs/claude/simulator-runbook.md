@@ -13,6 +13,29 @@ Sikkerhetsgrense, testbrukere og tunnelens rotårsak: se
 [dev-login-agent.md](dev-login-agent.md) (dette dokumentet er den praktiske løypa,
 dev-login-agent.md er kilden for whitelist/secret/tunnel-teori).
 
+## 0. Fast simulator-worktree (`SiteDoc-simulator`) — kjør dette først
+
+Simulatoren kjøres fra et **eget, permanent worktree**, ikke fra hovedtreet. Grunn: hovedtreet
+brukes til merging og branch-bytte, og filer som endres under en pågående test gir falske funn.
+
+```bash
+cd ~/Documents/Programmering/SiteDoc
+./scripts/simulator-tre.sh            # oppretter ved første kjøring, ellers oppdaterer til origin/develop
+./scripts/simulator-tre.sh main       # eller annen ref (f.eks. verifisere prod-kode)
+```
+
+Scriptet er idempotent: henter fra origin, setter treet på ønsket ref (detached), oppretter
+`apps/mobile/.env` med `EXPO_PUBLIC_API_URL=http://localhost:3301` første gang, og kjører
+`pnpm install` **kun** når lockfilen har endret seg. Til slutt skriver det ut oppstartsstegene.
+
+- **Sti:** `~/Documents/Programmering/SiteDoc-simulator`
+- **Detached HEAD med vilje** — `develop` er checked out i hovedtreet, og en branch kan bare være
+  ute i ett worktree om gangen. Treet er kun for kjøring/testing, aldri for commits.
+- `.env` er gitignorert og overlever ref-bytte — settes bare første gang.
+
+Kenneth kan starte simulatoren selv herfra når som helst; simulator-Opus bruker samme tre
+(koordiner så ikke to Metro-instanser kjemper om samme device).
+
 ## 1. Oppstartssekvens (to terminaler)
 
 **Terminal A — SSH-tunnel (hold åpen hele økta):**
