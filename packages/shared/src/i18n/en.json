@@ -257,6 +257,7 @@
   "timer.vedlegg.ingen": "No attachments",
   "timer.vedlegg.lagreForst": "Save the row first to attach a receipt.",
   "timer.vedlegg.laster": "Uploading …",
+  "timer.vedlegg.opplastingFeilet": "Could not upload receipt. Please try again.",
   "timer.felt.maskin": "Machine (maintenance)",
   "timer.internt": "Internal",
   "timer.feil.ingenAktivitet": "Select an activity before creating the daily sheet.",

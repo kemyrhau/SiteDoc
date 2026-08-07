@@ -11,21 +11,47 @@
  * (2) og (3) har ingen opplastings-UI/rute i dag → normalt tomme; migreres
  * defensivt likevel (idempotent no-op om tomme).
  *
- * SIKKER SEKVENS per fil (ingen vindu der peker og fil er uenige):
- *   kopier /uploads/x → /uploads/privat/x  →  verifiser lesbar  →  oppdater peker
- *   →  slett gammel /uploads/x.  Aldri rename-før-peker (ville gitt 404-vindu).
+ * ⚠️ KJENT BEGRENSNING — JSON-array-mønsteret (kompetanse/maskin, type 2+3):
+ *   - Peker-oppdatering her er «les rad → muter array-kopi → skriv hele arrayet
+ *     tilbake» (se migrerKompetanseVedlegg/migrerMaskinVedlegg). Det ER korrekt
+ *     (ikke no-op, ikke kolonne-antagelse), men er det iboende skjøre JSON-mønsteret:
+ *     race-utsatt ved samtidige skrivere og uten typegaranti. Trygt her fordi
+ *     migreringen er en engangs-offline-kjøring og disse tabellene har ingen aktive
+ *     skrivere (ingen opplastings-UI i dag).
+ *   - Filer i et JSON-array har INGEN record-id → M1-mønsteret (record-nøklet
+ *     sign-query for authz ved emisjon, jf. signerTilleggVedlegg) kan IKKE bygges
+ *     for dem. For dagens web-flater dekkes de likevel av sentral signer-middleware
+ *     (authz skjer når spørringen returnerer raden; signaturen bæres i JSON-strengen).
+ *     Hullet bites først den dagen en JSON-array-fil må konsumeres UTENOM spørrings-
+ *     svaret (f.eks. mobil-visning fra lokalt lagret bar URL). Løses av datamodell-
+ *     konvergens (egen ordre foran Fase 1b), IKKE innenfor Fase 1.
  *
- * IDEMPOTENT: hopper over pekere som allerede er /uploads/privat/. Kan re-kjøres.
+ * VEI 3 (delt uploads-volum test↔prod): KOPIÉR-UTEN-SLETT er default. Originalen
+ * blir stående, så den andre DB-en (som ennå peker /uploads/x) er uberørt. Begge
+ * DB-er migreres uavhengig; sletting av foreldreløse originaler er en SEPARAT,
+ * senere fase (--rydd-originaler) som kun kjøres når BÅDE DB-er er migrert.
+ *
+ * SIKKER SEKVENS per fil (migrering, ingen vindu der peker og fil er uenige):
+ *   kopier /uploads/x → /uploads/privat/x  →  verifiser lesbar  →  oppdater peker.
+ *   (Ingen sletting her — originalen beholdes til opprydding.)
+ *
+ * IDEMPOTENT: hopper pekere som allerede er /uploads/privat/, og kopiering hopper
+ * hvis /uploads/privat/x allerede finnes (den andre DB-en kan ha kopiert den).
  *
  * Bruk (på API-serveren der uploads/ ligger; DATABASE_URL må peke rett miljø):
- *   pnpm --filter @sitedoc/api exec tsx scripts/migrer-sensitive-filer-til-privat.ts          # dry-run (default)
- *   pnpm --filter @sitedoc/api exec tsx scripts/migrer-sensitive-filer-til-privat.ts --utfor  # faktisk flytting
+ *   … migrer-sensitive-filer-til-privat.ts                     # dry-run migrering (default)
+ *   … migrer-sensitive-filer-til-privat.ts --utfor             # utfør migrering (kopiér+peker)
+ *   … migrer-sensitive-filer-til-privat.ts --rydd-originaler          # dry-run opprydding
+ *   … migrer-sensitive-filer-til-privat.ts --rydd-originaler --utfor  # slett foreldreløse originaler
  *
- * ALDRI slett data: kun flytt + oppdater peker. Backup FØR kjøring på prod.
+ * ⚠️ --rydd-originaler KUN etter at BÅDE sitedoc OG sitedoc_test er migrert +
+ *    verifisert (delt volum). Sletter /uploads/x for filer som nå har privat-tvilling.
+ *
+ * ALDRI slett data i migreringsfasen. Backup FØR prod-kjøring.
  */
 
 import { join } from "path";
-import { access, copyFile, mkdir, unlink } from "fs/promises";
+import { access, copyFile, mkdir, readdir, stat, unlink } from "fs/promises";
 import { prisma } from "@sitedoc/db";
 import { prismaTimer } from "@sitedoc/db-timer";
 import { prismaMaskin } from "@sitedoc/db-maskin";
@@ -35,10 +61,12 @@ const PREFIKS = "/uploads/";
 const PRIVAT_PREFIKS = "/uploads/privat/";
 
 const UTFOR = process.argv.includes("--utfor");
+const RYDD = process.argv.includes("--rydd-originaler");
 
 let flyttet = 0;
 let hoppet = 0;
 let feilet = 0;
+let ryddet = 0;
 
 async function finnes(p: string): Promise<boolean> {
   try {
@@ -50,10 +78,10 @@ async function finnes(p: string): Promise<boolean> {
 }
 
 /**
- * Flytt én fil-peker til privat/. Returnerer den NYE URL-en (eller uendret ved
- * skip/feil). Trygg sekvens: kopier → verifiser → (kaller oppdaterer peker) →
- * slett gammel. Selve peker-oppdateringen gjøres av kalleren MELLOM kopiering og
- * sletting via `oppdaterPeker`-callbacken, så pekeren aldri peker på manglende fil.
+ * VEI 3 — kopiér én fil-peker til privat/ UTEN å slette originalen. Sekvens:
+ * kopier → verifiser lesbar → oppdater peker. Originalen beholdes (delt volum:
+ * den andre DB-en peker fortsatt på den til den også er migrert). Idempotent:
+ * hopper kopiering hvis privat-tvillingen allerede finnes.
  */
 async function flyttFil(
   gammelUrl: string,
@@ -68,40 +96,48 @@ async function flyttFil(
 
   const relativ = gammelUrl.slice(PREFIKS.length); // "<uuid>.<ext>"
   const gammelSti = join(UPLOADS_DIR, relativ);
-  const nyRelativ = `privat/${relativ}`;
-  const nySti = join(UPLOADS_DIR, nyRelativ);
+  const nySti = join(UPLOADS_DIR, `privat/${relativ}`);
   const nyUrl = `${PRIVAT_PREFIKS}${relativ}`;
 
-  if (!(await finnes(gammelSti))) {
-    console.warn(`  ⚠️  MANGLER på disk, hopper: ${gammelUrl} (${kontekst})`);
+  const kildeFinnes = await finnes(gammelSti);
+  const tvillingFinnes = await finnes(nySti);
+  if (!kildeFinnes && !tvillingFinnes) {
+    console.warn(`  ⚠️  MANGLER på disk (verken original eller privat), hopper: ${gammelUrl} (${kontekst})`);
     feilet++;
     return;
   }
 
   if (!UTFOR) {
-    console.log(`  [dry-run] ville flyttet: ${gammelUrl} → ${nyUrl} (${kontekst})`);
+    console.log(
+      `  [dry-run] ville ${tvillingFinnes ? "kun oppdatert peker (tvilling finnes)" : "kopiert + oppdatert peker"}: ${gammelUrl} → ${nyUrl} (${kontekst})`,
+    );
     flyttet++;
     return;
   }
 
   try {
     await mkdir(join(UPLOADS_DIR, "privat"), { recursive: true });
-    // 1) kopier (begge eksisterer nå)
-    await copyFile(gammelSti, nySti);
+    // 1) kopier hvis tvilling ikke finnes (idempotent — den andre DB-en kan ha kopiert)
+    if (!tvillingFinnes) {
+      if (!kildeFinnes) {
+        console.error(`  ❌ original mangler, kan ikke kopiere: ${gammelUrl} (${kontekst})`);
+        feilet++;
+        return;
+      }
+      await copyFile(gammelSti, nySti);
+    }
     // 2) verifiser lesbar på ny plass
     if (!(await finnes(nySti))) {
       console.error(`  ❌ kopi ikke verifiserbar: ${nyUrl} (${kontekst})`);
       feilet++;
       return;
     }
-    // 3) oppdater peker (nå peker den på en fil som finnes)
+    // 3) oppdater peker (fila finnes på privat; originalen beholdes til opprydding)
     await oppdaterPeker(nyUrl);
-    // 4) slett gammel (peker er allerede flyttet — ingen 404-vindu)
-    await unlink(gammelSti);
     console.log(`  ✓ ${gammelUrl} → ${nyUrl} (${kontekst})`);
     flyttet++;
   } catch (err) {
-    console.error(`  ❌ feil ved flytting av ${gammelUrl} (${kontekst}):`, err);
+    console.error(`  ❌ feil ved kopiering av ${gammelUrl} (${kontekst}):`, err);
     feilet++;
   }
 }
@@ -208,9 +244,65 @@ async function migrerMaskinVedlegg() {
   }
 }
 
+// --- Opprydding (VEI 3, separat fase): slett foreldreløse originaler ---
+// Disk-drevet: for hver fil i uploads/privat/<navn>, slett tvillingen
+// uploads/<navn> hvis den finnes. KUN etter at BÅDE DB-er er migrert.
+async function ryddOriginaler() {
+  const privatDir = join(UPLOADS_DIR, "privat");
+  let filer: string[];
+  try {
+    filer = await readdir(privatDir);
+  } catch {
+    console.log("Ingen uploads/privat/-katalog — ingenting å rydde.");
+    return;
+  }
+  for (const navn of filer) {
+    const privatSti = join(privatDir, navn);
+    // kun toppnivå-filer (sensitive vedlegg er flate uuid-filer)
+    try {
+      if (!(await stat(privatSti)).isFile()) continue;
+    } catch {
+      continue;
+    }
+    const originalSti = join(UPLOADS_DIR, navn);
+    if (!(await finnes(originalSti))) {
+      hoppet++;
+      continue;
+    }
+    if (!UTFOR) {
+      console.log(`  [dry-run] ville slettet foreldreløs original: /uploads/${navn}`);
+      ryddet++;
+      continue;
+    }
+    try {
+      await unlink(originalSti);
+      console.log(`  ✓ slettet original: /uploads/${navn}`);
+      ryddet++;
+    } catch (err) {
+      console.error(`  ❌ kunne ikke slette /uploads/${navn}:`, err);
+      feilet++;
+    }
+  }
+}
+
 async function main() {
+  if (RYDD) {
+    console.log(
+      `\n=== Opprydding: slett foreldreløse originaler ===\n` +
+        `Modus: ${UTFOR ? "UTFØR (sletter)" : "DRY-RUN (ingen sletting — bruk --utfor)"}\n` +
+        `UPLOADS_DIR: ${UPLOADS_DIR}\n` +
+        `⚠️  Kjør KUN når BÅDE sitedoc og sitedoc_test er migrert + verifisert (delt volum).`,
+    );
+    await ryddOriginaler();
+    console.log(
+      `\n=== Ferdig ===\nSlettet: ${ryddet} · Hoppet (ingen original): ${hoppet} · Feilet: ${feilet}\n`,
+    );
+    if (!UTFOR) console.log("Dette var en DRY-RUN. Kjør med --rydd-originaler --utfor for å slette.\n");
+    return;
+  }
+
   console.log(
-    `\n=== Migrering: sensitive filer → /uploads/privat/ ===\n` +
+    `\n=== Migrering (kopiér-uten-slett): sensitive filer → /uploads/privat/ ===\n` +
       `Modus: ${UTFOR ? "UTFØR (skriver)" : "DRY-RUN (ingen endring — bruk --utfor)"}\n` +
       `UPLOADS_DIR: ${UPLOADS_DIR}`,
   );
@@ -221,7 +313,8 @@ async function main() {
 
   console.log(
     `\n=== Ferdig ===\n` +
-      `Flyttet: ${flyttet} · Hoppet (allerede privat / ikke /uploads): ${hoppet} · Feilet/manglet: ${feilet}\n`,
+      `Kopiert+peker oppdatert: ${flyttet} · Hoppet (allerede privat / ikke /uploads): ${hoppet} · Feilet/manglet: ${feilet}\n` +
+      `Originaler beholdt (delt volum). Kjør --rydd-originaler ETTER at begge DB-er er migrert.`,
   );
   if (!UTFOR) console.log("Dette var en DRY-RUN. Kjør med --utfor for å utføre.\n");
 }

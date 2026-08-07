@@ -2380,6 +2380,10 @@ arbeid](STATUS-AKTUELT.md). Når oppgaven er prod-deployet: flytt videre
 til `historikk-YYYY-MM.md`. Se også [DOC-MAP.md](DOC-MAP.md) og
 [CLAUDE.md § Dokumentasjons-regler](../../CLAUDE.md).
 
+### Herd api-container til non-root — MÅ gjøres sammen med uploads-eierskap (fillagring S1, 2026-08-07)
+
+`docker/Dockerfile.api` har ingen `USER`-direktiv og prod/test-compose har ingen `user:`-linje → **api kjører som root** (bekreftet 2026-08-07; `no-new-privileges` er IKKE non-root). Salsaklubb-containeren på samme server kjører allerede non-root (uid 1000 `node`). Herding av api til non-root er ønskelig, men **kobling er ufravikelig:** når api settes non-root MÅ eierskapet på det delte uploads-volumet (`/home/kemyrhau/stack/sitedoc/uploads`, inkl. `privat/`) settes til app-uid (uid 1000 = host `kemyrhau`), ellers brekker filskriving/opplasting. Dukket opp som «Funn 4» under fillagring S1 Fase 1 — der var det IKKE en prod-felle (root skriver fint i root-eid `privat/`), men blir en reell forutsetning idet herding gjøres. Gjør de to sammen, ikke hver for seg.
+
 ## Byggeplass-logging for «Sist brukt»-recency (Kenneth 2026-07-22)
 
 `Activity`-tabellen logger `projectId`, ikke byggeplass. Derfor er byggeplass-«Sist brukt» i K3-trakten en sticky enkeltverdi (`aktivByggeplass`), mens prosjekt-nivået har en Activity-basert recency-liste. Kenneth: «senere må vi logge byggeplass også». Når byggeplass-tilgang logges (eget felt eller `targetType`-verdi i Activity), kan byggeplass-«Sist brukt» bli en flerverdis recency-liste som prosjekt-nivået. Grunnlag: [k3-ordre.md](delplaner/k3-ordre.md) § A.
