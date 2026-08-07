@@ -52,6 +52,20 @@ export function signerFilSti(sti: string, levetidMs = STANDARD_LEVETID_MS): stri
   return `${path}?exp=${exp}&sig=${sig}`;
 }
 
+const PRIVAT_PREFIKS = "/uploads/privat/";
+
+/**
+ * Signer en fil-URL KUN hvis den peker inn i /uploads/privat/ (sensitiv,
+ * signatur-KUN serving). Andre URL-er (non-privat, tomme, allerede signerte med
+ * eget query, eksterne) returneres uendret. Målrettet signering ved emisjon —
+ * kalles i de prosedyrene som faktisk returnerer privat-URL-er, i stedet for en
+ * middleware som muterer alle svar (S1 Fase 1, forbedring etter Blokk 17).
+ */
+export function signerHvisPrivat(url: string | null | undefined): string | null | undefined {
+  if (typeof url !== "string" || !url.startsWith(PRIVAT_PREFIKS)) return url;
+  return signerFilSti(url);
+}
+
 /**
  * Verifiser signatur for en gitt path + exp + sig (fra query-parametere).
  * Returnerer false ved manglende/ugyldig/utløpt signatur. Konstant-tids-
