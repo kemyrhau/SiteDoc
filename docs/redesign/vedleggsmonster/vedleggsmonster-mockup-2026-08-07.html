@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin: 0; background: #eef0f4; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: #1e40af; } a:hover { color: #1e3a8a; }
+</style>
+</helmet>
+
+<section style="padding: 40px; display: flex; flex-direction: column; gap: 28px;">
+  <div style="max-width: 1120px;">
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Vedleggsm&oslash;nster — tverrg&aring;ende designsak (2026-08-07)</div>
+    <div style="font-size: 15px; color: #374151; margin-top: 6px; line-height: 1.5;">Ett m&oslash;nster for alle vedleggsflater (timer-kvittering, HMS-bilder, sjekkliste-dokumentasjon, utlegg, maskin-service). Prinsipp: <b>vedlegget viser selv hvilken tilstand det er i</b> — valgt &rarr; lastes opp &rarr; lagret er tre synlige tilstander p&aring; brikken, aldri en toast. <a href="#6a">6a</a> tilstandsstigen &middot; <a href="#6b">6b</a> brikke-galleriet (miniatyr, PDF, fjern/bytt, utl&oslash;pt URL) &middot; <a href="#6c">6c</a> vedlegg F&Oslash;R raden er lagret &middot; <a href="#6d">6d</a> bel&oslash;p lest fra kvitteringen (forslag, aldri autolagring). Klikk-budsjett: legg ved + se at den sitter = <b>2 klikk</b> (velg fil &rarr; se gr&oslash;nn hake), null omveier.</div>
+  </div>
+  <div style="display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap;">
+
+    <div id="6a" style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #0f766e; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">6a</span>
+        <span style="font-size: 12px; font-weight: 600; color: #111827;">Tilstandsstigen: valgt &rarr; lastes opp &rarr; lagret</span>
+      </div>
+      <div style="width: 400px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3;">1 &middot; Valgt lokalt</div>
+          <div style="display: flex; align-items: center; gap: 10px; border: 1px dashed #c4cbd6; border-radius: 8px; padding: 8px 10px;">
+            <span style="width: 44px; height: 44px; border-radius: 6px; background: linear-gradient(135deg, #d8dde5, #c2c9d4); flex-shrink: 0;"></span>
+            <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+              <span style="font-size: 12px; font-weight: 600; color: #374151;">kvittering-esso.jpg</span>
+              <span style="font-size: 11px; color: #8a93a3;">Kun p&aring; denne enheten — ikke lastet opp enn&aring;</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3;">2 &middot; Lastes opp</div>
+          <div style="display: flex; align-items: center; gap: 10px; border: 1px solid #c4d7f2; background: #f6f9fe; border-radius: 8px; padding: 8px 10px;">
+            <span style="width: 44px; height: 44px; border-radius: 6px; background: linear-gradient(135deg, #d8dde5, #c2c9d4); flex-shrink: 0; opacity: 0.6;"></span>
+            <div style="display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0;">
+              <span style="font-size: 12px; font-weight: 600; color: #374151;">kvittering-esso.jpg</span>
+              <span style="height: 4px; border-radius: 2px; background: #dbe6f6; display: block; overflow: hidden;"><span style="display: block; width: 62%; height: 100%; background: #1e40af;"></span></span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3;">3 &middot; Lagret p&aring; server — sluttbeviset</div>
+          <div style="display: flex; align-items: center; gap: 10px; border: 1px solid #bfe3cf; background: #f4fbf7; border-radius: 8px; padding: 8px 10px;">
+            <span style="width: 44px; height: 44px; border-radius: 6px; background: linear-gradient(135deg, #d8dde5, #c2c9d4); flex-shrink: 0; position: relative;"><span style="position: absolute; right: -5px; bottom: -5px; width: 18px; height: 18px; border-radius: 50%; background: #0b7a4b; color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff;">&#10003;</span></span>
+            <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+              <span style="font-size: 12px; font-weight: 600; color: #111827;">kvittering-esso.jpg</span>
+              <span style="font-size: 11px; color: #0b7a4b; font-weight: 600; white-space: nowrap;">Lagret 07.08 14:32 &middot; 1,2 MB</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 5px;">
+          <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #b3261e;">Feil &middot; aldri stille</div>
+          <div style="display: flex; align-items: center; gap: 10px; border: 1px solid #ecc8c5; background: #fdf5f4; border-radius: 8px; padding: 8px 10px;">
+            <span style="width: 44px; height: 44px; border-radius: 6px; background: linear-gradient(135deg, #d8dde5, #c2c9d4); flex-shrink: 0; opacity: 0.5;"></span>
+            <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0;">
+              <span style="font-size: 12px; font-weight: 600; color: #374151;">kvittering-esso.jpg</span>
+              <span style="font-size: 11px; color: #b3261e;">Opplasting feilet — filen er IKKE lagret</span>
+            </div>
+            <span style="margin-left: auto; font-size: 11.5px; font-weight: 700; color: #b3261e; border: 1px solid #ecc8c5; background: #fff; border-radius: 6px; padding: 4px 10px; white-space: nowrap;">Pr&oslash;v igjen</span>
+          </div>
+        </div>
+      </div>
+      <div style="width: 400px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Tilstanden bor P&Aring; brikken, ikke i en toast. Miniatyren vises fra det <b>lokale</b> fil-objektet fra f&oslash;rste sekund (object-URL) — s&aring; forh&aring;ndsvisningen er der f&oslash;r opplastingen er ferdig, og p&aring;virkes ikke av at signerte server-URL-er utl&oslash;per. Gr&oslash;nn hake + tidsstempel er svaret p&aring; Kenneths &laquo;er det sikkert lagret?&raquo;. Offline (mobil): tilstand 1 f&aring;r teksten &laquo;Lastes opp n&aring;r du er p&aring; nett&raquo; — samme stige, aldri falsk gr&oslash;nn hake.</div>
+    </div>
+
+    <div id="6b" style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #0f766e; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">6b</span>
+        <span style="font-size: 12px; font-weight: 600; color: #111827;">Brikke-galleriet: miniatyr, PDF, fjern/bytt, utl&oslash;pt URL</span>
+      </div>
+      <div style="width: 430px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3;">Vedlegg &middot; 3</div>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <div style="width: 96px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="position: relative; width: 96px; height: 96px; border-radius: 8px; background: linear-gradient(135deg, #d8dde5, #b8c0cd); display: block;">
+              <span style="position: absolute; right: 5px; bottom: 5px; width: 18px; height: 18px; border-radius: 50%; background: #0b7a4b; color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff;">&#10003;</span>
+              <span style="position: absolute; right: 4px; top: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(17,24,39,0.55); color: #fff; font-size: 12px; display: inline-flex; align-items: center; justify-content: center;">&times;</span>
+            </span>
+            <span style="font-size: 10.5px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">kvittering-esso.jpg</span>
+          </div>
+          <div style="width: 96px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="position: relative; width: 96px; height: 96px; border-radius: 8px; background: #f8f9fb; border: 1px solid #e5e9f0; box-sizing: border-box; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
+              <span style="font-size: 10px; font-weight: 800; color: #fff; background: #b3261e; border-radius: 4px; padding: 2px 7px; letter-spacing: 0.05em;">PDF</span>
+              <span style="font-size: 10px; color: #6b7280;">3 sider</span>
+              <span style="position: absolute; right: 5px; bottom: 5px; width: 18px; height: 18px; border-radius: 50%; background: #0b7a4b; color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff;">&#10003;</span>
+              <span style="position: absolute; right: 4px; top: 4px; width: 20px; height: 20px; border-radius: 50%; background: rgba(17,24,39,0.55); color: #fff; font-size: 12px; display: inline-flex; align-items: center; justify-content: center;">&times;</span>
+            </span>
+            <span style="font-size: 10.5px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">faktura-0341.pdf</span>
+          </div>
+          <div style="width: 96px; display: flex; flex-direction: column; gap: 4px;">
+            <span style="position: relative; width: 96px; height: 96px; border-radius: 8px; background: #f3f4f6; border: 1px solid #e5e9f0; box-sizing: border-box; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;">
+              <span style="font-size: 15px; color: #9aa4b5;">&#8635;</span>
+              <span style="font-size: 9.5px; color: #8a93a3; text-align: center; line-height: 1.35; padding: 0 6px;">Trykk for &aring; hente p&aring; nytt</span>
+            </span>
+            <span style="font-size: 10.5px; color: #6b7280; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">verneutstyr.jpg</span>
+          </div>
+          <span style="width: 96px; height: 96px; border-radius: 8px; border: 1.5px dashed #c4cbd6; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; box-sizing: border-box;">
+            <span style="font-size: 20px; color: #8a93a3; line-height: 1;">+</span>
+            <span style="font-size: 10px; color: #8a93a3;">Legg til</span>
+          </span>
+        </div>
+      </div>
+      <div style="width: 430px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Alltid miniatyr for bilder; PDF/ikke-bilde f&aring;r dokument-brikke med filtype + sidetall (klikk &aring;pner). <b>Fjern</b> = &times; direkte p&aring; brikken, <b>bytt</b> = fjern + legg til — ingen lagre-og-gjen&aring;pne. Tredje brikke viser utl&oslash;pt signert URL (5-min-rammen): metadata i DB vet at filen ER lagret, s&aring; brikken forblir trygg &laquo;lagret&raquo;-tilstand og henter ny signert URL ved klikk — utl&oslash;p degraderer aldri til feil.</div>
+    </div>
+
+    <div id="6c" style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #0f766e; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">6c</span>
+        <span style="font-size: 12px; font-weight: 600; color: #111827;">Vedlegg F&Oslash;R raden er lagret — alternativ (a), bindes ved lagring</span>
+      </div>
+      <div style="width: 430px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; align-items: baseline; gap: 8px;">
+          <span style="font-size: 14px; font-weight: 700; color: #111827;">Nytt tillegg</span>
+          <span style="font-size: 11px; color: #8a93a3;">dagsseddel 07.08 &middot; ikke lagret enn&aring;</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 110px 1fr; gap: 8px; font-size: 12px; align-items: center;">
+          <span style="color: #8a93a3;">Type</span><span style="border: 1px solid #dde2ea; border-radius: 6px; padding: 6px 10px; color: #374151;">Utlegg — drivstoff</span>
+          <span style="color: #8a93a3;">Bel&oslash;p</span><span style="border: 1px solid #dde2ea; border-radius: 6px; padding: 6px 10px; color: #374151;">412,50</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3;">Kvittering</span>
+          <div style="display: flex; align-items: center; gap: 10px; border: 1px solid #bfe3cf; background: #f4fbf7; border-radius: 8px; padding: 8px 10px;">
+            <span style="width: 44px; height: 44px; border-radius: 6px; background: linear-gradient(135deg, #d8dde5, #c2c9d4); flex-shrink: 0; position: relative;"><span style="position: absolute; right: -5px; bottom: -5px; width: 18px; height: 18px; border-radius: 50%; background: #0b7a4b; color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff;">&#10003;</span></span>
+            <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+              <span style="font-size: 12px; font-weight: 600; color: #111827;">kvittering-esso.jpg</span>
+              <span style="font-size: 11px; color: #0b7a4b; font-weight: 600;">Lastet opp — knyttes til tillegget n&aring;r du lagrer</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: #fff; background: #1e40af; border-radius: 6px; padding: 7px 16px;">Lagre tillegg</span>
+          <span style="font-size: 12px; font-weight: 600; color: #6b7280; background: #fff; border: 1px solid #dde2ea; border-radius: 6px; padding: 7px 16px;">Avbryt</span>
+        </div>
+        <span style="font-size: 11px; color: #8a93a3; line-height: 1.45;">Avbrytes tillegget, ryddes den ubundne filen automatisk (opprydding av foreldrel&oslash;se opplastinger etter 24 t).</span>
+      </div>
+      <div style="width: 430px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Anbefaling: alternativ <b>(a)</b> — opplasting tillates i opprett-flyten; filen lastes opp straks (tilstandsstigen fra <a href="#6a">6a</a>) og <b>bindes til raden ved lagring</b>. Dagens synlig-men-d&oslash;de knapp forsvinner som klasse: inngangen er alltid levende. Alternativ (b) (utilgjengelig med begrunnelse) anbefales IKKE — det bevarer Kenneths omvei og l&oslash;ser bare halve klagen. Teknisk: upload-endepunktet finnes alt og er rad-uavhengig; bindingen (fileUrl &rarr; rad) skjer i samme mutasjon som lagrer raden.</div>
+    </div>
+
+    <div id="6d" style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #0f766e; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">6d</span>
+        <span style="font-size: 12px; font-weight: 600; color: #111827;">Bel&oslash;p lest fra kvitteringen — forslag med kilde, aldri autolagring</span>
+      </div>
+      <div style="width: 430px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px; border: 1px solid #bfe3cf; background: #f4fbf7; border-radius: 8px; padding: 8px 10px;">
+          <span style="width: 44px; height: 44px; border-radius: 6px; background: linear-gradient(135deg, #d8dde5, #c2c9d4); flex-shrink: 0; position: relative;"><span style="position: absolute; right: -5px; bottom: -5px; width: 18px; height: 18px; border-radius: 50%; background: #0b7a4b; color: #fff; font-size: 11px; display: inline-flex; align-items: center; justify-content: center; border: 2px solid #fff;">&#10003;</span></span>
+          <div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+            <span style="font-size: 12px; font-weight: 600; color: #111827;">kvittering-esso.jpg</span>
+            <span style="font-size: 11px; color: #0b7a4b; font-weight: 600;">Lagret &middot; leser kvitteringen&hellip;</span>
+          </div>
+        </div>
+        <div style="background: #f6f9fe; border: 1px solid #c4d7f2; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="display: flex; align-items: baseline; gap: 8px;">
+            <span style="font-size: 12px; color: #1e3a5f;">Lest fra kvitteringen:</span>
+            <span style="font-size: 15px; font-weight: 700; color: #1e3a5f;">412,50 kr</span>
+            <span style="font-size: 11px; color: #6b7f9e; white-space: nowrap;">Esso Energi &middot; 07.08.2026</span>
+          </div>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <span style="font-size: 12px; font-weight: 700; color: #fff; background: #1e40af; border-radius: 6px; padding: 5px 13px;">Bruk bel&oslash;pet</span>
+            <span style="font-size: 12px; font-weight: 600; color: #6b7280;">Skriv inn selv</span>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 110px 1fr; gap: 8px; font-size: 12px; align-items: center;">
+          <span style="color: #8a93a3;">Bel&oslash;p</span>
+          <span style="display: flex; align-items: center; gap: 8px; border: 1px solid #dde2ea; border-radius: 6px; padding: 6px 10px;"><span style="color: #111827; font-weight: 600;">412,50</span><span style="font-size: 10px; font-weight: 700; color: #6b7f9e; background: #eef4fd; border-radius: 4px; padding: 2px 7px; white-space: nowrap;">fra kvittering</span></span>
+        </div>
+        <span style="font-size: 11px; color: #8a93a3; line-height: 1.45;">Klarer ikke lesingen &aring; finne et bel&oslash;p, vises ingenting — feltet er som f&oslash;r. Forslaget forsinker aldri flyten: brukeren kan taste bel&oslash;pet mens lesingen p&aring;g&aring;r, og et forslag overskriver ALDRI noe brukeren har skrevet.</span>
+      </div>
+      <div style="width: 430px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Forslaget kommer asynkront etter at brikken er lagret, med kilde-merke (&laquo;fra kvittering&raquo;) p&aring; feltet s&aring; det er sporbart hvor tallet kom fra. Ett klikk fyller bel&oslash;p (og evt. dato/leverand&oslash;r der feltene finnes). Teknisk anbefaling: server-side lesing med vision-modell (kvitteringer sl&aring;r klassisk OCR: krukkete bonger, h&aring;ndskrift, &laquo;TOTALT&raquo; vs delsummer) i upload-etterkant p&aring; API-et — ikke i klienten (mobil/offline). Gjelder timer-kvittering + utlegg f&oslash;rst; samme kanal kan senere lese dato/leverand&oslash;r.</div>
+    </div>
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

@@ -36,7 +36,6 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk: embedding, hybrid søk, RAG, settings + testing UI |
 | [docs/claude/dokumentflyt.md](docs/claude/dokumentflyt.md) | Dokumentflyt-spesifikasjon: eier/mottaker, flytregler, redigerbarhet |
 | [docs/claude/okonomi.md](docs/claude/okonomi.md) | Økonomi-modul: kontrakter, notaer, avvik, parsere, dokumentsøk |
-| [docs/claude/bibliotek.md](docs/claude/bibliotek.md) | Peker til [kontrollplan.md](docs/claude/kontrollplan.md). Konsolidert 2026-04-16 |
 | [docs/claude/timer.md](docs/claude/timer.md) | Timeregistrering: dagsseddel, lønnsarter, tillegg, utlegg, offline-sync |
 | [docs/claude/dagsseddel-design.md](docs/claude/dagsseddel-design.md) | **🟢 VEDTATT:** Aktivitet per `SheetTimer`-rad, ny `SheetMachine` — se også fase-0 C.18 |
 | [docs/claude/mobil-dagsseddel-ui-spec.md](docs/claude/mobil-dagsseddel-ui-spec.md) | **🟢 MÅL-SPEC:** Mobil dagsseddel-UI v2-overhaul — fasiten A.Markussen verifiserer mot. U-serie: U1–U3 visuelle + U-flyt (multi-økt/glemt-dag) |
@@ -53,16 +52,11 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/arkitektur-syntese.md](docs/claude/arkitektur-syntese.md) | **ANKER:** Helhetlig produktarkitektur, to-nivå-modell, Fase 0–7 |
 | [docs/claude/fase-0-beslutninger.md](docs/claude/fase-0-beslutninger.md) | **🟢 § E KOMPLETT:** 30 beslutninger + 14 utvidelser + 14-stegs rekkefølge |
 | [docs/claude/byggeplass-strategi.md](docs/claude/byggeplass-strategi.md) | **PLANLAGT FASE:** byggeplass på tvers av moduler, 3 åpne prinsipper |
-| [docs/claude/db-naming-audit-2026-04-25.md](docs/claude/db-naming-audit-2026-04-25.md) | Audit lokal/test/prod faggruppe-rename, lokal bak |
 | [docs/claude/smartdok-undersokelse.md](docs/claude/smartdok-undersokelse.md) | **AKTIV:** SmartDok UI-research + arkitektur-implikasjoner |
-| [docs/claude/smartdok-undersokelse-2026-04-25.md](docs/claude/smartdok-undersokelse-2026-04-25.md) | **ARKIV v1:** SmartDok API-kartlegging (OpenAPI 128 endepunkter) |
 | [docs/claude/ai-integrasjon.md](docs/claude/ai-integrasjon.md) | AI-integrasjon: Copilot plugin, MCP server, innebygd assistent |
 | [docs/claude/adaptiv-sok-plan.md](docs/claude/adaptiv-sok-plan.md) | **🟡 SKAL DRØFTES:** Adaptivt søk for sjekklister/oppgaver/HMS/RUH |
-| [docs/claude/timer-funn-fra-screening-2026-04-27.md](docs/claude/timer-funn-fra-screening-2026-04-27.md) | **🟡 MIDLERTIDIG:** 6 timer-funn fra screening |
 | [docs/claude/oppryddings-plan-2026-04-28.md](docs/claude/oppryddings-plan-2026-04-28.md) | **🟡 AKTIV:** Strukturert TODO-liste, 5 prioritets-nivåer |
-| [docs/claude/historikk-2026-05.md](docs/claude/historikk-2026-05.md) | Arkiv av deployete PR-er fra mai 2026 |
-| [docs/claude/historikk-2026-06.md](docs/claude/historikk-2026-06.md) | Arkiv av deployete PR-er/saker fra juni 2026 |
-| [docs/claude/historikk-2026-07.md](docs/claude/historikk-2026-07.md) | Arkiv av deployete PR-er/saker fra juli 2026 |
+| `docs/claude/historikk-2026-MM.md` | **Arkiv av deployete PR-er/saker per måned** (05, 06, 07, 08). Deployet arbeid flyttes hit fra STATUS-AKTUELT |
 | [MALBYGGER.md](MALBYGGER.md) | Felles malbygger: dokumenttyper, felttyper, beslutninger, migreringsstrategi |
 
 **Ved "oppdater CLAUDE.md"**: oppdater den relevante detalj-filen i `docs/claude/`, ikke denne hovedfilen (med mindre det gjelder tech stack, struktur, kommandoer, kodestil eller regler).
@@ -88,8 +82,6 @@ Utfør kun handlinger direkte knyttet til den uttrykkelige oppgaven. Hvis andre 
 - Endrer auth, permissions eller secrets
 - Installerer eller oppgraderer pakker som påvirker andre moduler
 - **Fyrer et EAS-sky-bygg** — kvote-begrenset (~15 iOS-bygg/mnd, fri plan). **Spør alltid først.** Kun for faktiske TestFlight-leveranser etter at kode/Azure/docs er verifisert klar — ikke for iterasjon. Sjekk kvote + dager til reset FØR bygg; regnestykke, bygg-logg og at lokale iOS-bygg er blindvei: [eas-build-veileder.md § Bygg-økonomi](docs/claude/eas-build-veileder.md).
-
-Merk: Denne regelen overstyrer IKKE indeks-regelen. Når en regel sier "oppdater CLAUDE.md", er det fortsatt riktig å oppdatere den relevante detalj-filen i docs/claude/ hvis innholdet ikke gjelder tech stack, struktur, kommandoer, kodestil eller overordnede regler. Tolk pragmatisk, men flagg tolkningen før handling hvis du er i tvil.
 
 ## Tech Stack
 
@@ -156,17 +148,16 @@ Nye moduler (timer, maskin) bruker samme PostgreSQL-instans men separate Prisma-
 ## Utviklingsmiljø og deploy (kort)
 
 - **`develop`** = aktiv utvikling. **`main`** = produksjon, oppdateres kun via merge fra develop.
-- **Test:** test.sitedoc.no, DB `sitedoc_test`, repo `~/programmering/sitedoc-test`. **Prod:** sitedoc.no, DB `sitedoc`, repo `~/programmering/sitedoc`. Databasene er SEPARATE.
+- **Test:** test.sitedoc.no, DB `sitedoc_test`. **Prod:** sitedoc.no, DB `sitedoc`. Databasene er SEPARATE. Begge kjører fra `~/stack/sitedoc` på `server-ny` (deler uploads-volum — se DOCKER-NOTES).
 - **Test er primærmiljø** for verifisering — lokal-DB er typisk bak. Lokal brukes som sandkasse for risiko-DDL.
-- **Test-deploy er MANUELL** via `./deploy-test.sh` (rsync) + utskrevet `sudo docker compose … build/up` (Kenneths TTY). **Ingen auto-deploy finnes** — push til develop deployer IKKE til test av seg selv. **ALDRI deploy til prod** uten eksplisitt forespørsel.
 - **Etter HVER mobil-commit:** skriv eksplisitt «**Reload:** [metode]».
 
-**Deploy-triggere:**
-- Push til `develop` → **INGEN automatikk.** Test oppdateres kun ved at Kenneth kjører `./deploy-test.sh` (rsync `--delete` til `server-ny:stack/sitedoc`) + den utskrevne `sudo docker compose -f docker/docker-compose.test.yml up -d --build`. Bekreftet 2026-07-07: ingen CI/cron/hook/webhook finnes — «auto-deploy» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10. Se [BACKLOG § «Auto-deploy til test» finnes ikke](docs/claude/BACKLOG.md).
+**Deploy-triggere — INGEN automatikk finnes noe sted:**
+- Push til `develop` → deployer IKKE til test. Test oppdateres kun ved at Kenneth kjører `./deploy-test.sh` (rsync `--delete` til `server-ny:stack/sitedoc`) + den utskrevne `sudo docker compose -f docker/docker-compose.test.yml … build/up` (krever Kenneths TTY). Bekreftet 2026-07-07: ingen CI/cron/hook/webhook — «auto-deploy» var den gamle PM2-ettlinjeren som gikk tapt i migreringen 2026-06-10. Se [BACKLOG § «Auto-deploy til test» finnes ikke](docs/claude/BACKLOG.md).
 - Push til feature-branch → ingen deploy
-- Push til `main` → manuell prod-deploy (eksplisitt forespørsel kreves)
+- Push til `main` → manuell prod-deploy. **ALDRI deploy til prod uten eksplisitt forespørsel.**
 
-**Etter Prisma schema-endring — klienten må regenereres før build-typecheck (ufravikelig, lærdom 2026-05-26).** I Docker-deployen (gjeldende fra 2026-06-10) er `prisma generate` for alle fire db-pakker bakt inn i `Dockerfile.api`/`Dockerfile.web` (kjøres rett før `turbo build`) → ikke et eget steg, og rekkefølgen er **build → migrate deploy → up** (IKKE migrate→generate→build). Kjør **ALDRI** et frittstående `prisma generate` på server — det havner ikke i det kjørende imaget. Detaljer: [DOCKER-NOTES § Deploy-mekanikk](docker/DOCKER-NOTES.md). Den gamle formuleringen «generate eksplisitt mellom migrate og build» gjaldt legacy-PM2-serveren (rollback).
+**Etter Prisma schema-endring — klienten må regenereres før build-typecheck (ufravikelig, lærdom 2026-05-26).** I Docker-deployen (gjeldende fra 2026-06-10) er `prisma generate` for alle fire db-pakker bakt inn i `Dockerfile.api`/`Dockerfile.web` (kjøres rett før `turbo build`) → ikke et eget steg, og rekkefølgen er **build → migrate deploy → up** (IKKE migrate→generate→build). Kjør **ALDRI** et frittstående `prisma generate` på server — det havner ikke i det kjørende imaget. Detaljer: [DOCKER-NOTES § Deploy-mekanikk](docker/DOCKER-NOTES.md).
 
 **Deploy-sekvens:**
 
@@ -247,13 +238,10 @@ Integrasjon: `toppbar-filtre-kontekst.tsx` + `ByggeplassVelger.tsx` (`disabled`-
 - Variabelnavn kan være engelske der naturlig (`id`, `status`, `config`)
 - Bruk alltid æ, ø, å — ALDRI ASCII-erstatninger
 - **i18n-krav:** Alle synlige UI-strenger i web-appen MÅ bruke `t()` fra react-i18next — ALDRI hardkod norsk tekst i JSX. Ved nye sider/komponenter:
-  1. `import { useTranslation } from "react-i18next";`
-  2. `const { t } = useTranslation();`
-  3. Legg til nøkler i **både** `packages/shared/src/i18n/nb.json` og `en.json`
-  4. Nøkkelformat: `seksjon.noekkel` (f.eks. `oppgaver.tittel`, `handling.lagre`)
-  5. Gjenbruk eksisterende nøkler der mulig (`handling.lagre`, `handling.avbryt`, `tabell.navn` etc.)
-  6. For data utenfor komponenter (arrays, configs): bruk `labelKey` i stedet for `label`, kall `t()` ved rendering
-  7. Kjør auto-oversetting til de 13 andre språkene fra `packages/shared`: `pnpm dlx tsx src/i18n/generate.ts` (`tsx` er IKKE en dependency — `pnpm --filter … exec tsx …` feiler med «Command tsx not found»; `dlx` henter den ad hoc). Skriptet oversetter fra `en.json` (master) til 13 målspråk. Full arbeidsflyt + kjente quirks i [docs/claude/shared-pakker.md § i18n](docs/claude/shared-pakker.md).
+  1. Nøkler i **både** `nb.json` og `en.json` (`packages/shared/src/i18n/`). Format `seksjon.noekkel`; gjenbruk eksisterende (`handling.lagre`, `handling.avbryt`, `tabell.navn`).
+  2. Data utenfor komponenter (arrays, configs): `labelKey` i stedet for `label`, kall `t()` ved rendering.
+  3. 13-språk-generate fra `packages/shared`: `pnpm dlx tsx src/i18n/generate.ts` (oversetter fra `en.json` = master). **`dlx`, ikke `exec`** — `tsx` er ikke en dependency og `pnpm --filter … exec tsx` feiler med «Command tsx not found».
+  4. Full arbeidsflyt + kjente quirks: [shared-pakker.md § i18n](docs/claude/shared-pakker.md).
 - **i18n-diagnostikk-regel:** Når en nøkkel mangler i ett språk men finnes i et annet, **verifiser kode-bruk via grep før du antar bug**. Finnes nøkkelen ikke i `*.ts`/`*.tsx` er det en relikvi som skal slettes, ikke en bug som skal fylles (lærdom `hjelp.flyt.*` 2026-05-23).
 - **Mikrotekst-standard for handlingstekst (STYRENDE, 2026-07-24):** All handlingstekst (menyer, bekreftelsesdialoger, toasts/kvitteringer, knapper, varsler — web+mobil) følger [docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md § 3/§ 3a](docs/claude/retningslinjer/tooltip-hjelpetekst-veileder.md): svar på **hvor dokumentet flytter · hvem får ballen · hva ser motparten**, med **relasjonelle benevnelser** («den som sendte det», «neste mottaker») — aldri faste rollenavn som kan mangle i en gitt flyt. Nye handlingstekster følger den (ordre-DoD); eksisterende oppgraderes opportunistisk når flaten røres.
 
@@ -351,7 +339,7 @@ ALDRI eksponér nøkkelverdier i kommando-output, selv ikke i feilsøking:
 Dokumentasjon skal speile faktisk tilstand. Beslutninger som ikke er skrevet inn er usynlige.
 
 - **Kode + docs i samme commit:** Når kode eller funksjonalitet bygges, oppdateres relevant fil i `docs/claude/` i SAMME commit. Aldri «docs senere».
-- **Beslutninger skrives inn umiddelbart:** Beslutninger fra samtale eller commit overføres til riktig sannhetskilde med en gang, ikke etter at de er glemt. Riktig sannhetskilde er den aktive detalj-filen i `docs/claude/`, ikke CLAUDE.md hovedfil (med mindre regelen gjelder tech stack, struktur, kommandoer, kodestil eller overordnede regler).
+- **Beslutninger skrives inn umiddelbart:** Beslutninger fra samtale eller commit overføres til riktig sannhetskilde med en gang, ikke etter at de er glemt (hvilken fil: se indeks-regelen øverst).
 - **Verifisering mot kode FØR beslutning:** Beslutninger om ny kode tas etter at gjeldende kode er bekreftet — ikke ut fra antagelser om hva dokumentasjonen sier. Dokumentet kan ha drift; koden er fasit.
 - **Hjemløse beslutninger fanges før arkivering:** Når en `docs/claude/`-fil arkiveres eller slettes, sjekkes den først for unikt innhold som mangler i aktive filer. Drift og hjemløse beslutninger overføres til aktive sannhetskilder FØR fila flyttes.
 - **Arkitektur-anker først:** Spørsmål om modul-typologi (prosjekt- vs firmamodul, hvilket nivå funksjonalitet hører til) sjekkes mot [terminologi.md § 0 Tre nivåer](docs/claude/terminologi.md) først. Andre dokumenter reconcileres mot anker, ikke omvendt.
@@ -392,16 +380,11 @@ Reglene nedenfor — særlig **Auto-oppdater dokumentasjon**, **STATUS.md vedlik
 - **Lønnsart-grense — regnskap eier kobling og satser:** SiteDoc leverer default lønnsart-numre (redigerbare per firma); lønnsart-til-konto-mapping og faktiske satser tilhører regnskap, ikke SiteDoc.
 - **SmartDok maskin-eksport:** Format, navne-matching, 7600-konvensjon og Vegvesen-prioritet i [docs/claude/maskin.md § SmartDok-import](docs/claude/maskin.md). Implementasjon planlagt etter Blokk C.
 - **Commit + push:** etter dual-review (Opus viser diff + kontroll-Claude verifiserer), ikke automatisk etter implementasjon. **Opus pusher sin egen feature-branch** (`git push -u origin feat/x`) — aldri `develop`. **Merge til `develop` og push av `develop` eies av kontroll-Claude/Kenneth** fra `SiteDoc-merge`; det er der merge-orden bestemmes. Kenneth koordinerer/relayer. Full rutine: [kontroll-claude-veileder.md § 10](docs/claude/kontroll-claude-veileder.md).
-- **Test-deploy:** IKKE automatisk. Etter godkjent push til `develop` kjører Kenneth `./deploy-test.sh` + utskrevet docker-kommando manuelt (se § Auto-deploy over).
 - **ALDRI deploy til produksjon** uten eksplisitt forespørsel fra brukeren ("deploy til prod")
 - **Prod-verifisering må alltid gjøres som innlogget bruker** (vedtatt 2026-05-02): `curl -sI`/HTTP 200 bekrefter kun at serveren svarer, ikke at data er intakt. Etter prod-deploy: verifiser i nettleser som innlogget at prosjekter/moduler/kritiske ruter laster. Anonym «Ingen prosjekter» er IKKE godkjent verifisering.
-- **Auto-oppdater dokumentasjon:** Oppdater relevant fil i `docs/claude/` etter vesentlige endringer
-- **STATUS.md vedlikehold:** Når en fil i `docs/claude/` endrer status (verifisert / drift identifisert / under arbeid / ferdig), oppdater [docs/claude/STATUS.md](docs/claude/STATUS.md) i SAMME commit. Aldri separat commit kun for status-oppdatering. Gjelder også når nye filer opprettes eller eksisterende slettes/arkiveres. Tre faste felter samtidig: (1) linje 14 dato, (2) linje 21-22 tellinger ✅/⚠️, (3) tagger på berørte rader + status-flytting mellom seksjoner.
-- **Funksjonsendrings-commits MÅ oppdatere status-dokumenter** (vedtatt 2026-05-02, ufravikelig): Hver commit som inneholder funksjonsendringer (ny feature, modul-runde, deploy, schema-endring, vesentlig refactor) MÅ i SAMME commit inkludere:
-  1. **CLAUDE.md § Pågående arbeid** — oppdatert status med commit-hash for det som ble implementert/deployet
-  2. **docs/claude/STATUS-AKTUELT.md** — oppdatert med hva som er implementert/deployet (hvilken runde, hvilket miljø, hash)
-
-  Dette er ikke valgfritt og skal ikke overlates til en separat oppfølger-commit (status-dok i egen commit etterpå blir glemt/drifter). Trivielle commits (typo-fix, kommentar-rens, formatting) er unntatt.
+- **Status-dokumenter i SAMME commit** (ufravikelig, 2026-05-02) — aldri egen oppfølger-commit (den blir glemt og drifter):
+  - **Funksjonsendring** (feature, modul-runde, deploy, schema, vesentlig refactor) → `STATUS-AKTUELT.md` med runde/miljø/hash. Trivielt (typo, formatting) er unntatt.
+  - **Fil i `docs/claude/` endrer status** (verifisert / drift / under arbeid / ferdig / opprettet / arkivert) → [STATUS.md](docs/claude/STATUS.md), tre felter samtidig: dato (linje 14), tellinger ✅/⚠️ (linje 21-22), tagger + seksjons-flytting på berørte rader.
 - **YAML-header på docs/claude/-filer:** Filer som røres skal ha YAML-frontmatter per standarden i [oppryddings-plan-2026-04-28.md § P0.1](docs/claude/oppryddings-plan-2026-04-28.md). Bunkevis retro-fylling — header tilføyes som del av første rens-PR per fil. Inntil header eksisterer: behandle filen som `sist_verifisert_mot_kode: ukjent` og verifiser mot kode før du stoler på innholdet.
 - **Kontekstsparing:** Kontekstvinduet er begrenset — spar plass:
   - **Batch SSH-kommandoer:** Kombiner flere SSH-kall til ett script/én kommando i stedet for mange enkeltkommandoer. F.eks. ett `ssh server-ny "cmd1 && cmd2 && cmd3"` i stedet for tre separate kall. (Merk: `ssh sitedoc` → Kenspill = legacy, ikke for deploy/verifisering — se server-tilgang-banneret over.)
