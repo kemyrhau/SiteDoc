@@ -257,6 +257,7 @@
   "timer.vedlegg.ingen": "Ingen vedlegg",
   "timer.vedlegg.lagreForst": "Lagre raden først for å legge ved kvittering.",
   "timer.vedlegg.laster": "Laster opp …",
+  "timer.vedlegg.opplastingFeilet": "Kunne ikke laste opp kvittering. Prøv igjen.",
   "timer.felt.maskin": "Maskin (vedlikehold)",
   "timer.internt": "Internt",
   "timer.feil.ingenAktivitet": "Velg en aktivitet før du oppretter dagsseddelen.",
