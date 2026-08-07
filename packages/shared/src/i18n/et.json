@@ -257,6 +257,7 @@
   "timer.vedlegg.ingen": "No attachments",
   "timer.vedlegg.lagreForst": "Save the row first to attach a receipt.",
   "timer.vedlegg.laster": "Üleslaadimine…",
+  "timer.vedlegg.opplastingFeilet": "Kviitungit ei saanud üles laadida. Palun proovi uuesti.",
   "timer.felt.maskin": "Masin (hooldus)",
   "timer.internt": "Sisemine",
   "timer.feil.ingenAktivitet": "Valige tegevus enne päevalehe loomist.",

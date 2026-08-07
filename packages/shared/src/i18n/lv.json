@@ -257,6 +257,7 @@
   "timer.vedlegg.ingen": "Nav pielikumu",
   "timer.vedlegg.lagreForst": "Vispirms saglabājiet rindu, lai pievienotu kvīti.",
   "timer.vedlegg.laster": "Notiek augšupielāde…",
+  "timer.vedlegg.opplastingFeilet": "Nevarēja augšupielādēt kvīti. Lūdzu, mēģiniet vēlreiz.",
   "timer.felt.maskin": "Mašīna (apkope)",
   "timer.internt": "Iekšējā",
   "timer.feil.ingenAktivitet": "Pirms dienas lapas izveides atlasiet darbību.",

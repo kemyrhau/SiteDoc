@@ -257,6 +257,7 @@
   "timer.vedlegg.ingen": "Без вкладень",
   "timer.vedlegg.lagreForst": "Спочатку збережіть рядок, щоб додати квитанцію.",
   "timer.vedlegg.laster": "Завантаження…",
+  "timer.vedlegg.opplastingFeilet": "Не вдалося завантажити квитанцію. Спробуйте ще раз.",
   "timer.felt.maskin": "Машина (обслуговування)",
   "timer.internt": "внутрішній",
   "timer.feil.ingenAktivitet": "Виберіть дію перед створенням щоденника.",

@@ -257,6 +257,7 @@
   "timer.vedlegg.ingen": "Fără atașamente",
   "timer.vedlegg.lagreForst": "Salvați mai întâi rândul pentru a atașa o chitanță.",
   "timer.vedlegg.laster": "Se încarcă…",
+  "timer.vedlegg.opplastingFeilet": "Nu s-a putut încărca chitanța. Vă rugăm să încercați din nou.",
   "timer.felt.maskin": "Mașină (întreținere)",
   "timer.internt": "Intern",
   "timer.feil.ingenAktivitet": "Selectați o activitate înainte de a crea foaia zilnică.",

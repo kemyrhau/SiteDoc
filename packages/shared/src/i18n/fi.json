@@ -257,6 +257,7 @@
   "timer.vedlegg.ingen": "Ei liitteitä",
   "timer.vedlegg.lagreForst": "Tallenna rivi ensin liittääksesi kuitin.",
   "timer.vedlegg.laster": "Ladataan…",
+  "timer.vedlegg.opplastingFeilet": "Kuittia ei voitu ladata. Yritä uudelleen.",
   "timer.felt.maskin": "Kone (huolto)",
   "timer.internt": "Sisäinen",
   "timer.feil.ingenAktivitet": "Valitse aktiviteetti ennen päiväkirjan luomista.",

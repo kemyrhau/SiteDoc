@@ -257,6 +257,7 @@
   "timer.vedlegg.ingen": "Keine Anhänge",
   "timer.vedlegg.lagreForst": "Speichern Sie zunächst die Zeile, um eine Quittung anzuhängen.",
   "timer.vedlegg.laster": "Hochladen …",
+  "timer.vedlegg.opplastingFeilet": "Der Beleg konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut.",
   "timer.felt.maskin": "Maschine (Wartung)",
   "timer.internt": "Intern",
   "timer.feil.ingenAktivitet": "Wählen Sie eine Aktivität aus, bevor Sie das Tagesblatt erstellen.",
