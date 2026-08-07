@@ -29,6 +29,7 @@ import { lagreLokaltBilde, slettLokaltBilde } from "../../services/lokalBilde";
 import { fjernTilleggVedleggServer } from "../../services/bildeRegistrering";
 import { useOpplastingsKo } from "../../providers/OpplastingsKoProvider";
 import { AUTH_CONFIG } from "../../config/auth";
+import { trpc } from "../../lib/trpc";
 import type { TilleggRad, Tillegg } from "../../types/timer-detalj";
 import { ProsjektVelgerModal, ProsjektFelt } from "./ProsjektVelger";
 import { VelgerFelt } from "./VelgerFelt";
@@ -304,6 +305,60 @@ function TilleggRadVis({
 type LokaltTilleggVedlegg = typeof sheetTilleggVedleggLocal.$inferSelect;
 
 /**
+ * Én kvittering-miniatyr. S1 Fase 1: server-vedlegg bor under /uploads/privat/
+ * og serveres signatur-KUN. En naken <Image> uten cookie kan ikke autentisere,
+ * så når den lokale filen er borte (slettet etter opplasting) hentes en kortlevd
+ * signert URL via `signerTilleggVedlegg`. Lokal fil foretrekkes (offline/nett-fri
+ * + sparer round-trip). Uten nett + uten lokal fil vises ingenting (degraderer).
+ */
+function VedleggBilde({
+  v,
+  redigerbar,
+  onFjern,
+}: {
+  v: LokaltTilleggVedlegg;
+  redigerbar: boolean;
+  onFjern: (v: LokaltTilleggVedlegg) => void;
+}) {
+  const { t } = useTranslation();
+  const harLokal = !!v.lokalSti;
+  const signert = trpc.timer.dagsseddel.signerTilleggVedlegg.useQuery(
+    { vedleggId: v.id },
+    { enabled: !harLokal && !!v.serverUrl },
+  );
+  const uri = harLokal
+    ? v.lokalSti ?? undefined
+    : signert.data?.url
+      ? `${AUTH_CONFIG.apiUrl}${signert.data.url}`
+      : undefined;
+
+  return (
+    <View className="relative">
+      {uri && (
+        <Image source={{ uri }} className="h-20 w-20 rounded-lg bg-gray-100" />
+      )}
+      {!v.serverUrl && (
+        <View className="absolute bottom-0 left-0 right-0 flex-row items-center justify-center gap-1 rounded-b-lg bg-black/50 py-0.5">
+          <Clock size={10} color="#ffffff" />
+          <Text className="text-[10px] text-white">
+            {t("timer.vedlegg.venterOpplasting")}
+          </Text>
+        </View>
+      )}
+      {redigerbar && (
+        <Pressable
+          onPress={() => onFjern(v)}
+          hitSlop={8}
+          className="absolute -right-2 -top-2 rounded-full bg-red-600 p-1"
+        >
+          <X size={12} color="#ffffff" />
+        </Pressable>
+      )}
+    </View>
+  );
+}
+
+/**
  * Funn #2: kvittering-vedlegg på en tillegg-rad. Krever en lagret rad (id).
  * Offline-først: bildet tas + komprimeres (300–400 KB) + lagres lokalt, legges
  * i opplastings-køen, og synkes når nett er tilbake. «Venter på opplasting»
@@ -404,38 +459,14 @@ function VedleggSeksjon({
         </Text>
       ) : (
         <View className="mb-2 flex-row flex-wrap gap-2">
-          {vedlegg.map((v) => {
-            const uri = v.serverUrl
-              ? `${AUTH_CONFIG.apiUrl}${v.serverUrl}`
-              : v.lokalSti ?? undefined;
-            return (
-              <View key={v.id} className="relative">
-                {uri && (
-                  <Image
-                    source={{ uri }}
-                    className="h-20 w-20 rounded-lg bg-gray-100"
-                  />
-                )}
-                {!v.serverUrl && (
-                  <View className="absolute bottom-0 left-0 right-0 flex-row items-center justify-center gap-1 rounded-b-lg bg-black/50 py-0.5">
-                    <Clock size={10} color="#ffffff" />
-                    <Text className="text-[10px] text-white">
-                      {t("timer.vedlegg.venterOpplasting")}
-                    </Text>
-                  </View>
-                )}
-                {redigerbar && (
-                  <Pressable
-                    onPress={() => fjern(v)}
-                    hitSlop={8}
-                    className="absolute -right-2 -top-2 rounded-full bg-red-600 p-1"
-                  >
-                    <X size={12} color="#ffffff" />
-                  </Pressable>
-                )}
-              </View>
-            );
-          })}
+          {vedlegg.map((v) => (
+            <VedleggBilde
+              key={v.id}
+              v={v}
+              redigerbar={redigerbar}
+              onFjern={fjern}
+            />
+          ))}
         </View>
       )}
       {redigerbar && (

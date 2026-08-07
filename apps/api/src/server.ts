@@ -13,6 +13,7 @@ import { devLoginRoute, erDevLoginAktiv } from "./routes/dev-login";
 import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
+import { verifiserFilSignatur } from "./utils/hmac";
 
 const server = Fastify({
   // Fastify mottar requests via Cloudflare Tunnel → cloudflared. cloudflared
@@ -71,6 +72,24 @@ async function start() {
   // Multipart filopplasting (maks 500 MB)
   await server.register(multipart, {
     limits: { fileSize: 500 * 1024 * 1024 },
+  });
+
+  // S1 Fase 1 — autorisert filserving for sensitive filer.
+  // `/uploads/privat/*` er signatur-KUN (ingen sesjons-fallback): API signerer
+  // stien ved emisjon etter authz, og denne hooken verifiserer HMAC-signaturen
+  // uten ny DB-authz. Utløpt/ugyldig/manglende signatur → 401. Non-privat
+  // `/uploads/*` er uendret i Fase 1 (global gate kommer i Fase 1b).
+  server.addHook("onRequest", async (req, reply) => {
+    if (!req.url.startsWith("/uploads/privat/")) return;
+    const u = new URL(req.url, "http://localhost");
+    const gyldig = verifiserFilSignatur(
+      u.pathname,
+      u.searchParams.get("exp"),
+      u.searchParams.get("sig"),
+    );
+    if (!gyldig) {
+      return reply.status(401).send({ error: "Ugyldig eller utløpt fil-signatur" });
+    }
   });
 
   // Server opplastede filer
