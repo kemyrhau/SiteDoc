@@ -84,7 +84,15 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 ## Pågående arbeid (PR-historikk)
 
-### ✅ Flytmodell (dynamisk posisjonsmodell) — KOMPLETT PÅ DEVELOP + VERIFISERT LIVE PÅ TEST 2026-08-03 (`0daa89e1`)
+### ✅✅ Flytmodell (dynamisk posisjonsmodell) — DEPLOYET PROD 2026-08-03 (`8b068c73`)
+
+> **PROD-DEPLOY 2026-08-03 (`8b068c73`, develop→main):** backup prod-DB tatt (`sitedoc-preflyt-2026-08-03-1533.dump`, 99 tabeller). Migrate rent: 2 additive migreringer (`20260731120000_flytmodell_fase1_posisjon` + `20260731140000_flytmodell_1b_hms_binding`). Backfill rent: Fase 2 = 5 sjekklister + 4 oppgaver fikk non-terminal posisjon (1 ubestembar), gjenåpne-cache 0 å rette. `sitedoc-api`+`sitedoc-web` restartet OK. Innlogget verifisert: **sjekklister binder dokumentflyt + flytlinje live på prod** (BEF-002 «BL -> BH», «Du har ballen — Registrerer», «Send til N·X»). Tidl. LIVE-VERIFISERT PÅ TEST 2026-08-03 (`0daa89e1`).
+>
+> **✅ Funn A LØST + DEPLOYET PROD 04.08 (`0ac25705`):** oppgaver bandt ikke dokumentflyt ved opprett (`matchDf` brukte døde rolle-strenger `oppretter`/`svarer`, foreldreløse siden navnegjennomgang 2026-04-05 — ~4-mnd latent bug, IKKE flytmodell-regresjon). Fiks: portet P4b `opprettbareFlytIder`-flytbinding til oppgave-opprett + 3 server-vakter, fjernet `matchDf`. Innlogget-verifisert prod: KS avvik binder «A.Markussen Ansattte -> ledelse», full flyt kjører.
+> **✅ Funn C LØST + DEPLOYET PROD 04.08 (samme batch):** oppgave-opprett auto-hoppet til per-prosjekt sist-brukt-nøkkel → uåbare maler. Fiks: unifisert `OpprettMalVelger` (begge flater), velger åpnes alltid v/ >1, sist-brukt auto-valgt + flyttbar markør, nøkkel per prosjekt+doctype. Fabel-spec. **v2 (to-nivå faggruppe→flyt-gruppering) i egen runde — ordre klar.**
+> **⚠️ Funn D (nytt, IKKE fra deployen):** P2 tom-besvarelse-guard (`harMinstEttUtfyltFelt`, `feltLaasing.ts` + `oppgave.ts:1310`) teller kun skjema-objekt-svar, ikke kommentar/vedlegg → «besvar med kun kommentar» avvises feilaktig. Rutes til Opus (nå-sjekk + fiks).
+>
+> **Funn B (kjent, IKKE ny):** ny oppgave/sjekkliste arver ikke aktiv byggeplass (viser «Hele prosjektet» i stedet for valgt «Sommerfeldtsgt 65») = pilot-funn #2/#3, bøtte 4 kontekst-fra-innlogging (fabels spor).
 
 Rotårsaksfiks: dagens ruting konsulterer ALDRI dokumentflytens leddrekkefølge (hardkodet på rollenavn/historikk) → Send hopper ledd, Besvar går bakover, Godkjenn uten at godkjenner hadde ballen. Pilot-blokkerende med distinkte personer. Vedtatt modell: ruting teller **posisjon**, status **avledes** (aldri settes direkte), én delt utledning i `@sitedoc/shared`. Grunnlag: `delplaner/flytmodell-veileder-cowork.md` (fabel, Kenneth-godkjent) + `flytmodell-implementeringsplan.md` + `flytmodell-gate-svar-fabel.md`.
 

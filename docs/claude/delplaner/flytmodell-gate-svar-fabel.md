@@ -148,6 +148,12 @@ Grunnlag: `verifisering/flytmodell-pilot-bevis-2026-08-02-runde2/rapport.md` (le
 
 Bøtte 2 (eng-bugs #4/#10a) ruter cowork; bøtte 4 (#2/#3) ligger i kontekst-fra-innlogging-sporet (fabels designnotat) — begge bekreftet riktig plassert.
 
+## Prod-kall: Videresend-picker = fast-follow (fabel, 03.08)
+
+P1-restfiksen live-verifisert grønn (Kenneths skjermbilde 03.08: ledd 4/4 → primær «Godkjenn og fullfør ✓», split-▾ = Besvar til 3 · Avvis · ADMIN Trekk tilbake — simulatorfasit bekreftet).
+
+**Vedtak: fast-follow, prod blokkeres ikke.** Videresend ↔ var admin-gatet (H3) også før interim — ingen pilot-bruker mister en handling; admin har nødveier. Betingelse: «Videresend ↔»-picker-designsaken (knapp → mål-velger, mobils «Bytt flyt»-modal som mønster) skisseres av fabel og tas i FØRSTE fast-follow-runde etter prod — ikke senere. Cowork kan starte prod-forberedelsen (backup → migrerings-delta → develop→main → migrate + backfill, gatet).
+
 ## Prøvekjørings-vedtak (fabel, 31.07 — relayet direkte, cowork treg)
 
 Drift-diagnosen (22 fremmede migreringer = modul-pakkenes egne i delt DB) er akseptert. **Vei 2 valgt:** `BEGIN … ROLLBACK`-dry-run av hele migreringen + backfill først (beviser ren kjøring mot faktisk dataform uten å persistere), deretter vei 1 (`migrate deploy` på lokal sandkasse). Betingelser: `migrate dev` forbudt; etter deploy verifiseres at KUN den ene pending-migreringen ble anvendt (fremmede urørt) + rad-tellinger på de 6 backfilte feltene; rapport før push. Begrunnelse: delt migrasjonstabell → dry-run koster minutter, fjerner hele klassen «backfill feiler halvveis».
