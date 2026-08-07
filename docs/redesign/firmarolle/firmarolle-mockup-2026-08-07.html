@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+  body { margin: 0; background: #eef0f4; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  a { color: #1e40af; } a:hover { color: #1e3a8a; }
+</style>
+</helmet>
+
+<section style="padding: 40px; display: flex; flex-direction: column; gap: 28px;">
+  <div style="max-width: 1120px;">
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Firmarolle-konsolidering — mockup mot ordre-sp&oslash;rsm&aring;l 3 + 4 (2026-08-07)</div>
+    <div style="font-size: 15px; color: #374151; margin-top: 6px; line-height: 1.5;">Vedtaket operasjonalisert: <b>&eacute;n kilde (OrganizationMember.firmaRoller), &eacute;n side (firma/ansatte) som viser hele sannheten</b>. <a href="#7a">7a</a> ansatte-raden ekspandert: roller, hvor de gjelder, hva de gir &middot; <a href="#7b">7b</a> HMS-behandlerrett fra to eksplisitte kilder — prosjektadmin mister implisitt rett; behandler <b>utpekes</b> av admin (aldri selvbetjening) &middot; <a href="#7c">7c</a> tom-tilstanden p&aring; nye prosjekter: synlig fallback-regel, aldri tyst hull.</div>
+  </div>
+  <div style="display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap;">
+
+    <div id="7a" style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #0f766e; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">7a</span>
+        <span style="font-size: 12px; font-weight: 600; color: #111827;">Ansatte-siden: raden viser hele sannheten</span>
+      </div>
+      <div style="width: 560px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; overflow: hidden;">
+        <div style="display: grid; grid-template-columns: 1fr 200px 90px; gap: 10px; padding: 9px 16px; background: #f8f9fb; border-bottom: 1px solid #e5e9f0; font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8a93a3;">
+          <span>Ansatt</span><span>Firmaroller</span><span>Prosjekter</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 200px 90px; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #eef1f5; font-size: 12.5px; align-items: center;">
+          <span style="color: #111827; font-weight: 600;">Anne Berg</span>
+          <span style="display: flex; gap: 5px; flex-wrap: wrap;"><span style="font-size: 10.5px; font-weight: 700; color: #1e40af; background: #eef4fd; border: 1px solid #c4d7f2; border-radius: 999px; padding: 2px 9px; white-space: nowrap;">Firmaadmin</span></span>
+          <span style="color: #6b7280;">4</span>
+        </div>
+        <div style="background: #fbfcfe; border-bottom: 1px solid #eef1f5;">
+          <div style="display: grid; grid-template-columns: 1fr 200px 90px; gap: 10px; padding: 10px 16px; font-size: 12.5px; align-items: center;">
+            <span style="color: #111827; font-weight: 600;">Kenneth My&oslash;en <span style="font-size: 10px; color: #8a93a3; font-weight: 400;">&#9662; ekspandert</span></span>
+            <span style="display: flex; gap: 5px; flex-wrap: wrap;"><span style="font-size: 10.5px; font-weight: 700; color: #0f766e; background: #ecf7f4; border: 1px solid #bfe3d8; border-radius: 999px; padding: 2px 9px; white-space: nowrap;">HMS-ansvarlig</span></span>
+            <span style="color: #6b7280;">2</span>
+          </div>
+          <div style="padding: 4px 16px 14px 16px; display: flex; flex-direction: column; gap: 10px;">
+            <div style="display: grid; grid-template-columns: 150px 1fr; gap: 8px 14px; font-size: 12px; background: #fff; border: 1px solid #e5e9f0; border-radius: 8px; padding: 12px 14px;">
+              <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8a93a3; grid-column: 1 / -1;">I firmaet (avgj&oslash;res her)</span>
+              <span style="color: #6b7280;">HMS-ansvarlig</span><span style="color: #374151;">Behandler HMS-saker i alle firmaets prosjekter &middot; ser firma-HMS-oversikten</span>
+              <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #8a93a3; grid-column: 1 / -1; margin-top: 4px;">P&aring; prosjekter (tildeles i prosjektet — gir aldri firmarolle)</span>
+              <span style="color: #6b7280;">Boligfelt B12</span><span style="color: #374151;">Prosjektadmin &middot; HMS-gruppe (behandler)</span>
+              <span style="color: #6b7280;">Kaia Vest</span><span style="color: #374151;">Medlem &middot; firmaets ansvarlige p&aring; prosjektet</span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <span style="font-size: 11.5px; font-weight: 600; color: #1e40af; border: 1px solid #c4d7f2; border-radius: 6px; padding: 5px 12px;">Endre firmaroller&hellip;</span>
+              <span style="font-size: 11px; color: #8a93a3; align-self: center;">Prosjektroller endres i det enkelte prosjekt — ikke her.</span>
+            </div>
+          </div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 200px 90px; gap: 10px; padding: 10px 16px; font-size: 12.5px; align-items: center;">
+          <span style="color: #111827; font-weight: 600;">Ola Nordmann</span>
+          <span style="font-size: 11.5px; color: #9aa4b5;">Ingen — ansatt</span>
+          <span style="color: #6b7280;">1</span>
+        </div>
+      </div>
+      <div style="width: 560px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Svarer p&aring; sp&oslash;rsm&aring;l 4: chips viser firmaroller (fra <code style="font-size:11px;">firmaRoller</code>, eneste kilde), ekspandert rad skiller <b>&laquo;i firmaet&raquo;</b> (avgj&oslash;res her) fra <b>&laquo;p&aring; prosjekter&raquo;</b> (lesevisning — tildeles i prosjektet og gir aldri firmarolle). Hver rolle st&aring;r med konsekvensen sin i klartekst. &laquo;Bruker&raquo;-chipen d&oslash;r: systemrolle (sitedoc_admin) vises kun for systemadmins, ellers ingenting.</div>
+    </div>
+
+    <div id="7b" style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #0f766e; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">7b</span>
+        <span style="font-size: 12px; font-weight: 600; color: #111827;">HMS-behandlerrett: fra union av tre til to eksplisitte kilder</span>
+      </div>
+      <div style="width: 470px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #b3261e;">I dag — union av tre, umulig &aring; resonnere om</div>
+          <div style="font-size: 12px; color: #4b5563; line-height: 1.6; background: #fdf5f4; border: 1px solid #ecc8c5; border-radius: 8px; padding: 10px 12px;">prosjektadmin &cup; HMS-gruppe &cup; firma-hms_ansvarlig<br><span style="font-size: 11px; color: #8a93a3;">&rarr; kmy st&aring;r som &laquo;Bruker&raquo; p&aring; ansatte-siden men behandler HMS p&aring; prosjekt. Ingen flate viser hvorfor.</span></div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #0b7a4b;">M&aring;lbilde — to kilder, begge synlige i UI</div>
+          <div style="font-size: 12px; color: #374151; line-height: 1.6; background: #f4fbf7; border: 1px solid #bfe3cf; border-radius: 8px; padding: 10px 12px;">
+            <b>1.</b> Firmarolle <code style="font-size:11px;">hms_ansvarlig</code> — vises p&aring; ansatte-siden (<a href="#7a">7a</a>)<br>
+            <b>2.</b> Medlem i prosjektets HMS-gruppe (behandler-leddet) — vises i flyt-oppsettet<br>
+            <span style="font-size: 11px; color: #6b7280;">Prosjektadmin gir IKKE lenger implisitt behandlerrett — admin <b>utpeker</b> behandler (seg selv eller andre) fra banneret i flyt-oppsettet. Behandlerrett er alltid en utpeking av noen med myndighet, aldri selvbetjening. Retten er da alltid sporbar til en flate.</span>
+          </div>
+        </div>
+        <div style="font-size: 11px; color: #8a93a3; line-height: 1.5; border-top: 1px solid #eef1f5; padding-top: 10px;">Migrerings-guard: prosjektadmins som HAR behandlet HMS-saker (finnes i sakslogg) meldes inn i HMS-gruppen av backfillen — ingen mister rett i overgangen, retten blir bare synlig.</div>
+      </div>
+      <div style="width: 470px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Svarer p&aring; sp&oslash;rsm&aring;l 3: unionen reduseres ikke ved &aring; fjerne rettigheter, men ved &aring; gj&oslash;re hver rett <b>eksplisitt og synlig</b>. To kilder er minimum (firma-ansvar + prosjekt-tildeling er reelt ulike ting); den tredje (implisitt via admin) var st&oslash;yen.</div>
+    </div>
+
+    <div id="7c" style="display: flex; flex-direction: column; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 10px;">
+        <span style="background: #0f766e; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">7c</span>
+        <span style="font-size: 12px; font-weight: 600; color: #111827;">Nytt prosjekt uten behandler: synlig fallback-regel</span>
+      </div>
+      <div style="width: 470px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+        <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3;">Flyt-oppsettet &middot; HMS &middot; Behandler-leddet</div>
+        <div style="display: flex; flex-direction: column; gap: 8px; border: 1px solid #eed9b8; background: #fdf6ee; border-radius: 8px; padding: 12px 14px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 13px;">&#9888;&#65039;</span>
+            <span style="font-size: 12.5px; font-weight: 700; color: #92400e;">Ingen behandler enn&aring;</span>
+          </div>
+          <span style="font-size: 12px; color: #6b5335; line-height: 1.55;">Firmaet har ingen HMS-ansvarlig, og ingen er meldt inn i prosjektets HMS-gruppe. <b>Inntil en behandler er utpekt g&aring;r nye HMS-saker til prosjektadministrator</b> — regelen st&aring;r her og vises p&aring; hver sak den treffer. Kun admin kan utpeke (seg selv eller andre).</span>
+          <div style="display: flex; gap: 8px;">
+            <span style="font-size: 12px; font-weight: 700; color: #fff; background: #b45309; border-radius: 6px; padding: 6px 14px;">Utpek behandler&hellip;</span>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; border: 1px solid #e5e9f0; border-radius: 8px; padding: 9px 12px;">
+          <span style="font-size: 12px; font-weight: 700; color: #111827; white-space: nowrap;">RUH-001</span>
+          <span style="font-size: 12px; color: #374151;">Manglende rekkverk&hellip;</span>
+          <span style="margin-left: auto; font-size: 10.5px; font-weight: 700; color: #92400e; background: #fdf6ee; border: 1px solid #eed9b8; border-radius: 999px; padding: 2px 9px; white-space: nowrap;">Hos prosjektadmin (fallback)</span>
+        </div>
+        <span style="font-size: 11px; color: #8a93a3; line-height: 1.45;">Melderen blokkeres aldri — saken f&aring;r alltid en mottaker. Prosjektadmin varsles ved f&oslash;rste sak som treffer fallbacken.</span>
+      </div>
+      <div style="width: 470px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Forskjellen fra dagens implisitte rett: fallbacken er en <b>synlig, navngitt regel</b> — den st&aring;r i flyt-oppsettet, merkes p&aring; hver sak den treffer, og opph&oslash;rer automatisk n&aring;r behandler-leddet f&aring;r et medlem. Ikke et tyst union-ledd ingen flate kan forklare. Samme klasse-fiks som 207-l&aelig;rdommen: systemet skal si fra, ikke feile tyst.</div>
+    </div>
+  </div>
+</section>
+</x-dc>
+</body>
+</html>
