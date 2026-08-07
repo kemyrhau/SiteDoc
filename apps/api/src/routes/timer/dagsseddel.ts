@@ -1379,6 +1379,29 @@ export const dagsseddelRouter = router({
       });
     }),
 
+  // M1 (S1 Fase 1): record-nøklet sign-query for én timer-kvittering.
+  // Sensitive vedlegg bor under /uploads/privat/ og serveres signatur-KUN, så
+  // mobil (naken <Image>, ingen cookie) trenger en signert URL for visning etter
+  // at den lokale filen er slettet. Authz via samme eierskaps-sjekk som resten;
+  // den rå /uploads/privat-URL-en signeres sentralt i tRPC-svaret.
+  signerTilleggVedlegg: protectedProcedure
+    .input(z.object({ vedleggId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const vedlegg = await ctx.prismaTimer.sheetTilleggVedlegg.findUnique({
+        where: { id: input.vedleggId },
+        select: { fileUrl: true, sheetTilleggId: true },
+      });
+      if (!vedlegg) throw new TRPCError({ code: "NOT_FOUND" });
+      const rad = await ctx.prismaTimer.sheetTillegg.findUnique({
+        where: { id: vedlegg.sheetTilleggId },
+        select: { sheetId: true },
+      });
+      if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+      // Eierskaps-/firma-authz (kaster FORBIDDEN ellers).
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      return { url: vedlegg.fileUrl };
+    }),
+
   fjernTilleggVedlegg: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

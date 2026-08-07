@@ -2218,7 +2218,8 @@ function TilleggRadDialog({
     try {
       const formData = new FormData();
       formData.append("file", fil);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      // Timer-kvittering/utlegg er sensitiv → uploads/privat/ (signatur-KUN, S1 Fase 1)
+      const res = await fetch("/api/upload?privat=1", { method: "POST", body: formData });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         setVedleggFeil(err.error ?? t("timer.feil.ugyldigInput"));

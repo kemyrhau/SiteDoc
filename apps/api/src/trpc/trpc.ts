@@ -2,8 +2,59 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import { randomBytes } from "crypto";
 import type { Context } from "./context";
 import { sjekkRateLimitDetalj } from "../utils/rateLimiter";
+import { signerFilSti } from "../utils/hmac";
 
 const t = initTRPC.context<Context>().create();
+
+/**
+ * S1 Fase 1 — sentral signering av sensitive fil-URL-er i alle tRPC-svar.
+ *
+ * Sensitive filer bor under `/uploads/privat/` og serveres signatur-KUN. Denne
+ * middlewaren går gjennom responsdata og bytter enhver `/uploads/privat/...`-
+ * streng (fileUrl, JSON-vedlegg-url, etc.) med en kortlevd signert variant.
+ * authz har allerede skjedd (raden ble kun returnert til noen med tilgang), så
+ * signeringen er trygg her — én kilde, ingen per-rute-touch.
+ *
+ * Non-privat `/uploads/*` røres ikke i Fase 1 (fortsatt åpen; global gate i 1b).
+ * Kun rene objekter/arrays traverseres; Date/Buffer og andre klasse-instanser
+ * hoppes over.
+ */
+const PRIVAT_PREFIKS = "/uploads/privat/";
+
+function signerFilerDypt(node: unknown, dybde: number): void {
+  if (dybde > 8 || node === null || typeof node !== "object") return;
+  if (node instanceof Date || Buffer.isBuffer(node)) return;
+
+  if (Array.isArray(node)) {
+    for (let i = 0; i < node.length; i++) {
+      const v = node[i];
+      if (typeof v === "string" && v.startsWith(PRIVAT_PREFIKS)) {
+        node[i] = signerFilSti(v);
+      } else if (v !== null && typeof v === "object") {
+        signerFilerDypt(v, dybde + 1);
+      }
+    }
+    return;
+  }
+
+  const obj = node as Record<string, unknown>;
+  for (const key of Object.keys(obj)) {
+    const v = obj[key];
+    if (typeof v === "string" && v.startsWith(PRIVAT_PREFIKS)) {
+      obj[key] = signerFilSti(v);
+    } else if (v !== null && typeof v === "object") {
+      signerFilerDypt(v, dybde + 1);
+    }
+  }
+}
+
+const filSignering = t.middleware(async ({ next }) => {
+  const resultat = await next();
+  if (resultat.ok) {
+    signerFilerDypt(resultat.data, 0);
+  }
+  return resultat;
+});
 
 // H1 mobil-token-rotasjon: roter Session.sessionToken hvis lastRotatedAt
 // er eldre enn dette antall millisekunder. 7 dager = audit-anbefaling.
@@ -11,7 +62,12 @@ const TOKEN_ROTASJON_TERSKEL_MS = 7 * 24 * 60 * 60 * 1000;
 const TOKEN_LEVETID_MS = 30 * 24 * 60 * 60 * 1000;
 
 export const router = t.router;
-export const publicProcedure = t.procedure;
+
+// Base-prosedyre med sentral fil-signering (S1 Fase 1) — alle svar går gjennom
+// den, så sensitive `/uploads/privat/`-URL-er signeres på ett sted.
+const baseProcedure = t.procedure.use(filSignering);
+
+export const publicProcedure = baseProcedure;
 
 /**
  * Lager en rate-limit-middleware som kun aktiveres på mutations.
@@ -105,7 +161,7 @@ const mobilTokenRotasjon = t.middleware(async ({ ctx, type, next }) => {
  * automatisk hopper over queries. Brukes for alle endepunkter som
  * krever innlogging.
  */
-export const protectedProcedure = t.procedure
+export const protectedProcedure = baseProcedure
   .use(async ({ ctx, next }) => {
     if (!ctx.userId) {
       throw new TRPCError({

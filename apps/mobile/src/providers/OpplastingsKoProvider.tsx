@@ -298,6 +298,8 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           oppforing.lokalSti,
           oppforing.filnavn,
           oppforing.mimeType,
+          // Timer-kvittering/utlegg (sheetTilleggId satt) → privat/ (signatur-KUN)
+          Boolean(oppforing.sheetTilleggId),
         );
 
         console.log("[KØ] Opplasting vellykket:", resultat.fileUrl);
