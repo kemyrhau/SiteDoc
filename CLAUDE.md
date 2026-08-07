@@ -31,7 +31,12 @@ Rapport- og kvalitetsstyringssystem for byggeprosjekter. Flerplattform (PC, mobi
 | [docs/claude/shared-pakker.md](docs/claude/shared-pakker.md) | @sitedoc/shared + @sitedoc/ui — typer, validering, komponenter |
 | [docs/claude/infrastruktur.md](docs/claude/infrastruktur.md) | Server, env-filer, EAS Build, TestFlight, OAuth |
 | [docs/claude/eas-build-veileder.md](docs/claude/eas-build-veileder.md) | EAS iOS-bygg: credentials (API-nøkkel + 2FA-felle), profiler, device-reg, app variants |
-| [docs/claude/simulator-ipv6-nordvpn.md](docs/claude/simulator-ipv6-nordvpn.md) | **Feilsøking:** iOS-simulator henger på evig spinner — IPv6/NordVPN-rotårsak. Sjekk VPN/IPv6 FØR koden |
+| [docs/claude/simulator-opus-oppkobling.md](docs/claude/simulator-opus-oppkobling.md) | **🟢 STYRENDE for simulator-Opus:** rollen, oppstart fra null (SSH-tunnel `3301`), fullt input-repertoar (`simctl`+`idb`: tap/tekst/swipe/deep link/GPS/foto/push/tillatelser), koordinat-mapping, handoff-protokoll |
+| [docs/claude/simulator-runbook.md](docs/claude/simulator-runbook.md) | Praktisk oppstartsløype + feilsøkingstabell for simulatoren |
+| [docs/claude/dev-login-agent.md](docs/claude/dev-login-agent.md) | Auth for agent-testing: dev-login-endepunkt, whitelist, secret, testbrukere, SSH-tunnel-rotårsak |
+| [docs/claude/mcp-playwright-simulator-oppsett.md](docs/claude/mcp-playwright-simulator-oppsett.md) | MCP/Playwright for **web** i Kenneths Chrome (simulatoren bruker `simctl`+`idb`, ikke MCP) |
+| [docs/claude/lokal-dev.md](docs/claude/lokal-dev.md) | Lokal dev-flate: porter, DB-tilkobling, feilsøkingstabell |
+| [docs/claude/simulator-ipv6-nordvpn.md](docs/claude/simulator-ipv6-nordvpn.md) | **Feilsøking:** iOS-simulator henger på evig spinner — AAAA/IPv6-rotårsak (ikke NordVPN). Sjekk FØR koden. Gjelder public-url-veien; `localhost:3301`-tunnelen omgår den |
 | [docs/claude/terminologi.md](docs/claude/terminologi.md) | **Hierarki + modulsystem + alle termer.** Tre-nivå-anker |
 | [docs/claude/ai-sok.md](docs/claude/ai-sok.md) | AI-søk: embedding, hybrid søk, RAG, settings + testing UI |
 | [docs/claude/dokumentflyt.md](docs/claude/dokumentflyt.md) | Dokumentflyt-spesifikasjon: eier/mottaker, flytregler, redigerbarhet |
