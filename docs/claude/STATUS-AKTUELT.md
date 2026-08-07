@@ -143,6 +143,14 @@ Fabel-ordre `delplaner/mobil-detalj-redesign-ordre-M1-M3.md` (Kenneth-godkjent m
 
 **Gjenstår:** Kenneths re-test på develop-bygg (menneskelaget). Post-merge egne saker: #2 inline-kommentar-inngang · #7b liste-filter · #4 bekreft-på-send-vurdering · #5 testdata-flyt m/distinkte personer per ledd. M4 (Avbryt-sweep) + KB2-opprett-flyt alt merget (`b3c3055a`).
 
+### HMS-behandlingsflyt Diff 1 — `received`-rot-fiks + 5c behandler-mønster (branch `feat/hms-behandlingsflyt`) — PÅ BRANCH, venter merge → test (IKKE prod)
+
+**Prod-kritisk, migrerings-fri.** Rotårsak (SQL avkreftet drift + include-hypotese): HMS sendes med status `received` (Q1-kollaps), men `verifiserHmsHandling` + `HmsHandlingsflate` gjenkjente kun `sent`/`responded` → behandle-knapper filtrert bort på sendte RUH-er → «Lesevisning» for behandler OG admin, uavhengig av `erHmsAdmin`. Live på prod fra 03.08 (A.Markussen-pilot rammet).
+
+**Fiks + 5c (mockup-godkjent behandler-mønster):** (1) `received` førsteklasses HMS-tilstand — server (`tilgangskontroll.ts`) + klient (`HmsHandlingsflate.tsx`): `åpen behandling = sent|received|responded`. (2) ny `oppgave.hmsReturner`-mutasjon (returner til melder med spørsmål, gjenbruker `beregnRuting`→`responded`, ingen ny status-enum). (3) Melding read-only-tvang for HMS unntatt melder-i-utkast (`page.tsx`). (4) ny `HmsFlytStripe.tsx` (Meldt→Hos behandler→Lukket). (5) i18n nb+en (`hms.handling.returner`/`returnerPlaceholder`, `hms.stripe.*`).
+
+**Verifikasjon:** full build grønn (prisma generate ×4, typecheck 4/4, `next build` 2/2). **Backlogget (gatet):** `DocumentTransfer.handling`-markør (tidslinje-skille Besvar/Returner) + guard-mot-ikke-hms-behandler-ledd. **Diff 2/3 (senere):** 5a opprett=utkast (mobil-berørende), 5b tillegg-synlig. **HOLD prod** til Kenneth sier fra.
+
 ### Sjekkliste ikke append-only (branch `fix/sjekkliste-ikke-append-only`) — PÅ BRANCH, venter merge
 
 **Regresjonsfiks fra `04f6d295`** (kun develop/test, prod ikke rammet). `04f6d295` slo på append-only felt-låsing i alle fire skjema-hooks. Riktig for oppgave (mobil manglet den), **feil for sjekkliste** (spec `dokumentflyt.md § 2`: sjekkliste er redigerbar for den som har ballen + admin/registrator) — et innsendt tallfelt ble permanent låst, også for admin.

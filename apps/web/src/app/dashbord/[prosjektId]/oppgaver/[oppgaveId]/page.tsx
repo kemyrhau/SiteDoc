@@ -10,6 +10,7 @@ import { finnMottakerNavn } from "@/lib/videresend-valg";
 import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
+import { HmsFlytStripe } from "@/components/HmsFlytStripe";
 import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
@@ -318,12 +319,14 @@ export default function OppgaveDetaljSide() {
   const hmsLukkMutasjon = trpc.oppgave.hmsLukk.useMutation(hmsMutasjonOpts);
   const hmsGjenapneMutasjon = trpc.oppgave.hmsGjenapne.useMutation(hmsMutasjonOpts);
   const hmsTilfoyMutasjon = trpc.oppgave.hmsTilfoyInformasjon.useMutation(hmsMutasjonOpts);
+  const hmsReturnerMutasjon = trpc.oppgave.hmsReturner.useMutation(hmsMutasjonOpts);
 
   const hmsLaster =
     hmsBesvarMutasjon.isPending ||
     hmsLukkMutasjon.isPending ||
     hmsGjenapneMutasjon.isPending ||
-    hmsTilfoyMutasjon.isPending;
+    hmsTilfoyMutasjon.isPending ||
+    hmsReturnerMutasjon.isPending;
 
   const utforHmsHandling = useCallback(
     (type: HmsHandlingType, tekst: string | undefined) => {
@@ -336,9 +339,11 @@ export default function OppgaveDetaljSide() {
         hmsLukkMutasjon.mutate({ id, kommentar: tekst });
       } else if (type === "gjenapne") {
         hmsGjenapneMutasjon.mutate({ id, kommentar: tekst });
+      } else if (type === "returner") {
+        hmsReturnerMutasjon.mutate({ id, sporsmaal: tekst ?? "" });
       }
     },
-    [params.oppgaveId, hmsTilfoyMutasjon, hmsBesvarMutasjon, hmsLukkMutasjon, hmsGjenapneMutasjon],
+    [params.oppgaveId, hmsTilfoyMutasjon, hmsBesvarMutasjon, hmsLukkMutasjon, hmsGjenapneMutasjon, hmsReturnerMutasjon],
   );
 
 
@@ -421,7 +426,23 @@ export default function OppgaveDetaljSide() {
     return oppgave.template?.prefix ? `${oppgave.template.prefix}-${nummerPad}` : nummerPad;
   }, [oppgave?.number, oppgave?.template?.prefix]);
 
-  const leseModus = !erRedigerbar;
+  // Melder eier innholdet, behandler eier handlingen (Spor 2 / 5c): på HMS er
+  // meldingsskjemaet ALLTID read-only unntatt for melderen mens saken er utkast.
+  // Presentasjonsinvariant — decoupler fra flyt-rettighet (feltlås låser uansett
+  // server-side post-send; dette er defense-in-depth + korrekt behandler-UX).
+  const erMelder =
+    !!(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId &&
+    (fullOppgaveRå as { bestillerUserId?: string }).bestillerUserId === minFlytInfo?.userId;
+  const leseModus = erHms
+    ? !(erMelder && oppgave?.status === "draft")
+    : !erRedigerbar;
+
+  // Behandler-leddets navn til HMS-flyt-stripa = siste flyt-ledd (gruppe/faggruppe/person).
+  const hmsBehandlerNavn = useMemo<string | null>(() => {
+    if (!erHms || flytMedlemmer.length === 0) return null;
+    const b = flytMedlemmer[flytMedlemmer.length - 1];
+    return b?.group?.name ?? b?.faggruppe?.name ?? b?.projectMember?.user?.name ?? null;
+  }, [erHms, flytMedlemmer]);
 
   if (erLaster) {
     return (
@@ -584,6 +605,14 @@ export default function OppgaveDetaljSide() {
           <DokumentKontekstChipLinje chips={kontekstChips} />
         </div>
 
+        {/* Rad 2 (HMS, Spor 2 / 5c): dedikert HMS-flyt-stripe — Meldt → Hos {behandler} → Lukket.
+            Erstatter den generelle FlytIndikatoren (skjult i F1b pga. null-medlem-melderboks). */}
+        {erHms && (
+          <div className="mt-2">
+            <HmsFlytStripe status={oppgave.status} behandlerNavn={hmsBehandlerNavn} />
+          </div>
+        )}
+
         {/* Rad 2: FlytIndikator (full bredde på mobil).
             F1b: skjul for HMS — HMS har egen HmsHandlingsflate; flytlinja ville vært
             redundant + vist "?" for null-medlem-oppretterboksen til Fase 2 navngir den. */}
@@ -627,10 +656,7 @@ export default function OppgaveDetaljSide() {
           {erHms ? (
             <HmsHandlingsflate
               status={oppgave.status}
-              erOppretter={
-                !!(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId &&
-                (fullOppgaveRå as { bestillerUserId?: string }).bestillerUserId === minFlytInfo?.userId
-              }
+              erOppretter={erMelder}
               erHmsAdmin={erHmsAdmin}
               erLaster={hmsLaster}
               feilmelding={statusFeil}

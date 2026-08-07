@@ -17,7 +17,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
-export type HmsHandlingType = "tilfoyInformasjon" | "besvar" | "lukk" | "gjenapne";
+export type HmsHandlingType = "tilfoyInformasjon" | "besvar" | "lukk" | "gjenapne" | "returner";
 
 interface HmsHandlingDef {
   type: HmsHandlingType;
@@ -51,6 +51,13 @@ const HANDLINGER: Record<HmsHandlingType, HmsHandlingDef> = {
     obligatorisk: false,
     primaer: true,
   },
+  returner: {
+    type: "returner",
+    labelKey: "hms.handling.returner",
+    placeholderKey: "hms.handling.returnerPlaceholder",
+    obligatorisk: true,
+    primaer: false,
+  },
   gjenapne: {
     type: "gjenapne",
     labelKey: "hms.handling.gjenapne",
@@ -78,13 +85,17 @@ function tilgjengeligeHandlinger(
   erHmsAdmin: boolean,
 ): HmsHandlingType[] {
   const liste: HmsHandlingType[] = [];
-  if (erOppretter && (status === "sent" || status === "responded")) {
+  // `received` = «Hos behandler» (sendt, ball hos HMS-leddet). Speiler verifiserHmsHandling:
+  // åpen behandling = sent · received · responded.
+  const åpen = status === "sent" || status === "received" || status === "responded";
+  if (erOppretter && åpen) {
     liste.push("tilfoyInformasjon");
   }
-  if (erHmsAdmin && (status === "sent" || status === "responded")) {
+  if (erHmsAdmin && åpen) {
     liste.push("besvar");
   }
-  if (erHmsAdmin && status === "responded") liste.push("lukk");
+  if (erHmsAdmin && (status === "received" || status === "responded")) liste.push("lukk");
+  if (erHmsAdmin && status === "received") liste.push("returner");
   if (erHmsAdmin && status === "closed") liste.push("gjenapne");
   return liste;
 }
