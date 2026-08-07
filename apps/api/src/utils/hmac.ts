@@ -86,6 +86,27 @@ export function harSigneringsSecret(): boolean {
 }
 
 /**
+ * Delt oppstart-guard (fail-fast) for BEGGE prosessene som signerer/verifiserer:
+ * api (Fastify, server.ts) OG web (Next-instrumentation) — fordi tRPC-serveren
+ * (som signerer) kjører i WEB-containeren via route-handleren som importerer
+ * appRouter (rotårsak 2026-08-07). I NODE_ENV=production KREVES secreten; mangler
+ * den skal prosessen IKKE komme opp — med melding som navngir variabelen + fila.
+ * En boot-guard hjelper også den som ikke leser dokumentasjonen.
+ */
+export function assertFilSigneringEnv(kontekst: "api" | "web"): void {
+  if (process.env.NODE_ENV !== "production") return; // dev/test: usikret fallback (kun signerFilSti-advarsel)
+  if (harSigneringsSecret()) return;
+  const fil = kontekst === "api" ? "docker/env/api*.env" : "docker/env/web*.env";
+  // eslint-disable-next-line no-console
+  console.error(
+    `[${kontekst}] FATAL: FIL_SIGNING_SECRET mangler i produksjon. ` +
+      `Sett samme verdi i docker/env/felles.env (delt av api+web), ev. ${fil}, ` +
+      `FØR containerstart. Avslutter.`,
+  );
+  process.exit(1);
+}
+
+/**
  * Verifiser signatur for en gitt path + exp + sig (fra query-parametere).
  * Returnerer false ved manglende/ugyldig/utløpt signatur. Konstant-tids-
  * sammenligning mot timing-angrep.

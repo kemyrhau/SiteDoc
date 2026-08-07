@@ -133,14 +133,17 @@ Denne deployen traff gjentatt friksjon som ikke var dokumentert → «gjenoppdag
 
 ## FIL_SIGNING_SECRET — deploy-forutsetning for signert filserving (S1, lærdom 2026-08-07)
 
-Fase 1 av autorisert filserving serverer sensitive filer (`/uploads/privat/*`) **signatur-KUN** (HMAC). API-en signerer URL-ene med `FIL_SIGNING_SECRET`. **Uten den satt i containeren kaster signeringen** → i praksis brøt det tRPC-svar (207) og viste seg som «Dagsseddelen finnes ikke» (rotårsak 2026-08-07: secret sto i fila, men containeren var ikke recreatet → 0-lengde i prosessen).
+> 🔴 **Topologi (rotårsak til en hel dags feilsøking):** tRPC-serveren kjører i **WEB-containeren** via Next-route-handleren `apps/web/src/app/api/trpc/[...trpc]/route.ts` som importerer `appRouter`. `next.config` rewriter KUN `/api/upload` + `/api/uploads/*` til api — **det finnes ingen `/api/trpc`-rewrite.** Signeringen av `/uploads/privat/`-URL-er skjer derfor i **web-prosessen**, ikke api. **Env-variabler som brukes av tRPC-prosedyrer (som `FIL_SIGNING_SECRET`) MÅ derfor settes i BÅDE web og api.**
+
+Fase 1 serverer sensitive filer (`/uploads/privat/*`) **signatur-KUN** (HMAC). Web signerer URL-en (tRPC-svar), api-hooken verifiserer den. **Verdien MÅ være identisk i begge prosessene.** Rotårsak 2026-08-07: secreten lå kun i `api-test.env`, men signeringen kjørte i web (uten secret) → `hentSecret()` kastet → tRPC-batch ble 207 → «Dagsseddelen finnes ikke».
 
 Krav ved deploy (test OG prod, FØR Fase 1 kjører i miljøet):
-1. **Sett i `docker/env/api-*.env`** (`api-test.env` for test, `api.env` for prod): `FIL_SIGNING_SECRET=<64-hex>` (`openssl rand -hex 32`). Egen verdi per miljø. Gitignored + rsync-ekskludert (§ rsync ekskluderer `docker/env`).
-2. **Force-recreate, ikke restart** — `env_file` leses kun ved container-**opprettelse** (se § 8 om secret-recreate): `up -d --force-recreate --no-deps sitedoc-api sitedoc-web` (test: `sitedoc-test-api sitedoc-test-web`). Et `restart` plukker den IKKE opp.
-3. **Verifiser i containeren (lengde, aldri verdi):** `docker exec sitedoc-api sh -c 'echo ${#FIL_SIGNING_SECRET}'` → `64` = satt, `0` = mangler. Står den i fila men `0` i containeren ⇒ ikke recreatet (eller `env_file` når ikke fram).
+1. **Delt fil `docker/env/felles.env`** (montert på BÅDE api og web i begge compose-filer via liste-`env_file`, felles.env FØRST): `FIL_SIGNING_SECRET=<64-hex>` (`openssl rand -hex 32`). Én kilde → api og web kan aldri komme i utakt (unngår rotasjons-drift der web signerer med ny og api verifiserer med gammel). Gitignored + rsync-ekskludert. **Ikke dupliser secreten i `api-*.env`/`web-*.env`.**
+2. **Force-recreate, ikke restart** — `env_file` leses kun ved container-**opprettelse** (se § 8): `up -d --force-recreate --no-deps sitedoc-api sitedoc-web` (test: `sitedoc-test-api sitedoc-test-web`). Både api OG web må recreates.
+3. **Verifiser i BEGGE containere (lengde, aldri verdi):** `docker exec sitedoc-web sh -c 'echo ${#FIL_SIGNING_SECRET}'` OG `... sitedoc-api ...` → `64` = satt, `0` = mangler.
+4. **Signerings-røyktest (kryss-prosess):** `curl -sf https://<host>/api/fil-selvtest` → `{"ok":true}` = web-prosessen signerer+verifiserer. Kryss-sjekk mot api: hent `.url` fra svaret og `curl -o /dev/null -w '%{http_code}' "https://<host>/api<url>"` → **404** (sentinel-fil finnes ikke, men hooken slapp signaturen gjennom) = api+web enige. **401** = mismatch/manglende secret i api.
 
-**Fail-fast:** `apps/api/src/server.ts` nekter å starte i `NODE_ENV=production` hvis secreten mangler (`harSigneringsSecret()` i `utils/hmac.ts`) — en manglende deploy-forutsetning krasjer da tydelig ved boot i stedet for å se ut som en tilfeldig prosedyre-feil i drift.
+**Fail-fast i BEGGE prosesser:** `assertFilSigneringEnv()` (`apps/api/src/utils/hmac.ts`) kalles fra `apps/api/src/server.ts` (api) OG `apps/web/src/instrumentation.ts` (web). I `NODE_ENV=production` med manglende secret **kommer prosessen ikke opp** — en manglende deploy-forutsetning krasjer tydelig ved boot i stedet for å bli 207 midt i drift.
 
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.

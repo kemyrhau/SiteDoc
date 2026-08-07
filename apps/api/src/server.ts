@@ -13,7 +13,7 @@ import { devLoginRoute, erDevLoginAktiv } from "./routes/dev-login";
 import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
-import { verifiserFilSignatur, harSigneringsSecret } from "./utils/hmac";
+import { verifiserFilSignatur, assertFilSigneringEnv } from "./utils/hmac";
 
 const server = Fastify({
   // Fastify mottar requests via Cloudflare Tunnel → cloudflared. cloudflared
@@ -47,18 +47,11 @@ const server = Fastify({
 });
 
 async function start() {
-  // Fail-fast (S1): FIL_SIGNING_SECRET er en deploy-forutsetning for signert
-  // filserving. I produksjon skal api NEKTE å starte hvis den mangler — en
-  // manglende secret skal aldri vise seg som en tilfeldig prosedyre-feil
-  // («dagsseddelen finnes ikke») midt i et tRPC-svar (lærdom 2026-08-07).
-  // I dev/test-uten-prodmodus brukes en usikret fallback (kun advarsel).
-  if (process.env.NODE_ENV === "production" && !harSigneringsSecret()) {
-    server.log.fatal(
-      "FIL_SIGNING_SECRET mangler — kreves i produksjon for signert filserving. " +
-        "Sett den i docker/env/api-*.env FØR containerstart. Avslutter.",
-    );
-    process.exit(1);
-  }
+  // Fail-fast (S1): FIL_SIGNING_SECRET kreves i produksjon for signert filserving.
+  // Delt guard — samme sjekk kjører i web-prosessen (Next-instrumentation), fordi
+  // tRPC (som signerer) faktisk kjører der (rotårsak 2026-08-07). Mangler den →
+  // prosessen kommer ikke opp, i stedet for å kaste midt i et tRPC-svar.
+  assertFilSigneringEnv("api");
 
   const TILLATTE_ORIGINS = new Set([
     "https://sitedoc.no",
