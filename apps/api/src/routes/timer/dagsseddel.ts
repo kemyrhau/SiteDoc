@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { Prisma } from "@sitedoc/db-timer";
 import { prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../../trpc/trpc";
+import { signerHvisPrivat } from "../../utils/hmac";
 import {
   autoriserAdminForFirma,
   verifiserProsjektmedlem,
@@ -865,9 +866,14 @@ export const dagsseddelRouter = router({
             orderBy: { createdAt: "asc" },
           })
         : [];
+      // Web-detalj viser fra svaret umiddelbart → signer privat-URL-er her
+      // (målrettet signering, S1 Fase 1). Mobil-sync persisterer og signeres
+      // ikke (den bruker signerTilleggVedlegg on-demand).
       const tilleggMedVedlegg = tillegg.map((t) => ({
         ...t,
-        vedlegg: vedlegg.filter((v) => v.sheetTilleggId === t.id),
+        vedlegg: vedlegg
+          .filter((v) => v.sheetTilleggId === t.id)
+          .map((v) => ({ ...v, fileUrl: signerHvisPrivat(v.fileUrl) ?? v.fileUrl })),
       }));
       // D5 (web-paritet 2026-07-09): eksponer maskinførerbevis-status til
       // arbeideren (mobil T.11 varsler arbeideren; web viste det kun i
@@ -1373,10 +1379,12 @@ export const dagsseddelRouter = router({
         select: { id: true },
       });
       if (rader.length === 0) return [];
-      return ctx.prismaTimer.sheetTilleggVedlegg.findMany({
+      const vedlegg = await ctx.prismaTimer.sheetTilleggVedlegg.findMany({
         where: { sheetTilleggId: { in: rader.map((r) => r.id) } },
         orderBy: { createdAt: "asc" },
       });
+      // Web viser fra svaret → signer privat-URL-er (målrettet signering).
+      return vedlegg.map((v) => ({ ...v, fileUrl: signerHvisPrivat(v.fileUrl) ?? v.fileUrl }));
     }),
 
   // M1 (S1 Fase 1): record-nøklet sign-query for én timer-kvittering.
@@ -1399,7 +1407,8 @@ export const dagsseddelRouter = router({
       if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
       // Eierskaps-/firma-authz (kaster FORBIDDEN ellers).
       await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
-      return { url: vedlegg.fileUrl };
+      // M1: signer på stedet (mobil viser umiddelbart, persisterer ikke denne).
+      return { url: signerHvisPrivat(vedlegg.fileUrl) ?? vedlegg.fileUrl };
     }),
 
   fjernTilleggVedlegg: protectedProcedure

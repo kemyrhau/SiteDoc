@@ -18,7 +18,7 @@ Alle på docker-nett `appnet`, bundet til `127.0.0.1`.
 
 ## Det Kenneth må skaffe / sette (nøkler — Claude ser dem aldri)
 1. **Env-filer** i `docker/env/`:
-   - `api.env` — `DATABASE_URL=postgresql://<rolle>:<pw>@postgres:5432/sitedoc`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `APP_URL`, `SITEDOC_INTEGRATION_KEY` …
+   - `api.env` — `DATABASE_URL=postgresql://<rolle>:<pw>@postgres:5432/sitedoc`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `APP_URL`, `SITEDOC_INTEGRATION_KEY`, **`FIL_SIGNING_SECRET`** (S1 signert filserving — se § FIL_SIGNING_SECRET) …
    - `web.env` — `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_MICROSOFT_*`, `AUTH_TRUST_HOST=true`, `DATABASE_URL` (samme), `RESEND_*` …
    - Kopier fra gammel server (`~/programmering/sitedoc/apps/{api/.env,web/.env.local}`), endre kun `DATABASE_URL`/`DIRECT_URL` → `@postgres:5432`.
 2. **DB-rolle:** opprett `sitedoc`-rolle (least-privilege) + database, som vi gjorde med `salsa`. Prod-DB er eid av `postgres` på gammel server — vi restorer med `--no-owner` til ny rolle.
@@ -130,6 +130,20 @@ Denne deployen traff gjentatt friksjon som ikke var dokumentert → «gjenoppdag
 > ⚠️ **rsync ekskluderer `docker/env` (lærdom 2026-07-04).** Server-env-filene (`docker/env/{api,web,api-test,web-test}.env`) er **autoritative + gitignored**. Kanonisk rsync: `rsync -a --exclude node_modules --exclude .next --exclude .git --exclude docker/env`. Uten `--exclude docker/env` kan en lokal `docker/env`-mappe overskrive server-env (`DATABASE_URL` m.m.) → brutt miljø. (2026-07-04: prod-rsync droppet excluden — harmløst **kun** fordi Mac-kilden ikke hadde `docker/env`. Ikke stol på flaks.)
 >
 > **Merk:** rsync ekskluderer KUN `docker/env`, ikke hele `docker/` — bevisst. Repoet er sannhetskilde for `docker-compose*.yml` + `Dockerfile.*`, så de SKAL overskrive serverens versjoner ved rsync (holdes i synk med koden). Kun `docker/env/*.env` er server-autoritativ (gitignored) og ekskluderes.
+
+## FIL_SIGNING_SECRET — deploy-forutsetning for signert filserving (S1, lærdom 2026-08-07)
+
+> 🔴 **Topologi (rotårsak til en hel dags feilsøking):** tRPC-serveren kjører i **WEB-containeren** via Next-route-handleren `apps/web/src/app/api/trpc/[...trpc]/route.ts` som importerer `appRouter`. `next.config` rewriter KUN `/api/upload` + `/api/uploads/*` til api — **det finnes ingen `/api/trpc`-rewrite.** Signeringen av `/uploads/privat/`-URL-er skjer derfor i **web-prosessen**, ikke api. **Env-variabler som brukes av tRPC-prosedyrer (som `FIL_SIGNING_SECRET`) MÅ derfor settes i BÅDE web og api.**
+
+Fase 1 serverer sensitive filer (`/uploads/privat/*`) **signatur-KUN** (HMAC). Web signerer URL-en (tRPC-svar), api-hooken verifiserer den. **Verdien MÅ være identisk i begge prosessene.** Rotårsak 2026-08-07: secreten lå kun i `api-test.env`, men signeringen kjørte i web (uten secret) → `hentSecret()` kastet → tRPC-batch ble 207 → «Dagsseddelen finnes ikke».
+
+Krav ved deploy (test OG prod, FØR Fase 1 kjører i miljøet):
+1. **Delt fil `docker/env/felles.env`** (montert på BÅDE api og web i begge compose-filer via liste-`env_file`, felles.env FØRST): `FIL_SIGNING_SECRET=<64-hex>` (`openssl rand -hex 32`). Én kilde → api og web kan aldri komme i utakt (unngår rotasjons-drift der web signerer med ny og api verifiserer med gammel). Gitignored + rsync-ekskludert. **Ikke dupliser secreten i `api-*.env`/`web-*.env`.**
+2. **Force-recreate, ikke restart** — `env_file` leses kun ved container-**opprettelse** (se § 8): `up -d --force-recreate --no-deps sitedoc-api sitedoc-web` (test: `sitedoc-test-api sitedoc-test-web`). Både api OG web må recreates.
+3. **Verifiser i BEGGE containere (lengde, aldri verdi):** `docker exec sitedoc-web sh -c 'echo ${#FIL_SIGNING_SECRET}'` OG `... sitedoc-api ...` → `64` = satt, `0` = mangler.
+4. **Signerings-røyktest (kryss-prosess):** `curl -sf https://<host>/api/fil-selvtest` → `{"ok":true}` = web-prosessen signerer+verifiserer. Kryss-sjekk mot api: hent `.url` fra svaret og `curl -o /dev/null -w '%{http_code}' "https://<host>/api<url>"` → **404** (sentinel-fil finnes ikke, men hooken slapp signaturen gjennom) = api+web enige. **401** = mismatch/manglende secret i api.
+
+**Fail-fast i BEGGE prosesser:** `assertFilSigneringEnv()` (`apps/api/src/utils/hmac.ts`) kalles fra `apps/api/src/server.ts` (api) OG `apps/web/src/instrumentation.ts` (web). I `NODE_ENV=production` med manglende secret **kommer prosessen ikke opp** — en manglende deploy-forutsetning krasjer tydelig ved boot i stedet for å bli 207 midt i drift.
 
 ## Rollback
 Gammel sitedoc (PM2 på gammel server) står urørt til cutover er bekreftet; DNS tilbake + PM2 = rollback.

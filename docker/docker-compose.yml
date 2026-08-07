@@ -8,7 +8,9 @@ services:
     image: sitedoc-api:latest
     container_name: sitedoc-api
     restart: unless-stopped
-    env_file: ./env/api.env            # se DOCKER-NOTES.md (DATABASE_URL -> postgres:5432, AUTH_*, RESEND, VEGVESEN ...)
+    env_file:
+      - ./env/felles.env               # delte secrets som MÅ være identiske i api+web (FIL_SIGNING_SECRET). Se DOCKER-NOTES § FIL_SIGNING_SECRET
+      - ./env/api.env                  # se DOCKER-NOTES.md (DATABASE_URL -> postgres:5432, AUTH_*, RESEND, VEGVESEN ...) (senere fil vinner ved kollisjon)
     environment:
       PORT: "3001"
       HOST: "0.0.0.0"
@@ -32,7 +34,9 @@ services:
     image: sitedoc-web:latest
     container_name: sitedoc-web
     restart: unless-stopped
-    env_file: ./env/web.env            # AUTH_SECRET, AUTH_GOOGLE_*, AUTH_MICROSOFT_*, DATABASE_URL, RESEND ...
+    env_file:
+      - ./env/felles.env               # delte secrets identiske i api+web (FIL_SIGNING_SECRET). tRPC/signering kjører i WEB → må stå her óg
+      - ./env/web.env                  # AUTH_SECRET, AUTH_GOOGLE_*, AUTH_MICROSOFT_*, DATABASE_URL, RESEND ...
     environment:
       PORT: "3100"
     network_mode: "service:sitedoc-api"

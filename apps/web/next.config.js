@@ -2,6 +2,9 @@
 const nextConfig = {
   experimental: {
     serverComponentsExternalPackages: ["pdf-parse", "exceljs", "fast-xml-parser", "pdfjs-dist", "@xenova/transformers", "onnxruntime-node"],
+    // Aktiverer src/instrumentation.ts (boot-guard for FIL_SIGNING_SECRET —
+    // tRPC/signering kjører i web-prosessen). Next 14.2 krever eksplisitt flagg.
+    instrumentationHook: true,
   },
   transpilePackages: ["@sitedoc/shared", "@sitedoc/ui"],
   webpack: (config, { isServer }) => {
