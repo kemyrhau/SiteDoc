@@ -266,8 +266,8 @@ export async function erHmsAdmin(
   return false;
 }
 
-/** Handlinger i det dedikerte HMS-løpet (D2 + Spor 2 «Returner til melder»). */
-export type HmsHandling = "tilfoyInformasjon" | "besvar" | "lukk" | "gjenapne" | "returner";
+/** Handlinger i det dedikerte HMS-løpet (D2 + Spor 2 «Returner til melder» / «Send inn»). */
+export type HmsHandling = "tilfoyInformasjon" | "sendInn" | "besvar" | "lukk" | "gjenapne" | "returner";
 
 /**
  * HMS-egen autorisasjonsguard (tilstand × handling × hvem) — dedikert HMS-løp,
@@ -275,11 +275,16 @@ export type HmsHandling = "tilfoyInformasjon" | "besvar" | "lukk" | "gjenapne" |
  *
  * | Handling         | Hvem      | Tilstand                  |
  * |------------------|-----------|---------------------------|
+ * | sendInn          | melder    | draft · responded         |
  * | tilfoyInformasjon| oppretter | sent · received · responded|
  * | besvar           | HMS-admin | sent · received · responded|
  * | lukk             | HMS-admin | received · responded      |
  * | returner         | HMS-admin | received                  |
  * | gjenapne         | HMS-admin | closed                    |
+ *
+ * `sendInn` (Spor 2 / 5a) = melder sender eget utkast (draft → received) ELLER
+ * sender tilbake etter Returner (responded → received). Begge tilstander ⇒ ballen
+ * ligger hos melder-leddet (Ledd 1). Melder-eid, ikke HMS-admin.
  *
  * `received` = «Hos behandler» (sendt, ball hos HMS-leddet — Q1-kollapsen av
  * sent/in_progress). Førsteklasses HMS-tilstand: behandler handler nettopp her,
@@ -315,6 +320,24 @@ export async function verifiserHmsHandling(
     throw new TRPCError({
       code: "BAD_REQUEST",
       message: `Kan ikke tilføye informasjon i tilstanden «${status}»`,
+    });
+  }
+
+  if (handling === "sendInn") {
+    // Melder sender inn eget utkast (draft) eller sender tilbake etter Returner
+    // (responded). Begge ⇒ ballen ligger hos melder-leddet (Ledd 1) → received.
+    if (bestillerUserId === userId && (status === "draft" || status === "responded")) {
+      return;
+    }
+    if (bestillerUserId !== userId) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Kun melderen kan sende inn HMS-saken",
+      });
+    }
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: `Kan ikke sende inn HMS-saken i tilstanden «${status}»`,
     });
   }
 

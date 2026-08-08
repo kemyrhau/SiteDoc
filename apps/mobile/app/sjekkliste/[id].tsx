@@ -387,6 +387,17 @@ export default function SjekklisteUtfylling() {
     );
   }, [id, slettMutasjon]);
 
+  // Spor 2 / 5a: Send inn HMS-utkast (mobil oppretter SJA via sjekkliste.opprett → draft).
+  const hmsSendInnMutasjon = trpc.sjekkliste.hmsSendInn.useMutation({
+    onSuccess: () => {
+      utils.sjekkliste.hentMedId.invalidate({ id: id! });
+      utils.sjekkliste.hentForProsjekt.invalidate();
+    },
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.ukjentFeil"), feil.message ?? "");
+    },
+  });
+
 
 
   const {
@@ -683,7 +694,20 @@ export default function SjekklisteUtfylling() {
     );
   }
 
-  const leseModus = !erRedigerbar;
+  // Spor 2 / 5a + Beslutning 1 (Blokk 10): HMS-melder redigerer sitt eget dokument når ballen
+  // ligger hos melder-leddet (Ledd 1) og saken ikke er terminal — utkast (draft) ELLER etter
+  // Returner (responded). Behandler er read-only på melderens felt (5c). Speiler web-detaljen.
+  const erHms = (sjekklisteDetalj as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
+  const bestillerUserId = (sjekklisteDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId;
+  const erMelder = !!bestillerUserId && bestillerUserId === bruker?.id;
+  const hmsAktivPosisjon = (sjekklisteDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon;
+  const erTerminalHms = ["closed", "approved", "cancelled", "rejected"].includes(sjekkliste.status);
+  const ballHosMelder =
+    !erTerminalHms &&
+    (sjekkliste.status === "draft" ||
+      hmsAktivPosisjon === 1 ||
+      (hmsAktivPosisjon == null && sjekkliste.status === "responded"));
+  const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
 
   return (
     <SafeAreaView className="flex-1 bg-gray-100" edges={["top"]}>
@@ -980,8 +1004,37 @@ export default function SjekklisteUtfylling() {
         )}
       </ScrollView>
 
-      {/* Handlingslinje (M2) — P3-mønster: primær m/retning + split-▾ */}
+      {/* Handlingslinje (M2). Spor 2 / 5a: HMS-melder med ballen (utkast/returnert) får
+          dedikert Send inn/Forkast/Send tilbake — mobil oppretter SJA via sjekkliste.opprett
+          (→ draft), så denne stien MÅ kunne sende inn + varsle behandler. */}
       <View className="border-t border-gray-200 bg-white px-4 py-3">
+        {erHms && erMelder && ballHosMelder ? (
+          <View className="gap-2">
+            <Text className="text-sm leading-relaxed text-gray-600">
+              {sjekkliste.status === "draft" ? t("hms.utkast.forklaring") : t("hms.retur.forklaring")}
+            </Text>
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={() => hmsSendInnMutasjon.mutate({ id: id! })}
+                disabled={hmsSendInnMutasjon.isPending}
+                className="flex-1 items-center justify-center rounded-lg bg-sitedoc-blue py-3"
+                style={hmsSendInnMutasjon.isPending ? { opacity: 0.5 } : undefined}
+              >
+                <Text className="text-base font-semibold text-white">
+                  {sjekkliste.status === "draft" ? t("hms.handling.sendInn") : t("hms.handling.sendTilbake")}
+                </Text>
+              </Pressable>
+              {sjekkliste.status === "draft" && (
+                <Pressable
+                  onPress={håndterSlett}
+                  className="items-center justify-center rounded-lg border border-gray-300 px-5 py-3"
+                >
+                  <Text className="text-base font-semibold text-gray-700">{t("hms.handling.forkast")}</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        ) : (
         <DokumentHandlingslinje
           status={sjekkliste.status}
           erLaster={endreStatusMutasjon.isPending}
@@ -1012,6 +1065,7 @@ export default function SjekklisteUtfylling() {
           sisteLagretTekst={sisteLagretTekst}
           onLagreOgLukk={håndterLagreOgLukk}
         />
+        )}
       </View>
 
       </KeyboardAvoidingView>

@@ -98,11 +98,26 @@ Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmod
 - **Mobil M1–M3:** #2 inline-kommentar-inngang · #7b liste-filter · #4 bekreft-på-send-vurdering · #5 testdata-flyt m/distinkte personer per ledd.
 ### 🔴 HMS-bolk 5a+5b — PÅ BRANCH (fikser prod-regresjon fra `881e66e6`)
 
-**Prod-regresjon å lukke:** HMS-skjemaet er read-only for alle inkl. melder — `leseModus`-grenen `erMelder && status==='draft'` treffer aldri fordi HMS opprettes sendt. Nye HMS-meldinger kan opprettes, men ikke fylles ut.
+> **Diff 1** (`received`-rot-fiks + 5c) er **deployet prod** `881e66e6` og arkivert → [historikk-2026-08.md](historikk-2026-08.md). Den innførte read-only-regresjonen som 5a løser ved rotårsaken. Seksjonen under er det som gjenstår å merge.
 
-**5a (opprett = utkast)** løser rotårsaken: `oppgave.opprett` HMS-gren gir `draft`/`sendt:false`/pos1 + ny `hmsSendInn`-mutasjon + Forkast + draft-guard som skjuler utkast for ALLE (inkl. HMS-admin). Gatet mekanikk: **leseModus = `erMelder && aktivPosisjon===1 && !terminal`** (dekker draft OG returnert — gjør «Returner til melder» meningsfull) og **Modell A**: «Send tilbake til behandler» = samme `hmsSendInn`. Krav i tillegg: behandler må kunne se at melderens felt er revidert etter innsending (5b-loggen).
-**5b:** «Tillegg fra melder» synlig. Ingen migrering. Mobil-paritet + «Reload: Metro reload».
-**Deployes samlet** — ingen deploy før hele bolken er klar. Blokkerer EAS.
+### HMS-behandlingsflyt Diff 2 — 5a opprett=utkast + 5b tillegg-synlig (branch `feat/hms-behandlingsflyt`) — PÅ BRANCH, venter merge (samlet bolk, IKKE prod før hele bolken)
+
+**Migrerings-fri (draft er eksisterende status).** Løser read-only-regresjonen fra Diff 1 ved rotårsaken: HMS opprettes nå som **utkast** (`draft`), ikke auto-sendt → `erMelder && ball hos Ledd 1`-grenen treffer som designet (melder redigerer, behandler read-only). Gjelder RUH/avvik (task) OG SJA (checklist) — begge auto-sendte før.
+
+**5a-mekanikk:** (1) `oppgave.opprett`/`sjekkliste.opprett` HMS-gren → `sendt:false`/`aktivPosisjon:1`/`draft`, ingen varsel ved opprett (flyt-binding + `recipientGroupId` står). (2) ny `oppgave.hmsSendInn`/`sjekkliste.hmsSendInn` (`draft|responded → received` + varsel til behandler-ledd; transfer-rad `draft→received`=Sendt inn vs `responded→received`=Revidert-og-sendt-tilbake — **sporet behandler trenger, Blokk 10-krav**). (3) `verifiserHmsHandling` + `HmsHandling`-type får `sendInn` (melder-eid, tilstand draft·responded). (4) draft-synlighet: `byggHmsSynlighetsFilter` returnerte `null` for admin → draft-guard som gjelder ALLE (`bestillerUserId`-unntak) + firma-oversikt utelater draft. (5) leseModus-snitt (Beslutning 1, gatet): `erMelder && aktivPosisjon===1 && !terminal` (web oppgave+sjekkliste + mobil oppgave+sjekkliste). (6) delt `HmsMelderBanner` (Send inn/Forkast/Send tilbake + Forkast-modal). (7) mobil-paritet: Send inn/Forkast/Send tilbake-rad på begge mobil-detaljer (mobil oppretter HMS → draft; ellers stod utkast fast). (8) i18n nb+en.
+
+**5b-mekanikk (web):** ny delt `HmsMelderTillegg` — (a) **synlig feltlås**: forklarer hvorfor meldingens felt er låst (vises kun mens ballen er hos behandler, med sendt-dato fra transfer-loggen); (b) **«Tillegg fra melder»**: melderens rene append-transfers som tidsstemplet logg + «+ Tilføy informasjon»-inngang. Melder-tillegg FLYTTET ut av `HmsHandlingsflate` (nå ren behandler/admin-flate) → mockup-separasjon (melder eier innhold, behandler eier handling). i18n nb+en (`hms.tillegg.*`, `hms.feltlaas.*`).
+
+**Spor 2-dekning per flate etter bolken (asymmetri — dokumentert, ikke skjult):**
+| Flate | Melder-flyt (5a/5b) | Behandling (Diff 1: Besvar/Lukk/Returner + flyt-stripe) |
+|-------|---------------------|--------------------------------------------------------|
+| Web oppgave (RUH/avvik) | ✅ | ✅ |
+| Web sjekkliste (SJA) | ✅ | ⚠️ Besvar/Lukk ✅, **mangler Returner + flyt-stripe** (Diff 1 var oppgave-only) |
+| Mobil (RUH/avvik/SJA) | ✅ (Send inn/Forkast/Send tilbake) | ❌ **pre-Spor-2** (generell `DokumentHandlingslinje`) |
+
+**Kjente oppfølgere (ikke i denne bolken):** SJA-Returner + flyt-stripe på web · dedikert mobil-HMS-behandling (Returner/flyt-stripe). Realistisk arbeidsdeling: feltarbeider melder fra mobil, HMS-ansvarlig behandler på web.
+
+**Reload:** Metro reload (JS-only, ingen native). **Verifikasjon:** full build grønn (prisma generate ×4, typecheck 4/4 inkl. mobil, `next build` EXIT=0). i18n 13-språk kjøres ved merge (cowork). **HOLD prod** til Kenneth sier fra.
 
 ### Sjekkliste ikke append-only (branch `fix/sjekkliste-ikke-append-only`) — PÅ BRANCH, venter merge
 

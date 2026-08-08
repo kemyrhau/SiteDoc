@@ -297,6 +297,17 @@ export default function OppgaveDetalj() {
     },
   });
 
+  // Spor 2 / 5a: Send inn HMS-utkast (mobil oppretter HMS via oppgave.opprett → draft).
+  const hmsSendInnMutasjon = trpc.oppgave.hmsSendInn.useMutation({
+    onSuccess: () => {
+      utils.oppgave.hentMedId.invalidate({ id: id! });
+      utils.oppgave.hentForProsjekt.invalidate();
+    },
+    onError: (feil: { message?: string }) => {
+      Alert.alert(t("feil.ukjentFeil"), feil.message ?? "");
+    },
+  });
+
   // Kommentarer/dialog
   const kommentarQuery = trpc.oppgave.hentKommentarer.useQuery(
     { taskId: id! },
@@ -493,7 +504,21 @@ export default function OppgaveDetalj() {
   }
 
   const nummer = formaterNummer(oppgave.template?.prefix, oppgave.number);
-  const leseModus = !erRedigerbar;
+
+  // Spor 2 / 5a + Beslutning 1 (Blokk 10): HMS-melder redigerer sitt eget dokument når ballen
+  // ligger hos melder-leddet (Ledd 1) og saken ikke er terminal — utkast (draft) ELLER etter
+  // Returner (responded). Behandler er read-only på melderens felt (5c). Speiler web-detaljen.
+  const erHms = (oppgaveDetalj as { template?: { domain?: string } } | undefined)?.template?.domain === "hms";
+  const bestillerUserId = (oppgaveDetalj as { bestillerUserId?: string } | undefined)?.bestillerUserId;
+  const erMelder = !!bestillerUserId && bestillerUserId === bruker?.id;
+  const hmsAktivPosisjon = (oppgaveDetalj as { aktivPosisjon?: number | null } | undefined)?.aktivPosisjon;
+  const erTerminalHms = ["closed", "approved", "cancelled", "rejected"].includes(oppgave.status);
+  const ballHosMelder =
+    !erTerminalHms &&
+    (oppgave.status === "draft" ||
+      hmsAktivPosisjon === 1 ||
+      (hmsAktivPosisjon == null && oppgave.status === "responded"));
+  const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
 
   // Sjekkliste-referanse
   const sjekklisteNummer = oppgave.checklist
@@ -851,8 +876,38 @@ export default function OppgaveDetalj() {
         )}
       </ScrollView>
 
-      {/* Handlingslinje (M2) — P3-mønster: primær m/retning + split-▾ */}
+      {/* Handlingslinje (M2) — P3-mønster: primær m/retning + split-▾.
+          Spor 2 / 5a: HMS-melder med ballen (utkast/returnert) får dedikert Send inn/Forkast/
+          Send tilbake i stedet for den generelle statuslinja — mobil oppretter HMS via
+          oppgave.opprett (→ draft), så denne stien MÅ kunne sende inn + varsle behandler. */}
       <View className="border-t border-gray-200 bg-white px-4 py-3">
+        {erHms && erMelder && ballHosMelder ? (
+          <View className="gap-2">
+            <Text className="text-sm leading-relaxed text-gray-600">
+              {oppgave.status === "draft" ? t("hms.utkast.forklaring") : t("hms.retur.forklaring")}
+            </Text>
+            <View className="flex-row gap-2">
+              <Pressable
+                onPress={() => hmsSendInnMutasjon.mutate({ id: id! })}
+                disabled={hmsSendInnMutasjon.isPending}
+                className="flex-1 items-center justify-center rounded-lg bg-sitedoc-blue py-3"
+                style={hmsSendInnMutasjon.isPending ? { opacity: 0.5 } : undefined}
+              >
+                <Text className="text-base font-semibold text-white">
+                  {oppgave.status === "draft" ? t("hms.handling.sendInn") : t("hms.handling.sendTilbake")}
+                </Text>
+              </Pressable>
+              {oppgave.status === "draft" && (
+                <Pressable
+                  onPress={håndterSlett}
+                  className="items-center justify-center rounded-lg border border-gray-300 px-5 py-3"
+                >
+                  <Text className="text-base font-semibold text-gray-700">{t("hms.handling.forkast")}</Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
+        ) : (
         <DokumentHandlingslinje
           status={oppgave.status}
           erLaster={endreStatusMutasjon.isPending}
@@ -883,6 +938,7 @@ export default function OppgaveDetalj() {
           sisteLagretTekst={sisteLagretTekst}
           onLagreOgLukk={håndterLagreOgLukk}
         />
+        )}
       </View>
 
       </KeyboardAvoidingView>
