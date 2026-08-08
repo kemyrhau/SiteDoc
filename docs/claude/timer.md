@@ -1091,6 +1091,8 @@ Speiler `sheet_tillegg_vedlegg` 1:1 (mønster 1: rad per fil, svak `sheetUtleggI
 
 **Gjenstår (senere faser):** U2 eksport-guard (`case "fakturert": return []`, utlegg→refusjon aldri lønnsart), U3 web-registrering, U4 mobil (kamera-primær), U5 firma-admin overstyring-UI, U6 migrering av feilførte `SheetTillegg`-rader (egen gate).
 
+> **🔴 Eksport-invariant (etablert U1, ubrukt til Proadm-motor bygges):** all klassifisering av tillegg/utlegg mot eksport MÅ gå via `eksportRute()` i `@sitedoc/shared` og lese radens `ordningVedFoering` — aldri kategori-oppslag, aldri egen if-kjede. `fakturert` skal aldri nå lønnsart eller refusjon. U2 (koblingen mot eksportmotoren) er bevisst utsatt til motoren finnes; kontrakten (`eksportRute` + 10 tester) står allerede i delt kode.
+
 ### `expense_categories` (utleggskategorier per Organization)
 
 | Felt | Type | Beskrivelse |
