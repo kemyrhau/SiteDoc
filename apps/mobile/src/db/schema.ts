@@ -170,6 +170,14 @@ export const sheetTimerLocal = sqliteTable("sheet_timer_local", {
 export const sheetMachineLocal = sqliteTable("sheet_machine_local", {
   id: text("id").primaryKey(),
   dagsseddelId: text("dagsseddel_id").notNull(),
+  // Del B pkt 1 (device-funn 2026-08-08) — svak FK → sheet_timer_local.id.
+  // Kobler maskin-raden til timer-raden den ble ført sammen med, så rediger-
+  // inngangen i TimerRadModal finner igjen «radens» maskin (vis/rediger, ikke
+  // dupliser). Tilføyes idempotent via ALTER i migreringer.ts. NULL = ført FØR
+  // koblingen fantes (eldre rader / web-opprettede) og kan IKKE utledes i
+  // ettertid uten å gjette — null-rader beholder søsken-rad-oppførsel og
+  // redigeres inline via maskin-seksjonen. Speil av server sheet_machine.sheet_timer_id.
+  sheetTimerId: text("sheet_timer_id"),
   // Per-rad prosjekt (T7-3b1). Se kommentar på sheetTimerLocal.projectId.
   projectId: text("project_id"),
   vehicleId: text("vehicle_id").notNull(),

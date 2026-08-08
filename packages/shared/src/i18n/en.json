@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Machine (optional)",
   "timer.maskinSeksjon.kapasitet": "Work in group: {{arbeid}} h · machine so far: {{maskin}} h · available: {{ledig}} h",
   "timer.maskinSeksjon.hint": "Machine hours are set equal to the work time. Did the machine run for less? Edit the machine row afterwards.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "No machines available — synced from the company's equipment register",
   "timer.ingenAktiviteter": "No activities — sync with server or contact company admin.",
   "timer.tEnhet": "h",
   "timer.antallRader": "{{antall}} rows",

@@ -415,6 +415,14 @@ model ProsjektOrdningOverstyring {
 model SheetMachine {
   id                String   @id @default(uuid())
   sheetId           String   @map("sheet_id")
+  // Del B pkt 1 (device-funn 2026-08-08) — svak FK → sheet_timer.id (samme
+  // skjema, ingen @relation, A.20-mønster). Kobler maskin-raden til timer-raden
+  // den ble ført sammen med, så mobilens rediger-inngang finner igjen «radens»
+  // maskin (vis/rediger, ikke dupliser). NULL = ført FØR koblingen fantes; kan
+  // IKKE utledes i ettertid uten å gjette (ingen backfill, ingen heuristisk
+  // bøtte-matching). Null-rader beholder dagens søsken-rad-oppførsel og
+  // redigeres inline via maskin-seksjonen.
+  sheetTimerId      String?  @map("sheet_timer_id")
   vehicleId         String   @map("vehicle_id") // svak FK → maskin.equipment (db-maskin)
   // T.2 (PR 1B, 2026-05-11) — Per-rad prosjekttilhørighet. NOT NULL etter backfill i PR 1A.
   projectId         String   @map("project_id")
@@ -442,6 +450,7 @@ model SheetMachine {
   sheet DailySheet @relation(fields: [sheetId], references: [id], onDelete: Cascade)
 
   @@index([sheetId])
+  @@index([sheetTimerId])
   @@index([vehicleId])
   @@index([projectId])
   @@index([byggeplassId])

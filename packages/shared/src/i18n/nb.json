@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Maskin (valgfritt)",
   "timer.maskinSeksjon.kapasitet": "Arbeid i gruppen: {{arbeid}} t · maskin så langt: {{maskin}} t · ledig: {{ledig}} t",
   "timer.maskinSeksjon.hint": "Maskintimer settes lik arbeidstiden. Gikk maskinen kortere? Rediger maskin-raden etterpå.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Ingen maskiner tilgjengelig — synkroniseres fra firmaets utstyrsregister",
   "timer.ingenAktiviteter": "Ingen aktiviteter — synk mot server eller kontakt firma-admin.",
   "timer.tEnhet": "t",
   "timer.antallRader": "{{antall}} rader",

@@ -3661,6 +3661,8 @@ export const dagsseddelRouter = router({
             id: m.id,
             projectId: m.projectId,
             externalCostObjectId: m.externalCostObjectId,
+            // Del B pkt 1: returner koblingen så mobil beholder den ved pull.
+            sheetTimerId: m.sheetTimerId,
             vehicleId: m.vehicleId,
             timer: Number(m.timer),
             mengde: m.mengde !== null ? Number(m.mengde) : null,
@@ -3757,6 +3759,9 @@ export const dagsseddelRouter = router({
                   id: z.string().uuid(),
                   projectId: z.string().uuid().optional(),
                   externalCostObjectId: z.string().uuid().nullable().optional(),
+                  // Del B pkt 1: svak FK → timer-raden maskinen ble ført sammen med.
+                  // Optional/nullable → eldre klienter uten feltet lar det stå null.
+                  sheetTimerId: z.string().uuid().nullable().optional(),
                   vehicleId: z.string().uuid(),
                   timer: z.number().min(0).max(24),
                   mengde: z.number().min(0).nullable().optional(),
@@ -4272,6 +4277,8 @@ export const dagsseddelRouter = router({
                 data: lokal.maskiner.map((m) => ({
                   id: m.id,
                   sheetId: sedel.id,
+                  // Del B pkt 1: bevar koblingen til timer-raden gjennom sync.
+                  sheetTimerId: m.sheetTimerId ?? null,
                   projectId: radProsjekt(m.projectId)!,
                   externalCostObjectId: m.externalCostObjectId ?? null,
                   byggeplassId: lokal.byggeplassId ?? null,

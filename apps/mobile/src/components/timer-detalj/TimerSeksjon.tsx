@@ -204,9 +204,11 @@ export function TimerSeksjon({
     ) => {
       const db = hentDatabase();
       if (!db) return;
+      // Del B pkt 1: fang timer-radens id så maskin-raden kan stemples med den.
+      const timerRadId = randomUUID();
       db.insert(sheetTimerLocal)
         .values({
-          id: randomUUID(),
+          id: timerRadId,
           dagsseddelId: sheetId,
           projectId: radProjectId,
           // F3: per-rad byggeplass. null = arv fra dagskortet (server propagerer
@@ -225,12 +227,14 @@ export function TimerSeksjon({
       // P1 (maskin-i-rad): dual-innsetting. Er maskin valgt i timerrad-modalens
       // maskin-seksjon, skriv en sheet_machine-rad med timer = timerradens antall
       // (herav-semantikk) i SAMME bucket (projectId + ECO) og med samme fra/til.
-      // Feltene speiler MaskinSeksjons db.insert(sheetMachineLocal) nøyaktig.
+      // Del B pkt 1: stemple sheetTimerId = timer-radens id, så rediger-inngangen
+      // finner igjen «radens» maskin. Feltene speiler MaskinSeksjons insert.
       if (maskin) {
         db.insert(sheetMachineLocal)
           .values({
             id: randomUUID(),
             dagsseddelId: sheetId,
+            sheetTimerId: timerRadId,
             projectId: radProjectId,
             externalCostObjectId,
             vehicleId: maskin.vehicleId,
@@ -260,6 +264,11 @@ export function TimerSeksjon({
       fraTid: string | null,
       tilTid: string | null,
       beskrivelse: string | null,
+      // Del B pkt 1: maskin-tilstanden fra rediger-modalen.
+      //   undefined = ikke rør maskin-rader (hurtigsti: byggeplass-bytte),
+      //   null      = fjern koblet maskin-rad (bruker tømte maskinen),
+      //   objekt    = sett/oppdater koblet maskin-rad.
+      maskin?: NyMaskin | null,
     ) => {
       const db = hentDatabase();
       if (!db) return;
@@ -279,9 +288,73 @@ export function TimerSeksjon({
         })
         .where(eq(sheetTimerLocal.id, radId))
         .run();
+      // Del B pkt 1: livssyklus for den koblede maskin-raden (sheetTimerId = radId).
+      // Én kilde for insert/update/delete så rediger-banen ikke dupliserer maskin.
+      if (maskin !== undefined) {
+        const eksisterendeMaskin =
+          db
+            .select()
+            .from(sheetMachineLocal)
+            .where(eq(sheetMachineLocal.sheetTimerId, radId))
+            .all()[0] ?? null;
+        if (maskin) {
+          // Maskintimer speiler timer-radens antall (herav-semantikk), og
+          // prosjekt/ECO/fra/til holdes i takt med timer-raden.
+          if (eksisterendeMaskin) {
+            db.update(sheetMachineLocal)
+              .set({
+                projectId: radProjectId,
+                externalCostObjectId,
+                vehicleId: maskin.vehicleId,
+                timer,
+                mengde: maskin.mengde,
+                enhet: maskin.enhet,
+                fraTid,
+                tilTid,
+                sistEndretLokalt: Date.now(),
+              })
+              .where(eq(sheetMachineLocal.id, eksisterendeMaskin.id))
+              .run();
+          } else {
+            db.insert(sheetMachineLocal)
+              .values({
+                id: randomUUID(),
+                dagsseddelId: sheetId,
+                sheetTimerId: radId,
+                projectId: radProjectId,
+                externalCostObjectId,
+                vehicleId: maskin.vehicleId,
+                timer,
+                mengde: maskin.mengde,
+                enhet: maskin.enhet,
+                fraTid,
+                tilTid,
+                sistEndretLokalt: Date.now(),
+              })
+              .run();
+          }
+        } else if (eksisterendeMaskin) {
+          // Bruker fjernet maskinen fra raden → slett koblet maskin-rad +
+          // tombstone ATOMISK (S-A, samme mønster som fjern-veiene).
+          db.transaction((tx) => {
+            tx.delete(sheetMachineLocal)
+              .where(eq(sheetMachineLocal.id, eksisterendeMaskin.id))
+              .run();
+            tx.insert(slettedeRaderLocal)
+              .values({
+                radId: eksisterendeMaskin.id,
+                dagsseddelId: sheetId,
+                radType: "maskin",
+                slettetVed: Date.now(),
+              })
+              .onConflictDoNothing()
+              .run();
+          });
+        }
+      }
       onEndret();
     },
-    [onEndret],
+    [onEndret, sheetId],
   );
 
   // F3 hybrid-hurtigsti: sekundærlinja åpner den kombinerte velgeren direkte.
@@ -480,6 +553,8 @@ export function TimerSeksjon({
                 fraTid,
                 tilTid,
                 beskrivelse,
+                // Del B pkt 1: maskin-tilstand fra modalen styrer koblet maskin-rad.
+                maskin,
               );
             } else {
               leggTil(
@@ -1028,12 +1103,42 @@ function TimerRadModal({
   const [visLonnsartVelger, setVisLonnsartVelger] = useState(false);
   const [visAktivitetVelger, setVisAktivitetVelger] = useState(false);
   const [visEcoVelger, setVisEcoVelger] = useState(false);
-  // P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon — kun ved NY rad.
+  // P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon. Del B pkt 1: nå også
+  // ved REDIGERING — prefill fra den koblede maskin-raden (sheetTimerId).
   // Ingen eget maskin-timer-felt: maskintimer settes lik timer-radens antall.
-  const [visMaskin, setVisMaskin] = useState(false);
-  const [maskinVehicleId, setMaskinVehicleId] = useState<string>("");
-  const [maskinMengde, setMaskinMengde] = useState<string>("");
-  const [maskinEnhet, setMaskinEnhet] = useState<string>("");
+  // Del B pkt 1: koblet maskin-rad for raden som redigeres (sheetTimerId = radens
+  // id). Én rad per timer-rad (ny-rad-banen stempler nøyaktig én); .all()[0] er
+  // defensiv mot legacy-data. null ved ny rad eller rad uten maskin.
+  const eksisterendeMaskinRad = useMemo(() => {
+    if (!eksisterendeRad) return null;
+    const db = hentDatabase();
+    if (!db) return null;
+    return (
+      db
+        .select()
+        .from(sheetMachineLocal)
+        .where(eq(sheetMachineLocal.sheetTimerId, eksisterendeRad.id))
+        .all()[0] ?? null
+    );
+  }, [eksisterendeRad]);
+  // Del B pkt 1 / DoD «≤ 2 trykk fra raden»: ved REDIGERING auto-utvides
+  // seksjonen (finnes cache), så arbeideren når utstyrsvelgeren i 2 trykk
+  // (rad → velg utstyr) i stedet for 3 (rad → utvid → velg). Ved eksisterende
+  // maskin utvides den uansett (vis den). Ny rad forblir kollapset (valgfritt).
+  const [visMaskin, setVisMaskin] = useState(
+    !!eksisterendeMaskinRad || (!!eksisterendeRad && harEquipmentCache),
+  );
+  const [maskinVehicleId, setMaskinVehicleId] = useState<string>(
+    eksisterendeMaskinRad?.vehicleId ?? "",
+  );
+  const [maskinMengde, setMaskinMengde] = useState<string>(
+    eksisterendeMaskinRad?.mengde != null
+      ? String(eksisterendeMaskinRad.mengde)
+      : "",
+  );
+  const [maskinEnhet, setMaskinEnhet] = useState<string>(
+    eksisterendeMaskinRad?.enhet ?? "",
+  );
   const [visMaskinEquipmentVelger, setVisMaskinEquipmentVelger] = useState(false);
   const [visMaskinEnhetVelger, setVisMaskinEnhetVelger] = useState(false);
 
@@ -1455,11 +1560,15 @@ function TimerRadModal({
             />
           </View>
 
-          {/* P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon — kun ved NY
-              rad, og kun når equipment-cache er populert (samme gating som den
-              tidligere «+ Legg til maskin»-knappen). Maskintimer settes lik
-              timer-radens antall; kortere drift redigeres på maskin-raden etterpå. */}
-          {!eksisterendeRad && harEquipmentCache && (
+          {/* P1 (maskin-i-rad): valgfri kollapsbar maskin-seksjon. Del B pkt 1
+              (device-funn 2026-08-08): vises nå OGSÅ ved redigering (droppet
+              !eksisterendeRad) så arbeideren kan legge maskin på en auto-utfylt
+              rad i ≤ 2 trykk. Ved redigering er seksjonen prefilt fra den koblede
+              maskin-raden. Krever populert equipment-cache; tom cache viser en
+              forklarende nedtonet rad under (i stedet for stille skjuling).
+              Maskintimer settes lik timer-radens antall; kortere drift redigeres
+              på maskin-raden etterpå. */}
+          {harEquipmentCache && (
             <View className="rounded-lg border border-gray-200 bg-gray-50">
               <Pressable
                 onPress={() => setVisMaskin((v) => !v)}
@@ -1538,6 +1647,24 @@ function TimerRadModal({
                   </Text>
                 </View>
               )}
+            </View>
+          )}
+
+          {/* Del B pkt 1: tom equipment-cache → forklarende nedtonet rad i stedet
+              for stille skjuling (device-funn #4). Ingen usynlig funksjon; sier
+              hvorfor maskin ikke kan legges til akkurat nå. */}
+          {!harEquipmentCache && (
+            <View className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5">
+              <View className="flex-row items-center gap-2">
+                <View className="rounded bg-slate-100 px-1.5 py-0.5">
+                  <Text className="text-[10px] font-semibold uppercase text-slate-400">
+                    {t("timer.maskinSeksjon.merke")}
+                  </Text>
+                </View>
+                <Text className="flex-1 text-xs text-gray-400">
+                  {t("timer.maskinSeksjon.ingenTilgjengelig")}
+                </Text>
+              </View>
             </View>
           )}
 
