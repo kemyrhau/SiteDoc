@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Maskin (valfritt)",
   "timer.maskinSeksjon.kapasitet": "Arbeta i grupp: {{arbeid}} h · maskin hittills: {{maskin}} h · tillgänglig: {{ledig}} h",
   "timer.maskinSeksjon.hint": "Maskintimmar sätts lika med arbetstiden. Gick maskinen för mindre? Redigera maskinraden efteråt.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Inga tillgängliga maskiner — synkroniserad från företagets utrustningsregister",
   "timer.ingenAktiviteter": "Inga aktiviteter – synkronisera med servern eller kontakta företagsadministratören.",
   "timer.tEnhet": "h",
   "timer.antallRader": "{{antall}} rader",

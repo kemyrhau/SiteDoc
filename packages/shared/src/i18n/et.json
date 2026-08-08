@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Masin (valikuline)",
   "timer.maskinSeksjon.kapasitet": "Töö rühmas: {{arbeid}} h · masin seni: {{maskin}} h · saadaval: {{ledig}} h",
   "timer.maskinSeksjon.hint": "Masina tunnid on seatud võrdseks tööajaga. Kas masin töötas vähem? Seejärel muutke masina rida.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Masinaid pole saadaval – sünkroonitud ettevõtte seadmete registrist",
   "timer.ingenAktiviteter": "Tegevusi pole – sünkroonige serveriga või võtke ühendust ettevõtte administraatoriga.",
   "timer.tEnhet": "h",
   "timer.antallRader": "{{antall}} rida",

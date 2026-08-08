@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Stroj (volitelně)",
   "timer.maskinSeksjon.kapasitet": "Práce ve skupině: {{arbeid}} h · stroj zatím: {{maskin}} h · dostupný: {{ledig}} h",
   "timer.maskinSeksjon.hint": "Strojní hodiny jsou nastaveny stejně jako pracovní doba. Stroj běžel méně? Poté upravte řádek stroje.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Nejsou k dispozici žádné stroje – synchronizováno z registru zařízení společnosti",
   "timer.ingenAktiviteter": "Žádné aktivity — synchronizujte se serverem nebo kontaktujte administrátora společnosti.",
   "timer.tEnhet": "h",
   "timer.antallRader": "{{antall}} řádků",

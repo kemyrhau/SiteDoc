@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Makinë (opsionale)",
   "timer.maskinSeksjon.kapasitet": "Puna në grup: {{arbeid}} h · makinë deri tani: {{maskin}} h · disponueshme: {{ledig}} h",
   "timer.maskinSeksjon.hint": "Orari i makinës është caktuar i barabartë me kohën e punës. A funksionoi makina për më pak? Redaktoni rreshtin e makinës më pas.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Nuk ka makineri të disponueshme — të sinkronizuara nga regjistri i pajisjeve të kompanisë",
   "timer.ingenAktiviteter": "Asnjë aktivitet — sinkronizoni me serverin ose administratorin e kompanisë kontaktoni.",
   "timer.tEnhet": "h",
   "timer.antallRader": "{{antall}} rreshta",

@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Machine (facultatif)",
   "timer.maskinSeksjon.kapasitet": "Travail en groupe : {{arbeid}} h · machine jusqu'à présent : {{maskin}} h · disponible : {{ledig}} h",
   "timer.maskinSeksjon.hint": "Les heures de machine sont fixées égales au temps de travail. La machine a-t-elle fonctionné moins cher ? Modifiez ensuite la ligne de la machine.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Aucune machine disponible — synchronisée à partir du registre des équipements de l'entreprise",
   "timer.ingenAktiviteter": "Aucune activité : synchronisez avec le serveur ou contactez l'administrateur de l'entreprise.",
   "timer.tEnhet": "h",
   "timer.antallRader": "{{antall}} lignes",

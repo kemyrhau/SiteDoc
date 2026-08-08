@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Mašina (neprivaloma)",
   "timer.maskinSeksjon.kapasitet": "Darbas grupėje: {{arbeid}} val. · Mašina iki šiol: {{maskin}} val. · Galima: {{ledig}} val.",
   "timer.maskinSeksjon.hint": "Mašinos valandos yra lygios darbo laikui. Ar mašina veikė pigiau? Vėliau redaguokite mašinos eilutę.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Nėra pasiekiamų mašinų – sinchronizuota iš įmonės įrangos registro",
   "timer.ingenAktiviteter": "Jokios veiklos – sinchronizuokite su serveriu arba susisiekite su įmonės administratoriumi.",
   "timer.tEnhet": "h",
   "timer.antallRader": "{{antall}} eilučių",

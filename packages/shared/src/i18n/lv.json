@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Mašīna (pēc izvēles)",
   "timer.maskinSeksjon.kapasitet": "Darbs grupā: {{arbeid}} h · mašīna līdz šim: {{maskin}} h · pieejama: {{ledig}} h",
   "timer.maskinSeksjon.hint": "Mašīnas stundas tiek iestatītas vienādas ar darba laiku. Vai mašīna darbojās mazāk? Pēc tam rediģējiet mašīnas rindu.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Nav pieejama neviena iekārta — sinhronizēta no uzņēmuma aprīkojuma reģistra",
   "timer.ingenAktiviteter": "Nav darbību — sinhronizējiet ar serveri vai sazinieties ar uzņēmuma administratoru.",
   "timer.tEnhet": "h",
   "timer.antallRader": "{{antall}} rindas",

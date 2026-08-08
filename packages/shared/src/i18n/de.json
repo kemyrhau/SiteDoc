@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Maschine (optional)",
   "timer.maskinSeksjon.kapasitet": "Arbeit in der Gruppe: {{arbeid}} h · Maschine bisher: {{maskin}} h · verfügbar: {{ledig}} h",
   "timer.maskinSeksjon.hint": "Maschinenstunden werden der Arbeitszeit gleichgesetzt. Ist die Maschine günstiger gelaufen? Bearbeiten Sie anschließend die Maschinenzeile.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Keine Maschinen verfügbar – synchronisiert aus dem Geräteregister des Unternehmens",
   "timer.ingenAktiviteter": "Keine Aktivitäten – mit dem Server synchronisieren oder den Firmenadministrator kontaktieren.",
   "timer.tEnhet": "H",
   "timer.antallRader": "{{antall}} Zeilen",

@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Машина (опціонально)",
   "timer.maskinSeksjon.kapasitet": "Робота в групі: {{arbeid}} h · поки машина: {{maskin}} h · доступна: {{ledig}} h",
   "timer.maskinSeksjon.hint": "Машино-години встановлюються рівними робочому часу. Машина працювала дешевше? Після цього відредагуйте машинний рядок.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Немає доступних машин — синхронізовано з реєстру обладнання компанії",
   "timer.ingenAktiviteter": "Немає дій — синхронізуйте з сервером або зверніться до адміністратора компанії.",
   "timer.tEnhet": "ч",
   "timer.antallRader": "{{antall}} рядків",

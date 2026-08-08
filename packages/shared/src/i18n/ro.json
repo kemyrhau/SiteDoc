@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Mașină (opțional)",
   "timer.maskinSeksjon.kapasitet": "Lucru în grup: {{arbeid}} h · mașină până acum: {{maskin}} h · disponibil: {{ledig}} h",
   "timer.maskinSeksjon.hint": "Orele de lucru ale mașinii sunt setate egale cu timpul de lucru. A funcționat mașina pentru mai puțin? Editați rândul mașinii după aceea.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Nu există mașini disponibile - sincronizate din registrul de echipamente al companiei",
   "timer.ingenAktiviteter": "Fără activități - sincronizați cu serverul sau contactați administratorul companiei.",
   "timer.tEnhet": "h",
   "timer.antallRader": "{{total}} rânduri",

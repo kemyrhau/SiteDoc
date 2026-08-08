@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Машина (опционально)",
   "timer.maskinSeksjon.kapasitet": "Работа в группе: {{arbeid}} ч · машина на данный момент: {{maskin}} ч · доступна: {{ledig}} ч",
   "timer.maskinSeksjon.hint": "Машиночасы устанавливаются равными рабочему времени. Машина работала дешевле? После этого отредактируйте строку машины.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Машин в наличии нет — синхронизируется из реестра оборудования компании.",
   "timer.ingenAktiviteter": "Нет активности — синхронизируйтесь с сервером или свяжитесь с администратором компании.",
   "timer.tEnhet": "час",
   "timer.antallRader": "{{antall}} строк",

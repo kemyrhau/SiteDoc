@@ -306,6 +306,7 @@
   "timer.maskinSeksjon.tittel": "Maszyna (opcjonalnie)",
   "timer.maskinSeksjon.kapasitet": "Praca w grupie: {{arbeid}} godz. · maszyna dotychczas: {{maskin}} godz. · dostępna: {{ledig}} godz.",
   "timer.maskinSeksjon.hint": "Godziny pracy maszyny ustalane są na czas pracy. Czy maszyna działała krócej? Następnie edytuj rząd maszyny.",
+  "timer.maskinSeksjon.ingenTilgjengelig": "Brak dostępnych maszyn — zsynchronizowano z rejestrem sprzętu firmy",
   "timer.ingenAktiviteter": "Brak aktywności — zsynchronizuj z serwerem lub skontaktuj się z administratorem firmy.",
   "timer.tEnhet": "H",
   "timer.antallRader": "{{antall}} wierszy",
