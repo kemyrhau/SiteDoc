@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "IFC model",
   "tegninger.ifcKortUnder": "Open point cloud / IFC view",
   "tegninger.utenByggeplass": "No site",
+  "tegninger.fortsett": "Continue where you left off",
   "dokumenter.alleMapper": "All folders",
   "dokumenter.arverSprak": "inherits language",
   "dokumenter.egneSprak": "own languages: {{koder}}",

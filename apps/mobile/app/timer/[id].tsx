@@ -1273,8 +1273,12 @@ function EcoBucket({
         onEndret={onEndret}
       />
 
-      {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers — speiler T7-4b */}
-      {(sumTimer > 0 || sumMaskin > 0) && (
+      {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers — speiler T7-4b.
+          Del B pkt 3 (device-funn 2026-08-08): skjules når maskin = 0.00t. Et
+          «Herav maskin 0.00t av Xt arbeid»-banner uten maskininngang er selv-
+          motsigende og leses som at maskintimer ER ført. Ved maskin > 0 beholdes
+          dagens ordlyd (allerede omformulert én gang, jf. BACKLOG maskinAvArbeid). */}
+      {sumMaskin > 0 && (
         <View
           className={`mt-3 rounded border px-3 py-1.5 ${
             maskinOk
