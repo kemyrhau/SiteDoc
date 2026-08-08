@@ -11,7 +11,8 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-08-07
+**Sist oppdatert:** 2026-08-08
+- 2026-08-08 — **prod-deploy `881e66e6` ført** i `historikk-2026-08.md` (25 commits, ingen migreringer, felles.env-forutsetning + kjent HMS-regresjon dokumentert). Nye: `docs/redesign/utlegg/` (4 filer: ordningsmodell-spec, avklaringer, registreringsflyt-mockup, første runde). `simulator-runbook.md` + `infrastruktur.md` + `DOCKER-NOTES.md` utvidet m/ tRPC-topologi (kjører i web ⇒ env begge steder). **Tellingen under fortsatt IKKE oppdatert — se ⚠️.** [detaljer](historikk-docs.md)
 - 2026-08-07 — **doc-rens:** ny `historikk-2026-08.md` (5 prod-deployer 03.08–06.08 arkivert fra STATUS-AKTUELT, som gikk 81 KB → 65 KB). `CLAUDE.md` kompaktert 41 384 → 37 832 tegn (over 40k-grensen, nå 2 168 under): 4 dublerte docs-oppdateringsregler slått til én, deploy-dubletter fjernet, indeks-rader for arkivert materiale kuttet. **Faktafiks:** repo-stier i § Utviklingsmiljø rettet `~/programmering/…` → `~/stack/sitedoc` (server-ny). Nye: `docs/redesign/vedleggsmonster/` (mockup + fabel-svar). **Tellingen under er fortsatt IKKE oppdatert — se ⚠️.** [detaljer](historikk-docs.md)
 - 2026-07-16 — 2 filer ført (`fase-M-forarbeid-…`, `faseM-3a-felttype-matrise`). Matrisen: status del 1 (målt) → del 2 (bygget: F1/F2/F4 + kollaps + kopiér-mal, `56cb0cfa`). **Tellingen under er IKKE oppdatert — se ⚠️.** [detaljer](historikk-docs.md)
 - 2026-07-15 — ny fil `lokal-dev.md`, lokal dev-flate dokumentert. Antall 66→67. [detaljer](historikk-docs.md)

@@ -96,13 +96,13 @@ Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmod
 - **Statusmaskin:** F6-oppfølger (`received→approved` som default) · posisjonsutredning (H1/N-boks, `steg`-feltet finnes) · registrator-steg-1-validering · H2 (utførers venstre-send/tilbake-kant) · besvar=venstre-modellspenningen · § 0 delt-kilde-konsolidering (egen fase).
 - **Effektivitet:** **P4c timer** (7→1-2 klikk, arver chip-komponenten) — ikke startet. Øvrige restanser i [BACKLOG](BACKLOG.md).
 - **Mobil M1–M3:** #2 inline-kommentar-inngang · #7b liste-filter · #4 bekreft-på-send-vurdering · #5 testdata-flyt m/distinkte personer per ledd.
-### HMS-behandlingsflyt Diff 1 — `received`-rot-fiks + 5c behandler-mønster (branch `feat/hms-behandlingsflyt`) — PÅ BRANCH, venter merge → test (IKKE prod)
+### 🔴 HMS-bolk 5a+5b — PÅ BRANCH (fikser prod-regresjon fra `881e66e6`)
 
-**Prod-kritisk, migrerings-fri.** Rotårsak (SQL avkreftet drift + include-hypotese): HMS sendes med status `received` (Q1-kollaps), men `verifiserHmsHandling` + `HmsHandlingsflate` gjenkjente kun `sent`/`responded` → behandle-knapper filtrert bort på sendte RUH-er → «Lesevisning» for behandler OG admin, uavhengig av `erHmsAdmin`. Live på prod fra 03.08 (A.Markussen-pilot rammet).
+**Prod-regresjon å lukke:** HMS-skjemaet er read-only for alle inkl. melder — `leseModus`-grenen `erMelder && status==='draft'` treffer aldri fordi HMS opprettes sendt. Nye HMS-meldinger kan opprettes, men ikke fylles ut.
 
-**Fiks + 5c (mockup-godkjent behandler-mønster):** (1) `received` førsteklasses HMS-tilstand — server (`tilgangskontroll.ts`) + klient (`HmsHandlingsflate.tsx`): `åpen behandling = sent|received|responded`. (2) ny `oppgave.hmsReturner`-mutasjon (returner til melder med spørsmål, gjenbruker `beregnRuting`→`responded`, ingen ny status-enum). (3) Melding read-only-tvang for HMS unntatt melder-i-utkast (`page.tsx`). (4) ny `HmsFlytStripe.tsx` (Meldt→Hos behandler→Lukket). (5) i18n nb+en (`hms.handling.returner`/`returnerPlaceholder`, `hms.stripe.*`).
-
-**Verifikasjon:** full build grønn (prisma generate ×4, typecheck 4/4, `next build` 2/2). **Backlogget (gatet):** `DocumentTransfer.handling`-markør (tidslinje-skille Besvar/Returner) + guard-mot-ikke-hms-behandler-ledd. **Diff 2/3 (senere):** 5a opprett=utkast (mobil-berørende), 5b tillegg-synlig. **HOLD prod** til Kenneth sier fra.
+**5a (opprett = utkast)** løser rotårsaken: `oppgave.opprett` HMS-gren gir `draft`/`sendt:false`/pos1 + ny `hmsSendInn`-mutasjon + Forkast + draft-guard som skjuler utkast for ALLE (inkl. HMS-admin). Gatet mekanikk: **leseModus = `erMelder && aktivPosisjon===1 && !terminal`** (dekker draft OG returnert — gjør «Returner til melder» meningsfull) og **Modell A**: «Send tilbake til behandler» = samme `hmsSendInn`. Krav i tillegg: behandler må kunne se at melderens felt er revidert etter innsending (5b-loggen).
+**5b:** «Tillegg fra melder» synlig. Ingen migrering. Mobil-paritet + «Reload: Metro reload».
+**Deployes samlet** — ingen deploy før hele bolken er klar. Blokkerer EAS.
 
 ### Sjekkliste ikke append-only (branch `fix/sjekkliste-ikke-append-only`) — PÅ BRANCH, venter merge
 
