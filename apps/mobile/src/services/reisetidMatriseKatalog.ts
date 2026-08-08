@@ -27,16 +27,14 @@ export async function refreshReisetidMatriseKatalog(
   const db = hentDatabase();
   if (!db) return { rader: 0 };
 
-  const rader = await klient.oppmotested.hentMatriseForFirma
-    .query({ organizationId })
-    .catch((e) => {
-      console.warn("[REISETID-MATRISE-KATALOG] Pull feilet:", e);
-      return [] as Array<{
-        oppmotestedId: string;
-        byggeplassId: string;
-        kjoretidMin: number;
-      }>;
-    });
+  // Cache-bevaring (device-funn 2026-08-08, samme mønster som maskinKatalog):
+  // pullen fanges IKKE → feilet pull kaster FØR den scope-delete under, kalleren
+  // beholder eksisterende cache. Vellykket tom liste (firma uten reisetid-matrise)
+  // er gyldig → slett + refyll tomt for firmaet. Tidligere `.catch(() => [])` tømte
+  // matrise-cachen ved transient feil.
+  const rader = await klient.oppmotested.hentMatriseForFirma.query({
+    organizationId,
+  });
 
   const naa = Date.now();
 

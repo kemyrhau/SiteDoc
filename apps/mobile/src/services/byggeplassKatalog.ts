@@ -26,22 +26,15 @@ export async function refreshByggeplassKatalog(
   const db = hentDatabase();
   if (!db) return { byggeplasser: 0 };
 
+  // Cache-bevaring (device-funn 2026-08-08, samme mønster som maskinKatalog):
+  // pullen fanges IKKE → feilet pull kaster FØR den scope-delete under, kalleren
+  // beholder eksisterende cache. Vellykket tom liste (firma uten byggeplasser) er
+  // gyldig → slett + refyll tomt for dette firmaet. Tidligere `.catch(() => [])`
+  // tømte byggeplass-cachen ved transient feil (bidro til UUID-symptomet offline).
   // Routeren er montert som «bygning» (bakoverkompat-nøkkel, router.ts:53).
-  const byggeplasser = await klient.bygning.hentForFirma
-    .query({ organizationId })
-    .catch((e) => {
-      console.warn("[BYGGEPLASS-KATALOG] Pull feilet:", e);
-      return [] as Array<{
-        id: string;
-        projectId: string;
-        number: number | null;
-        status: string;
-        name: string;
-        latitude: number | null;
-        longitude: number | null;
-        radiusM: number | null;
-      }>;
-    });
+  const byggeplasser = await klient.bygning.hentForFirma.query({
+    organizationId,
+  });
 
   const naa = Date.now();
 
