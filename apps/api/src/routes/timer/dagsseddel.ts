@@ -22,6 +22,11 @@ import {
   tilErEtterFra,
   finnOverlappendeTidsrom,
   finnTidsromKonflikt,
+  utledOrdning,
+  erGyldigOrdning,
+  baeresAvSheetUtlegg,
+  krevesBelop,
+  type UtleggOrdning,
 } from "@sitedoc/shared";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
@@ -832,7 +837,7 @@ export const dagsseddelRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.id);
-      const [aktivitet, timer, tillegg, maskiner] = await Promise.all([
+      const [aktivitet, timer, tillegg, maskiner, utlegg] = await Promise.all([
         sheet.aktivitetId
           ? ctx.prismaTimer.aktivitet.findUnique({ where: { id: sheet.aktivitetId } })
           : Promise.resolve(null),
@@ -848,10 +853,21 @@ export const dagsseddelRouter = router({
           where: { sheetId: sheet.id },
           orderBy: { createdAt: "asc" },
         }),
+        // U3 (2026-08-08): utlegg-rader (SheetUtlegg) — egen bærer, med
+        // ordningVedFoering-stempel. Ordnings-pillen/kilde-linjen utledes
+        // klient-side fra expenseCategory.list (samme delte utledning).
+        ctx.prismaTimer.sheetUtlegg.findMany({
+          where: { sheetId: sheet.id },
+          orderBy: { createdAt: "asc" },
+        }),
       ]);
       // T.1 (2026-05-11): DailySheet har ikke projectId. Bruk første rad som proxy.
       const projectId =
-        timer[0]?.projectId ?? maskiner[0]?.projectId ?? tillegg[0]?.projectId ?? null;
+        timer[0]?.projectId ??
+        maskiner[0]?.projectId ??
+        tillegg[0]?.projectId ??
+        utlegg[0]?.projectId ??
+        null;
       const prosjekt = projectId
         ? await ctx.prisma.project.findUnique({
             where: { id: projectId },
@@ -875,6 +891,20 @@ export const dagsseddelRouter = router({
           .filter((v) => v.sheetTilleggId === t.id)
           .map((v) => ({ ...v, fileUrl: signerHvisPrivat(v.fileUrl) ?? v.fileUrl })),
       }));
+      // U3: samme mønster for utlegg-radenes kvittering-vedlegg.
+      const utleggIder = utlegg.map((u) => u.id);
+      const utleggVedlegg = utleggIder.length
+        ? await ctx.prismaTimer.sheetUtleggVedlegg.findMany({
+            where: { sheetUtleggId: { in: utleggIder } },
+            orderBy: { createdAt: "asc" },
+          })
+        : [];
+      const utleggMedVedlegg = utlegg.map((u) => ({
+        ...u,
+        vedlegg: utleggVedlegg
+          .filter((v) => v.sheetUtleggId === u.id)
+          .map((v) => ({ ...v, fileUrl: signerHvisPrivat(v.fileUrl) ?? v.fileUrl })),
+      }));
       // D5 (web-paritet 2026-07-09): eksponer maskinførerbevis-status til
       // arbeideren (mobil T.11 varsler arbeideren; web viste det kun i
       // attestering). Informativt, aldri blokkerende. Kun relevant m/ maskin-rader.
@@ -887,6 +917,7 @@ export const dagsseddelRouter = router({
         timer,
         tillegg: tilleggMedVedlegg,
         maskiner,
+        utlegg: utleggMedVedlegg,
         prosjekt,
         manglerMaskinforerbevis,
       };
@@ -1547,6 +1578,284 @@ export const dagsseddelRouter = router({
       // F4-1d: rad-write + touchSedel atomisk.
       const [slettet] = await ctx.prismaTimer.$transaction([
         ctx.prismaTimer.sheetTillegg.delete({ where: { id: input.id } }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return slettet;
+    }),
+
+  // ----- Utlegg-vedlegg (kvittering) — U3 (2026-08-08) -------------------
+  // Speiler tillegg-vedlegg 1:1, men på sheet_utlegg_vedlegg. Eierskap via
+  // utlegg-radens egen dagsseddel (hentEgenDagsseddel). Fil lastes opp via REST
+  // /upload (privat disk); prosedyren registrerer kun metadata.
+  tilfoyUtleggVedlegg: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid().optional(),
+        sheetUtleggId: z.string().uuid(),
+        fileUrl: z.string(),
+        fileName: z.string(),
+        mimeType: z.string(),
+        fileSize: z.number().int().min(0),
+        gpsLat: z.number().nullable().optional(),
+        gpsLng: z.number().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const rad = await ctx.prismaTimer.sheetUtlegg.findUnique({
+        where: { id: input.sheetUtleggId },
+      });
+      if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      const data = {
+        sheetUtleggId: input.sheetUtleggId,
+        fileUrl: input.fileUrl,
+        fileName: input.fileName,
+        mimeType: input.mimeType,
+        fileSize: input.fileSize,
+        gpsLat: input.gpsLat ?? null,
+        gpsLng: input.gpsLng ?? null,
+      };
+      if (input.id) {
+        const [vedlegg] = await ctx.prismaTimer.$transaction([
+          ctx.prismaTimer.sheetUtleggVedlegg.upsert({
+            where: { id: input.id },
+            create: { id: input.id, ...data },
+            update: { fileUrl: input.fileUrl },
+          }),
+          touchSedel(ctx.prismaTimer, rad.sheetId),
+        ]);
+        return vedlegg;
+      }
+      const [vedlegg] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetUtleggVedlegg.create({ data }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return vedlegg;
+    }),
+
+  listUtleggVedlegg: protectedProcedure
+    .input(z.object({ sheetId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
+      const rader = await ctx.prismaTimer.sheetUtlegg.findMany({
+        where: { sheetId: input.sheetId },
+        select: { id: true },
+      });
+      if (rader.length === 0) return [];
+      const vedlegg = await ctx.prismaTimer.sheetUtleggVedlegg.findMany({
+        where: { sheetUtleggId: { in: rader.map((r) => r.id) } },
+        orderBy: { createdAt: "asc" },
+      });
+      return vedlegg.map((v) => ({ ...v, fileUrl: signerHvisPrivat(v.fileUrl) ?? v.fileUrl }));
+    }),
+
+  signerUtleggVedlegg: protectedProcedure
+    .input(z.object({ vedleggId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const vedlegg = await ctx.prismaTimer.sheetUtleggVedlegg.findUnique({
+        where: { id: input.vedleggId },
+        select: { fileUrl: true, sheetUtleggId: true },
+      });
+      if (!vedlegg) throw new TRPCError({ code: "NOT_FOUND" });
+      const rad = await ctx.prismaTimer.sheetUtlegg.findUnique({
+        where: { id: vedlegg.sheetUtleggId },
+        select: { sheetId: true },
+      });
+      if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+      await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      return { url: signerHvisPrivat(vedlegg.fileUrl) ?? vedlegg.fileUrl };
+    }),
+
+  fjernUtleggVedlegg: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const vedlegg = await ctx.prismaTimer.sheetUtleggVedlegg.findUnique({
+        where: { id: input.id },
+      });
+      if (!vedlegg) throw new TRPCError({ code: "NOT_FOUND" });
+      const rad = await ctx.prismaTimer.sheetUtlegg.findUnique({
+        where: { id: vedlegg.sheetUtleggId },
+      });
+      if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      if (!erRedigerbar(sheet.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Dagsseddel er låst (status: ${sheet.status})`,
+        });
+      }
+      const [slettet] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetUtleggVedlegg.delete({ where: { id: input.id } }),
+        touchSedel(ctx.prismaTimer, sheet.id),
+      ]);
+      return slettet;
+    }),
+
+  // ----- Utlegg-rader (U3, ordningsmodell) -------------------------------
+  // Ny bærer atskilt fra tillegg: beløp/kvittering per ExpenseCategory, med
+  // utledet ordning (overstyring ?? firma-default) STEMPLET på raden ved insert.
+  // Stempelet er immutabelt (ordningsbytte = korreksjon, ikke mutasjon) og er
+  // integritetsbæreren CHECK-constrainten håndhever beløps-regelen mot.
+  tilfoyUtleggRad: protectedProcedure
+    .input(
+      z.object({
+        sheetId: z.string().uuid(),
+        projectId: z.string().uuid(),
+        expenseCategoryId: z.string().uuid(),
+        // Nullable: 'fakturert' fører ingen beløp. Server utleder ordning og
+        // håndhever beløps-regelen — klienten kan ikke overstyre den.
+        belop: z.number().min(0).nullable().optional(),
+        kommentar: z.string().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, input.sheetId);
+      if (!erRedigerbar(sheet.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Dagsseddel er låst (status: ${sheet.status})`,
+        });
+      }
+      await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+      const kategori = await ctx.prismaTimer.expenseCategory.findFirst({
+        where: { id: input.expenseCategoryId, organizationId: sheet.organizationId },
+      });
+      if (!kategori) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Utleggskategori finnes ikke i firmaets katalog",
+        });
+      }
+
+      // Utled ordning: overstyring for DETTE prosjektet ?? firma-default.
+      const overstyring = await ctx.prismaTimer.prosjektOrdningOverstyring.findFirst({
+        where: { prosjektId: input.projectId, expenseCategoryId: input.expenseCategoryId },
+      });
+      const firmaDefault: UtleggOrdning = erGyldigOrdning(kategori.ordning)
+        ? kategori.ordning
+        : "utlegg";
+      const prosjektOverstyring: UtleggOrdning | null =
+        overstyring && erGyldigOrdning(overstyring.ordning) ? overstyring.ordning : null;
+      const ordning = utledOrdning({ firmaDefault, prosjektOverstyring });
+
+      // sats-ordning bæres av SheetTillegg (lønnsart), ikke av SheetUtlegg. En
+      // ExpenseCategory med sats-ordning har ingen lønnsart-kobling i U1-modellen
+      // — avvis heller enn å skrive en semantisk feil rad. (Named oppfølger:
+      // «bro ExpenseCategory→lønnsart» — se timer.md.)
+      if (!baeresAvSheetUtlegg(ordning)) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message:
+            "Kategori med ordning «sats» føres som lønnstillegg, ikke utlegg. Kontakt firma-administrator.",
+        });
+      }
+
+      // Beløps-regel (app-speil av CHECK): 'fakturert' → ingen beløp; ellers påkrevd.
+      let belop: number | null;
+      if (krevesBelop(ordning)) {
+        if (input.belop === null || input.belop === undefined || input.belop <= 0) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Beløp er påkrevd for denne ordningen",
+          });
+        }
+        belop = input.belop;
+      } else {
+        // fakturert: beløp skal alltid være null (håndheves av CHECK).
+        belop = null;
+      }
+
+      const [rad] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetUtlegg.create({
+          data: {
+            sheetId: input.sheetId,
+            projectId: input.projectId,
+            expenseCategoryId: input.expenseCategoryId,
+            belop,
+            kommentar: input.kommentar ?? null,
+            ordningVedFoering: ordning,
+          },
+        }),
+        touchSedel(ctx.prismaTimer, input.sheetId),
+      ]);
+      return rad;
+    }),
+
+  // Kun beløp (innenfor radens ordning) + kommentar er redigerbart. Kategori og
+  // ordningVedFoering er IMMUTABLE — ordningsbytte = ny rad (korreksjon).
+  oppdaterUtleggRad: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        belop: z.number().min(0).nullable().optional(),
+        kommentar: z.string().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const rad = await ctx.prismaTimer.sheetUtlegg.findUnique({
+        where: { id: input.id },
+      });
+      if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      if (!erRedigerbar(sheet.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Dagsseddel er låst (status: ${sheet.status})`,
+        });
+      }
+      await sjekkAldersgrense(sheet.organizationId, sheet.status, sheet.dato);
+
+      const ordning: UtleggOrdning = erGyldigOrdning(rad.ordningVedFoering)
+        ? rad.ordningVedFoering
+        : "utlegg";
+
+      const data: Prisma.SheetUtleggUpdateInput = {};
+      if (input.belop !== undefined) {
+        if (krevesBelop(ordning)) {
+          if (input.belop === null || input.belop <= 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Beløp er påkrevd for denne ordningen",
+            });
+          }
+          data.belop = input.belop;
+        } else if (input.belop !== null) {
+          // fakturert kan ikke få et beløp (CHECK ville uansett avvist).
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Denne ordningen fører ingen beløp",
+          });
+        }
+      }
+      if (input.kommentar !== undefined) data.kommentar = input.kommentar;
+
+      const [oppdatert] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetUtlegg.update({ where: { id: input.id }, data }),
+        touchSedel(ctx.prismaTimer, rad.sheetId),
+      ]);
+      return oppdatert;
+    }),
+
+  fjernUtleggRad: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const rad = await ctx.prismaTimer.sheetUtlegg.findUnique({
+        where: { id: input.id },
+      });
+      if (!rad) throw new TRPCError({ code: "NOT_FOUND" });
+
+      const sheet = await hentEgenDagsseddel(ctx.prismaTimer, ctx.userId, rad.sheetId);
+      if (!erRedigerbar(sheet.status)) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Dagsseddel er låst (status: ${sheet.status})`,
+        });
+      }
+
+      const [slettet] = await ctx.prismaTimer.$transaction([
+        ctx.prismaTimer.sheetUtlegg.delete({ where: { id: input.id } }),
         touchSedel(ctx.prismaTimer, rad.sheetId),
       ]);
       return slettet;

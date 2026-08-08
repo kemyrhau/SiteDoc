@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useTranslation } from "react-i18next";
@@ -104,6 +104,19 @@ type TilleggRad = {
   attestertStatus: string | null;
 };
 
+// U3 (2026-08-08): utlegg-rad (SheetUtlegg). Egen bærer med ordningVedFoering-
+// stempel; kvittering-vedlegg speiler tillegg-vedlegg. `belop` er null for
+// 'fakturert' (CHECK). Ordnings-pille + kilde utledes fra expenseCategory.list.
+type UtleggRad = {
+  id: string;
+  projectId: string;
+  expenseCategoryId: string;
+  belop: unknown; // Decimal | null
+  kommentar: string | null;
+  ordningVedFoering: string;
+  vedlegg?: TilleggVedlegg[];
+};
+
 type MaskinRad = {
   id: string;
   projectId: string;
@@ -175,7 +188,14 @@ export default function DagsseddelDetaljSide() {
         defaultTilTid?: string | null;
         rad?: TimerRad;
       }
-    | { type: "tillegg"; projectId: string; rad?: TilleggRad }
+    // U3: unified velger — «Legg til på dagsseddelen» (8a). Ruter til
+    // tillegg-dialog (laastTilleggId) eller utlegg-dialog etter valg.
+    | { type: "leggTil"; projectId: string }
+    // laastTilleggId: kategori valgt i velgeren (add-via-velger) → vises
+    // read-only i dialogen. rad: redigering (uendret sats-flyt).
+    | { type: "tillegg"; projectId: string; rad?: TilleggRad; laastTilleggId?: string }
+    // U3: utlegg-registrering. expenseCategoryId ved add, rad ved redigering.
+    | { type: "utlegg"; projectId: string; expenseCategoryId?: string; rad?: UtleggRad }
     | {
         type: "maskin";
         projectId: string;
@@ -281,6 +301,7 @@ export default function DagsseddelDetaljSide() {
   const timerRader = sheet.timer as unknown as TimerRad[];
   const tilleggRader = sheet.tillegg as unknown as TilleggRad[];
   const maskinRader = (sheet.maskiner ?? []) as unknown as MaskinRad[];
+  const utleggRader = ((sheet as { utlegg?: unknown }).utlegg ?? []) as unknown as UtleggRad[];
 
   // Bolk (f): har leder attestert minst én rad? Da blokkerer server-vakten
   // gjenåpning — deaktiver knappen og be arbeideren kontakte leder for retur.
@@ -312,6 +333,7 @@ export default function DagsseddelDetaljSide() {
     `${pid}|${eco ?? ""}`;
   const ecoGrupper = new Map<string, EcoGruppeData>();
   const tilleggPerProsjekt = new Map<string, TilleggRad[]>();
+  const utleggPerProsjekt = new Map<string, UtleggRad[]>();
   const prosjektEcoIder = new Map<string, string[]>(); // pid → ordered eco-ids (null = "")
   const prosjektRekkefolge: string[] = [];
 
@@ -350,6 +372,12 @@ export default function DagsseddelDetaljSide() {
     const liste = tilleggPerProsjekt.get(r.projectId) ?? [];
     liste.push(r);
     tilleggPerProsjekt.set(r.projectId, liste);
+  }
+  for (const r of utleggRader) {
+    noterProsjekt(r.projectId);
+    const liste = utleggPerProsjekt.get(r.projectId) ?? [];
+    liste.push(r);
+    utleggPerProsjekt.set(r.projectId, liste);
   }
 
   // Slå sammen prosjekt-IDer fra rader + bruker-tilføyde tomme grupper
@@ -547,6 +575,7 @@ export default function DagsseddelDetaljSide() {
               projectId={projectId}
               prosjektNavn={prosjektNavnMap.get(projectId)}
               tillegg={tilleggPerProsjekt.get(projectId) ?? []}
+              utlegg={utleggPerProsjekt.get(projectId) ?? []}
               ecoBuckets={ecoListe.map((ekv) => {
                 const ecoId = ekv === "" ? null : ekv;
                 const data = ecoGrupper.get(ecoGruppeKey(projectId, ecoId));
@@ -581,14 +610,15 @@ export default function DagsseddelDetaljSide() {
                   defaultTilTid: effektivSlutt,
                 });
               }}
-              onTilfoyTillegg={() =>
-                setAktivModal({ type: "tillegg", projectId })
-              }
+              onLeggTil={() => setAktivModal({ type: "leggTil", projectId })}
               onRedigerTimer={(rad) =>
                 setAktivModal({ type: "timer", projectId, rad })
               }
               onRedigerTillegg={(rad) =>
                 setAktivModal({ type: "tillegg", projectId, rad })
+              }
+              onRedigerUtlegg={(rad) =>
+                setAktivModal({ type: "utlegg", projectId, rad })
               }
               onRedigerMaskin={(rad) =>
                 setAktivModal({ type: "maskin", projectId, rad })
@@ -716,10 +746,40 @@ export default function DagsseddelDetaljSide() {
           onLukk={() => setAktivModal(null)}
         />
       )}
+      {aktivModal?.type === "leggTil" && (
+        <LeggTilVelger
+          projectId={aktivModal.projectId}
+          onValgTillegg={(tilleggId) =>
+            setAktivModal({
+              type: "tillegg",
+              projectId: aktivModal.projectId,
+              laastTilleggId: tilleggId,
+            })
+          }
+          onValgUtlegg={(expenseCategoryId) =>
+            setAktivModal({
+              type: "utlegg",
+              projectId: aktivModal.projectId,
+              expenseCategoryId,
+            })
+          }
+          onLukk={() => setAktivModal(null)}
+        />
+      )}
       {aktivModal?.type === "tillegg" && (
         <TilleggRadDialog
           sheetId={sheet.id}
           projectId={aktivModal.projectId}
+          rad={aktivModal.rad}
+          laastTilleggId={aktivModal.laastTilleggId}
+          onLukk={() => setAktivModal(null)}
+        />
+      )}
+      {aktivModal?.type === "utlegg" && (
+        <UtleggRadDialog
+          sheetId={sheet.id}
+          projectId={aktivModal.projectId}
+          expenseCategoryId={aktivModal.expenseCategoryId}
           rad={aktivModal.rad}
           onLukk={() => setAktivModal(null)}
         />
@@ -922,13 +982,15 @@ function ProsjektGruppe({
   projectId,
   prosjektNavn,
   tillegg,
+  utlegg,
   ecoBuckets,
   erRedigerbar,
   pauseMin,
   onTilfoyTimer,
-  onTilfoyTillegg,
+  onLeggTil,
   onRedigerTimer,
   onRedigerTillegg,
+  onRedigerUtlegg,
   onRedigerMaskin,
   onSplittTimer,
   onSplittTillegg,
@@ -937,6 +999,7 @@ function ProsjektGruppe({
   projectId: string;
   prosjektNavn: ProsjektRef | undefined;
   tillegg: TilleggRad[];
+  utlegg: UtleggRad[];
   ecoBuckets: EcoBucket[];
   erRedigerbar: boolean;
   // D6: sedel-nivå pauseMin → maskin ≤ arbeid-buffer per bucket.
@@ -944,9 +1007,11 @@ function ProsjektGruppe({
   // Bolk (d) R1: sender timer-radene i bucket slik at parent kan avlede
   // fra/til-prefill (siste rads tilTid).
   onTilfoyTimer: (ecoId: string | null, timerRaderIBucket: TimerRad[]) => void;
-  onTilfoyTillegg: () => void;
+  // U3: unified «Legg til»-velger (tillegg + utlegg i ett).
+  onLeggTil: () => void;
   onRedigerTimer: (rad: TimerRad) => void;
   onRedigerTillegg: (rad: TilleggRad) => void;
+  onRedigerUtlegg: (rad: UtleggRad) => void;
   onRedigerMaskin: (rad: MaskinRad) => void;
   // P2 (arbeider-splitt): kun kalt når erRedigerbar (knapp rendres i
   // erRedigerbar-blokk på raden).
@@ -1000,30 +1065,44 @@ function ProsjektGruppe({
         ))}
       </div>
 
-      {/* Tillegg — per-prosjekt, separat fra ECO-bukets (ingen ECO-felt på Tillegg) */}
+      {/* Tillegg + utlegg — per-prosjekt, separat fra ECO-bukets. U3 (8a):
+          ÉN «Legg til»-inngang (velger med to grupper); registrerte rader
+          vises gruppert (Tillegg = lønnstillegg/sats · Utlegg = beløp/fakturert). */}
       <div className="mt-4 border-t border-gray-100 pt-3">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-gray-700">
-            {t("timer.detalj.tilleggRader")}
+            {t("timer.detalj.tilleggUtlegg")}
           </h3>
           {erRedigerbar && (
-            <Button variant="secondary" onClick={onTilfoyTillegg}>
+            <Button variant="secondary" onClick={onLeggTil}>
               <Plus className="mr-1 h-3 w-3" />
-              {t("timer.detalj.tilfoyTillegg")}
+              {t("timer.detalj.leggTil")}
             </Button>
           )}
         </div>
-        {tillegg.length === 0 ? (
+        {tillegg.length === 0 && utlegg.length === 0 ? (
           <p className="text-sm text-gray-500">
-            {t("timer.detalj.ingenTillegg")}
+            {t("timer.detalj.ingenTilleggUtlegg")}
           </p>
         ) : (
-          <RaderTillegg
-            rader={tillegg}
-            erRedigerbar={erRedigerbar}
-            onRediger={onRedigerTillegg}
-            onSplitt={onSplittTillegg}
-          />
+          <div className="space-y-3">
+            {tillegg.length > 0 && (
+              <RaderTillegg
+                rader={tillegg}
+                erRedigerbar={erRedigerbar}
+                onRediger={onRedigerTillegg}
+                onSplitt={onSplittTillegg}
+              />
+            )}
+            {utlegg.length > 0 && (
+              <RaderUtlegg
+                rader={utlegg}
+                projectId={projectId}
+                erRedigerbar={erRedigerbar}
+                onRediger={onRedigerUtlegg}
+              />
+            )}
+          </div>
         )}
       </div>
     </section>
@@ -2141,18 +2220,26 @@ function TilleggRadDialog({
   sheetId,
   projectId,
   rad,
+  laastTilleggId,
   onLukk,
 }: {
   sheetId: string;
   projectId: string;
   rad?: TilleggRad;
+  // U3 (8a): kategori valgt i den unified velgeren → vises read-only her.
+  // Redigering (rad) og fri-select-veien er uendret (bit-for-bit sats-flyt).
+  laastTilleggId?: string;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
   const utils = trpc.useUtils();
   const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery();
 
-  const [tilleggId, setTilleggId] = useState<string>(rad?.tilleggId ?? "");
+  // Add-via-velger: kategori er allerede valgt (låst). Ellers fri select.
+  const laast = !rad && !!laastTilleggId;
+  const [tilleggId, setTilleggId] = useState<string>(
+    rad?.tilleggId ?? laastTilleggId ?? "",
+  );
   const [antall, setAntall] = useState<string>(
     rad ? String(tilTall(rad.antall)) : "1",
   );
@@ -2296,19 +2383,27 @@ function TilleggRadDialog({
           <label className="mb-1 block text-sm font-medium text-gray-700">
             {t("firma.timer.fane.tillegg")}
           </label>
-          <select
-            value={tilleggId}
-            onChange={(e) => setTilleggId(e.target.value)}
-            className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
-            required
-          >
-            <option value="">{t("timer.velgTillegg")}</option>
-            {tilleggKatalog?.map((tt) => (
-              <option key={tt.id} value={tt.id} disabled={!tt.aktiv}>
-                {tt.navn}
-              </option>
-            ))}
-          </select>
+          {laast ? (
+            // Kategori valgt i velgeren — vis navn read-only (8b: kategori som
+            // overskrift, ikke et nytt valg).
+            <p className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm font-medium text-gray-900">
+              {valgt?.navn ?? "—"}
+            </p>
+          ) : (
+            <select
+              value={tilleggId}
+              onChange={(e) => setTilleggId(e.target.value)}
+              className="w-full rounded border border-gray-300 px-3 py-2 text-sm"
+              required
+            >
+              <option value="">{t("timer.velgTillegg")}</option>
+              {tilleggKatalog?.map((tt) => (
+                <option key={tt.id} value={tt.id} disabled={!tt.aktiv}>
+                  {tt.navn}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         {!erAvhuking && (
           <div>
@@ -2400,6 +2495,647 @@ function TilleggRadDialog({
             {t("handling.avbryt")}
           </Button>
           <Button type="submit" disabled={lagrer || !tilleggId}>
+            {lagrer ? t("handling.lagrer") : t("handling.lagre")}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Utlegg (U3, ordningsmodell) — velger, rad-liste, rad-dialog          */
+/* ------------------------------------------------------------------ */
+
+/** Ordnings-pille (undertekst, aldri et valg). Speiler den delte utledningen. */
+function ordningPille(
+  ordning: string,
+  t: (k: string) => string,
+): { label: string; cls: string } {
+  switch (ordning) {
+    case "sats":
+      return {
+        label: t("timer.utleggReg.ordning.sats"),
+        cls: "bg-blue-50 text-blue-700",
+      };
+    case "fakturert":
+      return {
+        label: t("timer.utleggReg.ordning.fakturert"),
+        cls: "bg-gray-100 text-gray-600",
+      };
+    case "utlegg":
+    default:
+      return {
+        label: t("timer.utleggReg.ordning.utlegg"),
+        cls: "bg-teal-50 text-teal-700",
+      };
+  }
+}
+
+// Utleggskategori med utledet ordning + kilde (fra expenseCategory.list).
+type UtleggKategori = {
+  id: string;
+  navn: string;
+  aktiv: boolean;
+  firmaDefault: string;
+  ordning: string;
+  kilde: "firma-standard" | "overstyrt";
+};
+
+/**
+ * RaderUtlegg — registrerte utlegg-rader (speiler RaderTillegg). Viser
+ * ordnings-pille fra radens EGET stempel (ordningVedFoering), kilde-linje fra
+ * gjeldende katalog, beløp (utlegg) eller «dekket av firma» (fakturert), og
+ * kvittering-vedlegg. Ingen splitt (utlegg har ingen attesterings-/splittflyt i U3).
+ */
+function RaderUtlegg({
+  rader,
+  projectId,
+  erRedigerbar,
+  onRediger,
+}: {
+  rader: UtleggRad[];
+  projectId: string;
+  erRedigerbar: boolean;
+  onRediger: (rad: UtleggRad) => void;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId });
+
+  const fjern = trpc.timer.dagsseddel.fjernUtleggRad.useMutation({
+    onSuccess: () => void utils.timer.dagsseddel.hentMedId.invalidate(),
+    onError: (e: { message: string }) => alert(e.message),
+  });
+
+  return (
+    <ul className="divide-y divide-gray-100">
+      {rader.map((rad) => {
+        const kat = (katalog as UtleggKategori[] | undefined)?.find(
+          (k) => k.id === rad.expenseCategoryId,
+        );
+        const ordning = rad.ordningVedFoering;
+        const pille = ordningPille(ordning, t);
+        const kildeTekst =
+          kat?.kilde === "overstyrt"
+            ? t("timer.utleggReg.kilde.overstyrt")
+            : t("timer.utleggReg.kilde.firmaStandard");
+        const kreverKvitt = ordning === "utlegg";
+        const manglerKvitt = kreverKvitt && (rad.vedlegg?.length ?? 0) === 0;
+        return (
+          <li key={rad.id} className="flex items-start justify-between py-2">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium text-gray-900">
+                  {kat?.navn ?? "—"}
+                </p>
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${pille.cls}`}
+                >
+                  {pille.label}
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400">{kildeTekst}</p>
+              {rad.kommentar && (
+                <p className="text-xs text-gray-500">{rad.kommentar}</p>
+              )}
+              {rad.vedlegg && rad.vedlegg.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {rad.vedlegg.map((v) => (
+                    <a
+                      key={v.id}
+                      href={`/api${v.fileUrl}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={v.fileName}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api${v.fileUrl}`}
+                        alt={t("timer.vedlegg.tittel")}
+                        className="h-14 w-14 rounded border border-gray-200 object-cover hover:opacity-80"
+                      />
+                    </a>
+                  ))}
+                </div>
+              )}
+              {manglerKvitt && (
+                <p className="mt-1 text-[11px] font-medium text-amber-600">
+                  {t("timer.utleggReg.manglerKvittering")}
+                </p>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="font-mono text-sm text-gray-900">
+                {ordning === "fakturert"
+                  ? "✓"
+                  : `${tilTall(rad.belop).toFixed(2)} kr`}
+              </span>
+              {erRedigerbar && (
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => onRediger(rad)}
+                    className="rounded p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    title={t("handling.rediger")}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                  <button
+                    onClick={() => fjern.mutate({ id: rad.id })}
+                    disabled={fjern.isPending}
+                    className="rounded p-1.5 text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                    title={t("handling.slett")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * LeggTilVelger (8a) — ÉN inngang, to grupper (Tillegg = lønnstillegg/sats ·
+ * Utlegg = ExpenseCategory). Feltarbeideren leter etter «diesel», ikke etter
+ * taksonomi — ordningen er undertekst, aldri et valg. Flat markør over begge
+ * grupper (↑/↓/Enter, klikk = velg), overskrifter er ikke-fokuserbare.
+ *
+ * NB (U1-default): til U5 lander står alle utleggskategorier på ordning='utlegg'
+ * → Utlegg-gruppa viser «beløp + kvittering» for alt. sats-kategorier (om noen
+ * settes manuelt) bæres av lønnstillegg og vises deaktivert her (ingen
+ * lønnsart-bro i U1) — de føres via Tillegg-gruppa.
+ */
+function LeggTilVelger({
+  projectId,
+  onValgTillegg,
+  onValgUtlegg,
+  onLukk,
+}: {
+  projectId: string;
+  onValgTillegg: (tilleggId: string) => void;
+  onValgUtlegg: (expenseCategoryId: string) => void;
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const { data: tilleggKatalog } = trpc.timer.tillegg.list.useQuery();
+  const { data: utleggKatalog } = trpc.timer.expenseCategory.list.useQuery({
+    projectId,
+  });
+
+  // Flat sekvens av valgbare rader (markøren indekserer disse; deaktiverte
+  // sats-kategorier hoppes over).
+  type TilleggValg = { kind: "tillegg"; id: string; navn: string; hint: string };
+  type UtleggValg = {
+    kind: "utlegg";
+    id: string;
+    navn: string;
+    hint: string;
+    ordning: string;
+    disabled: boolean;
+  };
+  type Valg = TilleggValg | UtleggValg;
+
+  const tilleggRader: TilleggValg[] = (tilleggKatalog ?? [])
+    .filter((x) => x.aktiv)
+    .map((x) => ({
+      kind: "tillegg" as const,
+      id: x.id,
+      navn: x.navn,
+      hint:
+        x.type === "avhuking"
+          ? t("timer.utleggReg.hint.avhuking")
+          : t("timer.utleggReg.hint.antall"),
+    }));
+
+  const utleggRader: UtleggValg[] = ((utleggKatalog as UtleggKategori[] | undefined) ?? []).map(
+    (k) => ({
+      kind: "utlegg" as const,
+      id: k.id,
+      navn: k.navn,
+      ordning: k.ordning,
+      // sats-ordning bæres av lønnstillegg, ikke utlegg (ingen lønnsart-bro i U1).
+      disabled: k.ordning === "sats",
+      hint:
+        k.ordning === "fakturert"
+          ? t("timer.utleggReg.hint.avhuking")
+          : t("timer.utleggReg.hint.beloepKvittering"),
+    }),
+  );
+
+  const flate = useMemo(
+    () =>
+      [...tilleggRader, ...utleggRader].filter(
+        (v) => !(v.kind === "utlegg" && v.disabled),
+      ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tilleggKatalog, utleggKatalog],
+  );
+
+  const [markør, setMarkør] = useState(0);
+  const radRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (markør >= flate.length) setMarkør(flate.length > 0 ? flate.length - 1 : 0);
+  }, [flate.length, markør]);
+  // Fokuser lista ved åpning så ↑/↓/Enter virker uten et klikk først.
+  useEffect(() => {
+    containerRef.current?.focus();
+  }, []);
+
+  function velg(v: Valg) {
+    if (v.kind === "tillegg") onValgTillegg(v.id);
+    else if (!v.disabled) onValgUtlegg(v.id);
+  }
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setMarkør((m) => {
+        const ny = Math.min(m + 1, flate.length - 1);
+        radRefs.current[ny]?.scrollIntoView({ block: "nearest" });
+        return ny;
+      });
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMarkør((m) => {
+        const ny = Math.max(m - 1, 0);
+        radRefs.current[ny]?.scrollIntoView({ block: "nearest" });
+        return ny;
+      });
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const v = flate[markør];
+      if (v) velg(v);
+    }
+  }
+
+  // Index i `flate` for hver valgbar rad (markør-highlight); deaktiverte får -1.
+  const flatIndex = (id: string) => flate.findIndex((v) => v.id === id);
+
+  const radKlasse = (aktivMarkør: boolean, disabled?: boolean) =>
+    `flex w-full items-center gap-2 px-4 py-2 text-left ${
+      disabled
+        ? "cursor-not-allowed opacity-40"
+        : aktivMarkør
+          ? "bg-sitedoc-primary/5 border-l-2 border-sitedoc-primary"
+          : "hover:bg-gray-50 border-l-2 border-transparent"
+    }`;
+
+  const seksjonTittel = (tekst: string) => (
+    <div className="px-4 pb-1 pt-3 text-[10.5px] font-bold uppercase tracking-wide text-gray-400">
+      {tekst}
+    </div>
+  );
+
+  return (
+    <Modal open={true} onClose={onLukk} title={t("timer.utleggReg.leggTilTittel")}>
+      <div
+        ref={containerRef}
+        tabIndex={0}
+        className="max-h-[60vh] overflow-y-auto outline-none"
+        onKeyDown={onKeyDown}
+      >
+        {/* Gruppe: Tillegg (lønnstillegg / sats) */}
+        {tilleggRader.length > 0 && seksjonTittel(t("timer.utleggReg.gruppeTillegg"))}
+        {tilleggRader.map((v) => {
+          const i = flatIndex(v.id);
+          return (
+            <button
+              key={`t-${v.id}`}
+              type="button"
+              ref={(el) => {
+                if (i >= 0) radRefs.current[i] = el;
+              }}
+              onClick={() => velg(v)}
+              className={radKlasse(i === markør)}
+            >
+              <span className="text-sm font-medium text-gray-900">{v.navn}</span>
+              <span className="ml-auto text-[10.5px] text-gray-400">{v.hint}</span>
+            </button>
+          );
+        })}
+
+        {/* Gruppe: Utlegg (ExpenseCategory) */}
+        {utleggRader.length > 0 && seksjonTittel(t("timer.utleggReg.gruppeUtlegg"))}
+        {utleggRader.map((v) => {
+          const i = flatIndex(v.id);
+          const pille = ordningPille(v.ordning, t);
+          return (
+            <button
+              key={`u-${v.id}`}
+              type="button"
+              ref={(el) => {
+                if (i >= 0) radRefs.current[i] = el;
+              }}
+              onClick={() => velg(v)}
+              disabled={v.disabled}
+              className={radKlasse(i === markør, v.disabled)}
+            >
+              <span className="text-sm font-medium text-gray-900">{v.navn}</span>
+              {v.ordning !== "utlegg" && (
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${pille.cls}`}
+                >
+                  {pille.label}
+                </span>
+              )}
+              <span className="ml-auto text-[10.5px] text-gray-400">{v.hint}</span>
+            </button>
+          );
+        })}
+
+        {tilleggRader.length === 0 && utleggRader.length === 0 && (
+          <p className="px-4 py-6 text-center text-sm text-gray-500">
+            {t("timer.utleggReg.ingenKategorier")}
+          </p>
+        )}
+      </div>
+    </Modal>
+  );
+}
+
+/**
+ * UtleggRadDialog (8b) — én radform per utledet ordning:
+ *   utlegg    → beløp (påkrevd) + kvittering (påkrevd, legges på lagret rad)
+ *   fakturert → ren avhuking (ingen beløp), kvittering valgfri
+ * Kategori + ordning er låst (utledet). Redigering endrer beløp/kommentar
+ * innenfor radens ordning; ordningsbytte = ny rad (server håndhever immutabilitet).
+ */
+function UtleggRadDialog({
+  sheetId,
+  projectId,
+  expenseCategoryId,
+  rad,
+  onLukk,
+}: {
+  sheetId: string;
+  projectId: string;
+  expenseCategoryId?: string;
+  rad?: UtleggRad;
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const utils = trpc.useUtils();
+  const { data: katalog } = trpc.timer.expenseCategory.list.useQuery({ projectId });
+
+  const kategoriId = rad?.expenseCategoryId ?? expenseCategoryId ?? "";
+  const kat = (katalog as UtleggKategori[] | undefined)?.find(
+    (k) => k.id === kategoriId,
+  );
+  // Redigering: ordning fra radens stempel (immutabelt). Add: utledet fra katalog.
+  const ordning = rad?.ordningVedFoering ?? kat?.ordning ?? "utlegg";
+  const pille = ordningPille(ordning, t);
+  const kildeTekst =
+    kat?.kilde === "overstyrt"
+      ? t("timer.utleggReg.kilde.overstyrt")
+      : t("timer.utleggReg.kilde.firmaStandard");
+  const krevesBeloepUI = ordning === "utlegg";
+
+  const [belop, setBelop] = useState<string>(
+    rad?.belop != null ? String(tilTall(rad.belop)) : "",
+  );
+  const [kommentar, setKommentar] = useState<string>(rad?.kommentar ?? "");
+  const [feil, setFeil] = useState<string | null>(null);
+  const [vedleggFeil, setVedleggFeil] = useState<string | null>(null);
+  const [lasterOpp, setLasterOpp] = useState(false);
+
+  const tilfoy = trpc.timer.dagsseddel.tilfoyUtleggRad.useMutation({
+    onSuccess: () => {
+      utils.timer.dagsseddel.hentMedId.invalidate();
+      onLukk();
+    },
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+  const oppdater = trpc.timer.dagsseddel.oppdaterUtleggRad.useMutation({
+    onSuccess: () => {
+      utils.timer.dagsseddel.hentMedId.invalidate();
+      onLukk();
+    },
+    onError: (e: { message: string }) => setFeil(e.message),
+  });
+
+  // Kvittering-vedlegg — kun på lagret rad (som tillegg/mobil: «lagre først»).
+  const { data: vedleggListe } =
+    trpc.timer.dagsseddel.listUtleggVedlegg.useQuery(
+      { sheetId },
+      { enabled: !!rad },
+    );
+  const radVedlegg = (
+    (vedleggListe ?? []) as unknown as Array<{
+      id: string;
+      fileUrl: string;
+      fileName: string;
+      sheetUtleggId: string;
+    }>
+  ).filter((v) => v.sheetUtleggId === rad?.id);
+
+  const invaliderVedlegg = () => {
+    utils.timer.dagsseddel.listUtleggVedlegg.invalidate({ sheetId });
+    utils.timer.dagsseddel.hentMedId.invalidate();
+  };
+  const tilfoyVedlegg = trpc.timer.dagsseddel.tilfoyUtleggVedlegg.useMutation({
+    onSuccess: invaliderVedlegg,
+    onError: (e: { message: string }) => setVedleggFeil(e.message),
+  });
+  const fjernVedlegg = trpc.timer.dagsseddel.fjernUtleggVedlegg.useMutation({
+    onSuccess: invaliderVedlegg,
+    onError: (e: { message: string }) => setVedleggFeil(e.message),
+  });
+
+  async function handleVedleggValgt(e: React.ChangeEvent<HTMLInputElement>) {
+    const fil = e.target.files?.[0];
+    e.target.value = "";
+    if (!fil) return;
+    if (!rad) {
+      setVedleggFeil(t("timer.vedlegg.lagreForst"));
+      return;
+    }
+    setVedleggFeil(null);
+    setLasterOpp(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", fil);
+      const res = await fetch("/api/upload?privat=1", { method: "POST", body: formData });
+      const raaTekst = await res.text();
+      let data: { fileUrl?: string; fileSize?: number; error?: string } = {};
+      try {
+        data = raaTekst ? JSON.parse(raaTekst) : {};
+      } catch {
+        console.error("[utlegg-vedlegg] upload-svar er ikke JSON:", res.status, raaTekst.slice(0, 300));
+      }
+      if (!res.ok) {
+        setVedleggFeil(data.error ?? t("timer.vedlegg.opplastingFeilet"));
+        return;
+      }
+      if (!data.fileUrl) {
+        console.error("[utlegg-vedlegg] upload 200 uten fileUrl:", res.status, raaTekst.slice(0, 300));
+        setVedleggFeil(t("timer.vedlegg.opplastingFeilet"));
+        return;
+      }
+      await tilfoyVedlegg.mutateAsync({
+        sheetUtleggId: rad.id,
+        fileUrl: data.fileUrl,
+        fileName: fil.name,
+        mimeType: fil.type || "application/octet-stream",
+        fileSize: data.fileSize ?? fil.size,
+      });
+    } catch (e) {
+      setVedleggFeil(e instanceof Error ? e.message : t("timer.vedlegg.opplastingFeilet"));
+    } finally {
+      setLasterOpp(false);
+    }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setFeil(null);
+    // Beløp: 'utlegg' krever > 0; 'fakturert' fører ingen beløp (null).
+    let belopVal: number | null = null;
+    if (krevesBeloepUI) {
+      const b = parseFloat(belop.replace(",", "."));
+      if (isNaN(b) || b <= 0) {
+        setFeil(t("timer.utleggReg.beloepPaakrevd"));
+        return;
+      }
+      belopVal = b;
+    }
+    const kommentarVal = kommentar.trim() || null;
+    if (rad) {
+      oppdater.mutate({ id: rad.id, belop: belopVal, kommentar: kommentarVal });
+    } else {
+      tilfoy.mutate({
+        sheetId,
+        projectId,
+        expenseCategoryId: kategoriId,
+        belop: belopVal,
+        kommentar: kommentarVal,
+      });
+    }
+  }
+
+  const lagrer = tilfoy.isPending || oppdater.isPending;
+  const manglerKvitt = krevesBeloepUI && !!rad && radVedlegg.length === 0;
+
+  return (
+    <Modal
+      open={true}
+      onClose={onLukk}
+      title={rad ? t("timer.utleggReg.redigerUtlegg") : t("timer.detalj.leggTil")}
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Kategori-overskrift + ordnings-pille + kilde (8b). Aldri et valg. */}
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-sm font-semibold text-gray-900">{kat?.navn ?? "—"}</p>
+            <span
+              className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${pille.cls}`}
+            >
+              {pille.label}
+            </span>
+          </div>
+          <p className="text-[11px] text-gray-400">{kildeTekst}</p>
+        </div>
+
+        {krevesBeloepUI ? (
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">
+              {t("timer.beloep")}
+            </label>
+            <Input
+              type="number"
+              step="0.01"
+              min={0}
+              inputMode="decimal"
+              value={belop}
+              onChange={(e) => setBelop(e.target.value)}
+              autoFocus
+              required
+            />
+          </div>
+        ) : (
+          <p className="rounded border border-gray-200 bg-gray-50 px-3 py-2 text-xs text-gray-500">
+            {t("timer.utleggReg.fakturertInfo")}
+          </p>
+        )}
+
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.felt.kommentar")}{" "}
+            <span className="text-xs text-gray-400">({t("label.valgfritt")})</span>
+          </label>
+          <Input
+            type="text"
+            value={kommentar}
+            onChange={(e) => setKommentar(e.target.value)}
+          />
+        </div>
+
+        {/* Kvittering — påkrevd for 'utlegg' (refusjonsgrunnlag), valgfri for
+            'fakturert' (dokumentasjon). Legges på lagret rad (som tillegg). */}
+        <div>
+          <label className="mb-1 block text-sm font-medium text-gray-700">
+            {t("timer.vedlegg.tittel")}{" "}
+            <span className="text-xs text-gray-400">
+              {krevesBeloepUI ? "" : `(${t("label.valgfritt")})`}
+            </span>
+          </label>
+          {!rad ? (
+            <p className="text-xs text-gray-500">{t("timer.vedlegg.lagreForst")}</p>
+          ) : (
+            <div className="space-y-2">
+              {radVedlegg.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {radVedlegg.map((v) => (
+                    <div key={v.id} className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api${v.fileUrl}`}
+                        alt={v.fileName}
+                        className="h-16 w-16 rounded border border-gray-200 object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fjernVedlegg.mutate({ id: v.id })}
+                        className="absolute -right-1.5 -top-1.5 rounded-full bg-white p-0.5 text-gray-500 shadow hover:text-red-600"
+                        title={t("handling.fjern")}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <label className="inline-flex cursor-pointer items-center gap-1 rounded border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                <Plus className="h-4 w-4" />
+                {lasterOpp ? t("timer.vedlegg.laster") : t("timer.vedlegg.leggTil")}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  disabled={lasterOpp}
+                  onChange={handleVedleggValgt}
+                />
+              </label>
+              {manglerKvitt && (
+                <p className="text-xs font-medium text-amber-600">
+                  {t("timer.utleggReg.kvitteringPaakrevd")}
+                </p>
+              )}
+              {vedleggFeil && <p className="text-sm text-red-600">{vedleggFeil}</p>}
+            </div>
+          )}
+        </div>
+
+        {feil && <p className="text-sm text-red-600">{feil}</p>}
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onLukk}>
+            {t("handling.avbryt")}
+          </Button>
+          <Button type="submit" disabled={lagrer || !kategoriId}>
             {lagrer ? t("handling.lagrer") : t("handling.lagre")}
           </Button>
         </div>
