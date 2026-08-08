@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "Modèle IFC",
   "tegninger.ifcKortUnder": "Nuage de points ouvert / vue IFC",
   "tegninger.utenByggeplass": "Aucun site",
+  "tegninger.fortsett": "Continuez là où vous vous êtes arrêté",
   "dokumenter.alleMapper": "Tous les dossiers",
   "dokumenter.arverSprak": "hérite de la langue",
   "dokumenter.egneSprak": "propres langues : {{koder}}",

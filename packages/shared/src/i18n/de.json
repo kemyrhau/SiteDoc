@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "IFC-Modell",
   "tegninger.ifcKortUnder": "Offene Punktwolke/IFC-Ansicht",
   "tegninger.utenByggeplass": "Keine Website",
+  "tegninger.fortsett": "Machen Sie dort weiter, wo Sie aufgehört haben",
   "dokumenter.alleMapper": "Alle Ordner",
   "dokumenter.arverSprak": "erbt Sprache",
   "dokumenter.egneSprak": "eigene Sprachen: {{koder}}",

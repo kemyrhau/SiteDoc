@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "IFC modelis",
   "tegninger.ifcKortUnder": "Atvērtā punkta mākonis / IFC skats",
   "tegninger.utenByggeplass": "Nav vietnes",
+  "tegninger.fortsett": "Turpiniet no vietas, kur pārtraucāt",
   "dokumenter.alleMapper": "Visas mapes",
   "dokumenter.arverSprak": "manto valodu",
   "dokumenter.egneSprak": "savas valodas: {{koder}}",

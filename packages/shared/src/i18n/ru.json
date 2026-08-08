@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "Модель МФК",
   "tegninger.ifcKortUnder": "Открытое облако точек/представление IFC",
   "tegninger.utenByggeplass": "Нет сайта",
+  "tegninger.fortsett": "Продолжить с того места, где вы остановились",
   "dokumenter.alleMapper": "Все папки",
   "dokumenter.arverSprak": "наследует язык",
   "dokumenter.egneSprak": "свои языки: {{koder}}",

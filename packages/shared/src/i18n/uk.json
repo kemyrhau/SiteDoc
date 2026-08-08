@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "Модель IFC",
   "tegninger.ifcKortUnder": "Відкрита хмара точок / вид IFC",
   "tegninger.utenByggeplass": "Немає сайту",
+  "tegninger.fortsett": "Продовжте там, де зупинилися",
   "dokumenter.alleMapper": "Всі папки",
   "dokumenter.arverSprak": "успадковує мову",
   "dokumenter.egneSprak": "власні мови: {{koder}}",

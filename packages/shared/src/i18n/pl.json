@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "Model IFC",
   "tegninger.ifcKortUnder": "Otwórz widok chmury punktów / IFC",
   "tegninger.utenByggeplass": "Brak witryny",
+  "tegninger.fortsett": "Kontynuuj od miejsca, w którym skończyłeś",
   "dokumenter.alleMapper": "Wszystkie foldery",
   "dokumenter.arverSprak": "dziedziczy język",
   "dokumenter.egneSprak": "własne języki: {{koder}}",

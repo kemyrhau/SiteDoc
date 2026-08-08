@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "IFC model",
   "tegninger.ifcKortUnder": "Otevřené zobrazení mračna bodů / IFC",
   "tegninger.utenByggeplass": "Žádné stránky",
+  "tegninger.fortsett": "Pokračujte tam, kde jste skončili",
   "dokumenter.alleMapper": "Všechny složky",
   "dokumenter.arverSprak": "zdědí jazyk",
   "dokumenter.egneSprak": "vlastní jazyky: {{koder}}",

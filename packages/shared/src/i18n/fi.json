@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "IFC malli",
   "tegninger.ifcKortUnder": "Avoimen pisteen pilvi / IFC-näkymä",
   "tegninger.utenByggeplass": "Ei sivustoa",
+  "tegninger.fortsett": "Jatka siitä mihin jäit",
   "dokumenter.alleMapper": "Kaikki kansiot",
   "dokumenter.arverSprak": "perii kielen",
   "dokumenter.egneSprak": "omat kielet: {{koder}}",

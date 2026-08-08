@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "IFC mudel",
   "tegninger.ifcKortUnder": "Avatud punkti pilv / IFC vaade",
   "tegninger.utenByggeplass": "Saiti pole",
+  "tegninger.fortsett": "Jätkake sealt, kus pooleli jäite",
   "dokumenter.alleMapper": "Kõik kaustad",
   "dokumenter.arverSprak": "pärib keele",
   "dokumenter.egneSprak": "oma keeled: {{koder}}",

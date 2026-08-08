@@ -1137,6 +1137,7 @@
   "tegninger.ifcKort": "IFC-modell",
   "tegninger.ifcKortUnder": "Öppna punktmoln/IFC-vy",
   "tegninger.utenByggeplass": "Ingen webbplats",
+  "tegninger.fortsett": "Fortsätt där du slutade",
   "dokumenter.alleMapper": "Alla mappar",
   "dokumenter.arverSprak": "ärver språket",
   "dokumenter.egneSprak": "egna språk: {{koder}}",
