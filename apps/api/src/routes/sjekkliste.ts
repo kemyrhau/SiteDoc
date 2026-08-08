@@ -433,38 +433,23 @@ export const sjekklisteRouter = router({
             byggeplassId: input.byggeplassId,
             drawingId: input.drawingId,
             dueDate: input.dueDate ? new Date(input.dueDate) : undefined,
-            // F3.2: status AVLEDES fra fakta (avledStatus = eneste skriver). HMS: sendt → «Hos 2»
-            // = received (transient «sent» kollapser, samme klasse som in_progress). Standard: !sendt → draft.
-            status: avledetStatus({ terminal: null, retning: null, sendt: erHms }),
-            // Posisjonsmodell: HMS starter sendt (ball hos Ledd 2 = HMS-gruppe → aktivPosisjon 2, F1b).
-            // Standard starter som utkast hos oppretter (Ledd 1), ikke sendt (F3.1).
-            sendt: erHms,
-            aktivPosisjon: erHms ? (hmsFlytId ? 2 : undefined) : 1,
+            // Spor 2 / 5a: HMS (SJA) opprettes nå som UTKAST (draft), ikke auto-sendt. Melder
+            // eier innholdet og sender selv via hmsSendInn (→ Behandler-ledd + feltlås 5b).
+            // Flyt-binding + recipientGroupId står; ballen ligger hos melder (Ledd 1) til «Send inn».
+            // F3.2: status AVLEDES fra fakta (avledStatus = eneste skriver) — !sendt → draft.
+            status: avledetStatus({ terminal: null, retning: null, sendt: false }),
+            // HMS + standard starter begge hos oppretter/melder (Ledd 1), ikke sendt.
+            sendt: false,
+            aktivPosisjon: erHms ? (hmsFlytId ? 1 : undefined) : 1,
             recipientUserId,
             recipientGroupId: endeligRecipientGroupId,
           },
         });
       });
 
-      // Meld (opprett = send): varsle HMS-gruppen. Saken er live idet den
-      // opprettes (D2). Guard 1 sikrer at HMS aldri har dokumentflyt, så
-      // recipientGroupId er alltid HMS-gruppen her.
-      if (erHms && recipientGroupId) {
-        const meta = await ctx.prisma.reportTemplate.findUnique({
-          where: { id: input.templateId },
-          select: { prefix: true, project: { select: { name: true } } },
-        });
-        await sendHmsVarsel(ctx.prisma, {
-          dokumentId: opprettet.id,
-          tittel: opprettet.title,
-          nummer: opprettet.number,
-          prefix: meta?.prefix ?? null,
-          projectId: malForDomain.projectId,
-          prosjektNavn: meta?.project?.name ?? "",
-          avsenderId: ctx.userId,
-          recipientGroupId,
-        });
-      }
+      // Spor 2 / 5a: HMS (SJA) opprettes som utkast — INGEN varsel ved opprett. Behandler-leddet
+      // (HMS-gruppen) varsles først når melder sender inn (sjekkliste.hmsSendInn). recipientGroupId
+      // er allerede satt, så Send inn finner mottakeren uten nytt oppslag.
 
       return opprettet;
     }),
@@ -1483,6 +1468,69 @@ export const sjekklisteRouter = router({
       }
 
       return transfer;
+    }),
+
+  /**
+   * Send inn HMS-utkast (SJA) / send tilbake til behandler etter Returner (melder). Spor 2 / 5a.
+   * Speiler oppgave.hmsSendInn. Melder fyller ut som utkast (draft) og sender selv → ballen går
+   * til Behandler-ledd (Ledd 2 = HMS-gruppe) og feltene låses (5b). Samme handling brukes når
+   * behandler har returnert saken (responded, ball hos melder). Tilstand: draft | responded →
+   * received. Migrerings-fri. Transfer-raden gir SPORet (draft→received vs responded→received).
+   */
+  hmsSendInn: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const sjekkliste = await hentHmsSjekkliste(ctx.prisma, input.id);
+      await verifiserHmsHandling(
+        ctx.userId,
+        {
+          bestillerUserId: sjekkliste.bestillerUserId,
+          status: sjekkliste.status,
+          projectId: sjekkliste.template.projectId,
+        },
+        "sendInn",
+      );
+
+      const erRetur = sjekkliste.status === "responded";
+
+      const resultat = await ctx.prisma.$transaction(async (tx) => {
+        const oppdatert = await tx.checklist.update({
+          where: { id: input.id },
+          data: {
+            status: avledetStatus({ terminal: null, retning: null, sendt: true }),
+            sendt: true,
+            aktivPosisjon: sjekkliste.dokumentflytId ? 2 : sjekkliste.aktivPosisjon,
+            retning: null,
+            terminal: null,
+          },
+        });
+        await tx.documentTransfer.create({
+          data: {
+            checklistId: input.id,
+            senderId: ctx.userId,
+            fromStatus: sjekkliste.status,
+            toStatus: "received",
+            comment: erRetur ? "Revidert og sendt tilbake til behandler" : "Sendt inn til behandling",
+          },
+        });
+        return oppdatert;
+      });
+
+      // Varsle Behandler-ledd (HMS-gruppen) — saken er nå live hos behandler.
+      if (sjekkliste.recipientGroupId) {
+        await sendHmsVarsel(ctx.prisma, {
+          dokumentId: sjekkliste.id,
+          tittel: sjekkliste.title,
+          nummer: sjekkliste.number,
+          prefix: sjekkliste.template.prefix,
+          projectId: sjekkliste.template.projectId,
+          prosjektNavn: sjekkliste.template.project.name,
+          avsenderId: ctx.userId,
+          recipientGroupId: sjekkliste.recipientGroupId,
+        });
+      }
+
+      return resultat;
     }),
 
   // Slett sjekkliste (myk — legges i papirkurv, kan gjenopprettes i 90 dager).

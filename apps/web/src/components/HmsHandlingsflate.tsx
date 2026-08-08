@@ -69,8 +69,6 @@ const HANDLINGER: Record<HmsHandlingType, HmsHandlingDef> = {
 
 interface HmsHandlingsflateProps {
   status: string;
-  /** Innlogget bruker er oppretter (bestillerUserId === innlogget). */
-  erOppretter: boolean;
   /** Innlogget bruker er HMS-admin (fra server-queryen hms.erHmsAdmin). */
   erHmsAdmin: boolean;
   erLaster: boolean;
@@ -78,19 +76,14 @@ interface HmsHandlingsflateProps {
   onUtfor: (type: HmsHandlingType, tekst: string | undefined) => void;
 }
 
-/** Hvilke handlinger er tilgjengelige gitt tilstand × rolle (D2). */
-function tilgjengeligeHandlinger(
-  status: string,
-  erOppretter: boolean,
-  erHmsAdmin: boolean,
-): HmsHandlingType[] {
+/** Hvilke behandler-handlinger er tilgjengelige gitt tilstand (D2). Spor 2 / 5b: melderens
+ *  «Tilføy informasjon» bor nå i egen «Tillegg fra melder»-seksjon (HmsMelderTillegg), ikke her
+ *  — mockup-separasjon (melder eier innholdet, behandler eier handlingen). Ren behandler-flate. */
+function tilgjengeligeHandlinger(status: string, erHmsAdmin: boolean): HmsHandlingType[] {
   const liste: HmsHandlingType[] = [];
   // `received` = «Hos behandler» (sendt, ball hos HMS-leddet). Speiler verifiserHmsHandling:
   // åpen behandling = sent · received · responded.
   const åpen = status === "sent" || status === "received" || status === "responded";
-  if (erOppretter && åpen) {
-    liste.push("tilfoyInformasjon");
-  }
   if (erHmsAdmin && åpen) {
     liste.push("besvar");
   }
@@ -102,7 +95,6 @@ function tilgjengeligeHandlinger(
 
 export function HmsHandlingsflate({
   status,
-  erOppretter,
   erHmsAdmin,
   erLaster,
   feilmelding,
@@ -112,7 +104,7 @@ export function HmsHandlingsflate({
   const [aktiv, setAktiv] = useState<HmsHandlingType | null>(null);
   const [tekst, setTekst] = useState("");
 
-  const handlinger = tilgjengeligeHandlinger(status, erOppretter, erHmsAdmin);
+  const handlinger = tilgjengeligeHandlinger(status, erHmsAdmin);
 
   const lukkPanel = () => {
     setAktiv(null);
@@ -127,6 +119,9 @@ export function HmsHandlingsflate({
   };
 
   if (handlinger.length === 0) {
+    // Spor 2 / 5a: utkast har ingen behandlingshandlinger — melder-banneret (Send inn/Forkast)
+    // eier handlingen. Ikke vis «Lesevisning» her (ville motsi det redigerbare skjemaet + banneret).
+    if (status === "draft") return null;
     // Ingen handlinger for denne rollen/tilstanden (f.eks. lukket sett fra
     // oppretter, eller leser uten rolle) — ren lesevisning.
     return <span className="text-xs italic text-gray-400">{t("bunnbar.lesevisning")}</span>;

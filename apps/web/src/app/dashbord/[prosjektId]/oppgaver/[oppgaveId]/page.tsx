@@ -11,6 +11,8 @@ import { useOppgaveSkjema } from "@/hooks/useOppgaveSkjema";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
 import { HmsFlytStripe } from "@/components/HmsFlytStripe";
+import { HmsMelderBanner } from "@/components/HmsMelderBanner";
+import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
 import { LokasjonVelger } from "@/components/LokasjonVelger";
@@ -320,8 +322,10 @@ export default function OppgaveDetaljSide() {
   const hmsGjenapneMutasjon = trpc.oppgave.hmsGjenapne.useMutation(hmsMutasjonOpts);
   const hmsTilfoyMutasjon = trpc.oppgave.hmsTilfoyInformasjon.useMutation(hmsMutasjonOpts);
   const hmsReturnerMutasjon = trpc.oppgave.hmsReturner.useMutation(hmsMutasjonOpts);
+  const hmsSendInnMutasjon = trpc.oppgave.hmsSendInn.useMutation(hmsMutasjonOpts);
 
   const hmsLaster =
+    hmsSendInnMutasjon.isPending ||
     hmsBesvarMutasjon.isPending ||
     hmsLukkMutasjon.isPending ||
     hmsGjenapneMutasjon.isPending ||
@@ -433,9 +437,18 @@ export default function OppgaveDetaljSide() {
   const erMelder =
     !!(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId &&
     (fullOppgaveRå as { bestillerUserId?: string }).bestillerUserId === minFlytInfo?.userId;
-  const leseModus = erHms
-    ? !(erMelder && oppgave?.status === "draft")
-    : !erRedigerbar;
+  // Beslutning 1 (Blokk 10): posisjon bestemmer rettighet. Melder redigerer sitt eget dokument
+  // når ballen ligger hos melder-leddet (Ledd 1) og saken ikke er terminal — dvs. i utkast (draft)
+  // OG etter Returner (responded, rutet tilbake til melder). Behandler er ALLTID read-only på
+  // melderens felt (5c). 5b-låsen gjelder mens ballen er hos behandler (received/pos 2). Flyt-løs
+  // HMS (gammelt prosjekt) mangler aktivPosisjon → fall tilbake på status (draft/responded).
+  const erTerminalHms = ["closed", "approved", "cancelled", "rejected"].includes(oppgave?.status ?? "");
+  const ballHosMelder =
+    !erTerminalHms &&
+    (oppgave?.status === "draft" ||
+      aktivPosisjon === 1 ||
+      (aktivPosisjon == null && oppgave?.status === "responded"));
+  const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
 
   // Behandler-leddets navn til HMS-flyt-stripa = siste flyt-ledd (gruppe/faggruppe/person).
   const hmsBehandlerNavn = useMemo<string | null>(() => {
@@ -656,7 +669,6 @@ export default function OppgaveDetaljSide() {
           {erHms ? (
             <HmsHandlingsflate
               status={oppgave.status}
-              erOppretter={erMelder}
               erHmsAdmin={erHmsAdmin}
               erLaster={hmsLaster}
               feilmelding={statusFeil}
@@ -735,6 +747,17 @@ export default function OppgaveDetaljSide() {
         </div>
       </div>
 
+      {/* Spor 2 / 5a: HMS melder-handlingsbanner — Send inn/Forkast (utkast) eller
+          Send tilbake (returnert). Vises kun for melder når ballen ligger hos melder-leddet. */}
+      {erHms && erMelder && ballHosMelder && (
+        <HmsMelderBanner
+          status={oppgave.status}
+          laster={hmsLaster || slettMutasjon.isPending}
+          onSendInn={() => hmsSendInnMutasjon.mutate({ id: params.oppgaveId })}
+          onForkast={() => slettMutasjon.mutate({ id: params.oppgaveId })}
+        />
+      )}
+
       {/* Rapportobjekter */}
       {objekter.length > 0 && (
         <UtfyllingSeksjoner
@@ -799,6 +822,19 @@ export default function OppgaveDetaljSide() {
               </div>
             );
           }}
+        />
+      )}
+
+      {/* Spor 2 / 5b: «Tillegg fra melder» — synlig feltlås + tidsstemplet tillegg-logg.
+          Vises for melderen etter at saken er sendt (ikke i utkast). Melder eier innholdet. */}
+      {erHms && erMelder && oppgave.status !== "draft" && (
+        <HmsMelderTillegg
+          overforinger={((fullOppgaveRå as { transfers?: unknown[] }).transfers ?? []) as Parameters<typeof HmsMelderTillegg>[0]["overforinger"]}
+          bestillerUserId={(fullOppgaveRå as { bestillerUserId?: string })?.bestillerUserId}
+          feltlaast={!ballHosMelder && !erTerminalHms}
+          kanTilfoye={["sent", "received", "responded"].includes(oppgave.status)}
+          laster={hmsLaster}
+          onTilfoy={(tekst) => hmsTilfoyMutasjon.mutate({ id: params.oppgaveId, kommentar: tekst })}
         />
       )}
 
