@@ -107,6 +107,21 @@ export type {
   PerspektivSeerKontekst,
   PerspektivEtikett,
 } from "./perspektivEtikett";
+export {
+  UTLEGG_ORDNINGER,
+  erGyldigOrdning,
+  utledOrdning,
+  baeresAvSheetUtlegg,
+  krevesBelop,
+  kreverKvittering,
+  tillaterKvittering,
+  eksportRute,
+} from "./utleggOrdning";
+export type {
+  UtleggOrdning,
+  UtledOrdningInput,
+  EksportRute,
+} from "./utleggOrdning";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.

@@ -10,6 +10,7 @@ sist_verifisert_mot_kode: 2026-07-10
 
 | Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
 |---|---|---|---|---|---|
+| **Utlegg-ordningsmodell** | `SiteDoc-utlegg` | `feat/utlegg-ordningsmodell` | `packages/shared/src/utils/utleggOrdning.ts` · `packages/db-timer/prisma/schema.prisma` + migrering · `docs/claude/timer.md` | 2026-08-08 | 🟢 **U1 kodet + gatet + pushet.** Datamodell (SheetUtlegg/vedlegg/overstyring + `ordning` + CHECK) + delt utledning. Neste: U2 eksport-guard |
 **Tavla er tom for aktive kode-økter** (2026-07-24) — hele flyt-sporet + A-3b er merget til develop. `SiteDoc-a3b`-treet kan ryddes (branch merget). Fabel-design + backlog-saker (Tooltip v2, `ListeKontroll`, mobil-wiring, flyt-handlingstekster) er ikke aktive økter.
 
 | **Registrator-fiks** | *(økt kan exit)* | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` · `tilgangskontroll.ts` · `DokumentHandlingsmeny` | 2026-07-21 | **✅ MERGET develop (`cb3ce3d1`).** Fase A+B — registrator ikke lenger superbruker. ⚠️ Åpen rest: `rejected→sent` → handlingsmeny-arbeidet ([registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md)) |
@@ -96,6 +97,12 @@ Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmod
 - **Statusmaskin:** F6-oppfølger (`received→approved` som default) · posisjonsutredning (H1/N-boks, `steg`-feltet finnes) · registrator-steg-1-validering · H2 (utførers venstre-send/tilbake-kant) · besvar=venstre-modellspenningen · § 0 delt-kilde-konsolidering (egen fase).
 - **Effektivitet:** **P4c timer** (7→1-2 klikk, arver chip-komponenten) — ikke startet. Øvrige restanser i [BACKLOG](BACKLOG.md).
 - **Mobil M1–M3:** #2 inline-kommentar-inngang · #7b liste-filter · #4 bekreft-på-send-vurdering · #5 testdata-flyt m/distinkte personer per ledd.
+### Utlegg-ordningsmodell U1 — datamodell + delt utledning (branch `feat/utlegg-ordningsmodell`) — PÅ BRANCH, venter merge (IKKE prod)
+
+**Additiv, migrerings-gatet (Kenneth godkjente).** Løser rot-defekten: utlegg (diesel/bom/materiell) måtte velges fra lønnstillegg-katalogen → beløp presset i `SheetTillegg.antall`. U1 etablerer egen bærer FØR en Proadm-lønnseksport bygges (den finnes ikke i kode ennå — nå-sjekk bekreftet). **Merk «U1» her = utleggs-ordningsmodell, ikke timer-rapport-U1 fra 2026-05.**
+
+Tre ordninger utledes, aldri valgt av feltarbeideren: `sats` (→SheetTillegg, lønnsart) · `utlegg` (→SheetUtlegg, beløp+kvittering→refusjon) · `fakturert` (→SheetUtlegg, avhuking, `belop=null`, eksporteres aldri). Levert: (1) delt `utledOrdning` (`overstyring ?? firma-default`) + avledningshjelpere i `@sitedoc/shared` (10 tester). (2) migrering `20260808120000_utlegg_ordningsmodell` — `ExpenseCategory.ordning` + `sheet_utlegg`/`sheet_utlegg_vedlegg`/`prosjekt_ordning_overstyring` + **CHECK på `ordning_ved_foering`/`belop`** (integritetsbærer, ikke app-flagg). (3) `timer.md` drift-reconciliert (planlagt `sheet_expenses` → faktisk modell). **Build:** full `pnpm build` 3/3, 441 shared-tester, `prisma validate` + `migrate diff`-verifisert. **Gjenstår:** U2 eksport-guard · U3 web · U4 mobil · U5 firma-admin overstyring-UI (**inkl. eksplisitt: firma-admin må sette ordning per kategori; default er `utlegg`**) · U6 migrering av feilførte rader (egen gate; forutsetter Proadm-sti-avklaring).
+
 ### HMS-behandlingsflyt Diff 1 — `received`-rot-fiks + 5c behandler-mønster (branch `feat/hms-behandlingsflyt`) — PÅ BRANCH, venter merge → test (IKKE prod)
 
 **Prod-kritisk, migrerings-fri.** Rotårsak (SQL avkreftet drift + include-hypotese): HMS sendes med status `received` (Q1-kollaps), men `verifiserHmsHandling` + `HmsHandlingsflate` gjenkjente kun `sent`/`responded` → behandle-knapper filtrert bort på sendte RUH-er → «Lesevisning» for behandler OG admin, uavhengig av `erHmsAdmin`. Live på prod fra 03.08 (A.Markussen-pilot rammet).
