@@ -290,6 +290,10 @@ export default function OppgaveDetalj() {
       }
       utils.oppgave.hentForProsjekt.invalidate();
       utils.oppgave.hentForTegning.invalidate();
+      // Funn A: HMS-lista (`hms.hentDokumenter`) er en egen query som ikke fanges
+      // av oppgave-invalideringene — uten denne henger et slettet/forkastet
+      // HMS-utkast igjen i HMS-fanen til manuell refresh.
+      utils.hms.hentDokumenter.invalidate();
       router.back();
     },
     onError: (feil: { message?: string }) => {
@@ -302,6 +306,9 @@ export default function OppgaveDetalj() {
     onSuccess: () => {
       utils.oppgave.hentMedId.invalidate({ id: id! });
       utils.oppgave.hentForProsjekt.invalidate();
+      // Funn A: etter Send inn flytter dokumentet status (draft → received) i
+      // HMS-fanen — invalidér HMS-lista så det oppdateres uten manuell refresh.
+      utils.hms.hentDokumenter.invalidate();
     },
     onError: (feil: { message?: string }) => {
       Alert.alert(t("feil.ukjentFeil"), feil.message ?? "");
@@ -341,6 +348,24 @@ export default function OppgaveDetalj() {
         { text: t("handling.avbryt"), style: "cancel" },
         {
           text: t("handling.slett"),
+          style: "destructive",
+          onPress: () => slettMutasjon.mutate({ id: id! }),
+        },
+      ],
+    );
+  }, [id, slettMutasjon]);
+
+  // Funn B: HMS-melder forkaster sitt eget utkast — egen mikrotekst (ingen har
+  // sett det, det legges i papirkurven), ikke den generelle «Slett oppgave»-
+  // advarselen. Samme (myke) slett-mutasjon; kun dialogteksten skiller.
+  const håndterForkast = useCallback(() => {
+    Alert.alert(
+      t("hms.forkast.tittel"),
+      t("hms.forkast.bekreft"),
+      [
+        { text: t("handling.avbryt"), style: "cancel" },
+        {
+          text: t("hms.handling.forkast"),
           style: "destructive",
           onPress: () => slettMutasjon.mutate({ id: id! }),
         },
@@ -651,7 +676,9 @@ export default function OppgaveDetalj() {
             }}
           >
             <Text className={`text-sm ${oppgave.description ? "text-gray-800" : "text-gray-400 italic"}`}>
-              {oppgave.description || t("oppgave.leggTilBeskrivelse")}
+              {/* Funn C: i leseModus gjør «Trykk for å legge til …» ingenting ved
+                  trykk — vis nøytralt «—» i stedet for en falsk invitasjon. */}
+              {oppgave.description || (leseModus ? "—" : t("oppgave.leggTilBeskrivelse"))}
             </Text>
           </Pressable>
         </View>
@@ -899,7 +926,7 @@ export default function OppgaveDetalj() {
               </Pressable>
               {oppgave.status === "draft" && (
                 <Pressable
-                  onPress={håndterSlett}
+                  onPress={håndterForkast}
                   className="items-center justify-center rounded-lg border border-gray-300 px-5 py-3"
                 >
                   <Text className="text-base font-semibold text-gray-700">{t("hms.handling.forkast")}</Text>

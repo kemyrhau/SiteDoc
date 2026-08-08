@@ -97,6 +97,16 @@ Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmod
 - **Statusmaskin:** F6-oppfølger (`received→approved` som default) · posisjonsutredning (H1/N-boks, `steg`-feltet finnes) · registrator-steg-1-validering · H2 (utførers venstre-send/tilbake-kant) · besvar=venstre-modellspenningen · § 0 delt-kilde-konsolidering (egen fase).
 - **Effektivitet:** **P4c timer** (7→1-2 klikk, arver chip-komponenten) — ikke startet. Øvrige restanser i [BACKLOG](BACKLOG.md).
 - **Mobil M1–M3:** #2 inline-kommentar-inngang · #7b liste-filter · #4 bekreft-på-send-vurdering · #5 testdata-flyt m/distinkte personer per ledd.
+### Mobil device-småfunn ×5 (branch `fix/mobil-smaafunn-2026-08-08`) — PÅ BRANCH, venter merge → EAS 44
+
+**Fem uavhengige mobil-fikser fra Kenneths enhetstest (Blokk 7 + fabel Del C/D), simulator-verifisert. Ingen migrering, ingen serverendring. Reload: Metro reload.** Går ut i felt via **EAS 44** (testerne får 44, ikke 43).
+- **Funn A** (query-invalidasjon): `slett`/`hmsSendInn`-onSuccess i `oppgave/[id].tsx` + `sjekkliste/[id].tsx` invaliderer nå også `hms.hentDokumenter` → HMS-lista selv-oppdaterer etter Forkast/Send inn (hang før til refresh). Live-verifisert alle tre stier (opprett/forkast/send inn).
+- **Funn B** (forkast-dialog): mobil-Forkast bruker nå `hms.forkast.*`-mikrotekst («…legges i papirkurven, gjenopprett i 90 dager») i stedet for generisk «Slett»-dialog. Ingen nye nøkler (delt med web-`HmsMelderBanner`).
+- **Funn C** (leseModus): låst beskrivelse viser «—», ikke falsk «Trykk for å legge til…».
+- **fabel Del C** (hjem-innboks): maks 3 rader inline + «Se alle (N)»/«Vis færre» inline-ekspansjon til tak 10 (lokal `useState`, ikke persistert; ingen samlet innboks-skjerm å navigere til).
+- **fabel Del D** (byggeplass-velger): rad som matcher dagskortet viser «· arves fra dagskortet» (ny `sedelByggeplassId`-prop, ren visning).
+- i18n nb+en (`hjem.seAlleInnboks`, `hjem.visFaerreInnboks`, `timer.byggeplass.arvesFraDagskort`; 13-språk ved merge). Typecheck 4/4. **Til 45:** rapportobjekt-verdifelt-placeholder i leseModus (samme klasse som Funn C, delt komponent) + sedel-byggeplass-velger mangler «ingen»-valg.
+
 ### Utlegg-ordningsmodell U1 — datamodell + delt utledning (branch `feat/utlegg-ordningsmodell`) — PÅ BRANCH, venter merge (IKKE prod)
 
 **Additiv, migrerings-gatet (Kenneth godkjente).** Løser rot-defekten: utlegg (diesel/bom/materiell) måtte velges fra lønnstillegg-katalogen → beløp presset i `SheetTillegg.antall`. U1 etablerer egen bærer FØR en Proadm-lønnseksport bygges (den finnes ikke i kode ennå — nå-sjekk bekreftet). **Merk «U1» her = utleggs-ordningsmodell, ikke timer-rapport-U1 fra 2026-05.**

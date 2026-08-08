@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import {
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Plus,
   ClipboardCheck,
   ListTodo,
@@ -48,6 +49,9 @@ interface MalData {
   // Flytresolusjon: bæres fra mal-lista til opprett-modalen (delt opprett-regel).
   opprettbareFlytIder?: string[];
 }
+
+// Fabel C: antall innboksrader vist inline på Hjem før «Se alle»-raden.
+const INNBOKS_MAKS = 3;
 
 interface InnboksElement {
   id: string;
@@ -108,6 +112,9 @@ export default function HjemSkjerm() {
   const [opprettKategori, setOpprettKategori] = useState<"sjekkliste" | "oppgave" | null>(null);
   const [valgtMal, setValgtMal] = useState<MalData | null>(null);
   const [visAndroidMeny, setVisAndroidMeny] = useState(false);
+  // Fabel C: «Se alle»/«Vis færre» utvider innboksen inline til dagens tak (10).
+  // Lokal (ikke persistert) — resettes ved remount, bevisst enkel løsning.
+  const [visAlleInnboks, setVisAlleInnboks] = useState(false);
   const { valgtFirmaId, firmaer, lasterFirmaer } = useFirma();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -453,41 +460,67 @@ export default function HjemSkjerm() {
                 </Text>
               </View>
             ) : (
-              innboksElementer.slice(0, 10).map((element) => (
-                <Pressable
-                  key={element.id}
-                  className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3"
-                  onPress={() => {
-                    if (element.type === "sjekkliste") {
-                      router.push(`/sjekkliste/${element.id}`);
-                    } else if (element.type === "oppgave") {
-                      router.push(`/oppgave/${element.id}`);
-                    }
-                  }}
-                >
-                  <View className="mr-3">
-                    {element.type === "sjekkliste" ? (
-                      <ClipboardCheck size={18} color="#6b7280" />
+              <>
+                {/* Fabel C: maks 3 innboksrader inline så Oppgaver/Sjekklister/
+                    Kontrollplaner/HMS-seksjonene holder seg over skjermkanten.
+                    «Se alle» utvider inline til dagens tak (10) — ingen egen
+                    samlet innboks-skjerm finnes, så ingen rute å navigere til.
+                    Badge over = totalantall. */}
+                {innboksElementer
+                  .slice(0, visAlleInnboks ? 10 : INNBOKS_MAKS)
+                  .map((element) => (
+                  <Pressable
+                    key={element.id}
+                    className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3"
+                    onPress={() => {
+                      if (element.type === "sjekkliste") {
+                        router.push(`/sjekkliste/${element.id}`);
+                      } else if (element.type === "oppgave") {
+                        router.push(`/oppgave/${element.id}`);
+                      }
+                    }}
+                  >
+                    <View className="mr-3">
+                      {element.type === "sjekkliste" ? (
+                        <ClipboardCheck size={18} color="#6b7280" />
+                      ) : (
+                        <ListTodo size={18} color="#6b7280" />
+                      )}
+                    </View>
+                    <View className="flex-1">
+                      <Text
+                        className="text-sm text-gray-900"
+                        numberOfLines={1}
+                      >
+                        {element.nummer ? <Text className="font-bold">{element.nummer} </Text> : null}{element.tittel}
+                      </Text>
+                      <Text className="text-xs text-gray-500" numberOfLines={1}>
+                        {element.undertekst}
+                        {element.bygning ? ` · ${element.bygning}` : ""}
+                        {(element.undertekst || element.bygning) ? " · " : ""}
+                        {formaterTidspunkt(element.tidspunkt, t)}
+                      </Text>
+                    </View>
+                  </Pressable>
+                ))}
+                {innboksElementer.length > INNBOKS_MAKS && (
+                  <Pressable
+                    className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
+                    onPress={() => setVisAlleInnboks((v) => !v)}
+                  >
+                    <Text className="text-sm font-medium text-sitedoc-blue">
+                      {visAlleInnboks
+                        ? t("hjem.visFaerreInnboks")
+                        : t("hjem.seAlleInnboks", { antall: innboksElementer.length })}
+                    </Text>
+                    {visAlleInnboks ? (
+                      <ChevronUp size={18} color="#1e40af" />
                     ) : (
-                      <ListTodo size={18} color="#6b7280" />
+                      <ChevronDown size={18} color="#1e40af" />
                     )}
-                  </View>
-                  <View className="flex-1">
-                    <Text
-                      className="text-sm text-gray-900"
-                      numberOfLines={1}
-                    >
-                      {element.nummer ? <Text className="font-bold">{element.nummer} </Text> : null}{element.tittel}
-                    </Text>
-                    <Text className="text-xs text-gray-500" numberOfLines={1}>
-                      {element.undertekst}
-                      {element.bygning ? ` · ${element.bygning}` : ""}
-                      {(element.undertekst || element.bygning) ? " · " : ""}
-                      {formaterTidspunkt(element.tidspunkt, t)}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))
+                  </Pressable>
+                )}
+              </>
             )}
 
             {/* Seksjonslenker */}

@@ -365,6 +365,10 @@ export default function SjekklisteUtfylling() {
         }
       }
       utils.sjekkliste.hentForProsjekt.invalidate();
+      // Funn A: HMS-lista (`hms.hentDokumenter`) er en egen query som ikke fanges
+      // av sjekkliste-invalideringene — uten denne henger en slettet/forkastet
+      // SJA igjen i HMS-fanen til manuell refresh.
+      utils.hms.hentDokumenter.invalidate();
       router.back();
     },
     onError: (feil: { message?: string }) => {
@@ -387,11 +391,32 @@ export default function SjekklisteUtfylling() {
     );
   }, [id, slettMutasjon]);
 
+  // Funn B: HMS-melder forkaster sitt eget utkast — egen mikrotekst (ingen har
+  // sett det, det legges i papirkurven), ikke den generelle «Slett sjekkliste»-
+  // advarselen. Samme (myke) slett-mutasjon; kun dialogteksten skiller.
+  const håndterForkast = useCallback(() => {
+    Alert.alert(
+      t("hms.forkast.tittel"),
+      t("hms.forkast.bekreft"),
+      [
+        { text: t("handling.avbryt"), style: "cancel" },
+        {
+          text: t("hms.handling.forkast"),
+          style: "destructive",
+          onPress: () => slettMutasjon.mutate({ id: id! }),
+        },
+      ],
+    );
+  }, [id, slettMutasjon]);
+
   // Spor 2 / 5a: Send inn HMS-utkast (mobil oppretter SJA via sjekkliste.opprett → draft).
   const hmsSendInnMutasjon = trpc.sjekkliste.hmsSendInn.useMutation({
     onSuccess: () => {
       utils.sjekkliste.hentMedId.invalidate({ id: id! });
       utils.sjekkliste.hentForProsjekt.invalidate();
+      // Funn A: etter Send inn flytter dokumentet status (draft → received) i
+      // HMS-fanen — invalidér HMS-lista så det oppdateres uten manuell refresh.
+      utils.hms.hentDokumenter.invalidate();
     },
     onError: (feil: { message?: string }) => {
       Alert.alert(t("feil.ukjentFeil"), feil.message ?? "");
@@ -1026,7 +1051,7 @@ export default function SjekklisteUtfylling() {
               </Pressable>
               {sjekkliste.status === "draft" && (
                 <Pressable
-                  onPress={håndterSlett}
+                  onPress={håndterForkast}
                   className="items-center justify-center rounded-lg border border-gray-300 px-5 py-3"
                 >
                   <Text className="text-base font-semibold text-gray-700">{t("hms.handling.forkast")}</Text>

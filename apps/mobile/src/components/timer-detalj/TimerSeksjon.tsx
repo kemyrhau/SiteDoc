@@ -455,6 +455,7 @@ export function TimerSeksjon({
               : null
           }
           tvungetValg={tvungetValg}
+          sedelByggeplassId={sedelByggeplassId}
           onLagre={(
             radProjectId,
             byggeplassId,
@@ -518,6 +519,7 @@ export function TimerSeksjon({
               organizationId={organizationId}
               valgtProjectId={rad.projectId ?? projectId}
               valgtByggeplassId={rad.byggeplassId ?? null}
+              sedelByggeplassId={sedelByggeplassId}
               onVelg={(projId, byggId) =>
                 handterHurtigVelg(hurtigRadId, projId, byggId)
               }
@@ -845,6 +847,7 @@ function TimerRadModal({
   defaultAktivitetId,
   eksisterendeRad,
   tvungetValg,
+  sedelByggeplassId,
   onLagre,
   onLukk,
 }: {
@@ -867,6 +870,9 @@ function TimerRadModal({
    *  nytt prosjekt (+ byggeplass) her, så avhengig-felt-validering (underprosjekt,
    *  lønnsart) kjører i full modal. null = vanlig åpning (rad/default styrer). */
   tvungetValg: { projectId: string; byggeplassId: string | null } | null;
+  /** Fabel D: dagskortets byggeplass — videreført til byggeplass-velgeren for
+   *  «· arves fra dagskortet»-markering. Ren visning. */
+  sedelByggeplassId: string | null;
   onLagre: (
     projectId: string,
     byggeplassId: string | null,
@@ -1591,6 +1597,7 @@ function TimerRadModal({
             organizationId={organizationId}
             valgtProjectId={valgtProjectId}
             valgtByggeplassId={valgtByggeplassId}
+            sedelByggeplassId={sedelByggeplassId}
             onVelg={(projId, byggId) => {
               if (projId !== valgtProjectId) {
                 setValgtProjectId(projId);
@@ -1937,12 +1944,17 @@ function ProsjektByggeplassVelgerModal({
   organizationId,
   valgtProjectId,
   valgtByggeplassId,
+  sedelByggeplassId,
   onVelg,
   onLukk,
 }: {
   organizationId: string;
   valgtProjectId: string;
   valgtByggeplassId: string | null;
+  /** Fabel D: dagskortets (sedel-nivå) byggeplass — markerer HVILKEN konkrete
+   *  byggeplass «Arv fra dagskortet» faktisk peker på. null = dagskortet har
+   *  ingen byggeplass satt (ingen rad markeres). Ren visning. */
+  sedelByggeplassId?: string | null;
   /** byggeplassId = null → «Arv fra dagskortet» (sedel-nivå propagering). */
   onVelg: (projectId: string, byggeplassId: string | null) => void;
   onLukk: () => void;
@@ -2195,6 +2207,13 @@ function ProsjektByggeplassVelgerModal({
                           #{item.number}
                         </Text>
                       )
+                    )}
+                    {/* Fabel D: marker hvilken byggeplass «Arv fra dagskortet»
+                        faktisk peker på. Ren visning — ingen logikkendring. */}
+                    {sedelByggeplassId != null && item.id === sedelByggeplassId && (
+                      <Text className="text-xs text-gray-500">
+                        {t("timer.byggeplass.arvesFraDagskort")}
+                      </Text>
                     )}
                   </View>
                   {/* Stjerne-toggle (egen trykk-flate — velger ikke byggeplass). */}
