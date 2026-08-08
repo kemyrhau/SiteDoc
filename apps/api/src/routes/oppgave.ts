@@ -579,35 +579,25 @@ export const oppgaveRouter = router({
             dokumentflytId: erHms ? hmsFlytId : input.dokumentflytId,
             checklistId: input.checklistId,
             checklistFieldId: input.checklistFieldId,
-            // HMS har ingen kladd — opprett = send (D1). Standard starter i draft.
-            // F3.2: status AVLEDES fra fakta (avledStatus = eneste skriver). HMS: sendt → «Hos 2»
-            // = received (transient «sent» kollapser, samme klasse som in_progress). Standard: !sendt → draft.
-            status: avledetStatus({ terminal: null, retning: null, sendt: erHms }),
-            // Posisjonsmodell: HMS starter sendt (ball hos Ledd 2 = HMS-gruppe → aktivPosisjon 2, F1b).
-            // Standard starter som utkast hos oppretter (Ledd 1), ikke sendt (F3.1).
-            sendt: erHms,
-            aktivPosisjon: erHms ? (hmsFlytId ? 2 : undefined) : 1,
+            // Spor 2 / 5a: HMS opprettes nå som UTKAST (draft), ikke auto-sendt. Melder
+            // eier innholdet og sender selv via hmsSendInn (→ Behandler-ledd + feltlås 5b).
+            // Flyt-bindingen (dokumentflytId=hmsFlytId) + recipientGroupId står allerede;
+            // ballen ligger hos melder (Ledd 1) til «Send inn». Standard starter også i draft.
+            // F3.2: status AVLEDES fra fakta (avledStatus = eneste skriver) — !sendt → draft.
+            status: avledetStatus({ terminal: null, retning: null, sendt: false }),
+            // Posisjonsmodell: HMS + standard starter begge hos oppretter/melder (Ledd 1),
+            // ikke sendt. HMS uten flyt (gammelt prosjekt) → aktivPosisjon undefined (flyt-løst).
+            sendt: false,
+            aktivPosisjon: erHms ? (hmsFlytId ? 1 : undefined) : 1,
             recipientUserId,
             recipientGroupId,
           },
         });
       });
 
-      // Meld (opprett = send): varsle HMS-gruppen. Saken er live idet den
-      // opprettes (D2). HMS har aldri dokumentflyt, så recipientGroupId er
-      // alltid HMS-gruppen her.
-      if (erHms && recipientGroupId) {
-        await sendHmsVarsel(ctx.prisma, {
-          dokumentId: opprettet.id,
-          tittel: opprettet.title,
-          nummer: opprettet.number,
-          prefix: mal.prefix,
-          projectId: mal.projectId,
-          prosjektNavn: mal.project?.name ?? "",
-          avsenderId: ctx.userId,
-          recipientGroupId,
-        });
-      }
+      // Spor 2 / 5a: HMS opprettes som utkast — INGEN varsel ved opprett. Behandler-leddet
+      // (HMS-gruppen) varsles først når melder sender inn (oppgave.hmsSendInn). recipientGroupId
+      // er allerede satt på tasken, så Send inn finner mottakeren uten nytt oppslag.
 
       return opprettet;
     }),
@@ -1737,6 +1727,74 @@ export const oppgaveRouter = router({
       }
 
       return transfer;
+    }),
+
+  /**
+   * Send inn HMS-utkast / send tilbake til behandler etter Returner (melder). Spor 2 / 5a.
+   * Melder eier innholdet: oppretter fyller ut som utkast (draft) og sender selv → ballen
+   * går til Behandler-ledd (Ledd 2 = HMS-gruppe) og feltene låses (5b). Samme handling brukes
+   * når behandler har returnert saken (responded, ball hos melder): melder retter og sender
+   * tilbake. Tilstand: draft | responded → received. Migrerings-fri (gjenbruker eksisterende
+   * status/posisjon). Transfer-raden gir SPORet behandler trenger (Blokk 10-krav): draft→received
+   * = første innsending, responded→received = revidert-og-sendt-tilbake — synlig i tidslinja.
+   */
+  hmsSendInn: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const oppgave = await hentHmsOppgave(ctx.prisma, input.id);
+      await verifiserHmsHandling(
+        ctx.userId,
+        {
+          bestillerUserId: oppgave.bestillerUserId,
+          status: oppgave.status,
+          projectId: oppgave.template!.projectId,
+        },
+        "sendInn",
+      );
+
+      // Skiller retur-svar (revisjon) fra første innsending — kun for transfer-sporet.
+      const erRetur = oppgave.status === "responded";
+
+      const resultat = await ctx.prisma.$transaction(async (tx) => {
+        const oppdatert = await tx.task.update({
+          where: { id: input.id },
+          data: {
+            // F3.2: status avledes — sendt → received («Hos behandler»). Ball til Ledd 2
+            // (HMS-gruppe) når flyt finnes; flyt-løs HMS beholder posisjonen (undefined).
+            status: avledetStatus({ terminal: null, retning: null, sendt: true }),
+            sendt: true,
+            aktivPosisjon: oppgave.dokumentflytId ? 2 : oppgave.aktivPosisjon,
+            retning: null,
+            terminal: null,
+          },
+        });
+        await tx.documentTransfer.create({
+          data: {
+            taskId: input.id,
+            senderId: ctx.userId,
+            fromStatus: oppgave.status, // draft (første) | responded (retur/revisjon)
+            toStatus: "received",
+            comment: erRetur ? "Revidert og sendt tilbake til behandler" : "Sendt inn til behandling",
+          },
+        });
+        return oppdatert;
+      });
+
+      // Varsle Behandler-ledd (HMS-gruppen) — saken er nå live hos behandler.
+      if (oppgave.recipientGroupId) {
+        await sendHmsVarsel(ctx.prisma, {
+          dokumentId: oppgave.id,
+          tittel: oppgave.title,
+          nummer: oppgave.number,
+          prefix: oppgave.template!.prefix,
+          projectId: oppgave.template!.projectId,
+          prosjektNavn: oppgave.template!.project?.name ?? "",
+          avsenderId: ctx.userId,
+          recipientGroupId: oppgave.recipientGroupId,
+        });
+      }
+
+      return resultat;
     }),
 
   // Slett oppgave (myk — legges i papirkurv, kan gjenopprettes i 90 dager). Kun utkast/avbrutt.

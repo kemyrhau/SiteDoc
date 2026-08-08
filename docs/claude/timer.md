@@ -1,7 +1,7 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: 2026-06-08
-sist_endret: 2026-06-08
+sist_verifisert_mot_kode: 2026-08-08
+sist_endret: 2026-08-08
 gjelder_versjon: Fase 3
 avhenger_av:
   - arkitektur.md
@@ -1049,27 +1049,49 @@ Arbeider legger ved kvittering (bilde/scan) på et tillegg/utlegg. **Flere vedle
 
 **Indeks:** `(sheetId)` — FK-JOIN
 
-### `sheet_expenses` (utlegg per dagsseddel)
+### `sheet_utlegg` (utlegg-/fakturert-rader per dagsseddel) — 🟢 U1 datamodell (migrering `20260808120000_utlegg_ordningsmodell`)
+
+> **Erstatter den gamle planlagte `sheet_expenses`-spec-en.** `sheet_expenses` ble aldri bygget; U1 (2026-08-08) etablerer i stedet `SheetUtlegg` som egen bærer atskilt fra `SheetTillegg`, slik at eksporten skiller på MODELL (ikke på et flagg som kan glemmes). Ordre + spec: [docs/redesign/utlegg/utlegg-ordningsmodell-spec-fabel-2026-08-08.md](../redesign/utlegg/utlegg-ordningsmodell-spec-fabel-2026-08-08.md) + [utlegg-avklaringer-fabel-2026-08-08.md](../redesign/utlegg/utlegg-avklaringer-fabel-2026-08-08.md). Modell: `packages/db-timer/prisma/schema.prisma`.
 
 | Felt | Type | Beskrivelse |
 |------|------|-------------|
 | `id` | `uuid` PK | |
-| `sheetId` | `uuid` FK → `daily_sheets` | |
-| `kategori` | `text` | Konfigurerbar per Organization (se `expense_categories`) |
-| `belop` | `decimal` | Beløp i NOK |
-| `notat` | `text?` | Fritekst (f.eks. «Shell Tromsø») |
-| `bildeUrl` | `text?` | Kvitteringsbilde — S3-URL etter opplasting |
-| `bildeSyncStatus` | `text` default `pending` | `pending` \| `synced` — bilde synkes separat |
+| `sheetId` | `uuid` FK → `daily_sheets` (CASCADE) | |
+| `projectId` | `text` | Svak FK → `projects` (kjernen, A.20-mønster) |
+| `expenseCategoryId` | `uuid` FK → `expense_categories` (RESTRICT) | |
+| `belop` | `decimal(10,2)?` | NULL **kun** når `ordningVedFoering='fakturert'` (CHECK). Refusjon krone for krone for `utlegg` |
+| `mvaSats` | `decimal(5,2)?` | mva-sats snapshot per rad (regnskapsspørsmål — settes fra kategori i U2) |
+| `kommentar` | `text?` | Fritekst |
+| `ordningVedFoering` | `text` | Utledet ordning stemplet ved insert. **Immutabel integritetsbærer** |
+| `createdAt` / `updatedAt` | `timestamptz` | |
 
-**Indekser:**
-- `(sheetId)` — FK-JOIN
-- `(bildeSyncStatus)` — mobil bilde-pending-sync
+**CHECK-constraints (DB-håndhevet, ikke bare app):**
+- `ordning_ved_foering IN ('sats','utlegg','fakturert')`
+- `(ordning_ved_foering='fakturert' AND belop IS NULL) OR (ordning_ved_foering<>'fakturert' AND belop IS NOT NULL)` — fakturert når **aldri** penger; utlegg krever alltid beløp.
 
-**Kvitteringsbilde:**
-- Tas med mobilkamera direkte i appen (Expo ImagePicker / Camera)
-- Komprimeres før opplasting: maks 800px bredde, JPEG 80%
-- Lagres lokalt som filsti i SQLite → synkes til S3 ved tilkobling
-- Valgfritt men anbefalt — leder ser bildet i godkjenningsvisningen
+**Indekser:** `(sheetId)`, `(projectId)`, `(expenseCategoryId)`.
+
+**`ordningVedFoering`** er integritetsbærer, ikke bare revisjonsspor: insert stempler utledet ordning (`overstyring ?? firma-default`, via delt funksjon i `@sitedoc/shared/utleggOrdning.ts`) i samme transaksjon, og CHECK-en håndhever beløps-regelen mot DET stempelet — aldri mot et kategori-oppslag som kan drifte. Feltet er **immutabelt** etter insert; ordningsbytte = korreksjon (ny rad + gammel krediteres), aldri mutasjon.
+
+### `sheet_utlegg_vedlegg` (kvittering-/bilde-vedlegg på en utlegg-rad) — 🟢 U1
+
+Speiler `sheet_tillegg_vedlegg` 1:1 (mønster 1: rad per fil, svak `sheetUtleggId` String-FK uten `@relation`). Felt: `id`, `sheetUtleggId`, `fileUrl`, `fileName`, `mimeType`, `fileSize`, `gpsLat?`, `gpsLng?`, `createdAt`. Lagring server-lokal disk via `/upload` (`fileUrl`), **ikke S3**. Indeks `(sheetUtleggId)`.
+
+### `prosjekt_ordning_overstyring` (firma-admin overstyrer ordning per prosjekt+kategori) — 🟢 U1
+
+| Felt | Type | Beskrivelse |
+|------|------|-------------|
+| `id` | `uuid` PK | |
+| `prosjektId` | `text` | Svak FK → `projects` (kjernen) |
+| `expenseCategoryId` | `uuid` FK → `expense_categories` (CASCADE) | |
+| `ordning` | `text` | CHECK `IN ('sats','utlegg','fakturert')` |
+| `createdAt` / `updatedAt` | `timestamptz` | |
+
+**UNIQUE** `(prosjektId, expenseCategoryId)` — én overstyring per prosjekt+kategori. Oppslag alltid `overstyring ?? ExpenseCategory.ordning`. Endring gjelder kun **fremover** — allerede førte rader beholder sitt `ordningVedFoering`-stempel.
+
+**Gjenstår (senere faser):** U2 eksport-guard (`case "fakturert": return []`, utlegg→refusjon aldri lønnsart), U3 web-registrering, U4 mobil (kamera-primær), U5 firma-admin overstyring-UI, U6 migrering av feilførte `SheetTillegg`-rader (egen gate).
+
+> **🔴 Eksport-invariant (etablert U1, ubrukt til Proadm-motor bygges):** all klassifisering av tillegg/utlegg mot eksport MÅ gå via `eksportRute()` i `@sitedoc/shared` og lese radens `ordningVedFoering` — aldri kategori-oppslag, aldri egen if-kjede. `fakturert` skal aldri nå lønnsart eller refusjon. U2 (koblingen mot eksportmotoren) er bevisst utsatt til motoren finnes; kontrakten (`eksportRute` + 10 tester) står allerede i delt kode.
 
 ### `expense_categories` (utleggskategorier per Organization)
 
@@ -1078,9 +1100,10 @@ Arbeider legger ved kvittering (bilde/scan) på et tillegg/utlegg. **Flere vedle
 | `id` | `uuid` PK | |
 | `organizationId` | `uuid` FK → `organizations` | |
 | `navn` | `text` | Kategorinavn |
+| `ordning` | `text` default `'utlegg'` | 🟢 U1: firma-default for ordning. CHECK `IN ('sats','utlegg','fakturert')`. Kan overstyres per prosjekt via `prosjekt_ordning_overstyring` |
 | `aktiv` | `boolean` default true | Kan deaktiveres uten å slette |
 
-**Standardkategorier** seedes via samme event-hook (`onOrganizationCreated`) som lønnsart-Nivå 1: Drivstoff, Parkering, Diett, Verktøy, Annet.
+**Standardkategorier** seedes via samme event-hook (`onOrganizationCreated`) som lønnsart-Nivå 1: Drivstoff, Parkering, Diett, Verktøy, Annet. Seedede kategorier får `ordning='utlegg'` (kolonne-default) — U1 endrer ikke seed-logikken.
 
 **Indeks:** `(organizationId)` — hent firma-katalog
 

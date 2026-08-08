@@ -190,6 +190,12 @@ export const hmsRouter = router({
 
       const statusFilter = input.status ? { status: input.status } : {};
 
+      // Spor 2 / 5a: HMS-utkast (draft) er PRIVAT for melderen — «ingen ser utkastet før du
+      // sender». Gjelder ALLE, inkl. HMS-admin (byggHmsSynlighetsFilter returnerer null for
+      // admin ⇒ uten denne guarden ville utkast lekket til admin-lista). Komponeres inn i
+      // hver query som eget AND-fragment.
+      const draftGuard = { OR: [{ status: { not: "draft" } }, { bestillerUserId: ctx.userId }] };
+
       // Byggeplass-filter (asymmetri): Task har drawingId (filtreres via drawing.byggeplassId);
       // Checklist har byggeplassId direkte. Prosjekt-brede dokumenter (uten byggeplass/tegning)
       // inkluderes alltid — de er relevante for arbeid på alle byggeplasser.
@@ -228,6 +234,7 @@ export const hmsRouter = router({
               },
               tilgangsFilter,
               synlighetsFilter,
+              draftGuard,
             ),
             select: TASK_SELECT,
             orderBy: { updatedAt: "desc" },
@@ -244,6 +251,7 @@ export const hmsRouter = router({
               },
               tilgangsFilter,
               synlighetsFilter,
+              draftGuard,
             ),
             select: CHECKLIST_SELECT,
             orderBy: { updatedAt: "desc" },
@@ -270,6 +278,7 @@ export const hmsRouter = router({
               },
               tilgangsFilter,
               synlighetsFilter,
+              draftGuard,
             ),
             select: TASK_SELECT,
             orderBy: { updatedAt: "desc" },
@@ -366,6 +375,8 @@ export const hmsRouter = router({
         ? ctx.prisma.task.findMany({
             where: {
               ...IKKE_SLETTET,
+              // Spor 2 / 5a: utkast er ikke meldt ennå → utelates fra firma-oversikten.
+              NOT: { status: "draft" },
               ...statusFilter,
               template: { is: { projectId: { in: projectIdList }, domain: "hms", subdomain: "avvik" } },
               ...(taskByggeplassClause ?? {}),
@@ -394,6 +405,8 @@ export const hmsRouter = router({
         ? ctx.prisma.checklist.findMany({
             where: {
               ...IKKE_SLETTET,
+              // Spor 2 / 5a: utkast er ikke meldt ennå → utelates fra firma-oversikten.
+              NOT: { status: "draft" },
               ...statusFilter,
               template: { is: { projectId: { in: projectIdList }, domain: "hms", subdomain: "sja" } },
               ...(checklistByggeplassClause ?? {}),
@@ -423,6 +436,8 @@ export const hmsRouter = router({
         ? ctx.prisma.task.findMany({
             where: {
               ...IKKE_SLETTET,
+              // Spor 2 / 5a: utkast er ikke meldt ennå → utelates fra firma-oversikten.
+              NOT: { status: "draft" },
               ...statusFilter,
               template: { is: { projectId: { in: projectIdList }, domain: "hms", subdomain: "ruh" } },
               ...(taskByggeplassClause ?? {}),

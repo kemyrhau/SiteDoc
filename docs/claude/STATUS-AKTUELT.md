@@ -10,6 +10,7 @@ sist_verifisert_mot_kode: 2026-07-10
 
 | Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
 |---|---|---|---|---|---|
+| **Utlegg-ordningsmodell** | `SiteDoc-utlegg` | `feat/utlegg-ordningsmodell` | `packages/shared/src/utils/utleggOrdning.ts` · `packages/db-timer/prisma/schema.prisma` + migrering · `docs/claude/timer.md` | 2026-08-08 | 🟢 **U1 kodet + gatet + pushet.** Datamodell (SheetUtlegg/vedlegg/overstyring + `ordning` + CHECK) + delt utledning. Neste: U2 eksport-guard |
 **Tavla er tom for aktive kode-økter** (2026-07-24) — hele flyt-sporet + A-3b er merget til develop. `SiteDoc-a3b`-treet kan ryddes (branch merget). Fabel-design + backlog-saker (Tooltip v2, `ListeKontroll`, mobil-wiring, flyt-handlingstekster) er ikke aktive økter.
 
 | **Registrator-fiks** | *(økt kan exit)* | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` · `tilgangskontroll.ts` · `DokumentHandlingsmeny` | 2026-07-21 | **✅ MERGET develop (`cb3ce3d1`).** Fase A+B — registrator ikke lenger superbruker. ⚠️ Åpen rest: `rejected→sent` → handlingsmeny-arbeidet ([registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md)) |
@@ -96,13 +97,34 @@ Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmod
 - **Statusmaskin:** F6-oppfølger (`received→approved` som default) · posisjonsutredning (H1/N-boks, `steg`-feltet finnes) · registrator-steg-1-validering · H2 (utførers venstre-send/tilbake-kant) · besvar=venstre-modellspenningen · § 0 delt-kilde-konsolidering (egen fase).
 - **Effektivitet:** **P4c timer** (7→1-2 klikk, arver chip-komponenten) — ikke startet. Øvrige restanser i [BACKLOG](BACKLOG.md).
 - **Mobil M1–M3:** #2 inline-kommentar-inngang · #7b liste-filter · #4 bekreft-på-send-vurdering · #5 testdata-flyt m/distinkte personer per ledd.
-### HMS-behandlingsflyt Diff 1 — `received`-rot-fiks + 5c behandler-mønster (branch `feat/hms-behandlingsflyt`) — PÅ BRANCH, venter merge → test (IKKE prod)
+### Utlegg-ordningsmodell U1 — datamodell + delt utledning (branch `feat/utlegg-ordningsmodell`) — PÅ BRANCH, venter merge (IKKE prod)
 
-**Prod-kritisk, migrerings-fri.** Rotårsak (SQL avkreftet drift + include-hypotese): HMS sendes med status `received` (Q1-kollaps), men `verifiserHmsHandling` + `HmsHandlingsflate` gjenkjente kun `sent`/`responded` → behandle-knapper filtrert bort på sendte RUH-er → «Lesevisning» for behandler OG admin, uavhengig av `erHmsAdmin`. Live på prod fra 03.08 (A.Markussen-pilot rammet).
+**Additiv, migrerings-gatet (Kenneth godkjente).** Løser rot-defekten: utlegg (diesel/bom/materiell) måtte velges fra lønnstillegg-katalogen → beløp presset i `SheetTillegg.antall`. U1 etablerer egen bærer FØR en Proadm-lønnseksport bygges (den finnes ikke i kode ennå — nå-sjekk bekreftet). **Merk «U1» her = utleggs-ordningsmodell, ikke timer-rapport-U1 fra 2026-05.**
 
-**Fiks + 5c (mockup-godkjent behandler-mønster):** (1) `received` førsteklasses HMS-tilstand — server (`tilgangskontroll.ts`) + klient (`HmsHandlingsflate.tsx`): `åpen behandling = sent|received|responded`. (2) ny `oppgave.hmsReturner`-mutasjon (returner til melder med spørsmål, gjenbruker `beregnRuting`→`responded`, ingen ny status-enum). (3) Melding read-only-tvang for HMS unntatt melder-i-utkast (`page.tsx`). (4) ny `HmsFlytStripe.tsx` (Meldt→Hos behandler→Lukket). (5) i18n nb+en (`hms.handling.returner`/`returnerPlaceholder`, `hms.stripe.*`).
+Tre ordninger utledes, aldri valgt av feltarbeideren: `sats` (→SheetTillegg, lønnsart) · `utlegg` (→SheetUtlegg, beløp+kvittering→refusjon) · `fakturert` (→SheetUtlegg, avhuking, `belop=null`, eksporteres aldri). Levert: (1) delt `utledOrdning` (`overstyring ?? firma-default`) + avledningshjelpere i `@sitedoc/shared` (10 tester). (2) migrering `20260808120000_utlegg_ordningsmodell` — `ExpenseCategory.ordning` + `sheet_utlegg`/`sheet_utlegg_vedlegg`/`prosjekt_ordning_overstyring` + **CHECK på `ordning_ved_foering`/`belop`** (integritetsbærer, ikke app-flagg). (3) `timer.md` drift-reconciliert (planlagt `sheet_expenses` → faktisk modell). **Build:** full `pnpm build` 3/3, 441 shared-tester, `prisma validate` + `migrate diff`-verifisert. **Gjenstår:** U2 eksport-guard · U3 web · U4 mobil · U5 firma-admin overstyring-UI (**inkl. eksplisitt: firma-admin må sette ordning per kategori; default er `utlegg`**) · U6 migrering av feilførte rader (egen gate; forutsetter Proadm-sti-avklaring).
 
-**Verifikasjon:** full build grønn (prisma generate ×4, typecheck 4/4, `next build` 2/2). **Backlogget (gatet):** `DocumentTransfer.handling`-markør (tidslinje-skille Besvar/Returner) + guard-mot-ikke-hms-behandler-ledd. **Diff 2/3 (senere):** 5a opprett=utkast (mobil-berørende), 5b tillegg-synlig. **HOLD prod** til Kenneth sier fra.
+### 🔴 HMS-bolk 5a+5b — PÅ BRANCH (fikser prod-regresjon fra `881e66e6`)
+
+> **Diff 1** (`received`-rot-fiks + 5c) er **deployet prod** `881e66e6` og arkivert → [historikk-2026-08.md](historikk-2026-08.md). Den innførte read-only-regresjonen som 5a løser ved rotårsaken. Seksjonen under er det som gjenstår å merge.
+
+### HMS-behandlingsflyt Diff 2 — 5a opprett=utkast + 5b tillegg-synlig (branch `feat/hms-behandlingsflyt`) — PÅ BRANCH, venter merge (samlet bolk, IKKE prod før hele bolken)
+
+**Migrerings-fri (draft er eksisterende status).** Løser read-only-regresjonen fra Diff 1 ved rotårsaken: HMS opprettes nå som **utkast** (`draft`), ikke auto-sendt → `erMelder && ball hos Ledd 1`-grenen treffer som designet (melder redigerer, behandler read-only). Gjelder RUH/avvik (task) OG SJA (checklist) — begge auto-sendte før.
+
+**5a-mekanikk:** (1) `oppgave.opprett`/`sjekkliste.opprett` HMS-gren → `sendt:false`/`aktivPosisjon:1`/`draft`, ingen varsel ved opprett (flyt-binding + `recipientGroupId` står). (2) ny `oppgave.hmsSendInn`/`sjekkliste.hmsSendInn` (`draft|responded → received` + varsel til behandler-ledd; transfer-rad `draft→received`=Sendt inn vs `responded→received`=Revidert-og-sendt-tilbake — **sporet behandler trenger, Blokk 10-krav**). (3) `verifiserHmsHandling` + `HmsHandling`-type får `sendInn` (melder-eid, tilstand draft·responded). (4) draft-synlighet: `byggHmsSynlighetsFilter` returnerte `null` for admin → draft-guard som gjelder ALLE (`bestillerUserId`-unntak) + firma-oversikt utelater draft. (5) leseModus-snitt (Beslutning 1, gatet): `erMelder && aktivPosisjon===1 && !terminal` (web oppgave+sjekkliste + mobil oppgave+sjekkliste). (6) delt `HmsMelderBanner` (Send inn/Forkast/Send tilbake + Forkast-modal). (7) mobil-paritet: Send inn/Forkast/Send tilbake-rad på begge mobil-detaljer (mobil oppretter HMS → draft; ellers stod utkast fast). (8) i18n nb+en.
+
+**5b-mekanikk (web):** ny delt `HmsMelderTillegg` — (a) **synlig feltlås**: forklarer hvorfor meldingens felt er låst (vises kun mens ballen er hos behandler, med sendt-dato fra transfer-loggen); (b) **«Tillegg fra melder»**: melderens rene append-transfers som tidsstemplet logg + «+ Tilføy informasjon»-inngang. Melder-tillegg FLYTTET ut av `HmsHandlingsflate` (nå ren behandler/admin-flate) → mockup-separasjon (melder eier innhold, behandler eier handling). i18n nb+en (`hms.tillegg.*`, `hms.feltlaas.*`).
+
+**Spor 2-dekning per flate etter bolken (asymmetri — dokumentert, ikke skjult):**
+| Flate | Melder-flyt (5a/5b) | Behandling (Diff 1: Besvar/Lukk/Returner + flyt-stripe) |
+|-------|---------------------|--------------------------------------------------------|
+| Web oppgave (RUH/avvik) | ✅ | ✅ |
+| Web sjekkliste (SJA) | ✅ | ⚠️ Besvar/Lukk ✅, **mangler Returner + flyt-stripe** (Diff 1 var oppgave-only) |
+| Mobil (RUH/avvik/SJA) | ✅ (Send inn/Forkast/Send tilbake) | ❌ **pre-Spor-2** (generell `DokumentHandlingslinje`) |
+
+**Kjente oppfølgere (ikke i denne bolken):** SJA-Returner + flyt-stripe på web · dedikert mobil-HMS-behandling (Returner/flyt-stripe). Realistisk arbeidsdeling: feltarbeider melder fra mobil, HMS-ansvarlig behandler på web.
+
+**Reload:** Metro reload (JS-only, ingen native). **Verifikasjon:** full build grønn (prisma generate ×4, typecheck 4/4 inkl. mobil, `next build` EXIT=0). i18n 13-språk kjøres ved merge (cowork). **HOLD prod** til Kenneth sier fra.
 
 ### Sjekkliste ikke append-only (branch `fix/sjekkliste-ikke-append-only`) — PÅ BRANCH, venter merge
 

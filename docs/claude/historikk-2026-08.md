@@ -10,6 +10,24 @@ Arkiv av arbeid deployet til prod i august 2026. Flyttet hit fra [STATUS-AKTUELT
 
 > **Mobil-forbehold for hele måneden:** ingen EAS-bygg er fyrt i august (siste er #40, 2026-07-15). Mobil-kode som er merget til `main` i august er derfor **i prod-repoet, men ikke hos brukerne** — den når felt først ved neste EAS-bygg + TestFlight. Gjelder særlig mobil detalj-redesign M1–M3. Se [STATUS-AKTUELT § EAS-byggteller](STATUS-AKTUELT.md#eas-byggteller-kvote-15mnd-fri-plan--nullstilles-den-1).
 
+## Prod-deploy 2026-08-08 (`881e66e6`, develop→main) — HMS received-fiks + fillagring S1 + firma-tilknytning + P4a mobil (LIVE)
+
+25 commits. **Ingen migreringer** (verifisert: kun `schema.prisma`-kommentarrydding). Backup tatt før deploy (`sitedoc-pre-25commits-20260808-0701.dump`, 485K). Bygget api og web hver for seg (samtidig = OOM), `up -d --no-deps` uten `-p`.
+
+**Ny deploy-forutsetning innført samtidig:** `docker/env/felles.env` med `FIL_SIGNING_SECRET`, lest av BÅDE api og web. Verifisert etter start: `${#FIL_SIGNING_SECRET}` = 64 i begge containere, `/api/fil-selvtest` → `{"ok":true}`, og kryss-prosess-sjekk (web signerer → api verifiserer) → **404** = enige (401 ville betydd ulike secrets).
+
+- **HMS `received`-rotfiks + 5c behandler-mønster** (`6e54a3b3`). Rotårsak: HMS opprettes sendt → `avledStatus` → `received` (Q1-kollapsen), men `verifiserHmsHandling` + `HmsHandlingsflate` gjenkjente kun `sent`/`responded` → besvar/lukk filtrert bort → «Lesevisning» for behandler OG admin, uavhengig av `erHmsAdmin`. **Live prod-bug siden 03.08.** Fiks: `åpen behandling = sent|received|responded` + ny `hmsReturner`-mutasjon + `HmsFlytStripe` + Melding read-only-tvang. Verifisert prod: HMS-002 viser flyt-stripe + Besvar/Lukk/Returner.
+- **Fillagring S1 Fase 1** (`d1f93dc4`) — autorisert filserving for sensitive filer. HMAC-signerte, kortlevde (5 min) URL-er; `/uploads/privat/*` er signatur-kun (401 ellers); `?privat=1`-opplasting + magic-bytes-sniffing; M1 record-nøklet sign-query for mobil. **Målrettet signering** i de prosedyrene som emitterer privat-URL-er (erstattet all-svar-middleware). **Boot-guard i BEGGE prosesser** — prod nekter å starte uten secreten. Signerings-røyktest (`/api/fil-selvtest`).
+- **Firma-tilknytning** (`4b306a14`) — FIRMA-kolonnen i kontakter-matrisen leste fantom-feltet `user.organization` (legacy `User.organizationId`, droppet i O5c). Leser nå `OrganizationMember` med multi-org-regel. Rettet «—» for hele porteføljen siden 13.05.
+- **P4a mobil — auto-opprett svart skjerm** (`0fef35fa`). To iOS-modal-race: overlappende present/dismiss (MalVelger↔Opprett) + intern dismiss mid-present ⇒ `onDismiss` fyrte aldri ⇒ usynlig fullscreen modal-VC. Fikset med iOS' egne livssyklus-events (`onShow`/`onDismiss`), ingen timeout. **Fanget av simulator-verifisering før EAS-kvote ble brent.** (I main, men når ikke brukere før EAS-bygg.)
+- **Doc-rens + arkitekturvedtak** (`28ffd0b8`, `436d59bd`, `37141be0`) — august-historikk opprettet, `CLAUDE.md` under 40k, vedtak om én kilde til firmarolle, mockups forankret.
+
+### 🔴 Kjent regresjon fra denne deployen (fikses i HMS-bolk 5a+5b)
+**HMS-skjemaet er read-only for alle, også melderen.** 5c innførte `leseModus`-tvang med grenen `erMelder && status === 'draft'` — men HMS opprettes fortsatt sendt (`received`), så grenen treffer aldri. Følge: nye HMS-meldinger kan opprettes, men ikke fylles ut. Kenneth på prod 08.08: «status er meldt før skjema er påbegynt utfylt, og skjema er nå låst.» **Rotårsaken løses av 5a** (opprett = utkast) — ingen interim-lapp, jf. «ikke bygg noe å rive». Deployes samlet med 5b.
+
+### Lærdom — topologien som kostet en dag
+`FIL_SIGNING_SECRET` ble satt i `api-test.env`, men **tRPC kjører i web-containeren** (`apps/web/src/app/api/trpc/[...trpc]/route.ts` importerer `appRouter`; kun `/api/upload` + `/api/uploads/*` rewrites til api). Signeringen kastet derfor i web-prosessen, og api-loggen viste ingenting. Symptomene (207 på urelaterte batcher, «Dagsseddelen finnes ikke eller du har ikke tilgang», «Ugyldig verdi.») pekte alle mot tilgangskontroll og data — som var feilfrie. **Topologien er nå dokumentert i DOCKER-NOTES + infrastruktur.md**, og boot-guarden gjør at samme feil stopper deployen i stedet for å produsere tause 207-er.
+
 ## Prod-deploy 2026-08-06 (`70d2b752`, develop→main) — Spor 2 HMS komplett (LIVE)
 
 Hele Spor 2 (HMS-redesign) deployet og innlogget-verifisert på A.Markussen AS. Backup tatt før deploy. **Ingen migreringer.**

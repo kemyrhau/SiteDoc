@@ -16,6 +16,8 @@ import { PrintHeader } from "@/components/PrintHeader";
 import { OpprettOppgaveModal } from "@/components/OpprettOppgaveModal";
 import { DokumentHandlingsmeny } from "@/components/DokumentHandlingsmeny";
 import { HmsHandlingsflate, type HmsHandlingType } from "@/components/HmsHandlingsflate";
+import { HmsMelderBanner } from "@/components/HmsMelderBanner";
+import { HmsMelderTillegg } from "@/components/HmsMelderTillegg";
 import { FlytIndikator } from "@/components/FlytIndikator";
 import { perspektivEtikett, kvitteringEtikett } from "@sitedoc/shared";
 import { useFlytKontekst, type MinFlytInfoUtsnitt } from "@/hooks/useFlytKontekst";
@@ -224,8 +226,10 @@ export default function SjekklisteDetaljSide() {
   const hmsLukkMutasjon = trpc.sjekkliste.hmsLukk.useMutation(hmsMutasjonOpts);
   const hmsGjenapneMutasjon = trpc.sjekkliste.hmsGjenapne.useMutation(hmsMutasjonOpts);
   const hmsTilfoyMutasjon = trpc.sjekkliste.hmsTilfoyInformasjon.useMutation(hmsMutasjonOpts);
+  const hmsSendInnMutasjon = trpc.sjekkliste.hmsSendInn.useMutation(hmsMutasjonOpts);
 
   const hmsLaster =
+    hmsSendInnMutasjon.isPending ||
     hmsBesvarMutasjon.isPending ||
     hmsLukkMutasjon.isPending ||
     hmsGjenapneMutasjon.isPending ||
@@ -416,7 +420,19 @@ export default function SjekklisteDetaljSide() {
     return prefix ? `${prefix}-${nummerPad}` : nummerPad;
   }, [fullSjekkliste?.number, sjekkliste?.template?.prefix]);
 
-  const leseModus = !erRedigerbar;
+  // Spor 2 / 5a + Beslutning 1 (Blokk 10): HMS-melder redigerer sitt eget dokument når ballen
+  // ligger hos melder-leddet (Ledd 1) og saken ikke er terminal — utkast (draft) ELLER etter
+  // Returner (responded). Behandler er ALLTID read-only på melderens felt (5c). For ikke-HMS
+  // gjelder flyt-rollen som før. Speiler oppgave-detaljen (delt mønster).
+  const erMelder =
+    !!fullSjekkliste?.bestillerUserId && fullSjekkliste.bestillerUserId === minFlytInfo?.userId;
+  const erTerminalHms = ["closed", "approved", "cancelled", "rejected"].includes(sjekkliste?.status ?? "");
+  const ballHosMelder =
+    !erTerminalHms &&
+    (sjekkliste?.status === "draft" ||
+      aktivPosisjon === 1 ||
+      (aktivPosisjon == null && sjekkliste?.status === "responded"));
+  const leseModus = erHms ? !(erMelder && ballHosMelder) : !erRedigerbar;
 
   if (erLaster) {
     return (
@@ -653,10 +669,6 @@ export default function SjekklisteDetaljSide() {
           {erHms ? (
             <HmsHandlingsflate
               status={sjekkliste.status}
-              erOppretter={
-                !!fullSjekkliste?.bestillerUserId &&
-                fullSjekkliste.bestillerUserId === minFlytInfo?.userId
-              }
               erHmsAdmin={erHmsAdmin}
               erLaster={hmsLaster}
               feilmelding={statusFeil}
@@ -730,6 +742,17 @@ export default function SjekklisteDetaljSide() {
           />
         </div>
       </div>
+
+      {/* Spor 2 / 5a: HMS melder-handlingsbanner — Send inn/Forkast (utkast) eller
+          Send tilbake (returnert). Vises kun for melder når ballen ligger hos melder-leddet. */}
+      {erHms && erMelder && ballHosMelder && (
+        <HmsMelderBanner
+          status={sjekkliste.status}
+          laster={hmsLaster || slettMutasjon.isPending}
+          onSendInn={() => hmsSendInnMutasjon.mutate({ id: params.sjekklisteId })}
+          onForkast={() => slettMutasjon.mutate({ id: params.sjekklisteId })}
+        />
+      )}
 
       {/* Rapportobjekter */}
       <UtfyllingSeksjoner
@@ -817,6 +840,19 @@ export default function SjekklisteDetaljSide() {
           );
         }}
       />
+
+      {/* Spor 2 / 5b: «Tillegg fra melder» — synlig feltlås + tidsstemplet tillegg-logg.
+          Vises for melderen etter at saken er sendt (ikke i utkast). Melder eier innholdet. */}
+      {erHms && erMelder && sjekkliste.status !== "draft" && (
+        <HmsMelderTillegg
+          overforinger={((fullSjekklisteRå as { transfers?: unknown[] }).transfers ?? []) as Parameters<typeof HmsMelderTillegg>[0]["overforinger"]}
+          bestillerUserId={fullSjekkliste?.bestillerUserId}
+          feltlaast={!ballHosMelder && !erTerminalHms}
+          kanTilfoye={["sent", "received", "responded"].includes(sjekkliste.status)}
+          laster={hmsLaster}
+          onTilfoy={(tekst) => hmsTilfoyMutasjon.mutate({ id: params.sjekklisteId, kommentar: tekst })}
+        />
+      )}
 
       {/* Endringslogg */}
       {sjekkliste?.template && (
