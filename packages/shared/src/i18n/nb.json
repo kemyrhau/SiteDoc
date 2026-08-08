@@ -1136,6 +1136,7 @@
   "tegninger.ifcKort": "IFC-modell",
   "tegninger.ifcKortUnder": "Åpne punktsky / IFC-visning",
   "tegninger.utenByggeplass": "Uten byggeplass",
+  "tegninger.fortsett": "Fortsett der du slapp",
   "dokumenter.alleMapper": "Alle mapper",
   "dokumenter.arverSprak": "arver språk",
   "dokumenter.egneSprak": "egne språk: {{koder}}",

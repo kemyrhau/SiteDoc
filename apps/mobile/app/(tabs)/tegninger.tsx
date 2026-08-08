@@ -7,12 +7,15 @@ import {
   Box,
   ChevronRight,
   Layers,
+  History,
 } from "lucide-react-native";
 import type { LucideIcon } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { trpc } from "../../src/lib/trpc";
 import { useProsjekt } from "../../src/kontekst/ProsjektKontekst";
+import { useByggeplass } from "../../src/kontekst/ByggeplassKontekst";
+import { aapneTegning } from "../../src/lib/tegningNavigasjon";
 
 type Modus = "2d" | "3d" | "2d3d";
 
@@ -42,6 +45,7 @@ export default function TegningerTab() {
   const router = useRouter();
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
+  const { valgtBygningId, hentSistTegning } = useByggeplass();
   const [modus, setModus] = useState<Modus>("2d");
 
   const { data: tegninger, isLoading } = trpc.tegning.hentForProsjekt.useQuery(
@@ -85,6 +89,18 @@ export default function TegningerTab() {
       data,
     }));
   }, [alle, t]);
+
+  // Del A pkt 3 — «Fortsett i …»-snarvei: sist valgte tegning for aktiv
+  // byggeplass (F1-minnet i ByggeplassKontekst). Eksistens-guard: vises KUN når
+  // tegningen fortsatt finnes i prosjektets liste. Keychain overlever app-
+  // sletting, så en reinstallert bruker kan ha en peker til en slettet tegning —
+  // guarden gjelder derfor snarveien like mye som selve navigeringen.
+  const sistTegning = useMemo(() => {
+    if (!valgtBygningId) return null;
+    const sistId = hentSistTegning(valgtBygningId);
+    if (!sistId) return null;
+    return alle.find((tg) => tg.id === sistId) ?? null;
+  }, [valgtBygningId, hentSistTegning, alle]);
 
   if (!valgtProsjektId) {
     return (
@@ -148,6 +164,36 @@ export default function TegningerTab() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={{ paddingBottom: 24 }}
           stickySectionHeadersEnabled={false}
+          ListHeaderComponent={
+            sistTegning ? (
+              <Pressable
+                onPress={() =>
+                  aapneTegning(
+                    router,
+                    sistTegning.id,
+                    sistTegning.byggeplass?.id,
+                  )
+                }
+                className="mx-4 mb-1 mt-4 flex-row items-center rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 active:bg-blue-100"
+              >
+                <View className="h-10 w-10 items-center justify-center rounded-md bg-sitedoc-blue">
+                  <History size={20} color="#ffffff" />
+                </View>
+                <View className="ml-3 flex-1">
+                  <Text className="text-xs font-medium text-sitedoc-blue">
+                    {t("tegninger.fortsett")}
+                  </Text>
+                  <Text
+                    className="mt-0.5 text-sm font-semibold text-gray-900"
+                    numberOfLines={1}
+                  >
+                    {sistTegning.name}
+                  </Text>
+                </View>
+                <ChevronRight size={16} color="#1e40af" />
+              </Pressable>
+            ) : null
+          }
           ListEmptyComponent={() => (
             <View className="items-center px-8 py-12">
               <Layers size={40} color="#d1d5db" />
@@ -167,7 +213,7 @@ export default function TegningerTab() {
             const Ikon = ikonForFiltype(item.fileType);
             return (
               <Pressable
-                onPress={() => router.push("/lokasjoner")}
+                onPress={() => aapneTegning(router, item.id, item.byggeplass?.id)}
                 className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3 active:bg-gray-50"
               >
                 <View className="h-10 w-10 items-center justify-center rounded-md bg-blue-50">
