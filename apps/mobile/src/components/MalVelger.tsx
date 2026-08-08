@@ -6,6 +6,7 @@ import {
   Pressable,
   Modal,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native";
 import { X, ChevronDown, ChevronRight } from "lucide-react-native";
@@ -43,6 +44,41 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
   const maler = malQuery.data as MalData[] | undefined;
   const [visUtilgjengelige, setVisUtilgjengelige] = useState(false);
 
+  // P4a: serialiser overrekkelsen til opprett-modalen. På iOS kan ikke to native
+  // modaler transisjonere samtidig — presenteres opprett-modalen (fullScreen) mens
+  // denne velgeren (pageSheet) fortsatt dismisses, feiler presentasjonen og skjermen
+  // blir svart. `internSynlig` speiler `synlig`-propen, men settes lokalt false ved
+  // valg så velgeren animerer HELT ut (onDismiss) FØR `onVelg` presenterer opprett-
+  // modalen. Android har ingen slik VC-kollisjon (og `onDismiss` fyres uansett ikke
+  // der) → velg direkte. (Auto-velg-grenen under rendrer aldri Modal → ingen
+  // kollisjon, kaller `onVelg` direkte.)
+  const [internSynlig, setInternSynlig] = useState(synlig);
+  useEffect(() => {
+    setInternSynlig(synlig);
+  }, [synlig]);
+  const ventendeMal = useRef<MalData | null>(null);
+  useEffect(() => {
+    if (!synlig) ventendeMal.current = null;
+  }, [synlig]);
+
+  const velg = (mal: MalData) => {
+    if (Platform.OS === "ios") {
+      ventendeMal.current = mal;
+      setInternSynlig(false);
+    } else {
+      onVelg(mal);
+    }
+  };
+
+  // iOS: velgeren er helt dismisset → trygt å presentere opprett-modalen.
+  const håndterDismiss = () => {
+    if (ventendeMal.current) {
+      const mal = ventendeMal.current;
+      ventendeMal.current = null;
+      onVelg(mal);
+    }
+  };
+
   const kategoriMaler = useMemo(
     () => maler?.filter((m) => m.category === kategori) ?? [],
     [maler, kategori],
@@ -79,7 +115,12 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
   if (synlig && (malQuery.isLoading || skalAutoVelge)) return null;
 
   return (
-    <Modal visible={synlig} animationType="slide" presentationStyle="pageSheet">
+    <Modal
+      visible={internSynlig}
+      animationType="slide"
+      presentationStyle="pageSheet"
+      onDismiss={håndterDismiss}
+    >
       <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
         {/* Header */}
         <View className="flex-row items-center justify-between bg-sitedoc-blue px-4 py-3">
@@ -108,7 +149,7 @@ export function MalVelger({ synlig, kategori, onVelg, onLukk }: MalVelgerProps) 
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <Pressable
-                onPress={() => onVelg(item)}
+                onPress={() => velg(item)}
                 className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3.5"
               >
                 <View className="flex-1">
