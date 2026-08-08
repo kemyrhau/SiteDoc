@@ -30,6 +30,7 @@ export function ByggeplassVelgerModal({
   projectId,
   valgtId,
   gpsForeslagId,
+  tillatIngen = false,
   onVelg,
   onLukk,
 }: {
@@ -37,7 +38,13 @@ export function ByggeplassVelgerModal({
   valgtId: string | null;
   /** F3: GPS-foreslått byggeplass — badges «du er her» på raden. */
   gpsForeslagId?: string | null;
-  onVelg: (id: string) => void;
+  /** Funn #2 (device 2026-08-08): vis «Ingen byggeplass»-rad som nullstiller.
+   *  Kun sedel-velgeren (dagsseddel) trenger den; den globale byggeplass-chipen
+   *  gjenbruker samme modal men skal ikke tilby «ingen» (default false). */
+  tillatIngen?: boolean;
+  /** Funn #2: `null` = «Ingen byggeplass» (nullstill). Sendes kun når
+   *  `tillatIngen` er satt — ellers får kalleren aldri null. */
+  onVelg: (id: string | null) => void;
   onLukk: () => void;
 }) {
   const { t } = useTranslation();
@@ -147,6 +154,23 @@ export function ByggeplassVelgerModal({
               className="rounded bg-gray-100 px-3 py-2 text-base"
             />
           </View>
+        )}
+        {/* Funn #2 (device 2026-08-08): «Ingen byggeplass» nullstiller sedelen —
+            uten dette kunne en feilvalgt byggeplass ikke angres (velgeren gikk
+            bare én vei). Kun sedel-velgeren (tillatIngen); den globale chipen
+            skal ikke kunne tømme aktiv byggeplass herfra. */}
+        {tillatIngen && (
+          <Pressable
+            onPress={() => onVelg(null)}
+            className={`flex-row items-center border-b border-gray-100 px-4 py-3 ${
+              valgtId == null ? "bg-blue-50" : ""
+            }`}
+          >
+            <Text className="flex-1 text-base text-gray-700">
+              {t("timer.byggeplass.ingenValgt")}
+            </Text>
+            {valgtId == null && <Check size={18} color="#1e40af" />}
+          </Pressable>
         )}
         <FlatList
           data={filtrert}
