@@ -12,9 +12,12 @@ export async function lastOppFil(
   uri: string,
   filnavn: string,
   mimeType: string,
+  // Sensitive filer (timer-kvittering/utlegg) → uploads/privat/, serveres
+  // signatur-KUN (S1 Fase 1).
+  privat = false,
 ): Promise<OpplastingsResultat> {
   const token = await hentSessionToken();
-  const url = `${AUTH_CONFIG.apiUrl}/upload`;
+  const url = `${AUTH_CONFIG.apiUrl}/upload${privat ? "?privat=1" : ""}`;
 
   console.log("[OPPL] Laster opp:", filnavn, "til:", url, "uri:", uri.slice(-50), "token:", token ? "ja" : "nei");
 

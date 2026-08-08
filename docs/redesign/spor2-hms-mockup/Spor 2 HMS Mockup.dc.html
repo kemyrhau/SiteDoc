@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #e8eaee; font-family: 'IBM Plex Sans', sans-serif; }
+    a { color: #1e40af; } a:hover { color: #1c3aa0; }
+  </style>
+</helmet>
+
+<section style="padding: 40px; display: flex; flex-direction: column; gap: 28px;">
+  <div style="max-width: 1000px;">
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Spor 2 — Mockup: HMS synlig i den unifiserte oppsett-UI-en (2026-08-05)</div>
+    <div style="font-size: 15px; color: #374151; margin-top: 6px; line-height: 1.5;">Prinsipp: <b>&laquo;vis det vi har&raquo;</b>. HMS er alt en ekte dokumentflyt (auto-provisjonert av <code style="font-size:13px;">seedHmsModulOmradet</code>: gruppen &laquo;HMS-ansvarlige&raquo; m/ hms-domene + 2-ledds flyten &laquo;HMS&raquo; + malene). Mockupen viser HMS-tilstanden I de samme spor 1-flatene — ikke egen spesial-UI. <a href="#4a">4a</a> dynamisk medlemskap + firma-HMS (revisjon) &middot; <a href="#3a">3a</a> oppsett-flatene &middot; <a href="#3b">3b</a> HMS-lista (E/F/G). Kenneth validerer f&oslash;r koding.</div>
+  </div>
+
+  <div id="4a" style="display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="background: #b45309; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">4a</span>
+      <span style="font-size: 14px; font-weight: 600; color: #111827;">Revisjon etter Kenneths funn: dynamisk medlemskap + firma-HMS (erstatter medlemsdelen i <a href="#3a">3a</a>)</span>
+    </div>
+    <div style="display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap;">
+
+      <!-- Dynamisk medlemskap -->
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a3;">HMS-flyten — medlemskap bygges dynamisk, ikke statisk navn</div>
+        <div style="width: 540px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11.5px; border-radius: 5px; overflow: hidden; border: 1px solid #c9c3ec;"><span style="background: #5b4fc4; color: #fff; font-weight: 700; padding: 2px 7px;">Flyt &rarr;</span><span style="background: #f6f5fd; color: #1f2937; font-weight: 600; padding: 2px 8px;">HMS</span></span>
+            <span style="font-size: 11px; color: #6b7280;">Behandles per prosjekt</span>
+          </div>
+          <div style="display: flex; align-items: stretch; gap: 4px;">
+            <div style="flex: 1; border: 1.5px solid #d4dae4; background: #fbfcfe; border-radius: 8px; padding: 9px 12px; display: flex; flex-direction: column; gap: 5px;">
+              <span style="font-size: 11.5px; font-weight: 700; color: #111827;">1 &middot; Melder</span>
+              <span style="display: inline-flex; white-space: nowrap; width: fit-content; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; color: #0b7a4b; background: #eef7f1; border: 1px solid #bfe3cd; border-radius: 999px; padding: 2px 9px;">F&oslash;lger kontaktlisten &middot; 12</span>
+              <span style="font-size: 10.5px; color: #6b7280; line-height: 1.45;">Alle i prosjektets kontaktliste er med s&aring; lenge HMS-modulen er aktiv — ny kontakt = automatisk melder. Regel, ikke navneliste: ingen vedlikehold.</span>
+              <span style="font-size: 10.5px; color: #1e40af; font-weight: 600;">Rediger unntak&hellip;</span>
+            </div>
+            <span style="align-self: center; color: #b6bfcc; font-size: 12px;">&rarr;</span>
+            <div style="flex: 1; border: 1.5px solid #eed9b8; background: #fdf6ee; border-radius: 8px; padding: 9px 12px; display: flex; flex-direction: column; gap: 5px;">
+              <span style="font-size: 11.5px; font-weight: 700; color: #111827;">2 &middot; Behandler</span>
+              <span style="display: inline-flex; white-space: nowrap; width: fit-content; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; color: #b45309; background: #fff; border: 1px solid #eed9b8; border-radius: 999px; padding: 2px 9px;">HMS-ansvarlige &middot; firmaniv&aring;</span>
+              <span style="font-size: 10.5px; color: #6b7280; line-height: 1.45;">Firmaet som eier prosjektet: HMS-ansvarlige har tilgang til ALLE firmaets prosjekter. Kan suppleres per prosjekt.</span>
+              <span style="font-size: 10.5px; color: #1e40af; font-weight: 600;">+ Legg til for dette prosjektet&hellip;</span>
+            </div>
+          </div>
+        </div>
+        <div style="width: 540px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Ingen statiske gruppenavn i flyten: <b>Melder = regel</b> (&laquo;alle i kontaktlisten&raquo;, matcher dagens null-medlem = alle — vises n&aring; som det den er, redigerbar undervegs) og <b>Behandler = firmaets HMS-ansvarlige + ev. prosjekt-tillegg</b>. &laquo;Sitedoc Ansatte&raquo;-eksemplet i <a href="#3a">3a</a> utg&aring;r.</div>
+      </div>
+
+      <!-- Firma-HMS -->
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a3;">Firma-HMS — samlet oversikt, behandling per prosjekt</div>
+        <div style="width: 560px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+            <div>
+              <div style="font-size: 15px; font-weight: 700; color: #111827;">HMS <span style="font-size: 11px; font-weight: 600; color: #8a93a3;">&middot; Sitedoc AS — alle prosjekter</span></div>
+              <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">For HMS-ansvarlige: alt firmaet skal behandle, ett sted</div>
+            </div>
+            <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #b45309;">Firma-UI</span>
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <div style="display: grid; grid-template-columns: 1fr 90px 90px 110px; gap: 10px; padding: 6px 10px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3; border-bottom: 1px solid #e5e9f0;">
+              <span>Prosjekt</span><span>&Aring;pne</span><span>Hos oss</span><span>Eldste &aring;pne</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 90px 90px 110px; gap: 10px; padding: 9px 10px; font-size: 12px; border-bottom: 1px solid #eef1f6; align-items: center; background: #fbfcfe;">
+              <span style="font-weight: 600; color: #111827;">Boligfelt B12</span>
+              <span style="color: #4b5563;">7</span>
+              <span style="display: inline-flex; white-space: nowrap; width: fit-content; font-size: 11px; background: #fdf6ee; border: 1px solid #eed9b8; color: #b45309; font-weight: 700; padding: 1px 8px; border-radius: 999px;">4</span>
+              <span style="font-size: 11px; color: #b45309; font-weight: 600;">6 dager</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 90px 90px 110px; gap: 10px; padding: 9px 10px; font-size: 12px; border-bottom: 1px solid #eef1f6; align-items: center;">
+              <span style="font-weight: 600; color: #111827;">N&aelig;ringsbygg Strandveien</span>
+              <span style="color: #4b5563;">2</span>
+              <span style="display: inline-flex; white-space: nowrap; width: fit-content; font-size: 11px; background: #fdf6ee; border: 1px solid #eed9b8; color: #b45309; font-weight: 700; padding: 1px 8px; border-radius: 999px;">1</span>
+              <span style="font-size: 11px; color: #6b7280;">i g&aring;r</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 90px 90px 110px; gap: 10px; padding: 9px 10px; font-size: 12px; align-items: center;">
+              <span style="font-weight: 600; color: #111827;">Rehab Skoleveien 3</span>
+              <span style="color: #4b5563;">0</span>
+              <span style="color: #cbd2dd;">—</span>
+              <span style="font-size: 11px; color: #6b7280;">—</span>
+            </div>
+          </div>
+          <div style="font-size: 10.5px; color: #9aa4b5;">Rad-klikk &aring;pner prosjektets HMS-liste (3b) I firma-konteksten — behandlingen skjer per prosjekt, men uten &aring; bytte til prosjekt-UI. Retur hit.</div>
+        </div>
+        <div style="width: 560px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">To niv&aring;er, &eacute;n modell: prosjekt-HMS (3b) for prosjektmedlemmene; firma-HMS aggregerer alle prosjekter for HMS-ansvarlige og g&aring;r rett i behandling per prosjekt. &laquo;Hos oss&raquo; = saker som ligger hos Behandler-leddet.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="3a" style="display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="background: #b45309; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">3a</span>
+      <span style="font-size: 14px; font-weight: 600; color: #111827;">HMS dukker opp i spor 1-flatene (synlighet + medlemskap + form)</span>
+    </div>
+
+    <div style="display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap;">
+
+      <!-- Dokumentflyt-oppsett: HMS-flyten synlig -->
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a3;">Dokumentflyt-oppsett — HMS-flyten vises som det den er</div>
+        <div style="width: 520px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="width: 10px; height: 10px; border-radius: 50%; background: #b45309;"></span>
+            <span style="font-size: 14px; font-weight: 700; color: #111827;">HMS-ansvarlige</span>
+            <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3; margin-left: auto;">Faggruppe</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; background: #fdf6ee; border: 1px solid #eed9b8; border-radius: 7px; padding: 7px 11px;">
+            <span style="font-size: 11px; font-weight: 700; color: #b45309;">Opprettet automatisk</span>
+            <span style="font-size: 11px; color: #6b7280;">da HMS-modulen ble aktivert. Redigeres som alt annet — ingenting her er l&aring;st.</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 7px;">
+            <span style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3;">Dokumentflyter</span>
+            <div style="border: 1px solid #e5e9f0; border-radius: 7px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11.5px; border-radius: 5px; overflow: hidden; border: 1px solid #c9c3ec;"><span style="background: #5b4fc4; color: #fff; font-weight: 700; padding: 2px 7px;">Flyt &rarr;</span><span style="background: #f6f5fd; color: #1f2937; font-weight: 600; padding: 2px 8px;">HMS</span></span>
+                <span style="font-size: 11px; color: #6b7280;">Maler: HMS-avvik &middot; SJA &middot; RUH</span>
+              </div>
+              <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap;">
+                <span style="display: inline-flex; flex-direction: column; gap: 2px; border: 1.5px solid #d4dae4; background: #fbfcfe; border-radius: 7px; padding: 6px 12px;"><span style="font-size: 11.5px; font-weight: 700; color: #111827;">1 &middot; Melder</span><span style="font-size: 10.5px; color: #6b7280;">Alle i prosjektet</span></span>
+                <span style="color: #b6bfcc; font-size: 12px;">&rarr;</span>
+                <span style="display: inline-flex; flex-direction: column; gap: 2px; border: 1.5px solid #eed9b8; background: #fdf6ee; border-radius: 7px; padding: 6px 12px;"><span style="font-size: 11.5px; font-weight: 700; color: #111827;">2 &middot; Behandler</span><span style="font-size: 10.5px; color: #b45309; font-weight: 600;">HMS-ansvarlige (0 medlemmer) &#9888;</span></span>
+              </div>
+              <div style="font-size: 10.5px; color: #9aa4b5;">2-ledds flyt slik den ble auto-opprettet. Vil du ha flere ledd (f.eks. Godkjenner), redigeres flyten her — som alle andre. (Sp&oslash;rsm&aring;l 1: form.)</div>
+            </div>
+          </div>
+        </div>
+        <div style="width: 520px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Punkt 3 (synlighet) + punkt 1 (form): HMS-flyten st&aring;r i samme liste som Endringsmelding og Sitedoc Ansatte, med leddrekka synlig. &laquo;0 medlemmer&raquo;-varselet p&aring; boks 2 er inngangen til punkt 2.</div>
+      </div>
+
+      <!-- Tilgangsmatrise + medlemskap -->
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a3;">Tilgangsmatrise — HMS-gruppen synlig + medlemskaps-fiks</div>
+        <div style="width: 560px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="display: grid; grid-template-columns: 160px repeat(3, 60px) 1fr; font-size: 11.5px; border: 1px solid #e5e9f0; border-radius: 8px; overflow: hidden;">
+            <div style="padding: 8px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3; background: #f8fafc; border-bottom: 1px solid #e5e9f0;">Gruppe</div>
+            <div style="padding: 8px 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #47536b; background: #f8fafc; border-bottom: 1px solid #e5e9f0; text-align: center;">Bygg</div>
+            <div style="padding: 8px 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #b45309; background: #f8fafc; border-bottom: 1px solid #e5e9f0; text-align: center;">HMS</div>
+            <div style="padding: 8px 6px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; color: #5b4fc4; background: #f8fafc; border-bottom: 1px solid #e5e9f0; text-align: center;">Kval.</div>
+            <div style="padding: 8px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3; background: #f8fafc; border-bottom: 1px solid #e5e9f0;">Medlemmer</div>
+            <div style="padding: 9px 12px; border-bottom: 1px solid #eef1f6; display: flex; align-items: center;"><span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11.5px; border-radius: 5px; border: 1px solid #c7d2e4; background: #f4f7fc; color: #1f2937; font-weight: 600; padding: 1px 8px;">Sitedoc Ansatte</span></div>
+            <div style="border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: center; color: #0b7a4b; font-weight: 700;">&#10003;</div>
+            <div style="border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: center; color: #cbd2dd;">—</div>
+            <div style="border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: center; color: #cbd2dd;">—</div>
+            <div style="padding: 9px 12px; border-bottom: 1px solid #eef1f6; color: #6b7280;">12</div>
+            <div style="padding: 9px 12px; background: #fdf6ee; display: flex; align-items: center; gap: 6px;"><span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11.5px; border-radius: 5px; border: 1px solid #eed9b8; background: #fff; color: #1f2937; font-weight: 600; padding: 1px 8px;">HMS-ansvarlige</span><span style="font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #b45309;">Auto</span></div>
+            <div style="background: #fdf6ee; display: flex; align-items: center; justify-content: center; color: #cbd2dd;">—</div>
+            <div style="background: #fdf6ee; display: flex; align-items: center; justify-content: center; color: #0b7a4b; font-weight: 700;">&#10003;</div>
+            <div style="background: #fdf6ee; display: flex; align-items: center; justify-content: center; color: #cbd2dd;">—</div>
+            <div style="padding: 9px 12px; background: #fdf6ee; display: flex; align-items: center; gap: 8px;"><span style="font-weight: 700; color: #b45309;">0 &#9888;</span><span style="font-size: 11px; color: #1e40af; font-weight: 600; cursor: pointer;">+ Legg til medlemmer</span></div>
+          </div>
+          <div style="border: 1px solid #eed9b8; background: #fdf6ee; border-radius: 8px; padding: 10px 13px; display: flex; flex-direction: column; gap: 6px;">
+            <span style="font-size: 12px; font-weight: 700; color: #b45309;">&#9888; Ingen kan behandle HMS-saker enn&aring;</span>
+            <span style="font-size: 11.5px; color: #4b5563; line-height: 1.5;">Gruppen &laquo;HMS-ansvarlige&raquo; ble opprettet automatisk, men har ingen medlemmer — innmeldte HMS-avvik blir liggende. Legg til minst &eacute;n person (deg selv?).</span>
+            <div style="display: flex; gap: 8px;">
+              <span style="background: #b45309; color: #fff; font-size: 11.5px; font-weight: 600; padding: 5px 12px; border-radius: 6px; width: fit-content;">+ Meld meg inn</span>
+              <span style="font-size: 11.5px; font-weight: 600; color: #6b7280; padding: 5px 8px;">Velg andre&hellip;</span>
+            </div>
+          </div>
+        </div>
+        <div style="width: 560px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Punkt 2 (medlemskap, Funn H-hullet): HMS-gruppen vises i matrisen som alle andre (m/ Auto-merke), og tom-tilstanden roper — banner m/ ett-klikks &laquo;Meld meg inn&raquo; for admin. Samme banner vises &oslash;verst i HMS-modulen s&aring; lenge gruppen er tom.</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="3b" style="display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="background: #b45309; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">3b</span>
+      <span style="font-size: 14px; font-weight: 600; color: #111827;">HMS-lista — E/F/G i praksis</span>
+    </div>
+    <div style="display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="width: 620px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 13px;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+            <div>
+              <div style="font-size: 17px; font-weight: 700; color: #111827;">HMS</div>
+              <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">Avvik, SJA og RUH i prosjektet</div>
+            </div>
+            <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px;">+ Meld HMS</span>
+          </div>
+          <div style="display: flex; gap: 0; border: 1px solid #d4dae4; border-radius: 7px; overflow: hidden; width: fit-content; font-size: 11.5px; font-weight: 600;">
+            <span style="padding: 6px 13px; background: #1e40af; color: #fff;">Alle &aring;pne <span style="opacity:0.75;">7</span></span>
+            <span style="padding: 6px 13px; color: #4b5563; border-left: 1px solid #e5e9f0;">Hos meg <span style="color:#9aa4b5;">2</span></span>
+            <span style="padding: 6px 13px; color: #4b5563; border-left: 1px solid #e5e9f0;">Hos HMS-ansvarlige <span style="color:#9aa4b5;">4</span></span>
+            <span style="padding: 6px 13px; color: #4b5563; border-left: 1px solid #e5e9f0;">Lukket <span style="color:#9aa4b5;">31</span></span>
+          </div>
+          <div style="display: flex; flex-direction: column;">
+            <div style="display: grid; grid-template-columns: 1fr 150px 110px; gap: 10px; padding: 6px 10px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3; border-bottom: 1px solid #e5e9f0;">
+              <span>Sak</span><span>Hos</span><span>Meldt</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 150px 110px; gap: 10px; padding: 10px 10px; font-size: 12px; border-bottom: 1px solid #eef1f6; align-items: center;">
+              <span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600; color: #111827;">Manglende rekkverk ved trapp, bygg B</span><span style="font-size: 10.5px; color: #9aa4b5;">HMS-avvik</span></span>
+              <span style="display: inline-flex; white-space: nowrap; width: fit-content; align-items: center; gap: 5px; font-size: 11px; background: #fdf6ee; border: 1px solid #eed9b8; color: #b45309; font-weight: 600; padding: 2px 9px; border-radius: 999px;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #b45309;"></span>Hos HMS-ansvarlige</span>
+              <span style="font-size: 11px; color: #6b7280;">i dag, kmy</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 150px 110px; gap: 10px; padding: 10px 10px; font-size: 12px; border-bottom: 1px solid #eef1f6; align-items: center; background: #fbfcfe;">
+              <span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600; color: #111827;">SJA — kranl&oslash;ft over gangvei</span><span style="font-size: 10.5px; color: #9aa4b5;">SJA</span></span>
+              <span style="display: inline-flex; white-space: nowrap; width: fit-content; align-items: center; gap: 5px; font-size: 11px; background: #eef7f1; border: 1px solid #bfe3cd; color: #0b7a4b; font-weight: 700; padding: 2px 9px; border-radius: 999px;">Hos deg &middot; Behandler</span>
+              <span style="font-size: 11px; color: #6b7280;">i g&aring;r, Kenneth</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 150px 110px; gap: 10px; padding: 10px 10px; font-size: 12px; align-items: center;">
+              <span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-weight: 600; color: #111827;">RUH — spiker gjennom s&aring;le</span><span style="font-size: 10.5px; color: #9aa4b5;">RUH</span></span>
+              <span style="display: inline-flex; white-space: nowrap; width: fit-content; align-items: center; gap: 5px; font-size: 11px; background: #f1f3f7; border: 1px solid #d4dae4; color: #6b7280; font-weight: 600; padding: 2px 9px; border-radius: 999px;">Lukket</span>
+              <span style="font-size: 11px; color: #6b7280;">28. juli, Ola</span>
+            </div>
+          </div>
+        </div>
+        <div style="width: 620px; font-size: 11.5px; color: #5b6472; line-height: 1.55;"><b>F:</b> segmentert filter (samme m&oslash;nster som oppgavelista) — &laquo;Lukket&raquo; alltid synlig segment m/ antall, aldri gjemt i multiselect. <b>G:</b> &laquo;Hos&raquo;-kolonnen bruker flytmodellens perspektiv-vokabular (&laquo;Hos deg&raquo; / &laquo;Hos HMS-ansvarlige&raquo;); lukking/fullf&oslash;ring returnerer HIT, ikke til Oppgaver — HMS-br&oslash;dsmule p&aring; detaljen.</div>
+      </div>
+
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a3;">E — &eacute;n opprettelsesmodell: &laquo;+ Meld HMS&raquo; &aring;pner den unifiserte velgeren</div>
+        <div style="width: 380px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; box-shadow: 0 8px 24px rgba(22,35,63,0.10); padding: 16px 18px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="font-size: 14px; font-weight: 700; color: #111827;">Hva vil du opprette?</div>
+          <div style="display: flex; flex-direction: column; gap: 2px;">
+            <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a3; padding: 8px 4px 3px;">Sitedoc Bygger Boligfelt B12</div>
+            <div style="font-size: 12px; color: #6b7280; padding: 3px 10px 3px 14px;">Endringsmelding</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px 6px 22px; font-size: 12.5px; color: #374151; border-radius: 6px;">EM-010 Endringsmelding</div>
+            <div style="font-size: 10.5px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: #b45309; padding: 10px 4px 3px;">HMS</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px 6px 14px; font-size: 12.5px; font-weight: 600; color: #111827; background: #f4f7fc; border-left: 3px solid #1e40af; border-radius: 6px;"><span>HMS-avvik</span><span style="font-size: 10.5px; color: #8a93a3;">Sist brukt</span></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px 6px 14px; font-size: 12.5px; color: #374151; border-radius: 6px;">SJA</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px 6px 14px; font-size: 12.5px; color: #374151; border-radius: 6px;">RUH</div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid #eef1f6; padding-top: 10px;">
+            <span style="font-size: 12px; font-weight: 600; color: #6b7280; padding: 6px 12px;">Avbryt</span>
+            <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 600; padding: 6px 16px; border-radius: 6px;">Opprett</span>
+          </div>
+        </div>
+        <div style="width: 380px; font-size: 11.5px; color: #5b6472; line-height: 1.55;"><b>E:</b> samme velger som sjekkliste/oppgave (v2-gruppering + Funn C-interaksjon), med HMS som egen niv&aring;-1-seksjon (vedtatt alt 1) og seksjonen forvalgt/scrollet n&aring;r inngangen er &laquo;+ Meld HMS&raquo;. &Eacute;n modell, to innganger. Markering/&#8593;&#8595;/Enter uendret.</div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

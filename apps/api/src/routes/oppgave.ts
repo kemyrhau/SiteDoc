@@ -1479,7 +1479,87 @@ export const oppgaveRouter = router({
     }),
 
   /**
-   * Lukk besvart HMS-oppgave (HMS-admin). Tilstand: responded → closed (terminal).
+   * Returner HMS-sak til melder med spørsmål (HMS-admin). Tilstand: received → responded.
+   * Spor 2 / 5c: behandler eier handlingen, men redigerer ALDRI melderens felt — i stedet
+   * sendes ballen tilbake til melder-leddet (Ledd 1) med et spørsmål, og melder svarer via
+   * «Tillegg fra melder» (`hmsTilfoyInformasjon`, lovlig i `responded`). Mekanisk lik
+   * `hmsBesvar` (samme ruting tilbake til oppretter), men egen handling/intensjon +
+   * obligatorisk spørsmål. Ingen ny status-enum (gjenbruker `responded`). Blokkerer IKKE
+   * senere Lukk (behandler kan alltid avslutte — unngår deadlock om melder aldri svarer).
+   */
+  hmsReturner: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        sporsmaal: z.string().trim().min(1, "Spørsmål er påkrevd"),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const oppgave = await hentHmsOppgave(ctx.prisma, input.id);
+      await verifiserHmsHandling(
+        ctx.userId,
+        {
+          bestillerUserId: oppgave.bestillerUserId,
+          status: oppgave.status,
+          projectId: oppgave.template!.projectId,
+        },
+        "returner",
+      );
+
+      // Ruter via posisjon tilbake til oppretter/Ledd 1 (E1 null-medlem → bestiller) — som hmsBesvar.
+      const hmsMedlemmer = await hentFlytMedlemmer(ctx.prisma, oppgave.dokumentflytId);
+      const hmsRuting = beregnRuting({
+        nyStatus: "responded",
+        effektivStatus: "responded",
+        medlemmer: hmsMedlemmer,
+        naaPos: oppgave.aktivPosisjon,
+        bestillerUserId: oppgave.bestillerUserId,
+      });
+
+      const resultat = await ctx.prisma.$transaction(async (tx) => {
+        const oppdatert = await tx.task.update({
+          where: { id: input.id },
+          data: {
+            status: hmsRuting.status,
+            aktivPosisjon: hmsRuting.aktivPosisjon,
+            retning: hmsRuting.retning,
+            terminal: hmsRuting.terminal,
+            sendt: hmsRuting.sendt,
+            ...(hmsRuting.mottaker
+              ? { recipientUserId: hmsRuting.mottaker.recipientUserId, recipientGroupId: hmsRuting.mottaker.recipientGroupId }
+              : {}),
+          },
+        });
+        await tx.documentTransfer.create({
+          data: {
+            taskId: input.id,
+            senderId: ctx.userId,
+            fromStatus: oppgave.status,
+            toStatus: "responded",
+            comment: input.sporsmaal,
+          },
+        });
+        return oppdatert;
+      });
+
+      // Varsle melderen om returen (spørsmålet).
+      await sendHmsVarsel(ctx.prisma, {
+        dokumentId: oppgave.id,
+        tittel: oppgave.title,
+        nummer: oppgave.number,
+        prefix: oppgave.template!.prefix,
+        projectId: oppgave.template!.projectId,
+        prosjektNavn: oppgave.template!.project?.name ?? "",
+        avsenderId: ctx.userId,
+        recipientUserId: oppgave.bestillerUserId,
+        kommentar: input.sporsmaal,
+      });
+
+      return resultat;
+    }),
+
+  /**
+   * Lukk besvart HMS-oppgave (HMS-admin). Tilstand: received · responded → closed (terminal).
    */
   hmsLukk: protectedProcedure
     .input(

@@ -2212,28 +2212,48 @@ function TilleggRadDialog({
   async function handleVedleggValgt(e: React.ChangeEvent<HTMLInputElement>) {
     const fil = e.target.files?.[0];
     e.target.value = "";
-    if (!fil || !rad) return;
+    if (!fil) return;
+    // Funn 3 (defensiv): UI skjuler input når raden ikke er lagret, men aldri stille retur.
+    if (!rad) {
+      setVedleggFeil(t("timer.vedlegg.lagreForst"));
+      return;
+    }
     setVedleggFeil(null);
     setLasterOpp(true);
     try {
       const formData = new FormData();
       formData.append("file", fil);
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      // Timer-kvittering/utlegg er sensitiv → uploads/privat/ (signatur-KUN, S1 Fase 1)
+      const res = await fetch("/api/upload?privat=1", { method: "POST", body: formData });
+      // Funn 1: robust svar-lesing — les som tekst, forsøk JSON. Et ikke-JSON-svar
+      // skal gi en forståelig feil (+ diagnostikk i konsoll), ikke et blindt kast
+      // som maskeres til «Ugyldig verdi.».
+      const raaTekst = await res.text();
+      let data: { fileUrl?: string; fileSize?: number; error?: string } = {};
+      try {
+        data = raaTekst ? JSON.parse(raaTekst) : {};
+      } catch {
+        console.error("[vedlegg] upload-svar er ikke JSON:", res.status, raaTekst.slice(0, 300));
+      }
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setVedleggFeil(err.error ?? t("timer.feil.ugyldigInput"));
+        setVedleggFeil(data.error ?? t("timer.vedlegg.opplastingFeilet"));
         return;
       }
-      const opplastet = await res.json();
+      if (!data.fileUrl) {
+        console.error("[vedlegg] upload 200 uten fileUrl:", res.status, raaTekst.slice(0, 300));
+        setVedleggFeil(t("timer.vedlegg.opplastingFeilet"));
+        return;
+      }
       await tilfoyVedlegg.mutateAsync({
         sheetTilleggId: rad.id,
-        fileUrl: opplastet.fileUrl,
+        fileUrl: data.fileUrl,
         fileName: fil.name,
         mimeType: fil.type || "application/octet-stream",
-        fileSize: opplastet.fileSize ?? fil.size,
+        fileSize: data.fileSize ?? fil.size,
       });
-    } catch {
-      setVedleggFeil(t("timer.feil.ugyldigInput"));
+    } catch (e) {
+      // Vis faktisk årsak (tRPC onError-melding / nettverksfeil) — aldri overskriv med generisk tekst.
+      setVedleggFeil(e instanceof Error ? e.message : t("timer.vedlegg.opplastingFeilet"));
     } finally {
       setLasterOpp(false);
     }

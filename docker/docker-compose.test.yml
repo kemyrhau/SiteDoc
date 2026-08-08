@@ -11,7 +11,9 @@ services:
     image: sitedoc-test-api:latest
     container_name: sitedoc-test-api
     restart: unless-stopped
-    env_file: ./env/api-test.env       # DATABASE_URL -> postgres:5432/sitedoc_test, AUTH_* (egen test), APP_URL=https://test.sitedoc.no ...
+    env_file:
+      - ./env/felles.env               # delte secrets som MÅ være identiske i api+web (FIL_SIGNING_SECRET). Se DOCKER-NOTES § FIL_SIGNING_SECRET
+      - ./env/api-test.env             # DATABASE_URL -> postgres:5432/sitedoc_test, AUTH_* (egen test), APP_URL=https://test.sitedoc.no ... (senere fil vinner ved kollisjon)
     environment:
       PORT: "3301"
       HOST: "0.0.0.0"
@@ -34,7 +36,9 @@ services:
     image: sitedoc-test-web:latest
     container_name: sitedoc-test-web
     restart: unless-stopped
-    env_file: ./env/web-test.env       # AUTH_* (egen test), AUTH_URL/NEXTAUTH_URL=https://test.sitedoc.no, DATABASE_URL (sitedoc_test) ...
+    env_file:
+      - ./env/felles.env               # delte secrets identiske i api+web (FIL_SIGNING_SECRET). tRPC/signering kjører i WEB → må stå her óg
+      - ./env/web-test.env             # AUTH_* (egen test), AUTH_URL/NEXTAUTH_URL=https://test.sitedoc.no, DATABASE_URL (sitedoc_test) ...
     environment:
       PORT: "3300"
     network_mode: "service:sitedoc-test-api"

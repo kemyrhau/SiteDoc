@@ -13,6 +13,7 @@ import { devLoginRoute, erDevLoginAktiv } from "./routes/dev-login";
 import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
+import { verifiserFilSignatur, assertFilSigneringEnv } from "./utils/hmac";
 
 const server = Fastify({
   // Fastify mottar requests via Cloudflare Tunnel → cloudflared. cloudflared
@@ -46,6 +47,12 @@ const server = Fastify({
 });
 
 async function start() {
+  // Fail-fast (S1): FIL_SIGNING_SECRET kreves i produksjon for signert filserving.
+  // Delt guard — samme sjekk kjører i web-prosessen (Next-instrumentation), fordi
+  // tRPC (som signerer) faktisk kjører der (rotårsak 2026-08-07). Mangler den →
+  // prosessen kommer ikke opp, i stedet for å kaste midt i et tRPC-svar.
+  assertFilSigneringEnv("api");
+
   const TILLATTE_ORIGINS = new Set([
     "https://sitedoc.no",
     "https://test.sitedoc.no",
@@ -71,6 +78,24 @@ async function start() {
   // Multipart filopplasting (maks 500 MB)
   await server.register(multipart, {
     limits: { fileSize: 500 * 1024 * 1024 },
+  });
+
+  // S1 Fase 1 — autorisert filserving for sensitive filer.
+  // `/uploads/privat/*` er signatur-KUN (ingen sesjons-fallback): API signerer
+  // stien ved emisjon etter authz, og denne hooken verifiserer HMAC-signaturen
+  // uten ny DB-authz. Utløpt/ugyldig/manglende signatur → 401. Non-privat
+  // `/uploads/*` er uendret i Fase 1 (global gate kommer i Fase 1b).
+  server.addHook("onRequest", async (req, reply) => {
+    if (!req.url.startsWith("/uploads/privat/")) return;
+    const u = new URL(req.url, "http://localhost");
+    const gyldig = verifiserFilSignatur(
+      u.pathname,
+      u.searchParams.get("exp"),
+      u.searchParams.get("sig"),
+    );
+    if (!gyldig) {
+      return reply.status(401).send({ error: "Ugyldig eller utløpt fil-signatur" });
+    }
   });
 
   // Server opplastede filer

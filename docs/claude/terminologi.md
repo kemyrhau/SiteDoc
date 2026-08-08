@@ -94,6 +94,20 @@ Flyttet hit fra CLAUDE.md 2026-07-10 (anker-prinsippet — modul-typologi bor i 
 >
 > Auth, brukere og organisasjoner deles — ikke to kodebaser. Gjelder **alle** firmamoduler. Forankret i [OPPSUMMERING-timer-arkitektur.md § A](OPPSUMMERING-timer-arkitektur.md); se [arkitektur-syntese.md § 2.6](arkitektur-syntese.md) + CLAUDE.md § Prosjektisolering (annotert).
 
+> **🔴 ÉN KILDE TIL FIRMAMEDLEMSKAP OG FIRMAROLLE (vedtatt av Kenneth 2026-08-07, STYRENDE):**
+> **Firmaets ansatte-side (`dashbord/firma/ansatte` → `OrganizationMember`) er eneste sted som avgjør om en person tilhører et firma og hvilken firmarolle personen har.** Ingen annen flate, kolonne eller tabell skal definere det.
+>
+> **Bakgrunn — dagens tilstand bryter vedtaket.** Kartlagt 2026-08-07: tre parallelle datamodeller uttrykker firmarolle samtidig —
+> 1. `User.role = "company_admin"` (global kolonne på brukeren),
+> 2. `OrganizationMember.firmaRoller[]` (array per firmamedlemskap — den riktige kilden),
+> 3. `ProjectMember.erFirmaansvarlig` (boolean på *prosjekt*medlemskap, gir firma-lignende rett).
+>
+> I tillegg skrives `firmaRoller` fra ≥3 mutasjoner i `organisasjon.ts` (én merket «Speil av settFirmaAdmin» = bevisst duplisert), og leses 39 steder i 7 filer. En fjerde, utgått kilde (`User.organizationId`) forårsaket «FIRMA-kolonne tom»-bugen (fikset `4b306a14`).
+>
+> **Observerte symptomer av samme rot:** kmy står som «Bruker» på ansatte-siden (`firmaRoller = {}`) samtidig som han fungerer som HMS-behandler på prosjekt — fordi `erHmsAdmin` i dag er *union* av tre kilder (prosjektadmin ∪ HMS-gruppemedlemskap ∪ firma-`hms_ansvarlig`). Rollen hans er reelt definert et annet sted enn firmaets ansatte-side.
+>
+> **Konsekvens for nytt arbeid:** ny kode leser firmamedlemskap/firmarolle KUN fra `OrganizationMember`. Ingen nye lesepunkter mot `User.role` eller `erFirmaansvarlig` for firma-beslutninger. Konsolidering av eksisterende kilder = egen ordre (fabel speccer datamodell + UX + migrering); ikke improviser den inn i en pågående runde — den rører tilgangskontroll.
+
 ## 1. Organisasjon og firma
 
 - **Firma:** Selskapet som eier SiteDoc-kontoen. DB: `Organization`. Eksempel: A.Markussen AS, Veidekke. Eier prosjekter og firmamoduler (timer, maskin, HR, planlegging). Kobling til prosjekter via `OrganizationProject`

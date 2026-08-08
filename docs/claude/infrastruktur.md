@@ -192,10 +192,13 @@ Env ligger nå i `~/stack/sitedoc/docker/env/` (lest av compose via `env_file`):
 
 | Fil | Nøkkelvariabler |
 |-----|----------------|
+| `docker/env/felles.env` | **Delte secrets som MÅ være identiske i api+web** (montert på begge via liste-`env_file`): `FIL_SIGNING_SECRET`. Se [DOCKER-NOTES § FIL_SIGNING_SECRET](../../docker/DOCKER-NOTES.md). |
 | `docker/env/api.env` | `DATABASE_URL`/`DIRECT_URL` (`postgresql://sitedoc:***@postgres:5432/sitedoc`), `PORT=3001`, `AUTH_SECRET`, `RESEND_API_KEY`, `VEGVESEN_API_KEY`, `SITEDOC_INTEGRATION_KEY` |
 | `docker/env/web.env` | `AUTH_SECRET`, `AUTH_GOOGLE_*`, `AUTH_MICROSOFT_*`, `AUTH_URL`/`NEXTAUTH_URL=https://sitedoc.no`, `AUTH_TRUST_HOST=true`, `DATABASE_URL` (samme), `RESEND_*` |
 
 > Env-filene kopieres aldri inn i image (`.dockerignore` ekskluderer `docker/env/*.env`); de leses kun på host ved `up`. Nøkler håndteres av Kenneth.
+>
+> ⚠️ **tRPC kjører i WEB-containeren** (Next-route-handler importerer `appRouter`; kun `/api/upload` + `/api/uploads/*` rewrites til api). Env-variabler som brukes av tRPC-prosedyrer (f.eks. `FIL_SIGNING_SECRET`) MÅ derfor være tilgjengelige i web — derav `felles.env` montert på begge. Begge prosesser fail-faster i prod uten den (`assertFilSigneringEnv`).
 
 ## Test-miljø
 

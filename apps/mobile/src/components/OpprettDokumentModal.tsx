@@ -167,6 +167,14 @@ export function OpprettDokumentModal({
   }, [synlig]);
   const pendingNavId = useRef<string | null>(null);
   const harAutoOpprettet = useRef(false);
+  // P4a: gate dismiss på at modalen faktisk er ferdig PRESENTERT. Ved auto-opprett
+  // (entydig kontekst) kan mutasjonen fullføre før slide-inn-animasjonen er ferdig
+  // (rask localhost/cache) → `setInternSynlig(false)` mid-present fører til at iOS
+  // `onDismiss` ALDRI fyrer → `pendingNavId` henger, navigering skjer aldri, og
+  // modal-VC-en blir liggende som usynlig svart overlay. `onShow` (kun iOS) bekrefter
+  // full presentasjon; er en dismiss ønsket før det, utsettes den til `onShow`.
+  const harPresentert = useRef(false);
+  const venterDismiss = useRef(false);
 
   // Default oppgave-tittel = malnavn ved modalåpning (redigerbar). Kun på
   // false→true-overgang, så brukerens redigering ikke overskrives.
@@ -243,6 +251,8 @@ export function OpprettDokumentModal({
       harKjørtLokasjon.current = false;
       harAutoOpprettet.current = false;
       pendingNavId.current = null;
+      harPresentert.current = false;
+      venterDismiss.current = false;
     }
   }, [synlig]);
 
@@ -423,13 +433,29 @@ export function OpprettDokumentModal({
       nullstillSkjema();
       if (Platform.OS === "ios") {
         pendingNavId.current = id;
-        setInternSynlig(false);
+        // Bare start dismiss hvis modalen er ferdig presentert; ellers utsett til
+        // `onShow` (unngår present/dismiss-race som svelger `onDismiss`).
+        if (harPresentert.current) {
+          setInternSynlig(false);
+        } else {
+          venterDismiss.current = true;
+        }
       } else {
         onOpprettet(id);
       }
     },
     [nullstillSkjema, onOpprettet],
   );
+
+  // iOS: presentasjonen er ferdig. Er en dismiss ønsket (auto-opprett fullførte
+  // før animasjonen), utfør den nå — da fyrer `onDismiss` pålitelig.
+  const håndterShow = useCallback(() => {
+    harPresentert.current = true;
+    if (venterDismiss.current) {
+      venterDismiss.current = false;
+      setInternSynlig(false);
+    }
+  }, []);
 
   // iOS: modalen er helt dismisset → trygt å navigere / rapportere lukket.
   const håndterDismiss = useCallback(() => {
@@ -552,6 +578,7 @@ export function OpprettDokumentModal({
       visible={internSynlig}
       animationType="slide"
       onRequestClose={onLukk}
+      onShow={håndterShow}
       onDismiss={håndterDismiss}
     >
       <SafeAreaView style={{ flex: 1, backgroundColor: "#ffffff" }}>
