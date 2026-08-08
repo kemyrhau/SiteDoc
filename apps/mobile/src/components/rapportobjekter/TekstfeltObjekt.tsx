@@ -34,7 +34,11 @@ export function TekstfeltObjekt({ objekt, verdi, onEndreVerdi, leseModus }: Rapp
             tekstVerdi ? "text-gray-900" : "text-gray-400"
           } ${leseModus ? "text-gray-500" : ""}`}
         >
-          {tekstVerdi || t("felt.trykkForAaSkrive")}
+          {/* Funn #1 (device 2026-08-08): i leseModus gjør trykk ingenting
+              (åpneModal returnerer tidlig) — vis nøytralt «—» i stedet for den
+              falske «Trykk for å skrive…»-invitasjonen. Delt felt: gjelder alle
+              rapport-skjemaer (sjekkliste + oppgave), ikke bare HMS. */}
+          {tekstVerdi || (leseModus ? "—" : t("felt.trykkForAaSkrive"))}
         </Text>
       </Pressable>
 
