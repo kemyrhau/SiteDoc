@@ -97,6 +97,11 @@ Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmod
 - **Statusmaskin:** F6-oppfølger (`received→approved` som default) · posisjonsutredning (H1/N-boks, `steg`-feltet finnes) · registrator-steg-1-validering · H2 (utførers venstre-send/tilbake-kant) · besvar=venstre-modellspenningen · § 0 delt-kilde-konsolidering (egen fase).
 - **Effektivitet:** **P4c timer** (7→1-2 klikk, arver chip-komponenten) — ikke startet. Øvrige restanser i [BACKLOG](BACKLOG.md).
 - **Mobil M1–M3:** #2 inline-kommentar-inngang · #7b liste-filter · #4 bekreft-på-send-vurdering · #5 testdata-flyt m/distinkte personer per ledd.
+### Mobil funn B13 — sedel-byggeplass «Ingen»-valg (branch `fix/mobil-funn-2026-08-08-b13`) — PÅ BRANCH, venter merge → EAS 44
+
+**Funn #2 fra Kenneths enhetstest: sedel-byggeplass-velgeren gikk bare én vei — feilvalgt byggeplass kunne ikke angres.** Lagt til «Ingen byggeplass»-rad (nullstiller) i `ByggeplassVelger.tsx`, gatet bak ny `tillatIngen`-prop (kun sedel-velgeren; global `ByggeplassChip` upåvirket). `velgByggeplass` + onVelg tar nå `string | null`; `dagsseddelLocal.byggeplassId` er nullbar → gjenoppretter opprinnelig tom tilstand. i18n gjenbruker `timer.byggeplass.ingenValgt`. Simulator-verifisert: satte Røstbakken → «Ingen byggeplass» → tømt (banner «Velg byggeplass», rad «· Ingen byggeplass»). Typecheck 4/4. **Reload: Metro reload.** Rørte IKKE `TimerSeksjon.tsx` (Opus mobil-device eier maskin-FK der).
+- **Funn #1 (rapportobjekt-verdifelt-placeholder i leseModus) + Funn #3 (offline UUID-degradering) → egne saker, ikke i denne branchen.** #1: delt `TekstfeltObjekt` brukt i ALLE rapport-skjemaer (utenfor SJA/HMS). #3: rot er systemisk destruktiv cache-tømming ved feilet pull i 6 katalog-tjenester (samme klasse som equipment Del B pkt 2), ikke en visningsfeil. Begge rapportert til cowork for gate.
+
 ### Mobil device-småfunn ×5 (branch `fix/mobil-smaafunn-2026-08-08`) — PÅ BRANCH, venter merge → EAS 44
 
 **Fem uavhengige mobil-fikser fra Kenneths enhetstest (Blokk 7 + fabel Del C/D), simulator-verifisert. Ingen migrering, ingen serverendring. Reload: Metro reload.** Går ut i felt via **EAS 44** (testerne får 44, ikke 43).

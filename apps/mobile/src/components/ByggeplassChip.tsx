@@ -75,7 +75,9 @@ export function ByggeplassChip() {
           valgtId={valgtBygningId}
           gpsForeslagId={gpsByggeplassId}
           onVelg={(id) => {
-            settBygning(id);
+            // Funn #2: den globale chipen tilbyr ikke «Ingen» (tillatIngen
+            // utelatt) → `id` er alltid satt her. Guard for type-sikkerhet.
+            if (id) settBygning(id);
             setVisVelger(false);
           }}
           onLukk={() => setVisVelger(false)}
