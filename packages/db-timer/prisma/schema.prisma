@@ -114,9 +114,18 @@ model ExpenseCategory {
   id             String   @id @default(uuid())
   organizationId String   @map("organization_id")
   navn           String
+  // Utleggs-ordningsmodell (U1, 2026-08-08): firma-katalogen eier ordningens
+  // EKSISTENS og default. Lukket enum "sats" | "utlegg" | "fakturert" —
+  // validert i app-lag (@sitedoc/shared erGyldigOrdning) + DB-CHECK i migreringen.
+  // Prosjekt kan overstyre via ProsjektOrdningOverstyring; oppslag alltid
+  // overstyring ?? denne. Default = "utlegg" (utleggskategorier er refusjon).
+  ordning        String   @default("utlegg")
   aktiv          Boolean  @default(true)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")
+
+  sheetUtlegg   SheetUtlegg[]
+  overstyringer ProsjektOrdningOverstyring[]
 
   @@index([organizationId])
   @@map("expense_categories")
@@ -172,6 +181,7 @@ model DailySheet {
   timer     SheetTimer[]
   tillegg   SheetTillegg[]
   maskiner  SheetMachine[]
+  utlegg    SheetUtlegg[]
 
   @@unique([userId, dato])
   @@index([organizationId])
@@ -307,6 +317,92 @@ model SheetTilleggVedlegg {
 
   @@index([sheetTilleggId])
   @@map("sheet_tillegg_vedlegg")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  SheetUtlegg — utleggs-/fakturert-rader per dagsseddel (U1, 2026-08-08)
+//  Egen bærer atskilt fra SheetTillegg: beløp/mva/kvittering har ANDRE
+//  semantikker enn antall/avhuking, og eksporten skiller på MODELL, ikke på et
+//  flagg som kan glemmes. sats-ordninger bæres fortsatt av SheetTillegg.
+//
+//  ordningVedFoering er INTEGRITETSBÆRER, ikke bare revisjonsspor: insert
+//  stempler utledet ordning (overstyring ?? firma-default) i samme transaksjon,
+//  og CHECK-constrainten (migrering) håndhever beløps-regelen mot DET stempelet:
+//    (fakturert AND belop IS NULL) OR (<>fakturert AND belop IS NOT NULL)
+//  Feltet er IMMUTABELT etter insert — ordningsbytte = korreksjon (ny rad),
+//  aldri mutasjon. projectId er svak FK → Project (kjernen, A.20-mønster).
+// ==========================================================================
+
+model SheetUtlegg {
+  id                String   @id @default(uuid())
+  sheetId           String   @map("sheet_id")
+  projectId         String   @map("project_id") // svak FK → projects (kjernen, ingen @relation)
+  expenseCategoryId String   @map("expense_category_id")
+  // NULL kun når ordningVedFoering='fakturert' (håndhevet av CHECK). Refusjon
+  // krone for krone for 'utlegg'.
+  belop             Decimal? @db.Decimal(10, 2)
+  // mva-sats snapshot per rad (regnskapsspørsmål — settes fra kategori i U2).
+  mvaSats           Decimal? @map("mva_sats") @db.Decimal(5, 2)
+  kommentar         String?  @db.Text
+  // Utledet ordning stemplet ved insert. Immutabel. Se blokk-kommentar over.
+  ordningVedFoering String   @map("ordning_ved_foering")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  sheet           DailySheet      @relation(fields: [sheetId], references: [id], onDelete: Cascade)
+  expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id], onDelete: Restrict)
+
+  @@index([sheetId])
+  @@index([projectId])
+  @@index([expenseCategoryId])
+  @@map("sheet_utlegg")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  SheetUtleggVedlegg — kvittering-/bilde-vedlegg på en utlegg-rad (U1).
+//  Speiler SheetTilleggVedlegg 1:1 (mønster 1: rad per fil, svak String-FK
+//  uten @relation, samme feltsett). Lagring via /upload (fileUrl), ikke S3.
+// ==========================================================================
+
+model SheetUtleggVedlegg {
+  id            String   @id @default(uuid())
+  sheetUtleggId String   @map("sheet_utlegg_id") // svak FK → sheet_utlegg (ingen @relation)
+  fileUrl       String   @map("file_url")
+  fileName      String   @map("file_name")
+  mimeType      String   @map("mime_type")
+  fileSize      Int      @map("file_size")
+  gpsLat        Float?   @map("gps_lat")
+  gpsLng        Float?   @map("gps_lng")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  @@index([sheetUtleggId])
+  @@map("sheet_utlegg_vedlegg")
+  @@schema("timer")
+}
+
+// ==========================================================================
+//  ProsjektOrdningOverstyring — firma-admin overstyrer en kategoris ordning
+//  for ETT prosjekt (U1). Oppslag alltid: overstyring ?? ExpenseCategory.ordning
+//  (delt utledningsfunksjon i @sitedoc/shared). Endring gjelder kun FREMOVER —
+//  allerede førte rader beholder sitt ordningVedFoering-stempel. prosjektId er
+//  svak FK → Project (kjernen, A.20-mønster, ingen @relation).
+// ==========================================================================
+
+model ProsjektOrdningOverstyring {
+  id                String   @id @default(uuid())
+  prosjektId        String   @map("prosjekt_id") // svak FK → projects (kjernen)
+  expenseCategoryId String   @map("expense_category_id")
+  ordning           String
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  expenseCategory ExpenseCategory @relation(fields: [expenseCategoryId], references: [id], onDelete: Cascade)
+
+  @@unique([prosjektId, expenseCategoryId], name: "uq_overstyring_prosjekt_kategori", map: "uq_overstyring_prosjekt_kategori")
+  @@index([expenseCategoryId])
+  @@map("prosjekt_ordning_overstyring")
   @@schema("timer")
 }
 
