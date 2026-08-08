@@ -15,6 +15,7 @@ import { useRouter } from "expo-router";
 import {
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Plus,
   ClipboardCheck,
   ListTodo,
@@ -111,6 +112,9 @@ export default function HjemSkjerm() {
   const [opprettKategori, setOpprettKategori] = useState<"sjekkliste" | "oppgave" | null>(null);
   const [valgtMal, setValgtMal] = useState<MalData | null>(null);
   const [visAndroidMeny, setVisAndroidMeny] = useState(false);
+  // Fabel C: «Se alle»/«Vis færre» utvider innboksen inline til dagens tak (10).
+  // Lokal (ikke persistert) — resettes ved remount, bevisst enkel løsning.
+  const [visAlleInnboks, setVisAlleInnboks] = useState(false);
   const { valgtFirmaId, firmaer, lasterFirmaer } = useFirma();
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -459,8 +463,12 @@ export default function HjemSkjerm() {
               <>
                 {/* Fabel C: maks 3 innboksrader inline så Oppgaver/Sjekklister/
                     Kontrollplaner/HMS-seksjonene holder seg over skjermkanten.
-                    Resten når man via «Se alle»-raden. Badge over = totalantall. */}
-                {innboksElementer.slice(0, INNBOKS_MAKS).map((element) => (
+                    «Se alle» utvider inline til dagens tak (10) — ingen egen
+                    samlet innboks-skjerm finnes, så ingen rute å navigere til.
+                    Badge over = totalantall. */}
+                {innboksElementer
+                  .slice(0, visAlleInnboks ? 10 : INNBOKS_MAKS)
+                  .map((element) => (
                   <Pressable
                     key={element.id}
                     className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3"
@@ -498,12 +506,18 @@ export default function HjemSkjerm() {
                 {innboksElementer.length > INNBOKS_MAKS && (
                   <Pressable
                     className="flex-row items-center justify-between border-b border-gray-200 bg-white px-4 py-3"
-                    onPress={() => router.push("/boks")}
+                    onPress={() => setVisAlleInnboks((v) => !v)}
                   >
                     <Text className="text-sm font-medium text-sitedoc-blue">
-                      {t("hjem.seAlleInnboks", { antall: innboksElementer.length })}
+                      {visAlleInnboks
+                        ? t("hjem.visFaerreInnboks")
+                        : t("hjem.seAlleInnboks", { antall: innboksElementer.length })}
                     </Text>
-                    <ChevronRight size={18} color="#1e40af" />
+                    {visAlleInnboks ? (
+                      <ChevronUp size={18} color="#1e40af" />
+                    ) : (
+                      <ChevronDown size={18} color="#1e40af" />
+                    )}
                   </Pressable>
                 )}
               </>

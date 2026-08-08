@@ -2139,6 +2139,7 @@
   "hjem.innboks": "Inbox",
   "hjem.oppgaver": "Tasks",
   "hjem.seAlleInnboks": "See all ({{antall}})",
+  "hjem.visFaerreInnboks": "Show fewer",
   "hjem.sjekklister": "Checklists",
   "hjem.kontrollplaner": "Control plans",
   "hjem.hms": "HSE",
