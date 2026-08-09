@@ -1,7 +1,7 @@
 ---
 name: STATUS-AKTUELT
 description: Løpende statusrapport for pågående arbeid, pauset arbeid og planlagte faser. Oppdateres ved hver vesentlig fremdrift.
-sist_verifisert_mot_kode: 2026-07-10
+sist_verifisert_mot_kode: 2026-08-09
 ---
 
 ## Statustavle — aktive økter
@@ -10,7 +10,9 @@ sist_verifisert_mot_kode: 2026-07-10
 
 | Økt | Arbeidstre | Branch | Eier filer | Åpnet | Status |
 |---|---|---|---|---|---|
-| **Utlegg-ordningsmodell** | `SiteDoc-utlegg` | `feat/utlegg-ordningsmodell` | `packages/shared/src/utils/utleggOrdning.ts` · `packages/db-timer/prisma/schema.prisma` + migrering · `docs/claude/timer.md` | 2026-08-08 | 🟢 **U1 kodet + gatet + pushet.** Datamodell (SheetUtlegg/vedlegg/overstyring + `ordning` + CHECK) + delt utledning. Neste: U2 eksport-guard |
+| **Utlegg-ordningsmodell** | `SiteDoc-utlegg` | `feat/utlegg-ordningsmodell` | `packages/shared/src/utils/utleggOrdning.ts` · `apps/api/src/routes/timer/expenseCategory.ts` · `apps/web/.../timer/[id]/page.tsx` · `docs/claude/timer.md` | 2026-08-08 | 🟢 **U1 prod (`e37621e1`). U3 web pushet (`aa111b45`), venter E2E** — U1-migreringen er nå kjørt på test, så E2E kan gå. U2 utsatt (ingen Proadm-eksportmotor i kode). Neste: E2E → U4 mobil (bygg 45) |
+| **Mobil device-funn** | `SiteDoc-mobil-device` | *(merget, kan ryddes)* | — | 2026-08-08 | **✅ MERGET develop + i EAS 44.** Del A tegnings-nav · Del B maskin ved redigering (+migrering) · seks katalog-cacher. Del B pkt 1-migrering kjørt på test, **ikke prod** |
+| **Simulator/mobil-verifisering** | `SiteDoc-simulator` | *(merget, kan ryddes)* | — | 2026-08-08 | **✅ MERGET develop + i EAS 44.** Åtte småfunn + tre enhetsverifiseringsrunder (Del A/B, katalog-cache, samlet bunt). Rollen lukket for bunt 44 |
 **Tavla er tom for aktive kode-økter** (2026-07-24) — hele flyt-sporet + A-3b er merget til develop. `SiteDoc-a3b`-treet kan ryddes (branch merget). Fabel-design + backlog-saker (Tooltip v2, `ListeKontroll`, mobil-wiring, flyt-handlingstekster) er ikke aktive økter.
 
 | **Registrator-fiks** | *(økt kan exit)* | `fix/registrator-rettigheter` | `flytRolle.ts` · `statusHandlinger.ts` · `tilgangskontroll.ts` · `DokumentHandlingsmeny` | 2026-07-21 | **✅ MERGET develop (`cb3ce3d1`).** Fase A+B — registrator ikke lenger superbruker. ⚠️ Åpen rest: `rejected→sent` → handlingsmeny-arbeidet ([registrator-rolleforveksling.md](delplaner/registrator-rolleforveksling.md)) |
@@ -68,7 +70,16 @@ Fundamentet under A-3b: statusmaskin (A-laget) + config-substrat (B) før perspe
 
 > Ordre 1 ([SAMARBEIDSREGLER § Cowork leveranse-ansvar](SAMARBEIDSREGLER.md#cowork-leveranse-ansvar-ordre-2026-07-14)): cowork sporer EAS-bygg her. Ved **12 bygg/mnd** → stopp + sjekk klar-tilstand + flagg i status før nytt bygg fyres. Dato/# bekreftes mot `eas build:list`.
 
-**Juli 2026 — 4 bygg brukt (av ~15), ~11 igjen. Reset 1. aug.** Kilde: `eas build:list --platform ios` (ikke gjetning — forrige teller hadde feil datoer og utelot #37).
+**August 2026 — 2 bygg brukt (av ~15), ~13 igjen. Reset 1. sep.**
+
+| # | Dato | Commit | Profil | Formål |
+|---|------|--------|--------|--------|
+| 43 | 2026-08-08 | `6d9a7c9` | production | HMS 5a+5b + utlegg U1. **Bygget OK, men aldri sluppet til testere** — holdt tilbake da Kenneth utsatte for å få mer med i 44. Ingen «What to Test», ingen export compliance besvart |
+| 44 | 2026-08-09 | `2240f9f6` | production | **Bunt 44 → TestFlight.** HMS melder-flyt + tegnings-navigasjon + maskin ved redigering + seks katalog-cacher + åtte mobil-småfunn |
+
+**Lærdom 43→44:** to mislykkede fyringsforsøk på 43 brente **null kvote** — begge feilet under credential-validering før byggestart. Første: `~/.zshrc:17` manglet linjeskift mellom to `export`-linjer → `Invalid Apple Team Type: INDIVIDUALexport`. Andre: Apple 403 «This provider does not exist» da de nå korrekt parsede `EXPO_APPLE_*`-variablene ble sendt i stedet for EAS' lagrede credentials. Kvote telles først når bygget faktisk starter.
+
+**Juli 2026 — 4 bygg brukt (av ~15), ~11 igjen.** Kilde: `eas build:list --platform ios` (ikke gjetning — forrige teller hadde feil datoer og utelot #37).
 
 | # | Dato | Commit | Profil | Formål |
 |---|------|--------|--------|--------|
@@ -89,7 +100,7 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmodellen komplett + effektivitets-runden + mobil M1–M3 (`8b068c73` 03.08) · Funn A + Funn C (`0ac25705` 04.08) · Funn D + opprettvelger v2 + Spor 1 + kontaktside (`5bf25f83` 05.08) · Ordre 1.4 auto-hopp (`8a2f6d9c` 05.08) · Spor 2 HMS komplett (`70d2b752` 06.08).
 
-> ⚠️ **Mobil-forbehold:** mobil detalj-redesign M1–M3 ligger i `main`, men **ingen EAS-bygg er fyrt i august** (siste er #40, 15.07) → koden er IKKE hos brukerne. Krever EAS-bygg + Kenneths fysiske re-test før den når felt.
+> ✅ **Mobil-forbehold LØST 2026-08-09:** EAS-bygg **44** er fyrt og levert TestFlight. Mobil detalj-redesign M1–M3 + hele bunt 44 er nå hos testerne. Kenneths fysiske re-test gjenstår. (Bygg 43 ble bygget 08.08 men **aldri sluppet til testere** — 44 erstatter det.)
 
 **Restanser etter deployene (åpne oppfølgere, ikke deprioritert backlog):**
 
@@ -97,51 +108,27 @@ Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmod
 - **Statusmaskin:** F6-oppfølger (`received→approved` som default) · posisjonsutredning (H1/N-boks, `steg`-feltet finnes) · registrator-steg-1-validering · H2 (utførers venstre-send/tilbake-kant) · besvar=venstre-modellspenningen · § 0 delt-kilde-konsolidering (egen fase).
 - **Effektivitet:** **P4c timer** (7→1-2 klikk, arver chip-komponenten) — ikke startet. Øvrige restanser i [BACKLOG](BACKLOG.md).
 - **Mobil M1–M3:** #2 inline-kommentar-inngang · #7b liste-filter · #4 bekreft-på-send-vurdering · #5 testdata-flyt m/distinkte personer per ledd.
-### Mobil funn B13 — sedel-byggeplass «Ingen»-valg (branch `fix/mobil-funn-2026-08-08-b13`) — PÅ BRANCH, venter merge → EAS 44
+### ✅ Bunt 44 (mobil) — MERGET develop, LEVERT TESTFLIGHT via EAS-bygg 44 (2026-08-09)
 
-**Funn #2 fra Kenneths enhetstest: sedel-byggeplass-velgeren gikk bare én vei — feilvalgt byggeplass kunne ikke angres.** Lagt til «Ingen byggeplass»-rad (nullstiller) i `ByggeplassVelger.tsx`, gatet bak ny `tillatIngen`-prop (kun sedel-velgeren; global `ByggeplassChip` upåvirket). `velgByggeplass` + onVelg tar nå `string | null`; `dagsseddelLocal.byggeplassId` er nullbar → gjenoppretter opprinnelig tom tilstand. i18n gjenbruker `timer.byggeplass.ingenValgt`. Simulator-verifisert: satte Røstbakken → «Ingen byggeplass» → tømt (banner «Velg byggeplass», rad «· Ingen byggeplass»). Typecheck 4/4. **Reload: Metro reload.** Rørte IKKE `TimerSeksjon.tsx` (Opus mobil-device eier maskin-FK der).
-**Funn #1 (greenlit Blokk 14, i samme branch):** `TekstfeltObjekt.tsx` (delt `text_field`-rapportobjekt, brukt i ALLE sjekkliste-/oppgave-skjemaer) viser nå «—» i leseModus for tomt felt i stedet for den falske «Trykk for å skrive…»-invitasjonen (samme behandling som Funn C). Render-verifisert (HMS7 leseModus: 3 tekstfelt → «—»). Komponenten er HMS-agnostisk (leser kun `leseModus`+`verdi`), så bredden er strukturelt dekket; en ren non-HMS leseModus-doc med tomt tekstfelt var ikke rekkbar i riggen (admin/ball-holder redigerer normal-docs; leseModus-docs har fylte felt) — flagget til cowork.
-- **Funn #3 (offline UUID-degradering) → egen systemisk sak, IKKE i denne branchen.** Rot: destruktiv cache-tømming ved feilet pull i 6 katalog-tjenester (samme klasse som equipment Del B pkt 2). Opus mobil-device koder den (eier mønsteret); simulator-Opus verifiserer etterpå.
+**Første mobilleveranse til felt siden EAS #40 (15.07).** Alt under er merget til `develop`, i bygg 44 og på TestFlight. **Ikke prod-deployet** (web/api-siden av HMS + utlegg U1 gikk prod `e37621e1` 08.08 — se historikk). Enhetsverifisert av simulator-Opus i tre runder; bevis i `relay/mobilverify-bevis/`.
 
-### Mobil device-småfunn ×5 (branch `fix/mobil-smaafunn-2026-08-08`) — PÅ BRANCH, venter merge → EAS 44
+**Kilder:** Kenneths enhetstest 08.08 (prosjekt 998 Instinniforbotn) → fabels ordre `docs/claude/delplaner/ORDRE-mobil-devicefunn-2026-08-08.md` (Del A–D) + `FABEL-SVAR-cowork-blokk2-mobil-device.md` (A1/B1/B2-godkjenning) + simulator-Opus' egne funn.
 
-**Fem uavhengige mobil-fikser fra Kenneths enhetstest (Blokk 7 + fabel Del C/D), simulator-verifisert. Ingen migrering, ingen serverendring. Reload: Metro reload.** Går ut i felt via **EAS 44** (testerne får 44, ikke 43).
-- **Funn A** (query-invalidasjon): `slett`/`hmsSendInn`-onSuccess i `oppgave/[id].tsx` + `sjekkliste/[id].tsx` invaliderer nå også `hms.hentDokumenter` → HMS-lista selv-oppdaterer etter Forkast/Send inn (hang før til refresh). Live-verifisert alle tre stier (opprett/forkast/send inn).
-- **Funn B** (forkast-dialog): mobil-Forkast bruker nå `hms.forkast.*`-mikrotekst («…legges i papirkurven, gjenopprett i 90 dager») i stedet for generisk «Slett»-dialog. Ingen nye nøkler (delt med web-`HmsMelderBanner`).
-- **Funn C** (leseModus): låst beskrivelse viser «—», ikke falsk «Trykk for å legge til…».
-- **fabel Del C** (hjem-innboks): maks 3 rader inline + «Se alle (N)»/«Vis færre» inline-ekspansjon til tak 10 (lokal `useState`, ikke persistert; ingen samlet innboks-skjerm å navigere til).
-- **fabel Del D** (byggeplass-velger): rad som matcher dagskortet viser «· arves fra dagskortet» (ny `sedelByggeplassId`-prop, ren visning).
-- i18n nb+en (`hjem.seAlleInnboks`, `hjem.visFaerreInnboks`, `timer.byggeplass.arvesFraDagskort`; 13-språk ved merge). Typecheck 4/4. **Til 45:** rapportobjekt-verdifelt-placeholder i leseModus (samme klasse som Funn C, delt komponent) + sedel-byggeplass-velger mangler «ingen»-valg.
+| Sak | Innhold | Verifisert |
+|---|---|---|
+| **fabel Del A** — tegnings-navigasjon | Trykk på tegningsrad åpner tegningen direkte (var: `router.push("/lokasjoner")` uten id → 2+ ekstra trykk). Delt `aapneTegning`-helper + nonce (`ts`) fordi `lokasjoner` er en montert tab-skjerm. «Fortsett der du slapp»-snarvei gjenbruker **eksisterende F1** (`ByggeplassKontekst.settSistTegning`, bygget men aldri wiret) framfor ny SQLite-tabell. Guard via `hentMedId` → slettet/feil prosjekt gir velger-fallback, aldri krasj | ✅ 1-trykk · snarvei etter kald-restart · offline · ugyldig-id-guard · nonce begge veier |
+| **fabel Del B pkt 1** — maskin ved redigering | Maskin kunne kun føres ved NY timer-rad ⇒ **auto-utfylt dag ga ingen vei til å føre maskin**. Nå: maskin-seksjon også ved redigering (drop `!eksisterendeRad`-gaten), prefill fra koblet rad. **Additiv nullable `sheetTimerId`** på `SheetMachine` + `sheet_machine_local` (migrering `20260808130000`, svak String-FK, ingen backfill) — bøtte-match på fire felt avvist: integritet i skjemaet, ikke i logikk som kan glemmes. Null-rader har kodekommentar som forklarer hvorfor null er lovlig (stopper framtidig heuristisk backfill) | ✅ ≤2 trykk fra rad · re-rediger gir ÉN maskinrad · sync round-trip · oppgradering over eksisterende lokal data |
+| **fabel Del B pkt 2+3** — cache + banner | `refreshMaskinKatalog` fanget pull-feil (`.catch(() => [])`) → destruktiv `delete` med tom liste ⇒ cachen tømte seg selv ved nettglipp, og bare re-login fylte den. Fjernet catchen (symmetri med `refreshKatalog`). Banner «Herav maskin 0.00t» skjules ved maskin = 0 | ✅ cache bevart etter framprovosert pull-feil, uten re-login |
+| **Katalog-cache systemisk (funn #3)** | Simulator-Opus sporet rå UUID-er i dagsseddel-raden til **samme bug i fem tjenester til** — `prosjekt`/`byggeplass`/`kalender`/`oppmotested`/`reisetidMatrise` + `timerKatalog`-ECO. Én offline kaldstart tømte samtlige. Alle seks nå symmetriske; `organizationSetting` bevarte allerede (tidlig-retur). ECO-catchen fjernet etter at begrunnelsen ble **verifisert moot** (`krevBrukersOrg` kaster FORBIDDEN på lonnsart før ECO spørres) | ✅ offline kaldstart → navn står, 0 UUID-er · byggeplass-velger ikke tom |
+| **fabel Del C + D** | Hjem-innboks maks 3 inline + «Se alle (N)»/«Vis færre» **inline-ekspansjon** (fabels `/boks`-destinasjon avvist — innboksen er sjekklister+oppgaver, `boks.tsx` er mappevisning; ingen samlet skjerm finnes). Byggeplass-velger markerer «· arves fra dagskortet» | ✅ ≤3-grenen live · D live |
+| **HMS-listefunn A/B/C** | `slett`/`hmsSendInn`-onSuccess invaliderer nå `hms.hentDokumenter` (lista hang til refresh) · Forkast-dialog bruker `hms.forkast.*` («legges i papirkurven, 90 dager») i stedet for generisk Slett · låst felt viser «—» | ✅ alle tre stier live |
+| **Funn #1 + #2** | `TekstfeltObjekt` (delt `text_field`, ALLE sjekkliste-/oppgaveskjemaer) viser «—» i leseModus · «Ingen byggeplass»-valg i sedel-velger, gatet bak `tillatIngen` så global `ByggeplassChip` er upåvirket | ✅ render-verifisert · ✅ live |
 
-### Utlegg-ordningsmodell U1 — datamodell + delt utledning (branch `feat/utlegg-ordningsmodell`) — PÅ BRANCH, venter merge (IKKE prod)
+**Til bygg 45 (notert, ikke skjult):** Require cycle `TimerSeksjon ↔ MaskinSeksjon ↔ SplittRadModal` (ikke-fatal dev-warning, men undefined-risiko ved endret import-rekkefølge) · A3 tom equipment-cache kun kode-verifisert (tilstanden er vanskeligere å nå etter cache-fiksen) · B3 legitim-tom kun strukturelt bevart (suksess-stien urørt av fiksen) · tegningsbildets render bekreftes først på TestFlight (bilde-host unåbar over SSH-tunnel; bilde-stien er urørt i diffen).
 
-**Additiv, migrerings-gatet (Kenneth godkjente).** Løser rot-defekten: utlegg (diesel/bom/materiell) måtte velges fra lønnstillegg-katalogen → beløp presset i `SheetTillegg.antall`. U1 etablerer egen bærer FØR en Proadm-lønnseksport bygges (den finnes ikke i kode ennå — nå-sjekk bekreftet). **Merk «U1» her = utleggs-ordningsmodell, ikke timer-rapport-U1 fra 2026-05.**
+### ✅ ARKIVERT — HMS 5a+5b + utlegg U1 → [historikk-2026-08.md](historikk-2026-08.md)
 
-Tre ordninger utledes, aldri valgt av feltarbeideren: `sats` (→SheetTillegg, lønnsart) · `utlegg` (→SheetUtlegg, beløp+kvittering→refusjon) · `fakturert` (→SheetUtlegg, avhuking, `belop=null`, eksporteres aldri). Levert: (1) delt `utledOrdning` (`overstyring ?? firma-default`) + avledningshjelpere i `@sitedoc/shared` (10 tester). (2) migrering `20260808120000_utlegg_ordningsmodell` — `ExpenseCategory.ordning` + `sheet_utlegg`/`sheet_utlegg_vedlegg`/`prosjekt_ordning_overstyring` + **CHECK på `ordning_ved_foering`/`belop`** (integritetsbærer, ikke app-flagg). (3) `timer.md` drift-reconciliert (planlagt `sheet_expenses` → faktisk modell). **Build:** full `pnpm build` 3/3, 441 shared-tester, `prisma validate` + `migrate diff`-verifisert. **Gjenstår:** U2 eksport-guard · U3 web · U4 mobil · U5 firma-admin overstyring-UI (**inkl. eksplisitt: firma-admin må sette ordning per kategori; default er `utlegg`**) · U6 migrering av feilførte rader (egen gate; forutsetter Proadm-sti-avklaring).
-
-### 🔴 HMS-bolk 5a+5b — PÅ BRANCH (fikser prod-regresjon fra `881e66e6`)
-
-> **Diff 1** (`received`-rot-fiks + 5c) er **deployet prod** `881e66e6` og arkivert → [historikk-2026-08.md](historikk-2026-08.md). Den innførte read-only-regresjonen som 5a løser ved rotårsaken. Seksjonen under er det som gjenstår å merge.
-
-### HMS-behandlingsflyt Diff 2 — 5a opprett=utkast + 5b tillegg-synlig (branch `feat/hms-behandlingsflyt`) — PÅ BRANCH, venter merge (samlet bolk, IKKE prod før hele bolken)
-
-**Migrerings-fri (draft er eksisterende status).** Løser read-only-regresjonen fra Diff 1 ved rotårsaken: HMS opprettes nå som **utkast** (`draft`), ikke auto-sendt → `erMelder && ball hos Ledd 1`-grenen treffer som designet (melder redigerer, behandler read-only). Gjelder RUH/avvik (task) OG SJA (checklist) — begge auto-sendte før.
-
-**5a-mekanikk:** (1) `oppgave.opprett`/`sjekkliste.opprett` HMS-gren → `sendt:false`/`aktivPosisjon:1`/`draft`, ingen varsel ved opprett (flyt-binding + `recipientGroupId` står). (2) ny `oppgave.hmsSendInn`/`sjekkliste.hmsSendInn` (`draft|responded → received` + varsel til behandler-ledd; transfer-rad `draft→received`=Sendt inn vs `responded→received`=Revidert-og-sendt-tilbake — **sporet behandler trenger, Blokk 10-krav**). (3) `verifiserHmsHandling` + `HmsHandling`-type får `sendInn` (melder-eid, tilstand draft·responded). (4) draft-synlighet: `byggHmsSynlighetsFilter` returnerte `null` for admin → draft-guard som gjelder ALLE (`bestillerUserId`-unntak) + firma-oversikt utelater draft. (5) leseModus-snitt (Beslutning 1, gatet): `erMelder && aktivPosisjon===1 && !terminal` (web oppgave+sjekkliste + mobil oppgave+sjekkliste). (6) delt `HmsMelderBanner` (Send inn/Forkast/Send tilbake + Forkast-modal). (7) mobil-paritet: Send inn/Forkast/Send tilbake-rad på begge mobil-detaljer (mobil oppretter HMS → draft; ellers stod utkast fast). (8) i18n nb+en.
-
-**5b-mekanikk (web):** ny delt `HmsMelderTillegg` — (a) **synlig feltlås**: forklarer hvorfor meldingens felt er låst (vises kun mens ballen er hos behandler, med sendt-dato fra transfer-loggen); (b) **«Tillegg fra melder»**: melderens rene append-transfers som tidsstemplet logg + «+ Tilføy informasjon»-inngang. Melder-tillegg FLYTTET ut av `HmsHandlingsflate` (nå ren behandler/admin-flate) → mockup-separasjon (melder eier innhold, behandler eier handling). i18n nb+en (`hms.tillegg.*`, `hms.feltlaas.*`).
-
-**Spor 2-dekning per flate etter bolken (asymmetri — dokumentert, ikke skjult):**
-| Flate | Melder-flyt (5a/5b) | Behandling (Diff 1: Besvar/Lukk/Returner + flyt-stripe) |
-|-------|---------------------|--------------------------------------------------------|
-| Web oppgave (RUH/avvik) | ✅ | ✅ |
-| Web sjekkliste (SJA) | ✅ | ⚠️ Besvar/Lukk ✅, **mangler Returner + flyt-stripe** (Diff 1 var oppgave-only) |
-| Mobil (RUH/avvik/SJA) | ✅ (Send inn/Forkast/Send tilbake) | ❌ **pre-Spor-2** (generell `DokumentHandlingslinje`) |
-
-**Kjente oppfølgere (ikke i denne bolken):** SJA-Returner + flyt-stripe på web · dedikert mobil-HMS-behandling (Returner/flyt-stripe). Realistisk arbeidsdeling: feltarbeider melder fra mobil, HMS-ansvarlig behandler på web.
-
-**Reload:** Metro reload (JS-only, ingen native). **Verifikasjon:** full build grønn (prisma generate ×4, typecheck 4/4 inkl. mobil, `next build` EXIT=0). i18n 13-språk kjøres ved merge (cowork). **HOLD prod** til Kenneth sier fra.
-
+Begge prod-deployet `e37621e1` (08.08 kveld) og arkivert med mekanikk, asymmetri-tabell og verifisering. **Utlegg gjenstår:** U2 eksport-guard · U3 web (branch `feat/utlegg-ordningsmodell`, pushet, venter E2E på test) · U4 mobil · U5 firma-admin overstyring-UI (**firma-admin setter ordning per kategori; default `utlegg`; må advare ved navnekollisjon mellom `Tillegg` og `ExpenseCategory`**) · U6 migrering av feilførte rader (egen gate). **HMS gjenstår:** SJA-Returner + flyt-stripe på web · dedikert mobil-HMS-behandling.
 ### Sjekkliste ikke append-only (branch `fix/sjekkliste-ikke-append-only`) — PÅ BRANCH, venter merge
 
 **Regresjonsfiks fra `04f6d295`** (kun develop/test, prod ikke rammet). `04f6d295` slo på append-only felt-låsing i alle fire skjema-hooks. Riktig for oppgave (mobil manglet den), **feil for sjekkliste** (spec `dokumentflyt.md § 2`: sjekkliste er redigerbar for den som har ballen + admin/registrator) — et innsendt tallfelt ble permanent låst, også for admin.

@@ -15,10 +15,36 @@ sist_endret: 2026-07-09
 |----------|--------|-------|
 | `…/SiteDoc` | **`develop`** | **Kenneths dev-tre.** Hovedklonen (eier `.git`). Kjører appen, eier `develop`-branchen, og er **deploy-kilden** — `deploy-test.sh` krever `git branch --show-current` = `develop`, som kun et tre som *eier* branchen kan svare på. Docs-commits skjer her. |
 | `…/SiteDoc-develop` | **detached, parkeres på `origin/develop`** | **Økt-treet.** Én Opus om gangen, via tavle-rad. Kan bære u-gatede lokale commits → **aldri merge-kilde**. |
-| `…/SiteDoc-merge` | **detached på `origin/develop`** | **Merger utføres KUN her.** Hard-resettes til `origin/develop` før hver bruk → bærer aldri egne commits (regel 1 + 13). Pusher med `git push origin HEAD:develop` — den skal **ikke** eie `develop`-branchen; `SiteDoc` gjør det. |
+| `…/SiteDoc-merge` | **detached på `origin/develop`** | **Merger utføres KUN her.** Hard-resettes til `origin/develop` før hver bruk → bærer aldri egne commits (regel 1 + 13). Pusher med `git push origin HEAD:develop` — den skal **ikke** eie `develop`-branchen; `SiteDoc` gjør det. **Treet kan mangle** (slettet/pruned) — gjenopprett før merge, se § Gjenopprett merge-treet. |
 | `…/SiteDoc-deploy` | `main` | Prod-deploy (rsync-kilde). |
 
 **Fire trær. Et femte krever en tavle-rad for å eksistere** ([SAMARBEIDSREGLER § Statustavle](SAMARBEIDSREGLER.md)) — raden bærer tre-stien.
+
+### Gjenopprett merge-treet (kjør FØR merge hvis mappa mangler)
+
+`SiteDoc-merge` er detached og bærer aldri egne commits — derfor *ser* den ut som en trygg mappe å rydde bort. **Den er det ikke: den er guarden fra lærdom (e).**
+
+> 🔴 **cowork sletter ALDRI merge-treet — det var cowork som fjernet det (2026-08-08).** Treet forsvant ikke i en tilfeldig opprydding; cowork ga Kenneth en rydde-kommando som tok det, og ga så senere samme dag en merge-kommando som forutsatte at det sto der. Kommandoen feilet med «no such file or directory», og mergen ble utført i hovedtreet i stedet. **Ingen rydde-kommando fra cowork skal inkludere `SiteDoc-merge`** — er treet «ubrukt» og «detached uten egne commits», er det fordi det er designet slik, ikke fordi det er dødt. Samme vurdering ble gjort feil én gang før: oppryddingsplanen 2026-07-17 foreslo også å slette merge-treet, og ble stoppet av Kenneth.
+
+**Sjekk at mappa finnes før hver merge**; mangler den, gjenopprett:
+
+```bash
+cd ~/Documents/Programmering/SiteDoc && \
+git worktree prune && \
+git fetch origin && \
+git worktree add --detach ~/Documents/Programmering/SiteDoc-merge origin/develop
+```
+
+Deretter, **før hver bruk** (hard-reset så treet aldri bærer fremmede commits):
+
+```bash
+git -C ~/Documents/Programmering/SiteDoc-merge fetch origin && \
+git -C ~/Documents/Programmering/SiteDoc-merge reset --hard origin/develop
+```
+
+Merge derfra med `git push origin HEAD:develop` (ikke `git push origin develop` — treet eier ikke branchen).
+
+**cowork-selvsjekk før enhver merge-kommando:** har jeg bekreftet at `SiteDoc-merge` eksisterer? `git -C ~/Documents/Programmering/SiteDoc worktree list` er svaret — ikke denne fila, som beskriver hvordan det *skal* være.
 
 > ⚠️ **Rolle-omskriving 2026-07-17 (Kenneth-vedtak K-a/K-b).** `SiteDoc` sto som *«redesign-økta eier dette treet»* fra da redesign og develop gikk parallelt. **Redesignet ble fullmerget 2026-07-09** (regel 3) — rollen døde da, men fila ble ikke oppdatert, og treet ble stående detached 39 commits bak develop. `sitedoc-server`-raden er fjernet: `ny-server` har 0 commits utenfor develop siden 2026-06-10, Docker-cutoveren er ferdig, og treet er fjernet.
 >
