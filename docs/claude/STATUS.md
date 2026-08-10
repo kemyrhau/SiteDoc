@@ -11,7 +11,8 @@
 > - `Arbeidsanker:` — bruks-aktiv (pågående arbeid, endres ofte)
 > - Hvis ingen av delene: kort fri beskrivelse (eller tom)
 
-**Sist oppdatert:** 2026-08-08
+**Sist oppdatert:** 2026-08-10
+- 2026-08-10 — **`timer.md` § Onboarding utvidet** (branch `feat/seed-manglende-katalog`): nytt admin-verktøy `admin.seedManglendeFirmakatalog` (idempotent, kun expenseCategories) dokumentert + navngitte oppfølgere (robuste seedNivaa-guarder, settFirmamodul-wiring, prosjektmodul-variant 998/RUH). `sist_verifisert_mot_kode` 2026-08-08 → 2026-08-10. Ingen ny `docs/claude/`-fil; telling uendret.
 - 2026-08-08 — **prod-deploy `881e66e6` ført** i `historikk-2026-08.md` (25 commits, ingen migreringer, felles.env-forutsetning + kjent HMS-regresjon dokumentert). Nye: `docs/redesign/utlegg/` (4 filer: ordningsmodell-spec, avklaringer, registreringsflyt-mockup, første runde). `simulator-runbook.md` + `infrastruktur.md` + `DOCKER-NOTES.md` utvidet m/ tRPC-topologi (kjører i web ⇒ env begge steder). **Tellingen under fortsatt IKKE oppdatert — se ⚠️.** [detaljer](historikk-docs.md)
 - 2026-08-08 — **`timer.md` § Utleggsregistrering reconciliert til U3** (web-registrering kodet, branch `feat/utlegg-ordningsmodell`): gammel drift (feil «S3/Tripletex», ikke-bygget felt-spec) erstattet med faktisk U3-flate (velger 8a + tre radformer 8b + API-endepunkter) + status-markører + navngitte oppfølgere. Ingen ny `docs/claude/`-fil; telling uendret.
 - 2026-08-08 — **`timer.md` verifisert + drift-reconciliert** (utleggs-ordningsmodell U1, branch `feat/utlegg-ordningsmodell`): planlagt-men-aldri-bygget `sheet_expenses`-blokk erstattet med faktisk `sheet_utlegg`/`sheet_utlegg_vedlegg`/`prosjekt_ordning_overstyring` + `ordning`-felt, status-markører + migreringsreferanse. `sist_verifisert_mot_kode` 2026-06-08 → 2026-08-08. Ingen ny fil; telling uendret.
