@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Ny mal",
   "maler.ingenTilgang": "Ingen tilgang",
   "maler.ingenTilgangBeskrivelse": "Du har ikke tilgang til denne siden. Kun produksjons-administratorer kan se maler.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Kun prosjektadministratorer kan opprette og redigere maler. Firma-administratorer arver denne tilgangen.",
   "maler.ingenMaler": "Ingen maler",
   "maler.ingenMalerBeskrivelse": "Opprett en rapportmal for å bygge sjekklister.",
   "maler.opprettMal": "Opprett mal",

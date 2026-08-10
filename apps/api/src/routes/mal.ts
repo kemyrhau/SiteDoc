@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@sitedoc/shared";
-import { verifiserProsjektmedlem, hentBrukersOpprettFlytMedlemskap } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserAdmin, hentBrukersOpprettFlytMedlemskap } from "../trpc/tilgangskontroll";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import { oversettMedMotor, hashTekst } from "../services/oversettelse-service";
 import type { OversettelsesMotor } from "../services/oversettelse-service";
@@ -112,11 +112,28 @@ export const malRouter = router({
       return mal;
     }),
 
+  // Klient-signal: kan innlogget bruker REDIGERE prosjektets maler? Speiler
+  // mutasjonenes verifiserAdmin-gate (sitedoc_admin | prosjektadmin | firma-admin)
+  // uten å kaste, så malbygger-/mal-liste-UI kan skjule opprett/rediger/slett for
+  // vanlige medlemmer. Samme funksjon som gaten → UI og server kan ikke divergere
+  // (manage_field og ProjectMember-only-sjekk gjør begge det). Query, ikke gatet
+  // som admin: alle medlemmer må kunne spørre «har jeg lov?».
+  kanRedigere: protectedProcedure
+    .input(z.object({ projectId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        await verifiserAdmin(ctx.userId, input.projectId);
+        return true;
+      } catch {
+        return false;
+      }
+    }),
+
   // Opprett ny mal
   opprett: protectedProcedure
     .input(createTemplateSchema)
     .mutation(async ({ ctx, input }) => {
-      await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      await verifiserAdmin(ctx.userId, input.projectId);
       valideerSubdomainCategory(input.subdomain, input.category);
       const { workflowIds, ...malData } = input;
 
@@ -162,7 +179,7 @@ export const malRouter = router({
         where: { id },
         select: { projectId: true, category: true, domain: true, subdomain: true },
       });
-      await verifiserProsjektmedlem(ctx.userId, mal.projectId);
+      await verifiserAdmin(ctx.userId, mal.projectId);
 
       // Subdomain ↔ category-validering: bruk effektiv tilstand etter
       // oppdatering (input-verdi hvis satt, ellers eksisterende verdi).
@@ -220,7 +237,7 @@ export const malRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
-      await verifiserProsjektmedlem(ctx.userId, mal.projectId);
+      await verifiserAdmin(ctx.userId, mal.projectId);
       return ctx.prisma.reportTemplate.delete({ where: { id: input.id } });
     }),
 
@@ -240,7 +257,7 @@ export const malRouter = router({
           dokumentflytMaler: { select: { dokumentflytId: true } },
         },
       });
-      await verifiserProsjektmedlem(ctx.userId, kilde.projectId);
+      await verifiserAdmin(ctx.userId, kilde.projectId);
 
       // Lean returtype (select: { id }) + eksplisitt { id }-retur holder
       // tRPC-inferensen grunn — full reportTemplate-retur her tipper AppRouter
@@ -330,7 +347,7 @@ export const malRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.templateId }, select: { projectId: true } });
-      await verifiserProsjektmedlem(ctx.userId, mal.projectId);
+      await verifiserAdmin(ctx.userId, mal.projectId);
       const { parentId, ...rest } = input;
       return ctx.prisma.reportObject.create({
         data: {
@@ -354,7 +371,7 @@ export const malRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: input.id }, include: { template: { select: { projectId: true } } } });
-      await verifiserProsjektmedlem(ctx.userId, objekt.template.projectId);
+      await verifiserAdmin(ctx.userId, objekt.template.projectId);
       const { id, config, parentId, ...rest } = input;
       return ctx.prisma.reportObject.update({
         where: { id },
@@ -386,7 +403,7 @@ export const malRouter = router({
       const forsteObjekt = input.objekter[0];
       if (forsteObjekt) {
         const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: forsteObjekt.id }, include: { template: { select: { projectId: true } } } });
-        await verifiserProsjektmedlem(ctx.userId, objekt.template.projectId);
+        await verifiserAdmin(ctx.userId, objekt.template.projectId);
       }
       return ctx.prisma.$transaction(
         async (tx) => {
@@ -507,7 +524,7 @@ export const malRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: input.id }, include: { template: { select: { projectId: true } } } });
-      await verifiserProsjektmedlem(ctx.userId, objekt.template.projectId);
+      await verifiserAdmin(ctx.userId, objekt.template.projectId);
       return ctx.prisma.reportObject.delete({ where: { id: input.id } });
     }),
 

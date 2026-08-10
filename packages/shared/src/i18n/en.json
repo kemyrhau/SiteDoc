@@ -3201,6 +3201,7 @@
   "maler.nyMal": "New template",
   "maler.ingenTilgang": "No access",
   "maler.ingenTilgangBeskrivelse": "You do not have access to this page. Only production administrators can view templates.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Only project administrators can create and edit templates. Company administrators inherit this access.",
   "maler.ingenMaler": "No templates",
   "maler.ingenMalerBeskrivelse": "Create a report template to build checklists.",
   "maler.opprettMal": "Create template",
