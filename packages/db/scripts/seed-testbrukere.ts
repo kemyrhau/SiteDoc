@@ -44,8 +44,8 @@ async function main() {
   });
   await prisma.organizationMember.upsert({
     where: { userId_organizationId: { userId: firma.id, organizationId: org.id } },
-    create: { userId: firma.id, organizationId: org.id, ansattRolle: "ansatt", firmaRoller: ["admin"] },
-    update: { firmaRoller: ["admin"] },
+    create: { userId: firma.id, organizationId: org.id, ansattRolle: "ansatt", firmaRoller: ["firma_admin"] },
+    update: { firmaRoller: ["firma_admin"] },
   });
 
   const arbeider = await prisma.user.upsert({
