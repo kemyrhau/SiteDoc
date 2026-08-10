@@ -5,6 +5,7 @@ import { Prisma, krypter } from "@sitedoc/db";
 import { autoLeggFirmaAdmins } from "../services/autoProsjektAdmin";
 import { hentBrukersOrg } from "../trpc/tilgangskontroll";
 import { importerKatalog } from "../services/katalog/importerKatalog";
+import { seedManglendeKatalog } from "../services/seed";
 import { IKKE_SLETTET } from "../utils/softDelete";
 import {
   klassifiserFirmaStatus,
@@ -38,6 +39,32 @@ export const adminRouter = router({
     });
     return bruker.role === "sitedoc_admin";
   }),
+
+  // Seed manglende firmamodul-katalog for ÉN org (kun sitedoc_admin).
+  // Cross-org driftsverktøy, ikke firma-selvbetjening. Idempotent, rører aldri
+  // eksisterende data. SCOPE: kun expenseCategories (se seedManglendeKatalog).
+  // Bakgrunn: A.Markussen (prod) har Timer aktiv + 44 importerte lønnsarter, men
+  // 0 utleggskategorier → U3-velgerens UTLEGG-gruppe ville stått tom. seedTimer-
+  // ForOrganization er aldri kjørt for dem. Kjøres målrettet i stedet for
+  // aktiverNivaa1 (som ville injisert 16 seed-lønnsarter — seedNivaa-guarden ser
+  // ikke import-lønnsartene). Navngitt oppfølger: robuste guarder + settFirmamodul-
+  // wiring så stien dekker alle datatyper og alle firmamoduler.
+  seedManglendeFirmakatalog: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+
+      // Org må finnes — cross-org verktøy skal ikke skrive foreldreløse rader.
+      const org = await ctx.prisma.organization.findUnique({
+        where: { id: input.organizationId },
+        select: { id: true },
+      });
+      if (!org) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Organisasjon finnes ikke" });
+      }
+
+      return seedManglendeKatalog(input.organizationId);
+    }),
 
   // Hent alle prosjekter (kun sitedoc_admin).
   // Valgfri organizationId-filter — gjør at admin/prosjekter respekterer

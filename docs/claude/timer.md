@@ -1,7 +1,7 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: 2026-08-08
-sist_endret: 2026-08-08
+sist_verifisert_mot_kode: 2026-08-10
+sist_endret: 2026-08-10
 gjelder_versjon: Fase 3
 avhenger_av:
   - arkitektur.md
@@ -240,6 +240,18 @@ Auto-importerer Nivå 1 (16 lønnsarter). Tilbyr Nivå 2 (25 lønnsarter) som va
 
 **B) «Migrerer fra annet system»**
 Tom katalog. Import-verktøy aktivert (CSV-upload eller adapter mot kjent system). Forhindrer dobbel-katalog-problem hvis kunde flytter eksisterende lønnsarter inn — ellers ville Nivå 1 + importert katalog gi duplikater.
+
+#### Seed manglende firmamodul-katalog — 🟢 admin-verktøy (2026-08-10)
+
+**Problem:** kun `hms-avvik` seeder automatisk ved modul-aktivering; den generiske `organisasjon.settFirmamodul` seeder ingenting. Migrasjons-firma (scenario B) som fikk lønnsart via import har derfor **0 utleggskategorier** — U3-velgerens UTLEGG-gruppe står tom. Konkret: A.Markussen (prod) har Timer aktiv + 44 importerte lønnsarter + 127 maskiner, men 0 utleggskategorier (`seedTimerForOrganization` aldri kjørt for dem).
+
+**Løsning:** `admin.seedManglendeFirmakatalog` (`apps/api/src/routes/admin.ts`, `verifiserSiteDocAdmin`-gated, input `{organizationId}`) → `seedManglendeKatalog(orgId)` (`services/seed/index.ts`). Cross-org driftsverktøy, idempotent, rører aldri eksisterende data. Kjøres målrettet i stedet for `aktiverNivaa1` (som ville injisert 16 seed-lønnsarter — `seedLonnsartNivaa1` guarder på `seedNivaa=1`, ser ikke de importerte). Rapport per datatype: `{ expenseCategories: { opprettet, hoppet } }`.
+
+**🔴 SCOPE (denne runden): kun `expenseCategories`** — den ene timer-datatypen med robust idempotens-guard (`seedExpenseCategories` hopper på `count(org) > 0`). Enhets-testet (`seedManglende.test.ts`: 0→5/hoppet=false, eksisterende→hoppet=true) + `seedExpenseCategories` allerede kjørt mot sitedoc_test under U3-E2E.
+
+**Navngitte oppfølgere:**
+- **Robuste seedNivaa-guarder:** lønnsart/aktivitet/tillegg guarder på `seedNivaa`, ikke «finnes rader» → ikke trygge mot import-katalog. Å gjøre dem robuste er forutsetningen for at stien kan dekke alle datatyper + kobles på `settFirmamodul` (den fulle oppstartsrutinen).
+- **Prosjektmodul-variant:** samme klasse på prosjektnivå — 998 Instinniforbotn (prod) har HMS-avvik + SJA men mangler RUH-malen (`modul.aktiver` er alt idempotent for maler, `findFirst` på prefix → ville lagt til RUH alene). Ikke bygget; den generiske stien bør senere dekke begge nivåer (RUH haster ikke, Kenneth).
 
 ### Auto-fordeling normaltid/overtid
 
