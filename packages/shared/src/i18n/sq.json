@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Model i ri",
   "maler.ingenTilgang": "Nuk ka qasje",
   "maler.ingenTilgangBeskrivelse": "Ju nuk keni akses në këtë faqe. Vetëm administratorët e prodhimit mund të shikojnë shabllonet.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Vetëm administratorët e projektit mund të krijojnë dhe modifikojnë shabllone. Administratorët e kompanisë trashëgojnë këtë akses.",
   "maler.ingenMaler": "Nuk ka shabllone",
   "maler.ingenMalerBeskrivelse": "Krijoni një shabllon raporti për të krijuar lista kontrolli.",
   "maler.opprettMal": "Krijo shabllon",

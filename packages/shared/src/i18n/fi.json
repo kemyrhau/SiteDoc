@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Uusi malli",
   "maler.ingenTilgang": "Ei pääsyä",
   "maler.ingenTilgangBeskrivelse": "Sinulla ei ole pääsyä tälle sivulle. Vain tuotannon järjestelmänvalvojat voivat tarkastella malleja.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Vain projektin ylläpitäjät voivat luoda ja muokata malleja. Yrityksen järjestelmänvalvojat perivät tämän käyttöoikeuden.",
   "maler.ingenMaler": "Ei malleja",
   "maler.ingenMalerBeskrivelse": "Luo raporttimalli tarkistuslistojen luomista varten.",
   "maler.opprettMal": "Luo malli",

@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Nowy szablon",
   "maler.ingenTilgang": "Dostęp wzbroniony",
   "maler.ingenTilgangBeskrivelse": "Nie masz dostępu do tej strony. Tylko administratorzy produkcji mogą przeglądać szablony.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Tylko administratorzy projektów mogą tworzyć i edytować szablony. Administratorzy firmy dziedziczą ten dostęp.",
   "maler.ingenMaler": "Brak szablonów",
   "maler.ingenMalerBeskrivelse": "Utwórz szablon raportu, aby utworzyć listy kontrolne.",
   "maler.opprettMal": "Utwórz szablon",

@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Ny mall",
   "maler.ingenTilgang": "Ingen tillgång",
   "maler.ingenTilgangBeskrivelse": "Du har inte tillgång till den här sidan. Endast produktionsadministratörer kan se mallar.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Endast projektadministratörer kan skapa och redigera mallar. Företagsadministratörer ärver denna åtkomst.",
   "maler.ingenMaler": "Inga mallar",
   "maler.ingenMalerBeskrivelse": "Skapa en rapportmall för att bygga checklistor.",
   "maler.opprettMal": "Skapa mall",

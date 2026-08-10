@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Uus mall",
   "maler.ingenTilgang": "Juurdepääs puudub",
   "maler.ingenTilgangBeskrivelse": "Teil pole sellele lehele juurdepääsu. Ainult tootmisadministraatorid saavad malle vaadata.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Ainult projekti administraatorid saavad malle luua ja muuta. Ettevõtte administraatorid pärivad selle juurdepääsu.",
   "maler.ingenMaler": "Malle pole",
   "maler.ingenMalerBeskrivelse": "Looge kontrollnimekirjade koostamiseks aruande mall.",
   "maler.opprettMal": "Loo mall",

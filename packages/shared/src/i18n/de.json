@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Neue Vorlage",
   "maler.ingenTilgang": "Kein Zugriff",
   "maler.ingenTilgangBeskrivelse": "Sie haben keinen Zugriff auf diese Seite. Nur Produktionsadministratoren können Vorlagen anzeigen.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Nur Projektadministratoren können Vorlagen erstellen und bearbeiten. Firmenadministratoren erben diesen Zugriff.",
   "maler.ingenMaler": "Keine Vorlagen",
   "maler.ingenMalerBeskrivelse": "Erstellen Sie eine Berichtsvorlage zum Erstellen von Checklisten.",
   "maler.opprettMal": "Vorlage erstellen",

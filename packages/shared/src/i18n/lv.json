@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Jauna veidne",
   "maler.ingenTilgang": "Nav piekļuves",
   "maler.ingenTilgangBeskrivelse": "Jums nav piekļuves šai lapai. Veidnes var skatīt tikai ražošanas administratori.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Veidnes var izveidot un rediģēt tikai projektu administratori. Uzņēmuma administratori manto šo piekļuvi.",
   "maler.ingenMaler": "Nav veidņu",
   "maler.ingenMalerBeskrivelse": "Izveidojiet pārskata veidni, lai izveidotu kontrolsarakstus.",
   "maler.opprettMal": "Izveidot veidni",

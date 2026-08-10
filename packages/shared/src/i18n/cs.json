@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Nová šablona",
   "maler.ingenTilgang": "Žádný přístup",
   "maler.ingenTilgangBeskrivelse": "K této stránce nemáte přístup. Šablony mohou zobrazit pouze správci produkce.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Šablony mohou vytvářet a upravovat pouze správci projektu. Správci společnosti tento přístup zdědí.",
   "maler.ingenMaler": "Žádné šablony",
   "maler.ingenMalerBeskrivelse": "Vytvořte šablonu sestavy pro vytvoření kontrolních seznamů.",
   "maler.opprettMal": "Vytvořit šablonu",

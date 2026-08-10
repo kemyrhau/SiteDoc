@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Naujas šablonas",
   "maler.ingenTilgang": "Nėra prieigos",
   "maler.ingenTilgangBeskrivelse": "Jūs neturite prieigos prie šio puslapio. Tik gamybos administratoriai gali peržiūrėti šablonus.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Tik projekto administratoriai gali kurti ir redaguoti šablonus. Įmonės administratoriai paveldi šią prieigą.",
   "maler.ingenMaler": "Jokių šablonų",
   "maler.ingenMalerBeskrivelse": "Sukurkite ataskaitos šabloną, kad sudarytumėte kontrolinius sąrašus.",
   "maler.opprettMal": "Sukurti šabloną",

@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Șablon nou",
   "maler.ingenTilgang": "Fără acces",
   "maler.ingenTilgangBeskrivelse": "Nu aveți acces la această pagină. Numai administratorii de producție pot vizualiza șabloanele.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Numai administratorii de proiect pot crea și edita șabloane. Administratorii companiei moștenesc acest acces.",
   "maler.ingenMaler": "Fără șabloane",
   "maler.ingenMalerBeskrivelse": "Creați un șablon de raport pentru a crea liste de verificare.",
   "maler.opprettMal": "Creați șablon",

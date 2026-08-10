@@ -3201,6 +3201,7 @@
   "maler.nyMal": "Nouveau modèle",
   "maler.ingenTilgang": "Pas d'accès",
   "maler.ingenTilgangBeskrivelse": "Vous n'avez pas accès à cette page. Seuls les administrateurs de production peuvent afficher les modèles.",
+  "maler.ingenRedigeringstilgangBeskrivelse": "Seuls les administrateurs de projet peuvent créer et modifier des modèles. Les administrateurs de l'entreprise héritent de cet accès.",
   "maler.ingenMaler": "Aucun modèle",
   "maler.ingenMalerBeskrivelse": "Créez un modèle de rapport pour créer des listes de contrôle.",
   "maler.opprettMal": "Créer un modèle",
