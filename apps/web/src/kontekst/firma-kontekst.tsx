@@ -92,6 +92,37 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
   const kanAdministrereFirma =
     erSitedocAdmin || tilgjengelige.some((f) => f.id === valgtFirma?.id);
 
+  // Fase 1 — divergensvakt (firmarolle-konsolidering, ORDRE-v2 2026-08-10).
+  // Warn (ALDRI blokker) når gammel kilde (User.role === "company_admin") og ny
+  // kilde (firma_admin-medlemskap via firmaRoller → `tilgjengelige`) er uenige,
+  // begge veier. Formålet er å vokte KODE-konvergensen: en bruker i divergent
+  // tilstand (særlig mathias: firma_admin uten company_admin) avslører enhver
+  // lesebane som fortsatt spør gammel kilde ved å gi feil svar. sitedoc_admin
+  // ekskluderes (egen akse — `tilgjengelige` = alle kundeorg for dem).
+  // Fjernes IKKE i Fase 2 — den er tripwiren mot at gammel kilde re-introduseres.
+  // Data-divergensen (b) består til Fase 3 avvikler `company_admin` fra User.role.
+  useEffect(() => {
+    if (minBrukerQuery.isLoading || tilgjengeligeQuery.isLoading) return;
+    if (!minBruker || erSitedocAdmin) return;
+    const gammelSierAdmin = minBruker.role === "company_admin";
+    const nySierAdmin = tilgjengelige.length > 0;
+    if (gammelSierAdmin !== nySierAdmin) {
+      console.warn(
+        "[FIRMAROLLE-DIVERGENS] Gammel og ny firma-admin-kilde er uenige: " +
+          `role==="company_admin"=${gammelSierAdmin}, firma_admin-medlemskap=${nySierAdmin}. ` +
+          (gammelSierAdmin
+            ? "(a) company_admin uten firma_admin-rolle."
+            : "(b) firma_admin-rolle men User.role er ikke company_admin (mathias-varianten)."),
+      );
+    }
+  }, [
+    minBruker,
+    erSitedocAdmin,
+    tilgjengelige.length,
+    minBrukerQuery.isLoading,
+    tilgjengeligeQuery.isLoading,
+  ]);
+
   function velgFirma(id: string) {
     setLagretFirmaId(id);
     localStorage.setItem(STORAGE_KEY, id);
