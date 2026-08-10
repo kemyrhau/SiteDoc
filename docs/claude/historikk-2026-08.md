@@ -10,6 +10,34 @@ Arkiv av arbeid deployet til prod i august 2026. Flyttet hit fra [STATUS-AKTUELT
 
 > **Mobil-forbehold for hele måneden:** ingen EAS-bygg er fyrt i august (siste er #40, 2026-07-15). Mobil-kode som er merget til `main` i august er derfor **i prod-repoet, men ikke hos brukerne** — den når felt først ved neste EAS-bygg + TestFlight. Gjelder særlig mobil detalj-redesign M1–M3. Se [STATUS-AKTUELT § EAS-byggteller](STATUS-AKTUELT.md#eas-byggteller-kvote-15mnd-fri-plan--nullstilles-den-1).
 
+## Prod-deploy 2026-08-10 (`7f838d80`, develop→main) — 33 commits: bunt 44 web/api + utlegg U3 + firma-admin + mal-gate (LIVE)
+
+Første prod-deploy siden `e37621e1` (08.08). **Én migrering:** `20260808130000_sheet_machine_timer_id` (additiv nullable FK, `db-timer`). Backup tatt før deploy. Bygget api og web hver for seg (samtidig = OOM), `up -d --no-deps` uten `-p`. Migrerings-gaten avviste ikke ⇒ traff riktig DB (`sitedoc`).
+
+**Innhold:**
+- **Bunt 44 web/api-side.** Mobilkoden nådde felt via EAS-bygg 44 (09.08) — dette er server-siden av samme bunt: HMS melder-flyt, `sheetTimerId`-koblingen for maskin ved redigering, seks katalog-tjenester som ikke lenger tømmer cachen sin ved en feilet pull.
+- **Utlegg U3 — web-registrering** (`aa111b45`). Velger 8a + tre radformer 8b + kilde-linje. E2E-verifisert på test i tre lag: CHECK-constraint runtime-bevist, API-guarder (`sats` avvist, beløp påkrevd, `ordningVedFoering` immutabel), browser mot mockup.
+- **Firma-admin kan opprette prosjekt** (`3f931fa8`). `dashbord/firma/prosjekter` manglet knappen helt; `/dashbord` hadde den, men auto-redirect gjorde den uåpnåelig ved ≥1 prosjekt. Samtidig harmonisert `dashbord/page.tsx:47` fra `users.role` til `kanAdministrereFirma` — første konvergerte lesebane i firmarolle-oppryddingen.
+- **Mal-redigering krever prosjektadmin** (`60752550`). Alle åtte mal-**mutasjoner** gikk på `verifiserProsjektmedlem` ⇒ enhver prosjektdeltaker kunne redigere og slette HMS-malene. Nå `verifiserAdmin` (sitedoc_admin · prosjektadmin · **firma-admin arver**). Queries urørt — feltarbeidere må lese maler for å fylle ut skjema. `oversettFelter` bevisst holdt åpen: den kalles fra dokumentdetaljsidene, admin-gate der ville brutt oversettelse for alle medlemmer. UI gates på ny `mal.kanRedigere` som speiler serverfunksjonen ⇒ divergens strukturelt umulig.
+- **`admin.seedManglendeFirmakatalog`** (`966ed8db`) — idempotent seed av manglende firmakatalog per org, sitedoc_admin-gated. Kun `expenseCategories` wiret (se § Modul-onboarding under).
+- **Firmarolle-divergensvakt Fase 1** (`586d7296`) — `console.warn` ved firma-kontekst-bygging når gammel (`users.role`) og ny kilde (`firmaRoller`) er uenige, begge veier. Ren diagnostikk, ingen gating.
+- **Seed-drift rettet** (`6cf467ec`) — `seed-testbrukere.ts` satte `firmaRoller: ["admin"]` mens serveren filtrerer på `"firma_admin"`. To økter gikk i den fella samme dag.
+
+**Etterarbeid på prod, verifisert:**
+- **A.Markussen fikk sine 5 utleggskategorier** (Annet · Diett · Drivstoff · Parkering · Verktøy) via `admin.seedManglendeFirmakatalog` → `{opprettet: 5, hoppet: false}`. **Lønnsart-fordelingen 25 (`seed_nivaa=2`) / 19 (import) er uendret før og etter** — det var hele risikoen, og den er målt på ekte data, ikke bare på testfikstur. Uten dette ville U3-utleggsflaten vært tom for den eneste kunden som skal bruke den.
+- **Duplikate maler ryddet på 998 Instinniforbotn:** tom «KS avvik» (0 felter, 0 dokumenter) slettet, «Befaringsnotat» fjernet. Prosjektet står nå med fem maler og unike prefikser.
+
+### 🔴 Funn under deployen som ikke er lukket
+
+**Mal-sletting kan foreldreløse oppgaver.** `mal.slettMal` (`mal.ts:219-225`) gjør rå `delete` uten å telle dokumenter. Utfallet avhenger av en utilsiktet asymmetri: `Checklist.templateId` er påkrevd ⇒ Prisma-default `Restrict` (sletting nektes), mens `Task.templateId` er nullable ⇒ `SetNull` (oppgaven mister malen). **`Task` har ingen `projectId`** — den kobles til prosjektet via malen, så en foreldreløs oppgave mister også veien tilbake til prosjektet. `Task.data` er dessuten JSONB nøklet på `ReportObject.id`, så innholdet blir utolkbart uten malen. **Ingen data tapt** (`SELECT count(*) FROM tasks WHERE template_id IS NULL` → 0), men mekanismen står. Ordre gitt: server-guard + `onDelete: Restrict` + samme sjekk for `slettObjekt` (som har `sjekkObjektBruk` i UI, men ingen server-guard).
+
+**Ingen unikhet på mal-prefiks eller mal-navn.** 998 hadde to «KS avvik» (begge `K-avv`) og to BEF-maler med ulike navn. Nummerering er `_max(number)` per `templateId`, ikke per prefiks ⇒ to maler med samme prefiks gir to serier som begge starter på 1. **Kenneths vedtak: unikt prefiks og navn per prosjekt** (og per firmamal-oppsett når det bygges). Krever DB-constraint + app-validering; `mal.kopier` må håndtere at den i dag kopierer prefikset uendret.
+
+### 🟡 Modul-onboarding: aktivering seeder ikke grunndata
+Kartlegging under deployen viste at **kun én modul** (`hms-avvik`) seeder automatisk ved aktivering. Timer har `seedTimerForOrganization`, men den henger på en parallell vei (`timer.onboarding.aktiverNivaa1`) — den generiske `organisasjon.settFirmamodul` kaller ingenting. Maskin og varelager har ingen rutine. Dokumentert som åpen sak i [BACKLOG § Modul-onboarding-veiledning](BACKLOG.md); `arkitektur-syntese.md § 3.8` beskriver en `onOrganizationCreated`-hook som ikke finnes i koden.
+
+**Føring fra Kenneth som endrer premisset:** A.Markussen skal ha **sine egne importerte lønnsarter, ikke lovutledede standardarter**. `seed_nivaa = 1`-tomheten er derfor den *ønskede* tilstanden for dem. En oppstartsrutine må skille tre tilstander, ikke to: aldri onboardet (seed) · onboardet (hopp) · **bevisst egen katalog** (hopp, og ikke rapportér som ufullstendig). `onboarding.status` rapporterer i dag sannsynligvis Timer som ufullstendig for A.Markussen selv om katalogen er som den skal.
+
 ## Prod-deploy 2026-08-08 kveld (`e37621e1`, develop→main) — HMS 5a+5b melder-flyt + utlegg U1 (LIVE)
 
 Lukker read-only-regresjonen fra `881e66e6` **ved rotårsaken**. Første migrering på flere dager (additiv, `db-timer`).
