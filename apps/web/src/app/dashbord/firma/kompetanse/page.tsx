@@ -47,12 +47,14 @@ type MatriseKobling = {
  */
 function kanSkriveKompetanse(
   ctxUserId: string | undefined,
-  ctxRole: string | undefined,
+  // Fase 2: firma-admin-bypass via kanAdministrereFirma (firmaRoller, inkl.
+  // sitedoc_admin) — erstatter ctxRole-sjekken mot User.role.
+  erFirmaAdmin: boolean,
   malUserId: string,
   policy: "firma_admin" | "bruker_egen" | "alle" | undefined,
 ): boolean {
   if (!ctxUserId) return false;
-  if (ctxRole === "sitedoc_admin" || ctxRole === "company_admin") return true;
+  if (erFirmaAdmin) return true;
   if (policy === "alle") return true;
   if (policy === "bruker_egen") return malUserId === ctxUserId;
   // policy === "firma_admin" eller udefinert → kun admin (allerede returnert)
@@ -131,8 +133,7 @@ function MatriseFane() {
   const { t } = useTranslation();
   const { data: session } = useSession();
   const ctxUserId = session?.user?.id as string | undefined;
-  const ctxRole = (session?.user as { role?: string } | undefined)?.role;
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, kanAdministrereFirma } = useFirma();
   const orgId = valgtFirma?.id;
 
   const { data, isLoading } = trpc.kompetanse.hentMatrise.useQuery(
@@ -230,7 +231,7 @@ function MatriseFane() {
   return (
     <div className="space-y-4">
       {/* Verktøyrad — admin-handlinger */}
-      {(ctxRole === "company_admin" || ctxRole === "sitedoc_admin") && (
+      {kanAdministrereFirma && (
         <div className="flex justify-end">
           <Button onClick={() => setVisImport(true)}>
             <Upload className="mr-1.5 h-4 w-4" />
@@ -314,7 +315,7 @@ function MatriseFane() {
                   const kobling = koblingMap.get(`${bruker.id}|${k.id}`);
                   const klikkbar = kanSkriveKompetanse(
                     ctxUserId,
-                    ctxRole,
+                    kanAdministrereFirma,
                     bruker.id,
                     policy,
                   );
