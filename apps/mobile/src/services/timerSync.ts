@@ -391,6 +391,8 @@ export async function syncTimer(
           })),
           maskiner: maskiner.map((m) => ({
             id: m.id,
+            // Del B pkt 1: send koblingen til timer-raden så FK-en overlever sync.
+            sheetTimerId: m.sheetTimerId ?? null,
             // F4-4: samme fallback-normalisering som timer-rader.
             projectId: m.projectId || sedel.projectId || undefined,
             // T7-4e (2026-05-16): send ECO per maskin-rad. Server (T7-4b
@@ -737,6 +739,8 @@ export async function syncTimer(
           .values({
             id: m.id,
             dagsseddelId: maalId,
+            // Del B pkt 1: bevar koblingen til timer-raden ved pull.
+            sheetTimerId: m.sheetTimerId ?? null,
             projectId: m.projectId ?? sedelProjectId,
             // T7-4e: skriv ECO på maskin lokalt. Server (T7-4b hentEndringerSiden)
             // returnerer feltet i maskiner-mappingen.

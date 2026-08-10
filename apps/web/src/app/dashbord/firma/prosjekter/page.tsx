@@ -2,15 +2,17 @@
 
 import { trpc } from "@/lib/trpc";
 import { Spinner, EmptyState } from "@sitedoc/ui";
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, Plus } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "react-i18next";
 import { useFirma } from "@/kontekst/firma-kontekst";
 import { SonetonetSidehode } from "@/components/layout/SonetonetSidehode";
 
 export default function FirmaProsjekter() {
   const router = useRouter();
-  const { valgtFirma } = useFirma();
+  const { t } = useTranslation();
+  const { valgtFirma, kanAdministrereFirma } = useFirma();
   const orgId = valgtFirma?.id;
 
   const { data: prosjekter, isLoading } =
@@ -18,6 +20,21 @@ export default function FirmaProsjekter() {
       { organizationId: orgId! },
       { enabled: !!orgId },
     );
+
+  // Opprett-inngang for firma-admin (device-funn 2026-08-09: knappen fantes ikke,
+  // så firma-admin kunne ikke opprette prosjekt herfra selv om server + skjema
+  // tillater det). Gates på kanAdministrereFirma — samme kilde som
+  // /dashbord/nytt-prosjekt og prosjekt.opprett. Følger maskin-sidens mønster
+  // (dashbord/maskin/page.tsx). Delt element → header + tom-state, ingen blindvei.
+  const nyttProsjektKnapp = kanAdministrereFirma ? (
+    <Link
+      href="/dashbord/nytt-prosjekt"
+      className="inline-flex items-center gap-1.5 rounded-md bg-sitedoc-primary px-3 py-1.5 text-sm font-medium text-white hover:bg-sitedoc-primary/90"
+    >
+      <Plus className="h-4 w-4" />
+      {t("dashbord.nyttProsjekt")}
+    </Link>
+  ) : null;
 
   if (isLoading) {
     return (
@@ -31,11 +48,15 @@ export default function FirmaProsjekter() {
     return (
       <div>
         <SonetonetSidehode sone="firma" className="mb-4">
-          <h1 className="text-lg font-semibold text-gray-900">Prosjekter</h1>
+          <div className="flex items-center justify-between">
+            <h1 className="text-lg font-semibold text-gray-900">Prosjekter</h1>
+            {nyttProsjektKnapp}
+          </div>
         </SonetonetSidehode>
         <EmptyState
           title="Ingen prosjekter"
           description="Organisasjonen har ingen tilknyttede prosjekter ennå."
+          action={nyttProsjektKnapp ?? undefined}
         />
       </div>
     );
@@ -44,7 +65,10 @@ export default function FirmaProsjekter() {
   return (
     <div>
       <SonetonetSidehode sone="firma" className="mb-4">
-        <h1 className="text-lg font-semibold text-gray-900">Prosjekter</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold text-gray-900">Prosjekter</h1>
+          {nyttProsjektKnapp}
+        </div>
       </SonetonetSidehode>
 
       <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">

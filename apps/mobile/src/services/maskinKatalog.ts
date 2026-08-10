@@ -43,22 +43,16 @@ export async function refreshMaskinKatalog(klient: TrpcKlient): Promise<{
   const db = hentDatabase();
   if (!db) return { equipment: 0 };
 
-  const equipment = await klient.maskin.equipment.list.query().catch((e) => {
-    // Ikke-kritisk hvis ruten ikke er tilgjengelig (f.eks. token utløpt)
-    console.warn("[MASKIN-KATALOG] Equipment-pull feilet:", e);
-    return [] as Array<{
-      id: string;
-      organizationId: string;
-      kategori: string;
-      type: string | null;
-      merke: string | null;
-      modell: string | null;
-      internNavn: string | null;
-      internNummer: string | null;
-      registreringsnummer: string | null;
-      status: string;
-    }>;
-  });
+  // Symmetri med refreshKatalog (device-funn 2026-08-08 pkt 2): equipment-pullen
+  // fanges IKKE. En feilet pull (utløpt token / nett-glitch) skal kaste FØR den
+  // destruktive db.delete under — slik at eksisterende cache BEVARES ved feil, i
+  // stedet for å tømmes. En vellykket, men tom liste (Maskin-modul av / ingen
+  // utstyr) er derimot et gyldig svar som skal slette + refylle tomt (soft-skjul).
+  // Tidligere `.catch(() => [])` gjorde enhver transient feil destruktiv: cachen
+  // ble tømt og krevde re-login for å fylles igjen. refreshKatalog lar på samme
+  // vis sine kjerne-pulls kaste før delete — nå har begge katalogene identisk
+  // feiloppførsel av samme grunn, ikke to mekanismer som tilfeldig sammenfaller.
+  const equipment = await klient.maskin.equipment.list.query();
 
   const naa = Date.now();
 

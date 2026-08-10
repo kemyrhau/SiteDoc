@@ -28,18 +28,15 @@ export async function refreshProsjektKatalog(klient: TrpcKlient): Promise<{
   const db = hentDatabase();
   if (!db) return { prosjekter: 0 };
 
-  const prosjekter = await klient.prosjekt.hentMine.query().catch((e) => {
-    console.warn("[PROSJEKT-KATALOG] Pull feilet:", e);
-    return [] as Array<{
-      id: string;
-      primaryOrganizationId: string | null;
-      name: string;
-      projectNumber: string | null;
-      latitude: number | null;
-      longitude: number | null;
-      status: string;
-    }>;
-  });
+  // Cache-bevaring (device-funn 2026-08-08, samme mønster som maskinKatalog):
+  // pullen fanges IKKE. En feilet pull (utløpt token / nett-glitch) kaster FØR
+  // den destruktive db.delete under → kalleren (triggerKatalogRefresh) fanger og
+  // beholder eksisterende cache, i stedet for å tømme den. En vellykket, men tom
+  // liste (bruker uten prosjekter) er et gyldig svar → slett + refyll tomt.
+  // Tidligere `.catch(() => [])` tømte prosjekt-cachen ved enhver transient feil,
+  // og en offline kaldstart ga rå UUID-er i dagsseddel-raden (finnProsjektLokalt
+  // → null) fordi cachen var slettet.
+  const prosjekter = await klient.prosjekt.hentMine.query();
 
   const naa = Date.now();
 

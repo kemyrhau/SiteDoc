@@ -48,24 +48,16 @@ export async function refreshKalenderKatalog(
   const fraAar = aar - 1;
   const tilAar = aar + 1;
 
-  const rader = await klient.firma.kalender.hentForMobil
-    .query({ organizationId, fraAar, tilAar })
-    .catch((e) => {
-      console.warn("[KALENDER-KATALOG] Pull feilet:", e);
-      return [] as Array<{
-        id: string;
-        organizationId: string;
-        aar: number;
-        dato: Date;
-        type: string;
-        navn: string;
-        timerOverstyr: unknown;
-        standardStartTid: string | null;
-        standardSluttTid: string | null;
-        pauseMin: number | null;
-        aktiv: boolean;
-      }>;
-    });
+  // Cache-bevaring (device-funn 2026-08-08, samme mønster som maskinKatalog):
+  // pullen fanges IKKE → feilet pull kaster FØR den scope-delete under, kalleren
+  // beholder eksisterende cache. Vellykket tom liste (firma uten kalender-
+  // overstyringer — svært vanlig) er gyldig → slett + refyll tomt for firmaet i
+  // perioden. Tidligere `.catch(() => [])` tømte kalender-cachen ved transient feil.
+  const rader = await klient.firma.kalender.hentForMobil.query({
+    organizationId,
+    fraAar,
+    tilAar,
+  });
 
   const naaMs = Date.now();
 
@@ -76,8 +68,14 @@ export async function refreshKalenderKatalog(
     .run();
 
   for (const r of rader) {
+    // r.dato er ISO-streng over tRPC (tidligere union med Date fra catch-fallback-
+    // typen som nå er fjernet). Widening til unknown bevarer den runtime-defensive
+    // Date-grenen uten å bryte typecheck.
+    const datoRaw: unknown = r.dato;
     const datoIso =
-      r.dato instanceof Date ? r.dato.toISOString().slice(0, 10) : String(r.dato).slice(0, 10);
+      datoRaw instanceof Date
+        ? datoRaw.toISOString().slice(0, 10)
+        : String(datoRaw).slice(0, 10);
     const timerOverstyr =
       r.timerOverstyr === null || r.timerOverstyr === undefined
         ? null

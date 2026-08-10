@@ -44,24 +44,19 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
     return { lonnsarter: 0, aktiviteter: 0, tillegg: 0, underprosjekter: 0 };
   }
 
+  // Cache-bevaring (device-funn 2026-08-08): ECO-pullen fanges IKKE lenger.
+  // Alle fire pull-ene kaster nå før den destruktive db.delete under → en feilet
+  // pull bevarer ALLE fire cachene (kalleren fanger), symmetrisk med de tre andre.
+  // Den gamle `.catch(() => [])` begrunnet seg med «bruker uten firma» (moot:
+  // resolverOrgFraInput/krevBrukersOrg kaster FORBIDDEN for org-løse, så lonnsart
+  // rejecter Promise.all først uansett) og «ECO-router mangler» (historisk — ruten
+  // finnes/er wiret; skulle den mangle, bevares nå alle fire i stedet for at
+  // ECO-cachen tømmes → feiler tryggere).
   const [lonnsarter, aktiviteter, tillegg, underprosjekter] = await Promise.all([
     klient.timer.lonnsart.list.query(),
     klient.timer.aktivitet.list.query(),
     klient.timer.tillegg.list.query(),
-    klient.eksternKostObjekt.list.query().catch((e) => {
-      // Ikke-kritisk hvis ECO-router mangler eller bruker ikke har firma
-      console.warn("[KATALOG] ECO-pull feilet:", e);
-      return [] as Array<{
-        id: string;
-        organizationId: string;
-        projectId: string;
-        proAdmId: string;
-        kortNavn: string;
-        kilde: string;
-        status: string;
-        timerregistreringApen: boolean;
-      }>;
-    }),
+    klient.eksternKostObjekt.list.query(),
   ]);
 
   const naa = Date.now();

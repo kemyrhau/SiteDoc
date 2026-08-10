@@ -305,8 +305,12 @@ export default function DagsseddelDetalj() {
 
   // L1 / B6: skriv valgt byggeplass på sedelen (sedel-nivå) + merk pending.
   // Sync-laget sender byggeplassId på sedel-nivå; server propagerer til rader.
+  // Funn #2 (device 2026-08-08): `null` = «Ingen byggeplass» — gjenoppretter den
+  // opprinnelige tomme tilstanden så en feilvalgt byggeplass kan angres (feltet
+  // var nullbart før første valg; nedstrøms tåler null: byggeplassInfo faller til
+  // «entydig/ingen»-grenen, og rad-arven blir umarkert «Arv fra dagskortet»).
   const velgByggeplass = useCallback(
-    (byggeplassId: string) => {
+    (byggeplassId: string | null) => {
       const db = hentDatabase();
       if (!db || !sedel) return;
       db.update(dagsseddelLocal)
@@ -892,6 +896,7 @@ export default function DagsseddelDetalj() {
         <ByggeplassVelgerModal
           projectId={sedel.projectId}
           valgtId={sedel.byggeplassId ?? null}
+          tillatIngen
           onVelg={velgByggeplass}
           onLukk={() => setVisByggeplassVelger(false)}
         />
@@ -1273,8 +1278,12 @@ function EcoBucket({
         onEndret={onEndret}
       />
 
-      {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers — speiler T7-4b */}
-      {(sumTimer > 0 || sumMaskin > 0) && (
+      {/* Sum-indikator: grønn når maskin ≤ arbeid, rød ellers — speiler T7-4b.
+          Del B pkt 3 (device-funn 2026-08-08): skjules når maskin = 0.00t. Et
+          «Herav maskin 0.00t av Xt arbeid»-banner uten maskininngang er selv-
+          motsigende og leses som at maskintimer ER ført. Ved maskin > 0 beholdes
+          dagens ordlyd (allerede omformulert én gang, jf. BACKLOG maskinAvArbeid). */}
+      {sumMaskin > 0 && (
         <View
           className={`mt-3 rounded border px-3 py-1.5 ${
             maskinOk

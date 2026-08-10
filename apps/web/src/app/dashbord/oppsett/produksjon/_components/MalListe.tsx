@@ -172,6 +172,17 @@ export function MalListe({
     { enabled: !!prosjektId },
   );
 
+  // Kun prosjektadmin (og firma-admin, som arver) kan redigere prosjektets maler
+  // (Kenneths regel 2026-08-10). Speiler serverens verifiserAdmin-gate på alle
+  // mal-mutasjoner via mal.kanRedigere — samme kilde, så UI ikke divergerer fra
+  // serveren. Bevisst IKKE manage_field (annen akse) eller ProjectMember-only
+  // (ville skjult malbyggeren for firma-admin som serveren slipper inn).
+  const { data: kanRedigere, isLoading: lasterTilgang } =
+    trpc.mal.kanRedigere.useQuery(
+      { projectId: prosjektId! },
+      { enabled: !!prosjektId },
+    );
+
   const opprettMutation = trpc.mal.opprett.useMutation({
     onSuccess: () => {
       utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId! });
@@ -288,11 +299,22 @@ export function MalListe({
     router.push(`/dashbord/oppsett/produksjon/${rute}/${mal.id}`);
   }
 
-  if (isLoading) {
+  if (isLoading || lasterTilgang) {
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
       </div>
+    );
+  }
+
+  // Ikke prosjektadmin/firma-admin → ingen mal-redigering (speiler server-gaten).
+  // Stopper også direkte-URL, ikke bare menylenken.
+  if (!kanRedigere) {
+    return (
+      <EmptyState
+        title={t("maler.ingenTilgang")}
+        description={t("maler.ingenRedigeringstilgangBeskrivelse")}
+      />
     );
   }
 

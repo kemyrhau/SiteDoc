@@ -10,6 +10,20 @@ Arkiv av arbeid deployet til prod i august 2026. Flyttet hit fra [STATUS-AKTUELT
 
 > **Mobil-forbehold for hele måneden:** ingen EAS-bygg er fyrt i august (siste er #40, 2026-07-15). Mobil-kode som er merget til `main` i august er derfor **i prod-repoet, men ikke hos brukerne** — den når felt først ved neste EAS-bygg + TestFlight. Gjelder særlig mobil detalj-redesign M1–M3. Se [STATUS-AKTUELT § EAS-byggteller](STATUS-AKTUELT.md#eas-byggteller-kvote-15mnd-fri-plan--nullstilles-den-1).
 
+## Prod-deploy 2026-08-08 kveld (`e37621e1`, develop→main) — HMS 5a+5b melder-flyt + utlegg U1 (LIVE)
+
+Lukker read-only-regresjonen fra `881e66e6` **ved rotårsaken**. Første migrering på flere dager (additiv, `db-timer`).
+
+- **HMS 5a — opprett = utkast.** `oppgave.opprett` + `sjekkliste.opprett` HMS-gren gir nå `sendt:false` / `aktivPosisjon:1` / `draft`, uten varsel ved opprett. Ny `hmsSendInn` (`draft|responded → received`). Gjenkjennes på **`mal.domain === "hms"`**, ikke subdomene ⇒ gjelder **alle tre typer: avvik, ruh, sja**. Draft-guard skjuler utkast for ALLE inkl. HMS-admin («ingen ser utkastet før du sender»). leseModus = `erMelder && aktivPosisjon===1 && !terminal` — dekker draft OG returnert, så «Returner til melder» faktisk gir melder redigeringsrett tilbake. Forkast gjenbruker eksisterende `slett`.
+- **HMS 5b — tillegg-synlig + feltlås.** Ny `HmsMelderTillegg`: synlig forklaring på hvorfor feltene er låst (kun mens ballen er hos behandler, med sendt-dato fra transfer-loggen) + «Tillegg fra melder» som tidsstemplet logg. Melder-tillegg flyttet UT av `HmsHandlingsflate` ⇒ den er nå ren behandler-flate. **Sporbarhet ved revisjon:** `hmsSendInn` skriver distinkte transfers — `draft→received` = «Sendt inn», `responded→received` = «Revidert og sendt tilbake» — så behandler ser at melderen endret noe.
+- **Utlegg U1** (`cf1e6c53`) — datamodell + delt utledning, ingen UI ennå. `ExpenseCategory.ordning` (sats|utlegg|fakturert), `sheet_utlegg` + `sheet_utlegg_vedlegg` + `prosjekt_ordning_overstyring`. **CHECK på radens eget `ordning_ved_foering`** (kan ikke referere kategori-tabellen) gjør stempelet til integritetsbærer, ikke bare revisjonsspor. Delt `utledOrdning` (`overstyring ?? firma-default`) i `@sitedoc/shared` med 10 tester. `timer.md` drift-reconciliert: planlagt-men-aldri-bygget `sheet_expenses` erstattet med faktisk modell.
+
+**Verifisert innlogget på prod:** HMS-005 opprettet → «Utkast» + banner + Send inn/Forkast + redigerbare felt → etter innsending «Mottatt» + låste felt + Besvar/Lukk/Returner.
+
+**Spor 2-dekning (asymmetri, kjent):** web-oppgave har full flyt; web-SJA har melder-flyt + Besvar/Lukk men mangler Returner + flyt-stripe; mobil har melder-flyt, behandling er pre-Spor-2. Oppfølgere navngitt, ikke skjult.
+
+**Prosess-lærdom:** forrige deploy (`881e66e6`) tok med Diff 1 mens 5a fortsatt manglet — vi byttet «behandler kan ikke behandle» mot «melder kan ikke melde». Regelen framover: **ikke deploy en bunt med kjent åpen regresjon**, selv om resten er verdifullt.
+
 ## Prod-deploy 2026-08-08 (`881e66e6`, develop→main) — HMS received-fiks + fillagring S1 + firma-tilknytning + P4a mobil (LIVE)
 
 25 commits. **Ingen migreringer** (verifisert: kun `schema.prisma`-kommentarrydding). Backup tatt før deploy (`sitedoc-pre-25commits-20260808-0701.dump`, 485K). Bygget api og web hver for seg (samtidig = OOM), `up -d --no-deps` uten `-p`.

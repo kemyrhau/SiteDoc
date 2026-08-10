@@ -25,18 +25,14 @@ export async function refreshOppmotestedKatalog(
   const db = hentDatabase();
   if (!db) return { oppmotesteder: 0 };
 
-  const oppmotesteder = await klient.oppmotested.hentForFirma
-    .query({ organizationId })
-    .catch((e) => {
-      console.warn("[OPPMOTESTED-KATALOG] Pull feilet:", e);
-      return [] as Array<{
-        id: string;
-        navn: string;
-        lat: number;
-        lng: number;
-        radiusM: number;
-      }>;
-    });
+  // Cache-bevaring (device-funn 2026-08-08, samme mønster som maskinKatalog):
+  // pullen fanges IKKE → feilet pull kaster FØR den scope-delete under, kalleren
+  // beholder eksisterende cache. Vellykket tom liste (firma uten oppmøtesteder) er
+  // gyldig → slett + refyll tomt for firmaet. Tidligere `.catch(() => [])` tømte
+  // oppmøtested-cachen ved transient feil.
+  const oppmotesteder = await klient.oppmotested.hentForFirma.query({
+    organizationId,
+  });
 
   const naa = Date.now();
 

@@ -547,6 +547,36 @@ export function kjorMigreringer() {
     );
   }
 
+  // Del B pkt 1 (device-funn 2026-08-08) — sheet_timer_id på sheet_machine_local.
+  // Speil av server sheet_machines.sheet_timer_id. Svak FK → sheet_timer_local.id.
+  // NULLABLE, INGEN backfill: en bruker som oppgraderer appen får kolonnen lagt
+  // til på den eksisterende tabellen (ALTER, ingen tabell-rebuild), og alle
+  // eksisterende maskin-rader beholder NULL — de ble ført før koblingen fantes og
+  // kan ikke utledes i ettertid. Uten denne migreringen ville en INSERT med
+  // sheet_timer_id feilet på en gammel tabell; her legges kolonnen til trygt før
+  // første skriving. Idempotent (PRAGMA-sjekk før ALTER).
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(sheet_machine_local)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "sheet_timer_id")) {
+      console.log(
+        "[MIG] Legger til sheet_timer_id på sheet_machine_local (Del B pkt 1)",
+      );
+      db.execSync(
+        "ALTER TABLE sheet_machine_local ADD COLUMN sheet_timer_id TEXT",
+      );
+      db.execSync(
+        "CREATE INDEX IF NOT EXISTS idx_sheet_machine_local_timer ON sheet_machine_local(sheet_timer_id)",
+      );
+    }
+  } catch (e) {
+    console.warn(
+      "[MIG] Kunne ikke utvide sheet_machine_local med sheet_timer_id:",
+      e,
+    );
+  }
+
   // T4-d — kalender-cache. Speiler ArbeidstidsKalender (T9a) for periode
   // currentYear ± 1. Brukes av hentEffektivArbeidstidLokal til offline-
   // beregning av start/slutt/pause for en dato. Soft-deleted rader skrives

@@ -1,7 +1,7 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: 2026-08-08
-sist_endret: 2026-08-08
+sist_verifisert_mot_kode: 2026-08-10
+sist_endret: 2026-08-10
 gjelder_versjon: Fase 3
 avhenger_av:
   - arkitektur.md
@@ -240,6 +240,18 @@ Auto-importerer Nivå 1 (16 lønnsarter). Tilbyr Nivå 2 (25 lønnsarter) som va
 
 **B) «Migrerer fra annet system»**
 Tom katalog. Import-verktøy aktivert (CSV-upload eller adapter mot kjent system). Forhindrer dobbel-katalog-problem hvis kunde flytter eksisterende lønnsarter inn — ellers ville Nivå 1 + importert katalog gi duplikater.
+
+#### Seed manglende firmamodul-katalog — 🟢 admin-verktøy (2026-08-10)
+
+**Problem:** kun `hms-avvik` seeder automatisk ved modul-aktivering; den generiske `organisasjon.settFirmamodul` seeder ingenting. Migrasjons-firma (scenario B) som fikk lønnsart via import har derfor **0 utleggskategorier** — U3-velgerens UTLEGG-gruppe står tom. Konkret: A.Markussen (prod) har Timer aktiv + 44 importerte lønnsarter + 127 maskiner, men 0 utleggskategorier (`seedTimerForOrganization` aldri kjørt for dem).
+
+**Løsning:** `admin.seedManglendeFirmakatalog` (`apps/api/src/routes/admin.ts`, `verifiserSiteDocAdmin`-gated, input `{organizationId}`) → `seedManglendeKatalog(orgId)` (`services/seed/index.ts`). Cross-org driftsverktøy, idempotent, rører aldri eksisterende data. Kjøres målrettet i stedet for `aktiverNivaa1` (som ville injisert 16 seed-lønnsarter — `seedLonnsartNivaa1` guarder på `seedNivaa=1`, ser ikke de importerte). Rapport per datatype: `{ expenseCategories: { opprettet, hoppet } }`.
+
+**🔴 SCOPE (denne runden): kun `expenseCategories`** — den ene timer-datatypen med robust idempotens-guard (`seedExpenseCategories` hopper på `count(org) > 0`). Enhets-testet (`seedManglende.test.ts`: 0→5/hoppet=false, eksisterende→hoppet=true) + `seedExpenseCategories` allerede kjørt mot sitedoc_test under U3-E2E.
+
+**Navngitte oppfølgere:**
+- **Robuste seedNivaa-guarder:** lønnsart/aktivitet/tillegg guarder på `seedNivaa`, ikke «finnes rader» → ikke trygge mot import-katalog. Å gjøre dem robuste er forutsetningen for at stien kan dekke alle datatyper + kobles på `settFirmamodul` (den fulle oppstartsrutinen).
+- **Prosjektmodul-variant:** samme klasse på prosjektnivå — 998 Instinniforbotn (prod) har HMS-avvik + SJA men mangler RUH-malen (`modul.aktiver` er alt idempotent for maler, `findFirst` på prefix → ville lagt til RUH alene). Ikke bygget; den generiske stien bør senere dekke begge nivåer (RUH haster ikke, Kenneth).
 
 ### Auto-fordeling normaltid/overtid
 
@@ -580,27 +592,64 @@ Aldri blandet i lønnsrader. Tripletex: utlegg som reiseregning/bilag, ikke som 
 
 ## Utleggsregistrering
 
-Del av dagsseddelen. Ansatt tar bilde av kvittering direkte i mobilappen.
+Del av dagsseddelen, ført etter **ordningsmodellen** (tre ordninger — se
+[`sheet_utlegg`-blokken](#sheet_utlegg-utlegg-fakturert-rader-per-dagsseddel--🟢-u1-datamodell-migrering-20260808120000_utlegg_ordningsmodell)).
+Feltarbeideren velger **kategori** («diesel»), aldri ordning — ordningen utledes
+(`overstyring ?? firma-default` via delt `utledOrdning` i `@sitedoc/shared`) og
+bestemmer feltene. Data-lag i `SheetUtlegg` (utlegg/fakturert) eller `SheetTillegg`
+(sats). Kvittering: server-lokal privat disk (`/uploads/privat/`, signatur-KUN),
+**ikke** S3/Tripletex. Eksport til Proadm er ikke bygget (U2 utsatt).
 
-### Feltstruktur
+### 🟢 U3 — web-registrering (2026-08-08)
 
-- `kategori`: string — Drivstoff, Parkering, Diett, Verktøy, Annet (konfigurerbar per Organization)
-- `belop`: decimal (NOK)
-- `kvitteringsBilde`: string (URL til lagret bilde)
-- `notat`: string? (valgfritt)
-- `dagsseddelId`: FK → `daily_sheets`
+**Flate:** `apps/web/src/app/dashbord/timer/[id]/page.tsx`.
 
-### Teknisk
+- **`LeggTilVelger` (8a):** ÉN inngang «Legg til på dagsseddelen», to grupper —
+  **Tillegg** (lønnstillegg-katalogen `Tillegg`, sats → `SheetTillegg`, uendret
+  flyt) og **Utlegg** (`ExpenseCategory` → `SheetUtlegg`). Flat markør (↑/↓/Enter,
+  klikk), ordnings-pille som undertekst. Sats-`ExpenseCategory` vises deaktivert
+  (se oppfølger under).
+- **`UtleggRadDialog` (8b):** én radform per utledet ordning — `utlegg` = beløp
+  (påkrevd) + kvittering (påkrevd, legges på lagret rad); `fakturert` = ren
+  avhuking, ingen beløp, valgfri kvittering. Kategori + ordning låst (utledet),
+  kilde-linje («firma-standard» / «overstyrt for prosjektet»).
+- **API:** `timer.expenseCategory.list` (returnerer utledet ordning + kilde per
+  prosjekt) · `timer.dagsseddel.tilfoy/oppdater/fjernUtleggRad`
+  (`ordningVedFoering` stemplet ved insert; app-speil av CHECK: beløp påkrevd
+  utenom fakturert; `sats` avvises — `baeresAvSheetUtlegg`) · `*UtleggVedlegg`
+  (speiler tillegg-vedlegg 1:1). `hentMedId` returnerer nå `utlegg[]` m/ vedlegg.
 
-- Bilde tas med React Native ImagePicker
-- Komprimeres til maks 800px, JPEG 80% før opplasting
-- Lagres lokalt som base64 i SQLite → synkes som multipart/form-data til S3
-- Eksporteres separat fra timer — som reiseregning/bilag i Tripletex
+**⚠️ Oppførsel før U5:** alle `ExpenseCategory` står på `ordning='utlegg'`
+(U1-default) til firma-admin gjennomgår katalogen i U5. På ekte data viser flaten
+derfor **kun utlegg-formen** (beløp + kvittering). `fakturert`-formen og
+`sats`-grenen (via Tillegg-gruppa) er bygget og verifiseres via manuelt satt
+ordning / prosjekt-overstyring i test-DB — ikke synlig på ekte data før U5.
+**E2E-test av U3 forutsetter at U1-migreringen er kjørt på test** (Kenneths gate).
+
+**🟡 U4 — mobil (kamera-primær):** planlagt, egen «Reload:»-plikt (mockup 8c).
+
+### Navngitte oppfølgere (U3-avgrensning)
+
+- **bro `ExpenseCategory`→lønnsart:** en utleggskategori med ordning `sats` har
+  ingen lønnsart-kobling i U1-modellen → `SheetUtlegg` avviser `sats` (den bæres
+  av `SheetTillegg`). I U3 dekkes `sats` av lønnstillegg-katalogen (Tillegg-gruppa).
+  Skal firma-admin (U5) kunne sette en utleggskategori til `sats` og eksportere
+  til en bestemt lønnsart, trengs en eksplisitt kobling — egen runde.
+- **U-admin: utlegg i attesterings-redigering:** U3 er **kun arbeider-sti**.
+  Firma-admin kan rette *timer* ved attestering (`redigerSedelRader`), men **ikke
+  utlegg** — kjent asymmetri (jf. HMS-asymmetrien), egen oppfølger.
+- **U5-krav — navnekollisjon på tvers av to kataloger:** to kataloger (`Tillegg`
+  sats · `ExpenseCategory` utlegg/fakturert) betyr at **samme navn kan finnes
+  begge steder** → feltarbeideren ser da to oppføringer med samme navn i én
+  velger (mot mockupens «én oppføring per kategori»). Teknisk entydig (ulike
+  id-er), forvirrende i felt. **Ikke løst i U3.** U5 må: vise firma-admin en
+  advarsel når et navn finnes i begge kataloger og veilede til å velge ett sted.
 
 ### Godkjenning
 
-- Leder ser kvitteringsbilde i godkjenningsvisningen
-- Godkjennes samtidig med dagsseddelen — ikke egen godkjenningsflyt
+- Leder ser kvitteringsbilde i godkjenningsvisningen (attestering)
+- Attesteres samtidig med dagsseddelen — ikke egen godkjenningsflyt. **Attestering
+  ≠ godkjenning** (CLAUDE.md, låst 2026-04-26).
 
 ## Hjelpetekster (?-ikonet) — alle timer-sider
 

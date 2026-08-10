@@ -13,7 +13,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import {
   MoreVertical,
   MapPin,
-  Plus,
   Crosshair,
   Navigation,
   Eye,
@@ -34,7 +33,7 @@ import type { Markør, GpsMarkør } from "../../src/components/TegningsVisning";
 import { TegningsVelger } from "../../src/components/TegningsVelger";
 import { OppgaveModal } from "../../src/components/OppgaveModal";
 import { MalVelger } from "../../src/components/MalVelger";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   beregnTransformasjon,
   gpsTilTegning,
@@ -82,10 +81,20 @@ interface OppgaveMarkør {
 export default function LokasjonerSkjerm() {
   const { t } = useTranslation();
   const { valgtProsjektId } = useProsjekt();
-  const { valgtBygningId, settBygning } = useByggeplass();
+  const { valgtBygningId, settBygning, settSistTegning } = useByggeplass();
   const [valgtTegningId, setValgtTegningId] = useState<string | null>(null);
 
   const router = useRouter();
+
+  // Del A pkt 1 — dyplenke fra Tegninger-fanen: åpne trykket tegning direkte.
+  const params = useLocalSearchParams<{
+    tegningId?: string;
+    byggeplassId?: string;
+    ts?: string;
+  }>();
+  // Sist håndterte navigasjon (nonce). Sikrer at hver dyplenke-navigasjon åpner
+  // tegningen én gang — ikke på nytt ved re-render eller ren tab-veksling.
+  const sistParamTsRef = useRef<string | null>(null);
 
   // Modus: visning (standard) eller plassering (opprett oppgave)
   const [plasseringsmodus, setPlasseringsmodus] = useState(false);
@@ -130,7 +139,7 @@ export default function LokasjonerSkjerm() {
   const valgtTegningDetalj = valgtTegningQuery.data as TegningDetalj | undefined;
   const eksisterendeOppgaver = (oppgaverQuery.data ?? []) as OppgaveMarkør[];
 
-  // Auto-velg første bygning hvis ingen er valgt
+  // Auto-velg første bygning hvis ingen er valgt (og ingen dyplenke satte den)
   useEffect(() => {
     if (!valgtBygningId && bygninger.length > 0 && bygninger[0]) {
       settBygning(bygninger[0].id);
@@ -382,11 +391,47 @@ export default function LokasjonerSkjerm() {
   }, []);
 
   // Håndter tegningsvalg
-  const håndterVelgTegning = useCallback((id: string) => {
-    setValgtTegningId(id);
-    setMarkørPosisjon(null);
-    setPlasseringsmodus(false);
-  }, []);
+  const håndterVelgTegning = useCallback(
+    (id: string, byggeplassIdForPersist?: string | null) => {
+      setValgtTegningId(id);
+      setMarkørPosisjon(null);
+      setPlasseringsmodus(false);
+      // Del A pkt 2 — persister sist valgte tegning for byggeplassen (F1-minnet).
+      // Skrives ved HVERT tegningsvalg. Ved dyplenke sendes byggeplass-id-en
+      // eksplisitt (settBygning-oppdateringen er ikke synlig i denne closuren
+      // ennå), ellers brukes aktiv byggeplass fra velger-flyten. Uten kjent
+      // byggeplass hoppes lagringen over (F1 er per-byggeplass-nøklet).
+      const byggForPersist = byggeplassIdForPersist ?? valgtBygningId;
+      if (byggForPersist) settSistTegning(byggForPersist, id);
+    },
+    [valgtBygningId, settSistTegning],
+  );
+
+  // Del A pkt 1 — åpne tegning direkte fra route-param (dyplenke fra Tegninger-
+  // fanen / «Fortsett i …»-snarveien). Kjøres én gang per navigasjon (nonce):
+  //  - byggeplass-id fra param settes først, så velgeren/lista står på riktig
+  //    byggeplass om brukeren avbryter,
+  //  - tegning-id settes som valgt; detaljene hentes via hentMedId.
+  // Guard: hentMedId kaster for slettet tegning (findUniqueOrThrow) og for
+  // tegning i annet prosjekt (verifiserProsjektmedlem) → valgtTegningDetalj blir
+  // undefined → `visserTegning` er false → KartVisning + bottom-sheet-velgeren
+  // vises (graceful fallback, aldri krasj/blank). Bottom-sheet-velgeren er alltid
+  // montert, så UI er brukbart umiddelbart mens detaljene lastes.
+  useEffect(() => {
+    const tegningId = params.tegningId;
+    if (!tegningId) return;
+    const ts = params.ts ?? tegningId;
+    if (sistParamTsRef.current === ts) return;
+    sistParamTsRef.current = ts;
+    if (params.byggeplassId) settBygning(params.byggeplassId);
+    håndterVelgTegning(tegningId, params.byggeplassId ?? null);
+  }, [
+    params.tegningId,
+    params.byggeplassId,
+    params.ts,
+    settBygning,
+    håndterVelgTegning,
+  ]);
 
   // Håndter lukking av tegning
   const håndterLukkTegning = useCallback(() => {

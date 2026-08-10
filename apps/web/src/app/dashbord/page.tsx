@@ -26,7 +26,7 @@ export default function DashbordSide() {
   const { t } = useTranslation();
   const { data: session } = useSession();
   const router = useRouter();
-  const { valgtFirma } = useFirma();
+  const { valgtFirma, kanAdministrereFirma } = useFirma();
   const { prosjekter: alleFraKontekst, mineProsjekter, prosjektScope, isLoading: lasterKontekst } = useProsjekt();
   const prosjekterQuery = trpc.prosjekt.hentAlle.useQuery({
     organizationId: valgtFirma?.id,
@@ -40,11 +40,17 @@ export default function DashbordSide() {
       ? (mineProsjekter as ProsjektListeRad[])
       : ((prosjekter ?? alleFraKontekst) as ProsjektListeRad[]);
 
-  // Brukerens rolle styrer hva tom-state viser (admin = «opprett prosjekt»,
-  // vanlig bruker = «venter på tilgang»).
-  const { data: minBrukerRå } = trpc.bruker.hentMin.useQuery();
-  const minBruker = minBrukerRå as { role?: string } | null | undefined;
-  const erAdmin = minBruker?.role === "sitedoc_admin" || minBruker?.role === "company_admin";
+  // Opprett-inngang + tom-state-gren gates på kanAdministrereFirma — samme kilde
+  // som prosjekt.opprett (server, via OrganizationMember) og nytt-prosjekt-
+  // skjemaet. Tidligere gate på users.role === "company_admin" divergerte: en
+  // bruker med role='user' men firma_admin-medlemskap så ingen opprett-knapp noe
+  // sted, men hadde full skjema-tilgang via URL (device-funn 2026-08-09).
+  // NB: kun DETTE stedet harmoniseres nå. Øvrige role-baserte lesebaner
+  // (firma-kontekst, Toppbar, BrukereFane m.fl.) konvergeres i egen runde —
+  // docs/claude/delplaner/ORDRE-firmarolle-opprydding.md (Fase 1–3).
+  // minBruker beholdes kun som lastebarriere for auto-redirecten under.
+  const { data: minBruker } = trpc.bruker.hentMin.useQuery();
+  const erAdmin = kanAdministrereFirma;
 
   // Auto-redirect basert på antall prosjekter:
   //  0  → /dashbord/kom-i-gang (kun admin) eller bli stående med «venter på tilgang»

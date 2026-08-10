@@ -286,3 +286,42 @@ export async function seedTimerForOrganization(
     interneProsjekter,
   };
 }
+
+// ============================================================================
+//  seedManglendeKatalog — generisk «seed kun det som mangler»-primitiv
+//  (2026-08-10). Første brikke i den firmamodul-oppstartsrutinen som mangler:
+//  kun `hms-avvik` seeder automatisk ved aktivering i dag, mens
+//  `organisasjon.settFirmamodul` seeder ingenting. Målrettet, idempotent,
+//  rører ALDRI eksisterende data — kalles av et sitedoc_admin-driftsverktøy nå,
+//  og skal kunne kobles på `settFirmamodul` senere (den generiske veien).
+//
+//  🔴 SCOPE (denne runden): KUN expenseCategories. Det er den ene timer-
+//  datatypen med en ROBUST idempotens-guard — `seedExpenseCategories` hopper
+//  på `count(org) > 0`, altså «finnes rader i det hele tatt».
+//
+//  Lønnsart/aktivitet/tillegg holdes BEVISST ute: guardene deres keyer på
+//  `seedNivaa`, IKKE på «finnes rader». Et firma med import-katalog (A.Markussen:
+//  44 lønnsarter fra import 2026-07-10, uten `seedNivaa=1`) ville fått 16
+//  seed-lønnsarter lagt ved siden av importen. Å gjøre de guardene robuste
+//  («finnes rader» per datatype) er FORUTSETNINGEN for at denne stien kan dekke
+//  alle datatyper + kobles på settFirmamodul — navngitt oppfølger, egen sak.
+// ============================================================================
+
+export interface SeedManglendeDatatype {
+  opprettet: number;
+  hoppet: boolean;
+}
+
+export interface SeedManglendeResultat {
+  /** Per datatype. Kun expenseCategories er wiret nå (se blokk-kommentar). */
+  expenseCategories: SeedManglendeDatatype;
+}
+
+export async function seedManglendeKatalog(
+  organizationId: string,
+): Promise<SeedManglendeResultat> {
+  const ec = await seedExpenseCategories(organizationId);
+  return {
+    expenseCategories: { opprettet: ec.antall, hoppet: ec.hoppet },
+  };
+}
