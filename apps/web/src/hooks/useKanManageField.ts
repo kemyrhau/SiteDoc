@@ -18,7 +18,7 @@ import { useProsjekt } from "@/kontekst/prosjekt-kontekst";
 import { trpc } from "@/lib/trpc";
 
 export function useKanManageField(): boolean {
-  const { erSitedocAdmin, erCompanyAdmin } = useFirma();
+  const { kanAdministrereFirma } = useFirma();
   const { prosjektId } = useProsjekt();
 
   const { data: tillatelser } = trpc.gruppe.hentMineTillatelser.useQuery(
@@ -31,7 +31,8 @@ export function useKanManageField(): boolean {
   );
   const flytErAdmin = (minFlytInfo as { erAdmin?: boolean } | undefined)?.erAdmin ?? false;
 
+  // Fase 2: firma-admin-bypass leser nå kanAdministrereFirma (inkluderer sitedoc_admin).
   return (
-    erSitedocAdmin || erCompanyAdmin || flytErAdmin || !!tillatelser?.includes("manage_field")
+    kanAdministrereFirma || flytErAdmin || !!tillatelser?.includes("manage_field")
   );
 }

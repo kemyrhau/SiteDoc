@@ -29,13 +29,14 @@ export function ProsjektVelgerPanel({
     prosjektScope,
     velgScope,
   } = useProsjekt();
-  const { erSitedocAdmin, erCompanyAdmin } = useFirma();
+  const { kanAdministrereFirma } = useFirma();
   const { data: session } = useSession();
   const { erFavoritt, toggleFavoritt } = useFavoritter(session?.user?.id);
   const { t } = useTranslation();
   const [sok, setSok] = useState("");
 
-  const visScopeRader = erSitedocAdmin || erCompanyAdmin;
+  // Fase 2: firma-admin-signalet er nå kanAdministrereFirma (inkluderer sitedoc_admin).
+  const visScopeRader = kanAdministrereFirma;
 
   const filtrerte = prosjekter.filter((p) =>
     p.name.toLowerCase().includes(sok.toLowerCase()) ||

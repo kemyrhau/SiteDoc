@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -21,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Spinner, Modal } from "@sitedoc/ui";
 import { TYPER_PER_KATEGORI, type MaskinKategori } from "@/lib/maskin-typer";
+import { useFirma } from "@/kontekst/firma-kontekst";
 
 const STATUS_ALLE = [
   "bestilt",
@@ -115,7 +116,6 @@ interface MutationVennlig<TInput, TResult> {
 
 export default function MaskinDetaljSide() {
   const { t } = useTranslation();
-  const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params?.id ?? "";
 
@@ -132,7 +132,9 @@ export default function MaskinDetaljSide() {
     { organizationId: utstyrOrgId },
     { enabled: !!utstyrOrgId },
   );
-  const { data: meg } = trpc.bruker.hentMin.useQuery();
+  // Fase 2: maskin-admin-bypass leser kanAdministrereFirma (firmaRoller-kilden),
+  // ikke lenger User.role === "company_admin".
+  const { kanAdministrereFirma } = useFirma();
 
   const [statusModalApen, setStatusModalApen] = useState(false);
   const [vegvesenKoId, setVegvesenKoId] = useState<string | null>(null);
@@ -154,9 +156,7 @@ export default function MaskinDetaljSide() {
     ? brukere.find((b) => b.id === utstyr.ansvarligUserId)?.name ?? "—"
     : null;
 
-  const erAdmin =
-    (meg as { role?: string } | undefined)?.role === "company_admin" ||
-    (meg as { role?: string } | undefined)?.role === "sitedoc_admin";
+  const erAdmin = kanAdministrereFirma;
 
   if (isLoading) {
     return (

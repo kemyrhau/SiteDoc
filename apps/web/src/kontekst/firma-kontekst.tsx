@@ -30,8 +30,6 @@ interface FirmaKontekstType {
   tilgjengelige: Firma[];
   /** Brukeren er sitedoc_admin — styrer om firma-velger vises i Toppbar. */
   erSitedocAdmin: boolean;
-  /** Brukeren er company_admin — styrer om fast firma-link vises i Toppbar. */
-  erCompanyAdmin: boolean;
   /**
    * Kan brukeren administrere det valgte firmaet? (sak #5) Sann for
    * sitedoc_admin, eller når valgtFirma er i admin-settet (`tilgjengelige` =
@@ -69,7 +67,10 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
   const minBrukerQuery = trpc.bruker.hentMin.useQuery();
   const minBruker = minBrukerQuery.data as { role?: string } | null | undefined;
   const erSitedocAdmin = minBruker?.role === "sitedoc_admin";
-  const erCompanyAdmin = minBruker?.role === "company_admin";
+  // Fase 2 (firmarolle-konsolidering): `erCompanyAdmin` (gammel kilde User.role)
+  // er fjernet. Firma-admin-gating leser nå kun `kanAdministrereFirma`
+  // (firmaRoller via `tilgjengelige`). Divergensvakten under leser fortsatt
+  // User.role direkte — bevisst, den er diagnostikken som sammenligner kildene.
 
   // Bestem valgtFirma:
   //  - sitedoc_admin: respekter localStorage (mot admin-settet); null hvis ikke valgt
@@ -107,6 +108,17 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
     const gammelSierAdmin = minBruker.role === "company_admin";
     const nySierAdmin = tilgjengelige.length > 0;
     if (gammelSierAdmin !== nySierAdmin) {
+      // FORVENTET etter Fase 2 — dette er IKKE en feil som skal fikses:
+      //  - Fase 2 lukket KODE-divergensen: ingen lesebane spør User.role for
+      //    firma-gating lenger (alt leser firmaRoller via kanAdministrereFirma).
+      //  - DATA-divergensen består til Fase 3: en bruker med role='user' OG
+      //    firma_admin (mathias) er LOVLIG i målbildet — Fase 3 avvikler
+      //    company_admin fra User.role via migrering, tidligst etter stabil prod.
+      //  - Denne warningen er derfor en TRIPWIRE mot nye lesebaner som ville
+      //    gjenintrodusere gammel kilde, ikke en tilstand som skal ryddes.
+      // ⚠️ IKKE «løs» warningen ved å endre brukerens rolle — den profilen
+      //    (user + firma_admin) er den ENESTE levende testcasen for hele
+      //    firmarolle-konsolideringen. Endres den, mister vi beviset.
       console.warn(
         "[FIRMAROLLE-DIVERGENS] Gammel og ny firma-admin-kilde er uenige: " +
           `role==="company_admin"=${gammelSierAdmin}, firma_admin-medlemskap=${nySierAdmin}. ` +
@@ -134,7 +146,6 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
         valgtFirma,
         tilgjengelige,
         erSitedocAdmin,
-        erCompanyAdmin,
         kanAdministrereFirma,
         isLoading:
           tilgjengeligeQuery.isLoading ||

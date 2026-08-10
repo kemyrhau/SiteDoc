@@ -84,7 +84,7 @@ function ruteErFirmaKontekst(pathname: string | null): boolean {
  */
 export function KontekstChip() {
   const { t } = useTranslation();
-  const { valgtFirma, erSitedocAdmin, erCompanyAdmin, tilgjengelige, velgFirma } = useFirma();
+  const { valgtFirma, kanAdministrereFirma, tilgjengelige, velgFirma } = useFirma();
   const {
     valgtProsjekt,
     prosjektId,
@@ -219,7 +219,8 @@ export function KontekstChip() {
   const visFirmaSteg = !!firmaNavn;
   const kanBytteFirma = tilgjengelige.length > 1;
   const harByggeplasser = bygninger.length > 0;
-  const visScopePille = erSitedocAdmin || erCompanyAdmin;
+  // Fase 2: firma-admin-signalet er nå kanAdministrereFirma (inkluderer sitedoc_admin).
+  const visScopePille = kanAdministrereFirma;
 
   // Prosjektliste: Alle/Mine er en filter-pille (ikke egne rader). Uten pille
   // (menig ansatt) vises hele prosjektsettet som før.
