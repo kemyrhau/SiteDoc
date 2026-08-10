@@ -108,6 +108,17 @@ export function FirmaProvider({ children }: { children: ReactNode }) {
     const gammelSierAdmin = minBruker.role === "company_admin";
     const nySierAdmin = tilgjengelige.length > 0;
     if (gammelSierAdmin !== nySierAdmin) {
+      // FORVENTET etter Fase 2 — dette er IKKE en feil som skal fikses:
+      //  - Fase 2 lukket KODE-divergensen: ingen lesebane spør User.role for
+      //    firma-gating lenger (alt leser firmaRoller via kanAdministrereFirma).
+      //  - DATA-divergensen består til Fase 3: en bruker med role='user' OG
+      //    firma_admin (mathias) er LOVLIG i målbildet — Fase 3 avvikler
+      //    company_admin fra User.role via migrering, tidligst etter stabil prod.
+      //  - Denne warningen er derfor en TRIPWIRE mot nye lesebaner som ville
+      //    gjenintrodusere gammel kilde, ikke en tilstand som skal ryddes.
+      // ⚠️ IKKE «løs» warningen ved å endre brukerens rolle — den profilen
+      //    (user + firma_admin) er den ENESTE levende testcasen for hele
+      //    firmarolle-konsolideringen. Endres den, mister vi beviset.
       console.warn(
         "[FIRMAROLLE-DIVERGENS] Gammel og ny firma-admin-kilde er uenige: " +
           `role==="company_admin"=${gammelSierAdmin}, firma_admin-medlemskap=${nySierAdmin}. ` +
