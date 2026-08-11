@@ -306,45 +306,83 @@ export async function seedInterneProsjekter(
 }
 
 // ============================================================================
-//  Samlet entry-point — kalles fra timer.onboarding.aktiverNivaa1-mutation
+//  Generisk seed-dispatch ved firmamodul-aktivering (steg 3, 2026-08-11)
+//
+//  ÉN aktiveringsvei: organisasjon.settFirmamodul aktiverer modulen i kjerne-tx
+//  og kaller DERETTER denne dispatchen — samme transaksjonsplassering som
+//  modul.aktiver bruker for hms-avvik. Men kryss-DB (katalog i modul-db,
+//  aktivering i kjerne-db) gjør at seeden IKKE kan ligge i samme tx: aktiver
+//  (commit) → seed etterpå. timer.onboarding.aktiverNivaa1 er en tynn inngang
+//  oppå den (base-katalog via denne + Nivå 2 på toppen ved inkluderNivaa2),
+//  ikke en konkurrerende sti.
+//
+//  🔴 Feil svelges ALDRI (Blokk 19/24): hver datatype seedes i sin egen
+//  try/catch, og feil samles i `feil[]` (datatype + melding) i stedet for at én
+//  feilende datatype blokkerer resten. Kalleren logger listen tydelig med
+//  organizationId. Modulen er aktivert selv om en seed feiler (aktiv modul +
+//  tom katalog = dagens problem) — men feilen er SYNLIG, og steg 5 lar
+//  onboarding.status rapportere 'mangler'. En stille catch her ville reprodusert
+//  nøyaktig problemet fiksen fjerner.
+//
+//  Hooks per modul:
+//    - timer     → base-katalog (grunnpakke, policy-bevisst fra steg 2) + interne
+//                  prosjekter (infrastruktur). expenseCategories eies av utlegg —
+//                  kalles herfra, endres ikke.
+//    - maskin    → INGEN hook. `kategori`/`type` er string-enums på Equipment-
+//                  raden, ikke katalogtabeller — det finnes ingenting å seede.
+//                  Egenskap ved datamodellen, ikke en manglende hook.
+//    - varelager → INGEN hook. VareKategori er firma-definert uten universell
+//                  default (steg-4b-plan Beslutning 8: kategoriene kommer fra
+//                  SmartDok-import, ikke en generisk liste). Å seede en gjettet
+//                  default ville brutt «katalog kun når regulert» (CLAUDE.md).
+//                  Hektes på her den dagen en regulert/universell default finnes
+//                  (datatype-navn reservert: 'varekategori').
 // ============================================================================
 
-export interface SeedTimerOptions {
-  /** Hvis true: importer også Nivå 2-pakken sammen med Nivå 1 */
-  inkluderNivaa2?: boolean;
+export interface SeedFeil {
+  datatype: string;
+  melding: string;
 }
 
-export interface SeedTimerResultat {
-  lonnsartNivaa1: SeedResultat;
-  lonnsartNivaa2: SeedResultat | null;
-  aktiviteter: SeedResultat;
-  tillegg: SeedResultat;
-  expenseCategories: SeedResultat;
-  interneProsjekter: SeedResultat;
+export interface FirmamodulSeedResultat {
+  slug: string;
+  feil: SeedFeil[];
 }
 
-export async function seedTimerForOrganization(
+/** Kjør én datatype-seed, fang feil per datatype (svelger ikke — samler). */
+async function kjorSeed(
+  datatype: string,
+  fn: () => Promise<SeedResultat>,
+  feil: SeedFeil[],
+): Promise<void> {
+  try {
+    await fn();
+  } catch (e) {
+    feil.push({ datatype, melding: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+/**
+ * Seed modulens katalog + infrastruktur etter at modulen er aktivert.
+ * Idempotent (guardene hopper på policy/finnes-rader). Returnerer feil-liste;
+ * kaller ansvarlig for å logge den. Kaster ALDRI.
+ */
+export async function seedFirmamodulKatalog(
+  slug: "timer" | "maskin" | "varelager",
   organizationId: string,
-  options: SeedTimerOptions = {},
-): Promise<SeedTimerResultat> {
-  const lonnsartNivaa1 = await seedLonnsartNivaa1(organizationId);
-  const aktiviteter = await seedAktiviteter(organizationId);
-  const tillegg = await seedTillegg(organizationId);
-  const expenseCategories = await seedExpenseCategories(organizationId);
-  const interneProsjekter = await seedInterneProsjekter(organizationId);
+): Promise<FirmamodulSeedResultat> {
+  const feil: SeedFeil[] = [];
 
-  const lonnsartNivaa2 = options.inkluderNivaa2
-    ? await seedLonnsartNivaa2(organizationId)
-    : null;
+  if (slug === "timer") {
+    await kjorSeed("lonnsart", () => seedLonnsartNivaa1(organizationId), feil);
+    await kjorSeed("aktivitet", () => seedAktiviteter(organizationId), feil);
+    await kjorSeed("tillegg", () => seedTillegg(organizationId), feil);
+    await kjorSeed("utleggskategori", () => seedExpenseCategories(organizationId), feil);
+    await kjorSeed("interne_prosjekter", () => seedInterneProsjekter(organizationId), feil);
+  }
+  // maskin + varelager: ingen hook (se blokk-kommentar over) — bevisst tom.
 
-  return {
-    lonnsartNivaa1,
-    lonnsartNivaa2,
-    aktiviteter,
-    tillegg,
-    expenseCategories,
-    interneProsjekter,
-  };
+  return { slug, feil };
 }
 
 // ============================================================================

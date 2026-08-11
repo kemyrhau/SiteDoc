@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { autoriserAdminForFirma, resolverOrgFraInput } from "../../trpc/tilgangskontroll";
 import {
-  seedTimerForOrganization,
+  seedFirmamodulKatalog,
   seedLonnsartNivaa2,
   seedInterneProsjekter,
 } from "../../services/seed";
@@ -77,14 +77,28 @@ export const onboardingRouter = router({
         await syncProjektModulerPaaAktiver(tx, orgId, "timer");
       });
 
-      const seedResultat = await seedTimerForOrganization(orgId, {
-        inkluderNivaa2: input.inkluderNivaa2,
-      });
+      // Tynn inngang oppå den generiske dispatchen (steg 3): base-katalog +
+      // interne prosjekter via seedFirmamodulKatalog, deretter Nivå 2 KUN på
+      // anmodning. Nivå 2 er et additivt wizard-lag, ikke del av base-seeden.
+      const { feil } = await seedFirmamodulKatalog("timer", orgId);
+      if (input.inkluderNivaa2) {
+        try {
+          await seedLonnsartNivaa2(orgId);
+        } catch (e) {
+          feil.push({
+            datatype: "lonnsart_nivaa2",
+            melding: e instanceof Error ? e.message : String(e),
+          });
+        }
+      }
+      if (feil.length > 0) {
+        console.error(
+          `[Firmamodul-seed] Timer-katalog delvis feilet ved aktiverNivaa1 — org=${orgId}:`,
+          feil,
+        );
+      }
 
-      return {
-        aktivert: true,
-        seedResultat,
-      };
+      return { aktivert: true, seedFeil: feil };
     }),
 
   // Importer Nivå 2-pakken etter at Nivå 1 allerede er seedet
