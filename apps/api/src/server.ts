@@ -13,7 +13,7 @@ import { devLoginRoute, erDevLoginAktiv } from "./routes/dev-login";
 import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
-import { verifiserFilSignatur, assertFilSigneringEnv } from "./utils/hmac";
+import { vurderPrivatFilForesporsel, assertFilSigneringEnv } from "./utils/hmac";
 
 const server = Fastify({
   // Fastify mottar requests via Cloudflare Tunnel → cloudflared. cloudflared
@@ -86,15 +86,14 @@ async function start() {
   // uten ny DB-authz. Utløpt/ugyldig/manglende signatur → 401. Non-privat
   // `/uploads/*` er uendret i Fase 1 (global gate kommer i Fase 1b).
   server.addHook("onRequest", async (req, reply) => {
-    if (!req.url.startsWith("/uploads/privat/")) return;
-    const u = new URL(req.url, "http://localhost");
-    const gyldig = verifiserFilSignatur(
-      u.pathname,
-      u.searchParams.get("exp"),
-      u.searchParams.get("sig"),
-    );
-    if (!gyldig) {
-      return reply.status(401).send({ error: "Ugyldig eller utløpt fil-signatur" });
+    // Normaliser stien FØR gate + signatursjekk — ellers omgås gaten av
+    // `/./`, `//` og `/../`-former som fastifyStatic normaliserer og serverer
+    // likevel. Beslutningen ligger i vurderPrivatFilForesporsel (enhetstestet).
+    const vurdering = vurderPrivatFilForesporsel(req.url);
+    if (vurdering.type === "avvist") {
+      const melding =
+        vurdering.kode === 400 ? "Ugyldig sti" : "Ugyldig eller utløpt fil-signatur";
+      return reply.status(vurdering.kode).send({ error: melding });
     }
   });
 
@@ -183,7 +182,7 @@ async function start() {
       // Start papirkurv-sweep (90-dagers auto-hardslett av soft-slettede dokumenter)
       const { startPapirkurvSweep } = await import("./services/papirkurv-sweep");
       startPapirkurvSweep(prisma);
-    } catch (_e) {
+    } catch {
       // Ikke kritisk — ignorer hvis tabellen ikke finnes ennå
     }
 

@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from "crypto";
+import { posix } from "node:path";
 
 /**
  * HMAC-signerte fil-URL-er (S1 autorisert filserving, Fase 1).
@@ -125,4 +126,51 @@ export function verifiserFilSignatur(
   const b = Buffer.from(sig);
   if (a.length !== b.length) return false;
   return timingSafeEqual(a, b);
+}
+
+/**
+ * Normaliser request-stien til den KANONISKE formen før gate + signatursjekk.
+ *
+ * 🔴 Sikkerhetskritisk: `fastifyStatic` normaliserer stien før den serverer
+ * filen, men gate-hooken gjorde det ikke — så `/uploads/./privat/x`,
+ * `/uploads//privat/x` og `/uploads/a/../privat/x` slapp forbi `startsWith`-
+ * sjekken og ble likevel servert (utløps-/signatur-gaten omgått). Vi må
+ * normalisere med SAMME regler som statisk-serveren, og bruke den normaliserte
+ * stien til BÅDE gate og signaturverifisering, ellers ser de to forskjellige
+ * strenger.
+ *
+ * `decodeURIComponent` dekker prosentkodede segmenter (`%2e` → `.`); den kaster
+ * på ugyldig koding, derav try/catch i kalleren. `posix.normalize` kollapser
+ * `.`/`..`/doble slashes; `replace(/\/+/)` er belte-og-seler for doble slashes.
+ *
+ * Kanonisk-kompatibilitet: `signerFilSti` signerer en ren `/uploads/privat/<uuid>`
+ * -sti. `normaliserFilSti` av samme rene sti er en no-op, så eksisterende signerte
+ * lenker verifiserer uendret (bevist i hmac.test.ts).
+ */
+export function normaliserFilSti(pathname: string): string {
+  const dekodet = decodeURIComponent(pathname);
+  return posix.normalize(dekodet).replace(/\/+/g, "/");
+}
+
+export type PrivatFilVurdering =
+  | { type: "slipp" } // ikke en privat-fil — la passere uendret
+  | { type: "ok" } // gyldig signatur
+  | { type: "avvist"; kode: 400 | 401 };
+
+/**
+ * Full gate-beslutning for en innkommende request mot `/uploads/*`.
+ * Ren funksjon (ingen Fastify-avhengighet) så den kan enhets-testes mot alle
+ * omgåelsesformene. server.ts-hooken bare oversetter resultatet til et svar.
+ */
+export function vurderPrivatFilForesporsel(rawUrl: string): PrivatFilVurdering {
+  const u = new URL(rawUrl, "http://localhost");
+  let sti: string;
+  try {
+    sti = normaliserFilSti(u.pathname);
+  } catch {
+    return { type: "avvist", kode: 400 }; // ugyldig prosentkoding
+  }
+  if (!sti.startsWith("/uploads/privat/")) return { type: "slipp" };
+  const gyldig = verifiserFilSignatur(sti, u.searchParams.get("exp"), u.searchParams.get("sig"));
+  return gyldig ? { type: "ok" } : { type: "avvist", kode: 401 };
 }
