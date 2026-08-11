@@ -65,3 +65,8 @@ Fra fabel/
 
 # Relé — asynkron koordinering mellom cowork/fabel/Opus (lokal scratch, ikke historikk)
 relay/
+
+# Verifiseringsartefakter (skjermbilder fra Opus-verifisering) — bevis for en runde,
+# ikke kilde. 21 MB+ png. Funnene selv skrives inn i docs/claude/, bildene er lokale.
+docs/claude/delplaner/verifisering/
+*-bevis/
