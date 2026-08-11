@@ -15,6 +15,7 @@ import {
   skrivOrganizationModuleDeaktiver,
   hentAktiveFirmamoduler,
 } from "../services/firmamodul";
+import { seedFirmamodulKatalog } from "../services/seed";
 import { hentFirmaFraBrreg, BrregError } from "../services/brreg";
 import { hentEffektivArbeidstid as hentEffektivArbeidstidService } from "../services/timer";
 
@@ -963,7 +964,7 @@ export const organisasjonRouter = router({
 
       // Steg 1e Fase C: OrganizationModule er eneste sannhetskilde.
       // har_*_modul-flaggene er droppet — ingen dual-write.
-      return ctx.prisma.$transaction(async (tx) => {
+      await ctx.prisma.$transaction(async (tx) => {
         if (input.aktiver) {
           await skrivOrganizationModuleAktiver(tx, orgId, input.slug, ctx.userId);
           await syncProjektModulerPaaAktiver(tx, orgId, input.slug);
@@ -971,9 +972,25 @@ export const organisasjonRouter = router({
           await skrivOrganizationModuleDeaktiver(tx, orgId, input.slug, ctx.userId);
           await syncProjektModulerPaaDeaktiver(tx, orgId, input.slug);
         }
-
-        return { ok: true };
       });
+
+      // Steg 3 (2026-08-11): generisk seed-dispatch ETTER kjerne-tx commit.
+      // Kryss-DB (katalog i modul-db) kan ikke være i tx-en over. Idempotent +
+      // policy-bevisst (steg 2). Feil svelges aldri — logg tydelig med org +
+      // datatype; modulen står som aktiv (steg 5 lar status rapportere 'mangler').
+      let seedFeil: Awaited<ReturnType<typeof seedFirmamodulKatalog>>["feil"] = [];
+      if (input.aktiver) {
+        const resultat = await seedFirmamodulKatalog(input.slug, orgId);
+        seedFeil = resultat.feil;
+        if (seedFeil.length > 0) {
+          console.error(
+            `[Firmamodul-seed] Katalog-seed delvis feilet etter aktivering — org=${orgId} modul=${input.slug}. Modulen er aktiv, katalogen kan være ufullstendig:`,
+            seedFeil,
+          );
+        }
+      }
+
+      return { ok: true, seedFeil };
     }),
 
   /**
