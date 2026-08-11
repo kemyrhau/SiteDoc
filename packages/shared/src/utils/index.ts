@@ -8,6 +8,8 @@ export type { MappeTilgangInput, BrukerTilgangInfo, SynligeMapperResultat } from
 export { hentStatusHandlinger, hentPosisjonFiltrertHandlinger } from "./statusHandlinger";
 export type { StatusHandling, PosisjonHandlingKontekst } from "./statusHandlinger";
 export { IKKE_SLETTET, KUN_SLETTET, PAPIRKURV_DAGER, dagerIgjen } from "./softDelete";
+export { GRATIS_DOKUMENT_GRENSE, grenseNaadd } from "./prosjektGrense";
+export type { GrenseVilkaar } from "./prosjektGrense";
 export { beregnTransformasjon, gpsTilTegning, tegningTilGps, erInnenforTegning, beregnKalibreringsFeil, beregnByggeplassGeofence, avstandMeter } from "./georeferanse";
 export type { Transformasjon } from "./georeferanse";
 export { klassifiserReise, estimerReisetidMin } from "./reise";
