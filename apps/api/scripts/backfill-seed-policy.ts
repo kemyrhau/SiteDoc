@@ -46,11 +46,7 @@ const A_MARKUSSEN_LONNSART_BEGRUNNELSE =
   "diverse lover.»";
 
 // Datatyper som gjøres «finnes rader»-guardet i steg 2 → må beskyttes her.
-const TIMER_DATATYPER = [
-  { datatype: "lonnsart", tell: (orgId: string) => prismaTimer.lonnsart.count({ where: { organizationId: orgId } }) },
-  { datatype: "aktivitet", tell: (orgId: string) => prismaTimer.aktivitet.count({ where: { organizationId: orgId } }) },
-  { datatype: "tillegg", tell: (orgId: string) => prismaTimer.tillegg.count({ where: { organizationId: orgId } }) },
-] as const;
+const TIMER_DATATYPER = ["lonnsart", "aktivitet", "tillegg"] as const;
 
 type Planlagt = {
   organizationId: string;
@@ -58,7 +54,24 @@ type Planlagt = {
   datatype: string;
   begrunnelse: string;
   kategori: "eksplisitt" | "0-katalog";
+  // Gjeldende antall katalograder NÅ — så Kenneth kan vurdere lista: en eksplisitt
+  // rad kan ha mange rader (A.Markussen: importert katalog), en 0-katalog-rad har 0
+  // (og «0 + aldri onboardet» er den Kenneth må kjenne igjen på navnet og evt. onboarde).
+  gjeldendeAntall: number;
 };
+
+function tellDatatype(orgId: string, datatype: string): Promise<number> {
+  switch (datatype) {
+    case "lonnsart":
+      return prismaTimer.lonnsart.count({ where: { organizationId: orgId } });
+    case "aktivitet":
+      return prismaTimer.aktivitet.count({ where: { organizationId: orgId } });
+    case "tillegg":
+      return prismaTimer.tillegg.count({ where: { organizationId: orgId } });
+    default:
+      return Promise.resolve(-1);
+  }
+}
 
 async function main() {
   // settAv = Kenneth (sitedoc_admin). Resolv via e-post, fallback rolle.
@@ -93,6 +106,7 @@ async function main() {
       datatype: "lonnsart",
       begrunnelse: A_MARKUSSEN_LONNSART_BEGRUNNELSE,
       kategori: "eksplisitt",
+      gjeldendeAntall: await tellDatatype(am.id, "lonnsart"),
     });
   }
 
@@ -102,21 +116,22 @@ async function main() {
     select: { organizationId: true, organization: { select: { name: true } } },
   });
   for (const m of timerAktive) {
-    for (const dt of TIMER_DATATYPER) {
-      if (harPolicy.has(`${m.organizationId}|${dt.datatype}`)) continue;
+    for (const datatype of TIMER_DATATYPER) {
+      if (harPolicy.has(`${m.organizationId}|${datatype}`)) continue;
       // A.Markussen-lonnsart dekkes eksplisitt over; ikke dupliser.
-      if (m.organizationId === A_MARKUSSEN_ORG_ID && dt.datatype === "lonnsart") continue;
-      const antall = await dt.tell(m.organizationId);
+      if (m.organizationId === A_MARKUSSEN_ORG_ID && datatype === "lonnsart") continue;
+      const antall = await tellDatatype(m.organizationId, datatype);
       if (antall === 0) {
         planlagt.push({
           organizationId: m.organizationId,
           organizationNavn: m.organization.name,
-          datatype: dt.datatype,
+          datatype,
           begrunnelse:
             "Backfill 2026-08-11: firmamodul timer aktiv + 0 " +
-            dt.datatype +
+            datatype +
             "-rader (bevisst tom / ikke-onboardet). Beskyttet mot auto-seed før guard-endring (steg 2).",
           kategori: "0-katalog",
+          gjeldendeAntall: antall,
         });
       }
     }
@@ -129,7 +144,7 @@ async function main() {
   }
   for (const p of planlagt) {
     console.log(
-      `  [${p.kategori}] ${p.organizationNavn} (${p.organizationId}) · ${p.datatype} → egen_katalog`,
+      `  [${p.kategori}] ${p.organizationNavn} (${p.organizationId}) · ${p.datatype} → egen_katalog · gjeldende rader: ${p.gjeldendeAntall}`,
     );
     console.log(`      begrunnelse: ${p.begrunnelse}`);
   }
