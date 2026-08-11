@@ -8,6 +8,7 @@ import {
   sjekklisteFeltdata,
   oppgaveFeltdata,
   sheetTilleggVedleggLocal,
+  sheetUtleggVedleggLocal,
 } from "../db/schema";
 import { lastOppFil } from "../services/opplasting";
 import { slettLokaltBilde } from "../services/lokalBilde";
@@ -21,6 +22,8 @@ export interface NyKoOppforing {
   // Funn #2: kvittering-vedlegg på tillegg-rad. Additivt — eksisterende kallere
   // (sjekkliste/oppgave) lar feltet stå undefined.
   sheetTilleggId?: string;
+  // U4: kvittering-vedlegg på utlegg-rad. Speiler sheetTilleggId.
+  sheetUtleggId?: string;
   objektId: string;
   vedleggId: string;
   lokalSti: string;
@@ -48,6 +51,12 @@ type TilleggVedleggFullfortCallback = (
   serverUrl: string,
 ) => void;
 
+// U4: samme kontrakt for utlegg-vedlegg (egen kanal, samme signatur).
+type UtleggVedleggFullfortCallback = (
+  vedleggId: string,
+  serverUrl: string,
+) => void;
+
 interface OpplastingsKoKontekst {
   leggIKo: (oppforing: NyKoOppforing) => Promise<void>;
   ventende: number;
@@ -56,6 +65,9 @@ interface OpplastingsKoKontekst {
   registrerCallback: (cb: OpplastingFullfortCallback) => () => void;
   registrerTilleggVedleggCallback: (
     cb: TilleggVedleggFullfortCallback,
+  ) => () => void;
+  registrerUtleggVedleggCallback: (
+    cb: UtleggVedleggFullfortCallback,
   ) => () => void;
 }
 
@@ -66,6 +78,7 @@ const OpplastingsKoContext = createContext<OpplastingsKoKontekst>({
   erAktiv: false,
   registrerCallback: () => () => {},
   registrerTilleggVedleggCallback: () => () => {},
+  registrerUtleggVedleggCallback: () => () => {},
 });
 
 export function useOpplastingsKo() {
@@ -84,6 +97,10 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
   const callbacksRef = useRef<Set<OpplastingFullfortCallback>>(new Set());
   // Funn #2: dedikert callback-sett for tillegg-vedlegg.
   const tilleggCallbacksRef = useRef<Set<TilleggVedleggFullfortCallback>>(
+    new Set(),
+  );
+  // U4: dedikert callback-sett for utlegg-vedlegg.
+  const utleggCallbacksRef = useRef<Set<UtleggVedleggFullfortCallback>>(
     new Set(),
   );
 
@@ -153,6 +170,34 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           .run();
       }
       for (const cb of tilleggCallbacksRef.current) {
+        cb(vedleggId, serverUrl);
+      }
+    },
+    [],
+  );
+
+  // U4: registrer/avregistrer utlegg-vedlegg-callback (live UI-oppdatering).
+  const registrerUtleggVedleggCallback = useCallback(
+    (cb: UtleggVedleggFullfortCallback) => {
+      utleggCallbacksRef.current.add(cb);
+      return () => {
+        utleggCallbacksRef.current.delete(cb);
+      };
+    },
+    [],
+  );
+
+  // U4: skriv server-URL til lokal utlegg-vedlegg-rad + publiser til callbacks.
+  const fullforUtleggVedlegg = useCallback(
+    (vedleggId: string, serverUrl: string) => {
+      const db = hentDatabase();
+      if (db) {
+        db.update(sheetUtleggVedleggLocal)
+          .set({ serverUrl, sistEndretLokalt: Date.now() })
+          .where(eq(sheetUtleggVedleggLocal.id, vedleggId))
+          .run();
+      }
+      for (const cb of utleggCallbacksRef.current) {
         cb(vedleggId, serverUrl);
       }
     },
@@ -298,8 +343,8 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           oppforing.lokalSti,
           oppforing.filnavn,
           oppforing.mimeType,
-          // Timer-kvittering/utlegg (sheetTilleggId satt) → privat/ (signatur-KUN)
-          Boolean(oppforing.sheetTilleggId),
+          // Timer-kvittering (tillegg ELLER utlegg) → privat/ (signatur-KUN).
+          Boolean(oppforing.sheetTilleggId || oppforing.sheetUtleggId),
         );
 
         console.log("[KØ] Opplasting vellykket:", resultat.fileUrl);
@@ -311,6 +356,31 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           })
           .where(eq(opplastingsKo.id, oppforing.id))
           .run();
+
+        // U4: utlegg-vedlegg har egen registrerings-/oppdaterings-sti (speil av
+        // tillegg-grenen). Tidlig retur → sjekkliste/oppgave-koden under urørt.
+        if (oppforing.sheetUtleggId) {
+          registrerBildeIDatabase({
+            sheetUtleggId: oppforing.sheetUtleggId,
+            vedleggId: oppforing.vedleggId,
+            fileUrl: resultat.fileUrl,
+            fileName: resultat.fileName,
+            fileSize: resultat.fileSize,
+            mimeType: oppforing.mimeType,
+            gpsLat: oppforing.gpsLat,
+            gpsLng: oppforing.gpsLng,
+          }).catch((f) =>
+            console.warn("[KØ] Utlegg-vedlegg-registrering feilet (ikke-kritisk):", f),
+          );
+          fullforUtleggVedlegg(oppforing.vedleggId, resultat.fileUrl);
+          await slettLokaltBilde(oppforing.lokalSti);
+          oppdaterTellere();
+          prosessererRef.current = false;
+          prosesserNeste().catch((f) =>
+            console.error("[KØ] Neste etter utlegg-vedlegg feilet:", f),
+          );
+          return;
+        }
 
         // Funn #2: tillegg-vedlegg har egen registrerings-/oppdaterings-sti.
         // Tidlig retur → den eksisterende sjekkliste/oppgave-koden under er
@@ -403,7 +473,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
       prosessererRef.current = false;
       settErAktiv(false);
     }
-  }, [erPaaNettet, oppdaterTellere, oppdaterFeltdataVedlegg, publiserFullfort, fullforTilleggVedlegg]);
+  }, [erPaaNettet, oppdaterTellere, oppdaterFeltdataVedlegg, publiserFullfort, fullforTilleggVedlegg, fullforUtleggVedlegg]);
 
   // Start/stopp prosessering basert på nettverkstilstand
   useEffect(() => {
@@ -446,6 +516,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
             sjekklisteId: oppforing.sjekklisteId ?? null,
             oppgaveId: oppforing.oppgaveId ?? null,
             sheetTilleggId: oppforing.sheetTilleggId ?? null,
+            sheetUtleggId: oppforing.sheetUtleggId ?? null,
             objektId: oppforing.objektId,
             vedleggId: oppforing.vedleggId,
             lokalSti: oppforing.lokalSti,
@@ -488,6 +559,7 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
         erAktiv,
         registrerCallback,
         registrerTilleggVedleggCallback,
+        registrerUtleggVedleggCallback,
       }}
     >
       {children}

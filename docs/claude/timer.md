@@ -646,9 +646,55 @@ prosjekt (før dette sto alt på `utlegg`-default).
 - **U5-fiks:** deaktivert sats-rad i `LeggTilVelger` viser nå «lønnstillegg», ikke
   «beløp + kvittering». Ingen migrering (U1-modellen komplett).
 
-**🟡 U4 — mobil (kamera-primær):** planlagt, egen «Reload:»-plikt (mockup 8c).
+### 🟢 U4 — mobil (kamera-primær) (2026-08-11)
+
+Registrering av utlegg/fakturert på mobil, offline-først (mockup 8c). Ingen
+migrering (U1-modellen komplett; mobil-lokal SQLite via `CREATE TABLE IF NOT
+EXISTS` i `migreringer.ts`). Speiler tillegg-mønsteret tett.
+
+- **Ordningen er UTLEDET, aldri valgt** — også på mobil. `UtleggSeksjon.tsx`
+  (`app/timer/[id].tsx`, egen seksjon parallelt med `TilleggSeksjon`, per prosjekt).
+  Velgeren viser kategorier med utledet ordning som pille + kilde-linje; `sats`
+  ekskluderes (bæres av `SheetTillegg`). Formen tilpasses: `utlegg` → beløp +
+  **påkrevd kvittering** (kamera-primær, beløp før bilde, **Lagre gated på bildet**,
+  trykkmål ≥44 px); `fakturert` → «dekket av firma», intet beløp.
+- **🔴 Offline-stempling (kjernen):** klienten stempler `ordningVedFoering` +
+  `foertVed` ved FØRING via delt `utledOrdning` (`utledOrdningLokalt` i
+  `timerKatalog.ts`, mot offline-cachet katalog). Serveren re-utleder **ALDRI** ved
+  sync — motsatt av web-stien (`tilfoyUtleggRad` som utleder live). En offline-rad
+  bærer ordningen som gjaldt da arbeideren førte den, ikke en admin-endring som kom
+  etter. Bevisst divergens (samme prinsipp som U1-immutabiliteten, flyttet til klient
+  fordi føringen skjer der). Sikkerhetsnett ved sync: enum + CHECK-speil +
+  kategori-i-org + `sats`-avvisning — men aldri re-utledning.
+- **`createdAt` = klientens `foertVed`** (ikke synk-tid). `syncBatch` skriver
+  `createdAt: new Date(foertVed)` (overstyrer `@default(now())`) → stempelet er
+  reviderbart i tid. **Tillegg-raden bruker fortsatt server-tid (synk-tid)** — det
+  er et eksisterende hull vi ikke kopierte (navngitt oppfølger under).
+- **Offline-cache:** `expenseCategory.katalogForMobil` (rått grunnlag: kategorier +
+  overstyringer, én org, mildt tilgangsmønster) → `expense_category_local` +
+  `prosjekt_ordning_overstyring_local`, hentet som 5. pull i `refreshKatalog`
+  (kaster før destruktiv sletting, aldri `.catch(() => [])`).
+- **Sync:** `syncBatch.utlegg[]` (push, bærer stempel + `foertVed`) +
+  `slettedeIder.utlegg` (tombstones) + `hentEndringerSiden.utlegg` (pull, m/ vedlegg).
+  Kvittering speiler tillegg: `sheet_utlegg_vedlegg_local` + `opplastings_ko.sheet_utlegg_id`
+  + `/upload?privat=1` + `tilfoyUtleggVedlegg` (fantes fra U3).
+- **Reload:** ny build kreves (mobil-JS + native ikke endret → OTA/Expo-reload holder).
 
 ### Navngitte oppfølgere (U3-avgrensning)
+
+- **U4: tillegg-rad `createdAt` = synk-tid (eksisterende hull):** `syncBatch` skriver
+  ikke et klient-`foertVed` for `SheetTillegg` → `createdAt` faller til `@default(now())`
+  = synk-dagen, ikke føringsdagen. U4 rettet dette for utlegg; tillegg (og maskin/timer)
+  bør få samme reviderbare stempel i en egen runde.
+- **U4: utlegg-vedlegg sync-orden (delt med tillegg):** køen registrerer et vedlegg
+  via `tilfoyUtleggVedlegg` (findUnique på `SheetUtlegg`) uavhengig av `syncBatch`.
+  Rekker køen å registrere før raden er synket, gir det NOT_FOUND (best-effort `.catch`,
+  fil lastet opp men server-metadata tapt). **Identisk med tillegg-vedlegg i dag** — en
+  robust fiks (køen venter på rad-sync, eller pull re-assosierer) er egen runde for
+  begge bærere.
+- **U4: prosjekt fast til seksjonens prosjekt i utlegg-modalen** (ingen prosjekt-velger,
+  til forskjell fra `TilleggRadModal`). Bevisst: ordningen er prosjekt-avledet, så et
+  prosjektbytte i modalen ville endret ordningen. Utlegg føres per prosjekt-seksjon.
 
 - **bro `ExpenseCategory`→lønnsart:** en utleggskategori med ordning `sats` har
   ingen lønnsart-kobling i U1-modellen → `SheetUtlegg` avviser `sats` (den bæres

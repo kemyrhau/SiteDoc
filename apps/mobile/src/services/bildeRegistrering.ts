@@ -12,6 +12,8 @@ export async function registrerBildeIDatabase(params: {
   oppgaveId?: string | null;
   // Funn #2: kvittering-vedlegg på en tillegg-rad (timer-modul).
   sheetTilleggId?: string | null;
+  // U4: kvittering-vedlegg på en utlegg-rad (timer-modul).
+  sheetUtleggId?: string | null;
   // Klient-id (= lokal vedleggId) for id-konsistens mot mobil-cachen.
   vedleggId?: string | null;
   fileUrl: string;
@@ -34,7 +36,20 @@ export async function registrerBildeIDatabase(params: {
   let prosedyre: string;
   let input: Record<string, unknown>;
 
-  if (params.sheetTilleggId) {
+  if (params.sheetUtleggId) {
+    // U4: utlegg-kvittering → timer-modulens utlegg-vedlegg-rute (db-timer).
+    prosedyre = "timer.dagsseddel.tilfoyUtleggVedlegg";
+    input = {
+      id: params.vedleggId ?? undefined,
+      sheetUtleggId: params.sheetUtleggId,
+      fileUrl: params.fileUrl,
+      fileName: params.fileName,
+      mimeType: params.mimeType ?? "image/jpeg",
+      fileSize: params.fileSize,
+      gpsLat: params.gpsLat ?? undefined,
+      gpsLng: params.gpsLng ?? undefined,
+    };
+  } else if (params.sheetTilleggId) {
     // Funn #2: tillegg-kvittering → timer-modulens vedlegg-rute (db-timer).
     prosedyre = "timer.dagsseddel.tilfoyTilleggVedlegg";
     input = {
@@ -132,5 +147,30 @@ export async function fjernTilleggVedleggServer(id: string): Promise<void> {
     }
   } catch (feil) {
     console.warn("[BILDE-REG] Server-sletting nettverksfeil:", feil instanceof Error ? feil.message : feil);
+  }
+}
+
+/**
+ * U4: slett et opplastet utlegg-vedlegg på server (best-effort, online).
+ * Speil av fjernTilleggVedleggServer for utlegg-kvitteringer.
+ */
+export async function fjernUtleggVedleggServer(id: string): Promise<void> {
+  const token = await hentSessionToken();
+  if (!token) return;
+  try {
+    const url = `${AUTH_CONFIG.apiUrl}/trpc/timer.dagsseddel.fjernUtleggVedlegg`;
+    const respons = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ id }),
+    });
+    if (!respons.ok) {
+      console.warn("[BILDE-REG] Server-sletting (utlegg) feilet:", respons.status);
+    }
+  } catch (feil) {
+    console.warn("[BILDE-REG] Server-sletting (utlegg) nettverksfeil:", feil instanceof Error ? feil.message : feil);
   }
 }

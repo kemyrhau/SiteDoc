@@ -833,4 +833,84 @@ export function kjorMigreringer() {
       e,
     );
   }
+
+  // U4 (2026-08-11) — utlegg på mobil. Speiler tillegg-tabellene:
+  //  - sheet_utlegg_local: utleggs-/fakturert-rader (bærer ordningVedFoering-
+  //    stempel + foertVed = føringstidspunkt).
+  //  - sheet_utlegg_vedlegg_local: kvittering (speil av tillegg-vedlegg).
+  //  - expense_category_local + prosjekt_ordning_overstyring_local: offline-
+  //    cache for on-device ordnings-utledning (utledOrdning).
+  //  - opplastings_ko utvides med sheet_utlegg_id (idempotent ALTER).
+  // Alt idempotent (CREATE IF NOT EXISTS / ALTER-vakt).
+  try {
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS sheet_utlegg_local (
+        id TEXT PRIMARY KEY NOT NULL,
+        dagsseddel_id TEXT NOT NULL,
+        project_id TEXT,
+        expense_category_id TEXT NOT NULL,
+        belop REAL,
+        kommentar TEXT,
+        ordning_ved_foering TEXT NOT NULL,
+        foert_ved INTEGER NOT NULL,
+        sist_endret_lokalt INTEGER NOT NULL
+      )
+    `);
+    db.execSync(`
+      CREATE INDEX IF NOT EXISTS idx_sheet_utlegg_local_sheet
+        ON sheet_utlegg_local(dagsseddel_id)
+    `);
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS sheet_utlegg_vedlegg_local (
+        id TEXT PRIMARY KEY NOT NULL,
+        sheet_utlegg_id TEXT NOT NULL,
+        lokal_sti TEXT,
+        server_url TEXT,
+        filnavn TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        filstorrelse INTEGER,
+        sist_endret_lokalt INTEGER NOT NULL
+      )
+    `);
+    db.execSync(`
+      CREATE INDEX IF NOT EXISTS idx_sheet_utlegg_vedlegg_rad
+        ON sheet_utlegg_vedlegg_local(sheet_utlegg_id)
+    `);
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS expense_category_local (
+        id TEXT PRIMARY KEY NOT NULL,
+        organization_id TEXT NOT NULL,
+        navn TEXT NOT NULL,
+        ordning TEXT NOT NULL,
+        aktiv INTEGER NOT NULL DEFAULT 1,
+        sist_oppdatert INTEGER NOT NULL
+      )
+    `);
+    db.execSync(`
+      CREATE INDEX IF NOT EXISTS idx_expense_category_local_org
+        ON expense_category_local(organization_id, aktiv)
+    `);
+    db.execSync(`
+      CREATE TABLE IF NOT EXISTS prosjekt_ordning_overstyring_local (
+        prosjekt_id TEXT NOT NULL,
+        expense_category_id TEXT NOT NULL,
+        ordning TEXT NOT NULL,
+        sist_oppdatert INTEGER NOT NULL,
+        PRIMARY KEY (prosjekt_id, expense_category_id)
+      )
+    `);
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke opprette U4 utlegg-tabeller:", e);
+  }
+  try {
+    const kolonner = db.getAllSync(
+      "PRAGMA table_info(opplastings_ko)",
+    ) as Array<{ name: string }>;
+    if (!kolonner.find((k) => k.name === "sheet_utlegg_id")) {
+      console.log("[MIG] Legger til sheet_utlegg_id på opplastings_ko (U4)");
+      db.execSync(`ALTER TABLE opplastings_ko ADD COLUMN sheet_utlegg_id TEXT`);
+    }
+  } catch (e) {
+    console.warn("[MIG] Kunne ikke utvide opplastings_ko med sheet_utlegg_id:", e);
+  }
 }

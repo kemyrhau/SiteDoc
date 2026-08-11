@@ -42,6 +42,7 @@ import {
   sheetTimerLocal,
   sheetTilleggLocal,
   sheetMachineLocal,
+  sheetUtleggLocal,
   equipmentLocal,
   externalCostObjectLocal,
   byggeplassLocal,
@@ -52,6 +53,7 @@ import { TimerStatusMerkelapp } from "../../src/components/TimerStatusMerkelapp"
 import { DagstotalBanner } from "../../src/components/DagstotalBanner";
 import { TimerSeksjon } from "../../src/components/timer-detalj/TimerSeksjon";
 import { TilleggSeksjon } from "../../src/components/timer-detalj/TilleggSeksjon";
+import { UtleggSeksjon } from "../../src/components/timer-detalj/UtleggSeksjon";
 import { MaskinSeksjon } from "../../src/components/timer-detalj/MaskinSeksjon";
 import { ArbeidstidSeksjon } from "../../src/components/timer-detalj/ArbeidstidSeksjon";
 import { SummeringsBanner } from "../../src/components/timer-detalj/SummeringsBanner";
@@ -77,6 +79,7 @@ import type {
   TimerRad,
   TilleggRad,
   MaskinRad,
+  UtleggRad,
 } from "../../src/types/timer-detalj";
 
 export default function DagsseddelDetalj() {
@@ -96,6 +99,7 @@ export default function DagsseddelDetalj() {
   const [timerRader, setTimerRader] = useState<TimerRad[]>([]);
   const [tilleggRader, setTilleggRader] = useState<TilleggRad[]>([]);
   const [maskinRader, setMaskinRader] = useState<MaskinRad[]>([]);
+  const [utleggRader, setUtleggRader] = useState<UtleggRad[]>([]);
   const [harEquipmentCache, setHarEquipmentCache] = useState(false);
   // T.11: default true så arbeider ikke får falsk-flagg før status er synket.
   const [harMaskinforerbevis, setHarMaskinforerbevis] = useState(true);
@@ -160,6 +164,13 @@ export default function DagsseddelDetalj() {
       .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
       .all();
     setMaskinRader(maskiner);
+
+    const utlegg = db
+      .select()
+      .from(sheetUtleggLocal)
+      .where(eq(sheetUtleggLocal.dagsseddelId, sheetId))
+      .all();
+    setUtleggRader(utlegg);
 
     // Soft-skjul-sjekk: maskin-seksjonen vises kun hvis Equipment-cache er
     // populert (Maskin-modul aktivert + firmaet har utstyr) eller hvis
@@ -246,9 +257,10 @@ export default function DagsseddelDetalj() {
     for (const r of timerRader) if (r.projectId) ider.add(r.projectId);
     for (const r of tilleggRader) if (r.projectId) ider.add(r.projectId);
     for (const r of maskinRader) if (r.projectId) ider.add(r.projectId);
+    for (const r of utleggRader) if (r.projectId) ider.add(r.projectId);
     for (const id of ekstraProsjektIder) ider.add(id);
     return Array.from(ider);
-  }, [sedel, timerRader, tilleggRader, maskinRader, ekstraProsjektIder]);
+  }, [sedel, timerRader, tilleggRader, maskinRader, utleggRader, ekstraProsjektIder]);
 
   // L1 / B6: aktivt prosjekt-navn (sedelens primærprosjekt) for blå topp-oversikt.
   const sedelProsjektNavn = useMemo(() => {
@@ -489,6 +501,9 @@ export default function DagsseddelDetalj() {
               .run();
             db.delete(sheetMachineLocal)
               .where(eq(sheetMachineLocal.dagsseddelId, sheetId))
+              .run();
+            db.delete(sheetUtleggLocal)
+              .where(eq(sheetUtleggLocal.dagsseddelId, sheetId))
               .run();
             db.delete(dagsseddelLocal)
               .where(eq(dagsseddelLocal.id, sheetId))
@@ -807,6 +822,7 @@ export default function DagsseddelDetalj() {
             alleTimerRader={timerRader}
             tilleggRader={tilleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             maskinRader={maskinRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
+            utleggRader={utleggRader.filter((r) => (r.projectId ?? sedel.projectId) === pid)}
             onEndret={markerEndretOgLes}
           />
         ))}
@@ -966,6 +982,7 @@ function ProsjektGruppe({
   alleTimerRader,
   tilleggRader,
   maskinRader,
+  utleggRader,
   onEndret,
 }: {
   projectId: string;
@@ -991,6 +1008,7 @@ function ProsjektGruppe({
   alleTimerRader: TimerRad[];
   tilleggRader: TilleggRad[];
   maskinRader: MaskinRad[];
+  utleggRader: UtleggRad[];
   onEndret: () => void;
 }) {
   const { t } = useTranslation();
@@ -1121,6 +1139,16 @@ function ProsjektGruppe({
         organizationId={organizationId}
         projectId={projectId}
         rader={tilleggRader}
+        redigerbar={redigerbar}
+        onEndret={onEndret}
+      />
+      {/* U4: Utlegg per-prosjekt — egen bærer (SheetUtlegg), ordning utledet
+          per prosjekt+kategori. Ligger etter Tillegg (to kataloger, to bærere). */}
+      <UtleggSeksjon
+        sheetId={sheetId}
+        organizationId={organizationId}
+        projectId={projectId}
+        rader={utleggRader}
         redigerbar={redigerbar}
         onEndret={onEndret}
       />
