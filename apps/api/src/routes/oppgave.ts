@@ -3,6 +3,7 @@ import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
+import { grenseNaadd } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
@@ -21,6 +22,7 @@ import {
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { IKKE_SLETTET } from "../utils/softDelete";
+import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 
 /**
  * Send HMS-varsel for en oppgave via delt e-postmekanikk
@@ -509,19 +511,35 @@ export const oppgaveRouter = router({
         }
       }
 
-      // Sjekk grense for gratisbrukere (10 oppgaver per prosjekt)
+      // Gratis-grense (10 oppgaver per prosjekt) — interim-vedtak 2026-07-26:
+      // gjelder KUN standalone-prosjekter (prøve); firma-tilknyttede er grenseløse,
+      // sitedoc_admin har bypass. Delt beslutning i grenseNaadd (@sitedoc/shared),
+      // delt standalone-oppslag i erStandaloneProsjekt — samme logikk som sjekkliste.opprett.
+      // Soft-slettede teller ikke (IKKE_SLETTET), så papirkurv frigjør kvote.
       const bruker = await ctx.prisma.user.findUniqueOrThrow({
         where: { id: ctx.userId },
         select: { role: true },
       });
       if (bruker.role !== "sitedoc_admin") {
-        const antall = await ctx.prisma.task.count({
-          where: { ...IKKE_SLETTET, template: { projectId: mal.projectId } },
-        });
-        if (antall >= 10) {
+        const [antall, standalone] = await Promise.all([
+          ctx.prisma.task.count({
+            where: { ...IKKE_SLETTET, template: { projectId: mal.projectId } },
+          }),
+          erStandaloneProsjekt(ctx.prisma, mal.projectId),
+        ]);
+        if (
+          grenseNaadd({
+            erSitedocAdmin: false,
+            erStandaloneProsjekt: standalone,
+            antallEksisterende: antall,
+          })
+        ) {
           throw new TRPCError({
             code: "FORBIDDEN",
-            message: "Grensen på 10 oppgaver per prosjekt er nådd. Kontakt SiteDoc for å oppgradere.",
+            // Grensen treffer nå kun prøveprosjekter — teksten er sann for
+            // mottakeren (en testbruker), ikke en betalende kunde.
+            message:
+              "Prøveprosjekter kan ha maks 10 oppgaver. Under et firma-abonnement er det ingen grense — kontakt SiteDoc.",
           });
         }
       }

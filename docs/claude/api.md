@@ -290,9 +290,35 @@ Minnebasert rate limiter i `apps/api/src/utils/rateLimiter.ts`. Automatisk oppry
 
 ## Gratis-grenser
 
-- Maks 10 sjekklister per prosjekt (sjekkes i `sjekkliste.opprett`)
-- Maks 10 oppgaver per prosjekt (sjekkes i `oppgave.opprett`)
-- `sitedoc_admin` har bypass
+**Interim-vedtak 2026-07-26 (pilot-blokker):** grensen på 10 sjekklister/oppgaver per
+prosjekt gjelder **KUN standalone-prosjekter** (prøve — uten firma-tilknytning).
+Firma-tilknyttede prosjekter er **grenseløse**. Delt logikk i `@sitedoc/shared`
+(`grenseNaadd`, `GRATIS_DOKUMENT_GRENSE = 10`) + delt DB-oppslag i
+`apps/api/src/utils/prosjektGrense.ts` (`erStandaloneProsjekt` = `projectOrganization.count === 0`,
+speiler admin.ts' trial-akse `admin.ts:613,626`), brukt i BEGGE guards så regelen ikke divergerer.
+
+- Standalone (prøve): maks 10 sjekklister (`sjekkliste.opprett`) / 10 oppgaver (`oppgave.opprett`)
+- Firma-tilknyttet: ingen grense
+- `sitedoc_admin` har alltid bypass
+- Soft-slettede teller ikke (`IKKE_SLETTET`) — papirkurv frigjør kvote. Utkast (`sendt:false`, HMS 5a-draft) teller.
+- Feilmeldingen er lesbar norsk tekst formulert for prøvebrukere (ikke en i18n-nøkkel — se oppfølger under).
+
+**Interim, ikke permanent** (Kenneth 2026-08-11): den varige modellen er abonnement
+**per modul** med deaktivering ved utløp — egen fabel-utredning, ikke bygget. Firma-
+tilknytning er stopgap-aksen som låser opp piloten.
+
+**Navngitte oppfølgere:**
+- **i18n av server-feilmeldinger (strukturelt):** dagens API returnerer lesbar tekst; en
+  helhetlig løsning ville la klienten alltid `t()`-oversette en kjent nøkkel med fallback til
+  teksten. Konkret bevis på skjørheten: da grense-branchen prøvde nøkkel-konvertering, lekket
+  den rå nøkkelen på upatchede opprett-kallsteder (`apps/mobile/app/hms/index.tsx:90,95`,
+  `apps/web/.../[prosjektId]/hms/page.tsx`). Egen sak.
+- **`primaryOrganizationId` vs `projectOrganization` — hva gjør et prosjekt til firmaets:**
+  `erStandaloneProsjekt` bruker `projectOrganization.count` (speiler admin.ts). Et prosjekt som
+  er `primaryOrganizationId`-lenket men mangler `projectOrganization`-rad (testprosjekt-stien
+  lager slike) klassifiseres som standalone → begrenset. Ingen prod-effekt (alle prod-prosjekter
+  har begge lenker), men tredje sted samme uenighet dukker opp (jf. U5 `hentProsjekter` vs
+  `settOverstyring`). Fortjener én avklaring.
 
 ## Prøveperiode og testsider
 

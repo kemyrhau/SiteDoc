@@ -3,6 +3,7 @@ import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
+import { grenseNaadd } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
 import {
@@ -21,6 +22,7 @@ import {
 } from "../trpc/tilgangskontroll";
 import { sendDokumentVarsling, hentMottakerEposter } from "../services/epost";
 import { IKKE_SLETTET } from "../utils/softDelete";
+import { erStandaloneProsjekt } from "../utils/prosjektGrense";
 import { oversettFritekst } from "../services/oversettelse-service";
 import { byggTransferSnapshot } from "../services/transfer-snapshot";
 
@@ -352,19 +354,35 @@ export const sjekklisteRouter = router({
           });
         }
 
-        // Sjekk grense for gratisbrukere (10 sjekklister per prosjekt)
+        // Gratis-grense (10 sjekklister per prosjekt) — interim-vedtak 2026-07-26:
+        // gjelder KUN standalone-prosjekter (prøve); firma-tilknyttede er grenseløse,
+        // sitedoc_admin har bypass. Delt beslutning i grenseNaadd (@sitedoc/shared),
+        // delt standalone-oppslag i erStandaloneProsjekt — samme logikk som oppgave.opprett.
+        // Soft-slettede teller ikke (IKKE_SLETTET), så papirkurv frigjør kvote.
         if (bruker.role !== "sitedoc_admin") {
           const faggruppe = await ctx.prisma.faggruppe.findUniqueOrThrow({
             where: { id: input.bestillerFaggruppeId },
             select: { projectId: true },
           });
-          const antall = await ctx.prisma.checklist.count({
-            where: { ...IKKE_SLETTET, bestillerFaggruppe: { projectId: faggruppe.projectId } },
-          });
-          if (antall >= 10) {
+          const [antall, standalone] = await Promise.all([
+            ctx.prisma.checklist.count({
+              where: { ...IKKE_SLETTET, bestillerFaggruppe: { projectId: faggruppe.projectId } },
+            }),
+            erStandaloneProsjekt(ctx.prisma, faggruppe.projectId),
+          ]);
+          if (
+            grenseNaadd({
+              erSitedocAdmin: false,
+              erStandaloneProsjekt: standalone,
+              antallEksisterende: antall,
+            })
+          ) {
             throw new TRPCError({
               code: "FORBIDDEN",
-              message: "Grensen på 10 sjekklister per prosjekt er nådd. Kontakt SiteDoc for å oppgradere.",
+              // Grensen treffer nå kun prøveprosjekter — teksten er sann for
+              // mottakeren (en testbruker), ikke en betalende kunde.
+              message:
+                "Prøveprosjekter kan ha maks 10 sjekklister. Under et firma-abonnement er det ingen grense — kontakt SiteDoc.",
             });
           }
         }
