@@ -114,12 +114,22 @@ model ExpenseCategory {
   id             String   @id @default(uuid())
   organizationId String   @map("organization_id")
   navn           String
-  // Utleggs-ordningsmodell (U1, 2026-08-08): firma-katalogen eier ordningens
-  // EKSISTENS og default. Lukket enum "sats" | "utlegg" | "fakturert" —
-  // validert i app-lag (@sitedoc/shared erGyldigOrdning) + DB-CHECK i migreringen.
+  // Utleggs-ordningsmodell (U1, 2026-08-08; justert 2026-08-11): firma-katalogen
+  // eier ordningens EKSISTENS og default. Lukket enum "lonnstillegg" | "utlegg" |
+  // "fakturert" — validert i app-lag (@sitedoc/shared erGyldigOrdning) + DB-CHECK i
+  // migreringen. "lonnstillegg" het tidligere "sats" (homonym-fiks). "fakturert"
+  // beholdes for historikk men er ikke lenger valgbar (app-lag avviser på skriv).
   // Prosjekt kan overstyre via ProsjektOrdningOverstyring; oppslag alltid
   // overstyring ?? denne. Default = "utlegg" (utleggskategorier er refusjon).
   ordning        String   @default("utlegg")
+  // Satsbasert (2026-08-11): kategorien beregnes ETTER en sats (kjøregodtgjørelse,
+  // diett — «statens satser»). ENDRER IKKE bærer/ordning/eksport — styrer UI
+  // (satsfelt/beregningshjelp, senere) + følger eksport som metadata.
+  satsbasert     Boolean  @default(false) @map("satsbasert")
+  // Mulig skattepliktig (2026-08-11): firma-admin-flagg. SiteDoc registrerer
+  // GRUNNLAG, aldri avgjørelse — skatteberegning er ut av scope. Følger eksporten
+  // per linje så regnskap ser hvilke som krever vurdering.
+  muligSkattepliktig Boolean @default(false) @map("mulig_skattepliktig")
   aktiv          Boolean  @default(true)
   createdAt      DateTime @default(now()) @map("created_at")
   updatedAt      DateTime @updatedAt @map("updated_at")

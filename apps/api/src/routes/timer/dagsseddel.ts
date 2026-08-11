@@ -1747,15 +1747,15 @@ export const dagsseddelRouter = router({
         overstyring && erGyldigOrdning(overstyring.ordning) ? overstyring.ordning : null;
       const ordning = utledOrdning({ firmaDefault, prosjektOverstyring });
 
-      // sats-ordning bæres av SheetTillegg (lønnsart), ikke av SheetUtlegg. En
-      // ExpenseCategory med sats-ordning har ingen lønnsart-kobling i U1-modellen
-      // — avvis heller enn å skrive en semantisk feil rad. (Named oppfølger:
-      // «bro ExpenseCategory→lønnsart» — se timer.md.)
+      // lonnstillegg-ordning bæres av SheetTillegg (lønnsart), ikke av SheetUtlegg.
+      // En ExpenseCategory med lonnstillegg-ordning har ingen lønnsart-kobling i
+      // U1-modellen — avvis heller enn å skrive en semantisk feil rad. (Named
+      // oppfølger: «bro ExpenseCategory→lønnsart» — se timer.md.)
       if (!baeresAvSheetUtlegg(ordning)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message:
-            "Kategori med ordning «sats» føres som lønnstillegg, ikke utlegg. Kontakt firma-administrator.",
+            "Kategori med ordning «lønnstillegg» føres som lønnstillegg, ikke utlegg. Kontakt firma-administrator.",
         });
       }
 
@@ -4373,7 +4373,7 @@ export const dagsseddelRouter = router({
               clientUuid: lokal.clientUuid,
               resultat: "avvist",
               feilmelding: !baeresAvSheetUtlegg(ordning)
-                ? "Utlegg med ordning «sats» føres som lønnstillegg, ikke utlegg."
+                ? "Utlegg med ordning «lønnstillegg» føres som lønnstillegg, ikke utlegg."
                 : "Utlegg-rad bryter beløps-regelen for sin ordning.",
             });
             continue;

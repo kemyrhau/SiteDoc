@@ -20,7 +20,7 @@ import {
 describe("utledOrdning — overstyring ?? firma-default", () => {
   it("overstyring vinner når den er satt", () => {
     expect(
-      utledOrdning({ firmaDefault: "sats", prosjektOverstyring: "utlegg" }),
+      utledOrdning({ firmaDefault: "lonnstillegg", prosjektOverstyring: "utlegg" }),
     ).toBe("utlegg");
     expect(
       utledOrdning({ firmaDefault: "utlegg", prosjektOverstyring: "fakturert" }),
@@ -31,7 +31,7 @@ describe("utledOrdning — overstyring ?? firma-default", () => {
     expect(
       utledOrdning({ firmaDefault: "utlegg", prosjektOverstyring: null }),
     ).toBe("utlegg");
-    expect(utledOrdning({ firmaDefault: "sats" })).toBe("sats");
+    expect(utledOrdning({ firmaDefault: "lonnstillegg" })).toBe("lonnstillegg");
   });
 
   it("gir alltid nøyaktig én gyldig ordning (aldri tvetydig)", () => {
@@ -59,7 +59,8 @@ describe("erGyldigOrdning", () => {
   });
 
   it("avviser ukjente verdier og ikke-strenger", () => {
-    expect(erGyldigOrdning("lonnstillegg")).toBe(false);
+    // «sats» er den gamle verdien (omdøpt til «lonnstillegg» 2026-08-11) → ugyldig nå.
+    expect(erGyldigOrdning("sats")).toBe(false);
     expect(erGyldigOrdning("")).toBe(false);
     expect(erGyldigOrdning(null)).toBe(false);
     expect(erGyldigOrdning(undefined)).toBe(false);
@@ -78,7 +79,7 @@ describe("avledede regler per ordning", () => {
     rute: ReturnType<typeof eksportRute>;
   }> = [
     {
-      ordning: "sats",
+      ordning: "lonnstillegg",
       bæres: false,
       belop: true,
       kreverKvit: false,
