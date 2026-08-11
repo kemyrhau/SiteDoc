@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { finnLedigeMalVerdier } from "./mal";
 
 export const bibliotekRouter = router({
   /** Alle standarder med kapitler og maler */
@@ -97,15 +98,26 @@ export const bibliotekRouter = router({
         sortOrder: number;
       }>;
 
+      // Unikhet (2026-08-10): auto-generér ledig navn + prefiks. Bibliotek-navn/
+      // referanse-token kan kollidere med eksisterende prosjekt-mal → ville brutt
+      // sperren. Auto-suffiks (som kopier); backstop er DB-indeksen.
+      const ledig = await finnLedigeMalVerdier(
+        ctx.prisma,
+        input.projectId,
+        bibMal.kategori,
+        bibMal.navn,
+        bibMal.referanse.split(/[\s\/]/)[0] ?? null,
+      );
+
       // Opprett ReportTemplate (SjekklisteMal)
       const template = await ctx.prisma.reportTemplate.create({
         data: {
           projectId: input.projectId,
-          name: bibMal.navn,
+          name: ledig.name,
           description: `${bibMal.kapittel.standard.kode} ${bibMal.referanse}${bibMal.beskrivelse ? " — " + bibMal.beskrivelse : ""}`,
           category: bibMal.kategori,
           domain: bibMal.domene,
-          prefix: bibMal.referanse.split(/[\s\/]/)[0] ?? undefined,
+          prefix: ledig.prefix ?? undefined,
         },
       });
 

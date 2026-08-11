@@ -1036,7 +1036,11 @@ model Task {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
-  template           ReportTemplate?    @relation(fields: [templateId], references: [id])
+  // Slett-vern (2026-08-10): Restrict speiler Checklist.template — sletting av
+  // en mal med oppgaver nektes (før: default SetNull → foreldreløs oppgave uten
+  // vei til prosjektet, jf. Task har ingen projectId). App-guarden i mal.slettMal
+  // teller først og gir lesbar melding; denne FK-en er DB-backstop.
+  template           ReportTemplate?    @relation(fields: [templateId], references: [id], onDelete: Restrict)
   bestiller          User               @relation("TaskCreator", fields: [bestillerUserId], references: [id])
   bestillerFaggruppe Faggruppe?         @relation("TaskBestillerFaggruppe", fields: [bestillerFaggruppeId], references: [id])
   utforerFaggruppe   Faggruppe?         @relation("TaskUtforerFaggruppe", fields: [utforerFaggruppeId], references: [id])
