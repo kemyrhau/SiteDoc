@@ -1,10 +1,13 @@
 import { eq, and } from "drizzle-orm";
+import { utledOrdning, erGyldigOrdning, type UtleggOrdning } from "@sitedoc/shared";
 import { hentDatabase } from "../db/database";
 import {
   lonnsartLocal,
   aktivitetLocal,
   tilleggLocal,
   externalCostObjectLocal,
+  expenseCategoryLocal,
+  prosjektOrdningOverstyringLocal,
 } from "../db/schema";
 import { hentOrganizationSettingLokalt } from "./organizationSettingKatalog";
 import type { trpc } from "../lib/trpc";
@@ -38,10 +41,17 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
   aktiviteter: number;
   tillegg: number;
   underprosjekter: number;
+  utleggskategorier: number;
 }> {
   const db = hentDatabase();
   if (!db) {
-    return { lonnsarter: 0, aktiviteter: 0, tillegg: 0, underprosjekter: 0 };
+    return {
+      lonnsarter: 0,
+      aktiviteter: 0,
+      tillegg: 0,
+      underprosjekter: 0,
+      utleggskategorier: 0,
+    };
   }
 
   // Cache-bevaring (device-funn 2026-08-08): ECO-pullen fanges IKKE lenger.
@@ -52,12 +62,18 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
   // rejecter Promise.all først uansett) og «ECO-router mangler» (historisk — ruten
   // finnes/er wiret; skulle den mangle, bevares nå alle fire i stedet for at
   // ECO-cachen tømmes → feiler tryggere).
-  const [lonnsarter, aktiviteter, tillegg, underprosjekter] = await Promise.all([
-    klient.timer.lonnsart.list.query(),
-    klient.timer.aktivitet.list.query(),
-    klient.timer.tillegg.list.query(),
-    klient.eksternKostObjekt.list.query(),
-  ]);
+  // U4: utleggskatalogen (kategorier + overstyringer) hentes som femte pull i
+  // SAMME Promise.all — den kaster før den destruktive db.delete under, akkurat
+  // som de fire andre. Ingen `.catch(() => [])` (cache #7 med samme bug). Mobil
+  // med U4-kode snakker alltid med en U4-server (samme deploy), så ingen skew.
+  const [lonnsarter, aktiviteter, tillegg, underprosjekter, utleggKatalog] =
+    await Promise.all([
+      klient.timer.lonnsart.list.query(),
+      klient.timer.aktivitet.list.query(),
+      klient.timer.tillegg.list.query(),
+      klient.eksternKostObjekt.list.query(),
+      klient.timer.expenseCategory.katalogForMobil.query(),
+    ]);
 
   const naa = Date.now();
 
@@ -137,11 +153,38 @@ export async function refreshKatalog(klient: TrpcKlient): Promise<{
       .run();
   }
 
+  // U4: utleggskatalog — full overskriving (kategorier + overstyringer).
+  db.delete(expenseCategoryLocal).run();
+  for (const k of utleggKatalog.kategorier) {
+    db.insert(expenseCategoryLocal)
+      .values({
+        id: k.id,
+        organizationId: utleggKatalog.organizationId,
+        navn: k.navn,
+        ordning: k.ordning,
+        aktiv: k.aktiv,
+        sistOppdatert: naa,
+      })
+      .run();
+  }
+  db.delete(prosjektOrdningOverstyringLocal).run();
+  for (const o of utleggKatalog.overstyringer) {
+    db.insert(prosjektOrdningOverstyringLocal)
+      .values({
+        prosjektId: o.prosjektId,
+        expenseCategoryId: o.expenseCategoryId,
+        ordning: o.ordning,
+        sistOppdatert: naa,
+      })
+      .run();
+  }
+
   return {
     lonnsarter: lonnsarter.length,
     aktiviteter: aktiviteter.length,
     tillegg: tillegg.length,
     underprosjekter: underprosjekter.length,
+    utleggskategorier: utleggKatalog.kategorier.length,
   };
 }
 
@@ -322,4 +365,83 @@ export function finnUnderprosjektLokalt(id: string) {
     .where(eq(externalCostObjectLocal.id, id))
     .all();
   return rader[0] ?? null;
+}
+
+/* ============================================================================
+ *  U4 — utleggskatalog (offline ordnings-utledning)
+ * ========================================================================== */
+
+/** Aktive utleggskategorier for firmaet (registreringsvelgeren). */
+export function hentUtleggskategorierLokalt(organizationId: string) {
+  const db = hentDatabase();
+  if (!db) return [];
+  return db
+    .select()
+    .from(expenseCategoryLocal)
+    .where(
+      and(
+        eq(expenseCategoryLocal.organizationId, organizationId),
+        eq(expenseCategoryLocal.aktiv, true),
+      ),
+    )
+    .all();
+}
+
+/** Én utleggskategori fra cache (for å vise navn på en ført rad). */
+export function finnUtleggskategoriLokalt(id: string) {
+  const db = hentDatabase();
+  if (!db) return null;
+  const rader = db
+    .select()
+    .from(expenseCategoryLocal)
+    .where(eq(expenseCategoryLocal.id, id))
+    .all();
+  return rader[0] ?? null;
+}
+
+/**
+ * On-device ordnings-utledning for et prosjekt+kategori — den ENE mobil-veien
+ * til ordningen, via delt `utledOrdning` (overstyring ?? firma-default) — pluss
+ * KILDEN («firma-standard» / «overstyrt for prosjektet») for kilde-linja (8b).
+ * Stemples på raden ved føring. Returnerer null hvis kategorien ikke finnes i
+ * cache (da kan raden ikke føres — kalleren håndterer det). Drift-sikring:
+ * ugyldig cachet ordning-streng faller til 'utlegg' (som server-lesingen).
+ */
+export function utledOrdningOgKildeLokalt(
+  prosjektId: string,
+  expenseCategoryId: string,
+): { ordning: UtleggOrdning; kilde: "firma-standard" | "overstyrt" } | null {
+  const db = hentDatabase();
+  if (!db) return null;
+  const kat = finnUtleggskategoriLokalt(expenseCategoryId);
+  if (!kat) return null;
+  const firmaDefault: UtleggOrdning = erGyldigOrdning(kat.ordning)
+    ? kat.ordning
+    : "utlegg";
+  const overstyringRad = db
+    .select()
+    .from(prosjektOrdningOverstyringLocal)
+    .where(
+      and(
+        eq(prosjektOrdningOverstyringLocal.prosjektId, prosjektId),
+        eq(prosjektOrdningOverstyringLocal.expenseCategoryId, expenseCategoryId),
+      ),
+    )
+    .all()[0];
+  const prosjektOverstyring: UtleggOrdning | null =
+    overstyringRad && erGyldigOrdning(overstyringRad.ordning)
+      ? overstyringRad.ordning
+      : null;
+  return {
+    ordning: utledOrdning({ firmaDefault, prosjektOverstyring }),
+    kilde: prosjektOverstyring ? "overstyrt" : "firma-standard",
+  };
+}
+
+/** Ordningen alene (uten kilde) — for enkle kallere (velger-filter, stempling). */
+export function utledOrdningLokalt(
+  prosjektId: string,
+  expenseCategoryId: string,
+): UtleggOrdning | null {
+  return utledOrdningOgKildeLokalt(prosjektId, expenseCategoryId)?.ordning ?? null;
 }

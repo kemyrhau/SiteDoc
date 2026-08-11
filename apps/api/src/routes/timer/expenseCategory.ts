@@ -94,6 +94,59 @@ export const expenseCategoryRouter = router({
     }),
 
   // ===================================================================
+  //  U4 (2026-08-11) — offline-katalog for mobil. Mobil trenger grunnlaget
+  //  for ALLE arbeiderens prosjekter offline for å utlede ordningen ved
+  //  føring (klient-stempel, ikke server-utledning ved sync). `list` er
+  //  per-prosjekt og ferdig-resolvert — feil form for en org-bred cache.
+  //  Derfor: rått grunnlag ut (kategorier + alle overstyringer), mobil
+  //  deriverer selv via delt `utledOrdning` — «én delt utledning», ikke en
+  //  fjerde implementasjon. Mildt tilgangsmønster (resolverOrgFraInput), som
+  //  `list`: enhver arbeider som skal føre utlegg må se katalogen.
+  // ===================================================================
+  katalogForMobil: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid().optional() }).optional())
+    .query(async ({ ctx, input }) => {
+      const orgId = await resolverOrgFraInput(ctx.userId, input?.organizationId);
+
+      const kategorier = await ctx.prismaTimer.expenseCategory.findMany({
+        where: { organizationId: orgId },
+        orderBy: { navn: "asc" },
+      });
+      const katIder = kategorier.map((k) => k.id);
+      // Alle overstyringer for firmaets kategorier (org-bredt, ikke per prosjekt):
+      // mobil cacher dem og slår opp mot det aktuelle prosjektet ved føring.
+      const overstyringer = katIder.length
+        ? await ctx.prismaTimer.prosjektOrdningOverstyring.findMany({
+            where: { expenseCategoryId: { in: katIder } },
+          })
+        : [];
+
+      return {
+        // Den resolvede org-en (én per kall) — mobil stempler den på hver
+        // cachet kategori-rad for org-filtrert lokal lesing.
+        organizationId: orgId,
+        // aktiv følger med (ikke filtrert bort): en kategori kan deaktiveres
+        // etter at en rad ble ført men før mobil pull-er — mobil trenger da
+        // fortsatt navn/ordning for å vise raden. Registreringsvelgeren
+        // filtrerer på aktiv=true selv.
+        kategorier: kategorier.map((k) => ({
+          id: k.id,
+          navn: k.navn,
+          aktiv: k.aktiv,
+          // Drift-sikring: ukjent verdi → 'utlegg' (samme som `list`).
+          ordning: (erGyldigOrdning(k.ordning) ? k.ordning : "utlegg") as UtleggOrdning,
+        })),
+        overstyringer: overstyringer
+          .filter((o) => erGyldigOrdning(o.ordning))
+          .map((o) => ({
+            prosjektId: o.prosjektId,
+            expenseCategoryId: o.expenseCategoryId,
+            ordning: o.ordning as UtleggOrdning,
+          })),
+      };
+    }),
+
+  // ===================================================================
   //  U5 (2026-08-11) — firma-admin skriv: ordning per kategori + overstyring
   //  per prosjekt+kategori. verifiserFirmaAdmin-gated. ordningVedFoering på
   //  allerede førte SheetUtlegg-rader er IMMUTABEL — disse endringene gjelder
