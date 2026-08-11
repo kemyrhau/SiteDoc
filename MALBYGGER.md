@@ -266,7 +266,7 @@ Ingen per-mal-konfigurasjon av tillatte overganger. Retningen utledes automatisk
 
 Felter med eksisterende data kan **aldri** fjernes fra malen, uavhengig av dokumenttype. Gjelder sjekkliste, oppgave, HMS og godkjenning likt.
 
-- Eksisterende `sjekkObjektBruk()`-sjekken i API håndhever dette allerede
+- `sjekkObjektBruk()` er sjekk-**queryen**; **håndhevelsen** i `mal.slettObjekt` ble lagt til 2026-08-11 (før da: kun UI-lås, serveren slettet rått — se § 6)
 - Malbygger-UI viser lås-ikon og deaktivert slett-knapp for felter med data
 - Felter uten data kan fritt fjernes/flyttes
 
@@ -307,3 +307,23 @@ Malbyggeren forblir web-only. dnd-kit er web-spesifikk. Mobil-appen viser og fyl
 - Ved endring av mal → version inkrementeres
 - Eksisterende dokumenter beholder referanse til versjonen de ble opprettet med
 - Malbygger viser versjonsnummer og endringshistorikk
+
+### 9. Mal-integritet — slett-vern + unikhet (2026-08-11, branch `feat/mal-integritet`)
+
+To integritetsklasser, samme runde. 🟢 Kodet, migrering gates av Kenneth.
+
+**Slett-vern (datatap-klasse).** En mal/felt med dokumenter kan ikke slettes:
+- `mal.slettMal` teller `task`+`checklist` (aktive OG papirkurv) → nekter m/ differensiert lesbar melding (aktive / kun-papirkurv / begge). Papirkurv teller med: 90-dagers gjenoppretting ville ellers gjort en gjenopprettet oppgave foreldreløs (Task har ingen `projectId`).
+- `Task.template` FK: `SetNull` → **`Restrict`** (migrering `20260810120000`) — speiler `Checklist.template`. Før: sletting nullstilte `tasks.template_id` stille. DB-backstop bak app-guarden.
+- `mal.slettObjekt`: server-guard via etterkommer-JSONB-sjekk (`data ?| sletteIder`) — `sjekkObjektBruk` var kun UI-lås (jf. § 2-fiks).
+- Klient (`MalListe`): `mal.slettbarhet`-precheck → bilingual blokkmelding, skjuler slett-knapp.
+
+**Unikhet (revisjons-klasse).** Unikt navn + prefiks per prosjekt (to dokumenter m/ samme nummer undergraver sporbarhet):
+- Funksjonelle unik-indekser (migrering): `(project_id, lower(btrim(name)))` og `(project_id, lower(btrim(prefix))) WHERE prefix IS NOT NULL AND category<>'psi'`. Navn på tvers av kategorier; prefiks partiell. Case-/whitespace-ufølsom (Prisma modellerer ikke funksjonelle indekser → håndskrevet SQL, som U1-CHECK-en).
+- App-validering: `mal.opprett`/`oppdaterMal` → lesbar CONFLICT; `mal.kopier`/`bibliotek.importerMal` → auto-generér ledig navn+prefiks (redigerbart).
+- **🔴 Migreringen FEILER ved dubletter** (funksjon, ikke bug). Rydd DB først (skann: `~/mal-dubletter-skann.sql`, server-ny). Prod (`sitedoc`) skannet REN 2026-08-11; `sitedoc_test` ryddes av Kenneth.
+
+**Navngitte oppfølgere (ikke bygget denne runden):**
+1. **`Task.templateId` NOT NULL** — ingen legitim NULL-sti (`oppgave.ts:564` krever templateId), men herding utover `Restrict`. Egen gate: `SELECT count(*) FROM tasks WHERE template_id IS NULL` = 0 på BÅDE `sitedoc` og `sitedoc_test` før kjøring.
+2. **PSI prefiks-semantikk** — PSI bruker `prefix` som fast TYPE-etikett («PSI»), ikke dokumentnummer-prefiks (én mal per byggeplass). Derfor eksempt fra prefiks-sperren. Ryddes ved å skille type-etikett fra nummer-prefiks (eget felt), så eksemptet kan fjernes.
+3. **PSI-maler foreldreløse** — `psi.opprett` er ikke idempotent; opprydding av PSI-raden etterlater `report_templates`-raden. Tredje variant av samme mønster (slettMal→oppgaver · slettObjekt→JSONB · PSI→maler).

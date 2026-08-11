@@ -136,6 +136,9 @@ export function MalListe({
   const [visOpprettModal, setVisOpprettModal] = useState(false);
   const [visRedigerModal, setVisRedigerModal] = useState(false);
   const [visSlettBekreftelse, setVisSlettBekreftelse] = useState(false);
+  const [slettFeil, setSlettFeil] = useState<string | null>(null);
+  // Unikhet (2026-08-10): server-CONFLICT (navn/prefiks) vises i opprett/rediger-modalen.
+  const [malFeil, setMalFeil] = useState<string | null>(null);
   const [visBibliotek, setVisBibliotek] = useState(false);
 
   // Opprett-felter
@@ -195,15 +198,26 @@ export function MalListe({
       setSubdomain("avvik");
       setHmsSynlighet("privat");
       setValgteWorkflowIds(new Set());
+      setMalFeil(null);
     },
+    onError: (e: { message: string }) => setMalFeil(e.message),
   });
 
   const oppdaterMutation = trpc.mal.oppdaterMal.useMutation({
     onSuccess: () => {
       utils.mal.hentForProsjekt.invalidate({ projectId: prosjektId! });
       setVisRedigerModal(false);
+      setMalFeil(null);
     },
+    onError: (e: { message: string }) => setMalFeil(e.message),
   });
+
+  // Slett-vern (2026-08-10): precheck for bilingual blokkmelding + disable-knapp.
+  // Serveren håndhever uansett; dette er UX-laget.
+  const { data: slettbarhet } = trpc.mal.slettbarhet.useQuery(
+    { id: valgtId! },
+    { enabled: visSlettBekreftelse && !!valgtId },
+  );
 
   const slettMutation = trpc.mal.slettMal.useMutation({
     onSuccess: () => {
@@ -211,6 +225,7 @@ export function MalListe({
       setVisSlettBekreftelse(false);
       setValgtId(null);
     },
+    onError: (e: { message: string }) => setSlettFeil(e.message),
   });
 
   const kopierMutation = trpc.mal.kopier.useMutation({
@@ -229,6 +244,7 @@ export function MalListe({
     e.preventDefault();
     if (!navn.trim() || !prosjektId) return;
     if (prefiksFeil) return;
+    setMalFeil(null);
     opprettMutation.mutate({
       projectId: prosjektId,
       name: navn.trim(),
@@ -245,6 +261,7 @@ export function MalListe({
   function handleRediger(e: React.FormEvent) {
     e.preventDefault();
     if (!valgtId || !redigerNavn.trim()) return;
+    setMalFeil(null);
     oppdaterMutation.mutate({
       id: valgtId,
       name: redigerNavn.trim(),
@@ -721,6 +738,7 @@ export function MalListe({
             </label>
           </div>
 
+          {malFeil && <p className="text-sm text-red-600">{malFeil}</p>}
           <div className="flex gap-3 pt-2">
             <Button
               type="button"
@@ -1039,6 +1057,7 @@ export function MalListe({
             </p>
           </div>
 
+          {malFeil && <p className="text-sm text-red-600">{malFeil}</p>}
           <div className="flex gap-3 pt-2">
             <Button type="submit" loading={oppdaterMutation.isPending}>
               {t("handling.lagre")}
@@ -1054,33 +1073,52 @@ export function MalListe({
         </form>
       </Modal>
 
-      {/* Slett-bekreftelse */}
+      {/* Slett-bekreftelse med slett-vern (2026-08-10) */}
       <Modal
         open={visSlettBekreftelse}
-        onClose={() => setVisSlettBekreftelse(false)}
+        onClose={() => { setVisSlettBekreftelse(false); setSlettFeil(null); }}
         title={t("maler.slettMal")}
       >
-        <div className="flex flex-col gap-4">
-          <p className="text-sm text-gray-600">
-            Er du sikker på at du vil slette malen{" "}
-            <strong>{valgtMal?.name}</strong>? Denne handlingen kan ikke angres.
-          </p>
-          <div className="flex gap-3 pt-2">
-            <Button
-              variant="danger"
-              onClick={handleSlett}
-              loading={slettMutation.isPending}
-            >
-              {t("handling.slett")}
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => setVisSlettBekreftelse(false)}
-            >
-              {t("handling.avbryt")}
-            </Button>
-          </div>
-        </div>
+        {(() => {
+          const aktive = slettbarhet?.aktive ?? 0;
+          const iKurv = slettbarhet?.iKurv ?? 0;
+          const blokkert = aktive > 0 || iKurv > 0;
+          return (
+            <div className="flex flex-col gap-4">
+              {blokkert ? (
+                <p className="text-sm text-gray-700">
+                  {aktive > 0 && iKurv > 0
+                    ? t("maler.slettVern.harBegge", { aktive, kurv: iKurv })
+                    : aktive > 0
+                      ? t("maler.slettVern.harAktive", { n: aktive })
+                      : t("maler.slettVern.harKurv", { n: iKurv })}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  {t("maler.slettMalBekreftelse", { navn: valgtMal?.name ?? "" })}
+                </p>
+              )}
+              {slettFeil && <p className="text-sm text-red-600">{slettFeil}</p>}
+              <div className="flex gap-3 pt-2">
+                {!blokkert && (
+                  <Button
+                    variant="danger"
+                    onClick={handleSlett}
+                    loading={slettMutation.isPending}
+                  >
+                    {t("handling.slett")}
+                  </Button>
+                )}
+                <Button
+                  variant="secondary"
+                  onClick={() => { setVisSlettBekreftelse(false); setSlettFeil(null); }}
+                >
+                  {blokkert ? t("handling.lukk") : t("handling.avbryt")}
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* Bibliotek-panel */}
