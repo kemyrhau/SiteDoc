@@ -39,6 +39,7 @@ import { eksternKostObjektRouter } from "../routes/eksternKostObjekt";
 import { vareKategoriRouter } from "../routes/vareKategori";
 import { vareRouter } from "../routes/vare";
 import { vareforbrukRouter } from "../routes/vareforbruk";
+import { eksportRouter } from "../routes/eksport";
 import { vareImportRouter } from "../routes/vareImport";
 import { firmaIntegrasjonRouter } from "../routes/firma-integrasjon";
 import { firmaRouter } from "../routes/firma";
@@ -93,6 +94,7 @@ export const appRouter = router({
   firmaIntegrasjon: firmaIntegrasjonRouter,
   firma: firmaRouter,
   flytMatrise: flytMatriseRouter,
+  eksport: eksportRouter,
 });
 
 export type AppRouter = typeof appRouter;
