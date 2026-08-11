@@ -1,7 +1,7 @@
 ---
 status: aktiv
-sist_verifisert_mot_kode: 2026-08-10
-sist_endret: 2026-08-10
+sist_verifisert_mot_kode: 2026-08-11
+sist_endret: 2026-08-11
 gjelder_versjon: Fase 3
 avhenger_av:
   - arkitektur.md
@@ -625,6 +625,26 @@ derfor **kun utlegg-formen** (beløp + kvittering). `fakturert`-formen og
 `sats`-grenen (via Tillegg-gruppa) er bygget og verifiseres via manuelt satt
 ordning / prosjekt-overstyring i test-DB — ikke synlig på ekte data før U5.
 **E2E-test av U3 forutsetter at U1-migreringen er kjørt på test** (Kenneths gate).
+
+### 🟢 U5 — firma-admin overstyring-UI (2026-08-11)
+
+Gjør U3 ferdig: firma-admin setter `ordning` per kategori og overstyrer per
+prosjekt (før dette sto alt på `utlegg`-default).
+
+- **API** (`timer.expenseCategory`, `verifiserFirmaAdmin`-gated): `settOrdning`
+  (firma-default), `settOverstyring`/`fjernOverstyring` (upsert/delete på
+  `ProsjektOrdningOverstyring`, verifiserer at kategori + prosjekt eies av firmaet),
+  `listOverstyringer` (driver panelet). `sats` er lovlig å sette (krav) — men
+  registreringsflaten deaktiverer den (U3-gap: ingen lønnsart-bro).
+- **Flate:** `firma/timer/utleggskategorier` (ny fane) — ordning-velger per
+  kategori, prosjekt-overstyrings-panel, **navnekollisjon-varsel** mot lønnstillegg
+  (banner + per-rad-merke), **immutabilitets-mikrotekst** (ordning-endring gjelder
+  føringer fra og med nå; allerede førte — også de til attestering — beholder sitt
+  `ordningVedFoering`-stempel). Prosjektadmin ser effektiv ordning + kilde read-only
+  i `oppsett/prosjektoppsett` («satt av firmaets administrator», «Endres av firmaets
+  administrator» — ikke død knapp).
+- **U5-fiks:** deaktivert sats-rad i `LeggTilVelger` viser nå «lønnstillegg», ikke
+  «beløp + kvittering». Ingen migrering (U1-modellen komplett).
 
 **🟡 U4 — mobil (kamera-primær):** planlagt, egen «Reload:»-plikt (mockup 8c).
 
