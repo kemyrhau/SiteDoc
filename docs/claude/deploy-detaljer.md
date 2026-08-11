@@ -102,21 +102,24 @@ sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'sitedoc|postgres'
 - **Migrering i andre db-pakker** (db-timer/maskin/varelager): legg til `&& pnpm --filter @sitedoc/db-<pakke> exec prisma migrate deploy` i migrate-linja.
 - Verifiser som INNLOGGET bruker på test.sitedoc.no (ikke bare HTTP 200).
 
-### Bygg-stempel: `--build-arg` (fra 2026-08-02 — GIT_SHA i image)
+### Bygg-stempel: env-interpolering (fra 2026-08-11 — GIT_SHA/BUILD_TID i compose-args)
 
-Fra bygg-stempel-landingen (`/version` + Innstillinger-linje) bærer imaget commit-sha + byggtid. **`.git` følger IKKE med rsync** (`deploy-test.sh` linje 48 + prod-rsync ekskluderer `.git`) → server har ingen git → **SHA beregnes på Mac-kilden og sendes inn via `ssh -t`**. Utelates argene → fallback «dev»/«ukjent» (ingen krasj, men stemplet blir «dev»).
+Fra bygg-stempel-landingen (`/version` + Innstillinger-linje) bærer imaget commit-sha + byggtid. **`.git` følger IKKE med rsync** (`deploy-test.sh` linje 48 + prod-rsync ekskluderer `.git`) → server har ingen git → **SHA beregnes på Mac-kilden og sendes inn via `ssh -t`**. Utelates env-paret → `${GIT_SHA:-}`/`${BUILD_TID:-}`-fallback gir «dev»/«ukjent» (ingen krasj, men stemplet blir «dev»).
+
+**Endret 2026-08-11:** build-args ligger nå i `docker-compose.yml` + `.test.yml` under `build.args` (`GIT_SHA`/`BUILD_TID` på api, `NEXT_PUBLIC_BUILD_SHA`/`NEXT_PUBLIC_BUILD_TID` på web — **begge interpolert fra SAMME env-par `GIT_SHA`/`BUILD_TID`**). Derfor: sett **ett env-prefiks** foran `sudo docker compose build`, ikke fire `--build-arg`-flagg. Ett par driver både api og web → de kan aldri stemples ulikt.
 
 **Test — bygg m/ stempel + up (fra Mac, erstatter de rene `build`-linjene over når api+web endret):**
 ```
 cd ~/Documents/Programmering/SiteDoc && git checkout develop && git pull --ff-only origin develop && ./deploy-test.sh
 SHA=$(git -C ~/Documents/Programmering/SiteDoc rev-parse --short HEAD); TID=$(date -u +%FT%TZ); echo "Stempler $SHA · $TID"
-ssh -t server-ny "cd ~/stack/sitedoc && sudo docker compose -f docker/docker-compose.test.yml build --build-arg GIT_SHA=$SHA --build-arg BUILD_TID=$TID sitedoc-test-api && sudo docker compose -f docker/docker-compose.test.yml build --build-arg NEXT_PUBLIC_BUILD_SHA=$SHA --build-arg NEXT_PUBLIC_BUILD_TID=$TID sitedoc-test-web && sudo docker compose -f docker/docker-compose.test.yml up -d --no-deps sitedoc-test-api sitedoc-test-web && sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'sitedoc|postgres'"
+ssh -t server-ny "cd ~/stack/sitedoc && sudo GIT_SHA=$SHA BUILD_TID=$TID docker compose -f docker/docker-compose.test.yml build sitedoc-test-api && sudo GIT_SHA=$SHA BUILD_TID=$TID docker compose -f docker/docker-compose.test.yml build sitedoc-test-web && sudo docker compose -f docker/docker-compose.test.yml up -d --no-deps sitedoc-test-api sitedoc-test-web && sudo docker ps --format '{{.Names}}\t{{.Status}}' | grep -E 'sitedoc|postgres'"
 ```
+- **`sudo VAR=val docker compose`** — env-tilordningen står foran `docker compose` (etter `sudo`), så interpoleringen kjører i CLI-prosessen under sudo. Prefikset gjentas per `build` fordi hver `sudo`-invokasjon har eget miljø. Samme prefiks for BEGGE tjenester — ikke lenger ulike arg-navn (web trengte `NEXT_PUBLIC_*` før).
 - SHA/TID ekspanderes på Mac (dobbelfnutt), server får literale verdier. Sekvensielt bygg (api → web separat, aldri sammen = OOM). Migrate-linja droppes når diffen ikke har migrering.
 - **sudo kan spørre om passord 2–3 ganger** (én gang per ~5-min bygg, sudo-cache utløper) — `-t` gir TTY så du kan skrive det.
 - **Verifiser stemplet:** `curl https://api-test.sitedoc.no/version` → `{gitSha, byggTid, node}` + diskret grå linje nederst i Innstillinger.
 
-**Prod:** samme mønster — `git -C ~/Documents/Programmering/SiteDoc-deploy` (main-checkout), `-f docker/docker-compose.yml`, tjenester `sitedoc-api`/`sitedoc-web`, migrate bruker `-p docker`.
+**Prod:** samme mønster — `git -C ~/Documents/Programmering/SiteDoc-deploy` (main-checkout), `-f docker/docker-compose.yml`, tjenester `sitedoc-api`/`sitedoc-web`, `sudo GIT_SHA=$SHA BUILD_TID=$TID docker compose ... build`, migrate bruker `-p docker`.
 
 ### PROD-deploy — lim-klar (KUN på eksplisitt forespørsel)
 
