@@ -103,32 +103,9 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 `nav.sok` «Søk»→«Dokumentsøk» + `nav.kontrollplan` «Kontrollplaner»→«Kontrollplan» rendres i gammel `HovedSidebar` (`sidebar-elementer.tsx:131,145`) — **ikke** bak `nyNavigasjon`-flagg. Kilde: `73f88112` (finnbarhet i18n), live i prod via develop→main-deploy **`43299d03`** (2026-07-15). **Pilot-support:** etiketten byttet for ALLE brukere, ikke bare ny-nav — bevisst (unngår label-mismatch på tvers av flagg-tilstand, jf. Lokasjoner/Byggeplasser). `firmaNav.innstillinger`→«Firmaprofil» er derimot INERT i prod (gammel firma-nav hardkoder «Innstillinger»).
 
-## 🔴 SIKKERHETSFUNN — signaturgaten på `/uploads/privat/*` kan omgås (PROD, uåpnet 2026-08-11)
+## ✅ ARKIVERT — sikkerhetsfiks signaturgate `/uploads/privat/*` → [historikk-2026-08.md](historikk-2026-08.md)
 
-**Status: fiks planlagt, ikke kodet.** Ordre ligger hos Opus mobil-device, går foran eksport fase 2. Kenneths beslutning: planlagt fiks, ikke hastedeploy.
-
-`apps/api/src/server.ts:89` gater på **rå** URL (`req.url.startsWith("/uploads/privat/")`), mens `fastifyStatic` normaliserer stien før oppslag. Sjekk og oppslag ser derfor to ulike strenger.
-
-**Verifisert utnyttbart på test** 2026-08-11 (`curl --path-as-is`, ekte fil, kun statuskoder):
-
-| sti | svar |
-|---|---|
-| `/uploads/privat/<uuid>.jpg` | 401 ← gaten virker |
-| `/uploads//privat/<uuid>.jpg` | **200** |
-| `/uploads/./privat/<uuid>.jpg` | **200** |
-| `/uploads/x/../privat/<uuid>.jpg` | **200** |
-
-**I prod** siden `ca7f16b6` (S1 Fase 1, autorisert filserving).
-
-**Reell konsekvens:** filnavn er UUID-er, så dette er ikke fri katalogbla. Men **utløpsmekanismen er brutt** — den som har sett en signert lenke én gang kan bruke den permanent ved å legge til `/./`, uten signatur og uten innlogging. 10-minutters-utløpet gjelder i praksis ikke. Omfatter alt under `uploads/privat/`, inkl. eksport-zip når fase 1 deployes.
-
-**Fiks:** normaliser (`posix.normalize` + `decodeURIComponent` i try/catch + kollaps `/+`) før prefiks-sammenligning, og verifiser signaturen mot samme normaliserte sti.
-
-🔴 **Kritisk ved implementering:** `signerFilSti` signerer i dag en kanonisk sti. Signering og verifisering må gi **identiske strenger** for kanonisk form, ellers slutter alle eksisterende lenker å virke. Måles før endring; normaliseres på begge sider i samme commit om de avviker.
-
-**Krav til fiksen:** test som treffer alle fire formene og krever 401 på de tre omgåelsene · bevis for at eksisterende signerte lenker fortsatt virker · egen branch/commit som kan deployes alene.
-
-**Funnet under:** cowork-gate av dataeksport fase 1. Fase 1-gaten holdes til fiksen er inne.
+Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
 
 ## Pågående arbeid (PR-historikk)
 
