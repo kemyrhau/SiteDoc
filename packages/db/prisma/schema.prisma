@@ -103,8 +103,54 @@ model Organization {
   oppmotesteder       Oppmotested[]
   kompetansetyper     Kompetansetype[]
   arbeidstidsKalender ArbeidstidsKalender[]
+  seedPolicies        OrganizationSeedPolicy[]
 
   @@map("organizations")
+}
+
+// ---------------------------------------------------------------------------
+// OrganizationSeedPolicy — eksplisitt seed-policy PER DATATYPE per firma
+// (modul-onboarding, fabel-retning 2026-08-11).
+//
+// Problemet: «aldri onboardet» og «har bevisst egen katalog» er IDENTISKE i
+// data — «finnes det rader?» kan ikke skille dem. A.Markussen har bevisst egen
+// lønnsartkatalog (importert) OG standard utleggskategorier samtidig, i samme
+// modul. Et felt per modul kan ikke uttrykke det; policy registreres per
+// datatype. Fravær av rad = 'standard' (default) — kun AVVIK registreres,
+// ingen backfill-plikt for alle kunder.
+//
+// ⚠️ BEVISST UNNTAK fra CLAUDE.md «nye modulers tabeller ALDRI i packages/db»:
+// dette er IKKE en modultabell, men en policy OM en Organization som per
+// definisjon spenner flere moduler (lonnsart/utleggskategori i db-timer,
+// varekategori i db-varelager) — kan derfor ikke ligge i én modul-db. Regelen
+// verner mot at modul-datamodeller lekker inn i kjernen; tverrgående
+// firma-policy er ikke det. Se terminologi.md § OrganizationSeedPolicy.
+// IKKE «rett» dette til en modul-db.
+//
+// datatype: String (ikke DB-enum) — utvides uten migrasjon, som ansattRolle/
+// firmaRoller. App-validert (Zod). Startverdier: "lonnsart" | "aktivitet" |
+// "tillegg" | "utleggskategori" | "varekategori". (maskin har INGEN seedbar
+// katalog — kategori/type er enums på Equipment-raden, ikke rader.)
+// policy: String m/ DB-CHECK ('standard' | 'egen_katalog'). begrunnelse er
+// PÅKREVD ved 'egen_katalog' (DB-CHECK) — en beslutning uten spor er nettopp
+// slik dagens drift oppsto.
+// ---------------------------------------------------------------------------
+model OrganizationSeedPolicy {
+  id             String   @id @default(uuid())
+  organizationId String   @map("organization_id")
+  datatype       String
+  policy         String // 'standard' | 'egen_katalog' (DB-CHECK)
+  begrunnelse    String? // påkrevd ved 'egen_katalog' (DB-CHECK)
+  settAvUserId   String?  @map("sett_av_user_id") // svak FK → users
+  settDato       DateTime @default(now()) @map("sett_dato")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, datatype])
+  @@index([organizationId])
+  @@map("organization_seed_policies")
 }
 
 // ---------------------------------------------------------------------------

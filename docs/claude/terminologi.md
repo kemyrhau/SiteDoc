@@ -77,6 +77,8 @@ Rename gjennomført april 2026 (112 filer, feature/faggruppe-rename). Regler:
 - Datalag-isolasjon via egne DB-skjemaer (`packages/db-timer/`, `packages/db-maskin/` osv.)
 - App-plassering valgfri: integrert i `apps/web/src/app/<modul>/` (default, enklest) eller isolert `apps/<modul>/` (for separat skalering/deploy)
 
+> **§ OrganizationSeedPolicy — bevisst unntak fra «modul-tabeller ikke i `packages/db`» (2026-08-11).** Tabellen `OrganizationSeedPolicy` (`packages/db`, migrering `20260811120000`) registrerer eksplisitt seed-policy **per datatype per firma** (`standard` | `egen_katalog`) for modul-onboarding. Den ligger i kjernen (`packages/db`) — IKKE i en modul-db — fordi den er en policy **om en Organization** som per definisjon spenner flere moduler (lonnsart/utleggskategori i `db-timer`, varekategori i `db-varelager`) og derfor ikke kan bo i én modul-db. CLAUDE.md-regelen «nye modulers tabeller ALDRI i `packages/db`» verner mot at modul-**datamodeller** lekker inn i kjernen; en tverrgående firma-policy er ikke det. **Ikke «rett» dette til en modul-db.** Bakgrunn: [FABEL-RETNING-modul-onboarding.md](delplaner/FABEL-RETNING-modul-onboarding.md).
+
 #### Mini-Nivå 1D-presiseringer (2026-04-28)
 
 Flyttet hit fra CLAUDE.md 2026-07-10 (anker-prinsippet — modul-typologi bor i terminologi.md § 0).
