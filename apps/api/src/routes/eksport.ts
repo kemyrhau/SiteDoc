@@ -4,9 +4,14 @@ import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserKanEksportere } from "../trpc/tilgangskontroll";
 import { signerFilSti } from "../utils/hmac";
 
-// Nedlastings-URL signeres kortlevd ved hvert kall (arkivet lever i 7 dager på
-// disk; selve lenka trenger bare være gyldig lenge nok til å starte nedlasting).
-const NEDLASTING_LEVETID_MS = 10 * 60 * 1000; // 10 min
+// Nedlastings-URL signeres ved hvert kall (arkivet lever i 7 dager på disk).
+// 60 min, romsligere enn bilde-signeringens 5 min: signaturen valideres per
+// HTTP-request i onRequest-hooken, og `@fastify/static` støtter Range-requests
+// (gjenopptakbar/chunket nedlasting) — hver range er en ny request som re-
+// valideres. Et stort arkiv over treg linje kan spenne mange minutter, så
+// vinduet må dekke hele nedlastingen, ikke bare starten. Kortlevd nok til at en
+// lekket lenke dør; brukeren henter uansett en fersk URL ved neste klikk.
+const NEDLASTING_LEVETID_MS = 60 * 60 * 1000; // 60 min
 
 export const eksportRouter = router({
   // Bestill en prosjekteksport. Worker plukker den opp asynkront.

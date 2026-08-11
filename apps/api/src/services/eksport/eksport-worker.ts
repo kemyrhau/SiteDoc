@@ -17,23 +17,20 @@ import { mkdir, stat as fsStat, unlink } from "fs/promises";
 import { join } from "path";
 import archiver from "archiver";
 import type { PrismaClient } from "@sitedoc/db";
+import { prismaTimer } from "@sitedoc/db-timer";
 import { byggEksportArkiv } from "./arkiv";
+import { UPLOADS_DIR, diskSti } from "./felles";
 
 const POLL_INTERVALL_MS = 10_000; // 10 sek — brukertrigget, vil ha rask respons
 const WATCHDOG_INTERVALL_MS = 5 * 60_000; // 5 min
 const STUCK_TERSKEL_MS = 30 * 60_000; // 30 min — pakking kan ta tid
 const LEVETID_DAGER = 7;
 
-const UPLOADS_DIR = process.env.UPLOADS_DIR || join(process.cwd(), "uploads");
 const EKSPORT_DIR = join(UPLOADS_DIR, "privat", "eksport");
 
 /** URL-sti (ikke disk) — lagres på jobben og signeres ved nedlasting. */
 function arkivUrlSti(jobbId: string): string {
   return `/uploads/privat/eksport/${jobbId}.zip`;
-}
-/** Disk-sti utledet fra URL-sti (samme reversering som resten av kodebasen). */
-function diskSti(urlSti: string): string {
-  return join(UPLOADS_DIR, urlSti.replace(/^\/uploads\//, ""));
 }
 
 export function startEksportWorker(prisma: PrismaClient): void {
@@ -125,7 +122,7 @@ async function prosesserNeste(prisma: PrismaClient): Promise<void> {
     });
 
     archive.pipe(output);
-    const statistikk = await byggEksportArkiv(prisma, jobb, archive);
+    const statistikk = await byggEksportArkiv(prisma, prismaTimer, jobb, archive);
     await archive.finalize();
     await skriveferdig;
 
@@ -137,14 +134,17 @@ async function prosesserNeste(prisma: PrismaClient): Promise<void> {
         status: "klar",
         resultatSti: urlSti,
         resultatStorrelse: size,
-        antallTotalt: statistikk.antallDokumenter + statistikk.antallFiler,
-        antallFerdig: statistikk.antallDokumenter + statistikk.antallFiler,
+        antallTotalt: statistikk.antallFiler,
+        antallFerdig: statistikk.antallFiler,
         utloperVed: new Date(Date.now() + LEVETID_DAGER * 24 * 60 * 60 * 1000),
         fullfortVed: new Date(),
         feilmelding: null,
       },
     });
-    console.log(`[Eksport-worker] jobb ${jobb.id} klar (${size} bytes)`);
+    console.log(
+      `[Eksport-worker] jobb ${jobb.id} klar (${size} bytes, ${statistikk.antallFiler} filer, ` +
+        `${statistikk.antallManglendeFiler} manglende, ${statistikk.antallTimerRader} timer-/${statistikk.antallUtleggRader} utlegg-rader)`,
+    );
   } catch (err) {
     const feilmelding = err instanceof Error ? err.message : "Ukjent feil";
     console.error(`[Eksport-worker] jobb ${jobb.id} feilet:`, feilmelding);
