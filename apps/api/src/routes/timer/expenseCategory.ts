@@ -1,7 +1,17 @@
 import { z } from "zod";
-import { utledOrdning, erGyldigOrdning, type UtleggOrdning } from "@sitedoc/shared";
+import { TRPCError } from "@trpc/server";
+import {
+  utledOrdning,
+  erGyldigOrdning,
+  UTLEGG_ORDNINGER,
+  type UtleggOrdning,
+} from "@sitedoc/shared";
 import { router, protectedProcedure } from "../../trpc/trpc";
-import { resolverOrgFraInput } from "../../trpc/tilgangskontroll";
+import { resolverOrgFraInput, autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
+
+const ORDNING_ENUM = z.enum(
+  UTLEGG_ORDNINGER as unknown as [UtleggOrdning, ...UtleggOrdning[]],
+);
 
 /**
  * ExpenseCategory-router (utleggs-ordningsmodell U3, 2026-08-08).
@@ -81,5 +91,150 @@ export const expenseCategoryRouter = router({
           kilde: prosjektOverstyring ? ("overstyrt" as const) : ("firma-standard" as const),
         };
       });
+    }),
+
+  // ===================================================================
+  //  U5 (2026-08-11) — firma-admin skriv: ordning per kategori + overstyring
+  //  per prosjekt+kategori. verifiserFirmaAdmin-gated. ordningVedFoering på
+  //  allerede førte SheetUtlegg-rader er IMMUTABEL — disse endringene gjelder
+  //  KUN nye føringer (UI-mikrotekst forklarer det). sats er lovlig å sette
+  //  (krav: «Verktøy til sats»); registreringsflaten deaktiverer den (U3-gap:
+  //  ingen ExpenseCategory→lønnsart-bro).
+  // ===================================================================
+
+  // Sett firma-default ordning på en kategori.
+  settOrdning: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+        ordning: ORDNING_ENUM,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      const kat = await ctx.prismaTimer.expenseCategory.findFirst({
+        where: { id: input.id, organizationId: input.organizationId },
+        select: { id: true },
+      });
+      if (!kat) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Utleggskategori finnes ikke i firmaet" });
+      }
+      return ctx.prismaTimer.expenseCategory.update({
+        where: { id: input.id },
+        data: { ordning: input.ordning },
+      });
+    }),
+
+  // Sett/oppdater prosjekt-overstyring for én kategori (upsert på unik
+  // (prosjektId, expenseCategoryId)). Verifiserer at kategori + prosjekt eies av firmaet.
+  settOverstyring: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        prosjektId: z.string().uuid(),
+        expenseCategoryId: z.string().uuid(),
+        ordning: ORDNING_ENUM,
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      const kat = await ctx.prismaTimer.expenseCategory.findFirst({
+        where: { id: input.expenseCategoryId, organizationId: input.organizationId },
+        select: { id: true },
+      });
+      if (!kat) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Utleggskategori finnes ikke i firmaet" });
+      }
+      const prosjekt = await ctx.prisma.project.findFirst({
+        where: {
+          id: input.prosjektId,
+          OR: [
+            { primaryOrganizationId: input.organizationId },
+            { projectOrganizations: { some: { organizationId: input.organizationId } } },
+          ],
+        },
+        select: { id: true },
+      });
+      if (!prosjekt) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Prosjektet tilhører ikke firmaet" });
+      }
+      const eks = await ctx.prismaTimer.prosjektOrdningOverstyring.findFirst({
+        where: { prosjektId: input.prosjektId, expenseCategoryId: input.expenseCategoryId },
+        select: { id: true },
+      });
+      if (eks) {
+        return ctx.prismaTimer.prosjektOrdningOverstyring.update({
+          where: { id: eks.id },
+          data: { ordning: input.ordning },
+        });
+      }
+      return ctx.prismaTimer.prosjektOrdningOverstyring.create({
+        data: {
+          prosjektId: input.prosjektId,
+          expenseCategoryId: input.expenseCategoryId,
+          ordning: input.ordning,
+        },
+      });
+    }),
+
+  // Fjern overstyring → kategorien følger firma-default igjen for prosjektet.
+  fjernOverstyring: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        prosjektId: z.string().uuid(),
+        expenseCategoryId: z.string().uuid(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      const kat = await ctx.prismaTimer.expenseCategory.findFirst({
+        where: { id: input.expenseCategoryId, organizationId: input.organizationId },
+        select: { id: true },
+      });
+      if (!kat) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Utleggskategori finnes ikke i firmaet" });
+      }
+      await ctx.prismaTimer.prosjektOrdningOverstyring.deleteMany({
+        where: { prosjektId: input.prosjektId, expenseCategoryId: input.expenseCategoryId },
+      });
+      return { ok: true };
+    }),
+
+  // Alle overstyringer for firmaets kategorier — driver firma-admin-panelet
+  // (per kategori: hvilke prosjekter er overstyrt, til hva). Firma-admin-gated.
+  listOverstyringer: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      const kategorier = await ctx.prismaTimer.expenseCategory.findMany({
+        where: { organizationId: input.organizationId },
+        select: { id: true },
+      });
+      const katIder = kategorier.map((k) => k.id);
+      if (katIder.length === 0) return [];
+      const overstyringer = await ctx.prismaTimer.prosjektOrdningOverstyring.findMany({
+        where: { expenseCategoryId: { in: katIder } },
+      });
+      // Prosjektnavn (kjernen) for visning.
+      const prosjektIder = [...new Set(overstyringer.map((o) => o.prosjektId))];
+      const prosjekter = prosjektIder.length
+        ? await ctx.prisma.project.findMany({
+            where: { id: { in: prosjektIder } },
+            select: { id: true, name: true, projectNumber: true },
+          })
+        : [];
+      const navnPerProsjekt = new Map(prosjekter.map((p) => [p.id, p]));
+      return overstyringer
+        .filter((o) => erGyldigOrdning(o.ordning))
+        .map((o) => ({
+          id: o.id,
+          prosjektId: o.prosjektId,
+          prosjektNavn: navnPerProsjekt.get(o.prosjektId)?.name ?? null,
+          prosjektNummer: navnPerProsjekt.get(o.prosjektId)?.projectNumber ?? null,
+          expenseCategoryId: o.expenseCategoryId,
+          ordning: o.ordning as UtleggOrdning,
+        }));
     }),
 });

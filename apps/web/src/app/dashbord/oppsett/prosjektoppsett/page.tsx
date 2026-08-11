@@ -87,6 +87,51 @@ function Seksjon({
 }
 
 /* ------------------------------------------------------------------ */
+/*  U5: Utleggsordninger — read-only for prosjektadmin (firma-admin eier) */
+/* ------------------------------------------------------------------ */
+
+function UtleggOrdningSeksjon({ prosjektId }: { prosjektId: string }) {
+  const { t } = useTranslation();
+  const { data } = trpc.timer.expenseCategory.list.useQuery(
+    { projectId: prosjektId },
+    { enabled: !!prosjektId },
+  );
+  const kategorier = (data ?? []) as Array<{
+    id: string;
+    navn: string;
+    ordning: string;
+    kilde: string;
+  }>;
+  if (kategorier.length === 0) return null;
+  const ordningLabel = (o: string) => t(`timer.utleggReg.ordning.${o}`);
+  return (
+    <Seksjon
+      tittel={t("prosjektoppsett.utleggOrdning.tittel")}
+      beskrivelse={t("prosjektoppsett.utleggOrdning.beskrivelse")}
+    >
+      <ul className="divide-y divide-gray-100">
+        {kategorier.map((k) => (
+          <li key={k.id} className="flex flex-wrap items-center gap-2 py-2">
+            <span className="text-sm font-medium text-gray-900">{k.navn}</span>
+            <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10.5px] text-gray-600">
+              {ordningLabel(k.ordning)}
+            </span>
+            <span className="ml-auto text-[11px] text-gray-500">
+              {k.kilde === "overstyrt"
+                ? t("prosjektoppsett.utleggOrdning.kilde.overstyrt")
+                : t("prosjektoppsett.utleggOrdning.kilde.firmaStandard")}
+            </span>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-3 text-[11px] text-gray-400">
+        {t("prosjektoppsett.utleggOrdning.endresAv")}
+      </p>
+    </Seksjon>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Hovedside                                                          */
 /* ------------------------------------------------------------------ */
 
@@ -540,6 +585,9 @@ export default function ProsjektoppsettSide() {
             </div>
           </div>
         </Seksjon>
+
+        {/* U5: utleggsordninger — read-only for prosjektadmin (firma-admin eier). */}
+        {prosjektId && <UtleggOrdningSeksjon prosjektId={prosjektId} />}
 
         {/* Lagre-knapp nederst */}
         <div className="flex justify-end">
