@@ -424,7 +424,7 @@ export async function syncTimer(
             belop: u.belop ?? null,
             kommentar: u.kommentar ?? null,
             ordningVedFoering: u.ordningVedFoering as
-              | "sats"
+              | "lonnstillegg"
               | "utlegg"
               | "fakturert",
             foertVed: new Date(u.foertVed).toISOString(),

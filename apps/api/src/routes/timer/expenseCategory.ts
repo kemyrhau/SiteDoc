@@ -3,15 +3,17 @@ import { TRPCError } from "@trpc/server";
 import {
   utledOrdning,
   erGyldigOrdning,
-  UTLEGG_ORDNINGER,
   type UtleggOrdning,
 } from "@sitedoc/shared";
 import { router, protectedProcedure } from "../../trpc/trpc";
 import { resolverOrgFraInput, autoriserAdminForFirma } from "../../trpc/tilgangskontroll";
 
-const ORDNING_ENUM = z.enum(
-  UTLEGG_ORDNINGER as unknown as [UtleggOrdning, ...UtleggOrdning[]],
-);
+// Modelljustering (2026-08-11): `fakturert` er IKKE lenger valgbar (enum beholdt
+// for historikk; gjeninnføres som `fakturavarsel` når varselet er bygget). Firma-
+// admin kan sette en kategori til `utlegg` eller `lonnstillegg` (tidl. `sats`).
+// `lonnstillegg` bæres av SheetTillegg; registreringsflaten deaktiverer den (ingen
+// lønnsart-bro) men beholder den synlig som «føres som lønnstillegg».
+const SETTBAR_ORDNING_ENUM = z.enum(["utlegg", "lonnstillegg"]);
 
 /**
  * ExpenseCategory-router (utleggs-ordningsmodell U3, 2026-08-08).
@@ -87,6 +89,9 @@ export const expenseCategoryRouter = router({
           aktiv: k.aktiv,
           firmaDefault,
           ordning,
+          // Modelljustering (2026-08-11): markeringer (metadata, endrer ikke bærer).
+          satsbasert: k.satsbasert,
+          muligSkattepliktig: k.muligSkattepliktig,
           // Kilde-linjen på raden (8b): «firma-standard» / «overstyrt for prosjektet».
           kilde: prosjektOverstyring ? ("overstyrt" as const) : ("firma-standard" as const),
         };
@@ -161,7 +166,8 @@ export const expenseCategoryRouter = router({
       z.object({
         organizationId: z.string().uuid(),
         id: z.string().uuid(),
-        ordning: ORDNING_ENUM,
+        // Kun valgbare ordninger (fakturert avvist — se SETTBAR_ORDNING_ENUM).
+        ordning: SETTBAR_ORDNING_ENUM,
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -179,6 +185,38 @@ export const expenseCategoryRouter = router({
       });
     }),
 
+  // Modelljustering (2026-08-11): sett markeringer på en kategori. Ren metadata —
+  // ENDRER IKKE bærer/ordning/eksport. `satsbasert` styrer UI (satsfelt, senere);
+  // `muligSkattepliktig` følger eksporten per linje (regnskap avgjør). Begge
+  // valgfrie i input (kun de sendte oppdateres). Firma-admin-gated.
+  settMarkeringer: protectedProcedure
+    .input(
+      z.object({
+        organizationId: z.string().uuid(),
+        id: z.string().uuid(),
+        satsbasert: z.boolean().optional(),
+        muligSkattepliktig: z.boolean().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      const kat = await ctx.prismaTimer.expenseCategory.findFirst({
+        where: { id: input.id, organizationId: input.organizationId },
+        select: { id: true },
+      });
+      if (!kat) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Utleggskategori finnes ikke i firmaet" });
+      }
+      const data: { satsbasert?: boolean; muligSkattepliktig?: boolean } = {};
+      if (input.satsbasert !== undefined) data.satsbasert = input.satsbasert;
+      if (input.muligSkattepliktig !== undefined)
+        data.muligSkattepliktig = input.muligSkattepliktig;
+      return ctx.prismaTimer.expenseCategory.update({
+        where: { id: input.id },
+        data,
+      });
+    }),
+
   // Sett/oppdater prosjekt-overstyring for én kategori (upsert på unik
   // (prosjektId, expenseCategoryId)). Verifiserer at kategori + prosjekt eies av firmaet.
   settOverstyring: protectedProcedure
@@ -187,7 +225,8 @@ export const expenseCategoryRouter = router({
         organizationId: z.string().uuid(),
         prosjektId: z.string().uuid(),
         expenseCategoryId: z.string().uuid(),
-        ordning: ORDNING_ENUM,
+        // Kun valgbare ordninger (fakturert avvist).
+        ordning: SETTBAR_ORDNING_ENUM,
       }),
     )
     .mutation(async ({ ctx, input }) => {

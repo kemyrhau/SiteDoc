@@ -597,8 +597,35 @@ Del av dagsseddelen, ført etter **ordningsmodellen** (tre ordninger — se
 Feltarbeideren velger **kategori** («diesel»), aldri ordning — ordningen utledes
 (`overstyring ?? firma-default` via delt `utledOrdning` i `@sitedoc/shared`) og
 bestemmer feltene. Data-lag i `SheetUtlegg` (utlegg/fakturert) eller `SheetTillegg`
-(sats). Kvittering: server-lokal privat disk (`/uploads/privat/`, signatur-KUN),
-**ikke** S3/Tripletex. Eksport til Proadm er ikke bygget (U2 utsatt).
+(lønnstillegg). Kvittering: server-lokal privat disk (`/uploads/privat/`, signatur-KUN),
+**ikke** S3/Tripletex. Eksport er ikke bygget (U2 utsatt) — refusjonssporet går til
+**regnskap** (PowerOffice/Visma), adskilt fra Proadm/lønn.
+
+### 🟢 Modelljustering (2026-08-11, gate 1) — migrering `20260811130000_utlegg_ordning_justering`
+
+Fabel/Kenneth landet domenet etter U4. Endringer i `@sitedoc/shared` + db-timer + web + mobil:
+
+- **`sats` → `lonnstillegg`** (enum, CHECK, delt utledning, UI, i18n). «sats» var et
+  **homonym**: lønnstillegg med fast sats (skifttillegg 30 %, `SheetTillegg`) vs. utlegg
+  beregnet ETTER statens satser (kjøregodtgjørelse, `SheetUtlegg`). Det siste er IKKE en
+  egen ordning — det er en `utlegg`-kategori merket `satsbasert`.
+- **`fakturert` ikke lenger valgbar:** enum-verdien beholdes i skjema + CHECK for
+  historikk-sikkerhet (0 rader), men `settOrdning`/`settOverstyring` avviser den
+  (`SETTBAR_ORDNING_ENUM = {utlegg, lonnstillegg}`). Velger (web U3 + mobil U4) tilbyr
+  den ikke. Gjeninnføres senere som `fakturavarsel` (opt-in, default av) når varselet er
+  bygget — backlogget.
+- **To nye markeringer på `ExpenseCategory`** (metadata — ENDRER IKKE bærer/ordning/eksport):
+  `satsbasert` (styrer UI-satsfelt, senere; følger eksport) + `muligSkattepliktig`
+  (firma-admin-flagg; SiteDoc registrerer grunnlag, aldri avgjørelse — skatteberegning ut
+  av scope). Firma-admin toggler dem på `firma/timer/utleggskategorier` (`settMarkeringer`).
+- **U5 upsert-test** (`expenseCategory.test.ts`): beviser at `settOverstyring` er ekte
+  upsert (samme id via `update`, aldri delete+create) + at `fakturert` avvises på skriv.
+- **Migrering** (gates av Kenneth): `UPDATE ordning='lonnstillegg' WHERE ordning='sats'`
+  (expense_categories + prosjekt_ordning_overstyring; sheet_utlegg kan aldri ha `sats`) +
+  drop/recreate 3 CHECK med `('lonnstillegg','utlegg','fakturert')` + 2 nye kolonner.
+
+**🟡 Gate 2 (ikke bygget):** `refusjonsKontonummer` på kjerne-`OrganizationSetting`
+(`packages/db`, der `reiseLonnsartId` bor) + firma-innstilling-UI. Følger refusjonseksporten.
 
 ### 🟢 U3 — web-registrering (2026-08-08)
 
@@ -1181,7 +1208,7 @@ Arbeider legger ved kvittering (bilde/scan) på et tillegg/utlegg. **Flere vedle
 | `createdAt` / `updatedAt` | `timestamptz` | |
 
 **CHECK-constraints (DB-håndhevet, ikke bare app):**
-- `ordning_ved_foering IN ('sats','utlegg','fakturert')`
+- `ordning_ved_foering IN ('lonnstillegg','utlegg','fakturert')` (omdøpt fra `sats` — migrering `20260811130000`)
 - `(ordning_ved_foering='fakturert' AND belop IS NULL) OR (ordning_ved_foering<>'fakturert' AND belop IS NOT NULL)` — fakturert når **aldri** penger; utlegg krever alltid beløp.
 
 **Indekser:** `(sheetId)`, `(projectId)`, `(expenseCategoryId)`.
@@ -1199,7 +1226,7 @@ Speiler `sheet_tillegg_vedlegg` 1:1 (mønster 1: rad per fil, svak `sheetUtleggI
 | `id` | `uuid` PK | |
 | `prosjektId` | `text` | Svak FK → `projects` (kjernen) |
 | `expenseCategoryId` | `uuid` FK → `expense_categories` (CASCADE) | |
-| `ordning` | `text` | CHECK `IN ('sats','utlegg','fakturert')` |
+| `ordning` | `text` | CHECK `IN ('lonnstillegg','utlegg','fakturert')` (omdøpt fra `sats`, migrering `20260811130000`) |
 | `createdAt` / `updatedAt` | `timestamptz` | |
 
 **UNIQUE** `(prosjektId, expenseCategoryId)` — én overstyring per prosjekt+kategori. Oppslag alltid `overstyring ?? ExpenseCategory.ordning`. Endring gjelder kun **fremover** — allerede førte rader beholder sitt `ordningVedFoering`-stempel.
@@ -1215,7 +1242,9 @@ Speiler `sheet_tillegg_vedlegg` 1:1 (mønster 1: rad per fil, svak `sheetUtleggI
 | `id` | `uuid` PK | |
 | `organizationId` | `uuid` FK → `organizations` | |
 | `navn` | `text` | Kategorinavn |
-| `ordning` | `text` default `'utlegg'` | 🟢 U1: firma-default for ordning. CHECK `IN ('sats','utlegg','fakturert')`. Kan overstyres per prosjekt via `prosjekt_ordning_overstyring` |
+| `ordning` | `text` default `'utlegg'` | 🟢 U1: firma-default for ordning. CHECK `IN ('lonnstillegg','utlegg','fakturert')` (omdøpt fra `sats`, migrering `20260811130000`). Valgbar = `{utlegg, lonnstillegg}`; `fakturert` beholdt for historikk men ikke valgbar. Kan overstyres per prosjekt via `prosjekt_ordning_overstyring` |
+| `satsbasert` | `boolean` default false | 🟢 Modelljustering (`20260811130000`): kategorien beregnes ETTER en sats (statens satser). Metadata — endrer ikke bærer/ordning/eksport |
+| `muligSkattepliktig` | `boolean` default false | 🟢 Modelljustering: firma-admin-flagg, følger eksport per linje. SiteDoc registrerer grunnlag, aldri avgjørelse |
 | `aktiv` | `boolean` default true | Kan deaktiveres uten å slette |
 
 **Standardkategorier** seedes via samme event-hook (`onOrganizationCreated`) som lønnsart-Nivå 1: Drivstoff, Parkering, Diett, Verktøy, Annet. Seedede kategorier får `ordning='utlegg'` (kolonne-default) — U1 endrer ikke seed-logikken.

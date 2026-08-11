@@ -267,7 +267,7 @@ export const sheetUtleggLocal = sqliteTable("sheet_utlegg_local", {
   expenseCategoryId: text("expense_category_id").notNull(),
   belop: real("belop"), // null kun for 'fakturert'
   kommentar: text("kommentar"),
-  ordningVedFoering: text("ordning_ved_foering").notNull(), // "utlegg" | "fakturert" (aldri "sats")
+  ordningVedFoering: text("ordning_ved_foering").notNull(), // "utlegg" | "fakturert" (aldri "lonnstillegg")
   foertVed: integer("foert_ved").notNull(), // Unix ms — føringstidspunkt (immutabelt)
   sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
 });
@@ -300,7 +300,7 @@ export const expenseCategoryLocal = sqliteTable("expense_category_local", {
   id: text("id").primaryKey(),
   organizationId: text("organization_id").notNull(),
   navn: text("navn").notNull(),
-  ordning: text("ordning").notNull(), // "sats" | "utlegg" | "fakturert"
+  ordning: text("ordning").notNull(), // "lonnstillegg" | "utlegg" | "fakturert"
   aktiv: integer("aktiv", { mode: "boolean" }).notNull().default(true),
   sistOppdatert: integer("sist_oppdatert").notNull(),
 });

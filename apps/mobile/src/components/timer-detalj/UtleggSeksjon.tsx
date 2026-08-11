@@ -830,8 +830,9 @@ function UtleggVelgerModal({
   const { t } = useTranslation();
   const [sok, setSok] = useState("");
 
-  // Kategorier med UTLEDET ordning for DETTE prosjektet. `sats` ekskluderes —
-  // den bæres av SheetTillegg (lønnstillegg), ikke SheetUtlegg.
+  // Kategorier med UTLEDET ordning for DETTE prosjektet. Kun `utlegg` tilbys på
+  // mobil: `lonnstillegg` (tidl. `sats`) bæres av SheetTillegg (lønnstillegg-
+  // seksjonen), og `fakturert` er ikke lenger valgbar (modelljustering 2026-08-11).
   const kategorier = useMemo(() => {
     return hentUtleggskategorierLokalt(organizationId)
       .map((k: Utleggskategori) => ({
@@ -840,7 +841,7 @@ function UtleggVelgerModal({
       }))
       .filter(
         (r): r is { kategori: Utleggskategori; ordning: UtleggOrdning } =>
-          !!r.ordning && baeresAvSheetUtlegg(r.ordning),
+          r.ordning === "utlegg",
       );
   }, [organizationId, projectId]);
 

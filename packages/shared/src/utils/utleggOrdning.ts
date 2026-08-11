@@ -1,13 +1,20 @@
 /**
  * Utleggs-ordningsmodell — ÉN delt utledning for web, mobil og eksport.
  *
- * Bakgrunn (spec 2026-08-08): en registrert kostnad kan følge tre ulike
- * ordninger, og feltarbeideren skal ALDRI velge ordning — den utledes av
- * firma-katalogen (default) + eventuell prosjekt-overstyring:
+ * Bakgrunn (spec 2026-08-08, modelljustering 2026-08-11): en registrert kostnad
+ * kan følge tre ulike ordninger, og feltarbeideren skal ALDRI velge ordning —
+ * den utledes av firma-katalogen (default) + eventuell prosjekt-overstyring:
  *
- *   sats      → antall/avhuking → lønnsart-eksport  (bæres av SheetTillegg)
- *   utlegg    → beløp + påkrevd kvittering → refusjon, aldri lønnsart (SheetUtlegg)
- *   fakturert → ren avhuking, INGEN beløp → eksporteres ALDRI (SheetUtlegg, belop=null)
+ *   lonnstillegg → antall/avhuking → lønnsart-eksport  (bæres av SheetTillegg)
+ *   utlegg       → beløp + påkrevd kvittering → refusjon, aldri lønnsart (SheetUtlegg)
+ *   fakturert    → ren avhuking, INGEN beløp → eksporteres ALDRI (SheetUtlegg, belop=null)
+ *
+ * `lonnstillegg` het tidligere `sats` — omdøpt (2026-08-11) fordi «sats» var et
+ * homonym: lønnstillegg med fast sats (skifttillegg 30 %) vs. utlegg beregnet
+ * ETTER en sats (statens satser: kjøregodtgjørelse/diett). Det siste er IKKE en
+ * egen ordning — det er en `utlegg`-kategori merket `satsbasert`. `fakturert`
+ * beholdes i enum + CHECK for historikk-sikkerhet, men er ikke lenger valgbar
+ * (app-lag avviser den på skriv; gjeninnføres senere som `fakturavarsel`).
  *
  * Denne fila er sannhetskilden for utledningen og de avledede reglene
  * (beløps-krav, kvitteringskrav, eksport-rute). Web, mobil og eksport-koden
@@ -18,10 +25,10 @@
  */
 
 /** Lukket enum. Speiler CHECK-constrainten i db-timer-migreringen. */
-export type UtleggOrdning = "sats" | "utlegg" | "fakturert";
+export type UtleggOrdning = "lonnstillegg" | "utlegg" | "fakturert";
 
 export const UTLEGG_ORDNINGER: readonly UtleggOrdning[] = [
-  "sats",
+  "lonnstillegg",
   "utlegg",
   "fakturert",
 ] as const;
@@ -58,7 +65,7 @@ export function utledOrdning({
 
 /**
  * Hvilken bærer en registrering med denne ordningen havner i.
- * `sats` bæres av `SheetTillegg` (lønnsart-løpet, som i dag); `utlegg` og
+ * `lonnstillegg` bæres av `SheetTillegg` (lønnsart-løpet, som i dag); `utlegg` og
  * `fakturert` bæres av `SheetUtlegg`.
  */
 export function baeresAvSheetUtlegg(ordning: UtleggOrdning): boolean {
@@ -93,13 +100,13 @@ export type EksportRute = "lonnsart" | "refusjon" | "ingen";
 
 /**
  * Eksport-rute per ordning — grunnlaget for U2-guarden («feil skal smelle»):
- *   sats      → lønnsart (som i dag)
- *   utlegg    → refusjonspost, ALDRI lønnsart
- *   fakturert → ingen (skal aldri nå penger)
+ *   lonnstillegg → lønnsart (som i dag)
+ *   utlegg       → refusjonspost, ALDRI lønnsart
+ *   fakturert    → ingen (skal aldri nå penger)
  */
 export function eksportRute(ordning: UtleggOrdning): EksportRute {
   switch (ordning) {
-    case "sats":
+    case "lonnstillegg":
       return "lonnsart";
     case "utlegg":
       return "refusjon";
