@@ -23,6 +23,34 @@ export interface SeedResultat {
 }
 
 // ============================================================================
+//  Policy-respekt (steg 2, modul-onboarding 2026-08-11)
+//
+//  «Aldri onboardet» og «har bevisst egen katalog» ser identiske ut i data.
+//  OrganizationSeedPolicy (kjerne-db) registrerer avviket eksplisitt: en
+//  datatype med policy='egen_katalog' skal ALDRI få grunnpakke seedet.
+//
+//  🔴 Rekkefølge er ufravikelig: policy-sjekken kalles FØR rad-tellingen i hver
+//  guard. En datatype med egen_katalog skal aldri nå tellingen i det hele tatt —
+//  «finnes rader?» er en idempotens-hopp-guard, ALDRI en tilstandsdetektor for
+//  «er dette bevisst tomt?». Blander man dem, gjeninnfører man driften der en
+//  tømming (0 rader) ville trigget re-seed av en kunde som valgte bort pakken.
+//
+//  Fravær av rad = 'standard' (default) → seed som normalt. Kun avvik registreres.
+//  datatype-verdiene matcher backfill-scriptet: 'lonnsart' | 'aktivitet' | 'tillegg'.
+// ============================================================================
+
+async function harEgenKatalogPolicy(
+  organizationId: string,
+  datatype: string,
+): Promise<boolean> {
+  const rad = await prisma.organizationSeedPolicy.findUnique({
+    where: { organizationId_datatype: { organizationId, datatype } },
+    select: { policy: true },
+  });
+  return rad?.policy === "egen_katalog";
+}
+
+// ============================================================================
 //  Nivå 1 — Norsk lovpålagt grunnpakke (16 lønnsarter)
 //  Per timer.md § Lønnsart-katalog Nivå 1
 // ============================================================================
@@ -47,8 +75,16 @@ const LONNSART_NIVAA_1 = [
 ];
 
 export async function seedLonnsartNivaa1(organizationId: string): Promise<SeedResultat> {
+  // Policy FØR telling: egen_katalog → aldri seed grunnpakke.
+  if (await harEgenKatalogPolicy(organizationId, "lonnsart")) {
+    return { antall: 0, hoppet: true };
+  }
+  // Robust idempotens: «finnes rader» for HELE lonnsart-datatypen, ikke bare
+  // seedNivaa=1. Et firma med importert katalog (A.Markussen: 44 lønnsarter uten
+  // seedNivaa=1) skal ikke få grunnpakken lagt ved siden av importen. Tidligere
+  // keyet guarden på seedNivaa=1, som var blind for import-rader.
   const finnes = await prismaTimer.lonnsart.count({
-    where: { organizationId, seedNivaa: 1 },
+    where: { organizationId },
   });
   if (finnes > 0) return { antall: 0, hoppet: true };
 
@@ -102,6 +138,16 @@ const LONNSART_NIVAA_2 = [
 ];
 
 export async function seedLonnsartNivaa2(organizationId: string): Promise<SeedResultat> {
+  // Policy FØR telling: egen_katalog for lonnsart dekker HELE datatypen — både
+  // grunnpakke (Nivå 1) og bransje-tillegget (Nivå 2).
+  if (await harEgenKatalogPolicy(organizationId, "lonnsart")) {
+    return { antall: 0, hoppet: true };
+  }
+  // BEVISST beholdt på seedNivaa=2 (ikke «finnes rader»): Nivå 2 er et additivt
+  // lag OVER Nivå 1. Wizarden (aktiverNivaa1 med inkluderNivaa2) seeder Nivå 1
+  // først, så Nivå 2 — en «finnes rader»-guard ville sett de 16 Nivå 1-radene og
+  // hoppet over Nivå 2, og dermed brukket den kombinerte onboarding-veien.
+  // Import-beskyttelsen ligger i policy-sjekken over, ikke i denne tellingen.
   const finnes = await prismaTimer.lonnsart.count({
     where: { organizationId, seedNivaa: 2 },
   });
@@ -136,8 +182,15 @@ const AKTIVITET_NIVAA_2 = [
 ];
 
 export async function seedAktiviteter(organizationId: string): Promise<SeedResultat> {
+  // Policy FØR telling: egen_katalog → aldri seed.
+  if (await harEgenKatalogPolicy(organizationId, "aktivitet")) {
+    return { antall: 0, hoppet: true };
+  }
+  // Robust idempotens: «finnes rader» for hele aktivitet-datatypen (kun ett nivå
+  // finnes). Et firma med importerte/egendefinerte aktiviteter (seedNivaa=null)
+  // skal ikke få pakken lagt ved siden av. Tidligere: count(seedNivaa=2).
   const finnes = await prismaTimer.aktivitet.count({
-    where: { organizationId, seedNivaa: 2 },
+    where: { organizationId },
   });
   if (finnes > 0) return { antall: 0, hoppet: true };
 
@@ -163,8 +216,15 @@ const TILLEGG_NIVAA_2 = [
 ];
 
 export async function seedTillegg(organizationId: string): Promise<SeedResultat> {
+  // Policy FØR telling: egen_katalog → aldri seed.
+  if (await harEgenKatalogPolicy(organizationId, "tillegg")) {
+    return { antall: 0, hoppet: true };
+  }
+  // Robust idempotens: «finnes rader» for hele tillegg-datatypen (kun ett nivå
+  // finnes). Egendefinerte tillegg (seedNivaa=null) skal ikke få pakken lagt ved
+  // siden av. Tidligere: count(seedNivaa=2).
   const finnes = await prismaTimer.tillegg.count({
-    where: { organizationId, seedNivaa: 2 },
+    where: { organizationId },
   });
   if (finnes > 0) return { antall: 0, hoppet: true };
 
@@ -295,16 +355,18 @@ export async function seedTimerForOrganization(
 //  rører ALDRI eksisterende data — kalles av et sitedoc_admin-driftsverktøy nå,
 //  og skal kunne kobles på `settFirmamodul` senere (den generiske veien).
 //
-//  🔴 SCOPE (denne runden): KUN expenseCategories. Det er den ene timer-
-//  datatypen med en ROBUST idempotens-guard — `seedExpenseCategories` hopper
-//  på `count(org) > 0`, altså «finnes rader i det hele tatt».
+//  🔴 SCOPE (fortsatt): KUN expenseCategories i DENNE funksjonen. Å utvide den
+//  til alle datatyper + koble den på `settFirmamodul` er dispatch-veien (steg 3),
+//  ikke gjort her.
 //
-//  Lønnsart/aktivitet/tillegg holdes BEVISST ute: guardene deres keyer på
-//  `seedNivaa`, IKKE på «finnes rader». Et firma med import-katalog (A.Markussen:
-//  44 lønnsarter fra import 2026-07-10, uten `seedNivaa=1`) ville fått 16
-//  seed-lønnsarter lagt ved siden av importen. Å gjøre de guardene robuste
-//  («finnes rader» per datatype) er FORUTSETNINGEN for at denne stien kan dekke
-//  alle datatyper + kobles på settFirmamodul — navngitt oppfølger, egen sak.
+//  Lønnsart/aktivitet/tillegg-guardene ER NÅ robuste (steg 2, 2026-08-11):
+//  `seedLonnsartNivaa1`/`seedAktiviteter`/`seedTillegg` hopper på «finnes rader»
+//  per datatype + respekterer `OrganizationSeedPolicy` (egen_katalog sjekkes FØR
+//  tellingen). Et firma med import-katalog (A.Markussen: 44 lønnsarter uten
+//  `seedNivaa=1`) får derfor ikke lenger grunnpakken lagt ved siden av importen.
+//  `seedLonnsartNivaa2` beholder bevisst seedNivaa=2-guarden — den er et additivt
+//  lag i onboarding-wizarden, se dens egen kommentar. Forutsetningen for at
+//  dispatch-stien (steg 3) kan dekke alle datatyper er dermed på plass.
 // ============================================================================
 
 export interface SeedManglendeDatatype {
