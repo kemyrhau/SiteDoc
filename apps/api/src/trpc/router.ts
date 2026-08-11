@@ -18,6 +18,7 @@ import { modulRouter } from "../routes/modul";
 import { hmsRouter } from "../routes/hms";
 import { organisasjonRouter } from "../routes/organisasjon";
 import { adminRouter } from "../routes/admin";
+import { lagringRouter } from "../routes/lagring";
 import { punktskyRouter } from "../routes/punktsky";
 import { mengdeRouter } from "../routes/mengde";
 import { ftdSokRouter } from "../routes/ftdSok";
@@ -68,6 +69,7 @@ export const appRouter = router({
   hms: hmsRouter,
   organisasjon: organisasjonRouter,
   admin: adminRouter,
+  lagring: lagringRouter,
   punktsky: punktskyRouter,
   mengde: mengdeRouter,
   ftdSok: ftdSokRouter,
