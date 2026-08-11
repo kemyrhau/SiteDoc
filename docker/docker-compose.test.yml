@@ -7,7 +7,15 @@
 name: sitedoc-test                     # eget prosjektnavn — skiller test fra prod (ingen orphan-advarsel / --remove-orphans-fare)
 services:
   sitedoc-test-api:
-    build: { context: .., dockerfile: docker/Dockerfile.api }
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+      args:
+        # Bygg-stempel: interpoleres fra ETT env-par som deles med web (se web-blokk).
+        # Sett via `sudo GIT_SHA=$SHA BUILD_TID=$TID docker compose build`.
+        # Tom fallback (:-) → lokal `docker compose build` uten stempel gir «dev»/«ukjent», ingen krasj.
+        GIT_SHA: ${GIT_SHA:-}
+        BUILD_TID: ${BUILD_TID:-}
     image: sitedoc-test-api:latest
     container_name: sitedoc-test-api
     restart: unless-stopped
@@ -33,6 +41,10 @@ services:
       dockerfile: docker/Dockerfile.web
       args:
         API_PORT: "3301"   # bakes inn i Next-rewrite ved build (test-api lytter 3301, ikke default 3001)
+        # Bygg-stempel: web-ARG-ene interpoleres fra SAMME env-par som api (GIT_SHA/BUILD_TID),
+        # så api og web kan aldri stemples ulikt. Se api-blokk for kommandoen.
+        NEXT_PUBLIC_BUILD_SHA: ${GIT_SHA:-}
+        NEXT_PUBLIC_BUILD_TID: ${BUILD_TID:-}
     image: sitedoc-test-web:latest
     container_name: sitedoc-test-web
     restart: unless-stopped

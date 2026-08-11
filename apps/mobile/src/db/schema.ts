@@ -43,6 +43,9 @@ export const opplastingsKo = sqliteTable("opplastings_ko", {
   // Funn #2: kvittering-vedlegg på tillegg-rad. Nullable, additivt — eksisterende
   // sjekkliste/oppgave-køoppføringer lar feltet stå null. Tilføyes idempotent.
   sheetTilleggId: text("sheet_tillegg_id"),
+  // U4 (2026-08-11): kvittering-vedlegg på utlegg-rad. Speiler sheetTilleggId
+  // (privat opplasting, /upload?privat=1). Nullable, additivt, idempotent ALTER.
+  sheetUtleggId: text("sheet_utlegg_id"),
   objektId: text("objekt_id").notNull(),
   vedleggId: text("vedlegg_id").notNull(),
   lokalSti: text("lokal_sti").notNull(),
@@ -221,7 +224,7 @@ export const slettedeRaderLocal = sqliteTable("slettede_rader_local", {
   radId: text("rad_id").primaryKey(),
   dagsseddelId: text("dagsseddel_id").notNull(), // = server sheetId
   radType: text("rad_type", {
-    enum: ["timer", "tillegg", "maskin"],
+    enum: ["timer", "tillegg", "maskin", "utlegg"],
   }).notNull(),
   slettetVed: integer("slettet_ved").notNull(),
 });
@@ -244,6 +247,80 @@ export const sheetTilleggVedleggLocal = sqliteTable(
     filstorrelse: integer("filstorrelse"),
     sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
   },
+);
+
+/**
+ * sheet_utlegg_local — utleggs-/fakturert-rader per dagsseddel (U4, 2026-08-11).
+ * Speiler sheet_tillegg_local, men bærer utleggs-semantikken fra U1-modellen:
+ *  - `belop`: real nullable — NULL kun for ordning 'fakturert' (app-speil av
+ *    server-CHECK; validert lokalt før lagring og på server ved sync).
+ *  - `ordningVedFoering`: STEMPLET ved føring på enheten (utledOrdning fra den
+ *    cachede katalogen). IMMUTABELT — endres aldri lokalt etter insert. Sendes
+ *    til server som klientens sannhet; server re-utleder ALDRI ved sync.
+ *  - `foertVed`: føringstidspunkt (Unix ms). Sendes som ISO ved push → server
+ *    createdAt, så stempelet er reviderbart i tid (ikke synk-tid). Sett ÉN gang.
+ */
+export const sheetUtleggLocal = sqliteTable("sheet_utlegg_local", {
+  id: text("id").primaryKey(),
+  dagsseddelId: text("dagsseddel_id").notNull(),
+  projectId: text("project_id"),
+  expenseCategoryId: text("expense_category_id").notNull(),
+  belop: real("belop"), // null kun for 'fakturert'
+  kommentar: text("kommentar"),
+  ordningVedFoering: text("ordning_ved_foering").notNull(), // "utlegg" | "fakturert" (aldri "lonnstillegg")
+  foertVed: integer("foert_ved").notNull(), // Unix ms — føringstidspunkt (immutabelt)
+  sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+});
+
+/**
+ * sheet_utlegg_vedlegg_local — kvittering på en utlegg-rad (U4). Speiler
+ * sheet_tillegg_vedlegg_local 1:1. `lokalSti` → opplasting; `serverUrl` settes
+ * når køen har lastet opp. Speil av server-tabell `SheetUtleggVedlegg`.
+ */
+export const sheetUtleggVedleggLocal = sqliteTable(
+  "sheet_utlegg_vedlegg_local",
+  {
+    id: text("id").primaryKey(),
+    sheetUtleggId: text("sheet_utlegg_id").notNull(),
+    lokalSti: text("lokal_sti"),
+    serverUrl: text("server_url"),
+    filnavn: text("filnavn").notNull(),
+    mimeType: text("mime_type").notNull(),
+    filstorrelse: integer("filstorrelse"),
+    sistEndretLokalt: integer("sist_endret_lokalt").notNull(),
+  },
+);
+
+/**
+ * expense_category_local — offline-cache av firmaets utleggskatalog (U4). Rått
+ * grunnlag for on-device ordnings-utledning (utledOrdning). Full replace ved
+ * refreshKatalog (som de andre katalogene). `ordning` = firma-default.
+ */
+export const expenseCategoryLocal = sqliteTable("expense_category_local", {
+  id: text("id").primaryKey(),
+  organizationId: text("organization_id").notNull(),
+  navn: text("navn").notNull(),
+  ordning: text("ordning").notNull(), // "lonnstillegg" | "utlegg" | "fakturert"
+  aktiv: integer("aktiv", { mode: "boolean" }).notNull().default(true),
+  sistOppdatert: integer("sist_oppdatert").notNull(),
+});
+
+/**
+ * prosjekt_ordning_overstyring_local — offline-cache av firma-admins prosjekt-
+ * overstyringer (U4). Slås opp mot (prosjektId, expenseCategoryId) ved føring;
+ * `overstyring ?? firma-default` via delt utledOrdning. Full replace ved refresh.
+ */
+export const prosjektOrdningOverstyringLocal = sqliteTable(
+  "prosjekt_ordning_overstyring_local",
+  {
+    prosjektId: text("prosjekt_id").notNull(),
+    expenseCategoryId: text("expense_category_id").notNull(),
+    ordning: text("ordning").notNull(),
+    sistOppdatert: integer("sist_oppdatert").notNull(),
+  },
+  (t) => ({
+    pk: primaryKey({ columns: [t.prosjektId, t.expenseCategoryId] }),
+  }),
 );
 
 export const lonnsartLocal = sqliteTable("lonnsart_local", {

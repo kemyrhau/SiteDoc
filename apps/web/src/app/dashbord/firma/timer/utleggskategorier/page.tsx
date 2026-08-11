@@ -16,7 +16,10 @@ import { useFirma } from "@/kontekst/firma-kontekst";
  * Ordning-utledningen (overstyring ?? firma-default) eies av serveren (delt utledOrdning).
  */
 
-const ORDNINGER = ["utlegg", "fakturert", "sats"] as const;
+// Modelljustering (2026-08-11): valgbare ordninger = {utlegg, lonnstillegg}.
+// `fakturert` er tatt ut (gjeninnføres som `fakturavarsel` når varselet er bygget);
+// `sats` omdøpt til `lonnstillegg` (homonym-fiks).
+const ORDNINGER = ["utlegg", "lonnstillegg"] as const;
 
 type Kategori = {
   id: string;
@@ -24,6 +27,8 @@ type Kategori = {
   aktiv: boolean;
   firmaDefault: string;
   ordning: string;
+  satsbasert: boolean;
+  muligSkattepliktig: boolean;
   kilde: string;
 };
 type Overstyring = {
@@ -81,6 +86,10 @@ export default function UtleggskategorierSide() {
     onError: (e: { message: string }) => alert(e.message),
   });
   const fjernOverstyring = trpc.timer.expenseCategory.fjernOverstyring.useMutation({
+    onSuccess: invalider,
+    onError: (e: { message: string }) => alert(e.message),
+  });
+  const settMarkeringer = trpc.timer.expenseCategory.settMarkeringer.useMutation({
     onSuccess: invalider,
     onError: (e: { message: string }) => alert(e.message),
   });
@@ -192,10 +201,47 @@ export default function UtleggskategorierSide() {
                   </select>
                 </div>
 
-                {k.firmaDefault === "sats" && (
+                {k.firmaDefault === "lonnstillegg" && (
                   <p className="mt-1 text-[11px] text-gray-500">
                     {t("firma.timer.utleggskategorier.satsNote")}
                   </p>
+                )}
+
+                {/* Markeringer (metadata — endrer ikke bærer/ordning/eksport).
+                    Kun relevante for utlegg-ordningen (refusjonssporet). */}
+                {k.firmaDefault === "utlegg" && (
+                  <div className="mt-2 flex flex-wrap gap-4">
+                    <label className="flex items-center gap-1.5 text-[12px] text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={k.satsbasert}
+                        disabled={settMarkeringer.isPending}
+                        onChange={(e) =>
+                          settMarkeringer.mutate({
+                            organizationId: orgId,
+                            id: k.id,
+                            satsbasert: e.target.checked,
+                          })
+                        }
+                      />
+                      {t("firma.timer.utleggskategorier.satsbasert")}
+                    </label>
+                    <label className="flex items-center gap-1.5 text-[12px] text-gray-600">
+                      <input
+                        type="checkbox"
+                        checked={k.muligSkattepliktig}
+                        disabled={settMarkeringer.isPending}
+                        onChange={(e) =>
+                          settMarkeringer.mutate({
+                            organizationId: orgId,
+                            id: k.id,
+                            muligSkattepliktig: e.target.checked,
+                          })
+                        }
+                      />
+                      {t("firma.timer.utleggskategorier.muligSkattepliktig")}
+                    </label>
+                  </div>
                 )}
 
                 {/* Prosjekt-overstyringer */}

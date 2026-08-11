@@ -26,10 +26,18 @@ import {
   erGyldigOrdning,
   baeresAvSheetUtlegg,
   krevesBelop,
+  UTLEGG_ORDNINGER,
   type UtleggOrdning,
 } from "@sitedoc/shared";
 
 const STATUS_VERDIER = ["draft", "sent", "returned", "accepted"] as const;
+// Lukket ordning-enum for sync-input. Klienten STEMPLER ordningen ved føring
+// (U4) — serveren re-utleder ALDRI ved sync (ordningen kan ha endret seg i
+// mellomtiden; radens stempel er integritetsbæreren fra U1). Enum-validering +
+// CHECK-speil + sats-avvisning her er sikkerhetsnettet mot en feilstemplet rad.
+const SYNC_ORDNING_ENUM = z.enum(
+  UTLEGG_ORDNINGER as unknown as [UtleggOrdning, ...UtleggOrdning[]],
+);
 type DagsseddelStatus = (typeof STATUS_VERDIER)[number];
 
 /**
@@ -1739,15 +1747,15 @@ export const dagsseddelRouter = router({
         overstyring && erGyldigOrdning(overstyring.ordning) ? overstyring.ordning : null;
       const ordning = utledOrdning({ firmaDefault, prosjektOverstyring });
 
-      // sats-ordning bæres av SheetTillegg (lønnsart), ikke av SheetUtlegg. En
-      // ExpenseCategory med sats-ordning har ingen lønnsart-kobling i U1-modellen
-      // — avvis heller enn å skrive en semantisk feil rad. (Named oppfølger:
-      // «bro ExpenseCategory→lønnsart» — se timer.md.)
+      // lonnstillegg-ordning bæres av SheetTillegg (lønnsart), ikke av SheetUtlegg.
+      // En ExpenseCategory med lonnstillegg-ordning har ingen lønnsart-kobling i
+      // U1-modellen — avvis heller enn å skrive en semantisk feil rad. (Named
+      // oppfølger: «bro ExpenseCategory→lønnsart» — se timer.md.)
       if (!baeresAvSheetUtlegg(ordning)) {
         throw new TRPCError({
           code: "BAD_REQUEST",
           message:
-            "Kategori med ordning «sats» føres som lønnstillegg, ikke utlegg. Kontakt firma-administrator.",
+            "Kategori med ordning «lønnstillegg» føres som lønnstillegg, ikke utlegg. Kontakt firma-administrator.",
         });
       }
 
@@ -3888,6 +3896,8 @@ export const dagsseddelRouter = router({
           timer: { where: { attestertStatus: { not: "erstattet" } } },
           tillegg: { where: { attestertStatus: { not: "erstattet" } } },
           maskiner: { where: { attestertStatus: { not: "erstattet" } } },
+          // U4: utlegg har ikke attestertStatus (U1-modell) → intet filter.
+          utlegg: true,
         },
         orderBy: { updatedAt: "desc" },
       });
@@ -3906,6 +3916,21 @@ export const dagsseddelRouter = router({
         const liste = vedleggPerRad.get(v.sheetTilleggId) ?? [];
         liste.push(v);
         vedleggPerRad.set(v.sheetTilleggId, liste);
+      }
+
+      // U4: samme mønster for utlegg-kvitteringer (svak FK, hentes separat).
+      const alleUtleggIder = sedler.flatMap((s) => s.utlegg.map((u) => u.id));
+      const alleUtleggVedlegg = alleUtleggIder.length
+        ? await ctx.prismaTimer.sheetUtleggVedlegg.findMany({
+            where: { sheetUtleggId: { in: alleUtleggIder } },
+            orderBy: { createdAt: "asc" },
+          })
+        : [];
+      const utleggVedleggPerRad = new Map<string, typeof alleUtleggVedlegg>();
+      for (const v of alleUtleggVedlegg) {
+        const liste = utleggVedleggPerRad.get(v.sheetUtleggId) ?? [];
+        liste.push(v);
+        utleggVedleggPerRad.set(v.sheetUtleggId, liste);
       }
 
       return {
@@ -3978,6 +4003,25 @@ export const dagsseddelRouter = router({
             enhet: m.enhet,
             fraTid: m.fraTid,
             tilTid: m.tilTid,
+          })),
+          // U4: utlegg-rader + kvittering-vedlegg. `foertVed` = createdAt (radens
+          // føringstidspunkt, ikke synk-tid) så mobil beholder det reviderbare
+          // stempelet. ordningVedFoering er immutabelt — mobil viser, endrer ikke.
+          utlegg: s.utlegg.map((u) => ({
+            id: u.id,
+            projectId: u.projectId,
+            expenseCategoryId: u.expenseCategoryId,
+            belop: u.belop !== null ? Number(u.belop) : null,
+            kommentar: u.kommentar,
+            ordningVedFoering: u.ordningVedFoering,
+            foertVed: u.createdAt.toISOString(),
+            vedlegg: (utleggVedleggPerRad.get(u.id) ?? []).map((v) => ({
+              id: v.id,
+              fileUrl: v.fileUrl,
+              fileName: v.fileName,
+              mimeType: v.mimeType,
+              fileSize: v.fileSize,
+            })),
           })),
         })),
       };
@@ -4081,6 +4125,30 @@ export const dagsseddelRouter = router({
                 }),
               )
               .default([]),
+            // U4 (2026-08-11): utlegg-rader (SheetUtlegg). Speiler tillegg, men
+            // bærer klientens `ordningVedFoering`-STEMPEL (utledet ved føring på
+            // enheten) + `foertVed` (føringstidspunktet). Serveren stoler på
+            // stempelet — re-utleder ALDRI (offline-raden skal bære ordningen som
+            // gjaldt da arbeideren førte, ikke en admin-endring som kom etter).
+            // Optional/default [] → eldre klienter uten feltet uendret.
+            utlegg: z
+              .array(
+                z.object({
+                  id: z.string().uuid(),
+                  projectId: z.string().uuid().optional(),
+                  expenseCategoryId: z.string().uuid(),
+                  // null KUN for 'fakturert' (håndheves av CHECK + app-speil under).
+                  belop: z.number().min(0).nullable().optional(),
+                  kommentar: z.string().nullable().optional(),
+                  ordningVedFoering: SYNC_ORDNING_ENUM,
+                  // Klientens føringstidspunkt (ISO). Skrives til createdAt så
+                  // stempelet er reviderbart: «ført 3. aug, ordningen var X da» —
+                  // ikke synk-dagen. Uten dette ville en rad som lå offline i tre
+                  // uker se ut som ført på synk-dagen (tillegg-hullet — se timer.md).
+                  foertVed: z.string(),
+                }),
+              )
+              .default([]),
             // S-A (2026-07-13): rad-id-er arbeideren har slettet lokalt. Server
             // kjører deleteMany({ sheetId, id: { in } }) per type I TILLEGG til
             // payload-replace, så slettinger propagerer (S3-payload-policy sletter
@@ -4091,6 +4159,9 @@ export const dagsseddelRouter = router({
                 timer: z.array(z.string().uuid()).default([]),
                 tillegg: z.array(z.string().uuid()).default([]),
                 maskiner: z.array(z.string().uuid()).default([]),
+                // U4: utlegg-slettinger propagerer som de andre typene. Optional
+                // → eldre slettedeIder-objekt uten feltet defaulter til [].
+                utlegg: z.array(z.string().uuid()).default([]),
               })
               .optional(),
           }),
@@ -4263,6 +4334,51 @@ export const dagsseddelRouter = router({
             continue;
           }
 
+          // U4: utleggskategorier tilhører firmaet (mirror av tillegg-sjekken).
+          const utleggKatIder = Array.from(
+            new Set(lokal.utlegg.map((u) => u.expenseCategoryId)),
+          );
+          const utleggKatTreff =
+            utleggKatIder.length === 0
+              ? []
+              : await ctx.prismaTimer.expenseCategory.findMany({
+                  where: { id: { in: utleggKatIder }, organizationId: orgId },
+                  select: { id: true },
+                });
+          if (utleggKatTreff.length !== utleggKatIder.length) {
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding:
+                "En eller flere utleggskategorier finnes ikke i firmaets katalog",
+            });
+            continue;
+          }
+
+          // U4: valider hver utlegg-rads STEMPEL uten å re-utlede. sats bæres av
+          // SheetTillegg (lønnsart), ikke SheetUtlegg → avvis (klient-bug, velgeren
+          // skjuler sats). Beløps-regel = app-speil av CHECK: 'fakturert' → belop
+          // NULL, ellers belop > 0. Feil er permanent (klienten må rette) → avvist.
+          const utleggStempelFeil = lokal.utlegg.find((u) => {
+            const ordning = u.ordningVedFoering as UtleggOrdning;
+            if (!baeresAvSheetUtlegg(ordning)) return true; // sats
+            if (krevesBelop(ordning)) {
+              return u.belop === null || u.belop === undefined || u.belop <= 0;
+            }
+            return u.belop !== null && u.belop !== undefined; // fakturert m/ beløp
+          });
+          if (utleggStempelFeil) {
+            const ordning = utleggStempelFeil.ordningVedFoering as UtleggOrdning;
+            resultater.push({
+              clientUuid: lokal.clientUuid,
+              resultat: "avvist",
+              feilmelding: !baeresAvSheetUtlegg(ordning)
+                ? "Utlegg med ordning «lønnstillegg» føres som lønnstillegg, ikke utlegg."
+                : "Utlegg-rad bryter beløps-regelen for sin ordning.",
+            });
+            continue;
+          }
+
           // T7-3b1: verifiser medlemskap på alle unike per-rad-projectId.
           // Sedel-nivå er allerede sjekket (linje 1970); rad-nivå-IDer som
           // avviker fra sedel-nivå må sjekkes separat. Hopper over rad-IDer
@@ -4273,6 +4389,7 @@ export const dagsseddelRouter = router({
                 ...lokal.timer.map((t) => t.projectId),
                 ...lokal.tillegg.map((t) => t.projectId),
                 ...lokal.maskiner.map((m) => m.projectId),
+                ...lokal.utlegg.map((u) => u.projectId),
               ].filter((p): p is string => !!p && p !== lokal.projectId),
             ),
           );
@@ -4291,6 +4408,7 @@ export const dagsseddelRouter = router({
             ...lokal.timer.map((t) => radProsjekt(t.projectId)),
             ...lokal.tillegg.map((tl) => radProsjekt(tl.projectId)),
             ...lokal.maskiner.map((m) => radProsjekt(m.projectId)),
+            ...lokal.utlegg.map((u) => radProsjekt(u.projectId)),
           ];
           if (alleRadProsjekt.some((p) => !p)) {
             resultater.push({
@@ -4489,6 +4607,7 @@ export const dagsseddelRouter = router({
             const timerIder = lokal.timer.map((t) => t.id);
             const tilleggIder = lokal.tillegg.map((tl) => tl.id);
             const maskinIder = lokal.maskiner.map((m) => m.id);
+            const utleggIderPayload = lokal.utlegg.map((u) => u.id);
             if (timerIder.length > 0) {
               await tx.sheetTimer.deleteMany({
                 where: { sheetId: sedel.id, id: { in: timerIder } },
@@ -4502,6 +4621,14 @@ export const dagsseddelRouter = router({
             if (maskinIder.length > 0) {
               await tx.sheetMachine.deleteMany({
                 where: { sheetId: sedel.id, id: { in: maskinIder } },
+              });
+            }
+            if (utleggIderPayload.length > 0) {
+              // U4: payload-replace, samme S3-policy. Vedlegg (SheetUtleggVedlegg)
+              // har svak FK og bevares — samme id gjenopprettes under, vedlegget
+              // re-kobles (som tillegg-vedlegg). Vedlegg-opplasting går egen kø.
+              await tx.sheetUtlegg.deleteMany({
+                where: { sheetId: sedel.id, id: { in: utleggIderPayload } },
               });
             }
 
@@ -4530,6 +4657,13 @@ export const dagsseddelRouter = router({
               if (slettMaskin.length > 0) {
                 await tx.sheetMachine.deleteMany({
                   where: { sheetId: sedel.id, id: { in: slettMaskin } },
+                });
+              }
+              // U4: propagér utlegg-slettinger (default [] for eldre klienter).
+              const slettUtlegg = lokal.slettedeIder.utlegg;
+              if (slettUtlegg.length > 0) {
+                await tx.sheetUtlegg.deleteMany({
+                  where: { sheetId: sedel.id, id: { in: slettUtlegg } },
                 });
               }
             }
@@ -4598,6 +4732,26 @@ export const dagsseddelRouter = router({
                   // SYNC-2: persister fra/til (datatap-fiks, samme som timer).
                   fraTid: m.fraTid ?? null,
                   tilTid: m.tilTid ?? null,
+                })),
+              });
+            }
+            if (lokal.utlegg.length > 0) {
+              // U4: skriv utlegg-radene med klientens STEMPEL, uten re-utledning.
+              // `ordningVedFoering` = det klienten utledet ved føring; CHECK-
+              // constrainten i db-timer håndhever beløps-regelen mot stempelet.
+              // `createdAt` settes eksplisitt til klientens føringstidspunkt
+              // (overstyrer @default(now())) så stempelet er reviderbart i tid —
+              // IKKE synk-tidspunktet (tillegg-hullet, flagget i timer.md).
+              await tx.sheetUtlegg.createMany({
+                data: lokal.utlegg.map((u) => ({
+                  id: u.id,
+                  sheetId: sedel.id,
+                  projectId: radProsjekt(u.projectId)!,
+                  expenseCategoryId: u.expenseCategoryId,
+                  belop: u.belop ?? null,
+                  kommentar: u.kommentar ?? null,
+                  ordningVedFoering: u.ordningVedFoering,
+                  createdAt: new Date(u.foertVed),
                 })),
               });
             }

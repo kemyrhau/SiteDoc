@@ -6,6 +6,8 @@ import {
   sheetTilleggLocal,
   sheetTilleggVedleggLocal,
   sheetMachineLocal,
+  sheetUtleggLocal,
+  sheetUtleggVedleggLocal,
   slettedeRaderLocal,
 } from "../db/schema";
 import type { trpc } from "../lib/trpc";
@@ -330,6 +332,11 @@ export async function syncTimer(
           .from(sheetMachineLocal)
           .where(eq(sheetMachineLocal.dagsseddelId, sedel.id))
           .all();
+        const utlegg = db
+          .select()
+          .from(sheetUtleggLocal)
+          .where(eq(sheetUtleggLocal.dagsseddelId, sedel.id))
+          .all();
         // S-A: tombstones for lokalt slettede rader på denne sedelen.
         const tombstones = db
           .select()
@@ -407,6 +414,21 @@ export async function syncTimer(
             fraTid: m.fraTid ?? null,
             tilTid: m.tilTid ?? null,
           })),
+          // U4: utlegg-rader. `ordningVedFoering` = klientens STEMPEL (utledet
+          // ved føring), sendes uendret — server re-utleder ALDRI. `foertVed`
+          // konverteres fra Unix ms til ISO → server createdAt (reviderbart stempel).
+          utlegg: utlegg.map((u) => ({
+            id: u.id,
+            projectId: u.projectId || sedel.projectId || undefined,
+            expenseCategoryId: u.expenseCategoryId,
+            belop: u.belop ?? null,
+            kommentar: u.kommentar ?? null,
+            ordningVedFoering: u.ordningVedFoering as
+              | "lonnstillegg"
+              | "utlegg"
+              | "fakturert",
+            foertVed: new Date(u.foertVed).toISOString(),
+          })),
           // S-A: propagér lokale rad-slettinger. Gruppert per radType → server
           // kjører deleteMany({ sheetId, id: { in } }) i tillegg til payload-
           // replace. Utelates når tomt (feltet er .optional() på server → #37-
@@ -421,6 +443,10 @@ export async function syncTimer(
                   .map((t) => t.radId),
                 maskiner: tombstones
                   .filter((t) => t.radType === "maskin")
+                  .map((t) => t.radId),
+                // U4: utlegg-slettinger propagerer som de andre typene.
+                utlegg: tombstones
+                  .filter((t) => t.radType === "utlegg")
                   .map((t) => t.radId),
               }
             : undefined,
@@ -643,6 +669,11 @@ export async function syncTimer(
       db.delete(sheetMachineLocal)
         .where(eq(sheetMachineLocal.dagsseddelId, maalId))
         .run();
+      // U4: utlegg-rader erstattes med samme atom-policy (vedlegg-tabellen RØRES
+      // IKKE her — samme som tillegg-vedlegg; upushede lokale kvitteringer består).
+      db.delete(sheetUtleggLocal)
+        .where(eq(sheetUtleggLocal.dagsseddelId, maalId))
+        .run();
 
       // S-A KRAV 1 pull-race-guard: sett med rad-id-er som har en LEVENDE
       // tombstone på denne sedelen. Rad-id er globalt unik på tvers av de tre
@@ -754,6 +785,56 @@ export async function syncTimer(
             sistEndretLokalt: serverTidMs,
           })
           .run();
+      }
+      // U4: utlegg-rader + kvittering-vedlegg (speil av tillegg-loopen).
+      // `foertVed` (ISO fra server) → Unix ms lokalt. ordningVedFoering skrives
+      // uendret (immutabelt stempel). Vedlegg upsertes per rad (id-konsistens).
+      for (const u of (serverSedel as { utlegg?: Array<{
+        id: string; projectId: string; expenseCategoryId: string;
+        belop: number | null; kommentar: string | null;
+        ordningVedFoering: string; foertVed: string;
+        vedlegg?: Array<{ id: string; fileUrl: string; fileName: string; mimeType: string; fileSize: number }>;
+      }> }).utlegg ?? []) {
+        if (levendeTombstoneIder.has(u.id)) continue; // S-A KRAV 1 (+ vedlegg)
+        db.insert(sheetUtleggLocal)
+          .values({
+            id: u.id,
+            dagsseddelId: maalId,
+            projectId: u.projectId ?? sedelProjectId,
+            expenseCategoryId: u.expenseCategoryId,
+            belop: u.belop,
+            kommentar: u.kommentar,
+            ordningVedFoering: u.ordningVedFoering,
+            foertVed: new Date(u.foertVed).getTime(),
+            sistEndretLokalt: serverTidMs,
+          })
+          .run();
+        for (const v of u.vedlegg ?? []) {
+          const finnes = db
+            .select()
+            .from(sheetUtleggVedleggLocal)
+            .where(eq(sheetUtleggVedleggLocal.id, v.id))
+            .all()[0];
+          if (finnes) {
+            db.update(sheetUtleggVedleggLocal)
+              .set({ serverUrl: v.fileUrl, sistEndretLokalt: serverTidMs })
+              .where(eq(sheetUtleggVedleggLocal.id, v.id))
+              .run();
+          } else {
+            db.insert(sheetUtleggVedleggLocal)
+              .values({
+                id: v.id,
+                sheetUtleggId: u.id,
+                lokalSti: null,
+                serverUrl: v.fileUrl,
+                filnavn: v.fileName,
+                mimeType: v.mimeType,
+                filstorrelse: v.fileSize,
+                sistEndretLokalt: serverTidMs,
+              })
+              .run();
+          }
+        }
       }
     }
 

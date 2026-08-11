@@ -2513,9 +2513,9 @@ function ordningPille(
   t: (k: string) => string,
 ): { label: string; cls: string } {
   switch (ordning) {
-    case "sats":
+    case "lonnstillegg":
       return {
-        label: t("timer.utleggReg.ordning.sats"),
+        label: t("timer.utleggReg.ordning.lonnstillegg"),
         cls: "bg-blue-50 text-blue-700",
       };
     case "fakturert":
@@ -2717,12 +2717,13 @@ function LeggTilVelger({
       id: k.id,
       navn: k.navn,
       ordning: k.ordning,
-      // sats-ordning bæres av lønnstillegg, ikke utlegg (ingen lønnsart-bro i U1).
-      disabled: k.ordning === "sats",
-      // U5-fiks: deaktivert sats-rad skal IKKE si «beløp + kvittering» — den fører
-      // ingen beløp. Egen hint som peker til lønnstillegg-katalogen.
+      // lonnstillegg-ordning bæres av lønnstillegg-katalogen (SheetTillegg), ikke
+      // utlegg (ingen lønnsart-bro i U1). Deaktiveres i utlegg-velgeren.
+      disabled: k.ordning === "lonnstillegg",
+      // U5-fiks: deaktivert lonnstillegg-rad skal IKKE si «beløp + kvittering» — den
+      // fører ingen beløp. Egen hint som peker til lønnstillegg-katalogen.
       hint:
-        k.ordning === "sats"
+        k.ordning === "lonnstillegg"
           ? t("timer.utleggReg.hint.lonnstillegg")
           : k.ordning === "fakturert"
             ? t("timer.utleggReg.hint.avhuking")
