@@ -1,9 +1,10 @@
 import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { reportObjectTypeSchema, templateZoneSchema, createTemplateSchema } from "@sitedoc/shared";
 import { verifiserProsjektmedlem, verifiserAdmin, hentBrukersOpprettFlytMedlemskap } from "../trpc/tilgangskontroll";
-import { IKKE_SLETTET } from "../utils/softDelete";
+import { IKKE_SLETTET, KUN_SLETTET } from "../utils/softDelete";
 import { oversettMedMotor, hashTekst } from "../services/oversettelse-service";
 import type { OversettelsesMotor } from "../services/oversettelse-service";
 
@@ -48,6 +49,89 @@ type MalListeElement = Prisma.ReportTemplateGetPayload<{
     dokumentflytMaler: { select: { dokumentflytId: true } };
   };
 }> & { opprettbar: boolean; opprettbareFlytIder: string[] };
+
+// Slett-vern (2026-08-10): tell mal-dokumenter — aktive og i papirkurv separat.
+// Papirkurv (KUN_SLETTET) teller med: 90-dagers gjenoppretting ville ellers gjort
+// en gjenopprettet oppgave/sjekkliste foreldreløs hvis malen var slettet.
+async function tellMalDokumenter(
+  prisma: typeof import("@sitedoc/db").prisma,
+  templateId: string,
+): Promise<{ aktive: number; iKurv: number }> {
+  const [aktivOppg, aktivSjekk, kurvOppg, kurvSjekk] = await Promise.all([
+    prisma.task.count({ where: { templateId, ...IKKE_SLETTET } }),
+    prisma.checklist.count({ where: { templateId, ...IKKE_SLETTET } }),
+    prisma.task.count({ where: { templateId, ...KUN_SLETTET } }),
+    prisma.checklist.count({ where: { templateId, ...KUN_SLETTET } }),
+  ]);
+  return { aktive: aktivOppg + aktivSjekk, iKurv: kurvOppg + kurvSjekk };
+}
+
+// Mal-unikhet (2026-08-10): speiler de funksjonelle unik-indeksene (migrering
+// 20260810120000). Normalisering lower(trim(...)) — SAMME som indeksens
+// lower(btrim(...)) — så app-feilen stemmer med DB-sperren. Navn: på tvers av
+// kategorier. Prefiks: kun der prefiks finnes og category<>'psi' (PSI bruker
+// prefix som fast type-etikett, ikke doc-nr — eksempt fra sperren).
+const normMal = (s: string | null | undefined) => (s ?? "").trim().toLowerCase();
+
+async function sjekkMalUnikhet(
+  prisma: typeof import("@sitedoc/db").prisma,
+  args: { projectId: string; name: string; prefix?: string | null; category: string; ignorerId?: string },
+): Promise<void> {
+  const nyttNavn = normMal(args.name);
+  const nyttPrefiks = normMal(args.prefix);
+  const eksisterende = await prisma.reportTemplate.findMany({
+    where: { projectId: args.projectId, ...(args.ignorerId ? { id: { not: args.ignorerId } } : {}) },
+    select: { id: true, name: true, prefix: true, category: true },
+  });
+  const navnKonflikt = eksisterende.find((m) => normMal(m.name) === nyttNavn);
+  if (navnKonflikt) {
+    throw new TRPCError({
+      code: "CONFLICT",
+      message: `Malnavnet «${args.name.trim()}» er allerede i bruk i dette prosjektet.`,
+    });
+  }
+  if (nyttPrefiks && args.category !== "psi") {
+    const prefiksKonflikt = eksisterende.find(
+      (m) => m.category !== "psi" && normMal(m.prefix) === nyttPrefiks,
+    );
+    if (prefiksKonflikt) {
+      throw new TRPCError({
+        code: "CONFLICT",
+        message: `Prefikset «${args.prefix?.trim()}» er allerede i bruk av malen «${prefiksKonflikt.name}» i dette prosjektet.`,
+      });
+    }
+  }
+}
+
+// Auto-generér ledig navn + prefiks (kopier/import — minst friksjon, sperren er
+// backstop). Suffikser numerisk til ledig: «X (kopi)»→«X (kopi) 2», «BEF»→«BEF2».
+export async function finnLedigeMalVerdier(
+  prisma: typeof import("@sitedoc/db").prisma,
+  projectId: string,
+  category: string,
+  ønsketNavn: string,
+  ønsketPrefiks: string | null,
+): Promise<{ name: string; prefix: string | null }> {
+  const eksisterende = await prisma.reportTemplate.findMany({
+    where: { projectId },
+    select: { name: true, prefix: true, category: true },
+  });
+  const navnBrukt = new Set(eksisterende.map((m) => normMal(m.name)));
+  const prefiksBrukt = new Set(
+    eksisterende.filter((m) => m.category !== "psi").map((m) => normMal(m.prefix)).filter(Boolean),
+  );
+
+  const basisNavn = ønsketNavn.trim();
+  let navn = basisNavn;
+  for (let i = 2; navnBrukt.has(normMal(navn)); i++) navn = `${basisNavn} ${i}`;
+
+  let prefiks = ønsketPrefiks?.trim() || null;
+  if (prefiks && category !== "psi") {
+    const basisPrefiks = prefiks;
+    for (let i = 2; prefiksBrukt.has(normMal(prefiks)); i++) prefiks = `${basisPrefiks}${i}`;
+  }
+  return { name: navn, prefix: prefiks };
+}
 
 export const malRouter = router({
   // Hent alle maler for et prosjekt
@@ -135,6 +219,13 @@ export const malRouter = router({
     .mutation(async ({ ctx, input }) => {
       await verifiserAdmin(ctx.userId, input.projectId);
       valideerSubdomainCategory(input.subdomain, input.category);
+      // Unikhet per prosjekt (navn på tvers, prefiks eks-PSI) — lesbar feil før DB-sperren.
+      await sjekkMalUnikhet(ctx.prisma, {
+        projectId: input.projectId,
+        name: input.name,
+        prefix: input.prefix,
+        category: input.category,
+      });
       const { workflowIds, ...malData } = input;
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -177,7 +268,7 @@ export const malRouter = router({
       const { id, workflowIds, ...data } = input;
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({
         where: { id },
-        select: { projectId: true, category: true, domain: true, subdomain: true },
+        select: { projectId: true, category: true, domain: true, subdomain: true, name: true, prefix: true },
       });
       await verifiserAdmin(ctx.userId, mal.projectId);
 
@@ -214,6 +305,18 @@ export const malRouter = router({
         }
       }
 
+      // Unikhet (2026-08-10): sjekk ved endring av navn/prefiks. Effektive verdier,
+      // ignorér malen selv. Speiler DB-sperren (navn på tvers, prefiks eks-PSI).
+      if (input.name !== undefined || input.prefix !== undefined) {
+        await sjekkMalUnikhet(ctx.prisma, {
+          projectId: mal.projectId,
+          name: input.name !== undefined ? input.name : mal.name,
+          prefix: input.prefix !== undefined ? input.prefix : mal.prefix,
+          category: effektivCategory,
+          ignorerId: id,
+        });
+      }
+
       return ctx.prisma.$transaction(async (tx) => {
         const oppdatert = await tx.reportTemplate.update({ where: { id }, data });
         if (workflowIds !== undefined) {
@@ -232,12 +335,36 @@ export const malRouter = router({
       });
     }),
 
-  // Slett mal
+  // Slett-vern precheck (klient bygger bilingual melding + skjuler slett-knapp).
+  // Mutasjonen håndhever uansett — dette er kun for UX.
+  slettbarhet: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
+      await verifiserProsjektmedlem(ctx.userId, mal.projectId);
+      const { aktive, iKurv } = await tellMalDokumenter(ctx.prisma, input.id);
+      return { aktive, iKurv, kanSlettes: aktive === 0 && iKurv === 0 };
+    }),
+
+  // Slett mal — SLETT-VERN (2026-08-10): nekt hvis dokumenter finnes (aktive eller
+  // i papirkurv). Lesbar, differensiert melding — for Task ville DB-en ellers ikke
+  // engang kastet (SetNull→foreldreløs, nå Restrict-backstop via migrering).
   slettMal: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const mal = await ctx.prisma.reportTemplate.findUniqueOrThrow({ where: { id: input.id }, select: { projectId: true } });
       await verifiserAdmin(ctx.userId, mal.projectId);
+
+      const { aktive, iKurv } = await tellMalDokumenter(ctx.prisma, input.id);
+      if (aktive > 0 || iKurv > 0) {
+        const melding =
+          aktive > 0 && iKurv > 0
+            ? `Malen har ${aktive} dokument${aktive === 1 ? "" : "er"} og ${iKurv} i papirkurven, og kan ikke slettes. Fjern dokumentene og tøm papirkurven først.`
+            : aktive > 0
+              ? `Malen har ${aktive} dokument${aktive === 1 ? "" : "er"} og kan ikke slettes.`
+              : `Malen har ${iKurv} dokument${iKurv === 1 ? "" : "er"} i papirkurven. Tøm papirkurven først, så kan malen slettes.`;
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: melding });
+      }
       return ctx.prisma.reportTemplate.delete({ where: { id: input.id } });
     }),
 
@@ -259,6 +386,16 @@ export const malRouter = router({
       });
       await verifiserAdmin(ctx.userId, kilde.projectId);
 
+      // Unikhet (2026-08-10): auto-generér ledig navn + prefiks. Kopier kopierte
+      // før prefiks 1:1 → ville brutt (projectId, prefix)-sperren. Redigerbart etterpå.
+      const ledig = await finnLedigeMalVerdier(
+        ctx.prisma,
+        kilde.projectId,
+        kilde.category,
+        `${kilde.name} (kopi)`,
+        kilde.prefix,
+      );
+
       // Lean returtype (select: { id }) + eksplisitt { id }-retur holder
       // tRPC-inferensen grunn — full reportTemplate-retur her tipper AppRouter
       // over TS2589-dybdegrensen (kjent fallgruve, se CLAUDE.md § Kodestil).
@@ -266,9 +403,9 @@ export const malRouter = router({
         const nyMal = await tx.reportTemplate.create({
           data: {
             projectId: kilde.projectId,
-            name: `${kilde.name} (kopi)`,
+            name: ledig.name,
             description: kilde.description,
-            prefix: kilde.prefix,
+            prefix: ledig.prefix,
             category: kilde.category,
             domain: kilde.domain,
             subdomain: kilde.subdomain,
@@ -525,6 +662,37 @@ export const malRouter = router({
     .mutation(async ({ ctx, input }) => {
       const objekt = await ctx.prisma.reportObject.findUniqueOrThrow({ where: { id: input.id }, include: { template: { select: { projectId: true } } } });
       await verifiserAdmin(ctx.userId, objekt.template.projectId);
+
+      // Slett-vern (2026-08-10): objekt (+ etterkommere) med data i sjekklister/
+      // oppgaver kan ikke slettes — Task.data/Checklist.data (JSONB nøklet på
+      // ReportObject.id) ville blitt uleselig. Server-guard; UI hadde bare
+      // `sjekkObjektBruk` (skjuler knappen), ingen håndhevelse. Teller aktive OG
+      // papirkurv (samme begrunnelse som slettMal).
+      const alleObjekter = await ctx.prisma.reportObject.findMany({
+        where: { templateId: objekt.templateId },
+        select: { id: true, parentId: true },
+      });
+      const sletteIder = [input.id];
+      const finnEtterkommere = (parentId: string) => {
+        for (const o of alleObjekter) {
+          if (o.parentId === parentId) {
+            sletteIder.push(o.id);
+            finnEtterkommere(o.id);
+          }
+        }
+      };
+      finnEtterkommere(input.id);
+      const [sjekkMed, oppgMed] = await Promise.all([
+        ctx.prisma.$queryRaw<{ n: bigint }[]>`SELECT count(*) AS n FROM checklists WHERE template_id = ${objekt.templateId} AND data IS NOT NULL AND data ?| ${sletteIder}`,
+        ctx.prisma.$queryRaw<{ n: bigint }[]>`SELECT count(*) AS n FROM tasks WHERE template_id = ${objekt.templateId} AND data IS NOT NULL AND data ?| ${sletteIder}`,
+      ]);
+      const antall = Number(sjekkMed[0]?.n ?? 0) + Number(oppgMed[0]?.n ?? 0);
+      if (antall > 0) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Feltet brukes i ${antall} dokument${antall === 1 ? "" : "er"} og kan ikke slettes.`,
+        });
+      }
       return ctx.prisma.reportObject.delete({ where: { id: input.id } });
     }),
 

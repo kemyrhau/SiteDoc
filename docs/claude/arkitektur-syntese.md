@@ -286,9 +286,11 @@ ReportTemplate (annet prosjekt-instans)
 
 Lønnsart, tillegg, aktivitet og lignende per-firma-kataloger bygges som tre nivåer:
 
-1. **Lovpålagt grunnpakke** — auto-importeres ved firma-opprettelse via seed-mekanisme (event-hook `onOrganizationCreated`, etablert tom i Fase 0 per C.10, fylles i Fase 3). Ingen bransje-bias.
+1. **Lovpålagt grunnpakke** — auto-importeres ved **modul-aktivering** via seed-hook. Ingen bransje-bias.
 2. **Bransje-relevant tilleggspakke** — valgfri pakke-import ved onboarding (helhetlig pakke, ikke enkelt-sjekkbokser).
 3. **Egendefinerte** — opprettes av kunden via admin-UI. SiteDoc leverer verktøyet, ikke malen.
+
+> ⚠️ **KORRIGERT 2026-08-11 (fabel-retning modul-onboarding):** Denne seksjonen sa tidligere at Nivå 1 auto-importeres «ved firma-opprettelse via event-hook `onOrganizationCreated` (etablert tom i Fase 0 per C.10)». **Den hooken ble ALDRI bygget** (`apps/api/src/events/` finnes ikke; verifisert 2026-08-11) og er nå **forkastet** — seed er koblet til **modul-aktivering**, ikke org-opprettelse. En org-opprettelses-hook ville vært en annen trigger enn modellen (mange firma har moduler av; å seede alle kataloger ved opprettelse er feil). Tredje tilstand — **bevisst egen katalog** — kan ikke utledes fra data («0 rader» = «aldri onboardet» ELLER «bevisst tom»), og registreres derfor eksplisitt per datatype i tabellen `OrganizationSeedPolicy` (`packages/db`, migrering `20260811120000`). Fravær av rad = `standard`. Se `docs/claude/delplaner/FABEL-RETNING-modul-onboarding.md`.
 
 **Onboarding differensierer to scenarier** (per [timer.md § Onboarding-modi](timer.md)):
 

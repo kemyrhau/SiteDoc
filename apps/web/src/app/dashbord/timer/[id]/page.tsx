@@ -2719,10 +2719,14 @@ function LeggTilVelger({
       ordning: k.ordning,
       // sats-ordning bæres av lønnstillegg, ikke utlegg (ingen lønnsart-bro i U1).
       disabled: k.ordning === "sats",
+      // U5-fiks: deaktivert sats-rad skal IKKE si «beløp + kvittering» — den fører
+      // ingen beløp. Egen hint som peker til lønnstillegg-katalogen.
       hint:
-        k.ordning === "fakturert"
-          ? t("timer.utleggReg.hint.avhuking")
-          : t("timer.utleggReg.hint.beloepKvittering"),
+        k.ordning === "sats"
+          ? t("timer.utleggReg.hint.lonnstillegg")
+          : k.ordning === "fakturert"
+            ? t("timer.utleggReg.hint.avhuking")
+            : t("timer.utleggReg.hint.beloepKvittering"),
     }),
   );
 

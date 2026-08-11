@@ -34,7 +34,11 @@ export function BrukereFane({ brukere }: { brukere: Bruker[] }) {
             </div>
             <div className="flex items-center gap-1.5">
               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] font-medium text-gray-600">{m.ansattRolle}</span>
-              {u?.role === "company_admin" && (
+              {/* Fase 2: badge leser medlemsradens firmaRoller (ny kilde), ikke
+                  User.role — badgen skal aldri si «admin» når firma-gatingen sier
+                  nei. Spør «er DENNE brukeren firma-admin», derfor kilden direkte
+                  og ikke kanAdministrereFirma (som svarer «kan JEG administrere»). */}
+              {m.firmaRoller.includes("firma_admin") && (
                 <span className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] font-medium text-purple-700">
                   {t("admin.firmaDetalj.rolleAdmin")}
                 </span>

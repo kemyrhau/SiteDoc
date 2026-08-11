@@ -25,9 +25,8 @@ import {
   prosjektSoneElementer,
   navigerSidebar,
   useSidebarElementer,
-  type SidebarElement,
 } from "./sidebar-elementer";
-import { useFirmaNavElementer, type FirmaNavElement } from "./firma-nav";
+import { useFirmaNavElementer } from "./firma-nav";
 import {
   LayoutDashboard,
   ClipboardCheck,
@@ -49,7 +48,7 @@ export function Toppbar() {
   const { prosjektId } = useProsjekt();
   const erFirmaKontekst = pathname?.startsWith("/dashbord/firma") ?? false;
   const erHub = pathname?.startsWith("/dashbord/innstillinger") ?? false;
-  const { erSitedocAdmin, erCompanyAdmin } = useFirma();
+  const { erSitedocAdmin, kanAdministrereFirma } = useFirma();
   const { byggeplassAktiv } = useToppbarFiltreKontekst();
   const nyNav = useNyNavigasjon();
   const settNyNav = useSettNyNavigasjon();
@@ -72,10 +71,11 @@ export function Toppbar() {
   // gjenbruker samme timer-firmamodul-gating som sidebaren.
   const mineTimerElement = filtrertHovedelementer.find((e) => e.id === "mine-timer") ?? null;
 
-  // Hent firma-info for company_admin (fast firma-link i header).
-  // Sitedoc_admin bruker FirmaVelger i stedet — trenger ikke denne.
+  // Hent firma-info for firma-admin (fast firma-link i header). Fase 2: leser
+  // kanAdministrereFirma (firmaRoller-kilden), ikke lenger User.role. Sitedoc_admin
+  // bruker FirmaVelger i stedet — ekskluderes så de ikke får både velger og fast link.
   const { data: organisasjon } = trpc.organisasjon.hentMin.useQuery(undefined, {
-    enabled: !!session?.user && erCompanyAdmin,
+    enabled: !!session?.user && kanAdministrereFirma && !erSitedocAdmin,
   });
 
   useEffect(() => {
@@ -139,7 +139,7 @@ export function Toppbar() {
                 <div className="mx-1 h-5 w-px bg-white/20" />
               </>
             )}
-            {erCompanyAdmin && organisasjon && (
+            {kanAdministrereFirma && !erSitedocAdmin && organisasjon && (
               <>
                 <Link
                   href="/dashbord/firma"
