@@ -42,6 +42,9 @@ importers:
       '@sitedoc/db-varelager':
         specifier: workspace:*
         version: link:../../packages/db-varelager
+      '@sitedoc/pdf':
+        specifier: workspace:*
+        version: link:../../packages/pdf
       '@sitedoc/shared':
         specifier: workspace:*
         version: link:../../packages/shared

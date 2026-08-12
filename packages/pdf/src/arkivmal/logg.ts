@@ -1,0 +1,92 @@
+/**
+ * Logg-combiner (RENT LAG). Tar rå lister fra leserne (apps/api) og former
+ * `ArkivLogg` — grupperer lag 2 per økt og fester kryssreferanse-halen på
+ * lag 1. Utfalls-agnostisk mot fabels tabell-vs-seksjon-valg.
+ */
+
+import type { HendelseRad, RåEndring, EndringsØkt, ArkivLogg, SistEndret } from "./typer";
+
+/** YYYY-MM-DD fra ISO-tidsstempel (grupperingsnøkkel — dato, ikke tid). */
+function datoDel(iso: string): string {
+  return iso.slice(0, 10);
+}
+
+/**
+ * Grupperer flate feltendringer i økter = (userId, dato). Rader sorteres
+ * kronologisk innad; øktene sorteres etter sin første endring.
+ */
+export function grupperØkter(endringer: RåEndring[]): EndringsØkt[] {
+  const kart = new Map<string, EndringsØkt>();
+  for (const e of endringer) {
+    const dato = datoDel(e.tidspunkt);
+    const nøkkel = `${e.userId}|${dato}`;
+    let økt = kart.get(nøkkel);
+    if (!økt) {
+      økt = { userId: e.userId, aktor: e.aktor, dato, rader: [] };
+      kart.set(nøkkel, økt);
+    }
+    økt.rader.push({ tidspunkt: e.tidspunkt, felt: e.felt, fraVerdi: e.fraVerdi, tilVerdi: e.tilVerdi });
+  }
+  const økter = [...kart.values()];
+  for (const økt of økter) {
+    økt.rader.sort((a, b) => a.tidspunkt.localeCompare(b.tidspunkt));
+  }
+  økter.sort((a, b) => (a.rader[0]?.tidspunkt ?? "").localeCompare(b.rader[0]?.tidspunkt ?? ""));
+  return økter;
+}
+
+/**
+ * Tilordner antall feltendringer til hver hendelse (kryssreferanse-hale).
+ *
+ * En endring hører til hendelsen i intervallet
+ * `(forrigeHendelse.tidspunkt, denneHendelse.tidspunkt]` — nedre kant
+ * EKSKLUSIV, øvre kant INKLUSIV. Begrunnelse: en feltendring stemplet i
+ * samme øyeblikk som en sending er del av det som ble sendt. Første hendelse:
+ * `(-∞, første]`. Endringer etter siste hendelse er foreldreløse — utelates
+ * fra haler (men vises fortsatt i den fulle Endringsloggen).
+ *
+ * Muterer ikke input; returnerer nye `HendelseRad` med `antallFeltendringer`
+ * satt, sortert kronologisk.
+ */
+export function tellFeltendringer(hendelser: HendelseRad[], endringer: RåEndring[]): HendelseRad[] {
+  const sortert = [...hendelser].sort((a, b) => a.tidspunkt.localeCompare(b.tidspunkt));
+  const antall = sortert.map(() => 0);
+  for (const e of endringer) {
+    // Første hendelse med tidspunkt >= endringens (øvre-inklusiv, og siden
+    // det er den FØRSTE slike er nedre kant implisitt eksklusiv).
+    const idx = sortert.findIndex((hend) => e.tidspunkt <= hend.tidspunkt);
+    if (idx !== -1) antall[idx] = (antall[idx] ?? 0) + 1; // -1 = etter siste → foreldreløs
+  }
+  return sortert.map((h, i) => ({ ...h, antallFeltendringer: antall[i] ?? 0 }));
+}
+
+/** Seneste tidspunkt på tvers av kandidatene → statusblokkens femte felt. */
+export function finnSistEndret(kandidater: Array<{ tidspunkt: string; aktor: string }>): SistEndret | null {
+  if (kandidater.length === 0) return null;
+  const siste = kandidater.reduce((a, b) => (a.tidspunkt >= b.tidspunkt ? a : b));
+  return { navn: siste.aktor, dato: siste.tidspunkt };
+}
+
+/**
+ * Bygger logg-konvolutten for sjekkliste/oppgave/HMS: lag 1 med
+ * kryssreferanse-hale + lag 2 gruppert per økt (tom når endringslogg av).
+ */
+export function byggArkivLogg(input: {
+  hendelser: HendelseRad[];
+  endringer: RåEndring[];
+  endringsloggAktivert: boolean;
+}): ArkivLogg {
+  const endringer = input.endringsloggAktivert ? input.endringer : [];
+  const hendelser = tellFeltendringer(input.hendelser, endringer);
+  const økter = grupperØkter(endringer);
+  const kandidater = [
+    ...hendelser.map((h) => ({ tidspunkt: h.tidspunkt, aktor: h.aktor })),
+    ...endringer.map((e) => ({ tidspunkt: e.tidspunkt, aktor: e.aktor })),
+  ];
+  return {
+    hendelser,
+    økter,
+    endringsloggAktivert: input.endringsloggAktivert,
+    sistEndret: finnSistEndret(kandidater),
+  };
+}
