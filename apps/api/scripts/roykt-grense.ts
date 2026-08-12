@@ -31,7 +31,9 @@ import { erStandaloneProsjekt } from "../src/utils/prosjektGrense";
 
 const STANDALONE_NR = "GRENSE-ROYKT-STANDALONE";
 const FIRMA_NR = "GRENSE-ROYKT-FIRMA";
-const ORG_NAVN = "Grense-røyktest firma";
+// E2E-prefiks (2026-08-12): så sweepen kjenner den igjen og den ikke ser ut som
+// en kunde i firmavelgeren. ryddOpp sletter den — men crash-residue fanges av sweep.
+const ORG_NAVN = "E2E Grense-røyktest";
 
 let feil = 0;
 function sjekk(navn: string, faktisk: unknown, forventet: unknown) {
@@ -51,6 +53,8 @@ async function ryddOpp() {
     await prisma.projectOrganization.deleteMany({ where: { projectId: { in: ider } } });
     await prisma.project.deleteMany({ where: { id: { in: ider } } });
   }
+  // Slett selve test-org-en også (tidligere ble den liggende → firmavelger-søppel).
+  await prisma.organization.deleteMany({ where: { name: ORG_NAVN } });
 }
 
 async function main() {

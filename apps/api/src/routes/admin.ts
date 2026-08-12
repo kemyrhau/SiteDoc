@@ -1065,4 +1065,36 @@ export const adminRouter = router({
         standardKode: input.katalog.standardKode,
       });
     }),
+
+  // E2E-sweep (2026-08-12): sikkerhetsnett mot test-firma-søppel som teardown
+  // ikke rakk (crash/avbrutt kjøring). Kjøres ved oppstart av E2E-suiten (ikke
+  // cron). Sletter KUN `E2E`-prefiksede firmaer eldre enn ett døgn — 24t så en
+  // parallell kjøring ikke sletter et firma en annen bruker akkurat nå — og kun
+  // dem UTEN prosjekter (samme signatur som de akkumulerte: 0 prosjekter/medlemmer).
+  // Cascade tar settings/moduler (som Kenneths manuelle DELETE).
+  //
+  // 🔴 Env-guard (samme mønster som migrate-gaten): aborter hvis DATABASE_URL ikke
+  // peker på sitedoc_test. Endepunktet finnes også i prod-imaget, men guarden gjør
+  // det til en no-op der — i tillegg til sitedoc_admin-gaten.
+  sweepE2EFirmaer: protectedProcedure
+    .input(z.object({}).optional())
+    .mutation(async ({ ctx }) => {
+    await verifiserSiteDocAdmin(ctx.prisma, ctx.userId);
+    if (!process.env.DATABASE_URL?.includes("sitedoc_test")) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "sweepE2EFirmaer kjører kun mot sitedoc_test",
+      });
+    }
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const res = await ctx.prisma.organization.deleteMany({
+      where: {
+        name: { startsWith: "E2E" },
+        createdAt: { lt: cutoff },
+        projects: { none: {} }, // ingen projectOrganization-lenke
+        primaryProjects: { none: {} }, // ingen primaryOrganizationId-lenke
+      },
+    });
+    return { slettet: res.count };
+  }),
 });

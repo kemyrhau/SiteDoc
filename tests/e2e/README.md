@@ -83,6 +83,27 @@ Roller: **firma** = prosjektadmin (driver), **arbeider** = menig utfører
 fjernes samme dag. Ny test legges i `tests/NN-navn.spec.ts` med `data-testid`-
 kroker (ikke tekstavhengige selektorer der i18n kan variere).
 
+## Test-firma: navnekonvensjon + sweep (2026-08-12)
+
+Alt test-oppsett som oppretter et `organization` MÅ gi det **`E2E`-prefiks** i navnet
+og slette det i teardown. Prefikset er det sweepen kjenner igjen — et test-firma uten
+det ser ut som en kunde i firmavelgeren.
+
+**Sikkerhetsnett:** `global-setup` kaller `admin.sweepE2EFirmaer` ved oppstart — den
+sletter `E2E%`-firmaer eldre enn ett døgn og uten prosjekter (crash/avbrutt kjøring
+rekker ikke teardown). Server-side, env-guardet mot `sitedoc_test` + `sitedoc_admin`.
+Ett døgn så en parallell kjøring ikke sletter et firma en annen bruker akkurat nå.
+
+Playwright-suiten selv oppretter **ingen** firmaer (den bruker det seedede agent-
+prosjektet). Kilder som gjør det: `apps/api/scripts/roykt-grense.ts` (rydder selv) +
+evt. ad-hoc bevis-scripts (gi dem `E2E`-prefiks).
+
+**«Testfirma AS (agent-test)» er et PERMANENT fikstur — ikke en kunde og ikke søppel.**
+Agent-testprosjektet hører til det, og hele suiten er avhengig av det. Sweepen rører det
+aldri (mangler `E2E`-prefiks bevisst). Navnet ser ut som en kunde; det er kjent og godtatt.
+Omdøping (→ «E2E Testfirma AS») er en navngitt oppfølger — utsatt fordi det berører seed-
+koden + prosjekt-tilknytningen, og gevinsten er kosmetisk mot regresjonsrisiko.
+
 ## Sikkerhet
 
 `.env.local`, `.auth/` og `.runtime.json` er gitignored — hemmelighet og tokens
