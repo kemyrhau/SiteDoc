@@ -2,6 +2,8 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { byggTilgangsFilter } from "../trpc/tilgangskontroll";
+import { signerBilder } from "../utils/vedleggSignering";
+import { normaliserFilSti } from "../utils/hmac";
 
 export const bildeRouter = router({
   hentForProsjekt: protectedProcedure
@@ -102,7 +104,11 @@ export const bildeRouter = router({
         orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       });
 
-      return { sjekklisteBilder, oppgaveBilder };
+      // S1 Fase 1b: signér fileUrl ved emisjon (privat-bilder). No-op for åpne URL-er.
+      return {
+        sjekklisteBilder: signerBilder(sjekklisteBilder),
+        oppgaveBilder: signerBilder(oppgaveBilder),
+      };
     }),
 
   opprettForSjekkliste: protectedProcedure
@@ -195,8 +201,17 @@ export const bildeRouter = router({
     .input(z.object({ fileUrl: z.string(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // S1 Fase 1b: klienten kan sende en SIGNERT URL (?exp=&sig=) eller en
+      // sti-variant. Lagret fileUrl er kanonisk uten query → normaliser bort
+      // query + sti-varianter før eksakt-match, ellers feiler slettingen stille.
+      let renUrl = input.fileUrl.split("?")[0] ?? input.fileUrl;
+      try {
+        renUrl = normaliserFilSti(renUrl);
+      } catch {
+        // ugyldig prosentkoding — behold rå (matcher da ikke, ingen sletting)
+      }
       const resultat = await ctx.prisma.image.deleteMany({
-        where: { fileUrl: input.fileUrl },
+        where: { fileUrl: renUrl },
       });
       return { slettet: resultat.count };
     }),

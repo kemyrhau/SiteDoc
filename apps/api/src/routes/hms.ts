@@ -6,6 +6,7 @@ import { documentStatusSchema } from "@sitedoc/shared";
 import { terminalFraStatus, avledetStatus } from "../services/flytFakta";
 import { prisma } from "@sitedoc/db";
 import { IKKE_SLETTET } from "../utils/softDelete";
+import { signerDataRader } from "../utils/vedleggSignering";
 
 /**
  * Bygger Prisma WHERE-fragment for HMS-synlighet (privat/åpen) på Task/Checklist.
@@ -286,7 +287,12 @@ export const hmsRouter = router({
         : Promise.resolve([]);
 
       const [avvik, sja, ruh] = await Promise.all([avvikPromise, sjaPromise, ruhPromise]);
-      return { avvik, sja, ruh };
+      // S1 Fase 1b: signér vedlegg-URL i data ved emisjon.
+      return {
+        avvik: signerDataRader(avvik),
+        sja: signerDataRader(sja),
+        ruh: signerDataRader(ruh),
+      };
     }),
 
   /**
@@ -528,7 +534,11 @@ export const hmsRouter = router({
 
       return {
         prosjekter: alleProsjekter,
-        dokumenter: { avvik, sja, ruh },
+        dokumenter: {
+          avvik: signerDataRader(avvik),
+          sja: signerDataRader(sja),
+          ruh: signerDataRader(ruh),
+        },
         statistikk: {
           apneAvvikPerProsjekt,
           sjaFrekvensPerMaaned,

@@ -6,6 +6,7 @@ import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/share
 import { grenseNaadd } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
 import { TRPCError } from "@trpc/server";
+import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import {
   byggTilgangsFilter,
   verifiserFaggruppeTilhorighet,
@@ -137,7 +138,7 @@ export const sjekklisteRouter = router({
         ? { domain: input.domain }
         : { domain: { not: "hms" } };
 
-      return ctx.prisma.checklist.findMany({
+      const sjekklister = await ctx.prisma.checklist.findMany({
         where: {
           ...IKKE_SLETTET,
           template: { projectId: input.projectId, ...templateDomainFilter },
@@ -180,6 +181,8 @@ export const sjekklisteRouter = router({
         },
         orderBy: { updatedAt: "desc" },
       });
+      // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (liste-vei).
+      return signerDataRader(sjekklister);
     }),
 
   // Hent én sjekkliste med alle detaljer
@@ -239,7 +242,9 @@ export const sjekklisteRouter = router({
         sjekkliste.lestAvMottakerVed = new Date();
       }
 
-      return sjekkliste;
+      // S1 Fase 1b: signér vedlegg-URL i data + images-relasjonen ved emisjon
+      // (detalj- + utskriftsvei leser bilde-URL herfra).
+      return { ...signerDataRad(sjekkliste), images: signerBilder(sjekkliste.images) };
     }),
 
   // Opprett ny sjekkliste
@@ -469,7 +474,9 @@ export const sjekklisteRouter = router({
       // (HMS-gruppen) varsles først når melder sender inn (sjekkliste.hmsSendInn). recipientGroupId
       // er allerede satt, så Send inn finner mottakeren uten nytt oppslag.
 
-      return opprettet;
+      // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (tomt ved opprett → no-op,
+      // men konsekvent — beskytter mot forhåndsutfylte maler med vedlegg).
+      return signerDataRad(opprettet);
     }),
 
   // Oppdater sjekkliste-metadata (faggrupper, tittel etc.)
@@ -677,7 +684,8 @@ export const sjekklisteRouter = router({
           await tx.checklistChangeLog.createMany({ data: endringsloggRader });
         }
 
-        return oppdatert;
+        // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (data-redigering).
+        return signerDataRad(oppdatert);
       });
     }),
 
