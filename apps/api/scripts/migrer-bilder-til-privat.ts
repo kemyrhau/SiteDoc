@@ -57,7 +57,22 @@ import { prisma, type Prisma } from "@sitedoc/db";
 const UPLOADS_DIR = process.env.UPLOADS_DIR || join(process.cwd(), "uploads");
 const PREFIKS = "/uploads/";
 const PRIVAT_PREFIKS = "/uploads/privat/";
-const MANIFEST_STI = join(process.cwd(), "s1-fase1b-bilder-manifest.json");
+
+/** DB-navn fra DATABASE_URL (sitedoc / sitedoc_test) — miljø-diskriminator. */
+function dbNavn(): string {
+  try {
+    return new URL(process.env.DATABASE_URL ?? "").pathname.replace(/^\//, "") || "ukjent";
+  } catch {
+    return "ukjent";
+  }
+}
+
+// 🔴 Manifestet MÅ ligge i uploads/ — det er det ENESTE som er montert i
+// containeren (`docker compose run --rm` sletter resten av container-FS-en, så
+// et manifest andre steder er borte før `--slett-gamle` kan lese det). uploads/
+// er DELT mellom test og prod, derfor db-navn-suffiks: test og prod overskriver
+// ikke hverandres manifest. (uploads/ er gitignorert → ikke i repoet.)
+const MANIFEST_STI = join(UPLOADS_DIR, `s1-fase1b-manifest-${dbNavn()}.json`);
 
 const APPLY = process.argv.includes("--apply");
 const SLETT_GAMLE = process.argv.includes("--slett-gamle");
@@ -115,8 +130,18 @@ interface Manifest {
 }
 
 async function slettGamle(): Promise<void> {
-  const manifest = JSON.parse(await readFile(MANIFEST_STI, "utf-8")) as Manifest;
-  console.log(`Leser manifest (${manifest.tidspunkt}, ${manifest.miljo}): ${manifest.kopiert.length} originaler å slette.`);
+  console.log(`Leser manifest: ${MANIFEST_STI} (miljø ${dbNavn()})`);
+  let manifest: Manifest;
+  try {
+    manifest = JSON.parse(await readFile(MANIFEST_STI, "utf-8")) as Manifest;
+  } catch {
+    console.error(
+      `❌ Fant ikke manifestet på ${MANIFEST_STI}. Kjør --apply i DETTE miljøet først ` +
+        `(manifestet er db-navn-suffikset og ligger i uploads/). Sletter ingenting.`,
+    );
+    process.exit(1);
+  }
+  console.log(`  ${manifest.tidspunkt}, ${manifest.miljo}: ${manifest.kopiert.length} originaler å slette.`);
   let slettet = 0;
   for (const { apen } of manifest.kopiert) {
     if (!APPLY) {
@@ -186,6 +211,7 @@ async function main(): Promise<void> {
   const kunVedlegg = [...union].filter((u) => !imgUrler.has(u) && vedleggUrler.has(u)).length;
 
   console.log(`\n=== S1 Fase 1b bilde-migrering (${APPLY ? "APPLY" : "DRY-RUN"}) ===`);
+  console.log(`Miljø (DB): ${dbNavn()} · manifest-sti: ${MANIFEST_STI}`);
   console.log(`Union åpne fil-referanser: ${union.size}`);
   console.log(`  i_begge: ${iBegge} · kun_images: ${kunImages} · kun_vedlegg: ${kunVedlegg}`);
   console.log(`Finnes på disk (kopieres): ${flyttMap.size} · foreldreløse (hoppes): ${hoppetOver.length}`);
@@ -235,7 +261,7 @@ async function main(): Promise<void> {
   } else {
     const manifest: Manifest = {
       tidspunkt: new Date().toISOString(),
-      miljo: process.env.DATABASE_URL?.includes("sitedoc_test") ? "test" : "prod?",
+      miljo: dbNavn(),
       kopiert,
       imagesOppdatert,
       jsonOppdatert,

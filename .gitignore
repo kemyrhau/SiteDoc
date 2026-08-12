@@ -70,4 +70,3 @@ relay/
 # ikke kilde. 21 MB+ png. Funnene selv skrives inn i docs/claude/, bildene er lokale.
 docs/claude/delplaner/verifisering/
 *-bevis/
-apps/api/s1-fase1b-bilder-manifest.json
