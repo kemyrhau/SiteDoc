@@ -68,6 +68,12 @@ async function handler(req: Request) {
         imperseringAktiv,
         sessionToken,
         tokenKilde: sessionToken ? "cookie" : null,
+        // Klient-IP fra cloudflared (samme prioritet som hentKlientIp på api-siden).
+        ipAddress:
+          req.headers.get("cf-connecting-ip") ??
+          req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+          null,
+        userAgent: req.headers.get("user-agent"),
       }),
       req: req as never,
       res: {} as never,
