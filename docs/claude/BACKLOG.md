@@ -96,6 +96,23 @@ const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
 **Ryddesak funnet samtidig:** to identiske «Sitedoc»-skallfirmaer (`er_kunde=false`, null prosjekter) i prod. «Kenneths testmiljø» har `er_kunde=true` og teller derfor som kunde i lagringsstatistikk og fakturering.
 
+### 🔴 Web-utskrift skjuler uutfylte felter — mobil viser dem (målt i prod 2026-08-12)
+
+**Samme dokument gir ulikt innhold avhengig av hvor det skrives ut.**
+
+| Renderer | Tomt felt | Konsument |
+|---|---|---|
+| `packages/pdf/src/felt.ts:44-93` | `<span class="tom">Ikke utfylt</span>` | mobil |
+| `apps/web/src/components/RapportObjektVisning.tsx:42` | **`if (tom) return null`** — feltet forsvinner | web |
+
+**Funnet av Kenneth ved prod-verifisering** av KS-avvik `K-avv-003` (A.Markussen): utskriften viste kun ett bilde. Avvikstype-feltet («Velg…», aldri besvart), kontrolltabellen og to kommentarfelt var borte uten spor.
+
+**Hvorfor web-varianten er den gale:** et avviksskjema dokumenterer like mye hva som *ikke* ble besvart. En byggherre som får et skjema uten synlige tomme felt kan ikke skille «alt er kontrollert» fra «halvparten ble aldri fylt ut». Samme prinsipp som «ærlig linje» i arkivmalens loggseksjon og `mangler:true` i eksport-manifestet: dokumentet skal si hva som ikke finnes.
+
+**Tiltak:** `felt.ts`-oppførselen er fasit. Løses i **fase 3b** når `utskrift/*` konverteres til arkivmodulen — der er dette en **rettelse**, ikke en regresjon, og skal dokumenteres som sådan i før/etter-beviset (den nye utskriften viser flere felt enn dagens web).
+
+**Åpent spørsmål til fabel:** er «Ikke utfylt» sterkt nok for et byggherre-dokument? Et uutfylt kontrollpunkt i en KS-rapport er mer alvorlig enn et tomt værfelt. Ingen krav om ulik visning per felttype nå.
+
 ### 🔴 Lagre-knapp skjult under scrollkanten i innstillinger — koster reelle misforståelser (Kenneth 2026-08-12)
 
 **Symptom:** bruker endrer en innstilling, ser endringen i UI-et, forlater siden — endringen er ikke lagret. Systemet oppfører seg deretter som om brukeren ikke gjorde noe.
