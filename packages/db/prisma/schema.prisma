@@ -928,7 +928,10 @@ model ReportTemplate {
   showLocation    Boolean  @default(true) @map("show_location")
   showPriority    Boolean  @default(true) @map("show_priority")
   version         Int      @default(1)
-  enableChangeLog Boolean  @default(false) @map("enable_change_log")
+  // 2026-08-12: endringslogg står ALLTID på for nye maler (Kenneth-forenkling —
+  // valget om loggen skal MED i utskrift flyttes til utskriftstidspunktet).
+  // Kolonnen beholdes som sitedoc-admin nødbryter (kunde som krever ingen logging).
+  enableChangeLog Boolean  @default(true) @map("enable_change_log")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
