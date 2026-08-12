@@ -159,6 +159,67 @@ export const kontrollplanRouter = router({
       return { punkter: opprettet, importKildeId };
     }),
 
+  // Grunnlag for revisjons-diff (del 2): eksisterende import-styrte punkter +
+  // siste import med tilknyttede punkter (for hoppetOver + forrige-fil-metadata).
+  hentRevisjonsgrunnlag: protectedProcedure
+    .input(z.object({ kontrollplanId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const kontrollplan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
+        where: { id: input.kontrollplanId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+
+      const punkter = await ctx.prisma.kontrollplanPunkt.findMany({
+        where: { kontrollplanId: input.kontrollplanId, arkivert: false, importTaskUid: { not: null } },
+        select: {
+          id: true,
+          importTaskUid: true,
+          importWbs: true,
+          importNavn: true,
+          sjekklisteMalId: true,
+          faggruppeId: true,
+          milepelId: true,
+          fristUke: true,
+          fristAar: true,
+          status: true,
+          sjekklisteMal: { select: { name: true, prefix: true, kontrollomrade: true } },
+          faggruppe: { select: { name: true, color: true } },
+          milepel: { select: { navn: true } },
+          sjekkliste: { select: { id: true, status: true } },
+        },
+      });
+
+      // Siste import med minst ett tilknyttet punkt. Tomme importrader (feilet/
+      // duplikat-import — importraden opprettes utenfor punkt-transaksjonen, se
+      // opprettPunkter) skal ikke bidra med hoppetOver, ellers undertrykkes rader
+      // brukeren aldri valgte bort. TODO (del 2) fra opprettPunkter, anvendt her.
+      const importer = await ctx.prisma.kontrollplanImport.findMany({
+        where: { kontrollplanId: input.kontrollplanId },
+        orderBy: { importert: "desc" },
+        select: {
+          filnavn: true,
+          importert: true,
+          hoppetOver: true,
+          _count: { select: { punkter: true } },
+        },
+      });
+      const sisteImport = importer.find((i) => i._count.punkter > 0) ?? null;
+
+      return {
+        punkter,
+        sisteImport: sisteImport
+          ? {
+              filnavn: sisteImport.filnavn,
+              importert: sisteImport.importert,
+              // Konkret form ved grensen — Prisma JsonValue er dypt rekursiv og gir
+              // TS2589 hos klienten hvis den lekker gjennom tRPC-inferensen.
+              hoppetOver: sisteImport.hoppetOver as unknown as { uid: number; navn: string; wbs: string | null }[],
+            }
+          : null,
+      };
+    }),
+
   // Oppdater et punkt (frist, faggruppe, status, milepæl, avhengighet)
   oppdaterPunkt: protectedProcedure
     .input(z.object({
