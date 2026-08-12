@@ -80,4 +80,16 @@ describe("vurderPrivatFilForesporsel — gate", () => {
       kode: 400,
     });
   });
+
+  it("dobbeltkodet %252e → slipp (symmetri med fastifyStatic — IKKE dekod i løkke)", () => {
+    // `%252e` dekodes ÉN gang → `%2e` (literal tekst, ikke «.»), så prefikset
+    // `/uploads/privat/` matcher ikke → slipp. Dette er RIKTIG: fastifyStatic
+    // dekoder også bare én gang og slår opp et mappenavn «%2e» som ikke finnes
+    // (404) — ingen fil kan nås. Gaten må ALDRI dekode mer aggressivt enn
+    // serveren; da ville den beskytte en annen sti enn den som faktisk leses,
+    // og asymmetrien vi nettopp fjernet ville komme tilbake speilvendt.
+    expect(vurderPrivatFilForesporsel("/uploads/%252e/privat/abc-123.jpg")).toEqual({
+      type: "slipp",
+    });
+  });
 });
