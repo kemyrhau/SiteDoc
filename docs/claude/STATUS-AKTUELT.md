@@ -132,6 +132,30 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟢 PÅ TEST — fem spor merget til develop (`d4e0d8f1`, 2026-08-12)
+
+Merget fra `SiteDoc-merge`, deployet test, migrering kjørt. **Ikke i prod.**
+
+| Spor | Branch | Innhold |
+|---|---|---|
+| Sikkerhet | `fix/uploads-signatur-path-normalisering` | test som fester `%252e`-restformen (fiksen selv alt i prod `0d5d54ee`) |
+| Dataeksport fase 1 | `feat/eksport-infrastruktur` | `EksportJobb`, poll-worker m/ watchdog + 7-dagers utløpsrydding, stream-zip til `uploads/privat/`, signert levering, `verifiserKanEksportere` |
+| Dataeksport fase 2 | `feat/eksport-fase2-filer-csv` | filer på tvers av 5 modeller, manifest-innhold, timer/utlegg-CSV (`;` + BOM + desimalkomma), **Activity-logging** på `bestill` + URL-utstedelse |
+| Lagringsstatistikk | `feat/lagringsstatistikk` | aggregering per prosjekt/firma på `primaryOrganizationId` (eierskap), 1t cache, to flater, **tre ærlige restposter** (foreldreløse · umålt størrelse · DB-estimat) |
+| Dokumentgenerering fase 3 | `feat/dokumentgenerering` | arkivmal-datalag: rent lag i `packages/pdf/src/arkivmal/` (ingen Prisma — mobil importerer pakken) + fire logg-lesere i `apps/api/src/services/arkiv/` |
+
+**Migrering kjørt på `sitedoc_test`:** `20260811160000_eksport_jobb` (176 migreringer totalt). Gaten (`grep -q sitedoc_test`) virket.
+
+**Merge-lærdom:** `server.ts` ga konflikt mellom hotfixen og fase 1 (begge la til i samme område). `--theirs` ville tatt hele filen fra fase 1-branchen, som er *fra før* hotfixen — altså gjenåpnet sårbarheten. Løst manuelt ved å beholde begge. **Ved konflikt i en fil der en sikkerhetsfiks nylig landet: aldri `--theirs`/`--ours` på hele filen.**
+
+⚠️ **Gjenstår før prod:**
+1. **Kenneths test-verifisering av eksport:** `eksport.bestill` på prosjekt med bilder/tegninger/timer → `hentForProsjekt` viser `klar` → last ned zip → åpne `manifest.json` → sjekk `filer/`, `tegninger/`, `timer/*.csv`, og at manglende fil står som `mangler:true`. To raske bestillinger → andre skal gi CONFLICT.
+2. **`activity_log`-sjekk:** etter `bestill` + `hentNedlastingsUrl`, verifiser rader med `target_type='eksport'` og utfylt `ip_address`/`user_agent`.
+3. **Lagringsflatene:** `/dashbord/admin/lagring` (per firma × prosjekt × modell) + `/dashbord/firma/fakturering` (eget firma).
+4. **Innlogget verifisering** at bilder i sjekklister laster — fase 1 rører filserving-området.
+
+**Ikke merget:** `feat/kontrollplan-revisjon` del 1 (lokal hos Opus, push gitt) · deaktiver-mønster (under bygging).
+
 ### ✅✅ ARKIVERT — august-deployene (03.08–06.08) → [historikk-2026-08.md](historikk-2026-08.md)
 
 Fem prod-deployer arkivert med commit-refs, migreringer og verifisering: flytmodellen komplett + effektivitets-runden + mobil M1–M3 (`8b068c73` 03.08) · Funn A + Funn C (`0ac25705` 04.08) · Funn D + opprettvelger v2 + Spor 1 + kontaktside (`5bf25f83` 05.08) · Ordre 1.4 auto-hopp (`8a2f6d9c` 05.08) · Spor 2 HMS komplett (`70d2b752` 06.08).
