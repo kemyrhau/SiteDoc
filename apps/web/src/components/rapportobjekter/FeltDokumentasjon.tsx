@@ -56,7 +56,9 @@ export function FeltDokumentasjon({
     formData.append("file", fil);
 
     try {
-      const respons = await fetch("/api/upload", {
+      // S1 Fase 1b: felt-vedlegg (bilder/filer på sjekkliste/oppgave) lastes opp
+      // til uploads/privat/ (signatur-KUN). Signeres ved emisjon i tRPC-laget.
+      const respons = await fetch("/api/upload?privat=1", {
         method: "POST",
         body: formData,
       });

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { Prisma } from "@sitedoc/db";
 import { router, protectedProcedure } from "../trpc/trpc";
+import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { grenseNaadd } from "@sitedoc/shared";
@@ -146,7 +147,7 @@ export const oppgaveRouter = router({
         ? { template: { is: { domain: input.domain } } }
         : { template: { is: { domain: { not: "hms" } } } };
 
-      return ctx.prisma.task.findMany({
+      const oppgaver = await ctx.prisma.task.findMany({
         where: {
           ...IKKE_SLETTET,
           AND: [
@@ -196,6 +197,8 @@ export const oppgaveRouter = router({
         },
         orderBy: { updatedAt: "desc" },
       });
+      // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (liste-vei).
+      return signerDataRader(oppgaver);
     }),
 
   // Hent oppgavemarkører for en tegning
@@ -301,7 +304,8 @@ export const oppgaveRouter = router({
         oppgave.lestAvMottakerVed = new Date();
       }
 
-      return oppgave;
+      // S1 Fase 1b: signér vedlegg-URL i data + images-relasjonen ved emisjon.
+      return { ...signerDataRad(oppgave), images: signerBilder(oppgave.images) };
     }),
 
   // Hent kommentarer for en oppgave
@@ -617,7 +621,9 @@ export const oppgaveRouter = router({
       // (HMS-gruppen) varsles først når melder sender inn (oppgave.hmsSendInn). recipientGroupId
       // er allerede satt på tasken, så Send inn finner mottakeren uten nytt oppslag.
 
-      return opprettet;
+      // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (tomt ved opprett → no-op,
+      // men konsekvent — beskytter mot forhåndsutfylte maler med vedlegg).
+      return signerDataRad(opprettet);
     }),
 
   // Oppdater oppgave
@@ -827,7 +833,8 @@ export const oppgaveRouter = router({
           await tx.taskChangeLog.createMany({ data: endringsloggRader });
         }
 
-        return oppdatert;
+        // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (data-redigering).
+        return signerDataRad(oppdatert);
       });
     }),
 
@@ -1926,7 +1933,7 @@ export const oppgaveRouter = router({
     .mutation(async ({ ctx, input }) => {
       // Verifiser admin eller registrator
       const tillatelser = await hentBrukerTillatelser(ctx.userId, input.projectId);
-      const erAdmin = tillatelser.has("create_checklists") && tillatelser.has("create_tasks");
+      const _erAdmin = tillatelser.has("create_checklists") && tillatelser.has("create_tasks");
       const erRegistrator = tillatelser.has("create_checklists") || tillatelser.has("create_tasks");
 
       // Sjekk om bruker er prosjektadmin

@@ -106,6 +106,12 @@ export interface ProsjektForPdf {
   name: string;
   projectNumber?: string | null;
   externalProjectNumber?: string | null;
+  // Internt prosjektnummer (entreprenørens eget system — ERP/Pro Admin). Vises i
+  // utskrift-referansekjeden mellom eksternt og SD. Se terminologi.md § Tre prosjektnumre.
+  internalProjectNumber?: string | null;
+  // Gater SiteDoc-nummeret (SD) som siste utvei i utskrift-referansen. Default true.
+  // (Prisma-felt visSiteDocNummer; kolonnen heter fortsatt show_internal_project_number.)
+  visSiteDocNummer?: boolean | null;
   address?: string | null;
   logoUrl?: string | null;
 }

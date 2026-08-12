@@ -14,7 +14,134 @@ STATUS-AKTUELT.md § Pågående arbeid; ferdige PRs flyttes videre til
 
 Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avklaring.
 
+## 0. Sikkerhet — Aikido-scan triagert 2026-08-12 (49 funn → 7 poster)
+
+**Kilde:** `Fra fabel/til-repo-2026-08-12-1558/FABEL-TRIAGE-aikido-49-funn.md`. Fabel triagerte alle 49; cowork har **verifisert hvert kodefunn mot repoet** før føring her. Aikidos alvorlighetsgrader er ikke fulgt blindt — to av dem er justert, se under.
+
+### Avvises i Aikido (falske positive — verifisert)
+
+| Funn | Begrunnelse |
+|---|---|
+| **NoSQL injection** (`ftd-prosessering.ts`, `reisetidMatrise.ts` +4) | Ingen NoSQL i stacken. Prisma mot Postgres; all rå-SQL parameterisert — `$executeRaw` tagged template + `$executeRawUnsafe` med posisjonsparametre `$1/$2`. Ingen strengbygging med brukerdata. |
+| **uuid «memory corruption/RCE»** | Overdrevet advisory, ingen reell sårbarhet i bruksmønsteret. Bump ved anledning, avvis som critical. |
+
+### 🔴 Pakke A — før pilot
+
+**A1. DOMPurify på `dangerouslySetInnerHTML`** — 🔴 **cowork løfter denne over Next-bumpen.** Aikido sa medium; det er den mest reelle angrepsflaten i listen. **Verifisert: 9 forekomster i 4 filer** (`dokumentleser/page.tsx`, `dokumenter/[id]/les/page.tsx`, `tegninger/page.tsx`, `oppsett/byggeplasser/page.tsx`), og **DOMPurify er ikke i bruk noe sted**. Filene rendrer `innhold`/`blokk.content` fra opplastede og maskinoversatte dokumenter, og `svgInnhold` fra DWG-konvertering. Opplastet innhold rett i DOM er stored XSS. SVG-profil for tegningene. Est. 3 t.
+
+**A2. `@fastify/static` path traversal** (High) — verifisert `^9.0.0`. Bump til patchet versjon, og verifiser at uploads-serving bruker `sendFile` med rot-lås. 🔴 **Merk sammenhengen:** vi lukket en omgåelse av *vår egen* signaturgate 2026-08-12 (`//`, `/./`, `%2e` → 200). Har `@fastify/static` i tillegg egen traversal, kan filer utenfor `uploads/` nås uavhengig av gaten. Est. 1 t.
+
+**A3. Next.js-bump** (critical) — verifisert `next ^14.2.0`, utenfor sikkerhetsstøtte. Kjente CVE-er i 14-serien, bl.a. middleware-autorisasjonsbypass fikset i 14.2.25. Bump til nyeste 14.2.x nå; Next 15 planlegges etter pilot. Dekker også «Next.js SSRF» + fast-uri/undici via lock. Est. 10 t.
+
+**A4. Hardkodet API-nøkkel** (High) — verifisert: `apps/web/src/components/GeoReferanseEditor.tsx` har Norkart/Webatlas-nøkkel i klartekst, og **ingen `NEXT_PUBLIC_*`-variant finnes**. (Fabels rapport oppgav `components/tegning/` — riktig sti er `components/`.) Maptile-nøkler er synlige i nettleseren uansett, men skal (a) ut av kildekoden og inn i env, (b) domenebegrenses hos Norkart, (c) **roteres** — den ligger i git-historikken. Est. 1 t.
+
+**A5. `defusedxml` i ftd-worker** (Aikido critical, reelt medium/DoS) — verifisert: `ftd-worker/main.py` bruker `xml.etree` på opplastet NS3459-XML, og **`defusedxml` står ikke i requirements**. Entity-expansion-DoS. Est. 30 min.
+
+**A6. `fastapi>=0.115`-pin** — ftd-worker tar multipart-opplasting; kjente DoS-CVE-er i eldre starlette. Pinnen drar starlette ≥0.40 + nyeste python-multipart. Est. 30 min.
+
+**A7. Proxy-headers** — HSTS (High), X-Frame-Options (Medium), X-Powered-By av (Medium). Tre linjer i nginx/proxy. Est. 15 min.
+
+### Pakke B — vedlikeholdsvindu
+
+Én PR: `pnpm update` + `overrides` der transitivt. Omfatter protobufjs (transitiv via `@xenova/transformers`; pollution-CVE krever ondsinnede `.proto`-filer vi ikke parser), next-auth beta + `@auth/core`, find-my-way, tar/tar-fs, brace-expansion, browserslist, undici, expo-file-system, sharp, fast-xml-parser, csv-parse, nanoid, jose, ajv, yargs, js-yaml, picomatch, postal-mime, `@ungap/structured-clone`, onnxruntime-node, `@fastify/forwarded`, `@expo/spawn-async`, i18next, zod. Est. 3–4 t inkl. regresjon.
+
+**B-unntak: `xlsx` → `exceljs`** — pollution-CVE-en er reell og npm-versjonen får ikke fiks. **Verifisert: begge finnes i `apps/api` (`xlsx ^0.18.5` + `exceljs ^4.4.0`), og web bruker kun exceljs.** Migrer api-bruken og fjern `xlsx`. Egen post.
+
+### Pakke C — infrastruktur
+
+- **Docker kjører som root** — verifisert: **0 `USER`-linjer** i `Dockerfile.api`, `.web` og `.ml`. Legg til non-root + chown av arbeidskatalog. Est. 3 t inkl. test av volummounts (uploads-bind-mount er den risikable delen).
+- **CI:** pinn 3rd-party Actions til sha + `persist-credentials: false` på checkout. Est. 15 min.
+- **`@fastify/cors`:** verifiser at origin er eksplisitt liste, ikke `true`. Est. 15 min.
+
+### CSP — egen post, ikke hastetiltak
+
+Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inline-scripts. Krever egen testrunde. **Frist: før pilot-slutt**, ikke før pilot-start.
+
+### Coworks samlede vurdering
+
+«8 critical» er reelt **én viktig kodefiks (DOMPurify), én rammeverksbump, to biblioteks-pinner og fire linjer header-config.** Alt i pakke A utenom Next-bumpen og DOMPurify er under en time hver. Ingen indikasjon på aktiv utnyttelse.
+
+**Rekkefølgen cowork anbefaler avviker fra fabels på ett punkt:** DOMPurify før Next-bump. Next-CVE-ene krever spesifikke angrepsmønstre mot middleware; usanitert opplastet innhold i DOM er en åpen flate der kunden selv leverer nyttelasten.
+
 ## 1. Teknisk gjeld
+
+### Prosjektnummer: org.nr som firmadel når det finnes (Kenneth-vedtatt 2026-08-12)
+
+**Dagens generering** (`admin.ts:509-515`) har tre svakheter:
+
+```ts
+const antall = await ctx.prisma.project.count();   // GLOBALT antall
+const sekv = String(antall + 1).padStart(4, "0");
+const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
+```
+
+1. **Global sekvens lekker kundeomfang.** `SD-20260310-0007` betyr syv prosjekter i hele SiteDoc — ikke det syvende hos kunden. Byggherre som mottar dokumenter fra to kunder kan lese veksten.
+2. **`count()` + `create()` er ikke atomisk.** Samtidige opprettelser gir samme nummer → `@unique`-brudd med kryptisk feilmelding.
+3. **Sletting bryter sekvensen permanent.** Slettes prosjekt fem, gir `count()` samme tall som før → forsøk på et nummer som finnes. Feiler til noen har opprettet forbi hullet. **Ikke teoretisk — testprosjekter er slettet.**
+
+**Vedtatt modell:**
+
+| Firmaet har | Format | Sekvens |
+|---|---|---|
+| **org.nr** | `SD-<orgnr>-<NNNN>` | per firma (`count()` innenfor firmaet) |
+| **ikke org.nr** | `SD-YYYYMMDD-XXXX` — **dagens format, uendret** | som i dag |
+
+**Kenneths begrunnelse for at per-firma-sekvens er nok:** *«prosjektnummer i et firma kan ha count+1 — det er uten betydning. Alle firma som kommer inn har flere enn ett prosjekt kjørende og må opprette disse. Kun nye firmaer starter i praksis på null. Det er mer viktig å skjule hvor mange firmaer SiteDoc har som kunder.»*
+
+**Derfor er firmadelen ikke-løpende.** Et løpenummer (`SD-004-…`) ville lekket kundeantall — nøyaktig det som skal skjules. Org.nr er offentlig informasjon som tilhører kunden og sier ingenting om SiteDoc.
+
+**Org.nr er allerede skillet mellom kunde og test.** Målt i prod 2026-08-12: A.Markussen har `835000702`; HRP, «Kenneths testmiljø» og to skall-«Sitedoc» har tomt. Dagens format blir derfor testformatet — ingen egen markør å designe.
+
+**Ingen migrering.** Eksisterende numre beholdes; nummeret er en nøkkel, ikke en kronologisk serie. Et firma kan ha begge formater samtidig — det er tilsiktet.
+
+**Ryddesak funnet samtidig:** to identiske «Sitedoc»-skallfirmaer (`er_kunde=false`, null prosjekter) i prod. «Kenneths testmiljø» har `er_kunde=true` og teller derfor som kunde i lagringsstatistikk og fakturering.
+
+### 🔴 Lagre-knapp skjult under scrollkanten i innstillinger — koster reelle misforståelser (Kenneth 2026-08-12)
+
+**Symptom:** bruker endrer en innstilling, ser endringen i UI-et, forlater siden — endringen er ikke lagret. Systemet oppfører seg deretter som om brukeren ikke gjorde noe.
+
+**Kenneths ord:** *«noen ganger lagres det stille, andre ganger ikke → dette kan medføre misforståelser. Jeg tror lagreknapp alltid burde være synlig i innstillinger-vinduer.»*
+
+**Dokumentert kostnad — dette er ikke hypotetisk.** Kenneth satte eksternt prosjektnummer og huket av for at det skulle vises i utskrift, men lagre-knappen lå under scrollkanten i `prosjektoppsett`. Utskriften fortsatte å vise SD-nummeret (fallback). Han konkluderte at eksternt prosjektnummer ikke kunne skrives ut, og la `900512` inn i **byggeplassnavnet** som workaround. Den har stått der i månedsvis og utløste en full dags feilsøking 2026-08-12 — inkludert en gjennomgang av fire duplikate header-implementasjoner — før årsaken viste seg å være en usynlig knapp.
+
+**Tiltak:**
+1. **Sticky lagre-knapp** i alle innstillingsflater — alltid synlig, uavhengig av scrollposisjon.
+2. **Konsistens:** kartlegg hvilke innstillingssider som lagrer automatisk og hvilke som krever knapp. Blandingen er selve problemet — brukeren kan ikke vite hvilken modus han er i.
+3. **Ulagrede endringer skal varsles** ved navigasjon bort fra siden.
+
+Gjelder minst `dashbord/oppsett/prosjektoppsett`, men kartlegg alle `dashbord/oppsett/*` og `dashbord/firma/*`-innstillingsflater.
+
+### Store bilder mangler i klient-utskrift — `window.print()` venter ikke på lasting (målt 2026-08-12)
+
+**Eksisterende feil, ikke innført av noen nylig endring.** Oppdaget under verifisering av bilde-migreringen på test.
+
+**Symptom:** dokument med 8 vedlegg viste 4 bilder i dashbordet, men bare 3 i utskriften. Det manglende feltet var **helt tomt** — ikke brutt-ikon.
+
+**Målt årsak:** filen som manglet er `privat/a136ef0d-…jpg`, **3 763 127 bytes (3,7 MB)** — det største bildet i dokumentet. Filen finnes og er lesbar på disk; de øvrige i samme felt er 300–400 KB og kommer med. Brutt-ikon betyr «src finnes ikke»; tomt felt betyr «aldri ferdig lastet». `window.print()` venter ikke på at bilder er dekodet.
+
+**Hvem det rammer:** feltbilder fra mobilkamera er de store, og de utgjør nesten all bildeopplasting i prod. Altså rammer det de dokumentene som betyr mest.
+
+**Retning:** klient-utskriftssidene må vente på at hvert `<img>` har `complete === true` og `naturalWidth > 0` før `window.print()` kalles.
+
+🔴 **Gjelder også arkiv-PDF (fase 3).** Meldt til Opus dokgen som krav til rendrer-containeren: `networkidle0` alene er ikke nok for store bilder som dekodes etter at nettverket er stille. **Og en PDF skal ikke genereres stille med hull** — enten feil hele jobben, eller marker manglende bilde synlig. Et arkivdokument som ser komplett ut mens det mangler bevis er den verste utgangen. Fase 3b skal dokumentere dette som *rettelse*, ikke regresjon, i før/etter-beviset.
+
+
+### Foreldreløse bilder oppstår ved sletting — `Image` har `ON DELETE SET NULL` (målt 2026-08-12)
+
+`images_checklist_id_fkey` og `images_task_id_fkey` er begge `ON DELETE SET NULL` (`migrations/20260228221935_initial/migration.sql:250,253`). Slettes en sjekkliste eller oppgave, nulles bildets kobling — raden består og filen ligger igjen på disk. `Image` har **ingen andre koblinger** enn disse to, så bildet blir permanent uoppnåelig.
+
+**Målt omfang 2026-08-12:** 12 av 50 bilder (24 %), 11 MB, etter få måneders drift. **De 12 var testdata og er slettet** (Kenneths beslutning; prod står nå 38 bilder / 34 MB / 0 foreldreløse). Mekanismen er urørt — nye oppstår ved hver sletting.
+
+**To retninger, ikke besluttet:**
+- **`CASCADE`** — bildene slettes med sjekklisten. Problemet forsvinner, men en byggeleder som sletter ved uhell mister bildene permanent.
+- **Behold `SET NULL` + opprydningsrutine** — bevarer bilder ved uhellssletting, men krever en jobb som rydder etter en frist, og en måte å finne dem igjen i mellomtiden (finnes ikke i dag).
+
+Valget er et domenespørsmål: skal en uhellssletting kunne angres? ⚖ Kenneth.
+
+**Personvernvinkel:** byggeplassbilder kan inneholde personer og kjøretøy. Et bilde ingen kan nå har ikke lenger et formål, og skal etter GDPR-prinsippet om lagringsbegrensning ikke ligge.
+
+**Synlighet er på plass:** lagringsstatistikken (`feat/lagringsstatistikk`) viser foreldreløse som egen post, aldri fakturerbar, men med i faktisk diskbruk. Posten skjules ved 0 — den vil dukke opp av seg selv neste gang noe slettes.
+
 
 ### 🔴 `dokument-handlingsmeny-kvittering.test.tsx` feiler på develop (P2-mobil-restanse, 2026-07-29)
 

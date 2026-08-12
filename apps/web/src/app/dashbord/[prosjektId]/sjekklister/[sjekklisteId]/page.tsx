@@ -4,6 +4,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Spinner, StatusBadge, Card } from "@sitedoc/ui";
+import { prosjektReferanseForUtskrift } from "@sitedoc/pdf";
+import type { ProsjektForPdf, Utskriftsinnstillinger } from "@sitedoc/pdf";
 import { Check, AlertCircle, Loader2, Printer, Pencil, ArrowLeft, ShieldAlert } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { finnMottakerNavn } from "@/lib/videresend-valg";
@@ -509,8 +511,10 @@ export default function SjekklisteDetaljSide() {
       {/* Print-header: skjult på skjerm, synlig ved print */}
       <PrintHeader
         prosjektnavn={prosjekt?.name ?? ""}
-        prosjektnummer={prosjekt?.projectNumber ?? ""}
-        eksterntNummer={prosjekt?.externalProjectNumber}
+        prosjektnummer={prosjektReferanseForUtskrift(
+          prosjekt as unknown as ProsjektForPdf,
+          (prosjekt as unknown as { utskriftsinnstillinger?: Utskriftsinnstillinger | null })?.utskriftsinnstillinger,
+        )}
         sjekklisteTittel={sjekkliste.title}
         sjekklisteNummer={sjekklisteNummer}
         bestiller={sjekkliste.bestillerFaggruppe?.name}
@@ -524,7 +528,6 @@ export default function SjekklisteDetaljSide() {
         tegningNavn={fullSjekkliste?.drawing?.drawingNumber
           ? `${fullSjekkliste.drawing.drawingNumber} ${fullSjekkliste.drawing.name}`
           : fullSjekkliste?.drawing?.name}
-        visInterntNummer={(prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false}
       />
 
       {/* Skjerm-header: sticky ved scrolling */}

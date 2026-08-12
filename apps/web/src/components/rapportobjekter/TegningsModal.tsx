@@ -177,7 +177,8 @@ export function TegningsModal({
       const formData = new FormData();
       formData.append("file", fil);
 
-      const respons = await fetch("/api/upload", {
+      // S1 Fase 1b: tegnings-skjermbilde blir et bilde-vedlegg → uploads/privat/.
+      const respons = await fetch("/api/upload?privat=1", {
         method: "POST",
         body: formData,
       });

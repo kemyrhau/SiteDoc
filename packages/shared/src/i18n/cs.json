@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Zadní",
   "kontrollplan.importFrister": "Termíny týden {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} aktivity bez šablony – vyloučeno",
+  "kontrollplan.importAlleredeImportert": "All selected rows are already imported from this plan.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} rows were already imported and were skipped.",
   "kontrollplan.importSteg2Beskrivelse": "Rozvrh obsahuje zdroje (firmy/lidé). Mapujte každý zdroj na obchodní skupinu v SiteDoc, aby kontrolní body získaly správnou odpovědnou stranu.",
   "kontrollplan.importIngenRessurser": "V souboru nebyly nalezeny žádné zdroje. Vyberte výchozí obchodní skupinu pro všechny aktivity nebo je v dalším kroku přiřaďte ke skupině.",
   "kontrollplan.importStandardFaggruppe": "Výchozí obchodní skupina",

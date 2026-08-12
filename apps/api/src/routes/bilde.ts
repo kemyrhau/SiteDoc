@@ -2,6 +2,28 @@ import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
 import { byggTilgangsFilter } from "../trpc/tilgangskontroll";
+import { signerBilder } from "../utils/vedleggSignering";
+import { normaliserFilSti } from "../utils/hmac";
+
+/**
+ * S1 Fase 1b myk validering (STEG 2): bilder skal lastes opp til uploads/privat/.
+ * Web sender allerede `?privat=1` (umiddelbar effekt ved deploy); mobil sender det
+ * først etter et nytt EAS-bygg. Serveren kan IKKE skille gammel/ny mobil-klient
+ * (ingen versjons-header), så vi AKSEPTERER begge stier nå og logger kun en
+ * advarsel ved åpen sti — så adopsjonen kan følges før innstramming.
+ *
+ * 🔴 STEG 4 (hard validering) — etter at EAS-bygget med privat-bilde-opplasting er
+ * rullet ut og adoptert: gjør `fileUrl` til en Zod-refine som KREVER
+ * `/uploads/privat/`-prefiks. Se relay/inbox-opus-mobil-device.md S1 Fase 1b.
+ */
+function advarVedApenBildeSti(fileUrl: string, kontekst: string): void {
+  if (!fileUrl.startsWith("/uploads/privat/")) {
+    console.warn(
+      `[S1-1b] Bilde lastet opp til ÅPEN sti (${kontekst}): ${fileUrl} — ` +
+        `sannsynligvis en mobil-klient før EAS-bygget med privat-opplasting. Aksepteres (steg 2), hard validering kommer (steg 4).`,
+    );
+  }
+}
 
 export const bildeRouter = router({
   hentForProsjekt: protectedProcedure
@@ -102,7 +124,11 @@ export const bildeRouter = router({
         orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       });
 
-      return { sjekklisteBilder, oppgaveBilder };
+      // S1 Fase 1b: signér fileUrl ved emisjon (privat-bilder). No-op for åpne URL-er.
+      return {
+        sjekklisteBilder: signerBilder(sjekklisteBilder),
+        oppgaveBilder: signerBilder(oppgaveBilder),
+      };
     }),
 
   opprettForSjekkliste: protectedProcedure
@@ -123,6 +149,7 @@ export const bildeRouter = router({
         include: { template: { select: { projectId: true } } },
       });
       await verifiserProsjektmedlem(ctx.userId, sjekkliste.template.projectId);
+      advarVedApenBildeSti(input.fileUrl, "opprettForSjekkliste");
 
       return ctx.prisma.image.create({
         data: {
@@ -158,6 +185,7 @@ export const bildeRouter = router({
         throw new Error("Oppgaven mangler mal-tilknytning");
       }
       await verifiserProsjektmedlem(ctx.userId, oppgave.template.projectId);
+      advarVedApenBildeSti(input.fileUrl, "opprettForOppgave");
 
       return ctx.prisma.image.create({
         data: {
@@ -195,8 +223,17 @@ export const bildeRouter = router({
     .input(z.object({ fileUrl: z.string(), projectId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await verifiserProsjektmedlem(ctx.userId, input.projectId);
+      // S1 Fase 1b: klienten kan sende en SIGNERT URL (?exp=&sig=) eller en
+      // sti-variant. Lagret fileUrl er kanonisk uten query → normaliser bort
+      // query + sti-varianter før eksakt-match, ellers feiler slettingen stille.
+      let renUrl = input.fileUrl.split("?")[0] ?? input.fileUrl;
+      try {
+        renUrl = normaliserFilSti(renUrl);
+      } catch {
+        // ugyldig prosentkoding — behold rå (matcher da ikke, ingen sletting)
+      }
       const resultat = await ctx.prisma.image.deleteMany({
-        where: { fileUrl: input.fileUrl },
+        where: { fileUrl: renUrl },
       });
       return { slettet: resultat.count };
     }),

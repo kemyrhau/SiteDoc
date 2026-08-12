@@ -279,6 +279,20 @@ Vi skrev **fem** slike påstander 2026-07-15/16, alle sanne i dag, alle fremtidi
 
 **Symmetri er ikke et argument.** «N av M nær-identiske flater mangler X» *ser* ut som drift, men M ulike varianter er like ofte to bevisste design som M drifter. En rotårsak-fiks som utvider atferd til flere flater er en **atferdsendring** — den gates mot spec, ikke mot symmetri.
 
+## Verktøy: aldri `perl -0pi`/`sed -i` på docs (UFRAVIKELIG, 2026-08-12)
+
+**Rediger `docs/claude/`-filer (og all UTF-8-dokumentasjon) med Edit-verktøyet, aldri
+`perl -0pi`/`sed -i`.** Repoet er norsk — æøå er i så godt som hver fil. `perl -0pi`
+kan tolke UTF-8-bytes som latin1 og re-emittere dobbelt-enkodet (`ø`→`Ã¸`), og
+`\x{...}`-escapes kan bytte linjeavslutning til NEL (U+0085). Resultatet er en
+hel-fil-mojibake-diff (én hendelse 2026-08-12: 514 korrupte linjer i STATUS-AKTUELT
+fra ett innsettings-kall) som **passerer review fordi ingen leser en docs-diff linje
+for linje.** Fanges den ikke i diff-stat, havner søppelet i historikken.
+
+- Innsetting/erstatning i docs → Edit (eksakt streng).
+- Oppdaget korrupsjon → `git checkout <base> -- <fil>` + re-anvend via Edit; verifiser
+  med `file <fil>` (skal si «UTF-8, with LF», ikke NEL) + `grep -c "Ã¸"` = 0.
+
 ## Anvendt
 
 Rettingen `c875ee6f` (2026-07-09) er referanse-eksempelet: `:517`/`:534` fikk

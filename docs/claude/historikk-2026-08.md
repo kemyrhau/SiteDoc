@@ -6,6 +6,38 @@ sist_verifisert_mot_kode: 2026-08-07
 
 # Historikk august 2026
 
+## 🔴 SIKKERHETSFIKS — signaturgate-omgåelse på `/uploads/privat/*` (PROD `0d5d54ee`, 2026-08-11)
+
+**Funnet, fikset, deployet og verifisert i drift samme kveld.** Oppdaget under cowork-gate av dataeksport fase 1.
+
+### Sårbarheten
+
+`server.ts` gatet på **rå** URL (`req.url.startsWith("/uploads/privat/")`), mens `fastifyStatic` normaliserte stien før filoppslag. Gate og oppslag så to forskjellige strenger. I prod siden `ca7f16b6` (S1 Fase 1, autorisert filserving).
+
+**Fire utnyttbare former, alle verifisert med 200 mot ekte fil før fiks:** `/uploads//privat/…` · `/uploads/./privat/…` · `/uploads/x/../privat/…` · `/uploads/%2e/privat/…`
+
+**Reell konsekvens:** filnavn er UUID-er, så ikke fri katalogbla — men **utløpsmekanismen var brutt**. Den som hadde sett en signert lenke én gang kunne bruke den permanent ved å legge til `/./`, uten signatur og uten innlogging. 10-minutters-utløpet gjaldt i praksis ikke.
+
+### Fiksen (`f224fbb3` → develop `b621333c` → main `0d5d54ee`)
+
+Ny ren funksjon `vurderPrivatFilForesporsel(rawUrl)` i `apps/api/src/utils/hmac.ts`: normaliserer (`decodeURIComponent` + `posix.normalize` + kollaps `/+`) og bruker **samme normaliserte sti til både gate og signaturverifisering**. Rot-årsaken — asymmetrien — er borte, ikke maskert.
+
+`normaliserFilSti` er no-op på kanonisk form, så eksisterende signerte lenker verifiserer uendret. Målt og testet, ingen endring på signeringssiden.
+
+🔴 **`%252e` (dobbeltkodet) slipper bevisst forbi normaliseringen.** `fastifyStatic` dekoder også kun én gang, så oppslaget treffer et mappenavn `%2e` som ikke finnes → 404, ingen fil nåbar. **Innfør ikke dekoding-i-løkke** — da dekoder gaten mer aggressivt enn serveren, og asymmetrien vi fjernet kommer tilbake speilvendt. Festet med test.
+
+### Verifisering
+
+12 tester i `hmac.test.ts`, inkl. den som beviser kjerneutnyttelsen er borte: **korrekt signert men utløpt lenke + `/./` → 401**.
+
+Sonde mot ekte fil, alle fem former: **401 på test etter deploy, 401 på prod etter deploy**. Byggstempel bekreftet `0d5d54ee` / `2026-08-11T20:29Z`.
+
+> **Lærdom (deploy-mekanikk):** første test-deploy bygde gammel kode fordi `docker compose up --build` ble kjørt uten forutgående rsync — bygg-konteksten er server-fila i `~/stack/sitedoc`, ikke Mac-en. Sonden fanget det; uten den ville vi gått til prod med en fiks som ikke var der. Rekkefølgen er alltid **pull hovedtre → rsync → build → up**, og hovedtreet er bak hver gang merge-treet har pushet.
+
+⚠️ **Gjenstår:** innlogget verifisering i nettleser at bilder i sjekklister laster normalt. Sonden beviser at ugyldige forespørsler avvises, ikke at gyldige slipper gjennom.
+
+---
+
 Arkiv av arbeid deployet til prod i august 2026. Flyttet hit fra [STATUS-AKTUELT.md](STATUS-AKTUELT.md) per arkiveringsplikten (deployet arbeid ligger aldri igjen i STATUS-AKTUELT).
 
 > **Mobil-forbehold for hele måneden:** ingen EAS-bygg er fyrt i august (siste er #40, 2026-07-15). Mobil-kode som er merget til `main` i august er derfor **i prod-repoet, men ikke hos brukerne** — den når felt først ved neste EAS-bygg + TestFlight. Gjelder særlig mobil detalj-redesign M1–M3. Se [STATUS-AKTUELT § EAS-byggteller](STATUS-AKTUELT.md#eas-byggteller-kvote-15mnd-fri-plan--nullstilles-den-1).

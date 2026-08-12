@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Atpakaļ",
   "kontrollplan.importFrister": "Termiņi nedēļa {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} darbības bez veidnes — izslēgtas",
+  "kontrollplan.importAlleredeImportert": "Visas atlasītās rindas jau ir importētas no šī plāna.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} rindas jau tika importētas un tika izlaistas.",
   "kontrollplan.importSteg2Beskrivelse": "Grafikā ir resursi (uzņēmumi/cilvēki). Kartējiet katru resursu ar tirdzniecības grupu pakalpojumā SiteDoc, lai kontrolpunkti iegūtu pareizo atbildīgo pusi.",
   "kontrollplan.importIngenRessurser": "Failā nav atrasti resursi. Izvēlieties noklusējuma tirdzniecības grupu visām darbībām vai piešķiriet katrai grupai nākamajā darbībā.",
   "kontrollplan.importStandardFaggruppe": "Noklusējuma tirdzniecības grupa",

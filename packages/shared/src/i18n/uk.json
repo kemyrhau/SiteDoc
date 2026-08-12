@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Назад",
   "kontrollplan.importFrister": "Дедлайн тиждень {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} дії без шаблону — виключено",
+  "kontrollplan.importAlleredeImportert": "Усі вибрані рядки вже імпортовано з цього плану.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} рядків уже імпортовано та пропущено.",
   "kontrollplan.importSteg2Beskrivelse": "Розклад містить ресурси (компанії/люди). Зіставте кожен ресурс із торговою групою в SiteDoc, щоб контрольні точки отримали правильну відповідальну сторону.",
   "kontrollplan.importIngenRessurser": "У файлі не знайдено ресурсів. Виберіть торгову групу за замовчуванням для всіх дій або призначте групу на наступному кроці.",
   "kontrollplan.importStandardFaggruppe": "Торгова група за замовчуванням",

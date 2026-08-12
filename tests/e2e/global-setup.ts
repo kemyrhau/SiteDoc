@@ -53,6 +53,24 @@ export default async function globalSetup() {
     );
   }
 
+  // E2E-sweep (sikkerhetsnett): fjern E2E-firma-søppel eldre enn ett døgn som en
+  // tidligere crash/avbrutt kjøring etterlot. Server-side (env-guardet mot
+  // sitedoc_test + sitedoc_admin). Best-effort — feiler aldri suiten.
+  try {
+    const adminApi = new ApiKlient(tokens.admin);
+    const sweep = await adminApi.mutation<{ slettet: number }>(
+      "admin.sweepE2EFirmaer",
+      {},
+    );
+    if (sweep.slettet > 0) {
+      console.log(`[e2e] sweep: slettet ${sweep.slettet} E2E-firma-rest(er)`);
+    }
+  } catch (e) {
+    console.warn(
+      `[e2e] sweep hoppet over: ${e instanceof Error ? e.message : e}`,
+    );
+  }
+
   // Flyt-oppslag som firma (prosjektadmin + registrator-medlem).
   const firmaApi = new ApiKlient(tokens.firma);
   const flyt = await slåOppFlyt(firmaApi);

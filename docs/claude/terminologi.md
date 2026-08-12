@@ -121,13 +121,32 @@ Flyttet hit fra CLAUDE.md 2026-07-10 (anker-prinsippet — modul-typologi bor i 
 - **Aktivitet (Activity):** Sentral audit-tabell for alle handlinger som påvirker timer, kostnad eller dokumentflyt-status. **Status: bygget** — `model Activity` i `schema.prisma`, produsent-kode: 7 `activity.create()`-kall i `apps/api/src/routes/` (`timer/dagsseddel.ts` ×3, `vareforbruk.ts` ×3, `vareImport.ts` ×1). Feed-konsument (dashboard-feed) gjenstår — se [aktivitetsfeed.md](aktivitetsfeed.md). (Fase 0 A.3)
 - **Avdeling:** Firma-intern organisatorisk inndeling — kobles til User, EquipmentAnsvarlig og DailySheet. Distinkt dimensjon fra Byggeplass. **Status: bygget** — `model Avdeling` i `schema.prisma`, egen `apps/api/src/routes/avdeling.ts` + UI `dashbord/firma/avdelinger/`. (Fase 0.5)
 - **Byggeplass:** Lokasjon/anlegg i prosjektet. DB: `Byggeplass` (renamet fra `Building`/`Bygning`). Har `number`, `type` (deprecated, default `"bygg"`), `status`
-- **Eksternt prosjektnummer:** Kundens/byggeherrens referanse på prosjektet
+- **Eksternt prosjektnummer:** **Byggherrens** referanse på prosjektet. DB: `Project.externalProjectNumber`. Vises i utskriftsheader når `eksternProsjektnummer`-innstillingen er på. Se § Tre prosjektnumre under.
 - **Firmalogo:** Prosjektets logo i print-header (`Project.logo_url`)
 - **proAdmId:** UI-vennlig referanse til ProAdm-systemets ID for et underprosjekt. Vises i UI; UUID brukes i alle FK-er. Samme mønster som `kjennemerke` for kjøretøy
 - **Produksjon:** Innstillingsseksjon for feltarbeid-oppsett (renamet fra «Feltarbeid»/«Field»)
 - **Prosjektgruppe:** Kategori + tillatelser + fagområder + valgfri faggruppe-tilknytning. DB: `ProjectGroup`
 - **Prosjektlokasjon:** Valgfri GPS (`Project.latitude`/`longitude`) for kartvisning og værhenting
-- **Prosjektnummer:** Format `SD-YYYYMMDD-XXXX` (autogenerert)
+- **Internt prosjektnummer:** Entreprenørens **eget** referansenummer fra et annet internt system (ERP, SharePoint, Pro Admin). DB: `Project.internalProjectNumber`. Det er dette nummeret feltarbeiderne faktisk husker. Se § Tre prosjektnumre under.
+- **Prosjektnummer (SD-nummer):** Format `SD-YYYYMMDD-XXXX`, autogenerert, `@unique`. **SiteDocs egen nøkkel** — teknisk identifikator, ikke brukerinformasjon. Se § Tre prosjektnumre under.
+
+### Tre prosjektnumre — hvem eier hvilket (vedtatt 2026-08-12)
+
+Begrepene var tvetydige: terminologien sa «kundens/byggherrens referanse» om eksternt nummer, men **kunde og byggherre er to forskjellige parter**. Skillet er hvem nummeret tilhører:
+
+| Begrep | Eier | Formål | UI-etikett |
+|---|---|---|---|
+| **SD-nummer** (`projectNumber`) | SiteDoc | vår tekniske nøkkel, unik og stabil | «SiteDoc-nummer» |
+| **Internt prosjektnummer** (`internalProjectNumber`) | **entreprenøren** | kobling mot eget system (ERP/Pro Admin); nummeret de ansatte husker | «Internt prosjektnummer (eget system)» |
+| **Eksternt prosjektnummer** (`externalProjectNumber`) | **byggherren** | byggherrens referanse på prosjektet | «Eksternt prosjektnummer (byggherre)» |
+
+**Konsekvenser vedtatt samtidig:**
+
+- **SD-nummeret vises ikke i brukervendte flater.** Det er lagringsmekanikk, ikke informasjon feltarbeideren trenger. Beholdes i `dashbord/admin/*` som sorterbar, skjulbar kolonne.
+- **Internt nummer vises sammen med prosjektnavnet når det er satt** — ubetinget, ingen egen bryter. Kunden har fylt inn feltet fordi de vil bruke det.
+- **Fallback-kjede i utskrift:** eksternt (toggle på + satt) → internt (satt) → SD (siste utvei). Et byggherre-dokument skal aldri stå helt uten referanse.
+- 🔴 **`showInternalProjectNumber` var en feilbenevnelse** — flagget gatet i praksis **SD-nummeret**, ikke det interne (bekreftet av checkboxens egen hjelpetekst). Omdøpes til `visSiteDocNummer`. Feilbenevnelsen kostet en kunde-workaround: eksternt nummer ble skrevet inn i byggeplassnavnet fordi headeren viste SD i stedet.
+- **`internalProjectNumber` mangler `@unique` og formatvalidering.** En Pro Admin-integrasjon keyet på feltet trenger minst unikhet per firma. Forutsetning for integrasjonsrunden, ikke bygget.
 - **Underprosjekt:** UI-term for ekstern kostnadsbærer-referanse innenfor et prosjekt — typisk endringsmelding, regningsarbeid eller delkontrakt fra ProAdm. DB-modell: `ExternalCostObject` (presist navn). Samme mønster som `proAdmId` (UI-vennlig) vs UUID (FK). **Status: bygget** — `model ExternalCostObject` i `schema.prisma`, `apps/api/src/routes/eksternKostObjekt.ts` + brukt i timer-attestering (`vareforbruk.ts`, `timer/dagsseddel.ts`, `components/timer/`). (Fase 0 A.1)
 
 ## 3. Roller

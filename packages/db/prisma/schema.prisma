@@ -64,6 +64,7 @@ model User {
   tilstedevarelser        PsiTilstedevarelse[]
   godkjenteKontrollplaner Kontrollplan[]          @relation("KontrollplanGodkjenner")
   kontrollplanHistorikk   KontrollplanHistorikk[]
+  kontrollplanImporter    KontrollplanImport[]
   kompetanser             AnsattKompetanse[]
   // 2026-05-28 — impersonering audit (Variant B: isolert tabell).
   impersonertSomAdmin     ImpersonationAudit[]    @relation("ImpersonationAdmin")
@@ -104,6 +105,7 @@ model Organization {
   kompetansetyper     Kompetansetype[]
   arbeidstidsKalender ArbeidstidsKalender[]
   seedPolicies        OrganizationSeedPolicy[]
+  eksportJobber       EksportJobb[]
 
   @@map("organizations")
 }
@@ -151,6 +153,46 @@ model OrganizationSeedPolicy {
   @@unique([organizationId, datatype])
   @@index([organizationId])
   @@map("organization_seed_policies")
+}
+
+// EksportJobb — asynkron jobb for server-side dokumentgenerering/eksport.
+// Kanon-mønster (arkitektur-syntese § 6.2): Prisma-jobbtabell + poll-worker.
+// Speiler FtdTranslationJob. Ligger i packages/db (kjerne) fordi det er en
+// tverrgående infra-tabell om et Project/Organization, ikke en modultabell —
+// samme resonnement som OrganizationSeedPolicy.
+//
+// 🔴 Ikke batch-forutsettende: `type` skiller «pakke» (mange dokumenter) fra
+// «dokument» (ett — fase 3 enkeltdokument-utsending til byggherre). Nøyaktig ett
+// mål-sett er satt per type (projectId / organizationId / dokumentType+dokumentId).
+model EksportJobb {
+  id     String @id @default(uuid())
+  type   String @default("prosjekt_eksport") // prosjekt_eksport | firma_eksport | dokument (DB-CHECK)
+  status String @default("bestilt") // bestilt | bygger | klar | feilet | utløpt (DB-CHECK)
+
+  // Mål — avhenger av type (ingen batch-antakelse):
+  projectId      String? @map("project_id") // prosjekt_eksport (+ dokument tilhører et prosjekt)
+  organizationId String? @map("organization_id") // firma_eksport
+  dokumentType   String? @map("dokument_type") // dokument: hvilken dokumenttype
+  dokumentId     String? @map("dokument_id") // dokument: id-en
+
+  bestiltAvUserId   String  @map("bestilt_av_user_id") // svak FK → users
+  feilmelding       String?
+  antallTotalt      Int?     @map("antall_totalt") // progresjon (jf. blocksTotal)
+  antallFerdig      Int?     @map("antall_ferdig")
+  resultatSti       String?  @map("resultat_sti") // disk-sti under uploads/privat/eksport/
+  resultatStorrelse Int?     @map("resultat_storrelse") // bytes
+  utloperVed        DateTime? @map("utloper_ved") // artefakt slettes + status=utløpt etter dette
+  startetVed        DateTime? @map("startet_ved")
+  fullfortVed       DateTime? @map("fullfort_ved")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([projectId])
+  @@map("eksport_jobber")
 }
 
 // ---------------------------------------------------------------------------
@@ -494,7 +536,10 @@ model Project {
   internalProjectNumber     String?   @map("internal_project_number")
   externalProjectNumber     String?   @map("external_project_number")
   logoUrl                   String?   @map("logo_url")
-  showInternalProjectNumber Boolean   @default(true) @map("show_internal_project_number")
+  /// Gater SiteDoc-nummeret (SD-…), IKKE internt prosjektnummer — tross kolonnenavnet.
+  /// Kolonnen beholder `show_internal_project_number` for å unngå migrering;
+  /// omdøping av kolonnen er notert som oppfølger. Se terminologi.md § Tre prosjektnumre.
+  visSiteDocNummer          Boolean   @default(true) @map("show_internal_project_number")
   utskriftsinnstillinger    Json?     @map("utskrifts_innstillinger") // { logo, eksternProsjektnummer, prosjektnavn, fraTil, lokasjon, tegningsnummer, vaer }
   sourceLanguage            String    @default("nb") @map("source_language") // Kildespråk for prosjektet
   status                    String    @default("active")
@@ -533,6 +578,7 @@ model Project {
   tilstedevarelser     PsiTilstedevarelse[]
   kontrollplaner       Kontrollplan[]
   godkjenninger        Godkjenning[]
+  eksportJobber        EksportJobb[]
 
   @@index([trialExpiresAt])
   @@index([primaryOrganizationId])
@@ -726,7 +772,12 @@ model Drawing {
   originator       String? // Opphav (firma/person)
   fileUrl          String    @map("file_url")
   fileType         String    @map("file_type") // PDF, DWG, DXF, IFC
-  fileSize         Int?      @map("file_size") // Filstørrelse i bytes
+  // Lagringsstatistikk (2026-08-11): står Int? BEVISST — prod-dekningen (4/4) er
+  // data-tilfeldighet, ikke en robust skrivevei. Koden oppretter DWG-layout-
+  // tegninger UTEN fileSize (tegning.ts:187,539) og revisjons-update setter
+  // `fileSize ?? null` (tegning.ts:362). NOT NULL ville gitt 500 ved første
+  // DWG-med-layouts-opplasting — samme grunn som de tre tomme fil-modellene.
+  fileSize         Int?      @map("file_size") // Filstørrelse i bytes (null for DWG-layouts)
   imageWidth       Int?      @map("image_width") // Bildets bredde i piksler (for tegningsposisjon i PDF)
   imageHeight      Int?      @map("image_height") // Bildets høyde i piksler
   originalFileUrl  String?   @map("original_file_url") // Original DWG-fil (før konvertering)
@@ -761,7 +812,7 @@ model PointCloud {
   description       String?
   fileUrl           String   @map("file_url") // Opplastet fil (LAS, LAZ, E57, PLY)
   fileType          String   @map("file_type") // las, laz, e57, ply
-  fileSize          Int?     @map("file_size")
+  fileSize          Int?     @map("file_size") // Int? bevisst: 0 rader/utestet skrivevei (se Drawing.fileSize, lagringsstatistikk 2026-08-11)
   potreeUrl         String?  @map("potree_url") // Sti til Potree-output (metadata.json)
   conversionStatus  String   @default("pending") @map("conversion_status") // pending, converting, done, failed
   conversionError   String?  @map("conversion_error")
@@ -788,7 +839,7 @@ model DrawingRevision {
   revision     String // Revisjonskode ved denne versjonen (A, B, C)
   version      Int // Versjonsnummer ved denne revisjonen
   fileUrl      String    @map("file_url")
-  fileSize     Int?      @map("file_size")
+  fileSize     Int?      @map("file_size") // Int? bevisst: 0 rader/utestet skrivevei (se Drawing.fileSize, lagringsstatistikk 2026-08-11)
   description  String? // Beskrivelse av endringer
   uploadedById String?   @map("uploaded_by_id")
   status       String // Status ved revisjon
@@ -1477,7 +1528,7 @@ model FtdDocument {
   processingError   String? @map("processing_error")
   fileHash          String? @map("file_hash")
   standardNumber    String? @map("standard_number")
-  fileSize          Int?    @map("file_size")
+  fileSize          Int?    @map("file_size") // Int? bevisst: 0 rader/utestet skrivevei (se Drawing.fileSize, lagringsstatistikk 2026-08-11)
   version           Int     @default(1)
   kontraktNavn      String? @map("kontrakt_navn")
   notaType          String? @map("nota_type") // "A-Nota" | "T-Nota" | "Sluttnota"
@@ -1961,6 +2012,7 @@ model Kontrollplan {
   godkjentAv User?               @relation("KontrollplanGodkjenner", fields: [godkjentAvId], references: [id], onDelete: SetNull)
   milepeler  Milepel[]
   punkter    KontrollplanPunkt[]
+  importer   KontrollplanImport[]
 
   @@unique([projectId, byggeplassId])
   @@index([projectId])
@@ -1997,6 +2049,13 @@ model KontrollplanPunkt {
   avhengerAvId    String?  @map("avhenger_av_id")
   opprettet       DateTime @default(now())
 
+  // Rad-identitet fra fremdriftsplan-import (del 1). Nullable — punkter opprettet
+  // manuelt eller via kopiering har ingen import-opprinnelse. Én MS Project-rad
+  // kan gi N punkter (samme aktivitet, flere maler), alle med samme importTaskUid.
+  importTaskUid Int?    @map("import_task_uid")
+  importWbs     String? @map("import_wbs")
+  importKildeId String? @map("import_kilde_id")
+
   kontrollplan  Kontrollplan            @relation(fields: [kontrollplanId], references: [id], onDelete: Cascade)
   milepel       Milepel?                @relation(fields: [milepelId], references: [id], onDelete: SetNull)
   omrade        Omrade?                 @relation(fields: [omradeId], references: [id], onDelete: SetNull)
@@ -2006,14 +2065,19 @@ model KontrollplanPunkt {
   avhengerAv    KontrollplanPunkt?      @relation("PunktAvhengighet", fields: [avhengerAvId], references: [id], onDelete: SetNull)
   blokkerer     KontrollplanPunkt[]     @relation("PunktAvhengighet")
   historikk     KontrollplanHistorikk[]
+  importKilde   KontrollplanImport?     @relation(fields: [importKildeId], references: [id], onDelete: SetNull)
 
   @@unique([kontrollplanId, omradeId, sjekklisteMalId])
+  // Rad-identitet: to importer av samme fil gir samme (uid, mal) → dedup i datalaget.
+  // NULL importTaskUid (manuelle/kopierte punkter) er distinkte i Postgres → kolliderer aldri.
+  @@unique([kontrollplanId, importTaskUid, sjekklisteMalId], map: "kp_punkt_import_uid_mal_key")
   @@index([kontrollplanId])
   @@index([milepelId])
   @@index([omradeId])
   @@index([faggruppeId])
   @@index([status])
   @@index([fristUke, fristAar])
+  @@index([importKildeId], map: "kp_punkt_import_kilde_idx")
   @@map("kontrollplan_punkter")
 }
 
@@ -2030,6 +2094,28 @@ model KontrollplanHistorikk {
 
   @@index([punktId])
   @@map("kontrollplan_historikk")
+}
+
+// Én rad per importhendelse fra fremdriftsplan (del 1). Bærer det revisjon (del 2)
+// trenger: hvilke rader ble hoppet over (så revisjonen ikke maser om dem igjen),
+// og hvor mange rader filen inneholdt kontra hvor mange som ble tatt inn.
+model KontrollplanImport {
+  id                 String   @id @default(cuid())
+  kontrollplanId     String   @map("kontrollplan_id")
+  filnavn            String
+  antallParsedeRader Int      @map("antall_parsede_rader")
+  importertAvId      String   @map("importert_av_id")
+  importert          DateTime @default(now())
+  // UID-ene som ble vist men bevisst ikke valgt, med navn- og wbs-snapshot:
+  // [{ uid: number, navn: string, wbs: string | null }]
+  hoppetOver         Json     @map("hoppet_over")
+
+  kontrollplan Kontrollplan        @relation(fields: [kontrollplanId], references: [id], onDelete: Cascade)
+  importertAv  User                @relation(fields: [importertAvId], references: [id])
+  punkter      KontrollplanPunkt[]
+
+  @@index([kontrollplanId])
+  @@map("kontrollplan_import")
 }
 
 // ---------------------------------------------------------------------------

@@ -124,6 +124,21 @@ export type {
   UtledOrdningInput,
   EksportRute,
 } from "./utleggOrdning";
+export {
+  LAGRING_MODELLER,
+  DB_SNITT_BYTES,
+  tomModellSum,
+  aggregerLagring,
+  dbVolumEstimatBytes,
+  manglerStorrelsePerModell,
+  formaterBytes,
+} from "./lagring";
+export type {
+  LagringModell,
+  LagringRad,
+  ModellSum,
+  ProsjektAggregat,
+} from "./lagring";
 
 /**
  * Generer et unikt prosjektnummer med prefiks og sekvensielt nummer.

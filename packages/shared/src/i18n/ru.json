@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Назад",
   "kontrollplan.importFrister": "Сроки: неделя {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "Действия {{antall}} без шаблона — исключены",
+  "kontrollplan.importAlleredeImportert": "Все выбранные строки уже импортированы из этого плана.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} строк уже были импортированы и пропущены.",
   "kontrollplan.importSteg2Beskrivelse": "Расписание содержит ресурсы (компании/люди). Сопоставьте каждый ресурс с торговой группой в SiteDoc, чтобы на контрольных точках была указана правильная ответственная сторона.",
   "kontrollplan.importIngenRessurser": "В файле не найдены ресурсы. Выберите торговую группу по умолчанию для всех видов деятельности или назначьте ее для каждой группы на следующем шаге.",
   "kontrollplan.importStandardFaggruppe": "Торговая группа по умолчанию",

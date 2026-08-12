@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Tagasi",
   "kontrollplan.importFrister": "Tähtajad nädal {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} tegevust ilma mallita – välistatud",
+  "kontrollplan.importAlleredeImportert": "All selected rows are already imported from this plan.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} rows were already imported and were skipped.",
   "kontrollplan.importSteg2Beskrivelse": "Ajakava sisaldab ressursse (ettevõtted/inimesed). Kaardistage iga ressurss SiteDoci kaubandusrühmaga, et kontrollpunktid saaksid õige vastutava osapoole.",
   "kontrollplan.importIngenRessurser": "Failist ei leitud ressursse. Valige kõigi tegevuste jaoks vaikekauplemisrühm või määrake järgmises etapis iga rühma kohta.",
   "kontrollplan.importStandardFaggruppe": "Vaikimisi kaubandusgrupp",

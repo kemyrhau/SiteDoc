@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Takaisin",
   "kontrollplan.importFrister": "Määräajat viikko {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} toimintaa ilman mallia – poissuljettu",
+  "kontrollplan.importAlleredeImportert": "Kaikki valitut rivit on jo tuotu tästä suunnitelmasta.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} riviä oli jo tuotu ja ohitettiin.",
   "kontrollplan.importSteg2Beskrivelse": "Aikataulu sisältää resurssit (yritykset/henkilöt). Yhdistä jokainen resurssi kaupparyhmään SiteDocissa, jotta tarkistuspisteet saavat oikean vastuullisen tahon.",
   "kontrollplan.importIngenRessurser": "Tiedostosta ei löydy resursseja. Valitse oletuskaupparyhmä kaikille toiminnoille tai määritä ryhmäkohtaisesti seuraavassa vaiheessa.",
   "kontrollplan.importStandardFaggruppe": "Oletuskaupparyhmä",
