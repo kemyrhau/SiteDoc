@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
 import { X, Upload, FileText, Loader2, Check, ChevronRight, ChevronDown } from "lucide-react";
 import { parseMSProjectXML } from "@/lib/ms-project-parser";
 import type { MSProjectData } from "@/lib/ms-project-parser";
+import { useImportTilordning } from "../importTilordning/useImportTilordning";
 import {
   beregnRevisjonsdiff,
   formaterFristEndring,
@@ -25,16 +26,16 @@ interface RevidereFremdriftsplanDialogProps {
 /**
  * Revisjons-diff (del 2): les en oppdatert fremdriftsplan og vis endringene mot
  * eksisterende kontrollpunkter — frist-endringer (per milepæl), nye aktiviteter,
- * deaktiverte. Sjekkpunkt (b): read-only visning med lokalt utvalg. Anvend-
- * mutasjonen og mal-tilordning for nye aktiviteter kommer i sjekkpunkt (c).
+ * deaktiverte. Mal/faggruppe for nye aktiviteter gjenbruker useImportTilordning
+ * (del 1.5) slik at tilordningen ikke drifter fra import-flyten.
  */
 export function RevidereFremdriftsplanDialog({
   kontrollplanId,
-  projectId: _projectId,
+  projectId,
   byggeplassId: _byggeplassId,
   planNavn,
   onLukk,
-  onAnvendt: _onAnvendt,
+  onAnvendt,
 }: RevidereFremdriftsplanDialogProps) {
   const { t } = useTranslation();
 
@@ -49,15 +50,18 @@ export function RevidereFremdriftsplanDialog({
   const [apneMilepeler, setApneMilepeler] = useState<Set<string>>(new Set());
   const [visValgtBort, setVisValgtBort] = useState(false);
 
-  // Lokalt utvalg (anvendes i sjekkpunkt c)
+  // Lokalt utvalg
   const [avvalgteSikre, setAvvalgteSikre] = useState<Set<string>>(new Set()); // sikre er valgt som default
   const [bekreftedeAntatt, setBekreftedeAntatt] = useState<Set<string>>(new Set());
   const [arkiverUids, setArkiverUids] = useState<Set<number>>(new Set());
+  const [valgteNye, setValgteNye] = useState<Set<number>>(new Set());
+  const [anvendFeil, setAnvendFeil] = useState(false);
 
   const grunnlag = trpc.kontrollplan.hentRevisjonsgrunnlag.useQuery(
     { kontrollplanId },
     { enabled: parsedData !== null },
   );
+  const anvend = trpc.kontrollplan.anvendRevisjon.useMutation();
 
   const diff = useMemo(() => {
     if (!parsedData || !grunnlag.data) return null;
@@ -68,6 +72,29 @@ export function RevidereFremdriftsplanDialog({
       hoppetOver,
     );
   }, [parsedData, grunnlag.data]);
+
+  // Nye aktiviteter: gjenbruk import-tilordningen (mal + ressurs→faggruppe) for
+  // hele kandidatsettet, slik at logikken deles med import-flyten (del 1.5).
+  const nyeUidsSet = useMemo(
+    () => new Set((diff?.nyeAktiviteter ?? []).filter((n) => !n.tidligereValgtBort).map((n) => n.uid)),
+    [diff],
+  );
+  const tilordning = useImportTilordning({ projectId, parsedData, selectedUIDs: nyeUidsSet, stegNr: 3 });
+  const initGjort = useRef(false);
+  useEffect(() => {
+    if (!initGjort.current && tilordning.faggrupper && nyeUidsSet.size > 0) {
+      tilordning.initSteg2(); // auto-match ressurs → faggruppe én gang
+      initGjort.current = true;
+    }
+  }, [tilordning.faggrupper, tilordning.initSteg2, nyeUidsSet]);
+
+  const faggruppeForNy = useCallback((resourceNames: string[]) => {
+    for (const r of resourceNames) {
+      const fgId = tilordning.ressursFaggruppeMap.get(r);
+      if (fgId) return (tilordning.faggrupper ?? []).find((f: { id: string }) => f.id === fgId) ?? null;
+    }
+    return null;
+  }, [tilordning.ressursFaggruppeMap, tilordning.faggrupper]);
 
   const handleFilValgt = useCallback(async (file: File) => {
     setFil(file);
@@ -118,6 +145,66 @@ export function RevidereFremdriftsplanDialog({
 
   const malEtikett = (p: RevisjonPunkt) =>
     `${p.sjekklisteMal.prefix ? p.sjekklisteMal.prefix + " — " : ""}${p.sjekklisteMal.name}`;
+
+  // Nye punkter klare til opprettelse: valgt + har mal + faggruppe løst.
+  const nyeKlare = useMemo(
+    () => tilordning.importPunkter.filter((p) => valgteNye.has(p.taskUid) && p.faggruppeId),
+    [tilordning.importPunkter, valgteNye],
+  );
+
+  const kanAnvende = !!oppsummering
+    && (oppsummering.fristerOppdateres > 0 || nyeKlare.length > 0 || arkiverUids.size > 0);
+
+  const handleAnvend = useCallback(async () => {
+    if (!diff) return;
+    setAnvendFeil(false);
+    const alleEndringer = diff.fristEndringer.flatMap((g) => g.endringer);
+
+    // Levende identitet: alle sikre UID-matcher + bekreftede antatt-samme.
+    const identitetsOppdateringer = [
+      ...diff.identiteter,
+      ...alleEndringer
+        .filter((e) => !e.sikker && bekreftedeAntatt.has(e.punkt.id))
+        .map((e) => ({ punktId: e.punkt.id, nyImportTaskUid: e.nyTaskUid, nyImportNavn: e.nyImportNavn })),
+    ];
+    // Frist: valgte sikre (ikke avvalgt) + bekreftede antatt.
+    const fristOppdateringer = alleEndringer
+      .filter((e) => (e.sikker ? !avvalgteSikre.has(e.punkt.id) : bekreftedeAntatt.has(e.punkt.id)))
+      .map((e) => ({ punktId: e.punkt.id, nyFristUke: e.nyFrist?.uke ?? null, nyFristAar: e.nyFrist?.aar ?? null }));
+    const nyePunkter = nyeKlare.map((p) => ({
+      sjekklisteMalId: p.malId,
+      faggruppeId: p.faggruppeId!,
+      importTaskUid: p.taskUid,
+      importWbs: p.wbs,
+      importNavn: p.name,
+      fristUke: p.frist?.uke ?? null,
+      fristAar: p.frist?.aar ?? null,
+    }));
+    const arkiverPunktIds = diff.deaktiverte
+      .filter((d) => arkiverUids.has(d.uid))
+      .flatMap((d) => d.punkter.map((p) => p.id));
+    // Kandidat-nye som ikke tas inn — vist men fravalgt → hoppetOver for neste revisjon.
+    const hoppetOver = diff.nyeAktiviteter
+      .filter((n) => !n.tidligereValgtBort && !valgteNye.has(n.uid))
+      .map((n) => ({ uid: n.uid, navn: n.navn, wbs: n.wbs }));
+
+    try {
+      await anvend.mutateAsync({
+        kontrollplanId,
+        filnavn: fil?.name ?? "ukjent",
+        antallParsedeRader: parsedData?.flatTasks.length ?? 0,
+        identitetsOppdateringer,
+        fristOppdateringer,
+        nyePunkter,
+        arkiverPunktIds,
+        hoppetOver,
+      });
+      onAnvendt();
+      onLukk();
+    } catch {
+      setAnvendFeil(true);
+    }
+  }, [diff, bekreftedeAntatt, avvalgteSikre, nyeKlare, arkiverUids, valgteNye, anvend, kontrollplanId, fil, parsedData, onAnvendt, onLukk]);
 
   return (
     <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center p-4">
@@ -249,6 +336,23 @@ export function RevidereFremdriftsplanDialog({
                           {t("kontrollplan.revisjonAntallEndringer", { antall: gruppe.endringer.length })}
                           {gruppe.antallAntatt > 0 && ` · ${t("kontrollplan.revisjonAntallAntatt", { antall: gruppe.antallAntatt })}`}
                         </span>
+                        {gruppe.antallSikre > 0 && (
+                          <label className="ml-auto flex items-center gap-1.5 text-[12.5px] font-semibold text-sitedoc-primary"
+                            onClick={(ev) => ev.stopPropagation()}>
+                            <input type="checkbox"
+                              checked={gruppe.endringer.filter((e) => e.sikker).every((e) => !avvalgteSikre.has(e.punkt.id))}
+                              onChange={(ev) => {
+                                const sikreIds = gruppe.endringer.filter((e) => e.sikker).map((e) => e.punkt.id);
+                                setAvvalgteSikre((prev) => {
+                                  const next = new Set(prev);
+                                  if (ev.target.checked) sikreIds.forEach((id) => next.delete(id));
+                                  else sikreIds.forEach((id) => next.add(id));
+                                  return next;
+                                });
+                              }} />
+                            {t("kontrollplan.revisjonVelgAlleSikre", { antall: gruppe.antallSikre })}
+                          </label>
+                        )}
                       </div>
                       {apen && synlige.map((e) => (
                         <div key={e.punkt.id}
@@ -312,8 +416,16 @@ export function RevidereFremdriftsplanDialog({
                   </div>
                 </div>
                 <div className="mx-7 mb-2.5 border rounded-lg overflow-hidden">
-                  {diff.nyeAktiviteter.filter((n) => !n.tidligereValgtBort && sokTreff(n.navn, n.wbs)).map((n) => (
-                    <div key={n.uid} className="grid grid-cols-[1fr_150px] gap-x-3 items-center px-4 py-2.5 border-b last:border-b-0">
+                  {diff.nyeAktiviteter.filter((n) => !n.tidligereValgtBort && sokTreff(n.navn, n.wbs)).map((n) => {
+                    const fg = faggruppeForNy(n.resourceNames);
+                    return (
+                    <div key={n.uid} className="grid grid-cols-[36px_1fr_200px_150px] gap-x-3 items-center px-4 py-2.5 border-b last:border-b-0">
+                      <input type="checkbox" checked={valgteNye.has(n.uid)}
+                        onChange={() => setValgteNye((prev) => {
+                          const s = new Set(prev);
+                          if (s.has(n.uid)) s.delete(n.uid); else s.add(n.uid);
+                          return s;
+                        })} />
                       <div>
                         <span className="text-[13.5px] text-gray-900 font-medium">{n.navn}</span>
                         <div className="text-[11.5px] text-gray-400">
@@ -321,9 +433,30 @@ export function RevidereFremdriftsplanDialog({
                           {n.resourceNames.length > 0 ? ` · ${n.resourceNames.join(", ")}` : ""}
                         </div>
                       </div>
-                      <span className="text-xs text-gray-400 justify-self-end">{t("kontrollplan.revisjonMalVelgesSenere")}</span>
+                      <select
+                        value={tilordning.oppgaveMalMap.get(n.uid) ?? ""}
+                        onChange={(e) => tilordning.setOppgaveMalMap((prev) => {
+                          const m = new Map(prev);
+                          if (e.target.value) m.set(n.uid, e.target.value); else m.delete(n.uid);
+                          return m;
+                        })}
+                        className="border rounded-lg px-2.5 py-1.5 text-[12.5px] text-gray-900"
+                      >
+                        <option value="">{t("kontrollplan.sjekklisteMal")} …</option>
+                        {tilordning.alleMaler.map((m) => (
+                          <option key={m.id} value={m.id}>{m.prefix ? `${m.prefix} — ` : ""}{m.name}</option>
+                        ))}
+                      </select>
+                      {fg ? (
+                        <span className="text-xs text-gray-600 bg-gray-100 rounded-full px-2.5 py-0.5 justify-self-start">{fg.name}</span>
+                      ) : (
+                        <span className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5 justify-self-start">
+                          {t("kontrollplan.revisjonManglerFaggruppe")}
+                        </span>
+                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                   {diff.nyeAktiviteter.some((n) => n.tidligereValgtBort) && (
                     <div className="px-4 py-2 text-[12.5px] text-gray-500 bg-gray-50 cursor-pointer"
                       onClick={() => setVisValgtBort((v) => !v)}>
@@ -391,15 +524,23 @@ export function RevidereFremdriftsplanDialog({
                       {t("kontrollplan.revisjonUbekreftet", { antall: oppsummering.ubekreftetAntatt })}
                     </div>
                   )}
+                  {anvendFeil && (
+                    <div className="text-[12px] text-red-600 mt-0.5">{t("kontrollplan.revisjonFeil")}</div>
+                  )}
                 </div>
               )}
               <div className="ml-auto flex gap-2.5">
                 <button onClick={handleLukk} className="border rounded-lg px-4 py-2 text-[13.5px] font-semibold text-gray-700 hover:bg-gray-50">
                   {t("handling.avbryt")}
                 </button>
-                <button disabled title={t("kontrollplan.revisjonAnvendKommer")}
-                  className="border-none bg-sitedoc-primary text-white rounded-lg px-5 py-2 text-[13.5px] font-bold disabled:opacity-50">
+                <button
+                  onClick={handleAnvend}
+                  disabled={!kanAnvende || anvend.isPending}
+                  className="flex items-center gap-2 border-none bg-sitedoc-primary text-white rounded-lg px-5 py-2 text-[13.5px] font-bold disabled:opacity-50"
+                >
+                  {anvend.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
                   {t("kontrollplan.revisjonAnvend")}
+                  {oppsummering && ` (${oppsummering.fristerOppdateres + nyeKlare.length + arkiverUids.size})`}
                 </button>
               </div>
             </div>

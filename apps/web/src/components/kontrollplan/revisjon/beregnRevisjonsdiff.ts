@@ -45,7 +45,17 @@ export interface FristEndring {
   // Kun for antatt samme: uid-en fra ny fil som punktet oppgraderes til ved bekreftelse,
   // og hva som var før (til «Var: X»-visning).
   nyTaskUid: number;
+  nyImportNavn: string; // navnet i ny fil — siste kjente, skrives til punktet ved anvendelse
   antattVar?: string | null;
+}
+
+// Levende identitet: alle non-utførte UID-matchede punkter skal få importNavn
+// (og evt. uid) oppdatert til ny fil ved anvendelse — uavhengig av om fristen endret
+// seg — ellers drifter fingerprinten. Se importNavn-kommentaren i schema.prisma.
+export interface Identitetsoppdatering {
+  punktId: string;
+  nyImportTaskUid: number;
+  nyImportNavn: string;
 }
 
 export interface MilepelGruppe {
@@ -82,6 +92,9 @@ export interface Revisjonsdiff {
   uendretAntall: number;
   // Utførte/godkjente punkter holdes HELT ute av diffen — kun oppsummeringslinja.
   utfortGodkjentPunkter: RevisjonPunkt[];
+  // Alle non-utførte UID-matchede punkter — importNavn/uid oppdateres ubetinget ved
+  // anvendelse (også de uendrede), for å holde rad-identiteten levende.
+  identiteter: Identitetsoppdatering[];
   antallSikre: number;
   antallAntatt: number;
 }
@@ -151,6 +164,7 @@ export function beregnRevisjonsdiff(
 
   const fristEndringer: FristEndring[] = [];
   const utfortGodkjentPunkter: RevisjonPunkt[] = [];
+  const identiteter: Identitetsoppdatering[] = [];
   const deaktivertUids: number[] = [];
   let uendretAntall = 0;
 
@@ -167,6 +181,8 @@ export function beregnRevisjonsdiff(
         utfortGodkjentPunkter.push(punkt); // HELT ute av diffen
         continue;
       }
+      // Levende identitet: oppdater navn ubetinget (uid er uendret ved sikker match).
+      identiteter.push({ punktId: punkt.id, nyImportTaskUid: uid, nyImportNavn: nyTask.name });
       const gammelFrist = punkt.fristUke != null && punkt.fristAar != null
         ? { uke: punkt.fristUke, aar: punkt.fristAar }
         : null;
@@ -176,7 +192,7 @@ export function beregnRevisjonsdiff(
         fristEndringer.push({
           punkt, gammelFrist, nyFrist,
           deltaUker: deltaUker(gammelFrist, nyFrist),
-          sikker: true, nyTaskUid: uid,
+          sikker: true, nyTaskUid: uid, nyImportNavn: nyTask.name,
         });
       }
     }
@@ -207,7 +223,7 @@ export function beregnRevisjonsdiff(
       fristEndringer.push({
         punkt, gammelFrist, nyFrist,
         deltaUker: deltaUker(gammelFrist, nyFrist),
-        sikker: false, nyTaskUid: nyTask.uid, antattVar: punkt.importNavn,
+        sikker: false, nyTaskUid: nyTask.uid, nyImportNavn: nyTask.name, antattVar: punkt.importNavn,
       });
     }
   }
@@ -265,6 +281,7 @@ export function beregnRevisjonsdiff(
     deaktiverte,
     uendretAntall,
     utfortGodkjentPunkter,
+    identiteter,
     antallSikre,
     antallAntatt,
   };
