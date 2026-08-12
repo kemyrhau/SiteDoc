@@ -72,6 +72,7 @@ export function ImportFremdriftsplanDialog({
 
   // Oppsummering
   const [oppretterState, setOppretterState] = useState<"idle" | "pending" | "ferdig" | "feil">("idle");
+  const [dedupMelding, setDedupMelding] = useState<string | null>(null);
 
   // Data — hent faggrupper fra steg 2+, maler fra steg 3+
   const stegNr = typeof steg === "number" ? steg : 4;
@@ -375,7 +376,7 @@ export function ImportFremdriftsplanDialog({
           faggruppeId = standardFaggruppeId;
         }
         const frist = t.finish ? datoTilUkeAar(t.finish) : null;
-        return { taskUid: t.uid, name: t.name, malId, faggruppeId, frist };
+        return { taskUid: t.uid, name: t.name, wbs: t.wbs, malId, faggruppeId, frist };
       });
   }, [parsedData, selectedUIDs, oppgaveMalMap, ressursFaggruppeMap, gruppeFaggruppeMap, standardFaggruppeId]);
 
@@ -389,21 +390,51 @@ export function ImportFremdriftsplanDialog({
   const handleOpprett = useCallback(async () => {
     if (importPunkter.length === 0) return;
     setOppretterState("pending");
+    setDedupMelding(null);
 
     try {
+      // Klient-dedup: filtrer bort rader som allerede er importert til denne
+      // kontrollplanen (samme importTaskUid + mal). Gir en vennlig melding
+      // framfor at datalagets unique-guard kaster en stygg feil ved re-import.
+      const eksisterende = await utils.kontrollplan.hentForByggeplass.fetch({ byggeplassId });
+      const eksisterendeSet = new Set(
+        (eksisterende?.punkter ?? [])
+          .filter((p) => p.importTaskUid != null)
+          .map((p) => `${p.importTaskUid}:${p.sjekklisteMalId}`),
+      );
+      const medFaggruppe = importPunkter.filter((p) => p.faggruppeId);
+      const nyePunkter = medFaggruppe.filter(
+        (p) => !eksisterendeSet.has(`${p.taskUid}:${p.malId}`),
+      );
+      const antallHoppet = medFaggruppe.length - nyePunkter.length;
+
+      if (nyePunkter.length === 0) {
+        setDedupMelding(t("kontrollplan.importAlleredeImportert"));
+        setOppretterState("idle");
+        return;
+      }
+
+      // hoppetOver: rader som ble vist men bevisst ikke valgt — snapshot slik at
+      // en senere revisjon (del 2) ikke maser om de samme radene igjen.
+      const hoppetOver = (parsedData?.flatTasks ?? [])
+        .filter((tk) => !tk.isSummary && !selectedUIDs.has(tk.uid))
+        .map((tk) => ({ uid: tk.uid, navn: tk.name, wbs: tk.wbs }));
+
       // Grupper etter (sjekklisteMalId, faggruppeId)
-      const grupper = new Map<string, typeof importPunkter>();
-      for (const p of importPunkter) {
-        if (!p.faggruppeId) continue; // Hopp over uten faggruppe
+      const grupper = new Map<string, typeof nyePunkter>();
+      for (const p of nyePunkter) {
         const key = `${p.malId}__${p.faggruppeId}`;
         if (!grupper.has(key)) grupper.set(key, []);
         grupper.get(key)!.push(p);
       }
 
-      // Sekvensiell opprettelse
+      // Sekvensiell opprettelse. Første kall oppretter importhendelsen og
+      // returnerer importKildeId; påfølgende kall peker til samme rad.
+      let importKildeId: string | null = null;
+      let foersteKall = true;
       for (const [_key, punkter] of grupper) {
         const foerste = punkter[0]!;
-        await opprettPunkter.mutateAsync({
+        const res = await opprettPunkter.mutateAsync({
           kontrollplanId,
           sjekklisteMalId: foerste.malId,
           faggruppeId: foerste.faggruppeId!,
@@ -412,8 +443,25 @@ export function ImportFremdriftsplanDialog({
             omradeId: null,
             fristUke: p.frist?.uke ?? null,
             fristAar: p.frist?.aar ?? null,
+            importTaskUid: p.taskUid,
+            importWbs: p.wbs,
           })),
+          ...(foersteKall
+            ? {
+                importKilde: {
+                  filnavn: fil?.name ?? "ukjent",
+                  antallParsedeRader: parsedData?.flatTasks.length ?? 0,
+                  hoppetOver,
+                },
+              }
+            : { importKildeId }),
         });
+        if (foersteKall) importKildeId = res.importKildeId;
+        foersteKall = false;
+      }
+
+      if (antallHoppet > 0) {
+        setDedupMelding(t("kontrollplan.importHoppetDuplikater", { antall: antallHoppet }));
       }
 
       // Også punkter uten faggruppe — hopp over for nå (varsle bruker)
@@ -423,7 +471,7 @@ export function ImportFremdriftsplanDialog({
     } catch (_e) {
       setOppretterState("feil");
     }
-  }, [importPunkter, kontrollplanId, byggeplassId, opprettPunkter, utils, onImportert]);
+  }, [importPunkter, kontrollplanId, byggeplassId, opprettPunkter, utils, onImportert, parsedData, selectedUIDs, fil, t]);
 
   // ──────── Rendering ────────
 
@@ -1049,6 +1097,11 @@ export function ImportFremdriftsplanDialog({
               {oppretterState === "feil" && (
                 <div className="mt-3 text-sm text-red-600">
                   Feil ved opprettelse. Prøv igjen.
+                </div>
+              )}
+              {dedupMelding && (
+                <div className="mt-3 text-sm text-amber-600">
+                  {dedupMelding}
                 </div>
               )}
             </div>

@@ -120,6 +120,44 @@ model ProsjektBibliotekValg {
 }
 ```
 
+## Fremdriftsplan-import — rad-identitet (del 1)
+
+> 🟢 **BYGGET** (branch `feat/kontrollplan-revisjon`, migrering `20260812120000_kontrollplan_rad_identitet`). Migrering ikke kjørt mot test/prod ennå — Kenneth gater. Del 2 (revisjon som diff) og del 3 (plan-nivå-historikk) er ikke bygget.
+
+Kontrollpunkter kan bygges ved å importere en MS Project-fremdriftsplan
+(`ImportFremdriftsplanDialog.tsx` → `parseMSProjectXML` → `kontrollplan.opprettPunkter`).
+Fram til del 1 husket ikke systemet hvilken MS Project-rad som ga hvilket punkt, så
+en oppdatert fremdriftsplan hadde ingen vei til revisjon — bare re-import med
+duplikater. Del 1 legger rad-identiteten som gjør revisjon (del 2) mulig.
+
+**Rad-identitet på `KontrollplanPunkt`** (`schema.prisma`, alle nullable):
+
+- `importTaskUid Int?` — MS Project-radens UID. Én rad kan gi N punkter (samme
+  aktivitet, flere maler), alle med samme uid.
+- `importWbs String?` — WBS-kode (snapshot ved import).
+- `importKildeId String?` — FK til `KontrollplanImport` (importhendelsen).
+
+Manuelt opprettede og kopierte punkter har `importTaskUid = null` — korrekt tilstand,
+ikke en mangel.
+
+**`KontrollplanImport`** — én rad per importhendelse: `filnavn`, `antallParsedeRader`,
+`importertAvId`, `importert`, og `hoppetOver Json` (UID-ene som ble vist men bevisst
+ikke valgt, med navn- og wbs-snapshot — så en senere revisjon ikke maser om dem igjen).
+
+**Duplikat-guard (to lag):**
+
+1. Unik indeks `@@unique([kontrollplanId, importTaskUid, sjekklisteMalId])`
+   (`kp_punkt_import_uid_mal_key`). To importer av samme fil gir samme `(uid, mal)`
+   → kollisjon. NULL `importTaskUid` er distinkt i Postgres → manuelle/kopierte
+   punkter kolliderer aldri.
+2. Klient-dedup i `handleOpprett` (`ImportFremdriftsplanDialog.tsx`) filtrerer bort
+   allerede importerte `(uid, mal)` og gir en vennlig melding
+   (`kontrollplan.importAlleredeImportert` / `importHoppetDuplikater`) framfor at
+   datalagets guard kaster en rå feil. Samme to-lags-mønster som `kopierPunkter`.
+
+`opprettPunkter` bærer rad-identiteten og oppretter importhendelsen på første
+gruppe-kall (returnerer `importKildeId`; påfølgende kall gjenbruker den).
+
 ## Felttype-regler (KRITISK)
 
 ### Kun eksisterende ReportObject-typer

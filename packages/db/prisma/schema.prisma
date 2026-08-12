@@ -64,6 +64,7 @@ model User {
   tilstedevarelser        PsiTilstedevarelse[]
   godkjenteKontrollplaner Kontrollplan[]          @relation("KontrollplanGodkjenner")
   kontrollplanHistorikk   KontrollplanHistorikk[]
+  kontrollplanImporter    KontrollplanImport[]
   kompetanser             AnsattKompetanse[]
   // 2026-05-28 — impersonering audit (Variant B: isolert tabell).
   impersonertSomAdmin     ImpersonationAudit[]    @relation("ImpersonationAdmin")
@@ -1961,6 +1962,7 @@ model Kontrollplan {
   godkjentAv User?               @relation("KontrollplanGodkjenner", fields: [godkjentAvId], references: [id], onDelete: SetNull)
   milepeler  Milepel[]
   punkter    KontrollplanPunkt[]
+  importer   KontrollplanImport[]
 
   @@unique([projectId, byggeplassId])
   @@index([projectId])
@@ -1997,6 +1999,13 @@ model KontrollplanPunkt {
   avhengerAvId    String?  @map("avhenger_av_id")
   opprettet       DateTime @default(now())
 
+  // Rad-identitet fra fremdriftsplan-import (del 1). Nullable — punkter opprettet
+  // manuelt eller via kopiering har ingen import-opprinnelse. Én MS Project-rad
+  // kan gi N punkter (samme aktivitet, flere maler), alle med samme importTaskUid.
+  importTaskUid Int?    @map("import_task_uid")
+  importWbs     String? @map("import_wbs")
+  importKildeId String? @map("import_kilde_id")
+
   kontrollplan  Kontrollplan            @relation(fields: [kontrollplanId], references: [id], onDelete: Cascade)
   milepel       Milepel?                @relation(fields: [milepelId], references: [id], onDelete: SetNull)
   omrade        Omrade?                 @relation(fields: [omradeId], references: [id], onDelete: SetNull)
@@ -2006,14 +2015,19 @@ model KontrollplanPunkt {
   avhengerAv    KontrollplanPunkt?      @relation("PunktAvhengighet", fields: [avhengerAvId], references: [id], onDelete: SetNull)
   blokkerer     KontrollplanPunkt[]     @relation("PunktAvhengighet")
   historikk     KontrollplanHistorikk[]
+  importKilde   KontrollplanImport?     @relation(fields: [importKildeId], references: [id], onDelete: SetNull)
 
   @@unique([kontrollplanId, omradeId, sjekklisteMalId])
+  // Rad-identitet: to importer av samme fil gir samme (uid, mal) → dedup i datalaget.
+  // NULL importTaskUid (manuelle/kopierte punkter) er distinkte i Postgres → kolliderer aldri.
+  @@unique([kontrollplanId, importTaskUid, sjekklisteMalId], map: "kp_punkt_import_uid_mal_key")
   @@index([kontrollplanId])
   @@index([milepelId])
   @@index([omradeId])
   @@index([faggruppeId])
   @@index([status])
   @@index([fristUke, fristAar])
+  @@index([importKildeId], map: "kp_punkt_import_kilde_idx")
   @@map("kontrollplan_punkter")
 }
 
@@ -2030,6 +2044,28 @@ model KontrollplanHistorikk {
 
   @@index([punktId])
   @@map("kontrollplan_historikk")
+}
+
+// Én rad per importhendelse fra fremdriftsplan (del 1). Bærer det revisjon (del 2)
+// trenger: hvilke rader ble hoppet over (så revisjonen ikke maser om dem igjen),
+// og hvor mange rader filen inneholdt kontra hvor mange som ble tatt inn.
+model KontrollplanImport {
+  id                 String   @id @default(cuid())
+  kontrollplanId     String   @map("kontrollplan_id")
+  filnavn            String
+  antallParsedeRader Int      @map("antall_parsede_rader")
+  importertAvId      String   @map("importert_av_id")
+  importert          DateTime @default(now())
+  // UID-ene som ble vist men bevisst ikke valgt, med navn- og wbs-snapshot:
+  // [{ uid: number, navn: string, wbs: string | null }]
+  hoppetOver         Json     @map("hoppet_over")
+
+  kontrollplan Kontrollplan        @relation(fields: [kontrollplanId], references: [id], onDelete: Cascade)
+  importertAv  User                @relation(fields: [importertAvId], references: [id])
+  punkter      KontrollplanPunkt[]
+
+  @@index([kontrollplanId])
+  @@map("kontrollplan_import")
 }
 
 // ---------------------------------------------------------------------------

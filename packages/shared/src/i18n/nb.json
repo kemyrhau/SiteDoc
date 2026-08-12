@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Tilbake",
   "kontrollplan.importFrister": "Frister uke {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} aktiviteter uten mal — ekskluderes",
+  "kontrollplan.importAlleredeImportert": "Alle valgte rader er allerede importert fra denne planen.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} rader var allerede importert og ble hoppet over.",
   "kontrollplan.importSteg2Beskrivelse": "Fremdriftsplanen inneholder ressurser (firmaer/personer). Koble hver ressurs til en faggruppe i SiteDoc, slik at kontrollpunktene får riktig ansvarlig.",
   "kontrollplan.importIngenRessurser": "Ingen ressurser funnet i filen. Velg en standard-faggruppe for alle aktiviteter, eller tilordne faggruppe per gruppe i neste steg.",
   "kontrollplan.importStandardFaggruppe": "Standard faggruppe",

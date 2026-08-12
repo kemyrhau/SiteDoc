@@ -63,7 +63,10 @@ export const kontrollplanRouter = router({
       });
     }),
 
-  // Bulk-opprett punkter (flervalg av områder med individuelle frister)
+  // Bulk-opprett punkter (flervalg av områder med individuelle frister).
+  // Ved fremdriftsplan-import bærer hvert punkt rad-identitet (importTaskUid/importWbs),
+  // og første kall i en import sender `importKilde` som oppretter importhendelsen —
+  // returnert `importKildeId` gjenbrukes av påfølgende kall i samme import.
   opprettPunkter: protectedProcedure
     .input(z.object({
       kontrollplanId: z.string(),
@@ -74,7 +77,21 @@ export const kontrollplanRouter = router({
         omradeId: z.string().nullish(),
         fristUke: z.number().int().min(1).max(53).nullish(),
         fristAar: z.number().int().min(2024).max(2100).nullish(),
+        importTaskUid: z.number().int().nullish(),
+        importWbs: z.string().nullish(),
       })).min(1),
+      // Import-opprinnelse: sett `importKilde` på første kall (oppretter raden),
+      // eller `importKildeId` på påfølgende kall (peker til allerede opprettet rad).
+      importKilde: z.object({
+        filnavn: z.string(),
+        antallParsedeRader: z.number().int().min(0),
+        hoppetOver: z.array(z.object({
+          uid: z.number().int(),
+          navn: z.string(),
+          wbs: z.string().nullable(),
+        })),
+      }).nullish(),
+      importKildeId: z.string().nullish(),
     }))
     .mutation(async ({ ctx, input }) => {
       const kontrollplan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
@@ -83,6 +100,25 @@ export const kontrollplanRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
 
+      // Opprett importhendelsen på første kall i en import (påfølgende gruppe-kall
+      // gjenbruker importKildeId). Ligger utenfor punkt-transaksjonen — feiler
+      // punkt-innsettingen står raden igjen som en tom, godartet hendelsesrad.
+      let importKildeId = input.importKildeId ?? null;
+      if (input.importKilde) {
+        const imp = await ctx.prisma.kontrollplanImport.create({
+          data: {
+            kontrollplanId: input.kontrollplanId,
+            filnavn: input.importKilde.filnavn,
+            antallParsedeRader: input.importKilde.antallParsedeRader,
+            importertAvId: ctx.userId,
+            hoppetOver: input.importKilde.hoppetOver,
+          },
+        });
+        importKildeId = imp.id;
+      }
+
+      // Batchet transaksjon (én pipelinet round-trip) — ikke N sekvensielle inserts.
+      // include kreves for punktIncludes, som createMany ikke støtter.
       const opprettet = await ctx.prisma.$transaction(
         input.punkter.map((p) =>
           ctx.prisma.kontrollplanPunkt.create({
@@ -94,6 +130,9 @@ export const kontrollplanRouter = router({
               omradeId: p.omradeId ?? undefined,
               fristUke: p.fristUke ?? undefined,
               fristAar: p.fristAar ?? undefined,
+              importTaskUid: p.importTaskUid ?? undefined,
+              importWbs: p.importWbs ?? undefined,
+              importKildeId: importKildeId ?? undefined,
             },
             include: punktIncludes,
           })
@@ -109,7 +148,7 @@ export const kontrollplanRouter = router({
         })),
       });
 
-      return opprettet;
+      return { punkter: opprettet, importKildeId };
     }),
 
   // Oppdater et punkt (frist, faggruppe, status, milepæl, avhengighet)

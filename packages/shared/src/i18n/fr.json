@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Dos",
   "kontrollplan.importFrister": "Délais semaine {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} activités sans modèle – exclues",
+  "kontrollplan.importAlleredeImportert": "Toutes les lignes sélectionnées sont déjà importées de ce plan.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} lignes ont déjà été importées et ont été ignorées.",
   "kontrollplan.importSteg2Beskrivelse": "Le planning contient des ressources (entreprises/personnes). Mappez chaque ressource à un groupe commercial dans SiteDoc afin que les points de contrôle obtiennent la bonne partie responsable.",
   "kontrollplan.importIngenRessurser": "Aucune ressource trouvée dans le fichier. Sélectionnez un groupe professionnel par défaut pour toutes les activités ou attribuez-le par groupe à l'étape suivante.",
   "kontrollplan.importStandardFaggruppe": "Groupe professionnel par défaut",
