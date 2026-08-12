@@ -65,6 +65,21 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### 🔴 Lagre-knapp skjult under scrollkanten i innstillinger — koster reelle misforståelser (Kenneth 2026-08-12)
+
+**Symptom:** bruker endrer en innstilling, ser endringen i UI-et, forlater siden — endringen er ikke lagret. Systemet oppfører seg deretter som om brukeren ikke gjorde noe.
+
+**Kenneths ord:** *«noen ganger lagres det stille, andre ganger ikke → dette kan medføre misforståelser. Jeg tror lagreknapp alltid burde være synlig i innstillinger-vinduer.»*
+
+**Dokumentert kostnad — dette er ikke hypotetisk.** Kenneth satte eksternt prosjektnummer og huket av for at det skulle vises i utskrift, men lagre-knappen lå under scrollkanten i `prosjektoppsett`. Utskriften fortsatte å vise SD-nummeret (fallback). Han konkluderte at eksternt prosjektnummer ikke kunne skrives ut, og la `900512` inn i **byggeplassnavnet** som workaround. Den har stått der i månedsvis og utløste en full dags feilsøking 2026-08-12 — inkludert en gjennomgang av fire duplikate header-implementasjoner — før årsaken viste seg å være en usynlig knapp.
+
+**Tiltak:**
+1. **Sticky lagre-knapp** i alle innstillingsflater — alltid synlig, uavhengig av scrollposisjon.
+2. **Konsistens:** kartlegg hvilke innstillingssider som lagrer automatisk og hvilke som krever knapp. Blandingen er selve problemet — brukeren kan ikke vite hvilken modus han er i.
+3. **Ulagrede endringer skal varsles** ved navigasjon bort fra siden.
+
+Gjelder minst `dashbord/oppsett/prosjektoppsett`, men kartlegg alle `dashbord/oppsett/*` og `dashbord/firma/*`-innstillingsflater.
+
 ### Store bilder mangler i klient-utskrift — `window.print()` venter ikke på lasting (målt 2026-08-12)
 
 **Eksisterende feil, ikke innført av noen nylig endring.** Oppdaget under verifisering av bilde-migreringen på test.
