@@ -16,6 +16,21 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### Store bilder mangler i klient-utskrift — `window.print()` venter ikke på lasting (målt 2026-08-12)
+
+**Eksisterende feil, ikke innført av noen nylig endring.** Oppdaget under verifisering av bilde-migreringen på test.
+
+**Symptom:** dokument med 8 vedlegg viste 4 bilder i dashbordet, men bare 3 i utskriften. Det manglende feltet var **helt tomt** — ikke brutt-ikon.
+
+**Målt årsak:** filen som manglet er `privat/a136ef0d-…jpg`, **3 763 127 bytes (3,7 MB)** — det største bildet i dokumentet. Filen finnes og er lesbar på disk; de øvrige i samme felt er 300–400 KB og kommer med. Brutt-ikon betyr «src finnes ikke»; tomt felt betyr «aldri ferdig lastet». `window.print()` venter ikke på at bilder er dekodet.
+
+**Hvem det rammer:** feltbilder fra mobilkamera er de store, og de utgjør nesten all bildeopplasting i prod. Altså rammer det de dokumentene som betyr mest.
+
+**Retning:** klient-utskriftssidene må vente på at hvert `<img>` har `complete === true` og `naturalWidth > 0` før `window.print()` kalles.
+
+🔴 **Gjelder også arkiv-PDF (fase 3).** Meldt til Opus dokgen som krav til rendrer-containeren: `networkidle0` alene er ikke nok for store bilder som dekodes etter at nettverket er stille. **Og en PDF skal ikke genereres stille med hull** — enten feil hele jobben, eller marker manglende bilde synlig. Et arkivdokument som ser komplett ut mens det mangler bevis er den verste utgangen. Fase 3b skal dokumentere dette som *rettelse*, ikke regresjon, i før/etter-beviset.
+
+
 ### Foreldreløse bilder oppstår ved sletting — `Image` har `ON DELETE SET NULL` (målt 2026-08-12)
 
 `images_checklist_id_fkey` og `images_task_id_fkey` er begge `ON DELETE SET NULL` (`migrations/20260228221935_initial/migration.sql:250,253`). Slettes en sjekkliste eller oppgave, nulles bildets kobling — raden består og filen ligger igjen på disk. `Image` har **ingen andre koblinger** enn disse to, så bildet blir permanent uoppnåelig.
