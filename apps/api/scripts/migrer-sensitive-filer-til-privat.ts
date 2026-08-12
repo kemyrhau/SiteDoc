@@ -47,6 +47,16 @@
  * ⚠️ --rydd-originaler KUN etter at BÅDE sitedoc OG sitedoc_test er migrert +
  *    verifisert (delt volum). Sletter /uploads/x for filer som nå har privat-tvilling.
  *
+ * 🔴🔴 KOLLISJONSADVARSEL — LES FØR --rydd-originaler:
+ * Denne oppryddingen sletter /uploads/x for ENHVER fil som har en privat-tvilling —
+ * uavhengig av HVILKET script som lagde tvillingen. Søsken-scriptet
+ * `migrer-bilder-til-privat.ts` (S1 Fase 1b, bilder) kopierer ~38 bilde-originaler
+ * til privat/. Kjører du --rydd-originaler mens Fase 1b pågår eller er uverifisert,
+ * sletter du bilde-originalene DERES — og en delvis Fase-1b-kjøring (kopiert, men
+ * peker ikke oppdatert) ville da gitt 404 på et intakt bilde. Kjør ALDRI denne
+ * oppryddingen før BÅDE Fase 1 OG Fase 1b er ferdige og bekreftet. (Ingen kode-
+ * kobling mellom scriptene; denne advarselen er koblingen.)
+ *
  * ALDRI slett data i migreringsfasen. Backup FØR prod-kjøring.
  */
 

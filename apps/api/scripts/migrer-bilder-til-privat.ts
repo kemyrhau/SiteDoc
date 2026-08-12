@@ -11,6 +11,16 @@
  * (timer/kompetanse/maskin-vedlegg). Dette scriptet er Fase 1b (bilder) — eget
  * type-sett, og med et MANIFEST-krav (se under) som søskenet ikke har.
  *
+ * 🔴🔴 KOLLISJONSADVARSEL — LES FØR OPPRYDDING:
+ * Søskenets opprydding (`migrer-sensitive-filer-til-privat.ts --rydd-originaler`)
+ * sletter `/uploads/x` for ENHVER fil som har en privat-tvilling. Etter at DETTE
+ * scriptet har kopiert bildene til `privat/`, HAR de en tvilling — så søskenets
+ * rydding vil da slette bilde-originalene dine, uten å vite om Fase-1b-
+ * verifiseringen er ferdig. Kjør ALDRI søskenets rydding mens denne migreringen
+ * pågår eller er uverifisert. Verifiser at den andre S1-migreringen er ferdig og
+ * bekreftet før DU rydder — og omvendt. (Ingen kode-kobling mellom dem; denne
+ * advarselen er koblingen.)
+ *
  * COPY-så-slett (delt uploads-volum test↔prod, jf. søskenscript): kopiér UTEN å
  * slette originalen. Begge stier gyldige gjennom hele operasjonen → null 404-vindu,
  * reversibelt til opprydding. Sekvens per fil: kopiér → verifiser lesbar → oppdater
