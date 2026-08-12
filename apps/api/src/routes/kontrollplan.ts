@@ -25,6 +25,7 @@ export const kontrollplanRouter = router({
         where: { projectId_byggeplassId: { projectId: byggeplass.projectId, byggeplassId: input.byggeplassId } },
         include: {
           punkter: {
+            where: { arkivert: false },
             include: punktIncludes,
             orderBy: { opprettet: "asc" },
           },
@@ -55,6 +56,7 @@ export const kontrollplanRouter = router({
         update: {},
         include: {
           punkter: {
+            where: { arkivert: false },
             include: punktIncludes,
             orderBy: { opprettet: "asc" },
           },
@@ -79,6 +81,7 @@ export const kontrollplanRouter = router({
         fristAar: z.number().int().min(2024).max(2100).nullish(),
         importTaskUid: z.number().int().nullish(),
         importWbs: z.string().nullish(),
+        importNavn: z.string().nullish(),
       })).min(1),
       // Import-opprinnelse: sett `importKilde` på første kall (oppretter raden),
       // eller `importKildeId` på påfølgende kall (peker til allerede opprettet rad).
@@ -136,6 +139,7 @@ export const kontrollplanRouter = router({
               fristAar: p.fristAar ?? undefined,
               importTaskUid: p.importTaskUid ?? undefined,
               importWbs: p.importWbs ?? undefined,
+              importNavn: p.importNavn ?? undefined,
               importKildeId: importKildeId ?? undefined,
             },
             include: punktIncludes,
