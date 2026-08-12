@@ -6,6 +6,10 @@ import { trpc } from "@/lib/trpc";
 import { Button, Spinner } from "@sitedoc/ui";
 import { AlertTriangle, Plus, Trash2, Info } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { DeaktiverKnapp } from "@/components/deaktiver/DeaktiverKnapp";
+import { VisInaktiveToggle } from "@/components/deaktiver/VisInaktiveToggle";
+import { InaktivBadge } from "@/components/deaktiver/InaktivBadge";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 
 /**
  * U5 (2026-08-11) — firma-admin utleggs-ordning-flate.
@@ -50,6 +54,7 @@ export default function UtleggskategorierSide() {
   const [aapenOverstyringFor, setAapenOverstyringFor] = useState<string | null>(null);
   const [nyOverstyringProsjekt, setNyOverstyringProsjekt] = useState("");
   const [nyOverstyringOrdning, setNyOverstyringOrdning] = useState<string>("utlegg");
+  const [visInaktive, setVisInaktive] = useState(false);
 
   const { data: kategorier, isLoading } = trpc.timer.expenseCategory.list.useQuery(
     { organizationId: orgId!, inkluderInaktiv: true },
@@ -86,6 +91,14 @@ export default function UtleggskategorierSide() {
     onError: (e: { message: string }) => alert(e.message),
   });
   const fjernOverstyring = trpc.timer.expenseCategory.fjernOverstyring.useMutation({
+    onSuccess: invalider,
+    onError: (e: { message: string }) => alert(e.message),
+  });
+  const deaktiver = trpc.timer.expenseCategory.deaktiver.useMutation({
+    onSuccess: invalider,
+    onError: (e: { message: string }) => alert(e.message),
+  });
+  const aktiver = trpc.timer.expenseCategory.aktiver.useMutation({
     onSuccess: invalider,
     onError: (e: { message: string }) => alert(e.message),
   });
@@ -128,13 +141,22 @@ export default function UtleggskategorierSide() {
     );
   }
 
-  const kat = (kategorier ?? []) as Kategori[];
+  const alleKat = (kategorier ?? []) as Kategori[];
+  const inaktivAntall = alleKat.filter((k) => !k.aktiv).length;
+  const kat = visInaktive ? alleKat : alleKat.filter((k) => k.aktiv);
 
   return (
     <div className="mx-auto max-w-3xl p-6">
-      <h1 className="text-2xl font-semibold text-gray-900">
-        {t("firma.timer.utleggskategorier.tittel")}
-      </h1>
+      <div className="flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          {t("firma.timer.utleggskategorier.tittel")}
+        </h1>
+        <HjelpKnapp>
+          <HjelpFane tittel={t("deaktiver.hjelp.tittel")}>
+            <p>{t("deaktiver.hjelp.tekst")}</p>
+          </HjelpFane>
+        </HjelpKnapp>
+      </div>
       <p className="mt-1 text-sm text-gray-600">
         {t("firma.timer.utleggskategorier.beskrivelse")}
       </p>
@@ -153,12 +175,16 @@ export default function UtleggskategorierSide() {
         </div>
       )}
 
+      <div className="mt-5">
+        <VisInaktiveToggle antall={inaktivAntall} checked={visInaktive} onChange={setVisInaktive} />
+      </div>
+
       {kat.length === 0 ? (
-        <p className="mt-6 text-sm text-gray-500">
+        <p className="mt-2 text-sm text-gray-500">
           {t("firma.timer.utleggskategorier.ingenKategorier")}
         </p>
       ) : (
-        <ul className="mt-5 divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
+        <ul className="divide-y divide-gray-100 rounded-lg border border-gray-200 bg-white">
           {kat.map((k) => {
             const kollisjon = kollisjonKategoriIder.has(k.id);
             const katOverstyringer = overstyringerPerKategori.get(k.id) ?? [];
@@ -167,13 +193,14 @@ export default function UtleggskategorierSide() {
             const brukteProsjektIder = new Set(katOverstyringer.map((o) => o.prosjektId));
             const ledigeProsjekter = prosjekter.filter((p) => !brukteProsjektIder.has(p.id));
             return (
-              <li key={k.id} className="p-4">
+              <li key={k.id} className={`p-4 ${k.aktiv ? "" : "opacity-60"}`}>
                 <div className="flex flex-wrap items-center gap-3">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`text-sm font-medium ${k.aktiv ? "text-gray-900" : "text-gray-400"}`}>
                         {k.navn}
                       </span>
+                      {!k.aktiv && <InaktivBadge />}
                       {kollisjon && (
                         <span className="inline-flex items-center gap-1 rounded bg-amber-100 px-1.5 py-0.5 text-[10.5px] font-medium text-amber-700">
                           <AlertTriangle className="h-3 w-3" />
@@ -185,20 +212,31 @@ export default function UtleggskategorierSide() {
                       {t("firma.timer.utleggskategorier.firmaDefault")}
                     </span>
                   </div>
-                  <select
-                    value={k.firmaDefault}
-                    onChange={(e) =>
-                      settOrdning.mutate({ organizationId: orgId, id: k.id, ordning: e.target.value as (typeof ORDNINGER)[number] })
-                    }
-                    disabled={settOrdning.isPending}
-                    className="ml-auto rounded border border-gray-300 px-2 py-1.5 text-sm"
-                  >
-                    {ORDNINGER.map((o) => (
-                      <option key={o} value={o}>
-                        {ordningLabel(o)}
-                      </option>
-                    ))}
-                  </select>
+                  <div className="ml-auto flex items-center gap-2">
+                    <select
+                      value={k.firmaDefault}
+                      onChange={(e) =>
+                        settOrdning.mutate({ organizationId: orgId, id: k.id, ordning: e.target.value as (typeof ORDNINGER)[number] })
+                      }
+                      disabled={settOrdning.isPending}
+                      className="rounded border border-gray-300 px-2 py-1.5 text-sm"
+                    >
+                      {ORDNINGER.map((o) => (
+                        <option key={o} value={o}>
+                          {ordningLabel(o)}
+                        </option>
+                      ))}
+                    </select>
+                    <DeaktiverKnapp
+                      aktiv={k.aktiv}
+                      pending={deaktiver.isPending || aktiver.isPending}
+                      onClick={() =>
+                        k.aktiv
+                          ? deaktiver.mutate({ organizationId: orgId, id: k.id })
+                          : aktiver.mutate({ organizationId: orgId, id: k.id })
+                      }
+                    />
+                  </div>
                 </div>
 
                 {k.firmaDefault === "lonnstillegg" && (

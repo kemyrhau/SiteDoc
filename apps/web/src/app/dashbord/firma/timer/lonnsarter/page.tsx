@@ -4,8 +4,11 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { trpc } from "@/lib/trpc";
 import { Button, Input, Modal, Spinner } from "@sitedoc/ui";
-import { Plus, Pencil, Power, Star } from "lucide-react";
+import { Plus, Pencil, Star } from "lucide-react";
 import { useFirma } from "@/kontekst/firma-kontekst";
+import { DeaktiverKnapp } from "@/components/deaktiver/DeaktiverKnapp";
+import { VisInaktiveToggle } from "@/components/deaktiver/VisInaktiveToggle";
+import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 
 const TYPE_VERDIER = ["ordinaer", "fravaer", "feriepenger", "diett"] as const;
 type LonnsartType = (typeof TYPE_VERDIER)[number];
@@ -52,12 +55,18 @@ export default function LonnsarterSide() {
 
   const [visOpprett, setVisOpprett] = useState(false);
   const [redigerId, setRedigerId] = useState<string | null>(null);
-  const [inkluderInaktiv, setInkluderInaktiv] = useState(false);
+  const [visInaktive, setVisInaktive] = useState(false);
 
-  const { data: rader, isLoading } = trpc.timer.lonnsart.list.useQuery(
-    { inkluderInaktiv, organizationId: orgId! },
+  // Hent ALLE (inkl. inaktive) så «Vis inaktive (N)» kan telle uten ekstra kall;
+  // synlighet styres klient-side.
+  const { data: alleRader, isLoading } = trpc.timer.lonnsart.list.useQuery(
+    { inkluderInaktiv: true, organizationId: orgId! },
     { enabled: !!orgId },
   );
+  const inaktivAntall = (alleRader ?? []).filter((r) => !r.aktiv).length;
+  const rader = visInaktive
+    ? alleRader
+    : (alleRader ?? []).filter((r) => r.aktiv);
 
   const deaktiver = trpc.timer.lonnsart.deaktiver.useMutation({
     onSuccess: () => utils.timer.lonnsart.list.invalidate(),
@@ -88,21 +97,20 @@ export default function LonnsarterSide() {
         <p className="text-sm text-gray-600">
           {t("firma.timer.lonnsarter.beskrivelse")}
         </p>
-        <Button onClick={() => setVisOpprett(true)}>
-          <Plus className="mr-1.5 h-4 w-4" />
-          {t("firma.timer.lonnsarter.leggTil")}
-        </Button>
+        <div className="flex items-center gap-2">
+          <HjelpKnapp>
+            <HjelpFane tittel={t("deaktiver.hjelp.tittel")}>
+              <p>{t("deaktiver.hjelp.tekst")}</p>
+            </HjelpFane>
+          </HjelpKnapp>
+          <Button onClick={() => setVisOpprett(true)}>
+            <Plus className="mr-1.5 h-4 w-4" />
+            {t("firma.timer.lonnsarter.leggTil")}
+          </Button>
+        </div>
       </div>
 
-      <label className="mb-3 inline-flex items-center gap-2 text-sm text-gray-600">
-        <input
-          type="checkbox"
-          checked={inkluderInaktiv}
-          onChange={(e) => setInkluderInaktiv(e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300"
-        />
-        {t("firma.timer.visInaktive")}
-      </label>
+      <VisInaktiveToggle antall={inaktivAntall} checked={visInaktive} onChange={setVisInaktive} />
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
@@ -214,18 +222,11 @@ export default function LonnsarterSide() {
                       >
                         <Pencil className="h-4 w-4" />
                       </button>
-                      <button
+                      <DeaktiverKnapp
+                        aktiv={rad.aktiv}
+                        pending={deaktiver.isPending || oppdater.isPending}
                         onClick={() => handleToggleAktiv(rad)}
-                        disabled={deaktiver.isPending || oppdater.isPending}
-                        className="rounded p-1.5 text-gray-500 hover:bg-amber-50 hover:text-amber-700 disabled:opacity-40"
-                        title={
-                          rad.aktiv
-                            ? t("firma.timer.handling.deaktiver")
-                            : t("firma.timer.handling.aktiver")
-                        }
-                      >
-                        <Power className="h-4 w-4" />
-                      </button>
+                      />
                     </div>
                   </td>
                 </tr>
