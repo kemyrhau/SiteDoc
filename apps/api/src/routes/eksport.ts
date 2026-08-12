@@ -89,8 +89,12 @@ export const eksportRouter = router({
     }),
 
   // Utsted en kortlevd signert nedlastings-URL for et ferdig arkiv.
-  // Mutation (ikke query): hver utstedelse er en revisjonspliktig hendelse som
-  // logges — en query kan caches/refetches uforutsigbart og ville forvrengt sporet.
+  //
+  // MØNSTERREGEL (gjelder generelt, ikke bare eksport): et kall som skriver en
+  // revisjonspliktig logg-rad per invokasjon skal være en mutation, ALDRI en
+  // query. react-query kan cache og refetche queries fritt, så «utstedt 3 ganger»
+  // ville dukket opp i revisjonssporet når brukeren klikket én. Et logget
+  // sideeffekt-kall er per definisjon ikke en query.
   hentNedlastingsUrl: protectedProcedure
     .input(z.object({ jobbId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
