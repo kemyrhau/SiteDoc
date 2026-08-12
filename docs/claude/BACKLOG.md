@@ -65,6 +65,37 @@ Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inli
 
 ## 1. Teknisk gjeld
 
+### Prosjektnummer: org.nr som firmadel når det finnes (Kenneth-vedtatt 2026-08-12)
+
+**Dagens generering** (`admin.ts:509-515`) har tre svakheter:
+
+```ts
+const antall = await ctx.prisma.project.count();   // GLOBALT antall
+const sekv = String(antall + 1).padStart(4, "0");
+const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
+```
+
+1. **Global sekvens lekker kundeomfang.** `SD-20260310-0007` betyr syv prosjekter i hele SiteDoc — ikke det syvende hos kunden. Byggherre som mottar dokumenter fra to kunder kan lese veksten.
+2. **`count()` + `create()` er ikke atomisk.** Samtidige opprettelser gir samme nummer → `@unique`-brudd med kryptisk feilmelding.
+3. **Sletting bryter sekvensen permanent.** Slettes prosjekt fem, gir `count()` samme tall som før → forsøk på et nummer som finnes. Feiler til noen har opprettet forbi hullet. **Ikke teoretisk — testprosjekter er slettet.**
+
+**Vedtatt modell:**
+
+| Firmaet har | Format | Sekvens |
+|---|---|---|
+| **org.nr** | `SD-<orgnr>-<NNNN>` | per firma (`count()` innenfor firmaet) |
+| **ikke org.nr** | `SD-YYYYMMDD-XXXX` — **dagens format, uendret** | som i dag |
+
+**Kenneths begrunnelse for at per-firma-sekvens er nok:** *«prosjektnummer i et firma kan ha count+1 — det er uten betydning. Alle firma som kommer inn har flere enn ett prosjekt kjørende og må opprette disse. Kun nye firmaer starter i praksis på null. Det er mer viktig å skjule hvor mange firmaer SiteDoc har som kunder.»*
+
+**Derfor er firmadelen ikke-løpende.** Et løpenummer (`SD-004-…`) ville lekket kundeantall — nøyaktig det som skal skjules. Org.nr er offentlig informasjon som tilhører kunden og sier ingenting om SiteDoc.
+
+**Org.nr er allerede skillet mellom kunde og test.** Målt i prod 2026-08-12: A.Markussen har `835000702`; HRP, «Kenneths testmiljø» og to skall-«Sitedoc» har tomt. Dagens format blir derfor testformatet — ingen egen markør å designe.
+
+**Ingen migrering.** Eksisterende numre beholdes; nummeret er en nøkkel, ikke en kronologisk serie. Et firma kan ha begge formater samtidig — det er tilsiktet.
+
+**Ryddesak funnet samtidig:** to identiske «Sitedoc»-skallfirmaer (`er_kunde=false`, null prosjekter) i prod. «Kenneths testmiljø» har `er_kunde=true` og teller derfor som kunde i lagringsstatistikk og fakturering.
+
 ### 🔴 Lagre-knapp skjult under scrollkanten i innstillinger — koster reelle misforståelser (Kenneth 2026-08-12)
 
 **Symptom:** bruker endrer en innstilling, ser endringen i UI-et, forlater siden — endringen er ikke lagret. Systemet oppfører seg deretter som om brukeren ikke gjorde noe.
