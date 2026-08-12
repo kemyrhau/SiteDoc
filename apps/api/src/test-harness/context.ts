@@ -33,6 +33,8 @@ export function buildTestContext(userId: string) {
       imperseringAktiv: false,
       sessionToken: null,
       tokenKilde: null,
+      ipAddress: null,
+      userAgent: null,
     }),
     req: stubReq(),
     res: {} as unknown as FastifyReply,
