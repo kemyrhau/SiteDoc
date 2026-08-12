@@ -217,6 +217,45 @@ export const expenseCategoryRouter = router({
       });
     }),
 
+  // Deaktiver-mønster (2026-08-12): ren flip av `aktiv`. Deaktivering skjuler
+  // kategorien for NYE registreringer (velgeren filtrerer `aktiv=true`) —
+  // allerede førte SheetUtlegg-rader er UPÅVIRKET: de bærer sitt immutable
+  // `ordningVedFoering`-stempel, ikke en referanse til aktiv-flagget. Ingen
+  // kaskade, ingen berøring av SheetUtlegg. Firma-admin-gated (som routeren ellers).
+  deaktiver: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid(), id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      const kat = await ctx.prismaTimer.expenseCategory.findFirst({
+        where: { id: input.id, organizationId: input.organizationId },
+        select: { id: true },
+      });
+      if (!kat) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Utleggskategori finnes ikke i firmaet" });
+      }
+      return ctx.prismaTimer.expenseCategory.update({
+        where: { id: input.id },
+        data: { aktiv: false },
+      });
+    }),
+
+  aktiver: protectedProcedure
+    .input(z.object({ organizationId: z.string().uuid(), id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await autoriserAdminForFirma(ctx.userId, input.organizationId);
+      const kat = await ctx.prismaTimer.expenseCategory.findFirst({
+        where: { id: input.id, organizationId: input.organizationId },
+        select: { id: true },
+      });
+      if (!kat) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Utleggskategori finnes ikke i firmaet" });
+      }
+      return ctx.prismaTimer.expenseCategory.update({
+        where: { id: input.id },
+        data: { aktiv: true },
+      });
+    }),
+
   // Sett/oppdater prosjekt-overstyring for én kategori (upsert på unik
   // (prosjektId, expenseCategoryId)). Verifiserer at kategori + prosjekt eies av firmaet.
   settOverstyring: protectedProcedure
