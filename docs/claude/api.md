@@ -268,6 +268,41 @@ Backfill-strategi: eksisterende sessions fikk `created_at = last_rotated_at = ex
 - Rate limiting: 30 forespørsler/minutt per IP
 - Filer serveres med `X-Content-Type-Options: nosniff`
 
+## Lagringsstatistikk (`lagring`-router, 2026-08-11)
+
+`SUM(file_size)` per prosjekt/modell over de fem fil-modellene (`images`, `drawings`,
+`drawing_revisions`, `point_clouds`, `ftd_documents`). Aggregering ved forespørsel
+(ingen akkumulert teller — ~54 rader i prod), cache 1 time. Ren summering i delt
+`@sitedoc/shared` (`aggregerLagring`, `formaterBytes`).
+
+- **`lagring.oversikt`** (sitedoc-admin): per firma × prosjekt × modell + standalone
+  («uten firma») + foreldreløse. Flate: `dashbord/admin/lagring` (plain strenger, admin-konvensjon).
+- **`lagring.firmaOversikt`** (firma-admin, `autoriserAdminForFirma`): eget firma, per
+  prosjekt + totaltall filer. Flate: `dashbord/firma/fakturering` (i18n).
+
+**🔴 Isolasjonsakse = `primaryOrganizationId` (EIERSKAP), ikke `projectOrganization`
+(medlemskap).** Fakturering følger eierskap — et firma betaler for prosjekter det EIER,
+ikke prosjekter det bare deltar i via kryssorg-deling. **Divergerer bevisst** fra
+admin.ts/sjekklistegrensen (som bruker `projectOrganization` for PRØVE-deteksjon — annet
+spørsmål). Fjerde gang `primaryOrganizationId`-vs-`projectOrganization`-asymmetrien dukker opp.
+
+**Foreldreløse bilder:** `Image` har ingen `projectId` — kobles via `checklistId`/`taskId`
+(begge FK `ON DELETE SET NULL`). Sletting av sjekkliste/oppgave nuller koblingen → bildet blir
+foreldreløst (24 % av bildene i prod 2026-08-11). Reell diskbruk, men kan ikke attribueres →
+**aldri fakturerbart, men med i «faktisk diskbruk».** Derfor: **fakturerbart volum ≠ faktisk
+diskbruk**, merket i UI. DB-volum vises som «estimat» (radtelling × grov snitt), prises ikke.
+
+**Tre ærlige restposter i sitedoc-admin** (hver et sted summen ikke er hele sannheten, alle
+synlige): (1) foreldreløse filer, (2) filer uten målt størrelse (`file_size NULL` — `manglerStorrelse`
+per modell, vist når > 0; drawings kan produsere NULL), (3) DB-volum som estimat. Fabels regel:
+**fakturering mot volumet krever 100 % dekning i firmaet** — firma-flaten flagger `manglerStorrelseAntall > 0`.
+
+**🟡 `drawings.file_size` IKKE strammet til NOT NULL** (mot opprinnelig ordre): skrivestien
+oppretter DWG-layout-tegninger uten `fileSize` (`tegning.ts:187,539`) og revisjons-update
+setter `fileSize ?? null` (`tegning.ts:362`). Prod-dekningen (4/4) er data-tilfeldighet, ikke en
+robust skrivevei — NOT NULL ville gitt 500 ved første DWG-med-layouts-opplasting. Står `Int?`
+som de tre tomme modellene. Ingen migrering i denne runden.
+
 ## Rate limiting
 
 Minnebasert rate limiter i `apps/api/src/utils/rateLimiter.ts`. Automatisk opprydding hvert 5. minutt. Bruker `hentKlientIp(req)` som prioriterer `cf-connecting-ip`-header (Cloudflare Tunnel sender klient-IP der, ikke i X-Forwarded-For).
