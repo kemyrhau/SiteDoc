@@ -343,8 +343,14 @@ export function OpplastingsKoProvider({ children }: { children: ReactNode }) {
           oppforing.lokalSti,
           oppforing.filnavn,
           oppforing.mimeType,
-          // Timer-kvittering (tillegg ELLER utlegg) → privat/ (signatur-KUN).
-          Boolean(oppforing.sheetTilleggId || oppforing.sheetUtleggId),
+          // S1 Fase 1b: bilder (sjekkliste/oppgave) OG timer-kvitteringer → privat/
+          // (signatur-KUN). Alle køoppføringer bærer én av disse id-ene.
+          Boolean(
+            oppforing.sheetTilleggId ||
+              oppforing.sheetUtleggId ||
+              oppforing.sjekklisteId ||
+              oppforing.oppgaveId,
+          ),
         );
 
         console.log("[KØ] Opplasting vellykket:", resultat.fileUrl);
