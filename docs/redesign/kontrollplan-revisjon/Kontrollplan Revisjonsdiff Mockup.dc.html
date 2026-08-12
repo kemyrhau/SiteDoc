@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="design_doc_mode" content="canvas">
+<style>
+body{margin:0;background:#f3f4f6;font-family:-apple-system,'Segoe UI',sans-serif}
+a{color:#26327e}a:hover{color:#1a2258}
+</style>
+</helmet>
+<div style="width:1240px;margin:24px auto;background:#ffffff;border:1px solid #e5e7eb;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.07)" data-screen-label="Revisjonsdiff">
+  <div style="padding:20px 28px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-size:18px;font-weight:700;color:#111827">Revider fra fremdriftsplan</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:2px">Fremdriftsplan-rev3.xml · 187 aktiviteter lest · forrige import 05.06.2026 (Fremdriftsplan-rev2.xml)</div>
+    </div>
+    <div style="font-size:12px;color:#6b7280;background:#f5f6f9;border:1px solid #e5e7eb;border-radius:8px;padding:8px 14px">Kontrollplan — Blokk B · 998 Instinniforbotn</div>
+  </div>
+  <div style="padding:14px 28px;border-bottom:1px solid #e5e7eb;display:flex;gap:10px;align-items:center">
+    <input placeholder="Søk aktivitet, WBS eller mal …" style="flex:0 0 280px;border:1px solid #d1d5db;border-radius:8px;padding:7px 12px;font-size:13px;color:#111827">
+    <div style="display:flex;gap:8px">
+      <span style="font-size:12px;font-weight:600;color:#26327e;background:#eef0f9;border:1px solid #c7cbe4;border-radius:999px;padding:5px 12px">Frist-endringer 14</span>
+      <span style="font-size:12px;font-weight:600;color:#15803d;background:#f0fdf4;border:1px solid #bbe7c8;border-radius:999px;padding:5px 12px">Nye 6</span>
+      <span style="font-size:12px;font-weight:600;color:#b45309;background:#fffbeb;border:1px solid #f0dcae;border-radius:999px;padding:5px 12px">Deaktiverte 3</span>
+      <span style="font-size:12px;color:#6b7280;background:#f9fafb;border:1px solid #e5e7eb;border-radius:999px;padding:5px 12px">Uendret 164</span>
+    </div>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:7px;font-size:13px;color:#6b7280"><input type="checkbox"> Vis uendrede rader</label>
+  </div>
+  <div style="display:flex;align-items:center;gap:8px;padding:9px 28px;background:#f7fdf9;border-bottom:1px solid #e5e7eb;font-size:12.5px;color:#374151">
+    <span style="color:#15803d;font-weight:700">✓</span> 9 punkter er utført eller godkjent og berøres ikke av revisjonen — de vises ikke i diffen. <a href="#" style="font-size:12px;font-weight:600">Se listen</a>
+  </div>
+
+  <div style="padding:20px 28px 8px">
+    <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#26327e;font-weight:700">Frist-endringer <span style="color:#9ca3af;font-weight:500;text-transform:none;letter-spacing:0">— sikre treff kan velges gruppevis; antatte treff bekreftes én og én</span></div>
+  </div>
+
+  <div style="margin:10px 28px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f9fafb;border-bottom:1px solid #e5e7eb">
+      <span style="font-size:13px;font-weight:700;color:#111827">Milepæl: Råbygg</span>
+      <span style="font-size:12px;color:#6b7280">9 endringer</span>
+      <label style="margin-left:auto;display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#26327e"><span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#26327e;color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:16px">✓</span> Velg alle sikre i gruppen (7)</label>
+    </div>
+    <div style="display:grid;grid-template-columns:36px 1fr 150px 90px 170px;gap:0 12px;align-items:center;padding:9px 16px;border-bottom:1px solid #f3f4f6">
+      <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#26327e;color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:16px">✓</span>
+      <div><span style="font-size:13.5px;color:#111827;font-weight:500">Betongarbeider dekke 3. etasje</span> <span style="font-size:11.5px;color:#9ca3af">SJ — Betongarbeider</span></div>
+      <span style="font-size:12px;color:#374151;background:#f3f4f6;border-radius:999px;padding:3px 10px;justify-self:start">Betong</span>
+      <span style="font-size:12px;color:#9ca3af">WBS 2.3.1</span>
+      <span style="font-size:13px;color:#111827;justify-self:end;font-variant-numeric:tabular-nums">u34 → <strong>u37</strong> <span style="color:#b45309;font-size:11.5px">+3 uker</span></span>
+    </div>
+    <div style="display:grid;grid-template-columns:36px 1fr 150px 90px 170px;gap:0 12px;align-items:center;padding:9px 16px;border-bottom:1px solid #f3f4f6">
+      <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#26327e;color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:16px">✓</span>
+      <div><span style="font-size:13.5px;color:#111827;font-weight:500">Armering vegger akse C–E</span> <span style="font-size:11.5px;color:#9ca3af">SJ — Armering</span></div>
+      <span style="font-size:12px;color:#374151;background:#f3f4f6;border-radius:999px;padding:3px 10px;justify-self:start">Betong</span>
+      <span style="font-size:12px;color:#9ca3af">WBS 2.3.4</span>
+      <span style="font-size:13px;color:#111827;justify-self:end;font-variant-numeric:tabular-nums">u35 → <strong>u36</strong> <span style="color:#b45309;font-size:11.5px">+1 uke</span></span>
+    </div>
+    <div style="display:grid;grid-template-columns:64px 1fr 150px 90px 170px;gap:0 12px;align-items:center;padding:9px 16px;border-bottom:1px solid #f3f4f6;background:#fffdf5">
+      <button style="border:1px solid #d9a514;background:#fff;color:#92650a;font-size:11px;font-weight:700;border-radius:6px;padding:4px 8px;cursor:pointer;justify-self:start">Bekreft</button>
+      <div>
+        <span style="font-size:13.5px;color:#111827;font-weight:500">Utsparinger tekniske føringer 3. etg</span>
+        <span style="font-size:11px;font-weight:700;color:#92650a;background:#fdf3d7;border:1px dashed #d9a514;border-radius:6px;padding:2px 8px;margin-left:6px">ANTATT SAMME — navn endret i ny fil</span>
+        <div style="font-size:11.5px;color:#9ca3af;margin-top:2px">Var: «Utsparinger tekn. føringer 3etg» · WBS-treff 2.3.7 · ingen UID-match</div>
+      </div>
+      <span style="font-size:12px;color:#374151;background:#f3f4f6;border-radius:999px;padding:3px 10px;justify-self:start">Betong</span>
+      <span style="font-size:12px;color:#9ca3af">WBS 2.3.7</span>
+      <span style="font-size:13px;color:#111827;justify-self:end;font-variant-numeric:tabular-nums">u36 → <strong>u38</strong> <span style="color:#b45309;font-size:11.5px">+2 uker</span></span>
+    </div>
+    <div style="padding:8px 16px;font-size:12.5px;color:#6b7280;background:#f9fafb;cursor:pointer">▸ 6 flere endringer i Råbygg — vis</div>
+  </div>
+
+  <div style="margin:0 28px 10px;border:1px solid #e5e7eb;border-radius:10px">
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#f9fafb;border-radius:10px">
+      <span style="font-size:13px;font-weight:700;color:#111827">▸ Milepæl: Tett bygg</span>
+      <span style="font-size:12px;color:#6b7280">5 endringer · 2 antatt samme</span>
+      <span style="margin-left:auto;font-size:12.5px;color:#26327e;font-weight:600;cursor:pointer">Åpne gruppen</span>
+    </div>
+  </div>
+
+  <div style="padding:14px 28px 8px">
+    <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#15803d;font-weight:700">Nye aktiviteter <span style="color:#9ca3af;font-weight:500;text-transform:none;letter-spacing:0">— velg mal for å opprette kontrollpunkt; uten mal opprettes ingenting</span></div>
+  </div>
+  <div style="margin:10px 28px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
+    <div style="display:grid;grid-template-columns:36px 1fr 200px 150px 110px;gap:0 12px;align-items:center;padding:9px 16px;border-bottom:1px solid #f3f4f6">
+      <span style="display:inline-block;width:16px;height:16px;border-radius:4px;background:#26327e;color:#fff;font-size:12px;font-weight:700;text-align:center;line-height:16px">✓</span>
+      <div><span style="font-size:13.5px;color:#111827;font-weight:500">Radonmembran og tetting sokkel</span><div style="font-size:11.5px;color:#9ca3af">WBS 2.6.2 · frist u41 · ressurs: Membranarbeid</div></div>
+      <select style="border:1px solid #d1d5db;border-radius:8px;padding:6px 10px;font-size:12.5px;color:#111827"><option>SJ — Membranarbeid</option></select>
+      <span style="font-size:12px;color:#374151;background:#f3f4f6;border-radius:999px;padding:3px 10px;justify-self:start">Grunnarbeid</span>
+      <span style="font-size:12px;color:#9ca3af;justify-self:end">1 sjekkliste</span>
+    </div>
+    <div style="display:grid;grid-template-columns:36px 1fr 200px 150px 110px;gap:0 12px;align-items:center;padding:9px 16px;border-bottom:1px solid #f3f4f6">
+      <input type="checkbox">
+      <div><span style="font-size:13.5px;color:#111827;font-weight:500">Rigg og drift vintertiltak</span><div style="font-size:11.5px;color:#9ca3af">WBS 1.4.1 · frist u44 · ingen ressurs-match</div></div>
+      <select style="border:1px solid #d1d5db;border-radius:8px;padding:6px 10px;font-size:12.5px;color:#9ca3af"><option>Velg mal …</option></select>
+      <span style="font-size:12px;color:#b45309;background:#fffbeb;border:1px solid #f0dcae;border-radius:999px;padding:3px 10px;justify-self:start">Mangler faggruppe</span>
+      <span style="font-size:12px;color:#9ca3af;justify-self:end">—</span>
+    </div>
+    <div style="padding:8px 16px;font-size:12.5px;color:#6b7280;background:#f9fafb;cursor:pointer">▸ 4 flere nye aktiviteter — vis (2 ble valgt bort ved forrige import)</div>
+  </div>
+
+  <div style="padding:14px 28px 8px">
+    <div style="font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:#b45309;font-weight:700">Deaktiverte aktiviteter <span style="color:#9ca3af;font-weight:500;text-transform:none;letter-spacing:0">— ikke gjenfunnet i ny fil; varsles alltid, ingenting slettes automatisk. Inspiser punktet før du velger.</span></div>
+  </div>
+  <div style="margin:10px 28px 90px;border:1px solid #f0dcae;background:#fffdf5;border-radius:10px;overflow:hidden">
+    <div style="display:grid;grid-template-columns:1fr 150px 200px;gap:0 12px;align-items:center;padding:9px 16px;border-bottom:1px solid #f6ecd2">
+      <div><span style="font-size:13.5px;color:#111827;font-weight:500">Prefab trapp montasje B2</span><div style="font-size:11.5px;color:#9ca3af">WBS 2.4.3 · frist u38 · ingen match i ny fil</div></div>
+      <span style="font-size:12px;color:#374151;background:#f3f4f6;border-radius:999px;padding:3px 10px;justify-self:start">Montasje</span>
+      <div style="display:flex;gap:8px;justify-self:end"><a href="#" style="font-size:12px;font-weight:600;align-self:center;margin-right:2px">Inspiser</a><button style="border:1px solid #d1d5db;background:#fff;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:#374151;cursor:pointer">Behold punkt</button><button style="border:1px solid #d9a514;background:#fff;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:#92650a;cursor:pointer">Arkiver</button></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 150px 200px;gap:0 12px;align-items:center;padding:9px 16px">
+      <div><span style="font-size:13.5px;color:#111827;font-weight:500">Gips himling plan 2</span><div style="font-size:11.5px;color:#9ca3af">WBS 3.2.1 · 2 sjekklister, én påbegynt</div></div>
+      <span style="font-size:12px;color:#374151;background:#f3f4f6;border-radius:999px;padding:3px 10px;justify-self:start">Tømrer</span>
+      <div style="display:flex;gap:8px;justify-self:end"><a href="#" style="font-size:12px;font-weight:600;align-self:center;margin-right:2px">Inspiser</a><button style="border:1px solid #d1d5db;background:#fff;border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:#374151;cursor:pointer">Behold punkt</button><button style="border:1px solid #e5e7eb;background:#f9fafb;border-radius:8px;padding:5px 12px;font-size:12px;color:#c3c8d0" title="Har utført arbeid" disabled>Arkiver</button></div>
+    </div>
+  </div>
+
+  <div style="position:sticky;bottom:0;display:flex;align-items:center;gap:18px;padding:14px 28px;background:#ffffff;border-top:1px solid #e5e7eb;box-shadow:0 -2px 10px rgba(0,0,0,0.04)">
+    <div style="font-size:13px;color:#374151"><strong>12 frister oppdateres</strong> · <strong>1 nytt kontrollpunkt</strong> · <strong>1 punkt arkiveres</strong><div style="font-size:12px;color:#b45309;margin-top:2px">3 «antatt samme» venter på bekreftelse — de tas ikke med før du bekrefter dem</div></div>
+    <div style="margin-left:auto;display:flex;gap:10px">
+      <button style="border:1px solid #d1d5db;background:#fff;border-radius:9px;padding:9px 18px;font-size:13.5px;font-weight:600;color:#374151;cursor:pointer">Avbryt</button>
+      <button style="border:none;background:#26327e;color:#fff;border-radius:9px;padding:9px 20px;font-size:13.5px;font-weight:700;cursor:pointer">Anvend revisjon (14)</button>
+    </div>
+  </div>
+</div>
+<div style="width:1240px;margin:0 auto 40px;font-size:12.5px;color:#4b5563;line-height:1.55;display:grid;grid-template-columns:1fr 1fr;gap:14px" data-screen-label="Designnotater">
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 18px"><strong style="color:#111827">Mot blind masse-godkjenning.</strong> Ingen global «godkjenn alle». Gruppevis valg gjelder kun sikre UID-treff, per milepæl — brukeren tar stilling gruppe for gruppe. «Antatt samme» kan aldri velges gruppevis; hver rad krever eget Bekreft-trykk, og ubekreftede holdes utenfor anvendelsen (varsel i bunnlinja).</div>
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 18px"><strong style="color:#111827">Sikker vs. antatt match.</strong> Sikre UID-treff er forhåndsvalgte rader uten dekor. Fingerprint-treff får gul bakgrunn, stiplet «ANTATT SAMME»-merke med hva som endret seg, og Bekreft-knapp i stedet for avkryssing.</div>
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 18px"><strong style="color:#111827">Skalering til ~200 rader.</strong> Grupper per milepæl, kollapset som standard unntatt den første; gruppelinja viser antall endringer og antall antatte. Søk + typefiltre (chips) på tvers. Uendrede rader skjult som default; utførte/godkjente helt ute av diffen (kun oppsummeringslinja).</div>
+  <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px 18px"><strong style="color:#111827">Kompakt fristvisning.</strong> «u34 → <strong>u37</strong> +3 uker» — tabular-nums, delta i farge. Årstall vises kun når endringen krysser årsskiftet (u51/2026 → u3/2027).</div>
+</div>
+</x-dc>
+</body>
+</html>

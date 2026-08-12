@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <meta name="design_doc_mode" content="canvas">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; background: #e8eaee; font-family: 'IBM Plex Sans', sans-serif; }
+    a { color: #1e40af; } a:hover { color: #1c3aa0; }
+  </style>
+</helmet>
+
+<section style="padding: 40px; display: flex; flex-direction: column; gap: 28px;">
+  <div style="max-width: 1000px;">
+    <div style="font-size: 13px; font-weight: 600; letter-spacing: 0.08em; color: #6b7280; text-transform: uppercase;">Spor 1 — Mockup v2: flyt-f&oslash;rst kontaktside + egen tilgangsmatrise (2026-08-05)</div>
+    <div style="font-size: 15px; color: #374151; margin-top: 6px; line-height: 1.5;">Kenneths vedtak innarbeidet: kontaktsiden snakker KUN flyt-spr&aring;k (deltakelse + rolle, direkte tilordning ved opprettelse); tilgangsgruppene forvaltes i egen <b>matrise</b> og m&oslash;ter aldri flyt-begrepene i samme kort. Chip-etikett <b>&laquo;Gruppe&raquo;</b> (byttet fra &laquo;Tilgang&raquo;). Kun reelle navn fra prosjektdataene. Navnekollisjonen (&laquo;Sitedoc Ansatte&raquo; = b&aring;de flyt og gruppe) er ufarlig: hver har sin ID — UI-et viser typen.</div>
+  </div>
+
+  <div id="2a" style="display: flex; flex-direction: column; gap: 14px;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 700; padding: 3px 9px; border-radius: 4px;">2a</span>
+      <span style="font-size: 14px; font-weight: 600; color: #111827;">Flyt-f&oslash;rst kontaktside &middot; opprett-modal &middot; tilgangsmatrise</span>
+    </div>
+
+    <div style="display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap;">
+
+      <!-- Panel A: Kontakter-siden, flyt-først -->
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a3;">Kontakter — flyt-f&oslash;rst</div>
+        <div style="width: 640px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 14px;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+            <div>
+              <div style="font-size: 17px; font-weight: 700; color: #111827;">Kontakter</div>
+              <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">Hvem som deltar i dokumentflytene — og med hvilken rolle</div>
+            </div>
+            <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 600; padding: 6px 14px; border-radius: 6px;">+ Ny kontakt</span>
+          </div>
+
+          <!-- Forklaringsboks: to separate linjer -->
+          <div style="background: #f4f7fc; border: 1px solid #d4deee; border-radius: 8px; padding: 11px 14px; display: flex; flex-direction: column; gap: 7px;">
+            <span style="font-size: 12px; font-weight: 700; color: #1e40af;">To uavhengige ting styrer hva en kontakt kan:</span>
+            <div style="display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; color: #4b5563;">
+              <span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 10.5px; border-radius: 4px; overflow: hidden; border: 1px solid #c9c3ec;"><span style="background: #5b4fc4; color: #fff; font-weight: 700; padding: 1px 7px;">Flyt &rarr;</span></span>
+              <span><b>Dokumentflyt-deltakelse</b> — hvem som har ballen. kmy er Utf&oslash;rer i <b>Sitedoc Ansatte</b> og Bestiller i <b>Endringsmelding</b>. Redigeres her og p&aring; flyt-oppsettet.</span>
+            </div>
+            <div style="display: flex; align-items: baseline; gap: 8px; font-size: 11.5px; color: #4b5563;">
+              <span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 10.5px; border-radius: 4px; overflow: hidden; border: 1px solid #c7d2e4;"><span style="background: #47536b; color: #fff; font-weight: 700; padding: 1px 7px;">Gruppe</span></span>
+              <span><b>Tilgangsgruppe</b> — hvilke moduler og domener (Bygg &middot; HMS &middot; Kvalitet) kontakten ser. Forvaltes i <a href="#2a">Tilgangsmatrisen</a>, ikke her.</span>
+            </div>
+          </div>
+
+          <!-- Kontaktliste -->
+          <div style="display: flex; flex-direction: column;">
+            <div style="display: grid; grid-template-columns: 140px 1fr 120px 80px; gap: 10px; padding: 6px 10px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3; border-bottom: 1px solid #e5e9f0;">
+              <span>Navn</span><span>Deltar i dokumentflyt &middot; rolle</span><span>Gruppe</span><span>Firma</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 140px 1fr 120px 80px; gap: 10px; padding: 9px 10px; font-size: 12px; border-bottom: 1px solid #eef1f6; align-items: center;">
+              <span style="font-weight: 600; color: #111827;">kmy</span>
+              <span style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
+                <span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11px; border-radius: 5px; overflow: hidden; border: 1px solid #c9c3ec;"><span style="background: #5b4fc4; color: #fff; font-weight: 700; padding: 1px 6px;">Flyt &rarr;</span><span style="background: #f6f5fd; color: #1f2937; font-weight: 600; padding: 1px 7px;">Sitedoc Ansatte</span><span style="background: #ece9fa; color: #5b4fc4; font-weight: 600; padding: 1px 7px;">Utf&oslash;rer</span></span>
+                <span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11px; border-radius: 5px; overflow: hidden; border: 1px solid #c9c3ec;"><span style="background: #5b4fc4; color: #fff; font-weight: 700; padding: 1px 6px;">Flyt &rarr;</span><span style="background: #f6f5fd; color: #1f2937; font-weight: 600; padding: 1px 7px;">Endringsmelding</span><span style="background: #ece9fa; color: #5b4fc4; font-weight: 600; padding: 1px 7px;">Bestiller</span></span>
+              </span>
+              <span style="font-size: 11px; color: #6b7280;">Sitedoc Ansatte</span>
+              <span style="font-size: 11px; color: #6b7280;">Sitedoc AS</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 140px 1fr 120px 80px; gap: 10px; padding: 9px 10px; font-size: 12px; border-bottom: 1px solid #eef1f6; align-items: center; background: #fbfcfe;">
+              <span style="font-weight: 600; color: #111827;">Kenneth Myrhaug</span>
+              <span style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
+                <span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11px; border-radius: 5px; overflow: hidden; border: 1px solid #c9c3ec;"><span style="background: #5b4fc4; color: #fff; font-weight: 700; padding: 1px 6px;">Flyt &rarr;</span><span style="background: #f6f5fd; color: #1f2937; font-weight: 600; padding: 1px 7px;">Sitedoc Ansatte</span><span style="background: #ece9fa; color: #5b4fc4; font-weight: 600; padding: 1px 7px;">Registrator</span></span>
+                <span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11px; border-radius: 5px; overflow: hidden; border: 1px solid #c9c3ec;"><span style="background: #5b4fc4; color: #fff; font-weight: 700; padding: 1px 6px;">Flyt &rarr;</span><span style="background: #f6f5fd; color: #1f2937; font-weight: 600; padding: 1px 7px;">Endringsmelding</span><span style="background: #ece9fa; color: #5b4fc4; font-weight: 600; padding: 1px 7px;">Godkjenner</span></span>
+              </span>
+              <span style="font-size: 11px; color: #6b7280;">Sitedoc Ledelse, Byggherre</span>
+              <span style="font-size: 11px; color: #6b7280;">Sitedoc AS</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 140px 1fr 120px 80px; gap: 10px; padding: 9px 10px; font-size: 12px; align-items: center;">
+              <span style="font-weight: 600; color: #111827;">Per Prosjektadmin</span>
+              <span style="display: flex; gap: 5px; flex-wrap: wrap; align-items: center;">
+                <span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11px; border-radius: 5px; overflow: hidden; border: 1px solid #c9c3ec;"><span style="background: #5b4fc4; color: #fff; font-weight: 700; padding: 1px 6px;">Flyt &rarr;</span><span style="background: #f6f5fd; color: #1f2937; font-weight: 600; padding: 1px 7px;">Sitedoc Ansatte</span><span style="background: #ece9fa; color: #5b4fc4; font-weight: 600; padding: 1px 7px;">Godkjenner</span></span>
+              </span>
+              <span style="font-size: 11px; color: #6b7280;">Sitedoc Ledelse</span>
+              <span style="font-size: 11px; color: #6b7280;">Sitedoc AS</span>
+            </div>
+          </div>
+          <div style="font-size: 10.5px; color: #9aa4b5;">Flyt-chipene viser flytnavn + kontaktens rolle. Deltakelse via gruppe/faggruppe vises likt — kilden ser du i redigering. Gruppe-kolonnen er kun oppslag; klikk g&aring;r til Tilgangsmatrisen.</div>
+        </div>
+        <div style="width: 640px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Kontaktsiden snakker kun flyt-spr&aring;k. Kollisjonen er borte i praksis: &laquo;Sitedoc Ansatte&raquo; i flyt-chip (lilla, med rolle) kan ikke forveksles med &laquo;Sitedoc Ansatte&raquo; i Gruppe-kolonnen (ren tekst under Gruppe-heading).</div>
+      </div>
+
+      <!-- Panel B: Opprett-modal -->
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a3;">Opprett kontakt — flyt-tilordning direkte</div>
+        <div style="width: 360px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; box-shadow: 0 8px 24px rgba(22,35,63,0.10); padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+          <div style="font-size: 15px; font-weight: 700; color: #111827;">Ny kontakt</div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 11px; font-weight: 600; color: #4b5563;">Navn</span>
+            <div style="border: 1px solid #d4dae4; border-radius: 6px; padding: 7px 10px; font-size: 12.5px; color: #111827;">Nina Foss</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 11px; font-weight: 600; color: #4b5563;">E-post</span>
+            <div style="border: 1px solid #d4dae4; border-radius: 6px; padding: 7px 10px; font-size: 12.5px; color: #9aa4b5;">nina@sitedoc.no</div>
+          </div>
+          <div style="border-top: 1px solid #eef1f6; padding-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+            <span style="font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3;">Delta i dokumentflyt</span>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <span style="font-size: 10.5px; font-weight: 600; color: #6b7280;">1. Faggruppe</span>
+                <div style="border: 1px solid #d4dae4; border-radius: 6px; padding: 7px 10px; font-size: 12.5px; color: #111827; display: flex; justify-content: space-between; align-items: center;"><span style="display: inline-flex; white-space: nowrap; align-items: center; gap: 6px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #d97706; flex-shrink: 0;"></span>Byggherre Boligfelt B12</span><span style="color: #9aa4b5;">&#9662;</span></div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 3px;">
+                <span style="font-size: 10.5px; font-weight: 600; color: #6b7280;">2. Dokumentflyt</span>
+                <div style="border: 1px solid #d4dae4; border-radius: 6px; padding: 7px 10px; font-size: 12.5px; color: #111827; display: flex; justify-content: space-between; align-items: center;"><span style="display: inline-flex; white-space: nowrap; align-items: center; gap: 6px;"><span style="display: inline-flex; font-size: 10px; border-radius: 4px; overflow: hidden;"><span style="background: #5b4fc4; color: #fff; font-weight: 700; padding: 1px 6px;">Flyt &rarr;</span></span>Endringsmelding</span><span style="color: #9aa4b5;">&#9662;</span></div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 5px;">
+                <span style="font-size: 10.5px; font-weight: 600; color: #6b7280;">3. Velg rolle(r) i flyten</span>
+                <div style="display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 9px 10px; border: 1px solid #e5e9f0; border-radius: 7px; background: #fbfcfe;">
+                  <span style="font-size: 11.5px; font-weight: 600; color: #6b7280; border: 1.5px solid #d4dae4; background: #fff; border-radius: 6px; padding: 5px 10px; cursor: pointer;">Registrator</span>
+                  <span style="color: #b6bfcc; font-size: 11px;">&rarr;</span>
+                  <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: #fff; background: #5b4fc4; border: 1.5px solid #5b4fc4; border-radius: 6px; padding: 5px 10px; cursor: pointer;">&#10003; Bestiller</span>
+                  <span style="color: #b6bfcc; font-size: 11px;">&rarr;</span>
+                  <span style="display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: #fff; background: #5b4fc4; border: 1.5px solid #5b4fc4; border-radius: 6px; padding: 5px 10px; cursor: pointer;">&#10003; Utf&oslash;rer</span>
+                  <span style="color: #b6bfcc; font-size: 11px;">&rarr;</span>
+                  <span style="font-size: 11.5px; font-weight: 600; color: #6b7280; border: 1.5px solid #d4dae4; background: #fff; border-radius: 6px; padding: 5px 10px; cursor: pointer;">Godkjenner</span>
+                </div>
+                <div style="font-size: 10.5px; color: #9aa4b5;">Selve leddrekka vises — klikk for &aring; velge, flere roller mulig. Her: Bestiller + Utf&oslash;rer.</div>
+              </div>
+            </div>
+            <span style="font-size: 11.5px; color: #1e40af; font-weight: 600;">+ Legg til flere flyter</span>
+            <div style="font-size: 10.5px; color: #9aa4b5;">Valgfritt — kontakten kan ogs&aring; f&aring; deltakelse senere, her eller p&aring; flyt-oppsettet.</div>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <span style="font-size: 11px; font-weight: 600; color: #4b5563;">Tilgangsgruppe</span>
+            <div style="border: 1px solid #d4dae4; border-radius: 6px; padding: 7px 10px; font-size: 12.5px; color: #111827; display: flex; justify-content: space-between; align-items: center;"><span>Sitedoc Ansatte</span><span style="color: #9aa4b5;">&#9662;</span></div>
+            <div style="font-size: 10.5px; color: #9aa4b5;">Gir moduler + domener. Detaljer i Tilgangsmatrisen.</div>
+          </div>
+          <div style="display: flex; gap: 8px; justify-content: flex-end; padding-top: 4px;">
+            <span style="font-size: 12px; font-weight: 600; color: #6b7280; padding: 7px 14px;">Avbryt</span>
+            <span style="background: #1e40af; color: #fff; font-size: 12px; font-weight: 600; padding: 7px 16px; border-radius: 6px;">Opprett</span>
+          </div>
+        </div>
+        <div style="width: 360px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Kenneths &oslash;nske: tilordne dokumentflyt allerede ved opprettelse, valgt i hierarki <b>faggruppe &rarr; dokumentflyt &rarr; rolle(r)</b>. N&aring;r flyten er valgt vises LEDDREKKA — rollevalget skjer direkte i flyten, s&aring; man ser hvor kontakten havner. Flervalg = ett flytmedlemskap per valgt rolle. Samme modal gjenbrukes fra flyt-oppsettet (med faggruppe + flyt forh&aring;ndsvalgt).</div>
+      </div>
+
+      <!-- Panel C: Tilgangsmatrise -->
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div style="font-size: 11.5px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #8a93a3;">Tilgangsmatrise — egen flate (admin)</div>
+        <div style="width: 560px; background: #fff; border: 1px solid #dde2ea; border-radius: 10px; padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;">
+          <div>
+            <div style="font-size: 15px; font-weight: 700; color: #111827;">Tilgangsgrupper</div>
+            <div style="font-size: 12px; color: #6b7280; margin-top: 2px;">Hvem ser hvilke moduler og domener</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 150px repeat(3, 64px) 1fr; gap: 0; font-size: 11.5px; border: 1px solid #e5e9f0; border-radius: 8px; overflow: hidden;">
+            <div style="padding: 8px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3; background: #f8fafc; border-bottom: 1px solid #e5e9f0;">Gruppe</div>
+            <div style="padding: 8px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #47536b; background: #f8fafc; border-bottom: 1px solid #e5e9f0; text-align: center;">Bygg</div>
+            <div style="padding: 8px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #b45309; background: #f8fafc; border-bottom: 1px solid #e5e9f0; text-align: center;">HMS</div>
+            <div style="padding: 8px 6px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #5b4fc4; background: #f8fafc; border-bottom: 1px solid #e5e9f0; text-align: center;">Kval.</div>
+            <div style="padding: 8px 12px; font-size: 10.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #8a93a3; background: #f8fafc; border-bottom: 1px solid #e5e9f0;">Moduler</div>
+
+            <div style="padding: 9px 12px; border-bottom: 1px solid #eef1f6; display: flex; align-items: center;"><span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11.5px; border-radius: 5px; border: 1px solid #c7d2e4; background: #f4f7fc; color: #1f2937; font-weight: 600; padding: 1px 8px;">Sitedoc Ansatte</span></div>
+            <div style="border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: center; color: #0b7a4b; font-weight: 700;">&#10003;</div>
+            <div style="border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: center; color: #0b7a4b; font-weight: 700;">&#10003;</div>
+            <div style="border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: center; color: #cbd2dd;">—</div>
+            <div style="padding: 9px 12px; border-bottom: 1px solid #eef1f6; color: #6b7280;">Sjekklister &middot; Oppgaver &middot; HMS &middot; Tegninger</div>
+
+            <div style="padding: 9px 12px; border-bottom: 1px solid #eef1f6; display: flex; align-items: center;"><span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11.5px; border-radius: 5px; border: 1px solid #c7d2e4; background: #f4f7fc; color: #1f2937; font-weight: 600; padding: 1px 8px;">Sitedoc Ledelse</span></div>
+            <div style="border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: center; color: #0b7a4b; font-weight: 700;">&#10003;</div>
+            <div style="border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: center; color: #0b7a4b; font-weight: 700;">&#10003;</div>
+            <div style="border-bottom: 1px solid #eef1f6; display: flex; align-items: center; justify-content: center; color: #0b7a4b; font-weight: 700;">&#10003;</div>
+            <div style="padding: 9px 12px; border-bottom: 1px solid #eef1f6; color: #6b7280;">Alle</div>
+
+            <div style="padding: 9px 12px; display: flex; align-items: center;"><span style="display: inline-flex; white-space: nowrap; flex-shrink: 0; font-size: 11.5px; border-radius: 5px; border: 1px solid #c7d2e4; background: #f4f7fc; color: #1f2937; font-weight: 600; padding: 1px 8px;">Byggherre</span></div>
+            <div style="display: flex; align-items: center; justify-content: center; color: #0b7a4b; font-weight: 700;">&#10003;</div>
+            <div style="display: flex; align-items: center; justify-content: center; color: #cbd2dd;">—</div>
+            <div style="display: flex; align-items: center; justify-content: center; color: #cbd2dd;">—</div>
+            <div style="padding: 9px 12px; color: #6b7280;">Oppgaver &middot; Tegninger &middot; Bilder</div>
+          </div>
+          <div style="font-size: 10.5px; color: #9aa4b5;">Rad-klikk &aring;pner gruppen: medlemmer + modul-detaljer. Domene-kryss = eksisterende <code style="font-size:10px;">oppdaterDomener</code> (fundament-ordren). Medlemmer-kolonne og faggruppe-kobling ligger i detaljvisningen — ikke i matrisen.</div>
+        </div>
+        <div style="width: 560px; font-size: 11.5px; color: #5b6472; line-height: 1.55;">Tilgangsgruppens kompleksitet (medlemmer &times; moduler &times; domener) f&aring;r sin egen flate som Kenneth ba om — matrise-oversikt f&oslash;rst, detaljer per rad. Ingen flyt-begreper her; ingen tilgangs-begreper p&aring; kontaktsiden.</div>
+      </div>
+    </div>
+  </div>
+</section>
+</x-dc>
+</body>
+</html>

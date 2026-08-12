@@ -16,6 +16,23 @@ Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avkla
 
 ## 1. Teknisk gjeld
 
+### Foreldreløse bilder oppstår ved sletting — `Image` har `ON DELETE SET NULL` (målt 2026-08-12)
+
+`images_checklist_id_fkey` og `images_task_id_fkey` er begge `ON DELETE SET NULL` (`migrations/20260228221935_initial/migration.sql:250,253`). Slettes en sjekkliste eller oppgave, nulles bildets kobling — raden består og filen ligger igjen på disk. `Image` har **ingen andre koblinger** enn disse to, så bildet blir permanent uoppnåelig.
+
+**Målt omfang 2026-08-12:** 12 av 50 bilder (24 %), 11 MB, etter få måneders drift. **De 12 var testdata og er slettet** (Kenneths beslutning; prod står nå 38 bilder / 34 MB / 0 foreldreløse). Mekanismen er urørt — nye oppstår ved hver sletting.
+
+**To retninger, ikke besluttet:**
+- **`CASCADE`** — bildene slettes med sjekklisten. Problemet forsvinner, men en byggeleder som sletter ved uhell mister bildene permanent.
+- **Behold `SET NULL` + opprydningsrutine** — bevarer bilder ved uhellssletting, men krever en jobb som rydder etter en frist, og en måte å finne dem igjen i mellomtiden (finnes ikke i dag).
+
+Valget er et domenespørsmål: skal en uhellssletting kunne angres? ⚖ Kenneth.
+
+**Personvernvinkel:** byggeplassbilder kan inneholde personer og kjøretøy. Et bilde ingen kan nå har ikke lenger et formål, og skal etter GDPR-prinsippet om lagringsbegrensning ikke ligge.
+
+**Synlighet er på plass:** lagringsstatistikken (`feat/lagringsstatistikk`) viser foreldreløse som egen post, aldri fakturerbar, men med i faktisk diskbruk. Posten skjules ved 0 — den vil dukke opp av seg selv neste gang noe slettes.
+
+
 ### 🔴 `dokument-handlingsmeny-kvittering.test.tsx` feiler på develop (P2-mobil-restanse, 2026-07-29)
 
 Bekreftet (P1-Opus, `git stash`): testen feiler ALT på develop — P2 (inndata-validering) gjorde `in_progress` begrunnelse-påkrevd, men denne nudge-æra-testen skriver ingen begrunnelse. Ikke §8A. Oppdater testen så den skriver begrunnelse (matcher P2-regelen). Naturlig å ta i P3 (handlingslinje-redesign rører uansett `DokumentHandlingsmeny` + testene).

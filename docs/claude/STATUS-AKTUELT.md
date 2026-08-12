@@ -103,6 +103,27 @@ Terskel 12/mnd ikke nær. **#40-lærdom:** EAS autoIncrement teller mot EAS' egn
 
 `nav.sok` «Søk»→«Dokumentsøk» + `nav.kontrollplan` «Kontrollplaner»→«Kontrollplan» rendres i gammel `HovedSidebar` (`sidebar-elementer.tsx:131,145`) — **ikke** bak `nyNavigasjon`-flagg. Kilde: `73f88112` (finnbarhet i18n), live i prod via develop→main-deploy **`43299d03`** (2026-07-15). **Pilot-support:** etiketten byttet for ALLE brukere, ikke bare ny-nav — bevisst (unngår label-mismatch på tvers av flagg-tilstand, jf. Lokasjoner/Byggeplasser). `firmaNav.innstillinger`→«Firmaprofil» er derimot INERT i prod (gammel firma-nav hardkoder «Innstillinger»).
 
+## 🔴 ÅPENT SIKKERHETSPUNKT — alle sjekkliste-/oppgavebilder er uautentisert tilgjengelige (målt 2026-08-12)
+
+**Ikke en ny sårbarhet — dette er S1 Fase 1b, planlagt men ikke bygget.** `server.ts` sier det selv: *«Non-privat `/uploads/*` er uendret i Fase 1 (global gate kommer i Fase 1b).»* Målingen viser at hullet fortsatt står åpent.
+
+**Målt på prod 2026-08-12:**
+
+| plassering | bilder | volum |
+|---|---|---|
+| `uploads/` (åpen, ingen gate) | **50** | **46 MB** |
+| `uploads/privat/` (signatur-gatet) | 0 | 0 |
+
+`curl` mot `https://api.sitedoc.no/uploads/<uuid>.jpg` uten innlogging → **200**.
+
+**Årsak:** `privat=1` sendes kun fra timer-siden (utleggsbilag, `dashbord/timer/[id]/page.tsx:2314,2967`) og mobil `opplasting.ts`. `bilde.ts` — som lagrer alle sjekkliste- og oppgavebilder — laster opp uten flagget. Kvitteringer er altså beskyttet; byggeplassbilder er ikke.
+
+**Alvorlighet, ærlig vurdert:** UUID-er er 128 bit og ikke gjettbare, så ingen kan bla gjennom bildene. Men enhver URL som lekker — e-post, skjermdump, serverlogg, nettleserhistorikk på delt PC — gir permanent uautentisert tilgang til et byggeplassbilde som kan inneholde personer, kjøretøy eller skader. Personvernrelevant.
+
+**Ikke løst av kveldens signaturfiks.** Den lukket omgåelse av gaten på `uploads/privat/*`; dette handler om at bildene aldri legges bak den gaten.
+
+**Retning (ikke besluttet):** enten sende `privat=1` fra `bilde.ts` og signere bildelenker som timer-flaten gjør, eller bygge Fase 1bs globale gate på hele `/uploads/*`. Første er mindre, men flytter ikke eksisterende 50 filer; andre er riktig sluttilstand. Krever beslutning + migrering av eksisterende filstier.
+
 ## ✅ ARKIVERT — sikkerhetsfiks signaturgate `/uploads/privat/*` → [historikk-2026-08.md](historikk-2026-08.md)
 
 Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fire utnyttbare omgåelsesformer (`//`, `/./`, `/../`, `%2e`) ga 200 mot ekte fil; alle gir 401 etter fiks på både test og prod. ⚠️ Gjenstår: innlogget nettleser-verifisering at bilder laster.
