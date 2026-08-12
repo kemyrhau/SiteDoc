@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Zurück",
   "kontrollplan.importFrister": "Fristen Woche {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} Aktivitäten ohne Vorlage – ausgeschlossen",
+  "kontrollplan.importAlleredeImportert": "Alle ausgewählten Zeilen sind bereits aus diesem Plan importiert.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} Zeilen wurden bereits importiert und übersprungen.",
   "kontrollplan.importSteg2Beskrivelse": "Der Zeitplan enthält Ressourcen (Firmen/Personen). Ordnen Sie jede Ressource einer Handelsgruppe in SiteDoc zu, damit die Kontrollpunkte die richtige verantwortliche Partei erhalten.",
   "kontrollplan.importIngenRessurser": "In der Datei wurden keine Ressourcen gefunden. Wählen Sie eine Standardhandelsgruppe für alle Aktivitäten aus oder weisen Sie sie im nächsten Schritt pro Gruppe zu.",
   "kontrollplan.importStandardFaggruppe": "Standardhandelsgruppe",

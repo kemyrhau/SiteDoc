@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Spate",
   "kontrollplan.importFrister": "Termenele limită săptămâna {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} activități fără șablon — excluse",
+  "kontrollplan.importAlleredeImportert": "Toate rândurile selectate sunt deja importate din acest plan.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} rânduri au fost deja importate și au fost omise.",
   "kontrollplan.importSteg2Beskrivelse": "Programul conține resurse (companii/persoane). Mapați fiecare resursă la un grup comercial în SiteDoc, astfel încât punctele de control să obțină partea responsabilă corectă.",
   "kontrollplan.importIngenRessurser": "Nu s-au găsit resurse în fișier. Selectați un grup de tranzacții implicit pentru toate activitățile sau atribuiți fiecare grup în pasul următor.",
   "kontrollplan.importStandardFaggruppe": "Grup comercial implicit",

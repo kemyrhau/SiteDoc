@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Tillbaka",
   "kontrollplan.importFrister": "Deadlines vecka {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} aktiviteter utan mall — uteslutna",
+  "kontrollplan.importAlleredeImportert": "Alla markerade rader är redan importerade från denna plan.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} rader var redan importerade och hoppades över.",
   "kontrollplan.importSteg2Beskrivelse": "Schemat innehåller resurser (företag/personer). Mappa varje resurs till en handelsgrupp i SiteDoc så att kontrollpunkterna får rätt ansvarig part.",
   "kontrollplan.importIngenRessurser": "Inga resurser hittades i filen. Välj en standardhandelsgrupp för alla aktiviteter, eller tilldela per grupp i nästa steg.",
   "kontrollplan.importStandardFaggruppe": "Standardhandelsgrupp",

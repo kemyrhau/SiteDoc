@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Atgal",
   "kontrollplan.importFrister": "Terminai savaitė {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} veikla be šablono – neįtraukta",
+  "kontrollplan.importAlleredeImportert": "Visos pasirinktos eilutės jau importuotos iš šio plano.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} eilučių jau buvo importuotos ir praleistos.",
   "kontrollplan.importSteg2Beskrivelse": "Grafike yra ištekliai (įmonės/žmonės). Susiekite kiekvieną išteklį į prekybos grupę „SiteDoc“, kad kontroliniai taškai gautų tinkamą atsakingą šalį.",
   "kontrollplan.importIngenRessurser": "Faile nerasta išteklių. Pasirinkite numatytąją prekybos grupę visoms veikloms arba priskirkite kiekvienai grupei kitame žingsnyje.",
   "kontrollplan.importStandardFaggruppe": "Numatytoji prekybos grupė",

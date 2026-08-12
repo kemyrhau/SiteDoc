@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Mbrapa",
   "kontrollplan.importFrister": "Afatet javën {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "{{antall}} aktivitete pa shabllon — përjashtohen",
+  "kontrollplan.importAlleredeImportert": "Të gjitha rreshtat e zgjedhura janë importuar tashmë nga ky plan.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} rreshta janë importuar tashmë dhe janë anashkaluar.",
   "kontrollplan.importSteg2Beskrivelse": "Orari përmban burime (kompani/njerëz). Hartojeni çdo burim në një grup tregtar në SiteDoc në mënyrë që pikat e kontrollit të marrin palën e duhur përgjegjëse.",
   "kontrollplan.importIngenRessurser": "Nuk u gjet asnjë burim në skedar. Zgjidhni një grup tregtar të paracaktuar për të gjitha aktivitetet, ose caktoni për grup në hapin tjetër.",
   "kontrollplan.importStandardFaggruppe": "Grupi i paracaktuar i tregtisë",

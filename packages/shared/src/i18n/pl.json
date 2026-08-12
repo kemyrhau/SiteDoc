@@ -2612,6 +2612,8 @@
   "kontrollplan.importTilbake": "Z powrotem",
   "kontrollplan.importFrister": "Terminy tydzień {{fra}}–{{til}}",
   "kontrollplan.importEkskludert": "Aktywności {{antall}} bez szablonu — wykluczone",
+  "kontrollplan.importAlleredeImportert": "Wszystkie wybrane wiersze zostały już zaimportowane z tego planu.",
+  "kontrollplan.importHoppetDuplikater": "{{antall}} wierszy zostało już zaimportowanych i zostało pominiętych.",
   "kontrollplan.importSteg2Beskrivelse": "Harmonogram zawiera zasoby (firmy/ludzie). Przypisz każdy zasób do grupy handlowej w SiteDoc, aby punkty kontrolne wytypowały właściwą stronę odpowiedzialną.",
   "kontrollplan.importIngenRessurser": "W pliku nie znaleziono żadnych zasobów. Wybierz domyślną grupę handlową dla wszystkich działań lub przypisz ją do każdej grupy w następnym kroku.",
   "kontrollplan.importStandardFaggruppe": "Domyślna grupa handlowa",
