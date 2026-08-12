@@ -101,8 +101,12 @@ export const kontrollplanRouter = router({
       await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
 
       // Opprett importhendelsen på første kall i en import (påfølgende gruppe-kall
-      // gjenbruker importKildeId). Ligger utenfor punkt-transaksjonen — feiler
-      // punkt-innsettingen står raden igjen som en tom, godartet hendelsesrad.
+      // gjenbruker importKildeId). Ligger utenfor punkt-transaksjonen: feiler
+      // punkt-innsettingen (mest sannsynlig duplikat-import der unik-guarden slår
+      // til) står importraden igjen UTEN tilknyttede punkter.
+      // TODO (del 2): når revisjon leser hoppetOver, filtrer bort importrader uten
+      // punkter — ellers undertrykker en hoppetOver-liste fra en import som aldri
+      // gikk gjennom rader brukeren aldri faktisk valgte bort (han blir ikke spurt).
       let importKildeId = input.importKildeId ?? null;
       if (input.importKilde) {
         const imp = await ctx.prisma.kontrollplanImport.create({

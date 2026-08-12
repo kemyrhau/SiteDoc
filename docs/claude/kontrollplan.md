@@ -158,6 +158,13 @@ ikke valgt, med navn- og wbs-snapshot — så en senere revisjon ikke maser om d
 `opprettPunkter` bærer rad-identiteten og oppretter importhendelsen på første
 gruppe-kall (returnerer `importKildeId`; påfølgende kall gjenbruker den).
 
+**Kjent begrensning → del 2:** Importraden opprettes utenfor punkt-transaksjonen.
+Feiler punkt-innsettingen (mest sannsynlig duplikat-import der guarden slår til),
+står en importrad igjen uten punkter — med en `hoppetOver`-liste fra en import som
+aldri gikk gjennom. Del 2 må filtrere bort punktløse importrader når den leser
+`hoppetOver`, ellers undertrykkes rader brukeren aldri faktisk valgte bort. Markert
+som `TODO (del 2)` i `opprettPunkter`.
+
 ## Felttype-regler (KRITISK)
 
 ### Kun eksisterende ReportObject-typer
