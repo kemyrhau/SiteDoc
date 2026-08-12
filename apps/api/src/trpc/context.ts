@@ -3,6 +3,7 @@ import { prisma } from "@sitedoc/db";
 import { prismaMaskin } from "@sitedoc/db-maskin";
 import { prismaTimer } from "@sitedoc/db-timer";
 import { prismaVarelager } from "@sitedoc/db-varelager";
+import { hentKlientIp } from "../utils/rateLimiter";
 
 export interface CreateContextOptions {
   req: FastifyRequest;
@@ -19,6 +20,10 @@ export interface ContextStammeInput {
   imperseringAktiv: boolean;
   sessionToken: string | null;
   tokenKilde: "bearer" | "cookie" | null;
+  // Klient-metadata for Activity-logging (diagnostikk av sensitive operasjoner,
+  // f.eks. eksport-URL-utstedelse). Utledes per runtime (Fastify vs Web Request).
+  ipAddress: string | null;
+  userAgent: string | null;
 }
 
 /**
@@ -43,6 +48,8 @@ export function lagContextStamme(input: ContextStammeInput) {
     imperseringAktiv: input.imperseringAktiv,
     sessionToken: input.sessionToken,
     tokenKilde: input.tokenKilde,
+    ipAddress: input.ipAddress,
+    userAgent: input.userAgent,
     // Mutable container for nytt rotert token. Middleware skriver hit;
     // tRPC responseMeta leser og setter X-Session-Token-header på respons.
     nyttSessionTokenForRespons: { value: null as string | null },
@@ -114,6 +121,8 @@ export async function createContext({ req, res }: CreateContextOptions) {
       imperseringAktiv,
       sessionToken,
       tokenKilde,
+      ipAddress: hentKlientIp(req),
+      userAgent: (req.headers["user-agent"] as string | undefined) ?? null,
     }),
     req,
     res,

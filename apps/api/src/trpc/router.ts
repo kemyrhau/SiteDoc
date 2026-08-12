@@ -18,6 +18,7 @@ import { modulRouter } from "../routes/modul";
 import { hmsRouter } from "../routes/hms";
 import { organisasjonRouter } from "../routes/organisasjon";
 import { adminRouter } from "../routes/admin";
+import { lagringRouter } from "../routes/lagring";
 import { punktskyRouter } from "../routes/punktsky";
 import { mengdeRouter } from "../routes/mengde";
 import { ftdSokRouter } from "../routes/ftdSok";
@@ -39,6 +40,7 @@ import { eksternKostObjektRouter } from "../routes/eksternKostObjekt";
 import { vareKategoriRouter } from "../routes/vareKategori";
 import { vareRouter } from "../routes/vare";
 import { vareforbrukRouter } from "../routes/vareforbruk";
+import { eksportRouter } from "../routes/eksport";
 import { vareImportRouter } from "../routes/vareImport";
 import { firmaIntegrasjonRouter } from "../routes/firma-integrasjon";
 import { firmaRouter } from "../routes/firma";
@@ -68,6 +70,7 @@ export const appRouter = router({
   hms: hmsRouter,
   organisasjon: organisasjonRouter,
   admin: adminRouter,
+  lagring: lagringRouter,
   punktsky: punktskyRouter,
   mengde: mengdeRouter,
   ftdSok: ftdSokRouter,
@@ -93,6 +96,7 @@ export const appRouter = router({
   firmaIntegrasjon: firmaIntegrasjonRouter,
   firma: firmaRouter,
   flytMatrise: flytMatriseRouter,
+  eksport: eksportRouter,
 });
 
 export type AppRouter = typeof appRouter;

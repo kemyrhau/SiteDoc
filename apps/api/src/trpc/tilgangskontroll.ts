@@ -398,6 +398,23 @@ export async function verifiserAdmin(
 }
 
 /**
+ * Tilgangsvakt for dataeksport (fase 1, 2026-08-11).
+ *
+ * Ett sted for eksport-tilgang, bevisst: abonnements-sporet skal senere kunne
+ * stramme dette til firma-admin-only i den 3-mnd «halen» etter oppsigelse UTEN
+ * å røre eksportkoden — legg det vilkåret HER, ikke spredt i routeren.
+ *
+ * I dag: prosjektadmin + firma-admin (arver) + sitedoc_admin — nøyaktig samme
+ * kilde som verifiserAdmin, så UI og server ikke kan divergere.
+ */
+export async function verifiserKanEksportere(
+  userId: string,
+  projectId: string,
+): Promise<void> {
+  await verifiserAdmin(userId, projectId);
+}
+
+/**
  * Verifiser at bruker er medlem av prosjektet.
  * company_admin med riktig org arver tilgang uten ProjectMember-rad.
  */
