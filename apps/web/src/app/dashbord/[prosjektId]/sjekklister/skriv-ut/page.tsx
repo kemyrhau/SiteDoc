@@ -8,7 +8,8 @@ import { Printer, ArrowLeft } from "lucide-react";
 import { PrintHeader } from "@/components/PrintHeader";
 import { RapportObjektVisning } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import type { RapportObjekt } from "@sitedoc/pdf";
+import { prosjektReferanseForUtskrift } from "@sitedoc/pdf";
+import type { RapportObjekt, ProsjektForPdf, Utskriftsinnstillinger } from "@sitedoc/pdf";
 import { useToppbarFiltre } from "@/hooks/useToppbarFiltre";
 import { useTranslation } from "react-i18next";
 
@@ -211,8 +212,10 @@ function SjekklistePrint({
       <div className="mx-auto max-w-3xl pb-8">
         <PrintHeader
           prosjektnavn={prosjekt?.name ?? ""}
-          prosjektnummer={prosjekt?.projectNumber ?? ""}
-          eksterntNummer={prosjekt?.externalProjectNumber}
+          prosjektnummer={prosjektReferanseForUtskrift(
+            prosjekt as unknown as ProsjektForPdf,
+            (prosjekt as unknown as { utskriftsinnstillinger?: Utskriftsinnstillinger | null })?.utskriftsinnstillinger,
+          )}
           sjekklisteTittel={sjekkliste.title}
           sjekklisteNummer={sjekklisteNummer}
           bestiller={sjekkliste.bestillerFaggruppe?.name}

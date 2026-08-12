@@ -7,6 +7,26 @@ import type { ProsjektForPdf, Utskriftsinnstillinger, PdfConfig } from "./typer"
 import { STATUS_TEKST, STATUS_FARGE } from "./konstanter";
 import { esc, formaterDatoKort, formaterDatoTidKort, fullBildeUrl } from "./hjelpere";
 
+/**
+ * ÉN kilde for prosjekt-referansen i utskrift (2026-08-12). Fallback-kjede vedtatt
+ * i terminologi.md § Tre prosjektnumre:
+ *   eksternt (utskrift-toggle på + satt) → internt (satt) → SD (siste utvei, gated
+ *   av visSiteDocNummer) → "".
+ * SD er sikkerhetsnettet, ikke standardvalget — et byggherre-dokument skal aldri stå
+ * helt uten referanse. header.ts, web-utskriftssidene og PrintHeader kaller ALLE denne
+ * — ikke reimplementer (fire divergente kopier var utgangspunktet).
+ */
+export function prosjektReferanseForUtskrift(
+  prosjekt: ProsjektForPdf | null | undefined,
+  innstillinger: Utskriftsinnstillinger | null | undefined,
+): string {
+  const eksternPå = innstillinger?.eksternProsjektnummer ?? true;
+  if (eksternPå && prosjekt?.externalProjectNumber) return prosjekt.externalProjectNumber;
+  if (prosjekt?.internalProjectNumber) return prosjekt.internalProjectNumber;
+  if (prosjekt?.visSiteDocNummer ?? true) return prosjekt?.projectNumber ?? "";
+  return "";
+}
+
 // ---------------------------------------------------------------------------
 //  Sjekkliste-header
 // ---------------------------------------------------------------------------
@@ -35,9 +55,7 @@ export function byggSjekklisteHeader(
 ): string {
   const vis = (felt: keyof Utskriftsinnstillinger) => innstillinger?.[felt] ?? true;
 
-  const prosjektNr = vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber
-    ? prosjekt.externalProjectNumber
-    : prosjekt?.projectNumber ?? "";
+  const prosjektNr = prosjektReferanseForUtskrift(prosjekt, innstillinger);
 
   const statusTekst = STATUS_TEKST[data.status] ?? data.status;
   const statusFarge = STATUS_FARGE[data.status] ?? "background:#e5e7eb;color:#374151;";
@@ -120,9 +138,7 @@ export function byggOppgaveHeader(
 ): string {
   const vis = (felt: keyof Utskriftsinnstillinger) => innstillinger?.[felt] ?? true;
 
-  const prosjektNr = vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber
-    ? prosjekt.externalProjectNumber
-    : prosjekt?.projectNumber ?? "";
+  const prosjektNr = prosjektReferanseForUtskrift(prosjekt, innstillinger);
 
   const statusTekst = STATUS_TEKST[data.status] ?? data.status;
   const statusFarge = STATUS_FARGE[data.status] ?? "background:#e5e7eb;color:#374151;";

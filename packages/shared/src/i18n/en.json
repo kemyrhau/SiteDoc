@@ -2029,6 +2029,8 @@
   "prosjektoppsett.prosjektlokasjonBeskrivelse": "Click the map to set the project's position. Used for automatic weather retrieval in checklists.",
   "prosjektoppsett.rapportinnstillinger": "Report settings",
   "prosjektoppsett.rapportinnstillingerBeskrivelse": "Control what is displayed on printouts and reports",
+  "prosjektoppsett.visSiteDocNummer": "Show SiteDoc number on printout",
+  "prosjektoppsett.visSiteDocNummerHjelp": "The SiteDoc number (SD-…) is shown as a last resort in the printout header when neither an external nor internal project number is set. Turn off to hide it entirely.",
   "prosjektoppsett.kildesprak": "Source language",
   "prosjektoppsett.kildesprakBeskrivelse": "The language the documents in this project are written in. Used for translation and language detection.",
   "prosjektoppsett.prosjektstatus": "Project status",

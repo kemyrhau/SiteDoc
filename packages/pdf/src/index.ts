@@ -48,6 +48,7 @@ export {
   byggSjekklisteHeader,
   byggOppgaveHeader,
   byggMetadataRutenett,
+  prosjektReferanseForUtskrift,
 } from "./header";
 export type {
   SjekklisteHeaderData,
