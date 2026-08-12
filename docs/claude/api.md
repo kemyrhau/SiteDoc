@@ -355,6 +355,23 @@ tilknytning er stopgap-aksen som låser opp piloten.
   har begge lenker), men tredje sted samme uenighet dukker opp (jf. U5 `hentProsjekter` vs
   `settOverstyring`). Fortjener én avklaring.
 
+## Prosjektnumre (tre numre, 2026-08-12)
+
+Se [terminologi.md § Tre prosjektnumre](terminologi.md). `projectNumber` (SD, `@unique`,
+SiteDocs nøkkel) vises kun i `dashbord/admin/*`; `internalProjectNumber` (entreprenørens
+eget) vises med prosjektnavnet når satt; `externalProjectNumber` (byggherrens) i utskrift.
+
+- **Utskrift-referanse:** ÉN kilde — `prosjektReferanseForUtskrift()` i `@sitedoc/pdf/header.ts`.
+  Kjede: eksternt (toggle på + satt) → internt (satt) → SD (siste utvei, gated av `visSiteDocNummer`).
+  `header.ts`, web-utskriftssidene og `PrintHeader` kaller alle denne.
+- **`Project.visSiteDocNummer`** (omdøpt fra `showInternalProjectNumber` — feilbenevnelse: gater
+  SD, ikke internt). Prisma-felt omdøpt; DB-kolonnen beholder `show_internal_project_number` via
+  `@map` (ingen migrering). **🟡 Oppfølger:** kolonne-omdøping `show_internal_project_number` →
+  `vis_sitedoc_nummer` som to-stegs migrering (ikke gjort — den som kjører rå SQL ser fortsatt gammelt navn).
+- **🟡 `internalProjectNumber` mangler `@unique` + formatvalidering** (kun `z.string().max(100)`).
+  En Pro Admin-integrasjon keyet på feltet trenger minst unikhet per firma. Forutsetning for
+  integrasjonsrunden, ikke bygget.
+
 ## Prøveperiode og testsider
 
 - Prøveperiode styres av `trialExpiresAt`-feltet (default: `createdAt + 30 dager`). Prosjekter med `organizationProjects` har ingen prøveperiode.

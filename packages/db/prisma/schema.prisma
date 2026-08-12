@@ -536,7 +536,10 @@ model Project {
   internalProjectNumber     String?   @map("internal_project_number")
   externalProjectNumber     String?   @map("external_project_number")
   logoUrl                   String?   @map("logo_url")
-  showInternalProjectNumber Boolean   @default(true) @map("show_internal_project_number")
+  /// Gater SiteDoc-nummeret (SD-…), IKKE internt prosjektnummer — tross kolonnenavnet.
+  /// Kolonnen beholder `show_internal_project_number` for å unngå migrering;
+  /// omdøping av kolonnen er notert som oppfølger. Se terminologi.md § Tre prosjektnumre.
+  visSiteDocNummer          Boolean   @default(true) @map("show_internal_project_number")
   utskriftsinnstillinger    Json?     @map("utskrifts_innstillinger") // { logo, eksternProsjektnummer, prosjektnavn, fraTil, lokasjon, tegningsnummer, vaer }
   sourceLanguage            String    @default("nb") @map("source_language") // Kildespråk for prosjektet
   status                    String    @default("active")

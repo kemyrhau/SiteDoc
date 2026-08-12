@@ -564,7 +564,9 @@ export const prosjektRouter = router({
         internalProjectNumber: z.string().max(100).nullable().optional(),
         externalProjectNumber: z.string().max(100).nullable().optional(),
         logoUrl: z.string().max(500).nullable().optional(),
-        showInternalProjectNumber: z.boolean().optional(),
+        // Omdøpt fra showInternalProjectNumber (feilbenevnelse — gater SD, ikke internt).
+        // Prisma-felt visSiteDocNummer; DB-kolonne uendret via @map. Se terminologi.md.
+        visSiteDocNummer: z.boolean().optional(),
         utskriftsinnstillinger: z.object({
           logo: z.boolean(),
           eksternProsjektnummer: z.boolean(),

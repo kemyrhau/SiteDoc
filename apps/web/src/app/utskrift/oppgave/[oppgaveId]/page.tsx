@@ -7,7 +7,8 @@ import { Spinner } from "@sitedoc/ui";
 import { Printer, ExternalLink } from "lucide-react";
 import { RapportObjektVisning, TegningPosisjonPrint } from "@/components/RapportObjektVisning";
 import { byggObjektTre } from "@sitedoc/shared/types";
-import { fullBildeUrl, formaterNummer, PRIORITETS_TEKST } from "@sitedoc/pdf";
+import { fullBildeUrl, formaterNummer, PRIORITETS_TEKST, prosjektReferanseForUtskrift } from "@sitedoc/pdf";
+import type { ProsjektForPdf, Utskriftsinnstillinger } from "@sitedoc/pdf";
 import type { Vedlegg, RapportObjekt } from "@sitedoc/pdf";
 
 /* ------------------------------------------------------------------ */
@@ -166,11 +167,11 @@ export default function UtskriftOppgaveSide() {
         {(() => {
           const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null })?.utskriftsinnstillinger;
           const vis = (felt: string) => ui?.[felt] ?? true;
-          const prosjektnummer = vis("eksternProsjektnummer") && prosjekt?.externalProjectNumber
-            ? prosjekt.externalProjectNumber
-            : (prosjekt as { showInternalProjectNumber?: boolean } | undefined)?.showInternalProjectNumber !== false
-              ? prosjekt?.projectNumber
-              : null;
+          // Delt referanse-kjede (ekstern → intern → SD siste utvei) — ikke reimplementer.
+          const prosjektnummer = prosjektReferanseForUtskrift(
+            prosjekt as unknown as ProsjektForPdf,
+            ui as Utskriftsinnstillinger,
+          );
           const lokTegn: string[] = [];
           if (vis("lokasjon") && oppgave.drawing?.byggeplass?.name) lokTegn.push(oppgave.drawing.byggeplass.name);
           if (vis("tegningsnummer") && oppgave.drawing) {

@@ -155,7 +155,7 @@ export default function ProsjektoppsettSide() {
   const [interntNummer, setInterntNummer] = useState("");
   const [eksterntNummer, setEksterntNummer] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [visInterntNummer, setVisInterntNummer] = useState(true);
+  const [visSiteDocNummer, setVisSiteDocNummer] = useState(true);
   const [kildesprak, setKildesprak] = useState("nb");
   const [lasterOppLogo, setLasterOppLogo] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -182,7 +182,7 @@ export default function ProsjektoppsettSide() {
       setInterntNummer((prosjekt as { internalProjectNumber?: string | null }).internalProjectNumber ?? "");
       setEksterntNummer(prosjekt.externalProjectNumber ?? "");
       setLogoUrl(prosjekt.logoUrl ?? null);
-      setVisInterntNummer((prosjekt as { showInternalProjectNumber?: boolean }).showInternalProjectNumber !== false);
+      setVisSiteDocNummer((prosjekt as { visSiteDocNummer?: boolean }).visSiteDocNummer !== false);
       setKildesprak((prosjekt as unknown as { sourceLanguage?: string }).sourceLanguage ?? "nb");
       const ui = (prosjekt as unknown as { utskriftsinnstillinger?: Record<string, boolean> | null }).utskriftsinnstillinger;
       if (ui) setUtskrift({ logo: ui.logo ?? true, eksternProsjektnummer: ui.eksternProsjektnummer ?? false, prosjektnavn: ui.prosjektnavn ?? true, fraTil: ui.fraTil ?? true, lokasjon: ui.lokasjon ?? true, tegningsnummer: ui.tegningsnummer ?? true, vaer: ui.vaer ?? true });
@@ -240,7 +240,7 @@ export default function ProsjektoppsettSide() {
       internalProjectNumber: interntNummer.trim() || null,
       externalProjectNumber: eksterntNummer.trim() || null,
       logoUrl: logoUrl || null,
-      showInternalProjectNumber: visInterntNummer,
+      visSiteDocNummer: visSiteDocNummer,
       utskriftsinnstillinger: utskrift,
       sourceLanguage: kildesprak,
       status: status as "active" | "archived" | "completed",
@@ -441,16 +441,16 @@ export default function ProsjektoppsettSide() {
           <label className="flex items-center gap-3 cursor-pointer">
             <input
               type="checkbox"
-              checked={visInterntNummer}
-              onChange={(e) => handleFeltEndring(setVisInterntNummer)(e.target.checked)}
+              checked={visSiteDocNummer}
+              onChange={(e) => handleFeltEndring(setVisSiteDocNummer)(e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-sitedoc-primary focus:ring-sitedoc-primary"
             />
             <div>
               <p className="text-sm font-medium text-gray-700">
-                Vis internt prosjektnummer på rapport
+                {t("prosjektoppsett.visSiteDocNummer")}
               </p>
               <p className="text-xs text-gray-500">
-                Deaktiver for å skjule SiteDoc-prosjektnummeret (SD-...) i utskriftshodet
+                {t("prosjektoppsett.visSiteDocNummerHjelp")}
               </p>
             </div>
           </label>

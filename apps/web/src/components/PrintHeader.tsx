@@ -1,7 +1,8 @@
 export interface PrintHeaderProps {
   prosjektnavn: string;
+  // Ferdig referanse fra prosjektReferanseForUtskrift (ekstern → intern → SD). Én
+  // kilde — komponenten reimplementerer ikke kjeden. Tomt = ingen referanse vises.
   prosjektnummer: string;
-  eksterntNummer?: string | null;
   sjekklisteTittel: string;
   sjekklisteNummer?: string | null;
   bestiller?: string | null;
@@ -13,7 +14,6 @@ export interface PrintHeaderProps {
   status?: string | null;
   byggeplassNavn?: string | null;
   tegningNavn?: string | null;
-  visInterntNummer?: boolean;
 }
 
 function logoSrc(url: string): string {
@@ -24,7 +24,6 @@ function logoSrc(url: string): string {
 export function PrintHeader({
   prosjektnavn,
   prosjektnummer,
-  eksterntNummer,
   sjekklisteTittel,
   sjekklisteNummer,
   bestiller,
@@ -35,7 +34,6 @@ export function PrintHeader({
   prosjektAdresse,
   byggeplassNavn,
   tegningNavn,
-  visInterntNummer = true,
 }: PrintHeaderProps) {
   const dato = new Date().toLocaleDateString("nb-NO", {
     day: "2-digit",
@@ -57,11 +55,9 @@ export function PrintHeader({
           )}
           <div>
             <p className="text-base font-bold text-gray-900">{prosjektnavn}</p>
-            <p className="text-xs text-gray-600">
-              {visInterntNummer && <>Prosjektnr: {prosjektnummer}</>}
-              {visInterntNummer && eksterntNummer && <> &middot; </>}
-              {eksterntNummer && <>Ekst: {eksterntNummer}</>}
-            </p>
+            {prosjektnummer && (
+              <p className="text-xs text-gray-600">Prosjektnr: {prosjektnummer}</p>
+            )}
             {prosjektAdresse && (
               <p className="text-xs text-gray-500">Adresse: {prosjektAdresse}</p>
             )}

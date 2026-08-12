@@ -9,6 +9,8 @@ import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useBilder } from "@/kontekst/bilder-kontekst";
 import { Spinner } from "@sitedoc/ui";
+import { prosjektReferanseForUtskrift } from "@sitedoc/pdf";
+import type { ProsjektForPdf, Utskriftsinnstillinger } from "@sitedoc/pdf";
 import { BildeLightbox, type LightboxBilde } from "@/components/BildeLightbox";
 import {
   beregnTransformasjon,
@@ -949,7 +951,9 @@ function KartVisningMedValg({
     { id: prosjektId },
     { enabled: !!prosjektId },
   );
-  const prosjekt = prosjektInfo as unknown as { name?: string; projectNumber?: string; address?: string } | undefined;
+  const prosjekt = prosjektInfo as unknown as
+    | (ProsjektForPdf & { utskriftsinnstillinger?: Utskriftsinnstillinger | null })
+    | undefined;
 
   // Unike bygninger og maler for filter-dropdowns
   const bygninger = useMemo(() => {
@@ -1053,7 +1057,12 @@ function KartVisningMedValg({
           <div class="header">
             <h1>${prosjekt?.name ?? "Bildeeksport"}</h1>
             <div class="info">
-              ${prosjekt?.projectNumber ? `Prosjekt ${prosjekt.projectNumber}` : ""}
+              ${(() => {
+                // Delt referanse-kjede (ekstern → intern → SD siste utvei) — femte
+                // print-konsument, samme kilde som header.ts/utskriftssidene/PrintHeader.
+                const ref = prosjektReferanseForUtskrift(prosjekt, prosjekt?.utskriftsinnstillinger);
+                return ref ? `Prosjekt ${ref}` : "";
+              })()}
               ${prosjekt?.address ? ` · ${prosjekt.address}` : ""}
             </div>
             <div class="info">
