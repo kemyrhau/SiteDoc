@@ -474,7 +474,9 @@ export const sjekklisteRouter = router({
       // (HMS-gruppen) varsles først når melder sender inn (sjekkliste.hmsSendInn). recipientGroupId
       // er allerede satt, så Send inn finner mottakeren uten nytt oppslag.
 
-      return opprettet;
+      // S1 Fase 1b: signér vedlegg-URL i data ved emisjon (tomt ved opprett → no-op,
+      // men konsekvent — beskytter mot forhåndsutfylte maler med vedlegg).
+      return signerDataRad(opprettet);
     }),
 
   // Oppdater sjekkliste-metadata (faggrupper, tittel etc.)
