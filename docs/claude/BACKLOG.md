@@ -14,6 +14,55 @@ STATUS-AKTUELT.md § Pågående arbeid; ferdige PRs flyttes videre til
 
 Legenda: 🔴 ikke startet · 🟡 delvis · ⏸️ parkert · ❓ trenger avklaring.
 
+## 0. Sikkerhet — Aikido-scan triagert 2026-08-12 (49 funn → 7 poster)
+
+**Kilde:** `Fra fabel/til-repo-2026-08-12-1558/FABEL-TRIAGE-aikido-49-funn.md`. Fabel triagerte alle 49; cowork har **verifisert hvert kodefunn mot repoet** før føring her. Aikidos alvorlighetsgrader er ikke fulgt blindt — to av dem er justert, se under.
+
+### Avvises i Aikido (falske positive — verifisert)
+
+| Funn | Begrunnelse |
+|---|---|
+| **NoSQL injection** (`ftd-prosessering.ts`, `reisetidMatrise.ts` +4) | Ingen NoSQL i stacken. Prisma mot Postgres; all rå-SQL parameterisert — `$executeRaw` tagged template + `$executeRawUnsafe` med posisjonsparametre `$1/$2`. Ingen strengbygging med brukerdata. |
+| **uuid «memory corruption/RCE»** | Overdrevet advisory, ingen reell sårbarhet i bruksmønsteret. Bump ved anledning, avvis som critical. |
+
+### 🔴 Pakke A — før pilot
+
+**A1. DOMPurify på `dangerouslySetInnerHTML`** — 🔴 **cowork løfter denne over Next-bumpen.** Aikido sa medium; det er den mest reelle angrepsflaten i listen. **Verifisert: 9 forekomster i 4 filer** (`dokumentleser/page.tsx`, `dokumenter/[id]/les/page.tsx`, `tegninger/page.tsx`, `oppsett/byggeplasser/page.tsx`), og **DOMPurify er ikke i bruk noe sted**. Filene rendrer `innhold`/`blokk.content` fra opplastede og maskinoversatte dokumenter, og `svgInnhold` fra DWG-konvertering. Opplastet innhold rett i DOM er stored XSS. SVG-profil for tegningene. Est. 3 t.
+
+**A2. `@fastify/static` path traversal** (High) — verifisert `^9.0.0`. Bump til patchet versjon, og verifiser at uploads-serving bruker `sendFile` med rot-lås. 🔴 **Merk sammenhengen:** vi lukket en omgåelse av *vår egen* signaturgate 2026-08-12 (`//`, `/./`, `%2e` → 200). Har `@fastify/static` i tillegg egen traversal, kan filer utenfor `uploads/` nås uavhengig av gaten. Est. 1 t.
+
+**A3. Next.js-bump** (critical) — verifisert `next ^14.2.0`, utenfor sikkerhetsstøtte. Kjente CVE-er i 14-serien, bl.a. middleware-autorisasjonsbypass fikset i 14.2.25. Bump til nyeste 14.2.x nå; Next 15 planlegges etter pilot. Dekker også «Next.js SSRF» + fast-uri/undici via lock. Est. 10 t.
+
+**A4. Hardkodet API-nøkkel** (High) — verifisert: `apps/web/src/components/GeoReferanseEditor.tsx` har Norkart/Webatlas-nøkkel i klartekst, og **ingen `NEXT_PUBLIC_*`-variant finnes**. (Fabels rapport oppgav `components/tegning/` — riktig sti er `components/`.) Maptile-nøkler er synlige i nettleseren uansett, men skal (a) ut av kildekoden og inn i env, (b) domenebegrenses hos Norkart, (c) **roteres** — den ligger i git-historikken. Est. 1 t.
+
+**A5. `defusedxml` i ftd-worker** (Aikido critical, reelt medium/DoS) — verifisert: `ftd-worker/main.py` bruker `xml.etree` på opplastet NS3459-XML, og **`defusedxml` står ikke i requirements**. Entity-expansion-DoS. Est. 30 min.
+
+**A6. `fastapi>=0.115`-pin** — ftd-worker tar multipart-opplasting; kjente DoS-CVE-er i eldre starlette. Pinnen drar starlette ≥0.40 + nyeste python-multipart. Est. 30 min.
+
+**A7. Proxy-headers** — HSTS (High), X-Frame-Options (Medium), X-Powered-By av (Medium). Tre linjer i nginx/proxy. Est. 15 min.
+
+### Pakke B — vedlikeholdsvindu
+
+Én PR: `pnpm update` + `overrides` der transitivt. Omfatter protobufjs (transitiv via `@xenova/transformers`; pollution-CVE krever ondsinnede `.proto`-filer vi ikke parser), next-auth beta + `@auth/core`, find-my-way, tar/tar-fs, brace-expansion, browserslist, undici, expo-file-system, sharp, fast-xml-parser, csv-parse, nanoid, jose, ajv, yargs, js-yaml, picomatch, postal-mime, `@ungap/structured-clone`, onnxruntime-node, `@fastify/forwarded`, `@expo/spawn-async`, i18next, zod. Est. 3–4 t inkl. regresjon.
+
+**B-unntak: `xlsx` → `exceljs`** — pollution-CVE-en er reell og npm-versjonen får ikke fiks. **Verifisert: begge finnes i `apps/api` (`xlsx ^0.18.5` + `exceljs ^4.4.0`), og web bruker kun exceljs.** Migrer api-bruken og fjern `xlsx`. Egen post.
+
+### Pakke C — infrastruktur
+
+- **Docker kjører som root** — verifisert: **0 `USER`-linjer** i `Dockerfile.api`, `.web` og `.ml`. Legg til non-root + chown av arbeidskatalog. Est. 3 t inkl. test av volummounts (uploads-bind-mount er den risikable delen).
+- **CI:** pinn 3rd-party Actions til sha + `persist-credentials: false` på checkout. Est. 15 min.
+- **`@fastify/cors`:** verifiser at origin er eksplisitt liste, ikke `true`. Est. 15 min.
+
+### CSP — egen post, ikke hastetiltak
+
+Aikido: critical. Reelt hardening, men streng CSP brekker Next-hydrering og inline-scripts. Krever egen testrunde. **Frist: før pilot-slutt**, ikke før pilot-start.
+
+### Coworks samlede vurdering
+
+«8 critical» er reelt **én viktig kodefiks (DOMPurify), én rammeverksbump, to biblioteks-pinner og fire linjer header-config.** Alt i pakke A utenom Next-bumpen og DOMPurify er under en time hver. Ingen indikasjon på aktiv utnyttelse.
+
+**Rekkefølgen cowork anbefaler avviker fra fabels på ett punkt:** DOMPurify før Next-bump. Next-CVE-ene krever spesifikke angrepsmønstre mot middleware; usanitert opplastet innhold i DOM er en åpen flate der kunden selv leverer nyttelasten.
+
 ## 1. Teknisk gjeld
 
 ### Store bilder mangler i klient-utskrift — `window.print()` venter ikke på lasting (målt 2026-08-12)
