@@ -182,6 +182,9 @@ async function start() {
       // Start papirkurv-sweep (90-dagers auto-hardslett av soft-slettede dokumenter)
       const { startPapirkurvSweep } = await import("./services/papirkurv-sweep");
       startPapirkurvSweep(prisma);
+      // Start eksport-worker (bygger dataeksport-arkiver asynkront + utløpsrydding)
+      const { startEksportWorker } = await import("./services/eksport/eksport-worker");
+      startEksportWorker(prisma);
     } catch {
       // Ikke kritisk — ignorer hvis tabellen ikke finnes ennå
     }

@@ -104,6 +104,7 @@ model Organization {
   kompetansetyper     Kompetansetype[]
   arbeidstidsKalender ArbeidstidsKalender[]
   seedPolicies        OrganizationSeedPolicy[]
+  eksportJobber       EksportJobb[]
 
   @@map("organizations")
 }
@@ -151,6 +152,46 @@ model OrganizationSeedPolicy {
   @@unique([organizationId, datatype])
   @@index([organizationId])
   @@map("organization_seed_policies")
+}
+
+// EksportJobb — asynkron jobb for server-side dokumentgenerering/eksport.
+// Kanon-mønster (arkitektur-syntese § 6.2): Prisma-jobbtabell + poll-worker.
+// Speiler FtdTranslationJob. Ligger i packages/db (kjerne) fordi det er en
+// tverrgående infra-tabell om et Project/Organization, ikke en modultabell —
+// samme resonnement som OrganizationSeedPolicy.
+//
+// 🔴 Ikke batch-forutsettende: `type` skiller «pakke» (mange dokumenter) fra
+// «dokument» (ett — fase 3 enkeltdokument-utsending til byggherre). Nøyaktig ett
+// mål-sett er satt per type (projectId / organizationId / dokumentType+dokumentId).
+model EksportJobb {
+  id     String @id @default(uuid())
+  type   String @default("prosjekt_eksport") // prosjekt_eksport | firma_eksport | dokument (DB-CHECK)
+  status String @default("bestilt") // bestilt | bygger | klar | feilet | utløpt (DB-CHECK)
+
+  // Mål — avhenger av type (ingen batch-antakelse):
+  projectId      String? @map("project_id") // prosjekt_eksport (+ dokument tilhører et prosjekt)
+  organizationId String? @map("organization_id") // firma_eksport
+  dokumentType   String? @map("dokument_type") // dokument: hvilken dokumenttype
+  dokumentId     String? @map("dokument_id") // dokument: id-en
+
+  bestiltAvUserId   String  @map("bestilt_av_user_id") // svak FK → users
+  feilmelding       String?
+  antallTotalt      Int?     @map("antall_totalt") // progresjon (jf. blocksTotal)
+  antallFerdig      Int?     @map("antall_ferdig")
+  resultatSti       String?  @map("resultat_sti") // disk-sti under uploads/privat/eksport/
+  resultatStorrelse Int?     @map("resultat_storrelse") // bytes
+  utloperVed        DateTime? @map("utloper_ved") // artefakt slettes + status=utløpt etter dette
+  startetVed        DateTime? @map("startet_ved")
+  fullfortVed       DateTime? @map("fullfort_ved")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  project      Project?      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([projectId])
+  @@map("eksport_jobber")
 }
 
 // ---------------------------------------------------------------------------
@@ -533,6 +574,7 @@ model Project {
   tilstedevarelser     PsiTilstedevarelse[]
   kontrollplaner       Kontrollplan[]
   godkjenninger        Godkjenning[]
+  eksportJobber        EksportJobb[]
 
   @@index([trialExpiresAt])
   @@index([primaryOrganizationId])
