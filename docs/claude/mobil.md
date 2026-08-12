@@ -436,7 +436,7 @@ Georeferansepunkter (P1, P2, P3) vises som oransje markører for visuell verifis
 **PDF-bygger:** `@sitedoc/pdf` (packages/pdf/) — delt pakke for web og mobil. Genererer komplett HTML-strenger.
 
 **Arkitektur:**
-- `byggSjekklisteHtml()` / `byggOppgaveHtml()` tar data-objekter + config → returnerer HTML
+- `byggSjekklisteHtml()` tar data-objekter + config → returnerer HTML (`byggOppgaveHtml` pensjonert 2026-08-12 — var kallerløs)
 - Null runtime-avhengigheter — kun TypeScript-strenger
 - `PdfConfig`: bildeBaseUrl, maksbildeHoyde, gjentakendeHeader, visSidenummer, tegningScreenshot, tegningDetaljScreenshot
 
