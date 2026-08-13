@@ -96,11 +96,157 @@ const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
 **Ryddesak funnet samtidig:** to identiske «Sitedoc»-skallfirmaer (`er_kunde=false`, null prosjekter) i prod. «Kenneths testmiljø» har `er_kunde=true` og teller derfor som kunde i lagringsstatistikk og fakturering.
 
+### 🔴 P1 — Posisjonsmodell-restansen: steg-inngangen kollapser alle nye flyter (kodeverifisert 2026-08-13)
+
+Fabel har ført disse i [redesign/MASTERPLAN.md](../redesign/MASTERPLAN.md) § Nye backlog-saker. Repo-siden her, med kodereferanser.
+
+**Posisjonsmodellen er i prod siden 2026-08-03** og virker: rutingen teller ledd, ikke rollenavn (`services/flytFakta.ts:151-212`, `packages/shared/src/utils/flytPosisjon.ts`, autorisasjon via `verifiserRetningsrett` i `tilgangskontroll.ts:905-968`). Bestiller/utfører-faggruppene er **ikke rutingsbærende**.
+
+**Men motoren mates ikke:**
+- Flytoppsettet sender **hardkodet** `steg={1}` — `dashbord/oppsett/produksjon/dokumentflyt/page.tsx:869` og `:886`, `OpprettKontaktModal.tsx:211`.
+- Standardflyter seedes med `steg: 1` for **både** bestiller og utfører — `prosjekt.ts:515` og `:529`. Begge kollapser til **ett ledd**.
+- Kun HMS-flyten setter steg eksplisitt (`modul.ts:61,68`).
+- `klassifisering` settes heller ikke fra noe UI.
+
+Historiske rader ble reparert av backfill (`20260731120000_flytmodell_fase1_posisjon/migration.sql:36-56`, `DENSE_RANK()` over kanonisk rollerekkefølge). **Inngangen ble aldri reparert** — samme funn som `delplaner/flytposisjon-byggledd-fiks-ordre-2026-07-26.md:11`.
+
+🔴 **MÅ fikses sammen med `utledMinRolle`-klientporten.** `packages/shared/src/utils/flytRolle.ts:96-98` matcher faggruppe-bundne flytmedlemmer kun hvis faggruppen er bestiller **eller** utfører på dokumentet. Resultatet gater handlingsmenyen (`DokumentHandlingsmeny.tsx:556` → «Lesevisning», `DokumentHandlingslinje.tsx:223` → `null`). I en flyt med mer enn to faggruppe-bundne ledd får et tredje ledd `minRolle = null` og ser «Lesevisning» **selv når serveren tillater handlingen fordi brukeren har ballen**. Klient og server er uenige.
+
+Det slår ikke ut i dag nettopp fordi steg-inngangen hindrer slike flyter. Det slår ut i samme øyeblikk som steg fikses. **Fikses de hver for seg, innfører reparasjonen en ny feil.** Fabel har bevisst holdt dette utenfor kontrollplan-ordrene av samme grunn.
+
+### `ansvarsmerke` er en død kolonne — frie boksnavn vedtatt, ikke bygget
+
+Kenneth-vedtak 2026-07-31 (`delplaner/flytmodell-veileder-cowork.md` § 2.6): *«Rollenavn fjernes som brukervendt identitet. Hver boks viser: posisjonsnummer + hvem + ansvarsmerke.»*
+
+`DokumentflytMedlem.ansvarsmerke` finnes (schema:1355), fylles kun av migrasjonen, og **leses aldri** — null treff i `apps/*/src` og `packages/*/src`. Visningsmerket avledes fortsatt fra rollenavn (`flytPosisjon.ts:32-47`). Boksnavnet på dokumentflaten bygges av faggruppe → gruppe → person (`apps/web/src/lib/flyt-ledd.ts:96-100`).
+
+⚠️ **Kolonnen skal IKKE slettes** — den er ikke død, den er ufødt. Eksplisitt fredet i død kode-ordren.
+
+### Fire-boks-taket — N-boks vedtatt, strukturelt sperret
+
+`flytrettigheter-evaluering-2026-07-26.md:52` (Kenneth): *«N-boks er IKKE utsatt — det er dagens realitet.»* Men:
+- `rolle` låst til fire verdier (`packages/shared/src/validation/index.ts:11`)
+- Oppsett-UI lar hver rolle brukes én gang (`dokumentflyt/page.tsx:461-463`) → **maks fire bokser**
+- Rekkefølge sorteres på hardkodet `ROLLE_KONFIG[...].rekkefølge`, ikke på `steg`
+- `@@unique([dokumentflytId, faggruppeId, rolle, steg])` gjør `rolle` til del av leddets identitet
+
+### Død kode i dokumentflyt-domenet — ordre levert
+
+`verifiserFlytRolle` (`tilgangskontroll.ts:792-866`) og `byggFaggruppeFilter` (`:43-52`) har **null kallsteder** — erstattet i fase 3.4, aldri slettet. De fikk to lesere (cowork og fabel) til å konkludere feil om hva som bærer modellen på samme dag.
+
+Ordre: [delplaner/dodkode-opprydding-ordre-2026-08-13.md](delplaner/dodkode-opprydding-ordre-2026-08-13.md). Inkluderer retting av `dokumentflyt.md:29` (*«flytboks trenger ikke navn»* — motsier § 2.6-vedtaket) og regelen **«en erstattet funksjon slettes i samme fase som erstatningen merges»**.
+
+### 🔴 P0 — GPS-prikk speilvendt på georeferert tegning ved 2-punkts kalibrering (fabel, verifisert i felt 2026-08-13)
+
+**Verifisert i prod, Lakselv lufthavn.** Blå GPS-prikk vises som **speilbildet av reell posisjon**, speilet om linjen gjennom kalibreringspunkt 1 og 2. GPS 70.067883, 24.980824 (terminalen, øst for rullebanen) → tegning (56.4, 40.8) = vest for rullebanen.
+
+**Rotårsak (fabel, bekreftet av cowork mot koden):** 2-punkts-grenen i `packages/shared/src/utils/georeferanse.ts:274-276` fitter en similaritetstransformasjon:
+
+```ts
+const affine = { a, b, c: tx, d: -b, e: a, f: ty };
+```
+
+`det = a·e − b·d = a² + b²` — **alltid positiv**. Similariteten kan rotere og skalere, aldri speile. Men GPS→bilde er alltid orienterings-reverserende (latitude øker nordover, pixel-y nedover), så korrekt transform må ha negativ determinant. Rotasjon av tegningen endrer ikke fortegnet.
+
+**Hvorfor den ikke ble oppdaget:** to punkter bestemmer similariteten entydig, så begge kalibreringspunktene treffes eksakt og `beregnKalibreringsFeil` rapporterer **0 m**. Editoren ser korrekt ut. Alle andre posisjoner speiles. Med Lakselv-dataene blir `b ≈ 30·a` — en nesten-90°-rotasjon som similaritetens beste (feile) erstatning for speilingen.
+
+**3+ punkter rammes ikke** — affine-grenen løser full 6-parameter-fit og kan representere speiling.
+
+🟢 **Workaround i dag: legg til et tredje kalibreringspunkt.**
+
+**Fiks + utledet invers:** [delplaner/georef-speilfeil-ordre-2026-08-13.md](delplaner/georef-speilfeil-ordre-2026-08-13.md). Fabel ba om at inversen utledes eksakt; cowork har gjort det — med `M = [a −b; −b −a]` er `M⁻¹ = M/(a²+b²)`, fordi `M/√D` er en refleksjonsmatrise og refleksjoner er involutive. **`ie` skifter fortegn** mot dagens kode; det er fella fabel advarte mot.
+
+**Ingen migrering** — eksisterende 2-punkts-kalibreringer blir riktige av fiksen (samme lagrede data, korrekt transform).
+
+**Egen sak (ikke i ordren):** `beregnKalibreringsFeil` kan per design ikke avdekke speilfeil ved 2 punkter. Vurder UI-hint i `GeoReferanseEditor`: «2 punkter gir eksakt fit — verifiser med Min posisjon eller legg til et 3. punkt».
+
+**Passer for:** ren matematikk i `packages/shared`, testbar uten enhet eller simulator.
+
+### 🔴 Kontrollplanen er frakoblet arbeidet — `sjekklisteId` settes aldri, varsling finnes ikke (målt i prod-test 2026-08-13)
+
+**Kenneth i felt:** importerte fremdriftsplan på test, valgte faggruppe per aktivitet, og spurte: *«hvor i denne planen aktiveres kontrollpunktet mot sjekklisten? hvordan får brukere beskjed om å utføre oppgaven»*
+
+**Målt i `sitedoc_test`:**
+
+```sql
+SELECT count(*) FILTER (WHERE sjekkliste_id IS NOT NULL) AS koblet,
+       count(*) AS totalt FROM kontrollplan_punkter WHERE arkivert = false;
+ koblet | totalt
+      0 |     12
+```
+
+**Ingen av 12 punkter er koblet til en sjekkliste.** Samtidig finnes 13 sjekklister fra de samme malene på prosjektet, hvorav 2 godkjente — mens kontrollplanen viser `0/4 godkjent (0 %)`. Arbeidet er gjort; planen vet det ikke.
+
+**Målt i kode — koblingen finnes i ingen retning:**
+
+- `KontrollplanPunkt.sjekklisteId` (schema:2051) **settes aldri**. Null treff i kildekoden utenom schema og `dist/`. UI-en *leser* feltet (`kontrollplan/page.tsx:51`, ruten selecter det på :10 og :189), men ingenting fyller det.
+- `apps/api/src/routes/sjekkliste.ts` nevner ikke kontrollplan med ett ord. Null treff.
+- `varselUkerFor` (default 1) brukes ett sted: `kontrollplan.ts:610`, som kopierer verdien videre ved duplisering av punkt. Ingen leser den for å beregne varsel.
+- Ingen cron/scheduler i `apps/api/src` som kunne kjørt fristbaserte varsler.
+
+**Begrepsforvirringen som skjuler mangelen:** importen kobler `sjekklisteMal` → punkt (`sjekklisteMalId` settes på :134, :315, :604). Det fungerer. Punktet vet hvilken **oppskrift** som gjelder og hvilken faggruppe som eier den. Det som mangler er neste ledd — fra oppskrift til **utført arbeid**. Kenneth opplevde med rette at «sjekklister fikk kontrollpunkt», fordi malvalget er ekte.
+
+**Dokumentasjonsdrift:** `docs/claude/kontrollplan.md:19` sier «Kontrollplan … gir sporbarhet, varsling og fremdriftstracking». Presens uten kodereferanse. Varslingen er ikke bygget. Rettes samtidig.
+
+**Foreslått rekkefølge (cowork, ikke vedtatt):**
+
+1. **«Start kontrollpunkt»** — knapp på punktet oppretter sjekkliste fra malen med faggruppe/frist arvet, setter `sjekklisteId`, status `planlagt → pagar`. Lite kode, gjør planen ekte umiddelbart, holder mennesket i førersetet — passer bygg, der fremdrift sjelden følger planen.
+2. **Koble eksisterende sjekkliste til punkt.** Uten denne er de 13 eksisterende foreldreløse for alltid og planen starter på null selv om arbeidet er gjort.
+3. **Automatisk opprettelse ved frist + varsel.** Krever scheduler — ny infrastruktur. Sist, når 1 og 2 har vist hvordan koblingen faktisk brukes.
+
+**Følgesak (Kenneth):** når koblingen finnes, bør sjekklistelisten kunne filtreres på «hører til kontrollplanen» vs «kommer i tillegg». Uten `sjekklisteId` er det ingenting å filtrere på — derfor er dette et symptom, ikke roten.
+
 ### Fem funn fra mobil-befaring (Kenneth, Lakselv Lufthavn 2026-08-13)
 
 Alle observert under reell dokumentasjon av befaring, med mal «Befaringsrapport».
 
 > 🟢 **Kontekst for risikovurdering (Kenneth 2026-08-13):** *«alt på produksjon er testdata, med unntak av dagens sjekkliste»* — befaringsrapporten fra Lakselv Lufthavn er eneste reelle produksjonsdokument som krever etterbruk. Det gjør retting av disse sakene vesentlig tryggere enn normal prod-risiko tilsier. **Gjelder inntil A.Markussen tar systemet i reell bruk.**
+
+**−3. 🔴 Annotering dupliserer bildet — men kun inne i repeater**
+
+Kenneth annoterte et flyfoto i observasjon 2 og fikk både original og annotert versjon i galleriet.
+
+**Erstatning er implementert** (`FeltDokumentasjon.tsx:399`, kommentaren sier eksplisitt «Erstatt original med annotert bilde (unngår duplikat)»), med fallback til «lag ny» når `valgtVedleggId` eller `onErstattVedlegg` mangler.
+
+**Målt årsak — proppen når ikke fram:**
+
+| Kaller | Sender `onErstattVedlegg`? |
+|---|---|
+| `FeltWrapper.tsx:156` | ✅ ja |
+| **`RepeaterObjekt.tsx:165`** | ❌ **nei** |
+
+Annotering på et vanlig felt erstatter altså riktig; inne i en repeater faller den til fallbacken og dupliserer. Kenneths bilder lå i repeateren.
+
+**Fiks:** send `onErstattVedlegg` fra `RepeaterObjekt` — men merk at repeateren må implementere erstatning per rad (`radIndeks` + `barnObjekt.id`), ikke bare videreformidle. De øvrige vedleggs-callbackene der (`leggTilVedlegg`, `fjernVedlegg`) tar begge, så mønsteret finnes.
+
+Samme klasse som flere funn i august: **mekanismen finnes og virker, men er ikke koblet i én av to veier.**
+
+**−2. Signaturfelt tar plass og fanger scroll — bør starte som knapp**
+
+> *«når jeg ikke trenger signaturfeltet så tar det for mye plass, og det er upraktisk når jeg scroller at den setter et strek. Jeg hadde foretrukket om signaturfeltet kunne startet som en knapp, og signering utføres når en er klar for det.»*
+
+To problemer i ett: feltet er alltid utfoldet med full tegneflate, **og** canvaset fanger pan-gesten slik at scroll gjennom dokumentet tegner en strek.
+
+Det siste er en reell feil — en bruker som blar forbi signaturfeltet etterlater en tilfeldig strek i et dokument som skal signeres.
+
+**Foreslått løsning (Kenneths):** kollapset knapp «Signer», som folder ut tegneflaten når brukeren er klar. Løser begge — ingen plass når den ikke brukes, og ingen canvas å treffe under scroll.
+
+Gjelder mobil primært; sjekk om web har samme gestproblem.
+
+**−1. 🔴 Tekstfelt uten `multiline` viser bare første linje på web — mobil viser alt**
+
+Kenneth så at en lang observasjonstekst ble avkortet til én linje på web, mens mobil viste hele. **Teksten er der; den er usynlig.**
+
+Målt: `TekstfeltObjekt.tsx:5` — `const erFlerlinjet = !!objekt.config.multiline`. Web gir `<textarea rows={4}>` kun når malen har satt flagget, ellers `<input type="text">`. **Mobil viser alt flerlinjet uansett.**
+
+Kenneths hypotese var at repeateren var årsaken — det er den ikke. Feltet manglet `multiline`, og malbyggeren *har* avhukingen (`FeltKonfigurasjon.tsx:145`).
+
+**To reelle problemer likevel:**
+
+1. **Divergensen web/mobil.** Samme mal gir ulik redigeringsopplevelse. En bruker som skriver på mobil og leser på web tror teksten er borte. Mobil bør respektere flagget, eller web bør vokse ved behov — men de skal ikke være uenige.
+2. 🔴 **`rows={4}` er fast.** Selv med `multiline` vokser ikke feltet med innholdet. Kenneth ber om *dynamisk* høyde. En observasjon på ti linjer får fortsatt fire synlige.
+
+**Vurder også defaulten:** for et fritekstfelt i et byggeplassdokument er flerlinjet det normale, ikke unntaket. At `multiline` er av som standard gjør at feltet oppfører seg feil til noen oppdager avhukingen.
 
 **0. Sjekklister/oppgaver bytter rekkefølge mellom web og mobil**
 
