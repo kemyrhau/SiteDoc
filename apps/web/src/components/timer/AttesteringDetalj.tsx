@@ -194,8 +194,8 @@ export function AttesteringDetalj({
           </h1>
           <p className="mt-1 text-sm text-gray-600">
             {sheet.prosjekt?.name ?? t("timer.detalj.ukjentProsjekt")}
-            {sheet.prosjekt?.projectNumber
-              ? ` (${sheet.prosjekt.projectNumber})`
+            {sheet.prosjekt?.internalProjectNumber
+              ? ` (${sheet.prosjekt.internalProjectNumber})`
               : ""}
           </p>
           {sheet.ansatt && (

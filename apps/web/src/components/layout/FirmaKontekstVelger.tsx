@@ -52,7 +52,7 @@ export function FirmaKontekstVelger() {
     return prosjekter.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
-        p.projectNumber.toLowerCase().includes(q),
+        (p.internalProjectNumber?.toLowerCase().includes(q) ?? false),
     );
   }, [prosjekter, sok]);
 
@@ -113,7 +113,7 @@ export function FirmaKontekstVelger() {
                         key={p.id}
                         id={p.id}
                         navn={p.name}
-                        nummer={p.projectNumber}
+                        nummer={p.internalProjectNumber}
                         favoritt={true}
                         onVelg={() => handleVelg(p.id)}
                         onToggleFavoritt={() => toggleFavoritt(p.id)}
@@ -134,7 +134,7 @@ export function FirmaKontekstVelger() {
                         key={p.id}
                         id={p.id}
                         navn={p.name}
-                        nummer={p.projectNumber}
+                        nummer={p.internalProjectNumber}
                         favoritt={false}
                         onVelg={() => handleVelg(p.id)}
                         onToggleFavoritt={() => toggleFavoritt(p.id)}
@@ -160,7 +160,7 @@ function ProsjektRad({
 }: {
   id: string;
   navn: string;
-  nummer: string;
+  nummer: string | null;
   favoritt: boolean;
   onVelg: () => void;
   onToggleFavoritt: () => void;
@@ -186,7 +186,7 @@ function ProsjektRad({
         className="flex flex-1 flex-col py-1 text-left"
       >
         <span className="text-sm font-medium text-gray-900">{navn}</span>
-        <span className="text-xs text-gray-500">{nummer}</span>
+        {nummer && <span className="text-xs text-gray-500">{nummer}</span>}
       </button>
     </div>
   );
