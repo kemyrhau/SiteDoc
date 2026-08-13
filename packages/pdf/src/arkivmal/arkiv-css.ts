@@ -66,6 +66,30 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 /* Bunntekst — generert-stempel + dokument-id (sporbarhet, kan ikke velges bort) */
 .ark-footer{display:flex;justify-content:space-between;border-top:1px solid ${f.radLinje};padding-top:5px;font-size:8.5px;color:${f.svak}}
 
+/* Innhold — generiske felt (felt.ts-output), stylet i arkiv-uttrykk */
+.felt-blokk{margin-top:10px}
+.felt-label{font-size:9px;letter-spacing:0.06em;text-transform:uppercase;color:${f.graa};margin-bottom:2px}
+.felt-verdi{color:${f.celletekst}}
+.tom{color:${f.svak}}
+.tekst-verdi{color:${f.celletekst}}
+.kommentar{font-size:9.5px;color:${f.graa};margin-top:2px}
+.heading{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:${f.navy};font-weight:600;border-bottom:2px solid ${f.navy};padding-bottom:4px;margin-top:14px}
+.subtitle{font-size:10px;font-weight:600;color:${f.celletekst};margin-top:8px}
+.trafikklys{display:inline-block;width:9px;height:9px;border-radius:50%;vertical-align:middle}
+.vedlegg-teller{font-size:9.5px;color:${f.graa};margin-top:4px}
+
+/* Repeater som tabell (arkiv-override) */
+.ark-repeater{width:100%;border-collapse:collapse;margin-top:6px;font-size:10.5px}
+.ark-repeater th{text-align:left;color:${f.navy};border-bottom:2px solid ${f.navy};padding:5px 8px}
+.ark-repeater td{border-bottom:1px solid ${f.radLinje};padding:6px 8px;color:${f.celletekst};vertical-align:top}
+.ark-rad-nr{width:24px;color:${f.graa}}
+
+/* Bilder — inline i lesbar størrelse, 2-kolonners */
+.bilde-rutenett{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+.bilde-kort{flex:1;min-width:45%;border:1px solid ${f.radLinje};padding:8px 10px;position:relative}
+.bilde-img{max-width:100%;height:auto;display:block}
+.bilde-nr{position:absolute;top:4px;right:6px;font-size:9px;color:${f.svak}}
+
 /* Sideskift — ingen radbryting midt i tabellrad ved paginering */
 tr,.ark-ingen-brekk{break-inside:avoid;page-break-inside:avoid}
 thead{display:table-header-group}

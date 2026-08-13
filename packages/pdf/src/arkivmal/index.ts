@@ -20,6 +20,10 @@ export type {
   StatusCelle,
 } from "./typer";
 
+// Innholds-renderer (Stage 2)
+export { byggInnhold } from "./innhold";
+export { byggRepeaterTabell } from "./repeater";
+
 // Ramme-byggeklosser (Stage 1)
 export { ARKIV_FARGER, hentArkivCss } from "./arkiv-css";
 export {
