@@ -90,6 +90,20 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .bilde-img{max-width:100%;height:auto;display:block}
 .bilde-nr{position:absolute;top:4px;right:6px;font-size:9px;color:${f.svak}}
 
+/* Loggseksjon — Dokumenthistorikk + Endringslogg (økt-gruppert) */
+.ark-logg{width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px}
+.ark-logg td{padding:4px 8px;border-bottom:1px solid ${f.svakLinje}}
+.ark-logg-tid{color:${f.graa};white-space:nowrap}
+.ark-okt{padding:6px 8px 4px !important;background:${f.statusBg};border-bottom:1px solid ${f.radLinje};font-weight:700;color:${f.tekst}}
+
+/* Signaturblokk */
+.ark-signatur{display:flex;gap:10px;margin-top:16px;padding-top:16px}
+.ark-sign-felt{flex:1}
+.ark-sign-navn{font-family:'Caveat',cursive;font-size:22px;color:${f.signatur};padding:0 4px 2px;min-height:26px}
+.ark-sign-tom{min-height:26px}
+.ark-sign-strek{border-top:1px solid ${f.signatur};padding-top:3px;font-size:9px;color:${f.graa}}
+.ark-svak{color:${f.svak}}
+
 /* Sideskift — ingen radbryting midt i tabellrad ved paginering */
 tr,.ark-ingen-brekk{break-inside:avoid;page-break-inside:avoid}
 thead{display:table-header-group}

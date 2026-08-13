@@ -10,6 +10,8 @@
  *   databasetilgang.
  */
 
+import type { Utskriftsinnstillinger } from "../typer";
+
 /** Kilde for en hendelsesrad (lag 1). */
 export type ArkivHendelseKilde = "transfer" | "kommentar";
 
@@ -178,4 +180,38 @@ export interface StatusCelle {
   underVerdi?: string | null;
   /** Semantisk farge på verdien (grønn godkjent, rød avvik). Utledes av status når utelatt. */
   farge?: string | null;
+}
+
+/**
+ * Signaturfelt (Stage 3). Reelle signaturdata gjengis; mangler signatur →
+ * åpen strek. `verb` = «signert» (sjekkliste/SJA) el. «registrert» (RUH).
+ */
+export interface ArkivSignatur {
+  /** «Utført av» · «Godkjent av» · «Meldt av» · «Lukket av». */
+  rolleEtikett: string;
+  navn: string;
+  rolle?: string | null;
+  /** ISO — «{verb} i SiteDoc {dato} {tid}». Null → åpen strek (ikke signert). */
+  tidspunkt?: string | null;
+  verb?: "signert" | "registrert";
+}
+
+/** Full sammenstillings-input for arkivdokumentet (Stage 3, sjekkliste/oppgave/HMS). */
+export interface ArkivDokumentInput {
+  firma: ArkivFirma;
+  meta: ArkivDokumentMeta;
+  prosjektblokk: ArkivProsjektblokk;
+  /** Variant-spesifikke statusceller (Status først, med semantisk farge). */
+  statusCeller: StatusCelle[];
+  /** Ferdig innhold-HTML (fra byggInnhold — kalleren inliner bilder som data-URI). */
+  innholdHtml: string;
+  logg: ArkivLogg;
+  signaturer: ArkivSignatur[];
+  /** «11.08.2026 14:32» — generert-stempel. */
+  generertTekst: string;
+  innstillinger?: Utskriftsinnstillinger | null;
+  /** Eksportpakke → sidetall tvinges på. */
+  eksport?: boolean;
+  /** Løpende utskrift: prosjektets sidetall-valg (fra PdfConfig). */
+  visSidenummer?: boolean;
 }

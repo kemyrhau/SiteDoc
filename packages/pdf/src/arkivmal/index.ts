@@ -24,6 +24,12 @@ export type {
 export { byggInnhold } from "./innhold";
 export { byggRepeaterTabell } from "./repeater";
 
+// Loggseksjon + signatur + sammenstilling (Stage 3)
+export { byggLoggseksjon } from "./loggseksjon";
+export { byggSignaturblokk } from "./signatur";
+export { byggArkivDokument } from "./dokument";
+export type { ArkivSignatur, ArkivDokumentInput } from "./typer";
+
 // Ramme-byggeklosser (Stage 1)
 export { ARKIV_FARGER, hentArkivCss } from "./arkiv-css";
 export {
