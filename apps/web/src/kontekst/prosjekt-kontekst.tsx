@@ -18,6 +18,10 @@ interface Prosjekt {
   id: string;
   name: string;
   projectNumber: string;
+  /** Entreprenørens eget nummer (ERP/Pro Admin) — nummeret de ansatte husker.
+   * Vises brukervendt sammen med navnet når satt; SD-nummeret (projectNumber)
+   * vises ikke i brukerflaten. Se terminologi.md § Tre prosjektnumre. */
+  internalProjectNumber: string | null;
   status: string;
   description: string | null;
   address: string | null;

@@ -65,7 +65,7 @@ export default function NyDagsseddelSide() {
   const prosjekter = (prosjekterRaw ?? []) as unknown as Array<{
     id: string;
     name: string;
-    projectNumber: string;
+    internalProjectNumber: string | null;
   }>;
 
   // Kalender-effektiv arbeidstid for valgt dato. Re-fetcher når `dato` endres.
@@ -197,7 +197,8 @@ export default function NyDagsseddelSide() {
             <option value="">{t("timer.velgProsjekt")}</option>
             {prosjekter.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.projectNumber} — {p.name}
+                {p.internalProjectNumber ? `${p.internalProjectNumber} — ` : ""}
+                {p.name}
               </option>
             ))}
           </select>

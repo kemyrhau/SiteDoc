@@ -206,6 +206,7 @@ export function ImportFremdriftsplanDialog({
             fristAar: p.frist?.aar ?? null,
             importTaskUid: p.taskUid,
             importWbs: p.wbs,
+            importNavn: p.name,
           })),
           ...(foersteKall
             ? {

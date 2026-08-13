@@ -114,7 +114,7 @@ export default function FirmaProsjekter() {
                   </Link>
                 </td>
                 <td className="px-4 py-3 text-gray-500">
-                  {p.projectNumber}
+                  {p.internalProjectNumber ?? ""}
                 </td>
                 <td className="px-4 py-3 text-center text-gray-500">
                   {p.antallMedlemmer}

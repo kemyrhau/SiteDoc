@@ -9,7 +9,6 @@ import { useTranslation } from "react-i18next";
 import {
   Save,
   MapPin,
-  Hash,
   FileText,
   Calendar,
   CheckCircle2,
@@ -328,16 +327,9 @@ export default function ProsjektoppsettSide() {
         {/* Generell informasjon */}
         <Seksjon tittel={t("prosjektoppsett.generellInfo")}>
           <div className="flex flex-col gap-4">
-            <div className="flex items-center gap-3 rounded-lg bg-gray-50 px-4 py-3">
-              <Hash className="h-4 w-4 text-gray-400" />
-              <div>
-                <p className="text-xs text-gray-500">Prosjektnummer</p>
-                <p className="text-sm font-medium text-gray-900">
-                  {prosjekt.projectNumber}
-                </p>
-              </div>
-            </div>
-
+            {/* SD-nummeret (projectNumber) vises ikke i brukerflaten — det er
+                lagringsmekanikk, ikke informasjon kunden trenger. Beholdes kun i
+                dashbord/admin/*. Se terminologi.md § Tre prosjektnumre. */}
             <Input
               label={t("prosjektoppsett.interntNr")}
               placeholder="F.eks. referanse til SharePoint, ERP e.l."

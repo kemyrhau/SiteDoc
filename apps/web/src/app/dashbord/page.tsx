@@ -17,7 +17,7 @@ import { Plus } from "lucide-react";
 type ProsjektListeRad = {
   id: string;
   name: string;
-  projectNumber: string;
+  internalProjectNumber: string | null;
   status: string;
   description: string | null;
 };
@@ -156,9 +156,11 @@ export default function DashbordSide() {
                     <div className="mb-2 flex items-start justify-between">
                       <div>
                         <h4 className="font-semibold">{prosjekt.name}</h4>
-                        <p className="text-xs text-gray-500">
-                          {prosjekt.projectNumber}
-                        </p>
+                        {prosjekt.internalProjectNumber && (
+                          <p className="text-xs text-gray-500">
+                            {prosjekt.internalProjectNumber}
+                          </p>
+                        )}
                       </div>
                       <StatusBadge status={prosjekt.status} />
                     </div>

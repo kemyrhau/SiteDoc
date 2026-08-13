@@ -22,7 +22,9 @@ export type AnsattRapportRad = {
   perProsjekt: Array<{
     prosjektId: string;
     prosjektNavn: string;
+    // SD (unik nøkkel til regnskap) + internt (nummeret menneskene kjenner igjen).
     prosjektNummer: string | null;
+    internProsjektNummer: string | null;
     timer: number;
   }>;
   perDag: Array<{ dato: string; timer: number }>;
@@ -99,6 +101,7 @@ const PER_PROSJEKT_HEADER = [
   "Ansattnr",
   "Prosjekt",
   "Prosjektnummer",
+  "Internt prosjektnummer",
   "Timer",
 ] as const;
 
@@ -161,6 +164,7 @@ export async function eksporterXlsx(input: EksportInput): Promise<void> {
         a.ansattnummer ?? "",
         p.prosjektNavn,
         p.prosjektNummer ?? "",
+        p.internProsjektNummer ?? "",
         formaterNorsk(p.timer),
       ]);
     }

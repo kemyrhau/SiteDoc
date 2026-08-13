@@ -932,7 +932,10 @@ model ReportTemplate {
   showLocation    Boolean  @default(true) @map("show_location")
   showPriority    Boolean  @default(true) @map("show_priority")
   version         Int      @default(1)
-  enableChangeLog Boolean  @default(false) @map("enable_change_log")
+  // 2026-08-12: endringslogg står ALLTID på for nye maler (Kenneth-forenkling —
+  // valget om loggen skal MED i utskrift flyttes til utskriftstidspunktet).
+  // Kolonnen beholdes som sitedoc-admin nødbryter (kunde som krever ingen logging).
+  enableChangeLog Boolean  @default(true) @map("enable_change_log")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -2054,7 +2057,20 @@ model KontrollplanPunkt {
   // kan gi N punkter (samme aktivitet, flere maler), alle med samme importTaskUid.
   importTaskUid Int?    @map("import_task_uid")
   importWbs     String? @map("import_wbs")
+  // importNavn: SISTE KJENTE aktivitetsnavn — IKKE opprinnelig, IKKE historikk.
+  // Oppdateres ved hver UID-matchede revisjon til navnet i den nye fila. Levende
+  // del av rad-identiteten: fingerprint (WBS + navn) matcher mot forrige tilstand,
+  // og diffens «Var: X» viser navnet brukeren sist så. Fryses det, slutter en
+  // gradvis omdøpt aktivitet å matche og dukker feilaktig opp som «ny».
+  importNavn    String? @map("import_navn")
   importKildeId String? @map("import_kilde_id")
+
+  // Arkivering (del 2). Et punkt som forsvinner fra en revidert fremdriftsplan
+  // slettes aldri automatisk — brukeren arkiverer det manuelt. Arkiverte punkter
+  // bevares (sjekklister/utført arbeid intakt) men skjules fra planen. Hvem/når
+  // logges i KontrollplanHistorikk (handling "arkivert").
+  arkivert     Boolean   @default(false)
+  arkivertDato DateTime? @map("arkivert_dato")
 
   kontrollplan  Kontrollplan            @relation(fields: [kontrollplanId], references: [id], onDelete: Cascade)
   milepel       Milepel?                @relation(fields: [milepelId], references: [id], onDelete: SetNull)

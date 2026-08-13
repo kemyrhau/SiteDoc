@@ -214,28 +214,32 @@ export function beregnTransformasjon(ref: GeoReferanse): Transformasjon {
     };
   }
 
-  // 2 punkter → similaritetstransformasjon (skalering + rotasjon)
+  // 2 punkter → similaritetstransformasjon (skalering + rotasjon + SPEILING)
   //
-  // Modell: px = a * gx + b * gy + tx
-  //         py = -b * gx + a * gy + ty
+  // GPS→bilde er alltid orienterings-REVERSERENDE: latitude øker nordover,
+  // men pixel-y øker nedover. En ren rotasjon/skalering [a b; -b a] har alltid
+  // determinant a²+b² > 0 og kan derfor ALDRI speile. Den traff de to
+  // kalibreringspunktene eksakt (0 m feil — 2 punkter bestemmer similariteten
+  // entydig), men speilet ALLE andre posisjoner om linjen P1–P2. Derfor overlevde
+  // feilen så lenge (feltverifisert Lakselv lufthavn 2026-08-13).
   //
-  // 2 punkter gir 4 ligninger, 4 ukjente (a, b, tx, ty).
+  // Fiks (rotårsak): fit similariteten mot SPEILET nord-akse ĝy = −lat, og fold
+  // speilingen inn i affine-koeffisientene slik at gy = +lat utad. Da får den
+  // utadvendte matrisen M = [a −b; −b −a] med det = −(a²+b²) < 0 (korrekt
+  // kiralitet), og gpsTilTegning/tegningTilGps forblir uendret (de leser affine).
   //
-  // Fra punkt 1: px1 = a*gx1 + b*gy1 + tx,  py1 = -b*gx1 + a*gy1 + ty
-  // Fra punkt 2: px2 = a*gx2 + b*gy2 + tx,  py2 = -b*gx2 + a*gy2 + ty
+  //   Fit mot ĝy:   px =  a·gx + b·ĝy + tx ;  py = −b·gx + a·ĝy + ty
+  //   Utad (ĝy=−gy): px =  a·gx − b·gy + tx ;  py = −b·gx − a·gy + ty
   //
-  // Differanse: dpx = a*dGx + b*dGy,  dpy = -b*dGx + a*dGy
-  //
-  // Løs for a og b:
-  //   a = (dpx*dGx + dpy*dGy) / (dGx² + dGy²)
-  //   b = (dpx*dGy - dpy*dGx) / (dGx² + dGy²)
+  // a, b, tx, ty løses med de rene similaritets-formlene — det er GY-DEFINISJONEN
+  // (ĝy = −lat) under som folder speilingen inn, ikke endrede formler.
 
   const { point1, point2 } = ref;
 
   const gx1 = point1.gps.lng * cosLat;
-  const gy1 = point1.gps.lat;
+  const gy1 = -point1.gps.lat; // ĝy = −lat (speilet nord-akse)
   const gx2 = point2.gps.lng * cosLat;
-  const gy2 = point2.gps.lat;
+  const gy2 = -point2.gps.lat; // ĝy = −lat
 
   const px1 = point1.pixel.x;
   const py1 = point1.pixel.y;
@@ -258,29 +262,38 @@ export function beregnTransformasjon(ref: GeoReferanse): Transformasjon {
   const tx = px1 - a * gx1 - b * gy1;
   const ty = py1 + b * gx1 - a * gy1;
 
-  // Invers: gx = ia*px + ib*py + ic, gy = id*px + ie*py + if_
-  // Determinant for inversjon: a² + b²
-  const det = a * a + b * b;
-  if (Math.abs(det) < 1e-15) {
+  // Utadvendte affine-koeffisienter (gy = +lat): M = [a −b; −b −a],
+  // det(M) = −(a²+b²) < 0. Speilingen ligger i b→−b og a→−a på py-linjen.
+  const affA = a;
+  const affB = -b;
+  const affD = -b;
+  const affE = -a;
+
+  // Invers eksakt fra M (IKKE gjenbruk av rene-similaritets-fortegn): M⁻¹ = M / D,
+  // D = a²+b². ⚠️ ie = −a/D er NEGATIV der den rene formen hadde +a/det —
+  // rundtur-testen (tegningTilGps(gpsTilTegning(p)) ≈ p) fanger fortegnsfeil her.
+  const D = a * a + b * b;
+  if (D < 1e-15) {
     throw new Error("Ugyldig transformasjon (degenerert)");
   }
-  const ia = a / det;
-  const ib = -b / det;  // NB: fortegn pga -b i py-linjen
-  const ic = -(a * tx - b * ty) / det;
-  const id_ = b / det;
-  const ie = a / det;
-  const if_ = -(b * tx + a * ty) / det;
+  const ia = a / D;
+  const ib = -b / D;
+  const id_ = -b / D;
+  const ie = -a / D;
+  const ic = -(ia * tx + ib * ty);
+  const if_ = -(id_ * tx + ie * ty);
 
   const affine = {
-    a, b, c: tx,
-    d: -b, e: a, f: ty,
+    a: affA, b: affB, c: tx,
+    d: affD, e: affE, f: ty,
     ia, ib, ic,
     id: id_, ie, if_,
   };
 
+  // Kompat-felter avledet fra affine (samme mønster som 3+-grenen).
   return {
-    sx: a, sy: a, cx: tx, cy: ty, cosLat,
-    a, b, c: tx, d: ty,
+    sx: affine.a, sy: affine.e, cx: affine.c, cy: affine.f, cosLat,
+    a: affine.a, b: affine.b, c: affine.c, d: affine.d,
     affine,
   };
 }

@@ -232,7 +232,9 @@ export function KontekstChip() {
   const pq = prosjektSøk.toLowerCase();
   const prosjektFiltrert = pq
     ? prosjektKilde.filter(
-        (p) => p.name.toLowerCase().includes(pq) || p.projectNumber.toLowerCase().includes(pq),
+        (p) =>
+          p.name.toLowerCase().includes(pq) ||
+          (p.internalProjectNumber?.toLowerCase().includes(pq) ?? false),
       )
     : prosjektKilde;
   const visProsjektSøk = prosjektKilde.length > 6;
@@ -272,8 +274,12 @@ export function KontekstChip() {
     : tilgjengelige;
   const visFirmaSøk = tilgjengelige.length > 6;
 
+  // Brukervendt etikett: internt nummer (når satt) foran navnet — aldri
+  // SD-nummeret. Se terminologi.md § Tre prosjektnumre.
   const prosjektEtikett = valgtProsjekt
-    ? `${valgtProsjekt.projectNumber} ${valgtProsjekt.name}`
+    ? valgtProsjekt.internalProjectNumber
+      ? `${valgtProsjekt.internalProjectNumber} ${valgtProsjekt.name}`
+      : valgtProsjekt.name
     : "";
 
   // Åpne popover og velg default-nivå = det grunneste uavklarte steget. Speiler
@@ -310,7 +316,7 @@ export function KontekstChip() {
   const prosjektRad = (p: (typeof prosjekter)[number]) => (
     <TraktRad
       key={p.id}
-      tittel={`${p.projectNumber} ${p.name}${p.address ? ` · ${p.address}` : ""}`}
+      tittel={`${p.internalProjectNumber ? `${p.internalProjectNumber} ` : ""}${p.name}${p.address ? ` · ${p.address}` : ""}`}
       valgt={valgtProsjekt?.id === p.id && prosjektScope === "enkelt"}
       onVelg={() => velgProsjektTrakt(p.id)}
     />

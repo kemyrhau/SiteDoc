@@ -136,7 +136,7 @@ type MaskinRad = {
 type ProsjektRef = {
   id: string;
   name: string;
-  projectNumber: string;
+  internalProjectNumber: string | null;
   type?: string;
 };
 
@@ -1033,9 +1033,9 @@ function ProsjektGruppe({
       <div className="mb-4 border-b border-gray-100 pb-3">
         <h2 className="text-base font-semibold text-gray-900">
           {prosjektNavn?.name ?? t("timer.detalj.ukjentProsjekt")}
-          {prosjektNavn?.projectNumber && (
+          {prosjektNavn?.internalProjectNumber && (
             <span className="ml-2 text-sm font-normal text-gray-500">
-              ({prosjektNavn.projectNumber})
+              ({prosjektNavn.internalProjectNumber})
             </span>
           )}
         </h2>
@@ -1930,7 +1930,8 @@ function TimerRadDialog({
           >
             {prosjekter.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.projectNumber} — {p.name}
+                {p.internalProjectNumber ? `${p.internalProjectNumber} — ` : ""}
+                {p.name}
               </option>
             ))}
           </select>
@@ -3755,7 +3756,7 @@ function NyProsjektDialog({
   onVelg,
   onLukk,
 }: {
-  ledigeProsjekter: Array<{ id: string; name: string; projectNumber: string }>;
+  ledigeProsjekter: Array<{ id: string; name: string; internalProjectNumber: string | null }>;
   onVelg: (id: string) => void;
   onLukk: () => void;
 }) {
