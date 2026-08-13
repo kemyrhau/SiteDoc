@@ -11,6 +11,9 @@ import { genererSluttrapportHtml } from "@sitedoc/pdf";
 import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { MatriseVisning } from "@/components/kontrollplan/MatriseVisning";
 import { ListeVisning } from "@/components/kontrollplan/ListeVisning";
+import { PunktStartHandling } from "@/components/kontrollplan/PunktStartHandling";
+import { byggMalFlytStatus, type DokumentflytForStatus } from "@/lib/malFlytStatus";
+import { tellGodkjente } from "@/lib/kontrollplanFremdrift";
 import { OpprettPunktDialog } from "@/components/kontrollplan/OpprettPunktDialog";
 import { RedigerPunktDialog } from "@/components/kontrollplan/RedigerPunktDialog";
 import { ImportFremdriftsplanDialog } from "@/components/kontrollplan/ImportFremdriftsplanDialog";
@@ -94,6 +97,25 @@ export default function KontrollplanSide() {
     { enabled: !!params.prosjektId }
   );
 
+  // «Start»-veien trenger malenes opprettbare flyter + flyt-detaljer (samme kilder som
+  // sjekkliste-opprettelsen). Flyt-status per mal avgjør én/flere/ingen flyt før klikk.
+  const { data: maler } = trpc.mal.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId }
+  );
+  const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId }
+  );
+  const malFlytStatus = useMemo(
+    () =>
+      byggMalFlytStatus(
+        (maler ?? []) as Array<{ id: string; opprettbareFlytIder?: string[] }>,
+        (dokumentflyter ?? []) as DokumentflytForStatus[],
+      ),
+    [maler, dokumentflyter],
+  );
+
   // Auto-opprett kontrollplan når byggeplass byttes
   useEffect(() => {
     if (aktivByggeplass?.id && params.prosjektId && !kontrollplan && !isLoading) {
@@ -121,13 +143,13 @@ export default function KontrollplanSide() {
     });
   }, [kontrollplan?.punkter, statusValg, faggruppeValg, kontrollomradeValg, tekstSok]);
 
-  // Fremdrift
-  const fremdrift = useMemo(() => {
-    if (!kontrollplan?.punkter?.length) return { godkjent: 0, total: 0 };
-    const total = kontrollplan.punkter.length;
-    const godkjent = kontrollplan.punkter.filter((p) => p.status === "godkjent").length;
-    return { godkjent, total };
-  }, [kontrollplan?.punkter]);
+  // Fremdrift — teller KOBLEDE sjekklisters status (ikke punktets egen). Ett koblet
+  // punkt regnes godkjent når sjekklisten er godkjent; det var forskjellen mellom
+  // «2 sjekklister godkjent» og planen som viste 0/4. Delt hjelper (kontrollplanFremdrift).
+  const fremdrift = useMemo(
+    () => tellGodkjente(kontrollplan?.punkter ?? []),
+    [kontrollplan?.punkter],
+  );
 
   // Auto-detect: vis liste hvis ingen punkter har områder
   useEffect(() => {
@@ -140,6 +162,22 @@ export default function KontrollplanSide() {
   const handlePunktKlikk = useCallback((punkt: PunktType) => {
     setValgtPunkt(punkt);
   }, []);
+
+  // Start/koble/åpne-handling per punkt (lista + punktdialogen deler samme komponent).
+  const renderPunktHandling = useCallback(
+    (punkt: PunktType) => (
+      <PunktStartHandling
+        punkt={punkt}
+        projectId={params.prosjektId}
+        byggeplassId={aktivByggeplass?.id ?? ""}
+        flytStatus={malFlytStatus.get(punkt.sjekklisteMalId)}
+        onEndret={handleRefresh}
+      />
+    ),
+    // handleRefresh er stabil (defineres under); aktivByggeplass/malFlytStatus styrer
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [params.prosjektId, aktivByggeplass?.id, malFlytStatus],
+  );
 
   const handleRefresh = useCallback(() => {
     if (aktivByggeplass?.id) {
@@ -208,7 +246,7 @@ export default function KontrollplanSide() {
           <h1 className="text-lg font-semibold text-gray-900">{t("kontrollplan.tittel")}</h1>
           {fremdrift.total > 0 && (
             <span className="text-xs text-gray-500">
-              {fremdrift.godkjent}/{fremdrift.total} {t("kontrollplan.statusGodkjent").toLowerCase()} ({Math.round((fremdrift.godkjent / fremdrift.total) * 100)}%)
+              {fremdrift.godkjent}/{fremdrift.total} {t("kontrollplan.statusGodkjent").toLowerCase()} ({fremdrift.prosent}%)
             </span>
           )}
           <HjelpKnapp>
@@ -342,6 +380,7 @@ export default function KontrollplanSide() {
           punkter={filteredPunkter}
           milepeler={kontrollplan?.milepeler ?? []}
           onPunktKlikk={handlePunktKlikk}
+          renderHandling={renderPunktHandling}
         />
       )}
 
@@ -365,6 +404,7 @@ export default function KontrollplanSide() {
           projectId={params.prosjektId}
           onLukk={() => setValgtPunkt(null)}
           onOppdatert={handleRefresh}
+          renderHandling={renderPunktHandling}
         />
       )}
 

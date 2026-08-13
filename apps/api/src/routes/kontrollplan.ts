@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { router, protectedProcedure } from "../trpc/trpc";
 import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
+import { IKKE_SLETTET } from "../utils/softDelete";
 
 // Felles includes for kontrollplan-spørringer
 const punktIncludes = {
@@ -423,6 +425,61 @@ export const kontrollplanRouter = router({
         throw new Error("Kun planlagte punkter kan slettes");
       }
       return ctx.prisma.kontrollplanPunkt.delete({ where: { id: input.punktId } });
+    }),
+
+  // Koble en EKSISTERENDE sjekkliste til et kontrollpunkt (fyller punkt.sjekklisteId).
+  // «Start» oppretter en ny sjekkliste via sjekkliste.opprett(kontrollplanPunktId) — denne
+  // dekker det motsatte: sjekklister som ble laget FØR koblingen fantes (foreldreløse),
+  // slik at en plan der arbeidet er gjort teller det umiddelbart. Malen må matche punktet.
+  koblePunkt: protectedProcedure
+    .input(z.object({ punktId: z.string(), sjekklisteId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const punkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
+        where: { id: input.punktId },
+        include: { kontrollplan: { select: { projectId: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
+      return ctx.prisma.$transaction(async (tx) => {
+        await koblePunktTilSjekkliste(tx, {
+          punktId: input.punktId,
+          sjekklisteId: input.sjekklisteId,
+          brukerId: ctx.userId,
+          kilde: "koblet",
+        });
+        return tx.kontrollplanPunkt.findUniqueOrThrow({
+          where: { id: input.punktId },
+          include: punktIncludes,
+        });
+      });
+    }),
+
+  // Kandidat-sjekklister for «Koble eksisterende» på et punkt: samme mal (kobling krever
+  // mal-match) og ennå ikke koblet til noe kontrollpunkt. Malen er prosjekt-spesifikk, så
+  // templateId-filteret gir også riktig prosjekt-scope.
+  hentKoblbareSjekklister: protectedProcedure
+    .input(z.object({ punktId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const punkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
+        where: { id: input.punktId },
+        include: { kontrollplan: { select: { projectId: true } } },
+      });
+      await verifiserProsjektmedlem(ctx.userId, punkt.kontrollplan.projectId);
+      return ctx.prisma.checklist.findMany({
+        where: {
+          ...IKKE_SLETTET,
+          templateId: punkt.sjekklisteMalId,
+          kontrollplanPunkt: { is: null },
+        },
+        select: {
+          id: true,
+          title: true,
+          number: true,
+          status: true,
+          createdAt: true,
+          byggeplass: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+      });
     }),
 
   // Opprett milepæl

@@ -5,6 +5,7 @@ import { documentStatusSchema } from "@sitedoc/shared";
 import { isValidStatusTransition, statusKreverBegrunnelse } from "@sitedoc/shared";
 import { grenseNaadd } from "@sitedoc/shared";
 import { beregnSkyggeFakta, hentPosisjonsLedd, hentFlytMedlemmer, beregnRuting, avledetStatus } from "../services/flytFakta";
+import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
 import { TRPCError } from "@trpc/server";
 import { signerBilder, signerDataRad, signerDataRader } from "../utils/vedleggSignering";
 import {
@@ -178,6 +179,9 @@ export const sjekklisteRouter = router({
             },
           },
           _count: { select: { images: true, transfers: true } },
+          // Kontrollplan-kobling: klienten skiller «hører til kontrollplanen» fra
+          // «kommer i tillegg» via denne relasjonen (ingen nytt felt — relasjonen finnes).
+          kontrollplanPunkt: { select: { id: true } },
         },
         orderBy: { updatedAt: "desc" },
       });
@@ -260,6 +264,10 @@ export const sjekklisteRouter = router({
         byggeplassId: z.string().uuid().optional(),
         drawingId: z.string().uuid().optional(),
         dueDate: z.string().datetime().optional(),
+        // Kontrollplan: er dette settet, kobles den nye sjekklisten atomisk til
+        // kontrollpunktet (fyller punkt.sjekklisteId, løfter planlagt→pagar) i samme
+        // transaksjon. Én sjekkliste opprettet fra et startbart kontrollpunkt.
+        kontrollplanPunktId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -442,7 +450,7 @@ export const sjekklisteRouter = router({
           }
         }
 
-        return tx.checklist.create({
+        const nySjekkliste = await tx.checklist.create({
           data: {
             templateId: input.templateId,
             bestillerFaggruppeId: input.bestillerFaggruppeId,
@@ -468,6 +476,19 @@ export const sjekklisteRouter = router({
             recipientGroupId: endeligRecipientGroupId,
           },
         });
+
+        // Kontrollplan: koble atomisk til punktet (samme tx → all-eller-ingenting).
+        // Validering (mal-match, ukoblet, race-guard) + status-løft + historikk i hjelperen.
+        if (input.kontrollplanPunktId) {
+          await koblePunktTilSjekkliste(tx, {
+            punktId: input.kontrollplanPunktId,
+            sjekklisteId: nySjekkliste.id,
+            brukerId: ctx.userId,
+            kilde: "startet",
+          });
+        }
+
+        return nySjekkliste;
       });
 
       // Spor 2 / 5a: HMS (SJA) opprettes som utkast — INGEN varsel ved opprett. Behandler-leddet

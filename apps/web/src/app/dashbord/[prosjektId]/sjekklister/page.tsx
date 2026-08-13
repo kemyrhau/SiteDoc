@@ -71,6 +71,8 @@ interface SjekklisteRad {
       group: { id: string; name: string } | null;
     }[];
   } | null;
+  // Kontrollplan-kobling: satt ⇒ «hører til kontrollplanen», null ⇒ «kommer i tillegg».
+  kontrollplanPunkt: { id: string } | null;
 }
 
 // --- Konstanter ---
@@ -272,6 +274,8 @@ export default function SjekklisteSide() {
   const { aktivByggeplass, standardTegning } = useByggeplass();
   const [visModal, setVisModal] = useState(false);
   const [mineOppgaver, setMineOppgaver] = useState(false);
+  // Kontrollplan-skille: "" = alle · "plan" = hører til kontrollplanen · "tillegg" = kommer i tillegg.
+  const [planKoblingFilter, setPlanKoblingFilter] = useState<"" | "plan" | "tillegg">("");
   const [valgte, setValgte] = useState<Set<string>>(new Set());
   const [visSlettModal, setVisSlettModal] = useState(false);
   const [slettFeil, setSlettFeil] = useState<string | null>(null);
@@ -574,6 +578,9 @@ export default function SjekklisteSide() {
   // Filtrer
   const filtrerte = useMemo(() => {
     let resultat = (sjekklister ?? []);
+    // Kontrollplan-skille: «hører til planen» (koblet punkt) vs «kommer i tillegg» (fri).
+    if (planKoblingFilter === "plan") resultat = resultat.filter((s) => s.kontrollplanPunkt != null);
+    else if (planKoblingFilter === "tillegg") resultat = resultat.filter((s) => s.kontrollplanPunkt == null);
     if (statusFilter === "avvist") {
       resultat = resultat.filter((s) => s.status === "rejected" || s.status === "cancelled");
     } else if (statusFilter) {
@@ -640,7 +647,7 @@ export default function SjekklisteSide() {
       });
     }
     return resultat;
-  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo]);
+  }, [sjekklister, statusFilter, filterVerdier, sok, mineOppgaver, minFlytInfo, planKoblingFilter]);
 
   const handleFilterEndring = useCallback((kolonneId: string, verdi: string) => {
     setFilterVerdier((prev) => ({ ...prev, [kolonneId]: verdi }));
@@ -784,6 +791,25 @@ export default function SjekklisteSide() {
           >
             {t("filter.mineOppgaver")}
           </button>
+          {/* Kontrollplan-skille: hører til planen / kommer i tillegg (relasjon, ingen nytt felt) */}
+          <div className="inline-flex items-center rounded-md border border-gray-200 overflow-hidden">
+            {([
+              { id: "", label: t("filter.alle") },
+              { id: "plan", label: t("sjekkliste.horerTilPlan") },
+              { id: "tillegg", label: t("sjekkliste.kommerITillegg") },
+            ] as const).map((v) => (
+              <button
+                key={v.id || "alle"}
+                onClick={() => setPlanKoblingFilter(v.id)}
+                aria-pressed={planKoblingFilter === v.id}
+                className={`px-2.5 py-1.5 text-xs font-medium ${
+                  planKoblingFilter === v.id ? "bg-sitedoc-primary text-white" : "bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+              >
+                {v.label}
+              </button>
+            ))}
+          </div>
           {aktiveFilter.map(([kolId, verdi]) => {
             const kol = alleKolonner.find((k) => k.id === kolId);
             const kolNavn = kol?.navnKey ? t(kol.navnKey) : (kol?.navn ?? kolId);
