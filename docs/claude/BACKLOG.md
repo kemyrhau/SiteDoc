@@ -96,6 +96,21 @@ const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
 **Ryddesak funnet samtidig:** to identiske «Sitedoc»-skallfirmaer (`er_kunde=false`, null prosjekter) i prod. «Kenneths testmiljø» har `er_kunde=true` og teller derfor som kunde i lagringsstatistikk og fakturering.
 
+### Mobil-utskrift skjuler tomme tabeller og vedleggsfelt (målt 2026-08-13)
+
+**Oppfølger til web-funnet under.** `packages/pdf/src/felt.ts` viser «Ikke utfylt» for ~15 felttyper, men returnerer `""` — altså skjuler feltet — for to innholdsbærende typer:
+
+- **`repeater` med 0 rader** (`felt.ts:152`) → tom kontrolltabell forsvinner
+- **`attachments` med 0 vedlegg** (`felt.ts:131`) → tomt vedleggsfelt forsvinner
+
+Det betyr at kontrolltabellen Kenneth reagerte på i `K-avv-003` ville forsvunnet **også fra mobil-utskriften** — problemet er ikke bare web mot mobil.
+
+**Arkivmalen (fase 3) løser det via opt-in:** `renderFelt(..., { visTommeStrukturer })`. Mobil-kallene utelater parameteret og er dermed uendret — bevisst, for å respektere frysen på mobil-stien til EAS-adopsjon.
+
+🔴 **Derfor er denne lett å glemme:** etter fase 3 Stage 2 viser arkivmalen tabellen, og da *ser* saken løst ut. Feilen finnes bare i mobil-stien, som ingen tester.
+
+**Tiltak:** vurder om mobil skal få `visTommeStrukturer` som default etter at arkivmalen er verifisert. Krever EAS-bygg for å nå felt.
+
 ### 🔴 Web-utskrift skjuler uutfylte felter — mobil viser dem (målt i prod 2026-08-12)
 
 **Samme dokument gir ulikt innhold avhengig av hvor det skrives ut.**
