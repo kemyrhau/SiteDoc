@@ -13,7 +13,24 @@ export type {
   RevisjonRad,
   SistEndret,
   ArkivLogg,
+  ArkivKategori,
+  ArkivFirma,
+  ArkivDokumentMeta,
+  ArkivProsjektblokk,
+  StatusCelle,
 } from "./typer";
+
+// Ramme-byggeklosser (Stage 1)
+export { ARKIV_FARGER, hentArkivCss } from "./arkiv-css";
+export {
+  statusTekst,
+  statusSemantiskFarge,
+  byggTopptekst,
+  byggProsjektblokk,
+  byggStatusblokk,
+  byggFortsettelsesHeader,
+  byggBunntekst,
+} from "./ramme";
 
 export { avledHandling } from "./handling";
 

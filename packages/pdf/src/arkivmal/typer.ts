@@ -124,3 +124,58 @@ export interface ArkivLogg {
   /** Statusblokkens femte felt (null når ingen logg finnes). */
   sistEndret?: SistEndret | null;
 }
+
+// ---------------------------------------------------------------------------
+//  Ramme-byggeklosser (Stage 1) — dokumentets faste rammer
+// ---------------------------------------------------------------------------
+
+/** De seks innholdsvariantene, valgt av dokumentets `category`. */
+export type ArkivKategori =
+  | "sjekkliste"
+  | "oppgave"
+  | "hms"
+  | "kontrollplan"
+  | "timer"
+  | "utlegg";
+
+/** Eksportfirmaet (topptekst). Logo inline som data-URI — containeren har ingen disk/nett. */
+export interface ArkivFirma {
+  navn: string;
+  orgnr?: string | null;
+  logoDataUrl?: string | null;
+}
+
+/** Dokument-identitet (topptekst + sporbarhet). */
+export interface ArkivDokumentMeta {
+  kategori: ArkivKategori;
+  /** Vises uppercase i topptekstens type-etikett, f.eks. «Sjekkliste», «RUH». */
+  dokumenttype: string;
+  dokumentnavn: string;
+  /** Menneskevendt dokumentnr., f.eks. «SJ-2026-0142». */
+  dokumentnummer: string;
+  /** Systemets id — sporbarhet i bunntekst, kan ikke velges bort (§4). */
+  dokumentId: string;
+  /** Rå status-nøkkel (STATUS_TEKST/semantisk farge utledes). */
+  status: string;
+}
+
+/** Prosjektblokk — tre kolonner, komprimeres når felt slås av (ikke tomrom). */
+export interface ArkivProsjektblokk {
+  prosjekt?: string | null;
+  byggeplass?: string | null;
+  byggherre?: string | null;
+}
+
+/**
+ * Én celle i statusblokken. Varianten leverer sine celler (sjekkliste:
+ * Status/Utført av/Utført dato/Godkjent dato; RUH: Status/Meldt av/…).
+ * «Sist endret» legges til av sammenstillingen når logg finnes.
+ */
+export interface StatusCelle {
+  etikett: string;
+  verdi: string;
+  /** Grå tilleggstekst etter verdien, f.eks. «(bas)» eller dato-delen. */
+  underVerdi?: string | null;
+  /** Semantisk farge på verdien (grønn godkjent, rød avvik). Utledes av status når utelatt. */
+  farge?: string | null;
+}
