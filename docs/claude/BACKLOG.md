@@ -263,7 +263,25 @@ Gjelder minst `dashbord/oppsett/prosjektoppsett`, men kartlegg alle `dashbord/op
 
 **Retning:** klient-utskriftssidene må vente på at hvert `<img>` har `complete === true` og `naturalWidth > 0` før `window.print()` kalles.
 
+🟢 **Klient-siden løses i `fix/utskrift-sidebryt-svarte-tegninger` (Del D, 2026-08-13).** `skrivUtNaarBilderErKlare()` (`apps/web/src/lib/utskrift-print.ts`) venter på `complete && naturalWidth > 0` per bilde, med 15 s sikkerhetsnett og `error`-hendelse som ferdig. Wiret i `utskrift/sjekkliste` + `utskrift/oppgave`. `sjekklister/skriv-ut` bruker manuell knapp (ingen auto-print-race). **Dette var samme rotårsak som de «svarte tegningene» i BEF-001** — ikke MIME, men at auto-print fyrte på flat 500 ms-frist før det store bildet var lastet. Arkiv-PDF-delen under står fortsatt åpen.
+
 🔴 **Gjelder også arkiv-PDF (fase 3).** Meldt til Opus dokgen som krav til rendrer-containeren: `networkidle0` alene er ikke nok for store bilder som dekodes etter at nettverket er stille. **Og en PDF skal ikke genereres stille med hull** — enten feil hele jobben, eller marker manglende bilde synlig. Et arkivdokument som ser komplett ut mens det mangler bevis er den verste utgangen. Fase 3b skal dokumentere dette som *rettelse*, ikke regresjon, i før/etter-beviset.
+
+
+### 🔴 Mobil-annotering eksporterer 3,4 MB PNG — sprenger rapport-størrelsen (Del C, målt 2026-08-13) — EGEN MOBIL-PR
+
+**Symptom:** Kenneths befaringsrapport (Lakselv Lufthavn, BEF-001) ble **12,8 MB** — for stor til å sende på e-post. Én annotert tegning står for mesteparten.
+
+**Målt årsak:** `apps/mobile/src/components/BildeAnnotering.tsx` (Fabric-canvas i WebView, `apps/mobile/src/assets/annoterings-html.ts`) eksporterer annoteringen som **PNG med alfakanal** — `3,4 MB` der originalen var et `~400 kB` JPEG. PNG av et fotografi + full skjermoppløsning (`1206 × 2082`, mobilskjermens format med transparent marg rundt tegningen) blåser opp filen ~8×.
+
+**Tiltak (egen mobil-PR — «Reload:»-plikt + koordinering med simulator-Opus):**
+1. Sett hvit bakgrunn på canvasen før eksport: `canvas.backgroundColor = "#ffffff"` (fjerner alfakanal → ingen transparent/svart marg).
+2. Eksporter som **JPEG** i stedet for PNG: `canvas.toDataURL({ format: "jpeg", quality: 0.85 })`. Da stemmer MIME med `.jpg`-endelsen som allerede sendes, og størrelsen faller til `400–600 kB`.
+3. Send riktig filnavn/endelse fra flyten.
+
+**Mål:** rapport under 5 MB. Mindre bilder gjør også Del D-ventingen kort i praksis — de to hører sammen.
+
+**Merk:** feil MIME (PNG servert som `image/jpeg`) er rettet server-side i samme runde som Del D — se `fix/utskrift-sidebryt-svarte-tegninger` (Content-Type fra magic bytes i `server.ts`, endelse fra magic bytes i `upload.ts`). Det retter de fem eksisterende feilførte filene, men **Del C er det som hindrer at nye annoteringer blir så store**.
 
 
 ### Foreldreløse bilder oppstår ved sletting — `Image` har `ON DELETE SET NULL` (målt 2026-08-12)

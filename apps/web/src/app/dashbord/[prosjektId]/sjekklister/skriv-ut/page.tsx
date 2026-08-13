@@ -244,7 +244,9 @@ function SjekklistePrint({
         {/* Rapportobjekter i lesemodus */}
         <div className="flex flex-col gap-1">
           {treObjekter.map((objekt) => (
-            <div key={objekt.id} className="print-no-break">
+            // Repeater bryter mellom rader (no-break per rad inne i komponenten);
+            // andre toppnivå-felt holdes samlet.
+            <div key={objekt.id} className={objekt.type === "repeater" ? undefined : "print-no-break"}>
               <RapportObjektVisning
                 objekt={objekt}
                 verdi={data[objekt.id]?.verdi ?? null}

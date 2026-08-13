@@ -411,11 +411,14 @@ function ObjektInnhold({
       }
 
       return (
-        <div className="print-no-break py-2">
+        // Ikke print-no-break på hele repeateren — en lang liste (mange rader +
+        // bilder) blir da én ubrytbar blokk som dyttes til neste side og etterlater
+        // en tom side. Hver rad er ubrytbar for seg; listen kan brytes mellom rader.
+        <div className="py-2">
           <p className="mb-2 text-xs font-medium text-gray-500">{label}</p>
           <div className="flex flex-col gap-2">
             {repeaterRader.map((rad, radIdx) => (
-              <div key={radIdx} className="rounded border border-gray-200 px-3 py-2">
+              <div key={radIdx} className="print-no-break rounded border border-gray-200 px-3 py-2">
                 <p className="mb-1 text-[11px] font-semibold text-gray-400">{radIdx + 1} {label}</p>
                 {repeaterBarn.map((barn) => {
                   const feltData = rad[barn.id];

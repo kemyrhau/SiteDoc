@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { randomUUID } from "crypto";
 import { createWriteStream } from "fs";
-import { mkdir, open, unlink } from "fs/promises";
+import { mkdir, open, unlink, rename } from "fs/promises";
 import { join, extname } from "path";
 import { pipeline } from "stream/promises";
 import { prisma } from "@sitedoc/db";
@@ -41,6 +41,28 @@ async function erKjorbarMagic(filsti: string): Promise<boolean> {
     return false;
   } catch {
     return false;
+  } finally {
+    await fh?.close();
+  }
+}
+
+/**
+ * Utleder bilde-endelse fra magic bytes (PNG `89 50 4E 47` / JPEG `FF D8 FF`).
+ * Returnerer null for alt annet. Brukes så klientens filnavn ikke bestemmer
+ * lagret bildetype: annoterings-flyten sendte PNG-innhold under `.jpg`-navn,
+ * som ga feil MIME og helsvarte tegninger ved print-til-PDF.
+ */
+async function bildeEndelseFraMagic(filsti: string): Promise<".png" | ".jpg" | null> {
+  let fh: Awaited<ReturnType<typeof open>> | null = null;
+  try {
+    fh = await open(filsti, "r");
+    const buf = Buffer.alloc(4);
+    const { bytesRead } = await fh.read(buf, 0, 4, 0);
+    if (bytesRead >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) return ".png";
+    if (bytesRead >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return ".jpg";
+    return null;
+  } catch {
+    return null;
   } finally {
     await fh?.close();
   }
@@ -128,10 +150,23 @@ export async function uploadRoute(server: FastifyInstance) {
       });
     }
 
+    // La bildeinnholdet bestemme lagret endelse, ikke klientens filnavn. Retter
+    // kilden til de svarte tegningene: PNG-innhold lagret under `.jpg` gir feil
+    // MIME. Bare ved reell format-uenighet (unngår `.jpeg`→`.jpg`-churn).
+    let lagretFilnavn = filnavn;
+    let lagretExt = ext;
+    const magiskEndelse = await bildeEndelseFraMagic(filsti);
+    const extFormat = ext === ".jpg" || ext === ".jpeg" ? ".jpg" : ext === ".png" ? ".png" : null;
+    if (magiskEndelse && magiskEndelse !== extFormat) {
+      lagretFilnavn = `${uuid}${magiskEndelse}`;
+      await rename(filsti, join(privat ? PRIVAT_DIR : UPLOADS_DIR, lagretFilnavn));
+      lagretExt = magiskEndelse;
+    }
+
     return reply.send({
-      fileUrl: `/uploads/${privat ? "privat/" : ""}${filnavn}`,
+      fileUrl: `/uploads/${privat ? "privat/" : ""}${lagretFilnavn}`,
       fileName: data.filename,
-      fileType: ext.replace(".", ""),
+      fileType: lagretExt.replace(".", ""),
       fileSize: data.file.bytesRead,
     });
   });
