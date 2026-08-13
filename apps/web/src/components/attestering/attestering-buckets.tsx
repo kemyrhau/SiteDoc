@@ -19,7 +19,7 @@ type RadStatus = "pending" | "attestert" | "returnert" | null;
 export type RadProsjekt = {
   id: string;
   name: string;
-  projectNumber: string | null;
+  internalProjectNumber: string | null;
 } | null;
 
 export type TimerRad = {
@@ -485,9 +485,9 @@ export function ProsjektSectionAttest({
     <section className="mb-6 rounded-lg border border-gray-200 bg-white p-5">
       <h2 className="mb-4 text-base font-semibold text-gray-900">
         {prosjektNavn?.name ?? t("timer.detalj.ukjentProsjekt")}
-        {prosjektNavn?.projectNumber && (
+        {prosjektNavn?.internalProjectNumber && (
           <span className="ml-2 text-sm font-normal text-gray-500">
-            ({prosjektNavn.projectNumber})
+            ({prosjektNavn.internalProjectNumber})
           </span>
         )}
       </h2>

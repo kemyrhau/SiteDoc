@@ -113,11 +113,11 @@ export function AttesteringDetaljEdit({
   const prosjektListe = (prosjekter ?? []) as Array<{
     id: string;
     name: string;
-    projectNumber: string | null;
+    internalProjectNumber: string | null;
   }>;
   const prosjektValg: ProsjektValg[] = prosjektListe.map((p) => ({
     id: p.id,
-    name: `${p.projectNumber ?? ""} ${p.name}`.trim(),
+    name: `${p.internalProjectNumber ?? ""} ${p.name}`.trim(),
   }));
 
   const pendingTimer = timerRader.filter((r) => r.attestertStatus === "pending");

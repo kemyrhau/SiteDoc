@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 export interface ProsjektForVelger {
   id: string;
   name: string;
-  projectNumber: string;
+  internalProjectNumber: string | null;
   // Fase 2 / T.10: "internt" markeres med merke i velgeren (ikke-prosjekt-tid).
   type?: string;
 }
@@ -53,7 +53,7 @@ export function ProsjektRadVelger({
     return prosjekter.filter(
       (p) =>
         p.name.toLowerCase().includes(q) ||
-        p.projectNumber.toLowerCase().includes(q),
+        (p.internalProjectNumber?.toLowerCase().includes(q) ?? false),
     );
   }, [prosjekter, sok]);
 
@@ -70,7 +70,7 @@ export function ProsjektRadVelger({
         <span className={valgt ? "" : "text-gray-400"}>
           {valgt
             ? `${valgt.name}${
-                valgt.projectNumber ? ` (${valgt.projectNumber})` : ""
+                valgt.internalProjectNumber ? ` (${valgt.internalProjectNumber})` : ""
               }`
             : (placeholder ?? t("prosjektVelger.velgProsjekt"))}
         </span>
@@ -120,9 +120,9 @@ export function ProsjektRadVelger({
                         </span>
                       )}
                     </span>
-                    {p.projectNumber && (
+                    {p.internalProjectNumber && (
                       <span className="text-xs text-gray-500">
-                        {p.projectNumber}
+                        {p.internalProjectNumber}
                       </span>
                     )}
                   </button>

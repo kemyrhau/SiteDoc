@@ -2185,7 +2185,7 @@ export const dagsseddelRouter = router({
             some: { organizationId: input.organizationId },
           },
         },
-        select: { id: true, name: true, projectNumber: true },
+        select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
       });
       const prosjektIder = prosjekter.map((p) => p.id);
       if (prosjektIder.length === 0) return [];
@@ -2247,7 +2247,7 @@ export const dagsseddelRouter = router({
         radProjectIder.size > 0
           ? prisma.project.findMany({
               where: { id: { in: Array.from(radProjectIder) } },
-              select: { id: true, name: true, projectNumber: true },
+              select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
             })
           : Promise.resolve([]),
         prisma.organizationSetting.findUnique({
@@ -2271,7 +2271,7 @@ export const dagsseddelRouter = router({
       // Slå sammen firma-prosjekter (sedel-hode) + rad-prosjekter (alle unike).
       const prosjektMap = new Map<
         string,
-        { id: string; name: string; projectNumber: string | null }
+        { id: string; name: string; projectNumber: string | null; internalProjectNumber: string | null }
       >();
       for (const p of prosjekter) prosjektMap.set(p.id, p);
       for (const p of ekstraProsjekter) prosjektMap.set(p.id, p);
@@ -2404,13 +2404,13 @@ export const dagsseddelRouter = router({
             : Promise.resolve(null),
           ctx.prisma.project.findUnique({
             where: { id: projectId },
-            select: { id: true, name: true, projectNumber: true },
+            select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
           }),
           // T7-2d: per-rad prosjekt-lookup
           alleProjectIds.length > 0
             ? ctx.prisma.project.findMany({
                 where: { id: { in: alleProjectIds } },
-                select: { id: true, name: true, projectNumber: true },
+                select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
               })
             : Promise.resolve([]),
           prisma.user.findUnique({

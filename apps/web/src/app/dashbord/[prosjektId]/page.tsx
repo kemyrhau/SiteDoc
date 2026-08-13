@@ -247,7 +247,9 @@ export default function ProsjektOversikt() {
             </div>
           </div>
         </div>
-        <p className="mb-1 text-sm text-gray-500">{prosjekt.projectNumber}</p>
+        {prosjekt.internalProjectNumber && (
+          <p className="mb-1 text-sm text-gray-500">{prosjekt.internalProjectNumber}</p>
+        )}
         {prosjekt.address && (
           <p className="mb-6 text-sm text-gray-400">{prosjekt.address}</p>
         )}

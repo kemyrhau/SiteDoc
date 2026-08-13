@@ -40,7 +40,7 @@ export function ProsjektVelgerPanel({
 
   const filtrerte = prosjekter.filter((p) =>
     p.name.toLowerCase().includes(sok.toLowerCase()) ||
-    p.projectNumber.toLowerCase().includes(sok.toLowerCase()),
+    (p.internalProjectNumber?.toLowerCase().includes(sok.toLowerCase()) ?? false),
   );
 
   return (
@@ -113,7 +113,7 @@ export function ProsjektVelgerPanel({
                       <ProsjektRad
                         key={p.id}
                         navn={p.name}
-                        nummer={p.projectNumber}
+                        nummer={p.internalProjectNumber}
                         favoritt={true}
                         valgt={valgtProsjekt?.id === p.id && prosjektScope === "enkelt"}
                         onVelg={() => {
@@ -137,7 +137,7 @@ export function ProsjektVelgerPanel({
                       <ProsjektRad
                         key={p.id}
                         navn={p.name}
-                        nummer={p.projectNumber}
+                        nummer={p.internalProjectNumber}
                         favoritt={false}
                         valgt={valgtProsjekt?.id === p.id && prosjektScope === "enkelt"}
                         onVelg={() => {
@@ -215,7 +215,7 @@ function ProsjektRad({
   onToggleFavoritt,
 }: {
   navn: string;
-  nummer: string;
+  nummer: string | null;
   favoritt: boolean;
   valgt: boolean;
   onVelg: () => void;
@@ -244,7 +244,7 @@ function ProsjektRad({
         className="flex flex-1 flex-col py-1.5 text-left"
       >
         <span className="text-sm font-medium text-gray-900">{navn}</span>
-        <span className="text-xs text-gray-500">{nummer}</span>
+        {nummer && <span className="text-xs text-gray-500">{nummer}</span>}
       </button>
     </div>
   );

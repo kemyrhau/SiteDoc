@@ -12,7 +12,7 @@ export function DashbordPanel() {
 
   const filtrerte = prosjekter.filter((p) =>
     p.name.toLowerCase().includes(sok.toLowerCase()) ||
-    p.projectNumber.toLowerCase().includes(sok.toLowerCase()),
+    (p.internalProjectNumber?.toLowerCase().includes(sok.toLowerCase()) ?? false),
   );
 
   if (isLoading) {
@@ -44,9 +44,11 @@ export function DashbordPanel() {
             <FolderOpen className="h-4 w-4 flex-shrink-0 text-gray-400" />
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{p.name}</p>
-              <p className="truncate text-xs text-gray-400">
-                {p.projectNumber}
-              </p>
+              {p.internalProjectNumber && (
+                <p className="truncate text-xs text-gray-400">
+                  {p.internalProjectNumber}
+                </p>
+              )}
             </div>
           </Link>
         ))}
