@@ -96,9 +96,15 @@ const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
 **Ryddesak funnet samtidig:** to identiske «Sitedoc»-skallfirmaer (`er_kunde=false`, null prosjekter) i prod. «Kenneths testmiljø» har `er_kunde=true` og teller derfor som kunde i lagringsstatistikk og fakturering.
 
-### Fire funn fra mobil-befaring (Kenneth, Lakselv Lufthavn 2026-08-13)
+### Fem funn fra mobil-befaring (Kenneth, Lakselv Lufthavn 2026-08-13)
 
 Alle observert under reell dokumentasjon av befaring, med mal «Befaringsrapport».
+
+> 🟢 **Kontekst for risikovurdering (Kenneth 2026-08-13):** *«alt på produksjon er testdata, med unntak av dagens sjekkliste»* — befaringsrapporten fra Lakselv Lufthavn er eneste reelle produksjonsdokument som krever etterbruk. Det gjør retting av disse sakene vesentlig tryggere enn normal prod-risiko tilsier. **Gjelder inntil A.Markussen tar systemet i reell bruk.**
+
+**0. Sjekklister/oppgaver bytter rekkefølge mellom web og mobil**
+
+Web: `sjekklister` før `oppgaver` (`sidebar-elementer.tsx:75,82`). Mobil viser motsatt. Triviell, men den koster hver gang en bruker flytter mellom flatene — muskelminnet treffer feil. Finn mobil-siden og gjør rekkefølgen lik.
 
 **1. 🔴 Deltakere skrives ut som UUID i mobil-utskrift**
 
@@ -130,7 +136,7 @@ Dette er samme mønster som flere funn i august: **en uniform regel anvendt der 
 
 **Tiltak:** repeater skal kun bære rader — ingen egen `verdi`, `kommentar` eller `vedlegg`. Gjelder mobil, web, malbygger og begge utskriftsrenderere.
 
-🟡 **Mål før fjerning:** finnes det produksjonsdata i repeateres egne `kommentar`/`vedlegg`? Sannsynligvis lite, siden feltet er forvirrende og lite brukt — men det skal ikke slettes uten å vite. Samme prinsipp som de foreldreløse bildene.
+**Data-håndtering avklart av Kenneth:** *«dersom det finnes produksjonsdata i repeaterens egen → slett den sjekklisten»*. Alt i prod er testdata unntatt befaringsrapporten fra Lakselv Lufthavn. Mål likevel først og rapportér hva som finnes — sletting av en sjekkliste er Kenneths handling, ikke en automatisk del av fiksen.
 
 ### Ingen klipp/kopier/lim inn i tekstfelt på mobil (Kenneth i felt 2026-08-13)
 
