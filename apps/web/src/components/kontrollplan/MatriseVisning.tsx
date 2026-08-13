@@ -3,6 +3,7 @@
 import { useMemo, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { Pencil } from "lucide-react";
+import { avledPunktFremdrift } from "@/lib/kontrollplanFremdrift";
 
 interface Punkt {
   id: string;
@@ -45,7 +46,7 @@ function erBlokkert(punkt: Punkt): boolean {
 // Sjekk om frist er forfalt
 function erForfalt(punkt: Punkt): boolean {
   if (!punkt.fristUke || !punkt.fristAar) return false;
-  if (punkt.status === "godkjent") return false;
+  if (avledPunktFremdrift(punkt) === "godkjent") return false;
   const naa = new Date();
   const aar = naa.getFullYear();
   // Finn ukenummer (ISO 8601)
@@ -60,6 +61,9 @@ function erForfalt(punkt: Punkt): boolean {
 function StatusCelle({ punkt, onClick }: { punkt: Punkt; onClick: () => void }) {
   const blokkert = erBlokkert(punkt);
   const forfalt = erForfalt(punkt);
+  // Fremdrift avledes fra koblet sjekkliste (fallback punktets egen status) — samme
+  // kilde som lista og fremdriftstelleren, så matrisen ikke drifter fra dem.
+  const fremdrift = avledPunktFremdrift(punkt);
 
   let bg = "bg-gray-100 text-gray-600"; // planlagt
   let ikon = "⬜";
@@ -69,13 +73,13 @@ function StatusCelle({ punkt, onClick }: { punkt: Punkt; onClick: () => void }) 
   } else if (forfalt) {
     bg = "bg-red-100 text-red-700";
     ikon = "🔴";
-  } else if (punkt.status === "godkjent") {
+  } else if (fremdrift === "godkjent") {
     bg = "bg-green-100 text-green-700";
     ikon = "✅";
-  } else if (punkt.status === "utfort") {
+  } else if (fremdrift === "utfort") {
     bg = "bg-amber-100 text-amber-700";
     ikon = "🟠";
-  } else if (punkt.status === "pagar") {
+  } else if (fremdrift === "pagar") {
     bg = "bg-blue-100 text-blue-700";
     ikon = "🟡";
   }
@@ -143,7 +147,7 @@ export function MatriseVisning({ punkter, milepeler, onPunktKlikk, onMilepelRedi
         if (!fremdrift.has(fKey)) fremdrift.set(fKey, { godkjent: 0, total: 0 });
         const f = fremdrift.get(fKey)!;
         f.total++;
-        if (p.status === "godkjent") f.godkjent++;
+        if (avledPunktFremdrift(p) === "godkjent") f.godkjent++;
       }
 
       seksjoner.push({ milepel, omrader, maler, punktMap, fremdrift });

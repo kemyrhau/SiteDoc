@@ -23,7 +23,10 @@ PROSJEKT-SJEKKLISTEMALER (instansiert kopi per prosjekt)
 
 KONTROLLPLAN
   Kobler sjekkliste → lokasjon (område/rom) → tid → ansvarlig
-  Gir sporbarhet, varsling og fremdriftstracking
+  Gir sporbarhet og fremdriftstracking (koblet sjekkliste-status via
+  `KontrollplanPunkt.sjekklisteId`; fremdrift avledes i `apps/web/src/lib/kontrollplanFremdrift.ts`).
+  🟡 Passiv frist-varsling (farger på tegning/liste) er PLANLAGT (Leveranse 2).
+  ❌ Aktiv varsling (e-post/push) er IKKE IMPLEMENTERT — krever scheduler, egen sak.
       ↓ valgfritt steg B
 
 DOKUMENTFLYT
@@ -164,6 +167,30 @@ står en importrad igjen uten punkter — med en `hoppetOver`-liste fra en impor
 aldri gikk gjennom. Del 2 må filtrere bort punktløse importrader når den leser
 `hoppetOver`, ellers undertrykkes rader brukeren aldri faktisk valgte bort. Markert
 som `TODO (del 2)` i `opprettPunkter`.
+
+## Startbar kontrollplan (Leveranse 1)
+
+Et kontrollpunkt kan nå **starte** eller **koble** en sjekkliste, slik at planen teller
+reell kontrollstatus. Bakgrunn: `KontrollplanPunkt.sjekklisteId` (1:1, `@unique`) fantes i
+skjemaet, men ble aldri fylt — planen viste 0 % selv om sjekklister var godkjent.
+
+**Ingen nye kolonner** — relasjonen `KontrollplanPunkt.sjekklisteId` ↔ `Checklist.kontrollplanPunkt` bæres av skjemaet.
+
+- **Start** går den VANLIGE dokumentveien: `sjekkliste.opprett` fikk et valgfritt
+  `kontrollplanPunktId`. Er det satt, kobles den nye sjekklisten atomisk i samme
+  transaksjon via `koblePunktTilSjekkliste` (`apps/api/src/services/kontrollplanKobling.ts`) —
+  bestiller = brukerens faggruppe (flytens eier), utfører = `punkt.faggruppeId`, flyt fra
+  malens `opprettbareFlytIder` (MalVelger-regel: én flyt → 1 klikk, flere → velger, ingen →
+  forklarende feil). Ikke-atomisk opprett+koble ville gitt duplikat-sjekklister; derfor én tx.
+- **Koble eksisterende** (`kontrollplan.koblePunkt`) knytter en allerede opprettet sjekkliste
+  (samme mal, ikke alt koblet) til punktet — dekker sjekklister laget før koblingen fantes.
+- **Fremdrift** avledes fra koblet sjekkliste-status i `apps/web/src/lib/kontrollplanFremdrift.ts`
+  (approved/closed → godkjent), delt av liste, matrise og telleren — aldri tre kopier.
+- **Sjekklistelisten** skiller «hører til kontrollplanen» / «kommer i tillegg» på
+  `kontrollplanPunkt`-relasjonen (intet nytt felt).
+
+Statusløft er kun `planlagt → pagar` ved kobling; startet/utført/godkjent arbeid røres aldri.
+Aktiv varsling (scheduler) og tegningspunkter (`drawingId` på punktet) er Leveranse 2/3.
 
 ## Felttype-regler (KRITISK)
 

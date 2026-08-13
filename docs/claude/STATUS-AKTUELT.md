@@ -135,6 +135,16 @@ Funnet, fikset, deployet prod (`0d5d54ee`) og verifisert i drift 2026-08-11. Fir
 
 ## Pågående arbeid (PR-historikk)
 
+### 🟡 Startbar kontrollplan — Leveranse 1 (branch `feat/kontrollplan-startbar`) — PÅ BRANCH, venter diff-gate + test
+
+Kontrollpunkt kan startes/kobles til sjekkliste → planen teller reell status. Null nye kolonner
+(fyller `KontrollplanPunkt.sjekklisteId`). `sjekkliste.opprett` += valgfri `kontrollplanPunktId`
+(atomisk kobling via delt `koblePunktTilSjekkliste`), ny `kontrollplan.koblePunkt` +
+`hentKoblbareSjekklister`, fremdrift avledet fra sjekkliste-status (delt `kontrollplanFremdrift.ts`),
+sjekklistefilter «hører til planen / kommer i tillegg». Bygget på egen branch fra develop (ikke oppå
+revisjonsarbeidet). API+web typecheck grønt, i18n 15 språk. Leveranse 2 (tegningspunkter + passiv
+fargevarsling) og aktiv scheduler-varsling (Leveranse 3) er egne saker.
+
 ### 🟢 PÅ TEST — fem spor merget til develop (`d4e0d8f1`, 2026-08-12)
 
 Merget fra `SiteDoc-merge`, deployet test, migrering kjørt. **Ikke i prod.**
