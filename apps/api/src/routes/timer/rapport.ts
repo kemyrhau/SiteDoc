@@ -60,7 +60,7 @@ export const rapportRouter = router({
           primaryOrganizationId: orgId,
           ...(input.prosjektId ? { id: input.prosjektId } : {}),
         },
-        select: { id: true, name: true, projectNumber: true },
+        select: { id: true, name: true, projectNumber: true, internalProjectNumber: true },
       });
       const prosjektIder = prosjekter.map((p) => p.id);
       const prosjektMap = new Map(prosjekter.map((p) => [p.id, p]));
@@ -190,7 +190,10 @@ export const rapportRouter = router({
         perProsjekt: Array.from(a.perProsjekt.entries()).map(([pid, timer]) => ({
           prosjektId: pid,
           prosjektNavn: prosjektMap.get(pid)?.name ?? "(ukjent)",
+          // SD (prosjektNummer) beholdes for Excel-eksport (stabil, unik nøkkel
+          // til regnskap). Internt vises brukervendt. Beslutning 3 + terminologi.md.
           prosjektNummer: prosjektMap.get(pid)?.projectNumber ?? null,
+          internProsjektNummer: prosjektMap.get(pid)?.internalProjectNumber ?? null,
           timer,
         })),
         perDag: Array.from(a.perDag.entries())

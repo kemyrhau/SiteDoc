@@ -558,7 +558,16 @@ export const kontrollplanRouter = router({
       const kontrollplan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
         where: { id: input.kontrollplanId },
         include: {
-          project: { select: { name: true, projectNumber: true } },
+          project: {
+            select: {
+              name: true,
+              projectNumber: true,
+              externalProjectNumber: true,
+              internalProjectNumber: true,
+              visSiteDocNummer: true,
+              utskriftsinnstillinger: true,
+            },
+          },
           byggeplass: { select: { name: true } },
           punkter: {
             include: {
@@ -585,8 +594,20 @@ export const kontrollplanRouter = router({
         kontrollplanNavn: kontrollplan.navn,
         byggeplassNavn: kontrollplan.byggeplass.name,
         kontrollomrade: input.kontrollomrade,
-        prosjektNavn: kontrollplan.project.name,
-        prosjektNummer: kontrollplan.project.projectNumber,
+        // Prosjektreferansen bygges av utskriftsgeneratoren via den delte
+        // fallback-kjeden (eksternt → internt → SD), lik sjekkliste-/oppgave-
+        // utskrift — ikke SD hardkodet. Se terminologi.md § Tre prosjektnumre.
+        prosjekt: {
+          name: kontrollplan.project.name,
+          projectNumber: kontrollplan.project.projectNumber,
+          externalProjectNumber: kontrollplan.project.externalProjectNumber,
+          internalProjectNumber: kontrollplan.project.internalProjectNumber,
+          visSiteDocNummer: kontrollplan.project.visSiteDocNummer,
+        },
+        innstillinger:
+          (kontrollplan.project.utskriftsinnstillinger as {
+            eksternProsjektnummer?: boolean;
+          } | null) ?? null,
         punkter: punkter.map((p) => ({
           omradeNavn: p.omrade?.navn ?? "—",
           malNavn: p.sjekklisteMal.name,
