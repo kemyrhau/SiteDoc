@@ -1,4 +1,5 @@
 import { join } from "path";
+import { openSync, readSync, closeSync } from "fs";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import multipart from "@fastify/multipart";
@@ -14,6 +15,32 @@ import { registrerWebSocket } from "./routes/ws";
 import { appRouter } from "./trpc/router";
 import { createContext } from "./trpc/context";
 import { vurderPrivatFilForesporsel, assertFilSigneringEnv } from "./utils/hmac";
+
+/**
+ * Leser de første bytene av en fil og returnerer korrekt bilde-Content-Type
+ * ut fra magic bytes (PNG `89 50 4E 47`, JPEG `FF D8 FF`) — uavhengig av
+ * filendelsen. Returnerer `null` for alt annet, slik at fastifyStatic beholder
+ * sin endelse-baserte type. Synkron og billig (leser 4 bytes).
+ */
+function bildeContentTypeFraMagic(filsti: string): string | null {
+  let fd: number | null = null;
+  try {
+    fd = openSync(filsti, "r");
+    const buf = Buffer.alloc(4);
+    const bytesRead = readSync(fd, buf, 0, 4, 0);
+    if (bytesRead >= 4 && buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47) {
+      return "image/png";
+    }
+    if (bytesRead >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+      return "image/jpeg";
+    }
+    return null;
+  } catch {
+    return null;
+  } finally {
+    if (fd !== null) closeSync(fd);
+  }
+}
 
 const server = Fastify({
   // Fastify mottar requests via Cloudflare Tunnel → cloudflared. cloudflared
@@ -101,9 +128,15 @@ async function start() {
   await server.register(fastifyStatic, {
     root: join(process.cwd(), "uploads"),
     prefix: "/uploads/",
-    setHeaders: (res) => {
+    setHeaders: (res, path) => {
       res.setHeader("Content-Disposition", "inline");
       res.setHeader("X-Content-Type-Options", "nosniff");
+      // Content-Type fra magic bytes, ikke filendelse: annoterte tegninger ble
+      // eksportert som PNG men lagret under `.jpg`-filnavn. Med `nosniff` stoler
+      // Chrome på MIME-typen ved print-til-PDF og forsøker JPEG-passthrough av
+      // PNG-bytes → helsvart felt. Korrekt header retter det uten å røre data.
+      const bildeType = bildeContentTypeFraMagic(path);
+      if (bildeType) res.setHeader("Content-Type", bildeType);
     },
   });
 
