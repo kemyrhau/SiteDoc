@@ -639,8 +639,12 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   }
 
   if (!bildeSrc) {
+    // data-utskrift-venter: tegningen rendres via pdfjs/canvas til en data-URL,
+    // ikke som et <img> ennå — så auto-utskriftens `document.images`-venting ser
+    // den ikke. Merket holder utskriften tilbake til innholdet faktisk finnes.
+    // Se lib/utskrift-print.ts (BEF-001-funn 2026-08-13).
     return (
-      <div>
+      <div data-utskrift-venter="">
         <p className="text-sm font-medium text-gray-700">{visNavn}</p>
         <p className="mt-1 text-xs text-gray-400">Laster tegning…</p>
       </div>
@@ -658,7 +662,9 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   }
 
   return (
-    <div>
+    // Detaljutsnittet genereres av useDetaljCanvas etter at hovedbildet finnes;
+    // hold utskriften til `detaljKlar` så det canvas-genererte <img> er på plass.
+    <div data-utskrift-venter={detaljKlar ? undefined : ""}>
       <p className="mb-2 text-sm font-medium text-gray-700">{visNavn}</p>
 
       <div className="bilde-grid">

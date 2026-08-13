@@ -711,7 +711,11 @@ export default function OppgaveDetaljSide() {
           />
           )}
           <button
-            onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank")}
+            // noopener: gir print-fanen egen renderer-prosess så window.print()-
+            // dialogen ikke fryser denne (opphavs-)fanen — de er same-origin og
+            // ville ellers delt hovedtråd. Auto-lukking (afterprint→window.close)
+            // virker fortsatt: script-åpnet, history-1-fane er script-closable. BEF-001-funn 2.
+            onClick={() => window.open(`/utskrift/oppgave/${params.oppgaveId}?print=true`, "_blank", "noopener")}
             className="ml-auto flex items-center gap-1.5 rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm text-gray-600 hover:bg-gray-50"
             title={t("handling.skrivUtEnkel")}
           >
