@@ -39,7 +39,7 @@ type Overstyring = {
   id: string;
   prosjektId: string;
   prosjektNavn: string | null;
-  prosjektNummer: string | null;
+  interntNummer: string | null;
   expenseCategoryId: string;
   ordning: string;
 };
@@ -293,7 +293,7 @@ export default function UtleggskategorierSide() {
                         <li key={o.id} className="flex items-center gap-2 text-sm">
                           <span className="text-gray-700">
                             {o.prosjektNavn ?? o.prosjektId}
-                            {o.prosjektNummer ? ` (${o.prosjektNummer})` : ""}
+                            {o.interntNummer ? ` (${o.interntNummer})` : ""}
                           </span>
                           {/* Inline-endring via upsert (settOverstyring) — ÉN operasjon,
                               ingen mellomtilstand der prosjektet faller til firma-default

@@ -23,6 +23,7 @@ type AnsattRad = {
     prosjektId: string;
     prosjektNavn: string;
     prosjektNummer: string | null;
+    internProsjektNummer: string | null;
     timer: number;
   }>;
   perDag: Array<{ dato: string; timer: number }>;
@@ -584,8 +585,8 @@ function Detaljvisning({
                   <tr key={p.prosjektId} className="border-t border-gray-100 first:border-t-0">
                     <td className="py-1 text-gray-700">
                       {p.prosjektNavn}
-                      {p.prosjektNummer && (
-                        <span className="ml-1 font-mono text-[10px] text-gray-400">{p.prosjektNummer}</span>
+                      {p.internProsjektNummer && (
+                        <span className="ml-1 font-mono text-[10px] text-gray-400">{p.internProsjektNummer}</span>
                       )}
                     </td>
                     <td className="py-1 text-right font-medium text-gray-900">{formaterTimer(p.timer)}</td>

@@ -78,7 +78,7 @@ export default function FirmaFakturering() {
                     <tr key={p.projectId} className="border-b border-gray-50 last:border-0">
                       <td className="px-3 py-2 text-gray-800">
                         {p.prosjektNavn ?? p.projectId}
-                        {p.prosjektNummer ? <span className="text-gray-400"> ({p.prosjektNummer})</span> : null}
+                        {p.interntNummer ? <span className="text-gray-400"> ({p.interntNummer})</span> : null}
                       </td>
                       <td className="px-3 py-2 text-right font-medium tabular-nums text-gray-900">
                         {formaterBytes(p.totalBytes)}

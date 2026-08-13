@@ -3,6 +3,8 @@
  */
 
 import { esc } from "./hjelpere";
+import { prosjektReferanseForUtskrift } from "./header";
+import type { ProsjektForPdf, Utskriftsinnstillinger } from "./typer";
 
 export interface SluttrapportPunkt {
   omradeNavn: string;
@@ -19,8 +21,11 @@ export interface SluttrapportData {
   kontrollomrade: string | null;
   dato: string;
   punkter: SluttrapportPunkt[];
-  prosjektNavn: string;
-  prosjektNummer: string;
+  // Prosjektreferansen bygges via den delte fallback-kjeden (eksternt → internt →
+  // SD), lik de øvrige utskriftene — ikke SD hardkodet. Se terminologi.md § Tre
+  // prosjektnumre og header.ts:prosjektReferanseForUtskrift.
+  prosjekt: ProsjektForPdf;
+  innstillinger: Utskriftsinnstillinger | null;
 }
 
 const KONTROLLOMRADE_NAVN: Record<string, string> = {
@@ -112,7 +117,11 @@ export function genererSluttrapportHtml(data: SluttrapportData): string {
   <div class="meta">
     <span>${esc(data.kontrollplanNavn)}</span>
     <span>${esc(data.byggeplassNavn)}</span>
-    <span>Prosjekt: ${esc(data.prosjektNavn)} (${esc(data.prosjektNummer)})</span>
+    <span>Prosjekt: ${esc(data.prosjekt.name)}${
+      prosjektReferanseForUtskrift(data.prosjekt, data.innstillinger)
+        ? ` (${esc(prosjektReferanseForUtskrift(data.prosjekt, data.innstillinger))})`
+        : ""
+    }</span>
     <span>Dato: ${esc(data.dato)}</span>
   </div>
 
