@@ -353,7 +353,7 @@ export const expenseCategoryRouter = router({
       const prosjekter = prosjektIder.length
         ? await ctx.prisma.project.findMany({
             where: { id: { in: prosjektIder } },
-            select: { id: true, name: true, projectNumber: true },
+            select: { id: true, name: true, internalProjectNumber: true },
           })
         : [];
       const navnPerProsjekt = new Map(prosjekter.map((p) => [p.id, p]));
@@ -363,7 +363,8 @@ export const expenseCategoryRouter = router({
           id: o.id,
           prosjektId: o.prosjektId,
           prosjektNavn: navnPerProsjekt.get(o.prosjektId)?.name ?? null,
-          prosjektNummer: navnPerProsjekt.get(o.prosjektId)?.projectNumber ?? null,
+          // Internt nummer (brukervendt) — SD vises ikke i firma-flater.
+          interntNummer: navnPerProsjekt.get(o.prosjektId)?.internalProjectNumber ?? null,
           expenseCategoryId: o.expenseCategoryId,
           ordning: o.ordning as UtleggOrdning,
         }));

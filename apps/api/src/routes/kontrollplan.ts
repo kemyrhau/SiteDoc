@@ -25,6 +25,7 @@ export const kontrollplanRouter = router({
         where: { projectId_byggeplassId: { projectId: byggeplass.projectId, byggeplassId: input.byggeplassId } },
         include: {
           punkter: {
+            where: { arkivert: false },
             include: punktIncludes,
             orderBy: { opprettet: "asc" },
           },
@@ -55,6 +56,7 @@ export const kontrollplanRouter = router({
         update: {},
         include: {
           punkter: {
+            where: { arkivert: false },
             include: punktIncludes,
             orderBy: { opprettet: "asc" },
           },
@@ -79,6 +81,7 @@ export const kontrollplanRouter = router({
         fristAar: z.number().int().min(2024).max(2100).nullish(),
         importTaskUid: z.number().int().nullish(),
         importWbs: z.string().nullish(),
+        importNavn: z.string().nullish(),
       })).min(1),
       // Import-opprinnelse: sett `importKilde` på første kall (oppretter raden),
       // eller `importKildeId` på påfølgende kall (peker til allerede opprettet rad).
@@ -136,6 +139,7 @@ export const kontrollplanRouter = router({
               fristAar: p.fristAar ?? undefined,
               importTaskUid: p.importTaskUid ?? undefined,
               importWbs: p.importWbs ?? undefined,
+              importNavn: p.importNavn ?? undefined,
               importKildeId: importKildeId ?? undefined,
             },
             include: punktIncludes,
@@ -153,6 +157,198 @@ export const kontrollplanRouter = router({
       });
 
       return { punkter: opprettet, importKildeId };
+    }),
+
+  // Grunnlag for revisjons-diff (del 2): eksisterende import-styrte punkter +
+  // siste import med tilknyttede punkter (for hoppetOver + forrige-fil-metadata).
+  hentRevisjonsgrunnlag: protectedProcedure
+    .input(z.object({ kontrollplanId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const kontrollplan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
+        where: { id: input.kontrollplanId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+
+      const punkter = await ctx.prisma.kontrollplanPunkt.findMany({
+        where: { kontrollplanId: input.kontrollplanId, arkivert: false, importTaskUid: { not: null } },
+        select: {
+          id: true,
+          importTaskUid: true,
+          importWbs: true,
+          importNavn: true,
+          sjekklisteMalId: true,
+          faggruppeId: true,
+          milepelId: true,
+          fristUke: true,
+          fristAar: true,
+          status: true,
+          sjekklisteMal: { select: { name: true, prefix: true, kontrollomrade: true } },
+          faggruppe: { select: { name: true, color: true } },
+          milepel: { select: { navn: true } },
+          sjekkliste: { select: { id: true, status: true } },
+        },
+      });
+
+      // Siste import med minst ett tilknyttet punkt. Tomme importrader (feilet/
+      // duplikat-import — importraden opprettes utenfor punkt-transaksjonen, se
+      // opprettPunkter) skal ikke bidra med hoppetOver, ellers undertrykkes rader
+      // brukeren aldri valgte bort. TODO (del 2) fra opprettPunkter, anvendt her.
+      const importer = await ctx.prisma.kontrollplanImport.findMany({
+        where: { kontrollplanId: input.kontrollplanId },
+        orderBy: { importert: "desc" },
+        select: {
+          filnavn: true,
+          importert: true,
+          hoppetOver: true,
+          _count: { select: { punkter: true } },
+        },
+      });
+      const sisteImport = importer.find((i) => i._count.punkter > 0) ?? null;
+
+      return {
+        punkter,
+        sisteImport: sisteImport
+          ? {
+              filnavn: sisteImport.filnavn,
+              importert: sisteImport.importert,
+              // Konkret form ved grensen — Prisma JsonValue er dypt rekursiv og gir
+              // TS2589 hos klienten hvis den lekker gjennom tRPC-inferensen.
+              hoppetOver: sisteImport.hoppetOver as unknown as { uid: number; navn: string; wbs: string | null }[],
+            }
+          : null,
+      };
+    }),
+
+  // Anvend en revisjon (del 2). Skriver mange endringer på én gang: frist-
+  // oppdateringer, nye punkter, arkivering, og levende rad-identitet (importNavn +
+  // uid-oppgradering ved bekreftet antatt-samme). Tre krav:
+  //  1. ÉN transaksjon — alt eller ingenting (halvveis anvendt revisjon er verre enn ingen).
+  //  2. Hver substansielle endring logges i KontrollplanHistorikk (ikke bare «anvendt»).
+  //  3. Frist oppdateres KUN på planlagt/pagar — utførte/godkjente røres aldri.
+  anvendRevisjon: protectedProcedure
+    .input(z.object({
+      kontrollplanId: z.string(),
+      filnavn: z.string(),
+      antallParsedeRader: z.number().int().min(0),
+      // Levende identitet: alle UID-matchede + bekreftede antatt-samme. Oppdateres
+      // ubetinget (navn alltid, uid ved antatt-oppgradering). Ikke logget — bokføring.
+      identitetsOppdateringer: z.array(z.object({
+        punktId: z.string(),
+        nyImportTaskUid: z.number().int(),
+        nyImportNavn: z.string(),
+      })).default([]),
+      // Frist-endringer å anvende (valgte sikre + bekreftede antatt). Logges.
+      fristOppdateringer: z.array(z.object({
+        punktId: z.string(),
+        nyFristUke: z.number().int().min(1).max(53).nullable(),
+        nyFristAar: z.number().int().min(2024).max(2100).nullable(),
+      })).default([]),
+      nyePunkter: z.array(z.object({
+        sjekklisteMalId: z.string().uuid(),
+        faggruppeId: z.string().uuid(),
+        importTaskUid: z.number().int(),
+        importWbs: z.string().nullable(),
+        importNavn: z.string(),
+        fristUke: z.number().int().min(1).max(53).nullable(),
+        fristAar: z.number().int().min(2024).max(2100).nullable(),
+      })).default([]),
+      arkiverPunktIds: z.array(z.string()).default([]),
+      hoppetOver: z.array(z.object({
+        uid: z.number().int(),
+        navn: z.string(),
+        wbs: z.string().nullable(),
+      })).default([]),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const kontrollplan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
+        where: { id: input.kontrollplanId },
+        select: { projectId: true },
+      });
+      await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
+
+      const kommentar = `Revidert fra fremdriftsplan ${input.filnavn}`;
+      const fristMap = new Map(input.fristOppdateringer.map((f) => [f.punktId, f]));
+
+      await ctx.prisma.$transaction(async (tx) => {
+        // Ny importhendelse for revisjonen (nye punkter knyttes hit, hoppetOver lagres).
+        const imp = await tx.kontrollplanImport.create({
+          data: {
+            kontrollplanId: input.kontrollplanId,
+            filnavn: input.filnavn,
+            antallParsedeRader: input.antallParsedeRader,
+            importertAvId: ctx.userId,
+            hoppetOver: input.hoppetOver,
+          },
+        });
+
+        // Identitet + frist på eksisterende punkter.
+        for (const idn of input.identitetsOppdateringer) {
+          const punkt = await tx.kontrollplanPunkt.findUniqueOrThrow({
+            where: { id: idn.punktId },
+            select: { status: true, kontrollplanId: true },
+          });
+          if (punkt.kontrollplanId !== input.kontrollplanId) continue; // prosjekt-/plan-isolasjon
+          const frist = fristMap.get(idn.punktId);
+          const settFrist = frist && (punkt.status === "planlagt" || punkt.status === "pagar");
+          await tx.kontrollplanPunkt.update({
+            where: { id: idn.punktId },
+            data: {
+              importTaskUid: idn.nyImportTaskUid,
+              importNavn: idn.nyImportNavn,
+              importKildeId: imp.id,
+              ...(settFrist ? { fristUke: frist!.nyFristUke ?? undefined, fristAar: frist!.nyFristAar ?? undefined } : {}),
+            },
+          });
+          if (settFrist) {
+            await tx.kontrollplanHistorikk.create({
+              data: { punktId: idn.punktId, brukerId: ctx.userId, handling: "endret", kommentar },
+            });
+          }
+        }
+
+        // Nye punkter.
+        for (const p of input.nyePunkter) {
+          const nytt = await tx.kontrollplanPunkt.create({
+            data: {
+              kontrollplanId: input.kontrollplanId,
+              sjekklisteMalId: p.sjekklisteMalId,
+              faggruppeId: p.faggruppeId,
+              importTaskUid: p.importTaskUid,
+              importWbs: p.importWbs ?? undefined,
+              importNavn: p.importNavn,
+              importKildeId: imp.id,
+              fristUke: p.fristUke ?? undefined,
+              fristAar: p.fristAar ?? undefined,
+            },
+          });
+          await tx.kontrollplanHistorikk.create({
+            data: { punktId: nytt.id, brukerId: ctx.userId, handling: "opprettet", kommentar },
+          });
+        }
+
+        // Arkivering (aldri auto-slett; sjekklister/utført arbeid røres ikke).
+        for (const punktId of input.arkiverPunktIds) {
+          const punkt = await tx.kontrollplanPunkt.findUniqueOrThrow({
+            where: { id: punktId },
+            select: { kontrollplanId: true },
+          });
+          if (punkt.kontrollplanId !== input.kontrollplanId) continue;
+          await tx.kontrollplanPunkt.update({
+            where: { id: punktId },
+            data: { arkivert: true, arkivertDato: new Date() },
+          });
+          await tx.kontrollplanHistorikk.create({
+            data: { punktId, brukerId: ctx.userId, handling: "arkivert", kommentar },
+          });
+        }
+      });
+
+      return {
+        antallFrister: input.fristOppdateringer.length,
+        antallNye: input.nyePunkter.length,
+        antallArkivert: input.arkiverPunktIds.length,
+      };
     }),
 
   // Oppdater et punkt (frist, faggruppe, status, milepæl, avhengighet)
@@ -558,7 +754,16 @@ export const kontrollplanRouter = router({
       const kontrollplan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
         where: { id: input.kontrollplanId },
         include: {
-          project: { select: { name: true, projectNumber: true } },
+          project: {
+            select: {
+              name: true,
+              projectNumber: true,
+              externalProjectNumber: true,
+              internalProjectNumber: true,
+              visSiteDocNummer: true,
+              utskriftsinnstillinger: true,
+            },
+          },
           byggeplass: { select: { name: true } },
           punkter: {
             include: {
@@ -585,8 +790,20 @@ export const kontrollplanRouter = router({
         kontrollplanNavn: kontrollplan.navn,
         byggeplassNavn: kontrollplan.byggeplass.name,
         kontrollomrade: input.kontrollomrade,
-        prosjektNavn: kontrollplan.project.name,
-        prosjektNummer: kontrollplan.project.projectNumber,
+        // Prosjektreferansen bygges av utskriftsgeneratoren via den delte
+        // fallback-kjeden (eksternt → internt → SD), lik sjekkliste-/oppgave-
+        // utskrift — ikke SD hardkodet. Se terminologi.md § Tre prosjektnumre.
+        prosjekt: {
+          name: kontrollplan.project.name,
+          projectNumber: kontrollplan.project.projectNumber,
+          externalProjectNumber: kontrollplan.project.externalProjectNumber,
+          internalProjectNumber: kontrollplan.project.internalProjectNumber,
+          visSiteDocNummer: kontrollplan.project.visSiteDocNummer,
+        },
+        innstillinger:
+          (kontrollplan.project.utskriftsinnstillinger as {
+            eksternProsjektnummer?: boolean;
+          } | null) ?? null,
         punkter: punkter.map((p) => ({
           omradeNavn: p.omrade?.navn ?? "—",
           malNavn: p.sjekklisteMal.name,

@@ -411,11 +411,14 @@ function ObjektInnhold({
       }
 
       return (
-        <div className="print-no-break py-2">
+        // Ikke print-no-break på hele repeateren — en lang liste (mange rader +
+        // bilder) blir da én ubrytbar blokk som dyttes til neste side og etterlater
+        // en tom side. Hver rad er ubrytbar for seg; listen kan brytes mellom rader.
+        <div className="py-2">
           <p className="mb-2 text-xs font-medium text-gray-500">{label}</p>
           <div className="flex flex-col gap-2">
             {repeaterRader.map((rad, radIdx) => (
-              <div key={radIdx} className="rounded border border-gray-200 px-3 py-2">
+              <div key={radIdx} className="print-no-break rounded border border-gray-200 px-3 py-2">
                 <p className="mb-1 text-[11px] font-semibold text-gray-400">{radIdx + 1} {label}</p>
                 {repeaterBarn.map((barn) => {
                   const feltData = rad[barn.id];
@@ -636,8 +639,12 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   }
 
   if (!bildeSrc) {
+    // data-utskrift-venter: tegningen rendres via pdfjs/canvas til en data-URL,
+    // ikke som et <img> ennå — så auto-utskriftens `document.images`-venting ser
+    // den ikke. Merket holder utskriften tilbake til innholdet faktisk finnes.
+    // Se lib/utskrift-print.ts (BEF-001-funn 2026-08-13).
     return (
-      <div>
+      <div data-utskrift-venter="">
         <p className="text-sm font-medium text-gray-700">{visNavn}</p>
         <p className="mt-1 text-xs text-gray-400">Laster tegning…</p>
       </div>
@@ -655,7 +662,9 @@ export function TegningPosisjonPrint({ pos }: { pos: TegningPosisjonVerdi }) {
   }
 
   return (
-    <div>
+    // Detaljutsnittet genereres av useDetaljCanvas etter at hovedbildet finnes;
+    // hold utskriften til `detaljKlar` så det canvas-genererte <img> er på plass.
+    <div data-utskrift-venter={detaljKlar ? undefined : ""}>
       <p className="mb-2 text-sm font-medium text-gray-700">{visNavn}</p>
 
       <div className="bilde-grid">

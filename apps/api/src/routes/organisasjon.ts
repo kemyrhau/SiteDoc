@@ -255,6 +255,7 @@ export const organisasjonRouter = router({
     return orgProsjekter.map((op) => ({
       id: op.project.id,
       projectNumber: op.project.projectNumber,
+      internalProjectNumber: op.project.internalProjectNumber,
       name: op.project.name,
       status: op.project.status,
       antallMedlemmer: op.project.members.length,

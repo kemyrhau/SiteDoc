@@ -96,6 +96,292 @@ const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
 **Ryddesak funnet samtidig:** to identiske «Sitedoc»-skallfirmaer (`er_kunde=false`, null prosjekter) i prod. «Kenneths testmiljø» har `er_kunde=true` og teller derfor som kunde i lagringsstatistikk og fakturering.
 
+### 🔴 P1 — Posisjonsmodell-restansen: steg-inngangen kollapser alle nye flyter (kodeverifisert 2026-08-13)
+
+Fabel har ført disse i [redesign/MASTERPLAN.md](../redesign/MASTERPLAN.md) § Nye backlog-saker. Repo-siden her, med kodereferanser.
+
+**Posisjonsmodellen er i prod siden 2026-08-03** og virker: rutingen teller ledd, ikke rollenavn (`services/flytFakta.ts:151-212`, `packages/shared/src/utils/flytPosisjon.ts`, autorisasjon via `verifiserRetningsrett` i `tilgangskontroll.ts:905-968`). Bestiller/utfører-faggruppene er **ikke rutingsbærende**.
+
+**Men motoren mates ikke:**
+- Flytoppsettet sender **hardkodet** `steg={1}` — `dashbord/oppsett/produksjon/dokumentflyt/page.tsx:869` og `:886`, `OpprettKontaktModal.tsx:211`.
+- Standardflyter seedes med `steg: 1` for **både** bestiller og utfører — `prosjekt.ts:515` og `:529`. Begge kollapser til **ett ledd**.
+- Kun HMS-flyten setter steg eksplisitt (`modul.ts:61,68`).
+- `klassifisering` settes heller ikke fra noe UI.
+
+Historiske rader ble reparert av backfill (`20260731120000_flytmodell_fase1_posisjon/migration.sql:36-56`, `DENSE_RANK()` over kanonisk rollerekkefølge). **Inngangen ble aldri reparert** — samme funn som `delplaner/flytposisjon-byggledd-fiks-ordre-2026-07-26.md:11`.
+
+🔴 **MÅ fikses sammen med `utledMinRolle`-klientporten.** `packages/shared/src/utils/flytRolle.ts:96-98` matcher faggruppe-bundne flytmedlemmer kun hvis faggruppen er bestiller **eller** utfører på dokumentet. Resultatet gater handlingsmenyen (`DokumentHandlingsmeny.tsx:556` → «Lesevisning», `DokumentHandlingslinje.tsx:223` → `null`). I en flyt med mer enn to faggruppe-bundne ledd får et tredje ledd `minRolle = null` og ser «Lesevisning» **selv når serveren tillater handlingen fordi brukeren har ballen**. Klient og server er uenige.
+
+Det slår ikke ut i dag nettopp fordi steg-inngangen hindrer slike flyter. Det slår ut i samme øyeblikk som steg fikses. **Fikses de hver for seg, innfører reparasjonen en ny feil.** Fabel har bevisst holdt dette utenfor kontrollplan-ordrene av samme grunn.
+
+### `ansvarsmerke` er en død kolonne — frie boksnavn vedtatt, ikke bygget
+
+Kenneth-vedtak 2026-07-31 (`delplaner/flytmodell-veileder-cowork.md` § 2.6): *«Rollenavn fjernes som brukervendt identitet. Hver boks viser: posisjonsnummer + hvem + ansvarsmerke.»*
+
+`DokumentflytMedlem.ansvarsmerke` finnes (schema:1355), fylles kun av migrasjonen, og **leses aldri** — null treff i `apps/*/src` og `packages/*/src`. Visningsmerket avledes fortsatt fra rollenavn (`flytPosisjon.ts:32-47`). Boksnavnet på dokumentflaten bygges av faggruppe → gruppe → person (`apps/web/src/lib/flyt-ledd.ts:96-100`).
+
+⚠️ **Kolonnen skal IKKE slettes** — den er ikke død, den er ufødt. Eksplisitt fredet i død kode-ordren.
+
+### Fire-boks-taket — N-boks vedtatt, strukturelt sperret
+
+`flytrettigheter-evaluering-2026-07-26.md:52` (Kenneth): *«N-boks er IKKE utsatt — det er dagens realitet.»* Men:
+- `rolle` låst til fire verdier (`packages/shared/src/validation/index.ts:11`)
+- Oppsett-UI lar hver rolle brukes én gang (`dokumentflyt/page.tsx:461-463`) → **maks fire bokser**
+- Rekkefølge sorteres på hardkodet `ROLLE_KONFIG[...].rekkefølge`, ikke på `steg`
+- `@@unique([dokumentflytId, faggruppeId, rolle, steg])` gjør `rolle` til del av leddets identitet
+
+### Død kode i dokumentflyt-domenet — ordre levert
+
+`verifiserFlytRolle` (`tilgangskontroll.ts:792-866`) og `byggFaggruppeFilter` (`:43-52`) har **null kallsteder** — erstattet i fase 3.4, aldri slettet. De fikk to lesere (cowork og fabel) til å konkludere feil om hva som bærer modellen på samme dag.
+
+Ordre: [delplaner/dodkode-opprydding-ordre-2026-08-13.md](delplaner/dodkode-opprydding-ordre-2026-08-13.md). Inkluderer retting av `dokumentflyt.md:29` (*«flytboks trenger ikke navn»* — motsier § 2.6-vedtaket) og regelen **«en erstattet funksjon slettes i samme fase som erstatningen merges»**.
+
+### 🔴 P0 — GPS-prikk speilvendt på georeferert tegning ved 2-punkts kalibrering (fabel, verifisert i felt 2026-08-13)
+
+**Verifisert i prod, Lakselv lufthavn.** Blå GPS-prikk vises som **speilbildet av reell posisjon**, speilet om linjen gjennom kalibreringspunkt 1 og 2. GPS 70.067883, 24.980824 (terminalen, øst for rullebanen) → tegning (56.4, 40.8) = vest for rullebanen.
+
+**Rotårsak (fabel, bekreftet av cowork mot koden):** 2-punkts-grenen i `packages/shared/src/utils/georeferanse.ts:274-276` fitter en similaritetstransformasjon:
+
+```ts
+const affine = { a, b, c: tx, d: -b, e: a, f: ty };
+```
+
+`det = a·e − b·d = a² + b²` — **alltid positiv**. Similariteten kan rotere og skalere, aldri speile. Men GPS→bilde er alltid orienterings-reverserende (latitude øker nordover, pixel-y nedover), så korrekt transform må ha negativ determinant. Rotasjon av tegningen endrer ikke fortegnet.
+
+**Hvorfor den ikke ble oppdaget:** to punkter bestemmer similariteten entydig, så begge kalibreringspunktene treffes eksakt og `beregnKalibreringsFeil` rapporterer **0 m**. Editoren ser korrekt ut. Alle andre posisjoner speiles. Med Lakselv-dataene blir `b ≈ 30·a` — en nesten-90°-rotasjon som similaritetens beste (feile) erstatning for speilingen.
+
+**3+ punkter rammes ikke** — affine-grenen løser full 6-parameter-fit og kan representere speiling.
+
+🟢 **Workaround i dag: legg til et tredje kalibreringspunkt.**
+
+**Fiks + utledet invers:** [delplaner/georef-speilfeil-ordre-2026-08-13.md](delplaner/georef-speilfeil-ordre-2026-08-13.md). Fabel ba om at inversen utledes eksakt; cowork har gjort det — med `M = [a −b; −b −a]` er `M⁻¹ = M/(a²+b²)`, fordi `M/√D` er en refleksjonsmatrise og refleksjoner er involutive. **`ie` skifter fortegn** mot dagens kode; det er fella fabel advarte mot.
+
+**Ingen migrering** — eksisterende 2-punkts-kalibreringer blir riktige av fiksen (samme lagrede data, korrekt transform).
+
+**Egen sak (ikke i ordren):** `beregnKalibreringsFeil` kan per design ikke avdekke speilfeil ved 2 punkter. Vurder UI-hint i `GeoReferanseEditor`: «2 punkter gir eksakt fit — verifiser med Min posisjon eller legg til et 3. punkt».
+
+**Passer for:** ren matematikk i `packages/shared`, testbar uten enhet eller simulator.
+
+### 🔴 Kontrollplanen er frakoblet arbeidet — `sjekklisteId` settes aldri, varsling finnes ikke (målt i prod-test 2026-08-13)
+
+**Kenneth i felt:** importerte fremdriftsplan på test, valgte faggruppe per aktivitet, og spurte: *«hvor i denne planen aktiveres kontrollpunktet mot sjekklisten? hvordan får brukere beskjed om å utføre oppgaven»*
+
+**Målt i `sitedoc_test`:**
+
+```sql
+SELECT count(*) FILTER (WHERE sjekkliste_id IS NOT NULL) AS koblet,
+       count(*) AS totalt FROM kontrollplan_punkter WHERE arkivert = false;
+ koblet | totalt
+      0 |     12
+```
+
+**Ingen av 12 punkter er koblet til en sjekkliste.** Samtidig finnes 13 sjekklister fra de samme malene på prosjektet, hvorav 2 godkjente — mens kontrollplanen viser `0/4 godkjent (0 %)`. Arbeidet er gjort; planen vet det ikke.
+
+**Målt i kode — koblingen finnes i ingen retning:**
+
+- `KontrollplanPunkt.sjekklisteId` (schema:2051) **settes aldri**. Null treff i kildekoden utenom schema og `dist/`. UI-en *leser* feltet (`kontrollplan/page.tsx:51`, ruten selecter det på :10 og :189), men ingenting fyller det.
+- `apps/api/src/routes/sjekkliste.ts` nevner ikke kontrollplan med ett ord. Null treff.
+- `varselUkerFor` (default 1) brukes ett sted: `kontrollplan.ts:610`, som kopierer verdien videre ved duplisering av punkt. Ingen leser den for å beregne varsel.
+- Ingen cron/scheduler i `apps/api/src` som kunne kjørt fristbaserte varsler.
+
+**Begrepsforvirringen som skjuler mangelen:** importen kobler `sjekklisteMal` → punkt (`sjekklisteMalId` settes på :134, :315, :604). Det fungerer. Punktet vet hvilken **oppskrift** som gjelder og hvilken faggruppe som eier den. Det som mangler er neste ledd — fra oppskrift til **utført arbeid**. Kenneth opplevde med rette at «sjekklister fikk kontrollpunkt», fordi malvalget er ekte.
+
+**Dokumentasjonsdrift:** `docs/claude/kontrollplan.md:19` sier «Kontrollplan … gir sporbarhet, varsling og fremdriftstracking». Presens uten kodereferanse. Varslingen er ikke bygget. Rettes samtidig.
+
+**Foreslått rekkefølge (cowork, ikke vedtatt):**
+
+1. **«Start kontrollpunkt»** — knapp på punktet oppretter sjekkliste fra malen med faggruppe/frist arvet, setter `sjekklisteId`, status `planlagt → pagar`. Lite kode, gjør planen ekte umiddelbart, holder mennesket i førersetet — passer bygg, der fremdrift sjelden følger planen.
+2. **Koble eksisterende sjekkliste til punkt.** Uten denne er de 13 eksisterende foreldreløse for alltid og planen starter på null selv om arbeidet er gjort.
+3. **Automatisk opprettelse ved frist + varsel.** Krever scheduler — ny infrastruktur. Sist, når 1 og 2 har vist hvordan koblingen faktisk brukes.
+
+**Følgesak (Kenneth):** når koblingen finnes, bør sjekklistelisten kunne filtreres på «hører til kontrollplanen» vs «kommer i tillegg». Uten `sjekklisteId` er det ingenting å filtrere på — derfor er dette et symptom, ikke roten.
+
+### Fem funn fra mobil-befaring (Kenneth, Lakselv Lufthavn 2026-08-13)
+
+Alle observert under reell dokumentasjon av befaring, med mal «Befaringsrapport».
+
+> 🟢 **Kontekst for risikovurdering (Kenneth 2026-08-13):** *«alt på produksjon er testdata, med unntak av dagens sjekkliste»* — befaringsrapporten fra Lakselv Lufthavn er eneste reelle produksjonsdokument som krever etterbruk. Det gjør retting av disse sakene vesentlig tryggere enn normal prod-risiko tilsier. **Gjelder inntil A.Markussen tar systemet i reell bruk.**
+
+**−3. 🔴 Annotering dupliserer bildet — men kun inne i repeater**
+
+Kenneth annoterte et flyfoto i observasjon 2 og fikk både original og annotert versjon i galleriet.
+
+**Erstatning er implementert** (`FeltDokumentasjon.tsx:399`, kommentaren sier eksplisitt «Erstatt original med annotert bilde (unngår duplikat)»), med fallback til «lag ny» når `valgtVedleggId` eller `onErstattVedlegg` mangler.
+
+**Målt årsak — proppen når ikke fram:**
+
+| Kaller | Sender `onErstattVedlegg`? |
+|---|---|
+| `FeltWrapper.tsx:156` | ✅ ja |
+| **`RepeaterObjekt.tsx:165`** | ❌ **nei** |
+
+Annotering på et vanlig felt erstatter altså riktig; inne i en repeater faller den til fallbacken og dupliserer. Kenneths bilder lå i repeateren.
+
+**Fiks:** send `onErstattVedlegg` fra `RepeaterObjekt` — men merk at repeateren må implementere erstatning per rad (`radIndeks` + `barnObjekt.id`), ikke bare videreformidle. De øvrige vedleggs-callbackene der (`leggTilVedlegg`, `fjernVedlegg`) tar begge, så mønsteret finnes.
+
+Samme klasse som flere funn i august: **mekanismen finnes og virker, men er ikke koblet i én av to veier.**
+
+**−2. Signaturfelt tar plass og fanger scroll — bør starte som knapp**
+
+> *«når jeg ikke trenger signaturfeltet så tar det for mye plass, og det er upraktisk når jeg scroller at den setter et strek. Jeg hadde foretrukket om signaturfeltet kunne startet som en knapp, og signering utføres når en er klar for det.»*
+
+To problemer i ett: feltet er alltid utfoldet med full tegneflate, **og** canvaset fanger pan-gesten slik at scroll gjennom dokumentet tegner en strek.
+
+Det siste er en reell feil — en bruker som blar forbi signaturfeltet etterlater en tilfeldig strek i et dokument som skal signeres.
+
+**Foreslått løsning (Kenneths):** kollapset knapp «Signer», som folder ut tegneflaten når brukeren er klar. Løser begge — ingen plass når den ikke brukes, og ingen canvas å treffe under scroll.
+
+Gjelder mobil primært; sjekk om web har samme gestproblem.
+
+**−1. 🔴 Tekstfelt uten `multiline` viser bare første linje på web — mobil viser alt**
+
+Kenneth så at en lang observasjonstekst ble avkortet til én linje på web, mens mobil viste hele. **Teksten er der; den er usynlig.**
+
+Målt: `TekstfeltObjekt.tsx:5` — `const erFlerlinjet = !!objekt.config.multiline`. Web gir `<textarea rows={4}>` kun når malen har satt flagget, ellers `<input type="text">`. **Mobil viser alt flerlinjet uansett.**
+
+Kenneths hypotese var at repeateren var årsaken — det er den ikke. Feltet manglet `multiline`, og malbyggeren *har* avhukingen (`FeltKonfigurasjon.tsx:145`).
+
+**To reelle problemer likevel:**
+
+1. **Divergensen web/mobil.** Samme mal gir ulik redigeringsopplevelse. En bruker som skriver på mobil og leser på web tror teksten er borte. Mobil bør respektere flagget, eller web bør vokse ved behov — men de skal ikke være uenige.
+2. 🔴 **`rows={4}` er fast.** Selv med `multiline` vokser ikke feltet med innholdet. Kenneth ber om *dynamisk* høyde. En observasjon på ti linjer får fortsatt fire synlige.
+
+**Vurder også defaulten:** for et fritekstfelt i et byggeplassdokument er flerlinjet det normale, ikke unntaket. At `multiline` er av som standard gjør at feltet oppfører seg feil til noen oppdager avhukingen.
+
+**0. Sjekklister/oppgaver bytter rekkefølge mellom web og mobil**
+
+Web: `sjekklister` før `oppgaver` (`sidebar-elementer.tsx:75,82`). Mobil viser motsatt. Triviell, men den koster hver gang en bruker flytter mellom flatene — muskelminnet treffer feil. Finn mobil-siden og gjør rekkefølgen lik.
+
+**1. 🔴 Deltakere skrives ut som UUID i mobil-utskrift**
+
+Delefunksjonen ga `Deltakere: 74730685-c6dd-451b-aec6-ea401ec566a2` i stedet for navn.
+
+Målt: `packages/pdf/src/felt.ts` `case "persons"` gjør `(verdi as string[]).join(", ")` — arrayet inneholder **bruker-IDer**, og ingen slår opp navn. Samme svakhet i `case "person"`/`"company"` (`String(verdi)`).
+
+Rendreren har ingen tilgang til brukerlisten; oppslaget må skje i api-laget som mater den, slik logg-leserne gjør for `senderId`. Løses i **fase 3** — arkivmalen trenger navnene uansett. Merk at web trolig viser navn, altså enda en web/mobil-divergens.
+
+**2. Befaringsdato mangler klokkeslett**
+
+Ønske: redigerbart klokkeslett i tillegg til dato. Felttypen `date_time` finnes alt (`felt.ts` har egen case med `formaterDatoTid`), så dette er et malvalg — men Kenneth ber om at *befaringsdato spesifikt* bærer tidspunkt. Vurder om malen skal bytte felttype, eller om `date` bør kunne utvides med valgfri tid.
+
+**3. Lav kontrast på «+ Legg til rad» på telefon**
+
+Repeaterens legg-til-knapp er stiplet grå på hvit bakgrunn. I dagslys på byggeplass er den vanskelig å se. Ren styling-sak, men den treffer den mest brukte handlingen i en befaringsrapport.
+
+**4. 🔴 Repeateren har egen verdi/kommentar/vedlegg — det er feil modellering**
+
+Kenneth reagerte på et «Kommentar…»-felt med bilde-knapper under «+ Legg til rad», som ikke finnes i malens oppbygging.
+
+**Hva det er:** hvert felt i SiteDoc har `{ verdi, kommentar, vedlegg }`. Repeateren behandles som et felt, så den får sin egen kommentar- og vedleggsblokk i tillegg til radene.
+
+🔴 **Kenneths vurdering, og den er riktig:** *«repeater trenger heller ingen tekst, kun repeater-funksjon»*.
+
+**En repeater er en container, ikke et innholdsfelt.** En kommentar på selve listen har ingen naturlig betydning — den hører til en rad. Et vedlegg enda mindre: hvilket bilde hører til «alle observasjoner»? Det hører til observasjon 2. I praksis legger brukeren begge deler i en rad, og containerens egne felt blir stående tomme og forvirrende.
+
+Dette er samme mønster som flere funn i august: **en uniform regel anvendt der den ikke gir mening.** Uten unntak blir strukturen konsistent i koden og feil i bruk.
+
+**Tiltak:** repeater skal kun bære rader — ingen egen `verdi`, `kommentar` eller `vedlegg`. Gjelder mobil, web, malbygger og begge utskriftsrenderere.
+
+**Data-håndtering avklart av Kenneth:** *«dersom det finnes produksjonsdata i repeaterens egen → slett den sjekklisten»*. Alt i prod er testdata unntatt befaringsrapporten fra Lakselv Lufthavn. Mål likevel først og rapportér hva som finnes — sletting av en sjekkliste er Kenneths handling, ikke en automatisk del av fiksen.
+
+### Ingen klipp/kopier/lim inn i tekstfelt på mobil (Kenneth i felt 2026-08-13)
+
+> *«jeg kan ikke copy/paste/cut på telefonen slik jeg kan i mirror-versjonen fra Mac når jeg redigerer i sjekkliste/oppgave/HMS»*
+
+**Observert** i fullskjerm kommentar-editor (tittel «Kommentar», Avbryt/Ferdig) på sjekkliste, under befaring på Lakselv Lufthavn. Teksten lar seg **markere** — seleksjon virker — men klippebord-menyen kommer ikke opp.
+
+Merk at samme app via skjermspeiling fra Mac oppfører seg riktig. Det peker mot en berørings-/gestinteraksjon, ikke mot at redigering er deaktivert.
+
+**Målt, uten å finne årsaken:** ingen `contextMenuHidden`, `selectTextOnFocus` eller `editable={false}` i `apps/mobile/src` eller `apps/mobile/app`. Blokkeringen er altså ikke eksplisitt i vår kode — mulige spor er en gesture-handler eller `ScrollView`/modal som fanger long-press før `TextInput` rekker det, eller en React Native-versjonsspesifikk oppførsel i modal.
+
+**Krever diagnose før tiltak.** Reproduser på fysisk enhet (ikke simulator — gestene oppfører seg ulikt) og isoler om det gjelder alle `TextInput` i appen eller kun de i fullskjerm-editoren.
+
+🔴 **Kenneth kontrollerte kun sjekkliste.** Oppgave og HMS er ikke testet, men *«lik opplevelse er nødvendig»* — de deler feltkomponenter, så antakelsen er at det gjelder alle tre. Verifiser alle ved retting.
+
+**Hvorfor det betyr noe i felt:** en befaringskommentar skrives ofte ved å lime inn tekst fra en e-post eller melding. Uten klippebord må feltarbeideren skrive alt på nytt, på telefon, i regn.
+
+### Bildehåndtering på mobil: serieopplasting + nummerering (Kenneth i felt 2026-08-13)
+
+Reist mens Kenneth dokumenterte befaring på Lakselv Lufthavn — tre bilder lastet opp ett og ett.
+
+**1. Serieopplasting fra galleri, i valgt rekkefølge**
+
+> *«jeg kan kun laste opp et og et bilde. Det hadde vært fint å velge bilder 1, 2 … xx slik at de legger seg inn i samme rekkefølge.»*
+
+Målt: `apps/mobile/src/services/bilde.ts:171` kaller `ImagePicker.launchImageLibraryAsync` **uten** `allowsMultipleSelection`, og plukker `resultat.assets[0]` — altså kun første.
+
+Expo støtter både `allowsMultipleSelection` og **`orderedSelection`** (iOS), der assets returneres i den rekkefølgen brukeren tappet dem. Det er nøyaktig kravet.
+
+Endringen: flagg på pickeren, returner array framfor enkeltobjekt, og la kallerne løpe komprimering + opplastingskø per bilde. **Opplastingskøen håndterer alt allerede** (`OpplastingsKoProvider`) — den trenger bare flere elementer.
+
+🔴 **Rekkefølgen må bevares gjennom hele kjeden**, ikke bare ved valg: komprimering er asynkron, så uten eksplisitt indeks vil raske små bilder passere trege store. Sett `sortOrder` ved innlegging i køen, ikke ved fullført opplasting.
+
+**2. Nummerering under hvert bilde i rapporten**
+
+> *«bilder burde tilordnes bildenummer som vises enten i et hjørne i bildet eller under hvert bilde»*
+
+`Image.sortOrder Int @default(0)` finnes alt i schemaet — rekkefølgen lagres, den vises bare ikke. Gjelder mobil-thumbnails, web-visning og **utskrift**: et byggherre-dokument der teksten viser til «bilde 3» trenger at bildene faktisk er nummerert.
+
+🟡 **Merk asymmetrien:** `Image` har `sortOrder`, men vedlegg i felt-JSON (`vedlegg[]`) har kun `id`/`url`/`filnavn`/`opprettet` — der er rekkefølgen array-posisjonen. Nummereringen må utledes konsistent for begge, ellers viser samme bilde ulikt nummer på ulike flater.
+
+Hører naturlig sammen med fase 3 (arkivmal), der bildeblokkene uansett bygges.
+
+### 🔴 Dokumentflyt uten registrator kan lagres, men kan ikke brukes — og feilmeldingen forklarer ikke hvorfor (Kenneth i prod 2026-08-13)
+
+**Opplevd i felt:** Kenneth satte opp prosjekt «Testprosjekt · Lakselv Lufthavn», bygde dokumentflyt «BL til BH» med faggruppe, koblet på malen «Befaringsrapport» — og fikk ingen advarsel. På mobilen lå malen under **«Vis utilgjengelige (2)»** med teksten *«Ingen av dine dokumentflyter bruker denne malen»*.
+
+**Meldingen er direkte misvisende:** flyten *bruker* malen. Det som manglet var registrator-rollen.
+
+**Regelen** (`mal.ts:151-180`): en mal er `opprettbar` hvis den er HMS-mal, **eller** ligger i ≥1 dokumentflyt der brukeren er medlem med `rolle = "registrator"` (`hentBrukersOpprettFlytMedlemskap`, `tilgangskontroll.ts:1050`) **og** flyten har eier-faggruppe.
+
+**Tre ulike årsaker gir samme melding:**
+1. malen er ikke i noen flyt
+2. flyten mangler registrator-medlem (Kenneths tilfelle)
+3. flyten mangler eier-faggruppe
+
+**Tiltak, i økende styrke:**
+1. **Presis feilmelding** — si hvilken av de tre som mangler, ikke én generisk tekst. Dette er minimum.
+2. **Advarsel i flyt-oppsettet** når en flyt lagres uten registrator: «Denne flyten kan ikke brukes til å opprette dokumenter.»
+3. Eventuelt blokkere lagring — cowork fraråder; det hindrer lagring av halvferdig oppsett, som er en egen frustrasjon.
+
+🟢 **Mønsteret finnes allerede — i HMS-flyten på samme side.** Skjermbildet viser `2 · BEHANDLER ⚠️ 0 medlemmer` med oransje ramme, forklarende tekst og «Meld meg inn»-knapp. Dokumentflyt-seksjonen rett over har ingen tilsvarende. **Tiltak 1 og 2 er altså å bruke et mønster som er bygget, ikke å designe et nytt** — samme visuelle språk, samme plassering, med «mangler registrator» i stedet for «0 medlemmer».
+
+🟡 **Sekundærfunn:** Kenneth løste det ved å legge registrator via `project_member_id` (person), mens bestiller/utfører er koblet via faggruppe/gruppe. Da er han **eneste** som kan opprette i flyten. Verdt å vurdere om oppsettet bør veilede mot faggruppe-kobling for konsistens.
+
+**Kenneths spørsmål:** *«skal det være lov å sette opp en dokumentflyt som ikke fungerer i praksis?»* — reist mens han i full fart skulle ta prosjektet i bruk.
+
+### Mobil-utskrift skjuler tomme tabeller og vedleggsfelt (målt 2026-08-13)
+
+**Oppfølger til web-funnet under.** `packages/pdf/src/felt.ts` viser «Ikke utfylt» for ~15 felttyper, men returnerer `""` — altså skjuler feltet — for to innholdsbærende typer:
+
+- **`repeater` med 0 rader** (`felt.ts:152`) → tom kontrolltabell forsvinner
+- **`attachments` med 0 vedlegg** (`felt.ts:131`) → tomt vedleggsfelt forsvinner
+
+Det betyr at kontrolltabellen Kenneth reagerte på i `K-avv-003` ville forsvunnet **også fra mobil-utskriften** — problemet er ikke bare web mot mobil.
+
+**Arkivmalen (fase 3) løser det via opt-in:** `renderFelt(..., { visTommeStrukturer })`. Mobil-kallene utelater parameteret og er dermed uendret — bevisst, for å respektere frysen på mobil-stien til EAS-adopsjon.
+
+🔴 **Derfor er denne lett å glemme:** etter fase 3 Stage 2 viser arkivmalen tabellen, og da *ser* saken løst ut. Feilen finnes bare i mobil-stien, som ingen tester.
+
+**Tiltak:** vurder om mobil skal få `visTommeStrukturer` som default etter at arkivmalen er verifisert. Krever EAS-bygg for å nå felt.
+
+### 🔴 Web-utskrift skjuler uutfylte felter — mobil viser dem (målt i prod 2026-08-12)
+
+**Samme dokument gir ulikt innhold avhengig av hvor det skrives ut.**
+
+| Renderer | Tomt felt | Konsument |
+|---|---|---|
+| `packages/pdf/src/felt.ts:44-93` | `<span class="tom">Ikke utfylt</span>` | mobil |
+| `apps/web/src/components/RapportObjektVisning.tsx:42` | **`if (tom) return null`** — feltet forsvinner | web |
+
+**Funnet av Kenneth ved prod-verifisering** av KS-avvik `K-avv-003` (A.Markussen): utskriften viste kun ett bilde. Avvikstype-feltet («Velg…», aldri besvart), kontrolltabellen og to kommentarfelt var borte uten spor.
+
+**Hvorfor web-varianten er den gale:** et avviksskjema dokumenterer like mye hva som *ikke* ble besvart. En byggherre som får et skjema uten synlige tomme felt kan ikke skille «alt er kontrollert» fra «halvparten ble aldri fylt ut». Samme prinsipp som «ærlig linje» i arkivmalens loggseksjon og `mangler:true` i eksport-manifestet: dokumentet skal si hva som ikke finnes.
+
+**Tiltak:** `felt.ts`-oppførselen er fasit. Løses i **fase 3b** når `utskrift/*` konverteres til arkivmodulen — der er dette en **rettelse**, ikke en regresjon, og skal dokumenteres som sådan i før/etter-beviset (den nye utskriften viser flere felt enn dagens web).
+
+**Åpent spørsmål til fabel:** er «Ikke utfylt» sterkt nok for et byggherre-dokument? Et uutfylt kontrollpunkt i en KS-rapport er mer alvorlig enn et tomt værfelt. Ingen krav om ulik visning per felttype nå.
+
 ### 🔴 Lagre-knapp skjult under scrollkanten i innstillinger — koster reelle misforståelser (Kenneth 2026-08-12)
 
 **Symptom:** bruker endrer en innstilling, ser endringen i UI-et, forlater siden — endringen er ikke lagret. Systemet oppfører seg deretter som om brukeren ikke gjorde noe.
@@ -123,7 +409,25 @@ Gjelder minst `dashbord/oppsett/prosjektoppsett`, men kartlegg alle `dashbord/op
 
 **Retning:** klient-utskriftssidene må vente på at hvert `<img>` har `complete === true` og `naturalWidth > 0` før `window.print()` kalles.
 
+🟢 **Klient-siden løses i `fix/utskrift-sidebryt-svarte-tegninger` (Del D, 2026-08-13).** `skrivUtNaarBilderErKlare()` (`apps/web/src/lib/utskrift-print.ts`) venter på `complete && naturalWidth > 0` per bilde, med 15 s sikkerhetsnett og `error`-hendelse som ferdig. Wiret i `utskrift/sjekkliste` + `utskrift/oppgave`. `sjekklister/skriv-ut` bruker manuell knapp (ingen auto-print-race). **Dette var samme rotårsak som de «svarte tegningene» i BEF-001** — ikke MIME, men at auto-print fyrte på flat 500 ms-frist før det store bildet var lastet. Arkiv-PDF-delen under står fortsatt åpen.
+
 🔴 **Gjelder også arkiv-PDF (fase 3).** Meldt til Opus dokgen som krav til rendrer-containeren: `networkidle0` alene er ikke nok for store bilder som dekodes etter at nettverket er stille. **Og en PDF skal ikke genereres stille med hull** — enten feil hele jobben, eller marker manglende bilde synlig. Et arkivdokument som ser komplett ut mens det mangler bevis er den verste utgangen. Fase 3b skal dokumentere dette som *rettelse*, ikke regresjon, i før/etter-beviset.
+
+
+### 🔴 Mobil-annotering eksporterer 3,4 MB PNG — sprenger rapport-størrelsen (Del C, målt 2026-08-13) — EGEN MOBIL-PR
+
+**Symptom:** Kenneths befaringsrapport (Lakselv Lufthavn, BEF-001) ble **12,8 MB** — for stor til å sende på e-post. Én annotert tegning står for mesteparten.
+
+**Målt årsak:** `apps/mobile/src/components/BildeAnnotering.tsx` (Fabric-canvas i WebView, `apps/mobile/src/assets/annoterings-html.ts`) eksporterer annoteringen som **PNG med alfakanal** — `3,4 MB` der originalen var et `~400 kB` JPEG. PNG av et fotografi + full skjermoppløsning (`1206 × 2082`, mobilskjermens format med transparent marg rundt tegningen) blåser opp filen ~8×.
+
+**Tiltak (egen mobil-PR — «Reload:»-plikt + koordinering med simulator-Opus):**
+1. Sett hvit bakgrunn på canvasen før eksport: `canvas.backgroundColor = "#ffffff"` (fjerner alfakanal → ingen transparent/svart marg).
+2. Eksporter som **JPEG** i stedet for PNG: `canvas.toDataURL({ format: "jpeg", quality: 0.85 })`. Da stemmer MIME med `.jpg`-endelsen som allerede sendes, og størrelsen faller til `400–600 kB`.
+3. Send riktig filnavn/endelse fra flyten.
+
+**Mål:** rapport under 5 MB. Mindre bilder gjør også Del D-ventingen kort i praksis — de to hører sammen.
+
+**Merk:** feil MIME (PNG servert som `image/jpeg`) er rettet server-side i samme runde som Del D — se `fix/utskrift-sidebryt-svarte-tegninger` (Content-Type fra magic bytes i `server.ts`, endelse fra magic bytes i `upload.ts`). Det retter de fem eksisterende feilførte filene, men **Del C er det som hindrer at nye annoteringer blir så store**.
 
 
 ### Foreldreløse bilder oppstår ved sletting — `Image` har `ON DELETE SET NULL` (målt 2026-08-12)

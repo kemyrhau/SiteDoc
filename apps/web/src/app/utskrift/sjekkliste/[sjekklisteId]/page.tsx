@@ -6,6 +6,7 @@ import { trpc } from "@/lib/trpc";
 import { Spinner } from "@sitedoc/ui";
 import { Printer, ExternalLink } from "lucide-react";
 import { RapportObjektVisning, TegningPosisjonPrint } from "@/components/RapportObjektVisning";
+import { skrivUtNaarBilderErKlare } from "@/lib/utskrift-print";
 import { byggObjektTre } from "@sitedoc/shared/types";
 import { fullBildeUrl, formaterNummer, prosjektReferanseForUtskrift } from "@sitedoc/pdf";
 import type { ProsjektForPdf, Utskriftsinnstillinger } from "@sitedoc/pdf";
@@ -114,13 +115,14 @@ export default function UtskriftSjekklisteSide() {
     ? new Date(sjekkliste.createdAt).toLocaleTimeString("nb-NO", { hour: "2-digit", minute: "2-digit" })
     : "";
 
-  // Auto-print når ?print=true og alt er lastet, lukk fanen etterpå
+  // Auto-print når ?print=true og alt er lastet, lukk fanen etterpå.
+  // Venter på at bildene faktisk er lastet før print — se skrivUtNaarBilderErKlare.
   useEffect(() => {
     if (autoPrint && !isLoading && !prosjektLaster && sjekkliste) {
       const lukk = () => window.close();
       window.addEventListener("afterprint", lukk);
-      const timer = setTimeout(() => window.print(), 500);
-      return () => { clearTimeout(timer); window.removeEventListener("afterprint", lukk); };
+      const avbryt = skrivUtNaarBilderErKlare();
+      return () => { avbryt(); window.removeEventListener("afterprint", lukk); };
     }
   }, [autoPrint, isLoading, prosjektLaster, sjekkliste]);
 
@@ -267,7 +269,9 @@ export default function UtskriftSjekklisteSide() {
                 const feltData = data[objekt.id];
                 return (
                   <div key={objekt.id}>
-                    <div className="print-no-break">
+                    {/* Repeater bryter mellom rader (no-break ligger per rad inne
+                        i RapportObjektVisning); andre toppnivå-felt holdes samlet. */}
+                    <div className={objekt.type === "repeater" ? undefined : "print-no-break"}>
                       <RapportObjektVisning
                         objekt={objekt}
                         verdi={feltData?.verdi ?? null}

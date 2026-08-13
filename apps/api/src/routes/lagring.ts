@@ -36,7 +36,7 @@ export interface Snapshot {
   rader: LagringRad[];
   prosjekter: Map<
     string,
-    { navn: string; nummer: string | null; primaryOrganizationId: string | null }
+    { navn: string; nummer: string | null; interntNummer: string | null; primaryOrganizationId: string | null }
   >;
   firmaer: Map<string, string>;
   generertVed: string;
@@ -62,7 +62,7 @@ async function byggSnapshot(prisma: PrismaClient): Promise<Snapshot> {
       prisma.pointCloud.findMany({ select: { projectId: true, fileSize: true } }),
       prisma.ftdDocument.findMany({ select: { projectId: true, fileSize: true } }),
       prisma.project.findMany({
-        select: { id: true, name: true, projectNumber: true, primaryOrganizationId: true },
+        select: { id: true, name: true, projectNumber: true, internalProjectNumber: true, primaryOrganizationId: true },
       }),
       prisma.organization.findMany({ select: { id: true, name: true } }),
     ]);
@@ -114,7 +114,12 @@ async function byggSnapshot(prisma: PrismaClient): Promise<Snapshot> {
   const prosjekter = new Map(
     prosjekterRaw.map((p) => [
       p.id,
-      { navn: p.name, nummer: p.projectNumber, primaryOrganizationId: p.primaryOrganizationId },
+      {
+        navn: p.name,
+        nummer: p.projectNumber,
+        interntNummer: p.internalProjectNumber,
+        primaryOrganizationId: p.primaryOrganizationId,
+      },
     ]),
   );
   const firmaer = new Map(firmaerRaw.map((o) => [o.id, o.name]));
@@ -134,7 +139,10 @@ function prosjektUt(agg: ProsjektAggregat, snap: Snapshot) {
   return {
     projectId: agg.projectId,
     prosjektNavn: meta?.navn ?? null,
+    // SD (prosjektNummer) beholdes for sitedoc-admin-flaten; internt vises i
+    // firma-flaten (fakturering). Se terminologi.md § Tre prosjektnumre.
     prosjektNummer: meta?.nummer ?? null,
+    interntNummer: meta?.interntNummer ?? null,
     perModell: agg.perModell,
     totalBytes: agg.totalBytes,
     totalAntall: agg.totalAntall,

@@ -50,7 +50,7 @@ type AttesteringRad = {
   beskrivelse: string | null;
   aktivitet: { id: string; navn: string; kode: string | null } | null;
   ansatt: Ansatt | null;
-  prosjekt: { id: string; name: string; projectNumber: string | null } | null;
+  prosjekt: { id: string; name: string; internalProjectNumber: string | null } | null;
   timer: TimerRad[];
   tillegg: TilleggRad[];
   maskiner: MaskinRad[];
@@ -207,7 +207,7 @@ export default function FirmaAttesteringSide() {
       prosjektId,
       prosjektNavn:
         sedler[0]?.prosjekt?.name ?? t("timer.detalj.ukjentProsjekt"),
-      prosjektNummer: sedler[0]?.prosjekt?.projectNumber ?? null,
+      prosjektNummer: sedler[0]?.prosjekt?.internalProjectNumber ?? null,
       sedler,
       arbeidstimer: sedler.reduce(
         (acc, s) => acc + s.timer.reduce((a, r) => a + Number(r.timer), 0),
