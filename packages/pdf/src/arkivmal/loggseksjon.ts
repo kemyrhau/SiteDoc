@@ -83,10 +83,26 @@ function endringslogg(logg: ArkivLogg): string {
 }
 
 /**
- * Full loggseksjon for sjekkliste/oppgave/HMS: Dokumenthistorikk (alltid) +
- * Endringslogg (økt-gruppert, betinget). Kontrollplan «Punkt-historikk» og
- * timer/utlegg «Revisjoner» bygges i det egne timer/utlegg/kontrollplan-steget.
+ * Full loggseksjon for sjekkliste/oppgave/HMS: Dokumenthistorikk (lag 1, ALLTID
+ * — sporbarhetsminimum) + Endringslogg (lag 2, økt-gruppert).
+ *
+ * `taMedEndringslogg` (krav #2, vedtak «logg alltid på, velges ved utskrift»):
+ * default true; false utelater lag 2 ved DENNE utskriften — men lag 1 kan aldri
+ * velges bort. Kontrollplan «Punkt-historikk» og timer/utlegg «Revisjoner»
+ * bygges i det egne datakilde-steget.
  */
-export function byggLoggseksjon(logg: ArkivLogg): string {
-  return dokumenthistorikk(logg.hendelser ?? []) + endringslogg(logg);
+export function byggLoggseksjon(logg: ArkivLogg, taMedEndringslogg = true): string {
+  const lag2 = taMedEndringslogg ? endringslogg(logg) : "";
+  return dokumenthistorikk(logg.hendelser ?? []) + lag2;
+}
+
+/**
+ * Utvetydig, S/H-lesbar merknad om vedlegg som IKKE kom med (cowork-vedtak (c)):
+ * et arkivdokument skal aldri kunne leses som komplett når det ikke er det.
+ * Rendres i selve dokumentet; api-/container-laget registrerer hvilke som feilet.
+ */
+export function byggMangelMerknad(manglendeVedlegg: string[]): string {
+  if (manglendeVedlegg.length === 0) return "";
+  const liste = manglendeVedlegg.map((f) => esc(f)).join(", ");
+  return `<div class="ark-mangel">⚠ MANGLENDE VEDLEGG — kunne ikke lastes ved generering: ${liste}. Dette dokumentet er derfor ikke komplett.</div>`;
 }

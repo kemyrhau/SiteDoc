@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   byggLoggseksjon,
+  byggMangelMerknad,
   byggSignaturblokk,
   byggArkivDokument,
   byggArkivLogg,
@@ -72,6 +73,37 @@ describe("byggLoggseksjon — Endringslogg (lag 2, økt-gruppert)", () => {
     expect(html).toContain("Silje Havstad · 06.08.2026");
     expect(html).toContain('<span class="ark-svak">Ikke utfylt</span> → OK'); // tom fra-verdi vist
     expect(html).toContain('<span class="ark-svak">32 mm</span> → 35 mm');
+  });
+});
+
+describe("krav #2 — logg-valg ved utskrift (taMedEndringslogg)", () => {
+  const logg = byggArkivLogg({
+    hendelser: [h({ tidspunkt: "2026-08-05T11:10:00.000Z", aktor: "M", handling: "Sendt" })],
+    endringer: [{ userId: "u1", aktor: "M", tidspunkt: "2026-08-05T07:14:00.000Z", felt: "F", fraVerdi: null, tilVerdi: "OK" }],
+    endringsloggAktivert: true,
+  });
+
+  it("false → Endringslogg (lag 2) utelates, men Dokumenthistorikk (lag 1) består", () => {
+    const html = byggLoggseksjon(logg, false);
+    expect(html).toContain("Dokumenthistorikk");
+    expect(html).not.toContain('ark-seksjon">Endringslogg');
+  });
+
+  it("true (default) → begge lag med", () => {
+    expect(byggLoggseksjon(logg, true)).toContain('ark-seksjon">Endringslogg');
+    expect(byggLoggseksjon(logg)).toContain('ark-seksjon">Endringslogg');
+  });
+});
+
+describe("vedtak (c) — mangel-merknad", () => {
+  it("manglende vedlegg → utvetydig S/H-lesbar merknad med «ikke komplett»", () => {
+    const html = byggMangelMerknad(["IMG_4821.jpg", "temp.csv"]);
+    expect(html).toContain("MANGLENDE VEDLEGG");
+    expect(html).toContain("IMG_4821.jpg");
+    expect(html).toContain("ikke komplett");
+  });
+  it("ingen manglende → tom", () => {
+    expect(byggMangelMerknad([])).toBe("");
   });
 });
 

@@ -214,4 +214,16 @@ export interface ArkivDokumentInput {
   eksport?: boolean;
   /** Løpende utskrift: prosjektets sidetall-valg (fra PdfConfig). */
   visSidenummer?: boolean;
+  /**
+   * Krav #2 (vedtak «logg alltid på, velges ved utskrift»): default true.
+   * false → Endringslogg (lag 2) utelates ved denne utskriften. Lag 1
+   * (Dokumenthistorikk) kan aldri velges bort.
+   */
+  taMedEndringslogg?: boolean;
+  /**
+   * Vedtak (c): filnavn på vedlegg som IKKE kom med (bilde-lasting feilet).
+   * Rendres som utvetydig mangel-merknad → dokumentet leses aldri som komplett
+   * når det ikke er det. Fylles av api-/container-laget.
+   */
+  manglendeVedlegg?: string[];
 }

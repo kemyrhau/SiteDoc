@@ -25,7 +25,7 @@ export { byggInnhold } from "./innhold";
 export { byggRepeaterTabell } from "./repeater";
 
 // Loggseksjon + signatur + sammenstilling (Stage 3)
-export { byggLoggseksjon } from "./loggseksjon";
+export { byggLoggseksjon, byggMangelMerknad } from "./loggseksjon";
 export { byggSignaturblokk } from "./signatur";
 export { byggArkivDokument } from "./dokument";
 export type { ArkivSignatur, ArkivDokumentInput } from "./typer";

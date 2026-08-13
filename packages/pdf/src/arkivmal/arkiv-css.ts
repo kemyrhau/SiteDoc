@@ -104,6 +104,9 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .ark-sign-strek{border-top:1px solid ${f.signatur};padding-top:3px;font-size:9px;color:${f.graa}}
 .ark-svak{color:${f.svak}}
 
+/* Mangel-merknad (vedtak c) — utvetydig, S/H-lesbar (border+tekst bærer, ikke bare farge) */
+.ark-mangel{margin-top:12px;border:1.5px solid ${f.rod};padding:8px 12px;font-size:10px;font-weight:600;color:${f.rod}}
+
 /* Sideskift — ingen radbryting midt i tabellrad ved paginering */
 tr,.ark-ingen-brekk{break-inside:avoid;page-break-inside:avoid}
 thead{display:table-header-group}

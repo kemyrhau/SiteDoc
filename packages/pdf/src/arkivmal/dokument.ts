@@ -12,7 +12,7 @@ import { formaterDatoKort } from "../hjelpere";
 import { hentArkivCss } from "./arkiv-css";
 import { tolkInnstillinger } from "./innstillinger";
 import { byggTopptekst, byggProsjektblokk, byggStatusblokk, byggBunntekst } from "./ramme";
-import { byggLoggseksjon } from "./loggseksjon";
+import { byggLoggseksjon, byggMangelMerknad } from "./loggseksjon";
 import { byggSignaturblokk } from "./signatur";
 import type { ArkivDokumentInput } from "./typer";
 
@@ -27,7 +27,8 @@ export function byggArkivDokument(input: ArkivDokumentInput): string {
     byggProsjektblokk(input.prosjektblokk, innst),
     byggStatusblokk(input.statusCeller, input.logg.sistEndret, (iso) => formaterDatoKort(iso)),
     input.innholdHtml,
-    byggLoggseksjon(input.logg),
+    byggMangelMerknad(input.manglendeVedlegg ?? []),
+    byggLoggseksjon(input.logg, input.taMedEndringslogg ?? true),
     byggSignaturblokk(input.signaturer),
     // Sidetall settes per side av containeren (Stage 4) — utelates i body.
     byggBunntekst(input.meta, input.generertTekst, null),
