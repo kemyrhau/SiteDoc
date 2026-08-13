@@ -96,6 +96,48 @@ const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
 **Ryddesak funnet samtidig:** to identiske «Sitedoc»-skallfirmaer (`er_kunde=false`, null prosjekter) i prod. «Kenneths testmiljø» har `er_kunde=true` og teller derfor som kunde i lagringsstatistikk og fakturering.
 
+### Ingen klipp/kopier/lim inn i tekstfelt på mobil (Kenneth i felt 2026-08-13)
+
+> *«jeg kan ikke copy/paste/cut på telefonen slik jeg kan i mirror-versjonen fra Mac når jeg redigerer i sjekkliste/oppgave/HMS»*
+
+**Observert** i fullskjerm kommentar-editor (tittel «Kommentar», Avbryt/Ferdig) på sjekkliste, under befaring på Lakselv Lufthavn. Teksten lar seg **markere** — seleksjon virker — men klippebord-menyen kommer ikke opp.
+
+Merk at samme app via skjermspeiling fra Mac oppfører seg riktig. Det peker mot en berørings-/gestinteraksjon, ikke mot at redigering er deaktivert.
+
+**Målt, uten å finne årsaken:** ingen `contextMenuHidden`, `selectTextOnFocus` eller `editable={false}` i `apps/mobile/src` eller `apps/mobile/app`. Blokkeringen er altså ikke eksplisitt i vår kode — mulige spor er en gesture-handler eller `ScrollView`/modal som fanger long-press før `TextInput` rekker det, eller en React Native-versjonsspesifikk oppførsel i modal.
+
+**Krever diagnose før tiltak.** Reproduser på fysisk enhet (ikke simulator — gestene oppfører seg ulikt) og isoler om det gjelder alle `TextInput` i appen eller kun de i fullskjerm-editoren.
+
+🔴 **Kenneth kontrollerte kun sjekkliste.** Oppgave og HMS er ikke testet, men *«lik opplevelse er nødvendig»* — de deler feltkomponenter, så antakelsen er at det gjelder alle tre. Verifiser alle ved retting.
+
+**Hvorfor det betyr noe i felt:** en befaringskommentar skrives ofte ved å lime inn tekst fra en e-post eller melding. Uten klippebord må feltarbeideren skrive alt på nytt, på telefon, i regn.
+
+### Bildehåndtering på mobil: serieopplasting + nummerering (Kenneth i felt 2026-08-13)
+
+Reist mens Kenneth dokumenterte befaring på Lakselv Lufthavn — tre bilder lastet opp ett og ett.
+
+**1. Serieopplasting fra galleri, i valgt rekkefølge**
+
+> *«jeg kan kun laste opp et og et bilde. Det hadde vært fint å velge bilder 1, 2 … xx slik at de legger seg inn i samme rekkefølge.»*
+
+Målt: `apps/mobile/src/services/bilde.ts:171` kaller `ImagePicker.launchImageLibraryAsync` **uten** `allowsMultipleSelection`, og plukker `resultat.assets[0]` — altså kun første.
+
+Expo støtter både `allowsMultipleSelection` og **`orderedSelection`** (iOS), der assets returneres i den rekkefølgen brukeren tappet dem. Det er nøyaktig kravet.
+
+Endringen: flagg på pickeren, returner array framfor enkeltobjekt, og la kallerne løpe komprimering + opplastingskø per bilde. **Opplastingskøen håndterer alt allerede** (`OpplastingsKoProvider`) — den trenger bare flere elementer.
+
+🔴 **Rekkefølgen må bevares gjennom hele kjeden**, ikke bare ved valg: komprimering er asynkron, så uten eksplisitt indeks vil raske små bilder passere trege store. Sett `sortOrder` ved innlegging i køen, ikke ved fullført opplasting.
+
+**2. Nummerering under hvert bilde i rapporten**
+
+> *«bilder burde tilordnes bildenummer som vises enten i et hjørne i bildet eller under hvert bilde»*
+
+`Image.sortOrder Int @default(0)` finnes alt i schemaet — rekkefølgen lagres, den vises bare ikke. Gjelder mobil-thumbnails, web-visning og **utskrift**: et byggherre-dokument der teksten viser til «bilde 3» trenger at bildene faktisk er nummerert.
+
+🟡 **Merk asymmetrien:** `Image` har `sortOrder`, men vedlegg i felt-JSON (`vedlegg[]`) har kun `id`/`url`/`filnavn`/`opprettet` — der er rekkefølgen array-posisjonen. Nummereringen må utledes konsistent for begge, ellers viser samme bilde ulikt nummer på ulike flater.
+
+Hører naturlig sammen med fase 3 (arkivmal), der bildeblokkene uansett bygges.
+
 ### 🔴 Dokumentflyt uten registrator kan lagres, men kan ikke brukes — og feilmeldingen forklarer ikke hvorfor (Kenneth i prod 2026-08-13)
 
 **Opplevd i felt:** Kenneth satte opp prosjekt «Testprosjekt · Lakselv Lufthavn», bygde dokumentflyt «BL til BH» med faggruppe, koblet på malen «Befaringsrapport» — og fikk ingen advarsel. På mobilen lå malen under **«Vis utilgjengelige (2)»** med teksten *«Ingen av dine dokumentflyter bruker denne malen»*.
