@@ -305,7 +305,7 @@ Handlingsknapper basert på brukerens **posisjon i flyten** (`apps/web/src/compo
 - `null`-rolle = lesevisning (ingen knapper)
 - "Trekk tilbake" = `sent → cancelled` (ikke "Avbryt" som er UI-avbryt)
 - **API:** `gruppe.hentMinFlytInfo` returnerer `userId`, `projectMemberId`, `entrepriseIder`, `gruppeIder`, `erAdmin`
-- **API-validering:** `verifiserFlytRolle()` sjekker rolle før statusendring (403 ved mismatch)
+- **API-validering:** `verifiserRetningsrett()` sjekker posisjon/retning før statusendring (403 ved mismatch). Erstattet rolle-matrisen `verifiserFlytRolle` i fase 3.4
 - **Videresend med flytbytte:** Oppdaterer `dokumentflytId` + `utforerEnterpriseId` automatisk
 - `cancelled → draft` er gyldig overgang (gjenåpning)
 
