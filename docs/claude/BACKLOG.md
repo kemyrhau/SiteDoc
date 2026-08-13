@@ -96,6 +96,30 @@ const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
 **Ryddesak funnet samtidig:** to identiske «Sitedoc»-skallfirmaer (`er_kunde=false`, null prosjekter) i prod. «Kenneths testmiljø» har `er_kunde=true` og teller derfor som kunde i lagringsstatistikk og fakturering.
 
+### 🔴 Dokumentflyt uten registrator kan lagres, men kan ikke brukes — og feilmeldingen forklarer ikke hvorfor (Kenneth i prod 2026-08-13)
+
+**Opplevd i felt:** Kenneth satte opp prosjekt «Testprosjekt · Lakselv Lufthavn», bygde dokumentflyt «BL til BH» med faggruppe, koblet på malen «Befaringsrapport» — og fikk ingen advarsel. På mobilen lå malen under **«Vis utilgjengelige (2)»** med teksten *«Ingen av dine dokumentflyter bruker denne malen»*.
+
+**Meldingen er direkte misvisende:** flyten *bruker* malen. Det som manglet var registrator-rollen.
+
+**Regelen** (`mal.ts:151-180`): en mal er `opprettbar` hvis den er HMS-mal, **eller** ligger i ≥1 dokumentflyt der brukeren er medlem med `rolle = "registrator"` (`hentBrukersOpprettFlytMedlemskap`, `tilgangskontroll.ts:1050`) **og** flyten har eier-faggruppe.
+
+**Tre ulike årsaker gir samme melding:**
+1. malen er ikke i noen flyt
+2. flyten mangler registrator-medlem (Kenneths tilfelle)
+3. flyten mangler eier-faggruppe
+
+**Tiltak, i økende styrke:**
+1. **Presis feilmelding** — si hvilken av de tre som mangler, ikke én generisk tekst. Dette er minimum.
+2. **Advarsel i flyt-oppsettet** når en flyt lagres uten registrator: «Denne flyten kan ikke brukes til å opprette dokumenter.»
+3. Eventuelt blokkere lagring — cowork fraråder; det hindrer lagring av halvferdig oppsett, som er en egen frustrasjon.
+
+🟢 **Mønsteret finnes allerede — i HMS-flyten på samme side.** Skjermbildet viser `2 · BEHANDLER ⚠️ 0 medlemmer` med oransje ramme, forklarende tekst og «Meld meg inn»-knapp. Dokumentflyt-seksjonen rett over har ingen tilsvarende. **Tiltak 1 og 2 er altså å bruke et mønster som er bygget, ikke å designe et nytt** — samme visuelle språk, samme plassering, med «mangler registrator» i stedet for «0 medlemmer».
+
+🟡 **Sekundærfunn:** Kenneth løste det ved å legge registrator via `project_member_id` (person), mens bestiller/utfører er koblet via faggruppe/gruppe. Da er han **eneste** som kan opprette i flyten. Verdt å vurdere om oppsettet bør veilede mot faggruppe-kobling for konsistens.
+
+**Kenneths spørsmål:** *«skal det være lov å sette opp en dokumentflyt som ikke fungerer i praksis?»* — reist mens han i full fart skulle ta prosjektet i bruk.
+
 ### Mobil-utskrift skjuler tomme tabeller og vedleggsfelt (målt 2026-08-13)
 
 **Oppfølger til web-funnet under.** `packages/pdf/src/felt.ts` viser «Ikke utfylt» for ~15 felttyper, men returnerer `""` — altså skjuler feltet — for to innholdsbærende typer:
