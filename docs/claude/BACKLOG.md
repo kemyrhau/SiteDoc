@@ -96,6 +96,42 @@ const prosjektnummer = `SD-${aar}${mnd}${dag}-${sekv}`;
 
 **Ryddesak funnet samtidig:** to identiske «Sitedoc»-skallfirmaer (`er_kunde=false`, null prosjekter) i prod. «Kenneths testmiljø» har `er_kunde=true` og teller derfor som kunde i lagringsstatistikk og fakturering.
 
+### Fire funn fra mobil-befaring (Kenneth, Lakselv Lufthavn 2026-08-13)
+
+Alle observert under reell dokumentasjon av befaring, med mal «Befaringsrapport».
+
+**1. 🔴 Deltakere skrives ut som UUID i mobil-utskrift**
+
+Delefunksjonen ga `Deltakere: 74730685-c6dd-451b-aec6-ea401ec566a2` i stedet for navn.
+
+Målt: `packages/pdf/src/felt.ts` `case "persons"` gjør `(verdi as string[]).join(", ")` — arrayet inneholder **bruker-IDer**, og ingen slår opp navn. Samme svakhet i `case "person"`/`"company"` (`String(verdi)`).
+
+Rendreren har ingen tilgang til brukerlisten; oppslaget må skje i api-laget som mater den, slik logg-leserne gjør for `senderId`. Løses i **fase 3** — arkivmalen trenger navnene uansett. Merk at web trolig viser navn, altså enda en web/mobil-divergens.
+
+**2. Befaringsdato mangler klokkeslett**
+
+Ønske: redigerbart klokkeslett i tillegg til dato. Felttypen `date_time` finnes alt (`felt.ts` har egen case med `formaterDatoTid`), så dette er et malvalg — men Kenneth ber om at *befaringsdato spesifikt* bærer tidspunkt. Vurder om malen skal bytte felttype, eller om `date` bør kunne utvides med valgfri tid.
+
+**3. Lav kontrast på «+ Legg til rad» på telefon**
+
+Repeaterens legg-til-knapp er stiplet grå på hvit bakgrunn. I dagslys på byggeplass er den vanskelig å se. Ren styling-sak, men den treffer den mest brukte handlingen i en befaringsrapport.
+
+**4. 🔴 Repeateren har egen verdi/kommentar/vedlegg — det er feil modellering**
+
+Kenneth reagerte på et «Kommentar…»-felt med bilde-knapper under «+ Legg til rad», som ikke finnes i malens oppbygging.
+
+**Hva det er:** hvert felt i SiteDoc har `{ verdi, kommentar, vedlegg }`. Repeateren behandles som et felt, så den får sin egen kommentar- og vedleggsblokk i tillegg til radene.
+
+🔴 **Kenneths vurdering, og den er riktig:** *«repeater trenger heller ingen tekst, kun repeater-funksjon»*.
+
+**En repeater er en container, ikke et innholdsfelt.** En kommentar på selve listen har ingen naturlig betydning — den hører til en rad. Et vedlegg enda mindre: hvilket bilde hører til «alle observasjoner»? Det hører til observasjon 2. I praksis legger brukeren begge deler i en rad, og containerens egne felt blir stående tomme og forvirrende.
+
+Dette er samme mønster som flere funn i august: **en uniform regel anvendt der den ikke gir mening.** Uten unntak blir strukturen konsistent i koden og feil i bruk.
+
+**Tiltak:** repeater skal kun bære rader — ingen egen `verdi`, `kommentar` eller `vedlegg`. Gjelder mobil, web, malbygger og begge utskriftsrenderere.
+
+🟡 **Mål før fjerning:** finnes det produksjonsdata i repeateres egne `kommentar`/`vedlegg`? Sannsynligvis lite, siden feltet er forvirrende og lite brukt — men det skal ikke slettes uten å vite. Samme prinsipp som de foreldreløse bildene.
+
 ### Ingen klipp/kopier/lim inn i tekstfelt på mobil (Kenneth i felt 2026-08-13)
 
 > *«jeg kan ikke copy/paste/cut på telefonen slik jeg kan i mirror-versjonen fra Mac når jeg redigerer i sjekkliste/oppgave/HMS»*
