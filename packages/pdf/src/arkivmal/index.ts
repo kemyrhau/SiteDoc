@@ -13,7 +13,34 @@ export type {
   RevisjonRad,
   SistEndret,
   ArkivLogg,
+  ArkivKategori,
+  ArkivFirma,
+  ArkivDokumentMeta,
+  ArkivProsjektblokk,
+  StatusCelle,
 } from "./typer";
+
+// Innholds-renderer (Stage 2)
+export { byggInnhold } from "./innhold";
+export { byggRepeaterTabell } from "./repeater";
+
+// Loggseksjon + signatur + sammenstilling (Stage 3)
+export { byggLoggseksjon, byggMangelMerknad } from "./loggseksjon";
+export { byggSignaturblokk } from "./signatur";
+export { byggArkivDokument } from "./dokument";
+export type { ArkivSignatur, ArkivDokumentInput } from "./typer";
+
+// Ramme-byggeklosser (Stage 1)
+export { ARKIV_FARGER, hentArkivCss } from "./arkiv-css";
+export {
+  statusTekst,
+  statusSemantiskFarge,
+  byggTopptekst,
+  byggProsjektblokk,
+  byggStatusblokk,
+  byggFortsettelsesHeader,
+  byggBunntekst,
+} from "./ramme";
 
 export { avledHandling } from "./handling";
 

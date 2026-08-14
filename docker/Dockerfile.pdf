@@ -1,0 +1,19 @@
+# syntax=docker/dockerfile:1
+# Arkivmal HTML→PDF-konverter (Stage 4a) — standalone sidecar på Playwright-
+# Chromium-base (ingen eksisterende container har Chromium). Ren konverter:
+# ingen DB, ingen FIL_SIGNING_SECRET (bilder inlinet av api, levering av api).
+# Playwright-npm-versjonen MÅ matche base-image-taggen (v1.49.0).
+FROM mcr.microsoft.com/playwright:v1.49.0-jammy
+WORKDIR /app
+
+# Bygg-stempel (som api/web) — ARG bæres ikke over steg, re-deklarer + sett ENV.
+ARG GIT_SHA=
+ARG BUILD_TID=
+ENV GIT_SHA=$GIT_SHA \
+    BUILD_TID=$BUILD_TID \
+    NODE_ENV=production
+
+COPY docker/pdf-render/package.json ./
+RUN npm install --omit=dev
+COPY docker/pdf-render/server.mjs ./
+CMD ["node", "server.mjs"]

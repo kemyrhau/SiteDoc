@@ -3,7 +3,7 @@
  * Støtter alle 23+ felttyper. Brukes av både sjekkliste- og oppgave-PDF.
  */
 
-import type { RapportObjekt, TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
+import type { TreObjekt, FeltVerdi, VaerVerdi, PdfConfig } from "./typer";
 import { TRAFIKKLYS } from "./konstanter";
 import { esc, normaliserOpsjon, formaterDato, formaterDatoTid, fullBildeUrl } from "./hjelpere";
 
@@ -128,7 +128,13 @@ export function renderFelt(
       const vedleggListe = Array.isArray(verdi)
         ? (verdi as Array<{ id?: string; url?: string; filnavn?: string; type?: string }>)
         : [];
-      if (vedleggListe.length === 0) return "";
+      if (vedleggListe.length === 0) {
+        // Opt-in (arkivmal): tomt vedleggsfelt skjules ikke — byggherre skal se
+        // at feltet finnes men er tomt. Mobil (uten flagget) beholder dagens skjul.
+        return config.visTommeStrukturer
+          ? `<div class="felt-blokk"><div class="felt-label">${esc(label)}</div><div class="felt-verdi"><span class="tom">Ingen vedlegg</span></div></div>`
+          : "";
+      }
       const bilder = vedleggListe.filter((v) => v.type === "bilde" || /\.(png|jpg|jpeg|gif|webp)$/i.test(v.filnavn ?? ""));
       const filer = vedleggListe.filter((v) => !bilder.includes(v));
       let html = `<div class="felt-blokk"><div class="felt-label">${esc(label)}</div>`;
@@ -148,6 +154,9 @@ export function renderFelt(
     }
 
     case "repeater": {
+      // Repeater-case er FROSSET (mobil-sti til EAS-adopsjon). Arkivmalen
+      // overstyrer repeater via egen tabell-renderer (byggRepeaterTabell) —
+      // felt.ts rører ikke repeater. Mobil beholder div-blokk-formen.
       const rader = Array.isArray(verdi) ? (verdi as Record<string, FeltVerdi>[]) : [];
       if (rader.length === 0) return "";
       const barn = objekt.children ?? [];

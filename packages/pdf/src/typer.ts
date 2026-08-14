@@ -149,4 +149,11 @@ export interface PdfConfig {
   tegningScreenshot?: string | null;
   /** Pre-croppet detalj-utsnitt (base64 data-URL, generert av cropScreenshot) */
   tegningDetaljScreenshot?: string | null;
+  /**
+   * Arkivmal (opt-in, default av → mobil uendret): vis tomme strukturer i
+   * stedet for å skjule dem. Tom `repeater` → «Ingen rader registrert»,
+   * tomt `attachments` → «Ingen vedlegg». For byggherre-dokumentasjon skal en
+   * tom kontrolltabell ikke forsvinne stille (cowork 2026-08-13).
+   */
+  visTommeStrukturer?: boolean;
 }

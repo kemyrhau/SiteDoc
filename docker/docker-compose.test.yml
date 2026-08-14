@@ -27,6 +27,7 @@ services:
       HOST: "0.0.0.0"
       NORBERT_URL: "http://embed:3302"             # deler prod sin embed (statsløs modell-server)
       OVERSETTELSE_URL: "http://oversettelse:3303" # deler prod sin oversettelse
+      PDF_URL: "http://pdf-render:3304"            # deler prod sin pdf-render (arkivmal-konverter)
     ports:
       - "127.0.0.1:3301:3301"
       - "127.0.0.1:3300:3300"   # test-web lytter her (deler api sitt nett-namespace)
