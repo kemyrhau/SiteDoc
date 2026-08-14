@@ -12,7 +12,6 @@ import { HjelpKnapp, HjelpFane } from "@/components/hjelp/HjelpModal";
 import { MatriseVisning } from "@/components/kontrollplan/MatriseVisning";
 import { ListeVisning } from "@/components/kontrollplan/ListeVisning";
 import { PunktStartHandling } from "@/components/kontrollplan/PunktStartHandling";
-import { byggMalFlytStatus, type DokumentflytForStatus } from "@/lib/malFlytStatus";
 import { tellGodkjente } from "@/lib/kontrollplanFremdrift";
 import { OpprettPunktDialog } from "@/components/kontrollplan/OpprettPunktDialog";
 import { RedigerPunktDialog } from "@/components/kontrollplan/RedigerPunktDialog";
@@ -54,7 +53,7 @@ interface PunktType {
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
   faggruppe: { id: string; name: string; color: string | null };
   omrade: { id: string; navn: string; type: string } | null;
-  sjekkliste: { id: string; status: string } | null;
+  sjekkliste: { id: string; status: string; dokumentflytId: string | null; dokumentflyt: { id: string; name: string } | null } | null;
   dokumentflyt: { id: string; name: string } | null;
   drawing: { id: string; name: string } | null;
   avhengerAv: { id: string; status: string; sjekklisteMal: { name: string }; omrade: { navn: string } | null } | null;
@@ -102,29 +101,11 @@ export default function KontrollplanSide() {
     { enabled: !!params.prosjektId }
   );
 
-  // «Start»-veien trenger malenes opprettbare flyter + flyt-detaljer (samme kilder som
-  // sjekkliste-opprettelsen). Flyt-status per mal avgjør én/flere/ingen flyt før klikk.
-  const { data: maler } = trpc.mal.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId }
-  );
-  const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
-    { projectId: params.prosjektId },
-    { enabled: !!params.prosjektId }
-  );
-  // L1.5: kan innlogget bruker sette forhåndsvalgt flyt (admin)? Styrer «Velg flyt for
+  // L1.5/L1.6: kan innlogget bruker sette forhåndsvalgt flyt (admin)? Styrer «Velg flyt for
   // punktet»-handlingen i feilmeldingen (vises kun til den som faktisk kan det).
   const { data: kanRedigere } = trpc.mal.kanRedigere.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId }
-  );
-  const malFlytStatus = useMemo(
-    () =>
-      byggMalFlytStatus(
-        (maler ?? []) as Array<{ id: string; opprettbareFlytIder?: string[] }>,
-        (dokumentflyter ?? []) as DokumentflytForStatus[],
-      ),
-    [maler, dokumentflyter],
   );
 
   // Auto-opprett kontrollplan når byggeplass byttes
@@ -181,15 +162,14 @@ export default function KontrollplanSide() {
         punkt={punkt}
         projectId={params.prosjektId}
         byggeplassId={aktivByggeplass?.id ?? ""}
-        flytStatus={malFlytStatus.get(punkt.sjekklisteMalId)}
         onEndret={handleRefresh}
         kanSetteFlyt={kanRedigere === true}
         onVelgFlyt={() => setValgtPunkt(punkt)}
       />
     ),
-    // handleRefresh er stabil (defineres under); aktivByggeplass/malFlytStatus styrer
+    // handleRefresh er stabil (defineres under); aktivByggeplass/kanRedigere styrer
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [params.prosjektId, aktivByggeplass?.id, malFlytStatus, kanRedigere],
+    [params.prosjektId, aktivByggeplass?.id, kanRedigere],
   );
 
   const handleRefresh = useCallback(() => {

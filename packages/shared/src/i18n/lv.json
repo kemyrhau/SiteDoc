@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Iepriekš atlasītā dokumentu plūsma",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Kad plūsma ir atlasīta, ikviens var sākt punktu šajā plūsmā — neatkarīgi no reģistratora. Tukšs: šodienas noteikums (kas sāk, tam ir jābūt reģistratoram plūsmā).",
   "kontrollplan.flytIngenBrukRegistrator": "Nav — izmantojiet reģistratora kārtulu",
+  "kontrollplan.flytLaastEtterStart": "Punkts ir sācies. Plūsma ir bloķēta izveidotajam kontrolsarakstam — mainot to šeit, esošais dokuments netiks pārvietots.",
   "kontrollplan.settFlytForAlle": "Lietot visiem {{antall}} punktiem ar veidni {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} jau ir cita plūsma, un tie tiek izlaisti",
   "kontrollplan.settFlytResultat": "{{oppdatert}} atjaunināts, {{hoppetOver}} izlaists",

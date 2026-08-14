@@ -26,7 +26,7 @@ interface Punkt {
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
   faggruppe: { id: string; name: string; color: string | null };
   omrade: { id: string; navn: string; type: string } | null;
-  sjekkliste: { id: string; status: string } | null;
+  sjekkliste: { id: string; status: string; dokumentflytId: string | null; dokumentflyt: { id: string; name: string } | null } | null;
   dokumentflyt: { id: string; name: string } | null;
   drawing: { id: string; name: string } | null;
   avhengerAv: { id: string; status: string; sjekklisteMal: { name: string }; omrade: { navn: string } | null } | null;

@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Förvalt dokumentflöde",
   "kontrollplan.forhaandsvalgtFlytHjelp": "När ett flöde är valt kan vem som helst starta punkten i det flödet – oavsett registrar. Tom: dagens regel (den som startar måste vara registrar i flödet).",
   "kontrollplan.flytIngenBrukRegistrator": "Ingen – använd registrarregeln",
+  "kontrollplan.flytLaastEtterStart": "Poängen har börjat. Flödet är låst till checklistan som skapades – om du ändrar den här flyttas det befintliga dokumentet inte.",
   "kontrollplan.settFlytForAlle": "Tillämpa på alla {{antall}} punkter med mallen {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} har redan ett annat flöde och hoppas över",
   "kontrollplan.settFlytResultat": "{{oppdatert}} uppdaterad, {{hoppetOver}} hoppade över",

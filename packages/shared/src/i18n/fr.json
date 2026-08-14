@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Flux de documents présélectionnés",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Lorsqu'un flux est sélectionné, n'importe qui peut démarrer le point de ce flux, quel que soit le bureau d'enregistrement. Vide : règle du jour (celui qui commence doit être un registraire dans le flux).",
   "kontrollplan.flytIngenBrukRegistrator": "Aucun — utilisez la règle du registraire",
+  "kontrollplan.flytLaastEtterStart": "Le point est commencé. Le flux est verrouillé sur la liste de contrôle qui a été créée : la modifier ici ne déplacerait pas le document existant.",
   "kontrollplan.settFlytForAlle": "Appliquer à tous les points {{antall}} avec le modèle {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} ont déjà un flux différent et sont ignorés",
   "kontrollplan.settFlytResultat": "{{oppdatert}} mis à jour, {{hoppetOver}} ignoré",

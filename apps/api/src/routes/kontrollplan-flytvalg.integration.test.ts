@@ -4,17 +4,20 @@ import { prisma } from "@sitedoc/db";
 import { createTestCaller } from "../test-harness/context";
 
 /**
- * Regresjonsnett for L1.5 «forhåndsvalgt flyt»-bypass.
+ * Regresjonsnett for «forhåndsvalgt flyt»-bypass (L1.5) + L1.6-innstramming.
  *
  * Modellen: et kontrollpunkt kan ha en forhåndsvalgt dokumentflyt (satt av admin via
  * settPunktFlyt). Er den satt, er flyten plan-autorisert → Start bruker den direkte,
- * UAVHENGIG av om klikkeren er registrator. Er feltet null, gjelder dagens registrator-
- * krav. Denne testen låser begge greinene mot kjørende kode:
- *   1) preset-punkt + IKKE-registrator klikker → Start LYKKES (bypass virker)
- *   2) uten-preset-punkt + IKKE-registrator klikker → FORBIDDEN (registrator-kravet står)
+ * UAVHENGIG av om klikkeren er registrator. L1.6 strammer gulvet: klikkeren må tilhøre
+ * PUNKTETS faggruppe (ikke bare være prosjektmedlem). Er feltet null, kan punktet ikke
+ * startes uten at en admin setter flyten. Testen låser tre greiner mot kjørende kode:
+ *   1) preset-punkt + faggruppe-medlem (ikke registrator) → Start LYKKES (bypass virker)
+ *   2) uten-preset-punkt + klient-valgt flyt + ikke-registrator → FORBIDDEN (registrator-gate)
+ *   3) preset-punkt + prosjektmedlem UTENFOR punktets faggruppe → FORBIDDEN (L1.6-gulvet)
  *
- * Uten grein (1) ville L1.5 vært funksjonsløs; uten grein (2) ville registrator-kravet
- * vært omgåelig for ethvert punkt — nettopp auth-hullet cowork fanget i designgaten.
+ * Uten grein (1) ville bypass vært funksjonsløs; uten grein (2) ville registrator-kravet
+ * vært omgåelig for klient-valgt flyt; uten grein (3) kunne ethvert prosjektmedlem starte
+ * et preset-punkt — nettopp auth-hullet fabel strammet i L1.6.
  *
  * Krever localhost-sandkasse-DB (som alle *.integration.test.ts). Commit-seed → teardown.
  */
@@ -22,8 +25,9 @@ describe("sjekkliste.opprett — forhåndsvalgt flyt gjør Start uavhengig av re
   const NS = `kpflyt-${randomUUID().slice(0, 8)}`;
   const id = {
     projectId: "",
-    klikkerUserId: "", // prosjektmedlem, IKKE registrator i flyten
+    klikkerUserId: "", // prosjektmedlem + faggruppe-medlem, IKKE registrator i flyten
     registratorUserId: "", // flytens registrator (en annen person)
+    fremmedUserId: "", // prosjektmedlem UTENFOR punktets faggruppe (L1.6-negativtest)
     faggruppeId: "",
     dokumentflytId: "",
     templateId: "",
@@ -38,8 +42,12 @@ describe("sjekkliste.opprett — forhåndsvalgt flyt gjør Start uavhengig av re
     const registrator = await prisma.user.create({
       data: { id: randomUUID(), name: `${NS} Registrator`, email: `${NS}-reg@l15.test`, role: "user" },
     });
+    const fremmed = await prisma.user.create({
+      data: { id: randomUUID(), name: `${NS} Fremmed`, email: `${NS}-fremmed@l16.test`, role: "user" },
+    });
     id.klikkerUserId = klikker.id;
     id.registratorUserId = registrator.id;
+    id.fremmedUserId = fremmed.id;
 
     const project = await prisma.project.create({
       data: { id: randomUUID(), projectNumber: `${NS}`, name: `${NS} Prosjekt`, primaryOrganizationId: null },
@@ -52,6 +60,11 @@ describe("sjekkliste.opprett — forhåndsvalgt flyt gjør Start uavhengig av re
     });
     const pmReg = await prisma.projectMember.create({
       data: { id: randomUUID(), userId: registrator.id, projectId: project.id, role: "member" },
+    });
+    // Fremmed: prosjektmedlem, men bevisst UTEN faggruppeKobling → tilhører ikke punktets
+    // faggruppe. L1.6-gulvet skal avvise ham selv på et preset-punkt (test 3).
+    await prisma.projectMember.create({
+      data: { id: randomUUID(), userId: id.fremmedUserId, projectId: project.id, role: "member" },
     });
 
     const faggruppe = await prisma.faggruppe.create({
@@ -131,7 +144,7 @@ describe("sjekkliste.opprett — forhåndsvalgt flyt gjør Start uavhengig av re
     await prisma.faggruppe.deleteMany({ where: { projectId: id.projectId } });
     await prisma.projectMember.deleteMany({ where: { projectId: id.projectId } });
     await prisma.project.deleteMany({ where: { id: id.projectId } });
-    await prisma.user.deleteMany({ where: { id: { in: [id.klikkerUserId, id.registratorUserId] } } });
+    await prisma.user.deleteMany({ where: { id: { in: [id.klikkerUserId, id.registratorUserId, id.fremmedUserId] } } });
   });
 
   it("preset-punkt: ikke-registrator kan starte, og punktet kobles til sjekklisten", async () => {
@@ -167,5 +180,23 @@ describe("sjekkliste.opprett — forhåndsvalgt flyt gjør Start uavhengig av re
     // Klikkeren tilhører faggruppen, men er ikke oppretter-medlem (registrator) av
     // flyten → registrator-gaten avviser. Beviser at bypass KUN gjelder preset-punkter.
     expect(String(feil?.message)).toMatch(/oppretter-medlem/i);
+  });
+
+  it("preset-punkt: prosjektmedlem UTENFOR punktets faggruppe avvises (L1.6-gulvet)", async () => {
+    const caller = createTestCaller(id.fremmedUserId);
+    const feil = await caller.sjekkliste
+      .opprett({
+        templateId: id.templateId,
+        dokumentflytId: id.dokumentflytId,
+        kontrollplanPunktId: id.presetPunktId,
+      })
+      .then(() => null)
+      .catch((e: unknown) => e as { code?: string; message: string });
+    expect(feil).toBeTruthy();
+    // L1.6: gulvet er faggruppe-tilhørighet, ikke prosjektmedlemskap. Fremmed er
+    // prosjektmedlem men ikke i punktets faggruppe → verifiserFaggruppeTilhorighet avviser.
+    // Uten L1.6 (bare verifiserProsjektmedlem) ville denne Start lyktes — det var hullet.
+    expect(feil?.code).toBe("FORBIDDEN");
+    expect(String(feil?.message)).toMatch(/tilhører ikke denne faggruppen/i);
   });
 });

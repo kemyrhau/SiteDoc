@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { Play, ExternalLink, Link2, Loader2, AlertCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
-import type { MalFlytStatus } from "@/lib/malFlytStatus";
 import { avledPunktFremdrift } from "@/lib/kontrollplanFremdrift";
 import { KoblePunktDialog } from "./KoblePunktDialog";
 
@@ -34,18 +33,21 @@ const fremdriftNokler: Record<string, string> = {
 };
 
 /**
- * Start/koble/åpne-handling for ett kontrollpunkt. Selvstendig: eier opprett-mutasjon,
- * flyt-valg (én flyt → 1 klikk, flere → velger, ingen → forklarende feil) og navigasjon.
- * Rendres både i lista og i RedigerPunktDialog, så matrisen slipper knapper i cellene.
+ * Start/koble/åpne-handling for ett kontrollpunkt. Selvstendig: eier opprett-mutasjon
+ * og navigasjon. Rendres både i lista og i RedigerPunktDialog, så matrisen slipper
+ * knapper i cellene.
  *
- * «Start» går den VANLIGE veien (sjekkliste.opprett) med kontrollplanPunktId satt, så
- * opprettelse + kobling skjer atomisk i én transaksjon på serveren.
+ * L1.6: flyten bestemmes ved PLANOPPSETT (`punkt.dokumentflytId`), ikke ved Start. Start
+ * er derfor én handling uten valg: er flyten satt → opprett direkte; er den null → den
+ * handlingsbare feilmeldingen (admin setter flyten på punktet). Ingen flyt-velger her —
+ * det ville flyttet plan-autorisasjonen til klikk-tidspunktet, som er nettopp det
+ * fabel-vedtaket fjerner. «Start» går den VANLIGE veien (sjekkliste.opprett) med
+ * kontrollplanPunktId satt, så opprettelse + kobling skjer atomisk på serveren.
  */
 export function PunktStartHandling({
   punkt,
   projectId,
   byggeplassId,
-  flytStatus,
   onEndret,
   kanSetteFlyt = false,
   onVelgFlyt,
@@ -53,9 +55,8 @@ export function PunktStartHandling({
   punkt: PunktLite;
   projectId: string;
   byggeplassId: string;
-  flytStatus: MalFlytStatus | undefined;
   onEndret: () => void;
-  // L1.5: kan innlogget bruker sette forhåndsvalgt flyt (admin)? Styrer om «Velg flyt
+  // L1.5/L1.6: kan innlogget bruker sette forhåndsvalgt flyt (admin)? Styrer om «Velg flyt
   // for punktet»-handlingen tilbys i feilmeldingen — ellers ville den gitt en ny feil.
   kanSetteFlyt?: boolean;
   onVelgFlyt?: () => void;
@@ -63,7 +64,6 @@ export function PunktStartHandling({
   const { t } = useTranslation();
   const router = useRouter();
   const utils = trpc.useUtils();
-  const [visFlytVelger, setVisFlytVelger] = useState(false);
   const [visKobleDialog, setVisKobleDialog] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
   // L1.5: sant kun for «ingen flyt»-feilen → da tilbys de handlingsbare knappene.
@@ -79,26 +79,13 @@ export function PunktStartHandling({
     onError: (err: { message: string }) => { setVisFlytHjelp(false); setFeil(err.message); },
   });
 
-  function startMedFlyt(flytId: string, bestillerFaggruppeId: string, utforerFaggruppeId: string) {
-    setFeil(null);
-    setVisFlytVelger(false);
-    opprett.mutate({
-      templateId: punkt.sjekklisteMalId,
-      bestillerFaggruppeId,
-      utforerFaggruppeId,
-      dokumentflytId: flytId,
-      byggeplassId,
-      kontrollplanPunktId: punkt.id,
-    });
-  }
-
   function handleStart() {
     setFeil(null);
     setVisFlytHjelp(false);
-    // L1.5: er flyten forhåndsvalgt på punktet, start direkte — uavhengig av om
-    // klikkeren er registrator. Server utleder bestiller/utfører fra flyten.
+    // L1.6: Start er én handling uten valg. Flyten må være satt på punktet ved
+    // planoppsett (auto ved én kandidat, ellers av admin). Server binder bestiller/
+    // utfører fra flyten og håndhever at klikkeren tilhører punktets faggruppe.
     if (punkt.dokumentflytId) {
-      setVisFlytVelger(false);
       opprett.mutate({
         templateId: punkt.sjekklisteMalId,
         dokumentflytId: punkt.dokumentflytId,
@@ -107,18 +94,10 @@ export function PunktStartHandling({
       });
       return;
     }
-    if (!flytStatus || flytStatus.type === "ingen") {
-      setFeil(t("kontrollplan.startIngenFlyt"));
-      setVisFlytHjelp(true);
-      return;
-    }
-    if (flytStatus.type === "en") {
-      const k = flytStatus.kandidat;
-      startMedFlyt(k.flytId, k.bestillerFaggruppeId, k.utforerFaggruppeId);
-      return;
-    }
-    // flere → la brukeren velge
-    setVisFlytVelger(true);
+    // Ingen flyt satt → eneste vei videre er å sette den på punktet (admin). Feilmeldingen
+    // bærer handlingen; det finnes ikke lenger en velger som «løser» det ved Start.
+    setFeil(t("kontrollplan.startIngenFlyt"));
+    setVisFlytHjelp(true);
   }
 
   // Koblet punkt: statusmerke + lenke inn i sjekklisten
@@ -196,31 +175,6 @@ export function PunktStartHandling({
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Flyt-velger når malen ligger i flere flyter */}
-      {visFlytVelger && flytStatus?.type === "flere" && (
-        <div className="absolute z-50 top-full left-0 mt-1 bg-white border rounded-lg shadow-lg py-1 min-w-[220px]">
-          <p className="px-3 py-1.5 text-[11px] text-gray-500 border-b">{t("kontrollplan.startVelgFlyt")}</p>
-          {flytStatus.kandidater.map((k) => (
-            <button
-              key={k.flytId}
-              type="button"
-              onClick={() => startMedFlyt(k.flytId, k.bestillerFaggruppeId, k.utforerFaggruppeId)}
-              className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50"
-            >
-              <span className="font-medium">{k.flytNavn}</span>
-              <span className="block text-[11px] text-gray-400">{k.oppretterNavn} → {k.utforerNavn}</span>
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => setVisFlytVelger(false)}
-            className="w-full text-left px-3 py-1.5 text-[11px] text-gray-400 hover:bg-gray-50 border-t"
-          >
-            {t("handling.avbryt")}
-          </button>
         </div>
       )}
 

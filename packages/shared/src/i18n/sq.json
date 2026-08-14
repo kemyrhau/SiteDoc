@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Rrjedha e dokumentit të parazgjedhur",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Kur zgjidhet një rrjedhë, çdokush mund të fillojë pikën në atë rrjedhë - pavarësisht nga regjistruesi. Bosh: rregulli i sotëm (kush fillon duhet të jetë regjistrues në rrjedhë).",
   "kontrollplan.flytIngenBrukRegistrator": "Asnjë — përdorni rregullin e regjistruesit",
+  "kontrollplan.flytLaastEtterStart": "Pika ka filluar. Rrjedha është e kyçur në listën e kontrollit që është krijuar - ndryshimi i saj këtu nuk do ta zhvendoste dokumentin ekzistues.",
   "kontrollplan.settFlytForAlle": "Aplikoni në të gjitha pikat {{antall}} me shabllonin {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} tashmë kanë një rrjedhë tjetër dhe janë anashkaluar",
   "kontrollplan.settFlytResultat": "{{oppdatert}} u përditësua, {{hoppetOver}} u anashkalua",
