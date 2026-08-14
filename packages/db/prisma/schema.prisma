@@ -797,6 +797,7 @@ model Drawing {
   tasks      Task[]
   checklists Checklist[]
   omrader    Omrade[]
+  kontrollplanPunkter KontrollplanPunkt[] // L2: kontrollpunkt-markører på tegningen
 
   @@index([projectId])
   @@index([byggeplassId])
@@ -2056,6 +2057,12 @@ model KontrollplanPunkt {
   // uavhengig av hvem som trykker (flyten er plan-autorisert av en admin). Null →
   // dagens registrator-regel (opprettbareFlytIder). Settes kun av admin (settPunktFlyt).
   dokumentflytId  String?  @map("dokumentflyt_id")
+  // L2: valgfri plassering på en tegning. Prosent (0-100) av bilde-containeren, samme
+  // koordinatmodell som Checklist/Task-markører. drawingId på PUNKTET (ikke planen) —
+  // stål på én tegning, utomhus på en annen. Alle nullable (to-stegs, ingen DROP).
+  drawingId       String?  @map("drawing_id")
+  positionX       Float?   @map("position_x")
+  positionY       Float?   @map("position_y")
   avhengerAvId    String?  @map("avhenger_av_id")
   opprettet       DateTime @default(now())
 
@@ -2086,6 +2093,7 @@ model KontrollplanPunkt {
   faggruppe     Faggruppe               @relation(fields: [faggruppeId], references: [id])
   sjekkliste    Checklist?              @relation(fields: [sjekklisteId], references: [id], onDelete: SetNull)
   dokumentflyt  Dokumentflyt?           @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
+  drawing       Drawing?                @relation(fields: [drawingId], references: [id], onDelete: SetNull)
   avhengerAv    KontrollplanPunkt?      @relation("PunktAvhengighet", fields: [avhengerAvId], references: [id], onDelete: SetNull)
   blokkerer     KontrollplanPunkt[]     @relation("PunktAvhengighet")
   historikk     KontrollplanHistorikk[]
@@ -2099,6 +2107,7 @@ model KontrollplanPunkt {
   @@index([milepelId])
   @@index([omradeId])
   @@index([dokumentflytId])
+  @@index([drawingId])
   @@index([faggruppeId])
   @@index([status])
   @@index([fristUke, fristAar])

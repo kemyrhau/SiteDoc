@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useParams, useRouter } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useTranslation } from "react-i18next";
-import { X, Trash2 } from "lucide-react";
+import { X, Trash2, MapPin, Target } from "lucide-react";
 import { UkeVelger } from "./UkeVelger";
+import { avledPunktTilstand, isoUkeRef } from "@/lib/kontrollplanFremdrift";
+import { TilstandMerke } from "./TilstandMerke";
+import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 
 interface Punkt {
   id: string;
@@ -16,13 +20,16 @@ interface Punkt {
   fristUke: number | null;
   fristAar: number | null;
   status: string;
+  varselUkerFor: number;
   avhengerAvId: string | null;
   dokumentflytId: string | null;
+  drawingId: string | null;
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
   faggruppe: { id: string; name: string; color: string | null };
   omrade: { id: string; navn: string; type: string } | null;
   sjekkliste: { id: string; status: string } | null;
   dokumentflyt: { id: string; name: string } | null;
+  drawing: { id: string; name: string } | null;
   avhengerAv: { id: string; status: string; sjekklisteMal: { name: string }; omrade: { navn: string } | null } | null;
 }
 
@@ -35,20 +42,6 @@ interface RedigerPunktDialogProps {
   // også fra matrisen, som åpner denne dialogen ved klikk.
   renderHandling?: (punkt: Punkt) => React.ReactNode;
 }
-
-const statusFarger: Record<string, string> = {
-  planlagt: "bg-gray-100 text-gray-700",
-  pagar: "bg-blue-100 text-blue-700",
-  utfort: "bg-amber-100 text-amber-700",
-  godkjent: "bg-green-100 text-green-700",
-};
-
-const gyldigeOverganger: Record<string, string[]> = {
-  planlagt: ["pagar"],
-  pagar: ["utfort", "planlagt"],
-  utfort: ["godkjent", "pagar"],
-  godkjent: [],
-};
 
 export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, projectId, renderHandling }: RedigerPunktDialogProps & { projectId: string }) {
   const { t } = useTranslation();
@@ -120,10 +113,6 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
     return gruppert;
   }, [allePunkter, punkt.id]);
 
-  function handleStatusEndring(nyStatus: string) {
-    oppdaterPunkt.mutate({ punktId: punkt.id, status: nyStatus as "planlagt" | "pagar" | "utfort" | "godkjent" });
-  }
-
   function handleLagreFrist() {
     oppdaterPunkt.mutate({ punktId: punkt.id, fristUke, fristAar });
   }
@@ -191,31 +180,14 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
             )}
           </div>
 
-          {/* Status */}
+          {/* Tilstand — READ-ONLY avledet (fremdrift × frist), samme som liste/rutenett/
+              tegning. Den gamle manuelle status-knapperaden (planlagt/pågår/utført/
+              godkjent) er FJERNET: `punkt.status` er pensjonert fra UI, og en manuell
+              setter ville latt brukeren sette en status som ikke vises noe sted.
+              Tilstanden endres nå kun av faktisk arbeid (kobling/Start → sjekklistestatus). */}
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1.5 block">{t("kontrollplan.status")}</label>
-            <div className="flex gap-2">
-              {(["planlagt", "pagar", "utfort", "godkjent"] as const).map((s) => {
-                const erAktiv = punkt.status === s;
-                const kanBytte = gyldigeOverganger[punkt.status]?.includes(s);
-                return (
-                  <button
-                    key={s}
-                    onClick={() => kanBytte && handleStatusEndring(s)}
-                    disabled={!kanBytte && !erAktiv}
-                    className={`px-2.5 py-1 rounded text-xs font-medium transition ${
-                      erAktiv
-                        ? statusFarger[s] + " ring-2 ring-sitedoc-primary/40"
-                        : kanBytte
-                          ? "bg-gray-50 text-gray-500 hover:bg-gray-100 cursor-pointer"
-                          : "bg-gray-50 text-gray-300 cursor-not-allowed"
-                    }`}
-                  >
-                    {t(`kontrollplan.status${s.charAt(0).toUpperCase() + s.slice(1)}` as "kontrollplan.statusPlanlagt")}
-                  </button>
-                );
-              })}
-            </div>
+            <TilstandMerke visning={avledPunktTilstand(punkt, isoUkeRef(new Date()))} />
           </div>
 
           {/* Sjekkliste — start (oppretter sjekkliste via vanlig dokumentflyt) / koble / åpne */}
@@ -228,6 +200,9 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
 
           {/* L1.5: forhåndsvalgt dokumentflyt (admin) — gjør Start uavhengig av hvem som trykker */}
           <FlytSeksjon punkt={punkt} allePunkter={allePunkter} projectId={projectId} onOppdatert={onOppdatert} />
+
+          {/* L2: plassering på tegning */}
+          <TegningSeksjon punkt={punkt} projectId={projectId} onOppdatert={onOppdatert} onLukk={onLukk} />
 
           {/* Frist */}
           <div>
@@ -486,6 +461,77 @@ function FlytSeksjon({
         <p className="text-[10px] text-green-600 mt-1">
           {t("kontrollplan.settFlytResultat", { oppdatert: bulkResultat.oppdatert, hoppetOver: bulkResultat.hoppetOver })}
         </p>
+      )}
+    </div>
+  );
+}
+
+/* L2: plassering av punktet på en tegning. «Plasser» starter den delte posisjonsvelger-
+ * flyten (samme som TegningPosisjonObjekt): lukker dialogen, navigerer til tegningssiden,
+ * bruker klikker → kontrollplan-siden fanger resultatet ved retur og lagrer. «Vis på
+ * tegning» setter aktiv tegning + hopper dit med markøren uthevet (?marker). */
+function TegningSeksjon({
+  punkt,
+  projectId,
+  onOppdatert,
+  onLukk,
+}: {
+  punkt: Punkt;
+  projectId: string;
+  onOppdatert: () => void;
+  onLukk: () => void;
+}) {
+  const { t } = useTranslation();
+  const router = useRouter();
+  const { startPosisjonsvelger, settAktivTegning } = useByggeplass();
+  const settPlassering = trpc.kontrollplan.settPunktPlassering.useMutation({ onSuccess: () => onOppdatert() });
+
+  function plasser() {
+    // Kontrollplan-siden henter resultatet ved retur (hentOgTømPosisjonsResultat).
+    startPosisjonsvelger(punkt.id);
+    onLukk();
+    router.push(`/dashbord/${projectId}/tegninger`);
+  }
+  function vis() {
+    if (!punkt.drawing) return;
+    settAktivTegning({ id: punkt.drawing.id, name: punkt.drawing.name });
+    onLukk();
+    router.push(`/dashbord/${projectId}/tegninger?marker=${punkt.id}`);
+  }
+
+  return (
+    <div>
+      <label className="text-xs font-medium text-gray-600 mb-1.5 block">{t("kontrollplan.tegningsplassering")}</label>
+      {punkt.drawingId && punkt.drawing ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1 text-sm text-gray-700">
+            <MapPin className="h-4 w-4 text-sitedoc-secondary" />
+            {punkt.drawing.name}
+          </span>
+          <button type="button" onClick={vis} className="text-xs text-sitedoc-secondary hover:underline">
+            {t("kontrollplan.visPaTegning")}
+          </button>
+          <button type="button" onClick={plasser} className="text-xs text-gray-500 hover:underline">
+            {t("kontrollplan.endrePlassering")}
+          </button>
+          <button
+            type="button"
+            onClick={() => settPlassering.mutate({ punktId: punkt.id, drawingId: null, positionX: null, positionY: null })}
+            disabled={settPlassering.isPending}
+            className="text-xs text-gray-400 hover:text-sitedoc-error disabled:opacity-50"
+          >
+            {t("handling.fjern")}
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={plasser}
+          className="flex items-center gap-2 rounded-md border border-dashed border-gray-300 px-3 py-2 text-sm text-gray-500 hover:border-sitedoc-secondary hover:bg-blue-50/50 hover:text-sitedoc-secondary"
+        >
+          <Target className="h-4 w-4" />
+          {t("kontrollplan.plasserPaTegning")}
+        </button>
       )}
     </div>
   );
