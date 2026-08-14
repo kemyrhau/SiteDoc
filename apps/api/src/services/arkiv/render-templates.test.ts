@@ -20,12 +20,18 @@ const ramme: RammeData = {
 };
 
 describe("byggRenderHeader", () => {
-  it("bygger slank fortsettelses-linje med firma + dok-referanse", () => {
+  it("bærer KUN dokumentreferanse (dokumenttype · navn · nummer)", () => {
     const h = byggRenderHeader(ramme);
-    expect(h).toContain("SiteDoc AS");
-    expect(h).toContain("Org.nr 923 456 789");
+    expect(h).toContain("Sjekkliste");
     expect(h).toContain("SJ-2026-0142");
-    expect(h).toContain("P-101");
+  });
+
+  it("utelater firma, org.nr, logo og prosjekt (unngår side-1-dublering)", () => {
+    const h = byggRenderHeader(ramme);
+    expect(h).not.toContain("SiteDoc AS");
+    expect(h).not.toContain("Org.nr");
+    expect(h).not.toContain("<img");
+    expect(h).not.toContain("P-101");
   });
 
   it("setter eksplisitt font-size (margin-konteksten arver ingen CSS)", () => {
@@ -38,10 +44,10 @@ describe("byggRenderHeader", () => {
     expect(h).not.toContain("Betong <dekke>");
   });
 
-  it("utelater logo og org.nr når de mangler", () => {
-    const h = byggRenderHeader({ ...ramme, logoDataUrl: null, orgnr: undefined });
-    expect(h).not.toContain("<img");
-    expect(h).not.toContain("Org.nr");
+  it("utelater dokumentnummer-spennet når nummer mangler", () => {
+    const h = byggRenderHeader({ ...ramme, dokumentnummer: "" });
+    expect(h).not.toContain("<strong");
+    expect(h).toContain("Sjekkliste");
   });
 });
 

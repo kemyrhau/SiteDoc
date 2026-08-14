@@ -90,6 +90,13 @@ body{margin:0;font-family:'IBM Plex Sans',sans-serif;color:${f.tekst};font-size:
 .bilde-img{max-width:100%;height:auto;display:block}
 .bilde-nr{position:absolute;top:4px;right:6px;font-size:9px;color:${f.svak}}
 
+/* Repeater-vedlegg (steg 2) — bilder samlet UNDER tabellen, merket med radnummer
+   (mockup: «BILDE — PUNKT N (filnavn)»), ikke thumbnails i celler. Samlingen
+   flyter over sider; ett kort (bilde + merke) holdes samlet ved sideskift. */
+.ark-bilde-samling{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px}
+.ark-bilde-kort{flex:1 1 45%;min-width:45%;max-width:calc(50% - 5px);box-sizing:border-box;border:1px solid ${f.radLinje};padding:8px 10px;break-inside:avoid;page-break-inside:avoid}
+.ark-bilde-merke{font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:${f.graa};margin-bottom:6px}
+
 /* Loggseksjon — Dokumenthistorikk + Endringslogg (økt-gruppert) */
 .ark-logg{width:100%;border-collapse:collapse;margin-top:6px;font-size:9.5px}
 .ark-logg td{padding:4px 8px;border-bottom:1px solid ${f.svakLinje}}
