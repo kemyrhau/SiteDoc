@@ -1,7 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    serverComponentsExternalPackages: ["pdf-parse", "exceljs", "fast-xml-parser", "pdfjs-dist", "@xenova/transformers", "onnxruntime-node"],
+    // `sharp` (2026-08-14): arkivmalens bilde-komprimering (`services/arkiv/bilde-inliner.ts`)
+    // importerer sharp statisk. Den når web-bygget via router.ts → tRPC-ruten, og
+    // Next forsøkte å bundle den ved «Collecting page data» → «Could not load the
+    // "sharp" module using the linux-x64 runtime» (sharp har plattform-binærer som
+    // ikke kan bundles). Ekstern-lista lar den lastes som vanlig node-modul i api.
+    serverComponentsExternalPackages: ["pdf-parse", "exceljs", "fast-xml-parser", "pdfjs-dist", "@xenova/transformers", "onnxruntime-node", "sharp"],
     // Aktiverer src/instrumentation.ts (boot-guard for FIL_SIGNING_SECRET —
     // tRPC/signering kjører i web-prosessen). Next 14.2 krever eksplisitt flagg.
     instrumentationHook: true,
