@@ -28,6 +28,14 @@ const nextConfig = {
       config.externals.push(
         "web-ifc", "@thatopen/components", "@thatopen/fragments",
         "@xenova/transformers", "onnxruntime-node", "onnxruntime-common",
+        // sharp (2026-08-14): har plattform-spesifikke binærer som ikke kan
+        // bundles. Når tRPC-ruten via api/src/routes/tegning.ts (og arkivmalens
+        // bilde-inliner). `serverComponentsExternalPackages` er IKKE nok — den
+        // gjelder Server Components, ikke route handlers i App Router, så
+        // «Collecting page data» for /api/trpc/[...trpc] feilet med
+        // «Could not load the "sharp" module using the linux-x64 runtime».
+        // Her, i webpack-externals for isServer, er stedet den faktisk løses.
+        "sharp",
       );
     }
 
