@@ -131,6 +131,13 @@ async function start() {
     setHeaders: (res, path) => {
       res.setHeader("Content-Disposition", "inline");
       res.setHeader("X-Content-Type-Options", "nosniff");
+      // Privat, signert fil: ALDRI mellomlagre. Signaturen er tidsbegrenset (15 min);
+      // en CDN/proxy (Cloudflare) som cacher URL-en kan ellers servere filen etter at
+      // signaturen er utløpt — og mellomlagre et privat kundedokument på edge. `path`
+      // er fs-stien; privat-filene ligger under `<root>/privat/`. no-store lukker begge.
+      if (/[\\/]privat[\\/]/.test(path)) {
+        res.setHeader("Cache-Control", "no-store");
+      }
       // Content-Type fra magic bytes, ikke filendelse: annoterte tegninger ble
       // eksportert som PNG men lagret under `.jpg`-filnavn. Med `nosniff` stoler
       // Chrome på MIME-typen ved print-til-PDF og forsøker JPEG-passthrough av
