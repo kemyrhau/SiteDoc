@@ -267,7 +267,11 @@ export const sjekklisteRouter = router({
         // Kontrollplan: er dette settet, kobles den nye sjekklisten atomisk til
         // kontrollpunktet (fyller punkt.sjekklisteId, løfter planlagt→pagar) i samme
         // transaksjon. Én sjekkliste opprettet fra et startbart kontrollpunkt.
-        kontrollplanPunktId: z.string().uuid().optional(),
+        // KontrollplanPunkt.id er cuid() (ikke uuid) — valider som fri string,
+        // slik koblePunkt og alle andre punktId-referanser gjør. `.uuid()` her
+        // avviste ethvert ekte punkt og brøt hele «Start»-veien (fanget av
+        // skjermbilde-gaten 2026-08-14). Hjelperen validerer eksistens/prosjekt/mal.
+        kontrollplanPunktId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
