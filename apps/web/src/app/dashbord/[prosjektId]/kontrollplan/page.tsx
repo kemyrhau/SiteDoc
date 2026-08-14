@@ -48,10 +48,12 @@ interface PunktType {
   fristAar: number | null;
   status: string;
   avhengerAvId: string | null;
+  dokumentflytId: string | null;
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
   faggruppe: { id: string; name: string; color: string | null };
   omrade: { id: string; navn: string; type: string } | null;
   sjekkliste: { id: string; status: string } | null;
+  dokumentflyt: { id: string; name: string } | null;
   avhengerAv: { id: string; status: string; sjekklisteMal: { name: string }; omrade: { navn: string } | null } | null;
 }
 
@@ -104,6 +106,12 @@ export default function KontrollplanSide() {
     { enabled: !!params.prosjektId }
   );
   const { data: dokumentflyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId: params.prosjektId },
+    { enabled: !!params.prosjektId }
+  );
+  // L1.5: kan innlogget bruker sette forhåndsvalgt flyt (admin)? Styrer «Velg flyt for
+  // punktet»-handlingen i feilmeldingen (vises kun til den som faktisk kan det).
+  const { data: kanRedigere } = trpc.mal.kanRedigere.useQuery(
     { projectId: params.prosjektId },
     { enabled: !!params.prosjektId }
   );
@@ -172,11 +180,13 @@ export default function KontrollplanSide() {
         byggeplassId={aktivByggeplass?.id ?? ""}
         flytStatus={malFlytStatus.get(punkt.sjekklisteMalId)}
         onEndret={handleRefresh}
+        kanSetteFlyt={kanRedigere === true}
+        onVelgFlyt={() => setValgtPunkt(punkt)}
       />
     ),
     // handleRefresh er stabil (defineres under); aktivByggeplass/malFlytStatus styrer
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [params.prosjektId, aktivByggeplass?.id, malFlytStatus],
+    [params.prosjektId, aktivByggeplass?.id, malFlytStatus, kanRedigere],
   );
 
   const handleRefresh = useCallback(() => {

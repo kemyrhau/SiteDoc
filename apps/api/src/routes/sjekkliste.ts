@@ -282,6 +282,44 @@ export const sjekklisteRouter = router({
       });
       const erHms = malForDomain.domain === "hms";
 
+      // L1.5: kontrollplan-start med FORHÅNDSVALGT flyt på punktet (satt av admin via
+      // settPunktFlyt). Er feltet satt, er flyten plan-autorisert: Start bruker den
+      // direkte, uavhengig av hvem som trykker. Server utleder bestiller/utfører fra
+      // flyten (stoler ikke på klienten) og hopper over registrator-/bestiller-
+      // medlemssjekken. Tilgangsgulv: klikkeren må være prosjektmedlem. Er feltet null,
+      // er alt uendret (dagens registrator-regel). Effektiv-variablene defaulter til
+      // klientens input, så den vanlige opprett-veien er urørt.
+      let effektivFlytId = input.dokumentflytId;
+      let effektivBestiller = input.bestillerFaggruppeId;
+      let effektivUtforer = input.utforerFaggruppeId;
+      let planAutorisertFlyt = false;
+      if (input.kontrollplanPunktId) {
+        const startPunkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
+          where: { id: input.kontrollplanPunktId },
+          select: { dokumentflytId: true, kontrollplan: { select: { projectId: true } } },
+        });
+        if (startPunkt.dokumentflytId) {
+          planAutorisertFlyt = true;
+          const flyt = await ctx.prisma.dokumentflyt.findUniqueOrThrow({
+            where: { id: startPunkt.dokumentflytId },
+            select: {
+              faggruppeId: true,
+              medlemmer: {
+                where: { rolle: "utforer", periodeSlutt: null },
+                select: { faggruppeId: true },
+              },
+            },
+          });
+          // Bestiller = flytens eier-faggruppe; utfører = flytens utfører-medlem-
+          // faggruppe, fallback eier. settPunktFlyt garanterer at flyten har eier-
+          // faggruppe og bruker malen, så effektivBestiller er aldri null her.
+          effektivFlytId = startPunkt.dokumentflytId;
+          effektivBestiller = flyt.faggruppeId ?? undefined;
+          effektivUtforer = flyt.medlemmer[0]?.faggruppeId ?? flyt.faggruppeId ?? undefined;
+          await verifiserProsjektmedlem(ctx.userId, startPunkt.kontrollplan.projectId);
+        }
+      }
+
       // HMS-sjekklister (SJA, RUH): auto-rut til HMS-gruppen, ingen faggruppe.
       // Speiler oppgave.opprett-mønsteret for HMS.
       let recipientGroupId: string | undefined;
@@ -327,20 +365,25 @@ export const sjekklisteRouter = router({
       } else {
         // Standard-gren (F1/B1): et dokument tilhører ALLTID nøyaktig én flyt.
         // dokumentflytId påkrevd her (ikke i Zod — HMS-grenen utelater den legitimt).
-        if (!input.dokumentflytId) {
+        // effektivFlytId = klientens flyt, ELLER punktets forhåndsvalgte flyt (L1.5).
+        if (!effektivFlytId) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Dokumentflyt er påkrevd for denne sjekklistetypen. Velg en flyt som bruker malen.",
           });
         }
         // Standard: faggrupper påkrevd
-        if (!input.bestillerFaggruppeId || !input.utforerFaggruppeId) {
+        if (!effektivBestiller || !effektivUtforer) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Bestiller- og utfører-faggruppe er påkrevd for denne sjekklistetypen",
           });
         }
-        await verifiserFaggruppeTilhorighet(ctx.userId, input.bestillerFaggruppeId);
+        // Plan-autorisert flyt (L1.5): bestiller kommer fra flyten, ikke klikkerens
+        // faggruppe — hopp over tilhørighetssjekken. Ellers: klikkeren må tilhøre bestiller.
+        if (!planAutorisertFlyt) {
+          await verifiserFaggruppeTilhorighet(ctx.userId, effektivBestiller);
+        }
 
         const bruker = await ctx.prisma.user.findUniqueOrThrow({
           where: { id: ctx.userId },
@@ -354,7 +397,7 @@ export const sjekklisteRouter = router({
         // registrator-medlem av flyten for å opprette (F1-oppfølger, Kenneth-vedtak
         // 2026-07-24) — admin legger seg selv i en flyt som registrator ved behov.
         const flytHarMal = await ctx.prisma.dokumentflytMal.findFirst({
-          where: { dokumentflytId: input.dokumentflytId, templateId: input.templateId },
+          where: { dokumentflytId: effektivFlytId, templateId: input.templateId },
           select: { id: true },
         });
         if (!flytHarMal) {
@@ -363,12 +406,17 @@ export const sjekklisteRouter = router({
             message: "Valgt dokumentflyt bruker ikke denne malen",
           });
         }
-        const flytIder = await hentBrukersOpprettFlytMedlemskap(ctx.userId, malForDomain.projectId);
-        if (!flytIder.includes(input.dokumentflytId)) {
-          throw new TRPCError({
-            code: "FORBIDDEN",
-            message: "Du er ikke oppretter-medlem av valgt dokumentflyt",
-          });
+        // Registrator-gaten gjelder KUN klient-valgt flyt. Er flyten forhåndsvalgt på
+        // punktet (L1.5), er den plan-autorisert av en admin — Start er da uavhengig av
+        // om klikkeren er registrator. flytHarMal + mal-match (i koblingen) består uansett.
+        if (!planAutorisertFlyt) {
+          const flytIder = await hentBrukersOpprettFlytMedlemskap(ctx.userId, malForDomain.projectId);
+          if (!flytIder.includes(effektivFlytId)) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Du er ikke oppretter-medlem av valgt dokumentflyt",
+            });
+          }
         }
 
         // Gratis-grense (10 sjekklister per prosjekt) — interim-vedtak 2026-07-26:
@@ -378,7 +426,7 @@ export const sjekklisteRouter = router({
         // Soft-slettede teller ikke (IKKE_SLETTET), så papirkurv frigjør kvote.
         if (bruker.role !== "sitedoc_admin") {
           const faggruppe = await ctx.prisma.faggruppe.findUniqueOrThrow({
-            where: { id: input.bestillerFaggruppeId },
+            where: { id: effektivBestiller },
             select: { projectId: true },
           });
           const [antall, standalone] = await Promise.all([
@@ -435,10 +483,10 @@ export const sjekklisteRouter = router({
         // hvis dokumentflyt har egen hovedansvarlig.
         let recipientUserId: string | undefined;
         let endeligRecipientGroupId: string | undefined = recipientGroupId;
-        if (input.dokumentflytId) {
+        if (effektivFlytId) {
           const hovedansvarlig = await tx.dokumentflytMedlem.findFirst({
             where: {
-              dokumentflytId: input.dokumentflytId,
+              dokumentflytId: effektivFlytId,
               rolle: "utforer",
               erHovedansvarlig: true,
             },
@@ -457,13 +505,13 @@ export const sjekklisteRouter = router({
         const nySjekkliste = await tx.checklist.create({
           data: {
             templateId: input.templateId,
-            bestillerFaggruppeId: input.bestillerFaggruppeId,
-            utforerFaggruppeId: input.utforerFaggruppeId,
+            bestillerFaggruppeId: effektivBestiller,
+            utforerFaggruppeId: effektivUtforer,
             title: tittel,
             bestillerUserId: ctx.userId,
             eierUserId: ctx.userId,
             number: nummer,
-            dokumentflytId: erHms ? hmsFlytId : input.dokumentflytId,
+            dokumentflytId: erHms ? hmsFlytId : effektivFlytId,
             subject: input.subject,
             byggeplassId: input.byggeplassId,
             drawingId: input.drawingId,
