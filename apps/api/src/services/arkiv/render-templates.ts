@@ -6,9 +6,9 @@
  * her med inline-stiler, ikke via arkivmalens klasse-baserte byggeklosser.
  * Sidetall injiseres av Chromium i `.pageNumber`/`.totalPages`-spennene.
  *
- * - HEADER (side 2+ i praksis, men Chromium rendrer på alle sider): slank
- *   fortsettelses-linje — firma · dokument-referanse. Speiler
- *   `byggFortsettelsesHeader`, men inline-stilt for margin-konteksten.
+ * - HEADER (alle sider — Chromium kan ikke slå den av per side): slank linje med
+ *   KUN dokumentreferanse. Firma/prosjekt utelates bevisst — de står i brødtekst-
+ *   toppteksten på side 1, og å gjenta dem i margin-headeren dupliserte side 1.
  * - FOOTER (HVER side, § 4-sporbarhet): «Generert fra SiteDoc … · dokument-id …»
  *   venstre, «Side X av Y» høyre.
  *
@@ -26,24 +26,25 @@ const F = {
 
 const KANT = "0 16mm";
 
-/** Slank fortsettelses-header. Inline-stilt (margin-konteksten arver ingen CSS). */
+/**
+ * Slank margin-header. Chromium rendrer den i topp-margin på ALLE sider (kan
+ * ikke slås av per side — `@page :first` overstyres av `page.pdf({ margin })`).
+ * Derfor bærer den KUN dokumentreferanse — komplementært til brødtekst-
+ * toppteksten, som på side 1 alt har firma/org.nr/prosjekt/status. Firma- og
+ * prosjektnavn utelates her (ville duplisert side 1); sporbarhets-sidetall
+ * ligger i footeren. Inline-stilt (margin-konteksten arver ingen CSS).
+ */
 export function byggRenderHeader(ramme: RammeData): string {
-  const orgnr = ramme.orgnr
-    ? ` <span style="color:${F.graa};font-weight:400">· Org.nr ${esc(ramme.orgnr)}</span>`
-    : "";
-  const logo = ramme.logoDataUrl
-    ? `<img src="${esc(ramme.logoDataUrl)}" alt="" style="height:9px;margin-right:6px;vertical-align:middle">`
-    : "";
   const dokRef = [
     `${esc(ramme.dokumenttype)} — ${esc(ramme.dokumentnavn)}`,
-    `<strong style="color:${F.tekst}">${esc(ramme.dokumentnummer)}</strong>`,
-    ramme.prosjekt ? esc(ramme.prosjekt) : null,
+    ramme.dokumentnummer
+      ? `<strong style="color:${F.tekst}">${esc(ramme.dokumentnummer)}</strong>`
+      : null,
   ]
     .filter(Boolean)
     .join(" · ");
   return `
-<div style="width:100%;box-sizing:border-box;padding:${KANT};font-family:Arial,Helvetica,sans-serif;font-size:7px;color:${F.graa};display:flex;justify-content:space-between;align-items:center">
-  <span style="color:${F.navy};font-weight:600">${logo}${esc(ramme.firmaNavn)}${orgnr}</span>
+<div style="width:100%;box-sizing:border-box;padding:${KANT};font-family:Arial,Helvetica,sans-serif;font-size:7px;color:${F.graa};text-align:right">
   <span>${dokRef}</span>
 </div>`.trim();
 }
