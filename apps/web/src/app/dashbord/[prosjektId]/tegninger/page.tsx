@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { trpc } from "@/lib/trpc";
 import { useByggeplass } from "@/kontekst/byggeplass-kontekst";
 import { useTranslation } from "react-i18next";
+import { avledPunktTilstand, isoUkeRef, type TilstandVisning } from "@/lib/kontrollplanFremdrift";
 import { Button, Select, Modal, Spinner } from "@sitedoc/ui";
 import {
   beregnTransformasjon,
@@ -116,6 +117,14 @@ export default function TegningerSide() {
   // Klikkemodus: inspeksjon (vis DWG-egenskaper) eller plassering (opprett oppgave)
   const [klikkModus, setKlikkModus] = useState<"inspeksjon" | "plassering" | "omrade">("plassering");
   const [visOmrader, setVisOmrader] = useState(true);
+  // L2: lagfilter for markørtyper. Begge på som standard. «Frie sjekklister» er IKKE et
+  // eget lag — de rendres ikke på tegning i dag (Checklist har posisjonsfelt, men verken
+  // render eller lagrede posisjoner). Lagene som faktisk finnes: oppgaver + kontrollpunkter.
+  const [visOppgaver, setVisOppgaver] = useState(true);
+  const [visKontrollpunkter, setVisKontrollpunkter] = useState(true);
+  const naaUke = useMemo(() => isoUkeRef(new Date()), []);
+  // L2: «Vis på tegning» sender ?marker=<punktId> → den markøren utheves (spretter).
+  const uthevetPunktId = useSearchParams().get("marker");
 
   // DWG-elementinfo ved klikk
   const [valgtElement, setValgtElement] = useState<{ lag: string; type: string; tekst: string; x: number; y: number } | null>(null);
@@ -158,6 +167,10 @@ export default function TegningerSide() {
   }, [geoRef]);
 
   // Hent eksisterende oppgavemarkører for denne tegningen
+  const { data: kontrollpunktMarkører } = trpc.kontrollplan.hentForTegning.useQuery(
+    { drawingId: aktivTegning?.id ?? "" },
+    { enabled: !!aktivTegning?.id },
+  );
   const { data: oppgaveMarkører } = trpc.oppgave.hentForTegning.useQuery(
     { drawingId: aktivTegning?.id ?? "" },
     { enabled: !!aktivTegning?.id },
@@ -520,6 +533,17 @@ export default function TegningerSide() {
       status: o.status,
     }));
 
+  // L2: kontrollpunkt-markører, farget av den avledede tilstanden (samme fargemodell
+  // som liste/rutenett — delt hjelper). Form (fylt pin vs. omriss) = arbeid startet.
+  const kontrollpunkter: Array<{ id: string; x: number; y: number; label: string; tilstand: TilstandVisning }> =
+    (kontrollpunktMarkører ?? []).map((p) => ({
+      id: p.id,
+      x: p.positionX!,
+      y: p.positionY!,
+      label: p.sjekklisteMal.prefix ? `${p.sjekklisteMal.prefix} — ${p.sjekklisteMal.name}` : p.sjekklisteMal.name,
+      tilstand: avledPunktTilstand(p, naaUke),
+    }));
+
   // Filtrerte maler basert på tilgang:
   // 1. Admin / manage_field → alle maler
   // 2. Faggruppe-arbeidsforløp → maler knyttet via dokumentflyt + HMS (alle kan opprette HMS)
@@ -724,6 +748,36 @@ export default function TegningerSide() {
           </>
         )}
 
+        {/* L2 lagfilter: hvilke markørtyper vises. Begge på = «begge». «Frie sjekklister»
+            er ikke et lag (rendres ikke på tegning i dag). */}
+        {(kontrollpunkter.length > 0 || markører.length > 0) && (
+          <>
+            <div className="mx-2 h-4 w-px bg-gray-200" />
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setVisKontrollpunkter((v) => !v)}
+                className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
+                  visKontrollpunkter ? "bg-sitedoc-primary/10 text-sitedoc-primary" : "text-gray-400 hover:bg-gray-100"
+                }`}
+                title={t("kontrollplan.lagKontrollpunkter")}
+              >
+                <MapPin className="h-3 w-3" />
+                {t("kontrollplan.lagKontrollpunkter")} ({kontrollpunkter.length})
+              </button>
+              <button
+                onClick={() => setVisOppgaver((v) => !v)}
+                className={`flex items-center gap-1 rounded px-2 py-1 text-xs ${
+                  visOppgaver ? "bg-red-50 text-red-600" : "text-gray-400 hover:bg-gray-100"
+                }`}
+                title={t("kontrollplan.lagOppgaver")}
+              >
+                <MapPin className="h-3 w-3" />
+                {t("kontrollplan.lagOppgaver")} ({markører.length})
+              </button>
+            </div>
+          </>
+        )}
+
         {/* GPS-koordinater for georefererte tegninger */}
         {transformasjon && (
           <>
@@ -810,7 +864,7 @@ export default function TegningerSide() {
 
               {/* Område-polygoner */}
               <OmradeOverlay
-                omrader={(tegningOmrader ?? []).map((o: { id: string; navn: string; type: string; polygon: unknown; farge: string }) => ({
+                omrader={((tegningOmrader ?? []) as Array<{ id: string; navn: string; type: string; polygon: unknown; farge: string }>).map((o) => ({
                   ...o,
                   polygon: (Array.isArray(o.polygon) ? o.polygon : []) as { x: number; y: number }[],
                 }))}
@@ -835,8 +889,8 @@ export default function TegningerSide() {
                 />
               )}
 
-              {/* Eksisterende markører */}
-              {markører.map((m) => (
+              {/* Oppgave-markører (lag: oppgaver) */}
+              {visOppgaver && markører.map((m) => (
                 <button
                   key={m.id}
                   onClick={(e) => {
@@ -848,6 +902,31 @@ export default function TegningerSide() {
                   title={m.label}
                 >
                   <MapPin className="h-6 w-6 fill-red-500 text-red-700 drop-shadow-md transition-transform group-hover:scale-125" />
+                  <span className="absolute left-1/2 top-full mt-0.5 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900/80 px-1.5 py-0.5 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    {m.label}
+                  </span>
+                </button>
+              ))}
+
+              {/* Kontrollpunkt-markører (lag: kontrollpunkter) — farge = tilstand, fylt pin
+                  = arbeid startet (print-sikker form: fylt vs. omriss). */}
+              {visKontrollpunkter && kontrollpunkter.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    router.push(`/dashbord/${params.prosjektId}/kontrollplan`);
+                  }}
+                  className="group absolute -translate-x-1/2 -translate-y-full"
+                  style={{ left: `${m.x}%`, top: `${m.y}%` }}
+                  title={`${m.label} — ${t(m.tilstand.labelKey)}`}
+                >
+                  <MapPin
+                    className={`h-6 w-6 drop-shadow-md transition-transform group-hover:scale-125 ${
+                      m.id === uthevetPunktId ? "animate-bounce scale-125" : ""
+                    }`}
+                    style={{ fill: m.tilstand.fylt ? m.tilstand.farge : "white", color: m.tilstand.farge }}
+                  />
                   <span className="absolute left-1/2 top-full mt-0.5 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900/80 px-1.5 py-0.5 text-[10px] font-medium text-white opacity-0 transition-opacity group-hover:opacity-100">
                     {m.label}
                   </span>

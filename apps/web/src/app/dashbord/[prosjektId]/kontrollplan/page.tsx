@@ -50,18 +50,20 @@ interface PunktType {
   varselUkerFor: number;
   avhengerAvId: string | null;
   dokumentflytId: string | null;
+  drawingId: string | null;
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
   faggruppe: { id: string; name: string; color: string | null };
   omrade: { id: string; navn: string; type: string } | null;
   sjekkliste: { id: string; status: string } | null;
   dokumentflyt: { id: string; name: string } | null;
+  drawing: { id: string; name: string } | null;
   avhengerAv: { id: string; status: string; sjekklisteMal: { name: string }; omrade: { navn: string } | null } | null;
 }
 
 export default function KontrollplanSide() {
   const { t } = useTranslation();
   const params = useParams<{ prosjektId: string }>();
-  const { aktivByggeplass } = useByggeplass();
+  const { aktivByggeplass, posisjonsvelgerFeltId, hentOgTømPosisjonsResultat } = useByggeplass();
   const [matriseVisning, setMatriseVisning] = useState(true);
   const [visOpprettDialog, setVisOpprettDialog] = useState(false);
   const [visImportDialog, setVisImportDialog] = useState(false);
@@ -195,6 +197,24 @@ export default function KontrollplanSide() {
       utils.kontrollplan.hentForByggeplass.invalidate({ byggeplassId: aktivByggeplass.id });
     }
   }, [aktivByggeplass?.id, utils]);
+
+  // L2: fanger posisjonsresultatet ved retur fra tegningssiden (plasser-flyten startet i
+  // RedigerPunktDialog). feltId = punktId. Konteksten overlever navigasjonen; siden
+  // remountes, så vi sjekker på mount + når feltId endres.
+  const settPunktPlassering = trpc.kontrollplan.settPunktPlassering.useMutation({ onSuccess: () => handleRefresh() });
+  useEffect(() => {
+    if (!posisjonsvelgerFeltId) return;
+    const res = hentOgTømPosisjonsResultat(posisjonsvelgerFeltId);
+    if (res) {
+      settPunktPlassering.mutate({
+        punktId: posisjonsvelgerFeltId,
+        drawingId: res.drawingId,
+        positionX: res.positionX,
+        positionY: res.positionY,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [posisjonsvelgerFeltId]);
 
   const oppdaterMilepel = trpc.kontrollplan.oppdaterMilepel.useMutation({
     onSuccess: handleRefresh,
