@@ -33,6 +33,8 @@ interface ListeVisningProps {
   punkter: Punkt[];
   milepeler: Milepel[];
   onPunktKlikk: (punkt: Punkt) => void;
+  // Start/koble/åpne-handling per rad (levert av siden — holder lista fri for trpc/nav).
+  renderHandling?: (punkt: Punkt) => React.ReactNode;
 }
 
 const statusFarger: Record<string, string> = {
@@ -61,7 +63,7 @@ const kontrollomradeNavn: Record<string, string> = {
 type SorterFelt = "mal" | "omrade" | "faggruppe" | "frist" | "status" | "milepel" | "kontrollomrade";
 type SorterRetning = "asc" | "desc";
 
-export function ListeVisning({ punkter, milepeler, onPunktKlikk }: ListeVisningProps) {
+export function ListeVisning({ punkter, milepeler, onPunktKlikk, renderHandling }: ListeVisningProps) {
   const { t } = useTranslation();
   const [sorterFelt, setSorterFelt] = useState<SorterFelt>("frist");
   const [sorterRetning, setSorterRetning] = useState<SorterRetning>("asc");
@@ -191,6 +193,11 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk }: ListeVisningP
               aktiveFilter={statusFilter}
               onFilter={setStatusFilter}
             />
+            {renderHandling && (
+              <th className="text-left py-2 px-3 text-xs font-medium text-gray-500">
+                {t("kontrollplan.sjekklisteKolonne")}
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
@@ -226,6 +233,9 @@ export function ListeVisning({ punkter, milepeler, onPunktKlikk }: ListeVisningP
                     {t(statusNokler[punkt.status] ?? punkt.status)}
                   </span>
                 </td>
+                {renderHandling && (
+                  <td className="py-2 px-3">{renderHandling(punkt)}</td>
+                )}
               </tr>
             );
           })}

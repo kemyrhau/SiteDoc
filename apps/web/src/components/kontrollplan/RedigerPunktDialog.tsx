@@ -29,6 +29,9 @@ interface RedigerPunktDialogProps {
   allePunkter: Punkt[];
   onLukk: () => void;
   onOppdatert: () => void;
+  // Start/koble/åpne-handling (samme komponent som lista bruker) — gjør punktet startbart
+  // også fra matrisen, som åpner denne dialogen ved klikk.
+  renderHandling?: (punkt: Punkt) => React.ReactNode;
 }
 
 const statusFarger: Record<string, string> = {
@@ -45,7 +48,7 @@ const gyldigeOverganger: Record<string, string[]> = {
   godkjent: [],
 };
 
-export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, projectId }: RedigerPunktDialogProps & { projectId: string }) {
+export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, projectId, renderHandling }: RedigerPunktDialogProps & { projectId: string }) {
   const { t } = useTranslation();
   const [fristUke, setFristUke] = useState(punkt.fristUke);
   const [fristAar, setFristAar] = useState(punkt.fristAar);
@@ -212,6 +215,14 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
               })}
             </div>
           </div>
+
+          {/* Sjekkliste — start (oppretter sjekkliste via vanlig dokumentflyt) / koble / åpne */}
+          {renderHandling && (
+            <div>
+              <label className="text-xs font-medium text-gray-600 mb-1.5 block">{t("kontrollplan.sjekklisteKolonne")}</label>
+              {renderHandling(punkt)}
+            </div>
+          )}
 
           {/* Frist */}
           <div>

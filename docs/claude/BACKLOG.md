@@ -130,11 +130,97 @@ Kenneth-vedtak 2026-07-31 (`delplaner/flytmodell-veileder-cowork.md` § 2.6): *�
 - Rekkefølge sorteres på hardkodet `ROLLE_KONFIG[...].rekkefølge`, ikke på `steg`
 - `@@unique([dokumentflytId, faggruppeId, rolle, steg])` gjør `rolle` til del av leddets identitet
 
-### Død kode i dokumentflyt-domenet — ordre levert
+### Død kode i dokumentflyt-domenet — implementert (branch `chore/dodkode-dokumentflyt`, venter gate/merge)
 
-`verifiserFlytRolle` (`tilgangskontroll.ts:792-866`) og `byggFaggruppeFilter` (`:43-52`) har **null kallsteder** — erstattet i fase 3.4, aldri slettet. De fikk to lesere (cowork og fabel) til å konkludere feil om hva som bærer modellen på samme dag.
+`verifiserFlytRolle` og `byggFaggruppeFilter` (null kallsteder, erstattet i fase 3.4) er **slettet** fra `tilgangskontroll.ts` + foreldreløse importer ryddet. `dokumentflyt.md:29` rettet til § 2.6-vedtaket, og doc-referanser i `arkitektur.md`/`web.md`/`MALBYGGER.md` pekt til `verifiserRetningsrett`.
 
-Ordre: [delplaner/dodkode-opprydding-ordre-2026-08-13.md](delplaner/dodkode-opprydding-ordre-2026-08-13.md). Inkluderer retting av `dokumentflyt.md:29` (*«flytboks trenger ikke navn»* — motsier § 2.6-vedtaket) og regelen **«en erstattet funksjon slettes i samme fase som erstatningen merges»**.
+Ordre: [delplaner/dodkode-opprydding-ordre-2026-08-13.md](delplaner/dodkode-opprydding-ordre-2026-08-13.md). Regelen **«en erstattet funksjon slettes i samme fase som erstatningen merges»** plasseres i repo-docs av cowork.
+
+**Sweep-kandidater som ble stående** (kaskade-døde etter slettingen, men sammenvevd med live admin-UI/testsuiter — egen gate): `erTillattForRolle` + `hentFlytRettighetOverrides` (siste prod-konsument var `verifiserFlytRolle`), `hentRolleFiltrertHandlinger` (kun test-kall), og hele `statusHandlinger.ts` rolle-matrise + `dashbord/admin/flyt-rettigheter`-flaten. Se leveranserapport.
+
+### 🔴 Utskriftsformer — samlet kravspec (Kenneth, prod 2026-08-13)
+
+Fem krav meldt samlet etter prod-bruk. To er ført separat over (tomme felt, firmanavn); tre er nye. Hører sammen som **én** kravspec for utskrift — rutes til fabels utskriftsformer-typologi og dokgens arkivmal.
+
+**1. Tomme/uutfylte objekter skrives ikke ut.** → ført: «Web-utskrift skjuler uutfylte felter». For et kontrolldokument er *ikke utfylt* en opplysning, ikke fravær av en.
+
+**2. 🔴 NY — loggen skrives ikke ut, og kan ikke velges som utskriftsalternativ.**
+Dokumentet har Tidslinje (opprettet → Utkast→Sendt → Sendt→Mottatt, med hvem og når). Den er **helt fraværende** i utskriften, og det finnes ingen bryter for å ta den med. Kenneths vedtak 2026-08-13 står fortsatt: *«la logg alltid stå på, men velg når den skal med i utskrift»* — valget mangler.
+
+**3. Mangler firmanavn.** → ført: «Utskrift mangler avsenderfirma».
+
+**4. 🔴 NY — flere varianter av rapporter må kunne skrives ut.**
+Én dokumenttype skal kunne gi flere utskriftsformer. I dag finnes én fast form per dokument.
+
+**5. 🔴 NY — merk flere rapporter → samlet utskrift, i to former:**
+
+- **Samlerapport, kompakt:** én linje per rapport. Oversiktsformat for f.eks. en månedsleveranse til byggherre.
+- **Samlerapport, utvidet:** per rapport — **første bilde**, **emnefeltet eller første tekstfelt**, og **rapportens status**. Gir et lesbart sammendrag uten å skrive ut alt.
+
+Dagens `sjekklister/skriv-ut` printer valgte dokumenter i full form. Begge de nye formene er sammendrag, ikke fullversjoner.
+
+**Sammenheng med tidligere vedtak:** Kenneth ba 2026-08-13 om at logg **ikke** skal med ved «utskrift av flere sjekklister i listeformer». Det er nettopp form 5a — den kompakte. Kravene er konsistente: logg er et valg i enkeltutskrift, og utelatt i samleformene.
+
+### 🔴 Utskrift mangler avsenderfirma — kun person + faggruppe (Kenneth, prod 2026-08-13)
+
+**Kenneth:** *«mangler informasjon om hvilket firma som opprettet dokumentet»*
+
+**Målt:** `packages/pdf/src/header.ts:74-81` bygger fra→til utelukkende av `bestillerNavn (bestillerFaggruppe) → utforerFaggruppe`. Organisasjon inngår ikke.
+
+Prod-rapporten BEF-001 viser derfor «Kenneth Myrhaug (Byggeledelse) → Byggeledelse». Toppbaren vet at brukeren er i **Sitedoc Myrhaug**, men dokumentet sier det ikke.
+
+**Hvorfor det er mer enn kosmetikk:** en befaringsrapport som går til byggherre må vise hvilket **foretak** som har utstedt den. «Byggeledelse» er en faggruppe internt i prosjektet, ikke et rettssubjekt. For et kontrolldokument som kan bli etterspurt i en tvist, er avsenderidentiteten en del av dokumentets verdi.
+
+**Gjelder også arkivmalen** — samme header-funksjon (`byggSjekklisteHeader`) brukes av begge, så fiksen treffer begge flater.
+
+### Svak plassutnyttelse i utskrift — rader kan ikke dele side (Kenneth, prod 2026-08-13)
+
+**Kenneth:** *«svak bruk av plass, mye tomt på sidene → er bildene litt for store?»*
+
+Prod-rapporten BEF-001 ble **7 sider** der 3–4 hadde vært nok. Side 3 har to bilder og halv side luft; side 4 har tre bilder og tilsvarende.
+
+**Årsak — ikke bildestørrelsen alene.** `print-no-break` ligger nå per **repeater-rad** (riktig fiks for det opprinnelige problemet, `62f24025`). Men en rad med fire bilder tar ~60 % av siden. To rader får ikke plass sammen, så rad 2 dyttes til ny side og etterlater 40 % luft. Jo større bildene er, jo oftere skjer det.
+
+**To grep som virker sammen:**
+1. **Mindre bilder** — flere per rad, eller lavere maks-høyde. Reduserer sannsynligheten for at en rad sprenger halvsiden.
+2. **La store rader bryte innad** — hold observasjonsteksten samlet med de første bildene, men tillat at bildegridet deles når raden er høyere enn en halv side. I dag er raden ubrytbar uansett høyde.
+
+**Rutes til arkivmalen (dokgen), ikke til klient-utskriften.** Den nåværende utskriften er brukbar, og å optimalisere den ville være dobbeltarbeid mot Stage 4. Kenneths opprinnelige krav fra i dag står fortsatt: *«Det burde vært en mer fyldig side 1.»*
+
+### 🔴 Lokasjon/tegningspunkt — fire funn fra test (Kenneth 2026-08-13)
+
+Alle fra samme flyt: klikk «Lokasjon» → velg bygning → marker punkt i tegning → lagre.
+
+**1. Dokumentsiden viser ikke at lokasjon er valgt.** Etter lagring står det fortsatt «Ikke satt — klikk for å velge» på oppgave-/sjekklistesiden, mens **utskriften viser posisjonen riktig**. Verdien lagres altså; visningen oppdateres ikke. Sannsynlig manglende query-invalidering etter mutasjonen.
+
+**2. Detaljutsnittet mangler — «Detalj utilgjengelig».** Målt årsak: `RapportObjektVisning.tsx:550-554` har en fallback-timer (`DETALJ_TIMEOUT`, 3 s) som setter `klar = true` **uten** detalj hvis canvas-arbeidet ikke er ferdig. `useDetaljCanvas` laster hele tegningen som `Image`, tegner til canvas i 800 px bredde og klipper utsnittet — for et stort flyfoto/PDF rekker det ikke på 3 s. Utsnittet blir aldri produsert, og fallbacken skjuler det som «utilgjengelig» i stedet for å vente.
+
+**3. Layout:** de to bildene skal stå **ved siden av hverandre**, med oversikt til venstre og innzoomet utsnitt til høyre. I dag er oversikten korrekt (med rød ramme som viser utsnittsområdet), mens høyre boks er tom.
+
+**4. 🟢 NYTT KRAV — tegning skal åpne automatisk ved ny sjekkliste/oppgave.**
+Kenneth: *«Med en gang en ny sjekkliste åpnes → skal tegning automatisk åpne når lokasjon i malen er tilstede, slik at punkt i tegning kan settes.»*
+
+Valg av tegning, i prioritert rekkefølge:
+1. **Byggeplassens foretrukne tegning** — Kenneth: *«vi vet hvilken byggeplass vi er innlogget i»*. Byggeplass er kjent fra toppbar-konteksten, og `Drawing.byggeplassId` (schema:761) knytter tegninger til byggeplass. Autovalget trenger derfor ikke gjette.
+2. **Sist brukte tegning** som fallback.
+
+Utløses når malen har lokasjonsfeltet aktivt (`ReportTemplate.showLocation`, default true).
+
+**Sammenheng:** funn 2 og 3 er samme sak — utsnittet produseres ikke, så høyre kolonne står tom. Funn 1 er uavhengig. Funn 4 er ny funksjonalitet og hører til fabels malbygger-/lokasjonssak sammen med begrepsavklaringen (fast `showLocation` vs `location`-objekt vs `drawing_position`).
+
+### Værdata bør hentes fra byggeplassen når den er georeferert (Kenneth 2026-08-13)
+
+**Kenneth:** *«værdata hentes fra prosjektlokasjon, men den bør faktisk overstyres dersom rapporten er på en georeferert byggeplass»*
+
+**Målt:** `apps/web/src/hooks/useAutoVaer.ts:58-64` henter `prosjekt.latitude/longitude` via `trpc.prosjekt.hentMedId`. Ingen byggeplass-oppslag.
+
+**Koordinatene finnes allerede.** `Byggeplass.latitude/longitude/radiusM` (schema:869-871) settes når en koblet tegning georefereres — samme geofence som timer-modulen bruker.
+
+**Fiks:** fallback-kjede **byggeplass → prosjekt**. Har dokumentets `byggeplassId` koordinater, bruk dem; ellers prosjektets. Samme mønster som `prosjektReferanseForUtskrift` (eksternt → internt → SD).
+
+**Hvorfor det betyr noe:** et prosjekt kan strekke seg over flere kilometer. Prosjektlokasjonen er ett punkt satt manuelt i kartet (`Prosjektlokasjon`-panelet i oppsett); byggeplassen er der arbeidet faktisk skjer. For en befaringsrapport er været på byggeplassen dokumentasjon, ikke pynt.
+
+**Merk:** byggeplass-koordinater finnes kun når en tegning er georeferert. Fallbacken er derfor nødvendig, ikke valgfri.
 
 ### 🔴 P0 — GPS-prikk speilvendt på georeferert tegning ved 2-punkts kalibrering (fabel, verifisert i felt 2026-08-13)
 
