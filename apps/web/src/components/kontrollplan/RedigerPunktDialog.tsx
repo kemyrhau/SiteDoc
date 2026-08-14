@@ -17,10 +17,12 @@ interface Punkt {
   fristAar: number | null;
   status: string;
   avhengerAvId: string | null;
+  dokumentflytId: string | null;
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
   faggruppe: { id: string; name: string; color: string | null };
   omrade: { id: string; navn: string; type: string } | null;
   sjekkliste: { id: string; status: string } | null;
+  dokumentflyt: { id: string; name: string } | null;
   avhengerAv: { id: string; status: string; sjekklisteMal: { name: string }; omrade: { navn: string } | null } | null;
 }
 
@@ -224,6 +226,9 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
             </div>
           )}
 
+          {/* L1.5: forhåndsvalgt dokumentflyt (admin) — gjør Start uavhengig av hvem som trykker */}
+          <FlytSeksjon punkt={punkt} allePunkter={allePunkter} projectId={projectId} onOppdatert={onOppdatert} />
+
           {/* Frist */}
           <div>
             <label className="text-xs font-medium text-gray-600 mb-1 block">{t("kontrollplan.frist")}</label>
@@ -381,6 +386,107 @@ export function RedigerPunktDialog({ punkt, allePunkter, onLukk, onOppdatert, pr
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* L1.5: forhåndsvalgt dokumentflyt på punktet. Admin-only (settingen ER autorisasjonen
+ * for registrator-bypass ved Start, så den må kreve mer enn medlemskap). Velger + bulk
+ * «sett for alle punkter med denne malen» — det reelle tilfellet fra fremdriftsplan-import. */
+function FlytSeksjon({
+  punkt,
+  allePunkter,
+  projectId,
+  onOppdatert,
+}: {
+  punkt: Punkt;
+  allePunkter: Punkt[];
+  projectId: string;
+  onOppdatert: () => void;
+}) {
+  const { t } = useTranslation();
+  const { data: kanRedigere } = trpc.mal.kanRedigere.useQuery({ projectId });
+  const { data: flyter } = trpc.dokumentflyt.hentForProsjekt.useQuery(
+    { projectId },
+    { enabled: kanRedigere === true },
+  );
+  const [valgt, setValgt] = useState(punkt.dokumentflytId ?? "");
+  const [bulkResultat, setBulkResultat] = useState<{ oppdatert: number; hoppetOver: number } | null>(null);
+
+  const settPunktFlyt = trpc.kontrollplan.settPunktFlyt.useMutation({ onSuccess: () => onOppdatert() });
+  const settFlytForMal = trpc.kontrollplan.settFlytForMal.useMutation({
+    onSuccess: (r: { oppdatert: number; hoppetOver: number }) => { setBulkResultat(r); onOppdatert(); },
+  });
+
+  // Kandidatflyter: flyter som inneholder punktets mal OG har eier-faggruppe (bestiller
+  // utledes fra den ved Start). Uten eier-faggruppe kan flyten ikke forhåndsvelges.
+  const kandidater = useMemo(
+    () =>
+      (flyter ?? []).filter(
+        (f: { faggruppe: { id: string } | null; maler: Array<{ template: { id: string } }> }) =>
+          f.faggruppe != null && f.maler.some((m) => m.template.id === punkt.sjekklisteMalId),
+      ),
+    [flyter, punkt.sjekklisteMalId],
+  );
+
+  // Bulk-forhåndsvisning fra allerede-lastede punkter (cowork-krav: si hva den treffer
+  // FØR den kjører, og ikke overskriv bevisste valg stille).
+  const sammeMal = allePunkter.filter((p) => p.sjekklisteMalId === punkt.sjekklisteMalId);
+  const hoppesOver = valgt ? sammeMal.filter((p) => p.dokumentflytId && p.dokumentflytId !== valgt).length : 0;
+
+  if (kanRedigere !== true) return null;
+
+  return (
+    <div>
+      <label className="text-xs font-medium text-gray-600 mb-1.5 block">{t("kontrollplan.forhaandsvalgtFlyt")}</label>
+      <p className="text-[10px] text-gray-400 mb-1.5">{t("kontrollplan.forhaandsvalgtFlytHjelp")}</p>
+      <select
+        value={valgt}
+        onChange={(e) => {
+          const ny = e.target.value;
+          setValgt(ny);
+          setBulkResultat(null);
+          settPunktFlyt.mutate({ punktId: punkt.id, dokumentflytId: ny || null });
+        }}
+        disabled={settPunktFlyt.isPending}
+        className="w-full border rounded px-2 py-1.5 text-sm"
+      >
+        <option value="">{t("kontrollplan.flytIngenBrukRegistrator")}</option>
+        {kandidater.map((f: { id: string; name: string; faggruppe: { name: string } | null }) => (
+          <option key={f.id} value={f.id}>
+            {f.name}{f.faggruppe ? ` — ${f.faggruppe.name}` : ""}
+          </option>
+        ))}
+      </select>
+
+      {/* Bulk: sett samme flyt på alle punkter med denne malen (kun når en flyt er valgt
+          og det finnes mer enn ett punkt med malen). */}
+      {valgt && sammeMal.length > 1 && (
+        <div className="mt-1.5">
+          <button
+            type="button"
+            onClick={() =>
+              settFlytForMal.mutate({
+                kontrollplanId: punkt.kontrollplanId,
+                sjekklisteMalId: punkt.sjekklisteMalId,
+                dokumentflytId: valgt,
+              })
+            }
+            disabled={settFlytForMal.isPending}
+            className="text-[11px] text-sitedoc-secondary hover:underline disabled:opacity-50"
+          >
+            {t("kontrollplan.settFlytForAlle", { antall: sammeMal.length, mal: punkt.sjekklisteMal.name })}
+          </button>
+          {hoppesOver > 0 && (
+            <p className="text-[10px] text-gray-400 mt-0.5">{t("kontrollplan.settFlytHoppesOver", { antall: hoppesOver })}</p>
+          )}
+        </div>
+      )}
+      {bulkResultat && (
+        <p className="text-[10px] text-green-600 mt-1">
+          {t("kontrollplan.settFlytResultat", { oppdatert: bulkResultat.oppdatert, hoppetOver: bulkResultat.hoppetOver })}
+        </p>
+      )}
     </div>
   );
 }

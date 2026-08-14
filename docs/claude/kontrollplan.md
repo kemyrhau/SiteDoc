@@ -192,6 +192,18 @@ skjemaet, men ble aldri fylt — planen viste 0 % selv om sjekklister var godkje
 Statusløft er kun `planlagt → pagar` ved kobling; startet/utført/godkjent arbeid røres aldri.
 Aktiv varsling (scheduler) og tegningspunkter (`drawingId` på punktet) er Leveranse 2/3.
 
+### Forhåndsvalgt dokumentflyt (Leveranse 1.5)
+
+Dagens `opprettbareFlytIder` svarer på «hvilke flyter er **denne brukeren** registrator i» — så hvem som kan starte avhenger av hvem som er logget inn, mens kontrollplanen er et ledelsesdokument. En leder som ikke er registrator ble avvist (prod, `389d42aa`).
+
+**Modell (Kenneth-vedtak 2026-08-14):** behold registrator-kravet som standard, men gjør flyten til et **valgfritt felt på punktet** — `KontrollplanPunkt.dokumentflytId String?` (migrering `20260814120000_kontrollplan_punkt_dokumentflyt`, nullable, `onDelete: SetNull` → faller tilbake til registrator-regelen om flyten slettes).
+
+- **Feltet satt:** `sjekkliste.opprett` bruker punktets flyt direkte. Server utleder bestiller (flytens eier-faggruppe) og utfører (flytens utfører-medlem, fallback eier) **server-side**, og **hopper over registrator-/bestiller-medlemssjekken** (`planAutorisertFlyt` i `sjekkliste.ts`). Tilgangsgulv: klikkeren må være prosjektmedlem. Uavhengig av hvem som trykker — 0 klikk.
+- **Feltet null:** dagens registrator-regel, uendret.
+- **Setting** (`kontrollplan.settPunktFlyt` + bulk `settFlytForMal`) er **admin-gated** (`verifiserAdmin` = prosjektadmin/firmaadmin/sitedoc_admin), IKKE bare prosjektmedlem — ellers kunne enhver satt en flyt og omgått registrator-kravet i to klikk. Settingen ER autorisasjonen for bypass-veien. `settFlytForMal` (fra fremdriftsplan-import med gjentatt mal) hopper over punkter med en annen flyt satt (overskriver ikke bevisste valg).
+- **Handlingsbar feilmelding** når malen ikke er i en registrator-flyt: primær «Velg flyt for punktet» (kun til admin), sekundær «Til flyt-oppsett»-lenke (`/dashbord/oppsett/produksjon/dokumentflyt`) for den som mangler rettighet. Navigerer, fikser ikke.
+- Bypass-veien er dekket av `apps/api/src/routes/kontrollplan-flytvalg.integration.test.ts` (preset → ikke-registrator lykkes; uten preset → registrator-gaten står).
+
 ## Felttype-regler (KRITISK)
 
 ### Kun eksisterende ReportObject-typer

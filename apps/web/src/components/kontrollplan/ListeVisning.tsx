@@ -15,10 +15,12 @@ interface Punkt {
   fristAar: number | null;
   status: string;
   avhengerAvId: string | null;
+  dokumentflytId: string | null;
   sjekklisteMal: { id: string; name: string; prefix: string | null; kontrollomrade: string | null };
   faggruppe: { id: string; name: string; color: string | null };
   omrade: { id: string; navn: string; type: string } | null;
   sjekkliste: { id: string; status: string } | null;
+  dokumentflyt: { id: string; name: string } | null;
   avhengerAv: { id: string; status: string; sjekklisteMal: { name: string }; omrade: { navn: string } | null } | null;
 }
 

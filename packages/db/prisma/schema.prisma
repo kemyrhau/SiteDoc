@@ -1336,6 +1336,9 @@ model Dokumentflyt {
   checklists    Checklist[]
   tasks         Task[]
   godkjenninger Godkjenning[]
+  // L1.5: kontrollpunkter kan forhåndsvelge denne flyten. onDelete SetNull på
+  // punktsiden → sletter noen flyten, faller punktet tilbake til registrator-regelen.
+  kontrollplanPunkter KontrollplanPunkt[]
 
   @@index([projectId])
   @@index([faggruppeId])
@@ -2049,6 +2052,10 @@ model KontrollplanPunkt {
   varselUkerFor   Int      @default(1) @map("varsel_uker_for")
   status          String   @default("planlagt") // planlagt | pagar | utfort | godkjent
   sjekklisteId    String?  @unique @map("sjekkliste_id")
+  // L1.5: valgfri forhåndsvalgt dokumentflyt. Satt → Start bruker den direkte,
+  // uavhengig av hvem som trykker (flyten er plan-autorisert av en admin). Null →
+  // dagens registrator-regel (opprettbareFlytIder). Settes kun av admin (settPunktFlyt).
+  dokumentflytId  String?  @map("dokumentflyt_id")
   avhengerAvId    String?  @map("avhenger_av_id")
   opprettet       DateTime @default(now())
 
@@ -2078,6 +2085,7 @@ model KontrollplanPunkt {
   sjekklisteMal ReportTemplate          @relation(fields: [sjekklisteMalId], references: [id])
   faggruppe     Faggruppe               @relation(fields: [faggruppeId], references: [id])
   sjekkliste    Checklist?              @relation(fields: [sjekklisteId], references: [id], onDelete: SetNull)
+  dokumentflyt  Dokumentflyt?           @relation(fields: [dokumentflytId], references: [id], onDelete: SetNull)
   avhengerAv    KontrollplanPunkt?      @relation("PunktAvhengighet", fields: [avhengerAvId], references: [id], onDelete: SetNull)
   blokkerer     KontrollplanPunkt[]     @relation("PunktAvhengighet")
   historikk     KontrollplanHistorikk[]
@@ -2090,6 +2098,7 @@ model KontrollplanPunkt {
   @@index([kontrollplanId])
   @@index([milepelId])
   @@index([omradeId])
+  @@index([dokumentflytId])
   @@index([faggruppeId])
   @@index([status])
   @@index([fristUke, fristAar])

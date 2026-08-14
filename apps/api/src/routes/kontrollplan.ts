@@ -1,8 +1,39 @@
 import { z } from "zod";
+import { type Prisma } from "@sitedoc/db";
+import { TRPCError } from "@trpc/server";
 import { router, protectedProcedure } from "../trpc/trpc";
-import { verifiserProsjektmedlem } from "../trpc/tilgangskontroll";
+import { verifiserProsjektmedlem, verifiserAdmin } from "../trpc/tilgangskontroll";
 import { koblePunktTilSjekkliste } from "../services/kontrollplanKobling";
 import { IKKE_SLETTET } from "../utils/softDelete";
+
+// L1.5: en forhåndsvalgt flyt må høre til prosjektet, bruke punktets mal, og ha en
+// eier-faggruppe (bestiller utledes fra den ved Start). Uten disse ville bypass-veien
+// i sjekkliste.opprett fått en ugyldig flyt. Delt av settPunktFlyt + settFlytForMal.
+async function validerFlytForMal(
+  prisma: Prisma.TransactionClient,
+  args: { dokumentflytId: string; projectId: string; sjekklisteMalId: string },
+): Promise<void> {
+  const flyt = await prisma.dokumentflyt.findUnique({
+    where: { id: args.dokumentflytId },
+    select: {
+      projectId: true,
+      faggruppeId: true,
+      maler: { where: { templateId: args.sjekklisteMalId }, select: { id: true } },
+    },
+  });
+  if (!flyt || flyt.projectId !== args.projectId) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten hører ikke til dette prosjektet." });
+  }
+  if (flyt.maler.length === 0) {
+    throw new TRPCError({ code: "BAD_REQUEST", message: "Dokumentflyten bruker ikke malen dette punktet kontrollerer." });
+  }
+  if (!flyt.faggruppeId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Dokumentflyten mangler eier-faggruppe og kan ikke forhåndsvelges. Sett en eier-faggruppe på flyten først.",
+    });
+  }
+}
 
 // Felles includes for kontrollplan-spørringer
 const punktIncludes = {
@@ -10,6 +41,9 @@ const punktIncludes = {
   faggruppe: { select: { id: true, name: true, color: true } },
   omrade: { select: { id: true, navn: true, type: true } },
   sjekkliste: { select: { id: true, status: true } },
+  // L1.5: forhåndsvalgt flyt på punktet (satt av admin). Klienten bruker den til å
+  // starte direkte (0 klikk) og til å vise hvilken flyt punktet er bundet til.
+  dokumentflyt: { select: { id: true, name: true } },
   avhengerAv: { select: { id: true, status: true, sjekklisteMal: { select: { name: true } }, omrade: { select: { navn: true } } } },
 } as const;
 
@@ -480,6 +514,77 @@ export const kontrollplanRouter = router({
         },
         orderBy: { createdAt: "desc" },
       });
+    }),
+
+  // L1.5: sett/tøm forhåndsvalgt dokumentflyt på ETT punkt. Admin-gated (verifiserAdmin
+  // = prosjektadmin/firmaadmin/sitedoc_admin) — IKKE bare prosjektmedlem. Ellers kunne
+  // enhver sette en flyt og så starte med registrator-bypass (auth-hullet cowork fanget):
+  // settingen ER autorisasjonen, så den må kreve mer enn medlemskap.
+  settPunktFlyt: protectedProcedure
+    .input(z.object({ punktId: z.string(), dokumentflytId: z.string().uuid().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      const punkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
+        where: { id: input.punktId },
+        select: { sjekklisteMalId: true, kontrollplan: { select: { projectId: true } } },
+      });
+      await verifiserAdmin(ctx.userId, punkt.kontrollplan.projectId);
+      if (input.dokumentflytId) {
+        await validerFlytForMal(ctx.prisma, {
+          dokumentflytId: input.dokumentflytId,
+          projectId: punkt.kontrollplan.projectId,
+          sjekklisteMalId: punkt.sjekklisteMalId,
+        });
+      }
+      await ctx.prisma.kontrollplanPunkt.update({
+        where: { id: input.punktId },
+        data: { dokumentflytId: input.dokumentflytId },
+      });
+      return ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
+        where: { id: input.punktId },
+        include: punktIncludes,
+      });
+    }),
+
+  // L1.5 bulk: sett flyt på ALLE ikke-arkiverte punkter med samme mal i planen. En
+  // importert fremdriftsplan gir mange punkter fra samme mal, og å sette flyt per punkt
+  // blir uutholdelig. Hopper over punkter som alt har en ANNEN flyt (bevisst valg) — de
+  // telles i hoppetOver, overskrives ikke stille (cowork-krav 2). Idempotent for samme
+  // flyt. Klienten viser «sett på N punkter» fra allerede-lastede data før kall (krav 1).
+  settFlytForMal: protectedProcedure
+    .input(z.object({
+      kontrollplanId: z.string(),
+      sjekklisteMalId: z.string().uuid(),
+      dokumentflytId: z.string().uuid().nullable(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const plan = await ctx.prisma.kontrollplan.findUniqueOrThrow({
+        where: { id: input.kontrollplanId },
+        select: { projectId: true },
+      });
+      await verifiserAdmin(ctx.userId, plan.projectId);
+      const basis = {
+        kontrollplanId: input.kontrollplanId,
+        sjekklisteMalId: input.sjekklisteMalId,
+        arkivert: false,
+      };
+      if (input.dokumentflytId === null) {
+        // Tøm preset på alle punkter med malen (tilbake til registrator-regelen).
+        const r = await ctx.prisma.kontrollplanPunkt.updateMany({ where: basis, data: { dokumentflytId: null } });
+        return { oppdatert: r.count, hoppetOver: 0 };
+      }
+      await validerFlytForMal(ctx.prisma, {
+        dokumentflytId: input.dokumentflytId,
+        projectId: plan.projectId,
+        sjekklisteMalId: input.sjekklisteMalId,
+      });
+      const [total, oppdatert] = await ctx.prisma.$transaction([
+        ctx.prisma.kontrollplanPunkt.count({ where: basis }),
+        ctx.prisma.kontrollplanPunkt.updateMany({
+          where: { ...basis, OR: [{ dokumentflytId: null }, { dokumentflytId: input.dokumentflytId }] },
+          data: { dokumentflytId: input.dokumentflytId },
+        }),
+      ]);
+      return { oppdatert: oppdatert.count, hoppetOver: total - oppdatert.count };
     }),
 
   // Opprett milepæl

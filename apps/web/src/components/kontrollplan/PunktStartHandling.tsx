@@ -14,6 +14,9 @@ interface PunktLite {
   sjekklisteMalId: string;
   status: string;
   sjekkliste: { id: string; status: string } | null;
+  // L1.5: forhåndsvalgt flyt på punktet. Satt → Start bruker den direkte.
+  dokumentflytId: string | null;
+  dokumentflyt: { id: string; name: string } | null;
 }
 
 const fremdriftFarger: Record<string, string> = {
@@ -44,12 +47,18 @@ export function PunktStartHandling({
   byggeplassId,
   flytStatus,
   onEndret,
+  kanSetteFlyt = false,
+  onVelgFlyt,
 }: {
   punkt: PunktLite;
   projectId: string;
   byggeplassId: string;
   flytStatus: MalFlytStatus | undefined;
   onEndret: () => void;
+  // L1.5: kan innlogget bruker sette forhåndsvalgt flyt (admin)? Styrer om «Velg flyt
+  // for punktet»-handlingen tilbys i feilmeldingen — ellers ville den gitt en ny feil.
+  kanSetteFlyt?: boolean;
+  onVelgFlyt?: () => void;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -57,6 +66,9 @@ export function PunktStartHandling({
   const [visFlytVelger, setVisFlytVelger] = useState(false);
   const [visKobleDialog, setVisKobleDialog] = useState(false);
   const [feil, setFeil] = useState<string | null>(null);
+  // L1.5: sant kun for «ingen flyt»-feilen → da tilbys de handlingsbare knappene.
+  // Server-feil (opprett.onError) er ikke flyt-relatert og skal ikke vise dem.
+  const [visFlytHjelp, setVisFlytHjelp] = useState(false);
 
   const opprett = trpc.sjekkliste.opprett.useMutation({
     onSuccess: (sjekkliste: { id: string }) => {
@@ -64,7 +76,7 @@ export function PunktStartHandling({
       onEndret();
       router.push(`/dashbord/${projectId}/sjekklister/${sjekkliste.id}`);
     },
-    onError: (err: { message: string }) => setFeil(err.message),
+    onError: (err: { message: string }) => { setVisFlytHjelp(false); setFeil(err.message); },
   });
 
   function startMedFlyt(flytId: string, bestillerFaggruppeId: string, utforerFaggruppeId: string) {
@@ -82,8 +94,22 @@ export function PunktStartHandling({
 
   function handleStart() {
     setFeil(null);
+    setVisFlytHjelp(false);
+    // L1.5: er flyten forhåndsvalgt på punktet, start direkte — uavhengig av om
+    // klikkeren er registrator. Server utleder bestiller/utfører fra flyten.
+    if (punkt.dokumentflytId) {
+      setVisFlytVelger(false);
+      opprett.mutate({
+        templateId: punkt.sjekklisteMalId,
+        dokumentflytId: punkt.dokumentflytId,
+        byggeplassId,
+        kontrollplanPunktId: punkt.id,
+      });
+      return;
+    }
     if (!flytStatus || flytStatus.type === "ingen") {
       setFeil(t("kontrollplan.startIngenFlyt"));
+      setVisFlytHjelp(true);
       return;
     }
     if (flytStatus.type === "en") {
@@ -142,10 +168,35 @@ export function PunktStartHandling({
       </div>
 
       {feil && (
-        <p className="mt-1 flex items-start gap-1 text-[11px] text-sitedoc-error max-w-[240px]">
-          <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
-          {feil}
-        </p>
+        <div className="mt-1 max-w-[240px]">
+          <p className="flex items-start gap-1 text-[11px] text-sitedoc-error">
+            <AlertCircle className="h-3 w-3 flex-shrink-0 mt-0.5" />
+            {feil}
+          </p>
+          {visFlytHjelp && (
+            <div className="mt-1.5 flex flex-col gap-1">
+              {/* Primær: den som kan sette flyt (admin) løser det på stedet. */}
+              {kanSetteFlyt && onVelgFlyt && (
+                <button
+                  type="button"
+                  onClick={onVelgFlyt}
+                  className="self-start px-2 py-1 bg-sitedoc-primary text-white text-[11px] rounded hover:bg-sitedoc-primary/90 transition"
+                >
+                  {t("kontrollplan.velgFlytForPunkt")}
+                </button>
+              )}
+              {/* Sekundær: den som mangler rettigheter kommer til oppsettet og kan peke på hva som mangler. */}
+              <button
+                type="button"
+                onClick={() => router.push("/dashbord/oppsett/produksjon/dokumentflyt")}
+                className="self-start flex items-center gap-1 text-[11px] text-sitedoc-secondary hover:underline"
+              >
+                <ExternalLink className="h-3 w-3" />
+                {t("kontrollplan.tilFlytOppsett")}
+              </button>
+            </div>
+          )}
+        </div>
       )}
 
       {/* Flyt-velger når malen ligger i flere flyter */}
