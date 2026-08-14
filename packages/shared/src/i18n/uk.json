@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Попередньо вибраний документообіг",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Коли потік вибрано, будь-хто може запустити точку в цьому потоці — незалежно від реєстратора. Порожньо: сьогоднішнє правило (той, хто починає, має бути реєстратором у потоці).",
   "kontrollplan.flytIngenBrukRegistrator": "Немає — використовувати правило реєстратора",
+  "kontrollplan.flytLaastEtterStart": "Пункт розпочато. Потік прив’язано до створеного контрольного списку — зміна його тут не призведе до переміщення існуючого документа.",
   "kontrollplan.settFlytForAlle": "Застосувати до всіх {{antall}} точок із шаблоном {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} уже мають інший потік і їх пропускають",
   "kontrollplan.settFlytResultat": "{{oppdatert}} оновлено, {{hoppetOver}} пропущено",

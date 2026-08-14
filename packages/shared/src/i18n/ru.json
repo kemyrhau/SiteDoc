@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Предварительно выбранный документооборот",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Когда поток выбран, любой может начать точку в этом потоке — независимо от регистратора. Пусто: сегодняшнее правило (тот, кто начинает, должен быть регистратором в потоке).",
   "kontrollplan.flytIngenBrukRegistrator": "Нет — использовать правило регистратора",
+  "kontrollplan.flytLaastEtterStart": "Дело пошло. Поток привязан к созданному контрольному списку — изменение его здесь не приведет к перемещению существующего документа.",
   "kontrollplan.settFlytForAlle": "Применить ко всем точкам {{antall}} с шаблоном {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} уже имеют другой поток и пропускаются",
   "kontrollplan.settFlytResultat": "{{oppdatert}} обновлено, {{hoppetOver}} пропущено",

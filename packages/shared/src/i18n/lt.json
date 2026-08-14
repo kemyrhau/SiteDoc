@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Iš anksto pasirinktas dokumentų srautas",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Kai pasirenkamas srautas, bet kas gali pradėti tašką tame sraute, nepriklausomai nuo registratoriaus. Tuščia: šios dienos taisyklė (kas pradeda, turi būti registratorius sraute).",
   "kontrollplan.flytIngenBrukRegistrator": "Nėra – naudokite registratoriaus taisyklę",
+  "kontrollplan.flytLaastEtterStart": "Taškas pradėtas. Srautas užrakintas pagal sukurtą kontrolinį sąrašą – pakeitus jį čia, esamas dokumentas nebūtų perkeltas.",
   "kontrollplan.settFlytForAlle": "Taikyti visiems {{antall}} taškams su šablonu {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} jau turi kitą srautą ir yra praleisti",
   "kontrollplan.settFlytResultat": "{{oppdatert}} atnaujinta, {{hoppetOver}} praleista",

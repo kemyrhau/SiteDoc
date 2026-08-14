@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Esivalittu asiakirjakulku",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Kun kulku on valittu, kuka tahansa voi aloittaa pisteen kyseisessä kulussa – rekisteröijästä riippumatta. Tyhjä: tämän päivän sääntö (joka aloittaa, on oltava rekisteröijä.",
   "kontrollplan.flytIngenBrukRegistrator": "Ei mitään — käytä rekisterinpitäjän sääntöä",
+  "kontrollplan.flytLaastEtterStart": "Kohta on aloitettu. Kulku on lukittu luotuun tarkistuslistaan ​​– sen muuttaminen tässä ei siirrä olemassa olevaa asiakirjaa.",
   "kontrollplan.settFlytForAlle": "Käytä kaikkiin {{antall}} pisteisiin mallilla {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} on jo erilainen, ja ne ohitetaan",
   "kontrollplan.settFlytResultat": "{{oppdatert}} päivitetty, {{hoppetOver}} ohitettu",

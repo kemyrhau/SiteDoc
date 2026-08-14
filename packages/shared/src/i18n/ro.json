@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Fluxul de documente preselectat",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Când este selectat un flux, oricine poate începe punctul din acel flux - indiferent de registrator. Gol: regula de astăzi (cine începe trebuie să fie registrator în flux).",
   "kontrollplan.flytIngenBrukRegistrator": "Nici unul — utilizați regula registratorului",
+  "kontrollplan.flytLaastEtterStart": "Punctul a fost început. Fluxul este blocat în lista de verificare care a fost creată - modificarea acestuia nu ar muta documentul existent.",
   "kontrollplan.settFlytForAlle": "Aplicați la toate {{antall}} puncte cu șablonul {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} au deja un flux diferit și sunt ignorate",
   "kontrollplan.settFlytResultat": "{{oppdatert}} a fost actualizat, {{hoppetOver}} a fost omis",

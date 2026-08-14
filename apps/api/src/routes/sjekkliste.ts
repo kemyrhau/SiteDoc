@@ -296,7 +296,7 @@ export const sjekklisteRouter = router({
       if (input.kontrollplanPunktId) {
         const startPunkt = await ctx.prisma.kontrollplanPunkt.findUniqueOrThrow({
           where: { id: input.kontrollplanPunktId },
-          select: { dokumentflytId: true, kontrollplan: { select: { projectId: true } } },
+          select: { dokumentflytId: true, faggruppeId: true, kontrollplan: { select: { projectId: true } } },
         });
         if (startPunkt.dokumentflytId) {
           planAutorisertFlyt = true;
@@ -316,7 +316,12 @@ export const sjekklisteRouter = router({
           effektivFlytId = startPunkt.dokumentflytId;
           effektivBestiller = flyt.faggruppeId ?? undefined;
           effektivUtforer = flyt.medlemmer[0]?.faggruppeId ?? flyt.faggruppeId ?? undefined;
-          await verifiserProsjektmedlem(ctx.userId, startPunkt.kontrollplan.projectId);
+          // L1.6: gulvet er IKKE lenger «prosjektmedlem» — klikkeren må tilhøre PUNKTETS
+          // faggruppe. Planen sier allerede hvem som utfører kontrollen; det er grensen.
+          // verifiserFaggruppeTilhorighet har admin-bypass og flyt-registrator-alternativ,
+          // så en admin eller flyt-oppretter kan fortsatt starte. Lukker L1.5-hullet der
+          // ethvert prosjektmedlem kunne starte et preset-punkt uten å tilhøre faggruppen.
+          await verifiserFaggruppeTilhorighet(ctx.userId, startPunkt.faggruppeId);
         }
       }
 

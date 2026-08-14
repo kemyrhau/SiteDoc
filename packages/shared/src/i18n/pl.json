@@ -3312,6 +3312,7 @@
   "kontrollplan.forhaandsvalgtFlyt": "Wstępnie wybrany obieg dokumentów",
   "kontrollplan.forhaandsvalgtFlytHjelp": "Po wybraniu przepływu każdy może rozpocząć punkt w tym przepływie — niezależnie od rejestratora. Puste: dzisiejsza zasada (ktokolwiek zaczyna, musi być rejestratorem w przepływie).",
   "kontrollplan.flytIngenBrukRegistrator": "Brak — użyj reguły rejestratora",
+  "kontrollplan.flytLaastEtterStart": "Punkt został rozpoczęty. Przepływ jest zablokowany na utworzonej liście kontrolnej — zmiana go w tym miejscu nie spowoduje przeniesienia istniejącego dokumentu.",
   "kontrollplan.settFlytForAlle": "Zastosuj do wszystkich punktów {{antall}} za pomocą szablonu {{mal}}",
   "kontrollplan.settFlytHoppesOver": "{{antall}} mają już inny przepływ i są pomijane",
   "kontrollplan.settFlytResultat": "Zaktualizowano {{oppdatert}}, pominięto {{hoppetOver}}",

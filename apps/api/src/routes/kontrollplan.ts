@@ -35,12 +35,37 @@ async function validerFlytForMal(
   }
 }
 
+// L1.6: ved planoppsett bindes punktets flyt automatisk NÅR malen ligger i nøyaktig én
+// kvalifiserende flyt (samme kriterium som validerFlytForMal: i prosjektet, inneholder
+// malen, har eier-faggruppe). 0 eller ≥2 kandidater → null; da velger admin ved reell
+// tvetydighet. Kjøres KUN ved OPPRETTELSE av punktet — aldri som opprydding senere — så et
+// felt en admin bevisst har tømt aldri settes tilbake av automatikken.
+async function finnEntydigFlytForMal(
+  prisma: Prisma.TransactionClient,
+  args: { projectId: string; sjekklisteMalId: string },
+): Promise<string | null> {
+  const kandidater = await prisma.dokumentflyt.findMany({
+    where: {
+      projectId: args.projectId,
+      faggruppeId: { not: null },
+      maler: { some: { templateId: args.sjekklisteMalId } },
+    },
+    select: { id: true },
+    take: 2, // trenger bare å skille 0 / 1 / ≥2
+  });
+  const [entydig] = kandidater;
+  return kandidater.length === 1 && entydig ? entydig.id : null;
+}
+
 // Felles includes for kontrollplan-spørringer
 const punktIncludes = {
   sjekklisteMal: { select: { id: true, name: true, prefix: true, kontrollomrade: true } },
   faggruppe: { select: { id: true, name: true, color: true } },
   omrade: { select: { id: true, navn: true, type: true } },
-  sjekkliste: { select: { id: true, status: true } },
+  // L1.6: sjekklistens FAKTISKE flyt (dokumentflyt) — for det ærlige feltet i dialogen:
+  // er punktet startet, vises flyten dokumentet faktisk ligger i (read-only), ikke punktets
+  // preset som ikke ville flyttet det eksisterende dokumentet.
+  sjekkliste: { select: { id: true, status: true, dokumentflytId: true, dokumentflyt: { select: { id: true, name: true } } } },
   // L1.5: forhåndsvalgt flyt på punktet (satt av admin). Klienten bruker den til å
   // starte direkte (0 klikk) og til å vise hvilken flyt punktet er bundet til.
   dokumentflyt: { select: { id: true, name: true } },
@@ -141,6 +166,13 @@ export const kontrollplanRouter = router({
       });
       await verifiserProsjektmedlem(ctx.userId, kontrollplan.projectId);
 
+      // L1.6: alle punktene i kallet deler samme mal → én oppslag. Entydig flyt bindes
+      // ved opprettelse; ellers null (Start viser feilmeldingen, admin setter flyten).
+      const autoFlytId = await finnEntydigFlytForMal(ctx.prisma, {
+        projectId: kontrollplan.projectId,
+        sjekklisteMalId: input.sjekklisteMalId,
+      });
+
       // Opprett importhendelsen på første kall i en import (påfølgende gruppe-kall
       // gjenbruker importKildeId). Ligger utenfor punkt-transaksjonen: feiler
       // punkt-innsettingen (mest sannsynlig duplikat-import der unik-guarden slår
@@ -171,6 +203,7 @@ export const kontrollplanRouter = router({
               kontrollplanId: input.kontrollplanId,
               sjekklisteMalId: input.sjekklisteMalId,
               faggruppeId: input.faggruppeId,
+              dokumentflytId: autoFlytId ?? undefined, // L1.6: entydig flyt auto-bundet
               milepelId: input.milepelId ?? undefined,
               omradeId: p.omradeId ?? undefined,
               fristUke: p.fristUke ?? undefined,
@@ -345,13 +378,24 @@ export const kontrollplanRouter = router({
           }
         }
 
-        // Nye punkter.
+        // Nye punkter. L1.6: auto-bind entydig flyt per mal (cache — nyePunkter kan
+        // blande maler, men samme mal gir samme svar, så vi slår opp én gang hver).
+        const flytCache = new Map<string, string | null>();
         for (const p of input.nyePunkter) {
+          let autoFlytId = flytCache.get(p.sjekklisteMalId);
+          if (autoFlytId === undefined) {
+            autoFlytId = await finnEntydigFlytForMal(tx, {
+              projectId: kontrollplan.projectId,
+              sjekklisteMalId: p.sjekklisteMalId,
+            });
+            flytCache.set(p.sjekklisteMalId, autoFlytId);
+          }
           const nytt = await tx.kontrollplanPunkt.create({
             data: {
               kontrollplanId: input.kontrollplanId,
               sjekklisteMalId: p.sjekklisteMalId,
               faggruppeId: p.faggruppeId,
+              dokumentflytId: autoFlytId ?? undefined, // L1.6: entydig flyt auto-bundet
               importTaskUid: p.importTaskUid,
               importWbs: p.importWbs ?? undefined,
               importNavn: p.importNavn,
@@ -834,6 +878,9 @@ export const kontrollplanRouter = router({
             kontrollplanId: input.kontrollplanId,
             sjekklisteMalId: kilde.sjekklisteMalId,
             faggruppeId: kilde.faggruppeId,
+            // L1.6: kopien arver kildens flyt-binding (auto-satt ELLER admin-valgt) —
+            // riktigere enn å re-derivere, som kunne avvike fra et bevisst valg på kilden.
+            dokumentflytId: kilde.dokumentflytId,
             milepelId: kilde.milepelId,
             omradeId: maalOmradeId,
             fristUke,
