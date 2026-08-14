@@ -35,19 +35,24 @@ async function hentBrowser() {
 /**
  * Venter til ALLE bilder er dekodet OG ingen [data-utskrift-venter] gjenstår
  * (canvas/pdfjs). Returnerer true når alt er klart, false ved timeout.
+ *
+ * MÅ være en ekte funksjon (ikke en streng): `page.evaluate(streng, arg)` tolker
+ * strengen som et UTTRYKK og ignorerer argumentet — funksjonen ble da aldri kalt,
+ * `komplett` ble `undefined` → `x-render-komplett` alltid `false`, og vakten
+ * kjørte aldri. Som funksjon serialiserer Playwright den og kaller den med `maksMs`.
  */
-const VENT_FN = `async (maksMs) => {
+const VENT_FN = async (maksMs) => {
   const start = Date.now();
   const klar = () => {
     const bilderOk = [...document.images].every((i) => i.complete && i.naturalWidth > 0);
-    const ventereOk = document.querySelectorAll('[data-utskrift-venter]').length === 0;
+    const ventereOk = document.querySelectorAll("[data-utskrift-venter]").length === 0;
     return bilderOk && ventereOk;
   };
   while (!klar() && Date.now() - start < maksMs) {
     await new Promise((r) => setTimeout(r, 100));
   }
   return klar();
-}`;
+};
 
 app.get("/health", async () => ({ status: "ok" }));
 app.get("/version", async () => ({ gitSha: GIT_SHA, buildTid: BUILD_TID }));
@@ -61,7 +66,7 @@ app.post("/pdf", async (req, reply) => {
   const ctx = await (await hentBrowser()).newContext();
   const page = await ctx.newPage();
   try {
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "networkidle" });
     const komplett = await page.evaluate(VENT_FN, MAKS_VENT_MS);
 
     const pdf = await page.pdf({
